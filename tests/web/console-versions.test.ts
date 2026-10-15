@@ -210,4 +210,20 @@ describe('les versions du service, à la souris', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
+  it('l\'audit C04 : le dernier tour n\'a pas pu lire les consignes — l\'écran le dit, et la prochaine attend', async () => {
+    const avant = fs.readFileSync(etat, 'utf8');
+    const t = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
+    const e = JSON.parse(avant) as Record<string, unknown> & { commits: Record<string, unknown>[] };
+    // La prochaine a toutes ses preuves : sans la panne de lecture, elle serait prête.
+    fs.writeFileSync(etat, JSON.stringify({ ...e, commits: e.commits.map((c) => (c.version === D ? { ...c, preuves: 'vert' } : c)),
+      consignes: { lues: t(30), gel: null, retenues: [], retour: null }, consignesIllisibles: t(1) }));
+    try {
+      const p = await ouvrir();
+      await expect.poll(async () => net(await p.locator('.c-ve-consignes .c-alerte').innerText().catch(() => '')), { timeout: 10_000 })
+        .toMatch(/^Le suiveur n'a pas pu les lire à \d\d:\d\d, à son dernier tour : il n'installe rien tant qu'il ne les relit pas\. Les dernières lues, à \d\d:\d\d, restent ci-dessous\.$/);
+      expect(net(await p.locator('.c-ve-prochaine').innerText())).toContain('Prête, mais le suiveur n\'a pas pu lire les consignes à son dernier tour');
+      expect(erreurs).toEqual([]);
+      await fermer(p);
+    } finally { fs.writeFileSync(etat, avant); }
+  }, 60_000);
 });

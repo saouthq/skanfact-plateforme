@@ -11047,23 +11047,25 @@ prouver 'un abonnement changé depuis la lecture, écrasé' serveur/console/rout
 prouver 'un geste de la console qu'"'"'on efface' base/migrations/0083_console.sql \
   'create trigger geste_console_intouchable before update or delete on plateforme.geste_console' 'create trigger geste_console_intouchable before update on plateforme.geste_console' \
   "$CONSS15"
-prouver 'changer son propre rôle dans l'"'"'équipe' base/migrations/0083_console.sql \
+prouver 'changer son propre rôle dans l'"'"'équipe' base/migrations/0123_equipe_en_concurrence.sql \
   '  if p_membre = socle.moi() then perform socle.refus('"'"'personne ne change son propre rôle'"'"'); end if;
 ' '' \
   "$CONSS16"
-prouver 'se retirer soi-même de l'"'"'équipe' base/migrations/0083_console.sql \
+prouver 'se retirer soi-même de l'"'"'équipe' base/migrations/0123_equipe_en_concurrence.sql \
   '  if p_membre = socle.moi() then perform socle.refus('"'"'personne ne se retire soi-même de l'"'"''"'"'équipe SkanFact'"'"'); end if;
 ' '' \
   "$CONSS16"
-prouver 'une personne ajoutée deux fois à l'"'"'équipe' base/migrations/0083_console.sql \
-  '  if coalesce((v_avant->>'"'"'actif'"'"')::boolean, false) then' '  if false then' \
+prouver 'une personne ajoutée deux fois à l'"'"'équipe' base/migrations/0123_equipe_en_concurrence.sql \
+  'where e.utilisateur = v_u for update;
+  if coalesce((v_avant->>'"'"'actif'"'"')::boolean, false) then' 'where e.utilisateur = v_u for update;
+  if false then' \
   "$CONSS16"
 prouver 'un membre retiré qui se connecte encore' base/migrations/0083_console.sql \
   '  select e.role from plateforme.equipe e where e.utilisateur = p_utilisateur and e.actif
 ' '  select e.role from plateforme.equipe e where e.utilisateur = p_utilisateur
 ' \
   "$CONSS17"
-prouver 'les sessions d'"'"'un membre retiré qui restent ouvertes' 'base/migrations/0083_console.sql|||base/migrations/0114_chiffres_justes.sql' \
+prouver 'les sessions d'"'"'un membre retiré qui restent ouvertes' 'base/migrations/0123_equipe_en_concurrence.sql|||base/migrations/0114_chiffres_justes.sql' \
   '  update plateforme.session_console set fermee_le = p_maintenant where utilisateur = p_membre and fermee_le is null;
 |||   where e.utilisateur = s.utilisateur and e.actif
 ' '|||   where e.utilisateur = s.utilisateur
@@ -11079,7 +11081,7 @@ prouver 'le premier membre posé sans sa ligne au journal' base/equipe.ts \
 ' '' \
   "$CONSS18"
 prouver 'la dernière personne à la direction retirée par l'"'"'outil' base/equipe.ts \
-  '    if (avant.role === '"'"'direction'"'"' && directions === 1) throw new Error('"'"'l\'"'"'équipe garde toujours une personne à la direction : ajoute d\'"'"'abord quelqu\'"'"'un d\'"'"'autre'"'"');
+  '    if (avant.role === '"'"'direction'"'"' && await directions(client) === 1) throw new Error('"'"'l\'"'"'équipe garde toujours une personne à la direction : ajoute d\'"'"'abord quelqu\'"'"'un d\'"'"'autre'"'"');
 ' '' \
   "$CONSS18"
 prouver 'la veille qui ne vieillit jamais' serveur/console/routes.ts \
@@ -14521,17 +14523,23 @@ prouver 'la direction sans chemin vers son compte' 'web/console/src/ecrans/Equip
   'la direction passe de l'"'"'équipe à son compte, et revient'
 
 # 1.25.0 : inviter quelqu'un (0118 ; docs/console.md C41).
-prouver 'le support invite (la route et la base)' 'base/migrations/0118_invitations_console.sql|||serveur/console/gestes.ts' \
-  'declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']); v_email text|||  { code: '"'"'console.equipe.gerer'"'"', roles: [D], ecrit: true },' \
-  'declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']); v_email text|||  { code: '"'"'console.equipe.gerer'"'"', roles: [D, S], ecrit: true },' \
+prouver 'le support invite (la route et la base)' 'base/migrations/0123_equipe_en_concurrence.sql|||base/migrations/0123_equipe_en_concurrence.sql|||serveur/console/gestes.ts|||base/migrations/0119_invitations_courriel.sql' \
+  'declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']); v_email text|||  v_role := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  if coalesce(p_role, '"'"''"'"') not in ('"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"') then perform socle.refus('"'"'ce rôle n'"'"''"'"'existe pas dans l'"'"''"'"'équipe SkanFact'"'"'); end if;
+  if length(btrim(coalesce(p_motif, '"'"''"'"'))) < 3 then perform socle.refus('"'"'un geste sur l'"'"''"'"'équipe demande son motif (trois caractères au moins)'"'"'); end if;
+  if v_email|||  { code: '"'"'console.equipe.gerer'"'"', roles: [D], ecrit: true },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"']);' \
+  'declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']); v_email text|||  v_role := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  if coalesce(p_role, '"'"''"'"') not in ('"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"') then perform socle.refus('"'"'ce rôle n'"'"''"'"'existe pas dans l'"'"''"'"'équipe SkanFact'"'"'); end if;
+  if length(btrim(coalesce(p_motif, '"'"''"'"'))) < 3 then perform socle.refus('"'"'un geste sur l'"'"''"'"'équipe demande son motif (trois caractères au moins)'"'"'); end if;
+  if v_email|||  { code: '"'"'console.equipe.gerer'"'"', roles: [D, S], ecrit: true },|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);' \
   'la direction seule invite ; le lien se rend une fois, la liste n'"'"'en garde rien ; une nouvelle invitation remplace l'"'"'ancienne'
-prouver 'l'"'"'ancien lien vaut encore après une nouvelle invitation' 'base/migrations/0118_invitations_console.sql' \
+prouver 'l'"'"'ancien lien vaut encore après une nouvelle invitation' 'base/migrations/0123_equipe_en_concurrence.sql' \
   '  update plateforme.invitation_console set annulee_le = p_maintenant
    where email = v_email and acceptee_le is null and annulee_le is null;
 ' \
   '' \
   'la direction seule invite ; le lien se rend une fois, la liste n'"'"'en garde rien ; une nouvelle invitation remplace l'"'"'ancienne'
-prouver 'annuler laisse le lien valable' 'base/migrations/0118_invitations_console.sql' \
+prouver 'annuler laisse le lien valable' 'base/migrations/0123_equipe_en_concurrence.sql' \
   'set annulee_le = p_maintenant
    where id = p_invitation and acceptee_le is null' \
   'set expire_le = expire_le
@@ -14543,7 +14551,7 @@ $$;' \
   'where i.jeton_empreinte = p_jeton_empreinte and i.acceptee_le is null and i.annulee_le is null
 $$;' \
   'renvoyer donne un lien neuf (l'"'"'ancien ne vaut plus) ; annuler éteint le lien ; un lien passé ou inventé ne dit rien'
-prouver 'le lien accepté resservirait' 'base/migrations/0118_invitations_console.sql' \
+prouver 'le lien accepté resservirait' 'base/migrations/0123_equipe_en_concurrence.sql' \
   '  update plateforme.invitation_console set acceptee_le = p_maintenant, acceptee_par = socle.moi() where id = i.id;
 ' \
   '' \
@@ -14776,6 +14784,71 @@ prouver 'changé depuis la console, le mot de passe prend une seconde connexion'
   'changerMotDePasse(ctx, qui, corps.actuel, corps.nouveau, transaction(tx));' \
   'changerMotDePasse(ctx, qui, corps.actuel, corps.nouveau);' \
   'l'"'"'audit C03 : changé depuis la console, le mot de passe tient dans la transaction de la route — avec une seule connexion, il aboutit'
+
+# 1.29.0 : le gel tenu, l'équipe en concurrence (0123 ; l'audit de la console 1.26.0, C04 à C06).
+prouver 'des consignes illisibles valent « aucune consigne »' 'exploitation/suivre.ts' \
+  '  if (l.sorte === '"'"'absentes'"'"' || enService === null) return SANS_CONSIGNE;
+  return null;' \
+  '  if (l.sorte === '"'"'absentes'"'"' || enService === null) return SANS_CONSIGNE;
+  return SANS_CONSIGNE;' \
+  'l'"'"'audit C04 : des consignes illisibles n'"'"'installent rien tant qu'"'"'une version tourne ; absentes (une base d'"'"'avant elles) ou un serveur neuf, le tour suit'
+prouver 'un serveur neuf bloqué par des consignes illisibles' 'exploitation/suivre.ts' \
+  'if (l.sorte === '"'"'absentes'"'"' || enService === null) return SANS_CONSIGNE;' \
+  'if (l.sorte === '"'"'absentes'"'"') return SANS_CONSIGNE;' \
+  'l'"'"'audit C04 : des consignes illisibles n'"'"'installent rien tant qu'"'"'une version tourne ; absentes (une base d'"'"'avant elles) ou un serveur neuf, le tour suit'
+prouver 'la prochaine se dit prête quand le suiveur ne lit plus les consignes' 'serveur/console/versions.ts' \
+  ': gel ? '"'"'gelee'"'"' : e.consignesIllisibles ? '"'"'bloquee'"'"' : '"'"'prete'"'"';' \
+  ': gel ? '"'"'gelee'"'"' : '"'"'prete'"'"';' \
+  'la prochaine : la plus récente, et où elle en est — retenue, gelée, en attente des preuves, prête'
+prouver 'l'"'"'écran tait des consignes illisibles' 'web/console/src/ecrans/Versions.tsx' \
+  '{illisibles ? <Alerte ton="attention">' \
+  '{false ? <Alerte ton="attention">' \
+  'l'"'"'audit C04 : le dernier tour n'"'"'a pas pu lire les consignes — l'"'"'écran le dit, et la prochaine attend'
+prouver 'changer un rôle sans le verrou de l'"'"'équipe' 'base/migrations/0123_equipe_en_concurrence.sql' \
+  '  perform plateforme.verrou_equipe();
+  v_role := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  if coalesce(p_role, '"'"''"'"') not in ('"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"') then perform socle.refus('"'"'ce rôle n'"'"''"'"'existe pas dans l'"'"''"'"'équipe SkanFact'"'"'); end if;
+  if length(btrim(coalesce(p_motif, '"'"''"'"'))) < 3 then perform socle.refus('"'"'un geste sur l'"'"''"'"'équipe demande son motif (trois caractères au moins)'"'"'); end if;
+  if p_membre = socle.moi() then perform socle.refus('"'"'personne ne change son propre rôle'"'"'); end if;' \
+  '  if coalesce(p_role, '"'"''"'"') not in ('"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"') then perform socle.refus('"'"'ce rôle n'"'"''"'"'existe pas dans l'"'"''"'"'équipe SkanFact'"'"'); end if;
+  if length(btrim(coalesce(p_motif, '"'"''"'"'))) < 3 then perform socle.refus('"'"'un geste sur l'"'"''"'"'équipe demande son motif (trois caractères au moins)'"'"'); end if;
+  if p_membre = socle.moi() then perform socle.refus('"'"'personne ne change son propre rôle'"'"'); end if;' \
+  'l'"'"'audit C05 : deux directions qui se rétrogradent l'"'"'une l'"'"'autre au même moment — une seule y arrive, l'"'"'équipe garde sa direction'
+prouver 'le rôle de qui agit pas relu après l'"'"'attente' 'base/migrations/0123_equipe_en_concurrence.sql' \
+  '  perform plateforme.verrou_equipe();
+  v_role := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  if coalesce(p_role, '"'"''"'"') not in ('"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"') then perform socle.refus('"'"'ce rôle n'"'"''"'"'existe pas dans l'"'"''"'"'équipe SkanFact'"'"'); end if;
+  if length(btrim(coalesce(p_motif, '"'"''"'"'))) < 3 then perform socle.refus('"'"'un geste sur l'"'"''"'"'équipe demande son motif (trois caractères au moins)'"'"'); end if;
+  if p_membre = socle.moi() then perform socle.refus('"'"'personne ne change son propre rôle'"'"'); end if;' \
+  '  perform plateforme.verrou_equipe();
+  if coalesce(p_role, '"'"''"'"') not in ('"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"') then perform socle.refus('"'"'ce rôle n'"'"''"'"'existe pas dans l'"'"''"'"'équipe SkanFact'"'"'); end if;
+  if length(btrim(coalesce(p_motif, '"'"''"'"'))) < 3 then perform socle.refus('"'"'un geste sur l'"'"''"'"'équipe demande son motif (trois caractères au moins)'"'"'); end if;
+  if p_membre = socle.moi() then perform socle.refus('"'"'personne ne change son propre rôle'"'"'); end if;' \
+  'un geste qui a attendu le verrou se refait avec le rôle d'"'"'après : rétrogradé pendant l'"'"'attente, il est refusé'
+prouver 'inviter sans le verrou de l'"'"'équipe, et deux invitations en attente admises' 'base/migrations/0123_equipe_en_concurrence.sql' \
+  '  perform plateforme.verrou_equipe();
+  v_role := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  if coalesce(p_role, '"'"''"'"') not in ('"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"') then perform socle.refus('"'"'ce rôle n'"'"''"'"'existe pas dans l'"'"''"'"'équipe SkanFact'"'"'); end if;
+  if length(btrim(coalesce(p_motif, '"'"''"'"'))) < 3 then perform socle.refus('"'"'un geste sur l'"'"''"'"'équipe demande son motif (trois caractères au moins)'"'"'); end if;
+  if v_email|||create unique index invitation_console_une_en_attente on' \
+  '  if coalesce(p_role, '"'"''"'"') not in ('"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"') then perform socle.refus('"'"'ce rôle n'"'"''"'"'existe pas dans l'"'"''"'"'équipe SkanFact'"'"'); end if;
+  if length(btrim(coalesce(p_motif, '"'"''"'"'))) < 3 then perform socle.refus('"'"'un geste sur l'"'"''"'"'équipe demande son motif (trois caractères au moins)'"'"'); end if;
+  if v_email|||create index invitation_console_une_en_attente on' \
+  'l'"'"'audit C06 : deux invitations à la même adresse au même moment — un seul lien vaut, celui de la seconde'
+prouver 'inviter sans le verrou de l'"'"'équipe' 'base/migrations/0123_equipe_en_concurrence.sql' \
+  '  perform plateforme.verrou_equipe();
+  v_role := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  if coalesce(p_role, '"'"''"'"') not in ('"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"') then perform socle.refus('"'"'ce rôle n'"'"''"'"'existe pas dans l'"'"''"'"'équipe SkanFact'"'"'); end if;
+  if length(btrim(coalesce(p_motif, '"'"''"'"'))) < 3 then perform socle.refus('"'"'un geste sur l'"'"''"'"'équipe demande son motif (trois caractères au moins)'"'"'); end if;
+  if v_email' \
+  '  if coalesce(p_role, '"'"''"'"') not in ('"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"') then perform socle.refus('"'"'ce rôle n'"'"''"'"'existe pas dans l'"'"''"'"'équipe SkanFact'"'"'); end if;
+  if length(btrim(coalesce(p_motif, '"'"''"'"'))) < 3 then perform socle.refus('"'"'un geste sur l'"'"''"'"'équipe demande son motif (trois caractères au moins)'"'"'); end if;
+  if v_email' \
+  'l'"'"'audit C06 : deux invitations à la même adresse au même moment — un seul lien vaut, celui de la seconde'
+prouver 'l'"'"'outil rétrograde la dernière personne à la direction' 'base/equipe.ts' \
+  '    if (avant?.actif && avant.role === '"'"'direction'"'"' && await directions(client) === 1) throw' \
+  '    if (false) throw' \
+  'l'"'"'outil de l'"'"'exploitation ne rétrograde pas la dernière personne à la direction (0123)'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -652,6 +652,10 @@ vaut pour tout le dépôt.*
     aussi la console ; la route `/console/moi/mot-de-passe` change dans sa propre transaction (`compte.ts`, `tx` en
     option) (`tests/console/factures.test.ts`, `tests/console/compte.test.ts`, `tests/abonnement/gestes-0111.test.ts`,
     `tests/web/offre-compte.test.ts`).
+  - **Le gel tenu, l'équipe en concurrence** (1.29.0 ; `docs/console.md` C45, `0123`) : `consignesDuTour` et
+    `LectureConsignes` de `exploitation/suivre.ts`, `consignesIllisibles` (l'état du suiveur, `serveur/console/versions.ts`,
+    l'écran Versions) ; `plateforme.verrou_equipe` et l'index `invitation_console_une_en_attente`, le verrou dans
+    `base/equipe.ts` (`tests/console/versions.test.ts`, `tests/console/invitations.test.ts`, `tests/web/console-versions.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

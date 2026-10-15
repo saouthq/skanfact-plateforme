@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import {
   historique, lireEtatSuiveur, lireVersionsDeLaBase, migrationsDe, prochaine, systemeDe, taches, titreDeTache, versionDAvant,
 } from '../../serveur/console/versions.ts';
-import { lireConsignes, lireLeJournalGit, noterInstallation, NUMERO, NUMEROS_GARDES, numeroDuPaquet, numerosAJour, planDuTour, SANS_CONSIGNE, INSTALLATIONS_GARDEES } from '../../exploitation/suivre.ts';
+import { consignesDuTour, lireConsignes, lireLeJournalGit, noterInstallation, NUMERO, NUMEROS_GARDES, numeroDuPaquet, numerosAJour, planDuTour, SANS_CONSIGNE, INSTALLATIONS_GARDEES } from '../../exploitation/suivre.ts';
 import { nomDeVersion } from '../../web/console/src/version.ts';
 
 const sha = (c: string) => c.repeat(40).slice(0, 40);
@@ -36,6 +36,13 @@ describe('le suiveur et ses consignes', () => {
     expect(planDuTour(versions, C, null, { ...SANS_CONSIGNE, retour: { id: 'r', version: sha('f') } }, maintenant)).toEqual({ sorte: 'retour_impossible', raison: 'inconnue' });
     expect(planDuTour(versions, C, null, { ...SANS_CONSIGNE, retour: { id: 'r', version: C } }, maintenant)).toEqual({ sorte: 'retour_impossible', raison: 'deja' });
     expect(planDuTour(versions, C, null, { ...SANS_CONSIGNE, retour: { id: 'r', version: A } }, maintenant, (v) => v !== A)).toEqual({ sorte: 'retour_impossible', raison: 'sans_suiveur' });
+  });
+  it('l\'audit C04 : des consignes illisibles n\'installent rien tant qu\'une version tourne ; absentes (une base d\'avant elles) ou un serveur neuf, le tour suit', () => {
+    const gel = { ...SANS_CONSIGNE, gel: { jusquAu: '2026-10-14T00:00:00Z', motif: 'incident' } };
+    expect(consignesDuTour({ sorte: 'lues', consignes: gel }, C)).toEqual(gel);
+    expect(consignesDuTour({ sorte: 'illisibles' }, C)).toBeNull();
+    expect(consignesDuTour({ sorte: 'absentes' }, C)).toEqual(SANS_CONSIGNE);
+    expect(consignesDuTour({ sorte: 'illisibles' }, null)).toEqual(SANS_CONSIGNE);
   });
   it('les consignes lues prudemment : une version qui n\'en est pas une ne compte pas', () => {
     expect(lireConsignes({ gel: { jusquAu: 'bientôt' }, retenues: [A, 'abc', 3], retour: { id: 'r', version: 'nope' } })).toEqual({ gel: null, retenues: [A], retour: null });
@@ -122,6 +129,8 @@ describe('les versions, rangées pour l\'écran', () => {
     expect(prochaine(prete, [consigne({ sorte: 'retenue', version: E, enVigueur: false })], maintenant)?.etat).toBe('prete');
     const rouge = { ...etat, commits: etat.commits.map((c) => (c.version === E ? { ...c, verification: 'rouge' as const } : c)) };
     expect(prochaine(rouge, [], maintenant)?.etat).toBe('rouge');
+    // Le dernier tour n'a pas pu lire les consignes (l'audit C04) : prête, elle attend qu'il les relise.
+    expect(prochaine({ ...prete, consignesIllisibles: '2026-10-13T11:55:00Z' }, [], maintenant)?.etat).toBe('bloquee');
     expect(prochaine({ ...etat, commits: etat.commits.filter((c) => !c.plusRecente) }, [], maintenant)).toBeNull();
   });
 

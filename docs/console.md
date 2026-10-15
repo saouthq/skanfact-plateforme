@@ -1179,6 +1179,19 @@ sont vrais ; corrigés dans l'ordre qu'il propose, un lot par version). Les troi
 - Les anciens tests qui décrivaient le défaut (un paiement d'avance appliqué aussitôt) sont retournés vers la règle, et
   joués des deux côtés : payé en avance (rien ne change avant le jour) et payé en retard (tout s'applique aussitôt).
 
+**C45. L'audit de la console 1.26.0, deuxième partie : le gel tenu, l'équipe en concurrence** (1.29.0 ; base 0123) :
+- **C04, un gel perdu sur une panne de lecture.** Le suiveur distingue désormais des consignes lues, absentes (une base
+  d'avant elles, qui doit pouvoir s'installer) et illisibles (la base ne répond pas, ou répond mal). Illisibles, il
+  n'installe rien tant qu'une version tourne ; un serveur neuf, sans version, s'installe quand même. Les dernières
+  consignes lues restent dans son état ; l'écran Versions dit l'heure du tour qui n'a pas pu les lire, et la prochaine
+  version « en attente des consignes ».
+- **C05, la dernière direction perdue à deux.** Chaque geste qui change l'équipe ou ses invitations (ajouter, changer un
+  rôle, retirer, inviter, annuler, accepter ; et l'outil de l'exploitation) prend d'abord le même verrou, puis revérifie
+  ce qu'il croit : le rôle de qui agit (il a pu changer pendant l'attente) et la direction qui reste. Deux directions qui
+  se rétrogradent au même moment : une seule y arrive. L'outil ne rétrograde plus non plus la dernière direction.
+- **C06, deux liens pour la même adresse.** Une seule invitation attend par adresse (un index unique) ; deux invitations
+  au même moment : la seconde remplace la première, un seul lien vaut.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

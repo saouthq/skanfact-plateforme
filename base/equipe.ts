@@ -34,15 +34,21 @@ async function personne(client: Client, email: string): Promise<string> {
   return r.id as string;
 }
 
+// Chaque geste prend le verrou de l'équipe, comme la console (0123, l'audit C05) : deux gestes en même temps ne
+// défont pas ce que chacun vérifie, et l'équipe garde toujours quelqu'un à la direction.
+const directions = async (client: Client) => Number((await client.query(`select count(*) n from plateforme.equipe where role = 'direction' and actif`)).rows[0].n);
+
 // Ajouter (ou reprendre) une personne, avec son rôle.
 export async function ajouter(client: Client, email: string, role: string, motif: string): Promise<void> {
   if (!ROLES.includes(role)) throw new Error('le rôle est « direction », « support » ou « technique »');
   if (motif.trim().length < 3) throw new Error('un geste sur l\'équipe demande son motif (trois caractères au moins) : il reste dans le journal');
   await client.query('begin');
   try {
+    await client.query('select plateforme.verrou_equipe()');
     const u = await personne(client, email);
     const avant = (await client.query('select role, actif from plateforme.equipe where utilisateur = $1 for update', [u])).rows[0] as { role: string; actif: boolean } | undefined;
     if (avant?.actif && avant.role === role) throw new Error(`cette personne est déjà dans l'équipe, avec le rôle « ${role} »`);
+    if (avant?.actif && avant.role === 'direction' && await directions(client) === 1) throw new Error('l\'équipe garde toujours une personne à la direction : ajoute d\'abord quelqu\'un d\'autre');
     await client.query(`insert into plateforme.equipe (utilisateur, role) values ($1, $2)
       on conflict (utilisateur) do update set role = excluded.role, actif = true, ajoute_le = now(), retire_le = null`, [u, role]);
     await client.query(`insert into plateforme.geste_console (geste, membre, motif, avant, apres) values ($1, $2, $3, $4, $5)`,
@@ -59,11 +65,11 @@ export async function retirer(client: Client, email: string, motif: string): Pro
   if (motif.trim().length < 3) throw new Error('un geste sur l\'équipe demande son motif (trois caractères au moins) : il reste dans le journal');
   await client.query('begin');
   try {
+    await client.query('select plateforme.verrou_equipe()');
     const u = await personne(client, email);
     const avant = (await client.query('select role from plateforme.equipe where utilisateur = $1 and actif for update', [u])).rows[0] as { role: string } | undefined;
     if (!avant) throw new Error('cette personne n\'est pas dans l\'équipe');
-    const directions = Number((await client.query(`select count(*) n from plateforme.equipe where role = 'direction' and actif`)).rows[0].n);
-    if (avant.role === 'direction' && directions === 1) throw new Error('l\'équipe garde toujours une personne à la direction : ajoute d\'abord quelqu\'un d\'autre');
+    if (avant.role === 'direction' && await directions(client) === 1) throw new Error('l\'équipe garde toujours une personne à la direction : ajoute d\'abord quelqu\'un d\'autre');
     await client.query('update plateforme.equipe set actif = false, retire_le = now() where utilisateur = $1', [u]);
     await client.query('update plateforme.session_console set fermee_le = now() where utilisateur = $1 and fermee_le is null', [u]);
     await client.query(`insert into plateforme.geste_console (geste, membre, motif, avant, apres) values ('equipe.retirer', $1, $2, $3, $4)`,

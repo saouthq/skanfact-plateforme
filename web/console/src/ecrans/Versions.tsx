@@ -33,7 +33,7 @@ type Donnees = {
   maintenant: string; aujourdhui: string; role: 'direction' | 'technique'; veille: Veille; alertesEnCours: AlertesEnCours; briques: Brique[];
   suiveur: {
     version: string | null; installeeLe: string | null; regardeLe: string | null; derniere: string | null; verification: 'aucune' | 'github' | 'toutes' | null;
-    echec: { version: string; etape: string; message: string; le: string } | null; consignesLues: string | null; plan: string | null;
+    echec: { version: string; etape: string; message: string; le: string } | null; consignesLues: string | null; consignesIllisibles: string | null; plan: string | null;
   } | null;
   titres: Record<string, string>; numeros: Record<string, string>; dansLeDepot: string[]; historique: Ligne[]; avant: { version: string; le: string; possible: boolean } | null;
   prochaine: Prochaine | null; consignes: Consigne[]; migrations: { numero: number; nom: string; le: string }[];
@@ -197,12 +197,15 @@ function LaProchaine({ d, geste }: { d: Donnees; geste: (g: Geste) => void }) {
 // ── Les consignes données au suiveur ────────────────────────────────────────────────────────────────────────────────
 function Consignes({ d, geste }: { d: Donnees; geste: (g: Geste) => void }) {
   const lues = d.suiveur?.consignesLues;
+  // 1.29.0 (l'audit C04) : le dernier tour n'a pas pu les lire ; il n'a rien installé.
+  const illisibles = d.suiveur?.consignesIllisibles;
   const etatDe = (c: Consigne) => (c.leveeLe ? 'levee' : c.sorte === 'retour' && c.faiteLe ? (c.faiteOk ? 'faite' : 'pas_faite') : c.enVigueur ? 'en_vigueur' : 'finie');
   return (
     <section className="c-carte c-ve-consignes" aria-labelledby="ve-consignes">
       <div className="c-al-section-tete"><div>
         <h2 id="ve-consignes">{titre(`${V}.c.titre`)}</h2>
-        <p className="c-carte-sous">{phrase(lues ? `${V}.c.lues` : `${V}.c.pas_lues`, { heure: lues ? heureDe(lues) : '' })}</p>
+        {illisibles ? <Alerte ton="attention"><span>{phrase(lues ? `${V}.c.illisibles` : `${V}.c.illisibles_jamais`, { heure: heureDe(illisibles), lues: lues ? heureDe(lues) : '' })}</span></Alerte>
+          : <p className="c-carte-sous">{phrase(lues ? `${V}.c.lues` : `${V}.c.pas_lues`, { heure: lues ? heureDe(lues) : '' })}</p>}
       </div></div>
       {d.consignes.length ? (
         <ul className="c-ve-consignes-liste">

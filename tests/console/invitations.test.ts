@@ -8,8 +8,9 @@ import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { ajouter as ajouterALEquipe } from '../../base/equipe.ts';
 import { creerApp, VERSION } from '../../serveur/app.ts';
-import { creerPool } from '../../serveur/base.ts';
+import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { mettreEnPlaceCode, quiEst, type Contexte } from '../../serveur/connexion.ts';
+import { quiEstConsole } from '../../serveur/console/connexion.ts';
 import { routesConsole } from '../../serveur/console/routes.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
@@ -158,5 +159,104 @@ describe('inviter quelqu\'un dans l\'équipe (0118)', () => {
     await admin.query(`update plateforme.equipe set ajoute_le = now() - interval '8 days' where utilisateur = (select id from socle.utilisateur where email = $1)`, [tard]);
     const refuse = await appeler('POST', '/console/connexion', undefined, { email: tard, motDePasse: MDP, appareil });
     expect([refuse.statut, refuse.corps.etat]).toEqual([401, 'refuse']);
+  });
+});
+
+// Deux gestes sur l'équipe en même temps (0123 ; l'audit de la console 1.26.0, C05 et C06). Le premier fait son geste
+// dans une transaction qui reste ouverte ; le second agit pendant ce temps ; puis le premier valide. Sans verrou commun,
+// le second ne voit pas le premier et passe à côté de ce que celui-ci change.
+async function enConsole(jeton: string, sql: string, valeurs: unknown[], porte?: Promise<void>, fait?: () => void) {
+  const qc = await quiEstConsole(ctx, jeton);
+  if (!qc) throw new Error('session de la console attendue');
+  return enTantQue(pool, qc.utilisateur, async (tx) => {
+    await tx.query('select set_config(\'app.session_console\', $1, true)', [qc.session]);
+    await tx.query(sql, valeurs);
+    fait?.();
+    await porte;
+  });
+}
+function enDeuxTemps() {
+  let lacher = () => {};
+  let fait = () => {};
+  const porte = new Promise<void>((r) => { lacher = r; });
+  const premierFait = new Promise<void>((r) => { fait = r; });
+  return { porte, lacher: () => lacher(), fait: () => fait(), premierFait };
+}
+const idDe = async (email: string) => String((await admin.query('select id from socle.utilisateur where email = $1', [email])).rows[0]?.id);
+const pause = (ms: number) => new Promise((r) => { setTimeout(r, ms); });
+
+describe('l\'équipe tient en concurrence (0123)', () => {
+  it('l\'audit C05 : deux directions qui se rétrogradent l\'une l\'autre au même moment — une seule y arrive, l\'équipe garde sa direction', async () => {
+    const a = await membre('dira', 'direction');
+    const b = await membre('dirb', 'direction');
+    const [ida, idb] = [await idDe(a.email), await idDe(b.email)];
+    // Elles deux seules à la direction le temps de l'essai (les autres repassent au support, puis reviennent).
+    const autres = (await admin.query(`update plateforme.equipe set role = 'support' where role = 'direction' and actif and utilisateur <> all($1::uuid[])
+      returning utilisateur`, [[ida, idb]])).rows.map((r) => String(r.utilisateur));
+    try {
+      const t = enDeuxTemps();
+      const premier = enConsole(a.console, 'select plateforme.console_changer_role($1, $2, $3)', [idb, 'support', 'B passe au support'], t.porte, t.fait);
+      await t.premierFait;
+      const second = enConsole(b.console, 'select plateforme.console_changer_role($1, $2, $3)', [ida, 'support', 'A passe au support'])
+        .then(() => 'passé', (e: Error) => e.message);
+      await pause(300);
+      t.lacher();
+      await premier;
+      // B n'est plus à la direction quand son geste passe enfin : refusé.
+      expect(await second).not.toBe('passé');
+      expect((await admin.query(`select count(*)::int n from plateforme.equipe where role = 'direction' and actif`)).rows[0]?.n).toBe(1);
+      expect((await admin.query('select role from plateforme.equipe where utilisateur = $1', [ida])).rows[0]?.role).toBe('direction');
+    } finally {
+      await admin.query(`update plateforme.equipe set role = 'direction' where utilisateur = any($1::uuid[])`, [autres]);
+    }
+  });
+
+  it('un geste qui a attendu le verrou se refait avec le rôle d\'après : rétrogradé pendant l\'attente, il est refusé', async () => {
+    const a = await membre('dird', 'direction');
+    const b = await membre('dire', 'direction');
+    const c = await membre('dirf', 'direction');
+    const [idb, idc] = [await idDe(b.email), await idDe(c.email)];
+    const t = enDeuxTemps();
+    // A rétrograde B ; pendant ce temps, B rétrograde C. Trois directions : la dernière n'est jamais en jeu.
+    const premier = enConsole(a.console, 'select plateforme.console_changer_role($1, $2, $3)', [idb, 'support', 'B passe au support'], t.porte, t.fait);
+    await t.premierFait;
+    const second = enConsole(b.console, 'select plateforme.console_changer_role($1, $2, $3)', [idc, 'technique', 'C passe à la technique'])
+      .then(() => 'passé', (e: Error) => e.message);
+    await pause(300);
+    t.lacher();
+    await premier;
+    expect(await second).not.toBe('passé');
+    expect((await admin.query('select role from plateforme.equipe where utilisateur = $1', [idc])).rows[0]?.role).toBe('direction');
+  });
+
+  it('l\'outil de l\'exploitation ne rétrograde pas la dernière personne à la direction (0123)', async () => {
+    const seule = await membre('dirg', 'direction');
+    const id = await idDe(seule.email);
+    const autres = (await admin.query(`update plateforme.equipe set role = 'support' where role = 'direction' and actif and utilisateur <> $1
+      returning utilisateur`, [id])).rows.map((r) => String(r.utilisateur));
+    try {
+      await expect(ajouterALEquipe(admin, seule.email, 'support', 'changer son rôle par l\'outil')).rejects.toThrow(/toujours une personne à la direction/);
+      expect((await admin.query('select role from plateforme.equipe where utilisateur = $1', [id])).rows[0]?.role).toBe('direction');
+    } finally {
+      await admin.query(`update plateforme.equipe set role = 'direction' where utilisateur = any($1::uuid[])`, [autres]);
+    }
+  });
+
+  it('l\'audit C06 : deux invitations à la même adresse au même moment — un seul lien vaut, celui de la seconde', async () => {
+    const autre = await membre('dirc', 'direction');
+    const email = adresse('double');
+    const t = enDeuxTemps();
+    const premier = enConsole(direction, 'select plateforme.console_inviter($1, $2, $3, $4, now(), now() + interval \'7 days\')',
+      [email, 'support', 'renfort au support', `essai-c06-un-${Date.now()}`], t.porte, t.fait);
+    await t.premierFait;
+    const second = enConsole(autre.console, 'select plateforme.console_inviter($1, $2, $3, $4, now(), now() + interval \'7 days\')',
+      [email, 'technique', 'renfort à la technique', `essai-c06-deux-${Date.now()}`]).then(() => 'passé', (e: Error) => e.message);
+    await pause(300);
+    t.lacher();
+    await premier;
+    expect(await second).toBe('passé');
+    const enAttente = (await admin.query('select role from plateforme.invitation_console where email = $1 and acceptee_le is null and annulee_le is null', [email])).rows;
+    expect(enAttente).toEqual([{ role: 'technique' }]);
+    expect((await gestes(email)).map((g) => g.geste)).toEqual(['equipe.inviter', 'equipe.invitation_renvoyee']);
   });
 });

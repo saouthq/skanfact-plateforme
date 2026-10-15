@@ -1359,7 +1359,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           maintenant: instant.toISOString(), aujourdhui: jour, role: roleDe(qui), veille, alertesEnCours: alertesOuvertes(v.alertes), briques: briques(v, jour, instant, veille.etat === 'ok'),
           suiveur: e ? {
             version: e.version, installeeLe: e.installeeLe, regardeLe: e.regardeLe, derniere: e.derniere, echec: e.echec, verification: e.verification,
-            consignesLues: e.consignes?.lues ?? null, plan: e.plan,
+            consignesLues: e.consignes?.lues ?? null, consignesIllisibles: e.consignesIllisibles, plan: e.plan,
           } : null,
           titres: Object.fromEntries((e?.commits ?? []).map((c) => [c.version, c.titre])), numeros: e?.numeros ?? {},
           dansLeDepot: (e?.commits ?? []).map((c) => c.version),

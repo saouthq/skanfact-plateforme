@@ -16,6 +16,8 @@ export type EtatSuiveur = {
   taches: Tache[]; verification: Verification | null; commits: Commit[]; installations: Installation[];
   consignes: { lues: string; gel: { jusquAu: string } | null; retenues: string[]; retour: { id: string; version: string } | null } | null;
   plan: string | null;
+  // 1.29.0 (l'audit C04) : l'heure du dernier tour qui n'a pas pu lire les consignes ; il n'a rien installé.
+  consignesIllisibles: string | null;
   // Le numéro que chaque version déclare (« 1.4.2 ») ; une version absente ou sans numéro se dit par son identifiant court.
   numeros: Record<string, string>;
 };
@@ -63,6 +65,7 @@ export function lireEtatSuiveur(brut: unknown): EtatSuiveur {
       retour: typeof r.id === 'string' && sha(r.version) ? { id: r.id, version: sha(r.version) as string } : null,
     } : null,
     plan: texte(b.plan, 40),
+    consignesIllisibles: date(b.consignesIllisibles),
     numeros: Object.fromEntries(Object.entries(objet(b.numeros)).filter((x): x is [string, string] => SHA.test(x[0]) && typeof x[1] === 'string' && NUMERO.test(x[1]))),
   };
 }
@@ -149,7 +152,7 @@ export function versionDAvant(h: readonly Ligne[], e: EtatSuiveur): { version: s
 // La prochaine version : la plus récente du dépôt qui n'est pas encore en service. Où elle en est : retenue (par une
 // consigne, ou parce qu'une version plus récente qu'elle l'est), gelée, échouée (le suiveur ne la retente pas), rouge à
 // une vérification, en attente d'une vérification, ou prête (le suiveur la prend à son prochain tour).
-export type Prochaine = Commit & { etat: 'retenue' | 'gelee' | 'echouee' | 'rouge' | 'attend_verification' | 'attend_preuves' | 'prete'; nombre: number };
+export type Prochaine = Commit & { etat: 'retenue' | 'gelee' | 'bloquee' | 'echouee' | 'rouge' | 'attend_verification' | 'attend_preuves' | 'prete'; nombre: number };
 export function prochaine(e: EtatSuiveur, consignes: readonly Consigne[], maintenant: Date): Prochaine | null {
   const recentes = e.commits.filter((c) => c.plusRecente);
   const p = recentes[0];
@@ -163,7 +166,8 @@ export function prochaine(e: EtatSuiveur, consignes: readonly Consigne[], mainte
     : p.verification === 'rouge' || p.preuves === 'rouge' ? 'rouge'
       : e.verification !== 'aucune' && p.verification !== 'vert' ? 'attend_verification'
         : e.verification === 'toutes' && p.preuves !== 'vert' ? 'attend_preuves'
-          : gel ? 'gelee' : 'prete';
+          // 1.29.0 (l'audit C04) : consignes illisibles au dernier tour, le suiveur n'installe rien.
+          : gel ? 'gelee' : e.consignesIllisibles ? 'bloquee' : 'prete';
   return { ...p, etat, nombre: recentes.length };
 }
 
