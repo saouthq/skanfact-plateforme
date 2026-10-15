@@ -1210,6 +1210,21 @@ base 0124) :
   doublon, une question réglée par le client), une demande ne compte ni tenue ni manquée ; après son délai, manquée
   (choisi par délégation).
 
+**C47. L'audit de la console 1.26.0, quatrième partie : les sauvegardes honnêtes** (1.31.0 ; base 0125) :
+- **C10, un relevé ancien qui restait vert.** Le dernier relevé de la veille ne dit l'état de l'archivage et de la copie
+  hors de la machine que s'il a cinq minutes au plus (la veille relève chaque minute, le même seuil que les alertes).
+  Plus vieux, les deux se disent non mesurés, avec l'heure du relevé (« trop ancien pour dire l'état de maintenant ») ;
+  la promesse « la base tombe » redevient « à prouver », et les copies « sur le serveur » et « hors de la machine » non
+  mesurées. L'heure du relevé n'est pas celle du dernier journal archivé : un serveur calme archive peu, ce n'est pas une
+  panne. « En place » sur le serveur dit la nuit faite ET l'archivage qui tourne, les deux mesurés.
+- **C11, une remise d'autrefois qui tenait la promesse.** Une entreprise revient en 4 h sans rien perdre : tenue
+  seulement par une remise faite sur ce serveur depuis moins de 92 jours, dont la durée a été mesurée — de la base de la
+  minute restaurée à côté jusqu'à la remise faite : le script mesure l'essai, la remise y ajoute la sienne, le total
+  entre dans la piste d'audit — sous les 4 h, et revenue à une minute nommée (PostgreSQL ne s'ouvre pas avant d'avoir
+  atteint la minute visée : rien d'après elle n'est perdu). Trop lente : pas tenue. Sans durée (une remise d'avant la
+  1.31.0), sans minute ou trop vieille : à prouver, et la colonne « ce qui le prouve » dit pourquoi. La liste des remises
+  montre la durée de chacune.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

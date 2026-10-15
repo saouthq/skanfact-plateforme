@@ -843,6 +843,38 @@ describe('les sauvegardes du service (0087, docs/console.md C14)', () => {
     const remises = lu.corps.remises as { entreprise: string; nom: string; minute: string; numerosRetires: number; preparee: { par: string } | null }[];
     expect(remises.find((x) => x.entreprise === ent)).toMatchObject({ nom: 'Atelier À Remettre', minute: minute(10), numerosRetires: 2, preparee: { par: direction.nom } });
   });
+
+  it('l\'audit C11 : seule une remise qui a mesuré sa durée prouve la promesse ; une remise d\'après, sans durée, ne l\'efface pas', async () => {
+    const { ent } = await entreprise('Atelier Remis Mesuré');
+    const remettre = (apres: Record<string, unknown>) => admin.query(`insert into socle.audit (entreprise, geste, objet_type, objet_id, avant, apres)
+      values ($1, 'socle.entreprise.remettre', 'entreprise', $1, '{}', $2)`, [ent, JSON.stringify({ motif: 'un import', numerosRetires: [], ...apres })]);
+    await remettre({ minute: '2026-10-12 14:03', secondes: 2537 });
+    await remettre({ minute: '2026-10-12 14:20', secondes: null });
+    const lu = await appeler('GET', '/console/service/sauvegardes', jD);
+    expect(lu.corps.remisesFaites).toMatchObject({ mesuree: { secondes: 2537, minute: '2026-10-12 14:03' } });
+    const promesse = (lu.corps.promesses as { id: string; etat: string; preuve: unknown }[]).find((x) => x.id === 'entreprise');
+    expect(promesse).toMatchObject({ etat: 'tenue', preuve: { minutes: 43, vieille: false } });
+    const miennes = (lu.corps.remises as { entreprise: string; secondes: number | null }[]).filter((x) => x.entreprise === ent);
+    expect(miennes.map((x) => x.secondes)).toEqual([null, 2537]);
+    // La technique lit la preuve (pas le détail des remises, qui nomme le client).
+    expect((await appeler('GET', '/console/service/sauvegardes', jT)).corps.remisesFaites).toMatchObject({ mesuree: { secondes: 2537 } });
+  });
+
+  it('l\'audit C10 : passé cinq minutes sans relevé, l\'archivage et la copie hors de la machine ne se disent plus « en marche » ni « à jour »', async () => {
+    await noter(0, null);
+    const sit = async () => (await appeler('GET', '/console/service/sauvegardes', jT)).corps as { situation: Record<string, Record<string, unknown>>; copies: { liste: { id: string; etat: string }[] } };
+    const frais = await sit();
+    expect(frais.situation.archivage).toMatchObject({ etat: 'bon', enMarche: true, perime: false });
+    expect(frais.situation.hors).toMatchObject({ etat: 'bon', perime: false });
+    const releve = frais.situation.archivage?.releveLe;
+    horloge = new Date(horloge.getTime() + 6 * 60_000);
+    try {
+      const vieux = await sit();
+      expect(vieux.situation.archivage).toMatchObject({ etat: 'nonmesure', enMarche: null, perime: true, releveLe: releve });
+      expect(vieux.situation.hors).toMatchObject({ etat: 'nonmesure', regle: null, perime: true });
+      expect(vieux.copies.liste.filter((c) => c.id === 'serveur' || c.id === 'hors_machine').map((c) => c.etat)).toEqual(['nonmesure', 'nonmesure']);
+    } finally { horloge = new Date(); }
+  });
 });
 
 describe('les performances du service (0088, docs/console.md C15)', () => {

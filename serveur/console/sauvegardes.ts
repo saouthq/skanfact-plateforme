@@ -8,6 +8,7 @@
 //   - la console ne touche jamais au serveur : un geste est une commande composée, à copier dans la console du serveur.
 
 import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_MIN, SAUVEGARDE_TROP_VIEILLE_H } from '../../exploitation/veille.ts';
+import { VEILLE_RECENTE_MIN } from './alertes.ts';
 
 // ── Ce que 06 § 4.1 promet, écrit d'avance (en minutes) ──────────────────────────────────────────────────────────────
 // « Un chiffre qui n'est pas tenu change le plan, pas le chiffre. »
@@ -39,10 +40,13 @@ export type NuitLue = {
 };
 export type CopiesLues = { minute: string; archiveLe: string | null; archivage: { enMarche: boolean } | null; horsMachine: { regle: boolean; attenteDepuis: string | null } | null };
 // `preparee` : qui l'a préparée dans la console (le même client, le même motif, avant elle) ; null : faite sans la console.
-export type RemiseLue = { le: string; entreprise: string; nom: string; motif: string; minute: string | null; numerosRetires: number; preparee: { par: string; le: string } | null };
+// `secondes` : sa durée mesurée (0125 ; null : faite avant qu'elle se mesure, ou sans l'essai qui la mesure).
+export type RemiseLue = { le: string; entreprise: string; nom: string; motif: string; minute: string | null; numerosRetires: number; secondes: number | null; preparee: { par: string; le: string } | null };
+// La dernière remise qui a mesuré sa durée (0125, l'audit C11) : la seule qui peut prouver la promesse.
+export type RemiseMesuree = { le: string; secondes: number; minute: string | null };
 export type SauvegardesLues = {
   nuits: NuitLue[]; dernier: CopiesLues | null; retards: { heure: string; plusLong: number; lues: number }[];
-  exemplaires: number; remisesFaites: { n: number; derniere: string | null }; remises: RemiseLue[] | null;
+  exemplaires: number; remisesFaites: { n: number; derniere: string | null; mesuree: RemiseMesuree | null }; remises: RemiseLue[] | null;
 };
 
 const texte = (x: unknown) => (typeof x === 'string' ? x : null);
@@ -55,6 +59,8 @@ const resultat = (x: unknown): Resultat | null => {
   return r && le ? { le, ok: r.ok === true } : null;
 };
 const JOUR = /^\d{4}-\d{2}-\d{2}$/;
+// La minute d'une remise (« 2026-10-12 14:03 », heure de Tunis), ou rien.
+const minuteLue = (x: unknown) => (texte(x) && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(String(x)) ? String(x) : null);
 
 export function lireSauvegardes(brut: unknown): SauvegardesLues {
   const b = (brut ?? {}) as Record<string, unknown>;
@@ -88,11 +94,13 @@ export function lireSauvegardes(brut: unknown): SauvegardesLues {
       return p === null || n === null ? [] : [{ heure: String(l[0]), plusLong: p, lues: n }];
     }),
     exemplaires: entierOuNull(b.exemplaires) ?? 0,
-    remisesFaites: { n: entierOuNull(f?.n) ?? 0, derniere: date(f?.derniere) },
+    remisesFaites: { n: entierOuNull(f?.n) ?? 0, derniere: date(f?.derniere), mesuree: ((m) => {
+      const le = date(m?.le), secondes = entierOuNull(m?.secondes);
+      return le && secondes !== null ? { le, secondes, minute: minuteLue(m?.minute) } : null;
+    })(f?.mesuree as Record<string, unknown> | null) },
     remises: Array.isArray(b.remises) ? tableau(b.remises).flatMap((x) => (date(x.le) && typeof x.entreprise === 'string' ? [{
       le: String(x.le), entreprise: x.entreprise, nom: String(x.nom ?? ''), motif: String(x.motif ?? ''),
-      minute: texte(x.minute) && /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(String(x.minute)) ? String(x.minute) : null,
-      numerosRetires: entierOuNull(x.numerosRetires) ?? 0,
+      minute: minuteLue(x.minute), numerosRetires: entierOuNull(x.numerosRetires) ?? 0, secondes: entierOuNull(x.secondes),
       preparee: ((p) => (p && typeof p.par === 'string' && date(p.le) ? { par: p.par, le: String(p.le) } : null))(x.preparee as Record<string, unknown> | null),
     }] : [])) : null,
   };
@@ -127,20 +135,32 @@ export function laSauvegarde(l: SauvegardesLues, maintenant: Date) {
   return { etat: (!s.ok || vieille ? 'grave' : 'bon') as Etat, nuit: n, vieille, le: s.le, ok: s.ok, lignes: s.lignes, migrations: s.migrations };
 }
 
-// L'archivage à la minute : en marche, et son dernier journal. Pas lu (la base ne répondait pas) : non mesuré.
-export function lArchivage(l: SauvegardesLues) {
-  const a = l.dernier?.archivage ?? null;
-  return { etat: (!a ? 'nonmesure' : a.enMarche ? 'bon' : 'grave') as Etat, enMarche: a?.enMarche ?? null, dernier: l.dernier?.archiveLe ?? null };
+// Le dernier relevé de la veille, et s'il dit encore « maintenant » (l'audit C10) : plus vieux que cinq minutes (la veille
+// relève chaque minute, comme pour les alertes), ce qu'il a lu de l'archivage et de la copie hors de la machine n'est plus
+// l'état d'aujourd'hui — il se dit non mesuré, avec l'heure du relevé, et rien qui en dépend ne reste vert. L'heure du
+// relevé n'est pas celle du dernier journal archivé : un serveur calme archive peu, et ce n'est pas une panne.
+export function leReleve(l: SauvegardesLues, maintenant: Date) {
+  const le = l.dernier?.minute ?? null;
+  return { le, perime: le !== null && maintenant.getTime() - Date.parse(le) > VEILLE_RECENTE_MIN * MIN };
+}
+
+// L'archivage à la minute : en marche, et son dernier journal. Pas lu (la base ne répondait pas), ou lu par un relevé
+// périmé : non mesuré.
+export function lArchivage(l: SauvegardesLues, maintenant: Date) {
+  const r = leReleve(l, maintenant);
+  const a = r.perime ? null : l.dernier?.archivage ?? null;
+  return { etat: (!a ? 'nonmesure' : a.enMarche ? 'bon' : 'grave') as Etat, enMarche: a?.enMarche ?? null, dernier: l.dernier?.archiveLe ?? null, releveLe: r.le, perime: r.perime };
 }
 
 // La copie hors de la machine : à jour, en retard (au quart d'heure, grave à l'heure : les seuils de la veille), ou pas
-// réglée — rien ne sort, et c'est ce qu'on perdrait avec le site.
-export function horsDeLaMachine(l: SauvegardesLues) {
+// réglée — rien ne sort, et c'est ce qu'on perdrait avec le site. Lue par un relevé périmé : non mesurée.
+export function horsDeLaMachine(l: SauvegardesLues, maintenant: Date) {
+  const r = leReleve(l, maintenant);
   const h = l.dernier?.horsMachine ?? null;
-  if (!l.dernier || !h) return { etat: 'nonmesure' as Etat, regle: null, retard: null, attenteDepuis: null };
-  if (!h.regle) return { etat: 'attention' as Etat, regle: false, retard: null, attenteDepuis: null };
-  const r = retardHorsMachine(l.dernier) ?? 0;
-  return { etat: (r > HORS_MACHINE_GRAVE_MIN ? 'grave' : r > HORS_MACHINE_EN_RETARD_MIN ? 'attention' : 'bon') as Etat, regle: true, retard: r, attenteDepuis: h.attenteDepuis };
+  if (!l.dernier || !h || r.perime) return { etat: 'nonmesure' as Etat, regle: null, retard: null, attenteDepuis: null, releveLe: r.le, perime: r.perime };
+  if (!h.regle) return { etat: 'attention' as Etat, regle: false, retard: null, attenteDepuis: null, releveLe: r.le, perime: false };
+  const x = retardHorsMachine(l.dernier) ?? 0;
+  return { etat: (x > HORS_MACHINE_GRAVE_MIN ? 'grave' : x > HORS_MACHINE_EN_RETARD_MIN ? 'attention' : 'bon') as Etat, regle: true, retard: x, attenteDepuis: h.attenteDepuis, releveLe: r.le, perime: false };
 }
 
 // Les exercices de restauration, le plus récent d'abord, et le dernier : réussi et récent (35 jours, comme la veille),
@@ -165,8 +185,24 @@ export function plusLongRetard(l: SauvegardesLues): number | null {
   const lus = l.retards.filter((r) => r.lues > 0);
   return lus.length ? Math.ceil(Math.max(...lus.map((r) => r.plusLong)) / 60) : null;
 }
+// Une entreprise revient en 4 h, sans rien perdre (l'audit C11) : « on l'a déjà fait » ne suffit pas. Tenue seulement par
+// une remise faite sur ce serveur, récente (trois mois), dont la durée a été mesurée — de la base de la minute restaurée
+// à côté jusqu'à la remise faite — sous la promesse, et revenue à une minute nommée (PostgreSQL ne s'ouvre pas avant de
+// l'avoir atteinte : rien après elle n'est perdu). Trop lente : pas tenue. Sans durée, sans minute, ou trop vieille : à
+// prouver, et la preuve dit pourquoi.
+export const REMISE_PREUVE_J = 92;
+export type PreuveRemise = { n: number; derniere: string | null; mesuree: RemiseMesuree | null; minutes: number | null; vieille: boolean };
+export function laRemise(l: SauvegardesLues, maintenant: Date, retour: number): { etat: EtatPromesse; preuve: PreuveRemise } {
+  const { n, derniere, mesuree: m } = l.remisesFaites;
+  const minutes = m ? Math.ceil(m.secondes / 60) : null;
+  const vieille = m !== null && maintenant.getTime() - Date.parse(m.le) > REMISE_PREUVE_J * 86_400_000;
+  const preuve = { n, derniere, mesuree: m, minutes, vieille };
+  if (!m || minutes === null || vieille) return { etat: 'a_prouver', preuve };
+  if (minutes > retour) return { etat: 'pas_tenue', preuve };
+  return { etat: m.minute ? 'tenue' : 'a_prouver', preuve };
+}
 export function promesses(l: SauvegardesLues, maintenant: Date) {
-  const arch = lArchivage(l), hors = horsDeLaMachine(l), ex = leDernierExercice(l, maintenant);
+  const arch = lArchivage(l, maintenant), hors = horsDeLaMachine(l, maintenant), ex = leDernierExercice(l, maintenant);
   const objectif = (id: IdPromesse) => PROMESSES.find((p) => p.id === id) as typeof PROMESSES[number];
   const retard24 = plusLongRetard(l);
   const exerciceMinutes = ex.exercice?.secondes != null ? Math.ceil(ex.exercice.secondes / 60) : null;
@@ -177,9 +213,9 @@ export function promesses(l: SauvegardesLues, maintenant: Date) {
     : retard24 !== null && retard24 > objectif('site').perte ? 'pas_tenue' : 'a_prouver';
   return [
     { ...objectif('programme'), id: 'programme' as const, etat: (l.exemplaires >= 2 ? 'a_prouver' : 'pas_encore') as EtatPromesse, mesure: { exemplaires: l.exemplaires } },
-    { ...objectif('base'), id: 'base' as const, etat: base, mesure: { enMarche: arch.enMarche, dernier: arch.dernier }, preuve: ex.exercice ? { le: ex.exercice.le, ok: ex.exercice.ok, minutes: exerciceMinutes, vieux: ex.vieux ?? false } : null },
+    { ...objectif('base'), id: 'base' as const, etat: base, mesure: { enMarche: arch.enMarche, dernier: arch.dernier, releveLe: arch.perime ? arch.releveLe : null }, preuve: ex.exercice ? { le: ex.exercice.le, ok: ex.exercice.ok, minutes: exerciceMinutes, vieux: ex.vieux ?? false } : null },
     { ...objectif('site'), id: 'site' as const, etat: site, mesure: { regle: hors.regle, retard: hors.retard, plusLong24h: retard24 } },
-    { ...objectif('entreprise'), id: 'entreprise' as const, etat: (l.remisesFaites.n > 0 ? 'tenue' : 'a_prouver') as EtatPromesse, preuve: l.remisesFaites },
+    { ...objectif('entreprise'), id: 'entreprise' as const, ...laRemise(l, maintenant, objectif('entreprise').retour) },
     { ...objectif('rancongiciel'), id: 'rancongiciel' as const, etat: (hors.regle === false ? 'pas_tenue' : 'inverifiable') as EtatPromesse, mesure: { regle: hors.regle } },
   ];
 }
@@ -189,13 +225,15 @@ export function promesses(l: SauvegardesLues, maintenant: Date) {
 // secours (il n'existe pas encore) ; l'intouchable (le verrou du stockage, réglé chez le fournisseur : invérifiable d'ici).
 export type EtatCopie = 'en_place' | 'en_retard' | 'manque' | 'pas_encore' | 'inverifiable' | 'nonmesure';
 export function copies(l: SauvegardesLues, maintenant: Date) {
-  const s = laSauvegarde(l, maintenant), a = lArchivage(l), h = horsDeLaMachine(l);
-  const serveur: EtatCopie = s.etat === 'nonmesure' && a.etat === 'nonmesure' ? 'nonmesure'
-    : s.etat === 'grave' || a.etat === 'grave' ? 'manque' : s.etat === 'bon' ? 'en_place' : 'nonmesure';
+  const s = laSauvegarde(l, maintenant), a = lArchivage(l, maintenant), h = horsDeLaMachine(l, maintenant);
+  // « En place » dit la nuit faite ET l'archivage qui tourne : les deux mesurés maintenant, jamais l'un sans l'autre.
+  const serveur: EtatCopie = s.etat === 'grave' || a.etat === 'grave' ? 'manque' : s.etat === 'bon' && a.etat === 'bon' ? 'en_place' : 'nonmesure';
   const hors: EtatCopie = h.etat === 'nonmesure' ? 'nonmesure' : h.regle === false ? 'manque' : h.etat === 'bon' ? 'en_place' : 'en_retard';
+  // Le relevé périmé se dit sur les deux copies qu'il mesure (l'heure où la veille les a lues pour la dernière fois).
+  const releve = a.perime ? a.releveLe : null;
   const liste = [
-    { id: 'serveur' as const, etat: serveur },
-    { id: 'hors_machine' as const, etat: hors, retard: h.retard },
+    { id: 'serveur' as const, etat: serveur, releveLe: serveur === 'nonmesure' ? releve : null },
+    { id: 'hors_machine' as const, etat: hors, retard: h.retard, releveLe: hors === 'nonmesure' ? releve : null },
     { id: 'secours' as const, etat: 'pas_encore' as EtatCopie },
     { id: 'intouchable' as const, etat: (h.regle === false ? 'pas_encore' : 'inverifiable') as EtatCopie },
   ];

@@ -2,8 +2,8 @@
 import fs from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
-  CALENDRIER, commandesRemise, copies, entreApostrophes, GARDE, horsDeLaMachine, laSauvegarde, leDernierExercice, lireSauvegardes, minuteDeTunis,
-  nuits, pointLePlusAncien, prochainExercice, promesses, retardsParHeure,
+  CALENDRIER, commandesRemise, copies, entreApostrophes, GARDE, horsDeLaMachine, lArchivage, laSauvegarde, leDernierExercice, lireSauvegardes, minuteDeTunis,
+  nuits, pointLePlusAncien, prochainExercice, promesses, REMISE_PREUVE_J, retardsParHeure,
 } from '../../serveur/console/sauvegardes.ts';
 
 const MAINTENANT = new Date('2026-10-13T09:40:00Z');
@@ -32,7 +32,7 @@ describe('ce que la base rend, relu prudemment', () => {
     expect(brut().remises).toBeNull();
     const r = brut({ remises: [{ le: '2026-10-12T15:00:00Z', entreprise: UUID, nom: 'Atelier', motif: 'un import', minute: '2026-10-12 14:03', numerosRetires: [1, 2],
       preparee: { par: 'Amira', le: '2026-10-12T14:50:00Z' } }] }).remises;
-    expect(r).toEqual([{ le: '2026-10-12T15:00:00Z', entreprise: UUID, nom: 'Atelier', motif: 'un import', minute: '2026-10-12 14:03', numerosRetires: 0, preparee: { par: 'Amira', le: '2026-10-12T14:50:00Z' } }]);
+    expect(r).toEqual([{ le: '2026-10-12T15:00:00Z', entreprise: UUID, nom: 'Atelier', motif: 'un import', minute: '2026-10-12 14:03', numerosRetires: 0, secondes: null, preparee: { par: 'Amira', le: '2026-10-12T14:50:00Z' } }]);
   });
 });
 
@@ -43,11 +43,32 @@ describe('les quatre chiffres', () => {
     expect(laSauvegarde(lireSauvegardes({}), MAINTENANT)).toMatchObject({ etat: 'nonmesure' });
   });
   it('hors de la machine : le retard du dernier relevé, aux seuils de la veille ; pas réglée n\'est jamais « à jour »', () => {
-    expect(horsDeLaMachine(brut())).toMatchObject({ etat: 'grave', retard: 97 });
+    expect(horsDeLaMachine(brut(), MAINTENANT)).toMatchObject({ etat: 'grave', retard: 97 });
     const reglee = brut({ dernier: { minute: '2026-10-13T09:39:00Z', copies: { archivage: null, horsMachine: { regle: true, attenteDepuis: null } } } });
-    expect(horsDeLaMachine(reglee)).toMatchObject({ etat: 'bon', retard: 0 });
+    expect(horsDeLaMachine(reglee, MAINTENANT)).toMatchObject({ etat: 'bon', retard: 0 });
     const non = brut({ dernier: { minute: '2026-10-13T09:39:00Z', copies: { archivage: null, horsMachine: { regle: false, attenteDepuis: null } } } });
-    expect(horsDeLaMachine(non)).toMatchObject({ etat: 'attention', regle: false });
+    expect(horsDeLaMachine(non, MAINTENANT)).toMatchObject({ etat: 'attention', regle: false });
+  });
+  it('l\'audit C10 : un relevé de plus de cinq minutes ne dit plus l\'état de maintenant — l\'archivage, la copie hors de la machine, ce qui en dépend', () => {
+    // Le dernier relevé est de 09:39 : à 09:44, il vaut encore ; à 09:45, il est périmé (cinq minutes et une).
+    const l = brut({ dernier: { minute: '2026-10-13T09:39:00Z', archiveLe: '2026-10-13T09:38:20Z', copies: { archivage: { enMarche: true }, horsMachine: { regle: true, attenteDepuis: null } } } });
+    const frais = new Date('2026-10-13T09:44:00Z'), perime = new Date('2026-10-13T09:44:01Z');
+    expect(lArchivage(l, frais)).toMatchObject({ etat: 'bon', enMarche: true, perime: false });
+    expect(horsDeLaMachine(l, frais)).toMatchObject({ etat: 'bon', regle: true, retard: 0 });
+    expect(promesses(l, frais).find((p) => p.id === 'base')?.etat).toBe('tenue');
+    expect(copies(l, frais).liste.slice(0, 2).map((c) => c.etat)).toEqual(['en_place', 'en_place']);
+    // Rien de ce qu'il disait ne reste vert : non mesuré, avec l'heure du relevé ; le dernier journal archivé reste dit.
+    expect(lArchivage(l, perime)).toEqual({ etat: 'nonmesure', enMarche: null, dernier: '2026-10-13T09:38:20Z', releveLe: '2026-10-13T09:39:00Z', perime: true });
+    expect(horsDeLaMachine(l, perime)).toMatchObject({ etat: 'nonmesure', regle: null, retard: null, releveLe: '2026-10-13T09:39:00Z', perime: true });
+    const base = promesses(l, perime).find((p) => p.id === 'base');
+    expect(base?.etat).toBe('a_prouver');
+    expect(base?.mesure).toMatchObject({ enMarche: null, releveLe: '2026-10-13T09:39:00Z' });
+    expect(copies(l, perime).liste.slice(0, 2)).toEqual([
+      { id: 'serveur', etat: 'nonmesure', releveLe: '2026-10-13T09:39:00Z' },
+      { id: 'hors_machine', etat: 'nonmesure', retard: null, releveLe: '2026-10-13T09:39:00Z' }]);
+    // Un relevé frais rétablit tout.
+    const repris = brut({ dernier: { ...l.dernier, minute: '2026-10-13T09:44:00Z', copies: { archivage: { enMarche: true }, horsMachine: { regle: true, attenteDepuis: null } } } });
+    expect(lArchivage(repris, perime)).toMatchObject({ etat: 'bon', perime: false });
   });
   it('le prochain exercice : le 1er du mois à l\'heure du minuteur, toujours après maintenant', () => {
     expect(prochainExercice(MAINTENANT)).toBe('2026-11-01T04:00:00.000Z');
@@ -69,12 +90,36 @@ describe('les promesses : rien n\'est vert sans une preuve faite sur ce serveur'
     expect(etat(brut(), 'site')).toBe('pas_tenue');
     expect(etat(brut({ retards: [['2026-10-13T08:00:00Z', 120, 60]] }), 'site')).toBe('a_prouver');
   });
-  it('le programme : un seul exemplaire ne peut pas tenir « rien de perdu » ; une entreprise : tenue après une remise faite', () => {
+  it('le programme : un seul exemplaire ne peut pas tenir « rien de perdu »', () => {
     expect(etat(brut(), 'programme')).toBe('pas_encore');
     expect(etat(brut({ exemplaires: 2 }), 'programme')).toBe('a_prouver');
-    expect(etat(brut(), 'entreprise')).toBe('a_prouver');
-    expect(etat(brut({ remisesFaites: { n: 1, derniere: '2026-10-12T15:00:00Z' } }), 'entreprise')).toBe('tenue');
     expect(etat(brut(), 'rancongiciel')).toBe('inverifiable');
+  });
+  it('l\'audit C11 : une entreprise revient en 4 h — tenue seulement par une remise récente, mesurée sous la promesse, revenue à sa minute', () => {
+    const remise = (mesuree: unknown, n = 1) => brut({ remisesFaites: { n, derniere: '2026-10-12T15:00:00Z', mesuree } });
+    expect(etat(brut(), 'entreprise')).toBe('a_prouver');
+    // Faite, mais sans durée : « on l'a déjà fait » ne prouve pas les 4 h.
+    expect(etat(remise(null, 3), 'entreprise')).toBe('a_prouver');
+    const mesuree = { le: '2026-10-12T15:00:00Z', secondes: 2537, minute: '2026-10-12 14:03' };
+    const p = promesses(remise(mesuree), MAINTENANT).find((x) => x.id === 'entreprise');
+    expect(p).toMatchObject({ etat: 'tenue', retour: 240, preuve: { n: 1, mesuree, minutes: 43, vieille: false } });
+    // 4 h tout juste tient ; une seconde de plus non.
+    expect(etat(remise({ ...mesuree, secondes: 14_400 }), 'entreprise')).toBe('tenue');
+    expect(etat(remise({ ...mesuree, secondes: 14_401 }), 'entreprise')).toBe('pas_tenue');
+    // Sans minute nommée : rien ne dit à quel moment elle a ramené l'entreprise.
+    expect(etat(remise({ ...mesuree, minute: null }), 'entreprise')).toBe('a_prouver');
+    // Trop vieille : la preuve est à refaire, même rapide ; la veille de la limite, elle vaut encore.
+    const le = (j: number) => new Date(MAINTENANT.getTime() - j * 86_400_000).toISOString();
+    expect(etat(remise({ ...mesuree, le: le(REMISE_PREUVE_J - 1) }), 'entreprise')).toBe('tenue');
+    expect(promesses(remise({ ...mesuree, le: le(REMISE_PREUVE_J + 1) }), MAINTENANT).find((x) => x.id === 'entreprise'))
+      .toMatchObject({ etat: 'a_prouver', preuve: { vieille: true } });
+  });
+  it('la remise mesurée se relit prudemment : une durée qui n\'est pas un entier la fait tomber, une minute illisible devient « aucune »', () => {
+    const lue = (mesuree: unknown) => lireSauvegardes({ remisesFaites: { n: 2, derniere: '2026-10-12T15:00:00Z', mesuree } }).remisesFaites;
+    expect(lue({ le: '2026-10-12T15:00:00Z', secondes: 600, minute: '2026-10-12 14:03' }).mesuree).toEqual({ le: '2026-10-12T15:00:00Z', secondes: 600, minute: '2026-10-12 14:03' });
+    expect(lue({ le: '2026-10-12T15:00:00Z', secondes: '600', minute: '2026-10-12 14:03' }).mesuree).toBeNull();
+    expect(lue({ le: '2026-10-12T15:00:00Z', secondes: 600, minute: '12/10 14h03' }).mesuree).toMatchObject({ minute: null });
+    expect(lue(undefined)).toEqual({ n: 2, derniere: '2026-10-12T15:00:00Z', mesuree: null });
   });
   it('où sont les copies : le site de secours n\'existe pas, l\'intouchable ne se voit pas d\'ici', () => {
     expect(copies(brut(), MAINTENANT).liste.map((c) => [c.id, c.etat])).toEqual([['serveur', 'en_place'], ['hors_machine', 'en_retard'], ['secours', 'pas_encore'], ['intouchable', 'inverifiable']]);

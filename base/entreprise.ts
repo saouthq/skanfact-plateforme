@@ -556,8 +556,12 @@ async function numerosEmis(client: pg.ClientBase, entreprise: string): Promise<s
 // l'entreprise relisent tout leur dossier. `essayer` : tout se fait, puis s'annule, et le bilan dit ce qui changerait.
 // `minute` : celle qu'on a voulu retrouver (« 2026-10-12 14:03 », heure de Tunis) ; elle entre dans la piste d'audit avec
 // le motif — une remise qui ne dit pas à quelle minute elle a ramené l'entreprise ne se relit pas (06 § 4.4).
+// `essaiSecondes` (l'audit C11) : ce qu'ont pris la base de la minute restaurée à côté et l'export de l'entreprise (le
+// script de la remise le mesure pendant l'essai) ; la remise y ajoute sa propre durée, et le total entre dans la piste
+// d'audit : c'est lui que la promesse « une entreprise revient en 4 h » compare. Sans lui, la durée reste inconnue (null).
 // Tout ou rien : une seule transaction.
-export async function remettre(client: pg.ClientBase, lignes: string[], options: { motif: string; essayer?: boolean; minute?: string }): Promise<BilanRemise> {
+export async function remettre(client: pg.ClientBase, lignes: string[], options: { motif: string; essayer?: boolean; minute?: string; essaiSecondes?: number }): Promise<BilanRemise> {
+  const debut = Date.now();
   const motif = options.motif.trim();
   if (motif.length < 3) throw new Error('une remise demande son motif (trois caractères au moins) : il entre dans la piste d\'audit de l\'entreprise');
   const minute = options.minute ?? null;
@@ -612,9 +616,10 @@ export async function remettre(client: pg.ClientBase, lignes: string[], options:
       ? { table: t.table, role: t.role, avant: avant.get(t.table) ?? 0, lignes: auditApres }
       : { table: t.table, role: t.role, lignes: t.lignes, avant: t.role === 'entreprise' ? (avant.get(t.table) ?? 0) + t.remplacees : t.lignes }));
     const compte = (role: 'avant' | 'lignes') => Object.fromEntries(tables.filter((t) => t.role === 'entreprise' && t[role]).map((t) => [t.table, t[role]]));
+    const secondes = options.essaiSecondes !== undefined ? options.essaiSecondes + Math.ceil((Date.now() - debut) / 1000) : null;
     await client.query(`insert into socle.audit (entreprise, geste, objet_type, objet_id, avant, apres)
       values ($1, 'socle.entreprise.remettre', 'entreprise', $1, $2, $3)`,
-    [E, JSON.stringify({ lignes: compte('avant') }), JSON.stringify({ motif, minute, exporteLe: enTete.exporteLe, empreinte: emp, lignes: compte('lignes'), numerosRetires })]);
+    [E, JSON.stringify({ lignes: compte('avant') }), JSON.stringify({ motif, minute, exporteLe: enTete.exporteLe, empreinte: emp, lignes: compte('lignes'), numerosRetires, secondes })]);
     await client.query(options.essayer ? 'rollback' : 'commit');
     return { entreprise: E, motif, minute, exporteLe: enTete.exporteLe, essai: options.essayer === true, aReprendre: enTete.aReprendre, tables, numerosRetires };
   } catch (e) {
@@ -625,14 +630,23 @@ export async function remettre(client: pg.ClientBase, lignes: string[], options:
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [geste, a, b, ...reste] = process.argv.slice(2);
-  // Après le motif d'une remise : « --essayer », « --minute "AAAA-MM-JJ HH:MM" », dans n'importe quel ordre.
+  // Après le motif d'une remise : « --essayer », « --minute "AAAA-MM-JJ HH:MM" », « --essai-secondes N », dans n'importe
+  // quel ordre ; une option inconnue, ou sans sa valeur, refuse tout.
   const essayer = reste.includes('--essayer');
-  const iMinute = reste.indexOf('--minute');
-  const minute = iMinute >= 0 ? reste[iMinute + 1] : undefined;
-  const optionsLues = reste.filter((x, k) => x !== '--essayer' && !(iMinute >= 0 && (k === iMinute || k === iMinute + 1))).length === 0 && (iMinute < 0 || minute !== undefined);
+  const lues = new Set<number>();
+  const valeur = (o: string) => {
+    const i = reste.indexOf(o);
+    if (i < 0 || i + 1 >= reste.length) return undefined;
+    lues.add(i).add(i + 1);
+    return reste[i + 1];
+  };
+  const minute = valeur('--minute');
+  const essaiSecondes = valeur('--essai-secondes');
+  reste.forEach((x, k) => { if (x === '--essayer') lues.add(k); });
+  const optionsLues = lues.size === reste.length && (essaiSecondes === undefined || /^\d{1,7}$/.test(essaiSecondes));
   const adresse = process.env.PG_ADMIN;
   if (!adresse || !((geste === 'exporter' && a && b) || (geste === 'restaurer' && a) || (geste === 'remettre' && a && b && optionsLues))) {
-    console.error('PG_ADMIN=… node base/entreprise.ts exporter <entreprise> <fichier> | restaurer <fichier> | remettre <fichier> "<motif>" [--essayer] [--minute "AAAA-MM-JJ HH:MM"]');
+    console.error('PG_ADMIN=… node base/entreprise.ts exporter <entreprise> <fichier> | restaurer <fichier> | remettre <fichier> "<motif>" [--essayer] [--minute "AAAA-MM-JJ HH:MM"] [--essai-secondes N]');
     process.exit(1);
   }
   const client = new pg.Client({ connectionString: adresse });
@@ -646,7 +660,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       for (const t of bilan.tables) console.log(`${t.table} (${t.role}) : ${t.lignes}`);
       if (bilan.aReprendre) console.log(`Attention : ${bilan.aReprendre} geste(s) « À reprendre » ouverts n'ont pas été repris.`);
     } else {
-      const bilan = await remettre(client, fs.readFileSync(a, 'utf8').replace(/\n$/, '').split('\n'), { motif: b ?? '', essayer, ...(minute !== undefined ? { minute } : {}) });
+      const bilan = await remettre(client, fs.readFileSync(a, 'utf8').replace(/\n$/, '').split('\n'), {
+        motif: b ?? '', essayer, ...(minute !== undefined ? { minute } : {}), ...(essaiSecondes !== undefined ? { essaiSecondes: Number(essaiSecondes) } : {}),
+      });
       const changees = bilan.tables.filter((t) => t.role === 'entreprise' && t.avant !== t.lignes);
       // L'état visé est la minute demandée (heure de Tunis) ; sans elle, l'heure du fichier — pas celle où l'entreprise revient.
       const etat = bilan.minute ? `du ${bilan.minute} (heure de Tunis)` : `du fichier fait le ${bilan.exporteLe}`;

@@ -10594,9 +10594,10 @@ prouver 'l'"'"'essai du script qui remet pour de vrai' exploitation/remettre-ent
   'node base/entreprise.ts remettre "$FICHIER" "$MOTIF" --essayer --minute "$MINUTE")' 'node base/entreprise.ts remettre "$FICHIER" "$MOTIF" --minute "$MINUTE")' \
   "$RM3"
 prouver 'le fichier d'"'"'un client laissé après la remise' exploitation/remettre-entreprise.sh \
-  '  rm -f "$FICHIER"
+  '  rm -f "$FICHIER" "$DUREE"
   echo
-' '  echo
+' '  rm -f "$DUREE"
+  echo
 ' \
   "$RM3"
 prouver 'le fichier d'"'"'un client lisible par tous' 'exploitation/remettre-entreprise.sh|||base/entreprise.ts' \
@@ -10645,7 +10646,7 @@ prouver 'la trace comptée deux fois avant la remise' base/entreprise.ts \
   '    const tables = reposees.map((t) => (t.table === '"'"'socle.audit'"'"'' '    const tables = reposees.map((t) => (false' \
   "$RM1"
 prouver 'un essai oublié qui traîne avec les données d'"'"'une entreprise' exploitation/remettre-entreprise.sh \
-  'find "$REMISES" -maxdepth 1 -name '"'"'*.jsonl'"'"' -mmin +1440 -delete
+  'find "$REMISES" -maxdepth 1 \( -name '"'"'*.jsonl'"'"' -o -name '"'"'*.jsonl.secondes'"'"' \) -mmin +1440 -delete
 ' '' \
   "$RM3"
 # ── L'abonnement (lot des fonctions qui manquent, 14a, 12/10/2026 ; docs/abonnement.md) ──
@@ -11756,7 +11757,7 @@ prouver 'une copie hors de la machine dont la minute d'"'"'arrivée se réécrit
   "        then jsonb_set(excluded.sauvegarde, '{horsMachine}', s.sauvegarde->'horsMachine')" \
   '        then excluded.sauvegarde' \
   'la base garde l'"'"'état des copies de chaque relevé, et la minute où une copie est arrivée hors de la machine'
-prouver 'le détail des remises, qui nomme le client, lu par la technique' 'base/migrations/0087_service_sauvegardes.sql' \
+prouver 'le détail des remises, qui nomme le client, lu par la technique' 'base/migrations/0125_sauvegardes_honnetes.sql' \
   "    'remises', case when v_role = 'direction' then (" \
   "    'remises', case when true then (" \
   'la technique lit tout, sauf le détail des remises'
@@ -14911,6 +14912,79 @@ prouver 'une demande close sans réponse compte comme la file l'"'"'a laissée' 
 ' \
   '' \
   'le support dans son délai, mois par mois : tenue, manquée, pas encore due ; l'"'"'urgente à deux heures'
+
+# 1.31.0 : les sauvegardes honnêtes (0125 ; l'audit de la console 1.26.0, C10 et C11).
+prouver 'un relevé périmé dit encore l'"'"'archivage' 'serveur/console/sauvegardes.ts' \
+  'const a = r.perime ? null : l.dernier?.archivage ?? null;' \
+  'const a = l.dernier?.archivage ?? null;' \
+  'l'"'"'audit C10 : un relevé de plus de cinq minutes ne dit plus l'"'"'état de maintenant — l'"'"'archivage, la copie hors de la machine, ce qui en dépend'
+prouver 'un relevé périmé dit encore la copie hors de la machine' 'serveur/console/sauvegardes.ts' \
+  'if (!l.dernier || !h || r.perime) return' \
+  'if (!l.dernier || !h) return' \
+  'l'"'"'audit C10 : un relevé de plus de cinq minutes ne dit plus l'"'"'état de maintenant — l'"'"'archivage, la copie hors de la machine, ce qui en dépend'
+prouver 'un relevé jamais périmé' 'serveur/console/sauvegardes.ts' \
+  'perime: le !== null && maintenant.getTime() - Date.parse(le) > VEILLE_RECENTE_MIN * MIN };' \
+  'perime: false };' \
+  'l'"'"'audit C10 : passé cinq minutes sans relevé, l'"'"'archivage et la copie hors de la machine ne se disent plus « en marche » ni « à jour »'
+prouver 'la copie du serveur en place sans l'"'"'archivage mesuré' 'serveur/console/sauvegardes.ts' \
+  's.etat === '"'"'bon'"'"' && a.etat === '"'"'bon'"'"' ? '"'"'en_place'"'"'' \
+  's.etat === '"'"'bon'"'"' ? '"'"'en_place'"'"'' \
+  'l'"'"'audit C10 : un relevé de plus de cinq minutes ne dit plus l'"'"'état de maintenant — l'"'"'archivage, la copie hors de la machine, ce qui en dépend'
+prouver 'l'"'"'écran tait le relevé périmé' 'web/console/src/ecrans/Sauvegardes.tsx' \
+  'sous={a.perime ? perime(a.releveLe) : phrase(`${G}.k.archivage_non`)}' \
+  'sous={phrase(`${G}.k.archivage_non`)}' \
+  'les sauvegardes (l'"'"'audit C10, C11) : un relevé de sept minutes ne dit plus l'"'"'archivage en marche ; la promesse d'"'"'une entreprise dit la remise qui la prouve'
+prouver 'une remise sans durée prouve la promesse' 'serveur/console/sauvegardes.ts' \
+  'if (!m || minutes === null || vieille) return { etat: '"'"'a_prouver'"'"', preuve };' \
+  'if (!m || minutes === null || vieille) return { etat: n > 0 ? '"'"'tenue'"'"' : '"'"'a_prouver'"'"', preuve };' \
+  'l'"'"'audit C11 : une entreprise revient en 4 h — tenue seulement par une remise récente, mesurée sous la promesse, revenue à sa minute'
+prouver 'une remise trop lente tient la promesse' 'serveur/console/sauvegardes.ts' \
+  '  if (minutes > retour) return { etat: '"'"'pas_tenue'"'"', preuve };
+' \
+  '' \
+  'l'"'"'audit C11 : une entreprise revient en 4 h — tenue seulement par une remise récente, mesurée sous la promesse, revenue à sa minute'
+prouver 'une remise trop vieille prouve encore' 'serveur/console/sauvegardes.ts' \
+  'const vieille = m !== null && maintenant.getTime() - Date.parse(m.le) > REMISE_PREUVE_J * 86_400_000;' \
+  'const vieille = false;' \
+  'l'"'"'audit C11 : une entreprise revient en 4 h — tenue seulement par une remise récente, mesurée sous la promesse, revenue à sa minute'
+prouver 'une remise sans minute nommée prouve' 'serveur/console/sauvegardes.ts' \
+  'return { etat: m.minute ? '"'"'tenue'"'"' : '"'"'a_prouver'"'"', preuve };' \
+  'return { etat: '"'"'tenue'"'"', preuve };' \
+  'l'"'"'audit C11 : une entreprise revient en 4 h — tenue seulement par une remise récente, mesurée sous la promesse, revenue à sa minute'
+prouver 'la base rend la dernière remise, même sans durée' 'base/migrations/0125_sauvegardes_honnetes.sql' \
+  '
+                                        and jsonb_typeof(m.apres->'"'"'secondes'"'"') = '"'"'number'"'"'' \
+  '' \
+  'l'"'"'audit C11 : seule une remise qui a mesuré sa durée prouve la promesse ; une remise d'"'"'après, sans durée, ne l'"'"'efface pas'
+prouver 'la base tait la durée de chaque remise' 'base/migrations/0125_sauvegardes_honnetes.sql' \
+  ''"'"'secondes'"'"', case when jsonb_typeof(a.apres->'"'"'secondes'"'"') = '"'"'number'"'"' then (a.apres->>'"'"'secondes'"'"')::int end,' \
+  ''"'"'secondes'"'"', null,' \
+  'l'"'"'audit C11 : seule une remise qui a mesuré sa durée prouve la promesse ; une remise d'"'"'après, sans durée, ne l'"'"'efface pas'
+prouver 'la remise n'"'"'écrit pas sa durée' 'base/entreprise.ts' \
+  'numerosRetires, secondes })' \
+  'numerosRetires })' \
+  'l'"'"'essai ne change rien et nomme ce qui disparaîtrait ; la remise rend A telle que le fichier, garde sa trace entière, fait tout relire à ses postes ; la voisine ne bouge pas'
+prouver 'la durée de la remise ne compte que l'"'"'essai' 'base/entreprise.ts' \
+  'options.essaiSecondes + Math.ceil((Date.now() - debut) / 1000)' \
+  'options.essaiSecondes' \
+  'l'"'"'essai ne change rien et nomme ce qui disparaîtrait ; la remise rend A telle que le fichier, garde sa trace entière, fait tout relire à ses postes ; la voisine ne bouge pas'
+prouver 'le script ne mesure pas l'"'"'essai' 'exploitation/remettre-entreprise.sh' \
+  '  echo $(( $(date +%s) - DEBUT )) > "$DUREE"
+' \
+  '' \
+  'remettre-entreprise.sh : la base de la minute restaurée à côté puis jetée ; l'"'"'essai ne change rien ; la remise se fait sur le fichier de l'"'"'essai, jamais sans lui'
+prouver 'le script ne passe pas la durée à la remise' 'exploitation/remettre-entreprise.sh' \
+  '--minute "$MINUTE" "${MESURE[@]}")' \
+  '--minute "$MINUTE")' \
+  'remettre-entreprise.sh : la base de la minute restaurée à côté puis jetée ; l'"'"'essai ne change rien ; la remise se fait sur le fichier de l'"'"'essai, jamais sans lui'
+prouver 'un essai oublié garde sa durée' 'exploitation/remettre-entreprise.sh' \
+  '\( -name '"'"'*.jsonl'"'"' -o -name '"'"'*.jsonl.secondes'"'"' \)' \
+  '-name '"'"'*.jsonl'"'"'' \
+  'remettre-entreprise.sh : la base de la minute restaurée à côté puis jetée ; l'"'"'essai ne change rien ; la remise se fait sur le fichier de l'"'"'essai, jamais sans lui'
+prouver 'l'"'"'écran dit une remise faite sans dire ce qui la prouve' 'web/console/src/ecrans/Sauvegardes.tsx' \
+  '    case '"'"'entreprise'"'"': return preuveRemise(p, d);' \
+  '    case '"'"'entreprise'"'"': return x?.n ? selon(x.n, `${G}.p.entreprise.sans_duree`, { quand: quand(x.derniere ?? null, d.aujourdhui) }) : phrase(`${G}.p.entreprise.jamais`);' \
+  'les sauvegardes (l'"'"'audit C10, C11) : un relevé de sept minutes ne dit plus l'"'"'archivage en marche ; la promesse d'"'"'une entreprise dit la remise qui la prouve'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

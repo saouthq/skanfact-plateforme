@@ -59,6 +59,7 @@ describe('le service de la console, à la souris, sur de vraies mesures', () => 
   const veille = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'web-console-service-veille-')), 'veille.json');
   const erreurs: string[] = [];
   let direction: Membre;
+  let garage = '';
 
   const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
     const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
@@ -138,6 +139,8 @@ describe('le service de la console, à la souris, sur de vraies mesures', () => 
     const email = `console-service-${Date.now()}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Amira Essai', motDePasse: MDP });
     const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    // Une entreprise, pour la remise qu'on dira faite (l'audit C11).
+    garage = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Garage Remis' })).corps.id);
     const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', jeton, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
     await ajouterALEquipe(admin, email, 'direction', 'essai du service à la souris');
     direction = { email, secret };
@@ -266,6 +269,38 @@ describe('le service de la console, à la souris, sur de vraies mesures', () => 
     await periode(p, '30 j');
     await expect.poll(() => trafic.innerText().then(net)).toContain('Pas de comparaison sur trente jours');
     expect(await trafic.getByRole('button', { name: 'Comparer à la période d\'avant' }).count()).toBe(0);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
+  // En dernier : il remplace les derniers relevés de la veille.
+  it('les sauvegardes (l\'audit C10, C11) : un relevé de sept minutes ne dit plus l\'archivage en marche ; la promesse d\'une entreprise dit la remise qui la prouve', async () => {
+    const t = Math.floor(Date.now() / MIN) * MIN - 7 * MIN;
+    await admin.query('delete from plateforme.service_releve where minute >= $1', [new Date(t).toISOString()]);
+    await admin.query('select plateforme.noter_veille($1::jsonb, $2::jsonb, $3::jsonb)', [JSON.stringify({
+      minute: new Date(t).toISOString(), repond: true, charge: 0.4, memoire: 40, processeurs: 2, disques: [{ point: '/', pourcent: 41 }], version: 'aaaaaaa', certificat: null,
+      archiveLe: new Date(t - 20_000).toISOString(), copies: { archivage: { enMarche: true }, horsMachine: { regle: true, attenteDepuis: null } } }), '{}', '[]']);
+    const remettre = (apres: Record<string, unknown>) => admin.query(`insert into socle.audit (entreprise, geste, objet_type, objet_id, avant, apres)
+      values ($1, 'socle.entreprise.remettre', 'entreprise', $1, '{}', $2)`, [garage, JSON.stringify({ motif: 'un import', numerosRetires: [], ...apres })]);
+    await remettre({ minute: '2026-10-12 14:03', secondes: 2537 });
+    await remettre({ minute: '2026-10-12 14:20' });
+    const p = await ouvrir(await jetonConsole(direction), '#/service');
+    await p.goto(`${serveur.adresse}/console/#/service/sauvegardes`);
+    const tuile = (titre: string) => p.locator('.c-sv-tuile', { has: p.locator('.c-tuile-titre', { hasText: titre }) });
+    await expect.poll(() => tuile('archivage').count(), { timeout: 15_000 }).toBe(1);
+    // L'archivage et la copie hors de la machine : non mesurés, et pourquoi — jamais « en marche » ni « à jour ».
+    for (const titre of ['archivage', 'hors de la machine']) {
+      const texte = net(await tuile(titre).innerText());
+      expect(texte).toMatch(/Non mesuré/i);
+      expect(texte).toMatch(/Dernier relevé de la veille .+ : trop ancien pour dire l'état de maintenant/);
+      expect(texte).not.toMatch(/En marche|À jour/i);
+    }
+    // La promesse d'une entreprise : la remise qui a mesuré sa durée la prouve (pas la dernière, sans durée).
+    const ligne = p.locator('.c-sg-promesses tbody tr', { hasText: /entreprise s'est trompée/i });
+    expect(net(await ligne.innerText())).toMatch(/Remise du .+ : l'entreprise est revenue à sa minute en 43 min\..*Tenue/);
+    // Les remises : la durée de chacune, « — » pour celle qui ne l'a pas mesurée.
+    const remises = p.locator('.c-sg-remises tbody tr', { hasText: 'Garage Remis' });
+    expect((await remises.allInnerTexts()).map((x) => net(x))).toEqual([expect.stringMatching(/ — 0$/), expect.stringMatching(/ 43 min 0$/)]);
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);

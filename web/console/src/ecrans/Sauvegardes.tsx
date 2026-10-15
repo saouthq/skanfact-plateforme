@@ -31,25 +31,28 @@ type Exercice = { jour: string; le: string; ok: boolean; secondes: number | null
 type IdPromesse = 'programme' | 'base' | 'site' | 'entreprise' | 'rancongiciel';
 type Promesse = {
   id: IdPromesse; perte: number; retour: number; etat: EtatPromesse;
-  mesure?: { exemplaires?: number; enMarche?: boolean | null; dernier?: string | null; regle?: boolean | null; retard?: number | null; plusLong24h?: number | null };
-  preuve?: { le?: string; ok?: boolean; minutes?: number | null; vieux?: boolean; n?: number; derniere?: string | null } | null;
+  mesure?: { exemplaires?: number; enMarche?: boolean | null; dernier?: string | null; releveLe?: string | null; regle?: boolean | null; retard?: number | null; plusLong24h?: number | null };
+  preuve?: {
+    le?: string; ok?: boolean; minutes?: number | null; vieux?: boolean;
+    n?: number; derniere?: string | null; mesuree?: { le: string; secondes: number; minute: string | null } | null; vieille?: boolean;
+  } | null;
 };
-type Remise = { le: string; entreprise: string; nom: string; motif: string; minute: string | null; numerosRetires: number; preparee: { par: string; le: string } | null };
+type Remise = { le: string; entreprise: string; nom: string; motif: string; minute: string | null; numerosRetires: number; secondes: number | null; preparee: { par: string; le: string } | null };
 type Donnees = {
   maintenant: string; aujourdhui: string; role: 'direction' | 'technique'; veille: Veille; briques: Brique[]; alertesEnCours: AlertesEnCours;
   situation: {
     sauvegarde: { etat: EtatBrique; le?: string; ok?: boolean; vieille?: boolean; lignes?: number | null; migrations?: number | null };
-    archivage: { etat: EtatBrique; enMarche: boolean | null; dernier: string | null };
-    hors: { etat: EtatBrique; regle: boolean | null; retard: number | null; attenteDepuis: string | null };
+    archivage: { etat: EtatBrique; enMarche: boolean | null; dernier: string | null; releveLe: string | null; perime: boolean };
+    hors: { etat: EtatBrique; regle: boolean | null; retard: number | null; attenteDepuis: string | null; releveLe: string | null; perime: boolean };
     exercice: { etat: EtatBrique; exercice: Exercice | null; vieux?: boolean; prochain: string };
   };
   promesses: Promesse[];
-  copies: { liste: { id: 'serveur' | 'hors_machine' | 'secours' | 'intouchable'; etat: EtatCopie; retard?: number | null }[]; enPlace: number };
+  copies: { liste: { id: 'serveur' | 'hors_machine' | 'secours' | 'intouchable'; etat: EtatCopie; retard?: number | null; releveLe?: string | null }[]; enPlace: number };
   nuits: Nuit[]; lignes: { jour: string; lignes: number }[]; retards: { heure: string; plusLong: number | null }[];
   pointLePlusAncien: string | null; exercices: Exercice[]; remisesFaites: { n: number; derniere: string | null }; remises: Remise[] | null;
   calendrier: { sauvegarde: string; copieDeBase: string; exercice: { jourDuMois: number; heure: string } };
   garde: { nuits: number; jours: number }; commandes: { exercice: readonly string[]; copie: readonly string[] };
-  seuils: { sauvegardeH: number; horsMachineMin: number; horsMachineGraveMin: number; exerciceJ: number };
+  seuils: { sauvegardeH: number; horsMachineMin: number; horsMachineGraveMin: number; exerciceJ: number; remiseJ: number };
 };
 
 // Une durée ne se coupe pas en fin de ligne (« 1 h » d'un côté, « 43 » de l'autre).
@@ -73,12 +76,14 @@ function Situation({ d }: { d: Donnees }) {
         sous={[dire(s.ok ? `${G}.k.sauvegarde_ok` : `${G}.k.sauvegarde_echec`, { quand: quand(s.le, d.aujourdhui) }),
           s.vieille ? dire(`${G}.k.sauvegarde_vieille`, { heures: d.seuils.sauvegardeH }) : null,
           s.ok && s.lignes != null ? selon(s.lignes, `${G}.k.sauvegarde_lignes`, { n: entier(s.lignes), migrations: s.migrations ?? '—' }) : null].filter(Boolean).join(' · ')} />;
+  // Un relevé périmé (l'audit C10) : l'heure où la veille a lu pour la dernière fois, jamais l'état d'alors comme celui d'aujourd'hui.
+  const perime = (le: string | null) => phrase(`${G}.k.releve_perime`, { quand: quand(le, d.aujourdhui) });
   const archivage = a.enMarche === null
-    ? <Tuile titre={titre(`${G}.k.archivage`)} etat="nonmesure" valeur={titre(`${K}.dispo.non_mesure`)} mot sous={phrase(`${G}.k.archivage_non`)} />
+    ? <Tuile titre={titre(`${G}.k.archivage`)} etat="nonmesure" valeur={titre(`${K}.dispo.non_mesure`)} mot sous={a.perime ? perime(a.releveLe) : phrase(`${G}.k.archivage_non`)} />
     : <Tuile titre={titre(`${G}.k.archivage`)} etat={a.etat} mot valeur={titre(a.enMarche ? `${G}.k.archivage_marche` : `${G}.k.archivage_arrete`)}
         sous={a.dernier ? dire(`${G}.k.archivage_dernier`, { quand: quand(a.dernier, d.aujourdhui) }) : phrase(`${G}.k.archivage_rien`)} />;
   const hors = h.regle === null
-    ? <Tuile titre={titre(`${G}.k.hors`)} etat="nonmesure" valeur={titre(`${K}.dispo.non_mesure`)} mot sous={phrase(`${G}.k.archivage_non`)} />
+    ? <Tuile titre={titre(`${G}.k.hors`)} etat="nonmesure" valeur={titre(`${K}.dispo.non_mesure`)} mot sous={h.perime ? perime(h.releveLe) : phrase(`${G}.k.archivage_non`)} />
     : h.regle === false
       ? <Tuile titre={titre(`${G}.k.hors`)} etat="attention" mot valeur={titre(`${G}.k.hors_pas_reglee`)} sous={phrase(`${G}.k.hors_sous_pas_reglee`)} />
       : h.retard
@@ -107,7 +112,8 @@ function mesureDe(p: Promesse, d: Donnees): string {
   const m = p.mesure ?? {};
   switch (p.id) {
     case 'programme': return selon(m.exemplaires ?? 0, `${G}.p.programme.mesure`);
-    case 'base': return m.enMarche === null || m.enMarche === undefined ? phrase(`${G}.k.archivage_non`)
+    case 'base': return m.releveLe ? phrase(`${G}.k.releve_perime`, { quand: quand(m.releveLe, d.aujourdhui) })
+      : m.enMarche === null || m.enMarche === undefined ? phrase(`${G}.k.archivage_non`)
       : m.enMarche ? dire(`${G}.p.base.mesure`, { quand: m.dernier ? quand(m.dernier, d.aujourdhui) : dire('console.ecran.temps.jamais') }) : phrase(`${G}.p.base.arrete`);
     case 'site': return m.regle === false ? phrase(`${G}.k.hors_sous_pas_reglee`)
       : m.plusLong24h == null ? phrase(`${G}.p.site.non_lu`) : dire(`${G}.p.site.mesure`, { minutes: m.plusLong24h ? minutes(m.plusLong24h) : dire(`${G}.p.site.zero`) });
@@ -122,9 +128,21 @@ function preuveDe(p: Promesse, d: Donnees): string {
     case 'base': return !x?.le ? phrase(`${G}.p.base.sans_exercice`)
       : dire(x.ok ? `${G}.p.base.exercice_ok` : `${G}.p.base.exercice_rate`, { quand: jourCourt(x.le.slice(0, 10)), duree: x.minutes != null ? minutes(x.minutes) : '—' });
     case 'site': return phrase(`${G}.p.site.preuve`);
-    case 'entreprise': return x?.n ? selon(x.n, `${G}.p.entreprise.faites`, { quand: quand(x.derniere ?? null, d.aujourdhui) }) : phrase(`${G}.p.entreprise.jamais`);
+    case 'entreprise': return preuveRemise(p, d);
     case 'rancongiciel': return phrase(`${G}.p.rancongiciel.preuve`);
   }
+}
+// Ce qui prouve qu'une entreprise revient en 4 h (l'audit C11) : la dernière remise qui a mesuré sa durée, et pourquoi
+// elle ne suffit pas quand elle ne suffit pas (aucune durée, trop vieille, trop lente, sans minute nommée).
+function preuveRemise(p: Promesse, d: Donnees): string {
+  const x = p.preuve;
+  if (!x?.n) return phrase(`${G}.p.entreprise.jamais`);
+  const m = x.mesuree;
+  if (!m) return selon(x.n, `${G}.p.entreprise.sans_duree`, { quand: quand(x.derniere ?? null, d.aujourdhui) });
+  const v = { quand: jourCourt(m.le.slice(0, 10)), duree: minutes(x.minutes ?? Math.ceil(m.secondes / 60)), retour: promise(p.retour), jours: d.seuils.remiseJ };
+  if (x.vieille) return dire(`${G}.p.entreprise.vieille`, v);
+  if ((x.minutes ?? 0) > p.retour) return dire(`${G}.p.entreprise.lente`, v);
+  return dire(m.minute ? `${G}.p.entreprise.mesuree` : `${G}.p.entreprise.sans_minute`, v);
 }
 function Promesses({ d }: { d: Donnees }) {
   return (
@@ -182,7 +200,8 @@ function Copies({ d }: { d: Donnees }) {
             <div className="c-sg-copie-texte">
               <b>{titre(`${G}.c.${c.id}.nom`)}</b>
               <span className="c-sous">{phrase(`${G}.c.${c.id}.quoi`)}</span>
-              <span>{c.etat === 'en_retard' && c.retard ? phrase(`${G}.c.en_retard_de`, { minutes: minutes(c.retard) }) : phrase(`${G}.c.${c.id}.${c.etat}`)}</span>
+              <span>{c.etat === 'en_retard' && c.retard ? phrase(`${G}.c.en_retard_de`, { minutes: minutes(c.retard) })
+                : c.releveLe ? phrase(`${G}.k.releve_perime`, { quand: quand(c.releveLe, d.aujourdhui) }) : phrase(`${G}.c.${c.id}.${c.etat}`)}</span>
             </div>
             <Puce ton={PUCE_COPIE[c.etat]}>{dire(`${G}.c.etat.${c.etat}`)}</Puce>
           </li>
@@ -383,6 +402,7 @@ function Remises({ d, preparer }: { d: Donnees; preparer: () => void }) {
                 <th scope="col">{titre(`${G}.r.col.client`)}</th>
                 <th scope="col">{titre(`${G}.r.col.a`)}</th>
                 <th scope="col">{titre(`${G}.r.col.motif`)}</th>
+                <th scope="col" className="c-droite">{titre(`${G}.r.col.duree`)}</th>
                 <th scope="col" className="c-droite">{titre(`${G}.r.col.numeros`)}</th>
               </tr>
             </thead>
@@ -393,6 +413,7 @@ function Remises({ d, preparer }: { d: Donnees; preparer: () => void }) {
                   <td><a href={`#/clients/${x.entreprise}`} data-donnee>{x.nom}</a></td>
                   <td className="c-num">{x.minute ?? '—'}</td>
                   <td data-donnee>{x.motif}</td>
+                  <td className="c-droite c-num">{x.secondes != null ? minutes(Math.ceil(x.secondes / 60)) : <span className="c-sous" title={phrase(`${G}.r.sans_duree`)}>—</span>}</td>
                   <td className="c-droite c-num">{entier(x.numerosRetires)}</td>
                 </tr>
               ))}

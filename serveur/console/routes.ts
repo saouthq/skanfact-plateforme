@@ -40,7 +40,7 @@ import {
 import { enCours, histoire, lireAlertes, MINUTES_JUGEES, prevenus, regles, RYTHME, sujetDuService } from './alertes.ts';
 import {
   CALENDRIER, COMMANDES, commandesRemise, copies, exercices, GARDE, horsDeLaMachine, lArchivage, laSauvegarde, leDernierExercice, lignesParNuit,
-  lireSauvegardes, nuits as nuitsGardees, pointLePlusAncien, promesses, retardsParHeure,
+  lireSauvegardes, nuits as nuitsGardees, pointLePlusAncien, promesses, REMISE_PREUVE_J, retardsParHeure,
 } from './sauvegardes.ts';
 import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRACE, TOURS } from './travaux.ts';
 import { depuisLa, plageDe, reserveALaDirection, sorteDe } from './journal.ts';
@@ -1141,13 +1141,13 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       return {
         corps: {
           maintenant: t.toISOString(), aujourdhui: jour, role, veille, alertesEnCours: alertesOuvertes(v.alertes), briques: briques(v, jour, t, veille.etat === 'ok'),
-          situation: { sauvegarde: laSauvegarde(l, t), archivage: lArchivage(l), hors: horsDeLaMachine(l), exercice: leDernierExercice(l, t) },
+          situation: { sauvegarde: laSauvegarde(l, t), archivage: lArchivage(l, t), hors: horsDeLaMachine(l, t), exercice: leDernierExercice(l, t) },
           promesses: promesses(l, t), copies: copies(l, t),
           nuits: nuitsGardees(l, GARDE.nuits), lignes: lignesParNuit(l, GARDE.jours), retards: retardsParHeure(l, t),
           pointLePlusAncien: pointLePlusAncien(l, t), exercices: exercices(l).slice(0, 12),
           remisesFaites: l.remisesFaites, remises: l.remises,
           calendrier: CALENDRIER, garde: GARDE, commandes: COMMANDES,
-          seuils: { sauvegardeH: SAUVEGARDE_TROP_VIEILLE_H, horsMachineMin: HORS_MACHINE_EN_RETARD_MIN, horsMachineGraveMin: HORS_MACHINE_GRAVE_MIN, exerciceJ: EXERCICE_TROP_VIEUX_J },
+          seuils: { sauvegardeH: SAUVEGARDE_TROP_VIEILLE_H, horsMachineMin: HORS_MACHINE_EN_RETARD_MIN, horsMachineGraveMin: HORS_MACHINE_GRAVE_MIN, exerciceJ: EXERCICE_TROP_VIEUX_J, remiseJ: REMISE_PREUVE_J },
         },
       };
     },

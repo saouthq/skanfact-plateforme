@@ -274,7 +274,8 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       expect(sansEnTete(await exporter(cible, A.ent))).toEqual(sansEnTete(abimee));
 
       const marque = String((await cible.query('select pg_current_xact_id()::text x')).rows[0].x);
-      const bilan = await remettre(cible, etatT, { motif: 'Une erreur de manipulation, le 12/10' });
+      // L'essai du script a pris 30 minutes (la base de la minute restaurée à côté, l'export) : la remise y ajoute les siennes.
+      const bilan = await remettre(cible, etatT, { motif: 'Une erreur de manipulation, le 12/10', essaiSecondes: 1800 });
       expect(bilan.essai).toBe(false);
       const remise = await exporter(cible, A.ent);
       // Tout est le fichier, au caractère près, sauf la trace (elle garde ce qui s'est passé depuis, et dit la remise) et
@@ -295,6 +296,10 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       const tracees = apres.filter((t) => t.geste === 'socle.entreprise.remettre');
       expect(tracees).toHaveLength(1);
       expect(tracees[0]?.apres).toMatchObject({ motif: 'Une erreur de manipulation, le 12/10', minute: null, numerosRetires: ['FAC-2026-777', 'FAC-2026-APRES'] });
+      // Sa durée (l'audit C11) : l'essai, plus la remise elle-même — au moins une seconde, jamais une minute de plus.
+      const secondes = Number((tracees[0]?.apres as { secondes?: unknown }).secondes);
+      expect(secondes).toBeGreaterThan(1800);
+      expect(secondes).toBeLessThan(1860);
       // La voisine, au caractère près (sauf l'heure de l'export).
       expect(sansEnTete(await exporter(cible, B.ent))).toEqual(sansEnTete(voisine));
       // Les postes de A relisent tout : chaque objet porte la transaction de la remise, ce qui a disparu le dit, ce qui
@@ -378,7 +383,8 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       await abimer(cible);
       // restaurer.sh remplacé : la base « de la minute » est déjà là ; on note seulement ce qui lui est demandé.
       const journal = path.join(dossier, 'restaurer.log');
-      fs.writeFileSync(path.join(dossier, 'restaurer.sh'), `echo "$*" >> ${JSON.stringify(journal)}\n`);
+      // Restaurer la base de la minute prend ici deux secondes : la durée de l'essai les compte (l'audit C11).
+      fs.writeFileSync(path.join(dossier, 'restaurer.sh'), `echo "$*" >> ${JSON.stringify(journal)}\n[ "$1" = --jusqua ] && sleep 2\ntrue\n`);
       const lancer = (...args: string[]) => spawnSync('bash', [path.join(import.meta.dirname, '../../exploitation/remettre-entreprise.sh'), ...args], {
         encoding: 'utf8',
         env: { ...process.env, SKANFACT_SANS_POSTGRES: '1', SKANFACT_RESTAURER: path.join(dossier, 'restaurer.sh'), SKANFACT_REMISES: path.join(dossier, 'remises'), SKANFACT_PG_VIVE: vive.admin, SKANFACT_PG_RESTAUREE: minute.admin },
@@ -391,8 +397,11 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       const vieux = path.join(dossier, 'remises', `${A.ent}-2026-10-10-09-00.jsonl`);
       fs.writeFileSync(vieux, '{}\n');
       fs.utimesSync(vieux, new Date(Date.now() - 2 * 86_400_000), new Date(Date.now() - 2 * 86_400_000));
+      fs.writeFileSync(`${vieux}.secondes`, '60\n');
+      fs.utimesSync(`${vieux}.secondes`, new Date(Date.now() - 2 * 86_400_000), new Date(Date.now() - 2 * 86_400_000));
       const sansEssai = lancer(A.ent, '2026-10-12 14:03', motif, '--remettre');
       expect(fs.existsSync(vieux)).toBe(false);
+      expect(fs.existsSync(`${vieux}.secondes`)).toBe(false);
       expect(sansEssai.status).toBe(1);
       expect(sansEssai.stderr).toMatch(/fais d'abord l'essai/);
       expect(lancer(A.ent, '2026-10-12 14:03', 'x').status).toBe(2);
@@ -407,6 +416,8 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       expect(fs.readFileSync(journal, 'utf8')).toBe('--jusqua 2026-10-12 14:03\narreter\n');
       const fichierEssai = path.join(dossier, 'remises', `${A.ent}-2026-10-12-14-03.jsonl`);
       expect(fs.statSync(fichierEssai).mode & 0o777).toBe(0o600);
+      const essaiSecondes = Number(fs.readFileSync(`${fichierEssai}.secondes`, 'utf8'));
+      expect(essaiSecondes).toBeGreaterThanOrEqual(2);
       expect(await nom()).toBe('Garage abîmé');
 
       const faite = lancer(A.ent, '2026-10-12 14:03', motif, '--remettre');
@@ -417,9 +428,14 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       // Restaurée une seule fois (l'essai) ; le fichier, qui porte les données d'un client, ne reste pas.
       expect(fs.readFileSync(journal, 'utf8')).toBe('--jusqua 2026-10-12 14:03\narreter\n');
       expect(fs.existsSync(fichierEssai)).toBe(false);
-      // La piste d'audit dit le motif ET la minute retrouvée (la console en fait la colonne « remise à »).
-      expect((await cible.query(`select apres->>'motif' m, apres->>'minute' as minute from socle.audit where entreprise = $1 and geste = 'socle.entreprise.remettre'`, [A.ent])).rows)
-        .toEqual([{ m: motif, minute: '2026-10-12 14:03' }]);
+      expect(fs.existsSync(`${fichierEssai}.secondes`)).toBe(false);
+      // La piste d'audit dit le motif, la minute retrouvée (la console en fait la colonne « remise à ») et la durée :
+      // celle de l'essai, plus celle de la remise.
+      const [trace] = (await cible.query(`select apres->>'motif' m, apres->>'minute' as minute, (apres->>'secondes')::int secondes from socle.audit
+        where entreprise = $1 and geste = 'socle.entreprise.remettre'`, [A.ent])).rows;
+      expect(trace).toMatchObject({ m: motif, minute: '2026-10-12 14:03' });
+      expect(trace.secondes).toBeGreaterThan(essaiSecondes);
+      expect(trace.secondes).toBeLessThan(essaiSecondes + 60);
     } finally {
       await cible.end();
       await aCote.end();

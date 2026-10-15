@@ -225,7 +225,9 @@ erreur de manipulation ou un défaut a abîmé les données d'une entreprise, le
 - **La remise** : la même commande suivie de `--remettre`, sur le fichier de l'essai (sans essai, elle est refusée ;
   un essai vaut un jour : son fichier porte les données de l'entreprise, il ne traîne pas plus longtemps).
   Les lignes de l'entreprise sont remplacées par celles du fichier, en une transaction ; rien ne bouge des autres
-  entreprises ; sa piste d'audit est gardée entière et dit la remise, son motif et les numéros retirés ; ses postes
+  entreprises ; sa piste d'audit est gardée entière et dit la remise, son motif, les numéros retirés et sa **durée** (celle
+  de l'essai — la base de la minute restaurée à côté, l'export — plus celle de la remise : c'est elle que la promesse
+  « une entreprise revient en 4 h » compare, 1.31.0) ; ses postes
   relisent tout leur dossier. La remise est refusée si une ligne d'ailleurs (le dossier de révision d'un cabinet…)
   désigne ce qu'elle ferait disparaître. L'état d'avant reste retrouvable à la minute que le script affiche : une
   remise se défait par une autre. **Essayée sur le serveur d'essai le 12/10/2026** (données inventées) : une écriture,

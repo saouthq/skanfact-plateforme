@@ -662,6 +662,11 @@ vaut pour tout le dépôt.*
     la `commande` de `plateforme.console_repondre_demande` (l'écran Support la tire) ; `ouvertes` de `plateforme.console_mesure`
     et `mesurer` (`tests/socle/invitation-courriel.test.ts`, `tests/support/support.test.ts`, `tests/support/rangement.test.ts`,
     `tests/console/mesure.test.ts`).
+  - **Les sauvegardes honnêtes** (1.31.0 ; `docs/console.md` C47, `0125`) : `leReleve`, `lArchivage` et `horsDeLaMachine`
+    (avec l'heure) et `laRemise` de `serveur/console/sauvegardes.ts` ; `essaiSecondes` de `remettre` (`base/entreprise.ts`,
+    `--essai-secondes`) et la durée de l'essai dans `exploitation/remettre-entreprise.sh` ; `mesuree` de
+    `plateforme.console_service_sauvegardes` (`tests/console/sauvegardes.test.ts`, `tests/console/console.test.ts`,
+    `tests/socle/export-entreprise.test.ts`, `tests/web/console-service.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se
