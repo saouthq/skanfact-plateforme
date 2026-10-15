@@ -31,6 +31,9 @@ export type LigneDemande = {
   // Qui la suit (0115) : son identifiant, pour « la prendre » ou la confier ; sa priorité ; l'attente de la technique.
   suivieParId: string | null; priorite: Priorite; technique: { le: string; motif: string } | null;
   dernierClientLe: string | null; dernierEquipeLe: string | null; dernierCote: 'client' | 'equipe' | null; messages: number;
+  // 0124 (l'audit C08) : le premier mot du client resté sans réponse (après notre dernier mot ; et, s'il a réécrit pendant
+  // l'attente de la technique, après le début de cette attente).
+  attendClientLe: string | null; attendClientApresTechniqueLe: string | null;
   close: { le: string; cote: 'client' | 'equipe'; par: string | null; motif: string | null } | null;
 };
 export type MessageDemande = { id: string; cote: 'client' | 'equipe'; texte: string; article: string | null; le: string; nom: string; notePar: string | null };
@@ -62,6 +65,7 @@ export function lireLigne(x: unknown): LigneDemande | null {
     priorite: l.priorite === 'urgente' ? 'urgente' : 'normale',
     technique: tq && texte(tq.le) ? { le: String(tq.le), motif: String(tq.motif ?? '') } : null,
     dernierClientLe: texte(l.dernierClientLe), dernierEquipeLe: texte(l.dernierEquipeLe), dernierCote: cote(l.dernierCote),
+    attendClientLe: texte(l.attendClientLe), attendClientApresTechniqueLe: texte(l.attendClientApresTechniqueLe),
     messages: Number(l.messages) || 0,
     close: c && texte(c.le) && closeCote ? { le: String(c.le), cote: closeCote, par: texte(c.par), motif: texte(c.motif) } : null,
   };
@@ -103,8 +107,9 @@ export function lireSupport(x: unknown): { ouvertes: LigneDemande[]; closes: Lig
 // `nouvelle` : personne de l'équipe n'y a encore répondu ; `a_repondre` : le client a réécrit après notre réponse ;
 // `attend_technique` : la technique doit répondre (0115) — sauf si le client a réécrit depuis, qui attend alors au moins un
 // mot de nous ; `attend_client` : la balle est dans son camp ; `close`. Une demande nouvelle ou à répondre attend depuis le
-// dernier mot du client ; au-delà de son délai (vingt-quatre heures, deux si elle est urgente), elle est « sans réponse »
-// (la ligne d'« À décider », le rouge de la liste).
+// PREMIER mot du client resté sans réponse (0124, l'audit C08 : une relance ne remet pas l'attente à zéro, seule notre
+// réponse le fait) ; au-delà de son délai (vingt-quatre heures, deux si elle est urgente), elle est « sans réponse » (la
+// ligne d'« À décider », le rouge de la liste).
 export type EtatDemande =
   | { etat: 'nouvelle' | 'a_repondre'; attendDepuis: string; heures: number; sansReponse: boolean }
   | { etat: 'attend_client'; depuis: string }
@@ -116,7 +121,7 @@ export function etatDe(l: LigneDemande, maintenant: Date): EtatDemande {
   const reecrit = !!l.technique && l.dernierCote === 'client' && Date.parse(l.dernierClientLe ?? '') > Date.parse(l.technique.le);
   if (l.technique && !reecrit) return { etat: 'attend_technique', depuis: l.technique.le };
   if (l.dernierCote === 'equipe') return { etat: 'attend_client', depuis: l.dernierEquipeLe ?? l.ouverteLe };
-  const attendDepuis = l.dernierClientLe ?? l.ouverteLe;
+  const attendDepuis = (reecrit ? l.attendClientApresTechniqueLe : l.attendClientLe) ?? l.dernierClientLe ?? l.ouverteLe;
   const heures = Math.max(0, Math.floor((maintenant.getTime() - new Date(attendDepuis).getTime()) / 3_600_000));
   return { etat: l.dernierEquipeLe ? 'a_repondre' : 'nouvelle', attendDepuis, heures, sansReponse: heures >= delaiDe(l.priorite) };
 }

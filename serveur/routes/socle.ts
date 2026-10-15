@@ -7,7 +7,7 @@ import { z } from 'zod';
 import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
 import { connecter, corrigerAdresse, deconnecter, demanderReinitialisation, envoyerCodeReinitialisation, essayerCode, inscrire, lireReinitialisation, mettreEnPlaceCode, reinitialiser, renvoyerCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
-import { envoyerInvitation, lienApplication, roleDansLaPhrase } from '../invitation-courriel.ts';
+import { enMots, envoyerInvitation, lienApplication, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { activerCode, activerSms, changerMotDePasse, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, retirerCode, type Refuse } from '../compte.ts';
 import { numeroMasque } from '../sms.ts';
 import { prochainNumero } from '../numeros.ts';
@@ -412,8 +412,9 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       // Elle part aussi par e-mail (0119, docs/console.md C42) : qui invite, l'entreprise, ses rôles, le lien.
       const n = (await tx.query(`select (select nom from socle.utilisateur where id = socle.moi()) qui,
           (select raison_sociale from socle.entreprise where id = $1) ou`, [params.entreprise])).rows[0] as { qui: string | null; ou: string | null };
-      const courriel = envoyerInvitation(ctx, { a: corps.email.toLowerCase(), qui: n.qui ?? '', ou: n.ou ?? '', role: corps.roles.map(roleDansLaPhrase).join(', '), lien: lienApplication(ctx, jeton), expire });
-      return { statut: 201, corps: { id, jeton, expire, courriel } };
+      // L'e-mail part une fois l'invitation écrite (0124, l'audit C07) ; la réponse dit ce qu'il est devenu.
+      const invitation = { a: corps.email.toLowerCase(), qui: n.qui ?? '', ou: n.ou ?? '', role: corps.roles.map(roleDansLaPhrase).join(', '), lien: lienApplication(ctx, jeton), expire };
+      return { statut: 201, corps: { id, jeton, expire }, apres: async () => enMots(await envoyerInvitation(ctx, invitation, sha256(jeton))) };
     },
   });
 

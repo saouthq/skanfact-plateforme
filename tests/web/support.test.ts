@@ -310,6 +310,33 @@ describe('le support, à la souris, des deux côtés', () => {
     expect(erreurs).toEqual([]);
   }, 60_000);
 
+  it('l\'audit C09 : la réponse gardée par le serveur, dont l\'accusé se perd en chemin, renvoyée, ne fait qu\'un message', async () => {
+    const id = String((await api('POST', `/entreprises/${ent}/support`, jClient, { sujet: 'Une coupure pendant la réponse', texte: 'Ma facture ne part pas.', page: 'ventes' })).corps.id);
+    const p = await consoleSur(`#/support?demande=${id}`);
+    // La première fois, le serveur reçoit et garde la réponse, mais la connexion coupe avant que l'écran le sache.
+    let couper = true;
+    await p.route('**/console/support/demandes/*/repondre', async (route) => {
+      if (!couper) { await route.continue(); return; }
+      couper = false;
+      await route.fetch();
+      await route.abort('connectionreset');
+    });
+    const zone = p.locator('.c-sp-repondre textarea');
+    const texte = 'Bonjour Lina, je regarde ça tout de suite.';
+    await zone.fill(texte);
+    await cliquer(p.locator('.c-sp-repondre button[type="submit"]'));
+    // L'écran ne sait pas : le texte reste, on renvoie.
+    await expect.poll(() => (couper ? 'attend' : 'coupé'), { timeout: 10_000 }).toBe('coupé');
+    await p.waitForTimeout(800);
+    expect(await zone.inputValue()).toBe(texte);
+    await cliquer(p.locator('.c-sp-repondre button[type="submit"]'));
+    await expect.poll(() => zone.inputValue(), { timeout: 10_000 }).toBe('');
+    // Un seul message de l'équipe : le renvoi a rendu celui que le serveur avait déjà.
+    expect((await admin.query(`select count(*)::int n from plateforme.message_support where demande = $1 and cote = 'equipe'`, [id])).rows[0]?.n).toBe(1);
+    await expect.poll(() => p.locator('.c-sp-msg-equipe').count(), { timeout: 10_000 }).toBe(1);
+    await fermer(p);
+  }, 60_000);
+
   it('l\'instrument ne trouve rien : la page Support de la console, sa fenêtre et ses demandes closes ; la page des demandes du client', async () => {
     // Une demande close, pour que la vue des closes ait de quoi se montrer.
     const close = String((await api('POST', `/entreprises/${ent}/support`, jClient, { sujet: 'Le logo flou sur le devis', texte: 'Le logo est flou sur le devis imprimé.', version: '1.3.0', page: 'devis' })).corps.id);

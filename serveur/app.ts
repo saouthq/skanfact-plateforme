@@ -34,7 +34,9 @@ export type Route<C = unknown> = {
   corps?: ZodType<C>;
   // Le travail. Pour un geste d'entreprise ou personnel, `tx` est une transaction au nom de la
   // personne ; pour un geste public, il n'y a pas de transaction (le travail ouvre les siennes).
-  traiter: (r: Requete<C>, tx: Transaction | null) => Promise<{ statut?: number; corps: unknown }>;
+  // `apres` (0124, l'audit C07) : ce qui ne se fait qu'une fois la transaction validée (un e-mail qui ne doit partir que
+  // pour ce que la base a gardé) ; ce qu'il rend s'ajoute à la réponse.
+  traiter: (r: Requete<C>, tx: Transaction | null) => Promise<{ statut?: number; corps: unknown; apres?: () => Promise<Record<string, unknown>> }>;
   // La lecture sensible d'UN objet (03 D10) : son type, et le paramètre du chemin qui le nomme. La
   // trace de la lecture dit alors quel objet a été lu, pas seulement qu'on a lu.
   objetLu?: { type: string; param: string };
@@ -72,6 +74,12 @@ function verifierDeclaration(r: Route<never>) {
 
 // Les refus de la base (socle.refus) et du serveur (serveur/erreurs.ts) arrivent avec le code 42501 :
 // on les rend dans la langue du lecteur, avec le bouton qui débloque s'il y en a un.
+// La suite d'une route, une fois sa transaction validée : ce qu'elle rend s'ajoute à la réponse.
+async function avecLaSuite(res: { corps: unknown; apres?: () => Promise<Record<string, unknown>> }): Promise<unknown> {
+  if (!res.apres) return res.corps;
+  return { ...(res.corps as Record<string, unknown>), ...await res.apres() };
+}
+
 function erreurVersReponse(e: unknown, reponse: FastifyReply, langue: Langue) {
   const err = e as { code?: string; message?: string; bouton?: string | null; texte?: unknown };
   const envoyer = (statut: number, corps: unknown) => reponse.code(statut).send(rendreTout(corps, langue));
@@ -241,7 +249,7 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
               await tx.query('select set_config(\'app.session_console\', $1, true)', [qc.session]);
               return r.traiter({ corps: corps as never, params, query, qui: quiConsole, requete }, tx);
             });
-            return envoyer(res.statut ?? 200, res.corps);
+            return envoyer(res.statut ?? 200, await avecLaSuite(res));
           } catch (e) { return erreurVersReponse(e, reponse, langue); }
         }
         const cle = jeton ? await cleValable(ctx, jeton) : null;
@@ -304,7 +312,7 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
           }, qui.cle?.id ?? null, { instantane: r.instantane === true });
           // La dernière activité d'une personne DANS cette entreprise (0114) : après une requête acceptée, jamais pour une clé.
           if (GESTES.has(r.geste) && !qui.cle && (res.statut ?? 200) < 400) noterActivite(ctx, qui.utilisateur, params.entreprise ?? '');
-          return envoyer(res.statut ?? 200, res.corps);
+          return envoyer(res.statut ?? 200, await avecLaSuite(res));
         } catch (e) { return erreurVersReponse(e, reponse, langue); }
       },
     });

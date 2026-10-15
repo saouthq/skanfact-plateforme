@@ -652,6 +652,8 @@ export interface BaseDeDonnees {
     acceptee_le: Date | null;
     acceptee_par: string | null;
     annulee_le: Date | null;
+    courriel: string | null;
+    courriel_le: Date | null;
   };
   'plateforme.lecture_support': {
     id: Generated<string>;
@@ -682,6 +684,7 @@ export interface BaseDeDonnees {
     texte: string;
     article: string | null;
     ecrit_le: Date;
+    commande: string | null;
   };
   'plateforme.note_appel': {
     id: Generated<string>;
@@ -1169,6 +1172,8 @@ export interface BaseDeDonnees {
     acceptee_le: Date | null;
     annulee_le: Date | null;
     organisation: string | null;
+    courriel: string | null;
+    courriel_le: Date | null;
   };
   'socle.maillon': {
     entreprise: string;

@@ -3,6 +3,7 @@
 // serveur a un relais, et le disent (`courriel`) ; le lien reste rendu une fois, en secours. Ce qui part chez le relais :
 // l'adresse invitée, qui invite, où, le rôle, le lien et jusqu'à quand — rien d'autre. Sans relais, rien ne part.
 
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
@@ -16,6 +17,7 @@ import { declarerGestesCompta } from '../../serveur/compta/gestes.ts';
 import { mettreEnPlaceCode, quiEst, type Contexte } from '../../serveur/connexion.ts';
 import { routesConsole } from '../../serveur/console/routes.ts';
 import type { Courriel } from '../../serveur/courriel.ts';
+import { envoyerInvitation } from '../../serveur/invitation-courriel.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { declarerGestesPaie } from '../../serveur/paie/gestes.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
@@ -103,6 +105,9 @@ describe('l\'invitation envoyée par SkanFact (0119)', () => {
     const invite = adresse('equipe');
     const r = await appeler('POST', '/console/equipe/invitations', direction, { email: invite, role: 'support', motif: 'renfort du support' });
     expect(r.corps.courriel).toBe(true);
+    // La liste de l'équipe le dit (0124) : l'e-mail a été accepté par le relais.
+    const liste = (await appeler('GET', '/console/equipe', direction)).corps.invitations as { email: string; courriel: string | null }[];
+    expect(liste.find((i) => i.email === invite)?.courriel).toBe('parti');
     const premier = pourQui(invite)[0];
     expect(premier?.objet).toBe('Hela Direction t\'invite dans l\'équipe SkanFact');
     expect(premier?.texte).toContain('comme support');
@@ -117,5 +122,49 @@ describe('l\'invitation envoyée par SkanFact (0119)', () => {
     const s = await appeler('POST', '/console/equipe/invitations', direction, { email: autre, role: 'technique', motif: 'sans relais' }, appSansRelais);
     expect([s.statut, s.corps.courriel]).toEqual([201, false]);
     expect(pourQui(autre)).toEqual([]);
+  });
+});
+
+describe('l\'e-mail d\'une invitation dit la vérité (0124, l\'audit C07)', () => {
+  const empreinte = (jeton: unknown) => createHash('sha256').update(String(jeton)).digest('hex');
+  const etatEnBase = async (jeton: unknown) => (await admin.query('select courriel from socle.invitation where jeton_empreinte = $1', [empreinte(jeton)])).rows[0]?.courriel as string | null;
+
+  it('un relais qui refuse : rien ne se dit « parti », l\'invitation garde « refusé » ; une invitation que la base refuse n\'envoie rien', async () => {
+    const tentes: string[] = [];
+    const refusant: Contexte = { ...base, courriel: { envoi: { envoyer: async (c) => { tentes.push(c.a); throw new Error('550 adresse refusée'); } }, adresse: () => 'https://app.exemple.tn' } };
+    const appRefus = creerApp(refusant, [...routesSocle(refusant)]);
+    await appRefus.ready();
+    try {
+      const p = await personne('Sonia Refus');
+      const entreprise = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Librairie Refusée' })).corps.id);
+      const invite = adresse('refuse');
+      const r = await appeler('POST', `/entreprises/${entreprise}/invitations`, p.jeton, { email: invite, roles: ['commercial'] }, appRefus);
+      expect([r.statut, r.corps.courriel, r.corps.courrielEtat]).toEqual([201, false, 'refuse']);
+      expect(r.corps.jeton).toBeTruthy();
+      expect(await etatEnBase(r.corps.jeton)).toBe('refuse');
+      // Sa propre adresse (elle est déjà de l'équipe) : l'invitation est refusée, aucun e-mail n'est tenté.
+      const n = tentes.length;
+      expect((await appeler('POST', `/entreprises/${entreprise}/invitations`, p.jeton, { email: p.email, roles: ['commercial'] }, appRefus)).statut).not.toBe(201);
+      expect(tentes).toHaveLength(n);
+    } finally { await appRefus.close(); }
+  });
+
+  it('un relais lent : « en attente » sans attendre plus ; sa réponse tardive se note sur l\'invitation', async () => {
+    const p = await personne('Walid Lent');
+    const entreprise = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Atelier Lent' })).corps.id);
+    const invite = adresse('lent');
+    // L'invitation, posée par le serveur sans relais : « sans relais ».
+    const r = await appeler('POST', `/entreprises/${entreprise}/invitations`, p.jeton, { email: invite, roles: ['commercial'] }, appSansRelais);
+    expect([r.corps.courriel, r.corps.courrielEtat]).toEqual([false, 'sans_relais']);
+    expect(await etatEnBase(r.corps.jeton)).toBe('sans_relais');
+    await admin.query('update socle.invitation set courriel = null, courriel_le = null where jeton_empreinte = $1', [empreinte(r.corps.jeton)]);
+    let accepter = () => {};
+    const lent: Contexte = { ...base, courriel: { envoi: { envoyer: () => new Promise<void>((ok) => { accepter = ok; }) }, adresse: () => 'https://app.exemple.tn' } };
+    const etat = await envoyerInvitation(lent, { a: invite, qui: 'Walid Lent', ou: 'Atelier Lent', role: 'commercial', lien: 'https://app.exemple.tn/?invitation=x', expire: new Date() },
+      empreinte(r.corps.jeton), 50);
+    expect(etat).toBe('en_attente');
+    expect(await etatEnBase(r.corps.jeton)).toBe('en_attente');
+    accepter();
+    await expect.poll(() => etatEnBase(r.corps.jeton), { timeout: 5_000 }).toBe('parti');
   });
 });

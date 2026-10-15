@@ -290,6 +290,9 @@ function Repondre({ d, articles, brouillons, envoye, relire }: { d: Demande; art
   const [refus, setRefus] = useState<string | null>(null);
   const [faute, setFaute] = useState(0);
   const [occupe, setOccupe] = useState(false);
+  // 0124 (l'audit C09) : l'identifiant de CETTE réponse, gardé si on la renvoie après une coupure (le serveur rend alors
+  // celle qu'il a déjà, sans la doubler) ; un nouveau pour la suivante.
+  const commande = useRef(crypto.randomUUID());
   const prenom = prenomDe(d.personne.nom);
   // Trois réponses types au plus : au-delà, elles repoussaient le champ sous le bord de l'écran (l'article de la page d'abord).
   const proposes = d.suggestions.map((id) => articles.find((a) => a.id === id)).filter((a): a is Article => !!a).slice(0, 3);
@@ -315,12 +318,13 @@ function Repondre({ d, articles, brouillons, envoye, relire }: { d: Demande; art
     if (texte.trim().length < 3) { setRefus(phrase('console.ecran.support.reponse_vide')); setFaute((n) => n + 1); return; }
     setOccupe(true);
     try {
-      const r = await api('POST', `/console/support/demandes/${d.ligne.id}/repondre`, { texte: texte.trim(), article: article || null });
+      const r = await api('POST', `/console/support/demandes/${d.ligne.id}/repondre`, { texte: texte.trim(), article: article || null, commande: commande.current });
       if (!r) return;
       // Un refus qui ne porte pas sur le texte vient de ce qui a bougé ailleurs (la demande close entre-temps) : l'écran se
       // relit pour le montrer, la réponse reste gardée.
       if (r.statut !== 201) { setRefus(refusDe(r)); if (r.corps.champ === 'texte') setFaute((n) => n + 1); else relire(); return; }
       setTexte(''); setArticle(''); setRefus(null);
+      commande.current = crypto.randomUUID();
       toast(phrase('console.ecran.support.envoyee', { prenom }));
       envoye();
     } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }

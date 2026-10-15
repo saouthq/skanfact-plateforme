@@ -12570,7 +12570,7 @@ SUP5='une demande reçue sur WhatsApp se range au nom d'"'"'une personne de l'"'
 SUP6='une entreprise en lecture seule écrit quand même au support : c'"'"'est souvent là qu'"'"'on en a besoin'
 SUP7='ne porte rien de la réponse, part une fois cinq minutes après, à une adresse vérifiée d'"'"'une personne encore dans l'"'"'entreprise'
 SUP8='une adresse que personne n'"'"'a vérifiée, ou une personne qui a quitté l'"'"'entreprise, ne reçoit rien'
-SUPP1='nouvelle tant que l'"'"'équipe n'"'"'a rien dit ; à répondre quand le client a réécrit ; elle attend depuis le DERNIER mot du client'
+SUPP1='nouvelle tant que l'"'"'équipe n'"'"'a rien dit ; à répondre quand le client a réécrit ; elle attend depuis son PREMIER mot resté sans réponse'
 SUPP2='« sans réponse » commence à vingt-quatre heures pile, pas une de moins'
 SUPP3='la balle chez le client : elle attend depuis notre dernière réponse ; close : par qui, et quand'
 SUPP4='sans réponse d'"'"'abord (la plus ancienne), puis celles qui attendent notre réponse (la plus ancienne), puis celles qui attendent le client (la plus récente), puis les closes'
@@ -12599,8 +12599,8 @@ prouver 'un champ de plus accepté avec la demande' serveur/support/routes.ts \
     }).strict(),' 'regex(/^([a-z][a-z0-9_-]*)?$/).nullable().default(null),
     }),' \
   "$SUP2"
-prouver 'la réponse qui part sans son article' base/migrations/0095_support.sql \
-  '    values (p_demande, '"'"'equipe'"'"', socle.moi(), v_texte, p_article, p_maintenant)' '    values (p_demande, '"'"'equipe'"'"', socle.moi(), v_texte, null, p_maintenant)' \
+prouver 'la réponse qui part sans son article' base/migrations/0124_support_honnete.sql \
+  '    values (p_demande, '"'"'equipe'"'"', socle.moi(), v_texte, p_article, p_maintenant, p_commande)' '    values (p_demande, '"'"'equipe'"'"', socle.moi(), v_texte, null, p_maintenant, p_commande)' \
   "$SUP3"
 prouver 'une réponse lue qui attend encore' base/migrations/0095_support.sql \
   '  update plateforme.demande_support set lu_le = greatest(coalesce(lu_le, '"'"'-infinity'"'"'), p_maintenant) where id = v.id;' '  perform 1;' \
@@ -12610,7 +12610,7 @@ prouver 'une demande close qui ne se rouvre pas quand la personne réécrit' bas
          lu_le' 'set
          lu_le' \
   "$SUP3"
-prouver 'l'"'"'équipe qui répond à une demande close' base/migrations/0095_support.sql \
+prouver 'l'"'"'équipe qui répond à une demande close' base/migrations/0124_support_honnete.sql \
   '  if v.close_le is not null then perform socle.refus('"'"'cette demande est close : rouvre-la pour y répondre'"'"'); end if;
 ' '' \
   "$SUP3"
@@ -12658,7 +12658,7 @@ prouver 'l'"'"'alerte chez qui a quitté l'"'"'entreprise' base/migrations/0095_
 ' \
   "$SUP8"
 prouver 'l'"'"'attente comptée depuis l'"'"'ouverture' serveur/console/support.ts \
-  '  const attendDepuis = l.dernierClientLe ?? l.ouverteLe;' '  const attendDepuis = l.ouverteLe;' \
+  '  const attendDepuis = (reecrit ? l.attendClientApresTechniqueLe : l.attendClientLe) ?? l.dernierClientLe ?? l.ouverteLe;' '  const attendDepuis = l.ouverteLe;' \
   "$SUPP1"
 prouver '« sans réponse » une heure trop tard' serveur/console/support.ts \
   'sansReponse: heures >= delaiDe(l.priorite)' 'sansReponse: heures > delaiDe(l.priorite)' \
@@ -14390,23 +14390,23 @@ prouver 'la carte des chaînes qui tait ce qu'"'"'elle ne relit pas' 'web/consol
   'la chaîne d'"'"'empreintes : relue par le serveur au démarrage, trente jours en cases ; ce qui n'"'"'est pas encore relu le dit'
 
 # 1.23.0 : la mesure (0116 ; docs/console.md C39).
-prouver 'la mesure lue par la technique, dans la base' 'base/migrations/0116_mesure.sql' \
-  'exiger_role_console(array['"'"'direction'"'"']);' \
-  'exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"']);' \
+prouver 'la mesure lue par la technique, dans la base' 'base/migrations/0124_support_honnete.sql' \
+  'perform plateforme.exiger_role_console(array['"'"'direction'"'"']);' \
+  'perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"']);' \
   'la direction seule, à la route comme à la base ; aucun nom ni identifiant d'"'"'entreprise à l'"'"'écran ; une période inconnue vaut la semaine'
-prouver 'la mesure ouverte à la technique, à la route' 'serveur/console/gestes.ts|||base/migrations/0116_mesure.sql' \
-  '  { code: '"'"'console.mesure.voir'"'"', roles: [D], ecrit: false },|||exiger_role_console(array['"'"'direction'"'"']);' \
-  '  { code: '"'"'console.mesure.voir'"'"', roles: [D, T], ecrit: false },|||exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"']);' \
+prouver 'la mesure ouverte à la technique, à la route' 'serveur/console/gestes.ts|||base/migrations/0124_support_honnete.sql' \
+  '  { code: '"'"'console.mesure.voir'"'"', roles: [D], ecrit: false },|||perform plateforme.exiger_role_console(array['"'"'direction'"'"']);' \
+  '  { code: '"'"'console.mesure.voir'"'"', roles: [D, T], ecrit: false },|||perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"']);' \
   'la direction seule, à la route comme à la base ; aucun nom ni identifiant d'"'"'entreprise à l'"'"'écran ; une période inconnue vaut la semaine'
-prouver 'les pièces de trente et un jours' 'base/migrations/0116_mesure.sql' \
+prouver 'les pièces de trente et un jours' 'base/migrations/0124_support_honnete.sql' \
   'between p_jour - 29 and p_jour' \
   'between p_jour - 30 and p_jour' \
   'les pièces des trente jours : émises, au jour de leur fuseau ; un brouillon ou une pièce plus vieille ne comptent pas ; la première réponse du support'
-prouver 'les pièces comptées au jour de l'"'"'UTC' 'base/migrations/0116_mesure.sql' \
+prouver 'les pièces comptées au jour de l'"'"'UTC' 'base/migrations/0124_support_honnete.sql' \
   '(p.emise_le at time zone e.fuseau)::date between' \
   '(p.emise_le at time zone '"'"'UTC'"'"')::date between' \
   'les pièces des trente jours : émises, au jour de leur fuseau ; un brouillon ou une pièce plus vieille ne comptent pas ; la première réponse du support'
-prouver 'la première réponse prise au message du client' 'base/migrations/0116_mesure.sql' \
+prouver 'la première réponse prise au message du client' 'base/migrations/0124_support_honnete.sql' \
   'where m.demande = d.id and m.cote = '"'"'equipe'"'"'),
                     '"'"'closeLe'"'"'' \
   'where m.demande = d.id),
@@ -14597,8 +14597,8 @@ prouver 'l'"'"'adresse de l'"'"'invité à retaper' 'web/console/src/ecrans/Entr
 
 # 1.26.0 : l'invitation part par e-mail (0119 ; docs/console.md C42).
 prouver 'l'"'"'invitation d'"'"'une entreprise part à une autre adresse' 'serveur/routes/socle.ts' \
-  'envoyerInvitation(ctx, { a: corps.email.toLowerCase(), qui: n.qui ?? '"'"''"'"', ou: n.ou ?? '"'"''"'"', role: corps.roles' \
-  'envoyerInvitation(ctx, { a: '"'"'quelqu-un@exemple.tn'"'"', qui: n.qui ?? '"'"''"'"', ou: n.ou ?? '"'"''"'"', role: corps.roles' \
+  'const invitation = { a: corps.email.toLowerCase(), qui: n.qui ?? '"'"''"'"', ou: n.ou ?? '"'"''"'"', role: corps.roles' \
+  'const invitation = { a: '"'"'quelqu-un@exemple.tn'"'"', qui: n.qui ?? '"'"''"'"', ou: n.ou ?? '"'"''"'"', role: corps.roles' \
   'l'"'"'équipe d'"'"'une entreprise : qui invite, l'"'"'entreprise, ses rôles et le lien, à cette adresse seule ; le lien est celui que l'"'"'écran reçoit'
 prouver 'le lien de l'"'"'e-mail n'"'"'est pas celui de l'"'"'invitation' 'serveur/invitation-courriel.ts' \
   '/?invitation=${encodeURIComponent(jeton)}`' \
@@ -14617,16 +14617,16 @@ prouver 'le rôle du collaborateur tu' 'serveur/cabinet/routes.ts' \
   'role: '"'"''"'"'' \
   'l'"'"'équipe d'"'"'un cabinet : le cabinet et le rôle dits dans la phrase'
 prouver 'renvoyer n'"'"'envoie pas le lien neuf' 'serveur/console/routes.ts' \
-  'return { corps: { id, jeton: l.jeton, expire: l.expire.toISOString(), courriel: await envoyerLien(tx, id, l) } };' \
-  'return { corps: { id, jeton: l.jeton, expire: l.expire.toISOString(), courriel: false } };' \
+  'return { corps: { id, jeton: l.jeton, expire: l.expire.toISOString() }, apres: await lienEnvoye(tx, id, l) };' \
+  'return { corps: { id, jeton: l.jeton, expire: l.expire.toISOString() } };' \
   'l'"'"'équipe SkanFact : le lien mène à la console ; renvoyer envoie un lien neuf, annuler n'"'"'envoie rien ; sans relais, rien ne part et l'"'"'écran le sait'
 prouver 'le lien de l'"'"'équipe mène à l'"'"'application' 'serveur/invitation-courriel.ts' \
   '/#/invitation/${jeton}`' \
   '/?invitation=${jeton}`' \
   'l'"'"'équipe SkanFact : le lien mène à la console ; renvoyer envoie un lien neuf, annuler n'"'"'envoie rien ; sans relais, rien ne part et l'"'"'écran le sait'
 prouver 'sans relais, la réponse croit l'"'"'e-mail parti' 'serveur/invitation-courriel.ts' \
-  'if (!courriel) return false;' \
-  'if (!courriel) return true;' \
+  'if (!courriel) { await noter('"'"'sans_relais'"'"'); return '"'"'sans_relais'"'"'; }' \
+  'if (!courriel) { await noter('"'"'sans_relais'"'"'); return '"'"'parti'"'"'; }' \
   'l'"'"'équipe SkanFact : le lien mène à la console ; renvoyer envoie un lien neuf, annuler n'"'"'envoie rien ; sans relais, rien ne part et l'"'"'écran le sait'
 prouver 'l'"'"'e-mail de l'"'"'équipe part à une autre adresse' 'base/migrations/0119_invitations_courriel.sql' \
   'return query select i.email, i.role, u.nom' \
@@ -14637,8 +14637,8 @@ prouver 'la fenêtre de l'"'"'entreprise tait l'"'"'e-mail parti' 'web/public/pl
   'const parti = false;' \
   'inviter, rejoindre par le lien sans compte, changer les rôles, retirer, annuler une invitation'
 prouver 'la console dit l'"'"'e-mail parti sans relais' 'web/console/src/ecrans/Equipe.tsx' \
-  'courriel: r.corps.courriel === true });' \
-  'courriel: true });' \
+  'etat: r.corps.courrielEtat ?? '"'"'sans_relais'"'"' });' \
+  'etat: '"'"'parti'"'"' });' \
   'la direction invite : le lien une fois, puis l'"'"'invitation attend ; renvoyer donne un lien neuf, annuler l'"'"'éteint'
 
 # 1.27.0 : les nouveautés qu'on allume (0120 ; docs/console.md C43).
@@ -14849,6 +14849,68 @@ prouver 'l'"'"'outil rétrograde la dernière personne à la direction' 'base/eq
   '    if (avant?.actif && avant.role === '"'"'direction'"'"' && await directions(client) === 1) throw' \
   '    if (false) throw' \
   'l'"'"'outil de l'"'"'exploitation ne rétrograde pas la dernière personne à la direction (0123)'
+
+# 1.30.0 : l'invitation, le support et sa mesure, honnêtes (0124 ; l'audit de la console 1.26.0, C07, C08, C09, C12).
+prouver 'un relais qui refuse, dit « parti »' 'serveur/invitation-courriel.ts' \
+  '{ console.error(`l'"'"'invitation n'"'"'est pas partie : ${String(e)}`); return '"'"'refuse'"'"'; }' \
+  '{ console.error(`l'"'"'invitation n'"'"'est pas partie : ${String(e)}`); return '"'"'parti'"'"'; }' \
+  'un relais qui refuse : rien ne se dit « parti », l'"'"'invitation garde « refusé » ; une invitation que la base refuse n'"'"'envoie rien'
+prouver 'l'"'"'état de l'"'"'e-mail jamais noté sur l'"'"'invitation' 'serveur/invitation-courriel.ts' \
+  '.then(async (etat) => { finie = true; await noter(etat); return etat; });' \
+  '.then(async (etat) => { finie = true; return etat; });' \
+  'un relais qui refuse : rien ne se dit « parti », l'"'"'invitation garde « refusé » ; une invitation que la base refuse n'"'"'envoie rien'
+prouver 'un relais lent attendu sans fin' 'serveur/invitation-courriel.ts' \
+  'const etat = await Promise.race([envoi, delai]);' \
+  'const etat = await envoi;' \
+  'un relais lent : « en attente » sans attendre plus ; sa réponse tardive se note sur l'"'"'invitation'
+prouver 'sans relais, rien de noté' 'serveur/invitation-courriel.ts' \
+  'if (!courriel) { await noter('"'"'sans_relais'"'"'); return '"'"'sans_relais'"'"'; }' \
+  'if (!courriel) return '"'"'sans_relais'"'"';' \
+  'un relais lent : « en attente » sans attendre plus ; sa réponse tardive se note sur l'"'"'invitation'
+prouver 'la liste de l'"'"'équipe tait ce que l'"'"'e-mail est devenu' 'base/migrations/0124_support_honnete.sql' \
+  '            '"'"'courriel'"'"', i.courriel, '"'"'courrielLe'"'"', i.courriel_le) order by i.invitee_le desc), '"'"'[]'"'"'::jsonb)' \
+  '            '"'"'courriel'"'"', null, '"'"'courrielLe'"'"', i.courriel_le) order by i.invitee_le desc), '"'"'[]'"'"'::jsonb)' \
+  'l'"'"'équipe SkanFact : le lien mène à la console ; renvoyer envoie un lien neuf, annuler n'"'"'envoie rien ; sans relais, rien ne part et l'"'"'écran le sait'
+prouver 'l'"'"'écran tait ce que l'"'"'e-mail d'"'"'une invitation est devenu' 'web/console/src/ecrans/Equipe.tsx' \
+  '{dire(i.courriel ? `console.ecran.equipe.inv.courriel.${i.courriel}` : '"'"'console.ecran.equipe.inv.ligne'"'"')}' \
+  '{dire('"'"'console.ecran.equipe.inv.ligne'"'"')}' \
+  'la direction invite : le lien une fois, puis l'"'"'invitation attend ; renvoyer donne un lien neuf, annuler l'"'"'éteint'
+prouver 'une relance du client remet l'"'"'attente à zéro (la base)' 'base/migrations/0124_support_honnete.sql' \
+  '        and m.ecrit_le > coalesce((select max(e.ecrit_le) from plateforme.message_support e where e.demande = d.id and e.cote = '"'"'equipe'"'"'), '"'"'-infinity'"'"')),
+    '"'"'attendClientApresTechniqueLe'"'"'' \
+  '),
+    '"'"'attendClientApresTechniqueLe'"'"'' \
+  'l'"'"'audit C08 : une relance du client ne remet pas l'"'"'attente à zéro ; seule notre réponse le fait'
+prouver 'une relance du client remet l'"'"'attente à zéro (le calcul)' 'serveur/console/support.ts' \
+  'const attendDepuis = (reecrit ? l.attendClientApresTechniqueLe : l.attendClientLe) ?? l.dernierClientLe ?? l.ouverteLe;' \
+  'const attendDepuis = l.dernierClientLe ?? l.ouverteLe;' \
+  'nouvelle tant que l'"'"'équipe n'"'"'a rien dit ; à répondre quand le client a réécrit ; elle attend depuis son PREMIER mot resté sans réponse'
+prouver 'réécrit pendant l'"'"'attente de la technique, l'"'"'attente compte d'"'"'avant elle' 'serveur/console/support.ts' \
+  'const attendDepuis = (reecrit ? l.attendClientApresTechniqueLe : l.attendClientLe) ?? l.dernierClientLe ?? l.ouverteLe;' \
+  'const attendDepuis = l.attendClientLe ?? l.dernierClientLe ?? l.ouverteLe;' \
+  'elle attend la technique depuis son geste ; le client réécrit après : elle attend notre réponse ; avant : elle attend toujours la technique'
+prouver 'la même commande fait deux messages' 'base/migrations/0124_support_honnete.sql' \
+  '    if v_id is not null then return v_id; end if;' \
+  '    null;' \
+  'l'"'"'audit C09 : la même réponse renvoyée (après une coupure, ou deux fois au même moment) ne fait qu'"'"'un message ; une autre en fait un second'
+prouver 'l'"'"'écran renvoie une réponse sans son identifiant' 'web/console/src/ecrans/Support.tsx' \
+  'article: article || null, commande: commande.current });' \
+  'article: article || null });' \
+  'l'"'"'audit C09 : la réponse gardée par le serveur, dont l'"'"'accusé se perd en chemin, renvoyée, ne fait qu'"'"'un message'
+prouver 'la Mesure garde l'"'"'attente d'"'"'une demande close' 'serveur/console/mesure.ts' \
+  '  const attenteMax = compter(lu.ouvertes, maintenant).attenteMax;' \
+  '  const sans = lu.demandes.filter((d) => !d.reponduLe).map((d) => Math.floor((t - Date.parse(d.ouverteLe)) / 3_600_000));
+  const attenteMax = sans.length ? Math.max(...sans) : null;' \
+  'le support dans son délai, mois par mois : tenue, manquée, pas encore due ; l'"'"'urgente à deux heures'
+prouver 'la file de la Mesure garde les demandes closes' 'base/migrations/0124_support_honnete.sql' \
+  '                  where not e.essai and d.close_le is null),' \
+  '                  where not e.essai),' \
+  'l'"'"'audit C12 : la file d'"'"'aujourd'"'"'hui, lue comme le Support la lit — ni une demande close, ni une limite au mois d'"'"'avant'
+prouver 'une demande close sans réponse compte comme la file l'"'"'a laissée' 'serveur/console/mesure.ts' \
+  '  if (d.closeLe) return Date.parse(d.closeLe) - ouverte <= delai ? '"'"'pas_encore'"'"' : '"'"'manquee'"'"';
+' \
+  '' \
+  'le support dans son délai, mois par mois : tenue, manquée, pas encore due ; l'"'"'urgente à deux heures'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

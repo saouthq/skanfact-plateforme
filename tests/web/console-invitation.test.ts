@@ -102,6 +102,8 @@ describe('inviter quelqu\'un, à la souris', () => {
     // Elle attend : une ligne de la liste, et « À régler ».
     const ligne = p.locator('tr.c-eq-invitation', { hasText: email });
     await ligne.waitFor({ timeout: 20_000 });
+    // Ce que son e-mail est devenu (0124, l'audit C07) : ici, aucun, et la ligne le dit.
+    expect(net(await ligne.locator('.c-sous').first().innerText())).toBe('invitation en attente · sans e-mail : le lien se transmet à la main');
     expect(net(await p.locator('.c-eq-regler').innerText())).toContain(`${email} n'a pas encore ouvert son invitation`);
     // Renvoyer, depuis le menu de la ligne : un lien neuf ; l'ancien ne vaut plus.
     await cliquer(ligne.getByRole('button', { name: new RegExp(`invitation de ${email.replace(/[.+]/g, '\\$&')}`) }));

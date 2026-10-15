@@ -656,6 +656,12 @@ vaut pour tout le dépôt.*
     `LectureConsignes` de `exploitation/suivre.ts`, `consignesIllisibles` (l'état du suiveur, `serveur/console/versions.ts`,
     l'écran Versions) ; `plateforme.verrou_equipe` et l'index `invitation_console_une_en_attente`, le verrou dans
     `base/equipe.ts` (`tests/console/versions.test.ts`, `tests/console/invitations.test.ts`, `tests/web/console-versions.test.ts`).
+  - **L'invitation, le support et sa mesure, honnêtes** (1.30.0 ; `docs/console.md` C46, `0124`) : `envoyerInvitation` et
+    `enMots` de `serveur/invitation-courriel.ts`, `apres` (la suite d'une route, après sa transaction) dans `serveur/app.ts`,
+    `socle.noter_courriel_invitation` ; `attendClientLe` de `plateforme.support_ligne` et `etatDe` (`serveur/console/support.ts`) ;
+    la `commande` de `plateforme.console_repondre_demande` (l'écran Support la tire) ; `ouvertes` de `plateforme.console_mesure`
+    et `mesurer` (`tests/socle/invitation-courriel.test.ts`, `tests/support/support.test.ts`, `tests/support/rangement.test.ts`,
+    `tests/console/mesure.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

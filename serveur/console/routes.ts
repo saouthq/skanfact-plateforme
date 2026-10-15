@@ -15,7 +15,7 @@ import { Introuvable, Perimee } from '../erreurs.ts';
 import { activerCode, activerSms, changerMotDePasse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, type Refuse } from '../compte.ts';
 import { numeroMasque } from '../sms.ts';
 import * as invitations from './invitations.ts';
-import { envoyerInvitation, lienConsole, roleDansLaPhrase } from '../invitation-courriel.ts';
+import { enMots, envoyerInvitation, lienConsole, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { etatAbonnement, lireDelai, lireAVenir, lireFaits, lireModules, lireOffreSuivante, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, MOYENS_RECUS, type GesteAbonnement, type LigneAbonnement, type PaiementRecu } from '../abonnement/gestes.ts';
@@ -941,10 +941,12 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     const jeton = randomBytes(24).toString('base64url');
     return { jeton, expire: new Date(maintenant().getTime() + invitations.JOURS_INVITATION * 24 * 3600_000) };
   };
-  // L'invitation part aussi par e-mail (0119, C42) : à qui, quel rôle, qui invite, relus dans la base. Vrai si elle part.
-  const envoyerLien = async (tx: Transaction | null, id: string, l: { jeton: string; expire: Date }) => {
+  // L'invitation part aussi par e-mail (0119, C42) : à qui, quel rôle, qui invite, relus dans la base (dans la transaction).
+  // L'e-mail, lui, part une fois l'invitation écrite (0124, l'audit C07) : la suite de la route, qui dit ce qu'il est devenu.
+  const lienEnvoye = async (tx: Transaction | null, id: string, l: { jeton: string; expire: Date }) => {
     const i = (await transaction(tx).query('select * from plateforme.console_invitation_pour_courriel($1)', [id])).rows[0] as { email: string; role: string; invite_par: string } | undefined;
-    return i ? envoyerInvitation(ctx, { a: i.email, qui: i.invite_par, ou: null, role: roleDansLaPhrase(i.role), lien: lienConsole(ctx, l.jeton), expire: l.expire }) : false;
+    return async () => enMots(i ? await envoyerInvitation(ctx, { a: i.email, qui: i.invite_par, ou: null, role: roleDansLaPhrase(i.role), lien: lienConsole(ctx, l.jeton), expire: l.expire },
+      invitations.sha256(l.jeton)) : 'sans_relais');
   };
   ajouter({
     methode: 'POST', chemin: '/console/equipe/invitations', geste: 'console.equipe.gerer',
@@ -953,7 +955,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const l = nouveauLien();
       const id = await lireJson<string>(transaction(tx), 'select plateforme.console_inviter($1, $2, $3, $4, $5, $6) v',
         [corps.email, corps.role, corps.motif, invitations.sha256(l.jeton), maintenant(), l.expire]);
-      return { statut: 201, corps: { id, jeton: l.jeton, expire: l.expire.toISOString(), courriel: await envoyerLien(tx, id, l) } };
+      return { statut: 201, corps: { id, jeton: l.jeton, expire: l.expire.toISOString() }, apres: await lienEnvoye(tx, id, l) };
     },
   });
   ajouter({
@@ -964,7 +966,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const l = nouveauLien();
       const id = await lireJson<string>(transaction(tx), 'select plateforme.console_renvoyer_invitation($1, $2, $3, $4, $5) v',
         [params.invitation, corps.motif, invitations.sha256(l.jeton), maintenant(), l.expire]);
-      return { corps: { id, jeton: l.jeton, expire: l.expire.toISOString(), courriel: await envoyerLien(tx, id, l) } };
+      return { corps: { id, jeton: l.jeton, expire: l.expire.toISOString() }, apres: await lienEnvoye(tx, id, l) };
     },
   });
   ajouter({
@@ -1904,10 +1906,13 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     corps: z.object({
       texte: z.string().trim().min(3, 'console.support.reponse_courte').max(4000),
       article: z.string().nullable().refine((a) => a === null || articleConnu(a), 'console.support.article_inconnu'),
+      // 0124 (l'audit C09) : l'identifiant de cette réponse, tiré par l'écran et gardé quand il la renvoie après une
+      // coupure : la même commande ne fait qu'un message.
+      commande: z.string().uuid().optional(),
     }),
     traiter: async ({ params, corps }, tx) => {
-      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_repondre_demande($1, $2, $3, $4) v',
-        [lireUuid(params.demande), corps.texte, corps.article, maintenant()]);
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_repondre_demande($1, $2, $3, $4, $5) v',
+        [lireUuid(params.demande), corps.texte, corps.article, maintenant(), corps.commande ?? null]);
       return { statut: 201, corps: { id } };
     },
   });

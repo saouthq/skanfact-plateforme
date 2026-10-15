@@ -1192,6 +1192,24 @@ sont vrais ; corrigés dans l'ordre qu'il propose, un lot par version). Les troi
 - **C06, deux liens pour la même adresse.** Une seule invitation attend par adresse (un index unique) ; deux invitations
   au même moment : la seconde remplace la première, un seul lien vaut.
 
+**C46. L'audit de la console 1.26.0, troisième partie : l'invitation, le support et sa mesure, honnêtes** (1.30.0 ;
+base 0124) :
+- **C07, « l'invitation est partie » sans qu'elle le soit.** L'e-mail part une fois l'invitation écrite (la suite de la
+  route, après sa transaction : plus jamais un lien envoyé pour une invitation refusée), et la réponse du relais est
+  attendue huit secondes. L'écran dit ce qui est vrai : partie (le relais l'a acceptée — ce n'est pas encore la preuve
+  qu'elle est arrivée), refusée, en attente du relais, ou sans relais ; refusée ou en attente, le lien à transmettre passe
+  devant. Chaque invitation garde cet état et son heure (une réponse tardive du relais se note) ; la liste de l'équipe
+  SkanFact le montre. L'application garde son « Invitation partie », désormais vrai seulement quand le relais l'a acceptée.
+- **C08, une relance qui effaçait le retard.** Une demande attend depuis le premier mot du client resté sans réponse :
+  « vous avez vu mon message ? » ne la sort plus des urgences ; seule notre réponse remet le cycle à zéro.
+- **C09, une réponse doublée après une coupure.** Chaque réponse écrite dans la console porte l'identifiant de sa commande,
+  gardé quand on la renvoie : la même commande ne fait qu'un message (et rend le premier), même envoyée deux fois au même
+  moment ; deux réponses différentes en font deux.
+- **C12, une attente qui n'existait plus.** La Mesure lit les demandes ouvertes comme la file du Support (la même fonction,
+  le même chiffre) : une demande close n'attend plus, une ancienne attend encore. Close sans réponse avant son délai (un
+  doublon, une question réglée par le client), une demande ne compte ni tenue ni manquée ; après son délai, manquée
+  (choisi par délégation).
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

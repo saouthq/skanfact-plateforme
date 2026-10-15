@@ -331,3 +331,46 @@ describe('l\'alerte par e-mail d\'une réponse', () => {
     } finally { horloge = new Date(); }
   });
 });
+
+describe('l\'attente et la réponse, honnêtes (0124)', () => {
+  it('l\'audit C08 : une relance du client ne remet pas l\'attente à zéro ; seule notre réponse le fait', async () => {
+    const { ent, p } = await entreprise('Quincaillerie Relance');
+    const id = (await ecrire(ent, p, { sujet: 'La facture ne part pas', texte: 'Le bouton Émettre ne fait rien.', page: 'ventes' })).corps.id;
+    // Ouverte il y a vingt-six heures, sans réponse.
+    // (Un message ne se réécrit pas : le recul se pose déclencheurs suspendus, le temps de l'essai.)
+    await admin.query('begin');
+    await admin.query('set local session_replication_role = replica');
+    await admin.query(`update plateforme.message_support set ecrit_le = ecrit_le - interval '26 hours' where demande = $1`, [id]);
+    await admin.query(`update plateforme.demande_support set ouverte_le = ouverte_le - interval '26 hours' where id = $1`, [id]);
+    await admin.query('commit');
+    const etat = async () => (await voir(support)).ouvertes.find((x) => x.id === id)?.etat as { etat: string; heures?: number; sansReponse?: boolean } | undefined;
+    expect(await etat()).toMatchObject({ etat: 'nouvelle', heures: 26, sansReponse: true });
+    // « Vous avez vu mon message ? » : toujours vingt-six heures, toujours sans réponse.
+    expect((await appeler('POST', `/entreprises/${ent}/support/${id}/messages`, p.jeton, { texte: 'Vous avez vu mon message ?' })).statut).toBe(201);
+    expect(await etat()).toMatchObject({ etat: 'nouvelle', heures: 26, sansReponse: true });
+    // Notre réponse remet le cycle à zéro ; sa nouvelle question attend depuis elle.
+    expect((await appeler('POST', `/console/support/demandes/${id}/repondre`, support.jeton, { texte: 'Bonjour, on regarde tout de suite.', article: null })).statut).toBe(201);
+    expect((await etat())?.etat).toBe('attend_client');
+    expect((await appeler('POST', `/entreprises/${ent}/support/${id}/messages`, p.jeton, { texte: 'Merci, et pour les avoirs ?' })).statut).toBe(201);
+    expect(await etat()).toMatchObject({ etat: 'a_repondre', heures: 0, sansReponse: false });
+  });
+
+  it('l\'audit C09 : la même réponse renvoyée (après une coupure, ou deux fois au même moment) ne fait qu\'un message ; une autre en fait un second', async () => {
+    const { ent, p } = await entreprise('Imprimerie Coupure');
+    const id = (await ecrire(ent, p, { sujet: 'Le logo ne s\'imprime pas', texte: 'Mon logo manque sur la facture.', page: 'ventes' })).corps.id;
+    const commande = '0192f3a4-0000-7000-8000-00000000c009';
+    const repondre = (texte: string, c: string) => appeler('POST', `/console/support/demandes/${id}/repondre`, support.jeton, { texte, article: null, commande: c });
+    const a = await repondre('Bonjour, ajoute-le dans Ton entreprise.', commande);
+    expect(a.statut, JSON.stringify(a.corps)).toBe(201);
+    // Renvoyée : la même réponse, rendue telle quelle.
+    const b = await repondre('Bonjour, ajoute-le dans Ton entreprise.', commande);
+    expect([b.statut, b.corps.id]).toEqual([201, a.corps.id]);
+    // Deux fois au même moment, avec une autre commande : une seule réponse de plus.
+    const autre = '0192f3a4-0000-7000-8000-00000000c010';
+    const [c, d] = await Promise.all([repondre('Et vérifie sa taille.', autre), repondre('Et vérifie sa taille.', autre)]);
+    expect([c.statut, d.statut, c.corps.id === d.corps.id]).toEqual([201, 201, true]);
+    const equipe = (await admin.query(`select texte from plateforme.message_support where demande = $1 and cote = 'equipe' order by ecrit_le, id`, [id])).rows;
+    expect(equipe).toEqual([{ texte: 'Bonjour, ajoute-le dans Ton entreprise.' }, { texte: 'Et vérifie sa taille.' }]);
+    expect((await journal(ent)).filter((g) => g.geste === 'support.repondre')).toHaveLength(2);
+  });
+});

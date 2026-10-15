@@ -352,6 +352,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'un mois a déjà été offert à cette entreprise ces douze derniers mois : un autre se demande à la direction', cle: 'base.console.mois_support', fr: 'un mois a déjà été offert à cette entreprise ces douze derniers mois : un autre se demande à la direction' },
   { base: 'un paiement reçu dit sa facture, le montant reçu, son moyen (virement, chèque, espèces) et son jour : sans eux, rien n\'est payé', cle: 'base.console.paiement_preuve', fr: 'un paiement reçu dit sa facture, le montant reçu, son moyen (virement, chèque, espèces) et son jour : sans eux, rien n\'est payé' },
   { base: 'ce paiement est déjà noté : la même facture ne paie pas deux périodes', cle: 'base.console.paiement_deja_note', fr: 'ce paiement est déjà noté : la même facture ne paie pas deux périodes' },
+  { base: 'cet état d\'un e-mail n\'existe pas', cle: 'base.socle.etat_courriel_inconnu', fr: 'cet état d\'un e-mail n\'existe pas' },
   { base: 'aucun mois offert n\'attend cette facture : relis la fiche avant de la préparer', cle: 'base.console.facture_sans_mois', fr: 'aucun mois offert n\'attend cette facture : relis la fiche avant de la préparer' },
   { base: 'un mois offert attend cette facture : elle le porte', cle: 'base.console.facture_mois', fr: 'un mois offert attend cette facture : elle le porte' },
   { base: 'la période de la facture n\'est pas la bonne : relis-la avant de la préparer', cle: 'base.console.facture_periode', fr: 'la période de la facture n\'est pas la bonne : relis-la avant de la préparer' },

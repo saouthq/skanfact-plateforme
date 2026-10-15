@@ -22,6 +22,10 @@ import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 const JOUR = '2026-10-15'; // un jeudi
 const MAINTENANT = new Date('2026-10-15T10:00:00Z');
 const moisDe = (i: string) => i.slice(0, 7);
+// Une demande ouverte, telle que la file du Support la rend (plateforme.support_ligne) : sans réponse depuis son ouverture.
+let nd = 0;
+const ouverte = (le: string) => ({ id: `d${++nd}`, numero: nd, sujet: 'Une question', canal: 'application', ouverteLe: le, entreprise: { id: 'e1', nom: 'Menuiserie' },
+  demandeur: { id: 'u1', nom: 'Nadia' }, priorite: 'normale', dernierClientLe: le, attendClientLe: le, dernierCote: 'client', messages: 1, close: null });
 let n = 0;
 function ligne(faits: Record<string, unknown>, autre: Record<string, unknown> = {}) {
   n++;
@@ -104,16 +108,29 @@ describe('la mesure, lue sans la base', () => {
         // Octobre : une sans réponse depuis 26 heures (manquée), une sans réponse depuis 2 heures (pas encore due).
         { ouverteLe: '2026-10-14T08:00:00Z', priorite: 'normale', reponduLe: null },
         { ouverteLe: '2026-10-15T08:00:00Z', priorite: 'normale', reponduLe: null },
+        // Closes sans réponse (0124, l'audit C12) : un doublon fermé en une heure ne compte pas ; une demande fermée après
+        // trente heures sans un mot de nous est manquée.
+        { ouverteLe: '2026-10-13T08:00:00Z', priorite: 'normale', reponduLe: null, closeLe: '2026-10-13T09:00:00Z' },
+        { ouverteLe: '2026-10-12T08:00:00Z', priorite: 'normale', reponduLe: null, closeLe: '2026-10-13T14:00:00Z' },
         { ouverteLe: 'pas une date', priorite: 'normale' },
       ],
       urgentes: [{ ouverteLe: '2026-09-12T08:00:00Z', reponduLe: '2026-09-12T11:00:00Z' }, { ouverteLe: '2026-09-13T08:00:00Z', reponduLe: '2026-09-13T09:00:00Z' },
         { ouverteLe: '2026-10-15T09:30:00Z', reponduLe: null }],
+      // La file d'aujourd'hui, lue comme le Support la lit : les deux d'octobre encore ouvertes (ni le doublon ni la close
+      // n'y sont : elles n'attendent plus) — l'attente actuelle est celle de la plus ancienne, vingt-six heures.
+      ouvertes: [ouverte('2026-10-14T08:00:00Z'), ouverte('2026-10-15T08:00:00Z')],
     });
     const p = mesurer([], lu, JOUR, 'semaine', MAINTENANT, moisDe).promesses;
-    expect(p.support).toEqual([{ mois: '2026-09', tenues: 2, dues: 4 }, { mois: '2026-10', tenues: 0, dues: 1 }]);
+    expect(p.support).toEqual([{ mois: '2026-09', tenues: 2, dues: 4 }, { mois: '2026-10', tenues: 0, dues: 2 }]);
     expect(p.urgentes).toEqual({ tenues: 1, dues: 2 });
     expect(p.attendLePlus).toBe(26);
     expect([p.heures, p.heuresUrgente]).toEqual([24, 2]);
+    // Une demande ouverte en août, jamais répondue, attend encore : l'attente ne s'arrête pas au mois d'avant.
+    const ancienne = mesurer([], lireMesure({ ouvertes: [ouverte('2026-08-01T10:00:00Z'), ouverte('2026-10-15T08:00:00Z')] }), JOUR, 'semaine', MAINTENANT, moisDe).promesses;
+    expect(ancienne.attendLePlus).toBe(75 * 24);
+    // Sans demande ouverte, aucune attente — même si une demande close n'a jamais eu de réponse.
+    expect(mesurer([], lireMesure({ demandes: [{ ouverteLe: '2026-10-13T08:00:00Z', priorite: 'normale', reponduLe: null, closeLe: '2026-10-13T09:00:00Z' }] }),
+      JOUR, 'semaine', MAINTENANT, moisDe).promesses.attendLePlus).toBeNull();
   });
 });
 
@@ -149,7 +166,8 @@ async function membre(prenom: string, role: 'direction' | 'support' | 'technique
 // La fonction de la base, appelée comme le serveur l'appelle : la personne, et sa session de la console.
 const laBase = (m: { session: string; utilisateur: string }, jour: string) => enTantQue(pool, m.utilisateur, async (tx) => {
   await tx.query(`select set_config('app.session_console', $1, true)`, [m.session]);
-  return (await tx.query('select plateforme.console_mesure($1::date) v', [jour])).rows[0].v as { piecesTrente: Record<string, number>; demandes: { reponduLe: string | null }[] };
+  return (await tx.query('select plateforme.console_mesure($1::date) v', [jour])).rows[0].v as { piecesTrente: Record<string, number>; demandes: { reponduLe: string | null }[];
+    ouvertes: { id: string; attendClientLe: string | null }[] };
 });
 beforeAll(async () => {
   await admin.connect();
@@ -208,5 +226,25 @@ describe('la mesure, dans la base (0116)', () => {
     expect(v.piecesTrente[id]).toBe(1);
     const reponses = (await admin.query(`select min(ecrit_le) le from plateforme.message_support where demande = $1 and cote = 'equipe'`, [d])).rows[0].le as Date;
     expect(v.demandes.some((x) => x.reponduLe !== null && Date.parse(x.reponduLe) === reponses.getTime())).toBe(true);
+  });
+
+  it('l\'audit C12 : la file d\'aujourd\'hui, lue comme le Support la lit — ni une demande close, ni une limite au mois d\'avant', async () => {
+    const direction = await membre('direction', 'direction');
+    const p = await personne('file');
+    const id = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'File Mesurée' })).corps.id);
+    const proprio = (await admin.query('select id from socle.utilisateur where email = $1', [p.email])).rows[0].id as string;
+    const demande = async (sujet: string, ouverte: string, close: string | null) => {
+      const d = (await admin.query(`insert into plateforme.demande_support (entreprise, demandeur, canal, sujet, ouverte_le, close_le, close_cote, close_par)
+        values ($1, $2, 'application', $3, now() - $4::interval, now() - $5::interval, case when $5::text is not null then 'equipe' end, case when $5::text is not null then $2::uuid end) returning id`,
+        [id, proprio, sujet, ouverte, close])).rows[0].id as string;
+      await admin.query(`insert into plateforme.message_support (demande, cote, auteur, texte, ecrit_le) values ($1, 'client', $2, 'Bonjour', now() - $3::interval)`, [d, proprio, ouverte]);
+      return d;
+    };
+    const ancienne = await demande('Ouverte il y a soixante jours', '60 days', null);
+    const doublon = await demande('Un doublon', '2 days', '47 hours');
+    const v = await laBase(direction, (await admin.query(`select (now() at time zone 'Africa/Tunis')::date::text j`)).rows[0].j as string);
+    expect(v.ouvertes.map((o) => o.id)).toContain(ancienne);
+    expect(v.ouvertes.map((o) => o.id)).not.toContain(doublon);
+    expect(v.ouvertes.find((o) => o.id === ancienne)?.attendClientLe).not.toBeNull();
   });
 });

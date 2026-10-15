@@ -13,15 +13,19 @@ const ligne = (l: Partial<LigneDemande>): LigneDemande => ({
   id: `d${++n}`, numero: n, sujet: `Demande ${n}`, canal: 'application', ouverteLe: ilYa(100),
   entreprise: { id: 'e1', nom: 'Menuiserie', essai: false }, demandeur: { id: 'u1', nom: 'Nadia' },
   noteePar: null, suiviePar: null, suivieParId: null, priorite: 'normale', technique: null,
-  dernierClientLe: null, dernierEquipeLe: null, dernierCote: 'client', messages: 1, close: null, ...l,
+  dernierClientLe: null, dernierEquipeLe: null, dernierCote: 'client', attendClientLe: null, attendClientApresTechniqueLe: null, messages: 1, close: null, ...l,
 });
 
 describe('l\'état d\'une demande', () => {
-  it('nouvelle tant que l\'équipe n\'a rien dit ; à répondre quand le client a réécrit ; elle attend depuis le DERNIER mot du client', () => {
-    expect(etatDe(ligne({ ouverteLe: ilYa(3), dernierClientLe: ilYa(3) }), MAINTENANT)).toEqual({ etat: 'nouvelle', attendDepuis: ilYa(3), heures: 3, sansReponse: false });
+  it('nouvelle tant que l\'équipe n\'a rien dit ; à répondre quand le client a réécrit ; elle attend depuis son PREMIER mot resté sans réponse', () => {
+    expect(etatDe(ligne({ ouverteLe: ilYa(3), dernierClientLe: ilYa(3), attendClientLe: ilYa(3) }), MAINTENANT)).toEqual({ etat: 'nouvelle', attendDepuis: ilYa(3), heures: 3, sansReponse: false });
     // Ouverte il y a quatre jours, répondue, puis le client a réécrit il y a deux heures : deux heures, pas cent.
-    expect(etatDe(ligne({ dernierEquipeLe: ilYa(50), dernierClientLe: ilYa(2), dernierCote: 'client' }), MAINTENANT))
+    expect(etatDe(ligne({ dernierEquipeLe: ilYa(50), dernierClientLe: ilYa(2), attendClientLe: ilYa(2), dernierCote: 'client' }), MAINTENANT))
       .toEqual({ etat: 'a_repondre', attendDepuis: ilYa(2), heures: 2, sansReponse: false });
+    // L'audit C08 : ouverte il y a 26 heures, toujours sans réponse, et le client relance il y a une heure (« vous avez vu
+    // mon message ? ») : elle attend depuis 26 heures, et reste sans réponse — la relance ne l'efface pas des urgences.
+    expect(etatDe(ligne({ ouverteLe: ilYa(26), attendClientLe: ilYa(26), dernierClientLe: ilYa(1) }), MAINTENANT))
+      .toEqual({ etat: 'nouvelle', attendDepuis: ilYa(26), heures: 26, sansReponse: true });
     // Sans aucun mot daté du client (une ligne d'avant), on compte depuis l'ouverture.
     expect(etatDe(ligne({ ouverteLe: ilYa(30) }), MAINTENANT)).toMatchObject({ etat: 'nouvelle', heures: 30, sansReponse: true });
   });
@@ -53,6 +57,9 @@ describe('la priorité et l\'attente de la technique (0115)', () => {
     const technique = { le: ilYa(5), motif: 'export TEJ vide' };
     expect(etatDe(ligne({ technique, dernierClientLe: ilYa(6) }), MAINTENANT)).toEqual({ etat: 'attend_technique', depuis: ilYa(5) });
     expect(etatDe(ligne({ technique, dernierClientLe: ilYa(1), dernierEquipeLe: ilYa(7) }), MAINTENANT)).toMatchObject({ etat: 'a_repondre', heures: 1 });
+    // Il a réécrit pendant l'attente, puis relancé : l'attente court depuis son premier mot après le début de l'attente.
+    expect(etatDe(ligne({ technique, dernierClientLe: ilYa(1), attendClientLe: ilYa(6), attendClientApresTechniqueLe: ilYa(3), dernierEquipeLe: ilYa(7) }), MAINTENANT))
+      .toMatchObject({ etat: 'a_repondre', heures: 3 });
     // Notre dernier mot après elle (« on y travaille ») : elle attend toujours la technique, pas le client.
     expect(etatDe(ligne({ technique, dernierClientLe: ilYa(6), dernierEquipeLe: ilYa(2), dernierCote: 'equipe' }), MAINTENANT)).toMatchObject({ etat: 'attend_technique' });
     // Close : close, quoi qu'elle attende.

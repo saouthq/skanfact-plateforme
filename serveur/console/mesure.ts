@@ -9,7 +9,7 @@
 
 import { plusJours, plusMois } from '../abonnement/etat.ts';
 import type { Entreprise } from './decider.ts';
-import { SANS_REPONSE_HEURES, SANS_REPONSE_HEURES_URGENTE } from './support.ts';
+import { compter, lireLigne, SANS_REPONSE_HEURES, SANS_REPONSE_HEURES_URGENTE, type LigneDemande } from './support.ts';
 
 export const PERIODES_MESURE = ['semaine', 'mois', 'trente'] as const;
 export type PeriodeMesure = (typeof PERIODES_MESURE)[number];
@@ -17,8 +17,10 @@ export const periodeMesure = (v: unknown): PeriodeMesure => (PERIODES_MESURE.inc
 // Un essai « a pris » à dix pièces (le signe qu'une habitude commence ; la maquette). À VÉRIFIER avec les pilotes.
 export const PIECES_HABITUDE = 10;
 
-type Lu = { piecesTrente: Map<string, number>; demandes: Demande[]; urgentes: Demande[] };
-type Demande = { ouverteLe: string; priorite: 'normale' | 'urgente'; reponduLe: string | null };
+// `ouvertes` (0124, l'audit C12) : les demandes ouvertes aujourd'hui, quel que soit leur âge, lues comme la file du
+// Support : l'attente actuelle se compte par la même fonction que la sienne (support.ts, `compter`), au même chiffre.
+type Lu = { piecesTrente: Map<string, number>; demandes: Demande[]; urgentes: Demande[]; ouvertes: LigneDemande[] };
+type Demande = { ouverteLe: string; priorite: 'normale' | 'urgente'; reponduLe: string | null; closeLe: string | null };
 
 const objet = (v: unknown): Record<string, unknown> => (v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : {});
 const instant = (v: unknown) => (typeof v === 'string' && Number.isFinite(Date.parse(v)) ? v : null);
@@ -29,9 +31,10 @@ export function lireMesure(x: unknown): Lu {
   const demandes = (v: unknown, priorite?: 'urgente'): Demande[] => (Array.isArray(v) ? v : []).flatMap((d) => {
     const y = objet(d);
     const ouverteLe = instant(y.ouverteLe);
-    return ouverteLe ? [{ ouverteLe, priorite: priorite ?? (y.priorite === 'urgente' ? 'urgente' : 'normale'), reponduLe: instant(y.reponduLe) }] : [];
+    return ouverteLe ? [{ ouverteLe, priorite: priorite ?? (y.priorite === 'urgente' ? 'urgente' : 'normale'), reponduLe: instant(y.reponduLe), closeLe: instant(y.closeLe) }] : [];
   });
-  return { piecesTrente: pieces, demandes: demandes(o.demandes), urgentes: demandes(o.urgentes, 'urgente') };
+  const ouvertes = (Array.isArray(o.ouvertes) ? o.ouvertes : []).flatMap((l) => { const x = lireLigne(l); return x ? [x] : []; });
+  return { piecesTrente: pieces, demandes: demandes(o.demandes), urgentes: demandes(o.urgentes, 'urgente'), ouvertes };
 }
 
 // La période des inscriptions et celle d'avant, de même longueur : « cette semaine » (du lundi à aujourd'hui) contre la
@@ -77,9 +80,12 @@ export type Mesure = {
 
 // Une demande « due » : sa réponse est venue, ou son délai est passé sans elle. Tenue : la réponse est venue dans le délai.
 // Une demande encore dans son délai, sans réponse, ne compte pas encore (elle comptera quand l'un ou l'autre arrive).
+// Close sans réponse (0124, l'audit C12 ; par délégation) : avant son délai (un doublon, une question que le client a
+// réglée seul), elle ne compte ni tenue ni manquée ; après, elle est manquée — personne ne lui a répondu à temps.
 function tenue(d: Demande, heures: number, maintenant: number): 'tenue' | 'manquee' | 'pas_encore' {
   const ouverte = Date.parse(d.ouverteLe), delai = heures * 3_600_000;
   if (d.reponduLe) return Date.parse(d.reponduLe) - ouverte <= delai ? 'tenue' : 'manquee';
+  if (d.closeLe) return Date.parse(d.closeLe) - ouverte <= delai ? 'pas_encore' : 'manquee';
   return maintenant - ouverte > delai ? 'manquee' : 'pas_encore';
 }
 
@@ -113,7 +119,8 @@ export function mesurer(liste: readonly Entreprise[], lu: Lu, jour: string, peri
     urgentes.dues += 1;
     if (r === 'tenue') urgentes.tenues += 1;
   }
-  const attentes = lu.demandes.filter((d) => !d.reponduLe).map((d) => Math.floor((t - Date.parse(d.ouverteLe)) / 3_600_000));
+  // L'attente actuelle : celle de la file du Support, par sa fonction (une demande close n'attend plus ; une ancienne, si).
+  const attenteMax = compter(lu.ouvertes, maintenant).attenteMax;
   return {
     periode,
     entonnoir: {
@@ -138,7 +145,7 @@ export function mesurer(liste: readonly Entreprise[], lu: Lu, jour: string, peri
     promesses: {
       support: [...parMois].map(([mois, c]) => ({ mois, ...c })), heures: SANS_REPONSE_HEURES,
       urgentes, heuresUrgente: SANS_REPONSE_HEURES_URGENTE,
-      attendLePlus: attentes.length ? Math.max(...attentes) : null,
+      attendLePlus: attenteMax,
     },
   };
 }
