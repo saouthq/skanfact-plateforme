@@ -11909,8 +11909,8 @@ prouver 'une facture défaite absente de Paiements' 'base/migrations/0114_chiffr
 ' \
   "$AJ4"
 prouver 'une facture défaite qu'"'"'« À décider » ne voit pas' 'serveur/console/routes.ts' \
-  'const argent = paiements ? argentADecider(paiements, liste, jour,' \
-  'const argent = false ? argentADecider(paiements, liste, jour,' \
+  'const argent = paiements ? { ...argentADecider(paiements, liste, jour,' \
+  'const argent = false ? { ...argentADecider(paiements, liste, jour,' \
   "$AJ4"
 prouver 'l'"'"'argent de SkanFact montré au support' 'serveur/console/decider.ts' \
   '  if (role === '"'"'direction'"'"' && argent) {' \
@@ -15272,6 +15272,82 @@ prouver 'la sécurité tait ses secrets' 'web/console/src/ecrans/Securite.tsx' \
 ' \
   '' \
   'les secrets (0130) : vide, le registre dit quoi y noter ; une valeur est refusée, le nom et les dates se notent ; renouvelé, l'"'"'échéance repart'
+
+# 1.38.0 : la sortie d'un client et la conservation de ses données (0131 ; la liste des fonctions qui manquent, 8 et 33).
+prouver 'le support qui ouvre une sortie' 'serveur/console/gestes.ts|||base/migrations/0131_sortie.sql' \
+  '  { code: '"'"'console.clients.sortie'"'"', roles: [D], ecrit: true },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  v_nom text; v_id uuid;' \
+  '  { code: '"'"'console.clients.sortie'"'"', roles: [D, S], ecrit: true },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  v_nom text; v_id uuid;' \
+  'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
+prouver 'deux sorties à la fois' 'base/migrations/0131_sortie.sql' \
+  '  if exists (select 1 from plateforme.sortie where entreprise = p_entreprise and close_le is null) then' \
+  '  if false then' \
+  'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
+prouver 'il part alors que son abonnement se renouvelle' 'base/migrations/0131_sortie.sql' \
+  '    if not (v_contrat->>'"'"'arrete'"'"')::boolean or v_fin is null then' \
+  '    if v_fin is null then' \
+  'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
+prouver 'il part sans remboursement réglé' 'base/migrations/0131_sortie.sql' \
+  '    if s.remboursement is null then
+      perform socle.refus('"'"'le remboursement n'"'"''"'"'est pas réglé' \
+  '    if false then
+      perform socle.refus('"'"'le remboursement n'"'"''"'"'est pas réglé' \
+  'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
+prouver 'un remboursement fait sans sa référence' 'base/migrations/0131_sortie.sql' \
+  '  if p_remboursement = '"'"'fait'"'"' and v_ref is null then' \
+  '  if false then' \
+  'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
+prouver 'une sortie close qui bouge encore' 'base/migrations/0131_sortie.sql' \
+  '  if s.close_le is not null then perform socle.refus('"'"'cette sortie est close'"'"'); end if;
+  update plateforme.sortie
+     set remboursement' \
+  '  update plateforme.sortie
+     set remboursement' \
+  'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
+prouver 'la conservation de cinq ans' 'base/migrations/0131_sortie.sql' \
+  'language sql immutable as $$ select interval '"'"'10 years'"'"' $$;' \
+  'language sql immutable as $$ select interval '"'"'5 years'"'"' $$;' \
+  'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
+prouver 'le journal tait le remboursement d'"'"'avant' 'base/migrations/0131_sortie.sql' \
+  '            case when s.remboursement is null then null else jsonb_build_object('"'"'remboursement'"'"', s.remboursement, '"'"'reference'"'"', s.remboursement_reference) end,' \
+  '            null,' \
+  'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
+prouver 'ses données lues dans un autre geste' 'base/migrations/0131_sortie.sql' \
+  'from socle.audit a where a.entreprise = s.entreprise and a.geste = '"'"'socle.export_complet'"'"'' \
+  'from socle.audit a where a.entreprise = s.entreprise' \
+  'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
+prouver 'un téléchargement d'"'"'avant la sortie qui compte' 'serveur/console/sortie.ts' \
+  '  !!s.export && new Date(s.export.le).getTime() >= new Date(s.ouverteLe).getTime();' \
+  '  !!s.export;' \
+  'un téléchargement d'"'"'avant l'"'"'ouverture ne compte pas ; « il reste » clôt sans rien toucher ; un abonnement offert ne s'"'"'arrête pas'
+prouver 'un abonnement offert qui s'"'"'arrête' 'base/migrations/0131_sortie.sql' \
+  '      '"'"'arrete'"'"', not a.offert and (a.resilie_le' \
+  '      '"'"'arrete'"'"', (a.resilie_le' \
+  'un téléchargement d'"'"'avant l'"'"'ouverture ne compte pas ; « il reste » clôt sans rien toucher ; un abonnement offert ne s'"'"'arrête pas'
+prouver '« il reste » qui exige le remboursement' 'base/migrations/0131_sortie.sql' \
+  '  if p_issue = '"'"'partie'"'"' then
+    if not' \
+  '  if true then
+    if not' \
+  'un téléchargement d'"'"'avant l'"'"'ouverture ne compte pas ; « il reste » clôt sans rien toucher ; un abonnement offert ne s'"'"'arrête pas'
+prouver '« À décider » nomme la sortie avant la fin du contrat' 'serveur/console/sortie.ts' \
+  'joursEntre(s.contrat.fin, aujourdhui) > 0;' \
+  'joursEntre(s.contrat.fin, aujourdhui) > -30;' \
+  '« À décider » nomme une sortie en cours dont le contrat a pris fin, avec ce qui reste ; pas avant, plus une fois close'
+prouver '« À décider » garde les lignes d'"'"'échéance d'"'"'un client qui part' 'serveur/console/decider.ts' \
+  '      if (sortants.has(e.id)) continue;
+' \
+  '' \
+  '« À décider » nomme une sortie en cours dont le contrat a pris fin, avec ce qui reste ; pas avant, plus une fois close'
+prouver 'la carte allume « Il est parti » trop tôt' 'web/console/src/ecrans/Sortie.tsx' \
+  '  const peutPartir = faite(s, '"'"'contrat'"'"') && faite(s, '"'"'remboursement'"'"');' \
+  '  const peutPartir = faite(s, '"'"'contrat'"'"');' \
+  'la sortie d'"'"'un client (0131) : la direction l'"'"'ouvre sur sa fiche ; la carte dit ce qui reste ; « Il est parti » attend le remboursement ; le support ne la voit pas'
+prouver 'la fenêtre tait qu'"'"'il part sans ses données' 'web/console/src/ecrans/Sortie.tsx' \
+  '      {issue === '"'"'partie'"'"' && !donneesRemises(s) ? <Alerte ton="attention">' \
+  '      {false ? <Alerte ton="attention">' \
+  'la sortie d'"'"'un client (0131) : la direction l'"'"'ouvre sur sa fiche ; la carte dit ce qui reste ; « Il est parti » attend le remboursement ; le support ne la voit pas'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

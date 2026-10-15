@@ -1297,6 +1297,33 @@ ne lit pas cet écran). La direction et la technique notent un secret, son renou
 d'expiration ; il ne vient jamais avant le précédent) ou qu'on ne le suit plus ; chaque geste au journal, avec son motif.
 Le certificat https reste lu par la veille (C26).
 
+**C54. La sortie d'un client et la conservation de ses données** (1.38.0 ; base 0131 ; la liste des fonctions qui
+manquent, 8 : « gestion complète de la sortie client : contrat, restitution des données, remboursements et
+conservation », et 33 : « gestion de la conservation et de la suppression des données »). Quand un client s'en va, la
+direction ouvre sa sortie depuis sa fiche (« Plus rare : la sortie d'un client ») : pourquoi il s'en va (le prix, une
+fonction qui manque, son activité qui ferme, un concurrent, autre chose) et ce qu'il en dit. La carte suit alors, dans
+l'ordre, ce qui reste à faire :
+  - **le contrat** : son abonnement ne se renouvelle plus (résilié, suspendu, ou une échéance passée sans paiement ; un
+    abonnement offert ne s'arrête jamais tout seul). Son dernier jour est celui que le payé ou l'essai couvre ; l'entreprise
+    passe ensuite en lecture seule. Le bouton « Résilier… » de la carte est le geste de l'onglet Abonnement ;
+  - **ses données** : c'est LUI qui les télécharge (Réglages › Données › Toutes les données de l'entreprise, le
+    propriétaire ou un administrateur). La console lit seulement la trace de ce téléchargement dans le journal de
+    l'entreprise (`socle.export_complet`), jamais le fichier ; un téléchargement d'avant l'ouverture de la sortie ne compte
+    pas (ce qu'il a fait depuis n'y est pas). Personne chez SkanFact n'en fait une copie pour lui ;
+  - **le remboursement** : rien à rendre, ou rendu, avec la référence de l'avoir ou du virement (faits dans l'application
+    de SkanFact, comme toute pièce) ;
+  - **la conservation** : ses données restent sur nos serveurs, en lecture seule, jusqu'au dernier jour de son contrat
+    plus **dix ans** (**À VÉRIFIER** : la durée que la loi impose à ce qu'il a tenu chez nous). Rien ne s'efface avant ce
+    terme sans sa demande écrite ; l'effacement au terme est une opération de l'exploitation, hors de la console
+    (**À DÉCIDER** : sa procédure, et qui la mène).
+La sortie se clôt de deux façons : **il est parti** (le contrat arrêté et le remboursement réglé ; la base le revérifie,
+sous verrou de l'abonnement), ou **il reste** (il s'est ravisé ; rien ne change). Partir sans avoir pris ses données se
+lit avant le geste, sans le bloquer : c'est son droit. Close « parti », la sortie garde une copie du dernier jour du
+contrat et du terme de la conservation, et la fiche les dit. Une sortie en cours dont le contrat a pris fin entre dans
+« À décider » de la direction et dans « ce qui attend » de la fiche, avec ce qui reste ; elle y remplace les lignes de
+son échéance (on ne propose pas de facturer un client au moment où il part). La direction seule ouvre, règle et clôt ;
+chaque geste entre au journal de la console avec son motif ; rien ne s'écrit dans le dossier du client.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

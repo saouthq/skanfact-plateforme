@@ -679,6 +679,18 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cet appareil n\'existe pas', cle: 'base.equipe.appareil_inconnu', fr: 'cet appareil n\'existe pas' },
   { base: 'seule la direction oublie l\'appareil d\'un autre membre', cle: 'base.equipe.oublier_autre', fr: 'seule la direction oublie l\'appareil d\'un autre membre' },
   { base: 'cet appareil est déjà oublié', cle: 'base.equipe.appareil_oublie', fr: 'cet appareil est déjà oublié' },
+  // La sortie d'un client (0131).
+  { base: 'pourquoi il s\'en va : le prix, une fonction qui manque, son activité qui ferme, un concurrent, ou autre', cle: 'base.console.sortie_cause', fr: 'pourquoi il s\'en va : le prix, une fonction qui manque, son activité qui ferme, un concurrent, ou autre' },
+  { base: 'ce que le client dit de son départ : de trois à mille caractères', cle: 'base.console.sortie_dit', fr: 'ce que le client dit de son départ : de trois à mille caractères' },
+  { base: 'la sortie de ce client est déjà ouverte : elle se suit sur sa fiche', cle: 'base.console.sortie_deja', fr: 'la sortie de ce client est déjà ouverte : elle se suit sur sa fiche' },
+  { base: 'le remboursement d\'une sortie : rien à rendre, ou rendu', cle: 'base.console.sortie_remboursement', fr: 'le remboursement d\'une sortie : rien à rendre, ou rendu' },
+  { base: 'un remboursement se retrouve par sa référence : le numéro de l\'avoir, la référence du virement', cle: 'base.console.sortie_reference', fr: 'un remboursement se retrouve par sa référence : le numéro de l\'avoir, la référence du virement' },
+  { base: 'la référence d\'un remboursement : soixante caractères au plus', cle: 'base.console.sortie_reference_longue', fr: 'la référence d\'un remboursement : soixante caractères au plus' },
+  { base: 'cette sortie n\'existe pas', cle: 'base.console.sortie_inconnue', fr: 'cette sortie n\'existe pas' },
+  { base: 'cette sortie est close', cle: 'base.console.sortie_close', fr: 'cette sortie est close' },
+  { base: 'une sortie se clôt de deux façons : le client est parti, ou il reste', cle: 'base.console.sortie_issue', fr: 'une sortie se clôt de deux façons : le client est parti, ou il reste' },
+  { base: 'son abonnement se renouvelle encore : résilie-le d\'abord, il ira au bout de ce qui est payé', cle: 'base.console.sortie_contrat', fr: 'son abonnement se renouvelle encore : résilie-le d\'abord, il ira au bout de ce qui est payé' },
+  { base: 'le remboursement n\'est pas réglé : dis s\'il n\'y a rien à rendre, ou la référence de ce qui a été rendu', cle: 'base.console.sortie_sans_remboursement', fr: 'le remboursement n\'est pas réglé : dis s\'il n\'y a rien à rendre, ou la référence de ce qui a été rendu' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

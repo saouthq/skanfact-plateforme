@@ -153,6 +153,54 @@ describe('la liste des clients, à la souris', () => {
     await fermer(p);
   }, 90_000);
 
+  it('la sortie d\'un client (0131) : la direction l\'ouvre sur sa fiche ; la carte dit ce qui reste ; « Il est parti » attend le remboursement ; le support ne la voit pas', async () => {
+    const nom = `${MARQUE} 09`;
+    const p = await ouvrir(jD, recherche);
+    await cliquer(ligne(p, nom).getByRole('link', { name: nom, exact: true }));
+    const carte = p.locator('section[aria-labelledby="fiche-sortie"]');
+    await expect.poll(() => carte.count(), { timeout: 15_000 }).toBe(1);
+    await cliquer(carte.getByRole('button', { name: 'Ouvrir sa sortie…' }));
+    const fenetre = p.locator('.c-dialogue');
+    // Sans sa cause : refusé, et la fenêtre le dit.
+    await cliquer(fenetre.getByRole('button', { name: 'Ouvrir la sortie' }));
+    await expect.poll(async () => net(await fenetre.locator('.c-alerte').innerText()), { timeout: 10_000 }).toBe('Choisis pourquoi il s\'en va.');
+    await cliquer(fenetre.getByRole('radio', { name: 'Le prix' }));
+    await fenetre.locator('textarea').fill('Trop cher pour une seule caisse');
+    await cliquer(fenetre.getByRole('button', { name: 'Ouvrir la sortie' }));
+    await expect.poll(() => p.locator('.c-dialogue').count(), { timeout: 15_000 }).toBe(0);
+    // La carte en cours : ce qu'il dit, ses étapes ; « Il est parti… » éteint, et la carte dit pourquoi.
+    await expect.poll(async () => net(await carte.locator('h2').innerText().catch(() => '')), { timeout: 15_000 }).toBe('Sortie en cours');
+    expect(net(await carte.locator('.c-so-dit p').innerText())).toBe('Trop cher pour une seule caisse');
+    expect((await carte.locator('.c-so-etapes b').allInnerTexts()).map(net)).toEqual(['Le contrat', 'Ses données', 'Le remboursement', 'La conservation']);
+    const partir = carte.getByRole('button', { name: 'Il est parti…' });
+    expect(await partir.isDisabled()).toBe(true);
+    expect(net(await carte.locator('.c-reprise-note').innerText())).toBe('Pour le dire parti, il reste à régler : le remboursement.');
+    // Le remboursement : rien à rendre, avec son motif ; « Il est parti… » s'allume, en principal.
+    await cliquer(carte.getByRole('button', { name: 'Régler…' }));
+    await fenetre.locator('textarea').fill('Essai gratuit : rien à rendre');
+    await cliquer(fenetre.getByRole('button', { name: 'Noter : rien à rendre' }));
+    await expect.poll(() => p.locator('.c-dialogue').count(), { timeout: 15_000 }).toBe(0);
+    await expect.poll(() => partir.isEnabled(), { timeout: 15_000 }).toBe(true);
+    expect(await partir.getAttribute('class')).toContain('c-btn-principal');
+    // Il part sans avoir pris ses données : la fenêtre l'avertit avant le geste ; close, la carte dit jusqu'à quand on les garde.
+    await cliquer(partir);
+    await expect.poll(async () => net(await fenetre.locator('.c-alerte-attention').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Il n'a pas téléchargé ses données/);
+    await fenetre.locator('textarea').fill('Il part à la fin de son essai');
+    await cliquer(fenetre.getByRole('button', { name: 'Clore : il est parti' }));
+    await expect.poll(async () => net(await carte.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/Parti le \d{2}\/\d{2}\/\d{4} ; dernier jour de son contrat : le \d{2}\/\d{2}\/\d{4}\. Ses données sont gardées, en lecture seule, jusqu'au \d{2}\/\d{2}\/\d{4}\./);
+    const adresse = p.url();
+    await fermer(p);
+    // Le support : ni la carte, ni le geste.
+    const s = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await s.addInitScript((j) => { sessionStorage.setItem('skanfact.console.jeton', j); }, jS);
+    const ps = await s.newPage();
+    await ps.goto(adresse);
+    await expect.poll(async () => net(await ps.locator('h1').first().innerText().catch(() => '')), { timeout: 15_000 }).toBe(nom);
+    expect(await ps.locator('section[aria-labelledby="fiche-sortie"]').count()).toBe(0);
+    expect(erreurs).toEqual([]);
+    await s.close();
+  }, 90_000);
+
   it('le support : prolonger et demander l\'accès, la note de ce qui revient à la direction ; jamais l\'export', async () => {
     const p = await ouvrir(jS, recherche);
     expect(await p.locator('.c-entete-actions').count()).toBe(0);

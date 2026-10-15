@@ -9,6 +9,7 @@ import { dans, jourCourt, jourDe, jourLong, quand } from '../temps.ts';
 import { montant } from '../argent.ts';
 import { Alerte, Bouton, Icone, Lien, maj, Puce, Vide, type NomIcone, type TonPuce } from '../ui.tsx';
 import type { Canal } from './Support.tsx';
+import { sortieAttendEnMots, type Etape } from './Sortie.tsx';
 
 // L'encaissé du mois (docs/console.md C30) : un montant, ou « non mesuré » avec sa raison ; la direction seule le reçoit.
 type Mesure = { mesure: true; montant: string; devise: string; reglements: number } | { mesure: false; raison: 'editeur_absent' };
@@ -33,7 +34,9 @@ export type Ligne =
   | { sorte: 'a_emettre'; ouvre: 'facture'; entreprise: Qui; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
   | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: Qui; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   // 0129 : une facture contestée qui attend sa régularisation depuis une semaine.
-  | { sorte: 'contestation'; ouvre: 'fiche'; entreprise: Qui; numero: string | null; ouverteLe: string; jours: number };
+  | { sorte: 'contestation'; ouvre: 'fiche'; entreprise: Qui; numero: string | null; ouverteLe: string; jours: number }
+  // 0131 : la sortie d'un client dont le contrat a pris fin, et ce qui reste à faire.
+  | { sorte: 'sortie'; ouvre: 'fiche'; entreprise: Qui; fin: string; jours: number; restantes: Etape[] };
 type RelancePartie = { entreprise: Qui; rang: 'j15' | 'j7' | 'j1' | 'lecture_seule'; partieLe: string };
 type Accueil = { aujourdhui: string; role: Role; tableau: Partial<Tableau> & { service: Service }; decider: Ligne[]; relances?: RelancePartie[] };
 
@@ -157,6 +160,9 @@ function voir(l: Ligne, aujourdhui: string): Vue {
       return { icone: 'alerte', titre: titre('console.ecran.decider.trop_titre', { nom: l.entreprise.nom, montant: montant(l.trop) }),
         desc: phrase(l.annulee ? 'console.ecran.decider.trop_annulee' : 'console.ecran.decider.trop', { numero: l.numero ?? dire('console.ecran.decider.sans_numero') }),
         meta: null, urgence: 'a_regarder', href: '#/paiements', bouton: titre('console.ecran.decider.ouvrir_paiements') };
+    case 'sortie':
+      return { icone: 'sortir', titre: titre('console.ecran.decider.sortie_titre', { nom: l.entreprise.nom }), desc: sortieAttendEnMots(l),
+        meta: null, urgence: 'semaine', href: fiche(l.entreprise), bouton: titre('console.ecran.decider.ouvrir_fiche') };
     case 'support':
       return { icone: 'courriel', titre: titre('console.ecran.decider.support_titre', { nom: l.entreprise.nom, n: l.heures }),
         desc: phrase('console.ecran.decider.support', { sujet: l.demande.sujet, canal: dire(`console.ecran.support.canal.${l.demande.canal}`), qui: l.demandeur }),

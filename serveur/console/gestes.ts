@@ -77,6 +77,9 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // La procédure de reprise d'une entreprise (docs/console.md C34 ; 0112) : changer de propriétaire sur pièces ; la
   // direction seule, et l'autre membre de la direction confirme.
   { code: 'console.clients.reprise', roles: [D], ecrit: true },
+  // La sortie d'un client (docs/console.md C54 ; 0131) : l'ouvrir, régler son remboursement, la clore ; la direction seule
+  // (c'est un contrat et de l'argent). Ses données, c'est lui qui les télécharge ; la console n'en lit que la trace.
+  { code: 'console.clients.sortie', roles: [D], ecrit: true },
 ];
 
 export const GESTES_CONSOLE: ReadonlyMap<string, GesteConsole> = (() => {

@@ -1005,6 +1005,24 @@ export interface BaseDeDonnees {
     fermee_le: Date | null;
     ip: string | null;
   };
+  'plateforme.sortie': {
+    id: Generated<string>;
+    entreprise: string;
+    cause: string;
+    dit: string;
+    ouverte_le: Date;
+    ouverte_par: string;
+    remboursement: string | null;
+    remboursement_reference: string | null;
+    remboursement_le: Date | null;
+    remboursement_par: string | null;
+    close_le: Date | null;
+    close_par: string | null;
+    issue: string | null;
+    close_motif: string | null;
+    fin_contrat: string | null;
+    conserver_jusqu_au: string | null;
+  };
   'socle.abonnement_avis': {
     id: Generated<string>;
     entreprise: string;

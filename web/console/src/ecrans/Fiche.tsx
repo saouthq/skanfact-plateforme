@@ -22,6 +22,7 @@ import { AccesDossier } from './AccesDossier.tsx';
 import { contexteDe, EcrireAuContact, NoterAppel, resultatEnMots, type ResultatAppel } from './Echanges.tsx';
 import { montant } from '../argent.ts';
 import { CarteReprise, repriseEnCours, type Reprise } from './Reprise.tsx';
+import { CarteSortie, sortieAttendEnMots, sortieEnCours, type Etape, type Sortie } from './Sortie.tsx';
 import { defaiteEnMots } from './Accueil.tsx';
 import { contestationEnMots, FenetreContester, FenetreRegulariser, type Contestation } from './Contestations.tsx';
 
@@ -65,6 +66,8 @@ type Donnees = {
   delai: { echeance: string; jusquAu: string } | null;
   // La procédure de reprise en cours, ou la dernière (0112) : la direction seule la reçoit.
   reprise: Reprise | null;
+  // Sa sortie en cours, ou la dernière (0131) : la direction seule la reçoit.
+  sortie: Sortie | null;
   // Ce que sa prochaine facture coûtera (0113), par la règle de la facture : le même chiffre que la liste et les échéances.
   prochaineFacture: { debut: string; montantHt: string } | null;
   // Son arrivée, les trente jours après son inscription (serveur/console/arrivee.ts, la fonction de la liste).
@@ -99,7 +102,8 @@ type Attente =
   | { sorte: 'facture_defaite'; numero: string | null; payeeLe: string; fin: string; ecran: string; cause: 'avoir' | 'reglement'; trop: string | null }
   | { sorte: 'a_emettre'; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
   | { sorte: 'trop_percu'; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
-  | { sorte: 'contestation'; numero: string | null; ouverteLe: string; jours: number };
+  | { sorte: 'contestation'; numero: string | null; ouverteLe: string; jours: number }
+  | { sorte: 'sortie'; fin: string; jours: number; restantes: Etape[] };
 export type OngletFiche = 'apercu' | 'abonnement' | 'factures' | 'support' | 'membres' | 'journal';
 export const ONGLETS_FICHE: readonly OngletFiche[] = ['apercu', 'abonnement', 'factures', 'support', 'membres', 'journal'];
 
@@ -914,6 +918,8 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
     if (a.sorte === 'facture_defaite' || a.sorte === 'a_emettre') return { texte: titre('console.ecran.decider.ouvrir_facture'), href: a.ecran, ailleurs: true };
     if (a.sorte === 'trop_percu') return { texte: titre('console.ecran.decider.ouvrir_paiements'), href: '#/paiements' };
     if (a.sorte === 'contestation') return { texte: titre('console.ecran.fiche.attend.ses_factures'), href: versOnglet('factures') };
+    // La sortie se mène sur sa carte, plus bas sur cette page.
+    if (a.sorte === 'sortie') return { texte: titre('console.ecran.fiche.attend.sa_sortie'), faire: () => document.getElementById('fiche-sortie')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) };
     if (facturer && ouverte) return { texte: titre(ouverte.etat === 'a_emettre' ? 'console.ecran.fiche.attend.emettre' : 'console.ecran.fiche.attend.sa_facture'), href: ouverte.ecran, ailleurs: true };
     if (facturer) return { texte: titre('console.ecran.fiche.attend.preparer'), faire: () => setFacture(true) };
     const g = f.gestes.includes('payer') ? 'payer' : f.gestes.includes('prolonger') ? 'prolonger' : null;
@@ -1039,6 +1045,9 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
 
             {/* Une procédure de reprise en cours : dans la colonne large, sous les comptes (la carte dit ce qui manque). */}
             {moi.role === 'direction' && !f.faits.tenuParCabinet && repriseEnCours(f.reprise) ? <CarteReprise id={f.id} nom={f.raisonSociale} reprise={f.reprise} aujourdhui={f.aujourdhui} relire={relire} /> : null}
+            {/* Sa sortie en cours (0131) : dans la colonne large, la carte dit ce qui reste. */}
+            {moi.role === 'direction' && !f.faits.tenuParCabinet && sortieEnCours(f.sortie)
+              ? <CarteSortie id={f.id} nom={f.raisonSociale} sortie={f.sortie} aujourdhui={f.aujourdhui} relire={relire} resilier={f.gestes.includes('resilier') ? () => setGeste('resilier') : undefined} /> : null}
           </div>
 
           <div className="c-colonne">
@@ -1097,6 +1106,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
             ) : null}
 
             {moi.role === 'direction' && !f.faits.tenuParCabinet && !repriseEnCours(f.reprise) ? <CarteReprise id={f.id} nom={f.raisonSociale} reprise={f.reprise} aujourdhui={f.aujourdhui} relire={relire} /> : null}
+            {moi.role === 'direction' && !f.faits.tenuParCabinet && !sortieEnCours(f.sortie) ? <CarteSortie id={f.id} nom={f.raisonSociale} sortie={f.sortie} aujourdhui={f.aujourdhui} relire={relire} /> : null}
           </div>
         </div>
       ) : null}
@@ -1269,6 +1279,8 @@ function attenteEnMots(a: Attente, aujourdhui: string): { icone: NomIcone; titre
     case 'contestation':
       return { icone: 'alerte', titre: titre('console.ecran.fiche.attend.contestation_titre'), urgence: 'semaine',
         desc: phrase('console.ecran.decider.contestation', { numero: a.numero ?? dire('console.ecran.decider.sans_numero'), le: jourCourt(a.ouverteLe), n: a.jours }) };
+    case 'sortie':
+      return { icone: 'sortir', titre: titre('console.ecran.fiche.attend.sortie_titre'), urgence: 'semaine', desc: sortieAttendEnMots(a) };
     case 'trop_percu':
       return { icone: 'alerte', titre: titre('console.ecran.fiche.attend.trop_titre', { montant: montant(a.trop) }), urgence: 'semaine',
         desc: phrase(a.annulee ? 'console.ecran.decider.trop_annulee' : 'console.ecran.decider.trop', { numero: a.numero ?? dire('console.ecran.decider.sans_numero') }) };

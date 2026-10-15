@@ -12,6 +12,7 @@ import type { AEmettre, Defaite, MesureEncaisse, Trop } from './paiements.ts';
 import { compter, etatDe, type LigneDemande } from './support.ts';
 import { CONTESTATION_JOURS, enCours, joursDAttente, type Contestation } from './contestations.ts';
 import type { SecretLu } from './secrets.ts';
+import { restantes, sortieADecider, type Etape, type Sortie } from './sortie.ts';
 
 export type Entreprise = {
   id: string; raisonSociale: string; matricule: string | null; active: boolean; creeLe: string;
@@ -179,10 +180,13 @@ export type Ligne =
   | { sorte: 'a_emettre'; ouvre: 'facture'; entreprise: { id: string; nom: string }; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
   | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: { id: string; nom: string }; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   // 0129 : une facture contestée qui attend sa régularisation depuis une semaine.
-  | { sorte: 'contestation'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; numero: string | null; ouverteLe: string; jours: number };
-// Ce que Paiements sait de l'argent qui attend une décision (serveur/console/paiements.ts, par ses fonctions), et les
-// contestations en cours (serveur/console/contestations.ts).
-export type Argent = { defaites: readonly Defaite[]; aEmettre: readonly AEmettre[]; trop: readonly Trop[]; contestees?: readonly Contestation[] };
+  | { sorte: 'contestation'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; numero: string | null; ouverteLe: string; jours: number }
+  // 0131 : la sortie d'un client dont le contrat a pris fin, et ce qui reste à faire pour la clore.
+  | { sorte: 'sortie'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; fin: string; jours: number; restantes: Etape[] };
+// Ce que Paiements sait de l'argent qui attend une décision (serveur/console/paiements.ts, par ses fonctions), les
+// contestations en cours (serveur/console/contestations.ts) et les sorties en cours (serveur/console/sortie.ts), la
+// direction seule.
+export type Argent = { defaites: readonly Defaite[]; aEmettre: readonly AEmettre[]; trop: readonly Trop[]; contestees?: readonly Contestation[]; sorties?: readonly Sortie[] };
 // Une facture préparée attend d'être émise : au-delà de deux jours, elle demande un geste (l'émettre, ou la supprimer).
 export const A_EMETTRE_JOURS = 2;
 
@@ -229,6 +233,11 @@ export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role
         lignes.push([3, -jours, { sorte: 'contestation', ouvre: 'fiche', entreprise: c.entreprise, numero: c.numero, ouverteLe: aujourdhuiATunis(new Date(c.ouverteLe)), jours }]);
       }
     }
+    for (const x of argent.sorties ?? []) {
+      if (!x.entreprise || !ici.has(x.entreprise.id) || !x.contrat.fin || !sortieADecider(x, jour)) continue;
+      const jours = joursEntre(x.contrat.fin, jour);
+      lignes.push([3.2, -jours, { sorte: 'sortie', ouvre: 'fiche', entreprise: x.entreprise, fin: x.contrat.fin, jours, restantes: restantes(x) }]);
+    }
   }
   if (service && veille.etat === 'silencieuse') lignes.push([0, 0, { sorte: 'veille_silencieuse', ouvre: 'service', derniere: veille.derniere }]);
   if (service && veille.etat === 'ok') {
@@ -251,8 +260,12 @@ export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role
       }
     }
   }
+  // Un client dont la sortie est ouverte (0131) ne reçoit plus les lignes de son échéance (la facturer, le relancer) :
+  // la ligne de sa sortie dit ce qui reste, et sa fiche ne propose pas de le facturer au moment où il part.
+  const sortants = new Set(role === 'direction' ? (argent?.sorties ?? []).filter((x) => !x.close && x.entreprise).map((x) => x.entreprise?.id) : []);
   if (clients) {
     for (const e of liste) {
+      if (sortants.has(e.id)) continue;
       const s = e.etat;
       const qui = { id: e.id, nom: e.raisonSociale };
       if (s.etat === 'en_retard') lignes.push([1, s.jours, { sorte: 'en_retard', ouvre: 'fiche', entreprise: qui, echeance: s.echeance, lectureSeuleLe: s.lectureSeuleLe, jours: s.jours, apresEssai: s.apresEssai }]);

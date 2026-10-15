@@ -333,9 +333,11 @@ describe('les clients', () => {
       // 0110–0112 : son numéro et sa ville, nos notes d'appel, ce que la liste dit en plus, l'offre suivante, le délai, la
       // procédure de reprise (la direction seule ; au support : rien). 0113 : ce que sa prochaine facture coûtera. 0114 : le
       // dernier instant où quelqu'un y a travaillé (10 § 4). 0127 : son arrivée — des marches et des jours, rien d'un dossier.
-      // 0129 : les contestations de ses factures (ce qu'il dit, le canal, la régularisation).
-      'identite', 'notes', 'enPlus', 'offreSuivante', 'delai', 'reprise', 'prochaineFacture', 'derniereActivite', 'arrivee', 'contestations'].sort());
+      // 0129 : les contestations de ses factures (ce qu'il dit, le canal, la régularisation). 0131 : sa sortie (la direction
+      // seule ; au support : rien).
+      'identite', 'notes', 'enPlus', 'offreSuivante', 'delai', 'reprise', 'prochaineFacture', 'derniereActivite', 'arrivee', 'contestations', 'sortie'].sort());
     expect(f.reprise).toBeNull();
+    expect(f.sortie).toBeNull();
     // Son groupe et sa remise (0106) : aucun groupe, aucune société de la même propriétaire, aucune remise ; la règle du
     // groupe et le premier jour de sa prochaine période (le lendemain de son essai).
     expect(f.groupe).toMatchObject({ groupe: null, voisines: [], tauxGroupe: 20, remise: null, prochaine: plusJours((f.ligne as { essai_jusqu_au: string }).essai_jusqu_au, 1) });

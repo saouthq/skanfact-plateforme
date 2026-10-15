@@ -60,6 +60,7 @@ import {
 import { lireFormats, registreDesFormats } from './formats.ts';
 import { etatDesNouveautes, listeDesNouveautes, NOUVEAUTES } from '../nouveautes.ts';
 import { arrivee, enArrivee } from './arrivee.ts';
+import { CAUSES_SORTIE, lireSortie, lireSorties } from './sortie.ts';
 import {
   articleConnu, articlesDeLAide, CANAUX_NOTES, CLOSES_PAR_PAGE, compter, etatDe, type LigneDemande, lireSupport, PRIORITES, ranger, SANS_REPONSE_HEURES, SANS_REPONSE_HEURES_URGENTE,
   suggererPour, VERSION, versionAtteinte,
@@ -293,8 +294,10 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // et l'argent qui attend une décision (0113), par ses fonctions aussi.
       const paiements = role === 'direction' ? lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`])) : null;
       const revenus = paiements ? encaisseDuMois(paiements) : undefined;
-      const argent = paiements ? argentADecider(paiements, liste, jour,
-        lireContestations(await lireJson(transaction(tx), 'select plateforme.console_contestations($1) v', [instant]))) : null;
+      // Les contestations (0129) et les sorties en cours (0131) entrent dans l'argent : la direction seule.
+      const argent = paiements ? { ...argentADecider(paiements, liste, jour,
+        lireContestations(await lireJson(transaction(tx), 'select plateforme.console_contestations($1) v', [instant]))),
+        sorties: lireSorties(await lireJson(transaction(tx), 'select plateforme.console_sorties($1::date) v', [jour])) } : null;
       // La tuile « Inscriptions » compte les lignes de la liste qu'elle ouvre, par la fonction de la liste (C3 ; 0114).
       const inscriptions = role === 'technique' ? 0 : (await selectionClients(transaction(tx), jour, { nouvelles: '1' })).dansVue.length;
       const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus, inscriptions);
@@ -419,8 +422,12 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const support = lireSupport(await lireJson(transaction(tx), 'select plateforme.console_support($1, null) v', [id]));
       // Ses contestations (0129), toutes : la ligne de chacune de ses factures dit la sienne.
       const contestations = lireContestations(await lireJson(transaction(tx), 'select plateforme.console_contestations($1, $2) v', [maintenant(), id]));
+      // Sa sortie (0131) : en cours, sinon la dernière ; la direction seule. Elle entre dans « ce qui attend » par la même
+      // règle que l'accueil.
+      const sortie = role === 'direction' ? lireSortie(await lireJson(transaction(tx), 'select plateforme.console_sortie($1, $2::date) v', [id, jour])) : null;
       const argent = role === 'direction'
-        ? argentADecider(lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`])), liste, jour, contestations) : null;
+        ? { ...argentADecider(lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`])), liste, jour, contestations),
+            sorties: sortie && !sortie.close ? [{ ...sortie, entreprise: { id, nom: String(fiche.raisonSociale ?? '') } }] : [] } : null;
       const attend = aDecider(liste, { etat: 'absente' }, jour, role, support.ouvertes, maintenant(), argent);
       const instant = maintenant();
       // Ses factures d'abonnement (docs/abonnement.md B2–B4), et l'entreprise SkanFact où elles naissent.
@@ -443,6 +450,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
         arrivee: liste[0] && enArrivee(liste[0], jour) ? arrivee({ ...liste[0], enPlus: enPlus ?? {} }, jour) : null,
         // La procédure de reprise en cours, ou la dernière (0112) : la direction seule la voit.
         reprise: role === 'direction' ? await lireJson(transaction(tx), 'select plateforme.console_reprise($1, $2::date) v', [id, jour]) : null,
+        sortie,
         prochaineFacture: r ? { debut: r.debut, montantHt: versTexte(r.periodeHt, 3) } : null,
         support: { comptes: compter(support.ouvertes, instant), ouvertes: ranger(support.ouvertes, instant), closes: support.closes.map((l) => ({ ...l, etat: etatDe(l, instant) })) } } };
     },
@@ -517,6 +525,38 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const id = params.id ?? '';
       if (!uuid.safeParse(id).success) throw new Introuvable();
       await transaction(tx).query('select plateforme.console_appliquer_reprise($1, $2)', [id, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  // ── La sortie d'un client (docs/console.md C54 ; 0131) ─────────────────────────────────────────────────────────────
+  // L'ouvrir (pourquoi il s'en va), régler le remboursement, la clore (il est parti, ou il reste) ; la direction seule.
+  ajouter({
+    methode: 'POST', chemin: '/console/entreprises/:id/sorties', geste: 'console.clients.sortie',
+    corps: z.object({ cause: z.enum(CAUSES_SORTIE), dit: z.string().max(1000) }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      const r = await transaction(tx).query('select plateforme.console_ouvrir_sortie($1, $2, $3, $4) id', [id, corps.cause, corps.dit, maintenant()]);
+      return { statut: 201, corps: { id: String(r.rows[0]?.id) } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/sorties/:id/remboursement', geste: 'console.clients.sortie',
+    corps: z.object({ remboursement: z.enum(['aucun', 'fait']), reference: z.string().max(60).nullable().optional(), motif: z.string().max(500) }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_sortie_remboursement($1, $2, $3, $4, $5)', [id, corps.remboursement, corps.reference ?? null, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/sorties/:id/clore', geste: 'console.clients.sortie',
+    corps: z.object({ issue: z.enum(['partie', 'reste']), motif: z.string().max(500) }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = params.id ?? '';
+      if (!uuid.safeParse(id).success) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_clore_sortie($1, $2, $3, $4)', [id, corps.issue, corps.motif, maintenant()]);
       return { corps: { ok: true } };
     },
   });

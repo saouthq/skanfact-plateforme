@@ -17,6 +17,7 @@ const PERMIS: readonly [RegExp, string][] = [
   [/^clients\.ecrit$/, 'console.clients.ecrire'],
   [/^clients\.exporte$/, 'console.clients.exporter'],
   [/^clients\.reprise/, 'console.clients.reprise'],
+  [/^clients\.sortie/, 'console.clients.sortie'],
   [/^journal\.exporte$/, 'console.journal.exporter'],
   // Fermer une session, oublier un appareil : chacun le fait pour lui-même (la direction, aussi pour les autres).
   [/^equipe\.(session_fermee|appareil_oublie)$/, 'console.session'],

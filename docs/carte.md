@@ -690,6 +690,11 @@ vaut pour tout le dépôt.*
   - **Les secrets et leur échéance** (1.37.0 ; `docs/console.md` C53, `0130`) : `plateforme.secret_suivi` et ses gestes,
     `serveur/console/secrets.ts`, la ligne `secret` de `serveur/console/decider.ts`, `web/console/src/ecrans/Secrets.tsx`
     (`tests/console/secrets.test.ts`, `tests/web/console-securite.test.ts`).
+  - **La sortie d'un client et la conservation** (1.38.0 ; `docs/console.md` C54, `0131`) : `plateforme.sortie`,
+    `plateforme.sortie_contrat`, `plateforme.sortie_conservation`, `plateforme.console_ouvrir_sortie`,
+    `plateforme.console_sortie_remboursement`, `plateforme.console_clore_sortie`, `plateforme.console_sortie(s)` ;
+    `serveur/console/sortie.ts`, la ligne `sortie` de `serveur/console/decider.ts` ; `web/console/src/ecrans/Sortie.tsx`
+    (`tests/console/sortie.test.ts`, `tests/web/console-clients.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

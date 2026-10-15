@@ -3059,3 +3059,18 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-pose .c-cp-qr { grid-template-columns: minmax(0, 1fr); justify-items: center; }
   .c-inv-faits > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
+/* La sortie d'un client (0131) : ce qu'il dit, puis les étapes dans l'ordre où on les règle ; une étape faite passe en
+   gris, la conservation ferme la liste. */
+.c-so-dit { display: grid; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--c-papier-2); }
+.c-so-dit p { margin: 0; white-space: pre-line; overflow-wrap: anywhere; }
+.c-so-etapes { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.c-so-etapes li { display: flex; align-items: center; gap: 12px; }
+.c-so-etapes .c-ligne-icone { width: 36px; height: 36px; border-radius: 10px; flex: none; }
+.c-so-etapes li.c-so-faite .c-reprise-piece b { color: var(--c-gris); }
+.c-so-etapes li .c-btn { flex: none; }
+.c-so-conservation { padding-top: 10px; border-top: 1px solid var(--c-trait); }
+.c-so-partie { color: var(--c-texte); }
+@media (max-width: 860px) {
+  .c-so-etapes li { flex-wrap: wrap; }
+  .c-so-etapes li .c-btn { min-height: 44px; margin-left: 48px; }
+}
