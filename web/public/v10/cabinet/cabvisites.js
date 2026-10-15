@@ -1427,7 +1427,7 @@
       but: n0 => document.querySelectorAll('#eq-invitations [data-inv]').length > n0 && aucuneFenetre(),
       echec: 'Personne n\'est invité — c\'est « Inviter », dans la fenêtre, qui prépare le lien d\'une invitation.',
       bravo: 'Ton invitation est prête',
-      conclusion: 'Transmets le lien à la personne : elle l\'ouvre, se connecte avec cette adresse, et arrive dans le cabinet. Chaque écriture validée porte le nom de qui l\'a validée ; un dossier se confie à quelqu\'un dans sa fiche.',
+      conclusion: 'La personne ouvre le lien (reçu par e-mail, ou transmis par toi), se connecte avec cette adresse, et arrive dans le cabinet. Chaque écriture validée porte le nom de qui l\'a validée ; un dossier se confie à quelqu\'un dans sa fiche.',
       etapes: [
         { page: '#/reglages', avant: onglet('#set-tabs', 'cabinet'), cible: '#pan-equipe', cote: 'dessus', titre: 'L\'équipe',
           texte: 'Chacun entre avec <b>son propre compte</b>. Un associé invite une personne par son adresse ; elle rejoint le cabinet en ouvrant le lien.' },
@@ -1440,7 +1440,7 @@
         { cible: '#modal-root #eq-ok', cote: 'dessus', faire: 'clic',
           titre: 'Inviter', texte: 'L\'invitation est prête : un lien, valable sept jours, une fois.', action: 'Clique sur <b>« Inviter »</b>.', fait: () => !!document.querySelector('#modal-root #eq-lien'), essai: { clic: true } },
         { cible: '#modal-root #eq-lien', cote: 'dessus', faire: 'clic', fait: () => aucuneFenetre(),
-          titre: 'Le lien à transmettre', texte: 'SkanFact n\'envoie pas encore de courriel : copie ce lien et envoie-le-lui (courriel, WhatsApp).', action: 'Copie le lien, puis clique sur <b>« Fermer »</b>.' }
+          titre: 'Le lien à transmettre', texte: 'Si la fenêtre dit « Invitation partie », SkanFact lui a envoyé ce lien par e-mail : il est ici en secours. Sinon, copie-le et envoie-le-lui (courriel, WhatsApp).', action: 'Clique sur <b>« Fermer »</b>.' }
       ]
     });
 

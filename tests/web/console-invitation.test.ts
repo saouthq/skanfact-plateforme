@@ -92,6 +92,8 @@ describe('inviter quelqu\'un, à la souris', () => {
     const adresseLien = net(await p.locator('.c-inv-adresse').innerText());
     const jeton = /#\/invitation\/([A-Za-z0-9_-]+)$/.exec(adresseLien)?.[1] ?? '';
     expect(jeton.length).toBeGreaterThan(20);
+    // Ce serveur n'a pas de relais : aucun e-mail ne part, et la fenêtre le dit (0119, C42).
+    expect(await p.getByRole('dialog').innerText()).toMatch(/n.envoie pas d.e-mails/);
     expect(await p.getByRole('link', { name: 'Envoyer par WhatsApp' }).getAttribute('href')).toContain(encodeURIComponent(adresseLien));
     expect(await p.getByRole('link', { name: 'Envoyer par e-mail' }).getAttribute('href')).toMatch(new RegExp(`^mailto:${email.replace(/[.+]/g, '\\$&')}\\?`));
     await cliquer(p.getByRole('button', { name: 'Copier le lien' }));

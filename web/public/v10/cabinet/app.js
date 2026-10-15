@@ -9670,9 +9670,10 @@
           const inv = await api.inviterCollaborateur({ email, role: r.value });
           equipe = await api.collaborateurs();
           close(); dessinerEquipe(document, true);
-          modal(`<h2>Invitation prête</h2>
-            <p>Envoie ce lien à <b>${esc(email)}</b> (par mail, par exemple). Il l'ouvre, se connecte avec cette adresse — ou crée son compte
-            avec elle — et rejoint le cabinet. Le lien vaut jusqu'au ${esc(fmtJour(KC.jourDeLInstant(Date.parse(inv.expire))))}, une seule fois.</p>
+          // (plateforme, 0119) Avec un relais d'e-mails, l'invitation est déjà partie : le lien reste ici en secours.
+          modal(`<h2>${inv.courriel ? 'Invitation partie' : 'Invitation prête'}</h2>
+            <p>${inv.courriel ? `Un e-mail est parti à <b>${esc(email)}</b> avec le lien.` : `Envoie ce lien à <b>${esc(email)}</b> (par mail, par exemple).`} Il l'ouvre, se connecte avec cette adresse — ou crée son compte
+            avec elle — et rejoint le cabinet. Le lien vaut jusqu'au ${esc(fmtJour(KC.jourDeLInstant(Date.parse(inv.expire))))}, une seule fois.${inv.courriel ? ' Le voici aussi, s\'il ne trouve pas l\'e-mail :' : ''}</p>
             <p><input type="text" id="eq-lien" readonly value="${esc(inv.lien)}" style="width:100%"></p>
             <div class="modal-actions"><button class="btn" id="eq-copier">Copier le lien</button><button class="btn btn-primary" data-close>Fermer</button></div>`,
           (c2) => {

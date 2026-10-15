@@ -1704,7 +1704,7 @@
     // Inviter : le lien, à transmettre à la personne ; elle l'ouvre et se connecte avec cette adresse.
     inviterCollaborateur: async (/** @type {any} */ o) => {
       const r = await appel('POST', `/cabinets/${cabinetId}/invitations`, { email: String(o.email || '').trim(), role: VERS_SERVEUR[o.role] || 'saisie' });
-      return { lien: `${location.origin}/?invitation=${encodeURIComponent(r.jeton)}`, expire: r.expire };
+      return { lien: `${location.origin}/?invitation=${encodeURIComponent(r.jeton)}`, expire: r.expire, courriel: r.courriel === true };
     },
     annulerInvitation: async (/** @type {string} */ id) => { await appel('DELETE', `/cabinets/${cabinetId}/invitations/${id}`); return true; },
     // Changer le rôle d'un membre (son nom est celui de son compte : il ne se change pas ici).

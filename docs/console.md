@@ -1095,10 +1095,9 @@ membre de l'équipe n'a pas toujours d'entreprise.
 - **La direction invite** une adresse, avec un rôle et un motif (« Inviter quelqu'un », à la place d'« Ajouter
   quelqu'un »). Le lien vaut **sept jours** ; la base n'en garde que l'empreinte, et **il se montre une fois**, avec
   « Copier le lien », « Envoyer par WhatsApp » et « Envoyer par e-mail » (la messagerie de la direction, préremplie).
-  **Le serveur n'envoie rien** — la règle de l'équipe d'une entreprise (`docs/equipe.md` E5) : ni l'adresse ni le lien
-  ne partent chez un service d'e-mails. La maquette disait « un e-mail part » : **À DÉCIDER par Skander** si l'on
-  préfère l'envoi par SkanFact (une donnée de plus vers le relais). Quelqu'un qui est déjà dans l'équipe ne s'invite pas
-  (son rôle se change dans la liste).
+  *En 1.25.0, le serveur n'envoyait rien ; depuis la 1.26.0, l'e-mail part de SkanFact (C42, décidé par Skander) et le
+  lien montré reste en secours.* Quelqu'un qui est déjà dans l'équipe ne s'invite pas (son rôle se change dans la
+  liste).
 - **L'invitation attend** dans la liste des membres (« invitation en attente », pas encore activé, jusqu'à quand vaut
   le lien) et dans « À régler » ; **« Renvoyer »** donne un lien neuf, sept jours de plus (l'ancien ne vaut plus) ;
   **« Annuler »** l'éteint. Une invitation à la même adresse remplace celle qui attendait.
@@ -1113,6 +1112,28 @@ membre de l'équipe n'a pas toujours d'entreprise.
   console le refuse comme avant, et « À régler » dit jusqu'à quand il peut le poser.
 - Au journal : `equipe.inviter`, `equipe.invitation_renvoyee`, `equipe.invitation_annulee` (avec l'adresse et le
   rôle), `equipe.invitation_acceptee`, `equipe.premier_code` (la méthode lue dans le compte), sans jeton ni secret.
+
+**C42. L'invitation part par e-mail, de SkanFact** (1.26.0 ; base 0119 ; `serveur/invitation-courriel.ts` ; **décidé par
+Skander le 15/10/2026** : « fait ta recommandation », après l'explication de ce que font les autres services — l'e-mail
+part du service, le lien copiable reste en secours). Les **trois portes** : l'équipe d'une entreprise, celle d'un cabinet,
+l'équipe SkanFact.
+- **Ce qui part chez le relais, compté et décidé** : l'adresse invitée, le nom de qui invite, où (l'entreprise, le
+  cabinet, ou « l'équipe SkanFact »), le rôle, le lien et le jour où il cesse de valoir. **Rien d'autre** : ni le
+  matricule, ni l'adresse de qui invite, ni les autres membres. L'objet : « Amira t'invite à rejoindre Quincaillerie
+  Ben Salem sur SkanFact » (ou « … t'invite dans l'équipe SkanFact ») ; le bouton : « Rejoindre … ». Le lien d'une
+  entreprise ou d'un cabinet mène à l'application (`/?invitation=…`), celui de l'équipe à la console
+  (`SKANFACT_CONSOLE_ADRESSE`, sinon `/console` de l'adresse publique).
+- **L'écran dit ce qui s'est passé** : « L'invitation est partie — un e-mail est parti à … avec le lien » ; le lien reste
+  montré **une fois**, avec « Copier », WhatsApp et sa messagerie, « s'il ne trouve pas l'e-mail ». **Sans relais**
+  (un serveur d'essai), rien ne part et l'écran le dit (« ce serveur n'envoie pas d'e-mails… ») : le lien se transmet
+  à la main, comme avant.
+- **Renvoyer** envoie le lien neuf ; **annuler** n'envoie rien. L'envoi n'attend pas le relais (un relais lent ne
+  retient pas la réponse) ; chaque e-mail laisse sa trace (0115 : l'instant, parti ou refusé, sans l'adresse).
+- Tests : `tests/socle/invitation-courriel.test.ts` (les trois portes, le lien égal au jeton rendu, aucune donnée de
+  plus, renvoyer, annuler, sans relais).
+- **Revue à la souris** (15/10/2026, un serveur d'essai dont le relais écrit dans un fichier) : la console, puis
+  l'application d'une entreprise — la fenêtre « L'invitation est partie », et l'e-mail reçu avec le bon objet, le bon
+  rôle et le lien qui mène à la bonne porte.
 
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran

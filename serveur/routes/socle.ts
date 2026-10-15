@@ -7,6 +7,7 @@ import { z } from 'zod';
 import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
 import { connecter, corrigerAdresse, deconnecter, demanderReinitialisation, envoyerCodeReinitialisation, essayerCode, inscrire, lireReinitialisation, mettreEnPlaceCode, reinitialiser, renvoyerCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
+import { envoyerInvitation, lienApplication, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { activerCode, activerSms, changerMotDePasse, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, retirerCode, type Refuse } from '../compte.ts';
 import { numeroMasque } from '../sms.ts';
 import { prochainNumero } from '../numeros.ts';
@@ -408,7 +409,11 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       const jeton = randomBytes(24).toString('base64url');
       const expire = new Date(maintenant().getTime() + 7 * 24 * 3600_000);
       const id = (await tx.query('select socle.inviter($1, $2, $3, $4, $5) id', [params.entreprise, corps.email, corps.roles, sha256(jeton), expire])).rows[0].id;
-      return { statut: 201, corps: { id, jeton, expire } };
+      // Elle part aussi par e-mail (0119, docs/console.md C42) : qui invite, l'entreprise, ses rôles, le lien.
+      const n = (await tx.query(`select (select nom from socle.utilisateur where id = socle.moi()) qui,
+          (select raison_sociale from socle.entreprise where id = $1) ou`, [params.entreprise])).rows[0] as { qui: string | null; ou: string | null };
+      const courriel = envoyerInvitation(ctx, { a: corps.email.toLowerCase(), qui: n.qui ?? '', ou: n.ou ?? '', role: corps.roles.map(roleDansLaPhrase).join(', '), lien: lienApplication(ctx, jeton), expire });
+      return { statut: 201, corps: { id, jeton, expire, courriel } };
     },
   });
 

@@ -169,7 +169,7 @@ describe('l\'équipe du cabinet, à la souris', () => {
     await p.waitForTimeout(1_000);
     await p.locator('#modal-root #eq-ok').click();
     await expect.poll(() => bulle.innerText()).toMatch(/Le lien à transmettre/);
-    expect(await bulle.innerText()).toMatch(/SkanFact n'envoie pas encore de courriel/);
+    expect(await bulle.innerText()).toMatch(/Si la fenêtre dit «\sInvitation partie\s»/);
     await p.waitForTimeout(1_000);
     await p.locator('#modal-root [data-close]').click();
     await expect.poll(() => bulle.innerText()).toMatch(/Ton invitation est prête/);

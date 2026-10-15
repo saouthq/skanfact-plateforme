@@ -148,12 +148,12 @@
   function inviter(o, donnables, nomEntreprise, fini) {
     const { esc, refuser, effacerRefus, surClic } = aides();
     o.modal(`<h2>Inviter quelqu'un</h2>
-      <p class="small muted">Tu prépares un lien. La personne l'ouvre, se connecte avec l'adresse que tu tapes ici — ou crée son compte avec elle — et rejoint ${esc(nomEntreprise)} avec les rôles que tu coches.</p>
+      <p class="small muted">La personne reçoit un lien, par e-mail quand SkanFact peut l'envoyer. Elle l'ouvre, se connecte avec l'adresse que tu tapes ici — ou crée son compte avec elle — et rejoint ${esc(nomEntreprise)} avec les rôles que tu coches.</p>
       <form class="cpt-form" novalidate>
         <label class="field">Son adresse e-mail<input type="email" id="eqp-email" autocomplete="off" inputmode="email" spellcheck="false"></label>
         ${casesRoles(donnables, [], 'Ce qu\'il pourra faire')}
         <p class="small muted">Commence par le plus étroit : tu pourras lui en donner plus ensuite, d'un clic.</p>
-        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="submit" class="btn btn-primary" id="eqp-ok">Préparer l'invitation</button></div>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="submit" class="btn btn-primary" id="eqp-ok">Inviter</button></div>
         <p class="small cpt-alerte" role="alert"></p>
       </form>`, (racine, fermer) => {
       const champ = /** @type {HTMLInputElement} */ (racine.querySelector('#eqp-email'));
@@ -184,23 +184,24 @@
     montrerLien(o, email, r, nomEntreprise);
   }
 
-  // Le lien, une seule fois : le copier, ou l'envoyer par WhatsApp ou par sa messagerie. Les deux derniers ouvrent les
-  // applications de la personne qui invite, message déjà écrit : elle le relit et l'envoie elle-même.
-  /** @param {Outils} o @param {string} email @param {{ jeton: string, expire: string }} r @param {string} nomEntreprise */
+  // Le lien, une seule fois. Quand le serveur a un relais d'e-mails, l'invitation est déjà partie par e-mail (0119) : le lien
+  // reste ici en secours. Sinon, on le copie, ou on l'envoie par WhatsApp ou par sa messagerie (message déjà écrit).
+  /** @param {Outils} o @param {string} email @param {{ jeton: string, expire: string, courriel?: boolean }} r @param {string} nomEntreprise */
   function montrerLien(o, email, r, nomEntreprise) {
     const { esc, jour, copier } = aides();
     const lien = `${location.origin}/?invitation=${encodeURIComponent(r.jeton)}`;
     const jusquau = jour(r.expire);
     const texte = `Bonjour,\n\nJe t'invite à rejoindre ${nomEntreprise} sur SkanFact. Ouvre ce lien, puis connecte-toi avec cette adresse (${email}) — ou crée ton compte avec elle :\n\n${lien}\n\nLe lien vaut jusqu'au ${jusquau}, une seule fois.`;
     const objet = `Invitation à rejoindre ${nomEntreprise} sur SkanFact`;
-    o.modal(`<h2>L'invitation est prête</h2>
-      <p>Envoie ce lien à <b>${esc(email)}</b>. Il l'ouvre, se connecte avec cette adresse — ou crée son compte avec elle — et rejoint ${esc(nomEntreprise)}. Le lien vaut jusqu'au <b>${esc(jusquau)}</b>, une seule fois.</p>
+    const parti = r.courriel === true;
+    o.modal(`<h2>${parti ? 'L\'invitation est partie' : 'L\'invitation est prête'}</h2>
+      <p>${parti ? `Un e-mail est parti à <b>${esc(email)}</b> avec le lien.` : `Envoie ce lien à <b>${esc(email)}</b>.`} Il l'ouvre, se connecte avec cette adresse — ou crée son compte avec elle — et rejoint ${esc(nomEntreprise)}. Le lien vaut jusqu'au <b>${esc(jusquau)}</b>, une seule fois.${parti ? ' Le voici aussi, s\'il ne trouve pas l\'e-mail :' : ''}</p>
       <div class="eqp-lien"><input type="text" id="eqp-lien" readonly value="${esc(lien)}" aria-label="Le lien d'invitation"><button type="button" class="btn btn-primary" id="eqp-copier">Copier le lien</button></div>
       <div class="eqp-envois">
         <a class="btn" id="eqp-whatsapp" href="https://wa.me/?text=${encodeURIComponent(texte)}" target="_blank" rel="noopener">Envoyer par WhatsApp</a>
         <a class="btn" id="eqp-mail" href="mailto:${encodeURIComponent(email)}?subject=${encodeURIComponent(objet)}&body=${encodeURIComponent(texte)}">Envoyer par e-mail</a>
       </div>
-      <p class="small muted">Le message part de ton téléphone ou de ta messagerie : SkanFact ne l'envoie pas, et ne garde pas ce lien. S'il se perd, « Donner un nouveau lien » en refait un — l'ancien ne vaudra plus.</p>
+      <p class="small muted">${parti ? 'L\'e-mail ne porte que son adresse, ton nom, l\'entreprise, son rôle et le lien. ' : 'Ce serveur n\'envoie pas d\'e-mails : le message part de ton téléphone ou de ta messagerie. '}SkanFact ne garde pas ce lien. S'il se perd, « Donner un nouveau lien » en refait un — l'ancien ne vaudra plus.</p>
       <div class="modal-actions"><button type="button" class="btn" data-close>Fermer</button></div>`, (racine) => {
       const champ = /** @type {HTMLInputElement} */ (racine.querySelector('#eqp-lien'));
       /** @type {HTMLElement} */ (racine.querySelector('#eqp-copier')).onclick = async () => {

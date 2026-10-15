@@ -1205,7 +1205,7 @@ declarerTextes({
   'console.ecran.equipe.retire': 'c\'est fait : la personne est retirée de l\'équipe',
 
 
-  // Inviter quelqu'un dans l'équipe (C41) : le lien se montre une fois ; SkanFact n'envoie rien.
+  // Inviter quelqu'un dans l'équipe (C41) : le lien se montre une fois, en secours de l'e-mail (C42).
   'console.ecran.equipe.inv.inviter_titre': 'inviter quelqu\'un',
   'console.ecran.equipe.inv.inviter_sous': 'un compte pour une personne, jamais partagé',
   'console.ecran.equipe.inv.inviter_bouton': 'inviter',
@@ -1214,10 +1214,10 @@ declarerTextes({
   'console.ecran.equipe.inv.annuler_titre': 'annuler l\'invitation',
   'console.ecran.equipe.inv.annuler_bouton': 'annuler l\'invitation',
   'console.ecran.equipe.inv.pour': '{email} · {role}',
-  'console.ecran.equipe.inv.i1': 'un lien qui vaut 7 jours se montre une fois, ici : tu le transmets toi-même (copier, WhatsApp, ta messagerie). SkanFact n\'envoie rien',
+  'console.ecran.equipe.inv.i1': 'un e-mail part à cette adresse avec un lien qui vaut 7 jours. Le lien se montre aussi ici, une fois, en secours',
   'console.ecran.equipe.inv.i2': 'la personne rejoint l\'équipe avec son compte SkanFact, ou le crée ; à sa première connexion, elle pose le code de son téléphone. Sans code, la console ne s\'ouvre pas',
   'console.ecran.equipe.inv.i3': 'son rôle décide de ce qu\'elle voit ; tu pourras le changer. Le journal garde ce geste, avec ton nom et ton motif',
-  'console.ecran.equipe.inv.r1': 'un nouveau lien se montre une fois ; l\'ancien ne marche plus',
+  'console.ecran.equipe.inv.r1': 'un nouvel e-mail part avec un nouveau lien ; l\'ancien ne marche plus',
   'console.ecran.equipe.inv.r2': 'il vaut 7 jours de plus, pour la même adresse et le même rôle',
   'console.ecran.equipe.inv.r3': 'si l\'adresse est fausse, annule et invite de nouveau',
   'console.ecran.equipe.inv.a1': 'le lien ne marche plus, à l\'instant',
@@ -1235,7 +1235,10 @@ declarerTextes({
   'console.ecran.equipe.inv.copier': 'copier le lien',
   'console.ecran.equipe.inv.whatsapp': 'envoyer par WhatsApp',
   'console.ecran.equipe.inv.courriel': 'envoyer par e-mail',
-  'console.ecran.equipe.inv.lien_note': 'SkanFact n\'envoie rien : ni l\'adresse ni le lien ne partent chez un service d\'e-mails. Si le lien se perd, « Renvoyer » en donne un nouveau',
+  'console.ecran.equipe.inv.parti_titre': 'l\'invitation est partie',
+  'console.ecran.equipe.inv.parti_sous': 'un e-mail est parti à {email}, avec le lien, qui vaut jusqu\'au {le}. Le voici aussi, si elle ne le trouve pas',
+  'console.ecran.equipe.inv.parti_note': 'l\'e-mail ne porte que l\'adresse, ton nom, le rôle et le lien. S\'il se perd, « Renvoyer » en envoie un nouveau',
+  'console.ecran.equipe.inv.lien_note': 'ce serveur n\'envoie pas d\'e-mails : transmets le lien toi-même. S\'il se perd, « Renvoyer » en donne un nouveau',
   'console.ecran.equipe.inv.en_attente': 'et {n} en attente',
   'console.ecran.equipe.inv.invitations_0': 'aucune invitation',
   'console.ecran.equipe.inv.invitations_1': 'une invitation',

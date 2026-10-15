@@ -107,6 +107,10 @@ describe('l\'équipe de l\'entreprise, à la souris', () => {
     await p.locator('#eqp-lien').waitFor({ timeout: 15_000 });
     const lien = await p.locator('#eqp-lien').inputValue();
     expect(lien).toMatch(new RegExp(`^${serveur.adresse.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/\\?invitation=`));
+    // Ce serveur a un relais : l'invitation est partie par e-mail, avec ce même lien, et la fenêtre le dit (0119, C42).
+    expect(await p.locator('#modal-root .modal').last().locator('h2').innerText()).toBe('L\'invitation est partie');
+    await expect.poll(() => partis.filter((m) => m.a === adresse).length).toBe(1);
+    expect(partis.find((m) => m.a === adresse)?.texte).toContain(`?invitation=${lien.split('?invitation=')[1] ?? '-'}`);
     // Le message est prêt pour WhatsApp et la messagerie : le lien, l'adresse avec laquelle entrer, l'entreprise.
     const whatsapp = decodeURIComponent(String(await p.locator('#eqp-whatsapp').getAttribute('href')));
     expect(whatsapp).toContain(lien);

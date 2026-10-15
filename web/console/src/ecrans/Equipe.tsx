@@ -32,7 +32,7 @@ type Geste = { sorte: 'role'; m: Membre } | { sorte: 'retirer'; m: Membre };
 // Une invitation qui attend (0118, C41) : son lien vaut sept jours ; `expiree` : il ne vaut plus, à renvoyer.
 type Invitation = { id: string; email: string; role: Role; inviteeLe: string; expireLe: string; expiree: boolean; invitePar: string };
 type GesteInvitation = { sorte: 'inviter' } | { sorte: 'renvoyer'; i: Invitation } | { sorte: 'annuler'; i: Invitation };
-type Lien = { email: string; role: Role; jeton: string; expire: string };
+type Lien = { email: string; role: Role; jeton: string; expire: string; courriel: boolean };
 
 // Inviter, renvoyer, annuler : un motif, au journal. Le lien d'une invitation se montre UNE fois, ensuite (FenetreLien).
 function FenetreInvitation({ g, fermer, fait }: { g: GesteInvitation; fermer: () => void; fait: (lien: Lien | null) => void }) {
@@ -53,13 +53,13 @@ function FenetreInvitation({ g, fermer, fait }: { g: GesteInvitation; fermer: ()
     void (async () => {
       setOccupe(true);
       try {
-        const r = g.sorte === 'inviter' ? await api<{ jeton: string; expire: string }>('POST', '/console/equipe/invitations', { email: email.trim(), role, motif: motif.trim() })
-          : g.sorte === 'renvoyer' ? await api<{ jeton: string; expire: string }>('POST', `/console/equipe/invitations/${g.i.id}/renvoyer`, { motif: motif.trim() })
-            : await api<{ jeton: string; expire: string }>('POST', `/console/equipe/invitations/${g.i.id}/annuler`, { motif: motif.trim() });
+        const r = g.sorte === 'inviter' ? await api<{ jeton: string; expire: string; courriel: boolean }>('POST', '/console/equipe/invitations', { email: email.trim(), role, motif: motif.trim() })
+          : g.sorte === 'renvoyer' ? await api<{ jeton: string; expire: string; courriel: boolean }>('POST', `/console/equipe/invitations/${g.i.id}/renvoyer`, { motif: motif.trim() })
+            : await api<{ jeton: string; expire: string; courriel: boolean }>('POST', `/console/equipe/invitations/${g.i.id}/annuler`, { motif: motif.trim() });
         if (!r) return;
         if (r.statut === 200 || r.statut === 201) {
           if (g.sorte === 'annuler') { toast(phrase(`${K}.annulee`)); fait(null); return; }
-          fait({ email: g.sorte === 'inviter' ? email.trim().toLowerCase() : g.i.email, role: g.sorte === 'inviter' ? role : g.i.role, jeton: r.corps.jeton, expire: r.corps.expire });
+          fait({ email: g.sorte === 'inviter' ? email.trim().toLowerCase() : g.i.email, role: g.sorte === 'inviter' ? role : g.i.role, jeton: r.corps.jeton, expire: r.corps.expire, courriel: r.corps.courriel === true });
           return;
         }
         refuser(refusDe(r), r.corps.champ === 'email' || r.corps.champ === 'motif' ? r.corps.champ : null);
@@ -90,16 +90,17 @@ function FenetreInvitation({ g, fermer, fait }: { g: GesteInvitation; fermer: ()
   );
 }
 
-// Le lien, montré UNE fois (la base n'en garde que l'empreinte) : le copier, l'envoyer par WhatsApp ou par sa messagerie.
-// Le serveur n'envoie rien (docs/equipe.md E5).
+// Le lien, montré UNE fois (la base n'en garde que l'empreinte). Un e-mail est déjà parti (0119, C42) quand le serveur a
+// un relais : le lien reste ici en secours (le copier, l'envoyer par WhatsApp ou par sa messagerie) ; sans relais, c'est
+// le seul chemin, et la fenêtre le dit.
 function FenetreLien({ lien, fermer }: { lien: Lien; fermer: () => void }) {
   const K = 'console.ecran.equipe.inv';
   const adresse = `${location.origin}${location.pathname}#/invitation/${lien.jeton}`;
   const message = dire(`${K}.message`, { role: dire(`console.ecran.role.${lien.role}`), lien: adresse, le: jourCourt(jourDe(lien.expire)) });
   const copier = () => { void navigator.clipboard?.writeText(adresse).then(() => toast(phrase(`${K}.copie`)), () => toast(phrase('console.ecran.compte.copie_impossible'), true)); };
   return (
-    <Dialogue titre={titre(`${K}.lien_titre`)} sous={phrase(`${K}.lien_sous`, { email: lien.email, le: jourCourt(jourDe(lien.expire)) })} fermer={fermer}
-      pied={<Bouton ton="principal" onClick={fermer}>{titre(`${K}.lien_fait`)}</Bouton>}>
+    <Dialogue titre={titre(lien.courriel ? `${K}.parti_titre` : `${K}.lien_titre`)} sous={phrase(lien.courriel ? `${K}.parti_sous` : `${K}.lien_sous`, { email: lien.email, le: jourCourt(jourDe(lien.expire)) })} fermer={fermer}
+      pied={<Bouton ton="principal" onClick={fermer}>{titre(lien.courriel ? 'console.ecran.fermer' : `${K}.lien_fait`)}</Bouton>}>
       <div className="c-inv-lien">
         <code className="c-inv-adresse" data-donnee>{adresse}</code>
         <div className="c-inv-envois">
@@ -108,7 +109,7 @@ function FenetreLien({ lien, fermer }: { lien: Lien; fermer: () => void }) {
           <Lien href={`mailto:${lien.email}?subject=${encodeURIComponent(maj(dire(`${K}.objet`)))}&body=${encodeURIComponent(message)}`} icone="courriel">{titre(`${K}.courriel`)}</Lien>
         </div>
       </div>
-      <p className="c-sous">{phrase(`${K}.lien_note`)}</p>
+      <p className="c-sous">{phrase(lien.courriel ? `${K}.parti_note` : `${K}.lien_note`)}</p>
     </Dialogue>
   );
 }

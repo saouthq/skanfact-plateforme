@@ -49,7 +49,8 @@ export type Contexte = {
   lecteur?: Lecteur;
   // L'envoi des e-mails (lot entrée ; serveur/courriel.ts) et l'adresse publique où mènent ses liens ; absent, aucun
   // e-mail ne part.
-  courriel?: { envoi: EnvoiCourriel; adresse: () => string };
+  // `console` : où mène le lien d'une invitation dans l'équipe SkanFact (0119).
+  courriel?: { envoi: EnvoiCourriel; adresse: () => string; console?: () => string };
 };
 
 export type Appareil = { id?: string; nom: string; type: 'navigateur' | 'bureau' | 'telephone' };

@@ -16,6 +16,7 @@ import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
 import './textes.ts';
 import { Refus } from '../erreurs.ts';
+import { envoyerInvitation, lienApplication, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { matriculeCanonique, refusDuMatricule } from '../matricule.ts';
 import { lireLivreV10, rapportDuLivre } from '../reprise/livre-v10.ts';
 import { lirePortefeuilleV10, PORTEFEUILLE_V10 } from '../reprise/cabinet-v10.ts';
@@ -660,7 +661,11 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       const expire = new Date((ctx.maintenant ?? (() => new Date()))().getTime() + 7 * 24 * 3600_000);
       const id = (await tx.query('select socle.inviter_au_cabinet($1, $2, $3, $4, $5) id',
         [params.cabinet, corps.email, corps.role, createHash('sha256').update(jeton).digest('hex'), expire])).rows[0].id as string;
-      return { statut: 201, corps: { id, jeton, expire: expire.toISOString() } };
+      // Elle part aussi par e-mail (0119, docs/console.md C42) : qui invite, le cabinet, son rôle, le lien.
+      const n = (await tx.query(`select (select nom from socle.utilisateur where id = socle.moi()) qui,
+          (select nom from socle.organisation where id = $1) ou`, [params.cabinet])).rows[0] as { qui: string | null; ou: string | null };
+      const courriel = envoyerInvitation(ctx, { a: corps.email.toLowerCase(), qui: n.qui ?? '', ou: n.ou ?? '', role: roleDansLaPhrase(corps.role), lien: lienApplication(ctx, jeton), expire });
+      return { statut: 201, corps: { id, jeton, expire: expire.toISOString(), courriel } };
     },
   });
   ajouter({

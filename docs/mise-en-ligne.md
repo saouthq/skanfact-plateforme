@@ -373,7 +373,10 @@ ajouter chez Cloudflare (09/10/2026 : la capture de Resend envoyée par Skander 
 La clé passe à curl par son entrée, jamais par sa ligne de commande. **Elle ne passe ni par le dépôt, ni par Claude.**
 
 **H3. Ce qui part chez Resend**, compté et décidé (skanfact `docs/cadrage/03-droits.md` § 6) : l'adresse de la
-personne, l'objet, et un texte qui ne porte que le code ou le lien. Ni son nom, ni son entreprise.
+personne, l'objet, et un texte qui ne porte que le code ou le lien. Ni son nom, ni son entreprise. **Seule exception,
+l'invitation** (décidée par Skander le 15/10/2026, `docs/console.md` C42) : l'adresse invitée, le nom de qui invite, où
+(l'entreprise, le cabinet, l'équipe SkanFact), le rôle, le lien et sa date de fin. Le lien d'une invitation dans
+l'équipe SkanFact mène à `SKANFACT_CONSOLE_ADRESSE` quand elle est réglée (§ J), sinon à `/console`.
 
 **H4. Les e-mails sont habillés** (12/10/2026, maquette validée par Skander ; `serveur/courriel.ts`, `serveur/courriel.html`) :
 la marque « S SkanFact » dessinée en HTML, une carte blanche, le code en grand en deux groupes, un bouton qui dit ce

@@ -61,6 +61,13 @@ declarerTextes({
   'connexion.oubli_indisponible': 'l\'envoi des e-mails n\'est pas encore en service sur ce serveur',
   'connexion.oubli_lien_perime': 'ce lien n\'est plus valable (il sert une fois, pendant 30 minutes) : demande-en un nouveau',
   'connexion.oubli_code_manque': 'ton compte est protégé par le code du téléphone : tape-le aussi (ou un code de secours)',
+  // L'invitation envoyée par SkanFact (0119, docs/console.md C42) : qui invite, où, le rôle, le lien et jusqu'à quand.
+  'invitation.membre_objet': '{qui} t\'invite à rejoindre {ou} sur SkanFact',
+  'invitation.membre_texte': 'Bonjour,\n\n{qui} t\'invite à rejoindre {ou} sur SkanFact, comme {role}. Ouvre ce lien, puis connecte-toi avec cette adresse ({email}), ou crée ton compte avec elle :\n\n{lien}\n\nLe lien vaut jusqu\'au {le}, une seule fois. Tu ne t\'y attendais pas ? Ne fais rien : sans toi, il ne sert à rien, et il s\'éteint seul.\n\nSkanFact',
+  'invitation.membre_bouton': 'Rejoindre {ou}',
+  'invitation.equipe_objet': '{qui} t\'invite dans l\'équipe SkanFact',
+  'invitation.equipe_texte': 'Bonjour,\n\n{qui} t\'invite dans l\'équipe SkanFact, comme {role}. Ouvre ce lien pour nous rejoindre avec cette adresse ({email}), ton compte SkanFact ou un compte que tu crées :\n\n{lien}\n\nLe lien vaut jusqu\'au {le}, une seule fois. À ta première connexion, tu poses le code de ton téléphone. Tu ne t\'y attendais pas ? Ne fais rien : il s\'éteint seul.\n\nSkanFact',
+  'invitation.equipe_bouton': 'Rejoindre l\'équipe',
   'connexion.oubli_objet': 'Ton nouveau mot de passe SkanFact',
   'connexion.oubli_texte': 'Bonjour,\n\nQuelqu\'un, sans doute toi, a demandé à changer le mot de passe de ton compte SkanFact. Pour en choisir un nouveau, ouvre ce lien dans les {minutes} minutes :\n\n{lien}\n\nSi ce n\'est pas toi, ne fais rien : ton mot de passe reste le même.\n\nSkanFact',
   'connexion.oubli_bouton': 'Choisir mon nouveau mot de passe',

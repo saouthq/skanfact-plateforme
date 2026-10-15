@@ -15,6 +15,7 @@ import { Introuvable, Perimee } from '../erreurs.ts';
 import { activerCode, activerSms, changerMotDePasse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, type Refuse } from '../compte.ts';
 import { numeroMasque } from '../sms.ts';
 import * as invitations from './invitations.ts';
+import { envoyerInvitation, lienConsole, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { etatAbonnement, lireDelai, lireFaits, lireModules, lireOffreSuivante, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, MOYENS_RECUS, type GesteAbonnement, type LigneAbonnement, type PaiementRecu } from '../abonnement/gestes.ts';
@@ -919,11 +920,16 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     } }),
   });
   const role = z.enum(['direction', 'support', 'technique']);
-  // Inviter quelqu'un (0118, C41) : le lien n'est rendu qu'ici, une fois ; la base n'en garde que l'empreinte. Le serveur
-  // n'envoie rien (docs/equipe.md E5) : la direction le transmet par ses moyens.
+  // Inviter quelqu'un (0118, C41) : le lien n'est rendu qu'ici, une fois ; la base n'en garde que l'empreinte. Il part
+  // aussi par e-mail quand le serveur a un relais (C42) ; la direction le voit une fois, en secours.
   const nouveauLien = () => {
     const jeton = randomBytes(24).toString('base64url');
     return { jeton, expire: new Date(maintenant().getTime() + invitations.JOURS_INVITATION * 24 * 3600_000) };
+  };
+  // L'invitation part aussi par e-mail (0119, C42) : à qui, quel rôle, qui invite, relus dans la base. Vrai si elle part.
+  const envoyerLien = async (tx: Transaction | null, id: string, l: { jeton: string; expire: Date }) => {
+    const i = (await transaction(tx).query('select * from plateforme.console_invitation_pour_courriel($1)', [id])).rows[0] as { email: string; role: string; invite_par: string } | undefined;
+    return i ? envoyerInvitation(ctx, { a: i.email, qui: i.invite_par, ou: null, role: roleDansLaPhrase(i.role), lien: lienConsole(ctx, l.jeton), expire: l.expire }) : false;
   };
   ajouter({
     methode: 'POST', chemin: '/console/equipe/invitations', geste: 'console.equipe.gerer',
@@ -932,7 +938,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const l = nouveauLien();
       const id = await lireJson<string>(transaction(tx), 'select plateforme.console_inviter($1, $2, $3, $4, $5, $6) v',
         [corps.email, corps.role, corps.motif, invitations.sha256(l.jeton), maintenant(), l.expire]);
-      return { statut: 201, corps: { id, jeton: l.jeton, expire: l.expire.toISOString() } };
+      return { statut: 201, corps: { id, jeton: l.jeton, expire: l.expire.toISOString(), courriel: await envoyerLien(tx, id, l) } };
     },
   });
   ajouter({
@@ -943,7 +949,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const l = nouveauLien();
       const id = await lireJson<string>(transaction(tx), 'select plateforme.console_renvoyer_invitation($1, $2, $3, $4, $5) v',
         [params.invitation, corps.motif, invitations.sha256(l.jeton), maintenant(), l.expire]);
-      return { corps: { id, jeton: l.jeton, expire: l.expire.toISOString() } };
+      return { corps: { id, jeton: l.jeton, expire: l.expire.toISOString(), courriel: await envoyerLien(tx, id, l) } };
     },
   });
   ajouter({

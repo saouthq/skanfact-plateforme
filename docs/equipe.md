@@ -39,11 +39,13 @@ montre une ligne par personne, et l'ancien lien ne vaut plus. C'est aussi le ges
 personne a perdu le premier. Une invitation qui attend s'annule (« Annuler l'invitation ») ; déjà acceptée, elle ne
 s'annule plus : la personne est dans l'équipe, et c'est elle qu'on retire.
 
-**E5. Le lien part par les moyens de la personne qui invite** (par délégation). Juste après l'invitation, l'écran montre
-le lien **une seule fois** (la base n'en garde que l'empreinte) avec « Copier le lien », « Envoyer par WhatsApp » et
-« Envoyer par e-mail » (sa messagerie, préremplie). **Le serveur n'envoie rien** : son relais d'e-mails ne reçoit ni
-l'adresse de l'invité, ni le nom de l'entreprise, ni le lien — aucune donnée de plus (règle du projet). Le lien vaut
-**7 jours, une seule fois, et seulement pour l'adresse tapée**.
+**E5. L'invitation part par e-mail, de SkanFact ; le lien reste en secours** (décidé par Skander le 15/10/2026, 1.26.0 ;
+`docs/console.md` C42). *Jusqu'à la 1.25.0, le serveur n'envoyait rien.* SkanFact envoie l'e-mail à l'adresse invitée ;
+juste après, l'écran dit « L'invitation est partie » et montre aussi le lien **une seule fois** (la base n'en garde que
+l'empreinte) avec « Copier le lien », « Envoyer par WhatsApp » et « Envoyer par e-mail » (sa messagerie, préremplie),
+s'il ne trouve pas l'e-mail. **Ce qui part chez le relais, compté et décidé** : l'adresse invitée, le nom de qui invite,
+l'entreprise, les rôles, le lien et sa date de fin — ni le matricule, ni l'adresse de qui invite. Sans relais, rien ne
+part et l'écran le dit. Le lien vaut **7 jours, une seule fois, et seulement pour l'adresse tapée**.
 
 **E6. Qui ouvre le lien sans être connecté sait où il va** (par délégation). Sans cela, la personne créait son compte avec
 son adresse de tous les jours, et l'invitation lui était refusée au bout du chemin (« envoyée à une autre adresse »).
@@ -63,7 +65,7 @@ son compte reste le sien ; le serveur lui refuse l'entreprise dès sa requête s
 coche.
 
 **E8. Ce qui part vers le serveur, compté** (règle du projet). Inviter : l'adresse et les rôles. Changer : les rôles.
-Retirer, annuler : rien d'autre que l'identifiant. L'aperçu : le lien. Rien ne part chez le relais d'e-mails.
+Retirer, annuler : rien d'autre que l'identifiant. L'aperçu : le lien. Chez le relais d'e-mails : ce que dit E5, rien de plus.
 
 ## Ce qui n'est pas fait, et pourquoi
 
@@ -74,8 +76,6 @@ Retirer, annuler : rien d'autre que l'identifiant. L'aperçu : le lien. Rien ne 
 - **Prévenir le propriétaire** d'un geste sensible fait par un administrateur (03 D7). Les gestes le déclarent
   (`prevenirProprietaire` dans `serveur/porte/gestes.ts`) ; **rien ne lit ce drapeau**, pour aucun geste. À brancher sur
   l'alerte par e-mail de la messagerie (brique 78), sans contenu.
-- **L'e-mail d'invitation envoyé par SkanFact** : non (E5). Si un jour on le veut, c'est une donnée de plus vers le relais
-  (l'adresse d'un tiers qui n'a rien accepté) : à décider et à compter avant.
 - **Les collaborateurs d'un cabinet** : leur équipe a son propre écran dans le Cabinet ; ce lot ne touche que
   l'entreprise.
 

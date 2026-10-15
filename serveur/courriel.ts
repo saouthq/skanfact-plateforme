@@ -3,7 +3,8 @@
 // ce qu'il ne peut pas faire.
 //
 // Ce qui part chez le relais, compté et décidé (règle du projet) : l'adresse de la personne, l'objet et le texte du
-// message, qui ne porte que le code ou le lien. Ni son nom, ni son entreprise, ni rien de ses données. La version
+// message, qui ne porte que le code ou le lien. Ni son nom, ni son entreprise, ni rien de ses données — sauf l'invitation,
+// dont la liste est comptée dans invitation-courriel.ts (décidée par Skander le 15/10/2026). La version
 // habillée (12/10/2026) dit EXACTEMENT le même texte : elle n'y ajoute que la marque et une ligne de pied, toutes deux
 // fixes — et aucune image chargée à distance (on ne trace personne). Sa mise en page vit dans courriel.html, ses
 // phrases au catalogue.

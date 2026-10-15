@@ -14587,6 +14587,52 @@ prouver 'l'"'"'adresse de l'"'"'invité à retaper' 'web/console/src/ecrans/Entr
   'useState('"'"''"'"')' \
   'l'"'"'invité : qui l'"'"'invite et à quel rôle ; son compte créé ; puis il entre et pose son code, ses codes de secours mis de côté'
 
+# 1.26.0 : l'invitation part par e-mail (0119 ; docs/console.md C42).
+prouver 'l'"'"'invitation d'"'"'une entreprise part à une autre adresse' 'serveur/routes/socle.ts' \
+  'envoyerInvitation(ctx, { a: corps.email.toLowerCase(), qui: n.qui ?? '"'"''"'"', ou: n.ou ?? '"'"''"'"', role: corps.roles' \
+  'envoyerInvitation(ctx, { a: '"'"'quelqu-un@exemple.tn'"'"', qui: n.qui ?? '"'"''"'"', ou: n.ou ?? '"'"''"'"', role: corps.roles' \
+  'l'"'"'équipe d'"'"'une entreprise : qui invite, l'"'"'entreprise, ses rôles et le lien, à cette adresse seule ; le lien est celui que l'"'"'écran reçoit'
+prouver 'le lien de l'"'"'e-mail n'"'"'est pas celui de l'"'"'invitation' 'serveur/invitation-courriel.ts' \
+  '/?invitation=${encodeURIComponent(jeton)}`' \
+  '/?invitation=${encodeURIComponent(jeton.slice(2))}`' \
+  'l'"'"'équipe d'"'"'une entreprise : qui invite, l'"'"'entreprise, ses rôles et le lien, à cette adresse seule ; le lien est celui que l'"'"'écran reçoit'
+prouver 'le matricule ajouté à l'"'"'e-mail' 'serveur/routes/socle.ts' \
+  '(select raison_sociale from socle.entreprise where id = $1) ou' \
+  '(select raison_sociale || '"'"' '"'"' || coalesce(matricule_fiscal, '"'"''"'"') from socle.entreprise where id = $1) ou' \
+  'l'"'"'équipe d'"'"'une entreprise : qui invite, l'"'"'entreprise, ses rôles et le lien, à cette adresse seule ; le lien est celui que l'"'"'écran reçoit'
+prouver 'le cabinet tu dans l'"'"'e-mail' 'serveur/cabinet/routes.ts' \
+  '(select nom from socle.organisation where id = $1) ou' \
+  '(select nom from socle.organisation where id = $1 and false) ou' \
+  'l'"'"'équipe d'"'"'un cabinet : le cabinet et le rôle dits dans la phrase'
+prouver 'le rôle du collaborateur tu' 'serveur/cabinet/routes.ts' \
+  'role: roleDansLaPhrase(corps.role)' \
+  'role: '"'"''"'"'' \
+  'l'"'"'équipe d'"'"'un cabinet : le cabinet et le rôle dits dans la phrase'
+prouver 'renvoyer n'"'"'envoie pas le lien neuf' 'serveur/console/routes.ts' \
+  'return { corps: { id, jeton: l.jeton, expire: l.expire.toISOString(), courriel: await envoyerLien(tx, id, l) } };' \
+  'return { corps: { id, jeton: l.jeton, expire: l.expire.toISOString(), courriel: false } };' \
+  'l'"'"'équipe SkanFact : le lien mène à la console ; renvoyer envoie un lien neuf, annuler n'"'"'envoie rien ; sans relais, rien ne part et l'"'"'écran le sait'
+prouver 'le lien de l'"'"'équipe mène à l'"'"'application' 'serveur/invitation-courriel.ts' \
+  '/#/invitation/${jeton}`' \
+  '/?invitation=${jeton}`' \
+  'l'"'"'équipe SkanFact : le lien mène à la console ; renvoyer envoie un lien neuf, annuler n'"'"'envoie rien ; sans relais, rien ne part et l'"'"'écran le sait'
+prouver 'sans relais, la réponse croit l'"'"'e-mail parti' 'serveur/invitation-courriel.ts' \
+  'if (!courriel) return false;' \
+  'if (!courriel) return true;' \
+  'l'"'"'équipe SkanFact : le lien mène à la console ; renvoyer envoie un lien neuf, annuler n'"'"'envoie rien ; sans relais, rien ne part et l'"'"'écran le sait'
+prouver 'l'"'"'e-mail de l'"'"'équipe part à une autre adresse' 'base/migrations/0119_invitations_courriel.sql' \
+  'return query select i.email, i.role, u.nom' \
+  'return query select '"'"'x'"'"' || i.email, i.role, u.nom' \
+  'l'"'"'équipe SkanFact : le lien mène à la console ; renvoyer envoie un lien neuf, annuler n'"'"'envoie rien ; sans relais, rien ne part et l'"'"'écran le sait'
+prouver 'la fenêtre de l'"'"'entreprise tait l'"'"'e-mail parti' 'web/public/plateforme/equipe.js' \
+  'const parti = r.courriel === true;' \
+  'const parti = false;' \
+  'inviter, rejoindre par le lien sans compte, changer les rôles, retirer, annuler une invitation'
+prouver 'la console dit l'"'"'e-mail parti sans relais' 'web/console/src/ecrans/Equipe.tsx' \
+  'courriel: r.corps.courriel === true });' \
+  'courriel: true });' \
+  'la direction invite : le lien une fois, puis l'"'"'invitation attend ; renvoyer donne un lien neuf, annuler l'"'"'éteint'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

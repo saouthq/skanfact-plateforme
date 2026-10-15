@@ -184,8 +184,8 @@ La direction ferme la session ou oublie l'appareil d'un membre sans le retirer ;
 par délégation). Le journal : la direction lit tout ; le support, ses propres gestes et ses accès aux dossiers
 (15/10/2026, par délégation, comme la maquette). **Ton compte** (1.24.0, `docs/console.md` C40) : chacun lit le sien,
 quel que soit son rôle, et y change son mot de passe, son code et ses codes de secours ; chaque geste au journal.
-**Inviter quelqu'un** (1.25.0, C41) : la direction invite une adresse (un lien de sept jours, montré une fois, transmis
-par ses moyens : SkanFact n'envoie rien) ; l'invité rejoint avec son compte ou le crée, et pose son code du téléphone à
+**Inviter quelqu'un** (1.25.0, C41) : la direction invite une adresse (un lien de sept jours, montré une fois, parti
+par e-mail depuis la 1.26.0, C42, et montré en secours) ; l'invité rejoint avec son compte ou le crée, et pose son code du téléphone à
 sa première connexion (sept jours au plus).
 
 ### 2.11 Réglages de la plateforme

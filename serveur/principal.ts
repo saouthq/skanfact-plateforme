@@ -19,6 +19,8 @@
 //                            production : le code par e-mail est le code de connexion par défaut
 //   SKANFACT_ADRESSE         l'adresse publique du serveur (https), où reviennent le client et l'avis
 //                            du prestataire de paiement ; par défaut, celle où il écoute
+//   SKANFACT_CONSOLE_ADRESSE l'adresse de la console de l'équipe (https://console.…), où mène le lien d'une invitation
+//                            dans l'équipe ; par défaut, la console sous l'adresse publique (…/console)
 //   SKANFACT_KONNECT         l'API de Konnect (https://api.konnect.network/api/v2 par défaut)
 //   SKANFACT_DIGIGO          l'API DigiGo de TunTrust (la signature de la facture électronique) ; sans elle,
 //                            la signature n'est pas branchée (et le dit)
@@ -92,7 +94,7 @@ import { Collecte, envoyerMesures, nomExemplaire } from './service/collecte.ts';
 export type Configuration = {
   base: string; environnement: 'test' | 'production'; port: number; hote: string; listeVolee: string;
   // Le fournisseur de SMS (0081) : aucun, ou WinSMS avec sa clé (de l'environnement, jamais du dépôt).
-  sms: 'aucun' | { fournisseur: 'winsms'; cle: string; expediteur: string | null; adresse: string }; livreurMs: number; web: string; adresse: string | null; konnect: string; coffre: Buffer; verificationMs: number;
+  sms: 'aucun' | { fournisseur: 'winsms'; cle: string; expediteur: string | null; adresse: string }; livreurMs: number; web: string; adresse: string | null; adresseConsole: string | null; konnect: string; coffre: Buffer; verificationMs: number;
   digigo: { base: string; cle: string } | null;
   ttn: string | null; ttnMs: number; contratsMs: number; alertesMs: number; relancesMs: number; mesuresMs: number;
   lectures: number;
@@ -144,6 +146,8 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   const ici = path.dirname(fileURLToPath(import.meta.url));
   const adresse = env.SKANFACT_ADRESSE ? env.SKANFACT_ADRESSE.replace(/\/+$/, '') : null;
   if (adresse && !/^https?:\/\/[^/]+$/.test(adresse)) throw new ConfigurationFausse(`SKANFACT_ADRESSE « ${adresse} » : une origine (https://nom), sans chemin`);
+  const adresseConsole = env.SKANFACT_CONSOLE_ADRESSE ? env.SKANFACT_CONSOLE_ADRESSE.replace(/\/+$/, '') : null;
+  if (adresseConsole && !/^https?:\/\/[^/]+$/.test(adresseConsole)) throw new ConfigurationFausse(`SKANFACT_CONSOLE_ADRESSE « ${adresseConsole} » : une origine (https://nom), sans chemin`);
   const konnect = (env.SKANFACT_KONNECT ?? KONNECT_PAR_DEFAUT).replace(/\/+$/, '');
   if (!/^https?:\/\//.test(konnect)) throw new ConfigurationFausse(`SKANFACT_KONNECT « ${konnect} » n'est pas une adresse`);
   const digigo = env.SKANFACT_DIGIGO ? env.SKANFACT_DIGIGO.replace(/\/+$/, '') : null;
@@ -172,7 +176,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     listeVolee: env.SKANFACT_LISTE_VOLEE ?? path.join(ici, '../tests/donnees/mots-de-passe-voles.txt'),
     livreurMs: Number(env.SKANFACT_LIVREUR_MS ?? 15_000),
     web: env.SKANFACT_WEB ?? path.join(ici, '../dist/web'),
-    adresse, konnect, coffre, verificationMs: Number(env.SKANFACT_VERIFICATION_MS ?? 60_000),
+    adresse, adresseConsole, konnect, coffre, verificationMs: Number(env.SKANFACT_VERIFICATION_MS ?? 60_000),
     digigo: digigo ? { base: digigo, cle: env.SKANFACT_DIGIGO_CLE ?? '' } : null,
     ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000), contratsMs: Number(env.SKANFACT_CONTRATS_MS ?? 3_600_000),
     alertesMs: Number(env.SKANFACT_ALERTES_MS ?? 60_000),
@@ -259,7 +263,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   // Chaque e-mail laisse sa trace (0115) : l'instant et s'il est parti, rien d'autre.
   const relais = dependances.courriel ?? (c.courriel ? courrielSmtp(c.courriel.smtp, c.courriel.de) : null);
   const envoiCourriel = relais ? avecTrace(pool, relais) : null;
-  if (envoiCourriel) ctx.courriel = { envoi: envoiCourriel, adresse: () => publique };
+  if (envoiCourriel) ctx.courriel = { envoi: envoiCourriel, adresse: () => publique, console: () => (c.adresseConsole ? `${c.adresseConsole}/console` : `${publique}/console`) };
   const collecte = new Collecte();
   const app = creerApp(ctx, routesDuServeur(ctx, { veille: c.veille }), { proxy: c.proxy, collecte });
   servirLesEcrans(app, c.web, c.version);
