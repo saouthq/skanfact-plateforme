@@ -29,7 +29,9 @@ export type Ligne =
   // L'argent (0113), pour la direction : une facture payée puis défaite, une facture qui attend d'être émise, un trop-perçu.
   | { sorte: 'facture_defaite'; ouvre: 'fiche'; entreprise: Qui; numero: string | null; payeeLe: string; fin: string; ecran: string; cause: 'avoir' | 'reglement'; trop: string | null }
   | { sorte: 'a_emettre'; ouvre: 'facture'; entreprise: Qui; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
-  | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: Qui; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string };
+  | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: Qui; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
+  // 0129 : une facture contestée qui attend sa régularisation depuis une semaine.
+  | { sorte: 'contestation'; ouvre: 'fiche'; entreprise: Qui; numero: string | null; ouverteLe: string; jours: number };
 type RelancePartie = { entreprise: Qui; rang: 'j15' | 'j7' | 'j1' | 'lecture_seule'; partieLe: string };
 type Accueil = { aujourdhui: string; role: Role; tableau: Partial<Tableau> & { service: Service }; decider: Ligne[]; relances?: RelancePartie[] };
 
@@ -141,6 +143,10 @@ function voir(l: Ligne, aujourdhui: string): Vue {
       return { icone: 'calendrier', titre: titre('console.ecran.decider.a_emettre_titre', { nom: l.entreprise.nom }),
         desc: phrase('console.ecran.decider.a_emettre', { le: jourCourt(l.prepareLe), debut: jourCourt(l.debut), fin: jourCourt(l.fin) }),
         meta: null, urgence: l.debut <= aujourdhui ? 'aujourdhui' : 'semaine', href: l.ecran, bouton: titre('console.ecran.decider.ouvrir_facture'), ailleurs: true };
+    case 'contestation':
+      return { icone: 'alerte', titre: titre('console.ecran.decider.contestation_titre', { nom: l.entreprise.nom }),
+        desc: phrase('console.ecran.decider.contestation', { numero: l.numero ?? dire('console.ecran.decider.sans_numero'), le: jourCourt(l.ouverteLe), n: l.jours }),
+        meta: null, urgence: 'a_regarder', href: `${fiche(l.entreprise)}?onglet=factures`, bouton: titre('console.ecran.decider.ouvrir_fiche') };
     case 'trop_percu':
       return { icone: 'alerte', titre: titre('console.ecran.decider.trop_titre', { nom: l.entreprise.nom, montant: montant(l.trop) }),
         desc: phrase(l.annulee ? 'console.ecran.decider.trop_annulee' : 'console.ecran.decider.trop', { numero: l.numero ?? dire('console.ecran.decider.sans_numero') }),
@@ -194,7 +200,7 @@ function ADecider({ lignes, role, aujourdhui }: { lignes: Ligne[]; role: Role; a
               const donnee = l.sorte === 'service' || l.sorte === 'support';
               return (
                 <li key={l.sorte === 'service' ? `service-${l.cle}` : l.sorte === 'veille_silencieuse' ? 'veille' : l.sorte === 'support' ? `support-${l.demande.id}`
-                  : l.sorte === 'facture_defaite' || l.sorte === 'a_emettre' || l.sorte === 'trop_percu' ? `${l.sorte}-${l.ecran}` : `${l.sorte}-${l.entreprise.id}`} className="c-ligne-decision">
+                  : l.sorte === 'facture_defaite' || l.sorte === 'a_emettre' || l.sorte === 'trop_percu' ? `${l.sorte}-${l.ecran}` : l.sorte === 'contestation' ? `${l.sorte}-${l.entreprise.id}-${l.numero ?? l.ouverteLe}` : `${l.sorte}-${l.entreprise.id}`} className="c-ligne-decision">
                   <span className={`c-ligne-icone c-${v.urgence}`}><Icone nom={v.icone} /></span>
                   <div className="c-ligne-texte">
                     <span className="c-ligne-titre"><span {...(donnee ? { 'data-donnee': true } : {})}>{v.titre}</span> <Puce ton={ton}>{titre(`console.ecran.urgence.${v.urgence}`)}</Puce></span>

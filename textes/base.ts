@@ -480,6 +480,18 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   // Prévenir d'un coup les clients d'un incident (0128).
   { base: 'une réponse à plusieurs demandes porte son identifiant de commande', cle: 'base.console.prevenir_commande', fr: 'une réponse à plusieurs demandes porte son identifiant de commande' },
   { base: 'aucune demande ouverte n\'est liée à cet incident', cle: 'base.console.prevenir_aucune', fr: 'aucune demande ouverte n\'est liée à cet incident : il n\'y a personne à prévenir' },
+  // Les contestations de nos factures (0129).
+  { base: 'ce que le client conteste : de trois à mille caractères', cle: 'base.console.contestation_dit', fr: 'ce que le client conteste : de trois à mille caractères' },
+  { base: 'le canal d\'une contestation : téléphone, e-mail, WhatsApp, support ou autre', cle: 'base.console.contestation_canal', fr: 'le canal d\'une contestation : téléphone, e-mail, WhatsApp, support ou autre' },
+  { base: 'cette facture n\'existe pas', cle: 'base.console.contestation_facture_inconnue', fr: 'cette facture n\'existe pas' },
+  { base: 'seule une facture émise se conteste', cle: 'base.console.contestation_pas_emise', fr: 'seule une facture émise se conteste : une facture préparée se corrige avant d\'être émise' },
+  { base: 'cette facture est déjà contestée : la contestation en cours attend sa régularisation', cle: 'base.console.contestation_deja', fr: 'cette facture est déjà contestée : la contestation en cours attend sa régularisation' },
+  { base: 'une contestation se clôt par un avoir, un remboursement, la facture maintenue, ou retirée', cle: 'base.console.contestation_issue', fr: 'une contestation se clôt par un avoir, un remboursement, la facture maintenue, ou retirée' },
+  { base: 'la direction seule régularise une contestation par un avoir, un remboursement ou en maintenant la facture', cle: 'base.console.contestation_direction', fr: 'la direction seule régularise une contestation par un avoir, un remboursement ou en maintenant la facture' },
+  { base: 'un avoir ou un remboursement se retrouve par sa référence : le numéro de l\'avoir, la référence du virement', cle: 'base.console.contestation_reference', fr: 'un avoir ou un remboursement se retrouve par sa référence : le numéro de l\'avoir, la référence du virement' },
+  { base: 'une référence : soixante caractères au plus', cle: 'base.console.contestation_reference_longue', fr: 'une référence : soixante caractères au plus' },
+  { base: 'cette contestation n\'existe pas', cle: 'base.console.contestation_inconnue', fr: 'cette contestation n\'existe pas' },
+  { base: 'cette contestation est déjà régularisée', cle: 'base.console.contestation_close', fr: 'cette contestation est déjà régularisée' },
   { base: 'cette demande n\'attend pas la technique', cle: 'base.support.pas_technique', fr: 'cette demande n\'attend pas la technique' },
   { base: 'cet envoi n\'existe pas', cle: 'base.travaux.envoi_inconnu', fr: 'cet envoi n\'existe pas' },
   { base: 'deux envois portent cette clé : ils se reprennent depuis le serveur, un par un', cle: 'base.travaux.cle_double', fr: 'deux envois portent cette clé : ils se reprennent depuis le serveur, un par un' },

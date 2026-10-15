@@ -14,7 +14,7 @@ import { dire, phrase, selon, titre } from '../langue.ts';
 import { abonnementEnMots, expliquer, offreEtPeriode, puceDe, type Etat, type Faits, type Offre, type Periodicite } from '../abonnement.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, useRelireQuandOnRegarde, type Role } from '../contexte.ts';
 import { dans, heureDe, jourCourt, jourDe, moisEnMots, quand } from '../temps.ts';
-import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, parcourirMenu, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
+import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, MenuLigne, parcourirMenu, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
 import { arriveeEnMots, organisationEnMots, type Arrivee } from './Clients.tsx';
 import type { Place } from './Cabinets.tsx';
 import { depuisEnMots, etatEnMots, NoterDemande, refDemande, type LigneDemande } from './Support.tsx';
@@ -23,6 +23,7 @@ import { contexteDe, EcrireAuContact, NoterAppel, resultatEnMots, type ResultatA
 import { montant } from '../argent.ts';
 import { CarteReprise, repriseEnCours, type Reprise } from './Reprise.tsx';
 import { defaiteEnMots } from './Accueil.tsx';
+import { contestationEnMots, FenetreContester, FenetreRegulariser, type Contestation } from './Contestations.tsx';
 
 export type Geste = 'prolonger' | 'payer' | 'resilier' | 'annuler-resiliation' | 'suspendre' | 'reprendre' | 'offrir' | 'retirer-offert' | 'ouvrir-module' | 'fermer-module'
   | 'accorder-delai' | 'offrir-mois' | 'changer-offre';
@@ -50,6 +51,8 @@ type Donnees = {
   support: { comptes: { ouvertes: number; aRepondre: number }; ouvertes: LigneDemande[]; closes: LigneDemande[] };
   // Ses factures d'abonnement (docs/abonnement.md B2–B4), et l'entreprise SkanFact où elles naissent.
   factures: { lignes: LigneFacture[]; editeur: { entreprise: string; raisonSociale: string; proprietaire: boolean } | null };
+  // Les contestations de ses factures (0129), toutes : la ligne de chaque facture dit la sienne.
+  contestations: Contestation[];
   // Son groupe, les sociétés de la même propriétaire, et la remise de sa prochaine période (0106, docs/abonnement.md C17).
   groupe: GroupeDe;
   // 0110 : son numéro, sa ville, le téléphone vérifié de sa propriétaire, son dernier appel ; ses notes d'appel ; ce que
@@ -95,7 +98,8 @@ type Attente =
   // L'argent (0113), pour la direction.
   | { sorte: 'facture_defaite'; numero: string | null; payeeLe: string; fin: string; ecran: string; cause: 'avoir' | 'reglement'; trop: string | null }
   | { sorte: 'a_emettre'; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
-  | { sorte: 'trop_percu'; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string };
+  | { sorte: 'trop_percu'; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
+  | { sorte: 'contestation'; numero: string | null; ouverteLe: string; jours: number };
 export type OngletFiche = 'apercu' | 'abonnement' | 'factures' | 'support' | 'membres' | 'journal';
 export const ONGLETS_FICHE: readonly OngletFiche[] = ['apercu', 'abonnement', 'factures', 'support', 'membres', 'journal'];
 
@@ -476,7 +480,9 @@ function FenetreFacture({ fiche, fermer, fait }: { fiche: Donnees; fermer: () =>
 const factureOuverte = (lignes: Donnees['factures']['lignes']) =>
   lignes.find((x) => x.etat === 'a_emettre' || x.etat === 'a_payer' || x.etat === 'partielle' || x.etat === 'en_retard');
 
-function SesFactures({ f, role, preparer }: { f: Donnees; role: Role; preparer: () => void }) {
+// Le geste d'une contestation, depuis la ligne d'une facture (0129) : la noter, ou la régulariser.
+type GesteContestation = { sorte: 'noter'; facture: { id: string; numero: string } } | { sorte: 'regulariser'; c: Contestation };
+function SesFactures({ f, role, preparer, contester }: { f: Donnees; role: Role; preparer: () => void; contester: (g: GesteContestation) => void }) {
   const ed = f.factures.editeur;
   const peut = role === 'direction' && !!ed?.proprietaire && !f.faits.tenuParCabinet && !factureOuverte(f.factures.lignes);
   const note = f.faits.tenuParCabinet ? phrase('console.ecran.fiche.fa.cabinet')
@@ -516,9 +522,21 @@ function SesFactures({ f, role, preparer }: { f: Donnees; role: Role; preparer: 
                   <td className="c-droite" data-libelle={titre('console.ecran.fiche.fa.col.net')}>{x.net ? <span data-donnee>{montant(x.net)}</span> : '—'}</td>
                   <td className="c-droite" data-libelle={titre('console.ecran.fiche.fa.col.reste')}>{x.reste ? <span data-donnee>{montant(x.reste)}</span> : '—'}</td>
                   <td data-libelle={titre('console.ecran.fiche.fa.col.etat')}><Puce ton={PUCE_FACTURE[x.etat]}>{titre(`console.ecran.fiche.fa.etat.${x.etat}`)}</Puce>
-                    {x.payeeLe ? <span className="c-sous c-bloc">{dire('console.ecran.fiche.fa.payee_le', { quand: quand(x.payeeLe, f.aujourdhui) })}</span> : null}</td>
-                  <td className="c-droite">{x.etat !== 'supprimee' && ed?.proprietaire
-                    ? <Lien petit ailleurs href={x.ecran}>{titre(x.etat === 'a_emettre' ? 'console.ecran.fiche.fa.emettre' : 'console.ecran.fiche.fa.ouvrir')}</Lien> : null}</td>
+                    {x.payeeLe ? <span className="c-sous c-bloc">{dire('console.ecran.fiche.fa.payee_le', { quand: quand(x.payeeLe, f.aujourdhui) })}</span> : null}
+                    {/* Sa contestation (0129) : en cours, en orange et en mots ; la dernière régularisée, en gris. */}
+                    {(() => { const c = contestationDe(f.contestations, x.id); return c ? <span className={`c-sous c-bloc${c.close ? '' : ' c-ct-en-cours'}`}>{maj(contestationEnMots(c))}</span> : null; })()}</td>
+                  <td className="c-droite"><span className="c-boutons-ligne">{x.etat !== 'supprimee' && ed?.proprietaire
+                    ? <Lien petit ailleurs href={x.ecran}>{titre(x.etat === 'a_emettre' ? 'console.ecran.fiche.fa.emettre' : 'console.ecran.fiche.fa.ouvrir')}</Lien> : null}
+                    {(() => {
+                      // Une facture émise se conteste ; une contestation en cours se régularise (le support : la dire retirée).
+                      const c = contestationDe(f.contestations, x.id);
+                      const enCours = c && !c.close ? c : null;
+                      if (!x.numero || x.etat === 'supprimee') return null;
+                      const numero = x.numero;
+                      return <MenuLigne etiquette={titre('console.ecran.contestation.menu', { numero })} actions={[enCours
+                        ? { titre: titre('console.ecran.contestation.regulariser'), sous: phrase(role === 'direction' ? 'console.ecran.contestation.regulariser_sous' : 'console.ecran.contestation.regulariser_sous_support'), faire: () => contester({ sorte: 'regulariser', c: enCours }) }
+                        : { titre: titre('console.ecran.contestation.noter'), sous: phrase('console.ecran.contestation.noter_sous'), faire: () => contester({ sorte: 'noter', facture: { id: x.id, numero } }) }]} />;
+                    })()}</span></td>
                 </tr>
               ))}
             </tbody>
@@ -528,6 +546,9 @@ function SesFactures({ f, role, preparer }: { f: Donnees; role: Role; preparer: 
     </section>
   );
 }
+
+// La contestation qu'une ligne dit : celle en cours, sinon la dernière régularisée.
+const contestationDe = (l: Contestation[], facture: string) => l.find((c) => c.facture === facture && !c.close) ?? l.find((c) => c.facture === facture) ?? null;
 
 // ── Son groupe et sa remise (docs/abonnement.md C17 ; 0106) ─────────────────────────────────────────────────────────
 // La remise de sa prochaine période et pourquoi (la plus forte des deux, jamais leur somme), puis son groupe : les
@@ -826,9 +847,10 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
   // Nos échanges (0110) : noter un appel, écrire au contact.
   const [appel, setAppel] = useState(false);
   const [ecrireA, setEcrireA] = useState(false);
+  const [contestation, setContestation] = useState<GesteContestation | null>(null);
   // La fiche envoie émettre sa facture dans l'application de SkanFact, dans un autre onglet : en revenant, elle dit ce
   // qui a bougé (émise, réglée, l'abonnement qui suit). Jamais sous une fenêtre ouverte : on ne relit pas sous les doigts.
-  useRelireQuandOnRegarde(relire, { attendre: () => geste !== null || noter || facture || gesteGroupe !== null || appel || ecrireA });
+  useRelireQuandOnRegarde(relire, { attendre: () => geste !== null || noter || facture || gesteGroupe !== null || appel || ecrireA || contestation !== null });
   if (l.etat === 'lecture') return <p className="c-attente">{titre('console.ecran.lecture')}</p>;
   if (l.etat === 'panne') {
     return (
@@ -891,6 +913,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
     // L'argent (0113) : la facture s'ouvre dans l'application de SkanFact ; un trop-perçu, dans Paiements.
     if (a.sorte === 'facture_defaite' || a.sorte === 'a_emettre') return { texte: titre('console.ecran.decider.ouvrir_facture'), href: a.ecran, ailleurs: true };
     if (a.sorte === 'trop_percu') return { texte: titre('console.ecran.decider.ouvrir_paiements'), href: '#/paiements' };
+    if (a.sorte === 'contestation') return { texte: titre('console.ecran.fiche.attend.ses_factures'), href: versOnglet('factures') };
     if (facturer && ouverte) return { texte: titre(ouverte.etat === 'a_emettre' ? 'console.ecran.fiche.attend.emettre' : 'console.ecran.fiche.attend.sa_facture'), href: ouverte.ecran, ailleurs: true };
     if (facturer) return { texte: titre('console.ecran.fiche.attend.preparer'), faire: () => setFacture(true) };
     const g = f.gestes.includes('payer') ? 'payer' : f.gestes.includes('prolonger') ? 'prolonger' : null;
@@ -932,7 +955,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
               const v = attenteEnMots(a, f.aujourdhui);
               const r = reponse(a);
               return (
-                <li key={a.sorte === 'support' ? `support-${a.demande.id}` : a.sorte === 'facture_defaite' || a.sorte === 'a_emettre' || a.sorte === 'trop_percu' ? `${a.sorte}-${a.ecran}` : a.sorte}>
+                <li key={a.sorte === 'support' ? `support-${a.demande.id}` : a.sorte === 'facture_defaite' || a.sorte === 'a_emettre' || a.sorte === 'trop_percu' ? `${a.sorte}-${a.ecran}` : a.sorte === 'contestation' ? `${a.sorte}-${a.numero ?? a.ouverteLe}` : a.sorte}>
                   <span className={`c-ligne-icone c-${v.urgence}`}><Icone nom={v.icone} /></span>
                   <span className="c-fiche-attend-texte"><b>{v.titre}</b><span>{v.desc}</span></span>
                   {r?.geste || r?.faire ? <Bouton {...(i === 0 ? { ton: 'principal' as const } : {})} onClick={() => (r.faire ? r.faire() : setGeste(r.geste ?? null))}>{r.texte}</Bouton>
@@ -1093,7 +1116,9 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
       ) : null}
       {onglet === 'abonnement' ? <GroupeEtRemise f={f} role={moi.role} faire={setGesteGroupe} /> : null}
       {gesteGroupe ? <FenetreGroupe fiche={f} geste={gesteGroupe} fermer={() => setGesteGroupe(null)} fait={() => { setGesteGroupe(null); relire(); }} /> : null}
-      {onglet === 'factures' ? <SesFactures f={f} role={moi.role} preparer={() => setFacture(true)} /> : null}
+      {onglet === 'factures' ? <SesFactures f={f} role={moi.role} preparer={() => setFacture(true)} contester={setContestation} /> : null}
+      {contestation?.sorte === 'noter' ? <FenetreContester facture={contestation.facture} client={f.raisonSociale} fermer={() => setContestation(null)} fait={() => { setContestation(null); relire(); }} /> : null}
+      {contestation?.sorte === 'regulariser' ? <FenetreRegulariser c={contestation.c} fermer={() => setContestation(null)} fait={() => { setContestation(null); relire(); }} /> : null}
       {facture ? <FenetreFacture fiche={f} fermer={() => setFacture(false)} fait={() => { setFacture(false); relire(); }} /> : null}
 
       {onglet === 'membres' ? (
@@ -1241,6 +1266,9 @@ function attenteEnMots(a: Attente, aujourdhui: string): { icone: NomIcone; titre
     case 'a_emettre':
       return { icone: 'calendrier', titre: titre('console.ecran.fiche.attend.a_emettre_titre'), urgence: 'semaine',
         desc: phrase('console.ecran.decider.a_emettre', { le: jourCourt(a.prepareLe), debut: jourCourt(a.debut), fin: jourCourt(a.fin) }) };
+    case 'contestation':
+      return { icone: 'alerte', titre: titre('console.ecran.fiche.attend.contestation_titre'), urgence: 'semaine',
+        desc: phrase('console.ecran.decider.contestation', { numero: a.numero ?? dire('console.ecran.decider.sans_numero'), le: jourCourt(a.ouverteLe), n: a.jours }) };
     case 'trop_percu':
       return { icone: 'alerte', titre: titre('console.ecran.fiche.attend.trop_titre', { montant: montant(a.trop) }), urgence: 'semaine',
         desc: phrase(a.annulee ? 'console.ecran.decider.trop_annulee' : 'console.ecran.decider.trop', { numero: a.numero ?? dire('console.ecran.decider.sans_numero') }) };

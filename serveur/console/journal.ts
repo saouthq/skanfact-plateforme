@@ -22,6 +22,7 @@ const PERMIS: readonly [RegExp, string][] = [
   [/^equipe\.(session_fermee|appareil_oublie)$/, 'console.session'],
   [/^equipe\./, 'console.equipe.gerer'],
   [/^factures\./, 'console.factures.preparer'],
+  [/^paiements\.(contester|regulariser)$/, 'console.contestations'],
   [/^paiements\./, 'console.paiements.couts'],
   [/^reglages\./, 'console.reglages.gerer'],
   [/^service\.remise$/, 'console.service.remise'],

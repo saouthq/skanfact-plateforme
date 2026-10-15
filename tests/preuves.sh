@@ -11909,8 +11909,8 @@ prouver 'une facture défaite absente de Paiements' 'base/migrations/0114_chiffr
 ' \
   "$AJ4"
 prouver 'une facture défaite qu'"'"'« À décider » ne voit pas' 'serveur/console/routes.ts' \
-  'const argent = paiements ? argentADecider(paiements, liste, jour) : null;' \
-  'const argent = null;' \
+  'const argent = paiements ? argentADecider(paiements, liste, jour,' \
+  'const argent = false ? argentADecider(paiements, liste, jour,' \
   "$AJ4"
 prouver 'l'"'"'argent de SkanFact montré au support' 'serveur/console/decider.ts' \
   '  if (role === '"'"'direction'"'"' && argent) {' \
@@ -15182,6 +15182,48 @@ prouver 'l'"'"'écran tait le geste qui prévient' 'web/console/src/ecrans/Incid
   '  if (!cible.ouvertes || (moi.role !== '"'"'direction'"'"' && moi.role !== '"'"'support'"'"')) return null;' \
   '  return null;' \
   'l'"'"'incident ouvert porte le seul bouton principal ; la page d'"'"'état montrée est celle de la veille, avec son message'
+
+# 1.36.0 : les contestations de nos factures (0129 ; la liste des fonctions qui manquent, 13).
+prouver 'une facture préparée qui se conteste' 'base/migrations/0129_contestations.sql' \
+  '  if v_numero is null then perform socle.refus('"'"'seule une facture émise se conteste'"'"'); end if;' \
+  '  if false then perform socle.refus('"'"'seule une facture émise se conteste'"'"'); end if;' \
+  'une facture préparée, pas encore émise, ne se conteste pas ; une contestation illisible ne se devine pas'
+prouver 'deux contestations à la fois' 'base/migrations/0129_contestations.sql' \
+  '  if exists (select 1 from plateforme.contestation c where c.facture = f.id and c.close_le is null) then' \
+  '  if false then' \
+  'une facture émise se conteste, une fois à la fois ; le support la note et la dit retirée, jamais plus ; chaque geste au journal'
+prouver 'le support qui régularise avec de l'"'"'argent' 'base/migrations/0129_contestations.sql' \
+  '  if v_role <> '"'"'direction'"'"' and p_issue <> '"'"'retiree'"'"' then' \
+  '  if false then' \
+  'une facture émise se conteste, une fois à la fois ; le support la note et la dit retirée, jamais plus ; chaque geste au journal'
+prouver 'un avoir sans sa référence' 'base/migrations/0129_contestations.sql' \
+  '  if p_issue in ('"'"'avoir'"'"', '"'"'remboursement'"'"') and v_ref is null then' \
+  '  if false then' \
+  'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
+prouver 'une contestation régularisée deux fois' 'base/migrations/0129_contestations.sql' \
+  '  if c.close_le is not null then perform socle.refus('"'"'cette contestation est déjà régularisée'"'"'); end if;' \
+  '  if false then perform socle.refus('"'"'cette contestation est déjà régularisée'"'"'); end if;' \
+  'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
+prouver 'le journal tait la contestation' 'base/migrations/0129_contestations.sql' \
+  'values (socle.moi(), v_role, '"'"'paiements.contester'"'"', f.entreprise,' \
+  'values (socle.moi(), v_role, '"'"'paiements.autre'"'"', f.entreprise,' \
+  'une facture émise se conteste, une fois à la fois ; le support la note et la dit retirée, jamais plus ; chaque geste au journal'
+prouver '« À décider » la nomme dès le premier jour' 'serveur/console/decider.ts' \
+  'jours >= CONTESTATION_JOURS) {' \
+  'jours >= 0) {' \
+  'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
+prouver '« À décider » nomme une contestation close' 'serveur/console/decider.ts' \
+  'for (const c of enCours(argent.contestees ?? [])) {' \
+  'for (const c of (argent.contestees ?? [])) {' \
+  'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
+prouver 'Paiements tait les contestations' 'serveur/console/routes.ts' \
+  'contestations: lireContestations(await lireJson(x, '"'"'select plateforme.console_contestations($1) v'"'"', [maintenant()])),' \
+  'contestations: [],' \
+  'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
+prouver 'la ligne de la fiche tait sa contestation' 'web/console/src/ecrans/Fiche.tsx' \
+  'return c ? <span className={`c-sous c-bloc${c.close ? '"'"''"'"' : '"'"' c-ct-en-cours'"'"'}`}>{maj(contestationEnMots(c))}</span> : null;' \
+  'return null;' \
+  'une contestation (0129) : le support la note depuis la ligne de sa facture ; la direction la lit dans Paiements et la régularise par un avoir, avec sa référence'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

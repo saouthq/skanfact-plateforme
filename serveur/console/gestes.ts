@@ -65,6 +65,10 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // paiement ; la direction seule. Elles s'émettent et se corrigent dans l'application de SkanFact.
   { code: 'console.factures.voir', roles: [D], ecrit: false },
   { code: 'console.paiements.couts', roles: [D], ecrit: true },
+  // Les contestations de nos factures (docs/console.md C52 ; 0129) : la direction et le support les notent, et le support
+  // en dit une retirée ; la base réserve à la direction de régulariser par un avoir, un remboursement ou en maintenant la
+  // facture (c'est de l'argent).
+  { code: 'console.contestations', roles: [D, S], ecrit: true },
   // Exporter la sélection de la liste des clients (docs/console.md C32 ; 0110) : des données de personnes qui quittent la
   // console ; la direction seule, avec son motif, au journal.
   { code: 'console.clients.exporter', roles: [D], ecrit: true },

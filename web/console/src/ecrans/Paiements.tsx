@@ -11,6 +11,7 @@ import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts
 import { dans, deMois, jourCourt, jourDe, jourMois, moisEnMots, quand } from '../temps.ts';
 import { MoisNav, moisLu, moisVoisin } from '../mois.tsx';
 import { Alerte, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
+import { contestationEnMots, FenetreRegulariser, type Contestation } from './Contestations.tsx';
 
 type Qui = { id: string; nom: string };
 type Moyen = 'konnect' | 'virement' | 'cheque' | 'autre';
@@ -40,6 +41,8 @@ type Donnees = {
   couts: { lignes: Cout[]; total: string; reste: string | null; n: number; absents: string[]; provisoire: boolean };
   horsPlateforme: { total: number; lignes: Hors[]; suite: number | null };
   defaites: Defaite[];
+  // 0129 : les contestations en cours, et celles régularisées depuis quatre-vingt-dix jours.
+  contestations: Contestation[];
 };
 const K = 'console.ecran.paiements';
 const PAGE = 50;
@@ -259,7 +262,7 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
   const [mois, setMois] = useState(moisLu(moisDemande, courant));
   const [debut, setDebut] = useState(0);
   const [debutHors, setDebutHors] = useState(0);
-  const [fenetre, setFenetre] = useState<{ sorte: 'cout' } | { sorte: 'retirer'; c: Cout } | null>(null);
+  const [fenetre, setFenetre] = useState<{ sorte: 'cout' } | { sorte: 'retirer'; c: Cout } | { sorte: 'regulariser'; c: Contestation } | null>(null);
   useEffect(() => { setMois(moisLu(moisDemande, courant)); setDebut(0); setDebutHors(0); }, [moisDemande]);
   useEffect(() => { history.replaceState(null, '', `#/paiements${mois === courant ? '' : `?mois=${mois}`}`); }, [mois]);
   const [l, relire] = useLecture<Donnees>(`/console/paiements?mois=${mois}&limite=${PAGE}&debut=${debut}&debutHors=${debutHors}`, 'paiements');
@@ -344,6 +347,24 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
                   ) : <Vide icone="ok">{phrase(d.editeur ? `${K}.d.vide` : `${K}.d.vide_sans_editeur`)}</Vide>}
                 </>
               ), d.doivent.length)}
+              {/* Les contestations (0129) : en cours d'abord, avec le geste qui les régularise ; puis les régularisées, et comment. */}
+              {d.contestations.length ? section('pa-contestations', titre(`${K}.ct.titre`), phrase(`${K}.ct.sous`), (
+                <ol className="c-pa-lignes">
+                  {d.contestations.map((c) => (
+                    <li key={c.id} className="c-pa-ligne">
+                      <div className="c-pa-quoi">
+                        <a href={`#/clients/${c.entreprise.id}?onglet=factures`}><b data-donnee>{c.entreprise.nom}</b></a>
+                        <span className="c-sous">{c.numero ?? '—'} · <span className={c.close ? undefined : 'c-ct-en-cours'}>{contestationEnMots(c)}</span></span>
+                        <span className="c-sous c-ct-dit-ligne" data-donnee>« {c.dit} »</span>
+                      </div>
+                      <div className="c-pa-action">
+                        {c.close ? <Puce ton="hors">{titre(`console.ecran.contestation.issue.${c.close.issue}`)}</Puce>
+                          : <Bouton petit onClick={() => setFenetre({ sorte: 'regulariser', c })}>{titre('console.ecran.contestation.regulariser')}</Bouton>}
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              ), d.contestations.filter((c) => !c.close).length) : null}
               {d.trop.length ? section('pa-trop', titre(`${K}.t.titre`), phrase(`${K}.t.sous`), (
                 <ol className="c-pa-lignes">
                   {d.trop.map((x) => (
@@ -425,6 +446,7 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
           </div>
           {fenetre?.sorte === 'cout' ? <FenetreCout d={d} fermer={() => setFenetre(null)} fait={fait} /> : null}
           {fenetre?.sorte === 'retirer' ? <FenetreRetirer c={fenetre.c} mois={d.mois} fermer={() => setFenetre(null)} fait={fait} /> : null}
+          {fenetre?.sorte === 'regulariser' ? <FenetreRegulariser c={fenetre.c} fermer={() => setFenetre(null)} fait={fait} /> : null}
         </>
       ) : null}
     </>

@@ -28,6 +28,7 @@ declarerTextes({
   'geste.console.mesure.voir': 'voir la mesure : l\'entonnoir, les départs, ce qu\'on promet',
   'geste.console.factures.voir': 'voir nos factures, leur dépôt à la TTN et leur paiement',
   'geste.console.paiements.couts': 'saisir ou retirer un coût du mois',
+  'geste.console.contestations': 'noter ou régulariser la contestation d\'une facture',
   'geste.console.clients.exporter': 'exporter la sélection de la liste des clients',
   'geste.console.clients.appeler': 'noter un appel sur la fiche d\'un client',
   'geste.console.clients.ecrire': 'écrire au contact d\'un client, dans son application',
@@ -87,5 +88,6 @@ declarerTextes({
   'console.support.acces_motif_balise': 'le motif s\'écrit sans les signes < ni >',
   'console.support.texte_court': 'note ce que la personne a demandé, avec ses mots : trois caractères au moins',
   'console.support.reponse_courte': 'une réponse : trois caractères au moins',
+  'console.contestation.dit_court': 'écris ce que le client conteste (trois caractères au moins)',
   'console.support.article_inconnu': 'cet article n\'est pas dans l\'Aide de l\'application : choisis-en un parmi les réponses types',
 });

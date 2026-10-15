@@ -14,6 +14,7 @@ import { soldeFacture, statutFacture } from '../../moteur/reglements.ts';
 import { versTexte } from '../../moteur/argent.ts';
 import { joursEntre, type Etat } from '../abonnement/etat.ts';
 import type { Entreprise } from './decider.ts';
+import type { Contestation } from './contestations.ts';
 
 export const MOYENS = ['konnect', 'virement', 'cheque', 'autre'] as const;
 export type Moyen = (typeof MOYENS)[number];
@@ -194,8 +195,8 @@ export function ouvertes(liste: Ouverte[], entreprises: Entreprise[], aujourdhui
 
 // L'argent qui attend une décision (« À décider », 0113) : les factures payées puis défaites, celles qui attendent d'être
 // émises, les trop-perçus — par les fonctions de cet écran, jamais une seconde règle.
-export const argentADecider = (p: Paiements, entreprises: Entreprise[], aujourdhui: string) =>
-  ({ defaites: p.defaites, aEmettre: p.aEmettre, trop: ouvertes(p.ouvertes, entreprises, aujourdhui).trop });
+export const argentADecider = (p: Paiements, entreprises: Entreprise[], aujourdhui: string, contestees: readonly Contestation[] = []) =>
+  ({ defaites: p.defaites, aEmettre: p.aEmettre, trop: ouvertes(p.ouvertes, entreprises, aujourdhui).trop, contestees });
 
 // ── Les coûts du mois, et ce qui reste ───────────────────────────────────────────────────────────────────────────────
 // Les coûts sont en millimes de dinar : ce qui reste ne se calcule que si l'encaissé est en dinars aussi, et seulement

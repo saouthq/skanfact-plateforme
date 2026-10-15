@@ -10,6 +10,7 @@ import { aujourdhuiATunis } from '../reglements.ts';
 import type { RoleConsole } from './gestes.ts';
 import type { AEmettre, Defaite, MesureEncaisse, Trop } from './paiements.ts';
 import { compter, etatDe, type LigneDemande } from './support.ts';
+import { CONTESTATION_JOURS, enCours, joursDAttente, type Contestation } from './contestations.ts';
 
 export type Entreprise = {
   id: string; raisonSociale: string; matricule: string | null; active: boolean; creeLe: string;
@@ -173,9 +174,12 @@ export type Ligne =
   | { sorte: 'facture_defaite'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; numero: string | null; payeeLe: string; fin: string; ecran: string;
       cause: 'avoir' | 'reglement'; trop: string | null }
   | { sorte: 'a_emettre'; ouvre: 'facture'; entreprise: { id: string; nom: string }; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
-  | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: { id: string; nom: string }; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string };
-// Ce que Paiements sait de l'argent qui attend une décision (serveur/console/paiements.ts, par ses fonctions).
-export type Argent = { defaites: readonly Defaite[]; aEmettre: readonly AEmettre[]; trop: readonly Trop[] };
+  | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: { id: string; nom: string }; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
+  // 0129 : une facture contestée qui attend sa régularisation depuis une semaine.
+  | { sorte: 'contestation'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; numero: string | null; ouverteLe: string; jours: number };
+// Ce que Paiements sait de l'argent qui attend une décision (serveur/console/paiements.ts, par ses fonctions), et les
+// contestations en cours (serveur/console/contestations.ts).
+export type Argent = { defaites: readonly Defaite[]; aEmettre: readonly AEmettre[]; trop: readonly Trop[]; contestees?: readonly Contestation[] };
 // Une facture préparée attend d'être émise : au-delà de deux jours, elle demande un geste (l'émettre, ou la supprimer).
 export const A_EMETTRE_JOURS = 2;
 
@@ -215,6 +219,12 @@ export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role
     }
     for (const t of argent.trop) {
       if (ici.has(t.entreprise.id) && !defaites.has(t.piece)) lignes.push([3.5, 0, { sorte: 'trop_percu', ouvre: 'paiements', entreprise: t.entreprise, numero: t.numero, trop: t.trop, devise: t.devise, annulee: t.annulee, ecran: t.ecran }]);
+    }
+    for (const c of enCours(argent.contestees ?? [])) {
+      const jours = joursDAttente(c, jour);
+      if (ici.has(c.entreprise.id) && jours >= CONTESTATION_JOURS) {
+        lignes.push([3, -jours, { sorte: 'contestation', ouvre: 'fiche', entreprise: c.entreprise, numero: c.numero, ouverteLe: aujourdhuiATunis(new Date(c.ouverteLe)), jours }]);
+      }
     }
   }
   if (service && veille.etat === 'silencieuse') lignes.push([0, 0, { sorte: 'veille_silencieuse', ouvre: 'service', derniere: veille.derniere }]);

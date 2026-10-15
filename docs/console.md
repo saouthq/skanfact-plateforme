@@ -1269,6 +1269,20 @@ l'identifiant de commande tiré par l'écran fait qu'un renvoi après une coupur
 aussi le geste d'ensemble (« clients d'un incident prévenus d'un coup », l'incident et le nombre). La technique lit les
 incidents, pas les demandes : elle ne prévient personne.
 
+**C52. Les contestations de nos factures** (1.36.0 ; base 0129 ; la liste des fonctions qui manquent, 13 : « remboursements
+et litiges financiers : trop-perçus, contestations et suivi des régularisations »). Un client conteste une facture
+d'abonnement émise : depuis la ligne de cette facture sur sa fiche (onglet « Nos factures »), la direction ou le support
+note ce qu'il conteste, dans ses mots, et par quel canal ; une facture n'a qu'une contestation en cours à la fois, et
+une facture préparée se corrige avant d'être émise, elle ne se conteste pas. La ligne de la facture le dit (« contestée
+le … par WhatsApp : elle attend sa régularisation », en orange et en mots) ; Paiements les liste (en cours, puis celles
+régularisées depuis trois mois) ; au bout d'une semaine sans régularisation (**À DÉCIDER**), elle entre dans « À décider »
+de la direction et dans « ce qui attend » de la fiche. Elle se régularise d'une de quatre façons : **par un avoir** (son
+numéro), **par un remboursement** (sa référence : le virement, le chèque), la facture **maintenue**, ou **retirée** par le
+client. L'avoir et le remboursement se font dans l'application de SkanFact, sur la facture, comme toute pièce ; la
+contestation en garde la trace et ne touche jamais la facture. La base réserve à la direction l'avoir, le remboursement et
+la facture maintenue (de l'argent) ; le support note une contestation et la dit retirée. Chaque geste au journal, avec
+son motif. Les trop-perçus restent où ils étaient (C30) : la contestation ne les recalcule pas.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

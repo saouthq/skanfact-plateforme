@@ -46,6 +46,7 @@ import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRAC
 import { depuisLa, plageDe, reserveALaDirection, sorteDe } from './journal.ts';
 import { CHAINES_PAR_LOT, CHAINES_PAS_MS, etatRelecture, joursDeRelecture, lireChaines } from './chaines.ts';
 import { lireMesure, mesurer, periodeMesure } from './mesure.ts';
+import { CANAUX_CONTESTATION, ISSUES, lireContestations } from './contestations.ts';
 import { argentADecider, couts, encaisse, encaisseDuMois, lirePaiements, moisAvantDe, moisDemande, MOYENS, ouvertes } from './paiements.ts';
 import { dansLeFiltre, etatTtn, FILTRES, ligne, lireNosFactures, resume as resumeDesFactures, type Filtre } from './nosfactures.ts';
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
@@ -291,7 +292,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // et l'argent qui attend une décision (0113), par ses fonctions aussi.
       const paiements = role === 'direction' ? lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`])) : null;
       const revenus = paiements ? encaisseDuMois(paiements) : undefined;
-      const argent = paiements ? argentADecider(paiements, liste, jour) : null;
+      const argent = paiements ? argentADecider(paiements, liste, jour,
+        lireContestations(await lireJson(transaction(tx), 'select plateforme.console_contestations($1) v', [instant]))) : null;
       // La tuile « Inscriptions » compte les lignes de la liste qu'elle ouvre, par la fonction de la liste (C3 ; 0114).
       const inscriptions = role === 'technique' ? 0 : (await selectionClients(transaction(tx), jour, { nouvelles: '1' })).dansVue.length;
       const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus, inscriptions);
@@ -412,8 +414,10 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // Ses demandes au support, comptées par la même fonction que l'écran Support ; celles qui attendent depuis 24 h
       // entrent dans « ce qui attend », comme à l'accueil.
       const support = lireSupport(await lireJson(transaction(tx), 'select plateforme.console_support($1, null) v', [id]));
+      // Ses contestations (0129), toutes : la ligne de chacune de ses factures dit la sienne.
+      const contestations = lireContestations(await lireJson(transaction(tx), 'select plateforme.console_contestations($1, $2) v', [maintenant(), id]));
       const argent = role === 'direction'
-        ? argentADecider(lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`])), liste, jour) : null;
+        ? argentADecider(lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`])), liste, jour, contestations) : null;
       const attend = aDecider(liste, { etat: 'absente' }, jour, role, support.ouvertes, maintenant(), argent);
       const instant = maintenant();
       // Ses factures d'abonnement (docs/abonnement.md B2–B4), et l'entreprise SkanFact où elles naissent.
@@ -430,7 +434,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const enPlus = lireEnPlus(await lireJson(transaction(tx), 'select plateforme.console_clients_en_plus($1::date) v', [jour]), jour).get(id) ?? null;
       // Ce que sa prochaine facture coûtera (0113), par la règle de la facture : le chiffre de la liste et des échéances.
       const r = (await renouvellementsDe(transaction(tx), liste, jour)).get(id) ?? null;
-      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, factures, groupe: { ...groupe, prochaine }, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true, enPlus?.moisOffertRecent ?? false),
+      return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, factures, contestations, groupe: { ...groupe, prochaine }, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true, enPlus?.moisOffertRecent ?? false),
         identite, notes, enPlus, offreSuivante: faits.offreSuivante ?? null, delai: faits.delai ?? null,
         // Son arrivée (0127) : de l'inscription à la première facture émise, par la même fonction que la liste.
         arrivee: liste[0] && enArrivee(liste[0], jour) ? arrivee({ ...liste[0], enPlus: enPlus ?? {} }, jour) : null,
@@ -1799,8 +1803,31 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           horsPlateforme: { total: p.horsPlateforme.length, lignes: p.horsPlateforme.slice(debutHors, debutHors + n).map((h) => ({ ...h, montant: versTexte(h.montant, 3) })),
             suite: debutHors + n < p.horsPlateforme.length ? debutHors + n : null },
           defaites: p.defaites,
+          // 0129 : les contestations en cours, et celles régularisées depuis quatre-vingt-dix jours.
+          contestations: lireContestations(await lireJson(x, 'select plateforme.console_contestations($1) v', [maintenant()])),
         },
       };
+    },
+  });
+  // ── Les contestations de nos factures (0129 ; docs/console.md C52) ────────────────────────────────────────────────
+  // La noter, depuis la ligne de sa facture sur la fiche ; la régulariser, depuis la fiche ou Paiements. La base réserve
+  // à la direction l'avoir, le remboursement et la facture maintenue.
+  ajouter({
+    methode: 'POST', chemin: '/console/factures-abonnement/:facture/contester', geste: 'console.contestations',
+    corps: z.object({ canal: z.enum(CANAUX_CONTESTATION), dit: z.string().trim().min(3, 'console.contestation.dit_court').max(1000) }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_contester($1, $2, $3, $4) v',
+        [lireUuid(params.facture), corps.canal, corps.dit, maintenant()]);
+      return { statut: 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/contestations/:contestation/regulariser', geste: 'console.contestations',
+    corps: z.object({ issue: z.enum(ISSUES), reference: z.string().trim().max(60).nullable(), motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_regulariser($1, $2, $3, $4, $5)',
+        [lireUuid(params.contestation), corps.issue, corps.reference || null, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
     },
   });
   // ── Nos factures (docs/console.md C31 ; 0109) ─────────────────────────────────────────────────────────────────────

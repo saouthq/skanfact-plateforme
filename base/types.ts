@@ -516,6 +516,20 @@ export interface BaseDeDonnees {
     qui: string | null;
     le: Generated<Date>;
   };
+  'plateforme.contestation': {
+    id: Generated<string>;
+    facture: string;
+    entreprise: string;
+    canal: string;
+    dit: string;
+    ouverte_le: Date;
+    ouverte_par: string;
+    close_le: Date | null;
+    close_par: string | null;
+    issue: string | null;
+    reference: string | null;
+    close_motif: string | null;
+  };
   'plateforme.courriel_trace': {
     le: Date;
     ok: boolean;

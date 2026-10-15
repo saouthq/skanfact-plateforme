@@ -163,6 +163,47 @@ describe('les paiements de nos factures, à la souris', () => {
     await fermer(p);
   }, 60_000);
 
+  it('une contestation (0129) : le support la note depuis la ligne de sa facture ; la direction la lit dans Paiements et la régularise par un avoir, avec sa référence', async () => {
+    const f = await ouvrir(jS, `#/clients/${abonne}?onglet=factures`);
+    const ligne = f.locator('.c-fa-table tbody tr').first();
+    await expect.poll(() => ligne.locator('.c-mono').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/\S/);
+    const numero = net(await ligne.locator('.c-mono').innerText());
+    await cliquer(ligne.getByRole('button', { name: `Gestes sur la facture ${numero}`, exact: true }));
+    await cliquer(f.locator('.c-menu-liste button', { hasText: 'Noter une contestation' }));
+    const noter = f.getByRole('dialog');
+    await expect.poll(() => noter.count()).toBe(1);
+    await cliquer(noter.getByRole('radio', { name: 'WhatsApp', exact: true }));
+    // Sans ce que le client conteste : refusé sur le champ, le curseur y va.
+    await cliquer(noter.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => noter.locator('.c-alerte-danger').innerText().then(net).catch(() => '')).toContain('trois caractères au moins');
+    expect(await f.evaluate(() => document.activeElement?.tagName)).toBe('TEXTAREA');
+    await noter.getByLabel('Ce que le client conteste', { exact: true }).fill('Je n\'ai jamais choisi Essentiel');
+    await cliquer(noter.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => f.locator('#c-toast').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe(`Contestation de ${numero} notée.`);
+    await expect.poll(() => ligne.locator('.c-ct-en-cours').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toMatch(/^Contestée le \d{2}\/\d{2}\/\d{4} par WhatsApp : elle attend sa régularisation$/);
+    await fermer(f);
+
+    const p = await ouvrir(jD, '#/paiements');
+    const section = p.locator('section[aria-labelledby="pa-contestations"]');
+    await expect.poll(() => section.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('« Je n\'ai jamais choisi Essentiel »');
+    const l = section.locator('.c-pa-ligne', { hasText: 'Atelier Lina Paiements' });
+    await cliquer(l.getByRole('button', { name: 'Régulariser…', exact: true }));
+    const reg = p.getByRole('dialog');
+    await cliquer(reg.getByRole('radio', { name: 'Par un avoir', exact: true }));
+    expect(net(await reg.locator('.c-dialogue-pied .c-btn-principal').innerText())).toBe('Clore par l\'avoir');
+    // Un avoir sans son numéro : refusé, le champ montré.
+    await cliquer(reg.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => reg.locator('.c-alerte-danger').innerText().then(net).catch(() => '')).toContain('numéro de l\'avoir');
+    await reg.getByLabel('Le numéro de l\'avoir', { exact: true }).fill('AV-2026-0042');
+    await reg.getByLabel('Motif', { exact: true }).fill('Essentiel jamais choisi : avoir émis');
+    await cliquer(reg.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => p.locator('#c-toast').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe(`Contestation de ${numero} régularisée par l'avoir.`);
+    await expect.poll(() => l.innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('par l\'avoir AV\u20112026\u20110042'); // des tirets insécables : la référence ne se coupe pas
+    expect(await l.getByRole('button', { name: 'Régulariser…', exact: true }).count()).toBe(0);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 90_000);
+
   it('d\'un mois à l\'autre, les boutons ne bougent pas sous la souris ; au téléphone, rien ne déborde', async () => {
     const p = await ouvrir(jD, '#/paiements');
     await expect.poll(() => p.locator('.c-mois').count(), { timeout: 15_000 }).toBe(1);
