@@ -50,17 +50,17 @@ describe('le support, à la souris, des deux côtés', () => {
   // Ce qui attend la personne au support : les demandes dont la réponse n'est pas lue.
   const aLire = async () => ((await api('GET', `/entreprises/${ent}/support/attente`, jClient)).corps.aLire as { id: string }[]).map((x) => x.id);
   // La console de Karim, du support, sur une adresse ; lue quand sa grille est là.
-  const consoleSur = async (hash: string, largeur = 1440, hauteur = 900, theme?: 'clair' | 'sombre', factice = false) => {
+  const consoleSur = async (hash: string, largeur = 1440, hauteur = 900, theme?: 'clair' | 'sombre', factice = false, jeton = jS) => {
     const cx = await navigateur.newContext({ viewport: { width: largeur, height: hauteur }, locale: 'fr-FR' });
     await cx.addInitScript(([j, t]) => {
       sessionStorage.setItem('skanfact.console.jeton', j);
       if (t) localStorage.setItem('skanfact.console.theme', t);
-    }, [jS, theme ?? null] as const);
+    }, [jeton, theme ?? null] as const);
     const p = await cx.newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/console/${factice ? '?langue=factice' : ''}${hash}`);
-    await expect.poll(() => p.locator('.c-sp-grille').count(), { timeout: 20_000 }).toBe(1);
-    if (hash.includes('demande=')) await expect.poll(() => p.locator('.c-sp-messages').count(), { timeout: 20_000 }).toBe(1);
+    await expect.poll(() => p.locator(hash.includes('vue=doc') ? '.c-sd' : '.c-sp-grille').count(), { timeout: 20_000 }).toBe(1);
+    if (hash.includes('demande=') && !hash.includes('vue=doc')) await expect.poll(() => p.locator('.c-sp-messages').count(), { timeout: 20_000 }).toBe(1);
     return p;
   };
   // L'application de Lina, sur une page.
@@ -396,6 +396,66 @@ describe('le support, à la souris, des deux côtés', () => {
     await fermer(p);
   }, 60_000);
 
+  it('la documentation interne (0133) : une note privée que la personne ne voit jamais ; une réponse écrite par le support, validée par la direction, posée avec le prénom', async () => {
+    // Une note privée, posée depuis la carte du client.
+    const p = await consoleSur(`#/support?demande=${demande}`);
+    const NOTE = 'Elle a déjà vidé le cache du navigateur ; voir avec la technique si ça revient';
+    const notes = p.locator('.c-sp-notes');
+    await notes.locator('textarea').fill(NOTE);
+    await cliquer(notes.getByRole('button', { name: 'Poser la note' }));
+    await expect.poll(() => notes.locator('.c-sp-notes-liste li').allInnerTexts().then((t) => t.map(net).join(' | ')), { timeout: 15_000 }).toContain(NOTE);
+    // Pas encore de réponse validée : le champ n'en propose aucune.
+    expect(await p.locator('.c-sp-inserer').count()).toBe(0);
+    // Karim, du support, écrit une réponse : elle attend la validation, et son menu n'a pas « Valider ».
+    await cliquer(p.getByRole('button', { name: 'Notre documentation' }));
+    await expect.poll(() => p.locator('.c-sd').count(), { timeout: 15_000 }).toBe(1);
+    expect(await p.evaluate(() => location.hash)).toBe('#/support?vue=doc');
+    const TITRE = `Le timbre absent ${Date.now()}`;
+    await cliquer(p.getByRole('button', { name: 'Écrire une réponse' }));
+    const d = p.getByRole('dialog');
+    await d.locator('input').first().fill(TITRE);
+    await d.locator('textarea').fill('Bonjour {prenom},\n\nLe timbre revient quand la case « Timbre fiscal » est cochée sur la facture.');
+    await cliquer(d.getByRole('button', { name: 'Écrire la fiche' }));
+    const fiche = p.locator('.c-sd-fiche', { hasText: TITRE });
+    await expect.poll(() => fiche.count(), { timeout: 15_000 }).toBe(1);
+    expect(net(await fiche.locator('.c-puce').innerText()).toLocaleLowerCase('fr')).toBe('à valider');
+    await cliquer(fiche.locator('.c-menu > button'));
+    expect((await p.locator('.c-menu-liste button').allInnerTexts()).map(net).join(' | ')).not.toMatch(/Valider/);
+    await p.keyboard.press('Escape');
+    await fermer(p);
+    // Amira, de la direction, la relit et la valide.
+    const emailD = `support-web-amira-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email: emailD, nom: 'Amira Direction', motDePasse: MDP });
+    const jd = String((await api('POST', '/connexion', undefined, { email: emailD, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', jd, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
+    await ajouterALEquipe(admin, emailD, 'direction', 'essai de la documentation à la souris');
+    const r = await api('POST', '/console/connexion', undefined, { email: emailD, motDePasse: MDP, appareil: { nom: 'Essai', type: 'navigateur' } });
+    const jD = String((await api('POST', '/console/connexion/code', undefined, { defi: r.corps.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).corps.jeton);
+    const a = await consoleSur('#/support?vue=doc', 1440, 900, undefined, false, jD);
+    const sienne = a.locator('.c-sd-fiche', { hasText: TITRE });
+    await expect.poll(() => sienne.count(), { timeout: 15_000 }).toBe(1);
+    await cliquer(sienne.locator('.c-menu > button'));
+    await cliquer(a.locator('.c-menu-liste button', { hasText: 'Valider' }));
+    const v = a.getByRole('dialog');
+    expect(net(await v.locator('.c-sd-relire').innerText())).toContain('Bonjour {prenom},');
+    await cliquer(v.getByRole('button', { name: 'Valider', exact: true }));
+    await expect.poll(() => sienne.locator('.c-puce').innerText().then((t) => net(t).toLocaleLowerCase('fr')).catch(() => ''), { timeout: 15_000 }).toBe('validée');
+    await fermer(a);
+    // Karim la retrouve dans le champ de réponse : posée, elle salue la personne par son prénom.
+    const k = await consoleSur(`#/support?demande=${demande}`);
+    await expect.poll(() => k.locator('.c-sp-inserer option', { hasText: TITRE }).count(), { timeout: 15_000 }).toBe(1);
+    await k.locator('.c-sp-inserer select').selectOption({ label: TITRE });
+    await expect.poll(() => k.locator('.c-sp-repondre textarea').inputValue(), { timeout: 10_000 }).toMatch(/^Bonjour Lina,\n\nLe timbre revient/);
+    await fermer(k);
+    // La personne : jamais la note, ni dans sa demande ni dans ce qui l'attend.
+    const c = await client(`#/support/${demande}`);
+    await expect.poll(() => c.locator('[data-sup-messages]').count(), { timeout: 15_000 }).toBe(1);
+    expect(await c.locator('body').innerText()).not.toContain('vidé le cache');
+    expect(JSON.stringify((await api('GET', `/entreprises/${ent}/support`, jClient)).corps)).not.toContain('vidé le cache');
+    await fermer(c);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
   it('l\'instrument ne trouve rien : la page Support de la console, sa fenêtre et ses demandes closes ; la page des demandes du client', async () => {
     // Une demande close, pour que la vue des closes ait de quoi se montrer.
     const close = String((await api('POST', `/entreprises/${ent}/support`, jClient, { sujet: 'Le logo flou sur le devis', texte: 'Le logo est flou sur le devis imprimé.', version: '1.3.0', page: 'devis' })).corps.id);
@@ -405,6 +465,9 @@ describe('le support, à la souris, des deux côtés', () => {
       { nom: 'support', hash: `#/support?demande=${demande}` },
       { nom: 'support-clore', hash: `#/support?demande=${demande}`, geste: async (q) => { await cliquer(q.locator('.c-sp-fil-tete > button, .c-sp-fil-tete > .c-btn').first()); await q.getByRole('dialog').waitFor(); } },
       { nom: 'support-closes', hash: `#/support?vue=closes&demande=${close}` },
+      // La documentation interne (0133) : la liste des fiches, et la fenêtre qui en écrit une.
+      { nom: 'support-doc', hash: '#/support?vue=doc' },
+      { nom: 'support-doc-ecrire', hash: '#/support?vue=doc', geste: async (q) => { await cliquer(q.locator('.c-sd .c-carte-tete .c-btn').first()); await q.getByRole('dialog').waitFor(); } },
     ];
     const { faux, vus } = await mesurerLaConsole({
       ecrans: ECRANS,

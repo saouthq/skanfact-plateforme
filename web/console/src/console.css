@@ -2426,6 +2426,12 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-sp-repondre-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .c-sp-joint { display: inline-flex; align-items: center; gap: 8px; flex: 0 1 300px; min-width: 0; color: var(--c-gris); }
 .c-sp-joint .c-icone { flex: none; }
+/* Deux listes (une réponse validée, un article de l'Aide) : elles se partagent la ligne et le bouton reste au bout ; le
+   rappel « Ctrl + Entrée » s'efface pour leur laisser la place (0133 : à 1280 px, le pied passait sur deux lignes et la
+   page défilait). */
+.c-sp-repondre-pied:has(.c-sp-inserer) .c-sp-joint { flex: 1 1 120px; }
+.c-sp-repondre-pied:has(.c-sp-inserer) .c-sp-touches { display: none; }
+.c-sp-repondre-pied:has(.c-sp-inserer) > .c-btn { margin-inline-start: auto; }
 .c-sp-joint select {
   appearance: none; width: 100%; min-width: 0; min-height: 36px; padding: 0 34px 0 14px; border-radius: 999px; border: 1px solid var(--c-trait-fort);
   background: var(--c-papier) no-repeat; color: var(--c-encre); font: inherit; font-size: 13px; font-weight: 600; text-overflow: ellipsis; cursor: pointer;
@@ -3093,3 +3099,21 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-pa-prev-table .c-droite { text-align: right; }
 .c-pa-prev-table tbody tr:last-child > * { border-bottom: 0; }
 .c-pa-prev-table tbody th { font-weight: 600; }
+
+/* La documentation interne du support (0133 ; docs/console.md C57) : des fiches qui se lisent, le texte gardé tel qu'il
+   partira (ses retours à la ligne), et les notes privées d'une demande dans la carte du client. */
+.c-sd { display: grid; gap: 14px; }
+.c-pilules.c-sd-pilules { padding: 0; }
+.c-sd-a-valider { margin: 0; color: var(--c-orange-texte); font-size: 14px; }
+.c-sd-fiches { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.c-sd-fiche { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--c-trait); border-radius: 14px; }
+.c-sd-fiche-tete { display: flex; align-items: center; gap: 10px; }
+.c-sd-fiche-tete > b { flex: 1 1 auto; min-width: 0; }
+.c-sd-texte { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.5; }
+.c-sd-fiche .c-sd-texte { max-height: 9.5em; overflow: auto; }
+.c-sd-relire { padding: 12px 14px; border-radius: 10px; background: var(--c-papier); max-height: 40vh; overflow: auto; }
+.c-sp-notes { display: grid; gap: 8px; padding-top: 14px; border-top: 1px solid var(--c-trait); }
+.c-sp-notes .c-sous { margin: 0; }
+.c-sp-notes-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.c-sp-notes-liste li { display: grid; gap: 2px; padding: 8px 10px; border-left: 3px solid var(--c-trait-fort); background: var(--c-papier); border-radius: 0 8px 8px 0; }
+.c-sp-notes-pied { display: flex; justify-content: flex-end; }

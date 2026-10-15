@@ -130,6 +130,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.contestation': { classe: 'hors', raison: 'la contestation d\'une facture de SkanFact notée par la console (0129) : la facture et l\'avoir vivent dans le dossier de SkanFact' },
   'plateforme.secret_suivi': { classe: 'hors', raison: 'le registre des secrets de la plateforme SkanFact (0130) : leurs noms et leurs dates, jamais leur valeur ; aucune entreprise' },
   'plateforme.sortie': { classe: 'hors', raison: 'la sortie d\'un client suivie par la direction de SkanFact (0131) : son contrat, son remboursement, la conservation ; rien de son dossier' },
+  'plateforme.note_demande': { classe: 'hors', raison: 'les notes privées de l\'équipe de SkanFact sur une demande au support (0133) : la relation avec SkanFact, comme les demandes ; le client ne les voit jamais' },
+  'plateforme.doc_support': { classe: 'hors', raison: 'la documentation interne du support de SkanFact (0133) : ses réponses validées et ses procédures ; aucune entreprise' },
   'plateforme.cout_du_mois': { classe: 'hors', raison: 'les coûts du mois de SkanFact (0108), saisis par sa direction : ses comptes, ceux d\'aucune entreprise' },
   'plateforme.groupe_membre': { classe: 'hors', raison: 'qui est dans quel groupe, depuis quand, et pourquoi (0106) : une note commerciale de SkanFact' },
   // La console (0083, docs/console.md) : l'équipe SkanFact, sa connexion et son journal. Rien de cela n'est à l'entreprise.

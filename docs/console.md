@@ -1358,6 +1358,22 @@ fiche a sa carte **« son risque de départ »** (un client qui paie seulement) 
 lisent le risque par la même fonction (`risqueDe`). La satisfaction elle-même **ne se mesure pas encore** (aucune question
 n'est posée aux clients) : l'écran le dit. **À DÉCIDER** : les seuils (quatre pièces, la moitié, deux demandes).
 
+**C57. La documentation interne du support** (1.41.0 ; base 0133 ; la liste des fonctions qui manquent, 20 :
+« documentation interne du support : procédures, notes privées et réponses validées » ; version légère). Dans l'écran
+Support :
+  - **les notes privées** d'une demande, dans la carte du client à côté de la conversation : ce que l'équipe se passe (ce
+    qui a été essayé, à qui demander). Elles vivent dans une table à part que rien côté client ne lit : la personne ne les
+    voit **jamais**. Une note se pose, elle ne se modifie ni ne s'efface ; le journal dit qu'une note a été posée, sur
+    quelle demande, jamais son texte ;
+  - **« Notre documentation »** (un bouton de l'en-tête, `#/support?vue=doc`) : des **réponses** (un texte prêt à envoyer ;
+    « {prenom} » y devient le prénom de la personne) et des **procédures** (comment on fait). La direction et le support
+    les écrivent ; une réponse ne s'offre dans le champ de réponse (« Réponse validée… ») qu'une fois **validée par la
+    direction**, qui relit le texte tel qu'il partira ; la reprendre la **renvoie à valider** (l'écran le dit avant le
+    geste) ; la direction **retire** ce qui ne vaut plus, avec son motif (la ligne reste). Un titre ne sert qu'une fois par
+    sorte. Rien n'y nomme un client.
+La direction et le support, jamais la technique (03 § 5) ; chaque geste au journal. Un geste nouveau, « valider ou
+retirer une fiche » (`console.support.valider`), est réservé à la direction.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

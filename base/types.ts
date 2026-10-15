@@ -583,6 +583,18 @@ export interface BaseDeDonnees {
     correction: string | null;
     correction_le: Date | null;
   };
+  'plateforme.doc_support': {
+    id: Generated<string>;
+    sorte: string;
+    titre: string;
+    texte: string;
+    ecrite_le: Date;
+    ecrite_par: string;
+    validee_le: Date | null;
+    validee_par: string | null;
+    retiree_le: Date | null;
+    retiree_par: string | null;
+  };
   'plateforme.editeur': {
     seul: Generated<boolean>;
     entreprise: string;
@@ -710,6 +722,13 @@ export interface BaseDeDonnees {
     resume: string | null;
     qui: string;
     le: Generated<Date>;
+  };
+  'plateforme.note_demande': {
+    id: Generated<string>;
+    demande: string;
+    auteur: string;
+    texte: string;
+    ecrite_le: Date;
   };
   'plateforme.nouveaute_entreprise': {
     id: Generated<string>;

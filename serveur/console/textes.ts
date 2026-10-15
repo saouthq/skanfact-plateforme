@@ -22,6 +22,7 @@ declarerTextes({
   'geste.console.reglages.gerer': 'changer les réglages de la plateforme (noter la relecture d\'une règle, afficher ou retirer le message aux clients, allumer ou éteindre une nouveauté)',
   'geste.console.support.voir': 'lire les demandes de support',
   'geste.console.support.repondre': 'répondre à une demande de support (répondre, noter une demande reçue ailleurs, clore, rouvrir)',
+  'geste.console.support.valider': 'valider ou retirer une fiche de la documentation du support',
   'geste.console.support.acces': 'demander l\'accès au dossier d\'un client et le lire pendant qu\'il court (en lecture seulement, chaque page tracée)',
   'geste.console.factures.preparer': 'préparer la facture d\'un abonnement dans le dossier de l\'entreprise SkanFact',
   'geste.console.paiements.voir': 'voir les paiements de nos factures et les coûts du mois',
@@ -94,6 +95,10 @@ declarerTextes({
   'console.support.acces_motif_balise': 'le motif s\'écrit sans les signes < ni >',
   'console.support.texte_court': 'note ce que la personne a demandé, avec ses mots : trois caractères au moins',
   'console.support.reponse_courte': 'une réponse : trois caractères au moins',
+  'console.support.note_courte': 'une note privée : trois caractères au moins',
+  'console.support.note_longue': 'une note privée : deux mille caractères au plus',
+  'console.support.doc_titre': 'le titre d\'une fiche : de trois à cent vingt caractères',
+  'console.support.doc_texte': 'le texte d\'une fiche : de dix à huit mille caractères',
   'console.contestation.dit_court': 'écris ce que le client conteste (trois caractères au moins)',
   'console.support.article_inconnu': 'cet article n\'est pas dans l\'Aide de l\'application : choisis-en un parmi les réponses types',
 });

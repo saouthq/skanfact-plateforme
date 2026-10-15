@@ -702,6 +702,10 @@ vaut pour tout le dépôt.*
     `serveur/console/risque.ts` (`risqueDe`, `avecRisque`), posé par `selectionClients` et la fiche de `serveur/console/routes.ts` ;
     la vue `a_risque` de `serveur/console/clients.ts` ; la vue et la colonne de `web/console/src/ecrans/Clients.tsx`, la carte
     `SonRisque` de `web/console/src/ecrans/Fiche.tsx` (`tests/console/risque.test.ts`, `tests/web/console.test.ts`).
+  - **La documentation interne du support** (1.41.0 ; `docs/console.md` C57) : base `0133_doc_support.sql` (notes privées,
+    fiches, leurs gestes) ; `serveur/console/docsupport.ts` (`lireDocs`, `reponsesOffertes`, `poserReponse`) et ses routes
+    dans `serveur/console/routes.ts` ; `web/console/src/ecrans/DocSupport.tsx` (`Documentation`, `NotesPrivees`), branchés
+    dans `web/console/src/ecrans/Support.tsx` (`tests/console/docsupport.test.ts`, `tests/web/support.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

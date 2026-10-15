@@ -29,6 +29,7 @@ const PERMIS: readonly [RegExp, string][] = [
   [/^service\.remise$/, 'console.service.remise'],
   [/^(service|versions)\./, 'console.service.gerer'],
   [/^support\.acces/, 'console.support.acces'],
+  [/^support\.doc_(validee|retiree)$/, 'console.support.valider'],
   [/^support\./, 'console.support.repondre'],
 ];
 export const gesteDeLaConsole = (geste: string): string | null => PERMIS.find(([r]) => r.test(geste))?.[1] ?? null;

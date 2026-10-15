@@ -12,6 +12,7 @@ import { abonnementEnMots, expliquer, type Etat, type Faits } from '../abonnemen
 import { panneDe, refusDe, useApi, useConsole, useLecture, useRelireQuandOnRegarde } from '../contexte.ts';
 import { quand } from '../temps.ts';
 import { AccesDossier } from './AccesDossier.tsx';
+import { Documentation, NotesPrivees, poserReponse, type FicheDoc, type NotePrivee } from './DocSupport.tsx';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, MenuLigne, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
 
 export type Canal = 'application' | 'email' | 'whatsapp' | 'telephone';
@@ -51,6 +52,8 @@ type Donnees = {
   equipe?: MembreSupport[];
   // La version en service (0126), son numéro : une correction l'attend.
   enService?: string | null;
+  // La demande ouverte : ses notes privées, et les réponses validées que le champ propose (0133).
+  notes?: NotePrivee[]; reponses?: FicheDoc[];
 };
 type MembreSupport = { id: string; nom: string; role: 'direction' | 'support' };
 
@@ -387,7 +390,7 @@ export function NoterDemande({ client, fermer }: { client: { id: string; nom: st
 // Écrire d'abord : les réponses types en une rangée au-dessus (un clic joint l'article et, sur une réponse vide, en pose le
 // début), le champ, ce que la personne en verra, puis en pied l'article joint (tout autre article de l'Aide se choisit là)
 // et « Envoyer ». Ctrl + Entrée envoie, comme dans l'application du client.
-function Repondre({ d, articles, brouillons, envoye, relire }: { d: Demande; articles: Article[]; brouillons: Brouillons; envoye: () => void; relire: () => void }) {
+function Repondre({ d, articles, reponses, brouillons, envoye, relire }: { d: Demande; articles: Article[]; reponses: FicheDoc[]; brouillons: Brouillons; envoye: () => void; relire: () => void }) {
   const api = useApi();
   const { moi } = useConsole();
   // Un autre la suit (0115) : on le lit AVANT d'écrire, jamais après avoir envoyé.
@@ -422,6 +425,14 @@ function Repondre({ d, articles, brouillons, envoye, relire }: { d: Demande; art
       zone.focus();
       zone.setSelectionRange(ici + 2, ici + 2);
     });
+  };
+  // Une réponse validée (0133), posée pour cette personne : seule dans un champ vide, sous ce qui est déjà écrit sinon.
+  const inserer = (id: string) => {
+    const f = reponses.find((x) => x.id === id);
+    if (!f) return;
+    const t = poserReponse(f.texte, prenom);
+    setTexte(texte.trim() ? `${texte.trimEnd()}\n\n${t}` : t);
+    requestAnimationFrame(() => document.querySelector<HTMLTextAreaElement>('.c-sp-repondre textarea')?.focus());
   };
   const envoyer = async (e?: FormEvent) => {
     e?.preventDefault();
@@ -458,6 +469,16 @@ function Repondre({ d, articles, brouillons, envoye, relire }: { d: Demande; art
         aide={phrase('console.ecran.support.ta_reponse_aide', { prenom })} valeur={texte} changer={setTexte} max={4000} faute={faute > 0} n={faute} touche={touche} />
       {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
       <div className="c-sp-repondre-pied">
+        {reponses.length ? (
+          <label className="c-sp-joint c-sp-inserer">
+            <Icone nom="copier" taille={16} />
+            <span className="c-cache">{titre('console.ecran.support.doc.inserer')}</span>
+            <select value="" onChange={(e) => inserer(e.target.value)} title={phrase('console.ecran.support.doc.inserer_aide')}>
+              <option value="">{titre('console.ecran.support.doc.inserer')}</option>
+              {reponses.map((f) => <option key={f.id} value={f.id} data-donnee>{f.titre}</option>)}
+            </select>
+          </label>
+        ) : null}
         <label className="c-sp-joint">
           <Icone nom="trombone" taille={16} />
           <span className="c-cache">{titre('console.ecran.support.article')}</span>
@@ -476,7 +497,7 @@ function Repondre({ d, articles, brouillons, envoye, relire }: { d: Demande; art
 // ── La demande ouverte à l'écran ────────────────────────────────────────────────────────────────────────────────────
 // En tête : ce qu'elle demande (ses mots), qui et d'où, puis où elle en est ; le seul geste de l'en-tête, clore ou
 // rouvrir, à droite. La conversation défile dans sa carte, la dernière réponse en bas, sous les yeux, avec le champ.
-function Fil({ d, articles, brouillons, aujourdhui, relire, equipe, enService }: { d: Demande; articles: Article[]; brouillons: Brouillons; aujourdhui: string; relire: () => void; equipe: MembreSupport[]; enService: string | null }) {
+function Fil({ d, articles, reponses, brouillons, aujourdhui, relire, equipe, enService }: { d: Demande; articles: Article[]; reponses: FicheDoc[]; brouillons: Brouillons; aujourdhui: string; relire: () => void; equipe: MembreSupport[]; enService: string | null }) {
   const { relireDecisions } = useConsole();
   const [fenetre, setFenetre] = useState<'clore' | 'rouvrir' | null>(null);
   const [suivi, setSuivi] = useState<SorteSuivi | null>(null);
@@ -552,7 +573,7 @@ function Fil({ d, articles, brouillons, aujourdhui, relire, equipe, enService }:
             {garde ? <span><Bouton petit onClick={() => setFenetre('rouvrir')}>{titre('console.ecran.support.rouvrir')}</Bouton></span> : null}
           </Alerte>
         </div>
-      ) : <Repondre key={l.id} d={d} articles={articles} brouillons={brouillons} envoye={relireTout} relire={relireTout} />}
+      ) : <Repondre key={l.id} d={d} articles={articles} reponses={reponses} brouillons={brouillons} envoye={relireTout} relire={relireTout} />}
       {fenetre ? <FenetreMotif sorte={fenetre} demande={d} fermer={() => setFenetre(null)} fait={apres} /> : null}
       {suivi === 'incident' || suivi === 'correction'
         ? <FenetreLien sorte={suivi} demande={d} enService={enService} fermer={() => setSuivi(null)} fait={() => { setSuivi(null); relire(); relireDecisions(); }} />
@@ -565,7 +586,7 @@ function Fil({ d, articles, brouillons, aujourdhui, relire, equipe, enService }:
 // Le client d'abord (qui il est pour nous : son abonnement, sa vie dans l'application, sa fiche), puis la personne qui
 // a écrit, et ce que le support ne voit pas. Une carte : deux cartes pleine largeur sous la conversation se lisaient
 // comme deux sujets de plus.
-function Cote({ d, client, aujourdhui }: { d: Demande; client: Client | null; aujourdhui: string }) {
+function Cote({ d, client, notes, aujourdhui, relire }: { d: Demande; client: Client | null; notes: NotePrivee[]; aujourdhui: string; relire: () => void }) {
   const page = d.page ? (PAGES.has(d.page) ? dire(`console.ecran.support.page.${d.page}`) : d.page) : null;
   return (
     <aside className="c-sp-cote" aria-label={titre('console.ecran.support.contexte')}>
@@ -592,6 +613,7 @@ function Cote({ d, client, aujourdhui }: { d: Demande; client: Client | null; au
           {d.personne.email ? <a href={`mailto:${d.personne.email}`} data-donnee>{d.personne.email}</a> : null}
           {d.version ? <span className="c-sp-depuis">{maj(page ? dire('console.ecran.support.ecrite_depuis', { page, version: d.version }) : dire('console.ecran.support.ecrite_depuis_sans_page', { version: d.version }))}</span> : null}
         </section>
+        <NotesPrivees demande={d.ligne.id} notes={notes} aujourdhui={aujourdhui} relire={relire} />
       </div>
     </aside>
   );
@@ -608,18 +630,19 @@ function sousLesDoigts(): boolean {
 
 export function Support({ demande: demandee, vue: vueDemandee }: { demande: string | null; vue: string | null }) {
   const [choisie, setChoisie] = useState<string | null>(demandee);
-  const [vue, setVue] = useState<'ouvertes' | 'closes'>(vueDemandee === 'closes' ? 'closes' : 'ouvertes');
+  const vueDe = (v: string | null) => (v === 'closes' || v === 'doc' ? v : 'ouvertes');
+  const [vue, setVue] = useState<'ouvertes' | 'closes' | 'doc'>(vueDe(vueDemandee));
   // Les ouvertes que je suis (0115) : un filtre de la liste, qui ne change pas l'adresse.
   const [miennes, setMiennes] = useState(false);
   const { moi } = useConsole();
   // Une demande nommée d'ailleurs (« Répondre », dans « À décider ») remplace celle-ci ; l'adresse suit le choix, sans
   // recharger la page ni la remonter en haut.
   useEffect(() => { if (demandee) setChoisie(demandee); }, [demandee]);
-  useEffect(() => { if (vueDemandee) setVue(vueDemandee === 'closes' ? 'closes' : 'ouvertes'); }, [vueDemandee]);
+  useEffect(() => { if (vueDemandee) setVue(vueDe(vueDemandee)); }, [vueDemandee]);
   useEffect(() => {
     const p = new URLSearchParams();
-    if (choisie) p.set('demande', choisie);
-    if (vue === 'closes') p.set('vue', 'closes');
+    if (choisie && vue !== 'doc') p.set('demande', choisie);
+    if (vue !== 'ouvertes') p.set('vue', vue);
     const s = p.toString();
     history.replaceState(null, '', `#/support${s ? `?${s}` : ''}`);
   }, [choisie, vue]);
@@ -673,10 +696,15 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
           <h1>{titre('console.ecran.support.titre')}</h1>
           <p className="c-entete-sous">{phrase('console.ecran.support.sous')}</p>
         </div>
+        {/* La documentation interne (0133) : une vue de l'écran, et le chemin du retour aux demandes. */}
+        <div className="c-entete-actions">
+          {vue === 'doc' ? <Bouton icone="retour" onClick={() => setVue('ouvertes')}>{titre('console.ecran.support.doc.retour')}</Bouton>
+            : <Bouton icone="copier" onClick={() => setVue('doc')}>{titre('console.ecran.support.doc.ouvrir')}</Bouton>}
+        </div>
       </header>
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
-      {lu ? (
+      {vue === 'doc' ? <Documentation aujourdhui={lu?.aujourdhui ?? new Date().toISOString().slice(0, 10)} /> : lu ? (
         <div className="c-sp-grille" ref={grille}>
           <div className="c-sp-gauche">
             <section className="c-carte c-liste-carte c-sp-liste" aria-label={titre('console.ecran.support.demandes')}>
@@ -708,10 +736,10 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
                 </nav>
               ) : null}
             </section>
-            {d ? <Cote d={d} client={lu.client} aujourdhui={lu.aujourdhui} /> : null}
+            {d ? <Cote d={d} client={lu.client} notes={lu.notes ?? []} aujourdhui={lu.aujourdhui} relire={relire} /> : null}
           </div>
           {d ? (
-            <Fil key={d.ligne.id} d={d} articles={lu.articles} brouillons={brouillons.current} aujourdhui={lu.aujourdhui} relire={relire} equipe={lu.equipe ?? []} enService={lu.enService ?? null} />
+            <Fil key={d.ligne.id} d={d} articles={lu.articles} reponses={lu.reponses ?? []} brouillons={brouillons.current} aujourdhui={lu.aujourdhui} relire={relire} equipe={lu.equipe ?? []} enService={lu.enService ?? null} />
           ) : (
             <section className="c-carte c-sp-fil c-sp-fil-vide">
               {choisie && l.etat === 'lu' && !l.enCours ? <Vide icone="chercher">{phrase('console.ecran.support.introuvable')}</Vide>

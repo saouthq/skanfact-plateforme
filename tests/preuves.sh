@@ -12690,9 +12690,9 @@ prouver 'la page Support qui ne tient plus dans la fenêtre' web/console/src/con
   '  .c-sp-grille { height: calc(100vh - var(--c-sp-haut, 220px) - 24px); min-height: 500px; grid-template-rows: minmax(0, 1fr); align-items: stretch; }' '' \
   "$SUPW2"
 prouver 'le client sous la conversation, pas à côté' web/console/src/ecrans/Support.tsx \
-  '            {d ? <Cote d={d} client={lu.client} aujourdhui={lu.aujourdhui} /> : null}
+  '            {d ? <Cote d={d} client={lu.client} notes={lu.notes ?? []} aujourdhui={lu.aujourdhui} relire={relire} /> : null}
           </div>' '          </div>
-            {d ? <Cote d={d} client={lu.client} aujourdhui={lu.aujourdhui} /> : null}' \
+            {d ? <Cote d={d} client={lu.client} notes={lu.notes ?? []} aujourdhui={lu.aujourdhui} relire={relire} /> : null}' \
   "$SUPW2"
 prouver 'le curseur qui ne vient pas sur la ligne vide' web/console/src/ecrans/Support.tsx \
   '      zone.setSelectionRange(ici + 2, ici + 2);
@@ -15440,6 +15440,80 @@ prouver 'la fiche sans sa carte du risque' 'web/console/src/ecrans/Fiche.tsx' \
   '{f.risque?.payant ? <SonRisque r={f.risque} /> : null}' \
   '{null}' \
   'à risque (1.40.0) : un abonné qui résilie s'"'"'y range, sa carte compte la liste, la colonne de l'"'"'usage dit son signe en mots, sa fiche le redit'
+
+# 1.41.0 : la documentation interne du support (la liste des fonctions qui manquent, 20).
+prouver 'une réponse pas encore validée offerte au support' 'serveur/console/docsupport.ts' \
+  'docs.filter((f) => f.sorte === '"'"'reponse'"'"' && f.validee !== null)' \
+  'docs.filter((f) => f.sorte === '"'"'reponse'"'"')' \
+  'une ligne illisible n'"'"'existe pas ; seules les réponses validées s'"'"'offrent ; « {prenom} » devient le prénom, partout'
+prouver 'le prénom posé une seule fois' 'serveur/console/docsupport.ts' \
+  't.split('"'"'{prenom}'"'"').join(prenom)' \
+  't.replace('"'"'{prenom}'"'"', prenom)' \
+  'une ligne illisible n'"'"'existe pas ; seules les réponses validées s'"'"'offrent ; « {prenom} » devient le prénom, partout'
+prouver 'la technique qui pose une note privée' 'serveur/console/gestes.ts|||base/migrations/0133_doc_support.sql' \
+  '  { code: '"'"'console.support.repondre'"'"', roles: [D, S], ecrit: true },
+|||declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']); d plateforme.demande_support; v_id uuid;' \
+  '  { code: '"'"'console.support.repondre'"'"', roles: [D, S, T], ecrit: true },
+|||declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']); d plateforme.demande_support; v_id uuid;' \
+  'une note privée : posée par le support, lue par l'"'"'équipe, jamais par le client ; refusée à la technique ; au journal sans son texte'
+prouver 'le texte d'"'"'une note privée au journal' 'base/migrations/0133_doc_support.sql' \
+  ''"'"'note privée sur une demande'"'"', null, jsonb_build_object('"'"'demande'"'"', d.numero));' \
+  ''"'"'note privée sur une demande'"'"', null, jsonb_build_object('"'"'demande'"'"', d.numero, '"'"'texte'"'"', p_texte));' \
+  'une note privée : posée par le support, lue par l'"'"'équipe, jamais par le client ; refusée à la technique ; au journal sans son texte'
+prouver 'les notes privées tues à l'"'"'équipe' 'serveur/console/routes.ts' \
+  'notes: s.demande ? lireNotes(' \
+  'notes: false ? lireNotes(' \
+  'une note privée : posée par le support, lue par l'"'"'équipe, jamais par le client ; refusée à la technique ; au journal sans son texte'
+prouver 'une reprise qui garde la validation' 'base/migrations/0133_doc_support.sql' \
+  '    validee_le = null, validee_par = null where id = f.id;' \
+  '    validee_le = validee_le, validee_par = validee_par where id = f.id;' \
+  'une réponse : écrite par le support, offerte une fois validée par la direction ; reprise, elle revient à valider ; retirée avec un motif'
+prouver 'le support qui valide une fiche' 'serveur/console/gestes.ts|||base/migrations/0133_doc_support.sql' \
+  '  { code: '"'"'console.support.valider'"'"', roles: [D], ecrit: true },
+|||array['"'"'direction'"'"']); f plateforme.doc_support;
+begin
+  select' \
+  '  { code: '"'"'console.support.valider'"'"', roles: [D, S], ecrit: true },
+|||array['"'"'direction'"'"', '"'"'support'"'"']); f plateforme.doc_support;
+begin
+  select' \
+  'une réponse : écrite par le support, offerte une fois validée par la direction ; reprise, elle revient à valider ; retirée avec un motif'
+prouver 'les réponses validées tues au champ de réponse' 'serveur/console/routes.ts' \
+  'reponses: s.demande ? reponsesOffertes(' \
+  'reponses: false ? reponsesOffertes(' \
+  'une réponse : écrite par le support, offerte une fois validée par la direction ; reprise, elle revient à valider ; retirée avec un motif'
+prouver 'une fiche retirée encore reprise' 'base/migrations/0133_doc_support.sql' \
+  'where id = p_id and retiree_le is null for update;
+  if not found then perform socle.refus('"'"'cette fiche n'"'"''"'"'existe pas ou a été retirée'"'"'); end if;
+  if f.sorte' \
+  'where id = p_id for update;
+  if not found then perform socle.refus('"'"'cette fiche n'"'"''"'"'existe pas ou a été retirée'"'"'); end if;
+  if f.sorte' \
+  'une procédure garde sa sorte ; une fiche retirée ne se reprend plus'
+prouver 'une fiche qui change de sorte' 'base/migrations/0133_doc_support.sql' \
+  '  if f.sorte <> p_sorte then perform socle.refus('"'"'une fiche garde sa sorte : écris-en une autre'"'"'); end if;
+' \
+  '' \
+  'une procédure garde sa sorte ; une fiche retirée ne se reprend plus'
+prouver 'le champ de réponse sans les réponses validées' 'web/console/src/ecrans/Support.tsx' \
+  '        {reponses.length ? (
+          <label className="c-sp-joint c-sp-inserer">' \
+  '        {false ? (
+          <label className="c-sp-joint c-sp-inserer">' \
+  'la documentation interne (0133) : une note privée que la personne ne voit jamais ; une réponse écrite par le support, validée par la direction, posée avec le prénom'
+prouver 'la carte du client sans ses notes privées' 'web/console/src/ecrans/Support.tsx' \
+  '        <NotesPrivees demande={d.ligne.id} notes={notes} aujourdhui={aujourdhui} relire={relire} />
+' \
+  '' \
+  'la documentation interne (0133) : une note privée que la personne ne voit jamais ; une réponse écrite par le support, validée par la direction, posée avec le prénom'
+prouver 'le menu du support qui offre « Valider »' 'web/console/src/ecrans/DocSupport.tsx' \
+  '...(direction && !f.validee ? [' \
+  '...(!f.validee ? [' \
+  'la documentation interne (0133) : une note privée que la personne ne voit jamais ; une réponse écrite par le support, validée par la direction, posée avec le prénom'
+prouver 'la réponse posée sans le prénom' 'web/console/src/ecrans/DocSupport.tsx' \
+  'export const poserReponse = (t: string, prenom: string): string => t.split('"'"'{prenom}'"'"').join(prenom);' \
+  'export const poserReponse = (t: string, prenom: string): string => (prenom ? t : t);' \
+  'la documentation interne (0133) : une note privée que la personne ne voit jamais ; une réponse écrite par le support, validée par la direction, posée avec le prénom'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

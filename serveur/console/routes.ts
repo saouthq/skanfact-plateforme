@@ -29,6 +29,7 @@ import { aDecider, CATEGORIES, inscriteCetteSemaine, lireEntreprises, lireVeille
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
 import { renouvellementsDe } from './renouvellements.ts';
 import { prevoir } from './previsions.ts';
+import { lireDocs, lireNotes, reponsesOffertes, SORTES_DOC } from './docsupport.ts';
 import { avecEnPlus, avecVenues, lireEnPlus, dansLaVue, ligneClient, ligneExport, TRIS_CLIENTS, VUES_CLIENTS, type VueClients } from './clients.ts';
 import { categorieOrg, chercherOrg, lireFiltresOrg, optionsDesFiltresOrg, orgDansLaVue, orgDansLesFiltres, organisations, parAnDeLaLigne, parAnDesLignes, trierOrg,
   usageDeLaLigne, vuDeLaLigne, type TriOrg } from './organisations.ts';
@@ -2017,6 +2018,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           articles: articlesDeLAide(), regles: { sansReponseHeures: SANS_REPONSE_HEURES, sansReponseHeuresUrgente: SANS_REPONSE_HEURES_URGENTE },
           // À qui une demande se confie (0115) : la direction et le support.
           equipe: s.equipe,
+          // La demande ouverte : ses notes privées (0133), et les réponses validées que le champ de réponse propose.
+          notes: s.demande ? lireNotes(await lireJson(x, 'select plateforme.console_notes_demande($1) v', [s.demande.ligne.id])) : [],
+          reponses: s.demande ? reponsesOffertes(lireDocs(await lireJson(x, 'select plateforme.console_docs_support() v'))) : [],
         },
       };
     },
@@ -2068,6 +2072,48 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     corps: z.object({ motif: motifGeste }),
     traiter: async ({ params, corps }, tx) => {
       await transaction(tx).query('select plateforme.console_rouvrir_demande($1, $2, $3)', [lireUuid(params.demande), corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  // ── La documentation interne du support (docs/console.md C57 ; 0133) ─────────────────────────────────────────────────
+  // Une note privée sur une demande : l'équipe seule la lit, jamais le client ; au journal, sans son texte.
+  ajouter({
+    methode: 'POST', chemin: '/console/support/demandes/:demande/notes', geste: 'console.support.repondre',
+    corps: z.object({ texte: z.string().trim().min(3, 'console.support.note_courte').max(2000, 'console.support.note_longue') }),
+    traiter: async ({ params, corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_noter_en_prive($1, $2, $3) v', [lireUuid(params.demande), corps.texte, maintenant()]);
+      return { statut: 201, corps: { id } };
+    },
+  });
+  // Les fiches : les réponses (validées par la direction avant de s'offrir dans le champ de réponse) et les procédures.
+  ajouter({
+    methode: 'GET', chemin: '/console/support/documentation', geste: 'console.support.voir',
+    traiter: async (_r, tx) => ({ corps: { fiches: lireDocs(await lireJson(transaction(tx), 'select plateforme.console_docs_support() v')) } }),
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/support/documentation', geste: 'console.support.repondre',
+    corps: z.object({
+      id: uuid.nullable(), sorte: z.enum(SORTES_DOC),
+      titre: z.string().trim().min(3, 'console.support.doc_titre').max(120, 'console.support.doc_titre'),
+      texte: z.string().trim().min(10, 'console.support.doc_texte').max(8000, 'console.support.doc_texte'),
+    }),
+    traiter: async ({ corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_ecrire_doc($1, $2, $3, $4, $5) v', [corps.id, corps.sorte, corps.titre, corps.texte, maintenant()]);
+      return { statut: corps.id ? 200 : 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/support/documentation/:fiche/valider', geste: 'console.support.valider',
+    traiter: async ({ params }, tx) => {
+      await transaction(tx).query('select plateforme.console_valider_doc($1, $2)', [lireUuid(params.fiche), maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/support/documentation/:fiche/retirer', geste: 'console.support.valider',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_retirer_doc($1, $2, $3)', [lireUuid(params.fiche), corps.motif, maintenant()]);
       return { corps: { ok: true } };
     },
   });
