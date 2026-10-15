@@ -90,7 +90,7 @@ describe('ce que la base rend, lu prudemment', () => {
     expect(lu.demande?.version).toBeNull();
     expect(lu.demande?.personne.roles).toEqual(['proprietaire']);
     expect(lu.demande?.messages.map((m) => m.id)).toEqual(['m1']);
-    expect(lireSupport(null)).toEqual({ ouvertes: [], closes: [], demande: null });
+    expect(lireSupport(null)).toEqual({ ouvertes: [], closes: [], nCloses: 0, demande: null });
   });
 });
 
