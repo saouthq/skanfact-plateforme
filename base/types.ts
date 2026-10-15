@@ -687,6 +687,27 @@ export interface BaseDeDonnees {
     qui: string;
     le: Generated<Date>;
   };
+  'plateforme.nouveaute_entreprise': {
+    id: Generated<string>;
+    code: string;
+    entreprise: string;
+    allumee_le: Date;
+    allumee_par: string;
+    motif: string;
+    eteinte_le: Date | null;
+    eteinte_par: string | null;
+    eteinte_motif: string | null;
+  };
+  'plateforme.nouveaute_tous': {
+    id: Generated<string>;
+    code: string;
+    ouverte_le: Date;
+    ouverte_par: string;
+    motif: string;
+    refermee_le: Date | null;
+    refermee_par: string | null;
+    refermee_motif: string | null;
+  };
   'plateforme.numero_client': {
     objet: string;
     sorte: string;

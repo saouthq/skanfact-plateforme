@@ -16,6 +16,7 @@ import { createHash, randomBytes, randomInt } from 'node:crypto';
 import type pg from 'pg';
 import type { Lecteur } from './achats/lecteur.ts';
 import type { EnvoiCourriel } from './courriel.ts';
+import type { Nouveaute } from './nouveautes.ts';
 import { enTantQue } from './base.ts';
 import { Refus } from './erreurs.ts';
 import { correspond, empreinte, verifierPolitique, verifierPourRien, type ListeVolee } from './mot-de-passe.ts';
@@ -51,6 +52,9 @@ export type Contexte = {
   // e-mail ne part.
   // `console` : où mène le lien d'une invitation dans l'équipe SkanFact (0119).
   courriel?: { envoi: EnvoiCourriel; adresse: () => string; console?: () => string };
+  // Les nouveautés que ce serveur porte (0120 ; serveur/nouveautes.ts) : celles du code, sauf dans un essai qui lui en
+  // donne d'autres.
+  nouveautes?: readonly Nouveaute[];
 };
 
 export type Appareil = { id?: string; nom: string; type: 'navigateur' | 'bureau' | 'telephone' };

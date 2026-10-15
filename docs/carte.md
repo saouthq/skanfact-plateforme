@@ -641,6 +641,10 @@ vaut pour tout le dépôt.*
   - **L'invitation par e-mail** (1.26.0 ; `docs/console.md` C42, `0119`) : `serveur/invitation-courriel.ts` (les trois
     portes : `serveur/routes/socle.ts`, `serveur/cabinet/routes.ts`, `serveur/console/routes.ts`),
     `console_invitation_pour_courriel`, les phrases `invitation.*` de `textes/socle.ts` (`tests/socle/invitation-courriel.test.ts`).
+  - **Les nouveautés qu'on allume** (1.27.0 ; `docs/console.md` C43, `0120`) : `serveur/nouveautes.ts` (la liste du code,
+    `nouveauteAllumee`, la route de l'application), `plateforme.nouveaute_entreprise`, `plateforme.nouveaute_tous`, les
+    gestes `console_allumer_nouveaute`… ; l'onglet « Nouveautés allumées » de `Reglages.tsx` (`tests/console/nouveautes.test.ts`,
+    `tests/web/console-reglages.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

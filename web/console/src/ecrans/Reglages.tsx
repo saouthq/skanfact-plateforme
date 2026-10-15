@@ -15,8 +15,8 @@ import { Alerte, Bouton, Champ, Choix, Dialogue, maj, Puce, toast, Vide, Zone } 
 
 const K = 'console.ecran.reglages';
 
-export type OngletReglages = 'prix' | 'regles' | 'formats' | 'messages';
-export const ONGLETS_REGLAGES: readonly OngletReglages[] = ['prix', 'regles', 'formats', 'messages'];
+export type OngletReglages = 'prix' | 'regles' | 'formats' | 'messages' | 'nouveautes';
+export const ONGLETS_REGLAGES: readonly OngletReglages[] = ['prix', 'regles', 'formats', 'messages', 'nouveautes'];
 
 type Offre = 'essentiel' | 'complet';
 type Periodicite = 'annuel' | 'mensuel';
@@ -48,7 +48,11 @@ type Donnees = {
   contenu: Contenus; remises: Remises;
   registre: Regle[]; message: Message | null; passes: Message[]; formats: Format[];
   factures: NosFactures;
+  nouveautes: EtatNouveaute[];
 };
+// Les nouveautés qu'on allume (0120, C43) : celles que la version en service porte, et pour qui chacune est allumée.
+type Allumee = { entreprise: string; numero: string | null; nom: string; le: string; par: string; motif: string };
+type EtatNouveaute = { code: string; nom: string; quoi: string; ouverte: { le: string; par: string; motif: string } | null; allumees: Allumee[] };
 // Nos factures (docs/abonnement.md B1) : l'entreprise de la plateforme où elles naissent, et celles que je pourrais désigner.
 type Possible = { entreprise: string; raisonSociale: string; matricule: string | null };
 type NosFactures = {
@@ -62,7 +66,8 @@ type Format = {
 };
 type Geste = { sorte: 'relire'; regle: Regle } | { sorte: 'ecrire' } | { sorte: 'retirer'; message: Message } | { sorte: 'editeur' }
   | { sorte: 'prix' } | { sorte: 'retirer_prix'; quoi: QuoiPrix; v: AVenir } | { sorte: 'preavis' } | { sorte: 'regle'; code: CodeRegle }
-  | { sorte: 'contenu' } | { sorte: 'retirer_contenu'; v: ContenuAVenir } | { sorte: 'remise' } | { sorte: 'retirer_remise'; v: RemiseAVenir };
+  | { sorte: 'contenu' } | { sorte: 'retirer_contenu'; v: ContenuAVenir } | { sorte: 'remise' } | { sorte: 'retirer_remise'; v: RemiseAVenir }
+  | { sorte: 'allumer'; n: EtatNouveaute } | { sorte: 'eteindre'; n: EtatNouveaute; a: Allumee } | { sorte: 'ouvrir'; n: EtatNouveaute } | { sorte: 'refermer'; n: EtatNouveaute };
 // Les règles de l'abonnement réglées ici (0104) : chacune telle qu'elle vaut aujourd'hui, qui l'a posée et pourquoi.
 type CodeRegle = 'essai' | 'grace' | 'relances';
 type RegleAbonnement = { jours: number[]; aPartirDu: string; motif: string; par: string | null; le: string };
@@ -721,6 +726,74 @@ function Messages({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; p
   );
 }
 
+// ── Les nouveautés qu'on allume (0120, C43) : d'abord pour des entreprises volontaires, puis pour tous ─────────────────
+// Le nombre de l'onglet : les nouveautés allumées pour quelqu'un (des volontaires, ou tout le monde).
+const allumees = (d: Donnees) => d.nouveautes.filter((n) => n.ouverte || n.allumees.length).length;
+function Nouveautes({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; peut: boolean }) {
+  return (
+    <section className="c-carte c-rg" aria-labelledby="rg-nouveautes">
+      <div className="c-al-section-tete"><div>
+        <h2 id="rg-nouveautes">{titre(`${K}.n.titre`)}</h2>
+        <p className="c-carte-sous">{phrase(`${K}.n.sous`)}</p>
+      </div></div>
+      {d.nouveautes.length ? d.nouveautes.map((n) => (
+        <div key={n.code} className="c-rg-actuel c-rg-nv" data-nouveaute={n.code}>
+          <div className="c-rg-actuel-tete">
+            <div>
+              <h3 className="c-rg-nv-nom" data-donnee>{n.nom}</h3>{' '}
+              <Puce ton={n.ouverte ? 'actif' : n.allumees.length ? 'semaine' : 'hors'}>
+                {n.ouverte ? titre(`${K}.n.pour_tous`) : n.allumees.length ? selon(n.allumees.length, `${K}.n.volontaires`, { n: entier(n.allumees.length) }) : titre(`${K}.n.personne`)}
+              </Puce>
+            </div>
+            {peut ? (
+              <div className="c-rg-nv-gestes">
+                {n.ouverte ? <Bouton petit onClick={() => geste({ sorte: 'refermer', n })}>{titre(`${K}.n.refermer`)}</Bouton> : (
+                  <>
+                    <Bouton petit icone="plus" onClick={() => geste({ sorte: 'allumer', n })}>{titre(`${K}.n.allumer`)}</Bouton>
+                    <Bouton petit ton="danger" onClick={() => geste({ sorte: 'ouvrir', n })}>{titre(`${K}.n.ouvrir`)}</Bouton>
+                  </>
+                )}
+              </div>
+            ) : null}
+          </div>
+          <p className="c-sous" data-donnee>{n.quoi}</p>
+          {n.ouverte ? (
+            <p className="c-sous">{maj(dire(`${K}.n.ouverte_par`, { jour: jour(jourDe(n.ouverte.le)), nom: n.ouverte.par }))} <span data-donnee>« {n.ouverte.motif} »</span></p>
+          ) : null}
+          {n.allumees.length ? (
+            <div className="c-defile">
+              <table className="c-table c-rg-nv-table">
+                <caption className="c-cache">{titre(`${K}.n.qui`, { nom: n.nom })}</caption>
+                <thead><tr>
+                  <th scope="col">{titre(`${K}.n.col.entreprise`)}</th><th scope="col">{titre(`${K}.n.col.depuis`)}</th>
+                  <th scope="col">{titre(`${K}.n.col.motif`)}</th>{peut ? <th scope="col"><span className="c-cache">{titre(`${K}.n.col.geste`)}</span></th> : null}
+                </tr></thead>
+                <tbody>
+                  {n.allumees.map((a) => (
+                    <tr key={a.entreprise}>
+                      <td><span data-donnee>{a.nom}</span>{a.numero ? <span className="c-sous c-bloc" data-donnee>{a.numero}</span> : null}</td>
+                      <td className="c-rg-nowrap" data-libelle={titre(`${K}.n.col.depuis`)}>{jour(jourDe(a.le))}<span className="c-sous c-bloc">{dire(`${K}.n.par`, { nom: a.par })}</span></td>
+                      <td data-libelle={titre(`${K}.n.col.motif`)}><span data-donnee>« {a.motif} »</span></td>
+                      {peut ? <td><Bouton petit onClick={() => geste({ sorte: 'eteindre', n, a })} etiquette={titre(`${K}.n.eteindre_pour`, { nom: a.nom })}>{titre(`${K}.n.eteindre`)}</Bouton></td> : null}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+      )) : <Vide icone="info">{phrase(`${K}.n.aucune`)}</Vide>}
+    </section>
+  );
+}
+
+// Ouvrir ou refermer une nouveauté : ce qu'il advient des volontaires d'avant se dit selon leur nombre (aucune, une, plusieurs).
+const volontaires = (g: Geste, p: string) => {
+  if (!((g.sorte === 'ouvrir' && p === 'p3') || (g.sorte === 'refermer' && p === 'p2'))) return '';
+  const n = g.n.allumees.length;
+  return n === 0 ? '_0' : n === 1 ? '_1' : '_n';
+};
+
 // ── Les gestes : chacun dit ce qui va se passer, demande son motif, et entre au journal ─────────────────────────────
 function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix' } | { sorte: 'regle' } | { sorte: 'contenu' } | { sorte: 'remise' }>; d: Donnees; fermer: () => void; fait: () => void }) {
   const api = useApi();
@@ -734,6 +807,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
   const [du, setDu] = useState(d.aujourdhui);
   const [au, setAu] = useState(plusJours(d.aujourdhui, 7));
   const [jours, setJours] = useState(d.preavis ? String(d.preavis.jours) : '');
+  const [numero, setNumero] = useState('');
   const [refus, setRefus] = useState<string | null>(null);
   const [faute, setFaute] = useState<{ champ: string; n: number } | null>(null);
   const [occupe, setOccupe] = useState(false);
@@ -751,6 +825,8 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
       if (au > plusJours(du, 30)) { refuser('au', `${K}.g.ecrire.trente_jours`); return; }
     }
     if (g.sorte === 'preavis' && (!/^\d{1,3}$/.test(jours.trim()) || Number(jours) > 365)) { refuser('jours', `${K}.g.preavis.jours_illisible`); return; }
+    // Le numéro de client, tel qu'on se le dit (« E-0012 », « e12 ») ; la base retrouve l'entreprise.
+    if (g.sorte === 'allumer' && !/^E-?\d{1,9}$/i.test(numero.trim())) { refuser('numero', `${K}.g.allumer.numero_illisible`); return; }
     if (motif.trim().length < 3) { refuser('motif', 'console.ecran.geste.motif_court'); return; }
     void (async () => {
       setOccupe(true);
@@ -762,6 +838,9 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
                 : g.sorte === 'retirer_contenu' ? await api('POST', '/console/reglages/contenu/retirer', { offre: g.v.offre, quoi: g.v.quoi, aPartirDu: g.v.aPartirDu, motif: motif.trim() })
                 : g.sorte === 'retirer_remise' ? await api('POST', '/console/reglages/remise/retirer', { code: g.v.code, aPartirDu: g.v.aPartirDu, motif: motif.trim() })
                 : g.sorte === 'preavis' ? await api('POST', '/console/reglages/preavis', { jours: Number(jours.trim()), motif: motif.trim() })
+                : g.sorte === 'allumer' ? await api('POST', `/console/reglages/nouveautes/${g.n.code}/allumer`, { numero: numero.trim(), motif: motif.trim() })
+                : g.sorte === 'eteindre' ? await api('POST', `/console/reglages/nouveautes/${g.n.code}/eteindre`, { entreprise: g.a.entreprise, motif: motif.trim() })
+                : g.sorte === 'ouvrir' || g.sorte === 'refermer' ? await api('POST', `/console/reglages/nouveautes/${g.n.code}/${g.sorte}`, { motif: motif.trim() })
                   : await api('POST', `/console/reglages/messages/${g.message.id}/retirer`, { motif: motif.trim() });
         if (!res) return;
         if (res.statut === 200 || res.statut === 201) { toast(phrase(`${K}.g.${g.sorte}.fait`)); fait(); return; }
@@ -773,27 +852,29 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
   const choisie = choisissables.find((p) => p.entreprise === entreprise);
   const valeurs = g.sorte === 'relire' ? { regle: nomDeRegle(g.regle) } : g.sorte === 'retirer' ? { du: jour(g.message.du), au: jour(g.message.au) }
     : g.sorte === 'editeur' ? { nom: choisie?.raisonSociale ?? '—' } : g.sorte === 'retirer_prix' || g.sorte === 'retirer_contenu' || g.sorte === 'retirer_remise' ? { jour: jour(g.v.aPartirDu) }
-      : g.sorte === 'preavis' ? { n: d.preavis?.jours ?? '—' } : {};
+      : g.sorte === 'preavis' ? { n: d.preavis?.jours ?? '—' }
+        : g.sorte === 'eteindre' ? { nom: g.n.nom, entreprise: g.a.nom } : g.sorte === 'allumer' || g.sorte === 'ouvrir' || g.sorte === 'refermer' ? { nom: g.n.nom, n: entier(g.n.allumees.length) } : {};
   const sous = g.sorte === 'relire' ? nomEtCode(g.regle) : g.sorte === 'retirer' ? g.message.texte
     : g.sorte === 'retirer_prix' ? titre(`${K}.p.venir.titre`, { quoi: nomDe(g.quoi), periode: dire(`${K}.p.periode.${g.v.periodicite}`), prix: montant(g.v.ht), jour: jour(g.v.aPartirDu) })
       : g.sorte === 'retirer_contenu' ? titre(`${K}.c.venir.titre`, { offre: dire(`${K}.p.offre.${g.v.offre}`), jour: jour(g.v.aPartirDu), dit: contenuEnMots(g.v.quoi, g.v.nombre) })
         : g.sorte === 'retirer_remise' ? titre(`${K}.rm.venir`, { nom: dire(`${K}.rm.nom.${g.v.code}`), dit: remiseEnMots(g.v.code, g.v.taux, g.v.mois), jour: jour(g.v.aPartirDu) })
-          : undefined;
+          : g.sorte === 'eteindre' ? `${g.n.nom} · ${g.a.nom}` : g.sorte === 'allumer' || g.sorte === 'ouvrir' || g.sorte === 'refermer' ? g.n.nom
+            : undefined;
   const remplace = g.sorte === 'ecrire' && d.message;
   return (
     <Dialogue titre={titre(`${K}.g.${g.sorte}.titre`, valeurs)} sous={sous}
-      sousDonnee={g.sorte === 'retirer' || (g.sorte === 'relire' && !g.regle.valeurLue.connue)}
+      sousDonnee={g.sorte === 'retirer' || (g.sorte === 'relire' && !g.regle.valeurLue.connue) || g.sorte === 'allumer' || g.sorte === 'eteindre' || g.sorte === 'ouvrir' || g.sorte === 'refermer'}
       fermer={fermer} occupe={occupe}
       pied={<>
         <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
-        <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${K}.g.${g.sorte}.bouton`)}</Bouton>
+        <Bouton ton={g.sorte === 'ouvrir' ? 'danger' : 'principal'} occupe={occupe} onClick={envoyer}>{titre(`${K}.g.${g.sorte}.bouton`)}</Bouton>
       </>}>
       <div className="c-al-ce-qui-va">
         <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
         <ul>
           {g.sorte === 'ecrire'
             ? [remplace ? 'p1_remplace' : 'p1', 'p2', 'p3'].map((p) => <li key={p}>{phrase(`${K}.g.ecrire.${p}`)}</li>)
-            : ['p1', 'p2', 'p3'].map((p) => <li key={p}>{phrase(`${K}.g.${g.sorte}.${p}`, valeurs)}</li>)}
+            : ['p1', 'p2', 'p3'].map((p) => <li key={p}>{phrase(`${K}.g.${g.sorte}.${p}${volontaires(g, p)}`, valeurs)}</li>)}
         </ul>
       </div>
       {g.sorte === 'relire' ? (
@@ -807,6 +888,9 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
       {g.sorte === 'preavis' ? (
         <Champ libelle={titre(`${K}.g.preavis.jours`)} aide={phrase(`${K}.g.preavis.jours_aide`, valeurs)} type="number" inputMode="numeric" min={0} max={365}
           valeur={jours} changer={setJours} premier {...fauteDe('jours')} />
+      ) : null}
+      {g.sorte === 'allumer' ? (
+        <Champ libelle={titre(`${K}.g.allumer.numero`)} aide={phrase(`${K}.g.allumer.numero_aide`)} valeur={numero} changer={setNumero} premier {...fauteDe('numero')} />
       ) : null}
       {g.sorte === 'editeur' ? (
         <Choix libelle={titre(`${K}.g.editeur.laquelle`)} aide={phrase(`${K}.g.editeur.laquelle_aide`)} valeur={entreprise} changer={setEntreprise}
@@ -1250,6 +1334,7 @@ export function Reglages({ onglet: demande }: { onglet: string | null }) {
               <><span className="c-onglet-n" aria-hidden="true">{entier(aRegarder)}</span><span className="c-cache">{selon(aRegarder, `${K}.onglet.a_regarder`, { n: entier(aRegarder) })}</span></>
             ) : null}
             {o === 'messages' && d?.message ? <span className="c-onglet-n" aria-hidden="true">1</span> : null}
+            {o === 'nouveautes' && d && allumees(d) ? <><span className="c-onglet-n" aria-hidden="true">{entier(allumees(d))}</span><span className="c-cache">{selon(allumees(d), `${K}.onglet.allumees`, { n: entier(allumees(d)) })}</span></> : null}
           </a>
         ))}
       </nav>
@@ -1259,6 +1344,7 @@ export function Reglages({ onglet: demande }: { onglet: string | null }) {
       {d && onglet === 'regles' ? <Regles d={d} geste={setGeste} peut={peut} /> : null}
       {d && onglet === 'formats' ? <Formats d={d} /> : null}
       {d && onglet === 'messages' ? <Messages d={d} geste={setGeste} peut={peut} /> : null}
+      {d && onglet === 'nouveautes' ? <Nouveautes d={d} geste={setGeste} peut={peut} /> : null}
       {geste && d ? (geste.sorte === 'prix' ? <FenetrePrix d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
         : geste.sorte === 'regle' ? <FenetreRegle code={geste.code} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />
         : geste.sorte === 'contenu' ? <FenetreContenu d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} />

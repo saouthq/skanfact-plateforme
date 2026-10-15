@@ -19,7 +19,7 @@ declarerTextes({
   'geste.console.service.remise': 'préparer la remise d\'une entreprise à une minute (la console compose les commandes, elle ne les exécute pas)',
   'geste.console.service.gerer': 'gérer les alertes et les incidents du service (prendre une alerte en charge, une sourdine, une alerte d\'essai ; ouvrir, suivre et clore un incident, ses suites ; annoncer une maintenance)',
   'geste.console.reglages.voir': 'voir les réglages de la plateforme (les prix, les règles communes, le message aux clients)',
-  'geste.console.reglages.gerer': 'changer les réglages de la plateforme (noter la relecture d\'une règle, afficher ou retirer le message aux clients)',
+  'geste.console.reglages.gerer': 'changer les réglages de la plateforme (noter la relecture d\'une règle, afficher ou retirer le message aux clients, allumer ou éteindre une nouveauté)',
   'geste.console.support.voir': 'lire les demandes de support',
   'geste.console.support.repondre': 'répondre à une demande de support (répondre, noter une demande reçue ailleurs, clore, rouvrir)',
   'geste.console.support.acces': 'demander l\'accès au dossier d\'un client et le lire pendant qu\'il court (en lecture seulement, chaque page tracée)',
@@ -69,6 +69,7 @@ declarerTextes({
   'console.recu.jour': 'le jour du paiement est aujourd\'hui ou un jour passé, qui existe au calendrier',
   // Préparer un prix (docs/abonnement.md C14) : chaque refus nomme sa case.
   'console.reglages.prix_illisible': 'le prix s\'écrit en dinars hors taxes, avec trois décimales au plus : « 420 » ou « 420,500 »',
+  'console.reglages.nouveaute_inconnue': 'la version en service ne porte pas cette nouveauté : elle n\'existe que dans une version à venir, ou elle est devenue la règle pour tous',
   'console.reglages.jour_illisible': 'ce jour n\'existe pas au calendrier : choisis-en un dans le calendrier',
   // Les coûts du mois (docs/console.md C30) : chaque refus nomme sa case.
   'console.paiements.libelle_illisible': 'nomme le coût en deux à quatre-vingts caractères : « Serveurs en Tunisie », « SMS »',

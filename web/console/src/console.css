@@ -2207,6 +2207,11 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-rg-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
 .c-rg-duo .c-rg { margin-top: 24px; }
 .c-rg-liste, .c-rg-etapes { margin: 0; padding-inline-start: 18px; display: grid; gap: 10px; font-size: 14.5px; }
+/* Les nouveautés qu'on allume (C43) : une par bloc, séparées d'un trait ; leurs gestes côte à côte, de la même hauteur. */
+.c-rg-nv { padding-block: 16px; border-top: 1px solid var(--c-trait); }
+.c-rg-nv:last-child { padding-bottom: 0; }
+.c-rg-nv-nom { display: inline; margin: 0; font-size: 16px; font-weight: 600; }
+.c-rg-nv-gestes { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 /* Le message aux clients : l'aperçu a la forme du bandeau de leur application. */
 .c-rg-actuel { display: grid; gap: 10px; }
 .c-rg-actuel-tete { display: flex; align-items: center; justify-content: space-between; gap: 8px 16px; flex-wrap: wrap; }
@@ -2293,6 +2298,15 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-rg-contenu td, .c-rg-contenu td.c-droite { padding: 0; border: 0; min-width: 0 !important; text-align: start; }
   .c-rg-contenu td[data-libelle]::before { content: attr(data-libelle) ' : '; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
   .c-rg-contenu .c-rg-avenir-droite { margin-inline-start: 0; }
+  /* Les entreprises pour qui une nouveauté est allumée (C43) : une fiche par entreprise, son geste au bout. */
+  .c-rg-nv .c-defile { overflow: visible; }
+  .c-rg-nv-table { min-width: 0; }
+  .c-rg-nv-table thead { display: none; }
+  .c-rg-nv-table, .c-rg-nv-table tbody, .c-rg-nv-table tr, .c-rg-nv-table td { display: block; }
+  .c-rg-nv-table tr { padding: 14px 0; border-bottom: 1px solid var(--c-trait); display: grid; gap: 6px; }
+  .c-rg-nv-table tr:last-child { border-bottom: 0; }
+  .c-rg-nv-table td { padding: 0; border: 0; min-width: 0 !important; }
+  .c-rg-nv-table td[data-libelle]::before { content: attr(data-libelle) ' : '; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
 }
 
 /* ── Le support (docs/support.md ; sa maquette) : la liste, la conversation, la carte du client ─────────────────────────

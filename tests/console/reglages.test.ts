@@ -159,12 +159,12 @@ describe('le registre des règles communes', () => {
 describe('au journal, un geste des réglages dit sur quoi il porte', () => {
   it('la règle relue et l\'avis ; le message écrit ou retiré par ses deux jours ; le prix préparé ou retiré, et le préavis ; rien pour un autre geste', () => {
     expect(sujetDesReglages('reglages.relire', null, { regle: 'timbre.facture', debut: '2023-01-01', reluePar: 'Mehdi Gharbi', avis: 'a_corriger' }))
-      .toEqual({ regle: 'timbre.facture', reluePar: 'Mehdi Gharbi', avis: 'a_corriger', du: null, au: null, prix: null, preavis: null, regleAbonnement: null, contenu: null, remise: null });
+      .toEqual({ regle: 'timbre.facture', reluePar: 'Mehdi Gharbi', avis: 'a_corriger', du: null, au: null, prix: null, preavis: null, regleAbonnement: null, contenu: null, remise: null, nouveaute: null });
     expect(sujetDesReglages('reglages.message_affiche', null, { message: 'm', sorte: 'nouveaute', du: '2026-10-13', au: '2026-10-20' }))
-      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-20', prix: null, preavis: null, regleAbonnement: null, contenu: null, remise: null });
+      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-20', prix: null, preavis: null, regleAbonnement: null, contenu: null, remise: null, nouveaute: null });
     // Retiré : les jours viennent de ce qu'il était (avant), pas du retrait.
     expect(sujetDesReglages('reglages.message_retire', { message: 'm', texte: 't', du: '2026-10-13', au: '2026-10-19' }, { retire: '2026-10-14T09:00:00Z' }))
-      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-19', prix: null, preavis: null, regleAbonnement: null, contenu: null, remise: null });
+      .toEqual({ regle: null, reluePar: null, avis: null, du: '2026-10-13', au: '2026-10-19', prix: null, preavis: null, regleAbonnement: null, contenu: null, remise: null, nouveaute: null });
     expect(sujetDesReglages('versions.geler', null, { jusquAu: '2026-10-20' })).toBeNull();
     // Un prix préparé : de l'ancien au nouveau, à sa date (celle de l'après). Retiré : la date est celle du prix retiré.
     expect(sujetDesReglages('reglages.prix_prepare', { quoi: 'essentiel', periodicite: 'annuel', montantHt: '390.000' },

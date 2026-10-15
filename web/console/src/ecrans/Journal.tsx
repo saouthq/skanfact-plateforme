@@ -28,6 +28,8 @@ type Ligne = {
     regleAbonnement?: { code: 'essai' | 'grace' | 'relances'; avant: number[] | null; apres: number[] | null } | null;
     contenu?: { offre: 'essentiel' | 'complet'; quoi: 'caisses' | 'etablissements' | 'salaries' | 'paie' | 'compta'; aPartirDu: string | null; avant: number | null; apres: number | null } | null;
     remise?: { code: 'groupe' | 'cabinet'; aPartirDu: string | null; avant: { taux: number; mois: number | null } | null; apres: { taux: number; mois: number | null } | null } | null;
+    // Une nouveauté (0120) : son code, et son nom tant que la version en service la porte.
+    nouveaute?: string | null; nomNouveaute?: string | null;
   };
 };
 type Membre = { utilisateur: string; nom: string; actif: boolean };
@@ -57,6 +59,7 @@ const nomDuPrix = (q: string) => (q === 'essentiel' || q === 'complet' ? dire(`c
 function SurLesReglages({ r }: { r: NonNullable<Ligne['reglages']> }) {
   if (r.prix) return <a href="#/reglages">{titre('console.ecran.journal.sur_prix', { quoi: nomDuPrix(r.prix.quoi), periode: dire(`console.ecran.reglages.p.periode.${r.prix.periodicite}`) })}</a>;
   if (r.preavis) return <a href="#/reglages">{titre('console.ecran.journal.sur_preavis')}</a>;
+  if (r.nouveaute) return <a href="#/reglages?onglet=nouveautes">{titre('console.ecran.journal.sur_nouveaute')} « <span data-donnee>{r.nomNouveaute ?? r.nouveaute}</span> »</a>;
   if (r.regleAbonnement) return <a href="#/reglages">{titre(`console.ecran.journal.sur_regle_abo.${r.regleAbonnement.code}`)}</a>;
   if (r.remise) return <a href="#/reglages">{titre(`console.ecran.journal.sur_remise.${r.remise.code}`)}</a>;
   if (r.contenu) return <a href="#/reglages">{titre('console.ecran.journal.sur_contenu', { offre: dire(`console.ecran.reglages.p.offre.${r.contenu.offre}`), quoi: dire(`console.ecran.reglages.c.quoi.${r.contenu.quoi}`) })}</a>;
@@ -110,6 +113,12 @@ function ChangeDesReglages({ geste, r }: { geste: string; r: NonNullable<Ligne['
         <del data-donnee>{dit(x.avant)}{retire ? date : ''}</del> → <ins data-donnee>{dit(x.apres)}{retire ? '' : date}</ins>
       </span></span>
     );
+  }
+  // Une nouveauté allumée ou éteinte : laquelle, puisque le « sur qui » est l'entreprise. Ouverte ou refermée : le « sur
+  // quoi » la nomme déjà.
+  if (r.nouveaute) {
+    return geste === 'reglages.nouveaute_allumee' || geste === 'reglages.nouveaute_eteinte'
+      ? <span className="c-changes"><span className="c-change" data-donnee>{r.nomNouveaute ?? r.nouveaute}</span></span> : null;
   }
   const t = r.regle && r.reluePar ? dire(`console.ecran.journal.relue_${r.avis === 'a_corriger' ? 'corriger' : 'juste'}`, { qui: r.reluePar })
     : r.du && r.au ? dire('console.ecran.journal.du_au', { du: jourCourt(r.du), au: jourCourt(r.au) }) : null;

@@ -1280,7 +1280,7 @@ describe('les réglages de la plateforme (0093, docs/console.md C28)', () => {
     // Au journal : la règle par son code, et l'avis.
     const journal = (await appeler('GET', '/console/journal', jD)).corps.lignes as { geste: string; motif: string; reglages?: Record<string, unknown> }[];
     expect(journal.find((l) => l.geste === 'reglages.relire' && l.motif === 'relue au téléphone')?.reglages)
-      .toEqual({ regle: 'essai.reglages', reluePar: corps.reluePar, avis: 'a_corriger', du: null, au: null, prix: null, preavis: null, regleAbonnement: null, contenu: null, remise: null });
+      .toEqual({ regle: 'essai.reglages', reluePar: corps.reluePar, avis: 'a_corriger', du: null, au: null, prix: null, preavis: null, regleAbonnement: null, contenu: null, remise: null, nouveaute: null });
   });
 
   it('un message aux clients : la direction l\'écrit, daté, trente jours au plus ; chaque refus nomme sa raison', async () => {

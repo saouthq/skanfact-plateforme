@@ -56,6 +56,7 @@ import {
   ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, lireContenuOffres, lireRemises, CODES_REMISE, QUOI_CONTENU, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
 } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
+import { etatDesNouveautes, listeDesNouveautes, NOUVEAUTES } from '../nouveautes.ts';
 import { articleConnu, articlesDeLAide, CANAUX_NOTES, CLOSES_PAR_PAGE, compter, etatDe, lireSupport, PRIORITES, ranger, SANS_REPONSE_HEURES, SANS_REPONSE_HEURES_URGENTE, suggererPour } from './support.ts';
 import { lireAcces, HEURES_MAX, PAGE } from '../support/acces.ts';
 import { filtrer } from '../v10/droits.ts';
@@ -206,6 +207,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   const routes: Route<never>[] = [];
   const ajouter = <C>(r: Route<C>) => { routes.push(r as unknown as Route<never>); };
   const maintenant = () => (ctx.maintenant ?? (() => new Date()))();
+  // Les nouveautés que ce serveur porte (0120, C43) : celles du code, sauf dans un essai qui lui en donne d'autres.
+  const nouveautes = listeDesNouveautes(ctx.nouveautes ?? NOUVEAUTES);
+  // Au journal, une nouveauté se dit par son nom, tant que la version en service la porte ; après, par son code.
+  const avecNomDeNouveaute = <S extends { nouveaute: string | null }>(s: S | null) =>
+    (s?.nouveaute ? { ...s, nomNouveaute: nouveautes.find((n) => n.code === s.nouveaute)?.nom ?? null } : s);
   const fichierVeille = options.veille ?? null;
   // L'état que le suiveur écrit à chaque tour (à côté de la page d'état, dans le dossier public : https://…/etat.json) :
   // la version en service, les versions du dépôt, leur numéro (« 1.4.2 »), les consignes lues (C27).
@@ -738,7 +744,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
         corps: {
           aujourdhui: jour, role: roleDe(qui), plage: f.plage, chiffres,
           lignes: lignes.map((l) => ({ ...l, curseur: undefined, reserve: reserveALaDirection(l.geste), service: sujetDuService(l.geste, l.avant, l.apres) ?? undefined,
-            reglages: sujetDesReglages(l.geste, l.avant, l.apres) ?? undefined })),
+            reglages: avecNomDeNouveaute(sujetDesReglages(l.geste, l.avant, l.apres)) ?? undefined })),
           suite: lignes.length === n && derniere ? `${derniere.curseur}|${derniere.id}` : null,
         },
       };
@@ -1520,6 +1526,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           formats,
           // Nos factures (docs/abonnement.md B1) : l'entreprise SkanFact désignée, et celles que je pourrais désigner.
           factures: await lireJson(x, 'select plateforme.console_editeur() v'),
+          // Les nouveautés que la version en service porte, et pour qui chacune est allumée (0120, C43).
+          nouveautes: etatDesNouveautes(nouveautes, await lireJson(x, 'select plateforme.console_nouveautes() v')),
         },
       };
     },
@@ -1684,6 +1692,45 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       return { corps: { ok: true } };
     },
   });
+
+  // ── Les nouveautés qu'on allume (docs/console.md C43 ; 0120) ────────────────────────────────────────────────────────
+  // Seules les nouveautés que la version en service porte (serveur/nouveautes.ts) se touchent : un code inconnu est refusé
+  // ici, avant la base. L'entreprise se désigne par son numéro de client, jamais par son nom.
+  const codeNouveaute = z.string().regex(/^[a-z][a-z0-9_]{1,40}$/);
+  const inconnue = (code: string) => !nouveautes.some((n) => n.code === code);
+  const refusInconnue = { statut: 404, corps: { motif: motif('console.reglages.nouveaute_inconnue'), raison: t('console.reglages.nouveaute_inconnue') } };
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/nouveautes/:code/allumer', geste: 'console.reglages.gerer',
+    corps: z.object({ numero: z.string().trim().min(1).max(20), motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      const code = codeNouveaute.parse(params.code);
+      if (inconnue(code)) return refusInconnue;
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_allumer_nouveaute($1, $2, $3, $4) v', [code, corps.numero, corps.motif, maintenant()]);
+      return { statut: 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/nouveautes/:code/eteindre', geste: 'console.reglages.gerer',
+    corps: z.object({ entreprise: z.string().uuid(), motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      const code = codeNouveaute.parse(params.code);
+      if (inconnue(code)) return refusInconnue;
+      await transaction(tx).query('select plateforme.console_eteindre_nouveaute($1, $2, $3, $4)', [code, corps.entreprise, corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  for (const geste of ['ouvrir', 'refermer'] as const) {
+    ajouter({
+      methode: 'POST', chemin: `/console/reglages/nouveautes/:code/${geste}`, geste: 'console.reglages.gerer',
+      corps: z.object({ motif: motifGeste }),
+      traiter: async ({ params, corps }, tx) => {
+        const code = codeNouveaute.parse(params.code);
+        if (inconnue(code)) return refusInconnue;
+        await transaction(tx).query(`select plateforme.console_${geste}_nouveaute($1, $2, $3)`, [code, corps.motif, maintenant()]);
+        return { corps: { ok: true } };
+      },
+    });
+  }
 
   // ── Les paiements de nos factures, et les coûts du mois (docs/console.md C30 ; 0108) ───────────────────────────────
   // La mesure (docs/console.md C39 ; 0116) : ce que la base sait déjà compter, par offre ; ce qui ne se mesure pas encore,

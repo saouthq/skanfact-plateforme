@@ -81,6 +81,7 @@ import { relancerLesAbonnements } from './abonnement/relances.ts';
 import { routesAbonnement } from './abonnement/routes.ts';
 import { routesConsole } from './console/routes.ts';
 import { routesMessageClients } from './console/message-clients.ts';
+import { routesNouveautes, type Nouveaute } from './nouveautes.ts';
 import { routesMessagerie } from './messagerie/routes.ts';
 import { declarerGestesVentes } from './ventes/gestes.ts';
 import { routesVentes } from './ventes/routes.ts';
@@ -247,10 +248,10 @@ export function routesDuServeur(ctx: Contexte, options: { veille: string | null 
   declarerGestesSupport();
   return [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx),
     ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesAbonnement(ctx), ...routesConsole(ctx, options),
-    ...routesMessageClients(ctx.maintenant)];
+    ...routesMessageClients(ctx.maintenant), ...routesNouveautes(ctx)];
 }
 
-export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur; courriel?: EnvoiCourriel; sms?: Contexte['sms'] } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
+export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur; courriel?: EnvoiCourriel; sms?: Contexte['sms']; nouveautes?: readonly Nouveaute[] } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
   const pool = creerPool(c.base);
   // L'adresse publique : réglée, sinon celle où le serveur écoute (connue une fois qu'il écoute).
   let publique = c.adresse ?? '';
@@ -258,7 +259,9 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const sms = dependances.sms ?? (c.sms === 'aucun' ? smsAucun : smsWinsms({ cle: c.sms.cle, expediteur: c.sms.expediteur, adresse: c.sms.adresse }));
   const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
     ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
-    lecteur: await lecteurDuServeur({ simultanees: c.lectures }), partenaires: { liste: c.partenaires, cle: c.coffre } };
+    lecteur: await lecteurDuServeur({ simultanees: c.lectures }), partenaires: { liste: c.partenaires, cle: c.coffre },
+    // Les nouveautés que ce serveur porte : celles du code (serveur/nouveautes.ts), sauf dans un essai.
+    ...(dependances.nouveautes ? { nouveautes: dependances.nouveautes } : {}) };
   // Le relais des e-mails (un essai en donne un autre, qui garde ce qu'il reçoit) ; sans lui, aucun e-mail ne part.
   // Chaque e-mail laisse sa trace (0115) : l'instant et s'il est parti, rien d'autre.
   const relais = dependances.courriel ?? (c.courriel ? courrielSmtp(c.courriel.smtp, c.courriel.de) : null);

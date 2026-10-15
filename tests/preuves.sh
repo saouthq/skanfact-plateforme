@@ -14633,6 +14633,82 @@ prouver 'la console dit l'"'"'e-mail parti sans relais' 'web/console/src/ecrans/
   'courriel: true });' \
   'la direction invite : le lien une fois, puis l'"'"'invitation attend ; renvoyer donne un lien neuf, annuler l'"'"'éteint'
 
+# 1.27.0 : les nouveautés qu'on allume (0120 ; docs/console.md C43).
+prouver 'une nouveauté que la version ne porte pas, touchée quand même' 'serveur/console/routes.ts' \
+  '        if (inconnue(code)) return refusInconnue;
+        await transaction(tx).query(`select plateforme.console_${geste}_nouveaute' \
+  '        await transaction(tx).query(`select plateforme.console_${geste}_nouveaute' \
+  'la liste vient du code : une nouveauté que la version ne porte pas est refusée avant la base ; la liste est vérifiée'
+prouver 'la liste accepte une nouveauté déclarée deux fois' 'serveur/nouveautes.ts' \
+  'if (vus.has(n.code)) throw new Error' \
+  'if (false) throw new Error' \
+  'la liste vient du code : une nouveauté que la version ne porte pas est refusée avant la base ; la liste est vérifiée'
+prouver 'une nouveauté que la liste ne porte plus, montrée' 'serveur/nouveautes.ts' \
+  'allumees: allumees.filter((a) => a.code === n.code)' \
+  'allumees: allumees.filter(() => true)' \
+  'la liste vient du code : une nouveauté que la version ne porte pas est refusée avant la base ; la liste est vérifiée'
+prouver 'allumée pour une, vue par toutes' 'base/migrations/0120_nouveautes.sql' \
+  'select n.code c from plateforme.nouveaute_entreprise n where n.entreprise = p_entreprise and n.eteinte_le is null' \
+  'select n.code c from plateforme.nouveaute_entreprise n where n.eteinte_le is null' \
+  'allumer pour une entreprise par son numéro : elle seule la voit ; deux fois ou un numéro inconnu, refusé ; éteindre : elle ne la voit plus'
+prouver 'allumée deux fois pour la même entreprise' 'base/migrations/0120_nouveautes.sql' \
+  'if exists (select 1 from plateforme.nouveaute_entreprise n where n.code = p_code and n.entreprise = v_entreprise and n.eteinte_le is null) then' \
+  'if false then' \
+  'allumer pour une entreprise par son numéro : elle seule la voit ; deux fois ou un numéro inconnu, refusé ; éteindre : elle ne la voit plus'
+prouver 'éteindre vise une autre entreprise' 'base/migrations/0120_nouveautes.sql' \
+  'where code = p_code and entreprise = p_entreprise and eteinte_le is null returning id into v_id' \
+  'where code = p_code and entreprise <> p_entreprise and eteinte_le is null returning id into v_id' \
+  'allumer pour une entreprise par son numéro : elle seule la voit ; deux fois ou un numéro inconnu, refusé ; éteindre : elle ne la voit plus'
+prouver 'un nom pris pour un numéro de client' 'base/migrations/0120_nouveautes.sql' \
+  'if v_numero !~ '"'"'^E-?[0-9]{1,9}$'"'"' then perform socle.refus' \
+  'if false then perform socle.refus' \
+  'allumer pour une entreprise par son numéro : elle seule la voit ; deux fois ou un numéro inconnu, refusé ; éteindre : elle ne la voit plus'
+prouver 'allumée pour une seule quand elle est ouverte à toutes' 'base/migrations/0120_nouveautes.sql' \
+  '    perform socle.refus('"'"'cette nouveauté est déjà ouverte à toutes les entreprises'"'"');
+  end if;
+  if exists (select 1 from plateforme.nouveaute_entreprise n' \
+  '    null;
+  end if;
+  if exists (select 1 from plateforme.nouveaute_entreprise n' \
+  'l'"'"'ouvrir à tous : toutes la voient, l'"'"'allumer pour une seule est refusé ; la refermer : les volontaires la gardent'
+prouver 'refermer éteint aussi les volontaires' 'base/migrations/0120_nouveautes.sql' \
+  '  if v_id is null then perform socle.refus('"'"'cette nouveauté n'"'"''"'"'est pas ouverte à toutes les entreprises'"'"'); end if;
+' \
+  '  if v_id is null then perform socle.refus('"'"'cette nouveauté n'"'"''"'"'est pas ouverte à toutes les entreprises'"'"'); end if;
+  update plateforme.nouveaute_entreprise set eteinte_le = p_maintenant, eteinte_par = socle.moi(), eteinte_motif = '"'"'refermée'"'"' where code = p_code and eteinte_le is null;
+' \
+  'l'"'"'ouvrir à tous : toutes la voient, l'"'"'allumer pour une seule est refusé ; la refermer : les volontaires la gardent'
+prouver 'le support allume une nouveauté' 'serveur/console/gestes.ts|||base/migrations/0120_nouveautes.sql' \
+  '{ code: '"'"'console.reglages.gerer'"'"', roles: [D], ecrit: true },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']); v_entreprise uuid; v_id uuid;' \
+  '{ code: '"'"'console.reglages.gerer'"'"', roles: [D, S], ecrit: true },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']); v_entreprise uuid; v_id uuid;' \
+  'le support lit et ne touche à rien ; un geste sans motif est refusé ; une entreprise ne lit pas les nouveautés d'"'"'une autre'
+prouver 'une entreprise lit les nouveautés d'"'"'une autre' 'base/migrations/0120_nouveautes.sql' \
+  'if coalesce(cardinality(socle.mes_roles(p_entreprise)), 0) = 0 then perform socle.refus' \
+  'if false then perform socle.refus' \
+  'le support lit et ne touche à rien ; un geste sans motif est refusé ; une entreprise ne lit pas les nouveautés d'"'"'une autre'
+prouver 'l'"'"'onglet tait le nombre des nouveautés allumées' 'web/console/src/ecrans/Reglages.tsx' \
+  '{o === '"'"'nouveautes'"'"' && d && allumees(d) ?' \
+  '{o === '"'"'nouveautes'"'"' && false ?' \
+  'les nouveautés : allumée pour une entreprise par son numéro, éteinte ; ouverte à tous, refermée ; le journal la nomme'
+prouver 'un nom accepté comme numéro dans la fenêtre' 'web/console/src/ecrans/Reglages.tsx' \
+  'if (g.sorte === '"'"'allumer'"'"' && !/^E-?\d{1,9}$/i.test(numero.trim()))' \
+  'if (false)' \
+  'les nouveautés : allumée pour une entreprise par son numéro, éteinte ; ouverte à tous, refermée ; le journal la nomme'
+prouver 'les volontaires dits sans leur nombre' 'web/console/src/ecrans/Reglages.tsx' \
+  'return n === 0 ? '"'"'_0'"'"' : n === 1 ? '"'"'_1'"'"' : '"'"'_n'"'"';' \
+  'return '"'"'_n'"'"';' \
+  'les nouveautés : allumée pour une entreprise par son numéro, éteinte ; ouverte à tous, refermée ; le journal la nomme'
+prouver 'le journal tait la nouveauté' 'web/console/src/ecrans/Journal.tsx' \
+  'if (r.nouveaute) return <a href="#/reglages?onglet=nouveautes">' \
+  'if (false) return <a href="#/reglages?onglet=nouveautes">' \
+  'les nouveautés : allumée pour une entreprise par son numéro, éteinte ; ouverte à tous, refermée ; le journal la nomme'
+prouver 'le support voit les gestes des nouveautés' 'web/console/src/ecrans/Reglages.tsx' \
+  '            {peut ? (
+              <div className="c-rg-nv-gestes">' \
+  '            {true ? (
+              <div className="c-rg-nv-gestes">' \
+  'le support lit les réglages, sans aucun geste'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -196,7 +196,7 @@ sa première connexion (sept jours au plus).
 | **Règles fiscales** d'une loi de finances | Écrites avec leur **texte de loi** et leur **date d'effet**, puis **relues par un comptable** avant publication (`05` § 7). La console montre qui a écrit et qui a relu |
 | **Formats officiels** (TEIF, TEJ, CNSS, liasse, caisse) | Versions et dates de validité (`format_officiel`, `01` § 3) |
 | **Messages aux clients** | Nouveautés, maintenance prévue, incident : affichés dans l'application, datés, jamais plus d'un à la fois |
-| **Drapeaux** | Allumer une nouveauté pour des entreprises volontaires (`02` § 7) |
+| **Drapeaux** | Allumer une nouveauté pour des entreprises volontaires (`02` § 7) ; fait en 1.27.0 (`docs/console.md` C43 de la plateforme) : la liste vit dans le code, allumer par le numéro de client, éteindre, ouvrir à tous, refermer |
 
 ### 2.12 Application actuelle
 

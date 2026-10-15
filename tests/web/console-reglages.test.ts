@@ -8,6 +8,8 @@
 //     faire remonter la page sous le curseur, et un message neuf reparaît ;
 //   - un nouveau prix (0103) : l'aperçu du serveur, le jour trop tôt refusé sur sa case, le prix à venir sous la grille
 //     avec qui l'a préparé, lu par le client dans « Ton abonnement », retiré avant sa date ; le préavis se règle ;
+//   - les nouveautés (0120, C43) : allumer pour une entreprise par son numéro (un nom refusé sur sa case), la ligne et
+//     l'onglet la disent, l'éteindre ; l'ouvrir à tous, la refermer ; le journal nomme la nouveauté ;
 //   - le support lit sans aucun geste ; au téléphone, rien ne déborde.
 
 import fs from 'node:fs';
@@ -30,6 +32,12 @@ const RACINE = path.join(import.meta.dirname, '../..');
 const MDP = 'Un-bon-mot-de-passe';
 const net = (t: string) => t.replace(/[\s\u202f\u00a0]+/g, ' ').trim();
 const CODE = 'essai.web_reglages';
+// Deux nouveautés propres à ce passage (la base est commune aux essais) : ce serveur les porte, comme une version à venir.
+const SUFFIXE = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
+const NOUVEAUTES = [
+  { code: `salle_${SUFFIXE}`, nom: 'La caisse en salle', quoi: 'Les tables, les commandes en cuisine, l\'addition.' },
+  { code: `banque_${SUFFIXE}`, nom: 'Le rapprochement bancaire', quoi: 'Le relevé de la banque, pointé tout seul.' },
+];
 
 describe('les réglages de la plateforme, à la souris', () => {
   let navigateur: Browser;
@@ -96,7 +104,7 @@ describe('les réglages de la plateforme, à la souris', () => {
     await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source) values ($1, '250', '2024-01-01', 'Une règle d''essai : à vérifier avec un comptable')`, [CODE]);
     fs.writeFileSync(veille, JSON.stringify({ problemes: {} }));
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
-    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_VEILLE_FICHIER: veille }), port: 0, web: dossier, livreurMs: 60_000 });
+    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_VEILLE_FICHIER: veille }), port: 0, web: dossier, livreurMs: 60_000 }, { nouveautes: NOUVEAUTES });
     navigateur = await chromium.launch();
     // Des noms à ce fichier : les autres écrans de la console écrivent dans la même base (le journal liste chacun).
     jD = await membre('Amira Réglages', 'direction');
@@ -575,6 +583,55 @@ describe('les réglages de la plateforme, à la souris', () => {
     await fermer(p);
   }, 120_000);
 
+  it('les nouveautés : allumée pour une entreprise par son numéro, éteinte ; ouverte à tous, refermée ; le journal la nomme', async () => {
+    const [salle, banque] = NOUVEAUTES as [typeof NOUVEAUTES[0], typeof NOUVEAUTES[0]];
+    const numero = String((await admin.query('select plateforme.numero_texte($1) n', [ent])).rows[0]?.n);
+    const p = await console_(jD, 'nouveautes');
+    const bloc = p.locator(`[data-nouveaute="${salle.code}"]`);
+    expect(net(await bloc.innerText())).toContain('Allumée pour personne');
+    await cliquer(bloc.getByRole('button', { name: 'Allumer pour une entreprise…' }));
+    const f = p.getByRole('dialog');
+    await f.getByLabel('Son numéro de client').fill('Studio Lina Réglages');
+    await f.getByLabel('Motif', { exact: true }).fill('Volontaire pour essayer');
+    await cliquer(f.getByRole('button', { name: 'Allumer', exact: true }));
+    // Un nom n'est pas un numéro : refusé sur sa case, sans rien envoyer.
+    await expect.poll(async () => net(await f.locator('.c-alerte').innerText())).toMatch(/numéro de client, comme « E-0012 »/);
+    await f.getByLabel('Son numéro de client').fill(numero.toLowerCase());
+    await cliquer(f.getByRole('button', { name: 'Allumer', exact: true }));
+    await expect.poll(() => f.count()).toBe(0);
+    await expect.poll(async () => net(await bloc.innerText())).toContain('1 entreprise volontaire');
+    expect(net(await bloc.locator('tbody tr').innerText())).toMatch(new RegExp(`Studio Lina Réglages ${numero}.*allumée par Amira Réglages.*« Volontaire pour essayer »`));
+    expect(net(await p.locator('.c-onglets [aria-current="page"]').innerText())).toMatch(/Nouveautés allumées 1/);
+    expect((await api('GET', `/entreprises/${ent}/nouveautes`, jClient)).corps.nouveautes).toEqual([salle.code]);
+    // L'éteindre : la ligne s'en va ; le client ne l'a plus.
+    await cliquer(bloc.getByRole('button', { name: 'Éteindre pour Studio Lina Réglages' }));
+    await f.getByLabel('Motif', { exact: true }).fill('Elle préfère attendre');
+    await cliquer(f.getByRole('button', { name: 'Éteindre', exact: true }));
+    await expect.poll(async () => net(await bloc.innerText())).toContain('Allumée pour personne');
+    expect((await api('GET', `/entreprises/${ent}/nouveautes`, jClient)).corps.nouveautes).toEqual([]);
+    // L'ouvrir à tous : la fenêtre dit qu'aucune volontaire ne la garde à la refermeture ; tout le monde la voit.
+    const autre = p.locator(`[data-nouveaute="${banque.code}"]`);
+    await cliquer(autre.getByRole('button', { name: 'L\'ouvrir à tous…' }));
+    expect(net(await f.innerText())).toContain('On la referme d\'un geste.');
+    await f.getByLabel('Motif', { exact: true }).fill('Essayée trois semaines');
+    await cliquer(f.getByRole('button', { name: 'L\'ouvrir à tous', exact: true }));
+    await expect.poll(async () => net(await autre.innerText())).toMatch(/Ouverte à toutes les entreprises.*Ouverte à tous depuis le .*, par Amira Réglages : « Essayée trois semaines »/);
+    expect((await api('GET', `/entreprises/${ent}/nouveautes`, jClient)).corps.nouveautes).toEqual([banque.code]);
+    await cliquer(autre.getByRole('button', { name: 'La refermer…' }));
+    expect(net(await f.innerText())).toContain('Aucune entreprise volontaire ne la garde');
+    await f.getByLabel('Motif', { exact: true }).fill('Un défaut trouvé');
+    await cliquer(f.getByRole('button', { name: 'La refermer', exact: true }));
+    await expect.poll(async () => net(await autre.innerText())).toContain('Allumée pour personne');
+    // Le journal nomme la nouveauté, et l'entreprise quand elle s'allume pour elle.
+    await p.goto(`${serveur.adresse}/console/#/journal`);
+    const ligne = p.locator('tr', { hasText: 'Nouveauté éteinte pour une entreprise' }).filter({ hasText: 'Studio Lina Réglages' }).first();
+    await expect.poll(async () => net(await ligne.innerText()), { timeout: 20_000 }).toContain('La caisse en salle');
+    expect(net(await p.locator('tr', { hasText: 'Nouveauté refermée' }).filter({ hasText: 'Un défaut trouvé' }).first().innerText()))
+      .toContain('La nouveauté « Le rapprochement bancaire »');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 120_000);
+
   it('le support lit les réglages, sans aucun geste', async () => {
     const p = await console_(jS);
     expect(net(await p.locator('.c-alerte-info').first().innerText())).toMatch(/^Réservé à la direction\./);
@@ -584,6 +641,9 @@ describe('les réglages de la plateforme, à la souris', () => {
     await p.goto(`${serveur.adresse}/console/#/reglages?onglet=messages`);
     await expect.poll(async () => net(await p.locator('main').innerText())).toContain('Les messages passés');
     expect(await p.getByRole('button', { name: 'Écrire un message…' }).count()).toBe(0);
+    await p.goto(`${serveur.adresse}/console/#/reglages?onglet=nouveautes`);
+    await expect.poll(() => p.locator('[data-nouveaute]').count()).toBe(2);
+    expect(await p.locator('[data-nouveaute] button').count()).toBe(0);
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
@@ -629,7 +689,7 @@ describe('les réglages de la plateforme, à la souris', () => {
   }, 60_000);
 
   it('au téléphone : aucun onglet ne déborde', async () => {
-    for (const onglet of ['', 'regles', 'formats', 'messages']) {
+    for (const onglet of ['', 'regles', 'formats', 'messages', 'nouveautes']) {
       const p = await console_(jD, onglet, 390, 844);
       expect(await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth), onglet || 'prix').toBeLessThanOrEqual(0);
       if (!onglet) {

@@ -679,8 +679,8 @@ l'écran le dit en tête au support. Quatre onglets, l'adresse garde l'onglet (`
   caché sur cet appareil ») : il ne fait pas remonter la page sous le curseur.
 - Ce que l'écran ne fait pas encore : la déclaration annuelle d'employeur au registre des formats, les nouveautés
   allumées une à une, préparer un nouveau prix depuis l'écran (une offre ou un ajout), les remises, la colonne TTC (14b).
-  Depuis : le nouveau prix se prépare dans Réglages (1.12.0), les remises aussi (1.15.0) ; les offres de fondateur sont
-  abandonnées (Skander, 14/10/2026).
+  Depuis : le nouveau prix se prépare dans Réglages (1.12.0), les remises aussi (1.15.0), les nouveautés s'allument
+  (1.27.0, C43) ; les offres de fondateur sont abandonnées (Skander, 14/10/2026).
 
 ## Quatrième partie : le support (Support S1, 13/10/2026)
 
@@ -1135,6 +1135,34 @@ l'équipe SkanFact.
   l'application d'une entreprise — la fenêtre « L'invitation est partie », et l'e-mail reçu avec le bon objet, le bon
   rôle et le lien qui mène à la bonne porte.
 
+**C43. Les nouveautés qu'on allume** (1.27.0 ; base 0120 ; `serveur/nouveautes.ts` ; la maquette « Réglages », onglet
+« Nouveautés allumées » ; `02-modules.md` § 7, 10-console § 2.11 ; **choisi par délégation le 15/10/2026**). Une nouveauté
+s'allume d'abord pour des entreprises volontaires, avant tout le monde : c'est l'essai sans installation.
+- **Elle n'existe que si la version en service la porte** : la liste des nouveautés vit dans le code
+  (`NOUVEAUTES`, son nom et ce qu'elle fait, écrits avec le code qui la sert). La base ne tient que pour qui chacune
+  est allumée, depuis quand, par qui et pourquoi ; un code que la liste ne porte plus, le serveur le tait, et le refuse
+  avant la base. **Aucune nouveauté en service aujourd'hui** : l'onglet le dit (« la version en service ne porte aucune
+  nouveauté à allumer ») ; la première qui viendra (la caisse en salle de la vague 1, par exemple) s'y déclarera.
+- **Les quatre gestes**, la direction seule, chacun avec son motif et au journal de l'équipe : **allumer pour une
+  entreprise**, désignée par son **numéro de client** (« E-0012 », jamais son nom ; un nom est refusé sur sa case, un
+  numéro inconnu aussi) ; **l'éteindre** pour elle (la ligne garde qui l'avait allumée et qui l'a éteinte ; ce qu'elle a
+  fait reste à elle) ; **l'ouvrir à toutes les entreprises** (bouton rouge : tout le monde la voit) ; **la refermer** (les
+  volontaires d'avant la gardent, et la fenêtre dit combien). Le support lit, sans aucun bouton.
+- **Ce que lit l'application** : `GET /entreprises/:entreprise/nouveautes` rend la liste des codes allumés pour cette
+  entreprise (volontaire ou ouverte à tous), rien d'autre — ni qui, ni pourquoi ; la base refuse qui n'est pas de
+  l'entreprise. Le code qui sert une nouveauté demande `nouveauteAllumee(tx, entreprise, code)`.
+- Au journal : « nouveauté allumée / éteinte pour une entreprise » (sur : l'entreprise ; ce qui a changé : la
+  nouveauté), « ouverte à toutes les entreprises », « refermée » (sur : la nouveauté).
+- **Pas fait, et pourquoi** : la maquette disait « un message aux clients l'annonce » et « l'autre membre de la
+  direction est prévenu » ; rien ne part tout seul — la fenêtre dit de l'annoncer dans « Messages aux clients » (le
+  message s'écrit, il ne s'invente pas), et le geste est au journal. L'écran de l'application ne lit pas encore ses
+  nouveautés : il n'en a aucune à servir ; il les lira avec la première.
+- **Revue à la souris** (15/10/2026, un serveur d'essai portant deux nouveautés inventées) : allumée pour une
+  pharmacie par « e3 » (un nom refusé, un numéro inconnu refusé), éteinte, ouverte à tous, refermée ; le journal ; au
+  téléphone (une fiche par entreprise), en sombre, et vu par le support. Corrigé ce jour-là : « écrit par » sous la
+  date (devenu « allumée par »), un « : . » en trop, « les volontaires d'avant (0) » (dit selon leur nombre), le
+  tableau qui débordait au téléphone, les deux boutons collés.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1148,7 +1176,7 @@ La suite de la console : le relevé de la banque lu et pointé (aucune banque br
 sécurité : l'accès d'urgence, bloquer une adresse, la date des secrets ; la relecture du contenu des pièces contre leur
 empreinte, « relire une entreprise » et « tout relire maintenant » ; le débit des travaux heure par heure, la pause d'un
 partenaire, un nombre d'essais au plus, et les envois de la TEJ et de la CNSS, qui n'ont pas encore de trace ; un
-incident relié tout seul à une chaîne cassée), la mesure, la suite des réglages (les nouveautés allumées ; un prix se prépare depuis la 1.12.0, C28). L'écran
+incident relié tout seul à une chaîne cassée), la mesure, la suite des réglages (un prix se prépare depuis la 1.12.0, C28 ; les nouveautés s'allument depuis la 1.27.0, C43). L'écran
 « Application de bureau » de la maquette (les licences, les postes, la fin de vie et le passage à la plateforme de la v10)
 ne se construit pas : **la v10 n'est installée chez personne** (Skander, 14/10/2026). Celui de la nouvelle application de
 bureau (la coque et son agent local : les postes qui l'ont, leur version, ce que l'agent voit, ses erreurs) se dessinera

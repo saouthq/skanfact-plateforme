@@ -287,6 +287,8 @@ export type SujetDesReglages = {
   regleAbonnement: { code: CodeRegle; avant: number[] | null; apres: number[] | null } | null;
   contenu: { offre: Offre; quoi: QuoiContenu; aPartirDu: string | null; avant: number | null; apres: number | null } | null;
   remise: { code: CodeRemise; aPartirDu: string | null; avant: { taux: number; mois: number | null } | null; apres: { taux: number; mois: number | null } | null } | null;
+  // Une nouveauté allumée, éteinte, ouverte à tous ou refermée (0120) : son code ; le serveur y joint son nom.
+  nouveaute: string | null;
 };
 const dinars = (x: unknown) => (typeof x === 'string' && /^\d+\.\d{3}$/.test(x) ? x : null);
 const jours = (x: unknown) => (typeof x === 'number' && Number.isInteger(x) && x >= 0 ? x : null);
@@ -331,5 +333,6 @@ export function sujetDesReglages(geste: string, avant: Record<string, unknown> |
       ? { code: apres?.code as CodeRegle, avant: listeDeJours(avant?.jours), apres: listeDeJours(apres?.jours) } : null,
     contenu: contenuDuGeste(geste, avant, apres),
     remise: remiseDuGeste(geste, avant, apres),
+    nouveaute: geste.startsWith('reglages.nouveaute_') ? texte(apres?.nouveaute) ?? texte(avant?.nouveaute) : null,
   };
 }
