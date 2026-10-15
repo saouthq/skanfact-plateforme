@@ -24,13 +24,14 @@ import { Fiche } from './ecrans/Fiche.tsx';
 import { Journal } from './ecrans/Journal.tsx';
 import { NosFactures } from './ecrans/NosFactures.tsx';
 import { Paiements } from './ecrans/Paiements.tsx';
+import { Mesure } from './ecrans/Mesure.tsx';
 import { Reglages } from './ecrans/Reglages.tsx';
 import { Service } from './ecrans/Service.tsx';
 import { Support } from './ecrans/Support.tsx';
 import { Alerte, Avatar, Bouton, Icone, Toast, type NomIcone } from './ui.tsx';
 
 // ── Les écrans et leur adresse ──────────────────────────────────────────────────────────────────────────────────────
-type Page = 'accueil' | 'clients' | 'fiche' | 'groupe' | 'cabinet' | 'abonnements' | 'paiements' | 'nosfactures' | 'support' | 'journal' | 'equipe' | 'service' | 'reglages';
+type Page = 'accueil' | 'clients' | 'fiche' | 'groupe' | 'cabinet' | 'abonnements' | 'paiements' | 'nosfactures' | 'support' | 'journal' | 'equipe' | 'service' | 'mesure' | 'reglages';
 type Route = { page: Page | 'inconnue'; id?: string; params: URLSearchParams };
 const OUVRE: Record<Page, readonly Role[]> = {
   accueil: ['direction', 'support', 'technique'],
@@ -46,6 +47,8 @@ const OUVRE: Record<Page, readonly Role[]> = {
   journal: ['direction', 'support'], equipe: ['direction'], service: ['direction', 'technique'],
   // Les réglages se lisent au support (répondre à un client sur un prix) ; leurs gestes sont à la direction.
   reglages: ['direction', 'support'],
+  // La mesure (docs/console.md C39) : les comptes de SkanFact (l'entonnoir, les départs), comme les paiements.
+  mesure: ['direction'],
 };
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -63,7 +66,7 @@ function lireRoute(hash: string): Route {
   if (m[0] === 'cabinets' && m.length === 1) return { page: 'clients', params: new URLSearchParams([['type', 'cabinets'], ...(params.get('q') ? [['q', params.get('q') ?? '']] : [])]) };
   if (m[0] === 'cabinets' && m.length === 2 && UUID.test(m[1] ?? '')) return { page: 'cabinet', id: m[1] ?? '', params };
   if (m.length === 1 && m[0] === 'nos-factures') return { page: 'nosfactures', params };
-  if (m.length === 1 && (m[0] === 'abonnements' || m[0] === 'paiements' || m[0] === 'support' || m[0] === 'journal' || m[0] === 'equipe' || m[0] === 'service' || m[0] === 'reglages')) return { page: m[0], params };
+  if (m.length === 1 && (m[0] === 'abonnements' || m[0] === 'paiements' || m[0] === 'support' || m[0] === 'journal' || m[0] === 'equipe' || m[0] === 'service' || m[0] === 'mesure' || m[0] === 'reglages')) return { page: m[0], params };
   // Les vues du service : « #/service » (la vue d'ensemble), « #/service/alertes », « #/service/incidents »,
   // « #/service/sauvegardes », « #/service/travaux », « #/service/securite », « #/service/versions », « #/service/performances ».
   if (m[0] === 'service' && m.length === 2 && (m[1] === 'alertes' || m[1] === 'incidents' || m[1] === 'sauvegardes' || m[1] === 'travaux' || m[1] === 'securite' || m[1] === 'versions' || m[1] === 'performances')) return { page: 'service', id: m[1], params };
@@ -108,7 +111,7 @@ type Entree = { page: Page; href: string; cle: string; icone: NomIcone };
 const GROUPES: { cle: string; entrees: Entree[] }[] = [
   { cle: 'chaque_jour', entrees: [{ page: 'accueil', href: '#/', cle: 'decider', icone: 'decider' }, { page: 'clients', href: '#/clients', cle: 'clients', icone: 'clients' }, { page: 'abonnements', href: '#/abonnements', cle: 'abonnements', icone: 'calendrier' }, { page: 'paiements', href: '#/paiements', cle: 'paiements', icone: 'carte' }, { page: 'support', href: '#/support', cle: 'support', icone: 'courriel' }] },
   { cle: 'notre_entreprise', entrees: [{ page: 'nosfactures', href: '#/nos-factures', cle: 'nos_factures', icone: 'facture' }] },
-  { cle: 'la_plateforme', entrees: [{ page: 'service', href: '#/service', cle: 'service', icone: 'service' }, { page: 'reglages', href: '#/reglages', cle: 'reglages', icone: 'reglages' }] },
+  { cle: 'la_plateforme', entrees: [{ page: 'service', href: '#/service', cle: 'service', icone: 'service' }, { page: 'mesure', href: '#/mesure', cle: 'mesure', icone: 'mesure' }, { page: 'reglages', href: '#/reglages', cle: 'reglages', icone: 'reglages' }] },
   { cle: 'l_equipe', entrees: [{ page: 'equipe', href: '#/equipe', cle: 'equipe', icone: 'equipe' }, { page: 'journal', href: '#/journal', cle: 'journal', icone: 'journal' }] },
 ];
 
@@ -215,6 +218,7 @@ function Page({ route, role }: { route: Route; role: Role }) {
     case 'paiements': return <Paiements mois={route.params.get('mois')} />;
     case 'nosfactures': return <NosFactures mois={route.params.get('mois')} filtre={route.params.get('filtre')} />;
     case 'support': return <Support demande={UUID.test(route.params.get('demande') ?? '') ? route.params.get('demande') : null} vue={route.params.get('vue')} />;
+    case 'mesure': return <Mesure />;
     case 'reglages': return <Reglages onglet={route.params.get('onglet')} />;
     case 'journal': return <Journal entreprise={UUID.test(route.params.get('entreprise') ?? '') ? route.params.get('entreprise') : null} qui={UUID.test(route.params.get('qui') ?? '') ? route.params.get('qui') : null} />;
     case 'equipe': return <Equipe />;

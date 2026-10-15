@@ -25,6 +25,7 @@ declarerTextes({
   'geste.console.support.acces': 'demander l\'accès au dossier d\'un client et le lire pendant qu\'il court (en lecture seulement, chaque page tracée)',
   'geste.console.factures.preparer': 'préparer la facture d\'un abonnement dans le dossier de l\'entreprise SkanFact',
   'geste.console.paiements.voir': 'voir les paiements de nos factures et les coûts du mois',
+  'geste.console.mesure.voir': 'voir la mesure : l\'entonnoir, les départs, ce qu\'on promet',
   'geste.console.factures.voir': 'voir nos factures, leur dépôt à la TTN et leur paiement',
   'geste.console.paiements.couts': 'saisir ou retirer un coût du mois',
   'geste.console.clients.exporter': 'exporter la sélection de la liste des clients',

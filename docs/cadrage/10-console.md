@@ -172,6 +172,9 @@ L'usage de la plateforme (vision § 11, point 14), **sans jamais lire le contenu
 - **la liste des événements mesurés est écrite et comptée avant la première mesure** (règle du
   projet : jamais une donnée de plus sans liste décidée) ; un événement qui n'y est pas n'est pas
   envoyé, et un test le vérifie.
+- **Construit le 15/10/2026 (1.23.0, `docs/console.md` C39)**, pour la direction seule : l'entonnoir, les inscriptions,
+  les départs, les médianes par offre et le support dans son délai, lus dans la base ; le reste dit « pas encore
+  mesuré ». La liste des événements (quatorze, ceux de la maquette) est **À DÉCIDER** : aucun n'est envoyé.
 
 ### 2.10 Équipe
 

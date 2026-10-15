@@ -590,6 +590,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cet export n\'existe pas', cle: 'base.export.inconnu', fr: 'cet export n\'existe pas' },
   // Le numéro, la ville, nos échanges avec un client (0110).
   { base: 'le jour de la liste manque', cle: 'base.clients.jour', fr: 'le jour de la liste manque' },
+  { base: 'le jour de la mesure manque', cle: 'base.mesure.jour', fr: 'le jour de la mesure manque' },
   { base: 'seuls la propriétaire et un administrateur disent où est l\'entreprise', cle: 'base.ville.droit', fr: 'seuls la propriétaire et un administrateur disent où est l\'entreprise' },
   { base: 'une ville s\'écrit en deux à soixante caractères, sans balise', cle: 'base.ville.forme', fr: 'une ville s\'écrit en deux à soixante caractères, sans balise' },
   { base: 'un appel s\'est passé ainsi : on s\'est parlé, pas de réponse, ou message laissé', cle: 'base.appel.resultat', fr: 'un appel s\'est passé ainsi : on s\'est parlé, pas de réponse, ou message laissé' },

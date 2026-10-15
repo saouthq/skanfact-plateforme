@@ -40,6 +40,7 @@ import {
 import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRACE, TOURS } from './travaux.ts';
 import { depuisLa, plageDe, reserveALaDirection, sorteDe } from './journal.ts';
 import { CHAINES_PAR_LOT, CHAINES_PAS_MS, etatRelecture, joursDeRelecture, lireChaines } from './chaines.ts';
+import { lireMesure, mesurer, periodeMesure } from './mesure.ts';
 import { argentADecider, couts, encaisse, encaisseDuMois, lirePaiements, moisAvantDe, moisDemande, MOYENS, ouvertes } from './paiements.ts';
 import { dansLeFiltre, etatTtn, FILTRES, ligne, lireNosFactures, resume as resumeDesFactures, type Filtre } from './nosfactures.ts';
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
@@ -1529,6 +1530,19 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   });
 
   // ── Les paiements de nos factures, et les coûts du mois (docs/console.md C30 ; 0108) ───────────────────────────────
+  // La mesure (docs/console.md C39 ; 0116) : ce que la base sait déjà compter, par offre ; ce qui ne se mesure pas encore,
+  // l'écran le dit sans chiffre. `periode` : celle des inscriptions (cette semaine, ce mois-ci, les trente derniers jours).
+  ajouter({
+    methode: 'GET', chemin: '/console/mesure', geste: 'console.mesure.voir',
+    traiter: async ({ query }, tx) => {
+      const x = transaction(tx);
+      const instant = maintenant();
+      const jour = aujourdhuiATunis(instant);
+      const lu = lireMesure(await lireJson(x, 'select plateforme.console_mesure($1::date) v', [jour]));
+      const liste = await lesEntreprises(x, jour);
+      return { corps: { aujourdhui: jour, ...mesurer(liste, lu, jour, periodeMesure(query.periode), instant, (i) => aujourdhuiATunis(new Date(i)).slice(0, 7)) } };
+    },
+  });
   // Le mois demandé (« 2026-10 ») ; par défaut, celui d'aujourd'hui. L'encaissé par la MÊME fonction que la tuile de
   // l'accueil (C3) ; qui doit et qui a trop payé, avec l'état de chaque abonnement (la même liste que les clients) ; les
   // règlements du mois se paginent. Un règlement se note dans l'application de SkanFact : d'ici, le lien qui l'ouvre.

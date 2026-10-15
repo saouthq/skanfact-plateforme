@@ -14388,6 +14388,76 @@ prouver 'la carte des chaînes qui tait ce qu'"'"'elle ne relit pas' 'web/consol
   '' \
   'la chaîne d'"'"'empreintes : relue par le serveur au démarrage, trente jours en cases ; ce qui n'"'"'est pas encore relu le dit'
 
+# 1.23.0 : la mesure (0116 ; docs/console.md C39).
+prouver 'la mesure lue par la technique, dans la base' 'base/migrations/0116_mesure.sql' \
+  'exiger_role_console(array['"'"'direction'"'"']);' \
+  'exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"']);' \
+  'la direction seule, à la route comme à la base ; aucun nom ni identifiant d'"'"'entreprise à l'"'"'écran ; une période inconnue vaut la semaine'
+prouver 'la mesure ouverte à la technique, à la route' 'serveur/console/gestes.ts|||base/migrations/0116_mesure.sql' \
+  '  { code: '"'"'console.mesure.voir'"'"', roles: [D], ecrit: false },|||exiger_role_console(array['"'"'direction'"'"']);' \
+  '  { code: '"'"'console.mesure.voir'"'"', roles: [D, T], ecrit: false },|||exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"']);' \
+  'la direction seule, à la route comme à la base ; aucun nom ni identifiant d'"'"'entreprise à l'"'"'écran ; une période inconnue vaut la semaine'
+prouver 'les pièces de trente et un jours' 'base/migrations/0116_mesure.sql' \
+  'between p_jour - 29 and p_jour' \
+  'between p_jour - 30 and p_jour' \
+  'les pièces des trente jours : émises, au jour de leur fuseau ; un brouillon ou une pièce plus vieille ne comptent pas ; la première réponse du support'
+prouver 'les pièces comptées au jour de l'"'"'UTC' 'base/migrations/0116_mesure.sql' \
+  '(p.emise_le at time zone e.fuseau)::date between' \
+  '(p.emise_le at time zone '"'"'UTC'"'"')::date between' \
+  'les pièces des trente jours : émises, au jour de leur fuseau ; un brouillon ou une pièce plus vieille ne comptent pas ; la première réponse du support'
+prouver 'la première réponse prise au message du client' 'base/migrations/0116_mesure.sql' \
+  'where m.demande = d.id and m.cote = '"'"'equipe'"'"'),
+                    '"'"'closeLe'"'"'' \
+  'where m.demande = d.id),
+                    '"'"'closeLe'"'"'' \
+  'les pièces des trente jours : émises, au jour de leur fuseau ; un brouillon ou une pièce plus vieille ne comptent pas ; la première réponse du support'
+prouver 'un essai qui finit ce soir compté fini' 'serveur/console/mesure.ts' \
+  'e.faits.essaiJusquAu < jour);' \
+  'e.faits.essaiJusquAu <= jour);' \
+  'l'"'"'entonnoir : les essais finis ces trente jours (hier oui, aujourd'"'"'hui non), qui ont servi, pris, se sont abonnés'
+prouver 'l'"'"'habitude prise au-delà de dix pièces' 'serveur/console/mesure.ts' \
+  'finis.filter((e) => e.pieces >= PIECES_HABITUDE).length' \
+  'finis.filter((e) => e.pieces > PIECES_HABITUDE).length' \
+  'l'"'"'entonnoir : les essais finis ces trente jours (hier oui, aujourd'"'"'hui non), qui ont servi, pris, se sont abonnés'
+prouver 'un bac à sable dans l'"'"'entonnoir' 'serveur/console/mesure.ts' \
+  'const reelles = liste.filter((e) => e.etat.etat !== '"'"'hors'"'"');' \
+  'const reelles = liste;' \
+  'l'"'"'entonnoir : les essais finis ces trente jours (hier oui, aujourd'"'"'hui non), qui ont servi, pris, se sont abonnés'
+prouver 'la semaine qui commence un dimanche' 'serveur/console/mesure.ts' \
+  '-((new Date(`${jour}T00:00:00Z`).getUTCDay() + 6) % 7)' \
+  '-new Date(`${jour}T00:00:00Z`).getUTCDay()' \
+  'les inscriptions : cette semaine depuis lundi contre la semaine d'"'"'avant, entière ; ce mois-ci ; trente jours contre trente'
+prouver 'les modules d'"'"'un Complet comptés comme achetés' 'serveur/console/mesure.ts' \
+  '(o === '"'"'essentiel'"'"' ? part(g.filter((e) => (e.faits.modules ?? []).includes(m)).length, g.length) : null)' \
+  'part(g.filter((e) => (e.faits.modules ?? []).includes(m)).length, g.length)' \
+  'par offre : la médiane des pièces des trente jours et des membres ; les modules achetés en plus, pour Essentiel seulement'
+prouver 'l'"'"'urgente jugée à vingt-quatre heures' 'serveur/console/mesure.ts' \
+  'tenue(d, d.priorite === '"'"'urgente'"'"' ? SANS_REPONSE_HEURES_URGENTE : SANS_REPONSE_HEURES, t)' \
+  'tenue(d, SANS_REPONSE_HEURES, t)' \
+  'le support dans son délai, mois par mois : tenue, manquée, pas encore due ; l'"'"'urgente à deux heures'
+prouver 'une demande dans son délai comptée manquée' 'serveur/console/mesure.ts' \
+  'return maintenant - ouverte > delai ? '"'"'manquee'"'"' : '"'"'pas_encore'"'"';' \
+  'return '"'"'manquee'"'"';' \
+  'le support dans son délai, mois par mois : tenue, manquée, pas encore due ; l'"'"'urgente à deux heures'
+prouver 'la mesure absente de la barre' 'web/console/src/Console.tsx' \
+  '{ page: '"'"'mesure'"'"', href: '"'"'#/mesure'"'"', cle: '"'"'mesure'"'"', icone: '"'"'mesure'"'"' }, ' \
+  '' \
+  'la direction l'"'"'ouvre depuis « La plateforme » ; le support ne la voit pas'
+prouver 'la satisfaction dite à zéro au lieu de « pas encore mesuré »' 'web/console/src/ecrans/Mesure.tsx' \
+  '                <PasMesure>{phrase(`${K}.g.satisfaction_pas`)}</PasMesure>
+' \
+  '' \
+  'les chiffres que la base sait ; la période change les inscriptions ; ce qui ne se mesure pas encore le dit'
+prouver 'la période qui ne change rien' 'web/console/src/ecrans/Mesure.tsx' \
+  'useLecture<Donnees>(`/console/mesure?periode=${periode}`, '"'"'/console/mesure'"'"')' \
+  'useLecture<Donnees>('"'"'/console/mesure'"'"', '"'"'/console/mesure'"'"')' \
+  'les chiffres que la base sait ; la période change les inscriptions ; ce qui ne se mesure pas encore le dit'
+prouver 'une période seule sur sa ligne au téléphone' 'web/console/src/console.css' \
+  '  .c-me-periodes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+' \
+  '' \
+  'au téléphone : rien ne déborde ; les trois périodes tiennent sur une ligne'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

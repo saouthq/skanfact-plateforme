@@ -1032,6 +1032,34 @@ F21 ; décidé par délégation le 15/10/2026 — Skander : « faut faire tout c
   chaque ticket à son arrivée ; le journal de la console ne se modifie pas (la base le refuse) mais n'est pas chaîné.
   Combien de chaînes un lot peut relire en une heure : **À VÉRIFIER** à la mesure de charge.
 
+**C39. La mesure** (1.23.0 ; base 0116 ; la maquette « Mesure » ; 10-console § 2.9 ; décidé par délégation le 15/10/2026 —
+Skander : « fait comme la maquette pour l'instant et note en non mesuré ce qu'on arrive pas à mesurer encore »).
+- **L'écran de la maquette, entier**, sous « La plateforme » entre Service et Réglages, **pour la direction seule** (un
+  taux de transformation et des départs sont les comptes de SkanFact, comme les paiements). Rien n'y est nommé : le
+  serveur rend des comptes par offre, jamais un nom ni un identifiant d'entreprise.
+- **Ce qui a ses chiffres** — ce que la base sait déjà, sans rien envoyer de nouveau :
+  - **l'entonnoir** des essais dont le dernier jour est passé ces trente jours (hier compris, aujourd'hui non) : ceux qui
+    ont émis une pièce, ceux qui en ont dix (`PIECES_HABITUDE`, le signe d'une habitude : **À VÉRIFIER** avec les
+    pilotes), ceux qui ont un abonnement payé, par offre et par périodicité ;
+  - **les inscriptions** de la période choisie (cette semaine depuis lundi, ce mois-ci, trente jours) contre la période
+    d'avant, de même longueur ; des entreprises, pas des lignes de la liste des clients (la tuile du matin compte, elle,
+    les lignes : un groupe y fait une ligne) ;
+  - **les départs** : les résiliations depuis la première inscription, les abonnements non renouvelés (en lecture seule) ;
+  - **par offre** : combien d'entreprises, la **médiane** des pièces émises en trente jours et des membres ; pour
+    Essentiel, la part qui a acheté la paie ou la comptabilité complète en plus ;
+  - **ce qu'on promet** : le support dans son délai (vingt-quatre heures, deux pour une urgente : C38), mois par mois
+    (le mois d'avant et celui-ci) — une demande compte quand sa réponse arrive ou quand son délai passe sans elle ;
+    les urgentes depuis l'ouverture ; la demande qui attend le plus, quand elle a passé son délai. Les deux promesses
+    sont **« Proposé »** : rien n'est écrit au client tant que Skander ne les a pas validées.
+  Toutes ne sont **ni une donnée de plus ni un envoi** : ce sont les comptes que la fiche d'un client montre déjà (les
+  pièces émises, les membres, l'abonnement) et les demandes du support.
+- **Pas encore mesuré** (l'écran le dit, jamais un zéro) : les écrans qui servent, où l'on s'arrête dans un parcours,
+  les refus qui reviennent, le motif d'un départ (l'application ne le demande pas encore), la satisfaction des
+  fondateurs (la question n'est pas écrite), et l'accord des entreprises. Tous demanderaient des **événements envoyés
+  par l'application** ; leur liste — les quatorze de la maquette — est montrée **proposée, à décider** : **À DÉCIDER
+  par Skander** (règle du projet : jamais une donnée de plus vers un serveur sans liste comptée et décidée). Aucun
+  événement n'est envoyé.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1253,3 +1281,26 @@ pendant le parcours, avec un œil de designer :
 - « Closes » seul sur sa ligne : les trois vues tiennent (« À moi ») ;
 - le titre d'une fenêtre se terminait par « … » (repris du menu) : il ne le porte plus ;
 - l'attente de la technique, en minuscule en tête de ligne : une majuscule.
+
+
+## Revu à la souris et au clavier (15/10/2026, 1.23.0 : la mesure)
+
+Sur l'essai de l'outil humain, la base passée en `0116`, dans la console : Amira (direction), en clair et en sombre, à
+1440 et à 390. L'entrée « Mesure » sous « La plateforme », entre Service et Réglages ; le bandeau de l'entonnoir (deux
+essais finis ces trente jours, un abonné : « 50 % ») et ses quatre étapes ; les inscriptions qui suivent la période
+(« 13 cette semaine », puis « 13 ce mois-ci, 0 le mois dernier ») ; les départs ; les trois offres ; le support dans son
+délai ; la liste des événements, « proposée, à décider ». Corrigé pendant le parcours :
+- « 1 membres », « 0 pièces émises » : le singulier sous deux ;
+- le « % » d'une promesse, détaché de son chiffre dans la police des chiffres : la police du texte, les chiffres alignés ;
+- les modules d'une offre, une phrase de cinq lignes dans une case étroite : « en plus : la paie chez 0 %… » ;
+- au téléphone, « 30 derniers jours » seul sous les deux autres périodes : les trois sur une ligne ; les quatre étapes
+  deux par deux ;
+- les périodes de l'en-tête décalées de 24 points à droite (la marge des pilules d'une carte) : alignées.
+
+**Le jeu de démonstration du serveur d'essai** (Skander, 15/10/2026 : « c'est dur de juger une interface vide de
+données ») : `scripts/humain/demo-console.ts`, lancé une fois sur le serveur d'essai, pose quinze entreprises inventées
+dans chaque état d'abonnement, deux cabinets, un support et une technique inventés (que personne ne peut ouvrir : leur
+mot de passe tiré au hasard n'est écrit nulle part), des demandes de support (une urgente, une qui attend la technique,
+une close), des appels notés, et les gestes de la console qui vont avec. Il ne touche ni au service (ses mesures sont
+celles du vrai serveur), ni à l'entreprise SkanFact de « Nos factures » (une fois désignée, elle ne se change plus :
+**À DÉCIDER** par Skander), ni aux envois à la TTN. Il ne se pose qu'une fois. Les adresses sont en `example.com`.

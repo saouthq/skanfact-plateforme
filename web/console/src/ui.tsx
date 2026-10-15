@@ -49,6 +49,7 @@ const DESSINS = {
   cloche: <><path d="M6 9.5a6 6 0 0 1 12 0c0 6 2.5 8 2.5 8h-17S6 15.5 6 9.5z" /><path d="M10 20.5a2.2 2.2 0 0 0 4 0" /></>,
   points: <><circle cx="5.5" cy="12" r="1.4" fill="currentColor" /><circle cx="12" cy="12" r="1.4" fill="currentColor" /><circle cx="18.5" cy="12" r="1.4" fill="currentColor" /></>,
   reglages: <path d="M20 6h-7M9 6H4M20 12h-9M7 12H4M20 18h-5M11 18H4M13 4v4M7 10v4M15 16v4" />,
+  mesure: <path d="M4 20h16M6 20v-6M11 20V6M16 20v-9" />,
 } as const;
 export type NomIcone = keyof typeof DESSINS;
 

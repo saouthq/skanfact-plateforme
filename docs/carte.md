@@ -625,6 +625,10 @@ vaut pour tout le dépôt.*
     chaînes d'empreintes relues seules (`socle.verifier_chaine`, `plateforme.relire_chaines`, `console_chaines`,
     `serveur/service/chaines.ts`, `serveur/console/chaines.ts`, la règle « chaine » et la brique « chaînes » de
     `exploitation/veille.ts`, la carte de `Securite.tsx`) (`tests/console/suivi.test.ts`, `tests/support/rangement.test.ts`).
+  - **La mesure** (1.23.0 ; `docs/console.md` C39, `0116`) : l'entonnoir, les inscriptions, les départs, les offres et ce
+    qu'on promet, par offre et sans nom (`plateforme.console_mesure` ; `mesurer`, `bornes` dans `serveur/console/mesure.ts` ;
+    `web/console/src/ecrans/Mesure.tsx`) ; ce qui demanderait des événements de l'application dit « pas encore mesuré »
+    (`tests/console/mesure.test.ts`) ; le jeu de démonstration du serveur d'essai (`scripts/humain/demo-console.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

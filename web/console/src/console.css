@@ -2838,3 +2838,86 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 @media (max-width: 860px) {
   .c-sp-suivi { padding-inline: 18px; }
 }
+
+/* ── La mesure (docs/console.md C39 ; la maquette « Mesure ») ─────────────────────────────────────────────────────── */
+.c-me { display: grid; gap: 20px; }
+.c-me-periodes { padding: 0; }
+.c-me-deux { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.c-me-surtitre { margin: 0; font-size: 12.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--c-menthe); }
+.c-me-surtitre-clair { margin: 0; font-size: 12.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--c-nuit-gris); }
+.c-me-bandeau-sous { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--c-nuit-gris); }
+/* Le bandeau : l'entonnoir, sur la nuit de la marque, comme l'encaissé des Paiements. */
+.c-me-bandeau, .c-me-liste {
+  display: grid; gap: 18px; padding: 24px 28px; border-radius: var(--c-rayon); background: var(--c-nuit); color: var(--c-nuit-texte);
+  border: 1px solid var(--c-nuit-trait); min-width: 0;
+}
+.c-me-bandeau-haut { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 18px 32px; align-items: end; }
+.c-me-bandeau-haut > div { display: grid; gap: 6px; min-width: 0; }
+.c-me-bandeau h2 { margin: 0; font-size: clamp(22px, 2.4vw, 30px); font-weight: 600; line-height: 1.2; color: #fff; text-wrap: balance; }
+.c-me-bandeau h2.c-me-titre-vide { font-size: 18px; font-weight: 500; }
+.c-me-inscriptions { text-align: end; }
+.c-me-inscriptions-n { margin: 0; font-size: clamp(20px, 2vw, 26px); font-weight: 600; color: #fff; white-space: nowrap; }
+.c-me-inscriptions-n b { font-family: var(--c-chiffres); font-weight: 500; }
+.c-me-etapes { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.c-me-etape {
+  display: grid; gap: 6px; align-content: start; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--c-nuit-trait);
+  background: color-mix(in srgb, var(--c-nuit-2) 70%, transparent); min-width: 0;
+}
+.c-me-rang { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-nuit-gris); }
+.c-me-n { display: flex; align-items: baseline; gap: 8px; }
+.c-me-n b { font-family: var(--c-chiffres); font-size: 28px; font-weight: 500; color: #fff; }
+.c-me-n span { font-size: 13px; color: var(--c-menthe); }
+.c-me-barre { display: block; height: 6px; border-radius: 999px; background: var(--c-nuit-trait); overflow: hidden; }
+.c-me-barre > span { display: block; height: 100%; border-radius: inherit; background: var(--c-menthe); }
+.c-me-etape-nom { font-size: 14px; font-weight: 600; color: var(--c-nuit-texte); }
+.c-me-etape-sous { font-size: 12.5px; line-height: 1.45; color: var(--c-nuit-gris); }
+/* Les cartes claires. */
+.c-me-section { display: grid; gap: 12px; align-content: start; }
+.c-me-section h2 { margin: 0; font-size: 18px; }
+.c-me-section-sous { margin: -6px 0 0; line-height: 1.5; }
+.c-me-pas { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; margin: 0; padding: 12px 14px; border: 1px dashed var(--c-trait-fort); border-radius: 12px; }
+.c-me-pas .c-sous { flex: 1 1 24ch; line-height: 1.5; }
+.c-me-tuiles { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.c-me-tuile { display: grid; gap: 4px; align-content: start; padding: 14px 16px; border-radius: 12px; background: var(--c-papier-2); }
+.c-me-tuile b { font-family: var(--c-chiffres); font-size: 24px; font-weight: 500; color: var(--c-titre); }
+.c-me-tuile span { font-size: 13px; line-height: 1.45; color: var(--c-gris); }
+.c-me-offres { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.c-me-offre { display: grid; gap: 6px; align-content: start; padding: 14px 16px; border: 1px solid var(--c-trait); border-radius: 12px; min-width: 0; }
+.c-me-offre-chiffre { display: grid; gap: 0; }
+.c-me-offre-chiffre b { font-family: var(--c-chiffres); font-size: 22px; font-weight: 500; color: var(--c-titre); }
+.c-me-offre-chiffre span { font-size: 12.5px; color: var(--c-gris); }
+.c-me-promesse { display: grid; gap: 6px; padding: 14px 16px; border: 1px solid var(--c-trait); border-radius: 12px; background: var(--c-papier-2); }
+.c-me-promesse-pas { background: none; border-style: dashed; }
+.c-me-promesse-pas .c-me-pas { padding: 0; border: 0; }
+.c-me-promesse-tete { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; margin: 0; }
+.c-me-promesse-chiffre { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; margin: 0; }
+.c-me-promesse-chiffre b { font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--c-titre); white-space: nowrap; }
+.c-me-promesse-chiffre span { font-size: 13.5px; color: var(--c-texte); }
+.c-me-promesse-retard { margin: 0; font-size: 13.5px; line-height: 1.5; color: var(--c-orange-texte); }
+/* La liste des événements : sur la nuit, comme la maquette. */
+.c-me-liste h2 { margin: 0; font-size: 20px; color: #fff; }
+.c-me-liste { gap: 12px; }
+.c-me-evenements { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.c-me-evenements li { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--c-nuit-trait); font-size: 12.5px; color: var(--c-nuit-texte); }
+.c-me-jamais { display: grid; gap: 4px; padding: 12px 14px; border-radius: 12px; border: 1px solid color-mix(in srgb, var(--c-rouge) 45%, var(--c-nuit-trait));
+  background: color-mix(in srgb, var(--c-rouge) 10%, transparent); }
+.c-me-jamais b { color: color-mix(in srgb, var(--c-rouge) 60%, #fff); font-size: 14px; }
+.c-me-jamais span { font-size: 13.5px; line-height: 1.5; color: var(--c-nuit-texte); }
+.c-me-accord { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; margin: 0; font-size: 14px; color: var(--c-nuit-texte); }
+.c-me-liste-pied { padding-top: 10px; border-top: 1px solid var(--c-nuit-trait); }
+@media (max-width: 1008px) {
+  .c-me-deux { grid-template-columns: minmax(0, 1fr); }
+  .c-me-etapes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .c-me-bandeau-haut { grid-template-columns: minmax(0, 1fr); align-items: start; }
+  .c-me-inscriptions { text-align: start; }
+  .c-me-offres { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .c-me-bandeau, .c-me-liste { padding: 18px 16px; }
+  .c-me-tuiles { grid-template-columns: minmax(0, 1fr); }
+  /* Les quatre étapes deux par deux, les trois périodes sur une ligne (jamais une seule sous les deux autres). */
+  .c-me-etape { padding: 12px; }
+  .c-me-n b { font-size: 24px; }
+  .c-me-periodes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
+  .c-me-periodes .c-pilule { justify-content: center; text-align: center; white-space: normal; line-height: 1.2; padding-inline: 8px; border-radius: 14px; }
+}
