@@ -2443,7 +2443,9 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-sp-touches { margin-inline-start: auto; font-size: 12px; color: var(--c-gris); white-space: nowrap; }
 .c-sp-touches kbd { font: inherit; font-weight: 600; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--c-trait-fort); background: var(--c-papier); color: var(--c-encre); }
 /* La carte du client et de la personne, sous la liste. */
-.c-sp-cote { min-width: 0; }
+/* Le repère de ce qu'elle contient de positionné (le libellé caché du champ d'une note privée, 0133) : sans lui, ce libellé
+   échappait à la colonne qui défile et allongeait la page de quelques pixels (223 sur GitHub, le 16/10/2026). */
+.c-sp-cote { min-width: 0; position: relative; }
 .c-sp-contexte { padding: 0; display: flex; flex-direction: column; overflow: hidden; }
 .c-sp-contexte > * { padding: 16px 18px; }
 .c-sp-contexte > * + * { border-top: 1px solid var(--c-trait); }
@@ -3117,3 +3119,18 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-sp-notes-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .c-sp-notes-liste li { display: grid; gap: 2px; padding: 8px 10px; border-left: 3px solid var(--c-trait-fort); background: var(--c-papier); border-radius: 0 8px 8px 0; }
 .c-sp-notes-pied { display: flex; justify-content: flex-end; }
+
+/* Les demandes d'évolution (0134 ; docs/console.md C58) : le nombre de clients d'abord, gros et à gauche, puis ce qu'elle
+   demande, son état, et les demandes qui la réclament. */
+.c-ev { display: grid; gap: 14px; }
+.c-pilules.c-ev-pilules { padding: 0; }
+.c-ev-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+.c-ev-item { display: grid; gap: 8px; padding: 14px 16px; border: 1px solid var(--c-trait); border-radius: 14px; }
+.c-ev-tete { display: flex; align-items: center; gap: 14px; }
+.c-ev-clients { display: grid; justify-items: center; min-width: 56px; line-height: 1.1; }
+.c-ev-clients b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.c-ev-clients span { font-size: 12px; color: var(--c-gris); }
+.c-ev-quoi { display: grid; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.c-ev-description { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+.c-ev-demandes { list-style: none; margin: 0; padding: 8px 0 0; display: grid; gap: 4px; border-top: 1px solid var(--c-trait); }
+.c-ev-demandes .c-lien-bouton { font-weight: 500; text-align: start; }

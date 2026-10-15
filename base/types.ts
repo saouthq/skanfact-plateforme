@@ -618,6 +618,24 @@ export interface BaseDeDonnees {
     avant: ColumnType<Json | null, string | null, string | null>;
     apres: ColumnType<Json | null, string | null, string | null>;
   };
+  'plateforme.evolution': {
+    id: Generated<string>;
+    titre: string;
+    description: string | null;
+    etat: Generated<string>;
+    version: string | null;
+    raison: string | null;
+    notee_le: Date;
+    notee_par: string;
+    decidee_le: Date | null;
+    decidee_par: string | null;
+  };
+  'plateforme.evolution_demande': {
+    demande: string;
+    evolution: string;
+    le: Date;
+    par: string;
+  };
   'plateforme.facture_abonnement': {
     id: Generated<string>;
     entreprise: string;

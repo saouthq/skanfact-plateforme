@@ -13635,10 +13635,14 @@ PW1='la direction seule : le support n'"'"'a ni l'"'"'entrée « Paiements » ni
 PW2='la tuile de l'"'"'accueil et le bandeau disent le même encaissé ; la facture qui doit encore mène à sa pièce'
 PW3='un coût : la case refusée se montre ; saisi, ce qui reste du mois se dit ; retiré, il reste barré'
 PW4='d'"'"'un mois à l'"'"'autre, les boutons ne bougent pas sous la souris ; au téléphone, rien ne déborde'
-prouver 'le support qui lit les paiements (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0114_chiffres_justes.sql' \
+# 1.42.0 : depuis 1.39.0, Paiements lit aussi les sorties en cours (0131), direction seule : la preuve lève ce verrou-là aussi.
+prouver 'le support qui lit les paiements (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0114_chiffres_justes.sql|||base/migrations/0131_sortie.sql' \
   '  { code: '"'"'console.paiements.voir'"'"', roles: [D], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
-  v_editeur uuid;' '  { code: '"'"'console.paiements.voir'"'"', roles: [D, S], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
-  v_editeur uuid;' \
+  v_editeur uuid;|||perform plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  return (select coalesce(jsonb_agg(plateforme.sortie_lue(s, p_jour) ||' \
+  '  { code: '"'"'console.paiements.voir'"'"', roles: [D, S], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  v_editeur uuid;|||perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  return (select coalesce(jsonb_agg(plateforme.sortie_lue(s, p_jour) ||' \
   "$PA2"
 prouver 'la tuile de l'"'"'encaissé montrée au support' serveur/console/routes.ts \
   '      const t = role === '"'"'direction'"'"' ? { ...pourLeSupport, revenusDuMois } : pourLeSupport;' '      const t = { ...pourLeSupport, revenusDuMois };' \
@@ -15037,7 +15041,7 @@ prouver 'les versions comparées comme du texte' 'serveur/console/support.ts' \
   '  return (enService ?? '"'"''"'"') >= attendue && !pre;' \
   'la version atteinte se compare nombre par nombre, jamais comme un texte'
 prouver 'l'"'"'écran tait l'"'"'incident et la correction d'"'"'une demande' 'web/console/src/ecrans/Support.tsx' \
-  '  if (!l.incident && !l.correction) return null;' \
+  '  if (!l.incident && !l.correction && !evolution) return null;' \
   '  return null;' \
   'le lien d'"'"'une demande (0126) : liée à un incident, puis la version qui la corrige — attendue, puis en service : « à dire au client »'
 prouver 'l'"'"'écran dit « à dire au client » avant la version' 'web/console/src/ecrans/Support.tsx' \
@@ -15514,6 +15518,72 @@ prouver 'la réponse posée sans le prénom' 'web/console/src/ecrans/DocSupport.
   'export const poserReponse = (t: string, prenom: string): string => t.split('"'"'{prenom}'"'"').join(prenom);' \
   'export const poserReponse = (t: string, prenom: string): string => (prenom ? t : t);' \
   'la documentation interne (0133) : une note privée que la personne ne voit jamais ; une réponse écrite par le support, validée par la direction, posée avec le prénom'
+
+# 1.42.0 : les retours des clients et les demandes d'évolution (la liste des fonctions qui manquent, 35).
+prouver 'les messages comptés comme des clients' 'base/migrations/0134_evolutions.sql' \
+  'count(distinct d.entreprise)::int clients' \
+  'count(*)::int clients' \
+  'les plus demandées d'"'"'abord, comptées en clients : deux demandes d'"'"'une même entreprise font un client ; une demande, une évolution'
+prouver 'une demande qui ne change pas d'"'"'évolution' 'base/migrations/0134_evolutions.sql' \
+  'on conflict (demande) do update set evolution = excluded.evolution, le = excluded.le, par = excluded.par;' \
+  'on conflict (demande) do nothing;' \
+  'les plus demandées d'"'"'abord, comptées en clients : deux demandes d'"'"'une même entreprise font un client ; une demande, une évolution'
+prouver 'détacher qui ne détache rien' 'base/migrations/0134_evolutions.sql' \
+  '    delete from plateforme.evolution_demande where demande = d.id;
+' \
+  '' \
+  'les plus demandées d'"'"'abord, comptées en clients : deux demandes d'"'"'une même entreprise font un client ; une demande, une évolution'
+prouver 'la technique qui lit les évolutions' 'serveur/console/gestes.ts|||base/migrations/0134_evolutions.sql' \
+  '  { code: '"'"'console.support.voir'"'"', roles: [D, S], ecrit: false },
+|||perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  return (select coalesce(jsonb_agg(x.v order by' \
+  '  { code: '"'"'console.support.voir'"'"', roles: [D, S, T], ecrit: false },
+|||perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);
+  return (select coalesce(jsonb_agg(x.v order by' \
+  'les plus demandées d'"'"'abord, comptées en clients : deux demandes d'"'"'une même entreprise font un client ; une demande, une évolution'
+prouver 'l'"'"'évolution d'"'"'une demande tue' 'serveur/console/routes.ts' \
+  'evolution: s.demande ? lireEvolutionDe(' \
+  'evolution: false ? lireEvolutionDe(' \
+  'les plus demandées d'"'"'abord, comptées en clients : deux demandes d'"'"'une même entreprise font un client ; une demande, une évolution'
+prouver 'le support qui décide d'"'"'une évolution' 'serveur/console/gestes.ts|||base/migrations/0134_evolutions.sql' \
+  '  { code: '"'"'console.support.evolutions'"'"', roles: [D], ecrit: true },
+|||declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']); e plateforme.evolution;' \
+  '  { code: '"'"'console.support.evolutions'"'"', roles: [D, S], ecrit: true },
+|||declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']); e plateforme.evolution;' \
+  'décider : la direction seule ; « faite » dit sa version, « écartée » sa raison ; au journal'
+prouver 'une évolution faite sans sa version' 'base/migrations/0134_evolutions.sql' \
+  '  if p_etat = '"'"'faite'"'"' and (p_version is null or p_version !~ '"'"'^[0-9]+\.[0-9]+\.[0-9]+$'"'"') then
+    perform socle.refus('"'"'une évolution faite dit la version qui la livre, écrite comme 1.42.0'"'"');
+  end if;
+' \
+  '' \
+  'décider : la direction seule ; « faite » dit sa version, « écartée » sa raison ; au journal'
+prouver 'une évolution écartée qui garde sa version' 'base/migrations/0134_evolutions.sql' \
+  'version = case when p_etat = '"'"'faite'"'"' then p_version end,' \
+  'version = coalesce(case when p_etat = '"'"'faite'"'"' then p_version end, version),' \
+  'décider : la direction seule ; « faite » dit sa version, « écartée » sa raison ; au journal'
+prouver 'une demande rattachée illisible lue quand même' 'serveur/console/evolutions.ts' \
+  'const numero = typeof x?.numero === '"'"'number'"'"' && Number.isInteger(x.numero) ? x.numero : null;' \
+  'const numero = Number(x?.numero ?? 0);' \
+  'une ligne illisible n'"'"'existe pas ; une demande rattachée illisible non plus ; « à étudier » garde celles que des clients réclament'
+prouver '« à étudier » qui garde celles que personne ne réclame' 'serveur/console/evolutions.ts' \
+  'e.etat === '"'"'a_etudier'"'"' && e.clients > 0' \
+  'e.etat === '"'"'a_etudier'"'"'' \
+  'une ligne illisible n'"'"'existe pas ; une demande rattachée illisible non plus ; « à étudier » garde celles que des clients réclament'
+prouver 'la demande qui tait son évolution' 'web/console/src/ecrans/Support.tsx' \
+  '      {evolution ? (
+        <span className="c-sp-attache">' \
+  '      {false ? (
+        <span className="c-sp-attache">' \
+  'les demandes d'"'"'évolution (0134) : rattacher la demande à une évolution nouvelle ; la liste la compte en clients, et ouvre la demande'
+prouver 'le support à qui l'"'"'écran offre « Décider »' 'web/console/src/ecrans/Evolutions.tsx' \
+  '{direction ? <MenuLigne' \
+  '{true ? <MenuLigne' \
+  'les demandes d'"'"'évolution (0134) : rattacher la demande à une évolution nouvelle ; la liste la compte en clients, et ouvre la demande'
+prouver 'une demande de la liste qui ne s'"'"'ouvre pas' 'web/console/src/ecrans/Evolutions.tsx' \
+  'onClick={() => ouvrirDemande(d.id)}' \
+  'onClick={() => undefined}' \
+  'les demandes d'"'"'évolution (0134) : rattacher la demande à une évolution nouvelle ; la liste la compte en clients, et ouvre la demande'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -52,6 +52,9 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // privées et les fiches (par « répondre ») ; la direction seule valide une fiche (une réponse validée part chez les
   // clients) ou la retire.
   { code: 'console.support.valider', roles: [D], ecrit: true },
+  // Les demandes d'évolution (docs/console.md C58 ; 0134) : la direction et le support notent une évolution et y
+  // rattachent les demandes (par « répondre ») ; la direction seule décide de son état (c'est le produit).
+  { code: 'console.support.evolutions', roles: [D], ecrit: true },
   // L'accès au dossier d'un client (Support S2, docs/support.md ; 0096) : le DEMANDER avec son motif, le rendre (« J'ai
   // fini »), et lire le dossier pendant qu'il court — en lecture seulement, ce que lit un membre « Lecture », chaque page
   // tracée. C'est l'entreprise qui l'accorde ; la console ne fait que le demander.

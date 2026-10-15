@@ -30,6 +30,7 @@ import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets 
 import { renouvellementsDe } from './renouvellements.ts';
 import { prevoir } from './previsions.ts';
 import { lireDocs, lireNotes, reponsesOffertes, SORTES_DOC } from './docsupport.ts';
+import { ETATS_EVOLUTION, lireEvolutionDe, lireEvolutions } from './evolutions.ts';
 import { avecEnPlus, avecVenues, lireEnPlus, dansLaVue, ligneClient, ligneExport, TRIS_CLIENTS, VUES_CLIENTS, type VueClients } from './clients.ts';
 import { categorieOrg, chercherOrg, lireFiltresOrg, optionsDesFiltresOrg, orgDansLaVue, orgDansLesFiltres, organisations, parAnDeLaLigne, parAnDesLignes, trierOrg,
   usageDeLaLigne, vuDeLaLigne, type TriOrg } from './organisations.ts';
@@ -2021,6 +2022,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           // La demande ouverte : ses notes privées (0133), et les réponses validées que le champ de réponse propose.
           notes: s.demande ? lireNotes(await lireJson(x, 'select plateforme.console_notes_demande($1) v', [s.demande.ligne.id])) : [],
           reponses: s.demande ? reponsesOffertes(lireDocs(await lireJson(x, 'select plateforme.console_docs_support() v'))) : [],
+          // L'évolution qu'elle réclame (0134), s'il y en a une.
+          evolution: s.demande ? lireEvolutionDe(await lireJson(x, 'select plateforme.console_evolution_de($1) v', [s.demande.ligne.id])) : null,
         },
       };
     },
@@ -2072,6 +2075,43 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     corps: z.object({ motif: motifGeste }),
     traiter: async ({ params, corps }, tx) => {
       await transaction(tx).query('select plateforme.console_rouvrir_demande($1, $2, $3)', [lireUuid(params.demande), corps.motif, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  // ── Les retours des clients et les demandes d'évolution (docs/console.md C58 ; 0134) ─────────────────────────────────
+  // Les évolutions, les plus demandées d'abord (le nombre de clients), avec les demandes qui les réclament.
+  ajouter({
+    methode: 'GET', chemin: '/console/support/evolutions', geste: 'console.support.voir',
+    traiter: async (_r, tx) => ({ corps: { evolutions: lireEvolutions(await lireJson(transaction(tx), 'select plateforme.console_evolutions() v')) } }),
+  });
+  // Noter une évolution, et y rattacher la demande d'où elle vient.
+  ajouter({
+    methode: 'POST', chemin: '/console/support/evolutions', geste: 'console.support.repondre',
+    corps: z.object({
+      titre: z.string().trim().min(3, 'console.support.evolution_titre').max(120, 'console.support.evolution_titre'),
+      description: z.string().trim().max(2000, 'console.support.evolution_description').nullable(),
+      demande: uuid.nullable(),
+    }),
+    traiter: async ({ corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_noter_evolution($1, $2, $3, $4) v', [corps.titre, corps.description, corps.demande, maintenant()]);
+      return { statut: 201, corps: { id } };
+    },
+  });
+  // Rattacher une demande à une évolution, ou l'en détacher (nul).
+  ajouter({
+    methode: 'POST', chemin: '/console/support/demandes/:demande/evolution', geste: 'console.support.repondre',
+    corps: z.object({ evolution: uuid.nullable() }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_rattacher_evolution($1, $2, $3)', [lireUuid(params.demande), corps.evolution, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  // Décider de son état : la direction seule.
+  ajouter({
+    methode: 'POST', chemin: '/console/support/evolutions/:evolution/decider', geste: 'console.support.evolutions',
+    corps: z.object({ etat: z.enum(ETATS_EVOLUTION), version: z.string().trim().max(20).nullable(), raison: z.string().trim().max(400).nullable() }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_decider_evolution($1, $2, $3, $4, $5)', [lireUuid(params.evolution), corps.etat, corps.version, corps.raison, maintenant()]);
       return { corps: { ok: true } };
     },
   });

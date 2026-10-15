@@ -13,6 +13,7 @@ import { panneDe, refusDe, useApi, useConsole, useLecture, useRelireQuandOnRegar
 import { quand } from '../temps.ts';
 import { AccesDossier } from './AccesDossier.tsx';
 import { Documentation, NotesPrivees, poserReponse, type FicheDoc, type NotePrivee } from './DocSupport.tsx';
+import { Evolutions, FenetreRattacher, PuceEvolution, type EvolutionDe } from './Evolutions.tsx';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, MenuLigne, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
 
 export type Canal = 'application' | 'email' | 'whatsapp' | 'telephone';
@@ -54,6 +55,8 @@ type Donnees = {
   enService?: string | null;
   // La demande ouverte : ses notes privées, et les réponses validées que le champ propose (0133).
   notes?: NotePrivee[]; reponses?: FicheDoc[];
+  // L'évolution qu'elle réclame (0134).
+  evolution?: EvolutionDe | null;
 };
 type MembreSupport = { id: string; nom: string; role: 'direction' | 'support' };
 
@@ -141,7 +144,7 @@ function FenetreMotif({ sorte, demande, fermer, fait }: { sorte: 'clore' | 'rouv
 }
 
 // ── Le suivi : la prendre, la confier, sa priorité, l'attente de la technique (0115) ──────────────────────────────────
-type SorteSuivi = 'prendre' | 'confier' | 'priorite' | 'technique' | 'incident' | 'correction';
+type SorteSuivi = 'prendre' | 'confier' | 'priorite' | 'technique' | 'incident' | 'correction' | 'evolution';
 function FenetreSuivi({ sorte, demande, equipe, fermer, fait }: { sorte: SorteSuivi; demande: Demande; equipe: MembreSupport[]; fermer: () => void; fait: () => void }) {
   const api = useApi();
   const { moi } = useConsole();
@@ -196,10 +199,10 @@ function FenetreSuivi({ sorte, demande, equipe, fermer, fait }: { sorte: SorteSu
 // ── L'incident et la correction d'une demande (0126 ; la liste des fonctions qui manquent, 19) ──────────────────────
 // Une ligne sous le suivi, même close : l'incident qui la cause (sa référence, son titre, clos ou en cours), et la
 // version qui la corrige — attendue, ou en service : il reste alors à l'écrire au client.
-function Liens({ d, enService }: { d: Demande; enService: string | null }) {
+function Liens({ d, enService, evolution }: { d: Demande; enService: string | null; evolution: EvolutionDe | null }) {
   const l = d.ligne;
   const L = 'console.ecran.support.l';
-  if (!l.incident && !l.correction) return null;
+  if (!l.incident && !l.correction && !evolution) return null;
   return (
     <div className="c-sp-attaches">
       {l.incident ? (
@@ -215,6 +218,13 @@ function Liens({ d, enService }: { d: Demande; enService: string | null }) {
           <span>{maj(l.correction.enService ? dire(`${L}.corrigee`, { version: l.correction.version })
             : dire(`${L}.attendue`, { version: l.correction.version, service: enService ?? dire(`${L}.service_inconnu`) }))}</span>
           {l.correction.enService && !l.close ? <Puce ton="actif">{maj(dire(`${L}.a_dire`))}</Puce> : null}
+        </span>
+      ) : null}
+      {evolution ? (
+        <span className="c-sp-attache">
+          <Icone nom="echange" taille={14} />
+          <span>{maj(dire('console.ecran.support.ev.ligne', { titre: evolution.titre }))}</span>
+          <PuceEvolution e={evolution} />
         </span>
       ) : null}
     </div>
@@ -296,7 +306,7 @@ function FenetreLien({ sorte, demande, enService, fermer, fait }: { sorte: 'inci
 
 // Qui la suit, sa priorité, l'attente de la technique : une ligne sous l'en-tête. Un geste direct (la prendre, quand on ne
 // la suit pas), les autres dans le menu.
-function Suivi({ d, equipe, choisir }: { d: Demande; equipe: MembreSupport[]; choisir: (s: SorteSuivi) => void }) {
+function Suivi({ d, equipe, evolution, choisir }: { d: Demande; equipe: MembreSupport[]; evolution: EvolutionDe | null; choisir: (s: SorteSuivi) => void }) {
   const { moi } = useConsole();
   const l = d.ligne;
   const mienne = l.suivieParId === moi.utilisateur;
@@ -309,6 +319,9 @@ function Suivi({ d, equipe, choisir }: { d: Demande; equipe: MembreSupport[]; ch
     // 0126 : l'incident qui la cause, la version qui la corrige.
     { icone: 'alerte' as const, titre: titre(l.incident ? `${L}.delier.titre` : `${L}.lier.titre`), sous: phrase(l.incident ? `${L}.delier.sous` : `${L}.lier.sous`, { ref: l.incident?.ref ?? '' }), faire: () => choisir('incident') },
     { icone: 'retour' as const, titre: titre(l.correction ? `${L}.retirer.titre` : `${L}.noter.titre`), sous: phrase(l.correction ? `${L}.retirer.sous` : `${L}.noter.sous`, { version: l.correction?.version ?? '' }), faire: () => choisir('correction') },
+    // 0134 : ce qu'elle réclame et que SkanFact ne fait pas encore.
+    { icone: 'echange' as const, titre: titre(evolution ? 'console.ecran.support.ev.x.titre' : 'console.ecran.support.ev.r.menu'),
+      sous: phrase(evolution ? 'console.ecran.support.ev.x.sous' : 'console.ecran.support.ev.r.sous', { titre: evolution?.titre ?? '' }), faire: () => choisir('evolution') },
   ];
   return (
     <div className="c-sp-suivi">
@@ -497,8 +510,9 @@ function Repondre({ d, articles, reponses, brouillons, envoye, relire }: { d: De
 // ── La demande ouverte à l'écran ────────────────────────────────────────────────────────────────────────────────────
 // En tête : ce qu'elle demande (ses mots), qui et d'où, puis où elle en est ; le seul geste de l'en-tête, clore ou
 // rouvrir, à droite. La conversation défile dans sa carte, la dernière réponse en bas, sous les yeux, avec le champ.
-function Fil({ d, articles, reponses, brouillons, aujourdhui, relire, equipe, enService }: { d: Demande; articles: Article[]; reponses: FicheDoc[]; brouillons: Brouillons; aujourdhui: string; relire: () => void; equipe: MembreSupport[]; enService: string | null }) {
+function Fil({ d, articles, reponses, evolution, brouillons, aujourdhui, relire, equipe, enService }: { d: Demande; articles: Article[]; reponses: FicheDoc[]; evolution: EvolutionDe | null; brouillons: Brouillons; aujourdhui: string; relire: () => void; equipe: MembreSupport[]; enService: string | null }) {
   const { relireDecisions } = useConsole();
+  const api = useApi();
   const [fenetre, setFenetre] = useState<'clore' | 'rouvrir' | null>(null);
   const [suivi, setSuivi] = useState<SorteSuivi | null>(null);
   const l = d.ligne;
@@ -543,8 +557,17 @@ function Fil({ d, articles, reponses, brouillons, aujourdhui, relire, equipe, en
         {e.etat === 'close' ? <Bouton petit onClick={() => setFenetre('rouvrir')}>{titre('console.ecran.support.rouvrir')}</Bouton>
           : <Bouton petit onClick={() => setFenetre('clore')}>{titre('console.ecran.support.clore')}</Bouton>}
       </div>
-      {e.etat === 'close' ? null : <Suivi d={d} equipe={equipe} choisir={setSuivi} />}
-      <Liens d={d} enService={enService} />
+      {e.etat === 'close' ? null : <Suivi d={d} equipe={equipe} evolution={evolution} choisir={(x) => {
+        // Détacher se fait d'un geste (il se répare en la rattachant de nouveau) ; rattacher ouvre sa fenêtre.
+        if (x === 'evolution' && evolution) {
+          void api('POST', `/console/support/demandes/${l.id}/evolution`, { evolution: null }).then((r) => {
+            if (r && r.statut === 200) { toast(phrase('console.ecran.support.ev.x.fait', { titre: evolution.titre })); relire(); } else if (r) toast(refusDe(r));
+          }).catch((err: unknown) => toast(panneDe(err)));
+          return;
+        }
+        setSuivi(x);
+      }} />}
+      <Liens d={d} enService={enService} evolution={evolution} />
       {/* Son dossier (Support S2) : sous l'en-tête, à portée de la conversation qui le motive — demander l'accès, le temps
           qui reste, l'ouvrir en lecture. */}
       <AccesDossier forme="bande" client={{ id: l.entreprise.id, nom: l.entreprise.nom }} demande={{ id: l.id, numero: l.numero }} aujourdhui={aujourdhui} />
@@ -575,7 +598,8 @@ function Fil({ d, articles, reponses, brouillons, aujourdhui, relire, equipe, en
         </div>
       ) : <Repondre key={l.id} d={d} articles={articles} reponses={reponses} brouillons={brouillons} envoye={relireTout} relire={relireTout} />}
       {fenetre ? <FenetreMotif sorte={fenetre} demande={d} fermer={() => setFenetre(null)} fait={apres} /> : null}
-      {suivi === 'incident' || suivi === 'correction'
+      {suivi === 'evolution' ? <FenetreRattacher demande={l.id} sujet={l.sujet} fermer={() => setSuivi(null)} fait={() => { setSuivi(null); relire(); }} />
+        : suivi === 'incident' || suivi === 'correction'
         ? <FenetreLien sorte={suivi} demande={d} enService={enService} fermer={() => setSuivi(null)} fait={() => { setSuivi(null); relire(); relireDecisions(); }} />
         : suivi ? <FenetreSuivi sorte={suivi} demande={d} equipe={equipe} fermer={() => setSuivi(null)} fait={() => { setSuivi(null); relire(); relireDecisions(); }} /> : null}
     </section>
@@ -630,8 +654,8 @@ function sousLesDoigts(): boolean {
 
 export function Support({ demande: demandee, vue: vueDemandee }: { demande: string | null; vue: string | null }) {
   const [choisie, setChoisie] = useState<string | null>(demandee);
-  const vueDe = (v: string | null) => (v === 'closes' || v === 'doc' ? v : 'ouvertes');
-  const [vue, setVue] = useState<'ouvertes' | 'closes' | 'doc'>(vueDe(vueDemandee));
+  const vueDe = (v: string | null) => (v === 'closes' || v === 'doc' || v === 'evolutions' ? v : 'ouvertes');
+  const [vue, setVue] = useState<'ouvertes' | 'closes' | 'doc' | 'evolutions'>(vueDe(vueDemandee));
   // Les ouvertes que je suis (0115) : un filtre de la liste, qui ne change pas l'adresse.
   const [miennes, setMiennes] = useState(false);
   const { moi } = useConsole();
@@ -641,7 +665,7 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
   useEffect(() => { if (vueDemandee) setVue(vueDe(vueDemandee)); }, [vueDemandee]);
   useEffect(() => {
     const p = new URLSearchParams();
-    if (choisie && vue !== 'doc') p.set('demande', choisie);
+    if (choisie && vue !== 'doc' && vue !== 'evolutions') p.set('demande', choisie);
     if (vue !== 'ouvertes') p.set('vue', vue);
     const s = p.toString();
     history.replaceState(null, '', `#/support${s ? `?${s}` : ''}`);
@@ -698,13 +722,15 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
         </div>
         {/* La documentation interne (0133) : une vue de l'écran, et le chemin du retour aux demandes. */}
         <div className="c-entete-actions">
-          {vue === 'doc' ? <Bouton icone="retour" onClick={() => setVue('ouvertes')}>{titre('console.ecran.support.doc.retour')}</Bouton>
-            : <Bouton icone="copier" onClick={() => setVue('doc')}>{titre('console.ecran.support.doc.ouvrir')}</Bouton>}
+          {vue === 'doc' || vue === 'evolutions' ? <Bouton icone="retour" onClick={() => setVue('ouvertes')}>{titre('console.ecran.support.doc.retour')}</Bouton> : null}
+          {vue !== 'evolutions' ? <Bouton icone="echange" onClick={() => setVue('evolutions')}>{titre('console.ecran.support.ev.ouvrir')}</Bouton> : null}
+          {vue !== 'doc' ? <Bouton icone="copier" onClick={() => setVue('doc')}>{titre('console.ecran.support.doc.ouvrir')}</Bouton> : null}
         </div>
       </header>
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
-      {vue === 'doc' ? <Documentation aujourdhui={lu?.aujourdhui ?? new Date().toISOString().slice(0, 10)} /> : lu ? (
+      {vue === 'doc' ? <Documentation aujourdhui={lu?.aujourdhui ?? new Date().toISOString().slice(0, 10)} />
+        : vue === 'evolutions' ? <Evolutions aujourdhui={lu?.aujourdhui ?? new Date().toISOString().slice(0, 10)} ouvrirDemande={(id) => { setVue('ouvertes'); setChoisie(id); }} /> : lu ? (
         <div className="c-sp-grille" ref={grille}>
           <div className="c-sp-gauche">
             <section className="c-carte c-liste-carte c-sp-liste" aria-label={titre('console.ecran.support.demandes')}>
@@ -739,7 +765,7 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
             {d ? <Cote d={d} client={lu.client} notes={lu.notes ?? []} aujourdhui={lu.aujourdhui} relire={relire} /> : null}
           </div>
           {d ? (
-            <Fil key={d.ligne.id} d={d} articles={lu.articles} reponses={lu.reponses ?? []} brouillons={brouillons.current} aujourdhui={lu.aujourdhui} relire={relire} equipe={lu.equipe ?? []} enService={lu.enService ?? null} />
+            <Fil key={d.ligne.id} d={d} articles={lu.articles} reponses={lu.reponses ?? []} evolution={lu.evolution ?? null} brouillons={brouillons.current} aujourdhui={lu.aujourdhui} relire={relire} equipe={lu.equipe ?? []} enService={lu.enService ?? null} />
           ) : (
             <section className="c-carte c-sp-fil c-sp-fil-vide">
               {choisie && l.etat === 'lu' && !l.enCours ? <Vide icone="chercher">{phrase('console.ecran.support.introuvable')}</Vide>

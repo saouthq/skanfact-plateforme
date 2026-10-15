@@ -502,6 +502,14 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'ce secret est déjà suivi : note son renouvellement sur sa ligne', cle: 'base.console.secret_deja', fr: 'ce secret est déjà suivi : note son renouvellement sur sa ligne' },
   { base: 'ce secret n\'est pas suivi', cle: 'base.console.secret_inconnu', fr: 'ce secret n\'est pas suivi' },
   { base: 'un renouvellement vient après le précédent', cle: 'base.console.secret_avant_precedent', fr: 'un renouvellement vient après le précédent' },
+  // Les demandes d'évolution (0134).
+  { base: 'cette évolution n\'existe pas', cle: 'base.support.evolution_inconnue', fr: 'cette évolution n\'existe pas' },
+  { base: 'le titre d\'une évolution : de trois à cent vingt caractères', cle: 'base.support.evolution_titre', fr: 'le titre d\'une évolution : de trois à cent vingt caractères' },
+  { base: 'ce qu\'une évolution demande : deux mille caractères au plus', cle: 'base.support.evolution_description', fr: 'ce qu\'une évolution demande : deux mille caractères au plus' },
+  { base: 'une évolution de ce titre existe déjà : rattache la demande à elle', cle: 'base.support.evolution_deja', fr: 'une évolution de ce titre existe déjà : rattache la demande à elle' },
+  { base: 'une évolution est à étudier, prévue, faite ou écartée', cle: 'base.support.evolution_etat', fr: 'une évolution est à étudier, prévue, faite ou écartée' },
+  { base: 'une évolution faite dit la version qui la livre, écrite comme 1.42.0', cle: 'base.support.evolution_version', fr: 'une évolution faite dit la version qui la livre, écrite comme 1.42.0' },
+  { base: 'une évolution écartée dit pourquoi : de trois à quatre cents caractères', cle: 'base.support.evolution_raison', fr: 'une évolution écartée dit pourquoi : de trois à quatre cents caractères' },
   // La documentation interne du support (0133).
   { base: 'une note privée : de trois à deux mille caractères', cle: 'base.support.note_longueur', fr: 'une note privée : de trois à deux mille caractères' },
   { base: 'une fiche est une réponse ou une procédure', cle: 'base.support.doc_sorte', fr: 'une fiche est une réponse ou une procédure' },

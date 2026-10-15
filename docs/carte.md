@@ -706,6 +706,10 @@ vaut pour tout le dépôt.*
     fiches, leurs gestes) ; `serveur/console/docsupport.ts` (`lireDocs`, `reponsesOffertes`, `poserReponse`) et ses routes
     dans `serveur/console/routes.ts` ; `web/console/src/ecrans/DocSupport.tsx` (`Documentation`, `NotesPrivees`), branchés
     dans `web/console/src/ecrans/Support.tsx` (`tests/console/docsupport.test.ts`, `tests/web/support.test.ts`).
+  - **Les demandes d'évolution** (1.42.0 ; `docs/console.md` C58) : base `0134_evolutions.sql` ; `serveur/console/evolutions.ts`
+    (`lireEvolutions`, `aEtudier`) et ses routes dans `serveur/console/routes.ts` ; `web/console/src/ecrans/Evolutions.tsx`
+    (`Evolutions`, `FenetreRattacher`), branché dans `web/console/src/ecrans/Support.tsx` (`tests/console/evolutions.test.ts`,
+    `tests/web/support.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

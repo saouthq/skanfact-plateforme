@@ -59,8 +59,8 @@ describe('le support, à la souris, des deux côtés', () => {
     const p = await cx.newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/console/${factice ? '?langue=factice' : ''}${hash}`);
-    await expect.poll(() => p.locator(hash.includes('vue=doc') ? '.c-sd' : '.c-sp-grille').count(), { timeout: 20_000 }).toBe(1);
-    if (hash.includes('demande=') && !hash.includes('vue=doc')) await expect.poll(() => p.locator('.c-sp-messages').count(), { timeout: 20_000 }).toBe(1);
+    await expect.poll(() => p.locator(hash.includes('vue=doc') ? '.c-sd' : hash.includes('vue=evolutions') ? '.c-ev' : '.c-sp-grille').count(), { timeout: 20_000 }).toBe(1);
+    if (hash.includes('demande=') && !/vue=(doc|evolutions)/.test(hash)) await expect.poll(() => p.locator('.c-sp-messages').count(), { timeout: 20_000 }).toBe(1);
     return p;
   };
   // L'application de Lina, sur une page.
@@ -456,6 +456,39 @@ describe('le support, à la souris, des deux côtés', () => {
     expect(erreurs).toEqual([]);
   }, 180_000);
 
+  it('les demandes d\'évolution (0134) : rattacher la demande à une évolution nouvelle ; la liste la compte en clients, et ouvre la demande', async () => {
+    const p = await consoleSur(`#/support?demande=${demande}`);
+    await cliquer(p.locator('.c-sp-suivi .c-menu > button'));
+    await cliquer(p.locator('.c-menu-liste button', { hasText: 'Rattacher à une évolution' }));
+    const d = p.getByRole('dialog');
+    const TITRE = `Le timbre réglable par client ${Date.now()}`;
+    // Ou une évolution qui existe, ou une nouvelle : la base de ce fichier peut déjà en avoir. La fenêtre attend sa liste
+    // avant de montrer l'un ou l'autre.
+    await expect.poll(() => d.locator('select, input').count(), { timeout: 15_000 }).toBeGreaterThan(0);
+    const nouvelle = d.getByRole('button', { name: 'C\'est une évolution nouvelle' });
+    if (await nouvelle.count()) await cliquer(nouvelle);
+    await d.getByLabel('Son titre').fill(TITRE);
+    await cliquer(d.getByRole('button', { name: 'Noter et rattacher' }));
+    // La demande dit l'évolution qu'elle réclame, et son état.
+    await expect.poll(() => p.locator('.c-sp-attaches').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain(`Évolution demandée : ${TITRE} À étudier`);
+    // La liste : un client, une demande ; le support ne décide pas (pas de menu) ; la demande s'ouvre d'un clic.
+    await cliquer(p.getByRole('button', { name: 'Les évolutions' }));
+    const ev = p.locator('.c-ev-item', { hasText: TITRE });
+    await expect.poll(() => ev.count(), { timeout: 15_000 }).toBe(1);
+    expect(net(await ev.locator('.c-ev-clients').innerText())).toBe('1 client');
+    expect(await ev.locator('.c-menu').count()).toBe(0);
+    await cliquer(ev.locator('.c-ev-demandes button').first());
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toBe(`#/support?demande=${demande}`);
+    await expect.poll(() => p.locator('.c-sp-messages').count(), { timeout: 15_000 }).toBe(1);
+    // Détacher : un geste, qui se répare en la rattachant de nouveau.
+    await cliquer(p.locator('.c-sp-suivi .c-menu > button'));
+    await cliquer(p.locator('.c-menu-liste button', { hasText: 'Détacher de l\'évolution' }));
+    // Sans incident ni évolution, la ligne des liens s'efface toute : on compte, on ne lit pas un texte qui n'est plus là.
+    await expect.poll(() => p.locator('.c-sp-attaches', { hasText: TITRE }).count(), { timeout: 15_000 }).toBe(0);
+    await fermer(p);
+    expect(erreurs).toEqual([]);
+  }, 120_000);
+
   it('l\'instrument ne trouve rien : la page Support de la console, sa fenêtre et ses demandes closes ; la page des demandes du client', async () => {
     // Une demande close, pour que la vue des closes ait de quoi se montrer.
     const close = String((await api('POST', `/entreprises/${ent}/support`, jClient, { sujet: 'Le logo flou sur le devis', texte: 'Le logo est flou sur le devis imprimé.', version: '1.3.0', page: 'devis' })).corps.id);
@@ -468,6 +501,11 @@ describe('le support, à la souris, des deux côtés', () => {
       // La documentation interne (0133) : la liste des fiches, et la fenêtre qui en écrit une.
       { nom: 'support-doc', hash: '#/support?vue=doc' },
       { nom: 'support-doc-ecrire', hash: '#/support?vue=doc', geste: async (q) => { await cliquer(q.locator('.c-sd .c-carte-tete .c-btn').first()); await q.getByRole('dialog').waitFor(); } },
+      // Les demandes d'évolution (0134) : la liste, et la fenêtre qui y rattache une demande.
+      { nom: 'support-evolutions', hash: '#/support?vue=evolutions' },
+      { nom: 'support-rattacher', hash: `#/support?demande=${demande}`, geste: async (q) => {
+        await cliquer(q.locator('.c-sp-suivi .c-menu > button')); await cliquer(q.locator('.c-menu-liste button').last()); await q.getByRole('dialog').waitFor();
+      } },
     ];
     const { faux, vus } = await mesurerLaConsole({
       ecrans: ECRANS,

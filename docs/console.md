@@ -1374,6 +1374,19 @@ Support :
 La direction et le support, jamais la technique (03 § 5) ; chaque geste au journal. Un geste nouveau, « valider ou
 retirer une fiche » (`console.support.valider`), est réservé à la direction.
 
+**C58. Les retours des clients et les demandes d'évolution** (1.42.0 ; base 0134 ; la liste des fonctions qui manquent, 35 :
+« gestion des retours clients et des demandes d'évolution » ; version légère). Une **évolution** est une idée nommée
+(« Exporter les factures en Excel ») ; l'équipe y **rattache** les demandes au support qui la réclament, depuis le menu de
+la demande (« Rattacher à une évolution… » : une qui existe, ou une nouvelle) — une demande en réclame une au plus, la
+rattacher ailleurs la déplace, et la détacher se fait d'un geste. La demande dit l'évolution qu'elle réclame et son état.
+Dans Support, **« Les évolutions »** (`#/support?vue=evolutions`) les range par le nombre de **clients** qui les
+demandent (deux demandes d'une même entreprise font un client), puis de demandes ; chacune dit son état et ouvre ses
+demandes d'un clic. La **direction** décide de l'état : à étudier, prévue, **faite** (avec la version qui la livre, écrite
+comme 1.42.0), **écartée** (avec sa raison, qui reste au journal). La direction et le support notent et rattachent ; la
+technique ne lit rien (03 § 5) ; chaque geste au journal. Un geste nouveau, « décider de l'état d'une évolution »
+(`console.support.evolutions`), est réservé à la direction. Prévenir les clients quand une évolution est faite viendra
+plus tard.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
