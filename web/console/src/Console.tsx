@@ -42,7 +42,8 @@ const OUVRE: Record<Page, readonly Role[]> = {
   nosfactures: ['direction'],
   // Le support se lit et se répond à la direction et au support ; la technique ne lit aucune donnée de client (03 § 5).
   support: ['direction', 'support'],
-  journal: ['direction'], equipe: ['direction'], service: ['direction', 'technique'],
+  // Le journal : la direction lit tout ; le support, ses propres gestes et ses accès (docs/console.md C37).
+  journal: ['direction', 'support'], equipe: ['direction'], service: ['direction', 'technique'],
   // Les réglages se lisent au support (répondre à un client sur un prix) ; leurs gestes sont à la direction.
   reglages: ['direction', 'support'],
 };

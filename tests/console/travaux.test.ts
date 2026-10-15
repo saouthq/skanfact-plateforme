@@ -31,7 +31,7 @@ describe('les travaux, relus prudemment', () => {
 });
 
 describe('qui attend quoi', () => {
-  const r = (x: Partial<ARegarder>): ARegarder => ({ sorte: 'ttn', cle: 'AB12CD34', entreprise: { id: 'e', nom: null }, statut: 'deposee', essais: 2,
+  const r = (x: Partial<ARegarder>): ARegarder => ({ sorte: 'ttn', cle: 'AB12CD34', entreprise: null, statut: 'deposee', essais: 2,
     prochain: null, deposeLe: null, depuis: '2026-10-13T08:00:00Z', motif: null, pieces: null, ...x });
   it('une panne se réessaie seule ; un refus, un compte retenu ou un échec attendent l\'entreprise', () => {
     expect(attenteDe(r({}))).toBe('seul');

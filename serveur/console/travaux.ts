@@ -26,8 +26,9 @@ export const SANS_TRACE = ['courriel', 'tej', 'cnss'] as const;
 
 export type TourLu = { nom: string; le: string; dureeMs: number; ok: boolean; compte: Record<string, number>; echecLe: string | null; echec: string | null };
 export type JourLu = { jour: string; n: number; bons: number; refus: number };
+// `entreprise` : pour la direction seulement ; la technique ne reçoit aucun identifiant de client (03 § 5 ; 0114).
 export type ARegarder = {
-  sorte: 'ttn' | 'signature' | 'paiement'; cle: string; entreprise: { id: string; nom: string | null };
+  sorte: 'ttn' | 'signature' | 'paiement'; cle: string; entreprise: { id: string; nom: string } | null;
   statut: string; essais: number | null; prochain: string | null; deposeLe: string | null; depuis: string;
   motif: { cle: string; valeurs: Record<string, unknown> } | null; pieces: number | null;
 };
@@ -76,9 +77,9 @@ export function lireTravaux(brut: unknown): TravauxLus {
     ttn: { enFile: entier(ttn.enFile) ?? 0, medianeS: entier(ttn.medianeS) },
     aRegarder: tableau(b.aRegarder).flatMap((r) => {
       const depuis = date(r.depuis), e = objet(r.entreprise), m = objet(r.motif);
-      if (!['ttn', 'signature', 'paiement'].includes(r.sorte as string) || !depuis || typeof r.cle !== 'string' || typeof e.id !== 'string' || typeof r.statut !== 'string') return [];
+      if (!['ttn', 'signature', 'paiement'].includes(r.sorte as string) || !depuis || typeof r.cle !== 'string' || typeof r.statut !== 'string') return [];
       return [{
-        sorte: r.sorte as ARegarder['sorte'], cle: r.cle, entreprise: { id: e.id, nom: typeof e.nom === 'string' ? e.nom : null },
+        sorte: r.sorte as ARegarder['sorte'], cle: r.cle, entreprise: typeof e.id === 'string' && typeof e.nom === 'string' ? { id: e.id, nom: e.nom } : null,
         statut: r.statut, essais: entier(r.essais), prochain: date(r.prochain), deposeLe: date(r.deposeLe), depuis,
         motif: typeof m.cle === 'string' ? { cle: m.cle, valeurs: objet(m.valeurs) } : null, pieces: entier(r.pieces),
       }];

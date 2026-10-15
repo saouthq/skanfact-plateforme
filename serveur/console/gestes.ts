@@ -4,7 +4,7 @@
 //
 //   direction   tout : les clients, les abonnements, les paiements, l'équipe, le journal, le service, les réglages ;
 //   support     « À décider », les clients, prolonger un essai (de 7 à 30 jours, une fois : la base le tient), lire les
-//               réglages, répondre aux demandes de support ;
+//               réglages, répondre aux demandes de support, lire ses propres gestes au journal ;
 //   technique   le service seulement : aucune donnée de client.
 
 import { texteConnu } from '../../textes/index.ts';
@@ -27,7 +27,10 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // Offrir un mois (0113) : le support aussi, un par entreprise sur douze mois ; il va sur la prochaine facture.
   { code: 'console.abonnement.offrir_mois', roles: [D, S], ecrit: true },
   { code: 'console.abonnement.gerer', roles: [D], ecrit: true },
-  { code: 'console.journal.voir', roles: [D], ecrit: false },
+  // Le journal (0114) : la direction lit tout ; le support, ses propres gestes et ses accès aux dossiers (la base le tient).
+  { code: 'console.journal.voir', roles: [D, S], ecrit: false },
+  // Exporter la sélection du journal : la direction seule, avec son motif, au journal.
+  { code: 'console.journal.exporter', roles: [D], ecrit: true },
   { code: 'console.equipe.voir', roles: [D], ecrit: false },
   { code: 'console.equipe.gerer', roles: [D], ecrit: true },
   { code: 'console.service.voir', roles: [D, T], ecrit: false },

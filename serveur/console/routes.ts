@@ -38,7 +38,8 @@ import {
   lireSauvegardes, nuits as nuitsGardees, pointLePlusAncien, promesses, retardsParHeure,
 } from './sauvegardes.ts';
 import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRACE, TOURS } from './travaux.ts';
-import { argentADecider, couts, encaisse, encaisseDuMois, lirePaiements, moisDemande, MOYENS, ouvertes } from './paiements.ts';
+import { depuisLa, plageDe, reserveALaDirection, sorteDe } from './journal.ts';
+import { argentADecider, couts, encaisse, encaisseDuMois, lirePaiements, moisAvantDe, moisDemande, MOYENS, ouvertes } from './paiements.ts';
 import { dansLeFiltre, etatTtn, FILTRES, ligne, lireNosFactures, resume as resumeDesFactures, type Filtre } from './nosfactures.ts';
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
 import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe, taches, titreDeTache, versionDAvant, type EtatSuiveur } from './versions.ts';
@@ -48,7 +49,7 @@ import {
   ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, lireContenuOffres, lireRemises, CODES_REMISE, QUOI_CONTENU, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
 } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
-import { articleConnu, articlesDeLAide, CANAUX_NOTES, compter, etatDe, lireSupport, ranger, SANS_REPONSE_HEURES, suggererPour } from './support.ts';
+import { articleConnu, articlesDeLAide, CANAUX_NOTES, CLOSES_PAR_PAGE, compter, etatDe, lireSupport, ranger, SANS_REPONSE_HEURES, suggererPour } from './support.ts';
 import { lireAcces, HEURES_MAX, PAGE } from '../support/acces.ts';
 import { filtrer } from '../v10/droits.ts';
 import { versionTeif } from '../v10/teif.ts';
@@ -61,6 +62,21 @@ const REGLES_BRANCHEES = new Set(REGLES.filter((r) => r.branchee).map((r) => r.i
 const motifGeste = z.string().trim().min(3, 'console.motif_requis').max(500);
 const LIMITE_MAX = 200;
 const limite = (q: Record<string, string>) => Math.min(Math.max(Number(q.limite ?? 50) || 50, 1), LIMITE_MAX);
+// Les filtres du journal (0114), lus de l'adresse : qui, une entreprise, la sorte, la période, un mot, les gestes réservés à la
+// direction, ce que le système a fait seul.
+function filtresDuJournal(q: Record<string, string>, jour: string) {
+  const plage = plageDe(q.plage);
+  const mot = typeof q.q === 'string' ? q.q.trim().slice(0, 100) : '';
+  return {
+    qui: uuid.safeParse(q.qui).success ? q.qui as string : null, entreprise: uuid.safeParse(q.entreprise).success ? q.entreprise as string : null,
+    sorte: sorteDe(q.sorte), plage, depuis: depuisLa(plage, jour), q: mot || null, reserves: q.reserves === '1', systeme: q.systeme === '1',
+  };
+}
+const EXPORT_JOURNAL_MAX = 5000;
+// Les gestes écrits au journal qui sont réservés à la direction (serveur/console/journal.ts).
+async function gestesReserves(tx: Transaction): Promise<string[]> {
+  return (await lireJson<string[]>(tx, 'select plateforme.console_gestes_ecrits() v')).filter(reserveALaDirection);
+}
 const CURSEUR = /^(\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?(?:Z|[+-]\d{2}(?::\d{2})?))\|([0-9a-f-]{36})$/;
 
 // Ce que la base rend, lu au nom du membre de l'équipe (la base refuse sans session de la console).
@@ -252,7 +268,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const paiements = role === 'direction' ? lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`])) : null;
       const revenus = paiements ? encaisseDuMois(paiements) : undefined;
       const argent = paiements ? argentADecider(paiements, liste, jour) : null;
-      const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus);
+      // La tuile « Inscriptions » compte les lignes de la liste qu'elle ouvre, par la fonction de la liste (C3 ; 0114).
+      const inscriptions = role === 'technique' ? 0 : (await selectionClients(transaction(tx), jour, { nouvelles: '1' })).dansVue.length;
+      const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus, inscriptions);
       const t = role === 'direction' ? { ...pourLeSupport, revenusDuMois } : pourLeSupport;
       // Les relances que le serveur a envoyées tout seul depuis hier (la même table que l'écran Abonnements).
       const relances = role === 'technique' ? []
@@ -691,27 +709,109 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   // ── Le journal (C1) ──────────────────────────────────────────────────────────────────────────────────────────────────
   ajouter({
     methode: 'GET', chemin: '/console/journal', geste: 'console.journal.voir',
-    traiter: async ({ query }, tx) => {
+    traiter: async ({ query, qui }, tx) => {
       const m = CURSEUR.exec(query.avant ?? '');
       const n = limite(query);
-      const qui = uuid.safeParse(query.qui).success ? query.qui : null;
-      const entreprise = uuid.safeParse(query.entreprise).success ? query.entreprise : null;
-      const lignes = await lireJson<{ curseur: string; id: string; geste: string; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }[]>(transaction(tx),
-        'select plateforme.console_journal($1, $2, $3::timestamptz, $4::uuid, $5) v', [qui, entreprise, m?.[1] ?? null, m?.[2] ?? null, n]);
+      const jour = aujourdhuiATunis();
+      const f = filtresDuJournal(query, jour);
+      const x = transaction(tx);
+      // Les gestes réservés à la direction : ceux du journal dont le geste de la console n'est ouvert qu'à elle (lu dans la
+      // liste des gestes ; serveur/console/journal.ts), parmi ceux qui y sont écrits.
+      const reserves = await gestesReserves(x);
+      const lignes = await lireJson<{ curseur: string; id: string; geste: string; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }[]>(x,
+        'select plateforme.console_journal($1, $2, $3::timestamptz, $4::uuid, $5, $6, $7::timestamptz, $8, $9::text[], $10) v',
+        [f.qui, f.entreprise, m?.[1] ?? null, m?.[2] ?? null, n, f.sorte, f.depuis, f.q, f.reserves ? reserves : null, f.systeme]);
       const derniere = lignes.at(-1);
+      // Les quatre chiffres de la maquette, sur trente jours, quel que soit le filtre (ils ouvrent chacun leur liste).
+      const chiffres = await lireJson(x, 'select plateforme.console_journal_chiffres($1::timestamptz, $2::text[], $3::timestamptz) v',
+        [depuisLa('30j', jour), reserves, maintenant()]);
       // Le curseur ne sert qu'à la suite : il ne part pas avec chaque ligne. Un geste du service, ou des réglages, dit sur quoi
-      // il porte.
+      // il porte ; chacun dit s'il est réservé à la direction.
       return {
         corps: {
-          lignes: lignes.map((l) => ({ ...l, curseur: undefined, service: sujetDuService(l.geste, l.avant, l.apres) ?? undefined,
+          aujourdhui: jour, role: roleDe(qui), plage: f.plage, chiffres,
+          lignes: lignes.map((l) => ({ ...l, curseur: undefined, reserve: reserveALaDirection(l.geste), service: sujetDuService(l.geste, l.avant, l.apres) ?? undefined,
             reglages: sujetDesReglages(l.geste, l.avant, l.apres) ?? undefined })),
           suite: lignes.length === n && derniere ? `${derniere.curseur}|${derniere.id}` : null,
         },
       };
     },
   });
+  // Les accès aux dossiers (la maquette Journal, second onglet) : tous pour la direction, les siens pour le support ; le
+  // plus récent d'abord, par pages de cinquante ; chacun avec ses pages lues.
+  ajouter({
+    methode: 'GET', chemin: '/console/journal/acces', geste: 'console.journal.voir',
+    traiter: async ({ query }, tx) => {
+      const debut = Math.max(Math.trunc(Number(query.debut ?? 0)) || 0, 0);
+      const lu = await lireJson<{ total: number; lignes: unknown[] }>(transaction(tx), 'select plateforme.console_acces_tous($1, $2) v', [debut, maintenant()]);
+      return { corps: { aujourdhui: aujourdhuiATunis(), debut, total: lu.total, lignes: lu.lignes, parPage: 50 } };
+    },
+  });
+  // Exporter la sélection du journal : la direction seule, avec son motif ; le geste s'écrit au journal (le nombre de lignes
+  // et les filtres, jamais les lignes), puis la sélection revient, cinq mille lignes au plus.
+  ajouter({
+    methode: 'POST', chemin: '/console/journal/export', geste: 'console.journal.exporter',
+    corps: z.object({ motif: z.string().max(400), filtres: z.record(z.string(), z.string().max(200)).optional() }),
+    traiter: async ({ corps }, tx) => {
+      if (corps.motif.trim().length < 3) return refusDuChamp('motif', 'console.motif_requis');
+      const jour = aujourdhuiATunis();
+      const q = corps.filtres ?? {};
+      const f = filtresDuJournal(q, jour);
+      const x = transaction(tx);
+      const reserves = await gestesReserves(x);
+      type LigneLue = { le: string; id: string; geste: string; sorte: string; motif: string; role: string | null; qui: { nom: string } | null;
+        entreprise: { raisonSociale: string } | null; membre: { nom: string } | null; curseur: string };
+      const lignes: LigneLue[] = [];
+      let avant: [string, string] | null = null;
+      while (lignes.length < EXPORT_JOURNAL_MAX) {
+        const page: LigneLue[] = await lireJson<LigneLue[]>(x, 'select plateforme.console_journal($1, $2, $3::timestamptz, $4::uuid, 200, $5, $6::timestamptz, $7, $8::text[], $9) v',
+          [f.qui, f.entreprise, avant?.[0] ?? null, avant?.[1] ?? null, f.sorte, f.depuis, f.q, f.reserves ? reserves : null, f.systeme]);
+        lignes.push(...page);
+        const d: LigneLue | undefined = page.at(-1);
+        if (page.length < 200 || !d) break;
+        avant = [d.curseur, d.id];
+      }
+      const gardees = lignes.slice(0, EXPORT_JOURNAL_MAX);
+      const gardes = Object.fromEntries(['qui', 'entreprise', 'sorte', 'plage', 'q', 'reserves', 'systeme'].filter((k) => typeof q[k] === 'string' && q[k] !== '').map((k) => [k, q[k]]));
+      await x.query('select plateforme.console_noter_export($1, $2, $3, $4)', ['journal', gardees.length, JSON.stringify(gardes), corps.motif.trim()]);
+      return { statut: 201, corps: { aujourdhui: jour, coupe: lignes.length > EXPORT_JOURNAL_MAX, lignes: gardees.map((l) => ({
+        le: l.le, geste: l.geste, sorte: l.sorte, qui: l.qui?.nom ?? null, role: l.role, entreprise: l.entreprise?.raisonSociale ?? null,
+        membre: l.membre?.nom ?? null, motif: l.motif, reserve: reserveALaDirection(l.geste) })) } };
+    },
+  });
 
   // ── L'équipe (10 § 2.10) ─────────────────────────────────────────────────────────────────────────────────────────────
+  // Les appareils et les sessions d'un membre (0114, l'audit F09) : la direction, pour chacun ; chacun, pour lui-même (la
+  // base le revérifie). Fermer une session, oublier un appareil : avec son motif, au journal.
+  ajouter({
+    methode: 'GET', chemin: '/console/equipe/:membre/appareils', geste: 'console.session',
+    traiter: async ({ params }, tx) => {
+      if (!uuid.safeParse(params.membre).success) throw new Introuvable();
+      const lu = await lireJson<Record<string, unknown> | null>(transaction(tx), 'select plateforme.console_appareils_membre($1, $2) v', [params.membre, maintenant()]);
+      if (!lu) throw new Introuvable();
+      return { corps: { aujourdhui: aujourdhuiATunis(), ...lu } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/equipe/sessions/:session/fermer', geste: 'console.session',
+    corps: z.object({ motif: z.string().max(500) }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!uuid.safeParse(params.session).success) throw new Introuvable();
+      if (corps.motif.trim().length < 3) return refusDuChamp('motif', 'console.motif_requis');
+      await transaction(tx).query('select plateforme.console_fermer_session($1, $2, $3)', [params.session, corps.motif.trim(), maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/equipe/appareils/:appareil/oublier', geste: 'console.session',
+    corps: z.object({ motif: z.string().max(500) }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!uuid.safeParse(params.appareil).success) throw new Introuvable();
+      if (corps.motif.trim().length < 3) return refusDuChamp('motif', 'console.motif_requis');
+      await transaction(tx).query('select plateforme.console_oublier_appareil($1, $2, $3)', [params.appareil, corps.motif.trim(), maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
   ajouter({
     methode: 'GET', chemin: '/console/equipe', geste: 'console.equipe.voir',
     // `droits` : ce que chaque rôle ouvre, lu dans la liste des gestes (serveur/console/gestes.ts) — l'écran ne le recopie
@@ -1439,7 +1539,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           } : null,
           recus: { total: p.recus.length, lignes: p.recus.slice(debut, debut + n).map((r) => ({ ...r, montant: versTexte(r.montant, r.decimales) })),
             suite: debut + n < p.recus.length ? debut + n : null },
-          doivent, trop, aEmettre: p.aEmettre, couts: couts(p.couts, e),
+          // Ce qui reste, provisoire tant que le mois court ou qu'un coût du mois d'avant manque (0114).
+          doivent, trop, aEmettre: p.aEmettre, couts: couts(p.couts, e, { courant: mois === jour.slice(0, 7),
+            moisAvant: lirePaiements(await lireJson(x, 'select plateforme.console_paiements($1::date) v', [`${moisAvantDe(mois)}-01`])).couts }),
           // Reçus hors de la plateforme ce mois (0113), et nos factures payées puis défaites (tout mois confondu).
           horsPlateforme: { total: p.horsPlateforme.length, lignes: p.horsPlateforme.slice(debutHors, debutHors + n).map((h) => ({ ...h, montant: versTexte(h.montant, 3) })),
             suite: debutHors + n < p.horsPlateforme.length ? debutHors + n : null },
@@ -1501,7 +1603,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   });
 
   // ── Le support (docs/support.md ; 0095) ─────────────────────────────────────────────────────────────────────────────
-  // Les demandes ouvertes, rangées (sans réponse depuis 24 h d'abord), puis les cent dernières closes ; celles d'un seul
+  // Les demandes ouvertes, rangées (sans réponse depuis 24 h d'abord), puis les closes par pages de cinquante (`closes`, à
+  // partir de la combientième : 0114) ; celles d'un seul
   // client si on le nomme (sa fiche). La demande ouverte à l'écran porte ses messages, de quoi joindre la personne, et la
   // carte de son client — lue sur la MÊME liste que les clients (C3). Les réponses types : les articles de l'Aide que le
   // client lit dans son application, jamais un second texte.
@@ -1513,7 +1616,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const jour = aujourdhuiATunis(t);
       const entreprise = uuid.safeParse(query.entreprise).success ? query.entreprise : null;
       const demande = uuid.safeParse(query.demande).success ? query.demande : null;
-      const s = lireSupport(await lireJson(x, 'select plateforme.console_support($1, $2) v', [entreprise, demande]));
+      const debutCloses = Math.max(Math.trunc(Number(query.closes ?? 0)) || 0, 0);
+      const s = lireSupport(await lireJson(x, 'select plateforme.console_support($1, $2, $3) v', [entreprise, demande, debutCloses]));
       const client = s.demande
         ? (await lesEntreprises(x, jour)).find((e) => e.id === s.demande?.ligne.entreprise.id) ?? null
         : null;
@@ -1522,6 +1626,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           aujourdhui: jour, maintenant: t.toISOString(), entreprise,
           comptes: compter(s.ouvertes, t),
           ouvertes: ranger(s.ouvertes, t), closes: s.closes.map((l) => ({ ...l, etat: etatDe(l, t) })),
+          pagesCloses: { debut: debutCloses, total: s.nCloses, parPage: CLOSES_PAR_PAGE },
           demande: s.demande ? { ...s.demande, etat: etatDe(s.demande.ligne, t), suggestions: suggererPour(s.demande) } : null,
           client: client ? {
             id: client.id, nom: client.raisonSociale, etat: client.etat, faits: client.faits,

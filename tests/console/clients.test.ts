@@ -85,6 +85,15 @@ describe('Clients : les vues du métier', () => {
     expect(dans('tout')).toBe('ABCDEFGHIJKLM');
     expect(comptesDesVues(LISTE, JOUR)).toEqual({ tout: 13, a_appeler: 3, argent: 2, silencieux: 2, tenus: 1, cabinet: 1 });
   });
+
+  it('jamais ouverte, le silence se compte depuis l\'inscription : née il y a neuf jours, pas encore ; dix, oui (0114)', () => {
+    const neuve = (creeLe: string) => lireEntreprises([brute('Née', { essaiJusquAu: '2026-11-01' }, { derniereActivite: null, creeLe })], JOUR, REGLES_DE_DEPART)[0];
+    const a = neuve('2026-10-04'), b = neuve('2026-10-03'), c = neuve(JOUR);
+    if (!a || !b || !c) throw new Error('trois entreprises attendues');
+    expect(dansLaVue(c, 'silencieux', JOUR)).toBe(false);
+    expect(dansLaVue(a, 'silencieux', JOUR)).toBe(false);
+    expect(dansLaVue(b, 'silencieux', JOUR)).toBe(true);
+  });
 });
 
 describe('Clients : l\'échéance et ce que rapporte chaque ligne', () => {

@@ -33,7 +33,8 @@ type LigneAbo = { essai_jusqu_au: string; paye_jusqu_au: string | null; offre: O
   modules?: ModuleAchete[]; delai_echeance?: string | null; delai_jusqu_au?: string | null; suivante_offre?: Offre | null; suivante_periodicite?: Periodicite | null; suivante_a_partir_du?: string | null;
   // 0113 : le mois offert qui attend la prochaine facture, les modules qui partent au renouvellement.
   mois_offerts?: number; modules_a_retirer?: ModuleAchete[] };
-type Membre = { nom: string; email: string; roles: string[]; depuis: string; derniereConnexion: string | null };
+// `derniereIci` (0114) : son dernier geste dans CETTE entreprise ; `derniereConnexion`, sa dernière connexion, où que ce soit.
+type Membre = { nom: string; email: string; roles: string[]; depuis: string; derniereConnexion: string | null; derniereIci?: string | null };
 type CabinetDe = { id: string; nom: string; place: Place; mandat: { statut: 'propose' | 'actif'; debut: string } | null };
 type Evenement = { id: string; le: string; nature: string; par: 'systeme' | 'exploitation'; motif: string | null; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null; qui: { nom: string; role: Role } | null };
 type Donnees = {
@@ -41,6 +42,8 @@ type Donnees = {
   organisation: { id: string; type: string; nom: string }; tenuePar: string | null; faits: Faits; ligne: LigneAbo | null; etat: Etat; gestes: Geste[];
   membres: Membre[]; comptes: { etablissements: number; caisses: number; salaries: number; piecesCreees: number; piecesEmises: { mois: string; n: number }[] };
   prolongeDejaUneFois: boolean; evenements: Evenement[]; cabinets: CabinetDe[]; attend: Attente[];
+  // Le dernier instant où quelqu'un a travaillé dans cette entreprise (0114, par entreprise : jamais ailleurs).
+  derniereActivite?: string | null;
   // Ses demandes au support (0095), rangées par la fonction de l'écran Support (C3).
   support: { comptes: { ouvertes: number; aRepondre: number }; ouvertes: LigneDemande[]; closes: LigneDemande[] };
   // Ses factures d'abonnement (docs/abonnement.md B2–B4), et l'entreprise SkanFact où elles naissent.
@@ -859,7 +862,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
   // Le mois en cours et celui d'avant, pour « Pièces émises » (la maquette : « 214 · 353 en septembre »).
   const moisAvant = derniersMois(f.aujourdhui)[10] ?? '';
   const emisesAvant = emises.find((x) => x.mois === moisAvant)?.n ?? 0;
-  const derniereConnexion = f.membres.map((m) => m.derniereConnexion).filter((x): x is string => !!x).sort().at(-1) ?? null;
+  const derniereActivite = f.derniereActivite ?? null;
   const remiseCabinet = f.groupe.remise && f.groupe.remise.nature === 'cabinet' ? f.groupe.remise : null;
   // Le geste qui répond à une ligne de « Ce qui attend » : encaisser quand le rôle le permet, sinon prolonger ; écrire au
   // propriétaire d'un essai qui n'a pas servi. Le premier est vert : c'est l'étape suivante.
@@ -987,7 +990,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
                     {v === null ? <><b className="c-cl-rien">—</b><small>{dire('console.ecran.fiche.c.non_mesure')}</small></> : <><b>{v}</b>{sous ? <small>{sous}</small> : null}</>}</div>
                 ))}
               </div>
-              <p className="c-fiche-comptes-pied">{phrase('console.ecran.fiche.c.pied', { quand: derniereConnexion ? quand(derniereConnexion, f.aujourdhui) : dire('console.ecran.temps.jamais') })}</p>
+              <p className="c-fiche-comptes-pied">{phrase('console.ecran.fiche.c.pied', { quand: derniereActivite ? quand(derniereActivite, f.aujourdhui) : dire('console.ecran.temps.jamais') })}</p>
             </section>
 
             {/* Une procédure de reprise en cours : dans la colonne large, sous les comptes (la carte dit ce qui manque). */}
@@ -1090,6 +1093,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
                   <span data-donnee>{m.email}</span>
                   <span>{m.roles.map((r) => dire(`role.${r}`)).join(', ')} · {dire('console.ecran.fiche.depuis', { le: jourCourt(jourDe(m.depuis)) })}</span>
                   <span>{titre(m.derniereConnexion ? 'console.ecran.fiche.connecte' : 'console.ecran.fiche.jamais_connecte', m.derniereConnexion ? { quand: quand(m.derniereConnexion, f.aujourdhui) } : {})}</span>
+                  <span>{titre(m.derniereIci ? 'console.ecran.fiche.ici' : 'console.ecran.fiche.jamais_ici', m.derniereIci ? { quand: quand(m.derniereIci, f.aujourdhui) } : {})}</span>
                 </div>
               </li>
             ))}

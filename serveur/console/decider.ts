@@ -132,16 +132,19 @@ export type Tableau = {
   service: { etat: 'ok' } | { etat: 'problemes'; n: number; graves: number } | { etat: 'non_mesure'; raison: 'pas_de_veille' | 'veille_silencieuse'; derniere?: string };
 };
 
-// Une entreprise inscrite ces sept derniers jours, aujourd'hui compris : la tuile « Inscriptions » la compte, et la liste
-// des clients (« ?nouvelles=1 ») la montre, par cette seule règle (C3).
+// Une entreprise inscrite ces sept derniers jours, aujourd'hui compris : la liste des clients (« ?nouvelles=1 ») montre les
+// lignes qui en ont une, par cette seule règle (C3).
 export const inscriteCetteSemaine = (e: Entreprise, jour: string) => e.creeLe >= plusJours(jour, -6);
 
+// `inscriptions` : les LIGNES de la liste que la tuile ouvre (une ligne par organisation : un groupe de deux sociétés
+// nouvelles en fait une), comptées par la route avec la fonction de la liste (0114 ; avant, la tuile comptait les
+// entreprises, et disait 237 pour une liste de 236). Sans elle, les entreprises de la semaine.
 export function tableau(liste: Entreprise[], veille: Veille, jour: string, demandes: LigneDemande[] = [], maintenant: Date = new Date(),
-  revenus: Mesure = { mesure: false, raison: 'editeur_absent' }): Tableau {
+  revenus: Mesure = { mesure: false, raison: 'editeur_absent' }, inscriptions: number | null = null): Tableau {
   const de = (c: Categorie) => liste.filter((e) => categorie(e) === c);
   const actifs = de('actif');
   return {
-    entreprisesDeLaSemaine: liste.filter((e) => inscriteCetteSemaine(e, jour)).length,
+    entreprisesDeLaSemaine: inscriptions ?? liste.filter((e) => inscriteCetteSemaine(e, jour)).length,
     essais: de('essai').length,
     actifs: { total: actifs.length, essentiel: actifs.filter((e) => e.faits.offre === 'essentiel').length, complet: actifs.filter((e) => e.faits.offre === 'complet').length },
     enRetard: de('en_retard').length,
@@ -175,7 +178,11 @@ export type Argent = { defaites: readonly Defaite[]; aEmettre: readonly AEmettre
 // Une facture préparée attend d'être émise : au-delà de deux jours, elle demande un geste (l'émettre, ou la supprimer).
 export const A_EMETTRE_JOURS = 2;
 
-// Un essai qui finit dans trois jours sans avoir servi : pas une pièce créée (devis, facture, achat).
+// « A servi » n'a qu'une définition (0114, plateforme.pieces_creees) : une pièce créée dans l'entreprise — un devis, une
+// facture, un achat de son dossier, ou une pièce faite par le serveur ou l'API (une vente, un ticket, un achat). La liste
+// des clients (« à appeler ») et « À décider » la lisent toutes deux ici.
+export const aServi = (e: Pick<Entreprise, 'pieces'>) => e.pieces > 0;
+// Un essai qui finit dans trois jours sans avoir servi.
 export const ESSAI_SANS_USAGE_JOURS = 3;
 export const LECTURE_SEULE_DE_LA_SEMAINE = 7;
 
@@ -230,7 +237,7 @@ export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role
       // Une suspension est une décision de SkanFact : elle n'a pas à revenir ici.
       else if (s.etat === 'lecture_seule' && s.raison !== 'suspendu' && joursEntre(s.depuis, jour) < LECTURE_SEULE_DE_LA_SEMAINE) {
         lignes.push([3, joursEntre(s.depuis, jour), { sorte: 'lecture_seule', ouvre: 'fiche', entreprise: qui, depuis: s.depuis, raison: s.raison }]);
-      } else if (s.etat === 'essai' && s.jours <= ESSAI_SANS_USAGE_JOURS && e.pieces === 0) {
+      } else if (s.etat === 'essai' && s.jours <= ESSAI_SANS_USAGE_JOURS && !aServi(e)) {
         lignes.push([4, s.jours, { sorte: 'essai_sans_usage', ouvre: 'fiche', entreprise: qui, jusquAu: s.jusquAu, jours: s.jours, proprietaire: e.proprietaire }]);
       }
     }

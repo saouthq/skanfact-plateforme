@@ -10,7 +10,7 @@ import { montant } from '../argent.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
 import { dans, deMois, jourCourt, jourDe, jourMois, moisEnMots, quand } from '../temps.ts';
 import { MoisNav, moisLu, moisVoisin } from '../mois.tsx';
-import { Alerte, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, toast, Vide, Zone } from '../ui.tsx';
+import { Alerte, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
 
 type Qui = { id: string; nom: string };
 type Moyen = 'konnect' | 'virement' | 'cheque' | 'autre';
@@ -36,7 +36,8 @@ type Donnees = {
   encaisse: { devise: string; total: string; rembourse: string; reglements: number; parMoyen: Record<Moyen, string>; autresDevises: { devise: string; total: string }[] } | null;
   recus: { total: number; lignes: Recu[]; suite: number | null };
   doivent: Doit[]; trop: Trop[]; aEmettre: AEmettre[];
-  couts: { lignes: Cout[]; total: string; reste: string | null };
+  // `provisoire` (0114) : le mois court encore, ou un coût du mois d'avant (`absents`, par son nom) n'a pas été saisi.
+  couts: { lignes: Cout[]; total: string; reste: string | null; n: number; absents: string[]; provisoire: boolean };
   horsPlateforme: { total: number; lignes: Hors[]; suite: number | null };
   defaites: Defaite[];
 };
@@ -137,8 +138,15 @@ function Couts({ d, ajouter, retirer, principal }: { d: Donnees; ajouter: () => 
       {d.encaisse && d.couts.reste === null && !gardes.length ? <p className="c-pa-couts-vide">{phrase(`${K}.c.reste_sans`, { mois: nom })}</p> : null}
       {d.encaisse && d.couts.reste !== null ? (
         <p className={`c-pa-reste${d.couts.reste.startsWith('-') ? ' c-pa-reste-moins' : ''}`}>
-          <span>{titre(`${K}.c.reste`, { mois: nom })}</span><b className="c-mono" data-donnee>{montant(d.couts.reste)}</b>
+          <span>{titre(`${K}.c.reste`, { mois: nom })}{d.couts.provisoire ? <> <Puce ton="a_regarder">{dire(`${K}.c.provisoire`)}</Puce></> : null}</span>
+          <b className="c-mono" data-donnee>{montant(d.couts.reste)}</b>
           <span className="c-sous c-bloc">{phrase(`${K}.c.reste_sous`, { encaisse: montant(d.encaisse.total), couts: montant(d.couts.total) })}</span>
+          {d.couts.provisoire ? (
+            <span className="c-sous c-bloc c-pa-provisoire">
+              {[d.courant ? maj(selon(d.couts.n, `${K}.c.provisoire_mois`)) : null,
+                d.couts.absents.length ? phrase(`${K}.c.provisoire_absents`, { liste: d.couts.absents.join(', ') }) : null].filter(Boolean).join(' ')}
+            </span>
+          ) : null}
         </p>
       ) : null}
       <Bouton large icone="plus" onClick={ajouter} {...(principal ? { ton: 'principal' as const } : {})}>{titre(`${K}.c.ajouter`)}</Bouton>

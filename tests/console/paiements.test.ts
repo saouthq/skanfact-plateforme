@@ -21,7 +21,7 @@ import { creerPool } from '../../serveur/base.ts';
 import { routesAbonnement } from '../../serveur/abonnement/routes.ts';
 import { mettreEnPlaceCode, quiEst, type Contexte } from '../../serveur/connexion.ts';
 import { routesConsole } from '../../serveur/console/routes.ts';
-import { couts, encaisse, moisDemande, moyenDe, ouvertes, type Ouverte, type Recu } from '../../serveur/console/paiements.ts';
+import { annuleeParSesAvoirs, couts, encaisse, moisAvantDe, moisDemande, moyenDe, ouvertes, type Ouverte, type Recu } from '../../serveur/console/paiements.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { aujourdhuiATunis } from '../../serveur/reglements.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
@@ -297,11 +297,17 @@ describe('les règles, pures', () => {
     expect(['virement', 'cheque', 'especes', 'traite', 'carte', 'autre'].map((m) => moyenDe(m, false))).toEqual(['virement', 'cheque', 'autre', 'autre', 'autre', 'autre']);
   });
   it('trop payé, et annulée réglée quand même ; une facture soldée n\'est nulle part', () => {
-    const o = (net: bigint, avoirs: bigint[], reglements: bigint[], echeance = '2026-10-10'): Ouverte => ({ piece: `p${net}${reglements.join()}`, numero: null, echeance, debut: '2026-10-01',
-      fin: '2026-10-31', devise: 'TND', decimales: 3, net, avoirs, reglements, entreprise: { id: 'e', nom: 'E' }, ecran: '' });
+    const o = (net: bigint, avoirs: bigint[], reglements: bigint[], echeance = '2026-10-10', timbre = 0n): Ouverte => ({ piece: `p${net}${reglements.join()}`, numero: null, echeance, debut: '2026-10-01',
+      fin: '2026-10-31', devise: 'TND', decimales: 3, net, avoirs, reglements, entreprise: { id: 'e', nom: 'E' }, ecran: '', timbre });
     const r = ouvertes([o(47410n, [], [50000n]), o(47410n, [47410n], [47410n]), o(47410n, [], [47410n]), o(47410n, [11900n], [], '2026-10-12')], [], '2026-10-14');
     expect(r.trop.map((t) => [t.trop, t.annulee])).toEqual([['2.590', false], ['47.410', true]]);
     expect(r.doivent).toMatchObject([{ reste: '35.510', credite: '11.900', retard: 2 }]);
+    // Un avoir qui annule tout, sauf le timbre d'un dinar (0114) : la facture réglée en entier est annulée, et le trop est
+    // tout sauf le timbre. Il manquerait un millime de plus à l'avoir : elle ne l'est pas.
+    const t = ouvertes([o(48410n, [47410n], [48410n], '2026-10-10', 1000n), o(48410n, [47409n], [48410n], '2026-10-10', 1000n)], [], '2026-10-14');
+    expect(t.trop.map((x) => [x.trop, x.annulee])).toEqual([['47.410', true], ['47.409', false]]);
+    expect(annuleeParSesAvoirs(48410n, 47410n, 1000n)).toBe(true);
+    expect(annuleeParSesAvoirs(48410n, 0n, 48410n)).toBe(false);
   });
   it('ce qui reste ne se dit qu\'avec des coûts saisis, et en dinars', () => {
     const c = { id: 'c', libelle: 'SMS', montant: 186000n, dApres: 'F', saisiLe: '', saisiPar: null, retireLe: null, retirePar: null };
@@ -310,6 +316,16 @@ describe('les règles, pures', () => {
     expect(couts([{ ...c, retireLe: 'hier' }], e).reste).toBeNull();
     expect(couts([c], e).reste).toBe('814.000');
     expect(couts([c], { ...e, devise: 'EUR' }).reste).toBeNull();
+    // Provisoire (0114) : le mois court encore, ou un coût du mois d'avant n'est pas saisi ce mois-ci (par son nom, sans les
+    // accents ni la casse) ; un coût retiré le mois d'avant ne manque pas.
+    expect(couts([c], e).provisoire).toBe(false);
+    expect(couts([c], e, { courant: true }).provisoire).toBe(true);
+    const avant = [{ ...c, id: 'a', libelle: 'sms ' }, { ...c, id: 'b', libelle: 'Hébergement' }, { ...c, id: 'r', libelle: 'Bureau', retireLe: 'x' }];
+    expect(couts([c], e, { moisAvant: avant })).toMatchObject({ provisoire: true, absents: ['Hébergement'], n: 1 });
+    expect(couts([c, { ...c, id: 'h', libelle: 'hebergement' }], e, { moisAvant: avant })).toMatchObject({ provisoire: false, absents: [] });
+    expect(couts([], e, { courant: true }).provisoire).toBe(false);
+    expect(moisAvantDe('2026-01')).toBe('2025-12');
+    expect(moisAvantDe('2026-10')).toBe('2026-09');
   });
   it('un mois demandé : réel, pas à venir', () => {
     expect(moisDemande('2026-09', '2026-10-14')).toBe('2026-09');

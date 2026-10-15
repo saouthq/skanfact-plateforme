@@ -128,10 +128,11 @@ export async function renvoyerCodeConsole(ctx: Contexte, defi: string): Promise<
 }
 
 // Qui est derrière ce jeton de la console ? `null` si la session est fermée, trop longtemps sans geste, finie, si son
-// appareil a été retiré, ou si la personne n'est plus dans l'équipe.
-export async function quiEstConsole(ctx: Contexte, jeton: string): Promise<QuiConsole | null> {
+// appareil a été retiré, ou si la personne n'est plus dans l'équipe. `prolonger` faux : une relecture automatique, qui ne
+// repousse pas l'inaction (0114 : l'inaction se compte en gestes humains).
+export async function quiEstConsole(ctx: Contexte, jeton: string, prolonger = true): Promise<QuiConsole | null> {
   const maintenant = maintenantDe(ctx);
-  const r = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from plateforme.qui_est_console($1, $2)', [sha256(jeton), maintenant])).rows[0]);
+  const r = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from plateforme.qui_est_console($1, $2, $3)', [sha256(jeton), maintenant, prolonger])).rows[0]);
   if (!r || !estRoleConsole(r.role)) return null;
   return { utilisateur: r.utilisateur as string, session: r.session as string, appareil: r.appareil as string, role: r.role };
 }

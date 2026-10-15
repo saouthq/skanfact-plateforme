@@ -607,6 +607,16 @@ vaut pour tout le dépôt.*
     dans « À décider » (`aDecider`, `argentADecider` : payée puis défaite, à émettre, trop-perçu)
     (`tests/abonnement/gestes-0111.test.ts`, `tests/console/factures.test.ts`, `tests/console/clients.test.ts`,
     `tests/console/decider.test.ts`).
+  - **Des chiffres et des accès justes** (1.21.0 ; `docs/console.md` C37, `0114`) : « a servi » compte les pièces
+    créées (`plateforme.pieces_creees`, `aServi`) ; la dernière activité notée par entreprise et par membre
+    (`socle.activite`, `socle.noter_activite`, `serveur/activite.ts`), qu'une relecture automatique de l'écran ne
+    prolonge pas (`x-console-auto`, `qui_est_console(…, p_prolonger)`) ; le journal filtré, ses chiffres, les gestes
+    du système, les accès aux dossiers et l'export (`plateforme.console_journal`, `console_journal_chiffres`,
+    `console_acces_tous`, `serveur/console/journal.ts`, `web/console/src/ecrans/Journal.tsx`) ; les appareils et
+    sessions d'un membre, fermer et oublier (`console_appareils_membre`, `console_fermer_session`,
+    `console_oublier_appareil`) ; les demandes closes par pages (`CLOSES_PAR_PAGE`) ; un avoir sans timbre qui annule
+    une facture, et le coût du mois provisoire (`annuleeParSesAvoirs`, `couts`) (`tests/console/chiffres-justes.test.ts`,
+    `tests/console/journal.test.ts`, `tests/console/paiements.test.ts`, `tests/console/factures.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

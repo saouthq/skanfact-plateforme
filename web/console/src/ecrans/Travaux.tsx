@@ -4,8 +4,8 @@
 //     facteur ;
 //   - une carte par partenaire branché, quatorze jours, et ce qui reste à regarder chez lui ; ceux qui n'ont pas de trace
 //     sont nommés, jamais montrés à zéro ;
-//   - la liste de ce qui reste à regarder : une clé courte, jamais une pièce ni un montant ; le nom de l'entreprise pour la
-//     direction seule ;
+//   - la liste de ce qui reste à regarder : une clé courte, jamais une pièce ni un montant ; l'entreprise pour la direction
+//     seule (la technique n'en reçoit ni le nom ni l'identifiant, 0114) ;
 //   - les tâches programmées : les tours du serveur, et la nuit (sauvegarde, copie hors de la machine, copie de base).
 import { useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
@@ -24,7 +24,7 @@ type EtatTour = 'bon' | 'echec' | 'arrete' | 'jamais';
 type Tour = { nom: string; pasMs: number; branche: 'ttn' | 'courriel' | null; etat: EtatTour;
   tour: { le: string; dureeMs: number; ok: boolean; compte: Record<string, number>; echecLe: string | null; echec: string | null } | null };
 type ARegarder = {
-  sorte: 'ttn' | 'signature' | 'paiement'; cle: string; entreprise: { id: string; nom: string | null }; statut: string;
+  sorte: 'ttn' | 'signature' | 'paiement'; cle: string; entreprise: { id: string; nom: string } | null; statut: string;
   essais: number | null; prochain: string | null; deposeLe: string | null; depuis: string; pieces: number | null;
   attente: 'seul' | 'entreprise'; motifCle: string | null; motifTexte: string | null;
 };
@@ -154,8 +154,8 @@ function Liste({ d, partenaire, retirer }: { d: Donnees; partenaire: Partenaire 
                   {vus.map((r, i) => (
                     <tr key={`${r.sorte}${r.cle}${i}`}>
                       <td><b>{titre(`${T}.l.sorte.${r.sorte}`)}</b><span className="c-sous c-mono" data-donnee>{r.cle}</span></td>
-                      <td>{r.entreprise.nom ? <a href={`#/clients/${r.entreprise.id}`} data-donnee>{r.entreprise.nom}</a>
-                        : <span className="c-mono" data-donnee>{`E-${r.entreprise.id.replace(/-/g, '').slice(-6).toUpperCase()}`}</span>}</td>
+                      <td>{r.entreprise ? <a href={`#/clients/${r.entreprise.id}`} data-donnee>{r.entreprise.nom}</a>
+                        : <span className="c-attente">{titre(`${T}.l.un_client`)}</span>}</td>
                       <td>
                         <Puce ton={PUCE_STATUT[r.statut] ?? 'a_regarder'}>{titre(`${T}.l.statut.${statutVu(r)}`)}</Puce>
                         <span className="c-sous c-tr-ou">{r.motifCle && MOTIFS.includes(r.motifCle) ? phrase(`${T}.l.m.${r.motifCle.replace('.', '_')}`)

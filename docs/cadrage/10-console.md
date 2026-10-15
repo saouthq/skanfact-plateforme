@@ -177,6 +177,9 @@ L'usage de la plateforme (vision § 11, point 14), **sans jamais lire le contenu
 
 Les membres de l'équipe, leur rôle, leurs appareils, et **le journal de chaque geste** de chacun.
 Code sur le téléphone obligatoire pour tous (`00`).
+La direction ferme la session ou oublie l'appareil d'un membre sans le retirer ; chacun le fait pour lui-même (15/10/2026,
+par délégation). Le journal : la direction lit tout ; le support, ses propres gestes et ses accès aux dossiers
+(15/10/2026, par délégation, comme la maquette).
 
 ### 2.11 Réglages de la plateforme
 
@@ -229,7 +232,7 @@ liste, fermée :
 |---|---|
 | Nom de l'organisation et des entreprises, matricule, adresse, téléphone et e-mail de contact | Facturer, joindre |
 | Offre, modules, options, états, échéances, paiements, factures SkanFact | Gérer l'abonnement |
-| Membres : nom, e-mail, rôle, dernière connexion | Savoir à qui parler, compter les utilisateurs (`03` § 4.1) |
+| Membres : nom, e-mail, rôle, dernière connexion, et l'instant de leur dernier geste **dans cette entreprise** (rien d'autre : ni la page, ni le geste ; ajouté le 15/10/2026, par délégation) | Savoir à qui parler, compter les utilisateurs (`03` § 4.1) ; savoir si l'entreprise sert, sans prendre l'activité de ses membres ailleurs |
 | **Comptes** : pièces émises par mois, salariés comptés, caisses, établissements, place occupée | Facturer les options (`07`), dimensionner le service |
 | **Compteurs du `14`** : SMS envoyés, documents lus, appels à l'API, intégrations allumées (leur nom, jamais ce qui y passe) | Refacturer les SMS (`14` § 6), dimensionner la lecture de documents et l'API, savoir quelles intégrations servent |
 | Demandes de support et nos réponses | Le support |
@@ -275,3 +278,4 @@ le client (§ 2.7). Un test vérifie que les écrans de la console ne lisent que
 | 28/09/2026 (proposé) | Les données personnelles de la D1 actuelle sont reprises en Tunisie puis effacées de la D1 |
 | 28/09/2026 (relecture) | La liste fermée du § 4 compte aussi les SMS envoyés, les documents lus, les appels à l'API et les intégrations allumées, sans leur contenu |
 | 14/10/2026 | Un mois offert va sur la **prochaine facture** (un mois de plus au même prix, qu'elle dit), et non plus un avoir ; le support l'offre aussi, une fois par entreprise sur douze mois (Skander) ; un module ouvert se rattrape au prorata sur la prochaine facture, retiré il part au renouvellement ; un paiement reçu hors de la plateforme dit sa preuve. Le traitement fiscal du mois offert et du rattrapage est **À VÉRIFIER** |
+| 15/10/2026 | « A servi » n'a qu'une définition (une pièce créée, du dossier ou du serveur) ; la dernière activité se compte par entreprise (la personne, l'entreprise, l'instant : la ligne des membres du § 4 l'ajoute) ; une relecture automatique ne prolonge pas la session ; la direction ferme la session ou oublie l'appareil d'un membre, chacun les siens ; le journal se filtre, compte, exporte, et le support y lit ses propres gestes ; une facture annulée par ses avoirs, timbre mis à part, est défaite (timbre d'un avoir **À VÉRIFIER**). Par délégation (Skander : « faut faire tout ce qui manque ») |

@@ -10,7 +10,7 @@
 import { versTexte } from '../../moteur/argent.ts';
 import { joursEntre } from '../abonnement/etat.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
-import type { EnPlus, Entreprise, FactureQuiAttend } from './decider.ts';
+import { aServi, type EnPlus, type Entreprise, type FactureQuiAttend } from './decider.ts';
 import { dateDe, type Remises } from './echeances.ts';
 import { lireFacturesAbonnement } from '../abonnement/factures.ts';
 import type { Renouvellements } from './renouvellements.ts';
@@ -28,14 +28,15 @@ export function dansLaVue(e: Entreprise, v: VueClients, jour: string): boolean {
     // Un essai qui finit dans la semaine sans une pièce émise, ou une grâce d'après l'essai sans offre choisie : quelqu'un
     // qui n'a pas encore vu ce que l'application lui apporte. C'est un appel, pas une relance.
     // Un essai qui a déjà choisi son offre (sa facture attend) n'est pas à appeler : il est dans « l'argent attendu ».
-    case 'a_appeler': return (s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS && e.pieces === 0 && !e.enPlus?.attend)
+    case 'a_appeler': return (s.etat === 'essai' && s.jours <= ESSAI_QUI_FINIT_JOURS && !aServi(e) && !e.enPlus?.attend)
       || (s.etat === 'en_retard' && s.apresEssai && e.faits.offre === null && !e.enPlus?.attend);
     // Une offre choisie, pas encore payée : sa facture attend (pendant l'essai ou après l'échéance), ou l'échéance d'une
     // offre est passée sans paiement. L'argent qu'on attend.
     case 'argent': return (s.etat === 'en_retard' && e.faits.offre !== null) || ((s.etat === 'essai' || s.etat === 'en_retard') && !!e.enPlus?.attend);
-    // En essai ou abonné, et personne ne l'a ouvert depuis dix jours — ou jamais.
+    // En essai ou abonné, et personne n'y a travaillé depuis dix jours (0114 : dans CETTE entreprise) ; jamais ouverte, les
+    // dix jours se comptent depuis son inscription (une entreprise née ce matin n'est pas encore silencieuse).
     case 'silencieux': return (s.etat === 'essai' || s.etat === 'actif')
-      && (e.derniereActivite === null || joursEntre(aujourdhuiATunis(new Date(e.derniereActivite)), jour) >= SILENCE_JOURS);
+      && joursEntre(e.derniereActivite === null ? e.creeLe.slice(0, 10) : aujourdhuiATunis(new Date(e.derniereActivite)), jour) >= SILENCE_JOURS;
     // Un dossier qu'un cabinet tient pour son client, sans abonnement à lui : à convertir.
     case 'tenus': return s.etat === 'hors' && s.raison === 'tenu_par_cabinet';
     // Venue par un cabinet (0107) : un mandat avant son premier paiement, la remise de sa première année (0106). Un

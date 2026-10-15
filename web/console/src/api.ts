@@ -25,6 +25,18 @@ export const session = {
   retenirAppareil: (id: string) => ecrire(CLE_APPAREIL, id, localStorage),
 };
 
+// Le dernier geste humain sur la page (un clic, une touche, la molette, un doigt, le retour sur l'onglet) : une requête
+// qui part plus de dix secondes après lui est une relecture automatique, et le dit au serveur (`x-console-auto`), qui ne
+// repousse pas l'inaction de la session pour elle (0114). L'ouverture de la page compte comme un geste.
+export const GESTE_HUMAIN_MS = 10_000;
+let dernierGeste = Date.now();
+if (typeof window !== 'undefined') {
+  const vu = () => { dernierGeste = Date.now(); };
+  for (const e of ['pointerdown', 'keydown', 'wheel', 'touchstart'] as const) window.addEventListener(e, vu, { passive: true, capture: true });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') vu(); });
+}
+export const relectureAutomatique = (maintenant = Date.now()) => maintenant - dernierGeste > GESTE_HUMAIN_MS;
+
 // Le serveur ne répond pas (réseau coupé, relais qui coupe) : l'écran le dit, jamais par un texte brut.
 export class ErreurReseau extends Error {}
 
@@ -32,6 +44,7 @@ export async function appeler<T = Record<string, unknown>>(methode: 'GET' | 'POS
   const entetes: Record<string, string> = { 'x-langue': LANGUE };
   if (corps !== undefined) entetes['content-type'] = 'application/json';
   if (jeton) entetes.authorization = `Bearer ${jeton}`;
+  if (relectureAutomatique()) entetes['x-console-auto'] = '1';
   let r: Response;
   try {
     r = await fetch(`/v1${chemin}`, { method: methode, headers: entetes, ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });

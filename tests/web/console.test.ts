@@ -398,9 +398,10 @@ describe('la console de l\'équipe, à la souris', () => {
 
   it('le support : de 7 à 30 jours, dit à sa place ; un clic à côté ne ferme pas la fenêtre ; la pastille se recompte', async () => {
     const p = await ouvrir(await jetonConsole(support), `#/clients/${essaiSupport}`);
-    // Le support ne voit que ses écrans : « À décider », « Clients » et « Abonnements ».
-    expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toEqual(expect.arrayContaining(['Clients', 'Abonnements']));
-    expect((await p.locator('.c-nav a').allInnerTexts()).map(net).some((t) => /Équipe|Journal|Service/.test(t))).toBe(false);
+    // Le support ne voit que ses écrans : « À décider », « Clients », « Abonnements », et le journal de ses propres gestes
+    // (0114) ; ni l'équipe ni le service.
+    expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toEqual(expect.arrayContaining(['Clients', 'Abonnements', 'Journal']));
+    expect((await p.locator('.c-nav a').allInnerTexts()).map(net).some((t) => /Équipe|Service/.test(t))).toBe(false);
     // La pastille d'« À décider » : la barre en porte une seconde (le Support) dès qu'une demande attend — les tests d'avant
     // en laissent dans la même base.
     const pastille = p.locator('.c-nav a').filter({ hasText: 'À décider' }).locator('.c-nav-compte');
@@ -479,7 +480,7 @@ describe('la console de l\'équipe, à la souris', () => {
     const droits = p.locator('.c-eq-droits tbody tr');
     await expect.poll(() => droits.count(), { timeout: 15_000 }).toBe(lu.droits.length);
     // Une ligne par geste du serveur, dans son ordre ; un « oui » là où le rôle l'a, un tiret sinon — et la nuance du
-    // support (prolonger un essai ; offrir un mois, 0113) à la place du « oui ».
+    // support (prolonger un essai ; offrir un mois, 0113 ; le journal, ses propres gestes, 0114) à la place du « oui ».
     for (const [i, d] of lu.droits.entries()) {
       const cellules = droits.nth(i).locator('td');
       for (const [j, r] of (['direction', 'support', 'technique'] as const).entries()) {
@@ -488,6 +489,7 @@ describe('la console de l\'équipe, à la souris', () => {
         else if (d.code === 'console.abonnement.prolonger' && r === 'support') expect(t).toContain('une fois par entreprise');
         else if (d.code === 'console.abonnement.offrir_mois' && r === 'support') expect(t).toContain('un par entreprise sur douze mois');
         else if (d.code === 'console.accueil.voir' && r !== 'direction') expect(t).toContain('ses lignes');
+        else if (d.code === 'console.journal.voir' && r === 'support') expect(t).toContain('ses propres gestes');
         else expect(t).toBe('Oui');
       }
     }

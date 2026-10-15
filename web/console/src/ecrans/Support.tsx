@@ -37,6 +37,8 @@ type Client = { id: string; nom: string; etat: Etat; faits: Faits; membres: numb
 type Donnees = {
   aujourdhui: string; comptes: { ouvertes: number; aRepondre: number; sansReponse: number };
   ouvertes: LigneDemande[]; closes: LigneDemande[]; demande: Demande | null; client: Client | null; articles: Article[];
+  // Les closes, par pages (0114) : la page lue commence à `debut`, sur `total`.
+  pagesCloses?: { debut: number; total: number; parPage: number };
 };
 
 // Le numéro qu'on se dit au téléphone : « S-0214 ».
@@ -377,6 +379,8 @@ function Cote({ d, client, aujourdhui }: { d: Demande; client: Client | null; au
 }
 
 // ── L'écran ─────────────────────────────────────────────────────────────────────────────────────────────────────────
+// Les closes se lisent par pages de cinquante (serveur/console/support.ts, CLOSES_PAR_PAGE).
+const CLOSES_PAR_PAGE = 50;
 function sousLesDoigts(): boolean {
   if (document.querySelector('.c-dialogue')) return true;
   const zone = document.activeElement?.closest('.c-sp-repondre')?.querySelector('textarea');
@@ -397,7 +401,12 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
     const s = p.toString();
     history.replaceState(null, '', `#/support${s ? `?${s}` : ''}`);
   }, [choisie, vue]);
-  const [l, relire] = useLecture<Donnees>(`/console/support${choisie ? `?demande=${encodeURIComponent(choisie)}` : ''}`, 'support');
+  // La page des closes (0114) : elle ne vit qu'ici, et revient à la première quand on revient aux ouvertes.
+  const [debutCloses, setDebutCloses] = useState(0);
+  const q = new URLSearchParams();
+  if (choisie) q.set('demande', choisie);
+  if (debutCloses) q.set('closes', String(debutCloses));
+  const [l, relire] = useLecture<Donnees>(`/console/support${q.toString() ? `?${q.toString()}` : ''}`, 'support');
   const lu = l.etat === 'lu' ? l.donnees : null;
   // Une réponse du client arrive pendant qu'on regarde : l'écran se relit toutes les trente secondes et au retour sur
   // l'onglet (comme l'application du client), avec la pastille de « À décider » — sauf sous les doigts : une fenêtre
@@ -449,7 +458,7 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
           <div className="c-sp-gauche">
             <section className="c-carte c-liste-carte c-sp-liste" aria-label={titre('console.ecran.support.demandes')}>
               <div className="c-sp-liste-tete c-pilules" role="group" aria-label={titre('console.ecran.support.demandes')}>
-                <button type="button" className="c-pilule" aria-pressed={vue === 'ouvertes'} onClick={() => setVue('ouvertes')}>
+                <button type="button" className="c-pilule" aria-pressed={vue === 'ouvertes'} onClick={() => { setVue('ouvertes'); setDebutCloses(0); }}>
                   {titre('console.ecran.support.ouvertes')} <span className="c-pilule-n">{lu.ouvertes.length}</span>
                 </button>
                 <button type="button" className="c-pilule" aria-pressed={vue === 'closes'} onClick={() => setVue('closes')}>{titre('console.ecran.support.closes')}</button>
@@ -462,6 +471,15 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
               ) : vue === 'ouvertes' ? (
                 <Vide icone="courriel"><span>{phrase('console.ecran.support.vide_ouvertes')}</span> <Lien href="#/clients" petit>{titre('console.ecran.support.vers_clients')}</Lien></Vide>
               ) : <Vide icone="courriel">{phrase('console.ecran.support.vide_closes')}</Vide>}
+              {vue === 'closes' && lu.pagesCloses && lu.pagesCloses.total > lu.pagesCloses.parPage ? (
+                <nav className="c-sp-pages" aria-label={titre('console.ecran.support.pages_closes')}>
+                  <span>{dire('console.ecran.support.closes_de_a', { debut: lu.pagesCloses.debut + 1, fin: lu.pagesCloses.debut + liste.length, total: lu.pagesCloses.total })}</span>
+                  <span className="c-liste-pied-boutons">
+                    <Bouton petit desactive={lu.pagesCloses.debut === 0} onClick={() => setDebutCloses(Math.max(0, debutCloses - CLOSES_PAR_PAGE))}>{titre('console.ecran.support.plus_recentes')}</Bouton>
+                    <Bouton petit desactive={lu.pagesCloses.debut + lu.pagesCloses.parPage >= lu.pagesCloses.total} onClick={() => setDebutCloses(debutCloses + CLOSES_PAR_PAGE)}>{titre('console.ecran.support.plus_anciennes')}</Bouton>
+                  </span>
+                </nav>
+              ) : null}
             </section>
             {d ? <Cote d={d} client={lu.client} aujourdhui={lu.aujourdhui} /> : null}
           </div>

@@ -581,6 +581,10 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   /* Au doigt, chaque lien est une cible de 44 points : la marque, le fil, les liens des tableaux et des personnes. */
   .c-marque { min-height: 44px; }
   .c-fil a, .c-table td a, .c-personnes a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+  .c-lien-bouton { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+  /* Les quatre périodes du journal, deux par deux, plutôt que de sortir de la carte (ou « Tout » seul sur sa ligne). */
+  .c-jr-outils .c-cl-filtres { min-width: 0; }
+  .c-jr-outils .c-pilules.c-sv-periodes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); flex: 1 1 100%; }
   .c-app { grid-template-columns: minmax(0, 1fr); }
   .c-cote { position: sticky; top: 0; z-index: 30; height: auto; max-height: 100dvh; padding: 10px 14px; gap: 0; background-size: 100% 32px; }
   .c-cote-haut { display: flex; align-items: center; gap: 10px; }
@@ -1656,14 +1660,44 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-jr-qui-cellule { display: flex; align-items: flex-start; gap: 10px; min-width: 180px; }
 .c-jr-qui-cellule .c-avatar { margin-top: 1px; }
 .c-jr-famille { display: inline-flex; padding: 2px 9px; border-radius: 999px; font-size: 12px; font-weight: 600; line-height: 1.5; }
-.c-jr-famille-abonnement { background: var(--c-doux); color: var(--c-doux-texte); }
-.c-jr-famille-equipe { background: var(--c-violet-doux); color: var(--c-violet-texte); }
-.c-jr-famille-service { background: var(--c-gris-doux); color: var(--c-gris); }
-.c-jr-famille-reglages { background: var(--c-orange-doux); color: var(--c-orange-texte); }
-.c-jr-famille-support { background: var(--c-bleu-doux); color: var(--c-bleu-texte); }
-.c-jr-famille-factures { background: var(--c-doux); color: var(--c-doux-texte); }
-.c-jr-famille-groupes { background: var(--c-doux); color: var(--c-doux-texte); }
-.c-jr-famille-paiements { background: var(--c-bleu-doux); color: var(--c-bleu-texte); }
+/* La couleur de chaque sorte de geste (la maquette Journal ; 0114). */
+.c-jr-sorte-abonnements, .c-jr-sorte-clients { background: var(--c-bleu-doux); color: var(--c-bleu-texte); }
+.c-jr-sorte-paiements, .c-jr-sorte-factures { background: var(--c-doux); color: var(--c-doux-texte); }
+.c-jr-sorte-support { background: var(--c-violet-doux); color: var(--c-violet-texte); }
+.c-jr-sorte-acces { background: var(--c-orange-doux); color: var(--c-orange-texte); }
+.c-jr-sorte-service, .c-jr-sorte-systeme, .c-jr-sorte-journal { background: var(--c-gris-doux); color: var(--c-gris); }
+.c-jr-sorte-reglages { background: var(--c-orange-doux); color: var(--c-orange-texte); }
+.c-jr-sorte-equipe { background: var(--c-violet-doux); color: var(--c-violet-texte); }
+.c-jr-reserve { display: inline-flex; align-items: center; gap: 4px; margin-inline-start: 6px; font-size: 12px; font-weight: 600; color: var(--c-rouge-texte); }
+.c-jr-systeme td { color: var(--c-gris); }
+.c-jr-onglets { margin: 4px 0 -4px; }
+.c-onglets button {
+  display: inline-flex; align-items: center; min-height: 46px; padding: 0 14px; margin-bottom: -1px; border: 0; background: none; cursor: pointer;
+  border-bottom: 2.5px solid transparent; color: var(--c-gris); font: inherit; font-size: 14.5px; font-weight: 600;
+}
+.c-onglets button:hover { color: var(--c-lien); }
+.c-onglets button[aria-current="page"] { color: var(--c-lien); border-bottom-color: var(--c-lien); }
+.c-jr-outils { row-gap: 10px; }
+.c-jr-bascules { padding: 0; align-items: center; }
+.c-jr-bascules .c-pilule { gap: 7px; }
+.c-jr-acces-tete { display: block; padding: 20px 24px 6px; }
+.c-jr-acces-liste { list-style: none; margin: 0; padding: 6px 24px 12px; display: grid; gap: 12px; }
+.c-jr-un-acces { display: grid; gap: 6px; padding: 14px 16px; border: 1px solid var(--c-trait); border-radius: 14px; }
+.c-jr-acces-actif { border-color: var(--c-lien); box-shadow: inset 3px 0 0 var(--c-lien); }
+.c-jr-acces-haut { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.c-jr-acces-haut .c-texte { display: grid; gap: 2px; }
+.c-jr-acces-haut a { color: var(--c-encre); text-decoration: none; }
+.c-jr-acces-haut a:hover { text-decoration: underline; }
+.c-jr-acces-pied { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.c-jr-lectures { margin: 0; padding: 8px 0 0 20px; display: grid; gap: 4px; font-size: 13.5px; }
+.c-jr-acces-note { margin: 0; padding: 4px 24px 20px; color: var(--c-gris); font-size: 13px; }
+.c-lien-bouton { border: 0; background: none; padding: 0; color: var(--c-lien); font: inherit; font-weight: 600; cursor: pointer; }
+.c-lien-bouton:hover { text-decoration: underline; }
+.c-vues-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.c-vues-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .c-vues-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.c-sp-pages { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 10px 14px; border-top: 1px solid var(--c-trait); font-size: 13px; color: var(--c-gris); }
+.c-pa-provisoire { color: var(--c-orange-texte); }
 .c-jr-sur a { color: var(--c-lien); font-weight: 600; text-decoration: none; }
 .c-jr-sur a:hover { text-decoration: underline; }
 .c-jr-motif { color: var(--c-encre); }
@@ -2749,3 +2783,18 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-ech-message textarea { min-height: 200px; }
 /* Le menu d'un groupe : le nom de chaque société en tête de ses gestes. */
 .c-menu-section { margin: 0; padding: 10px 12px 4px; font-size: 11.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--c-gris); }
+
+/* Ses appareils et ses sessions (l'équipe, 0114) : un appareil par carte, ses sessions dessous. */
+.c-eq-appareils { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.c-eq-appareils > li { display: grid; gap: 8px; padding: 12px 14px; border: 1px solid var(--c-trait); border-radius: 14px; }
+.c-eq-appareil-oublie { opacity: .7; }
+.c-eq-appareil-tete { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 12px; }
+.c-eq-appareil-tete .c-texte, .c-eq-sessions .c-texte { display: grid; gap: 2px; min-width: 0; }
+.c-eq-sessions { list-style: none; margin: 0; padding: 8px 0 0; display: grid; gap: 8px; border-top: 1px solid var(--c-trait); }
+.c-eq-sessions li { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px; }
+.c-eq-sessions-aucune { margin: 0; }
+.c-eq-secours-aucun { color: var(--c-orange-texte); }
+/* Au téléphone, le geste passe sous ce qu'il touche : le texte garde toute la largeur. */
+@media (max-width: 560px) {
+  .c-eq-appareil-tete, .c-eq-sessions li { grid-template-columns: minmax(0, 1fr); justify-items: start; gap: 6px; }
+}

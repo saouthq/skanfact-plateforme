@@ -407,4 +407,26 @@ describe('l\'argent juste (0113)', () => {
     const auSupport = ((await appeler('GET', '/console/accueil', support.console)).corps.decider as { sorte: string }[]).map((l) => l.sorte);
     expect(auSupport).not.toContain('facture_defaite');
   });
+
+  it('un avoir qui annule tout sauf le timbre défait aussi la facture : une ligne, pas un trop-perçu à part (0114)', async () => {
+    const b = await abonnee('Pharmacie Sans Timbre', 2);
+    const debut = plusJours(jour, 3);
+    expect((await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'essentiel', periodicite: 'mensuel', motif: 'Abonnement mensuel' })).statut).toBe(201);
+    const { cle, client } = await emettreEtRegler(b.id, debut, '47.410');
+    // L'avoir de l'abonnement, sans le timbre (46,410 DT) : le timbre d'un avoir est À VÉRIFIER avec le comptable.
+    const avoir = {
+      id: `avoir-${b.id}`, type: 'avoir', number: '', date: jour, clientId: (client as Corps).id, creditOf: cle, creditReason: 'Abonnement annulé', status: 'brouillon',
+      lines: [{ label: 'SkanFact Essentiel — abonnement mensuel', description: '', qty: 1, unit: '', unitPrice: 39, vatRate: 19 }],
+      discountRate: 0, applyStamp: false, withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [],
+    };
+    expect((await appeler('POST', `/entreprises/${editeur}/dossier-v10`, direction.appli, { changements: [{ collection: 'documents', cle: avoir.id, rang: null, revision: null, contenu: avoir }] })).statut).toBe(200);
+    const ea = await appeler('POST', `/entreprises/${editeur}/dossier-v10/emettre-avoir`, direction.appli, { document: avoir, client, revision: 1, rang: null, netAPayer: '46.410' });
+    expect(ea.statut, JSON.stringify(ea.corps)).toBe(200);
+    const decider = ((await appeler('GET', '/console/accueil', direction.console)).corps.decider as { sorte: string; entreprise?: { id: string }; cause?: string; trop?: string | null }[])
+      .filter((l) => l.entreprise?.id === b.id);
+    expect(decider).toEqual([expect.objectContaining({ sorte: 'facture_defaite', cause: 'avoir', trop: '46.410' })]);
+    const p = (await appeler('GET', '/console/paiements', direction.console)).corps as { defaites: { entreprise: { id: string }; cause: string }[]; trop: { entreprise: { id: string }; annulee: boolean; trop: string }[] };
+    expect(p.defaites.find((d) => d.entreprise.id === b.id)).toMatchObject({ cause: 'avoir' });
+    expect(p.trop.find((t) => t.entreprise.id === b.id)).toMatchObject({ annulee: true, trop: '46.410' });
+  });
 });

@@ -13831,6 +13831,179 @@ prouver 'le support à qui la liste propose un second mois dans l'"'"'année' 's
   '...(moisPossible && !moisOffertRecent ? ['"'"'offrir-mois'"'"' as const] : [])' \
   '...(moisPossible ? ['"'"'offrir-mois'"'"' as const] : [])' \
   "$CL5"
+# Des chiffres et des accès justes (0114) : « a servi », l'activité par entreprise, la session qui ne se prolonge pas
+# seule, fermer et oublier, les closes par pages, le journal exploitable, le timbre d'un avoir, les inscriptions.
+CJ1='une pièce faite par le serveur ou l'"'"'API compte comme une pièce du dossier ; la fiche et la liste disent le même nombre'
+CJ2='travailler dans une entreprise la marque, elle seule ; la fiche dit qui y a travaillé, et quand'
+CJ3='seul le serveur la note, au nom de la personne, dans une entreprise qu'"'"'elle voit ; personne ne lit celle des autres'
+CJ4='« x-console-auto » lit la session sans repousser son inaction ; un geste humain la repousse'
+CJ5='la direction ferme la session d'"'"'un membre sans le retirer ; le support ne ferme que les siennes ; tout va au journal'
+CJ6='oublier un appareil ferme toutes ses sessions, de la console comme de l'"'"'application ; chacun oublie les siens'
+CJ7='cinquante par page, toutes comptées ; plus de limite à cent'
+CJ8='par sorte, par période, par mot ; les gestes réservés à la direction ; ses chiffres comptent les listes qu'"'"'ils ouvrent'
+CJ9='l'"'"'export de la sélection : la direction seule, avec son motif, et il entre au journal à son tour'
+CJ10='un avoir qui annule tout sauf le timbre défait aussi la facture : une ligne, pas un trop-perçu à part (0114)'
+CJ11='la tuile des inscriptions ouvre sa liste, du même compte : les sept derniers jours, aujourd'"'"'hui compris'
+CJ12='ce qui reste ne se dit qu'"'"'avec des coûts saisis, et en dinars'
+CJ13='trop payé, et annulée réglée quand même ; une facture soldée n'"'"'est nulle part'
+CJ14='ce qui reste à regarder : une clé courte prise à la FIN de l'"'"'identifiant, qui attend quoi ; le nom et le motif pour la direction seule'
+CJ15='réservé à la direction : quand le geste de la console n'"'"'est ouvert qu'"'"'à elle'
+CJ16='la période part de minuit à Tunis ; « tout » n'"'"'a pas de début ; une valeur inconnue vaut trente jours'
+CJ17='la technique ne lit aucun client : ni la liste, ni une fiche, ni leurs chiffres'
+CJ18='jamais ouverte, le silence se compte depuis l'"'"'inscription : née il y a neuf jours, pas encore ; dix, oui (0114)'
+prouver 'une pièce de l'"'"'API qui n'"'"'a pas servi' 'base/migrations/0114_chiffres_justes.sql' \
+  '       + (select count(*) from ventes.piece p where p.entreprise = p_entreprise and p.ref_v10 is null)
+' \
+  '' \
+  "$CJ1"
+prouver 'la fiche qui compte ses pièces autrement que la liste' 'base/migrations/0114_chiffres_justes.sql' \
+  '        '"'"'piecesCreees'"'"', plateforme.pieces_creees(e.id),' \
+  '        '"'"'piecesCreees'"'"', (select count(*) from socle.dossier_v10 d where d.entreprise = e.id and d.collection in ('"'"'documents'"'"', '"'"'purchases'"'"')),' \
+  "$CJ1"
+prouver 'l'"'"'activité d'"'"'une personne prise partout' 'base/migrations/0114_chiffres_justes.sql' \
+  '      '"'"'derniereActivite'"'"', (select max(a.derniere) from socle.activite a where a.entreprise = e.id),
+      '"'"'prolongeDejaUneFois'"'"',' \
+  '      '"'"'derniereActivite'"'"', (select max(a.derniere) from socle.activite a where a.utilisateur in (select m.utilisateur from socle.membre m where m.entreprise = e.id)),
+      '"'"'prolongeDejaUneFois'"'"',' \
+  "$CJ2"
+prouver 'le dernier geste d'"'"'un membre pris ailleurs' 'base/migrations/0114_chiffres_justes.sql' \
+  ''"'"'derniereIci'"'"', (select a.derniere from socle.activite a where a.entreprise = e.id and a.utilisateur = u.id))' \
+  ''"'"'derniereIci'"'"', (select max(a.derniere) from socle.activite a where a.utilisateur = u.id))' \
+  "$CJ2"
+prouver 'une activité jamais notée' 'serveur/app.ts' \
+  'if (GESTES.has(r.geste) && !qui.cle && (res.statut ?? 200) < 400) noterActivite(' \
+  'if (false) noterActivite(' \
+  "$CJ2"
+prouver 'une activité notée pour une requête refusée' 'serveur/app.ts' \
+  '&& (res.statut ?? 200) < 400) noterActivite(' \
+  ') noterActivite(' \
+  "$CJ3"
+prouver 'une activité notée dans une entreprise qu'"'"'on ne voit pas' 'base/migrations/0114_chiffres_justes.sql' \
+  '   where socle.moi() is not null and p_entreprise in (select socle.mes_entreprises())' \
+  '   where socle.moi() is not null' \
+  "$CJ3"
+prouver 'une relecture automatique qui prolonge la session' 'serveur/app.ts' \
+  'await quiEstConsole(ctx, jeton, requete.headers['"'"'x-console-auto'"'"'] !== '"'"'1'"'"')' \
+  'await quiEstConsole(ctx, jeton, true)' \
+  "$CJ4"
+prouver 'un geste humain qui ne prolonge plus rien' 'base/migrations/0114_chiffres_justes.sql' \
+  'set derniere_activite = case when p_prolonger then p_maintenant else s.derniere_activite end' \
+  'set derniere_activite = s.derniere_activite' \
+  "$CJ4"
+prouver 'le support qui ferme la session d'"'"'un autre' 'base/migrations/0114_chiffres_justes.sql' \
+  '  if v.utilisateur <> socle.moi() and v_role <> '"'"'direction'"'"' then perform socle.refus('"'"'seule la direction ferme la session d'"'"''"'"'un autre membre'"'"'); end if;
+' \
+  '' \
+  "$CJ5"
+prouver 'le support qui lit les appareils d'"'"'un autre' 'base/migrations/0114_chiffres_justes.sql' \
+  '  if p_membre <> socle.moi() and v_role <> '"'"'direction'"'"' then perform socle.refus('"'"'seule la direction voit les appareils d'"'"''"'"'un autre membre'"'"'); end if;
+' \
+  '' \
+  "$CJ5"
+prouver 'une session fermée qui sert encore' 'base/migrations/0114_chiffres_justes.sql' \
+  '  update plateforme.session_console set fermee_le = p_maintenant where id = p_session;
+' \
+  '' \
+  "$CJ5"
+prouver 'fermer une session sans le dire au journal' 'base/migrations/0114_chiffres_justes.sql' \
+  '    values (socle.moi(), v_role, '"'"'equipe.session_fermee'"'"', v.utilisateur, btrim(p_motif),' \
+  '    values (socle.moi(), v_role, '"'"'equipe.session_fermee'"'"', null, btrim(p_motif),' \
+  "$CJ5"
+prouver 'un appareil oublié dont les sessions courent' 'base/migrations/0114_chiffres_justes.sql' \
+  '  update plateforme.session_console set fermee_le = p_maintenant where appareil = p_appareil and fermee_le is null;
+' \
+  '' \
+  "$CJ6"
+prouver 'le support qui oublie l'"'"'appareil d'"'"'un autre' 'base/migrations/0114_chiffres_justes.sql' \
+  '  if v.utilisateur <> socle.moi() and v_role <> '"'"'direction'"'"' then perform socle.refus('"'"'seule la direction oublie l'"'"''"'"'appareil d'"'"''"'"'un autre membre'"'"'); end if;
+' \
+  '' \
+  "$CJ6"
+prouver 'un appareil oublié qui reste reconnu' 'base/migrations/0114_chiffres_justes.sql' \
+  '  update socle.appareil set revoque_le = p_maintenant, reconnu_jusqu_au = null where id = p_appareil;
+' \
+  '  update socle.appareil set reconnu_jusqu_au = null where id = p_appareil;
+' \
+  "$CJ6"
+prouver 'les closes coupées à cinquante sans suite' 'base/migrations/0114_chiffres_justes.sql' \
+  'order by c.close_le desc, c.id desc offset greatest(coalesce(p_closes_debut, 0), 0) limit 50)),' \
+  'order by c.close_le desc, c.id desc limit 50)),' \
+  "$CJ7"
+prouver 'les closes comptées sur la page seule' 'base/migrations/0114_chiffres_justes.sql' \
+  '    '"'"'nCloses'"'"', (select count(*) from plateforme.demande_support c where c.close_le is not null and (p_entreprise is null or c.entreprise = p_entreprise)),' \
+  '    '"'"'nCloses'"'"', 50,' \
+  "$CJ7"
+prouver 'le journal qui ne filtre pas par sorte' 'base/migrations/0114_chiffres_justes.sql' \
+  '       and (p_sorte is null or plateforme.sorte_du_geste(g.geste) = p_sorte)
+' \
+  '' \
+  "$CJ8"
+prouver 'le journal qui ne filtre pas par période' 'base/migrations/0114_chiffres_justes.sql' \
+  '       and (p_depuis is null or g.le >= p_depuis)
+       and (p_reserves' \
+  '       and (p_reserves' \
+  "$CJ8"
+prouver 'le journal qui ne cherche pas dans le motif' 'base/migrations/0114_chiffres_justes.sql' \
+  '       and (v_q is null or strpos(lower(g.motif), v_q) > 0
+' \
+  '       and (v_q is null or false
+' \
+  "$CJ8"
+prouver 'le support qui lit les gestes des autres' 'base/migrations/0114_chiffres_justes.sql' \
+  '  v_qui uuid := case when v_role = '"'"'support'"'"' then socle.moi() else p_qui end;' \
+  '  v_qui uuid := p_qui;' \
+  "$CJ8"
+prouver 'le chiffre des réservés qui compte autre chose que sa liste' 'base/migrations/0114_chiffres_justes.sql' \
+  '    '"'"'reserves'"'"', case when v_role = '"'"'direction'"'"' then (select count(*) from plateforme.geste_console g where g.le >= p_depuis and g.geste = any(p_reserves)) end,' \
+  '    '"'"'reserves'"'"', case when v_role = '"'"'direction'"'"' then (select count(*) from plateforme.geste_console g where g.geste = any(p_reserves)) end,' \
+  "$CJ8"
+prouver 'l'"'"'export du journal ouvert au support' 'serveur/console/gestes.ts|||base/migrations/0114_chiffres_justes.sql' \
+  '  { code: '"'"'console.journal.exporter'"'"', roles: [D], ecrit: true },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  v_id uuid;' \
+  '  { code: '"'"'console.journal.exporter'"'"', roles: [D, S], ecrit: true },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  v_id uuid;' \
+  "$CJ9"
+prouver 'l'"'"'export du journal qui ne s'"'"'écrit pas au journal' 'serveur/console/routes.ts' \
+  '      await x.query('"'"'select plateforme.console_noter_export($1, $2, $3, $4)'"'"', ['"'"'journal'"'"', gardees.length, JSON.stringify(gardes), corps.motif.trim()]);
+' \
+  '' \
+  "$CJ9"
+prouver 'un geste réservé lu sans la liste des gestes' 'serveur/console/journal.ts' \
+  '  return !!g && g.roles.length === 1 && g.roles[0] === '"'"'direction'"'"';' \
+  '  return !!g && g.roles.includes('"'"'direction'"'"');' \
+  "$CJ15"
+prouver 'minuit pris au jour UTC' 'serveur/console/journal.ts' \
+  '  const t = Date.parse(`${aujourdhui}T00:00:00+01:00`) - jours * 86_400_000;' \
+  '  const t = Date.parse(`${aujourdhui}T00:00:00Z`) - jours * 86_400_000;' \
+  "$CJ16"
+prouver 'un avoir sans timbre qui ne défait pas sa facture' 'base/migrations/0114_chiffres_justes.sql' \
+  'and ((s.avoirs > 0 and s.avoirs >= p.net_a_payer - coalesce(p.timbre, 0)) or p.net_a_payer - s.avoirs - s.regle > 0))' \
+  'and (s.avoirs >= p.net_a_payer or p.net_a_payer - s.avoirs - s.regle > 0))' \
+  "$CJ10"
+prouver 'un trop-perçu d'"'"'avoir sans timbre lu à part' 'serveur/console/paiements.ts' \
+  'export const annuleeParSesAvoirs = (net: bigint, credite: bigint, timbre: bigint) => net > 0n && credite > 0n && credite >= net - timbre;' \
+  'export const annuleeParSesAvoirs = (net: bigint, credite: bigint, timbre: bigint) => net > 0n && credite > 0n && credite >= net - 0n * timbre;' \
+  "$CJ13"
+prouver 'la tuile qui compte les entreprises, pas les lignes' 'serveur/console/routes.ts' \
+  '      const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus, inscriptions);' \
+  '      const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus);' \
+  "$CJ11"
+prouver 'ce qui reste jamais provisoire' 'serveur/console/paiements.ts' \
+  '    reste, provisoire: reste !== null && (courant || absents.length > 0),' \
+  '    reste, provisoire: false,' \
+  "$CJ12"
+prouver 'un coût du mois d'"'"'avant compté absent malgré sa saisie' 'serveur/console/paiements.ts' \
+  '  const ici = new Set(gardes.map((c) => nomDuCout(c.libelle)));' \
+  '  const ici = new Set(gardes.map((c) => c.libelle));' \
+  "$CJ12"
+prouver 'l'"'"'identifiant d'"'"'un client donné à la technique' 'base/migrations/0114_chiffres_justes.sql' \
+  ''"'"'entreprise'"'"', case when v_role = '"'"'direction'"'"' then jsonb_build_object('"'"'id'"'"', v.entreprise, '"'"'nom'"'"', e.raison_sociale) end,' \
+  ''"'"'entreprise'"'"', jsonb_build_object('"'"'id'"'"', v.entreprise, '"'"'nom'"'"', e.raison_sociale),' \
+  "$CJ14"
+prouver 'une entreprise née ce matin déjà silencieuse' 'serveur/console/clients.ts' \
+  'joursEntre(e.derniereActivite === null ? e.creeLe.slice(0, 10) : aujourdhuiATunis' \
+  'joursEntre(e.derniereActivite === null ? '"'"'1970-01-01'"'"' : aujourdhuiATunis' \
+  "$CJ18"
 prouver 'la date d'"'"'une échéance écrite deux fois sur sa ligne' 'web/console/src/ecrans/Clients.tsx' \
   'e.vues.includes('"'"'a_appeler'"'"') ? `${dire(`${N}.fin_essai`)} · ${dire(`${N}.rien_fait`)}`' \
   'e.vues.includes('"'"'a_appeler'"'"') ? `${dire(`${N}.fin_essai`)} ${jourCourt(s.jusquAu)} · ${dire(`${N}.rien_fait`)}`' \

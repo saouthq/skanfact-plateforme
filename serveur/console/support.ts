@@ -73,10 +73,14 @@ export function lireDemande(x: unknown): Demande | null {
   };
 }
 
-export function lireSupport(x: unknown): { ouvertes: LigneDemande[]; closes: LigneDemande[]; demande: Demande | null } {
+// Les closes se lisent par pages (0114) : `closes` est la page demandée, `nCloses` le compte de toutes.
+export const CLOSES_PAR_PAGE = 50;
+export function lireSupport(x: unknown): { ouvertes: LigneDemande[]; closes: LigneDemande[]; nCloses: number; demande: Demande | null } {
   const s = objet(x);
   const liste = (v: unknown) => (Array.isArray(v) ? v.map(lireLigne).filter((l): l is LigneDemande => l !== null) : []);
-  return { ouvertes: liste(s.ouvertes), closes: liste(s.closes), demande: s.demande ? lireDemande(s.demande) : null };
+  const closes = liste(s.closes);
+  const n = typeof s.nCloses === 'number' && Number.isInteger(s.nCloses) && s.nCloses >= 0 ? s.nCloses : closes.length;
+  return { ouvertes: liste(s.ouvertes), closes, nCloses: n, demande: s.demande ? lireDemande(s.demande) : null };
 }
 
 // ── L'état d'une demande ─────────────────────────────────────────────────────────────────────────────────────────────

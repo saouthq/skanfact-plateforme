@@ -12,6 +12,7 @@ declarerTextes({
   'geste.console.abonnement.offrir_mois': 'offrir un mois sur la prochaine facture',
   'geste.console.abonnement.gerer': 'gérer un abonnement (paiement reçu, résiliation, suspension, abonnement offert)',
   'geste.console.journal.voir': 'lire le journal de la console',
+  'geste.console.journal.exporter': 'exporter la sélection du journal',
   'geste.console.equipe.voir': 'voir l\'équipe SkanFact',
   'geste.console.equipe.gerer': 'gérer l\'équipe SkanFact',
   'geste.console.service.voir': 'voir l\'état du service',

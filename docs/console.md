@@ -946,14 +946,57 @@ des boutons radio** : la touche Tab entre sur la cochée, les flèches cochent l
   depuis deux jours ou plus ; un **trop-perçu** (le rembourser, ou garder la somme pour la prochaine facture). Chaque
   ligne s'ouvre sur l'écran qui la règle (la facture dans SkanFact, la fiche, Paiements) ; la fiche d'un client montre
   les siennes dans « Ce qui attend ». Paiements montre aussi « Payées, puis défaites », chacune avec sa cause.
-- **Un avoir qui reprend tout sauf le timbre** (un avoir de SkanFact ne coche pas le timbre fiscal d'office) laisse la
-  facture « payée, avec un trop-perçu » : « À décider » le dit comme un trop-perçu, pas comme une facture défaite, et
-  l'abonnement continue de courir sur elle. Le timbre d'un avoir est **À VÉRIFIER** avec le comptable ; s'il ne se
-  reprend jamais, la règle « annulée » (avoirs ≥ net, `moteur/reglements.ts`) devra compter sans lui.
+- **Un avoir qui reprend tout sauf le timbre** (un avoir de SkanFact ne coche pas le timbre fiscal d'office) : en 1.20.0,
+  la facture se lisait « payée, avec un trop-perçu » ; depuis 1.21.0, elle est défaite (C37). Le timbre d'un avoir reste
+  **À VÉRIFIER** avec le comptable ; la règle du moteur (`moteur/reglements.ts`, ce que le client doit) ne change pas.
 - **Un paiement reçu hors de la plateforme est à l'entreprise SkanFact du jour** (sa preuve la nomme) : l'encaissé d'une
   autre entreprise SkanFact (un autre essai de la même base) ne le compte pas.
 - Ce que 1.20.0 ne fait pas : « Ton abonnement » du client ne dit pas encore le mois offert qui l'attend (sa prochaine
   facture le dira) ; les factures refusées par la TTN restent dans « Nos factures » (C31), pas dans « À décider ».
+
+**C37. Des chiffres et des accès justes** (1.21.0 ; base 0114 ; l'audit du 14/10/2026, deuxième partie ; décidé par
+délégation le 15/10/2026 — Skander : « faut faire tout ce qui manque »).
+- **« A servi » n'a qu'une définition** (`plateforme.pieces_creees`, `aServi`) : une pièce créée dans l'entreprise — un
+  devis, une facture, un achat de son dossier, ou une pièce que le serveur ou l'API ont faite sans pièce du dossier (une
+  vente, un ticket, un achat). « À appeler », « n'a encore rien créé » (À décider) et les comptes de la fiche la lisent.
+  La colonne « usage » de la liste reste ce qu'elle dit : les pièces **émises** du mois.
+- **La dernière activité se compte par entreprise** (`socle.activite`, `serveur/activite.ts`) : le serveur note, après
+  une requête acceptée sur une route de l'entreprise, au plus une fois toutes les cinq minutes, la personne,
+  l'entreprise et l'instant — ni la page, ni le geste, ni l'adresse (10 § 4, ligne des membres, mise à jour). Avant, une
+  entreprise prenait l'activité de ses membres ailleurs : le comptable qui tient dix dossiers les rendait tous « vus
+  aujourd'hui ». La fiche dit, pour chaque membre, sa dernière connexion et son dernier geste **ici** ; son pied, la
+  dernière activité de l'entreprise. Ce qui existait se reprend du dossier (le dernier changement de chacun). « Les
+  silencieux » : personne n'y a travaillé depuis dix jours ; jamais ouverte, les dix jours partent de l'inscription.
+- **La technique ne reçoit aucun identifiant de client** dans les travaux du service : la ligne dit « un client (son nom
+  est à la direction) » et la clé courte de l'envoi.
+- **Une relecture automatique ne prolonge pas la session** : une requête partie plus de dix secondes après le dernier
+  geste humain (un clic, une touche, la molette, un doigt, le retour sur l'onglet) le dit (`x-console-auto`), et la base
+  lit la session sans repousser son heure d'inaction. Un écran laissé ouvert qui se relit seul ne garde plus la console
+  ouverte.
+- **Fermer une session, oublier un appareil** (l'Équipe, « Ses appareils et ses sessions ») : la direction pour chacun,
+  chacun pour lui-même, avec son motif, au journal (`equipe.session_fermee`, `equipe.appareil_oublie`). Fermer une
+  session renvoie la personne à la connexion ; oublier un appareil le retire (toutes ses sessions, de la console comme
+  de l'application, se ferment ; il repart de zéro, le code compris). La personne reste dans l'équipe. La liste des
+  membres dit aussi ses codes de secours qui restent, ses appareils reconnus et ses gestes des trente jours.
+- **Les demandes closes du support se lisent par pages de cinquante**, toutes comptées (« 51 à 100 sur 340 ») ; plus de
+  limite à cent.
+- **Le journal, exploitable** (la maquette Journal) : quatre chiffres sur trente jours — les gestes de l'équipe, ceux
+  **réservés à la direction** (un geste dont le geste de la console n'est ouvert qu'à elle, lu dans la liste des gestes,
+  jamais recopié), les accès aux dossiers ouverts en ce moment, ce que **le système a fait seul** (les relances parties,
+  les paiements reconnus par le prestataire) — chacun ouvre la liste qu'il compte. Filtres : un mot (le motif, le client,
+  la personne), la sorte de geste, la période (aujourd'hui, 7 jours, 30 jours, tout), qui, « seulement les réservés »,
+  « montrer le système ». Un second onglet, **les accès aux dossiers** : chacun, son état, qui l'a demandé et pourquoi,
+  qui l'a accordé, chaque page lue, « Fermer maintenant… ». **Exporter la sélection…** (la direction, avec son motif,
+  cinq mille lignes au plus ; l'export entre au journal à son tour). **Le support lit le journal** : ses propres gestes et
+  ses accès, jamais ceux des autres (la base le tient).
+- **Ce qui reste du mois se dit provisoire** (Paiements) tant que le mois court, ou qu'un coût saisi le mois d'avant ne
+  l'est pas encore (il est nommé).
+- **Une de nos factures que ses avoirs annulent, timbre mis à part, est défaite** : « À décider » le dit en une ligne avec
+  la somme à rendre, Paiements la range dans « Payées, puis défaites » et son trop-perçu « annulée par ses avoirs ». Le
+  timbre d'un avoir reste **À VÉRIFIER** avec le comptable ; la règle du moteur (ce que le client doit encore) ne change
+  pas.
+- **La tuile « Inscriptions » compte les lignes de la liste qu'elle ouvre** (un groupe de deux sociétés nouvelles fait
+  une ligne), par la fonction de la liste.
 
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
@@ -966,7 +1009,7 @@ cellules des tableaux à 11 × 12, la page à 24 × 32 et jusqu'à 1 440 points 
 
 La suite de la console : le relevé de la banque lu et pointé (aucune banque branchée ; les paiements, C30, montrent ce qui reste à encaisser), la retenue à la source sur nos factures (`05` § 4.2), la suite du service (la
 sécurité : l'accès d'urgence, bloquer une adresse, la chaîne du journal relue, la date des secrets ; le débit des travaux heure par heure, et les envois des e-mails, de la TEJ et de la CNSS, qui n'ont pas encore
-de trace), la mesure, la suite des réglages (les nouveautés allumées ; un prix se prépare depuis la 1.12.0, C28), et le filtre du journal par geste et par période. L'écran
+de trace), la mesure, la suite des réglages (les nouveautés allumées ; un prix se prépare depuis la 1.12.0, C28). L'écran
 « Application de bureau » de la maquette (les licences, les postes, la fin de vie et le passage à la plateforme de la v10)
 ne se construit pas : **la v10 n'est installée chez personne** (Skander, 14/10/2026). Celui de la nouvelle application de
 bureau (la coque et son agent local : les postes qui l'ont, leur version, ce que l'agent voit, ses erreurs) se dessinera
@@ -1121,3 +1164,30 @@ le parcours, avec un œil de designer :
   maintenant sa longueur et la largeur de la tuile, et l'instrument de la console mesure chaque chiffre dans sa tuile,
   sur un encaissé de 1 234 567,890 DT ;
 - au téléphone, « Par chèque » restait seul sur sa rangée : le dernier moyen prend toute la largeur.
+
+## Revu à la souris et au clavier (15/10/2026, 1.21.0 : des chiffres et des accès justes)
+
+Sur l'essai de l'outil humain, la base passée en `0114`, dans la console : Amira (direction) et Karim (support), en clair
+et en sombre, à 1440 et à 390. Le journal : ses quatre chiffres (la carte « le système, seul » dit 16, sa liste en
+montre 16), chaque filtre (la recherche, la sorte, la période, la personne, les gestes réservés, ceux du système),
+l'onglet des accès aux dossiers qui déplie les pages lues, l'export de la sélection ; l'équipe : les colonnes des
+appareils reconnus, des gestes des trente jours et des codes de secours, le panneau des appareils d'un membre, une
+session fermée (refusée d'abord sans motif, puis fermée) ; Paiements : une facture annulée par un avoir sans timbre,
+rangée dans les défaites, et le coût du mois « Provisoire » ; la tuile des inscriptions égale à sa liste (15 et 15) ;
+la fiche, qui dit la dernière activité de chaque membre dans cette entreprise. Corrigé pendant le parcours, avec un œil
+de designer :
+- le support n'avait pas l'écran Journal dans son menu (le serveur le lui ouvrait, l'écran disait « pas dans ton
+  rôle ») : il y est, avec ses deux chiffres (« tes gestes », « accès aux dossiers ») et sans le filtre des personnes ;
+- au téléphone, les quatre périodes du journal sortaient de la carte de 16 points : elles se rangent deux par deux
+  (et « Tout » ne reste pas seul sur sa ligne) ; l'indication de la recherche, coupée (« un mot c… »), devient
+  « Client, personne ou motif » ;
+- au téléphone, « 6 appareils » et « Mes appareils » faisaient 21 points de haut : 44, comme toute cible au doigt ;
+- au téléphone, le panneau des appareils écrasait le texte dans une colonne de 90 points à côté de son bouton : le
+  bouton passe dessous ; « Oublier cet appareil… », en lien sans bord, décalé de son texte, prend le même bouton que
+  « Fermer la session… » ;
+- les sessions d'un appareil : le bouton passait sous la ligne (une grille, le texte et son geste) ;
+- un membre qui ouvre ses propres appareils lit « Mes appareils et mes sessions », pas son propre nom à la troisième
+  personne ; « fermer une session de Chrome sur Linux » plutôt que « la session » ;
+- « les 50 plus récents » sans majuscule en tête de liste ;
+- un paiement reconnu par le système n'a pas de montant dans le journal : la ligne dit la facture et le « payé
+  jusqu'au ».

@@ -205,6 +205,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'socle.regle_fiscale': { classe: 'commune' },
   'socle.migration': { classe: 'hors', raison: 'l\'en-tête du fichier porte la liste des migrations' },
   'socle.session': { classe: 'hors', raison: 'une session ouverte est une clé de connexion' },
+  'socle.activite': { classe: 'hors', raison: 'le dernier instant où chacun y a travaillé, que la console lit : il se refait au premier geste' },
   'socle.code_secours': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },
   'socle.defi_connexion': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },
   'socle.tentative': { classe: 'hors', raison: 'le journal technique des connexions n\'appartient pas à l\'entreprise' },

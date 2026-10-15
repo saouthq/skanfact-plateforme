@@ -602,6 +602,16 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'les trois pièces ne sont pas toutes vues : l\'acte, le registre du commerce, la pièce d\'identité du repreneur', cle: 'base.reprise.pieces', fr: 'les trois pièces ne sont pas toutes vues : l\'acte, le registre du commerce, la pièce d\'identité du repreneur' },
   { base: 'le repreneur n\'a pas encore de compte SkanFact à cette adresse : il le crée (c\'est gratuit), puis on confirme', cle: 'base.reprise.compte', fr: 'le repreneur n\'a pas encore de compte SkanFact à cette adresse : il le crée (c\'est gratuit), puis on confirme' },
   { base: 'le délai d\'opposition court jusqu\'au %s inclus : la reprise se confirme après', cle: 'base.reprise.delai', fr: 'le délai d\'opposition court jusqu\'au {jour} inclus : la reprise se confirme après', valeurs: ['jour'] },
+  // L'équipe (0114) : fermer une session, oublier un appareil.
+  { base: 'seule la direction voit les appareils d\'un autre membre', cle: 'base.equipe.appareils_autre', fr: 'seule la direction voit les appareils d\'un autre membre' },
+  { base: 'fermer une session demande son motif (trois caractères au moins)', cle: 'base.equipe.fermer_motif', fr: 'fermer une session demande son motif (trois caractères au moins)' },
+  { base: 'cette session n\'existe pas', cle: 'base.equipe.session_inconnue', fr: 'cette session n\'existe pas' },
+  { base: 'seule la direction ferme la session d\'un autre membre', cle: 'base.equipe.fermer_autre', fr: 'seule la direction ferme la session d\'un autre membre' },
+  { base: 'cette session est déjà fermée', cle: 'base.equipe.session_fermee', fr: 'cette session est déjà fermée' },
+  { base: 'oublier un appareil demande son motif (trois caractères au moins)', cle: 'base.equipe.oublier_motif', fr: 'oublier un appareil demande son motif (trois caractères au moins)' },
+  { base: 'cet appareil n\'existe pas', cle: 'base.equipe.appareil_inconnu', fr: 'cet appareil n\'existe pas' },
+  { base: 'seule la direction oublie l\'appareil d\'un autre membre', cle: 'base.equipe.oublier_autre', fr: 'seule la direction oublie l\'appareil d\'un autre membre' },
+  { base: 'cet appareil est déjà oublié', cle: 'base.equipe.appareil_oublie', fr: 'cet appareil est déjà oublié' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

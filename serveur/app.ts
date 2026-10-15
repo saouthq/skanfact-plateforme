@@ -16,6 +16,7 @@ import { jetonDUnAppareilRetire, quiEst, remisParCeJeton, type Contexte, type Qu
 import { choisirEncodage, compresser, compressible, SEUIL_COMPRESSION } from './compression.ts';
 import { GESTES, GESTES_PERSONNELS } from './porte/gestes.ts';
 import { peut } from './porte/porte.ts';
+import { noterActivite } from './activite.ts';
 import { brancherAbonnement } from './abonnement/condition.ts';
 import { GESTES_CONSOLE } from './console/gestes.ts';
 import { quiEstConsole } from './console/connexion.ts';
@@ -224,9 +225,11 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
 
         // La console (0083, docs/console.md) : SA session, jamais celle de l'application ni une clé de l'API. La
         // transaction s'ouvre au nom du membre de l'équipe, avec sa session posée pour la base, qui revérifie le rôle.
+        // Une relecture automatique de l'écran (`x-console-auto: 1`, aucun geste humain depuis dix secondes) lit la session
+        // sans repousser son inaction (0114).
         const gesteConsole = GESTES_CONSOLE.get(r.geste);
         if (gesteConsole) {
-          const qc = jeton ? await quiEstConsole(ctx, jeton) : null;
+          const qc = jeton ? await quiEstConsole(ctx, jeton, requete.headers['x-console-auto'] !== '1') : null;
           if (!qc) return envoyer(401, { motif: motif('console.connexion_requise'), bouton: 'console.connexion' });
           if (!gesteConsole.roles.includes(qc.role)) {
             return envoyer(403, { motif: motif('console.role_refuse', { role: t(`role.${qc.role}`), geste: t(`geste.${gesteConsole.code}`) }), qui: [], bouton: null });
@@ -298,6 +301,8 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
             }
             return r.traiter({ corps: corps as never, params, query, qui, requete }, tx);
           }, qui.cle?.id ?? null, { instantane: r.instantane === true });
+          // La dernière activité d'une personne DANS cette entreprise (0114) : après une requête acceptée, jamais pour une clé.
+          if (GESTES.has(r.geste) && !qui.cle && (res.statut ?? 200) < 400) noterActivite(ctx, qui.utilisateur, params.entreprise ?? '');
           return envoyer(res.statut ?? 200, res.corps);
         } catch (e) { return erreurVersReponse(e, reponse, langue); }
       },

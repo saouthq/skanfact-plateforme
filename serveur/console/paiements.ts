@@ -26,6 +26,8 @@ export type Recu = {
 export type Ouverte = {
   piece: string; numero: string | null; echeance: string | null; debut: string; fin: string; devise: string; decimales: number;
   net: bigint; avoirs: bigint[]; reglements: bigint[]; entreprise: Qui; ecran: string;
+  // Le timbre de la facture (0114) : un avoir qui annule tout le reste l'annule (le timbre d'un avoir : À VÉRIFIER).
+  timbre: bigint;
 };
 export type AEmettre = { piece: string; debut: string; fin: string; prepareLe: string; entreprise: Qui; ecran: string };
 export type Cout = {
@@ -82,8 +84,9 @@ export function lirePaiements(brut: unknown): Paiements {
     const piece = texte(o.piece), ed2 = texte(o.editeur), debut = jour(o.debut), fin = jour(o.fin), devise = texte(o.devise);
     const decimales = decimalesDe(o.decimales), net = entier(o.net), entreprise = quiDe(o.entreprise);
     if (!piece || !ed2 || !debut || !fin || !devise || decimales === null || net === null || !entreprise) continue;
+    const timbre = entier(o.timbre) ?? 0n;
     ouvertes.push({ piece, numero: texte(o.numero), echeance: jour(o.echeance), debut, fin, devise, decimales, net,
-      avoirs: entiers(o.avoirs), reglements: entiers(o.reglements), entreprise, ecran: ecranDeLaPiece(ed2, piece) });
+      avoirs: entiers(o.avoirs), reglements: entiers(o.reglements), entreprise, ecran: ecranDeLaPiece(ed2, piece), timbre: timbre > 0n ? timbre : 0n });
   }
   const aEmettre: AEmettre[] = [];
   for (const a of Array.isArray(x.aEmettre) ? x.aEmettre as Record<string, unknown>[] : []) {
@@ -163,6 +166,11 @@ export type Doit = {
 };
 export type Trop = { entreprise: Qui; numero: string | null; piece: string; ecran: string; devise: string; trop: string; annulee: boolean };
 
+// Une facture que ses avoirs annulent : ils couvrent tout, le timbre mis à part (un avoir ne le rend pas toujours : À
+// VÉRIFIER avec le comptable). La même règle que la base pour une facture « défaite » (0114, plateforme.console_paiements).
+// La règle de la facture elle-même (moteur/reglements.ts) ne change pas : elle dit ce que le client doit encore.
+export const annuleeParSesAvoirs = (net: bigint, credite: bigint, timbre: bigint) => net > 0n && credite > 0n && credite >= net - timbre;
+
 export function ouvertes(liste: Ouverte[], entreprises: Entreprise[], aujourdhui: string): { doivent: Doit[]; trop: Trop[] } {
   const etats = new Map(entreprises.map((e) => [e.id, e.etat]));
   const doivent: Doit[] = [], trop: Trop[] = [];
@@ -177,7 +185,7 @@ export function ouvertes(liste: Ouverte[], entreprises: Entreprise[], aujourdhui
     }
     const du = o.net - solde.credite;
     const enTrop = solde.paye - (du > 0n ? du : 0n);
-    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: o.net > 0n && solde.credite >= o.net });
+    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: annuleeParSesAvoirs(o.net, solde.credite, o.timbre) });
   }
   // En retard d'abord, le plus ancien en tête ; puis par échéance.
   doivent.sort((a, b) => (b.retard ?? -1) - (a.retard ?? -1) || (a.echeance ?? '9').localeCompare(b.echeance ?? '9') || a.entreprise.nom.localeCompare(b.entreprise.nom));
@@ -192,15 +200,27 @@ export const argentADecider = (p: Paiements, entreprises: Entreprise[], aujourdh
 // ── Les coûts du mois, et ce qui reste ───────────────────────────────────────────────────────────────────────────────
 // Les coûts sont en millimes de dinar : ce qui reste ne se calcule que si l'encaissé est en dinars aussi, et seulement
 // quand le mois a des coûts saisis — sans eux, « ce qui reste » serait l'encaissé, un zéro qui passerait pour une mesure.
-export function couts(liste: Cout[], e: Encaisse | null) {
+// Il se dit PROVISOIRE (0114, l'audit F06) quand le mois n'est pas fini, ou quand un coût du mois d'avant n'a pas été
+// saisi ce mois-ci (`absents`, par son nom : l'hébergement, les SMS…) : un point mort ne se lit pas sur des coûts incomplets.
+const nomDuCout = (libelle: string) => libelle.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
+export function couts(liste: Cout[], e: Encaisse | null, { courant = false, moisAvant = [] }: { courant?: boolean; moisAvant?: readonly Cout[] } = {}) {
   const gardes = liste.filter((c) => c.retireLe === null);
   const total = gardes.reduce((s, c) => s + c.montant, 0n);
+  const ici = new Set(gardes.map((c) => nomDuCout(c.libelle)));
+  const absents = [...new Map(moisAvant.filter((c) => c.retireLe === null && !ici.has(nomDuCout(c.libelle))).map((c) => [nomDuCout(c.libelle), c.libelle])).values()];
+  const reste = e && e.devise === 'TND' && e.decimales === 3 && gardes.length ? versTexte(e.total - total, 3) : null;
   return {
     lignes: liste.map((c) => ({ ...c, montant: versTexte(c.montant, 3) })),
-    total: versTexte(total, 3),
-    reste: e && e.devise === 'TND' && e.decimales === 3 && gardes.length ? versTexte(e.total - total, 3) : null,
+    total: versTexte(total, 3), n: gardes.length, absents,
+    reste, provisoire: reste !== null && (courant || absents.length > 0),
   };
 }
+
+// Le mois d'avant (« 2026-10 » → « 2026-09 »).
+export const moisAvantDe = (mois: string) => {
+  const [a, m] = mois.split('-').map(Number) as [number, number];
+  return m === 1 ? `${a - 1}-12` : `${a}-${String(m - 1).padStart(2, '0')}`;
+};
 
 // Un mois demandé (« 2026-10 ») : un vrai mois, jamais après celui d'aujourd'hui ; sinon, le mois d'aujourd'hui.
 export function moisDemande(v: unknown, aujourdhui: string): string {

@@ -164,7 +164,11 @@ describe('ce que chaque rôle lit', () => {
     expect(accueil.corps.relances).toEqual([]);
     expect((await appeler('GET', '/console/service', jT)).statut).toBe(200);
     expect((await appeler('GET', '/console/equipe', jS)).statut).toBe(403);
-    expect((await appeler('GET', '/console/journal', jS)).statut).toBe(403);
+    // Le support lit le journal (0114) : ses propres gestes seulement, jamais ceux des autres.
+    const lu = await appeler('GET', '/console/journal?qui=' + direction.id, jS);
+    expect(lu.statut).toBe(200);
+    expect((lu.corps.lignes as { qui: { id: string } | null }[]).every((l) => l.qui?.id === support.id)).toBe(true);
+    expect((await appeler('GET', '/console/journal', jT)).statut).toBe(403);
   });
 
   it('la base refuse chaque fonction de la console hors d\'une session de la console, même au nom d\'un membre', async () => {
@@ -229,13 +233,19 @@ describe('les clients', () => {
     const dehors = await entreprise('Inscrite Il Y A Sept Jours');
     await admin.query('update socle.entreprise set cree_le = cree_le - make_interval(days => $2) where id = $1', [dedans.ent, 6]);
     await admin.query('update socle.entreprise set cree_le = cree_le - make_interval(days => $2) where id = $1', [dehors.ent, 7]);
+    // Deux sociétés nouvelles dans un groupe déclaré : UNE ligne de la liste, et la tuile la compte une fois (0114 ; avant,
+    // elle comptait les entreprises et disait une de plus que la liste qu'elle ouvre).
+    const g1 = await entreprise('Inscrite En Groupe Une'), g2 = await entreprise('Inscrite En Groupe Deux');
+    expect((await appeler('POST', '/console/groupes', jD, { nom: 'Groupe Des Inscrites', entreprises: [g1.ent, g2.ent], motif: 'même famille' })).statut).toBe(201);
     const tableau = (await appeler('GET', '/console/accueil', jD)).corps.tableau as { entreprisesDeLaSemaine: number };
-    const r = await appeler('GET', '/console/entreprises?nouvelles=1&limite=200', jD);
+    const r = await appeler('GET', '/console/entreprises?nouvelles=1&limite=1', jD);
     expect(r.statut).toBe(200);
     expect(r.corps.total).toBe(tableau.entreprisesDeLaSemaine);
-    const ids = (r.corps.lignes as { id: string }[]).map((l) => l.id);
-    expect(ids).toContain(dedans.ent);
-    expect(ids).not.toContain(dehors.ent);
+    // Chacune se cherche par son nom : la base des essais en a bien plus qu'une page.
+    const cherche = async (nom: string) => ((await appeler('GET', `/console/entreprises?nouvelles=1&limite=200&q=${encodeURIComponent(nom)}`, jD)).corps.lignes as { id: string }[]).map((l) => l.id);
+    expect(await cherche('Inscrite Il Y A Six Jours')).toEqual([dedans.ent]);
+    expect(await cherche('Inscrite Il Y A Sept Jours')).toEqual([]);
+    expect(await cherche('Inscrite En Groupe')).toHaveLength(1);
     // Les comptes des états portent sur les seules nouvelles : celle d'il y a sept jours n'y compte pas, et leurs puces
     // refont le total de la liste.
     const toutes = await appeler('GET', '/console/entreprises?limite=1', jD);
@@ -289,8 +299,9 @@ describe('les clients', () => {
     expect(Object.keys(f).sort()).toEqual(['active', 'attend', 'aujourdhui', 'comptes', 'creeLe', 'devise', 'etat', 'evenements', 'faits', 'formeJuridique', 'gestes',
       'id', 'ligne', 'matricule', 'membres', 'organisation', 'prolongeDejaUneFois', 'raisonSociale', 'tenuePar', 'cabinets', 'support', 'factures', 'groupe',
       // 0110–0112 : son numéro et sa ville, nos notes d'appel, ce que la liste dit en plus, l'offre suivante, le délai, la
-      // procédure de reprise (la direction seule ; au support : rien). 0113 : ce que sa prochaine facture coûtera.
-      'identite', 'notes', 'enPlus', 'offreSuivante', 'delai', 'reprise', 'prochaineFacture'].sort());
+      // procédure de reprise (la direction seule ; au support : rien). 0113 : ce que sa prochaine facture coûtera. 0114 : le
+      // dernier instant où quelqu'un y a travaillé (10 § 4).
+      'identite', 'notes', 'enPlus', 'offreSuivante', 'delai', 'reprise', 'prochaineFacture', 'derniereActivite'].sort());
     expect(f.reprise).toBeNull();
     // Son groupe et sa remise (0106) : aucun groupe, aucune société de la même propriétaire, aucune remise ; la règle du
     // groupe et le premier jour de sa prochaine période (le lendemain de son essai).
@@ -308,7 +319,7 @@ describe('les clients', () => {
     expect(f.attend).toEqual([]);
     expect(Object.keys(f.comptes as object).sort()).toEqual(['caisses', 'etablissements', 'piecesCreees', 'piecesEmises', 'salaries']);
     expect(f.membres).toEqual([expect.objectContaining({ nom: proprio.nom, email: proprio.email, roles: ['proprietaire'] })]);
-    expect(Object.keys((f.membres as object[])[0] ?? {}).sort()).toEqual(['depuis', 'derniereConnexion', 'email', 'nom', 'roles']);
+    expect(Object.keys((f.membres as object[])[0] ?? {}).sort()).toEqual(['depuis', 'derniereConnexion', 'derniereIci', 'email', 'nom', 'roles']);
     expect(f.etat).toMatchObject({ etat: 'essai' });
   });
 });
@@ -1011,7 +1022,7 @@ describe('les travaux et les envois du service (0090, docs/console.md C25)', () 
     }
     await admin.query('commit');
   }
-  type Lu = { aRegarder: { cle: string; entreprise: { id: string; nom: string | null }; statut: string; attente: string; motifCle: string | null; motifTexte: string | null }[];
+  type Lu = { aRegarder: { cle: string; entreprise: { id: string; nom: string } | null; statut: string; attente: string; motifCle: string | null; motifTexte: string | null }[];
     tours: { nom: string; etat: string; tour: { echec: string | null } | null }[]; branches: { ttn: boolean; courriel: boolean }; sansTrace: string[] };
   const lire = async (j: string) => (await appeler('GET', '/console/service/travaux', j)).corps as Lu;
 
@@ -1029,7 +1040,7 @@ describe('les travaux et les envois du service (0090, docs/console.md C25)', () 
       { piece: '01a1d000-0000-7000-8000-00000000ddd4', ent: essai.ent, statut: 'deposee', essais: 3, motif: null, par: essai.proprio.id },
     ]);
     const d = await lire(jD);
-    const miens = d.aRegarder.filter((r) => r.entreprise.id === ent);
+    const miens = d.aRegarder.filter((r) => r.entreprise?.id === ent);
     expect(miens.map((r) => r.cle).sort()).toEqual(['0000AAA1', '0000BBB2', '0000CCC3']);
     expect(new Set(miens.map((r) => r.cle)).size).toBe(3);
     const de = (cle: string) => miens.find((r) => r.cle.endsWith(cle));
@@ -1038,11 +1049,12 @@ describe('les travaux et les envois du service (0090, docs/console.md C25)', () 
     expect(de('BBB2')?.motifTexte).toMatch(/identifiant inconnu/);
     expect(de('CCC3')).toMatchObject({ statut: 'refusee', attente: 'entreprise', motifCle: 'ttn.motif_disparu', motifTexte: null });
     // Une entreprise d'essai n'envoie rien : elle n'est jamais à regarder.
-    expect(d.aRegarder.some((r) => r.entreprise.id === essai.ent)).toBe(false);
-    // La technique : un numéro d'entreprise, jamais son nom ni le texte du motif.
-    const t = (await lire(jT)).aRegarder.filter((r) => r.entreprise.id === ent);
+    expect(d.aRegarder.some((r) => r.entreprise?.id === essai.ent)).toBe(false);
+    // La technique (0114) : ni le nom de l'entreprise, ni son identifiant, ni le texte du motif ; la clé de l'envoi lui suffit.
+    const t = (await lire(jT)).aRegarder.filter((r) => ['0000AAA1', '0000BBB2', '0000CCC3'].includes(r.cle));
     expect(t).toHaveLength(3);
-    expect(t.every((r) => r.entreprise.nom === null && r.motifTexte === null)).toBe(true);
+    expect(t.every((r) => r.entreprise === null && r.motifTexte === null)).toBe(true);
+    expect(JSON.stringify(await lire(jT))).not.toContain(ent);
     expect(t.find((r) => r.cle.endsWith('BBB2'))?.motifCle).toBe('ttn.compte_refuse');
   });
 

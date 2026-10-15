@@ -225,12 +225,12 @@ describe('les réglages de la plateforme, à la souris', () => {
     await p.goto(`${serveur.adresse}/console/#/journal`);
     const ligne = (geste: string, sur: string) => p.locator('tr').filter({ hasText: geste }).filter({ hasText: sur }).first().innerText().then(net).catch(() => '');
     await expect.poll(() => ligne('Nouveau prix préparé', 'Complet, au mois'), { timeout: 15_000 })
-      .toContain(`Nouveau prix préparé Réglages Le prix de Complet, au mois « Nouvelle grille au mois » 69,000 DT → 72,000 DT à partir du ${enFrancais(plusTot)}`);
+      .toContain(`Nouveau prix préparé Réglages direction Le prix de Complet, au mois « Nouvelle grille au mois » 69,000 DT → 72,000 DT à partir du ${enFrancais(plusTot)}`);
     expect(await ligne('Prix à venir retiré', 'Complet, au mois'))
-      .toContain(`Prix à venir retiré Réglages Le prix de Complet, au mois « Grille repoussée » 72,000 DT à partir du ${enFrancais(plusTot)} → 69,000 DT`);
-    expect(await ligne('Prix à venir retiré', 'Grille Essentiel repoussée')).toContain('Prix à venir retiré Réglages Le prix d\'Essentiel, à l\'année « Grille Essentiel repoussée »');
+      .toContain(`Prix à venir retiré Réglages direction Le prix de Complet, au mois « Grille repoussée » 72,000 DT à partir du ${enFrancais(plusTot)} → 69,000 DT`);
+    expect(await ligne('Prix à venir retiré', 'Grille Essentiel repoussée')).toContain('Prix à venir retiré Réglages direction Le prix d\'Essentiel, à l\'année « Grille Essentiel repoussée »');
     expect(await ligne('Préavis d\'un nouveau prix réglé', 'Préavis plus court'))
-      .toContain('Préavis d\'un nouveau prix réglé Réglages Le préavis d\'un nouveau prix « Préavis plus court pour la rentrée » 30 jours → 20 jours');
+      .toContain('Préavis d\'un nouveau prix réglé Réglages direction Le préavis d\'un nouveau prix « Préavis plus court pour la rentrée » 30 jours → 20 jours');
     expect((await api('POST', '/console/reglages/preavis', jD, { jours: 30, motif: 'retour aux trente jours' })).statut).toBe(200);
     expect(erreurs).toEqual([]);
     await fermer(p);
@@ -324,9 +324,9 @@ describe('les réglages de la plateforme, à la souris', () => {
     await p.goto(`${serveur.adresse}/console/#/journal`);
     const auJournal = (motif: string) => p.locator('tr').filter({ hasText: motif }).first().innerText().then(net).catch(() => '');
     await expect.poll(() => auJournal('Trois caisses en Complet'), { timeout: 15_000 })
-      .toContain(`Changement de contenu préparé Réglages Complet : caisses comprises « Trois caisses en Complet » 2 caisses comprises → 3 caisses comprises à partir du ${enFrancais(plusTot)}`);
+      .toContain(`Changement de contenu préparé Réglages direction Complet : caisses comprises « Trois caisses en Complet » 2 caisses comprises → 3 caisses comprises à partir du ${enFrancais(plusTot)}`);
     expect(await auJournal('Caisses repoussées'))
-      .toContain(`Changement de contenu retiré Réglages Complet : caisses comprises « Caisses repoussées » 3 caisses comprises à partir du ${enFrancais(plusTot)} → 2 caisses comprises`);
+      .toContain(`Changement de contenu retiré Réglages direction Complet : caisses comprises « Caisses repoussées » 3 caisses comprises à partir du ${enFrancais(plusTot)} → 2 caisses comprises`);
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 120_000);
@@ -378,9 +378,9 @@ describe('les réglages de la plateforme, à la souris', () => {
     await p.goto(`${serveur.adresse}/console/#/journal`);
     const auJournal = (motif: string) => p.locator('tr').filter({ hasText: motif }).first().innerText().then(net).catch(() => '');
     await expect.poll(() => auJournal('Vingt-cinq pour cent, six mois'), { timeout: 15_000 })
-      .toContain(`Changement de remise préparé Réglages La remise du cabinet « Vingt-cinq pour cent, six mois » 20 % pendant 12 mois → 25 % pendant 6 mois à partir du ${enFrancais(plusTot)}`);
+      .toContain(`Changement de remise préparé Réglages direction La remise du cabinet « Vingt-cinq pour cent, six mois » 20 % pendant 12 mois → 25 % pendant 6 mois à partir du ${enFrancais(plusTot)}`);
     expect(await auJournal('Remise repoussée'))
-      .toContain(`Changement de remise retiré Réglages La remise du cabinet « Remise repoussée » 25 % pendant 6 mois à partir du ${enFrancais(plusTot)} → 20 % pendant 12 mois`);
+      .toContain(`Changement de remise retiré Réglages direction La remise du cabinet « Remise repoussée » 25 % pendant 6 mois à partir du ${enFrancais(plusTot)} → 20 % pendant 12 mois`);
 
     // Un groupe : la seconde société de Lina, depuis sa fiche. Le Studio a payé le premier : il garde le prix normal.
     const atelier = String((await api('POST', '/entreprises', jClient, { raisonSociale: 'Atelier Lina Réglages' })).corps.id);
@@ -452,7 +452,7 @@ describe('les réglages de la plateforme, à la souris', () => {
     // Le journal : quelle règle, de quoi à quoi.
     await p.goto(`${serveur.adresse}/console/#/journal`);
     await expect.poll(() => p.locator('tr').filter({ hasText: 'Dix jours pour la rentrée' }).first().innerText().then(net).catch(() => ''), { timeout: 15_000 })
-      .toContain('Règle de l\'abonnement changée Réglages La grâce après l\'échéance « Dix jours pour la rentrée » 7 jours → 10 jours');
+      .toContain('Règle de l\'abonnement changée Réglages direction La grâce après l\'échéance « Dix jours pour la rentrée » 7 jours → 10 jours');
     // Retour à la règle de départ pour la suite.
     expect((await api('POST', '/console/reglages/regle', jD, { code: 'grace', jours: [7], motif: 'retour aux sept jours' })).statut).toBe(200);
     expect((await api('POST', '/console/reglages/regle', jD, { code: 'relances', jours: [15, 7, 1], motif: 'retour aux trois relances' })).statut).toBe(200);

@@ -148,8 +148,8 @@ describe('les paiements de nos factures, à la souris', () => {
     await expect.poll(() => couts.locator('.c-pa-couts-liste li').count(), { timeout: 10_000 }).toBe(avant + 1);
     const ligne = couts.locator('.c-pa-couts-liste li', { hasText: 'Serveurs en Tunisie' }).last();
     expect(net(await ligne.innerText())).toBe('Serveurs en Tunisie 1 450,500 DT d\'après Facture Hébergeur TN n° 118 Retirer');
-    // Ce qui reste : l'encaissé moins les coûts, et la phrase dit les deux.
-    expect(net(await couts.locator('.c-pa-reste').innerText())).toMatch(/^Ce qui reste en \S+ −?[\d ]+,\d{3} DT Encaissé [\d ]+,\d{3} DT, moins les coûts [\d ]+,\d{3} DT\./);
+    // Ce qui reste : l'encaissé moins les coûts, et la phrase dit les deux ; le mois court encore, le chiffre est provisoire.
+    expect(net(await couts.locator('.c-pa-reste').innerText())).toMatch(/^Ce qui reste en \S+ Provisoire −?[\d ]+,\d{3} DT Encaissé [\d ]+,\d{3} DT, moins les coûts [\d ]+,\d{3} DT\./);
     // Retiré : avec son motif ; il quitte le total et reste visible, barré.
     await cliquer(ligne.getByRole('button', { name: /^Retirer le coût \W+Serveurs en Tunisie\W+$/ }));
     const r = p.locator('[role="dialog"]');
