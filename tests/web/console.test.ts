@@ -331,6 +331,30 @@ describe('la console de l\'équipe, à la souris', () => {
     await fermer(p);
   }, 90_000);
 
+  it('à risque (1.40.0) : un abonné qui résilie s\'y range, sa carte compte la liste, la colonne de l\'usage dit son signe en mots, sa fiche le redit', async () => {
+    await admin.query('update plateforme.abonnement set resilie_le = $2::date where entreprise = $1', [abonnee, aujourdhui]);
+    try {
+      const p = await ouvrir(await jetonConsole(direction), '#/clients?vue=a_risque');
+      const carte = p.locator('.c-vue', { has: p.locator('.c-point-v-a_risque') });
+      await expect.poll(() => carte.getAttribute('aria-pressed'), { timeout: 15_000 }).toBe('true');
+      await expect.poll(() => carte.locator('.c-vue-n').innerText().then(Number), { timeout: 15_000 }).toBeGreaterThan(0);
+      await expect.poll(() => totalClients(p).catch(() => Number.NaN), { timeout: 15_000 }).toBe(Number(await carte.locator('.c-vue-n').innerText()));
+      await p.getByRole('searchbox').fill('Clinique Abonnée');
+      const l = p.locator('.c-table-clients tbody tr', { hasText: 'Clinique Abonnée' });
+      await expect.poll(() => p.locator('.c-table-clients tbody tr').count().then(async (n) => n === 1 && await l.count() === 1), { timeout: 15_000 }).toBe(true);
+      expect((await p.locator('.c-table-clients thead').innerText()).toLocaleLowerCase('fr')).toContain('ses signes de départ');
+      expect(net(await l.locator('.c-cl-usage').innerText())).toMatch(/^Résiliation demandée pièces émises : \d+ ces 30 jours, \d+ les 30 d'avant$/);
+      await fermer(p);
+      const f = await ouvrir(await jetonConsole(direction), `#/clients/${abonnee}`);
+      const risque = f.locator('section[aria-labelledby="fiche-risque"]');
+      await expect.poll(() => risque.locator('.c-carte-coin').innerText().then((t) => net(t).toLocaleLowerCase('fr')).catch(() => ''), { timeout: 15_000 }).toBe('un signe');
+      expect((await risque.locator('.c-fi-risque-signes > li b').allInnerTexts()).map(net)).toEqual(['Résiliation demandée']);
+      await fermer(f);
+    } finally {
+      await admin.query('update plateforme.abonnement set resilie_le = null where entreprise = $1', [abonnee]);
+    }
+  }, 90_000);
+
   it('la fiche : prolonger un essai, avec l\'aperçu du serveur et un motif ; la base, l\'histoire et le journal le disent', async () => {
     const p = await ouvrir(await jetonConsole(direction), `#/clients/${essaiCalme}`);
     // Inscrite aujourd'hui : sa fiche dit son arrivée (0127) — le premier jour, cinq marches dans l'ordre, l'inscription

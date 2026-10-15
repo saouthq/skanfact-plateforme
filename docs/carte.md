@@ -698,6 +698,10 @@ vaut pour tout le dépôt.*
   - **Ce qui doit rentrer** (1.39.0 ; `docs/console.md` C55) : `serveur/console/previsions.ts` (`prevoir`), lu par
     `GET /console/paiements` ; la carte `CeQuiDoitRentrer` de `web/console/src/ecrans/Paiements.tsx`
     (`tests/console/previsions.test.ts`, `tests/console/paiements.test.ts`, `tests/web/console-paiements.test.ts`).
+  - **Le risque de départ** (1.40.0 ; `docs/console.md` C56) : base `0132_risque.sql` (`plateforme.console_usage_trente`) ;
+    `serveur/console/risque.ts` (`risqueDe`, `avecRisque`), posé par `selectionClients` et la fiche de `serveur/console/routes.ts` ;
+    la vue `a_risque` de `serveur/console/clients.ts` ; la vue et la colonne de `web/console/src/ecrans/Clients.tsx`, la carte
+    `SonRisque` de `web/console/src/ecrans/Fiche.tsx` (`tests/console/risque.test.ts`, `tests/web/console.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

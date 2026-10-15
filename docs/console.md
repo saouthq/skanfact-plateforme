@@ -1339,6 +1339,25 @@ compris :
 Les deux colonnes ne s'additionnent jamais : l'une est taxes comprises, l'autre hors taxes (la facture ajoutera la TVA et
 le timbre du jour). La carte le dit, et dit aussi que c'est une prévision, pas une promesse.
 
+**C56. Le risque de départ d'un client** (1.40.0 ; base 0132 ; la liste des fonctions qui manquent, 7 : « suivi de la
+satisfaction et du risque de départ : retours, insatisfaction et baisse d'utilisation » ; version légère). La console lit
+des **signes** dans ce qu'elle sait déjà, jamais une note inventée ; seul un client qui **paie** en montre (abonné, ou une
+échéance passée sans paiement après un abonnement) : un essai qui ne choisit pas d'offre n'est pas un départ, il est « à
+appeler ». Les six signes, dans cet ordre :
+  - **résiliation demandée** : il partira à son échéance ;
+  - **paiement en retard** : son échéance est passée sans paiement ;
+  - **conteste une facture** : une contestation (C52) encore ouverte ;
+  - **plusieurs demandes ouvertes** : au moins deux demandes au support pas encore closes (ses retours) ;
+  - **usage en baisse** : il émet au moins deux fois moins de pièces ces trente jours que les trente d'avant, sur au moins
+    quatre pièces d'avant (0132 : `plateforme.console_usage_trente`, des nombres par entreprise, au jour de son fuseau,
+    les seules pièces émises, jamais une entreprise d'exemple ; la direction et le support, jamais la technique) ;
+  - **pas ouverte depuis dix jours** : la règle de la vue « Silencieux », par la même fonction (`silencieuse`).
+Dans Clients, une huitième carte, **« à risque »**, ouvre les abonnés qui montrent au moins un signe ; dans cette vue, la
+colonne de l'usage devient « ses signes de départ » (les signes en mots, et les pièces des deux fois trente jours). La
+fiche a sa carte **« son risque de départ »** (un client qui paie seulement) : chaque signe et ce qu'il veut dire. Les deux
+lisent le risque par la même fonction (`risqueDe`). La satisfaction elle-même **ne se mesure pas encore** (aucune question
+n'est posée aux clients) : l'écran le dit. **À DÉCIDER** : les seuils (quatre pièces, la moitié, deux demandes).
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

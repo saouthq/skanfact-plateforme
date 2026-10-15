@@ -16,11 +16,16 @@ import { dateDe, type Remises } from './echeances.ts';
 import { lireFacturesAbonnement } from '../abonnement/factures.ts';
 import type { Renouvellements } from './renouvellements.ts';
 
-export type VueClients = 'tout' | 'arrivees' | 'a_appeler' | 'argent' | 'silencieux' | 'tenus' | 'cabinet';
-export const VUES_CLIENTS: readonly VueClients[] = ['tout', 'arrivees', 'a_appeler', 'argent', 'silencieux', 'tenus', 'cabinet'];
+export type VueClients = 'tout' | 'arrivees' | 'a_appeler' | 'argent' | 'silencieux' | 'a_risque' | 'tenus' | 'cabinet';
+export const VUES_CLIENTS: readonly VueClients[] = ['tout', 'arrivees', 'a_appeler', 'argent', 'silencieux', 'a_risque', 'tenus', 'cabinet'];
 // Un essai « qui finit » : dans la semaine. Un client « silencieux » : personne ne l'a ouvert depuis dix jours.
 export const ESSAI_QUI_FINIT_JOURS = 7;
 export const SILENCE_JOURS = 10;
+// Personne n'y a travaillé depuis dix jours (0114 : dans CETTE entreprise) ; jamais ouverte, les dix jours se comptent
+// depuis son inscription (une entreprise née ce matin n'est pas encore silencieuse). La vue « Silencieux » et le risque de
+// départ (serveur/console/risque.ts) la lisent par cette fonction.
+export const silencieuse = (e: Pick<Entreprise, 'derniereActivite' | 'creeLe'>, jour: string): boolean =>
+  joursEntre(e.derniereActivite === null ? e.creeLe.slice(0, 10) : aujourdhuiATunis(new Date(e.derniereActivite)), jour) >= SILENCE_JOURS;
 
 export function dansLaVue(e: Entreprise, v: VueClients, jour: string): boolean {
   const s = e.etat;
@@ -37,10 +42,10 @@ export function dansLaVue(e: Entreprise, v: VueClients, jour: string): boolean {
     // Une offre choisie, pas encore payée : sa facture attend (pendant l'essai ou après l'échéance), ou l'échéance d'une
     // offre est passée sans paiement. L'argent qu'on attend.
     case 'argent': return (s.etat === 'en_retard' && e.faits.offre !== null) || ((s.etat === 'essai' || s.etat === 'en_retard') && !!e.enPlus?.attend);
-    // En essai ou abonné, et personne n'y a travaillé depuis dix jours (0114 : dans CETTE entreprise) ; jamais ouverte, les
-    // dix jours se comptent depuis son inscription (une entreprise née ce matin n'est pas encore silencieuse).
-    case 'silencieux': return (s.etat === 'essai' || s.etat === 'actif')
-      && joursEntre(e.derniereActivite === null ? e.creeLe.slice(0, 10) : aujourdhuiATunis(new Date(e.derniereActivite)), jour) >= SILENCE_JOURS;
+    // En essai ou abonné, et personne n'y a travaillé depuis dix jours.
+    case 'silencieux': return (s.etat === 'essai' || s.etat === 'actif') && silencieuse(e, jour);
+    // Un client qui paie et montre au moins un signe de départ (1.40.0 ; serveur/console/risque.ts, posé par avecRisque).
+    case 'a_risque': return (e.risque?.signes.length ?? 0) > 0;
     // Un dossier qu'un cabinet tient pour son client, sans abonnement à lui : à convertir.
     case 'tenus': return s.etat === 'hors' && s.raison === 'tenu_par_cabinet';
     // Venue par un cabinet (0107) : un mandat avant son premier paiement, la remise de sa première année (0106). Un

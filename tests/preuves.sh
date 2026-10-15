@@ -15382,6 +15382,65 @@ prouver 'la carte qui met les factures dans la colonne des renouvellements' 'web
   '<b className="c-mono" data-donnee>{enDevise(m.du.montant, p.devise)}</b>' \
   'la tuile de l'"'"'accueil et le bandeau disent le même encaissé ; la facture qui doit encore mène à sa pièce'
 
+# 1.40.0 : le risque de départ (la liste des fonctions qui manquent, 7).
+prouver 'un essai qui montre des signes de départ' 'serveur/console/risque.ts' \
+  '  if (!payant(e)) return { signes: [], usage };
+' \
+  '' \
+  'seul un client qui paie montre des signes : un essai silencieux, sans usage, n'"'"'en a aucun'
+prouver 'une grâce d'"'"'après l'"'"'essai comptée comme un abonné en retard' 'serveur/console/risque.ts' \
+  '(e.etat.etat === '"'"'en_retard'"'"' && !e.etat.apresEssai)' \
+  '(e.etat.etat === '"'"'en_retard'"'"')' \
+  'seul un client qui paie montre des signes : un essai silencieux, sans usage, n'"'"'en a aucun'
+prouver 'une seule demande ouverte vue comme un signe' 'serveur/console/risque.ts' \
+  '>= DEMANDES_OUVERTES_MIN,' \
+  '>= 1,' \
+  'chaque signe a sa règle : la résiliation, le retard d'"'"'un abonné, la contestation ouverte, les demandes ouvertes'
+prouver 'une baisse comptée sur un mois trop calme' 'serveur/console/risque.ts' \
+  'u.avant >= USAGE_AVANT_MIN && ' \
+  '' \
+  'l'"'"'usage en baisse : au moins deux fois moins, sur au moins quatre pièces d'"'"'avant ; le silence de dix jours'
+prouver 'la baisse d'"'"'un tiers vue comme un effondrement' 'serveur/console/risque.ts' \
+  'u.trente * 2 <= u.avant' \
+  'u.trente * 3 <= u.avant * 2' \
+  'l'"'"'usage en baisse : au moins deux fois moins, sur au moins quatre pièces d'"'"'avant ; le silence de dix jours'
+prouver 'le silence du risque qui n'"'"'est pas celui de la vue' 'serveur/console/risque.ts' \
+  'silencieux: silencieuse(e, jour),' \
+  'silencieux: false,' \
+  'l'"'"'usage en baisse : au moins deux fois moins, sur au moins quatre pièces d'"'"'avant ; le silence de dix jours'
+prouver 'la carte « à risque » qui compte autre chose que sa liste' 'serveur/console/clients.ts' \
+  'case '"'"'a_risque'"'"': return (e.risque?.signes.length ?? 0) > 0;' \
+  'case '"'"'a_risque'"'"': return (e.risque?.signes.length ?? 0) > 1;' \
+  'les signes viennent dans un ordre fixe ; la vue « à risque » et sa carte comptent la même liste (C3) ; un usage illisible vaut « rien »'
+prouver 'une pièce abandonnée comptée dans l'"'"'usage' 'base/migrations/0132_risque.sql' \
+  'where not e.essai and p.statut = '"'"'emise'"'"' and' \
+  'where not e.essai and' \
+  'l'"'"'usage sur deux fois trente jours : au jour de Tunis, les seules pièces émises ; la direction et le support, jamais la technique'
+prouver 'la technique qui lit l'"'"'usage des clients' 'base/migrations/0132_risque.sql' \
+  'array['"'"'direction'"'"', '"'"'support'"'"']' \
+  'array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']' \
+  'l'"'"'usage sur deux fois trente jours : au jour de Tunis, les seules pièces émises ; la direction et le support, jamais la technique'
+prouver 'le trentième jour oublié des trente d'"'"'avant' 'base/migrations/0132_risque.sql' \
+  'between p_jour - 59 and p_jour - 30' \
+  'between p_jour - 59 and p_jour - 31' \
+  'l'"'"'usage sur deux fois trente jours : au jour de Tunis, les seules pièces émises ; la direction et le support, jamais la technique'
+prouver 'la liste sans l'"'"'usage de ses clients' 'serveur/console/routes.ts' \
+  'jour, lireUsages(await lireJson(t, '"'"'select plateforme.console_usage_trente($1::date) v'"'"', [jour])), contestees, demandes);' \
+  'jour, new Map(), contestees, demandes);' \
+  'un abonné dont l'"'"'usage s'"'"'effondre est « à risque » : la liste, sa carte et sa fiche disent les mêmes signes ; un essai au même usage n'"'"'y est pas'
+prouver 'la fiche qui dit payant un essai' 'serveur/console/routes.ts' \
+  'payant: payant(liste[0]) }' \
+  'payant: true }' \
+  'un abonné dont l'"'"'usage s'"'"'effondre est « à risque » : la liste, sa carte et sa fiche disent les mêmes signes ; un essai au même usage n'"'"'y est pas'
+prouver 'la colonne qui tait les signes de départ' 'web/console/src/ecrans/Clients.tsx' \
+  '        {risque ? <>' \
+  '        {false ? <>' \
+  'à risque (1.40.0) : un abonné qui résilie s'"'"'y range, sa carte compte la liste, la colonne de l'"'"'usage dit son signe en mots, sa fiche le redit'
+prouver 'la fiche sans sa carte du risque' 'web/console/src/ecrans/Fiche.tsx' \
+  '{f.risque?.payant ? <SonRisque r={f.risque} /> : null}' \
+  '{null}' \
+  'à risque (1.40.0) : un abonné qui résilie s'"'"'y range, sa carte compte la liste, la colonne de l'"'"'usage dit son signe en mots, sa fiche le redit'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

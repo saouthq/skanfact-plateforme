@@ -39,7 +39,12 @@ export type Ligne = Entreprise & {
   numero: string | null; ville: string | null;
   // Son arrivée, les trente jours après son inscription (serveur/console/arrivee.ts) ; vide passé ce temps.
   arrivee?: Arrivee | null;
+  // Son risque de départ (serveur/console/risque.ts) : les signes qu'il montre, son usage sur deux fois trente jours.
+  risque?: Risque | null;
 };
+// Les signes d'un départ, dans l'ordre du serveur (serveur/console/risque.ts, SIGNES_RISQUE).
+export const SIGNES_RISQUE = ['resiliation', 'retard', 'contestation', 'demandes', 'usage_en_baisse', 'silencieux'] as const;
+export type Risque = { signes: (typeof SIGNES_RISQUE[number])[]; usage: { trente: number; avant: number } | null };
 // L'arrivée d'un nouveau client (serveur/console/arrivee.ts) : cinq marches, de l'inscription à l'abonnement payé.
 export const MARCHES = ['inscrite', 'ouverte', 'premiere_piece', 'premiere_facture', 'abonnee'] as const;
 type Marche = typeof MARCHES[number];
@@ -55,7 +60,7 @@ export type LigneOrg = {
   id: string; sorte: Sorte; numero: string | null; nom: string; ville: string | null; cabinet: CabinetDeLigne | null;
   parAnHt: string | null; attenduHt: string | null; usage: number; vu: string | null; societes: Ligne[];
 };
-export const VUES = ['tout', 'arrivees', 'a_appeler', 'argent', 'silencieux', 'tenus', 'cabinet'] as const;
+export const VUES = ['tout', 'arrivees', 'a_appeler', 'argent', 'silencieux', 'a_risque', 'tenus', 'cabinet'] as const;
 export type VueClients = typeof VUES[number];
 export const TRIS = ['urgence', 'echeance', 'par_an', 'usage', 'nom', 'vu'] as const;
 type Tri = typeof TRIS[number];
@@ -302,7 +307,7 @@ export function arriveeEnMots(a: Arrivee): { texte: string; alerte: boolean } {
   return { texte: dire('console.ecran.clients.ar.prochaine', { marche: dire(`console.ecran.clients.ar.m.${suivante.id}`), le: jourMois(suivante.avant) }), alerte: false };
 }
 const SousNom = ({ morceaux }: { morceaux: string[] }) => <>{morceaux.map((x, i) => <span key={i}>{i ? '\u00a0· ' : null}<span className="c-insecable">{x}</span></span>)}</>;
-function LigneDeLaListe({ o, aujourdhui, role, reserve, arrivees, faireDuMenu }: { o: LigneOrg; aujourdhui: string; role: string; reserve: string | null; arrivees: boolean; faireDuMenu: (e: Ligne) => FaireDuMenu }) {
+function LigneDeLaListe({ o, aujourdhui, role, reserve, arrivees, risques, faireDuMenu }: { o: LigneOrg; aujourdhui: string; role: string; reserve: string | null; arrivees: boolean; risques: boolean; faireDuMenu: (e: Ligne) => FaireDuMenu }) {
   const e = o.societes[0] ?? null;
   const groupe = o.sorte === 'groupe', cabinet = o.sorte === 'cabinet', tenu = o.sorte === 'tenu';
   const m = e ? ligneEnMots(e, aujourdhui) : null;
@@ -318,6 +323,8 @@ function LigneDeLaListe({ o, aujourdhui, role, reserve, arrivees, faireDuMenu }:
   // La vue des arrivées : la colonne de l'usage dit où en est l'arrivée de la société (la plus urgente d'un groupe).
   const arrivee = arrivees ? o.societes.find((x) => x.arrivee)?.arrivee ?? null : null;
   const ar = arrivee ? arriveeEnMots(arrivee) : null;
+  // La vue « à risque » : la colonne de l'usage dit ses signes de départ (ceux de la première société qui en montre).
+  const risque = risques ? o.societes.find((x) => (x.risque?.signes.length ?? 0) > 0)?.risque ?? null : null;
   return (
     <tr>
       <td>
@@ -355,7 +362,10 @@ function LigneDeLaListe({ o, aujourdhui, role, reserve, arrivees, faireDuMenu }:
             : <><span className="c-cl-rien">—</span>{e && !groupe && e.etat.etat === 'actif' && e.etat.resilie ? <span className="c-sous">{dire('console.ecran.clients.ne_revient_pas')}</span> : null}</>}
       </td>
       <td className="c-cl-usage">
-        {arrivee && ar ? <>
+        {risque ? <>
+          <span className="c-cl-proche">{maj(risque.signes.map((x) => dire(`console.ecran.clients.ri.${x}`)).join(' · '))}</span>
+          <span className="c-sous">{risque.usage ? dire('console.ecran.clients.ri.usage', { trente: risque.usage.trente, avant: risque.usage.avant }) : dire('console.ecran.clients.ri.usage_rien')}</span>
+        </> : arrivee && ar ? <>
           <span className="c-ar-ligne"><Marches a={arrivee} /><span className={ar.alerte ? 'c-cl-proche' : undefined}>{maj(ar.texte)}</span></span>
           <span className="c-sous">{dire('console.ecran.clients.ar.jour', { n: arrivee.jours + 1 })}</span>
         </> : <>
@@ -440,7 +450,7 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
   const pages = lu ? Math.max(1, Math.ceil(lu.total / taille)) : 1;
   const allerA = (n: number) => setDebut((Math.min(Math.max(n, 1), pages) - 1) * taille);
   // Une aide sous les cartes quand une vue demande un mot de plus (la maquette Clients) : ce qu'on y fait, et pourquoi.
-  const aide = vue === 'silencieux' || vue === 'tenus' || vue === 'arrivees' ? phrase(`console.ecran.clients.aide.${vue}`) : null;
+  const aide = vue === 'silencieux' || vue === 'tenus' || vue === 'arrivees' || vue === 'a_risque' ? phrase(`console.ecran.clients.aide.${vue}`) : null;
   // Ce que ce rôle ne fait pas depuis le menu, et qui le fait (le support prolonge un essai, une fois).
   const reserve = direction ? null : phrase('console.ecran.clients.m.reserve');
 
@@ -552,13 +562,13 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
                       <th scope="col">{titre('console.ecran.clients.colonne.etat')}</th>
                       <th scope="col">{titre('console.ecran.clients.colonne.echeance')}</th>
                       <th scope="col" className="c-droite">{titre('console.ecran.clients.colonne.par_an')}</th>
-                      <th scope="col">{vue === 'arrivees' ? titre('console.ecran.clients.colonne.arrivee') : titre('console.ecran.clients.colonne.usage_mois', { mois: deMois(aujourdhui.slice(0, 7), false) })}</th>
+                      <th scope="col">{vue === 'arrivees' ? titre('console.ecran.clients.colonne.arrivee') : vue === 'a_risque' ? titre('console.ecran.clients.colonne.risque') : titre('console.ecran.clients.colonne.usage_mois', { mois: deMois(aujourdhui.slice(0, 7), false) })}</th>
                       <th scope="col">{titre('console.ecran.clients.colonne.vu')}</th>
                       <th scope="col"><span className="c-cache">{titre('console.ecran.clients.ouvrir')}</span></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {lu.lignes.map((o) => <LigneDeLaListe key={o.id} o={o} aujourdhui={aujourdhui} role={moi.role} reserve={reserve} arrivees={vue === 'arrivees'}
+                    {lu.lignes.map((o) => <LigneDeLaListe key={o.id} o={o} aujourdhui={aujourdhui} role={moi.role} reserve={reserve} arrivees={vue === 'arrivees'} risques={vue === 'a_risque'}
                       faireDuMenu={(x) => ({ geste: (g) => setGeste({ id: x.id, geste: g }), acces: () => setAcces({ id: x.id, nom: x.raisonSociale }),
                         appel: () => setAppel({ id: x.id, nom: x.raisonSociale }), ecrire: () => setEcrire({ client: { id: x.id, nom: x.raisonSociale }, contexte: contexteDe(x.etat.etat, x.etat.etat === 'lecture_seule' ? x.etat.raison : undefined) }) })} />)}
                   </tbody>

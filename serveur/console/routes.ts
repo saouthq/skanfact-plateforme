@@ -62,6 +62,7 @@ import { lireFormats, registreDesFormats } from './formats.ts';
 import { etatDesNouveautes, listeDesNouveautes, NOUVEAUTES } from '../nouveautes.ts';
 import { arrivee, enArrivee } from './arrivee.ts';
 import { CAUSES_SORTIE, lireSortie, lireSorties } from './sortie.ts';
+import { avecRisque, lireUsages, payant, risqueDe } from './risque.ts';
 import {
   articleConnu, articlesDeLAide, CANAUX_NOTES, CLOSES_PAR_PAGE, compter, etatDe, type LigneDemande, lireSupport, PRIORITES, ranger, SANS_REPONSE_HEURES, SANS_REPONSE_HEURES_URGENTE,
   suggererPour, VERSION, versionAtteinte,
@@ -322,9 +323,16 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     // Celles venues par un cabinet (0107), pour la sixième vue ; la remise de la prochaine période de chacune (0106), que
     // « par an » déduit comme les échéances ; et ce que chaque ligne dit en plus (0110 : les pièces émises du mois,
     // l'essai prolongé, la facture qui attend).
-    const entreprises = avecEnPlus(avecVenues(await lesEntreprises(t, jour), await lireJson(t, 'select plateforme.console_venues_par_cabinet() v'),
+    // Et son risque de départ (1.40.0 ; 0132 ; serveur/console/risque.ts) : l'usage sur deux fois trente jours, les
+    // contestations encore ouvertes (0129), les demandes ouvertes au support.
+    const demandes = new Map<string, number>();
+    for (const d of lireSupport(await lireJson(t, 'select plateforme.console_support(null, null) v')).ouvertes) demandes.set(d.entreprise.id, (demandes.get(d.entreprise.id) ?? 0) + 1);
+    const contestees = new Set(lireContestations(await lireJson(t, 'select plateforme.console_contestations($1) v', [maintenant()]))
+      .filter((c) => c.close === null).map((c) => c.entreprise.id));
+    const entreprises = avecRisque(avecEnPlus(avecVenues(await lesEntreprises(t, jour), await lireJson(t, 'select plateforme.console_venues_par_cabinet() v'),
       lireRemisesEcheances(await lireJson(t, 'select plateforme.console_remises_echeances() v'))),
-    lireEnPlus(await lireJson(t, 'select plateforme.console_clients_en_plus($1::date) v', [jour]), jour));
+    lireEnPlus(await lireJson(t, 'select plateforme.console_clients_en_plus($1::date) v', [jour]), jour)),
+    jour, lireUsages(await lireJson(t, 'select plateforme.console_usage_trente($1::date) v', [jour])), contestees, demandes);
     // Ce que chaque renouvellement coûtera, par la règle de la facture (0113), en un passage.
     const renouvellements = await renouvellementsDe(t, entreprises, jour);
     // Le numéro, la ville, le téléphone de chaque entreprise ; les groupes de la console ce jour-là ; les cabinets (0110).
@@ -445,13 +453,18 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const enPlus = lireEnPlus(await lireJson(transaction(tx), 'select plateforme.console_clients_en_plus($1::date) v', [jour]), jour).get(id) ?? null;
       // Ce que sa prochaine facture coûtera (0113), par la règle de la facture : le chiffre de la liste et des échéances.
       const r = (await renouvellementsDe(transaction(tx), liste, jour)).get(id) ?? null;
+      // Son risque de départ (1.40.0 ; 0132), par la fonction de la liste : ses signes, son usage sur deux fois trente
+      // jours, et s'il paie (un essai ne « part » pas : il est à appeler).
+      const usage = lireUsages(await lireJson(transaction(tx), 'select plateforme.console_usage_trente($1::date) v', [jour])).get(id) ?? null;
+      const risque = liste[0] ? { ...risqueDe(liste[0], jour, usage, new Set(contestations.filter((c) => c.close === null).map((c) => c.entreprise.id)),
+        new Map([[id, support.ouvertes.length]])), payant: payant(liste[0]) } : null;
       return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, factures, contestations, groupe: { ...groupe, prochaine }, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true, enPlus?.moisOffertRecent ?? false),
         identite, notes, enPlus, offreSuivante: faits.offreSuivante ?? null, delai: faits.delai ?? null,
         // Son arrivée (0127) : de l'inscription à la première facture émise, par la même fonction que la liste.
         arrivee: liste[0] && enArrivee(liste[0], jour) ? arrivee({ ...liste[0], enPlus: enPlus ?? {} }, jour) : null,
         // La procédure de reprise en cours, ou la dernière (0112) : la direction seule la voit.
         reprise: role === 'direction' ? await lireJson(transaction(tx), 'select plateforme.console_reprise($1, $2::date) v', [id, jour]) : null,
-        sortie,
+        sortie, risque,
         prochaineFacture: r ? { debut: r.debut, montantHt: versTexte(r.periodeHt, 3) } : null,
         support: { comptes: compter(support.ouvertes, instant), ouvertes: ranger(support.ouvertes, instant), closes: support.closes.map((l) => ({ ...l, etat: etatDe(l, instant) })) } } };
     },

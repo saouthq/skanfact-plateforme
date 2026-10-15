@@ -11,6 +11,7 @@ import type { RoleConsole } from './gestes.ts';
 import type { AEmettre, Defaite, MesureEncaisse, Trop } from './paiements.ts';
 import { compter, etatDe, type LigneDemande } from './support.ts';
 import { CONTESTATION_JOURS, enCours, joursDAttente, type Contestation } from './contestations.ts';
+import type { Risque } from './risque.ts';
 import type { SecretLu } from './secrets.ts';
 import { restantes, sortieADecider, type Etape, type Sortie } from './sortie.ts';
 
@@ -27,6 +28,8 @@ export type Entreprise = {
   // Ce que la liste des clients dit en plus de chaque ligne (0110 ; serveur/console/clients.ts, avecEnPlus) : les pièces
   // émises du mois, les jours ajoutés à son essai, la facture d'abonnement qui attend son paiement. Ailleurs, absent.
   enPlus?: EnPlus;
+  // Son risque de départ (1.40.0 ; serveur/console/risque.ts) : la liste des clients et la fiche seulement.
+  risque?: Risque;
 };
 // La facture d'abonnement qui attend (préparée, pas encore payée) : son offre, son état, ce qu'il en reste à payer et
 // d'ici quand. `reste` est vide tant qu'elle n'est pas émise (elle attend dans le dossier de SkanFact).

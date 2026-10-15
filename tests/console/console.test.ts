@@ -334,8 +334,8 @@ describe('les clients', () => {
       // procédure de reprise (la direction seule ; au support : rien). 0113 : ce que sa prochaine facture coûtera. 0114 : le
       // dernier instant où quelqu'un y a travaillé (10 § 4). 0127 : son arrivée — des marches et des jours, rien d'un dossier.
       // 0129 : les contestations de ses factures (ce qu'il dit, le canal, la régularisation). 0131 : sa sortie (la direction
-      // seule ; au support : rien).
-      'identite', 'notes', 'enPlus', 'offreSuivante', 'delai', 'reprise', 'prochaineFacture', 'derniereActivite', 'arrivee', 'contestations', 'sortie'].sort());
+      // seule ; au support : rien). 1.40.0 : son risque de départ — des signes et deux nombres de pièces, rien d'un dossier.
+      'identite', 'notes', 'enPlus', 'offreSuivante', 'delai', 'reprise', 'prochaineFacture', 'derniereActivite', 'arrivee', 'contestations', 'sortie', 'risque'].sort());
     expect(f.reprise).toBeNull();
     expect(f.sortie).toBeNull();
     // Son groupe et sa remise (0106) : aucun groupe, aucune société de la même propriétaire, aucune remise ; la règle du

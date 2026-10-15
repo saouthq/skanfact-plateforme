@@ -15,7 +15,7 @@ import { abonnementEnMots, expliquer, offreEtPeriode, puceDe, type Etat, type Fa
 import { panneDe, refusDe, useApi, useConsole, useLecture, useRelireQuandOnRegarde, type Role } from '../contexte.ts';
 import { dans, heureDe, jourCourt, jourDe, moisEnMots, quand } from '../temps.ts';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, MenuLigne, parcourirMenu, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
-import { arriveeEnMots, organisationEnMots, type Arrivee } from './Clients.tsx';
+import { arriveeEnMots, organisationEnMots, type Arrivee, type Risque } from './Clients.tsx';
 import type { Place } from './Cabinets.tsx';
 import { depuisEnMots, etatEnMots, NoterDemande, refDemande, type LigneDemande } from './Support.tsx';
 import { AccesDossier } from './AccesDossier.tsx';
@@ -72,6 +72,8 @@ type Donnees = {
   prochaineFacture: { debut: string; montantHt: string } | null;
   // Son arrivée, les trente jours après son inscription (serveur/console/arrivee.ts, la fonction de la liste).
   arrivee?: Arrivee | null;
+  // Son risque de départ (serveur/console/risque.ts, la fonction de la liste) ; `payant` : un essai ne « part » pas.
+  risque: (Risque & { payant: boolean }) | null;
 };
 // La remise d'une période (serveur/abonnement/remise.ts) : la plus forte des deux ; `aussi`, l'autre, qui ne s'ajoute pas.
 type RemiseSeule = { nature: 'groupe' | 'cabinet'; taux: number; groupe: string | null; premiere: string | null; cabinet: string | null; jusquAu: string | null };
@@ -1042,6 +1044,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
             </section>
 
             {f.arrivee ? <SonArrivee a={f.arrivee} /> : null}
+            {f.risque?.payant ? <SonRisque r={f.risque} /> : null}
 
             {/* Une procédure de reprise en cours : dans la colonne large, sous les comptes (la carte dit ce qui manque). */}
             {moi.role === 'direction' && !f.faits.tenuParCabinet && repriseEnCours(f.reprise) ? <CarteReprise id={f.id} nom={f.raisonSociale} reprise={f.reprise} aujourdhui={f.aujourdhui} relire={relire} /> : null}
@@ -1319,6 +1322,27 @@ function SonArrivee({ a }: { a: Arrivee }) {
           );
         })}
       </ol>
+    </section>
+  );
+}
+// Son risque de départ (docs/console.md C56) : les signes qu'il montre, chacun dit en mots, par la fonction de la vue
+// « à risque » de la liste ; son usage sur deux fois trente jours ; et, honnête, ce qui ne se mesure pas encore.
+function SonRisque({ r }: { r: Risque }) {
+  return (
+    <section className="c-carte c-fi-risque" aria-labelledby="fiche-risque">
+      <div className="c-carte-tete">
+        <h2 id="fiche-risque">{titre('console.ecran.fiche.ri.titre')}</h2>
+        <span className={`c-carte-coin${r.signes.length ? ' c-cl-proche' : ''}`}>{selon(r.signes.length, 'console.ecran.fiche.ri.signes')}</span>
+      </div>
+      {r.signes.length ? (
+        <ul className="c-fi-risque-signes">
+          {r.signes.map((x) => (
+            <li key={x}><b>{maj(dire(`console.ecran.clients.ri.${x}`))}</b><span>{dire(`console.ecran.fiche.ri.${x}`)}</span></li>
+          ))}
+        </ul>
+      ) : <p className="c-sous">{phrase('console.ecran.fiche.ri.aucun')}</p>}
+      <p className="c-fi-risque-usage">{maj(r.usage ? dire('console.ecran.clients.ri.usage', { trente: r.usage.trente, avant: r.usage.avant }) : dire('console.ecran.clients.ri.usage_rien'))}</p>
+      <p className="c-sous">{phrase('console.ecran.fiche.ri.satisfaction')}</p>
     </section>
   );
 }

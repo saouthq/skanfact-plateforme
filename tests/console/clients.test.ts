@@ -83,7 +83,7 @@ describe('Clients : les vues du métier', () => {
     expect(nom('H').venuePar).toEqual({ cabinet: 'Cabinet Nour', depuis: '2026-01-05' });
     expect(nom('I').venuePar).toBeNull();
     expect(dans('tout')).toBe('ABCDEFGHIJKLM');
-    expect(comptesDesVues(LISTE, JOUR)).toEqual({ tout: 13, arrivees: 0, a_appeler: 3, argent: 2, silencieux: 2, tenus: 1, cabinet: 1 });
+    expect(comptesDesVues(LISTE, JOUR)).toEqual({ tout: 13, arrivees: 0, a_appeler: 3, argent: 2, silencieux: 2, a_risque: 0, tenus: 1, cabinet: 1 });
   });
 
   it('jamais ouverte, le silence se compte depuis l\'inscription : née il y a neuf jours, pas encore ; dix, oui (0114)', () => {
