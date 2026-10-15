@@ -102,6 +102,7 @@ type Ecran = {
   doivent: { entreprise: { id: string }; reste: string; paye: string; credite: string; statut: string; retard: number | null; ecran: string }[];
   trop: { entreprise: { id: string }; trop: string; annulee: boolean }[];
   aEmettre: { entreprise: { id: string } }[];
+  previsions: { mois: { mois: string; du: { montant: string; n: number } }[]; retard: { montant: string; n: number }; plusTard: { montant: string; n: number } } | null;
   couts: { lignes: { id: string; libelle: string; montant: string; dApres: string; retireLe: string | null }[]; total: string; reste: string | null };
 };
 const lire = async (m = mois) => {
@@ -139,7 +140,7 @@ describe('les paiements de nos factures', () => {
   it('sans entreprise SkanFact, rien ne s\'encaisse : la tuile dit « non mesuré », jamais zéro ; l\'écran le dit aussi', async () => {
     expect(await tuile()).toEqual({ mesure: false, raison: 'editeur_absent' });
     const e = await lire();
-    expect(e).toMatchObject({ editeur: null, encaisse: null, mois, courant: true, doivent: [], trop: [], aEmettre: [] });
+    expect(e).toMatchObject({ editeur: null, encaisse: null, mois, courant: true, doivent: [], trop: [], aEmettre: [], previsions: null });
     expect(e.recus.total).toBe(0);
   });
 
@@ -162,6 +163,13 @@ describe('les paiements de nos factures', () => {
     // Émise, pas réglée : elle doit tout, à payer avant son échéance (la veille de sa période).
     let e = await lire();
     expect(e.doivent).toMatchObject([{ entreprise: { id: a.id }, reste: '47.410', paye: '0.000', credite: '0.000', statut: 'a_payer', retard: null, ecran: `/v10/?e=${editeur}#/doc/${a.cle}` }]);
+    // Ce qui doit rentrer (C55) : la même facture, dans le mois de son échéance — deux chemins, un chiffre (la liste
+    // « Qui doit encore », et la somme de la prévision).
+    const somme = (p: NonNullable<Ecran['previsions']>) => [...p.mois.map((m) => m.du), p.retard, p.plusTard]
+      .reduce((t, x) => ({ montant: t.montant + Math.round(Number(x.montant) * 1000), n: t.n + x.n }), { montant: 0, n: 0 });
+    if (!e.previsions) throw new Error('des prévisions attendues');
+    expect(somme(e.previsions)).toEqual({ montant: 47410, n: 1 });
+    expect(e.previsions.retard.n).toBe(0);
     expect(e.encaisse).toMatchObject({ total: '0.000', reglements: 0 });
     // Un virement de 20, puis un chèque de 27,410 : réglée.
     await regler(a.cle, [{ id: 'v1', date: jour, amount: 20, method: 'virement' }]);
@@ -170,6 +178,7 @@ describe('les paiements de nos factures', () => {
     await regler(a.cle, [{ id: 'v1', date: jour, amount: 20, method: 'virement' }, { id: 'c1', date: jour, amount: { '~n': '27.41' }, method: 'cheque' }]);
     e = await lire();
     expect(e.doivent).toEqual([]);
+    expect(e.previsions && somme(e.previsions)).toEqual({ montant: 0, n: 0 });
     expect(e.encaisse).toMatchObject({ total: '47.410', reglements: 2, rembourse: '0.000', parMoyen: { konnect: '0.000', virement: '20.000', cheque: '27.410', autre: '0.000' } });
     expect(e.recus.lignes.map((r) => [r.moyen, r.montant])).toEqual(expect.arrayContaining([['virement', '20.000'], ['cheque', '27.410']]));
     // Deux chemins, un chiffre : l'écran, la tuile de l'accueil, la somme comptée à part.

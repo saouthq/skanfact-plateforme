@@ -3074,3 +3074,16 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-so-etapes li { flex-wrap: wrap; }
   .c-so-etapes li .c-btn { min-height: 44px; margin-left: 48px; }
 }
+/* Ce qui doit rentrer (C55) : trois mois en lignes ; deux colonnes de montants qui ne s'additionnent pas. */
+.c-pa-prev { display: grid; gap: 12px; }
+.c-pa-prev h2 { font-size: 17px; font-weight: 600; margin: 0; }
+.c-pa-prev .c-carte-sous { margin: -6px 0 0; }
+.c-pa-prev-retard { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--c-orange-doux); color: var(--c-orange-texte); font-size: 13.5px; }
+.c-pa-prev-retard .c-icone { flex: none; margin-top: 1px; }
+.c-pa-prev-table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+.c-pa-prev-table th, .c-pa-prev-table td { padding: 8px 0; border-bottom: 1px solid var(--c-trait); vertical-align: top; text-align: left; }
+.c-pa-prev-table thead th { font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c-gris); padding-top: 0; }
+.c-pa-prev-table td + td, .c-pa-prev-table th + th { padding-left: 12px; }
+.c-pa-prev-table .c-droite { text-align: right; }
+.c-pa-prev-table tbody tr:last-child > * { border-bottom: 0; }
+.c-pa-prev-table tbody th { font-weight: 600; }

@@ -15349,6 +15349,39 @@ prouver 'la fenêtre tait qu'"'"'il part sans ses données' 'web/console/src/ecr
   '      {false ? <Alerte ton="attention">' \
   'la sortie d'"'"'un client (0131) : la direction l'"'"'ouvre sur sa fiche ; la carte dit ce qui reste ; « Il est parti » attend le remboursement ; le support ne la voit pas'
 
+# 1.39.0 : ce qui doit rentrer (la liste des fonctions qui manquent, 14).
+prouver 'une facture échue comptée dans son mois' 'serveur/console/previsions.ts' \
+  'const case_ = echeance < aujourdhui ? retard :' \
+  'const case_ = false ? retard :' \
+  'les factures dues, par le mois de leur échéance ; en retard et plus tard à part ; une autre devise, jamais'
+prouver 'une autre devise dans les dinars de la prévision' 'serveur/console/previsions.ts' \
+  '    if (d.devise !== devise) continue;
+' \
+  '' \
+  'les factures dues, par le mois de leur échéance ; en retard et plus tard à part ; une autre devise, jamais'
+prouver 'un renouvellement déjà facturé compté deux fois' 'serveur/console/previsions.ts' \
+  '    if (factures.has(`${entreprise}|${r.debut}`)) continue;
+' \
+  '' \
+  'les renouvellements attendus, au prix de leur prochaine facture ; déjà facturés, jamais deux fois ; sans prix, comptés ; un client qui part, écarté'
+prouver 'un client qui part compté dans les renouvellements' 'serveur/console/previsions.ts' \
+  '    if (partants.has(entreprise)) { ecartes += 1; continue; }
+' \
+  '' \
+  'les renouvellements attendus, au prix de leur prochaine facture ; déjà facturés, jamais deux fois ; sans prix, comptés ; un client qui part, écarté'
+prouver 'une grâce oubliée des renouvellements attendus' 'serveur/console/previsions.ts' \
+  'const m = r.debut < `${mois[0]}-01` ? mois[0] : moisDe(r.debut);' \
+  'const m = moisDe(r.debut);' \
+  'les renouvellements attendus, au prix de leur prochaine facture ; déjà facturés, jamais deux fois ; sans prix, comptés ; un client qui part, écarté'
+prouver 'Paiements tait ce qui doit rentrer' 'serveur/console/routes.ts' \
+  'doivent, trop, previsions, aEmettre: p.aEmettre,' \
+  'doivent, trop, previsions: null, aEmettre: p.aEmettre,' \
+  'l'"'"'encaissé du mois, par moyen ; qui doit encore ; le même chiffre à l'"'"'accueil et par un second chemin'
+prouver 'la carte qui met les factures dans la colonne des renouvellements' 'web/console/src/ecrans/Paiements.tsx' \
+  '<b className="c-mono" data-donnee>{montant(m.attendu.montantHt)}</b>' \
+  '<b className="c-mono" data-donnee>{enDevise(m.du.montant, p.devise)}</b>' \
+  'la tuile de l'"'"'accueil et le bandeau disent le même encaissé ; la facture qui doit encore mène à sa pièce'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

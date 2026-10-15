@@ -43,6 +43,12 @@ type Donnees = {
   defaites: Defaite[];
   // 0129 : les contestations en cours, et celles régularisées depuis quatre-vingt-dix jours.
   contestations: Contestation[];
+  // Ce qui doit rentrer (C55) : sans entreprise SkanFact, rien.
+  previsions: Previsions | null;
+};
+type Previsions = {
+  devise: string; mois: { mois: string; du: { montant: string; n: number }; attendu: { montantHt: string; n: number } }[];
+  retard: { montant: string; n: number }; plusTard: { montant: string; n: number }; sansPrix: number; partants: number;
 };
 const K = 'console.ecran.paiements';
 const PAGE = 50;
@@ -50,6 +56,38 @@ const PAGE = 50;
 // Un montant d'une autre devise que le dinar : son code, jamais « DT ».
 const enDevise = (t: string, devise: string) => (devise === 'TND' ? montant(t) : `${montant(t).replace(/\u00a0DT$/, '')}\u00a0${devise}`);
 const nul = (t: string) => /^-?0+(\.0+)?$/.test(t);
+
+// ── Ce qui doit rentrer (C55) ───────────────────────────────────────────────────────────────────────────────────────
+// Trois mois à partir d'aujourd'hui : ce qui reste dû sur nos factures émises (taxes comprises), et les renouvellements
+// qui n'ont pas encore leur facture (hors taxes) — deux colonnes, jamais une somme. Ce qui est déjà en retard, au-dessus.
+function CeQuiDoitRentrer({ p, courant }: { p: Previsions; courant: string }) {
+  const P = `${K}.prev`;
+  return (
+    <section className="c-carte c-pa-prev" aria-labelledby="pa-prev">
+      <h2 id="pa-prev">{titre(`${P}.titre`)}</h2>
+      <p className="c-carte-sous">{phrase(`${P}.sous`)}</p>
+      {p.retard.n ? (
+        <p className="c-pa-prev-retard"><Icone nom="alerte" taille={16} /><span>{maj(selon(p.retard.n, `${P}.retard`, { montant: enDevise(p.retard.montant, p.devise) }))}</span></p>
+      ) : null}
+      <table className="c-pa-prev-table">
+        <thead><tr><th scope="col">{titre(`${P}.col.mois`)}</th><th scope="col" className="c-droite">{titre(`${P}.col.du`)}</th><th scope="col" className="c-droite">{titre(`${P}.col.attendu`)}</th></tr></thead>
+        <tbody>
+          {p.mois.map((m) => (
+            <tr key={m.mois}>
+              <th scope="row">{maj(dire(`${P}.mois`, { mois: moisEnMots(m.mois, false) }))}{m.mois === courant ? <span className="c-sous c-bloc">{dire(`${P}.en_cours`)}</span> : null}</th>
+              <td className="c-droite"><b className="c-mono" data-donnee>{enDevise(m.du.montant, p.devise)}</b><span className="c-sous c-bloc">{selon(m.du.n, `${P}.factures`)}</span></td>
+              <td className="c-droite"><b className="c-mono" data-donnee>{montant(m.attendu.montantHt)}</b><span className="c-sous c-bloc">{selon(m.attendu.n, `${P}.renouvellements`)}</span></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {p.plusTard.n ? <p className="c-sous">{maj(selon(p.plusTard.n, `${P}.plus_tard`, { montant: enDevise(p.plusTard.montant, p.devise) }))}</p> : null}
+      {p.sansPrix ? <p className="c-sous">{maj(selon(p.sansPrix, `${P}.sans_prix`))}</p> : null}
+      {p.partants ? <p className="c-sous">{maj(selon(p.partants, `${P}.partants`))}</p> : null}
+      <p className="c-note"><Icone nom="info" />{phrase(`${P}.pas_promesse`)}</p>
+    </section>
+  );
+}
 
 // ── Qui doit encore ─────────────────────────────────────────────────────────────────────────────────────────────────
 // Son retard, et ce que devient son abonnement : la grâce et le jour de sa lecture seule disent qui appeler d'abord.
@@ -440,6 +478,7 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
               ), d.horsPlateforme.total) : null}
             </div>
             <aside className="c-ab-cote" aria-label={titre(`${K}.cote`)}>
+              {d.previsions ? <CeQuiDoitRentrer p={d.previsions} courant={aujourdhui.slice(0, 7)} /> : null}
               <Couts d={d} principal={coutsAFaire} ajouter={() => setFenetre({ sorte: 'cout' })} retirer={(c) => setFenetre({ sorte: 'retirer', c })} />
               <p className="c-note"><Icone nom="info" />{phrase(`${K}.note`)}</p>
             </aside>

@@ -28,6 +28,7 @@ import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './con
 import { aDecider, CATEGORIES, inscriteCetteSemaine, lireEntreprises, lireVeille, tableau, type Entreprise, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
 import { renouvellementsDe } from './renouvellements.ts';
+import { prevoir } from './previsions.ts';
 import { avecEnPlus, avecVenues, lireEnPlus, dansLaVue, ligneClient, ligneExport, TRIS_CLIENTS, VUES_CLIENTS, type VueClients } from './clients.ts';
 import { categorieOrg, chercherOrg, lireFiltresOrg, optionsDesFiltresOrg, orgDansLaVue, orgDansLesFiltres, organisations, parAnDeLaLigne, parAnDesLignes, trierOrg,
   usageDeLaLigne, vuDeLaLigne, type TriOrg } from './organisations.ts';
@@ -1859,7 +1860,13 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const mois = moisDemande(query.mois, jour);
       const p = lirePaiements(await lireJson(x, 'select plateforme.console_paiements($1::date) v', [`${mois}-01`]));
       const e = p.editeur ? encaisse(p.recus, p.editeur, p.horsPlateforme) : null;
-      const { doivent, trop } = ouvertes(p.ouvertes, await lesEntreprises(x, jour), jour);
+      const entreprises = await lesEntreprises(x, jour);
+      const { doivent, trop } = ouvertes(p.ouvertes, entreprises, jour);
+      // Ce qui doit rentrer (C55) : à partir d'aujourd'hui, quel que soit le mois regardé ; la liste « Qui doit encore » et
+      // le prix des prochaines factures, jamais recomptés.
+      // Un client dont la sortie est ouverte (0131) ne renouvellera pas : ses renouvellements sont écartés.
+      const partants = new Set(lireSorties(await lireJson(x, 'select plateforme.console_sorties($1::date) v', [jour])).flatMap((s) => (s.entreprise ? [s.entreprise.id] : [])));
+      const previsions = p.editeur ? prevoir(doivent, await renouvellementsDe(x, entreprises, jour), [...p.ouvertes, ...p.aEmettre], jour, p.editeur.devise, p.editeur.decimales, partants) : null;
       const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
       const debutHors = Math.max(Number(query.debutHors ?? 0) || 0, 0);
       const n = limite(query);
@@ -1874,7 +1881,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           recus: { total: p.recus.length, lignes: p.recus.slice(debut, debut + n).map((r) => ({ ...r, montant: versTexte(r.montant, r.decimales) })),
             suite: debut + n < p.recus.length ? debut + n : null },
           // Ce qui reste, provisoire tant que le mois court ou qu'un coût du mois d'avant manque (0114).
-          doivent, trop, aEmettre: p.aEmettre, couts: couts(p.couts, e, { courant: mois === jour.slice(0, 7),
+          doivent, trop, previsions, aEmettre: p.aEmettre, couts: couts(p.couts, e, { courant: mois === jour.slice(0, 7),
             moisAvant: lirePaiements(await lireJson(x, 'select plateforme.console_paiements($1::date) v', [`${moisAvantDe(mois)}-01`])).couts }),
           // Reçus hors de la plateforme ce mois (0113), et nos factures payées puis défaites (tout mois confondu).
           horsPlateforme: { total: p.horsPlateforme.length, lignes: p.horsPlateforme.slice(debutHors, debutHors + n).map((h) => ({ ...h, montant: versTexte(h.montant, 3) })),

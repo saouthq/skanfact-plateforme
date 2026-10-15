@@ -1324,6 +1324,21 @@ contrat et du terme de la conservation, et la fiche les dit. Une sortie en cours
 son échéance (on ne propose pas de facturer un client au moment où il part). La direction seule ouvre, règle et clôt ;
 chaque geste entre au journal de la console avec son motif ; rien ne s'écrit dans le dossier du client.
 
+**C55. Ce qui doit rentrer** (1.39.0 ; la liste des fonctions qui manquent, 14 : « prévisions de revenus et de trésorerie :
+revenus attendus, impayés et échéances » ; version légère, sans table nouvelle). Dans Paiements, à côté des coûts du mois,
+une carte pour la direction : à partir d'aujourd'hui (quel que soit le mois regardé), sur trois mois, le mois en cours
+compris :
+  - **les factures émises** qui restent dues, rangées par le mois de leur échéance (sans échéance : le premier jour de leur
+    période), en **taxes comprises** — la liste « À encaisser » de l'écran, par la même fonction, jamais recomptée ; ce qui
+    est déjà échu se dit au-dessus (« déjà en retard »), ce qui tombe après les trois mois en dessous (« plus tard ») ; une
+    autre devise que celle de l'entreprise SkanFact n'entre pas dans ces montants ;
+  - **les renouvellements attendus** qui n'ont pas encore leur facture (ni émise, ni préparée), rangés par le mois où leur
+    période commence (ce mois-ci pour une période qui aurait dû commencer avant : une grâce), au prix de leur prochaine
+    facture **hors taxes** (la règle de la facture, celle de la liste des clients et des échéances). Un renouvellement
+    sans prix dans la grille se compte sans montant ; celui d'un client dont la sortie est ouverte (C54) est écarté.
+Les deux colonnes ne s'additionnent jamais : l'une est taxes comprises, l'autre hors taxes (la facture ajoutera la TVA et
+le timbre du jour). La carte le dit, et dit aussi que c'est une prévision, pas une promesse.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

@@ -125,6 +125,21 @@ describe('les paiements de nos factures, à la souris', () => {
     expect(await noter.getAttribute('target')).toBe('_blank');
     // Le virement du jour est dans les règlements du mois.
     expect(net(await p.locator('.c-pa-recu', { hasText: 'Atelier Lina Paiements' }).innerText())).toMatch(/20,000 DT Virement$/);
+    // Ce qui doit rentrer (C55) : trois mois, le mois en cours d'abord ; chaque case dit le chiffre du serveur, et les
+    // factures (TTC) et les renouvellements (HT) restent deux colonnes.
+    const carte = p.locator('section[aria-labelledby="pa-prev"]');
+    expect(net(await carte.locator('h2').innerText())).toBe('Ce qui doit rentrer');
+    const prev = (await api('GET', '/console/paiements', jD)).corps.previsions as { mois: { du: { montant: string }; attendu: { montantHt: string } }[] };
+    const enDT = (t: string) => { const [e = '0', d = ''] = t.split('.'); return `${e.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')},${d.padEnd(3, '0')} DT`; };
+    const lignes = carte.locator('tbody tr');
+    expect(await lignes.count()).toBe(3);
+    expect(net(await lignes.first().locator('th').innerText())).toMatch(/en cours$/);
+    for (const [i, m] of prev.mois.entries()) {
+      const cases = lignes.nth(i).locator('td');
+      expect(net(await cases.nth(0).locator('b').innerText())).toBe(enDT(m.du.montant));
+      expect(net(await cases.nth(1).locator('b').innerText())).toBe(enDT(m.attendu.montantHt));
+    }
+    expect(net(await carte.locator('thead').innerText())).toMatch(/Factures émises Renouvellements/i);
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
