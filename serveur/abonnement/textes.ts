@@ -56,6 +56,7 @@ declarerTextes({
   'abonnement.geste.module_deja': '{module} est déjà achetée pour cet abonnement',
   'abonnement.geste.module_pas': '{module} n\'est pas achetée pour cet abonnement',
   'abonnement.geste.module_part_deja': '{module} part déjà au renouvellement',
+  'abonnement.geste.module_part_avec_la_periode': '{module} part le {le}, avec la période déjà payée : il se rouvre à partir de ce jour',
   'abonnement.geste.mois_deja': 'un mois offert attend déjà la prochaine facture : un seul à la fois',
   'abonnement.geste.paiement_preuve': 'un paiement reçu dit sa facture (son numéro), le montant reçu, son moyen (virement, chèque, espèces) et son jour : sans eux, rien n\'est payé',
   // Nos factures (docs/abonnement.md B1–B4).

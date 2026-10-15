@@ -30,6 +30,10 @@ import { routesVentes } from '../../serveur/ventes/routes.ts';
 
 // La preuve d'un paiement reçu hors de la plateforme (0113), telle que la console la tape.
 const RECU_CONSOLE = { facture: 'F-2020-001', montant: '390', moyen: 'virement', le: '2020-01-01' };
+// La même facture ne paie pas deux périodes (0121) : la seconde a son numéro.
+const RECU_SUIVANT = { ...RECU_CONSOLE, facture: 'F-2020-002' };
+// Payée avant son premier jour, une période attend son jour (0121, l'audit C01) : on y va.
+const aSonJour = (ent: string) => admin.query('select plateforme.basculer_abonnement($1, a_venir_le) from plateforme.abonnement where entreprise = $1 and a_venir_le is not null', [ent]);
 
 const MDP = 'Un-bon-mot-de-passe';
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
@@ -128,8 +132,11 @@ describe('ce que l\'offre compte', () => {
     expect((await geste(ent, 'fermer-module', { motif: 'paie arrêtée', ligne: await ligneDe(ent), module: 'paie' })).statut).toBe(200);
     expect(await fermes(ent, p.jeton)).toEqual(['compta']);
     expect(await ligneDe(ent)).toMatchObject({ modules: ['paie'], modules_a_retirer: ['paie'] });
-    // Complet : rien à acheter.
-    expect((await geste(ent, 'payer', { paiement: RECU_CONSOLE, motif: 'passe à Complet', ligne: await ligneDe(ent), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
+    // Complet, l'année d'après (payée d'avance, elle commence à son jour ; la paie part avec elle) : rien à acheter.
+    expect((await geste(ent, 'payer', { paiement: RECU_SUIVANT, motif: 'passe à Complet', ligne: await ligneDe(ent), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
+    expect(await ligneDe(ent)).toMatchObject({ offre: 'essentiel', modules: ['paie'], a_venir_offre: 'complet', a_venir_retraits: ['paie'] });
+    await aSonJour(ent);
+    expect(await ligneDe(ent)).toMatchObject({ offre: 'complet', modules: [] });
     const complet = await geste(ent, 'ouvrir-module', { motif: 'la compta', ligne: await ligneDe(ent), module: 'compta' });
     expect(complet.statut).toBe(403);
     expect(String(complet.corps.motif)).toMatch(/Complet contient déjà/);
@@ -222,8 +229,9 @@ describe('ce que l\'offre compte', () => {
     const apres = await compte();
     expect(apres).toMatchObject({ comptes: { salaries: 11 }, inclus: { salaries: 10 } });
     expect((await facture()).find((l) => l.option === 'salarie')).toMatchObject({ compte: apres?.comptes.salaries, inclus: 10, quantite: 1 });
-    // Complet : deux caisses, deux établissements, vingt salariés.
-    expect((await geste(ent, 'payer', { paiement: RECU_CONSOLE, motif: 'passe à Complet', ligne: await ligneDe(ent), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
+    // Complet, l'année d'après, à son jour : deux caisses, deux établissements, vingt salariés.
+    expect((await geste(ent, 'payer', { paiement: RECU_SUIVANT, motif: 'passe à Complet', ligne: await ligneDe(ent), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
+    await aSonJour(ent);
     expect((await compte())?.inclus).toEqual({ caisses: 2, etablissements: 2, salaries: 20 });
   });
 });

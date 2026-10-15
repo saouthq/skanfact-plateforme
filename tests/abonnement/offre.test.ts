@@ -97,7 +97,7 @@ describe('ce que l\'offre ouvre', () => {
     expect((await appeler('GET', `/entreprises/${ent}/abonnement/etat`, p.jeton)).corps).toMatchObject({ etat: 'en_retard', fermes: ['paie', 'compta'] });
     expect((await ecrire(ent, p.jeton, [nouveau('employees', 'sal-3', SALARIE)])).statut).toBe(403);
     // Complet ouvre tout.
-    await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'complet', periodicite: 'mensuel', motif: 'passe à Complet' });
+    await faire(exploitant, ent, { geste: 'payer', paiement: { ...RECU, facture: 'F-2020-002' }, offre: 'complet', periodicite: 'mensuel', motif: 'passe à Complet' });
     expect(await fermes(ent, p.jeton)).toEqual([]);
     expect((await ecrire(ent, p.jeton, [nouveau('employees', 'sal-3', SALARIE), nouveau('assets', 'immo-2', { label: 'Camion', amount: 38000 })])).statut).toBe(200);
   });

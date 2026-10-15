@@ -645,6 +645,13 @@ vaut pour tout le dépôt.*
     `nouveauteAllumee`, la route de l'application), `plateforme.nouveaute_entreprise`, `plateforme.nouveaute_tous`, les
     gestes `console_allumer_nouveaute`… ; l'onglet « Nouveautés allumées » de `Reglages.tsx` (`tests/console/nouveautes.test.ts`,
     `tests/web/console-reglages.test.ts`).
+  - **Les droits à leur date, le mot de passe qui ferme tout** (1.28.0 ; `docs/abonnement.md` B6, `docs/console.md` C44,
+    `0121`, `0122`) : les colonnes `a_venir_*` de `plateforme.abonnement`, `plateforme.basculer_abonnement(s)` (le tour
+    « echeances » de `serveur/principal.ts`), `offreAu` et `lireAVenir` de `serveur/abonnement/etat.ts`, le « payer »
+    d'avance de `serveur/abonnement/gestes.ts` ; `socle.conclure_reinitialisation` et `socle.changer_mot_de_passe` ferment
+    aussi la console ; la route `/console/moi/mot-de-passe` change dans sa propre transaction (`compte.ts`, `tx` en
+    option) (`tests/console/factures.test.ts`, `tests/console/compte.test.ts`, `tests/abonnement/gestes-0111.test.ts`,
+    `tests/web/offre-compte.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

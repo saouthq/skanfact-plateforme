@@ -21,8 +21,8 @@ pg.types.setTypeParser(pg.types.builtins.INT8, (v: string) => BigInt(v));
 // Une durée se lit telle que la base l'écrit (« 12:00:00 »).
 pg.types.setTypeParser(pg.types.builtins.INTERVAL, (v: string) => v);
 
-export function creerPool(adresse: string): pg.Pool {
-  return new pg.Pool({ connectionString: adresse, max: 10 });
+export function creerPool(adresse: string, max = 10): pg.Pool {
+  return new pg.Pool({ connectionString: adresse, max });
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

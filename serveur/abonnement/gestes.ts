@@ -25,6 +25,8 @@ export type LigneAbonnement = {
   suivante_offre?: Offre | null; suivante_periodicite?: Periodicite | null; suivante_a_partir_du?: string | null;
   // 0113 : le mois offert qui attend la prochaine facture, les modules qui partent au renouvellement.
   mois_offerts?: number; modules_a_retirer?: ModuleAchete[];
+  // 0121 : une période payée avant son premier jour — ce qu'elle change attend ce jour-là (l'audit C01).
+  a_venir_le?: string | null; a_venir_offre?: Offre | null; a_venir_periodicite?: Periodicite | null; a_venir_retraits?: ModuleAchete[];
 };
 
 // Un paiement reçu hors de la plateforme (0113) : la facture faite ailleurs, le montant reçu en millimes, son moyen, son
@@ -74,8 +76,20 @@ export function calculerGeste(ligne: LigneAbonnement | null, faits: Faits, d: De
         || !/^\d{4}-\d{2}-\d{2}$/.test(r.le) || r.le > jour)) throw new Refus('abonnement.geste.paiement_preuve');
       const offert = (avant.mois_offerts ?? 0) > 0;
       const p = prochainePeriode(faits, d.periodicite, jour, offert);
-      Object.assign(apres, { paye_jusqu_au: p.fin, offre: d.offre, periodicite: d.periodicite, resilie_le: null, ...(offert ? { mois_offerts: 0 } : {}) });
-      auRenouvellement(apres, p.debut);
+      if (p.debut > jour && avant.offre) {
+        // Payée avant son premier jour (0121, l'audit C01) : la période payée qui court va au bout avec ce qu'elle avait ;
+        // l'offre payée et les modules qui partent attendent le premier jour de la nouvelle. La même règle que la base
+        // (plateforme.abonnement_paye_par_facture). Un premier paiement pendant l'essai n'a rien de payé à protéger : il
+        // s'applique tout de suite.
+        Object.assign(apres, { paye_jusqu_au: p.fin, resilie_le: null, ...(offert ? { mois_offerts: 0 } : {}),
+          a_venir_le: avant.a_venir_le && avant.a_venir_le < p.debut ? avant.a_venir_le : p.debut, a_venir_offre: d.offre, a_venir_periodicite: d.periodicite,
+          a_venir_retraits: [...new Set([...(avant.a_venir_retraits ?? []), ...(avant.modules_a_retirer ?? [])])].sort(), modules_a_retirer: [] });
+        if (apres.suivante_a_partir_du && p.debut >= apres.suivante_a_partir_du) Object.assign(apres, { suivante_offre: null, suivante_periodicite: null, suivante_a_partir_du: null });
+        details.aVenir = true;
+      } else {
+        Object.assign(apres, { paye_jusqu_au: p.fin, offre: d.offre, periodicite: d.periodicite, resilie_le: null, ...(offert ? { mois_offerts: 0 } : {}) });
+        auRenouvellement(apres, p.debut);
+      }
       Object.assign(details, { debut: p.debut, fin: p.fin, ...(r ? { facture: r.facture.trim(), montant: r.montant.toString(), moyen: r.moyen, le: r.le } : {}),
         ...(offert ? { moisOffert: true } : {}) });
       break;
@@ -110,6 +124,10 @@ export function calculerGeste(ligne: LigneAbonnement | null, faits: Faits, d: De
     case 'ouvrir-module': {
       if (d.module !== 'paie' && d.module !== 'compta') throw new Refus('abonnement.geste.module');
       if (avant.offre === 'complet') throw new Refus('abonnement.geste.module_complet');
+      // Il part avec la période déjà payée, que sa facture a comptée sans lui : il se rouvre une fois qu'elle a commencé.
+      if (avant.a_venir_le && (avant.a_venir_retraits ?? []).includes(d.module)) {
+        throw new Refus('abonnement.geste.module_part_avec_la_periode', { valeurs: { module: t(`abonnement.module.${d.module}`), le: jourEnFrancais(avant.a_venir_le) } });
+      }
       const partent = avant.modules_a_retirer ?? [];
       if (avant.modules.includes(d.module) && partent.includes(d.module)) {
         apres.modules_a_retirer = partent.filter((m) => m !== d.module);
@@ -127,7 +145,7 @@ export function calculerGeste(ligne: LigneAbonnement | null, faits: Faits, d: De
       if (d.module !== 'paie' && d.module !== 'compta') throw new Refus('abonnement.geste.module');
       if (!avant.modules.includes(d.module)) throw new Refus('abonnement.geste.module_pas', { valeurs: { module: t(`abonnement.module.${d.module}`) } });
       const partent = avant.modules_a_retirer ?? [];
-      if (partent.includes(d.module)) throw new Refus('abonnement.geste.module_part_deja', { valeurs: { module: t(`abonnement.module.${d.module}`) } });
+      if (partent.includes(d.module) || (avant.a_venir_retraits ?? []).includes(d.module)) throw new Refus('abonnement.geste.module_part_deja', { valeurs: { module: t(`abonnement.module.${d.module}`) } });
       const e = etatAbonnement(faits, jour);
       if (e.etat === 'actif') {
         apres.modules_a_retirer = [...partent, d.module].sort();
@@ -164,7 +182,7 @@ export function calculerGeste(ligne: LigneAbonnement | null, faits: Faits, d: De
       if ((avant.mois_offerts ?? 0) > 0) throw new Refus('abonnement.geste.mois_deja');
       apres.mois_offerts = 1;
       // La période que cette prochaine facture couvrira : celle d'une facture préparée aujourd'hui, un mois de plus.
-      const periodicite = avant.suivante_offre && avant.suivante_periodicite ? avant.suivante_periodicite : avant.periodicite;
+      const periodicite = avant.suivante_offre && avant.suivante_periodicite ? avant.suivante_periodicite : avant.a_venir_periodicite ?? avant.periodicite;
       const p = prochainePeriode(faits, periodicite, jour, true);
       Object.assign(details, { du: p.debut, au: p.fin });
       break;
@@ -177,7 +195,8 @@ export function calculerGeste(ligne: LigneAbonnement | null, faits: Faits, d: De
       const echeance = echeanceDe(faits);
       if (!avant.offre || !avant.periodicite || !echeance) throw new Refus('abonnement.geste.changer_sans_offre');
       if (avant.resilie_le) throw new Refus('abonnement.geste.changer_resilie');
-      const memes = d.offre === avant.offre && d.periodicite === avant.periodicite;
+      // L'offre de la période payée d'avance (0121), si elle attend son jour : c'est elle qui ira jusqu'à l'échéance.
+      const memes = d.offre === (avant.a_venir_offre ?? avant.offre) && d.periodicite === (avant.a_venir_periodicite ?? avant.periodicite);
       if (memes && !avant.suivante_offre) throw new Refus('abonnement.geste.changer_meme');
       const aPartirDu = plusJours(echeance, 1);
       Object.assign(apres, memes ? { suivante_offre: null, suivante_periodicite: null, suivante_a_partir_du: null }

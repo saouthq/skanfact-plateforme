@@ -91,7 +91,8 @@ describe('un paiement reçu hors de la plateforme', () => {
   it('dit sa preuve, et la garde dans son histoire ; sans elle, rien n\'est payé', () => {
     const { apres, details } = geste(PAYEE, { geste: 'payer', offre: 'essentiel', periodicite: 'annuel', paiement: RECU }, '2026-12-01');
     expect(apres.paye_jusqu_au).toBe('2028-11-11');
-    expect(details).toEqual({ debut: '2027-11-12', fin: '2028-11-11', facture: 'F-2026-118', montant: '2380500', moyen: 'cheque', le: '2026-11-30' });
+    // Payée le 01/12/2026 pour une période qui commence le 12/11/2027 : ce qu'elle change attend ce jour-là (0121).
+    expect(details).toEqual({ debut: '2027-11-12', fin: '2028-11-11', facture: 'F-2026-118', montant: '2380500', moyen: 'cheque', le: '2026-11-30', aVenir: true });
     const sans = (p: Partial<typeof RECU> | undefined) => () => geste(PAYEE, { geste: 'payer', offre: 'essentiel', periodicite: 'annuel',
       ...(p ? { paiement: { ...RECU, ...p } } : {}) }, '2026-12-01');
     for (const p of [undefined, { facture: '  ' }, { facture: 'F'.repeat(41) }, { montant: 0n }, { moyen: 'traite' as never }, { le: '2026-12-02' }, { le: '30/11/2026' }]) {
@@ -109,11 +110,27 @@ describe('un paiement reçu hors de la plateforme', () => {
     expect(details).toMatchObject({ debut: '2027-11-12', fin: '2028-12-11', moisOffert: true });
   });
 
-  it('applique le renouvellement : le module qui partait part, l\'offre changée ne se redit plus', () => {
+  it('payée en retard (en grâce) : le renouvellement s\'applique tout de suite — le module qui partait part, l\'offre changée ne se redit plus', () => {
+    const ligne: LigneAbonnement = { ...ligneDe(PAYEE), modules: ['compta', 'paie'], modules_a_retirer: ['paie'],
+      suivante_offre: 'complet', suivante_periodicite: 'annuel', suivante_a_partir_du: '2027-11-12' };
+    // Le 14/11/2027, la période payée a fini le 11/11 : la nouvelle a commencé le 12, rien n'attend.
+    const { apres } = calculerGeste(ligne, PAYEE, { motif: 'essai', geste: 'payer', offre: 'complet', periodicite: 'annuel', paiement: { ...RECU, le: '2027-11-14' } }, '2027-11-14');
+    expect(apres).toMatchObject({ offre: 'complet', modules: ['compta'], modules_a_retirer: [], suivante_offre: null, suivante_periodicite: null, suivante_a_partir_du: null });
+    expect(apres.a_venir_le ?? null).toBeNull();
+  });
+
+  it('payée avant son premier jour (l\'audit C01) : la période qui court va au bout avec ce qu\'elle avait ; l\'offre payée et le module qui part attendent leur jour', () => {
     const ligne: LigneAbonnement = { ...ligneDe(PAYEE), modules: ['compta', 'paie'], modules_a_retirer: ['paie'],
       suivante_offre: 'complet', suivante_periodicite: 'annuel', suivante_a_partir_du: '2027-11-12' };
     const { apres } = calculerGeste(ligne, PAYEE, { motif: 'essai', geste: 'payer', offre: 'complet', periodicite: 'annuel', paiement: RECU }, '2026-12-01');
-    expect(apres).toMatchObject({ offre: 'complet', modules: ['compta'], modules_a_retirer: [], suivante_offre: null, suivante_periodicite: null, suivante_a_partir_du: null });
+    expect(apres).toMatchObject({ offre: 'essentiel', modules: ['compta', 'paie'], modules_a_retirer: [], paye_jusqu_au: '2028-11-11',
+      a_venir_le: '2027-11-12', a_venir_offre: 'complet', a_venir_periodicite: 'annuel', a_venir_retraits: ['paie'],
+      suivante_offre: null, suivante_periodicite: null, suivante_a_partir_du: null });
+    // Le module qui part avec elle ne se retire pas une seconde fois, et ne se rouvre pas avant son jour.
+    expect(() => calculerGeste(apres, PAYEE, { motif: 'essai', geste: 'fermer-module', module: 'paie' }, '2026-12-01'))
+      .toThrow(refus('abonnement.geste.module_part_deja', { module: t('abonnement.module.paie') }));
+    expect(() => calculerGeste({ ...apres, offre: 'essentiel' }, PAYEE, { motif: 'essai', geste: 'ouvrir-module', module: 'paie' }, '2026-12-01'))
+      .toThrow(refus('abonnement.geste.module_part_avec_la_periode', { module: t('abonnement.module.paie'), le: '12/11/2027' }));
   });
 });
 

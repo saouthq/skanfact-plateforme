@@ -9208,7 +9208,7 @@ prouver "le mot de passe oublié demandé sans limite" base/migrations/0075_mot_
 prouver "le lien du mot de passe oublié qui ne périme pas" base/migrations/0075_mot_de_passe_oublie.sql \
   "values (v_id, p_empreinte, p_maintenant, p_maintenant + p_duree);" "values (v_id, p_empreinte, p_maintenant, p_maintenant + interval '1 day');" \
   "$KE3"
-prouver "les sessions ouvertes qui survivent au nouveau mot de passe" base/migrations/0075_mot_de_passe_oublie.sql \
+prouver "les sessions ouvertes qui survivent au nouveau mot de passe" base/migrations/0122_mot_de_passe_ferme_tout.sql \
   "  update socle.session set fermee_le = p_maintenant where utilisateur = v_utilisateur and fermee_le is null;" "" \
   "$KE3"
 prouver "la règle des mots de passe oubliée au mot de passe oublié" serveur/connexion.ts \
@@ -9360,7 +9360,7 @@ prouver "le bon code accepté pendant l'attente" $CO \
   // Ce serveur envoie des e-mails" \
   "$RT4"
 prouver "les erreurs de code jamais comptées" $CO \
-  "(await tx.query('select socle.noter_erreur(\$1, \$2) a', [email, maintenant])).rows[0].a as Date | null);" "(await tx.query('select null::timestamptz a')).rows[0].a as Date | null);" \
+  "(await t.query('select socle.noter_erreur(\$1, \$2) a', [email, maintenant])).rows[0].a as Date | null);" "(await t.query('select null::timestamptz a')).rows[0].a as Date | null);" \
   "$RT4"
 prouver "les anciens codes de secours valables après le renouvellement" $C76 \
   "  delete from socle.code_secours where utilisateur = socle.moi();
@@ -9370,13 +9370,13 @@ prouver "les anciens codes de secours valables après le renouvellement" $C76 \
   "avec le code du moment ; les anciens ne valent plus"
 MP="l'actuel d'abord, puis la même règle qu'à l'inscription ; les autres sessions se ferment, pas celle-ci"
 prouver "le mot de passe changé sans l'actuel" $CO \
-  "  if (!await motDePasseBon(ctx, email, actuel)) return erreur(ctx, email, { ok: false, motif: motif('compte.mot_de_passe_actuel_faux'), champ: 'actuel' });" "" \
+  "  if (!await motDePasseBon(ctx, email, actuel, tx)) return erreur(ctx, email, { ok: false, motif: motif('compte.mot_de_passe_actuel_faux'), champ: 'actuel' }, tx);" "" \
   "$MP"
-prouver "les autres sessions gardées au changement de mot de passe" $C76 \
-  "  update socle.session set fermee_le = p_maintenant where utilisateur = socle.moi() and fermee_le is null and id <> p_session;" "" \
+prouver "les autres sessions gardées au changement de mot de passe" base/migrations/0122_mot_de_passe_ferme_tout.sql \
+  "  update socle.session set fermee_le = p_maintenant where utilisateur = socle.moi() and fermee_le is null and id is distinct from p_session;" "" \
   "$MP"
-prouver "la session en cours fermée au changement de mot de passe" $C76 \
-  "and fermee_le is null and id <> p_session;" "and fermee_le is null;" \
+prouver "la session en cours fermée au changement de mot de passe" base/migrations/0122_mot_de_passe_ferme_tout.sql \
+  "and fermee_le is null and id is distinct from p_session;" "and fermee_le is null;" \
   "$MP"
 AD1="avec un relais : un code à la nouvelle adresse, puis elle remplace l'ancienne"
 prouver "l'adresse changée sans le code reçu à la nouvelle" $CO \
@@ -11018,16 +11018,16 @@ prouver 'un aperçu qui réclame le motif du geste' serveur/console/routes.ts \
   '    if (corps.apercu) return { corps: { apercu: true, avant: etatAbonnement(faits, jour), apres: etatApres, details, modules: apres.modules, modulesARetirer: apres.modules_a_retirer ?? [] } };
 ' '' \
   "$CONSS11"
-prouver 'le support qui prolonge de 1 à 365 jours' base/migrations/0113_argent_juste.sql \
+prouver 'le support qui prolonge de 1 à 365 jours' base/migrations/0121_droits_a_leur_date.sql \
   '    if v_jours is null or v_jours not between 7 and 30 then' '    if v_jours is null or v_jours not between 1 and 365 then' \
   "$CONSS12"
-prouver 'le support qui prolonge deux fois' base/migrations/0113_argent_juste.sql \
+prouver 'le support qui prolonge deux fois' base/migrations/0121_droits_a_leur_date.sql \
   '    if exists (select 1 from plateforme.evenement_abonnement v where v.entreprise = p_entreprise and v.nature = '"'"'essai_prolonge'"'"') then' '    if false then' \
   "$CONSS12"
 prouver 'une seconde prolongation proposée au support' serveur/console/routes.ts \
   'essaiOuSuite && ligne && !prolongeUneFois && !f.offert ? ['"'"'prolonger'"'"' as const] : []' 'essaiOuSuite && ligne && !f.offert ? ['"'"'prolonger'"'"' as const] : []' \
   "$CONSS12"
-prouver 'le support qui suspend un abonnement' 'serveur/console/gestes.ts|||base/migrations/0113_argent_juste.sql' \
+prouver 'le support qui suspend un abonnement' 'serveur/console/gestes.ts|||base/migrations/0121_droits_a_leur_date.sql' \
   '  { code: '"'"'console.abonnement.gerer'"'"', roles: [D], ecrit: true },|||  if v_role = '"'"'support'"'"' and p_geste not in ('"'"'prolonger'"'"', '"'"'offrir-mois'"'"') then
     perform socle.refus('"'"'ton rôle dans l'"'"''"'"'équipe SkanFact ne permet pas ce geste'"'"');
   end if;
@@ -11037,7 +11037,7 @@ prouver 'un geste sans motif laissé à la base' serveur/console/routes.ts \
   '    if (corps.motif.trim().length < 3) return { statut: 400, corps: { motif: motif('"'"'console.motif_requis'"'"'), champ: '"'"'motif'"'"', raison: t('"'"'console.motif_requis'"'"') } };
 ' '' \
   "$CONSS13"
-prouver 'un geste d'"'"'abonnement sans auteur dans son histoire' base/migrations/0113_argent_juste.sql \
+prouver 'un geste d'"'"'abonnement sans auteur dans son histoire' base/migrations/0121_droits_a_leur_date.sql \
   '    values (socle.moi(), v_role, '"'"'abonnement.'"'"' || p_geste, p_entreprise, v_evenement, btrim(p_motif),' '    values (socle.moi(), v_role, '"'"'abonnement.'"'"' || p_geste, p_entreprise, null, btrim(p_motif),' \
   "$CONSS13"
 prouver 'un abonnement changé depuis la lecture, écrasé' serveur/console/routes.ts \
@@ -11835,7 +11835,7 @@ AJ6='la période et l'"'"'offre de la prochaine facture : la suite de l'"'"'éch
 AJ7='ce qui s'"'"'ajoute à l'"'"'offre compte, chaque année ; le rattrapage d'"'"'un module ouvert en cours, une fois, sur la prochaine facture'
 AJ8='l'"'"'offre changée pour la prochaine échéance (0111) est celle que la facture portera'
 AJ9='un prix qui manque, une ligne illisible : rien, jamais un montant deviné'
-prouver 'le support qui offre un second mois dans l'"'"'année' 'base/migrations/0113_argent_juste.sql' \
+prouver 'le support qui offre un second mois dans l'"'"'année' 'base/migrations/0121_droits_a_leur_date.sql' \
   '    if v_role = '"'"'support'"'"' and exists (select 1 from plateforme.evenement_abonnement v where v.entreprise = p_entreprise and v.nature = '"'"'mois_offert'"'"'' \
   '    if false and exists (select 1 from plateforme.evenement_abonnement v where v.entreprise = p_entreprise and v.nature = '"'"'mois_offert'"'"'' \
   "$AJ1"
@@ -11868,7 +11868,7 @@ prouver 'un jour de paiement qui n'"'"'existe pas au calendrier' 'serveur/consol
   'if (!/^\d{4}-\d{2}-\d{2}$/.test(le) || !jourExiste(le) || le > jour) return' \
   'if (!/^\d{4}-\d{2}-\d{2}$/.test(le) || le > jour) return' \
   "$AJ2"
-prouver 'un paiement sans sa preuve écrit par la base' 'base/migrations/0113_argent_juste.sql' \
+prouver 'un paiement sans sa preuve écrit par la base' 'base/migrations/0121_droits_a_leur_date.sql' \
   '  if p_geste = '"'"'payer'"'"' then
     if length(btrim(' \
   '  if false then
@@ -11891,9 +11891,9 @@ prouver 'le rattrapage compté sur toute la période' 'base/migrations/0113_arge
   '    v_jours := v_fin - greatest(v_m.ouvert_le, v_debut) + 1;' \
   '    v_jours := v_fin - v_debut + 1;' \
   "$AJ3"
-prouver 'un module retiré encore compté sur la prochaine facture' 'base/migrations/0113_argent_juste.sql' \
-  'where not (m = any(coalesce(v_a.modules_a_retirer, '"'"'{}'"'"'))) order by m);' \
-  'where true order by m);' \
+prouver 'un module retiré encore compté sur la prochaine facture' 'base/migrations/0121_droits_a_leur_date.sql' \
+  'where not (m = any(coalesce(v_a.modules_a_retirer, '"'"'{}'"'"'))) and not' \
+  'where true and not' \
   "$AJ3"
 prouver 'l'"'"'échéance qui dit l'"'"'offre seule' 'serveur/console/renouvellements.ts' \
   'periodeHt: htDeLaPeriode(prixHt, enPlus, remise),' \
@@ -11953,9 +11953,9 @@ prouver 'ce qui s'"'"'ajoute oublié de la prochaine facture' 'serveur/console/r
   'periodeHt: htDeLaPeriode(prixHt, enPlus, remise),' \
   'periodeHt: prixHt,' \
   "$AJ7"
-prouver 'l'"'"'offre changée oubliée le jour où elle commence' 'serveur/console/renouvellements.ts' \
-  'debut >= f.offreSuivante.aPartirDu ?' \
-  'debut > f.offreSuivante.aPartirDu ?' \
+prouver 'l'"'"'offre changée oubliée le jour où elle commence' 'serveur/abonnement/etat.ts' \
+  'debut >= f.offreSuivante.aPartirDu)' \
+  'debut > f.offreSuivante.aPartirDu)' \
   "$AJ8"
 prouver 'un prix illisible lu quand même' 'serveur/console/renouvellements.ts' \
   '    if (typeof r.prixHt !== '"'"'string'"'"' || !/^\d+$/.test(r.prixHt)) return [d.entreprise, null];' \
@@ -12909,17 +12909,17 @@ prouver 'la préparation d'"'"'une facture au journal en « période payée »' 
 prouver 'une facture préparée deux fois pour la même période' 'serveur/abonnement/factures.ts' \
   '  if (deja) {' '  if (false && deja) {' \
   "$NF2"
-prouver 'une facture réglée en partie qui paie l'"'"'abonnement' 'base/migrations/0113_argent_juste.sql' \
+prouver 'une facture réglée en partie qui paie l'"'"'abonnement' 'base/migrations/0121_droits_a_leur_date.sql' \
   '  if v_p.net_a_payer <= 0 or v_avoirs >= v_p.net_a_payer or v_p.net_a_payer - v_avoirs - v_reglements > 0 then return null; end if;' '  if v_p.net_a_payer <= 0 or v_avoirs >= v_p.net_a_payer then return null; end if;' \
   "$NF3"
-prouver 'une facture que son avoir annule et qui paie l'"'"'abonnement' 'base/migrations/0113_argent_juste.sql' \
+prouver 'une facture que son avoir annule et qui paie l'"'"'abonnement' 'base/migrations/0121_droits_a_leur_date.sql' \
   '  if v_p.net_a_payer <= 0 or v_avoirs >= v_p.net_a_payer or v_p.net_a_payer - v_avoirs - v_reglements > 0 then return null; end if;' '  if v_p.net_a_payer <= 0 or v_p.net_a_payer - v_avoirs - v_reglements > 0 then return null; end if;' \
   "$NF4"
 prouver 'une facture d'"'"'abonnement réglée qui ne paie rien' 'serveur/v10/dossier.ts' \
   '  if (paiements.length && cle.startsWith('"'"'abonnement-'"'"')) await tx.query('"'"'select plateforme.abonnement_paye_par_facture($1, $2)'"'"', [entreprise, cle]);
 ' '' \
   "$NF3"
-prouver 'une facture réglée qui paie l'"'"'abonnement deux fois' 'base/migrations/0113_argent_juste.sql|||base/migrations/0113_argent_juste.sql' \
+prouver 'une facture réglée qui paie l'"'"'abonnement deux fois' 'base/migrations/0121_droits_a_leur_date.sql|||base/migrations/0121_droits_a_leur_date.sql' \
   '  if not found or v_f.payee_le is not null then return null; end if;|||  if not found or (v_ligne.paye_jusqu_au is not null and v_ligne.paye_jusqu_au >= v_f.fin) then return null; end if;' '  if not found then return null; end if;|||  if not found then return null; end if;' \
   "$NF3"
 
@@ -13040,7 +13040,7 @@ prouver 'un module acheté sur Complet, qui le contient déjà' serveur/abonneme
   "      if (avant.offre === 'complet') throw new Refus('abonnement.geste.module_complet');
 " '' \
   "$OC1"
-prouver 'la ligne d'"'"'abonnement lue sans ses modules' base/migrations/0113_argent_juste.sql \
+prouver 'la ligne d'"'"'abonnement lue sans ses modules' base/migrations/0121_droits_a_leur_date.sql \
   "'offert', a.offert, 'modules', to_jsonb(a.modules)," "'offert', a.offert," \
   "$OC1"
 prouver 'l'"'"'aperçu d'"'"'un module qui ne dit pas les modules d'"'"'après' serveur/console/routes.ts \
@@ -13174,7 +13174,7 @@ prouver 'la plus ancienne règle de l'"'"'abonnement prise pour celle du jour' b
    order by r.a_partir_du desc, r.le desc, r.id desc limit 1' '  select r.jours from plateforme.regle_abonnement r where r.code = p_code and r.a_partir_du <= p_jour
    order by r.a_partir_du, r.le, r.id limit 1' \
   "$PX2"
-prouver 'les lignes en plus au prix du jour de la préparation' base/migrations/0113_argent_juste.sql \
+prouver 'les lignes en plus au prix du jour de la préparation' base/migrations/0121_droits_a_leur_date.sql \
   'p.periodicite = p_periodicite and p.a_partir_du <= p_prix_au order by' 'p.periodicite = p_periodicite and p.a_partir_du <= p_jour order by' \
   "$PX3"
 prouver 'une facture rejouée au prix du jour de la préparation' base/migrations/0113_argent_juste.sql \
@@ -13375,7 +13375,7 @@ prouver 'le motif d'"'"'un changement lu par le client' base/migrations/0105_con
 prouver '« Ton abonnement » sans ce que les offres comprennent' serveur/abonnement/routes.ts \
   'regles: reglesPourMoi(f, historique, jour), contenu, fermes:' 'regles: reglesPourMoi(f, historique, jour), fermes:' \
   "$CTC1"
-prouver 'la facture comptée au contenu d'"'"'aujourd'"'"'hui' base/migrations/0113_argent_juste.sql \
+prouver 'la facture comptée au contenu d'"'"'aujourd'"'"'hui' base/migrations/0121_droits_a_leur_date.sql \
   '  v_contenu jsonb := plateforme.contenu_du_jour(p_offre, p_prix_au);|||  v_inclus := plateforme.inclus_de_l_offre(p_offre, v_modules, p_prix_au);' '  v_contenu jsonb := plateforme.contenu_du_jour(p_offre, p_jour);|||  v_inclus := plateforme.inclus_de_l_offre(p_offre, v_modules, p_jour);' \
   "$CTC2"
 prouver 'la porte qui lit le contenu du jour au milieu d'"'"'une période' serveur/abonnement/offre.ts \
@@ -14104,7 +14104,7 @@ prouver 'un changement d'"'"'offre tout de suite au lieu de l'"'"'échéance' 's
 CCG5='sur la prochaine facture, qui couvre un mois de calendrier de plus au même prix ; rien ne s'"'"'allonge avant elle'
 CCG6='dit sa preuve, et la garde dans son histoire ; sans elle, rien n'"'"'est payé'
 CCG7='consomme le mois offert qui l'"'"'attendait : la période couvre un mois de plus'
-CCG8='applique le renouvellement : le module qui partait part, l'"'"'offre changée ne se redit plus'
+CCG8='payée en retard (en grâce) : le renouvellement s'"'"'applique tout de suite — le module qui partait part, l'"'"'offre changée ne se redit plus'
 CCG9='retiré pendant une période payée, il reste jusqu'"'"'à sa fin et part le lendemain ; sans période payée, tout de suite'
 CCG10='rouvert avant de partir : le retrait prévu s'"'"'annule, ce n'"'"'est pas un achat'
 CCG11='en grâce : la lecture seule recule de ces jours, à partir de son jour prévu'
@@ -14154,8 +14154,8 @@ prouver 'un renouvellement qui garde le module qui partait' 'serveur/abonnement/
   '' \
   "$CCG8"
 prouver 'l'"'"'offre changée qui se redit le jour où elle commence' 'serveur/abonnement/gestes.ts' \
-  'debut >= apres.suivante_a_partir_du)' \
-  'debut > apres.suivante_a_partir_du)' \
+  '&& debut >= apres.suivante_a_partir_du)' \
+  '&& debut > apres.suivante_a_partir_du)' \
   "$CCG8"
 prouver 'un module retiré tout de suite pendant une période payée' 'serveur/abonnement/gestes.ts' \
   '      if (e.etat === '"'"'actif'"'"') {
@@ -14168,7 +14168,7 @@ prouver 'un module qui part le dernier jour payé' 'serveur/abonnement/gestes.ts
   'auRenouvellement: e.jusquAu });' \
   "$CCG9"
 prouver 'un module retiré deux fois' 'serveur/abonnement/gestes.ts' \
-  '      if (partent.includes(d.module)) throw new Refus('"'"'abonnement.geste.module_part_deja'"'"'' \
+  '      if (partent.includes(d.module) || (avant.a_venir_retraits ?? []).includes(d.module)) throw new Refus('"'"'abonnement.geste.module_part_deja'"'"'' \
   '      if (false) throw new Refus('"'"'abonnement.geste.module_part_deja'"'"'' \
   "$CCG9"
 prouver 'un module rouvert qui garde son retrait prévu' 'serveur/abonnement/gestes.ts' \
@@ -14708,6 +14708,74 @@ prouver 'le support voit les gestes des nouveautés' 'web/console/src/ecrans/Reg
   '            {true ? (
               <div className="c-rg-nv-gestes">' \
   'le support lit les réglages, sans aucun geste'
+
+# 1.28.0 : les droits à leur date, le mot de passe qui ferme tout (0121, 0122 ; l'audit de la console 1.26.0, C01 à C03).
+prouver 'une facture réglée d'"'"'avance change les droits tout de suite' 'base/migrations/0121_droits_a_leur_date.sql' \
+  '  if v_f.debut > v_jour and v_ligne.offre is not null then' \
+  '  if false then' \
+  'payée avant son premier jour, la période attend son jour : celle qui court va au bout avec ce qu'"'"'elle avait (l'"'"'audit C01)'
+prouver 'un paiement reçu d'"'"'avance change les droits tout de suite' 'serveur/abonnement/gestes.ts' \
+  'if (p.debut > jour && avant.offre) {' \
+  'if (false) {' \
+  'payée avant son premier jour (l'"'"'audit C01) : la période qui court va au bout avec ce qu'"'"'elle avait ; l'"'"'offre payée et le module qui part attendent leur jour'
+prouver 'un paiement reçu d'"'"'avance, noté par la console, change l'"'"'offre tout de suite' 'serveur/abonnement/gestes.ts' \
+  'if (p.debut > jour && avant.offre) {' \
+  'if (false) {' \
+  'un paiement reçu ailleurs pour la période qui vient : l'"'"'offre payée attend son jour ; la même facture ne paie pas deux fois'
+prouver 'la bascule garde la périodicité d'"'"'avant' 'base/migrations/0121_droits_a_leur_date.sql' \
+  '  update plateforme.abonnement set offre = a_venir_offre, periodicite = a_venir_periodicite,' \
+  '  update plateforme.abonnement set offre = a_venir_offre, periodicite = periodicite,' \
+  'un renouvellement à l'"'"'année prend la suite de la période payée'
+prouver 'la bascule garde le module qui part' 'base/migrations/0121_droits_a_leur_date.sql' \
+  '         modules = array(select m from unnest(modules) m where not (m = any(a_venir_retraits)) order by m),
+         modules_a_retirer' \
+  '         modules = modules,
+         modules_a_retirer' \
+  'payée avant son premier jour, la période attend son jour : celle qui court va au bout avec ce qu'"'"'elle avait (l'"'"'audit C01)'
+prouver 'la bascule vient avant son jour' 'base/migrations/0121_droits_a_leur_date.sql' \
+  'if not found or v_ligne.a_venir_le is null or v_ligne.a_venir_le > p_jour then return false; end if;' \
+  'if not found or v_ligne.a_venir_le is null then return false; end if;' \
+  'payée avant son premier jour, la période attend son jour : celle qui court va au bout avec ce qu'"'"'elle avait (l'"'"'audit C01)'
+prouver 'la même facture paie deux périodes' 'base/migrations/0121_droits_a_leur_date.sql' \
+  '    if exists (select 1 from plateforme.evenement_abonnement v where v.entreprise = p_entreprise and v.nature = '"'"'paye'"'"'' \
+  '    if false and exists (select 1 from plateforme.evenement_abonnement v where v.entreprise = p_entreprise and v.nature = '"'"'paye'"'"'' \
+  'un paiement reçu ailleurs pour la période qui vient : l'"'"'offre payée attend son jour ; la même facture ne paie pas deux fois'
+prouver 'l'"'"'outil de l'"'"'exploitation note deux fois la même facture' 'base/abonnement.ts' \
+  '    if (d.geste === '"'"'payer'"'"' && d.paiement && (await' \
+  '    if (false && d.paiement && (await' \
+  'un renouvellement à l'"'"'année prend la suite de la période payée'
+prouver 'le module qui part avec la période payée se rouvre aussitôt' 'serveur/abonnement/gestes.ts' \
+  'if (avant.a_venir_le && (avant.a_venir_retraits ?? []).includes(d.module)) {' \
+  'if (false) {' \
+  'payée avant son premier jour, la période attend son jour : celle qui court va au bout avec ce qu'"'"'elle avait (l'"'"'audit C01)'
+prouver 'la fiche tait la période payée d'"'"'avance' 'web/console/src/ecrans/Fiche.tsx' \
+  '{f.ligne?.a_venir_le && f.ligne.a_venir_offre && f.ligne.a_venir_periodicite ? (' \
+  '{false ? (' \
+  'un paiement noté d'"'"'avance (l'"'"'audit C01) : la fenêtre dit qu'"'"'il attend son jour, la fiche le redit, rien ne change aujourd'"'"'hui'
+prouver 'la fenêtre tait qu'"'"'un paiement d'"'"'avance attend son jour' 'web/console/src/ecrans/Fiche.tsx' \
+  '{details.aVenir === true && typeof details.debut === '"'"'string'"'"'' \
+  '{false && typeof details.debut === '"'"'string'"'"'' \
+  'un paiement noté d'"'"'avance (l'"'"'audit C01) : la fenêtre dit qu'"'"'il attend son jour, la fiche le redit, rien ne change aujourd'"'"'hui'
+prouver 'réinitialisé, le mot de passe laisse ouvertes les sessions de la console' 'base/migrations/0122_mot_de_passe_ferme_tout.sql' \
+  '  update plateforme.session_console set fermee_le = p_maintenant where utilisateur = v_utilisateur and fermee_le is null;
+' \
+  '' \
+  'l'"'"'audit C02 : changé dans l'"'"'application, ou réinitialisé, le mot de passe ferme aussi ses sessions de la console et ses défis en attente'
+prouver 'réinitialisé, le défi de la console attend encore son code' 'base/migrations/0122_mot_de_passe_ferme_tout.sql' \
+  '  update plateforme.defi_console set expire_le = least(expire_le, p_maintenant) where utilisateur = v_utilisateur and resolu_le is null;
+' \
+  '' \
+  'l'"'"'audit C02 : changé dans l'"'"'application, ou réinitialisé, le mot de passe ferme aussi ses sessions de la console et ses défis en attente'
+prouver 'changé dans l'"'"'application, le mot de passe laisse ouvertes les sessions de la console' 'base/migrations/0122_mot_de_passe_ferme_tout.sql' \
+  '  if v_console is null then
+    update plateforme.session_console' \
+  '  if false then
+    update plateforme.session_console' \
+  'l'"'"'audit C02 : changé dans l'"'"'application, ou réinitialisé, le mot de passe ferme aussi ses sessions de la console et ses défis en attente'
+prouver 'changé depuis la console, le mot de passe prend une seconde connexion' 'serveur/console/routes.ts' \
+  'changerMotDePasse(ctx, qui, corps.actuel, corps.nouveau, transaction(tx));' \
+  'changerMotDePasse(ctx, qui, corps.actuel, corps.nouveau);' \
+  'l'"'"'audit C03 : changé depuis la console, le mot de passe tient dans la transaction de la route — avec une seule connexion, il aboutit'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

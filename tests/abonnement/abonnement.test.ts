@@ -287,10 +287,17 @@ describe('les gestes de l\'exploitant', () => {
     const { ent } = await entreprise('Annuel');
     await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'essentiel', periodicite: 'mensuel', motif: 'virement' });
     const premiere = plusJours(plusMois(plusJours(aujourdhui, 31), 1), -1);
-    const e = await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'essentiel', periodicite: 'annuel', motif: 'virement, à l\'année' });
-    const ligne = (await admin.query('select paye_jusqu_au::text p, periodicite from plateforme.abonnement where entreprise = $1', [ent])).rows[0];
-    expect(ligne).toEqual({ p: plusJours(plusMois(plusJours(premiere, 1), 12), -1), periodicite: 'annuel' });
+    // La même facture ne paie pas deux périodes (0121) : celle de l'année a son numéro.
+    await expect(faire(exploitant, ent, { geste: 'payer', paiement: { ...RECU, facture: ' f-2020-001' }, offre: 'essentiel', periodicite: 'annuel', motif: 'noté deux fois' }))
+      .rejects.toThrow(/déjà noté/);
+    const e = await faire(exploitant, ent, { geste: 'payer', paiement: { ...RECU, facture: 'F-2020-002' }, offre: 'essentiel', periodicite: 'annuel', motif: 'virement, à l\'année' });
+    const lire = async () => (await admin.query('select paye_jusqu_au::text p, periodicite, a_venir_le::text le, a_venir_periodicite av from plateforme.abonnement where entreprise = $1', [ent])).rows[0];
+    // Payée avant son premier jour (l'audit C01) : le mois payé va au bout au mois ; l'année commence à son jour.
+    const ligne = await lire();
+    expect(ligne).toEqual({ p: plusJours(plusMois(plusJours(premiere, 1), 12), -1), periodicite: 'mensuel', le: plusJours(premiere, 1), av: 'annuel' });
     expect(e).toMatchObject({ etat: 'actif', jusquAu: ligne.p });
+    await admin.query('select plateforme.basculer_abonnements($1::date)', [plusJours(premiere, 1)]);
+    expect(await lire()).toEqual({ p: ligne.p, periodicite: 'annuel', le: null, av: null });
   });
 
   it('une trace ne se modifie pas et ne s\'efface pas', async () => {

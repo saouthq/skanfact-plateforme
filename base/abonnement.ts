@@ -40,19 +40,22 @@ async function lire(client: Client, entreprise: string, pourModifier: boolean): 
   const e = (await client.query('select essai, tenue_par is not null tenu from socle.entreprise where id = $1', [entreprise])).rows[0];
   if (!e) throw new Error('cette entreprise n\'est pas dans cette base');
   const r = (await client.query(`select essai_jusqu_au::text, paye_jusqu_au::text, offre, periodicite, resilie_le::text, suspendu_le::text, offert, modules,
-        delai_echeance::text, delai_jusqu_au::text, suivante_offre, suivante_periodicite, suivante_a_partir_du::text, mois_offerts, modules_a_retirer
+        delai_echeance::text, delai_jusqu_au::text, suivante_offre, suivante_periodicite, suivante_a_partir_du::text, mois_offerts, modules_a_retirer,
+        a_venir_le::text, a_venir_offre, a_venir_periodicite, a_venir_retraits
       from plateforme.abonnement where entreprise = $1 ${pourModifier ? 'for update' : ''}`, [entreprise])).rows[0];
   const ligne: Ligne | null = r ? { essai_jusqu_au: r.essai_jusqu_au, paye_jusqu_au: r.paye_jusqu_au, offre: r.offre, periodicite: r.periodicite,
     resilie_le: r.resilie_le, suspendu_le: r.suspendu_le, offert: r.offert, modules: lireModules(r.modules),
     delai_echeance: r.delai_echeance, delai_jusqu_au: r.delai_jusqu_au, suivante_offre: r.suivante_offre, suivante_periodicite: r.suivante_periodicite,
-    suivante_a_partir_du: r.suivante_a_partir_du, mois_offerts: r.mois_offerts, modules_a_retirer: lireModules(r.modules_a_retirer) } : null;
+    suivante_a_partir_du: r.suivante_a_partir_du, mois_offerts: r.mois_offerts, modules_a_retirer: lireModules(r.modules_a_retirer),
+    a_venir_le: r.a_venir_le, a_venir_offre: r.a_venir_offre, a_venir_periodicite: r.a_venir_periodicite, a_venir_retraits: lireModules(r.a_venir_retraits) } : null;
   // Les mêmes faits que la porte (plateforme.faits_abonnement) : le délai d'une échéance, l'offre de la prochaine (0111), le
   // mois offert qui attend, les modules qui partent (0113).
   const faits = lireFaits({ connu: ligne !== null, essaiJusquAu: ligne?.essai_jusqu_au, payeJusquAu: ligne?.paye_jusqu_au, offre: ligne?.offre, periodicite: ligne?.periodicite,
     resilieLe: ligne?.resilie_le, suspenduLe: ligne?.suspendu_le, offert: ligne?.offert, bacASable: e.essai, tenuParCabinet: e.tenu, modules: ligne?.modules,
     delai: r?.delai_jusqu_au ? { echeance: r.delai_echeance, jusquAu: r.delai_jusqu_au } : null,
     offreSuivante: r?.suivante_offre ? { offre: r.suivante_offre, periodicite: r.suivante_periodicite, aPartirDu: r.suivante_a_partir_du } : null,
-    moisOffert: (r?.mois_offerts ?? 0) > 0, modulesARetirer: r?.modules_a_retirer });
+    moisOffert: (r?.mois_offerts ?? 0) > 0, modulesARetirer: r?.modules_a_retirer,
+    aVenir: r?.a_venir_le ? { le: r.a_venir_le, offre: r.a_venir_offre, periodicite: r.a_venir_periodicite, retraits: r.a_venir_retraits } : null });
   return { ligne, faits };
 }
 
@@ -71,6 +74,7 @@ const NATURES: Record<string, string> = {
   resiliation_annulee: 'résiliation annulée', suspendu: 'suspendu', repris: 'repris', offert: 'offert', offert_retire: 'plus offert',
   module_ouvert: 'module acheté', module_ferme: 'module retiré',
   delai_accorde: 'délai accordé', mois_offert: 'mois offert', offre_changee: 'offre changée à la prochaine échéance',
+  periode_commencee: 'période payée d\'avance commencée',
 };
 
 export type Demande = DemandeAbonnement;
@@ -81,17 +85,26 @@ export async function faire(client: Client, entreprise: string, d: Demande, jour
   if (d.motif.trim().length < 3) throw new Error('un geste sur un abonnement demande son motif (trois caractères au moins) : il reste dans son histoire');
   await client.query('begin');
   try {
+    // Ce qui attendait son jour, s'il est venu, d'abord (0121) : le geste porte sur la ligne d'aujourd'hui.
+    await client.query('select plateforme.basculer_abonnement($1, $2::date)', [entreprise, jour]);
     const lu = await lire(client, entreprise, true);
     const ligne: Ligne | null = lu.ligne;
     const { apres, details } = calculerGeste(ligne, lu.faits, d, jour);
+    // La même facture ne paie pas deux périodes (0121), ici comme par la console.
+    if (d.geste === 'payer' && d.paiement && (await client.query(`select 1 from plateforme.evenement_abonnement where entreprise = $1 and nature = 'paye'
+        and lower(btrim(apres->>'facture')) = lower(btrim($2))`, [entreprise, d.paiement.facture])).rowCount) {
+      throw new Error('ce paiement est déjà noté : la même facture ne paie pas deux périodes');
+    }
     // Sans ligne, « prolonger » ouvre l'essai, à partir d'aujourd'hui.
     if (!ligne) await client.query('insert into plateforme.abonnement (entreprise, essai_jusqu_au) values ($1, $2)', [entreprise, apres.essai_jusqu_au]);
     await client.query(`update plateforme.abonnement set essai_jusqu_au = $2, paye_jusqu_au = $3, offre = $4, periodicite = $5, resilie_le = $6, suspendu_le = $7,
         offert = $8, modules = $9, delai_echeance = $10, delai_jusqu_au = $11, suivante_offre = $12, suivante_periodicite = $13, suivante_a_partir_du = $14,
-        mois_offerts = $15, modules_a_retirer = $16, modifie_le = now() where entreprise = $1`,
+        mois_offerts = $15, modules_a_retirer = $16, a_venir_le = $17, a_venir_offre = $18, a_venir_periodicite = $19, a_venir_retraits = $20,
+        modifie_le = now() where entreprise = $1`,
       [entreprise, apres.essai_jusqu_au, apres.paye_jusqu_au, apres.offre, apres.periodicite, apres.resilie_le, apres.suspendu_le, apres.offert, apres.modules,
         apres.delai_echeance ?? null, apres.delai_jusqu_au ?? null, apres.suivante_offre ?? null, apres.suivante_periodicite ?? null, apres.suivante_a_partir_du ?? null,
-        apres.mois_offerts ?? 0, apres.modules_a_retirer ?? []]);
+        apres.mois_offerts ?? 0, apres.modules_a_retirer ?? [], apres.a_venir_le ?? null, apres.a_venir_offre ?? null, apres.a_venir_periodicite ?? null,
+        apres.a_venir_retraits ?? []]);
     // Un paiement reçu est à l'entreprise SkanFact du jour (0113) : Paiements le compte dans son encaissé.
     await client.query(`insert into plateforme.evenement_abonnement (entreprise, nature, par, motif, avant, apres) values ($1, $2, 'exploitation', $3, $4,
         $5::jsonb || case when $2 = 'paye' then jsonb_build_object('editeur', (select d.entreprise from plateforme.editeur d)) else '{}'::jsonb end)`,

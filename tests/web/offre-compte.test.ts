@@ -216,4 +216,42 @@ describe('ce que l\'offre compte, à la souris', () => {
     await cx.close();
     expect(erreurs).toEqual([]);
   }, 150_000);
+
+  it('un paiement noté d\'avance (l\'audit C01) : la fenêtre dit qu\'il attend son jour, la fiche le redit, rien ne change aujourd\'hui', async () => {
+    const amira = await direction();
+    const nadia = await personne('nadia');
+    const ent = String((await api('POST', '/entreprises', nadia.jeton, { raisonSociale: 'Pâtisserie Avance' })).corps.id);
+    await faire(admin, ent, { geste: 'payer', paiement: RECU, offre: 'essentiel', periodicite: 'mensuel', motif: 'virement reçu' });
+    const avant = (await admin.query('select offre, periodicite, paye_jusqu_au::text fin from plateforme.abonnement where entreprise = $1', [ent])).rows[0] as { offre: string; periodicite: string; fin: string };
+    const lendemain = new Date(`${avant.fin}T00:00:00Z`);
+    lendemain.setUTCDate(lendemain.getUTCDate() + 1);
+    const commence = lendemain.toISOString().slice(0, 10).split('-').reverse().join('/');
+
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cx.addInitScript((j) => { sessionStorage.setItem('skanfact.console.jeton', j); }, amira.console);
+    const c = await cx.newPage();
+    c.on('pageerror', (e) => erreurs.push(e.message));
+    await c.goto(`${serveur.adresse}/console/#/clients/${ent}?onglet=abonnement`);
+    await expect.poll(() => c.locator('h1').first().innerText().catch(() => ''), { timeout: 20_000 }).toBe('Pâtisserie Avance');
+    await cliquer(c.locator('.c-menu > button'));
+    await cliquer(c.locator('.c-menu-liste button', { hasText: 'Noter un paiement reçu' }));
+    const f = c.getByRole('dialog');
+    await f.getByLabel('Offre', { exact: true }).selectOption('complet');
+    await f.getByLabel('N° de la facture faite ailleurs').fill('F-2020-002');
+    await f.getByLabel('Montant reçu').fill('80,920');
+    await expect.poll(() => f.locator('.c-apercu-details').allInnerTexts().then((t) => t.map(net)).catch(() => [] as string[]), { timeout: 10_000 })
+      .toContain(`Elle commence le ${commence} : d'ici là, l'offre et les modules d'aujourd'hui restent.`);
+    await f.getByLabel('Motif', { exact: true }).fill('Virement reçu pour le mois prochain, passe à Complet');
+    await cliquer(f.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => f.count(), { timeout: 10_000 }).toBe(0);
+    // Aujourd'hui : rien n'a changé ; la fiche dit la période qui vient.
+    expect((await admin.query('select offre, periodicite, a_venir_le::text, a_venir_offre from plateforme.abonnement where entreprise = $1', [ent])).rows[0])
+      .toMatchObject({ offre: avant.offre, periodicite: avant.periodicite, a_venir_le: lendemain.toISOString().slice(0, 10), a_venir_offre: 'complet' });
+    await c.goto(`${serveur.adresse}/console/#/clients/${ent}?onglet=apercu`);
+    await expect.poll(() => c.locator('.c-fiche-ent-note').allInnerTexts().then((t) => t.map(net)).catch(() => [] as string[]), { timeout: 15_000 })
+      .toContain(`La période suivante est déjà payée : elle commence le ${commence}, en Complet, au mois ; d'ici là, rien ne change.`);
+    await c.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'offre-compte-4-avance.png') });
+    await cx.close();
+    expect(erreurs).toEqual([]);
+  }, 150_000);
 });

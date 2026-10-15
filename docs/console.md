@@ -1163,6 +1163,22 @@ s'allume d'abord pour des entreprises volontaires, avant tout le monde : c'est l
   date (devenu « allumée par »), un « : . » en trop, « les volontaires d'avant (0) » (dit selon leur nombre), le
   tableau qui débordait au téléphone, les deux boutons collés.
 
+**C44. L'audit de la console 1.26.0, première partie : les droits payés et les mots de passe** (1.28.0 ; bases 0121 et
+0122 ; l'audit fait par Skander avec un autre assistant le 15/10/2026, vérifié ici point par point : ses treize constats
+sont vrais ; corrigés dans l'ordre qu'il propose, un lot par version). Les trois premiers :
+- **C01, payer en avance retirait trop tôt.** Une période payée avant son premier jour garde ce qu'elle change pour ce
+  jour-là, et la bascule l'applique le jour venu (`docs/abonnement.md` B6) ; la même facture ne paie pas deux périodes.
+- **C02, un nouveau mot de passe ne fermait pas la console.** Le changer dans l'application ferme aussi ses sessions de la
+  console ; le réinitialiser (« mot de passe oublié ») ferme toutes ses sessions des deux espaces, et les défis de
+  connexion de la console qui attendaient leur code. Changé depuis la console, celle-ci reste ouverte et les autres se
+  ferment (C40).
+- **C03, un changement à moitié.** Changé depuis la console, le mot de passe, la fermeture des autres sessions et le
+  journal de l'équipe tiennent dans la transaction de la route : une panne n'en laisse aucun à moitié, un refus n'écrit
+  que l'erreur comptée ; et la route ne prend plus une seconde connexion pendant qu'elle tient la sienne (un test le
+  joue avec une seule connexion : il aboutit).
+- Les anciens tests qui décrivaient le défaut (un paiement d'avance appliqué aussitôt) sont retournés vers la règle, et
+  joués des deux côtés : payé en avance (rien ne change avant le jour) et payé en retard (tout s'applique aussitôt).
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

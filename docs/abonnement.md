@@ -190,6 +190,28 @@ attend dans l'onglet). Ce qui part chez Konnect ne change pas : le montant, la d
 Sans prestataire branché chez SkanFact, rien ne s'offre en ligne, et « T'abonner » dit que la facture se règle par
 virement ou par chèque.
 
+**B6. Payée en avance, une période attend son premier jour** (1.28.0 ; base 0121 ; l'audit de la console 1.26.0, C01 ;
+choisi par délégation le 15/10/2026). Une facture se règle avant le premier jour de sa période (c'est même ce qu'on
+espère). Jusqu'ici, ce règlement appliquait aussitôt ce que la nouvelle période change : payée le 15 octobre pour une
+période qui commence le 1er novembre, la Comptabilité que le client avait décidé d'arrêter en novembre partait le 15, et
+un passage de Complet à Essentiel s'appliquait le 15 — alors que la période payée allait jusqu'au 31.
+- Désormais, payée **avant son premier jour**, la nouvelle période garde ce qu'elle change (son offre, sa périodicité, les
+  modules qui partent) **pour ce jour-là** ; la période qui court va au bout avec ce qu'elle avait. Le jour venu, la
+  **bascule** l'applique : au démarrage du serveur puis chaque heure (le tour « les périodes payées d'avance qui
+  commencent », dans Service · Travaux), et avant tout geste sur cet abonnement. Un client garde au pire une heure de
+  plus ce qu'il avait payé, jamais une heure de moins. L'histoire de l'abonnement le dit (« période payée commencée »).
+- Payée **le jour même ou en retard** (en grâce), rien n'attend : elle s'applique tout de suite, comme avant. Un **premier
+  paiement pendant l'essai** aussi (il n'y a pas de période payée à protéger).
+- **La même règle** pour la facture de SkanFact (B4) et pour le paiement reçu ailleurs (« Noter un paiement ») ; et la même
+  **facture reçue deux fois** (un double clic, deux personnes) ne paie pas deux périodes : la seconde est refusée.
+- Ce qui se fait pendant l'attente : un module qui part avec la période payée ne se retire pas deux fois, et ne se rouvre
+  qu'à partir de son jour (la période l'a comptée sans lui) ; un changement d'offre se règle par rapport à l'offre payée
+  pour la période qui vient ; la facture suivante ne compte plus les modules qui partent. La fiche du client le dit : « la
+  période suivante est déjà payée : elle commence le …, en …, sans … ; d'ici là, rien ne change ».
+- **Pas fait** : deux périodes payées d'avance (la troisième réglée avant que la deuxième ait commencé) se fondent en une
+  attente, au premier des deux jours, avec l'offre de la plus tardive — un cas que la console n'a jamais rencontré ; il
+  sera repris s'il arrive.
+
 **Ce que 14b ne fait pas**, et pourquoi : un règlement retiré après coup ne fait pas reculer l'abonnement tout seul (un
 fait posé ne se défait pas sans quelqu'un : la direction le voit et décide) ; l'avoir préparé depuis la console (SkanFact
 l'émet dans son application ; l'abonné le voit sous sa facture), le prorata d'un changement d'offre (10 § 2.4) et la facture préparée toute seule à quinze jours de l'échéance viennent une

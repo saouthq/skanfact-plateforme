@@ -17,6 +17,8 @@ export const TOURS = [
   { nom: 'mesureur', pasMs: 60_000, branche: null },
   // La relecture des chaînes d'empreintes (0115) : chaque heure.
   { nom: 'chaines', pasMs: 3_600_000, branche: null },
+  // Les périodes payées d'avance qui commencent (0121) : chaque heure, ce qu'elles changent s'applique à leur jour.
+  { nom: 'echeances', pasMs: 3_600_000, branche: null },
 ] as const;
 export type NomTour = typeof TOURS[number]['nom'];
 export const ARRETE_APRES_PAS = 3;

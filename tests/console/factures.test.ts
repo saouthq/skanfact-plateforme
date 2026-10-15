@@ -382,6 +382,43 @@ describe('l\'argent juste (0113)', () => {
     expect((await facture()).montantHt).toBe('684.545');
   });
 
+  it('payée avant son premier jour, la période attend son jour : celle qui court va au bout avec ce qu\'elle avait (l\'audit C01)', async () => {
+    const b = await abonnee('Garage Payé d\'Avance', 2);
+    // Essentiel au mois, la Comptabilité achetée seule, payé jusqu'au J+2 ; la Comptabilité part au renouvellement.
+    const fin = plusJours(jour, 2);
+    await admin.query(`update plateforme.abonnement set essai_jusqu_au = $2::date - 40, paye_jusqu_au = $2, offre = 'essentiel', periodicite = 'mensuel',
+      modules = '{compta}', modules_a_retirer = '{compta}' where entreprise = $1`, [b.id, fin]);
+    const debut = plusJours(fin, 1);
+    expect((await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'essentiel', periodicite: 'mensuel', motif: 'Le mois qui vient' })).statut).toBe(201);
+    await emettreEtRegler(b.id, debut, '47.410');
+    // Réglée aujourd'hui pour une période qui commence au J+3 : la Comptabilité sert jusqu'au J+2 inclus.
+    expect(await ligne(b.id)).toMatchObject({ paye_jusqu_au: plusJours(plusMois(debut, 1), -1), offre: 'essentiel', modules: ['compta'], modules_a_retirer: [],
+      a_venir_le: debut, a_venir_offre: 'essentiel', a_venir_periodicite: 'mensuel', a_venir_retraits: ['compta'] });
+    // Elle ne se rouvre pas d'ici là : la période payée l'a comptée sans elle.
+    const rouvrir = await geste(b.id, 'ouvrir-module', { motif: 'finalement oui', module: 'compta' });
+    expect([rouvrir.statut, rouvrir.corps.motif]).toEqual([403, expect.stringMatching(/part le .* avec la période déjà payée/)]);
+    // La veille du premier jour, rien ne bascule ; le jour même, la Comptabilité part, et l'histoire le dit.
+    expect((await admin.query('select plateforme.basculer_abonnement($1, $2::date) b', [b.id, fin])).rows[0]?.b).toBe(false);
+    expect((await admin.query('select plateforme.basculer_abonnements($1::date) n', [fin])).rows[0]?.n).toBe(0);
+    expect(await ligne(b.id)).toMatchObject({ modules: ['compta'] });
+    await admin.query('select plateforme.basculer_abonnements($1::date) n', [debut]);
+    expect(await ligne(b.id)).toMatchObject({ modules: [], a_venir_le: null, a_venir_offre: null, a_venir_retraits: [] });
+    expect((await admin.query(`select count(*)::int n from plateforme.evenement_abonnement where entreprise = $1 and nature = 'periode_commencee'`, [b.id])).rows[0]?.n).toBe(1);
+  });
+
+  it('un paiement reçu ailleurs pour la période qui vient : l\'offre payée attend son jour ; la même facture ne paie pas deux fois', async () => {
+    const b = await abonnee('Librairie Payée d\'Avance', 2);
+    // Complet à l'année jusqu'au J+5 ; le client passe à Essentiel pour l'année qui vient, et paie dès aujourd'hui.
+    await admin.query(`update plateforme.abonnement set essai_jusqu_au = $2::date - 400, paye_jusqu_au = $2, offre = 'complet', periodicite = 'annuel' where entreprise = $1`,
+      [b.id, plusJours(jour, 5)]);
+    const r = await geste(b.id, 'payer', { motif: 'virement pour l\'année qui vient', offre: 'essentiel', periodicite: 'annuel', paiement: { facture: 'F-2026-201', montant: '464,100', moyen: 'virement', le: jour } });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    expect(await ligne(b.id)).toMatchObject({ offre: 'complet', a_venir_le: plusJours(jour, 6), a_venir_offre: 'essentiel', a_venir_periodicite: 'annuel' });
+    expect((await fiche(b.id)).etat).toMatchObject({ etat: 'actif', offre: 'complet' });
+    const encore = await geste(b.id, 'payer', { motif: 'noté une seconde fois', offre: 'essentiel', periodicite: 'annuel', paiement: { facture: 'f-2026-201 ', montant: '464,100', moyen: 'virement', le: jour } });
+    expect([encore.statut, encore.corps.motif]).toEqual([403, expect.stringMatching(/déjà noté/)]);
+  });
+
   it('une facture payée puis défaite par son avoir arrive dans « À décider » et dans Paiements : l\'abonnement a couru sur elle', async () => {
     const b = await abonnee('Pharmacie Défaite', 2);
     const debut = plusJours(jour, 3);

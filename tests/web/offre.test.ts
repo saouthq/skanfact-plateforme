@@ -100,7 +100,10 @@ describe('ce que l\'offre ouvre, à la souris', () => {
     expect(await p.locator('#c-tabs button.active').getAttribute('data-tab')).not.toBe('grandlivre');
 
     // ── Passée à Complet : plus de cadenas, le formulaire s'ouvre ─────────────────────────────────────────────────────
-    await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'complet', periodicite: 'annuel', motif: 'passe à Complet' });
+    // L'année Complet payée d'avance commence à son jour (0121, l'audit C01) : on y va.
+    await faire(exploitant, ent, { geste: 'payer', paiement: { ...RECU, facture: 'F-2020-002' }, offre: 'complet', periodicite: 'annuel', motif: 'passe à Complet' });
+    expect((await admin.query('select offre, a_venir_offre from plateforme.abonnement where entreprise = $1', [ent])).rows[0]).toEqual({ offre: 'essentiel', a_venir_offre: 'complet' });
+    await exploitant.query('select plateforme.basculer_abonnement($1, a_venir_le) from plateforme.abonnement where entreprise = $1', [ent]);
     const q = await ouvrir(jeton, ent, '#/paie');
     expect(await q.locator('.sidebar a[data-route="paie"] .nav-lock').count()).toBe(0);
     expect(await q.locator('.offre-banner').count()).toBe(0);

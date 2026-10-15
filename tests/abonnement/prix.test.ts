@@ -154,8 +154,8 @@ describe('un nouveau prix, préparé dans la console', () => {
     // Loin : payée deux ans d'avance, sa prochaine période commence après le nouveau prix. Proche : au mois, avant.
     const p = await inscrire('ines');
     const loin = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Clinique Loin' })).corps.id);
-    for (const motif of ['première année', 'deuxième année']) {
-      expect((await geste(loin, 'payer', { paiement: RECU_CONSOLE, motif, ligne: await ligneDe(loin), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
+    for (const [motif, facture] of [['première année', 'F-2020-001'], ['deuxième année', 'F-2020-002']] as const) {
+      expect((await geste(loin, 'payer', { paiement: { ...RECU_CONSOLE, facture }, motif, ligne: await ligneDe(loin), offre: 'complet', periodicite: 'annuel' })).statut).toBe(200);
     }
     // Vingt et un salariés présents : un au-delà des vingt de Complet, sur la facture de la troisième année.
     for (let i = 1; i <= 21; i++) {

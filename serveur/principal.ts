@@ -49,7 +49,8 @@ import { creerApp, type Route } from './app.ts';
 import { avecTrace, courrielSmtp, type EnvoiCourriel } from './courriel.ts';
 import { emettreLesContrats } from './v10/contrats.ts';
 import { envoyerHttps, livrerAvis, type Envoyeur } from './avis.ts';
-import { creerPool } from './base.ts';
+import { creerPool, enTantQue } from './base.ts';
+import { aujourdhuiATunis } from './reglements.ts';
 import { CLE_DU_COFFRE_D_ESSAI, cleDuCoffre, CoffreFaux } from './coffre.ts';
 import type { Contexte } from './connexion.ts';
 import { choisirEncodage, compressible, SEUIL_COMPRESSION } from './compression.ts';
@@ -338,6 +339,20 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   tourDesRelances();
   const relanceur = setInterval(tourDesRelances, c.relancesMs);
 
+  // Les périodes payées d'avance qui commencent (0121, l'audit C01) : au démarrage, puis chaque heure, ce qu'elles
+  // changent s'applique à leur jour (un client garde au pire une heure de plus ce qu'il avait payé, jamais moins).
+  let bascules: Promise<unknown> = Promise.resolve();
+  let enBascule = false;
+  const tourDesEcheances = () => {
+    if (enBascule) return;
+    enBascule = true;
+    bascules = suivreTour(pool, 'echeances', () => enTantQue(pool, null, async (tx) =>
+      Number((await tx.query('select plateforme.basculer_abonnements($1::date) n', [aujourdhuiATunis(ctx.maintenant?.() ?? new Date())])).rows[0]?.n ?? 0)))
+      .catch((e: unknown) => { noterPanne('tâche basculer_abonnements', e); }).finally(() => { enBascule = false; });
+  };
+  tourDesEcheances();
+  const basculeur = setInterval(tourDesEcheances, c.relancesMs);
+
   // La relecture des chaînes d'empreintes (0115 ; docs/console.md C38) : au démarrage, puis chaque heure, un lot des
   // chaînes les moins récemment relues ; un seul tour à la fois.
   let relecture: Promise<unknown> = Promise.resolve();
@@ -370,6 +385,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       clearInterval(contrats);
       clearInterval(postier);
       clearInterval(relanceur);
+      clearInterval(basculeur);
       clearInterval(mesureur);
       clearInterval(gardien);
       await tour;
@@ -378,6 +394,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       await echeancier;
       await alertes;
       await relances;
+      await bascules;
       await relecture;
       await app.close();
       await mesures;

@@ -4,7 +4,7 @@
 // de la période. La liste des clients, les échéances, la fiche et « Ce qui revient chaque année » le lisent d'ici :
 // aucun écran ne recompte un prix de son côté.
 
-import type { Offre, Periodicite } from '../abonnement/etat.ts';
+import { offreAu, type Offre, type Periodicite } from '../abonnement/etat.ts';
 import { htDeLaPeriode, lireLignesEnPlus, periodeDeLaFacture } from '../abonnement/factures.ts';
 import { lireRemise, type Remise } from '../abonnement/remise.ts';
 import type { Transaction } from '../base.ts';
@@ -28,8 +28,9 @@ export function aRenouveler(e: Entreprise, jour: string): ARenouveler | null {
     : s.etat === 'en_retard' || (s.etat === 'lecture_seule' && s.raison === 'non_renouvele') ? true : null;
   if (attendu === null || !f.offre || !f.periodicite) return null;
   const { debut } = periodeDeLaFacture(f, f.periodicite, jour);
-  const s2 = f.offreSuivante && debut >= f.offreSuivante.aPartirDu ? f.offreSuivante : null;
-  return { entreprise: e.id, offre: s2?.offre ?? f.offre, periodicite: s2?.periodicite ?? f.periodicite, debut, attendu };
+  // L'offre de la période : la suivante choisie (0111), sinon celle d'une période payée d'avance (0121), sinon la sienne.
+  const o = offreAu(f, debut);
+  return { entreprise: e.id, offre: o.offre ?? f.offre, periodicite: o.periodicite ?? f.periodicite, debut, attendu };
 }
 
 // Ce que la base rend pour chaque demande (plateforme.console_renouvellements), compté par la règle de la facture.

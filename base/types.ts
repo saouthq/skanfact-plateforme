@@ -484,6 +484,10 @@ export interface BaseDeDonnees {
     suivante_a_partir_du: string | null;
     mois_offerts: Generated<number>;
     modules_a_retirer: Generated<string[]>;
+    a_venir_le: string | null;
+    a_venir_offre: string | null;
+    a_venir_periodicite: string | null;
+    a_venir_retraits: Generated<string[]>;
   };
   'plateforme.acces_support': {
     id: Generated<string>;

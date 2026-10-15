@@ -12,7 +12,7 @@ import { creerApp, VERSION } from '../../serveur/app.ts';
 import { creerPool, enTantQue } from '../../serveur/base.ts';
 import { mettreEnPlaceCode, quiEst, type Contexte } from '../../serveur/connexion.ts';
 import { routesConsole } from '../../serveur/console/routes.ts';
-import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
+import { empreinte, listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 
@@ -101,6 +101,44 @@ describe('ton compte, dans la console (0117)', () => {
     // Le nouveau ouvre la console ; l'ancien, plus.
     expect((await entrer(m.email, 'Un-autre-bon-mot-de-passe', m.secret)).statut).toBe(200);
   });
+
+  it('l\'audit C02 : changé dans l\'application, ou réinitialisé, le mot de passe ferme aussi ses sessions de la console et ses défis en attente', async () => {
+    const m = await membre('Nadia', 'technique');
+    expect((await appeler('POST', '/moi/mot-de-passe', m.jeton, { actuel: MDP, nouveau: 'Un-autre-bon-mot-de-passe' })).statut).toBe(200);
+    expect((await appeler('GET', '/console/moi/compte', m.console)).statut).toBe(401);
+    // Celle d'où il a changé reste ouverte.
+    expect((await appeler('GET', '/moi', m.jeton)).statut).toBe(200);
+    // « Mot de passe oublié » : toutes ses sessions, des deux espaces, et le défi de la console qui attendait son code.
+    const ouverte = await entrer(m.email, 'Un-autre-bon-mot-de-passe', m.secret);
+    expect(ouverte.statut).toBe(200);
+    const enAttente = await appeler('POST', '/console/connexion', undefined, { email: m.email, motDePasse: 'Un-autre-bon-mot-de-passe', appareil: { nom: 'Bureau', type: 'navigateur' } });
+    const lien = `essai-reinitialisation-${k}-${Date.now()}`;
+    await admin.query(`select * from socle.demander_reinitialisation($1, $2, now(), interval '1 hour')`, [m.email, lien]);
+    expect((await admin.query('select socle.conclure_reinitialisation($1, $2, now()) ok', [lien, await empreinte('Un-troisieme-bon-mot-de-passe')])).rows[0]?.ok).toBe(true);
+    expect((await appeler('GET', '/console/moi/compte', ouverte.jeton)).statut).toBe(401);
+    expect((await appeler('GET', '/moi', m.jeton)).statut).toBe(401);
+    expect((await appeler('POST', '/console/connexion/code', undefined, { defi: enAttente.corps.defi, code: totp(m.secret) })).statut).not.toBe(200);
+    expect((await entrer(m.email, 'Un-troisieme-bon-mot-de-passe', m.secret)).statut).toBe(200);
+  });
+
+  it('l\'audit C03 : changé depuis la console, le mot de passe tient dans la transaction de la route — avec une seule connexion, il aboutit', async () => {
+    const m = await membre('Omar', 'support');
+    const seule = creerPool(inject('pgApp'), 1);
+    const c = { ...ctx, pool: seule };
+    const a = creerApp(c, routesConsole(c, { veille: null }));
+    await a.ready();
+    try {
+      const changer = (actuel: string) => Promise.race([
+        a.inject({ method: 'POST', url: `${VERSION}/console/moi/mot-de-passe`, headers: { authorization: `Bearer ${m.console}` }, payload: { actuel, nouveau: 'Un-autre-bon-mot-de-passe' } }),
+        new Promise<never>((_, non) => { setTimeout(() => non(new Error('bloqué : une seconde connexion attendue pendant que la route tient la sienne')), 10_000); })]);
+      // Refusé : l'erreur se compte, rien d'autre ne s'écrit.
+      expect((await changer('pas-le-bon-mot')).statusCode).toBe(400);
+      expect(await auJournal(m.utilisateur)).toEqual([]);
+      const r = await changer(MDP);
+      expect([r.statusCode, r.json()]).toEqual([200, { ok: true, sessionsFermees: 0 }]);
+      expect(await auJournal(m.utilisateur)).toEqual([{ geste: 'equipe.mon_mot_de_passe', motif: 'changé depuis Ton compte', apres: { sessionsFermees: 0 } }]);
+    } finally { await a.close(); await seule.end(); }
+  }, 30_000);
 
   it('changer de code pour une application : le code actuel prouvé ; préparé, rien ne change ; un code faux ne l\'active pas ; juste, l\'ancien s\'arrête', async () => {
     const m = await membre('Nour', 'technique');

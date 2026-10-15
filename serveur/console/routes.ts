@@ -17,7 +17,7 @@ import { numeroMasque } from '../sms.ts';
 import * as invitations from './invitations.ts';
 import { envoyerInvitation, lienConsole, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
-import { etatAbonnement, lireDelai, lireFaits, lireModules, lireOffreSuivante, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
+import { etatAbonnement, lireDelai, lireAVenir, lireFaits, lireModules, lireOffreSuivante, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, MOYENS_RECUS, type GesteAbonnement, type LigneAbonnement, type PaiementRecu } from '../abonnement/gestes.ts';
 import { lireFacturesAbonnement, lireLignesEnPlus, periodeDeLaFacture, preparerFacture } from '../abonnement/factures.ts';
 import { lireRemise } from '../abonnement/remise.ts';
@@ -118,6 +118,10 @@ function lireLigne(x: unknown): LigneAbonnement | null {
     suivante_a_partir_du: jour(l.suivante_a_partir_du),
     // 0113 : le mois offert qui attend la prochaine facture, les modules qui partent au renouvellement.
     mois_offerts: l.mois_offerts === 1 ? 1 : 0, modules_a_retirer: lireModules(l.modules_a_retirer),
+    // 0121 : ce qu'une période payée d'avance change, qui attend son premier jour.
+    a_venir_le: jour(l.a_venir_le), a_venir_offre: l.a_venir_offre === 'essentiel' || l.a_venir_offre === 'complet' ? l.a_venir_offre : null,
+    a_venir_periodicite: l.a_venir_periodicite === 'annuel' || l.a_venir_periodicite === 'mensuel' ? l.a_venir_periodicite : null,
+    a_venir_retraits: lireModules(l.a_venir_retraits),
   };
 }
 // Deux lignes pareilles : chaque champ, et les modules achetés (une liste) un par un.
@@ -131,6 +135,7 @@ const faitsApres = (f: Faits, l: LigneAbonnement): Faits => ({ ...lireFaits({
   delai: l.delai_jusqu_au ? { echeance: l.delai_echeance, jusquAu: l.delai_jusqu_au } : null,
   offreSuivante: l.suivante_offre ? { offre: l.suivante_offre, periodicite: l.suivante_periodicite, aPartirDu: l.suivante_a_partir_du } : null,
   moisOffert: (l.mois_offerts ?? 0) > 0, modulesARetirer: l.modules_a_retirer ?? [],
+  aVenir: l.a_venir_le ? { le: l.a_venir_le, offre: l.a_venir_offre, periodicite: l.a_venir_periodicite, retraits: l.a_venir_retraits ?? [] } : null,
 }), regles: f.regles });
 
 // Ce que l'écran des échéances dit des règles : les relances d'aujourd'hui, la grâce d'une échéance qui tomberait
@@ -147,7 +152,7 @@ const lireLesRegles = async (x: Transaction): Promise<Regles> => lireRegles(awai
 const lesFaitsEnPlus = async (x: Transaction) => {
   const b = await lireJson<Record<string, Record<string, unknown>>>(x, 'select plateforme.console_faits_en_plus() v');
   return new Map(Object.entries(b ?? {}).map(([id, v]) => [id, { delai: lireDelai(v?.delai), offreSuivante: lireOffreSuivante(v?.offreSuivante),
-    moisOffert: v?.moisOffert === true, modulesARetirer: lireModules(v?.modulesARetirer) }]));
+    moisOffert: v?.moisOffert === true, modulesARetirer: lireModules(v?.modulesARetirer), aVenir: lireAVenir(v?.aVenir) }]));
 };
 const lesEntreprises = async (x: Transaction, jour: string) =>
   lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour, await lireLesRegles(x), await lesFaitsEnPlus(x));
@@ -198,7 +203,9 @@ export function gestesDeLaListe(role: RoleConsole, e: Entreprise): GesteAbonneme
   const f = e.faits;
   const ligne: LigneAbonnement | null = f.connu ? { essai_jusqu_au: f.essaiJusquAu ?? '', paye_jusqu_au: f.payeJusquAu, offre: f.offre, periodicite: f.periodicite,
     resilie_le: f.resilieLe, suspendu_le: f.suspenduLe, offert: f.offert, modules: [...(f.modules ?? [])], suivante_offre: f.offreSuivante?.offre ?? null,
-    mois_offerts: f.moisOffert ? 1 : 0, modules_a_retirer: [...(f.modulesARetirer ?? [])] } : null;
+    mois_offerts: f.moisOffert ? 1 : 0, modules_a_retirer: [...(f.modulesARetirer ?? [])],
+    a_venir_le: f.aVenir?.le ?? null, a_venir_offre: f.aVenir?.offre ?? null, a_venir_periodicite: f.aVenir?.periodicite ?? null,
+    a_venir_retraits: [...(f.aVenir?.retraits ?? [])] } : null;
   const permis = gestesDisponibles(role, f, ligne, e.etat, e.enPlus?.prolongeUneFois ?? false, e.enPlus?.moisOffertRecent ?? false);
   return GESTES_DE_LA_LISTE.filter((g) => permis.includes(g));
 }
@@ -845,7 +852,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     corps: z.object({ actuel: z.string().max(200), nouveau: z.string().max(200) }),
     traiter: async ({ qui, corps }, tx) => {
       if (!qui) throw new Error('session attendue');
-      const r = await changerMotDePasse(ctx, qui, corps.actuel, corps.nouveau);
+      // Le mot de passe, puis ses autres sessions de la console fermées et le journal de l'équipe : la même transaction
+      // (l'audit C03) — une panne n'en laisse aucun à moitié ; un refus n'écrit que l'erreur comptée.
+      const r = await changerMotDePasse(ctx, qui, corps.actuel, corps.nouveau, transaction(tx));
       if (!r.ok) return refusDuCompte(r);
       const n = await lireJson<number>(transaction(tx), 'select plateforme.console_mon_compte_change($1, $2) v', ['mot_de_passe', maintenant()]);
       return { corps: { ok: true, sessionsFermees: n } };

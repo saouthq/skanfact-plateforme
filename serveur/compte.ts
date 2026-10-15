@@ -14,7 +14,7 @@
 import { createHash, randomInt } from 'node:crypto';
 import { attenteLisible, empreinteDuSecours, envoyerSms, tirerCodesDeSecours, type Contexte, type Qui } from './connexion.ts';
 import { numeroMasque, numeroTunisien } from './sms.ts';
-import { enTantQue } from './base.ts';
+import { enTantQue, type Transaction } from './base.ts';
 import { correspond, empreinte, verifierPolitique } from './mot-de-passe.ts';
 import { adresseTotp, nouveauSecret, verifierTotp } from './totp.ts';
 import { motif, rendre, t, type Texte } from '../textes/index.ts';
@@ -29,17 +29,22 @@ const AIDE = 'https://skanfact.tn/contact.html';
 export type Refuse = { ok: false; motif: Texte; champ?: string; attendre?: true };
 
 // Mon adresse, et l'attente en cours après des erreurs (la même que la connexion : les essais se comptent par adresse).
-async function monAdresse(ctx: Contexte, qui: Qui): Promise<string> {
-  return enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select email from socle.utilisateur where id = $1', [qui.utilisateur])).rows[0].email as string);
+// Dans la transaction de la route quand elle en donne une (la console, l'audit C03 : un geste sur son compte réussit ou
+// échoue d'un bloc, et ne prend pas une seconde connexion pendant qu'il en tient une), sinon dans une à lui.
+type Dans = Transaction | null | undefined;
+const dans = <T>(ctx: Contexte, tx: Dans, utilisateur: string | null, travail: (tx: Transaction) => Promise<T>): Promise<T> =>
+  (tx ? travail(tx) : enTantQue(ctx.pool, utilisateur, travail));
+async function monAdresse(ctx: Contexte, qui: Qui, tx?: Dans): Promise<string> {
+  return dans(ctx, tx, qui.utilisateur, async (t) => (await t.query('select email from socle.utilisateur where id = $1', [qui.utilisateur])).rows[0].email as string);
 }
-async function attente(ctx: Contexte, email: string): Promise<Refuse | null> {
+async function attente(ctx: Contexte, email: string, tx?: Dans): Promise<Refuse | null> {
   const maintenant = maintenantDe(ctx);
-  const a = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.attente_connexion($1, $2) a', [email, maintenant])).rows[0].a as Date | null);
+  const a = await dans(ctx, tx, null, async (t) => (await t.query('select socle.attente_connexion($1, $2) a', [email, maintenant])).rows[0].a as Date | null);
   return a ? { ok: false, motif: attenteLisible(a, maintenant), attendre: true } : null;
 }
-async function erreur(ctx: Contexte, email: string, refus: Refuse): Promise<Refuse> {
+async function erreur(ctx: Contexte, email: string, refus: Refuse, tx?: Dans): Promise<Refuse> {
   const maintenant = maintenantDe(ctx);
-  const a = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select socle.noter_erreur($1, $2) a', [email, maintenant])).rows[0].a as Date | null);
+  const a = await dans(ctx, tx, null, async (t) => (await t.query('select socle.noter_erreur($1, $2) a', [email, maintenant])).rows[0].a as Date | null);
   return a ? { ok: false, motif: attenteLisible(a, maintenant), attendre: true, ...(refus.champ ? { champ: refus.champ } : {}) } : refus;
 }
 
@@ -185,22 +190,23 @@ export async function nouveauxCodesDeSecours(ctx: Contexte, qui: Qui, code: stri
 }
 
 // Le mot de passe actuel est-il le bon ?
-async function motDePasseBon(ctx: Contexte, email: string, motDePasse: string): Promise<boolean> {
-  const u = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select empreinte from socle.pour_connexion($1)', [email])).rows[0] as { empreinte: string | null } | undefined);
+async function motDePasseBon(ctx: Contexte, email: string, motDePasse: string, tx?: Dans): Promise<boolean> {
+  const u = await dans(ctx, tx, null, async (t) => (await t.query('select empreinte from socle.pour_connexion($1)', [email])).rows[0] as { empreinte: string | null } | undefined);
   return !!u?.empreinte && await correspond(u.empreinte, motDePasse);
 }
 
 // Changer son mot de passe : les autres sessions se ferment, celle-ci reste ouverte.
-export async function changerMotDePasse(ctx: Contexte, qui: Qui, actuel: string, nouveau: string): Promise<{ ok: true } | Refuse> {
-  const email = await monAdresse(ctx, qui);
-  const bloque = await attente(ctx, email);
+// `tx` : celle de la route de la console (le journal de l'équipe s'écrit dans la même) ; l'application n'en donne pas.
+export async function changerMotDePasse(ctx: Contexte, qui: Qui, actuel: string, nouveau: string, tx?: Dans): Promise<{ ok: true } | Refuse> {
+  const email = await monAdresse(ctx, qui, tx);
+  const bloque = await attente(ctx, email, tx);
   if (bloque) return bloque;
-  if (!await motDePasseBon(ctx, email, actuel)) return erreur(ctx, email, { ok: false, motif: motif('compte.mot_de_passe_actuel_faux'), champ: 'actuel' });
+  if (!await motDePasseBon(ctx, email, actuel, tx)) return erreur(ctx, email, { ok: false, motif: motif('compte.mot_de_passe_actuel_faux'), champ: 'actuel' }, tx);
   const politique = verifierPolitique(nouveau, ctx.listeVolee);
   if (!politique.ok) return { ok: false, motif: politique.motif, champ: 'nouveau' };
   const e = await empreinte(nouveau);
-  await enTantQue(ctx.pool, qui.utilisateur, (tx) => tx.query('select socle.changer_mot_de_passe($1, $2, $3)', [e, qui.session, maintenantDe(ctx)]));
-  await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.effacer_erreurs($1)', [email]));
+  await dans(ctx, tx, qui.utilisateur, (t) => t.query('select socle.changer_mot_de_passe($1, $2, $3)', [e, qui.session, maintenantDe(ctx)]));
+  await dans(ctx, tx, null, (t) => t.query('select socle.effacer_erreurs($1)', [email]));
   return { ok: true };
 }
 

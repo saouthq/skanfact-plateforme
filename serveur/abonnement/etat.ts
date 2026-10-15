@@ -47,7 +47,11 @@ export type Faits = {
   // Un mois offert qui attend la prochaine facture (0113), et les modules qui partent au renouvellement.
   moisOffert?: boolean;
   modulesARetirer?: readonly ModuleAchete[];
+  // Une période payée avant son premier jour (0121, l'audit C01) : ce qu'elle change — son offre, sa périodicité, les
+  // modules qui partent — attend ce jour-là ; d'ici là, la période payée qui court va au bout avec ce qu'elle avait.
+  aVenir?: AVenir | null;
 };
+export type AVenir = { le: string; offre: Offre; periodicite: Periodicite; retraits: readonly ModuleAchete[] };
 export type ContenuDesOffres = Partial<Record<Offre, Partial<Record<ModuleAchete, RegleDatee[]>>>>;
 
 // Une règle datée : les jours qu'elle dit, à partir de son jour. L'histoire d'une règle va de la plus ancienne à la plus
@@ -105,7 +109,7 @@ export function lireFaits(f: Record<string, unknown>): Faits {
     bacASable: f.bacASable === true, tenuParCabinet: f.tenuParCabinet === true,
     modules: lireModules(f.modules), regles: lireRegles(f.regles), contenu: lireContenu(f.contenu),
     delai: lireDelai(f.delai), offreSuivante: lireOffreSuivante(f.offreSuivante),
-    moisOffert: f.moisOffert === true, modulesARetirer: lireModules(f.modulesARetirer),
+    moisOffert: f.moisOffert === true, modulesARetirer: lireModules(f.modulesARetirer), aVenir: lireAVenir(f.aVenir),
   };
 }
 const objetDe = (v: unknown): Record<string, unknown> | null => (v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null);
@@ -119,6 +123,19 @@ export function lireOffreSuivante(v: unknown): OffreSuivante | null {
   const o = objetDe(v);
   return o && (o.offre === 'essentiel' || o.offre === 'complet') && (o.periodicite === 'annuel' || o.periodicite === 'mensuel') && estJour(o.aPartirDu)
     ? { offre: o.offre, periodicite: o.periodicite, aPartirDu: o.aPartirDu } : null;
+}
+
+export function lireAVenir(v: unknown): AVenir | null {
+  const o = objetDe(v);
+  return o && (o.offre === 'essentiel' || o.offre === 'complet') && (o.periodicite === 'annuel' || o.periodicite === 'mensuel') && estJour(o.le)
+    ? { le: o.le, offre: o.offre, periodicite: o.periodicite, retraits: lireModules(o.retraits) } : null;
+}
+// L'offre et la périodicité d'une période qui commence tel jour : celle choisie pour la prochaine échéance (0111) si elle
+// vaut ce jour-là, sinon celle de la période payée d'avance (0121) si elle a commencé, sinon celle qui court.
+export function offreAu(f: Faits, debut: string): { offre: Offre | null; periodicite: Periodicite | null } {
+  if (f.offreSuivante && debut >= f.offreSuivante.aPartirDu) return { offre: f.offreSuivante.offre, periodicite: f.offreSuivante.periodicite };
+  if (f.aVenir && debut >= f.aVenir.le) return { offre: f.aVenir.offre, periodicite: f.aVenir.periodicite };
+  return { offre: f.offre, periodicite: f.periodicite };
 }
 
 // L'histoire du contenu des offres telle que la base la rend (0105), lue comme celle des règles.

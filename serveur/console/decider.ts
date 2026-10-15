@@ -5,7 +5,7 @@
 //   - une console où rien ne se passe affiche une liste vide, et le dit : elle n'invente pas de travail.
 
 import { confirme } from '../../exploitation/veille.ts';
-import { etatAbonnement, joursEntre, lireFaits, plusJours, type Delai, type Etat, type Faits, type ModuleAchete, type OffreSuivante, type Regles } from '../abonnement/etat.ts';
+import { etatAbonnement, joursEntre, lireFaits, plusJours, type Delai, type Etat, type Faits, type AVenir, type ModuleAchete, type OffreSuivante, type Regles } from '../abonnement/etat.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import type { RoleConsole } from './gestes.ts';
 import type { AEmettre, Defaite, MesureEncaisse, Trop } from './paiements.ts';
@@ -36,7 +36,7 @@ export type EnPlus = { piecesMois: number; essaiJours: number | null; prolonge: 
 // lues une fois pour toute la liste.
 // `enPlus` : le délai d'une échéance et l'offre de la prochaine (0111), le mois offert qui attend et les modules qui
 // partent (0113), par entreprise.
-export type FaitsEnPlus = { delai: Delai | null; offreSuivante: OffreSuivante | null; moisOffert?: boolean; modulesARetirer?: readonly ModuleAchete[] };
+export type FaitsEnPlus = { delai: Delai | null; offreSuivante: OffreSuivante | null; moisOffert?: boolean; modulesARetirer?: readonly ModuleAchete[]; aVenir?: AVenir | null };
 export function lireEntreprises(brut: unknown, jour: string, regles: Regles, enPlus: ReadonlyMap<string, FaitsEnPlus> = new Map()): Entreprise[] {
   if (!Array.isArray(brut)) return [];
   return brut.map((x: Record<string, unknown>) => {

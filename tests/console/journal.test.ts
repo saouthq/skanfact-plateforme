@@ -77,7 +77,9 @@ describe('les gestes du journal de la console', () => {
       // Et l'export (0114) : « clients.exporte » ou « journal.exporte », selon ce qui s'exporte.
       expect.stringMatching(/^0114_chiffres_justes\.sql : p_quoi \|\| '\.exporte'$/),
       // Et l'attente de la technique (0115), posée ou levée.
-      expect.stringMatching(/^0115_suivi\.sql : case when p_attend then 'support\.technique' else 'support\.technique_levee' end$/)]);
+      expect.stringMatching(/^0115_suivi\.sql : case when p_attend then 'support\.technique' else 'support\.technique_levee' end$/),
+      // Et la même redéfinie en 0121 : ce qu'une période payée d'avance change attend son jour (l'audit C01).
+      expect.stringMatching(/^0121_droits_a_leur_date\.sql : 'abonnement\.' \|\| p_geste$/)]);
   });
 
   it('chacun a la forme que la table exige (deux parties) : sinon le geste entier échoue', () => {

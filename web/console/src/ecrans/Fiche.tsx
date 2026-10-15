@@ -32,7 +32,9 @@ const MODULES: readonly ModuleAchete[] = ['paie', 'compta'];
 type LigneAbo = { essai_jusqu_au: string; paye_jusqu_au: string | null; offre: Offre | null; periodicite: Periodicite | null; resilie_le: string | null; suspendu_le: string | null; offert: boolean;
   modules?: ModuleAchete[]; delai_echeance?: string | null; delai_jusqu_au?: string | null; suivante_offre?: Offre | null; suivante_periodicite?: Periodicite | null; suivante_a_partir_du?: string | null;
   // 0113 : le mois offert qui attend la prochaine facture, les modules qui partent au renouvellement.
-  mois_offerts?: number; modules_a_retirer?: ModuleAchete[] };
+  mois_offerts?: number; modules_a_retirer?: ModuleAchete[];
+  // 0121 : une période payée d'avance — ce qu'elle change attend son premier jour (l'audit C01).
+  a_venir_le?: string | null; a_venir_offre?: Offre | null; a_venir_periodicite?: Periodicite | null; a_venir_retraits?: ModuleAchete[] };
 // `derniereIci` (0114) : son dernier geste dans CETTE entreprise ; `derniereConnexion`, sa dernière connexion, où que ce soit.
 type Membre = { nom: string; email: string; roles: string[]; depuis: string; derniereConnexion: string | null; derniereIci?: string | null };
 type CabinetDe = { id: string; nom: string; place: Place; mandat: { statut: 'propose' | 'actif'; debut: string } | null };
@@ -104,18 +106,20 @@ const CASES = ['essai_jusqu_au', 'paye_jusqu_au', 'offre', 'periodicite', 'resil
   // 0113 : le paiement reçu et sa preuve, le mois offert, les modules qui partent.
   'facture', 'montant', 'moyen', 'le', 'mois_offert', 'mois_offerts', 'du', 'au', 'modules_a_retirer', 'au_renouvellement',
   // 0115 : qui suit une demande, sa priorité, l'attente de la technique ; le prochain essai d'un envoi repris.
-  'suivie_par', 'priorite', 'technique', 'prochain'] as const;
+  'suivie_par', 'priorite', 'technique', 'prochain',
+  // 0121 : ce qu'une période payée d'avance change, et le jour où elle commence.
+  'a_venir_le', 'a_venir_offre', 'a_venir_periodicite', 'a_venir_retraits'] as const;
 // Les modules achetés, en mots (« Paie, Comptabilité complète ») ; aucun : « — ».
 const nomsModules = (v: unknown) => (Array.isArray(v) ? v.filter((m): m is ModuleAchete => m === 'paie' || m === 'compta').map((m) => titre(`console.ecran.abo.module.${m}`)).join(', ') : '');
 function valeurLisible(cle: string, v: unknown): string {
   if (v === null || v === undefined || v === '') return '—';
   if (typeof v === 'boolean') return dire(v ? 'console.ecran.fiche.oui' : 'console.ecran.fiche.non');
   if (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v)) return jourCourt(v);
-  if ((cle === 'offre' || cle === 'suivante_offre') && (v === 'essentiel' || v === 'complet')) return dire(`console.ecran.abo.offre.${v}`);
-  if ((cle === 'periodicite' || cle === 'suivante_periodicite') && (v === 'annuel' || v === 'mensuel')) return dire(`console.ecran.abo.periodicite.${v}`);
+  if ((cle === 'offre' || cle === 'suivante_offre' || cle === 'a_venir_offre') && (v === 'essentiel' || v === 'complet')) return dire(`console.ecran.abo.offre.${v}`);
+  if ((cle === 'periodicite' || cle === 'suivante_periodicite' || cle === 'a_venir_periodicite') && (v === 'annuel' || v === 'mensuel')) return dire(`console.ecran.abo.periodicite.${v}`);
   if (cle === 'role' && typeof v === 'string') return titre(`console.ecran.role.${v}`);
   if (cle === 'montant_ht' && typeof v === 'string') return montant(v);
-  if (cle === 'modules' || cle === 'modules_a_retirer') return nomsModules(v) || '—';
+  if (cle === 'modules' || cle === 'modules_a_retirer' || cle === 'a_venir_retraits') return nomsModules(v) || '—';
   // Un montant reçu (0113) : des millimes, en texte.
   if (cle === 'montant' && typeof v === 'string' && /^\d+$/.test(v)) return montant(`${v.slice(0, -3) || '0'}.${v.slice(-3).padStart(3, '0')}`);
   if (cle === 'moyen' && (v === 'virement' || v === 'cheque' || v === 'especes')) return dire(`console.ecran.geste.recu.moyen.${v}`);
@@ -323,6 +327,9 @@ function FenetreGeste({ geste, fiche, role, fermer, fait }: { geste: Geste; fich
             </>}
             {typeof details.debut === 'string' && typeof details.fin === 'string'
               ? <span className="c-apercu-details">{phrase(details.moisOffert === true ? 'console.ecran.geste.periode_offert' : 'console.ecran.geste.periode', { debut: jourCourt(details.debut), fin: jourCourt(details.fin) })}</span> : null}
+            {/* 0121 : une période payée d'avance ne change rien aujourd'hui ; ce qu'elle change attend son premier jour. */}
+            {details.aVenir === true && typeof details.debut === 'string'
+              ? <span className="c-apercu-details">{phrase('console.ecran.geste.periode_a_venir', { le: jourCourt(details.debut) })}</span> : null}
             {/* Un mois offert ne change rien aujourd'hui : l'état d'après est celui d'avant ; ce qu'il fait se dit dessous. */}
             {geste === 'offrir-mois' && typeof details.du === 'string' && typeof details.au === 'string'
               ? <span className="c-apercu-details">{phrase('console.ecran.geste.mois_sur_facture', { du: jourCourt(details.du), au: jourCourt(details.au) })}</span> : null}
@@ -962,6 +969,10 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
                 {f.prochaineFacture ? <span className="c-fiche-ent-note">{phrase(f.ligne?.mois_offerts ? 'console.ecran.fiche.prochaine_facture_offert' : 'console.ecran.fiche.prochaine_facture',
                   { montant: montant(f.prochaineFacture.montantHt), le: jourCourt(f.prochaineFacture.debut) })}</span>
                   : f.ligne?.mois_offerts ? <span className="c-fiche-ent-note">{phrase('console.ecran.fiche.mois_offert')}</span> : null}
+                {/* 0121 : une période payée d'avance — elle commence à son jour, avec son offre, sans les modules qui partent. */}
+                {f.ligne?.a_venir_le && f.ligne.a_venir_offre && f.ligne.a_venir_periodicite ? (
+                  <span className="c-fiche-ent-note">{phrase((f.ligne.a_venir_retraits ?? []).length ? 'console.ecran.fiche.a_venir_sans' : 'console.ecran.fiche.a_venir', {
+                    le: jourCourt(f.ligne.a_venir_le), offre: offreEtPeriode(f.ligne.a_venir_offre, f.ligne.a_venir_periodicite), modules: nomsModules(f.ligne.a_venir_retraits) })}</span>) : null}
                 {f.ligne?.paye_jusqu_au ? (f.ligne.modules_a_retirer ?? []).map((m) => (
                   <span key={`part-${m}`} className="c-fiche-ent-note">{phrase('console.ecran.fiche.module_part', { module: titre(`console.ecran.abo.module.${m}`), le: jourCourt(f.ligne?.paye_jusqu_au) })}</span>)) : null}
                 {f.enPlus?.prolonge ? <span className="c-fiche-ent-note">{phrase('console.ecran.fiche.prolonge', { n: f.enPlus.prolonge })}</span> : null}
