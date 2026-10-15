@@ -765,7 +765,7 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   .c-ech { grid-template-columns: 64px minmax(0, 1fr); grid-template-areas: 'jour quoi' 'jour montant' 'bas bas'; gap: 8px 14px; padding: 14px 18px; }
   .c-ech-montant { justify-items: start; text-align: start; }
   /* Au doigt, le nom de l'entreprise est une cible de 44 points, comme les liens des tableaux. */
-  .c-ech-quoi a { display: inline-flex; align-items: center; min-height: 44px; }
+  .c-ech-quoi a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
   .c-ech-action { justify-self: start; }
 }
 

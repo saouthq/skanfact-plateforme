@@ -203,6 +203,9 @@ describe('les relances', () => {
     commercial = await inviter(E.ent, E.proprio.jeton, ['commercial'], 'commercial');
     administrateur = await inviter(E.ent, E.proprio.jeton, ['administrateur'], 'admin');
   });
+  // La boulangerie ne reste pas « relancée aujourd'hui » pour les fichiers qui suivent dans la même base (l'accueil de la
+  // console compte les relances parties depuis hier) : son échéance s'éloigne, ses relances ne sont plus les siennes.
+  afterAll(async () => { await finEssai(E.ent, plusJours(aujourdhui, 60)); });
   const pour = (adresses: string[]) => partis.filter((p) => adresses.includes(p.a));
   const parties = async () => (await admin.query('select rang from plateforme.relance_abonnement where entreprise = $1 order by partie_le, rang', [E.ent])).rows.map((r) => r.rang);
 

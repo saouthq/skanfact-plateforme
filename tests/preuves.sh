@@ -11239,7 +11239,7 @@ prouver '« 2 Personnes » : la majuscule derrière un nombre' web/console/src/u
   return i < 0 ? s :' \
   "$CONS2W2"
 prouver 'le nom d'"'"'une échéance trop petit pour le doigt' web/console/src/console.css \
-  '  .c-ech-quoi a { display: inline-flex; align-items: center; min-height: 44px; }
+  '  .c-ech-quoi a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
 ' '' \
   "$CONSW6"
 prouver 'le revenu de l'"'"'année pris pour un texte du catalogue' web/console/src/ecrans/Abonnements.tsx \
