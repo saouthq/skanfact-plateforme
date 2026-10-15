@@ -1060,6 +1060,34 @@ Skander : « fait comme la maquette pour l'instant et note en non mesuré ce qu'
   par Skander** (règle du projet : jamais une donnée de plus vers un serveur sans liste comptée et décidée). Aucun
   événement n'est envoyé.
 
+**C40. Ton compte** (1.24.0 ; base 0117 ; la maquette « Équipe », la vue du support ; 10-console § 2.10 ; décidé par
+délégation le 15/10/2026, dans « faut faire tout ce qui manque »).
+- **Chaque membre lit son propre compte**, quel que soit son rôle. Le support et la technique qui ouvrent « Équipe »
+  arrivent dessus (l'équipe et ses rôles restent à la direction) ; la direction y vient par « Ton compte », en tête de
+  l'équipe, et revient par « L'équipe ». Jamais le compte d'un autre.
+- **Ce qu'il montre** : le rôle (« donné par la direction »), le code (l'application, ou le SMS au numéro **masqué** :
+  le serveur le masque avant l'écran), les codes de secours qui restent sur dix, le jour où le mot de passe a changé
+  (le journal du compte, sinon le jour où le compte est né), depuis quand la personne est dans l'équipe ; ses appareils
+  **dans la page** (les trois plus récents, les autres d'un clic : celui de cette session d'abord), avec les gestes de
+  0114 (fermer une session, oublier un appareil, avec un motif) ; ses six derniers gestes et leur nombre sur trente
+  jours ; ce que son rôle ouvre, lu dans la liste des gestes du serveur, avec ses nuances (une coche, ou la limite en
+  orange). Jamais un secret, un code, un mot de passe ni le numéro entier.
+- **Trois gestes, par les mêmes étapes que dans l'application** (`serveur/compte.ts`) — un membre de l'équipe n'a pas
+  toujours une entreprise où les faire :
+  - **changer son mot de passe** : l'actuel le prouve, la règle du serveur s'applique (dix caractères, pas un mot de
+    passe volé) ; ses autres sessions se ferment, **dans la console comme dans l'application** ; celle-ci reste ;
+  - **changer de code** (une application ou un SMS, jamais l'e-mail pour l'équipe) : le code actuel le prouve (celui de
+    l'application, un code reçu par SMS, ou un code de secours) ; le nouveau se **prépare** (rien ne change), puis
+    s'**active** par son premier code juste ; alors seulement l'ancien s'arrête, et dix nouveaux codes de secours se
+    montrent une fois ;
+  - **refaire ses codes de secours** : le code actuel d'abord ; les dix nouveaux se montrent une fois, les anciens ne
+    marchent plus.
+  Chacun entre **au journal de l'équipe** (`equipe.mon_mot_de_passe`, `equipe.mon_code` avec la méthode lue dans le
+  compte, `equipe.mes_codes_secours`), sans secret. Son rôle, c'est la direction qui le change ; son code, **personne
+  d'autre que lui** : on ne le réinitialise pas à sa place (la maquette).
+- **Pas fait** : l'alerte de la maquette « 3 codes faux, depuis un appareil inconnu » (« Ce n'était pas moi / C'était
+  moi ») — les refus de connexion se lisent dans Service · Sécurité ; les envoyer à la personne elle-même reste à faire.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1296,3 +1324,17 @@ délai ; la liste des événements, « proposée, à décider ». Corrigé penda
 - au téléphone, « 30 derniers jours » seul sous les deux autres périodes : les trois sur une ligne ; les quatre étapes
   deux par deux ;
 - les périodes de l'en-tête décalées de 24 points à droite (la marge des pilules d'une carte) : alignées.
+
+## Revu à la souris et au clavier (15/10/2026, 1.24.0 : ton compte)
+
+Sur l'essai de l'outil humain, la base passée en `0117`, dans la console : Karim (support) en sombre et en clair, à 1440
+et à 390 ; Amira (direction) de l'équipe à son compte et retour. « Équipe » ouvre « Ton compte » ; changer de code refait
+**de bout en bout** à la souris (le refus sans code actuel sur son champ, le code QR et la clé, un code faux refusé, le
+bon : les dix codes de secours, puis « Son code changé » dans les gestes récents) — Karim se reconnecte ensuite avec le
+nouveau. Corrigé pendant le parcours :
+- l'écran vide : le nom d'un geste du journal écrit avec un tiret (`abonnement.offrir-mois`) ne se trouvait pas au
+  catalogue : le même nom que le journal ;
+- « Ou tape à la main cette clé :. » : un point de trop ;
+- par défaut, la méthode qu'on a déjà (le cas courant : un nouveau téléphone), pas l'autre ;
+- huit appareils de l'essai poussaient « Tes gestes » sous l'écran : trois dans la page, les autres d'un clic.
+

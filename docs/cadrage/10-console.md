@@ -182,7 +182,8 @@ Les membres de l'équipe, leur rôle, leurs appareils, et **le journal de chaque
 Code sur le téléphone obligatoire pour tous (`00`).
 La direction ferme la session ou oublie l'appareil d'un membre sans le retirer ; chacun le fait pour lui-même (15/10/2026,
 par délégation). Le journal : la direction lit tout ; le support, ses propres gestes et ses accès aux dossiers
-(15/10/2026, par délégation, comme la maquette).
+(15/10/2026, par délégation, comme la maquette). **Ton compte** (1.24.0, `docs/console.md` C40) : chacun lit le sien,
+quel que soit son rôle, et y change son mot de passe, son code et ses codes de secours ; chaque geste au journal.
 
 ### 2.11 Réglages de la plateforme
 

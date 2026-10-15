@@ -629,6 +629,10 @@ vaut pour tout le dépôt.*
     qu'on promet, par offre et sans nom (`plateforme.console_mesure` ; `mesurer`, `bornes` dans `serveur/console/mesure.ts` ;
     `web/console/src/ecrans/Mesure.tsx`) ; ce qui demanderait des événements de l'application dit « pas encore mesuré »
     (`tests/console/mesure.test.ts`).
+  - **Ton compte** (1.24.0 ; `docs/console.md` C40, `0117`) : chacun son compte, ses trois gestes (mot de passe, code,
+    codes de secours) par les fonctions de l'application (`serveur/compte.ts`), et leur trace (`plateforme.console_mon_compte`,
+    `console_mon_compte_change` ; les routes `/console/moi/…` ; `web/console/src/ecrans/TonCompte.tsx`, `SesAppareils` en
+    page) (`tests/console/compte.test.ts`, `tests/web/console-compte.test.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

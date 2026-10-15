@@ -2921,3 +2921,56 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-me-periodes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
   .c-me-periodes .c-pilule { justify-content: center; text-align: center; white-space: normal; line-height: 1.2; padding-inline: 8px; border-radius: 14px; }
 }
+
+/* Ton compte (C40, la maquette « Équipe », la vue du support) : deux rangées de deux cartes — toi et tes appareils, tes
+   gestes et ce que ton rôle ouvre. Les faits sur un fond doux, une ligne chacun ; au téléphone, tout passe en colonne. */
+.c-cp { display: grid; gap: 16px; }
+.c-cp-rang { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
+.c-cp-rang-large { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
+.c-cp-rang > .c-carte { display: grid; gap: 12px; align-content: start; }
+.c-cp h2 { font-size: 17px; }
+.c-cp .c-sous { margin: 0; font-size: 13px; line-height: 1.5; }
+.c-cp-qui { display: flex; align-items: center; gap: 12px; }
+.c-cp-qui .c-texte { display: grid; gap: 2px; min-width: 0; }
+.c-cp-qui h2 { font-size: 18px; }
+.c-cp-qui .c-sous { overflow-wrap: anywhere; }
+.c-cp-faits { margin: 0; padding: 4px 14px; border-radius: 14px; background: var(--c-papier-2); border: 1px solid var(--c-trait); }
+.c-cp-faits > div { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 10px; padding: 8px 0; font-size: 13.5px; line-height: 1.5; }
+.c-cp-faits > div + div { border-top: 1px solid var(--c-trait); }
+.c-cp-faits dt { color: var(--c-gris); }
+.c-cp-faits dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.c-cp-gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+.c-cp-note { font-size: 12.5px; }
+.c-cp-appareils > h2 + .c-sous { margin-top: -8px; }
+.c-cp-tete { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.c-cp-tete .c-texte { display: grid; gap: 3px; min-width: 0; }
+.c-cp-liste { list-style: none; margin: 0; padding: 0; }
+.c-cp-liste > li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: start; padding: 10px 0; border-top: 1px solid var(--c-trait); }
+.c-cp-liste .c-texte { display: grid; gap: 2px; min-width: 0; font-size: 13.5px; line-height: 1.45; }
+.c-cp-liste b { font-weight: 600; }
+.c-cp-quand { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.c-cp-droits > li { grid-template-columns: 22px minmax(0, 1fr); gap: 8px; padding: 8px 0; }
+.c-cp-droits > li > svg { margin-top: 2px; color: var(--c-sarcelle); }
+.c-cp-droit-part > svg { color: var(--c-orange-texte); }
+.c-cp-nuance { font-size: 12.5px; color: var(--c-orange-texte); }
+/* Les fenêtres : la preuve (le code actuel, et l'envoi par SMS sous lui), le code QR et sa clé, les codes de secours. */
+.c-cp-preuve { display: grid; gap: 8px; justify-items: start; }
+.c-cp-preuve > .c-champ { width: 100%; }
+.c-cp-qr { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 16px; align-items: center; padding: 14px; border-radius: 14px; background: var(--c-papier-2); border: 1px solid var(--c-trait); }
+.c-cp-qr-image { width: 168px; height: 168px; padding: 6px; border-radius: 10px; background: #ffffff; }
+.c-cp-qr-image svg { display: block; width: 100%; height: 100%; }
+.c-cp-qr-texte { display: grid; gap: 8px; justify-items: start; min-width: 0; }
+.c-cp-cle { font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 14px; letter-spacing: .04em; overflow-wrap: anywhere; }
+.c-cp-secours { margin: 0; padding: 14px 16px 14px 40px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 24px; border-radius: 14px;
+  background: var(--c-papier-2); border: 1px solid var(--c-trait); font-family: ui-monospace, 'SF Mono', Menlo, monospace; font-size: 15px; letter-spacing: .04em; font-variant-numeric: tabular-nums; }
+@media (max-width: 860px) {
+  .c-cp-rang, .c-cp-rang-large { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 560px) {
+  .c-cp-faits > div { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .c-cp-gestes { display: grid; }
+  .c-cp-tete { flex-wrap: wrap; align-items: flex-start; }
+  .c-cp-liste > li:not(.c-cp-droit-part) { grid-template-columns: minmax(0, 1fr); }
+  .c-cp-droits > li { grid-template-columns: 22px minmax(0, 1fr); }
+  .c-cp-qr { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+}

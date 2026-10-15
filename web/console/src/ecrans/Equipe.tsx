@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, type Role } from '../contexte.ts';
 import { heureDe, jourCourt, jourDe, quand } from '../temps.ts';
+import { TonCompte } from './TonCompte.tsx';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, MenuLigne, Puce, toast, Zone, type ActionLigne } from '../ui.tsx';
 
 // `secours` : ses codes de secours qui restent ; `reconnus` : ses appareils reconnus (trente jours) ; `gestes30` : ses gestes
@@ -21,7 +22,7 @@ type Membre = {
 const ROLES: readonly Role[] = ['direction', 'support', 'technique'];
 type Droit = { code: string; roles: Role[] };
 // Ce qu'un rôle ouvre seulement en partie : la nuance se dit à la place du « oui ».
-const NUANCES: Record<string, Partial<Record<Role, string>>> = {
+export const NUANCES: Record<string, Partial<Record<Role, string>>> = {
   'console.accueil.voir': { support: 'console.ecran.equipe.droit.console.accueil.voir.support', technique: 'console.ecran.equipe.droit.console.accueil.voir.technique' },
   'console.abonnement.prolonger': { support: 'console.ecran.equipe.droit.console.abonnement.prolonger.support' },
   'console.abonnement.offrir_mois': { support: 'console.ecran.equipe.droit.console.abonnement.offrir_mois.support' },
@@ -89,12 +90,17 @@ function FenetreEquipe({ g, fermer, fait }: { g: Geste; fermer: () => void; fait
 type SessionLue = { id: string; ouverteLe: string; derniereActivite: string; expireLe: string; celleCi: boolean };
 type AppareilLu = { id: string; nom: string; type: string; premierVu: string; dernierVu: string | null; reconnuJusquAu: string | null; oublieLe: string | null; sessions: SessionLue[] };
 type Appareils = { aujourdhui: string; membre: { utilisateur: string; nom: string; email: string; role: Role; actif: boolean; moi: boolean }; appareils: AppareilLu[] };
+// Dans la page (Ton compte), les plus récents d'abord ; les autres s'ouvrent d'un clic (la fenêtre de l'équipe montre tout).
+const APPAREILS_EN_PAGE = 3;
 type GesteAppareil = { sorte: 'fermer'; s: SessionLue; a: AppareilLu } | { sorte: 'oublier'; a: AppareilLu };
-export function SesAppareils({ membre, fermer }: { membre: { utilisateur: string; nom: string }; fermer: () => void }) {
+// `enPage` : la liste se pose dans la page (Ton compte, la maquette « Tes appareils ») au lieu d'une fenêtre ; les gestes
+// d'un appareil gardent la leur.
+export function SesAppareils({ membre, fermer, enPage = false }: { membre: { utilisateur: string; nom: string }; fermer?: () => void; enPage?: boolean }) {
   const api = useApi();
   const { moi, sortir } = useConsole();
   const [l, relire] = useLecture<Appareils>(`/console/equipe/${membre.utilisateur}/appareils`);
   const [g, setG] = useState<GesteAppareil | null>(null);
+  const [tous, setTous] = useState(false);
   const [motif, setMotif] = useState('');
   const [refus, setRefus] = useState<string | null>(null);
   const [faute, setFaute] = useState(0);
@@ -122,33 +128,30 @@ export function SesAppareils({ membre, fermer }: { membre: { utilisateur: string
     })();
   };
   const date = (x: string) => `${jourCourt(jourDe(x))}, ${heureDe(x)}`;
-  if (g) {
-    return (
-      <Dialogue titre={titre(g.sorte === 'fermer' ? 'console.ecran.equipe.ap.fermer_titre' : 'console.ecran.equipe.ap.oublier_titre', { appareil: g.a.nom })} titreDonnee
-        sous={lu?.membre.nom ?? membre.nom} sousDonnee fermer={() => { setG(null); setMotif(''); setRefus(null); }} occupe={occupe}
-        pied={<>
-          <Bouton ferme onClick={() => { setG(null); setMotif(''); setRefus(null); }} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
-          <Bouton ton={g.sorte === 'oublier' ? 'danger' : 'principal'} occupe={occupe} onClick={faire}>{titre(g.sorte === 'fermer' ? 'console.ecran.equipe.ap.fermer_bouton' : 'console.ecran.equipe.ap.oublier_bouton')}</Bouton>
-        </>}>
-        <div className="c-al-ce-qui-va">
-          <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
-          <ul>{(g.sorte === 'fermer' ? ['f1', 'f2'] : ['o1', 'o2', 'o3']).map((x) => <li key={x}>{phrase(`console.ecran.equipe.ap.${x}`)}</li>)}</ul>
-        </div>
-        <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.equipe.motif_aide')} valeur={motif} changer={setMotif} premier faute={faute > 0} n={faute} />
-        <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
-        {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
-      </Dialogue>
-    );
-  }
-  return (
-    <Dialogue titre={titre(lu?.membre.moi ? 'console.ecran.equipe.mes_appareils' : 'console.ecran.equipe.ap.titre')} sous={lu?.membre.nom ?? membre.nom} sousDonnee fermer={fermer}
-      pied={<Bouton ferme onClick={fermer}>{titre('console.ecran.fermer')}</Bouton>}>
+  const fenetreGeste = g ? (
+    <Dialogue titre={titre(g.sorte === 'fermer' ? 'console.ecran.equipe.ap.fermer_titre' : 'console.ecran.equipe.ap.oublier_titre', { appareil: g.a.nom })} titreDonnee
+      sous={lu?.membre.nom ?? membre.nom} sousDonnee fermer={() => { setG(null); setMotif(''); setRefus(null); }} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={() => { setG(null); setMotif(''); setRefus(null); }} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton={g.sorte === 'oublier' ? 'danger' : 'principal'} occupe={occupe} onClick={faire}>{titre(g.sorte === 'fermer' ? 'console.ecran.equipe.ap.fermer_bouton' : 'console.ecran.equipe.ap.oublier_bouton')}</Bouton>
+      </>}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>{(g.sorte === 'fermer' ? ['f1', 'f2'] : ['o1', 'o2', 'o3']).map((x) => <li key={x}>{phrase(`console.ecran.equipe.ap.${x}`)}</li>)}</ul>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.equipe.motif_aide')} valeur={motif} changer={setMotif} premier faute={faute > 0} n={faute} />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  ) : null;
+  const liste = (
+    <>
       {l.etat === 'panne' ? <Alerte ton="danger"><span>{l.texte}</span><span><Bouton petit onClick={relire}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
       {lu && lu.appareils.length === 0 ? <p className="c-attente">{phrase('console.ecran.equipe.ap.aucun')}</p> : null}
       {lu ? (
         <ul className="c-eq-appareils">
-          {lu.appareils.map((a) => {
+          {(enPage && !tous ? lu.appareils.slice(0, APPAREILS_EN_PAGE) : lu.appareils).map((a) => {
             const reconnu = !a.oublieLe && a.reconnuJusquAu && Date.parse(a.reconnuJusquAu) > Date.now();
             return (
               <li key={a.id} className={a.oublieLe ? 'c-eq-appareil-oublie' : undefined}>
@@ -181,12 +184,41 @@ export function SesAppareils({ membre, fermer }: { membre: { utilisateur: string
           })}
         </ul>
       ) : null}
+      {enPage && lu && lu.appareils.length > APPAREILS_EN_PAGE ? (
+        <span><Bouton petit {...(tous ? {} : { icone: 'bas' as const })} onClick={() => setTous(!tous)}>
+          {tous ? titre('console.ecran.compte.a.moins') : maj(selon(lu.appareils.length - APPAREILS_EN_PAGE, 'console.ecran.compte.a.autres'))}
+        </Bouton></span>
+      ) : null}
+    </>
+  );
+  if (enPage) {
+    return (
+      <section className="c-carte c-cp-appareils" aria-labelledby="cp-appareils">
+        <h2 id="cp-appareils">{titre('console.ecran.compte.a.titre')}</h2>
+        <p className="c-sous">{phrase('console.ecran.compte.a.sous')}</p>
+        {liste}
+        {fenetreGeste}
+      </section>
+    );
+  }
+  if (fenetreGeste) return fenetreGeste;
+  return (
+    <Dialogue titre={titre(lu?.membre.moi ? 'console.ecran.equipe.mes_appareils' : 'console.ecran.equipe.ap.titre')} sous={lu?.membre.nom ?? membre.nom} sousDonnee fermer={() => fermer?.()}
+      pied={<Bouton ferme onClick={() => fermer?.()}>{titre('console.ecran.fermer')}</Bouton>}>
+      {liste}
       <p className="c-sous">{phrase('console.ecran.equipe.ap.note')}</p>
     </Dialogue>
   );
 }
 
-export function Equipe() {
+export function Equipe({ vue = null }: { vue?: string | null }) {
+  const { moi } = useConsole();
+  // Ton compte : la vue de chacun (le support et la technique n'ont qu'elle) ; la direction y vient par son en-tête.
+  if (moi.role !== 'direction' || vue === 'moi') return <TonCompte direction={moi.role === 'direction'} />;
+  return <LEquipe />;
+}
+
+function LEquipe() {
   const { moi } = useConsole();
   const [l, relire] = useLecture<{ membres: Membre[]; droits: Droit[] }>('/console/equipe');
   const [geste, setGeste] = useState<Geste | null>(null);
@@ -217,6 +249,7 @@ export function Equipe() {
           <p className="c-entete-sous">{phrase('console.ecran.equipe.sous')}</p>
         </div>
         <div className="c-entete-actions">
+          <Lien href="#/equipe?vue=moi" icone="personne">{titre('console.ecran.equipe.ton_compte')}</Lien>
           <Lien href="#/journal" icone="journal">{titre('console.ecran.equipe.journal')}</Lien>
           <Bouton ton="principal" icone="plus" onClick={() => setGeste({ sorte: 'ajouter' })}>{titre('console.ecran.equipe.ajouter')}</Bouton>
         </div>

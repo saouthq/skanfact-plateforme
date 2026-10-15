@@ -11,6 +11,8 @@ import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { Introuvable, Perimee } from '../erreurs.ts';
+import { activerCode, activerSms, changerMotDePasse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, type Refuse } from '../compte.ts';
+import { numeroMasque } from '../sms.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { etatAbonnement, lireDelai, lireFaits, lireModules, lireOffreSuivante, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, MOYENS_RECUS, type GesteAbonnement, type LigneAbonnement, type PaiementRecu } from '../abonnement/gestes.ts';
@@ -812,6 +814,96 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       if (corps.motif.trim().length < 3) return refusDuChamp('motif', 'console.motif_requis');
       await transaction(tx).query('select plateforme.console_oublier_appareil($1, $2, $3)', [params.appareil, corps.motif.trim(), maintenant()]);
       return { corps: { ok: true } };
+    },
+  });
+  // Ton compte (docs/console.md C40 ; 0117) : chacun, quel que soit son rôle, lit son propre compte, ce que son rôle ouvre
+  // (lu dans la liste des gestes, comme l'équipe), change son mot de passe et refait ses codes de secours. Le mot de passe
+  // et le code se vérifient comme dans l'application (serveur/compte.ts) ; ses autres sessions se ferment, au journal.
+  const refusDuCompte = (r: Refuse) => ({ statut: r.attendre ? 429 : 400, corps: { motif: r.motif, champ: r.champ ?? null } });
+  ajouter({
+    methode: 'GET', chemin: '/console/moi/compte', geste: 'console.session',
+    traiter: async ({ qui }, tx) => {
+      const lu = await lireJson<Record<string, unknown>>(transaction(tx), 'select plateforme.console_mon_compte($1) v', [maintenant()]);
+      const role = qui?.console?.role ?? 'technique';
+      return { corps: {
+        aujourdhui: aujourdhuiATunis(), ...lu, telephone: lu.telephone ? numeroMasque(String(lu.telephone)) : null,
+        droits: LISTE_GESTES_CONSOLE.filter((g) => g.code !== 'console.session' && g.roles.includes(role)).map((g) => g.code),
+      } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/moi/mot-de-passe', geste: 'console.session',
+    corps: z.object({ actuel: z.string().max(200), nouveau: z.string().max(200) }),
+    traiter: async ({ qui, corps }, tx) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await changerMotDePasse(ctx, qui, corps.actuel, corps.nouveau);
+      if (!r.ok) return refusDuCompte(r);
+      const n = await lireJson<number>(transaction(tx), 'select plateforme.console_mon_compte_change($1, $2) v', ['mot_de_passe', maintenant()]);
+      return { corps: { ok: true, sessionsFermees: n } };
+    },
+  });
+  // Changer de code (l'application ou le SMS ; jamais l'e-mail pour l'équipe) : les mêmes étapes que dans l'application
+  // (serveur/compte.ts) — le code actuel prouvé, le nouveau préparé (rien ne change), puis activé par son premier code
+  // juste ; alors seulement l'ancien s'arrête, et le geste entre au journal.
+  const auJournal = (tx: Transaction | null, quoi: 'code') => transaction(tx).query('select plateforme.console_mon_compte_change($1, $2)', [quoi, maintenant()]);
+  ajouter({
+    methode: 'POST', chemin: '/console/moi/code/preuve-sms', geste: 'console.session',
+    traiter: async ({ qui }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await envoyerPreuveSms(ctx, qui);
+      return r.ok ? { statut: 202, corps: { telephone: r.telephone } } : refusDuCompte(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/moi/code/preparer', geste: 'console.session',
+    corps: z.object({ code: z.string().max(20).optional() }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await preparerCode(ctx, qui, corps.code);
+      return r.ok ? { corps: { codesDeSecours: r.codesDeSecours, adresseApplication: r.adresseApplication, cle: r.cle } } : refusDuCompte(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/moi/code/activer', geste: 'console.session',
+    corps: z.object({ code: z.string().min(1).max(20) }),
+    traiter: async ({ qui, corps }, tx) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await activerCode(ctx, qui, corps.code);
+      if (!r.ok) return refusDuCompte(r);
+      await auJournal(tx, 'code');
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/moi/code/sms/preparer', geste: 'console.session',
+    corps: z.object({ telephone: z.string().min(1).max(30), code: z.string().max(20).optional() }),
+    traiter: async ({ qui, corps }) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await preparerSms(ctx, qui, corps.telephone, corps.code);
+      return r.ok ? { corps: { telephone: r.telephone } } : refusDuCompte(r);
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/moi/code/sms/activer', geste: 'console.session',
+    corps: z.object({ code: z.string().min(1).max(20) }),
+    traiter: async ({ qui, corps }, tx) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await activerSms(ctx, qui, corps.code);
+      if (!r.ok) return refusDuCompte(r);
+      await auJournal(tx, 'code');
+      return { corps: { codesDeSecours: r.codesDeSecours } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/moi/codes-secours', geste: 'console.session',
+    corps: z.object({ code: z.string().min(1).max(20) }),
+    // Les nouveaux codes se montrent UNE fois : ils ne sont gardés qu'en empreinte.
+    traiter: async ({ qui, corps }, tx) => {
+      if (!qui) throw new Error('session attendue');
+      const r = await nouveauxCodesDeSecours(ctx, qui, corps.code);
+      if (!r.ok) return refusDuCompte(r);
+      await transaction(tx).query('select plateforme.console_mon_compte_change($1, $2)', ['codes_secours', maintenant()]);
+      return { corps: { codesDeSecours: r.codes } };
     },
   });
   ajouter({

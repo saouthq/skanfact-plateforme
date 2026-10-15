@@ -44,7 +44,9 @@ const OUVRE: Record<Page, readonly Role[]> = {
   // Le support se lit et se répond à la direction et au support ; la technique ne lit aucune donnée de client (03 § 5).
   support: ['direction', 'support'],
   // Le journal : la direction lit tout ; le support, ses propres gestes et ses accès (docs/console.md C37).
-  journal: ['direction', 'support'], equipe: ['direction'], service: ['direction', 'technique'],
+  journal: ['direction', 'support'],
+  // L'équipe : la direction la gère ; chacun y lit son propre compte (docs/console.md C40).
+  equipe: ['direction', 'support', 'technique'], service: ['direction', 'technique'],
   // Les réglages se lisent au support (répondre à un client sur un prix) ; leurs gestes sont à la direction.
   reglages: ['direction', 'support'],
   // La mesure (docs/console.md C39) : les comptes de SkanFact (l'entonnoir, les départs), comme les paiements.
@@ -221,7 +223,7 @@ function Page({ route, role }: { route: Route; role: Role }) {
     case 'mesure': return <Mesure />;
     case 'reglages': return <Reglages onglet={route.params.get('onglet')} />;
     case 'journal': return <Journal entreprise={UUID.test(route.params.get('entreprise') ?? '') ? route.params.get('entreprise') : null} qui={UUID.test(route.params.get('qui') ?? '') ? route.params.get('qui') : null} />;
-    case 'equipe': return <Equipe />;
+    case 'equipe': return <Equipe vue={route.params.get('vue')} />;
     default: return route.id === 'alertes' ? <Alertes /> : route.id === 'incidents' ? <Incidents /> : route.id === 'sauvegardes' ? <Sauvegardes /> : route.id === 'travaux' ? <Travaux /> : route.id === 'securite' ? <Securite /> : route.id === 'versions' ? <Versions /> : route.id === 'performances' ? <Performances periode={route.params.get('periode')} /> : <Service periode={route.params.get('periode')} />;
   }
 }

@@ -14458,6 +14458,69 @@ prouver 'une période seule sur sa ligne au téléphone' 'web/console/src/consol
   '' \
   'au téléphone : rien ne déborde ; les trois périodes tiennent sur une ligne'
 
+# 1.24.0 : ton compte (0117 ; docs/console.md C40).
+prouver 'son compte fermé au support, dans la base' 'base/migrations/0117_mon_compte.sql' \
+  'returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as $$
+declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);' \
+  'returns jsonb
+language plpgsql stable security definer set search_path = pg_catalog, socle, plateforme as $$
+declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);' \
+  'chacun lit le sien, quel que soit son rôle : son rôle, son code, ses codes de secours, ce que son rôle ouvre — jamais le secret'
+prouver 'le geste de la session compté dans ce que le rôle ouvre' 'serveur/console/routes.ts' \
+  'g.code !== '"'"'console.session'"'"' && g.roles.includes(role)' \
+  'g.roles.includes(role)' \
+  'chacun lit le sien, quel que soit son rôle : son rôle, son code, ses codes de secours, ce que son rôle ouvre — jamais le secret'
+prouver 'le numéro du SMS envoyé entier à l'"'"'écran' 'serveur/console/routes.ts' \
+  'telephone: lu.telephone ? numeroMasque(String(lu.telephone)) : null,' \
+  'telephone: lu.telephone ?? null,' \
+  'passer au SMS, puis refaire ses codes de secours avec un code reçu par SMS : le numéro reste masqué, chaque geste au journal'
+prouver 'le mot de passe changé ferme aussi la session d'"'"'où il change' 'base/migrations/0117_mon_compte.sql' \
+  'and fermee_le is null and id is distinct from v_session;' \
+  'and fermee_le is null;' \
+  'changer son mot de passe : l'"'"'actuel prouvé, la règle du serveur ; ses autres sessions se ferment (console et application), celle-ci reste ; au journal'
+prouver 'le mot de passe changé sans trace au journal' 'serveur/console/routes.ts' \
+  'const n = await lireJson<number>(transaction(tx), '"'"'select plateforme.console_mon_compte_change($1, $2) v'"'"', ['"'"'mot_de_passe'"'"', maintenant()]);' \
+  'const n = 0;' \
+  'changer son mot de passe : l'"'"'actuel prouvé, la règle du serveur ; ses autres sessions se ferment (console et application), celle-ci reste ; au journal'
+prouver 'le code activé sans trace au journal' 'serveur/console/routes.ts' \
+  'await auJournal(tx, '"'"'code'"'"');
+      return { corps: { ok: true } };' \
+  'return { corps: { ok: true } };' \
+  'changer de code pour une application : le code actuel prouvé ; préparé, rien ne change ; un code faux ne l'"'"'active pas ; juste, l'"'"'ancien s'"'"'arrête'
+prouver 'la méthode du journal écrite d'"'"'avance, pas lue dans le compte' 'base/migrations/0117_mon_compte.sql' \
+  'jsonb_build_object('"'"'methode'"'"', u.code_methode)' \
+  'jsonb_build_object('"'"'methode'"'"', '"'"'application'"'"')' \
+  'passer au SMS, puis refaire ses codes de secours avec un code reçu par SMS : le numéro reste masqué, chaque geste au journal'
+prouver 'un geste inconnu accepté par la base' 'base/migrations/0117_mon_compte.sql' \
+  'p_quoi not in ('"'"'mot_de_passe'"'"', '"'"'code'"'"', '"'"'codes_secours'"'"')' \
+  'p_quoi not in ('"'"'mot_de_passe'"'"', '"'"'code'"'"', '"'"'codes_secours'"'"', '"'"'role'"'"')' \
+  'la base refuse un geste inconnu sur son compte'
+prouver 'le support envoyé sur l'"'"'équipe au lieu de son compte' 'web/console/src/ecrans/Equipe.tsx' \
+  'if (moi.role !== '"'"'direction'"'"' || vue === '"'"'moi'"'"') return <TonCompte' \
+  'if (vue === '"'"'moi'"'"') return <TonCompte' \
+  'le support qui ouvre « Équipe » arrive sur son compte : ses faits, ses appareils dans la page, ce que son rôle ouvre'
+prouver 'tous les appareils dans la page' 'web/console/src/ecrans/Equipe.tsx' \
+  '(enPage && !tous ? lu.appareils.slice(0, APPAREILS_EN_PAGE) : lu.appareils)' \
+  'lu.appareils' \
+  'le support qui ouvre « Équipe » arrive sur son compte : ses faits, ses appareils dans la page, ce que son rôle ouvre'
+prouver 'le code actuel manquant sans son champ' 'web/console/src/ecrans/TonCompte.tsx' \
+  ''"'"'compte.code_actuel_manque'"'"'), '"'"'code'"'"'); return; }' \
+  ''"'"'compte.code_actuel_manque'"'"'), null); return; }' \
+  'changer de code : sans le code actuel, son champ ; le code QR ; un faux ne change rien ; le bon montre les codes de secours, et le journal le garde'
+prouver 'le code activé sans montrer ses codes de secours' 'web/console/src/ecrans/TonCompte.tsx' \
+  'if (r.statut === 200) { setEtape({ sorte: '"'"'codes'"'"', secours: etape.secours }); return; }' \
+  'if (r.statut === 200) { fait(); return; }' \
+  'changer de code : sans le code actuel, son champ ; le code QR ; un faux ne change rien ; le bon montre les codes de secours, et le journal le garde'
+prouver 'le refus du mot de passe sur le mauvais champ' 'web/console/src/ecrans/TonCompte.tsx' \
+  'refuser(refusDe(r), r.corps.champ === '"'"'actuel'"'"' || r.corps.champ === '"'"'nouveau'"'"' ? r.corps.champ : null);' \
+  'refuser(refusDe(r), '"'"'nouveau'"'"');' \
+  'un mot de passe actuel faux se refuse sur son champ ; rien n'"'"'est changé'
+prouver 'la direction sans chemin vers son compte' 'web/console/src/ecrans/Equipe.tsx' \
+  '<Lien href="#/equipe?vue=moi" icone="personne">' \
+  '<Lien href="#/equipe" icone="personne">' \
+  'la direction passe de l'"'"'équipe à son compte, et revient'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -399,9 +399,9 @@ describe('la console de l\'équipe, à la souris', () => {
   it('le support : de 7 à 30 jours, dit à sa place ; un clic à côté ne ferme pas la fenêtre ; la pastille se recompte', async () => {
     const p = await ouvrir(await jetonConsole(support), `#/clients/${essaiSupport}`);
     // Le support ne voit que ses écrans : « À décider », « Clients », « Abonnements », et le journal de ses propres gestes
-    // (0114) ; ni l'équipe ni le service.
-    expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toEqual(expect.arrayContaining(['Clients', 'Abonnements', 'Journal']));
-    expect((await p.locator('.c-nav a').allInnerTexts()).map(net).some((t) => /Équipe|Service/.test(t))).toBe(false);
+    // (0114), et « Équipe », qui lui ouvre son propre compte (1.24.0, C40) ; pas le service.
+    expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toEqual(expect.arrayContaining(['Clients', 'Abonnements', 'Journal', 'Équipe']));
+    expect((await p.locator('.c-nav a').allInnerTexts()).map(net).some((t) => /Service/.test(t))).toBe(false);
     // La pastille d'« À décider » : la barre en porte une seconde (le Support) dès qu'une demande attend — les tests d'avant
     // en laissent dans la même base.
     const pastille = p.locator('.c-nav a').filter({ hasText: 'À décider' }).locator('.c-nav-compte');
@@ -520,7 +520,9 @@ describe('la console de l\'équipe, à la souris', () => {
     const jeton = await jetonConsole(technique);
     const p = await ouvrir(jeton, '#/clients');
     expect(net(await p.locator('h1').first().innerText())).toBe('Cet écran n\'est pas dans ton rôle');
-    expect((await p.locator('.c-nav a').allInnerTexts()).map(net).some((t) => /Clients|Équipe|Journal/.test(t))).toBe(false);
+    // « Équipe » lui ouvre son propre compte (1.24.0, C40) ; ni les clients, ni le journal.
+    expect((await p.locator('.c-nav a').allInnerTexts()).map(net)).toContain('Équipe');
+    expect((await p.locator('.c-nav a').allInnerTexts()).map(net).some((t) => /Clients|Journal/.test(t))).toBe(false);
     await p.goto(`${serveur.adresse}/console/#/service`);
     const graves = p.locator('.c-ligne-decision');
     await expect.poll(() => graves.count(), { timeout: 15_000 }).toBe(2);
