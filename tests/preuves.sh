@@ -14141,8 +14141,8 @@ prouver 'la preuve d'"'"'un paiement qui manque à son histoire' 'serveur/abonne
   '' \
   "$CCG6"
 prouver 'un paiement qui laisse le mois offert attendre encore' 'serveur/abonnement/gestes.ts' \
-  'resilie_le: null, ...(offert ? { mois_offerts: 0 } : {}) });' \
-  'resilie_le: null });' \
+  'resilie_le: null, ...(offert ? { mois_offerts: 0 } : {}),|||resilie_le: null, ...(offert ? { mois_offerts: 0 } : {}) });' \
+  'resilie_le: null,|||resilie_le: null });' \
   "$CCG7"
 prouver 'un paiement qui oublie le mois offert' 'serveur/abonnement/gestes.ts' \
   '      const p = prochainePeriode(faits, d.periodicite, jour, offert);' \
