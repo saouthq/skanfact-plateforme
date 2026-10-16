@@ -508,10 +508,12 @@ dans l'application). Sur le serveur, en root :
 sudo bash /opt/skanfact/depot/exploitation/equipe.sh voir
 sudo bash /opt/skanfact/depot/exploitation/equipe.sh ajouter <adresse> <direction|support|technique> "<motif>"
 sudo bash /opt/skanfact/depot/exploitation/equipe.sh retirer <adresse> "<motif>"
+sudo bash /opt/skanfact/depot/exploitation/equipe.sh urgence <adresse> "<motif>"
 ```
 
 Chaque geste de l'outil demande son motif et laisse sa ligne au journal (sans auteur : l'exploitation). L'outil sert à
-poser le premier membre, et à rendre la direction à quelqu'un si plus personne ne peut se connecter ; ensuite, tout se
+poser le premier membre, et à rendre la direction à quelqu'un si plus personne ne peut se connecter (« urgence » :
+un nouveau code à poser, vingt-quatre heures, une fois, C59) ; ensuite, tout se
 fait depuis l'écran « Équipe ». La console s'ouvre à `https://<le serveur>/console/` ; sur le serveur d'essai, aussi à `https://console.skanfact.tn`
 (docs/mise-en-ligne.md, J).
 
@@ -1250,7 +1252,7 @@ un dossier qu'un cabinet tient. Chacune franchit cinq marches, lues dans ce que 
 **le premier passage** (quelqu'un y a travaillé, 0114) ; **la première pièce** (brouillon compris) ; **la première facture
 émise** (une note d'honoraires compte ; son jour est celui de Tunis) — la première utilisation réelle ; **l'abonnement
 payé**. Chaque marche est attendue dans un délai compté depuis l'inscription (deux jours, cinq, quatorze, trente :
-**À DÉCIDER** avec Skander, écrits par délégation) ; la première marche manquante dont le délai est passé — le lendemain de
+décidé par délégation le 16/10/2026, Skander : « prends la décision à ma place » ; à revoir sur les premiers vrais clients) ; la première marche manquante dont le délai est passé — le lendemain de
 son dernier jour — rend l'arrivée « bloquée », avec ses jours de retard : c'est un appel, pas une relance. Dans la vue, la
 colonne de l'usage devient « son arrivée » : cinq points (franchie, bloquée, à venir) et la phrase qui nomme la marche
 (« bloquée : première facture émise · 1 j de retard », « prochaine : première pièce, d'ici le 18/10 ») — la couleur
@@ -1275,7 +1277,7 @@ d'abonnement émise : depuis la ligne de cette facture sur sa fiche (onglet « N
 note ce qu'il conteste, dans ses mots, et par quel canal ; une facture n'a qu'une contestation en cours à la fois, et
 une facture préparée se corrige avant d'être émise, elle ne se conteste pas. La ligne de la facture le dit (« contestée
 le … par WhatsApp : elle attend sa régularisation », en orange et en mots) ; Paiements les liste (en cours, puis celles
-régularisées depuis trois mois) ; au bout d'une semaine sans régularisation (**À DÉCIDER**), elle entre dans « À décider »
+régularisées depuis trois mois) ; au bout d'une semaine sans régularisation (décidé par délégation le 16/10/2026, Skander : « prends la décision à ma place »), elle entre dans « À décider »
 de la direction et dans « ce qui attend » de la fiche. Elle se régularise d'une de quatre façons : **par un avoir** (son
 numéro), **par un remboursement** (sa référence : le virement, le chèque), la facture **maintenue**, ou **retirée** par le
 client. L'avoir et le remboursement se font dans l'application de SkanFact, sur la facture, comme toute pièce ; la
@@ -1291,7 +1293,7 @@ les SMS, le stockage hors de la machine, le chiffrement des sauvegardes, le pres
 quand il expire (si le prestataire le date) et tous les combien on le renouvelle (notre règle). **Jamais sa valeur** : la
 console ne l'a pas, et la base refuse une phrase qui ressemble à une clé (une longue suite de lettres et de chiffres sans
 espace). Son échéance est le premier des deux jours qu'il a ; aucun, il n'en a pas, et l'écran le dit. Le plus pressé
-d'abord : en retard (rouge), bientôt — trente jours avant (**À DÉCIDER**) — (orange), à jour, sans échéance ; toujours dit
+d'abord : en retard (rouge), bientôt — trente jours avant (décidé par délégation le 16/10/2026, Skander : « prends la décision à ma place ») — (orange), à jour, sans échéance ; toujours dit
 en mots. Bientôt dû ou en retard, il entre dans « À décider » de la direction et de la technique (jamais du support, qui
 ne lit pas cet écran). La direction et la technique notent un secret, son renouvellement (le jour, la nouvelle date
 d'expiration ; il ne vient jamais avant le précédent) ou qu'on ne le suit plus ; chaque geste au journal, avec son motif.
@@ -1314,8 +1316,11 @@ l'ordre, ce qui reste à faire :
     de SkanFact, comme toute pièce) ;
   - **la conservation** : ses données restent sur nos serveurs, en lecture seule, jusqu'au dernier jour de son contrat
     plus **dix ans** (**À VÉRIFIER** : la durée que la loi impose à ce qu'il a tenu chez nous). Rien ne s'efface avant ce
-    terme sans sa demande écrite ; l'effacement au terme est une opération de l'exploitation, hors de la console
-    (**À DÉCIDER** : sa procédure, et qui la mène).
+    terme sans sa demande écrite ; l'effacement au terme est une opération de l'exploitation, hors de la console.
+    **Sa procédure** (décidé par délégation le 16/10/2026, Skander : « prends la décision à ma place ») : la direction l'accorde par écrit (un geste au journal, avec le client
+    et le terme) ; la technique le mène sur la machine, avec l'outil de l'exploitation, et note qu'il est fait ; la copie
+    de secours suit à sa rotation suivante. Le journal garde que l'effacement a eu lieu, jamais ce qui a été effacé.
+    L'outil s'écrira avant la première échéance (pas avant 2036) : rien ne s'efface d'ici là.
 La sortie se clôt de deux façons : **il est parti** (le contrat arrêté et le remboursement réglé ; la base le revérifie,
 sous verrou de l'abonnement), ou **il reste** (il s'est ravisé ; rien ne change). Partir sans avoir pris ses données se
 lit avant le geste, sans le bloquer : c'est son droit. Close « parti », la sortie garde une copie du dernier jour du
@@ -1356,7 +1361,8 @@ Dans Clients, une huitième carte, **« à risque »**, ouvre les abonnés qui m
 colonne de l'usage devient « ses signes de départ » (les signes en mots, et les pièces des deux fois trente jours). La
 fiche a sa carte **« son risque de départ »** (un client qui paie seulement) : chaque signe et ce qu'il veut dire. Les deux
 lisent le risque par la même fonction (`risqueDe`). La satisfaction elle-même **ne se mesure pas encore** (aucune question
-n'est posée aux clients) : l'écran le dit. **À DÉCIDER** : les seuils (quatre pièces, la moitié, deux demandes).
+n'est posée aux clients) : l'écran le dit. Les seuils (quatre pièces, la moitié, deux demandes) : décidé par délégation le 16/10/2026, Skander : « prends la décision à ma place », à revoir
+sur trois mois de vrais clients.
 
 **C57. La documentation interne du support** (1.41.0 ; base 0133 ; la liste des fonctions qui manquent, 20 :
 « documentation interne du support : procédures, notes privées et réponses validées » ; version légère). Dans l'écran
@@ -1387,6 +1393,30 @@ technique ne lit rien (03 § 5) ; chaque geste au journal. Un geste nouveau, « 
 (`console.support.evolutions`), est réservé à la direction. Prévenir les clients quand une évolution est faite viendra
 plus tard.
 
+**C59. L'accès d'urgence de l'équipe** (1.43.0 ; base 0135 ; la liste des fonctions qui manquent, 31 : « accès
+d'urgence » ; décidé par délégation le 16/10/2026, Skander : « prends la décision à ma place »). Un membre qui a perdu son téléphone **et** ses codes de secours n'entrait plus dans la
+console, et personne ne pouvait reposer son code à sa place (C40). Désormais :
+  - **la direction** ouvre un accès d'urgence pour un **autre** membre, depuis le menu de sa ligne dans l'Équipe
+    (« Ouvrir un accès d'urgence… »), avec son motif ; jamais pour elle-même. La fenêtre le dit avant le geste : à sa
+    prochaine connexion, **après son mot de passe** (toujours exigé), il pose un **nouveau** code dans une application
+    d'authentification, comme un premier code (C41) ; son ancien code et ses codes de secours cessent de valoir dès que le
+    nouveau est actif ; ses sessions de la console se ferment tout de suite (le téléphone perdu peut en tenir une) ;
+    l'accès vaut **vingt-quatre heures** et sert **une fois**. Avant d'ouvrir, on l'appelle à son numéro habituel ;
+  - **la machine** (l'outil de l'exploitation, en root : `exploitation/equipe.sh urgence <adresse> "<motif>"`) l'ouvre
+    pour n'importe quel membre, **la dernière personne de la direction comprise** : c'est la porte de qui n'a plus
+    personne pour lui ouvrir. **Qui la tient** : la personne qui a l'accès root au serveur (Skander) ; jamais Claude ;
+  - l'écran d'entrée dit « Pose ton nouveau code » et pourquoi ; un accès retiré ou passé pendant la pose n'active
+    rien ; un accès nouveau remplace celui qui attendait ; un membre retiré de l'équipe n'en a plus ;
+  - **ce qui se voit** : l'accès qui attend, dans « À régler » de l'Équipe (qui l'a ouvert, jusqu'à quand, « Retirer… »)
+    et sur sa ligne ; à l'accueil de la direction, l'accès qui attend et celui qui a servi cette semaine (« si ce
+    n'était pas lui, retire-le de l'équipe ») ; au journal, ouvert, retiré, servi (`equipe.urgence_ouverte`,
+    `equipe.urgence_annulee`, `equipe.urgence_servie`), jamais un code ni un secret ;
+  - **une seule personne à la direction** : « À régler » le dit, avec de quoi inviter une seconde personne. **Décidé** :
+    deux personnes à la direction dès les pilotes (Skander et son père), pour que la console puisse toujours dépanner
+    l'une par l'autre ; la machine reste le dernier recours.
+Un mot de passe oublié passe par « Mot de passe oublié » de l'application (le même compte) ; l'accès d'urgence ne touche
+que le code du téléphone.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1397,7 +1427,7 @@ cellules des tableaux à 11 × 12, la page à 24 × 32 et jusqu'à 1 440 points 
 ## Ce que le lot ne fait pas
 
 La suite de la console : le relevé de la banque lu et pointé (aucune banque branchée ; les paiements, C30, montrent ce qui reste à encaisser), la retenue à la source sur nos factures (`05` § 4.2), la suite du service (la
-sécurité : l'accès d'urgence, bloquer une adresse, la date des secrets ; la relecture du contenu des pièces contre leur
+sécurité : bloquer une adresse ; la relecture du contenu des pièces contre leur
 empreinte, « relire une entreprise » et « tout relire maintenant » ; le débit des travaux heure par heure, la pause d'un
 partenaire, un nombre d'essais au plus, et les envois de la TEJ et de la CNSS, qui n'ont pas encore de trace ; un
 incident relié tout seul à une chaîne cassée), la mesure, la suite des réglages (un prix se prépare depuis la 1.12.0, C28 ; les nouveautés s'allument depuis la 1.27.0, C43). L'écran

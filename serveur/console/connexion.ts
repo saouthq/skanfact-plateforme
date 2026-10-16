@@ -7,7 +7,8 @@
 //   3. le code du téléphone (SMS ou application) à CHAQUE connexion, même sur un appareil reconnu ; un code de secours le
 //      remplace, une fois. Sans code du téléphone en place, un membre arrivé depuis moins de sept jours le pose ici (une
 //      application d'authentification : le premier code juste l'active et ouvre la session, 0118) ; passé ce délai, la
-//      console le refuse et renvoie à « Ton compte » ;
+//      console le refuse et renvoie à « Ton compte ». Un accès d'urgence ouvert (0135) fait poser un NOUVEAU code de la
+//      même façon, à la place de l'ancien : le mot de passe reste exigé ;
 //   4. une session de la console : son jeton n'ouvre rien dans l'application, et celui de l'application n'ouvre pas la
 //      console. Jamais sur l'ordinateur d'un autre ; une heure sans geste, douze heures au plus.
 
@@ -25,7 +26,7 @@ export type ResultatConsole =
   | { etat: 'attendre'; jusqua: Date; motif: Texte }
   | { etat: 'code'; defi: string; methode: 'application'; appareil: string }
   | { etat: 'code'; defi: string; methode: 'sms'; appareil: string; telephone: string; envoi: 'parti' | 'rate' | 'limite' }
-  | { etat: 'pose'; defi: string; appareil: string; adresseApplication: string; cle: string; codesDeSecours: string[] }
+  | { etat: 'pose'; defi: string; appareil: string; adresseApplication: string; cle: string; codesDeSecours: string[]; urgence: boolean }
   | { etat: 'connecte'; jeton: string; appareil: string };
 
 export type QuiConsole = { utilisateur: string; session: string; appareil: string; role: RoleConsole };
@@ -37,7 +38,7 @@ const maintenantDe = (ctx: Contexte) => (ctx.maintenant ?? (() => new Date()))()
 
 export async function connecterConsole(ctx: Contexte, demande: { email: string; motDePasse: string; appareil: Appareil; ip?: string | undefined }): Promise<ResultatConsole> {
   const maintenant = maintenantDe(ctx);
-  const r = await enTantQue(ctx.pool, null, async (tx): Promise<(ResultatConsole & { aEnvoyer?: { telephone: string; code: string } | null }) | { poser: { utilisateur: string; email: string; appareil: string } }> => {
+  const r = await enTantQue(ctx.pool, null, async (tx): Promise<(ResultatConsole & { aEnvoyer?: { telephone: string; code: string } | null }) | { poser: { utilisateur: string; email: string; appareil: string; urgence: boolean } }> => {
     const attente = (await tx.query('select socle.attente_connexion($1, $2) a', [demande.email, maintenant])).rows[0].a as Date | null;
     if (attente) return { etat: 'attendre', jusqua: attente, motif: attenteLisible(attente, maintenant) };
 
@@ -51,7 +52,9 @@ export async function connecterConsole(ctx: Contexte, demande: { email: string; 
     const role = (await tx.query('select plateforme.role_dans_l_equipe($1) r', [u.utilisateur])).rows[0].r as string | null;
     if (!estRoleConsole(role)) return { etat: 'refuse', motif: motif('connexion.refusee'), champ: 'motDePasse' };
     const sansCode = u.code_methode !== 'sms' && u.code_methode !== 'application';
-    if (sansCode && !(await tx.query('select plateforme.peut_poser_code_console($1, $2) p', [u.utilisateur, maintenant])).rows[0].p) {
+    // Un accès d'urgence ouvert (0135) : la personne pose un nouveau code, qu'elle en ait un ou non.
+    const urgence = (await tx.query('select plateforme.acces_urgence_ouvert($1, $2) o', [u.utilisateur, maintenant])).rows[0].o as boolean;
+    if (sansCode && !urgence && !(await tx.query('select plateforme.peut_poser_code_console($1, $2) p', [u.utilisateur, maintenant])).rows[0].p) {
       return { etat: 'refuse', motif: motif('console.code_obligatoire') };
     }
 
@@ -60,7 +63,7 @@ export async function connecterConsole(ctx: Contexte, demande: { email: string; 
     const aLui = appareil ? (await tx.query('select socle.appareil_de($1, $2) r', [u.utilisateur, appareil])).rows[0].r as boolean : false;
     if (!aLui) appareil = (await tx.query('select socle.declarer_appareil($1, $2, $3, $4) id', [u.utilisateur, demande.appareil.nom, demande.appareil.type, maintenant])).rows[0].id as string;
 
-    if (sansCode) return { poser: { utilisateur: u.utilisateur as string, email: u.email as string, appareil: appareil as string } };
+    if (sansCode || urgence) return { poser: { utilisateur: u.utilisateur as string, email: u.email as string, appareil: appareil as string, urgence } };
     if (u.code_methode === 'sms') {
       const code = codeSms();
       const defi = (await tx.query('select plateforme.ouvrir_defi_console($1, $2, $3, $4, $5, $6) id',
@@ -82,7 +85,7 @@ export async function connecterConsole(ctx: Contexte, demande: { email: string; 
 
 // Le premier code, à la première connexion (0118) : préparé au nom de la personne (le secret et les dix codes de secours
 // attendent une heure, comme dans l'application), puis un défi « pose ». Une page rechargée garde le même secret.
-async function poserCode(ctx: Contexte, p: { utilisateur: string; email: string; appareil: string }, maintenant: Date): Promise<ResultatConsole> {
+async function poserCode(ctx: Contexte, p: { utilisateur: string; email: string; appareil: string; urgence: boolean }, maintenant: Date): Promise<ResultatConsole> {
   const codes = tirerCodesDeSecours();
   const secret = await enTantQue(ctx.pool, p.utilisateur, async (tx) => {
     const s = ((await tx.query('select socle.mon_secret_en_attente($1) s', [maintenant])).rows[0]?.s as string | null) ?? nouveauSecret();
@@ -91,7 +94,7 @@ async function poserCode(ctx: Contexte, p: { utilisateur: string; email: string;
   });
   const defi = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select plateforme.ouvrir_defi_console($1, $2, $3, $4, $5, $6) id',
     [p.utilisateur, p.appareil, 'pose', null, maintenant, DUREE_DEFI])).rows[0].id as string);
-  return { etat: 'pose', defi, appareil: p.appareil, adresseApplication: adresseTotp(secret, p.email), cle: secret, codesDeSecours: codes };
+  return { etat: 'pose', defi, appareil: p.appareil, adresseApplication: adresseTotp(secret, p.email), cle: secret, codesDeSecours: codes, urgence: p.urgence };
 }
 
 export async function validerCodeConsole(ctx: Contexte, demande: { defi: string; code: string; ip?: string | undefined }): Promise<ResultatConsole> {
@@ -123,11 +126,18 @@ export async function validerCodeConsole(ctx: Contexte, demande: { defi: string;
     return a ? { etat: 'attendre', jusqua: a, motif: attenteLisible(a, maintenant) } : { etat: 'refuse', motif: motif('connexion.code_faux') };
   }
 
-  // Le code posé devient celui du compte (au nom de la personne, comme dans l'application), et le journal le garde.
+  // Le code posé devient celui du compte (au nom de la personne, comme dans l'application), et le journal le garde. Il
+  // remplace un code en place seulement par un accès d'urgence encore ouvert (0135) : annulé ou passé pendant la pose,
+  // rien ne change.
   if (lu.methode === 'pose') {
+    const permis = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select plateforme.acces_urgence_ouvert($1, $2) o, plateforme.peut_poser_code_console($1, $2) p',
+      [lu.utilisateur, maintenant])).rows[0] as { o: boolean; p: boolean });
+    if (!permis.o && !permis.p) return { etat: 'refuse', motif: motif('console.urgence_finie') };
     const active = await enTantQue(ctx.pool, lu.utilisateur as string, async (tx) => (await tx.query('select socle.activer_code_en_attente($1) a', [maintenant])).rows[0].a as boolean);
     if (!active) return { etat: 'refuse', motif: motif('compte.code_attente_perimee') };
-    await enTantQue(ctx.pool, null, (tx) => tx.query('select plateforme.code_pose_console($1)', [lu.utilisateur]));
+    await enTantQue(ctx.pool, null, async (tx) => {
+      if (!(await tx.query('select plateforme.servir_acces_urgence($1, $2) s', [lu.utilisateur, maintenant])).rows[0].s) await tx.query('select plateforme.code_pose_console($1)', [lu.utilisateur]);
+    });
   }
   const jeton = randomBytes(32).toString('base64url');
   await enTantQue(ctx.pool, null, async (tx) => {

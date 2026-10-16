@@ -5,7 +5,7 @@
 import { useEffect, useState, type CSSProperties } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { useConsole, useLecture, type Role } from '../contexte.ts';
-import { dans, jourCourt, jourDe, jourLong, quand } from '../temps.ts';
+import { dans, heureDe, jourCourt, jourDe, jourLong, quand } from '../temps.ts';
 import { montant } from '../argent.ts';
 import { Alerte, Bouton, Icone, Lien, maj, Puce, Vide, type NomIcone, type TonPuce } from '../ui.tsx';
 import type { Canal } from './Support.tsx';
@@ -25,6 +25,8 @@ export type Ligne =
   // 0130 : un secret à renouveler bientôt, ou en retard (jamais sa valeur).
   | { sorte: 'secret'; ouvre: 'service'; nom: string; echeance: string; jours: number }
   | { sorte: 'veille_silencieuse'; ouvre: 'service'; derniere: string }
+  // 0135 : un accès d'urgence qui attend, ou qui a servi cette semaine (la direction seule).
+  | { sorte: 'urgence'; ouvre: 'equipe'; id: string; nom: string; etat: 'attend' | 'servi'; ouvertLe: string; jusqua: string; serviLe: string | null; par: string | null; machine: boolean }
   | { sorte: 'en_retard'; ouvre: 'fiche'; entreprise: Qui; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
   | { sorte: 'lecture_seule'; ouvre: 'fiche'; entreprise: Qui; depuis: string; raison: 'essai_termine' | 'non_renouvele' | 'resilie' | 'suspendu' }
   | { sorte: 'essai_sans_usage'; ouvre: 'fiche'; entreprise: Qui; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null }
@@ -135,6 +137,13 @@ function voir(l: Ligne, aujourdhui: string): Vue {
       return { icone: 'cadenas', titre: titre(l.jours < 0 ? 'console.ecran.decider.secret_retard_titre' : 'console.ecran.decider.secret_titre', { nom: l.nom }),
         desc: phrase(l.jours < 0 ? 'console.ecran.decider.secret_retard' : 'console.ecran.decider.secret', { n: Math.abs(l.jours), le: jourCourt(l.echeance) }),
         meta: null, urgence: l.jours < 0 ? 'urgent' : 'a_regarder', href: '#/service/securite', bouton: titre('console.ecran.decider.ouvrir_securite') };
+    case 'urgence': {
+      const qui = l.machine ? dire('console.ecran.decider.urgence_machine') : l.par ?? dire('console.ecran.decider.urgence_quelquun');
+      const le = (x: string) => `${jourCourt(jourDe(x))}, ${heureDe(x)}`;
+      return { icone: 'cadenas', titre: titre(l.etat === 'attend' ? 'console.ecran.decider.urgence_attend_titre' : 'console.ecran.decider.urgence_servi_titre', { nom: l.nom }),
+        desc: phrase(l.etat === 'attend' ? 'console.ecran.decider.urgence_attend' : 'console.ecran.decider.urgence_servi', { qui, le: le(l.ouvertLe), fin: le(l.jusqua), servi: le(l.serviLe ?? l.ouvertLe) }),
+        meta: null, urgence: 'a_regarder', href: '#/equipe', bouton: titre('console.ecran.decider.ouvrir_equipe') };
+    }
     case 'veille_silencieuse':
       return { icone: 'alerte', titre: titre('console.ecran.decider.veille_titre'), desc: phrase('console.ecran.decider.veille', { quand: quand(l.derniere, aujourdhui) }), meta: null, urgence: 'urgent', href: '#/service', bouton: titre('console.ecran.decider.ouvrir_service') };
     case 'en_retard':
@@ -175,7 +184,8 @@ function voir(l: Ligne, aujourdhui: string): Vue {
   }
 }
 
-const estService = (l: Ligne) => l.ouvre === 'service';
+// L'accès d'urgence de l'équipe (0135) se range avec le service : la sécurité de la console, pas un client.
+const estService = (l: Ligne) => l.ouvre === 'service' || l.ouvre === 'equipe';
 
 function ADecider({ lignes, role, aujourdhui }: { lignes: Ligne[]; role: Role; aujourdhui: string }) {
   const [filtre, setFiltre] = useState<'tout' | 'service' | 'clients'>('tout');
@@ -211,7 +221,7 @@ function ADecider({ lignes, role, aujourdhui }: { lignes: Ligne[]; role: Role; a
               const ton: TonPuce = v.urgence;
               const donnee = l.sorte === 'service' || l.sorte === 'support';
               return (
-                <li key={l.sorte === 'service' ? `service-${l.cle}` : l.sorte === 'secret' ? `secret-${l.nom}` : l.sorte === 'veille_silencieuse' ? 'veille' : l.sorte === 'support' ? `support-${l.demande.id}`
+                <li key={l.sorte === 'service' ? `service-${l.cle}` : l.sorte === 'secret' ? `secret-${l.nom}` : l.sorte === 'urgence' ? `urgence-${l.id}` : l.sorte === 'veille_silencieuse' ? 'veille' : l.sorte === 'support' ? `support-${l.demande.id}`
                   : l.sorte === 'facture_defaite' || l.sorte === 'a_emettre' || l.sorte === 'trop_percu' ? `${l.sorte}-${l.ecran}` : l.sorte === 'contestation' ? `${l.sorte}-${l.entreprise.id}-${l.numero ?? l.ouverteLe}` : `${l.sorte}-${l.entreprise.id}`} className="c-ligne-decision">
                   <span className={`c-ligne-icone c-${v.urgence}`}><Icone nom={v.icone} /></span>
                   <div className="c-ligne-texte">

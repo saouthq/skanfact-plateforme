@@ -710,6 +710,10 @@ vaut pour tout le dépôt.*
     (`lireEvolutions`, `aEtudier`) et ses routes dans `serveur/console/routes.ts` ; `web/console/src/ecrans/Evolutions.tsx`
     (`Evolutions`, `FenetreRattacher`), branché dans `web/console/src/ecrans/Support.tsx` (`tests/console/evolutions.test.ts`,
     `tests/web/support.test.ts`).
+  - **L'accès d'urgence de l'équipe** (1.43.0 ; `docs/console.md` C59) : base `0135_acces_urgence.sql` ; `serveur/console/urgence.ts`
+    (lecture prudente, ce qui remonte à l'accueil), `serveur/console/connexion.ts` (un accès ouvert mène à la pose d'un
+    nouveau code), `base/equipe.ts` et `exploitation/equipe.sh` (« urgence », par la machine) ; écrans `Equipe.tsx`,
+    `Entree.tsx`, `Accueil.tsx` ; tests `tests/console/urgence.test.ts`, `tests/web/console-urgence.test.ts`.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

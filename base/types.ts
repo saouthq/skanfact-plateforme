@@ -506,6 +506,17 @@ export interface BaseDeDonnees {
     retire_par: string | null;
     clos_le: Date | null;
   };
+  'plateforme.acces_urgence': {
+    id: Generated<string>;
+    membre: string;
+    ouvert_le: Date;
+    jusqua: Date;
+    ouvert_par: string | null;
+    motif: string;
+    servi_le: Date | null;
+    annule_le: Date | null;
+    annule_par: string | null;
+  };
   'plateforme.contenu_offre': {
     id: Generated<string>;
     offre: string;

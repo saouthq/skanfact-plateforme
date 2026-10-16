@@ -48,6 +48,7 @@ declarerTextes({
   'console.connexion_requise': 'connecte-toi à la console',
   'console.role_refuse': 'ton rôle dans l\'équipe SkanFact ({role}) ne permet pas {de:geste}',
   'console.code_obligatoire': 'la console demande le code du téléphone, par SMS ou par une application, à chaque connexion. Mets-le en place dans l\'application, écran « Ton compte », puis reviens ici',
+  'console.urgence_finie': 'l\'accès d\'urgence a été retiré ou a passé ses vingt-quatre heures pendant que tu posais ton code : rien n\'a changé. Demande à la direction de le rouvrir',
   // Rejoindre l'équipe par une invitation (0118, C41).
   'console.invitation.perimee': 'ce lien d\'invitation ne vaut plus (déjà servi, annulé, remplacé par un plus récent, ou passé) : demande un nouveau lien à la direction',
   'console.invitation.nom_manque': 'écris ton nom : il signe tes gestes dans le journal de l\'équipe',

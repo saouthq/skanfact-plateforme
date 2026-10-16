@@ -51,6 +51,7 @@ import { CHAINES_PAR_LOT, CHAINES_PAS_MS, etatRelecture, joursDeRelecture, lireC
 import { lireMesure, mesurer, periodeMesure } from './mesure.ts';
 import { CANAUX_CONTESTATION, ISSUES, lireContestations } from './contestations.ts';
 import { lireSecrets, ranger as rangerSecrets, SECRET_BIENTOT_JOURS } from './secrets.ts';
+import { aLAccueil, lireUrgences } from './urgence.ts';
 import { argentADecider, couts, encaisse, encaisseDuMois, lirePaiements, moisAvantDe, moisDemande, MOYENS, ouvertes } from './paiements.ts';
 import { dansLeFiltre, etatTtn, FILTRES, ligne, lireNosFactures, resume as resumeDesFactures, type Filtre } from './nosfactures.ts';
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
@@ -311,7 +312,10 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
         : relancesRecentes(liste, lireExtras(await lireJson(transaction(tx), 'select plateforme.console_echeances() v')), instant);
       // Les secrets à renouveler (0130) : qui tient le service (la direction, la technique), jamais le support.
       const secrets = role === 'support' ? [] : rangerSecrets(lireSecrets(await lireJson(transaction(tx), 'select plateforme.console_secrets() v')), jour);
-      return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t, decider: aDecider(liste, veille, jour, role, demandes, instant, argent, secrets), relances } };
+      // Les accès d'urgence de l'équipe (0135) : la direction seule.
+      const urgences = role === 'direction' ? aLAccueil(lireUrgences(await lireJson(transaction(tx), 'select plateforme.console_acces_urgence($1) v', [instant])), instant) : [];
+      return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t,
+        decider: aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences), relances } };
     },
   });
 
@@ -1004,6 +1008,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     traiter: async (_r, tx) => ({ corps: {
       membres: await lireJson(transaction(tx), 'select plateforme.console_equipe($1) v', [maintenant()]),
       invitations: await lireJson(transaction(tx), 'select plateforme.console_invitations($1) v', [maintenant()]),
+      // Les accès d'urgence des trente derniers jours, et combien de personnes sont à la direction (0135).
+      urgence: lireUrgences(await lireJson(transaction(tx), 'select plateforme.console_acces_urgence($1) v', [maintenant()])),
       droits: LISTE_GESTES_CONSOLE.filter((g) => g.code !== 'console.session').map((g) => ({ code: g.code, roles: g.roles })),
     } }),
   });
@@ -1084,6 +1090,26 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     traiter: async ({ params, corps }, tx) => {
       if (!uuid.safeParse(params.membre).success) throw new Introuvable();
       await transaction(tx).query('select plateforme.console_changer_role($1, $2, $3)', [params.membre, corps.role, corps.motif]);
+      return { corps: { ok: true } };
+    },
+  });
+  // L'accès d'urgence (0135, C59) : la direction l'ouvre pour un autre membre qui a perdu son code (vingt-quatre heures,
+  // une fois : il pose un nouveau code à sa prochaine connexion, après son mot de passe), ou l'annule.
+  ajouter({
+    methode: 'POST', chemin: '/console/equipe/:membre/urgence', geste: 'console.equipe.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!uuid.safeParse(params.membre).success) throw new Introuvable();
+      const jusqua = await lireJson<string>(transaction(tx), 'select plateforme.console_ouvrir_urgence($1, $2, $3) v', [params.membre, corps.motif, maintenant()]);
+      return { corps: { jusqua: new Date(jusqua).toISOString() } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/equipe/:membre/urgence/annuler', geste: 'console.equipe.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!uuid.safeParse(params.membre).success) throw new Introuvable();
+      await transaction(tx).query('select plateforme.console_annuler_urgence($1, $2, $3)', [params.membre, corps.motif, maintenant()]);
       return { corps: { ok: true } };
     },
   });

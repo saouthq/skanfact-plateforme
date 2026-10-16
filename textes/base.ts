@@ -502,6 +502,10 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'ce secret est déjà suivi : note son renouvellement sur sa ligne', cle: 'base.console.secret_deja', fr: 'ce secret est déjà suivi : note son renouvellement sur sa ligne' },
   { base: 'ce secret n\'est pas suivi', cle: 'base.console.secret_inconnu', fr: 'ce secret n\'est pas suivi' },
   { base: 'un renouvellement vient après le précédent', cle: 'base.console.secret_avant_precedent', fr: 'un renouvellement vient après le précédent' },
+  // L'accès d'urgence de l'équipe (0135).
+  { base: 'le motif d\'un accès d\'urgence : cinq cents caractères au plus', cle: 'base.equipe.urgence_motif', fr: 'le motif d\'un accès d\'urgence : cinq cents caractères au plus' },
+  { base: 'ton propre accès d\'urgence s\'ouvre par une autre personne de la direction, ou sur la machine du serveur', cle: 'base.equipe.urgence_soi', fr: 'ton propre accès d\'urgence s\'ouvre par une autre personne de la direction, ou sur la machine du serveur' },
+  { base: 'aucun accès d\'urgence n\'attend pour cette personne', cle: 'base.equipe.urgence_aucun', fr: 'aucun accès d\'urgence n\'attend pour cette personne' },
   // Les demandes d'évolution (0134).
   { base: 'cette évolution n\'existe pas', cle: 'base.support.evolution_inconnue', fr: 'cette évolution n\'existe pas' },
   { base: 'le titre d\'une évolution : de trois à cent vingt caractères', cle: 'base.support.evolution_titre', fr: 'le titre d\'une évolution : de trois à cent vingt caractères' },

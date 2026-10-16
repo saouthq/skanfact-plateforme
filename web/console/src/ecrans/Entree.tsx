@@ -3,7 +3,8 @@
 // qu'est la console et ce qu'elle ne voit pas ; le formulaire, à droite, dit l'étape. Un refus se dit sous le formulaire,
 // et montre son champ. Un membre arrivé depuis moins de sept jours sans code le pose ici, à sa première connexion (0118,
 // C41) : SkanFact à ajouter dans une application d'authentification, ses dix codes de secours mis de côté, puis le
-// premier code juste active le code et ouvre la session.
+// premier code juste active le code et ouvre la session. Un accès d'urgence ouvert (0135, C59) mène au même écran, pour
+// un NOUVEAU code à la place de l'ancien : l'écran le dit.
 import qrcode from 'qrcode-generator';
 import { useEffect, useState, type FormEvent } from 'react';
 import { dire, phrase, titre } from '../langue.ts';
@@ -12,7 +13,7 @@ import { panneDe, refusDe } from '../contexte.ts';
 import { Alerte, Bouton, Champ, Icone, maj, toast } from '../ui.tsx';
 
 type Defi = { etat: 'code'; defi: string; appareil: string } & ({ methode: 'application' } | { methode: 'sms'; telephone: string; envoi: 'parti' | 'rate' | 'limite' });
-type Pose = { etat: 'pose'; defi: string; appareil: string; adresseApplication: string; cle: string; codesDeSecours: string[] };
+type Pose = { etat: 'pose'; defi: string; appareil: string; adresseApplication: string; cle: string; codesDeSecours: string[]; urgence?: boolean };
 type Faute = { champ: string; n: number } | null;
 // Le code QR de l'adresse « otpauth:// », en <svg> (comme à l'entrée de l'application).
 function svgDuQr(adresse: string): string {
@@ -136,8 +137,8 @@ export function Entree({ message, entre }: { message: string | null; entre: () =
         </div>
         {pose ? (
           <form className="c-forme-corps c-pose" onSubmit={valider} noValidate>
-            <h1>{titre('console.ecran.pose.titre')}</h1>
-            <p className="c-forme-sous">{phrase('console.ecran.pose.sous')}</p>
+            <h1>{titre(pose.urgence ? 'console.ecran.pose.urgence_titre' : 'console.ecran.pose.titre')}</h1>
+            <p className="c-forme-sous">{phrase(pose.urgence ? 'console.ecran.pose.urgence_sous' : 'console.ecran.pose.sous')}</p>
             <ol className="c-pose-etapes">
               <li>
                 <b>{titre('console.ecran.pose.ajouter')}</b>

@@ -13,6 +13,7 @@ import { compter, etatDe, type LigneDemande } from './support.ts';
 import { CONTESTATION_JOURS, enCours, joursDAttente, type Contestation } from './contestations.ts';
 import type { Risque } from './risque.ts';
 import type { SecretLu } from './secrets.ts';
+import type { AccesUrgence } from './urgence.ts';
 import { restantes, sortieADecider, type Etape, type Sortie } from './sortie.ts';
 
 export type Entreprise = {
@@ -171,6 +172,9 @@ export type Ligne =
   // 0130 : un secret à renouveler dans trente jours au plus, ou dont l'échéance est passée (jamais sa valeur).
   | { sorte: 'secret'; ouvre: 'service'; nom: string; echeance: string; jours: number }
   | { sorte: 'veille_silencieuse'; ouvre: 'service'; derniere: string }
+  // 0135 : un accès d'urgence qui attend, ou qui a servi cette semaine (la direction seule) : un code remplacé sans le
+  // téléphone, quelqu'un doit savoir que c'était voulu.
+  | { sorte: 'urgence'; ouvre: 'equipe'; id: string; nom: string; etat: 'attend' | 'servi'; ouvertLe: string; jusqua: string; serviLe: string | null; par: string | null; machine: boolean }
   | { sorte: 'en_retard'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; echeance: string; lectureSeuleLe: string; jours: number; apresEssai: boolean }
   | { sorte: 'lecture_seule'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; depuis: string; raison: string }
   | { sorte: 'essai_sans_usage'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; jusquAu: string; jours: number; proprietaire: { nom: string; email: string } | null }
@@ -206,8 +210,16 @@ export const LECTURE_SEULE_DE_LA_SEMAINE = 7;
 // promesse (« dans la journée ») est déjà tenue en retard ; la plus ancienne d'abord.
 // L'argent (`argent`) : la direction seule, et pour les entreprises de la liste (la fiche passe la sienne).
 export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role: RoleConsole, demandes: LigneDemande[] = [], maintenant: Date = new Date(),
-  argent: Argent | null = null, secrets: readonly SecretLu[] = []): Ligne[] {
+  argent: Argent | null = null, secrets: readonly SecretLu[] = [], urgences: readonly AccesUrgence[] = []): Ligne[] {
   const lignes: [number, number, Ligne][] = [];
+  // Les accès d'urgence (0135) : la direction seule ; juste après un service grave, le plus récent d'abord.
+  if (role === 'direction') {
+    for (const a of urgences) {
+      if (a.etat !== 'attend' && a.etat !== 'servi') continue;
+      lignes.push([0.3, -Date.parse(a.serviLe ?? a.ouvertLe), { sorte: 'urgence', ouvre: 'equipe', id: a.id, nom: a.nom, etat: a.etat, ouvertLe: a.ouvertLe, jusqua: a.jusqua,
+        serviLe: a.serviLe, par: a.par, machine: a.machine }]);
+    }
+  }
   const service = role !== 'support';
   const clients = role !== 'technique';
   if (role === 'direction' && argent) {

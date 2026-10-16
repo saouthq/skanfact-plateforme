@@ -1,7 +1,9 @@
 // L'équipe de la console, par l'outil de l'exploitation (docs/console.md ; skanfact docs/cadrage/10-console.md § 2.10) :
 // poser le PREMIER membre (personne n'est encore là pour l'ajouter depuis la console), voir l'équipe, et rendre la
 // direction à quelqu'un si plus personne ne peut se connecter. Avec un compte d'administration, jamais par le serveur
-// web. Ensuite, c'est la direction qui gère l'équipe, depuis la console.
+// web. Ensuite, c'est la direction qui gère l'équipe, depuis la console. Et l'ACCÈS D'URGENCE (0135, docs/console.md C59) :
+// un membre qui a perdu son téléphone et ses codes de secours — la dernière direction comprise, que personne d'autre ne
+// peut dépanner — pose un nouveau code à sa prochaine connexion, dans les vingt-quatre heures, après son mot de passe.
 //
 // La personne a déjà son compte SkanFact (celui de l'application) ; la console lui demandera le code du téléphone (SMS
 // ou application), à mettre en place dans Ton compte. Chaque geste demande un MOTIF et laisse sa ligne dans le journal de
@@ -10,6 +12,7 @@
 //   PG_ADMIN=… node base/equipe.ts voir
 //   PG_ADMIN=… node base/equipe.ts ajouter <adresse> <direction|support|technique> "<motif>"
 //   PG_ADMIN=… node base/equipe.ts retirer <adresse> "<motif>"
+//   PG_ADMIN=… node base/equipe.ts urgence <adresse> "<motif>"
 //
 // Sur un serveur : exploitation/equipe.sh, avec les mêmes arguments.
 
@@ -21,10 +24,12 @@ type Client = pg.Client | pg.PoolClient;
 export type Role = 'direction' | 'support' | 'technique';
 const ROLES: readonly string[] = ['direction', 'support', 'technique'];
 
-export type Membre = { email: string; nom: string; role: Role; actif: boolean; code: string | null };
+// `urgence` : jusqu'à quand vaut l'accès d'urgence qui l'attend (0135), sinon rien.
+export type Membre = { email: string; nom: string; role: Role; actif: boolean; code: string | null; urgence: Date | null };
 
 export async function voir(client: Client): Promise<Membre[]> {
-  return (await client.query(`select u.email, u.nom, e.role, e.actif, case when u.code_methode in ('sms', 'application') then u.code_methode end as code
+  return (await client.query(`select u.email, u.nom, e.role, e.actif, case when u.code_methode in ('sms', 'application') then u.code_methode end as code,
+      (select a.jusqua from plateforme.acces_urgence a where a.membre = u.id and a.servi_le is null and a.annule_le is null and a.jusqua > now()) as urgence
       from plateforme.equipe e join socle.utilisateur u on u.id = e.utilisateur order by e.actif desc, e.role, u.nom`)).rows as Membre[];
 }
 
@@ -81,11 +86,27 @@ export async function retirer(client: Client, email: string, motif: string): Pro
   }
 }
 
+// L'accès d'urgence, par la machine (0135) : la même fonction que la console, sans auteur (l'exploitation) ; ses
+// sessions de la console tombent ; vingt-quatre heures, une fois. Rend jusqu'à quand il vaut.
+export async function urgence(client: Client, email: string, motif: string, maintenant = new Date()): Promise<Date> {
+  await client.query('begin');
+  try {
+    await client.query('select plateforme.verrou_equipe()');
+    const u = await personne(client, email);
+    const jusqua = (await client.query('select plateforme.ouvrir_acces_urgence($1, null, null, $2, $3) j', [u, motif, maintenant])).rows[0].j as Date;
+    await client.query('commit');
+    return jusqua;
+  } catch (e) {
+    await client.query('rollback');
+    throw e;
+  }
+}
+
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const [geste = '', ...reste] = process.argv.slice(2);
   const adresse = process.env.PG_ADMIN;
-  const USAGE = 'PG_ADMIN=… node base/equipe.ts voir | ajouter <adresse> <direction|support|technique> "<motif>" | retirer <adresse> "<motif>"';
-  const valable = geste === 'voir' ? reste.length === 0 : geste === 'ajouter' ? reste.length === 3 : geste === 'retirer' && reste.length === 2;
+  const USAGE = 'PG_ADMIN=… node base/equipe.ts voir | ajouter <adresse> <direction|support|technique> "<motif>" | retirer <adresse> "<motif>" | urgence <adresse> "<motif>"';
+  const valable = geste === 'voir' ? reste.length === 0 : geste === 'ajouter' ? reste.length === 3 : (geste === 'retirer' || geste === 'urgence') && reste.length === 2;
   if (!adresse || !valable) { console.error(USAGE); process.exit(1); }
   const client = new pg.Client({ connectionString: adresse });
   await client.connect();
@@ -94,11 +115,14 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
       const membres = await voir(client);
       if (!membres.length) console.log('Personne dans l\'équipe : pose le premier membre avec « ajouter ».');
       for (const m of membres) {
-        console.log(`  ${m.actif ? '' : '(retiré) '}${m.nom} <${m.email}> : ${m.role}${m.actif && !m.code ? ' — sans code du téléphone : la console le lui demandera (Ton compte, sur l\'application)' : ''}`);
+        console.log(`  ${m.actif ? '' : '(retiré) '}${m.nom} <${m.email}> : ${m.role}${m.actif && !m.code ? ' — sans code du téléphone : la console le lui demandera (Ton compte, sur l\'application)' : ''}${m.actif && m.urgence ? ` — accès d'urgence ouvert jusqu'au ${m.urgence.toISOString().slice(0, 16).replace('T', ' ')} (UTC)` : ''}`);
       }
     } else if (geste === 'ajouter') {
       await ajouter(client, reste[0] ?? '', reste[1] ?? '', reste[2] ?? '');
       console.log('Fait. La personne se connecte à la console avec son compte SkanFact et le code de son téléphone.');
+    } else if (geste === 'urgence') {
+      const jusqua = await urgence(client, reste[0] ?? '', reste[1] ?? '');
+      console.log(`Fait. Jusqu'au ${jusqua.toISOString().slice(0, 16).replace('T', ' ')} (UTC), une fois : la personne se connecte à la console avec son mot de passe, puis pose un nouveau code (une application d'authentification) ; l'ancien et ses codes de secours cesseront de valoir. Ses sessions de la console sont fermées.`);
     } else {
       await retirer(client, reste[0] ?? '', reste[1] ?? '');
       console.log('Fait. Ses sessions de la console sont fermées.');

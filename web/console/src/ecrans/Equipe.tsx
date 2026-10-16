@@ -4,7 +4,9 @@
 // soi-même, et l'équipe garde toujours quelqu'un à la direction (la base le tient). Recalé sur sa maquette : trois
 // cartes (l'équipe, le code du téléphone, qui est en ligne), « À régler dans l'équipe » quand quelqu'un n'entre pas
 // encore (avec de quoi le lui rappeler), les gestes d'une ligne dans son menu (le même que les règles des alertes,
-// MenuLigne), et ce que chaque rôle ouvre — lu dans la liste des gestes du serveur, jamais recopié ici.
+// MenuLigne), et ce que chaque rôle ouvre — lu dans la liste des gestes du serveur, jamais recopié ici. L'accès d'urgence
+// (0135, C59) : la direction l'ouvre pour un autre membre qui a perdu son téléphone et ses codes de secours ; « À régler »
+// dit quand une seule personne tient la direction (seule la machine du serveur pourrait alors la dépanner).
 import { useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture, type Role } from '../contexte.ts';
@@ -28,7 +30,12 @@ export const NUANCES: Record<string, Partial<Record<Role, string>>> = {
   'console.abonnement.offrir_mois': { support: 'console.ecran.equipe.droit.console.abonnement.offrir_mois.support' },
   'console.journal.voir': { support: 'console.ecran.equipe.droit.console.journal.voir.support' },
 };
-type Geste = { sorte: 'role'; m: Membre } | { sorte: 'retirer'; m: Membre };
+type Geste = { sorte: 'role'; m: Membre } | { sorte: 'retirer'; m: Membre } | { sorte: 'urgence'; m: Membre } | { sorte: 'annuler_urgence'; m: Membre; a: Urgence };
+// Un accès d'urgence (0135) : `par` nul et `machine` : ouvert sur la machine du serveur.
+type Urgence = { id: string; membre: string; nom: string; ouvertLe: string; jusqua: string; par: string | null; machine: boolean; motif: string;
+  serviLe: string | null; annuleLe: string | null; etat: 'attend' | 'servi' | 'annule' | 'passe' };
+// Une date et son heure, à Tunis : « 16 oct., 14:05 ».
+const leEtAHeure = (x: string) => `${jourCourt(jourDe(x))}, ${heureDe(x)}`;
 // Une invitation qui attend (0118, C41) : son lien vaut sept jours ; `expiree` : il ne vaut plus, à renvoyer.
 // `courriel` (0124, l'audit C07) : ce que son e-mail est devenu (rien : une invitation d'avant qu'on le note).
 type EtatCourriel = 'parti' | 'refuse' | 'en_attente' | 'sans_relais';
@@ -135,10 +142,13 @@ function FenetreEquipe({ g, fermer, fait }: { g: Geste; fermer: () => void; fait
       setOccupe(true);
       try {
         const r = g.sorte === 'role' ? await api('PUT', `/console/equipe/${g.m.utilisateur}`, { role, motif: motif.trim() })
-          : await api('POST', `/console/equipe/${g.m.utilisateur}/retirer`, { motif: motif.trim() });
+          : g.sorte === 'urgence' ? await api<{ jusqua: string }>('POST', `/console/equipe/${g.m.utilisateur}/urgence`, { motif: motif.trim() })
+            : g.sorte === 'annuler_urgence' ? await api('POST', `/console/equipe/${g.m.utilisateur}/urgence/annuler`, { motif: motif.trim() })
+              : await api('POST', `/console/equipe/${g.m.utilisateur}/retirer`, { motif: motif.trim() });
         if (!r) return;
         if (r.statut === 200) {
-          toast(phrase(g.sorte === 'role' ? 'console.ecran.equipe.role_change' : 'console.ecran.equipe.retire'));
+          toast(g.sorte === 'urgence' ? phrase('console.ecran.equipe.ur.ouvert', { nom: g.m.nom, le: leEtAHeure(String((r.corps as { jusqua?: unknown }).jusqua ?? '')) })
+            : phrase(g.sorte === 'role' ? 'console.ecran.equipe.role_change' : g.sorte === 'annuler_urgence' ? 'console.ecran.equipe.ur.annule' : 'console.ecran.equipe.retire'));
           fait();
           return;
         }
@@ -147,20 +157,28 @@ function FenetreEquipe({ g, fermer, fait }: { g: Geste; fermer: () => void; fait
     })();
   };
 
-  const nom = g.sorte === 'role' ? titre('console.ecran.equipe.changer_role_de', { nom: g.m.nom }) : titre('console.ecran.equipe.retirer_de', { nom: g.m.nom });
-  const sous = phrase(g.sorte === 'role' ? 'console.ecran.equipe.changer_sous' : 'console.ecran.equipe.retirer_sous');
+  const nom = g.sorte === 'role' ? titre('console.ecran.equipe.changer_role_de', { nom: g.m.nom }) : g.sorte === 'urgence' ? titre('console.ecran.equipe.ur.ouvrir_de', { nom: g.m.nom })
+    : g.sorte === 'annuler_urgence' ? titre('console.ecran.equipe.ur.annuler_de', { nom: g.m.nom }) : titre('console.ecran.equipe.retirer_de', { nom: g.m.nom });
+  const sous = g.sorte === 'annuler_urgence' ? phrase('console.ecran.equipe.ur.annuler_sous', { le: leEtAHeure(g.a.jusqua) })
+    : phrase(g.sorte === 'role' ? 'console.ecran.equipe.changer_sous' : g.sorte === 'urgence' ? 'console.ecran.equipe.ur.ouvrir_sous' : 'console.ecran.equipe.retirer_sous');
+  const bouton = g.sorte === 'role' ? 'console.ecran.equipe.changer_role' : g.sorte === 'urgence' ? 'console.ecran.equipe.ur.ouvrir_bouton'
+    : g.sorte === 'annuler_urgence' ? 'console.ecran.equipe.ur.annuler_bouton' : 'console.ecran.equipe.retirer';
   const sur = (champ: string) => ({ faute: faute?.champ === champ, ...(faute?.champ === champ ? { n: faute.n } : {}) });
   return (
     <Dialogue titre={nom} sous={sous} fermer={fermer} occupe={occupe}
       pied={<>
         <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
-        <Bouton ton={g.sorte === 'retirer' ? 'danger' : 'principal'} occupe={occupe} onClick={faire}>
-          {titre(g.sorte === 'role' ? 'console.ecran.equipe.changer_role' : 'console.ecran.equipe.retirer')}
-        </Bouton>
+        <Bouton ton={g.sorte === 'retirer' ? 'danger' : 'principal'} occupe={occupe} onClick={faire}>{titre(bouton)}</Bouton>
       </>}>
-      {g.sorte !== 'retirer' ? (
+      {g.sorte === 'urgence' ? (
+        <div className="c-al-ce-qui-va">
+          <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+          <ul>{['u1', 'u2', 'u3', 'u4'].map((x) => <li key={x}>{phrase(`console.ecran.equipe.ur.${x}`)}</li>)}</ul>
+        </div>
+      ) : null}
+      {g.sorte === 'role' ? (
         <Choix libelle={titre('console.ecran.equipe.role')} aide={phrase(`console.ecran.role_aide.${role}`)} valeur={role} changer={(v) => setRole(v as Role)}
-          options={ROLES.filter((r) => g.sorte !== 'role' || r !== g.m.role).map((r) => ({ valeur: r, texte: titre(`console.ecran.role.${r}`) }))} />
+          options={ROLES.filter((r) => r !== g.m.role).map((r) => ({ valeur: r, texte: titre(`console.ecran.role.${r}`) }))} />
       ) : null}
       <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase('console.ecran.equipe.motif_aide')} valeur={motif} changer={setMotif} {...sur('motif')} />
       {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
@@ -305,7 +323,7 @@ export function Equipe({ vue = null }: { vue?: string | null }) {
 
 function LEquipe() {
   const { moi } = useConsole();
-  const [l, relire] = useLecture<{ membres: Membre[]; droits: Droit[]; invitations: Invitation[] }>('/console/equipe');
+  const [l, relire] = useLecture<{ membres: Membre[]; droits: Droit[]; invitations: Invitation[]; urgence?: { directions: number; acces: Urgence[] } }>('/console/equipe');
   const [geste, setGeste] = useState<Geste | null>(null);
   const [invit, setInvit] = useState<GesteInvitation | null>(null);
   const [lien, setLien] = useState<Lien | null>(null);
@@ -317,6 +335,12 @@ function LEquipe() {
   const par = (r: Role) => actifs.filter((m) => m.role === r).length;
   const enLigne = actifs.filter((m) => m.appareils.length > 0).length;
   const sansCode = actifs.filter((m) => !m.code);
+  // Les accès d'urgence qui attendent (0135), et une direction tenue par une seule personne.
+  const urgences = l.etat === 'lu' ? l.donnees.urgence?.acces ?? [] : [];
+  const attend = (m: Membre) => urgences.find((a) => a.membre === m.utilisateur && a.etat === 'attend') ?? null;
+  const enAttente = actifs.flatMap((m) => { const a = attend(m); return a ? [{ m, a }] : []; });
+  const seule = l.etat === 'lu' && (l.donnees.urgence?.directions ?? par('direction')) === 1;
+  const aRegler = sansCode.length + invitations.length + enAttente.length + (seule ? 1 : 0);
   // Arrivé depuis moins de sept jours, un membre sans code le pose à sa première connexion (0118) : jusqu'à quel jour.
   const posable = (m: Membre) => {
     const fin = new Date(Date.parse(m.ajouteLe) + 7 * 24 * 3600_000);
@@ -330,6 +354,8 @@ function LEquipe() {
       faire: () => setAppareils(m) },
     ...(m.moi ? [] : [
       { icone: 'echange', titre: titre('console.ecran.equipe.changer_role'), sous: phrase('console.ecran.equipe.changer_sous'), faire: () => setGeste({ sorte: 'role', m }) },
+      ((a: Urgence | null): ActionLigne => a ? { icone: 'croix', titre: titre('console.ecran.equipe.ur.annuler_menu'), sous: phrase('console.ecran.equipe.ur.annuler_menu_sous', { le: leEtAHeure(a.jusqua) }), faire: () => setGeste({ sorte: 'annuler_urgence', m, a }) }
+        : { icone: 'cadenas', titre: titre('console.ecran.equipe.ur.ouvrir_menu'), sous: phrase('console.ecran.equipe.ur.ouvrir_menu_sous'), faire: () => setGeste({ sorte: 'urgence', m }) })(attend(m)),
       { icone: 'sortir', titre: titre('console.ecran.equipe.retirer'), sous: phrase('console.ecran.equipe.retirer_sous'), faire: () => setGeste({ sorte: 'retirer', m }), danger: true },
     ] satisfies ActionLigne[]),
   ];
@@ -373,13 +399,31 @@ function LEquipe() {
               <span className="c-eq-carte-sous">{phrase('console.ecran.equipe.en_ligne_sous')}</span>
             </div>
           </div>
-          {sansCode.length || invitations.length ? (
+          {aRegler ? (
             <section className="c-carte c-eq-regler" aria-labelledby="eq-regler">
               <div className="c-carte-tete">
                 <h2 id="eq-regler">{titre('console.ecran.equipe.regler_titre')}</h2>
-                <span className="c-eq-etat c-eq-etat-attention">{selon(sansCode.length + invitations.length, 'console.ecran.equipe.a_regler')}</span>
+                <span className="c-eq-etat c-eq-etat-attention">{selon(aRegler, 'console.ecran.equipe.a_regler')}</span>
               </div>
               <ul className="c-eq-regler-liste">
+                {enAttente.map(({ m, a }) => (
+                  <li key={a.id}>
+                    <span className="c-eq-regler-icone" aria-hidden="true"><Icone nom="cadenas" /></span>
+                    <span className="c-eq-regler-texte">
+                      <b>{titre('console.ecran.equipe.ur.regler', { nom: m.nom })}</b>
+                      <span>{phrase(a.machine ? 'console.ecran.equipe.ur.regler_machine' : 'console.ecran.equipe.ur.regler_sous',
+                        { qui: a.par ?? '', le: leEtAHeure(a.ouvertLe), fin: leEtAHeure(a.jusqua) })}</span>
+                    </span>
+                    <Bouton petit onClick={() => setGeste({ sorte: 'annuler_urgence', m, a })}>{titre('console.ecran.equipe.ur.annuler_court')}</Bouton>
+                  </li>
+                ))}
+                {seule ? (
+                  <li>
+                    <span className="c-eq-regler-icone" aria-hidden="true"><Icone nom="personne" /></span>
+                    <span className="c-eq-regler-texte"><b>{titre('console.ecran.equipe.ur.seule')}</b><span>{phrase('console.ecran.equipe.ur.seule_sous')}</span></span>
+                    <Bouton petit onClick={() => setInvit({ sorte: 'inviter' })}>{titre('console.ecran.equipe.ur.seule_inviter')}</Bouton>
+                  </li>
+                ) : null}
                 {invitations.map((i) => (
                   <li key={i.id}>
                     <span className="c-eq-regler-icone" aria-hidden="true"><Icone nom="personne" /></span>
@@ -434,6 +478,7 @@ function LEquipe() {
                       <td>
                         {m.code ? titre(`console.ecran.equipe.code.${m.code}`) : <Puce ton="en_retard">{dire('console.ecran.equipe.code.aucun')}</Puce>}
                         {m.code && m.secours !== undefined ? <span className={`c-sous${m.secours === 0 ? ' c-eq-secours-aucun' : ''}`}>{selon(m.secours, 'console.ecran.equipe.secours')}</span> : null}
+                        {attend(m) ? <span className="c-sous c-eq-secours-aucun">{dire('console.ecran.equipe.ur.ligne')}</span> : null}
                       </td>
                       <td>
                         <button type="button" className="c-lien-bouton" onClick={() => setAppareils(m)} aria-label={titre(m.moi ? 'console.ecran.equipe.mes_appareils' : 'console.ecran.equipe.ses_appareils_de', { nom: m.nom })}>

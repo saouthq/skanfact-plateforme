@@ -10951,7 +10951,7 @@ prouver 'la console ouverte à qui n'"'"'est pas de l'"'"'équipe' serveur/conso
 ' '' \
   "$CONSS1"
 prouver 'la console ouverte sans code du téléphone' serveur/console/connexion.ts \
-  '    if (sansCode && !(await tx.query('"'"'select plateforme.peut_poser_code_console($1, $2) p'"'"', [u.utilisateur, maintenant])).rows[0].p) {' '    if (false) {' \
+  '    if (sansCode && !urgence && !(await tx.query('"'"'select plateforme.peut_poser_code_console($1, $2) p'"'"', [u.utilisateur, maintenant])).rows[0].p) {' '    if (false) {' \
   "$CONSS2"
 prouver 'le mot de passe dit faux à qui n'"'"'a pas de code' serveur/console/connexion.ts \
   'return { etat: '"'"'refuse'"'"', motif: motif('"'"'console.code_obligatoire'"'"') };' 'return { etat: '"'"'refuse'"'"', motif: motif('"'"'console.code_obligatoire'"'"'), champ: '"'"'motDePasse'"'"' };' \
@@ -15584,6 +15584,97 @@ prouver 'une demande de la liste qui ne s'"'"'ouvre pas' 'web/console/src/ecrans
   'onClick={() => ouvrirDemande(d.id)}' \
   'onClick={() => undefined}' \
   'les demandes d'"'"'évolution (0134) : rattacher la demande à une évolution nouvelle ; la liste la compte en clients, et ouvre la demande'
+
+# 1.43.0 : l'accès d'urgence de l'équipe (la liste des fonctions qui manquent, 31).
+prouver 'l'"'"'accès d'"'"'urgence ouvert pour soi-même' 'base/migrations/0135_acces_urgence.sql' \
+  '  if p_membre = socle.moi() then
+    perform socle.refus('"'"'ton propre accès d'"'"''"'"'urgence s'"'"''"'"'ouvre par une autre personne de la direction, ou sur la machine du serveur'"'"');
+  end if;
+' \
+  '' \
+  'la direction seule l'"'"'ouvre, pour un autre ; il ferme ses sessions ; le mot de passe reste exigé ; un nouveau code remplace l'"'"'ancien, une fois'
+prouver 'le support qui ouvre un accès d'"'"'urgence' 'serveur/console/routes.ts|||base/migrations/0135_acces_urgence.sql' \
+  'methode: '"'"'POST'"'"', chemin: '"'"'/console/equipe/:membre/urgence'"'"', geste: '"'"'console.equipe.gerer'"'"',|||declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+begin
+  perform plateforme.verrou_equipe();
+  v_role := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  if p_membre = socle.moi() then' \
+  'methode: '"'"'POST'"'"', chemin: '"'"'/console/equipe/:membre/urgence'"'"', geste: '"'"'console.session'"'"',|||declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);
+begin
+  perform plateforme.verrou_equipe();
+  v_role := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);
+  if p_membre = socle.moi() then' \
+  'la direction seule l'"'"'ouvre, pour un autre ; il ferme ses sessions ; le mot de passe reste exigé ; un nouveau code remplace l'"'"'ancien, une fois'
+prouver 'les sessions qui survivent à l'"'"'accès d'"'"'urgence' 'base/migrations/0135_acces_urgence.sql' \
+  '  update plateforme.session_console set fermee_le = p_maintenant where utilisateur = p_membre and fermee_le is null;
+' \
+  '' \
+  'la direction seule l'"'"'ouvre, pour un autre ; il ferme ses sessions ; le mot de passe reste exigé ; un nouveau code remplace l'"'"'ancien, une fois'
+prouver 'l'"'"'accès d'"'"'urgence qui sert deux fois' 'base/migrations/0135_acces_urgence.sql' \
+  '  update plateforme.acces_urgence set servi_le = p_maintenant where id = a.id;
+' \
+  '' \
+  'la direction seule l'"'"'ouvre, pour un autre ; il ferme ses sessions ; le mot de passe reste exigé ; un nouveau code remplace l'"'"'ancien, une fois'
+prouver 'un accès d'"'"'urgence qui ne mène pas à un nouveau code' 'serveur/console/connexion.ts' \
+  '    if (sansCode || urgence) return { poser:' \
+  '    if (sansCode) return { poser:' \
+  'la direction seule l'"'"'ouvre, pour un autre ; il ferme ses sessions ; le mot de passe reste exigé ; un nouveau code remplace l'"'"'ancien, une fois'
+prouver 'le premier code noté à la place de l'"'"'accès servi' 'serveur/console/connexion.ts' \
+  '      if (!(await tx.query('"'"'select plateforme.servir_acces_urgence($1, $2) s'"'"', [lu.utilisateur, maintenant])).rows[0].s) await tx.query('"'"'select plateforme.code_pose_console($1)'"'"', [lu.utilisateur]);' \
+  '      await tx.query('"'"'select plateforme.code_pose_console($1)'"'"', [lu.utilisateur]);' \
+  'la direction seule l'"'"'ouvre, pour un autre ; il ferme ses sessions ; le mot de passe reste exigé ; un nouveau code remplace l'"'"'ancien, une fois'
+prouver 'l'"'"'accès d'"'"'urgence sans fin' 'base/migrations/0135_acces_urgence.sql' \
+  'where a.membre = p_utilisateur and a.servi_le is null and a.annule_le is null and a.jusqua > p_maintenant)' \
+  'where a.membre = p_utilisateur and a.servi_le is null and a.annule_le is null)' \
+  'annulé, rien ne change pour lui ; annulé pendant qu'"'"'il pose son code, rien ne s'"'"'active ; passé, il n'"'"'ouvre plus rien'
+prouver 'un code qui s'"'"'active après l'"'"'accès retiré' 'serveur/console/connexion.ts' \
+  '    if (!permis.o && !permis.p) return { etat: '"'"'refuse'"'"', motif: motif('"'"'console.urgence_finie'"'"') };
+' \
+  '' \
+  'annulé, rien ne change pour lui ; annulé pendant qu'"'"'il pose son code, rien ne s'"'"'active ; passé, il n'"'"'ouvre plus rien'
+prouver 'deux accès d'"'"'urgence qui attendent' 'base/migrations/0135_acces_urgence.sql' \
+  '  update plateforme.acces_urgence set annule_le = p_maintenant, annule_par = p_par
+   where membre = p_membre and servi_le is null and annule_le is null;
+' \
+  '' \
+  'un nouvel accès remplace celui qui attendait ; retiré de l'"'"'équipe, il n'"'"'ouvre plus rien'
+prouver 'le support qui voit l'"'"'accès d'"'"'urgence à l'"'"'accueil' 'serveur/console/routes.ts|||serveur/console/decider.ts|||base/migrations/0135_acces_urgence.sql' \
+  'const urgences = role === '"'"'direction'"'"' ? aLAccueil(|||  if (role === '"'"'direction'"'"') {
+    for (const a of urgences) {|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"']);
+  return jsonb_build_object(
+    '"'"'directions'"'"'' \
+  'const urgences = role !== '"'"'technique'"'"' ? aLAccueil(|||  if (role !== '"'"'technique'"'"') {
+    for (const a of urgences) {|||  perform plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+  return jsonb_build_object(
+    '"'"'directions'"'"'' \
+  'la machine l'"'"'ouvre pour n'"'"'importe quel membre, la direction comprise ; l'"'"'équipe et l'"'"'accueil de la direction le disent, jamais au support'
+prouver 'l'"'"'accueil qui garde un accès servi il y a longtemps' 'serveur/console/urgence.ts' \
+  'a.serviLe !== null && Date.parse(a.serviLe) > depuis' \
+  'a.serviLe !== null' \
+  'ce que la base rend se lit prudemment ; l'"'"'accueil garde ce qui attend et ce qui a servi cette semaine'
+prouver 'la machine qui garde un nom' 'serveur/console/urgence.ts' \
+  'par: x.machine ? null : texte(x.par),' \
+  'par: texte(x.par),' \
+  'ce que la base rend se lit prudemment ; l'"'"'accueil garde ce qui attend et ce qui a servi cette semaine'
+prouver 'un accès servi sans sa date lu quand même' 'serveur/console/urgence.ts' \
+  '    if ((etat === '"'"'servi'"'"') !== (serviLe !== null) || (etat === '"'"'annule'"'"') !== (annuleLe !== null)) return [];
+' \
+  '' \
+  'ce que la base rend se lit prudemment ; l'"'"'accueil garde ce qui attend et ce qui a servi cette semaine'
+prouver 'la fenêtre de l'"'"'accès d'"'"'urgence qui tait ce qui va' 'web/console/src/ecrans/Equipe.tsx' \
+  '      {g.sorte === '"'"'urgence'"'"' ? (
+        <div className="c-al-ce-qui-va">' \
+  '      {false ? (
+        <div className="c-al-ce-qui-va">' \
+  'la direction ouvre un accès : la fenêtre dit ce qui va ; il attend dans « À régler », sur sa ligne et à l'"'"'accueil ; le retirer l'"'"'éteint'
+prouver 'l'"'"'accès qui attend tu dans « À régler »' 'web/console/src/ecrans/Equipe.tsx' \
+  '{enAttente.map(({ m, a }) => (' \
+  '{enAttente.slice(0, 0).map(({ m, a }) => (' \
+  'la direction ouvre un accès : la fenêtre dit ce qui va ; il attend dans « À régler », sur sa ligne et à l'"'"'accueil ; le retirer l'"'"'éteint'
+prouver 'l'"'"'écran d'"'"'entrée qui tait l'"'"'accès d'"'"'urgence' 'web/console/src/ecrans/Entree.tsx' \
+  'titre(pose.urgence ? '"'"'console.ecran.pose.urgence_titre'"'"'' \
+  'titre(false ? '"'"'console.ecran.pose.urgence_titre'"'"'' \
+  'le membre entre avec son mot de passe et pose son nouveau code ; l'"'"'ancien ne vaut plus'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

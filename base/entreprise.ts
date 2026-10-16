@@ -133,6 +133,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.note_demande': { classe: 'hors', raison: 'les notes privées de l\'équipe de SkanFact sur une demande au support (0133) : la relation avec SkanFact, comme les demandes ; le client ne les voit jamais' },
   'plateforme.evolution': { classe: 'hors', raison: 'les évolutions que des clients demandent à SkanFact (0134) : une note de SkanFact sur son produit ; aucune entreprise' },
   'plateforme.evolution_demande': { classe: 'hors', raison: 'quelle demande au support réclame quelle évolution (0134) : la relation avec SkanFact, comme les demandes' },
+  'plateforme.acces_urgence': { classe: 'hors', raison: 'les accès d\'urgence de l\'équipe de SkanFact (0135) : qui a perdu son code, qui lui a rouvert la console ; aucune entreprise' },
   'plateforme.doc_support': { classe: 'hors', raison: 'la documentation interne du support de SkanFact (0133) : ses réponses validées et ses procédures ; aucune entreprise' },
   'plateforme.cout_du_mois': { classe: 'hors', raison: 'les coûts du mois de SkanFact (0108), saisis par sa direction : ses comptes, ceux d\'aucune entreprise' },
   'plateforme.groupe_membre': { classe: 'hors', raison: 'qui est dans quel groupe, depuis quand, et pourquoi (0106) : une note commerciale de SkanFact' },
