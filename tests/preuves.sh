@@ -16035,6 +16035,102 @@ prouver '« sans réponse » qui ne se voit pas' 'web/console/src/ecrans/Equipe.
   'i.courriel === '"'"'refuse'"'"' ? '"'"' c-eq-secours-aucun'"'"'' \
   'la direction invite : le lien une fois, puis l'"'"'invitation attend ; renvoyer donne un lien neuf, annuler l'"'"'éteint'
 
+# 1.47.0 : la communication ciblée et le suivi de sa diffusion (37).
+prouver 'un message ciblé lu par toutes' 'serveur/console/message-clients.ts' \
+  'message: m && await vise(tx, params.entreprise ?? '"'"''"'"', m.id, jour) ? m : null } };' \
+  'message: m } };' \
+  'un message ciblé (0139, C63) : la console compte chaque public avant le geste ; seule l'"'"'entreprise visée le lit ; sa diffusion se compte une fois, jamais par une entreprise qu'"'"'il ne vise pas'
+prouver 'la diffusion d'"'"'une entreprise qu'"'"'il ne vise pas comptée' 'serveur/console/message-clients.ts' \
+  '      if (!await vise(tx, params.entreprise ?? '"'"''"'"', params.message ?? '"'"''"'"', jour)) return { corps: { note: false } };
+' \
+  '' \
+  'un message ciblé (0139, C63) : la console compte chaque public avant le geste ; seule l'"'"'entreprise visée le lit ; sa diffusion se compte une fois, jamais par une entreprise qu'"'"'il ne vise pas'
+prouver 'le public jamais posé' 'serveur/console/routes.ts' \
+  '      if (corps.cible && corps.cible !== '"'"'tous'"'"') {' \
+  '      if (false) {' \
+  'un message ciblé (0139, C63) : la console compte chaque public avant le geste ; seule l'"'"'entreprise visée le lit ; sa diffusion se compte une fois, jamais par une entreprise qu'"'"'il ne vise pas'
+prouver 'un public inconnu accepté' 'serveur/console/routes.ts' \
+  '      cible: z.enum(['"'"'tous'"'"', ...PUBLICS]).optional() }),' \
+  '      cible: z.string().optional() }),' \
+  'un message ciblé (0139, C63) : la console compte chaque public avant le geste ; seule l'"'"'entreprise visée le lit ; sa diffusion se compte une fois, jamais par une entreprise qu'"'"'il ne vise pas'
+prouver '« Plus tard » oublié par la base' 'base/migrations/0139_messages_cibles.sql' \
+  '  on conflict (message, entreprise) do update set cache_le = coalesce(plateforme.message_diffusion.cache_le, excluded.cache_le);' \
+  '  on conflict (message, entreprise) do nothing;' \
+  'un message ciblé (0139, C63) : la console compte chaque public avant le geste ; seule l'"'"'entreprise visée le lit ; sa diffusion se compte une fois, jamais par une entreprise qu'"'"'il ne vise pas'
+prouver 'une entreprise d'"'"'exemple comptée' 'base/migrations/0139_messages_cibles.sql' \
+  '  if exists (select 1 from socle.entreprise e where e.id = p_entreprise and e.essai) then return false; end if;
+' \
+  '' \
+  'un message ciblé (0139, C63) : la console compte chaque public avant le geste ; seule l'"'"'entreprise visée le lit ; sa diffusion se compte une fois, jamais par une entreprise qu'"'"'il ne vise pas'
+prouver 'l'"'"'entreprise d'"'"'un autre comptée' 'base/migrations/0139_messages_cibles.sql' \
+  '  if p_entreprise is null or p_entreprise not in (select socle.mes_entreprises()) then return false; end if;
+' \
+  '' \
+  'un message ciblé (0139, C63) : la console compte chaque public avant le geste ; seule l'"'"'entreprise visée le lit ; sa diffusion se compte une fois, jamais par une entreprise qu'"'"'il ne vise pas'
+prouver 'un message retiré qui se compte encore' 'base/migrations/0139_messages_cibles.sql' \
+  'm.id = p_message and m.retire_le is null and m.du <= p_jour' \
+  'm.id = p_message and m.du <= p_jour' \
+  'un message ciblé (0139, C63) : la console compte chaque public avant le geste ; seule l'"'"'entreprise visée le lit ; sa diffusion se compte une fois, jamais par une entreprise qu'"'"'il ne vise pas'
+prouver 'la diffusion jamais lue par la console' 'serveur/console/routes.ts' \
+  '              const d = diffusions.find((x) => x.id === m.id);' \
+  '              const d = diffusions.find(() => false);' \
+  'un message ciblé (0139, C63) : la console compte chaque public avant le geste ; seule l'"'"'entreprise visée le lit ; sa diffusion se compte une fois, jamais par une entreprise qu'"'"'il ne vise pas'
+prouver 'le journal sans le public' 'base/migrations/0139_messages_cibles.sql' \
+  '  insert into plateforme.geste_console (qui, role, geste, motif, avant, apres)
+    values (socle.moi(), v_role, '"'"'reglages.message_cible'"'"', btrim(p_motif), null, jsonb_build_object('"'"'message'"'"', p_id, '"'"'cible'"'"', to_jsonb(v_cible)));
+' \
+  '' \
+  'un message ciblé (0139, C63) : la console compte chaque public avant le geste ; seule l'"'"'entreprise visée le lit ; sa diffusion se compte une fois, jamais par une entreprise qu'"'"'il ne vise pas'
+prouver 'la portée de la console qui n'"'"'est pas celle de la liste' 'serveur/console/routes.ts' \
+  '          portee: portee(entreprises),' \
+  '          portee: portee([]),' \
+  'un message ciblé (0139, C63) : la console compte chaque public avant le geste ; seule l'"'"'entreprise visée le lit ; sa diffusion se compte une fois, jamais par une entreprise qu'"'"'il ne vise pas'
+prouver 'un abonné en retard qui perd son offre' 'serveur/console/diffusion.ts' \
+  '  if ((etat.etat === '"'"'actif'"'"' || etat.etat === '"'"'en_retard'"'"') && (offre === '"'"'essentiel'"'"' || offre === '"'"'complet'"'"')) p.push(offre);' \
+  '  if (etat.etat === '"'"'actif'"'"' && (offre === '"'"'essentiel'"'"' || offre === '"'"'complet'"'"')) p.push(offre);' \
+  'chaque public qui décrit l'"'"'entreprise : en essai, son offre quand elle est abonnée, en retard (avec son offre), en lecture seule ; hors abonnement, aucun'
+prouver 'la lecture seule hors de son public' 'serveur/console/diffusion.ts' \
+  '  if (etat.etat === '"'"'lecture_seule'"'"') p.push('"'"'lecture_seule'"'"');
+' \
+  '' \
+  'chaque public qui décrit l'"'"'entreprise : en essai, son offre quand elle est abonnée, en retard (avec son offre), en lecture seule ; hors abonnement, aucun'
+prouver 'sans public, personne' 'serveur/console/diffusion.ts' \
+  'cible.length === 0 || cible.some((c) => publics.includes(c))' \
+  'cible.some((c) => publics.includes(c))' \
+  'sans public, il vise tout le monde ; avec, ceux qui en sont, et eux seuls'
+prouver 'les entreprises d'"'"'exemple comptées dans « tous »' 'serveur/console/diffusion.ts' \
+  '    if (e.etat.etat === '"'"'hors'"'"' && e.etat.raison === '"'"'bac_a_sable'"'"') continue;
+' \
+  '' \
+  'ce que chaque public atteint : la même fonction ; « tous » compte chaque entreprise sauf celles d'"'"'exemple'
+prouver 'une diffusion qui cache plus qu'"'"'elle n'"'"'a montré' 'serveur/console/diffusion.ts' \
+  'caches === null || caches > vus) return [];' \
+  'caches === null) return [];' \
+  'ce que la base rend se lit prudemment : un public inconnu ne se devine pas, une ligne illisible n'"'"'existe pas'
+prouver 'la fenêtre qui ne dit pas ce que chaque public atteint' 'web/console/src/ecrans/Reglages.tsx' \
+  'qui: dire(`${K}.m.public.${x}`), n: entier(d.portee[x]) })' \
+  'qui: dire(`${K}.m.public.${x}`), n: '"'"'?'"'"' })' \
+  'un message pour les clients en essai (0139, C63) : la fenêtre dit combien il en atteint ; l'"'"'entreprise en essai le voit, sa diffusion se compte ; l'"'"'abonnée ne le voit pas'
+prouver 'le public posé qui ne se voit pas' 'web/console/src/ecrans/Reglages.tsx' \
+  '                <span className="c-sous c-bloc c-rg-pour">{maj(dire(`${K}.m.pour`, { qui: pourQui(m.cible) }))}</span>
+' \
+  '' \
+  'un message pour les clients en essai (0139, C63) : la fenêtre dit combien il en atteint ; l'"'"'entreprise en essai le voit, sa diffusion se compte ; l'"'"'abonnée ne le voit pas'
+prouver 'le public choisi jamais envoyé' 'web/console/src/ecrans/Reglages.tsx' \
+  '{ sorte, texte: texte.trim(), du, au, motif: motif.trim(), cible })' \
+  '{ sorte, texte: texte.trim(), du, au, motif: motif.trim() })' \
+  'un message pour les clients en essai (0139, C63) : la fenêtre dit combien il en atteint ; l'"'"'entreprise en essai le voit, sa diffusion se compte ; l'"'"'abonnée ne le voit pas'
+prouver 'un message montré qui ne se dit pas' 'web/public/plateforme/message.js' \
+  '    suivi?.vu(m.id);
+' \
+  '' \
+  'un message pour les clients en essai (0139, C63) : la fenêtre dit combien il en atteint ; l'"'"'entreprise en essai le voit, sa diffusion se compte ; l'"'"'abonnée ne le voit pas'
+prouver '« Plus tard » qui ne se dit pas' 'web/public/plateforme/message.js' \
+  '      suivi?.cache(m.id);
+' \
+  '' \
+  'un message pour les clients en essai (0139, C63) : la fenêtre dit combien il en atteint ; l'"'"'entreprise en essai le voit, sa diffusion se compte ; l'"'"'abonnée ne le voit pas'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

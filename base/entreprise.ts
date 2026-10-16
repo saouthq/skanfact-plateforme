@@ -171,6 +171,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.nouveaute_entreprise': { classe: 'hors', raison: 'les nouveautés que SkanFact allume pour une entreprise volontaire (0120) : un réglage de la plateforme ; remise ailleurs, l\'entreprise repart sans' },
   'plateforme.nouveaute_tous': { classe: 'hors', raison: 'les nouveautés ouvertes à toutes les entreprises (0120) : communes à la plateforme' },
   'plateforme.message_clients': { classe: 'hors', raison: 'le message affiché à tous les clients, écrit par l\'équipe SkanFact : commun à la plateforme' },
+  'plateforme.message_diffusion': { classe: 'hors', raison: 'qu\'un message de SkanFact a été montré, puis caché, dans son application (0139) : la mesure de l\'équipe SkanFact, rien de son dossier' },
   'plateforme.demande_support': { classe: 'hors', raison: 'les demandes au support de SkanFact : la relation avec SkanFact, comme l\'abonnement ; chaque personne relit les siennes dans l\'application, et une remise ne les fait jamais revenir en arrière' },
   'plateforme.message_support': { classe: 'hors', raison: 'les échanges avec le support de SkanFact, avec les réponses de son équipe : la relation avec SkanFact, comme l\'abonnement' },
   'plateforme.acces_support': { classe: 'hors', raison: 'les accès accordés au support de SkanFact : la relation avec SkanFact ; une remise ne fait jamais revenir un accès, ni n\'efface sa trace' },

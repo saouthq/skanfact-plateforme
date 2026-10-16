@@ -6,6 +6,8 @@
 // reparaît. Le bandeau garde sa place jusqu'à la page suivante, avec une phrase qui dit ce qui s'est passé : s'il
 // disparaissait sous le clic, la page remonterait et le second clic d'un double clic tomberait sur le bouton d'en
 // dessous (« + Nouvelle facture »).
+// Depuis 0139 (docs/console.md C63) : le serveur ne rend que le message qui vise l'entreprise de la page, et `suivi` (donné
+// par le pont) dit qu'il a été montré, puis caché — le message et l'entreprise seuls, jamais la personne ni l'appareil.
 (function () {
   'use strict';
   const CLE = 'skanfact.message.cache';
@@ -21,8 +23,9 @@
     try { localStorage.setItem(CLE, id); } catch { /* le choix vaut pour cette visite */ }
   }
 
-  /** @param {HTMLElement} view @param {{ id: string, sorte: string, texte: string } | null} m */
-  function poser(view, m) {
+  /** @param {HTMLElement} view @param {{ id: string, sorte: string, texte: string } | null} m
+   *  @param {{ vu: (id: string) => void, cache: (id: string) => void } | null} [suivi] */
+  function poser(view, m, suivi) {
     const deja = /** @type {HTMLElement | null} */ (view.querySelector(':scope > .sk-message'));
     if (!m || cachesIci.has(m.id) || cache() === m.id) { if (deja) deja.remove(); return; }
     if (deja && deja.dataset.message === m.id) return;
@@ -36,11 +39,13 @@
       <button type="button" class="btn btn-sm sk-message-plus-tard" title="Le cacher sur cet appareil ; un nouveau message reparaîtra">Plus tard</button>`;
     /** @type {HTMLElement} */ (el.querySelector('.sk-message-plus-tard')).onclick = () => {
       cacher(m.id);
+      suivi?.cache(m.id);
       el.style.minHeight = `${el.getBoundingClientRect().height}px`;
       el.classList.add('sk-message-cache');
       el.innerHTML = '<span class="sk-message-texte">Message caché sur cet appareil : un nouveau message reparaîtra.</span>';
     };
     view.insertBefore(el, view.firstChild);
+    suivi?.vu(m.id);
   }
 
   /** @type {any} */ (window).SkanMessage = { poser };

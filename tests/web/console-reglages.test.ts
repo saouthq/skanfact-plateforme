@@ -86,10 +86,11 @@ describe('les réglages de la plateforme, à la souris', () => {
     return p;
   };
   const fermer = (p: Page) => p.context().close();
-  const ecrire = async (p: Page, texte: string, sorte: 'nouveaute' | 'maintenance', motif: string) => {
+  const ecrire = async (p: Page, texte: string, sorte: 'nouveaute' | 'maintenance', motif: string, cible?: string) => {
     await cliquer(p.getByRole('button', { name: 'Écrire un message…' }));
     const f = p.locator('[role="dialog"]');
-    await f.locator('select').selectOption(sorte);
+    await f.getByLabel('La sorte', { exact: true }).selectOption(sorte);
+    if (cible) await f.getByLabel('À qui', { exact: true }).selectOption(cible);
     await f.locator('textarea').first().fill(texte);
     await f.locator('textarea').last().fill(motif);
     await cliquer(f.getByRole('button', { name: 'Afficher le message', exact: true }));
@@ -98,6 +99,7 @@ describe('les réglages de la plateforme, à la souris', () => {
 
   beforeAll(async () => {
     await admin.connect();
+    await admin.query('delete from plateforme.message_diffusion');
     await admin.query('delete from plateforme.message_clients');
     // Les règles de l'abonnement telles que la migration les a posées : un autre fichier de test a pu en poser d'autres.
     await reposerLesReglesDeDepart(admin, aujourdhuiATunis());
@@ -117,6 +119,7 @@ describe('les réglages de la plateforme, à la souris', () => {
   afterAll(async () => {
     // Aucun message ne reste affiché : les parcours suivants ouvrent l'application des clients sans lui. Aucun prix à venir
     // ne reste non plus (la base laisse effacer un prix tant qu'il est à venir).
+    await admin.query('delete from plateforme.message_diffusion');
     await admin.query('delete from plateforme.message_clients');
     await admin.query('delete from plateforme.prix where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
     await admin.query('delete from plateforme.prix_option where a_partir_du > (now() at time zone \'Africa/Tunis\')::date');
@@ -581,6 +584,53 @@ describe('les réglages de la plateforme, à la souris', () => {
     await c.waitForTimeout(1_500);
     expect(await c.locator('#view > .sk-message').count()).toBe(0);
     expect(erreurs).toEqual([]);
+    await fermer(c);
+    await fermer(p);
+  }, 120_000);
+
+  it('un message pour les clients en essai (0139, C63) : la fenêtre dit combien il en atteint ; l\'entreprise en essai le voit, sa diffusion se compte ; l\'abonnée ne le voit pas', async () => {
+    // Une seconde entreprise du même client, abonnée Complet : le message ne la vise pas.
+    const abonnee = String((await api('POST', '/entreprises', jClient, { raisonSociale: 'Studio Lina Abonnée' })).corps.id);
+    await admin.query(`update plateforme.abonnement set paye_jusqu_au = current_date + 100, offre = 'complet', periodicite = 'annuel' where entreprise = $1`, [abonnee]);
+    const portee = (await api('GET', '/console/reglages', jD)).corps.portee as Record<string, number>;
+    const p = await console_(jD, 'messages');
+    await cliquer(p.getByRole('button', { name: 'Écrire un message…' }));
+    const f = p.locator('[role="dialog"]');
+    // Chaque public dit, avant le geste, combien d'entreprises il atteint aujourd'hui (le compte du serveur).
+    const qui = f.getByLabel('À qui', { exact: true });
+    expect((await qui.locator('option').allTextContents()).map(net)).toEqual([
+      `Tous les clients · ${portee.tous}`, `Les clients en essai · ${portee.essai}`, `Les abonnés Essentiel · ${portee.essentiel}`,
+      `Les abonnés Complet · ${portee.complet}`, `Les clients en retard de paiement · ${portee.en_retard}`, `Les clients en lecture seule · ${portee.lecture_seule}`]);
+    await qui.selectOption('essai');
+    const aide = p.locator(`[id="${await qui.getAttribute('aria-describedby')}"]`);
+    expect(net(await aide.innerText())).toMatch(new RegExp(`^${portee.essai === 1 ? 'Une entreprise' : `${portee.essai} entreprises`} aujourd'hui, d'après l'état de`));
+    await cliquer(f.getByRole('button', { name: 'Annuler', exact: true }));
+    await expect.poll(() => f.count()).toBe(0);
+    await ecrire(p, 'Ton essai : découvre la relance automatique des devis.', 'nouveaute', 'pour les essais', 'essai');
+    const actuel = p.locator('.c-rg-actuel');
+    await expect.poll(async () => net(await actuel.innerText())).toContain('Pour les clients en essai');
+    expect(net(await actuel.locator('.c-rg-diffusion').innerText())).toBe('Pas encore vu : aucune entreprise ne l\'a affiché');
+    // L'entreprise en essai le voit ; « Plus tard » le cache ; l'abonnée ne le voit pas.
+    const c = await client();
+    const bandeau = c.locator('#view > .sk-message');
+    await expect.poll(() => bandeau.count(), { timeout: 20_000 }).toBe(1);
+    // Montré : l'application le dit dès qu'il paraît, avant tout « Plus tard ».
+    const vus = async (caches: boolean) => (await admin.query(`select count(*)::int n from plateforme.message_diffusion d join plateforme.message_clients m on m.id = d.message
+      where m.texte like 'Ton essai%' and (d.cache_le is not null) = $1`, [caches])).rows[0]?.n;
+    await expect.poll(() => vus(false), { timeout: 10_000 }).toBe(1);
+    await cliquer(bandeau.locator('.sk-message-plus-tard'));
+    await expect.poll(() => vus(true), { timeout: 10_000 }).toBe(1);
+    const autre = await client(abonnee);
+    await expect.poll(() => autre.locator('#view .page-head h1').count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    await autre.waitForTimeout(1_500);
+    expect(await autre.locator('#view > .sk-message').count()).toBe(0);
+    // La console : vu dans une entreprise, caché dans une — jamais par qui.
+    await p.reload();
+    await expect.poll(async () => net(await p.locator('.c-rg-actuel .c-rg-diffusion').innerText().catch(() => '')), { timeout: 15_000 })
+      .toBe('Vu dans une entreprise · une l\'a caché par « Plus tard »');
+    expect((await admin.query('select count(*)::int n from plateforme.message_diffusion d join plateforme.message_clients m on m.id = d.message where m.texte like $1', ['Ton essai%'])).rows[0]?.n).toBe(1);
+    expect(erreurs).toEqual([]);
+    await fermer(autre);
     await fermer(c);
     await fermer(p);
   }, 120_000);

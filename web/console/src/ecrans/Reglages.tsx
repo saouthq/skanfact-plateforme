@@ -40,13 +40,26 @@ type Regle = {
 type Message = {
   id: string; sorte: 'nouveaute' | 'maintenance'; texte: string; du: string; au: string; motif: string; par: string; le: string;
   enCours: boolean; retireLe: string | null; retirePar: string | null; retireMotif: string | null; remplace: boolean;
+  // Son public (vide : tous) et sa diffusion : combien d'entreprises l'ont vu, et caché (0139, C63) ; null : pas mesuré.
+  cible: Public[]; vus: number | null; caches: number | null;
 };
+// Les publics d'un message (0139, C63), dans l'ordre où la fenêtre les propose, et ce que chacun atteint aujourd'hui.
+const PUBLICS = ['essai', 'essentiel', 'complet', 'en_retard', 'lecture_seule'] as const;
+type Public = typeof PUBLICS[number];
+type Portee = Record<Public | 'tous', number>;
+// Pour qui, en mots : « tous les clients », ou le public posé.
+const pourQui = (cible: readonly Public[]) => (cible.length ? cible.map((c) => dire(`${K}.m.public.${c}`)).join(dire(`${K}.m.public.et`)) : dire(`${K}.m.public.tous`));
+// Sa diffusion, en mots : « vu dans 12 entreprises · caché dans 3 », ou rien tant qu'elle n'est pas lue.
+function DitDiffusion({ m }: { m: Message }) {
+  if (m.vus === null || m.caches === null) return null;
+  return <span className="c-sous c-bloc c-rg-diffusion">{maj(m.vus ? `${selon(m.vus, `${K}.m.vus`)} · ${selon(m.caches, `${K}.m.caches`)}` : selon(0, `${K}.m.vus`))}</span>;
+}
 type Donnees = {
   aujourdhui: string; role: 'direction' | 'support' | 'technique';
   grille: LigneGrille[]; ajouts: LigneAjout[]; preavis: Preavis | null; essai: { jours: number | null; enCours: number };
   echeance: { relances: number[]; grace: number | null; enGrace: number }; regles: Record<CodeRegle, RegleAbonnement | null>;
   contenu: Contenus; remises: Remises;
-  registre: Regle[]; message: Message | null; passes: Message[]; formats: Format[];
+  registre: Regle[]; message: Message | null; passes: Message[]; portee: Portee; formats: Format[];
   factures: NosFactures;
   nouveautes: EtatNouveaute[];
 };
@@ -682,6 +695,8 @@ function Messages({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; p
               <div>
                 <Puce ton={futur ? 'semaine' : 'actif'}>{titre(`${K}.m.sorte.${m.sorte}`)}</Puce>{' '}
                 <span className="c-sous">{phrase(futur ? `${K}.m.paraitra` : `${K}.m.affiche`, { du: jour(m.du), au: jour(m.au) })}</span>
+                <span className="c-sous c-bloc c-rg-pour">{maj(dire(`${K}.m.pour`, { qui: pourQui(m.cible) }))}</span>
+                <DitDiffusion m={m} />
               </div>
               {peut ? <Bouton petit onClick={() => geste({ sorte: 'retirer', message: m })}>{titre(`${K}.m.retirer`)}</Bouton> : null}
             </div>
@@ -707,7 +722,8 @@ function Messages({ d, geste, peut }: { d: Donnees; geste: (g: Geste) => void; p
                 {d.passes.map((p) => (
                   <tr key={p.id}>
                     <td><Puce ton="hors">{titre(`${K}.m.sorte.${p.sorte}`)}</Puce></td>
-                    <td data-libelle={titre(`${K}.m.col.texte`)}><span data-donnee>{p.texte}</span></td>
+                    <td data-libelle={titre(`${K}.m.col.texte`)}><span data-donnee>{p.texte}</span>
+                      <span className="c-sous c-bloc c-rg-pour">{maj(dire(`${K}.m.pour`, { qui: pourQui(p.cible) }))}</span><DitDiffusion m={p} /></td>
                     <td className="c-rg-nowrap" data-libelle={titre(`${K}.m.col.quand`)}>{dire(`${K}.m.du_au`, { du: jour(p.du), au: jour(p.au) })}
                       <span className="c-sous c-bloc">{dire(`${K}.m.par`, { nom: p.par })}</span></td>
                     <td data-libelle={titre(`${K}.m.col.fin`)}>
@@ -806,6 +822,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
   const [texte, setTexte] = useState('');
   const [du, setDu] = useState(d.aujourdhui);
   const [au, setAu] = useState(plusJours(d.aujourdhui, 7));
+  const [cible, setCible] = useState<Public | 'tous'>('tous');
   const [jours, setJours] = useState(d.preavis ? String(d.preavis.jours) : '');
   const [numero, setNumero] = useState('');
   const [refus, setRefus] = useState<string | null>(null);
@@ -832,7 +849,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
       setOccupe(true);
       try {
         const res = g.sorte === 'relire' ? await api('POST', `/console/reglages/regles/${g.regle.id}/relire`, { reluePar: reluePar.trim(), avis, dit: dit.trim() || null, motif: motif.trim() })
-          : g.sorte === 'ecrire' ? await api('POST', '/console/reglages/messages', { sorte, texte: texte.trim(), du, au, motif: motif.trim() })
+          : g.sorte === 'ecrire' ? await api('POST', '/console/reglages/messages', { sorte, texte: texte.trim(), du, au, motif: motif.trim(), cible })
             : g.sorte === 'editeur' ? await api('POST', '/console/reglages/factures/editeur', { entreprise, motif: motif.trim() })
               : g.sorte === 'retirer_prix' ? await api('POST', '/console/reglages/prix/retirer', { quoi: g.quoi, periodicite: g.v.periodicite, aPartirDu: g.v.aPartirDu, motif: motif.trim() })
                 : g.sorte === 'retirer_contenu' ? await api('POST', '/console/reglages/contenu/retirer', { offre: g.v.offre, quoi: g.v.quoi, aPartirDu: g.v.aPartirDu, motif: motif.trim() })
@@ -873,7 +890,7 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
         <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
         <ul>
           {g.sorte === 'ecrire'
-            ? [remplace ? 'p1_remplace' : 'p1', 'p2', 'p3'].map((p) => <li key={p}>{phrase(`${K}.g.ecrire.${p}`)}</li>)
+            ? [remplace ? 'p1_remplace' : 'p1', 'p2', 'p3', 'p4'].map((p) => <li key={p}>{phrase(`${K}.g.ecrire.${p}`)}</li>)
             : ['p1', 'p2', 'p3'].map((p) => <li key={p}>{phrase(`${K}.g.${g.sorte}.${p}${volontaires(g, p)}`, valeurs)}</li>)}
         </ul>
       </div>
@@ -900,6 +917,10 @@ function FenetreGeste({ g, d, fermer, fait }: { g: Exclude<Geste, { sorte: 'prix
         <>
           <Choix libelle={titre(`${K}.g.ecrire.sorte`)} valeur={sorte} changer={(v) => setSorte(v === 'maintenance' ? 'maintenance' : 'nouveaute')}
             options={[{ valeur: 'nouveaute', texte: titre(`${K}.m.sorte.nouveaute`) }, { valeur: 'maintenance', texte: titre(`${K}.m.sorte.maintenance`) }]} />
+          {/* À qui (0139, C63) : chaque public dit combien d'entreprises il atteint aujourd'hui, avant le geste. */}
+          <Choix libelle={titre(`${K}.g.ecrire.qui`)} aide={maj(`${selon(d.portee[cible], `${K}.g.ecrire.qui_aide`)}.`)} valeur={cible}
+            changer={(v) => setCible((['tous', ...PUBLICS] as const).find((x) => x === v) ?? 'tous')}
+            options={(['tous', ...PUBLICS] as const).map((x) => ({ valeur: x, texte: titre(`${K}.g.ecrire.qui_choix`, { qui: dire(`${K}.m.public.${x}`), n: entier(d.portee[x]) }) }))} />
           <Zone libelle={titre(`${K}.g.ecrire.texte`)} aide={phrase(`${K}.g.ecrire.texte_aide`, { n: entier(texte.trim().length) })} valeur={texte} changer={setTexte} max={240} premier {...fauteDe('texte')} />
           <div className="c-rg-dates">
             <Champ libelle={titre(`${K}.g.ecrire.du`)} type="date" valeur={du} changer={setDu} {...fauteDe('du')} />

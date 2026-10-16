@@ -25,6 +25,7 @@ import { lireApercuGroupe, lireGroupeDe } from './groupes.ts';
 import { motif, rendre, t, type Valeurs } from '../../textes/index.ts';
 import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_MIN, REGLES, SAUVEGARDE_TROP_VIEILLE_H } from '../../exploitation/veille.ts';
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
+import { lireDiffusions, portee, PUBLICS } from './diffusion.ts';
 import { aDecider, CATEGORIES, inscriteCetteSemaine, lireEntreprises, lireVeille, tableau, type Entreprise, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
 import { renouvellementsDe } from './renouvellements.ts';
@@ -1665,6 +1666,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const jour = aujourdhuiATunis(maintenant());
       const r = lireReglages(await lireJson(x, 'select plateforme.console_reglages($1::date) v', [jour]));
       const entreprises = await lesEntreprises(x, jour);
+      const diffusions = lireDiffusions(await lireJson(x, 'select plateforme.console_diffusion_messages($1::date) v', [jour]));
       // Les prix préparés dans la console (0103) : le préavis, et qui a préparé chaque prix à venir.
       const prepares = lirePrixPrepares(await lireJson(x, 'select plateforme.console_prix_prepares($1::date) v', [jour]));
       // L'essai, la grâce et les relances (0104) : chacune telle qu'elle vaut aujourd'hui, qui l'a posée et pourquoi.
@@ -1693,7 +1695,16 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           contenu,
           remises,
           registre: registre(r.regles, jour),
-          message: r.messages.find((m) => m.enCours) ?? null, passes: r.messages.filter((m) => !m.enCours).slice(0, 30),
+          // Chaque message avec son public et sa diffusion (0139, C63) ; et ce que chaque public atteint aujourd'hui.
+          ...(() => {
+            const avec = (m: (typeof r.messages)[number]) => {
+              const d = diffusions.find((x) => x.id === m.id);
+              return { ...m, cible: d?.cible ?? [], vus: d?.vus ?? null, caches: d?.caches ?? null };
+            };
+            return { message: (() => { const m = r.messages.find((x) => x.enCours); return m ? avec(m) : null; })(),
+              passes: r.messages.filter((m) => !m.enCours).slice(0, 30).map(avec) };
+          })(),
+          portee: portee(entreprises),
           formats,
           // Nos factures (docs/abonnement.md B1) : l'entreprise SkanFact désignée, et celles que je pourrais désigner.
           factures: await lireJson(x, 'select plateforme.console_editeur() v'),
@@ -1846,11 +1857,17 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   });
   ajouter({
     methode: 'POST', chemin: '/console/reglages/messages', geste: 'console.reglages.gerer',
-    corps: z.object({ sorte: z.enum(['nouveaute', 'maintenance']), texte: z.string().trim().min(10).max(240), du: jourIso, au: jourIso, motif: motifGeste }),
+    // 0139 (C63) : son public, l'un de ceux que la console connaît ; absent ou « tous », il vise tout le monde.
+    corps: z.object({ sorte: z.enum(['nouveaute', 'maintenance']), texte: z.string().trim().min(10).max(240), du: jourIso, au: jourIso, motif: motifGeste,
+      cible: z.enum(['tous', ...PUBLICS]).optional() }),
     traiter: async ({ corps }, tx) => {
       const instant = maintenant();
       const id = await lireJson<string>(transaction(tx), 'select plateforme.console_ecrire_message($1, $2, $3::date, $4::date, $5, $6, $7::date) v',
         [corps.sorte, corps.texte, corps.du, corps.au, corps.motif, instant, aujourdhuiATunis(instant)]);
+      // Dans la même transaction : un message ne paraît jamais un instant pour tous avant d'avoir son public.
+      if (corps.cible && corps.cible !== 'tous') {
+        await transaction(tx).query('select plateforme.console_cibler_message($1, $2::text[], $3, $4::date)', [id, [corps.cible], corps.motif, aujourdhuiATunis(instant)]);
+      }
       return { statut: 201, corps: { id } };
     },
   });

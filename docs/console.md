@@ -1480,6 +1480,25 @@ payants » ; décidé par délégation, Skander : « prends la décision à ma p
   le répare : renvoyer (un nouveau lien remplace l'ancien) ou transmettre le lien. **Décidé par délégation** : le lien
   n'est jamais gardé (la base n'en a que l'empreinte), donc il ne se renvoie pas tout seul — il se refait, à la main.
 
+**C63. La communication ciblée, et le suivi de sa diffusion** (1.47.0 ; base 0139 ; la liste des fonctions qui manquent,
+37 ; décidé par délégation, Skander : « prends la décision à ma place »). Le message aux clients (C28) reste UN à la fois
+— un nouveau remplace celui qui s'affichait, quel que soit son public — et :
+- **son public** : tous les clients, ou ceux en essai, les abonnés Essentiel, les abonnés Complet, les clients en retard
+  de paiement, ceux en lecture seule. Il se choisit en l'écrivant (« À qui »), et chaque choix dit, avant le geste, combien
+  d'entreprises il atteint aujourd'hui (le compte de la liste des clients). Le serveur compare le public à l'état de
+  l'abonnement de l'entreprise de la page, par la même fonction que son onglet « Ton abonnement », à chaque lecture : une
+  entreprise qui change d'état le voit, ou cesse de le voir, le jour même. L'entreprise ne reçoit que le message qui la
+  vise, jamais son public. Le public entre au journal, avec le motif du message ;
+- **sa diffusion** : l'application dit qu'elle l'a montré, puis qu'on l'a caché (« Plus tard »). **La liste comptée et
+  décidée** de ce qui part : le message et l'entreprise (celle de la page, dans le chemin), et s'il est caché ; la base y
+  ajoute l'instant. Jamais la personne, l'appareil ni l'adresse ; vu une fois, caché une fois (le premier instant seul) ;
+  une entreprise d'exemple ne compte pas, ni une entreprise que le message ne vise pas, ni un message qui ne s'affiche
+  plus ; le support qui lit un dossier en lecture seule n'envoie rien. La console dit, pour le message affiché et chaque
+  message passé, « pour qui » et « vu dans N entreprises · caché dans M ».
+**Décidé par délégation** : un seul public par message (une liste à un choix se lit d'un coup d'œil ; la base en accepte
+plusieurs, pour plus tard) ; des entreprises comptées, jamais des personnes ; pas d'e-mail ni de SMS ici (le bandeau seul :
+écrire à un client se fait depuis sa fiche, C33).
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

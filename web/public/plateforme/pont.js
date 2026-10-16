@@ -1390,8 +1390,19 @@
   // chargement, chaque heure, au retour au premier plan), posé en haut de la page ouverte, puis de chaque page que le
   // routeur dessine. Sans réponse du serveur, le dernier connu reste.
   /** @type {{ id: string, sorte: string, texte: string } | null} */ let messageClients = null;
+  // Sa diffusion (0139, C63) : montré, puis caché, une fois chacun par visite ; le message et l'entreprise seuls (le chemin),
+  // jamais la personne ni l'appareil. Le support qui lit en lecture seule ne compte pas : rien ne part.
+  /** @type {Set<string>} */ const diffuses = new Set();
+  /** @param {string} id @param {boolean} cache */
+  function noterDiffusion(id, cache) {
+    const cle = `${id}|${cache}`;
+    if (diffuses.has(cle)) return;
+    diffuses.add(cle);
+    appel('POST', `/message/${encodeURIComponent(id)}/diffusion`, { cache }).catch(() => { diffuses.delete(cle); });
+  }
+  const suiviMessage = LECTURE ? null : { vu: (/** @type {string} */ id) => noterDiffusion(id, false), cache: (/** @type {string} */ id) => noterDiffusion(id, true) };
   /** @param {HTMLElement | null} view */
-  function poserMessage(view) { if (view && /** @type {any} */ (window).SkanMessage) /** @type {any} */ (window).SkanMessage.poser(view, messageClients); }
+  function poserMessage(view) { if (view && /** @type {any} */ (window).SkanMessage) /** @type {any} */ (window).SkanMessage.poser(view, messageClients, suiviMessage); }
   async function lireMessageClients() {
     try { messageClients = (await appel('GET', '/message')).message ?? null; } catch { /* sans réponse : le dernier connu reste */ }
     poserMessage(document.getElementById('view'));

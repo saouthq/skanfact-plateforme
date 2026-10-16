@@ -726,6 +726,10 @@ vaut pour tout le dépôt.*
     `serveur/console/contestations.ts` et `sortie.ts` (le rapprochement lu), `serveur/invitation-courriel.ts` (`etatVu`,
     « sans réponse ») ; écrans `Contestations.tsx`, `Sortie.tsx`, `Equipe.tsx`, `web/public/plateforme/equipe.js`, le
     patron `web/v10/equipe.txt` (cabinet).
+  - **La communication ciblée** (1.47.0 ; `docs/console.md` C63) : base `0139_messages_cibles.sql` (le public d'un
+    message, sa diffusion) ; `serveur/console/diffusion.ts` (pur : les publics d'une entreprise, ce que chacun atteint),
+    `serveur/console/message-clients.ts` (la lecture qui compare, la diffusion notée) ; écran `Reglages.tsx` (« À qui »,
+    « vu dans… ») ; `web/public/plateforme/message.js` et `pont.js` (montré, caché).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

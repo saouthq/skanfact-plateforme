@@ -1332,6 +1332,7 @@ describe('les réglages de la plateforme (0093, docs/console.md C28)', () => {
   beforeAll(async () => {
     regle = String((await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source)
       values ('essai.reglages', '1000', '2023-01-01', 'Une source d''essai : à vérifier avec un comptable') returning id`)).rows[0]?.id);
+    await admin.query('delete from plateforme.message_diffusion');
     await admin.query('delete from plateforme.message_clients');
   });
   const registreDe = async (jeton: string) => ((await appeler('GET', '/console/reglages', jeton)).corps.registre as
@@ -1446,6 +1447,60 @@ describe('les réglages de la plateforme (0093, docs/console.md C28)', () => {
     await expect(enTantQue(pool, direction.id, (tx) => tx.query(`select plateforme.console_relire_regle('${regle}', 'Quelqu''un', 'juste', null, 'hors console', now())`))).rejects.toThrow(/session de la console/);
     await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.console_ecrire_message(\'nouveaute\', \'Hors de la console, refusé.\', current_date, current_date, \'hors console\', now(), current_date)'))).rejects.toThrow(/session de la console/);
     await expect(enTantQue(pool, direction.id, (tx) => tx.query('select plateforme.message_du_jour(current_date)'))).resolves.toBeTruthy();
+  });
+
+  it('un message ciblé (0139, C63) : la console compte chaque public avant le geste ; seule l\'entreprise visée le lit ; sa diffusion se compte une fois, jamais par une entreprise qu\'il ne vise pas', async () => {
+    const j = jour();
+    const portee = async () => (await appeler('GET', '/console/reglages', jD)).corps.portee as Record<string, number>;
+    const avant = await portee();
+    // Trois entreprises : en essai, abonnée Complet, et en lecture seule (son essai fini depuis quarante jours, sans paiement).
+    const essai = await entreprise('Ciblée En Essai');
+    const complet = await entreprise('Ciblée Complet');
+    await admin.query(`update plateforme.abonnement set paye_jusqu_au = $2, offre = 'complet', periodicite = 'annuel' where entreprise = $1`, [complet.ent, plusJours(j, 100)]);
+    const fermee = await entreprise('Ciblée Lecture Seule');
+    await finEssai(fermee.ent, plusJours(j, -40));
+    const apres = await portee();
+    expect(Object.fromEntries(Object.keys(apres).map((k) => [k, (apres[k] ?? 0) - (avant[k] ?? 0)])))
+      .toEqual({ tous: 3, essai: 1, essentiel: 0, complet: 1, en_retard: 0, lecture_seule: 1 });
+    // Un public inconnu : refusé sur sa case ; « en essai » : écrit, avec son public au journal.
+    const corps = { sorte: 'nouveaute', texte: 'Ton essai : découvre la relance des devis.', du: j, au: plusJours(j, 7), motif: 'pour les essais' };
+    expect((await appeler('POST', '/console/reglages/messages', jD, { ...corps, cible: 'tout_le_monde' })).corps.champ).toBe('cible');
+    const r = await appeler('POST', '/console/reglages/messages', jD, { ...corps, cible: 'essai' });
+    expect(r.statut).toBe(201);
+    const id = String(r.corps.id);
+    expect((await admin.query("select apres from plateforme.geste_console where geste = 'reglages.message_cible' and qui = $1", [direction.id])).rows.map((g) => g.apres))
+      .toEqual([{ message: id, cible: ['essai'] }]);
+    // L'application : l'entreprise en essai le lit ; les deux autres, rien.
+    const lire = async (e: { ent: string; proprio: { jeton: string } }) => (await appeler('GET', `/entreprises/${e.ent}/message`, e.proprio.jeton)).corps.message as { id: string } | null;
+    expect((await lire(essai))?.id).toBe(id);
+    expect(await lire(complet)).toBeNull();
+    expect(await lire(fermee)).toBeNull();
+    // Sa diffusion : vu, deux fois, puis caché — compté une fois chacun ; l'entreprise qu'il ne vise pas ne compte pas ;
+    // une personne hors de l'entreprise ne passe pas.
+    const noter = (e: { ent: string; proprio: { jeton: string } }, cache: boolean) => appeler('POST', `/entreprises/${e.ent}/message/${id}/diffusion`, e.proprio.jeton, { cache });
+    expect((await noter(essai, false)).corps.note).toBe(true);
+    expect((await noter(essai, false)).corps.note).toBe(true);
+    expect((await noter(complet, false)).corps.note).toBe(false);
+    expect((await appeler('POST', `/entreprises/${essai.ent}/message/${id}/diffusion`, (await personne('curieux')).jeton, { cache: false })).statut).toBeGreaterThanOrEqual(403);
+    const lu = async () => (await appeler('GET', '/console/reglages', jS)).corps.message as { id: string; cible: string[]; vus: number; caches: number };
+    expect(await lu()).toMatchObject({ id, cible: ['essai'], vus: 1, caches: 0 });
+    expect((await noter(essai, true)).corps.note).toBe(true);
+    expect(await lu()).toMatchObject({ vus: 1, caches: 1 });
+    // Une entreprise d'exemple : la base ne la compte jamais, même appelée par sa propriétaire.
+    const dev = await personne('exemple');
+    const exemple = await appeler('POST', '/entreprises-essai', dev.jeton);
+    expect(exemple.statut).toBe(201);
+    const parLaBase = (ent: string, qui: string) => enTantQue(pool, qui, async (tx) =>
+      (await tx.query('select plateforme.noter_diffusion($1, $2, false, now(), $3::date) v', [id, ent, j])).rows[0]?.v);
+    expect(await parLaBase(String(exemple.corps.id), dev.id)).toBe(false);
+    // Ni l'entreprise d'une autre personne.
+    expect(await parLaBase(complet.ent, essai.proprio.id)).toBe(false);
+    expect(await lu()).toMatchObject({ vus: 1, caches: 1 });
+    // Retiré, il ne se lit plus et ne se compte plus.
+    expect((await appeler('POST', `/console/reglages/messages/${id}/retirer`, jD, { motif: 'fin de l\'essai du message' })).statut).toBe(200);
+    expect(await lire(essai)).toBeNull();
+    expect((await noter(essai, false)).corps.note).toBe(false);
+    expect((await appeler('GET', '/console/reglages', jD)).corps.passes).toEqual(expect.arrayContaining([expect.objectContaining({ id, cible: ['essai'], vus: 1, caches: 1 })]));
   });
 });
 

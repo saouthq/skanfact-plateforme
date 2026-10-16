@@ -498,6 +498,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'un remboursement ne dépasse pas la facture', cle: 'base.console.remboursement_trop', fr: 'un remboursement ne dépasse pas la facture' },
   { base: 'le jour du remboursement : aujourd\'hui ou avant', cle: 'base.console.remboursement_jour', fr: 'le jour du remboursement : aujourd\'hui ou avant' },
   { base: 'le remboursement déclaré n\'est pas encore noté dans SkanFact : note-le sur sa facture (un règlement négatif, ou son avoir), puis clos la sortie', cle: 'base.console.sortie_rembourse_a_noter', fr: 'le remboursement déclaré n\'est pas encore noté dans SkanFact : note-le sur sa facture (un règlement négatif, ou son avoir), puis clos la sortie' },
+  // 0139 (C63) : le public d'un message aux clients.
+  { base: 'un message vise tous les clients, ou ceux en essai, Essentiel, Complet, en retard de paiement ou en lecture seule', cle: 'base.console.message_public', fr: 'un message vise tous les clients, ou ceux en essai, Essentiel, Complet, en retard de paiement ou en lecture seule' },
+  { base: 'le public d\'un message se choisit en l\'écrivant', cle: 'base.console.message_public_ecrit', fr: 'le public d\'un message se choisit en l\'écrivant' },
   { base: 'cette contestation est déjà régularisée', cle: 'base.console.contestation_close', fr: 'cette contestation est déjà régularisée' },
   // Les secrets et leur échéance (0130).
   { base: 'cela ressemble à la valeur d\'un secret : on n\'écrit ici que son nom, à quoi il sert, où il vit et ses dates', cle: 'base.console.secret_valeur', fr: 'cela ressemble à la valeur d\'un secret : on n\'écrit ici que son nom, à quoi il sert, où il vit et ses dates' },

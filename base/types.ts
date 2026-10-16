@@ -749,6 +749,13 @@ export interface BaseDeDonnees {
     retire_par: string | null;
     retire_motif: string | null;
     remplace_par: string | null;
+    cible: Generated<string[]>;
+  };
+  'plateforme.message_diffusion': {
+    message: string;
+    entreprise: string;
+    vu_le: Date;
+    cache_le: Date | null;
   };
   'plateforme.message_support': {
     id: Generated<string>;
