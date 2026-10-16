@@ -1292,8 +1292,10 @@ describe('les versions du service (0092, docs/console.md C27)', () => {
       await admin.query(`insert into plateforme.service_heure (heure, exemplaire, sorte, n, pannes, seaux) values
         ('2026-08-02T10:00:00Z', 'effet-1', 'lecture', 1000, 2, $1), ('2026-08-04T10:00:00Z', 'effet-1', 'lecture', 1000, 20, $1),
         ('2026-08-04T10:00:00Z', 'effet-1', 'console', 500, 500, $2) on conflict do nothing`, [seaux(1000), seaux(500)]);
-      await admin.query(`insert into plateforme.service_incident (annee, numero, titre, gravite, ouvert_le, ouvert_par)
-        values (2026, 977, 'Les factures lentes', 'majeur', '2026-08-05T09:00:00Z', $1) on conflict do nothing`, [direction.id]);
+      // Le numéro suivant libre : les autres essais prennent aussi le plus grand + 1, un numéro écrit d'avance serait déjà pris.
+      const numero = Number((await admin.query(`insert into plateforme.service_incident (annee, numero, titre, gravite, ouvert_le, ouvert_par)
+        values (2026, (select coalesce(max(numero), 0) + 1 from plateforme.service_incident where annee = 2026), 'Les factures lentes', 'majeur',
+        '2026-08-05T09:00:00Z', $1) returning numero`, [direction.id])).rows[0].numero);
       const { ent, proprio } = await entreprise('Effet Des Versions');
       await admin.query(`insert into plateforme.demande_support (entreprise, demandeur, canal, sujet, notee_par, ouverte_le)
         values ($1, $2, 'email', 'Une facture ne part plus', $3, '2026-08-05T10:00:00Z')`, [ent, proprio.id, direction.id]);
@@ -1303,7 +1305,7 @@ describe('les versions du service (0092, docs/console.md C27)', () => {
       // Une installation ratée ne fait pas de période ; les requêtes de la console (les nôtres) ne comptent pas.
       expect(d.map((e) => e.version).filter((v) => v === A || v === B)).toEqual([B, A]);
       expect(d.find((e) => e.version === A)).toMatchObject({ requetes: 1000, pannes: 2, incidents: [], demandes: 0, clients: 0, pire: [] });
-      expect(d.find((e) => e.version === B)).toMatchObject({ requetes: 1000, pannes: 20, incidents: [{ numero: 977 }], demandes: 1, clients: 1, pire: ['pannes', 'incidents'] });
+      expect(d.find((e) => e.version === B)).toMatchObject({ requetes: 1000, pannes: 20, incidents: [{ numero }], demandes: 1, clients: 1, pire: ['pannes', 'incidents'] });
       // La technique lit le service, jamais une donnée de client : les demandes ne lui sont pas dites.
       expect((await effets(jT)).find((e) => e.version === B)).toMatchObject({ requetes: 1000, demandes: null, clients: null, pire: ['pannes', 'incidents'] });
     } finally { fs.writeFileSync(etat, avant); }

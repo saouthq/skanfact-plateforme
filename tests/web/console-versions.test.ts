@@ -131,14 +131,23 @@ describe('les versions du service, à la souris', () => {
         on conflict (heure, exemplaire, sorte) do update set n = 2000, pannes = $2`, [heureIlYa(h), pannes, seaux]);
     }
     const qui = (await admin.query('select id from socle.utilisateur where email like $1 order by cree_le desc limit 1', ['console-versions-%'])).rows[0].id;
-    // Deux autres fichiers d'essai vident les incidents en même temps (console-incidents, console) : on repose le nôtre et on
-    // rouvre l'écran tant qu'il n'y est pas, sans jamais desserrer ce que la ligne doit dire.
-    const attendu = /v1\.0\.0 .*Du \d\d\/\d\d\/\d{4} au \d\d\/\d\d\/\d{4}.*Majeur 2026-978 · Des factures qui ne partent plus.*Plus de pannes.*Un incident majeur/;
+    // Les numéros d'incident sont partagés avec les autres essais (chacun prend le plus grand + 1) : le nôtre prend le suivant
+    // libre, jamais un numéro écrit d'avance qu'un autre aurait déjà pris. Deux autres fichiers vident aussi les incidents en
+    // même temps (console-incidents, console) : s'il a disparu, on le repose et on rouvre l'écran, sans rien desserrer.
+    const ouvertLe = new Date(Date.now() - 2 * 3_600_000).toISOString();
+    const poser = async () => {
+      const deja = await admin.query('select numero from plateforme.service_incident where ouvert_par = $1 and ouvert_le = $2', [qui, ouvertLe]);
+      if (deja.rows[0]) return Number(deja.rows[0].numero);
+      return Number((await admin.query(`insert into plateforme.service_incident (annee, numero, titre, gravite, ouvert_le, ouvert_par)
+        values (2026, (select coalesce(max(numero), 0) + 1 from plateforme.service_incident where annee = 2026), 'Des factures qui ne partent plus', 'majeur', $1, $2)
+        returning numero`, [ouvertLe, qui])).rows[0].numero);
+    };
     let p = await ouvrir();
     let lu = '';
+    let attendu = /^$/;
     for (let essai = 0; essai < 5; essai += 1) {
-      await admin.query(`insert into plateforme.service_incident (annee, numero, titre, gravite, ouvert_le, ouvert_par) values (2026, 978, 'Des factures qui ne partent plus', 'majeur', $1, $2)
-        on conflict do nothing`, [new Date(Date.now() - 2 * 3_600_000).toISOString(), qui]);
+      const numero = await poser();
+      attendu = new RegExp(`v1\\.0\\.0 .*Du \\d\\d/\\d\\d/\\d{4} au \\d\\d/\\d\\d/\\d{4}.*Majeur 2026-${String(numero).padStart(3, '0')} · Des factures qui ne partent plus.*Plus de pannes.*Un incident majeur`);
       if (essai > 0) { await fermer(p); p = await ouvrir(); }
       await expect.poll(() => p.locator('.c-ve-effets tbody tr').count(), { timeout: 15_000 }).toBe(3);
       lu = net(await p.locator(`.c-ve-effets tbody tr[data-version="${B}"]`).innerText());
