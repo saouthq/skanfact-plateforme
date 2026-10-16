@@ -2,6 +2,8 @@
 // portes — l'équipe d'une entreprise, celle d'un cabinet, l'équipe SkanFact — envoient l'e-mail elles-mêmes quand le
 // serveur a un relais, et le disent (`courriel`) ; le lien reste rendu une fois, en secours. Ce qui part chez le relais :
 // l'adresse invitée, qui invite, où, le rôle, le lien et jusqu'à quand — rien d'autre. Sans relais, rien ne part.
+// Depuis 0138 (l'audit 1.42.0 A08) : « à envoyer » s'écrit dans la transaction de l'invitation, AVANT l'envoi ; un e-mail
+// resté à envoyer ou en attente du relais plus de dix minutes se lit « sans réponse ».
 
 import { createHash } from 'node:crypto';
 import path from 'node:path';
@@ -17,7 +19,7 @@ import { declarerGestesCompta } from '../../serveur/compta/gestes.ts';
 import { mettreEnPlaceCode, quiEst, type Contexte } from '../../serveur/connexion.ts';
 import { routesConsole } from '../../serveur/console/routes.ts';
 import type { Courriel } from '../../serveur/courriel.ts';
-import { envoyerInvitation } from '../../serveur/invitation-courriel.ts';
+import { envoyerInvitation, etatVu, SANS_REPONSE_MS } from '../../serveur/invitation-courriel.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { declarerGestesPaie } from '../../serveur/paie/gestes.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
@@ -157,7 +159,8 @@ describe('l\'e-mail d\'une invitation dit la vérité (0124, l\'audit C07)', () 
     const r = await appeler('POST', `/entreprises/${entreprise}/invitations`, p.jeton, { email: invite, roles: ['commercial'] }, appSansRelais);
     expect([r.corps.courriel, r.corps.courrielEtat]).toEqual([false, 'sans_relais']);
     expect(await etatEnBase(r.corps.jeton)).toBe('sans_relais');
-    await admin.query('update socle.invitation set courriel = null, courriel_le = null where jeton_empreinte = $1', [empreinte(r.corps.jeton)]);
+    // Comme après un arrêt : « à envoyer », noté par sa transaction ; la réponse lente le remplace.
+    await admin.query("update socle.invitation set courriel = 'a_envoyer', courriel_le = now() where jeton_empreinte = $1", [empreinte(r.corps.jeton)]);
     let accepter = () => {};
     const lent: Contexte = { ...base, courriel: { envoi: { envoyer: () => new Promise<void>((ok) => { accepter = ok; }) }, adresse: () => 'https://app.exemple.tn' } };
     const etat = await envoyerInvitation(lent, { a: invite, qui: 'Walid Lent', ou: 'Atelier Lent', role: 'commercial', lien: 'https://app.exemple.tn/?invitation=x', expire: new Date() },
@@ -166,5 +169,45 @@ describe('l\'e-mail d\'une invitation dit la vérité (0124, l\'audit C07)', () 
     expect(await etatEnBase(r.corps.jeton)).toBe('en_attente');
     accepter();
     await expect.poll(() => etatEnBase(r.corps.jeton), { timeout: 5_000 }).toBe('parti');
+  });
+
+  it('« à envoyer » est déjà écrit quand l\'e-mail part : un arrêt entre les deux en laisse la trace (A08)', async () => {
+    const vus: (string | null)[] = [];
+    const temoin: Contexte = { ...base, courriel: { envoi: { envoyer: async (c) => {
+      const jeton = decodeURIComponent(jetonDu(c.texte, /\?invitation=(\S+)/));
+      vus.push(await etatEnBase(jeton));
+    } }, adresse: () => 'https://app.exemple.tn' } };
+    const appTemoin = creerApp(temoin, [...routesSocle(temoin)]);
+    await appTemoin.ready();
+    try {
+      const p = await personne('Nour Témoin');
+      const entreprise = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Épicerie Témoin' })).corps.id);
+      const r = await appeler('POST', `/entreprises/${entreprise}/invitations`, p.jeton, { email: adresse('temoin'), roles: ['commercial'] }, appTemoin);
+      expect(r.statut).toBe(201);
+      expect(vus).toEqual(['a_envoyer']);
+      expect(await etatEnBase(r.corps.jeton)).toBe('parti');
+    } finally { await appTemoin.close(); }
+  });
+
+  it('resté « à envoyer » ou « en attente » plus de dix minutes : la liste de l\'équipe dit « sans réponse » (A08)', async () => {
+    const maintenant = new Date('2026-10-16T10:00:00Z');
+    const il = (ms: number) => new Date(maintenant.getTime() - ms).toISOString();
+    expect(SANS_REPONSE_MS).toBe(600_000);
+    expect(etatVu('a_envoyer', il(SANS_REPONSE_MS), maintenant)).toBe('a_envoyer');
+    expect(etatVu('a_envoyer', il(SANS_REPONSE_MS + 1000), maintenant)).toBe('sans_reponse');
+    expect(etatVu('en_attente', il(SANS_REPONSE_MS + 1000), maintenant)).toBe('sans_reponse');
+    expect(etatVu('parti', il(86_400_000), maintenant)).toBe('parti');
+    expect(etatVu('a_envoyer', null, maintenant)).toBe('sans_reponse');
+    expect(etatVu('perdu', il(0), maintenant)).toBeNull();
+    // Par la route de l'équipe d'une entreprise.
+    const p = await personne('Rim Liste');
+    const entreprise = String((await appeler('POST', '/entreprises', p.jeton, { raisonSociale: 'Bazar Liste' })).corps.id);
+    const r = await appeler('POST', `/entreprises/${entreprise}/invitations`, p.jeton, { email: adresse('liste'), roles: ['commercial'] }, appSansRelais);
+    const lue = async () => ((await appeler('GET', `/entreprises/${entreprise}/equipe`, p.jeton, undefined, appSansRelais)).corps.invitations as { courriel: string | null }[])[0]?.courriel;
+    expect(await lue()).toBe('sans_relais');
+    await admin.query("update socle.invitation set courriel = 'a_envoyer', courriel_le = now() - interval '5 minutes' where jeton_empreinte = $1", [empreinte(r.corps.jeton)]);
+    expect(await lue()).toBe('a_envoyer');
+    await admin.query("update socle.invitation set courriel_le = now() - interval '11 minutes' where jeton_empreinte = $1", [empreinte(r.corps.jeton)]);
+    expect(await lue()).toBe('sans_reponse');
   });
 });

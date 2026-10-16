@@ -1458,6 +1458,28 @@ payants » ; décidé par délégation, Skander : « prends la décision à ma p
   exposé — on le change chez son prestataire, puis on note son renouvellement sur sa ligne ; le journal ne se réécrit pas
   (il est inaltérable), il garde seulement qu'un geste a eu lieu.
 
+**C62. L'audit de la console 1.42.0, lot 2b** (1.46.0 ; base 0138 ; décidé par délégation, Skander : « prends la décision
+à ma place »).
+- **A04, une régularisation se rapproche d'une vraie opération** : une contestation close « par un avoir » nomme un avoir
+  ÉMIS dans SkanFact qui corrige cette facture (son numéro, les majuscules ne comptent pas) ; sinon c'est refusé (« cet
+  avoir n'est pas émis sur cette facture »), et un avoir ne régularise qu'une contestation. La ligne dit son montant et
+  s'il couvre toute la facture ou une partie. Close « par un remboursement », elle dit son montant (jamais plus que la
+  facture), son jour (aujourd'hui ou avant) et sa référence : il est **déclaré**, puis **rapproché** quand SkanFact a noté
+  sur la facture des règlements négatifs qui le couvrent — lu à chaque fois, jamais coché à la main. Déclaré, il reste en
+  orange et dans « À décider » de la direction (« un remboursement à noter dans SkanFact »). La sortie d'un client fait de
+  même : « rendu » dit son montant et son jour, et se rapproche des règlements négatifs notés sur ses factures
+  d'abonnement depuis l'ouverture de la sortie, ou de l'avoir émis sur l'une d'elles dont la référence est le numéro ;
+  tant qu'il ne l'est pas, l'étape reste à faire et « il est parti » le refuse. Les montants se tapent en dinars (nos
+  factures d'abonnement sont en dinars). Une régularisation d'avant la 1.46.0, qui n'avait que sa référence, se lit comme
+  avant. **Décidé par délégation** : pas de case « vérifié » à cocher (c'est SkanFact qui fait foi) ; un remboursement
+  partiel se dit, il ne se refuse pas.
+- **A08, l'e-mail d'une invitation après une panne** : son état « à envoyer » s'écrit dans la transaction même de
+  l'invitation (ou de son nouveau lien), avant l'envoi : un arrêt du serveur entre les deux en laisse la trace. Un e-mail
+  resté « à envoyer » ou « en attente du relais » plus de dix minutes se lit **« sans réponse du relais »**, dans les trois
+  listes d'invitations qui attendent (l'équipe SkanFact, l'équipe d'une entreprise, celle d'un cabinet), avec le geste qui
+  le répare : renvoyer (un nouveau lien remplace l'ancien) ou transmettre le lien. **Décidé par délégation** : le lien
+  n'est jamais gardé (la base n'en a que l'empreinte), donc il ne se renvoie pas tout seul — il se refait, à la main.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1477,8 +1499,8 @@ ne se construit pas : **la v10 n'est installée chez personne** (Skander, 14/10/
 bureau (la coque et son agent local : les postes qui l'ont, leur version, ce que l'agent voit, ses erreurs) se dessinera
 quand elle sera distribuée aux clients (`09` étape 4). Le guet extérieur (C49) vérifie le service depuis une autre
 machine ; le second guet, depuis une deuxième ville (06 § 7), reste à poser. Des constats de l'audit 1.42.0 restent
-ouverts : le rapprochement d'un remboursement ou d'un avoir déclaré (A04) et la reprise d'un envoi d'invitation après
-une panne (A08), pour la 1.46.0 ; le coût des listes, qui calculent tout avant de paginer (A09), plus tard.
+ouverts : le coût des listes, qui calculent tout avant de paginer (A09), plus tard ; A04 et A08 sont faits en 1.46.0
+(C62).
 
 ## À VÉRIFIER
 

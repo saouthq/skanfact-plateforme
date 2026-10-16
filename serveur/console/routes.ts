@@ -15,7 +15,7 @@ import { Introuvable, Perimee } from '../erreurs.ts';
 import { activerCode, activerSms, changerMotDePasse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, type Refuse } from '../compte.ts';
 import { numeroMasque } from '../sms.ts';
 import * as invitations from './invitations.ts';
-import { enMots, envoyerInvitation, lienConsole, roleDansLaPhrase } from '../invitation-courriel.ts';
+import { enMots, envoyerInvitation, etatVu, lienConsole, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { etatAbonnement, lireDelai, lireAVenir, lireFaits, lireModules, lireOffreSuivante, lireRegles, plusJours, regleAu, type Etat, type Faits, type Regles } from '../abonnement/etat.ts';
 import { calculerGeste, GESTES_ABONNEMENT, MOYENS_RECUS, type GesteAbonnement, type LigneAbonnement, type PaiementRecu } from '../abonnement/gestes.ts';
@@ -579,11 +579,17 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   });
   ajouter({
     methode: 'POST', chemin: '/console/sorties/:id/remboursement', geste: 'console.clients.sortie',
-    corps: z.object({ remboursement: z.enum(['aucun', 'fait']), reference: z.string().max(60).nullable().optional(), motif: z.string().max(500) }),
+    // 0138 (l'audit 1.42.0 A04) : rendu, avec son montant (« 120,500 », en dinars) et son jour.
+    corps: z.object({ remboursement: z.enum(['aucun', 'fait']), reference: z.string().max(60).nullable().optional(), montant: z.string().max(40).nullable().optional(),
+      le: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), motif: z.string().max(500) }),
     traiter: async ({ params, corps }, tx) => {
       const id = params.id ?? '';
       if (!uuid.safeParse(id).success) throw new Introuvable();
-      await transaction(tx).query('select plateforme.console_sortie_remboursement($1, $2, $3, $4, $5)', [id, corps.remboursement, corps.reference ?? null, corps.motif, maintenant()]);
+      // Le montant tapé (« 47,410 »), en millimes ; illisible, la case le dit (la base revérifie ce qu'il vaut).
+      const montant = corps.montant?.trim() ? prixTape(corps.montant) : null;
+      if (corps.montant?.trim() && (montant === null || montant <= 0n)) return refusDuChamp('montant', 'console.paiements.montant_illisible');
+      await transaction(tx).query('select plateforme.console_sortie_remboursement($1, $2, $3, $4::bigint, $5::date, $6, $7)',
+        [id, corps.remboursement, corps.reference ?? null, montant === null ? null : montant.toString(), corps.le ?? null, corps.motif, maintenant()]);
       return { corps: { ok: true } };
     },
   });
@@ -1024,7 +1030,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     // pas : écrit une seconde fois, il dirait un jour autre chose que ce que le serveur laisse faire.
     traiter: async (_r, tx) => ({ corps: {
       membres: await lireJson(transaction(tx), 'select plateforme.console_equipe($1) v', [maintenant()]),
-      invitations: await lireJson(transaction(tx), 'select plateforme.console_invitations($1) v', [maintenant()]),
+      // L'e-mail de chaque invitation tel qu'il se lit (0138) : resté sans réponse du relais, il le dit.
+      invitations: (await lireJson<Record<string, unknown>[]>(transaction(tx), 'select plateforme.console_invitations($1) v', [maintenant()]) ?? [])
+        .map((i) => ({ ...i, courriel: etatVu(i.courriel, i.courrielLe, maintenant()) })),
       // Les accès d'urgence des trente derniers jours, et combien de personnes sont à la direction (0135).
       urgence: lireUrgences(await lireJson(transaction(tx), 'select plateforme.console_acces_urgence($1) v', [maintenant()])),
       droits: LISTE_GESTES_CONSOLE.filter((g) => g.code !== 'console.session').map((g) => ({ code: g.code, roles: g.roles })),
@@ -1041,6 +1049,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   // L'e-mail, lui, part une fois l'invitation écrite (0124, l'audit C07) : la suite de la route, qui dit ce qu'il est devenu.
   const lienEnvoye = async (tx: Transaction | null, id: string, l: { jeton: string; expire: Date }) => {
     const i = (await transaction(tx).query('select * from plateforme.console_invitation_pour_courriel($1)', [id])).rows[0] as { email: string; role: string; invite_par: string } | undefined;
+    // « À envoyer », dans la transaction (0138, l'audit 1.42.0 A08) : un arrêt avant l'envoi en laisse la trace.
+    await noterAEnvoyer(transaction(tx), invitations.sha256(l.jeton), maintenant());
     return async () => enMots(i ? await envoyerInvitation(ctx, { a: i.email, qui: i.invite_par, ou: null, role: roleDansLaPhrase(i.role), lien: lienConsole(ctx, l.jeton), expire: l.expire },
       invitations.sha256(l.jeton)) : 'sans_relais');
   };
@@ -1966,10 +1976,15 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   });
   ajouter({
     methode: 'POST', chemin: '/console/contestations/:contestation/regulariser', geste: 'console.contestations',
-    corps: z.object({ issue: z.enum(ISSUES), reference: z.string().trim().max(60).nullable(), motif: motifGeste }),
+    // 0138 (l'audit 1.42.0 A04) : un remboursement dit son montant (« 47,410 », en dinars) et son jour ; un avoir, son numéro.
+    corps: z.object({ issue: z.enum(ISSUES), reference: z.string().trim().max(60).nullable(), montant: z.string().max(40).nullable().optional(),
+      le: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(), motif: motifGeste }),
     traiter: async ({ params, corps }, tx) => {
-      await transaction(tx).query('select plateforme.console_regulariser($1, $2, $3, $4, $5)',
-        [lireUuid(params.contestation), corps.issue, corps.reference || null, corps.motif, maintenant()]);
+      // Le montant tapé (« 47,410 »), en millimes ; illisible, la case le dit (la base revérifie ce qu'il vaut).
+      const montant = corps.montant?.trim() ? prixTape(corps.montant) : null;
+      if (corps.montant?.trim() && (montant === null || montant <= 0n)) return refusDuChamp('montant', 'console.paiements.montant_illisible');
+      await transaction(tx).query('select plateforme.console_regulariser($1, $2, $3, $4::bigint, $5::date, $6, $7)',
+        [lireUuid(params.contestation), corps.issue, corps.reference || null, montant === null ? null : montant.toString(), corps.le ?? null, corps.motif, maintenant()]);
       return { corps: { ok: true } };
     },
   });

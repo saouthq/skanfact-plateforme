@@ -47,7 +47,7 @@ rôle posé sur un dossier le lui confie (docs/cabinet.md, C36).
 -- après
           ${g.ok && c.id !== equipe.moi ? RowMenu.cellule('EQ:' + c.id) : '<td class="row-actions"></td>'}</tr>`).join('')}</tbody></table></div>` : ''}
       ${(equipe.invitations || []).length ? `<p class="small mt"><b>Invitations qui attendent :</b></p><div class="scroll-x"><table class="list compact" id="eq-invitations"><tbody>${equipe.invitations.map(i => `<tr>
-          <td>${esc(i.email)}</td><td>${esc(K.LIBELLE_ROLE[i.role])}</td><td class="muted small">jusqu'au ${esc(fmtJour(KC.jourDeLInstant(Date.parse(i.expire))))}</td>
+          <td>${esc(i.email)}</td><td>${esc(K.LIBELLE_ROLE[i.role])}</td><td class="muted small">jusqu'au ${esc(fmtJour(KC.jourDeLInstant(Date.parse(i.expire))))}${i.courriel === 'refuse' || i.courriel === 'sans_reponse' ? `<br><b>${i.courriel === 'refuse' ? 'e-mail refusé' : 'e-mail sans réponse du relais'}</b> : annule l'invitation et invite de nouveau (un nouveau lien)` : ''}</td>
           <td class="row-actions">${g.ok ? `<button type="button" class="btn btn-sm" data-inv="${esc(i.id)}">Annuler l'invitation</button>` : ''}</td></tr>`).join('')}</tbody></table></div>` : ''}
 -- fin
 

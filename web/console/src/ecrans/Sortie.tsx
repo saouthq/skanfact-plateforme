@@ -3,7 +3,8 @@
 // à chaque instant ce qui reste à faire, dans l'ordre :
 //   - le contrat : son abonnement ne se renouvelle plus (le bouton « Résilier » est celui de l'onglet Abonnement) ;
 //   - ses données : c'est LUI qui les télécharge ; la console en lit seulement la trace, jamais le fichier ;
-//   - le remboursement : rien à rendre, ou rendu (sa référence) ;
+//   - le remboursement : rien à rendre, ou rendu (sa référence, son montant, son jour : déclaré, puis rapproché quand
+//     SkanFact le note sur ses factures, 0138) ;
 //   - la conservation : jusqu'à quand ses données restent, en lecture seule, et que rien ne s'efface avant sans sa demande.
 // Elle se clôt « il est parti » (le contrat arrêté, le remboursement réglé) ou « il reste ».
 import { useState } from 'react';
@@ -11,6 +12,7 @@ import { dire, phrase, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi } from '../contexte.ts';
 import { jourCourt, jourDe, quand } from '../temps.ts';
 import { Alerte, Bouton, Champ, Dialogue, Icone, maj, Pilules, Puce, toast, Zone, type NomIcone } from '../ui.tsx';
+import { montant } from '../argent.ts';
 
 export const CAUSES = ['prix', 'manque', 'fermeture', 'concurrent', 'autre'] as const;
 export type Cause = typeof CAUSES[number];
@@ -18,7 +20,8 @@ export type Sortie = {
   id: string; cause: Cause; dit: string; ouverteLe: string; ouvertePar: string | null;
   contrat: { arrete: boolean; fin: string | null; offert: boolean };
   export: { le: string; par: string | null } | null;
-  remboursement: { sorte: 'aucun' | 'fait'; reference: string | null; le: string; par: string | null } | null;
+  // 0138 (l'audit 1.42.0 A04) : rendu, son montant et son jour, et s'il est rapproché (noté dans SkanFact sur ses factures).
+  remboursement: { sorte: 'aucun' | 'fait'; reference: string | null; le: string; par: string | null; montant?: string | null; renduLe?: string | null; rapproche?: boolean | null } | null;
   conserverJusquAu: string | null;
   close: { le: string; issue: 'partie' | 'reste'; motif: string; par: string | null; finContrat: string | null } | null;
 };
@@ -27,7 +30,9 @@ const K = 'console.ecran.sortie';
 
 // La même règle que le serveur (serveur/console/sortie.ts) : un téléchargement d'avant l'ouverture ne compte pas.
 const donneesRemises = (s: Sortie) => !!s.export && new Date(s.export.le).getTime() >= new Date(s.ouverteLe).getTime();
-const faite = (s: Sortie, e: Etape) => (e === 'contrat' ? s.contrat.arrete && s.contrat.fin !== null : e === 'donnees' ? donneesRemises(s) : s.remboursement !== null);
+// Un remboursement déclaré n'est réglé qu'une fois rapproché (0138) : la même règle que le serveur.
+const faite = (s: Sortie, e: Etape) => (e === 'contrat' ? s.contrat.arrete && s.contrat.fin !== null : e === 'donnees' ? donneesRemises(s)
+  : s.remboursement !== null && s.remboursement.rapproche !== false);
 export const sortieEnCours = (s: Sortie | null | undefined): boolean => !!s && !s.close;
 // La ligne d'« À décider » (l'accueil et la fiche disent la même phrase) : le contrat a pris fin, et ce qui reste.
 export function sortieAttendEnMots(l: { fin: string; restantes: Etape[] }): string {
@@ -52,7 +57,9 @@ export function useEnvoi(fait: () => void) {
       } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
     })();
   };
-  return { envoyer, refuser, refus, occupe, faute: (champ: string) => faute?.champ === champ, n: faute?.n ?? 0 };
+  // un autre choix : le refus du précédent ne tient plus
+  const oublier = () => { setRefus(null); setFaute(null); };
+  return { envoyer, refuser, oublier, refus, occupe, faute: (champ: string) => faute?.champ === champ, n: faute?.n ?? 0 };
 }
 export function Pied({ fermer, occupe, envoyer, bouton, danger }: { fermer: () => void; occupe: boolean; envoyer: () => void; bouton: string; danger?: boolean }) {
   return (
@@ -104,7 +111,9 @@ export function CarteSortie({ id, nom, sortie, aujourdhui, relire, resilier }: {
       texte: donneesRemises(s) ? phrase(`${K}.donnees_ok`, { quand: quand(s.export?.le ?? '', aujourdhui), qui: s.export?.par ?? '—' })
         : s.export ? phrase(`${K}.donnees_avant`, { le: jourCourt(jourDe(s.export.le)) }) : phrase(`${K}.donnees_pas`) },
     { e: 'remboursement', icone: 'echange', ok: faite(s, 'remboursement'), titre: titre(`${K}.etape.remboursement`),
-      texte: s.remboursement ? phrase(`${K}.remb_${s.remboursement.sorte}`, { reference: s.remboursement.reference ?? '', quand: quand(s.remboursement.le, aujourdhui), qui: s.remboursement.par ?? '—' })
+      texte: s.remboursement ? phrase(`${K}.remb_${s.remboursement.sorte}${s.remboursement.montant ? (s.remboursement.rapproche ? '_note' : '_declare') : ''}`, {
+        reference: s.remboursement.reference ?? '', quand: quand(s.remboursement.le, aujourdhui), qui: s.remboursement.par ?? '—',
+        montant: s.remboursement.montant ? montant(s.remboursement.montant) : '', jour: jourCourt(s.remboursement.renduLe ?? null) })
         : phrase(`${K}.remb_pas`),
       geste: { texte: titre(s.remboursement ? `${K}.remb_changer` : `${K}.remb_regler`), faire: () => setFenetre('remboursement') } },
   ];
@@ -175,21 +184,35 @@ function FenetreRemboursement({ s, nom, fermer, fait }: { s: Sortie; nom: string
   const [sorte, setSorte] = useState<'aucun' | 'fait'>(s.remboursement?.sorte ?? 'aucun');
   const [reference, setReference] = useState(s.remboursement?.reference ?? '');
   const [motif, setMotif] = useState('');
+  // Rendu : combien et quand (0138) — déclaré, puis rapproché quand SkanFact le note sur ses factures.
+  const aujourdhui = jourDe(new Date().toISOString());
+  const [somme, setSomme] = useState(s.remboursement?.montant ? montant(s.remboursement.montant).replaceAll('\u202f', '') : '');
+  const [le, setLe] = useState(s.remboursement?.renduLe ?? aujourdhui);
   const envoyer = () => {
     if (sorte === 'fait' && !reference.trim()) { e.refuser(phrase(`${K}.remb_reference_vide`), 'reference'); return; }
+    if (sorte === 'fait' && !somme.trim()) { e.refuser(phrase(`${K}.remb_montant_vide`), 'montant'); return; }
+    if (sorte === 'fait' && !le) { e.refuser(phrase(`${K}.remb_jour_vide`), 'le'); return; }
     if (motif.trim().length < 3) { e.refuser(phrase('console.ecran.geste.motif_court'), 'motif'); return; }
-    e.envoyer(`/console/sorties/${s.id}/remboursement`, { remboursement: sorte, reference: sorte === 'fait' ? reference.trim() : null, motif: motif.trim() },
+    e.envoyer(`/console/sorties/${s.id}/remboursement`, { remboursement: sorte, reference: sorte === 'fait' ? reference.trim() : null,
+      ...(sorte === 'fait' ? { montant: somme.trim(), le } : {}), motif: motif.trim() },
       phrase(`${K}.remb_toast_${sorte}`));
   };
   return (
     <Dialogue titre={titre(`${K}.remb_titre`)} pour={nom} fermer={fermer} occupe={e.occupe}
       pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(`${K}.remb_bouton_${sorte}`)} />}>
-      <Pilules libelle={titre(`${K}.remb_choix`)} valeur={sorte} changer={setSorte}
+      <Pilules libelle={titre(`${K}.remb_choix`)} valeur={sorte} changer={(x) => { e.oublier(); setSorte(x); }}
         choix={(['aucun', 'fait'] as const).map((x) => ({ valeur: x, texte: titre(`${K}.remb_sorte.${x}`) }))} />
       <CeQuiVa lignes={[phrase(`${K}.remb_p_${sorte}`), phrase(`${K}.remb_p_journal`)]} />
       {sorte === 'fait' ? (
-        <Champ libelle={titre(`${K}.remb_reference`)} aide={phrase(`${K}.remb_reference_aide`)} valeur={reference} changer={setReference}
-          faute={e.faute('reference')} n={e.n} />
+        <>
+          <Champ libelle={titre(`${K}.remb_reference`)} aide={phrase(`${K}.remb_reference_aide`)} valeur={reference} changer={setReference}
+            faute={e.faute('reference')} n={e.n} />
+          <div className="c-ct-rembourse">
+            <Champ libelle={titre(`${K}.remb_montant`)} aide={phrase(`${K}.remb_montant_aide`)} valeur={somme} changer={setSomme} inputMode="decimal"
+              faute={e.faute('montant')} n={e.n} />
+            <Champ libelle={titre(`${K}.remb_jour`)} type="date" max={aujourdhui} valeur={le} changer={setLe} faute={e.faute('le')} n={e.n} />
+          </div>
+        </>
       ) : null}
       <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}

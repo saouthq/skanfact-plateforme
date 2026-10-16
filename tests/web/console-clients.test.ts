@@ -175,8 +175,22 @@ describe('la liste des clients, à la souris', () => {
     const partir = carte.getByRole('button', { name: 'Il est parti…' });
     expect(await partir.isDisabled()).toBe(true);
     expect(net(await carte.locator('.c-reprise-note').innerText())).toBe('Pour le dire parti, il reste à régler : le remboursement.');
-    // Le remboursement : rien à rendre, avec son motif ; « Il est parti… » s'allume, en principal.
+    // Rendu, avec son montant et son jour, mais pas encore noté dans SkanFact (0138, l'audit 1.42.0 A04) : l'étape le dit
+    // (le montant une fois avec sa devise), et « Il est parti… » reste éteint.
     await cliquer(carte.getByRole('button', { name: 'Régler…' }));
+    await cliquer(fenetre.getByRole('radio', { name: 'Rendu', exact: true }));
+    await fenetre.getByLabel('La référence', { exact: true }).fill('VIR-2026-0901');
+    await fenetre.getByLabel('Le montant rendu', { exact: true }).fill('12,500');
+    await fenetre.locator('textarea').fill('Rendu par virement');
+    await cliquer(fenetre.getByRole('button', { name: 'Noter le remboursement' }));
+    await expect.poll(() => p.locator('.c-dialogue').count(), { timeout: 15_000 }).toBe(0);
+    const etape = carte.locator('.c-so-etapes li', { hasText: 'Le remboursement' });
+    await expect.poll(async () => net(await etape.innerText().catch(() => '')), { timeout: 15_000 })
+      .toMatch(/^Le remboursement Rendu : 12,500 DT le \d{2}\/\d{2}\/\d{4} \(VIR.2026.0901\), déclaré .+ ; pas encore noté dans SkanFact/);
+    expect(await partir.isDisabled()).toBe(true);
+    // Puis rien à rendre, avec son motif ; « Il est parti… » s'allume, en principal.
+    await cliquer(carte.getByRole('button', { name: 'Changer…' }));
+    await cliquer(fenetre.getByRole('radio', { name: 'Rien à rendre', exact: true }));
     await fenetre.locator('textarea').fill('Essai gratuit : rien à rendre');
     await cliquer(fenetre.getByRole('button', { name: 'Noter : rien à rendre' }));
     await expect.poll(() => p.locator('.c-dialogue').count(), { timeout: 15_000 }).toBe(0);

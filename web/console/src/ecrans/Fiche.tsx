@@ -25,7 +25,7 @@ import { CarteReprise, repriseEnCours, type Reprise } from './Reprise.tsx';
 import { CarteSortie, sortieAttendEnMots, sortieEnCours, type Etape, type Sortie } from './Sortie.tsx';
 import { CarteArriveeClose, FenetreArrivee, type ArriveeClose } from './Arrivee.tsx';
 import { defaiteEnMots } from './Accueil.tsx';
-import { contestationEnMots, FenetreContester, FenetreRegulariser, type Contestation } from './Contestations.tsx';
+import { aNoter, contestationEnMots, FenetreContester, FenetreRegulariser, type Contestation } from './Contestations.tsx';
 
 export type Geste = 'prolonger' | 'payer' | 'resilier' | 'annuler-resiliation' | 'suspendre' | 'reprendre' | 'offrir' | 'retirer-offert' | 'ouvrir-module' | 'fermer-module'
   | 'accorder-delai' | 'offrir-mois' | 'changer-offre';
@@ -107,6 +107,7 @@ type Attente =
   | { sorte: 'a_emettre'; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
   | { sorte: 'trop_percu'; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   | { sorte: 'contestation'; numero: string | null; ouverteLe: string; jours: number }
+  | { sorte: 'remboursement_a_noter'; numero: string | null; montant: string; le: string | null }
   | { sorte: 'sortie'; fin: string; jours: number; restantes: Etape[] };
 export type OngletFiche = 'apercu' | 'abonnement' | 'factures' | 'support' | 'membres' | 'journal';
 export const ONGLETS_FICHE: readonly OngletFiche[] = ['apercu', 'abonnement', 'factures', 'support', 'membres', 'journal'];
@@ -532,7 +533,7 @@ function SesFactures({ f, role, preparer, contester }: { f: Donnees; role: Role;
                   <td data-libelle={titre('console.ecran.fiche.fa.col.etat')}><Puce ton={PUCE_FACTURE[x.etat]}>{titre(`console.ecran.fiche.fa.etat.${x.etat}`)}</Puce>
                     {x.payeeLe ? <span className="c-sous c-bloc">{dire('console.ecran.fiche.fa.payee_le', { quand: quand(x.payeeLe, f.aujourdhui) })}</span> : null}
                     {/* Sa contestation (0129) : en cours, en orange et en mots ; la dernière régularisée, en gris. */}
-                    {(() => { const c = contestationDe(f.contestations, x.id); return c ? <span className={`c-sous c-bloc${c.close ? '' : ' c-ct-en-cours'}`}>{maj(contestationEnMots(c))}</span> : null; })()}</td>
+                    {(() => { const c = contestationDe(f.contestations, x.id); return c ? <span className={`c-sous c-bloc${c.close && !aNoter(c) ? '' : ' c-ct-en-cours'}`}>{maj(contestationEnMots(c))}</span> : null; })()}</td>
                   <td className="c-droite"><span className="c-boutons-ligne">{x.etat !== 'supprimee' && ed?.proprietaire
                     ? <Lien petit ailleurs href={x.ecran}>{titre(x.etat === 'a_emettre' ? 'console.ecran.fiche.fa.emettre' : 'console.ecran.fiche.fa.ouvrir')}</Lien> : null}
                     {(() => {
@@ -1285,6 +1286,9 @@ function attenteEnMots(a: Attente, aujourdhui: string): { icone: NomIcone; titre
     case 'contestation':
       return { icone: 'alerte', titre: titre('console.ecran.fiche.attend.contestation_titre'), urgence: 'semaine',
         desc: phrase('console.ecran.decider.contestation', { numero: a.numero ?? dire('console.ecran.decider.sans_numero'), le: jourCourt(a.ouverteLe), n: a.jours }) };
+    case 'remboursement_a_noter':
+      return { icone: 'echange', titre: titre('console.ecran.fiche.attend.remb_noter_titre', { montant: montant(a.montant) }), urgence: 'semaine',
+        desc: phrase('console.ecran.decider.remb_noter', { numero: a.numero ?? dire('console.ecran.decider.sans_numero'), le: jourCourt(a.le) }) };
     case 'sortie':
       return { icone: 'sortir', titre: titre('console.ecran.fiche.attend.sortie_titre'), urgence: 'semaine', desc: sortieAttendEnMots(a) };
     case 'trop_percu':

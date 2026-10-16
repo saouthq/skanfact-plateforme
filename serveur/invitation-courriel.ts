@@ -21,6 +21,25 @@ const jourATunis = (d: Date) => d.toLocaleDateString('fr-FR', { timeZone: 'Afric
 export type EtatCourriel = 'parti' | 'refuse' | 'en_attente' | 'sans_relais';
 export const ATTENTE_RELAIS_MS = 8_000;
 
+// « À envoyer » (0138, l'audit 1.42.0 A08) : noté DANS la transaction de l'invitation, ou de son nouveau lien, avant
+// qu'elle soit validée — un arrêt du serveur entre l'invitation et l'envoi en laisse la trace. L'envoi le remplace.
+type Requete = { query: (texte: string, valeurs?: unknown[]) => Promise<unknown> };
+export const noterAEnvoyer = async (tx: Requete, empreinte: string, maintenant: Date): Promise<void> => {
+  await tx.query('select socle.noter_courriel_invitation($1, $2, $3)', [empreinte, 'a_envoyer', maintenant]);
+};
+// Ce que les listes en disent : un e-mail resté « à envoyer » ou « en attente du relais » plus de dix minutes est « sans
+// réponse » — le serveur s'est arrêté, ou le relais n'a jamais répondu. Le lien n'est gardé nulle part (la base n'en a que
+// l'empreinte) : il ne se renvoie pas tout seul, il se refait (« un nouveau lien »), et l'ancien cesse de valoir.
+export const SANS_REPONSE_MS = 10 * 60_000;
+export type EtatVu = EtatCourriel | 'a_envoyer' | 'sans_reponse';
+const ETATS: readonly string[] = ['a_envoyer', 'parti', 'refuse', 'en_attente', 'sans_relais'];
+export function etatVu(courriel: unknown, le: unknown, maintenant: Date): EtatVu | null {
+  if (typeof courriel !== 'string' || !ETATS.includes(courriel)) return null;
+  const instant = le instanceof Date ? le.getTime() : typeof le === 'string' ? Date.parse(le) : Number.NaN;
+  if ((courriel === 'a_envoyer' || courriel === 'en_attente') && (!Number.isFinite(instant) || maintenant.getTime() - instant > SANS_REPONSE_MS)) return 'sans_reponse';
+  return courriel as EtatVu;
+}
+
 // Envoie l'invitation, APRÈS que l'invitation est écrite (la route l'appelle une fois sa transaction validée : plus jamais
 // un lien envoyé pour une invitation que la base a refusée), et attend la réponse du relais un moment. L'état se note
 // sur l'invitation (par l'empreinte de son lien), et celui d'une réponse tardive aussi.

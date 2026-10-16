@@ -83,8 +83,8 @@ const saSortie = async (id: string) => {
 const journal = async (geste: string, ent: string) => (await admin.query(
   'select role, motif, avant, apres from plateforme.geste_console where geste = $1 and entreprise = $2 order by le', [geste, ent])).rows;
 const ouvrir = (id: string, jeton: string, cause = 'prix', dit = 'Trop cher pour nous cette année') => appeler('POST', `/console/entreprises/${id}/sorties`, jeton, { cause, dit });
-const rembourser = (s: string, remboursement: string, reference: string | null, motif = 'vu avec le client') =>
-  appeler('POST', `/console/sorties/${s}/remboursement`, direction, { remboursement, reference, motif });
+const rembourser = (s: string, remboursement: string, reference: string | null, motif = 'vu avec le client', plus: Record<string, unknown> = {}) =>
+  appeler('POST', `/console/sorties/${s}/remboursement`, direction, { remboursement, reference, motif, ...plus });
 const clore = (s: string, issue: string, motif = 'sortie menée au bout') => appeler('POST', `/console/sorties/${s}/clore`, direction, { issue, motif });
 const decider = async (id: string) => ((await appeler('GET', '/console/accueil', direction)).corps.decider as { sorte: string; entreprise?: { id: string }; restantes?: string[]; jours?: number }[])
   .filter((l) => l.sorte === 'sortie' && l.entreprise?.id === id);
@@ -121,10 +121,19 @@ describe('la sortie d\'un client (0131)', () => {
     // Un remboursement fait sans sa référence : refusé ; avec : noté, puis changé (le journal garde l'avant).
     const sansRef = await rembourser(s.id, 'fait', '  ');
     expect(sansRef.corps.motif).toBe('Un remboursement se retrouve par sa référence : le numéro de l\'avoir, la référence du virement.');
-    expect((await rembourser(s.id, 'aucun', null, 'payé jusqu\'au bout, rien à rendre')).statut).toBe(200);
-    expect((await rembourser(s.id, 'fait', 'AV-2026-0042', 'quatre mois rendus par avoir')).statut).toBe(200);
+    // Rendu (0138, l'audit 1.42.0 A04) : son montant et son jour ; déclaré, il n'est pas rapproché tant que SkanFact ne l'a
+    // pas noté sur ses factures — l'étape reste, et « il est parti » le refuse, en disant le geste qui débloque.
+    expect((await rembourser(s.id, 'fait', 'VIR-2026-0042', 'quatre mois rendus', { le: jour })).corps.motif).toBe('Le montant remboursé : plus que zéro.');
+    expect((await rembourser(s.id, 'fait', 'VIR-2026-0042', 'quatre mois rendus', { montant: '120,500', le: plusJours(jour, 1) })).corps.motif).toBe('Le jour du remboursement : aujourd\'hui ou avant.');
+    expect((await rembourser(s.id, 'fait', 'VIR-2026-0042', 'quatre mois rendus', { montant: '120,500', le: jour })).statut).toBe(200);
     s = await saSortie(c.id);
-    expect(s.remboursement).toMatchObject({ sorte: 'fait', reference: 'AV-2026-0042' });
+    expect(s.remboursement).toMatchObject({ sorte: 'fait', reference: 'VIR-2026-0042', montant: '120.500', renduLe: jour, rapproche: false });
+    expect(peutPartir(s)).toBe(false);
+    expect((await clore(s.id, 'partie')).corps.motif).toBe('Le remboursement déclaré n\'est pas encore noté dans SkanFact : note-le sur sa facture (un règlement négatif, ou son avoir), puis clos la sortie.');
+    // Finalement rien à rendre : réglé.
+    expect((await rembourser(s.id, 'aucun', null, 'payé jusqu\'au bout, rien à rendre')).statut).toBe(200);
+    s = await saSortie(c.id);
+    expect(s.remboursement).toMatchObject({ sorte: 'aucun', montant: null, rapproche: null });
     expect(peutPartir(s)).toBe(true);
     // Ses données : c'est lui qui les télécharge ; la fiche lit la trace de son journal.
     expect(restantes(s)).toEqual(['donnees']);
@@ -144,8 +153,8 @@ describe('la sortie d\'un client (0131)', () => {
     // Chaque geste au journal de la console, avec son rôle et son motif.
     expect((await journal('clients.sortie_ouverte', c.id)).map((g) => [g.role, g.motif, g.apres])).toEqual([['direction', 'Il lui faut la gestion des lots', { cause: 'manque' }]]);
     expect((await journal('clients.sortie_remboursement', c.id)).map((g) => [g.avant, g.apres])).toEqual([
-      [null, { remboursement: 'aucun', reference: null }],
-      [{ remboursement: 'aucun', reference: null }, { remboursement: 'fait', reference: 'AV-2026-0042' }],
+      [null, { remboursement: 'fait', reference: 'VIR-2026-0042', montant: '120500', le: jour }],
+      [{ remboursement: 'fait', reference: 'VIR-2026-0042', montant: '120500', le: jour }, { remboursement: 'aucun', reference: null, montant: null, le: null }],
     ]);
     expect((await journal('clients.sortie_close', c.id)).map((g) => g.apres)).toEqual([{ issue: 'partie', finContrat: fin, conserverJusquAu: s.conserverJusquAu }]);
   });

@@ -48,7 +48,7 @@
    *   nom?: string,
    * }} Outils
    * @typedef {{ id: string, utilisateur: string, nom: string | null, email: string, roles: string[] }} Membre
-   * @typedef {{ id: string, email: string, roles: string[], expire: string }} Invitation
+   * @typedef {{ id: string, email: string, roles: string[], expire: string, courriel?: string | null }} Invitation
    */
 
   const aides = () => w.SkanCompte.aides;
@@ -85,10 +85,17 @@
         <div class="eqp-roles">${pastilles(m.roles)}</div>
         ${modifiable(m) ? w.RowMenu.bouton(`M:${m.id}`, 'Actions') : '<span></span>'}
       </li>`;
+    // Ce que son e-mail est devenu (0124 ; 0138, l'audit 1.42.0 A08) : sans réponse du relais ou refusé, la personne ne l'a
+    // peut-être pas reçu — un nouveau lien (le menu) le refait, et l'ancien ne vaut plus.
+    const courrielEnMots = (/** @type {string | null | undefined} */ c) => ({
+      parti: ' · e-mail parti', a_envoyer: ' · e-mail en cours d\'envoi', en_attente: ' · e-mail en attente du relais',
+      refuse: ' · e-mail refusé : donne-lui un nouveau lien, ou envoie-le toi-même',
+      sans_reponse: ' · e-mail sans réponse du relais : donne-lui un nouveau lien, ou envoie-le toi-même',
+    })[c ?? ''] ?? '';
     const ligneInvitation = (/** @type {Invitation} */ i) => `<li class="eqp-ligne eqp-attente">
         <span class="eqp-avatar" aria-hidden="true">@</span>
         <div class="eqp-qui"><span class="eqp-nom"><b>${esc(i.email)}</b></span>
-          <span class="small muted">En attente : son lien vaut jusqu'au ${esc(jour(i.expire))}</span></div>
+          <span class="small muted">En attente : son lien vaut jusqu'au ${esc(jour(i.expire))}${courrielEnMots(i.courriel)}</span></div>
         <div class="eqp-roles">${pastilles(i.roles)}</div>
         ${w.RowMenu.bouton(`I:${i.id}`, 'Actions')}
       </li>`;

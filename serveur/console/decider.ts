@@ -10,7 +10,7 @@ import { aujourdhuiATunis } from '../reglements.ts';
 import type { RoleConsole } from './gestes.ts';
 import type { AEmettre, Defaite, MesureEncaisse, Trop } from './paiements.ts';
 import { compter, etatDe, type LigneDemande } from './support.ts';
-import { CONTESTATION_JOURS, enCours, joursDAttente, type Contestation } from './contestations.ts';
+import { aRapprocher, CONTESTATION_JOURS, enCours, joursDAttente, type Contestation } from './contestations.ts';
 import type { Risque } from './risque.ts';
 import type { SecretLu } from './secrets.ts';
 import type { AccesUrgence } from './urgence.ts';
@@ -190,6 +190,8 @@ export type Ligne =
   | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: { id: string; nom: string }; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   // 0129 : une facture contestée qui attend sa régularisation depuis une semaine.
   | { sorte: 'contestation'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; numero: string | null; ouverteLe: string; jours: number }
+  // 0138 (l'audit 1.42.0 A04) : un remboursement déclaré que SkanFact n'a pas encore noté sur la facture.
+  | { sorte: 'remboursement_a_noter'; ouvre: 'paiements'; entreprise: { id: string; nom: string }; numero: string | null; montant: string; le: string | null }
   // 0131 : la sortie d'un client dont le contrat a pris fin, et ce qui reste à faire pour la clore.
   | { sorte: 'sortie'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; fin: string; jours: number; restantes: Etape[] };
 // Ce que Paiements sait de l'argent qui attend une décision (serveur/console/paiements.ts, par ses fonctions), les
@@ -249,6 +251,10 @@ export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role
       if (ici.has(c.entreprise.id) && jours >= CONTESTATION_JOURS) {
         lignes.push([3, -jours, { sorte: 'contestation', ouvre: 'fiche', entreprise: c.entreprise, numero: c.numero, ouverteLe: aujourdhuiATunis(new Date(c.ouverteLe)), jours }]);
       }
+    }
+    for (const c of aRapprocher(argent.contestees ?? [])) {
+      const r = c.close?.rapprochement;
+      if (ici.has(c.entreprise.id) && r) lignes.push([3.1, 0, { sorte: 'remboursement_a_noter', ouvre: 'paiements', entreprise: c.entreprise, numero: c.numero, montant: r.montant, le: r.le }]);
     }
     for (const x of argent.sorties ?? []) {
       if (!x.entreprise || !ici.has(x.entreprise.id) || !x.contrat.fin || !sortieADecider(x, jour)) continue;

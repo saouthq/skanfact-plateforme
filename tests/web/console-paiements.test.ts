@@ -182,7 +182,7 @@ describe('les paiements de nos factures, à la souris', () => {
     await fermer(p);
   }, 60_000);
 
-  it('une contestation (0129) : le support la note depuis la ligne de sa facture ; la direction la lit dans Paiements et la régularise par un avoir, avec sa référence', async () => {
+  it('une contestation (0129) : le support la note depuis la ligne de sa facture ; la direction la lit dans Paiements ; un avoir qui n\'existe pas est refusé ; un remboursement déclaré attend d\'être noté', async () => {
     const f = await ouvrir(jS, `#/clients/${abonne}?onglet=factures`);
     const ligne = f.locator('.c-fa-table tbody tr').first();
     await expect.poll(() => ligne.locator('.c-mono').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/\S/);
@@ -213,11 +213,28 @@ describe('les paiements de nos factures, à la souris', () => {
     // Un avoir sans son numéro : refusé, le champ montré.
     await cliquer(reg.locator('.c-dialogue-pied .c-btn-principal'));
     await expect.poll(() => reg.locator('.c-alerte-danger').innerText().then(net).catch(() => '')).toContain('numéro de l\'avoir');
+    // Un numéro d'avoir qui n'est pas émis sur cette facture (0138, l'audit 1.42.0 A04) : refusé, rien ne se clôt.
     await reg.getByLabel('Le numéro de l\'avoir', { exact: true }).fill('AV-2026-0042');
     await reg.getByLabel('Motif', { exact: true }).fill('Essentiel jamais choisi : avoir émis');
     await cliquer(reg.locator('.c-dialogue-pied .c-btn-principal'));
-    await expect.poll(() => p.locator('#c-toast').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe(`Contestation de ${numero} régularisée par l'avoir.`);
-    await expect.poll(() => l.innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('par l\'avoir AV\u20112026\u20110042'); // des tirets insécables : la référence ne se coupe pas
+    await expect.poll(() => reg.locator('.c-alerte-danger').innerText().then(net).catch(() => '')).toBe('Cet avoir n\'est pas émis sur cette facture : donne le numéro d\'un avoir émis dans SkanFact qui la corrige.');
+    // Par un remboursement : son montant et son jour en plus de sa référence ; sans montant, refusé sur le champ.
+    // Un autre choix : le refus de l'avoir ne tient plus, il s'efface.
+    await cliquer(reg.getByRole('radio', { name: 'Remboursée', exact: true }));
+    expect(await reg.locator('.c-alerte-danger').count()).toBe(0);
+    // Le montant (avec son aide) et le jour (sans) côte à côte : les deux cases au même haut, à la même hauteur.
+    const [cm, cj] = await Promise.all([reg.getByLabel('Le montant remboursé', { exact: true }).boundingBox(), reg.getByLabel('Le jour du remboursement', { exact: true }).boundingBox()]);
+    expect(cm && cj && Math.abs(cm.y - cj.y) <= 1 && Math.abs(cm.height - cj.height) <= 1).toBe(true);
+    await reg.getByLabel('La référence du remboursement', { exact: true }).fill('VIR-2026-0042');
+    await cliquer(reg.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => reg.locator('.c-alerte-danger').innerText().then(net).catch(() => '')).toContain('montant remboursé');
+    await reg.getByLabel('Le montant remboursé', { exact: true }).fill('20,000');
+    await cliquer(reg.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => p.locator('#c-toast').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe(`Contestation de ${numero} régularisée par le remboursement.`);
+    // Déclaré, pas encore noté dans SkanFact : la ligne le dit, en orange (des tirets insécables : la référence ne se coupe pas).
+    const dit = l.locator('.c-ct-en-cours');
+    await expect.poll(() => dit.innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toMatch(/^régularisée le \d{2}\/\d{2}\/\d{4} par un remboursement de 20,000 DT le \d{2}\/\d{2}\/\d{4} \(VIR\u20112026\u20110042\), une partie de la facture : déclaré, pas encore noté sur la facture dans SkanFact$/);
     expect(await l.getByRole('button', { name: 'Régulariser…', exact: true }).count()).toBe(0);
     expect(erreurs).toEqual([]);
     await fermer(p);

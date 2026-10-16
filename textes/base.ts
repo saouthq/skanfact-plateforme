@@ -491,6 +491,13 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'un avoir ou un remboursement se retrouve par sa référence : le numéro de l\'avoir, la référence du virement', cle: 'base.console.contestation_reference', fr: 'un avoir ou un remboursement se retrouve par sa référence : le numéro de l\'avoir, la référence du virement' },
   { base: 'une référence : soixante caractères au plus', cle: 'base.console.contestation_reference_longue', fr: 'une référence : soixante caractères au plus' },
   { base: 'cette contestation n\'existe pas', cle: 'base.console.contestation_inconnue', fr: 'cette contestation n\'existe pas' },
+  // L'audit 1.42.0, lot 2b (0138) : l'avoir et le remboursement rapprochés.
+  { base: 'cet avoir n\'est pas émis sur cette facture : donne le numéro d\'un avoir émis dans SkanFact qui la corrige', cle: 'base.console.contestation_avoir_inconnu', fr: 'cet avoir n\'est pas émis sur cette facture : donne le numéro d\'un avoir émis dans SkanFact qui la corrige' },
+  { base: 'cet avoir régularise déjà une autre contestation', cle: 'base.console.contestation_avoir_deja', fr: 'cet avoir régularise déjà une autre contestation' },
+  { base: 'le montant remboursé : plus que zéro', cle: 'base.console.remboursement_montant', fr: 'le montant remboursé : plus que zéro' },
+  { base: 'un remboursement ne dépasse pas la facture', cle: 'base.console.remboursement_trop', fr: 'un remboursement ne dépasse pas la facture' },
+  { base: 'le jour du remboursement : aujourd\'hui ou avant', cle: 'base.console.remboursement_jour', fr: 'le jour du remboursement : aujourd\'hui ou avant' },
+  { base: 'le remboursement déclaré n\'est pas encore noté dans SkanFact : note-le sur sa facture (un règlement négatif, ou son avoir), puis clos la sortie', cle: 'base.console.sortie_rembourse_a_noter', fr: 'le remboursement déclaré n\'est pas encore noté dans SkanFact : note-le sur sa facture (un règlement négatif, ou son avoir), puis clos la sortie' },
   { base: 'cette contestation est déjà régularisée', cle: 'base.console.contestation_close', fr: 'cette contestation est déjà régularisée' },
   // Les secrets et leur échéance (0130).
   { base: 'cela ressemble à la valeur d\'un secret : on n\'écrit ici que son nom, à quoi il sert, où il vit et ses dates', cle: 'base.console.secret_valeur', fr: 'cela ressemble à la valeur d\'un secret : on n\'écrit ici que son nom, à quoi il sert, où il vit et ses dates' },

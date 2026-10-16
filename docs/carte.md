@@ -721,6 +721,11 @@ vaut pour tout le dépôt.*
     d'un geste sur un secret contrôlé, `arrivee_close`, le hors-taxes des factures préparées) ; `serveur/console/previsions.ts`
     (trois lignes par mois, les mois d'un mensuel), `serveur/console/arrivee.ts` (l'arrivée jusqu'à son issue) ; écrans
     `Arrivee.tsx` (clore, rouvrir), `Fiche.tsx`, `Paiements.tsx` (un bloc par mois), `Secrets.tsx`.
+  - **L'audit de la console 1.42.0, lot 2b** (1.46.0 ; `docs/console.md` C62) : base `0138_audit_lot2b.sql` (l'avoir nommé
+    vérifié, le remboursement déclaré puis rapproché, l'e-mail d'invitation « à envoyer » dans sa transaction) ;
+    `serveur/console/contestations.ts` et `sortie.ts` (le rapprochement lu), `serveur/invitation-courriel.ts` (`etatVu`,
+    « sans réponse ») ; écrans `Contestations.tsx`, `Sortie.tsx`, `Equipe.tsx`, `web/public/plateforme/equipe.js`, le
+    patron `web/v10/equipe.txt` (cabinet).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

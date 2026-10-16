@@ -1624,6 +1624,8 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-cl-proche { color: var(--c-orange-texte); }
 /* Une contestation en cours (0129) : en orange ET en mots ; ce que le client dit, à part. */
 .c-ct-en-cours { color: var(--c-orange-texte); }
+/* Le montant et le jour d'un remboursement, côte à côte ; l'un sous l'autre au téléphone. */
+.c-ct-rembourse { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: start; }
 .c-ct-dit { display: grid; gap: 4px; padding: 12px 14px; border-radius: 12px; background: var(--c-papier-2); }
 .c-ct-dit p { margin: 0; white-space: pre-line; }
 .c-ct-dit-ligne { font-style: italic; overflow-wrap: anywhere; }

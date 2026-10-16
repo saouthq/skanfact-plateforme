@@ -15196,15 +15196,15 @@ prouver 'deux contestations à la fois' 'base/migrations/0129_contestations.sql'
   '  if exists (select 1 from plateforme.contestation c where c.facture = f.id and c.close_le is null) then' \
   '  if false then' \
   'une facture émise se conteste, une fois à la fois ; le support la note et la dit retirée, jamais plus ; chaque geste au journal'
-prouver 'le support qui régularise avec de l'"'"'argent' 'base/migrations/0129_contestations.sql' \
+prouver 'le support qui régularise avec de l'"'"'argent' 'base/migrations/0138_audit_lot2b.sql' \
   '  if v_role <> '"'"'direction'"'"' and p_issue <> '"'"'retiree'"'"' then' \
   '  if false then' \
   'une facture émise se conteste, une fois à la fois ; le support la note et la dit retirée, jamais plus ; chaque geste au journal'
-prouver 'un avoir sans sa référence' 'base/migrations/0129_contestations.sql' \
+prouver 'un avoir sans sa référence' 'base/migrations/0138_audit_lot2b.sql' \
   '  if p_issue in ('"'"'avoir'"'"', '"'"'remboursement'"'"') and v_ref is null then' \
   '  if false then' \
   'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
-prouver 'une contestation régularisée deux fois' 'base/migrations/0129_contestations.sql' \
+prouver 'une contestation régularisée deux fois' 'base/migrations/0138_audit_lot2b.sql' \
   '  if c.close_le is not null then perform socle.refus('"'"'cette contestation est déjà régularisée'"'"'); end if;' \
   '  if false then perform socle.refus('"'"'cette contestation est déjà régularisée'"'"'); end if;' \
   'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
@@ -15225,9 +15225,9 @@ prouver 'Paiements tait les contestations' 'serveur/console/routes.ts' \
   'contestations: [],' \
   'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
 prouver 'la ligne de la fiche tait sa contestation' 'web/console/src/ecrans/Fiche.tsx' \
-  'return c ? <span className={`c-sous c-bloc${c.close ? '"'"''"'"' : '"'"' c-ct-en-cours'"'"'}`}>{maj(contestationEnMots(c))}</span> : null;' \
+  'return c ? <span className={`c-sous c-bloc${c.close && !aNoter(c) ? '"'"''"'"' : '"'"' c-ct-en-cours'"'"'}`}>{maj(contestationEnMots(c))}</span> : null;' \
   'return null;' \
-  'une contestation (0129) : le support la note depuis la ligne de sa facture ; la direction la lit dans Paiements et la régularise par un avoir, avec sa référence'
+  'une contestation (0129) : le support la note depuis la ligne de sa facture ; la direction la lit dans Paiements ; un avoir qui n'"'"'existe pas est refusé ; un remboursement déclaré attend d'"'"'être noté'
 
 # 1.37.0 : les secrets et leur échéance (0130 ; la liste des fonctions qui manquent, 32).
 prouver 'une valeur écrite au registre' 'base/migrations/0137_audit_lot2a.sql' \
@@ -15288,21 +15288,21 @@ prouver 'deux sorties à la fois' 'base/migrations/0131_sortie.sql' \
   '  if exists (select 1 from plateforme.sortie where entreprise = p_entreprise and close_le is null) then' \
   '  if false then' \
   'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
-prouver 'il part alors que son abonnement se renouvelle' 'base/migrations/0131_sortie.sql' \
+prouver 'il part alors que son abonnement se renouvelle' 'base/migrations/0138_audit_lot2b.sql' \
   '    if not (v_contrat->>'"'"'arrete'"'"')::boolean or v_fin is null then' \
   '    if v_fin is null then' \
   'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
-prouver 'il part sans remboursement réglé' 'base/migrations/0131_sortie.sql' \
+prouver 'il part sans remboursement réglé' 'base/migrations/0138_audit_lot2b.sql' \
   '    if s.remboursement is null then
       perform socle.refus('"'"'le remboursement n'"'"''"'"'est pas réglé' \
   '    if false then
       perform socle.refus('"'"'le remboursement n'"'"''"'"'est pas réglé' \
   'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
-prouver 'un remboursement fait sans sa référence' 'base/migrations/0131_sortie.sql' \
+prouver 'un remboursement fait sans sa référence' 'base/migrations/0138_audit_lot2b.sql' \
   '  if p_remboursement = '"'"'fait'"'"' and v_ref is null then' \
   '  if false then' \
   'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
-prouver 'une sortie close qui bouge encore' 'base/migrations/0131_sortie.sql' \
+prouver 'une sortie close qui bouge encore' 'base/migrations/0138_audit_lot2b.sql' \
   '  if s.close_le is not null then perform socle.refus('"'"'cette sortie est close'"'"'); end if;
   update plateforme.sortie
      set remboursement' \
@@ -15313,11 +15313,12 @@ prouver 'la conservation de cinq ans' 'base/migrations/0131_sortie.sql' \
   'language sql immutable as $$ select interval '"'"'10 years'"'"' $$;' \
   'language sql immutable as $$ select interval '"'"'5 years'"'"' $$;' \
   'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
-prouver 'le journal tait le remboursement d'"'"'avant' 'base/migrations/0131_sortie.sql' \
-  '            case when s.remboursement is null then null else jsonb_build_object('"'"'remboursement'"'"', s.remboursement, '"'"'reference'"'"', s.remboursement_reference) end,' \
+prouver 'le journal tait le remboursement d'"'"'avant' 'base/migrations/0138_audit_lot2b.sql' \
+  '            case when s.remboursement is null then null else jsonb_build_object('"'"'remboursement'"'"', s.remboursement, '"'"'reference'"'"', s.remboursement_reference,
+              '"'"'montant'"'"', s.remboursement_montant::text, '"'"'le'"'"', s.remboursement_rendu_le) end,' \
   '            null,' \
   'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
-prouver 'ses données lues dans un autre geste' 'base/migrations/0131_sortie.sql' \
+prouver 'ses données lues dans un autre geste' 'base/migrations/0138_audit_lot2b.sql' \
   'from socle.audit a where a.entreprise = s.entreprise and a.geste = '"'"'socle.export_complet'"'"'' \
   'from socle.audit a where a.entreprise = s.entreprise' \
   'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
@@ -15329,7 +15330,7 @@ prouver 'un abonnement offert qui s'"'"'arrête' 'base/migrations/0131_sortie.sq
   '      '"'"'arrete'"'"', not a.offert and (a.resilie_le' \
   '      '"'"'arrete'"'"', (a.resilie_le' \
   'un téléchargement d'"'"'avant l'"'"'ouverture ne compte pas ; « il reste » clôt sans rien toucher ; un abonnement offert ne s'"'"'arrête pas'
-prouver '« il reste » qui exige le remboursement' 'base/migrations/0131_sortie.sql' \
+prouver '« il reste » qui exige le remboursement' 'base/migrations/0138_audit_lot2b.sql' \
   '  if p_issue = '"'"'partie'"'"' then
     if not' \
   '  if true then
@@ -15888,6 +15889,151 @@ prouver 'le contrôle du motif qui ne refuse rien' 'base/migrations/0137_audit_l
   '  if coalesce(p_motif, '"'"''"'"') ~ '"'"'[A-Za-z0-9+=_-]{32,}'"'"' then' \
   '  if false then' \
   'une clé collée dans le motif d'"'"'un des trois gestes : refusée, et rien n'"'"'est écrit, ni au registre ni au journal (A10)'
+
+# 1.46.0 : l'audit de la console 1.42.0, lot 2b (A04, A08).
+prouver 'un avoir inventé qui clôt la contestation' 'base/migrations/0138_audit_lot2b.sql' \
+  '    if a.id is null then
+      perform socle.refus('"'"'cet avoir n'"'"''"'"'est pas émis' \
+  '    if false then
+      perform socle.refus('"'"'cet avoir n'"'"''"'"'est pas émis' \
+  'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
+prouver 'le même avoir pour deux contestations' 'base/migrations/0138_audit_lot2b.sql' \
+  '    if exists (select 1 from plateforme.contestation x where x.avoir = a.id) then' \
+  '    if false then' \
+  'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
+prouver 'l'"'"'avoir nommé en minuscules refusé' 'base/migrations/0138_audit_lot2b.sql' \
+  'upper(x.numero_texte) = upper(v_ref)' \
+  'x.numero_texte = v_ref' \
+  'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
+prouver 'le montant de l'"'"'avoir oublié' 'base/migrations/0138_audit_lot2b.sql' \
+  '    v_montant := a.net_a_payer; v_ref := a.numero_texte;' \
+  '    v_ref := a.numero_texte;' \
+  'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
+prouver 'un avoir partiel qui se dit complet' 'serveur/console/contestations.ts' \
+  'partiel: net !== null && montant < net - timbre, rapproche: true }' \
+  'partiel: false, rapproche: true }' \
+  'la direction régularise par un avoir avec sa référence ; Paiements la liste ; « À décider » la nomme après une semaine, pas avant'
+prouver 'le remboursement sans montant' 'base/migrations/0138_audit_lot2b.sql' \
+  '    if p_montant is null or p_montant <= 0 then perform socle.refus('"'"'le montant remboursé : plus que zéro'"'"'); end if;
+    if p.id is not null and p_montant > p.net_a_payer' \
+  '    if p.id is not null and p_montant > p.net_a_payer' \
+  'un remboursement dit son montant et son jour ; déclaré, « À décider » le garde ; noté sur la facture dans SkanFact, il est rapproché (A04)'
+prouver 'un remboursement plus grand que la facture' 'base/migrations/0138_audit_lot2b.sql' \
+  '    if p.id is not null and p_montant > p.net_a_payer then perform socle.refus('"'"'un remboursement ne dépasse pas la facture'"'"'); end if;
+' \
+  '' \
+  'un remboursement dit son montant et son jour ; déclaré, « À décider » le garde ; noté sur la facture dans SkanFact, il est rapproché (A04)'
+prouver 'un remboursement daté de demain' 'base/migrations/0138_audit_lot2b.sql' \
+  '    if p_le is null or p_le > (p_maintenant at time zone '"'"'Africa/Tunis'"'"')::date then
+      perform socle.refus('"'"'le jour du remboursement : aujourd'"'"''"'"'hui ou avant'"'"');
+    end if;
+    v_montant := p_montant; v_le := p_le;' \
+  '    v_montant := p_montant; v_le := p_le;' \
+  'un remboursement dit son montant et son jour ; déclaré, « À décider » le garde ; noté sur la facture dans SkanFact, il est rapproché (A04)'
+prouver 'le montant illisible qui passe pour rien' 'serveur/console/routes.ts' \
+  '      if (corps.montant?.trim() && (montant === null || montant <= 0n)) return refusDuChamp('"'"'montant'"'"', '"'"'console.paiements.montant_illisible'"'"');
+      await transaction(tx).query('"'"'select plateforme.console_regulariser(' \
+  '      await transaction(tx).query('"'"'select plateforme.console_regulariser(' \
+  'un remboursement dit son montant et son jour ; déclaré, « À décider » le garde ; noté sur la facture dans SkanFact, il est rapproché (A04)'
+prouver 'le journal sans le montant' 'base/migrations/0138_audit_lot2b.sql' \
+  ''"'"'montant'"'"', v_montant::text, '"'"'le'"'"', v_le));' \
+  ''"'"'montant'"'"', null, '"'"'le'"'"', v_le));' \
+  'un remboursement dit son montant et son jour ; déclaré, « À décider » le garde ; noté sur la facture dans SkanFact, il est rapproché (A04)'
+prouver 'les remboursements notés comptés à l'"'"'envers' 'base/migrations/0138_audit_lot2b.sql' \
+  '  select coalesce(-sum(r.montant), 0)::bigint from ventes.reglement r' \
+  '  select coalesce(sum(r.montant), 0)::bigint from ventes.reglement r' \
+  'un remboursement dit son montant et son jour ; déclaré, « À décider » le garde ; noté sur la facture dans SkanFact, il est rapproché (A04)'
+prouver 'un paiement compté comme un remboursement' 'base/migrations/0138_audit_lot2b.sql' \
+  '   where r.piece = p_piece and r.montant < 0 and (p_depuis' \
+  '   where r.piece = p_piece and (p_depuis' \
+  'un remboursement dit son montant et son jour ; déclaré, « À décider » le garde ; noté sur la facture dans SkanFact, il est rapproché (A04)'
+prouver 'le remboursement rapproché sans être noté' 'serveur/console/contestations.ts' \
+  'partiel: net !== null && montant < net, rapproche: note !== null && note >= montant };' \
+  'partiel: net !== null && montant < net, rapproche: true };' \
+  'un remboursement dit son montant et son jour ; déclaré, « À décider » le garde ; noté sur la facture dans SkanFact, il est rapproché (A04)'
+prouver '« À décider » qui oublie le remboursement à noter' 'serveur/console/decider.ts' \
+  '    for (const c of aRapprocher(argent.contestees ?? [])) {' \
+  '    for (const c of aRapprocher([])) {' \
+  'un remboursement dit son montant et son jour ; déclaré, « À décider » le garde ; noté sur la facture dans SkanFact, il est rapproché (A04)'
+prouver 'le remboursement d'"'"'une sortie sans montant' 'base/migrations/0138_audit_lot2b.sql' \
+  '    if p_montant is null or p_montant <= 0 then perform socle.refus('"'"'le montant remboursé : plus que zéro'"'"'); end if;
+    if p_le is null or p_le > (p_maintenant' \
+  '    if p_le is null or p_le > (p_maintenant' \
+  'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
+prouver 'la sortie close sur un remboursement pas noté' 'base/migrations/0138_audit_lot2b.sql' \
+  '    if s.remboursement = '"'"'fait'"'"' and s.remboursement_montant is not null and plateforme.sortie_rembourse_note(s) < s.remboursement_montant then' \
+  '    if false then' \
+  'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
+prouver 'l'"'"'étape réglée sans rapprochement' 'serveur/console/sortie.ts' \
+  '    : s.remboursement !== null && s.remboursement.rapproche !== false;' \
+  '    : s.remboursement !== null;' \
+  'la direction seule l'"'"'ouvre, une à la fois ; elle dit ce qui reste ; « il est parti » attend le contrat arrêté et le remboursement'
+prouver 'l'"'"'avoir nommé par la sortie ignoré' 'base/migrations/0138_audit_lot2b.sql' \
+  '               where f.entreprise = s.entreprise and upper(a.numero_texte) = upper(s.remboursement_reference)), 0))::bigint' \
+  '               where false), 0))::bigint' \
+  'le remboursement d'"'"'une sortie se rapproche des règlements négatifs notés sur ses factures depuis son ouverture, ou de son avoir (A04)'
+prouver 'le refus d'"'"'avant qui reste affiché' 'web/console/src/ecrans/Contestations.tsx' \
+  'changer={(x) => { e.oublier(); setIssue(x); }}' \
+  'changer={(x) => { setIssue(x); }}' \
+  'une contestation (0129) : le support la note depuis la ligne de sa facture ; la direction la lit dans Paiements ; un avoir qui n'"'"'existe pas est refusé ; un remboursement déclaré attend d'"'"'être noté'
+prouver 'les cases du montant et du jour décalées' 'web/console/src/console.css' \
+  '.c-ct-rembourse { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: start; }' \
+  '.c-ct-rembourse { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }' \
+  'une contestation (0129) : le support la note depuis la ligne de sa facture ; la direction la lit dans Paiements ; un avoir qui n'"'"'existe pas est refusé ; un remboursement déclaré attend d'"'"'être noté'
+prouver 'le montant d'"'"'une contestation qui dit deux fois sa devise' 'web/console/src/ecrans/Contestations.tsx' \
+  'montant: montant(r.montant), jour:' \
+  'montant: `${montant(r.montant)}\u00a0DT`, jour:' \
+  'une contestation (0129) : le support la note depuis la ligne de sa facture ; la direction la lit dans Paiements ; un avoir qui n'"'"'existe pas est refusé ; un remboursement déclaré attend d'"'"'être noté'
+prouver 'le remboursement déclaré qui ne se distingue pas' 'web/console/src/ecrans/Paiements.tsx' \
+  'className={c.close && !aNoter(c) ? undefined : '"'"'c-ct-en-cours'"'"'}' \
+  'className={c.close ? undefined : '"'"'c-ct-en-cours'"'"'}' \
+  'une contestation (0129) : le support la note depuis la ligne de sa facture ; la direction la lit dans Paiements ; un avoir qui n'"'"'existe pas est refusé ; un remboursement déclaré attend d'"'"'être noté'
+prouver 'le montant d'"'"'une sortie qui dit deux fois sa devise' 'web/console/src/ecrans/Sortie.tsx' \
+  'montant: s.remboursement.montant ? montant(s.remboursement.montant) : '"'"''"'"',' \
+  'montant: s.remboursement.montant ? `${montant(s.remboursement.montant)}\u00a0DT` : '"'"''"'"',' \
+  'la sortie d'"'"'un client (0131) : la direction l'"'"'ouvre sur sa fiche ; la carte dit ce qui reste ; « Il est parti » attend le remboursement ; le support ne la voit pas'
+prouver '« à envoyer » pas écrit avant l'"'"'envoi' 'serveur/routes/socle.ts' \
+  '      await noterAEnvoyer(tx, sha256(jeton), maintenant());
+' \
+  '' \
+  '« à envoyer » est déjà écrit quand l'"'"'e-mail part : un arrêt entre les deux en laisse la trace (A08)'
+prouver '« à envoyer » refusé par la base' 'base/migrations/0138_audit_lot2b.sql' \
+  '  if p_etat not in ('"'"'a_envoyer'"'"', '"'"'parti'"'"', '"'"'refuse'"'"', '"'"'en_attente'"'"', '"'"'sans_relais'"'"') then perform socle.refus('"'"'cet état d'"'"''"'"'un e-mail' \
+  '  if p_etat not in ('"'"'parti'"'"', '"'"'refuse'"'"', '"'"'en_attente'"'"', '"'"'sans_relais'"'"') then perform socle.refus('"'"'cet état d'"'"''"'"'un e-mail' \
+  '« à envoyer » est déjà écrit quand l'"'"'e-mail part : un arrêt entre les deux en laisse la trace (A08)'
+prouver '« en attente » qui ne remplace plus « à envoyer »' 'base/migrations/0138_audit_lot2b.sql' \
+  '  update socle.invitation set courriel = p_etat, courriel_le = p_maintenant
+   where jeton_empreinte = p_empreinte
+     and (p_etat <> '"'"'en_attente'"'"' or courriel is null or courriel = '"'"'a_envoyer'"'"');' \
+  '  update socle.invitation set courriel = p_etat, courriel_le = p_maintenant
+   where jeton_empreinte = p_empreinte
+     and (p_etat <> '"'"'en_attente'"'"' or courriel is null);' \
+  'un relais lent : « en attente » sans attendre plus ; sa réponse tardive se note sur l'"'"'invitation'
+prouver 'un e-mail jamais « sans réponse »' 'serveur/invitation-courriel.ts' \
+  '  if ((courriel === '"'"'a_envoyer'"'"' || courriel === '"'"'en_attente'"'"') && (!Number.isFinite(instant) || maintenant.getTime() - instant > SANS_REPONSE_MS)) return '"'"'sans_reponse'"'"';
+' \
+  '' \
+  'resté « à envoyer » ou « en attente » plus de dix minutes : la liste de l'"'"'équipe dit « sans réponse » (A08)'
+prouver '« en attente » jamais « sans réponse »' 'serveur/invitation-courriel.ts' \
+  '(courriel === '"'"'a_envoyer'"'"' || courriel === '"'"'en_attente'"'"') && (' \
+  '(courriel === '"'"'a_envoyer'"'"') && (' \
+  'resté « à envoyer » ou « en attente » plus de dix minutes : la liste de l'"'"'équipe dit « sans réponse » (A08)'
+prouver 'sans date, « à envoyer » tenu pour récent' 'serveur/invitation-courriel.ts' \
+  '(!Number.isFinite(instant) || maintenant.getTime()' \
+  '(Number.isFinite(instant) && maintenant.getTime()' \
+  'resté « à envoyer » ou « en attente » plus de dix minutes : la liste de l'"'"'équipe dit « sans réponse » (A08)'
+prouver 'la liste de l'"'"'entreprise qui ne lit pas l'"'"'état vu' 'serveur/routes/socle.ts' \
+  'courriel: etatVu(i.courriel, i.courriel_le, maintenant()) })),' \
+  'courriel: i.courriel })),' \
+  'resté « à envoyer » ou « en attente » plus de dix minutes : la liste de l'"'"'équipe dit « sans réponse » (A08)'
+prouver 'la liste de la console qui ne lit pas l'"'"'état vu' 'serveur/console/routes.ts' \
+  '.map((i) => ({ ...i, courriel: etatVu(i.courriel, i.courrielLe, maintenant()) })),' \
+  '.map((i) => ({ ...i })),' \
+  'la direction invite : le lien une fois, puis l'"'"'invitation attend ; renvoyer donne un lien neuf, annuler l'"'"'éteint'
+prouver '« sans réponse » qui ne se voit pas' 'web/console/src/ecrans/Equipe.tsx' \
+  'i.courriel === '"'"'refuse'"'"' || i.courriel === '"'"'sans_reponse'"'"' ? '"'"' c-eq-secours-aucun'"'"'' \
+  'i.courriel === '"'"'refuse'"'"' ? '"'"' c-eq-secours-aucun'"'"'' \
+  'la direction invite : le lien une fois, puis l'"'"'invitation attend ; renvoyer donne un lien neuf, annuler l'"'"'éteint'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

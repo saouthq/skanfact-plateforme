@@ -546,6 +546,9 @@ export interface BaseDeDonnees {
     issue: string | null;
     reference: string | null;
     close_motif: string | null;
+    avoir: string | null;
+    montant: bigint | null;
+    rembourse_le: string | null;
   };
   'plateforme.courriel_trace': {
     le: Date;
@@ -1084,6 +1087,8 @@ export interface BaseDeDonnees {
     close_motif: string | null;
     fin_contrat: string | null;
     conserver_jusqu_au: string | null;
+    remboursement_montant: bigint | null;
+    remboursement_rendu_le: string | null;
   };
   'socle.abonnement_avis': {
     id: Generated<string>;

@@ -7,7 +7,7 @@ import { z } from 'zod';
 import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
 import { connecter, corrigerAdresse, deconnecter, demanderReinitialisation, envoyerCodeReinitialisation, essayerCode, inscrire, lireReinitialisation, mettreEnPlaceCode, reinitialiser, renvoyerCode, revoquerAppareil, validerCode, type Contexte } from '../connexion.ts';
-import { enMots, envoyerInvitation, lienApplication, roleDansLaPhrase } from '../invitation-courriel.ts';
+import { enMots, envoyerInvitation, etatVu, lienApplication, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { activerCode, activerSms, changerMotDePasse, confirmerChangementAdresse, confirmerVerificationAdresse, demanderChangementAdresse, demanderVerificationAdresse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, retirerCode, type Refuse } from '../compte.ts';
 import { numeroMasque } from '../sms.ts';
 import { prochainNumero } from '../numeros.ts';
@@ -386,13 +386,14 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
       if (!tx) throw new Error('transaction attendue');
       const membres = (await tx.query(`select m.id, m.utilisateur, u.nom, u.email, m.roles, m.actif from socle.membre m
         join socle.utilisateur u on u.id = m.utilisateur where m.entreprise = $1 and m.actif order by u.nom limit $2`, [params.entreprise, LIMITE_MAX])).rows;
-      const invitations = (await tx.query(`select id, email, roles, expire_le from socle.invitation
-        where entreprise = $1 and acceptee_le is null and annulee_le is null and expire_le > $2 order by cree_le limit $3`, [params.entreprise, maintenant(), LIMITE_MAX])).rows as { id: string; email: string; roles: string[]; expire_le: Date }[];
+      const invitations = (await tx.query(`select id, email, roles, expire_le, courriel, courriel_le from socle.invitation
+        where entreprise = $1 and acceptee_le is null and annulee_le is null and expire_le > $2 order by cree_le limit $3`, [params.entreprise, maintenant(), LIMITE_MAX])).rows as { id: string; email: string; roles: string[]; expire_le: Date; courriel: string | null; courriel_le: Date | null }[];
       const r = (await tx.query('select socle.moi() moi, socle.roles_donnables($1) donnables', [params.entreprise])).rows[0] as { moi: string; donnables: string[] };
       return {
         corps: {
           membres, moi: r.moi, donnables: r.donnables,
-          invitations: invitations.map((i) => ({ id: i.id, email: i.email, roles: i.roles, expire: i.expire_le.toISOString() })),
+          // Ce que son e-mail est devenu (0124 ; 0138 : « sans réponse » au-delà de dix minutes sans réponse du relais).
+          invitations: invitations.map((i) => ({ id: i.id, email: i.email, roles: i.roles, expire: i.expire_le.toISOString(), courriel: etatVu(i.courriel, i.courriel_le, maintenant()) })),
         },
       };
     },
@@ -414,6 +415,8 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
           (select raison_sociale from socle.entreprise where id = $1) ou`, [params.entreprise])).rows[0] as { qui: string | null; ou: string | null };
       // L'e-mail part une fois l'invitation écrite (0124, l'audit C07) ; la réponse dit ce qu'il est devenu.
       const invitation = { a: corps.email.toLowerCase(), qui: n.qui ?? '', ou: n.ou ?? '', role: corps.roles.map(roleDansLaPhrase).join(', '), lien: lienApplication(ctx, jeton), expire };
+      // « À envoyer », dans la transaction (0138, l'audit 1.42.0 A08) : un arrêt avant l'envoi en laisse la trace.
+      await noterAEnvoyer(tx, sha256(jeton), maintenant());
       return { statut: 201, corps: { id, jeton, expire }, apres: async () => enMots(await envoyerInvitation(ctx, invitation, sha256(jeton))) };
     },
   });

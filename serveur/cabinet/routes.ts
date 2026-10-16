@@ -16,7 +16,7 @@ import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
 import './textes.ts';
 import { Refus } from '../erreurs.ts';
-import { enMots, envoyerInvitation, lienApplication, roleDansLaPhrase } from '../invitation-courriel.ts';
+import { enMots, envoyerInvitation, etatVu, lienApplication, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { matriculeCanonique, refusDuMatricule } from '../matricule.ts';
 import { lireLivreV10, rapportDuLivre } from '../reprise/livre-v10.ts';
 import { lirePortefeuilleV10, PORTEFEUILLE_V10 } from '../reprise/cabinet-v10.ts';
@@ -470,12 +470,14 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       if (!membres.length) return introuvable;
       const affectations = (await tx.query(`select a.mandat, d.entreprise, a.membre, a.role from socle.mandat_affectation a
         join socle.mandat d on d.id = a.mandat where d.cabinet = $1 and d.statut = 'actif' order by d.entreprise, a.membre`, [cabinet])).rows;
-      const invitations = (await tx.query(`select id, email, roles, expire_le from socle.invitation
-        where organisation = $1 and acceptee_le is null and annulee_le is null and expire_le > now() order by cree_le`, [cabinet])).rows as { id: string; email: string; roles: string[]; expire_le: Date }[];
+      const invitations = (await tx.query(`select id, email, roles, expire_le, courriel, courriel_le from socle.invitation
+        where organisation = $1 and acceptee_le is null and annulee_le is null and expire_le > now() order by cree_le`, [cabinet])).rows as { id: string; email: string; roles: string[]; expire_le: Date; courriel: string | null; courriel_le: Date | null }[];
       return {
         corps: {
           membres, affectations,
-          invitations: invitations.map((i) => ({ id: i.id, email: i.email, role: i.roles[0], expire: i.expire_le.toISOString() })),
+          // Ce que son e-mail est devenu (0124 ; 0138 : « sans réponse » au-delà de dix minutes sans réponse du relais).
+          invitations: invitations.map((i) => ({ id: i.id, email: i.email, role: i.roles[0], expire: i.expire_le.toISOString(),
+            courriel: etatVu(i.courriel, i.courriel_le, (ctx.maintenant ?? (() => new Date()))()) })),
         },
       };
     },
@@ -666,6 +668,8 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           (select nom from socle.organisation where id = $1) ou`, [params.cabinet])).rows[0] as { qui: string | null; ou: string | null };
       // L'e-mail part une fois l'invitation écrite (0124, l'audit C07) ; la réponse dit ce qu'il est devenu.
       const invitation = { a: corps.email.toLowerCase(), qui: n.qui ?? '', ou: n.ou ?? '', role: roleDansLaPhrase(corps.role), lien: lienApplication(ctx, jeton), expire };
+      // « À envoyer », dans la transaction (0138, l'audit 1.42.0 A08) : un arrêt avant l'envoi en laisse la trace.
+      await noterAEnvoyer(tx, createHash('sha256').update(jeton).digest('hex'), (ctx.maintenant ?? (() => new Date()))());
       return { statut: 201, corps: { id, jeton, expire: expire.toISOString() },
         apres: async () => enMots(await envoyerInvitation(ctx, invitation, createHash('sha256').update(jeton).digest('hex'))) };
     },

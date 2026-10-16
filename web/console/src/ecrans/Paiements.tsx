@@ -11,7 +11,7 @@ import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts
 import { dans, deMois, jourCourt, jourDe, jourMois, moisEnMots, quand } from '../temps.ts';
 import { MoisNav, moisLu, moisVoisin } from '../mois.tsx';
 import { Alerte, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
-import { contestationEnMots, FenetreRegulariser, type Contestation } from './Contestations.tsx';
+import { aNoter, contestationEnMots, FenetreRegulariser, type Contestation } from './Contestations.tsx';
 
 type Qui = { id: string; nom: string };
 type Moyen = 'konnect' | 'virement' | 'cheque' | 'autre';
@@ -403,7 +403,7 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
                     <li key={c.id} className="c-pa-ligne">
                       <div className="c-pa-quoi">
                         <a href={`#/clients/${c.entreprise.id}?onglet=factures`}><b data-donnee>{c.entreprise.nom}</b></a>
-                        <span className="c-sous">{c.numero ?? '—'} · <span className={c.close ? undefined : 'c-ct-en-cours'}>{contestationEnMots(c)}</span></span>
+                        <span className="c-sous">{c.numero ?? '—'} · <span className={c.close && !aNoter(c) ? undefined : 'c-ct-en-cours'}>{contestationEnMots(c)}</span></span>
                         <span className="c-sous c-ct-dit-ligne" data-donnee>« {c.dit} »</span>
                       </div>
                       <div className="c-pa-action">

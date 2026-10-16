@@ -2,6 +2,7 @@
 // fonctions qui manquent, 8 et 33), pur. La base lit les faits (le contrat, la trace du téléchargement de ses données, le
 // remboursement, le terme de la conservation) ; ici, les étapes qui restent, la même règle pour la fiche et « À décider ».
 
+import { versTexte } from '../../moteur/argent.ts';
 import { joursEntre } from '../abonnement/etat.ts';
 
 export const CAUSES_SORTIE = ['prix', 'manque', 'fermeture', 'concurrent', 'autre'] as const;
@@ -10,7 +11,9 @@ export type Sortie = {
   id: string; cause: CauseSortie; dit: string; ouverteLe: string; ouvertePar: string | null;
   contrat: { arrete: boolean; fin: string | null; offert: boolean };
   export: { le: string; par: string | null } | null;
-  remboursement: { sorte: 'aucun' | 'fait'; reference: string | null; le: string; par: string | null } | null;
+  // 0138 (l'audit 1.42.0 A04) : rendu, son montant (en texte) et son jour, et s'il est rapproché (ce que SkanFact en a noté
+  // sur ses factures le couvre) ; vides pour un remboursement d'avant la 1.46.0, qui n'avait que sa référence.
+  remboursement: { sorte: 'aucun' | 'fait'; reference: string | null; le: string; par: string | null; montant: string | null; renduLe: string | null; rapproche: boolean | null } | null;
   conserverJusquAu: string | null;
   close: { le: string; issue: 'partie' | 'reste'; motif: string; par: string | null; finContrat: string | null } | null;
   entreprise?: { id: string; nom: string };
@@ -20,6 +23,17 @@ const texte = (v: unknown): string | null => (typeof v === 'string' && v.trim().
 const jour = (v: unknown): string | null => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null);
 const objet = (v: unknown): Record<string, unknown> | null => (v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null);
 
+const entier = (v: unknown): bigint | null => (typeof v === 'string' && /^\d+$/.test(v) ? BigInt(v) : null);
+// Ce qui a été rendu, et s'il est rapproché : sans montant lisible, ni l'un ni l'autre (jamais deviné). Ce que la base rend
+// (des millimes, et ce que SkanFact a noté), ou ce qu'une lecture a déjà mis en forme (« 120.500 », rapproché ou non).
+const deja = (v: unknown): string | null => (typeof v === 'string' && /^\d+\.\d{3}$/.test(v) ? v : null);
+function rendu(sorte: 'aucun' | 'fait', r: Record<string, unknown>): { montant: string | null; renduLe: string | null; rapproche: boolean | null } {
+  if (sorte !== 'fait') return { montant: null, renduLe: null, rapproche: null };
+  const lu = deja(r.montant);
+  if (lu) return { montant: lu, renduLe: jour(r.renduLe), rapproche: r.rapproche === true };
+  const montant = entier(r.montant), note = entier(r.note);
+  return { montant: montant === null ? null : versTexte(montant, 3), renduLe: jour(r.renduLe), rapproche: montant === null ? null : note !== null && note >= montant };
+}
 export function lireSortie(brut: unknown): Sortie | null {
   const x = objet(brut);
   if (!x) return null;
@@ -35,7 +49,7 @@ export function lireSortie(brut: unknown): Sortie | null {
     id, cause, dit, ouverteLe, ouvertePar: texte(x.ouvertePar),
     contrat: { arrete: c.arrete === true, fin: jour(c.fin), offert: c.offert === true },
     export: ex && exLe ? { le: exLe, par: texte(ex.par) } : null,
-    remboursement: r && rLe && rSorte ? { sorte: rSorte, reference: texte(r.reference), le: rLe, par: texte(r.par) } : null,
+    remboursement: r && rLe && rSorte ? { sorte: rSorte, reference: texte(r.reference), le: rLe, par: texte(r.par), ...rendu(rSorte, r) } : null,
     conserverJusquAu: jour(x.conserverJusquAu),
     close: cl && clLe && issue ? { le: clLe, issue, motif: texte(cl.motif) ?? '', par: texte(cl.par), finContrat: jour(cl.finContrat) } : null,
     ...(e && texte(e.id) && texte(e.nom) ? { entreprise: { id: e.id as string, nom: e.nom as string } } : {}),
@@ -54,7 +68,9 @@ export const donneesRemises = (s: Pick<Sortie, 'export' | 'ouverteLe'>): boolean
 export type Etape = 'contrat' | 'donnees' | 'remboursement';
 export const ETAPES: readonly Etape[] = ['contrat', 'donnees', 'remboursement'];
 export const etapeFaite = (s: Sortie, e: Etape): boolean =>
-  e === 'contrat' ? s.contrat.arrete && s.contrat.fin !== null : e === 'donnees' ? donneesRemises(s) : s.remboursement !== null;
+  e === 'contrat' ? s.contrat.arrete && s.contrat.fin !== null : e === 'donnees' ? donneesRemises(s)
+    // Un remboursement déclaré n'est réglé qu'une fois rapproché (0138) ; celui d'avant la 1.46.0 l'est par sa référence.
+    : s.remboursement !== null && s.remboursement.rapproche !== false;
 export const restantes = (s: Sortie): Etape[] => ETAPES.filter((e) => !etapeFaite(s, e));
 export const peutPartir = (s: Sortie): boolean => etapeFaite(s, 'contrat') && etapeFaite(s, 'remboursement');
 

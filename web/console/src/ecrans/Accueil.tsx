@@ -37,6 +37,8 @@ export type Ligne =
   | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: Qui; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   // 0129 : une facture contestée qui attend sa régularisation depuis une semaine.
   | { sorte: 'contestation'; ouvre: 'fiche'; entreprise: Qui; numero: string | null; ouverteLe: string; jours: number }
+  // 0138 : un remboursement déclaré que SkanFact n'a pas encore noté sur la facture.
+  | { sorte: 'remboursement_a_noter'; ouvre: 'paiements'; entreprise: Qui; numero: string | null; montant: string; le: string | null }
   // 0131 : la sortie d'un client dont le contrat a pris fin, et ce qui reste à faire.
   | { sorte: 'sortie'; ouvre: 'fiche'; entreprise: Qui; fin: string; jours: number; restantes: Etape[] };
 type RelancePartie = { entreprise: Qui; rang: 'j15' | 'j7' | 'j1' | 'lecture_seule'; partieLe: string };
@@ -165,6 +167,10 @@ function voir(l: Ligne, aujourdhui: string): Vue {
       return { icone: 'alerte', titre: titre('console.ecran.decider.contestation_titre', { nom: l.entreprise.nom }),
         desc: phrase('console.ecran.decider.contestation', { numero: l.numero ?? dire('console.ecran.decider.sans_numero'), le: jourCourt(l.ouverteLe), n: l.jours }),
         meta: null, urgence: 'a_regarder', href: `${fiche(l.entreprise)}?onglet=factures`, bouton: titre('console.ecran.decider.ouvrir_fiche') };
+    case 'remboursement_a_noter':
+      return { icone: 'echange', titre: titre('console.ecran.decider.remb_noter_titre', { nom: l.entreprise.nom, montant: montant(l.montant) }),
+        desc: phrase('console.ecran.decider.remb_noter', { numero: l.numero ?? dire('console.ecran.decider.sans_numero'), le: jourCourt(l.le) }),
+        meta: null, urgence: 'a_regarder', href: '#/paiements', bouton: titre('console.ecran.decider.ouvrir_paiements') };
     case 'trop_percu':
       return { icone: 'alerte', titre: titre('console.ecran.decider.trop_titre', { nom: l.entreprise.nom, montant: montant(l.trop) }),
         desc: phrase(l.annulee ? 'console.ecran.decider.trop_annulee' : 'console.ecran.decider.trop', { numero: l.numero ?? dire('console.ecran.decider.sans_numero') }),

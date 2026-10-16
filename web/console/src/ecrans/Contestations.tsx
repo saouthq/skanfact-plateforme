@@ -8,6 +8,7 @@ import { dire, phrase, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole } from '../contexte.ts';
 import { jourCourt, jourDe } from '../temps.ts';
 import { Alerte, Bouton, Champ, Dialogue, maj, Pilules, toast, Zone } from '../ui.tsx';
+import { montant } from '../argent.ts';
 
 export const CANAUX = ['telephone', 'courriel', 'whatsapp', 'support', 'autre'] as const;
 export type Canal = typeof CANAUX[number];
@@ -16,7 +17,10 @@ export type Issue = typeof ISSUES[number];
 export type Contestation = {
   id: string; facture: string; piece: string; numero: string | null; entreprise: { id: string; nom: string };
   canal: Canal; dit: string; ouverteLe: string; ouvertePar: string | null;
-  close: { le: string; issue: Issue; reference: string | null; motif: string; par: string | null } | null;
+  // `rapprochement` (0138, l'audit 1.42.0 A04) : le montant de l'avoir ou du remboursement, s'il couvre moins que la
+  // facture, et s'il est rapproché (un avoir l'est toujours ; un remboursement, quand SkanFact l'a noté sur la facture).
+  close: { le: string; issue: Issue; reference: string | null; motif: string; par: string | null;
+    rapprochement?: { montant: string; le: string | null; partiel: boolean; rapproche: boolean } | null } | null;
 };
 const K = 'console.ecran.contestation';
 
@@ -24,8 +28,16 @@ const K = 'console.ecran.contestation';
 export function contestationEnMots(c: Contestation): string {
   if (!c.close) return dire(`${K}.en_cours`, { le: jourCourt(jourDe(c.ouverteLe)), canal: dire(`${K}.canal.${c.canal}`) });
   // Une référence (« AV-2026-0001 ») ne se coupe pas à ses tirets : des tirets insécables.
-  return dire(`${K}.close.${c.close.issue}`, { le: jourCourt(jourDe(c.close.le)), reference: (c.close.reference ?? '').replaceAll('-', '\u2011') });
+  const valeurs = { le: jourCourt(jourDe(c.close.le)), reference: (c.close.reference ?? '').replaceAll('-', '\u2011') };
+  const r = c.close.rapprochement;
+  if (!r || (c.close.issue !== 'avoir' && c.close.issue !== 'remboursement')) return dire(`${K}.close.${c.close.issue}`, valeurs);
+  const plus = { ...valeurs, montant: montant(r.montant), jour: jourCourt(r.le), part: dire(`${K}.close.${r.partiel ? 'partiel' : 'complet'}`) };
+  return c.close.issue === 'avoir' ? dire(`${K}.close.avoir_montant`, plus)
+    : dire(r.rapproche ? `${K}.close.remboursement_note` : `${K}.close.remboursement_declare`, plus);
 }
+// Un remboursement déclaré que SkanFact n'a pas encore noté sur la facture : il attend (orange, comme une contestation
+// en cours).
+export const aNoter = (c: Contestation): boolean => c.close?.issue === 'remboursement' && c.close.rapprochement?.rapproche === false;
 
 function useEnvoi(fait: () => void) {
   const api = useApi();
@@ -45,7 +57,9 @@ function useEnvoi(fait: () => void) {
       } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
     })();
   };
-  return { envoyer, refuser, refus, occupe, faute: (champ: string) => faute?.champ === champ, n: faute?.n ?? 0 };
+  // un autre choix : le refus du précédent ne tient plus
+  const oublier = () => { setRefus(null); setFaute(null); };
+  return { envoyer, refuser, oublier, refus, occupe, faute: (champ: string) => faute?.champ === champ, n: faute?.n ?? 0 };
 }
 function Qui() {
   const { moi } = useConsole();
@@ -92,11 +106,18 @@ export function FenetreRegulariser({ c, fermer, fait }: { c: Contestation; ferme
   const [issue, setIssue] = useState<Issue>(permises[0]);
   const [reference, setReference] = useState('');
   const [motif, setMotif] = useState('');
+  // Un remboursement dit combien et quand (0138) : il est déclaré, puis rapproché quand SkanFact le note sur la facture.
+  const aujourdhui = jourDe(new Date().toISOString());
+  const [somme, setSomme] = useState('');
+  const [le, setLe] = useState(aujourdhui);
   const avecReference = issue === 'avoir' || issue === 'remboursement';
   const envoyer = () => {
     if (avecReference && !reference.trim()) { e.refuser(phrase(`${K}.reg.reference_vide.${issue}`), 'reference'); return; }
+    if (issue === 'remboursement' && !somme.trim()) { e.refuser(phrase(`${K}.reg.montant_vide`), 'montant'); return; }
+    if (issue === 'remboursement' && !le) { e.refuser(phrase(`${K}.reg.jour_vide`), 'le'); return; }
     if (motif.trim().length < 3) { e.refuser(phrase('console.ecran.geste.motif_court'), 'motif'); return; }
-    e.envoyer(`/console/contestations/${c.id}/regulariser`, { issue, reference: avecReference ? reference.trim() : null, motif: motif.trim() },
+    e.envoyer(`/console/contestations/${c.id}/regulariser`, { issue, reference: avecReference ? reference.trim() : null,
+      ...(issue === 'remboursement' ? { montant: somme.trim(), le } : {}), motif: motif.trim() },
       phrase(`${K}.reg.fait.${issue}`, { numero: c.numero ?? '—' }));
   };
   return (
@@ -107,7 +128,7 @@ export function FenetreRegulariser({ c, fermer, fait }: { c: Contestation; ferme
         <p data-donnee>{c.dit}</p>
       </div>
       {permises.length > 1 ? (
-        <Pilules libelle={titre(`${K}.reg.issue`)} valeur={issue} changer={setIssue} choix={permises.map((x) => ({ valeur: x, texte: maj(dire(`${K}.issue.${x}`)) }))} />
+        <Pilules libelle={titre(`${K}.reg.issue`)} valeur={issue} changer={(x) => { e.oublier(); setIssue(x); }} choix={permises.map((x) => ({ valeur: x, texte: maj(dire(`${K}.issue.${x}`)) }))} />
       ) : null}
       <div className="c-al-ce-qui-va">
         <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
@@ -120,6 +141,13 @@ export function FenetreRegulariser({ c, fermer, fait }: { c: Contestation; ferme
       {avecReference ? (
         <Champ libelle={titre(`${K}.reg.reference.${issue}`)} aide={phrase(`${K}.reg.reference_aide.${issue}`)} valeur={reference} changer={setReference}
           faute={e.faute('reference')} n={e.n} />
+      ) : null}
+      {issue === 'remboursement' ? (
+        <div className="c-ct-rembourse">
+          <Champ libelle={titre(`${K}.reg.montant`)} aide={phrase(`${K}.reg.montant_aide`)} valeur={somme} changer={setSomme} inputMode="decimal"
+            faute={e.faute('montant')} n={e.n} />
+          <Champ libelle={titre(`${K}.reg.jour`)} type="date" max={aujourdhui} valeur={le} changer={setLe} faute={e.faute('le')} n={e.n} />
+        </div>
       ) : null}
       <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
       <Qui />

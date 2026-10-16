@@ -105,6 +105,14 @@ describe('inviter quelqu\'un, à la souris', () => {
     // Ce que son e-mail est devenu (0124, l'audit C07) : ici, aucun, et la ligne le dit.
     expect(net(await ligne.locator('.c-sous').first().innerText())).toBe('invitation en attente · sans e-mail : le lien se transmet à la main');
     expect(net(await p.locator('.c-eq-regler').innerText())).toContain(`${email} n'a pas encore ouvert son invitation`);
+    // Restée « à envoyer » plus de dix minutes (le serveur arrêté entre l'invitation et l'envoi : 0138, l'audit 1.42.0 A08) :
+    // la ligne le dit, en rouge, avec le geste qui débloque.
+    await admin.query("update plateforme.invitation_console set courriel = 'a_envoyer', courriel_le = now() - interval '11 minutes' where email = $1 and annulee_le is null", [email]);
+    await p.reload();
+    await ligne.waitFor({ timeout: 20_000 });
+    const dit = ligne.locator('.c-sous').first();
+    expect(net(await dit.innerText())).toBe('invitation en attente · e-mail sans réponse du relais : renvoie-la (un nouveau lien remplace l\'ancien), ou transmets le lien');
+    expect(await dit.getAttribute('class')).toContain('c-eq-secours-aucun');
     // Renvoyer, depuis le menu de la ligne : un lien neuf ; l'ancien ne vaut plus.
     await cliquer(ligne.getByRole('button', { name: new RegExp(`invitation de ${email.replace(/[.+]/g, '\\$&')}`) }));
     await cliquer(p.locator('.c-menu-liste button', { hasText: 'Renvoyer l\'invitation' }));

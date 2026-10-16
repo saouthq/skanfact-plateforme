@@ -39,7 +39,10 @@ const leEtAHeure = (x: string) => `${jourCourt(jourDe(x))}, ${heureDe(x)}`;
 // Une invitation qui attend (0118, C41) : son lien vaut sept jours ; `expiree` : il ne vaut plus, à renvoyer.
 // `courriel` (0124, l'audit C07) : ce que son e-mail est devenu (rien : une invitation d'avant qu'on le note).
 type EtatCourriel = 'parti' | 'refuse' | 'en_attente' | 'sans_relais';
-type Invitation = { id: string; email: string; role: Role; inviteeLe: string; expireLe: string; expiree: boolean; invitePar: string; courriel?: EtatCourriel | null };
+// Ce que la liste en dit (0138, l'audit 1.42.0 A08) : noté dès l'invitation (« à envoyer »), et « sans réponse » quand le
+// relais n'a rien dit depuis dix minutes.
+type EtatVu = EtatCourriel | 'a_envoyer' | 'sans_reponse';
+type Invitation = { id: string; email: string; role: Role; inviteeLe: string; expireLe: string; expiree: boolean; invitePar: string; courriel?: EtatVu | null };
 type GesteInvitation = { sorte: 'inviter' } | { sorte: 'renvoyer'; i: Invitation } | { sorte: 'annuler'; i: Invitation };
 type Lien = { email: string; role: Role; jeton: string; expire: string; etat: EtatCourriel };
 
@@ -500,7 +503,7 @@ function LEquipe() {
                       <td>
                         <div className="c-cellule-nom">
                           <span className="c-eq-invite-icone" aria-hidden="true"><Icone nom="courriel" taille={16} /></span>
-                          <div><b data-donnee>{i.email}</b><span className={`c-sous${i.courriel === 'refuse' ? ' c-eq-secours-aucun' : ''}`}>{dire(i.courriel ? `console.ecran.equipe.inv.courriel.${i.courriel}` : 'console.ecran.equipe.inv.ligne')}</span></div>
+                          <div><b data-donnee>{i.email}</b><span className={`c-sous${i.courriel === 'refuse' || i.courriel === 'sans_reponse' ? ' c-eq-secours-aucun' : ''}`}>{dire(i.courriel ? `console.ecran.equipe.inv.courriel.${i.courriel}` : 'console.ecran.equipe.inv.ligne')}</span></div>
                         </div>
                       </td>
                       <td><Puce ton={i.role}>{titre(`console.ecran.role.${i.role}`)}</Puce></td>
