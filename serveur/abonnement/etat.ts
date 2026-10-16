@@ -130,6 +130,24 @@ export function lireAVenir(v: unknown): AVenir | null {
   return o && (o.offre === 'essentiel' || o.offre === 'complet') && (o.periodicite === 'annuel' || o.periodicite === 'mensuel') && estJour(o.le)
     ? { le: o.le, offre: o.offre, periodicite: o.periodicite, retraits: lireModules(o.retraits) } : null;
 }
+// Une période payée d'avance quand une autre attend déjà son premier jour (l'audit de la console 1.42.0, A01). Un seul
+// changement attend son jour : la nouvelle période, plus tardive, ne peut pas le reporter ni le remplacer.
+//   - « libre » : rien n'attend avant son premier jour ;
+//   - « deplacer » : ce qui attend ne change rien (la même offre, la même périodicité, aucun module qui part — une période
+//     de plus, payée dans l'offre qui court) : le changement de la nouvelle attend SON premier jour ;
+//   - « garder » : la nouvelle change exactement la même chose, et aucun module de plus ne part : rien ne bouge ;
+//   - « conflit » : deux changements différents à deux dates : refusé avant tout argent (la facture ne se prépare pas,
+//     le paiement ne se note pas) ; on paie la nouvelle dans l'offre qui attendra, ou une fois le premier jour passé.
+// La même règle que la base (plateforme.abonnement_paye_par_facture, 0136).
+export type SecondChangement = 'libre' | 'deplacer' | 'garder' | 'conflit';
+export function secondChangement(courant: { offre: Offre | null; periodicite: Periodicite | null }, aVenir: AVenir | null, modulesARetirer: readonly string[],
+  debut: string, voulue: { offre: Offre; periodicite: Periodicite }): SecondChangement {
+  if (!aVenir || aVenir.le >= debut) return 'libre';
+  const change = aVenir.offre !== courant.offre || aVenir.periodicite !== courant.periodicite || aVenir.retraits.length > 0;
+  if (!change) return 'deplacer';
+  return voulue.offre === aVenir.offre && voulue.periodicite === aVenir.periodicite && modulesARetirer.length === 0 ? 'garder' : 'conflit';
+}
+
 // L'offre et la périodicité d'une période qui commence tel jour : celle choisie pour la prochaine échéance (0111) si elle
 // vaut ce jour-là, sinon celle de la période payée d'avance (0121) si elle a commencé, sinon celle qui court.
 export function offreAu(f: Faits, debut: string): { offre: Offre | null; periodicite: Periodicite | null } {

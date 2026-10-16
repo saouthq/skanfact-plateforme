@@ -140,6 +140,30 @@ describe('ton compte, dans la console (0117)', () => {
     } finally { await a.close(); await seule.end(); }
   }, 30_000);
 
+  it('l\'audit 1.42.0, A02 : le code et les codes de secours tiennent aussi dans la transaction de la route — avec une seule connexion, ils aboutissent', async () => {
+    const m = await membre('Hedi', 'support');
+    const seule = creerPool(inject('pgApp'), 1);
+    const c = { ...ctx, pool: seule };
+    const a = creerApp(c, routesConsole(c, { veille: null }));
+    await a.ready();
+    try {
+      const poster = (url: string, payload: Record<string, unknown>) => Promise.race([
+        a.inject({ method: 'POST', url: `${VERSION}${url}`, headers: { authorization: `Bearer ${m.console}` }, payload }),
+        new Promise<never>((_, non) => { setTimeout(() => non(new Error(`bloqué sur ${url} : une seconde connexion attendue pendant que la route tient la sienne`)), 10_000); })]);
+      // Un code faux : refusé, et l'erreur se compte quand même (la transaction de la route s'achève sur le refus).
+      expect((await poster('/console/moi/codes-secours', { code: '000000' })).statusCode).toBe(400);
+      expect((await admin.query('select erreurs from socle.tentative where cle = $1', [m.email])).rows[0]?.erreurs).toBeGreaterThan(0);
+      const codes = await poster('/console/moi/codes-secours', { code: totp(m.secret) });
+      expect(codes.statusCode).toBe(200);
+      expect((codes.json() as { codesDeSecours: string[] }).codesDeSecours).toHaveLength(10);
+      const prep = await poster('/console/moi/code/preparer', { code: totp(m.secret) });
+      expect(prep.statusCode).toBe(200);
+      const cle = String((prep.json() as { cle: string }).cle);
+      expect((await poster('/console/moi/code/activer', { code: totp(cle) })).statusCode).toBe(200);
+      expect((await auJournal(m.utilisateur)).map((g) => g.geste)).toEqual(['equipe.mes_codes_secours', 'equipe.mon_code']);
+    } finally { await a.close(); await seule.end(); }
+  }, 30_000);
+
   it('changer de code pour une application : le code actuel prouvé ; préparé, rien ne change ; un code faux ne l\'active pas ; juste, l\'ancien s\'arrête', async () => {
     const m = await membre('Nour', 'technique');
     const sans = await appeler('POST', '/console/moi/code/preparer', m.console, {});

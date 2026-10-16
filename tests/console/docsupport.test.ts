@@ -6,6 +6,7 @@
 //     validée par la direction ; la reprendre la renvoie à valider ; la direction seule valide et retire (avec son
 //     motif) ; un titre ne sert qu'une fois par sorte ; chaque geste au journal.
 
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -79,6 +80,9 @@ const journal = async (qui: string[], prefixe: string) => (await admin.query(
   'select geste, motif, avant, apres from plateforme.geste_console where qui = any($1::uuid[]) and geste like $2 order by le, id', [qui, `${prefixe}%`])).rows as
   { geste: string; motif: string; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null }[];
 
+// L'instant de la version d'une fiche, telle que la console la lit (l'audit 1.42.0, A03) : on le rend à la validation.
+const lue = async (id: string) => ((await appeler('GET', '/console/support/documentation', direction.jeton)).corps.fiches as { id: string; ecriteLe: string }[]).find((f) => f.id === id)?.ecriteLe ?? null;
+
 let direction: Awaited<ReturnType<typeof membre>>;
 let support: Awaited<ReturnType<typeof membre>>;
 let technique: Awaited<ReturnType<typeof membre>>;
@@ -133,12 +137,12 @@ describe('la documentation du support, par l\'API (0133)', () => {
     expect(double.statut).toBe(403);
     expect(await offertes()).toEqual([]);
     // Le support ne valide pas ; la direction, si.
-    expect((await appeler('POST', `/console/support/documentation/${id}/valider`, support.jeton, {})).statut).toBe(403);
-    expect((await appeler('POST', `/console/support/documentation/${id}/valider`, direction.jeton, {})).statut).toBe(200);
-    expect((await appeler('POST', `/console/support/documentation/${id}/valider`, direction.jeton, {})).statut).toBe(403);
+    expect((await appeler('POST', `/console/support/documentation/${id}/valider`, support.jeton, { lue: await lue(id) })).statut).toBe(403);
+    expect((await appeler('POST', `/console/support/documentation/${id}/valider`, direction.jeton, { lue: await lue(id) })).statut).toBe(200);
+    expect((await appeler('POST', `/console/support/documentation/${id}/valider`, direction.jeton, { lue: await lue(id) })).statut).toBe(403);
     expect((await offertes()).map((f) => f.texte)).toEqual(['Bonjour {prenom}, voici comment faire.']);
     // La reprendre la renvoie à valider : elle ne s'offre plus.
-    expect((await appeler('POST', '/console/support/documentation', support.jeton, { id, sorte: 'reponse', titre, texte: 'Bonjour {prenom}, voici comment faire, pas à pas.' })).statut).toBe(200);
+    expect((await appeler('POST', '/console/support/documentation', support.jeton, { id, sorte: 'reponse', titre, texte: 'Bonjour {prenom}, voici comment faire, pas à pas.', lue: await lue(id) })).statut).toBe(200);
     expect(await offertes()).toEqual([]);
     const fiche = ((await appeler('GET', '/console/support/documentation', support.jeton)).corps.fiches as { id: string; validee: unknown }[]).find((f) => f.id === id);
     expect(fiche?.validee).toBeNull();
@@ -154,11 +158,36 @@ describe('la documentation du support, par l\'API (0133)', () => {
     expect(j[3]?.motif).toBe('la page a changé');
   });
 
+  it('l\'audit 1.42.0, A03 : la validation et la reprise portent sur la version lue ; reprise entre-temps, rien n\'est validé ni écrasé', async () => {
+    const titre = `Facture en double ${Math.random().toString(36).slice(2, 7)}`;
+    const id = String((await appeler('POST', '/console/support/documentation', support.jeton, { id: null, sorte: 'reponse', titre, texte: 'Bonjour {prenom}, texte A relu par la direction.' })).corps.id);
+    // La direction ouvre le texte A ; le support le reprend en B ; la direction valide depuis sa fenêtre restée sur A.
+    const versionA = await lue(id);
+    expect((await appeler('POST', '/console/support/documentation', support.jeton, { id, sorte: 'reponse', titre, texte: 'Bonjour {prenom}, texte B que personne n\'a relu.', lue: versionA })).statut).toBe(200);
+    const perime = await appeler('POST', `/console/support/documentation/${id}/valider`, direction.jeton, { lue: versionA });
+    expect([perime.statut, perime.corps.motif]).toEqual([403, 'Cette fiche a été reprise depuis que tu l\'as lue : relis-la avant de la valider (rien n\'est validé).']);
+    expect(((await appeler('GET', '/console/support/documentation', direction.jeton)).corps.fiches as { id: string; validee: unknown }[]).find((f) => f.id === id)?.validee).toBeNull();
+    // Une seconde reprise depuis la version A (une autre fenêtre) n'écrase pas B.
+    const ecrase = await appeler('POST', '/console/support/documentation', direction.jeton, { id, sorte: 'reponse', titre, texte: 'Bonjour {prenom}, texte C écrit sur A.', lue: versionA });
+    expect([ecrase.statut, ecrase.corps.motif]).toEqual([403, 'Cette fiche a été reprise depuis que tu l\'as ouverte : relis-la, puis refais ta reprise (rien n\'est écrit).']);
+    // Relue (B), elle se valide ; le texte validé est gardé, et le journal en garde l'empreinte.
+    expect((await appeler('POST', `/console/support/documentation/${id}/valider`, direction.jeton, { lue: await lue(id) })).statut).toBe(200);
+    expect((await admin.query('select texte from plateforme.doc_support_validee where doc = $1', [id])).rows).toEqual([{ texte: 'Bonjour {prenom}, texte B que personne n\'a relu.' }]);
+    const j = (await journal([direction.id], 'support.doc_validee')).filter((x) => JSON.stringify(x).includes(titre));
+    expect(j.map((x) => (x.apres as { empreinte?: string } | null)?.empreinte)).toEqual([createHash('sha256').update('Bonjour {prenom}, texte B que personne n\'a relu.', 'utf8').digest('hex')]);
+    // Sans la version lue : la route refuse.
+    expect((await appeler('POST', `/console/support/documentation/${id}/valider`, direction.jeton, {})).statut).toBe(400);
+  });
+
   it('une procédure garde sa sorte ; une fiche retirée ne se reprend plus', async () => {
     const titre = `Compte bloqué ${Math.random().toString(36).slice(2, 7)}`;
     const id = String((await appeler('POST', '/console/support/documentation', support.jeton, { id: null, sorte: 'procedure', titre, texte: '1. Vérifier son adresse. 2. Lui renvoyer le lien.' })).corps.id);
-    expect((await appeler('POST', '/console/support/documentation', support.jeton, { id, sorte: 'reponse', titre, texte: '1. Vérifier son adresse. 2. Lui renvoyer le lien.' })).statut).toBe(403);
+    expect((await appeler('POST', '/console/support/documentation', support.jeton, { id, sorte: 'reponse', titre, texte: '1. Vérifier son adresse. 2. Lui renvoyer le lien.', lue: await lue(id) })).statut).toBe(403);
+    // La version lue avant le retrait : c'est le retrait qui refuse, pas une version oubliée.
+    const avant = await lue(id);
     await appeler('POST', `/console/support/documentation/${id}/retirer`, direction.jeton, { motif: 'doublon' });
-    expect((await appeler('POST', '/console/support/documentation', support.jeton, { id, sorte: 'procedure', titre, texte: 'Une nouvelle version du texte.' })).statut).toBe(403);
+    const r = await appeler('POST', '/console/support/documentation', support.jeton, { id, sorte: 'procedure', titre, texte: 'Une nouvelle version du texte.', lue: avant });
+    expect(r.statut).toBe(403);
+    expect(String(r.corps.motif)).toMatch(/a été retirée/);
   });
 });

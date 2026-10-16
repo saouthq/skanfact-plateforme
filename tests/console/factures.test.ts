@@ -265,7 +265,7 @@ describe('l\'argent juste (0113)', () => {
     objets = await dossier(editeur, direction.appli);
     const d = objets.find((o) => o.collection === 'documents' && o.cle === cle);
     const r = await appeler('POST', `/entreprises/${editeur}/dossier-v10`, direction.appli,
-      { changements: [{ collection: 'documents', cle, rang: d?.rang ?? null, revision: d?.revision, contenu: { ...d?.contenu, payments: [{ id: `p-${ent}`, date: jour, amount: { '~n': net }, method: 'virement' }] } }] });
+      { changements: [{ collection: 'documents', cle, rang: d?.rang ?? null, revision: d?.revision, contenu: { ...d?.contenu, payments: [{ id: `p-${ent}-${debut}`, date: jour, amount: { '~n': net }, method: 'virement' }] } }] });
     expect(r.statut, JSON.stringify(r.corps)).toBe(200);
     return { cle, client, contenu: d?.contenu };
   }
@@ -404,6 +404,48 @@ describe('l\'argent juste (0113)', () => {
     await admin.query('select plateforme.basculer_abonnements($1::date) n', [debut]);
     expect(await ligne(b.id)).toMatchObject({ modules: [], a_venir_le: null, a_venir_offre: null, a_venir_retraits: [] });
     expect((await admin.query(`select count(*)::int n from plateforme.evenement_abonnement where entreprise = $1 and nature = 'periode_commencee'`, [b.id])).rows[0]?.n).toBe(1);
+  });
+
+  it('deux périodes payées d\'avance (l\'audit 1.42.0, A01) : un second changement ne se prépare pas ; arrivé quand même, le premier attend seul', async () => {
+    const b = await abonnee('Quincaillerie Deux Avances', 2);
+    // Complet au mois, payé jusqu'au J+2 ; le mois qui vient, payé d'avance en Essentiel : Essentiel attend le J+3.
+    const fin = plusJours(jour, 2);
+    await admin.query(`update plateforme.abonnement set essai_jusqu_au = $2::date - 40, paye_jusqu_au = $2, offre = 'complet', periodicite = 'mensuel' where entreprise = $1`, [b.id, fin]);
+    const debut = plusJours(fin, 1);
+    expect((await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'essentiel', periodicite: 'mensuel', motif: 'Le mois qui vient' })).statut).toBe(201);
+    await emettreEtRegler(b.id, debut, '47.410');
+    const suivant = plusMois(debut, 1);
+    expect(await ligne(b.id)).toMatchObject({ offre: 'complet', paye_jusqu_au: plusJours(suivant, -1), a_venir_le: debut, a_venir_offre: 'essentiel' });
+    // Le mois d'après en Complet : un second changement, à une autre date — la facture ne se prépare pas.
+    const refus = await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'complet', periodicite: 'mensuel', motif: 'Le mois d\'après' });
+    expect([refus.statut, refus.corps.motif]).toEqual([403, expect.stringMatching(/^Une période déjà payée attend son premier jour, le .*, en Essentiel/)]);
+    expect((await admin.query('select count(*)::int n from plateforme.facture_abonnement where entreprise = $1', [b.id])).rows[0]?.n).toBe(1);
+    // En Essentiel, elle se prépare : le même changement, qui garde son jour.
+    expect((await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'essentiel', periodicite: 'mensuel', motif: 'Le mois d\'après' })).statut).toBe(201);
+    // Ce qui attend change entre la préparation et le règlement (deux personnes, deux gestes) : réglée quand même, la
+    // facture paie sa période ; le premier changement attend seul, à son jour, et l'histoire dit qu'il reste à régler.
+    await admin.query(`update plateforme.abonnement set a_venir_offre = 'complet', a_venir_periodicite = 'annuel' where entreprise = $1`, [b.id]);
+    await emettreEtRegler(b.id, suivant, '47.410');
+    expect(await ligne(b.id)).toMatchObject({ paye_jusqu_au: plusJours(plusMois(suivant, 1), -1), a_venir_le: debut, a_venir_offre: 'complet', a_venir_periodicite: 'annuel' });
+    const dernier = (await admin.query(`select apres from plateforme.evenement_abonnement where entreprise = $1 and nature = 'paye' order by le desc, id desc limit 1`, [b.id])).rows[0]?.apres;
+    expect(dernier).toMatchObject({ aRegler: 'deux_changements', offrePayee: 'essentiel', periodicitePayee: 'mensuel' });
+  });
+
+  it('une période payée d\'avance qui ne change rien, puis une autre qui change l\'offre, par leurs factures : le changement attend le jour de la seconde (l\'audit 1.42.0, A01)', async () => {
+    const b = await abonnee('Boulangerie Deux Mois', 2);
+    const fin = plusJours(jour, 2);
+    await admin.query(`update plateforme.abonnement set essai_jusqu_au = $2::date - 40, paye_jusqu_au = $2, offre = 'essentiel', periodicite = 'mensuel' where entreprise = $1`, [b.id, fin]);
+    const debut = plusJours(fin, 1);
+    expect((await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'essentiel', periodicite: 'mensuel', motif: 'Le mois qui vient' })).statut).toBe(201);
+    await emettreEtRegler(b.id, debut, '47.410');
+    const suivant = plusMois(debut, 1);
+    // Le mois d'après en Complet, par sa facture : son net, celui que la facture dira (le hors-taxes, la TVA à 19 %, le timbre).
+    const apercu = (await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'complet', periodicite: 'mensuel', motif: '', apercu: true })).corps.facture as { montantHt: string };
+    const net = ((Math.round(Number(apercu.montantHt) * 1000 * 1.19) + 1000) / 1000).toFixed(3);
+    expect((await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'complet', periodicite: 'mensuel', motif: 'Le mois d\'après' })).statut).toBe(201);
+    await emettreEtRegler(b.id, suivant, net);
+    // Le mois qui vient reste en Essentiel : Complet attend SON premier jour, jamais celui d'avant.
+    expect(await ligne(b.id)).toMatchObject({ offre: 'essentiel', a_venir_le: suivant, a_venir_offre: 'complet', a_venir_periodicite: 'mensuel' });
   });
 
   it('un paiement reçu ailleurs pour la période qui vient : l\'offre payée attend son jour ; la même facture ne paie pas deux fois', async () => {

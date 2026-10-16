@@ -65,6 +65,9 @@ declarerTextes({
   'abonnement.facture.sans_prix': 'aucun prix du jour pour cette offre et cette périodicité : la grille se règle dans les Réglages de la console',
   'abonnement.facture.deja_emise': 'la facture de cette période est déjà émise ({numero}) : elle ne se refait pas',
   'abonnement.facture.deja_preparee': 'la facture de cette période est déjà préparée : elle attend son émission dans SkanFact (pour la refaire, supprime d\'abord son brouillon)',
+  // Deux périodes payées d'avance (l'audit de la console 1.42.0, A01) : un seul changement attend son jour.
+  'abonnement.facture.deux_changements': 'une période déjà payée attend son premier jour, le {le}, en {offre} : une facture d\'une autre offre (ou d\'une autre durée) se prépare une fois ce jour passé, ou dans la même offre',
+  'abonnement.geste.deux_changements': 'une période déjà payée attend son premier jour, le {le}, en {offre} : un paiement d\'une autre offre (ou d\'une autre durée) se note une fois ce jour passé, ou dans la même offre',
   // Ce que la facture d'un abonnement écrit (en français : sa langue).
   'abonnement.facture.objet': 'Abonnement SkanFact du {du} au {au}',
   'abonnement.facture.ligne': 'SkanFact {offre} — abonnement {periodicite}',

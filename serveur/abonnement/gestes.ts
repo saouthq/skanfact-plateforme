@@ -6,7 +6,7 @@
 
 import { t } from '../../textes/index.ts';
 import { Refus } from '../erreurs.ts';
-import { echeanceDe, etatAbonnement, jourEnFrancais, plusJours, prochainePeriode, type Faits, type ModuleAchete, type Offre, type Periodicite } from './etat.ts';
+import { echeanceDe, etatAbonnement, jourEnFrancais, plusJours, prochainePeriode, secondChangement, type Faits, type ModuleAchete, type Offre, type Periodicite } from './etat.ts';
 import './textes.ts';
 
 export type GesteAbonnement = 'prolonger' | 'payer' | 'resilier' | 'annuler-resiliation' | 'suspendre' | 'reprendre' | 'offrir' | 'retirer-offert'
@@ -80,9 +80,15 @@ export function calculerGeste(ligne: LigneAbonnement | null, faits: Faits, d: De
         // Payée avant son premier jour (0121, l'audit C01) : la période payée qui court va au bout avec ce qu'elle avait ;
         // l'offre payée et les modules qui partent attendent le premier jour de la nouvelle. La même règle que la base
         // (plateforme.abonnement_paye_par_facture). Un premier paiement pendant l'essai n'a rien de payé à protéger : il
-        // s'applique tout de suite.
+        // s'applique tout de suite. Une autre période attend déjà (l'audit 1.42.0, A01) : secondChangement décide.
+        const attend = avant.a_venir_le && avant.a_venir_offre && avant.a_venir_periodicite
+          ? { le: avant.a_venir_le, offre: avant.a_venir_offre, periodicite: avant.a_venir_periodicite, retraits: avant.a_venir_retraits ?? [] } : null;
+        const second = secondChangement({ offre: avant.offre, periodicite: avant.periodicite }, attend, avant.modules_a_retirer ?? [], p.debut, { offre: d.offre, periodicite: d.periodicite });
+        if (second === 'conflit' && attend) {
+          throw new Refus('abonnement.geste.deux_changements', { valeurs: { le: jourEnFrancais(attend.le), offre: t(`abonnement.facture.offre.${attend.offre}`) } });
+        }
         Object.assign(apres, { paye_jusqu_au: p.fin, resilie_le: null, ...(offert ? { mois_offerts: 0 } : {}),
-          a_venir_le: avant.a_venir_le && avant.a_venir_le < p.debut ? avant.a_venir_le : p.debut, a_venir_offre: d.offre, a_venir_periodicite: d.periodicite,
+          a_venir_le: second === 'garder' && attend ? attend.le : p.debut, a_venir_offre: d.offre, a_venir_periodicite: d.periodicite,
           a_venir_retraits: [...new Set([...(avant.a_venir_retraits ?? []), ...(avant.modules_a_retirer ?? [])])].sort(), modules_a_retirer: [] });
         if (apres.suivante_a_partir_du && p.debut >= apres.suivante_a_partir_du) Object.assign(apres, { suivante_offre: null, suivante_periodicite: null, suivante_a_partir_du: null });
         details.aVenir = true;

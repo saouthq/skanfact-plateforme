@@ -373,4 +373,19 @@ describe('l\'attente et la réponse, honnêtes (0124)', () => {
     expect(equipe).toEqual([{ texte: 'Bonjour, ajoute-le dans Ton entreprise.' }, { texte: 'Et vérifie sa taille.' }]);
     expect((await journal(ent)).filter((g) => g.geste === 'support.repondre')).toHaveLength(2);
   });
+
+  it('l\'audit 1.42.0, A07 : la même commande avec un autre texte est refusée (409, la commande) ; rien ne s\'écrit, la première reste seule', async () => {
+    const { ent, p } = await entreprise('Imprimerie Modifiée');
+    const id = (await ecrire(ent, p, { sujet: 'Le cachet ne s\'imprime pas', texte: 'Mon cachet manque sur le devis.', page: 'ventes' })).corps.id;
+    const commande = '0192f3a4-0000-7000-8000-00000000a007';
+    const repondre = (texte: string, article: string | null = null) => appeler('POST', `/console/support/demandes/${id}/repondre`, support.jeton, { texte, article, commande });
+    expect((await repondre('Bonjour, ajoute-le dans Ton entreprise.')).statut).toBe(201);
+    const autre = await repondre('Bonjour, ajoute-le dans Ton entreprise, onglet Documents.');
+    expect([autre.statut, autre.corps.champ, autre.corps.motif]).toEqual([409, 'commande', 'Cette réponse est déjà partie avec un autre texte : relis la conversation, ta modification n\'est pas envoyée.']);
+    // Le même texte avec un autre article joint : autre chose aussi.
+    expect((await repondre('Bonjour, ajoute-le dans Ton entreprise.', 'fiscal')).statut).toBe(409);
+    // Le même texte, le même article : rendu tel quel, comme avant.
+    expect((await repondre('Bonjour, ajoute-le dans Ton entreprise.')).statut).toBe(201);
+    expect((await admin.query(`select texte from plateforme.message_support where demande = $1 and cote = 'equipe'`, [id])).rows).toEqual([{ texte: 'Bonjour, ajoute-le dans Ton entreprise.' }]);
+  });
 });

@@ -9438,9 +9438,9 @@ prouver "les codes de secours de la première préparation gardés" $C76 \
   "code_secours_attente = p_empreintes_secours," "code_secours_attente = coalesce(code_secours_attente, p_empreintes_secours)," \
   "$AC2"
 prouver "changer de téléphone sans prouver l'actuel" $CO \
-  "  if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
-  await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.effacer_erreurs(\$1)', [email]));
-  return { email };" "  await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.effacer_erreurs(\$1)', [email]));
+  "  if (!await monCodeEstBon(ctx, qui, code, dansLa)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' }, dansLa);
+  await dans(ctx, dansLa, null, (tx) => tx.query('select socle.effacer_erreurs(\$1)', [email]));
+  return { email };" "  await dans(ctx, dansLa, null, (tx) => tx.query('select socle.effacer_erreurs(\$1)', [email]));
   return { email };" \
   "$AC3"
 prouver "changer de téléphone sans même un code" $CO \
@@ -9515,7 +9515,7 @@ prouver "la preuve par SMS qui sert deux fois" $C81 \
    where id = socle.moi() and code_methode = 'sms'" \
   "$SMS4"
 prouver "changer de numéro sans prouver l'actuel" $CO \
-  "  const preuve = await prouverCodeActuel(ctx, qui, code);
+  "  const preuve = await prouverCodeActuel(ctx, qui, code, dansLa);
   if ('ok' in preuve) return preuve;
   const nouveau = codeSix();" "  const nouveau = codeSix();" \
   "$SMS4"
@@ -12600,7 +12600,7 @@ prouver 'un champ de plus accepté avec la demande' serveur/support/routes.ts \
     }).strict(),' 'regex(/^([a-z][a-z0-9_-]*)?$/).nullable().default(null),
     }),' \
   "$SUP2"
-prouver 'la réponse qui part sans son article' base/migrations/0124_support_honnete.sql \
+prouver 'la réponse qui part sans son article' base/migrations/0136_audit_lot1.sql \
   '    values (p_demande, '"'"'equipe'"'"', socle.moi(), v_texte, p_article, p_maintenant, p_commande)' '    values (p_demande, '"'"'equipe'"'"', socle.moi(), v_texte, null, p_maintenant, p_commande)' \
   "$SUP3"
 prouver 'une réponse lue qui attend encore' base/migrations/0095_support.sql \
@@ -12611,7 +12611,7 @@ prouver 'une demande close qui ne se rouvre pas quand la personne réécrit' bas
          lu_le' 'set
          lu_le' \
   "$SUP3"
-prouver 'l'"'"'équipe qui répond à une demande close' base/migrations/0124_support_honnete.sql \
+prouver 'l'"'"'équipe qui répond à une demande close' base/migrations/0136_audit_lot1.sql \
   '  if v.close_le is not null then perform socle.refus('"'"'cette demande est close : rouvre-la pour y répondre'"'"'); end if;
 ' '' \
   "$SUP3"
@@ -12912,17 +12912,17 @@ prouver 'la préparation d'"'"'une facture au journal en « période payée »' 
 prouver 'une facture préparée deux fois pour la même période' 'serveur/abonnement/factures.ts' \
   '  if (deja) {' '  if (false && deja) {' \
   "$NF2"
-prouver 'une facture réglée en partie qui paie l'"'"'abonnement' 'base/migrations/0121_droits_a_leur_date.sql' \
+prouver 'une facture réglée en partie qui paie l'"'"'abonnement' 'base/migrations/0136_audit_lot1.sql' \
   '  if v_p.net_a_payer <= 0 or v_avoirs >= v_p.net_a_payer or v_p.net_a_payer - v_avoirs - v_reglements > 0 then return null; end if;' '  if v_p.net_a_payer <= 0 or v_avoirs >= v_p.net_a_payer then return null; end if;' \
   "$NF3"
-prouver 'une facture que son avoir annule et qui paie l'"'"'abonnement' 'base/migrations/0121_droits_a_leur_date.sql' \
+prouver 'une facture que son avoir annule et qui paie l'"'"'abonnement' 'base/migrations/0136_audit_lot1.sql' \
   '  if v_p.net_a_payer <= 0 or v_avoirs >= v_p.net_a_payer or v_p.net_a_payer - v_avoirs - v_reglements > 0 then return null; end if;' '  if v_p.net_a_payer <= 0 or v_p.net_a_payer - v_avoirs - v_reglements > 0 then return null; end if;' \
   "$NF4"
 prouver 'une facture d'"'"'abonnement réglée qui ne paie rien' 'serveur/v10/dossier.ts' \
   '  if (paiements.length && cle.startsWith('"'"'abonnement-'"'"')) await tx.query('"'"'select plateforme.abonnement_paye_par_facture($1, $2)'"'"', [entreprise, cle]);
 ' '' \
   "$NF3"
-prouver 'une facture réglée qui paie l'"'"'abonnement deux fois' 'base/migrations/0121_droits_a_leur_date.sql|||base/migrations/0121_droits_a_leur_date.sql' \
+prouver 'une facture réglée qui paie l'"'"'abonnement deux fois' 'base/migrations/0136_audit_lot1.sql|||base/migrations/0136_audit_lot1.sql' \
   '  if not found or v_f.payee_le is not null then return null; end if;|||  if not found or (v_ligne.paye_jusqu_au is not null and v_ligne.paye_jusqu_au >= v_f.fin) then return null; end if;' '  if not found then return null; end if;|||  if not found then return null; end if;' \
   "$NF3"
 
@@ -14723,9 +14723,9 @@ prouver 'le support voit les gestes des nouveautés' 'web/console/src/ecrans/Reg
   'le support lit les réglages, sans aucun geste'
 
 # 1.28.0 : les droits à leur date, le mot de passe qui ferme tout (0121, 0122 ; l'audit de la console 1.26.0, C01 à C03).
-prouver 'une facture réglée d'"'"'avance change les droits tout de suite' 'base/migrations/0121_droits_a_leur_date.sql' \
-  '  if v_f.debut > v_jour and v_ligne.offre is not null then' \
-  '  if false then' \
+prouver 'une facture réglée d'"'"'avance change les droits tout de suite' 'base/migrations/0136_audit_lot1.sql' \
+  '  elsif v_f.debut > v_jour and v_ligne.offre is not null then' \
+  '  elsif false then' \
   'payée avant son premier jour, la période attend son jour : celle qui court va au bout avec ce qu'"'"'elle avait (l'"'"'audit C01)'
 prouver 'un paiement reçu d'"'"'avance change les droits tout de suite' 'serveur/abonnement/gestes.ts' \
   'if (p.debut > jour && avant.offre) {' \
@@ -14894,7 +14894,7 @@ prouver 'réécrit pendant l'"'"'attente de la technique, l'"'"'attente compte d
   'const attendDepuis = (reecrit ? l.attendClientApresTechniqueLe : l.attendClientLe) ?? l.dernierClientLe ?? l.ouverteLe;' \
   'const attendDepuis = l.attendClientLe ?? l.dernierClientLe ?? l.ouverteLe;' \
   'elle attend la technique depuis son geste ; le client réécrit après : elle attend notre réponse ; avant : elle attend toujours la technique'
-prouver 'la même commande fait deux messages' 'base/migrations/0124_support_honnete.sql' \
+prouver 'la même commande fait deux messages' 'base/migrations/0136_audit_lot1.sql' \
   '    if v_id is not null then return v_id; end if;' \
   '    null;' \
   'l'"'"'audit C09 : la même réponse renvoyée (après une coupure, ou deux fois au même moment) ne fait qu'"'"'un message ; une autre en fait un second'
@@ -15468,11 +15468,11 @@ prouver 'les notes privées tues à l'"'"'équipe' 'serveur/console/routes.ts' \
   'notes: s.demande ? lireNotes(' \
   'notes: false ? lireNotes(' \
   'une note privée : posée par le support, lue par l'"'"'équipe, jamais par le client ; refusée à la technique ; au journal sans son texte'
-prouver 'une reprise qui garde la validation' 'base/migrations/0133_doc_support.sql' \
+prouver 'une reprise qui garde la validation' 'base/migrations/0136_audit_lot1.sql' \
   '    validee_le = null, validee_par = null where id = f.id;' \
   '    validee_le = validee_le, validee_par = validee_par where id = f.id;' \
   'une réponse : écrite par le support, offerte une fois validée par la direction ; reprise, elle revient à valider ; retirée avec un motif'
-prouver 'le support qui valide une fiche' 'serveur/console/gestes.ts|||base/migrations/0133_doc_support.sql' \
+prouver 'le support qui valide une fiche' 'serveur/console/gestes.ts|||base/migrations/0136_audit_lot1.sql' \
   '  { code: '"'"'console.support.valider'"'"', roles: [D], ecrit: true },
 |||array['"'"'direction'"'"']); f plateforme.doc_support;
 begin
@@ -15486,7 +15486,7 @@ prouver 'les réponses validées tues au champ de réponse' 'serveur/console/rou
   'reponses: s.demande ? reponsesOffertes(' \
   'reponses: false ? reponsesOffertes(' \
   'une réponse : écrite par le support, offerte une fois validée par la direction ; reprise, elle revient à valider ; retirée avec un motif'
-prouver 'une fiche retirée encore reprise' 'base/migrations/0133_doc_support.sql' \
+prouver 'une fiche retirée encore reprise' 'base/migrations/0136_audit_lot1.sql' \
   'where id = p_id and retiree_le is null for update;
   if not found then perform socle.refus('"'"'cette fiche n'"'"''"'"'existe pas ou a été retirée'"'"'); end if;
   if f.sorte' \
@@ -15494,7 +15494,7 @@ prouver 'une fiche retirée encore reprise' 'base/migrations/0133_doc_support.sq
   if not found then perform socle.refus('"'"'cette fiche n'"'"''"'"'existe pas ou a été retirée'"'"'); end if;
   if f.sorte' \
   'une procédure garde sa sorte ; une fiche retirée ne se reprend plus'
-prouver 'une fiche qui change de sorte' 'base/migrations/0133_doc_support.sql' \
+prouver 'une fiche qui change de sorte' 'base/migrations/0136_audit_lot1.sql' \
   '  if f.sorte <> p_sorte then perform socle.refus('"'"'une fiche garde sa sorte : écris-en une autre'"'"'); end if;
 ' \
   '' \
@@ -15675,6 +15675,81 @@ prouver 'l'"'"'écran d'"'"'entrée qui tait l'"'"'accès d'"'"'urgence' 'web/co
   'titre(pose.urgence ? '"'"'console.ecran.pose.urgence_titre'"'"'' \
   'titre(false ? '"'"'console.ecran.pose.urgence_titre'"'"'' \
   'le membre entre avec son mot de passe et pose son nouveau code ; l'"'"'ancien ne vaut plus'
+
+# 1.44.0 : l'audit de la console 1.42.0, lot 1 (A01, A02, A03, A07).
+prouver 'deux changements payés d'"'"'avance acceptés' 'serveur/abonnement/etat.ts' \
+  'modulesARetirer.length === 0 ? '"'"'garder'"'"' : '"'"'conflit'"'"';' \
+  'modulesARetirer.length === 0 ? '"'"'garder'"'"' : '"'"'garder'"'"';' \
+  'deux changements à deux dates : refusés avant tout argent ; le même changement deux fois : rien ne bouge'
+prouver 'le changement qui ne change rien gardé à son jour' 'serveur/abonnement/etat.ts' \
+  '  if (!change) return '"'"'deplacer'"'"';' \
+  '  if (!change) return '"'"'garder'"'"';' \
+  'novembre dans l'"'"'offre qui court, puis décembre en Essentiel : Essentiel attend le 1er décembre, jamais le 1er novembre'
+prouver 'la facture d'"'"'un second changement préparée' 'serveur/abonnement/factures.ts' \
+  'secondChangement(faits, faits.aVenir ?? null, faits.modulesARetirer ?? [], debut, voulue) === '"'"'conflit'"'"' && faits.aVenir' \
+  'false && faits.aVenir' \
+  'deux périodes payées d'"'"'avance (l'"'"'audit 1.42.0, A01) : un second changement ne se prépare pas ; arrivé quand même, le premier attend seul'
+prouver 'le règlement d'"'"'un second changement qui écrase le premier' 'base/migrations/0136_audit_lot1.sql' \
+  '  if v_second = '"'"'conflit'"'"' then' \
+  '  if false then' \
+  'deux périodes payées d'"'"'avance (l'"'"'audit 1.42.0, A01) : un second changement ne se prépare pas ; arrivé quand même, le premier attend seul'
+prouver 'le règlement qui garde un changement qui ne change rien' 'base/migrations/0136_audit_lot1.sql' \
+  'case when not v_change then '"'"'deplacer'"'"'' \
+  'case when not v_change then '"'"'garder'"'"'' \
+  'une période payée d'"'"'avance qui ne change rien, puis une autre qui change l'"'"'offre, par leurs factures : le changement attend le jour de la seconde (l'"'"'audit 1.42.0, A01)'
+prouver 'les codes de secours refaits hors de la transaction de la route' 'serveur/console/routes.ts' \
+  'const r = await nouveauxCodesDeSecours(ctx, qui, corps.code, transaction(tx));' \
+  'const r = await nouveauxCodesDeSecours(ctx, qui, corps.code);' \
+  'l'"'"'audit 1.42.0, A02 : le code et les codes de secours tiennent aussi dans la transaction de la route — avec une seule connexion, ils aboutissent'
+prouver 'le code activé hors de la transaction de la route' 'serveur/console/routes.ts' \
+  'const r = await activerCode(ctx, qui, corps.code, transaction(tx));' \
+  'const r = await activerCode(ctx, qui, corps.code);' \
+  'l'"'"'audit 1.42.0, A02 : le code et les codes de secours tiennent aussi dans la transaction de la route — avec une seule connexion, ils aboutissent'
+prouver 'le code préparé hors de la transaction de la route' 'serveur/console/routes.ts' \
+  'const r = await preparerCode(ctx, qui, corps.code, transaction(tx));' \
+  'const r = await preparerCode(ctx, qui, corps.code);' \
+  'l'"'"'audit 1.42.0, A02 : le code et les codes de secours tiennent aussi dans la transaction de la route — avec une seule connexion, ils aboutissent'
+prouver 'une fiche validée sans la version lue' 'base/migrations/0136_audit_lot1.sql' \
+  '  if p_lue is null or f.ecrite_le <> p_lue then
+    perform socle.refus('"'"'cette fiche a été reprise depuis que tu l'"'"''"'"'as lue : relis-la avant de la valider (rien n'"'"''"'"'est validé)'"'"');
+  end if;
+' \
+  '' \
+  'l'"'"'audit 1.42.0, A03 : la validation et la reprise portent sur la version lue ; reprise entre-temps, rien n'"'"'est validé ni écrasé'
+prouver 'une reprise qui écrase une autre' 'base/migrations/0136_audit_lot1.sql' \
+  '  if p_lue is null or f.ecrite_le <> p_lue then
+    perform socle.refus('"'"'cette fiche a été reprise depuis que tu l'"'"''"'"'as ouverte : relis-la, puis refais ta reprise (rien n'"'"''"'"'est écrit)'"'"');
+  end if;
+' \
+  '' \
+  'l'"'"'audit 1.42.0, A03 : la validation et la reprise portent sur la version lue ; reprise entre-temps, rien n'"'"'est validé ni écrasé'
+prouver 'la validation qui ne garde pas le texte validé' 'base/migrations/0136_audit_lot1.sql' \
+  '  insert into plateforme.doc_support_validee (doc, titre, texte, validee_le, validee_par) values (f.id, f.titre, f.texte, p_maintenant, socle.moi());
+' \
+  '' \
+  'l'"'"'audit 1.42.0, A03 : la validation et la reprise portent sur la version lue ; reprise entre-temps, rien n'"'"'est validé ni écrasé'
+prouver 'la fenêtre de validation qui oublie la version lue' 'web/console/src/ecrans/DocSupport.tsx' \
+  '{ lue: vue.ecriteLe }' \
+  '{ lue: new Date().toISOString() }' \
+  'la documentation interne (0133) : une note privée que la personne ne voit jamais ; une réponse écrite par le support, validée par la direction, posée avec le prénom'
+prouver 'la commande réutilisée pour un autre texte' 'serveur/console/routes.ts|||base/migrations/0136_audit_lot1.sql' \
+  '      if (deja && (deja.texte !== corps.texte || deja.article !== corps.article)) {|||    if v_id is not null and (v_deja is distinct from v_texte or v_article is distinct from p_article) then' \
+  '      if (false && deja) {|||    if false then' \
+  'l'"'"'audit 1.42.0, A07 : la même commande avec un autre texte est refusée (409, la commande) ; rien ne s'"'"'écrit, la première reste seule'
+prouver 'la commande perdue en changeant de demande' 'web/console/src/ecrans/Support.tsx' \
+  'const commande = useRef(brouillons.get(d.ligne.id)?.commande ?? crypto.randomUUID());' \
+  'const commande = useRef(crypto.randomUUID());' \
+  'l'"'"'audit 1.42.0, A07 : après une coupure, revenir sur la demande renvoie la même réponse ; un texte modifié n'"'"'est pas pris pour envoyé'
+prouver 'la réponse refusée qui garde l'"'"'ancienne commande' 'web/console/src/ecrans/Support.tsx' \
+  '        commande.current = crypto.randomUUID();
+        brouillons.set(d.ligne.id, { texte, article, commande: commande.current });
+' \
+  '' \
+  'l'"'"'audit 1.42.0, A07 : après une coupure, revenir sur la demande renvoie la même réponse ; un texte modifié n'"'"'est pas pris pour envoyé'
+prouver 'la fenêtre qui ne montre pas la fiche reprise' 'web/console/src/ecrans/DocSupport.tsx' \
+  '    if (f && f.ecriteLe !== vue.ecriteLe) { setVue(f); setNouvelle(true); }' \
+  '    if (false && f) { setVue(f); setNouvelle(true); }' \
+  'la documentation interne (0133) : une note privée que la personne ne voit jamais ; une réponse écrite par le support, validée par la direction, posée avec le prénom'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

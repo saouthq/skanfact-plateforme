@@ -42,7 +42,9 @@ type Demande = {
 type Article = { id: string; titre: string; sous: string };
 // Ce qu'on écrit à une demande, gardé le temps de la page : l'écran se relit (le client a réécrit, ou clos sa demande)
 // sans rien jeter de ce qu'on avait commencé — une demande close la garde jusqu'à « Rouvrir ».
-type Brouillons = Map<string, { texte: string; article: string }>;
+// `commande` (l'audit 1.42.0, A07) : celle de la réponse en cours, gardée avec son brouillon — un retour sur la demande
+// après une coupure renvoie la même, jamais une seconde réponse.
+type Brouillons = Map<string, { texte: string; article: string; commande: string }>;
 type Client = { id: string; nom: string; etat: Etat; faits: Faits; membres: number; pieces: number; derniereActivite: string | null };
 type Donnees = {
   aujourdhui: string; comptes: { ouvertes: number; aRepondre: number; sansReponse: number };
@@ -410,16 +412,17 @@ function Repondre({ d, articles, reponses, brouillons, envoye, relire }: { d: De
   const unAutre = d.ligne.suiviePar && d.ligne.suivieParId !== moi.utilisateur ? d.ligne.suiviePar : null;
   const [texte, setTexte] = useState(() => brouillons.get(d.ligne.id)?.texte ?? '');
   const [article, setArticle] = useState(() => brouillons.get(d.ligne.id)?.article ?? '');
+  // 0124 (l'audit C09) : l'identifiant de CETTE réponse, gardé si on la renvoie après une coupure (le serveur rend alors
+  // celle qu'il a déjà, sans la doubler) ; un nouveau pour la suivante. Gardé avec le brouillon (l'audit 1.42.0, A07) :
+  // changer de demande et revenir ne le perd pas.
+  const commande = useRef(brouillons.get(d.ligne.id)?.commande ?? crypto.randomUUID());
   useEffect(() => {
-    if (texte.trim() || article) brouillons.set(d.ligne.id, { texte, article });
+    if (texte.trim() || article) brouillons.set(d.ligne.id, { texte, article, commande: commande.current });
     else brouillons.delete(d.ligne.id);
   }, [brouillons, d.ligne.id, texte, article]);
   const [refus, setRefus] = useState<string | null>(null);
   const [faute, setFaute] = useState(0);
   const [occupe, setOccupe] = useState(false);
-  // 0124 (l'audit C09) : l'identifiant de CETTE réponse, gardé si on la renvoie après une coupure (le serveur rend alors
-  // celle qu'il a déjà, sans la doubler) ; un nouveau pour la suivante.
-  const commande = useRef(crypto.randomUUID());
   const prenom = prenomDe(d.personne.nom);
   // Trois réponses types au plus : au-delà, elles repoussaient le champ sous le bord de l'écran (l'article de la page d'abord).
   const proposes = d.suggestions.map((id) => articles.find((a) => a.id === id)).filter((a): a is Article => !!a).slice(0, 3);
@@ -457,6 +460,13 @@ function Repondre({ d, articles, reponses, brouillons, envoye, relire }: { d: De
       if (!r) return;
       // Un refus qui ne porte pas sur le texte vient de ce qui a bougé ailleurs (la demande close entre-temps) : l'écran se
       // relit pour le montrer, la réponse reste gardée.
+      // La réponse d'avant est partie avec un autre texte (l'audit 1.42.0, A07) : celle-ci est une nouvelle réponse — une
+      // commande neuve, la conversation relue, ce qui est écrit reste dans le champ.
+      if (r.statut === 409 && r.corps.champ === 'commande') {
+        commande.current = crypto.randomUUID();
+        brouillons.set(d.ligne.id, { texte, article, commande: commande.current });
+        setRefus(refusDe(r)); relire(); return;
+      }
       if (r.statut !== 201) { setRefus(refusDe(r)); if (r.corps.champ === 'texte') setFaute((n) => n + 1); else relire(); return; }
       setTexte(''); setArticle(''); setRefus(null);
       commande.current = crypto.randomUUID();

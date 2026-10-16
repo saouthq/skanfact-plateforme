@@ -25,7 +25,8 @@ function useEnvoi(fait: () => void) {
   const [faute, setFaute] = useState<{ champ: string; n: number } | null>(null);
   const [occupe, setOccupe] = useState(false);
   const refuser = (texte: string, champ: string) => { setRefus(texte); setFaute((f) => ({ champ, n: (f?.n ?? 0) + 1 })); };
-  const envoyer = (chemin: string, corps: unknown, dit: string) => {
+  // `apresRefus` : ce que la fenêtre fait d'un refus de la base (403), après l'avoir dit (relire la fiche, A03).
+  const envoyer = (chemin: string, corps: unknown, dit: string, apresRefus?: () => Promise<void>) => {
     void (async () => {
       setOccupe(true);
       try {
@@ -33,6 +34,7 @@ function useEnvoi(fait: () => void) {
         if (!r) return;
         if (r.statut === 200 || r.statut === 201) { toast(dit); fait(); return; }
         setRefus(refusDe(r));
+        if (r.statut === 403 && apresRefus) await apresRefus();
         if (typeof r.corps.champ === 'string') setFaute((f) => ({ champ: r.corps.champ as string, n: (f?.n ?? 0) + 1 }));
       } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
     })();
@@ -51,7 +53,7 @@ function FenetreEcrire({ sorte, fiche, fermer, fait }: { sorte: SorteDoc; fiche:
   const envoyer = () => {
     if (t.trim().length < 3) { e.refuser(phrase(`${D}.e.titre_court`), 'titre'); return; }
     if (texte.trim().length < 10) { e.refuser(phrase(`${D}.e.texte_court`), 'texte'); return; }
-    e.envoyer('/console/support/documentation', { id: fiche?.id ?? null, sorte, titre: t.trim(), texte: texte.trim() },
+    e.envoyer('/console/support/documentation', { id: fiche?.id ?? null, sorte, titre: t.trim(), texte: texte.trim(), lue: fiche?.ecriteLe ?? null },
       phrase(fiche ? `${D}.e.reprise` : `${D}.e.ecrite_${sorte}`, { titre: t.trim() }));
   };
   return (
@@ -65,16 +67,26 @@ function FenetreEcrire({ sorte, fiche, fermer, fait }: { sorte: SorteDoc; fiche:
   );
 }
 
-// Valider : la direction relit le texte tel qu'il partira, puis valide.
+// Valider : la direction relit le texte tel qu'il partira, puis valide. La version relue part avec (l'audit 1.42.0, A03) :
+// reprise depuis par quelqu'un d'autre, la base refuse et rien n'est validé ; la fenêtre relit alors la fiche et montre
+// le nouveau texte à sa place — le relire, puis valider, valide celui-là.
 function FenetreValider({ fiche, fermer, fait }: { fiche: FicheDoc; fermer: () => void; fait: () => void }) {
   const e = useEnvoi(fait);
-  const envoyer = () => e.envoyer(`/console/support/documentation/${fiche.id}/valider`, {}, phrase(`${D}.v.fait`, { titre: fiche.titre }));
+  const api = useApi();
+  const [vue, setVue] = useState(fiche);
+  const [nouvelle, setNouvelle] = useState(false);
+  const relire = async () => {
+    const r = await api<{ fiches: FicheDoc[] }>('GET', '/console/support/documentation');
+    const f = r?.statut === 200 ? r.corps.fiches.find((x) => x.id === vue.id) : undefined;
+    if (f && f.ecriteLe !== vue.ecriteLe) { setVue(f); setNouvelle(true); }
+  };
+  const envoyer = () => { setNouvelle(false); e.envoyer(`/console/support/documentation/${vue.id}/valider`, { lue: vue.ecriteLe }, phrase(`${D}.v.fait`, { titre: vue.titre }), relire); };
   return (
-    <Dialogue titre={titre(`${D}.v.titre`)} sous={fiche.titre} sousDonnee fermer={fermer} occupe={e.occupe}
+    <Dialogue titre={titre(`${D}.v.titre`)} sous={vue.titre} sousDonnee fermer={fermer} occupe={e.occupe}
       pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(`${D}.v.bouton`)} />}>
-      <p>{phrase(fiche.sorte === 'reponse' ? `${D}.v.p_reponse` : `${D}.v.p_procedure`)}</p>
-      <div className="c-sd-texte c-sd-relire" data-donnee>{fiche.texte}</div>
-      {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
+      <p>{phrase(vue.sorte === 'reponse' ? `${D}.v.p_reponse` : `${D}.v.p_procedure`)}</p>
+      <div className="c-sd-texte c-sd-relire" data-donnee>{vue.texte}</div>
+      {nouvelle ? <Alerte ton="attention">{phrase(`${D}.v.nouvelle`, { qui: vue.ecritePar ?? '—' })}</Alerte> : e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
     </Dialogue>
   );
 }

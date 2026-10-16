@@ -396,6 +396,50 @@ describe('le support, à la souris, des deux côtés', () => {
     await fermer(p);
   }, 60_000);
 
+  it('l\'audit 1.42.0, A07 : après une coupure, revenir sur la demande renvoie la même réponse ; un texte modifié n\'est pas pris pour envoyé', async () => {
+    const id = String((await api('POST', `/entreprises/${ent}/support`, jClient, { sujet: 'Une coupure, puis une autre demande', texte: 'Mon devis ne part pas.', page: 'ventes' })).corps.id);
+    const autre = String((await api('POST', `/entreprises/${ent}/support`, jClient, { sujet: 'Une demande à côté', texte: 'Où est mon reçu ?', page: 'ventes' })).corps.id);
+    const p = await consoleSur(`#/support?demande=${id}`);
+    let coupures = 0;
+    await p.route('**/console/support/demandes/*/repondre', async (route) => {
+      if (coupures > 0) { await route.continue(); return; }
+      coupures++;
+      await route.fetch();
+      await route.abort('connectionreset');
+    });
+    const zone = p.locator('.c-sp-repondre textarea');
+    const envoi = p.locator('.c-sp-repondre button[type="submit"]');
+    const messages = async (d: string) => (await admin.query(`select texte from plateforme.message_support where demande = $1 and cote = 'equipe' order by ecrit_le, id`, [d])).rows.map((x) => x.texte as string);
+    // 1. La réponse part, l'accusé se perd ; on va sur une autre demande, on revient, on renvoie : un seul message.
+    await zone.fill('Bonjour Lina, je regarde ton devis.');
+    await cliquer(envoi);
+    await expect.poll(() => coupures, { timeout: 10_000 }).toBe(1);
+    await p.waitForTimeout(800);
+    await p.evaluate((d) => { location.hash = `#/support?demande=${d}`; }, autre);
+    await expect.poll(() => p.locator('.c-sp-fil').innerText().then(net), { timeout: 10_000 }).toContain('Une demande à côté');
+    await p.evaluate((d) => { location.hash = `#/support?demande=${d}`; }, id);
+    await expect.poll(() => zone.inputValue(), { timeout: 10_000 }).toBe('Bonjour Lina, je regarde ton devis.');
+    await cliquer(envoi);
+    await expect.poll(() => zone.inputValue(), { timeout: 10_000 }).toBe('');
+    expect(await messages(id)).toEqual(['Bonjour Lina, je regarde ton devis.']);
+    // 2. Coupée de nouveau, la réponse est modifiée avant le renvoi : refusée, le texte reste ; renvoyée, elle part.
+    coupures = 0;
+    await zone.fill('Bonjour Lina, il manque ton matricule.');
+    await cliquer(envoi);
+    await expect.poll(() => coupures, { timeout: 10_000 }).toBe(1);
+    await p.waitForTimeout(800);
+    await zone.fill('Bonjour Lina, il manque ton matricule fiscal.');
+    await cliquer(envoi);
+    await expect.poll(() => p.locator('.c-sp-repondre .c-alerte').innerText().then(net), { timeout: 10_000 }).toBe('Cette réponse est déjà partie avec un autre texte : relis la conversation, ta modification n\'est pas envoyée.');
+    expect(await zone.inputValue()).toBe('Bonjour Lina, il manque ton matricule fiscal.');
+    expect(await messages(id)).toEqual(['Bonjour Lina, je regarde ton devis.', 'Bonjour Lina, il manque ton matricule.']);
+    await cliquer(envoi);
+    await expect.poll(() => zone.inputValue(), { timeout: 10_000 }).toBe('');
+    expect(await messages(id)).toEqual(['Bonjour Lina, je regarde ton devis.', 'Bonjour Lina, il manque ton matricule.', 'Bonjour Lina, il manque ton matricule fiscal.']);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 90_000);
+
   it('la documentation interne (0133) : une note privée que la personne ne voit jamais ; une réponse écrite par le support, validée par la direction, posée avec le prénom', async () => {
     // Une note privée, posée depuis la carte du client.
     const p = await consoleSur(`#/support?demande=${demande}`);
@@ -438,6 +482,13 @@ describe('le support, à la souris, des deux côtés', () => {
     await cliquer(a.locator('.c-menu-liste button', { hasText: 'Valider' }));
     const v = a.getByRole('dialog');
     expect(net(await v.locator('.c-sd-relire').innerText())).toContain('Bonjour {prenom},');
+    // (l'audit 1.42.0, A03) Reprise pendant qu'Amira la lit : refusée, rien n'est validé ; la fenêtre montre la nouvelle
+    // version à la place de l'ancienne. Valider, alors, valide celle-là.
+    await admin.query(`update plateforme.doc_support set texte = texte || ' Merci de ta patience.', ecrite_le = now() where titre = $1`, [TITRE]);
+    await cliquer(v.getByRole('button', { name: 'Valider', exact: true }));
+    await expect.poll(() => v.locator('.c-alerte').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toMatch(/^La fiche a été reprise depuis que tu l'as ouverte \(par .+\) : le texte ci-dessus est sa nouvelle version, rien n'est validé\. Relis-le, puis valide-le\.$/);
+    expect(net(await v.locator('.c-sd-relire').innerText())).toMatch(/Merci de ta patience\.$/);
+    expect((await admin.query('select validee_le from plateforme.doc_support where titre = $1', [TITRE])).rows[0]?.validee_le).toBeNull();
     await cliquer(v.getByRole('button', { name: 'Valider', exact: true }));
     await expect.poll(() => sienne.locator('.c-puce').innerText().then((t) => net(t).toLocaleLowerCase('fr')).catch(() => ''), { timeout: 15_000 }).toBe('validée');
     await fermer(a);

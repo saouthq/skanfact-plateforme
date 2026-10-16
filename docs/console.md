@@ -1417,6 +1417,20 @@ console, et personne ne pouvait reposer son code à sa place (C40). Désormais :
 Un mot de passe oublié passe par « Mot de passe oublié » de l'application (le même compte) ; l'accès d'urgence ne touche
 que le code du téléphone.
 
+**C60. L'audit de la console 1.42.0, lot 1** (1.44.0 ; base 0136 ; l'audit du 16/10/2026, « à corriger en premier »).
+- **A01, deux périodes payées d'avance** : un second changement d'offre ne s'applique plus au premier des deux jours ; il
+  se refuse avant tout argent, ou se déplace à son jour quand ce qui attendait ne changeait rien (docs/abonnement.md B6).
+- **A02, le code du téléphone et les codes de secours d'un bloc** : changés depuis « Ton compte », ils tiennent dans la
+  transaction de la route, comme le mot de passe depuis l'audit C03 (serveur/compte.ts) : un geste réussit ou échoue d'un
+  bloc, son journal compris, et ne prend jamais une seconde connexion (une seule connexion suffit, un test le tient).
+  Les erreurs de code se comptent quand même : un refus achève la transaction, il ne l'annule pas.
+- **A03, une fiche validée est celle qu'on a lue** : la validation et la reprise d'une fiche de la documentation donnent
+  l'instant de la version lue ; une fiche reprise depuis est refusée (« relis-la avant de la valider ») et rien n'est
+  validé ni écrasé. Chaque validation garde le texte validé (`doc_support_validee`), et le journal son empreinte.
+- **A07, la commande d'une réponse** : gardée avec le brouillon de sa demande (changer de demande et revenir renvoie la
+  même, jamais une seconde réponse) ; la même commande avec un autre texte est refusée (409, et la base le refuse
+  aussi) : l'écran le dit, garde ce qui est écrit, relit la conversation, et la réponse suivante a sa commande neuve.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :

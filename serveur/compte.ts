@@ -29,7 +29,8 @@ const AIDE = 'https://skanfact.tn/contact.html';
 export type Refuse = { ok: false; motif: Texte; champ?: string; attendre?: true };
 
 // Mon adresse, et l'attente en cours après des erreurs (la même que la connexion : les essais se comptent par adresse).
-// Dans la transaction de la route quand elle en donne une (la console, l'audit C03 : un geste sur son compte réussit ou
+// Dans la transaction de la route quand elle en donne une (la console ; l'audit C03 pour le mot de passe, l'audit 1.42.0 A02
+// pour le code du téléphone et les codes de secours : un geste sur son compte réussit ou
 // échoue d'un bloc, et ne prend pas une seconde connexion pendant qu'il en tient une), sinon dans une à lui.
 type Dans = Transaction | null | undefined;
 const dans = <T>(ctx: Contexte, tx: Dans, utilisateur: string | null, travail: (tx: Transaction) => Promise<T>): Promise<T> =>
@@ -50,10 +51,10 @@ async function erreur(ctx: Contexte, email: string, refus: Refuse, tx?: Dans): P
 
 // Le code de l'application, le code de preuve reçu par SMS (0081 : il ne sert qu'une fois), ou un code de secours encore
 // valable : c'est bien la personne.
-async function monCodeEstBon(ctx: Contexte, qui: Qui, code: string): Promise<boolean> {
+async function monCodeEstBon(ctx: Contexte, qui: Qui, code: string, tx?: Dans): Promise<boolean> {
   const maintenant = maintenantDe(ctx);
   const saisi = code.replace(/\s/g, '');
-  return enTantQue(ctx.pool, qui.utilisateur, async (tx) => {
+  return dans(ctx, tx, qui.utilisateur, async (tx) => {
     if (/^[0-9]{6}$/.test(saisi)) {
       const secret = (await tx.query('select socle.mon_secret_d_application() s')).rows[0]?.s as string | null;
       if (secret) return verifierTotp(secret, saisi, maintenant.getTime());
@@ -68,17 +69,17 @@ async function monCodeEstBon(ctx: Contexte, qui: Qui, code: string): Promise<boo
 // Qui a déjà un code (l'application ou le SMS) prouve l'actuel, ou un code de secours, avant d'en préparer un autre :
 // une session volée ne met pas son téléphone, ni son numéro, à la place du sien. Sans code (l'e-mail par défaut), rien
 // à prouver. Rend l'adresse du compte, ou le refus.
-async function prouverCodeActuel(ctx: Contexte, qui: Qui, code: string | undefined): Promise<{ email: string } | Refuse> {
-  const { email, actif, parSms } = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => {
+async function prouverCodeActuel(ctx: Contexte, qui: Qui, code: string | undefined, dansLa?: Dans): Promise<{ email: string } | Refuse> {
+  const { email, actif, parSms } = await dans(ctx, dansLa, qui.utilisateur, async (tx) => {
     const u = (await tx.query('select email, code_methode from socle.utilisateur where id = $1', [qui.utilisateur])).rows[0] as { email: string; code_methode: string | null };
     return { email: u.email, actif: u.code_methode !== null, parSms: u.code_methode === 'sms' };
   });
   if (!actif) return { email };
   if (!code?.trim()) return { ok: false, motif: motif(parSms ? 'compte.preuve_sms_manque' : 'compte.code_actuel_manque'), champ: 'code' };
-  const bloque = await attente(ctx, email);
+  const bloque = await attente(ctx, email, dansLa);
   if (bloque) return bloque;
-  if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
-  await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.effacer_erreurs($1)', [email]));
+  if (!await monCodeEstBon(ctx, qui, code, dansLa)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' }, dansLa);
+  await dans(ctx, dansLa, null, (tx) => tx.query('select socle.effacer_erreurs($1)', [email]));
   return { email };
 }
 
@@ -87,13 +88,13 @@ async function prouverCodeActuel(ctx: Contexte, qui: Qui, code: string | undefin
 // page rechargée garde le même secret (pas de seconde ligne SkanFact dans l'application) ; les codes de secours, gardés
 // en empreinte, se tirent à nouveau. Qui a déjà un code (il change de téléphone) prouve d'abord l'actuel, ou un code de
 // secours : une session volée ne suffit pas à mettre son téléphone à la place du sien.
-export async function preparerCode(ctx: Contexte, qui: Qui, code?: string): Promise<{ ok: true; codesDeSecours: string[]; adresseApplication: string; cle: string } | Refuse> {
+export async function preparerCode(ctx: Contexte, qui: Qui, code?: string, dansLa?: Dans): Promise<{ ok: true; codesDeSecours: string[]; adresseApplication: string; cle: string } | Refuse> {
   const maintenant = maintenantDe(ctx);
-  const preuve = await prouverCodeActuel(ctx, qui, code);
+  const preuve = await prouverCodeActuel(ctx, qui, code, dansLa);
   if ('ok' in preuve) return preuve;
   const { email } = preuve;
   const codes = tirerCodesDeSecours();
-  const secret = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => {
+  const secret = await dans(ctx, dansLa, qui.utilisateur, async (tx) => {
     const s = ((await tx.query('select socle.mon_secret_en_attente($1) s', [maintenant])).rows[0]?.s as string | null) ?? nouveauSecret();
     await tx.query('select socle.preparer_code($1, $2, $3)', [s, codes.map(empreinteDuSecours), maintenant]);
     return s;
@@ -103,10 +104,10 @@ export async function preparerCode(ctx: Contexte, qui: Qui, code?: string): Prom
 
 // Le premier code de l'application qu'on vient d'ajouter : juste, le code préparé devient celui du compte. Une erreur
 // ici ne se compte pas comme à la connexion (la personne a déjà sa session ; le secret vient de lui être montré).
-export async function activerCode(ctx: Contexte, qui: Qui, code: string): Promise<{ ok: true } | Refuse> {
+export async function activerCode(ctx: Contexte, qui: Qui, code: string, dansLa?: Dans): Promise<{ ok: true } | Refuse> {
   const maintenant = maintenantDe(ctx);
   const saisi = code.replace(/\s/g, '');
-  return enTantQue(ctx.pool, qui.utilisateur, async (tx): Promise<{ ok: true } | Refuse> => {
+  return dans(ctx, dansLa, qui.utilisateur, async (tx): Promise<{ ok: true } | Refuse> => {
     const secret = (await tx.query('select socle.mon_secret_en_attente($1) s', [maintenant])).rows[0]?.s as string | null;
     if (!secret) return { ok: false, motif: motif('compte.code_attente_perimee') };
     if (!/^[0-9]{6}$/.test(saisi) || !verifierTotp(secret, saisi, maintenant.getTime())) return { ok: false, motif: motif('compte.code_essai_faux'), champ: 'code' };
@@ -121,26 +122,26 @@ const codeSix = () => String(randomInt(0, 1_000_000)).padStart(6, '0');
 
 // Préparer le SMS : un code part au numéro donné ; rien ne change tant qu'il n'est pas tapé (15 minutes, cinq essais).
 // Qui a déjà un code (il change de numéro, ou passe de l'application au SMS) prouve d'abord l'actuel.
-export async function preparerSms(ctx: Contexte, qui: Qui, telephone: string, code?: string): Promise<{ ok: true; telephone: string } | Refuse> {
+export async function preparerSms(ctx: Contexte, qui: Qui, telephone: string, code?: string, dansLa?: Dans): Promise<{ ok: true; telephone: string } | Refuse> {
   if (ctx.sms.disponible === false) return { ok: false, motif: motif('connexion.sms_indisponible') };
   const numero = numeroTunisien(telephone);
   if (!numero) return { ok: false, motif: motif('compte.telephone_invalide'), champ: 'telephone' };
   const maintenant = maintenantDe(ctx);
-  const preuve = await prouverCodeActuel(ctx, qui, code);
+  const preuve = await prouverCodeActuel(ctx, qui, code, dansLa);
   if ('ok' in preuve) return preuve;
   const nouveau = codeSix();
-  const etat = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select socle.preparer_sms($1, $2, $3) e', [numero, sha256(nouveau), maintenant])).rows[0].e as string);
+  const etat = await dans(ctx, dansLa, qui.utilisateur, async (tx) => (await tx.query('select socle.preparer_sms($1, $2, $3) e', [numero, sha256(nouveau), maintenant])).rows[0].e as string);
   if (etat === 'limite') return { ok: false, motif: motif('compte.sms_limite'), champ: 'telephone' };
   if (!await envoyerSms(ctx, numero, nouveau)) return { ok: false, motif: motif('compte.sms_rate'), champ: 'telephone' };
   return { ok: true, telephone: numeroMasque(numero) };
 }
 
 // Le code reçu, tapé : le SMS devient le code du compte. Rend les 10 codes de secours, à montrer UNE fois.
-export async function activerSms(ctx: Contexte, qui: Qui, code: string): Promise<{ ok: true; codesDeSecours: string[] } | Refuse> {
+export async function activerSms(ctx: Contexte, qui: Qui, code: string, dansLa?: Dans): Promise<{ ok: true; codesDeSecours: string[] } | Refuse> {
   const saisi = code.replace(/\s/g, '');
   if (!/^[0-9]{6}$/.test(saisi)) return { ok: false, motif: motif('compte.sms_essai_faux'), champ: 'code' };
   const codes = tirerCodesDeSecours();
-  const etat = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select socle.activer_sms_en_attente($1, $2, $3) e',
+  const etat = await dans(ctx, dansLa, qui.utilisateur, async (tx) => (await tx.query('select socle.activer_sms_en_attente($1, $2, $3) e',
     [sha256(saisi), codes.map(empreinteDuSecours), maintenantDe(ctx)])).rows[0].e as string);
   if (etat === 'faux') return { ok: false, motif: motif('compte.sms_essai_faux'), champ: 'code' };
   if (etat === 'perime') return { ok: false, motif: motif('compte.sms_attente_perimee'), champ: 'code' };
@@ -149,10 +150,10 @@ export async function activerSms(ctx: Contexte, qui: Qui, code: string): Promise
 
 // Prouver le code actuel quand on a le SMS (retirer le code, de nouveaux codes de secours, changer de numéro) : un code
 // de preuve part au numéro du compte, valable 10 minutes, une fois.
-export async function envoyerPreuveSms(ctx: Contexte, qui: Qui): Promise<{ ok: true; telephone: string } | Refuse> {
+export async function envoyerPreuveSms(ctx: Contexte, qui: Qui, dansLa?: Dans): Promise<{ ok: true; telephone: string } | Refuse> {
   if (ctx.sms.disponible === false) return { ok: false, motif: motif('connexion.sms_indisponible') };
   const code = codeSix();
-  const tel = await enTantQue(ctx.pool, qui.utilisateur, async (tx) => (await tx.query('select socle.poser_preuve_sms($1, $2) t', [sha256(code), maintenantDe(ctx)])).rows[0].t as string | null);
+  const tel = await dans(ctx, dansLa, qui.utilisateur, async (tx) => (await tx.query('select socle.poser_preuve_sms($1, $2) t', [sha256(code), maintenantDe(ctx)])).rows[0].t as string | null);
   if (!tel) return { ok: false, motif: motif('compte.sms_limite') };
   if (!await envoyerSms(ctx, tel, code)) return { ok: false, motif: motif('compte.sms_rate') };
   return { ok: true, telephone: numeroMasque(tel) };
@@ -178,14 +179,14 @@ export async function retirerCode(ctx: Contexte, qui: Qui, code: string): Promis
 }
 
 // De nouveaux codes de secours, à montrer UNE fois (les anciens ne valent plus).
-export async function nouveauxCodesDeSecours(ctx: Contexte, qui: Qui, code: string): Promise<{ ok: true; codes: string[] } | Refuse> {
-  const email = await monAdresse(ctx, qui);
-  const bloque = await attente(ctx, email);
+export async function nouveauxCodesDeSecours(ctx: Contexte, qui: Qui, code: string, dansLa?: Dans): Promise<{ ok: true; codes: string[] } | Refuse> {
+  const email = await monAdresse(ctx, qui, dansLa);
+  const bloque = await attente(ctx, email, dansLa);
   if (bloque) return bloque;
-  if (!await monCodeEstBon(ctx, qui, code)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' });
+  if (!await monCodeEstBon(ctx, qui, code, dansLa)) return erreur(ctx, email, { ok: false, motif: motif('connexion.code_faux'), champ: 'code' }, dansLa);
   const codes = tirerCodesDeSecours();
-  await enTantQue(ctx.pool, qui.utilisateur, (tx) => tx.query('select socle.nouveaux_codes_secours($1)', [codes.map(empreinteDuSecours)]));
-  await enTantQue(ctx.pool, null, (tx) => tx.query('select socle.effacer_erreurs($1)', [email]));
+  await dans(ctx, dansLa, qui.utilisateur, (tx) => tx.query('select socle.nouveaux_codes_secours($1)', [codes.map(empreinteDuSecours)]));
+  await dans(ctx, dansLa, null, (tx) => tx.query('select socle.effacer_erreurs($1)', [email]));
   return { ok: true, codes };
 }
 

@@ -208,9 +208,17 @@ un passage de Complet à Essentiel s'appliquait le 15 — alors que la période 
   qu'à partir de son jour (la période l'a comptée sans lui) ; un changement d'offre se règle par rapport à l'offre payée
   pour la période qui vient ; la facture suivante ne compte plus les modules qui partent. La fiche du client le dit : « la
   période suivante est déjà payée : elle commence le …, en …, sans … ; d'ici là, rien ne change ».
-- **Pas fait** : deux périodes payées d'avance (la troisième réglée avant que la deuxième ait commencé) se fondent en une
-  attente, au premier des deux jours, avec l'offre de la plus tardive — un cas que la console n'a jamais rencontré ; il
-  sera repris s'il arrive.
+- **Deux périodes payées d'avance** (1.44.0 ; base 0136 ; l'audit de la console 1.42.0, A01). Jusqu'ici, elles se
+  fondaient en une attente, au premier des deux jours, avec l'offre de la plus tardive : un client Complet qui payait
+  novembre en Complet puis décembre en Essentiel passait en Essentiel dès le 1er novembre. Un seul changement attend son
+  jour, et désormais (`secondChangement`, serveur/abonnement/etat.ts, la même règle dans la base) : ce qui attend sans
+  rien changer (une période de plus dans l'offre qui court) se **déplace** au premier jour de la nouvelle ; la nouvelle
+  qui change **la même chose** (même offre, même durée, aucun module de plus qui part) ne bouge rien ; **deux changements
+  différents** se refusent **avant tout argent** — la facture ne se prépare pas, le paiement ne se note pas (« une période
+  déjà payée attend son premier jour, le …, en … ») : on la prépare dans la même offre, ou une fois ce jour passé. Une
+  facture préparée avant qu'un second changement n'arrive (deux personnes, deux gestes) et réglée quand même paie sa
+  période ; le premier changement attend seul, la période plus tardive garde ce qu'il donne (jamais moins que payé), et
+  l'histoire de l'abonnement le dit (« à régler »).
 
 **Ce que 14b ne fait pas**, et pourquoi : un règlement retiré après coup ne fait pas reculer l'abonnement tout seul (un
 fait posé ne se défait pas sans quelqu'un : la direction le voit et décide) ; l'avoir préparé depuis la console (SkanFact

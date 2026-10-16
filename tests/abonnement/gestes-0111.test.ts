@@ -134,6 +134,35 @@ describe('un paiement reçu hors de la plateforme', () => {
   });
 });
 
+describe('deux périodes payées d\'avance (l\'audit 1.42.0, A01)', () => {
+  // Complet au mois, payé jusqu'au 31/10/2026 ; le 16/10, on paie novembre, puis décembre.
+  const COMPLET: Faits = avec({ essaiJusquAu: '2026-09-01', payeJusquAu: '2026-10-31', offre: 'complet', periodicite: 'mensuel' });
+  const RECU2 = { facture: 'F-2026-301', montant: 100_000n, moyen: 'virement' as const, le: '2026-10-16' };
+  // Paie la période qui vient, puis rend la ligne et les faits d'après (ce que la base relirait).
+  const payer = (ligne: LigneAbonnement, offre: 'essentiel' | 'complet', facture: string) => {
+    const f = avec({ ...COMPLET, payeJusquAu: ligne.paye_jusqu_au, offre: ligne.offre, periodicite: ligne.periodicite });
+    return calculerGeste(ligne, f, { motif: 'essai', geste: 'payer', offre, periodicite: 'mensuel', paiement: { ...RECU2, facture } }, '2026-10-16').apres;
+  };
+
+  it('novembre dans l\'offre qui court, puis décembre en Essentiel : Essentiel attend le 1er décembre, jamais le 1er novembre', () => {
+    const novembre = payer(ligneDe(COMPLET), 'complet', 'F-1');
+    expect(novembre).toMatchObject({ offre: 'complet', paye_jusqu_au: '2026-11-30', a_venir_le: '2026-11-01', a_venir_offre: 'complet' });
+    const decembre = payer(novembre, 'essentiel', 'F-2');
+    expect(decembre).toMatchObject({ offre: 'complet', paye_jusqu_au: '2026-12-31', a_venir_le: '2026-12-01', a_venir_offre: 'essentiel', a_venir_periodicite: 'mensuel' });
+  });
+
+  it('deux changements à deux dates : refusés avant tout argent ; le même changement deux fois : rien ne bouge', () => {
+    const ESSENTIEL: LigneAbonnement = { ...ligneDe(COMPLET), offre: 'essentiel' };
+    const novembre = payer(ESSENTIEL, 'complet', 'F-1');
+    expect(novembre).toMatchObject({ offre: 'essentiel', a_venir_le: '2026-11-01', a_venir_offre: 'complet' });
+    expect(() => payer(novembre, 'essentiel', 'F-2')).toThrow(refus('abonnement.geste.deux_changements', { le: '01/11/2026', offre: 'Complet' }));
+    // Décembre aussi en Complet : le passage à Complet garde son jour, le 1er novembre.
+    expect(payer(novembre, 'complet', 'F-2')).toMatchObject({ paye_jusqu_au: '2026-12-31', a_venir_le: '2026-11-01', a_venir_offre: 'complet' });
+    // Un module de plus qui partirait : c'est un second changement, refusé aussi.
+    expect(() => payer({ ...novembre, modules: ['paie'], modules_a_retirer: ['paie'] }, 'complet', 'F-2')).toThrow(refus('abonnement.geste.deux_changements', { le: '01/11/2026', offre: 'Complet' }));
+  });
+});
+
 describe('un module acheté seul', () => {
   const AVEC_PAIE: LigneAbonnement = { ...ligneDe(PAYEE), modules: ['paie'] };
 

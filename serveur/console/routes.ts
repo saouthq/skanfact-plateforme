@@ -80,6 +80,8 @@ import './textes.ts';
 const uuid = z.string().uuid();
 const REGLES_BRANCHEES = new Set(REGLES.filter((r) => r.branchee).map((r) => r.id));
 const motifGeste = z.string().trim().min(3, 'console.motif_requis').max(500);
+// L'instant d'une version lue (l'audit 1.42.0, A03), tel que la base l'a rendu : on le lui rend tel quel.
+const instantLu = z.string().max(40).refine((x) => Number.isFinite(Date.parse(x)));
 const LIMITE_MAX = 200;
 const limite = (q: Record<string, string>) => Math.min(Math.max(Number(q.limite ?? 50) || 50, 1), LIMITE_MAX);
 // Les filtres du journal (0114), lus de l'adresse : qui, une entreprise, la sorte, la période, un mot, les gestes réservés à la
@@ -943,18 +945,18 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   const auJournal = (tx: Transaction | null, quoi: 'code') => transaction(tx).query('select plateforme.console_mon_compte_change($1, $2)', [quoi, maintenant()]);
   ajouter({
     methode: 'POST', chemin: '/console/moi/code/preuve-sms', geste: 'console.session',
-    traiter: async ({ qui }) => {
+    traiter: async ({ qui }, tx) => {
       if (!qui) throw new Error('session attendue');
-      const r = await envoyerPreuveSms(ctx, qui);
+      const r = await envoyerPreuveSms(ctx, qui, transaction(tx));
       return r.ok ? { statut: 202, corps: { telephone: r.telephone } } : refusDuCompte(r);
     },
   });
   ajouter({
     methode: 'POST', chemin: '/console/moi/code/preparer', geste: 'console.session',
     corps: z.object({ code: z.string().max(20).optional() }),
-    traiter: async ({ qui, corps }) => {
+    traiter: async ({ qui, corps }, tx) => {
       if (!qui) throw new Error('session attendue');
-      const r = await preparerCode(ctx, qui, corps.code);
+      const r = await preparerCode(ctx, qui, corps.code, transaction(tx));
       return r.ok ? { corps: { codesDeSecours: r.codesDeSecours, adresseApplication: r.adresseApplication, cle: r.cle } } : refusDuCompte(r);
     },
   });
@@ -963,7 +965,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     corps: z.object({ code: z.string().min(1).max(20) }),
     traiter: async ({ qui, corps }, tx) => {
       if (!qui) throw new Error('session attendue');
-      const r = await activerCode(ctx, qui, corps.code);
+      const r = await activerCode(ctx, qui, corps.code, transaction(tx));
       if (!r.ok) return refusDuCompte(r);
       await auJournal(tx, 'code');
       return { corps: { ok: true } };
@@ -972,9 +974,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   ajouter({
     methode: 'POST', chemin: '/console/moi/code/sms/preparer', geste: 'console.session',
     corps: z.object({ telephone: z.string().min(1).max(30), code: z.string().max(20).optional() }),
-    traiter: async ({ qui, corps }) => {
+    traiter: async ({ qui, corps }, tx) => {
       if (!qui) throw new Error('session attendue');
-      const r = await preparerSms(ctx, qui, corps.telephone, corps.code);
+      const r = await preparerSms(ctx, qui, corps.telephone, corps.code, transaction(tx));
       return r.ok ? { corps: { telephone: r.telephone } } : refusDuCompte(r);
     },
   });
@@ -983,7 +985,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     corps: z.object({ code: z.string().min(1).max(20) }),
     traiter: async ({ qui, corps }, tx) => {
       if (!qui) throw new Error('session attendue');
-      const r = await activerSms(ctx, qui, corps.code);
+      const r = await activerSms(ctx, qui, corps.code, transaction(tx));
       if (!r.ok) return refusDuCompte(r);
       await auJournal(tx, 'code');
       return { corps: { codesDeSecours: r.codesDeSecours } };
@@ -995,7 +997,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     // Les nouveaux codes se montrent UNE fois : ils ne sont gardés qu'en empreinte.
     traiter: async ({ qui, corps }, tx) => {
       if (!qui) throw new Error('session attendue');
-      const r = await nouveauxCodesDeSecours(ctx, qui, corps.code);
+      const r = await nouveauxCodesDeSecours(ctx, qui, corps.code, transaction(tx));
       if (!r.ok) return refusDuCompte(r);
       await transaction(tx).query('select plateforme.console_mon_compte_change($1, $2)', ['codes_secours', maintenant()]);
       return { corps: { codesDeSecours: r.codes } };
@@ -2083,6 +2085,12 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       commande: z.string().uuid().optional(),
     }),
     traiter: async ({ params, corps }, tx) => {
+      // La même commande déjà partie avec un autre texte (l'audit 1.42.0, A07) : 409, `champ: 'commande'` — l'écran tire
+      // une commande neuve, relit la conversation et garde ce qui est écrit. La base le refuse aussi (0136).
+      const deja = (await transaction(tx).query('select plateforme.reponse_de_la_commande($1, $2) r', [lireUuid(params.demande), corps.commande ?? null])).rows[0]?.r as { texte: string; article: string | null } | null;
+      if (deja && (deja.texte !== corps.texte || deja.article !== corps.article)) {
+        return { statut: 409, corps: { motif: motif('base.support.commande_autre_texte'), champ: 'commande' } };
+      }
       const id = await lireJson<string>(transaction(tx), 'select plateforme.console_repondre_demande($1, $2, $3, $4, $5) v',
         [lireUuid(params.demande), corps.texte, corps.article, maintenant(), corps.commande ?? null]);
       return { statut: 201, corps: { id } };
@@ -2162,16 +2170,21 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       id: uuid.nullable(), sorte: z.enum(SORTES_DOC),
       titre: z.string().trim().min(3, 'console.support.doc_titre').max(120, 'console.support.doc_titre'),
       texte: z.string().trim().min(10, 'console.support.doc_texte').max(8000, 'console.support.doc_texte'),
+      // La version reprise (l'audit 1.42.0, A03) : l'instant de la fiche telle qu'elle a été ouverte ; nul pour une fiche neuve.
+      lue: instantLu.nullable().optional(),
     }),
     traiter: async ({ corps }, tx) => {
-      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_ecrire_doc($1, $2, $3, $4, $5) v', [corps.id, corps.sorte, corps.titre, corps.texte, maintenant()]);
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_ecrire_doc($1, $2, $3, $4, $5::timestamptz, $6) v',
+        [corps.id, corps.sorte, corps.titre, corps.texte, corps.lue ?? null, maintenant()]);
       return { statut: corps.id ? 200 : 201, corps: { id } };
     },
   });
   ajouter({
     methode: 'POST', chemin: '/console/support/documentation/:fiche/valider', geste: 'console.support.valider',
-    traiter: async ({ params }, tx) => {
-      await transaction(tx).query('select plateforme.console_valider_doc($1, $2)', [lireUuid(params.fiche), maintenant()]);
+    // La version relue (l'audit 1.42.0, A03) : une fiche reprise depuis est refusée, rien n'est validé.
+    corps: z.object({ lue: instantLu }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_valider_doc($1, $2::timestamptz, $3)', [lireUuid(params.fiche), corps.lue, maintenant()]);
       return { corps: { ok: true } };
     },
   });

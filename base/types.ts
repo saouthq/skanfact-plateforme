@@ -606,6 +606,14 @@ export interface BaseDeDonnees {
     retiree_le: Date | null;
     retiree_par: string | null;
   };
+  'plateforme.doc_support_validee': {
+    id: Generated<string>;
+    doc: string;
+    titre: string;
+    texte: string;
+    validee_le: Date;
+    validee_par: string;
+  };
   'plateforme.editeur': {
     seul: Generated<boolean>;
     entreprise: string;

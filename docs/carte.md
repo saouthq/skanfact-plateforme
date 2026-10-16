@@ -714,6 +714,9 @@ vaut pour tout le dépôt.*
     (lecture prudente, ce qui remonte à l'accueil), `serveur/console/connexion.ts` (un accès ouvert mène à la pose d'un
     nouveau code), `base/equipe.ts` et `exploitation/equipe.sh` (« urgence », par la machine) ; écrans `Equipe.tsx`,
     `Entree.tsx`, `Accueil.tsx` ; tests `tests/console/urgence.test.ts`, `tests/web/console-urgence.test.ts`.
+  - **L'audit de la console 1.42.0, lot 1** (1.44.0 ; `docs/console.md` C60) : base `0136_audit_lot1.sql` ; `secondChangement`
+    (`serveur/abonnement/etat.ts`, gestes et factures) ; la transaction de la route dans `serveur/compte.ts` ; la version
+    lue des fiches (`DocSupport.tsx`) ; la commande gardée avec le brouillon (`Support.tsx`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

@@ -14,7 +14,7 @@ import { Refus } from '../erreurs.ts';
 import { appliquer, dossierPret } from '../v10/dossier.ts';
 import { enNombreV10, type Json } from '../v10/lecture.ts';
 import { codeDeLEcran, commeLaV10 } from '../v10/teif.ts';
-import { jourEnFrancais, plusJours, prochainePeriode, type Faits, type Offre, type Periodicite } from './etat.ts';
+import { jourEnFrancais, plusJours, prochainePeriode, secondChangement, type Faits, type Offre, type Periodicite } from './etat.ts';
 import { montantRemise, type Remise } from './remise.ts';
 import './textes.ts';
 
@@ -146,6 +146,11 @@ export async function preparerFacture(tx: Transaction, utilisateur: string, abon
   const factures = (await tx.query('select plateforme.console_factures_abonnement($1) v', [abonne.id])).rows[0]?.v as { client?: string; editeur?: string; piece?: string; moisOffert?: boolean }[] | null;
   const moisOffert = faits.moisOffert === true || (factures ?? []).some((f) => f.piece === cle && f.moisOffert === true);
   const { debut, fin, echeance } = periodeDeLaFacture(faits, voulue.periodicite, jour, moisOffert);
+  // Une autre période payée d'avance attend déjà son premier jour (l'audit 1.42.0, A01) : une facture qui changerait autre
+  // chose ne se prépare pas — elle se prépare dans la même offre, ou une fois ce jour passé.
+  if (debut > jour && faits.offre && secondChangement(faits, faits.aVenir ?? null, faits.modulesARetirer ?? [], debut, voulue) === 'conflit' && faits.aVenir) {
+    throw new Refus('abonnement.facture.deux_changements', { valeurs: { le: jourEnFrancais(faits.aVenir.le), offre: t(`abonnement.facture.offre.${faits.aVenir.offre}`) } });
+  }
   await dossierPret(tx, editeur, utilisateur);
   const societe = (await lire(tx, editeur, '_racine', 'company'))?.contenu ?? {};
   // La pièce de cette période existe déjà : émise, elle ne se refait pas ; en brouillon, elle attend dans SkanFact.

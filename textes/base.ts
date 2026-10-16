@@ -514,7 +514,11 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'une évolution est à étudier, prévue, faite ou écartée', cle: 'base.support.evolution_etat', fr: 'une évolution est à étudier, prévue, faite ou écartée' },
   { base: 'une évolution faite dit la version qui la livre, écrite comme 1.42.0', cle: 'base.support.evolution_version', fr: 'une évolution faite dit la version qui la livre, écrite comme 1.42.0' },
   { base: 'une évolution écartée dit pourquoi : de trois à quatre cents caractères', cle: 'base.support.evolution_raison', fr: 'une évolution écartée dit pourquoi : de trois à quatre cents caractères' },
+  // L'audit 1.42.0, A07 : la commande d'une réponse déjà partie.
+  { base: 'cette réponse est déjà partie avec un autre texte : relis la conversation, ta modification n\'est pas envoyée', cle: 'base.support.commande_autre_texte', fr: 'cette réponse est déjà partie avec un autre texte : relis la conversation, ta modification n\'est pas envoyée' },
   // La documentation interne du support (0133).
+  { base: 'cette fiche a été reprise depuis que tu l\'as ouverte : relis-la, puis refais ta reprise (rien n\'est écrit)', cle: 'base.support.doc_reprise_ailleurs', fr: 'cette fiche a été reprise depuis que tu l\'as ouverte : relis-la, puis refais ta reprise (rien n\'est écrit)' },
+  { base: 'cette fiche a été reprise depuis que tu l\'as lue : relis-la avant de la valider (rien n\'est validé)', cle: 'base.support.doc_validee_ailleurs', fr: 'cette fiche a été reprise depuis que tu l\'as lue : relis-la avant de la valider (rien n\'est validé)' },
   { base: 'une note privée : de trois à deux mille caractères', cle: 'base.support.note_longueur', fr: 'une note privée : de trois à deux mille caractères' },
   { base: 'une fiche est une réponse ou une procédure', cle: 'base.support.doc_sorte', fr: 'une fiche est une réponse ou une procédure' },
   { base: 'le titre d\'une fiche : de trois à cent vingt caractères', cle: 'base.support.doc_titre', fr: 'le titre d\'une fiche : de trois à cent vingt caractères' },
