@@ -131,13 +131,21 @@ describe('les versions du service, à la souris', () => {
         on conflict (heure, exemplaire, sorte) do update set n = 2000, pannes = $2`, [heureIlYa(h), pannes, seaux]);
     }
     const qui = (await admin.query('select id from socle.utilisateur where email like $1 order by cree_le desc limit 1', ['console-versions-%'])).rows[0].id;
-    await admin.query(`insert into plateforme.service_incident (annee, numero, titre, gravite, ouvert_le, ouvert_par) values (2026, 978, 'Des factures qui ne partent plus', 'majeur', $1, $2)
-      on conflict do nothing`, [new Date(Date.now() - 2 * 3_600_000).toISOString(), qui]);
-    const p = await ouvrir();
+    // Deux autres fichiers d'essai vident les incidents en même temps (console-incidents, console) : on repose le nôtre et on
+    // rouvre l'écran tant qu'il n'y est pas, sans jamais desserrer ce que la ligne doit dire.
+    const attendu = /v1\.0\.0 .*Du \d\d\/\d\d\/\d{4} au \d\d\/\d\d\/\d{4}.*Majeur 2026-978 · Des factures qui ne partent plus.*Plus de pannes.*Un incident majeur/;
+    let p = await ouvrir();
+    let lu = '';
+    for (let essai = 0; essai < 5; essai += 1) {
+      await admin.query(`insert into plateforme.service_incident (annee, numero, titre, gravite, ouvert_le, ouvert_par) values (2026, 978, 'Des factures qui ne partent plus', 'majeur', $1, $2)
+        on conflict do nothing`, [new Date(Date.now() - 2 * 3_600_000).toISOString(), qui]);
+      if (essai > 0) { await fermer(p); p = await ouvrir(); }
+      await expect.poll(() => p.locator('.c-ve-effets tbody tr').count(), { timeout: 15_000 }).toBe(3);
+      lu = net(await p.locator(`.c-ve-effets tbody tr[data-version="${B}"]`).innerText());
+      if (attendu.test(lu)) break;
+    }
+    expect(lu).toMatch(attendu);
     const carte = p.locator('.c-ve-effets');
-    await expect.poll(() => carte.locator('tbody tr').count(), { timeout: 15_000 }).toBe(3);
-    const b = carte.locator(`tbody tr[data-version="${B}"]`);
-    expect(net(await b.innerText())).toMatch(/v1\.0\.0 .*Du \d\d\/\d\d\/\d{4} au \d\d\/\d\d\/\d{4}.*Majeur 2026-978 · Des factures qui ne partent plus.*Plus de pannes.*Un incident majeur/);
     // La plus ancienne n'a rien à quoi se comparer ; celle en service se dit « depuis ».
     expect(net(await carte.locator(`tbody tr[data-version="${A}"]`).innerText())).toContain('La plus ancienne mesurée : rien à comparer');
     expect(net(await carte.locator(`tbody tr[data-version="${C}"]`).innerText())).toMatch(/En service depuis le \d\d\/\d\d\/\d{4}/);
@@ -147,7 +155,7 @@ describe('les versions du service, à la souris', () => {
     expect((await carte.locator('thead th').allTextContents()).map(net)).toContain('Demandes au support');
     expect(erreurs).toEqual([]);
     await fermer(p);
-  }, 60_000);
+  }, 120_000);
 
   it('revenir à la version d\'avant : un motif court se refuse, le bouton ne bouge pas ; fait, la consigne se lit', async () => {
     const p = await ouvrir();
