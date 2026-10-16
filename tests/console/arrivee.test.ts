@@ -1,7 +1,8 @@
 // L'arrivée d'un nouveau client, pure (serveur/console/arrivee.ts ; docs/console.md C50) : cinq marches lues dans ce que
 // la console sait déjà ; une marche a son délai compté depuis l'inscription, et c'est la PREMIÈRE marche manquante qui
-// bloque, le lendemain de son délai ; l'arrivée dure les trente premiers jours, celui de l'inscription compris, et un
-// dossier qu'un cabinet tient n'arrive pas. Les jours sont comptés à la main.
+// bloque, le lendemain de son délai ; l'arrivée dure les trente premiers jours, celui de l'inscription compris, puis
+// jusqu'à son issue (1.45.0, l'audit 1.42.0 A06) : une période payée, ou un membre qui la clôt ; un dossier hors abonnement
+// (qu'un cabinet tient, offert) n'arrive pas au-delà. Les jours sont comptés à la main.
 
 import { describe, expect, it } from 'vitest';
 import { REGLES_DE_DEPART } from '../regles-de-depart.ts';
@@ -13,7 +14,8 @@ const JOUR = '2026-10-13';
 let n = 0;
 // Une entreprise telle que la base la rend (plateforme.console_entreprises) : en essai, jamais ouverte, sans pièce, sauf
 // mention contraire.
-function nee(creeLe: string, autre: Record<string, unknown> = {}, faits: Record<string, unknown> = {}, premiereFactureLe: string | null = null): Entreprise {
+function nee(creeLe: string, autre: Record<string, unknown> = {}, faits: Record<string, unknown> = {}, premiereFactureLe: string | null = null,
+  arriveeClose: unknown = null): Entreprise {
   n++;
   const id = `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
   const [e] = lireEntreprises([{
@@ -23,7 +25,7 @@ function nee(creeLe: string, autre: Record<string, unknown> = {}, faits: Record<
     ...autre,
   }], JOUR, REGLES_DE_DEPART);
   if (!e) throw new Error('une entreprise attendue');
-  return avecEnPlus([e], lireEnPlus({ [id]: { premiereFactureLe } }, JOUR))[0] as Entreprise;
+  return avecEnPlus([e], lireEnPlus({ [id]: { premiereFactureLe, arriveeClose } }, JOUR))[0] as Entreprise;
 }
 const faites = (a: ReturnType<typeof arrivee>) => a.marches.filter((m) => m.faite).map((m) => m.id).join(',');
 
@@ -83,16 +85,39 @@ describe('L\'arrivée : les marches et leur délai', () => {
   });
 });
 
-describe('L\'arrivée : les trente premiers jours, et la vue de la liste', () => {
-  it('le trentième jour en est encore (jour 29), le trente et unième n\'en est plus', () => {
-    expect(enArrivee(nee('2026-09-14'), JOUR)).toBe(true);
-    expect(enArrivee(nee('2026-09-13'), JOUR)).toBe(false);
+describe('L\'arrivée : les trente premiers jours, puis jusqu\'à son issue, et la vue de la liste', () => {
+  const close = { le: '2026-10-12T21:30:00Z', par: 'Amira', motif: 'il a choisi un autre logiciel' };
+  it('jour 29, 30, 31 et bien après : elle reste tant qu\'il n\'a jamais payé et que personne ne l\'a close', () => {
+    expect([nee('2026-09-14'), nee('2026-09-13'), nee('2026-09-12'), nee('2026-06-01')].map((e) => enArrivee(e, JOUR))).toEqual([true, true, true, true]);
   });
 
-  it('la vue garde les inscrites des trente jours, jamais un dossier qu\'un cabinet tient ; sa carte compte la même liste (C3)', () => {
-    const liste = [nee('2026-10-13'), nee('2026-09-14'), nee('2026-09-13'), nee('2026-10-01', {}, { tenuParCabinet: true })];
+  it('son issue la finit : une période payée (même passée depuis), une arrivée close (même avant ses trente jours), un dossier offert', () => {
+    const payee = { offre: 'essentiel', periodicite: 'annuel' };
+    expect(enArrivee(nee('2026-09-13', {}, { ...payee, payeJusquAu: '2027-09-12' }), JOUR)).toBe(false);
+    expect(enArrivee(nee('2026-08-01', {}, { ...payee, payeJusquAu: '2026-09-30' }), JOUR)).toBe(false);
+    expect(enArrivee(nee('2026-10-08', {}, {}, null, close), JOUR)).toBe(false);
+    expect(enArrivee(nee('2026-08-01', {}, {}, null, close), JOUR)).toBe(false);
+    expect(enArrivee(nee('2026-08-01', {}, { offert: true }), JOUR)).toBe(false);
+    // Une clôture illisible (sans son motif) ne la finit pas : la carte reste, plutôt qu'un client qui disparaît.
+    expect(enArrivee(nee('2026-08-01', {}, {}, null, { le: close.le, par: 'Amira' }), JOUR)).toBe(true);
+  });
+
+  it('payée, elle dure ses trente jours, le trentième compris (jour 29), et finit le trente et unième', () => {
+    const payee = { offre: 'essentiel', periodicite: 'annuel', payeJusquAu: '2027-09-12' };
+    expect(enArrivee(nee('2026-09-14', {}, payee), JOUR)).toBe(true);
+    expect(enArrivee(nee('2026-09-13', {}, payee), JOUR)).toBe(false);
+  });
+
+  it('au-delà des trente jours, la marche de l\'abonnement bloque, depuis le lendemain de son délai', () => {
+    // Inscrite le 10/09 : trente-trois jours ; tout franchi sauf l\'abonnement, bloqué depuis trois jours.
+    const a = arrivee(nee('2026-09-10', { derniereActivite: '2026-10-12T10:00:00Z', pieces: 3 }, { essaiJusquAu: '2026-10-09' }, '2026-09-15'), JOUR);
+    expect([a.jours, a.suivante, a.bloquee]).toEqual([33, 'abonnee', { marche: 'abonnee', depuis: 3 }]);
+  });
+
+  it('la vue garde les arrivées sans issue, jamais un dossier qu\'un cabinet tient ni une arrivée close ; sa carte compte la même liste (C3)', () => {
+    const liste = [nee('2026-10-13'), nee('2026-09-14'), nee('2026-09-13'), nee('2026-10-01', {}, { tenuParCabinet: true }), nee('2026-09-01', {}, {}, null, close)];
     const dedans = liste.map((e) => dansLaVue(e, 'arrivees', JOUR));
-    expect(dedans).toEqual([true, true, false, false]);
-    expect(comptesDesVues(liste, JOUR).arrivees).toBe(2);
+    expect(dedans).toEqual([true, true, true, false, false]);
+    expect(comptesDesVues(liste, JOUR).arrivees).toBe(3);
   });
 });

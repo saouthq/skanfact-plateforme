@@ -30,7 +30,9 @@ export type Ouverte = {
   // Le timbre de la facture (0114) : un avoir qui annule tout le reste l'annule (le timbre d'un avoir : À VÉRIFIER).
   timbre: bigint;
 };
-export type AEmettre = { piece: string; debut: string; fin: string; prepareLe: string; entreprise: Qui; ecran: string };
+// `montantHt` (0137, l'audit 1.42.0 A05) : le hors-taxes noté à sa préparation (en texte, trois décimales) ; vide s'il est
+// illisible.
+export type AEmettre = { piece: string; debut: string; fin: string; prepareLe: string; entreprise: Qui; ecran: string; montantHt: string | null };
 export type Cout = {
   id: string; libelle: string; montant: bigint; dApres: string; saisiLe: string; saisiPar: string | null;
   retireLe: string | null; retirePar: string | null;
@@ -93,7 +95,8 @@ export function lirePaiements(brut: unknown): Paiements {
   for (const a of Array.isArray(x.aEmettre) ? x.aEmettre as Record<string, unknown>[] : []) {
     const piece = texte(a.piece), ed2 = texte(a.editeur), debut = jour(a.debut), fin = jour(a.fin), entreprise = quiDe(a.entreprise);
     if (!piece || !ed2 || !debut || !fin || !entreprise) continue;
-    aEmettre.push({ piece, debut, fin, prepareLe: String(a.prepareLe ?? ''), entreprise, ecran: ecranDeLaPiece(ed2, piece) });
+    const ht = entier(a.montantHt);
+    aEmettre.push({ piece, debut, fin, prepareLe: String(a.prepareLe ?? ''), entreprise, ecran: ecranDeLaPiece(ed2, piece), montantHt: ht !== null && ht > 0n ? versTexte(ht, 3) : null });
   }
   const couts: Cout[] = [];
   for (const c of Array.isArray(x.couts) ? x.couts as Record<string, unknown>[] : []) {

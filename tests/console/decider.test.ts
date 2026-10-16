@@ -134,9 +134,9 @@ describe('« À décider » : l\'argent qui attend (0113)', () => {
     defaites: [{ piece: 'f1', numero: 'FAC-2026-001', payeeLe: '2026-09-02T10:00:00Z', debut: '2026-09-03', fin: '2026-10-02', entreprise: qui(b), ecran: ecran('f1'), cause: 'avoir' as const }],
     aEmettre: [
       // Préparée le 11/10 à 22 h 30 en UTC : le 11/10 à Tunis (23 h 30), deux jours avant le 13/10 — elle attend.
-      { piece: 'f2', debut: '2026-10-20', fin: '2027-10-19', prepareLe: '2026-10-11T22:30:00Z', entreprise: qui(a), ecran: ecran('f2') },
+      { piece: 'f2', debut: '2026-10-20', fin: '2027-10-19', prepareLe: '2026-10-11T22:30:00Z', entreprise: qui(a), ecran: ecran('f2'), montantHt: null },
       // Le 11/10 à 23 h 30 en UTC, c'est déjà le 12/10 à Tunis : un jour seulement, elle n'attend pas encore.
-      { piece: 'f3', debut: '2026-10-20', fin: '2026-11-19', prepareLe: '2026-10-11T23:30:00Z', entreprise: qui(b), ecran: ecran('f3') },
+      { piece: 'f3', debut: '2026-10-20', fin: '2026-11-19', prepareLe: '2026-10-11T23:30:00Z', entreprise: qui(b), ecran: ecran('f3'), montantHt: null },
     ],
     trop: [{ entreprise: qui(a), numero: 'FAC-2026-004', piece: 'f4', ecran: ecran('f4'), devise: 'TND', trop: '12.345', annulee: false },
       { entreprise: qui(b), numero: 'FAC-2026-001', piece: 'f1', ecran: ecran('f1'), devise: 'TND', trop: '47.410', annulee: true },

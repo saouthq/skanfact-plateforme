@@ -266,7 +266,7 @@ describe('les clients', () => {
     const fin = String((f.faits as { essaiJusquAu: string }).essaiJusquAu);
     // Un essai qui commence aujourd'hui (0110) : sa durée telle qu'il a commencé, rien de prolongé, aucune pièce émise ce
     // mois, aucune facture qui attend ; il n'est dans aucune vue du métier.
-    expect((await ligneDe(jS))?.enPlus).toEqual({ piecesMois: 0, essaiJours: joursEntre(aujourdhui, fin), prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null, premiereFactureLe: null });
+    expect((await ligneDe(jS))?.enPlus).toEqual({ piecesMois: 0, essaiJours: joursEntre(aujourdhui, fin), prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null, premiereFactureLe: null, arriveeClose: null });
     // Inscrite aujourd'hui : elle arrive (0127), et seulement cela.
     expect((await ligneDe(jS))?.vues).toEqual(['arrivees']);
     // Le menu « … » : les gestes de sa fiche, par la même règle — le support prolonge (une fois) ; la direction prolonge
@@ -323,6 +323,32 @@ describe('les clients', () => {
     expect(l?.vues).toContain('arrivees');
     // La fiche dit la même arrivée que sa ligne, par la même fonction.
     expect((await fiche(jS, ent)).arrivee).toEqual(l?.arrivee);
+  });
+
+  it('l\'issue de l\'arrivée (0137, l\'audit 1.42.0 A06) : passé trente jours elle reste ; close avec son motif, elle sort de la liste et de la fiche ; rouverte, elle revient', async () => {
+    const { ent } = await entreprise('Arrivée Sans Issue');
+    type S = { id: string; vues: string[]; arrivee: { jours: number; suivante: string | null } | null };
+    const ligne = async () => ((await appeler('GET', '/console/entreprises?vue=arrivees&q=arriv%C3%A9e%20sans%20issue&limite=50', jS)).corps.lignes as { societes: S[] }[])
+      .flatMap((l) => l.societes).find((x) => x.id === ent);
+    // Inscrite il y a quarante jours, jamais payée : son arrivée dure.
+    await admin.query("update socle.entreprise set cree_le = now() - interval '40 days' where id = $1", [ent]);
+    expect((await ligne())?.arrivee?.jours).toBe(40);
+    const geste = (sens: string, jeton: string, motif: string) => appeler('POST', `/console/entreprises/${ent}/arrivee/${sens}`, jeton, { motif });
+    expect((await geste('clore', jT, 'il a choisi un autre logiciel')).statut).toBe(403);
+    expect((await geste('clore', jS, 'ok')).corps.motif).toBe('Pourquoi son arrivée se clôt : de trois à cinq cents caractères ; il reste au journal.');
+    expect((await geste('clore', jS, 'il a choisi un autre logiciel')).statut).toBe(200);
+    expect(await ligne()).toBeUndefined();
+    const f = await fiche(jS, ent);
+    expect(f.arrivee).toBeNull();
+    expect((f.enPlus as { arriveeClose: unknown }).arriveeClose).toMatchObject({ motif: 'il a choisi un autre logiciel', par: support.nom });
+    expect((await geste('clore', jD, 'encore')).corps.motif).toBe('Son arrivée est déjà close : rouvre-la d\'abord si elle reprend.');
+    expect((await geste('rouvrir', jD, 'il revient : rendez-vous demain')).statut).toBe(200);
+    expect((await ligne())?.arrivee?.suivante).toBe('ouverte');
+    expect((await geste('rouvrir', jD, 'encore')).corps.motif).toBe('Son arrivée n\'est pas close.');
+    const { rows } = await admin.query("select geste, role, motif, avant from plateforme.geste_console where entreprise = $1 and geste like 'clients.arrivee_%' order by le", [ent]);
+    expect(rows).toEqual([
+      { geste: 'clients.arrivee_close', role: 'support', motif: 'il a choisi un autre logiciel', avant: null },
+      { geste: 'clients.arrivee_rouverte', role: 'direction', motif: 'il revient : rendez-vous demain', avant: expect.objectContaining({ motif: 'il a choisi un autre logiciel' }) }]);
   });
 
   it('la fiche dit la liste fermée : qui, l\'abonnement et son histoire, les membres, des comptes ; jamais le contenu d\'un dossier', async () => {

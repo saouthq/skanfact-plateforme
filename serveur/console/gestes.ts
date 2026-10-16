@@ -81,6 +81,8 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   { code: 'console.clients.exporter', roles: [D], ecrit: true },
   { code: 'console.clients.appeler', roles: [D, S], ecrit: true },
   { code: 'console.clients.ecrire', roles: [D, S], ecrit: true },
+  // L'issue de l'arrivée d'un client (1.45.0 ; 0137) : la clore ou la rouvrir, avec son motif.
+  { code: 'console.clients.arrivee', roles: [D, S], ecrit: true },
   // La procédure de reprise d'une entreprise (docs/console.md C34 ; 0112) : changer de propriétaire sur pièces ; la
   // direction seule, et l'autre membre de la direction confirme.
   { code: 'console.clients.reprise', roles: [D], ecrit: true },

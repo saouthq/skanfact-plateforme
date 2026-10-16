@@ -10,7 +10,7 @@
 import { versTexte } from '../../moteur/argent.ts';
 import { joursEntre } from '../abonnement/etat.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
-import { enArrivee } from './arrivee.ts';
+import { enArrivee, type ArriveeClose } from './arrivee.ts';
 import { aServi, type EnPlus, type Entreprise, type FactureQuiAttend } from './decider.ts';
 import { dateDe, type Remises } from './echeances.ts';
 import { lireFacturesAbonnement } from '../abonnement/factures.ts';
@@ -31,8 +31,9 @@ export function dansLaVue(e: Entreprise, v: VueClients, jour: string): boolean {
   const s = e.etat;
   switch (v) {
     case 'tout': return true;
-    // 0127 (la liste des fonctions qui manquent, 6) : inscrite depuis trente jours au plus — son arrivée, marche par
-    // marche, jusqu'à sa première facture émise (serveur/console/arrivee.ts). Un dossier qu'un cabinet tient n'arrive pas.
+    // 0127 (la liste des fonctions qui manquent, 6) : inscrite depuis trente jours au plus, ou plus tant que son arrivée
+    // n'a pas d'issue (1.45.0, A06) — marche par marche, jusqu'à l'abonnement payé (serveur/console/arrivee.ts). Un
+    // dossier qu'un cabinet tient n'arrive pas.
     case 'arrivees': return enArrivee(e, jour) && !(s.etat === 'hors' && s.raison === 'tenu_par_cabinet');
     // Un essai qui finit dans la semaine sans une pièce émise, ou une grâce d'après l'essai sans offre choisie : quelqu'un
     // qui n'a pas encore vu ce que l'application lui apporte. C'est un appel, pas une relance.
@@ -85,12 +86,20 @@ export function lireEnPlus(brut: unknown, jour: string): Map<string, EnPlus> {
     const attend: FactureQuiAttend | null = f ? { offre: f.offre, periodicite: f.periodicite, etat: f.etat, reste: f.reste, devise: f.devise, echeance: f.echeance } : null;
     m.set(id, { piecesMois: n(r.piecesMois), essaiJours: n(r.essaiJours) || null, prolonge: n(r.prolonge), prolongeUneFois: r.prolongeUneFois === true,
       moisOffertRecent: r.moisOffertRecent === true, attend,
-      premiereFactureLe: typeof r.premiereFactureLe === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.premiereFactureLe) ? r.premiereFactureLe : null });
+      premiereFactureLe: typeof r.premiereFactureLe === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(r.premiereFactureLe) ? r.premiereFactureLe : null,
+      arriveeClose: lireArriveeClose(r.arriveeClose) });
   }
   return m;
 }
+// Une arrivée close (0137), lue prudemment : sans son jour ni son motif, elle ne compte pas pour close — la carte de
+// l'arrivée reste, plutôt qu'un client qui disparaîtrait sur une ligne illisible.
+function lireArriveeClose(v: unknown): ArriveeClose | null {
+  const a = v && typeof v === 'object' && !Array.isArray(v) ? v as Record<string, unknown> : null;
+  if (!a || typeof a.le !== 'string' || Number.isNaN(Date.parse(a.le)) || typeof a.motif !== 'string' || !a.motif) return null;
+  return { le: a.le, par: typeof a.par === 'string' && a.par ? a.par : null, motif: a.motif };
+}
 export const avecEnPlus = <E extends Entreprise>(liste: readonly E[], enPlus: Map<string, EnPlus>): E[] =>
-  liste.map((e) => ({ ...e, enPlus: enPlus.get(e.id) ?? { piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null, premiereFactureLe: null } }));
+  liste.map((e) => ({ ...e, enPlus: enPlus.get(e.id) ?? { piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null, premiereFactureLe: null, arriveeClose: null } }));
 
 export function comptesDesVues(liste: readonly Entreprise[], jour: string): Record<VueClients, number> {
   return Object.fromEntries(VUES_CLIENTS.map((v) => [v, liste.filter((e) => dansLaVue(e, v, jour)).length])) as Record<VueClients, number>;

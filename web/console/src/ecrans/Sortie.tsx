@@ -35,7 +35,7 @@ export function sortieAttendEnMots(l: { fin: string; restantes: Etape[] }): stri
   return phrase(`${K}.attend`, { le: jourCourt(l.fin), quoi: l.restantes.map((e) => dire(`${K}.reste.${e}`)).join(dire(`${K}.et`)) });
 }
 
-function useEnvoi(fait: () => void) {
+export function useEnvoi(fait: () => void) {
   const api = useApi();
   const [refus, setRefus] = useState<string | null>(null);
   const [faute, setFaute] = useState<{ champ: string; n: number } | null>(null);
@@ -54,7 +54,7 @@ function useEnvoi(fait: () => void) {
   };
   return { envoyer, refuser, refus, occupe, faute: (champ: string) => faute?.champ === champ, n: faute?.n ?? 0 };
 }
-function Pied({ fermer, occupe, envoyer, bouton, danger }: { fermer: () => void; occupe: boolean; envoyer: () => void; bouton: string; danger?: boolean }) {
+export function Pied({ fermer, occupe, envoyer, bouton, danger }: { fermer: () => void; occupe: boolean; envoyer: () => void; bouton: string; danger?: boolean }) {
   return (
     <>
       <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
@@ -62,7 +62,7 @@ function Pied({ fermer, occupe, envoyer, bouton, danger }: { fermer: () => void;
     </>
   );
 }
-function CeQuiVa({ lignes }: { lignes: string[] }) {
+export function CeQuiVa({ lignes }: { lignes: string[] }) {
   return (
     <div className="c-al-ce-qui-va">
       <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>

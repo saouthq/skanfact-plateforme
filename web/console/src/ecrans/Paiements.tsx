@@ -47,7 +47,7 @@ type Donnees = {
   previsions: Previsions | null;
 };
 type Previsions = {
-  devise: string; mois: { mois: string; du: { montant: string; n: number }; attendu: { montantHt: string; n: number } }[];
+  devise: string; mois: { mois: string; du: { montant: string; n: number }; prepare: { montantHt: string; n: number }; attendu: { montantHt: string; n: number } }[];
   retard: { montant: string; n: number }; plusTard: { montant: string; n: number }; sansPrix: number; partants: number;
 };
 const K = 'console.ecran.paiements';
@@ -58,8 +58,10 @@ const enDevise = (t: string, devise: string) => (devise === 'TND' ? montant(t) :
 const nul = (t: string) => /^-?0+(\.0+)?$/.test(t);
 
 // ── Ce qui doit rentrer (C55) ───────────────────────────────────────────────────────────────────────────────────────
-// Trois mois à partir d'aujourd'hui : ce qui reste dû sur nos factures émises (taxes comprises), et les renouvellements
-// qui n'ont pas encore leur facture (hors taxes) — deux colonnes, jamais une somme. Ce qui est déjà en retard, au-dessus.
+// Trois mois à partir d'aujourd'hui : ce qui reste dû sur nos factures émises (taxes comprises), nos factures préparées
+// pas encore émises et les renouvellements qui n'ont pas encore leur facture (hors taxes) — trois lignes par mois, jamais
+// une somme : préparer une facture la fait passer d'une ligne à la voisine (l'audit 1.42.0 A05). Ce qui est déjà en
+// retard, au-dessus.
 function CeQuiDoitRentrer({ p, courant }: { p: Previsions; courant: string }) {
   const P = `${K}.prev`;
   return (
@@ -69,18 +71,27 @@ function CeQuiDoitRentrer({ p, courant }: { p: Previsions; courant: string }) {
       {p.retard.n ? (
         <p className="c-pa-prev-retard"><Icone nom="alerte" taille={16} /><span>{maj(selon(p.retard.n, `${P}.retard`, { montant: enDevise(p.retard.montant, p.devise) }))}</span></p>
       ) : null}
-      <table className="c-pa-prev-table">
-        <thead><tr><th scope="col">{titre(`${P}.col.mois`)}</th><th scope="col" className="c-droite">{titre(`${P}.col.du`)}</th><th scope="col" className="c-droite">{titre(`${P}.col.attendu`)}</th></tr></thead>
-        <tbody>
-          {p.mois.map((m) => (
-            <tr key={m.mois}>
-              <th scope="row">{maj(dire(`${P}.mois`, { mois: moisEnMots(m.mois, false) }))}{m.mois === courant ? <span className="c-sous c-bloc">{dire(`${P}.en_cours`)}</span> : null}</th>
-              <td className="c-droite"><b className="c-mono" data-donnee>{enDevise(m.du.montant, p.devise)}</b><span className="c-sous c-bloc">{selon(m.du.n, `${P}.factures`)}</span></td>
-              <td className="c-droite"><b className="c-mono" data-donnee>{montant(m.attendu.montantHt)}</b><span className="c-sous c-bloc">{selon(m.attendu.n, `${P}.renouvellements`)}</span></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      {/* Un bloc par mois : trois lignes (émises TTC ; préparées et renouvellements HT), lisibles dans la colonne de côté
+          comme au téléphone — jamais une somme des trois. */}
+      <div className="c-pa-prev-mois-liste">
+        {p.mois.map((m) => (
+          <section key={m.mois} className="c-pa-prev-mois" aria-label={maj(dire(`${P}.mois`, { mois: moisEnMots(m.mois, false) }))}>
+            <h3>{maj(dire(`${P}.mois`, { mois: moisEnMots(m.mois, false) }))}{m.mois === courant ? <span className="c-sous">{dire(`${P}.en_cours`)}</span> : null}</h3>
+            <dl>
+              {([
+                ['du', enDevise(m.du.montant, p.devise), selon(m.du.n, `${P}.factures`)],
+                ['prepare', montant(m.prepare.montantHt), selon(m.prepare.n, `${P}.preparees`)],
+                ['attendu', montant(m.attendu.montantHt), selon(m.attendu.n, `${P}.renouvellements`)],
+              ] as const).map(([k, v, n]) => (
+                <div key={k} className="c-pa-prev-ligne" data-sorte={k}>
+                  <dt>{titre(`${P}.col.${k}`)}<span className="c-sous">{n}</span></dt>
+                  <dd><b className="c-mono" data-donnee>{v}</b></dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
+      </div>
       {p.plusTard.n ? <p className="c-sous">{maj(selon(p.plusTard.n, `${P}.plus_tard`, { montant: enDevise(p.plusTard.montant, p.devise) }))}</p> : null}
       {p.sansPrix ? <p className="c-sous">{maj(selon(p.sansPrix, `${P}.sans_prix`))}</p> : null}
       {p.partants ? <p className="c-sous">{maj(selon(p.partants, `${P}.partants`))}</p> : null}

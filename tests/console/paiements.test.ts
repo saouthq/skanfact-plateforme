@@ -101,8 +101,8 @@ type Ecran = {
   recus: { total: number; lignes: { moyen: string; montant: string; entreprise: { id: string }; konnect: unknown; ecran: string }[] };
   doivent: { entreprise: { id: string }; reste: string; paye: string; credite: string; statut: string; retard: number | null; ecran: string }[];
   trop: { entreprise: { id: string }; trop: string; annulee: boolean }[];
-  aEmettre: { entreprise: { id: string } }[];
-  previsions: { mois: { mois: string; du: { montant: string; n: number } }[]; retard: { montant: string; n: number }; plusTard: { montant: string; n: number } } | null;
+  aEmettre: { entreprise: { id: string }; debut: string; montantHt: string | null }[];
+  previsions: { mois: { mois: string; du: { montant: string; n: number }; prepare: { montantHt: string; n: number } }[]; retard: { montant: string; n: number }; plusTard: { montant: string; n: number } } | null;
   couts: { lignes: { id: string; libelle: string; montant: string; dApres: string; retireLe: string | null }[]; total: string; reste: string | null };
 };
 const lire = async (m = mois) => {
@@ -239,6 +239,16 @@ describe('les paiements de nos factures', () => {
     const e = await lire();
     expect(e.aEmettre.map((x) => x.entreprise.id)).toContain(b.id);
     expect(e.doivent.map((x) => x.entreprise.id)).not.toContain(b.id);
+    // Elle dit son hors-taxes (0137), et « Ce qui doit rentrer » la range au mois de sa période, dans sa colonne
+    // (l'audit 1.42.0 A05) : deux chemins, un chiffre — la liste « à émettre » et la colonne des préparées.
+    expect(e.aEmettre.find((x) => x.entreprise.id === b.id)?.montantHt).toBe('39.000');
+    if (!e.previsions) throw new Error('des prévisions attendues');
+    const premier = e.previsions.mois[0]?.mois ?? '';
+    for (const m of e.previsions.mois) {
+      const ici = e.aEmettre.filter((x) => x.montantHt !== null && (x.debut.slice(0, 7) < premier ? premier : x.debut.slice(0, 7)) === m.mois);
+      expect([m.prepare.n, Math.round(Number(m.prepare.montantHt) * 1000)]).toEqual([ici.length, ici.reduce((t, x) => t + Math.round(Number(x.montantHt) * 1000), 0)]);
+    }
+    expect(e.previsions.mois.reduce((t, m) => t + m.prepare.n, 0)).toBeGreaterThan(0);
   });
 });
 

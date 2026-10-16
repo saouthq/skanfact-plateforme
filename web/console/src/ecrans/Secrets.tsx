@@ -87,7 +87,7 @@ function FenetreNoter({ aujourdhui, fermer, fait }: { aujourdhui: string; fermer
       <Champ libelle={titre(`${S}.n.renouvele`)} type="date" valeur={renouvele} changer={setRenouvele} max={aujourdhui} faute={e.faute('renouveleLe')} n={e.n} />
       <Champ libelle={titre(`${S}.n.expire`)} aide={phrase(`${S}.n.expire_aide`)} type="date" valeur={expire} changer={setExpire} faute={e.faute('expireLe')} n={e.n} />
       <Champ libelle={titre(`${S}.n.rythme`)} aide={phrase(`${S}.n.rythme_aide`)} valeur={rythme} changer={setRythme} inputMode="numeric" faute={e.faute('rotationJours')} n={e.n} />
-      <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${S}.motif_aide`)} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
       <Qui />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
     </Dialogue>
@@ -117,7 +117,7 @@ function FenetreRenouvele({ s, aujourdhui, fermer, fait }: { s: Secret; aujourdh
       </div>
       <Champ libelle={titre(`${S}.r.le`)} type="date" valeur={le} changer={setLe} max={aujourdhui} premier faute={e.faute('le')} n={e.n} />
       <Champ libelle={titre(`${S}.n.expire`)} aide={phrase(`${S}.r.expire_aide`)} type="date" valeur={expire} changer={setExpire} faute={e.faute('expireLe')} n={e.n} />
-      <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${S}.motif_aide`)} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
       <Qui />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
     </Dialogue>
@@ -138,7 +138,7 @@ function FenetreRetirer({ s, fermer, fait }: { s: Secret; fermer: () => void; fa
         <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
         <ul><li>{phrase(`${S}.x.p1`)}</li><li>{phrase(`${S}.x.p2`)}</li></ul>
       </div>
-      <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} premier faute={e.faute('motif')} n={e.n} />
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${S}.motif_aide`)} valeur={motif} changer={setMotif} premier faute={e.faute('motif')} n={e.n} />
       <Qui />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
     </Dialogue>

@@ -469,7 +469,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, factures, contestations, groupe: { ...groupe, prochaine }, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true, enPlus?.moisOffertRecent ?? false),
         identite, notes, enPlus, offreSuivante: faits.offreSuivante ?? null, delai: faits.delai ?? null,
         // Son arrivée (0127) : de l'inscription à la première facture émise, par la même fonction que la liste.
-        arrivee: liste[0] && enArrivee(liste[0], jour) ? arrivee({ ...liste[0], enPlus: enPlus ?? {} }, jour) : null,
+        // Close (0137), elle ne s'affiche plus : la fiche dit qu'elle l'est (enPlus.arriveeClose) et la rouvre.
+        arrivee: liste[0] && enArrivee({ ...liste[0], enPlus: enPlus ?? {} }, jour) ? arrivee({ ...liste[0], enPlus: enPlus ?? {} }, jour) : null,
         // La procédure de reprise en cours, ou la dernière (0112) : la direction seule la voit.
         reprise: role === 'direction' ? await lireJson(transaction(tx), 'select plateforme.console_reprise($1, $2::date) v', [id, jour]) : null,
         sortie, risque,
@@ -490,6 +491,20 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       return { statut: 201, corps: { id: String(r.rows[0]?.id) } };
     },
   });
+  // L'issue de son arrivée (1.45.0 ; l'audit 1.42.0 A06 ; 0137) : la clore (il ne s'abonnera pas, il est suivi ailleurs)
+  // ou la rouvrir, avec le motif ; la direction et le support.
+  for (const sens of ['clore', 'rouvrir'] as const) {
+    ajouter({
+      methode: 'POST', chemin: `/console/entreprises/:id/arrivee/${sens}`, geste: 'console.clients.arrivee',
+      corps: z.object({ motif: z.string().max(500) }),
+      traiter: async ({ params, corps }, tx) => {
+        const id = params.id ?? '';
+        if (!uuid.safeParse(id).success) throw new Introuvable();
+        await transaction(tx).query(`select plateforme.console_${sens === 'clore' ? 'clore' : 'rouvrir'}_arrivee($1, $2, $3)`, [id, corps.motif, maintenant()]);
+        return { corps: { ok: true } };
+      },
+    });
+  }
   // Écrire au contact : un message que la personne lit dans son application (une demande au support que SkanFact
   // commence) ; l'alerte des réponses du support la prévient par e-mail, sans le texte.
   ajouter({
@@ -1909,7 +1924,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // le prix des prochaines factures, jamais recomptés.
       // Un client dont la sortie est ouverte (0131) ne renouvellera pas : ses renouvellements sont écartés.
       const partants = new Set(lireSorties(await lireJson(x, 'select plateforme.console_sorties($1::date) v', [jour])).flatMap((s) => (s.entreprise ? [s.entreprise.id] : [])));
-      const previsions = p.editeur ? prevoir(doivent, await renouvellementsDe(x, entreprises, jour), [...p.ouvertes, ...p.aEmettre], jour, p.editeur.devise, p.editeur.decimales, partants) : null;
+      const previsions = p.editeur ? prevoir(doivent, await renouvellementsDe(x, entreprises, jour), [...p.ouvertes, ...p.aEmettre], jour, p.editeur.devise, p.editeur.decimales, partants,
+        p.aEmettre.map((a) => ({ ...a, montantHt: a.montantHt === null ? null : depuisTexte(a.montantHt, 3) }))) : null;
       const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
       const debutHors = Math.max(Number(query.debutHors ?? 0) || 0, 0);
       const n = limite(query);

@@ -398,6 +398,43 @@ describe('la console de l\'équipe, à la souris', () => {
     await fermer(p);
   }, 90_000);
 
+  it('l\'issue de l\'arrivée (l\'audit 1.42.0 A06) : passé trente jours la carte reste ; le support la clôt avec son motif, la direction la rouvre', async () => {
+    const ent = await entreprise('Atelier Sans Suite', -8);
+    await admin.query('update socle.entreprise set cree_le = cree_le - interval \'40 days\' where id = $1', [ent]);
+    const p = await ouvrir(await jetonConsole(support), `#/clients/${ent}`);
+    const carte = p.locator('section[aria-labelledby="fiche-arrivee"]');
+    await expect.poll(() => carte.locator('.c-carte-coin').innerText().then((t) => net(t).toLocaleLowerCase('fr')).catch(() => ''), { timeout: 15_000 }).toBe('jour 41 · après les 30 jours');
+    await cliquer(carte.getByRole('button', { name: 'Clore son arrivée…' }));
+    const fenetre = p.getByRole('dialog');
+    await expect.poll(() => fenetre.count()).toBe(1);
+    // Ce qui va se passer se lit avant le geste ; sans motif, refusé, et le curseur va au motif.
+    expect(net(await fenetre.innerText())).toContain('Son arrivée sort de la vue « arrivées »');
+    await cliquer(fenetre.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => fenetre.locator('.c-alerte-danger').innerText().catch(() => '')).toMatch(/motif/i);
+    expect(await p.evaluate(() => document.activeElement?.tagName)).toBe('TEXTAREA');
+    await fenetre.getByLabel('Motif', { exact: true }).fill('Il a choisi un autre logiciel');
+    await cliquer(fenetre.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => p.locator('#c-toast').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe('C\'est fait : arrivée close.');
+    await expect.poll(() => carte.locator('.c-carte-coin').innerText().then((t) => net(t).toLocaleLowerCase('fr')).catch(() => ''), { timeout: 10_000 }).toBe('close');
+    expect(net(await carte.innerText())).toContain(`Son arrivée a été close le ${jourCourt(aujourdhui)} par ${support.nom}`);
+    expect(net(await carte.innerText())).toContain('« Il a choisi un autre logiciel »');
+    // Elle n'est plus dans la vue « arrivées ».
+    const vue = (await api('GET', '/console/entreprises?vue=arrivees&q=atelier%20sans%20suite&limite=50', await jetonConsole(support))).corps.lignes as unknown[];
+    expect(vue).toEqual([]);
+    await p.screenshot({ path: path.join(PHOTOS, 'console-arrivee-close.png'), fullPage: true });
+    await fermer(p);
+    // La direction la rouvre : la carte des marches revient.
+    const d = await ouvrir(await jetonConsole(direction), `#/clients/${ent}`);
+    const carteD = d.locator('section[aria-labelledby="fiche-arrivee"]');
+    await cliquer(carteD.getByRole('button', { name: 'Rouvrir son arrivée…' }));
+    const f2 = d.getByRole('dialog');
+    await f2.getByLabel('Motif', { exact: true }).fill('Il revient : rendez-vous demain');
+    await cliquer(f2.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => carteD.locator('.c-carte-coin').innerText().then((t) => net(t).toLocaleLowerCase('fr')).catch(() => ''), { timeout: 10_000 }).toBe('jour 41 · après les 30 jours');
+    expect(await carteD.locator('.c-ar-marches > li').count()).toBe(5);
+    await fermer(d);
+  }, 90_000);
+
   it('nos factures : la direction désigne l\'entreprise SkanFact ; une échéance passée répond par SA facture, préparée sur son aperçu, puis à émettre', async () => {
     // Le timbre d'un dinar, que cette base peut laisser vide ; et l'entreprise SkanFact, que les autres fichiers peuvent
     // avoir désignée : on part sans elle.

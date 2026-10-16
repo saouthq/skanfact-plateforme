@@ -37,7 +37,9 @@ export type Entreprise = {
 export type FactureQuiAttend = { offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; etat: string; reste: string | null; devise: string | null; echeance: string | null };
 // `moisOffertRecent` (0113) : un mois lui a été offert ces douze derniers mois (le support n'en offre pas un second).
 // `premiereFactureLe` (0127) : le jour de sa première facture émise — sa première utilisation réelle (serveur/console/arrivee.ts).
-export type EnPlus = { piecesMois: number; essaiJours: number | null; prolonge: number; prolongeUneFois: boolean; moisOffertRecent?: boolean; attend: FactureQuiAttend | null; premiereFactureLe?: string | null };
+// `arriveeClose` (0137) : son arrivée close par un membre — quand, par qui, pourquoi (serveur/console/arrivee.ts).
+export type EnPlus = { piecesMois: number; essaiJours: number | null; prolonge: number; prolongeUneFois: boolean; moisOffertRecent?: boolean; attend: FactureQuiAttend | null; premiereFactureLe?: string | null;
+  arriveeClose?: { le: string; par: string | null; motif: string } | null };
 
 // Ce que la base rend (plateforme.console_entreprises), lu prudemment : un champ illisible vaut « rien », jamais une
 // valeur devinée ; l'état se déduit du jour de Tunis, avec les règles de l'abonnement (la grâce, les relances : 0104),

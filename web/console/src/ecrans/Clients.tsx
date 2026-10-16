@@ -300,6 +300,9 @@ export function Marches({ a }: { a: Arrivee }) {
 }
 // Où en est l'arrivée, en mots : « bloquée : première facture · 4 j de retard », « prochaine : première pièce, d'ici le
 // 20/10 » (trente jours au plus : l'année va de soi), « arrivée complète ».
+// Son jour : « jour 12 sur 30 » ; passé ses trente jours, elle attend son issue (l'audit 1.42.0 A06).
+export const jourDeLArrivee = (a: Arrivee): string =>
+  dire(a.jours < 30 ? 'console.ecran.clients.ar.jour' : 'console.ecran.clients.ar.jour_apres', { n: a.jours + 1 });
 export function arriveeEnMots(a: Arrivee): { texte: string; alerte: boolean } {
   if (a.bloquee) return { texte: dire('console.ecran.clients.ar.bloquee', { marche: dire(`console.ecran.clients.ar.m.${a.bloquee.marche}`), n: a.bloquee.depuis }), alerte: true };
   const suivante = a.marches.find((m) => m.id === a.suivante);
@@ -367,7 +370,7 @@ function LigneDeLaListe({ o, aujourdhui, role, reserve, arrivees, risques, faire
           <span className="c-sous">{risque.usage ? dire('console.ecran.clients.ri.usage', { trente: risque.usage.trente, avant: risque.usage.avant }) : dire('console.ecran.clients.ri.usage_rien')}</span>
         </> : arrivee && ar ? <>
           <span className="c-ar-ligne"><Marches a={arrivee} /><span className={ar.alerte ? 'c-cl-proche' : undefined}>{maj(ar.texte)}</span></span>
-          <span className="c-sous">{dire('console.ecran.clients.ar.jour', { n: arrivee.jours + 1 })}</span>
+          <span className="c-sous">{jourDeLArrivee(arrivee)}</span>
         </> : <>
           {cabinet ? <span>{maj(nombre((o.cabinet?.comptes.client ?? 0) + (o.cabinet?.comptes.tenu ?? 0), 'console.ecran.clients.cab.dossier', 'console.ecran.clients.cab.dossiers_n', 'console.ecran.clients.cab.aucun_dossier'))}</span>
             : tenu ? <span>{maj(dire('console.ecran.clients.tenu_cabinet'))}</span>

@@ -502,6 +502,11 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'ce secret est déjà suivi : note son renouvellement sur sa ligne', cle: 'base.console.secret_deja', fr: 'ce secret est déjà suivi : note son renouvellement sur sa ligne' },
   { base: 'ce secret n\'est pas suivi', cle: 'base.console.secret_inconnu', fr: 'ce secret n\'est pas suivi' },
   { base: 'un renouvellement vient après le précédent', cle: 'base.console.secret_avant_precedent', fr: 'un renouvellement vient après le précédent' },
+  // L'audit 1.42.0, lot 2a (0137) : le motif d'un geste sur un secret ; l'issue de l'arrivée d'un client.
+  { base: 'ce motif ressemble à la valeur d\'un secret : il reste au journal, on n\'y colle jamais une clé ; dis ce que tu as fait (« clé changée dans le coffre »)', cle: 'base.console.secret_motif', fr: 'ce motif ressemble à la valeur d\'un secret : il reste au journal, on n\'y colle jamais une clé ; dis ce que tu as fait (« clé changée dans le coffre »)' },
+  { base: 'pourquoi son arrivée se clôt : de trois à cinq cents caractères ; il reste au journal', cle: 'base.console.arrivee_motif', fr: 'pourquoi son arrivée se clôt : de trois à cinq cents caractères ; il reste au journal' },
+  { base: 'son arrivée est déjà close : rouvre-la d\'abord si elle reprend', cle: 'base.console.arrivee_deja_close', fr: 'son arrivée est déjà close : rouvre-la d\'abord si elle reprend' },
+  { base: 'son arrivée n\'est pas close', cle: 'base.console.arrivee_pas_close', fr: 'son arrivée n\'est pas close' },
   // L'accès d'urgence de l'équipe (0135).
   { base: 'le motif d\'un accès d\'urgence : cinq cents caractères au plus', cle: 'base.equipe.urgence_motif', fr: 'le motif d\'un accès d\'urgence : cinq cents caractères au plus' },
   { base: 'ton propre accès d\'urgence s\'ouvre par une autre personne de la direction, ou sur la machine du serveur', cle: 'base.equipe.urgence_soi', fr: 'ton propre accès d\'urgence s\'ouvre par une autre personne de la direction, ou sur la machine du serveur' },

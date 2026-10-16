@@ -34,6 +34,7 @@ declarerTextes({
   'geste.console.clients.exporter': 'exporter la sélection de la liste des clients',
   'geste.console.clients.appeler': 'noter un appel sur la fiche d\'un client',
   'geste.console.clients.ecrire': 'écrire au contact d\'un client, dans son application',
+  'geste.console.clients.arrivee': 'clore ou rouvrir l\'arrivée d\'un client (son issue, avec le motif)',
   'geste.console.clients.sortie': 'mener la sortie d\'un client (l\'ouvrir, régler son remboursement, la clore)',
   'geste.console.clients.reprise': 'mener la procédure de reprise d\'une entreprise (l\'ouvrir, noter les pièces vues, la clore, la confirmer)',
   // Le message à la propriétaire quand une procédure de reprise s'ouvre (0112) : dans son application, l'alerte par e-mail

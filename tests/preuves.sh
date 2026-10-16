@@ -11877,7 +11877,7 @@ prouver 'un paiement sans sa preuve écrit par la base' 'base/migrations/0121_dr
   '  if false then
     if length(btrim(' \
   "$AJ2"
-prouver 'un paiement reçu absent de Paiements' 'base/migrations/0114_chiffres_justes.sql' \
+prouver 'un paiement reçu absent de Paiements' 'base/migrations/0137_audit_lot2a.sql' \
   '                       where v.nature = '"'"'paye'"'"' and v.par = '"'"'exploitation'"'"' and v.apres->>'"'"'le'"'"'' \
   '                       where false and v.nature = '"'"'paye'"'"' and v.par = '"'"'exploitation'"'"' and v.apres->>'"'"'le'"'"'' \
   "$AJ2"
@@ -11902,7 +11902,7 @@ prouver 'l'"'"'échéance qui dit l'"'"'offre seule' 'serveur/console/renouvelle
   'periodeHt: htDeLaPeriode(prixHt, enPlus, remise),' \
   'periodeHt: htDeLaPeriode(prixHt, [], remise),' \
   "$AJ3"
-prouver 'une facture défaite absente de Paiements' 'base/migrations/0114_chiffres_justes.sql' \
+prouver 'une facture défaite absente de Paiements' 'base/migrations/0137_audit_lot2a.sql' \
   '                 where f.editeur = v_editeur and f.payee_le is not null
 ' \
   '                 where false and f.editeur = v_editeur and f.payee_le is not null
@@ -11940,7 +11940,7 @@ prouver 'une facture défaite qui tait ce qui est à rendre' 'serveur/console/de
   'cause: d.cause, trop: tropDe.get(d.piece) ?? null }]);' \
   'cause: d.cause, trop: null }]);' \
   "$AJ5"
-prouver 'une facture annulée par un avoir dite au règlement retiré' 'base/migrations/0114_chiffres_justes.sql' \
+prouver 'une facture annulée par un avoir dite au règlement retiré' 'base/migrations/0137_audit_lot2a.sql' \
   ''"'"'cause'"'"', case when s.avoirs > 0 and s.avoirs >= p.net_a_payer - coalesce(p.timbre, 0) then '"'"'avoir'"'"' else '"'"'reglement'"'"' end)' \
   ''"'"'cause'"'"', '"'"'reglement'"'"')' \
   "$AJ4"
@@ -13636,7 +13636,7 @@ PW2='la tuile de l'"'"'accueil et le bandeau disent le même encaissé ; la fact
 PW3='un coût : la case refusée se montre ; saisi, ce qui reste du mois se dit ; retiré, il reste barré'
 PW4='d'"'"'un mois à l'"'"'autre, les boutons ne bougent pas sous la souris ; au téléphone, rien ne déborde'
 # 1.42.0 : depuis 1.39.0, Paiements lit aussi les sorties en cours (0131), direction seule : la preuve lève ce verrou-là aussi.
-prouver 'le support qui lit les paiements (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0114_chiffres_justes.sql|||base/migrations/0131_sortie.sql' \
+prouver 'le support qui lit les paiements (le droit du serveur et la base)' 'serveur/console/gestes.ts|||base/migrations/0137_audit_lot2a.sql|||base/migrations/0131_sortie.sql' \
   '  { code: '"'"'console.paiements.voir'"'"', roles: [D], ecrit: false },|||  v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
   v_editeur uuid;|||perform plateforme.exiger_role_console(array['"'"'direction'"'"']);
   return (select coalesce(jsonb_agg(plateforme.sortie_lue(s, p_jour) ||' \
@@ -13650,7 +13650,7 @@ prouver 'la tuile de l'"'"'encaissé montrée au support' serveur/console/routes
 prouver 'la tuile qui compte autre chose que l'"'"'écran' serveur/console/paiements.ts \
   '  return { mesure: true, montant: versTexte(e.total, e.decimales), devise: e.devise, reglements: e.reglements };' '  return { mesure: true, montant: versTexte(e.parMoyen.virement, e.decimales), devise: e.devise, reglements: e.reglements };' \
   "$PA3"
-prouver 'un paiement reçu compté dans l'"'"'encaissé d'"'"'une autre entreprise SkanFact' 'base/migrations/0114_chiffres_justes.sql' \
+prouver 'un paiement reçu compté dans l'"'"'encaissé d'"'"'une autre entreprise SkanFact' 'base/migrations/0137_audit_lot2a.sql' \
   'v_debut and v_fin
                          and v.apres->>'"'"'editeur'"'"' = v_editeur::text),' \
   'v_debut and v_fin),' \
@@ -13661,19 +13661,19 @@ prouver 'une autre devise additionnée au dinar' serveur/console/paiements.ts \
 prouver '« en ligne » cru Konnect sans la preuve' serveur/console/paiements.ts \
   '  if (mode === '"'"'en_ligne'"'"') return prouve ? '"'"'konnect'"'"' : '"'"'autre'"'"';' '  if (mode === '"'"'en_ligne'"'"') return '"'"'konnect'"'"';' \
   "$PA10"
-prouver 'la preuve d'"'"'un autre paiement en ligne qui vaut pour tous' base/migrations/0114_chiffres_justes.sql \
+prouver 'la preuve d'"'"'un autre paiement en ligne qui vaut pour tous' base/migrations/0137_audit_lot2a.sql \
   ' and l.reglement_v10 = r.ref_v10))' '))' \
   "$PA4"
-prouver 'les règlements de tous les mois dans celui-ci' base/migrations/0114_chiffres_justes.sql \
+prouver 'les règlements de tous les mois dans celui-ci' base/migrations/0137_audit_lot2a.sql \
   '               where f.editeur = v_editeur and r.date_reglement between v_debut and v_fin),' '               where f.editeur = v_editeur),' \
   "$PA4"
-prouver 'le trop payé jamais relu' base/migrations/0114_chiffres_justes.sql \
+prouver 'le trop payé jamais relu' base/migrations/0137_audit_lot2a.sql \
   '                         - (select coalesce(sum(r.montant), 0) from ventes.reglement r where r.entreprise = p.entreprise and r.piece = p.id) <> 0) x),' '                         - (select coalesce(sum(r.montant), 0) from ventes.reglement r where r.entreprise = p.entreprise and r.piece = p.id) > 0) x),' \
   "$PA5"
 prouver 'une facture annulée réglée dite simplement trop payée' serveur/console/paiements.ts \
   '    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: annuleeParSesAvoirs(o.net, solde.credite, o.timbre) });' '    if (enTrop > 0n) trop.push({ ...base, trop: versTexte(enTrop, o.decimales), annulee: false });' \
   "$PA11"
-prouver 'une facture émise dite à émettre' base/migrations/0114_chiffres_justes.sql \
+prouver 'une facture émise dite à émettre' base/migrations/0137_audit_lot2a.sql \
   '                   and not exists (select 1 from ventes.piece p where p.entreprise = f.editeur and p.ref_v10 = f.piece_v10' '                   and exists (select 1 from ventes.piece p where p.entreprise = f.editeur and p.ref_v10 = f.piece_v10' \
   "$PA6"
 prouver 'un nom de coût refusé sans nommer sa case' serveur/console/routes.ts \
@@ -13793,11 +13793,11 @@ prouver 'le journal d'"'"'un export qui perd ses filtres' 'base/migrations/0114_
   ''"'"'filtres'"'"', coalesce(p_filtres, '"'"'{}'"'"'::jsonb)' \
   ''"'"'filtres'"'"', '"'"'{}'"'"'::jsonb' \
   "$CL1"
-prouver 'un essai déjà prolongé que le menu du support propose encore de prolonger' 'base/migrations/0127_arrivee.sql' \
+prouver 'un essai déjà prolongé que le menu du support propose encore de prolonger' 'base/migrations/0137_audit_lot2a.sql' \
   ''"'"'prolongeUneFois'"'"', exists (' \
   ''"'"'prolongeUneFois'"'"', false and exists (' \
   "$CL1"
-prouver 'la durée d'"'"'un essai lue de sa fin d'"'"'aujourd'"'"'hui' 'base/migrations/0127_arrivee.sql' \
+prouver 'la durée d'"'"'un essai lue de sa fin d'"'"'aujourd'"'"'hui' 'base/migrations/0137_audit_lot2a.sql' \
   'select (v.apres ->> '"'"'essaiJusquAu'"'"')::date - (v.le at time zone e.fuseau)::date from' \
   'select (select a.essai_jusqu_au from plateforme.abonnement a where a.entreprise = e.id) - (v.le at time zone e.fuseau)::date from' \
   "$CL1"
@@ -13982,7 +13982,7 @@ prouver 'minuit pris au jour UTC' 'serveur/console/journal.ts' \
   '  const t = Date.parse(`${aujourdhui}T00:00:00+01:00`) - jours * 86_400_000;' \
   '  const t = Date.parse(`${aujourdhui}T00:00:00Z`) - jours * 86_400_000;' \
   "$CJ16"
-prouver 'un avoir sans timbre qui ne défait pas sa facture' 'base/migrations/0114_chiffres_justes.sql' \
+prouver 'un avoir sans timbre qui ne défait pas sa facture' 'base/migrations/0137_audit_lot2a.sql' \
   'and ((s.avoirs > 0 and s.avoirs >= p.net_a_payer - coalesce(p.timbre, 0)) or p.net_a_payer - s.avoirs - s.regle > 0))' \
   'and (s.avoirs >= p.net_a_payer or p.net_a_payer - s.avoirs - s.regle > 0))' \
   "$CJ10"
@@ -15122,21 +15122,21 @@ prouver 'la dernière marche manquante tenue pour la suivante' 'serveur/console/
   'const suivante = [...marches].reverse().find((m) => !m.faite)?.id ?? null;' \
   'payée avant sa première pièce : la marche manquante reste la suivante, celle d'"'"'après comptée franchie'
 prouver 'l'"'"'arrivée qui dure un jour de trop' 'serveur/console/arrivee.ts' \
-  'return joursEntre(e.creeLe.slice(0, 10), jour) < ARRIVEE_JOURS;' \
-  'return joursEntre(e.creeLe.slice(0, 10), jour) <= ARRIVEE_JOURS;' \
-  'le trentième jour en est encore (jour 29), le trente et unième n'"'"'en est plus'
-prouver 'une note d'"'"'honoraires qui ne compte pas' 'base/migrations/0127_arrivee.sql' \
+  '  if (joursEntre(e.creeLe.slice(0, 10), jour) < ARRIVEE_JOURS) return true;' \
+  '  if (joursEntre(e.creeLe.slice(0, 10), jour) <= ARRIVEE_JOURS) return true;' \
+  'payée, elle dure ses trente jours, le trentième compris (jour 29), et finit le trente et unième'
+prouver 'une note d'"'"'honoraires qui ne compte pas' 'base/migrations/0137_audit_lot2a.sql' \
   'p.type in ('"'"'facture'"'"', '"'"'note_honoraires'"'"')' \
   'p.type = '"'"'facture'"'"'' \
   'l'"'"'arrivée (0127) : la première facture émise se lit au jour de Tunis — une note d'"'"'honoraires compte — et la liste et la fiche disent la même'
-prouver 'la première facture lue au jour UTC' 'base/migrations/0127_arrivee.sql' \
+prouver 'la première facture lue au jour UTC' 'base/migrations/0137_audit_lot2a.sql' \
   '(select (min(p.emise_le) at time zone e.fuseau)::date from ventes.piece p' \
   '(select (min(p.emise_le) at time zone '"'"'UTC'"'"')::date from ventes.piece p' \
   'l'"'"'arrivée (0127) : la première facture émise se lit au jour de Tunis — une note d'"'"'honoraires compte — et la liste et la fiche disent la même'
 prouver 'un dossier tenu par son cabinet qui arrive' 'serveur/console/clients.ts' \
   'case '"'"'arrivees'"'"': return enArrivee(e, jour) && !(s.etat === '"'"'hors'"'"' && s.raison === '"'"'tenu_par_cabinet'"'"');' \
   'case '"'"'arrivees'"'"': return enArrivee(e, jour);' \
-  'la vue garde les inscrites des trente jours, jamais un dossier qu'"'"'un cabinet tient ; sa carte compte la même liste (C3)'
+  'la vue garde les arrivées sans issue, jamais un dossier qu'"'"'un cabinet tient ni une arrivée close ; sa carte compte la même liste (C3)'
 prouver 'une première facture illisible devinée' 'serveur/console/clients.ts' \
   'typeof r.premiereFactureLe === '"'"'string'"'"' && /^\d{4}-\d{2}-\d{2}$/.test(r.premiereFactureLe)' \
   'typeof r.premiereFactureLe === '"'"'string'"'"'' \
@@ -15152,7 +15152,7 @@ prouver 'la ligne tait son arrivée' 'serveur/console/routes.ts' \
             arrivee: null })),' \
   'l'"'"'arrivée (0127) : la première facture émise se lit au jour de Tunis — une note d'"'"'honoraires compte — et la liste et la fiche disent la même'
 prouver 'la fiche tait son arrivée' 'serveur/console/routes.ts' \
-  'arrivee: liste[0] && enArrivee(liste[0], jour) ? arrivee({ ...liste[0], enPlus: enPlus ?? {} }, jour) : null,' \
+  'arrivee: liste[0] && enArrivee({ ...liste[0], enPlus: enPlus ?? {} }, jour) ? arrivee({ ...liste[0], enPlus: enPlus ?? {} }, jour) : null,' \
   'arrivee: null,' \
   'l'"'"'arrivée (0127) : la première facture émise se lit au jour de Tunis — une note d'"'"'honoraires compte — et la liste et la fiche disent la même'
 prouver 'l'"'"'écran des arrivées sans ses marches' 'web/console/src/ecrans/Clients.tsx' \
@@ -15160,8 +15160,8 @@ prouver 'l'"'"'écran des arrivées sans ses marches' 'web/console/src/ecrans/Cl
   'const arrivee = false ? o.societes.find((x) => x.arrivee)?.arrivee ?? null : null;' \
   'les clients : chaque vue du métier ouvre la liste qu'"'"'elle compte ; chaque ligne dit son échéance et ce qu'"'"'elle rapporte ; le tri suit l'"'"'adresse'
 prouver 'la fiche à l'"'"'écran sans son arrivée' 'web/console/src/ecrans/Fiche.tsx' \
-  '{f.arrivee ? <SonArrivee a={f.arrivee} /> : null}' \
-  '{null}' \
+  '{f.arrivee ? <SonArrivee a={f.arrivee} id={f.id} nom={f.raisonSociale} relire={relire} />' \
+  '{false ? <SonArrivee a={f.arrivee} id={f.id} nom={f.raisonSociale} relire={relire} />' \
   'la fiche : prolonger un essai, avec l'"'"'aperçu du serveur et un motif ; la base, l'"'"'histoire et le journal le disent'
 
 # 1.35.0 : prévenir d'un coup les clients d'un incident (0128 ; la liste des fonctions qui manquent, 19).
@@ -15230,24 +15230,24 @@ prouver 'la ligne de la fiche tait sa contestation' 'web/console/src/ecrans/Fich
   'une contestation (0129) : le support la note depuis la ligne de sa facture ; la direction la lit dans Paiements et la régularise par un avoir, avec sa référence'
 
 # 1.37.0 : les secrets et leur échéance (0130 ; la liste des fonctions qui manquent, 32).
-prouver 'une valeur écrite au registre' 'base/migrations/0130_secrets.sql' \
+prouver 'une valeur écrite au registre' 'base/migrations/0137_audit_lot2a.sql' \
   '  perform plateforme.secret_textes_sains(p_nom, p_role, p_ou);
 ' \
   '' \
   'la technique note un secret, jamais sa valeur ; un nom suivi une fois ; le support ne lit ni n'"'"'écrit rien'
-prouver 'un nom suivi deux fois' 'base/migrations/0130_secrets.sql' \
+prouver 'un nom suivi deux fois' 'base/migrations/0137_audit_lot2a.sql' \
   '  if exists (select 1 from plateforme.secret_suivi s where lower(btrim(s.nom)) = lower(btrim(p_nom)) and s.retire_le is null) then' \
   '  if false then' \
   'la technique note un secret, jamais sa valeur ; un nom suivi une fois ; le support ne lit ni n'"'"'écrit rien'
-prouver 'un secret renouvelé demain' 'base/migrations/0130_secrets.sql' \
+prouver 'un secret renouvelé demain' 'base/migrations/0137_audit_lot2a.sql' \
   '  if p_renouvele_le is null or p_renouvele_le > (p_maintenant at time zone '"'"'Africa/Tunis'"'"')::date then' \
   '  if p_renouvele_le is null then' \
   'la technique note un secret, jamais sa valeur ; un nom suivi une fois ; le support ne lit ni n'"'"'écrit rien'
-prouver 'un renouvellement avant le précédent' 'base/migrations/0130_secrets.sql' \
+prouver 'un renouvellement avant le précédent' 'base/migrations/0137_audit_lot2a.sql' \
   '  if p_le < s.renouvele_le then perform socle.refus('"'"'un renouvellement vient après le précédent'"'"'); end if;' \
   '  if false then perform socle.refus('"'"'un renouvellement vient après le précédent'"'"'); end if;' \
   'bientôt dû : « À décider » le nomme pour qui tient le service ; renouvelé, il n'"'"'y est plus ; retiré, il quitte le registre'
-prouver 'un secret retiré qui se retire encore' 'base/migrations/0130_secrets.sql' \
+prouver 'un secret retiré qui se retire encore' 'base/migrations/0137_audit_lot2a.sql' \
   'and retire_le is null for update;
   if not found then perform socle.refus('"'"'ce secret n'"'"''"'"'est pas suivi'"'"'); end if;
   update plateforme.secret_suivi set retire_le' \
@@ -15364,7 +15364,7 @@ prouver 'une autre devise dans les dinars de la prévision' 'serveur/console/pre
   '' \
   'les factures dues, par le mois de leur échéance ; en retard et plus tard à part ; une autre devise, jamais'
 prouver 'un renouvellement déjà facturé compté deux fois' 'serveur/console/previsions.ts' \
-  '    if (factures.has(`${entreprise}|${r.debut}`)) continue;
+  '      if (factures.has(`${entreprise}|${debut}`)) continue;
 ' \
   '' \
   'les renouvellements attendus, au prix de leur prochaine facture ; déjà facturés, jamais deux fois ; sans prix, comptés ; un client qui part, écarté'
@@ -15374,16 +15374,16 @@ prouver 'un client qui part compté dans les renouvellements' 'serveur/console/p
   '' \
   'les renouvellements attendus, au prix de leur prochaine facture ; déjà facturés, jamais deux fois ; sans prix, comptés ; un client qui part, écarté'
 prouver 'une grâce oubliée des renouvellements attendus' 'serveur/console/previsions.ts' \
-  'const m = r.debut < `${mois[0]}-01` ? mois[0] : moisDe(r.debut);' \
-  'const m = moisDe(r.debut);' \
+  '  const moisDeLaPeriode = (debut: string) => (debut < `${premier}-01` ? premier : moisDe(debut));' \
+  '  const moisDeLaPeriode = (debut: string) => moisDe(debut);' \
   'les renouvellements attendus, au prix de leur prochaine facture ; déjà facturés, jamais deux fois ; sans prix, comptés ; un client qui part, écarté'
 prouver 'Paiements tait ce qui doit rentrer' 'serveur/console/routes.ts' \
   'doivent, trop, previsions, aEmettre: p.aEmettre,' \
   'doivent, trop, previsions: null, aEmettre: p.aEmettre,' \
   'l'"'"'encaissé du mois, par moyen ; qui doit encore ; le même chiffre à l'"'"'accueil et par un second chemin'
 prouver 'la carte qui met les factures dans la colonne des renouvellements' 'web/console/src/ecrans/Paiements.tsx' \
-  '<b className="c-mono" data-donnee>{montant(m.attendu.montantHt)}</b>' \
-  '<b className="c-mono" data-donnee>{enDevise(m.du.montant, p.devise)}</b>' \
+  '['"'"'attendu'"'"', montant(m.attendu.montantHt), selon(m.attendu.n, `${P}.renouvellements`)],' \
+  '['"'"'attendu'"'"', enDevise(m.du.montant, p.devise), selon(m.attendu.n, `${P}.renouvellements`)],' \
   'la tuile de l'"'"'accueil et le bandeau disent le même encaissé ; la facture qui doit encore mène à sa pièce'
 
 # 1.40.0 : le risque de départ (la liste des fonctions qui manquent, 7).
@@ -15750,6 +15750,144 @@ prouver 'la fenêtre qui ne montre pas la fiche reprise' 'web/console/src/ecrans
   '    if (f && f.ecriteLe !== vue.ecriteLe) { setVue(f); setNouvelle(true); }' \
   '    if (false && f) { setVue(f); setNouvelle(true); }' \
   'la documentation interne (0133) : une note privée que la personne ne voit jamais ; une réponse écrite par le support, validée par la direction, posée avec le prénom'
+
+# 1.45.0 : l'audit de la console 1.42.0, lot 2a (A05, A06, A10).
+prouver 'la facture préparée qui disparaît des prévisions' 'serveur/console/previsions.ts' \
+  '    c.montant += p.montantHt; c.n += 1;
+' \
+  '' \
+  'une facture préparée passe d'"'"'une colonne à l'"'"'autre, au même mois et au même montant ; émise, elle est due'
+prouver 'le hors-taxes de la préparée qui ne vient pas de la base' 'base/migrations/0137_audit_lot2a.sql' \
+  ''"'"'entreprise'"'"', jsonb_build_object('"'"'id'"'"', e.id, '"'"'nom'"'"', e.raison_sociale),
+                    '"'"'montantHt'"'"', f.montant_ht::text)' \
+  ''"'"'entreprise'"'"', jsonb_build_object('"'"'id'"'"', e.id, '"'"'nom'"'"', e.raison_sociale))' \
+  'une facture préparée et pas encore émise attend dans SkanFact : elle ne doit rien encore'
+prouver 'les préparées oubliées par la route' 'serveur/console/routes.ts' \
+  'partants,
+        p.aEmettre.map((a) => ({ ...a, montantHt: a.montantHt === null ? null : depuisTexte(a.montantHt, 3) })))' \
+  'partants)' \
+  'une facture préparée et pas encore émise attend dans SkanFact : elle ne doit rien encore'
+prouver 'un mensuel qui ne compte que son prochain mois' 'serveur/console/previsions.ts' \
+  '    for (let k = 0; k === 0 || !r.attendu; k += 1) {' \
+  '    for (let k = 0; k === 0; k += 1) {' \
+  'un mensuel qui court compte chaque mois, le premier rattrapage compris ; celui qui attend son paiement, une fois'
+prouver 'le mensuel en retard compté chaque mois' 'serveur/console/previsions.ts' \
+  '    for (let k = 0; k === 0 || !r.attendu; k += 1) {' \
+  '    for (let k = 0; ; k += 1) {' \
+  'un mensuel qui court compte chaque mois, le premier rattrapage compris ; celui qui attend son paiement, une fois'
+prouver 'chaque mois au prix du rattrapage' 'serveur/console/previsions.ts' \
+  '      c.montant += k === 0 ? r.periodeHt : r.periodicite === '"'"'mensuel'"'"' ? r.parAnHt / 12n : r.parAnHt;' \
+  '      c.montant += r.periodeHt;' \
+  'un mensuel qui court compte chaque mois, le premier rattrapage compris ; celui qui attend son paiement, une fois'
+prouver 'un mois suivant déjà préparé attendu quand même' 'serveur/console/previsions.ts' \
+  '      if (factures.has(`${entreprise}|${debut}`)) continue;' \
+  '      if (k === 0 && factures.has(`${entreprise}|${r.debut}`)) continue;' \
+  'un mensuel qui court compte chaque mois, le premier rattrapage compris ; celui qui attend son paiement, une fois'
+prouver 'la ligne des préparées absente de l'"'"'écran' 'web/console/src/ecrans/Paiements.tsx' \
+  '                ['"'"'prepare'"'"', montant(m.prepare.montantHt), selon(m.prepare.n, `${P}.preparees`)],
+' \
+  '' \
+  'la tuile de l'"'"'accueil et le bandeau disent le même encaissé ; la facture qui doit encore mène à sa pièce'
+prouver 'l'"'"'arrivée finie au trentième jour' 'serveur/console/arrivee.ts' \
+  '  return e.faits.payeJusquAu === null && e.etat.etat !== '"'"'hors'"'"';' \
+  '  return false;' \
+  'jour 29, 30, 31 et bien après : elle reste tant qu'"'"'il n'"'"'a jamais payé et que personne ne l'"'"'a close'
+prouver 'un client payé qui reste en arrivée' 'serveur/console/arrivee.ts' \
+  '  return e.faits.payeJusquAu === null && e.etat.etat !== '"'"'hors'"'"';' \
+  '  return e.etat.etat !== '"'"'hors'"'"';' \
+  'son issue la finit : une période payée (même passée depuis), une arrivée close (même avant ses trente jours), un dossier offert'
+prouver 'un dossier offert qui arrive pour toujours' 'serveur/console/arrivee.ts' \
+  '  return e.faits.payeJusquAu === null && e.etat.etat !== '"'"'hors'"'"';' \
+  '  return e.faits.payeJusquAu === null;' \
+  'son issue la finit : une période payée (même passée depuis), une arrivée close (même avant ses trente jours), un dossier offert'
+prouver 'l'"'"'arrivée close qui reste dans la liste' 'serveur/console/arrivee.ts' \
+  '  if (e.enPlus?.arriveeClose) return false;
+' \
+  '' \
+  'son issue la finit : une période payée (même passée depuis), une arrivée close (même avant ses trente jours), un dossier offert'
+prouver 'la clôture illisible qui fait disparaître le client' 'serveur/console/clients.ts' \
+  'if (!a || typeof a.le !== '"'"'string'"'"' || Number.isNaN(Date.parse(a.le)) || typeof a.motif !== '"'"'string'"'"' || !a.motif) return null;' \
+  'if (!a) return null;' \
+  'son issue la finit : une période payée (même passée depuis), une arrivée close (même avant ses trente jours), un dossier offert'
+prouver 'le support qui ne peut pas clore une arrivée' 'base/migrations/0137_audit_lot2a.sql' \
+  'declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+begin
+  if length(btrim(coalesce(p_motif, '"'"''"'"'))) not between 3 and 500 then' \
+  'declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']);
+begin
+  if length(btrim(coalesce(p_motif, '"'"''"'"'))) not between 3 and 500 then' \
+  'l'"'"'issue de l'"'"'arrivée (0137, l'"'"'audit 1.42.0 A06) : passé trente jours elle reste ; close avec son motif, elle sort de la liste et de la fiche ; rouverte, elle revient'
+prouver 'l'"'"'arrivée close deux fois' 'base/migrations/0137_audit_lot2a.sql' \
+  '  if exists (select 1 from plateforme.arrivee_close where entreprise = p_entreprise) then
+    perform socle.refus('"'"'son arrivée est déjà close : rouvre-la d'"'"''"'"'abord si elle reprend'"'"');
+  end if;
+' \
+  '' \
+  'l'"'"'issue de l'"'"'arrivée (0137, l'"'"'audit 1.42.0 A06) : passé trente jours elle reste ; close avec son motif, elle sort de la liste et de la fiche ; rouverte, elle revient'
+prouver 'la clôture sans journal' 'base/migrations/0137_audit_lot2a.sql' \
+  '  insert into plateforme.geste_console (qui, role, geste, entreprise, motif, avant, apres)
+    values (socle.moi(), v_role, '"'"'clients.arrivee_close'"'"', p_entreprise, btrim(p_motif), null, jsonb_build_object('"'"'closeLe'"'"', p_maintenant));
+' \
+  '' \
+  'l'"'"'issue de l'"'"'arrivée (0137, l'"'"'audit 1.42.0 A06) : passé trente jours elle reste ; close avec son motif, elle sort de la liste et de la fiche ; rouverte, elle revient'
+prouver 'la réouverture qui oublie la clôture' 'base/migrations/0137_audit_lot2a.sql' \
+  'jsonb_build_object('"'"'closeLe'"'"', a.close_le, '"'"'motif'"'"', a.motif), null);' \
+  'null, null);' \
+  'l'"'"'issue de l'"'"'arrivée (0137, l'"'"'audit 1.42.0 A06) : passé trente jours elle reste ; close avec son motif, elle sort de la liste et de la fiche ; rouverte, elle revient'
+prouver 'la liste qui ne lit pas l'"'"'arrivée close' 'base/migrations/0137_audit_lot2a.sql' \
+  '      '"'"'arriveeClose'"'"', (select jsonb_build_object('"'"'le'"'"', a.close_le, '"'"'par'"'"', (select u.nom from socle.utilisateur u where u.id = a.close_par), '"'"'motif'"'"', a.motif)
+                         from plateforme.arrivee_close a where a.entreprise = e.id),
+' \
+  '' \
+  'l'"'"'issue de l'"'"'arrivée (0137, l'"'"'audit 1.42.0 A06) : passé trente jours elle reste ; close avec son motif, elle sort de la liste et de la fiche ; rouverte, elle revient'
+prouver 'la fiche qui montre l'"'"'arrivée close' 'serveur/console/routes.ts' \
+  'arrivee: liste[0] && enArrivee({ ...liste[0], enPlus: enPlus ?? {} }, jour)' \
+  'arrivee: liste[0] && enArrivee(liste[0], jour)' \
+  'l'"'"'issue de l'"'"'arrivée (0137, l'"'"'audit 1.42.0 A06) : passé trente jours elle reste ; close avec son motif, elle sort de la liste et de la fiche ; rouverte, elle revient'
+prouver 'la fiche sans le geste de clore' 'web/console/src/ecrans/Fiche.tsx' \
+  '{a.suivante ? <div className="c-boutons-ligne">' \
+  '{false ? <div className="c-boutons-ligne">' \
+  'l'"'"'issue de l'"'"'arrivée (l'"'"'audit 1.42.0 A06) : passé trente jours la carte reste ; le support la clôt avec son motif, la direction la rouvre'
+prouver 'l'"'"'arrivée close tue sur la fiche' 'web/console/src/ecrans/Fiche.tsx' \
+  '              : f.enPlus?.arriveeClose && f.faits.payeJusquAu === null ? <CarteArriveeClose' \
+  '              : false ? <CarteArriveeClose' \
+  'l'"'"'issue de l'"'"'arrivée (l'"'"'audit 1.42.0 A06) : passé trente jours la carte reste ; le support la clôt avec son motif, la direction la rouvre'
+prouver 'le jour de l'"'"'arrivée au-delà de « 30 sur 30 »' 'web/console/src/ecrans/Clients.tsx' \
+  'dire(a.jours < 30 ? '"'"'console.ecran.clients.ar.jour'"'"' : '"'"'console.ecran.clients.ar.jour_apres'"'"', { n: a.jours + 1 })' \
+  'dire('"'"'console.ecran.clients.ar.jour'"'"', { n: a.jours + 1 })' \
+  'l'"'"'issue de l'"'"'arrivée (l'"'"'audit 1.42.0 A06) : passé trente jours la carte reste ; le support la clôt avec son motif, la direction la rouvre'
+prouver 'le journal de l'"'"'arrivée sans son droit' 'serveur/console/journal.ts' \
+  '  [/^clients\.arrivee_/, '"'"'console.clients.arrivee'"'"'],
+' \
+  '' \
+  'chacun a le geste de la console qui le permet, et ce geste existe'
+prouver 'le motif d'"'"'un nouveau secret qui garde une clé' 'base/migrations/0137_audit_lot2a.sql' \
+  '  perform plateforme.motif_sans_secret(p_motif);
+  perform plateforme.secret_textes_sains(p_nom, p_role, p_ou);' \
+  '  perform plateforme.secret_textes_sains(p_nom, p_role, p_ou);' \
+  'une clé collée dans le motif d'"'"'un des trois gestes : refusée, et rien n'"'"'est écrit, ni au registre ni au journal (A10)'
+prouver 'le motif d'"'"'un renouvellement qui garde une clé' 'base/migrations/0137_audit_lot2a.sql' \
+  '  perform plateforme.motif_sans_secret(p_motif);
+  select * into s from plateforme.secret_suivi where id = p_id and retire_le is null for update;
+  if not found then perform socle.refus('"'"'ce secret n'"'"''"'"'est pas suivi'"'"'); end if;
+  if p_le is null' \
+  '  select * into s from plateforme.secret_suivi where id = p_id and retire_le is null for update;
+  if not found then perform socle.refus('"'"'ce secret n'"'"''"'"'est pas suivi'"'"'); end if;
+  if p_le is null' \
+  'une clé collée dans le motif d'"'"'un des trois gestes : refusée, et rien n'"'"'est écrit, ni au registre ni au journal (A10)'
+prouver 'le motif d'"'"'un retrait qui garde une clé' 'base/migrations/0137_audit_lot2a.sql' \
+  '  perform plateforme.motif_sans_secret(p_motif);
+  select * into s from plateforme.secret_suivi where id = p_id and retire_le is null for update;
+  if not found then perform socle.refus('"'"'ce secret n'"'"''"'"'est pas suivi'"'"'); end if;
+  update plateforme.secret_suivi set retire_le' \
+  '  select * into s from plateforme.secret_suivi where id = p_id and retire_le is null for update;
+  if not found then perform socle.refus('"'"'ce secret n'"'"''"'"'est pas suivi'"'"'); end if;
+  update plateforme.secret_suivi set retire_le' \
+  'une clé collée dans le motif d'"'"'un des trois gestes : refusée, et rien n'"'"'est écrit, ni au registre ni au journal (A10)'
+prouver 'le contrôle du motif qui ne refuse rien' 'base/migrations/0137_audit_lot2a.sql' \
+  '  if coalesce(p_motif, '"'"''"'"') ~ '"'"'[A-Za-z0-9+=_-]{32,}'"'"' then' \
+  '  if false then' \
+  'une clé collée dans le motif d'"'"'un des trois gestes : refusée, et rien n'"'"'est écrit, ni au registre ni au journal (A10)'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

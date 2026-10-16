@@ -15,7 +15,7 @@ import { abonnementEnMots, expliquer, offreEtPeriode, puceDe, type Etat, type Fa
 import { panneDe, refusDe, useApi, useConsole, useLecture, useRelireQuandOnRegarde, type Role } from '../contexte.ts';
 import { dans, heureDe, jourCourt, jourDe, moisEnMots, quand } from '../temps.ts';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, Lien, maj, MenuLigne, parcourirMenu, Puce, toast, Vide, Zone, type NomIcone, type TonPuce } from '../ui.tsx';
-import { arriveeEnMots, organisationEnMots, type Arrivee, type Risque } from './Clients.tsx';
+import { arriveeEnMots, jourDeLArrivee, organisationEnMots, type Arrivee, type Risque } from './Clients.tsx';
 import type { Place } from './Cabinets.tsx';
 import { depuisEnMots, etatEnMots, NoterDemande, refDemande, type LigneDemande } from './Support.tsx';
 import { AccesDossier } from './AccesDossier.tsx';
@@ -23,6 +23,7 @@ import { contexteDe, EcrireAuContact, NoterAppel, resultatEnMots, type ResultatA
 import { montant } from '../argent.ts';
 import { CarteReprise, repriseEnCours, type Reprise } from './Reprise.tsx';
 import { CarteSortie, sortieAttendEnMots, sortieEnCours, type Etape, type Sortie } from './Sortie.tsx';
+import { CarteArriveeClose, FenetreArrivee, type ArriveeClose } from './Arrivee.tsx';
 import { defaiteEnMots } from './Accueil.tsx';
 import { contestationEnMots, FenetreContester, FenetreRegulariser, type Contestation } from './Contestations.tsx';
 
@@ -61,7 +62,8 @@ type Donnees = {
   // échéance, le délai accordé.
   identite: { numero: string | null; ville: string | null; telephone: string | null; dernierAppel: { le: string; resultat: ResultatAppel; qui: string | null } | null } | null;
   notes: { id: string; le: string; resultat: ResultatAppel; qui: string | null; resume: string | null }[];
-  enPlus: { piecesMois: number; essaiJours: number | null; prolonge: number; prolongeUneFois: boolean } | null;
+  // `arriveeClose` (0137) : son arrivée close par un membre (src/ecrans/Arrivee.tsx).
+  enPlus: { piecesMois: number; essaiJours: number | null; prolonge: number; prolongeUneFois: boolean; arriveeClose?: ArriveeClose | null } | null;
   offreSuivante: { offre: Offre; periodicite: Periodicite; aPartirDu: string } | null;
   delai: { echeance: string; jusquAu: string } | null;
   // La procédure de reprise en cours, ou la dernière (0112) : la direction seule la reçoit.
@@ -1043,7 +1045,8 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
               <p className="c-fiche-comptes-pied">{phrase('console.ecran.fiche.c.pied', { quand: derniereActivite ? quand(derniereActivite, f.aujourdhui) : dire('console.ecran.temps.jamais') })}</p>
             </section>
 
-            {f.arrivee ? <SonArrivee a={f.arrivee} /> : null}
+            {f.arrivee ? <SonArrivee a={f.arrivee} id={f.id} nom={f.raisonSociale} relire={relire} />
+              : f.enPlus?.arriveeClose && f.faits.payeJusquAu === null ? <CarteArriveeClose id={f.id} nom={f.raisonSociale} close={f.enPlus.arriveeClose} relire={relire} /> : null}
             {f.risque?.payant ? <SonRisque r={f.risque} /> : null}
 
             {/* Une procédure de reprise en cours : dans la colonne large, sous les comptes (la carte dit ce qui manque). */}
@@ -1297,13 +1300,15 @@ function attenteEnMots(a: Attente, aujourdhui: string): { icone: NomIcone; titre
 // L'arrivée d'un nouveau client (docs/console.md C50) : ses cinq marches dans l'ordre, chacune avec le jour où elle a
 // été franchie quand on le sait, sinon le jour avant lequel on l'attend ; celle qui a passé ce jour le dit, en orange
 // ET en mots. En tête, la phrase de la liste (la même fonction) : la ligne et la fiche disent la même chose.
-function SonArrivee({ a }: { a: Arrivee }) {
+// Passé ses trente jours, elle reste jusqu'à son issue (l'audit 1.42.0 A06) : il paie, ou on la clôt d'ici.
+function SonArrivee({ a, id, nom, relire }: { a: Arrivee; id: string; nom: string; relire: () => void }) {
   const enMots = arriveeEnMots(a);
+  const [clore, setClore] = useState(false);
   return (
     <section className="c-carte" aria-labelledby="fiche-arrivee">
       <div className="c-carte-tete">
         <h2 id="fiche-arrivee">{titre('console.ecran.fiche.ar.titre')}</h2>
-        <span className="c-carte-coin">{dire('console.ecran.clients.ar.jour', { n: a.jours + 1 })}</span>
+        <span className="c-carte-coin">{jourDeLArrivee(a)}</span>
       </div>
       <p className={`c-ar-resume${enMots.alerte ? ' c-cl-proche' : ''}`}>{maj(enMots.texte)}</p>
       <ol className="c-ar-marches">
@@ -1322,6 +1327,8 @@ function SonArrivee({ a }: { a: Arrivee }) {
           );
         })}
       </ol>
+      {a.suivante ? <div className="c-boutons-ligne"><Bouton onClick={() => setClore(true)}>{titre('console.ecran.fiche.ar.clore')}</Bouton></div> : null}
+      {clore ? <FenetreArrivee id={id} nom={nom} sens="clore" fermer={() => setClore(false)} fait={() => { setClore(false); relire(); }} /> : null}
     </section>
   );
 }

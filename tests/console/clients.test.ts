@@ -83,7 +83,10 @@ describe('Clients : les vues du métier', () => {
     expect(nom('H').venuePar).toEqual({ cabinet: 'Cabinet Nour', depuis: '2026-01-05' });
     expect(nom('I').venuePar).toBeNull();
     expect(dans('tout')).toBe('ABCDEFGHIJKLM');
-    expect(comptesDesVues(LISTE, JOUR)).toEqual({ tout: 13, arrivees: 0, a_appeler: 3, argent: 2, silencieux: 2, a_risque: 0, tenus: 1, cabinet: 1 });
+    // Les arrivées : inscrites le 01/08, plus de trente jours ; celles qui n'ont jamais payé attendent encore leur issue
+    // (A à F ; 1.45.0, l'audit 1.42.0 A06) — jamais une période payée (G à K), un dossier tenu (L) ou offert (M).
+    expect(dans('arrivees')).toBe('ABCDEF');
+    expect(comptesDesVues(LISTE, JOUR)).toEqual({ tout: 13, arrivees: 6, a_appeler: 3, argent: 2, silencieux: 2, a_risque: 0, tenus: 1, cabinet: 1 });
   });
 
   it('jamais ouverte, le silence se compte depuis l\'inscription : née il y a neuf jours, pas encore ; dix, oui (0114)', () => {
@@ -230,7 +233,7 @@ describe('Clients : ce que chaque ligne dit en plus (0110)', () => {
     [id(5)]: { factures: [facture('2026-10-15', '47410', { emise: false })] },
   }, JOUR);
   it('lit prudemment : un nombre illisible vaut zéro, une durée illisible n\'existe pas', () => {
-    expect(enPlus.get(id(1))).toEqual({ piecesMois: 4, essaiJours: 30, prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null, premiereFactureLe: '2026-10-02' });
+    expect(enPlus.get(id(1))).toEqual({ piecesMois: 4, essaiJours: 30, prolonge: 0, prolongeUneFois: false, moisOffertRecent: false, attend: null, premiereFactureLe: '2026-10-02', arriveeClose: null });
     expect(enPlus.get(id(4))).toMatchObject({ piecesMois: 0, essaiJours: null, prolonge: 0, prolongeUneFois: false, attend: null, premiereFactureLe: null });
   });
   it('la facture qui attend : la plus ancienne pas encore réglée, avec ce qu\'il en reste — jamais une payée ni une annulée', () => {

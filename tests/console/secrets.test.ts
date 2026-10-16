@@ -2,7 +2,8 @@
 //   - pur : l'échéance est le premier de deux jours (l'expiration, le rythme) ; bientôt à trente jours, en retard passé ;
 //   - par l'API : la direction et la technique tiennent le registre, le support ne le lit pas ; jamais une valeur (une
 //     phrase qui ressemble à une clé est refusée) ; un nom suivi une fois ; un renouvellement vient après le précédent ;
-//     « À décider » nomme le secret bientôt dû ou en retard ; chaque geste au journal.
+//     « À décider » nomme le secret bientôt dû ou en retard ; chaque geste au journal ; le motif aussi passe le contrôle
+//     d'une valeur (1.45.0, l'audit 1.42.0 A10) : refusé, rien n'est écrit, ni au registre ni au journal.
 
 import os from 'node:os';
 import path from 'node:path';
@@ -133,5 +134,25 @@ describe('le registre des secrets (0130)', () => {
     expect((await appeler('POST', `/console/service/secrets/${c.id}/retirer`, direction.console, { motif: 'le prestataire SMS a changé' })).statut).toBe(200);
     expect(await lire()).toEqual([]);
     expect((await appeler('POST', `/console/service/secrets/${c.id}/retirer`, direction.console, { motif: 'encore' })).statut).toBe(403);
+  });
+
+  it('une clé collée dans le motif d\'un des trois gestes : refusée, et rien n\'est écrit, ni au registre ni au journal (A10)', async () => {
+    await admin.query('delete from plateforme.secret_suivi');
+    // Un marqueur synthétique, jamais une vraie clé.
+    const cle = 'motif re_FAUSSE0cle0de0test0Zq9Lw4vN7bY1cR6sH3jD';
+    const traces = async () => Number((await admin.query("select count(*)::int n from plateforme.geste_console where geste like 'service.secret_%' and motif like '%FAUSSE0cle%'")).rows[0]?.n);
+    const refuse = 'Ce motif ressemble à la valeur d\'un secret : il reste au journal, on n\'y colle jamais une clé ; dis ce que tu as fait (« clé changée dans le coffre »).';
+    const a = await noter(technique.console, { motif: cle });
+    expect([a.statut, a.corps.motif]).toEqual([403, refuse]);
+    expect(await lire()).toEqual([]);
+    expect((await noter(technique.console, {})).statut).toBe(201);
+    const [c] = await lire();
+    if (!c) throw new Error('un secret attendu');
+    const r = await appeler('POST', `/console/service/secrets/${c.id}/renouvele`, technique.console, { le: aujourdhuiATunis(), expireLe: null, motif: cle });
+    expect([r.statut, r.corps.motif]).toEqual([403, refuse]);
+    const x = await appeler('POST', `/console/service/secrets/${c.id}/retirer`, direction.console, { motif: cle });
+    expect([x.statut, x.corps.motif]).toEqual([403, refuse]);
+    expect((await lire()).map((l) => l.nom)).toEqual([c.nom]);
+    expect(await traces()).toBe(0);
   });
 });

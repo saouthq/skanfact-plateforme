@@ -717,6 +717,10 @@ vaut pour tout le dépôt.*
   - **L'audit de la console 1.42.0, lot 1** (1.44.0 ; `docs/console.md` C60) : base `0136_audit_lot1.sql` ; `secondChangement`
     (`serveur/abonnement/etat.ts`, gestes et factures) ; la transaction de la route dans `serveur/compte.ts` ; la version
     lue des fiches (`DocSupport.tsx`) ; la commande gardée avec le brouillon (`Support.tsx`).
+  - **L'audit de la console 1.42.0, lot 2a** (1.45.0 ; `docs/console.md` C61) : base `0137_audit_lot2a.sql` (le motif
+    d'un geste sur un secret contrôlé, `arrivee_close`, le hors-taxes des factures préparées) ; `serveur/console/previsions.ts`
+    (trois lignes par mois, les mois d'un mensuel), `serveur/console/arrivee.ts` (l'arrivée jusqu'à son issue) ; écrans
+    `Arrivee.tsx` (clore, rouvrir), `Fiche.tsx`, `Paiements.tsx` (un bloc par mois), `Secrets.tsx`.
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

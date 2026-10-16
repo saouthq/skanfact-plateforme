@@ -1247,8 +1247,8 @@ n'est pas guetté de l'extérieur ». La disponibilité et les performances dise
 mesuré » : le guet prévient, il ne compte pas.
 
 **C50. L'arrivée des nouveaux clients** (1.34.0 ; base 0127 ; la liste des fonctions qui manquent, 6). Une carte de plus
-en tête de Clients, « arrivées » : les entreprises inscrites depuis trente jours (celui de l'inscription compris), jamais
-un dossier qu'un cabinet tient. Chacune franchit cinq marches, lues dans ce que la console sait déjà : **l'inscription** ;
+en tête de Clients, « arrivées » : les entreprises inscrites depuis trente jours (celui de l'inscription compris), et
+depuis la 1.45.0 celles qui n'ont pas encore d'issue (C61), jamais un dossier qu'un cabinet tient. Chacune franchit cinq marches, lues dans ce que la console sait déjà : **l'inscription** ;
 **le premier passage** (quelqu'un y a travaillé, 0114) ; **la première pièce** (brouillon compris) ; **la première facture
 émise** (une note d'honoraires compte ; son jour est celui de Tunis) — la première utilisation réelle ; **l'abonnement
 payé**. Chaque marche est attendue dans un délai compté depuis l'inscription (deux jours, cinq, quatorze, trente :
@@ -1341,8 +1341,9 @@ compris :
     période commence (ce mois-ci pour une période qui aurait dû commencer avant : une grâce), au prix de leur prochaine
     facture **hors taxes** (la règle de la facture, celle de la liste des clients et des échéances). Un renouvellement
     sans prix dans la grille se compte sans montant ; celui d'un client dont la sortie est ouverte (C54) est écarté.
-Les deux colonnes ne s'additionnent jamais : l'une est taxes comprises, l'autre hors taxes (la facture ajoutera la TVA et
-le timbre du jour). La carte le dit, et dit aussi que c'est une prévision, pas une promesse.
+Les colonnes ne s'additionnent jamais : l'une est taxes comprises, l'autre hors taxes (la facture ajoutera la TVA et
+le timbre du jour). La carte le dit, et dit aussi que c'est une prévision, pas une promesse. **Depuis la 1.45.0 (C61)** :
+une troisième ligne, les factures préparées pas encore émises, et les mois suivants d'un abonnement mensuel.
 
 **C56. Le risque de départ d'un client** (1.40.0 ; base 0132 ; la liste des fonctions qui manquent, 7 : « suivi de la
 satisfaction et du risque de départ : retours, insatisfaction et baisse d'utilisation » ; version légère). La console lit
@@ -1431,6 +1432,32 @@ que le code du téléphone.
   même, jamais une seconde réponse) ; la même commande avec un autre texte est refusée (409, et la base le refuse
   aussi) : l'écran le dit, garde ce qui est écrit, relit la conversation, et la réponse suivante a sa commande neuve.
 
+**C61. L'audit de la console 1.42.0, lot 2a** (1.45.0 ; base 0137 ; l'audit du 16/10/2026, « avant les premiers clients
+payants » ; décidé par délégation, Skander : « prends la décision à ma place »).
+- **A05, une facture préparée ne disparaît plus des prévisions** : « Ce qui doit rentrer » (C55) dit, mois par mois, trois
+  lignes qui ne s'additionnent jamais : les factures émises (le dû, taxes comprises), **les factures préparées pas encore
+  émises** (le hors-taxes noté à leur préparation, par la règle de la facture : celui du renouvellement qu'elles
+  remplacent) et les renouvellements (hors taxes). Préparer une facture la fait passer d'une ligne à l'autre au même mois et
+  au même montant ; l'émettre la fait passer au dû. **Un abonnement mensuel qui court compte chaque mois des trois** (le
+  premier au prix de la prochaine facture, rattrapage compris ; les suivants au prix d'un mois), jamais une période déjà
+  facturée ; un abonnement qui attend déjà son paiement (une grâce, une période non renouvelée) ne compte que celle-là.
+  Le prix des mois suivants est celui d'aujourd'hui : une remise qui finit dans les trois mois n'est pas devinée. Un bloc
+  par mois, lisible dans la colonne de côté comme au téléphone.
+- **A06, l'arrivée dure jusqu'à son issue** : passé ses trente jours, un client qui n'a jamais payé reste dans la vue
+  « arrivées » (sa carte dit « jour 42 · après les 30 jours », la marche de l'abonnement bloquée depuis le lendemain de son
+  délai) jusqu'à son issue : **il paie une période** (converti ; une échéance passée depuis ne le fait pas revenir), ou **un
+  membre clôt son arrivée** depuis sa fiche (« Clore son arrivée… », la direction ou le support, avec le motif : ce qu'il a
+  dit, à qui il est confié). Close, la fiche dit quand, par qui et pourquoi, et la rouvre (« Rouvrir son arrivée… », avec
+  son motif) ; les deux gestes au journal (`clients.arrivee_close`, `clients.arrivee_rouverte`). Un dossier hors abonnement
+  (bac à sable, tenu par un cabinet, offert) n'arrive pas au-delà de ses trente jours. **Décidé par délégation** : pas
+  d'échéance de plus pour l'issue (le client attend jusqu'à ce qu'on décide) ; pas de responsable nommé (la direction et le
+  support la voient, comme les autres vues).
+- **A10, le motif d'un geste sur un secret** : il passe le même contrôle que le nom, le rôle et l'emplacement ; une suite
+  qui ressemble à une clé est refusée avant d'être écrite, ni au registre ni au journal. L'écran le dit sous le motif. C'est
+  une aide, pas une garantie. **Un secret collé quand même** (dans un texte qui n'est pas contrôlé) : on le tient pour
+  exposé — on le change chez son prestataire, puis on note son renouvellement sur sa ligne ; le journal ne se réécrit pas
+  (il est inaltérable), il garde seulement qu'un geste a eu lieu.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1448,8 +1475,10 @@ incident relié tout seul à une chaîne cassée), la mesure, la suite des régl
 « Application de bureau » de la maquette (les licences, les postes, la fin de vie et le passage à la plateforme de la v10)
 ne se construit pas : **la v10 n'est installée chez personne** (Skander, 14/10/2026). Celui de la nouvelle application de
 bureau (la coque et son agent local : les postes qui l'ont, leur version, ce que l'agent voit, ses erreurs) se dessinera
-quand elle sera distribuée aux clients (`09` étape 4). Le service ne se voit encore que du serveur
-lui-même : aucune vérification de l'extérieur (06 § 7, depuis deux villes) ; l'écran le dit.
+quand elle sera distribuée aux clients (`09` étape 4). Le guet extérieur (C49) vérifie le service depuis une autre
+machine ; le second guet, depuis une deuxième ville (06 § 7), reste à poser. Des constats de l'audit 1.42.0 restent
+ouverts : le rapprochement d'un remboursement ou d'un avoir déclaré (A04) et la reprise d'un envoi d'invitation après
+une panne (A08), pour la 1.46.0 ; le coût des listes, qui calculent tout avant de paginer (A09), plus tard.
 
 ## À VÉRIFIER
 

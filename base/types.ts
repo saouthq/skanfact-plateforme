@@ -517,6 +517,12 @@ export interface BaseDeDonnees {
     annule_le: Date | null;
     annule_par: string | null;
   };
+  'plateforme.arrivee_close': {
+    entreprise: string;
+    close_le: Date;
+    close_par: string;
+    motif: string;
+  };
   'plateforme.contenu_offre': {
     id: Generated<string>;
     offre: string;

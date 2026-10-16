@@ -3094,13 +3094,14 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-pa-prev .c-carte-sous { margin: -6px 0 0; }
 .c-pa-prev-retard { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--c-orange-doux); color: var(--c-orange-texte); font-size: 13.5px; }
 .c-pa-prev-retard .c-icone { flex: none; margin-top: 1px; }
-.c-pa-prev-table { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
-.c-pa-prev-table th, .c-pa-prev-table td { padding: 8px 0; border-bottom: 1px solid var(--c-trait); vertical-align: top; text-align: left; }
-.c-pa-prev-table thead th { font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--c-gris); padding-top: 0; }
-.c-pa-prev-table td + td, .c-pa-prev-table th + th { padding-left: 12px; }
-.c-pa-prev-table .c-droite { text-align: right; }
-.c-pa-prev-table tbody tr:last-child > * { border-bottom: 0; }
-.c-pa-prev-table tbody th { font-weight: 600; }
+.c-pa-prev-mois-liste { display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.c-pa-prev-mois { padding: 10px 0; border-bottom: 1px solid var(--c-trait); }
+.c-pa-prev-mois:last-child { border-bottom: 0; }
+.c-pa-prev-mois h3 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 6px; font-size: 14px; font-weight: 600; }
+.c-pa-prev-mois dl { display: grid; gap: 6px; margin: 0; }
+.c-pa-prev-ligne { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 13.5px; }
+.c-pa-prev-ligne dt { display: grid; min-width: 0; }
+.c-pa-prev-ligne dd { margin: 0; text-align: right; white-space: nowrap; }
 
 /* La documentation interne du support (0133 ; docs/console.md C57) : des fiches qui se lisent, le texte gardé tel qu'il
    partira (ses retours à la ligne), et les notes privées d'une demande dans la carte du client. */

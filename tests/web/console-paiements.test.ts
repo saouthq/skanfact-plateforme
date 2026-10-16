@@ -126,20 +126,24 @@ describe('les paiements de nos factures, à la souris', () => {
     // Le virement du jour est dans les règlements du mois.
     expect(net(await p.locator('.c-pa-recu', { hasText: 'Atelier Lina Paiements' }).innerText())).toMatch(/20,000 DT Virement$/);
     // Ce qui doit rentrer (C55) : trois mois, le mois en cours d'abord ; chaque case dit le chiffre du serveur, et les
-    // factures (TTC) et les renouvellements (HT) restent deux colonnes.
+    // factures (TTC), les préparées et les renouvellements (HT) restent trois colonnes (l'audit 1.42.0 A05).
     const carte = p.locator('section[aria-labelledby="pa-prev"]');
     expect(net(await carte.locator('h2').innerText())).toBe('Ce qui doit rentrer');
-    const prev = (await api('GET', '/console/paiements', jD)).corps.previsions as { mois: { du: { montant: string }; attendu: { montantHt: string } }[] };
+    const prev = (await api('GET', '/console/paiements', jD)).corps.previsions as { mois: { du: { montant: string }; prepare: { montantHt: string }; attendu: { montantHt: string } }[] };
     const enDT = (t: string) => { const [e = '0', d = ''] = t.split('.'); return `${e.replace(/\B(?=(\d{3})+(?!\d))/g, ' ')},${d.padEnd(3, '0')} DT`; };
-    const lignes = carte.locator('tbody tr');
-    expect(await lignes.count()).toBe(3);
-    expect(net(await lignes.first().locator('th').innerText())).toMatch(/en cours$/);
+    // Un bloc par mois, le mois en cours d'abord ; dans chacun, trois lignes reconnues à ce qu'elles disent.
+    const blocs = carte.locator('.c-pa-prev-mois');
+    expect(await blocs.count()).toBe(3);
+    expect(net(await blocs.first().locator('h3').innerText())).toMatch(/en cours$/);
     for (const [i, m] of prev.mois.entries()) {
-      const cases = lignes.nth(i).locator('td');
-      expect(net(await cases.nth(0).locator('b').innerText())).toBe(enDT(m.du.montant));
-      expect(net(await cases.nth(1).locator('b').innerText())).toBe(enDT(m.attendu.montantHt));
+      const ligne = (k: string) => blocs.nth(i).locator(`.c-pa-prev-ligne[data-sorte="${k}"]`);
+      expect(net(await ligne('du').innerText())).toMatch(/^Factures émises, TTC/);
+      expect(net(await ligne('du').locator('b').innerText())).toBe(enDT(m.du.montant));
+      expect(net(await ligne('prepare').innerText())).toMatch(/^Préparées, HT/);
+      expect(net(await ligne('prepare').locator('b').innerText())).toBe(enDT(m.prepare.montantHt));
+      expect(net(await ligne('attendu').innerText())).toMatch(/^Renouvellements, HT/);
+      expect(net(await ligne('attendu').locator('b').innerText())).toBe(enDT(m.attendu.montantHt));
     }
-    expect(net(await carte.locator('thead').innerText())).toMatch(/Factures émises Renouvellements/i);
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);

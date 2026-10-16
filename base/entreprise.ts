@@ -134,6 +134,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.evolution': { classe: 'hors', raison: 'les évolutions que des clients demandent à SkanFact (0134) : une note de SkanFact sur son produit ; aucune entreprise' },
   'plateforme.evolution_demande': { classe: 'hors', raison: 'quelle demande au support réclame quelle évolution (0134) : la relation avec SkanFact, comme les demandes' },
   'plateforme.acces_urgence': { classe: 'hors', raison: 'les accès d\'urgence de l\'équipe de SkanFact (0135) : qui a perdu son code, qui lui a rouvert la console ; aucune entreprise' },
+  'plateforme.arrivee_close': { classe: 'hors', raison: 'l\'issue de l\'arrivée d\'un client notée par l\'équipe SkanFact (0137, l\'audit 1.42.0 A06) : rien de son dossier' },
   'plateforme.doc_support_validee': { classe: 'hors', raison: 'les textes validés de la documentation du support de SkanFact (0136, l\'audit 1.42.0 A03) : aucune entreprise' },
   'plateforme.doc_support': { classe: 'hors', raison: 'la documentation interne du support de SkanFact (0133) : ses réponses validées et ses procédures ; aucune entreprise' },
   'plateforme.cout_du_mois': { classe: 'hors', raison: 'les coûts du mois de SkanFact (0108), saisis par sa direction : ses comptes, ceux d\'aucune entreprise' },
