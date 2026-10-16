@@ -1499,6 +1499,20 @@ payants » ; décidé par délégation, Skander : « prends la décision à ma p
 plusieurs, pour plus tard) ; des entreprises comptées, jamais des personnes ; pas d'e-mail ni de SMS ici (le bandeau seul :
 écrire à un client se fait depuis sa fiche, C33).
 
+**C64. L'effet de chaque version** (1.48.0 ; base 0140 ; la liste des fonctions qui manquent, 38 : « suivi des versions
+et de leur impact : incidents, performances et clients concernés » ; décidé par délégation, Skander : « prends la décision à
+ma place »). L'écran Versions dit, pour chacune des dix dernières versions qui ont tourné, ce qui s'est passé pendant
+qu'elle tournait : chaque installation réussie tourne jusqu'à la réussie qui la suit (une installation ratée ne coupe
+rien), celle en service jusqu'à maintenant. **Rien de neuf n'est enregistré** : la base additionne ce qu'elle sait déjà
+— les requêtes des clients, leurs pannes et leur 95e centile (les heures du service, 0085 ; les requêtes de la console
+n'y sont pas, ce sont les nôtres), les incidents ouverts (0089) et, **pour la direction seule**, les demandes au support
+ouvertes et le nombre de clients qui les ont posées (0095) ; la technique lit le service, jamais une donnée de client
+(03 § 5). Ce qui est **pire qu'avec la version d'avant** se dit en orange : des pannes au moins deux fois plus fréquentes
+et au-delà d'une requête sur deux cents ; un 95e centile plus lent d'un quart ; un incident majeur ou critique ; deux fois
+plus de demandes par jour, trois au moins. Un centile ne se lit que sur assez de requêtes (vingt) : sinon « trop peu de
+requêtes ». **Décidé par délégation** : ces seuils (écrits dans `serveur/console/impact.ts`), et rien de plus qu'un
+constat — la console ne relie pas une panne à un changement du code, elle dit quand et combien.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1519,7 +1533,7 @@ bureau (la coque et son agent local : les postes qui l'ont, leur version, ce que
 quand elle sera distribuée aux clients (`09` étape 4). Le guet extérieur (C49) vérifie le service depuis une autre
 machine ; le second guet, depuis une deuxième ville (06 § 7), reste à poser. Des constats de l'audit 1.42.0 restent
 ouverts : le coût des listes, qui calculent tout avant de paginer (A09), plus tard ; A04 et A08 sont faits en 1.46.0
-(C62).
+(C62). La communication ciblée est faite en 1.47.0 (C63) ; l'effet de chaque version, en 1.48.0 (C64).
 
 ## À VÉRIFIER
 

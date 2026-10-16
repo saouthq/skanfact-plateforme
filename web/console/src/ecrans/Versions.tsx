@@ -10,8 +10,8 @@
 import { useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
-import { entier } from '../nombres.ts';
-import { heureDe, jourCourt, quand } from '../temps.ts';
+import { duree as dureeMs, entier, pourCent } from '../nombres.ts';
+import { heureDe, jourCourt, jourDe, quand } from '../temps.ts';
 import { nomDeVersion } from '../version.ts';
 import { Alerte, Bouton, Choix, Dialogue, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
 import { EnteteService, EtatPuce, Tuile, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type EtatBrique, type Veille } from './Service.tsx';
@@ -28,6 +28,12 @@ type Consigne = {
   id: string; sorte: 'gel' | 'retenue' | 'retour'; version: string | null; quitte: string | null; jusquAu: string | null; motif: string; par: string; le: string;
   enVigueur: boolean; faiteLe: string | null; faiteOk: boolean | null; faiteRaison: string | null; leveeLe: string | null; leveePar: string | null; leveeMotif: string | null;
 };
+// L'effet de chaque version (0140, C64) : ce que la base sait de la période où elle a tourné, et ce qui est pire qu'avant.
+type Incident = { id: string; annee: number; numero: number; titre: string; gravite: 'mineur' | 'majeur' | 'critique'; ouvertLe: string };
+type Effet = {
+  version: string; debut: string; fin: string; jours: number; requetes: number; pannes: number; part: number | null; p95: number | null;
+  incidents: Incident[]; demandes: number | null; clients: number | null; pire: ('pannes' | 'lenteur' | 'incidents' | 'demandes')[];
+};
 type Prochaine = { version: string; titre: string; le: string; verification: Verdict | null; preuves: Verdict | null; etat: string; nombre: number };
 type Donnees = {
   maintenant: string; aujourdhui: string; role: 'direction' | 'technique'; veille: Veille; alertesEnCours: AlertesEnCours; briques: Brique[];
@@ -36,7 +42,7 @@ type Donnees = {
     echec: { version: string; etape: string; message: string; le: string } | null; consignesLues: string | null; consignesIllisibles: string | null; plan: string | null;
   } | null;
   titres: Record<string, string>; numeros: Record<string, string>; dansLeDepot: string[]; historique: Ligne[]; avant: { version: string; le: string; possible: boolean } | null;
-  prochaine: Prochaine | null; consignes: Consigne[]; migrations: { numero: number; nom: string; le: string }[];
+  prochaine: Prochaine | null; consignes: Consigne[]; migrations: { numero: number; nom: string; le: string }[]; effets: Effet[];
   taches: { numero: string; nom: string; titre: string | null; etat: 'passee' | 'echouee' | 'pas_encore'; le: string | null; sortie: string | null }[];
   machine: { systeme: string | null; node: string; postgres: string | null; correctifs: string | null; redemarrage: { depuis: string; paquets: number | null } | null };
 };
@@ -282,6 +288,54 @@ function Historique({ d, geste }: { d: Donnees; geste: (g: Geste) => void }) {
   );
 }
 
+// ── L'effet de chaque version (0140, C64) : ses requêtes, ses pannes, sa lenteur, ses incidents et, pour la direction, les
+// demandes au support, pendant qu'elle tournait ; ce qui est pire qu'avec la version d'avant se dit en orange ────────────
+function Effets({ d }: { d: Donnees }) {
+  const direction = d.role === 'direction';
+  const enService = (e: Effet) => e.version === d.suiveur?.version && d.effets[0] === e;
+  return (
+    <section className="c-carte c-ve-effets" aria-labelledby="ve-effets">
+      <div className="c-al-section-tete"><div>
+        <h2 id="ve-effets">{titre(`${V}.e.titre`)}</h2>
+        <p className="c-carte-sous">{phrase(`${V}.e.sous`)}</p>
+      </div></div>
+      {d.effets.length ? (
+        <div className="c-defile">
+          <table className="c-table c-ve-table">
+            <thead><tr>
+              <th scope="col">{titre(`${V}.e.col.version`)}</th><th scope="col" className="c-droite">{titre(`${V}.e.col.requetes`)}</th>
+              <th scope="col" className="c-droite">{titre(`${V}.e.col.pannes`)}</th><th scope="col" className="c-droite">{titre(`${V}.e.col.p95`)}</th>
+              <th scope="col">{titre(`${V}.e.col.incidents`)}</th>
+              {direction ? <th scope="col">{titre(`${V}.e.col.demandes`)}</th> : null}
+              <th scope="col">{titre(`${V}.e.col.pire`)}</th>
+            </tr></thead>
+            <tbody>
+              {d.effets.map((e) => (
+                <tr key={`${e.version}${e.debut}`} data-version={e.version}>
+                  <td><Version v={e.version} d={d} />
+                    <span className="c-sous c-bloc">{maj(enService(e) ? dire(`${V}.e.depuis`, { du: jourCourt(jourDe(e.debut)) }) : dire(`${V}.e.du_au`, { du: jourCourt(jourDe(e.debut)), au: jourCourt(jourDe(e.fin)) }))}</span></td>
+                  <td className="c-droite c-num" data-libelle={titre(`${V}.e.col.requetes`)}>{entier(e.requetes)}</td>
+                  <td className="c-droite c-num c-ve-nowrap" data-libelle={titre(`${V}.e.col.pannes`)}>{e.part === null ? '—' : <>{pourCent(e.part)}<span className="c-sous c-bloc">{selon(e.pannes, `${V}.e.pannes`)}</span></>}</td>
+                  <td className="c-droite c-num c-ve-nowrap" data-libelle={titre(`${V}.e.col.p95`)}>{e.p95 === null ? <span className="c-sous">{maj(dire(`${V}.e.peu`))}</span> : dureeMs(e.p95)}</td>
+                  <td className="c-ve-incidents" data-libelle={titre(`${V}.e.col.incidents`)}>{e.incidents.length
+                    ? e.incidents.map((i) => <span key={i.id} className="c-bloc"><Puce ton={i.gravite === 'mineur' ? 'hors' : 'en_retard'}>{dire(`${V}.e.gravite.${i.gravite}`)}</Puce>{' '}
+                      <span data-donnee>{`${i.annee}-${String(i.numero).padStart(3, '0')} · ${i.titre}`}</span></span>)
+                    : <span className="c-sous">{maj(dire(`${V}.e.aucun`))}</span>}</td>
+                  {direction ? <td data-libelle={titre(`${V}.e.col.demandes`)}>{e.demandes === null ? '—'
+                    : e.demandes ? maj(`${selon(e.demandes, `${V}.e.demandes`)} · ${selon(e.clients ?? 0, `${V}.e.clients`)}`) : <span className="c-sous">{maj(dire(`${V}.e.aucune`))}</span>}</td> : null}
+                  <td data-libelle={titre(`${V}.e.col.pire`)}>{e.pire.length
+                    ? e.pire.map((x) => <span key={x} className="c-ve-pire"><Puce ton="en_retard">{dire(`${V}.e.pire.${x}`)}</Puce> </span>)
+                    : <span className="c-sous">{maj(dire(d.effets.indexOf(e) === d.effets.length - 1 ? `${V}.e.rien_avant` : `${V}.e.comme_avant`))}</span>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <Vide icone="info">{phrase(`${V}.e.vide`)}</Vide>}
+    </section>
+  );
+}
+
 // ── Les tâches d'entretien ──────────────────────────────────────────────────────────────────────────────────────────
 function Taches({ d }: { d: Donnees }) {
   return (
@@ -404,6 +458,7 @@ export function Versions() {
           </div>
           <Consignes d={d} geste={setGeste} />
           <Historique d={d} geste={setGeste} />
+          <Effets d={d} />
           <div className="c-ve-duo">
             <Taches d={d} />
             <Machine d={d} />

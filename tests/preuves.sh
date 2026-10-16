@@ -16131,6 +16131,85 @@ prouver '« Plus tard » qui ne se dit pas' 'web/public/plateforme/message.js' \
   '' \
   'un message pour les clients en essai (0139, C63) : la fenêtre dit combien il en atteint ; l'"'"'entreprise en essai le voit, sa diffusion se compte ; l'"'"'abonnée ne le voit pas'
 
+# 1.48.0 : l'effet de chaque version (38).
+prouver 'les requêtes de la console comptées' 'base/migrations/0140_impact_versions.sql' \
+  'h.heure < p.fin and h.sorte <> '"'"'console'"'"'), 0),
+      '"'"'pannes'"'"'' \
+  'h.heure < p.fin), 0),
+      '"'"'pannes'"'"'' \
+  'l'"'"'effet de chaque version (0140, C64) : chaque période additionne ses requêtes, ses pannes, ses incidents et, pour la direction seule, les demandes au support ; ce qui est pire qu'"'"'avant se dit'
+prouver 'les pannes oubliées' 'base/migrations/0140_impact_versions.sql' \
+  ''"'"'pannes'"'"', coalesce((select sum(h.pannes)' \
+  ''"'"'pannes'"'"', coalesce((select sum(0)' \
+  'l'"'"'effet de chaque version (0140, C64) : chaque période additionne ses requêtes, ses pannes, ses incidents et, pour la direction seule, les demandes au support ; ce qui est pire qu'"'"'avant se dit'
+prouver 'les demandes dites à la technique' 'base/migrations/0140_impact_versions.sql' \
+  ''"'"'demandes'"'"', case when v_role = '"'"'direction'"'"' then' \
+  ''"'"'demandes'"'"', case when true then' \
+  'l'"'"'effet de chaque version (0140, C64) : chaque période additionne ses requêtes, ses pannes, ses incidents et, pour la direction seule, les demandes au support ; ce qui est pire qu'"'"'avant se dit'
+prouver 'un incident d'"'"'une autre période' 'base/migrations/0140_impact_versions.sql' \
+  'where i.ouvert_le >= p.debut and i.ouvert_le < p.fin),' \
+  'where true),' \
+  'l'"'"'effet de chaque version (0140, C64) : chaque période additionne ses requêtes, ses pannes, ses incidents et, pour la direction seule, les demandes au support ; ce qui est pire qu'"'"'avant se dit'
+prouver 'l'"'"'effet jamais lu' 'serveur/console/routes.ts' \
+  '          effets: lireEffets(await lireJson(x, '"'"'select plateforme.console_impact_versions($1::jsonb) v'"'"', [JSON.stringify(periodes(h, instant))])),' \
+  '          effets: [],' \
+  'l'"'"'effet de chaque version (0140, C64) : chaque période additionne ses requêtes, ses pannes, ses incidents et, pour la direction seule, les demandes au support ; ce qui est pire qu'"'"'avant se dit'
+prouver 'chaque version comparée à rien' 'serveur/console/impact.ts' \
+  'pire: pire(e, lus[i + 1] ?? null)' \
+  'pire: pire(e, null)' \
+  'l'"'"'effet de chaque version (0140, C64) : chaque période additionne ses requêtes, ses pannes, ses incidents et, pour la direction seule, les demandes au support ; ce qui est pire qu'"'"'avant se dit'
+prouver 'une installation ratée qui fait une période' 'serveur/console/impact.ts' \
+  'const ok = lignes.filter((l) => l.ok && Number.isFinite' \
+  'const ok = lignes.filter((l) => Number.isFinite' \
+  'chaque installation réussie tourne jusqu'"'"'à la réussie suivante ; celle en service, jusqu'"'"'à maintenant ; une ratée ne fait pas de période'
+prouver 'plus de dix périodes' 'serveur/console/impact.ts' \
+  'return ok.slice(0, PERIODES_MAX).map(' \
+  'return ok.map(' \
+  'chaque installation réussie tourne jusqu'"'"'à la réussie suivante ; celle en service, jusqu'"'"'à maintenant ; une ratée ne fait pas de période'
+prouver 'des pannes au-delà des requêtes lues' 'serveur/console/impact.ts' \
+  '|| pannes === null || pannes > requetes) return [];' \
+  '|| pannes === null) return [];' \
+  'ce que la base rend se lit prudemment : une période illisible n'"'"'existe pas, des pannes au-delà des requêtes non plus'
+prouver 'un centile sur trop peu de requêtes' 'serveur/console/impact.ts' \
+  'p95: requetes >= LECTURES_POUR_UN_CENTILE ? quantile(h, 0.95) : null,' \
+  'p95: quantile(h, 0.95),' \
+  'ce que la base rend se lit prudemment : une période illisible n'"'"'existe pas, des pannes au-delà des requêtes non plus'
+prouver 'deux fois plus de pannes, si peu soient-elles' 'serveur/console/impact.ts' \
+  'e.part >= PANNES_PART_MIN && ' \
+  '' \
+  'pire qu'"'"'avant : des pannes deux fois plus fréquentes ET nombreuses ; un centile plus lent d'"'"'un quart ; un incident majeur ; deux fois plus de demandes par jour, trois au moins'
+prouver 'la lenteur jamais dite' 'serveur/console/impact.ts' \
+  '  if (e.p95 !== null && avant.p95 !== null && e.p95 >= P95_FOIS * avant.p95) p.push('"'"'lenteur'"'"');
+' \
+  '' \
+  'pire qu'"'"'avant : des pannes deux fois plus fréquentes ET nombreuses ; un centile plus lent d'"'"'un quart ; un incident majeur ; deux fois plus de demandes par jour, trois au moins'
+prouver 'un incident mineur qui compte' 'serveur/console/impact.ts' \
+  'e.incidents.some((i) => i.gravite !== '"'"'mineur'"'"')' \
+  'e.incidents.length > 0' \
+  'pire qu'"'"'avant : des pannes deux fois plus fréquentes ET nombreuses ; un centile plus lent d'"'"'un quart ; un incident majeur ; deux fois plus de demandes par jour, trois au moins'
+prouver 'les demandes sans minimum' 'serveur/console/impact.ts' \
+  'e.demandes >= DEMANDES_MIN && ' \
+  '' \
+  'pire qu'"'"'avant : des pannes deux fois plus fréquentes ET nombreuses ; un centile plus lent d'"'"'un quart ; un incident majeur ; deux fois plus de demandes par jour, trois au moins'
+prouver 'la colonne des demandes cachée à la direction' 'web/console/src/ecrans/Versions.tsx' \
+  '{direction ? <th scope="col">{titre(`${V}.e.col.demandes`)}</th> : null}' \
+  '{false ? <th scope="col">{titre(`${V}.e.col.demandes`)}</th> : null}' \
+  'l'"'"'effet de chaque version (0140, C64) : une ligne par version qui a tourné ; celle qui a eu bien plus de pannes et un incident majeur le dit, en orange'
+prouver 'le pire jamais dit à l'"'"'écran' 'web/console/src/ecrans/Versions.tsx' \
+  '{e.pire.length
+                    ? e.pire.map' \
+  '{false
+                    ? e.pire.map' \
+  'l'"'"'effet de chaque version (0140, C64) : une ligne par version qui a tourné ; celle qui a eu bien plus de pannes et un incident majeur le dit, en orange'
+prouver 'les incidents tus à l'"'"'écran' 'web/console/src/ecrans/Versions.tsx' \
+  'data-libelle={titre(`${V}.e.col.incidents`)}>{e.incidents.length' \
+  'data-libelle={titre(`${V}.e.col.incidents`)}>{false' \
+  'l'"'"'effet de chaque version (0140, C64) : une ligne par version qui a tourné ; celle qui a eu bien plus de pannes et un incident majeur le dit, en orange'
+prouver 'la carte qui déborde à droite' 'web/console/src/console.css' \
+  '.c-ve-effets .c-ve-table td:first-child { min-width: 11rem; }' \
+  '.c-ve-effets .c-ve-table td:first-child { min-width: 40rem; }' \
+  'l'"'"'effet de chaque version (0140, C64) : une ligne par version qui a tourné ; celle qui a eu bien plus de pannes et un incident majeur le dit, en orange'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

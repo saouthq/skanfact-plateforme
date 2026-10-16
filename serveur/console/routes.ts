@@ -26,6 +26,7 @@ import { motif, rendre, t, type Valeurs } from '../../textes/index.ts';
 import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_MIN, REGLES, SAUVEGARDE_TROP_VIEILLE_H } from '../../exploitation/veille.ts';
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
 import { lireDiffusions, portee, PUBLICS } from './diffusion.ts';
+import { lireEffets, periodes } from './impact.ts';
 import { aDecider, CATEGORIES, inscriteCetteSemaine, lireEntreprises, lireVeille, tableau, type Entreprise, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
 import { renouvellementsDe } from './renouvellements.ts';
@@ -1527,6 +1528,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
           titres: Object.fromEntries((e?.commits ?? []).map((c) => [c.version, c.titre])), numeros: e?.numeros ?? {},
           dansLeDepot: (e?.commits ?? []).map((c) => c.version),
           historique: h, avant: e ? versionDAvant(h, e) : null, prochaine: e ? prochaine(e, b.consignes, instant) : null,
+          // L'effet de chaque version (0140, C64) : ce que la base sait déjà de chaque période où elle a tourné — ses requêtes,
+          // ses pannes, sa lenteur, ses incidents, et (pour la direction) les demandes au support ; comparé à la version d'avant.
+          effets: lireEffets(await lireJson(x, 'select plateforme.console_impact_versions($1::jsonb) v', [JSON.stringify(periodes(h, instant))])),
           consignes: b.consignes, migrations: b.migrations.slice(0, 12),
           taches: e ? taches(await lireTachesDuDepot(), e) : [],
           machine: {

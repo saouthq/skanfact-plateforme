@@ -120,6 +120,35 @@ describe('les versions du service, à la souris', () => {
     await fermer(p);
   }, 60_000);
 
+  it('l\'effet de chaque version (0140, C64) : une ligne par version qui a tourné ; celle qui a eu bien plus de pannes et un incident majeur le dit, en orange', async () => {
+    // A a tourné de quinze à cinq heures avant : une panne sur mille. B, de cinq heures à une heure avant : presque toutes ses
+    // requêtes en panne, et un incident majeur ouvert pendant. (D'autres essais écrivent leurs mesures dans les mêmes heures :
+    // la ligne ne se lit pas au chiffre près, mais ce qu'elle juge, si.)
+    const heureIlYa = (h: number) => new Date(Math.floor((Date.now() - h * 3_600_000) / 3_600_000) * 3_600_000).toISOString();
+    const seaux = Array.from({ length: 47 }, (_, i) => (i === 12 ? 2000 : 0));
+    for (const [h, pannes] of [[10, 2], [3, 1900]] as const) {
+      await admin.query(`insert into plateforme.service_heure (heure, exemplaire, sorte, n, pannes, seaux) values ($1, 'effet-web', 'lecture', 2000, $2, $3)
+        on conflict (heure, exemplaire, sorte) do update set n = 2000, pannes = $2`, [heureIlYa(h), pannes, seaux]);
+    }
+    const qui = (await admin.query('select id from socle.utilisateur where email like $1 order by cree_le desc limit 1', ['console-versions-%'])).rows[0].id;
+    await admin.query(`insert into plateforme.service_incident (annee, numero, titre, gravite, ouvert_le, ouvert_par) values (2026, 978, 'Des factures qui ne partent plus', 'majeur', $1, $2)
+      on conflict do nothing`, [new Date(Date.now() - 2 * 3_600_000).toISOString(), qui]);
+    const p = await ouvrir();
+    const carte = p.locator('.c-ve-effets');
+    await expect.poll(() => carte.locator('tbody tr').count(), { timeout: 15_000 }).toBe(3);
+    const b = carte.locator(`tbody tr[data-version="${B}"]`);
+    expect(net(await b.innerText())).toMatch(/v1\.0\.0 .*Du \d\d\/\d\d\/\d{4} au \d\d\/\d\d\/\d{4}.*Majeur 2026-978 · Des factures qui ne partent plus.*Plus de pannes.*Un incident majeur/);
+    // La plus ancienne n'a rien à quoi se comparer ; celle en service se dit « depuis ».
+    expect(net(await carte.locator(`tbody tr[data-version="${A}"]`).innerText())).toContain('La plus ancienne mesurée : rien à comparer');
+    expect(net(await carte.locator(`tbody tr[data-version="${C}"]`).innerText())).toMatch(/En service depuis le \d\d\/\d\d\/\d{4}/);
+    // À l'ordinateur, ses sept colonnes tiennent dans la carte : rien ne se coupe à droite.
+    expect(await carte.locator('table').evaluate((t) => t.scrollWidth - (t.parentElement?.clientWidth ?? 0))).toBeLessThanOrEqual(0);
+    // La direction lit la colonne des demandes au support.
+    expect((await carte.locator('thead th').allTextContents()).map(net)).toContain('Demandes au support');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
   it('revenir à la version d\'avant : un motif court se refuse, le bouton ne bouge pas ; fait, la consigne se lit', async () => {
     const p = await ouvrir();
     await cliquer(p.locator('.c-ve-service').getByRole('button', { name: /Revenir à v1\.0\.0/ }));
@@ -205,8 +234,11 @@ describe('les versions du service, à la souris', () => {
   it('au téléphone : rien ne déborde, l\'historique se lit sans défilement de côté', async () => {
     const p = await ouvrir(390);
     expect(await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
-    expect(await p.locator('.c-ve-table').evaluate((t) => t.scrollWidth - (t.parentElement?.clientWidth ?? 0))).toBeLessThanOrEqual(0);
-    expect(await p.locator('.c-ve-table thead').isVisible()).toBe(false);
+    // L'historique et l'effet de chaque version : deux tableaux qui se lisent en blocs, sans défilement de côté.
+    for (const t of await p.locator('.c-ve-table').all()) {
+      expect(await t.evaluate((x) => x.scrollWidth - (x.parentElement?.clientWidth ?? 0))).toBeLessThanOrEqual(0);
+      expect(await t.locator('thead').isVisible()).toBe(false);
+    }
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);

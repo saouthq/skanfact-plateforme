@@ -1276,6 +1276,39 @@ describe('les versions du service (0092, docs/console.md C27)', () => {
     expect((r.corps.taches as { numero: string; titre: string | null }[]).every((t) => t.titre)).toBe(true);
   });
 
+  it('l\'effet de chaque version (0140, C64) : chaque période additionne ses requêtes, ses pannes, ses incidents et, pour la direction seule, les demandes au support ; ce qui est pire qu\'avant se dit', async () => {
+    // Deux versions d'août, isolées des mesures des autres essais : A du 1er au 3, B du 3 au 6 (C la remplace le 6).
+    const avant = fs.readFileSync(etat, 'utf8');
+    const lu = JSON.parse(avant) as { installations: unknown[] };
+    const [enAout1, enAout3] = ['2026-08-01T08:00:00.000Z', '2026-08-03T08:00:00.000Z'];
+    fs.writeFileSync(etat, JSON.stringify({ ...lu, installations: [
+      { version: A, debut: enAout1, fin: enAout1, ok: true, etape: null, retour: false },
+      { version: B, debut: enAout3, fin: enAout3, ok: true, etape: null, retour: false },
+      { version: B, debut: '2026-08-04T08:00:00.000Z', fin: '2026-08-04T08:00:00.000Z', ok: false, etape: 'migrer', retour: false },
+      { version: C, debut: '2026-08-06T08:00:00.000Z', fin: '2026-08-06T08:00:00.000Z', ok: true, etape: null, retour: false },
+      ...lu.installations] }));
+    try {
+      const seaux = (n: number) => Array.from({ length: 47 }, (_, i) => (i === 10 ? n : 0));
+      await admin.query(`insert into plateforme.service_heure (heure, exemplaire, sorte, n, pannes, seaux) values
+        ('2026-08-02T10:00:00Z', 'effet-1', 'lecture', 1000, 2, $1), ('2026-08-04T10:00:00Z', 'effet-1', 'lecture', 1000, 20, $1),
+        ('2026-08-04T10:00:00Z', 'effet-1', 'console', 500, 500, $2) on conflict do nothing`, [seaux(1000), seaux(500)]);
+      await admin.query(`insert into plateforme.service_incident (annee, numero, titre, gravite, ouvert_le, ouvert_par)
+        values (2026, 977, 'Les factures lentes', 'majeur', '2026-08-05T09:00:00Z', $1) on conflict do nothing`, [direction.id]);
+      const { ent, proprio } = await entreprise('Effet Des Versions');
+      await admin.query(`insert into plateforme.demande_support (entreprise, demandeur, canal, sujet, notee_par, ouverte_le)
+        values ($1, $2, 'email', 'Une facture ne part plus', $3, '2026-08-05T10:00:00Z')`, [ent, proprio.id, direction.id]);
+      type E = { version: string; requetes: number; pannes: number; incidents: { numero: number }[]; demandes: number | null; clients: number | null; pire: string[] };
+      const effets = async (jeton: string) => (await appeler('GET', '/console/service/versions', jeton)).corps.effets as E[];
+      const d = await effets(jD);
+      // Une installation ratée ne fait pas de période ; les requêtes de la console (les nôtres) ne comptent pas.
+      expect(d.map((e) => e.version).filter((v) => v === A || v === B)).toEqual([B, A]);
+      expect(d.find((e) => e.version === A)).toMatchObject({ requetes: 1000, pannes: 2, incidents: [], demandes: 0, clients: 0, pire: [] });
+      expect(d.find((e) => e.version === B)).toMatchObject({ requetes: 1000, pannes: 20, incidents: [{ numero: 977 }], demandes: 1, clients: 1, pire: ['pannes', 'incidents'] });
+      // La technique lit le service, jamais une donnée de client : les demandes ne lui sont pas dites.
+      expect((await effets(jT)).find((e) => e.version === B)).toMatchObject({ requetes: 1000, demandes: null, clients: null, pire: ['pannes', 'incidents'] });
+    } finally { fs.writeFileSync(etat, avant); }
+  });
+
   it('retenir, geler, revenir : chaque consigne a son motif, entre au journal, et le suiveur la lit', async () => {
     expect((await appeler('POST', '/console/service/versions/retenir', jS, { version: D, motif: 'la remise se trompe' })).statut).toBe(403);
     expect((await appeler('POST', '/console/service/versions/retenir', jT, { version: D, motif: 'ok' })).statut).toBe(400);
