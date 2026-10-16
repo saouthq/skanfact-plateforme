@@ -256,7 +256,8 @@ describe('l\'équipe (03 D4 à D6)', () => {
     await inviter(ent, alice.jeton, 'yassine@exemple.tn', ['commercial', 'caissier']);
     const vue = (await appeler('GET', `/entreprises/${ent}/equipe`, alice.jeton)).corps;
     expect(vue.moi).toBe(alice.id);
-    expect(vue.invitations).toEqual([{ id: expect.any(String), email: 'yassine@exemple.tn', roles: ['commercial', 'caissier'], expire: '2026-10-08T08:00:00.000Z' }]);
+    // Ce que son e-mail est devenu (0124 ; 0138, l'audit 1.42.0 A08) : ce serveur d'essai n'a pas de relais.
+    expect(vue.invitations).toEqual([{ id: expect.any(String), email: 'yassine@exemple.tn', roles: ['commercial', 'caissier'], expire: '2026-10-08T08:00:00.000Z', courriel: 'sans_relais' }]);
     expect(vue.donnables).toEqual(['administrateur', 'commercial', 'caissier', 'serveur', 'magasinier', 'comptabilite_interne', 'paie', 'lecture']);
     // Un caissier voit l'équipe, jamais les invitations, et ne peut rien donner.
     const vueBob = (await appeler('GET', `/entreprises/${ent}/equipe`, bob.jeton)).corps;
