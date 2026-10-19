@@ -755,4 +755,6 @@ export const ADAPTATIONS = [
   ...lireFichier('paie-2026.txt'),
   // ── Le pointage des salariés (19/10/2026, 1.60.0 ; docs/paie.md) : la grille du mois, les heures supplémentaires ──
   ...lireFichier('paie-pointage.txt'),
+  // ── Le journal de paie et les états (19/10/2026, 1.61.0 ; docs/paie.md) : le journal du mois, l'état CNSS, la déclaration mensuelle ──
+  ...lireFichier('paie-etats.txt'),
 ];

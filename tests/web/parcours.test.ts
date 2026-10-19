@@ -23,6 +23,7 @@ import '../../web/src/textes.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import * as jsqr from 'jsqr';
+import { ecranDeLaPlateforme } from '../moteur/v10.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -800,6 +801,107 @@ describe('le parcours, à la souris', () => {
     await expect.poll(async () => (await auServeur())[0]?.primes?.map((x: { montant: number }) => x.montant)).toEqual([76923, 44516]);
     expect(String(Number((await auServeur())[0]?.net) / 1000)).toBe(String(Number(await netEcran())));
     await p.screenshot({ path: path.join(PHOTOS, 'paie-pointage.png') });
+    expect(qui.erreurs).toEqual([]);
+  }, 120_000);
+
+  // 1.61.0 (docs/paie.md, « Le journal de paie et les états ») : le journal du mois, à l'écran, imprimé et en CSV ; ce que
+  // la paie du mois ajoute à la déclaration mensuelle ; l'état récapitulatif CNSS du trimestre, imprimé. Les chiffres
+  // sont ceux des bulletins (deux chemins, un chiffre).
+  it('le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l\'état récapitulatif CNSS', async () => {
+    const qui = await inscrite('Amel Trabelsi');
+    await qui.api('GET', `/entreprises/${qui.essai}/dossier-v10`, qui.jeton);
+    await qui.api('POST', `/entreprises/${qui.essai}/dossier-v10`, qui.jeton, { changements: [
+      // Des noms et des montants de vraie taille (trois salariés, des primes) : avec des noms courts et des petits
+      // montants, un journal aux en-têtes sur une ligne tenait quand même à l'écran.
+      { collection: 'employees', cle: 'sal-1', rang: 0, revision: null, contenu: { id: 'sal-1', name: 'Salarié Numéro Un', grossSalary: { '~n': '1234.567' }, hireDate: '2020-01-06', contract: 'cdi',
+        primes: [{ label: 'Prime de présence', amount: 80, taxable: true, parJour: true }, { label: 'Prime de rendement', amount: { '~n': '125.5' }, taxable: true }] } },
+      { collection: 'employees', cle: 'sal-2', rang: 1, revision: null, contenu: { id: 'sal-2', name: 'Salarié Numéro Deux', grossSalary: { '~n': '1520.25' }, hireDate: '2021-02-01', contract: 'cdi',
+        primes: [{ label: 'Prime de transport', amount: { '~n': '55.385' }, taxable: true }] } },
+      { collection: 'employees', cle: 'sal-3', rang: 2, revision: null, contenu: { id: 'sal-3', name: 'Salarié Numéro Trois', grossSalary: 980, hireDate: '2022-03-01', contract: 'cdi' } },
+    ] });
+    const p = await qui.ouvrir(qui.essai, '#/paie');
+    await pageV10(p, /Paie/);
+    await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    // Sans bulletin, pas de journal.
+    expect(await p.locator('#p-journal').count()).toBe(0);
+    await p.locator('#p-gen').click();
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#p-journal').count()).toBe(1);
+    type Bulletin = { employeeId: string; month: number; computed: Record<string, number> };
+    const bulletins = () => p.evaluate(() => (window as unknown as { __data: { payslips: Bulletin[] } }).__data.payslips);
+    const somme = async (k: string) => Math.round((await bulletins()).reduce((a, x) => a + (x.computed[k] ?? 0), 0) * 1000) / 1000;
+    const nombre = (t: string) => Number(t.replace(/[\s\u00a0\u202f]/g, '').replace(',', '.'));
+
+    // Le journal du mois : une ligne par bulletin, dans l'ordre du registre (Salarié Un est entré le premier), les
+    // colonnes du journal réel, et des totaux qui sont ceux des bulletins.
+    await p.locator('#p-journal').click();
+    const journal = p.locator('#jp-table');
+    await journal.waitFor();
+    expect(await journal.locator('tbody tr[data-jp]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.jp))).toEqual(['sal-1', 'sal-2', 'sal-3']);
+    expect(await journal.locator('tbody tr[data-jp] td:first-child').allInnerTexts()).toEqual(['0001', '0002', '0003']);
+    // (Le texte des en-têtes, pas leur rendu en capitales.)
+    expect((await journal.locator('thead th').allTextContents()).map((x) => x.trim())).toEqual(['N°', 'Salarié', 'J.', 'Base', 'H.S.', 'Indemnités', 'Brut', 'S. cotisable', 'CNSS', 'S. imposable', 'IRPP', 'CSS', 'S. net', 'Retenues', 'Net à payer', 'TFP', 'FOPROLOS', 'AT', 'CNSS pat.']);
+    for (const [col, cle] of [['net', 'net'], ['brut', 'gross'], ['cnss', 'cnssEmployee'], ['irpp', 'irpp'], ['patronal', 'cnssEmployer']] as const) {
+      expect(nombre(await journal.locator(`tr[data-jp-total] td[data-col=${col}]`).innerText()), col).toBe(await somme(cle));
+    }
+    // À l'ordinateur, les dix-sept colonnes se lisent sans faire défiler.
+    expect(await p.locator('.modal').evaluate((e) => Math.round(e.getBoundingClientRect().width))).toBeGreaterThan(1300);
+    expect(await journal.locator('xpath=..').evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+    // Imprimé : une page en largeur, les mêmes lignes.
+    const [imprime] = await Promise.all([p.waitForEvent('popup'), p.locator('#jp-pdf').click()]);
+    await expect.poll(() => imprime.content()).toContain('Nombre de salariés : 3');
+    expect(await imprime.content()).toMatch(/<h1>Journal de paie<\/h1>[\s\S]*0001<\/td><td class="g">Salarié Numéro Un/);
+    await imprime.close();
+    // En CSV, pour le comptable : une ligne par bulletin et le total.
+    const [csv] = await Promise.all([p.waitForEvent('download'), p.locator('#jp-csv').click()]);
+    expect(csv.suggestedFilename()).toMatch(/^Journal_de_paie_\d{4}-\d{2}\.csv$/);
+    const lignes = fs.readFileSync(await csv.path(), 'utf8').replace(/^\ufeff/, '').trim().split('\r\n');
+    expect(lignes.map((l) => l.split(';').slice(0, 2).join(';'))).toEqual(['N°;Salarié', '1;Salarié Numéro Un', '2;Salarié Numéro Deux', '3;Salarié Numéro Trois', ';Total']);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#jp-table').count()).toBe(0);
+    // On regarde un autre mois des bulletins : la déclaration mensuelle, elle, s'ouvre sur le mois qu'on déclare maintenant
+    // (vu à l'écran le 19 octobre : elle suivait le mois des bulletins, et s'ouvrait sur octobre, vide).
+    const moisBulletins = Number((await bulletins())[0]?.month);
+    await p.locator('#p-month').selectOption(String(moisBulletins === 12 ? 11 : moisBulletins + 1));
+    await expect.poll(() => p.locator('#p-journal').count()).toBe(0);
+
+    // Les déclarations : ce que la paie du mois ajoute à la déclaration mensuelle, les montants des bulletins.
+    await p.locator('#p-tabs button[data-tab=declarations]').click();
+    const annee = Number(await p.locator('#p-year').inputValue());
+    const mois = Number(await p.locator('#dm-mois').inputValue());
+    expect(mois).toBe(moisBulletins);
+    const dm = p.locator('#dm-table');
+    expect(await dm.locator('tr[data-dm]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.dm))).toEqual(['irpp', 'css', 'tfp', 'foprolos']);
+    for (const [cle, k] of [['irpp', 'irpp'], ['css', 'css'], ['tfp', 'tfp'], ['foprolos', 'foprolos']] as const) {
+      expect(nombre((await dm.locator(`tr[data-dm=${cle}] td`).last().innerText()).replace(/DT/, '')), cle).toBe(await somme(k));
+    }
+    const suivant = mois === 12 ? `28/01/${annee + 1}` : `28/${String(mois + 1).padStart(2, '0')}/${annee}`;
+    // (L'espace avant les deux-points est insécable.)
+    expect(await p.locator('#dm-panneau .filters span').innerText()).toMatch(new RegExp(`^Échéance usuelle\\s: ${suivant}, avec la TVA du mois$`));
+    const [dmCsv] = await Promise.all([p.waitForEvent('download'), p.locator('#dm-csv').click()]);
+    expect(fs.readFileSync(await dmCsv.path(), 'utf8').replace(/^\ufeff/, '').split('\r\n')[0]).toBe('Impôt ou taxe;Base;Taux (%);Montant');
+    // Un mois sans bulletin le dit.
+    await p.locator('#dm-mois').selectOption(String(mois === 1 ? 2 : mois - 1));
+    await expect.poll(() => p.locator('#dm-vide').innerText()).toMatch(/la paie n'ajoute rien à la déclaration de ce mois-là/);
+    await p.locator('#dm-mois').selectOption(String(mois));
+    await dm.waitFor();
+
+    // L'état récapitulatif CNSS du trimestre : les cotisations sur le total des salaires, au taux du régime, et le total
+    // des salaires en lettres ; il s'imprime.
+    await p.locator('#d-quarter').selectOption(String(Math.ceil(mois / 3)));
+    const etat = p.locator('#cn-etat');
+    await etat.waitFor();
+    const salaires = await somme('cnssBase');
+    expect(nombre((await etat.locator('[data-etat=salaires]').innerText()).replace(/DT/, ''))).toBe(salaires);
+    expect(nombre((await etat.locator('[data-etat=secu]').innerText()).replace(/DT/, ''))).toBe(Math.round(salaires * 26.75 * 10) / 1000);
+    expect(await etat.innerText()).toMatch(/Sécurité sociale\s+26,75\s%/);
+    const KC = ecranDeLaPlateforme('core.js') as { amountToWords: (n: number, c: string) => string };
+    expect(await etat.locator('[data-etat=lettres]').innerText()).toBe(KC.amountToWords(salaires, 'DT'));
+    const [etatImprime] = await Promise.all([p.waitForEvent('popup'), p.locator('#cn-etat-pdf').click()]);
+    await expect.poll(() => etatImprime.content()).toContain('<h1>État récapitulatif des salaires déclarés</h1>');
+    expect(await etatImprime.content()).toContain(KC.amountToWords(salaires, 'DT'));
+    await etatImprime.close();
+    await p.screenshot({ path: path.join(PHOTOS, 'paie-etats.png') });
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
 

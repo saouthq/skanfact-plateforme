@@ -11669,6 +11669,39 @@
       });
   }
 
+  // (plateforme) 1.61.0 — le journal de paie du mois (docs/paie.md) : une ligne par bulletin, les colonnes du journal de
+  // paie réel, les totaux. Les chiffres sont ceux des bulletins établis.
+  function journalDePaieFenetre(year, month) {
+    const j = C.journalDePaie(data, year, month);
+    const dec = C.decimalsFor(company().currency);
+    const montant = v => Math.abs(v) < 0.0005 ? '<span class="muted">—</span>' : C.money(v, null, dec);
+    const periode = `${MONTHS_LONG[month - 1]} ${year}`;
+    const nom = `Journal_de_paie_${year}-${String(month).padStart(2, '0')}`;
+    modal(`<h2>Journal de paie — ${h(periode)} ${info('pay.journal')}</h2>
+      <p class="small muted mb">${pl(j.nombre, 'bulletin')}, dans l'ordre du registre du personnel. Les montants sont ceux des bulletins établis ; le total de chaque colonne est la somme de ses lignes.</p>
+      <div class="scroll-x"><table class="list compact jp-table" id="jp-table"><thead><tr><th>N°</th><th>Salarié</th>
+        ${/* Les en-têtes passent à la ligne (pas de `nw`) : sur une seule, ils élargissaient chaque colonne. */''}
+        ${C.COLONNES_JOURNAL.map(([, l, court]) => `<th class="r" title="${h(l)}">${h(court)}</th>`).join('')}</tr></thead><tbody>
+        ${j.lignes.map(l => `<tr data-jp="${h(l.employeeId)}"><td class="nw muted">${l.n ? String(l.n).padStart(4, '0') : ''}</td><td class="nw"><strong>${h(l.name)}</strong></td>
+          ${C.COLONNES_JOURNAL.map(([k]) => `<td class="r nw" data-col="${k}">${k === 'jours' ? pct(l[k]) : montant(l[k])}</td>`).join('')}</tr>`).join('')}
+        <tr class="total-row" data-jp-total><td colspan="2"><strong>Totaux</strong></td>
+          ${C.COLONNES_JOURNAL.map(([k]) => `<td class="r nw" data-col="${k}">${k === 'jours' ? '' : `<strong>${C.money(j.totaux[k], null, dec)}</strong>`}</td>`).join('')}</tr>
+      </tbody></table></div>
+      <div class="modal-actions"><button type="button" class="btn" data-close>Fermer</button><button type="button" class="btn" id="jp-csv">Exporter en CSV</button><button type="button" class="btn btn-primary" id="jp-pdf">Imprimer le journal</button></div>`,
+    (root) => {
+      $('#jp-pdf', root).onclick = async () => {
+        try {
+          const f = await bridge.exportPdf(C.journalDePaieHtml(data, company(), year, month), nom + '.pdf');
+          if (f) toast('PDF enregistré : ' + f.split(/[\\/]/).pop());
+        } catch (e) { toast(e.message || 'Export impossible', true); }
+      };
+      $('#jp-csv', root).onclick = async () => {
+        const f = await bridge.saveText(nom + '.csv', C.toCsv(j.lignes.concat([{ name: 'Total', ...j.totaux, jours: '' }]), C.colonnesCsvJournal()));
+        if (f) toast('Exporté : ' + f.split(/[\\/]/).pop());
+      };
+    });
+  }
+
   async function exportPayslip(slip) {
     const emp = employeeById(slip.employeeId) || {};
     const html = C.payslipHtml(slip, data, company(), {});
@@ -11982,7 +12015,7 @@
         <div class="panel"><h2>Bulletins du mois</h2>
           <div class="filters">
             <select id="p-month">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${m === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select>
-            ${missing.length ? `<button class="btn btn-sm btn-primary" id="p-gen">${missing.length > 1 ? `Établir les ${pl(missing.length, 'bulletin')} manquants` : 'Établir le bulletin manquant'}</button>` : month.length ? '<span class="small ok-text">Tous les bulletins du mois sont établis.</span>' : ''}
+            ${missing.length ? `<button class="btn btn-sm btn-primary" id="p-gen">${missing.length > 1 ? `Établir les ${pl(missing.length, 'bulletin')} manquants` : 'Établir le bulletin manquant'}</button>` : month.length ? '<span class="small ok-text">Tous les bulletins du mois sont établis.</span>' : ''}${month.length ? ' <button type="button" class="btn btn-sm" id="p-journal">Journal de paie</button>' : ''}
           </div>
           ${month.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
             <th>Salarié</th><th class="r">Brut</th><th class="r">CNSS</th><th class="r">Impôt retenu ${info('pay.impot')}</th><th class="r">Net à payer</th><th class="r">Coût employeur</th><th>Payé le</th><th class="row-actions-h"></th></tr></thead><tbody>
@@ -12017,6 +12050,8 @@
       $('#p-month').onchange = e => { s.month = e.target.value; s.moisTouche = true; drawSlips(); };
       if ($('#p-2026-voir')) $('#p-2026-voir').onclick = () => { const t = $('#p-tabs button[data-tab="baremes"]'); if (t) t.click(); };
       if ($('#p-vers-mois')) $('#p-vers-mois').onclick = () => { const mp = C.moisDePaie(data); s.year = String(mp.year); s.month = String(mp.month); s.moisTouche = true; draw(); };
+      // (plateforme) 1.61.0 — le journal de paie du mois.
+      if ($('#p-journal')) $('#p-journal').onclick = () => journalDePaieFenetre(y, m);
       // 10.12.0 — une ligne garde UN bouton, celui du geste suivant (7.29.0). Elle en portait deux,
       // « PDF » et « Modifier », et pas celui qu'on vient chercher après avoir établi un bulletin : le
       // marquer payé demandait d'ouvrir « Modifier » et de trouver « Payé le ». Le paiement part
@@ -12372,6 +12407,15 @@
       const q = Number(s.quarter) || (aDeposer ? aDeposer.quarter : Math.ceil(Number(C.today().slice(5, 7)) / 3));
       s.quarter = String(q);
       const cn = C.cnssDeclaration(data, y, q);
+      // (plateforme) 1.61.0 — l'état récapitulatif des salaires déclarés du trimestre, et ce que la paie du mois choisi
+      // ajoute à la déclaration mensuelle.
+      const etat = C.etatRecapitulatifCnss(data, company(), y, q);
+      // La déclaration mensuelle s'ouvre sur le mois qu'on déclare maintenant (le mois écoulé, dû le 28 de ce mois-ci),
+      // pas sur celui des bulletins : vu à l'écran le 19 octobre, elle s'ouvrait sur octobre, vide, quand celle de
+      // septembre était à déposer.
+      const auj = C.today(), ty = Number(auj.slice(0, 4)), tm = Number(auj.slice(5, 7));
+      const dmMois = Number(s.moisDeclare) || (y === ty ? Math.max(1, tm - 1) : y < ty ? 12 : 1);
+      const dm = C.declarationMensuelleSalaires(data, y, dmMois);
       // 10.14.1 (DECL D2) — le fichier de télédéclaration du trimestre, par le moteur du Cabinet.
       // Ses refus se lisent AVANT le geste (9.4.2) et le bouton s'éteint par le même verdict (9.4.5).
       const fichier = cn.rows.length ? C.fichierCnssEntreprise(data, company(), y, q) : null;
@@ -12429,6 +12473,23 @@
           <p class="small muted mt">SkanFact ne dépose rien et ne se connecte à aucune administration : il prépare le tableau et te rappelle la date. <em>À VÉRIFIER avec ton comptable : les dates et les modalités de dépôt.</em></p>
         </div>` : ''}
 
+        <div class="panel" id="dm-panneau"><h2>Déclaration mensuelle — retenues et taxes sur les salaires ${info('soc.mensuelle')}</h2>
+          <div class="filters">
+            <select id="dm-mois" aria-label="Le mois déclaré">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${dmMois === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select>
+            <span class="small muted">Échéance usuelle : ${C.fmtDate(dm.dueDate)}, avec la TVA du mois</span>
+          </div>
+          ${dm.salaries ? `<div class="scroll-x"><table class="list compact" id="dm-table" style="max-width:760px"><thead><tr>
+            <th>Impôt ou taxe</th><th class="r">Base</th><th class="r">Taux</th><th class="r">Montant</th></tr></thead><tbody>
+            ${dm.lignes.map(l => `<tr data-dm="${l.cle}"><td>${h(l.libelle)}</td><td class="r nw">${C.money(l.base, cur)}</td>
+              <td class="r nw">${l.bareme ? '<span class="muted">barème</span>' : l.taux === null ? '<span class="muted" title="Le taux n\'est pas le même sur tous les bulletins du mois">—</span>' : pct(l.taux) + ' %'}</td>
+              <td class="r nw"><strong>${C.money(l.montant, cur)}</strong></td></tr>`).join('')}
+            <tr class="total-row"><td colspan="3"><strong>À reverser au Trésor</strong></td><td class="r nw"><strong>${C.money(dm.total, cur)}</strong></td></tr>
+          </tbody></table></div>
+          <p class="small muted mt">Les ${pl(dm.salaries, 'bulletin')} de ${h(MONTHS_LONG[dmMois - 1])} ${y}, à reporter sur la déclaration mensuelle d'employeur et de TVA. SkanFact ne dépose rien. <em>À VÉRIFIER avec ton comptable : la base que le formulaire demande, et le mois où se déclare une paie versée le mois suivant.</em></p>
+          <div class="inline mt"><button type="button" class="btn" id="dm-csv">Exporter en CSV</button></div>`
+            : `<div class="empty" id="dm-vide">Aucun bulletin en ${h(MONTHS_LONG[dmMois - 1])} ${y} : la paie n'ajoute rien à la déclaration de ce mois-là.</div>`}
+        </div>
+
         <div class="panel"><h2>Déclaration CNSS ${info('soc.cnss')}</h2>
           <div class="filters">
             <select id="d-quarter">${C.QUARTERS.map(([n2, lab]) => `<option value="${n2}" ${q === n2 ? 'selected' : ''}>${lab}</option>`).join('')}</select>
@@ -12457,7 +12518,18 @@
           ${cn.rows.some(r => !r.cnss) ? `<p class="small warn-text mt" id="cn-sans-numero">Le matricule CNSS manque sur ${cn.rows.filter(r => !r.cnss).length > 1 ? 'les fiches de' : 'la fiche de'} ${h(cn.rows.filter(r => !r.cnss).map(r => r.name).join(', '))} : la déclaration ne peut pas être déposée sans lui.</p>` : ''}
           ${(company().cnss || '').trim() ? '' : `<p class="small warn-text mt" id="cn-employeur">Le matricule CNSS de l'entreprise n'est pas renseigné : la déclaration et les bulletins le portent. <a href="#" id="cn-mat" class="warn-link">Le renseigner</a></p>`}
           ${blocFichierCnss(fichier, enCoursCnss)}
+          <div class="mt" id="cn-etat">
+            <h3 class="sub-h">État récapitulatif des salaires déclarés ${info('soc.etatCnss')}</h3>
+            <div class="scroll-x"><table class="list compact" style="max-width:760px"><thead><tr><th>Régime</th><th class="r">Taux</th><th class="r">Montant</th></tr></thead><tbody>
+              <tr><td>Salaires déclarés</td><td></td><td class="r nw" data-etat="salaires"><strong>${C.money(etat.salaires, cur)}</strong></td></tr>
+              ${etat.lignes.map(l => `<tr><td>${h(l.libelle)}</td><td class="r nw">${l.taux === null ? '<span class="muted" title="Le taux n\'est pas le même sur tous les bulletins du trimestre : le montant est leur somme">—</span>' : pct(l.taux) + ' %'}</td><td class="r nw" data-etat="${l.cle}">${C.money(l.montant, cur)}</td></tr>`).join('')}
+              <tr class="total-row"><td colspan="2"><strong>Total des cotisations</strong></td><td class="r nw" data-etat="total"><strong>${C.money(etat.total, cur)}</strong></td></tr>
+            </tbody></table></div>
+            <p class="small mt">Arrêtée à la somme de : <em data-etat="lettres">${h(etat.enLettres)}</em>.</p>
+            ${Math.abs(etat.ecart) > 0.0005 ? `<p class="small muted" id="cn-ecart">Les bulletins du trimestre retiennent ${C.money(etat.bulletins, cur)} : l'état, calculé sur le total des salaires, dit ${C.money(etat.total, cur)}. L'écart (${C.money(Math.abs(etat.ecart), cur)}) vient des arrondis de chaque bulletin.</p>` : ''}
+          </div>
           <div class="inline mt">
+            <button type="button" class="btn" id="cn-etat-pdf">Imprimer l'état récapitulatif</button>
             <button class="btn" id="cn-csv">Exporter en CSV</button>
             <button class="btn" id="cn-mail">Envoyer au comptable</button>
             <button class="btn ${filed(`cnss-${y}-T${q}`) || raisonCnss(y, q) || enCoursCnss ? '' : 'btn-primary'}" id="cn-file"${(raisonCnss(y, q) || enCoursCnss) && !filed(`cnss-${y}-T${q}`) ? ` disabled title="${h(raisonCnss(y, q) || enCoursCnss)}"` : ''}>${filed(`cnss-${y}-T${q}`) ? 'Retirer « déposée »' : 'Marquer déposée'}</button>
@@ -12505,6 +12577,22 @@
           <p class="small muted mt"><em>À VÉRIFIER avec ton comptable : la forme exacte du formulaire, les dates et les modalités de dépôt. SkanFact prépare les chiffres, il ne dépose rien.</em></p>
         </div>`;
       $('#d-quarter').onchange = e2 => { s.quarter = e2.target.value; draw(); };
+      // (plateforme) 1.61.0 — la déclaration mensuelle garde son mois ; elle s'exporte ; l'état CNSS s'imprime.
+      if ($('#dm-mois')) $('#dm-mois').onchange = e2 => { s.moisDeclare = e2.target.value; draw(); };
+      if ($('#dm-csv')) $('#dm-csv').onclick = async () => {
+        const cols = [{ key: 'libelle', label: 'Impôt ou taxe' }, { key: 'base', label: 'Base', type: 'money' },
+          { key: 'taux', label: 'Taux (%)', get: r => r.bareme ? 'barème' : r.taux == null ? '' : String(r.taux).replace('.', ',') },
+          { key: 'montant', label: 'Montant', type: 'money' }];
+        const f = await bridge.saveText(`declaration-mensuelle-salaires-${y}-${String(dmMois).padStart(2, '0')}.csv`,
+          C.toCsv(dm.lignes.concat([{ libelle: 'À reverser au Trésor', base: '', taux: null, montant: dm.total }]), cols));
+        if (f) toast('Exporté : ' + f.split(/[\\/]/).pop());
+      };
+      if ($('#cn-etat-pdf')) $('#cn-etat-pdf').onclick = async () => {
+        try {
+          const f = await bridge.exportPdf(C.etatRecapitulatifCnssHtml(data, company(), y, q), `Etat_recapitulatif_CNSS_${y}-T${q}.pdf`);
+          if (f) toast('PDF enregistré : ' + f.split(/[\\/]/).pop());
+        } catch (e) { toast(e.message || 'Export impossible', true); }
+      };
       $$('#p-body [data-file]').forEach(b => b.onclick = () => mark(b.dataset.file, b.dataset.lab));
       if ($('#cn-file')) $('#cn-file').onclick = () => mark(`cnss-${y}-T${q}`, `la déclaration CNSS ${C.quarterLabel(q)} ${y}`);
       if ($('#an-file')) $('#an-file').onclick = () => mark('employeur-' + y, `la déclaration d'employeur ${y}`);

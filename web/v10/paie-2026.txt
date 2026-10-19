@@ -230,8 +230,8 @@ mois, comme une prime tapée à la main ; le serveur recalcule le bulletin comme
       <div class="kv"><span>Jours ouvrables</span><span>${pct(c.workedDays)}</span></div>
 -- après
       <div class="kv"><span>Jours ouvrables</span><span>${pct(c.workedDays)}</span></div>
-      ${/* (plateforme) 1.59.0 — les jours payés, la colonne « J. » du journal de paie. */''}
-      <div class="kv"><span>Jours payés</span><span>${pct(round3(Math.max(0, c.workedDays - c.absentDays - (slip.prorata ? Math.max(0, Number(slip.prorata.sur) - Number(slip.prorata.jours)) : 0))))}</span></div>
+      ${/* (plateforme) 1.59.0 — les jours payés, la colonne « J. » du journal de paie (le même calcul que le journal, 1.61.0). */''}
+      <div class="kv"><span>Jours payés</span><span>${pct(joursPayesDuBulletin(slip))}</span></div>
 -- fin
 
 == core.js | le bulletin imprimé dit les jours d'une prime au jour

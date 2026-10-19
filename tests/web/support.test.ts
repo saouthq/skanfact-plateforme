@@ -541,9 +541,14 @@ describe('le support, à la souris, des deux côtés', () => {
   }, 120_000);
 
   it('l\'instrument ne trouve rien : la page Support de la console, sa fenêtre et ses demandes closes ; la page des demandes du client', async () => {
-    // Une demande close, pour que la vue des closes ait de quoi se montrer.
+    // Une demande close, pour que la vue des closes ait de quoi se montrer ; et douze de plus, pour que l'instrument mesure
+    // aussi une liste qui défile (la suite entière en clôt d'autres, et la colonne de 300 points porte alors sa barre).
     const close = String((await api('POST', `/entreprises/${ent}/support`, jClient, { sujet: 'Le logo flou sur le devis', texte: 'Le logo est flou sur le devis imprimé.', version: '1.3.0', page: 'devis' })).corps.id);
     expect((await api('POST', `/entreprises/${ent}/support/${close}/reglee`, jClient)).statut).toBeLessThan(300);
+    for (let i = 1; i <= 12; i++) {
+      const id = String((await api('POST', `/entreprises/${ent}/support`, jClient, { sujet: `Une question réglée n° ${i}`, texte: 'Réglée le jour même.', version: '1.3.0', page: 'devis' })).corps.id);
+      expect((await api('POST', `/entreprises/${ent}/support/${id}/reglee`, jClient)).statut).toBeLessThan(300);
+    }
     // Chaque geste trouve son bouton par la structure de l'écran : en langue factice, son texte change.
     const ECRANS: EcranConsole[] = [
       { nom: 'support', hash: `#/support?demande=${demande}` },

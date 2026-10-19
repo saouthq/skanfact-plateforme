@@ -1542,6 +1542,13 @@ table.list.pt-grille input.pt-hs { width: 64px; height: 30px; padding: 2px 8px; 
    ce qu'on règle, sans aller ouvrir un devis. La fenêtre a sa largeur DÈS l'ouverture — l'aperçu qui
    se charge ne l'élargit pas sous le curseur (H-E1, dans une fenêtre). */
 .modal:where(:has(.marque)) { width: 900px; }
+/* (plateforme) 1.61.0 — le journal de paie : dix-sept colonnes de montants, lisibles sans défiler à l'ordinateur. Vu à
+   l'écran (1440 px) : les en-têtes en capitales, sur une ligne (`nw`), élargissaient chaque colonne, et l'accident du
+   travail et la CNSS patronale restaient derrière un défilement. Sur deux lignes, avec des marges plus fines, tout tient. */
+.modal:where(:has(#jp-table)) { width: min(1380px, calc(100vw - 32px)); padding-inline: 20px; }
+table.list.jp-table th { vertical-align: bottom; line-height: 1.25; }
+table.list.jp-table th, table.list.jp-table td { padding-inline: 5px; }
+table.list.jp-table td { font-size: 12.5px; }
 .mq-grille { display: grid; grid-template-columns: minmax(0, 320px) minmax(0, 1fr); gap: 24px; align-items: start; margin-block-start: 14px; }
 .mq-choix { display: flex; flex-direction: column; gap: 18px; }
 .mq-bloc .inline { flex-wrap: wrap; }

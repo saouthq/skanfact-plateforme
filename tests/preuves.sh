@@ -17276,6 +17276,82 @@ prouver 'le pointage ouvert dans l'"'"'offre Essentiel' 'serveur/abonnement/offr
   ''"'"'socialFilings'"'"'],' \
   'en Essentiel, rien de NEUF ne se crée dans la paie ni les immobilisations ; ce qui existe se corrige et se supprime ; les déclarations restent'
 
+# 1.61.0 : le journal de paie, l'état récapitulatif CNSS et la déclaration mensuelle (docs/paie.md, « Le journal de paie et les états »).
+prouver 'le journal par ordre alphabétique, pas celui du registre' 'web/public/v10/core.js' \
+  '}).sort((a, b) => (a.n - b.n) || (a.name || '"'"''"'"').localeCompare(b.name || '"'"''"'"', '"'"'fr'"'"'));' \
+  '}).sort((a, b) => (a.name || '"'"''"'"').localeCompare(b.name || '"'"''"'"', '"'"'fr'"'"'));' \
+  'le journal de septembre a les colonnes du journal réel, au millime, sauf les écarts d'"'"'un millime déjà nommés ; ses totaux sont la somme de ses lignes'
+prouver 'les jours payés sans les jours hors contrat' 'web/public/v10/core.js' \
+  '    const hors = slip.prorata ? Math.max(0, Number(slip.prorata.sur) - Number(slip.prorata.jours)) : 0;
+    const absences = Number(c.absentDays' \
+  '    const hors = 0;
+    const absences = Number(c.absentDays' \
+  'une ligne du journal se tient : les heures supplémentaires à part, une prime non imposable hors cotisations, une retenue entre le salaire net et le net à payer'
+prouver 'les heures supplémentaires comptées deux fois, dans les indemnités' 'web/public/v10/core.js' \
+  'indemnites: round3(v('"'"'taxableBonus'"'"') + v('"'"'freeBonus'"'"') - hs)' \
+  'indemnites: round3(v('"'"'taxableBonus'"'"') + v('"'"'freeBonus'"'"'))' \
+  'une ligne du journal se tient : les heures supplémentaires à part, une prime non imposable hors cotisations, une retenue entre le salaire net et le net à payer'
+prouver 'le salaire net sans les retenues' 'web/public/v10/core.js' \
+  'salaireNet: round3(v('"'"'net'"'"') + v('"'"'otherDeductions'"'"'))' \
+  'salaireNet: v('"'"'net'"'"')' \
+  'une ligne du journal se tient : les heures supplémentaires à part, une prime non imposable hors cotisations, une retenue entre le salaire net et le net à payer'
+prouver 'le salaire de base sans l'"'"'absence retirée' 'web/public/v10/core.js' \
+  'base: round3(v('"'"'baseGross'"'"') - v('"'"'absenceCut'"'"'))' \
+  'base: v('"'"'baseGross'"'"')' \
+  'le journal de septembre a les colonnes du journal réel, au millime, sauf les écarts d'"'"'un millime déjà nommés ; ses totaux sont la somme de ses lignes'
+prouver 'des jours au point dans le CSV' 'web/public/v10/core.js' \
+  'get: r => r.jours === '"'"''"'"' || r.jours == null ? '"'"''"'"' : String(r.jours).replace('"'"'.'"'"', '"'"','"'"') }' \
+  'get: r => r.jours }' \
+  'le journal s'"'"'imprime (une page en largeur, les colonnes du journal réel, les totaux, le nombre de salariés) et s'"'"'exporte en CSV'
+prouver 'le journal imprimé sans le nombre de salariés' 'web/public/v10/core.js' \
+  '<span>Nombre de salariés : ${j.nombre}</span>' \
+  '<span></span>' \
+  'le journal s'"'"'imprime (une page en largeur, les colonnes du journal réel, les totaux, le nombre de salariés) et s'"'"'exporte en CSV'
+prouver 'l'"'"'état CNSS à la somme des bulletins' 'web/public/v10/core.js' \
+  '    const secu = tSecu !== null ? round3(cn.base * tSecu / 100) : round3(cn.employee + cn.employer);' \
+  '    const secu = round3(cn.employee + cn.employer);' \
+  'l'"'"'état récapitulatif du 3e trimestre : les cotisations sur le total des salaires, au taux du régime, comme l'"'"'état réel ; le total en lettres'
+prouver 'l'"'"'accident du travail à la somme des bulletins' 'web/public/v10/core.js' \
+  '    const accident = tAt !== null ? round3(cn.base * tAt / 100) : cn.accident;' \
+  '    const accident = cn.accident;' \
+  'l'"'"'état récapitulatif du 3e trimestre : les cotisations sur le total des salaires, au taux du régime, comme l'"'"'état réel ; le total en lettres'
+prouver 'les cotisations en lettres au lieu des salaires' 'web/public/v10/core.js' \
+  '      enLettres: amountToWords(cn.base, '"'"'DT'"'"')' \
+  '      enLettres: amountToWords(total, '"'"'DT'"'"')' \
+  'l'"'"'état récapitulatif du 3e trimestre : les cotisations sur le total des salaires, au taux du régime, comme l'"'"'état réel ; le total en lettres'
+prouver 'un taux qui varie, dit quand même' 'web/public/v10/core.js' \
+  '    const unique = f => { const v = [...new Set(slips.map(p => round3(f(((p.computed || {}).rates) || {}))))]; return v.length === 1 ? v[0] : null; };' \
+  '    const unique = f => { const v = [...new Set(slips.map(p => round3(f(((p.computed || {}).rates) || {}))))]; return v[0]; };' \
+  'un taux qui n'"'"'est pas le même sur tous les bulletins du trimestre : l'"'"'état reprend la somme des bulletins, sans taux'
+prouver 'la solidarité de la déclaration sur le salaire imposable' 'web/public/v10/core.js' \
+  'base: apresDeductions, taux: unique('"'"'solidarity'"'"')' \
+  'base: j.totaux.imposable, taux: unique('"'"'solidarity'"'"')' \
+  'la déclaration mensuelle reprend les montants du journal du même mois (IRPP, CSS, TFP, FOPROLOS) et leurs bases, à l'"'"'échéance du calendrier fiscal'
+prouver 'l'"'"'échéance de la déclaration mensuelle au 28 en dur' 'web/public/v10/core.js' \
+  'pad2(Math.min(Number(r.day) || 28, daysInMonth(ny, nm)))' \
+  'pad2(Math.min(28, daysInMonth(ny, nm)))' \
+  'la déclaration mensuelle reprend les montants du journal du même mois (IRPP, CSS, TFP, FOPROLOS) et leurs bases, à l'"'"'échéance du calendrier fiscal'
+prouver 'décembre déclaré en décembre' 'web/public/v10/core.js' \
+  '    const ny = m >= 12 ? y + 1 : y, nm = m >= 12 ? 1 : m + 1;' \
+  '    const ny = y, nm = m >= 12 ? 1 : m + 1;' \
+  'la déclaration mensuelle reprend les montants du journal du même mois (IRPP, CSS, TFP, FOPROLOS) et leurs bases, à l'"'"'échéance du calendrier fiscal'
+prouver 'le journal de paie d'"'"'un mois sans bulletin' 'web/public/v10/app.js' \
+  '${month.length ? '"'"' <button type="button" class="btn btn-sm" id="p-journal">Journal de paie</button>'"'"' : '"'"''"'"'}' \
+  ' <button type="button" class="btn btn-sm" id="p-journal">Journal de paie</button>' \
+  'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
+prouver 'un journal qui ne tient pas à l'"'"'ordinateur' 'web/public/v10/app.js' \
+  '<th class="r" title="${h(l)}">${h(court)}</th>' \
+  '<th class="r nw" title="${h(l)}">${h(court)}</th>' \
+  'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
+prouver 'la déclaration mensuelle sur le mois des bulletins' 'web/public/v10/app.js' \
+  '      const dmMois = Number(s.moisDeclare) || (y === ty ? Math.max(1, tm - 1) : y < ty ? 12 : 1);' \
+  '      const dmMois = Number(s.moisDeclare) || Number(s.month);' \
+  'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
+prouver 'l'"'"'état récapitulatif sans ses lettres' 'web/public/v10/app.js' \
+  '<em data-etat="lettres">${h(etat.enLettres)}</em>' \
+  '<em data-etat="lettres"></em>' \
+  'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -4156,8 +4156,8 @@
     <div class="box"><h2>Période</h2>
       <div class="kv"><span>Mois</span><span><b>${escapeHtml(label)}</b></span></div>
       <div class="kv"><span>Jours ouvrables</span><span>${pct(c.workedDays)}</span></div>
-      ${/* (plateforme) 1.59.0 — les jours payés, la colonne « J. » du journal de paie. */''}
-      <div class="kv"><span>Jours payés</span><span>${pct(round3(Math.max(0, c.workedDays - c.absentDays - (slip.prorata ? Math.max(0, Number(slip.prorata.sur) - Number(slip.prorata.jours)) : 0))))}</span></div>
+      ${/* (plateforme) 1.59.0 — les jours payés, la colonne « J. » du journal de paie (le même calcul que le journal, 1.61.0). */''}
+      <div class="kv"><span>Jours payés</span><span>${pct(joursPayesDuBulletin(slip))}</span></div>
       ${c.absentDays ? `<div class="kv"><span>Jours d'absence</span><span>${pct(c.absentDays)}</span></div>` : ''}
       <div class="kv"><span>Salaire de base</span><span>${fmt(c.baseGross)}</span></div>
       ${slip.prorata ? `<div class="kv"><span>Proratisé</span><span>${escapeHtml(slip.prorata.motif)} · ${pct(slip.prorata.jours)} j sur ${pct(slip.prorata.sur)}</span></div>` : ''}
@@ -4686,6 +4686,232 @@
         return { salarieId: r.employeeId, nom: r.name, identite: e.cnssName || '', cnss: r.cnss, cin: e.cin || '', salaire: r.base };
       })
     });
+  }
+
+  // ---------- le journal de paie et les états de la paie (plateforme, 1.61.0) ----------
+  // Ce que le vrai logiciel imprime chaque mois et chaque trimestre (un journal de paie, un état récapitulatif CNSS et
+  // une paie de septembre réels, reçus le 19/10/2026). Tout se lit dans la copie FIGÉE des bulletins (5.0.0).
+
+  // Les jours qu'un bulletin paie (la colonne « J. » du journal de paie) : le mois complet des barèmes, moins les jours
+  // hors contrat (l'entrée, la sortie), moins les absences non payées.
+  function joursPayesDuBulletin(slip) {
+    const c = (slip && slip.computed) || {};
+    const total = Number(c.workedDays != null ? c.workedDays : slip.workedDays) || 26;
+    const hors = slip.prorata ? Math.max(0, Number(slip.prorata.sur) - Number(slip.prorata.jours)) : 0;
+    const absences = Number(c.absentDays != null ? c.absentDays : slip.absentDays) || 0;
+    return round3(Math.max(0, total - hors - absences));
+  }
+  // Les colonnes du journal, dans l'ordre du journal réel : [clé, libellé, en-tête court].
+  const COLONNES_JOURNAL = [
+    ['jours', 'Jours payés', 'J.'], ['base', 'Salaire de base', 'Base'], ['hs', 'Heures supplémentaires', 'H.S.'],
+    ['indemnites', 'Primes et indemnités', 'Indemnités'], ['brut', 'Salaire brut', 'Brut'],
+    ['cotisable', 'Salaire cotisable', 'S. cotisable'], ['cnss', 'CNSS salarié', 'CNSS'],
+    ['imposable', 'Salaire imposable', 'S. imposable'], ['irpp', 'Impôt sur le revenu', 'IRPP'],
+    ['css', 'Contribution sociale de solidarité', 'CSS'], ['salaireNet', 'Salaire net', 'S. net'],
+    ['retenues', 'Autres retenues', 'Retenues'], ['net', 'Net à payer', 'Net à payer'],
+    ['tfp', 'Taxe de formation professionnelle', 'TFP'], ['foprolos', 'FOPROLOS', 'FOPROLOS'],
+    ['accident', 'Accident du travail', 'AT'], ['patronal', 'CNSS patronale', 'CNSS pat.']
+  ];
+  // Le journal de paie d'un mois : une ligne par bulletin, dans l'ordre du registre du personnel (son numéro tient lieu
+  // de matricule) ; le total de chaque colonne est la somme de ses lignes.
+  function journalDePaie(data, year, month) {
+    const rang = {};
+    staffRegister(data).forEach(r => { rang[r.id] = r.n; });
+    const lignes = payslipsOf(data, year, month).map(x => {
+      const c = x.c || {};
+      const v = k => Number(c[k]) || 0;
+      // Les heures supplémentaires du pointage sont des primes marquées (`hs`) : elles ont leur colonne.
+      const hs = round3((x.bonuses || []).filter(b => b && b.hs).reduce((a, b) => a + (Number(b.amount) || 0), 0));
+      return {
+        id: x.id, employeeId: x.employeeId, n: rang[x.employeeId] || 0, name: x.employeeName, matriculeCnss: (x.employee || {}).cnss || '',
+        jours: joursPayesDuBulletin(x), base: round3(v('baseGross') - v('absenceCut')), hs,
+        indemnites: round3(v('taxableBonus') + v('freeBonus') - hs), brut: v('gross'), cotisable: v('cnssBase'),
+        cnss: v('cnssEmployee'), imposable: v('afterCnss'), irpp: v('irpp'), css: v('css'),
+        salaireNet: round3(v('net') + v('otherDeductions')), retenues: v('otherDeductions'), net: v('net'),
+        tfp: v('tfp'), foprolos: v('foprolos'), accident: v('accident'), patronal: v('cnssEmployer')
+      };
+    }).sort((a, b) => (a.n - b.n) || (a.name || '').localeCompare(b.name || '', 'fr'));
+    const totaux = {};
+    COLONNES_JOURNAL.forEach(([k]) => { totaux[k] = round3(lignes.reduce((a, l) => a + (Number(l[k]) || 0), 0)); });
+    return { year: Number(year), month: Number(month), lignes, totaux, nombre: lignes.length };
+  }
+  // Les colonnes du fichier CSV du journal : une ligne de total à la fin (jours vides).
+  const colonnesCsvJournal = () => [{ key: 'n', label: 'N°' }, { key: 'name', label: 'Salarié' }, { key: 'matriculeCnss', label: 'N° CNSS' }]
+    .concat(COLONNES_JOURNAL.map(([key, label]) => key === 'jours'
+      ? { key, label, get: r => r.jours === '' || r.jours == null ? '' : String(r.jours).replace('.', ',') }
+      : { key, label, type: 'money' }));
+  // Le journal imprimé : une page A4 en largeur, les colonnes du journal réel, les totaux, le nombre de salariés.
+  function journalDePaieHtml(data, company, year, month) {
+    const co = company || {};
+    const j = journalDePaie(data, year, month);
+    const dec = decimalsFor(co.currency || 'DT');
+    const fmt = n => money(n, null, dec, 'fr');
+    const ink = co.primaryColor || '#1b2430';
+    const accent = co.accentColor || '#0f9d8f';
+    const label = monthLabel(`${year}-${pad2(month)}-01`);
+    const cellule = (k, v) => `<td class="n">${k === 'jours' ? String(v).replace('.', ',') : Math.abs(v) < 0.0005 ? '' : fmt(v)}</td>`;
+    return `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<title>Journal de paie ${escapeHtml(label)}</title>
+<style>
+  @page { size: A4 landscape; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: ${ink}; font-size: 7.5pt; line-height: 1.35; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { width: 297mm; min-height: 210mm; padding: 10mm 9mm; background: #fff; }
+  .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 18px; padding-bottom: 8px; border-bottom: 2px solid ${accent}; }
+  .co-name { font-size: 12pt; font-weight: 700; }
+  .co-sub { font-size: 7.5pt; color: #6a7480; line-height: 1.5; }
+  .title { text-align: right; }
+  .title h1 { margin: 0; font-size: 15pt; letter-spacing: .3px; color: ${accent}; }
+  .title .per { font-size: 10pt; font-weight: 600; margin-top: 2px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+  th { font-size: 6.5pt; text-transform: uppercase; letter-spacing: .3px; color: ${accent}; border-bottom: 1px solid ${ink}; padding: 4px 3px; text-align: right; vertical-align: bottom; }
+  th.g, td.g { text-align: left; }
+  td { padding: 3px; border-bottom: 1px solid #e6e9ee; }
+  td.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.tot td { border-top: 1.5px solid ${ink}; border-bottom: none; font-weight: 700; padding-top: 5px; }
+  .pied { display: flex; justify-content: space-between; margin-top: 8px; font-size: 7.5pt; color: #6a7480; }
+</style></head>
+<body><div class="page">
+  <div class="head">
+    <div>
+      <div class="co-name">${escapeHtml(co.name || '')}</div>
+      <div class="co-sub">${escapeHtml(co.address || '').replace(/\n/g, '<br>')}${co.matricule ? `<br>MF : ${escapeHtml(matriculeLisible(co.matricule))}` : ''}${co.cnss ? `<br>N° CNSS : ${escapeHtml(co.cnss)}` : ''}</div>
+    </div>
+    <div class="title"><h1>Journal de paie</h1><div class="per">${escapeHtml(label)}</div></div>
+  </div>
+  <table>
+    <thead><tr><th class="g">N°</th><th class="g">Salarié</th>${COLONNES_JOURNAL.map(([, l, court]) => `<th title="${escapeHtml(l)}">${escapeHtml(court)}</th>`).join('')}</tr></thead>
+    <tbody>
+      ${j.lignes.map(l => `<tr><td class="g">${l.n ? String(l.n).padStart(4, '0') : ''}</td><td class="g">${escapeHtml(l.name)}</td>${COLONNES_JOURNAL.map(([k]) => cellule(k, l[k])).join('')}</tr>`).join('')}
+      <tr class="tot"><td class="g" colspan="2">Totaux</td>${COLONNES_JOURNAL.map(([k]) => k === 'jours' ? '<td></td>' : `<td class="n">${fmt(j.totaux[k])}</td>`).join('')}</tr>
+    </tbody>
+  </table>
+  <div class="pied"><span>Nombre de salariés : ${j.nombre}</span><span>Établi avec SkanFact le ${fmtDate(today())}</span></div>
+</div></body></html>`;
+  }
+
+  // L'état récapitulatif des salaires déclarés d'un trimestre (le formulaire de la CNSS) : les salaires de la déclaration,
+  // et les cotisations calculées sur leur TOTAL au taux du régime, comme l'état réel du 3e trimestre 2026 (29 119,268 ×
+  // 26,75 % = 7 789,404 ; × 0,50 % = 145,596). Si le taux n'est pas le même sur tous les bulletins du trimestre (un régime
+  // particulier, un taux changé en cours de trimestre), un seul taux ne dirait rien : l'état reprend la somme des
+  // bulletins. Le total des salaires s'écrit en lettres (« arrêtée à la somme de »). À VÉRIFIER avec le comptable.
+  function etatRecapitulatifCnss(data, company, year, quarter) {
+    const cn = cnssDeclaration(data, year, quarter);
+    const co = company || {};
+    const slips = (data.payslips || []).filter(p => Number(p.year) === Number(year) && cn.months.includes(Number(p.month)));
+    const unique = f => { const v = [...new Set(slips.map(p => round3(f(((p.computed || {}).rates) || {}))))]; return v.length === 1 ? v[0] : null; };
+    const tSecu = unique(r => (Number(r.cnssEmployee) || 0) + (Number(r.cnssEmployer) || 0));
+    const tAt = unique(r => Number(r.accidentRate) || 0);
+    const secu = tSecu !== null ? round3(cn.base * tSecu / 100) : round3(cn.employee + cn.employer);
+    const accident = tAt !== null ? round3(cn.base * tAt / 100) : cn.accident;
+    const total = round3(secu + accident);
+    return {
+      year: cn.year, quarter: cn.quarter, label: cn.label, dueDate: cn.dueDate, salaries: cn.employees,
+      employeur: String(co.cnss || '').trim(),
+      code: String(co.cnssCode == null || co.cnssCode === '' ? '0' : co.cnssCode).trim().padStart(2, '0'),
+      salaires: cn.base,
+      lignes: [
+        { cle: 'secu', libelle: 'Sécurité sociale', taux: tSecu, montant: secu },
+        { cle: 'accident', libelle: 'Accidents du travail et maladies professionnelles', taux: tAt, montant: accident }
+      ],
+      total, bulletins: cn.total, ecart: round3(total - cn.total),
+      enLettres: amountToWords(cn.base, 'DT')
+    };
+  }
+  // L'état imprimé, dans l'ordre du formulaire réel ; les pénalités, la date et la signature restent à remplir à la main.
+  function etatRecapitulatifCnssHtml(data, company, year, quarter) {
+    const co = company || {};
+    const e = etatRecapitulatifCnss(data, co, year, quarter);
+    const fmt = n => money(n, null, 3, 'fr');
+    const taux = n => n === null ? '—' : Number(n).toLocaleString('fr-FR', { minimumFractionDigits: 2, maximumFractionDigits: 3 });
+    const ink = co.primaryColor || '#1b2430';
+    return `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<title>État récapitulatif des salaires déclarés ${escapeHtml(e.label)} ${e.year}</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: ${ink}; font-size: 10pt; line-height: 1.45; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { width: 210mm; min-height: 297mm; padding: 18mm 16mm; background: #fff; }
+  h1 { margin: 0 0 14px; font-size: 15pt; text-align: center; }
+  .deux { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .cadre { border: 1px solid ${ink}; padding: 10px 12px; }
+  .lib { font-size: 8pt; color: #555f6b; text-transform: uppercase; letter-spacing: .4px; }
+  .kv { display: flex; justify-content: space-between; gap: 10px; padding: 2px 0; }
+  .gros { font-size: 15pt; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 6px; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 8pt; text-transform: uppercase; letter-spacing: .4px; text-align: left; border-bottom: 1px solid ${ink}; padding: 5px 6px; }
+  td { padding: 6px; border-bottom: 1px solid #dde2e8; }
+  .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  tr.tot td { border-top: 1.5px solid ${ink}; border-bottom: none; font-weight: 700; }
+  .mt { margin-top: 14px; }
+  .ligne { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px dotted #9aa3ad; }
+  .arrete { margin-top: 18px; }
+  .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 24px; }
+  .sign .s { border: 1px dashed #9aa3ad; min-height: 70px; padding: 6px 10px; font-size: 8.5pt; color: #555f6b; }
+  .foot { margin-top: 18px; font-size: 7.5pt; color: #8b949e; text-align: center; }
+</style></head>
+<body><div class="page">
+  <h1>État récapitulatif des salaires déclarés</h1>
+  <div class="deux">
+    <div class="cadre">
+      <div class="kv"><span>Numéro d'employeur</span><b>${escapeHtml(e.employeur) || '…'}</b></div>
+      <div class="kv"><span>Code d'exploitation</span><b>${escapeHtml(e.code)}</b></div>
+      <div class="kv"><span>Trimestre</span><b>${e.quarter}</b></div>
+      <div class="kv"><span>Année</span><b>${e.year}</b></div>
+    </div>
+    <div class="cadre"><div class="lib">Nom et adresse de l'employeur</div>
+      <div><b>${escapeHtml(co.name || '')}</b><br>${escapeHtml(co.address || '').replace(/\n/g, '<br>')}</div></div>
+  </div>
+  <div class="deux mt">
+    <div class="cadre"><div class="lib">Salaires déclarés</div><div class="gros">${fmt(e.salaires)}</div>
+      <div>${plFr(e.salaries, 'salarié')}</div></div>
+    <div class="cadre"><div class="lib">Cotisations</div>
+      <table><thead><tr><th>Régime</th><th class="n">Taux</th><th class="n">Montant</th></tr></thead><tbody>
+        ${e.lignes.map(l => `<tr><td>${escapeHtml(l.libelle)}</td><td class="n">${taux(l.taux)}</td><td class="n">${fmt(l.montant)}</td></tr>`).join('')}
+        <tr class="tot"><td colspan="2">Total</td><td class="n">${fmt(e.total)}</td></tr>
+      </tbody></table></div>
+  </div>
+  <div class="mt">
+    <div class="ligne"><span>Nombre de jours de retard</span><span></span></div>
+    <div class="ligne"><span>Montant des pénalités de retard</span><span></span></div>
+    <div class="ligne"><span>Montant à payer</span><span></span></div>
+  </div>
+  <p class="arrete">La présente déclaration de salaires, certifiée sincère et conforme à nos documents comptables, est arrêtée à la somme de : <b>${escapeHtml(e.enLettres)}</b>.</p>
+  <div class="sign"><div>Fait à ……………………… le ………………</div><div class="s">Signature et cachet de l'employeur</div></div>
+  <div class="foot">Établi avec SkanFact le ${fmtDate(today())}, d'après les bulletins du ${escapeHtml(e.label)} ${e.year}.</div>
+</div></body></html>`;
+  }
+
+  // Ce que la paie d'un mois ajoute à la déclaration mensuelle (« Déclaration mensuelle d'employeur et de TVA » du
+  // calendrier fiscal) : l'IRPP retenu sur les salaires, la contribution sociale de solidarité, la TFP et le FOPROLOS,
+  // avec leurs bases. Les montants sont ceux du journal de paie du mois (la même fonction, le même chiffre), pour les
+  // bulletins du mois. À VÉRIFIER avec le comptable : la base que le formulaire demande, et le mois où se déclare une
+  // paie versée le mois suivant.
+  function declarationMensuelleSalaires(data, year, month) {
+    const y = Number(year), m = Number(month);
+    const j = journalDePaie(data, y, m);
+    const slips = payslipsOf(data, y, m);
+    const unique = f => { const v = [...new Set(slips.map(x => round3(Number(((x.c || {}).rates || {})[f]) || 0)))]; return v.length === 1 ? v[0] : null; };
+    // La solidarité se calcule sur le revenu imposable après les déductions (celui du barème, ramené au mois), comme le
+    // bulletin l'imprime.
+    const apresDeductions = round3(slips.reduce((a, x) => a + round3((Number((x.c || {}).annualTaxable) || 0) / 12), 0));
+    const lignes = [
+      { cle: 'irpp', libelle: 'Retenue à la source sur les salaires (IRPP)', base: j.totaux.imposable, taux: null, bareme: true, montant: j.totaux.irpp },
+      { cle: 'css', libelle: 'Contribution sociale de solidarité', base: apresDeductions, taux: unique('solidarity'), montant: j.totaux.css },
+      { cle: 'tfp', libelle: 'Taxe de formation professionnelle (TFP)', base: j.totaux.cotisable, taux: unique('tfpRate'), montant: j.totaux.tfp },
+      { cle: 'foprolos', libelle: 'FOPROLOS', base: j.totaux.cotisable, taux: unique('foprolosRate'), montant: j.totaux.foprolos }
+    ];
+    // L'échéance : le jour réglé au calendrier fiscal pour la déclaration mensuelle (le 28 par défaut), le mois suivant.
+    const r = fiscalDeadlines(data).find(x => x.id === 'tva') || {};
+    const ny = m >= 12 ? y + 1 : y, nm = m >= 12 ? 1 : m + 1;
+    return {
+      year: y, month: m, salaries: j.nombre, lignes, total: round3(lignes.reduce((a, l) => a + l.montant, 0)),
+      dueDate: `${ny}-${pad2(nm)}-${pad2(Math.min(Number(r.day) || 28, daysInMonth(ny, nm)))}`
+    };
   }
 
   // La déclaration annuelle d'employeur : le récapitulatif des salaires versés et des retenues opérées.
@@ -11538,6 +11764,8 @@
     DEFAULT_PAYROLL, payrollSettings, irppAnnual, computePayslip, saisiePaieValide, primesDuMois, saisieDeLaFiche, tauxAvant2026,
     activeEmployees, payslipView, payslipsOf, payslipDate, payrollCost, payrollSummary, missingPayslips, bulletinsImpossibles,
     payslipHtml,
+    // (plateforme) 1.61.0 — le journal de paie et les états de la paie.
+    joursPayesDuBulletin, COLONNES_JOURNAL, journalDePaie, colonnesCsvJournal, journalDePaieHtml, etatRecapitulatifCnss, etatRecapitulatifCnssHtml, declarationMensuelleSalaires,
     QUARTERS, quarterMonths, quarterLabel, cnssDeclaration, fichierCnssEntreprise, lireMatriculeCnss: Compta.lireMatriculeCnss, identiteCnss: Compta.identiteCnss, motifIdentiteCnss: Compta.motifIdentiteCnss, cnssNonDeclaree, employerAnnual, socialDue,
     LEAVE_KINDS, leaveKindLabel, leaveIsPaid, workingDays, leaveDaysInMonth, leavesOf, leaveBalance,
     advancesOf, advanceBalance, payslipInputFor, HR_DOCS, hrDocLabel, hrDocumentHtml, staffRegister,

@@ -207,8 +207,9 @@ d'un millime près expliqués plus bas. **Ce qui manquait**, en trois lots :
 - **Un mois où le salarié entre (ou sort) ET s'absente sans solde** : le brut proratisé à l'entrée est ensuite réduit
   de l'absence sur 26 jours du brut **proratisé** (la v10 telle quelle), au lieu de 26 jours du brut de la fiche. Les
   primes au jour, elles, comptent juste (les jours du contrat moins l'absence). Le pointage (1.60.0) ne le corrige pas :
-  la retenue d'absence se calcule dans le moteur que le serveur refait (brique 31) ; elle se reprend avec le journal
-  de paie (1.61.0), dont la colonne « J. » fait des jours payés la source du brut.
+  la retenue d'absence se calcule dans le moteur que le serveur refait (brique 31). Le journal de paie (1.61.0) ne la
+  corrige pas non plus : il lit les bulletins tels qu'ils sont. Elle se reprendra dans un lot du moteur, l'écran et le
+  serveur ensemble (le bulletin devra garder le brut de la fiche à côté du brut proratisé).
 - Le Cabinet tient la paie d'un dossier bulletin par bulletin, avec une seule prime : les primes de chaque mois, le
   pointage et le journal y viendront après l'entreprise.
 
@@ -288,7 +289,7 @@ millime, et le serveur les recalcule à l'identique ; en sombre, la grille se li
 
 - Le Cabinet n'a pas encore le pointage (il tient la paie d'un dossier bulletin par bulletin).
 - Les heures supplémentaires au jour près (la grille garde le total du mois par majoration) et l'import d'une pointeuse.
-- Le journal de paie, l'état récapitulatif CNSS et la déclaration mensuelle (1.61.0).
+- ~~Le journal de paie, l'état récapitulatif CNSS et la déclaration mensuelle~~ : faits en 1.61.0 (ci-dessous).
 
 ### Ce qui le prouve
 
@@ -301,3 +302,84 @@ millime, et le serveur les recalcule à l'identique ; en sombre, la grille se li
 - `tests/v10/droits-dossier.test.ts` (la paie écrit le pointage, le commercial non) ; `tests/abonnement/offre.test.ts`
   (Essentiel n'en crée pas).
 - Vingt-quatre preuves (`tests/preuves.sh`, « 1.60.0 »).
+
+## Le journal de paie et les états (19/10/2026, 1.61.0)
+
+*Troisième lot de la demande de Skander (« CSS, FOPROLOS, etc. comme le vrai logiciel »). Ce que le logiciel de paie
+réel imprime chaque mois et chaque trimestre, d'après ses documents (le journal de paie de septembre 2026 et l'état
+récapitulatif CNSS du 3e trimestre, reçus le 19/10/2026, non commités ; seuls leurs montants sont gardés, dans
+`tests/moteur/paie-reel.ts`).*
+
+### Ce que le lot fait (`web/v10/paie-etats.txt`)
+
+- **Le journal de paie du mois** (« Journal de paie », à côté du mois des bulletins, quand le mois en a) : une ligne par
+  bulletin, dans l'ordre du registre du personnel (son numéro, 0001, 0002…, tient lieu de matricule), avec les colonnes
+  du journal réel : jours payés, salaire de base (moins l'absence), heures supplémentaires (à part, comme le journal),
+  primes et indemnités, brut, salaire cotisable, CNSS, salaire imposable, IRPP, CSS, salaire net, autres retenues, net
+  à payer, TFP, FOPROLOS, accident du travail, CNSS patronale. Le total de chaque colonne est la **somme de ses lignes**
+  (celui du journal réel ne l'est pas : il additionne des fractions de millime). À l'écran pour le relire (les dix-sept
+  colonnes tiennent à 1440 points), **imprimé** (une page A4 en largeur, le nombre de salariés au pied) et **en CSV**
+  pour le comptable (les jours en « 19,5 », une ligne de total).
+- **L'état récapitulatif des salaires déclarés** du trimestre, dans la déclaration CNSS : les salaires déclarés, la
+  sécurité sociale et l'accident du travail **calculés sur leur total**, au taux du régime, comme l'état réel
+  (29 119,268 × 26,75 % = 7 789,404 ; × 0,50 % = 145,596 ; total 7 935,000), et le total des salaires **en lettres**
+  (« arrêtée à la somme de : Vingt-neuf mille cent dix-neuf dinars et deux cent soixante-huit millimes », par la même
+  fonction que les factures). Calculé sur le total, il peut différer de quelques millimes de la somme des bulletins,
+  arrondis un par un : l'écran le dit, chiffres à l'appui. Si le taux n'est pas le même sur tous les bulletins du
+  trimestre (un régime particulier, un taux changé en cours de route), un seul taux ne dirait rien : l'état reprend la
+  somme des bulletins, sans taux. **Imprimé**, il suit l'ordre du formulaire réel (numéro d'employeur, code
+  d'exploitation, trimestre, année, nom et adresse ; salaires, cotisations ; jours de retard, pénalités et montant à
+  payer laissés à remplir à la main ; « arrêtée à la somme de » ; signature et cachet).
+- **Ce que la paie d'un mois ajoute à la déclaration mensuelle** (celle de la TVA, « Déclaration mensuelle
+  d'employeur et de TVA » du calendrier fiscal), dans les déclarations : l'IRPP retenu sur les salaires (sur les
+  salaires imposables, au barème), la contribution sociale de solidarité (sur le revenu imposable après déductions,
+  celui du bulletin), la TFP et le FOPROLOS (sur le salaire cotisable), et le total à reverser. Les montants sont ceux
+  du journal de paie du même mois — deux chemins, un chiffre. L'échéance suit le jour réglé au calendrier fiscal (le
+  28 du mois suivant par défaut). La déclaration s'ouvre sur le mois qu'on déclare maintenant (le mois écoulé), et
+  s'exporte en CSV.
+- **Les jours payés d'un bulletin** se calculent par une seule fonction (`joursPayesDuBulletin`) : le bulletin imprimé
+  et le journal disent le même chiffre.
+
+### Vu à l'écran, avant l'envoi
+
+Sur l'outil humain (la boulangerie de Nadia, septembre) : le journal débordait à 1440 points — l'accident du travail
+et la CNSS patronale restaient derrière un défilement, parce que les en-têtes en capitales, sur une ligne, élargissaient
+chaque colonne ; ils passent sur deux lignes et tout tient. La déclaration mensuelle, le 19 octobre, s'ouvrait sur
+octobre, vide (elle suivait le mois de l'onglet Bulletins), quand celle de septembre était à déposer avant le 28 ; elle
+s'ouvre sur le mois écoulé. Les montants de la déclaration sont ceux du journal (IRPP 360,992 ; CSS 15,902 ; TFP 78,251 ;
+FOPROLOS 39,126) ; l'état du 3e trimestre dit 1 062,259 DT pour 1 062,258 DT de bulletins, et le dit ; l'état et le
+journal imprimés tiennent chacun sur une page.
+
+### Décidé par délégation (19/10/2026)
+
+- **Q1.** Le journal garde **une ligne par bulletin et des totaux qui sont la somme des lignes** ; il n'additionne pas
+  de fractions de millime comme le logiciel réel (dont les totaux ne sont pas la somme de ses lignes imprimées).
+- **Q2.** L'état récapitulatif calcule les cotisations **sur le total des salaires**, comme l'état réel et comme la
+  CNSS, et dit l'écart avec la somme des bulletins au lieu de le cacher. Les montants « À déposer » et la carte « CNSS »
+  de la paie restent la somme des bulletins (ce que la comptabilité a passé) ; l'écart d'arrondi se règle au paiement.
+  **À VÉRIFIER** avec le comptable.
+- **Q3.** La déclaration mensuelle compte **les bulletins du mois**, quelle que soit leur date de paiement. **À
+  VÉRIFIER** avec le comptable : la base que le formulaire demande pour la retenue sur les salaires, et le mois où se
+  déclare une paie versée le mois suivant. SkanFact ne dépose rien et ne se connecte à aucune administration.
+- **Q4.** Le montant en lettres s'écrit en mots (« deux cent soixante-huit millimes »), par la fonction des factures ;
+  l'état réel écrit les millimes en chiffres et « Cents » au pluriel devant un nombre, ce que SkanFact ne reprend pas.
+
+### Ce qui reste
+
+- Le cas « entrée et absence le même mois » (premier lot, ci-dessus) : un lot du moteur, l'écran et le serveur ensemble.
+- Le Cabinet n'a ni le journal ni les états (il tient la paie d'un dossier bulletin par bulletin).
+- Le numéro de matricule propre à chaque salarié (le journal prend le rang du registre) ; les heures supplémentaires et
+  les retenues par rubrique dans le journal (une colonne chacune aujourd'hui).
+
+### Ce qui le prouve
+
+- `tests/moteur/paie-etats.test.ts` (six essais) : le journal de septembre contre le journal réel, colonne par colonne,
+  avec les mêmes écarts d'un millime que la 1.59.0, et ses totaux ; une ligne qui se tient (heures supplémentaires,
+  prime non imposable, retenue, entrée en cours de mois) ; le journal imprimé et son CSV ; l'état du 3e trimestre au
+  millime de l'état réel, l'écart avec les bulletins, le total en lettres, l'état imprimé ; un taux qui varie ; la
+  déclaration mensuelle contre le journal et contre les bulletins, et son échéance.
+- `tests/web/parcours.test.ts`, « le journal de paie et les états à la souris » : le journal du mois (l'ordre, les
+  colonnes, les totaux des bulletins, tout à l'écran à 1440 points), imprimé et en CSV ; la déclaration mensuelle sur le
+  mois écoulé même quand on regarde un autre mois des bulletins, ses montants, son échéance, son CSV, un mois vide ;
+  l'état récapitulatif, ses lettres, imprimé.
+- Dix-huit preuves (`tests/preuves.sh`, « 1.61.0 »).
