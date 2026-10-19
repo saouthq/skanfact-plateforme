@@ -751,4 +751,6 @@ export const ADAPTATIONS = [
   ...lireFichier('abonnement-factures.txt'),
   // ── Ce que l'offre ouvre (14/10/2026 ; 14c, docs/abonnement.md) : Essentiel ferme la paie et la comptabilité complète ──
   ...lireFichier('offre-complet.txt'),
+  // ── La paie de 2026 (19/10/2026, 1.59.0 ; docs/paie.md) : les taux des documents réels, les primes de chaque mois ──
+  ...lireFichier('paie-2026.txt'),
 ];

@@ -17059,6 +17059,124 @@ prouver 'la phrase après l'"'"'inscription qui tait l'"'"'e-mail' 'web/src/ecra
   'toast(phrase('"'"'ecran.inscription.faite'"'"'));' \
   'le curseur attend dans le premier champ à remplir ; une adresse déjà inscrite : la même suite qu'"'"'une inscription, et le lien du mot de passe oublié par e-mail'
 
+# 1.59.0 : la paie de 2026, contre un vrai logiciel ; les primes de chaque mois (docs/paie.md, « Le métier de la paie, premier lot »).
+prouver 'la CNSS salariale d'"'"'avant 2026 livrée' 'web/public/v10/compta.js' \
+  '    cnssEmployee: 9.68,        // part salarié' \
+  '    cnssEmployee: 9.18,        // part salarié' \
+  'les taux livrés sont ceux des documents de 2026 : CNSS 9,68 % et 17,07 %, solidarité 0,5 %'
+prouver 'la solidarité de 1 % livrée' 'web/public/v10/compta.js' \
+  '    solidarity: 0.5,           // contribution' \
+  '    solidarity: 1,           // contribution' \
+  'les taux livrés sont ceux des documents de 2026 : CNSS 9,68 % et 17,07 %, solidarité 0,5 %'
+prouver 'la CNSS patronale d'"'"'avant 2026 livrée' 'web/public/v10/compta.js' \
+  '    cnssEmployer: 17.07,       // part employeur' \
+  '    cnssEmployer: 16.57,       // part employeur' \
+  'chaque ligne du journal tombe au millime, par l'"'"'écran comme par le serveur, sauf les écarts d'"'"'un millime nommés'
+prouver 'une prime au jour qui ne suit pas les jours payés' 'web/public/v10/core.js' \
+  'amount: round3(mensuel * j / t), taxable' \
+  'amount: mensuel, taxable' \
+  'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
+prouver 'une prime au jour tronquée au millime' 'web/public/v10/core.js' \
+  'amount: round3(mensuel * j / t), taxable' \
+  'amount: Math.floor(mensuel * j / t * 1000) / 1000, taxable' \
+  'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
+prouver 'une prime à zéro reprise sur le bulletin' 'web/public/v10/core.js' \
+  '.filter(x => x && Number(x.amount) > 0)' \
+  '.filter(x => x)' \
+  'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
+prouver 'des jours payés sans borne' 'web/public/v10/core.js' \
+  'Math.max(0, Math.min(t, round3(p)))' \
+  'round3(p)' \
+  'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
+prouver 'une fiche estimée sans ses primes' 'web/public/v10/core.js' \
+  'return { bonuses: primesDuMois(employee, t, t) };' \
+  'return { bonuses: [] };' \
+  'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
+prouver 'le bulletin du mois sans les primes de la fiche' 'web/public/v10/core.js' \
+  'bonuses: primesDuMois(employee, total - hors - absentDays, total), deductions, prorata };' \
+  'bonuses: [], deductions, prorata };' \
+  'le bulletin du mois reprend les primes de la fiche : au prorata d'"'"'une absence non payée, et d'"'"'une entrée en cours de mois'
+prouver 'des primes au jour qui oublient l'"'"'absence non payée' 'web/public/v10/core.js' \
+  'primesDuMois(employee, total - hors - absentDays, total)' \
+  'primesDuMois(employee, total - hors, total)' \
+  'le bulletin du mois reprend les primes de la fiche : au prorata d'"'"'une absence non payée, et d'"'"'une entrée en cours de mois'
+prouver 'des primes au jour qui oublient l'"'"'entrée en cours de mois' 'web/public/v10/core.js' \
+  'primesDuMois(employee, total - hors - absentDays, total)' \
+  'primesDuMois(employee, total - absentDays, total)' \
+  'le bulletin du mois reprend les primes de la fiche : au prorata d'"'"'une absence non payée, et d'"'"'une entrée en cours de mois'
+prouver 'le bulletin imprimé sans ses jours payés' 'web/public/v10/core.js' \
+  '<div class="kv"><span>Jours payés</span>' \
+  '<div class="kv"><span>Jours</span>' \
+  'le bulletin imprimé dit les jours payés et les jours de chaque prime au jour'
+prouver 'une prime au jour imprimée sans ses jours' 'web/public/v10/core.js' \
+  'const auJour = x.parJour && round3(Number(x.amount) || 0) === b.amount ?' \
+  'const auJour = false ?' \
+  'le bulletin imprimé dit les jours payés et les jours de chaque prime au jour'
+prouver 'un taux choisi autrement pris pour un taux d'"'"'avant 2026' 'web/public/v10/core.js' \
+  'r[k] !== undefined && Number(r[k]) === ancien && ' \
+  'r[k] !== undefined && ' \
+  'des barèmes enregistrés avec les taux d'"'"'avant 2026 se reconnaissent ; un taux choisi autrement ne se signale pas'
+prouver 'une prime sans montant gardée sur la fiche' 'web/public/v10/app.js' \
+  'if (!(m > 0)) return refus(caseDe('"'"'amount'"'"'), ' \
+  'if (false) return refus(caseDe('"'"'amount'"'"'), ' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver 'les primes de la fiche jamais gardées' 'web/public/v10/app.js' \
+  'headOfFamily: !!v.headOfFamily, primes: gardees });' \
+  'headOfFamily: !!v.headOfFamily });' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver 'une prime nouvelle qui n'"'"'est pas au jour d'"'"'office' 'web/public/v10/app.js' \
+  'primes.push({ label: '"'"''"'"', amount: '"'"''"'"', taxable: true, parJour: true });' \
+  'primes.push({ label: '"'"''"'"', amount: '"'"''"'"', taxable: true, parJour: false });' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver 'le curseur loin de la prime nouvelle' 'web/public/v10/app.js' \
+  'const l = $$('"'"'#ef-primes [data-p=label]'"'"', root).pop(); if (l) l.focus();' \
+  '' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver 'l'"'"'aide de la fiche sans ses primes' 'web/public/v10/app.js' \
+  'C.computePayslip({ ...e, ...v, children: Number(v.children) || 0 }, C.saisieDeLaFiche({ primes }, st), st);' \
+  'C.computePayslip({ ...e, ...v, children: Number(v.children) || 0 }, {}, st);' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver 'la liste des salariés estimée sans les primes' 'web/public/v10/app.js' \
+  '              const c = C.computePayslip(e, C.saisieDeLaFiche(e, st), st);
+              const out' \
+  '              const c = C.computePayslip(e, {}, st);
+              const out' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver 'la page d'"'"'un salarié qui tait ses primes' 'web/public/v10/app.js' \
+  '${(e.primes || []).length ? `<div><span>Primes de chaque mois</span>' \
+  '${false ? `<div><span>Primes de chaque mois</span>' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver 'les primes au jour qui ne suivent pas l'"'"'absence tapée' 'web/public/v10/app.js' \
+  '$('"'"'#bf'"'"', root).oninput = $('"'"'#bf'"'"', root).onchange = () => { suivreLesJours(); calc(); };' \
+  '$('"'"'#bf'"'"', root).oninput = $('"'"'#bf'"'"', root).onchange = () => { calc(); };' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver 'un montant retapé encore dit au jour' 'web/public/v10/app.js' \
+  'if (el.dataset.f === '"'"'amount'"'"' && list[i].parJour) {' \
+  'if (false) {' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver 'les barèmes d'"'"'avant 2026 tus dans l'"'"'onglet Bulletins' 'web/public/v10/app.js' \
+  '${vieuxTaux.length ? `<div class="warn-box mb" id="p-2026">' \
+  '${false ? `<div class="warn-box mb" id="p-2026">' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver 'la fiche d'"'"'un salarié qui s'"'"'élargit à la première prime' 'web/public/v10/style.css' \
+  '.modal:where(:has(#ef-primes-p, #bf-bon)) { width: 860px; }' \
+  '' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver 'les primes d'"'"'un bulletin serrées à côté des retenues' 'web/public/v10/app.js' \
+  '      <div class="bf-lignes">
+        <div class="panel"><h2>Primes et indemnités' \
+  '      <div class="split">
+        <div class="panel"><h2>Primes et indemnités' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver 'le brut d'"'"'un salarié qui tait ses primes' 'web/public/v10/app.js' \
+  '${c.bonuses.length ? `<div class="small muted">+ ${C.money(' \
+  '${false ? `<div class="small muted">+ ${C.money(' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+prouver '« Prendre les taux de 2026 » qui ne remplit rien' 'web/public/v10/app.js' \
+  'C.tauxAvant2026(data).forEach(x => { const i = $(`#rf [name=${x.cle}]`); if (i) i.value = x.livre; });' \
+  '' \
+  'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

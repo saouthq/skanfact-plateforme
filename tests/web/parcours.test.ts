@@ -536,21 +536,21 @@ describe('le parcours, à la souris', () => {
     await p.locator('#bf-bon input[data-f=label]').fill('Rendement');
     await p.locator('#bf-bon input[data-f=amount]').fill('150.555');
     await p.locator('#modal-root #ok').click();
-    // Calculé à la main dans tests/v10/paie.test.ts : brut 1 385,122 ; net 1 120,270.
-    await expect.poll(auServeur).toMatchObject([{ nom: 'Sonia Trabelsi', brut: 1385122n, net: 1120270n, paye_le: null, cnss: '91800' }]);
+    // Calculé à la main dans tests/v10/paie.test.ts (le barème livré, celui de 2026) : brut 1 385,122 ; net 1 120,386.
+    await expect.poll(auServeur).toMatchObject([{ nom: 'Sonia Trabelsi', brut: 1385122n, net: 1120386n, paye_le: null, cnss: '96800' }]);
     const [premier] = await auServeur();
-    await expect.poll(() => p.locator('#p-body tr', { hasText: 'Sonia Trabelsi' }).innerText()).toMatch(/1\s?120,270/);
+    await expect.poll(() => p.locator('#p-body tr', { hasText: 'Sonia Trabelsi' }).innerText()).toMatch(/1\s?120,386/);
 
-    // Une loi de finances : la CNSS du salarié passe à 9,68 % dans les barèmes. Le bulletin établi
+    // Une loi de finances (inventée) : la CNSS du salarié passe à 9,93 % dans les barèmes. Le bulletin établi
     // garde la sienne : marqué payé ensuite, il ne change pas d'un millime.
     await p.locator('#p-tabs button[data-tab=baremes]').click();
-    await p.locator('#rf input[name=cnssEmployee]').fill('9.68');
+    await p.locator('#rf input[name=cnssEmployee]').fill('9.93');
     await p.locator('#rf-save').click();
-    await expect.poll(async () => (await admin.query(`select contenu->'cnssEmployee'->>'~n' c from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [qui.essai])).rows[0]?.c).toBe('9.68');
+    await expect.poll(async () => (await admin.query(`select contenu->'cnssEmployee'->>'~n' c from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [qui.essai])).rows[0]?.c).toBe('9.93');
     await p.locator('#p-tabs button[data-tab=bulletins]').click();
     await p.locator('#p-body [data-payer]').click();
     await expect.poll(async () => (await auServeur())[0]?.paye_le).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect((await auServeur())[0]).toMatchObject({ net: 1120270n, cnss: '91800' });
+    expect((await auServeur())[0]).toMatchObject({ net: 1120386n, cnss: '96800' });
 
     // Le mois suivant se calcule avec le nouveau barème.
     const suivant = Number(premier?.mois) === 12 ? 1 : Number(premier?.mois) + 1;
@@ -560,7 +560,7 @@ describe('le parcours, à la souris', () => {
     await p.locator('#modal-root #ok').click();
     await expect.poll(async () => (await auServeur()).length).toBe(2);
     const [, second] = await auServeur();
-    expect(second).toMatchObject({ cnss: '96800', brut: 1234567n });
+    expect(second).toMatchObject({ cnss: '99300', brut: 1234567n });
     await p.screenshot({ path: path.join(PHOTOS, 'paie.png') });
 
     // Deux chemins, un chiffre : ce que l'écran a calculé est ce que le serveur recalcule.
@@ -575,7 +575,111 @@ describe('le parcours, à la souris', () => {
     }
     // Dans l'ordre des mois (le 1er octobre, « 2026-10 » se rangeait en texte avant « 2026-9 »).
     expect(serveur.sort((a, b) => a.cle - b.cle).map(({ periode, net, cout }) => ({ periode, net, cout }))).toEqual(ecran);
-    expect(ecran[0]).toMatchObject({ net: '1120.270' });
+    expect(ecran[0]).toMatchObject({ net: '1120.386' });
+    expect(qui.erreurs).toEqual([]);
+  }, 120_000);
+
+  // 1.59.0 (docs/paie.md, « Le métier de la paie, premier lot ») : les primes de chaque mois se posent sur la fiche, une
+  // fois ; le bulletin du mois les reprend, au prorata des jours payés pour une prime « au jour » (le journal de paie
+  // réel de septembre 2026 prorate ainsi la présence et le transport) ; des barèmes d'avant 2026 se disent.
+  it('les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d\'avant 2026 se disent', async () => {
+    const qui = await inscrite('Nour Ben Salah');
+    const p = await qui.ouvrir(qui.essai, '#/paie');
+    await pageV10(p, /Paie/);
+    const auServeur = async () => (await admin.query('select brut, net, primes from paie.bulletin where entreprise = $1', [qui.essai])).rows;
+    const fiche = async () => (await admin.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'employees'`, [qui.essai])).rows[0]?.contenu;
+
+    // La fiche, avec ses deux primes : présence et transport, au jour (la case est cochée d'office).
+    await p.locator('#emp-first').click();
+    // La fenêtre a sa largeur dès l'ouverture : la première prime ne l'élargit pas sous le curseur (vu à l'écran).
+    const largeur = () => p.locator('.modal').evaluate((e) => Math.round(e.getBoundingClientRect().width));
+    const auDepart = await largeur();
+    await p.locator('#ef input[name=name]').fill('Nour Ben Salah');
+    await p.locator('#ef input[name=grossSalary]').fill('612');
+    const embauche = p.locator('#ef .datefield').filter({ has: p.locator('input[name=hireDate]') }).locator('.d-txt');
+    await embauche.fill('01/01/2026');
+    await embauche.press('Tab');
+    await p.locator('#ef-add-prime').click();
+    expect(await largeur()).toBe(auDepart);
+    // Le curseur est dans le libellé de la nouvelle ligne.
+    expect(await p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.dataset.p)).toBe('label');
+    await p.keyboard.type('Prime de présence');
+    await p.locator('#ef-primes input[data-p=amount]').nth(0).fill('30');
+    await p.locator('#ef-add-prime').click();
+    await p.keyboard.type('Prime de transport');
+    // Un libellé sans montant se refuse sur SA case ; la fiche reste ouverte.
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toContain('La prime « Prime de transport » n\'a pas de montant');
+    expect(await p.locator('#ef').count()).toBe(1);
+    expect(await p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.dataset.p)).toBe('amount');
+    expect(await fiche()).toBeUndefined();
+    await p.locator('#ef-primes input[data-p=amount]').nth(1).fill('50');
+    // L'aide de la fiche compte les primes.
+    await expect.poll(() => p.locator('#ef-hint').innerText()).toMatch(/Sur ce brut et ses primes/);
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(async () => (await fiche())?.primes?.map((x: { label: string; amount: number; parJour: boolean }) => [x.label, x.amount, x.parJour]))
+      .toEqual([['Prime de présence', 30, true], ['Prime de transport', 50, true]]);
+    // La liste des salariés estime le net avec les primes : 692 de brut, CNSS 66,986, IRPP 21,877, CSS 2,813.
+    await expect.poll(() => p.locator('#p-body tr[data-eid]').first().innerText()).toMatch(/600,324/);
+    // Et le brut dit ses primes, que le net estimé compte.
+    expect(await p.locator('#p-body tr[data-eid]').first().innerText()).toMatch(/\+ 80,000\sDT de primes/);
+    // Sa page aussi, et elle nomme les primes.
+    await p.locator('#p-body tr[data-eid]').first().click();
+    await pageV10(p, /Nour Ben Salah/);
+    await expect.poll(() => p.locator('#view').innerText()).toMatch(/Net estimé\s+600,324[\s\S]*primes de la fiche comprises, hors retenues/i);
+    await expect.poll(() => p.locator('#view').innerText()).toMatch(/Primes de chaque mois\s+Prime de présence 30,000\sDT au jour · Prime de transport 50,000\sDT au jour/);
+    await p.locator('#back').click();
+    await pageV10(p, /Paie/);
+
+    // « Établir le bulletin manquant » : un mois plein, les deux primes entières.
+    await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    await p.locator('#p-gen').click();
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(async () => (await auServeur())[0]?.primes?.map((x: { montant: number }) => x.montant)).toEqual([30000, 50000]);
+    expect((await auServeur())[0]?.brut).toBe(692000n);
+
+    // Six jours et demi sans solde : les primes au jour suivent (19,5 jours payés sur 26), et le disent.
+    await p.locator('#p-body tr', { hasText: 'Nour Ben Salah' }).getByRole('button', { name: /Actions/ }).click();
+    await p.getByText('Modifier le bulletin', { exact: true }).click();
+    // Les primes ont la largeur de la fenêtre : un libellé se lit en entier (côte à côte, « Prime d »).
+    expect(await p.locator('#bf-bon input[data-f=label]').first().evaluate((e) => e.getBoundingClientRect().width)).toBeGreaterThan(300);
+    await p.locator('#bf input[name=absentDays]').fill('6.5');
+    await expect.poll(() => p.locator('#bf-bon').innerText()).toMatch(/au jour\s: 19,5 j payés sur 26 · 30,000\sDT pour un mois plein/);
+    expect(await p.locator('#bf-bon input[data-f=amount]').evaluateAll((l) => l.map((x) => Number((x as HTMLInputElement).value)))).toEqual([22.5, 37.5]);
+    // Un montant retapé n'est plus « au jour » : sa ligne ne le prétend plus.
+    await p.locator('#bf-bon input[data-f=amount]').nth(1).fill('40');
+    await expect.poll(() => p.locator('#bf-bon [data-pj]').count()).toBe(1);
+    await p.locator('#modal-root #ok').click();
+    // 612 − 153 (6,5 jours) + 22,5 + 40 = 521,5 ; le serveur recalcule le bulletin et trouve le même net que l'écran.
+    await expect.poll(async () => (await auServeur())[0]?.brut).toBe(521500n);
+    const net = await p.evaluate(() => (window as unknown as { __data: { payslips: { computed: { net: number } }[] } }).__data.payslips[0]?.computed.net.toFixed(3));
+    expect(String(Number((await auServeur())[0]?.net) / 1000)).toBe(String(Number(net)));
+    expect((await auServeur())[0]?.primes.map((x: { libelle: string; montant: number }) => [x.libelle, x.montant])).toEqual([['Prime de présence', 22500], ['Prime de transport', 40000]]);
+
+    // Des barèmes enregistrés avec les taux d'avant 2026 (une entreprise qui les a gardés) : les Barèmes et
+    // l'onglet Bulletins le disent ; « Prendre les taux de 2026 » les écrit dans leurs cases, sans rien garder.
+    await p.locator('#p-tabs button[data-tab=baremes]').click();
+    expect(await p.locator('#rf-2026').count()).toBe(0);
+    await p.locator('#rf input[name=cnssEmployee]').fill('9.18');
+    await p.locator('#rf input[name=cnssEmployer]').fill('16.57');
+    await p.locator('#rf input[name=solidarity]').fill('1');
+    await p.locator('#rf-save').click();
+    await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    await expect.poll(() => p.locator('#p-2026').innerText()).toMatch(/Tes barèmes gardent des taux d'avant 2026 \(CNSS salarié 9,18\s%, CNSS employeur 16,57\s%, solidarité 1\s%\)/);
+    await p.locator('#p-2026-voir').click();
+    await expect.poll(() => p.locator('#p-tabs button.active').getAttribute('data-tab')).toBe('baremes');
+    await expect.poll(() => p.locator('#rf-2026').innerText()).toMatch(/CNSS salarié 9,18\s% au lieu de 9,68\s%, CNSS employeur 16,57\s% au lieu de 17,07\s%, solidarité 1\s% au lieu de 0,5\s%/);
+    await p.locator('#rf-2026-prendre').click();
+    expect(await p.locator('#rf input[name=cnssEmployee]').inputValue()).toBe('9.68');
+    expect(await p.locator('#rf input[name=solidarity]').inputValue()).toBe('0.5');
+    // Rien n'est gardé avant « Enregistrer les barèmes ».
+    expect((await admin.query(`select contenu->'cnssEmployee'->>'~n' c from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [qui.essai])).rows[0]?.c).toBe('9.18');
+    await p.locator('#rf-save').click();
+    await expect.poll(async () => (await admin.query(`select contenu->'cnssEmployee'->>'~n' c from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [qui.essai])).rows[0]?.c).toBe('9.68');
+    await expect.poll(() => p.locator('#rf-2026').count()).toBe(0);
+    await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    expect(await p.locator('#p-2026').count()).toBe(0);
+    await p.screenshot({ path: path.join(PHOTOS, 'paie-primes.png') });
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
 

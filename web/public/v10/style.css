@@ -1483,6 +1483,11 @@ body.dark .cal-d.out { color: #5b6572; }
    le vise (H-E1, dans une fenêtre). Le texte collé garde ses colonnes (chasse fixe, pas de retour à
    la ligne) : c'est ce qui permet de reconnaître son tableur dans la case. */
 .modal:where(:has(.import-tableau)) { width: 860px; }
+/* (plateforme) 1.59.0 — vu à l'écran : la fenêtre passait de 580 à 860 pixels à la première ligne de prime (la règle des
+   tableaux de lignes), et « + Prime » fuyait sous le curseur. Les deux fenêtres qui portent des primes sont larges d'emblée ;
+   sur un bulletin, les primes et les retenues se suivent. */
+.modal:where(:has(#ef-primes-p, #bf-bon)) { width: 860px; }
+.bf-lignes { display: grid; gap: 14px; }
 .import-tableau textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.6; white-space: pre; overflow-x: auto; tab-size: 18; }
 .imp-source { margin-block-start: 8px; }
 .imp-bilan { margin-block: 16px 10px; line-height: 1.6; }

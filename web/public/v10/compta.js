@@ -6129,12 +6129,17 @@
   // Valeurs de départ, toutes modifiables. Régime tunisien, secteur non agricole.
   // À VÉRIFIER avec le comptable : chacune de ces lignes peut changer d'une loi de finances à l'autre.
   const DEFAULT_PAYROLL = {
-    cnssEmployee: 9.18,        // part salarié
-    cnssEmployer: 16.57,       // part employeur
+    // (plateforme) 1.59.0 — les taux d'un journal de paie et d'un état CNSS réels de 2026 (reçus le 19/10/2026,
+    // non gardés) : 9,68 % et 17,07 %, soit 26,75 % sur l'état du trimestre. Avant : 9,18 % et 16,57 %. La date
+    // où ils ont changé est À VÉRIFIER (une source la donne au 1er janvier 2025, avec l'assurance chômage).
+    cnssEmployee: 9.68,        // part salarié
+    cnssEmployer: 17.07,       // part employeur
     accidentRate: 0.4,         // accident du travail : dépend de l'activité
     tfpRate: 2,                // taxe de formation professionnelle : 2 % (1 % pour les industries manufacturières) — 9.0.0
     foprolosRate: 1,           // FOPROLOS (logement social) : 1 % de la masse salariale — 9.0.0
-    solidarity: 1,             // contribution sociale de solidarité, en points sur la base imposable
+    // (plateforme) 1.59.0 — 0,5 % de la base imposable sur le journal réel de 2026 (la loi de finances 2023 l'a
+    // ramenée de 1 % à 0,5 % ; reconduite en 2026 : À VÉRIFIER). Elle s'y applique aussi sous 5 000 DT par an.
+    solidarity: 0.5,           // contribution sociale de solidarité, en points sur la base imposable
     proRate: 10,               // frais professionnels : % du salaire imposable…
     proCap: 2000,              // …plafonnés à ce montant par an
     headOfFamily: 300,         // déduction annuelle chef de famille

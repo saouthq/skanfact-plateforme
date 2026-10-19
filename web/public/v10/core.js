@@ -4156,6 +4156,8 @@
     <div class="box"><h2>Période</h2>
       <div class="kv"><span>Mois</span><span><b>${escapeHtml(label)}</b></span></div>
       <div class="kv"><span>Jours ouvrables</span><span>${pct(c.workedDays)}</span></div>
+      ${/* (plateforme) 1.59.0 — les jours payés, la colonne « J. » du journal de paie. */''}
+      <div class="kv"><span>Jours payés</span><span>${pct(round3(Math.max(0, c.workedDays - c.absentDays - (slip.prorata ? Math.max(0, Number(slip.prorata.sur) - Number(slip.prorata.jours)) : 0))))}</span></div>
       ${c.absentDays ? `<div class="kv"><span>Jours d'absence</span><span>${pct(c.absentDays)}</span></div>` : ''}
       <div class="kv"><span>Salaire de base</span><span>${fmt(c.baseGross)}</span></div>
       ${slip.prorata ? `<div class="kv"><span>Proratisé</span><span>${escapeHtml(slip.prorata.motif)} · ${pct(slip.prorata.jours)} j sur ${pct(slip.prorata.sur)}</span></div>` : ''}
@@ -4169,7 +4171,12 @@
     <tbody>
       ${row('Salaire de base', null, null, c.baseGross, null)}
       ${c.absenceCut ? row(`Absence (${pct(c.absentDays)} jour${sAccord(c.absentDays)})`, null, null, -c.absenceCut, null) : ''}
-      ${c.bonuses.map(b => row(b.label + (b.taxable ? '' : ' (non imposable)'), null, null, b.amount, null)).join('')}
+      ${c.bonuses.map((b, i) => {
+        // (plateforme) 1.59.0 — une prime au jour dit ses jours, comme la colonne « Nombre » d'un bulletin.
+        const x = (slip.bonuses || [])[i] || {};
+        const auJour = x.parJour && round3(Number(x.amount) || 0) === b.amount ? ` (${pct(x.jours)} j sur ${pct(x.sur)})` : '';
+        return row(b.label + auJour + (b.taxable ? '' : ' (non imposable)'), null, null, b.amount, null);
+      }).join('')}
       <tr class="sec"><td>Salaire brut</td><td class="n"></td><td class="n"></td><td class="n">${fmt(c.gross)}</td><td class="n"></td></tr>
       ${row('CNSS', c.cnssBase, c.rates.cnssEmployee, -c.cnssEmployee, c.cnssEmployer)}
       ${c.accident ? row('Accident du travail', c.cnssBase, c.rates.accidentRate, null, c.accident) : ''}
@@ -4342,7 +4349,45 @@
     const brutFiche = round3(Number(employee.grossSalary) || 0);
     const gross = hors ? round3(brutFiche * (total - hors) / total) : employee.grossSalary;
     const prorata = hors ? { jours: round3(total - hors), sur: total, motif: motifs.join(', '), brutFiche, brut: gross } : null;
-    return { gross, workedDays: total, absentDays, bonuses: [], deductions, prorata };
+    // (plateforme) 1.59.0 — les primes de la fiche, « au jour » sur les jours payés du mois : ceux du contrat
+    // (l'entrée, la sortie) moins les absences non payées.
+    return { gross, workedDays: total, absentDays, bonuses: primesDuMois(employee, total - hors - absentDays, total), deductions, prorata };
+  }
+
+  // (plateforme) 1.59.0 — les primes de chaque mois, posées sur la fiche du salarié (`employee.primes` :
+  // { label, amount, taxable, parJour }). Une prime « au jour » suit les jours payés : le journal de paie
+  // réel de septembre 2026 prorate ainsi la prime de présence et celle de transport (80 sur 26 jours, 60
+  // pour 19,5 jours), arrondies au millime. Une prime fixe passe entière. Le bulletin garde, avec le montant
+  // du mois, le montant de la fiche et les jours qui l'ont proratisé (`mensuel`, `jours`, `sur`).
+  // À VÉRIFIER avec le comptable : quelles primes la convention collective proratise.
+  function primesDuMois(employee, payes, total) {
+    const t = Number(total) || 26;
+    const p = Number(payes);
+    const j = Number.isFinite(p) ? Math.max(0, Math.min(t, round3(p))) : t;
+    return ((employee && employee.primes) || [])
+      .filter(x => x && Number(x.amount) > 0)
+      .map(x => {
+        const mensuel = round3(Number(x.amount) || 0);
+        const label = String(x.label || '').trim() || 'Prime';
+        return x.parJour
+          ? { label, amount: round3(mensuel * j / t), taxable: x.taxable !== false, parJour: true, mensuel, jours: j, sur: t }
+          : { label, amount: mensuel, taxable: x.taxable !== false };
+      });
+  }
+  // Ce qu'une fiche coûte un mois plein (la liste des salariés, la fiche, l'aide de la fenêtre) : ses primes
+  // comprises, sinon le « net estimé » d'un salarié qui touche deux primes chaque mois serait faux.
+  const saisieDeLaFiche = (employee, settings) => {
+    const t = Number((settings || {}).workedDays) || 26;
+    return { bonuses: primesDuMois(employee, t, t) };
+  };
+  // Les taux livrés AVANT la 1.59.0, encore gardés dans les barèmes de l'entreprise : « Enregistrer les
+  // barèmes » écrit chaque taux, et une entreprise qui l'a fait garde les anciens. On le lui dit (l'onglet
+  // Bulletins, les Barèmes) au lieu de les changer à sa place.
+  const TAUX_AVANT_2026 = [['cnssEmployee', 'CNSS salarié', 9.18], ['cnssEmployer', 'CNSS employeur', 16.57], ['solidarity', 'solidarité', 1]];
+  function tauxAvant2026(data) {
+    const r = (data && data.payrollSettings) || {};
+    return TAUX_AVANT_2026.filter(([k, , ancien]) => r[k] !== undefined && Number(r[k]) === ancien && Number(DEFAULT_PAYROLL[k]) !== ancien)
+      .map(([k, libelle, ancien]) => ({ cle: k, libelle, garde: ancien, livre: Number(DEFAULT_PAYROLL[k]) }));
   }
 
   // ---------- documents du personnel (5.1.0) ----------
@@ -11362,7 +11407,7 @@
     stockList, stockTotals, stockJournal, inventoryDiff, stockAlerts, stockImpact, costOfGoodsSold, inventaireComptable, coutAchat, sceauEcritures, ecartsSceau,
     ocrNumber, ocrToPurchase,
     CONTRACT_TYPES, contractLabel, REGIME_TAUX: Compta.REGIME_TAUX, regimeDuContrat: Compta.regimeDuContrat, normaliserRegimes: Compta.normaliserRegimes, libelleRegime: Compta.libelleRegime,
-    DEFAULT_PAYROLL, payrollSettings, irppAnnual, computePayslip, saisiePaieValide,
+    DEFAULT_PAYROLL, payrollSettings, irppAnnual, computePayslip, saisiePaieValide, primesDuMois, saisieDeLaFiche, tauxAvant2026,
     activeEmployees, payslipView, payslipsOf, payslipDate, payrollCost, payrollSummary, missingPayslips, bulletinsImpossibles,
     payslipHtml,
     QUARTERS, quarterMonths, quarterLabel, cnssDeclaration, fichierCnssEntreprise, lireMatriculeCnss: Compta.lireMatriculeCnss, identiteCnss: Compta.identiteCnss, motifIdentiteCnss: Compta.motifIdentiteCnss, cnssNonDeclaree, employerAnnual, socialDue,

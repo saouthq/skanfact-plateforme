@@ -11434,6 +11434,8 @@
       hireDate: C.today(), endDate: '', grossSalary: 0, headOfFamily: false, children: 0,
       method: 'virement', iban: '', notes: '' };
     const cur = company().currency;
+    // (plateforme) 1.59.0 — une COPIE des primes : « Annuler » ne doit rien garder de ce qu'on a tapé.
+    const primes = deepCopy(e.primes || []);
     modal(`<h2>${employee ? 'Modifier le salarié' : 'Nouveau salarié'}</h2>
       <form id="ef" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Nom et prénom', 'pay.name')}<input type="text" name="name" value="${h(e.name)}" placeholder="Ahmed Ben Ali"></label>
@@ -11453,17 +11455,45 @@
         <label class="field span-2">${lbl('Notes', 'pay.empNotes')}<input type="text" name="notes" value="${h(e.notes || '')}"></label>
         <div class="span-2 annonce-stable" id="ef-hint"></div>
       </form>
+      ${/* (plateforme) 1.59.0 — les primes de chaque mois : posées une fois, reprises par chaque bulletin. */''}
+      <div class="panel" id="ef-primes-p"><h2>Primes de chaque mois (${h(C.normCurrency(company().currency))}) ${info('pay.primesFiche')}</h2><div id="ef-primes"></div>
+        <button type="button" class="btn btn-sm mt" id="ef-add-prime">+ Prime</button></div>
       <div class="modal-actions">
         ${employee ? '<button class="btn btn-danger" id="del-emp" style="margin-inline-end:auto">Supprimer</button>' : ''}
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
         const hint = () => {
           const v = formValues($('#ef', root));
-          const c = C.computePayslip({ ...e, ...v, children: Number(v.children) || 0 }, {}, C.payrollSettings(data));
+          const st = C.payrollSettings(data);
+          const c = C.computePayslip({ ...e, ...v, children: Number(v.children) || 0 }, C.saisieDeLaFiche({ primes }, st), st);
           $('#ef-hint', root).innerHTML = Number(v.grossSalary) > 0
-            ? `<span class="small muted">Sur ce brut : net d'environ <b>${C.money(c.net, cur)}</b> pour le salarié, coût de <b>${C.money(c.employerCost, cur)}</b> pour l'entreprise${c.regime ? ` — ${h(C.contractLabel(c.contrat).split(' —')[0])} : ${h(C.libelleRegime(c.regime))} (Barèmes)` : ''}. <em>À VÉRIFIER avec ton comptable.</em></span>`
+            ? `<span class="small muted">Sur ce brut${c.bonuses.length ? ' et ses primes' : ''} : net d'environ <b>${C.money(c.net, cur)}</b> pour le salarié, coût de <b>${C.money(c.employerCost, cur)}</b> pour l'entreprise${c.regime ? ` — ${h(C.contractLabel(c.contrat).split(' —')[0])} : ${h(C.libelleRegime(c.regime))} (Barèmes)` : ''}. <em>À VÉRIFIER avec ton comptable.</em></span>`
             : '<span class="small muted">Saisis le brut mensuel pour voir le net et le coût employeur.</span>';
         };
+        // (plateforme) 1.59.0 — les primes de la fiche. Le tableau ne se redessine qu'à l'ajout ou au retrait
+        // d'une ligne : pendant la frappe, seule la donnée change (le curseur reste dans sa case, 7.17.0).
+        const dessinerPrimes = () => {
+          $('#ef-primes', root).innerHTML = primes.length ? `<table class="lines-edit"><tbody>
+            ${primes.map((x, i) => `<tr data-i="${i}">
+              <td><input type="text" data-p="label" value="${h(x.label || '')}" placeholder="Prime de présence" aria-label="Prime ${i + 1} : libellé"></td>
+              <td style="width:110px"><input type="number" class="num" data-p="amount" value="${x.amount || ''}" step="0.001" min="0" placeholder="0,000" aria-label="Prime ${i + 1} : montant du mois (${h(C.normCurrency(company().currency))})"></td>
+              <td style="width:110px"><label class="check small"><input type="checkbox" data-p="taxable" ${x.taxable !== false ? 'checked' : ''}> imposable</label></td>
+              <td style="width:130px"><label class="check small" title="Au prorata des jours payés du mois : 19,5 jours sur 26 en donnent les 19,5 vingt-sixièmes"><input type="checkbox" data-p="parJour" ${x.parJour ? 'checked' : ''}> au jour</label></td>
+              <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-px="${i}" aria-label="Retirer la prime ${i + 1}">✕</button></td></tr>`).join('')}
+          </tbody></table>` : '<p class="small muted">Aucune prime chaque mois. Une prime de présence, de transport : pose-la ici une fois, chaque bulletin la reprendra.</p>';
+          $$('[data-p]', $('#ef-primes', root)).forEach(el => el.oninput = el.onchange = () => {
+            const i = Number(el.closest('tr').dataset.i);
+            primes[i][el.dataset.p] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value);
+            hint();
+          });
+          $$('[data-px]', $('#ef-primes', root)).forEach(b => b.onclick = () => { primes.splice(Number(b.dataset.px), 1); dessinerPrimes(); hint(); });
+        };
+        $('#ef-add-prime', root).onclick = () => {
+          primes.push({ label: '', amount: '', taxable: true, parJour: true });
+          dessinerPrimes();
+          const l = $$('#ef-primes [data-p=label]', root).pop(); if (l) l.focus();
+        };
+        dessinerPrimes();
         $('#ef', root).oninput = $('#ef', root).onchange = hint; hint();
         // Ouverte pour UNE case (celle que le fichier CNSS du trimestre réclame), elle y met le curseur.
         if (opts && opts.focus) { const c = $(`[name=${opts.focus}]`, root); if (c) c.focus(); }
@@ -11478,7 +11508,19 @@
           if (String(v.cnss || '').trim() && !C.lireMatriculeCnss(v.cnss).ok) return refus($('[name=cnss]', root), 'Le matricule CNSS s\'écrit 12345678-90 : huit chiffres au plus, puis la clé sur deux (comme sur la carte d\'assuré).');
           if (String(v.cnssName || '').trim()) { const idc = C.identiteCnss(v.cnssName); if (!idc.ok) return refus($('[name=cnssName]', root), C.motifIdentiteCnss(idc)); }
           if (!employee && licenceBlock('Créer une fiche de salarié', 'paie')) return;
-          Object.assign(e, v, { grossSalary: Number(v.grossSalary) || 0, children: Number(v.children) || 0, headOfFamily: !!v.headOfFamily });
+          // (plateforme) 1.59.0 — une ligne vide (ni libellé ni montant) s'en va ; un libellé sans montant se
+          // refuse sur sa case : une prime à zéro chaque mois n'est pas une prime.
+          const gardees = [];
+          for (let i = 0; i < primes.length; i++) {
+            const x = primes[i];
+            const label = String(x.label || '').trim(), m = Number(x.amount);
+            if (!label && !(m > 0)) continue;
+            const caseDe = f => $(`#ef-primes tr[data-i="${i}"] [data-p=${f}]`, root);
+            if (!(m > 0)) return refus(caseDe('amount'), `La prime « ${label} » n'a pas de montant : saisis ce qu'elle vaut pour un mois plein, ou retire la ligne.`);
+            if (C.round3(m) !== m) return refus(caseDe('amount'), 'Un montant se saisit au millime : trois décimales au plus.');
+            gardees.push({ label: label || 'Prime', amount: m, taxable: x.taxable !== false, parJour: !!x.parJour });
+          }
+          Object.assign(e, v, { grossSalary: Number(v.grossSalary) || 0, children: Number(v.children) || 0, headOfFamily: !!v.headOfFamily, primes: gardees });
           if (!employee) data.employees.push(e);
           save(true); close(); if (done) done(e);
         };
@@ -11517,7 +11559,9 @@
         <label class="field">${lbl('Compte', 'pay.account')}<select name="accountId"><option value="">— compte par défaut —</option>${data.accounts.map(a => `<option value="${a.id}" ${p.accountId === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
         <label class="field">${lbl('Mode', 'pay.slipMethod')}<select name="method">${C.PAYMENT_METHODS.map(([v, l]) => `<option value="${v}" ${p.method === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
       </form>
-      <div class="split">
+      ${/* (plateforme) 1.59.0 — vu à l'écran : côte à côte, « Prime de présence » se lisait « Prime d », et le prorata
+           d'une prime au jour tenait sur quatre lignes. L'une sous l'autre, chaque ligne a la largeur de la fenêtre. */''}
+      <div class="bf-lignes">
         <div class="panel"><h2>Primes et indemnités (${h(C.normCurrency(company().currency))}) ${info('pay.bonus')}</h2><div id="bf-bon"></div>
           <button type="button" class="btn btn-sm mt" id="add-bon">+ Prime</button></div>
         <div class="panel"><h2>Retenues (${h(C.normCurrency(company().currency))}) ${info('pay.deduction')}</h2><div id="bf-ded"></div>
@@ -11537,7 +11581,7 @@
         const drawSmall = (sel, list, kind) => {
           $(sel, root).innerHTML = list.length ? `<table class="lines-edit"><tbody>
             ${list.map((x, i) => `<tr data-i="${i}">
-              <td><input type="text" data-f="label" value="${h(x.label || '')}" placeholder="${kind === 'bon' ? 'Prime de rendement' : 'Avance sur salaire'}"></td>
+              <td><input type="text" data-f="label" value="${h(x.label || '')}" placeholder="${kind === 'bon' ? 'Prime de rendement' : 'Avance sur salaire'}">${kind === 'bon' && x.parJour ? `<div class="small muted" data-pj="${i}">au jour : ${pct(x.jours)} j payé${sPl(x.jours)} sur ${pct(x.sur)} · ${C.money(x.mensuel, cur)} pour un mois plein</div>` : ''}</td>
               <td style="width:110px"><input type="number" class="num" data-f="amount" value="${x.amount || 0}" step="0.001" aria-label="Montant (${h(C.normCurrency(company().currency))})"></td>
               ${kind === 'bon' ? `<td style="width:110px"><label class="check small"><input type="checkbox" data-f="taxable" ${x.taxable !== false ? 'checked' : ''}> imposable</label></td>` : ''}
               <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-x="${i}">✕</button></td></tr>`).join('')}
@@ -11545,6 +11589,11 @@
           $$('[data-f]', $(sel, root)).forEach(el => el.oninput = el.onchange = () => {
             const i = Number(el.closest('tr').dataset.i);
             list[i][el.dataset.f] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? Number(el.value) : el.value);
+            // (plateforme) 1.59.0 — un montant retapé à la main n'est plus proratisé : le bulletin ne le prétend plus.
+            if (el.dataset.f === 'amount' && list[i].parJour) {
+              ['parJour', 'mensuel', 'jours', 'sur'].forEach(k => { delete list[i][k]; });
+              const n = $(`[data-pj="${i}"]`, $(sel, root)); if (n) n.remove();
+            }
             calc();
           });
           $$('[data-x]', $(sel, root)).forEach(b => b.onclick = () => { list.splice(Number(b.dataset.x), 1); drawSmall(sel, list, kind); calc(); });
@@ -11581,7 +11630,22 @@
         drawSmall('#bf-bon', bonuses, 'bon'); drawSmall('#bf-ded', deductions, 'ded'); calc();
         $('#add-bon', root).onclick = () => { bonuses.push({ label: '', amount: 0, taxable: true }); drawSmall('#bf-bon', bonuses, 'bon'); calc(); };
         $('#add-ded', root).onclick = () => { deductions.push({ label: '', amount: 0 }); drawSmall('#bf-ded', deductions, 'ded'); calc(); };
-        $('#bf', root).oninput = $('#bf', root).onchange = calc;
+        // (plateforme) 1.59.0 — les primes au jour suivent les jours payés : ceux du mois, moins ce que le
+        // contrat ne couvre pas (l'entrée, la sortie), moins l'absence non payée.
+        const suivreLesJours = () => {
+          const v = input();
+          const hors = p.prorata ? Math.max(0, Number(p.prorata.sur) - Number(p.prorata.jours)) : 0;
+          const payes = Math.max(0, C.round3(v.workedDays - hors - v.absentDays));
+          let change = false;
+          bonuses.forEach(x => {
+            if (!x.parJour) return;
+            const j = Math.min(v.workedDays, payes);
+            const m = C.round3(x.mensuel * j / v.workedDays);
+            if (m !== x.amount || j !== x.jours || v.workedDays !== x.sur) { Object.assign(x, { amount: m, jours: j, sur: v.workedDays }); change = true; }
+          });
+          if (change) drawSmall('#bf-bon', bonuses, 'bon');
+        };
+        $('#bf', root).oninput = $('#bf', root).onchange = () => { suivreLesJours(); calc(); };
         $('#ok', root).onclick = () => {
           const v = formValues($('#bf', root));
           const i = input();
@@ -11902,7 +11966,10 @@
       const mp = C.moisDePaie(data);
       const ailleurs = !month.length && !missing.length && (mp.year !== y || mp.month !== m)
         && (C.missingPayslips(data, mp.year, mp.month).length || C.payslipsOf(data, mp.year, mp.month).length) ? mp : null;
+      // (plateforme) 1.59.0 — les bulletins s'établissent ici : c'est ici qu'un barème d'avant 2026 se dit.
+      const vieuxTaux = C.tauxAvant2026(data);
       $('#p-body').innerHTML = `
+        ${vieuxTaux.length ? `<div class="warn-box mb" id="p-2026"><span>Tes barèmes gardent des taux d'avant 2026 (${vieuxTaux.map(x => `${h(x.libelle)} ${pct(x.garde)} %`).join(', ')}) : les bulletins que tu établis les appliquent.</span> <button type="button" class="btn btn-sm" id="p-2026-voir">Voir les barèmes</button></div>` : ''}
         <div class="stats">
           <div class="stat"><div class="lbl">Coût de la paie ${s.year} ${info('pay.employerCost')}</div><div class="val">${C.money(sum.cost, cur)}</div><div class="sub">${sum.count ? `${pl(sum.count, 'bulletin')} pour ${pl(sum.employees, 'salarié')}` : `aucun bulletin établi en ${h(s.year)}`}</div></div>
           <div class="stat"><div class="lbl">Net versé ${info('pay.netVerse')}</div><div class="val">${C.money(sum.netPaid, cur)}</div><div class="sub">${sum.net - sum.netPaid > 0.0005 ? `${C.money(C.round3(sum.net - sum.netPaid), cur)} restent à verser` : 'ce que touchent les salariés'}</div></div>
@@ -11942,12 +12009,13 @@
             // qu'il faut dire, pas deux phrases vraies qui se contredisent à l'œil.
             : `<div class="empty" id="p-vide">${missing.length
               ? `Aucun bulletin pour ${h(MONTHS_LONG[m - 1])} ${h(s.year)}. ${missing.length > 1
-                ? 'Le bouton ci-dessus les établit d\'un coup, au brut de chaque fiche.'
-                : 'Le bouton ci-dessus l\'établit, au brut de la fiche du salarié.'}`
+                ? 'Le bouton ci-dessus les établit d\'un coup, au brut et aux primes de chaque fiche.'
+                : 'Le bouton ci-dessus l\'établit, au brut et aux primes de la fiche du salarié.'}`
               : `Aucun salarié en poste en ${h(MONTHS_LONG[m - 1])} ${h(s.year)} : il n'y a pas de bulletin à établir ce mois-là.${ailleurs
                 ? `<div class="mt"><button class="btn btn-primary" id="p-vers-mois">Voir ${h(MONTHS_LONG[ailleurs.month - 1])} ${ailleurs.year}</button></div>` : ''}`}</div>`}
         </div>`;
       $('#p-month').onchange = e => { s.month = e.target.value; s.moisTouche = true; drawSlips(); };
+      if ($('#p-2026-voir')) $('#p-2026-voir').onclick = () => { const t = $('#p-tabs button[data-tab="baremes"]'); if (t) t.click(); };
       if ($('#p-vers-mois')) $('#p-vers-mois').onclick = () => { const mp = C.moisDePaie(data); s.year = String(mp.year); s.month = String(mp.month); s.moisTouche = true; draw(); };
       // 10.12.0 — une ligne garde UN bouton, celui du geste suivant (7.29.0). Elle en portait deux,
       // « PDF » et « Modifier », et pas celui qu'on vient chercher après avoir établi un bulletin : le
@@ -11975,7 +12043,7 @@
         // Les contrôles AVANT la grande question (règle 7.6.0) — et ce bouton créait des bulletins
         // sans passer par le garde-fou de la licence depuis la 6.4.0.
         if (licenceBlock('Créer les bulletins du mois', 'paie')) return;
-        if (!await confirmDialog(`Établir ${pl(missing.length, 'bulletin')} pour ${MONTHS_LONG[m - 1]} ${s.year} ?\n\nLe brut vient de chaque fiche (proratisé pour une entrée ou une sortie en cours de mois), les absences non payées et les échéances d'avance sont reprises automatiquement. Tu pourras encore ajouter les primes, bulletin par bulletin. Rien n'est payé : c'est toi qui marques chaque bulletin comme réglé.`, 'Établir', false)) return;
+        if (!await confirmDialog(`Établir ${pl(missing.length, 'bulletin')} pour ${MONTHS_LONG[m - 1]} ${s.year} ?\n\nLe brut vient de chaque fiche (proratisé pour une entrée ou une sortie en cours de mois), les absences non payées et les échéances d'avance sont reprises automatiquement. Les primes posées sur chaque fiche sont reprises (au prorata des jours payés pour une prime au jour) ; tu pourras encore en ajouter, bulletin par bulletin. Rien n'est payé : c'est toi qui marques chaque bulletin comme réglé.`, 'Établir', false)) return;
         const st = C.payrollSettings(data);
         if (closedBlock(C.payslipDate({ year: y, month: m }), 'Ces bulletins')) return;
         missing.forEach(e => {
@@ -12001,21 +12069,21 @@
           ${list.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
             <th>Nom</th><th>Poste</th><th>Contrat</th><th>Depuis</th><th class="r">Brut mensuel</th><th class="r">Net estimé</th><th class="r">Coût employeur</th><th></th></tr></thead><tbody>
             ${salPage.rows.map(e => {
-              const c = C.computePayslip(e, {}, st);
+              const c = C.computePayslip(e, C.saisieDeLaFiche(e, st), st);
               const out = e.endDate && e.endDate < C.today();
               return `<tr class="clickable ${out ? 'muted' : ''}" data-eid="${h(e.id)}">
                 <td><strong>${h(e.name)}</strong>${out ? `<div class="small muted">parti le ${C.fmtDate(e.endDate)}</div>` : ''}</td>
                 <td>${h(e.position || '')}</td><td>${h((C.contractLabel(e.contract || 'cdi') || '').split(' —')[0])}</td>
                 <td class="nw">${e.hireDate ? C.fmtDate(e.hireDate) : '—'}</td>
-                <td class="r nw">${C.money(e.grossSalary, cur)}</td>
+                <td class="r nw">${C.money(e.grossSalary, cur)}${c.bonuses.length ? `<div class="small muted">+ ${C.money(C.round3(c.bonuses.reduce((a, b) => a + b.amount, 0)), cur)} de primes</div>` : ''}</td>
                 <td class="r nw">${C.money(c.net, cur)}</td>
                 <td class="r nw"><strong>${C.money(c.employerCost, cur)}</strong></td>
                 <td class="r"><button class="btn btn-sm" data-ee="${h(e.id)}">Modifier</button></td></tr>`;
             }).join('')}
             <tr class="total-row"><td colspan="4"><strong>${pl(active, 'salarié')} en poste</strong></td>
               <td class="r"><strong>${C.money(C.round3(C.activeEmployees(data).reduce((a, e) => a + (Number(e.grossSalary) || 0), 0)), cur)}</strong></td>
-              <td class="r"><strong>${C.money(C.round3(C.activeEmployees(data).reduce((a, e) => a + C.computePayslip(e, {}, st).net, 0)), cur)}</strong></td>
-              <td class="r"><strong>${C.money(C.round3(C.activeEmployees(data).reduce((a, e) => a + C.computePayslip(e, {}, st).employerCost, 0)), cur)}</strong></td>
+              <td class="r"><strong>${C.money(C.round3(C.activeEmployees(data).reduce((a, e) => a + C.computePayslip(e, C.saisieDeLaFiche(e, st), st).net, 0)), cur)}</strong></td>
+              <td class="r"><strong>${C.money(C.round3(C.activeEmployees(data).reduce((a, e) => a + C.computePayslip(e, C.saisieDeLaFiche(e, st), st).employerCost, 0)), cur)}</strong></td>
               <td></td></tr>
           </tbody></table></div>${pagerBar(salPage.pg, { noun: 'salarié' })}
           <p class="small muted mt">Le coût employeur est ce que le salarié coûte vraiment : le brut plus les charges patronales. C'est lui qui entre dans ton résultat et dans ton seuil de rentabilité, pas le net.</p>`
@@ -12374,6 +12442,12 @@
           <p class="small">Aucun taux n'est écrit en dur dans SkanFact : tout ce que tu vois ici sert au calcul, et rien d'autre. Les valeurs livrées sont celles couramment appliquées en Tunisie <b>au moment où cette version a été écrite</b> — elles changent à chaque loi de finances.
           <em>À VÉRIFIER avec ton comptable, et à corriger ici dès qu'un taux bouge.</em></p>
         </div>
+        ${(() => {
+          // (plateforme) 1.59.0 — des barèmes enregistrés avant les taux de 2026 les gardent : on le dit.
+          const vieux = C.tauxAvant2026(data);
+          return vieux.length ? `<div class="warn-box mb" id="rf-2026"><div><b>Tes barèmes gardent des taux d'avant 2026</b> : ${vieux.map(x => `${h(x.libelle)} ${pct(x.garde)} % au lieu de ${pct(x.livre)} %`).join(', ')} (les taux des documents de paie de 2026). <em>À VÉRIFIER avec ton comptable.</em></div>
+            <div class="mt"><button type="button" class="btn btn-sm" id="rf-2026-prendre">Prendre les taux de 2026</button> <span class="small muted">Ils s'écrivent dans les cases ci-dessous ; rien n'est gardé avant « Enregistrer les barèmes ».</span></div></div>` : '';
+        })()}
         <form id="rf">
           <div class="panel"><h2>Cotisations sociales</h2>
             <div class="grid-3">
@@ -12508,6 +12582,11 @@
         brackets.splice(brackets.length - 1, 0, { upTo: (Number(prev) || 0) + 10000, rate: last.rate });
         marquer(); drawRows();
       };
+      if ($('#rf-2026-prendre')) $('#rf-2026-prendre').onclick = () => {
+        C.tauxAvant2026(data).forEach(x => { const i = $(`#rf [name=${x.cle}]`); if (i) i.value = x.livre; });
+        marquer(); drawDemo();
+        toast('Les taux de 2026 sont dans leurs cases : « Enregistrer les barèmes » les garde.');
+      };
       $('#rf-save').onclick = () => { enregistrer(); toast('Barèmes enregistrés — les bulletins déjà établis ne changent pas'); draw(); };
       $('#rf-cancel').onclick = async () => {
         if (!await confirmDialog('Abandonner les modifications des barèmes ?\n\nCe qui vient d\'être saisi et pas encore enregistré sera perdu.', 'Abandonner', true)) return;
@@ -12562,7 +12641,7 @@
     if (!e) return navigate('#/paie');
     const cur = company().currency;
     const st = C.payrollSettings(data);
-    const c = C.computePayslip(e, {}, st);
+    const c = C.computePayslip(e, C.saisieDeLaFiche(e, st), st);
     const slips = C.payslipsOf(data).filter(p => p.employeeId === e.id);
     const year = C.today().slice(0, 4);
     const thisYear = slips.filter(p => String(p.year) === year);
@@ -12574,7 +12653,7 @@
           <button class="btn btn-primary" id="new-slip">+ Bulletin</button></div></div>
       <div class="stats">
         <div class="stat"><div class="lbl">Salaire brut mensuel</div><div class="val">${C.money(e.grossSalary, cur)}</div><div class="sub">${e.headOfFamily ? 'chef de famille' : 'célibataire'}${Number(e.children) ? ` · ${pl(e.children, 'enfant')}` : ''}</div></div>
-        <div class="stat"><div class="lbl">Net estimé</div><div class="val">${C.money(c.net, cur)}</div><div class="sub">hors primes et retenues</div></div>
+        <div class="stat"><div class="lbl">Net estimé</div><div class="val">${C.money(c.net, cur)}</div><div class="sub">${c.bonuses.length ? 'primes de la fiche comprises, hors retenues' : 'hors primes et retenues'}</div></div>
         <div class="stat"><div class="lbl">Coût employeur mensuel ${info('pay.employerCost')}</div><div class="val">${C.money(c.employerCost, cur)}</div><div class="sub">brut + charges patronales</div></div>
         <div class="stat"><div class="lbl">Coût ${year}</div><div class="val">${C.money(cost, cur)}</div><div class="sub">${pl(thisYear.length, 'bulletin')}</div></div>
       </div>
@@ -12583,6 +12662,7 @@
           ${e.cin ? `<div><span>CIN</span><span>${h(e.cin)}</span></div>` : ''}
           ${e.cnss ? `<div><span>Matricule CNSS</span><span>${h(e.cnss)}</span></div>` : ''}
           <div><span>Contrat</span><span>${h(C.contractLabel(e.contract || 'cdi'))}</span></div>
+          ${(e.primes || []).length ? `<div><span>Primes de chaque mois</span><span>${e.primes.map(x => `${h(x.label)} ${C.money(x.amount, cur)}${x.parJour ? ' au jour' : ''}${x.taxable === false ? ' (non imposable)' : ''}`).join(' · ')}</span></div>` : ''}
           ${e.iban ? `<div><span>RIB / IBAN</span><span>${h(e.iban)}</span></div>` : ''}
           ${e.notes ? `<div><span>Notes</span><span>${h(e.notes)}</span></div>` : ''}
         </div>

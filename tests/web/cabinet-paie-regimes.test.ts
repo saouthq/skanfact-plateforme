@@ -104,7 +104,7 @@ describe('les taux par contrat de la paie d\'un dossier, à la souris', () => {
     expect(lignes.map((b) => [b.mois, b.brut])).toEqual([[3, '1250.500']]);
     const detail = (await api('GET', `/entreprises/${cafe}/paie/bulletins/${lignes[0]?.id}`, associe)).corps as { bareme: Record<string, unknown>; montants?: Record<string, string> };
     // Le barème que le serveur garde avec le bulletin est celui du CIVP ; les autres taux, ceux du barème général.
-    expect([detail.bareme.cnssEmployeur, detail.bareme.solidarite, detail.bareme.sansIrpp, detail.bareme.cnssSalarie]).toEqual(['0.0000', '0.5000', true, '9.1800']);
+    expect([detail.bareme.cnssEmployeur, detail.bareme.solidarite, detail.bareme.sansIrpp, detail.bareme.cnssSalarie]).toEqual(['0.0000', '0.5000', true, '9.6800']);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-paie-regimes.png') });
     expect(erreurs).toEqual([]);
   }, 180_000);

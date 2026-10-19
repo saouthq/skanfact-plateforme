@@ -229,26 +229,26 @@ describe('la paie du dossier v10, tenue par le serveur', () => {
     await e.envoyer('employees', [['s1', s]]);
     const janvier = bulletin('b1', s, 2026, 1, { bonuses: [{ label: 'Rendement', amount: 150.555, taxable: true }] });
     expect((await e.envoyer('payslips', [['b1', janvier]])).statut).toBe(200);
-    // Calculé à la main (barème livré par la v10 : CNSS 9,18 %, frais pro 10 % plafonnés à 2 000 par
-    // an, chef de famille 300, 100 par enfant, tranches 0 % jusqu'à 5 000, 15 % jusqu'à 10 000, 25 %
-    // jusqu'à 20 000, CSS 1 %) : brut 1 234,567 + 150,555 = 1 385,122 ; CNSS 127,154 ; après CNSS
-    // 1 257,968, soit 15 095,616 par an ; frais pro 1 509,562 ; famille 500 ; imposable 13 086,054 ;
-    // IRPP 750 + 25 % × 3 086,054 = 1 521,514 par an, 126,793 par mois ; CSS 10,905 ; net 1 120,270 ;
-    // charges 229,515 + 5,540 + 27,702 + 13,851 = 276,608 ; coût 1 661,730.
+    // Calculé à la main (barème livré, celui de 2026 depuis la 1.59.0 : CNSS 9,68 % et 17,07 %, frais pro
+    // 10 % plafonnés à 2 000 par an, chef de famille 300, 100 par enfant, tranches 0 % jusqu'à 5 000, 15 %
+    // jusqu'à 10 000, 25 % jusqu'à 20 000, CSS 0,5 %, accident 0,4 %) : brut 1 234,567 + 150,555 =
+    // 1 385,122 ; CNSS 134,080 ; après CNSS 1 251,042, soit 15 012,504 par an ; frais pro 1 501,250 ;
+    // famille 500 ; imposable 13 011,254 ; IRPP 750 + 25 % × 3 011,254 = 1 502,814 par an, 125,235 par
+    // mois ; CSS 5,421 ; net 1 120,386 ; charges 236,440 + 5,540 + 27,702 + 13,851 = 283,533 ; coût 1 668,655.
     expect(await e.lire('b1')).toMatchObject({
-      montants: { brut: '1385.122', cnssSalarie: '127.154', fraisPro: '1509.562', imposableAnnuel: '13086.054', irppAnnuel: '1521.514', irpp: '126.793', css: '10.905', net: '1120.270', chargesPatronales: '276.608', coutEmployeur: '1661.730' },
-      bareme: { cnssSalarie: '9.1800', plafondFraisPro: '2000.000', chefDeFamille: '300.000', parEnfant: '100.000' },
+      montants: { brut: '1385.122', cnssSalarie: '134.080', fraisPro: '1501.250', imposableAnnuel: '13011.254', irppAnnuel: '1502.814', irpp: '125.235', css: '5.421', net: '1120.386', chargesPatronales: '283.533', coutEmployeur: '1668.655' },
+      bareme: { cnssSalarie: '9.6800', plafondFraisPro: '2000.000', chefDeFamille: '300.000', parEnfant: '100.000' },
       situation: { chefDeFamille: true, enfants: 2 },
     });
-    // Une loi de finances : un autre barème de l'IRPP, une autre CNSS. Les bulletins de février se
-    // calculent avec lui ; celui de janvier ne bouge pas, même quand on le marque payé.
-    const nouvelle = ecran.baremesPaie({ cnssEmployee: 9.68, brackets: [{ upTo: 5000, rate: 0 }, { upTo: 20000, rate: 26 }, { upTo: 30000, rate: 28 }, { upTo: 50000, rate: 32 }, { upTo: null, rate: 35 }] });
+    // Une loi de finances (inventée) : un autre barème de l'IRPP, une autre CNSS. Les bulletins de février
+    // se calculent avec lui ; celui de janvier ne bouge pas, même quand on le marque payé.
+    const nouvelle = ecran.baremesPaie({ cnssEmployee: 9.93, brackets: [{ upTo: 5000, rate: 0 }, { upTo: 20000, rate: 26 }, { upTo: 30000, rate: 28 }, { upTo: 50000, rate: 32 }, { upTo: null, rate: 35 }] });
     const fevrier = bulletin('b2', s, 2026, 2, { bonuses: [{ label: 'Rendement', amount: 150.555, taxable: true }] }, nouvelle);
     expect((await e.envoyer('payslips', [['b1', { ...janvier, paidDate: '2026-02-03' }], ['b2', fevrier]])).statut).toBe(200);
-    expect(await e.lire('b1')).toMatchObject({ montants: { net: '1120.270' }, bareme: { cnssSalarie: '9.1800' }, paiement: { payeLe: '2026-02-03' } });
+    expect(await e.lire('b1')).toMatchObject({ montants: { net: '1120.386' }, bareme: { cnssSalarie: '9.6800' }, paiement: { payeLe: '2026-02-03' } });
     const lu = await e.lire('b2');
-    expect(lu).toMatchObject({ bareme: { cnssSalarie: '9.6800' }, montants: { net: Number(fevrier.computed.net).toFixed(3) } });
-    expect((lu.montants as { net: string }).net).not.toBe('1120.270');
+    expect(lu).toMatchObject({ bareme: { cnssSalarie: '9.9300' }, montants: { net: Number(fevrier.computed.net).toFixed(3) } });
+    expect((lu.montants as { net: string }).net).not.toBe('1120.386');
     expect(await e.trace()).toEqual(['paie.salarie.enregistrer', 'paie.bulletin.etablir', 'paie.bulletin.modifier', 'paie.bulletin.etablir']);
   });
 
@@ -265,11 +265,11 @@ describe('la paie du dossier v10, tenue par le serveur', () => {
     // Le bulletin de janvier (calculé à la main plus bas), avec un millime de plus sur l'impôt et de
     // moins sur le net : le serveur dit lequel ne tombe pas juste.
     const faux = bulletin('x', s, 2026, 4, { bonuses: [{ label: 'Rendement', amount: 150.555, taxable: true }] });
-    expect([faux.computed.irpp, faux.computed.net]).toEqual([126.793, 1120.27]);
-    faux.computed = { ...faux.computed, irpp: 126.794, net: 1120.269 };
+    expect([faux.computed.irpp, faux.computed.net]).toEqual([125.235, 1120.386]);
+    faux.computed = { ...faux.computed, irpp: 125.236, net: 1120.385 };
     // Chaque montant a son nom au catalogue (le refus le nomme par une clé calculée).
     expect(MONTANTS.filter(([n]) => !texteConnu(`paie.montant.${n}`))).toEqual([]);
-    expect(await refus(faux)).toBe('Le serveur ne trouve pas les mêmes montants que l\'écran pour le bulletin de Sonia Trabelsi (04/2026) : l\'impôt sur le revenu du mois vaut 126.794 à l\'écran, 126.793 au serveur. Rien n\'a été enregistré.');
+    expect(await refus(faux)).toBe('Le serveur ne trouve pas les mêmes montants que l\'écran pour le bulletin de Sonia Trabelsi (04/2026) : l\'impôt sur le revenu du mois vaut 125.236 à l\'écran, 125.235 au serveur. Rien n\'a été enregistré.');
     const sansBareme = bulletin('x', s, 2026, 4);
     delete sansBareme.computed.bareme;
     expect(await refus(sansBareme)).toBe('Le bulletin de Sonia Trabelsi (04/2026) n\'a pas gardé le barème qui l\'a calculé : ouvre-le et enregistre-le à nouveau. Rien n\'a été enregistré.');

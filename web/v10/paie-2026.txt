@@ -1,0 +1,402 @@
+La paie de 2026 (19/10/2026, 1.59.0 ; docs/paie.md, « Le métier de la paie, premier lot »). Format : voir
+sans-paquets.mjs.
+
+Skander a donné trois documents de paie réels de 2026 (un bulletin de juin, le journal de paie de septembre,
+l'état récapitulatif CNSS du 3e trimestre ; reçus le 19/10/2026, jamais gardés dans le dépôt). Deux choses
+manquaient à SkanFact pour les refaire :
+
+- les taux livrés dataient d'avant 2025 (CNSS 9,18 % et 16,57 %, solidarité 1 %) ; les documents portent
+  9,68 % et 17,07 % (26,75 % à eux deux sur l'état CNSS) et une solidarité de 0,5 % de la base imposable ;
+- les primes de chaque mois (présence, transport) se retapaient sur chaque bulletin, et le journal réel les
+  PRORATISE aux jours payés (80 sur 26 jours, 60 pour 19,5 jours). Elles se posent maintenant sur la fiche
+  du salarié, « au jour » ou fixes, et chaque bulletin les reprend.
+
+Le calcul du bulletin ne change pas d'une virgule : une prime au jour arrive au bulletin avec son montant du
+mois, comme une prime tapée à la main ; le serveur recalcule le bulletin comme avant.
+
+== compta.js | les taux CNSS livrés sont ceux des documents de paie réels de 2026 (9,68 % et 17,07 %)
+-- avant
+    cnssEmployee: 9.18,        // part salarié
+    cnssEmployer: 16.57,       // part employeur
+-- après
+    // (plateforme) 1.59.0 — les taux d'un journal de paie et d'un état CNSS réels de 2026 (reçus le 19/10/2026,
+    // non gardés) : 9,68 % et 17,07 %, soit 26,75 % sur l'état du trimestre. Avant : 9,18 % et 16,57 %. La date
+    // où ils ont changé est À VÉRIFIER (une source la donne au 1er janvier 2025, avec l'assurance chômage).
+    cnssEmployee: 9.68,        // part salarié
+    cnssEmployer: 17.07,       // part employeur
+-- fin
+
+== compta.js | la contribution sociale de solidarité livrée est celle des documents de 2026 (0,5 %)
+-- avant
+    solidarity: 1,             // contribution sociale de solidarité, en points sur la base imposable
+-- après
+    // (plateforme) 1.59.0 — 0,5 % de la base imposable sur le journal réel de 2026 (la loi de finances 2023 l'a
+    // ramenée de 1 % à 0,5 % ; reconduite en 2026 : À VÉRIFIER). Elle s'y applique aussi sous 5 000 DT par an.
+    solidarity: 0.5,           // contribution sociale de solidarité, en points sur la base imposable
+-- fin
+
+== core.js | les primes de la fiche du salarié arrivent sur le bulletin du mois, au prorata des jours payés quand elles le demandent
+-- avant
+    return { gross, workedDays: total, absentDays, bonuses: [], deductions, prorata };
+-- après
+    // (plateforme) 1.59.0 — les primes de la fiche, « au jour » sur les jours payés du mois : ceux du contrat
+    // (l'entrée, la sortie) moins les absences non payées.
+    return { gross, workedDays: total, absentDays, bonuses: primesDuMois(employee, total - hors - absentDays, total), deductions, prorata };
+-- fin
+
+== core.js | les primes de chaque mois : leur prorata, l'estimation d'une fiche, les taux d'avant 2026 encore gardés
+-- avant
+  // ---------- documents du personnel (5.1.0) ----------
+-- après
+  // (plateforme) 1.59.0 — les primes de chaque mois, posées sur la fiche du salarié (`employee.primes` :
+  // { label, amount, taxable, parJour }). Une prime « au jour » suit les jours payés : le journal de paie
+  // réel de septembre 2026 prorate ainsi la prime de présence et celle de transport (80 sur 26 jours, 60
+  // pour 19,5 jours), arrondies au millime. Une prime fixe passe entière. Le bulletin garde, avec le montant
+  // du mois, le montant de la fiche et les jours qui l'ont proratisé (`mensuel`, `jours`, `sur`).
+  // À VÉRIFIER avec le comptable : quelles primes la convention collective proratise.
+  function primesDuMois(employee, payes, total) {
+    const t = Number(total) || 26;
+    const p = Number(payes);
+    const j = Number.isFinite(p) ? Math.max(0, Math.min(t, round3(p))) : t;
+    return ((employee && employee.primes) || [])
+      .filter(x => x && Number(x.amount) > 0)
+      .map(x => {
+        const mensuel = round3(Number(x.amount) || 0);
+        const label = String(x.label || '').trim() || 'Prime';
+        return x.parJour
+          ? { label, amount: round3(mensuel * j / t), taxable: x.taxable !== false, parJour: true, mensuel, jours: j, sur: t }
+          : { label, amount: mensuel, taxable: x.taxable !== false };
+      });
+  }
+  // Ce qu'une fiche coûte un mois plein (la liste des salariés, la fiche, l'aide de la fenêtre) : ses primes
+  // comprises, sinon le « net estimé » d'un salarié qui touche deux primes chaque mois serait faux.
+  const saisieDeLaFiche = (employee, settings) => {
+    const t = Number((settings || {}).workedDays) || 26;
+    return { bonuses: primesDuMois(employee, t, t) };
+  };
+  // Les taux livrés AVANT la 1.59.0, encore gardés dans les barèmes de l'entreprise : « Enregistrer les
+  // barèmes » écrit chaque taux, et une entreprise qui l'a fait garde les anciens. On le lui dit (l'onglet
+  // Bulletins, les Barèmes) au lieu de les changer à sa place.
+  const TAUX_AVANT_2026 = [['cnssEmployee', 'CNSS salarié', 9.18], ['cnssEmployer', 'CNSS employeur', 16.57], ['solidarity', 'solidarité', 1]];
+  function tauxAvant2026(data) {
+    const r = (data && data.payrollSettings) || {};
+    return TAUX_AVANT_2026.filter(([k, , ancien]) => r[k] !== undefined && Number(r[k]) === ancien && Number(DEFAULT_PAYROLL[k]) !== ancien)
+      .map(([k, libelle, ancien]) => ({ cle: k, libelle, garde: ancien, livre: Number(DEFAULT_PAYROLL[k]) }));
+  }
+
+  // ---------- documents du personnel (5.1.0) ----------
+-- fin
+
+== core.js | les primes de chaque mois se lisent hors de core.js
+-- avant
+    DEFAULT_PAYROLL, payrollSettings, irppAnnual, computePayslip, saisiePaieValide,
+-- après
+    DEFAULT_PAYROLL, payrollSettings, irppAnnual, computePayslip, saisiePaieValide, primesDuMois, saisieDeLaFiche, tauxAvant2026,
+-- fin
+
+== app.js | la fiche du salarié porte ses primes de chaque mois
+-- avant
+        <div class="span-2 annonce-stable" id="ef-hint"></div>
+      </form>
+-- après
+        <div class="span-2 annonce-stable" id="ef-hint"></div>
+      </form>
+      ${/* (plateforme) 1.59.0 — les primes de chaque mois : posées une fois, reprises par chaque bulletin. */''}
+      <div class="panel" id="ef-primes-p"><h2>Primes de chaque mois (${h(C.normCurrency(company().currency))}) ${info('pay.primesFiche')}</h2><div id="ef-primes"></div>
+        <button type="button" class="btn btn-sm mt" id="ef-add-prime">+ Prime</button></div>
+-- fin
+
+== app.js | l'aide de la fiche compte ses primes
+-- avant
+          const c = C.computePayslip({ ...e, ...v, children: Number(v.children) || 0 }, {}, C.payrollSettings(data));
+-- après
+          const st = C.payrollSettings(data);
+          const c = C.computePayslip({ ...e, ...v, children: Number(v.children) || 0 }, C.saisieDeLaFiche({ primes }, st), st);
+-- fin
+
+== app.js | l'aide de la fiche dit qu'elle compte les primes
+-- avant
+            ? `<span class="small muted">Sur ce brut : net d'environ <b>${C.money(c.net, cur)}</b>
+-- après
+            ? `<span class="small muted">Sur ce brut${c.bonuses.length ? ' et ses primes' : ''} : net d'environ <b>${C.money(c.net, cur)}</b>
+-- fin
+
+== app.js | les lignes des primes de la fiche se dessinent, et l'aide les suit
+-- avant
+        $('#ef', root).oninput = $('#ef', root).onchange = hint; hint();
+-- après
+        // (plateforme) 1.59.0 — les primes de la fiche. Le tableau ne se redessine qu'à l'ajout ou au retrait
+        // d'une ligne : pendant la frappe, seule la donnée change (le curseur reste dans sa case, 7.17.0).
+        const dessinerPrimes = () => {
+          $('#ef-primes', root).innerHTML = primes.length ? `<table class="lines-edit"><tbody>
+            ${primes.map((x, i) => `<tr data-i="${i}">
+              <td><input type="text" data-p="label" value="${h(x.label || '')}" placeholder="Prime de présence" aria-label="Prime ${i + 1} : libellé"></td>
+              <td style="width:110px"><input type="number" class="num" data-p="amount" value="${x.amount || ''}" step="0.001" min="0" placeholder="0,000" aria-label="Prime ${i + 1} : montant du mois (${h(C.normCurrency(company().currency))})"></td>
+              <td style="width:110px"><label class="check small"><input type="checkbox" data-p="taxable" ${x.taxable !== false ? 'checked' : ''}> imposable</label></td>
+              <td style="width:130px"><label class="check small" title="Au prorata des jours payés du mois : 19,5 jours sur 26 en donnent les 19,5 vingt-sixièmes"><input type="checkbox" data-p="parJour" ${x.parJour ? 'checked' : ''}> au jour</label></td>
+              <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-px="${i}" aria-label="Retirer la prime ${i + 1}">✕</button></td></tr>`).join('')}
+          </tbody></table>` : '<p class="small muted">Aucune prime chaque mois. Une prime de présence, de transport : pose-la ici une fois, chaque bulletin la reprendra.</p>';
+          $$('[data-p]', $('#ef-primes', root)).forEach(el => el.oninput = el.onchange = () => {
+            const i = Number(el.closest('tr').dataset.i);
+            primes[i][el.dataset.p] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value);
+            hint();
+          });
+          $$('[data-px]', $('#ef-primes', root)).forEach(b => b.onclick = () => { primes.splice(Number(b.dataset.px), 1); dessinerPrimes(); hint(); });
+        };
+        $('#ef-add-prime', root).onclick = () => {
+          primes.push({ label: '', amount: '', taxable: true, parJour: true });
+          dessinerPrimes();
+          const l = $$('#ef-primes [data-p=label]', root).pop(); if (l) l.focus();
+        };
+        dessinerPrimes();
+        $('#ef', root).oninput = $('#ef', root).onchange = hint; hint();
+-- fin
+
+== app.js | les primes de la fiche se copient à l'ouverture (Annuler ne garde rien)
+-- avant
+    const cur = company().currency;
+    modal(`<h2>${employee ? 'Modifier le salarié' : 'Nouveau salarié'}</h2>
+-- après
+    const cur = company().currency;
+    // (plateforme) 1.59.0 — une COPIE des primes : « Annuler » ne doit rien garder de ce qu'on a tapé.
+    const primes = deepCopy(e.primes || []);
+    modal(`<h2>${employee ? 'Modifier le salarié' : 'Nouveau salarié'}</h2>
+-- fin
+
+== app.js | une prime de la fiche sans montant se refuse sur sa case ; les lignes vides s'en vont
+-- avant
+          Object.assign(e, v, { grossSalary: Number(v.grossSalary) || 0, children: Number(v.children) || 0, headOfFamily: !!v.headOfFamily });
+-- après
+          // (plateforme) 1.59.0 — une ligne vide (ni libellé ni montant) s'en va ; un libellé sans montant se
+          // refuse sur sa case : une prime à zéro chaque mois n'est pas une prime.
+          const gardees = [];
+          for (let i = 0; i < primes.length; i++) {
+            const x = primes[i];
+            const label = String(x.label || '').trim(), m = Number(x.amount);
+            if (!label && !(m > 0)) continue;
+            const caseDe = f => $(`#ef-primes tr[data-i="${i}"] [data-p=${f}]`, root);
+            if (!(m > 0)) return refus(caseDe('amount'), `La prime « ${label} » n'a pas de montant : saisis ce qu'elle vaut pour un mois plein, ou retire la ligne.`);
+            if (C.round3(m) !== m) return refus(caseDe('amount'), 'Un montant se saisit au millime : trois décimales au plus.');
+            gardees.push({ label: label || 'Prime', amount: m, taxable: x.taxable !== false, parJour: !!x.parJour });
+          }
+          Object.assign(e, v, { grossSalary: Number(v.grossSalary) || 0, children: Number(v.children) || 0, headOfFamily: !!v.headOfFamily, primes: gardees });
+-- fin
+
+== app.js | sur le bulletin, une prime au jour dit d'où vient son montant
+-- avant
+              <td><input type="text" data-f="label" value="${h(x.label || '')}" placeholder="${kind === 'bon' ? 'Prime de rendement' : 'Avance sur salaire'}"></td>
+-- après
+              <td><input type="text" data-f="label" value="${h(x.label || '')}" placeholder="${kind === 'bon' ? 'Prime de rendement' : 'Avance sur salaire'}">${kind === 'bon' && x.parJour ? `<div class="small muted" data-pj="${i}">au jour : ${pct(x.jours)} j payé${sPl(x.jours)} sur ${pct(x.sur)} · ${C.money(x.mensuel, cur)} pour un mois plein</div>` : ''}</td>
+-- fin
+
+== app.js | sur le bulletin, un montant retapé n'est plus « au jour »
+-- avant
+            list[i][el.dataset.f] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? Number(el.value) : el.value);
+            calc();
+-- après
+            list[i][el.dataset.f] = el.type === 'checkbox' ? el.checked : (el.type === 'number' ? Number(el.value) : el.value);
+            // (plateforme) 1.59.0 — un montant retapé à la main n'est plus proratisé : le bulletin ne le prétend plus.
+            if (el.dataset.f === 'amount' && list[i].parJour) {
+              ['parJour', 'mensuel', 'jours', 'sur'].forEach(k => { delete list[i][k]; });
+              const n = $(`[data-pj="${i}"]`, $(sel, root)); if (n) n.remove();
+            }
+            calc();
+-- fin
+
+== app.js | sur le bulletin, les primes au jour suivent les jours d'absence et les jours ouvrables
+-- avant
+        $('#bf', root).oninput = $('#bf', root).onchange = calc;
+-- après
+        // (plateforme) 1.59.0 — les primes au jour suivent les jours payés : ceux du mois, moins ce que le
+        // contrat ne couvre pas (l'entrée, la sortie), moins l'absence non payée.
+        const suivreLesJours = () => {
+          const v = input();
+          const hors = p.prorata ? Math.max(0, Number(p.prorata.sur) - Number(p.prorata.jours)) : 0;
+          const payes = Math.max(0, C.round3(v.workedDays - hors - v.absentDays));
+          let change = false;
+          bonuses.forEach(x => {
+            if (!x.parJour) return;
+            const j = Math.min(v.workedDays, payes);
+            const m = C.round3(x.mensuel * j / v.workedDays);
+            if (m !== x.amount || j !== x.jours || v.workedDays !== x.sur) { Object.assign(x, { amount: m, jours: j, sur: v.workedDays }); change = true; }
+          });
+          if (change) drawSmall('#bf-bon', bonuses, 'bon');
+        };
+        $('#bf', root).oninput = $('#bf', root).onchange = () => { suivreLesJours(); calc(); };
+-- fin
+
+== core.js | le bulletin imprimé dit les jours payés
+-- avant
+      <div class="kv"><span>Jours ouvrables</span><span>${pct(c.workedDays)}</span></div>
+-- après
+      <div class="kv"><span>Jours ouvrables</span><span>${pct(c.workedDays)}</span></div>
+      ${/* (plateforme) 1.59.0 — les jours payés, la colonne « J. » du journal de paie. */''}
+      <div class="kv"><span>Jours payés</span><span>${pct(round3(Math.max(0, c.workedDays - c.absentDays - (slip.prorata ? Math.max(0, Number(slip.prorata.sur) - Number(slip.prorata.jours)) : 0))))}</span></div>
+-- fin
+
+== core.js | le bulletin imprimé dit les jours d'une prime au jour
+-- avant
+      ${c.bonuses.map(b => row(b.label + (b.taxable ? '' : ' (non imposable)'), null, null, b.amount, null)).join('')}
+-- après
+      ${c.bonuses.map((b, i) => {
+        // (plateforme) 1.59.0 — une prime au jour dit ses jours, comme la colonne « Nombre » d'un bulletin.
+        const x = (slip.bonuses || [])[i] || {};
+        const auJour = x.parJour && round3(Number(x.amount) || 0) === b.amount ? ` (${pct(x.jours)} j sur ${pct(x.sur)})` : '';
+        return row(b.label + auJour + (b.taxable ? '' : ' (non imposable)'), null, null, b.amount, null);
+      }).join('')}
+-- fin
+
+== app.js | la liste des salariés estime le net et le coût avec les primes de chaque fiche
+-- avant
+              const c = C.computePayslip(e, {}, st);
+              const out = e.endDate && e.endDate < C.today();
+-- après
+              const c = C.computePayslip(e, C.saisieDeLaFiche(e, st), st);
+              const out = e.endDate && e.endDate < C.today();
+-- fin
+
+== app.js | le total des nets estimés compte les primes de chaque fiche
+-- avant
+reduce((a, e) => a + C.computePayslip(e, {}, st).net, 0)
+-- après
+reduce((a, e) => a + C.computePayslip(e, C.saisieDeLaFiche(e, st), st).net, 0)
+-- fin
+
+== app.js | le total des coûts estimés compte les primes de chaque fiche
+-- avant
+reduce((a, e) => a + C.computePayslip(e, {}, st).employerCost, 0)
+-- après
+reduce((a, e) => a + C.computePayslip(e, C.saisieDeLaFiche(e, st), st).employerCost, 0)
+-- fin
+
+== app.js | la page d'un salarié estime son net avec ses primes, et les montre
+-- avant
+    const c = C.computePayslip(e, {}, st);
+    const slips = C.payslipsOf(data).filter(p => p.employeeId === e.id);
+-- après
+    const c = C.computePayslip(e, C.saisieDeLaFiche(e, st), st);
+    const slips = C.payslipsOf(data).filter(p => p.employeeId === e.id);
+-- fin
+
+== app.js | le net estimé dit s'il compte des primes
+-- avant
+<div class="sub">hors primes et retenues</div>
+-- après
+<div class="sub">${c.bonuses.length ? 'primes de la fiche comprises, hors retenues' : 'hors primes et retenues'}</div>
+-- fin
+
+== app.js | la page d'un salarié nomme ses primes de chaque mois
+-- avant
+          <div><span>Contrat</span><span>${h(C.contractLabel(e.contract || 'cdi'))}</span></div>
+-- après
+          <div><span>Contrat</span><span>${h(C.contractLabel(e.contract || 'cdi'))}</span></div>
+          ${(e.primes || []).length ? `<div><span>Primes de chaque mois</span><span>${e.primes.map(x => `${h(x.label)} ${C.money(x.amount, cur)}${x.parJour ? ' au jour' : ''}${x.taxable === false ? ' (non imposable)' : ''}`).join(' · ')}</span></div>` : ''}
+-- fin
+
+== app.js | « Établir les bulletins du mois » dit qu'il reprend les primes des fiches
+-- avant
+Tu pourras encore ajouter les primes, bulletin par bulletin.
+-- après
+Les primes posées sur chaque fiche sont reprises (au prorata des jours payés pour une prime au jour) ; tu pourras encore en ajouter, bulletin par bulletin.
+-- fin
+
+== app.js | les Barèmes disent quand ils gardent les taux d'avant 2026, et offrent de prendre ceux de 2026
+-- avant
+          <em>À VÉRIFIER avec ton comptable, et à corriger ici dès qu'un taux bouge.</em></p>
+        </div>
+-- après
+          <em>À VÉRIFIER avec ton comptable, et à corriger ici dès qu'un taux bouge.</em></p>
+        </div>
+        ${(() => {
+          // (plateforme) 1.59.0 — des barèmes enregistrés avant les taux de 2026 les gardent : on le dit.
+          const vieux = C.tauxAvant2026(data);
+          return vieux.length ? `<div class="warn-box mb" id="rf-2026"><div><b>Tes barèmes gardent des taux d'avant 2026</b> : ${vieux.map(x => `${h(x.libelle)} ${pct(x.garde)} % au lieu de ${pct(x.livre)} %`).join(', ')} (les taux des documents de paie de 2026). <em>À VÉRIFIER avec ton comptable.</em></div>
+            <div class="mt"><button type="button" class="btn btn-sm" id="rf-2026-prendre">Prendre les taux de 2026</button> <span class="small muted">Ils s'écrivent dans les cases ci-dessous ; rien n'est gardé avant « Enregistrer les barèmes ».</span></div></div>` : '';
+        })()}
+-- fin
+
+== app.js | « Prendre les taux de 2026 » les écrit dans leurs cases, sans enregistrer
+-- avant
+      $('#rf-save').onclick = () => { enregistrer();
+-- après
+      if ($('#rf-2026-prendre')) $('#rf-2026-prendre').onclick = () => {
+        C.tauxAvant2026(data).forEach(x => { const i = $(`#rf [name=${x.cle}]`); if (i) i.value = x.livre; });
+        marquer(); drawDemo();
+        toast('Les taux de 2026 sont dans leurs cases : « Enregistrer les barèmes » les garde.');
+      };
+      $('#rf-save').onclick = () => { enregistrer();
+-- fin
+
+== app.js | l'onglet Bulletins dit quand les barèmes gardent des taux d'avant 2026
+-- avant
+      $('#p-body').innerHTML = `
+        <div class="stats">
+          <div class="stat"><div class="lbl">Coût de la paie ${s.year} ${info('pay.employerCost')}</div>
+-- après
+      // (plateforme) 1.59.0 — les bulletins s'établissent ici : c'est ici qu'un barème d'avant 2026 se dit.
+      const vieuxTaux = C.tauxAvant2026(data);
+      $('#p-body').innerHTML = `
+        ${vieuxTaux.length ? `<div class="warn-box mb" id="p-2026"><span>Tes barèmes gardent des taux d'avant 2026 (${vieuxTaux.map(x => `${h(x.libelle)} ${pct(x.garde)} %`).join(', ')}) : les bulletins que tu établis les appliquent.</span> <button type="button" class="btn btn-sm" id="p-2026-voir">Voir les barèmes</button></div>` : ''}
+        <div class="stats">
+          <div class="stat"><div class="lbl">Coût de la paie ${s.year} ${info('pay.employerCost')}</div>
+-- fin
+
+== app.js | « Voir les barèmes » ouvre l'onglet, par son propre bouton
+-- avant
+      $('#p-month').onchange = e => { s.month = e.target.value; s.moisTouche = true; drawSlips(); };
+-- après
+      $('#p-month').onchange = e => { s.month = e.target.value; s.moisTouche = true; drawSlips(); };
+      if ($('#p-2026-voir')) $('#p-2026-voir').onclick = () => { const t = $('#p-tabs button[data-tab="baremes"]'); if (t) t.click(); };
+-- fin
+
+== guide.js | l'aide des primes de chaque mois
+-- avant
+    'pay.bonus': {
+-- après
+    'pay.primesFiche': { t: 'Primes de chaque mois', d: 'Les primes que le salarié touche tous les mois : présence, transport, panier. Posées ici une fois, elles arrivent sur chaque bulletin. Une prime <b>au jour</b> suit les jours payés du mois : 80 DT pour un mois plein de 26 jours en donnent 60 pour 19,5 jours ; une prime fixe passe entière. Sur un bulletin, tu peux encore retoucher le montant ou ajouter une prime du mois. <em>À VÉRIFIER avec ton comptable : ce que ta convention collective proratise, et ce qui est imposable.</em>' },
+    'pay.bonus': {
+-- fin
+
+== app.js | sur le bulletin, les primes et les retenues l'une sous l'autre : un libellé de prime se lit en entier
+-- avant
+      <div class="split">
+        <div class="panel"><h2>Primes et indemnités (${h(C.normCurrency(company().currency))}) ${info('pay.bonus')}</h2><div id="bf-bon"></div>
+-- après
+      ${/* (plateforme) 1.59.0 — vu à l'écran : côte à côte, « Prime de présence » se lisait « Prime d », et le prorata
+           d'une prime au jour tenait sur quatre lignes. L'une sous l'autre, chaque ligne a la largeur de la fenêtre. */''}
+      <div class="bf-lignes">
+        <div class="panel"><h2>Primes et indemnités (${h(C.normCurrency(company().currency))}) ${info('pay.bonus')}</h2><div id="bf-bon"></div>
+-- fin
+
+== style.css | la fiche d'un salarié et un bulletin sont larges dès l'ouverture : la première prime ne les élargit pas sous le curseur
+-- avant
+.modal:where(:has(.import-tableau)) { width: 860px; }
+-- après
+.modal:where(:has(.import-tableau)) { width: 860px; }
+/* (plateforme) 1.59.0 — vu à l'écran : la fenêtre passait de 580 à 860 pixels à la première ligne de prime (la règle des
+   tableaux de lignes), et « + Prime » fuyait sous le curseur. Les deux fenêtres qui portent des primes sont larges d'emblée ;
+   sur un bulletin, les primes et les retenues se suivent. */
+.modal:where(:has(#ef-primes-p, #bf-bon)) { width: 860px; }
+.bf-lignes { display: grid; gap: 14px; }
+-- fin
+
+== app.js | la liste des salariés dit, sous le brut, les primes que le net estimé compte
+-- avant
+                <td class="r nw">${C.money(e.grossSalary, cur)}</td>
+-- après
+                <td class="r nw">${C.money(e.grossSalary, cur)}${c.bonuses.length ? `<div class="small muted">+ ${C.money(C.round3(c.bonuses.reduce((a, b) => a + b.amount, 0)), cur)} de primes</div>` : ''}</td>
+-- fin
+
+== app.js | un mois sans bulletin dit que les primes des fiches seront reprises (plusieurs salariés)
+-- avant
+                ? 'Le bouton ci-dessus les établit d\'un coup, au brut de chaque fiche.'
+-- après
+                ? 'Le bouton ci-dessus les établit d\'un coup, au brut et aux primes de chaque fiche.'
+-- fin
+
+== app.js | un mois sans bulletin dit que les primes de la fiche seront reprises (un salarié)
+-- avant
+                : 'Le bouton ci-dessus l\'établit, au brut de la fiche du salarié.'}`
+-- après
+                : 'Le bouton ci-dessus l\'établit, au brut et aux primes de la fiche du salarié.'}`
+-- fin
