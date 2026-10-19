@@ -16932,6 +16932,29 @@ prouver 'l'"'"'avertissement de la pause absent' 'web/console/src/ecrans/Travaux
   '' \
   'mettre la TTN en pause : un motif court se refuse ; en pause, la carte, la tuile et « À décider » le disent ; reprendre la lève'
 
+# 1.57.0 : le second guet (docs/mise-en-ligne.md I ter).
+prouver 'le second guet sous le titre du premier' 'exploitation/guet-second/worker.ts' \
+  'githubDe(env.SKANFACT_DEPOT ?? DEPOT, env.GITHUB_TOKEN, lire), titreDuSecond);' \
+  'githubDe(env.SKANFACT_DEPOT ?? DEPOT, env.GITHUB_TOKEN, lire));' \
+  'un serveur qui ne répond plus ouvre SON ticket ; celui du guet de GitHub ne compte pas pour lui'
+prouver 'signaler qui oublie le titre de son guet' 'exploitation/guetter.ts' \
+  '    const titre = titreDe(r.adresse);' \
+  '    const titre = titreDuTicket(r.adresse);' \
+  'tout répond de nouveau : il ferme son ticket, et seulement le sien'
+prouver 'le second guet qui appelle GitHub sans jeton' 'exploitation/guet-second/worker.ts' \
+  '  if (!env.GITHUB_TOKEN) return [...vu, '"'"'Pas de jeton GITHUB_TOKEN : aucun ticket ne s\'"'"'ouvre.'"'"'];
+' \
+  '' \
+  'sans adresse, il le dit ; sans jeton, il regarde et dit qu'"'"'il ne signale rien'
+prouver 'le second guet qui ne réessaie pas' 'exploitation/guet-second/worker.ts|||exploitation/guet-second/worker.ts' \
+  'import { adressesDuGuet, githubDe, nomDe, regarderAvecPatience, signaler, type Regard } from '"'"'../guetter.ts'"'"';|||  for (const a of adresses) regards.push(await regarderAvecPatience(a, lire, maintenant, attendre));' \
+  'import { adressesDuGuet, githubDe, nomDe, regarder, signaler, type Regard } from '"'"'../guetter.ts'"'"';|||  for (const a of adresses) regards.push(await regarder(a, lire, maintenant));' \
+  'un serveur qui ne répond plus ouvre SON ticket ; celui du guet de GitHub ne compte pas pour lui'
+prouver 'le second guet sans son rythme' 'exploitation/guet-second/wrangler.toml' \
+  'crons = ["*/10 * * * *"]' \
+  'crons = ["0 * * * *"]' \
+  'le Worker se pose toutes les dix minutes, sans aucun secret dans le dépôt'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

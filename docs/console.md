@@ -1652,7 +1652,7 @@ C66 ; bloquer une adresse, en 1.54.0, C67 ; les demandes d'effacement, en 1.55.0
 ne se construit pas : **la v10 n'est installée chez personne** (Skander, 14/10/2026). Celui de la nouvelle application de
 bureau (la coque et son agent local : les postes qui l'ont, leur version, ce que l'agent voit, ses erreurs) se dessinera
 quand elle sera distribuée aux clients (`09` étape 4). Le guet extérieur (C49) vérifie le service depuis une autre
-machine ; le second guet, depuis une deuxième ville (06 § 7), reste à poser. Des constats de l'audit 1.42.0 restent
+machine ; le second guet, depuis Cloudflare (1.57.0, `docs/mise-en-ligne.md` I ter), est écrit et reste à poser par Skander. Des constats de l'audit 1.42.0 restent
 ouverts : aucun ; A04 et A08 sont faits en 1.46.0 (C62), le coût des listes (A09) en 1.49.0 (C65). La communication ciblée
 est faite en 1.47.0 (C63) ; l'effet de chaque version, en 1.48.0 (C64).
 

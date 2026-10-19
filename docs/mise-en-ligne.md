@@ -509,8 +509,38 @@ un serveur aux vraies données, si **ce serveur n'est pas guetté**. La règle �
 Alertes) est branchée.
 
 **Ce qu'il ne fait pas encore** : mesurer la disponibilité vue de l'extérieur, ni le temps de réponse d'une autre ville
-(06 § 7) ; GitHub ne garantit pas l'heure de ses tâches planifiées (un passage peut glisser d'une demi-heure). Un service
-de mesure, depuis deux villes, reste à décider.
+(06 § 7) ; GitHub ne garantit pas l'heure de ses tâches planifiées (un passage peut glisser d'une demi-heure). Le second
+regard, d'un autre réseau, est le second guet (I ter).
+
+## I ter. Le second guet (1.57.0, 19/10/2026 ; décidé par délégation)
+
+Le guet de GitHub regarde depuis les machines de GitHub ; s'il ne passe plus (GitHub suspend une tâche planifiée, ou
+glisse d'une demi-heure), personne ne regarde. Le **second guet** fait le même regard depuis **Cloudflare** — un autre
+réseau, un autre opérateur, et ni l'un ni l'autre chez l'hébergeur du serveur : un Worker
+(`exploitation/guet-second/worker.ts`, `wrangler.toml`), toutes les dix minutes, qui reprend les fonctions du premier
+(`exploitation/guetter.ts`). Une panne qui dure ouvre **son** ticket, « Le second guet : … ne répond pas » (l'un ne ferme
+jamais le ticket de l'autre) ; le retour le ferme. Il ne lit que la page d'état et la documentation du programme, et
+n'écrit que ses tickets : rien d'un client, et rien de plus ne part de nos serveurs (`05` § 4.3 : il ne fait que lire
+ce que tout le monde peut lire). **À VÉRIFIER** : la ville d'où Cloudflare lance ses tâches planifiées (elle n'est pas
+choisie : un de ses centres).
+
+**Le poser (une fois, par Skander)** :
+1. Un jeton GitHub qui n'écrit **que** les tickets du dépôt : *github.com › Settings › Developer settings › Fine-grained
+   tokens › Generate new token*, le dépôt `saouthq/skanfact-plateforme` seul, la permission *Issues : Read and write*,
+   une échéance d'un an (à noter dans les secrets de la console, C53).
+2. Dans le dossier `exploitation/guet-second` : `npx wrangler deploy`, puis `npx wrangler secret put GITHUB_TOKEN` (le
+   jeton se colle là, chez Cloudflare ; jamais dans le dépôt, jamais à Claude).
+3. Dans le tableau de bord du Worker (*Settings › Variables*) : `SKANFACT_GUET`, les mêmes adresses que la variable du
+   dépôt.
+Sans adresse, il le dit dans son journal ; sans jeton, il regarde sans ouvrir de ticket, et le dit aussi.
+
+Tests : `tests/exploitation/guet-second.test.ts`.
+
+## K. La répétition générale (1.57.0)
+
+Avant la première donnée réelle d'un client, tout ce qui peut arriver à un serveur des pilotes se joue sur une machine
+neuve, avec des données inventées : la liste, qui fait quoi, et ce qu'on doit voir, dans `docs/repetition-generale.md`.
+Rien ne s'ouvre aux pilotes tant qu'une ligne n'est pas cochée.
 
 ## J. La console à sa propre adresse (demandé par Skander le 13/10/2026)
 
