@@ -331,7 +331,11 @@ fiscaliste **avant** de publier les prix TTC sur le site.
   d'IA extérieurs (avis du juriste, et autorisation de l'INPDP s'il le faut). **Aucun ne s'ouvre
   avant d'être compté ici** ;
 - la **paie** contient des données sensibles (CIN, salaires, parfois la santé : congés maladie).
-  Elle a les protections du `03` (D10).
+  Elle a les protections du `03` (D10) ;
+- **les adresses internet de l'entrée** (19/10/2026, `docs/console.md` C67 de la plateforme) : pour la sécurité du
+  service, le serveur compte par adresse et par heure les connexions refusées ou freinées, et les garde **trente
+  jours** ; elles ne sortent pas de nos serveurs. Une finalité à déclarer (la sécurité), et une durée **À VÉRIFIER**
+  avec l'INPDP.
 
 **À VÉRIFIER** (INPDP, juriste) : les finalités à déclarer et les formulaires ; la durée de
 conservation des traces et des données des salariés partis (`01` § 21, `03` § 7) ; le cas de la

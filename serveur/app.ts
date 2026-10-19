@@ -129,6 +129,12 @@ const METHODES_MESUREES = new Set(['GET', 'POST', 'PUT', 'DELETE']);
 
 // Les adresses de la machine elle-même.
 const MACHINE = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
+// « 20/10/2026 à 14:05 », à Tunis : la fin d'un blocage, dite à qui l'entrée est fermée (0143).
+const quandATunis = (d: Date) => {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('fr-FR', { timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+    .formatToParts(d).map((x) => [x.type, x.value]));
+  return `${p.day}/${p.month}/${p.year} à ${p.hour}:${p.minute}`;
+};
 
 // `proxy` : combien de relais de confiance (le frontal) se tiennent devant le serveur. L'adresse de l'appelant se lit
 // alors dans ce qu'ils ajoutent (X-Forwarded-For) ; sans relais déclaré, elle ne s'y lit jamais : n'importe qui
@@ -218,13 +224,21 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
           // La limite par adresse (brique 142), avant tout travail : un appel refusé ne coûte rien. La machine elle-même
           // n'est pas limitée (ses outils, ses tests) : derrière le frontal déclaré, l'adresse lue est celle du visiteur,
           // jamais celle de la machine.
-          const v = MACHINE.has(requete.ip) ? null : limiteurPublic.appel(requete.ip);
+          // Une adresse bloquée depuis la console (0143, C67) : l'entrée lui est fermée, la phrase dit jusqu'à quand.
+          const machine = MACHINE.has(requete.ip);
+          const bloquee = machine ? null : ctx.adresses?.bloquee(requete.ip) ?? null;
+          if (bloquee) return envoyer(403, { motif: motif('porte.adresse_bloquee', { quand: quandATunis(bloquee) }), bloqueeJusquAu: bloquee.toISOString() });
+          const v = machine ? null : limiteurPublic.appel(requete.ip);
           if (v && !v.permis) {
+            ctx.adresses?.noter(requete.ip, 'frein');
             reponse.header('retry-after', String(v.attendreSecondes));
             return envoyer(429, { motif: v.attendreSecondes === 1 ? motif('porte.trop_de_demandes_une') : motif('porte.trop_de_demandes', { secondes: v.attendreSecondes }), attendreSecondes: v.attendreSecondes });
           }
           try {
             const res = await r.traiter({ corps: corps as never, params, query, qui: null, requete }, null);
+            // Ce que l'entrée refuse (un mot de passe ou un code faux) ou freine (trop d'essais sur un compte) se compte par
+            // adresse (0143) : rien d'autre de la demande.
+            if (!machine && (res.statut === 401 || res.statut === 429)) ctx.adresses?.noter(requete.ip, res.statut === 401 ? 'echec' : 'frein');
             return envoyer(res.statut ?? 200, res.corps);
           } catch (e) { return erreurVersReponse(e, reponse, langue); }
         }

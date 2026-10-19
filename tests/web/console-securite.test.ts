@@ -6,6 +6,8 @@
 //   - lever l'attente : un motif trop court se refuse, et le bouton ne bouge pas sous le curseur quand on retape ; levée,
 //     la ligne s'en va et le geste entre au journal ;
 //   - les règles disent leurs chiffres et ce qu'elles ne comptent pas ; les clés de commande, leur nom seul ;
+//   - les adresses à l'entrée (0143, C67) : une adresse qui frappe se bloque depuis sa ligne, un jour, avec son motif (le
+//     curseur l'attend), l'avertissement d'une adresse partagée se lit avant ; puis elle se débloque ;
 //   - la chaîne d'empreintes (0142, C66) : une facture retouchée par-dessous la base, l'entreprise relue depuis l'écran
 //     (son numéro de client), la rupture nommée au maillon près, puis l'incident ouvert d'un clic, sa fenêtre déjà remplie ;
 //   - au téléphone : rien ne déborde, l'équipe se lit sans défilement de côté.
@@ -69,6 +71,9 @@ describe('la sécurité du service, à la souris', () => {
 
   beforeAll(async () => {
     await admin.connect();
+    // Une relecture demandée par un autre essai (son horloge avance de quelques minutes) passerait pour la dernière :
+    // l'écran dit la plus récente (vu le 19/10/2026, après tests/console/contenus.test.ts).
+    await admin.query('delete from plateforme.relecture_demandee');
     fs.writeFileSync(veille, JSON.stringify({ problemes: {} }));
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_VEILLE_FICHIER: veille }), port: 0, web: dossier, livreurMs: 60_000 });
@@ -277,6 +282,41 @@ describe('la sécurité du service, à la souris', () => {
     await api('POST', '/console/service/securite/relire', jD, { client: numero, motif: 'remise après l\'essai' });
     await faireLaRelectureDemandee(pool);
   }, 120_000);
+
+  it('les adresses à l\'entrée : une adresse qui frappe se bloque depuis sa ligne, un jour, puis se débloque', async () => {
+    const ip = `198.51.100.${20 + Math.floor(Math.random() * 200)}`;
+    await admin.query('insert into plateforme.adresse_vue (adresse, heure, echecs, freins) values ($1, date_trunc(\'hour\', now()), 214, 37)', [ip]);
+    const p = await ouvrir(jD);
+    const carte = p.locator('.c-se-adresses');
+    const ligne = carte.locator('tbody tr', { hasText: ip });
+    await expect.poll(() => ligne.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toMatch(new RegExp(`^${ip.replaceAll('.', '\\.')} 214 37 `));
+    await cliquer(ligne.getByRole('button', { name: `Bloquer l'adresse ${ip}`, exact: true }));
+    const f = p.getByRole('dialog');
+    // L'avertissement se lit avant le geste ; l'adresse est connue, le curseur attend le motif.
+    expect(net(await f.locator('.c-alerte-attention').innerText())).toContain('Une adresse peut être celle de tout un bureau');
+    expect(await f.getByLabel('Motif', { exact: true }).evaluate((e) => e === document.activeElement)).toBe(true);
+    await cliquer(f.getByRole('button', { name: 'Un jour', exact: true }));
+    await f.getByLabel('Motif', { exact: true }).fill('214 mots de passe faux cette nuit');
+    fs.mkdirSync(PHOTOS, { recursive: true });
+    await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'console-securite-4-bloquer.png') });
+    await cliquer(f.getByRole('button', { name: 'Bloquer l\'adresse', exact: true }));
+    await expect.poll(() => p.locator('#c-toast').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe(`${ip} est bloquée.`);
+    const bloquee = carte.locator('.c-se-bloquee', { hasText: ip });
+    await expect.poll(() => bloquee.innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('« 214 mots de passe faux cette nuit »');
+    expect(net(await ligne.innerText())).toMatch(/Bloquée jusqu'au \d{2}\/\d{2} à \d{2}:\d{2}/);
+    const b = (await admin.query('select jusqu_au - le d from plateforme.adresse_bloquee where adresse = $1 and levee_le is null', [ip])).rows[0] as { d: string };
+    expect(b.d).toBe('1 day');
+    await carte.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'console-securite-5-adresse-bloquee.png') });
+    // Débloquer : son motif, puis l'entrée se rouvre.
+    await cliquer(bloquee.getByRole('button', { name: `Débloquer l'adresse ${ip}`, exact: true }));
+    const d = p.getByRole('dialog');
+    await d.getByLabel('Motif', { exact: true }).fill('le client a appelé, c\'était son bureau');
+    await cliquer(d.getByRole('button', { name: 'Débloquer', exact: true }));
+    await expect.poll(() => p.locator('#c-toast').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe(`${ip} est débloquée.`);
+    await expect.poll(() => carte.locator('.c-se-bloquee', { hasText: ip }).count(), { timeout: 10_000 }).toBe(0);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 90_000);
 
   it('au téléphone : rien ne déborde, l\'équipe se lit sans défilement de côté', async () => {
     const p = await ouvrir(jD, 390);

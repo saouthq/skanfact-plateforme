@@ -121,6 +121,8 @@ declarerTextes({
   'api.trop_d_appels_une': 'trop d\'appels avec cette clé : réessaie dans une seconde',
   'porte.trop_de_demandes': 'trop de demandes depuis ta connexion : réessaie dans {secondes} secondes',
   'porte.trop_de_demandes_une': 'trop de demandes depuis ta connexion : réessaie dans une seconde',
+  // Une adresse bloquée depuis la console (0143) : l'entrée seule est fermée, et la phrase dit jusqu'à quand.
+  'porte.adresse_bloquee': 'l\'entrée est fermée depuis ta connexion jusqu\'au {quand} (heure de Tunis). Si c\'est une erreur, essaie depuis une autre connexion, ou appelle le support',
 
   // ── La documentation de l'API ───────────────────────────────────────────────────────────────
   'doc.public': 'sans connexion',

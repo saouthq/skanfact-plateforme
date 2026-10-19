@@ -1571,6 +1571,26 @@ Rien n'est écrit chez un client : la relecture lit, et note ce qu'elle trouve d
 le rythme (cinquante chaînes, deux minutes, cinq cents pièces par pas), la fiche réflexe et sa gravité, le droit de la
 technique à « tout relire ».
 
+**C67. Les adresses à l'entrée : vues, et bloquées** (1.54.0 ; base 0143 ; l'audit 1.42.0 § 4 ; décidé par délégation
+le 19/10/2026). La console voyait les comptes visés par des essais (un mot de passe connu, un compte freiné : C26),
+jamais d'où ils venaient. Ce qui est fait :
+- **l'entrée compte**, par adresse internet et par heure, ce qu'elle refuse (un mot de passe ou un code faux : la réponse
+  401) et ce qu'elle freine (trop d'appels : 429), sur ses routes publiques seulement ; rien d'autre de la demande (ni le
+  compte visé, ni ce qui a été tapé) ; la machine elle-même ne se compte pas. Le compte vit en mémoire et part à la base
+  chaque demi-minute (`serveur/adresses.ts` ; au-delà de dix mille adresses entre deux passages, le reste se perd et se
+  dit) ; un envoi raté se garde pour le suivant. **Trente jours se gardent** : une adresse internet est une donnée
+  personnelle (05 § 4.3, la durée À VÉRIFIER avec l'INPDP) ;
+- **Sécurité › Les adresses à l'entrée** : les vingt adresses qui ont le plus frappé ces vingt-quatre heures (refusées,
+  freinées, la dernière fois), les blocages en cours, ceux finis cette semaine ;
+- **bloquer** (la direction ou la technique ; le support, non) : une adresse seule (jamais une plage, jamais la machine),
+  **une heure ou un jour**, avec un motif ; l'avertissement se lit avant le geste (une adresse peut être celle de tout un
+  bureau, ou d'un opérateur mobile qui la partage). Le blocage ferme **l'entrée seule** (se connecter, s'inscrire, un
+  code, un mot de passe oublié) : la personne lit pourquoi et jusqu'à quand ; une session déjà ouverte depuis l'adresse
+  continue. Il s'applique tout de suite sur ce serveur (relu après le geste), au plus tard dans la demi-minute ailleurs ;
+  il finit seul à son heure, ou se lève avant (« débloquer », avec un motif). Chaque geste entre au journal.
+**Décidé par délégation** : l'entrée seule (pas les sessions), une heure ou un jour au plus, trente jours de comptes, la
+technique qui bloque.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1580,10 +1600,9 @@ cellules des tableaux à 11 × 12, la page à 24 × 32 et jusqu'à 1 440 points 
 
 ## Ce que le lot ne fait pas
 
-La suite de la console : le relevé de la banque lu et pointé (aucune banque branchée ; les paiements, C30, montrent ce qui reste à encaisser), la retenue à la source sur nos factures (`05` § 4.2), la suite du service (la
-sécurité : bloquer une adresse ; le débit des travaux heure par heure, la pause d'un partenaire, un nombre d'essais au
+La suite de la console : le relevé de la banque lu et pointé (aucune banque branchée ; les paiements, C30, montrent ce qui reste à encaisser), la retenue à la source sur nos factures (`05` § 4.2), la suite du service (le débit des travaux heure par heure, la pause d'un partenaire, un nombre d'essais au
 plus, et les envois de la TEJ et de la CNSS, qui n'ont pas encore de trace ; la relecture du contenu est faite en 1.53.0,
-C66), la mesure, la suite des réglages (un prix se prépare depuis la 1.12.0, C28 ; les nouveautés s'allument depuis la 1.27.0, C43). L'écran
+C66 ; bloquer une adresse, en 1.54.0, C67), la mesure, la suite des réglages (un prix se prépare depuis la 1.12.0, C28 ; les nouveautés s'allument depuis la 1.27.0, C43). L'écran
 « Application de bureau » de la maquette (les licences, les postes, la fin de vie et le passage à la plateforme de la v10)
 ne se construit pas : **la v10 n'est installée chez personne** (Skander, 14/10/2026). Celui de la nouvelle application de
 bureau (la coque et son agent local : les postes qui l'ont, leur version, ce que l'agent voit, ses erreurs) se dessinera

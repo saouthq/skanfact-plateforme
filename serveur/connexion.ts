@@ -15,6 +15,7 @@
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 import type pg from 'pg';
 import type { Lecteur } from './achats/lecteur.ts';
+import type { Adresses } from './adresses.ts';
 import type { EnvoiCourriel } from './courriel.ts';
 import type { Nouveaute } from './nouveautes.ts';
 import { enTantQue } from './base.ts';
@@ -55,6 +56,9 @@ export type Contexte = {
   // Les nouveautés que ce serveur porte (0120 ; serveur/nouveautes.ts) : celles du code, sauf dans un essai qui lui en
   // donne d'autres.
   nouveautes?: readonly Nouveaute[];
+  // Les adresses internet de l'entrée (0143 ; serveur/adresses.ts) : ce qu'elle compte, ce qu'elle ferme. Absent (un
+  // essai), rien ne se compte ni ne se ferme.
+  adresses?: Adresses;
 };
 
 export type Appareil = { id?: string; nom: string; type: 'navigateur' | 'bureau' | 'telephone' };

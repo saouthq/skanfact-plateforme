@@ -51,6 +51,7 @@ import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRAC
 import { depuisLa, plageDe, reserveALaDirection, sorteDe } from './journal.ts';
 import { CHAINES_PAR_LOT, CHAINES_PAS_MS, demandeArretee, etatRelecture, joursDeRelecture, lireChaines } from './chaines.ts';
 import { CONTENUS_PAR_LOT } from '../service/contenus.ts';
+import { DUREES_BLOCAGE, lireAdresses } from './adresses.ts';
 import { lireMesure, mesurer, periodeMesure } from './mesure.ts';
 import { CANAUX_CONTESTATION, ISSUES, lireContestations } from './contestations.ts';
 import { lireSecrets, ranger as rangerSecrets, SECRET_BIENTOT_JOURS } from './secrets.ts';
@@ -1499,6 +1500,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
             contenusParLot: CONTENUS_PAR_LOT, incident: chaines.incident ? { id: chaines.incident.id, ref: refIncident(chaines.incident.annee, chaines.incident.numero) } : null,
             demande: chaines.demande ? { ...chaines.demande, arretee: demandeArretee(chaines.demande, instant) } : null,
           },
+          // Les adresses internet de l'entrée (0143, C67) : celles qui ont frappé ces vingt-quatre heures, celles qui sont
+          // bloquées ; et les durées qu'un blocage peut prendre.
+          adresses: lireAdresses(await lireJson(x, 'select plateforme.console_adresses($1) v', [instant.toISOString()])), dureesBlocage: DUREES_BLOCAGE,
           // Les secrets et leur échéance (0130) : jamais leur valeur ; le plus pressé d'abord.
           secrets: rangerSecrets(lireSecrets(await lireJson(x, 'select plateforme.console_secrets() v')), jour), secretBientot: SECRET_BIENTOT_JOURS,
         },
@@ -1545,6 +1549,26 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     traiter: async ({ corps }, tx) => {
       const r = await lireJson<{ id: string }>(transaction(tx), 'select plateforme.console_demander_relecture($1, $2, $3) v', [corps.client || null, corps.motif, maintenant()]);
       return { statut: 201, corps: { id: r.id } };
+    },
+  });
+  // Bloquer une adresse (0143 ; C67) : l'entrée seule, une heure ou un jour ; débloquer. Une fois la transaction validée,
+  // ce serveur relit la liste (`apres`) : le blocage s'applique tout de suite ici, au plus tard dans la demi-minute ailleurs.
+  const relireLesBlocages = async () => { await ctx.adresses?.relire(ctx.pool, maintenant()); return {}; };
+  ajouter({
+    methode: 'POST', chemin: '/console/service/securite/adresses', geste: 'console.service.gerer',
+    corps: z.object({ adresse: z.string().trim().min(2).max(60), heures: z.union([z.literal(DUREES_BLOCAGE[0]), z.literal(DUREES_BLOCAGE[1])]), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const r = await lireJson<{ id: string; jusquAu: string }>(transaction(tx), 'select plateforme.console_bloquer_adresse($1, $2, $3, $4) v',
+        [corps.adresse, corps.heures, corps.motif, maintenant()]);
+      return { statut: 201, corps: r, apres: relireLesBlocages };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/securite/adresses/:blocage/debloquer', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_debloquer_adresse($1, $2, $3)', [lireUuid(params.blocage), corps.motif, maintenant()]);
+      return { corps: { ok: true }, apres: relireLesBlocages };
     },
   });
   ajouter({

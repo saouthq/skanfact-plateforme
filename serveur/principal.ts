@@ -58,6 +58,7 @@ import { dejaGarde, fichiersDesEcrans, versionDuCode } from './ecrans.ts';
 import { noterPanne, Refus } from './erreurs.ts';
 import { relireLesChaines } from './service/chaines.ts';
 import { DEMANDES_PAS_MS, faireLaRelectureDemandee } from './service/contenus.ts';
+import { Adresses, ADRESSES_PAS_MS } from './adresses.ts';
 import { suivreTour } from './service/tours.ts';
 import { CHAINES_PAS_MS } from './console/chaines.ts';
 import { listeDepuisFichier } from './mot-de-passe.ts';
@@ -268,7 +269,9 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
     ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
     lecteur: await lecteurDuServeur({ simultanees: c.lectures }), partenaires: { liste: c.partenaires, cle: c.coffre },
     // Les nouveautés que ce serveur porte : celles du code (serveur/nouveautes.ts), sauf dans un essai.
-    ...(dependances.nouveautes ? { nouveautes: dependances.nouveautes } : {}) };
+    ...(dependances.nouveautes ? { nouveautes: dependances.nouveautes } : {}),
+    // Les adresses internet de l'entrée (0143) : comptées, et fermées depuis la console.
+    adresses: new Adresses() };
   // Le relais des e-mails (un essai en donne un autre, qui garde ce qu'il reçoit) ; sans lui, aucun e-mail ne part.
   // Chaque e-mail laisse sa trace (0115) : l'instant et s'il est parti, rien d'autre.
   const relais = dependances.courriel ?? (c.courriel ? courrielSmtp(c.courriel.smtp, c.courriel.de) : null);
@@ -380,6 +383,19 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
     relectureDemandee = faireLaRelectureDemandee(pool, () => new Date(), () => arretDemande).catch((e: unknown) => { noterPanne('tâche faireLaRelectureDemandee', e); }).finally(() => { enRelectureDemandee = false; });
   }, DEMANDES_PAS_MS);
 
+  // Les adresses de l'entrée (0143 ; docs/console.md C67) : au démarrage puis chaque demi-minute, ce qui a été compté part
+  // à la base et la liste des adresses bloquées en revient ; le dernier compte part à l'arrêt.
+  const lesAdresses = ctx.adresses;
+  let passage: Promise<unknown> = Promise.resolve();
+  let enPassage = false;
+  const passerLesAdresses = () => {
+    if (enPassage || !lesAdresses) return;
+    enPassage = true;
+    passage = lesAdresses.passer(pool).catch((e: unknown) => { noterPanne('tâche passerLesAdresses', e); }).finally(() => { enPassage = false; });
+  };
+  passerLesAdresses();
+  const portier = setInterval(passerLesAdresses, ADRESSES_PAS_MS);
+
   // Les mesures du service (docs/console.md, C12) : chaque minute, ce qui s'est ajouté part dans la base ; un envoi à la
   // fois (une base lente ne les empile pas), et le dernier part à l'arrêt (une installation ne perd pas sa minute).
   const exemplaire = nomExemplaire(os.hostname(), new URL(adresse).port);
@@ -404,6 +420,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       clearInterval(mesureur);
       clearInterval(gardien);
       clearInterval(demandesDeRelecture);
+      clearInterval(portier);
       arretDemande = true;
       await tour;
       await verification;
@@ -414,7 +431,9 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       await bascules;
       await relecture;
       await relectureDemandee;
+      await passage;
       await app.close();
+      await lesAdresses?.passer(pool).catch(() => undefined);
       await mesures;
       await envoyerMesures(pool, exemplaire, collecte);
       await pool.end();

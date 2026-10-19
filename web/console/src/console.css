@@ -2112,8 +2112,14 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 }
 
 /* ── La sécurité (C26) ───────────────────────────────────────────────────────────────────────────────────────────── */
-.c-se-regards, .c-se-equipe, .c-se-duo { margin-top: 24px; }
-:is(.c-se-regards, .c-se-connexions, .c-se-regles, .c-se-equipe, .c-se-cles) .c-al-section-tete { padding: 0 0 16px; align-items: flex-start; }
+.c-se-regards, .c-se-equipe, .c-se-duo, .c-se-adresses { margin-top: 24px; }
+:is(.c-se-regards, .c-se-connexions, .c-se-regles, .c-se-equipe, .c-se-cles, .c-se-adresses) .c-al-section-tete { padding: 0 0 16px; align-items: flex-start; }
+/* Les adresses à l'entrée (0143) : les blocages en cours d'abord (une ligne chacun, son geste à droite), puis ce que
+   l'entrée a vu ces vingt-quatre heures. */
+.c-se-adresses { display: grid; gap: 12px; }
+.c-se-bloquees { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.c-se-bloquee { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 14px; border: 1px solid var(--c-trait); border-radius: 12px; }
+.c-se-bloquee p { margin: 4px 0 0; }
 .c-se-duo { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: start; }
 .c-se-regards-liste { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
 .c-se-regard { border: 1px solid var(--c-trait); border-radius: 14px; padding: 14px 16px; display: grid; gap: 6px; }

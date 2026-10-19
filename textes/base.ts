@@ -740,6 +740,17 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'relire une entreprise nommée est un geste de la direction', cle: 'base.console.relecture_direction', fr: 'relire une entreprise nommée est un geste de la direction' },
   { base: 'aucune entreprise ne porte ce numéro de client', cle: 'base.console.relecture_client', fr: 'aucune entreprise ne porte ce numéro de client : il s\'écrit comme sur sa fiche, « E-0012 »' },
   { base: 'une relecture est déjà en cours : la suivante se demande quand elle est finie', cle: 'base.console.relecture_en_cours', fr: 'une relecture est déjà en cours : la suivante se demande quand elle est finie' },
+  // Les adresses internet de l'entrée (0143, docs/console.md C67).
+  { base: 'seul le serveur compte et applique les adresses de l\'entrée', cle: 'base.adresses.serveur', fr: 'seul le serveur compte et applique les adresses de l\'entrée' },
+  { base: 'ce n\'est pas une adresse internet : quatre nombres séparés par des points (IPv4), ou une adresse IPv6', cle: 'base.adresses.forme', fr: 'ce n\'est pas une adresse internet : quatre nombres séparés par des points (IPv4), ou une adresse IPv6' },
+  { base: 'une adresse seule se bloque, jamais une plage d\'adresses', cle: 'base.adresses.plage', fr: 'une adresse seule se bloque, jamais une plage d\'adresses' },
+  { base: 'c\'est l\'adresse de la machine elle-même : elle ne se bloque pas', cle: 'base.adresses.machine', fr: 'c\'est l\'adresse de la machine elle-même : elle ne se bloque pas' },
+  { base: 'une adresse se bloque une heure ou un jour', cle: 'base.adresses.duree', fr: 'une adresse se bloque une heure ou un jour' },
+  { base: 'bloquer une adresse dit pourquoi (trois caractères au moins) : le motif reste au journal de la console', cle: 'base.adresses.motif_bloquer', fr: 'bloquer une adresse dit pourquoi (trois caractères au moins) : le motif reste au journal de la console' },
+  { base: 'cette adresse est déjà bloquée : débloque-la d\'abord pour changer sa durée', cle: 'base.adresses.deja', fr: 'cette adresse est déjà bloquée : débloque-la d\'abord pour changer sa durée' },
+  { base: 'débloquer une adresse dit pourquoi (trois caractères au moins) : le motif reste au journal de la console', cle: 'base.adresses.motif_debloquer', fr: 'débloquer une adresse dit pourquoi (trois caractères au moins) : le motif reste au journal de la console' },
+  { base: 'ce blocage n\'existe pas', cle: 'base.adresses.inconnu', fr: 'ce blocage n\'existe pas' },
+  { base: 'cette adresse n\'est plus bloquée', cle: 'base.adresses.plus_bloquee', fr: 'cette adresse n\'est plus bloquée' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

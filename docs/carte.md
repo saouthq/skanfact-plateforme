@@ -755,6 +755,10 @@ vaut pour tout le dépôt.*
     `serveur/ventes/pieces.ts` (`pieceDeLaLigne`, la pièce lue comme à l'émission) ; écrans `Securite.tsx` (« Relire
     maintenant… », la jauge, la rupture en mots, « Ouvrir l'incident ») et `Incidents.tsx` (la fiche « une chaîne
     d'empreintes cassée », la fenêtre remplie).
+  - **Les adresses à l'entrée** (1.54.0 ; `docs/console.md` C67) : base `0143_adresses.sql` (ce que l'entrée a refusé ou
+    freiné par adresse et par heure, trente jours ; les blocages) ; `serveur/adresses.ts` (le compte en mémoire, la liste
+    appliquée à l'entrée), `serveur/app.ts` (l'entrée fermée à une adresse bloquée, comptée) ; `serveur/console/adresses.ts`
+    (pur) ; écran `Securite.tsx` (« Les adresses à l'entrée », bloquer, débloquer).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

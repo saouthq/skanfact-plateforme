@@ -517,6 +517,23 @@ export interface BaseDeDonnees {
     annule_le: Date | null;
     annule_par: string | null;
   };
+  'plateforme.adresse_bloquee': {
+    id: Generated<string>;
+    adresse: string;
+    le: Date;
+    par: string;
+    jusqu_au: Date;
+    motif: string;
+    levee_le: Date | null;
+    levee_par: string | null;
+    levee_motif: string | null;
+  };
+  'plateforme.adresse_vue': {
+    adresse: string;
+    heure: Date;
+    echecs: Generated<number>;
+    freins: Generated<number>;
+  };
   'plateforme.arrivee_close': {
     entreprise: string;
     close_le: Date;

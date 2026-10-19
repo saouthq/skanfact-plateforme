@@ -7791,7 +7791,7 @@ prouver "une seconde d'attente dite « 1 secondes »" serveur/app.ts \
   "v.attendreSecondes === 1 ? motif('porte.trop_de_demandes_une') : " "" \
   "$LA1"
 prouver "la machine limitée comme un visiteur" serveur/app.ts \
-  "MACHINE.has(requete.ip) ? null : limiteurPublic.appel(requete.ip)" "limiteurPublic.appel(requete.ip)" \
+  "const v = machine ? null : limiteurPublic.appel(requete.ip);" "const v = limiteurPublic.appel(requete.ip);" \
   "$LA3"
 prouver "l'adresse écrite par le visiteur crue sans frontal déclaré" serveur/app.ts \
   "rang < relais" "true" \
@@ -12214,7 +12214,7 @@ prouver "une attente dite qui n'est pas celle de la base" serveur/console/securi
   "export const ATTENTES_MIN = [1, 5, 15, 60] as const;" "export const ATTENTES_MIN = [1, 5, 15, 30] as const;" \
   "$SE5"
 prouver "le refus effacé à la frappe, qui fait remonter le bouton" web/console/src/ecrans/Securite.tsx \
-  "valeur={motif} changer={setMotif} faute={faute > 0}" "valeur={motif} changer={(v: string) => { setMotif(v); setRefus(null); }} faute={faute > 0}" \
+  'aide={phrase(`${S}.l.motif_aide`)} valeur={motif} changer={setMotif} faute={faute > 0}' 'aide={phrase(`${S}.l.motif_aide`)} valeur={motif} changer={(v: string) => { setMotif(v); setRefus(null); }} faute={faute > 0}' \
   "$SEW2"
 prouver "l'équipe en tableau coupé au téléphone" web/console/src/console.css \
   "  .c-se-table thead { display: none; }" "" \
@@ -16606,6 +16606,95 @@ prouver 'la rupture dite par son code' 'web/console/src/ecrans/Securite.tsx' \
   'MOTIFS_CONTENU.has(x.motif) ? dire(`${S}.ch.c.motif.${x.motif}`) : x.motif ?? '"'"''"'"'' \
   'MOTIFS_CONTENU.has(x.motif) ? x.motif : x.motif ?? '"'"''"'"'' \
   'une facture retouchée par-dessous la base : relue depuis l'"'"'écran, la rupture nommée, l'"'"'incident ouvert d'"'"'un clic'
+
+# 1.54.0 : les adresses à l'entrée, vues et bloquées (docs/console.md C67).
+prouver 'une adresse bloquée qui entre quand même' 'serveur/app.ts' \
+  '          if (bloquee) return envoyer(403,' \
+  '          if (false && bloquee) return envoyer(403,' \
+  'l'"'"'entrée compte ce qu'"'"'elle refuse, par adresse ; bloquer ferme l'"'"'entrée seule, une autre adresse passe, une session continue'
+prouver 'un refus de l'"'"'entrée qui ne se compte pas' 'serveur/app.ts' \
+  'if (!machine && (res.statut === 401 || res.statut === 429)) ctx.adresses?.noter(' \
+  'if (!machine && (res.statut === 429)) ctx.adresses?.noter(' \
+  'l'"'"'entrée compte ce qu'"'"'elle refuse, par adresse ; bloquer ferme l'"'"'entrée seule, une autre adresse passe, une session continue'
+prouver 'la machine comptée comme une attaque' 'serveur/app.ts' \
+  'if (!machine && (res.statut === 401 || res.statut === 429))' \
+  'if ((res.statut === 401 || res.statut === 429))' \
+  'l'"'"'entrée compte ce qu'"'"'elle refuse, par adresse ; bloquer ferme l'"'"'entrée seule, une autre adresse passe, une session continue'
+prouver 'un blocage appliqué au prochain passage seulement' 'serveur/console/routes.ts' \
+  '      return { statut: 201, corps: r, apres: relireLesBlocages };' \
+  '      return { statut: 201, corps: r };' \
+  'l'"'"'entrée compte ce qu'"'"'elle refuse, par adresse ; bloquer ferme l'"'"'entrée seule, une autre adresse passe, une session continue'
+prouver 'un déblocage appliqué au prochain passage seulement' 'serveur/console/routes.ts' \
+  '      return { corps: { ok: true }, apres: relireLesBlocages };' \
+  '      return { corps: { ok: true } };' \
+  'l'"'"'entrée compte ce qu'"'"'elle refuse, par adresse ; bloquer ferme l'"'"'entrée seule, une autre adresse passe, une session continue'
+prouver 'le support qui bloque une adresse' 'base/migrations/0143_adresses.sql' \
+  'declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"']); v_ip inet; v_id uuid; v_jusqua timestamptz;' \
+  'declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"', '"'"'support'"'"']); v_ip inet; v_id uuid; v_jusqua timestamptz;' \
+  'l'"'"'entrée compte ce qu'"'"'elle refuse, par adresse ; bloquer ferme l'"'"'entrée seule, une autre adresse passe, une session continue'
+prouver 'une adresse bloquée deux fois' 'base/migrations/0143_adresses.sql' \
+  '  if found then perform socle.refus('"'"'cette adresse est déjà bloquée : débloque-la d'"'"''"'"'abord pour changer sa durée'"'"'); end if;
+' \
+  '' \
+  'l'"'"'entrée compte ce qu'"'"'elle refuse, par adresse ; bloquer ferme l'"'"'entrée seule, une autre adresse passe, une session continue'
+prouver 'un blocage levé deux fois' 'base/migrations/0143_adresses.sql' \
+  '  if v_b.levee_le is not null or v_b.jusqu_au <= p_maintenant then perform socle.refus('"'"'cette adresse n'"'"''"'"'est plus bloquée'"'"'); end if;
+' \
+  '' \
+  'l'"'"'entrée compte ce qu'"'"'elle refuse, par adresse ; bloquer ferme l'"'"'entrée seule, une autre adresse passe, une session continue'
+prouver 'un blocage absent du journal' 'base/migrations/0143_adresses.sql' \
+  '    values (socle.moi(), v_role, '"'"'service.adresse_bloquee'"'"', btrim(p_motif), jsonb_build_object('"'"'adresse'"'"', host(v_ip), '"'"'heures'"'"', p_heures));' \
+  '    values (socle.moi(), v_role, '"'"'service.adresse_bloquee'"'"', btrim(p_motif), jsonb_build_object('"'"'adresse'"'"', '"'"'cachée'"'"', '"'"'heures'"'"', p_heures));' \
+  'l'"'"'entrée compte ce qu'"'"'elle refuse, par adresse ; bloquer ferme l'"'"'entrée seule, une autre adresse passe, une session continue'
+prouver 'la machine bloquée' 'base/migrations/0143_adresses.sql' \
+  '  if v_ip <<= '"'"'127.0.0.0/8'"'"'::inet or v_ip = '"'"'::1'"'"'::inet or v_ip = '"'"'::ffff:127.0.0.1'"'"'::inet then' \
+  '  if false then' \
+  'une adresse seule, jamais la machine ni une plage ; une heure ou un jour ; une personne ne note rien'
+prouver 'une plage d'"'"'adresses bloquée' 'base/migrations/0143_adresses.sql' \
+  '  if masklen(v_ip) <> (case family(v_ip) when 4 then 32 else 128 end) then' \
+  '  if false then' \
+  'une adresse seule, jamais la machine ni une plage ; une heure ou un jour ; une personne ne note rien'
+prouver 'un blocage d'"'"'une semaine' 'base/migrations/0143_adresses.sql' \
+  '  if coalesce(p_heures, 0) not in (1, 24) then perform socle.refus('"'"'une adresse se bloque une heure ou un jour'"'"'); end if;' \
+  '  if coalesce(p_heures, 0) not in (1, 24, 168) then perform socle.refus('"'"'une adresse se bloque une heure ou un jour'"'"'); end if;' \
+  'une adresse seule, jamais la machine ni une plage ; une heure ou un jour ; une personne ne note rien'
+prouver 'une personne qui note des adresses' 'base/migrations/0143_adresses.sql' \
+  '  if socle.moi() is not null then perform socle.refus('"'"'seul le serveur compte et applique les adresses de l'"'"''"'"'entrée'"'"'); end if;
+  for k, v in' \
+  '  for k, v in' \
+  'une adresse seule, jamais la machine ni une plage ; une heure ou un jour ; une personne ne note rien'
+prouver 'un frein de l'"'"'entrée qui ne se compte pas' 'serveur/app.ts' \
+  '            ctx.adresses?.noter(requete.ip, '"'"'frein'"'"');
+' \
+  '' \
+  'ce que l'"'"'entrée freine se compte aussi ; une clé qui n'"'"'est pas une adresse n'"'"'entre pas'
+prouver 'une clé qui n'"'"'est pas une adresse qui entre' 'base/migrations/0143_adresses.sql' \
+  '    begin v_ip := k::inet; exception when others then continue; end;' \
+  '    begin v_ip := k::inet; exception when others then v_ip := '"'"'0.0.0.0'"'"'::inet; end;' \
+  'ce que l'"'"'entrée freine se compte aussi ; une clé qui n'"'"'est pas une adresse n'"'"'entre pas'
+prouver 'la mémoire qui grandit sans fin' 'serveur/adresses.ts' \
+  '      if (this.comptes.size >= ADRESSES_AU_PLUS) { this.perdues += 1; return; }
+' \
+  '' \
+  'une attaque venue de partout n'"'"'emplit pas la mémoire : au-delà de dix mille adresses, le reste se perd et se dit'
+prouver 'une adresse sans sa forme qui passe à l'"'"'écran' 'serveur/console/adresses.ts' \
+  '      if (!adresse) return [];
+' \
+  '' \
+  'ce que la console lit : rien qui n'"'"'ait sa forme'
+prouver 'l'"'"'avertissement d'"'"'une adresse partagée absent' 'web/console/src/ecrans/Securite.tsx' \
+  '      <Alerte ton="attention"><span>{phrase(`${S}.ad.f.partagee`)}</span></Alerte>
+' \
+  '' \
+  'les adresses à l'"'"'entrée : une adresse qui frappe se bloque depuis sa ligne, un jour, puis se débloque'
+prouver 'un blocage d'"'"'un jour qui dure une heure' 'web/console/src/ecrans/Securite.tsx' \
+  '<button key={h} type="button" className="c-pilule" aria-pressed={heures === h} onClick={() => setHeures(h)}>' \
+  '<button key={h} type="button" className="c-pilule" aria-pressed={heures === h} onClick={() => setHeures(1)}>' \
+  'les adresses à l'"'"'entrée : une adresse qui frappe se bloque depuis sa ligne, un jour, puis se débloque'
+prouver 'la fin d'"'"'un blocage dite « jusqu'"'"'à le »' 'web/console/src/ecrans/Securite.tsx' \
+  '? dire(`${S}.ad.jusqua_heure`, { heure: heureDe(iso) }) : dire(`${S}.ad.jusqua_jour`, { jour: jourMois(jourDe(iso)), heure: heureDe(iso) }));' \
+  '? dire(`${S}.ad.jusqua_heure`, { heure: heureDe(iso) }) : dire(`${S}.ad.jusqua_heure`, { heure: heureDe(iso) }));' \
+  'les adresses à l'"'"'entrée : une adresse qui frappe se bloque depuis sa ligne, un jour, puis se débloque'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

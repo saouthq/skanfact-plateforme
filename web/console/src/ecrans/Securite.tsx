@@ -11,11 +11,13 @@
 // trente jours, et chaque chaîne cassée avec son point de rupture. Depuis 0142 (docs/console.md C66), le contenu de chaque
 // pièce aussi, recomparé à son empreinte ; une relecture se demande d'ici (toutes, ou une entreprise pour la direction), et
 // une chaîne cassée ouvre son incident sur la fiche réflexe « une chaîne d'empreintes cassée ».
+// Les adresses internet de l'entrée (0143, C67) : celles qui ont été refusées ou freinées ces vingt-quatre heures, et le
+// geste qui leur ferme l'entrée une heure ou un jour (les personnes déjà connectées continuent).
 import { useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
 import { entier } from '../nombres.ts';
-import { heureDe, jourCourt, quand } from '../temps.ts';
+import { heureDe, jourCourt, jourDe, jourMois, quand } from '../temps.ts';
 import { Alerte, Bouton, Champ, Dialogue, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
 import { Secrets, type Secret } from './Secrets.tsx';
 import { EnteteService, EtatPuce, Tuile, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type EtatBrique, type Veille } from './Service.tsx';
@@ -36,10 +38,16 @@ type Donnees = {
   heures: Heure[]; motsDePasseFaux: number; freines: number; aRegarder: ARegarder[]; equipe: Membre[]; regles: Regle[];
   cles: { id: string; retiree: boolean }[] | null; certificat: { expire: string; jours: number | null } | null;
   chaines?: Chaines;
+  adresses?: Adresses; dureesBlocage?: number[];
   // Les secrets et leur échéance (0130), le plus pressé d'abord ; et le délai de « bientôt ».
   secrets?: Secret[]; secretBientot?: number;
 };
 type Nommee = { id: string; nom: string; numero: string | null };
+type Adresses = {
+  vues: { adresse: string; echecs: number; freins: number; derniere: string | null; bloquee: { id: string; jusquAu: string } | null }[];
+  bloquees: { id: string; adresse: string; le: string; jusquAu: string; motif: string; par: string }[];
+  finies: { adresse: string; le: string; fin: string; levee: boolean }[];
+};
 type Demande = {
   id: string; demandeeLe: string; par: string; toutes: boolean; entreprise: Nommee | null; total: number | null; faites: number; pieces: number;
   cassees: number; commencee: boolean; nouvelleLe: string | null; finieLe: string | null; arretee: boolean;
@@ -227,6 +235,163 @@ function Equipe({ d }: { d: Donnees }) {
   );
 }
 
+// ── Les adresses à l'entrée ─────────────────────────────────────────────────────────────────────────────────────────
+type GesteAdresse = { sorte: 'bloquer'; adresse: string | null } | { sorte: 'debloquer'; b: Adresses['bloquees'][number] };
+// La fin d'un blocage : « jusqu'à 15:34 » aujourd'hui, « jusqu'au 20/10 à 15:34 » un autre jour.
+const jusqua = (iso: string, aujourdhui: string) => (jourDe(iso) === aujourdhui
+  ? dire(`${S}.ad.jusqua_heure`, { heure: heureDe(iso) }) : dire(`${S}.ad.jusqua_jour`, { jour: jourMois(jourDe(iso)), heure: heureDe(iso) }));
+function LesAdresses({ a, aujourdhui, faire }: { a: Adresses | undefined; aujourdhui: string; faire: (g: GesteAdresse) => void }) {
+  if (!a) return null;
+  return (
+    <section className="c-carte c-se-adresses" aria-labelledby="se-adresses">
+      <div className="c-al-section-tete">
+        <div>
+          <h2 id="se-adresses">{titre(`${S}.ad.titre`)}</h2>
+          <p className="c-carte-sous">{phrase(`${S}.ad.sous`)}</p>
+        </div>
+        <Bouton petit icone="plus" onClick={() => faire({ sorte: 'bloquer', adresse: null })}>{titre(`${S}.ad.bloquer_une`)}</Bouton>
+      </div>
+      {a.bloquees.length ? (
+        <ul className="c-se-bloquees">
+          {a.bloquees.map((b) => (
+            <li key={b.id} className="c-se-bloquee">
+              <div>
+                <b className="c-mono" data-donnee>{b.adresse}</b>{' '}
+                <Puce ton="urgent">{dire(`${S}.ad.bloquee`, { jusqua: jusqua(b.jusquAu, aujourdhui) })}</Puce>
+                <p className="c-sous">{maj(dire(`${S}.ad.par`, { par: b.par, quand: quand(b.le, aujourdhui) }))} · <span data-donnee>« {b.motif} »</span></p>
+              </div>
+              <Bouton petit onClick={() => faire({ sorte: 'debloquer', b })} etiquette={titre(`${S}.ad.debloquer_aria`, { adresse: b.adresse })}>{titre(`${S}.ad.debloquer`)}</Bouton>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {a.vues.length ? (
+        <div className="c-defile">
+          <table className="c-table c-se-adresses-table">
+            <thead><tr>
+              <th>{titre(`${S}.ad.c.adresse`)}</th><th className="c-num">{titre(`${S}.ad.c.echecs`)}</th><th className="c-num">{titre(`${S}.ad.c.freins`)}</th>
+              <th>{titre(`${S}.ad.c.derniere`)}</th><th><span className="c-cache">{titre(`${S}.ad.c.geste`)}</span></th>
+            </tr></thead>
+            <tbody>
+              {a.vues.map((v) => (
+                <tr key={v.adresse}>
+                  <td className="c-mono" data-donnee>{v.adresse}</td>
+                  <td className="c-num">{entier(v.echecs)}</td>
+                  <td className="c-num">{entier(v.freins)}</td>
+                  <td>{v.derniere ? maj(quand(v.derniere, aujourdhui)) : '—'}</td>
+                  <td>{v.bloquee ? <span className="c-sous">{maj(dire(`${S}.ad.bloquee`, { jusqua: jusqua(v.bloquee.jusquAu, aujourdhui) }))}</span>
+                    : <Bouton petit onClick={() => faire({ sorte: 'bloquer', adresse: v.adresse })} etiquette={titre(`${S}.ad.bloquer_aria`, { adresse: v.adresse })}>{titre(`${S}.ad.bloquer`)}</Bouton>}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : <Vide>{phrase(`${S}.ad.vide`)}</Vide>}
+      {a.finies.length ? (
+        <p className="c-sous">{phrase(`${S}.ad.finies`, { liste: a.finies.map((f) => `${f.adresse} (${dire(f.levee ? `${S}.ad.levee` : `${S}.ad.finie`, { quand: quand(f.fin, aujourdhui) })})`).join(', ') })}</p>
+      ) : null}
+    </section>
+  );
+}
+
+function FenetreBloquer({ adresse, durees, fermer, fait }: { adresse: string | null; durees: number[]; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const [ip, setIp] = useState(adresse ?? '');
+  const [heures, setHeures] = useState(durees[0] ?? 1);
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState<{ champ: 'adresse' | 'motif'; n: number } | null>(null);
+  const [occupe, setOccupe] = useState(false);
+  const fauter = (champ: 'adresse' | 'motif', texte: string) => { setRefus(texte); setFaute((f) => ({ champ, n: (f?.n ?? 0) + 1 })); };
+  const envoyer = () => {
+    if (ip.trim().length < 2) { fauter('adresse', phrase(`${S}.ad.f.adresse_vide`)); return; }
+    if (motif.trim().length < 3) { fauter('motif', phrase('console.ecran.geste.motif_court')); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const res = await api('POST', '/console/service/securite/adresses', { adresse: ip.trim(), heures, motif: motif.trim() });
+        if (!res) return;
+        if (res.statut === 201) { toast(phrase(`${S}.ad.f.fait`, { adresse: ip.trim() })); fait(); return; }
+        setRefus(refusDe(res));
+        setFaute((f) => ({ champ: res.corps.champ === 'motif' ? 'motif' : 'adresse', n: (f?.n ?? 0) + 1 }));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  return (
+    <Dialogue titre={titre(`${S}.ad.f.titre`)} sous={adresse ?? undefined} sousDonnee fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${S}.ad.f.bouton`)}</Bouton>
+      </>}>
+      {adresse ? null : (
+        <Champ libelle={titre(`${S}.ad.f.adresse`)} aide={phrase(`${S}.ad.f.adresse_aide`)} valeur={ip} changer={setIp} placeholder="196.203.12.34"
+          autoComplete="off" faute={faute?.champ === 'adresse'} n={faute?.n ?? 0} />
+      )}
+      <div className="c-champ">
+        <span className="c-champ-libelle" id="se-bloquer-duree">{titre(`${S}.ad.f.duree`)}</span>
+        <div className="c-pilules c-in-pilules" role="group" aria-labelledby="se-bloquer-duree">
+          {durees.map((h) => (
+            <button key={h} type="button" className="c-pilule" aria-pressed={heures === h} onClick={() => setHeures(h)}>{maj(dire(`${S}.ad.f.heures_${h === 1 ? '1' : 'n'}`, { n: h }))}</button>
+          ))}
+        </div>
+      </div>
+      <Alerte ton="attention"><span>{phrase(`${S}.ad.f.partagee`)}</span></Alerte>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre(`${K}.al.geste.ce_qui_va`)}</span>
+        <ul>
+          <li>{phrase(`${S}.ad.f.p1`)}</li>
+          <li>{phrase(`${S}.ad.f.p2`)}</li>
+          <li>{phrase(`${S}.ad.f.p3`)}</li>
+        </ul>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${S}.ad.f.motif_aide`)} valeur={motif} changer={setMotif} faute={faute?.champ === 'motif'} n={faute?.n ?? 0} />
+      <p className="c-al-qui">{phrase(`${K}.al.geste.qui`, { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+function FenetreDebloquer({ b, aujourdhui, fermer, fait }: { b: Adresses['bloquees'][number]; aujourdhui: string; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState(0);
+  const [occupe, setOccupe] = useState(false);
+  const envoyer = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((x) => x + 1); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const res = await api('POST', `/console/service/securite/adresses/${b.id}/debloquer`, { motif: motif.trim() });
+        if (!res) return;
+        if (res.statut === 200) { toast(phrase(`${S}.ad.d.fait`, { adresse: b.adresse })); fait(); return; }
+        setRefus(refusDe(res));
+        setFaute((x) => x + 1);
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  return (
+    <Dialogue titre={titre(`${S}.ad.d.titre`)} sous={b.adresse} sousDonnee fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre(`${S}.ad.d.garder`)}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${S}.ad.d.bouton`)}</Bouton>
+      </>}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre(`${K}.al.geste.ce_qui_va`)}</span>
+        <ul>
+          <li>{phrase(`${S}.ad.d.p1`, { jusqua: jusqua(b.jusquAu, aujourdhui) })}</li>
+          <li>{phrase(`${S}.ad.d.p2`)}</li>
+        </ul>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${S}.ad.d.motif_aide`)} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} premier />
+      <p className="c-al-qui">{phrase(`${K}.al.geste.qui`, { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
 // ── Les chaînes d'empreintes ────────────────────────────────────────────────────────────────────────────────────────
 const ETAT_CHAINES: Record<Chaines['etat'], EtatBrique> = { bonne: 'bon', arretee: 'attention', casse: 'grave', jamais: 'nonmesure' };
 const SORTES_CHAINE = new Set(['serie', 'livres', 'caisse']);
@@ -403,7 +568,7 @@ function FenetreRelire({ role, client, fermer, fait }: { role: Donnees['role']; 
       {role === 'direction' && !client ? (
         <div className="c-champ">
           <span className="c-champ-libelle" id="se-relire-quoi">{titre(`${S}.ch.r.f.quoi`)}</span>
-          <div className="c-pilules" role="group" aria-labelledby="se-relire-quoi">
+          <div className="c-pilules c-in-pilules" role="group" aria-labelledby="se-relire-quoi">
             <button type="button" className="c-pilule" aria-pressed={!une} onClick={() => setUne(false)}>{maj(dire(`${S}.ch.r.toutes`))}</button>
             <button type="button" className="c-pilule" aria-pressed={une} onClick={() => setUne(true)}>{maj(dire(`${S}.ch.r.f.une`))}</button>
           </div>
@@ -482,6 +647,7 @@ export function Securite() {
   useRelireTantQueRegarde(relire, d?.chaines?.demande && !d.chaines.demande.finieLe ? 5_000 : undefined);
   const [lever, setLever] = useState<ARegarder | null>(null);
   const [relecture, setRelecture] = useState<{ client: Nommee | null } | null>(null);
+  const [gesteAdresse, setGesteAdresse] = useState<GesteAdresse | null>(null);
   return (
     <>
       <EnteteService vue="securite" d={d} relire={relire} occupe={l.etat === 'lu' && l.enCours} />
@@ -491,6 +657,7 @@ export function Securite() {
         <>
           <Chiffres d={d} />
           <Regards d={d} lever={setLever} />
+          <LesAdresses a={d.adresses} aujourdhui={d.aujourdhui} faire={setGesteAdresse} />
           <div className="c-se-duo">
             <Connexions d={d} />
             <Regles d={d} />
@@ -502,6 +669,8 @@ export function Securite() {
         </>
       ) : null}
       {lever ? <FenetreLever r={lever} fermer={() => setLever(null)} fait={() => { setLever(null); relire(); }} /> : null}
+      {gesteAdresse?.sorte === 'bloquer' && d ? <FenetreBloquer adresse={gesteAdresse.adresse} durees={d.dureesBlocage ?? [1, 24]} fermer={() => setGesteAdresse(null)} fait={() => { setGesteAdresse(null); relire(); }} /> : null}
+      {gesteAdresse?.sorte === 'debloquer' && d ? <FenetreDebloquer b={gesteAdresse.b} aujourdhui={d.aujourdhui} fermer={() => setGesteAdresse(null)} fait={() => { setGesteAdresse(null); relire(); }} /> : null}
       {relecture && d ? <FenetreRelire role={d.role} client={relecture.client} fermer={() => setRelecture(null)} fait={() => { setRelecture(null); relire(); }} /> : null}
     </>
   );
