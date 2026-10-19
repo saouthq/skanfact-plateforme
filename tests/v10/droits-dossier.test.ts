@@ -119,6 +119,10 @@ describe('les droits geste par geste dans le dossier v10', () => {
     expect((await e.envoyer(jc, [{ collection: 'packs', cle: 'p1', rang: 0, revision: null, contenu: { id: 'p1' } }])).corps.motif).toMatch(/^Ton rôle ne permet pas d'enregistrer cette partie du dossier /);
     // La paie écrit la paie ; la comptabilité interne écrit les achats, pas les pièces de vente ; la lecture, rien.
     expect((await e.envoyer(e.membres.paie?.jeton ?? '', [{ collection: 'employees', cle: 'e3', rang: 1, revision: null, contenu: { id: 'e3', name: 'Mouna Jaziri' } }])).statut).toBe(200);
+    // Le pointage des salariés (1.60.0) est de la paie : la paie l'écrit ; le commercial non, et le refus le nomme.
+    const pointe = { collection: 'timesheets', cle: 't1', rang: 0, revision: null, contenu: { id: 't1', employeeId: 'e3', year: 2026, month: 9, jours: { 8: 'A' }, hs: {} } };
+    expect((await e.envoyer(jc, [pointe])).corps.motif).toMatch(/^Ton rôle ne permet pas d'enregistrer le pointage des salariés /);
+    expect((await e.envoyer(e.membres.paie?.jeton ?? '', [pointe])).statut).toBe(200);
     const jci = e.membres.comptabilite_interne?.jeton ?? '';
     expect((await e.envoyer(jci, [{ collection: 'suppliers', cle: 's2', rang: 1, revision: null, contenu: { id: 's2', name: 'Sable du Nord' } }])).statut).toBe(200);
     expect((await e.envoyer(jci, [{ collection: 'documents', cle: 'd2', rang: 1, revision: null, contenu: { ...devis, id: 'd2' } }])).statut).toBe(403);

@@ -753,4 +753,6 @@ export const ADAPTATIONS = [
   ...lireFichier('offre-complet.txt'),
   // ── La paie de 2026 (19/10/2026, 1.59.0 ; docs/paie.md) : les taux des documents réels, les primes de chaque mois ──
   ...lireFichier('paie-2026.txt'),
+  // ── Le pointage des salariés (19/10/2026, 1.60.0 ; docs/paie.md) : la grille du mois, les heures supplémentaires ──
+  ...lireFichier('paie-pointage.txt'),
 ];

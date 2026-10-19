@@ -1483,6 +1483,33 @@ body.dark .cal-d.out { color: #5b6572; }
    le vise (H-E1, dans une fenêtre). Le texte collé garde ses colonnes (chasse fixe, pas de retour à
    la ligne) : c'est ce qui permet de reconnaître son tableur dans la case. */
 .modal:where(:has(.import-tableau)) { width: 860px; }
+/* (plateforme) 1.60.0 — le pointage : une case par jour, un code par couleur (les couleurs de l'application, donc
+   lisibles en sombre), le repos et le hors-contrat en retrait, un jour pointé à la main souligné. */
+.pt-legende { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 4px 0 12px; font-size: 12px; color: var(--muted); }
+.pt-cle { display: inline-flex; align-items: center; gap: 6px; }
+/* `table.list.compact td` porte deux éléments et deux classes : ces règles-ci en portent autant, et viennent après (vu à
+   l'écran : des cases de 48 px, et « Payés » caché derrière le défilement). Le nom reste à sa place quand les jours
+   défilent ; les jours payés, les absences et les heures viennent juste après lui. */
+table.list.pt-grille th, table.list.pt-grille td { padding-inline: 8px; }
+table.list.pt-grille th.pt-j { text-align: center; padding: 8px 1px; min-width: 24px; font-variant-numeric: tabular-nums; letter-spacing: 0; }
+table.list.pt-grille th.pt-j span { display: block; font-size: 10px; font-weight: 500; color: var(--muted); }
+table.list.pt-grille th.pt-repos { color: var(--muted); }
+table.list.pt-grille td.pt-td { padding: 3px 1px; text-align: center; }
+table.list.pt-grille th:first-child, table.list.pt-grille td:first-child { position: sticky; left: 0; z-index: 1; background: var(--panel); }
+table.list.pt-grille thead th:first-child { z-index: 3; }
+.pt-c { display: inline-flex; align-items: center; justify-content: center; width: 22px; height: 24px; border-radius: 6px; border: 1px solid transparent; font: 700 11px/1 inherit; cursor: pointer; padding: 0; background: var(--bg); color: var(--text); }
+span.pt-c { cursor: default; }
+.pt-c:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.pt-c.pt-P { background: var(--success-soft); color: var(--success); }
+.pt-c.pt-D { background: var(--warning-soft); color: var(--warning); }
+.pt-c.pt-A { background: var(--danger-soft); color: var(--danger); }
+.pt-c.pt-C { background: var(--info-soft); color: var(--info); }
+.pt-c.pt-M { background: var(--primary-soft); color: var(--primary); }
+.pt-c.pt-F { background: var(--bg); color: var(--text); border-color: var(--border); }
+.pt-c.pt-R { background: transparent; color: var(--muted); }
+.pt-c.pt-hors { background: transparent; color: var(--line); cursor: default; }
+.pt-c.pt-main { box-shadow: inset 0 -2px 0 currentColor; }
+table.list.pt-grille input.pt-hs { width: 64px; height: 30px; padding: 2px 8px; }
 /* (plateforme) 1.59.0 — vu à l'écran : la fenêtre passait de 580 à 860 pixels à la première ligne de prime (la règle des
    tableaux de lignes), et « + Prime » fuyait sous le curseur. Les deux fenêtres qui portent des primes sont larges d'emblée ;
    sur un bulletin, les primes et les retenues se suivent. */

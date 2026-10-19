@@ -64,7 +64,7 @@ export const LISTES: Record<string, Regle> = {
   suppliers: ACHATS, purchases: ACHATS, supplierOrders: ACHATS, receptions: ACHATS,
   accounts: R('tresorerie.comptes.voir', 'tresorerie.comptes.modifier'), movements: R('tresorerie.voir', 'tresorerie.modifier'),
   stockAdjustments: STOCK, serials: STOCK, depots: STOCK,
-  employees: PAIE, payslips: PAIE, leaves: PAIE, advances: PAIE, socialFilings: PAIE,
+  employees: PAIE, payslips: PAIE, leaves: PAIE, advances: PAIE, socialFilings: PAIE, timesheets: PAIE,
   assets: COMPTA, ecrituresOD: COMPTA, fiscalFilings: COMPTA, clotures: COMPTA, fiscalDeadlines: COMPTA,
   deleted: TECHNIQUE, conflictArchive: TECHNIQUE,
 };

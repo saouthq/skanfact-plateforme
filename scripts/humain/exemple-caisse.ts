@@ -25,6 +25,9 @@ const personne = async (nom: string, email: string) => {
 
 const nadia = await personne('Nadia', 'nadia@exemple.tn');
 const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', nadia, { methode: 'application' })).adresseApplication))?.[1] ?? '';
+// Le secret s'écrit tout de suite : un arrêt plus loin (un caissier déjà inscrit) ne doit pas laisser Nadia sans son code.
+fs.mkdirSync(TRAVAIL, { recursive: true });
+fs.writeFileSync(`${TRAVAIL}/totp.secret`, secret, { mode: 0o600 });
 const ent = String((await api('POST', '/entreprises', nadia, { raisonSociale: 'Boulangerie Ben Youssef' })).id);
 await api('GET', `/entreprises/${ent}/dossier-v10`, nadia);
 await api('POST', `/entreprises/${ent}/dossier-v10`, nadia, { changements: [
@@ -38,8 +41,6 @@ for (const [nom, email] of [['Sami', 'sami@exemple.tn'], ['Leila', 'leila@exempl
   const inv = String((await api('POST', `/entreprises/${ent}/invitations`, nadia, { email, roles: ['caissier'] })).jeton);
   await api('POST', '/invitations/accepter', j, { jeton: inv });
 }
-fs.mkdirSync(TRAVAIL, { recursive: true });
-fs.writeFileSync(`${TRAVAIL}/totp.secret`, secret, { mode: 0o600 });
 fs.writeFileSync(`${TRAVAIL}/comptes.txt`, [
   `Boulangerie Ben Youssef (${ent})`, `mot de passe de tous : ${MDP}`,
   'nadia@exemple.tn  propriétaire (code du téléphone : node scripts/humain/code.ts)',

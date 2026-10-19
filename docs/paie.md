@@ -206,8 +206,9 @@ d'un millime près expliqués plus bas. **Ce qui manquait**, en trois lots :
 
 - **Un mois où le salarié entre (ou sort) ET s'absente sans solde** : le brut proratisé à l'entrée est ensuite réduit
   de l'absence sur 26 jours du brut **proratisé** (la v10 telle quelle), au lieu de 26 jours du brut de la fiche. Les
-  primes au jour, elles, comptent juste (les jours du contrat moins l'absence). Le pointage (1.60.0) fera des jours
-  payés la seule source du mois, et corrigera ce cas.
+  primes au jour, elles, comptent juste (les jours du contrat moins l'absence). Le pointage (1.60.0) ne le corrige pas :
+  la retenue d'absence se calcule dans le moteur que le serveur refait (brique 31) ; elle se reprend avec le journal
+  de paie (1.61.0), dont la colonne « J. » fait des jours payés la source du brut.
 - Le Cabinet tient la paie d'un dossier bulletin par bulletin, avec une seule prime : les primes de chaque mois, le
   pointage et le journal y viendront après l'entreprise.
 
@@ -223,3 +224,80 @@ d'un millime près expliqués plus bas. **Ce qui manquait**, en trois lots :
   puis des barèmes d'avant 2026 dits et repris.
 - `tests/v10/paie.test.ts` et le parcours de la paie : le bulletin calculé à la main au barème de 2026 (net 1 120,386).
 - Vingt-huit preuves (`tests/preuves.sh`, « 1.59.0 »).
+
+## Le pointage des salariés (19/10/2026, 1.60.0)
+
+*Deuxième lot de la demande de Skander (« ajouter le pointage des salariés […] comme le vrai logiciel »). Le journal de
+paie réel compte, pour chaque salarié, les jours payés du mois (« J. » : 26, 19,5, 10,5…) : c'est sur eux que le brut et
+les primes au jour se proratisent. Le pointage les donne.*
+
+### Ce que le lot fait (`web/v10/paie-pointage.txt`)
+
+- **L'onglet Pointage de la Paie**, juste après les bulletins : une grille par mois, une case par salarié et par jour.
+  Les codes : **P** présent, **½** demi-journée (la moitié non payée), **A** absent non payé, **C** congé payé, **M**
+  maladie, **F** jour férié, **R** repos ; « · » hors contrat (avant l'entrée, après la sortie), qui ne se pointe pas.
+  Sans rien pointer, la grille est le calendrier (le repos de la semaine des Barèmes) et les congés et absences saisis
+  s'y posent d'eux-mêmes ; seul ce qu'on change se garde (`timesheets`), si bien qu'une absence saisie plus tard se
+  pose encore sur les jours qu'on n'a pas touchés.
+- **À la souris et au clavier** : un clic passe au code suivant ; une lettre pose son code ; les flèches passent d'une
+  case à l'autre (un jour hors contrat se saute) ; le curseur reste sur la case. Un jour de repos ne prend que
+  « Repos » ou « Présent » (travaillé : ses heures vont en heures supplémentaires) ; une absence s'y refuse, et le dit.
+- **Les jours payés et les jours non payés** de chaque salarié se lisent juste après son nom, recalculés à chaque
+  geste : le mois complet des Barèmes (26), moins les jours ouvrables hors contrat, moins les absences non payées
+  (une demi-journée en compte une moitié ; une absence ne se compte jamais un jour de repos). Ce sont ceux du bulletin.
+- **Les heures supplémentaires** : jusqu'à trois majorations, réglées dans les Barèmes (« Heures supplémentaires » :
+  les heures d'un mois complet, 208 = 26 jours de 8 heures, et les majorations en %) ; **aucune n'est écrite d'avance**
+  (deux sources donnent des taux différents : **À VÉRIFIER**). Chaque majoration réglée a sa colonne dans la grille ;
+  sans majoration, la grille dit où les régler et « Ouvrir les Barèmes » amène à la case. Une heure vaut le brut de la
+  fiche divisé par les heures d'un mois complet, majoré : 6 h à +25 % sur 1 234,567 font 44,516 DT, une prime imposable
+  (« Heures supplémentaires : 6 h à +25 % »). Comme dans un tableur, Entrée passe au salarié suivant.
+- **Le bulletin suit le pointage** : un mois pointé donne à « Établir les bulletins » et à un bulletin nouveau ses jours
+  d'absence non payés et ses heures supplémentaires ; les primes au jour suivent ses jours payés. Un bulletin déjà
+  établi qui ne suit plus le pointage le dit, sous la grille (« 1 jour non payé au bulletin, 0 au pointage » ; « pas
+  les mêmes heures supplémentaires »), et « Reprendre le pointage dans le bulletin » le met à jour — un bulletin déjà
+  payé demande d'abord. Les heures reprises remplacent les anciennes, elles ne s'y ajoutent pas.
+- **Les droits et l'offre** : le pointage est de la paie (le rôle Paie l'écrit, le commercial non, et le refus le
+  nomme : « le pointage des salariés ») ; l'offre Essentiel, qui n'a pas la paie, n'en crée pas de nouveau.
+- **Le calcul du bulletin ne change pas** : une absence et une heure supplémentaire arrivent au bulletin comme si on
+  les avait tapées ; le serveur recalcule le bulletin comme avant, au même millime que l'écran.
+
+### Vu à l'écran, avant l'envoi
+
+Sur l'outil humain (la boulangerie de Nadia, trois salariés inventés et une absence sans solde) : les cases faisaient
+48 pixels (une règle de l'application l'emportait sur celle de la grille), et « Payés » était caché derrière le
+défilement — les cases font 22 pixels, les jours payés viennent juste après le nom, qui reste en place quand les jours
+défilent, et les trente et un jours d'octobre tiennent à 1440 ; après Tab dans une case d'heures, la grille se
+redessinait et le curseur se perdait (la frappe suivante n'allait nulle part) — il revient à la case où Tab l'a posé ;
+« Ouvrir les Barèmes » arrivait en haut d'une longue page — il amène à la case ; l'alerte d'un bulletin qui ne suit plus
+apparaissait au-dessus de la grille et la poussait sous la souris — elle vient dessous ; « Établir les bulletins »
+ne disait pas qu'il reprend le pointage — il le dit. Les bruts des trois bulletins, recalculés à la main, tombent au
+millime, et le serveur les recalcule à l'identique ; en sombre, la grille se lit.
+
+### Décidé par délégation (19/10/2026)
+
+- **Q1.** Une maladie, un congé et un jour férié sont payés (comme les congés de la v10, `leaveIsPaid`) ; seuls
+  l'absence et la demi-journée retirent des jours. **À VÉRIFIER** avec le comptable : la maladie (la CNSS prend le
+  relais après un délai de carence) et les jours fériés chômés et payés.
+- **Q2.** Les majorations ne sont pas écrites d'avance : le Code du travail et les conventions collectives donnent des
+  taux qui changent selon le régime horaire et le moment (nuit, repos, jour férié) — **À VÉRIFIER**. Trois colonnes au
+  plus.
+- **Q3.** Un bulletin établi ne se réécrit jamais tout seul quand le pointage change : il le dit, et c'est un geste
+  (« Reprendre le pointage dans le bulletin ») qui le met à jour.
+
+### Ce qui reste
+
+- Le Cabinet n'a pas encore le pointage (il tient la paie d'un dossier bulletin par bulletin).
+- Les heures supplémentaires au jour près (la grille garde le total du mois par majoration) et l'import d'une pointeuse.
+- Le journal de paie, l'état récapitulatif CNSS et la déclaration mensuelle (1.61.0).
+
+### Ce qui le prouve
+
+- `tests/moteur/paie-pointage.test.ts` (dix essais) : la grille par défaut, les congés qui s'y posent, ce qui se garde,
+  le repos, le hors contrat (les jours payés du pointage sont ceux du bulletin proratisé), les heures supplémentaires
+  au millime, le bulletin du pointage contre le même bulletin tapé à la main, la reprise sans doublon.
+- `tests/web/parcours.test.ts`, « le pointage à la souris et au clavier » : la grille, les lettres et les flèches, le
+  dimanche refusé, les Barèmes, Entrée d'un salarié à l'autre, le curseur rendu après Tab, le bulletin du mois, puis
+  l'alerte sous la grille et la reprise, le serveur au même net que l'écran.
+- `tests/v10/droits-dossier.test.ts` (la paie écrit le pointage, le commercial non) ; `tests/abonnement/offre.test.ts`
+  (Essentiel n'en crée pas).
+- Vingt-quatre preuves (`tests/preuves.sh`, « 1.60.0 »).

@@ -17177,6 +17177,105 @@ prouver '« Prendre les taux de 2026 » qui ne remplit rien' 'web/public/v10/app
   '' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
 
+# 1.60.0 : le pointage des salariés, la grille du mois et les heures supplémentaires (docs/paie.md, « Le pointage »).
+prouver 'une majoration d'"'"'heures supplémentaires écrite d'"'"'avance' 'web/public/v10/compta.js' \
+  '    hsMaj1: 0, hsMaj2: 0, hsMaj3: 0,' \
+  '    hsMaj1: 25, hsMaj2: 0, hsMaj3: 0,' \
+  'aucune majoration d'"'"'heures supplémentaires n'"'"'est écrite d'"'"'avance ; un mois complet fait 208 heures'
+prouver 'une demi-journée comptée entière' 'web/public/v10/core.js' \
+  'j.code === '"'"'D'"'"' ? 0.5 : 0' \
+  'j.code === '"'"'D'"'"' ? 1 : 0' \
+  'pointer un jour ne garde que ce qui diffère ; une demi-journée retire une moitié ; revenir au calendrier efface'
+prouver 'tout le pointage gardé, même ce que le calendrier donne' 'web/public/v10/core.js' \
+  '    if (naturel.code !== code) t.jours[String(jour)] = code;' \
+  '    t.jours[String(jour)] = code;' \
+  'pointer un jour ne garde que ce qui diffère ; une demi-journée retire une moitié ; revenir au calendrier efface'
+prouver 'les congés saisis absents de la grille' 'web/public/v10/core.js' \
+  '        if (l) { code = !(l.paid != null' \
+  '        if (false) { code = !(l.paid != null' \
+  'les congés et absences saisis s'"'"'y posent : une absence sans solde se retire, une maladie et un congé se paient'
+prouver 'une absence comptée un jour de repos' 'web/public/v10/core.js' \
+  '(j.repos ? 0 : j.code === '"'"'A'"'"'' \
+  '(false ? 0 : j.code === '"'"'A'"'"'' \
+  'un jour de repos ne prend que « Repos » ou « Présent », et ne retire jamais un jour payé ; un refus n'"'"'écrit rien'
+prouver 'un jour de repos qui prend une absence' 'web/public/v10/core.js' \
+  ' || (naturel.repos && !CODES_REPOS.includes(code))' \
+  '' \
+  'un jour de repos ne prend que « Repos » ou « Présent », et ne retire jamais un jour payé ; un refus n'"'"'écrit rien'
+prouver 'un refus qui efface le jour déjà pointé' 'web/public/v10/core.js' \
+  '      if (garde !== undefined) t.jours[String(jour)] = garde;
+' \
+  '' \
+  'un jour de repos ne prend que « Repos » ou « Présent », et ne retire jamais un jour payé ; un refus n'"'"'écrit rien'
+prouver 'les jours hors contrat payés' 'web/public/v10/core.js' \
+  '    const hors = Math.min(total, jours.filter(j => j.code === '"'"'-'"'"' && !off.includes(j.wd)).length);' \
+  '    const hors = 0;' \
+  'hors contrat, un jour ne se pointe pas ; les jours payés du pointage sont ceux du bulletin proratisé'
+prouver 'des heures supplémentaires sans majoration' 'web/public/v10/core.js' \
+  'amount: round3(brut * h * (100 + x) / 100 / heuresMois)' \
+  'amount: round3(brut * h / heuresMois)' \
+  'les heures supplémentaires : rien sans majoration réglée ; sinon le taux horaire de la fiche, majoré, au millime'
+prouver 'une majoration non réglée payée' 'web/public/v10/core.js' \
+  'return majorationsHs(s).filter(x => Number(t.hs[String(x)]) > 0)' \
+  'return Object.keys(t.hs).map(Number).filter(x => Number(t.hs[String(x)]) > 0)' \
+  'les heures supplémentaires : rien sans majoration réglée ; sinon le taux horaire de la fiche, majoré, au millime'
+prouver 'un mois pointé qui ne donne rien au bulletin' 'web/public/v10/core.js' \
+  '    if (!pointageEnregistre(data, employee.id, year, month)) return i;' \
+  '    return i;' \
+  'un mois pointé donne au bulletin ses absences, ses primes au jour et ses heures ; le bulletin calcule comme une saisie à la main'
+prouver 'des primes au jour qui ne suivent pas le pointage' 'web/public/v10/core.js' \
+  '.map(b => b.parJour ? { ...b, amount: round3(Number(b.mensuel) * j / total), jours: j, sur: total } : b)' \
+  '.map(b => b)' \
+  'un mois pointé donne au bulletin ses absences, ses primes au jour et ses heures ; le bulletin calcule comme une saisie à la main'
+prouver 'la reprise qui double les heures' 'web/public/v10/core.js' \
+  '    const bonuses = (i.bonuses || []).filter(b => !b.hs)' \
+  '    const bonuses = (i.bonuses || []).filter(b => b)' \
+  'un bulletin établi avant le pointage le sait ; repris, il le suit, et ses heures se remplacent sans se doubler'
+prouver 'un bulletin qui ne voit pas qu'"'"'il ne suit plus le pointage' 'web/public/v10/core.js' \
+  '    const change = absences || empreinte(slip.bonuses) !== empreinte(r.bonuses);' \
+  '    const change = false;' \
+  'un bulletin établi avant le pointage le sait ; repris, il le suit, et ses heures se remplacent sans se doubler'
+prouver 'un écart d'"'"'heures tu' 'web/public/v10/core.js' \
+  '    const heures = empreinte((slip.bonuses || []).filter(b => b.hs)) !== empreinte(r.bonuses.filter(b => b.hs));' \
+  '    const heures = false;' \
+  'un bulletin établi avant le pointage le sait ; repris, il le suit, et ses heures se remplacent sans se doubler'
+prouver 'des cases de pointage de 48 px' 'web/public/v10/style.css' \
+  'table.list.pt-grille td.pt-td { padding: 3px 1px;' \
+  '.pt-grille td.pt-td { padding: 3px 1px;' \
+  'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
+prouver 'le curseur perdu après Tab dans les heures' 'web/public/v10/app.js' \
+  '        setTimeout(() => drawPointage(ouEstLeCurseur()), 0);' \
+  '        drawPointage();' \
+  'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
+prouver 'Entrée qui ne passe pas au salarié suivant' 'web/public/v10/app.js' \
+  'const pas = ev.key === '"'"'ArrowDown'"'"' || ev.key === '"'"'Enter'"'"' ? 1 :' \
+  'const pas = ev.key === '"'"'ArrowDown'"'"' ? 1 :' \
+  'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
+prouver '« Ouvrir les Barèmes » en haut de la page' 'web/public/v10/app.js' \
+  '        const c = $('"'"'#rf input[name="hsMaj1"]'"'"'); if (c) { c.scrollIntoView({ block: '"'"'center'"'"' }); c.focus(); c.select(); }' \
+  '' \
+  'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
+prouver 'l'"'"'alerte du bulletin au-dessus de la grille' 'web/public/v10/app.js' \
+  'class="warn-box mt" id="pt-ecarts"' \
+  'class="warn-box mt" id="pt-ecarts" style="position: relative; top: -420px"' \
+  'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
+prouver 'un dimanche refusé en silence' 'web/public/v10/app.js' \
+  '          if (b.dataset.repos) toast(' \
+  '          if (false) toast(' \
+  'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
+prouver 'un dimanche qui ne passe pas à « Présent »' 'web/public/v10/app.js' \
+  '        const ordre = b.dataset.repos ? C.CODES_REPOS : ORDRE;' \
+  '        const ordre = ORDRE.filter(x => x !== '"'"'P'"'"');' \
+  'le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit'
+prouver 'le pointage écrit par qui ne fait pas la paie' 'serveur/v10/droits.ts' \
+  ' socialFilings: PAIE, timesheets: PAIE,' \
+  ' socialFilings: PAIE,' \
+  'chacun n'"'"'écrit que sa part ; un envoi qui touche une partie interdite n'"'"'écrit rien et la nomme'
+prouver 'le pointage ouvert dans l'"'"'offre Essentiel' 'serveur/abonnement/offre.ts' \
+  ''"'"'socialFilings'"'"', '"'"'timesheets'"'"'],' \
+  ''"'"'socialFilings'"'"'],' \
+  'en Essentiel, rien de NEUF ne se crée dans la paie ni les immobilisations ; ce qui existe se corrige et se supprime ; les déclarations restent'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

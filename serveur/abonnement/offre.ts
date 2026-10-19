@@ -28,7 +28,7 @@ export const MODULES_OPTIONNELS: readonly ModuleDeLOffre[] = ['paie', 'compta'];
 // les retient ; et ce que la loi demande (la TVA, les retenues, les déclarations, les clôtures, les écritures) n'est
 // dans aucun module fermé (07 : aucune obligation légale n'est vendue en option).
 export const PARTIES_DU_MODULE: Record<ModuleDeLOffre, readonly string[]> = {
-  paie: ['employees', 'payslips', 'leaves', 'advances', 'socialFilings'],
+  paie: ['employees', 'payslips', 'leaves', 'advances', 'socialFilings', 'timesheets'],
   compta: ['assets'],
 };
 

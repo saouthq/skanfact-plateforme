@@ -75,7 +75,7 @@ describe('ce que l\'offre ouvre', () => {
     // Essentiel payé : la paie et la comptabilité complète se ferment.
     await faire(exploitant, ent, { geste: 'payer', paiement: RECU, offre: 'essentiel', periodicite: 'annuel', motif: 'virement reçu' });
     expect(await fermes(ent, p.jeton)).toEqual(['paie', 'compta']);
-    for (const [collection, module] of [['employees', 'paie'], ['payslips', 'paie'], ['leaves', 'paie'], ['advances', 'paie'], ['socialFilings', 'paie'], ['assets', 'compta']]) {
+    for (const [collection, module] of [['employees', 'paie'], ['payslips', 'paie'], ['leaves', 'paie'], ['advances', 'paie'], ['socialFilings', 'paie'], ['timesheets', 'paie'], ['assets', 'compta']]) {
       const r = await ecrire(ent, p.jeton, [nouveau(collection ?? '', `${collection}-neuf`)]);
       expect(r.statut, collection).toBe(403);
       expect(r.corps.bouton).toBe('socle.abonnement.voir');

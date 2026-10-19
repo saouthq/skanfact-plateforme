@@ -208,7 +208,9 @@ vaut pour tout le dépôt.*
     plateforme se charge par `ecranDeLaPlateforme` (tests/moteur/v10.ts).
     Le métier de la paie de 2026 (1.59.0, `docs/paie.md`) : les taux des documents réels (CNSS 9,68 % et
     17,07 %, CSS 0,5 %), les primes de chaque mois sur la fiche, au jour (`web/v10/paie-2026.txt`) ; un vrai
-    journal de paie recalculé au millime, sans un nom (`tests/moteur/paie-journal-reel.test.ts`).
+    journal de paie recalculé au millime, sans un nom (`tests/moteur/paie-journal-reel.test.ts`). Le pointage
+    (1.60.0) : une grille par mois, les heures supplémentaires, le bulletin qui le suit (`web/v10/paie-pointage.txt`,
+    collection `timesheets` de la paie ; `tests/moteur/paie-pointage.test.ts`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

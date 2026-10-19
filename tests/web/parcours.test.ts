@@ -683,6 +683,126 @@ describe('le parcours, à la souris', () => {
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
 
+  // 1.60.0 (docs/paie.md, « Le pointage ») : une case par salarié et par jour, à la souris et au clavier ; les jours
+  // payés se recalculent à chaque geste ; le bulletin du mois reprend les absences et les heures supplémentaires, et un
+  // bulletin établi qui ne suit plus le pointage le dit et se met à jour d'un geste.
+  it('le pointage à la souris et au clavier : la grille du mois, les heures supplémentaires, le bulletin qui le suit', async () => {
+    const qui = await inscrite('Salma Gharbi');
+    await qui.api('GET', `/entreprises/${qui.essai}/dossier-v10`, qui.jeton);
+    await qui.api('POST', `/entreprises/${qui.essai}/dossier-v10`, qui.jeton, { changements: [
+      { collection: 'employees', cle: 'sal-1', rang: 0, revision: null, contenu: { id: 'sal-1', name: 'Salarié Un', grossSalary: { '~n': '1234.567' }, hireDate: '2020-01-06', contract: 'cdi',
+        primes: [{ label: 'Prime de présence', amount: 80, taxable: true, parJour: true }] } },
+      { collection: 'employees', cle: 'sal-2', rang: 1, revision: null, contenu: { id: 'sal-2', name: 'Salarié Deux', grossSalary: 980, hireDate: '2021-02-01', contract: 'cdi' } },
+    ] });
+    const p = await qui.ouvrir(qui.essai, '#/paie');
+    await pageV10(p, /Paie/);
+    const pointage = async () => (await admin.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'timesheets' and contenu->>'employeeId' = 'sal-1'`, [qui.essai])).rows[0]?.contenu;
+    // Le bulletin du salarié 1 d'abord (son brut de base est le plus grand).
+    const auServeur = async () => (await admin.query('select brut, net, primes from paie.bulletin where entreprise = $1 order by brut_de_base desc', [qui.essai])).rows;
+    await p.locator('#p-tabs button[data-tab=pointage]').click();
+    await p.locator('#pt-grille').waitFor();
+    // Le mois de paie ouvert (le mois écoulé) : on lit son calendrier pour viser des jours ouvrables et un dimanche.
+    const annee = Number(await p.locator('#p-year').inputValue()), mois = Number(await p.locator('#pt-mois').inputValue());
+    const jourDeSemaine = (j: number) => new Date(Date.UTC(annee, mois - 1, j)).getUTCDay();
+    const dimanche = [...Array(7).keys()].map((i) => i + 1).find((j) => jourDeSemaine(j) === 0) ?? 0;
+    // Un lundi et le mardi qui suit : deux jours ouvrables côte à côte.
+    const lundi = dimanche + 1;
+    const ligne = p.locator('#pt-grille tr[data-pe="sal-1"]');
+    const kase = (j: number) => ligne.locator(`.pt-c[data-pt="${j}"]`);
+    const payes = () => ligne.locator('[data-pt-payes]').innerText();
+    expect(await payes()).toBe('26');
+    // Les jours payés se lisent sans faire défiler : juste après le nom (vu à l'écran : derrière trente jours de 48 px).
+    const [boite, chiffre] = await Promise.all([p.locator('#pt-grille').locator('xpath=..').boundingBox(), ligne.locator('[data-pt-payes]').boundingBox()]);
+    expect((chiffre?.x ?? 1e6) + (chiffre?.width ?? 0)).toBeLessThan((boite?.x ?? 0) + (boite?.width ?? 0));
+    // La case du tableau, pas seulement son bouton : une règle de l'application lui donnait 48 px.
+    expect((await kase(1).locator('xpath=..').boundingBox())?.width ?? 99).toBeLessThanOrEqual(28);
+    expect(await kase(dimanche).innerText()).toBe('R');
+    expect(await kase(lundi).innerText()).toBe('P');
+    // Sans majoration réglée, pas de colonne d'heures : la grille dit où les régler.
+    expect(await p.locator('#pt-grille .pt-hs').count()).toBe(0);
+    await expect.poll(() => p.locator('#pt-sans-hs').innerText()).toMatch(/règle d'abord leurs majorations dans les Barèmes/);
+    expect(await pointage()).toBeUndefined();
+
+    // Un clic passe au code suivant (présent → demi-journée) ; le curseur reste sur la case.
+    await kase(lundi).click();
+    await expect.poll(() => kase(lundi).innerText()).toBe('½');
+    await expect.poll(payes).toBe('25,5');
+    expect(await p.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.pt)).toBe(String(lundi));
+    // Une lettre pose son code ; la flèche passe au jour suivant, où une autre lettre pose le sien.
+    await p.keyboard.press('a');
+    await expect.poll(() => kase(lundi).innerText()).toBe('A');
+    await p.keyboard.press('ArrowRight');
+    expect(await p.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.pt)).toBe(String(lundi + 1));
+    await p.keyboard.press('a');
+    await expect.poll(payes).toBe('24');
+    expect(await ligne.locator('[data-pt-abs]').innerText()).toBe('2');
+    // Un dimanche ne passe que de « Repos » à « Présent » ; une absence s'y refuse, et le dit.
+    await kase(dimanche).click();
+    await expect.poll(() => kase(dimanche).innerText()).toBe('P');
+    await p.keyboard.press('a');
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(new RegExp(`Le ${dimanche} \\S+ est un jour de repos\\s: il se pointe «\\sRepos\\s», ou «\\sPrésent\\s»`));
+    expect(await kase(dimanche).innerText()).toBe('P');
+    expect(await payes()).toBe('24');
+    // Seul ce qui diffère du calendrier est gardé, au serveur.
+    await expect.poll(async () => (await pointage())?.jours).toEqual({ [lundi]: 'A', [lundi + 1]: 'A', [dimanche]: 'P' });
+
+    // Les heures supplémentaires : la majoration se règle dans les Barèmes, puis la grille a sa colonne. Le bouton amène
+    // à la case (vu à l'écran : en haut d'une longue page), et elle se tape d'emblée.
+    await p.locator('#pt-baremes').click();
+    await expect.poll(() => p.locator('#p-tabs button.active').getAttribute('data-tab')).toBe('baremes');
+    expect(await p.locator('#rf input[name=heuresMois]').inputValue()).toBe('208');
+    await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name)).toBe('hsMaj1');
+    await p.keyboard.type('25');
+    expect(await p.locator('#rf input[name=hsMaj1]').inputValue()).toBe('25');
+    await p.locator('#rf-save').click();
+    await expect.poll(async () => (await admin.query(`select contenu->'hsMaj1' m from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [qui.essai])).rows[0]?.m).toBe(25);
+    await p.locator('#p-tabs button[data-tab=pointage]').click();
+    await expect.poll(() => p.locator('#pt-grille thead').innerText()).toMatch(/HS \+25 %/);
+    // Au clavier, comme dans un tableur : Entrée passe au salarié suivant dans la même colonne ; après Tab, la grille se
+    // redessine et rend le curseur à la case où Tab l'a posé (vu à l'écran : il se perdait, et la frappe suivante aussi).
+    // Les lignes vont par nom : « Salarié Deux », puis « Salarié Un ».
+    expect(await p.locator('#pt-grille tbody tr').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.pe))).toEqual(['sal-2', 'sal-1']);
+    await p.locator('#pt-grille tr[data-pe="sal-2"] .pt-hs[data-hs="25"]').click();
+    await p.keyboard.type('4');
+    await p.keyboard.press('Enter');
+    const ouEst = () => p.evaluate(() => { const a = document.activeElement as HTMLElement | null; return { e: a?.closest('tr')?.dataset.pe, hs: a?.dataset.hs, pt: a?.dataset.pt }; });
+    await expect.poll(ouEst).toEqual({ e: 'sal-1', hs: '25', pt: undefined });
+    await p.keyboard.type('6');
+    await p.keyboard.press('Tab');
+    await expect.poll(ouEst).toEqual({ e: 'sal-1', hs: undefined, pt: '1' });
+    const heures = async () => ((await admin.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'timesheets'`, [qui.essai])).rows as { contenu: { employeeId: string; hs: Record<string, number> } }[])
+      .map((r) => [r.contenu.employeeId, r.contenu.hs]).sort();
+    await expect.poll(heures).toEqual([['sal-1', { 25: 6 }], ['sal-2', { 25: 4 }]]);
+
+    // Le bulletin du mois reprend le pointage : deux jours retirés, la prime au jour sur 24 jours, les heures majorées.
+    await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    await p.locator('#p-gen').click();
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.evaluate(() => (window as unknown as { __data: { payslips: { employeeId: string; absentDays: number }[] } }).__data.payslips.find((x) => x.employeeId === 'sal-1')?.absentDays)).toBe(2);
+    // 80 × 24 / 26 = 73,846 ; 1 234,567 × 6 × 1,25 / 208 = 44,516.
+    await expect.poll(async () => (await auServeur())[0]?.primes?.map((x: { libelle: string; montant: number }) => [x.libelle, x.montant]))
+      .toEqual([['Prime de présence', 73846], ['Heures supplémentaires : 6 h à +25 %', 44516]]);
+    const netEcran = async () => p.evaluate(() => (window as unknown as { __data: { payslips: { employeeId: string; computed: { net: number } }[] } }).__data.payslips.find((x) => x.employeeId === 'sal-1')?.computed.net.toFixed(3));
+    expect(String(Number((await auServeur())[0]?.net) / 1000)).toBe(String(Number(await netEcran())));
+
+    // Le lundi était un oubli : il revient « Présent ». Le bulletin établi ne suit plus le pointage, et la grille le dit.
+    await p.locator('#p-tabs button[data-tab=pointage]').click();
+    await kase(lundi).focus();
+    await p.keyboard.press('p');
+    await expect.poll(payes).toBe('25');
+    await expect.poll(() => p.locator('#pt-ecarts').innerText()).toMatch(/Le bulletin de Salarié Un ne suit plus le pointage\s: 2 jours non payés au bulletin, 1 au pointage\./);
+    // Sous la grille : apparue, l'alerte ne déplace aucune case (vu à l'écran : au-dessus, elle poussait la grille).
+    const [grilleB, alerteB] = await Promise.all([p.locator('#pt-grille').boundingBox(), p.locator('#pt-ecarts').boundingBox()]);
+    expect(alerteB?.y ?? 0).toBeGreaterThan((grilleB?.y ?? 1e6) + (grilleB?.height ?? 0));
+    await p.locator('#pt-ecarts [data-pt-reprendre]').click();
+    await expect.poll(() => p.locator('#pt-ecarts').count()).toBe(0);
+    // 80 × 25 / 26 = 76,923 ; les heures ne se doublent pas.
+    await expect.poll(async () => (await auServeur())[0]?.primes?.map((x: { montant: number }) => x.montant)).toEqual([76923, 44516]);
+    expect(String(Number((await auServeur())[0]?.net) / 1000)).toBe(String(Number(await netEcran())));
+    await p.screenshot({ path: path.join(PHOTOS, 'paie-pointage.png') });
+    expect(qui.erreurs).toEqual([]);
+  }, 120_000);
+
   // La caisse en ligne (brique 115) : avant elle, « Encaisser » se refusait avec sa phrase ; le ticket part maintenant au
   // serveur, qui le numérote dans sa série et le garde (l'entreprise d'essai comprise).
   it('la caisse est en ligne : « Encaisser » vend un pain, numéroté par le serveur, et le ticket est au serveur', async () => {

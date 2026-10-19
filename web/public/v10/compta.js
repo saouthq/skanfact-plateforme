@@ -6148,6 +6148,10 @@
     workedDays: 26,            // jours ouvrables d'un mois complet
     offDays: [0],              // jours chômés de la semaine (0 = dimanche) — semaine de six jours
     leaveDaysPerYear: 18,      // droit annuel à congé payé, en jours ouvrables
+    // (plateforme) 1.60.0 — les heures supplémentaires du pointage : les heures d'un mois complet (26 jours de 8 heures),
+    // et jusqu'à trois majorations en %, à 0 tant qu'on ne les a pas réglées (aucune n'est écrite d'avance : À VÉRIFIER).
+    heuresMois: 208,
+    hsMaj1: 0, hsMaj2: 0, hsMaj3: 0,
     // Barème IRPP annuel progressif : `upTo` en dinars (null = au-delà), `rate` en %.
     brackets: [
       { upTo: 5000, rate: 0 },

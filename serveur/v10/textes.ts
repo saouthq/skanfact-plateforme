@@ -90,6 +90,7 @@ declarerTextes({
   'v10.partie.leaves': 'les congés',
   'v10.partie.advances': 'les avances sur salaire',
   'v10.partie.socialFilings': 'les déclarations sociales',
+  'v10.partie.timesheets': 'le pointage des salariés',
   'v10.partie.assets': 'les immobilisations',
   'v10.partie.ecrituresOD': 'les opérations diverses',
   'v10.partie.fiscalFilings': 'les échéances fiscales déposées',
