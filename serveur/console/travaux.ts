@@ -119,3 +119,45 @@ export function etatTour(nom: NomTour, tours: readonly TourLu[], maintenant: Dat
   if (maintenant.getTime() - Date.parse(t.le) > ARRETE_APRES_PAS * pas) return { etat: 'arrete', tour: t };
   return { etat: t.ok ? 'bon' : 'echec', tour: t };
 }
+
+// ── La suite (0145 ; docs/console.md C69) : les pauses, le débit heure par heure, ce qui ne part plus ─────────────────
+// Ce qui se met en pause : ce que le serveur envoie seul. Une heure, quatre heures ou un jour, jamais plus.
+export const PAUSABLES = ['ttn', 'relances'] as const;
+export type Pausable = typeof PAUSABLES[number];
+export const DUREES_PAUSE = [1, 4, 24] as const;
+// Un envoi à la TTN en panne (ou sans réponse) depuis plus de quatre heures se dit en tête d'« À décider » du service :
+// la TTN ne cesse jamais d'essayer, mais quelqu'un doit savoir qu'elle n'y arrive pas.
+export const EN_PANNE_HEURES = 4;
+
+export type Pause = { id: string; partenaire: Pausable; le: string; jusquAu: string; motif: string; par: string; leveeLe: string | null; enCours: boolean };
+export type HeureLue = { heure: string; n: number; bons: number; refus: number };
+export type SuiteLue = { pauses: Pause[]; heures: Record<Partenaire, HeureLue[]>; enPanne: { n: number; depuis: string | null } };
+
+export function lireSuite(brut: unknown): SuiteLue {
+  const b = objet(brut), h = objet(b.heures), p = objet(b.enPanne);
+  return {
+    pauses: tableau(b.pauses).flatMap((x) => {
+      const [le, jusquAu] = [date(x.le), date(x.jusquAu)];
+      if (typeof x.id !== 'string' || !PAUSABLES.includes(x.partenaire as Pausable) || !le || !jusquAu) return [];
+      return [{ id: x.id, partenaire: x.partenaire as Pausable, le, jusquAu, motif: typeof x.motif === 'string' ? x.motif : '', par: typeof x.par === 'string' ? x.par : '',
+        leveeLe: date(x.leveeLe), enCours: x.enCours === true }];
+    }),
+    heures: Object.fromEntries(PARTENAIRES.map((nom) => [nom, tableau(h[nom]).flatMap((x) => {
+      const heure = date(x.heure), n = entier(x.n);
+      return heure && n !== null ? [{ heure: new Date(heure).toISOString(), n, bons: entier(x.bons) ?? 0, refus: entier(x.refus) ?? 0 }] : [];
+    })])) as Record<Partenaire, HeureLue[]>,
+    enPanne: { n: entier(p.n) ?? 0, depuis: date(p.depuis) },
+  };
+}
+
+// Les vingt-quatre dernières heures d'un partenaire, l'heure en cours comprise : une heure sans envoi vaut zéro.
+export function vingtQuatreHeures(heures: readonly HeureLue[], maintenant: Date): HeureLue[] {
+  const fin = Math.floor(maintenant.getTime() / 3_600_000) * 3_600_000;
+  return Array.from({ length: 24 }, (_, k) => {
+    const heure = new Date(fin - (23 - k) * 3_600_000).toISOString();
+    return heures.find((x) => x.heure === heure) ?? { heure, n: 0, bons: 0, refus: 0 };
+  });
+}
+// La pause en cours d'un partenaire, s'il en a une.
+export const pauseEnCours = (pauses: readonly Pause[], partenaire: Pausable, maintenant: Date): Pause | null =>
+  pauses.find((x) => x.partenaire === partenaire && x.enCours && Date.parse(x.jusquAu) > maintenant.getTime()) ?? null;

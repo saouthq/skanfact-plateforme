@@ -847,6 +847,17 @@ export interface BaseDeDonnees {
     numero: number;
     donne_le: Generated<Date>;
   };
+  'plateforme.pause_partenaire': {
+    id: Generated<string>;
+    partenaire: string;
+    le: Date;
+    jusqu_au: Date;
+    motif: string;
+    par: string;
+    levee_le: Date | null;
+    levee_par: string | null;
+    levee_motif: string | null;
+  };
   'plateforme.prix': {
     offre: string;
     periodicite: string;

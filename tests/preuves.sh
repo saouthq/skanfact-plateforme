@@ -16803,8 +16803,8 @@ prouver 'le bouton principal qui ne suit pas l'"'"'étape' 'web/console/src/ecra
   '  const principal = null as Demande | null;' \
   'la barre y mène ; vide, « Noter une demande… » est le seul bouton principal ; un motif court se refuse et montre son champ'
 prouver '« À décider » sans les demandes d'"'"'effacement' 'serveur/console/routes.ts' \
-  'aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences, effacements)' \
-  'aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences)' \
+  'aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences, effacements,' \
+  'aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences, [],' \
   '« À décider » de l'"'"'accueil y mène ; le support note, ne décide pas'
 prouver 'le support qui voit le bouton Décider' 'web/console/src/ecrans/Donnees.tsx' \
   '                      {direction && e === '"'"'a_decider'"'"' ? (' \
@@ -16824,6 +16824,114 @@ prouver 'le message passager sur les boutons d'"'"'une fenêtre' 'web/console/sr
 prouver "l'invitation du cabinet sans son adresse dans la trace" base/migrations/0144_effacement.sql \
   "           coalesce(a.apres || (select jsonb_build_object('email', i.email) from socle.invitation i where i.id = (a.apres->>'invitation')::uuid), a.apres)," "           a.apres," \
   "$TE1"
+# 1.56.0 : les travaux, un partenaire en pause, vingt-quatre heures, ce qui ne part plus (docs/console.md C69).
+prouver 'le facteur qui part pendant la pause' 'serveur/v10/envoi.ts' \
+  '  if (await enPause(ctx.pool, '"'"'ttn'"'"', maintenant)) return 0;
+' \
+  '' \
+  'la TTN en pause : rien ne part, aucun essai ne se compte ; à son heure, tout repart (0145)'
+prouver 'les relances qui partent pendant la pause' 'serveur/abonnement/relances.ts' \
+  '  if (await enPause(ctx.pool, '"'"'relances'"'"', maintenant)) return 0;
+' \
+  '' \
+  'quinze jours avant : à qui gère l'"'"'abonnement, une fois, sans le nom de l'"'"'entreprise'
+prouver 'une pause qui ne finit jamais' 'base/migrations/0145_travaux.sql' \
+  '   where p.partenaire = p_partenaire and p.levee_le is null and p.le <= p_maintenant and p.jusqu_au > p_maintenant
+' \
+  '   where p.partenaire = p_partenaire and p.levee_le is null and p.le <= p_maintenant
+' \
+  'la technique met la TTN en pause quatre heures ; le serveur la lit ; elle se dit dans Travaux et dans « À décider » ; reprise, tout repart'
+prouver 'une pause reprise qui tient encore' 'base/migrations/0145_travaux.sql' \
+  '   where p.partenaire = p_partenaire and p.levee_le is null and p.le <= p_maintenant and p.jusqu_au > p_maintenant
+' \
+  '   where p.partenaire = p_partenaire and p.le <= p_maintenant and p.jusqu_au > p_maintenant
+' \
+  'la technique met la TTN en pause quatre heures ; le serveur la lit ; elle se dit dans Travaux et dans « À décider » ; reprise, tout repart'
+prouver 'deux pauses à la fois' 'base/migrations/0145_travaux.sql' \
+  '  if plateforme.partenaire_en_pause(p_partenaire, p_maintenant) is not null then
+    perform socle.refus('"'"'ce partenaire est déjà en pause : reprends-le d'"'"''"'"'abord pour changer sa durée'"'"');
+  end if;
+' \
+  '' \
+  'la technique met la TTN en pause quatre heures ; le serveur la lit ; elle se dit dans Travaux et dans « À décider » ; reprise, tout repart'
+prouver 'une pause reprise deux fois' 'base/migrations/0145_travaux.sql' \
+  '  if v.levee_le is not null or v.jusqu_au <= p_maintenant then perform socle.refus('"'"'ce partenaire n'"'"''"'"'est plus en pause'"'"'); end if;
+' \
+  '' \
+  'la technique met la TTN en pause quatre heures ; le serveur la lit ; elle se dit dans Travaux et dans « À décider » ; reprise, tout repart'
+prouver 'une durée de pause au hasard' 'serveur/console/routes.ts' \
+  'heures: z.union([z.literal(DUREES_PAUSE[0]), z.literal(DUREES_PAUSE[1]), z.literal(DUREES_PAUSE[2])]), motif: motifGeste }),' \
+  'heures: z.number().int(), motif: motifGeste }),' \
+  'une heure, quatre heures ou un jour ; la TTN et les relances seules ; jamais le support'
+prouver 'le support qui met un partenaire en pause' 'serveur/console/gestes.ts|||base/migrations/0145_travaux.sql' \
+  '  { code: '"'"'console.service.gerer'"'"', roles: [D, T], ecrit: true },|||declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"']); v_id uuid; v_jusqua timestamptz;' \
+  '  { code: '"'"'console.service.gerer'"'"', roles: [D, T, S], ecrit: true },|||declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'technique'"'"', '"'"'support'"'"']); v_id uuid; v_jusqua timestamptz;' \
+  'une heure, quatre heures ou un jour ; la TTN et les relances seules ; jamais le support'
+prouver 'la base qui garde une pause de plus d'"'"'un jour' 'base/migrations/0145_travaux.sql' \
+  '  check (jusqu_au > le and jusqu_au <= le + interval '"'"'24 hours'"'"'),' \
+  '  check (jusqu_au > le),' \
+  'une heure, quatre heures ou un jour ; la TTN et les relances seules ; jamais le support'
+prouver 'une pause absente de « À décider »' 'serveur/console/decider.ts' \
+  '      if (p.enCours && Date.parse(p.jusquAu) > maintenant.getTime()) lignes.push(' \
+  '      if (false) lignes.push(' \
+  'des envois à la TTN qui ne partent plus passent en tête d'"'"'« À décider » de qui tient le service ; une pause s'"'"'y rappelle'
+prouver 'des envois en panne absents de « À décider »' 'serveur/console/decider.ts' \
+  '    if (travaux.enPanne.n > 0 && travaux.enPanne.depuis) {' \
+  '    if (false) {' \
+  'des envois à la TTN qui ne partent plus passent en tête d'"'"'« À décider » de qui tient le service ; une pause s'"'"'y rappelle'
+prouver 'le support qui lit les pauses à l'"'"'accueil' 'serveur/console/decider.ts' \
+  '  if (service && travaux) {' \
+  '  if (travaux) {' \
+  'des envois à la TTN qui ne partent plus passent en tête d'"'"'« À décider » de qui tient le service ; une pause s'"'"'y rappelle'
+prouver 'l'"'"'accueil qui oublie les pauses' 'serveur/console/routes.ts' \
+  '          suite ? { pauses: suite.pauses, enPanne: { ...suite.enPanne, heures: EN_PANNE_HEURES } } : null), relances,' \
+  '          null), relances,' \
+  'la technique met la TTN en pause quatre heures ; le serveur la lit ; elle se dit dans Travaux et dans « À décider » ; reprise, tout repart'
+prouver 'des envois tout juste en panne qui alertent' 'base/migrations/0145_travaux.sql' \
+  '   where not e.essai and v.statut in ('"'"'a_envoyer'"'"', '"'"'deposee'"'"') and v.essais > 0
+     and v.cree_le <= p_maintenant - make_interval(hours => p_heures)
+$$;' \
+  '   where not e.essai and v.statut in ('"'"'a_envoyer'"'"', '"'"'deposee'"'"') and v.essais > 0
+$$;' \
+  'jamais deux dépôts : ni quand la réponse se perd, ni quand deux tours se croisent ; une panne se réessaie plus tard'
+prouver 'des envois sans panne comptés en panne' 'base/migrations/0145_travaux.sql' \
+  '   where not e.essai and v.statut in ('"'"'a_envoyer'"'"', '"'"'deposee'"'"') and v.essais > 0
+     and v.cree_le <= p_maintenant - make_interval(hours => p_heures)
+$$;' \
+  '   where not e.essai and v.statut in ('"'"'a_envoyer'"'"', '"'"'deposee'"'"')
+     and v.cree_le <= p_maintenant - make_interval(hours => p_heures)
+$$;' \
+  'jamais deux dépôts : ni quand la réponse se perd, ni quand deux tours se croisent ; une panne se réessaie plus tard'
+prouver 'vingt-quatre heures sans l'"'"'heure en cours' 'serveur/console/travaux.ts' \
+  '    const heure = new Date(fin - (23 - k) * 3_600_000).toISOString();' \
+  '    const heure = new Date(fin - (24 - k) * 3_600_000).toISOString();' \
+  'vingt-quatre heures, l'"'"'heure en cours comprise ; une heure sans envoi vaut zéro ; rien sans sa forme'
+prouver 'une pause d'"'"'un autre partenaire qui passe' 'serveur/console/travaux.ts' \
+  '      if (typeof x.id !== '"'"'string'"'"' || !PAUSABLES.includes(x.partenaire as Pausable) || !le || !jusquAu) return [];' \
+  '      if (typeof x.id !== '"'"'string'"'"' || !le || !jusquAu) return [];' \
+  'vingt-quatre heures, l'"'"'heure en cours comprise ; une heure sans envoi vaut zéro ; rien sans sa forme'
+prouver 'une pause finie qui se dit en cours' 'serveur/console/travaux.ts' \
+  '  pauses.find((x) => x.partenaire === partenaire && x.enCours && Date.parse(x.jusquAu) > maintenant.getTime()) ?? null;' \
+  '  pauses.find((x) => x.partenaire === partenaire && x.enCours) ?? null;' \
+  'vingt-quatre heures, l'"'"'heure en cours comprise ; une heure sans envoi vaut zéro ; rien sans sa forme'
+prouver 'la vue 24 heures qui garde les jours' 'web/console/src/ecrans/Travaux.tsx' \
+  '          const barres: Barre[] = vue === '"'"'jours'"'"' ?' \
+  '          const barres: Barre[] = vue !== '"'"'nulle'"'"' ?' \
+  '« 24 heures » : une barre par heure ; des envois en panne depuis des heures se disent en tête'
+prouver 'l'"'"'alerte des envois en panne absente' 'web/console/src/ecrans/Travaux.tsx' \
+  '          {d.enPanne.n > 0 && d.enPanne.depuis ? (' \
+  '          {false && d.enPanne.depuis ? (' \
+  '« 24 heures » : une barre par heure ; des envois en panne depuis des heures se disent en tête'
+prouver 'la tuile du facteur muette sur la pause' 'web/console/src/ecrans/Travaux.tsx' \
+  ' : pauseTtn ? titre(`${T}.k.en_pause`) : facteur?.tour' \
+  ' : facteur?.tour' \
+  'mettre la TTN en pause : un motif court se refuse ; en pause, la carte, la tuile et « À décider » le disent ; reprendre la lève'
+prouver 'l'"'"'avertissement de la pause absent' 'web/console/src/ecrans/Travaux.tsx' \
+  '      <Alerte ton="attention"><span>{phrase(`${T}.pz.avertir.${partenaire}`)}</span></Alerte>
+' \
+  '' \
+  'mettre la TTN en pause : un motif court se refuse ; en pause, la carte, la tuile et « À décider » le disent ; reprendre la lève'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

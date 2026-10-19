@@ -189,14 +189,45 @@ describe('l\'envoi à la TTN', () => {
     expect((await ecrire(p1, p1?.contenu.ttn)).statut).toBe(200);
   });
 
+  it('la TTN en pause : rien ne part, aucun essai ne se compte ; à son heure, tout repart (0145)', async () => {
+    const e = await entreprise(['f1']);
+    await e.compte('nadia-el-fatoora', 'Mot-de-passe-TTN-7');
+    await e.signer(['f1']);
+    const par = (await admin.query('select id from socle.utilisateur order by cree_le limit 1')).rows[0].id as string;
+    await admin.query(`insert into plateforme.pause_partenaire (partenaire, le, jusqu_au, motif, par) values ('ttn', $1, $2, 'maintenance annoncée', $3)`,
+      [horloge, new Date(horloge.getTime() + 3_600_000), par]);
+    try {
+      const avant = ttn.appels();
+      expect(await envoyerALaTtn(ctx)).toBe(0);
+      expect(ttn.appels()).toBe(avant);
+      expect(await e.envoi('f1')).toMatchObject({ statut: 'a_envoyer', essais: 0 });
+      avancer(61);
+      expect(await envoyerALaTtn(ctx)).toBe(1);
+      expect(await e.envoi('f1')).toMatchObject({ statut: 'deposee' });
+      // Relue à son heure : acceptée (les essais suivants partent d'une file vide).
+      avancer(2);
+      expect(await envoyerALaTtn(ctx)).toBe(1);
+      expect(await e.envoi('f1')).toMatchObject({ statut: 'acceptee' });
+    } finally {
+      await admin.query(`delete from plateforme.pause_partenaire where partenaire = 'ttn' and motif = 'maintenance annoncée'`);
+    }
+  });
+
   it('jamais deux dépôts : ni quand la réponse se perd, ni quand deux tours se croisent ; une panne se réessaie plus tard', async () => {
     const e = await entreprise(['f1', 'f2', 'f3']);
     await e.compte('nadia-el-fatoora', 'Mot-de-passe-TTN-7');
     await e.signer(['f1']);
     // La TTN reçoit le dépôt, mais sa réponse se perd : le serveur croit à une panne, et repassera.
+    // Avant la panne, la pièce ne compte pas parmi celles qui ne partent plus (0145) ; après, elle y entre, passées quatre
+    // heures, et pas avant.
+    const enPanne = async (heuresPlusTard: number) => Number((await admin.query('select plateforme.envois_ttn_en_panne($1, 4) v',
+      [new Date(horloge.getTime() + heuresPlusTard * 3_600_000)])).rows[0].v.n);
+    const [avantPanne, avantTrois] = [await enPanne(5), await enPanne(3)];
     ttn.reglage.perdre = 1;
     expect(await envoyerALaTtn(ctx)).toBe(1);
     expect(await e.envoi('f1')).toMatchObject({ statut: 'a_envoyer', essais: 1, motif: { cle: 'ttn.panne', valeurs: { statut: 504 } } });
+    expect(await enPanne(5)).toBe(avantPanne + 1);
+    expect(await enPanne(3)).toBe(avantTrois);
     expect(await envoyerALaTtn(ctx)).toBe(0);
     avancer(1);
     // Il demande d'abord : la TTN l'a déjà. Pas de second dépôt.

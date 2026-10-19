@@ -13,6 +13,7 @@ import { enTantQue, type Transaction } from '../base.ts';
 import { CoffreFaux, ouvrir, sceller } from '../coffre.ts';
 import type { Contexte } from '../connexion.ts';
 import { Refus } from '../erreurs.ts';
+import { enPause } from '../service/pauses.ts';
 import { tracer } from '../trace.ts';
 import { appliquer } from './dossier.ts';
 import { champ, consulter, deposer, type Compte, type Depot } from './ttn.ts';
@@ -50,6 +51,8 @@ export async function envoyerALaTtn(ctx: Contexte): Promise<number> {
   const adresse = ctx.ttn?.adresse;
   if (!adresse || !ctx.ttn) return 0;
   const maintenant = maintenantDe(ctx);
+  // La TTN en pause (0145, C69) : rien ne part, aucun essai ne se compte ; tout repart au tour qui suit la reprise.
+  if (await enPause(ctx.pool, 'ttn', maintenant)) return 0;
   const dus = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select ventes.envois_ttn_dus($1) v', [maintenant])).rows[0]?.v as Du[] | null);
   let faits = 0;
   for (const d of dus ?? []) if (d.proprietaire && await unEnvoi(ctx, adresse, ctx.ttn.coffre, { ...d, proprietaire: d.proprietaire })) faits++;

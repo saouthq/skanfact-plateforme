@@ -1615,6 +1615,27 @@ la trace des invitations (`socle.audit`, qui ne se modifie jamais) : depuis 1.55
 l'anonymisation qui garde l'identifiant ; le nom du demandeur effacé avec le reste ; la direction seule décide et
 efface, le support note. Aussi : un message passager ne couvre plus les boutons d'une fenêtre ouverte (il passe en haut).
 
+**C69. Les travaux : un partenaire en pause, vingt-quatre heures, ce qui ne part plus** (1.56.0 ; base 0145 ; ce qui
+manquait à la console avant la recette ; décidé par délégation le 19/10/2026). Travaux disait quatorze jours par
+partenaire, et rien ne permettait d'arrêter un envoi pendant une maintenance. Ce qui est fait :
+- **la pause d'un partenaire** (la direction ou la technique ; le support, non) : ce que le serveur envoie **seul** — le
+  dépôt à la TTN (le facteur) et les relances d'échéance — se met en pause **une heure, quatre heures ou un jour**, avec
+  un motif ; jamais plus (une pause oubliée ne bloque rien au-delà d'un jour), jamais deux à la fois. L'avertissement se
+  lit avant le geste (pour la TTN : le délai légal de dépôt court toujours, **À VÉRIFIER**). Pendant la pause, rien ne
+  part et **aucun essai ne se compte** ; à son heure, ou au geste « Reprendre… », tout repart au tour suivant (la TTN est
+  d'abord interrogée : jamais deux dépôts). La carte du partenaire, la tuile du facteur et « À décider » de qui tient le
+  service la disent, avec l'heure de reprise. Ce que les clients font eux-mêmes (signer, payer, recevoir un code) ne se
+  met jamais en pause. Chaque geste entre au journal ;
+- **vingt-quatre heures** : chaque carte se lit aussi heure par heure (« 14 jours · 24 heures »), avec les mêmes sources
+  et les mêmes règles que ses quatorze jours ;
+- **ce qui ne part plus** : la TTN ne cesse jamais d'essayer (une pièce signée doit se déposer), mais des envois en
+  panne (ou sans réponse) depuis plus de **quatre heures** se disent en tête de Travaux et d'« À décider » du service,
+  avec l'incident qu'on peut ouvrir (la fiche « un partenaire en panne »). Ni pièce ni entreprise : un nombre et l'heure
+  du plus ancien.
+**Décidé par délégation** : la TTN et les relances seules ; une heure, quatre heures ou un jour ; la technique qui met
+en pause ; quatre heures avant de le dire ; jamais d'arrêt des essais de la TTN (un « nombre d'essais au plus » ferait
+perdre une pièce que la loi demande de déposer).
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1624,8 +1645,8 @@ cellules des tableaux à 11 × 12, la page à 24 × 32 et jusqu'à 1 440 points 
 
 ## Ce que le lot ne fait pas
 
-La suite de la console : le relevé de la banque lu et pointé (aucune banque branchée ; les paiements, C30, montrent ce qui reste à encaisser), la retenue à la source sur nos factures (`05` § 4.2), la suite du service (le débit des travaux heure par heure, la pause d'un partenaire, un nombre d'essais au
-plus, et les envois de la TEJ et de la CNSS, qui n'ont pas encore de trace ; la relecture du contenu est faite en 1.53.0,
+La suite de la console : le relevé de la banque lu et pointé (aucune banque branchée ; les paiements, C30, montrent ce qui reste à encaisser), la retenue à la source sur nos factures (`05` § 4.2), la suite du service (les envois de la TEJ et de la CNSS, qui n'ont pas encore de trace ; le débit heure par heure, la
+pause d'un partenaire et ce qui ne part plus sont faits en 1.56.0, C69 ; la relecture du contenu est faite en 1.53.0,
 C66 ; bloquer une adresse, en 1.54.0, C67 ; les demandes d'effacement, en 1.55.0, C68), la mesure, la suite des réglages (un prix se prépare depuis la 1.12.0, C28 ; les nouveautés s'allument depuis la 1.27.0, C43). L'écran
 « Application de bureau » de la maquette (les licences, les postes, la fin de vie et le passage à la plateforme de la v10)
 ne se construit pas : **la v10 n'est installée chez personne** (Skander, 14/10/2026). Celui de la nouvelle application de

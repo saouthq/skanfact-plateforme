@@ -42,7 +42,10 @@ export type Ligne =
   // 0131 : la sortie d'un client dont le contrat a pris fin, et ce qui reste à faire.
   | { sorte: 'sortie'; ouvre: 'fiche'; entreprise: Qui; fin: string; jours: number; restantes: Etape[] }
   // 0144 : une demande d'effacement à décider (son échéance de réponse), ou accordée et à faire.
-  | { sorte: 'effacement'; ouvre: 'donnees'; id: string; ref: string; etat: 'a_decider' | 'a_faire'; echeance: string; jours: number };
+  | { sorte: 'effacement'; ouvre: 'donnees'; id: string; ref: string; etat: 'a_decider' | 'a_faire'; echeance: string; jours: number }
+  // 0145 : un partenaire en pause ; des envois à la TTN qui ne partent plus depuis des heures.
+  | { sorte: 'pause'; ouvre: 'service'; partenaire: 'ttn' | 'relances'; jusquAu: string; motif: string }
+  | { sorte: 'envois_en_panne'; ouvre: 'service'; n: number; depuis: string; heures: number };
 type RelancePartie = { entreprise: Qui; rang: 'j15' | 'j7' | 'j1' | 'lecture_seule'; partieLe: string };
 // `calculeLe` : l'instant du calcul de la liste des clients que l'équipe partage (C65) ; aucun pour la technique.
 type Accueil = { aujourdhui: string; role: Role; tableau: Partial<Tableau> & { service: Service }; decider: Ligne[]; relances?: RelancePartie[]; calculeLe?: string | null };
@@ -183,6 +186,14 @@ function voir(l: Ligne, aujourdhui: string): Vue {
     case 'sortie':
       return { icone: 'sortir', titre: titre('console.ecran.decider.sortie_titre', { nom: l.entreprise.nom }), desc: sortieAttendEnMots(l),
         meta: null, urgence: 'semaine', href: fiche(l.entreprise), bouton: titre('console.ecran.decider.ouvrir_fiche') };
+    case 'pause':
+      return { icone: 'sablier', titre: titre('console.ecran.decider.pause_titre', { nom: dire(`console.ecran.service.tr.p.${l.partenaire}.nom`) }),
+        desc: phrase('console.ecran.decider.pause', { le: jourDe(l.jusquAu) === aujourdhui ? heureDe(l.jusquAu) : `${jourCourt(jourDe(l.jusquAu))}, ${heureDe(l.jusquAu)}`, motif: l.motif }),
+        meta: null, urgence: 'a_regarder', href: '#/service/travaux', bouton: titre('console.ecran.decider.ouvrir_travaux') };
+    case 'envois_en_panne':
+      return { icone: 'alerte', titre: titre(l.n === 1 ? 'console.ecran.decider.en_panne_titre_1' : 'console.ecran.decider.en_panne_titre_n', { n: l.n, heures: l.heures }),
+        desc: phrase('console.ecran.decider.en_panne', { quand: quand(l.depuis, aujourdhui) }),
+        meta: null, urgence: 'urgent', href: '#/service/travaux', bouton: titre('console.ecran.decider.ouvrir_travaux') };
     case 'effacement':
       return { icone: 'personne', titre: titre(l.etat === 'a_faire' ? 'console.ecran.decider.effacement_faire_titre' : l.jours < 0 ? 'console.ecran.decider.effacement_retard_titre' : 'console.ecran.decider.effacement_titre', { ref: l.ref }),
         desc: phrase(l.etat === 'a_faire' ? 'console.ecran.decider.effacement_faire' : l.jours < 0 ? 'console.ecran.decider.effacement_retard' : 'console.ecran.decider.effacement', { le: jourCourt(l.echeance), n: Math.abs(l.jours) }),
@@ -237,7 +248,7 @@ function ADecider({ lignes, role, aujourdhui, calculeLe = null }: { lignes: Lign
               const donnee = l.sorte === 'service' || l.sorte === 'support';
               return (
                 <li key={l.sorte === 'service' ? `service-${l.cle}` : l.sorte === 'secret' ? `secret-${l.nom}` : l.sorte === 'urgence' ? `urgence-${l.id}` : l.sorte === 'veille_silencieuse' ? 'veille' : l.sorte === 'support' ? `support-${l.demande.id}`
-                  : l.sorte === 'facture_defaite' || l.sorte === 'a_emettre' || l.sorte === 'trop_percu' ? `${l.sorte}-${l.ecran}` : l.sorte === 'contestation' ? `${l.sorte}-${l.entreprise.id}-${l.numero ?? l.ouverteLe}` : l.sorte === 'effacement' ? `effacement-${l.id}` : `${l.sorte}-${l.entreprise.id}`} className="c-ligne-decision">
+                  : l.sorte === 'facture_defaite' || l.sorte === 'a_emettre' || l.sorte === 'trop_percu' ? `${l.sorte}-${l.ecran}` : l.sorte === 'contestation' ? `${l.sorte}-${l.entreprise.id}-${l.numero ?? l.ouverteLe}` : l.sorte === 'effacement' ? `effacement-${l.id}` : l.sorte === 'pause' ? `pause-${l.partenaire}` : l.sorte === 'envois_en_panne' ? 'envois-en-panne' : `${l.sorte}-${l.entreprise.id}`} className="c-ligne-decision">
                   <span className={`c-ligne-icone c-${v.urgence}`}><Icone nom={v.icone} /></span>
                   <div className="c-ligne-texte">
                     <span className="c-ligne-titre"><span {...(donnee ? { 'data-donnee': true } : {})}>{v.titre}</span> <Puce ton={ton}>{titre(`console.ecran.urgence.${v.urgence}`)}</Puce></span>

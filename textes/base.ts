@@ -768,6 +768,14 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'noter une demande d\'effacement dit pourquoi (trois caractères au moins) : le motif reste au journal de la console', cle: 'base.effacement.motif_noter', fr: 'noter une demande d\'effacement dit pourquoi (trois caractères au moins) : le motif reste au journal de la console' },
   { base: 'une décision dit sa raison (trois caractères au moins) : elle se répond à la personne', cle: 'base.effacement.raison', fr: 'une décision dit sa raison (trois caractères au moins) : elle se répond à la personne' },
   { base: 'effacer dit pourquoi (trois caractères au moins) : le motif reste au journal de la console', cle: 'base.effacement.motif_faire', fr: 'effacer dit pourquoi (trois caractères au moins) : le motif reste au journal de la console' },
+  // La pause d'un partenaire (0145, docs/console.md C69).
+  { base: 'ce partenaire est déjà en pause : reprends-le d\'abord pour changer sa durée', cle: 'base.pause.deja', fr: 'ce partenaire est déjà en pause : reprends-le d\'abord pour changer sa durée' },
+  { base: 'ce partenaire n\'est plus en pause', cle: 'base.pause.finie', fr: 'ce partenaire n\'est plus en pause' },
+  { base: 'cette pause n\'existe pas', cle: 'base.pause.inconnue', fr: 'cette pause n\'existe pas' },
+  { base: 'mettre en pause dit pourquoi (trois caractères au moins) : le motif reste au journal de la console', cle: 'base.pause.motif', fr: 'mettre en pause dit pourquoi (trois caractères au moins) : le motif reste au journal de la console' },
+  { base: 'reprendre dit pourquoi (trois caractères au moins) : le motif reste au journal de la console', cle: 'base.pause.motif_reprendre', fr: 'reprendre dit pourquoi (trois caractères au moins) : le motif reste au journal de la console' },
+  { base: 'seuls le dépôt à la TTN et les relances d\'échéance se mettent en pause', cle: 'base.pause.partenaire', fr: 'seuls le dépôt à la TTN et les relances d\'échéance se mettent en pause' },
+  { base: 'une pause dure une heure, quatre heures ou un jour', cle: 'base.pause.duree', fr: 'une pause dure une heure, quatre heures ou un jour' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

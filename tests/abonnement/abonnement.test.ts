@@ -211,6 +211,12 @@ describe('les relances', () => {
 
   it('quinze jours avant : à qui gère l\'abonnement, une fois, sans le nom de l\'entreprise', async () => {
     await finEssai(E.ent, plusJours(aujourdhui, 15));
+    // Les relances en pause (0145, C69) : rien ne part ; à la reprise, celle qui est due part.
+    const pause = (await admin.query(`insert into plateforme.pause_partenaire (partenaire, le, jusqu_au, motif, par)
+      values ('relances', now() - interval '1 minute', now() + interval '1 hour', 'un incident en cours', $1) returning id`, [E.proprio.id])).rows[0].id as string;
+    expect(await relancerLesAbonnements(ctxRelances)).toBe(0);
+    expect(await parties()).toEqual([]);
+    await admin.query(`update plateforme.pause_partenaire set levee_le = now(), levee_par = $2, levee_motif = 'incident clos' where id = $1`, [pause, E.proprio.id]);
     await relancerLesAbonnements(ctxRelances);
     const envoyes = pour([E.proprio.email, administrateur.email, commercial.email]);
     expect(envoyes.map((p) => p.a).sort()).toEqual([E.proprio.email, administrateur.email].sort());

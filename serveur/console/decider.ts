@@ -16,6 +16,7 @@ import type { SecretLu } from './secrets.ts';
 import type { AccesUrgence } from './urgence.ts';
 import { restantes, sortieADecider, type Etape, type Sortie } from './sortie.ts';
 import { etatEffacement, type Effacement } from './donnees.ts';
+import type { Pause } from './travaux.ts';
 
 export type Entreprise = {
   id: string; raisonSociale: string; matricule: string | null; active: boolean; creeLe: string;
@@ -197,7 +198,12 @@ export type Ligne =
   | { sorte: 'sortie'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; fin: string; jours: number; restantes: Etape[] }
   // 0144 : une demande d'effacement qui attend sa décision (`jours` : jusqu'à son échéance de réponse, négatif passée),
   // ou accordée et pas encore faite (le compte d'une personne, qui s'efface d'ici).
-  | { sorte: 'effacement'; ouvre: 'donnees'; id: string; ref: string; etat: 'a_decider' | 'a_faire'; echeance: string; jours: number };
+  | { sorte: 'effacement'; ouvre: 'donnees'; id: string; ref: string; etat: 'a_decider' | 'a_faire'; echeance: string; jours: number }
+  // 0145 : un partenaire en pause (jusqu'à quand), et les envois à la TTN qui ne partent plus depuis des heures.
+  | { sorte: 'pause'; ouvre: 'service'; partenaire: Pause['partenaire']; jusquAu: string; motif: string }
+  | { sorte: 'envois_en_panne'; ouvre: 'service'; n: number; depuis: string; heures: number };
+// Ce que Travaux sait de ce qui ne part pas (0145), pour qui tient le service.
+export type TravauxADecider = { pauses: readonly Pause[]; enPanne: { n: number; depuis: string | null; heures: number } };
 // Ce que Paiements sait de l'argent qui attend une décision (serveur/console/paiements.ts, par ses fonctions), les
 // contestations en cours (serveur/console/contestations.ts) et les sorties en cours (serveur/console/sortie.ts), la
 // direction seule.
@@ -218,7 +224,8 @@ export const LECTURE_SEULE_DE_LA_SEMAINE = 7;
 // promesse (« dans la journée ») est déjà tenue en retard ; la plus ancienne d'abord.
 // L'argent (`argent`) : la direction seule, et pour les entreprises de la liste (la fiche passe la sienne).
 export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role: RoleConsole, demandes: LigneDemande[] = [], maintenant: Date = new Date(),
-  argent: Argent | null = null, secrets: readonly SecretLu[] = [], urgences: readonly AccesUrgence[] = [], effacements: readonly Effacement[] = []): Ligne[] {
+  argent: Argent | null = null, secrets: readonly SecretLu[] = [], urgences: readonly AccesUrgence[] = [], effacements: readonly Effacement[] = [],
+  travaux: TravauxADecider | null = null): Ligne[] {
   const lignes: [number, number, Ligne][] = [];
   // Les demandes d'effacement (0144) : la direction seule décide et efface. Sans réponse à son échéance, juste après un
   // service grave ; sinon, la plus proche de son échéance d'abord.
@@ -279,6 +286,16 @@ export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role
   if (service && veille.etat === 'silencieuse') lignes.push([0, 0, { sorte: 'veille_silencieuse', ouvre: 'service', derniere: veille.derniere }]);
   if (service && veille.etat === 'ok') {
     for (const p of veille.problemes) lignes.push([p.grave ? 0 : 2, 0, { sorte: 'service', ouvre: 'service', ...p }]);
+  }
+  // Ce qui ne part pas (0145), pour qui tient le service : des envois à la TTN en panne depuis des heures passent juste
+  // après un service grave ; un partenaire en pause se rappelle, avec son heure de reprise.
+  if (service && travaux) {
+    if (travaux.enPanne.n > 0 && travaux.enPanne.depuis) {
+      lignes.push([0.6, 0, { sorte: 'envois_en_panne', ouvre: 'service', n: travaux.enPanne.n, depuis: travaux.enPanne.depuis, heures: travaux.enPanne.heures }]);
+    }
+    for (const p of travaux.pauses) {
+      if (p.enCours && Date.parse(p.jusquAu) > maintenant.getTime()) lignes.push([2.7, Date.parse(p.jusquAu), { sorte: 'pause', ouvre: 'service', partenaire: p.partenaire, jusquAu: p.jusquAu, motif: p.motif }]);
+    }
   }
   // Les secrets (0130), pour qui tient le service : en retard juste après un service grave, bientôt après les autres.
   if (service) {

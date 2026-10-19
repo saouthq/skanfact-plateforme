@@ -13,6 +13,7 @@
 import { enTantQue } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
+import { enPause } from '../service/pauses.ts';
 import { rendre, t } from '../../textes/index.ts';
 import { etatAbonnement, graceDe, jourEnFrancais, lireFaits, relanceDue } from './etat.ts';
 import './textes.ts';
@@ -23,6 +24,8 @@ type AExaminer = { entreprise: string; faits: Record<string, unknown>; parties: 
 export async function relancerLesAbonnements(ctx: Contexte, maintenant: Date = ctx.maintenant?.() ?? new Date()): Promise<number> {
   const courriel = ctx.courriel;
   if (!courriel) return 0;
+  // Les relances en pause (0145, C69) : aucune ne part ; celles encore dues partiront au tour qui suit la reprise.
+  if (await enPause(ctx.pool, 'relances', maintenant)) return 0;
   const jour = aujourdhuiATunis(maintenant);
   const liste = await enTantQue(ctx.pool, null, async (tx) =>
     (await tx.query('select plateforme.relances_a_examiner($1::date) l', [jour])).rows[0].l as AExaminer[]);

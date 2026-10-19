@@ -10,12 +10,15 @@
 //   - les gestes (0115 ; l'audit F18) : une panne se reprend tout de suite (« Reprendre maintenant… », avec son motif : le
 //     facteur redemande d'abord à la TTN si elle a la pièce) ; un refus ou un compte retenu se corrige chez l'entreprise,
 //     que la direction prévient d'ici (« Prévenir l'entreprise… », l'e-mail de la fiche). Jamais « réessayer » un refus.
+// Depuis 0145 (docs/console.md C69) : chaque partenaire se lit aussi sur vingt-quatre heures ; ce que le serveur envoie
+// seul (la TTN, les relances) se met en pause une heure, quatre heures ou un jour, avec son motif, et se reprend ; des
+// envois à la TTN en panne depuis des heures se disent en tête.
 import { useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
 import { entier, minutes } from '../nombres.ts';
-import { jourCourt, quand } from '../temps.ts';
-import { Alerte, Bouton, Dialogue, maj, Puce, toast, Vide, Zone, type TonPuce } from '../ui.tsx';
+import { heureDe, jourCourt, jourDe, jourMois, quand } from '../temps.ts';
+import { Alerte, Bouton, Dialogue, Lien, maj, Puce, toast, Vide, Zone, type TonPuce } from '../ui.tsx';
 import { EcrireAuContact } from './Echanges.tsx';
 import { EnteteService, EtatPuce, Tuile, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type EtatBrique, type Nuit, type Resultat, type Veille } from './Service.tsx';
 
@@ -24,6 +27,9 @@ const T = `${K}.tr`;
 
 type Partenaire = 'ttn' | 'signature' | 'sms' | 'paiements' | 'relances' | 'courriel';
 type Jour = { jour: string; n: number; bons: number; refus: number };
+type Heure = { heure: string; n: number; bons: number; refus: number };
+type Pausable = 'ttn' | 'relances';
+type Pause = { id: string; partenaire: Pausable; le: string; jusquAu: string; motif: string; par: string; leveeLe: string | null; enCours: boolean };
 type EtatTour = 'bon' | 'echec' | 'arrete' | 'jamais';
 type Tour = { nom: string; pasMs: number; branche: 'ttn' | 'courriel' | null; etat: EtatTour;
   tour: { le: string; dureeMs: number; ok: boolean; compte: Record<string, number>; echecLe: string | null; echec: string | null } | null };
@@ -34,7 +40,8 @@ type ARegarder = {
 };
 type Donnees = {
   maintenant: string; aujourdhui: string; role: 'direction' | 'technique'; veille: Veille; alertesEnCours: AlertesEnCours; briques: Brique[];
-  tours: Tour[]; partenaires: { nom: Partenaire; jours: Jour[] }[]; sansTrace: string[]; ttn: { enFile: number; medianeS: number | null };
+  tours: Tour[]; partenaires: { nom: Partenaire; jours: Jour[]; heures: Heure[] }[]; sansTrace: string[]; ttn: { enFile: number; medianeS: number | null };
+  pauses: Pause[]; pausables: Pausable[]; dureesPause: number[]; enPanne: { n: number; depuis: string | null; heures: number };
   aRegarder: ARegarder[]; nuit: Nuit | null; exercice: { jour: string; restauration: Resultat } | null; version: string | null;
   branches: { ttn: boolean; courriel: boolean };
 };
@@ -43,13 +50,21 @@ type Donnees = {
 const DE_LA_SORTE: Record<ARegarder['sorte'], Partenaire> = { ttn: 'ttn', signature: 'signature', paiement: 'paiements' };
 const somme = (j: readonly Jour[], k: 'n' | 'bons' | 'refus') => j.reduce((s, x) => s + x[k], 0);
 const duJour = (j: readonly Jour[]) => j.at(-1) ?? { jour: '', n: 0, bons: 0, refus: 0 };
+// La pause en cours d'un partenaire (la même règle que le serveur : serveur/console/travaux.ts, pauseEnCours).
+const pauseDe = (d: Donnees, p: Partenaire): Pause | null =>
+  d.pauses.find((x) => x.partenaire === p && x.enCours && Date.parse(x.jusquAu) > Date.parse(d.maintenant)) ?? null;
+const pausable = (d: Donnees, p: Partenaire): p is Pausable => (d.pausables as string[]).includes(p);
+const jusqua = (iso: string, aujourdhui: string) => (jourDe(iso) === aujourdhui
+  ? dire(`${T}.pz.jusqua_heure`, { heure: heureDe(iso) }) : dire(`${T}.pz.jusqua_jour`, { jour: jourMois(jourDe(iso)), heure: heureDe(iso) }));
 
 // ── Les quatre chiffres ─────────────────────────────────────────────────────────────────────────────────────────────
 function Chiffres({ d }: { d: Donnees }) {
   const aujourdhui = d.partenaires.reduce((s, p) => s + duJour(p.jours).n, 0);
   const seuls = d.aRegarder.filter((r) => r.attente === 'seul').length;
   const facteur = d.tours.find((t) => t.nom === 'facteur');
-  const etatFacteur: EtatBrique = !d.branches.ttn || !facteur || facteur.etat === 'jamais' ? 'nonmesure' : facteur.etat === 'bon' ? 'bon' : 'grave';
+  const pauseTtn = pauseDe(d, 'ttn');
+  // En pause, la tuile le dit d'abord, même avant le premier tour du facteur.
+  const etatFacteur: EtatBrique = !d.branches.ttn ? 'nonmesure' : pauseTtn ? 'attention' : !facteur || facteur.etat === 'jamais' ? 'nonmesure' : facteur.etat === 'bon' ? 'bon' : 'grave';
   return (
     <section className="c-sv-claires" aria-label={titre(`${T}.k.titre`)}>
       <div className="c-sv-tuiles c-tr-tuiles">
@@ -60,20 +75,23 @@ function Chiffres({ d }: { d: Donnees }) {
           unite={selon(d.aRegarder.length, `${T}.k.regarder_unite`)}
           sous={d.aRegarder.length ? dire(`${T}.k.regarder_sous`, { seuls: entier(seuls), entreprise: entier(d.aRegarder.length - seuls) }) : phrase(`${T}.k.regarder_rien`)} />
         <Tuile titre={titre(`${T}.k.facteur`)} etat={etatFacteur} mot
-          valeur={!d.branches.ttn ? titre(`${T}.k.pas_branche`) : facteur?.tour ? maj(quand(facteur.tour.le, d.aujourdhui)) : titre(`${T}.k.jamais`)}
-          sous={phrase(!d.branches.ttn ? `${T}.k.facteur_sans_ttn` : facteur?.etat === 'arrete' ? `${T}.k.facteur_arrete` : `${T}.k.facteur_sous`)} />
+          valeur={!d.branches.ttn ? titre(`${T}.k.pas_branche`) : pauseTtn ? titre(`${T}.k.en_pause`) : facteur?.tour ? maj(quand(facteur.tour.le, d.aujourdhui)) : titre(`${T}.k.jamais`)}
+          sous={pauseTtn ? phrase(`${T}.k.facteur_pause`, { jusqua: jusqua(pauseTtn.jusquAu, d.aujourdhui) })
+            : phrase(!d.branches.ttn ? `${T}.k.facteur_sans_ttn` : facteur?.etat === 'arrete' ? `${T}.k.facteur_arrete` : `${T}.k.facteur_sous`)} />
       </div>
     </section>
   );
 }
 
 // ── Les partenaires ─────────────────────────────────────────────────────────────────────────────────────────────────
-function Barres({ jours, nom }: { jours: readonly Jour[]; nom: string }) {
-  const haut = Math.max(1, ...jours.map((j) => j.n));
+type Barre = { cle: string; titre: string; n: number; refus: number };
+function Barres({ barres, nom, heures }: { barres: readonly Barre[]; nom: string; heures: boolean }) {
+  const haut = Math.max(1, ...barres.map((j) => j.n));
   return (
-    <div className="c-tr-barres" role="img" aria-label={dire(`${T}.p.barres`, { nom, n: entier(somme(jours, 'n')) })}>
-      {jours.map((j) => (
-        <span key={j.jour} className="c-tr-barre" title={`${jourCourt(j.jour)} : ${j.n}`}>
+    <div className={`c-tr-barres${heures ? ' c-tr-barres-24' : ''}`} role="img"
+      aria-label={dire(heures ? `${T}.p.barres_heures` : `${T}.p.barres`, { nom, n: entier(barres.reduce((x, b) => x + b.n, 0)) })}>
+      {barres.map((j) => (
+        <span key={j.cle} className="c-tr-barre" title={`${j.titre} : ${j.n}`}>
           <span className="c-tr-barre-bon" style={{ height: `${j.n ? Math.max(4, Math.round(((j.n - j.refus) / haut) * 100)) : 2}%` }} />
           {j.refus ? <span className="c-tr-barre-refus" style={{ height: `${Math.max(4, Math.round((j.refus / haut) * 100))}%` }} /> : null}
         </span>
@@ -82,41 +100,150 @@ function Barres({ jours, nom }: { jours: readonly Jour[]; nom: string }) {
   );
 }
 
-function Partenaires({ d, filtrer }: { d: Donnees; filtrer: (p: Partenaire) => void }) {
+type Vue = 'jours' | 'heures';
+function Partenaires({ d, filtrer, geste }: { d: Donnees; filtrer: (p: Partenaire) => void; geste: (g: GestePause) => void }) {
   // Un partenaire qui ne part que par un relais absent (les relances sans e-mail) se dit débranché, pas « 0 ».
   const branche = (p: Partenaire) => (p === 'relances' ? d.branches.courriel : p === 'ttn' ? d.branches.ttn : true);
+  const [vue, setVue] = useState<Vue>('jours');
   return (
     <section className="c-tr-partenaires" aria-labelledby="tr-partenaires">
       <div className="c-al-section-tete"><div>
         <h2 id="tr-partenaires">{titre(`${T}.p.titre`)}</h2>
-        <p className="c-carte-sous">{phrase(`${T}.p.sous`)}</p>
+        <p className="c-carte-sous">{phrase(vue === 'jours' ? `${T}.p.sous` : `${T}.p.sous_heures`)}</p>
+      </div>
+      <div className="c-pilules" role="group" aria-label={titre(`${T}.p.vue`)}>
+        {(['jours', 'heures'] as const).map((v) => (
+          <button key={v} type="button" className="c-pilule" aria-pressed={vue === v} onClick={() => setVue(v)}>{titre(`${T}.p.vue_${v}`)}</button>
+        ))}
       </div></div>
       <div className="c-tr-grille">
         {d.partenaires.map((p) => {
           const j = duJour(p.jours), quatorze = somme(p.jours, 'n');
           const aRegarder = d.aRegarder.filter((r) => DE_LA_SORTE[r.sorte] === p.nom).length;
-          const etat: EtatBrique = !branche(p.nom) ? 'nonmesure' : aRegarder ? 'attention' : 'bon';
+          const pause = pauseDe(d, p.nom);
+          const etat: EtatBrique = !branche(p.nom) ? 'nonmesure' : pause || aRegarder ? 'attention' : 'bon';
+          const barres: Barre[] = vue === 'jours' ? p.jours.map((x) => ({ cle: x.jour, titre: jourCourt(x.jour), n: x.n, refus: x.refus }))
+            : p.heures.map((x) => ({ cle: x.heure, titre: heureDe(x.heure), n: x.n, refus: x.refus }));
+          const total = barres.reduce((x, b) => x + b.n, 0);
           return (
             <article key={p.nom} className="c-carte c-tr-partenaire">
               <header className="c-tr-partenaire-tete">
                 <div><h3>{titre(`${T}.p.${p.nom}.nom`)}</h3><span className="c-sous">{phrase(`${T}.p.${p.nom}.quoi`)}</span></div>
               </header>
               <p className="c-tr-compte"><b>{entier(j.n)}</b> <span>{selon(j.n, `${T}.p.${p.nom}.unite`)}</span>
-                <EtatPuce etat={etat} {...(!branche(p.nom) ? { texte: titre(`${T}.p.debranche`) } : {})} /></p>
-              <Barres jours={p.jours} nom={titre(`${T}.p.${p.nom}.nom`)} />
+                <EtatPuce etat={etat} {...(!branche(p.nom) ? { texte: titre(`${T}.p.debranche`) } : pause ? { texte: titre(`${T}.pz.en_pause`) } : {})} /></p>
+              <Barres barres={barres} nom={titre(`${T}.p.${p.nom}.nom`)} heures={vue === 'heures'} />
               <dl className="c-tr-stats">
-                <div><dt>{titre(`${T}.p.quatorze`)}</dt><dd>{entier(quatorze)}</dd></div>
+                <div><dt>{titre(vue === 'jours' ? `${T}.p.quatorze` : `${T}.p.vingt_quatre`)}</dt><dd>{entier(vue === 'jours' ? quatorze : total)}</dd></div>
                 {p.nom === 'ttn' ? <div><dt>{titre(`${T}.p.mediane`)}</dt><dd>{d.ttn.medianeS === null ? '—' : d.ttn.medianeS < 120 ? `${entier(d.ttn.medianeS)}\u00a0s` : minutes(Math.round(d.ttn.medianeS / 60))}</dd></div>
                   : p.nom === 'sms' || p.nom === 'relances' || (p.nom === 'courriel' && !somme(p.jours, 'refus')) ? null
                     : <div><dt>{titre(`${T}.p.${p.nom}.refus`)}</dt><dd>{entier(somme(p.jours, 'refus'))}</dd></div>}
               </dl>
-              {aRegarder ? <Bouton petit onClick={() => filtrer(p.nom)}>{selon(aRegarder, `${T}.p.voir`)}</Bouton> : null}
+              {pause ? (
+                <div className="c-tr-pause">
+                  <p><b>{maj(dire(`${T}.pz.depuis`, { jusqua: jusqua(pause.jusquAu, d.aujourdhui) }))}</b>
+                    <span className="c-sous">{maj(dire(`${T}.pz.par`, { par: pause.par }))} · <span data-donnee>« {pause.motif} »</span></span></p>
+                  <Bouton petit onClick={() => geste({ sorte: 'reprendre', pause })} etiquette={titre(`${T}.pz.reprendre_aria`, { nom: dire(`${T}.p.${p.nom}.nom`) })}>{titre(`${T}.pz.reprendre`)}</Bouton>
+                </div>
+              ) : null}
+              <div className="c-tr-partenaire-pied">
+                {aRegarder ? <Bouton petit onClick={() => filtrer(p.nom)}>{maj(selon(aRegarder, `${T}.p.voir`))}</Bouton> : null}
+                {pausable(d, p.nom) && !pause && branche(p.nom) ? (
+                  <Bouton petit ton="discret" onClick={() => geste({ sorte: 'pause', partenaire: p.nom as Pausable })}
+                    etiquette={titre(`${T}.pz.mettre_aria`, { nom: dire(`${T}.p.${p.nom}.nom`) })}>{titre(`${T}.pz.mettre`)}</Bouton>
+                ) : null}
+              </div>
             </article>
           );
         })}
       </div>
       {d.sansTrace.length ? <p className="c-sous c-tr-sans-trace">{phrase(`${T}.p.sans_trace`, { liste: d.sansTrace.map((x) => dire(`${T}.p.st.${x}`)).join(', ') })}</p> : null}
     </section>
+  );
+}
+
+// ── La pause d'un partenaire (0145, C69) ────────────────────────────────────────────────────────────────────────────
+type GestePause = { sorte: 'pause'; partenaire: Pausable } | { sorte: 'reprendre'; pause: Pause };
+function FenetrePause({ partenaire, durees, aujourdhui, fermer, fait }: { partenaire: Pausable; durees: number[]; aujourdhui: string; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const [heures, setHeures] = useState(durees[0] ?? 1);
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState(0);
+  const [occupe, setOccupe] = useState(false);
+  const nom = dire(`${T}.p.${partenaire}.nom`);
+  const envoyer = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((n) => n + 1); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const res = await api<{ jusquAu: string }>('POST', '/console/service/travaux/pauses', { partenaire, heures, motif: motif.trim() });
+        if (!res) return;
+        if (res.statut === 201) { toast(phrase(`${T}.pz.fait`, { nom, jusqua: jusqua(res.corps.jusquAu, aujourdhui) })); fait(); return; }
+        setRefus(refusDe(res));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  return (
+    <Dialogue titre={titre(`${T}.pz.titre`, { nom })} fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${T}.pz.bouton`)}</Bouton>
+      </>}>
+      <div className="c-champ">
+        <span className="c-champ-libelle" id="tr-pause-duree">{titre(`${T}.pz.duree`)}</span>
+        <div className="c-pilules c-in-pilules" role="group" aria-labelledby="tr-pause-duree">
+          {durees.map((h) => (
+            <button key={h} type="button" className="c-pilule" aria-pressed={heures === h} onClick={() => setHeures(h)}>{maj(dire(h === 24 ? `${T}.pz.un_jour` : h === 1 ? `${T}.pz.une_heure` : `${T}.pz.heures`, { n: h }))}</button>
+          ))}
+        </div>
+      </div>
+      <Alerte ton="attention"><span>{phrase(`${T}.pz.avertir.${partenaire}`)}</span></Alerte>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul>{['p1', 'p2', 'p3'].map((x) => <li key={x}>{phrase(`${T}.pz.${partenaire}.${x}`)}</li>)}</ul>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${T}.pz.motif_aide`)} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+function FenetreReprendrePause({ pause, aujourdhui, fermer, fait }: { pause: Pause; aujourdhui: string; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState(0);
+  const [occupe, setOccupe] = useState(false);
+  const nom = dire(`${T}.p.${pause.partenaire}.nom`);
+  const envoyer = () => {
+    if (motif.trim().length < 3) { setRefus(phrase('console.ecran.geste.motif_court')); setFaute((n) => n + 1); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const res = await api('POST', `/console/service/travaux/pauses/${pause.id}/reprendre`, { motif: motif.trim() });
+        if (!res) return;
+        if (res.statut === 200) { toast(phrase(`${T}.pz.repris`, { nom })); fait(); return; }
+        setRefus(refusDe(res));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  return (
+    <Dialogue titre={titre(`${T}.pz.reprendre_titre`, { nom })} sous={maj(dire(`${T}.pz.depuis`, { jusqua: jusqua(pause.jusquAu, aujourdhui) }))} fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${T}.pz.reprendre_bouton`)}</Bouton>
+      </>}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
+        <ul><li>{phrase(`${T}.pz.r.${pause.partenaire}`)}</li><li>{phrase(`${T}.pz.r.journal`)}</li></ul>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} faute={faute > 0} n={faute} premier />
+      <p className="c-al-qui">{phrase('console.ecran.service.al.geste.qui', { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
   );
 }
 
@@ -292,6 +419,7 @@ export function Travaux() {
   const [l, relire] = useLecture<Donnees>('/console/service/travaux', 'service-travaux');
   useRelireTantQueRegarde(relire);
   const [partenaire, setPartenaire] = useState<Partenaire | null>(null);
+  const [geste, setGeste] = useState<GestePause | null>(null);
   const d = l.etat === 'lu' ? l.donnees : null;
   const filtrer = (p: Partenaire) => {
     setPartenaire(p);
@@ -305,9 +433,17 @@ export function Travaux() {
       {d ? (
         <>
           <Chiffres d={d} />
-          <Partenaires d={d} filtrer={filtrer} />
+          {d.enPanne.n > 0 && d.enPanne.depuis ? (
+            <Alerte ton="attention">
+              <span><b>{maj(selon(d.enPanne.n, `${T}.ep.titre`, { heures: d.enPanne.heures }))}</b>{' '}{phrase(`${T}.ep.texte`, { quand: quand(d.enPanne.depuis, d.aujourdhui) })}</span>
+              <span><Lien petit href="#/service/incidents?ouvrir=partenaire">{titre(`${T}.ep.incident`)}</Lien></span>
+            </Alerte>
+          ) : null}
+          <Partenaires d={d} filtrer={filtrer} geste={setGeste} />
           <Liste d={d} partenaire={partenaire} retirer={() => setPartenaire(null)} relire={relire} />
           <Taches d={d} />
+          {geste?.sorte === 'pause' ? <FenetrePause partenaire={geste.partenaire} durees={d.dureesPause} aujourdhui={d.aujourdhui} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} /> : null}
+          {geste?.sorte === 'reprendre' ? <FenetreReprendrePause pause={geste.pause} aujourdhui={d.aujourdhui} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} /> : null}
         </>
       ) : null}
     </>

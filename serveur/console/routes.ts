@@ -47,7 +47,7 @@ import {
   CALENDRIER, COMMANDES, commandesRemise, copies, exercices, GARDE, horsDeLaMachine, lArchivage, laSauvegarde, leDernierExercice, lignesParNuit,
   lireSauvegardes, nuits as nuitsGardees, pointLePlusAncien, promesses, REMISE_PREUVE_J, retardsParHeure,
 } from './sauvegardes.ts';
-import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRACE, TOURS } from './travaux.ts';
+import { attenteDe, DUREES_PAUSE, EN_PANNE_HEURES, etatTour, lireSuite, lireTravaux, PARTENAIRES, PAUSABLES, quatorzeJours, SANS_TRACE, TOURS, vingtQuatreHeures } from './travaux.ts';
 import { depuisLa, plageDe, reserveALaDirection, sorteDe } from './journal.ts';
 import { CHAINES_PAR_LOT, CHAINES_PAS_MS, demandeArretee, etatRelecture, joursDeRelecture, lireChaines } from './chaines.ts';
 import { CONTENUS_PAR_LOT } from '../service/contenus.ts';
@@ -347,8 +347,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const urgences = role === 'direction' ? aLAccueil(lireUrgences(await lireJson(transaction(tx), 'select plateforme.console_acces_urgence($1) v', [instant])), instant) : [];
       // Les demandes d'effacement (0144) : la direction seule.
       const effacements = role === 'direction' ? lireEffacements(await lireJson(transaction(tx), 'select plateforme.console_effacements($1) v', [instant])) : [];
+      // Ce qui ne part pas (0145) : qui tient le service (la direction, la technique).
+      const suite = role === 'support' ? null : lireSuite(await lireJson(transaction(tx), 'select plateforme.console_travaux_a_decider($1, $2) v', [instant, EN_PANNE_HEURES]));
       return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t,
-        decider: aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences, effacements), relances,
+        decider: aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences, effacements,
+          suite ? { pauses: suite.pauses, enPanne: { ...suite.enPanne, heures: EN_PANNE_HEURES } } : null), relances,
         calculeLe: base ? new Date(base.calculeLe).toISOString() : null } };
     },
   });
@@ -1445,12 +1448,15 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const x = transaction(tx);
       const v = lireVeilleDeLaBase(await lireJson(x, 'select plateforme.console_service_veille($1) v', [depuisTrenteJours(jour)]));
       const lu = lireTravaux(await lireJson(x, 'select plateforme.console_service_travaux($1) v', [instant.toISOString()]));
+      // La suite (0145, C69) : les pauses, les vingt-quatre heures de chaque partenaire, ce qui ne part plus.
+      const suite = lireSuite(await lireJson(x, 'select plateforme.console_service_travaux_suite($1, $2) v', [instant.toISOString(), EN_PANNE_HEURES]));
       const veille = await lireLaVeille(fichierVeille, instant);
       return {
         corps: {
           maintenant: instant.toISOString(), aujourdhui: jour, role: roleDe(qui), veille, alertesEnCours: alertesOuvertes(v.alertes), briques: briques(v, jour, instant, veille.etat === 'ok'),
           tours: TOURS.map((o) => ({ ...o, ...etatTour(o.nom, lu.tours, instant) })),
-          partenaires: PARTENAIRES.map((p) => ({ nom: p, jours: quatorzeJours(lu.partenaires[p], jour) })),
+          partenaires: PARTENAIRES.map((p) => ({ nom: p, jours: quatorzeJours(lu.partenaires[p], jour), heures: vingtQuatreHeures(suite.heures[p], instant) })),
+          pauses: suite.pauses, pausables: PAUSABLES, dureesPause: DUREES_PAUSE, enPanne: { ...suite.enPanne, heures: EN_PANNE_HEURES },
           sansTrace: SANS_TRACE, ttn: lu.ttn,
           // Le motif d'un refus peut citer ce que la TTN a lu (un matricule, un numéro) : en toutes lettres pour la direction,
           // sa nature seule pour la technique. Un motif rangé par une version plus ancienne peut ne plus être au catalogue :
@@ -1462,6 +1468,25 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
           branches: { ttn: Boolean(ctx.ttn?.adresse), courriel: Boolean(ctx.courriel) },
         },
       };
+    },
+  });
+  // Mettre un partenaire en pause (0145 ; C69) : ce que le serveur envoie seul (la TTN, les relances), une heure, quatre
+  // heures ou un jour ; puis le reprendre avant son heure. Le tour suivant du serveur le lit.
+  ajouter({
+    methode: 'POST', chemin: '/console/service/travaux/pauses', geste: 'console.service.gerer',
+    corps: z.object({ partenaire: z.enum(PAUSABLES), heures: z.union([z.literal(DUREES_PAUSE[0]), z.literal(DUREES_PAUSE[1]), z.literal(DUREES_PAUSE[2])]), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const r = await lireJson<{ id: string; jusquAu: string }>(transaction(tx), 'select plateforme.console_pause_partenaire($1, $2, $3, $4) v',
+        [corps.partenaire, corps.heures, corps.motif, maintenant()]);
+      return { statut: 201, corps: r };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/travaux/pauses/:pause/reprendre', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_reprendre_partenaire($1, $2, $3)', [lireUuid(params.pause), corps.motif, maintenant()]);
+      return { corps: { ok: true } };
     },
   });
   // Reprendre un envoi arrêté sur une panne (0115 ; l'audit F18), par sa clé : il repart au prochain tour du facteur, qui

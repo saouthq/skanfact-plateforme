@@ -167,6 +167,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.releve_contenus': { classe: 'hors', raison: 'chaque relecture du contenu des pièces scellées, comptée (0142) : l\'état de la plateforme' },
   'plateforme.adresse_vue': { classe: 'hors', raison: 'ce que l\'entrée a refusé ou freiné, par adresse internet et par heure (0143) : l\'état de la plateforme' },
   'plateforme.adresse_bloquee': { classe: 'hors', raison: 'une adresse internet bloquée depuis la console (0143) : un geste de l\'équipe SkanFact' },
+  'plateforme.pause_partenaire': { classe: 'hors', raison: 'un partenaire mis en pause depuis la console (0145) : un geste de l\'équipe SkanFact' },
   'plateforme.demande_effacement': { classe: 'hors', raison: 'une demande d\'effacement reçue par SkanFact, sa décision et sa preuve (0144) : un registre de l\'équipe SkanFact' },
   'plateforme.relecture_demandee': { classe: 'hors', raison: 'une relecture des chaînes demandée depuis la console (0142) : un geste de l\'équipe SkanFact, pas une donnée de l\'entreprise' },
   'plateforme.service_maintenance': { classe: 'hors', raison: 'les maintenances annoncées sur la page d\'état : l\'histoire de la plateforme' },

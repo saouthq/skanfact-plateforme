@@ -763,6 +763,10 @@ vaut pour tout le dépôt.*
     (le registre des demandes d'effacement, `socle.effacer_personne`, la trace qui ne recopie plus d'adresse) ;
     `serveur/console/donnees.ts` (pur : ce que SkanFact garde, l'état d'une demande) ; écran `Donnees.tsx` (noter,
     décider, effacer, la preuve) ; « À décider » (`decider.ts`).
+  - **La suite des travaux** (1.56.0 ; `docs/console.md` C69) : base `0145_travaux.sql` (la pause d'un partenaire, le
+    débit heure par heure, les envois à la TTN qui ne partent plus) ; `serveur/service/pauses.ts` (lue par le facteur,
+    `serveur/v10/envoi.ts`, et les relances, `serveur/abonnement/relances.ts`) ; `serveur/console/travaux.ts` (pur) ;
+    écran `Travaux.tsx` (« 14 jours · 24 heures », « Mettre en pause… », « Reprendre… »).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

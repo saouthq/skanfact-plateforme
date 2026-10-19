@@ -3184,3 +3184,11 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   }
   .c-ef-table tbody tr:hover td { background: transparent; }
 }
+
+/* Les travaux, la suite (0145 ; docs/console.md C69) : la pause d'un partenaire, les vingt-quatre heures. */
+.c-tr-partenaire-pied { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.c-tr-pause { display: grid; justify-items: start; gap: 10px; padding: 10px 12px;
+  border-radius: 12px; background: var(--c-orange-doux); color: var(--c-orange-texte); }
+.c-tr-pause p { margin: 0; display: grid; gap: 2px; }
+.c-tr-pause .c-sous { color: inherit; opacity: .85; }
+.c-tr-barres-24 { grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 2px; }

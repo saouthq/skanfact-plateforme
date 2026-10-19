@@ -242,6 +242,9 @@ describe('la console de l\'équipe, à la souris', () => {
   }, 60_000);
 
   it('l\'accueil : le plus urgent en haut, ses filtres, et chaque chiffre ouvre la liste qu\'il compte', async () => {
+    // Les relances parties pour d'autres essais, à l'heure de maintenant (tests/abonnement/abonnement.test.ts), ne sont pas
+    // celles de cet accueil : la colonne doit pouvoir dire qu'aucune n'est partie (vu le 19/10/2026, selon l'ordre des essais).
+    await admin.query('delete from plateforme.relance_abonnement where partie_le >= now() - interval \'2 days\'');
     const p = await ouvrir(await jetonConsole(direction), '#/');
     const decider = p.locator('.c-decider .c-ligne-decision');
     await expect.poll(() => decider.count(), { timeout: 15_000 }).toBeGreaterThan(1);
