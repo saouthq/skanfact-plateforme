@@ -10994,14 +10994,18 @@ prouver 'une fonction de la console qui se passe de session' base/migrations/008
   '  if v is null then perform socle.refus('"'"'la console demande une session de la console : connecte-toi à la console'"'"'); end if;
 ' '' \
   "$CONSS7"
-prouver 'les entreprises d'"'"'exemple dans la liste de la console' base/migrations/0114_chiffres_justes.sql \
-  '   where not e.essai);' '   where true);' \
+prouver 'les entreprises d'"'"'exemple dans la liste de la console' 'base/migrations/0141_cout_des_listes.sql' \
+  '    left join plateforme.abonnement a on a.entreprise = e.id
+   where not e.essai and (p_entreprise' \
+  '    left join plateforme.abonnement a on a.entreprise = e.id
+   where true and (p_entreprise' \
   "$CONSS8"
 prouver 'la fiche d'"'"'une entreprise d'"'"'exemple dans la console' base/migrations/0114_chiffres_justes.sql \
   'where e.id = p_entreprise and not e.essai;' 'where e.id = p_entreprise;' \
   "$CONSS8"
 prouver 'la liste des clients rangée par date, pas par urgence' 'serveur/console/organisations.ts' \
-  '  if (tri === '"'"'urgence'"'"') return parUrgence;' '  if (tri === '"'"'urgence'"'"') return [...liste];' \
+  '  if (tri === '"'"'urgence'"'"') return rangees;' \
+  '  if (tri === '"'"'urgence'"'"') return [...liste];' \
   "$CONSS8"
 prouver 'la semaine des inscriptions qui compte huit jours' serveur/console/decider.ts \
   'e.creeLe >= plusJours(jour, -6);' 'e.creeLe >= plusJours(jour, -7);' \
@@ -11215,8 +11219,9 @@ prouver 'les relances d'"'"'une échéance passée rendues pour celle d'"'"'aujo
 prouver 'la prolongation d'"'"'un essai rendue sans son auteur' base/migrations/0084_console_cabinets.sql \
   ''"'"'qui'"'"', (select jsonb_build_object('"'"'nom'"'"', u.nom, '"'"'role'"'"', g.role) from plateforme.geste_console g' ''"'"'qui'"'"', (select null::jsonb from plateforme.geste_console g' \
   "$CONS2D1"
-prouver 'la fiche d'"'"'un client qui ne nomme pas son cabinet' serveur/console/routes.ts \
-  'const cabinets = cabinetsDe(id, lireCabinets(await lireJson(transaction(tx), '"'"'select plateforme.console_cabinets() v'"'"')));' 'const cabinets: unknown[] = [];' \
+prouver 'la fiche d'"'"'un client qui ne nomme pas son cabinet' 'serveur/console/routes.ts' \
+  'const cabinets = cabinetsDe(id, lireCabinets(await lireJson(transaction(tx), '"'"'select plateforme.console_cabinets($1) v'"'"', [id])));' \
+  'const cabinets: unknown[] = [];' \
   "$CONS2D2"
 prouver 'une carte des abonnements qui n'"'"'ouvre pas sa liste' web/console/src/ecrans/Abonnements.tsx \
   'aria-pressed={vue === v} onClick={() => choisir(v)}' 'aria-pressed={vue === v} onClick={() => undefined}' \
@@ -13793,11 +13798,11 @@ prouver 'le journal d'"'"'un export qui perd ses filtres' 'base/migrations/0114_
   ''"'"'filtres'"'"', coalesce(p_filtres, '"'"'{}'"'"'::jsonb)' \
   ''"'"'filtres'"'"', '"'"'{}'"'"'::jsonb' \
   "$CL1"
-prouver 'un essai déjà prolongé que le menu du support propose encore de prolonger' 'base/migrations/0137_audit_lot2a.sql' \
+prouver 'un essai déjà prolongé que le menu du support propose encore de prolonger' 'base/migrations/0141_cout_des_listes.sql' \
   ''"'"'prolongeUneFois'"'"', exists (' \
   ''"'"'prolongeUneFois'"'"', false and exists (' \
   "$CL1"
-prouver 'la durée d'"'"'un essai lue de sa fin d'"'"'aujourd'"'"'hui' 'base/migrations/0137_audit_lot2a.sql' \
+prouver 'la durée d'"'"'un essai lue de sa fin d'"'"'aujourd'"'"'hui' 'base/migrations/0141_cout_des_listes.sql' \
   'select (v.apres ->> '"'"'essaiJusquAu'"'"')::date - (v.le at time zone e.fuseau)::date from' \
   'select (select a.essai_jusqu_au from plateforme.abonnement a where a.entreprise = e.id) - (v.le at time zone e.fuseau)::date from' \
   "$CL1"
@@ -14074,12 +14079,12 @@ prouver 'les sociétés d'"'"'un groupe rangées par leur nom, pas par leur urge
   '    return a.raisonSociale.localeCompare(b.raisonSociale, '"'"'fr'"'"', { sensitivity: '"'"'base'"'"' });' \
   "$CCO1"
 prouver 'la recherche qui ne lit pas les associés d'"'"'un cabinet' 'serveur/console/organisations.ts' \
-  '      ...(o.cabinet?.associes.flatMap((a) => [a.nom, a.email]) ?? [])].join('"'"' '"'"'));' \
-  '      ].join('"'"' '"'"'));' \
+  '  ...(o.cabinet?.associes.flatMap((a) => [a.nom, a.email]) ?? [])].join('"'"' '"'"')));' \
+  '  ].join('"'"' '"'"')));' \
   "$CCO3"
 prouver 'l'"'"'attendu d'"'"'un groupe compté comme payé' 'serveur/console/organisations.ts' \
-  '    if (p.attendu) attendu += m; else actif += m;' \
-  '    actif += m;' \
+  '    if (p.attendu) attendu += m; else { actif += m; abonnements++; }' \
+  '    { actif += m; abonnements++; }' \
   "$CCO4"
 prouver 'un délai qui vaut pour une autre échéance' 'serveur/abonnement/etat.ts' \
   'f.delai && f.delai.echeance === echeance && plusJours(f.delai.jusquAu, 1) > normale ?' \
@@ -15125,11 +15130,11 @@ prouver 'l'"'"'arrivée qui dure un jour de trop' 'serveur/console/arrivee.ts' \
   '  if (joursEntre(e.creeLe.slice(0, 10), jour) < ARRIVEE_JOURS) return true;' \
   '  if (joursEntre(e.creeLe.slice(0, 10), jour) <= ARRIVEE_JOURS) return true;' \
   'payée, elle dure ses trente jours, le trentième compris (jour 29), et finit le trente et unième'
-prouver 'une note d'"'"'honoraires qui ne compte pas' 'base/migrations/0137_audit_lot2a.sql' \
+prouver 'une note d'"'"'honoraires qui ne compte pas' 'base/migrations/0141_cout_des_listes.sql' \
   'p.type in ('"'"'facture'"'"', '"'"'note_honoraires'"'"')' \
   'p.type = '"'"'facture'"'"'' \
   'l'"'"'arrivée (0127) : la première facture émise se lit au jour de Tunis — une note d'"'"'honoraires compte — et la liste et la fiche disent la même'
-prouver 'la première facture lue au jour UTC' 'base/migrations/0137_audit_lot2a.sql' \
+prouver 'la première facture lue au jour UTC' 'base/migrations/0141_cout_des_listes.sql' \
   '(select (min(p.emise_le) at time zone e.fuseau)::date from ventes.piece p' \
   '(select (min(p.emise_le) at time zone '"'"'UTC'"'"')::date from ventes.piece p' \
   'l'"'"'arrivée (0127) : la première facture émise se lit au jour de Tunis — une note d'"'"'honoraires compte — et la liste et la fiche disent la même'
@@ -15417,17 +15422,21 @@ prouver 'la carte « à risque » qui compte autre chose que sa liste' 'serveur/
   'case '"'"'a_risque'"'"': return (e.risque?.signes.length ?? 0) > 0;' \
   'case '"'"'a_risque'"'"': return (e.risque?.signes.length ?? 0) > 1;' \
   'les signes viennent dans un ordre fixe ; la vue « à risque » et sa carte comptent la même liste (C3) ; un usage illisible vaut « rien »'
-prouver 'une pièce abandonnée comptée dans l'"'"'usage' 'base/migrations/0132_risque.sql' \
-  'where not e.essai and p.statut = '"'"'emise'"'"' and' \
-  'where not e.essai and' \
+prouver 'une pièce abandonnée comptée dans l'"'"'usage' 'base/migrations/0141_cout_des_listes.sql' \
+  'where p.entreprise = e.id and p.statut = '"'"'emise'"'"'
+               and p.emise_le >= (p_jour - 29)' \
+  'where p.entreprise = e.id
+               and p.emise_le >= (p_jour - 29)' \
   'l'"'"'usage sur deux fois trente jours : au jour de Tunis, les seules pièces émises ; la direction et le support, jamais la technique'
-prouver 'la technique qui lit l'"'"'usage des clients' 'base/migrations/0132_risque.sql' \
-  'array['"'"'direction'"'"', '"'"'support'"'"']' \
-  'array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']' \
+prouver 'la technique qui lit l'"'"'usage des clients' 'base/migrations/0141_cout_des_listes.sql' \
+  'array['"'"'direction'"'"', '"'"'support'"'"']);
+  if p_jour is null then perform socle.refus('"'"'le jour de la mesure manque'"'"')' \
+  'array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);
+  if p_jour is null then perform socle.refus('"'"'le jour de la mesure manque'"'"')' \
   'l'"'"'usage sur deux fois trente jours : au jour de Tunis, les seules pièces émises ; la direction et le support, jamais la technique'
-prouver 'le trentième jour oublié des trente d'"'"'avant' 'base/migrations/0132_risque.sql' \
-  'between p_jour - 59 and p_jour - 30' \
-  'between p_jour - 59 and p_jour - 31' \
+prouver 'le trentième jour oublié des trente d'"'"'avant' 'base/migrations/0141_cout_des_listes.sql' \
+  '(p_jour - 59)::timestamp at time zone e.fuseau and p.emise_le < (p_jour - 29)::timestamp' \
+  '(p_jour - 59)::timestamp at time zone e.fuseau and p.emise_le < (p_jour - 30)::timestamp' \
   'l'"'"'usage sur deux fois trente jours : au jour de Tunis, les seules pièces émises ; la direction et le support, jamais la technique'
 prouver 'la liste sans l'"'"'usage de ses clients' 'serveur/console/routes.ts' \
   'jour, lireUsages(await lireJson(t, '"'"'select plateforme.console_usage_trente($1::date) v'"'"', [jour])), contestees, demandes);' \
@@ -15835,7 +15844,7 @@ prouver 'la réouverture qui oublie la clôture' 'base/migrations/0137_audit_lot
   'jsonb_build_object('"'"'closeLe'"'"', a.close_le, '"'"'motif'"'"', a.motif), null);' \
   'null, null);' \
   'l'"'"'issue de l'"'"'arrivée (0137, l'"'"'audit 1.42.0 A06) : passé trente jours elle reste ; close avec son motif, elle sort de la liste et de la fiche ; rouverte, elle revient'
-prouver 'la liste qui ne lit pas l'"'"'arrivée close' 'base/migrations/0137_audit_lot2a.sql' \
+prouver 'la liste qui ne lit pas l'"'"'arrivée close' 'base/migrations/0141_cout_des_listes.sql' \
   '      '"'"'arriveeClose'"'"', (select jsonb_build_object('"'"'le'"'"', a.close_le, '"'"'par'"'"', (select u.nom from socle.utilisateur u where u.id = a.close_par), '"'"'motif'"'"', a.motif)
                          from plateforme.arrivee_close a where a.entreprise = e.id),
 ' \
@@ -16209,6 +16218,95 @@ prouver 'la carte qui déborde à droite' 'web/console/src/console.css' \
   '.c-ve-effets .c-ve-table td:first-child { min-width: 11rem; }' \
   '.c-ve-effets .c-ve-table td:first-child { min-width: 40rem; }' \
   'l'"'"'effet de chaque version (0140, C64) : une ligne par version qui a tourné ; celle qui a eu bien plus de pannes et un incident majeur le dit, en orange'
+
+# 1.49.0 : le coût des listes (l'audit A09).
+prouver 'le compte qui oublie une pièce créée' 'base/migrations/0141_cout_des_listes.sql' \
+  'create trigger pieces_comptees_ajout after insert on ventes.piece referencing new table as nouvelles
+  for each statement execute function socle.pieces_comptees_ajout();
+' \
+  '' \
+  'une pièce qui naît ou s'"'"'en va le change ; une reprise de la v10, un objet du dossier qui n'"'"'est pas une pièce, non ; il dit toujours son recompte'
+prouver 'le compte qui garde une pièce retirée' 'base/migrations/0141_cout_des_listes.sql' \
+  'create trigger pieces_comptees_retrait after delete on ventes.piece referencing old table as anciennes
+  for each statement execute function socle.pieces_comptees_retrait();
+' \
+  '' \
+  'une pièce qui naît ou s'"'"'en va le change ; une reprise de la v10, un objet du dossier qui n'"'"'est pas une pièce, non ; il dit toujours son recompte'
+prouver 'une reprise de la v10 comptée deux fois' 'base/migrations/0141_cout_des_listes.sql' \
+  'from nouvelles n where n.ref_v10 is null group by' \
+  'from nouvelles n where true group by' \
+  'une pièce qui naît ou s'"'"'en va le change ; une reprise de la v10, un objet du dossier qui n'"'"'est pas une pièce, non ; il dit toujours son recompte'
+prouver 'un objet du dossier qui n'"'"'est pas une pièce, compté' 'base/migrations/0141_cout_des_listes.sql' \
+  'from nouvelles n where n.collection in ('"'"'documents'"'"', '"'"'purchases'"'"') group by' \
+  'from nouvelles n where true group by' \
+  'une pièce qui naît ou s'"'"'en va le change ; une reprise de la v10, un objet du dossier qui n'"'"'est pas une pièce, non ; il dit toujours son recompte'
+prouver 'une pièce passée à la v10, toujours comptée' 'base/migrations/0141_cout_des_listes.sql' \
+  'create trigger pieces_comptees_change after update of entreprise, ref_v10 on ventes.piece
+  for each row when (new.entreprise is distinct from old.entreprise or (new.ref_v10 is null) <> (old.ref_v10 is null))
+  execute function socle.pieces_comptees_change();
+' \
+  '' \
+  'une pièce qui naît ou s'"'"'en va le change ; une reprise de la v10, un objet du dossier qui n'"'"'est pas une pièce, non ; il dit toujours son recompte'
+prouver 'la liste qui ne lit pas le compte' 'base/migrations/0141_cout_des_listes.sql' \
+  ''"'"'pieces'"'"', coalesce((select k.n from socle.compte_pieces k where k.entreprise = e.id), 0)' \
+  ''"'"'pieces'"'"', 0' \
+  'une pièce qui naît ou s'"'"'en va le change ; une reprise de la v10, un objet du dossier qui n'"'"'est pas une pièce, non ; il dit toujours son recompte'
+prouver 'trente jours comptés en UTC' 'base/migrations/0141_cout_des_listes.sql' \
+  'and p.emise_le >= (p_jour - 29)::timestamp at time zone e.fuseau and p.emise_le < (p_jour + 1)::timestamp at time zone e.fuseau)::int trente' \
+  'and p.emise_le >= (p_jour - 29)::timestamp at time zone '"'"'UTC'"'"' and p.emise_le < (p_jour + 1)::timestamp at time zone '"'"'UTC'"'"')::int trente' \
+  'cherchés par des instants, ils comptent ce que la règle d'"'"'avant comptait par des jours, au bord de minuit comme ailleurs'
+prouver 'le mois qui commence à minuit UTC' 'base/migrations/0141_cout_des_listes.sql' \
+  'and p.emise_le >= date_trunc('"'"'month'"'"', p_jour)::date::timestamp at time zone e.fuseau' \
+  'and p.emise_le >= date_trunc('"'"'month'"'"', p_jour)::date::timestamp at time zone '"'"'UTC'"'"'' \
+  'cherchés par des instants, ils comptent ce que la règle d'"'"'avant comptait par des jours, au bord de minuit comme ailleurs'
+prouver 'la restauration qui ne refait pas le compte' 'base/entreprise.ts' \
+  '    await client.query('"'"'select socle.recompter_pieces($1)'"'"', [enTete.entreprise]);
+' \
+  '' \
+  'restaurée dans une base vide, l'"'"'entreprise se ré-exporte à l'"'"'identique, se relit, et sa chaîne se contrôle'
+prouver 'la remise qui ne refait pas le compte' 'base/entreprise.ts' \
+  '    await client.query('"'"'select socle.recompter_pieces($1)'"'"', [E]);
+' \
+  '' \
+  'l'"'"'essai ne change rien et nomme ce qui disparaîtrait ; la remise rend A telle que le fichier, garde sa trace entière, fait tout relire à ses postes ; la voisine ne bouge pas'
+prouver 'un geste qui n'"'"'efface pas la liste partagée' 'serveur/console/routes.ts' \
+  'apres: async () => { partage.oublier(); return suite' \
+  'apres: async () => { return suite' \
+  'elle sert une minute à toute l'"'"'équipe et dit de quand elle date ; « Actualiser » et un geste de la console la refont ; la fiche se lit à l'"'"'instant'
+prouver '« Actualiser » sans effet' 'serveur/console/routes.ts' \
+  'const lu = await lesClients(tx, qui, jour, query.frais === '"'"'1'"'"');' \
+  'const lu = await lesClients(tx, qui, jour, false);' \
+  'elle sert une minute à toute l'"'"'équipe et dit de quand elle date ; « Actualiser » et un geste de la console la refont ; la fiche se lit à l'"'"'instant'
+prouver 'passée, la liste fait attendre' 'serveur/console/instantane.ts' \
+  'if (age < perimeMs && aCote) {' \
+  'if (false) {' \
+  'frais, il sert sans rien recalculer ; passé, il sert tel quel et se refait à côté ; périmé, la demande attend'
+prouver 'la liste d'"'"'hier servie aujourd'"'"'hui' 'serveur/console/instantane.ts' \
+  'if (!frais && c && c.cle === cle && c.generation === generation) {' \
+  'if (!frais && c && c.generation === generation) {' \
+  'un autre jour, « Actualiser » et un geste de la console font attendre un calcul neuf'
+prouver 'deux calculs à la fois' 'serveur/console/instantane.ts' \
+  '    if (enCours && enCours.cle === cle && enCours.generation === generation) return enCours.promesse;
+' \
+  '' \
+  'deux demandes en même temps attendent le même calcul ; un calcul commencé avant un geste sert à qui l'"'"'attendait, jamais après'
+prouver 'un calcul d'"'"'avant le geste gardé' 'serveur/console/instantane.ts' \
+  'if (g === generation && (!courant || courant.calculeLe <= debut)) courant = { ...lu, cle, generation: g };' \
+  'if (!courant || courant.calculeLe <= debut) courant = { ...lu, cle, generation };' \
+  'deux demandes en même temps attendent le même calcul ; un calcul commencé avant un geste sert à qui l'"'"'attendait, jamais après'
+prouver 'une ligne sans cabinet oubliée du compte' 'serveur/console/organisations.ts' \
+  '    if (!cs.length) sansCabinet++;
+' \
+  '' \
+  'une vue garde une ligne quand une de ses sociétés y est ; les filtres et leurs comptes portent sur des lignes (C3)'
+prouver 'un cabinet compté une fois de trop' 'serveur/console/organisations.ts' \
+  '    for (const c of cs) parCabinet.set(c, (parCabinet.get(c) ?? 0) + 1);' \
+  '    for (const c of cs) parCabinet.set(c, (parCabinet.get(c) ?? 1) + 1);' \
+  'une vue garde une ligne quand une de ses sociétés y est ; les filtres et leurs comptes portent sur des lignes (C3)'
+prouver 'le rang d'"'"'urgence à l'"'"'envers' 'serveur/console/organisations.ts' \
+  'const rangs = new Map(parUrgence(toutes, jour).map((o, i) => [o, i]));' \
+  'const rangs = new Map(parUrgence(toutes, jour).map((o, i) => [o, -i]));' \
+  'la liste range par urgence, compte chaque état comme son filtre, et ne montre pas les entreprises d'"'"'exemple'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

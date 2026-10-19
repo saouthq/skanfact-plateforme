@@ -75,6 +75,8 @@ type Liste = {
   aujourdhui: string; total: number; tous: number; vue: VueClients; tri: Tri; vues: Record<VueClients, number>; comptes: Record<Categorie, number>;
   options: { type: Record<TypeClient, number>; offre: Record<OffreClient, number>; cabinet: { nom: string; n: number }[]; sansCabinet: number };
   parAn: { montantHt: string; abonnements: number }; lignes: LigneOrg[]; suite: number | null;
+  // L'instant du calcul que l'équipe partage (C65) : la liste dit de quand datent ses chiffres.
+  calculeLe: string;
 };
 type LigneExport = {
   entreprise: string; matricule: string | null; organisation: string | null; typeOrganisation: string; cabinet: string | null; offre: string | null;
@@ -438,6 +440,13 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
   const p = new URLSearchParams({ limite: String(taille), debut: String(debut), ...selection });
   const [l, relire] = useLecture<Liste>(`/console/entreprises?${p.toString()}`, 'clients');
   const lu = l.etat === 'lu' ? l.donnees : null;
+  // « Actualiser » (C65) : le serveur refait le calcul que l'équipe partage, puis la liste se relit sur lui.
+  const apiActualiser = useApi();
+  const [actualise, setActualise] = useState(false);
+  const actualiser = async () => {
+    setActualise(true);
+    try { await apiActualiser('GET', `/console/entreprises?${p.toString()}&frais=1`); } catch { /* la relecture dit la panne */ } finally { setActualise(false); relire(); }
+  };
   const aujourdhui = lu?.aujourdhui ?? moi.aujourdhui;
   const choisir = (c: Categorie | null) => { setEtat(c); setDebut(0); };
   // Une vue du métier est un raccourci : elle ouvre toute sa liste, quelle que soit la puce d'état choisie avant.
@@ -548,6 +557,10 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
                   {' · '}
                   {lu.parAn.abonnements === 0 ? dire('console.ecran.clients.par_an_0')
                     : <>{selon(lu.parAn.abonnements, 'console.ecran.clients.par_an')} <b className="c-mono" data-donnee>{montant(lu.parAn.montantHt)}</b> {dire('console.ecran.clients.par_an_fin')}</>}
+                  <span className="c-cl-calcul">
+                    {' · '}{dire('console.ecran.clients.calcule', { heure: heureDe(lu.calculeLe) })}{' '}
+                    <Bouton ton="discret" petit icone="relire" onClick={() => { void actualiser(); }} occupe={actualise}>{titre('console.ecran.clients.actualiser')}</Bouton>
+                  </span>
                 </p>
                 <label className="c-tri">
                   <span>{titre('console.ecran.clients.trier')}</span>

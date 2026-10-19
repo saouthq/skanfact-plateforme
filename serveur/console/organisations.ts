@@ -7,7 +7,7 @@
 //   - un dossier tenu : une entreprise qu'un cabinet tient, sans abonnement à elle ;
 //   - un cabinet : son nom, ses collaborateurs, ses dossiers ; pas d'échéance.
 
-import { cabinetDe, dansLaVue, deLOffre, parAn, type Filtres, type OffreClient, type VueClients } from './clients.ts';
+import { cabinetDe, dansLaVue, deLOffre, parAn, VUES_CLIENTS, type Filtres, type OffreClient, type VueClients } from './clients.ts';
 import { urgence, type Entreprise } from './decider.ts';
 import type { Renouvellements } from './renouvellements.ts';
 import type { LigneCabinet } from './cabinets.ts';
@@ -23,6 +23,21 @@ export type Organisation = {
   societes: Entreprise[];
   cabinet: LigneCabinet | null;
 };
+
+// Ce qu'une ligne dit d'elle-même, calculé une fois et gardé avec elle (l'audit 1.42.0 A09 ; C65) : une ligne naît du
+// calcul de la liste que l'équipe partage, et ne change plus jamais ; chaque page, chaque recherche, chaque carte relit ce
+// qu'elle a déjà dit au lieu de le recalculer pour les 5 000 lignes. Ce qui dépend du jour, d'une table de la demande (les
+// renouvellements, les identités) se garde avec elle, et se refait si on la lui change.
+function garde<A, V>(f: (o: Organisation, a: A) => V): (o: Organisation, a: A) => V {
+  const m = new WeakMap<Organisation, { a: A; v: V }>();
+  return (o, a) => {
+    const x = m.get(o);
+    if (x && x.a === a) return x.v;
+    const v = f(o, a);
+    m.set(o, { a, v });
+    return v;
+  };
+}
 
 // Les sociétés d'une ligne, la plus urgente d'abord, par l'urgence de la liste (serveur/console/decider.ts) : une grâce qui
 // finit demain passe devant une lecture seule tombée il y a un mois. La ligne d'un groupe prend l'état de la première.
@@ -73,12 +88,13 @@ export const categorieOrg = (o: Organisation) => principale(o)?.etat.etat ?? 'ho
 
 // Une vue du métier garde une ligne quand UNE de ses sociétés y est (un groupe dont une société attend son paiement est
 // de « l'argent attendu ») ; les tenus à convertir sont les lignes de dossiers tenus ; un cabinet n'est que dans « tout ».
-export function orgDansLaVue(o: Organisation, v: VueClients, jour: string): boolean {
+const vuesDeLaLigne = garde((o: Organisation, jour: string): ReadonlySet<VueClients> => new Set(VUES_CLIENTS.filter((v) => {
   if (v === 'tout') return true;
   if (o.sorte === 'cabinet') return false;
   if (v === 'tenus') return o.sorte === 'tenu';
   return o.societes.some((e) => dansLaVue(e, v, jour));
-}
+})));
+export const orgDansLaVue = (o: Organisation, v: VueClients, jour: string): boolean => vuesDeLaLigne(o, jour).has(v);
 
 // Les filtres de la ligne d'outils, sur des lignes : le type de ligne, l'offre d'une de ses sociétés, le cabinet qui
 // suit une de ses sociétés (ou le cabinet lui-même) ; « aucun cabinet » : ni l'un ni l'autre.
@@ -95,8 +111,9 @@ export function lireFiltresOrg(q: Record<string, unknown>): FiltresOrg {
 }
 export const orgDuType = (o: Organisation, t: TypeOrg) => o.sorte === SORTE_DU_TYPE[t];
 export const orgDeLOffre = (o: Organisation, f: OffreClient) => o.sorte !== 'cabinet' && o.societes.some((e) => deLOffre(e, f));
-export const cabinetsDeLaLigne = (o: Organisation): string[] =>
-  o.sorte === 'cabinet' ? [o.nom] : [...new Set(o.societes.map(cabinetDe).filter((c): c is string => c !== null))];
+const lesCabinets = garde((o: Organisation): string[] =>
+  o.sorte === 'cabinet' ? [o.nom] : [...new Set(o.societes.map(cabinetDe).filter((c): c is string => c !== null))]);
+export const cabinetsDeLaLigne = (o: Organisation): string[] => lesCabinets(o, null);
 const duCabinet = (o: Organisation, c: string) => (c === SANS_CABINET ? cabinetsDeLaLigne(o).length === 0 : cabinetsDeLaLigne(o).includes(c));
 export const orgDansLesFiltres = (o: Organisation, f: FiltresOrg) =>
   (!f.type || orgDuType(o, f.type)) && (!f.offre || orgDeLOffre(o, f.offre)) && (!f.cabinet || duCabinet(o, f.cabinet));
@@ -105,26 +122,36 @@ const NOMS = new Intl.Collator('fr', { sensitivity: 'base', numeric: true });
 export function optionsDesFiltresOrg(liste: readonly Organisation[], f: FiltresOrg) {
   const sans = (k: keyof FiltresOrg) => liste.filter((o) => orgDansLesFiltres(o, { ...f, [k]: null }));
   const lt = sans('type'), lo = sans('offre'), lc = sans('cabinet');
-  const noms = [...new Set(lc.flatMap(cabinetsDeLaLigne))].sort(NOMS.compare);
+  // Chaque cabinet compté en un passage : une ligne compte pour chacun des siens (duCabinet), « aucun » pour celles qui
+  // n'en ont pas — le même compte que la liste filtrée qu'il ouvre, sans la refiltrer pour chaque cabinet.
+  const parCabinet = new Map<string, number>();
+  let sansCabinet = 0;
+  for (const o of lc) {
+    const cs = cabinetsDeLaLigne(o);
+    if (!cs.length) sansCabinet++;
+    for (const c of cs) parCabinet.set(c, (parCabinet.get(c) ?? 0) + 1);
+  }
+  const noms = [...parCabinet.keys()].sort(NOMS.compare);
   return {
     type: Object.fromEntries(TYPES_ORG.map((t) => [t, lt.filter((o) => orgDuType(o, t)).length])) as Record<TypeOrg, number>,
     offre: Object.fromEntries((['essentiel', 'complet', 'aucune'] as const).map((x) => [x, lo.filter((o) => orgDeLOffre(o, x)).length])) as Record<OffreClient, number>,
-    cabinet: noms.map((nom) => ({ nom, n: lc.filter((o) => duCabinet(o, nom)).length })),
-    sansCabinet: lc.filter((o) => duCabinet(o, SANS_CABINET)).length,
+    cabinet: noms.map((nom) => ({ nom, n: parCabinet.get(nom) ?? 0 })),
+    sansCabinet,
   };
 }
 
 // Chercher : le nom, le numéro et la ville de la ligne, et de chacune de ses sociétés le nom, le matricule, le numéro,
 // la propriétaire (nom, adresse), le cabinet ; d'un cabinet, ses associés. Sans accents ni casse.
 const plier = (t: string) => t.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+const champDeLaLigne = garde((o: Organisation, identites: ReadonlyMap<string, Identite>) => plier([o.nom, o.numero ?? '', o.ville ?? '',
+  ...o.societes.flatMap((e) => [e.raisonSociale, e.matricule ?? '', identites.get(e.id)?.numero ?? '', identites.get(e.id)?.ville ?? '',
+    e.organisation.nom, e.proprietaire?.nom ?? '', e.proprietaire?.email ?? '', e.tenuePar ?? '']),
+  ...(o.cabinet?.associes.flatMap((a) => [a.nom, a.email]) ?? [])].join(' ')));
 export function chercherOrg(liste: readonly Organisation[], texte: string, identites: ReadonlyMap<string, Identite>): Organisation[] {
   const mots = plier(texte).split(/\s+/).filter(Boolean);
   if (!mots.length) return [...liste];
   return liste.filter((o) => {
-    const champ = plier([o.nom, o.numero ?? '', o.ville ?? '',
-      ...o.societes.flatMap((e) => [e.raisonSociale, e.matricule ?? '', identites.get(e.id)?.numero ?? '', identites.get(e.id)?.ville ?? '',
-        e.organisation.nom, e.proprietaire?.nom ?? '', e.proprietaire?.email ?? '', e.tenuePar ?? '']),
-      ...(o.cabinet?.associes.flatMap((a) => [a.nom, a.email]) ?? [])].join(' '));
+    const champ = champDeLaLigne(o, identites);
     return mots.every((m) => champ.includes(m));
   });
 }
@@ -138,14 +165,19 @@ const echeanceDeLigne = (o: Organisation): string | null => {
   const s = e.etat;
   return s.etat === 'essai' || s.etat === 'actif' ? s.jusquAu : s.etat === 'en_retard' ? s.lectureSeuleLe : null;
 };
-export function parAnDeLaLigne(o: Organisation, r: Renouvellements): { actif: bigint; attendu: bigint } {
-  let actif = 0n, attendu = 0n;
+// Ce que la ligne rapporte par an : ses abonnements actifs (et leur nombre), ce qui est attendu.
+const parAnGarde = garde((o: Organisation, r: Renouvellements) => {
+  let actif = 0n, attendu = 0n, abonnements = 0;
   for (const e of o.societes) {
     const p = parAn(e, r);
     if (!p) continue;
     const m = BigInt(p.montantHt.replace('.', ''));
-    if (p.attendu) attendu += m; else actif += m;
+    if (p.attendu) attendu += m; else { actif += m; abonnements++; }
   }
+  return { actif, attendu, abonnements };
+});
+export function parAnDeLaLigne(o: Organisation, r: Renouvellements): { actif: bigint; attendu: bigint } {
+  const { actif, attendu } = parAnGarde(o, r);
   return { actif, attendu };
 }
 export const usageDeLaLigne = (o: Organisation) => o.societes.reduce((n, e) => n + (e.enPlus?.piecesMois ?? 0), 0);
@@ -153,13 +185,26 @@ export const vuDeLaLigne = (o: Organisation): string | null => {
   const v = [...o.societes.map((e) => e.derniereActivite), o.cabinet?.derniereActivite ?? null].filter((x): x is string => !!x).map((x) => new Date(x).toISOString());
   return v.length ? v.sort().at(-1) ?? null : null;
 };
-export function trierOrg(liste: readonly Organisation[], tri: TriOrg, r: Renouvellements, jour: string): Organisation[] {
-  const urg = (o: Organisation): [number, number] => { const e = principale(o); return e ? urgence(e, jour) : [9, 0]; };
-  const parUrgence = [...liste].sort((a, b) => {
-    const [ra, ja] = urg(a), [rb, jb] = urg(b);
-    return ra - rb || ja - jb || NOMS.compare(a.nom, b.nom);
-  });
-  if (tri === 'urgence') return parUrgence;
+const urgenceDeLaLigne = garde((o: Organisation, jour: string): [number, number] => { const e = principale(o); return e ? urgence(e, jour) : [9, 0]; });
+const parUrgence = (liste: readonly Organisation[], jour: string) => [...liste].sort((a, b) => {
+  const [ra, ja] = urgenceDeLaLigne(a, jour), [rb, jb] = urgenceDeLaLigne(b, jour);
+  return ra - rb || ja - jb || NOMS.compare(a.nom, b.nom);
+});
+// Le rang d'urgence de chaque ligne de TOUTE la liste, fait une fois par calcul partagé (C65) : une sélection (une
+// recherche, un filtre, une vue) garde l'ordre de l'ensemble — le tri est stable, et départage par le nom puis par la place
+// dans la liste —, elle se range donc par ces rangs sans refaire les comparaisons.
+const rangsDeLaListe = new WeakMap<readonly Organisation[], { jour: string; rangs: ReadonlyMap<Organisation, number> }>();
+export function rangsDUrgence(toutes: readonly Organisation[], jour: string): ReadonlyMap<Organisation, number> {
+  const x = rangsDeLaListe.get(toutes);
+  if (x && x.jour === jour) return x.rangs;
+  const rangs = new Map(parUrgence(toutes, jour).map((o, i) => [o, i]));
+  rangsDeLaListe.set(toutes, { jour, rangs });
+  return rangs;
+}
+export function trierOrg(liste: readonly Organisation[], tri: TriOrg, r: Renouvellements, jour: string, rangs: ReadonlyMap<Organisation, number> | null = null): Organisation[] {
+  const rangees = rangs && liste.every((o) => rangs.has(o))
+    ? [...liste].sort((a, b) => (rangs.get(a) ?? 0) - (rangs.get(b) ?? 0)) : parUrgence(liste, jour);
+  if (tri === 'urgence') return rangees;
   const cle = (o: Organisation): string | bigint | null => {
     switch (tri) {
       case 'echeance': return echeanceDeLigne(o);
@@ -170,7 +215,7 @@ export function trierOrg(liste: readonly Organisation[], tri: TriOrg, r: Renouve
     }
   };
   const sens = tri === 'echeance' || tri === 'nom' ? 1 : -1;
-  return parUrgence.map((o, i) => ({ o, i, k: cle(o) })).sort((a, b) => {
+  return rangees.map((o, i) => ({ o, i, k: cle(o) })).sort((a, b) => {
     if (a.k === null || b.k === null) return a.k === b.k ? a.i - b.i : a.k === null ? 1 : -1;
     const c = typeof a.k === 'bigint' && typeof b.k === 'bigint' ? (a.k < b.k ? -1 : a.k > b.k ? 1 : 0)
       : tri === 'nom' ? NOMS.compare(String(a.k), String(b.k)) : String(a.k) < String(b.k) ? -1 : String(a.k) > String(b.k) ? 1 : 0;
@@ -180,11 +225,10 @@ export function trierOrg(liste: readonly Organisation[], tri: TriOrg, r: Renouve
 // Ce que rapportent par an les abonnements actifs de la sélection (sur toutes ses pages).
 export function parAnDesLignes(liste: readonly Organisation[], r: Renouvellements): { montantHt: string; abonnements: number } {
   let total = 0n, abonnements = 0;
-  for (const o of liste) for (const e of o.societes) {
-    const p = parAn(e, r);
-    if (!p || p.attendu) continue;
-    total += BigInt(p.montantHt.replace('.', ''));
-    abonnements++;
+  for (const o of liste) {
+    const p = parAnGarde(o, r);
+    total += p.actif;
+    abonnements += p.abonnements;
   }
   return { montantHt: versTexte(total, 3), abonnements };
 }

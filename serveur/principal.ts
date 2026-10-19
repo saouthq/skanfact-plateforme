@@ -81,6 +81,7 @@ import { routesSupport } from './support/routes.ts';
 import { relancerLesAbonnements } from './abonnement/relances.ts';
 import { routesAbonnement } from './abonnement/routes.ts';
 import { routesConsole } from './console/routes.ts';
+import { FRAIS_MS } from './console/instantane.ts';
 import { routesMessageClients } from './console/message-clients.ts';
 import { routesNouveautes, type Nouveaute } from './nouveautes.ts';
 import { routesMessagerie } from './messagerie/routes.ts';
@@ -113,6 +114,9 @@ export type Configuration = {
   // Le fichier où la veille du serveur écrit ce qu'elle voit chaque minute (exploitation/veiller.ts) : la console le lit
   // (docs/console.md). Absent, la console dit le service « non mesuré ».
   veille: string;
+  // Combien de temps le calcul de la liste des clients sert toute l'équipe (C65 ; serveur/console/instantane.ts) : une
+  // minute en service ; aucun dans un essai, qui relit ce qu'il vient d'écrire (sauf s'il le règle pour l'éprouver).
+  consoleFraisMs: number;
 };
 
 export class ConfigurationFausse extends Error {}
@@ -187,6 +191,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     lectures, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
     courriel: smtp && de ? { smtp, de } : null,
     veille: env.SKANFACT_VEILLE_FICHIER ?? path.join(env.SKANFACT_ETAT ?? '/var/lib/skanfact', 'veille.json'),
+    consoleFraisMs: Number(env.SKANFACT_CONSOLE_FRAIS_MS ?? (environnement === 'test' ? 0 : FRAIS_MS)),
   };
 }
 
@@ -239,7 +244,7 @@ export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: strin
 
 // Toutes les routes du serveur, chaque module déclarant d'abord ses gestes : ce que le serveur sert, et ce qu'un test lit
 // sans le démarrer (le contexte n'est lu qu'au moment de servir).
-export function routesDuServeur(ctx: Contexte, options: { veille: string | null }): Route<never>[] {
+export function routesDuServeur(ctx: Contexte, options: { veille: string | null; consoleFraisMs?: number }): Route<never>[] {
   declarerGestesVentes();
   declarerGestesCaisse();
   declarerGestesAchats();
@@ -269,7 +274,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const envoiCourriel = relais ? avecTrace(pool, relais) : null;
   if (envoiCourriel) ctx.courriel = { envoi: envoiCourriel, adresse: () => publique, console: () => (c.adresseConsole ? `${c.adresseConsole}/console` : `${publique}/console`) };
   const collecte = new Collecte();
-  const app = creerApp(ctx, routesDuServeur(ctx, { veille: c.veille }), { proxy: c.proxy, collecte });
+  const app = creerApp(ctx, routesDuServeur(ctx, { veille: c.veille, consoleFraisMs: c.consoleFraisMs }), { proxy: c.proxy, collecte });
   servirLesEcrans(app, c.web, c.version);
   const adresse = await app.listen({ port: c.port, host: c.hote });
   if (!publique) publique = adresse;

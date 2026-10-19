@@ -9,8 +9,8 @@ import path from 'node:path';
 import { z } from 'zod';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
-import type { Transaction } from '../base.ts';
-import type { Contexte } from '../connexion.ts';
+import { enTantQue, type Transaction } from '../base.ts';
+import type { Contexte, Qui } from '../connexion.ts';
 import { Introuvable, Perimee } from '../erreurs.ts';
 import { activerCode, activerSms, changerMotDePasse, envoyerPreuveSms, nouveauxCodesDeSecours, preparerCode, preparerSms, type Refuse } from '../compte.ts';
 import { numeroMasque } from '../sms.ts';
@@ -34,7 +34,7 @@ import { prevoir } from './previsions.ts';
 import { lireDocs, lireNotes, reponsesOffertes, SORTES_DOC } from './docsupport.ts';
 import { ETATS_EVOLUTION, lireEvolutionDe, lireEvolutions } from './evolutions.ts';
 import { avecEnPlus, avecVenues, lireEnPlus, dansLaVue, ligneClient, ligneExport, TRIS_CLIENTS, VUES_CLIENTS, type VueClients } from './clients.ts';
-import { categorieOrg, chercherOrg, lireFiltresOrg, optionsDesFiltresOrg, orgDansLaVue, orgDansLesFiltres, organisations, parAnDeLaLigne, parAnDesLignes, trierOrg,
+import { categorieOrg, chercherOrg, rangsDUrgence, lireFiltresOrg, optionsDesFiltresOrg, orgDansLaVue, orgDansLesFiltres, organisations, parAnDeLaLigne, parAnDesLignes, trierOrg,
   usageDeLaLigne, vuDeLaLigne, type TriOrg } from './organisations.ts';
 import { lireIdentites, lireNotesAppel } from './identites.ts';
 import { annuel, AVENIR_JOURS, cartes, lignesEcheances, lireExtras, lirePrix, lireRemisesEcheances, relancesRecentes, vue, VUES, type Vue } from './echeances.ts';
@@ -76,7 +76,8 @@ import { lireAcces, HEURES_MAX, PAGE } from '../support/acces.ts';
 import { filtrer } from '../v10/droits.ts';
 import { versionTeif } from '../v10/teif.ts';
 import { BUDGETS } from '../service/mesures.ts';
-import { LISTE_GESTES_CONSOLE, type RoleConsole } from './gestes.ts';
+import { GESTES_CONSOLE, LISTE_GESTES_CONSOLE, type RoleConsole } from './gestes.ts';
+import { instantane, PERIME_MS } from './instantane.ts';
 import './textes.ts';
 
 const uuid = z.string().uuid();
@@ -170,8 +171,9 @@ const lesFaitsEnPlus = async (x: Transaction) => {
   return new Map(Object.entries(b ?? {}).map(([id, v]) => [id, { delai: lireDelai(v?.delai), offreSuivante: lireOffreSuivante(v?.offreSuivante),
     moisOffert: v?.moisOffert === true, modulesARetirer: lireModules(v?.modulesARetirer), aVenir: lireAVenir(v?.aVenir) }]));
 };
-const lesEntreprises = async (x: Transaction, jour: string) =>
-  lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises() v'), jour, await lireLesRegles(x), await lesFaitsEnPlus(x));
+// `seule` : la fiche d'un client lit sa ligne, par le même calcul que la liste (0141), sans lire celle de tous.
+const lesEntreprises = async (x: Transaction, jour: string, seule: string | null = null) =>
+  lireEntreprises(await lireJson(x, 'select plateforme.console_entreprises($1) v', [seule]), jour, await lireLesRegles(x), await lesFaitsEnPlus(x));
 const faitsDeLaFiche = async (x: Transaction, fiche: Record<string, unknown>): Promise<Faits> =>
   ({ ...lireFaits((fiche.faits ?? {}) as Record<string, unknown>), regles: await lireLesRegles(x), ...((await lesFaitsEnPlus(x)).get(String(fiche.id)) ?? {}) });
 
@@ -226,9 +228,29 @@ export function gestesDeLaListe(role: RoleConsole, e: Entreprise): GesteAbonneme
   return GESTES_DE_LA_LISTE.filter((g) => permis.includes(g));
 }
 
-export function routesConsole(ctx: Contexte, options: { veille?: string | null } = {}): Route<never>[] {
+// Ce que la liste des clients calcule pour toutes les organisations, avant la recherche, les filtres et la page (C65).
+type BaseDesClients = {
+  entreprises: Entreprise[]; renouvellements: Awaited<ReturnType<typeof renouvellementsDe>>;
+  identites: ReturnType<typeof lireIdentites>['entreprises']; toutes: ReturnType<typeof organisations>;
+};
+
+export function routesConsole(ctx: Contexte, options: { veille?: string | null; consoleFraisMs?: number } = {}): Route<never>[] {
   const routes: Route<never>[] = [];
-  const ajouter = <C>(r: Route<C>) => { routes.push(r as unknown as Route<never>); };
+  // Le calcul de la liste des clients, partagé par l'équipe (C65 ; serveur/console/instantane.ts ; plus bas, lesClients).
+  // Sans réglage (un essai qui monte la console lui-même), rien ne se partage : le serveur passe le sien (principal.ts).
+  const fraisMs = options.consoleFraisMs ?? 0;
+  const partage = instantane<BaseDesClients>({ fraisMs, perimeMs: fraisMs > 0 ? PERIME_MS : 0, maintenant: () => maintenant().getTime() });
+  // Un geste de la console qui écrit efface ce calcul une fois sa transaction validée (`apres`) : qui vient d'agir voit
+  // son geste dans la liste.
+  const ajouter = <C>(r: Route<C>) => {
+    const ecrit = GESTES_CONSOLE.get(r.geste)?.ecrit === true;
+    const route: Route<C> = !ecrit ? r : { ...r, traiter: async (q, tx) => {
+      const res = await r.traiter(q, tx);
+      const suite = res.apres;
+      return { ...res, apres: async () => { partage.oublier(); return suite ? suite() : {}; } };
+    } };
+    routes.push(route as unknown as Route<never>);
+  };
   const maintenant = () => (ctx.maintenant ?? (() => new Date()))();
   // Les nouveautés que ce serveur porte (0120, C43) : celles du code, sauf dans un essai qui lui en donne d'autres.
   const nouveautes = listeDesNouveautes(ctx.nouveautes ?? NOUVEAUTES);
@@ -297,7 +319,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const jour = aujourdhuiATunis();
       const veille = await lireLaVeille(fichierVeille, instant);
       // La technique ne lit aucune donnée de client (03 § 5) : ni la liste, ni ses chiffres, ni les demandes au support.
-      const liste = role === 'technique' ? [] : await lesEntreprises(transaction(tx), jour);
+      // La liste : le calcul que l'écran Clients partage (C65), et l'instant où il a été fait.
+      const base = role === 'technique' ? null : await lesClients(tx, qui, jour);
+      const liste = base?.valeur.entreprises ?? [];
       const demandes = role === 'technique' ? [] : lireSupport(await lireJson(transaction(tx), 'select plateforme.console_support(null, null) v')).ouvertes;
       // L'encaissé du mois : la direction seule le lit (les comptes de SkanFact), par la fonction de l'écran Paiements (C3) ;
       // et l'argent qui attend une décision (0113), par ses fonctions aussi.
@@ -308,7 +332,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
         lireContestations(await lireJson(transaction(tx), 'select plateforme.console_contestations($1) v', [instant]))),
         sorties: lireSorties(await lireJson(transaction(tx), 'select plateforme.console_sorties($1::date) v', [jour])) } : null;
       // La tuile « Inscriptions » compte les lignes de la liste qu'elle ouvre, par la fonction de la liste (C3 ; 0114).
-      const inscriptions = role === 'technique' ? 0 : (await selectionClients(transaction(tx), jour, { nouvelles: '1' })).dansVue.length;
+      const inscriptions = base ? selectionClients(base.valeur, jour, { nouvelles: '1' }).dansVue.length : 0;
       const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus, inscriptions);
       const t = role === 'direction' ? { ...pourLeSupport, revenusDuMois } : pourLeSupport;
       // Les relances que le serveur a envoyées tout seul depuis hier (la même table que l'écran Abonnements).
@@ -319,7 +343,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       // Les accès d'urgence de l'équipe (0135) : la direction seule.
       const urgences = role === 'direction' ? aLAccueil(lireUrgences(await lireJson(transaction(tx), 'select plateforme.console_acces_urgence($1) v', [instant])), instant) : [];
       return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t,
-        decider: aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences), relances } };
+        decider: aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences), relances,
+        calculeLe: base ? new Date(base.calculeLe).toISOString() : null } };
     },
   });
 
@@ -327,14 +352,13 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   // La liste se range par urgence, se filtre par état (avec le compte de chaque état, calculé par la même fonction) et se
   // cherche ; elle se pagine. « nouvelles=1 » : les seules inscrites de la semaine, la liste que la tuile « Inscriptions »
   // compte (les comptes des états portent alors sur elles).
-  // La sélection de la liste, telle que l'écran la montre (les inscrites de la semaine, la recherche, les filtres, la vue,
-  // la puce d'état, l'ordre) : l'écran et l'export la lisent par CETTE fonction — ce qui s'exporte est ce qui se voit.
-  async function selectionClients(t: ReturnType<typeof transaction>, jour: string, query: Record<string, unknown>) {
-    // Celles venues par un cabinet (0107), pour la sixième vue ; la remise de la prochaine période de chacune (0106), que
-    // « par an » déduit comme les échéances ; et ce que chaque ligne dit en plus (0110 : les pièces émises du mois,
-    // l'essai prolongé, la facture qui attend).
-    // Et son risque de départ (1.40.0 ; 0132 ; serveur/console/risque.ts) : l'usage sur deux fois trente jours, les
-    // contestations encore ouvertes (0129), les demandes ouvertes au support.
+  // Ce que la liste calcule avant la recherche, les filtres et la page, pour toutes les organisations : le calcul partagé
+  // (C65). Celles venues par un cabinet (0107), pour la sixième vue ; la remise de la prochaine période de chacune (0106),
+  // que « par an » déduit comme les échéances ; et ce que chaque ligne dit en plus (0110 : les pièces émises du mois,
+  // l'essai prolongé, la facture qui attend).
+  // Et son risque de départ (1.40.0 ; 0132 ; serveur/console/risque.ts) : l'usage sur deux fois trente jours, les
+  // contestations encore ouvertes (0129), les demandes ouvertes au support.
+  async function baseDesClients(t: ReturnType<typeof transaction>, jour: string): Promise<BaseDesClients> {
     const demandes = new Map<string, number>();
     for (const d of lireSupport(await lireJson(t, 'select plateforme.console_support(null, null) v')).ouvertes) demandes.set(d.entreprise.id, (demandes.get(d.entreprise.id) ?? 0) + 1);
     const contestees = new Set(lireContestations(await lireJson(t, 'select plateforme.console_contestations($1) v', [maintenant()]))
@@ -350,7 +374,26 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     const connues = new Set(entreprises.map((e) => e.id));
     const cabinets = lireCabinets(await lireJson(t, 'select plateforme.console_cabinets() v')).map((c) => ligneCabinet(c, connues));
     // Une ligne par organisation : un groupe, une entreprise seule, un dossier tenu, un cabinet.
-    const toutes = organisations(entreprises, jour, id.entreprises, id.groupes, cabinets, id.cabinets);
+    return { entreprises, renouvellements, identites: id.entreprises, toutes: organisations(entreprises, jour, id.entreprises, id.groupes, cabinets, id.cabinets) };
+  }
+  // Le calcul partagé, pour une demande : la base revérifie d'abord le rôle de CETTE session (la direction et le support
+  // lisent la liste ; la technique, jamais), puis le calcul sert s'il est frais. Un calcul fait à côté (la demande n'attend
+  // pas) l'est dans une transaction à lui, au nom de la même session. `frais` : « Actualiser ».
+  async function lesClients(tx: Transaction | null, qui: Qui | null, jour: string, frais = false) {
+    const t = transaction(tx);
+    await t.query('select plateforme.console_lire_la_liste()');
+    const session = qui?.session ?? null;
+    const aCote = qui && session ? () => enTantQue(ctx.pool, qui.utilisateur, async (x) => {
+      await x.query('select set_config(\'app.session_console\', $1, true)', [session]);
+      return baseDesClients(transaction(x), jour);
+    }) : null;
+    return partage.lire(jour, () => baseDesClients(t, jour), aCote, frais);
+  }
+  // La sélection de la liste, telle que l'écran la montre (les inscrites de la semaine, la recherche, les filtres, la vue,
+  // la puce d'état, l'ordre) : l'écran et l'export la lisent par CETTE fonction — ce qui s'exporte est ce qui se voit.
+  function selectionClients(base: BaseDesClients, jour: string, query: Record<string, unknown>) {
+    const { renouvellements, toutes } = base;
+    const id = { entreprises: base.identites };
     const nouvelles = query.nouvelles === '1' ? toutes.filter((o) => o.societes.some((e) => inscriteCetteSemaine(e, jour))) : toutes;
     const cherchees = chercherOrg(nouvelles, String(query.q ?? ''), id.entreprises);
     // Les filtres de la ligne d'outils (le type, l'offre, le cabinet), chaque option comptée sur ce que filtrent les autres.
@@ -365,7 +408,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     const comptes = Object.fromEntries(CATEGORIES.map((c) => [c, dansVue.filter((o) => categorieOrg(o) === c).length]));
     const etat = CATEGORIES.includes(query.etat as never) ? query.etat as string : null;
     const tri: TriOrg = TRIS_CLIENTS.includes(query.tri as never) ? query.tri as TriOrg : 'urgence';
-    const gardees = trierOrg(etat ? dansVue.filter((o) => categorieOrg(o) === etat) : dansVue, tri, renouvellements, jour);
+    const gardees = trierOrg(etat ? dansVue.filter((o) => categorieOrg(o) === etat) : dansVue, tri, renouvellements, jour, rangsDUrgence(toutes, jour));
     return { renouvellements, filtres, options, vues, laVue, dansVue, comptes, tri, gardees, identites: id.entreprises };
   }
   ajouter({
@@ -373,7 +416,9 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
     traiter: async ({ query, qui }, tx) => {
       const jour = aujourdhuiATunis();
       const role = roleDe(qui);
-      const s = await selectionClients(transaction(tx), jour, query);
+      // `frais=1` : « Actualiser » (C65) ; sinon le calcul partagé, s'il a moins d'une minute.
+      const lu = await lesClients(tx, qui, jour, query.frais === '1');
+      const s = selectionClients(lu.valeur, jour, query);
       const debut = Math.max(Number(query.debut ?? 0) || 0, 0);
       const n = limite(query);
       // Chaque ligne : ce qu'elle est, ce qu'elle rapporte, et chacune de ses sociétés telle que la liste la dit — les
@@ -395,7 +440,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
         corps: {
           aujourdhui: jour, total: s.gardees.length, tous: s.dansVue.length, vue: s.laVue, tri: s.tri, vues: s.vues, comptes: s.comptes,
           filtres: s.filtres, options: s.options, parAn: parAnDesLignes(s.gardees, s.renouvellements),
-          lignes: page, suite: debut + n < s.gardees.length ? debut + n : null,
+          lignes: page, suite: debut + n < s.gardees.length ? debut + n : null, calculeLe: new Date(lu.calculeLe).toISOString(),
         },
       };
     },
@@ -406,11 +451,12 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
   ajouter({
     methode: 'POST', chemin: '/console/entreprises/export', geste: 'console.clients.exporter',
     corps: z.object({ motif: z.string().max(400), filtres: z.record(z.string(), z.string().max(200)).optional() }),
-    traiter: async ({ corps }, tx) => {
+    traiter: async ({ corps, qui }, tx) => {
       if (corps.motif.trim().length < 3) return refusDuChamp('motif', 'console.motif_requis');
       const jour = aujourdhuiATunis();
       const f = corps.filtres ?? {};
-      const s = await selectionClients(transaction(tx), jour, f);
+      // Le même calcul que l'écran qu'on regarde (C65) : ce qui s'exporte est ce qui se voit.
+      const s = selectionClients((await lesClients(tx, qui, jour)).valeur, jour, f);
       const lignes = s.gardees.flatMap((o) => o.societes.map((e) => ({ ...ligneExport(e, s.renouvellements), numero: s.identites.get(e.id)?.numero ?? null,
         ville: s.identites.get(e.id)?.ville ?? null, groupe: o.sorte === 'groupe' ? o.nom : null })));
       const gardes = Object.fromEntries(['q', 'nouvelles', 'type', 'offre', 'cabinet', 'vue', 'etat', 'tri'].filter((k) => typeof f[k] === 'string' && f[k] !== '').map((k) => [k, f[k]]));
@@ -431,11 +477,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const etat = etatAbonnement(faits, jour);
       const ligne = lireLigne(fiche.ligne);
       // Les cabinets qui la suivent : la même liste que leur fiche à eux (C3).
-      const cabinets = cabinetsDe(id, lireCabinets(await lireJson(transaction(tx), 'select plateforme.console_cabinets() v')));
+      const cabinets = cabinetsDe(id, lireCabinets(await lireJson(transaction(tx), 'select plateforme.console_cabinets($1) v', [id])));
       // Ce qui attend pour ce client : les lignes d'« À décider » qui le nomment, par la MÊME fonction (C3) — sur la liste
       // telle que l'accueil la lit, jamais une règle écrite une seconde fois pour la fiche.
       const role = roleDe(qui);
-      const liste = (await lesEntreprises(transaction(tx), jour)).filter((e) => e.id === id);
+      const liste = await lesEntreprises(transaction(tx), jour, id);
       // Ses demandes au support, comptées par la même fonction que l'écran Support ; celles qui attendent depuis 24 h
       // entrent dans « ce qui attend », comme à l'accueil.
       const support = lireSupport(await lireJson(transaction(tx), 'select plateforme.console_support($1, null) v', [id]));
@@ -458,14 +504,14 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const groupe = lireGroupeDe(await lireJson(transaction(tx), 'select plateforme.console_groupe_de($1, $2::date, $3::date) v', [id, jour, prochaine]));
       // Son numéro, sa ville, le téléphone vérifié de sa propriétaire, son dernier appel (0110) ; ses notes d'appel ; ce
       // que la liste dit en plus d'elle (les pièces émises du mois, l'essai, la facture qui attend), par les mêmes lectures.
-      const identite = lireIdentites(await lireJson(transaction(tx), 'select plateforme.console_identites($1::date) v', [jour])).entreprises.get(id) ?? null;
+      const identite = lireIdentites(await lireJson(transaction(tx), 'select plateforme.console_identites($1::date, $2) v', [jour, id])).entreprises.get(id) ?? null;
       const notes = lireNotesAppel(await lireJson(transaction(tx), 'select plateforme.console_notes_appel($1) v', [id]));
-      const enPlus = lireEnPlus(await lireJson(transaction(tx), 'select plateforme.console_clients_en_plus($1::date) v', [jour]), jour).get(id) ?? null;
+      const enPlus = lireEnPlus(await lireJson(transaction(tx), 'select plateforme.console_clients_en_plus($1::date, $2) v', [jour, id]), jour).get(id) ?? null;
       // Ce que sa prochaine facture coûtera (0113), par la règle de la facture : le chiffre de la liste et des échéances.
       const r = (await renouvellementsDe(transaction(tx), liste, jour)).get(id) ?? null;
       // Son risque de départ (1.40.0 ; 0132), par la fonction de la liste : ses signes, son usage sur deux fois trente
       // jours, et s'il paie (un essai ne « part » pas : il est à appeler).
-      const usage = lireUsages(await lireJson(transaction(tx), 'select plateforme.console_usage_trente($1::date) v', [jour])).get(id) ?? null;
+      const usage = lireUsages(await lireJson(transaction(tx), 'select plateforme.console_usage_trente($1::date, $2) v', [jour, id])).get(id) ?? null;
       const risque = liste[0] ? { ...risqueDe(liste[0], jour, usage, new Set(contestations.filter((c) => c.close === null).map((c) => c.entreprise.id)),
         new Map([[id, support.ouvertes.length]])), payant: payant(liste[0]) } : null;
       return { corps: { aujourdhui: jour, ...fiche, etat, cabinets, attend, factures, contestations, groupe: { ...groupe, prochaine }, gestes: gestesDisponibles(role, faits, ligne, etat, fiche.prolongeDejaUneFois === true, enPlus?.moisOffertRecent ?? false),
@@ -613,7 +659,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null }
       const id = params.id ?? '';
       if (!uuid.safeParse(id).success) throw new Introuvable();
       const jour = aujourdhuiATunis();
-      const s = await selectionClients(transaction(tx), jour, { ...query, q: '', vue: '', etat: '', type: '', offre: '', cabinet: '', nouvelles: '' });
+      const s = selectionClients((await lesClients(tx, qui, jour)).valeur, jour, { ...query, q: '', vue: '', etat: '', type: '', offre: '', cabinet: '', nouvelles: '' });
       const o = s.gardees.find((x) => x.id === id && x.sorte === 'groupe');
       if (!o) throw new Introuvable();
       const role = roleDe(qui);

@@ -160,6 +160,11 @@ describe('exporter et restaurer UNE entreprise', () => {
     try {
       const bilan = await restaurer(cible, fichier);
       expect(bilan.tables.find((t) => t.table === 'ventes.piece')?.lignes).toBe(3);
+      // Ses lignes reviennent sans déclencheurs : le compte de ses pièces que la console lit (0141) est refait, le même
+      // que leur recompte.
+      const compte = (await cible.query('select k.n::int n, plateforme.pieces_creees($1)::int recompte from socle.compte_pieces k where k.entreprise = $1', [A.ent])).rows[0];
+      expect(compte.n).toBeGreaterThan(0);
+      expect(compte.n).toBe(compte.recompte);
       const encore = await exporter(cible, A.ent);
       // Tout est identique, sauf l'en-tête (l'heure de l'export) et la trace, qui porte une ligne
       // de plus : la restauration elle-même.
@@ -249,6 +254,8 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       ($1, 'documents', 'd2', '{"type":"facture","number":"FAC-2026-777"}')`, [A.ent]);
     await cible.query(`insert into socle.audit (entreprise, geste) values ($1, 'essai.apres')`, [A.ent]);
     await cible.query('commit');
+    // Et une pièce du dossier arrivée par le chemin ordinaire (ses déclencheurs comptent : 0141), qu'aucun numéro ne porte.
+    await cible.query(`insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'documents', 'd3', '{}')`, [A.ent]);
   }
   const sansEnTete = (lignes: string[]) => lignes.slice(1, -1);
   const trace = (lignes: string[]) => JSON.parse(lignes[donnees(lignes, 'socle.audit') + 1] ?? '[]') as { id: string; geste: string; apres: Record<string, unknown> | null }[];
@@ -277,6 +284,9 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       // L'essai du script a pris 30 minutes (la base de la minute restaurée à côté, l'export) : la remise y ajoute les siennes.
       const bilan = await remettre(cible, etatT, { motif: 'Une erreur de manipulation, le 12/10', essaiSecondes: 1800 });
       expect(bilan.essai).toBe(false);
+      // Abîmée sans déclencheurs (une pièce du dossier arrivée), remise sans eux : le compte de ses pièces (0141) est refait.
+      const compte = (await cible.query('select k.n::int n, plateforme.pieces_creees($1)::int recompte from socle.compte_pieces k where k.entreprise = $1', [A.ent])).rows[0];
+      expect(compte.n).toBe(compte.recompte);
       const remise = await exporter(cible, A.ent);
       // Tout est le fichier, au caractère près, sauf la trace (elle garde ce qui s'est passé depuis, et dit la remise) et
       // la transaction que porte chaque objet du dossier (celle de la remise : vérifiée plus bas).
@@ -308,7 +318,7 @@ describe('remettre UNE entreprise par-dessus elle-même', () => {
       expect(objets.map((o) => o.cle)).toContain('k1');
       expect(objets.every((o) => o.relu)).toBe(true);
       const retires = (await cible.query('select cle, (xid >= $2::xid8) relu from socle.dossier_v10_retire where entreprise = $1 order by cle', [A.ent, marque])).rows;
-      expect(retires).toEqual([{ cle: 'd2', relu: true }, { cle: 'k2', relu: true }]);
+      expect(retires).toEqual([{ cle: 'd2', relu: true }, { cle: 'd3', relu: true }, { cle: 'k2', relu: true }]);
     } finally {
       await cible.end();
       await base.jeter();

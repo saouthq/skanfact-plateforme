@@ -222,6 +222,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'socle.migration': { classe: 'hors', raison: 'l\'en-tête du fichier porte la liste des migrations' },
   'socle.session': { classe: 'hors', raison: 'une session ouverte est une clé de connexion' },
   'socle.activite': { classe: 'hors', raison: 'le dernier instant où chacun y a travaillé, que la console lit : il se refait au premier geste' },
+  'socle.compte_pieces': { classe: 'hors', raison: 'le compte de ses pièces, que la console lit : la restauration et la remise le refont de ses pièces' },
   'socle.code_secours': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },
   'socle.defi_connexion': { classe: 'hors', raison: 'un secret de connexion ne quitte jamais la plateforme' },
   'socle.tentative': { classe: 'hors', raison: 'le journal technique des connexions n\'appartient pas à l\'entreprise' },
@@ -529,6 +530,8 @@ export async function restaurer(client: pg.ClientBase, lignes: string[]): Promis
     const cat = await lireCatalogue(client);
     const tables = await reposer(client, cat, lignes, false);
     await verifierLiens(client, cat, enTete.entreprise, 'restauration');
+    // Ses lignes sont revenues sans déclencheurs : le compte de ses pièces (0141, que la console lit) se refait.
+    await client.query('select socle.recompter_pieces($1)', [enTete.entreprise]);
     await client.query(`insert into socle.audit (entreprise, geste, objet_type, objet_id, apres)
       values ($1, 'socle.entreprise.restaurer', 'entreprise', $1, $2)`,
     [enTete.entreprise, JSON.stringify({ exporteLe: enTete.exporteLe, empreinte: emp, aReprendre: enTete.aReprendre })]);
@@ -617,6 +620,8 @@ export async function remettre(client: pg.ClientBase, lignes: string[], options:
     await client.query('update socle.dossier_v10 set xid = pg_current_xact_id() where entreprise = $1', [E]);
     // 4. Les liens, dans les deux sens.
     await verifierLiens(client, cat, E, 'remise');
+    // Ses lignes sont revenues sans déclencheurs : le compte de ses pièces (0141, que la console lit) se refait.
+    await client.query('select socle.recompter_pieces($1)', [E]);
     // 5. Les numéros qu'aucune pièce ne porte plus (une pièce disparue, une facture émise redevenue brouillon).
     const numerosApres = new Set(await numerosEmis(client, E));
     const numerosRetires = numerosAvant.filter((n) => !numerosApres.has(n));

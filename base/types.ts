@@ -1203,6 +1203,10 @@ export interface BaseDeDonnees {
     empreinte: string;
     utilise_le: Date | null;
   };
+  'socle.compte_pieces': {
+    entreprise: string;
+    n: bigint;
+  };
   'socle.compteur': {
     serie: string;
     entreprise: string;

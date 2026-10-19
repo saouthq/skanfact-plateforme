@@ -164,6 +164,8 @@ declarerTextes({
   'console.ecran.tableau.graves': 'dont {n} graves',
   'console.ecran.decider.titre': 'à décider',
   'console.ecran.decider.sous': 'le plus urgent en haut. Chaque ligne s\'ouvre sur l\'écran qui la règle',
+  // C65 : ce que disent les clients vient du calcul que l'équipe partage, refait chaque minute.
+  'console.ecran.decider.calcule': 'les clients, tels qu\'ils étaient à {heure}',
   'console.ecran.decider.tout': 'tout',
   'console.ecran.decider.filtre_service': 'service',
   'console.ecran.decider.filtre_clients': 'clients',
@@ -305,6 +307,9 @@ declarerTextes({
   'console.ecran.clients.par_an_1': 'un abonnement actif dans la sélection :',
   'console.ecran.clients.par_an_n': '{n} abonnements actifs dans la sélection :',
   'console.ecran.clients.par_an_fin': 'hors taxes par an',
+  // C65 : la liste se calcule une fois pour l'équipe et sert une minute ; elle dit de quand datent ses chiffres.
+  'console.ecran.clients.calcule': 'chiffres de {heure}',
+  'console.ecran.clients.actualiser': 'actualiser',
   'console.ecran.clients.trier': 'trier',
   'console.ecran.clients.tri.urgence': 'le plus urgent d\'abord',
   'console.ecran.clients.tri.echeance': 'l\'échéance la plus proche',

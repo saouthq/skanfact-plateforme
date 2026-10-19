@@ -733,6 +733,10 @@ vaut pour tout le dépôt.*
   - **L'effet de chaque version** (1.48.0 ; `docs/console.md` C64) : base `0140_impact_versions.sql` (ce que la base sait
     de chaque période) ; `serveur/console/impact.ts` (pur : les périodes, la lecture, ce qui est pire qu'avant) ; écran
     `Versions.tsx` (« L'effet de chaque version »).
+  - **Le coût des listes** (1.49.0 ; `docs/console.md` C65 ; l'audit A09) : base `0141_cout_des_listes.sql` (le compte des
+    pièces tenu à jour, des index, la fiche qui ne lit que la sienne) ; `serveur/console/instantane.ts` (le calcul de la
+    liste partagé par l'équipe, une minute) ; le banc `banc/console/mesurer.ts` (`npm run banc:console` : 5 000 entreprises,
+    cinq personnes, 95 % sous 300 ms).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

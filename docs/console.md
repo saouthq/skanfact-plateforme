@@ -1513,6 +1513,36 @@ plus de demandes par jour, trois au moins. Un centile ne se lit que sur assez de
 requêtes ». **Décidé par délégation** : ces seuils (écrits dans `serveur/console/impact.ts`), et rien de plus qu'un
 constat — la console ne relie pas une panne à un changement du code, elle dit quand et combien.
 
+**C65. Le coût des listes** (1.49.0 ; base 0141 ; l'audit 1.42.0 A09 : « la pagination limite l'affichage, pas le coût
+du calcul » ; décidé par délégation le 19/10/2026). **Mesuré d'abord**, sur un seuil écrit d'avance (`VISION-ARCHITECTURE.md`
+§ 6, « afficher une liste, une fiche ») : **95 % des réponses en moins de 300 ms côté serveur**, pour la liste des clients,
+la fiche d'un client et l'accueil, avec **5 000 entreprises, deux millions de pièces émises sur l'année et cinq personnes
+de l'équipe en même temps** (le volume, décidé par délégation : bien au-delà des 150 à 300 entreprises de la première année,
+« plusieurs milliers de PME » par serveur). Le banc : `npm run banc:console` (`banc/console/mesurer.ts`, une base à part,
+créée et détruite par lui, tout inventé). **Avant** : la liste répondait en 19 s, la fiche en 10 s, l'accueil en 22 s (95e
+centile : 21 s, 11 s, 25 s). **Après** : 130 ms, 111 ms, 254 ms. Ce qui coûtait, et ce qui est fait :
+- **la base** (0141) : le nombre de pièces de chaque entreprise se **tient à jour** à chaque pièce qui naît ou s'en va
+  (`socle.compte_pieces`, par ses déclencheurs ; la restauration et la remise d'une entreprise, qui reposent ses lignes sans
+  déclencheurs, le refont), au lieu d'être recompté à chaque liste ; des index sur les membres d'une entreprise, les pièces
+  émises (par entreprise et par instant), les mandats et les dossiers tenus ; « émise ce mois », « sur trente jours » se
+  cherchent par les instants qui bornent ces jours dans le fuseau de l'entreprise (le même compte, essai au bord de minuit) ;
+- **la fiche d'un client** ne lit que la sienne (elle calculait l'usage, les identités, ce que la liste dit en plus de
+  chaque client, et ne gardait que le sien) ; elle se lit **toujours à l'instant** ;
+- **la liste se calcule une fois pour l'équipe** (`serveur/console/instantane.ts`) : ce que la liste sait de chaque
+  organisation avant la recherche, les filtres et la page sert toute l'équipe **une minute** ; passée la minute, il sert
+  encore une fois et se refait à côté (la réponse n'attend pas) ; au-delà de dix minutes, d'un jour à l'autre, ou après
+  **un geste de la console qui écrit** (une fois sa transaction validée), la réponse attend le nouveau. Ce que les clients
+  font de leur côté (une facture émise, une inscription) s'y voit donc à la minute suivante : **l'écran dit de quand datent
+  ses chiffres** (« chiffres de 14:03 », et sur l'accueil « les clients, tels qu'ils étaient à 14:03 ») et propose
+  « Actualiser ». Ce calcul ne sert qu'après que **la base a revérifié le rôle de la session qui le lit**
+  (`plateforme.console_lire_la_liste` : la direction et le support ; la technique, jamais). Il vit dans le programme du
+  serveur, qui tourne seul (`exploitation/installer.sh`) : plusieurs un jour, il passerait dans la base. Un essai l'éteint
+  (`SKANFACT_CONSOLE_FRAIS_MS`, zéro sous `SKANFACT_ENVIRONNEMENT=test`) : il relit ce qu'il vient d'écrire ;
+- **ce qu'une ligne dit d'elle-même** (son urgence, ses vues, ses cabinets, ce qu'elle rapporte, son texte de recherche)
+  se calcule une fois et se garde avec elle ; le rang d'urgence de toute la liste, une fois par calcul partagé.
+Les autres écrans qui lisent toute la clientèle (Abonnements, Cabinets, Mesure, Paiements, Support) gardent leur calcul :
+le banc ne les mesure pas encore ; ils prendront ce chemin s'il les trouve au-delà du seuil.
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1532,8 +1562,8 @@ ne se construit pas : **la v10 n'est installée chez personne** (Skander, 14/10/
 bureau (la coque et son agent local : les postes qui l'ont, leur version, ce que l'agent voit, ses erreurs) se dessinera
 quand elle sera distribuée aux clients (`09` étape 4). Le guet extérieur (C49) vérifie le service depuis une autre
 machine ; le second guet, depuis une deuxième ville (06 § 7), reste à poser. Des constats de l'audit 1.42.0 restent
-ouverts : le coût des listes, qui calculent tout avant de paginer (A09), plus tard ; A04 et A08 sont faits en 1.46.0
-(C62). La communication ciblée est faite en 1.47.0 (C63) ; l'effet de chaque version, en 1.48.0 (C64).
+ouverts : aucun ; A04 et A08 sont faits en 1.46.0 (C62), le coût des listes (A09) en 1.49.0 (C65). La communication ciblée
+est faite en 1.47.0 (C63) ; l'effet de chaque version, en 1.48.0 (C64).
 
 ## À VÉRIFIER
 

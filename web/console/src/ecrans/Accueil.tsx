@@ -42,7 +42,8 @@ export type Ligne =
   // 0131 : la sortie d'un client dont le contrat a pris fin, et ce qui reste à faire.
   | { sorte: 'sortie'; ouvre: 'fiche'; entreprise: Qui; fin: string; jours: number; restantes: Etape[] };
 type RelancePartie = { entreprise: Qui; rang: 'j15' | 'j7' | 'j1' | 'lecture_seule'; partieLe: string };
-type Accueil = { aujourdhui: string; role: Role; tableau: Partial<Tableau> & { service: Service }; decider: Ligne[]; relances?: RelancePartie[] };
+// `calculeLe` : l'instant du calcul de la liste des clients que l'équipe partage (C65) ; aucun pour la technique.
+type Accueil = { aujourdhui: string; role: Role; tableau: Partial<Tableau> & { service: Service }; decider: Ligne[]; relances?: RelancePartie[]; calculeLe?: string | null };
 
 // ── Le tableau du matin ─────────────────────────────────────────────────────────────────────────────────────────────
 // `mot` : une valeur qui est un mot (« non mesuré », « rien à signaler ») et non un nombre : elle se dit en lettres.
@@ -193,7 +194,7 @@ function voir(l: Ligne, aujourdhui: string): Vue {
 // L'accès d'urgence de l'équipe (0135) se range avec le service : la sécurité de la console, pas un client.
 const estService = (l: Ligne) => l.ouvre === 'service' || l.ouvre === 'equipe';
 
-function ADecider({ lignes, role, aujourdhui }: { lignes: Ligne[]; role: Role; aujourdhui: string }) {
+function ADecider({ lignes, role, aujourdhui, calculeLe = null }: { lignes: Ligne[]; role: Role; aujourdhui: string; calculeLe?: string | null }) {
   const [filtre, setFiltre] = useState<'tout' | 'service' | 'clients'>('tout');
   const nService = lignes.filter(estService).length;
   const nClients = lignes.length - nService;
@@ -207,7 +208,7 @@ function ADecider({ lignes, role, aujourdhui }: { lignes: Ligne[]; role: Role; a
       <div className="c-carte-tete">
         <div>
           <h2 id="decider-titre">{titre('console.ecran.decider.titre')} <span className="c-compte-titre">{lignes.length}</span></h2>
-          <p className="c-carte-sous">{phrase('console.ecran.decider.sous')}</p>
+          <p className="c-carte-sous">{phrase('console.ecran.decider.sous')}{calculeLe ? ` ${phrase('console.ecran.decider.calcule', { heure: heureDe(calculeLe) })}` : ''}</p>
         </div>
       </div>
       {lignes.length ? (
@@ -297,7 +298,7 @@ export function Accueil() {
           <TableauDuMatin t={lu.tableau} role={lu.role} aujourdhui={aujourdhui} />
           {lu.role === 'technique' ? <ADecider lignes={lu.decider} role={lu.role} aujourdhui={aujourdhui} /> : (
             <div className="c-accueil-bas">
-              <ADecider lignes={lu.decider} role={lu.role} aujourdhui={aujourdhui} />
+              <ADecider lignes={lu.decider} role={lu.role} aujourdhui={aujourdhui} calculeLe={lu.calculeLe ?? null} />
               <Relances liste={lu.relances ?? []} aujourdhui={aujourdhui} />
             </div>
           )}
