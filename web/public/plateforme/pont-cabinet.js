@@ -58,7 +58,7 @@
     const lu = lire(r, await r.text());
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
     // Un refus qui tient à un champ le nomme (E5) : l'écran marque sa case (le matricule déjà pris d'un dossier).
-    if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { champ: typeof lu.champ === 'string' ? lu.champ : null });
+    if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { champ: typeof lu.champ === 'string' ? lu.champ : null, statut: r.status });
     if (methode !== 'GET') gestesFaits++;
     return lu;
   }
@@ -364,7 +364,11 @@
     livre.revisions = revisionsLues;
     livre.questions = questions;
     livre.audit = new Array(gestesFaits);
-    return livre;
+    // 1.63.0 — la paie du dossier telle qu'on l'a lue (à l'ouverture du livre, à chaque geste de la paie) : sans elle,
+    // l'onglet Paie d'un dossier disait « Aucun salarié déclaré » à côté de l'écriture de paie de ses bulletins, et le
+    // livre qu'un autre geste renvoyait (valider une écriture, lettrer…) la faisait disparaître de l'écran.
+    const paie = paieLue.get(ent);
+    return paie ? poserLaPaie(livre, [...paie.values()], annee) : livre;
   };
   // Les révisions d'une année (brique 44), celles du cabinet : l'exercice et ses mois, dans la forme de
   // la v10 (compta.js, revisionVide), et la révision de chacune pour la réécrire sans rien écraser.
@@ -550,6 +554,8 @@
       id: p.id, salarieId: p.employeeId, annee: Number(p.year), mois: Number(p.month),
       brut: Number(p.gross ?? c.baseGross) || 0, joursTravailles: Number(p.workedDays ?? c.workedDays) || 26, joursAbsence: Number(p.absentDays ?? c.absentDays) || 0,
       primes: p.bonuses || c.bonuses || [], retenues: p.deductions || c.deductions || [], calcul: c, payeLe: p.paidDate || '',
+      // 1.63.0 — le prorata d'une entrée ou d'une sortie (1.62.0) : le Cabinet calcule avec lui, comme l'entreprise.
+      prorata: p.prorata || null,
       ecritureId, creeLe: 0, auteur: '',
     };
   };
@@ -557,19 +563,26 @@
   const fichePayeDe = (b, avant) => ({
     accountId: '', method: 'virement', reference: '', ...(avant || {}), id: b.id, employeeId: b.salarieId, year: b.annee, month: b.mois,
     gross: b.brut, workedDays: b.joursTravailles, absentDays: b.joursAbsence, bonuses: b.primes, deductions: b.retenues, computed: b.calcul,
+    // 1.63.0 — le prorata avec lequel le bulletin a été calculé : un brut retouché au Cabinet n'en a plus (le moteur l'a dit).
+    prorata: b.prorata || null,
     paidDate: b.payeLe || '', issuedAt: (avant && avant.issuedAt) || new Date().toISOString().slice(0, 10),
   });
-  // Le livre d'une année et sa paie : les salariés, les bulletins de l'année, et pour chacun l'écriture
-  // de paie de son mois, que le serveur tient (journal PAIE, au dernier jour du mois).
-  /** @param {string} ent @param {string|number} annee */
-  async function livreEtPaie(ent, annee) {
-    const [livre, objets] = await Promise.all([livreDe(ent, annee), paieDe(ent)]);
+  // La paie du dossier posée dans le livre d'une année : les salariés, les bulletins de l'année, et pour chacun
+  // l'écriture de paie de son mois, que le serveur tient (journal PAIE, au dernier jour du mois).
+  /** @param {any} livre @param {any[]} objets @param {string|number} annee */
+  function poserLaPaie(livre, objets, annee) {
     /** @param {string} mois */
     const ecritureDuMois = (mois) => ((livre.ecritures || []).find((/** @type {any} */ e) => e.journal === 'PAIE' && String(e.date).slice(0, 7) === mois && e.statut !== 'contrepassee') || {}).id || null;
     livre.salaries = objets.filter((/** @type {any} */ o) => o.collection === 'employees').map((/** @type {any} */ o) => salarieDe(o.contenu));
     livre.bulletins = objets.filter((/** @type {any} */ o) => o.collection === 'payslips' && Number(o.contenu.year) === Number(annee))
       .map((/** @type {any} */ o) => bulletinDe(o.contenu, ecritureDuMois(`${o.contenu.year}-${String(o.contenu.month).padStart(2, '0')}`)));
     return livre;
+  }
+  // Le livre d'une année et sa paie, relue (les gestes de la paie).
+  /** @param {string} ent @param {string|number} annee */
+  async function livreEtPaie(ent, annee) {
+    const [livre, objets] = await Promise.all([livreDe(ent, annee), paieDe(ent)]);
+    return poserLaPaie(livre, objets, annee);
   }
   // Écrire un objet de paie dans le dossier du client, dans la révision qu'on a lue.
   /** @param {string} ent @param {string} collection @param {string} cle @param {any} contenu */
@@ -940,7 +953,10 @@
     // commencer (son exercice, sa balance d'ouverture).
     livre: async (/** @type {string} */ id, /** @type {string} */ annee) => {
       const d = dossiers.get(id) || { id, name: '', matricule: '' };
-      const [ecritures] = await Promise.all([ecrituresDe(id, `${annee}-01-01`, `${annee}-12-31`), exercicesDe(id)]);
+      // 1.63.0 — avec la paie du dossier (ses salariés, ses bulletins) ; un mandat qui ne comprend pas la paie ne ferme
+      // pas le livre : l'onglet Paie reste vide, et le serveur dit pourquoi au premier geste.
+      const paie = paieDe(id).catch((/** @type {any} */ e) => { if (e && e.statut === 403) { paieLue.delete(id); return []; } throw e; });
+      const [ecritures] = await Promise.all([ecrituresDe(id, `${annee}-01-01`, `${annee}-12-31`), exercicesDe(id), paie]);
       if (!ecritures.length && !exerciceDe(id, annee)) return { dossier: d, livre: null };
       return { dossier: d, livre: await livreDe(id, annee, ecritures) };
     },

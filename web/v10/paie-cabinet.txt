@@ -1,0 +1,225 @@
+Le Cabinet ne perd rien d'un bulletin (19/10/2026, 1.63.0 ; docs/paie.md, « Le Cabinet ne perd rien d'un bulletin »).
+Format : voir sans-paquets.mjs.
+
+Sur la plateforme, le bulletin que le Cabinet tient est CELUI du SkanFact de son client (pont-cabinet.js le lit et le
+réécrit dans la paie du dossier). Le formulaire du Cabinet v10 n'en montrait qu'une prime et qu'une retenue, et
+l'enregistrement effaçait les autres : depuis la 1.59.0, les primes de chaque mois de la fiche (présence, transport…)
+entrent dans chaque bulletin, et un bulletin modifié au Cabinet pour une absence perdait ses primes, son net avec. Le
+moteur du Cabinet (`ajouterBulletin`) réécrivait aussi chaque prime à son nom, son montant et sa case « imposable » :
+une prime d'heures supplémentaires perdait sa majoration (le journal la rangeait dans les indemnités, et reprendre le
+pointage l'aurait comptée deux fois), une prime au jour ses jours ; et il calculait sans le prorata du mois (1.62.0).
+
+Le formulaire montre désormais TOUTES les lignes (ajouter, retirer, modifier), une prime au jour suit les jours payés
+comme dans l'entreprise ; le moteur garde les marques de chaque prime et le prorata tant que le brut est le sien.
+
+== compta.js | les marques d'une prime et le prorata du mois, que le Cabinet garde en réécrivant un bulletin
+-- avant
+  function bulletinValide(b, livre, baremes) {
+    const x = b || {};
+-- après
+  // (plateforme) 1.63.0 — ce qu'une prime porte en plus de son nom, de son montant et de sa case « imposable », et que
+  // le Cabinet garde en réécrivant le bulletin du SkanFact de son client : une prime d'heures supplémentaires (sa
+  // majoration, ses heures : le journal la range dans sa colonne, et reprendre le pointage la remplace au lieu de
+  // l'ajouter une seconde fois), une prime au jour (son montant d'un mois plein, ses jours payés, ceux du mois).
+  const MARQUES_DE_PRIME = ['hs', 'heures', 'parJour', 'mensuel', 'jours', 'sur'];
+  const marquesDePrime = p => Object.fromEntries(MARQUES_DE_PRIME.filter(k => p && p[k] != null && p[k] !== '').map(k => [k, p[k]]));
+  // Le prorata d'une entrée ou d'une sortie que porte le bulletin (1.62.0), tant que son brut est celui que le prorata
+  // a calculé : retouché à la main, il n'est plus proratisé (la règle de l'entreprise).
+  const prorataDuBulletin = x => (x && x.prorata && Number(x.prorata.brutFiche) > 0
+    && round3(Number(x.prorata.brut)) === round3(Number(x.brut) || 0) ? x.prorata : null);
+
+  function bulletinValide(b, livre, baremes) {
+    const x = b || {};
+-- fin
+
+== compta.js | le juge d'un bulletin du Cabinet calcule avec le prorata du mois, comme l'enregistrement
+-- avant
+      deductions: (x.retenues || []).map(d => ({ label: d.label, amount: d.amount }))
+    }, { grossSalary: s.brut, headOfFamily: s.chefDeFamille, children: s.enfants, contrat: s.contrat }, baremesPaie(baremes));
+-- après
+      deductions: (x.retenues || []).map(d => ({ label: d.label, amount: d.amount })),
+      prorata: prorataDuBulletin(x)
+    }, { grossSalary: s.brut, headOfFamily: s.chefDeFamille, children: s.enfants, contrat: s.contrat }, baremesPaie(baremes));
+-- fin
+
+== compta.js | le Cabinet garde les marques de chaque prime et calcule avec le prorata du mois
+-- avant
+      bonuses: (bulletin.primes || []).map(p => ({ label: String(p.label || 'Prime'), amount: round3(Number(p.amount) || 0), taxable: p.taxable !== false })),
+      deductions: (bulletin.retenues || []).map(d => ({ label: String(d.label || 'Retenue'), amount: round3(Number(d.amount) || 0) }))
+    };
+-- après
+      // (plateforme) 1.63.0 — chaque prime garde ses marques (heures supplémentaires, au jour), et le bulletin son prorata.
+      bonuses: (bulletin.primes || []).map(p => ({ label: String(p.label || 'Prime'), amount: round3(Number(p.amount) || 0), taxable: p.taxable !== false, ...marquesDePrime(p) })),
+      deductions: (bulletin.retenues || []).map(d => ({ label: String(d.label || 'Retenue'), amount: round3(Number(d.amount) || 0) })),
+      prorata: prorataDuBulletin(bulletin)
+    };
+-- fin
+
+== compta.js | le bulletin du Cabinet garde le prorata avec lequel il a été calculé
+-- avant
+      primes: saisie.bonuses, retenues: saisie.deductions,
+      calcul: computePayslip(emp, saisie, baremesPaie(baremes)),
+-- après
+      primes: saisie.bonuses, retenues: saisie.deductions, prorata: saisie.prorata,
+      calcul: computePayslip(emp, saisie, baremesPaie(baremes)),
+-- fin
+
+== cabinet/app.js | le formulaire du bulletin montre toutes ses primes et toutes ses retenues
+-- avant
+        <label class="field span-2">${lbl('Prime (facultatif)', 'pa.bPrime')}<input name="primeLabel" value="${esc(((e.primes || [])[0] || {}).label || '')}" placeholder="Prime de rendement"></label>
+        <label class="field">${lbl('Montant de la prime (DT)', 'pa.bPrimeMontant')}<input name="primeAmount" type="text" inputmode="decimal" class="num montant" placeholder="0,000" value="${esc(montantChamp(((e.primes || [])[0] || {}).amount))}"></label>
+        <label class="check"><input type="checkbox" name="primeTaxable" ${((e.primes || [])[0] || {}).taxable !== false ? 'checked' : ''}> Prime imposable</label>
+        <label class="field span-2">${lbl('Retenue (facultatif)', 'pa.bRetenue')}<input name="retLabel" value="${esc(((e.retenues || [])[0] || {}).label || '')}" placeholder="Remboursement d'avance"></label>
+        <label class="field">${lbl('Montant de la retenue (DT)', 'pa.bRetenueMontant')}<input name="retAmount" type="text" inputmode="decimal" class="num montant" placeholder="0,000" value="${esc(montantChamp(((e.retenues || [])[0] || {}).amount))}"></label>
+      </form>
+-- après
+      </form>
+      ${/* (plateforme) 1.63.0 — toutes les primes et toutes les retenues du bulletin, l'une sous l'autre (la disposition
+           de l'entreprise) : le formulaire n'en montrait qu'une de chaque, et l'enregistrement effaçait les autres. */''}
+      <div class="bf-lignes mt">
+        <div class="panel"><h2>Primes et indemnités (DT) ${info('pa.bPrime')}</h2><div id="bf-primes"></div>
+          <button type="button" class="btn btn-sm mt" id="bf-plus-prime">+ Prime</button></div>
+        <div class="panel"><h2>Retenues (DT) ${info('pa.bRetenue')}</h2><div id="bf-retenues"></div>
+          <button type="button" class="btn btn-sm mt" id="bf-plus-retenue">+ Retenue</button></div>
+      </div>
+-- fin
+
+== cabinet/app.js | le bulletin se lit avec toutes ses lignes, leurs marques et le prorata du mois
+-- avant
+      const lire = () => {
+        const sal = (L.salaries || []).find(x => x.id === (b ? b.salarieId : $('[name=salarieId]', f).value)) || {};
+        const primeM = lireMontant($('[name=primeAmount]', f).value);
+        const retM = lireMontant($('[name=retAmount]', f).value);
+        return {
+          id: b ? b.id : '', salarieId: sal.id, annee: s.annee, mois: Number($('[name=mois]', f).value) || 1,
+          brut: lireMontant($('[name=brut]', f).value),
+          joursTravailles: Number($('[name=joursTravailles]', f).value) || 26,
+          joursAbsence: Number($('[name=joursAbsence]', f).value) || 0,
+          primes: primeM ? [{ label: $('[name=primeLabel]', f).value || 'Prime', amount: primeM, taxable: $('[name=primeTaxable]', f).checked }] : [],
+          retenues: retM ? [{ label: $('[name=retLabel]', f).value || 'Retenue', amount: retM }] : []
+        };
+      };
+-- après
+      // (plateforme) 1.63.0 — les lignes du bulletin, TOUTES, avec ce qu'elles portent (une prime d'heures
+      // supplémentaires, une prime au jour : `marquesDePrime` du moteur), et le prorata d'une entrée ou d'une sortie.
+      const primes = (e.primes || []).map(p => ({ ...p }));
+      const retenues = (e.retenues || []).map(r => ({ ...r }));
+      const prorata = (b && b.prorata) || null;
+      const jourFr = n => String(KC.round3(Number(n) || 0)).replace('.', ',');
+      const noteAuJour = x => `au jour : ${jourFr(x.jours)} j payé${Number(x.jours) > 1 ? 's' : ''} sur ${jourFr(x.sur)} · ${money(x.mensuel)} pour un mois plein`;
+      const dessiner = (sel, liste, sorte) => {
+        const zone = $(sel, rootModal);
+        zone.innerHTML = liste.length ? `<table class="lines-edit"><tbody>${liste.map((x, i) => `<tr data-i="${i}">
+            <td><input type="text" data-l="label" value="${esc(x.label || '')}" placeholder="${sorte === 'prime' ? 'Prime de rendement' : 'Remboursement d\'avance'}" aria-label="${sorte === 'prime' ? 'Nom de la prime' : 'Nom de la retenue'}">${sorte === 'prime' && x.parJour ? `<div class="small muted" data-pj>${esc(noteAuJour(x))}</div>` : ''}</td>
+            <td style="width:130px"><input type="text" inputmode="decimal" class="num montant" data-l="amount" placeholder="0,000" value="${esc(montantChamp(x.amount))}" aria-label="Montant (DT)"></td>
+            ${sorte === 'prime' ? `<td style="width:110px"><label class="check small"><input type="checkbox" data-l="taxable" ${x.taxable !== false ? 'checked' : ''}> imposable</label></td>` : ''}
+            <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-retirer="${i}" aria-label="Retirer cette ligne" title="Retirer cette ligne">✕</button></td></tr>`).join('')}</tbody></table>`
+          : `<p class="small muted">${sorte === 'prime' ? 'Aucune prime ce mois-ci.' : 'Aucune retenue ce mois-ci.'}</p>`;
+        $$('[data-l]', zone).forEach(el => { el.oninput = el.onchange = () => {
+          const x = liste[Number(el.closest('tr').dataset.i)];
+          if (el.dataset.l === 'taxable') x.taxable = el.checked;
+          else if (el.dataset.l === 'label') x.label = el.value;
+          else {
+            x.amount = lireMontant(el.value);
+            // Un montant retapé à la main n'est plus « au jour » : la prime ne le prétend plus (comme dans l'entreprise).
+            if (x.parJour) { ['parJour', 'mensuel', 'jours', 'sur'].forEach(k => { delete x[k]; }); const n = $('[data-pj]', el.closest('tr')); if (n) n.remove(); }
+          }
+          maj();
+        }; });
+        $$('[data-retirer]', zone).forEach(bt => { bt.onclick = () => { liste.splice(Number(bt.dataset.retirer), 1); dessiner(sel, liste, sorte); maj(); }; });
+      };
+      // Les primes au jour suivent les jours payés, comme dans l'entreprise : ceux du mois, moins ce que le contrat ne
+      // couvre pas (l'entrée, la sortie), moins l'absence non payée.
+      const suivreLesJours = () => {
+        const ouvrables = Number($('[name=joursTravailles]', f).value) || 26;
+        const absence = Number($('[name=joursAbsence]', f).value) || 0;
+        const hors = prorata ? Math.max(0, Number(prorata.sur) - Number(prorata.jours)) : 0;
+        const j = Math.max(0, Math.min(ouvrables, KC.round3(ouvrables - hors - absence)));
+        let change = false;
+        primes.forEach(x => {
+          if (!x.parJour) return;
+          const m = KC.round3(Number(x.mensuel) * j / ouvrables);
+          if (m !== x.amount || j !== x.jours || ouvrables !== x.sur) { Object.assign(x, { amount: m, jours: j, sur: ouvrables }); change = true; }
+        });
+        if (change) dessiner('#bf-primes', primes, 'prime');
+      };
+      const lire = () => {
+        const sal = (L.salaries || []).find(x => x.id === (b ? b.salarieId : $('[name=salarieId]', f).value)) || {};
+        const brut = lireMontant($('[name=brut]', f).value);
+        // Une ligne laissée vide (ni nom, ni montant, ni marque) ne s'enregistre pas.
+        const remplie = x => !!(Number(x.amount) || String(x.label || '').trim() || x.parJour || x.hs);
+        return {
+          id: b ? b.id : '', salarieId: sal.id, annee: s.annee, mois: Number($('[name=mois]', f).value) || 1,
+          brut,
+          joursTravailles: Number($('[name=joursTravailles]', f).value) || 26,
+          joursAbsence: Number($('[name=joursAbsence]', f).value) || 0,
+          primes: primes.filter(remplie).map(p => ({ ...p, label: String(p.label || '').trim() || 'Prime' })),
+          retenues: retenues.filter(remplie).map(r => ({ ...r, label: String(r.label || '').trim() || 'Retenue' })),
+          // Un brut retouché à la main n'est plus proratisé (la règle de l'entreprise, et celle du moteur).
+          prorata: prorata && KC.round3(Number(prorata.brut)) === KC.round3(brut) ? prorata : null
+        };
+      };
+-- fin
+
+== cabinet/app.js | l'aperçu du bulletin calcule avec le prorata du mois, comme l'enregistrement
+-- avant
+            deductions: v.retenues.map(d => ({ label: d.label, amount: d.amount })) },
+          KC.baremesPaie(baremes));
+-- après
+            deductions: v.retenues.map(d => ({ label: d.label, amount: d.amount })), prorata: v.prorata },
+          KC.baremesPaie(baremes));
+-- fin
+
+== cabinet/app.js | les lignes du bulletin se dessinent, s'ajoutent, et les primes au jour suivent les jours
+-- avant
+        $('[name=brut]', f).value = montantChamp(sal.brut);
+      });
+      f.oninput = f.onchange = maj;
+      maj();
+-- après
+        $('[name=brut]', f).value = montantChamp(sal.brut);
+      });
+      f.oninput = f.onchange = () => { suivreLesJours(); maj(); };
+      dessiner('#bf-primes', primes, 'prime');
+      dessiner('#bf-retenues', retenues, 'retenue');
+      const ajouter = (sel, liste, sorte, ligne) => {
+        liste.push(ligne); dessiner(sel, liste, sorte);
+        const champs = $$(`${sel} [data-l=label]`, rootModal); if (champs.length) champs[champs.length - 1].focus();
+        maj();
+      };
+      $('#bf-plus-prime', rootModal).onclick = () => ajouter('#bf-primes', primes, 'prime', { label: '', amount: 0, taxable: true });
+      $('#bf-plus-retenue', rootModal).onclick = () => ajouter('#bf-retenues', retenues, 'retenue', { label: '', amount: 0 });
+      maj();
+-- fin
+
+== cabinet/app.js | un bulletin se corrige au Cabinet tant que l'exercice n'est pas clos : l'écriture de paie du mois suit
+-- avant
+      const a = [{ icon: 'ouvrir', label: 'Voir le détail du calcul', hint: 'Assiette, tranches, charges', run: () => detailBulletin(b) }];
+      if (!b.ecritureId) a.push(
+        { icon: 'modifier', label: 'Modifier le bulletin', hint: 'Brut, primes, absences, retenues', run: () => bulletinForm(root, dossier, b) },
+        { sep: true },
+        { icon: 'supprimer', label: 'Supprimer ce bulletin', danger: true, hint: 'Possible tant que l\'écriture n\'est pas passée', run: async () => {
+          if (!await confirmDialog('Supprimer ce bulletin ?', 'Il n\'a pas encore d\'écriture : rien d\'autre ne bouge.', 'Supprimer', true)) return;
+-- après
+      const a = [{ icon: 'ouvrir', label: 'Voir le détail du calcul', hint: 'Assiette, tranches, charges', run: () => detailBulletin(b) }];
+      // (plateforme) 1.63.0 — l'écriture de paie du mois SUIT les bulletins : le serveur la réécrit, et contre-passe celle
+      // qui était validée (une écriture validée ne se modifie jamais). Un bulletin se corrige donc tant que l'exercice
+      // n'est pas clos, comme dans le SkanFact du client ; la v10 le refusait dès que l'écriture était passée, et sur la
+      // plateforme, où le serveur la passe toujours, aucun bulletin ne se corrigeait au Cabinet.
+      if (!(s.livre.exercice || {}).clos) a.push(
+        { icon: 'modifier', label: 'Modifier le bulletin', hint: 'Brut, primes, absences, retenues', run: () => bulletinForm(root, dossier, b) },
+        { sep: true },
+        { icon: 'supprimer', label: 'Supprimer ce bulletin', danger: true, hint: 'L\'écriture de paie du mois se refait sans lui', run: async () => {
+          if (!await confirmDialog('Supprimer ce bulletin ?', 'L\'écriture de paie du mois se refait sans lui ; validée, elle se contre-passe.', 'Supprimer', true)) return;
+-- fin
+
+== cabinet/app.js | la fenêtre d'un bulletin dont l'écriture du mois est validée dit, avant le geste, ce qu'enregistrer fera
+-- avant
+      <div id="bf-apercu" class="ok-box mt"></div>
+      <p class="small warn-text" id="bf-refus" role="status" aria-live="polite" hidden></p>
+-- après
+      <div id="bf-apercu" class="ok-box mt"></div>
+      ${/* (plateforme) 1.63.0 — un avertissement se lit AVANT le geste : l'écriture validée du mois se contre-passe. */''}
+      ${b && b.ecritureId && (ecritureDuLivre(L, b.ecritureId) || {}).statut !== 'brouillard' ? `<p class="small muted mt" id="bf-ecriture">L'écriture de paie ${esc(KC.deMois(KC.moisPaie(b.mois)))} est validée : enregistrer ce bulletin la contre-passe (au brouillard) et en écrit une nouvelle à côté.</p>` : ''}
+      <p class="small warn-text" id="bf-refus" role="status" aria-live="polite" hidden></p>
+-- fin

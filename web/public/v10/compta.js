@@ -6376,6 +6376,17 @@
   // au CRÉDIT, 425 Personnel DÉBITEUR, une pièce équilibrée au millime et parfaitement plausible
   // dans un journal de cent pièces. Ce qui manquait n'était pas un calcul, c'était une saisie
   // refusée. Et le refus dit les DEUX chiffres, parce que c'est leur rapport qui est faux.
+  // (plateforme) 1.63.0 — ce qu'une prime porte en plus de son nom, de son montant et de sa case « imposable », et que
+  // le Cabinet garde en réécrivant le bulletin du SkanFact de son client : une prime d'heures supplémentaires (sa
+  // majoration, ses heures : le journal la range dans sa colonne, et reprendre le pointage la remplace au lieu de
+  // l'ajouter une seconde fois), une prime au jour (son montant d'un mois plein, ses jours payés, ceux du mois).
+  const MARQUES_DE_PRIME = ['hs', 'heures', 'parJour', 'mensuel', 'jours', 'sur'];
+  const marquesDePrime = p => Object.fromEntries(MARQUES_DE_PRIME.filter(k => p && p[k] != null && p[k] !== '').map(k => [k, p[k]]));
+  // Le prorata d'une entrée ou d'une sortie que porte le bulletin (1.62.0), tant que son brut est celui que le prorata
+  // a calculé : retouché à la main, il n'est plus proratisé (la règle de l'entreprise).
+  const prorataDuBulletin = x => (x && x.prorata && Number(x.prorata.brutFiche) > 0
+    && round3(Number(x.prorata.brut)) === round3(Number(x.brut) || 0) ? x.prorata : null);
+
   function bulletinValide(b, livre, baremes) {
     const x = b || {};
     const s = (livre.salaries || []).find(y => y.id === x.salarieId);
@@ -6391,7 +6402,8 @@
     return saisiePaieValide({
       gross: x.brut, workedDays: x.joursTravailles, absentDays: x.joursAbsence,
       bonuses: (x.primes || []).map(p => ({ label: p.label, amount: p.amount, taxable: p.taxable !== false })),
-      deductions: (x.retenues || []).map(d => ({ label: d.label, amount: d.amount }))
+      deductions: (x.retenues || []).map(d => ({ label: d.label, amount: d.amount })),
+      prorata: prorataDuBulletin(x)
     }, { grossSalary: s.brut, headOfFamily: s.chefDeFamille, children: s.enfants, contrat: s.contrat }, baremesPaie(baremes));
   }
 
@@ -6434,15 +6446,17 @@
       gross: round3(Number(bulletin.brut) || 0),
       workedDays: Number(bulletin.joursTravailles) || 26,
       absentDays: Math.max(0, Number(bulletin.joursAbsence) || 0),
-      bonuses: (bulletin.primes || []).map(p => ({ label: String(p.label || 'Prime'), amount: round3(Number(p.amount) || 0), taxable: p.taxable !== false })),
-      deductions: (bulletin.retenues || []).map(d => ({ label: String(d.label || 'Retenue'), amount: round3(Number(d.amount) || 0) }))
+      // (plateforme) 1.63.0 — chaque prime garde ses marques (heures supplémentaires, au jour), et le bulletin son prorata.
+      bonuses: (bulletin.primes || []).map(p => ({ label: String(p.label || 'Prime'), amount: round3(Number(p.amount) || 0), taxable: p.taxable !== false, ...marquesDePrime(p) })),
+      deductions: (bulletin.retenues || []).map(d => ({ label: String(d.label || 'Retenue'), amount: round3(Number(d.amount) || 0) })),
+      prorata: prorataDuBulletin(bulletin)
     };
     const emp = { grossSalary: s.brut, headOfFamily: s.chefDeFamille, children: s.enfants, contrat: s.contrat };
     const b = {
       id: String(bulletin.id || ('bul-' + (Number(quand) || 0) + '-' + livre.bulletins.length)),
       salarieId: s.id, annee: Number(bulletin.annee), mois: Number(bulletin.mois),
       brut: saisie.gross, joursTravailles: saisie.workedDays, joursAbsence: saisie.absentDays,
-      primes: saisie.bonuses, retenues: saisie.deductions,
+      primes: saisie.bonuses, retenues: saisie.deductions, prorata: saisie.prorata,
       calcul: computePayslip(emp, saisie, baremesPaie(baremes)),
       payeLe: String(bulletin.payeLe || ''), ecritureId: null,
       creeLe: Number(quand) || 0, auteur: String(qui || '')

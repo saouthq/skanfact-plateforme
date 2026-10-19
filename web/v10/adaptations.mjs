@@ -761,4 +761,6 @@ export const ADAPTATIONS = [
   ...lireFichier('paie-absence.txt'),
   // ── Le bulletin imprimé tient sur une page (19/10/2026, 1.62.0 ; docs/paie.md) : des lignes serrées, le pied en bas ──
   ...lireFichier('paie-impression.txt'),
+  // ── Le Cabinet ne perd rien d'un bulletin (19/10/2026, 1.63.0 ; docs/paie.md) : toutes ses lignes, leurs marques, le prorata ──
+  ...lireFichier('paie-cabinet.txt'),
 ];

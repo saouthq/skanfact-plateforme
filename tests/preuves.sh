@@ -8907,7 +8907,7 @@ prouver 'le matricule déjà pris dans la fiche d'\''un dossier tenu, dit en bas
   "$NDT5"
 for t in "$WLE5" "$NDT5"; do
   prouver "le refus du serveur qui perd son champ au Cabinet (${t:0:40}…)" web/public/plateforme/pont-cabinet.js \
-    '{ champ: typeof lu.champ === '\''string'\'' ? lu.champ : null }' '{ champ: null }' \
+    '{ champ: typeof lu.champ === '\''string'\'' ? lu.champ : null, statut: r.status }' '{ champ: null, statut: r.status }' \
     "$t"
 done
 prouver 'la liste collée qui s'\''arrête sans nommer la ligne ni dire ce qui est entré' web/public/plateforme/pont-cabinet.js \
@@ -17399,6 +17399,49 @@ prouver 'le bulletin trop long tronqué à une page' 'web/public/v10/core.js' \
   '.page { display: flex; flex-direction: column; padding: 12mm 14mm 10mm;' \
   '.page { display: flex; flex-direction: column; height: 297mm; overflow: hidden; padding: 12mm 14mm 10mm;' \
   'tient sur une page, même chargé (une entrée, une absence, six primes, deux retenues) ; le pied en bas de la page ; plus long, il ne se tronque pas'
+
+# 1.63.0 : le Cabinet ne perd rien d'un bulletin (docs/paie.md, « Le Cabinet ne perd rien d'un bulletin »).
+prouver 'le Cabinet qui réécrit une prime sans ses marques' 'web/public/v10/compta.js' \
+  ', taxable: p.taxable !== false, ...marquesDePrime(p) })),' \
+  ', taxable: p.taxable !== false })),' \
+  'garde chaque prime avec ses marques, chaque retenue et le prorata du mois, et se calcule comme dans l'"'"'entreprise'
+prouver 'le Cabinet qui calcule sans le prorata du mois' 'web/public/v10/compta.js' \
+  '      prorata: prorataDuBulletin(bulletin)
+' \
+  '      prorata: null
+' \
+  'garde chaque prime avec ses marques, chaque retenue et le prorata du mois, et se calcule comme dans l'"'"'entreprise'
+prouver 'un brut retouché au Cabinet qui garde son prorata' 'web/public/v10/compta.js' \
+  '
+    && round3(Number(x.prorata.brut)) === round3(Number(x.brut) || 0) ? x.prorata : null);' \
+  ' ? x.prorata : null);' \
+  'un brut retouché au Cabinet n'"'"'est plus proratisé : le bulletin perd son prorata, l'"'"'absence se retire de ce brut'
+prouver 'le formulaire du Cabinet qui ne garde que la première prime' 'web/public/v10/cabinet/app.js' \
+  'primes: primes.filter(remplie).map(' \
+  'primes: primes.filter(remplie).slice(0, 1).map(' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+prouver 'la paie du dossier absente du livre qu'"'"'ouvre le Cabinet' 'web/public/plateforme/pont-cabinet.js' \
+  '    return paie ? poserLaPaie(livre, [...paie.values()], annee) : livre;' \
+  '    return paie ? livre : livre;' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+prouver 'un bulletin qui ne se corrige plus au Cabinet dès que l'"'"'écriture du mois existe' 'web/public/v10/cabinet/app.js' \
+  '      if (!(s.livre.exercice || {}).clos) a.push(' \
+  '      if (!b.ecritureId) a.push(' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+prouver 'la fenêtre du bulletin muette sur l'"'"'écriture validée du mois' 'web/public/v10/cabinet/app.js' \
+  'est validée : enregistrer ce bulletin la contre-passe (au brouillard) et en écrit une nouvelle à côté.</p>` : '"'"''"'"'}' \
+  'est validée.</p>` : '"'"''"'"'}' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+prouver 'le pont du Cabinet qui perd le prorata du bulletin' 'web/public/plateforme/pont-cabinet.js' \
+  '      prorata: p.prorata || null,
+' \
+  '      prorata: null,
+' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+prouver 'la prime au jour qui ne suit plus les jours au Cabinet' 'web/public/v10/cabinet/app.js' \
+  '      f.oninput = f.onchange = () => { suivreLesJours(); maj(); };' \
+  '      f.oninput = f.onchange = maj;' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

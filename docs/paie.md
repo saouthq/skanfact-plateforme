@@ -210,7 +210,8 @@ d'un millime près expliqués plus bas. **Ce qui manquait**, en trois lots :
   la retenue d'absence se calcule dans le moteur que le serveur refait (brique 31). ~~Le journal de paie (1.61.0) ne la
   corrige pas non plus~~ : **corrigé en 1.62.0** (« L'absence du mois d'une entrée », plus bas), l'écran et le serveur
   ensemble.
-- Le Cabinet tient la paie d'un dossier bulletin par bulletin, avec une seule prime : les primes de chaque mois, le
+- Le Cabinet tient la paie d'un dossier bulletin par bulletin, ~~avec une seule prime~~ (toutes les lignes d'un bulletin
+  depuis la 1.63.0, « Le Cabinet ne perd rien d'un bulletin », plus bas) : les primes de chaque mois de la fiche, le
   pointage et le journal y viendront après l'entreprise.
 
 ### Ce qui le prouve
@@ -456,3 +457,60 @@ logiciel de paie tient sur une page : c'est elle qu'on remet au salarié et qu'i
 - Refait à la souris : « Exporter le bulletin en PDF », l'aperçu d'impression annonce une page.
 - Trois preuves (`tests/preuves.sh`, « 1.62.0 : le bulletin imprimé ») : les rubriques aérées comme la v10, le pied au
   milieu de la page, un bulletin trop long tronqué à une page.
+
+## Le Cabinet ne perd rien d'un bulletin (19/10/2026, 1.63.0)
+
+*Une règle apprise d'un côté se vérifie de l'autre : les lots de la paie (1.59 à 1.62) refaits depuis le Cabinet, sur un
+bulletin que le client a établi dans son SkanFact.*
+
+### Les défauts
+
+Sur la plateforme, le bulletin que le Cabinet tient est **celui du SkanFact de son client** (`web/public/plateforme/
+pont-cabinet.js` le lit et le réécrit dans la paie du dossier). Refait à la souris :
+
+1. **L'onglet Paie s'ouvrait vide** : « Aucun salarié déclaré », à côté de l'écriture de paie de leurs bulletins. Le livre
+   qu'ouvre le Cabinet ne lisait pas la paie du dossier ; elle n'apparaissait qu'après un geste de paie, et le livre
+   qu'un autre geste renvoyait (valider une écriture, lettrer…) la faisait disparaître. Un comptable qui ouvre le dossier
+   d'un client dont il fait la paie ne la voyait donc pas.
+2. **Un bulletin ne se corrigeait jamais au Cabinet** : le menu ne proposait « Modifier » et « Supprimer » que tant que
+   l'écriture du mois n'était pas passée (la règle de la v10), et sur la plateforme le serveur la passe toujours.
+3. **Le formulaire n'en montrait qu'une prime et qu'une retenue**, et l'enregistrement effaçait les autres. Depuis la
+   1.59.0, les primes de chaque mois de la fiche entrent dans chaque bulletin : un bulletin modifié au Cabinet pour une
+   absence aurait perdu ses primes, et le salarié son net.
+4. **Le moteur du Cabinet réécrivait chaque prime à son nom, son montant et sa case « imposable »** (`ajouterBulletin`) :
+   une prime d'heures supplémentaires perdait sa majoration (le journal de paie la rangeait dans les indemnités, et
+   reprendre le pointage l'aurait comptée deux fois), une prime au jour ses jours ; et il calculait **sans le prorata du
+   mois** (1.62.0) : une absence du mois d'une entrée s'y retirait encore au prorata.
+
+### Ce que le lot fait (`web/v10/paie-cabinet.txt`, `pont-cabinet.js`)
+
+- **Le livre s'ouvre avec la paie du dossier** (ses salariés, ses bulletins de l'année), et chaque livre que l'écran
+  reçoit la garde telle qu'on l'a lue. Un mandat qui ne comprend pas la paie ne ferme pas le livre : l'onglet Paie reste
+  vide, et le serveur dit pourquoi au premier geste.
+- **Un bulletin se corrige tant que l'exercice n'est pas clos**, comme dans le SkanFact du client : l'écriture de paie
+  du mois suit (le serveur la réécrit ; validée, elle se contre-passe, au brouillard, et la nouvelle s'écrit à côté, au
+  premier jour ouvert). La fenêtre le dit **avant** le geste quand l'écriture du mois est validée.
+- **Le formulaire montre toutes les lignes** (ajouter, retirer, modifier), dans la disposition de l'entreprise ; une prime
+  au jour dit ses jours et les suit quand l'absence change ; un montant retapé à la main ne la dit plus « au jour ».
+- **Le moteur garde les marques de chaque prime** (`marquesDePrime` : heures supplémentaires, au jour) **et le prorata**
+  tant que le brut est le sien (`prorataDuBulletin`) : le Cabinet calcule comme l'entreprise, au millime, et le serveur
+  le refait.
+
+### Ce qui le prouve
+
+- `tests/moteur/paie-cabinet.test.ts` : un bulletin à trois primes (au jour, heures supplémentaires, non imposable) et
+  deux retenues réécrit par le moteur du Cabinet garde tout, se calcule comme l'entreprise (1 300 × 2 / 26 retirés), et
+  le journal range toujours les heures supplémentaires ; un brut retouché perd son prorata.
+- `tests/web/cabinet-paie.test.ts`, « un bulletin du client à trois primes et deux retenues, modifié au Cabinet » : le
+  bulletin listé dès l'ouverture du livre, la fenêtre et ses cinq lignes, la prime au jour qui suit l'absence,
+  l'avertissement sur l'écriture validée, puis au serveur : les lignes, leurs marques, le prorata, le calcul de
+  l'entreprise, le même net, et la contre-passation de l'écriture validée.
+- Refait à la souris (un cabinet et un dossier inventés) : l'onglet Paie plein à l'ouverture, « Modifier le bulletin »,
+  trois primes et deux retenues, l'absence portée à 3 jours (la prime au jour passe à 11 jours), enregistré au même net
+  que le serveur, toujours là après rechargement.
+- Neuf preuves (`tests/preuves.sh`, « 1.63.0 »).
+
+### Ce qui reste
+
+- Les primes de chaque mois de la fiche ne se proposent pas encore dans un **nouveau** bulletin du Cabinet (elles se
+  tapent) ; le bulletin imprimé, le journal de paie et les états restent à l'entreprise.
