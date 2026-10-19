@@ -16387,6 +16387,80 @@ prouver 'le tiers perdu quand une rangée est retirée' 'web/public/v10/cabinet/
   'return { compte: v('"'"'c'"'"'), libelle: v('"'"'l'"'"'), debit: v('"'"'d'"'"'), credit: v('"'"'k'"'"') };' \
   'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
 
+# 1.51.0 : les fiches reprises d'un autre logiciel (docs/reprise-fiches.md).
+prouver 'le RIB oublié des colonnes d'"'"'un fournisseur' 'web/public/v10/core.js' \
+  '{ k: '"'"'rib'"'"', label: '"'"'RIB'"'"',' \
+  '{ k: '"'"'ribX'"'"', label: '"'"'RIB'"'"',' \
+  'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
+prouver 'la banque et le RIB jamais lus' 'web/public/v10/core.js' \
+  '        if (fournisseur) Object.assign(obj, { bank: lire(r, '"'"'bank'"'"'), rib: lire(r, '"'"'rib'"'"') });
+' \
+  '' \
+  'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
+prouver 'une fiche de fournisseur complétée sans sa banque' 'web/public/v10/core.js' \
+  '.concat(fournisseur ? ['"'"'bank'"'"', '"'"'rib'"'"'] : [])' \
+  '' \
+  'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
+prouver 'un RIB court accepté sans un mot' 'web/public/v10/core.js' \
+  '        if (obj.rib && !/^\d{20}$/.test(obj.rib.replace(/[\s.-]/g, '"'"''"'"'))) ligne.avert.push(' \
+  '        if (false) ligne.avert.push(' \
+  'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
+prouver 'un fournisseur importé hors du modèle vierge' 'web/public/v10/core.js' \
+  'fournisseurs ? fournisseurVierge(l.objet) :' \
+  'fournisseurs ? clientVierge(l.objet) :' \
+  'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
+prouver 'les fournisseurs rangés parmi les clients' 'web/public/v10/core.js' \
+  'const liste = clients ? data.clients : fournisseurs ? data.suppliers : data.catalog;' \
+  'const liste = clients || fournisseurs ? data.clients : data.catalog;' \
+  'une liste de fournisseurs : banque et RIB, doublon, fiche complétée sans rien changer de rempli, ligne sans nom refusée'
+prouver 'un RIB sans titre pris pour un téléphone' 'web/public/v10/core.js' \
+  'else if (type === '"'"'fournisseurs'"'"' && part(i, x => /^\d{20}$/.test(x.replace(/[\s.-]/g, '"'"''"'"'))) >= 0.6) out[i] = '"'"'rib'"'"';' \
+  'else if (false) out[i] = '"'"'rib'"'"';' \
+  'sans titres, un RIB se reconnaît à ses vingt chiffres ; un tarif collé chez les fournisseurs se dit'
+prouver 'un tarif collé chez les fournisseurs pris pour des fournisseurs' 'web/public/v10/core.js' \
+  'const autre = type === '"'"'catalogue'"'"' ? '"'"'clients'"'"' : '"'"'catalogue'"'"';' \
+  'const autre = type === '"'"'clients'"'"' ? '"'"'catalogue'"'"' : '"'"'clients'"'"';' \
+  'sans titres, un RIB se reconnaît à ses vingt chiffres ; un tarif collé chez les fournisseurs se dit'
+prouver 'deux T-shirt aux références différentes confondus' 'web/public/v10/core.js' \
+  'const memeArticle = (a, b) => (String(a.code || '"'"''"'"').trim() && String(b.code || '"'"''"'"').trim() ? plier(String(a.code).trim()) === plier(String(b.code).trim()) : cleNom(a.label) === cleNom(b.label));' \
+  'const memeArticle = (a, b) => cleNom(a.label) === cleNom(b.label);' \
+  'un article garde sa référence : deux références, deux articles ; une même référence, le même article'
+prouver 'la référence d'"'"'un article jamais lue' 'web/public/v10/core.js' \
+  'const obj = { label, code: lire(r, '"'"'code'"'"'),' \
+  'const obj = { label, code: '"'"''"'"',' \
+  'un article garde sa référence : deux références, deux articles ; une même référence, le même article'
+prouver 'la référence absente de la fenêtre' 'web/public/v10/core.js' \
+  '  IMPORT_CHAMPS.catalogue.splice(1, 0, { k: '"'"'code'"'"',' \
+  '  [].splice(1, 0, { k: '"'"'code'"'"',' \
+  'un article garde sa référence : deux références, deux articles ; une même référence, le même article'
+prouver 'les titres d'"'"'Odoo oubliés' 'web/public/v10/core.js' \
+  '  autresTitres('"'"'clients'"'"', '"'"'name'"'"', ['"'"'display name'"'"']);
+' \
+  '' \
+  'les titres d'"'"'Odoo et de Sage se reconnaissent'
+prouver 'le complément d'"'"'adresse d'"'"'Odoo oublié' 'web/public/v10/core.js' \
+  '  autresTitres('"'"'clients'"'"', '"'"'address'"'"', ['"'"'street2'"'"']);
+' \
+  '' \
+  'les titres d'"'"'Odoo et de Sage se reconnaissent'
+prouver 'l'"'"'import absent de la page vide des fournisseurs' 'web/public/v10/app.js' \
+  ', ['"'"'vide-import-f'"'"', '"'"'Importer depuis un tableur'"'"']' \
+  '' \
+  'Nadia importe ses fournisseurs depuis un CSV, puis annule : le serveur suit chaque geste'
+prouver '« Annuler » qui garde les fournisseurs importés' 'web/public/v10/app.js' \
+  'const cle = { clients: '"'"'clients'"'"', catalogue: '"'"'catalog'"'"', fournisseurs: '"'"'suppliers'"'"' }[type];' \
+  'const cle = { clients: '"'"'clients'"'"', catalogue: '"'"'catalog'"'"', fournisseurs: '"'"'clients'"'"' }[type];' \
+  'Nadia importe ses fournisseurs depuis un CSV, puis annule : le serveur suit chaque geste'
+prouver 'un fournisseur « importée »' 'web/public/v10/app.js' \
+  '`${T.un} importé${type === '"'"'catalogue'"'"' ? '"'"'e'"'"' : '"'"''"'"'}`, `${T.des} importé${type === '"'"'catalogue'"'"' ? '"'"'e'"'"' : '"'"''"'"'}s`' \
+  '`${T.un} importé${type === '"'"'clients'"'"' ? '"'"''"'"' : '"'"'e'"'"'}`, `${T.des} importé${type === '"'"'clients'"'"' ? '"'"''"'"' : '"'"'e'"'"'}s`' \
+  'Nadia importe ses fournisseurs depuis un CSV, puis annule : le serveur suit chaque geste'
+prouver 'un import accepté pour qui lit seulement' 'web/public/v10/app.js' \
+  '        if (enLecture(cle)) { toast(refusLecture(cle, '"'"'importé'"'"'), true); return; }
+' \
+  '' \
+  'Samia lit les factures sans les modifier ; Omar lit les clients sans en créer'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

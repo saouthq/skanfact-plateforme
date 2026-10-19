@@ -1,0 +1,265 @@
+Les fiches de l'entreprise reprises d'un autre logiciel (19/10/2026 ; docs/etudes/FORMATS-REPRISE.md, docs/reprise-fiches.md).
+Format : voir sans-paquets.mjs.
+
+La v10 reprenait d'un tableur les clients et le catalogue. Une entreprise qui arrive d'ailleurs a aussi ses
+FOURNISSEURS (leur banque, leur RIB), ses articles portent une RÉFÉRENCE (le code que la douchette lit), et les
+autres logiciels titrent leurs colonnes à leur façon (Odoo en anglais : « Display Name », « Street2 » ; en français :
+« Unité de mesure » ; Sage : « N° identifiant »). Même fenêtre, mêmes règles : un aperçu avant tout, une fiche qui existe se complète
+sans que rien de rempli ne change, un doublon ne passe pas deux fois, « Annuler » rend tout.
+
+═══════════════════════════════════════════════════════════════════ le moteur (core.js)
+
+== core.js | les fournisseurs se reprennent avec les colonnes des clients, leur banque et leur RIB ; un article, avec sa référence ; et les titres d'autres logiciels se reconnaissent
+-- avant
+    ]
+  };
+  // Quand le titre exact n'est pas connu, un MOT du titre peut décider — dans cet ordre, parce que
+-- après
+    ]
+  };
+  // (plateforme) Des titres que d'autres logiciels écrivent (docs/etudes/FORMATS-REPRISE.md) : Odoo (en anglais
+  // « Display Name », « Street2 » ; en français « Unité de mesure », « Quantité disponible » — « Nom affiché » et « Rue 2 »
+  // se lisaient déjà par leurs mots), Sage (« N° identifiant »), un stock au coût moyen pondéré.
+  const autresTitres = (type, k, noms) => { const c = IMPORT_CHAMPS[type].find(x => x.k === k); noms.forEach(n => { if (!c.noms.includes(n)) c.noms.push(n); }); };
+  autresTitres('clients', 'name', ['display name']);
+  autresTitres('clients', 'address', ['street2']);
+  autresTitres('clients', 'matricule', ['matricule fiscale', 'n identifiant', 'numero identifiant', 'numero d identification fiscale', 'identification fiscale']);
+  autresTitres('catalogue', 'unit', ['unite de mesure', 'udm']);
+  autresTitres('catalogue', 'initialQty', ['quantite disponible', 'qte disponible', 'stock disponible', 'quantite en main']);
+  autresTitres('catalogue', 'unitCost', ['cout moyen', 'cout moyen pondere', 'prix moyen pondere', 'pmp', 'cump']);
+  // La référence d'un article : le code que la douchette lit à la caisse. Elle se reconnaît à son titre exact
+  // seulement (« Code TVA » n'en est pas une).
+  IMPORT_CHAMPS.catalogue.splice(1, 0, { k: 'code', label: 'Code-barres ou référence', joint: ' ', noms: ['code', 'code article', 'code produit', 'reference', 'ref', 'reference article', 'reference interne', 'ref interne', 'sku', 'code barre', 'code barres', 'code a barres', 'ean', 'barcode', 'internal reference'] });
+  // Les fournisseurs : les colonnes des clients, sans celles qui ne nomment qu'un client, plus leur banque et leur RIB.
+  const SEULEMENT_CLIENT = ['client', 'clients', 'nom client', 'nom du client', 'customer', 'customer name'];
+  IMPORT_CHAMPS.fournisseurs = IMPORT_CHAMPS.clients.flatMap(c => {
+    if (c.k === 'name') return [{ ...c, noms: c.noms.filter(n => !SEULEMENT_CLIENT.includes(n)).concat(['fournisseur', 'fournisseurs', 'nom fournisseur', 'nom du fournisseur', 'raison sociale fournisseur', 'supplier', 'supplier name', 'vendor', 'vendor name']) }];
+    if (c.k !== 'notes') return [c];
+    return [
+      { k: 'bank', label: 'Banque', joint: ' ', noms: ['banque', 'bank', 'nom de la banque', 'nom banque', 'etablissement bancaire', 'domiciliation', 'domiciliation bancaire', 'bank name'] },
+      { k: 'rib', label: 'RIB', joint: ' ', noms: ['rib', 'r i b', 'rib bancaire', 'iban', 'releve d identite bancaire', 'compte bancaire', 'coordonnees bancaires', 'bank account', 'account number'] },
+      c];
+  });
+  // Quand le titre exact n'est pas connu, un MOT du titre peut décider — dans cet ordre, parce que
+-- fin
+
+== core.js | les mots qui décident d'une colonne de fournisseur : ceux d'un client, plus la banque et le RIB
+-- avant
+  const VETO_MOTS = /\b(code|ref|reference|id|identifiant|numero|num|no|n)\b/;
+-- après
+  // (plateforme) Les fournisseurs : le RIB et la banque passent avant l'adresse (« Adresse de la banque » est une
+  // banque) ; le nom se dit aussi « fournisseur ».
+  IMPORT_MOTS.fournisseurs = [...IMPORT_MOTS.clients.filter(([k]) => ['email', 'phone', 'matricule'].includes(k)),
+    ['rib', /\b(rib|iban)\b/], ['bank', /\b(banque|bank|domiciliation)\b/],
+    ...IMPORT_MOTS.clients.filter(([k]) => !['email', 'phone', 'matricule', 'name'].includes(k)),
+    ['name', /\b(nom|raison|societe|fournisseurs?|entreprise|denomination|supplier|vendor)\b/, true]];
+  const VETO_MOTS = /\b(code|ref|reference|id|identifiant|numero|num|no|n)\b/;
+-- fin
+
+== core.js | une liste sans titres se devine pour les fournisseurs comme pour les clients ; un RIB à ses vingt chiffres
+-- avant
+    if (type === 'clients') {
+      for (let i = 0; i < largeur; i++) {
+        if (part(i, x => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)) >= 0.6) out[i] = 'email';
+        else if (part(i, x => /^\d{7}\s*[/-]?\s*[a-z]/i.test(x)) >= 0.6) out[i] = 'matricule';
+-- après
+    if (type === 'clients' || type === 'fournisseurs') {
+      for (let i = 0; i < largeur; i++) {
+        if (part(i, x => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)) >= 0.6) out[i] = 'email';
+        else if (part(i, x => /^\d{7}\s*[/-]?\s*[a-z]/i.test(x)) >= 0.6) out[i] = 'matricule';
+        else if (type === 'fournisseurs' && part(i, x => /^\d{20}$/.test(x.replace(/[\s.-]/g, ''))) >= 0.6) out[i] = 'rib';
+-- fin
+
+== core.js | une liste collée dans la mauvaise fenêtre : un tarif dans celle des fournisseurs se reconnaît aussi
+-- avant
+    const autre = type === 'clients' ? 'catalogue' : 'clients';
+-- après
+    const autre = type === 'catalogue' ? 'clients' : 'catalogue';
+-- fin
+
+== core.js | les fiches qui existent déjà : celles des fournisseurs, pour un fournisseur
+-- avant
+    const existants = type === 'clients' ? (d.clients || []) : (d.catalog || []);
+-- après
+    const existants = type === 'clients' ? (d.clients || []) : type === 'fournisseurs' ? (d.suppliers || []) : (d.catalog || []);
+-- fin
+
+== core.js | un fournisseur se lit comme un client, avec sa banque et son RIB, et se reconnaît par son matricule ou son nom
+-- avant
+      if (type === 'clients') {
+        const adr = [lire(r, 'address'), lire(r, 'complement')].filter(Boolean).join('\n');
+        const obj = { name: lire(r, 'name'), contact: lire(r, 'contact'), matricule: lire(r, 'matricule'), phone: lire(r, 'phone'), email: lire(r, 'email'), address: adr, notes: lire(r, 'notes') };
+        ligne.objet = obj;
+        if (!obj.name) refus('le nom manque — c\'est lui qui s\'imprime sur chaque pièce.');
+        if (obj.email && !obj.email.split(/\s*,\s*/).every(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))) ligne.avert.push(`l'email « ${obj.email} » n'a pas la forme d'une adresse : un envoi n'arriverait pas.`);
+        if (ligne.statut === 'refus') return ligne;
+        const avant = vus.find(v => memeClient(v.objet, obj));
+        if (avant) { ligne.statut = 'doublon'; ligne.motifs.push(`même client que la ligne ${avant.n}`); return ligne; }
+        const ex = existants.find(c => memeClient(c, obj));
+        if (ex) {
+          ligne.statut = 'existe'; ligne.existant = ex.id;
+          ligne.complete = ['contact', 'matricule', 'phone', 'email', 'address', 'notes'].filter(k => obj[k] && !String(ex[k] || '').trim());
+        }
+-- après
+      if (type === 'clients' || type === 'fournisseurs') {
+        const fournisseur = type === 'fournisseurs';
+        const adr = [lire(r, 'address'), lire(r, 'complement')].filter(Boolean).join('\n');
+        const obj = { name: lire(r, 'name'), contact: lire(r, 'contact'), matricule: lire(r, 'matricule'), phone: lire(r, 'phone'), email: lire(r, 'email'), address: adr, notes: lire(r, 'notes') };
+        if (fournisseur) Object.assign(obj, { bank: lire(r, 'bank'), rib: lire(r, 'rib') });
+        ligne.objet = obj;
+        if (!obj.name) refus(fournisseur ? 'le nom manque — c\'est lui qui se lit sur chaque achat.' : 'le nom manque — c\'est lui qui s\'imprime sur chaque pièce.');
+        if (obj.email && !obj.email.split(/\s*,\s*/).every(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))) ligne.avert.push(`l'email « ${obj.email} » n'a pas la forme d'une adresse : un envoi n'arriverait pas.`);
+        // Un RIB tunisien a vingt chiffres : un autre se garde tel quel (un IBAN étranger), et se dit avant le virement.
+        if (obj.rib && !/^\d{20}$/.test(obj.rib.replace(/[\s.-]/g, ''))) ligne.avert.push(`le RIB « ${obj.rib} » n'a pas les vingt chiffres d'un RIB tunisien : relis-le avant le premier virement.`);
+        if (ligne.statut === 'refus') return ligne;
+        const avant = vus.find(v => memeClient(v.objet, obj));
+        if (avant) { ligne.statut = 'doublon'; ligne.motifs.push(`même ${fournisseur ? 'fournisseur' : 'client'} que la ligne ${avant.n}`); return ligne; }
+        const ex = existants.find(c => memeClient(c, obj));
+        if (ex) {
+          ligne.statut = 'existe'; ligne.existant = ex.id;
+          ligne.complete = ['contact', 'matricule', 'phone', 'email', 'address', 'notes'].concat(fournisseur ? ['bank', 'rib'] : []).filter(k => obj[k] && !String(ex[k] || '').trim());
+        }
+-- fin
+
+== core.js | un article garde sa référence ; deux articles qui ont chacun une référence sont le même si elle est la même, et seulement alors
+-- avant
+      const obj = { label, description: lire(r, 'description'), unit: uniteImport(lire(r, 'unit')), unitPrice: prix || 0, unitCost: cout || 0, vatRate: vat };
+-- après
+      const obj = { label, code: lire(r, 'code'), description: lire(r, 'description'), unit: uniteImport(lire(r, 'unit')), unitPrice: prix || 0, unitCost: cout || 0, vatRate: vat };
+-- fin
+
+== core.js | le même article : par sa référence quand les deux en ont une (« T-shirt » M et L), par sa désignation sinon
+-- avant
+      const cle = cleNom(label);
+      const avant = vus.find(v => cleNom(v.objet.label) === cle);
+      if (avant) { ligne.statut = 'doublon'; ligne.motifs.push(`même prestation que la ligne ${avant.n}`); return ligne; }
+      const ex = existants.find(c => cleNom(c.label) === cle);
+-- après
+      const memeArticle = (a, b) => (String(a.code || '').trim() && String(b.code || '').trim() ? plier(String(a.code).trim()) === plier(String(b.code).trim()) : cleNom(a.label) === cleNom(b.label));
+      const avant = vus.find(v => memeArticle(v.objet, obj));
+      if (avant) { ligne.statut = 'doublon'; ligne.motifs.push(`même prestation que la ligne ${avant.n}`); return ligne; }
+      const ex = existants.find(c => memeArticle(c, obj));
+-- fin
+
+== core.js | la référence d'un article qui n'en a pas encore se complète
+-- avant
+        ligne.complete = [['description', !String(ex.description || '').trim() && obj.description], ['unit', !String(ex.unit || '').trim() && obj.unit],
+-- après
+        ligne.complete = [['code', !String(ex.code || '').trim() && obj.code], ['description', !String(ex.description || '').trim() && obj.description], ['unit', !String(ex.unit || '').trim() && obj.unit],
+-- fin
+
+== core.js | un exemple de l'assistant repris garde la référence de la liste
+-- avant
+          ['description', 'unit'].forEach(k => { if (l.objet[k]) x[k] = l.objet[k]; });
+-- après
+          ['code', 'description', 'unit'].forEach(k => { if (l.objet[k]) x[k] = l.objet[k]; });
+-- fin
+
+== core.js | les fournisseurs importés entrent dans la liste des fournisseurs, sur le modèle vierge d'un fournisseur
+-- avant
+    const clients = plan.type === 'clients';
+    const liste = clients ? data.clients : data.catalog;
+    const jour = o.jour || today();
+    plan.lignes.forEach(l => {
+      if (l.statut === 'nouveau') {
+        const x = clients ? clientVierge(l.objet) : articleVierge(company, l.objet, jour);
+-- après
+    const clients = plan.type === 'clients';
+    const fournisseurs = plan.type === 'fournisseurs';
+    if (fournisseurs && !Array.isArray(data.suppliers)) data.suppliers = [];
+    const liste = clients ? data.clients : fournisseurs ? data.suppliers : data.catalog;
+    const jour = o.jour || today();
+    plan.lignes.forEach(l => {
+      if (l.statut === 'nouveau') {
+        const x = clients ? clientVierge(l.objet) : fournisseurs ? fournisseurVierge(l.objet) : articleVierge(company, l.objet, jour);
+-- fin
+
+== core.js | un fournisseur naît, lui aussi, d'un seul modèle vierge (la fiche et l'import)
+-- avant
+  function articleVierge(company, extra, jour) {
+-- après
+  // (plateforme) Un fournisseur : le modèle de sa fiche (`supplierForm`) et de l'import depuis un tableur.
+  function fournisseurVierge(extra) {
+    return Object.assign({ id: uid(), name: '', contact: '', matricule: '', address: '', phone: '', email: '', rib: '', bank: '', notes: '', paymentTermsDays: '', withholdingRate: '' }, extra || {});
+  }
+  function articleVierge(company, extra, jour) {
+-- fin
+
+== core.js | le modèle vierge d'un fournisseur se partage
+-- avant
+    clientVierge, articleVierge, IMPORT_CHAMPS, champDeEntete, decouperTableau, separateurTableau, uniteImport,
+-- après
+    clientVierge, articleVierge, fournisseurVierge, IMPORT_CHAMPS, champDeEntete, decouperTableau, separateurTableau, uniteImport,
+-- fin
+
+═══════════════════════════════════════════════════════════════════ l'écran (app.js)
+
+== app.js | la fenêtre d'import sait ce qu'est une liste de fournisseurs
+-- avant
+    catalogue: { titre: 'Importer mon catalogue', vers: 'Importer dans mon catalogue', nature: 'un catalogue', un: 'prestation', des: 'prestations', neuf: ['nouvelle prestation', 'nouvelles prestations'], fiche: 'prestation', chez: 'ton catalogue',
+-- après
+    fournisseurs: { titre: 'Importer mes fournisseurs', vers: 'Importer dans mes fournisseurs', nature: 'une liste de fournisseurs', un: 'fournisseur', des: 'fournisseurs', neuf: ['nouveau fournisseur', 'nouveaux fournisseurs'], fiche: 'fiche', chez: 'tes fournisseurs',
+      exemple: 'Nom\tMatricule fiscal\tTéléphone\tRIB\nPapeterie du Lac\t0000000A/A/M/000\t71 000 000\t00 000 0000000000000 00' },
+    catalogue: { titre: 'Importer mon catalogue', vers: 'Importer dans mon catalogue', nature: 'un catalogue', un: 'prestation', des: 'prestations', neuf: ['nouvelle prestation', 'nouvelles prestations'], fiche: 'prestation', chez: 'ton catalogue',
+-- fin
+
+== app.js | une liste collée dans la mauvaise fenêtre dit ce que chaque ligne deviendrait, fournisseur compris
+-- avant
+Importée ici, chaque ligne deviendrait ${T.un === 'client' ? 'un client' : 'une prestation'} : ${exemplesLignes}…
+-- après
+Importée ici, chaque ligne deviendrait ${T.un === 'prestation' ? 'une prestation' : 'un ' + T.un} : ${exemplesLignes}…
+-- fin
+
+== app.js | l'import écrit la bonne liste, se refuse AVANT pour qui la lit seulement, et un fournisseur passe par le garde-fou de l'offre comme sur sa fiche
+-- avant
+        if (p.stock && licenceBlock('Créer un stock de départ', 'stock')) return;
+        const cle = type === 'clients' ? 'clients' : 'catalog';
+-- après
+        const cle = { clients: 'clients', catalogue: 'catalog', fournisseurs: 'suppliers' }[type];
+        // (plateforme) La partie se lit seulement (brique 102) : refusé avant, en le disant.
+        if (enLecture(cle)) { toast(refusLecture(cle, 'importé'), true); return; }
+        if (type === 'fournisseurs' && p.nouveaux && licenceBlock('Créer un fournisseur', 'achats')) return;
+        if (p.stock && licenceBlock('Créer un stock de départ', 'stock')) return;
+-- fin
+
+== app.js | le compte rendu accorde « importé » au masculin pour un fournisseur
+-- avant
+        if (r.crees.length) dits.push(pl(r.crees.length, `${T.un} importé${type === 'clients' ? '' : 'e'}`, `${T.des} importé${type === 'clients' ? '' : 'e'}s`));
+-- après
+        if (r.crees.length) dits.push(pl(r.crees.length, `${T.un} importé${type === 'catalogue' ? 'e' : ''}`, `${T.des} importé${type === 'catalogue' ? 'e' : ''}s`));
+-- fin
+
+== app.js | la page des fournisseurs propose l'import, comme celle des clients
+-- avant
+    $('#view').innerHTML = `<div class="page-head"><h1>Fournisseurs</h1><div class="actions"><button class="btn ${vide ? '' : 'btn-primary'}" id="new">+ Nouveau fournisseur</button></div></div>
+-- après
+    $('#view').innerHTML = `<div class="page-head"><h1>Fournisseurs</h1><div class="actions"><button class="btn" id="imp-fournisseurs">Importer…</button><button class="btn ${vide ? '' : 'btn-primary'}" id="new">+ Nouveau fournisseur</button></div></div>
+-- fin
+
+== app.js | une liste vide de fournisseurs propose de coller celle d'un tableur
+-- avant
+         'Tu peux aussi le créer depuis une facture d\'achat, au moment de la saisir.'],
+        [['vide-fournisseur', '+ Ajouter mon premier fournisseur', true]]) : '<div id="list-wrap"></div>'}`;
+    $('#new').onclick = () => supplierForm(null, () => (vide ? render(true) : draw()));
+-- après
+         'Tu peux aussi le créer depuis une facture d\'achat, au moment de la saisir.',
+         'Ta liste est déjà dans un tableur ou dans ton ancien logiciel ? Colle-la : tous tes fournisseurs entrent d\'un coup.'],
+        [['vide-fournisseur', '+ Ajouter mon premier fournisseur', true], ['vide-import-f', 'Importer depuis un tableur']]) : '<div id="list-wrap"></div>'}`;
+    $('#new').onclick = () => supplierForm(null, () => (vide ? render(true) : draw()));
+    $('#imp-fournisseurs').onclick = () => importerTableau('fournisseurs', () => render(true));
+    if ($('#vide-import-f')) $('#vide-import-f').onclick = () => importerTableau('fournisseurs', () => render(true));
+-- fin
+
+== app.js | la recherche des gestes trouve l'import des fournisseurs
+-- avant
+['Importer mon catalogue depuis un tableur', () => importerTableau('catalogue', () => render(true))],
+-- après
+['Importer mon catalogue depuis un tableur', () => importerTableau('catalogue', () => render(true))], ['Importer mes fournisseurs depuis un tableur', () => importerTableau('fournisseurs', () => render(true))],
+-- fin
+
+== app.js | la fiche d'un fournisseur part du même modèle vierge que l'import
+-- avant
+    const s = supplier || Object.assign({ id: C.uid(), name: '', contact: '', matricule: '', address: '', phone: '', email: '', rib: '', bank: '', notes: '', paymentTermsDays: '', withholdingRate: '' }, preset || {});
+-- après
+    const s = supplier || C.fournisseurVierge(preset);
+-- fin

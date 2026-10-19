@@ -10512,6 +10512,10 @@
   function clientVierge(extra) {
     return Object.assign({ id: uid(), name: '', contact: '', matricule: '', address: '', phone: '', email: '', notes: '', withholdingRate: '' }, extra || {});
   }
+  // (plateforme) Un fournisseur : le modèle de sa fiche (`supplierForm`) et de l'import depuis un tableur.
+  function fournisseurVierge(extra) {
+    return Object.assign({ id: uid(), name: '', contact: '', matricule: '', address: '', phone: '', email: '', rib: '', bank: '', notes: '', paymentTermsDays: '', withholdingRate: '' }, extra || {});
+  }
   function articleVierge(company, extra, jour) {
     return Object.assign({ id: uid(), label: '', description: '', code: '', unit: '', unitPrice: 0, unitCost: 0, vatRate: defaultVat(company),
       tracked: false, minStock: 0, location: '', initialQty: 0, initialCost: 0, initialDate: jour || today(),
@@ -10909,6 +10913,29 @@
       { k: 'initialQty', label: 'Stock de départ', nombre: true, noms: ['stock', 'quantite', 'qte', 'qt', 'quantite en stock', 'qte en stock', 'stock initial', 'stock actuel', 'stock de depart', 'en stock', 'quantity', 'qty', 'inventaire'] }
     ]
   };
+  // (plateforme) Des titres que d'autres logiciels écrivent (docs/etudes/FORMATS-REPRISE.md) : Odoo (en anglais
+  // « Display Name », « Street2 » ; en français « Unité de mesure », « Quantité disponible » — « Nom affiché » et « Rue 2 »
+  // se lisaient déjà par leurs mots), Sage (« N° identifiant »), un stock au coût moyen pondéré.
+  const autresTitres = (type, k, noms) => { const c = IMPORT_CHAMPS[type].find(x => x.k === k); noms.forEach(n => { if (!c.noms.includes(n)) c.noms.push(n); }); };
+  autresTitres('clients', 'name', ['display name']);
+  autresTitres('clients', 'address', ['street2']);
+  autresTitres('clients', 'matricule', ['matricule fiscale', 'n identifiant', 'numero identifiant', 'numero d identification fiscale', 'identification fiscale']);
+  autresTitres('catalogue', 'unit', ['unite de mesure', 'udm']);
+  autresTitres('catalogue', 'initialQty', ['quantite disponible', 'qte disponible', 'stock disponible', 'quantite en main']);
+  autresTitres('catalogue', 'unitCost', ['cout moyen', 'cout moyen pondere', 'prix moyen pondere', 'pmp', 'cump']);
+  // La référence d'un article : le code que la douchette lit à la caisse. Elle se reconnaît à son titre exact
+  // seulement (« Code TVA » n'en est pas une).
+  IMPORT_CHAMPS.catalogue.splice(1, 0, { k: 'code', label: 'Code-barres ou référence', joint: ' ', noms: ['code', 'code article', 'code produit', 'reference', 'ref', 'reference article', 'reference interne', 'ref interne', 'sku', 'code barre', 'code barres', 'code a barres', 'ean', 'barcode', 'internal reference'] });
+  // Les fournisseurs : les colonnes des clients, sans celles qui ne nomment qu'un client, plus leur banque et leur RIB.
+  const SEULEMENT_CLIENT = ['client', 'clients', 'nom client', 'nom du client', 'customer', 'customer name'];
+  IMPORT_CHAMPS.fournisseurs = IMPORT_CHAMPS.clients.flatMap(c => {
+    if (c.k === 'name') return [{ ...c, noms: c.noms.filter(n => !SEULEMENT_CLIENT.includes(n)).concat(['fournisseur', 'fournisseurs', 'nom fournisseur', 'nom du fournisseur', 'raison sociale fournisseur', 'supplier', 'supplier name', 'vendor', 'vendor name']) }];
+    if (c.k !== 'notes') return [c];
+    return [
+      { k: 'bank', label: 'Banque', joint: ' ', noms: ['banque', 'bank', 'nom de la banque', 'nom banque', 'etablissement bancaire', 'domiciliation', 'domiciliation bancaire', 'bank name'] },
+      { k: 'rib', label: 'RIB', joint: ' ', noms: ['rib', 'r i b', 'rib bancaire', 'iban', 'releve d identite bancaire', 'compte bancaire', 'coordonnees bancaires', 'bank account', 'account number'] },
+      c];
+  });
   // Quand le titre exact n'est pas connu, un MOT du titre peut décider — dans cet ordre, parce que
   // « Adresse email » est un email et « Prix TTC » un prix TTC, pas une adresse ni un prix HT. Les
   // mots LARGES (« client », « produit », « tva », « prix ») ne décident pas d'un titre qui parle
@@ -10923,6 +10950,12 @@
       ['unitPrice', /\b(prix|pu|tarif|price|montant)\b/, true], ['initialQty', /\b(stock|quantite|qte|qty)\b/], ['unit', /\bunites?\b/],
       ['description', /\b(description|descriptif|details?)\b/], ['label', /\b(designation|libelle|produits?|articles?|prestations?|services?|nom|intitule)\b/, true]]
   };
+  // (plateforme) Les fournisseurs : le RIB et la banque passent avant l'adresse (« Adresse de la banque » est une
+  // banque) ; le nom se dit aussi « fournisseur ».
+  IMPORT_MOTS.fournisseurs = [...IMPORT_MOTS.clients.filter(([k]) => ['email', 'phone', 'matricule'].includes(k)),
+    ['rib', /\b(rib|iban)\b/], ['bank', /\b(banque|bank|domiciliation)\b/],
+    ...IMPORT_MOTS.clients.filter(([k]) => !['email', 'phone', 'matricule', 'name'].includes(k)),
+    ['name', /\b(nom|raison|societe|fournisseurs?|entreprise|denomination|supplier|vendor)\b/, true]];
   const VETO_MOTS = /\b(code|ref|reference|id|identifiant|numero|num|no|n)\b/;
   const cleEntete = titre => plier(titre).replace(/[^a-z0-9%]+/g, ' ').trim();
   function champDeEntete(type, titre) {
@@ -11023,10 +11056,11 @@
     };
     const estNombre = x => { const n = nombreImport(x); return n !== null && !Number.isNaN(n); };
     const libre = i => !out[i];
-    if (type === 'clients') {
+    if (type === 'clients' || type === 'fournisseurs') {
       for (let i = 0; i < largeur; i++) {
         if (part(i, x => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)) >= 0.6) out[i] = 'email';
         else if (part(i, x => /^\d{7}\s*[/-]?\s*[a-z]/i.test(x)) >= 0.6) out[i] = 'matricule';
+        else if (type === 'fournisseurs' && part(i, x => /^\d{20}$/.test(x.replace(/[\s.-]/g, ''))) >= 0.6) out[i] = 'rib';
         else if (part(i, x => /^[+(\d][\d\s().\/-]{6,}$/.test(x) && (x.match(/\d/g) || []).length >= 8) >= 0.6) out[i] = 'phone';
       }
       const nom = [...out.keys()].find(i => libre(i) && part(i, x => !estNombre(x)) >= 0.6);
@@ -11087,7 +11121,7 @@
     // l'AUTRE, la liste a sans doute été collée dans la mauvaise fenêtre : le plan le DIT
     // (`autreListe`), et l'écran propose de l'importer là où elle va. Cocher « la première ligne
     // donne les titres » passe outre : c'est un choix, et il se respecte.
-    const autre = type === 'clients' ? 'catalogue' : 'clients';
+    const autre = type === 'catalogue' ? 'clients' : 'catalogue';
     const titresAutre = brutes.length && o.entete == null && !entete
       ? brutes[0].map(c => String(c || '').trim()).filter(c => champDeEntete(autre, c)) : [];
     const autreListe = titresAutre.length && titresAutre.length * 2 > pleines ? autre : '';
@@ -11111,26 +11145,30 @@
     };
     const assujetti = assujettiTVA(co);
     const vatDefaut = defaultVat(co);
-    const existants = type === 'clients' ? (d.clients || []) : (d.catalog || []);
+    const existants = type === 'clients' ? (d.clients || []) : type === 'fournisseurs' ? (d.suppliers || []) : (d.catalog || []);
     const vus = [];
     const lignes = donnees.map((r, idx) => {
       const n = idx + (entete ? 2 : 1);
       const extrait = r.map(c => String(c || '').trim()).filter(Boolean).slice(0, 3).join(', ');
       const ligne = { n, cellules: r, statut: 'nouveau', motifs: [], avert: [], complete: [], existant: null };
       const refus = m => { ligne.statut = 'refus'; ligne.motifs.push(`Ligne ${n}${extrait ? ` (${extrait})` : ''} : ${m}`); };
-      if (type === 'clients') {
+      if (type === 'clients' || type === 'fournisseurs') {
+        const fournisseur = type === 'fournisseurs';
         const adr = [lire(r, 'address'), lire(r, 'complement')].filter(Boolean).join('\n');
         const obj = { name: lire(r, 'name'), contact: lire(r, 'contact'), matricule: lire(r, 'matricule'), phone: lire(r, 'phone'), email: lire(r, 'email'), address: adr, notes: lire(r, 'notes') };
+        if (fournisseur) Object.assign(obj, { bank: lire(r, 'bank'), rib: lire(r, 'rib') });
         ligne.objet = obj;
-        if (!obj.name) refus('le nom manque — c\'est lui qui s\'imprime sur chaque pièce.');
+        if (!obj.name) refus(fournisseur ? 'le nom manque — c\'est lui qui se lit sur chaque achat.' : 'le nom manque — c\'est lui qui s\'imprime sur chaque pièce.');
         if (obj.email && !obj.email.split(/\s*,\s*/).every(e => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e))) ligne.avert.push(`l'email « ${obj.email} » n'a pas la forme d'une adresse : un envoi n'arriverait pas.`);
+        // Un RIB tunisien a vingt chiffres : un autre se garde tel quel (un IBAN étranger), et se dit avant le virement.
+        if (obj.rib && !/^\d{20}$/.test(obj.rib.replace(/[\s.-]/g, ''))) ligne.avert.push(`le RIB « ${obj.rib} » n'a pas les vingt chiffres d'un RIB tunisien : relis-le avant le premier virement.`);
         if (ligne.statut === 'refus') return ligne;
         const avant = vus.find(v => memeClient(v.objet, obj));
-        if (avant) { ligne.statut = 'doublon'; ligne.motifs.push(`même client que la ligne ${avant.n}`); return ligne; }
+        if (avant) { ligne.statut = 'doublon'; ligne.motifs.push(`même ${fournisseur ? 'fournisseur' : 'client'} que la ligne ${avant.n}`); return ligne; }
         const ex = existants.find(c => memeClient(c, obj));
         if (ex) {
           ligne.statut = 'existe'; ligne.existant = ex.id;
-          ligne.complete = ['contact', 'matricule', 'phone', 'email', 'address', 'notes'].filter(k => obj[k] && !String(ex[k] || '').trim());
+          ligne.complete = ['contact', 'matricule', 'phone', 'email', 'address', 'notes'].concat(fournisseur ? ['bank', 'rib'] : []).filter(k => obj[k] && !String(ex[k] || '').trim());
         }
         vus.push(ligne);
         return ligne;
@@ -11162,18 +11200,18 @@
       if (prix == null && ttc != null) prix = round3(ttc / (1 + vat / 100));
       const cout = nombre('unitCost', 'un coût', 'un coût négatif');
       const qte = nombre('initialQty', 'une quantité', 'un stock de départ négatif');
-      const obj = { label, description: lire(r, 'description'), unit: uniteImport(lire(r, 'unit')), unitPrice: prix || 0, unitCost: cout || 0, vatRate: vat };
+      const obj = { label, code: lire(r, 'code'), description: lire(r, 'description'), unit: uniteImport(lire(r, 'unit')), unitPrice: prix || 0, unitCost: cout || 0, vatRate: vat };
       if (qte) Object.assign(obj, { tracked: true, initialQty: qte, initialCost: cout || 0 });
       ligne.objet = obj;
       if (ligne.statut === 'refus') return ligne;
-      const cle = cleNom(label);
-      const avant = vus.find(v => cleNom(v.objet.label) === cle);
+      const memeArticle = (a, b) => (String(a.code || '').trim() && String(b.code || '').trim() ? plier(String(a.code).trim()) === plier(String(b.code).trim()) : cleNom(a.label) === cleNom(b.label));
+      const avant = vus.find(v => memeArticle(v.objet, obj));
       if (avant) { ligne.statut = 'doublon'; ligne.motifs.push(`même prestation que la ligne ${avant.n}`); return ligne; }
-      const ex = existants.find(c => cleNom(c.label) === cle);
+      const ex = existants.find(c => memeArticle(c, obj));
       if (ex && ex.fromSetup) { ligne.statut = 'remplace'; ligne.existant = ex.id; }
       else if (ex) {
         ligne.statut = 'existe'; ligne.existant = ex.id;
-        ligne.complete = [['description', !String(ex.description || '').trim() && obj.description], ['unit', !String(ex.unit || '').trim() && obj.unit],
+        ligne.complete = [['code', !String(ex.code || '').trim() && obj.code], ['description', !String(ex.description || '').trim() && obj.description], ['unit', !String(ex.unit || '').trim() && obj.unit],
           ['unitCost', !(Number(ex.unitCost) > 0) && obj.unitCost > 0]].filter(([, oui]) => oui).map(([k]) => k);
         // Le stock d'une prestation qui existe déjà a peut-être déjà bougé : un stock de départ
         // posé après coup réécrirait son histoire. On le DIT au lieu de l'avaler (règle 9.8.0).
@@ -11216,11 +11254,13 @@
     const o = opts || {};
     const out = { crees: [], completes: 0, remplaces: 0, retires: 0 };
     const clients = plan.type === 'clients';
-    const liste = clients ? data.clients : data.catalog;
+    const fournisseurs = plan.type === 'fournisseurs';
+    if (fournisseurs && !Array.isArray(data.suppliers)) data.suppliers = [];
+    const liste = clients ? data.clients : fournisseurs ? data.suppliers : data.catalog;
     const jour = o.jour || today();
     plan.lignes.forEach(l => {
       if (l.statut === 'nouveau') {
-        const x = clients ? clientVierge(l.objet) : articleVierge(company, l.objet, jour);
+        const x = clients ? clientVierge(l.objet) : fournisseurs ? fournisseurVierge(l.objet) : articleVierge(company, l.objet, jour);
         liste.push(x); out.crees.push(x.id);
       } else if (l.statut === 'existe' && l.complete.length) {
         const x = liste.find(y => y.id === l.existant);
@@ -11229,7 +11269,7 @@
         const x = liste.find(y => y.id === l.existant);
         if (x) {
           ['label', 'unitPrice', 'vatRate'].forEach(k => { x[k] = l.objet[k]; });
-          ['description', 'unit'].forEach(k => { if (l.objet[k]) x[k] = l.objet[k]; });
+          ['code', 'description', 'unit'].forEach(k => { if (l.objet[k]) x[k] = l.objet[k]; });
           if (l.objet.unitCost) x.unitCost = l.objet.unitCost;
           // Un exemple de l'assistant n'a jamais été suivi en stock (l'enregistrer lui retire son
           // repère d'exemple) : son stock de départ n'a pas d'histoire à réécrire.
@@ -11345,7 +11385,7 @@
     LICENCE_PREAVIS, licenceEtat, licenceRows, licencesExpirant,
     clientPourVente, chargeHistorique, facturesAAnnoncer,
     // L'import depuis un tableur, et le modèle vierge d'une fiche (10.14.0)
-    clientVierge, articleVierge, IMPORT_CHAMPS, champDeEntete, decouperTableau, separateurTableau, uniteImport,
+    clientVierge, articleVierge, fournisseurVierge, IMPORT_CHAMPS, champDeEntete, decouperTableau, separateurTableau, uniteImport,
     planImport, appliquerImport, lireFichierTexte,
     // (plateforme) Dessiner un code QR : `qrImage(texte)` rend un <svg>. Vide ici ; la page le branche (brique 83).
     qrImage: null

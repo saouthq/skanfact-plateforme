@@ -82,9 +82,9 @@ dernier exercice de son client. Les règles (`docs/cabinet.md`, C61) :
 **Ce qui reste à faire** (dans cet ordre) :
 - **R2 — l'historique d'un FEC** : reprendre les écritures elles-mêmes dans le livre (les journaux traduits
   vers ceux de SkanFact, en lecture seule avec leur origine, 08 § 3.1) et les fiches de tiers (CompAuxNum).
-- **R3 — l'entreprise** : les fournisseurs par tableur (seuls les clients et le catalogue se reprennent
-  aujourd'hui), plus de noms de colonnes reconnus (ceux d'Odoo, de Sage, de Hesabi), les factures encore
-  ouvertes.
+- **R3 — l'entreprise** : les fournisseurs par tableur, la référence des articles et les titres d'Odoo et de Sage
+  sont faits en 1.51.0 (`docs/reprise-fiches.md`) ; restent les titres de Hesabi (un export réel) et les factures
+  encore ouvertes (un modèle à décider avec un comptable).
 - **Les formats propres** (§ 3) : seulement quand un pilote en apporte un.
 
 ## 3. Les autres formats rencontrés

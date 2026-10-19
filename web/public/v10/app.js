@@ -5798,6 +5798,8 @@
   const IMPORTS = {
     clients: { titre: 'Importer mes clients', vers: 'Importer dans mes clients', nature: 'une liste de clients', un: 'client', des: 'clients', neuf: ['nouveau client', 'nouveaux clients'], fiche: 'fiche', chez: 'tes clients',
       exemple: 'Nom\tTéléphone\tEmail\tAdresse\nHôtel Dar El Marsa\t71 234 567\tcontact@darelmarsa.tn\tRue du Lac, La Marsa' },
+    fournisseurs: { titre: 'Importer mes fournisseurs', vers: 'Importer dans mes fournisseurs', nature: 'une liste de fournisseurs', un: 'fournisseur', des: 'fournisseurs', neuf: ['nouveau fournisseur', 'nouveaux fournisseurs'], fiche: 'fiche', chez: 'tes fournisseurs',
+      exemple: 'Nom\tMatricule fiscal\tTéléphone\tRIB\nPapeterie du Lac\t0000000A/A/M/000\t71 000 000\t00 000 0000000000000 00' },
     catalogue: { titre: 'Importer mon catalogue', vers: 'Importer dans mon catalogue', nature: 'un catalogue', un: 'prestation', des: 'prestations', neuf: ['nouvelle prestation', 'nouvelles prestations'], fiche: 'prestation', chez: 'ton catalogue',
       exemple: 'Désignation\tPrix HT\tTVA\tUnité\nPose de carrelage\t35,000\t19\tm²' }
   };
@@ -5863,7 +5865,7 @@
         // « à un catalogue, pas à une liste de clients » : la préposition « à » ne s'élide pas, là où
         // « ceux de un catalogue » s'imprimait tel quel (vu à la souris).
         const titresVus = p.titresAutre.length > 4 ? p.titresAutre.slice(0, 4).join(', ') + '…' : C.liste(p.titresAutre);
-        zone.innerHTML = `${A ? `<div class="warn-box imp-autre"><b>Cette liste ressemble à ${A.nature}, pas à ${T.nature}</b> — ses titres : ${h(titresVus)}${/…$/.test(titresVus) ? '' : '.'} Importée ici, chaque ligne deviendrait ${T.un === 'client' ? 'un client' : 'une prestation'} : ${exemplesLignes}…
+        zone.innerHTML = `${A ? `<div class="warn-box imp-autre"><b>Cette liste ressemble à ${A.nature}, pas à ${T.nature}</b> — ses titres : ${h(titresVus)}${/…$/.test(titresVus) ? '' : '.'} Importée ici, chaque ligne deviendrait ${T.un === 'prestation' ? 'une prestation' : 'un ' + T.un} : ${exemplesLignes}…
             <div class="imp-autre-geste"><button type="button" class="btn btn-primary btn-sm" id="imp-autre">${h(A.vers)}</button><span class="small">Ce sont bien ${T.chez} ? Coche « La première ligne donne les titres des colonnes » et choisis ce que contient chaque colonne.</span></div></div>`
           : `<p class="imp-bilan">${morceaux.length ? morceaux.join(' · ') : 'Aucune ligne à lire.'}</p>`}
           <label class="check"><input type="checkbox" id="imp-entete" ${p.entete ? 'checked' : ''}> La première ligne donne les titres des colonnes ${info('imp.entete')}</label>
@@ -5934,15 +5936,18 @@
         if (!(p.nouveaux || p.completes || p.remplaces)) return;
         // Un stock de départ EST un mouvement de stock : il passe par le garde-fou de l'offre, comme
         // sur la fiche d'un article (7.33.0).
+        const cle = { clients: 'clients', catalogue: 'catalog', fournisseurs: 'suppliers' }[type];
+        // (plateforme) La partie se lit seulement (brique 102) : refusé avant, en le disant.
+        if (enLecture(cle)) { toast(refusLecture(cle, 'importé'), true); return; }
+        if (type === 'fournisseurs' && p.nouveaux && licenceBlock('Créer un fournisseur', 'achats')) return;
         if (p.stock && licenceBlock('Créer un stock de départ', 'stock')) return;
-        const cle = type === 'clients' ? 'clients' : 'catalog';
         const avant = { liste: deepCopy(data[cle]), deleted: deepCopy(data.deleted || []) };
         const r = C.appliquerImport(data, p, company(), { retirerExemples: p.exemples.length > 0 && choix.retirerExemples !== false });
         save(true);
         close();
         if (done) done(r);
         const dits = [];
-        if (r.crees.length) dits.push(pl(r.crees.length, `${T.un} importé${type === 'clients' ? '' : 'e'}`, `${T.des} importé${type === 'clients' ? '' : 'e'}s`));
+        if (r.crees.length) dits.push(pl(r.crees.length, `${T.un} importé${type === 'catalogue' ? 'e' : ''}`, `${T.des} importé${type === 'catalogue' ? 'e' : ''}s`));
         if (r.completes) dits.push(pl(r.completes, `${T.fiche} complétée`, `${T.fiche}s complétées`));
         if (r.remplaces) dits.push(pl(r.remplaces, 'exemple repris', 'exemples repris'));
         if (r.retires) dits.push(pl(r.retires, 'exemple retiré', 'exemples retirés'));
@@ -8692,7 +8697,7 @@
       ['Accueil', () => navigate('#/dashboard')], ['Devis', () => navigate('#/devis')], ['Factures', () => navigate('#/factures')], ['Relances', () => navigate('#/relances')],
       ['Facturation récurrente (contrats qui refacturent)', () => navigate('#/contrats')], ['Achats et dépenses', () => navigate('#/achats')], ['Nouvelle facture d\'achat', () => navigate('#/achat/new')], ['Nouvelle dépense', () => navigate('#/achat/new/-/depense')], ['Fournisseurs', () => navigate('#/fournisseurs')], ['Trésorerie', () => navigate('#/tresorerie')], ['Marges et rentabilité', () => navigate('#/marges')], ['Paie', () => navigate('#/paie')], ['Nouveau salarié', () => employeeForm(null, () => render())], ['Caisse', () => navigate('#/caisse')], ['Stock', () => navigate('#/stock')], ['Garanties', () => navigate('#/garanties')], ['Entrée de numéros de série', () => serialIntakeForm(null, () => render())], ['Mouvement de stock', () => adjustForm(null, () => render())], ['Immobilisations', () => navigate('#/immos')], ['Nouvelle immobilisation', () => assetForm(null, a => navigate('#/immo/' + a.id))], ['Nouvelle affaire', () => projectForm(null, p => navigate('#/affaire/' + p.id))], ['Nouveau fournisseur', () => supplierForm(null, () => render())], ['Proformas', () => navigate('#/autres/proforma')], ['Bons de commande', () => navigate('#/autres/commande')], ['Bons de livraison', () => navigate('#/autres/livraison')], ['Contrats à signer', () => navigate('#/autres/contrat')], ['Clients', () => navigate('#/clients')], ['Catalogue', () => navigate('#/catalogue')], ['Statistiques', () => navigate('#/stats')], ['Comptabilité', () => navigate('#/compta')], ['Paramètres', () => navigate('#/parametres')],
       ['Aide et guide', () => navigate('#/aide')], ['Me guider (visites guidées)', () => navigate('#/guide')], ['Nouveau client', () => clientForm(null, () => render())],
-      ['Importer mes clients depuis un tableur', () => importerTableau('clients', () => render(true))], ['Importer mon catalogue depuis un tableur', () => importerTableau('catalogue', () => render(true))],
+      ['Importer mes clients depuis un tableur', () => importerTableau('clients', () => render(true))], ['Importer mon catalogue depuis un tableur', () => importerTableau('catalogue', () => render(true))], ['Importer mes fournisseurs depuis un tableur', () => importerTableau('fournisseurs', () => render(true))],
       ['Ta facture à ton image (logo, cachet, couleurs)', () => imageDeMarque(() => render(true))],
       // La palette liste TOUTES les pages, y compris celles des modules retirés du menu : c'est ce
       // qui rend le filtrage de la barre latérale inoffensif.
@@ -8998,7 +9003,7 @@
   }
 
   function supplierForm(supplier, done, preset) {
-    const s = supplier || Object.assign({ id: C.uid(), name: '', contact: '', matricule: '', address: '', phone: '', email: '', rib: '', bank: '', notes: '', paymentTermsDays: '', withholdingRate: '' }, preset || {});
+    const s = supplier || C.fournisseurVierge(preset);
     modal(`<h2>${supplier ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}</h2>
       <form id="sf" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Nom / Raison sociale', 'sup.name')}<input type="text" name="name" value="${h(s.name)}" required></label>
@@ -9102,7 +9107,7 @@
       bindPager($('#list-wrap'), s, () => draw(), '#list-wrap');
     });
     const vide = !data.suppliers.length && !(s.q || s.f);
-    $('#view').innerHTML = `<div class="page-head"><h1>Fournisseurs</h1><div class="actions"><button class="btn ${vide ? '' : 'btn-primary'}" id="new">+ Nouveau fournisseur</button></div></div>
+    $('#view').innerHTML = `<div class="page-head"><h1>Fournisseurs</h1><div class="actions"><button class="btn" id="imp-fournisseurs">Importer…</button><button class="btn ${vide ? '' : 'btn-primary'}" id="new">+ Nouveau fournisseur</button></div></div>
       ${filtersBar(`
         <input type="text" id="q" placeholder="Rechercher : nom, contact, matricule…" value="${h(s.q)}">
         <select id="f">${FILTERS.map(([v, l]) => `<option value="${v}" ${s.f === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
@@ -9111,9 +9116,12 @@
       `, data.suppliers.length, !!(s.q || s.f))}
       ${vide ? etatVide('Ceux chez qui tu achètes',
         ['Un fournisseur se crée une fois : ses coordonnées et son délai de paiement se reportent ensuite sur chaque facture d\'achat, et c\'est sur sa fiche que se lit ce que tu lui dois.',
-         'Tu peux aussi le créer depuis une facture d\'achat, au moment de la saisir.'],
-        [['vide-fournisseur', '+ Ajouter mon premier fournisseur', true]]) : '<div id="list-wrap"></div>'}`;
+         'Tu peux aussi le créer depuis une facture d\'achat, au moment de la saisir.',
+         'Ta liste est déjà dans un tableur ou dans ton ancien logiciel ? Colle-la : tous tes fournisseurs entrent d\'un coup.'],
+        [['vide-fournisseur', '+ Ajouter mon premier fournisseur', true], ['vide-import-f', 'Importer depuis un tableur']]) : '<div id="list-wrap"></div>'}`;
     $('#new').onclick = () => supplierForm(null, () => (vide ? render(true) : draw()));
+    $('#imp-fournisseurs').onclick = () => importerTableau('fournisseurs', () => render(true));
+    if ($('#vide-import-f')) $('#vide-import-f').onclick = () => importerTableau('fournisseurs', () => render(true));
     if ($('#vide-fournisseur')) $('#vide-fournisseur').onclick = () => supplierForm(null, () => render(true));
     if ($('#q')) $('#q').oninput = e => { s.q = e.target.value.toLowerCase(); s.page = 1; draw(); };
     if ($('#f')) $('#f').onchange = e => { s.f = e.target.value; s.page = 1; draw(); };

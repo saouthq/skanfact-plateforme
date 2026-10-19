@@ -1,7 +1,8 @@
 // Les pages en lecture seule, à la souris (brique 102 ; 03 § 2.1 ; web/v10/lecture-seule.txt) :
 //   - Samia, comptabilité interne, lit les factures : la page le dit (« Lecture seule ») ; enregistrer un paiement
 //     sur une facture lui est refusé en le disant, et rien n'arrive au serveur ;
-//   - Omar, en lecture, lit les clients et les achats : créer un client ou un achat lui est refusé de même.
+//   - Omar, en lecture, lit les clients et les achats : créer, supprimer ou importer un client, ou enregistrer un
+//     achat, lui est refusé de même.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -145,6 +146,18 @@ describe('les pages en lecture seule, à la souris', () => {
     // Un achat non plus (brique 102 bis) : « Enregistrer » le refuse avant de demander le fournisseur.
     await o.locator('#modal-root').getByRole('button', { name: 'Annuler', exact: true }).click();
     const abandon = o.locator('#modal-root').getByRole('button', { name: 'Abandonner la saisie', exact: true });
+    if (await abandon.count()) await abandon.click();
+    // Ni en importer d'un tableur (docs/reprise-fiches.md, F4) : l'aperçu se montre, l'import se refuse au clic, et
+    // rien n'arrive au serveur.
+    await o.evaluate(() => { location.hash = '#/clients'; });
+    await o.locator('#imp-clients').click();
+    await o.locator('#imp-texte').fill('Nom\tTéléphone\nClient importé\t71 000 000');
+    await expect.poll(() => o.locator('#imp-ok').innerText()).toBe('Importer 1 client');
+    await o.locator('#imp-ok').click();
+    await expect.poll(() => toast(o), { timeout: 10_000 }).toBe('Ton rôle te laisse lire les fiches clients, pas les modifier : rien n\'a été importé. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.');
+    await o.waitForTimeout(1000);
+    expect((await lire()).filter((x) => x.collection === 'clients').map((x) => x.contenu.name)).toEqual(['Chantier Ennasr']);
+    await o.locator('#modal-root').getByRole('button', { name: 'Annuler', exact: true }).click();
     if (await abandon.count()) await abandon.click();
     await o.evaluate(() => { location.hash = '#/achat/new'; });
     await expect.poll(() => o.locator('#save').count(), { timeout: 10_000 }).toBe(1);

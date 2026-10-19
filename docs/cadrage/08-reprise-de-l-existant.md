@@ -198,7 +198,7 @@ Il ne crée jamais de nouvelle écriture dans une période qu'un autre logiciel 
 
 | Source | Ce qu'on reprend | Comment |
 |---|---|---|
-| **Tableur** (Excel, CSV, copier-coller) | Fiches, factures ouvertes, soldes, stock | Déjà en partie dans la v10 (clients et catalogue collés, 213e) : on reconnaît les colonnes, on montre un aperçu, on demande ce qu'on ne devine pas |
+| **Tableur** (Excel, CSV, copier-coller) | Fiches, factures ouvertes, soldes, stock | Déjà en partie dans la v10 (clients et catalogue collés, 213e) : on reconnaît les colonnes, on montre un aperçu, on demande ce qu'on ne devine pas. **Depuis la 1.51.0** : les fournisseurs aussi, la référence des articles, les titres d'Odoo et de Sage (`docs/reprise-fiches.md`) ; les factures ouvertes restent à faire |
 | **Fichier d'écritures comptables** (FEC ou équivalent, balance) | Balance d'ouverture, historique comptable | Pour les **cabinets** qui quittent un autre logiciel : l'étude de marché signale que Sage Coala, encore utilisé, serait arrêté par son éditeur (**À VÉRIFIER**). La v10 sait déjà **écrire** le FEC (H3) ; **le Cabinet le lit depuis la 1.50.0** pour la balance d'ouverture (`docs/cabinet.md` C61, l'étude `docs/etudes/FORMATS-REPRISE.md`) ; l'historique viendra ensuite |
 | **Factures TEIF reçues ou émises** | Achats (déjà dans la v10, H1), historique des ventes | Le format officiel est le même pour tous : c'est la reprise la plus fiable |
 | **Relevés bancaires** | Mouvements, rapprochement | Déjà dans la v10 (9.5.0, lignes d'en-tête des banques comprises) |

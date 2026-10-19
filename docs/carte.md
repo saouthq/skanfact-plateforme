@@ -75,6 +75,11 @@ vaut pour tout le dépôt.*
 - **Les lots** (brique 97, `docs/lots.md`, `web/v10/lots.txt`) : `parLot` sur l'article ; `lot`/`peremption` sur
   les lignes d'entrée, `lot` sur les lignes de sortie ; `stockMovements` pose `lot`, `peremption` (celle de
   l'entrée) ; `stockParLot`, `lotConseille`, `lotsAPerimer`, `lotsDeLaPiece`.
+- **Les fiches reprises d'un autre logiciel** (1.51.0, `docs/reprise-fiches.md`, `web/v10/reprise-fiches.txt`) : la
+  fenêtre d'import de la v10 reprend aussi les fournisseurs (`IMPORT_CHAMPS.fournisseurs` : banque, RIB ;
+  `fournisseurVierge`), la référence d'un article (`code`, qui décide du même article quand les deux en ont une), et
+  les titres d'Odoo et de Sage ; l'import se refuse avant pour qui lit seulement. Tests `tests/v10/reprise-fiches.test.ts`,
+  `tests/web/fournisseurs-tableur.test.ts`, `tests/web/lecture-seule.test.ts`.
 - **L'accord d'un responsable** (brique 98, `docs/accords.md`, `serveur/v10/accords.ts`, `0052`) : le serveur calcule
   le dépassement d'encours avec `core.js` (chargé par `codeDeLEcran`, comme `teif.js`) sur le dossier en base ;
   `ventes.accord` ; un déclencheur réserve `creditLimit` et `encoursAccord` aux responsables. Les écrans (brique 100,
