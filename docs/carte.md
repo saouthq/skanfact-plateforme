@@ -255,6 +255,9 @@ vaut pour tout le dépôt.*
     lecteur `web/public/plateforme/fec.js` (`SkanFec` : lire, les soldes au premier jour par `anouveauxDe`
     recomptés en millimes, le rapport) ; `importerBalance` et `reprendre` dans `pont-cabinet.js` ; adaptations
     `web/v10/reprise-fec.txt` ; tests `tests/v10/fec.test.ts`, `tests/web/cabinet-reprise-fec.test.ts`.
+  - **Les écritures d'un FEC dans le livre** (1.52.0, C62) : `SkanFec.versLeLivre` (les lignes de l'exercice, les
+    journaux traduits, au format du tableur du livre) et `rapportLivre` ; `lireEcrituresTableur` dans `pont-cabinet.js` ;
+    adaptations `web/v10/reprise-fec-livre.txt` ; test `tests/web/cabinet-fec-livre.test.ts`.
   - **Les écritures par tableur** (brique 39 bis, C18) : les CSV du livre et le FEC se téléchargent
     (rien ne part au serveur) ; le réimport lit le fichier dans le navigateur, l'analyse de la v10 le
     compare au livre du serveur et la fenêtre dit tout avant le clic ; une pièce qui ne tombe pas juste

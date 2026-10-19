@@ -676,6 +676,7 @@ export const ADAPTATIONS = [
   ...lireFichier('reprise-portefeuille.txt'),
   // ── La balance d'ouverture lue dans un FEC (19/10/2026 ; docs/cabinet.md, C61) ──
   ...lireFichier('reprise-fec.txt'),
+  ...lireFichier('reprise-fec-livre.txt'),
   // ── Les fiches de l'entreprise reprises d'un autre logiciel : fournisseurs, référence des articles, titres (19/10/2026) ──
   ...lireFichier('reprise-fiches.txt'),
   // ── La lecture d'une facture d'achat en photo ou en PDF, par le serveur (brique 84) ──

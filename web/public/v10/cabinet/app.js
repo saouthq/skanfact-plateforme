@@ -7054,7 +7054,7 @@
   // export, rowmenu.js en fait un bouton nommé (7.29.0), donc rien n'y change.
   const barreLivres = (controles, libelleExport, reimport) => `<div class="filters" data-export="${esc(libelleExport)}"${reimport ? ' data-fec' : ''}>${controles}
     ${RowMenu.bouton('EXP', 'Exporter', 'btn btn-sm btn-ghost')}${reimport ? info('lv.fec') : ''}
-    ${reimport ? `<button class="btn btn-sm btn-ghost" id="lv-reimport" title="Le livre-journal exporté, corrigé dans ton tableur puis enregistré en CSV : ce qu'il change entre en brouillard, rien n'est supprimé">Réimporter depuis un tableur…</button>` : ''}
+    ${reimport ? `<button class="btn btn-sm btn-ghost" id="lv-reimport" title="Le livre-journal exporté et corrigé dans ton tableur, ou le FEC de ton ancien logiciel : ce qu'il change entre en brouillard, rien n'est supprimé">Importer un tableur ou un FEC…</button>` : ''}
     ${/* Un libellé décrit l'écran d'ARRIVÉE (7.29.0). L'ancien libellé (« Regrouper… ») se lisait comme
           « donner à chacun son sous-compte » — deux lecteurs sur deux (T-42) — alors qu'il quitte le
           dossier pour la page Écritures, l'export de tout le portefeuille. Le mot « Exporter » le
@@ -8394,8 +8394,9 @@
       const morceaux = [aFaire ? `Importer ${pl(aFaire, 'pièce')}` : '', corriger && validees.length ? `${aFaire ? 'corriger' : 'Corriger'} ${pl(validees.length, 'validée')}` : ''].filter(Boolean);
       return morceaux.length ? morceaux.join(' et ') : validees.length ? `Corriger ${pl(validees.length, 'validée')}` : 'Rien à importer';
     };
-    modal(`<h2>Réimporter depuis un tableur</h2>
+    modal(`<h2>${lu.fec ? 'Reprendre les écritures d\'un FEC' : 'Réimporter depuis un tableur'}</h2>
       <p class="small muted">${esc(lu.nom)} — ${pl(a.pieces.length, 'pièce lue', 'pièces lues')}. Rien n'est encore écrit : voici ce que l'import fera.</p>
+      ${lu.fec ? lu.fec.html : ''}
       <div class="imp-bilan">
         ${c.nouvelles ? `<div class="ok-box mb"><b>${pl(c.nouvelles, 'pièce nouvelle', 'pièces nouvelles')}</b> — ${c.nouvelles > 1 ? 'elles entreront' : 'elle entrera'} en brouillard.</div>` : ''}
         ${c.brouillards ? `<div class="ok-box mb"><b>${pl(c.brouillards, 'brouillard corrigé', 'brouillards corrigés')}</b> — ta version remplace ${c.brouillards > 1 ? 'celles' : 'celle'} du livre, sans numéro.</div>` : ''}

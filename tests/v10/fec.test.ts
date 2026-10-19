@@ -5,7 +5,9 @@
 //   - trois fichiers, une balance : les à-nouveaux de la clôture de la v10, au millime, un par tiers non soldé ;
 //   - deux calculs, un chiffre : un moteur qui se tromperait d'un millime sur un compte fait refuser la reprise ;
 //   - tout se lit, ou rien n'est repris : une date, un compte, un montant illisibles refusent le fichier, nommés ;
-//   - un seul exercice avant le premier jour ; un fichier de l'exercice en cours prend son journal d'à-nouveaux.
+//   - un seul exercice avant le premier jour ; un fichier de l'exercice en cours prend son journal d'à-nouveaux ;
+//   - l'historique (C62) : les écritures d'une année, ses journaux devenus ceux de SkanFact, au millime, que l'analyse
+//     du tableur de la v10 lit pièce par pièce ; les à-nouveaux et les autres années n'entrent pas.
 
 import fs from 'node:fs';
 import vm from 'node:vm';
@@ -23,9 +25,18 @@ type Fec = {
   estFec: (t: string) => boolean; lire: (t: string) => Lu; ouverture: (lu: Lu, du: string, kc: unknown) => Ouverture;
   rapport: (r: Ouverture, nom: string) => { titre: string; html: string; bouton: string };
   millimes: (s: string) => number | null; jour: (s: string) => string | null; decouper: (l: string, sep: string) => string[];
+  versLeLivre: (lu: Lu, ex: { du: string; au: string }) => { texte: string; lignes: number; ouverture: number; dehors: number; dehorsDu: string; dehorsAu: string;
+    journaux: { code: string; lib: string; journal: string; par: string; lignes: number }[] };
+  rapportLivre: (conv: unknown, ex: { du: string; au: string }) => string;
+  journalDuLivre: (code: string, lib: string) => { journal: string; par: string };
 };
 
-const KC = ecranDeLaPlateforme('compta.js') as { anouveauxDe: (livre: unknown) => { lignes: Ligne[]; equilibre: boolean }; lireFichierTexte: (o: Uint8Array, n: string) => { ok: boolean; texte: string } };
+const KC = ecranDeLaPlateforme('compta.js') as {
+  anouveauxDe: (livre: unknown) => { lignes: Ligne[]; equilibre: boolean }; lireFichierTexte: (o: Uint8Array, n: string) => { ok: boolean; texte: string };
+  livreVide: (id: string, annee: number, o: Record<string, unknown>) => unknown;
+  analyserImportEcritures: (livre: unknown, texte: string) => { ok: boolean; motif: string; compte: Record<string, number>;
+    pieces: { action: string; journal: string; piece: string; date: string; ecart: number; lignes: { compte: string; tiers: string; debit: number; credit: number }[] }[] };
+};
 const fenetre: { SkanFec?: Fec } = {};
 (vm.runInThisContext(`(function (window) {${fs.readFileSync(new URL('../../web/public/plateforme/fec.js', import.meta.url), 'utf8')}\n})`) as (w: unknown) => void)(fenetre);
 const FEC = fenetre.SkanFec as Fec;
@@ -166,5 +177,32 @@ describe('la balance d\'ouverture lue dans un FEC', () => {
     expect(vue(r)).toEqual([['4367', 'TVA collectée', '', 0, 38], ['411', 'Dupont SARL — non lettré', 'Dupont SARL', 238, 0], ['13', 'Résultat de l\'exercice 2025', '', 0, 200]]);
     expect(FEC.rapport(r, 'FEC.csv').html.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' '))
       .toContain('1 compte de tiers écrit avec des lettres (« 411DUPONT ») est repris sur son numéro, au nom du tiers.');
+  });
+
+  it('l\'historique d\'une année : ses journaux devenus ceux de SkanFact, au millime ; les à-nouveaux et les autres années n\'entrent pas', () => {
+    // Les codes d'Odoo : INV (ventes), BNK1 (banque), BILL (achats) ; OUV, ses à-nouveaux ; et un journal que rien ne dit.
+    const odoo: L[] = EXERCICE_2025.map((l) => [...l] as L).map((l) => {
+      l[0] = ({ OUV: 'OUV', VT: 'INV', BQ: 'BNK1', AC: 'BILL' } as Record<string, string>)[l[0]] ?? l[0];
+      return l;
+    });
+    odoo.push(['XG', 'Journal du gérant', 'XG/2025/0004', '20251231', '6278', 'Frais bancaires', '', '', 'OD-4', 'Agios', '3,333', '0,000', ''],
+      ['XG', 'Journal du gérant', 'XG/2025/0004', '20251231', '532', 'Banque BIAT', '', '', 'OD-4', 'Agios', '0,000', '3,333', '']);
+    const conv = FEC.versLeLivre(FEC.lire(commeOdoo(odoo)), { du: '2025-01-01', au: '2025-12-31' });
+    expect([conv.lignes, conv.ouverture, conv.dehors, conv.dehorsDu, conv.dehorsAu]).toEqual([15, 2, 3, '2026-01-05', '2026-01-05']);
+    // « Opérations diverses » (MISC chez Odoo) est OD par son code, une banque par son seul libellé l'est aussi.
+    expect(['MISC', 'BQ7', 'J12'].map((c, i) => FEC.journalDuLivre(c, ['', '', 'Banque Zitouna'][i] ?? ''))).toEqual([{ journal: 'OD', par: 'code' }, { journal: 'BQ', par: 'code' }, { journal: 'BQ', par: 'libelle' }]);
+    expect(conv.journaux.map((j) => [j.code, j.journal, j.par, j.lignes])).toEqual([['INV', 'VT', 'code', 6], ['BNK1', 'BQ', 'code', 4], ['BILL', 'AC', 'code', 3], ['XG', 'OD', '', 2]]);
+    // Le même texte que le tableur du livre : ses pièces, au millime, chacune juste, le client avec son nom.
+    const a = KC.analyserImportEcritures(KC.livreVide('D', 2025, {}), conv.texte);
+    expect(a.compte.nouvelles).toBe(6);
+    expect(a.pieces.map((p) => [p.journal, p.piece, p.date, p.ecart])).toEqual([
+      ['VT', 'FAC-2025-014', '2025-03-14', 0], ['BQ', 'VIR-88', '2025-04-02', 0], ['AC', 'FF-77', '2025-11-05', 0],
+      ['BQ', 'REL-11', '2025-11-30', 0], ['VT', 'FAC-2025-102', '2025-12-20', 0], ['OD', 'OD-4', '2025-12-31', 0],
+    ]);
+    expect(a.pieces[0]?.lignes.map((l) => [l.compte, l.tiers, l.debit, l.credit])).toEqual([['411', 'Hôtel du Lac', 1191.001, 0], ['707', '', 0, 1000.001], ['4367', '', 0, 191]]);
+    const html = FEC.rapportLivre(conv, { du: '2025-01-01', au: '2025-12-31' }).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+    expect(html).toContain('Un FEC : 15 lignes du 01/01/2025 au 31/12/2025 entrent dans ce livre. Ses journaux deviennent ceux de SkanFact : INV « Ventes » → VT BNK1 « Banque » → BQ BILL « Achats » → AC XG « Journal du gérant » → OD (non reconnu : opérations diverses)');
+    expect(html).toContain('2 lignes d\'à-nouveaux ne sont pas reprises ici : elles font la balance d\'ouverture (« Reprendre les soldes d\'ouverture »).');
+    expect(html).toContain('3 lignes hors de l\'exercice (du 05/01/2026 au 05/01/2026) n\'entrent pas : ouvre le livre de leur année pour les reprendre.');
   });
 });

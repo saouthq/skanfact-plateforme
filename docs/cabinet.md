@@ -1690,3 +1690,26 @@ en cours ; « 411DUPONT » et un libellé entre guillemets) ; à la souris
 (`tests/web/cabinet-reprise-fec.test.ts`) : un FEC de deux exercices refusé sans rien changer, le rapport,
 « Annuler », « Reprendre ces soldes », une rangée ajoutée puis retirée, et l'écriture AN du serveur au millime,
 chaque ligne de tiers avec son nom. 18 preuves (`tests/preuves.sh`, « 1.50.0 »).
+
+**C62. Les écritures d'un FEC entrent dans le livre de leur année** (1.52.0, par délégation). Le bouton du
+livre-journal s'appelle « Importer un tableur ou un FEC… » : un FEC s'y reconnaît à sa ligne de titres, et ses
+écritures prennent le chemin du tableur du livre (C18) — la même analyse de la v10, qui compare chaque pièce au
+livre, refuse celle qui ne tombe pas juste, et fait tout entrer **au brouillard** (le comptable relit, puis valide) :
+- seules les lignes **de l'exercice du livre** entrent ; celles d'une autre année se comptent et se disent (« ouvre
+  le livre de leur année ») ; les **à-nouveaux** (le journal d'ouverture du fichier) n'entrent jamais par ici : ils
+  font la balance d'ouverture (C61), et le dire évite de les compter deux fois ;
+- **les journaux du fichier deviennent ceux de SkanFact** (VT, AC, BQ, CA, PAIE, OD) par leur code d'abord (INV, BILL,
+  BNK1, VE, HA…), par leur libellé ensuite (« Banque Zitouna ») ; ce qui ne se reconnaît pas va en OD, et la fenêtre
+  dit **chaque correspondance avant le clic** (« BNK1 « Banque » → BQ ; XG « Journal du gérant » → OD, non reconnu ») ;
+- chaque ligne garde son compte, son libellé, son tiers (son nom) et ses montants au millime (écrits depuis les
+  millimes, jamais par un nombre à virgule) ; la pièce prend la référence du fichier (PieceRef, sinon le numéro
+  d'écriture) ;
+- **le même fichier repris une seconde fois ne double rien** : ses pièces sont reconnues, identiques au livre.
+
+Ce qui part au serveur : les pièces, comme celles d'un tableur du livre (C18) ; rien d'autre du fichier. Les
+écritures entrent comme une saisie du cabinet : leur origine « reprise d'un autre logiciel » n'est pas encore
+marquée (**À VÉRIFIER** avec un comptable pilote : faut-il la distinguer dans le livre ?).
+
+**Les adaptations** : `web/v10/reprise-fec-livre.txt` (le bouton, le titre de la fenêtre, le bloc « Un FEC ») ; le
+point de contact (`lireEcrituresTableur`). **Les tests** : `tests/v10/fec.test.ts` (l'historique d'une année, les
+journaux d'Odoo, l'analyse de la v10 sur le texte produit) ; à la souris `tests/web/cabinet-fec-livre.test.ts`.

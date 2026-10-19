@@ -16366,8 +16366,14 @@ prouver 'un libellé entre guillemets coupé à son séparateur' 'web/public/pla
         i++;' \
   'un compte de tiers écrit avec des lettres se range sur son numéro ; un libellé entre guillemets garde son séparateur'
 prouver 'un FEC lu comme une balance de tableur' 'web/public/plateforme/pont-cabinet.js' \
-  '      if (FEC.estFec(texte)) {' \
-  '      if (false) {' \
+  '      if (FEC.estFec(texte)) {
+        const lu = FEC.lire(texte);
+        if (!lu.ok) throw new Error(lu.motif);
+        const du =' \
+  '      if (false) {
+        const lu = FEC.lire(texte);
+        if (!lu.ok) throw new Error(lu.motif);
+        const du =' \
   'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
 prouver 'le tiers perdu par le point de contact' 'web/public/plateforme/pont-cabinet.js' \
   '...(tiers ? { tiers } : {}), ' \
@@ -16460,6 +16466,48 @@ prouver 'un import accepté pour qui lit seulement' 'web/public/v10/app.js' \
 ' \
   '' \
   'Samia lit les factures sans les modifier ; Omar lit les clients sans en créer'
+
+# 1.52.0 : les écritures d'un FEC dans le livre (C62).
+prouver 'les à-nouveaux repris dans l'"'"'historique' 'web/public/plateforme/fec.js' \
+  'const prises = toutes.filter((l) => !dOuverture(l) && l.date >= ex.du && l.date <= ex.au);' \
+  'const prises = toutes.filter((l) => l.date >= ex.du && l.date <= ex.au);' \
+  'l'"'"'historique d'"'"'une année : ses journaux devenus ceux de SkanFact, au millime ; les à-nouveaux et les autres années n'"'"'entrent pas'
+prouver 'une autre année reprise dans le livre' 'web/public/plateforme/fec.js' \
+  'const prises = toutes.filter((l) => !dOuverture(l) && l.date >= ex.du && l.date <= ex.au);' \
+  'const prises = toutes.filter((l) => !dOuverture(l));' \
+  'l'"'"'historique d'"'"'une année : ses journaux devenus ceux de SkanFact, au millime ; les à-nouveaux et les autres années n'"'"'entrent pas'
+prouver 'un journal de banque numéroté pris pour des opérations diverses' 'web/public/plateforme/fec.js' \
+  'const sansChiffre = c.replace(/\d+$/, '"'"''"'"');' \
+  'const sansChiffre = c;' \
+  'l'"'"'historique d'"'"'une année : ses journaux devenus ceux de SkanFact, au millime ; les à-nouveaux et les autres années n'"'"'entrent pas'
+prouver 'un journal reconnu à son seul libellé, oublié' 'web/public/plateforme/fec.js' \
+  '    for (const [j, , mots] of JOURNAUX_CONNUS) if (mots.test(l)) return { journal: j, par: '"'"'libelle'"'"' };
+' \
+  '' \
+  'l'"'"'historique d'"'"'une année : ses journaux devenus ceux de SkanFact, au millime ; les à-nouveaux et les autres années n'"'"'entrent pas'
+prouver 'un montant d'"'"'historique arrondi en chemin' 'web/public/plateforme/fec.js' \
+  '(m ? `${m < 0 ? '"'"'-'"'"' : '"'"''"'"'}${Math.floor(Math.abs(m) / 1000)},${String(Math.abs(m) % 1000).padStart(3, '"'"'0'"'"')}` : '"'"''"'"')' \
+  '(m ? `${Math.round(Math.abs(m) / 1000)}` : '"'"''"'"')' \
+  'l'"'"'historique d'"'"'une année : ses journaux devenus ceux de SkanFact, au millime ; les à-nouveaux et les autres années n'"'"'entrent pas'
+prouver 'le client d'"'"'une écriture perdu en chemin' 'web/public/plateforme/fec.js' \
+  'j.journal, piece, l.compte, l.tiers,' \
+  'j.journal, piece, l.compte, '"'"''"'"',' \
+  'l'"'"'historique d'"'"'une année : ses journaux devenus ceux de SkanFact, au millime ; les à-nouveaux et les autres années n'"'"'entrent pas'
+prouver 'un FEC lu comme le tableur du livre' 'web/public/plateforme/pont-cabinet.js' \
+  '      if (FEC.estFec(texte)) {
+        const lu = FEC.lire(texte);
+        if (!lu.ok) throw new Error(lu.motif);
+        const ex = livre.exercice || {};' \
+  '      if (false) {
+        const lu = FEC.lire(texte);
+        if (!lu.ok) throw new Error(lu.motif);
+        const ex = livre.exercice || {};' \
+  'Leïla reprend les écritures de 2026 d'"'"'un client depuis son FEC : ce que le fichier devient, puis trois brouillards, jamais deux fois'
+prouver 'la fenêtre qui tait ce que le FEC devient' 'web/public/v10/cabinet/app.js' \
+  '      ${lu.fec ? lu.fec.html : '"'"''"'"'}
+' \
+  '' \
+  'Leïla reprend les écritures de 2026 d'"'"'un client depuis son FEC : ce que le fichier devient, puis trois brouillards, jamais deux fois'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -1015,14 +1015,29 @@
     exportFec: async (/** @type {string} */ texte, /** @type {string} */ nom) => telecharger(String(nom || 'FEC.txt').split(/[\\/]/).pop() || 'FEC.txt', String(texte || '')),
     // Réimporter depuis un tableur : le fichier choisi est lu dans le navigateur et comparé au livre
     // du serveur (l'analyse de la v10) ; la fenêtre dit ce que l'import fera avant d'écrire quoi que ce soit.
+    // Un FEC (C62) : ses écritures de l'exercice, ses journaux devenus ceux de SkanFact (plateforme/fec.js), puis la même
+    // analyse ; la fenêtre dit d'abord ce que le fichier devient.
     lireEcrituresTableur: async (/** @type {string} */ id, /** @type {string} */ annee) => {
       const f = await choisirFichier('.xlsx,.csv,.txt');
       if (!f) return { annule: true };
-      const texte = await lireTableur(f);
-      const analyse = analyser(await livreDe(id, annee), texte);
+      let texte = await lireTableur(f);
+      const livre = await livreDe(id, annee);
+      /** @type {any} */ const FEC = /** @type {any} */ (window).SkanFec;
+      /** @type {{ html: string } | null} */ let fec = null;
+      if (FEC.estFec(texte)) {
+        const lu = FEC.lire(texte);
+        if (!lu.ok) throw new Error(lu.motif);
+        const ex = livre.exercice || {};
+        const conv = FEC.versLeLivre(lu, ex);
+        const jour = (/** @type {string} */ d) => String(d).split('-').reverse().join('/');
+        if (!conv.lignes) throw new Error(`Ce FEC n'a aucune écriture du ${jour(ex.du)} au ${jour(ex.au)} : il va du ${jour(lu.du)} au ${jour(lu.au)}. Ouvre le livre de son année pour la reprendre.`);
+        texte = conv.texte;
+        fec = { html: FEC.rapportLivre(conv, ex) };
+      }
+      const analyse = analyser(livre, texte);
       const cle = String(++lectureSuivante);
       lectures.set(cle, texte);
-      return { fichier: cle, nom: f.name, analyse };
+      return { fichier: cle, nom: f.name, analyse, ...(fec ? { fec } : {}) };
     },
     // Puis l'import : les pièces nouvelles et les brouillards corrigés partent en lots (chacune entre,
     // ou est nommée avec sa raison) ; une validée que le fichier change se corrige à part, si on l'a

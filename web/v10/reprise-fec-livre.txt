@@ -1,0 +1,23 @@
+Les écritures d'un FEC dans le livre d'une année (19/10/2026 ; docs/cabinet.md, C62). Format : voir sans-paquets.mjs.
+
+Le bouton du livre-journal lit aussi un FEC : le point de contact garde ses lignes de l'exercice, traduit ses journaux
+vers ceux de SkanFact et les passe à la même analyse que le tableur du livre ; la fenêtre dit d'abord ce que le fichier
+devient (les lignes qui entrent, chaque journal et ce qu'il devient, les à-nouveaux et les autres années qui n'entrent
+pas), puis, comme avant, ce que l'import fera de chaque pièce.
+
+== cabinet/app.js | le bouton du livre-journal dit qu'il lit aussi un FEC
+-- avant
+    ${reimport ? `<button class="btn btn-sm btn-ghost" id="lv-reimport" title="Le livre-journal exporté, corrigé dans ton tableur puis enregistré en CSV : ce qu'il change entre en brouillard, rien n'est supprimé">Réimporter depuis un tableur…</button>` : ''}
+-- après
+    ${reimport ? `<button class="btn btn-sm btn-ghost" id="lv-reimport" title="Le livre-journal exporté et corrigé dans ton tableur, ou le FEC de ton ancien logiciel : ce qu'il change entre en brouillard, rien n'est supprimé">Importer un tableur ou un FEC…</button>` : ''}
+-- fin
+
+== cabinet/app.js | un FEC : la fenêtre dit d'abord ce que le fichier devient
+-- avant
+    modal(`<h2>Réimporter depuis un tableur</h2>
+      <p class="small muted">${esc(lu.nom)} — ${pl(a.pieces.length, 'pièce lue', 'pièces lues')}. Rien n'est encore écrit : voici ce que l'import fera.</p>
+-- après
+    modal(`<h2>${lu.fec ? 'Reprendre les écritures d\'un FEC' : 'Réimporter depuis un tableur'}</h2>
+      <p class="small muted">${esc(lu.nom)} — ${pl(a.pieces.length, 'pièce lue', 'pièces lues')}. Rien n'est encore écrit : voici ce que l'import fera.</p>
+      ${lu.fec ? lu.fec.html : ''}
+-- fin

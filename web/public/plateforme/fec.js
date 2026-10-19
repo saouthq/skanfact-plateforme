@@ -20,7 +20,9 @@
 //     compte, sur le fichier lui-même : deux calculs, un chiffre, ou rien n'est repris ;
 //   - un fichier qui commence ce jour-là (l'exercice en cours) porte ses à-nouveaux dans son journal
 //     d'ouverture (AN, RAN, OUV…) : ce sont eux qui font la balance, et le rapport dit lequel ;
-//   - rien ne part au serveur ici : la balance remplit la fenêtre, et seule la fenêtre l'envoie.
+//   - rien ne part au serveur ici : la balance remplit la fenêtre, et seule la fenêtre l'envoie ;
+//   - l'historique (C62) : les écritures d'une année entrent dans son livre par l'import du tableur (la lecture de la
+//     v10 les compare au livre, tout entre au brouillard) ; ses journaux deviennent ceux de SkanFact, dits avant.
 
 (function () {
   // Les colonnes, par leur nom tel que `nom` le réduit (sans accent, sans espace, en minuscules).
@@ -309,5 +311,66 @@
     return { titre: 'Reprendre les soldes de ce FEC ?', html, bouton: 'Reprendre ces soldes' };
   }
 
-  /** @type {any} */ (window).SkanFec = { estFec, lire, ouverture, rapport, millimes, jour, decouper };
+  // ── L'historique : les écritures d'un FEC dans le livre d'une année (C62) ──────────────────────────────────────
+  // Les journaux du fichier deviennent ceux de SkanFact (VT, AC, BQ, CA, PAIE, OD), par leur code d'abord, par leur
+  // libellé ensuite ; ce qui ne se reconnaît pas va en OD, et le rapport dit chaque correspondance avant le clic.
+  /** @type {[string, string[], RegExp][]} */ const JOURNAUX_CONNUS = ([
+    ['VT', ['VT', 'VE', 'VEN', 'VTE', 'V', 'INV', 'FAC', 'VENTE', 'VENTES'], /vente|sale|client/],
+    ['AC', ['AC', 'ACH', 'HA', 'A', 'BILL', 'ACHAT', 'ACHATS'], /achat|purchase|fournisseur/],
+    ['BQ', ['BQ', 'BQE', 'BK', 'BNK', 'BANK', 'BANQUE'], /banque|bank/],
+    ['CA', ['CA', 'CAI', 'CAIS', 'CSH', 'CASH', 'CAISSE'], /caisse|cash|espece/],
+    ['PAIE', ['PAIE', 'PAI', 'PAY', 'SALAIRES'], /paie|salaire|payroll/],
+    ['OD', ['OD', 'MISC', 'DIV', 'DIVERS'], /divers|miscellaneous/],
+  ]);
+  /** @param {string} code @param {string} lib */
+  function journalDuLivre(code, lib) {
+    const c = code.toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const sansChiffre = c.replace(/\d+$/, '');
+    for (const [j, codes] of JOURNAUX_CONNUS) if (codes.includes(c) || codes.includes(sansChiffre)) return { journal: j, par: 'code' };
+    const l = nom(lib);
+    for (const [j, , mots] of JOURNAUX_CONNUS) if (mots.test(l)) return { journal: j, par: 'libelle' };
+    return { journal: 'OD', par: '' };
+  }
+  // Un montant en millimes, écrit comme le tableur du livre l'écrit (« 1191,001 »), sans passer par un nombre à virgule.
+  /** @param {number} m */
+  const enTexte = (m) => (m ? `${m < 0 ? '-' : ''}${Math.floor(Math.abs(m) / 1000)},${String(Math.abs(m) % 1000).padStart(3, '0')}` : '');
+  /** @param {string} v */
+  const cellule = (v) => (/[;"\r\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+
+  // Les lignes du FEC qui vont dans le livre de l'exercice `ex` ({ annee, du, au }), au format du tableur du livre
+  // (la lecture de la v10, `analyserImportEcritures`, les compare ensuite au livre) ; et ce qui n'y va pas, compté.
+  /** @param {any} lu ce que `lire` a rendu @param {{ du: string, au: string }} ex */
+  function versLeLivre(lu, ex) {
+    /** @type {LigneFec[]} */ const toutes = lu.lignes;
+    const ouverture = toutes.filter((l) => dOuverture(l));
+    const dehors = toutes.filter((l) => !dOuverture(l) && (l.date < ex.du || l.date > ex.au));
+    const prises = toutes.filter((l) => !dOuverture(l) && l.date >= ex.du && l.date <= ex.au);
+    /** @type {Map<string, { code: string, lib: string, journal: string, par: string, lignes: number }>} */ const journaux = new Map();
+    const tete = 'Date;Journal;Pièce;Compte;Tiers;Libellé;Débit;Crédit';
+    const corps = prises.map((l) => {
+      const j = journaux.get(l.journal) || { code: l.journal, lib: l.journalLib, ...journalDuLivre(l.journal, l.journalLib), lignes: 0 };
+      j.lignes++;
+      journaux.set(l.journal, j);
+      const piece = l.piece || l.numero;
+      return [l.date.split('-').reverse().join('/'), j.journal, piece, l.compte, l.tiers, l.libelle || l.compteLib, enTexte(l.debit), enTexte(l.credit)].map(cellule).join(';');
+    });
+    return {
+      texte: [tete, ...corps].join('\r\n'), lignes: prises.length, journaux: [...journaux.values()],
+      ouverture: ouverture.length, dehors: dehors.length,
+      dehorsDu: dehors.reduce((m, l) => (!m || l.date < m ? l.date : m), ''), dehorsAu: dehors.reduce((m, l) => (l.date > m ? l.date : m), ''),
+    };
+  }
+
+  // Ce que la fenêtre de l'import dit d'un FEC, avant ce qu'elle dit des pièces : ce qui entre, la correspondance de
+  // chaque journal, et ce qui n'entre pas (les à-nouveaux, les lignes d'une autre année).
+  /** @param {any} conv ce que `versLeLivre` a rendu @param {{ du: string, au: string }} ex */
+  function rapportLivre(conv, ex) {
+    const journal = (/** @type {any} */ j) => `<li>${esc(j.code)}${j.lib ? ` « ${esc(j.lib)} »` : ''} → <b>${esc(j.journal)}</b>${j.par ? '' : ' <span class="muted">(non reconnu : opérations diverses)</span>'}</li>`;
+    return `<div class="info-box mb" id="fec-livre"><b>Un FEC</b> : ${esc(pl(conv.lignes, 'ligne'))} du ${esc(fmtJour(ex.du))} au ${esc(fmtJour(ex.au))} ${conv.lignes > 1 ? 'entrent' : 'entre'} dans ce livre. Ses journaux deviennent ceux de SkanFact :
+      <ul class="imp-liste">${conv.journaux.map(journal).join('')}</ul>
+      ${conv.ouverture ? `<p class="small">${esc(pl(conv.ouverture, 'ligne'))} d'à-nouveaux ne ${conv.ouverture > 1 ? 'sont' : 'est'} pas reprise${conv.ouverture > 1 ? 's' : ''} ici : elles font la balance d'ouverture (« Reprendre les soldes d'ouverture »).</p>` : ''}
+      ${conv.dehors ? `<p class="small">${esc(pl(conv.dehors, 'ligne'))} hors de l'exercice (du ${esc(fmtJour(conv.dehorsDu))} au ${esc(fmtJour(conv.dehorsAu))}) n'${conv.dehors > 1 ? 'entrent' : 'entre'} pas : ouvre le livre de leur année pour les reprendre.</p>` : ''}</div>`;
+  }
+
+  /** @type {any} */ (window).SkanFec = { estFec, lire, ouverture, rapport, millimes, jour, decouper, versLeLivre, rapportLivre, journalDuLivre };
 })();

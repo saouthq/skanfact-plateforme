@@ -80,8 +80,9 @@ dernier exercice de son client. Les règles (`docs/cabinet.md`, C61) :
    tiers, débit, crédit).
 
 **Ce qui reste à faire** (dans cet ordre) :
-- **R2 — l'historique d'un FEC** : reprendre les écritures elles-mêmes dans le livre (les journaux traduits
-  vers ceux de SkanFact, en lecture seule avec leur origine, 08 § 3.1) et les fiches de tiers (CompAuxNum).
+- **R2 — l'historique d'un FEC** : fait en 1.52.0 (`docs/cabinet.md` C62) : les écritures de l'exercice entrent
+  au brouillard, les journaux traduits vers ceux de SkanFact ; restent les fiches de tiers d'un dossier sur SkanFact
+  (CompAuxNum) et la marque d'origine de ces écritures (**À VÉRIFIER** avec un comptable pilote).
 - **R3 — l'entreprise** : les fournisseurs par tableur, la référence des articles et les titres d'Odoo et de Sage
   sont faits en 1.51.0 (`docs/reprise-fiches.md`) ; restent les titres de Hesabi (un export réel) et les factures
   encore ouvertes (un modèle à décider avec un comptable).
