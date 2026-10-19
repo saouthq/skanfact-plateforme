@@ -11689,7 +11689,7 @@ prouver 'deux sourdines à la fois sur une règle' 'base/migrations/0086_service
   '  if exists (select 1 from plateforme.service_sourdine s where s.regle = p_regle and s.levee_le is null and s.fin > p_maintenant) then' \
   '  if false then' \
   'la sourdine : d'"'"'une règle qui prévient, un quart d'"'"'heure à un jour, quatre heures au plus sur une alerte grave, une à la fois ; la veille la lit'
-prouver 'une sourdine levée que la veille lit encore' 'base/migrations/0115_suivi.sql' \
+prouver 'une sourdine levée que la veille lit encore' 'base/migrations/0142_relire_contenus.sql' \
   'from plateforme.service_sourdine s where s.levee_le is null and s.debut <= p_maintenant' \
   'from plateforme.service_sourdine s where s.debut <= p_maintenant' \
   'la sourdine : d'"'"'une règle qui prévient, un quart d'"'"'heure à un jour, quatre heures au plus sur une alerte grave, une à la fois ; la veille la lit'
@@ -12093,7 +12093,7 @@ IN8='clore demande le compte rendu ; clos, « Aucun incident ouvert » et l'"'"'
 prouver "un numéro d'incident qui saute" base/migrations/0089_service_incidents.sql \
   'select coalesce(max(numero), 0) + 1 into v_numero' 'select coalesce(max(numero), 0) + 2 into v_numero' \
   "$IN1"
-prouver "la page d'état qui annonce le moins grave" base/migrations/0115_suivi.sql \
+prouver "la page d'état qui annonce le moins grave" base/migrations/0142_relire_contenus.sql \
   'order by plateforme.rang_gravite(i.gravite) desc, i.public_le desc limit 1' 'order by plateforme.rang_gravite(i.gravite), i.public_le desc limit 1' \
   "$IN1"
 prouver "une gravité qui redescend en silence" base/migrations/0092_service_versions.sql \
@@ -12102,7 +12102,7 @@ prouver "une gravité qui redescend en silence" base/migrations/0092_service_ver
 prouver "un message retiré deux fois sans le dire" base/migrations/0089_service_incidents.sql \
   "  if v_i.public is null then perform socle.refus('la page d''état ne dit rien de cet incident'); end if;" '' \
   "$IN2"
-prouver "une maintenance annoncée trois semaines avant" base/migrations/0115_suivi.sql \
+prouver "une maintenance annoncée trois semaines avant" base/migrations/0142_relire_contenus.sql \
   "m.debut <= p_maintenant + interval '48 hours'" "m.debut <= p_maintenant + interval '480 hours'" \
   "$IN3"
 prouver "une suite en retard rangée après les autres" serveur/console/incidents.ts \
@@ -14347,12 +14347,12 @@ prouver 'une personne qui relit toutes les chaînes' 'base/migrations/0115_suivi
 ' \
   '' \
   'relues par le serveur, par lots ; une chaîne cassée garde son point de rupture ; la console et la veille la voient'
-prouver 'l'"'"'entreprise d'"'"'une chaîne cassée montrée à la technique' 'base/migrations/0115_suivi.sql' \
-  ''"'"'le'"'"', ch.controle_le, '"'"'entreprise'"'"', case when v_role = '"'"'direction'"'"' then jsonb_build_object('"'"'id'"'"', e.id, '"'"'nom'"'"', e.raison_sociale) end)' \
-  ''"'"'le'"'"', ch.controle_le, '"'"'entreprise'"'"', jsonb_build_object('"'"'id'"'"', e.id, '"'"'nom'"'"', e.raison_sociale))' \
+prouver 'l'"'"'entreprise d'"'"'une chaîne cassée montrée à la technique' 'base/migrations/0142_relire_contenus.sql' \
+  ''"'"'le'"'"', x.le, '"'"'entreprise'"'"', case when v_role = '"'"'direction'"'"' then jsonb_build_object('"'"'id'"'"', e.id, '"'"'nom'"'"', e.raison_sociale, '"'"'numero'"'"', plateforme.numero_texte(e.id)) end)' \
+  ''"'"'le'"'"', x.le, '"'"'entreprise'"'"', jsonb_build_object('"'"'id'"'"', e.id, '"'"'nom'"'"', e.raison_sociale, '"'"'numero'"'"', plateforme.numero_texte(e.id)))' \
   'relues par le serveur, par lots ; une chaîne cassée garde son point de rupture ; la console et la veille la voient'
-prouver 'la veille qui ne lit pas les chaînes cassées' 'base/migrations/0115_suivi.sql' \
-  'jsonb_build_object('"'"'cassees'"'"', (select count(*) from socle.chaine ch where ch.controle_ok = false),' \
+prouver 'la veille qui ne lit pas les chaînes cassées' 'base/migrations/0142_relire_contenus.sql' \
+  'jsonb_build_object('"'"'cassees'"'"', (select count(*) from socle.chaine ch where ch.controle_ok = false or ch.contenu_ok = false),' \
   'jsonb_build_object('"'"'cassees'"'"', 0,' \
   'relues par le serveur, par lots ; une chaîne cassée garde son point de rupture ; la console et la veille la voient'
 prouver 'une chaîne cassée dite sans gravité' 'exploitation/veille.ts' \
@@ -14393,11 +14393,10 @@ prouver 'la puce Urgente absente de la liste' 'web/console/src/ecrans/Support.ts
   '{l.priorite === '"'"'urgente'"'"' && !l.close ? <Puce ton="urgent">' \
   '{false ? <Puce ton="urgent">' \
   'le suivi : urgente en tête de la liste, puis elle attend la technique avec son motif, puis revient ; chaque geste demande son motif'
-prouver 'la carte des chaînes qui tait ce qu'"'"'elle ne relit pas' 'web/console/src/ecrans/Securite.tsx' \
-  '        <li><EtatPuce etat="nonmesure" texte={titre(`${S}.ch.p.contenu`)} /> <span className="c-sous">{phrase(`${S}.ch.p.contenu_sous`)}</span></li>
-' \
-  '' \
-  'la chaîne d'"'"'empreintes : relue par le serveur au démarrage, trente jours en cases ; ce qui n'"'"'est pas encore relu le dit'
+prouver 'la carte des chaînes qui tait ce qu'"'"'elle relit' 'web/console/src/ecrans/Securite.tsx' \
+  '? phrase(`${S}.ch.p.contenu_sous`, {' \
+  '? phrase(`${S}.ch.p.contenu_avant`, {' \
+  'la chaîne d'"'"'empreintes : relue par le serveur au démarrage, trente jours en cases, le contenu des pièces aussi'
 
 # 1.23.0 : la mesure (0116 ; docs/console.md C39).
 prouver 'la mesure lue par la technique, dans la base' 'base/migrations/0124_support_honnete.sql' \
@@ -16508,6 +16507,105 @@ prouver 'la fenêtre qui tait ce que le FEC devient' 'web/public/v10/cabinet/app
 ' \
   '' \
   'Leïla reprend les écritures de 2026 d'"'"'un client depuis son FEC : ce que le fichier devient, puis trois brouillards, jamais deux fois'
+
+# 1.53.0 : le contenu des pièces relu contre son empreinte (docs/console.md C66).
+prouver 'une pièce modifiée dite intacte' 'serveur/service/contenus.ts' \
+  '        if (c !== m.contenu) return { ok: false, pieces: pieces + 1, rang, motif: MOTIFS.modifiee };
+' \
+  '' \
+  'une facture et une écriture retouchées par-dessous la base : les liens ne voient rien, le contenu les nomme au rang près'
+prouver 'une pièce relue qui ne compte pas' 'serveur/service/contenus.ts' \
+  'return { ok: false, pieces: pieces + 1, rang, motif: MOTIFS.modifiee }' \
+  'return { ok: false, pieces, rang, motif: MOTIFS.modifiee }' \
+  'une facture et une écriture retouchées par-dessous la base : les liens ne voient rien, le contenu les nomme au rang près'
+prouver 'une pièce de vente relue sans ses lignes' 'serveur/service/contenus.ts' \
+  'contenuScelle(pieceDeLaLigne(p), lignes.get(m.objet_id) ?? [])' \
+  'contenuScelle(pieceDeLaLigne(p), [])' \
+  'une facture et une écriture retouchées par-dessous la base : les liens ne voient rien, le contenu les nomme au rang près'
+prouver 'une écriture recalculée sans son numéro' 'base/migrations/0142_relire_contenus.sql' \
+  '(select compta.contenu_ecriture(e.id, e.numero) from compta.ecriture e' \
+  '(select compta.contenu_ecriture(e.id, null) from compta.ecriture e' \
+  'une facture et une écriture retouchées par-dessous la base : les liens ne voient rien, le contenu les nomme au rang près'
+prouver 'la chaîne qui oublie jusqu'"'"'où elle a été relue' 'base/migrations/0142_relire_contenus.sql' \
+  'contenu_motif = case when p_ok then null else p_motif end, contenu_jusqua = p_jusqua' \
+  'contenu_motif = case when p_ok then null else p_motif end, contenu_jusqua = 0' \
+  'une facture et une écriture retouchées par-dessous la base : les liens ne voient rien, le contenu les nomme au rang près'
+prouver 'une pièce disparue dite modifiée' 'serveur/service/contenus.ts' \
+  '        if (c === null) return { ok: false, pieces: pieces + 1, rang, motif: MOTIFS.disparue };
+' \
+  '' \
+  'une pièce disparue se dit ; une sorte que la relecture ne lit pas n'"'"'est jamais « intacte » ; une personne n'"'"'y touche pas'
+prouver 'une sorte de pièce inconnue dite intacte' 'serveur/service/contenus.ts' \
+  '  if (m.objet_type !== '"'"'piece_vente'"'"') return undefined;' \
+  '  if (m.objet_type !== '"'"'piece_vente'"'"') return m.contenu;' \
+  'une pièce disparue se dit ; une sorte que la relecture ne lit pas n'"'"'est jamais « intacte » ; une personne n'"'"'y touche pas'
+prouver 'une personne qui lit les pièces de toutes les entreprises' 'base/migrations/0142_relire_contenus.sql' \
+  '  if socle.moi() is not null then perform socle.refus('"'"'seul le serveur relit le contenu des pièces scellées'"'"'); end if;' \
+  '  if false then perform socle.refus('"'"'seul le serveur relit le contenu des pièces scellées'"'"'); end if;' \
+  'une pièce disparue se dit ; une sorte que la relecture ne lit pas n'"'"'est jamais « intacte » ; une personne n'"'"'y touche pas'
+prouver 'le tour de chaque heure qui ne compte pas ses chaînes' 'serveur/service/contenus.ts' \
+  ''"'"'select plateforme.noter_releve_contenus($1, $2, $3, $4) v'"'"', [maintenant, chaines, pieces,' \
+  ''"'"'select plateforme.noter_releve_contenus($1, $2, $3, $4) v'"'"', [maintenant, 0, pieces,' \
+  'le tour de chaque heure : un lot des chaînes les moins récemment relues, compté'
+prouver 'la technique qui nomme une entreprise' 'base/migrations/0142_relire_contenus.sql' \
+  '    if v_role <> '"'"'direction'"'"' then perform socle.refus('"'"'relire une entreprise nommée est un geste de la direction'"'"'); end if;' \
+  '    if false then perform socle.refus('"'"'relire une entreprise nommée est un geste de la direction'"'"'); end if;' \
+  'une entreprise, par la direction : demandée, faite par le serveur, suivie ; une chaîne cassée se relie à son incident'
+prouver 'une relecture demandée par-dessus une autre' 'base/migrations/0142_relire_contenus.sql' \
+  '  if found then perform socle.refus('"'"'une relecture est déjà en cours : la suivante se demande quand elle est finie'"'"'); end if;
+' \
+  '' \
+  'une entreprise, par la direction : demandée, faite par le serveur, suivie ; une chaîne cassée se relie à son incident'
+prouver 'une relecture demandée sans motif' 'serveur/console/routes.ts' \
+  'corps: z.object({ client: z.string().trim().max(40).nullable(), motif: motifGeste }),' \
+  'corps: z.object({ client: z.string().trim().max(40).nullable(), motif: z.string() }),' \
+  'une entreprise, par la direction : demandée, faite par le serveur, suivie ; une chaîne cassée se relie à son incident'
+prouver 'une entreprise relue avec toutes les autres' 'base/migrations/0142_relire_contenus.sql' \
+  '    return query select ch.entreprise, ch.cle, ch.rang from socle.chaine ch where ch.entreprise = p_entreprise and ch.rang > 0 order by ch.cle;' \
+  '    return query select ch.entreprise, ch.cle, ch.rang from socle.chaine ch where ch.rang > 0 order by ch.cle;' \
+  'une entreprise, par la direction : demandée, faite par le serveur, suivie ; une chaîne cassée se relie à son incident'
+prouver 'une demande prise deux fois' 'base/migrations/0142_relire_contenus.sql' \
+  '   where x.finie_le is null and (x.pris_le is null or x.pris_le < p_maintenant - interval '"'"'5 minutes'"'"')' \
+  '   where x.finie_le is null' \
+  'une entreprise, par la direction : demandée, faite par le serveur, suivie ; une chaîne cassée se relie à son incident'
+prouver 'la technique qui voit l'"'"'entreprise d'"'"'une relecture' 'base/migrations/0142_relire_contenus.sql' \
+  ''"'"'entreprise'"'"', case when v_role = '"'"'direction'"'"' and d.entreprise is not null then' \
+  ''"'"'entreprise'"'"', case when d.entreprise is not null then' \
+  'une entreprise, par la direction : demandée, faite par le serveur, suivie ; une chaîne cassée se relie à son incident'
+prouver 'une chaîne au contenu cassé absente de la console' 'base/migrations/0142_relire_contenus.sql' \
+  'select ch.entreprise, ch.cle, '"'"'contenu'"'"', ch.contenu_rang, ch.contenu_motif, ch.contenu_le from socle.chaine ch where ch.contenu_ok = false) y' \
+  'select ch.entreprise, ch.cle, '"'"'contenu'"'"', ch.contenu_rang, ch.contenu_motif, ch.contenu_le from socle.chaine ch where false) y' \
+  'une entreprise, par la direction : demandée, faite par le serveur, suivie ; une chaîne cassée se relie à son incident'
+prouver 'une relecture demandée qui ne compte pas les liens' 'serveur/service/contenus.ts' \
+  '    await tx.query('"'"'select plateforme.noter_releve_liens($1, $2, $3, $4)'"'"', [maintenant, faites, maillons, Date.now() - debut]);
+' \
+  '' \
+  'toutes les entreprises : la direction ou la technique ; une demande qui ne bouge plus se dit'
+prouver 'l'"'"'incident ouvert sans son titre' 'web/console/src/ecrans/Incidents.tsx' \
+  'const [t, setT] = useState(pre ? maj(dire(`${I}.fiche.${pre}.nom`)) : '"'"''"'"');' \
+  'const [t, setT] = useState('"'"''"'"');' \
+  'une facture retouchée par-dessous la base : relue depuis l'"'"'écran, la rupture nommée, l'"'"'incident ouvert d'"'"'un clic'
+prouver 'la fenêtre de l'"'"'incident qui se rouvre au retour' 'web/console/src/ecrans/Incidents.tsx' \
+  '    history.replaceState(null, '"'"''"'"', '"'"'#/service/incidents'"'"');
+' \
+  '' \
+  'une facture retouchée par-dessous la base : relue depuis l'"'"'écran, la rupture nommée, l'"'"'incident ouvert d'"'"'un clic'
+prouver 'le curseur qui reste sur le titre déjà rempli' 'web/console/src/ui.tsx' \
+  '    if (!cadre.current?.contains(document.activeElement)) {' \
+  '    if (true) {' \
+  'une facture retouchée par-dessous la base : relue depuis l'"'"'écran, la rupture nommée, l'"'"'incident ouvert d'"'"'un clic'
+prouver 'le choix d'"'"'une entreprise qui pousse le motif' 'web/console/src/console.css' \
+  '.c-invisible { visibility: hidden; }' \
+  '.c-invisible { display: none; }' \
+  'une facture retouchée par-dessous la base : relue depuis l'"'"'écran, la rupture nommée, l'"'"'incident ouvert d'"'"'un clic'
+prouver 'le geste actif pendant une relecture' 'web/console/src/ecrans/Securite.tsx' \
+  '<Bouton icone="relire" desactive={enCours} onClick={() => relire(null)}>' \
+  '<Bouton icone="relire" onClick={() => relire(null)}>' \
+  'une facture retouchée par-dessous la base : relue depuis l'"'"'écran, la rupture nommée, l'"'"'incident ouvert d'"'"'un clic'
+prouver 'la rupture dite par son code' 'web/console/src/ecrans/Securite.tsx' \
+  'MOTIFS_CONTENU.has(x.motif) ? dire(`${S}.ch.c.motif.${x.motif}`) : x.motif ?? '"'"''"'"'' \
+  'MOTIFS_CONTENU.has(x.motif) ? x.motif : x.motif ?? '"'"''"'"'' \
+  'une facture retouchée par-dessous la base : relue depuis l'"'"'écran, la rupture nommée, l'"'"'incident ouvert d'"'"'un clic'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

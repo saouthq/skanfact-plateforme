@@ -240,9 +240,11 @@ describe('les chaînes d\'empreintes, relues seules (0115, l\'audit F21)', () =>
     const porte = (await enTantQue(pool, proprio.id, (tx) => tx.query('select ok, rang::int rang, motif from socle.controler_chaine($1, $2)', [ent, cle]))).rows[0];
     expect(porte).toMatchObject({ ok: false, rang: 2, motif: 'empreinte fausse' });
     // La console : la direction voit l'entreprise, la technique la sorte et le rang seulement.
-    const s = (await appeler('GET', '/console/service/securite', direction.console)).corps.chaines as { etat: string; nCassees: number; cassees: { sorte: string; rang: number; entreprise: { id: string } | null }[]; jours: { etat: string }[] };
+    // (Ses maillons ne désignent aucune écriture : depuis 0142, la relecture du contenu la dit cassée aussi, au premier rang ;
+    // ici, la rupture de ses liens.)
+    const s = (await appeler('GET', '/console/service/securite', direction.console)).corps.chaines as { etat: string; nCassees: number; cassees: { sorte: string; quoi: string; rang: number; entreprise: { id: string } | null }[]; jours: { etat: string }[] };
     expect(s.etat).toBe('casse');
-    expect(s.cassees.find((c) => c.entreprise?.id === ent)).toMatchObject({ sorte: 'livres', rang: 2 });
+    expect(s.cassees.find((c) => c.entreprise?.id === ent && c.quoi === 'liens')).toMatchObject({ sorte: 'livres', rang: 2 });
     expect(s.jours).toHaveLength(30);
     expect(s.jours.at(-1)?.etat).toBe('casse');
     const t = (await appeler('GET', '/console/service/securite', technique.console)).corps.chaines as { cassees: { entreprise: unknown }[] };

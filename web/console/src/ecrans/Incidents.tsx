@@ -63,12 +63,15 @@ const enChamp = (iso: string) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'A
 const duChamp = (v: string) => (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v) ? `${v}:00+01:00` : null);
 // « aujourd'hui, 16:26 », « le 02/10/2026, 21:14 » : le jour et l'heure, une fois.
 const jourHeure = (iso: string, aujourdhui: string) => quand(iso, aujourdhui);
-const FICHES_A_DECIDER: Record<string, 'a_decider' | 'a_verifier'> = { site: 'a_decider', fuite: 'a_verifier', rancon: 'a_verifier' };
+const FICHES_A_DECIDER: Record<string, 'a_decider' | 'a_verifier'> = { site: 'a_decider', fuite: 'a_verifier', rancon: 'a_verifier', empreinte: 'a_verifier' };
+// Un incident ouvert depuis un autre écran sur sa fiche (« #/service/incidents?ouvrir=empreinte », l'écran Sécurité, 0142) :
+// la gravité que la fiche dit (« critique »).
+const GRAVITE_DE_FICHE: Record<string, Gravite> = { empreinte: 'critique' };
 const TEMPS = ['contenir', 'dire', 'reparer', 'ecrire'] as const;
 
 // ── Les gestes ──────────────────────────────────────────────────────────────────────────────────────────────────────
 type Geste =
-  | { sorte: 'ouvrir' }
+  | { sorte: 'ouvrir'; fiche?: string }
   // 0128 : la même réponse à chaque demande ouverte liée à un incident (ouvert, ou clos : « c'est réparé »).
   | { sorte: 'prevenir'; cible: { id: string; ref: string; titre: string; ouvertes: number } }
   | { sorte: 'point'; i: Incident; public: boolean }
@@ -471,11 +474,11 @@ function Pied({ fermer, occupe, envoyer, bouton, sortie }: { fermer: () => void;
 }
 const motifCourt = (m: string) => m.trim().length < 3;
 
-function FenetreOuvrir({ d, fermer, fait }: { d: Donnees; fermer: () => void; fait: () => void }) {
+function FenetreOuvrir({ d, pre, fermer, fait }: { d: Donnees; pre?: string | undefined; fermer: () => void; fait: () => void }) {
   const e = useEnvoi(fait);
-  const [t, setT] = useState('');
-  const [g, setG] = useState<Gravite>('mineur');
-  const [fiche, setFiche] = useState('');
+  const [t, setT] = useState(pre ? maj(dire(`${I}.fiche.${pre}.nom`)) : '');
+  const [g, setG] = useState<Gravite>(pre ? GRAVITE_DE_FICHE[pre] ?? 'mineur' : 'mineur');
+  const [fiche, setFiche] = useState(pre ?? '');
   const [publier, setPublier] = useState(false);
   const [pub, setPub] = useState('');
   const [motif, setMotif] = useState('');
@@ -506,7 +509,8 @@ function FenetreOuvrir({ d, fermer, fait }: { d: Donnees; fermer: () => void; fa
         <span>{phrase(`${I}.ouvrir_f.publier`)}</span>
       </label>
       {publier ? <Zone libelle={titre(`${I}.ouvrir_f.public`)} aide={phrase(`${I}.ouvrir_f.public_aide`)} valeur={pub} changer={setPub} faute={e.faute('public')} n={e.n} /> : null}
-      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${I}.ouvrir_f.motif_aide`)} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
+      {/* Arrivé rempli sur sa fiche (l'écran Sécurité) : il ne reste que le motif, le curseur y est. */}
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${I}.ouvrir_f.motif_aide`)} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} premier={!!pre} />
       <Qui />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
     </Dialogue>
@@ -773,7 +777,7 @@ function FenetreFiche({ f, fermer }: { f: string; fermer: () => void }) {
 
 function Fenetre({ g, d, fermer, fait, changer }: { g: Geste; d: Donnees; fermer: () => void; fait: () => void; changer: (g: Geste) => void }) {
   switch (g.sorte) {
-    case 'ouvrir': return <FenetreOuvrir d={d} fermer={fermer} fait={fait} />;
+    case 'ouvrir': return <FenetreOuvrir d={d} pre={g.fiche} fermer={fermer} fait={fait} />;
     case 'point': return <FenetrePoint i={g.i} publicDemande={g.public} fermer={fermer} fait={fait} />;
     case 'clore': return <FenetreClore i={g.i} d={d} fermer={fermer} fait={fait} />;
     case 'repousser': return <FenetreRepousser s={g.s} d={d} fermer={fermer} fait={fait} />;
@@ -794,11 +798,21 @@ function Fenetre({ g, d, fermer, fait, changer }: { g: Geste; d: Donnees; fermer
 }
 
 // ── L'écran ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-export function Incidents() {
+export function Incidents({ ouvrir = null }: { ouvrir?: string | null }) {
   const [l, relire] = useLecture<Donnees>('/console/service/incidents', 'service-incidents');
   useRelireTantQueRegarde(relire);
   const [geste, setGeste] = useState<Geste | null>(null);
   const d = l.etat === 'lu' ? l.donnees : null;
+  // Arrivé pour ouvrir un incident sur une fiche (l'écran Sécurité, 0142) : la fenêtre s'ouvre une fois, remplie, et
+  // l'adresse s'en défait (revenir sur la page ne la rouvre pas).
+  const aOuvrir = useRef(ouvrir);
+  useEffect(() => {
+    const f = aOuvrir.current;
+    if (!d || !f) return;
+    aOuvrir.current = null;
+    history.replaceState(null, '', '#/service/incidents');
+    if (d.fichesConnues.includes(f)) setGeste({ sorte: 'ouvrir', fiche: f });
+  }, [d]);
   return (
     <>
       <EnteteService vue="incidents" d={d} relire={relire} occupe={l.etat === 'lu' && l.enCours} />

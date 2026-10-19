@@ -8,14 +8,15 @@
 //   - les connexions heure par heure, les règles qui freinent (leurs chiffres viennent du code), qui peut commander le
 //     serveur, et l'équipe avec ses appareils et ses sessions.
 // Les chaînes d'empreintes, relues par le serveur chaque heure (0115) : la dernière relecture, ce qui n'a jamais été relu,
-// trente jours, et chaque chaîne cassée avec son point de rupture. Rien n'est inventé : le contenu des pièces, lui, n'est
-// pas encore recomparé à son empreinte, et l'écran le dit.
+// trente jours, et chaque chaîne cassée avec son point de rupture. Depuis 0142 (docs/console.md C66), le contenu de chaque
+// pièce aussi, recomparé à son empreinte ; une relecture se demande d'ici (toutes, ou une entreprise pour la direction), et
+// une chaîne cassée ouvre son incident sur la fiche réflexe « une chaîne d'empreintes cassée ».
 import { useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
 import { entier } from '../nombres.ts';
 import { heureDe, jourCourt, quand } from '../temps.ts';
-import { Alerte, Bouton, Dialogue, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
+import { Alerte, Bouton, Champ, Dialogue, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
 import { Secrets, type Secret } from './Secrets.tsx';
 import { EnteteService, EtatPuce, Tuile, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type EtatBrique, type Veille } from './Service.tsx';
 
@@ -38,12 +39,20 @@ type Donnees = {
   // Les secrets et leur échéance (0130), le plus pressé d'abord ; et le délai de « bientôt ».
   secrets?: Secret[]; secretBientot?: number;
 };
+type Nommee = { id: string; nom: string; numero: string | null };
+type Demande = {
+  id: string; demandeeLe: string; par: string; toutes: boolean; entreprise: Nommee | null; total: number | null; faites: number; pieces: number;
+  cassees: number; commencee: boolean; nouvelleLe: string | null; finieLe: string | null; arretee: boolean;
+};
 type Chaines = {
-  etat: 'casse' | 'arretee' | 'jamais' | 'bonne'; pasMs: number; parLot: number;
+  etat: 'casse' | 'arretee' | 'jamais' | 'bonne'; pasMs: number; parLot: number; contenusParLot: number;
   dernier: { le: string; chaines: number; maillons: number; cassees: number; dureeMs: number } | null;
   total: number; maillons: number; jamais: number; plusAncien: string | null; nCassees: number;
-  cassees: { sorte: string; rang: number | null; motif: string | null; le: string | null; entreprise: { id: string; nom: string } | null }[];
+  cassees: { sorte: string; quoi: 'liens' | 'contenu'; rang: number | null; motif: string | null; le: string | null; entreprise: Nommee | null }[];
   jours: { jour: string; etat: 'bon' | 'casse' | 'rien' }[];
+  contenu: { dernier: { le: string; chaines: number; pieces: number; cassees: number; dureeMs: number } | null; jamais: number; plusAncien: string | null;
+    nCassees: number; nonRelues: number; enAttente: number };
+  demande: Demande | null; incident: { id: string; ref: string } | null;
 };
 
 const somme = (h: readonly Heure[], k: 'reussies' | 'codesFaux') => h.reduce((s, x) => s + x[k], 0);
@@ -222,8 +231,52 @@ function Equipe({ d }: { d: Donnees }) {
 const ETAT_CHAINES: Record<Chaines['etat'], EtatBrique> = { bonne: 'bon', arretee: 'attention', casse: 'grave', jamais: 'nonmesure' };
 const SORTES_CHAINE = new Set(['serie', 'livres', 'caisse']);
 const TON_JOUR: Record<Chaines['jours'][number]['etat'], 'bon' | 'grave' | 'nonmesure'> = { bon: 'bon', casse: 'grave', rien: 'nonmesure' };
-function Chaine({ c, aujourdhui }: { c: Chaines | undefined; aujourdhui: string }) {
+// Ce que la ligne « le contenu de chaque pièce » dit : cassé, une sorte que la relecture ne lit pas encore, relu, ou pas encore.
+function etatContenu(c: Chaines['contenu']): { etat: EtatBrique; texte: string; sous: string } {
+  if (c.nCassees > 0) return { etat: 'grave', texte: maj(selon(c.nCassees, `${S}.ch.p.contenu_casse_etat`)), sous: phrase(`${S}.ch.p.contenu_casse`) };
+  if (!c.dernier) return { etat: 'nonmesure', texte: titre(`${S}.ch.p.contenu_jamais`), sous: '' };
+  if (c.nonRelues > 0) return { etat: 'attention', texte: titre(`${S}.ch.p.contenu_inconnu`), sous: phrase(`${S}.ch.p.contenu_inconnu_sous`, { n: selon(c.nonRelues, `${S}.ch.chaines`) }) };
+  return { etat: 'bon', texte: titre(`${S}.ch.p.contenu`), sous: '' };
+}
+const nomNumero = (e: Nommee) => (e.numero ? `${e.numero} · ${e.nom}` : e.nom);
+// Où une chaîne casse : ses liens disent leur phrase (la base l'écrit) ; son contenu, un code que l'écran dit en mots.
+const MOTIFS_CONTENU = new Set(['modifiee', 'disparue']);
+const motifDe = (x: Chaines['cassees'][number]) => (x.quoi === 'contenu' && x.motif && MOTIFS_CONTENU.has(x.motif) ? dire(`${S}.ch.c.motif.${x.motif}`) : x.motif ?? '');
+
+// La relecture demandée : où elle en est (le serveur la prend dans la minute), ou ce qu'elle a trouvé.
+function DemandeEnCours({ d, aujourdhui }: { d: Demande; aujourdhui: string }) {
+  const sur = d.toutes ? dire(`${S}.ch.r.toutes`) : d.entreprise ? nomNumero(d.entreprise) : dire(`${S}.ch.r.une`);
+  const qui = phrase(`${S}.ch.r.qui`, { par: d.par, quand: quand(d.demandeeLe, aujourdhui), sur });
+  if (d.finieLe) {
+    return (
+      <p className="c-sous c-se-relue" data-relecture="finie">
+        {qui} {phrase(d.cassees ? `${S}.ch.r.finie_casse` : `${S}.ch.r.finie`, {
+          quand: quand(d.finieLe, aujourdhui), chaines: selon(d.faites, `${S}.ch.chaines`), pieces: selon(d.pieces, `${S}.ch.pieces`), cassees: selon(d.cassees, `${S}.ch.cassees`),
+        })}
+      </p>
+    );
+  }
+  const total = d.total ?? 0;
+  return (
+    <div className="c-se-relecture" data-relecture="en-cours">
+      <p>{qui}</p>
+      {d.commencee && d.total !== null ? (
+        <>
+          <div className="c-se-jauge" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={d.faites} aria-label={titre(`${S}.ch.r.jauge`)}>
+            <span style={{ width: `${total ? Math.round((100 * d.faites) / total) : 100}%` }} />
+          </div>
+          <p className="c-sous">{phrase(`${S}.ch.r.avance`, { faites: entier(d.faites), total: selon(total, `${S}.ch.chaines`), pieces: selon(d.pieces, `${S}.ch.pieces`) })}</p>
+        </>
+      ) : <p className="c-sous">{phrase(`${S}.ch.r.attend`)}</p>}
+      {d.arretee ? <Alerte ton="attention"><span>{phrase(`${S}.ch.r.arretee`, { quand: quand(d.nouvelleLe ?? d.demandeeLe, aujourdhui) })}</span></Alerte> : null}
+    </div>
+  );
+}
+
+function Chaine({ c, aujourdhui, role, relire }: { c: Chaines | undefined; aujourdhui: string; role: Donnees['role']; relire: (client: Nommee | null) => void }) {
   const etat = c ? ETAT_CHAINES[c.etat] : 'nonmesure';
+  const enCours = !!c?.demande && !c.demande.finieLe;
+  const contenu = c ? etatContenu(c.contenu) : null;
   return (
     <section className="c-carte c-se-chaine" aria-labelledby="se-chaine">
       <div className="c-se-chaine-tete">
@@ -231,6 +284,15 @@ function Chaine({ c, aujourdhui }: { c: Chaines | undefined; aujourdhui: string 
         <EtatPuce etat={etat} texte={c ? maj(c.etat === 'casse' ? selon(c.nCassees, `${S}.ch.etat_casse`) : dire(`${S}.ch.etat_${c.etat}`)) : titre(`${S}.ch.etat_jamais`)} />
       </div>
       <p className="c-carte-sous">{phrase(`${S}.ch.sous`)}</p>
+      {c && c.nCassees > 0 ? (
+        // Une chaîne cassée : l'étape suivante est l'incident, jamais une réparation.
+        <Alerte ton="danger">
+          <span>{phrase(c.incident ? `${S}.ch.i.suivre_dit` : `${S}.ch.i.ouvrir_dit`, { ref: c.incident?.ref ?? '' })}</span>
+          <span>{c.incident
+            ? <Lien petit href="#/service/incidents">{titre(`${S}.ch.i.suivre`, { ref: c.incident.ref })}</Lien>
+            : <Lien petit ton="principal" href="#/service/incidents?ouvrir=empreinte">{titre(`${S}.ch.i.ouvrir`)}</Lien>}</span>
+        </Alerte>
+      ) : null}
       {c ? (
         <>
           <dl className="c-se-chaine-chiffres">
@@ -249,30 +311,123 @@ function Chaine({ c, aujourdhui }: { c: Chaines | undefined; aujourdhui: string 
           {c.cassees.length ? (
             <div className="c-defile">
               <table className="c-table">
-                <thead><tr><th>{titre(`${S}.ch.c.sorte`)}</th><th>{titre(`${S}.ch.c.entreprise`)}</th><th>{titre(`${S}.ch.c.rupture`)}</th><th>{titre(`${S}.ch.c.vue`)}</th></tr></thead>
+                <thead><tr>
+                  <th>{titre(`${S}.ch.c.sorte`)}</th><th>{titre(`${S}.ch.c.entreprise`)}</th><th>{titre(`${S}.ch.c.quoi`)}</th><th>{titre(`${S}.ch.c.rupture`)}</th><th>{titre(`${S}.ch.c.vue`)}</th>
+                  {role === 'direction' ? <th><span className="c-cache">{titre(`${S}.ch.c.geste`)}</span></th> : null}
+                </tr></thead>
                 <tbody>
                   {c.cassees.map((x, i) => (
-                    <tr key={`${x.sorte}-${x.le ?? ''}-${i}`}>
+                    <tr key={`${x.sorte}-${x.quoi}-${x.le ?? ''}-${i}`}>
                       <td>{titre(SORTES_CHAINE.has(x.sorte) ? `${S}.ch.sorte.${x.sorte}` : `${S}.ch.sorte.autre`)}</td>
-                      <td>{x.entreprise ? <a href={`#/clients/${x.entreprise.id}`} data-donnee>{x.entreprise.nom}</a> : <span className="c-attente">{dire(`${S}.ch.c.cachee`)}</span>}</td>
-                      <td>{x.rang !== null ? dire(`${S}.ch.c.au_rang`, { rang: entier(x.rang), motif: x.motif ?? '' }) : '—'}</td>
-                      <td>{x.le ? quand(x.le, aujourdhui) : '—'}</td>
+                      <td>{x.entreprise ? <a href={`#/clients/${x.entreprise.id}`} data-donnee>{nomNumero(x.entreprise)}</a> : <span className="c-attente">{dire(`${S}.ch.c.cachee`)}</span>}</td>
+                      <td>{titre(`${S}.ch.c.quoi_${x.quoi}`)}</td>
+                      <td>{x.rang !== null ? maj(dire(`${S}.ch.c.au_rang`, { rang: entier(x.rang), motif: motifDe(x) })) : '—'}</td>
+                      <td>{x.le ? maj(quand(x.le, aujourdhui)) : '—'}</td>
+                      {role === 'direction' ? (
+                        <td>{x.entreprise
+                          ? <Bouton petit desactive={enCours} onClick={() => relire(x.entreprise)} etiquette={titre(`${S}.ch.c.relire_aria`, { nom: x.entreprise.nom })}>{titre(`${S}.ch.c.relire`)}</Bouton>
+                          : null}</td>
+                      ) : null}
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
           ) : null}
+          {c.demande ? <DemandeEnCours d={c.demande} aujourdhui={aujourdhui} /> : null}
+          <div className="c-se-relire">
+            <Bouton icone="relire" desactive={enCours} onClick={() => relire(null)}>{titre(`${S}.ch.r.bouton`)}</Bouton>
+            <span className="c-sous">{enCours ? phrase(`${S}.ch.r.une_a_la_fois`) : phrase(`${S}.ch.r.bouton_sous`)}</span>
+          </div>
         </>
       ) : null}
       <ul className="c-se-chaine-perimetre">
         <li><EtatPuce etat="bon" texte={titre(`${S}.ch.p.liens`)} /> <span className="c-sous">{phrase(`${S}.ch.p.liens_sous`)}</span></li>
-        <li><EtatPuce etat="nonmesure" texte={titre(`${S}.ch.p.contenu`)} /> <span className="c-sous">{phrase(`${S}.ch.p.contenu_sous`)}</span></li>
+        <li>
+          <EtatPuce etat={contenu?.etat ?? 'nonmesure'} texte={contenu?.texte ?? titre(`${S}.ch.p.contenu_jamais`)} />{' '}
+          <span className="c-sous">
+            {c?.contenu.dernier
+              ? phrase(`${S}.ch.p.contenu_sous`, {
+                quand: quand(c.contenu.dernier.le, aujourdhui), chaines: selon(c.contenu.dernier.chaines, `${S}.ch.chaines`), pieces: selon(c.contenu.dernier.pieces, `${S}.ch.pieces`),
+                lot: entier(c.contenusParLot),
+              })
+              : phrase(`${S}.ch.p.contenu_avant`, { lot: entier(c?.contenusParLot ?? 0) })}
+            {c && c.contenu.dernier && c.contenu.jamais ? ` ${maj(selon(c.contenu.jamais, `${S}.ch.p.contenu_jamais_n`))}.` : ''}
+            {c && c.contenu.enAttente ? ` ${maj(selon(c.contenu.enAttente, `${S}.ch.p.contenu_attente`))}.` : ''}
+            {contenu?.sous ? ` ${contenu.sous}` : ''}
+          </span>
+        </li>
         <li><EtatPuce etat="bon" texte={titre(`${S}.ch.p.caisse`)} /> <span className="c-sous">{phrase(`${S}.ch.p.caisse_sous`)}</span></li>
         <li><EtatPuce etat="bon" texte={titre(`${S}.ch.p.journal`)} /> <span className="c-sous">{phrase(`${S}.ch.p.journal_sous`)}</span></li>
       </ul>
       <p className="c-sous">{phrase(`${S}.ch.jamais_reparer`)}</p>
     </section>
+  );
+}
+
+// ── Le geste : relire maintenant ────────────────────────────────────────────────────────────────────────────────────
+// Toutes les chaînes (la direction et la technique), ou celles d'une entreprise nommée par son numéro de client (la
+// direction seule : la technique ne reçoit aucun identifiant de client).
+function FenetreRelire({ role, client, fermer, fait }: { role: Donnees['role']; client: Nommee | null; fermer: () => void; fait: () => void }) {
+  const api = useApi();
+  const { moi } = useConsole();
+  const [une, setUne] = useState(client !== null);
+  const [numero, setNumero] = useState(client?.numero ?? '');
+  const [motif, setMotif] = useState('');
+  const [refus, setRefus] = useState<string | null>(null);
+  const [faute, setFaute] = useState<{ champ: 'numero' | 'motif'; n: number } | null>(null);
+  const [occupe, setOccupe] = useState(false);
+  const fauter = (champ: 'numero' | 'motif', texte: string) => { setRefus(texte); setFaute((f) => ({ champ, n: (f?.n ?? 0) + 1 })); };
+  const envoyer = () => {
+    const cible = une ? (client && !client.numero ? client.id : numero.trim()) : null;
+    if (une && !cible) { fauter('numero', phrase(`${S}.ch.r.f.numero_vide`)); return; }
+    if (motif.trim().length < 3) { fauter('motif', phrase('console.ecran.geste.motif_court')); return; }
+    void (async () => {
+      setOccupe(true);
+      try {
+        const res = await api('POST', '/console/service/securite/relire', { client: cible, motif: motif.trim() });
+        if (!res) return;
+        if (res.statut === 201) { toast(phrase(`${S}.ch.r.f.fait`)); fait(); return; }
+        setRefus(refusDe(res));
+        if (res.corps.champ === 'motif') setFaute((f) => ({ champ: 'motif', n: (f?.n ?? 0) + 1 }));
+        else if (une) setFaute((f) => ({ champ: 'numero', n: (f?.n ?? 0) + 1 }));
+      } catch (x) { setRefus(panneDe(x)); } finally { setOccupe(false); }
+    })();
+  };
+  return (
+    <Dialogue titre={titre(`${S}.ch.r.f.titre`)} sous={client ? nomNumero(client) : undefined} sousDonnee fermer={fermer} occupe={occupe}
+      pied={<>
+        <Bouton ferme onClick={fermer} desactive={occupe}>{titre('console.ecran.annuler')}</Bouton>
+        <Bouton ton="principal" occupe={occupe} onClick={envoyer}>{titre(`${S}.ch.r.f.bouton`)}</Bouton>
+      </>}>
+      {role === 'direction' && !client ? (
+        <div className="c-champ">
+          <span className="c-champ-libelle" id="se-relire-quoi">{titre(`${S}.ch.r.f.quoi`)}</span>
+          <div className="c-pilules" role="group" aria-labelledby="se-relire-quoi">
+            <button type="button" className="c-pilule" aria-pressed={!une} onClick={() => setUne(false)}>{maj(dire(`${S}.ch.r.toutes`))}</button>
+            <button type="button" className="c-pilule" aria-pressed={une} onClick={() => setUne(true)}>{maj(dire(`${S}.ch.r.f.une`))}</button>
+          </div>
+        </div>
+      ) : null}
+      {/* Le champ se garde en place (caché, jamais retiré) : choisir « une entreprise » ne pousse pas le motif sous le curseur. */}
+      {role === 'direction' && !client ? (
+        <div className={une ? undefined : 'c-invisible'} aria-hidden={!une || undefined}>
+          <Champ libelle={titre(`${S}.ch.r.f.numero`)} aide={phrase(`${S}.ch.r.f.numero_aide`)} valeur={numero} changer={setNumero}
+            placeholder="E-0012" autoComplete="off" faute={faute?.champ === 'numero'} n={faute?.n ?? 0} />
+        </div>
+      ) : null}
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre(`${K}.al.geste.ce_qui_va`)}</span>
+        <ul>
+          <li>{phrase(`${S}.ch.r.f.p1`)}</li>
+          <li>{phrase(`${S}.ch.r.f.p2`)}</li>
+          <li>{phrase(`${S}.ch.r.f.p3`)}</li>
+        </ul>
+      </div>
+      <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${S}.ch.r.f.motif_aide`)} valeur={motif} changer={setMotif} faute={faute?.champ === 'motif'} n={faute?.n ?? 0} />
+      <p className="c-al-qui">{phrase(`${K}.al.geste.qui`, { nom: moi.nom, role: dire(`console.ecran.role.${moi.role}`) })}</p>
+      {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
+    </Dialogue>
   );
 }
 
@@ -322,9 +477,11 @@ function FenetreLever({ r, fermer, fait }: { r: ARegarder; fermer: () => void; f
 // ── L'écran ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 export function Securite() {
   const [l, relire] = useLecture<Donnees>('/console/service/securite', 'service-securite');
-  useRelireTantQueRegarde(relire);
-  const [lever, setLever] = useState<ARegarder | null>(null);
   const d = l.etat === 'lu' ? l.donnees : null;
+  // Une relecture en cours se suit de près (toutes les cinq secondes) ; sinon, chaque minute.
+  useRelireTantQueRegarde(relire, d?.chaines?.demande && !d.chaines.demande.finieLe ? 5_000 : undefined);
+  const [lever, setLever] = useState<ARegarder | null>(null);
+  const [relecture, setRelecture] = useState<{ client: Nommee | null } | null>(null);
   return (
     <>
       <EnteteService vue="securite" d={d} relire={relire} occupe={l.etat === 'lu' && l.enCours} />
@@ -341,10 +498,11 @@ export function Securite() {
           <Equipe d={d} />
           <Cles d={d} />
           <Secrets secrets={d.secrets} bientot={d.secretBientot ?? 30} aujourdhui={d.aujourdhui} relire={relire} />
-          <Chaine c={d.chaines} aujourdhui={d.aujourdhui} />
+          <Chaine c={d.chaines} aujourdhui={d.aujourdhui} role={d.role} relire={(client) => setRelecture({ client })} />
         </>
       ) : null}
       {lever ? <FenetreLever r={lever} fermer={() => setLever(null)} fait={() => { setLever(null); relire(); }} /> : null}
+      {relecture && d ? <FenetreRelire role={d.role} client={relecture.client} fermer={() => setRelecture(null)} fait={() => { setRelecture(null); relire(); }} /> : null}
     </>
   );
 }

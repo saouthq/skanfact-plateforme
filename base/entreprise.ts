@@ -164,6 +164,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.service_tour': { classe: 'hors', raison: 'le dernier passage de chaque tour du serveur (facteur, postier, relances) : l\'état de la plateforme' },
   'plateforme.courriel_trace': { classe: 'hors', raison: 'l\'instant de chaque e-mail parti, et s\'il est parti (0115) : ni adresse ni entreprise, l\'état de la plateforme' },
   'plateforme.releve_chaines': { classe: 'hors', raison: 'chaque relecture des chaînes d\'empreintes, comptée (0115) : l\'état de la plateforme' },
+  'plateforme.releve_contenus': { classe: 'hors', raison: 'chaque relecture du contenu des pièces scellées, comptée (0142) : l\'état de la plateforme' },
+  'plateforme.relecture_demandee': { classe: 'hors', raison: 'une relecture des chaînes demandée depuis la console (0142) : un geste de l\'équipe SkanFact, pas une donnée de l\'entreprise' },
   'plateforme.service_maintenance': { classe: 'hors', raison: 'les maintenances annoncées sur la page d\'état : l\'histoire de la plateforme' },
   // Les réglages (0093, docs/console.md C28) : la relecture d'une règle commune par un comptable, et le message affiché en
   // haut de l'application de tous les clients. Communs à la plateforme, à aucune entreprise.

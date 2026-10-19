@@ -49,7 +49,8 @@ import {
 } from './sauvegardes.ts';
 import { attenteDe, etatTour, lireTravaux, PARTENAIRES, quatorzeJours, SANS_TRACE, TOURS } from './travaux.ts';
 import { depuisLa, plageDe, reserveALaDirection, sorteDe } from './journal.ts';
-import { CHAINES_PAR_LOT, CHAINES_PAS_MS, etatRelecture, joursDeRelecture, lireChaines } from './chaines.ts';
+import { CHAINES_PAR_LOT, CHAINES_PAS_MS, demandeArretee, etatRelecture, joursDeRelecture, lireChaines } from './chaines.ts';
+import { CONTENUS_PAR_LOT } from '../service/contenus.ts';
 import { lireMesure, mesurer, periodeMesure } from './mesure.ts';
 import { CANAUX_CONTESTATION, ISSUES, lireContestations } from './contestations.ts';
 import { lireSecrets, ranger as rangerSecrets, SECRET_BIENTOT_JOURS } from './secrets.ts';
@@ -1492,7 +1493,12 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
           regles: REGLES_DE_CONNEXION.map((r) => ({ ...r, compte: r.nom === 'mot_de_passe' ? lu.freines : null })),
           cles, certificat: v.dernier?.certificat ? { expire: v.dernier.certificat, jours: joursDuCertificat(v.dernier.certificat, jour) } : null,
           // Les chaînes d'empreintes, relues seules (0115) : la dernière relecture, ce qui n'a jamais été relu, ce qui est cassé.
-          chaines: { ...chaines, jours: joursDeRelecture(chaines.jours, jour), etat: etatRelecture(chaines, instant), pasMs: CHAINES_PAS_MS, parLot: CHAINES_PAR_LOT },
+          // Depuis 0142 (C66) : le contenu des pièces aussi, la relecture demandée (et si elle ne bouge plus), l'incident relié.
+          chaines: {
+            ...chaines, jours: joursDeRelecture(chaines.jours, jour), etat: etatRelecture(chaines, instant), pasMs: CHAINES_PAS_MS, parLot: CHAINES_PAR_LOT,
+            contenusParLot: CONTENUS_PAR_LOT, incident: chaines.incident ? { id: chaines.incident.id, ref: refIncident(chaines.incident.annee, chaines.incident.numero) } : null,
+            demande: chaines.demande ? { ...chaines.demande, arretee: demandeArretee(chaines.demande, instant) } : null,
+          },
           // Les secrets et leur échéance (0130) : jamais leur valeur ; le plus pressé d'abord.
           secrets: rangerSecrets(lireSecrets(await lireJson(x, 'select plateforme.console_secrets() v')), jour), secretBientot: SECRET_BIENTOT_JOURS,
         },
@@ -1529,6 +1535,16 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     traiter: async ({ params, corps }, tx) => {
       await transaction(tx).query('select plateforme.console_retirer_secret($1, $2, $3)', [lireUuid(params.secret), corps.motif, maintenant()]);
       return { corps: { ok: true } };
+    },
+  });
+  // Relire maintenant (0142 ; C66) : toutes les chaînes, ou celles d'une entreprise (la direction, par son numéro de client).
+  // La relecture se fait par le serveur, à la minute qui suit ; l'écran suit où elle en est.
+  ajouter({
+    methode: 'POST', chemin: '/console/service/securite/relire', geste: 'console.service.gerer',
+    corps: z.object({ client: z.string().trim().max(40).nullable(), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const r = await lireJson<{ id: string }>(transaction(tx), 'select plateforme.console_demander_relecture($1, $2, $3) v', [corps.client || null, corps.motif, maintenant()]);
+      return { statut: 201, corps: { id: r.id } };
     },
   });
   ajouter({

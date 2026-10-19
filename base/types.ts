@@ -853,6 +853,18 @@ export interface BaseDeDonnees {
     rang: string;
     partie_le: Date;
   };
+  'plateforme.relecture_demandee': {
+    id: Generated<string>;
+    demandee_le: Date;
+    demandee_par: string;
+    entreprise: string | null;
+    pris_le: Date | null;
+    total: number | null;
+    faites: Generated<number>;
+    pieces: Generated<bigint>;
+    cassees: Generated<number>;
+    finie_le: Date | null;
+  };
   'plateforme.relecture_regle': {
     id: Generated<string>;
     regle: string;
@@ -867,6 +879,13 @@ export interface BaseDeDonnees {
     le: Date;
     chaines: number;
     maillons: bigint;
+    cassees: number;
+    duree_ms: number;
+  };
+  'plateforme.releve_contenus': {
+    le: Date;
+    chaines: number;
+    pieces: bigint;
     cassees: number;
     duree_ms: number;
   };
@@ -1172,6 +1191,11 @@ export interface BaseDeDonnees {
     controle_ok: boolean | null;
     casse_rang: bigint | null;
     casse_motif: string | null;
+    contenu_le: Date | null;
+    contenu_ok: boolean | null;
+    contenu_rang: bigint | null;
+    contenu_motif: string | null;
+    contenu_jusqua: bigint | null;
   };
   'socle.changement_adresse': {
     id: Generated<string>;

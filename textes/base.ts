@@ -733,6 +733,13 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'une sortie se clôt de deux façons : le client est parti, ou il reste', cle: 'base.console.sortie_issue', fr: 'une sortie se clôt de deux façons : le client est parti, ou il reste' },
   { base: 'son abonnement se renouvelle encore : résilie-le d\'abord, il ira au bout de ce qui est payé', cle: 'base.console.sortie_contrat', fr: 'son abonnement se renouvelle encore : résilie-le d\'abord, il ira au bout de ce qui est payé' },
   { base: 'le remboursement n\'est pas réglé : dis s\'il n\'y a rien à rendre, ou la référence de ce qui a été rendu', cle: 'base.console.sortie_sans_remboursement', fr: 'le remboursement n\'est pas réglé : dis s\'il n\'y a rien à rendre, ou la référence de ce qui a été rendu' },
+  // Le contenu des pièces scellées, relu contre son empreinte (0142, docs/console.md C66).
+  { base: 'seul le serveur relit le contenu des pièces scellées', cle: 'base.chaine.contenu_serveur', fr: 'seul le serveur relit le contenu des pièces scellées' },
+  { base: 'le motif d\'une relecture : 200 caractères au plus', cle: 'base.chaine.contenu_motif', fr: 'le motif d\'une relecture : 200 caractères au plus' },
+  { base: 'une relecture demandée dit pourquoi (trois caractères au moins) : elle reste au journal de la console', cle: 'base.console.relecture_motif', fr: 'une relecture demandée dit pourquoi (trois caractères au moins) : elle reste au journal de la console' },
+  { base: 'relire une entreprise nommée est un geste de la direction', cle: 'base.console.relecture_direction', fr: 'relire une entreprise nommée est un geste de la direction' },
+  { base: 'aucune entreprise ne porte ce numéro de client', cle: 'base.console.relecture_client', fr: 'aucune entreprise ne porte ce numéro de client : il s\'écrit comme sur sa fiche, « E-0012 »' },
+  { base: 'une relecture est déjà en cours : la suivante se demande quand elle est finie', cle: 'base.console.relecture_en_cours', fr: 'une relecture est déjà en cours : la suivante se demande quand elle est finie' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

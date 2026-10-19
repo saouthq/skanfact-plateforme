@@ -1543,6 +1543,34 @@ centile : 21 s, 11 s, 25 s). **Après** : 130 ms, 111 ms, 254 ms. Ce qui coûtai
 Les autres écrans qui lisent toute la clientèle (Abonnements, Cabinets, Mesure, Paiements, Support) gardent leur calcul :
 le banc ne les mesure pas encore ; ils prendront ce chemin s'il les trouve au-delà du seuil.
 
+**C66. Le contenu des pièces, relu contre son empreinte** (1.53.0 ; base 0142 ; l'audit 1.42.0 § 4 ; décidé par
+délégation le 19/10/2026). La relecture de chaque heure (C38) refaisait les **liens** de chaque chaîne : elle ne voyait
+pas une pièce retouchée par-dessous la base, dont le maillon n'a pas bougé. Désormais, au même tour, le **contenu** de
+chaque pièce scellée est relu tel qu'il est aujourd'hui, recalculé **par la fonction qui l'a scellé** (deux chemins, un
+chiffre : `contenuScelle` pour une pièce de vente, `compta.contenu_ecriture` pour une écriture validée) et comparé à
+l'empreinte de son maillon (`serveur/service/contenus.ts`). Ce qui est fait :
+- **chaque heure**, après les liens, le contenu de cinquante chaînes au plus (les moins récemment relues d'abord), par
+  pas de cinq cents pièces, chaque pas dans sa transaction, deux minutes au plus par tour (le suivant reprend là ; à
+  VÉRIFIER à la mesure de charge). Une chaîne garde la date, le résultat, le rang et le motif de sa dernière relecture
+  (« pièce modifiée », « pièce disparue »), et jusqu'à quel maillon elle est allée : une pièce scellée après la relecture
+  attend la suivante, et l'écran le dit (« une pièce scellée depuis : le prochain tour la relira »). Une sorte de pièce
+  que la relecture ne sait pas encore lire n'est **jamais « intacte »** : « contenu relu en partie », avec son nombre ;
+- **relire maintenant**, depuis Sécurité : toutes les chaînes (la direction ou la technique), ou celles d'**une
+  entreprise** nommée par son numéro de client (« E-0012 », la direction seule : la technique ne reçoit aucun identifiant
+  de client). Une seule à la fois ; le geste entre au journal de la console avec son motif ; le serveur la prend dans la
+  minute, refait les liens puis le contenu de chaque chaîne, et dit où il en est (une jauge, chaîne par chaîne ; l'écran
+  se relit toutes les cinq secondes tant qu'elle tourne). Un serveur arrêté en route la laisse ; un autre la reprend cinq
+  minutes après, et l'écran dit qu'il n'en a plus de nouvelles. Elle compte comme une relecture des liens et du contenu ;
+- **une chaîne cassée** (par ses liens ou par son contenu) dit **ce qui casse** et où ; la veille la compte (l'alerte
+  grave de C38), et « À décider » ouvre désormais l'écran Sécurité. La carte n'offre qu'une étape : **ouvrir l'incident**,
+  sur la nouvelle fiche réflexe « une chaîne d'empreintes cassée » (ne rien réparer, ne rien effacer ; garder une copie de
+  la base ; relire l'entreprise ; prévenir l'entreprise touchée ; une pièce fiscale touchée se déclare À VÉRIFIER avec un
+  comptable). La fenêtre s'ouvre remplie (le titre, « critique », la fiche) et le curseur attend le motif ; ouvert,
+  l'incident est relié à la chaîne (« suivre INC-… »). Une ligne cassée se relit d'un clic (la direction).
+Rien n'est écrit chez un client : la relecture lit, et note ce qu'elle trouve dans la chaîne. **Décidé par délégation** :
+le rythme (cinquante chaînes, deux minutes, cinq cents pièces par pas), la fiche réflexe et sa gravité, le droit de la
+technique à « tout relire ».
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1553,10 +1581,9 @@ cellules des tableaux à 11 × 12, la page à 24 × 32 et jusqu'à 1 440 points 
 ## Ce que le lot ne fait pas
 
 La suite de la console : le relevé de la banque lu et pointé (aucune banque branchée ; les paiements, C30, montrent ce qui reste à encaisser), la retenue à la source sur nos factures (`05` § 4.2), la suite du service (la
-sécurité : bloquer une adresse ; la relecture du contenu des pièces contre leur
-empreinte, « relire une entreprise » et « tout relire maintenant » ; le débit des travaux heure par heure, la pause d'un
-partenaire, un nombre d'essais au plus, et les envois de la TEJ et de la CNSS, qui n'ont pas encore de trace ; un
-incident relié tout seul à une chaîne cassée), la mesure, la suite des réglages (un prix se prépare depuis la 1.12.0, C28 ; les nouveautés s'allument depuis la 1.27.0, C43). L'écran
+sécurité : bloquer une adresse ; le débit des travaux heure par heure, la pause d'un partenaire, un nombre d'essais au
+plus, et les envois de la TEJ et de la CNSS, qui n'ont pas encore de trace ; la relecture du contenu est faite en 1.53.0,
+C66), la mesure, la suite des réglages (un prix se prépare depuis la 1.12.0, C28 ; les nouveautés s'allument depuis la 1.27.0, C43). L'écran
 « Application de bureau » de la maquette (les licences, les postes, la fin de vie et le passage à la plateforme de la v10)
 ne se construit pas : **la v10 n'est installée chez personne** (Skander, 14/10/2026). Celui de la nouvelle application de
 bureau (la coque et son agent local : les postes qui l'ont, leur version, ce que l'agent voit, ses erreurs) se dessinera

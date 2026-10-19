@@ -135,7 +135,9 @@ function voir(l: Ligne, aujourdhui: string): Vue {
   const fiche = (q: Qui) => `#/clients/${q.id}`;
   switch (l.sorte) {
     case 'service':
-      return { icone: 'serveur', titre: maj(l.titre), desc: l.faire, meta: titre('console.ecran.decider.service_depuis', { quand: l.depuis ? quand(l.depuis, aujourdhui) : '—' }), urgence: l.grave ? 'urgent' : 'a_regarder', href: '#/service/alertes', bouton: titre('console.ecran.decider.ouvrir_alerte') };
+      // Une chaîne d'empreintes (0115, 0142) : son geste est sur l'écran Sécurité (ouvrir l'incident, relire).
+      return { icone: 'serveur', titre: maj(l.titre), desc: l.faire, meta: titre('console.ecran.decider.service_depuis', { quand: l.depuis ? quand(l.depuis, aujourdhui) : '—' }), urgence: l.grave ? 'urgent' : 'a_regarder',
+        ...(l.cle.startsWith('chaine') ? { href: '#/service/securite', bouton: titre('console.ecran.decider.ouvrir_securite') } : { href: '#/service/alertes', bouton: titre('console.ecran.decider.ouvrir_alerte') }) };
     case 'secret':
       return { icone: 'cadenas', titre: titre(l.jours < 0 ? 'console.ecran.decider.secret_retard_titre' : 'console.ecran.decider.secret_titre', { nom: l.nom }),
         desc: phrase(l.jours < 0 ? 'console.ecran.decider.secret_retard' : 'console.ecran.decider.secret', { n: Math.abs(l.jours), le: jourCourt(l.echeance) }),

@@ -113,8 +113,8 @@ export const enTitre = (s: string) => maj(typo(s));
 
 // ── Se relire tant que quelqu'un regarde ────────────────────────────────────────────────────────────────────────────
 // En pause (« Pause » de l'en-tête), l'écran garde sa dernière lecture.
-export function useRelireTantQueRegarde(relire: () => void) {
-  useRelireQuandOnRegarde(relire, { attendre: () => pause.lire() });
+export function useRelireTantQueRegarde(relire: () => void, periode?: number) {
+  useRelireQuandOnRegarde(relire, { ...(periode ? { periode } : {}), attendre: () => pause.lire() });
 }
 
 // ── L'en-tête : l'état du service en une ligne ──────────────────────────────────────────────────────────────────────

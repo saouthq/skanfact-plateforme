@@ -10,7 +10,8 @@ export const rangGravite = (g: Gravite) => GRAVITES.indexOf(g);
 
 // Les fiches réflexes, dans l'ordre de la page (leur texte vit dans la console : web/console/src/textes.ts). Un incident
 // suit une fiche ou aucune ; la base n'en accepte qu'un nom bien formé, la route n'accepte que celles-ci.
-export const FICHES = ['service', 'site', 'base', 'sauvegarde', 'partenaire', 'chiffre', 'acces', 'fuite', 'rancon'] as const;
+// « empreinte » (0142, C66) : une chaîne d'empreintes cassée — l'écran Sécurité ouvre l'incident sur elle.
+export const FICHES = ['service', 'site', 'base', 'sauvegarde', 'partenaire', 'chiffre', 'acces', 'fuite', 'rancon', 'empreinte'] as const;
 export type Fiche = typeof FICHES[number];
 export const estFiche = (x: unknown): x is Fiche => typeof x === 'string' && (FICHES as readonly string[]).includes(x);
 

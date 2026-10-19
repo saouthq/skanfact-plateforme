@@ -2885,7 +2885,17 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-se-frise { display: grid; grid-template-columns: repeat(30, minmax(0, 1fr)); gap: 3px; height: 22px; }
 .c-se-jour { border-radius: 4px; }
 .c-se-chaine-perimetre { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 8px; }
-.c-se-chaine-perimetre li { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.c-se-chaine-perimetre li { display: grid; grid-template-columns: max-content minmax(0, 1fr); align-items: baseline; gap: 10px; }
+/* Relire maintenant (0142) : la relecture demandée, sa jauge, puis le geste ; le geste garde sa place pendant qu'elle
+   tourne (désactivé, avec sa raison). */
+.c-se-relecture { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid var(--c-trait); border-radius: 12px; background: var(--c-papier-2); }
+.c-se-relecture p { margin: 0; }
+.c-se-jauge { height: 8px; border-radius: 999px; background: var(--c-gris-doux); overflow: hidden; }
+.c-se-jauge span { display: block; height: 100%; border-radius: 999px; background: var(--c-sarcelle); transition: width .4s ease; }
+.c-se-relue { margin: 0; }
+.c-se-relire { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.c-invisible { visibility: hidden; }
+@media (prefers-reduced-motion: reduce) { .c-se-jauge span { transition: none; } }
 @media (max-width: 860px) {
   .c-se-chaine-chiffres { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

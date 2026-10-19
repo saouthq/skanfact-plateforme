@@ -57,6 +57,7 @@ import { choisirEncodage, compressible, SEUIL_COMPRESSION } from './compression.
 import { dejaGarde, fichiersDesEcrans, versionDuCode } from './ecrans.ts';
 import { noterPanne, Refus } from './erreurs.ts';
 import { relireLesChaines } from './service/chaines.ts';
+import { DEMANDES_PAS_MS, faireLaRelectureDemandee } from './service/contenus.ts';
 import { suivreTour } from './service/tours.ts';
 import { CHAINES_PAS_MS } from './console/chaines.ts';
 import { listeDepuisFichier } from './mot-de-passe.ts';
@@ -369,6 +370,15 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   };
   tourDesChaines();
   const gardien = setInterval(tourDesChaines, CHAINES_PAS_MS);
+  // Une relecture demandée depuis la console (0142 ; docs/console.md C66) : cherchée chaque minute, faite ici, une à la fois.
+  // Elle note elle-même où elle en est (la console le montre) ; une panne laisse la demande ouverte, reprise cinq minutes après.
+  let relectureDemandee: Promise<unknown> = Promise.resolve();
+  let enRelectureDemandee = false, arretDemande = false;
+  const demandesDeRelecture = setInterval(() => {
+    if (enRelectureDemandee) return;
+    enRelectureDemandee = true;
+    relectureDemandee = faireLaRelectureDemandee(pool, () => new Date(), () => arretDemande).catch((e: unknown) => { noterPanne('tâche faireLaRelectureDemandee', e); }).finally(() => { enRelectureDemandee = false; });
+  }, DEMANDES_PAS_MS);
 
   // Les mesures du service (docs/console.md, C12) : chaque minute, ce qui s'est ajouté part dans la base ; un envoi à la
   // fois (une base lente ne les empile pas), et le dernier part à l'arrêt (une installation ne perd pas sa minute).
@@ -393,6 +403,8 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       clearInterval(basculeur);
       clearInterval(mesureur);
       clearInterval(gardien);
+      clearInterval(demandesDeRelecture);
+      arretDemande = true;
       await tour;
       await verification;
       await tournee;
@@ -401,6 +413,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       await relances;
       await bascules;
       await relecture;
+      await relectureDemandee;
       await app.close();
       await mesures;
       await envoyerMesures(pool, exemplaire, collecte);

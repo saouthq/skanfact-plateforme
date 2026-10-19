@@ -20,6 +20,7 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, beforeEach, describe, expect, inject, it } from 'vitest';
 import { ajouter as ajouterALEquipe } from '../../base/equipe.ts';
+import { FICHES } from '../../serveur/console/incidents.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { cliquer } from '../cliquer.ts';
@@ -60,10 +61,10 @@ describe('les incidents du service, à la souris', () => {
     const p = await cx.newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/console/#/service/incidents`);
-    await expect.poll(() => p.locator('.c-in-fiche').count(), { timeout: 20_000 }).toBe(9);
+    await expect.poll(() => p.locator('.c-in-fiche').count(), { timeout: 20_000 }).toBe(FICHES.length);
     return p;
   };
-  // Un écran de l'instrument : à une largeur, un thème et une langue ; lu quand ses neuf fiches réflexes sont là.
+  // Un écran de l'instrument : à une largeur, un thème et une langue ; lu quand toutes ses fiches réflexes sont là.
   const ouvrirEcran = async (e: EcranConsole, o: { largeur: number; theme?: 'clair' | 'sombre'; factice?: boolean }) => {
     const cx = await navigateur.newContext({ viewport: { width: o.largeur, height: o.largeur < 600 ? 844 : 900 }, locale: 'fr-FR' });
     await cx.addInitScript(([j, t]) => {
@@ -73,7 +74,7 @@ describe('les incidents du service, à la souris', () => {
     const p = await cx.newPage();
     p.on('pageerror', (x) => erreurs.push(x.message));
     await p.goto(`${serveur.adresse}/console/${o.factice ? '?langue=factice' : ''}${e.hash}`);
-    await expect.poll(() => p.locator('.c-in-fiche').count(), { timeout: 20_000 }).toBe(9);
+    await expect.poll(() => p.locator('.c-in-fiche').count(), { timeout: 20_000 }).toBe(FICHES.length);
     return p;
   };
   const fermer = (p: Page) => p.context().close();

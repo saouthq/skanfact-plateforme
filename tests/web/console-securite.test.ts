@@ -6,6 +6,8 @@
 //   - lever l'attente : un motif trop court se refuse, et le bouton ne bouge pas sous le curseur quand on retape ; levée,
 //     la ligne s'en va et le geste entre au journal ;
 //   - les règles disent leurs chiffres et ce qu'elles ne comptent pas ; les clés de commande, leur nom seul ;
+//   - la chaîne d'empreintes (0142, C66) : une facture retouchée par-dessous la base, l'entreprise relue depuis l'écran
+//     (son numéro de client), la rupture nommée au maillon près, puis l'incident ouvert d'un clic, sa fenêtre déjà remplie ;
 //   - au téléphone : rien ne déborde, l'équipe se lit sans défilement de côté.
 
 import fs from 'node:fs';
@@ -16,11 +18,14 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, beforeEach, describe, expect, inject, it } from 'vitest';
 import { ajouter as ajouterALEquipe } from '../../base/equipe.ts';
+import { creerPool } from '../../serveur/base.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
+import { faireLaRelectureDemandee } from '../../serveur/service/contenus.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { cliquer } from '../cliquer.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
+const PHOTOS = path.join(RACINE, 'dist/photos');
 const MDP = 'Un-bon-mot-de-passe';
 const net = (t: string) => t.replace(/[\s\u202f\u00a0]+/g, ' ').trim();
 
@@ -34,6 +39,7 @@ describe('la sécurité du service, à la souris', () => {
   const veille = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'web-console-securite-veille-')), 'veille.json');
   const erreurs: string[] = [];
   let jD = '';
+  const pool = creerPool(inject('pgApp'));
 
   const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
     const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
@@ -83,7 +89,7 @@ describe('la sécurité du service, à la souris', () => {
     await admin.query(`insert into socle.tentative (cle, erreurs, attente_jusqu_au, derniere) values ($1, 7, now() + interval '15 minutes', now())`, [freine]);
   }, 180_000);
   afterAll(async () => {
-    await navigateur?.close(); await serveur?.arreter(); await admin.end();
+    await navigateur?.close(); await serveur?.arreter(); await admin.end(); await pool.end();
     fs.rmSync(dossier, { recursive: true, force: true }); fs.rmSync(path.dirname(veille), { recursive: true, force: true });
   });
   beforeEach(() => { fs.utimesSync(veille, new Date(), new Date()); });
@@ -170,7 +176,7 @@ describe('la sécurité du service, à la souris', () => {
     await fermer(p);
   }, 90_000);
 
-  it('la chaîne d\'empreintes : relue par le serveur au démarrage, trente jours en cases ; ce qui n\'est pas encore relu le dit', async () => {
+  it('la chaîne d\'empreintes : relue par le serveur au démarrage, trente jours en cases, le contenu des pièces aussi', async () => {
     const p = await ouvrir(jD);
     const carte = p.locator('.c-se-chaine');
     // Le serveur relit les chaînes à son démarrage : l'écran le dit (au besoin, après une relecture de la page).
@@ -178,14 +184,99 @@ describe('la sécurité du service, à la souris', () => {
     const texte = net(await carte.innerText());
     expect(texte).toMatch(/Dernière relecture/i);
     expect(texte).toMatch(/le serveur relit 200 chaînes chaque heure/i);
-    // Ce qui est relu, et ce qui ne l'est pas encore : jamais « tout va bien » sur ce qu'on ne mesure pas.
-    expect(texte).toContain('Pas encore mesuré');
-    expect(texte).toMatch(/le contenu de chaque pièce, recomparé à son empreinte/i);
+    // Le contenu de chaque pièce (0142) : relu au même tour, jamais « pas encore mesuré » une fois relu.
+    expect(texte).not.toContain('Pas encore mesuré');
+    expect(texte).toMatch(/Le serveur relit le contenu de 50 chaînes chaque heure ; la dernière fois/);
     expect(await carte.locator('.c-se-jour').count()).toBe(30);
     expect(await carte.locator('.c-se-jour.c-ton-nonmesure').count()).toBeLessThan(30);
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
+
+  it('une facture retouchée par-dessous la base : relue depuis l\'écran, la rupture nommée, l\'incident ouvert d\'un clic', async () => {
+    // Une entreprise qui a émis une facture (le premier maillon de sa série).
+    await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source)
+      select 'timbre.facture', '1000', '2000-01-01', 'Règle d''essai des tests' where not exists (select 1 from socle.regle_fiscale where code = 'timbre.facture')`);
+    const email = `securite-chaine-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Chaîne Essai', motDePasse: MDP });
+    const jP = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    const ent = String((await api('POST', '/entreprises', jP, { raisonSociale: 'Atelier Chaîne Essai', matriculeFiscal: `${String(Date.now()).slice(-7)}A/A/M/000` })).corps.id);
+    await api('POST', '/moi/code', jP, { methode: 'application' });
+    await api('POST', `/entreprises/${ent}/series`, jP, { type: 'facture', prefixe: 'FAC', legale: true });
+    const client = String((await api('POST', `/entreprises/${ent}/clients`, jP, { raisonSociale: 'Garage Nord', identifiant: '7654321B/A/M/000', typeIdentifiant: 'matricule' })).corps.id);
+    const piece = String((await api('POST', `/entreprises/${ent}/ventes`, jP, { type: 'facture', tiers: client, datePiece: '2026-09-15',
+      lignes: [{ designation: 'Étagère', quantite: '2', prixUnitaire: '345.678', tauxTva: '19' }] })).corps.id);
+    expect((await api('POST', `/entreprises/${ent}/ventes/${piece}/emettre`, jP)).statut).toBeLessThan(300);
+    const numero = String((await admin.query('select plateforme.numero_texte($1) v', [ent])).rows[0]?.v);
+    // Un millime de moins, par-dessous la base (déclencheurs suspendus) : son maillon, lui, n'a pas bougé.
+    const parDessous = async (sens: '-' | '+') => {
+      await admin.query('begin');
+      await admin.query('set local session_replication_role = replica');
+      await admin.query(`update ventes.piece set net_a_payer = net_a_payer ${sens} 1 where id = $1`, [piece]);
+      await admin.query('commit');
+    };
+    await parDessous('-');
+
+    const p = await ouvrir(jD);
+    const carte = p.locator('.c-se-chaine');
+    await carte.waitFor();
+    // Relire une entreprise : « une entreprise », son numéro, le motif. Le choix ne pousse pas le motif sous le curseur.
+    await cliquer(carte.getByRole('button', { name: 'Relire maintenant…', exact: true }));
+    const f = p.getByRole('dialog');
+    const motif = f.getByLabel('Motif', { exact: true });
+    const avant = await motif.boundingBox();
+    await cliquer(f.getByRole('button', { name: 'Une entreprise', exact: true }));
+    expect((await motif.boundingBox())?.y).toBe(avant?.y);
+    // Sans numéro : refusé, le champ le montre.
+    await motif.fill('le client doute d\'une facture');
+    await cliquer(f.getByRole('button', { name: 'Relire maintenant', exact: true }));
+    await expect.poll(() => f.locator('.c-alerte-danger').innerText().then(net).catch(() => '')).toContain('Écris le numéro de client');
+    await f.getByLabel('Son numéro de client', { exact: true }).fill(numero);
+    await cliquer(f.getByRole('button', { name: 'Relire maintenant', exact: true }));
+    await expect.poll(() => p.locator('#c-toast').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe('Relecture demandée : elle commence dans la minute.');
+    // Pendant qu'elle attend : le geste reste en place, désactivé, avec sa raison.
+    await expect.poll(() => carte.locator('[data-relecture="en-cours"]').count(), { timeout: 10_000 }).toBe(1);
+    expect(await carte.getByRole('button', { name: 'Relire maintenant…', exact: true }).isDisabled()).toBe(true);
+    fs.mkdirSync(PHOTOS, { recursive: true });
+    await carte.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'console-securite-1-relecture-demandee.png') });
+    expect(net(await carte.innerText())).toContain('Une relecture est en cours : la suivante se demande quand elle est finie.');
+    // Le serveur la fait (sa minute, ou tout de suite ici) : l'écran, qui se relit de près, la dit finie.
+    await faireLaRelectureDemandee(pool);
+    await expect.poll(() => carte.locator('[data-relecture="finie"]').innerText().then(net).catch(() => ''), { timeout: 20_000 }).toMatch(/Finie .* : une chaîne et une pièce relues ; une chaîne cassée\.$/);
+    const ligne = carte.locator('tbody tr', { hasText: 'Atelier Chaîne Essai' });
+    expect(net(await ligne.innerText())).toMatch(new RegExp(`Les factures d.une série ${numero} · Atelier Chaîne Essai Le contenu d.une pièce Au maillon 1 : pièce modifiée`));
+    await carte.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'console-securite-2-chaine-cassee.png') });
+    // Une chaîne cassée : l'étape suivante est l'incident, déjà rempli sur sa fiche réflexe.
+    const alerte = carte.locator('.c-alerte-danger');
+    expect(net(await alerte.innerText())).toContain('Une chaîne cassée est un incident : ne rien réparer, ne rien effacer.');
+    await cliquer(alerte.getByRole('link', { name: 'Ouvrir l\'incident', exact: true }));
+    const o = p.getByRole('dialog');
+    await expect.poll(() => o.getByLabel('Ce qui se passe', { exact: true }).inputValue().catch(() => ''), { timeout: 15_000 }).toBe('Une chaîne d\'empreintes cassée');
+    expect(await o.locator('select').inputValue()).toBe('empreinte');
+    expect(await o.getByRole('button', { name: 'Critique', exact: true }).getAttribute('aria-pressed')).toBe('true');
+    // Tout est rempli sauf le motif : le curseur l'attend.
+    expect(await o.getByLabel('Motif', { exact: true }).evaluate((e) => e === document.activeElement)).toBe(true);
+    expect(p.url()).toMatch(/#\/service\/incidents$/);
+    await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'console-securite-3-incident-prerempli.png') });
+    await o.getByLabel('Motif', { exact: true }).fill('relecture du contenu : une facture modifiée');
+    await cliquer(o.locator('.c-dialogue-pied .c-btn-principal'));
+    await expect.poll(() => p.locator('#c-toast').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toMatch(/ouvert/i);
+    const inc = (await admin.query("select id, annee, numero from plateforme.service_incident where fiche = 'empreinte' and clos_le is null order by ouvert_le desc limit 1")).rows[0] as { id: string; annee: number; numero: number };
+    const ref = `INC-${inc.annee}-${String(inc.numero).padStart(3, '0')}`;
+    // Revenu sur Sécurité : l'incident est relié, et se suit d'un clic.
+    await p.goto(`${serveur.adresse}/console/#/service/securite`);
+    await expect.poll(() => p.locator('.c-se-chaine .c-alerte-danger').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain(`L'incident ${ref} est ouvert sur cette rupture`);
+    expect(await p.locator('.c-se-chaine .c-alerte-danger').getByRole('link', { name: `Suivre ${ref}`, exact: true }).count()).toBe(1);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+    // Remise, relue, l'incident clos : les essais suivants ne voient pas une chaîne cassée.
+    await parDessous('+');
+    expect((await api('POST', `/console/service/incidents/${inc.id}/clore`, jD, {
+      fin: new Date().toISOString(), effet: 'aucun effet chez un client', cause: 'une retouche d\'essai', change: 'rien à changer, un essai', motif: 'essai fini', suites: [],
+    })).statut).toBe(200);
+    await api('POST', '/console/service/securite/relire', jD, { client: numero, motif: 'remise après l\'essai' });
+    await faireLaRelectureDemandee(pool);
+  }, 120_000);
 
   it('au téléphone : rien ne déborde, l\'équipe se lit sans défilement de côté', async () => {
     const p = await ouvrir(jD, 390);

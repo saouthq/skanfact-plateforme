@@ -41,7 +41,7 @@ export type BrouillonSaisi = {
 export const DECIMALES = { quantite: 3, prix: 6, taux: 4, cours: 6 } as const;
 
 // ── Ce qu'on lit dans la base ───────────────────────────────────────────────────────────────────
-type LignePieceLue = Pick<Selectable<BaseDeDonnees['ventes.ligne']>,
+export type LignePieceLue = Pick<Selectable<BaseDeDonnees['ventes.ligne']>,
   'rang' | 'designation' | 'description' | 'quantite' | 'prix_unitaire' | 'taux_tva' | 'sans_remise' | 'ht' | 'tva' | 'ttc'>;
 export type PieceLue = {
   id: string; entreprise: string; type: TypePiece; statut: string; tiers: string; date_piece: string; echeance: string | null;
@@ -65,6 +65,13 @@ export async function lirePieceBrute(tx: Transaction, entreprise: string, id: st
     .where('id', '=', id).where('entreprise', '=', entreprise)
     .$if(verrou, (q) => q.forUpdate()).executeTakeFirst();
   if (!r) throw new Introuvable();
+  return pieceDeLaLigne(r);
+}
+
+// Une ligne de ventes.piece, telle que la base la rend, en pièce lue. La relecture des chaînes (serveur/service/contenus.ts)
+// passe par ici aussi : la pièce qu'elle recompare à son empreinte se lit comme celle qu'on a scellée.
+export function pieceDeLaLigne(r: Selectable<BaseDeDonnees['ventes.piece']>): PieceLue {
+  const id = r.id;
   let totaux: Record<string, bigint> | null = null;
   if (r.statut === 'emise') {
     totaux = {};

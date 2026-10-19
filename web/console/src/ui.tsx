@@ -366,6 +366,9 @@ export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, childre
   const [question, setQuestion] = useState(false);
   const enQuestion = useRef(false);
   enQuestion.current = question;
+  // Ce qui avait le curseur avant la fenêtre (le bouton qui l'a ouverte), pris au premier rendu : un champ « premier » de la
+  // fenêtre prend le curseur avant l'effet ci-dessous, qui le retrouverait sinon à sa place.
+  const [ouvreur] = useState(() => document.activeElement as HTMLElement | null);
   const demander = useRef(fermer);
   demander.current = () => {
     if (occupe) return;
@@ -378,14 +381,17 @@ export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, childre
     requestAnimationFrame(() => corps.current?.querySelector<HTMLElement>(CHAMPS_TAPES)?.focus());
   }, []);
   useEffect(() => {
-    const avant = document.activeElement as HTMLElement | null;
-    const premier = cadre.current?.querySelector<HTMLElement>('input, textarea, select');
-    (premier ?? cadre.current?.querySelector<HTMLElement>('.c-fermer'))?.focus();
+    const avant = ouvreur;
+    // Un champ de la fenêtre a déjà pris le curseur (`premier` : celui qui reste à remplir) : il le garde.
+    if (!cadre.current?.contains(document.activeElement)) {
+      const premier = cadre.current?.querySelector<HTMLElement>('input, textarea, select');
+      (premier ?? cadre.current?.querySelector<HTMLElement>('.c-fermer'))?.focus();
+    }
     // Échap pendant la question, c'est « reprendre » : la touche qui ferme ne jette jamais ce qu'on a tapé.
     const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); if (enQuestion.current) reprendre(); else demander.current(); } };
     document.addEventListener('keydown', echap);
     return () => { document.removeEventListener('keydown', echap); avant?.focus?.(); };
-  }, [reprendre]);
+  }, [reprendre, ouvreur]);
   useEffect(() => { if (pret && depart.current === null) depart.current = saisieDe(corps.current); }, [pret]);
   // La question pose le curseur sur « Reprendre la saisie » : Entrée ne jette rien par réflexe.
   useEffect(() => { if (question) cadre.current?.querySelector<HTMLElement>('.c-dialogue-question .c-btn-principal')?.focus(); }, [question]);
