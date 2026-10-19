@@ -595,6 +595,26 @@ export interface BaseDeDonnees {
     envoye_le: Date | null;
     resolu_le: Date | null;
   };
+  'plateforme.demande_effacement': {
+    id: Generated<string>;
+    annee: number;
+    numero: number;
+    recue_le: string;
+    canal: string;
+    demandeur: string;
+    sorte: string;
+    utilisateur: string | null;
+    entreprise: string | null;
+    notee_le: Date;
+    notee_par: string;
+    decision: string | null;
+    raison: string | null;
+    decidee_le: Date | null;
+    decidee_par: string | null;
+    faite_le: Date | null;
+    faite_par: string | null;
+    preuve: ColumnType<Json | null, string | null, string | null>;
+  };
   'plateforme.demande_support': {
     id: Generated<string>;
     numero: Generated<number>;

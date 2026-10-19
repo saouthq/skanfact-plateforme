@@ -161,7 +161,7 @@ function jourEnMots(jour: string, aujourdhui: string): string {
 }
 
 // Les sortes de geste (la maquette Journal ; 0114, plateforme.sorte_du_geste) : le filtre et la couleur de chaque ligne.
-const SORTES = ['abonnements', 'clients', 'paiements', 'factures', 'support', 'acces', 'service', 'reglages', 'equipe', 'journal', 'systeme'] as const;
+const SORTES = ['abonnements', 'clients', 'paiements', 'factures', 'support', 'acces', 'donnees', 'service', 'reglages', 'equipe', 'journal', 'systeme'] as const;
 type Sorte = typeof SORTES[number];
 const PLAGES = ['1j', '7j', '30j', 'tout'] as const;
 type Plage = typeof PLAGES[number];

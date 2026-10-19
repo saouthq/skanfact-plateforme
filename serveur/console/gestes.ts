@@ -76,6 +76,11 @@ export const LISTE_GESTES_CONSOLE: GesteConsole[] = [
   // en dit une retirée ; la base réserve à la direction de régulariser par un avoir, un remboursement ou en maintenant la
   // facture (c'est de l'argent).
   { code: 'console.contestations', roles: [D, S], ecrit: true },
+  // Les données personnelles (docs/console.md C68 ; 0144) : la direction et le support lisent et notent une demande
+  // d'effacement ; la direction seule la décide, et efface le compte d'une personne (la base le revérifie).
+  { code: 'console.donnees.voir', roles: [D, S], ecrit: false },
+  { code: 'console.donnees.noter', roles: [D, S], ecrit: true },
+  { code: 'console.donnees.decider', roles: [D], ecrit: true },
   // Exporter la sélection de la liste des clients (docs/console.md C32 ; 0110) : des données de personnes qui quittent la
   // console ; la direction seule, avec son motif, au journal.
   { code: 'console.clients.exporter', roles: [D], ecrit: true },

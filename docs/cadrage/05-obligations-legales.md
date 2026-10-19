@@ -335,7 +335,12 @@ fiscaliste **avant** de publier les prix TTC sur le site.
 - **les adresses internet de l'entrée** (19/10/2026, `docs/console.md` C67 de la plateforme) : pour la sécurité du
   service, le serveur compte par adresse et par heure les connexions refusées ou freinées, et les garde **trente
   jours** ; elles ne sortent pas de nos serveurs. Une finalité à déclarer (la sécurité), et une durée **À VÉRIFIER**
-  avec l'INPDP.
+  avec l'INPDP ;
+- **l'effacement des données personnelles** (19/10/2026, `docs/console.md` C68 et `docs/conservation.md` de la
+  plateforme) : une demande se note, se décide avec sa raison et se fait depuis la console ; la réponse est due **trente
+  jours** après son arrivée (**À VÉRIFIER** : le délai de la loi 2004-63) ; le compte s'anonymise (l'identifiant reste,
+  pour les pièces et les traces que la loi garde) ; la preuve compte ce qui a été fait. Les exceptions qui justifient
+  un refus, et la durée de chaque sorte de données, sont **À VÉRIFIER** avec un juriste.
 
 **À VÉRIFIER** (INPDP, juriste) : les finalités à déclarer et les formulaires ; la durée de
 conservation des traces et des données des salariés partis (`01` § 21, `03` § 7) ; le cas de la

@@ -17,6 +17,9 @@ declarerTextes({
   'geste.console.equipe.gerer': 'gérer l\'équipe SkanFact',
   'geste.console.service.voir': 'voir l\'état du service',
   'geste.console.service.remise': 'préparer la remise d\'une entreprise à une minute (la console compose les commandes, elle ne les exécute pas)',
+  'geste.console.donnees.voir': 'lire les demandes d\'effacement et ce que SkanFact garde',
+  'geste.console.donnees.noter': 'noter une demande d\'effacement reçue',
+  'geste.console.donnees.decider': 'décider d\'une demande d\'effacement, et effacer le compte d\'une personne',
   'geste.console.service.gerer': 'gérer les alertes et les incidents du service (prendre une alerte en charge, une sourdine, une alerte d\'essai ; ouvrir, suivre et clore un incident, ses suites ; annoncer une maintenance)',
   'geste.console.reglages.voir': 'voir les réglages de la plateforme (les prix, les règles communes, le message aux clients)',
   'geste.console.reglages.gerer': 'changer les réglages de la plateforme (noter la relecture d\'une règle, afficher ou retirer le message aux clients, allumer ou éteindre une nouveauté)',
@@ -78,6 +81,11 @@ declarerTextes({
   'console.secret.role': 'à quoi sert ce secret, en quelques mots',
   'console.secret.ou': 'où vit ce secret : le serveur, Cloudflare… jamais sa valeur',
   'console.secret.rotation': 'un rythme de renouvellement : d\'un jour à dix ans',
+  // Une demande d'effacement (0144 ; C68) : chaque refus nomme sa case.
+  'console.donnees.jour': 'le jour où la demande est arrivée : un jour qui existe au calendrier, aujourd\'hui ou avant',
+  'console.donnees.demandeur': 'qui fait la demande : son nom, ou comment il s\'est présenté (trois caractères au moins)',
+  'console.donnees.cible': 'ce que la demande vise : l\'adresse e-mail du compte, ou le numéro de client de l\'entreprise (« E-0012 »)',
+  'console.donnees.raison': 'la raison de la décision, en trois caractères au moins : elle se répond à la personne',
   // Préparer un prix (docs/abonnement.md C14) : chaque refus nomme sa case.
   'console.reglages.prix_illisible': 'le prix s\'écrit en dinars hors taxes, avec trois décimales au plus : « 420 » ou « 420,500 »',
   'console.reglages.nouveaute_inconnue': 'la version en service ne porte pas cette nouveauté : elle n\'existe que dans une version à venir, ou elle est devenue la règle pour tous',

@@ -16,6 +16,7 @@ import { Versions } from './ecrans/Versions.tsx';
 import { Sauvegardes } from './ecrans/Sauvegardes.tsx';
 import { Performances } from './ecrans/Performances.tsx';
 import { Cabinet } from './ecrans/Cabinet.tsx';
+import { Donnees } from './ecrans/Donnees.tsx';
 import { Clients } from './ecrans/Clients.tsx';
 import { Entree } from './ecrans/Entree.tsx';
 import { Invitation } from './ecrans/Invitation.tsx';
@@ -32,7 +33,7 @@ import { Support } from './ecrans/Support.tsx';
 import { Alerte, Avatar, Bouton, Icone, Toast, type NomIcone } from './ui.tsx';
 
 // ── Les écrans et leur adresse ──────────────────────────────────────────────────────────────────────────────────────
-type Page = 'accueil' | 'clients' | 'fiche' | 'groupe' | 'cabinet' | 'abonnements' | 'paiements' | 'nosfactures' | 'support' | 'journal' | 'equipe' | 'service' | 'mesure' | 'reglages';
+type Page = 'accueil' | 'clients' | 'fiche' | 'groupe' | 'cabinet' | 'abonnements' | 'paiements' | 'nosfactures' | 'donnees' | 'support' | 'journal' | 'equipe' | 'service' | 'mesure' | 'reglages';
 type Route = { page: Page | 'inconnue'; id?: string; params: URLSearchParams };
 const OUVRE: Record<Page, readonly Role[]> = {
   accueil: ['direction', 'support', 'technique'],
@@ -42,6 +43,9 @@ const OUVRE: Record<Page, readonly Role[]> = {
   paiements: ['direction'],
   // Nos factures (docs/console.md C31) : celles de l'entreprise SkanFact, la direction seule.
   nosfactures: ['direction'],
+  // Les données personnelles (docs/console.md C68) : la direction et le support notent une demande d'effacement ; la
+  // direction la décide et efface. La technique ne lit aucune donnée de personne (03 § 5).
+  donnees: ['direction', 'support'],
   // Le support se lit et se répond à la direction et au support ; la technique ne lit aucune donnée de client (03 § 5).
   support: ['direction', 'support'],
   // Le journal : la direction lit tout ; le support, ses propres gestes et ses accès (docs/console.md C37).
@@ -70,6 +74,7 @@ function lireRoute(hash: string): Route {
   if (m[0] === 'cabinets' && m.length === 1) return { page: 'clients', params: new URLSearchParams([['type', 'cabinets'], ...(params.get('q') ? [['q', params.get('q') ?? '']] : [])]) };
   if (m[0] === 'cabinets' && m.length === 2 && UUID.test(m[1] ?? '')) return { page: 'cabinet', id: m[1] ?? '', params };
   if (m.length === 1 && m[0] === 'nos-factures') return { page: 'nosfactures', params };
+  if (m.length === 1 && m[0] === 'donnees') return { page: 'donnees', params };
   if (m.length === 1 && (m[0] === 'abonnements' || m[0] === 'paiements' || m[0] === 'support' || m[0] === 'journal' || m[0] === 'equipe' || m[0] === 'service' || m[0] === 'mesure' || m[0] === 'reglages')) return { page: m[0], params };
   // Les vues du service : « #/service » (la vue d'ensemble), « #/service/alertes », « #/service/incidents »,
   // « #/service/sauvegardes », « #/service/travaux », « #/service/securite », « #/service/versions », « #/service/performances ».
@@ -114,7 +119,7 @@ function useTheme() {
 type Entree = { page: Page; href: string; cle: string; icone: NomIcone };
 const GROUPES: { cle: string; entrees: Entree[] }[] = [
   { cle: 'chaque_jour', entrees: [{ page: 'accueil', href: '#/', cle: 'decider', icone: 'decider' }, { page: 'clients', href: '#/clients', cle: 'clients', icone: 'clients' }, { page: 'abonnements', href: '#/abonnements', cle: 'abonnements', icone: 'calendrier' }, { page: 'paiements', href: '#/paiements', cle: 'paiements', icone: 'carte' }, { page: 'support', href: '#/support', cle: 'support', icone: 'courriel' }] },
-  { cle: 'notre_entreprise', entrees: [{ page: 'nosfactures', href: '#/nos-factures', cle: 'nos_factures', icone: 'facture' }] },
+  { cle: 'notre_entreprise', entrees: [{ page: 'nosfactures', href: '#/nos-factures', cle: 'nos_factures', icone: 'facture' }, { page: 'donnees', href: '#/donnees', cle: 'donnees', icone: 'personne' }] },
   { cle: 'la_plateforme', entrees: [{ page: 'service', href: '#/service', cle: 'service', icone: 'service' }, { page: 'mesure', href: '#/mesure', cle: 'mesure', icone: 'mesure' }, { page: 'reglages', href: '#/reglages', cle: 'reglages', icone: 'reglages' }] },
   { cle: 'l_equipe', entrees: [{ page: 'equipe', href: '#/equipe', cle: 'equipe', icone: 'equipe' }, { page: 'journal', href: '#/journal', cle: 'journal', icone: 'journal' }] },
 ];
@@ -221,6 +226,7 @@ function Page({ route, role }: { route: Route; role: Role }) {
     case 'abonnements': return <Abonnements vue={route.params.get('vue')} />;
     case 'paiements': return <Paiements mois={route.params.get('mois')} />;
     case 'nosfactures': return <NosFactures mois={route.params.get('mois')} filtre={route.params.get('filtre')} />;
+    case 'donnees': return <Donnees demande={UUID.test(route.params.get('demande') ?? '') ? route.params.get('demande') : null} />;
     case 'support': return <Support demande={UUID.test(route.params.get('demande') ?? '') ? route.params.get('demande') : null} vue={route.params.get('vue')} />;
     case 'mesure': return <Mesure />;
     case 'reglages': return <Reglages onglet={route.params.get('onglet')} />;

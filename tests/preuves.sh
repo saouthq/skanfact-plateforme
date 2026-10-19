@@ -718,7 +718,7 @@ prouver "une clé qui agit au nom de son créateur (et voit tout ce qu'il voit)"
 prouver "la clé gardée par la connexion" serveur/base.ts \
   "\$2, true)" "\$2, false)" \
   "une connexion rendue au pool ne garde jamais la clé précédente"
-prouver "une trace qui oublie la clé" $Q7 \
+prouver "une trace qui oublie la clé" base/migrations/0144_effacement.sql \
   "  values (p_entreprise, socle.moi(), socle.ma_cle(), p_geste," "  values (p_entreprise, socle.moi(), null, p_geste," \
   "une clé fait ses gestes dans son entreprise"
 prouver "l'empreinte des clés lisible par le serveur" $Q7 \
@@ -3459,19 +3459,19 @@ prouver "toute case du mandat qui ouvre la paie" $M35 \
 TE1="ce qui a changé dans l'équipe : l'associé le lit, du plus récent au plus ancien, avec qui l'a fait et qui est visé ; personne d'autre"
 TE2="l'associé lit ce qui a changé dans l'équipe, en phrases ; le collaborateur ne voit pas la liste"
 M36=base/migrations/0036_cabinet_trace_equipe.sql
-prouver "la trace de l'équipe lue par un collaborateur" $M36 \
+prouver "la trace de l'équipe lue par un collaborateur" base/migrations/0144_effacement.sql \
   "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet lit ce qui a changé dans son équipe'); end if;" "" \
   "$TE1"
-prouver "la trace des autres cabinets mêlée à la sienne" $M36 \
+prouver "la trace des autres cabinets mêlée à la sienne" base/migrations/0144_effacement.sql \
   "a.objet_type = 'cabinet' and a.objet_id = p_cabinet" "a.objet_type = 'cabinet'" \
   "$TE1"
-prouver "la personne qui rejoint, sans son nom" $M36 \
+prouver "la personne qui rejoint, sans son nom" base/migrations/0144_effacement.sql \
   "coalesce(a.apres->>'membre', a.avant->>'membre')::uuid" "(a.avant->>'membre')::uuid" \
   "$TE1"
-prouver "le nom du cabinet oublié par la trace de l'équipe" $M36 \
+prouver "le nom du cabinet oublié par la trace de l'équipe" base/migrations/0144_effacement.sql \
   "(a.geste like 'cabinet.equipe.%' or a.geste = 'cabinet.renommer')" "a.geste like 'cabinet.equipe.%'" \
   "$TE1"
-prouver "la trace de l'équipe du plus ancien au plus récent" $M36 \
+prouver "la trace de l'équipe du plus ancien au plus récent" base/migrations/0144_effacement.sql \
   "     order by a.instant desc, a.id desc" "     order by a.instant, a.id" \
   "$TE1"
 prouver "la trace demandée pour un collaborateur" $PC \
@@ -16696,6 +16696,134 @@ prouver 'la fin d'"'"'un blocage dite « jusqu'"'"'à le »' 'web/console/src/ec
   '? dire(`${S}.ad.jusqua_heure`, { heure: heureDe(iso) }) : dire(`${S}.ad.jusqua_heure`, { heure: heureDe(iso) }));' \
   'les adresses à l'"'"'entrée : une adresse qui frappe se bloque depuis sa ligne, un jour, puis se débloque'
 
+# 1.55.0 : les données personnelles, les demandes d'effacement (docs/console.md C68).
+prouver 'un nom qui reste après l'"'"'effacement' 'base/migrations/0144_effacement.sql' \
+  'set email = v_nouvelle, nom = '"'"'Personne effacée'"'"', telephone = null,' \
+  'set email = v_nouvelle, telephone = null,' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'une adresse e-mail qui reste après l'"'"'effacement' 'base/migrations/0144_effacement.sql' \
+  'set email = v_nouvelle, nom = '"'"'Personne effacée'"'"', telephone = null,' \
+  'set nom = '"'"'Personne effacée'"'"', telephone = null,' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'des sessions qui gardent leur adresse internet' 'base/migrations/0144_effacement.sql' \
+  '  update socle.session set ip = null, fermee_le = coalesce(fermee_le, p_maintenant) where utilisateur = p_utilisateur;' \
+  '  update socle.session set fermee_le = coalesce(fermee_le, p_maintenant) where utilisateur = p_utilisateur;' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'une session d'"'"'avant l'"'"'effacement qui continue' 'base/migrations/0144_effacement.sql' \
+  '  update socle.session set ip = null, fermee_le = coalesce(fermee_le, p_maintenant) where utilisateur = p_utilisateur;' \
+  '  update socle.session set ip = null where utilisateur = p_utilisateur;' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'une invitation qui la nomme encore' 'base/migrations/0144_effacement.sql' \
+  '  update socle.invitation set email = v_nouvelle where lower(email) = v_email; get diagnostics c = row_count; n := n || jsonb_build_object('"'"'invitations'"'"', c);
+' \
+  '' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'un compteur d'"'"'essais qui garde son adresse' 'base/migrations/0144_effacement.sql' \
+  '  delete from socle.tentative where cle = v_email; get diagnostics c = row_count; n := n || jsonb_build_object('"'"'tentatives'"'"', c);
+' \
+  '' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'la trace qui recopie une adresse e-mail' 'base/migrations/0144_effacement.sql' \
+  'p_objet_type, p_objet_id, p_avant - '"'"'email'"'"', p_apres - '"'"'email'"'"')' \
+  'p_objet_type, p_objet_id, p_avant, p_apres)' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'le nom du demandeur qui reste après l'"'"'effacement' 'base/migrations/0144_effacement.sql' \
+  '  update plateforme.demande_effacement set demandeur = '"'"'Personne effacée'"'"' where utilisateur = d.utilisateur;
+' \
+  '' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'un membre d'"'"'une entreprise effacé' 'base/migrations/0144_effacement.sql' \
+  '  if exists (select 1 from socle.membre m where m.utilisateur = p_utilisateur and m.actif) then' \
+  '  if false then' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'un membre de l'"'"'équipe SkanFact effacé' 'base/migrations/0144_effacement.sql' \
+  '  if exists (select 1 from plateforme.equipe e where e.utilisateur = p_utilisateur and e.retire_le is null) then' \
+  '  if false then' \
+  'une personne de l'"'"'équipe SkanFact ne s'"'"'efface pas ; une demande refusée non plus ; une entreprise, jamais d'"'"'ici'
+prouver 'une demande effacée sans être accordée' 'base/migrations/0144_effacement.sql' \
+  '  if d.decision is distinct from '"'"'accordee'"'"' then perform socle.refus('"'"'une demande s'"'"''"'"'efface une fois accordée'"'"'); end if;
+' \
+  '' \
+  'une personne de l'"'"'équipe SkanFact ne s'"'"'efface pas ; une demande refusée non plus ; une entreprise, jamais d'"'"'ici'
+prouver 'un effacement fait deux fois' 'base/migrations/0144_effacement.sql' \
+  '  if d.faite_le is not null then perform socle.refus('"'"'cet effacement est déjà fait'"'"'); end if;
+' \
+  '' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'une entreprise effacée depuis la console' 'base/migrations/0144_effacement.sql' \
+  '  if d.sorte = '"'"'entreprise'"'"' then
+    perform socle.refus('"'"'les données d'"'"''"'"'une entreprise s'"'"''"'"'effacent sur la machine, avec l'"'"''"'"'outil de l'"'"''"'"'exploitation : la console ne le fait pas'"'"');
+  end if;
+' \
+  '' \
+  'une personne de l'"'"'équipe SkanFact ne s'"'"'efface pas ; une demande refusée non plus ; une entreprise, jamais d'"'"'ici'
+prouver 'le support qui décide d'"'"'une demande' 'serveur/console/gestes.ts|||base/migrations/0144_effacement.sql' \
+  '  { code: '"'"'console.donnees.decider'"'"', roles: [D], ecrit: true },|||declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"']); d plateforme.demande_effacement;
+begin
+  select * into d from plateforme.demande_effacement where id = p_id for update;
+  if not found then perform socle.refus('"'"'cette demande d'"'"''"'"'effacement n'"'"''"'"'existe pas'"'"'); end if;
+  if d.decision is not null' \
+  '  { code: '"'"'console.donnees.decider'"'"', roles: [D, S], ecrit: true },|||declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']); d plateforme.demande_effacement;
+begin
+  select * into d from plateforme.demande_effacement where id = p_id for update;
+  if not found then perform socle.refus('"'"'cette demande d'"'"''"'"'effacement n'"'"''"'"'existe pas'"'"'); end if;
+  if d.decision is not null' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'la technique qui lit le registre des demandes' 'serveur/console/gestes.ts|||base/migrations/0144_effacement.sql' \
+  '  { code: '"'"'console.donnees.voir'"'"', roles: [D, S], ecrit: false },|||declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"']);
+begin
+  return (select coalesce(jsonb_agg(' \
+  '  { code: '"'"'console.donnees.voir'"'"', roles: [D, S, T], ecrit: false },|||declare v_role text := plateforme.exiger_role_console(array['"'"'direction'"'"', '"'"'support'"'"', '"'"'technique'"'"']);
+begin
+  return (select coalesce(jsonb_agg(' \
+  'une personne de l'"'"'équipe SkanFact ne s'"'"'efface pas ; une demande refusée non plus ; une entreprise, jamais d'"'"'ici'
+prouver 'une demande notée pour demain' 'base/migrations/0144_effacement.sql' \
+  '  if p_recue is null or p_recue > (p_maintenant at time zone '"'"'Africa/Tunis'"'"')::date then' \
+  '  if p_recue is null then' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'une demande notée pour une adresse inconnue' 'base/migrations/0144_effacement.sql' \
+  '    if v_user is null then perform socle.refus('"'"'aucun compte ne porte cette adresse e-mail'"'"'); end if;
+' \
+  '' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'une échéance de réponse de deux mois' 'base/migrations/0144_effacement.sql' \
+  'returns date language sql immutable as $$ select p_recue + 30 $$;' \
+  'returns date language sql immutable as $$ select p_recue + 60 $$;' \
+  'le compte d'"'"'une personne : noté, décidé, effacé de partout ; ce qu'"'"'elle a fait reste ; elle ne se connecte plus'
+prouver 'une demande en retard qui ne se dit pas' 'serveur/console/donnees.ts' \
+  'd.decision === null && d.echeance < aujourdhui;' \
+  'd.decision === null && d.echeance < '"'"'0'"'"';' \
+  'la lecture ne laisse passer que ce qui a sa forme ; une demande sans décision passée son échéance est en retard'
+prouver 'une preuve qui laisse tout passer' 'serveur/console/donnees.ts' \
+  '.filter(([, n]) => typeof n === '"'"'number'"'"' && Number.isInteger(n) && n >= 0)' \
+  '' \
+  'la lecture ne laisse passer que ce qui a sa forme ; une demande sans décision passée son échéance est en retard'
+prouver 'le bouton principal qui ne suit pas l'"'"'étape' 'web/console/src/ecrans/Donnees.tsx' \
+  '  const principal = direction ? ouvertes.find((x) => etatDe(x) === '"'"'a_decider'"'"') ?? ouvertes.find((x) => etatDe(x) === '"'"'a_faire'"'"') ?? null : null;' \
+  '  const principal = null as Demande | null;' \
+  'la barre y mène ; vide, « Noter une demande… » est le seul bouton principal ; un motif court se refuse et montre son champ'
+prouver '« À décider » sans les demandes d'"'"'effacement' 'serveur/console/routes.ts' \
+  'aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences, effacements)' \
+  'aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences)' \
+  '« À décider » de l'"'"'accueil y mène ; le support note, ne décide pas'
+prouver 'le support qui voit le bouton Décider' 'web/console/src/ecrans/Donnees.tsx' \
+  '                      {direction && e === '"'"'a_decider'"'"' ? (' \
+  '                      {e === '"'"'a_decider'"'"' ? (' \
+  '« À décider » de l'"'"'accueil y mène ; le support note, ne décide pas'
+prouver 'un effacement sans son avertissement' 'web/console/src/ecrans/Donnees.tsx' \
+  '      <Alerte ton="attention"><span>{phrase(`${K}.f.definitif`)}</span></Alerte>
+' \
+  '' \
+  'décider sans choisir se refuse ; accordée, l'"'"'effacement dit ce qui part ; fait, la preuve, et le compte ne se nomme plus'
+prouver 'le message passager sur les boutons d'"'"'une fenêtre' 'web/console/src/console.css' \
+  'body:has([role="dialog"]) #c-toast { bottom: auto; top: 24px; translate: 0 -12px; }
+' \
+  '' \
+  'décider sans choisir se refuse ; accordée, l'"'"'effacement dit ce qui part ; fait, la preuve, et le compte ne se nomme plus'
+
+prouver "l'invitation du cabinet sans son adresse dans la trace" base/migrations/0144_effacement.sql \
+  "           coalesce(a.apres || (select jsonb_build_object('email', i.email) from socle.invitation i where i.id = (a.apres->>'invitation')::uuid), a.apres)," "           a.apres," \
+  "$TE1"
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

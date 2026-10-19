@@ -751,6 +751,23 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'débloquer une adresse dit pourquoi (trois caractères au moins) : le motif reste au journal de la console', cle: 'base.adresses.motif_debloquer', fr: 'débloquer une adresse dit pourquoi (trois caractères au moins) : le motif reste au journal de la console' },
   { base: 'ce blocage n\'existe pas', cle: 'base.adresses.inconnu', fr: 'ce blocage n\'existe pas' },
   { base: 'cette adresse n\'est plus bloquée', cle: 'base.adresses.plus_bloquee', fr: 'cette adresse n\'est plus bloquée' },
+  // Les demandes d'effacement (0144, docs/console.md C68).
+  { base: 'aucun compte ne porte cette adresse e-mail', cle: 'base.effacement.compte_inconnu', fr: 'aucun compte ne porte cette adresse e-mail : vérifie-la avec la personne (l\'adresse avec laquelle elle se connecte)' },
+  { base: 'ce compte est déjà effacé', cle: 'base.effacement.deja_efface', fr: 'ce compte est déjà effacé' },
+  { base: 'ce compte n\'existe pas', cle: 'base.effacement.compte_absent', fr: 'ce compte n\'existe pas' },
+  { base: 'cet effacement est déjà fait', cle: 'base.effacement.deja_fait', fr: 'cet effacement est déjà fait' },
+  { base: 'cette demande a déjà sa décision', cle: 'base.effacement.deja_decidee', fr: 'cette demande a déjà sa décision' },
+  { base: 'cette demande d\'effacement n\'existe pas', cle: 'base.effacement.inconnue', fr: 'cette demande d\'effacement n\'existe pas' },
+  { base: 'cette personne est encore membre d\'une entreprise : son entreprise la retire d\'abord de son équipe', cle: 'base.effacement.membre', fr: 'cette personne est encore membre d\'une entreprise : son entreprise la retire d\'abord de son équipe' },
+  { base: 'cette personne fait encore partie de l\'équipe SkanFact : la direction la retire d\'abord', cle: 'base.effacement.equipe', fr: 'cette personne fait encore partie de l\'équipe SkanFact : la direction la retire d\'abord' },
+  { base: 'les données d\'une entreprise s\'effacent sur la machine, avec l\'outil de l\'exploitation : la console ne le fait pas', cle: 'base.effacement.machine', fr: 'les données d\'une entreprise s\'effacent sur la machine, avec l\'outil de l\'exploitation : la console ne le fait pas' },
+  { base: 'une demande s\'efface une fois accordée', cle: 'base.effacement.pas_accordee', fr: 'une demande s\'efface une fois accordée' },
+  { base: 'une demande se décide : accordée, ou refusée', cle: 'base.effacement.decision', fr: 'une demande se décide : accordée, ou refusée' },
+  { base: 'une demande se note au jour où elle est arrivée, jamais plus tard qu\'aujourd\'hui', cle: 'base.effacement.jour', fr: 'une demande se note au jour où elle est arrivée, jamais plus tard qu\'aujourd\'hui' },
+  { base: 'une demande vise le compte d\'une personne, ou les données d\'une entreprise', cle: 'base.effacement.sorte', fr: 'une demande vise le compte d\'une personne, ou les données d\'une entreprise' },
+  { base: 'noter une demande d\'effacement dit pourquoi (trois caractères au moins) : le motif reste au journal de la console', cle: 'base.effacement.motif_noter', fr: 'noter une demande d\'effacement dit pourquoi (trois caractères au moins) : le motif reste au journal de la console' },
+  { base: 'une décision dit sa raison (trois caractères au moins) : elle se répond à la personne', cle: 'base.effacement.raison', fr: 'une décision dit sa raison (trois caractères au moins) : elle se répond à la personne' },
+  { base: 'effacer dit pourquoi (trois caractères au moins) : le motif reste au journal de la console', cle: 'base.effacement.motif_faire', fr: 'effacer dit pourquoi (trois caractères au moins) : le motif reste au journal de la console' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

@@ -15,6 +15,7 @@ import type { Risque } from './risque.ts';
 import type { SecretLu } from './secrets.ts';
 import type { AccesUrgence } from './urgence.ts';
 import { restantes, sortieADecider, type Etape, type Sortie } from './sortie.ts';
+import { etatEffacement, type Effacement } from './donnees.ts';
 
 export type Entreprise = {
   id: string; raisonSociale: string; matricule: string | null; active: boolean; creeLe: string;
@@ -193,7 +194,10 @@ export type Ligne =
   // 0138 (l'audit 1.42.0 A04) : un remboursement déclaré que SkanFact n'a pas encore noté sur la facture.
   | { sorte: 'remboursement_a_noter'; ouvre: 'paiements'; entreprise: { id: string; nom: string }; numero: string | null; montant: string; le: string | null }
   // 0131 : la sortie d'un client dont le contrat a pris fin, et ce qui reste à faire pour la clore.
-  | { sorte: 'sortie'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; fin: string; jours: number; restantes: Etape[] };
+  | { sorte: 'sortie'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; fin: string; jours: number; restantes: Etape[] }
+  // 0144 : une demande d'effacement qui attend sa décision (`jours` : jusqu'à son échéance de réponse, négatif passée),
+  // ou accordée et pas encore faite (le compte d'une personne, qui s'efface d'ici).
+  | { sorte: 'effacement'; ouvre: 'donnees'; id: string; ref: string; etat: 'a_decider' | 'a_faire'; echeance: string; jours: number };
 // Ce que Paiements sait de l'argent qui attend une décision (serveur/console/paiements.ts, par ses fonctions), les
 // contestations en cours (serveur/console/contestations.ts) et les sorties en cours (serveur/console/sortie.ts), la
 // direction seule.
@@ -214,8 +218,18 @@ export const LECTURE_SEULE_DE_LA_SEMAINE = 7;
 // promesse (« dans la journée ») est déjà tenue en retard ; la plus ancienne d'abord.
 // L'argent (`argent`) : la direction seule, et pour les entreprises de la liste (la fiche passe la sienne).
 export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role: RoleConsole, demandes: LigneDemande[] = [], maintenant: Date = new Date(),
-  argent: Argent | null = null, secrets: readonly SecretLu[] = [], urgences: readonly AccesUrgence[] = []): Ligne[] {
+  argent: Argent | null = null, secrets: readonly SecretLu[] = [], urgences: readonly AccesUrgence[] = [], effacements: readonly Effacement[] = []): Ligne[] {
   const lignes: [number, number, Ligne][] = [];
+  // Les demandes d'effacement (0144) : la direction seule décide et efface. Sans réponse à son échéance, juste après un
+  // service grave ; sinon, la plus proche de son échéance d'abord.
+  if (role === 'direction') {
+    for (const d of effacements) {
+      const etat = etatEffacement(d);
+      if (etat !== 'a_decider' && etat !== 'a_faire') continue;
+      const jours = joursEntre(jour, d.echeance);
+      lignes.push([etat === 'a_decider' && jours < 0 ? 0.9 : etat === 'a_decider' ? 2.9 : 2.95, jours, { sorte: 'effacement', ouvre: 'donnees', id: d.id, ref: d.ref, etat, echeance: d.echeance, jours }]);
+    }
+  }
   // Les accès d'urgence (0135) : la direction seule ; juste après un service grave, le plus récent d'abord.
   if (role === 'direction') {
     for (const a of urgences) {

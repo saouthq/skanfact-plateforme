@@ -20,6 +20,9 @@ const PERMIS: readonly [RegExp, string][] = [
   [/^clients\.sortie/, 'console.clients.sortie'],
   [/^clients\.arrivee_/, 'console.clients.arrivee'],
   [/^journal\.exporte$/, 'console.journal.exporter'],
+  // Les demandes d'effacement (0144) : le support et la direction notent ; la direction seule décide et efface.
+  [/^donnees\.effacement_note$/, 'console.donnees.noter'],
+  [/^donnees\./, 'console.donnees.decider'],
   // Fermer une session, oublier un appareil : chacun le fait pour lui-même (la direction, aussi pour les autres).
   [/^equipe\.(session_fermee|appareil_oublie)$/, 'console.session'],
   [/^equipe\./, 'console.equipe.gerer'],
@@ -52,6 +55,6 @@ export function depuisLa(plage: Plage, aujourdhui: string): Date | null {
   return new Date(t);
 }
 
-export const SORTES = ['abonnements', 'clients', 'paiements', 'factures', 'support', 'acces', 'service', 'reglages', 'equipe', 'journal', 'systeme'] as const;
+export const SORTES = ['abonnements', 'clients', 'paiements', 'factures', 'support', 'acces', 'donnees', 'service', 'reglages', 'equipe', 'journal', 'systeme'] as const;
 export type Sorte = typeof SORTES[number];
 export const sorteDe = (v: unknown): Sorte | null => (SORTES.includes(v as Sorte) ? v as Sorte : null);

@@ -52,6 +52,7 @@ import { depuisLa, plageDe, reserveALaDirection, sorteDe } from './journal.ts';
 import { CHAINES_PAR_LOT, CHAINES_PAS_MS, demandeArretee, etatRelecture, joursDeRelecture, lireChaines } from './chaines.ts';
 import { CONTENUS_PAR_LOT } from '../service/contenus.ts';
 import { DUREES_BLOCAGE, lireAdresses } from './adresses.ts';
+import { CANAUX_EFFACEMENT, CONSERVATION, lireEffacements } from './donnees.ts';
 import { lireMesure, mesurer, periodeMesure } from './mesure.ts';
 import { CANAUX_CONTESTATION, ISSUES, lireContestations } from './contestations.ts';
 import { lireSecrets, ranger as rangerSecrets, SECRET_BIENTOT_JOURS } from './secrets.ts';
@@ -344,8 +345,10 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const secrets = role === 'support' ? [] : rangerSecrets(lireSecrets(await lireJson(transaction(tx), 'select plateforme.console_secrets() v')), jour);
       // Les accès d'urgence de l'équipe (0135) : la direction seule.
       const urgences = role === 'direction' ? aLAccueil(lireUrgences(await lireJson(transaction(tx), 'select plateforme.console_acces_urgence($1) v', [instant])), instant) : [];
+      // Les demandes d'effacement (0144) : la direction seule.
+      const effacements = role === 'direction' ? lireEffacements(await lireJson(transaction(tx), 'select plateforme.console_effacements($1) v', [instant])) : [];
       return { corps: { aujourdhui: jour, role, tableau: role === 'technique' ? { service: t.service } : t,
-        decider: aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences), relances,
+        decider: aDecider(liste, veille, jour, role, demandes, instant, argent, secrets, urgences, effacements), relances,
         calculeLe: base ? new Date(base.calculeLe).toISOString() : null } };
     },
   });
@@ -2009,6 +2012,45 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       },
     });
   }
+
+  // ── Les données personnelles (0144 ; docs/console.md C68 ; docs/conservation.md) ───────────────────────────────────
+  // Les demandes d'effacement (reçues, décidées, faites, avec leur preuve) et ce que SkanFact garde, combien de temps.
+  ajouter({
+    methode: 'GET', chemin: '/console/donnees', geste: 'console.donnees.voir',
+    traiter: async (_r, tx) => {
+      const instant = maintenant();
+      const demandes = lireEffacements(await lireJson(transaction(tx), 'select plateforme.console_effacements($1) v', [instant.toISOString()]));
+      return { corps: { aujourdhui: aujourdhuiATunis(instant), demandes, conservation: CONSERVATION, canaux: CANAUX_EFFACEMENT } };
+    },
+  });
+  const jourRecu = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'console.donnees.jour')
+    .refine((j) => { const d = new Date(`${j}T00:00:00Z`); return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === j; }, 'console.donnees.jour');
+  ajouter({
+    methode: 'POST', chemin: '/console/donnees/effacements', geste: 'console.donnees.noter',
+    corps: z.object({ canal: z.enum(CANAUX_EFFACEMENT), demandeur: z.string().trim().min(3, 'console.donnees.demandeur').max(200), recueLe: jourRecu,
+      sorte: z.enum(['personne', 'entreprise']), cible: z.string().trim().min(3, 'console.donnees.cible').max(200), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const r = await lireJson<{ id: string; annee: number; numero: number }>(transaction(tx), 'select plateforme.console_effacement_noter($1, $2, $3::date, $4, $5, $6, $7) v',
+        [corps.canal, corps.demandeur, corps.recueLe, corps.sorte, corps.cible, corps.motif, maintenant()]);
+      return { statut: 201, corps: { id: r.id, ref: `EFF-${r.annee}-${String(r.numero).padStart(3, '0')}` } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/donnees/effacements/:demande/decider', geste: 'console.donnees.decider',
+    corps: z.object({ decision: z.enum(['accordee', 'refusee']), raison: z.string().trim().min(3, 'console.donnees.raison').max(1000) }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_effacement_decider($1, $2, $3, $4)', [lireUuid(params.demande), corps.decision, corps.raison, maintenant()]);
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/donnees/effacements/:demande/faire', geste: 'console.donnees.decider',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      const preuve = await lireJson<Record<string, number>>(transaction(tx), 'select plateforme.console_effacement_faire($1, $2, $3) v', [lireUuid(params.demande), corps.motif, maintenant()]);
+      return { corps: { preuve } };
+    },
+  });
 
   // ── Les paiements de nos factures, et les coûts du mois (docs/console.md C30 ; 0108) ───────────────────────────────
   // La mesure (docs/console.md C39 ; 0116) : ce que la base sait déjà compter, par offre ; ce qui ne se mesure pas encore,

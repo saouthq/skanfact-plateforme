@@ -541,6 +541,9 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 }
 #c-toast.c-montre { opacity: 1; translate: 0 0; }
 #c-toast.c-erreur { background: #9b1c1c; color: #fff; }
+/* Une fenêtre ouverte : le message passe en haut, jamais sur ses boutons (vu le 19/10/2026 : « Annuler » caché). */
+body:has([role="dialog"]) #c-toast { bottom: auto; top: 24px; translate: 0 -12px; }
+body:has([role="dialog"]) #c-toast.c-montre { translate: 0 0; }
 
 /* ── L'entrée : la vitrine sombre à gauche, le formulaire à droite ────────────────────────────────────────────── */
 .c-entree { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); min-height: 100vh; min-height: 100dvh; }
@@ -3156,3 +3159,28 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-ev-description { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
 .c-ev-demandes { list-style: none; margin: 0; padding: 8px 0 0; display: grid; gap: 4px; border-top: 1px solid var(--c-trait); }
 .c-ev-demandes .c-lien-bouton { font-weight: 500; text-align: start; }
+
+/* Les données personnelles (0144 ; docs/console.md C68) : les demandes d'effacement et ce que SkanFact garde. */
+.c-ef-bloc { margin-top: 3px; }
+.c-ef-visee { background: var(--c-papier-2); }
+.c-ef-decision { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+.c-ef-accordee { color: var(--c-doux-texte); }
+.c-ef-refusee { color: var(--c-gris); }
+.c-ef-verifier { display: block; width: fit-content; margin-top: 4px; padding: 1px 8px; border-radius: 999px; font-size: 12px; font-weight: 600;
+  color: var(--c-orange-texte); background: var(--c-orange-doux); white-space: nowrap; }
+.c-ef-deux { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; align-items: start; }
+.c-ef-table td { min-width: 140px; }
+.c-ef-tete { flex-direction: column; gap: 0; }
+/* Au téléphone, une ligne de table devient un bloc : chaque case dit sa colonne (data-titre), rien ne défile de côté. */
+@media (max-width: 600px) {
+  .c-ef-table thead { display: none; }
+  .c-ef-table, .c-ef-table tbody, .c-ef-table tr, .c-ef-table td { display: block; width: 100%; }
+  .c-ef-table tr { padding: 12px 18px; border-bottom: 1px solid var(--c-trait); }
+  .c-ef-table tr:last-child { border-bottom: 0; }
+  .c-ef-table td { padding: 5px 0; border: 0; min-width: 0; }
+  .c-ef-table td[data-titre]::before {
+    content: attr(data-titre); display: block; margin-bottom: 2px;
+    font-size: 11.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--c-gris);
+  }
+  .c-ef-table tbody tr:hover td { background: transparent; }
+}

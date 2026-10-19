@@ -759,6 +759,10 @@ vaut pour tout le dépôt.*
     freiné par adresse et par heure, trente jours ; les blocages) ; `serveur/adresses.ts` (le compte en mémoire, la liste
     appliquée à l'entrée), `serveur/app.ts` (l'entrée fermée à une adresse bloquée, comptée) ; `serveur/console/adresses.ts`
     (pur) ; écran `Securite.tsx` (« Les adresses à l'entrée », bloquer, débloquer).
+  - **Les données personnelles** (1.55.0 ; `docs/console.md` C68 ; `docs/conservation.md`) : base `0144_effacement.sql`
+    (le registre des demandes d'effacement, `socle.effacer_personne`, la trace qui ne recopie plus d'adresse) ;
+    `serveur/console/donnees.ts` (pur : ce que SkanFact garde, l'état d'une demande) ; écran `Donnees.tsx` (noter,
+    décider, effacer, la preuve) ; « À décider » (`decider.ts`).
   - Un écran se prouve par l'instrument de rendu (`tests/web/rendu.test.ts` : l'entrée en français
     et en langue factice, les pages du quotidien de la v10 au téléphone et à l'ordinateur) ET par
     les parcours à la souris (`tests/web/parcours.test.ts`), et ses photos (`dist/photos`) se

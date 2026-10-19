@@ -1591,6 +1591,30 @@ jamais d'où ils venaient. Ce qui est fait :
 **Décidé par délégation** : l'entrée seule (pas les sessions), une heure ou un jour au plus, trente jours de comptes, la
 technique qui bloque.
 
+**C68. Les données personnelles : les demandes d'effacement, et ce que SkanFact garde** (1.55.0 ; base 0144 ;
+`docs/conservation.md` ; l'audit 1.42.0 § 4, point 8 ; décidé par délégation le 19/10/2026). Une personne qui demandait
+qu'on efface ses données n'avait ni registre, ni réponse suivie, ni preuve. Ce qui est fait, dans un écran **Données
+personnelles** (barre de gauche, « Notre entreprise » ; la direction et le support, jamais la technique) :
+- **noter une demande** (la direction ou le support) : le jour où elle est arrivée, par où, qui la fait, et ce qu'elle
+  vise — le compte d'une personne (son adresse e-mail) ou les données d'une entreprise (son numéro de client). Elle prend
+  un numéro (« EFF-2026-001 ») et une **échéance de réponse, trente jours** (À VÉRIFIER : la loi 2004-63, l'INPDP) ;
+- **la décider** (la direction) : accordée, ou refusée avec sa raison, qui se répond à la personne. Sans décision à son
+  échéance, elle entre en tête d'« À décider » ; avant, elle y attend avec son échéance ;
+- **effacer le compte** (la direction, une demande accordée) : ce qui part et ce qui reste se lisent avant le geste, qui
+  ne se défait pas. Le nom devient « Personne effacée », l'adresse e-mail une adresse qui n'existe pas, le téléphone, le
+  mot de passe, les codes et les liens partent, les sessions se ferment et oublient leur adresse internet ; l'identifiant
+  reste, pour que ce que la personne a fait reste juste. La **preuve** compte ce qui a été fait, jamais ce qui a été
+  effacé. Une personne encore membre d'une entreprise, ou de l'équipe SkanFact, ne s'efface pas : on la retire d'abord ;
+- **les données d'une entreprise** ne s'effacent pas d'ici : la demande accordée attend l'outil de l'exploitation (C54),
+  et l'écran le dit ;
+- **ce que SkanFact garde** : chaque sorte de données, sa durée (À VÉRIFIER pour six sur sept), et comment elle part.
+Un test balaie chaque colonne de texte de la base après un effacement : ni le nom ni l'adresse ne restent. Il a trouvé
+la trace des invitations (`socle.audit`, qui ne se modifie jamais) : depuis 1.55.0, **la trace désigne sans recopier**
+(`socle.tracer` ne garde plus d'adresse e-mail ; l'invitation la garde, et l'effacement la remplace).
+**Décidé par délégation** : le compte s'efface d'ici, une entreprise sur la machine ; trente jours pour répondre ;
+l'anonymisation qui garde l'identifiant ; le nom du demandeur effacé avec le reste ; la direction seule décide et
+efface, le support note. Aussi : un message passager ne couvre plus les boutons d'une fenêtre ouverte (il passe en haut).
+
 **La densité de la console** (Skander, 14/10/2026 : « zoomée par rapport aux maquettes… privilégier la quantité
 d'information »). Le grand écran se resserre sur les mesures des maquettes : le texte à 14,5 points, le titre d'un écran
 à 32, la barre de gauche à 248 points de large avec des entrées de 36 (la liste défile seule quand la fenêtre est basse :
@@ -1602,7 +1626,7 @@ cellules des tableaux à 11 × 12, la page à 24 × 32 et jusqu'à 1 440 points 
 
 La suite de la console : le relevé de la banque lu et pointé (aucune banque branchée ; les paiements, C30, montrent ce qui reste à encaisser), la retenue à la source sur nos factures (`05` § 4.2), la suite du service (le débit des travaux heure par heure, la pause d'un partenaire, un nombre d'essais au
 plus, et les envois de la TEJ et de la CNSS, qui n'ont pas encore de trace ; la relecture du contenu est faite en 1.53.0,
-C66 ; bloquer une adresse, en 1.54.0, C67), la mesure, la suite des réglages (un prix se prépare depuis la 1.12.0, C28 ; les nouveautés s'allument depuis la 1.27.0, C43). L'écran
+C66 ; bloquer une adresse, en 1.54.0, C67 ; les demandes d'effacement, en 1.55.0, C68), la mesure, la suite des réglages (un prix se prépare depuis la 1.12.0, C28 ; les nouveautés s'allument depuis la 1.27.0, C43). L'écran
 « Application de bureau » de la maquette (les licences, les postes, la fin de vie et le passage à la plateforme de la v10)
 ne se construit pas : **la v10 n'est installée chez personne** (Skander, 14/10/2026). Celui de la nouvelle application de
 bureau (la coque et son agent local : les postes qui l'ont, leur version, ce que l'agent voit, ses erreurs) se dessinera
