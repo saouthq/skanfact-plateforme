@@ -116,8 +116,14 @@ describe('la paie tenue par le cabinet, à la souris', () => {
 
   it('un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l\'entreprise', async () => {
     const associe = await personne('associe');
-    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
-    const cafe = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Café des Arts' })).corps.entreprise);
+    const cab = (await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps;
+    const cabinet = String(cab.id);
+    // Un client sur SkanFact (1.66.0 : pas un dossier tenu, dont les taux sont ceux que le Cabinet règle), qui confie au
+    // cabinet sa comptabilité ET sa paie.
+    const patron = await personne('client');
+    const cafe = String((await api('POST', '/entreprises', patron, { raisonSociale: 'Café des Arts' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${cafe}/mandat`, patron, { codeCabinet: cab.code, perimetre: ['comptabilite', 'declarations', 'paie'] })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cabinet}/mandats/${mandat}/accepter`, associe)).statut).toBe(200);
     expect((await api('POST', `/entreprises/${cafe}/compta/exercices`, associe, { annee: 2026, ouverture: [] })).statut).toBe(201);
 
     // Le bulletin de septembre 2026 tel que le SkanFact du client l'établit : entré le 15 (quatorze jours sur vingt-six,
@@ -138,7 +144,7 @@ describe('la paie tenue par le cabinet, à la souris', () => {
     const calcul = (absence: number, bonuses: unknown[]) => compta.computePayslip(salarie, { gross: 700, workedDays: 26, absentDays: absence, bonuses, deductions: retenues, prorata }, bareme);
     const bulletin = { id: 'b-s1-2026-09', employeeId: 's1', year: 2026, month: 9, gross: 700, workedDays: 26, absentDays: 2, bonuses: primes, deductions: retenues,
       prorata, computed: calcul(2, primes), issuedAt: '2026-09-30', paidDate: '', accountId: '', method: 'virement', reference: '' };
-    const ecrire = async (collection: string, cle: string, contenu: unknown) => (await api('POST', `/entreprises/${cafe}/paie/dossier`, associe,
+    const ecrire = async (collection: string, cle: string, contenu: unknown) => (await api('POST', `/entreprises/${cafe}/paie/dossier`, patron,
       { changements: [{ collection, cle, rang: null, revision: null, contenu: encoder(contenu) }] })).statut;
     expect(await ecrire('employees', 's1', salarie)).toBe(200);
     expect(await ecrire('payslips', bulletin.id, bulletin)).toBe(200);
@@ -167,6 +173,9 @@ describe('la paie tenue par le cabinet, à la souris', () => {
       }
       return p.locator('#bf').count();
     }, { timeout: 20_000 }).toBe(1);
+    // (1.66.0) Le dossier d'un client sur SkanFact : pas de case « Prendre les taux de la paie d'aujourd'hui » (les taux du
+    // dossier au Cabinet ne sont pas les siens).
+    expect(await fenetre.locator('#bf-taux').count()).toBe(0);
     const valeurs = (sel: string) => fenetre.locator(sel).evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
     expect(await valeurs('#bf-primes [data-l=label]')).toEqual(primes.map((x) => x.label));
     expect(await valeurs('#bf-primes [data-l=amount]')).toEqual(['32,308', '75,012', '20,500']);

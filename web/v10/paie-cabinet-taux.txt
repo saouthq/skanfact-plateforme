@@ -1,0 +1,207 @@
+Les taux de la paie propres à un dossier du Cabinet (19/10/2026, 1.66.0 ; docs/paie.md, « Les taux propres d'un dossier au Cabinet »).
+Format : voir sans-paquets.mjs.
+
+Le Cabinet ne réglait que les taux d'un CONTRAT (« Taux par contrat… » : CIVP, Karama, saisonnier). Les taux qui
+dépendent de l'ENTREPRISE (l'accident du travail, selon son activité ; la TFP, 1 % pour une industrie manufacturière
+au lieu de 2 % ; le FOPROLOS) restaient ceux du barème par défaut pour chaque bulletin qu'il établissait : un dossier
+tenu (le client n'a pas SkanFact) n'avait aucun moyen d'avoir les siens. Ils se règlent désormais dans la même fenêtre,
+« Taux de la paie… », au-dessus des contrats ; la fiche du dossier les garde (serveur/cabinet/routes.ts, FICHE.paie),
+chaque bulletin nouveau les suit, et les fige avec son calcul. Un bulletin que le client a établi garde les siens (1.64.0).
+
+Dans un dossier TENU, ces taux sont ceux du client. Un bulletin MODIFIÉ garde ceux de son calcul (un bulletin de
+septembre, les taux de septembre : les barèmes ne sont pas datés) ; une case de sa fenêtre lui donne ceux d'aujourd'hui
+(le comptable qui règle après coup le bon taux d'accident du travail refait septembre), et dit d'abord chacun de ceux qui
+changent (« TFP 2 % (1 % sur ce bulletin) »). Le dossier d'un client qui tient sa paie dans SkanFact garde la règle de la
+1.64.0 : le Cabinet n'y connaît pas encore ses réglages du jour.
+
+== compta.js | un bulletin modifié peut prendre les taux du jour, quand on le demande
+-- avant
+  function ajouterBulletin(livre, bulletin, baremesDuDossier, qui, quand) {
+    // (plateforme) 1.64.0 — un bulletin modifié se recalcule avec son barème figé (baremesDuBulletin).
+    const baremes = baremesDuBulletin(livre, bulletin, baremesDuDossier);
+-- après
+  function ajouterBulletin(livre, bulletin, baremesDuDossier, qui, quand, opts) {
+    // (plateforme) 1.64.0 — un bulletin modifié se recalcule avec son barème figé (baremesDuBulletin). 1.66.0 — ou avec
+    // les taux du jour du dossier, quand on le demande (`opts.tauxDuJour` : la case de la fenêtre d'un dossier tenu).
+    const baremes = opts && opts.tauxDuJour ? (baremesDuDossier || {}) : baremesDuBulletin(livre, bulletin, baremesDuDossier);
+-- fin
+
+== cabinet/app.js | la fenêtre d'un bulletin modifié d'un dossier tenu sait quels taux d'aujourd'hui diffèrent des siens
+-- avant
+    modal(`<h2>${b ? 'Modifier le bulletin' : 'Établir un bulletin'}</h2>
+-- après
+    // (plateforme) 1.66.0 — dans un dossier TENU, les taux de la paie sont ceux que le Cabinet règle pour le client. Un
+    // bulletin modifié garde ceux de son calcul (un bulletin de septembre, les taux de septembre : les barèmes ne sont
+    // pas datés) ; une case lui donne ceux d'aujourd'hui (le bon taux d'accident du travail, réglé après coup), et dit
+    // d'abord chacun de ceux qui changent.
+    const tauxDuJour = (() => {
+      if (!dossier.manual || !b || !b.calcul || !b.calcul.bareme) return [];
+      const sal = (L.salaries || []).find(x => x.id === b.salarieId) || {};
+      const jour = KC.computePayslip({ grossSalary: sal.brut, headOfFamily: sal.chefDeFamille, children: sal.enfants, contrat: sal.contrat }, {},
+        KC.baremesPaie(dossier.paie || {})).bareme;
+      const figes = b.calcul.bareme;
+      const virgule = n => String(Number(n)).replace('.', ',');
+      return KC.REGIME_TAUX.filter(([k]) => figes[k] != null && Number(figes[k]) !== Number(jour[k]))
+        .map(([k, lab]) => `${(TAUX_DU_CLIENT.find(t => t[0] === k) || [k, lab])[1]} ${virgule(jour[k])} % (${virgule(figes[k])} % sur ce bulletin)`);
+    })();
+    modal(`<h2>${b ? 'Modifier le bulletin' : 'Établir un bulletin'}</h2>
+-- fin
+
+== cabinet/app.js | la case des taux d'aujourd'hui, au-dessus de l'aperçu qu'elle change
+-- avant
+      <div id="bf-apercu" class="ok-box mt"></div>
+-- après
+      ${tauxDuJour.length ? `<label class="check small mt" id="bf-taux"><input type="checkbox" id="bf-taux-du-jour">
+        <span><b>Prendre les taux de la paie d'aujourd'hui</b> : ${esc(tauxDuJour.join(', '))}. Sans cette case, le bulletin garde ceux de son calcul.</span></label>` : ''}
+      <div id="bf-apercu" class="ok-box mt"></div>
+-- fin
+
+== cabinet/app.js | l'aperçu et l'enregistrement suivent la case
+-- avant
+      const baremes = KC.baremesDuBulletin(L, b, dossier.paie || {});
+-- après
+      // (plateforme) 1.66.0 — ou, dans un dossier tenu, les taux d'aujourd'hui, si la case est cochée.
+      const caseDuJour = $('#bf-taux-du-jour', rootModal);
+      let baremes = KC.baremesDuBulletin(L, b, dossier.paie || {});
+      if (caseDuJour) caseDuJour.onchange = () => { baremes = caseDuJour.checked ? (dossier.paie || {}) : KC.baremesDuBulletin(L, b, dossier.paie || {}); maj(); };
+-- fin
+
+== cabinet/app.js | la case part avec le bulletin
+-- avant
+          const r = await api.saveBulletin({ dossierId: dossier.id, annee: s.annee, bulletin: v });
+-- après
+          const r = await api.saveBulletin({ dossierId: dossier.id, annee: s.annee, bulletin: v, tauxDuJour: !!(caseDuJour && caseDuJour.checked) });
+-- fin
+
+== cabinet/app.js | le panneau des salariés dit aussi les taux propres au client, et le bouton ouvre la fenêtre de tous les taux
+-- avant
+  function regimesDuDossier(dossier) {
+    const bar = (dossier.paie || {});
+    const actifs = KC.CONTRACT_TYPES.filter(([k]) => k !== 'cdi')
+      .map(([k, lab]) => ({ nom: lab.split(' —')[0], r: KC.regimeDuContrat(bar, k) }))
+      .filter(x => Object.keys(x.r).length);
+    return `<div class="small mb ctrl-geste" id="pa-regimes-bloc"><span>${actifs.length
+      ? actifs.map(x => `<b>${esc(x.nom)}</b> : ${esc(KC.libelleRegime(x.r))}`).join(' · ')
+      : 'Tous les contrats suivent le barème général.'} ${info('pa.regimes')}</span>
+      <button type="button" class="btn btn-sm" id="pa-regimes">Taux par contrat…</button></div>`;
+  }
+-- après
+  // (plateforme) 1.66.0 — les taux de la paie propres à l'ENTREPRISE (l'accident du travail selon son activité, la TFP,
+  // le FOPROLOS), à côté des taux d'un contrat : sans eux, chaque bulletin que le Cabinet établissait prenait ceux du
+  // barème par défaut. Une case vide suit le barème ; aucun taux n'est écrit d'avance pour un client (9.1.1).
+  const TAUX_DU_CLIENT = [['accidentRate', 'Accident du travail', 'pa.accident'], ['tfpRate', 'TFP', 'pa.tfp'], ['foprolosRate', 'FOPROLOS', 'pa.foprolos']];
+  const tauxDuClient = (paie) => TAUX_DU_CLIENT.filter(([k]) => Number.isFinite(Number((paie || {})[k])) && (paie || {})[k] !== '' && (paie || {})[k] != null)
+    .map(([k, lab]) => `${lab} ${String(Number(paie[k])).replace('.', ',')} %`);
+  function regimesDuDossier(dossier) {
+    const bar = (dossier.paie || {});
+    const actifs = KC.CONTRACT_TYPES.filter(([k]) => k !== 'cdi')
+      .map(([k, lab]) => ({ nom: lab.split(' —')[0], r: KC.regimeDuContrat(bar, k) }))
+      .filter(x => Object.keys(x.r).length);
+    const propres = tauxDuClient(bar);
+    const morceaux = [...(propres.length ? [`<b>Ce client</b> : ${esc(propres.join(', '))}`] : []),
+      ...actifs.map(x => `<b>${esc(x.nom)}</b> : ${esc(KC.libelleRegime(x.r))}`)];
+    return `<div class="small mb ctrl-geste" id="pa-regimes-bloc"><span>${morceaux.length
+      ? morceaux.join(' · ')
+      : 'Tous les contrats suivent le barème général.'} ${info('pa.regimes')}</span>
+      <button type="button" class="btn btn-sm" id="pa-regimes">Taux de la paie…</button></div>`;
+  }
+-- fin
+
+== cabinet/app.js | la fenêtre porte les taux du client au-dessus des taux par contrat ; les cases d'un contrat montrent en gris le taux du client
+-- avant
+    modal(`<h2>Taux par contrat</h2>
+      <p class="small">Laisse une case <b>vide</b> pour appliquer le taux général (en gris) ; mets <b>0</b> pour une exonération.
+-- après
+    const tauxGeneraux = KC.baremesPaie({});
+    modal(`<h2>Taux de la paie</h2>
+      <h3>Les taux de ce client</h3>
+      <p class="small">Ceux qui dépendent de l'entreprise : l'accident du travail selon son activité (le taux de l'avis de la
+      CNSS), la TFP (1 % pour une industrie manufacturière, 2 % sinon), le FOPROLOS. Laisse une case <b>vide</b> pour le taux
+      général (en gris). ${dossier.manual
+    ? 'Chaque bulletin que tu établis pour ce client les prend ; un bulletin déjà établi garde les siens, et une case de sa fenêtre lui donne ceux-ci.'
+    : 'Chaque bulletin que tu établis pour ce client les suit, et les garde une fois établi ; un bulletin que le client a établi dans son SkanFact garde les siens.'}
+      <b>À VÉRIFIER</b> sur ses avis et avec les textes de l'année.</p>
+      <div class="grid-3" id="rc-client" style="grid-template-columns:repeat(3,minmax(0,170px))">${TAUX_DU_CLIENT.map(([k, lab, aide]) => `<label class="field">${lbl(lab + ' (%)', aide)}<input type="text" inputmode="decimal" class="num" data-taux="${k}"
+        value="${(dossier.paie || {})[k] != null && (dossier.paie || {})[k] !== '' ? esc(pct(Number(dossier.paie[k]))) : ''}" placeholder="${esc(pct(tauxGeneraux[k]))}"></label>`).join('')}</div>
+      <h3 class="mt">Les taux par contrat</h3>
+      <p class="small">Laisse une case <b>vide</b> pour appliquer le taux général (en gris) ; mets <b>0</b> pour une exonération.
+-- fin
+
+== cabinet/app.js | les taux du client se lisent et se refusent sur leur case, comme ceux d'un contrat, et partent avec eux
+-- avant
+      $('#ok', layer).onclick = async () => {
+        const rc = {};
+        for (const i of $$('[data-rc]', layer)) {
+-- après
+      // (plateforme) 1.66.0 — un taux du client change le taux général d'un contrat : la case grise le suit.
+      $$('[data-taux]', layer).forEach(i => { i.oninput = () => {
+        const n = Number(i.value.trim().replace(/\s/g, '').replace(',', '.'));
+        const gris = i.value.trim() && Number.isFinite(n) ? n : tauxGeneraux[i.dataset.taux];
+        $$(`[data-rc][data-k="${i.dataset.taux}"]`, layer).forEach(c => { c.placeholder = pct(gris); });
+      }; });
+      $('#ok', layer).onclick = async () => {
+        const taux = {};
+        for (const i of $$('[data-taux]', layer)) {
+          const t = i.value.trim();
+          if (!t) continue;
+          const n = Number(t.replace(/\s/g, '').replace(',', '.'));
+          if (!Number.isFinite(n) || n < 0 || n > 100) return refus(i, `« ${t} » n'est pas un taux entre 0 et 100. Laisse la case vide pour le taux général.`);
+          if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, `« ${t} » : un taux se garde avec quatre décimales au plus.`);
+          taux[i.dataset.taux] = n;
+        }
+        const rc = {};
+        for (const i of $$('[data-rc]', layer)) {
+-- fin
+
+== cabinet/app.js | l'enregistrement porte les taux du client avec ceux des contrats
+-- avant
+          S = await api.savePaie(dossier.id, rc);
+          close(); toast('Taux par contrat enregistrés.'); render();
+-- après
+          S = await api.savePaie(dossier.id, rc, taux);
+          close(); toast('Taux de la paie enregistrés.'); render();
+-- fin
+
+== cabinet/app.js | l'aperçu d'un bulletin renvoie à la fenêtre sous son nouveau nom
+-- avant
+${esc(KC.libelleRegime(c.regime))} — réglé dans « Taux par contrat… ».</div>
+-- après
+${esc(KC.libelleRegime(c.regime))} — réglé dans « Taux de la paie… ».</div>
+-- fin
+
+== cabinet/cabguide.js | l'aide du contrat renvoie à la fenêtre sous son nouveau nom
+-- avant
+le régime se règle pour ce client dans « Taux par contrat… », au-dessus de la liste des salariés, et chaque bulletin du contrat le suit.' },
+-- après
+le régime se règle pour ce client dans « Taux de la paie… », au-dessus de la liste des salariés, et chaque bulletin du contrat le suit.' },
+-- fin
+
+== cabinet/cabguide.js | l'aide des taux dit les taux du client, et chaque taux du client porte la sienne
+-- avant
+    'pa.regimes': { a: 'paie', t: 'Les taux par contrat', d: 'Pour CE client, les taux qu\'un contrat applique à la place du barème général : CNSS salarié et employeur, accident, TFP, FOPROLOS, solidarité, et « sans IRPP ». Une case vide garde le taux général ; 0 veut dire exonéré. Le CDI suit toujours le barème. Un bulletin garde les taux avec lesquels il a été établi. À VÉRIFIER avec les textes du dispositif : SkanFact Cabinet ne connaît aucune exonération d\'avance.' },
+-- après
+    'pa.regimes': { a: 'paie', t: 'Les taux de la paie', d: 'Pour CE client, deux sortes de taux. Les siens, qui dépendent de l\'entreprise : l\'accident du travail, la TFP, le FOPROLOS. Ceux d\'un contrat particulier, à la place du barème général : CNSS salarié et employeur, accident, TFP, FOPROLOS, solidarité, et « sans IRPP » ; le CDI suit toujours le barème. Une case vide garde le taux général ; 0 veut dire exonéré. Un bulletin garde les taux avec lesquels il a été établi ; dans un dossier tenu, une case de sa fenêtre lui donne ceux du jour, en disant chacun de ceux qui changent. À VÉRIFIER avec les avis et les textes : SkanFact Cabinet ne connaît aucun taux propre ni aucune exonération d\'avance.' },
+    // (plateforme) 1.66.0 — les taux propres au client.
+    'pa.accident': { a: 'paie', t: 'L\'accident du travail', d: 'Le taux de la cotisation accident du travail et maladie professionnelle de CE client, à la charge de l\'employeur : il dépend de l\'activité de l\'entreprise, et la CNSS le lui notifie. Vide : le taux du barème. À VÉRIFIER sur son avis.' },
+    'pa.tfp': { a: 'paie', t: 'La TFP', d: 'La taxe de formation professionnelle de CE client, sur le brut, à la charge de l\'employeur : 1 % pour une industrie manufacturière, 2 % sinon ; 0 si l\'entreprise en est exonérée. Vide : le taux du barème. À VÉRIFIER avec les textes de l\'année.' },
+    'pa.foprolos': { a: 'paie', t: 'Le FOPROLOS', d: 'La contribution au fonds de promotion des logements pour les salariés de CE client, sur le brut, à la charge de l\'employeur ; 0 si l\'entreprise en est exonérée. Vide : le taux du barème. À VÉRIFIER avec les textes de l\'année.' },
+-- fin
+
+== cabinet/cabguide.js | le guide de la paie dit les taux du client avant ceux des contrats
+-- avant
+      l'employeur d'une partie des charges, ou le salarié de l'IRPP. <b>Taux par contrat…</b>, au-dessus de la liste des
+      salariés, règle pour ce client les taux de chaque contrat : une case vide garde le taux général, <b>0</b> exonère.
+-- après
+      l'employeur d'une partie des charges, ou le salarié de l'IRPP. <b>Taux de la paie…</b>, au-dessus de la liste des
+      salariés, règle pour ce client ses propres taux (l'accident du travail selon son activité, la TFP, le FOPROLOS),
+      puis les taux de chaque contrat : une case vide garde le taux général, <b>0</b> exonère.
+-- fin
+
+== cabinet/cabvisites.js | la visite dit la fenêtre sous son nouveau nom, et explique les taux du client
+-- avant
+  b('#pa-regimes', 'Règle pour ce client les taux d\'un contrat particulier (CIVP, Karama, saisonnier) : une case vide garde le taux général, 0 exonère.', { nom: 'Taux par contrat', cle: 'regimes' });
+-- après
+  b('#pa-regimes', 'Règle les taux de la paie de ce client : les siens (accident du travail, TFP, FOPROLOS), puis ceux d\'un contrat particulier (CIVP, Karama, saisonnier). Une case vide garde le taux général, 0 exonère.', { nom: 'Taux de la paie', cle: 'regimes' });
+  // (plateforme) 1.66.0
+  b('[data-taux]', 'Le taux propre à CE client, à la place du taux général pour chacun de ses bulletins. Vide : le taux général.', { nom: 'Taux du client', cle: 'taux-client' });
+-- fin

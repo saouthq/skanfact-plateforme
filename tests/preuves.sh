@@ -1904,8 +1904,10 @@ prouver "une fiche lue sans voir le dossier" $M20 \
   "  using (cabinet in (select socle.mes_organisations()) and entreprise in (select socle.mes_entreprises()));" "  using (cabinet in (select socle.mes_organisations()));" \
   "$E3"
 prouver "une fiche aux champs non comptés" serveur/cabinet/routes.ts \
-  "REGIME_DE_CONTRAT) }).strict(),
-}).partial().strict();" "REGIME_DE_CONTRAT) }).strict(),
+  "foprolosRate: TAUX_POUR_CENT.optional(),
+  }).strict(),
+}).partial().strict();" "foprolosRate: TAUX_POUR_CENT.optional(),
+  }).strict(),
 }).partial().passthrough();" \
   "$E3"
 prouver "l'entrée qui ouvre l'entreprise d'un client comme la sienne" web/src/App.tsx \
@@ -3289,7 +3291,7 @@ prouver "l'employeur que l'index oublie" $PC \
 
 # ── Brique 55 : les taux par contrat de la paie d'un dossier (docs/cabinet.md, C45) ──
 TR1="les taux par contrat de la paie se gardent dans la fiche, en texte décimal à quatre décimales au plus ; une forme fausse est refusée"
-TR2="les taux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'un salarié en CIVP les suit"
+TR2="les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'un salarié en CIVP les suit"
 prouver "un taux par contrat plus fin que le barème d'un bulletin" $CR \
   '|\d{1,2}(\.\d{1,4})?)$/);' '|\d{1,2}(\.\d{1,6})?)$/);' \
   "$TR1"
@@ -3300,10 +3302,10 @@ prouver "un régime posé sur le CDI" $CR \
   "const CONTRATS_A_REGIME = ['cdd'," "const CONTRATS_A_REGIME = ['cdi', 'cdd'," \
   "$TR1"
 prouver "les taux par contrat que la fiche ne garde pas" $CR \
-  "  paie: z.object({ regimesContrat: z.partialRecord(z.enum(CONTRATS_A_REGIME), REGIME_DE_CONTRAT) }).strict()," "" \
+  "    regimesContrat: z.partialRecord(z.enum(CONTRATS_A_REGIME), REGIME_DE_CONTRAT)," "" \
   "$TR1"
 prouver "le bulletin du cabinet calculé au barème général" $PC \
-  "KC.ajouterBulletin(livre, o.bulletin, paieDuDossier(o.dossierId), '', Date.now());" "KC.ajouterBulletin(livre, o.bulletin, {}, '', Date.now());" \
+  "KC.ajouterBulletin(livre, o.bulletin, paieDuDossier(o.dossierId), '', Date.now()," "KC.ajouterBulletin(livre, o.bulletin, {}, '', Date.now()," \
   "$TR2"
 prouver "un taux envoyé en nombre à virgule" $PC \
   "[t, t === 'sansIrpp' ? true : String(Number(v))]" "[t, t === 'sansIrpp' ? true : Number(v)]" \
@@ -3312,7 +3314,9 @@ prouver "les taux par contrat jamais envoyés" $PC \
   "      contenu.paie = { regimesContrat: regimes };" "" \
   "$TR2"
 prouver "le taux trop fin refusé loin de sa case" web/public/v10/cabinet/app.js \
-  "          if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, " "          if (false) return refus(i, " \
+  "          if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, \`« \${t} » : un taux se garde avec quatre décimales au plus.\`);
+          (rc[i.dataset.rc]" "          if (false) return refus(i, \`« \${t} » : un taux se garde avec quatre décimales au plus.\`);
+          (rc[i.dataset.rc]" \
   "$TR2"
 
 # ── Brique 56 : retirer un dossier du portefeuille (docs/cabinet.md, C46) ──
@@ -17445,8 +17449,8 @@ prouver 'la prime au jour qui ne suit plus les jours au Cabinet' 'web/public/v10
 
 # 1.64.0 : un bulletin modifié au Cabinet garde son barème (docs/paie.md, « Un bulletin modifié au Cabinet garde son barème »).
 prouver 'un bulletin modifié au Cabinet recalculé avec les taux du dossier' 'web/public/v10/compta.js' \
-  '    const baremes = baremesDuBulletin(livre, bulletin, baremesDuDossier);' \
-  '    const baremes = baremesDuDossier;' \
+  ' : baremesDuBulletin(livre, bulletin, baremesDuDossier);' \
+  ' : baremesDuDossier;' \
   'un bulletin modifié au Cabinet garde le barème figé avec son calcul : les taux du client (accident du travail, TFP) et le régime de son contrat ; un nouveau prend ceux du dossier'
 prouver 'le régime figé du contrat oublié en modifiant au Cabinet' 'web/public/v10/compta.js' \
   '    const regimesContrat = regime && c.contrat ? { ...(r.regimesContrat || {}), [c.contrat]: { ...regime } } : r.regimesContrat;' \
@@ -17458,8 +17462,8 @@ prouver 'les taux qu'"'"'un régime fixait gardés comme taux de base au Cabinet
   '' \
   'un bulletin modifié au Cabinet garde le barème figé avec son calcul : les taux du client (accident du travail, TFP) et le régime de son contrat ; un nouveau prend ceux du dossier'
 prouver 'l'"'"'aperçu du bulletin au Cabinet calculé avec les taux du dossier' 'web/public/v10/cabinet/app.js' \
-  '      const baremes = KC.baremesDuBulletin(L, b, dossier.paie || {});' \
-  '      const baremes = dossier.paie || {};' \
+  '      let baremes = KC.baremesDuBulletin(L, b, dossier.paie || {});' \
+  '      let baremes = dossier.paie || {};' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
 
 # 1.65.0 : les documents de la paie au Cabinet (docs/paie.md, « Les documents de la paie au Cabinet »).
@@ -17486,6 +17490,73 @@ prouver 'les documents du Cabinet sans les bulletins du dossier' 'web/public/pla
 prouver 'l'"'"'état récapitulatif du Cabinet sur un autre trimestre' 'web/public/v10/cabinet/app.js' \
   'Number(s.paieTrimestre || Math.ceil(s.paieMois / 3))' \
   '1' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+
+# 1.66.0 : les taux de la paie propres à un dossier du Cabinet (docs/paie.md, « Les taux propres d'un dossier au Cabinet »).
+prouver 'la fiche d'"'"'un dossier qui refuse la TFP et le FOPROLOS du client' 'serveur/cabinet/routes.ts' \
+  'accidentRate: TAUX_POUR_CENT.optional(), tfpRate: TAUX_POUR_CENT.optional(), foprolosRate: TAUX_POUR_CENT.optional(),' \
+  'accidentRate: TAUX_POUR_CENT.optional(),' \
+  'les taux propres à l'"'"'entreprise (accident du travail, TFP, FOPROLOS) se gardent à côté, dans la même forme ; aucun autre taux'
+prouver 'la fiche d'"'"'un dossier qui garde un taux du client sous n'"'"'importe quelle forme' 'serveur/cabinet/routes.ts' \
+  'accidentRate: TAUX_POUR_CENT.optional(), tfpRate: TAUX_POUR_CENT.optional(), foprolosRate: TAUX_POUR_CENT.optional(),' \
+  'accidentRate: z.string().optional(), tfpRate: z.string().optional(), foprolosRate: z.string().optional(),' \
+  'les taux propres à l'"'"'entreprise (accident du travail, TFP, FOPROLOS) se gardent à côté, dans la même forme ; aucun autre taux'
+prouver 'le pont du Cabinet qui n'"'"'écrit pas les taux du client dans la fiche' 'web/public/plateforme/pont-cabinet.js' \
+  'for (const k of TAUX_DU_DOSSIER) if (pa[k] != null && pa[k] !== '"'"''"'"')' \
+  'for (const k of []) if (pa[k] != null && pa[k] !== '"'"''"'"')' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'un taux du client vidé que la fiche garde quand même' 'web/public/plateforme/pont-cabinet.js' \
+  'paie: { ...(taux || {}), regimesContrat: regimes }' \
+  'paie: { ...((f ? depuisFiche(f.contenu) : {}).paie || {}), ...(taux || {}), regimesContrat: regimes }' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'la fenêtre des taux qui n'"'"'envoie pas ceux du client' 'web/public/v10/cabinet/app.js' \
+  'S = await api.savePaie(dossier.id, rc, taux);' \
+  'S = await api.savePaie(dossier.id, rc);' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'un taux du client trop fin envoyé au serveur sans refus sur sa case' 'web/public/v10/cabinet/app.js' \
+  '          if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, `« ${t} » : un taux se garde avec quatre décimales au plus.`);
+          taux[i.dataset.taux] = n;' \
+  '          taux[i.dataset.taux] = n;' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'les cases d'"'"'un contrat qui ne suivent pas le taux du client' 'web/public/v10/cabinet/app.js' \
+  '$$(`[data-rc][data-k="${i.dataset.taux}"]`, layer).forEach(c => { c.placeholder = pct(gris); });' \
+  'void gris;' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'le panneau des salariés qui tait les taux du client' 'web/public/v10/cabinet/app.js' \
+  '...(propres.length ? [`<b>Ce client</b> : ${esc(propres.join('"'"', '"'"'))}`] : []),' \
+  '...([]),' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'la fenêtre des taux rouverte vide, qui effacerait ceux du client' 'web/public/v10/cabinet/app.js' \
+  'value="${(dossier.paie || {})[k] != null && (dossier.paie || {})[k] !== '"'"''"'"' ? esc(pct(Number(dossier.paie[k]))) : '"'"''"'"'}"' \
+  'value=""' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'la case des taux du jour que le pont ignore' 'web/public/plateforme/pont-cabinet.js' \
+  '{ tauxDuJour: !!o.tauxDuJour && !!(dossiers.get(o.dossierId) || {}).manual }' \
+  '{ tauxDuJour: false }' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'le moteur qui ignore les taux du jour demandés' 'web/public/v10/compta.js' \
+  'const baremes = opts && opts.tauxDuJour ? (baremesDuDossier || {}) : baremesDuBulletin(livre, bulletin, baremesDuDossier);' \
+  'const baremes = baremesDuBulletin(livre, bulletin, baremesDuDossier);' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'l'"'"'aperçu qui ne suit pas la case des taux du jour' 'web/public/v10/cabinet/app.js' \
+  'baremes = caseDuJour.checked ? (dossier.paie || {}) : KC.baremesDuBulletin(L, b, dossier.paie || {}); maj();' \
+  'maj();' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'la fenêtre du bulletin muette sur les taux qui changent' 'web/public/v10/cabinet/app.js' \
+  '${tauxDuJour.length ? `<label class="check small mt" id="bf-taux">' \
+  '${false ? `<label class="check small mt" id="bf-taux">' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'la case des taux du jour cochée d'"'"'office' 'web/public/v10/cabinet/app.js' \
+  '<input type="checkbox" id="bf-taux-du-jour">' \
+  '<input type="checkbox" id="bf-taux-du-jour" checked>' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'la case des taux du jour qui ne part pas avec le bulletin' 'web/public/v10/cabinet/app.js' \
+  'tauxDuJour: !!(caseDuJour && caseDuJour.checked) });' \
+  'tauxDuJour: false });' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'la case des taux du jour offerte au dossier d'"'"'un client sur SkanFact' 'web/public/v10/cabinet/app.js' \
+  'if (!dossier.manual || !b || !b.calcul || !b.calcul.bareme) return [];' \
+  'if (!b || !b.calcul || !b.calcul.bareme) return [];' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite

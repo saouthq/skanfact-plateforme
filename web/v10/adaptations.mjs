@@ -767,4 +767,6 @@ export const ADAPTATIONS = [
   ...lireFichier('paie-cabinet-bareme.txt'),
   // ── Les documents de la paie au Cabinet (19/10/2026, 1.65.0 ; docs/paie.md) : le bulletin, le journal, l'état CNSS ──
   ...lireFichier('paie-cabinet-documents.txt'),
+  // ── Les taux de la paie propres à un dossier du Cabinet (19/10/2026, 1.66.0 ; docs/paie.md) : accident du travail, TFP, FOPROLOS ──
+  ...lireFichier('paie-cabinet-taux.txt'),
 ];

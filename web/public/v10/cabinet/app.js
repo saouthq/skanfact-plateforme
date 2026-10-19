@@ -6167,22 +6167,42 @@
   // 10.15.0 (H4) — les contrats aux règles particulières (CIVP, Karama, saisonnier). Le panneau DIT
   // ce qui s'écarte du barème : un bulletin de CIVP sans CNSS employeur, sans la ligne qui l'explique,
   // se lit comme une erreur de calcul. Aucune règle n'est écrite d'avance (9.1.1) : la table part vide.
+  // (plateforme) 1.66.0 — les taux de la paie propres à l'ENTREPRISE (l'accident du travail selon son activité, la TFP,
+  // le FOPROLOS), à côté des taux d'un contrat : sans eux, chaque bulletin que le Cabinet établissait prenait ceux du
+  // barème par défaut. Une case vide suit le barème ; aucun taux n'est écrit d'avance pour un client (9.1.1).
+  const TAUX_DU_CLIENT = [['accidentRate', 'Accident du travail', 'pa.accident'], ['tfpRate', 'TFP', 'pa.tfp'], ['foprolosRate', 'FOPROLOS', 'pa.foprolos']];
+  const tauxDuClient = (paie) => TAUX_DU_CLIENT.filter(([k]) => Number.isFinite(Number((paie || {})[k])) && (paie || {})[k] !== '' && (paie || {})[k] != null)
+    .map(([k, lab]) => `${lab} ${String(Number(paie[k])).replace('.', ',')} %`);
   function regimesDuDossier(dossier) {
     const bar = (dossier.paie || {});
     const actifs = KC.CONTRACT_TYPES.filter(([k]) => k !== 'cdi')
       .map(([k, lab]) => ({ nom: lab.split(' —')[0], r: KC.regimeDuContrat(bar, k) }))
       .filter(x => Object.keys(x.r).length);
-    return `<div class="small mb ctrl-geste" id="pa-regimes-bloc"><span>${actifs.length
-      ? actifs.map(x => `<b>${esc(x.nom)}</b> : ${esc(KC.libelleRegime(x.r))}`).join(' · ')
+    const propres = tauxDuClient(bar);
+    const morceaux = [...(propres.length ? [`<b>Ce client</b> : ${esc(propres.join(', '))}`] : []),
+      ...actifs.map(x => `<b>${esc(x.nom)}</b> : ${esc(KC.libelleRegime(x.r))}`)];
+    return `<div class="small mb ctrl-geste" id="pa-regimes-bloc"><span>${morceaux.length
+      ? morceaux.join(' · ')
       : 'Tous les contrats suivent le barème général.'} ${info('pa.regimes')}</span>
-      <button type="button" class="btn btn-sm" id="pa-regimes">Taux par contrat…</button></div>`;
+      <button type="button" class="btn btn-sm" id="pa-regimes">Taux de la paie…</button></div>`;
   }
 
   function regimesForm(root, dossier) {
     const bar = KC.baremesPaie(dossier.paie || {});
     const pct = n => String(n).replace('.', ',');
     const contrats = KC.CONTRACT_TYPES.filter(([k]) => k !== 'cdi');
-    modal(`<h2>Taux par contrat</h2>
+    const tauxGeneraux = KC.baremesPaie({});
+    modal(`<h2>Taux de la paie</h2>
+      <h3>Les taux de ce client</h3>
+      <p class="small">Ceux qui dépendent de l'entreprise : l'accident du travail selon son activité (le taux de l'avis de la
+      CNSS), la TFP (1 % pour une industrie manufacturière, 2 % sinon), le FOPROLOS. Laisse une case <b>vide</b> pour le taux
+      général (en gris). ${dossier.manual
+    ? 'Chaque bulletin que tu établis pour ce client les prend ; un bulletin déjà établi garde les siens, et une case de sa fenêtre lui donne ceux-ci.'
+    : 'Chaque bulletin que tu établis pour ce client les suit, et les garde une fois établi ; un bulletin que le client a établi dans son SkanFact garde les siens.'}
+      <b>À VÉRIFIER</b> sur ses avis et avec les textes de l'année.</p>
+      <div class="grid-3" id="rc-client" style="grid-template-columns:repeat(3,minmax(0,170px))">${TAUX_DU_CLIENT.map(([k, lab, aide]) => `<label class="field">${lbl(lab + ' (%)', aide)}<input type="text" inputmode="decimal" class="num" data-taux="${k}"
+        value="${(dossier.paie || {})[k] != null && (dossier.paie || {})[k] !== '' ? esc(pct(Number(dossier.paie[k]))) : ''}" placeholder="${esc(pct(tauxGeneraux[k]))}"></label>`).join('')}</div>
+      <h3 class="mt">Les taux par contrat</h3>
       <p class="small">Laisse une case <b>vide</b> pour appliquer le taux général (en gris) ; mets <b>0</b> pour une exonération.
       Chaque bulletin de ce client pour un salarié sous ce contrat suivra la ligne, et gardera ses taux une fois établi.
       <b>À VÉRIFIER</b> : SkanFact ne connaît aucune de ces exonérations — elles changent d'un dispositif et d'une année à l'autre.</p>
@@ -6197,7 +6217,22 @@
         <button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
     (layer, close) => {
       $('.modal', layer).classList.add('cab-large');
+      // (plateforme) 1.66.0 — un taux du client change le taux général d'un contrat : la case grise le suit.
+      $$('[data-taux]', layer).forEach(i => { i.oninput = () => {
+        const n = Number(i.value.trim().replace(/\s/g, '').replace(',', '.'));
+        const gris = i.value.trim() && Number.isFinite(n) ? n : tauxGeneraux[i.dataset.taux];
+        $$(`[data-rc][data-k="${i.dataset.taux}"]`, layer).forEach(c => { c.placeholder = pct(gris); });
+      }; });
       $('#ok', layer).onclick = async () => {
+        const taux = {};
+        for (const i of $$('[data-taux]', layer)) {
+          const t = i.value.trim();
+          if (!t) continue;
+          const n = Number(t.replace(/\s/g, '').replace(',', '.'));
+          if (!Number.isFinite(n) || n < 0 || n > 100) return refus(i, `« ${t} » n'est pas un taux entre 0 et 100. Laisse la case vide pour le taux général.`);
+          if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, `« ${t} » : un taux se garde avec quatre décimales au plus.`);
+          taux[i.dataset.taux] = n;
+        }
         const rc = {};
         for (const i of $$('[data-rc]', layer)) {
           const t = i.value.trim();
@@ -6209,8 +6244,8 @@
         }
         $$('[data-rc-irpp]', layer).forEach(i => { if (i.checked) (rc[i.dataset.rcIrpp] = rc[i.dataset.rcIrpp] || {}).sansIrpp = true; });
         try {
-          S = await api.savePaie(dossier.id, rc);
-          close(); toast('Taux par contrat enregistrés.'); render();
+          S = await api.savePaie(dossier.id, rc, taux);
+          close(); toast('Taux de la paie enregistrés.'); render();
         } catch (e) { toast(plainError(e), 'error'); }
       };
     });
@@ -6285,6 +6320,20 @@
     const e = b || { mois: s.paieMois, annee: s.annee, joursTravailles: 26, joursAbsence: 0, primes: [], retenues: [] };
     const salDefaut = b ? b.salarieId : (actifs[0] || {}).id;
     const brutDefaut = b ? b.brut : ((actifs[0] || {}).brut || 0);
+    // (plateforme) 1.66.0 — dans un dossier TENU, les taux de la paie sont ceux que le Cabinet règle pour le client. Un
+    // bulletin modifié garde ceux de son calcul (un bulletin de septembre, les taux de septembre : les barèmes ne sont
+    // pas datés) ; une case lui donne ceux d'aujourd'hui (le bon taux d'accident du travail, réglé après coup), et dit
+    // d'abord chacun de ceux qui changent.
+    const tauxDuJour = (() => {
+      if (!dossier.manual || !b || !b.calcul || !b.calcul.bareme) return [];
+      const sal = (L.salaries || []).find(x => x.id === b.salarieId) || {};
+      const jour = KC.computePayslip({ grossSalary: sal.brut, headOfFamily: sal.chefDeFamille, children: sal.enfants, contrat: sal.contrat }, {},
+        KC.baremesPaie(dossier.paie || {})).bareme;
+      const figes = b.calcul.bareme;
+      const virgule = n => String(Number(n)).replace('.', ',');
+      return KC.REGIME_TAUX.filter(([k]) => figes[k] != null && Number(figes[k]) !== Number(jour[k]))
+        .map(([k, lab]) => `${(TAUX_DU_CLIENT.find(t => t[0] === k) || [k, lab])[1]} ${virgule(jour[k])} % (${virgule(figes[k])} % sur ce bulletin)`);
+    })();
     modal(`<h2>${b ? 'Modifier le bulletin' : 'Établir un bulletin'}</h2>
       <form id="bf" class="grid-2">
         <label class="field obligatoire span-2">${lbl('Salarié', 'pa.bSalarie')}
@@ -6302,6 +6351,8 @@
         <div class="panel"><h2>Retenues (DT) ${info('pa.bRetenue')}</h2><div id="bf-retenues"></div>
           <button type="button" class="btn btn-sm mt" id="bf-plus-retenue">+ Retenue</button></div>
       </div>
+      ${tauxDuJour.length ? `<label class="check small mt" id="bf-taux"><input type="checkbox" id="bf-taux-du-jour">
+        <span><b>Prendre les taux de la paie d'aujourd'hui</b> : ${esc(tauxDuJour.join(', '))}. Sans cette case, le bulletin garde ceux de son calcul.</span></label>` : ''}
       <div id="bf-apercu" class="ok-box mt"></div>
       ${/* (plateforme) 1.63.0 — un avertissement se lit AVANT le geste : l'écriture validée du mois se contre-passe. */''}
       ${b && b.ecritureId && (ecritureDuLivre(L, b.ecritureId) || {}).statut !== 'brouillard' ? `<p class="small muted mt" id="bf-ecriture">L'écriture de paie ${esc(KC.deMois(KC.moisPaie(b.mois)))} est validée : enregistrer ce bulletin la contre-passe (au brouillard) et en écrit une nouvelle à côté.</p>` : ''}
@@ -6378,7 +6429,10 @@
       // vingt-six affichaient un net de −586 DT sans un mot, et le bulletin s'enregistrait.
       // (plateforme) 1.64.0 — un bulletin modifié garde le barème figé avec son calcul (les taux du client ce mois-là),
       // l'aperçu comme l'enregistrement : avec les réglages du dossier au Cabinet, il changeait de taux en silence.
-      const baremes = KC.baremesDuBulletin(L, b, dossier.paie || {});
+      // (plateforme) 1.66.0 — ou, dans un dossier tenu, les taux d'aujourd'hui, si la case est cochée.
+      const caseDuJour = $('#bf-taux-du-jour', rootModal);
+      let baremes = KC.baremesDuBulletin(L, b, dossier.paie || {});
+      if (caseDuJour) caseDuJour.onchange = () => { baremes = caseDuJour.checked ? (dossier.paie || {}) : KC.baremesDuBulletin(L, b, dossier.paie || {}); maj(); };
       const maj = () => {
         const v = lire();
         const sal = (L.salaries || []).find(x => x.id === v.salarieId) || {};
@@ -6395,7 +6449,7 @@
         // attend que la case se lise, et le refus dessous dit laquelle.
         apercu.innerHTML = illisible ? '<b>Net à payer —</b> <span class="small muted">— un montant ne se lit pas encore.</span>' : `<b>Net à payer ${esc(money(c.net))}</b>
           <span class="small muted">— brut ${esc(money(c.gross))}, retenues ${esc(money(KC.round3(c.cnssEmployee + c.irpp + c.css + c.otherDeductions)))},
-          coût employeur ${esc(money(c.employerCost))}</span>${c.regime ? `<div class="small mt" id="bf-regime"><b>${esc(KC.contractLabel(c.contrat).split(' —')[0])}</b> : ${esc(KC.libelleRegime(c.regime))} — réglé dans « Taux par contrat… ».</div>` : ''}`;
+          coût employeur ${esc(money(c.employerCost))}</span>${c.regime ? `<div class="small mt" id="bf-regime"><b>${esc(KC.contractLabel(c.contrat).split(' —')[0])}</b> : ${esc(KC.libelleRegime(c.regime))} — réglé dans « Taux de la paie… ».</div>` : ''}`;
         const refus = $('#bf-refus', rootModal);
         refus.hidden = verdict.ok;
         refus.textContent = verdict.ok ? '' : verdict.motif;
@@ -6430,7 +6484,7 @@
         const ok = KC.bulletinValide(v, L, baremes);
         if (!ok.ok) return toast(ok.motif, 'error');
         try {
-          const r = await api.saveBulletin({ dossierId: dossier.id, annee: s.annee, bulletin: v });
+          const r = await api.saveBulletin({ dossierId: dossier.id, annee: s.annee, bulletin: v, tauxDuJour: !!(caseDuJour && caseDuJour.checked) });
           s.livre = r.livre; close(); toast('Bulletin enregistré.'); drawLivres(root, dossier);
         } catch (err) { toast(plainError(err), 'error'); }
       };

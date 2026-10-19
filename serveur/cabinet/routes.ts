@@ -68,8 +68,12 @@ const FICHE = z.object({
   dernierJournal: z.string().regex(/^[A-Z0-9]{0,5}$/),
   // Les abonnements du dossier (brique 51).
   abonnements: z.array(ABONNEMENT).max(50),
-  // Les taux par contrat de la paie du dossier (brique 55).
-  paie: z.object({ regimesContrat: z.partialRecord(z.enum(CONTRATS_A_REGIME), REGIME_DE_CONTRAT) }).strict(),
+  // Les taux par contrat de la paie du dossier (brique 55), et les taux propres à l'entreprise (1.66.0) :
+  // l'accident du travail (selon l'activité), la TFP (1 % ou 2 %), le FOPROLOS ; un taux absent suit le barème.
+  paie: z.object({
+    regimesContrat: z.partialRecord(z.enum(CONTRATS_A_REGIME), REGIME_DE_CONTRAT),
+    accidentRate: TAUX_POUR_CENT.optional(), tfpRate: TAUX_POUR_CENT.optional(), foprolosRate: TAUX_POUR_CENT.optional(),
+  }).strict(),
 }).partial().strict();
 // Les réglages du cabinet (0023, C21) : cette liste, et rien d'autre. L'association des colonnes d'un
 // relevé PAR BANQUE (le rang de chaque colonne), et les mots retenus (un mot d'un libellé → le compte

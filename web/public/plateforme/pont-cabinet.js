@@ -83,6 +83,9 @@
   const fiches = new Map();
   // Les champs de la fiche : ceux que le serveur garde (serveur/cabinet/routes.ts, FICHE).
   const TEXTES_FICHE = ['email', 'phone', 'contact', 'note', 'regime', 'tvaPeriod', 'from', 'cnssEmployeur', 'cnssCode'];
+  // Les taux de la paie propres à l'entreprise (1.66.0) : l'accident du travail, la TFP, le FOPROLOS. Gardés en texte
+  // décimal, comme les taux par contrat, et lus tels quels : le moteur de la v10 les compte en nombres (computePayslip).
+  const TAUX_DU_DOSSIER = ['accidentRate', 'tfpRate', 'foprolosRate'];
   /** @param {Record<string, unknown>} c */
   const depuisFiche = (c) => ({ ...c, fees: Number(c.fees || 0) / 1000,
     // Les abonnements (brique 51) : leur montant, gardé en texte décimal, redevient un nombre pour la v10.
@@ -691,6 +694,8 @@
         regimes[k] = Object.fromEntries(Object.entries(/** @type {any} */ (r)).map(([t, v]) => [t, t === 'sansIrpp' ? true : String(Number(v))]));
       }
       contenu.paie = { regimesContrat: regimes };
+      // (1.66.0) Les taux propres à l'entreprise : une case vide suit le barème, et ne se garde pas.
+      for (const k of TAUX_DU_DOSSIER) if (pa[k] != null && pa[k] !== '') /** @type {any} */ (contenu.paie)[k] = String(Number(pa[k]));
     }
     const r = await appel('PUT', `/cabinets/${cabinetId}/fiches/${ent}`, { contenu, revision });
     // La fiche lue reste celle du serveur : un geste suivant écrit sur la bonne révision.
@@ -1253,13 +1258,14 @@
     // ── Les taux par contrat de la paie d'un dossier (brique 55 ; docs/cabinet.md, C45) : gardés dans sa
     // fiche, normalisés par le moteur de la v10 (un régime qui ne change rien ne se garde pas). Un taux
     // se garde à quatre décimales au plus (celles du barème qu'un bulletin fige) : l'écran le refuse sur
-    // sa case, le serveur aussi ──
-    savePaie: async (/** @type {string} */ id, /** @type {any} */ regimesContrat) => {
+    // sa case, le serveur aussi. (1.66.0) Et les taux propres à l'entreprise (`taux` : accident du travail,
+    // TFP, FOPROLOS), de la même fenêtre, à leur place : un taux absent suit le barème ──
+    savePaie: async (/** @type {string} */ id, /** @type {any} */ regimesContrat, /** @type {any} */ taux) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       if (!dossiers.has(id)) throw new Error('Dossier introuvable.');
       const regimes = KC.normaliserRegimes(regimesContrat || {});
       const f = fiches.get(id);
-      await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), paie: { regimesContrat: regimes } }, f ? f.revision : null);
+      await poserFiche(id, { ...(f ? depuisFiche(f.contenu) : {}), paie: { ...(taux || {}), regimesContrat: regimes } }, f ? f.revision : null);
       return construireEtat();
     },
     // ── Retirer un dossier du portefeuille (brique 56 ; docs/cabinet.md, C46) : arrêter son mandat. Rien
@@ -1549,7 +1555,10 @@
     saveBulletin: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = sansEcritures(await livreEtPaie(o.dossierId, o.annee));
-      const r = KC.ajouterBulletin(livre, o.bulletin, paieDuDossier(o.dossierId), '', Date.now());
+      // (1.66.0) La case « Prendre les taux de la paie d'aujourd'hui » d'un bulletin modifié, dans un dossier tenu seulement :
+      // ailleurs, les taux du dossier au Cabinet ne sont pas ceux du client.
+      const r = KC.ajouterBulletin(livre, o.bulletin, paieDuDossier(o.dossierId), '', Date.now(),
+        { tauxDuJour: !!o.tauxDuJour && !!(dossiers.get(o.dossierId) || {}).manual });
       if (!r.ok) throw new Error(r.motif);
       await ecrirePaieDuDossier(o.dossierId, 'payslips', r.bulletin.id, fichePayeDe(r.bulletin, paieAvant(o.dossierId, 'payslips', r.bulletin.id)));
       return { ok: true, bulletin: r.bulletin, livre: await livreEtPaie(o.dossierId, o.annee) };

@@ -538,6 +538,9 @@ voie.
 - **Le régime de son contrat** (`calcul.regime`) s'applique de nouveau, à l'identique, pour le même contrat ; si le
   contrat a changé depuis, ce que le régime fixait revient des réglages du dossier, et les autres taux du client restent.
 - **Un bulletin nouveau** prend les réglages du dossier au Cabinet, comme avant.
+- *(1.66.0)* Dans un dossier **tenu** (le client n'a pas SkanFact), les taux réglés au Cabinet sont les siens : la
+  fenêtre d'un bulletin modifié offre une case qui lui donne ceux d'aujourd'hui (« Les taux propres d'un dossier au
+  Cabinet ») ; sans elle, il garde son barème, comme ici.
 
 ### Ce qui le prouve
 
@@ -551,9 +554,10 @@ voie.
 
 ### Ce qui reste
 
-- Les taux **généraux** d'un dossier tenu par le Cabinet (son accident du travail, sa TFP) ne se règlent pas encore au
-  Cabinet (seuls les taux par contrat) ; un bulletin **nouveau** d'un client qui fait sa paie dans SkanFact ne lit pas
-  encore ses réglages (le serveur ne les montre pas au Cabinet).
+- ~~Les taux **généraux** d'un dossier tenu par le Cabinet (son accident du travail, sa TFP) ne se règlent pas encore au
+  Cabinet (seuls les taux par contrat)~~ : fait en 1.66.0 (« Les taux propres d'un dossier au Cabinet »). Un bulletin
+  **nouveau** d'un client qui fait sa paie dans SkanFact ne lit pas encore ses réglages (le serveur ne les montre pas au
+  Cabinet).
 
 ## Les documents de la paie au Cabinet (19/10/2026, 1.65.0)
 
@@ -583,3 +587,60 @@ voie.
 
 - Le journal en CSV au Cabinet (l'entreprise l'a) ; l'adresse de l'employeur sur les documents (le Cabinet ne la tient
   pas dans la fiche d'un dossier).
+
+## Les taux propres d'un dossier au Cabinet (19/10/2026, 1.66.0)
+
+*Le Cabinet ne réglait que les taux d'un contrat ; ceux qui dépendent de l'entreprise restaient ceux du barème.*
+
+### Le défaut
+
+L'accident du travail dépend de l'activité de l'entreprise (la CNSS lui notifie son taux) ; la TFP est de 1 % pour une
+industrie manufacturière, de 2 % sinon ; une entreprise peut être exonérée du FOPROLOS (**À VÉRIFIER** sur ses avis et
+avec les textes de l'année). Le Cabinet ne savait régler que les taux d'un **contrat** (« Taux par contrat… » : CIVP,
+Karama, saisonnier) : chaque bulletin qu'il établissait pour un dossier prenait l'accident du travail, la TFP et le
+FOPROLOS du barème par défaut. Pour un dossier **tenu** (le client n'a pas SkanFact), il n'y avait aucun moyen d'avoir
+les siens : les charges patronales, l'état CNSS et la déclaration du mois étaient faux à chaque bulletin.
+
+### Ce que le lot fait (`web/v10/paie-cabinet-taux.txt`, `pont-cabinet.js`, `serveur/cabinet/routes.ts`)
+
+- **Une seule fenêtre, « Taux de la paie… »** (l'ancien « Taux par contrat… », au-dessus de la liste des salariés) :
+  d'abord **les taux de ce client** (accident du travail, TFP, FOPROLOS ; une case vide suit le barème, en gris), puis
+  les taux par contrat. Un taux du client devient, en gris, le taux général des cases de chaque contrat, pendant la
+  frappe. Chaque case se refuse sur elle-même (un taux entre 0 et 100, quatre décimales au plus), comme celles d'un
+  contrat ; chaque taux porte son aide (« i ») et la visite les explique.
+- **La fiche du dossier les garde** (`FICHE.paie` : `accidentRate`, `tfpRate`, `foprolosRate`, en texte décimal à quatre
+  décimales au plus, à côté de `regimesContrat`) ; aucun autre taux (les taux de la CNSS et la solidarité sont ceux du
+  régime, pas d'une entreprise). Le pont les lit tels quels, comme ceux d'un contrat : le moteur les compte en nombres.
+- **Le panneau des salariés les dit** (« Ce client : Accident du travail 2,5 %, TFP 1 % · CIVP : … »).
+- Chaque bulletin **nouveau** du dossier les suit, et les fige avec son calcul (règle 5.0.0) ; un bulletin que le client
+  a établi dans son SkanFact garde les siens (1.64.0).
+- **Dans un dossier tenu**, ces taux sont ceux du client. Un bulletin **modifié** garde ceux de son calcul (un bulletin
+  de septembre, les taux de septembre : les barèmes ne sont pas datés, 1.59.0, P2) ; quand ses taux diffèrent de ceux
+  d'aujourd'hui, sa fenêtre offre une case, **décochée**, qui les dit chacun (« Prendre les taux de la paie
+  d'aujourd'hui : TFP 2 % (1 % sur ce bulletin) ») : cochée, l'aperçu calcule avec eux, et l'enregistrement aussi
+  (`ajouterBulletin(…, { tauxDuJour })`, compta.js ; le pont ne l'accepte que pour un dossier tenu). Le comptable qui
+  règle après coup le bon taux d'accident du travail refait ainsi septembre ; rien ne change sans ce geste. Le dossier
+  d'un client qui tient sa paie dans SkanFact n'a pas cette case : les taux du dossier au Cabinet ne sont pas les siens
+  (règle de la 1.64.0).
+- *Corrigé avant l'envoi* : une première version recalculait d'office un bulletin modifié aux taux du jour (avec un
+  avertissement) ; un taux changé depuis le mois du bulletin l'aurait réécrit à tort. La case rend le choix au comptable.
+
+### Ce qui le prouve
+
+- `tests/cabinet/guides.test.ts` : la fiche garde les trois taux, dans leur forme ; une autre forme, un taux du régime
+  sont refusés.
+- `tests/web/cabinet-paie-regimes.test.ts` : à la souris, un taux du client trop fin refusé sur sa case, la case grise
+  d'un contrat qui suit le taux du client, la fiche du serveur, le panneau, la fenêtre rouverte, et le barème que le
+  serveur garde avec le bulletin d'un salarié en CIVP (accident du travail 2,5 %, TFP 1 %, FOPROLOS du barème) ; une
+  case vidée qui revient au barème ; le bulletin de mars modifié : la case dit la TFP qui change, décochée ; enregistré
+  sans elle, il garde ses taux ; avec elle, il prend la TFP d'aujourd'hui, et le coût employeur de l'aperçu est celui du
+  serveur.
+- `tests/web/cabinet-paie.test.ts` : le bulletin modifié de la 1.64.0 l'est désormais dans le dossier d'un vrai client
+  sur SkanFact (une entreprise, son mandat, comptabilité et paie), qui garde son barème, sans la case.
+- Seize preuves (`tests/preuves.sh`, « 1.66.0 »).
+
+### Ce qui reste
+
+- Un bulletin **nouveau** établi au Cabinet pour un client qui fait sa paie dans SkanFact prend les taux réglés au
+  Cabinet, pas encore ceux de ses réglages (le serveur ne les montre pas au Cabinet : une lecture à ouvrir, droits
+  compris).

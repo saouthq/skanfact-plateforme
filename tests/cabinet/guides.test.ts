@@ -125,4 +125,24 @@ describe('les guides d\'écritures et le journal retenu', () => {
     expect(await refuse({ cnssEmployer: '5' }, 'inconnu')).toBe(400);
     expect((await ecrire({ regimesContrat: {}, autre: 1 }, 1)).statut).toBe(400);
   });
+
+  it('les taux propres à l\'entreprise (accident du travail, TFP, FOPROLOS) se gardent à côté, dans la même forme ; aucun autre taux', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);
+    const garage = String((await appeler('POST', `/cabinets/${cabinet}/dossiers`, associe.jeton, { raisonSociale: 'Garage du Port' })).corps.entreprise);
+    const PAIE = { regimesContrat: { civp: { cnssEmployer: '0' } }, accidentRate: '2.75', tfpRate: '1', foprolosRate: '0' };
+    const ecrire = async (paie: unknown, revision: number | null) => appeler('PUT', `/cabinets/${cabinet}/fiches/${garage}`, associe.jeton, { contenu: { paie }, revision });
+    expect((await ecrire(PAIE, null)).statut).toBe(200);
+    expect(((await appeler('GET', `/cabinets/${cabinet}/fiches`, associe.jeton)).corps.fiches as { entreprise: string; contenu: unknown }[])
+      .find((f) => f.entreprise === garage)?.contenu).toEqual({ paie: PAIE });
+    const refuse = async (taux: Record<string, unknown>) => (await ecrire({ regimesContrat: {}, ...taux }, 1)).statut;
+    expect(await refuse({ accidentRate: 2.75 })).toBe(400);
+    expect(await refuse({ accidentRate: '2,75' })).toBe(400);
+    expect(await refuse({ tfpRate: '1.00001' })).toBe(400);
+    expect(await refuse({ foprolosRate: '101' })).toBe(400);
+    expect(await refuse({ foprolosRate: '' })).toBe(400);
+    // Les taux du régime (CNSS, solidarité) ne sont pas ceux d'une entreprise : ils ne se gardent pas ici.
+    expect(await refuse({ cnssEmployer: '16' })).toBe(400);
+    expect(await refuse({ solidarity: '1' })).toBe(400);
+  });
 });

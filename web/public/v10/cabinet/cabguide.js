@@ -170,8 +170,12 @@
     'pa.cin': { t: 'Le numéro de CIN', d: 'Gardé sur la fiche : la déclaration d\'employeur annuelle le demande pour chaque bénéficiaire.' },
     'pa.numCnss': { t: 'Le numéro d\'assuré CNSS', d: 'Huit chiffres au plus, puis la clé sur deux. Inutile pour calculer un bulletin ; sans lui, le fichier CNSS du trimestre ne sort pas.' },
     'pa.poste': { t: 'Le poste occupé', d: 'Gardé sur la fiche et montré dans la liste des salariés. Il n\'entre dans aucun calcul.' },
-    'pa.contrat': { a: 'paie', t: 'Le type de contrat', d: 'CDI, CDD, saisonnier, CIVP, Karama… Un contrat sans règle propre suit le barème général. Un CIVP ou un contrat Karama peut être exonéré d\'une partie des charges ou de l\'impôt : le régime se règle pour ce client dans « Taux par contrat… », au-dessus de la liste des salariés, et chaque bulletin du contrat le suit.' },
-    'pa.regimes': { a: 'paie', t: 'Les taux par contrat', d: 'Pour CE client, les taux qu\'un contrat applique à la place du barème général : CNSS salarié et employeur, accident, TFP, FOPROLOS, solidarité, et « sans IRPP ». Une case vide garde le taux général ; 0 veut dire exonéré. Le CDI suit toujours le barème. Un bulletin garde les taux avec lesquels il a été établi. À VÉRIFIER avec les textes du dispositif : SkanFact Cabinet ne connaît aucune exonération d\'avance.' },
+    'pa.contrat': { a: 'paie', t: 'Le type de contrat', d: 'CDI, CDD, saisonnier, CIVP, Karama… Un contrat sans règle propre suit le barème général. Un CIVP ou un contrat Karama peut être exonéré d\'une partie des charges ou de l\'impôt : le régime se règle pour ce client dans « Taux de la paie… », au-dessus de la liste des salariés, et chaque bulletin du contrat le suit.' },
+    'pa.regimes': { a: 'paie', t: 'Les taux de la paie', d: 'Pour CE client, deux sortes de taux. Les siens, qui dépendent de l\'entreprise : l\'accident du travail, la TFP, le FOPROLOS. Ceux d\'un contrat particulier, à la place du barème général : CNSS salarié et employeur, accident, TFP, FOPROLOS, solidarité, et « sans IRPP » ; le CDI suit toujours le barème. Une case vide garde le taux général ; 0 veut dire exonéré. Un bulletin garde les taux avec lesquels il a été établi ; dans un dossier tenu, une case de sa fenêtre lui donne ceux du jour, en disant chacun de ceux qui changent. À VÉRIFIER avec les avis et les textes : SkanFact Cabinet ne connaît aucun taux propre ni aucune exonération d\'avance.' },
+    // (plateforme) 1.66.0 — les taux propres au client.
+    'pa.accident': { a: 'paie', t: 'L\'accident du travail', d: 'Le taux de la cotisation accident du travail et maladie professionnelle de CE client, à la charge de l\'employeur : il dépend de l\'activité de l\'entreprise, et la CNSS le lui notifie. Vide : le taux du barème. À VÉRIFIER sur son avis.' },
+    'pa.tfp': { a: 'paie', t: 'La TFP', d: 'La taxe de formation professionnelle de CE client, sur le brut, à la charge de l\'employeur : 1 % pour une industrie manufacturière, 2 % sinon ; 0 si l\'entreprise en est exonérée. Vide : le taux du barème. À VÉRIFIER avec les textes de l\'année.' },
+    'pa.foprolos': { a: 'paie', t: 'Le FOPROLOS', d: 'La contribution au fonds de promotion des logements pour les salariés de CE client, sur le brut, à la charge de l\'employeur ; 0 si l\'entreprise en est exonérée. Vide : le taux du barème. À VÉRIFIER avec les textes de l\'année.' },
     'pa.brut': { t: 'Le salaire brut mensuel', d: 'Proposé à chaque nouveau bulletin, qui reste modifiable mois par mois.' },
     'pa.embauche': { t: 'La date d\'embauche', d: 'Le salarié ne compte qu\'à partir d\'elle : un mois antérieur ne lui réclame pas de bulletin.' },
     'pa.sortie': { t: 'La date de sortie', d: 'Après elle, le salarié ne compte plus et ne passe pas à l\'exercice suivant. Ses bulletins restent.' },
@@ -483,8 +487,9 @@
       bulletins.</p>
       <h3>Les contrats aux règles particulières</h3>
       <p class="small">Un <b>CIVP</b>, un contrat <b>Karama</b>, un <b>saisonnier</b> : certains dispositifs exonèrent
-      l'employeur d'une partie des charges, ou le salarié de l'IRPP. <b>Taux par contrat…</b>, au-dessus de la liste des
-      salariés, règle pour ce client les taux de chaque contrat : une case vide garde le taux général, <b>0</b> exonère.
+      l'employeur d'une partie des charges, ou le salarié de l'IRPP. <b>Taux de la paie…</b>, au-dessus de la liste des
+      salariés, règle pour ce client ses propres taux (l'accident du travail selon son activité, la TFP, le FOPROLOS),
+      puis les taux de chaque contrat : une case vide garde le taux général, <b>0</b> exonère.
       L'aperçu d'un bulletin dit le régime appliqué, et le bulletin le garde avec son calcul. <em>À VÉRIFIER : aucune
       exonération n'est écrite d'avance — elles dépendent du dispositif, de sa durée et de l'année.</em></p>
       <h3>L'écriture et la CNSS</h3>

@@ -85,7 +85,7 @@ mêmes données que son client.
 | **41 ter** | La liasse et le résultat fiscal de l'année. |
 | **42** | Les immobilisations : fiches des biens au serveur, dotations et sorties au brouillard, liées à leur bien. |
 | **42 bis** | L'inventaire de stock et sa variation. |
-| **43** | La paie tenue par le cabinet (mandat Paie) : les salariés et les bulletins du client, dans son propre dossier. Depuis la 1.63.0, la paie du dossier se lit à l'ouverture du livre, un bulletin se corrige tant que l'exercice n'est pas clos, et ses lignes gardent leurs marques (`docs/paie.md`, « Le Cabinet ne perd rien d'un bulletin ») ; depuis la 1.65.0, le bulletin imprimé, le journal de paie et l'état récapitulatif CNSS en sortent (« Les documents de la paie au Cabinet »). |
+| **43** | La paie tenue par le cabinet (mandat Paie) : les salariés et les bulletins du client, dans son propre dossier. Depuis la 1.63.0, la paie du dossier se lit à l'ouverture du livre, un bulletin se corrige tant que l'exercice n'est pas clos, et ses lignes gardent leurs marques (`docs/paie.md`, « Le Cabinet ne perd rien d'un bulletin ») ; depuis la 1.65.0, le bulletin imprimé, le journal de paie et l'état récapitulatif CNSS en sortent (« Les documents de la paie au Cabinet ») ; depuis la 1.66.0, les taux propres du dossier (accident du travail, TFP, FOPROLOS) se règlent avec ceux des contrats, dans « Taux de la paie… » (« Les taux propres d'un dossier au Cabinet »). |
 | **44** | La révision (feuilles maîtresses, comptes signés, notes, questionnaire, révision arrêtée) et les questions au client, posées puis envoyées. |
 | **44 bis** | Le client lit les questions de son cabinet dans son SkanFact, en face de la pièce, et y répond. |
 | **45** | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
@@ -1160,6 +1160,13 @@ inconnu, le CDI, un contrat inconnu, un champ de plus : refusés. À la souris
 du CIVP enregistrés dans la fiche, dits par le panneau ; un salarié en CIVP et son bulletin de mars, dont
 le barème gardé au serveur est celui du CIVP (CNSS employeur 0, solidarité 0,5, sans IRPP ; la CNSS
 salarié, celle du barème général).
+
+**Depuis la 1.66.0 (19/10/2026, par délégation) : les taux propres du client.** La même fenêtre, renommée
+« Taux de la paie… », règle d'abord les taux qui dépendent de l'entreprise : l'accident du travail, la TFP,
+le FOPROLOS (`docs/paie.md`, « Les taux propres d'un dossier au Cabinet »). Ce qui part au serveur, compté :
+la fiche, avec **trois champs de plus** dans `paie` (`accidentRate`, `tfpRate`, `foprolosRate`, chacun
+facultatif, en texte décimal à quatre décimales au plus) ; rien d'autre (les taux de la CNSS et la
+solidarité restent ceux du régime, et le serveur les refuse ici).
 
 ## Brique 56 : retirer un dossier du portefeuille (fait le 30/09/2026)
 

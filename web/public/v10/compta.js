@@ -6455,9 +6455,10 @@
 
   // Le bulletin garde une COPIE de son calcul (règle 5.0.0) : changer un barème ne doit jamais
   // réécrire un bulletin déjà remis à un salarié.
-  function ajouterBulletin(livre, bulletin, baremesDuDossier, qui, quand) {
-    // (plateforme) 1.64.0 — un bulletin modifié se recalcule avec son barème figé (baremesDuBulletin).
-    const baremes = baremesDuBulletin(livre, bulletin, baremesDuDossier);
+  function ajouterBulletin(livre, bulletin, baremesDuDossier, qui, quand, opts) {
+    // (plateforme) 1.64.0 — un bulletin modifié se recalcule avec son barème figé (baremesDuBulletin). 1.66.0 — ou avec
+    // les taux du jour du dossier, quand on le demande (`opts.tauxDuJour` : la case de la fenêtre d'un dossier tenu).
+    const baremes = opts && opts.tauxDuJour ? (baremesDuDossier || {}) : baremesDuBulletin(livre, bulletin, baremesDuDossier);
     const v = bulletinValide(bulletin, livre, baremes);
     if (!v.ok) return { ok: false, motif: v.motif };
     const s = livre.salaries.find(y => y.id === bulletin.salarieId);

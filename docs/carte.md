@@ -220,7 +220,9 @@ vaut pour tout le dépôt.*
     livre (`pont-cabinet.js`, `poserLaPaie`), toutes les lignes et leurs marques (`web/v10/paie-cabinet.txt` ;
     `tests/moteur/paie-cabinet.test.ts`, `tests/web/cabinet-paie.test.ts`). Un bulletin modifié au Cabinet garde son
     barème (1.64.0 ; `web/v10/paie-cabinet-bareme.txt`, `baremesDuBulletin`). Les documents de la paie au Cabinet
-    (1.65.0 ; `web/v10/paie-cabinet-documents.txt`, `paieDuDossierV10`) : le bulletin, le journal, l'état CNSS.
+    (1.65.0 ; `web/v10/paie-cabinet-documents.txt`, `paieDuDossierV10`) : le bulletin, le journal, l'état CNSS. Les
+    taux propres d'un dossier au Cabinet (1.66.0 ; `web/v10/paie-cabinet-taux.txt`, `FICHE.paie`) : accident du
+    travail, TFP, FOPROLOS.
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs
@@ -352,7 +354,9 @@ vaut pour tout le dépôt.*
     range en `employeur`, que `questionsEnAttente` rend à la carte CNSS des Échéances.
   - **Les taux de paie par contrat** (brique 55, C45) : `paie.regimesContrat` dans la fiche (taux en texte
     décimal, quatre décimales au plus, jamais le CDI) ; `savePaie` normalise par `normaliserRegimes` ; la
-    paie et `saveBulletin` du point de contact calculent avec eux (`paieDuDossier`).
+    paie et `saveBulletin` du point de contact calculent avec eux (`paieDuDossier`). Depuis la 1.66.0, les taux
+    propres au client à côté (`paie.accidentRate`, `tfpRate`, `foprolosRate` ; `savePaie(id, regimes, taux)`),
+    lus tels quels comme ceux des contrats.
   - **Retirer un dossier** (brique 56, 0032, C46) : `deleteDossier` = arrêter le mandat ; `arreter_mandat`
     refuse un dossier tenu qui a une écriture (le refus dit d'archiver). Rien ne s'efface.
   - **Le nom et le matricule d'un dossier tenu** (brique 57, 0033, C47) : `socle.renommer_dossier_tenu` et
