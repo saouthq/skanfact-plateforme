@@ -6332,7 +6332,9 @@
       // 10.10.0 (C-11) — et le bouton s'éteint par la MÊME fonction que celle qui refusera
       // (`bulletinValide`), avec son motif AU-DESSUS du bouton (9.4.2). Quarante jours d'absence sur
       // vingt-six affichaient un net de −586 DT sans un mot, et le bulletin s'enregistrait.
-      const baremes = dossier.paie || {};
+      // (plateforme) 1.64.0 — un bulletin modifié garde le barème figé avec son calcul (les taux du client ce mois-là),
+      // l'aperçu comme l'enregistrement : avec les réglages du dossier au Cabinet, il changeait de taux en silence.
+      const baremes = KC.baremesDuBulletin(L, b, dossier.paie || {});
       const maj = () => {
         const v = lire();
         const sal = (L.salaries || []).find(x => x.id === v.salarieId) || {};

@@ -3,6 +3,9 @@
 // chaque prime avec ses marques (une prime d'heures supplémentaires, une prime au jour), chaque retenue, et le prorata
 // d'une entrée tant que le brut est le sien ; il calcule alors comme l'entreprise, au millime, et le journal de paie
 // range toujours les heures supplémentaires dans leur colonne.
+//
+// Et un bulletin MODIFIÉ au Cabinet garde le barème figé avec son calcul (1.64.0 ; docs/paie.md, « Un bulletin modifié
+// au Cabinet garde son barème ») : les taux du client ce mois-là, et le régime de son contrat.
 
 import { describe, expect, it } from 'vitest';
 import { ecranDeLaPlateforme } from './v10.ts';
@@ -16,6 +19,7 @@ const compta = ecranDeLaPlateforme('compta.js') as {
   livreVide: (dossier: string, annee: number) => Record<string, unknown> & { salaries: Ligne[]; bulletins: Bulletin[] };
   ajouterBulletin: (livre: unknown, b: unknown, baremes: Reglages, qui: string, quand: number) => { ok: boolean; motif?: string; bulletin: Bulletin };
   bulletinValide: (b: unknown, livre: unknown, baremes: Reglages) => { ok: boolean; motif: string };
+  baremesDuBulletin: (livre: unknown, b: unknown, baremes: Reglages) => Reglages;
 };
 const core = ecranDeLaPlateforme('core.js') as {
   journalDePaie: (d: unknown, annee: number, mois: number) => { lignes: Record<string, number>[] };
@@ -76,5 +80,46 @@ describe('le bulletin que le Cabinet réécrit', () => {
     expect([r.bulletin.calcul.absenceCut, r.bulletin.calcul.brutDuMois]).toEqual([57.692, 750]);
     // Ses primes gardent leurs marques quand même.
     expect(r.bulletin.primes).toEqual(PRIMES);
+  });
+
+  it('un bulletin modifié au Cabinet garde le barème figé avec son calcul : les taux du client (accident du travail, TFP) et le régime de son contrat ; un nouveau prend ceux du dossier', () => {
+    // Le barème du client : un accident du travail à 2 %, une TFP à 1 % (ils dépendent de l'activité de l'entreprise) ;
+    // le CIVP sans charge patronale CNSS ni IRPP.
+    const client = compta.baremesPaie({ accidentRate: 2, tfpRate: 1, regimesContrat: { civp: { cnssEmployer: 0, sansIrpp: true } } });
+    const defaut = compta.baremesPaie({});
+    expect([defaut.accidentRate, defaut.tfpRate]).not.toEqual([2, 1]);
+    const saisieDe = (id: string, absence: number) => ({ id, salarieId: 's1', annee: 2026, mois: 9, brut: 1300, joursTravailles: 26, joursAbsence: absence,
+      primes: [], retenues: [], prorata: null });
+    const entreeEntreprise = (absence: number) => ({ gross: 1300, workedDays: 26, absentDays: absence, bonuses: [], deductions: [], prorata: null });
+    for (const contrat of ['cdi', 'civp']) {
+      const l = livre();
+      l.salaries = l.salaries.map((x) => ({ ...x, contrat, brut: 1300 }));
+      const employe = { ...EMPLOYE, contrat };
+      // Le bulletin que le client a établi dans son SkanFact, avec SON barème.
+      l.bulletins = [{ ...saisieDe('b1', 2), calcul: compta.computePayslip(employe, entreeEntreprise(2), client) } as unknown as Bulletin];
+      // Modifié au Cabinet (un jour d'absence de plus), avec les réglages du dossier au Cabinet (le barème par défaut).
+      const r = compta.ajouterBulletin(l, saisieDe('b1', 3), {}, 'cabinet', 1);
+      expect(r.ok, r.motif).toBe(true);
+      expect(r.bulletin.calcul, contrat).toEqual(compta.computePayslip(employe, entreeEntreprise(3), client));
+      const taux = r.bulletin.calcul.rates as unknown as Record<string, number>;
+      expect([taux.accidentRate, taux.tfpRate, taux.cnssEmployer], contrat).toEqual([2, 1, contrat === 'civp' ? 0 : client.cnssEmployer]);
+      if (contrat === 'civp') expect(r.bulletin.calcul.irpp).toBe(0);
+      // L'écran du Cabinet calcule avec le même barème (son aperçu, son juge).
+      expect(compta.baremesDuBulletin(l, { id: 'b1' }, {})).toMatchObject({ accidentRate: 2, tfpRate: 1 });
+      // Un bulletin nouveau prend les réglages du dossier.
+      const nouveau = compta.ajouterBulletin(l, { ...saisieDe('', 0), mois: 10 }, {}, 'cabinet', 2);
+      expect(nouveau.ok, nouveau.motif).toBe(true);
+      expect((nouveau.bulletin.calcul.rates as unknown as Record<string, number>).accidentRate).toBe(defaut.accidentRate);
+    }
+
+    // Le contrat a changé depuis (CIVP → CDI) : le régime figé ne s'applique plus, les taux du client restent.
+    const l = livre();
+    l.salaries = l.salaries.map((x) => ({ ...x, contrat: 'cdi', brut: 1300 }));
+    l.bulletins = [{ ...saisieDe('b1', 2), calcul: compta.computePayslip({ ...EMPLOYE, contrat: 'civp' }, entreeEntreprise(2), client) } as unknown as Bulletin];
+    const r = compta.ajouterBulletin(l, saisieDe('b1', 2), {}, 'cabinet', 1);
+    expect(r.ok, r.motif).toBe(true);
+    const taux = r.bulletin.calcul.rates as unknown as Record<string, number>;
+    expect([taux.accidentRate, taux.tfpRate, taux.cnssEmployer]).toEqual([2, 1, defaut.cnssEmployer]);
+    expect(r.bulletin.calcul.irpp).toBeGreaterThan(0);
   });
 });

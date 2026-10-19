@@ -218,7 +218,8 @@ vaut pour tout le dépôt.*
     tient sur une page (1.62.0 ; `web/v10/paie-impression.txt`, ses pages comptées dans un navigateur :
     `tests/v10/bulletin-imprime.test.ts`). Le Cabinet ne perd rien d'un bulletin (1.63.0) : la paie lue à l'ouverture du
     livre (`pont-cabinet.js`, `poserLaPaie`), toutes les lignes et leurs marques (`web/v10/paie-cabinet.txt` ;
-    `tests/moteur/paie-cabinet.test.ts`, `tests/web/cabinet-paie.test.ts`).
+    `tests/moteur/paie-cabinet.test.ts`, `tests/web/cabinet-paie.test.ts`). Un bulletin modifié au Cabinet garde son
+    barème (1.64.0 ; `web/v10/paie-cabinet-bareme.txt`, `baremesDuBulletin`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

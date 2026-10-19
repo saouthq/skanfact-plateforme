@@ -17443,6 +17443,25 @@ prouver 'la prime au jour qui ne suit plus les jours au Cabinet' 'web/public/v10
   '      f.oninput = f.onchange = maj;' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
 
+# 1.64.0 : un bulletin modifié au Cabinet garde son barème (docs/paie.md, « Un bulletin modifié au Cabinet garde son barème »).
+prouver 'un bulletin modifié au Cabinet recalculé avec les taux du dossier' 'web/public/v10/compta.js' \
+  '    const baremes = baremesDuBulletin(livre, bulletin, baremesDuDossier);' \
+  '    const baremes = baremesDuDossier;' \
+  'un bulletin modifié au Cabinet garde le barème figé avec son calcul : les taux du client (accident du travail, TFP) et le régime de son contrat ; un nouveau prend ceux du dossier'
+prouver 'le régime figé du contrat oublié en modifiant au Cabinet' 'web/public/v10/compta.js' \
+  '    const regimesContrat = regime && c.contrat ? { ...(r.regimesContrat || {}), [c.contrat]: { ...regime } } : r.regimesContrat;' \
+  '    const regimesContrat = r.regimesContrat;' \
+  'un bulletin modifié au Cabinet garde le barème figé avec son calcul : les taux du client (accident du travail, TFP) et le régime de son contrat ; un nouveau prend ceux du dossier'
+prouver 'les taux qu'"'"'un régime fixait gardés comme taux de base au Cabinet' 'web/public/v10/compta.js' \
+  '    if (regime) Object.keys(regime).forEach(k => { delete taux[k]; });
+' \
+  '' \
+  'un bulletin modifié au Cabinet garde le barème figé avec son calcul : les taux du client (accident du travail, TFP) et le régime de son contrat ; un nouveau prend ceux du dossier'
+prouver 'l'"'"'aperçu du bulletin au Cabinet calculé avec les taux du dossier' 'web/public/v10/cabinet/app.js' \
+  '      const baremes = KC.baremesDuBulletin(L, b, dossier.paie || {});' \
+  '      const baremes = dossier.paie || {};' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

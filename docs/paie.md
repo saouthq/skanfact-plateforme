@@ -514,3 +514,42 @@ pont-cabinet.js` le lit et le réécrit dans la paie du dossier). Refait à la s
 
 - Les primes de chaque mois de la fiche ne se proposent pas encore dans un **nouveau** bulletin du Cabinet (elles se
   tapent) ; le bulletin imprimé, le journal de paie et les états restent à l'entreprise.
+
+## Un bulletin modifié au Cabinet garde son barème (19/10/2026, 1.64.0)
+
+*Trouvé en relisant la 1.63.0 : le calcul du Cabinet, refait sur le bulletin d'un client dont les taux ne sont pas ceux
+par défaut.*
+
+### Le défaut
+
+Le Cabinet calcule un bulletin avec les réglages de paie du dossier **au Cabinet** (les taux par contrat, sur le barème
+par défaut). Un bulletin que le client a établi dans son SkanFact porte **ses** taux : l'accident du travail (de 0,4 % à
+plusieurs pour cent selon le risque de l'activité), la TFP (1 % ou 2 % selon l'activité), le régime d'un contrat (un CIVP
+sans charge patronale CNSS). Modifié au Cabinet, pour une absence par exemple, il se recalculait au taux par défaut, **en
+silence** : ses charges patronales, l'état récapitulatif CNSS et la déclaration du mois changeaient sans que personne le
+voie.
+
+### Ce que le lot fait (`web/v10/paie-cabinet-bareme.txt`)
+
+- **Un bulletin modifié garde le barème figé avec son calcul** (`calcul.bareme`, la règle 5.0.0 : une pièce garde ce qui
+  a servi à la calculer), donc les taux du client **ce mois-là** (`baremesDuBulletin`, compta.js) ; l'aperçu de la
+  fenêtre, son juge et l'enregistrement calculent avec le même.
+- **Le régime de son contrat** (`calcul.regime`) s'applique de nouveau, à l'identique, pour le même contrat ; si le
+  contrat a changé depuis, ce que le régime fixait revient des réglages du dossier, et les autres taux du client restent.
+- **Un bulletin nouveau** prend les réglages du dossier au Cabinet, comme avant.
+
+### Ce qui le prouve
+
+- `tests/moteur/paie-cabinet.test.ts`, « un bulletin modifié au Cabinet garde le barème figé avec son calcul » : un
+  bulletin du client (accident du travail 2 %, TFP 1 %), en CDI puis en CIVP, modifié avec le barème par défaut du
+  Cabinet : le même calcul que l'entreprise, ses taux, le régime du CIVP (sans CNSS patronale ni IRPP) ; un bulletin
+  nouveau aux réglages du dossier ; un contrat changé depuis.
+- `tests/web/cabinet-paie.test.ts` : le bulletin du client à 2 % et 1 %, modifié à la souris, garde ses taux au serveur ;
+  le net que l'aperçu annonce avant le geste est celui que le serveur enregistre.
+- Quatre preuves (`tests/preuves.sh`, « 1.64.0 »).
+
+### Ce qui reste
+
+- Les taux **généraux** d'un dossier tenu par le Cabinet (son accident du travail, sa TFP) ne se règlent pas encore au
+  Cabinet (seuls les taux par contrat) ; un bulletin **nouveau** d'un client qui fait sa paie dans SkanFact ne lit pas
+  encore ses réglages (le serveur ne les montre pas au Cabinet).

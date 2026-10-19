@@ -6436,9 +6436,28 @@
     return { ok: true, motif: '' };
   }
 
+  // (plateforme) 1.64.0 — le barème d'un bulletin que le Cabinet MODIFIE : celui figé avec son calcul, les taux du client
+  // ce mois-là (accident du travail, TFP, FOPROLOS…). Recalculé avec les réglages du dossier au Cabinet, un bulletin que
+  // le client avait établi changeait de taux en silence. Ce qu'un régime de contrat fixait revient du régime : le sien,
+  // figé, pour le même contrat ; celui du dossier, si le contrat a changé. Un bulletin nouveau prend les réglages du dossier.
+  function baremesDuBulletin(livre, bulletin, baremes) {
+    const r = baremes || {};
+    const avant = bulletin && bulletin.id ? ((livre && livre.bulletins) || []).find(x => x.id === bulletin.id) : null;
+    const c = avant && avant.calcul;
+    if (!c || !c.bareme || typeof c.bareme !== 'object') return r;
+    const taux = { ...c.bareme };
+    delete taux.sansIrpp;
+    const regime = c.regime && typeof c.regime === 'object' ? c.regime : null;
+    if (regime) Object.keys(regime).forEach(k => { delete taux[k]; });
+    const regimesContrat = regime && c.contrat ? { ...(r.regimesContrat || {}), [c.contrat]: { ...regime } } : r.regimesContrat;
+    return { ...r, ...taux, ...(regimesContrat ? { regimesContrat } : {}) };
+  }
+
   // Le bulletin garde une COPIE de son calcul (règle 5.0.0) : changer un barème ne doit jamais
   // réécrire un bulletin déjà remis à un salarié.
-  function ajouterBulletin(livre, bulletin, baremes, qui, quand) {
+  function ajouterBulletin(livre, bulletin, baremesDuDossier, qui, quand) {
+    // (plateforme) 1.64.0 — un bulletin modifié se recalcule avec son barème figé (baremesDuBulletin).
+    const baremes = baremesDuBulletin(livre, bulletin, baremesDuDossier);
     const v = bulletinValide(bulletin, livre, baremes);
     if (!v.ok) return { ok: false, motif: v.motif };
     const s = livre.salaries.find(y => y.id === bulletin.salarieId);
@@ -6956,6 +6975,8 @@
     COMPTES_PAIE, MOIS_PAIE, moisPaie, TRIMESTRES_PAIE,
     salarieValide, normaliserSalarie, ajouterSalarie, retirerSalarie, salariesActifs,
     bulletinsDuMois, bulletinValide, saisiePaieValide, ajouterBulletin, supprimerBulletin, masseSalariale, moisEmployeur,
+    // (plateforme) 1.64.0
+    baremesDuBulletin,
     ecritureDePaie, noterEcriturePaie, cnssDuTrimestre, controlesPaie,
     fichierCnss, fichierCnssDuLivre, lireMatriculeCnss, identiteCnss, motifIdentiteCnss, FORMAT_CNSS,
     // La pièce équilibrée et l'amortissement (9.6.1)

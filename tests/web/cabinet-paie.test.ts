@@ -120,7 +120,8 @@ describe('la paie tenue par le cabinet, à la souris', () => {
 
     // Le bulletin de septembre 2026 tel que le SkanFact du client l'établit : entré le 15 (quatorze jours sur vingt-six,
     // 700 de brut), deux jours d'absence ; une prime au jour (douze jours payés), une prime d'heures supplémentaires (le
-    // pointage), une prime non imposable ; deux retenues. Calculé par l'écran de l'entreprise (le même moteur).
+    // pointage), une prime non imposable ; deux retenues. Calculé par l'écran de l'entreprise (le même moteur), avec
+    // le barème du client : un accident du travail à 2 %, une TFP à 1 % (1.64.0 : le Cabinet le garde en modifiant).
     type Calcul = Record<string, number>;
     const compta = ecranDeLaPlateforme('compta.js') as { computePayslip: (e: unknown, i: unknown, s: unknown) => Calcul; baremesPaie: (r: unknown) => unknown };
     const salarie = { id: 's1', name: 'Salarié Numéro Un', grossSalary: 1300, hireDate: '2026-09-15', contract: 'cdi', headOfFamily: false, children: 0, active: true, method: 'virement', iban: '' };
@@ -131,7 +132,8 @@ describe('la paie tenue par le cabinet, à la souris', () => {
       { label: 'Prime de panier', amount: 20.5, taxable: false },
     ];
     const retenues = [{ label: 'Avance sur salaire', amount: 50 }, { label: 'Remboursement de prêt', amount: 25.5 }];
-    const calcul = (absence: number, bonuses: unknown[]) => compta.computePayslip(salarie, { gross: 700, workedDays: 26, absentDays: absence, bonuses, deductions: retenues, prorata }, compta.baremesPaie({}));
+    const bareme = compta.baremesPaie({ accidentRate: 2, tfpRate: 1 });
+    const calcul = (absence: number, bonuses: unknown[]) => compta.computePayslip(salarie, { gross: 700, workedDays: 26, absentDays: absence, bonuses, deductions: retenues, prorata }, bareme);
     const bulletin = { id: 'b-s1-2026-09', employeeId: 's1', year: 2026, month: 9, gross: 700, workedDays: 26, absentDays: 2, bonuses: primes, deductions: retenues,
       prorata, computed: calcul(2, primes), issuedAt: '2026-09-30', paidDate: '', accountId: '', method: 'virement', reference: '' };
     const ecrire = async (collection: string, cle: string, contenu: unknown) => (await api('POST', `/entreprises/${cafe}/paie/dossier`, associe,
@@ -178,6 +180,10 @@ describe('la paie tenue par le cabinet, à la souris', () => {
     await fenetre.locator('[name=joursAbsence]').fill('3');
     await expect.poll(() => fenetre.locator('#bf-primes [data-pj]').innerText()).toContain('au jour : 11 j payés sur 26');
     expect(await valeurs('#bf-primes [data-l=amount]')).toEqual(['29,615', '75,012', '20,500']);
+    // Ce que l'aperçu annonce, avant le geste : le net et le coût employeur que le serveur enregistrera (deux chemins, un
+    // chiffre ; le coût employeur porte les taux patronaux du client, que le net ne voit pas).
+    const apercu = (await fenetre.locator('#bf-apercu').innerText()).replace(/\s/g, '');
+    const annonce = (motif: RegExp) => (apercu.match(motif)?.[1] ?? '?').replace(',', '.');
     await fenetre.locator('#ok').click();
     await expect.poll(() => p.locator('#toast').innerText()).toBe('Bulletin enregistré.');
 
@@ -188,12 +194,15 @@ describe('la paie tenue par le cabinet, à la souris', () => {
     expect(lu.bonuses).toEqual(attendues);
     expect(lu.deductions).toEqual(retenues);
     expect([lu.prorata, lu.absentDays, lu.gross]).toEqual([prorata, 3, 700]);
-    // Calculé comme l'entreprise : l'absence au taux du salaire du contrat (1 300 × 3 / 26 = 150), au millime de son écran.
+    // Calculé comme l'entreprise : l'absence au taux du salaire du contrat (1 300 × 3 / 26 = 150), au millime de son écran,
+    // avec le barème du client (son accident du travail, sa TFP), pas celui du Cabinet.
     expect(lu.computed).toEqual(calcul(3, attendues));
     expect(lu.computed.absenceCut).toBe(150);
+    expect([(lu.computed.rates as unknown as Record<string, number>).accidentRate, (lu.computed.rates as unknown as Record<string, number>).tfpRate]).toEqual([2, 1]);
     // Deux chemins, un chiffre : le net que le serveur a refait est celui de l'écran.
     const lignes = (await api('GET', `/entreprises/${cafe}/paie/bulletins?annee=2026`, associe)).corps.lignes as { mois: number; net: string }[];
     expect(lignes.map((l) => [l.mois, l.net])).toEqual([[9, Number(lu.computed.net).toFixed(3)]]);
+    expect([annonce(/Netàpayer([\d,]+)DT/), annonce(/coûtemployeur([\d,]+)DT/)]).toEqual([Number(lu.computed.net).toFixed(3), Number(lu.computed.employerCost).toFixed(3)]);
     // L'écriture validée de septembre reste ; sa contre-passation et la nouvelle s'écrivent au brouillard, au premier
     // jour ouvert (septembre est clos).
     const ecritures = (await api('GET', `/entreprises/${cafe}/compta/ecritures?limite=500`, associe)).corps.ecritures as { journal: string; date: string; statut: string; origine: { type: string } }[];
