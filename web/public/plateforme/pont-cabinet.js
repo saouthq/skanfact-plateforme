@@ -1537,6 +1537,15 @@
       await ecrirePaieDuDossier(o.dossierId, 'employees', o.id, employeDe(s, paieAvant(o.dossierId, 'employees', o.id)));
       return { ok: true, livre: await livreEtPaie(o.dossierId, o.annee) };
     },
+    // 1.65.0 — la paie du dossier telle que l'entreprise la tient (la forme de la v10), lue avec le livre : les documents de
+    // la paie (le bulletin, le journal du mois, l'état CNSS du trimestre) sont ceux de l'entreprise (core.js), sur elle.
+    paieDuDossierV10: (/** @type {string} */ ent) => {
+      const objets = [...(paieLue.get(ent) || new Map()).values()];
+      return {
+        employees: objets.filter((o) => o.collection === 'employees').map((o) => o.contenu),
+        payslips: objets.filter((o) => o.collection === 'payslips').map((o) => o.contenu),
+      };
+    },
     saveBulletin: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = sansEcritures(await livreEtPaie(o.dossierId, o.annee));

@@ -5869,6 +5869,8 @@
         title="${esc(pourquoiBulletin)}">+ Bulletin…</button>
       <button class="${cls('ecrire')}" id="pa-ecrire" ${aPasser ? '' : 'disabled'}
         title="${esc(pourquoiEcrire)}">Passer l'écriture de paie</button>
+      ${/* (plateforme) 1.65.0 — le journal de paie du mois, celui de l'entreprise, imprimé. */''}
+      ${bulletins.length ? '<button type="button" class="btn btn-sm" id="pa-journal">Journal de paie</button>' : ''}
     </div>
     ${motifs.length ? `<p class="small muted mb" id="pa-motifs">${motifs.map(esc).join(' · ')}</p>` : ''}
     ${/* U-13 — l'orange seulement quand il y a un geste à faire. « 1 bulletin non réglé » est
@@ -5947,7 +5949,10 @@
               écrivait « le 15 » à côté d'un calendrier réglable — deux écrans, deux dates pour la
               même déclaration (10.14.0, dateLimiteSociale). */''}
         <div class="mt">${ligneEcheanceDeclaration(dossier, `${s.annee}-${String(t * 3).padStart(2, '0')}`, null, 'cnss', 'pa-portail')}</div>
-        ${panneauFichierCnss(dossier, fichier, trimEnCours)}`
+        ${panneauFichierCnss(dossier, fichier, trimEnCours)}
+        ${/* (plateforme) 1.65.0 — l'état récapitulatif des salaires déclarés, celui de l'entreprise, imprimé. */''}
+        <div class="ctrl-geste mt"><button type="button" class="btn btn-sm" id="pa-etat">Imprimer l'état récapitulatif</button>
+          <span class="small muted">Les cotisations du trimestre sur le total des salaires, au taux du régime, dans l'ordre du formulaire.</span></div>`
     : `<div class="empty mini">Aucun bulletin sur ce trimestre : il n'y a rien à déclarer.</div>`}
     </div>
 
@@ -6007,6 +6012,33 @@
       <div class="muted">Le fichier sort quand même. <b>À VÉRIFIER</b> : la CNSS demande l'identité « prénom, prénom du père, nom » comme sur la carte d'assuré (le nom de jeune fille pour une femme mariée), et le portail peut refuser un CIN vide.</div></div>`;
   }
 
+  // (plateforme) 1.65.0 — les documents de la paie d'un dossier (le bulletin, le journal du mois, l'état CNSS du trimestre)
+  // sont ceux de l'entreprise (core.js), au même millime et dans la même forme. Leur moteur se charge la première fois
+  // qu'on en imprime un : le Cabinet n'en a pas besoin pour le reste, et sa page reste légère. La fenêtre s'ouvre tout de
+  // suite, dans le geste : un navigateur bloque celle qu'on ouvre après une attente.
+  let moteurDesDocuments = null;
+  const chargerMoteurDesDocuments = () => moteurDesDocuments || (moteurDesDocuments = new Promise((ok, ko) => {
+    if (window.SkanCore) return ok(window.SkanCore);
+    const sc = document.createElement('script');
+    sc.src = '../core.js';
+    sc.onload = () => (window.SkanCore ? ok(window.SkanCore) : ko(new Error('Le moteur des documents ne s\'est pas chargé : recharge la page, puis réessaie.')));
+    sc.onerror = () => { moteurDesDocuments = null; ko(new Error('Le moteur des documents ne se charge pas : vérifie ta connexion, puis réessaie.')); };
+    document.head.appendChild(sc);
+  }));
+  async function imprimerDocumentPaie(dossier, fabriquer) {
+    const w = window.open('', '_blank');
+    if (!w) return toast('Le navigateur a bloqué la fenêtre du document : autorise les fenêtres de SkanFact, puis réessaie.', 'error');
+    try {
+      const C = await chargerMoteurDesDocuments();
+      const paie = api.paieDuDossierV10(dossier.id);
+      // L'employeur : le dossier (son nom, son matricule fiscal, son numéro d'employeur à la CNSS et son code d'exploitation).
+      const societe = { name: dossier.name || '', address: '', matricule: dossier.matricule || '', cnss: dossier.cnssEmployeur || '', cnssCode: dossier.cnssCode || '', currency: 'DT' };
+      w.document.write(fabriquer(C, { employees: paie.employees, payslips: paie.payslips, payrollSettings: dossier.paie || {} }, societe));
+      w.document.close();
+      w.print();
+    } catch (e) { w.close(); toast(plainError(e), 'error'); }
+  }
+
   function brancherPaie(el, root, dossier) {
     const s = livresState;
     const redraw = () => drawLivres(root, dossier);
@@ -6027,6 +6059,11 @@
       const x = (s.livre.salaries || []).find(y => y.id === b.dataset.paSal);
       if (x) salarieForm(root, dossier, x, { focus: b.dataset.paChamp });
     }; });
+    // (plateforme) 1.65.0 — le journal de paie du mois et l'état récapitulatif CNSS du trimestre, imprimés.
+    const jp = $('#pa-journal', el);
+    if (jp) jp.onclick = () => imprimerDocumentPaie(dossier, (C, d, so) => C.journalDePaieHtml(d, so, Number(s.annee), Number(s.paieMois)));
+    const et = $('#pa-etat', el);
+    if (et) et.onclick = () => imprimerDocumentPaie(dossier, (C, d, so) => C.etatRecapitulatifCnssHtml(d, so, Number(s.annee), Number(s.paieTrimestre || Math.ceil(s.paieMois / 3))));
     const fc = $('#pa-fichier', el);
     if (fc) fc.onclick = async () => {
       fc.disabled = true;
@@ -6073,7 +6110,14 @@
       }
       const b = (s.livre.bulletins || []).find(y => y.id === id.slice(5));
       if (!b) return [];
-      const a = [{ icon: 'ouvrir', label: 'Voir le détail du calcul', hint: 'Assiette, tranches, charges', run: () => detailBulletin(b) }];
+      const a = [{ icon: 'ouvrir', label: 'Voir le détail du calcul', hint: 'Assiette, tranches, charges', run: () => detailBulletin(b) },
+        // (plateforme) 1.65.0 — le bulletin imprimé, celui de l'entreprise (sur une page) ; sans l'avertissement « À faire
+        // valider par votre comptable » : c'est le comptable qui l'imprime.
+        { icon: 'pdf', label: 'Imprimer le bulletin', hint: 'À remettre au salarié', run: () => imprimerDocumentPaie(dossier, (C, d, so) => {
+          const bulletinDuDossier = (d.payslips || []).find(p => p.id === b.id);
+          if (!bulletinDuDossier) throw new Error('Ce bulletin n\'est plus dans la paie du dossier : recharge la page.');
+          return C.payslipHtml(bulletinDuDossier, d, so, { notice: false });
+        }) }];
       // (plateforme) 1.63.0 — l'écriture de paie du mois SUIT les bulletins : le serveur la réécrit, et contre-passe celle
       // qui était validée (une écriture validée ne se modifie jamais). Un bulletin se corrige donc tant que l'exercice
       // n'est pas clos, comme dans le SkanFact du client ; la v10 le refusait dès que l'écriture était passée, et sur la

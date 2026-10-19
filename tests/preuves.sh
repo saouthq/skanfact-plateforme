@@ -17462,6 +17462,32 @@ prouver 'l'"'"'aperçu du bulletin au Cabinet calculé avec les taux du dossier'
   '      const baremes = dossier.paie || {};' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
 
+# 1.65.0 : les documents de la paie au Cabinet (docs/paie.md, « Les documents de la paie au Cabinet »).
+prouver 'le bulletin imprimé au Cabinet avec l'"'"'avertissement destiné au comptable' 'web/public/v10/cabinet/app.js' \
+  'return C.payslipHtml(bulletinDuDossier, d, so, { notice: false });' \
+  'return C.payslipHtml(bulletinDuDossier, d, so, {});' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+prouver 'le Cabinet sans journal de paie' 'web/public/v10/cabinet/app.js' \
+  '${bulletins.length ? '"'"'<button type="button" class="btn btn-sm" id="pa-journal">Journal de paie</button>'"'"' : '"'"''"'"'}' \
+  '${'"'"''"'"'}' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+prouver 'le journal de paie du Cabinet sur un autre mois' 'web/public/v10/cabinet/app.js' \
+  'C.journalDePaieHtml(d, so, Number(s.annee), Number(s.paieMois))' \
+  'C.journalDePaieHtml(d, so, Number(s.annee), Number(s.paieMois) - 1)' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+prouver 'l'"'"'employeur absent des documents de la paie du Cabinet' 'web/public/v10/cabinet/app.js' \
+  'const societe = { name: dossier.name || '"'"''"'"',' \
+  'const societe = { name: '"'"''"'"',' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+prouver 'les documents du Cabinet sans les bulletins du dossier' 'web/public/plateforme/pont-cabinet.js' \
+  '        payslips: objets.filter((o) => o.collection === '"'"'payslips'"'"').map((o) => o.contenu),' \
+  '        payslips: [],' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+prouver 'l'"'"'état récapitulatif du Cabinet sur un autre trimestre' 'web/public/v10/cabinet/app.js' \
+  'Number(s.paieTrimestre || Math.ceil(s.paieMois / 3))' \
+  '1' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -6,7 +6,9 @@
 //   - l'écriture de paie du mois existe sans qu'on la passe : le bouton le dit ;
 //   - la paie du dossier (ses salariés, ses bulletins) se lit dès l'ouverture du livre ; un bulletin du client à plusieurs
 //     primes et retenues, modifié au Cabinet, garde toutes ses lignes, leurs marques (heures supplémentaires, prime au
-//     jour) et son prorata, et se calcule comme dans l'entreprise (1.63.0).
+//     jour) et son prorata, et se calcule comme dans l'entreprise (1.63.0) ;
+//   - les documents de la paie du dossier sortent du Cabinet : le bulletin, le journal du mois, l'état CNSS du trimestre,
+//     ceux de l'entreprise (1.65.0).
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -208,6 +210,37 @@ describe('la paie tenue par le cabinet, à la souris', () => {
     const ecritures = (await api('GET', `/entreprises/${cafe}/compta/ecritures?limite=500`, associe)).corps.ecritures as { journal: string; date: string; statut: string; origine: { type: string } }[];
     expect(ecritures.filter((e) => e.journal === 'PAIE').map((e) => `${e.origine.type} ${e.date} ${e.statut}`).sort())
       .toEqual(['contre_passation 2026-10-01 brouillard', 'paie 2026-09-30 validee', 'paie 2026-10-01 brouillard']);
+
+    // ── Les documents de la paie, ceux de l'entreprise (1.65.0) : la fenêtre qui s'imprime ───────────────────
+    const imprimer = async (geste: () => Promise<unknown>) => {
+      const [fenetreImprimee] = await Promise.all([p.waitForEvent('popup'), geste()]);
+      await expect.poll(() => fenetreImprimee.content(), { timeout: 15_000 }).toMatch(/<h1>/);
+      // Les espaces insécables des montants (« 1 300,000 »), sérialisés « &nbsp; » : des espaces.
+      const html = (await fenetreImprimee.content()).replace(/&nbsp;|[\u00a0\u202f]/g, ' ');
+      await fenetreImprimee.close();
+      return html;
+    };
+    const net = Number(lu.computed.net).toFixed(3).replace('.', ',');
+    const imprime = await imprimer(async () => {
+      await p.locator(`[data-rowmenu="PAIE:${bulletin.id}"]`).first().click();
+      await p.getByRole('menuitem').filter({ hasText: 'Imprimer le bulletin' }).first().click();
+    });
+    expect(imprime).toContain('<h1>Bulletin de paie</h1>');
+    expect(imprime).toContain('Café des Arts');
+    expect(imprime).toContain('Salarié Numéro Un');
+    expect(imprime).toContain('Prime de présence (11 j sur 26)');
+    expect(imprime).toMatch(/Absence \(3 jours\)<\/td>\s*<td class="n">1 300,000<\/td>/);
+    expect(imprime).toContain(`${net} DT`);
+    // C'est le comptable qui l'imprime : pas d'« À faire valider par votre comptable ».
+    expect(imprime).not.toContain('À faire valider par votre comptable');
+    const journal = await imprimer(() => p.locator('#pa-journal').click());
+    expect(journal).toContain('<h1>Journal de paie</h1>');
+    expect(journal).toContain('septembre 2026');
+    expect(journal).toMatch(/Salarié Numéro Un<\/td>/);
+    expect(journal).toContain('Nombre de salariés : 1');
+    const etat = await imprimer(() => p.locator('#pa-etat').click());
+    expect(etat).toContain('<h1>État récapitulatif des salaires déclarés</h1>');
+    expect(etat).toMatch(/Trimestre<\/span><b>3<\/b>/);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

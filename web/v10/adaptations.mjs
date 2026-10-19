@@ -765,4 +765,6 @@ export const ADAPTATIONS = [
   ...lireFichier('paie-cabinet.txt'),
   // ── Un bulletin modifié au Cabinet garde son barème (19/10/2026, 1.64.0 ; docs/paie.md) : les taux du client ce mois-là ──
   ...lireFichier('paie-cabinet-bareme.txt'),
+  // ── Les documents de la paie au Cabinet (19/10/2026, 1.65.0 ; docs/paie.md) : le bulletin, le journal, l'état CNSS ──
+  ...lireFichier('paie-cabinet-documents.txt'),
 ];

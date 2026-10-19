@@ -513,7 +513,8 @@ pont-cabinet.js` le lit et le réécrit dans la paie du dossier). Refait à la s
 ### Ce qui reste
 
 - Les primes de chaque mois de la fiche ne se proposent pas encore dans un **nouveau** bulletin du Cabinet (elles se
-  tapent) ; le bulletin imprimé, le journal de paie et les états restent à l'entreprise.
+  tapent) ; ~~le bulletin imprimé, le journal de paie et les états restent à l'entreprise~~ : au Cabinet depuis la 1.65.0
+  (« Les documents de la paie au Cabinet », plus bas).
 
 ## Un bulletin modifié au Cabinet garde son barème (19/10/2026, 1.64.0)
 
@@ -553,3 +554,32 @@ voie.
 - Les taux **généraux** d'un dossier tenu par le Cabinet (son accident du travail, sa TFP) ne se règlent pas encore au
   Cabinet (seuls les taux par contrat) ; un bulletin **nouveau** d'un client qui fait sa paie dans SkanFact ne lit pas
   encore ses réglages (le serveur ne les montre pas au Cabinet).
+
+## Les documents de la paie au Cabinet (19/10/2026, 1.65.0)
+
+*Le Cabinet tenait la paie d'un dossier sans pouvoir en sortir un document.*
+
+### Ce que le lot fait (`web/v10/paie-cabinet-documents.txt`, `pont-cabinet.js`)
+
+- **Le bulletin imprimé**, dans le menu de chaque bulletin (« Imprimer le bulletin ») : celui de l'entreprise, sur une
+  page (1.62.0), au nom de l'employeur (le dossier : son nom, son matricule fiscal, son numéro d'employeur CNSS), sans
+  l'avertissement « À faire valider par votre comptable » (c'est le comptable qui l'imprime).
+- **Le journal de paie du mois** (« Journal de paie », à côté des gestes du mois) et **l'état récapitulatif des salaires
+  déclarés du trimestre** (« Imprimer l'état récapitulatif », sous la déclaration CNSS) : ceux de l'entreprise (1.61.0),
+  au même millime, dans la même forme.
+- Ils lisent la paie du dossier telle que l'entreprise la tient (`paieDuDossierV10`), celle que le livre a lue. Leur
+  moteur (core.js) se charge la première fois qu'on imprime : le Cabinet n'en a pas besoin pour le reste, et sa page
+  reste légère ; la fenêtre s'ouvre dans le geste (un navigateur bloque celle qu'on ouvre après une attente).
+
+### Ce qui le prouve
+
+- `tests/web/cabinet-paie.test.ts` : le bulletin modifié au Cabinet, imprimé (l'employeur, le salarié, la prime au jour,
+  l'absence sur le salaire du contrat, le net, pas d'avertissement au comptable), le journal de septembre, l'état du
+  3e trimestre.
+- Refait à la souris : le bulletin, le journal (en largeur) et l'état, chacun sur une page.
+- Six preuves (`tests/preuves.sh`, « 1.65.0 »).
+
+### Ce qui reste
+
+- Le journal en CSV au Cabinet (l'entreprise l'a) ; l'adresse de l'employeur sur les documents (le Cabinet ne la tient
+  pas dans la fiche d'un dossier).
