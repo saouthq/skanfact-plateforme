@@ -902,7 +902,7 @@
         { page: versCompta, cible: '#rf [name="annee"]', cote: 'droite', titre: 'L\'exercice',
           texte: 'L\'année du livre, du 1er janvier au 31 décembre. Pour clôturer d\'abord l\'an dernier, tape son année ici.' },
         { page: versCompta, cible: ['#rf-lignes', '#modal-root .modal'], cote: 'droite', titre: 'Sa balance d\'ouverture',
-          texte: 'Ce que ses comptes portaient au premier jour : capital, banque, clients, fournisseurs. <b>Laisse-la vide pour un client qui démarre.</b> « Importer depuis Excel ou CSV… » reprend celle de son ancien logiciel ; elle doit s\'équilibrer.' },
+          texte: 'Ce que ses comptes portaient au premier jour : capital, banque, clients, fournisseurs. <b>Laisse-la vide pour un client qui démarre.</b> « Importer une balance ou un FEC… » reprend celle de son ancien logiciel ; elle doit s\'équilibrer.' },
         { page: versCompta, cible: '#modal-root #ok', cote: 'dessus', faire: 'clic', fait: () => livresConnus() > livresAvant && aucuneFenetre(),
           titre: 'Créer le livre', texte: 'La Saisie s\'ouvre juste après.', action: 'Clique sur <b>« Créer le livre »</b>.', essai: { clic: true } }
       ]

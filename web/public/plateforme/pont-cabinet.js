@@ -949,9 +949,11 @@
 
     // ── La reprise (brique 39) : l'exercice s'ouvre sur le serveur, avec sa balance d'ouverture ──
     reprendre: async (/** @type {any} */ o) => {
-      const ouverture = (o.ouverture || []).map((/** @type {any} */ l) => ({
-        compte: String(l.compte || '').trim(), libelle: String(l.libelle || ''), debit: montant(l.debit), credit: montant(l.credit),
-      }));
+      // Le tiers d'une ligne (son nom) vient d'un FEC : les à-nouveaux d'un client ou d'un fournisseur (C61).
+      const ouverture = (o.ouverture || []).map((/** @type {any} */ l) => {
+        const tiers = String(l.tiers || '').trim().slice(0, 200);
+        return { compte: String(l.compte || '').trim(), libelle: String(l.libelle || ''), ...(tiers ? { tiers } : {}), debit: montant(l.debit), credit: montant(l.credit) };
+      });
       await appel('POST', `/entreprises/${o.dossierId}/compta/exercices`, { annee: Number(o.annee), ...(o.du ? { du: String(o.du) } : {}), ouverture });
       await exercicesDe(o.dossierId);
       return { livre: await livreDe(o.dossierId, o.annee) };
@@ -959,11 +961,23 @@
     // Une balance d'ouverture lue dans un classeur Excel ou un CSV, choisi sur l'ordinateur : la
     // lecture est celle de la v10 (compta.js) ; rien ne part au serveur avant que la fenêtre l'envoie
     // (« Créer le livre », « Ouvrir l'exercice »), et seulement ses lignes.
-    importerBalance: async () => {
+    // Un FEC (C61) : ses soldes au premier jour du livre (`o.du`), par la règle de la clôture, recomptés sur
+    // le fichier (plateforme/fec.js) ; et son rapport, que la fenêtre montre avant de changer la balance.
+    importerBalance: async (/** @type {any} */ o = {}) => {
       const f = await choisirFichier('.xlsx,.csv,.txt');
       if (!f) return { annule: true };
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
-      const r = KC.balanceDepuisCsv(KC.rangeesDeTexte(await lireTableur(f)));
+      /** @type {any} */ const FEC = /** @type {any} */ (window).SkanFec;
+      const texte = await lireTableur(f);
+      if (FEC.estFec(texte)) {
+        const lu = FEC.lire(texte);
+        if (!lu.ok) throw new Error(lu.motif);
+        const du = /^\d{4}-\d{2}-\d{2}$/.test(String(o.du || '')) ? String(o.du) : `${Number(o.annee) || new Date().getFullYear()}-01-01`;
+        const r = FEC.ouverture(lu, du, KC);
+        if (!r.ok) throw new Error(r.motif);
+        return { lignes: r.lignes, ignorees: [], fichier: f.name, rapport: FEC.rapport(r, f.name) };
+      }
+      const r = KC.balanceDepuisCsv(KC.rangeesDeTexte(texte));
       if (r.motif) throw new Error(r.motif);
       return { lignes: r.lignes, ignorees: r.ignorees, fichier: f.name };
     },

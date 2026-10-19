@@ -532,7 +532,7 @@ export const ADAPTATIONS = [
     fichier: 'cabinet/index.html',
     pourquoi: 'le point de contact du Cabinet avec le serveur se charge avant tout le reste ; une date s\'y écrit jour/mois/année, quelle que soit la langue du navigateur',
     avant: '  <script src="../rowmenu.js"></script>\n',
-    apres: '  <script src="../../plateforme/dates.js"></script>\n  <script src="../../plateforme/tableur.js"></script>\n  <script src="../../plateforme/pont-cabinet.js"></script>\n  <script src="../rowmenu.js"></script>\n',
+    apres: '  <script src="../../plateforme/dates.js"></script>\n  <script src="../../plateforme/tableur.js"></script>\n  <script src="../../plateforme/fec.js"></script>\n  <script src="../../plateforme/pont-cabinet.js"></script>\n  <script src="../rowmenu.js"></script>\n',
   },
   {
     fichier: 'cabinet/index.html',
@@ -674,6 +674,8 @@ export const ADAPTATIONS = [
   ...lireFichier('equipe-trace.txt'),
   ...lireFichier('reprise-v10.txt'),
   ...lireFichier('reprise-portefeuille.txt'),
+  // ── La balance d'ouverture lue dans un FEC (19/10/2026 ; docs/cabinet.md, C61) ──
+  ...lireFichier('reprise-fec.txt'),
   // ── La lecture d'une facture d'achat en photo ou en PDF, par le serveur (brique 84) ──
   ...lireFichier('lecture-photo.txt'),
   // ── Les commandes livrées en plusieurs fois, et plusieurs bons de livraison en une facture (brique 86) ──

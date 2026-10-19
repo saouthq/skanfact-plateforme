@@ -1640,3 +1640,53 @@ aucune requête partie du navigateur ne porte une clé.
 utilisé SkanFact v10 ni SkanFact Cabinet v10, il n'y a rien à reprendre. Ce qui est fait (briques 62 à
 70) reste ; la paie du livre, les réglages du cabinet et le bouton « Passer à la plateforme » ne se
 feront pas.
+
+## La balance d'ouverture lue dans un FEC (1.50.0, fait le 19/10/2026)
+
+Un cabinet qui reprend un client tenu dans un autre logiciel (Sage, Ciel, EBP, Odoo, Hesabi…) avait à
+retaper ou à remettre en forme sa balance d'ouverture. Tous ces logiciels savent exporter un **FEC**, le
+fichier des écritures comptables d'un exercice (`docs/etudes/FORMATS-REPRISE.md`, l'étude des formats).
+
+**C61. Le FEC du dernier exercice donne la balance d'ouverture, par la règle de la clôture** (par
+délégation, Skander : « prends la décision à ma place »). Dans la fenêtre « Commencer le livre » (ou
+« Reprendre les soldes d'ouverture »), « Importer une balance ou un FEC… » reconnaît un FEC à sa ligne de
+titres et le lit **dans le navigateur** (`web/public/plateforme/fec.js`, `SkanFec`) :
+- **tout se lit, ou rien n'est repris** : ses colonnes par leur nom (Odoo, Dolibarr, « Montant » et « Sens »),
+  la tabulation, la barre ou le point-virgule, la virgule ou le point décimal ; une date, un compte ou un
+  montant illisibles refusent le fichier, chaque ligne nommée avec son numéro ; un fichier qui ne tombe pas
+  juste se refuse ; les montants se comptent en millimes entiers, jamais arrondis en silence ;
+- **les soldes au premier jour du livre** sont les à-nouveaux de la clôture de la v10 (`anouveauxDe`) joués
+  sur les lignes d'avant ce jour : les classes 1 à 5 reportées, le net des classes 6 et 7 au compte 13, un
+  client ou un fournisseur non soldé rouvert sur sa propre ligne, **avec son nom** (le tiers) ; une ligne
+  lettrée soldée ne rouvre pas ;
+- **deux calculs, un chiffre** : chaque compte se recompte en millimes sur le fichier lui-même (le résultat
+  au compte 13) ; un millime d'écart refuse la reprise ;
+- **un seul exercice** avant le premier jour (deux années compteraient deux résultats) ; un fichier qui
+  commence ce jour-là (l'exercice en cours) prend son journal d'à-nouveaux (AN, RAN, OUV, « À nouveaux »…),
+  et le rapport le nomme ; les mouvements du nouvel exercice ne sont pas pris, et le rapport le dit ;
+- un compte de tiers écrit avec des lettres (« 411DUPONT ») se range sur son numéro, au nom du tiers ;
+- **le rapport se lit avant** que la balance de la fenêtre change (la période, les écritures, le total, la
+  balance reprise, le résultat, ce qui n'est pas pris) ; « Annuler » n'y touche pas ; « Reprendre ces
+  soldes » remplit la fenêtre, où tout se relit et se corrige avant « Créer le livre ».
+
+Les comptes gardent leur numéro du fichier (un plan à huit chiffres reste à huit chiffres : la fenêtre se
+corrige à la main) ; les fiches des tiers ne se créent pas encore, ni l'historique des écritures (la
+reprise R2). Pour un client sur SkanFact, un tiers repris par son nom ne se relie pas à sa fiche (**À
+VÉRIFIER** avec un comptable pilote : faut-il le relier, et comment).
+
+**Ce qui part au serveur** (compté, une donnée de plus que C17) : les lignes de la balance — compte,
+libellé, **tiers** (son nom, au plus 200 caractères, que chaque ligne d'écriture porte déjà), débit,
+crédit. Rien d'autre du fichier : ni ses écritures, ni ses dates, ni son nom.
+
+**Les adaptations** : `web/v10/reprise-fec.txt` (la rangée garde son tiers dans un champ caché, que
+« Retirer » et « Ajouter une ligne » gardent ; le rapport avant la balance ; le bouton, la fenêtre, la bulle
+et la visite disent « une balance ou un FEC ») ; le point de contact (`importerBalance` reçoit le premier
+jour et rend le rapport, `reprendre` envoie le tiers).
+
+**Les tests** : `tests/v10/fec.test.ts` (le même exercice exporté comme Odoo, comme Dolibarr en ISO 8859-15 et
+avec « Montant » et « Sens » donne la même balance au millime ; un moteur faux d'un millime fait refuser ;
+chaque ligne illisible nommée ; deux exercices refusés ; le journal d'à-nouveaux d'un fichier de l'exercice
+en cours ; « 411DUPONT » et un libellé entre guillemets) ; à la souris
+(`tests/web/cabinet-reprise-fec.test.ts`) : un FEC de deux exercices refusé sans rien changer, le rapport,
+« Annuler », « Reprendre ces soldes », une rangée ajoutée puis retirée, et l'écriture AN du serveur au millime,
+chaque ligne de tiers avec son nom. 18 preuves (`tests/preuves.sh`, « 1.50.0 »).

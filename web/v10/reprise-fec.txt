@@ -1,0 +1,70 @@
+La balance d'ouverture lue dans un FEC (19/10/2026 ; docs/cabinet.md, C61). Format : voir sans-paquets.mjs.
+
+Le fichier des écritures comptables (FEC) que Sage, Ciel, EBP, Odoo ou Hesabi exportent se choisit par le
+même bouton que la balance d'un tableur : le point de contact le reconnaît, calcule les soldes au premier jour
+du livre par la règle de la clôture (plateforme/fec.js) et rend son rapport, que la fenêtre montre AVANT que la
+balance change. Les à-nouveaux d'un client ou d'un fournisseur gardent son nom : chaque rangée porte son tiers
+(un champ caché, que « Retirer » et la relecture gardent), et la fenêtre l'envoie avec elle.
+
+== cabinet/app.js | une rangée de la balance garde le tiers d'un à-nouveau venu d'un FEC
+-- avant
+      <td><input name="l${i}" value="${esc(l.libelle)}" placeholder="Clients"></td>
+-- après
+      <td><input name="l${i}" value="${esc(l.libelle)}" placeholder="Clients"><input type="hidden" name="t${i}" value="${esc(l.tiers || '')}"></td>
+-- fin
+
+== cabinet/app.js | la balance envoyée garde le tiers de chaque rangée
+-- avant
+            out.push({ compte: v('c'), libelle: v('l'), debit: KC.nombreDepuisCsv(v('d')), credit: KC.nombreDepuisCsv(v('k')) });
+-- après
+            out.push({ compte: v('c'), libelle: v('l'), tiers: v('t'), debit: KC.nombreDepuisCsv(v('d')), credit: KC.nombreDepuisCsv(v('k')) });
+-- fin
+
+== cabinet/app.js | une rangée retirée ou ajoutée ne fait pas perdre leur tiers aux autres
+-- avant
+          return { compte: v('c'), libelle: v('l'), debit: v('d'), credit: v('k') };
+-- après
+          return { compte: v('c'), libelle: v('l'), tiers: v('t'), debit: v('d'), credit: v('k') };
+-- fin
+
+== cabinet/app.js | le bouton dit qu'il lit aussi un FEC
+-- avant
+        <button type="button" class="btn btn-sm" id="rf-csv">Importer depuis Excel ou CSV…</button>
+-- après
+        <button type="button" class="btn btn-sm" id="rf-csv">Importer une balance ou un FEC…</button>
+-- fin
+
+== cabinet/app.js | la fenêtre le dit aussi
+-- avant
+      — à la main, ou « Importer depuis Excel ou CSV… » depuis son ancien logiciel. Elle doit s'équilibrer : une reprise fausse
+-- après
+      — à la main, ou « Importer une balance ou un FEC… » : la balance de son ancien logiciel (Excel ou CSV), ou le FEC de son
+      dernier exercice. Elle doit s'équilibrer : une reprise fausse
+-- fin
+
+== cabinet/app.js | les soldes d'un FEC sont ceux du premier jour choisi ; son rapport se lit avant que la balance change
+-- avant
+            const r = await api.importerBalance({ dossierId: dossier.id, annee: $('input[name=annee]', rootModal).value });
+            if (r.annule) return;
+            lignes = r.lignes.map(l => ({ compte: l.compte, libelle: l.libelle, debit: montantChamp(l.debit), credit: montantChamp(l.credit) }));
+-- après
+            const r = await api.importerBalance({ dossierId: dossier.id, annee: $('input[name=annee]', rootModal).value, du: $('input[name=du]', rootModal).value });
+            if (r.annule) return;
+            // (plateforme) Un FEC : ce qu'il porte et ce qui est repris, lu avant que la balance change (C61).
+            if (r.rapport && !(await confirmDialog(r.rapport.titre, r.rapport.html, r.rapport.bouton))) return;
+            lignes = r.lignes.map(l => ({ compte: l.compte, libelle: l.libelle, tiers: l.tiers || '', debit: montantChamp(l.debit), credit: montantChamp(l.credit) }));
+-- fin
+
+== cabinet/cabguide.js | la bulle de la balance d'ouverture dit qu'un FEC se lit
+-- avant
+« Importer depuis Excel ou CSV… » reprend celle d\'un autre logiciel, telle qu\'il l\'exporte (colonnes Compte, Libellé, Débit, Crédit ; un titre au-dessus ou une ligne de totaux dessous sont laissés de côté).
+-- après
+« Importer une balance ou un FEC… » reprend celle d\'un autre logiciel, telle qu\'il l\'exporte (colonnes Compte, Libellé, Débit, Crédit ; un titre au-dessus ou une ligne de totaux dessous sont laissés de côté), ou la calcule depuis le <b>FEC</b> de son dernier exercice (le fichier des écritures que Sage, Ciel, EBP ou Odoo exportent) : les à-nouveaux de la clôture, un par client ou fournisseur, avec un rapport à lire avant.
+-- fin
+
+== cabinet/cabvisites.js | la visite nomme le bouton tel qu'il s'appelle
+-- avant
+<b>Laisse-la vide pour un client qui démarre.</b> « Importer depuis Excel ou CSV… » reprend celle de son ancien logiciel ; elle doit s\'équilibrer.' },
+-- après
+<b>Laisse-la vide pour un client qui démarre.</b> « Importer une balance ou un FEC… » reprend celle de son ancien logiciel ; elle doit s\'équilibrer.' },
+-- fin

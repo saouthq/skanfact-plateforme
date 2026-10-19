@@ -246,6 +246,10 @@ vaut pour tout le dépôt.*
     son mois. La balance se lit dans un CSV ou un classeur Excel, dans le navigateur (le ZIP s'ouvre
     par `DecompressionStream`) ; seules ses lignes partent au serveur. Adaptations :
     `web/v10/reprise.txt`.
+  - **La balance d'ouverture lue dans un FEC** (1.50.0, C61 ; l'étude `docs/etudes/FORMATS-REPRISE.md`) : le
+    lecteur `web/public/plateforme/fec.js` (`SkanFec` : lire, les soldes au premier jour par `anouveauxDe`
+    recomptés en millimes, le rapport) ; `importerBalance` et `reprendre` dans `pont-cabinet.js` ; adaptations
+    `web/v10/reprise-fec.txt` ; tests `tests/v10/fec.test.ts`, `tests/web/cabinet-reprise-fec.test.ts`.
   - **Les écritures par tableur** (brique 39 bis, C18) : les CSV du livre et le FEC se téléchargent
     (rien ne part au serveur) ; le réimport lit le fichier dans le navigateur, l'analyse de la v10 le
     compare au livre du serveur et la fenêtre dit tout avant le clic ; une pièce qui ne tombe pas juste

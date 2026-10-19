@@ -3149,7 +3149,7 @@
     const montantRepris = v => typeof v === 'number' ? montantChamp(v) : montantIllisible(v) ? String(v) : montantChamp(lireMontant(v));
     const ligneHtml = (l, i) => `<tr>
       <td><input name="c${i}" value="${esc(l.compte)}" class="num" style="width:7em" placeholder="411"></td>
-      <td><input name="l${i}" value="${esc(l.libelle)}" placeholder="Clients"></td>
+      <td><input name="l${i}" value="${esc(l.libelle)}" placeholder="Clients"><input type="hidden" name="t${i}" value="${esc(l.tiers || '')}"></td>
       <td><input name="d${i}" value="${esc(montantRepris(l.debit))}" class="num montant" inputmode="decimal" style="width:8em"></td>
       <td><input name="k${i}" value="${esc(montantRepris(l.credit))}" class="num montant" inputmode="decimal" style="width:8em"></td>
       <td class="actions"><button type="button" class="btn btn-sm" data-sup="${i}">Retirer</button></td></tr>`;
@@ -3161,7 +3161,8 @@
     modal(`<h2>${livreTenu ? 'Reprendre les soldes d\'ouverture de' : 'Commencer le livre de'} ${esc(dossier.name)}</h2>
       <p class="small muted"><b>Un client qui démarre</b> : pose son exercice et laisse la balance d'ouverture vide.
       <b>Un client qui tenait sa comptabilité ailleurs</b> : reprends ce que ses comptes portaient au premier jour
-      — à la main, ou « Importer depuis Excel ou CSV… » depuis son ancien logiciel. Elle doit s'équilibrer : une reprise fausse
+      — à la main, ou « Importer une balance ou un FEC… » : la balance de son ancien logiciel (Excel ou CSV), ou le FEC de son
+      dernier exercice. Elle doit s'équilibrer : une reprise fausse
       fausse l'exercice entier, et on ne s'en aperçoit qu'au bilan.</p>
       <form id="rf" class="grid-3">
         <label class="field">${lbl('Exercice', 'rp.exercice')}<input name="annee" value="${esc(annee)}" class="num"></label>
@@ -3174,7 +3175,7 @@
         <tbody id="rf-lignes">${lignes.map(ligneHtml).join('')}</tbody></table></div>
       <div class="modal-actions" style="justify-content:flex-start">
         <button type="button" class="btn btn-sm" id="rf-add">Ajouter une ligne</button>
-        <button type="button" class="btn btn-sm" id="rf-csv">Importer depuis Excel ou CSV…</button>
+        <button type="button" class="btn btn-sm" id="rf-csv">Importer une balance ou un FEC…</button>
         <span id="rf-ecart" class="small"></span>
       </div>
       <div class="modal-actions">
@@ -3186,7 +3187,7 @@
           const out = [];
           $$('tr', corps).forEach((tr, i) => {
             const v = n => (($(`input[name=${n}${i}]`, tr) || {}).value || '').trim();
-            out.push({ compte: v('c'), libelle: v('l'), debit: KC.nombreDepuisCsv(v('d')), credit: KC.nombreDepuisCsv(v('k')) });
+            out.push({ compte: v('c'), libelle: v('l'), tiers: v('t'), debit: KC.nombreDepuisCsv(v('d')), credit: KC.nombreDepuisCsv(v('k')) });
           });
           return out.filter(l => l.compte || l.debit || l.credit);
         };
@@ -3218,7 +3219,7 @@
         // ouverture que personne n'avait voulue.
         const lireRangees = () => $$('tr', corps).map((tr, i) => {
           const v = n => (($(`input[name=${n}${i}]`, tr) || {}).value || '').trim();
-          return { compte: v('c'), libelle: v('l'), debit: v('d'), credit: v('k') };
+          return { compte: v('c'), libelle: v('l'), tiers: v('t'), debit: v('d'), credit: v('k') };
         });
         const redessine = () => {
           corps.innerHTML = lignes.map(ligneHtml).join('');
@@ -3254,9 +3255,11 @@
         $('#rf-add', rootModal).onclick = () => { lignes = lireRangees().concat([{ compte: '', libelle: '', debit: '', credit: '' }]); redessine(); };
         $('#rf-csv', rootModal).onclick = async () => {
           try {
-            const r = await api.importerBalance({ dossierId: dossier.id, annee: $('input[name=annee]', rootModal).value });
+            const r = await api.importerBalance({ dossierId: dossier.id, annee: $('input[name=annee]', rootModal).value, du: $('input[name=du]', rootModal).value });
             if (r.annule) return;
-            lignes = r.lignes.map(l => ({ compte: l.compte, libelle: l.libelle, debit: montantChamp(l.debit), credit: montantChamp(l.credit) }));
+            // (plateforme) Un FEC : ce qu'il porte et ce qui est repris, lu avant que la balance change (C61).
+            if (r.rapport && !(await confirmDialog(r.rapport.titre, r.rapport.html, r.rapport.bouton))) return;
+            lignes = r.lignes.map(l => ({ compte: l.compte, libelle: l.libelle, tiers: l.tiers || '', debit: montantChamp(l.debit), credit: montantChamp(l.credit) }));
             redessine();
             if (r.ignorees.length) await infoDialog('Lignes ignorées', r.ignorees.map(x => `Ligne ${x.ligne} : ${x.motif}`).join('\n'));
           } catch (e) { await infoDialog('Import impossible', plainError(e)); }

@@ -16308,6 +16308,85 @@ prouver 'le rang d'"'"'urgence à l'"'"'envers' 'serveur/console/organisations.t
   'const rangs = new Map(parUrgence(toutes, jour).map((o, i) => [o, -i]));' \
   'la liste range par urgence, compte chaque état comme son filtre, et ne montre pas les entreprises d'"'"'exemple'
 
+# 1.50.0 : la balance d'ouverture lue dans un FEC (C61).
+prouver 'un montant à quatre décimales arrondi en silence' 'web/public/plateforme/fec.js' \
+  '    if (/[1-9]/.test(dec.slice(3))) return null;
+' \
+  '' \
+  'tout se lit, ou rien n'"'"'est repris : chaque ligne illisible se nomme, avec son numéro dans le fichier'
+prouver 'une date qui n'"'"'existe pas acceptée' 'web/public/plateforme/fec.js' \
+  'return d.getUTCFullYear() === a && d.getUTCMonth() === mo - 1 && d.getUTCDate() === j ? amj.join('"'"'-'"'"') : null;' \
+  'return amj.join('"'"'-'"'"');' \
+  'tout se lit, ou rien n'"'"'est repris : chaque ligne illisible se nomme, avec son numéro dans le fichier'
+prouver 'une ligne illisible sautée en silence' 'web/public/plateforme/fec.js' \
+  '    if (fautes.length) {' \
+  '    if (false) {' \
+  'tout se lit, ou rien n'"'"'est repris : chaque ligne illisible se nomme, avec son numéro dans le fichier'
+prouver 'un FEC qui ne tombe pas juste repris' 'web/public/plateforme/fec.js' \
+  'if (debit !== credit) return { ok: false, motif: `Ce FEC ne tombe pas juste' \
+  'if (false) return { ok: false, motif: `Ce FEC ne tombe pas juste' \
+  'tout se lit, ou rien n'"'"'est repris : chaque ligne illisible se nomme, avec son numéro dans le fichier'
+prouver 'deux exercices additionnés' 'web/public/plateforme/fec.js' \
+  'if (source === '"'"'cloture'"'"' && debut < unAnAvant(du)) {' \
+  'if (false) {' \
+  'un seul exercice avant le premier jour ; un fichier qui commence ce jour-là prend son journal d'"'"'à-nouveaux'
+prouver 'les mouvements de l'"'"'exercice pris dans la balance' 'web/public/plateforme/fec.js' \
+  'const avant = toutes.filter((l) => l.date < du);' \
+  'const avant = toutes.filter((l) => l.date <= lu.au);' \
+  'trois logiciels, une balance : les à-nouveaux de la clôture, au millime, un par tiers non soldé'
+prouver 'le journal d'"'"'à-nouveaux ignoré' 'web/public/plateforme/fec.js' \
+  'const leJour = toutes.filter((l) => l.date === du && dOuverture(l));' \
+  'const leJour = toutes.filter(() => false);' \
+  'un seul exercice avant le premier jour ; un fichier qui commence ce jour-là prend son journal d'"'"'à-nouveaux'
+prouver 'les deux calculs sans comparaison' 'web/public/plateforme/fec.js' \
+  '      if (a !== p) return { ok: false, motif:' \
+  '      if (false) return { ok: false, motif:' \
+  'deux calculs, un chiffre : un moteur qui se tromperait d'"'"'un millime fait refuser la reprise'
+prouver 'le résultat oublié du recompte' 'web/public/plateforme/fec.js' \
+  '    if (gestion) attendu.set('"'"'13'"'"', (attendu.get('"'"'13'"'"') || 0) + gestion);
+' \
+  '' \
+  'trois logiciels, une balance : les à-nouveaux de la clôture, au millime, un par tiers non soldé'
+prouver 'un tiers perdu avant la règle de la clôture' 'web/public/plateforme/fec.js' \
+  'tiers: l.tiers, tiersId: l.aux,' \
+  'tiers: '"'"''"'"', tiersId: '"'"''"'"',' \
+  'trois logiciels, une balance : les à-nouveaux de la clôture, au millime, un par tiers non soldé'
+prouver 'le sens d'"'"'une ligne lu à l'"'"'envers' 'web/public/plateforme/fec.js' \
+  'const d = s === '"'"'D'"'"' || s === '"'"'+1'"'"' || s === '"'"'1'"'"', c = s === '"'"'C'"'"' || s === '"'"'-1'"'"';' \
+  'const d = s === '"'"'C'"'"', c = s === '"'"'D'"'"';' \
+  'trois logiciels, une balance : les à-nouveaux de la clôture, au millime, un par tiers non soldé'
+prouver 'un compte de tiers écrit avec des lettres refusé' 'web/public/plateforme/fec.js' \
+  'const m = /^(\d{3,12})[^\d]/.exec(brut);' \
+  'const m = /^$/.exec(brut);' \
+  'un compte de tiers écrit avec des lettres se range sur son numéro ; un libellé entre guillemets garde son séparateur'
+prouver 'un libellé entre guillemets coupé à son séparateur' 'web/public/plateforme/fec.js' \
+  '      if (ligne[i] === '"'"'"'"'"') {
+        i++;' \
+  '      if (false) {
+        i++;' \
+  'un compte de tiers écrit avec des lettres se range sur son numéro ; un libellé entre guillemets garde son séparateur'
+prouver 'un FEC lu comme une balance de tableur' 'web/public/plateforme/pont-cabinet.js' \
+  '      if (FEC.estFec(texte)) {' \
+  '      if (false) {' \
+  'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
+prouver 'le tiers perdu par le point de contact' 'web/public/plateforme/pont-cabinet.js' \
+  '...(tiers ? { tiers } : {}), ' \
+  '' \
+  'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
+prouver 'le rapport sauté' 'web/public/v10/cabinet/app.js' \
+  '            if (r.rapport && !(await confirmDialog(r.rapport.titre, r.rapport.html, r.rapport.bouton))) return;
+' \
+  '' \
+  'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
+prouver 'le tiers perdu par la fenêtre' 'web/public/v10/cabinet/app.js' \
+  'out.push({ compte: v('"'"'c'"'"'), libelle: v('"'"'l'"'"'), tiers: v('"'"'t'"'"'), debit:' \
+  'out.push({ compte: v('"'"'c'"'"'), libelle: v('"'"'l'"'"'), debit:' \
+  'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
+prouver 'le tiers perdu quand une rangée est retirée' 'web/public/v10/cabinet/app.js' \
+  'return { compte: v('"'"'c'"'"'), libelle: v('"'"'l'"'"'), tiers: v('"'"'t'"'"'), debit: v('"'"'d'"'"'), credit: v('"'"'k'"'"') };' \
+  'return { compte: v('"'"'c'"'"'), libelle: v('"'"'l'"'"'), debit: v('"'"'d'"'"'), credit: v('"'"'k'"'"') };' \
+  'Leïla reprend les soldes d'"'"'un client depuis son FEC de 2025 : le rapport d'"'"'abord, puis les à-nouveaux, un par tiers'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
