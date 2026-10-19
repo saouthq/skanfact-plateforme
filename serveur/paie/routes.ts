@@ -108,6 +108,8 @@ export function routesPaie(ctx: Contexte): Route<never>[] {
           salarie: { id: b.salarie, nom: b.nom, numeroCnss: b.numero_cnss, poste: b.poste },
           saisie: {
             brutDeBase: m(b.brut_de_base), joursOuvrables: m(b.jours_ouvrables), joursAbsence: m(b.jours_absence),
+            // Le salaire d'un mois complet sur lequel l'absence s'est retirée, quand le brut de base est proratisé (1.62.0).
+            ...(b.brut_du_mois === null ? {} : { brutDuMois: m(b.brut_du_mois) }),
             primes: elements(b.primes), retenues: elements(b.retenues),
           },
           situation: { contrat: b.contrat, chefDeFamille: b.chef_de_famille, enfants: b.enfants },

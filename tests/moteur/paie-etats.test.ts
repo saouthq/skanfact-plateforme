@@ -31,6 +31,8 @@ const compta = ecranDeLaPlateforme('compta.js') as {
 };
 const core = ecranDeLaPlateforme('core.js') as {
   primesDuMois: (e: unknown, payes: number, total: number) => Prime10[];
+  payslipInputFor: (d: unknown, e: unknown, annee: number, mois: number) => Record<string, unknown>;
+  payslipHtml: (slip: unknown, d: unknown, societe: unknown, o: unknown) => string;
   joursPayesDuBulletin: (slip: unknown) => number;
   COLONNES_JOURNAL: [string, string, string][];
   journalDePaie: (d: unknown, annee: number, mois: number) => Journal;
@@ -77,6 +79,29 @@ function septembre() {
 }
 
 describe('le journal de paie et les états de la paie, contre les documents réels', () => {
+  // 1.62.0 (docs/paie.md, « L'absence du mois d'une entrée ») : le brut d'un mois d'entrée est déjà proratisé ; l'absence
+  // s'en retirait encore au prorata, et le journal disait 18 jours payés pour une base de 20.
+  it('une entrée et une absence le même mois : l\'absence se retire au taux du salaire du contrat ; la base du journal suit ses jours payés', () => {
+    // Entré le mardi 8 septembre 2026 pour 612, avec une prime de présence au jour ; deux jours sans solde, les 21 et 22.
+    const e: Fiche = { id: 'e1', name: 'Salarié 1', grossSalary: 612, hireDate: '2026-09-08', contract: 'cdi', primes: [PRIMES[0]] };
+    const d = { employees: [e], payslips: [] as Bulletin[], advances: [], payrollSettings: REGLAGES,
+      leaves: [{ id: 'l1', employeeId: 'e1', kind: 'sans-solde', from: '2026-09-21', to: '2026-09-22' }] };
+    const i = core.payslipInputFor(d, e, 2026, 9);
+    expect([i.gross, i.absentDays, (i.prorata as { brutFiche: number }).brutFiche]).toEqual([470.769, 2, 612]);
+    const b = bulletin(e, 2026, 9, i);
+    d.payslips.push(b);
+    // 612 × 2 / 26 = 47,077 retenus (et non 470,769 × 2 / 26 = 36,213) : la base est 612 × 18 / 26.
+    expect([b.computed.absenceCut, b.computed.brutDuMois]).toEqual([47.077, 612]);
+    const [l] = core.journalDePaie(d, 2026, 9).lignes;
+    expect([l?.jours, l?.base, l?.indemnites]).toEqual([18, 423.692, 20.769]);
+    expect(l?.base).toBe(r3(612 * 18 / 26));
+    // Le bulletin imprimé dit sur quel salaire l'absence s'est retirée.
+    expect(lu(core.payslipHtml(b, d, { name: 'Essai', currency: 'DT' }, {}))).toMatch(/<td>Absence \(2 jours\)<\/td>\s*<td class="n">612,000<\/td>/);
+    // Un brut retouché à la main n'est plus proratisé : l'absence se retire de lui.
+    const retouche = bulletin(e, 2026, 9, { ...i, gross: 500 });
+    expect([retouche.computed.absenceCut, retouche.computed.brutDuMois]).toEqual([38.462, 500]);
+  });
+
   it('le journal de septembre a les colonnes du journal réel, au millime, sauf les écarts d\'un millime déjà nommés ; ses totaux sont la somme de ses lignes', () => {
     const j = core.journalDePaie(septembre(), 2026, 9);
     expect(j.nombre).toBe(12);

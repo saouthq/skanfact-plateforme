@@ -905,6 +905,52 @@ describe('le parcours, à la souris', () => {
     expect(qui.erreurs).toEqual([]);
   }, 120_000);
 
+  // 1.62.0 (docs/paie.md, « L'absence du mois d'une entrée ») : le bulletin d'un mois d'entrée avec une absence sans solde,
+  // établi, puis rouvert et enregistré à la souris. L'absence se retire au taux du salaire du contrat, la fenêtre du
+  // bulletin aussi, et le serveur refait le bulletin au millime.
+  it('l\'absence du mois d\'une entrée à la souris : établi, rouvert et enregistré, le bulletin retire l\'absence au taux du contrat, et le serveur le refait', async () => {
+    const qui = await inscrite('Rim Haddad');
+    // Le mois de paie d'une entreprise neuve : le mois écoulé. L'entrée le 15 ; deux jours ouvrables sans solde ensuite.
+    const auj = new Date();
+    const an = auj.getUTCMonth() === 0 ? auj.getUTCFullYear() - 1 : auj.getUTCFullYear(), mo = auj.getUTCMonth() === 0 ? 12 : auj.getUTCMonth();
+    const jour = (j: number) => `${an}-${String(mo).padStart(2, '0')}-${String(j).padStart(2, '0')}`;
+    const ouvrables = [...Array(12).keys()].map((k) => k + 17).filter((j) => new Date(`${jour(j)}T00:00:00Z`).getUTCDay() !== 0).slice(0, 2);
+    await qui.api('GET', `/entreprises/${qui.essai}/dossier-v10`, qui.jeton);
+    await qui.api('POST', `/entreprises/${qui.essai}/dossier-v10`, qui.jeton, { changements: [
+      { collection: 'employees', cle: 'sal-e', rang: 0, revision: null, contenu: { id: 'sal-e', name: 'Salarié Entré', grossSalary: 1300, hireDate: jour(15), contract: 'cdi' } },
+      { collection: 'leaves', cle: 'l1', rang: 0, revision: null, contenu: { id: 'l1', employeeId: 'sal-e', kind: 'sans-solde', from: jour(ouvrables[0] ?? 17), to: jour(ouvrables[1] ?? 18) } },
+    ] });
+    const p = await qui.ouvrir(qui.essai, '#/paie');
+    await pageV10(p, /Paie/);
+    await p.locator('#p-tabs button[data-tab=bulletins]').click();
+    await p.locator('#p-gen').click();
+    await p.locator('#modal-root #ok').click();
+    type Calcul = { baseGross: number; absenceCut: number; absentDays: number; brutDuMois: number; net: number };
+    const calcul = () => p.evaluate(() => (window as unknown as { __data: { payslips: { computed: Calcul }[] } }).__data.payslips[0]?.computed);
+    await expect.poll(async () => (await calcul())?.absentDays).toBe(2);
+    // 1 300 × 2 / 26 = 100 retenus, sur le salaire du contrat (et non sur le brut proratisé du mois).
+    expect([(await calcul())?.absenceCut, (await calcul())?.brutDuMois]).toEqual([100, 1300]);
+    const auServeur = async () => (await admin.query('select brut_du_mois, retenue_absence, net from paie.bulletin where entreprise = $1', [qui.essai])).rows[0];
+    await expect.poll(async () => (await auServeur())?.retenue_absence).toBe(100000n);
+    expect((await auServeur())?.brut_du_mois).toBe(1300000n);
+    // Rouvert et enregistré tel quel : la fenêtre calcule avec le prorata du mois, l'absence ne change pas.
+    await p.locator('#p-body tr', { hasText: 'Salarié Entré' }).getByRole('button', { name: /Actions/ }).click();
+    await p.getByText('Modifier le bulletin', { exact: true }).click();
+    await expect.poll(() => p.locator('#bf-calc').innerText()).toMatch(/dont absence retirée\s+−\s100,000\sDT/);
+    await p.locator('#modal-root #ok').click();
+    // (Rien n'a changé : le dossier ne renvoie pas le bulletin, le serveur garde sa révision.)
+    await expect.poll(() => p.locator('#bf').count()).toBe(0);
+    expect([(await calcul())?.absenceCut, (await auServeur())?.retenue_absence, (await auServeur())?.brut_du_mois]).toEqual([100, 100000n, 1300000n]);
+    expect(String(Number((await auServeur())?.net) / 1000)).toBe(String((await calcul())?.net));
+    // Le journal : les jours payés du bulletin, et une base qui est le salaire du contrat sur ces jours.
+    await p.locator('#p-journal').click();
+    const ligneJ = p.locator('#jp-table tr[data-jp="sal-e"]');
+    const jours = Number((await ligneJ.locator('td[data-col=jours]').innerText()).replace(',', '.'));
+    const base = Number((await ligneJ.locator('td[data-col=base]').innerText()).replace(/\s/g, '').replace(',', '.'));
+    expect(base).toBe(Math.round(1300 * jours / 26 * 1000) / 1000);
+    expect(qui.erreurs).toEqual([]);
+  }, 120_000);
+
   // La caisse en ligne (brique 115) : avant elle, « Encaisser » se refusait avec sa phrase ; le ticket part maintenant au
   // serveur, qui le numérote dans sa série et le garde (l'entreprise d'essai comprise).
   it('la caisse est en ligne : « Encaisser » vend un pain, numéroté par le serveur, et le ticket est au serveur', async () => {

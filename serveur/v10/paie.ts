@@ -93,7 +93,7 @@ export const baremeEnJson = (b: BaremePaie) => JSON.stringify(b, (_cle, x: unkno
 type Element = { libelle: string; montant: bigint };
 type BulletinLu = {
   salarie: { id: string; nom: string }; annee: number; mois: number;
-  saisie: { brutDeBase: bigint; joursOuvrables: bigint; joursAbsence: bigint; primes: (Element & { imposable: boolean })[]; retenues: Element[] };
+  saisie: { brutDeBase: bigint; brutDuMois: bigint | null; joursOuvrables: bigint; joursAbsence: bigint; primes: (Element & { imposable: boolean })[]; retenues: Element[] };
   situation: { contrat: string | null; chefDeFamille: boolean; enfants: number };
   bareme: BaremePaie;
   calcul: Bulletin;
@@ -129,7 +129,11 @@ async function lireBulletin(tx: Transaction, entreprise: string, utilisateur: st
   });
   const primes = elements(c.bonuses), retenues = elements(c.deductions);
   const brutDeBase = exact(c.baseGross ?? 0, 3), joursOuvrables = exact(c.workedDays ?? 0, 3), joursAbsence = exact(c.absentDays ?? 0, 3);
+  // (1.62.0) Le salaire d'un mois complet sur lequel l'absence s'est retirée, le mois d'une entrée ou d'une sortie ; un
+  // bulletin d'avant ne le porte pas : l'absence s'y retirait du brut de base.
+  const brutDuMois = c.brutDuMois === undefined || c.brutDuMois === null ? brutDeBase : exact(c.brutDuMois, 3);
   if (brutDeBase === null || brutDeBase > MONTANT_MAX || joursOuvrables === null || joursOuvrables <= 0n || joursAbsence === null || joursAbsence < 0n
+    || brutDuMois === null || brutDuMois < 0n || brutDuMois > MONTANT_MAX
     || [...primes, ...retenues].some((x) => x.montant === null)) {
     throw new Refus('v10.bulletin_saisie', { valeurs: { salarie: nom, periode } });
   }
@@ -137,7 +141,7 @@ async function lireBulletin(tx: Transaction, entreprise: string, utilisateur: st
   if (enfants === null || enfants < 0n || enfants > 99n) throw new Refus('v10.bulletin_situation', { valeurs: { salarie: nom, periode } });
   const situation = { contrat: texteOuNul(c.contrat, 40), chefDeFamille: sit.headOfFamily === true, enfants: Number(enfants) };
   const saisie = {
-    brutDeBase, joursOuvrables, joursAbsence,
+    brutDeBase, brutDuMois: brutDuMois === brutDeBase ? null : brutDuMois, joursOuvrables, joursAbsence,
     primes: primes.map((x) => ({ libelle: x.libelle, montant: x.montant ?? 0n, imposable: x.imposable })),
     retenues: retenues.map((x) => ({ libelle: x.libelle, montant: x.montant ?? 0n })),
   };
@@ -145,7 +149,7 @@ async function lireBulletin(tx: Transaction, entreprise: string, utilisateur: st
   // Deux chemins, un chiffre : le moteur du serveur recalcule, chaque montant doit tomber juste.
   const calcul = calculerBulletin(
     { chefDeFamille: situation.chefDeFamille, enfants: situation.enfants },
-    { brut: brutDeBase, joursOuvrables, joursAbsence, primes: saisie.primes, retenues: saisie.retenues.map((x) => x.montant) },
+    { brut: brutDeBase, joursOuvrables, joursAbsence, ...(saisie.brutDuMois === null ? {} : { brutDuMois: saisie.brutDuMois }), primes: saisie.primes, retenues: saisie.retenues.map((x) => x.montant) },
     bareme,
   );
   for (const [n, a] of MONTANTS) {
@@ -173,7 +177,7 @@ async function tenirBulletin(tx: Transaction, entreprise: string, utilisateur: s
   const k = b.calcul;
   const champs = {
     salarie: b.salarie.id, annee: b.annee, mois: b.mois,
-    brut_de_base: b.saisie.brutDeBase, jours_ouvrables: b.saisie.joursOuvrables, jours_absence: b.saisie.joursAbsence,
+    brut_de_base: b.saisie.brutDeBase, brut_du_mois: b.saisie.brutDuMois, jours_ouvrables: b.saisie.joursOuvrables, jours_absence: b.saisie.joursAbsence,
     primes: JSON.stringify(b.saisie.primes.map((x) => ({ libelle: x.libelle, montant: Number(x.montant), imposable: x.imposable }))),
     retenues: JSON.stringify(b.saisie.retenues.map((x) => ({ libelle: x.libelle, montant: Number(x.montant) }))),
     contrat: b.situation.contrat, chef_de_famille: b.situation.chefDeFamille, enfants: b.situation.enfants, bareme: baremeEnJson(b.bareme),

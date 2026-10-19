@@ -207,9 +207,9 @@ d'un millime près expliqués plus bas. **Ce qui manquait**, en trois lots :
 - **Un mois où le salarié entre (ou sort) ET s'absente sans solde** : le brut proratisé à l'entrée est ensuite réduit
   de l'absence sur 26 jours du brut **proratisé** (la v10 telle quelle), au lieu de 26 jours du brut de la fiche. Les
   primes au jour, elles, comptent juste (les jours du contrat moins l'absence). Le pointage (1.60.0) ne le corrige pas :
-  la retenue d'absence se calcule dans le moteur que le serveur refait (brique 31). Le journal de paie (1.61.0) ne la
-  corrige pas non plus : il lit les bulletins tels qu'ils sont. Elle se reprendra dans un lot du moteur, l'écran et le
-  serveur ensemble (le bulletin devra garder le brut de la fiche à côté du brut proratisé).
+  la retenue d'absence se calcule dans le moteur que le serveur refait (brique 31). ~~Le journal de paie (1.61.0) ne la
+  corrige pas non plus~~ : **corrigé en 1.62.0** (« L'absence du mois d'une entrée », plus bas), l'écran et le serveur
+  ensemble.
 - Le Cabinet tient la paie d'un dossier bulletin par bulletin, avec une seule prime : les primes de chaque mois, le
   pointage et le journal y viendront après l'entreprise.
 
@@ -366,7 +366,7 @@ journal imprimés tiennent chacun sur une page.
 
 ### Ce qui reste
 
-- Le cas « entrée et absence le même mois » (premier lot, ci-dessus) : un lot du moteur, l'écran et le serveur ensemble.
+- ~~Le cas « entrée et absence le même mois »~~ : corrigé en 1.62.0 (ci-dessous).
 - Le Cabinet n'a ni le journal ni les états (il tient la paie d'un dossier bulletin par bulletin).
 - Le numéro de matricule propre à chaque salarié (le journal prend le rang du registre) ; les heures supplémentaires et
   les retenues par rubrique dans le journal (une colonne chacune aujourd'hui).
@@ -383,3 +383,76 @@ journal imprimés tiennent chacun sur une page.
   mois écoulé même quand on regarde un autre mois des bulletins, ses montants, son échéance, son CSV, un mois vide ;
   l'état récapitulatif, ses lettres, imprimé.
 - Dix-huit preuves (`tests/preuves.sh`, « 1.61.0 »).
+
+## L'absence du mois d'une entrée (19/10/2026, 1.62.0)
+
+*Le défaut que le premier lot avait laissé ouvert, et que le journal de paie rendait visible (des jours payés qui ne
+donnaient pas la base).*
+
+### Le défaut
+
+Le mois d'une entrée ou d'une sortie, la v10 proratise le brut de base du bulletin (10.12.0) ; une absence sans solde du
+même mois s'en retirait **encore** au prorata. Embauché le 14 pour 1 300 (13 jours sur 26 : 650) et absent deux jours, le
+salarié recevait 650 − 650 × 2 / 26 = **600**, au lieu de 1 300 × 11 / 26 = **550** : 50 de trop, et le journal disait
+11 jours payés pour une base de 600. Les primes au jour, elles, comptaient juste.
+
+### Ce que le lot fait (`web/v10/paie-absence.txt`, `moteur/paie.ts`, `serveur/v10/paie.ts`, migration `0147`)
+
+- **L'absence se retire au taux journalier du salaire du contrat** (le brut de la fiche) tant que le brut du bulletin est
+  celui que le prorata a calculé : 1 300 × 2 / 26 = 100, et la base du mois vaut 1 300 × 11 / 26. Un brut retouché à la
+  main n'est plus « proratisé » (la v10 efface déjà le prorata) : l'absence se retire de lui, comme avant.
+- **Le calcul garde ce salaire** (`brutDuMois`) ; la fenêtre du bulletin calcule avec le prorata du mois (rouvrir un
+  bulletin et l'enregistrer ne change rien) ; le bulletin imprimé dit, sur la ligne de l'absence, le salaire dont elle
+  s'est retirée.
+- **Le serveur** relit ce salaire, refait le bulletin avec lui (`calculerBulletin`, `brutDuMois`) et le garde
+  (`paie.bulletin.brut_du_mois`, vide pour un mois sans prorata et pour les bulletins d'avant) ; l'API le rend dans la
+  saisie du bulletin. Un calcul qui dirait l'avoir retirée d'un autre salaire ne tombe pas juste, et se refuse.
+- **Les bulletins déjà établis ne se réécrivent pas** (une pièce garde son calcul) : un bulletin d'un mois d'entrée avec
+  absence, établi avant, se corrige en le rouvrant (« Modifier le bulletin », puis Enregistrer) ou avec un rappel le mois
+  suivant. **À VÉRIFIER** avec le comptable : la méthode (jours ouvrables du mois complet) et le traitement d'un mois déjà
+  payé.
+
+### Ce qui le prouve
+
+- `tests/moteur/paie-etats.test.ts`, « une entrée et une absence le même mois » : le bulletin du mois (entré le 8
+  septembre pour 612, deux jours sans solde) : 47,077 retenus, une base de 612 × 18 / 26 = 423,692 dans le journal,
+  la ligne imprimée ; un brut retouché.
+- `tests/v10/paie.test.ts`, « le mois d'une entrée, une absence sans solde se retire au taux du salaire du contrat » :
+  l'écran et le serveur au même millime, le salaire gardé (et rendu par l'API), un brut retouché qui n'en garde pas, un
+  calcul faux refusé.
+- `tests/web/parcours.test.ts`, « l'absence du mois d'une entrée à la souris » : établi, rouvert et enregistré, le
+  serveur au même net, le journal dont la base suit les jours payés.
+- Sept preuves (`tests/preuves.sh`, « 1.62.0 »).
+
+## Le bulletin imprimé tient sur une page (19/10/2026, 1.62.0)
+
+*Vu à l'impression, en refaisant à la souris le bulletin d'un salarié entré le 15 septembre et absent deux jours.*
+
+### Le défaut
+
+Le bulletin sortait sur **deux pages**, la seconde ne portant que le pied de page : son contenu mesurait 305 mm pour une
+feuille de 297. Le bulletin de la v10 est aéré (7 mm par ligne de rubrique, 16 mm de marge en haut et en bas) ; les
+lignes ajoutées depuis (les jours payés, le prorata, l'absence) l'ont fait déborder. Un bulletin chargé (la fiche entière,
+une entrée, une absence, six primes et deux retenues : dix-huit lignes de rubriques) mesurait 362 mm. Le bulletin d'un
+logiciel de paie tient sur une page : c'est elle qu'on remet au salarié et qu'il signe.
+
+### Ce que le lot fait (`web/v10/paie-impression.txt`)
+
+- **Des lignes serrées comme celles d'un bulletin** : 5,4 mm par rubrique, des marges de 12 mm en haut et 10 mm en bas,
+  des intervalles plus courts ; les tailles des caractères ne changent pas, ni le cadre des signatures.
+- **Le pied se pose en bas de la page**, quelle que soit la longueur du bulletin (il flottait au milieu d'un bulletin
+  court).
+- **Plus long qu'une page** (au-delà de dix-neuf rubriques, mesuré dans le navigateur d'essai ; un bulletin courant en
+  a de dix à seize), la suite passe sur une deuxième page, coupée entre deux lignes ; l'en-tête du tableau revient,
+  chaque page garde ses marges, et les signatures restent avec le pied (vu à l'œil sur un bulletin de quarante-deux
+  rubriques ; le navigateur ne laisse pas mesurer où il coupe).
+
+### Ce qui le prouve
+
+- `tests/v10/bulletin-imprime.test.ts` : le bulletin ouvert dans un vrai navigateur, le PDF qu'il en tire et ses pages
+  **comptées** : celui vu à l'impression et le bulletin chargé tiennent sur une page, leur pied à 10 mm du bas, avec de
+  la marge (4 mm pour une police plus large que celle du navigateur d'essai) ; un bulletin de quarante-deux rubriques
+  passe sur deux pages, il ne se tronque pas.
+- Refait à la souris : « Exporter le bulletin en PDF », l'aperçu d'impression annonce une page.
+- Trois preuves (`tests/preuves.sh`, « 1.62.0 : le bulletin imprimé ») : les rubriques aérées comme la v10, le pied au
+  milieu de la page, un bulletin trop long tronqué à une page.

@@ -11576,7 +11576,9 @@
         const input = () => {
           const v = formValues($('#bf', root));
           return { gross: Number(v.gross) || 0, workedDays: Number(v.workedDays) || 26,
-            absentDays: Number(v.absentDays) || 0, bonuses, deductions };
+            absentDays: Number(v.absentDays) || 0, bonuses, deductions,
+            // (plateforme) 1.62.0 — le prorata d'une entrée ou d'une sortie : l'absence se retire au taux du contrat.
+            prorata: p.prorata || null };
         };
         const drawSmall = (sel, list, kind) => {
           $(sel, root).innerHTML = list.length ? `<table class="lines-edit"><tbody>

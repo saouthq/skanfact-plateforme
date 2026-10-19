@@ -448,6 +448,7 @@ export interface BaseDeDonnees {
     modifie_par: string | null;
     modifie_le: Generated<Date>;
     revision: Generated<bigint>;
+    brut_du_mois: bigint | null;
   };
   'paie.salarie': {
     id: Generated<string>;

@@ -757,4 +757,8 @@ export const ADAPTATIONS = [
   ...lireFichier('paie-pointage.txt'),
   // ── Le journal de paie et les états (19/10/2026, 1.61.0 ; docs/paie.md) : le journal du mois, l'état CNSS, la déclaration mensuelle ──
   ...lireFichier('paie-etats.txt'),
+  // ── L'absence du mois d'une entrée (19/10/2026, 1.62.0 ; docs/paie.md) : au taux du salaire du contrat, à l'écran et au serveur ──
+  ...lireFichier('paie-absence.txt'),
+  // ── Le bulletin imprimé tient sur une page (19/10/2026, 1.62.0 ; docs/paie.md) : des lignes serrées, le pied en bas ──
+  ...lireFichier('paie-impression.txt'),
 ];

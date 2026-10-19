@@ -959,7 +959,7 @@ prouver "la solidarité calculée avant les déductions" $MP \
   "  const css = diviserArrondi(imposableAnnuel * bareme.solidarite, 12n * MILLION);" "  const css = diviserArrondi(annuel * bareme.solidarite, 12n * MILLION);" \
   "un bulletin complet, ligne par ligne"
 prouver "l'absence comptée sur trente jours au lieu des jours ouvrables" $MP \
-  "diviserArrondi(brutDeBase * absence, saisie.joursOuvrables)" "diviserArrondi(brutDeBase * absence, 30_000n)" \
+  "diviserArrondi((saisie.brutDuMois ?? brutDeBase) * absence, saisie.joursOuvrables)" "diviserArrondi((saisie.brutDuMois ?? brutDeBase) * absence, 30_000n)" \
   "20 000 bulletins tirés au hasard"
 prouver "une base imposable négative gardée" $MP \
   "  const imposableAnnuel = reste > 0n ? reste : 0n;" "  const imposableAnnuel = reste;" \
@@ -17351,6 +17351,54 @@ prouver 'l'"'"'état récapitulatif sans ses lettres' 'web/public/v10/app.js' \
   '<em data-etat="lettres">${h(etat.enLettres)}</em>' \
   '<em data-etat="lettres"></em>' \
   'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
+
+# 1.62.0 : l'absence du mois d'une entrée, au taux du salaire du contrat (docs/paie.md, « L'absence du mois d'une entrée »).
+prouver 'l'"'"'absence retirée du brut proratisé, à l'"'"'écran' 'web/public/v10/compta.js' \
+  'round3(brutDuMois * absent / workedDays)' \
+  'round3(baseGross * absent / workedDays)' \
+  'une entrée et une absence le même mois : l'"'"'absence se retire au taux du salaire du contrat ; la base du journal suit ses jours payés'
+prouver 'un brut retouché encore traité comme proratisé' 'web/public/v10/compta.js' \
+  ' && round3(Number(i.prorata.brut)) === baseGross
+' \
+  '
+' \
+  'une entrée et une absence le même mois : l'"'"'absence se retire au taux du salaire du contrat ; la base du journal suit ses jours payés'
+prouver 'le bulletin imprimé muet sur le salaire de l'"'"'absence' 'web/public/v10/core.js' \
+  'c.brutDuMois && c.brutDuMois !== c.baseGross ? c.brutDuMois : null' \
+  'null' \
+  'une entrée et une absence le même mois : l'"'"'absence se retire au taux du salaire du contrat ; la base du journal suit ses jours payés'
+prouver 'l'"'"'absence retirée du brut proratisé, au serveur' 'moteur/paie.ts' \
+  'diviserArrondi((saisie.brutDuMois ?? brutDeBase) * absence, saisie.joursOuvrables)' \
+  'diviserArrondi(brutDeBase * absence, saisie.joursOuvrables)' \
+  'le mois d'"'"'une entrée, une absence sans solde se retire au taux du salaire du contrat : l'"'"'écran et le serveur au même millime, et le bulletin garde ce salaire'
+prouver 'le bulletin du serveur qui ne garde pas le salaire de l'"'"'absence' 'serveur/v10/paie.ts' \
+  'brut_de_base: b.saisie.brutDeBase, brut_du_mois: b.saisie.brutDuMois,' \
+  'brut_de_base: b.saisie.brutDeBase,' \
+  'le mois d'"'"'une entrée, une absence sans solde se retire au taux du salaire du contrat : l'"'"'écran et le serveur au même millime, et le bulletin garde ce salaire'
+prouver 'l'"'"'API muette sur le salaire de l'"'"'absence' 'serveur/paie/routes.ts' \
+  '            ...(b.brut_du_mois === null ? {} : { brutDuMois: m(b.brut_du_mois) }),
+' \
+  '' \
+  'le mois d'"'"'une entrée, une absence sans solde se retire au taux du salaire du contrat : l'"'"'écran et le serveur au même millime, et le bulletin garde ce salaire'
+prouver 'la fenêtre du bulletin sans le prorata du mois' 'web/public/v10/app.js' \
+  '            prorata: p.prorata || null };' \
+  '            prorata: null };' \
+  'l'"'"'absence du mois d'"'"'une entrée à la souris : établi, rouvert et enregistré, le bulletin retire l'"'"'absence au taux du contrat, et le serveur le refait'
+
+# 1.62.0 : le bulletin imprimé tient sur une page (docs/paie.md, « Le bulletin imprimé tient sur une page »).
+prouver 'les rubriques du bulletin imprimé aérées comme la v10' 'web/public/v10/core.js' \
+  '  table.pay td { padding: 1.5px 6px; line-height: 1.3; }
+' \
+  '' \
+  'tient sur une page, même chargé (une entrée, une absence, six primes, deux retenues) ; le pied en bas de la page ; plus long, il ne se tronque pas'
+prouver 'le pied du bulletin imprimé au milieu de la page' 'web/public/v10/core.js' \
+  '.foot { margin-top: auto; padding-top: 6px; break-before: avoid; }' \
+  '.foot { padding-top: 6px; break-before: avoid; }' \
+  'tient sur une page, même chargé (une entrée, une absence, six primes, deux retenues) ; le pied en bas de la page ; plus long, il ne se tronque pas'
+prouver 'le bulletin trop long tronqué à une page' 'web/public/v10/core.js' \
+  '.page { display: flex; flex-direction: column; padding: 12mm 14mm 10mm;' \
+  '.page { display: flex; flex-direction: column; height: 297mm; overflow: hidden; padding: 12mm 14mm 10mm;' \
+  'tient sur une page, même chargé (une entrée, une absence, six primes, deux retenues) ; le pied en bas de la page ; plus long, il ne se tronque pas'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

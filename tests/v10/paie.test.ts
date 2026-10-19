@@ -29,7 +29,7 @@ import { demo, ecranDeLaPlateforme, entier, exiger, hasard, type Societe } from 
 
 type Reglages = Record<string, unknown>;
 type Salarie10 = { id: string; name: string; contract?: string; grossSalary?: number; headOfFamily?: boolean; children?: number; [k: string]: unknown };
-type Saisie10 = { gross?: number; workedDays?: number; absentDays?: number; bonuses?: { label?: string; amount: number; taxable?: boolean }[]; deductions?: { label?: string; amount: number }[] };
+type Saisie10 = { gross?: number; workedDays?: number; absentDays?: number; bonuses?: { label?: string; amount: number; taxable?: boolean }[]; deductions?: { label?: string; amount: number }[]; prorata?: Record<string, unknown> | null };
 type Calcul10 = Record<string, unknown>;
 type Bulletin10 = Saisie10 & { id: string; employeeId: string; year: number; month: number; computed: Calcul10; paidDate?: string; [k: string]: unknown };
 // L'écran de la PLATEFORME (la v10 et ses adaptations : un bulletin y fige son barème), et la v10 telle
@@ -284,6 +284,35 @@ describe('la paie du dossier v10, tenue par le serveur', () => {
     expect((await e.envoyer('employees', [['s2', salarie('s2', { name: 'Karim', children: -1 })]])).corps.motif).toBe('Le nombre d\'enfants à charge de Karim doit être un nombre entier entre 0 et 99 : rien n\'a été enregistré.');
     expect((await admin.query('select count(*)::int n from paie.bulletin where entreprise = $1', [e.ent])).rows[0].n).toBe(0);
     expect((await admin.query(`select count(*)::int n from socle.dossier_v10 where entreprise = $1 and collection = 'payslips'`, [e.ent])).rows[0].n).toBe(0);
+  });
+
+  // 1.62.0 (docs/paie.md, « L'absence du mois d'une entrée ») : le brut d'un mois d'entrée est déjà proratisé ; une absence
+  // sans solde s'en retirait encore au prorata (le salarié touchait trop).
+  it('le mois d\'une entrée, une absence sans solde se retire au taux du salaire du contrat : l\'écran et le serveur au même millime, et le bulletin garde ce salaire', async () => {
+    const e = await essai();
+    // Entré le mardi 8 septembre 2026 pour 612 : 20 jours sur 26 sous contrat, un brut proratisé de 470,769 ; absent deux
+    // jours sans solde : 18 jours payés, 612 × 18 / 26 = 423,692 de base (la retenue : 612 × 2 / 26 = 47,077).
+    const s = salarie('s1', { grossSalary: 612, hireDate: '2026-09-08' });
+    const prorata = { jours: 20, sur: 26, motif: 'entrée le 08/09/2026', brutFiche: 612, brut: 470.769 };
+    const b = bulletin('b1', s, 2026, 9, { gross: 470.769, absentDays: 2, prorata });
+    expect([b.computed.absenceCut, Math.round((Number(b.computed.baseGross) - Number(b.computed.absenceCut)) * 1000) / 1000, b.computed.brutDuMois]).toEqual([47.077, 423.692, 612]);
+    await e.envoyer('employees', [['s1', s]]);
+    const envoi = await e.envoyer('payslips', [['b1', b]]);
+    expect(envoi.statut, JSON.stringify(envoi.corps)).toBe(200);
+    const ligne = async (ref: string) => (await admin.query('select brut_de_base, brut_du_mois, retenue_absence, net from paie.bulletin where entreprise = $1 and ref_v10 = $2', [e.ent, ref])).rows[0];
+    expect(await ligne('b1')).toEqual({ brut_de_base: 470769n, brut_du_mois: 612000n, retenue_absence: 47077n, net: entier(b.computed.net as number, 3) });
+    expect((await e.lire('b1')).saisie).toMatchObject({ brutDeBase: '470.769', brutDuMois: '612.000', joursAbsence: '2.000' });
+    // Un brut retouché à la main n'est plus proratisé : l'absence se retire de lui, et le bulletin ne garde rien de plus.
+    const c = bulletin('b2', s, 2026, 10, { gross: 600, absentDays: 2, prorata });
+    expect([c.computed.absenceCut, c.computed.brutDuMois]).toEqual([46.154, 600]);
+    expect((await e.envoyer('payslips', [['b2', c]], 1)).statut).toBe(200);
+    expect((await ligne('b2'))?.brut_du_mois).toBeNull();
+    // Le serveur refait le bulletin avec le salaire que le calcul a gardé : un calcul qui dirait l'avoir retirée d'un autre
+    // salaire ne tombe pas juste.
+    const faux = { ...b, id: 'b3', month: 11, computed: { ...b.computed, brutDuMois: 470.769 } };
+    const r = await e.envoyer('payslips', [['b3', faux]], 2);
+    expect(r.statut).toBe(403);
+    expect(r.corps.motif).toMatch(/la retenue pour absence vaut 47\.077 à l'écran, 36\.213 au serveur/);
   });
 
   it('modifier, supprimer, chacun avec sa trace ; un bulletin seulement déplacé ne se recalcule pas ; le salarié garde sa fiche', async () => {

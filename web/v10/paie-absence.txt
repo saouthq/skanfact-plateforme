@@ -1,0 +1,52 @@
+L'absence du mois d'une entrée ou d'une sortie (19/10/2026, 1.62.0 ; docs/paie.md, « L'absence du mois d'une entrée »).
+Format : voir sans-paquets.mjs.
+
+Le mois d'une entrée ou d'une sortie, la v10 proratise le brut de base du bulletin (10.12.0, `prorata`) ; une absence sans
+solde du même mois s'en retirait ENCORE au prorata : embauché le 14 pour 1 300 (13 jours sur 26, 650) et absent deux
+jours, le salarié recevait 650 − 650 × 2 / 26 = 600, au lieu de 1 300 × 11 / 26 = 550 (les jours payés : 13 − 2). Le
+journal de paie (1.61.0) le rendait visible : 11 jours payés pour 600 de base. Les primes au jour, elles, comptaient juste.
+
+L'absence se retire désormais au taux journalier du salaire du CONTRAT (le brut de la fiche), tant que le brut du
+bulletin est celui que le prorata a calculé ; un brut retouché à la main n'est plus « proratisé » (la v10 le dit déjà en
+effaçant `prorata`), et l'absence se retire de lui. Le calcul garde ce salaire (`brutDuMois`) ; le serveur le relit et
+refait le bulletin avec lui (moteur/paie.ts), et le bulletin imprimé le dit sur la ligne de l'absence.
+
+== compta.js | une absence se retire au taux journalier du salaire du contrat, même le mois d'une entrée ou d'une sortie
+-- avant
+    // Absence non rémunérée : le brut est réduit au prorata des jours.
+    const absenceCut = absent > 0 && workedDays > 0 ? round3(baseGross * absent / workedDays) : 0;
+-- après
+    // Absence non rémunérée : le brut est réduit au prorata des jours.
+    // (plateforme) 1.62.0 — au taux journalier du salaire du CONTRAT : le mois d'une entrée ou d'une sortie, le brut est
+    // déjà proratisé (`prorata`), et l'absence s'en retirait encore au prorata (650 × 2 / 26 au lieu de 1 300 × 2 / 26 :
+    // 50 de trop). Un brut retouché à la main n'est plus proratisé : l'absence se retire de lui.
+    const brutDuMois = i.prorata && Number(i.prorata.brutFiche) > 0 && round3(Number(i.prorata.brut)) === baseGross
+      ? round3(Number(i.prorata.brutFiche)) : baseGross;
+    const absenceCut = absent > 0 && workedDays > 0 ? round3(brutDuMois * absent / workedDays) : 0;
+-- fin
+
+== compta.js | le calcul garde le salaire sur lequel l'absence s'est retirée
+-- avant
+      cnssEmployer, accident, tfp, foprolos, employerCharges, employerCost,
+-- après
+      cnssEmployer, accident, tfp, foprolos, employerCharges, employerCost,
+      // (plateforme) 1.62.0 — le salaire d'un mois complet sur lequel l'absence s'est retirée : le serveur le relit.
+      brutDuMois,
+-- fin
+
+== app.js | la fenêtre du bulletin calcule avec le prorata du mois : l'absence s'y retire au taux du contrat
+-- avant
+            absentDays: Number(v.absentDays) || 0, bonuses, deductions };
+-- après
+            absentDays: Number(v.absentDays) || 0, bonuses, deductions,
+            // (plateforme) 1.62.0 — le prorata d'une entrée ou d'une sortie : l'absence se retire au taux du contrat.
+            prorata: p.prorata || null };
+-- fin
+
+== core.js | le bulletin imprimé dit sur quel salaire l'absence s'est retirée
+-- avant
+      ${c.absenceCut ? row(`Absence (${pct(c.absentDays)} jour${sAccord(c.absentDays)})`, null, null, -c.absenceCut, null) : ''}
+-- après
+      ${/* (plateforme) 1.62.0 — le mois d'une entrée, l'absence se retire du salaire du contrat : la ligne le dit. */''}
+      ${c.absenceCut ? row(`Absence (${pct(c.absentDays)} jour${sAccord(c.absentDays)})`, c.brutDuMois && c.brutDuMois !== c.baseGross ? c.brutDuMois : null, null, -c.absenceCut, null) : ''}
+-- fin

@@ -213,7 +213,10 @@ vaut pour tout le dépôt.*
     collection `timesheets` de la paie ; `tests/moteur/paie-pointage.test.ts`). Le journal de paie et les états
     (1.61.0) : le journal du mois, l'état récapitulatif CNSS du trimestre, ce que la paie ajoute à la déclaration
     mensuelle (`web/v10/paie-etats.txt` ; `tests/moteur/paie-etats.test.ts`, les montants réels dans
-    `tests/moteur/paie-reel.ts`).
+    `tests/moteur/paie-reel.ts`). L'absence du mois d'une entrée (1.62.0) : au taux du salaire du contrat, à l'écran
+    (`web/v10/paie-absence.txt`) et au serveur (`brutDuMois`, `paie.bulletin.brut_du_mois`, 0147). Le bulletin imprimé
+    tient sur une page (1.62.0 ; `web/v10/paie-impression.txt`, ses pages comptées dans un navigateur :
+    `tests/v10/bulletin-imprime.test.ts`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

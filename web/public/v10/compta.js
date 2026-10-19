@@ -6196,7 +6196,12 @@
     const workedDays = Number(i.workedDays) || 26;      // jours ouvrables du mois, modifiable
     const absent = Math.max(0, Number(i.absentDays) || 0);
     // Absence non rémunérée : le brut est réduit au prorata des jours.
-    const absenceCut = absent > 0 && workedDays > 0 ? round3(baseGross * absent / workedDays) : 0;
+    // (plateforme) 1.62.0 — au taux journalier du salaire du CONTRAT : le mois d'une entrée ou d'une sortie, le brut est
+    // déjà proratisé (`prorata`), et l'absence s'en retirait encore au prorata (650 × 2 / 26 au lieu de 1 300 × 2 / 26 :
+    // 50 de trop). Un brut retouché à la main n'est plus proratisé : l'absence se retire de lui.
+    const brutDuMois = i.prorata && Number(i.prorata.brutFiche) > 0 && round3(Number(i.prorata.brut)) === baseGross
+      ? round3(Number(i.prorata.brutFiche)) : baseGross;
+    const absenceCut = absent > 0 && workedDays > 0 ? round3(brutDuMois * absent / workedDays) : 0;
 
     const bonuses = (i.bonuses || []).map(b => ({ label: b.label || 'Prime', amount: round3(Number(b.amount) || 0), taxable: b.taxable !== false }));
     const taxableBonus = round3(bonuses.filter(b => b.taxable).reduce((a, b) => a + b.amount, 0));
@@ -6237,6 +6242,8 @@
       annualTaxable, irppYear, irpp, css,
       deductions, otherDeductions, net,
       cnssEmployer, accident, tfp, foprolos, employerCharges, employerCost,
+      // (plateforme) 1.62.0 — le salaire d'un mois complet sur lequel l'absence s'est retirée : le serveur le relit.
+      brutDuMois,
       // Le régime appliqué est FIGÉ avec le calcul (5.0.0) : changer la table plus tard ne réécrit
       // pas un bulletin remis, et le bulletin dit pourquoi ses taux diffèrent du barème.
       contrat, regime: Object.keys(regime).length ? regime : null,

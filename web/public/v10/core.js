@@ -4130,6 +4130,25 @@
   .sign { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-top: 22px; }
   .sign .s { border: 1px dashed ${tint(0.5)}; border-radius: 8px; min-height: 60px; padding: 6px 10px; font-size: 8pt; color: #6a7480; }
   .foot { margin-top: 16px; padding-top: 8px; border-top: 1px solid #eef1f4; font-size: 7.5pt; color: #8b949e; text-align: center; }
+  /* (plateforme) 1.62.0 — le bulletin tient sur UNE page A4, même chargé (dix-huit lignes de rubriques) : des lignes
+     serrées comme celles d'un bulletin, le pied en bas de la page. Plus long, il se coupe entre deux lignes (l'en-tête
+     du tableau revient, chaque page garde ses marges) et les signatures restent avec le pied. */
+  .page { display: flex; flex-direction: column; padding: 12mm 14mm 10mm; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .head { padding-bottom: 9px; }
+  .who, .cols { margin-top: 10px; }
+  .box { padding: 7px 10px; }
+  .box h2 { margin-bottom: 3px; }
+  .kv { padding: .5px 0; line-height: 1.3; }
+  table.pay { margin-top: 10px; }
+  table.pay th { padding: 3px 6px; }
+  table.pay td { padding: 1.5px 6px; line-height: 1.3; }
+  tr.tot td { padding-top: 4px; }
+  .net { margin-top: 10px; padding: 7px 14px; }
+  .net .val { line-height: 1.2; }
+  .warn { margin-top: 10px; padding: 6px 10px; line-height: 1.35; }
+  .sign { margin-top: 14px; margin-bottom: 10px; break-after: avoid; }
+  .foot { margin-top: auto; padding-top: 6px; break-before: avoid; }
+  table.pay tr, .who, .net, .cols, .warn, .sign, .foot { break-inside: avoid; }
 </style></head>
 <body><div class="page">
   <div class="head">
@@ -4170,7 +4189,8 @@
     <thead><tr><th>Désignation</th><th class="n">Base</th><th class="n">Taux</th><th class="n">Part salarié</th><th class="n">Part employeur</th></tr></thead>
     <tbody>
       ${row('Salaire de base', null, null, c.baseGross, null)}
-      ${c.absenceCut ? row(`Absence (${pct(c.absentDays)} jour${sAccord(c.absentDays)})`, null, null, -c.absenceCut, null) : ''}
+      ${/* (plateforme) 1.62.0 — le mois d'une entrée, l'absence se retire du salaire du contrat : la ligne le dit. */''}
+      ${c.absenceCut ? row(`Absence (${pct(c.absentDays)} jour${sAccord(c.absentDays)})`, c.brutDuMois && c.brutDuMois !== c.baseGross ? c.brutDuMois : null, null, -c.absenceCut, null) : ''}
       ${c.bonuses.map((b, i) => {
         // (plateforme) 1.59.0 — une prime au jour dit ses jours, comme la colonne « Nombre » d'un bulletin.
         const x = (slip.bonuses || [])[i] || {};

@@ -1,0 +1,37 @@
+Le bulletin imprimé tient sur une page (19/10/2026, 1.62.0 ; docs/paie.md, « Le bulletin imprimé tient sur une page »).
+Format : voir sans-paquets.mjs.
+
+Vu à l'impression, à la souris : le bulletin d'un salarié entré en cours de mois et absent deux jours sortait sur DEUX
+pages, la seconde ne portant que le pied de page (le contenu mesurait 305 mm pour une page de 297). Le bulletin de la v10
+est aéré : 7 mm par ligne de rubrique, 16 mm de marge en haut et en bas ; un bulletin chargé (une entrée, une absence,
+six primes et deux retenues : dix-huit lignes) mesurait 362 mm. Le bulletin d'un logiciel de paie tient sur une page.
+
+Ses lignes se resserrent (5,4 mm par rubrique, comme un bulletin), les marges et les intervalles aussi, sans toucher aux
+tailles des caractères ; le pied se pose en bas de la page. Plus long (au-delà de dix-neuf lignes), il se coupe entre deux
+lignes : l'en-tête du tableau revient, chaque page garde ses marges, et les signatures restent avec le pied.
+
+== core.js | le bulletin tient sur une page : des lignes serrées, le pied en bas ; plus long, il se coupe proprement
+-- avant
+  .foot { margin-top: 16px; padding-top: 8px; border-top: 1px solid #eef1f4; font-size: 7.5pt; color: #8b949e; text-align: center; }
+-- après
+  .foot { margin-top: 16px; padding-top: 8px; border-top: 1px solid #eef1f4; font-size: 7.5pt; color: #8b949e; text-align: center; }
+  /* (plateforme) 1.62.0 — le bulletin tient sur UNE page A4, même chargé (dix-huit lignes de rubriques) : des lignes
+     serrées comme celles d'un bulletin, le pied en bas de la page. Plus long, il se coupe entre deux lignes (l'en-tête
+     du tableau revient, chaque page garde ses marges) et les signatures restent avec le pied. */
+  .page { display: flex; flex-direction: column; padding: 12mm 14mm 10mm; -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+  .head { padding-bottom: 9px; }
+  .who, .cols { margin-top: 10px; }
+  .box { padding: 7px 10px; }
+  .box h2 { margin-bottom: 3px; }
+  .kv { padding: .5px 0; line-height: 1.3; }
+  table.pay { margin-top: 10px; }
+  table.pay th { padding: 3px 6px; }
+  table.pay td { padding: 1.5px 6px; line-height: 1.3; }
+  tr.tot td { padding-top: 4px; }
+  .net { margin-top: 10px; padding: 7px 14px; }
+  .net .val { line-height: 1.2; }
+  .warn { margin-top: 10px; padding: 6px 10px; line-height: 1.35; }
+  .sign { margin-top: 14px; margin-bottom: 10px; break-after: avoid; }
+  .foot { margin-top: auto; padding-top: 6px; break-before: avoid; }
+  table.pay tr, .who, .net, .cols, .warn, .sign, .foot { break-inside: avoid; }
+-- fin

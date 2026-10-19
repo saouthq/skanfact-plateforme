@@ -32,6 +32,9 @@ export type SaisieMois = {
   brut: bigint;                 // le salaire de base du mois
   joursOuvrables: bigint;       // en millièmes
   joursAbsence?: bigint;        // en millièmes : une absence non payée réduit le brut au prorata
+  // Le salaire d'un mois complet, quand le brut du mois est proratisé (une entrée, une sortie) : l'absence se retire à
+  // son taux journalier, pas à celui du brut déjà réduit (1.62.0). Absent, c'est le brut.
+  brutDuMois?: bigint;
   primes?: Prime[];
   retenues?: bigint[];          // avances, oppositions…
 };
@@ -65,7 +68,7 @@ export function irppAnnuel(imposable: bigint, tranches: Tranche[]): bigint {
 export function calculerBulletin(salarie: Salarie, saisie: SaisieMois, bareme: BaremePaie): Bulletin {
   const brutDeBase = saisie.brut;
   const absence = saisie.joursAbsence && saisie.joursAbsence > 0n ? saisie.joursAbsence : 0n;
-  const retenueAbsence = absence > 0n && saisie.joursOuvrables > 0n ? diviserArrondi(brutDeBase * absence, saisie.joursOuvrables) : 0n;
+  const retenueAbsence = absence > 0n && saisie.joursOuvrables > 0n ? diviserArrondi((saisie.brutDuMois ?? brutDeBase) * absence, saisie.joursOuvrables) : 0n;
   const primes = saisie.primes ?? [];
   const primesImposables = somme(primes.filter((p) => p.imposable).map((p) => p.montant));
   const primesNonImposables = somme(primes.filter((p) => !p.imposable).map((p) => p.montant));
