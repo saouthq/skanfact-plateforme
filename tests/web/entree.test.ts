@@ -248,6 +248,37 @@ describe('l\'entrée refaite, à la souris', () => {
     await p.context().close();
   });
 
+  // Vu le 19/10/2026 sur l'outil humain : « Créer mon compte » avec une adresse déjà inscrite répondait « une erreur de notre
+  // côté » ; et ni « Bon retour » ni « Créer ton compte » ne posaient le curseur, la première lettre tapée se perdait.
+  it('le curseur attend dans le premier champ à remplir ; une adresse déjà inscrite : la même suite qu\'une inscription, et le lien du mot de passe oublié par e-mail', async () => {
+    const deja = await personne();
+    const p = await page();
+    await p.goto(serveur.adresse);
+    await ecran(p, 'ecran.connexion.titre');
+    await expect.poll(() => champ(p, 'ecran.connexion.email').evaluate((i) => i === document.activeElement)).toBe(true);
+    await bouton(p, 'ecran.connexion.creer_compte').click();
+    await ecran(p, 'ecran.inscription.titre');
+    await expect.poll(() => champ(p, 'ecran.inscription.nom').evaluate((i) => i === document.activeElement)).toBe(true);
+    // Le nom se tape d'emblée ; puis l'adresse (déjà inscrite) et un autre mot de passe.
+    await p.keyboard.type('Amine Gharbi');
+    expect(await champ(p, 'ecran.inscription.nom').inputValue()).toBe('Amine Gharbi');
+    await champ(p, 'ecran.connexion.email').fill(deja.email);
+    await champ(p, 'ecran.connexion.mot_de_passe').fill('Un-tout-autre-mot-de-passe');
+    const avant = partis.length;
+    await bouton(p, 'ecran.inscription.bouton').click();
+    // Pas de refus : la page de connexion, l'adresse remplie, le curseur au mot de passe, et une phrase vraie dans les deux cas.
+    await ecran(p, 'ecran.connexion.titre');
+    await expect.poll(() => p.locator('#toast').innerText()).toBe(phrase('ecran.inscription.faite_courriel'));
+    expect(await champ(p, 'ecran.connexion.email').inputValue()).toBe(deja.email);
+    await expect.poll(() => champ(p, 'ecran.connexion.mot_de_passe').evaluate((i) => i === document.activeElement)).toBe(true);
+    // L'e-mail : le lien du mot de passe oublié, avec ce qui s'est passé ; aucun code de vérification d'une inscription.
+    await expect.poll(() => partis.length).toBe(avant + 1);
+    expect(partis.at(-1)).toMatchObject({ a: deja.email, objet: rendre(t('connexion.deja_inscrit_objet'), 'fr') });
+    // Le compte n'a pas bougé : son mot de passe l'ouvre toujours (un appareil inconnu : le code par e-mail, comme avant).
+    expect((await api('POST', '/connexion', undefined, { email: deja.email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Essai', type: 'navigateur' } })).etat).not.toBe('refuse');
+    await p.context().close();
+  });
+
   it('créer son compte : la jauge dit pendant la frappe ce qui manque, « Afficher » montre le mot de passe', async () => {
     const p = await page();
     await p.goto(serveur.adresse);

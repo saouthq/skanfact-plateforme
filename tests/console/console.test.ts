@@ -605,7 +605,9 @@ describe('le service', () => {
     const r = await appeler('GET', '/console/service', jT);
     expect(r.corps.veille).toMatchObject({ etat: 'ok', problemes: [{ cle: 'sauvegarde', grave: true, titre: 'La sauvegarde de la nuit manque' }] });
     const accueil = await appeler('GET', '/console/accueil', jT);
-    expect(accueil.corps.decider).toEqual([expect.objectContaining({ sorte: 'service', cle: 'sauvegarde', ouvre: 'service' })]);
+    // Ce qu'un autre essai laisse dans la même base (des envois à la TTN en panne) passe aussi dans « À décider » : on lit
+    // ce que la veille y met.
+    expect((accueil.corps.decider as { sorte: string }[]).filter((d) => d.sorte === 'service')).toEqual([expect.objectContaining({ sorte: 'service', cle: 'sauvegarde', ouvre: 'service' })]);
     const vieux = new Date(Date.now() - 10 * 60_000);
     fs.utimesSync(veille, vieux, vieux);
     expect((await appeler('GET', '/console/service', jT)).corps.veille).toMatchObject({ etat: 'silencieuse' });

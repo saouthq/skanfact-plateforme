@@ -92,12 +92,20 @@ export async function inscrire(ctx: Contexte, email: string, nom: string, motDeP
   const politique = verifierPolitique(motDePasse, ctx.listeVolee);
   if (!politique.ok) return politique;
   const e = await empreinte(motDePasse);
-  const id = await enTantQue(ctx.pool, null, async (tx) => {
-    const u = (await tx.query('select socle.creer_utilisateur($1, $2) id', [email, nom])).rows[0].id as string;
-    await tx.query('select socle.poser_mot_de_passe($1, $2)', [u, e]);
-    return u;
-  });
-  return { ok: true as const, utilisateur: id };
+  try {
+    const id = await enTantQue(ctx.pool, null, async (tx) => {
+      const u = (await tx.query('select socle.creer_utilisateur($1, $2) id', [email, nom])).rows[0].id as string;
+      await tx.query('select socle.poser_mot_de_passe($1, $2)', [u, e]);
+      return u;
+    });
+    return { ok: true as const, utilisateur: id };
+  } catch (x) {
+    // L'adresse a déjà son compte : rien n'est créé ni changé. C'est à qui appelle de répondre sans le dire (vu le
+    // 19/10/2026 : « une erreur de notre côté », une panne notée, et un 500 qui disait justement que l'adresse existe).
+    const pgx = x as { code?: string; constraint?: string };
+    if (pgx.code === '23505' && pgx.constraint === 'utilisateur_email') return { ok: false as const, deja: true as const, motif: MOTIF_REFUS() };
+    throw x;
+  }
 }
 
 export async function connecter(ctx: Contexte, demande: {
@@ -376,7 +384,8 @@ const DUREE_REINITIALISATION_MINUTES = 30;
 // Une demande : si un compte répond à l'adresse, son lien part par e-mail. La réponse est la même dans tous les cas (on
 // ne dit jamais si une adresse a un compte), et elle n'attend pas l'e-mail : le temps de réponse ne le dirait pas non
 // plus. Sans relais d'e-mails, la demande se refuse : l'écran ne la propose d'ailleurs pas.
-export async function demanderReinitialisation(ctx: Contexte, email: string): Promise<void> {
+// `inscription` : quelqu'un a voulu créer un compte avec une adresse qui en a déjà un ; le même lien, un texte qui le dit.
+export async function demanderReinitialisation(ctx: Contexte, email: string, pourquoi: 'oubli' | 'inscription' = 'oubli'): Promise<void> {
   const courriel = ctx.courriel;
   if (!courriel) throw new Refus('connexion.oubli_indisponible');
   const maintenant = (ctx.maintenant ?? (() => new Date()))();
@@ -389,8 +398,8 @@ export async function demanderReinitialisation(ctx: Contexte, email: string): Pr
   const lien = `${courriel.adresse()}/?reinitialiser=${jeton}`;
   void courriel.envoi.envoyer({
     a: a.a_email,
-    objet: rendre(t('connexion.oubli_objet'), langue),
-    texte: rendre(t('connexion.oubli_texte', { lien, minutes: DUREE_REINITIALISATION_MINUTES }), langue),
+    objet: rendre(t(pourquoi === 'inscription' ? 'connexion.deja_inscrit_objet' : 'connexion.oubli_objet'), langue),
+    texte: rendre(t(pourquoi === 'inscription' ? 'connexion.deja_inscrit_texte' : 'connexion.oubli_texte', { lien, minutes: DUREE_REINITIALISATION_MINUTES }), langue),
     bouton: rendre(t('connexion.oubli_bouton'), langue),
     langue,
   }).catch((e: unknown) => { console.error(`l'e-mail du mot de passe oublié n'est pas parti : ${String(e)}`); });

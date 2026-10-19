@@ -57,7 +57,15 @@ export function routesSocle(ctx: Contexte, maintenant: () => Date = () => new Da
     corps: z.object({ email: z.string().email(), nom: z.string().min(1).max(120), motDePasse: z.string().max(200) }),
     traiter: async ({ corps }) => {
       const r = await inscrire(ctx, corps.email, corps.nom, corps.motDePasse);
-      return r.ok ? { statut: 201, corps: { ok: true } } : { statut: 400, corps: { motif: r.motif, champ: 'motDePasse' } };
+      if (r.ok) return { statut: 201, corps: { ok: true } };
+      // Une adresse qui a déjà son compte reçoit la même réponse qu'une inscription faite : on ne dit jamais si une
+      // adresse a un compte (docs/entree.md). Si le serveur sait envoyer un e-mail, le lien du mot de passe oublié part à
+      // cette adresse, avec ses limites (trois par heure) et un texte qui dit pourquoi ; rien d'autre ne part.
+      if ('deja' in r) {
+        if (ctx.courriel) await demanderReinitialisation(ctx, corps.email, 'inscription');
+        return { statut: 201, corps: { ok: true } };
+      }
+      return { statut: 400, corps: { motif: r.motif, champ: 'motDePasse' } };
     },
   });
 

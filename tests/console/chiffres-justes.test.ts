@@ -256,8 +256,16 @@ describe('le journal, exploitable (0114, l\'audit F33)', () => {
     const reserves = await lire('reserves=1&limite=200');
     expect(reserves.lignes.every((l) => l.reserve)).toBe(true);
     if (reserves.lignes.length < 200) expect(reserves.chiffres.reserves).toBe(reserves.lignes.length);
+    // Un geste de l'outil de l'exploitation (personne n'est connecté à la console) : la liste le montre, le chiffre qui
+    // l'ouvre le compte aussi (0146 ; la recette du 19/10/2026 lisait « 4 » sur une liste de 7).
+    const avant = (await lire('limite=1')).chiffres.gestes;
+    await admin.query(`insert into plateforme.geste_console (geste, motif, apres) values ('equipe.ajouter', 'membre posé par l''outil pour le journal', '{"role":"support"}')`);
+    const apres = await lire(`limite=200&q=${encodeURIComponent('membre posé par l\'outil pour le journal')}`);
+    expect(apres.lignes).toEqual([expect.objectContaining({ geste: 'equipe.ajouter', qui: null })]);
+    expect(apres.chiffres.gestes).toBe(avant + 1);
     // Le support : ses propres gestes, sans les chiffres de la direction.
     const s = await lire('limite=200', jS);
+    expect(s.chiffres.gestes).toBe(s.lignes.length);
     expect(s.lignes.every((l) => l.qui?.id === support.id)).toBe(true);
     expect(s.chiffres.reserves).toBeNull();
     expect(s.chiffres.systeme).toBeNull();

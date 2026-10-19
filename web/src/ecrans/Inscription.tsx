@@ -75,7 +75,7 @@ export function Inscription({ connecte, code, aConnecter, connexion, sous, invit
         return;
       }
     } catch { /* la connexion se fera à la main */ }
-    toast(phrase('ecran.inscription.faite'));
+    toast(phrase(options.oubli ? 'ecran.inscription.faite_courriel' : 'ecran.inscription.faite'));
     aConnecter(email);
   });
 
@@ -87,7 +87,7 @@ export function Inscription({ connecte, code, aConnecter, connexion, sous, invit
       </>}>
       <form noValidate className="ent-formulaire" onSubmit={(e) => { e.preventDefault(); void envoyer(); }}>
         <div className="ent-entete"><h1>{titre('ecran.inscription.titre')}</h1><p>{sous ?? phrase('ecran.inscription.sous')}</p></div>
-        <Champ obligatoire libelle={titre('ecran.inscription.nom')} aide={phrase('ecran.inscription.nom_aide')} valeur={nom} changer={setNom} autoComplete="name" {...g.sur('nom')} />
+        <Champ obligatoire libelle={titre('ecran.inscription.nom')} aide={phrase('ecran.inscription.nom_aide')} valeur={nom} changer={setNom} autoComplete="name" premier {...g.sur('nom')} />
         <Champ obligatoire libelle={titre('ecran.connexion.email')} aide={phrase('ecran.connexion.email_aide')} valeur={email} changer={setEmail} type="email" autoComplete="email" inputMode="email" {...g.sur('email')} />
         <Champ obligatoire libelle={titre('ecran.connexion.mot_de_passe')} aide={phrase('ecran.inscription.mot_de_passe_aide', { min: LONGUEUR_MINIMALE })} valeur={motDePasse} changer={setMotDePasse}
           type="password" autoComplete="new-password" revelable dessous={<Jauge motDePasse={motDePasse} />} {...g.sur('motDePasse')} />

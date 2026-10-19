@@ -222,6 +222,24 @@ d'attente d'une minute ; sans vraie entreprise, « Quitter l'exemple » ouvrait 
   qu'il n'y en a pas, « Quitter l'exemple » ensuite) et « Nouvelle entreprise… » y mènent.
 - Le détail, les refus et ce qui le prouve : `docs/exemple.md`.
 
+## S'inscrire avec une adresse qui a déjà son compte (19/10/2026)
+
+Vu en préparant un essai à l'écran : « Créer mon compte » avec une adresse déjà inscrite répondait « une erreur est
+survenue de notre côté » (un 500, et une panne notée pour l'exploitant) — ce qui disait justement que l'adresse a un
+compte. **Décidé par délégation** : la réponse est celle d'une inscription faite (on ne dit jamais si une adresse a un
+compte, comme pour le mot de passe oublié) ; rien n'est créé ni changé (ni le nom, ni le mot de passe) ; si le serveur
+sait envoyer un e-mail, **le lien du mot de passe oublié** part à cette adresse, avec ses limites (trois par heure,
+30 minutes) et un texte qui dit ce qui s'est passé (« Ton compte SkanFact existe déjà ») — ce qui part chez le relais est
+celui du mot de passe oublié : l'adresse, l'objet, le texte et le lien. L'écran essaie ensuite la connexion avec ce qui
+vient d'être tapé : le bon mot de passe ouvre le compte ; sinon, la page de connexion, avec une phrase qui vaut dans les
+deux cas (« connecte-toi avec ton adresse et ton mot de passe. Si cette adresse avait déjà un compte, un e-mail t'attend
+pour en choisir un nouveau »). Tenu par `tests/socle/api.test.ts` et trois preuves.
+
+Vu le même jour : ni « Bon retour » ni « Créer ton compte » ne posaient le curseur, la première lettre tapée se perdait.
+Comme dans la console (1.58.0), **le curseur se pose une fois, à l'ouverture, dans le premier champ qui reste à remplir** :
+l'adresse ; le mot de passe quand l'adresse vient d'ailleurs (après « Créer mon compte ») ; le nom pour créer son compte.
+Tenu par `tests/web/entree.test.ts` et quatre preuves.
+
 ## Le mot de passe oublié
 
 1. « Mot de passe oublié ? », sous le mot de passe, **seulement si le serveur sait envoyer un e-mail**

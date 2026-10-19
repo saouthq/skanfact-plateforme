@@ -321,7 +321,9 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
   const fait = () => { setFenetre(null); relire(); };
   // L'étape suivante, calculée : noter le règlement le plus en retard ; sinon, saisir les coûts d'un mois qui n'en a pas.
   const premierDoit = d?.doivent[0] ?? null;
-  const coutsAFaire = !!d && !premierDoit && !d.couts.lignes.some((c) => !c.retireLe);
+  // L'étape suivante, une seule : désigner l'entreprise SkanFact tant qu'elle ne l'est pas (recette du 19/10/2026 : « Ajouter
+  // un coût » passait devant), puis encaisser, puis saisir les coûts du mois.
+  const coutsAFaire = !!d?.editeur && !premierDoit && !d.couts.lignes.some((c) => !c.retireLe);
   const nomMois = moisEnMots(d?.mois ?? mois);
   const e = d?.encaisse ?? null;
   const tuiles: [Moyen, string][] = e ? (['konnect', 'virement', 'cheque', 'autre'] as const)
@@ -352,7 +354,7 @@ export function Paiements({ mois: moisDemande }: { mois: string | null }) {
       {d ? (
         <>
           {!d.editeur ? (
-            <Alerte ton="info"><span>{phrase(`${K}.sans_editeur`)}</span><span><Lien petit href="#/reglages?onglet=factures">{titre(`${K}.sans_editeur_lien`)}</Lien></span></Alerte>
+            <Alerte ton="info"><span>{phrase(`${K}.sans_editeur`)}</span><span><Lien petit ton="principal" href="#/reglages?onglet=factures">{titre(`${K}.sans_editeur_lien`)}</Lien></span></Alerte>
           ) : null}
           {e ? (
             <section className="c-pa-bande" aria-labelledby="pa-encaisse">

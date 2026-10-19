@@ -694,12 +694,21 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
   const brouillons = useRef<Brouillons>(new Map());
   const relireTout = useCallback(() => { relire(); relireDecisions(); }, [relire, relireDecisions]);
   useRelireQuandOnRegarde(relireTout, { periode: 30_000, attendre: sousLesDoigts });
-  // Sans demande choisie, la plus urgente s'ouvre (à l'ordinateur ; au téléphone, la liste d'abord).
+  // La liste d'une vue : les closes, les ouvertes, ou celles que je suis.
+  const listeDe = (v: typeof vue, m: boolean) => lu ? (v === 'closes' ? lu.closes : m ? lu.ouvertes.filter((x) => x.suivieParId === moi.utilisateur) : lu.ouvertes) : [];
+  // Sans demande choisie, la plus urgente de la vue s'ouvre (à l'ordinateur ; au téléphone, la liste d'abord).
   useEffect(() => {
     if (!lu || choisie || window.matchMedia('(max-width: 860px)').matches) return;
-    const premiere = (vue === 'closes' ? lu.closes : lu.ouvertes)[0];
+    const premiere = listeDe(vue, miennes)[0];
     if (premiere) setChoisie(premiere.id);
-  }, [lu, choisie, vue]);
+  }, [lu, choisie, vue, miennes]);
+  // Changer de vue ferme la demande qui n'y est pas (vu à la recette : « À moi », vide, gardait à côté la demande des
+  // ouvertes) ; celle qui y est reste ouverte.
+  const montrer = (v: 'ouvertes' | 'closes', m: boolean) => {
+    setVue(v); setMiennes(m);
+    if (v === 'ouvertes') setDebutCloses(0);
+    if (choisie && lu && !listeDe(v, m).some((x) => x.id === choisie)) setChoisie(null);
+  };
   // Au téléphone, choisir une demande amène sa conversation à l'écran.
   const vient = useRef(false);
   useEffect(() => {
@@ -720,7 +729,7 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
     return () => window.removeEventListener('resize', poser);
   });
   const nMiennes = lu ? lu.ouvertes.filter((x) => x.suivieParId === moi.utilisateur).length : 0;
-  const liste = lu ? (vue === 'closes' ? lu.closes : miennes ? lu.ouvertes.filter((x) => x.suivieParId === moi.utilisateur) : lu.ouvertes) : [];
+  const liste = listeDe(vue, miennes);
   const d = lu?.demande && lu.demande.ligne.id === choisie ? lu.demande : null;
 
   return (
@@ -741,17 +750,19 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
       {vue === 'doc' ? <Documentation aujourdhui={lu?.aujourdhui ?? new Date().toISOString().slice(0, 10)} />
         : vue === 'evolutions' ? <Evolutions aujourdhui={lu?.aujourdhui ?? new Date().toISOString().slice(0, 10)} ouvrirDemande={(id) => { setVue('ouvertes'); setChoisie(id); }} /> : lu ? (
-        <div className="c-sp-grille" ref={grille}>
+        // Rien à montrer à droite (aucune demande, aucune choisie) : la liste et ce qu'elle dit prennent toute la largeur, sans
+        // un grand cadre vide à côté (recette du 19/10/2026).
+        <div className={`c-sp-grille${!d && !choisie && !liste.length ? ' c-sp-grille-seule' : ''}`} ref={grille}>
           <div className="c-sp-gauche">
             <section className="c-carte c-liste-carte c-sp-liste" aria-label={titre('console.ecran.support.demandes')}>
               <div className="c-sp-liste-tete c-pilules" role="group" aria-label={titre('console.ecran.support.demandes')}>
-                <button type="button" className="c-pilule" aria-pressed={vue === 'ouvertes' && !miennes} onClick={() => { setVue('ouvertes'); setMiennes(false); setDebutCloses(0); }}>
+                <button type="button" className="c-pilule" aria-pressed={vue === 'ouvertes' && !miennes} onClick={() => montrer('ouvertes', false)}>
                   {titre('console.ecran.support.ouvertes')} <span className="c-pilule-n">{lu.ouvertes.length}</span>
                 </button>
-                <button type="button" className="c-pilule" aria-pressed={vue === 'ouvertes' && miennes} onClick={() => { setVue('ouvertes'); setMiennes(true); setDebutCloses(0); }}>
+                <button type="button" className="c-pilule" aria-pressed={vue === 'ouvertes' && miennes} onClick={() => montrer('ouvertes', true)}>
                   {titre('console.ecran.support.miennes')} <span className="c-pilule-n">{nMiennes}</span>
                 </button>
-                <button type="button" className="c-pilule" aria-pressed={vue === 'closes'} onClick={() => { setVue('closes'); setMiennes(false); }}>{titre('console.ecran.support.closes')}</button>
+                <button type="button" className="c-pilule" aria-pressed={vue === 'closes'} onClick={() => montrer('closes', false)}>{titre('console.ecran.support.closes')}</button>
               </div>
               {vue === 'closes' && liste.length ? <p className="c-sp-liste-sous">{phrase('console.ecran.support.closes_sous')}</p> : null}
               {liste.length ? (
@@ -776,7 +787,7 @@ export function Support({ demande: demandee, vue: vueDemandee }: { demande: stri
           </div>
           {d ? (
             <Fil key={d.ligne.id} d={d} articles={lu.articles} reponses={lu.reponses ?? []} evolution={lu.evolution ?? null} brouillons={brouillons.current} aujourdhui={lu.aujourdhui} relire={relire} equipe={lu.equipe ?? []} enService={lu.enService ?? null} />
-          ) : (
+          ) : !choisie && !liste.length ? null : (
             <section className="c-carte c-sp-fil c-sp-fil-vide">
               {choisie && l.etat === 'lu' && !l.enCours ? <Vide icone="chercher">{phrase('console.ecran.support.introuvable')}</Vide>
                 : choisie ? <p className="c-attente">{titre('console.ecran.lecture')}</p>

@@ -52,6 +52,10 @@ export function Connexion({ connecte, code, inscription, oubli, sous, email: con
   const options = useOptions();
   const [email, setEmail] = useState(connu ?? '');
   const [motDePasse, setMotDePasse] = useState('');
+  // Le curseur se pose UNE fois, à l'ouverture, dans le premier champ qui reste à remplir : l'adresse, ou le mot de passe
+  // quand l'adresse vient d'ailleurs (après « Créer mon compte », un lien). Vu le 19/10/2026 : il n'était nulle part, et
+  // la première lettre tapée se perdait (la console avait la même règle depuis 1.58.0).
+  const [adresseDonnee] = useState(() => email !== '');
   const [posteDUnAutre, setPosteDUnAutre] = useState(false);
 
   const envoyer = () => g.geste(async () => {
@@ -81,8 +85,8 @@ export function Connexion({ connecte, code, inscription, oubli, sous, email: con
       bas={<span className="sur"><Dessin id="cadenas" />{phrase('ecran.connexion.chiffree')}</span>}>
       <form noValidate className="ent-formulaire" onSubmit={(e) => { e.preventDefault(); void envoyer(); }}>
         <div className="ent-entete"><h1>{titre('ecran.connexion.titre')}</h1><p>{sous ?? phrase('ecran.connexion.sous')}</p></div>
-        <Champ libelle={titre('ecran.connexion.email')} aide={phrase('ecran.connexion.email_aide')} valeur={email} changer={setEmail} type="email" autoComplete="username" inputMode="email" {...g.sur('email')} />
-        <Champ libelle={titre('ecran.connexion.mot_de_passe')} aide={phrase('ecran.connexion.mot_de_passe_aide')} valeur={motDePasse} changer={setMotDePasse} type="password" autoComplete="current-password" revelable {...g.sur('motDePasse')} />
+        <Champ libelle={titre('ecran.connexion.email')} aide={phrase('ecran.connexion.email_aide')} valeur={email} changer={setEmail} type="email" autoComplete="username" inputMode="email" premier={!adresseDonnee} {...g.sur('email')} />
+        <Champ libelle={titre('ecran.connexion.mot_de_passe')} aide={phrase('ecran.connexion.mot_de_passe_aide')} valeur={motDePasse} changer={setMotDePasse} type="password" autoComplete="current-password" revelable premier={adresseDonnee} {...g.sur('motDePasse')} />
         {options.oubli ? <div className="ent-sous-champ"><button type="button" className="ent-lien" onClick={() => oubli(email)}>{titre('ecran.connexion.oublie')}</button></div> : null}
         {/* Ce que la case change se lit dans son « i », avant le geste : rien n'apparaît sous le curseur. */}
         <Case libelle={titre('ecran.connexion.poste_autre')} aide={phrase('ecran.connexion.poste_autre_aide')} coche={posteDUnAutre} changer={setPosteDUnAutre} />

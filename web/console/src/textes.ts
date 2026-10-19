@@ -534,7 +534,8 @@ declarerTextes({
   'console.ecran.fiche.fa.remise.cabinet': 'remise du cabinet ({taux} %)',
   // Son groupe et sa remise (0106, docs/abonnement.md C17).
   'console.ecran.fiche.gr.titre': 'groupe et remise',
-  'console.ecran.fiche.gr.sous': 'la remise de sa prochaine période, qui commence le {jour}',
+  // « à partir du » : la période peut avoir commencé sans être payée (recette du 19/10/2026 : « qui commence le 17/10 », lu le 19).
+  'console.ecran.fiche.gr.sous': 'la remise de sa prochaine période, à partir du {jour}',
   'console.ecran.fiche.gr.remise': '−{taux} % sur sa prochaine facture',
   'console.ecran.fiche.gr.sans_remise': 'aucune remise sur sa prochaine facture',
   'console.ecran.fiche.gr.pourquoi.groupe': 'remise de groupe ({groupe}) : {premiere}, la première société abonnée du groupe, paie le prix normal',
@@ -1736,8 +1737,10 @@ declarerTextes({
   'console.ecran.service.temps.trop_peu': 'trop peu de listes et de fiches lues sur la période ({n}, il en faut {min}) pour un temps de réponse fiable',
   'console.ecran.service.temps.etiquette': 'le temps de réponse des listes et des fiches, {periode} : survole un moment, ou prends le graphique au clavier, pour le lire',
   'console.ecran.service.temps.resume': 'sur la période, 95 % des lectures en moins de {centile}, et {sous} sous le budget',
-  'console.ecran.service.temps.jamais_au_dessus': 'jamais au-dessus du budget',
-  'console.ecran.service.temps.au_dessus': 'au-dessus du budget pendant {duree} ; le plus lent : moins de {lent}',
+  // La courbe des 95 %, pas chaque lecture : « 99,2 % sous le budget » et « jamais au-dessus » se lisaient comme une
+  // contradiction (recette du 19/10/2026).
+  'console.ecran.service.temps.jamais_au_dessus': 'la courbe des 95 % n\'a jamais dépassé le budget',
+  'console.ecran.service.temps.au_dessus': 'la courbe des 95 % au-dessus du budget pendant {duree} ; le plus lent : moins de {lent}',
   'console.ecran.service.chiffres.montrer': 'voir les chiffres',
   'console.ecran.service.chiffres.cacher': 'cacher les chiffres',
   'console.ecran.service.chiffres.etiquette': 'les chiffres de la période, pas à pas, le plus récent en haut',
@@ -2140,7 +2143,8 @@ declarerTextes({
   'console.ecran.service.se.k.codes_unite_0': 'code',
   'console.ecran.service.se.k.codes_unite_1': 'code',
   'console.ecran.service.se.k.codes_unite_n': 'codes',
-  'console.ecran.service.se.k.codes_sous': 'tapés après un mot de passe bon : chacun se regarde ci-dessous',
+  'console.ecran.service.se.k.codes_sous': 'tapés après un mot de passe bon ; trois de suite se regardent ci-dessous',
+  'console.ecran.service.se.k.codes_seuls': 'tapés après un mot de passe bon, jamais trois de suite : rien à regarder',
   'console.ecran.service.se.k.codes_rien': 'aucun code faux après un mot de passe bon',
   'console.ecran.service.se.k.freines': 'comptes freinés',
   'console.ecran.service.se.k.freines_unite_0': 'compte',
@@ -5305,7 +5309,9 @@ declarerTextes({
   'console.ecran.champ.a_venir_periodicite': 'périodicité de la période payée d\'avance',
   'console.ecran.champ.a_venir_retraits': 'modules qui partent avec elle',
   'console.ecran.champ.delai_echeance': 'délai sur l\'échéance du',
-  'console.ecran.champ.delai_jusqu_au': 'lecture seule reculée au',
+  // Le dernier jour du délai (0111) : la lecture seule commence le lendemain, comme la fiche le dit (recette du 19/10/2026 :
+  // « lecture seule reculée au 30/10 » au journal, « lecture seule le 31/10 » sur la fiche, pour le même geste).
+  'console.ecran.champ.delai_jusqu_au': 'dernier jour du délai',
   'console.ecran.champ.suivante_offre': 'offre suivante',
   'console.ecran.champ.suivante_periodicite': 'périodicité suivante',
   'console.ecran.champ.suivante_a_partir_du': 'offre suivante à partir du',
@@ -5635,8 +5641,8 @@ declarerTextes({
   'console.ecran.fiche.a_venir':'la période suivante est déjà payée : elle commence le {le}, en {offre} ; d\'ici là, rien ne change',
   'console.ecran.fiche.a_venir_sans': 'la période suivante est déjà payée : elle commence le {le}, en {offre}, sans {modules} ; d\'ici là, rien ne change',
   'console.ecran.fiche.module_part': 'le module {module} part après le {le}, à la fin de la période payée : la prochaine facture ne le compte plus',
-  'console.ecran.fiche.prochaine_facture': 'prochaine facture : {montant} HT, pour la période qui commence le {le}',
-  'console.ecran.fiche.prochaine_facture_offert': 'prochaine facture : {montant} HT, pour la période qui commence le {le}, avec un mois de plus offert',
+  'console.ecran.fiche.prochaine_facture': 'prochaine facture : {montant} HT, pour la période à partir du {le}',
+  'console.ecran.fiche.prochaine_facture_offert': 'prochaine facture : {montant} HT, pour la période à partir du {le}, avec un mois de plus offert',
   'console.ecran.geste.inchange': 'aujourd\'hui, et après le geste',
   'console.ecran.fiche.fa.periode_offert': 'du {debut} au {fin}, dont un mois offert ; à régler avant le {avant}',
   'console.ecran.fiche.fa.rattrapage': '{jours} jours sur {sur}, du {du} au {au}',

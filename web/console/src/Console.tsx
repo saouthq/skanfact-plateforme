@@ -127,6 +127,17 @@ const GROUPES: { cle: string; entrees: Entree[] }[] = [
 function Cote({ moi, page, decisions, support, sortir, theme }: { moi: Moi; page: Page | 'inconnue'; decisions: number | null; support: number | null; sortir: () => void; theme: ReturnType<typeof useTheme> }) {
   const [ouvert, setOuvert] = useState(false);
   useEffect(() => { setOuvert(false); }, [page]);
+  // Au téléphone, Échap referme le menu ouvert, comme une fenêtre (recette du 19/10/2026) ; le curseur revient au bouton.
+  useEffect(() => {
+    if (!ouvert) return undefined;
+    const echap = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      setOuvert(false);
+      document.querySelector<HTMLElement>('.c-menu-tel')?.focus();
+    };
+    document.addEventListener('keydown', echap);
+    return () => document.removeEventListener('keydown', echap);
+  }, [ouvert]);
   const groupes = GROUPES.map((g) => ({ ...g, entrees: g.entrees.filter((e) => OUVRE[e.page].includes(moi.role)) })).filter((g) => g.entrees.length);
   // Une fiche, celle d'un groupe et celle d'un cabinet vivent sous « Clients ».
   const actif = page === 'fiche' || page === 'groupe' || page === 'cabinet' ? 'clients' : page;

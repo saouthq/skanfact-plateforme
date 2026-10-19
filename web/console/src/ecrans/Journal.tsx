@@ -422,7 +422,7 @@ export function Journal({ entreprise, qui: quiDemande }: { entreprise: string | 
           ) : null}
         </section>
       )}
-      <p className="c-cl-notes"><span>{phrase(`${J}.garde`)} <b className="c-cl-verifier">{dire('console.ecran.clients.note_a_verifier')}</b> {dire(`${J}.garde_fin`)}</span></p>
+      <p className="c-cl-notes"><span>{maj(dire(`${J}.garde`))} <b className="c-cl-verifier">{dire('console.ecran.clients.note_a_verifier')}</b> {dire(`${J}.garde_fin`)}</span></p>
       {exporter ? <ExportDuJournal filtres={Object.fromEntries([...parametres(null).entries()].filter(([k]) => k !== 'limite'))} n={lignes?.length ?? 0} plus={suite !== null} fermer={() => setExporter(false)} /> : null}
     </>
   );

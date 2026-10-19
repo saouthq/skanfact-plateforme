@@ -90,6 +90,41 @@ describe('chaque route déclare son geste (03 D2)', () => {
     expect(r.statut).toBe(400);
     expect(r.corps.champ).toBe('email');
   });
+
+  // Vu le 19/10/2026 : une adresse qui a déjà son compte recevait « une erreur de notre côté » (500, et une panne notée
+  // pour l'exploitant), ce qui disait justement qu'elle existe. On ne dit jamais si une adresse a un compte (docs/entree.md).
+  it('s\'inscrire avec une adresse qui a déjà son compte : la même réponse qu\'une inscription, rien de changé, et le lien du mot de passe oublié par e-mail', async () => {
+    const deja = await personne('dejala');
+    const neuve = `neuve${++n}@exemple.tn`;
+    const pannes: string[] = [];
+    const erreur = console.error;
+    console.error = (...x: unknown[]) => { pannes.push(x.map(String).join(' ')); };
+    try {
+      const r1 = await appeler('POST', '/inscription', undefined, { email: neuve, nom: 'Neuve', motDePasse: MDP });
+      const r2 = await appeler('POST', '/inscription', undefined, { email: deja.email, nom: 'Une autre', motDePasse: 'Un-tout-autre-mot-de-passe' });
+      expect(r2).toEqual(r1);
+      expect(r2.statut).toBe(201);
+      // Ni panne notée, ni compte changé : l'ancien mot de passe ouvre toujours, le nouveau non, et le nom n'a pas bougé.
+      expect(pannes.filter((p) => /inscription|23505/.test(p))).toEqual([]);
+      expect((await appeler('POST', '/connexion', undefined, { email: deja.email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.etat).toBe('connecte');
+      expect((await appeler('POST', '/connexion', undefined, { email: deja.email, motDePasse: 'Un-tout-autre-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).statut).toBe(401);
+      expect((await admin.query('select nom from socle.utilisateur where email = $1', [deja.email])).rows).toEqual([{ nom: `dejala ${n - 1}` }]);
+    } finally { console.error = erreur; }
+    // Un serveur qui sait envoyer un e-mail : le lien du mot de passe oublié part à l'adresse, avec un texte qui dit ce qui
+    // s'est passé ; une adresse neuve, rien.
+    const partis: { a: string; objet: string; texte: string }[] = [];
+    const ctxCourriel: Contexte = { ...ctx, courriel: { envoi: { envoyer: async (c) => { partis.push(c); } }, adresse: () => 'https://app.exemple.tn' } };
+    const avec = creerApp(ctxCourriel, routesSocle(ctxCourriel, () => horloge));
+    try {
+      const r = await avec.inject({ method: 'POST', url: `${VERSION}/inscription`, payload: { email: deja.email, nom: 'Encore', motDePasse: 'Un-tout-autre-mot-de-passe' } });
+      expect(r.statusCode).toBe(201);
+      await expect.poll(() => partis.length).toBe(1);
+      expect(partis[0]).toMatchObject({ a: deja.email, objet: 'Ton compte SkanFact existe déjà' });
+      expect(partis[0]?.texte).toMatch(/a voulu créer un compte SkanFact avec cette adresse, qui en a déjà un : rien n'a été créé ni changé[\s\S]*https:\/\/app\.exemple\.tn\/\?reinitialiser=/);
+      await avec.inject({ method: 'POST', url: `${VERSION}/inscription`, payload: { email: `neuve${++n}@exemple.tn`, nom: 'Neuve', motDePasse: MDP } });
+      expect(partis).toHaveLength(1);
+    } finally { await avec.close(); }
+  });
 });
 
 describe('le code sur le téléphone se juge à chaque requête', () => {

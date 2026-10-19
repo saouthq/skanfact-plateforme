@@ -205,10 +205,12 @@ export function Abonnements({ vue: vueDemandee }: { vue: string | null }) {
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
       {lu ? (
         <>
-          <div className="c-vues" role="group" aria-label={titre(`${K}.vues`)}>
+          {/* Le libellé à gauche, son point à droite, comme les cartes des Clients ; six cartes, six colonnes (recette du
+              19/10/2026 : un libellé court se poussait à droite, et la rangée laissait un vide). */}
+          <div className="c-vues c-vues-6" role="group" aria-label={titre(`${K}.vues`)}>
             {VUES.map((v) => (
               <button key={v} type="button" className="c-vue" aria-pressed={vue === v} onClick={() => choisir(v)}>
-                <span className="c-vue-titre"><span className={`c-pilule-point c-point-${v}`} aria-hidden="true" />{titre(v === 'avenir' ? `${K}.carte.avenir` : `console.ecran.etat.${v}`)}</span>
+                <span className="c-vue-titre"><span>{titre(v === 'avenir' ? `${K}.carte.avenir` : `console.ecran.etat.${v}`)}</span><span className={`c-pilule-point c-point-${v}`} aria-hidden="true" /></span>
                 <span className="c-vue-n">{lu.cartes[v].n}</span>
                 <span className="c-vue-sous">{maj(sousCarte(v, lu.cartes, jours))}</span>
               </button>

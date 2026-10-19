@@ -68,14 +68,17 @@ const somme = (h: readonly Heure[], k: 'reussies' | 'codesFaux') => h.reduce((s,
 // ── Les quatre chiffres ─────────────────────────────────────────────────────────────────────────────────────────────
 function Chiffres({ d }: { d: Donnees }) {
   const reussies = somme(d.heures, 'reussies'), codes = somme(d.heures, 'codesFaux');
+  // La tuile se regarde quand la liste a de quoi : trois codes faux de suite après un mot de passe bon (0091). Un code
+  // faux isolé se compte sans demander de regard (recette du 19/10/2026 : « à regarder », et rien dessous).
+  const aRegarder = d.aRegarder.filter((r) => r.sorte === 'code').length;
   const c = d.certificat;
   const etatCertificat: EtatBrique = !c || c.jours === null ? 'nonmesure' : c.jours <= 7 ? 'grave' : c.jours <= 30 ? 'attention' : 'bon';
   return (
     <section className="c-sv-claires" aria-label={titre(`${S}.k.titre`)}>
       <div className="c-sv-tuiles c-tr-tuiles">
         <Tuile titre={titre(`${S}.k.reussies`)} valeur={entier(reussies)} unite={selon(reussies, `${S}.k.reussies_unite`)} sous={phrase(`${S}.k.reussies_sous`)} />
-        <Tuile titre={titre(`${S}.k.codes`)} etat={codes ? 'attention' : 'bon'} valeur={entier(codes)} unite={selon(codes, `${S}.k.codes_unite`)}
-          sous={phrase(codes ? `${S}.k.codes_sous` : `${S}.k.codes_rien`)} />
+        <Tuile titre={titre(`${S}.k.codes`)} etat={aRegarder ? 'attention' : 'bon'} valeur={entier(codes)} unite={selon(codes, `${S}.k.codes_unite`)}
+          sous={phrase(aRegarder ? `${S}.k.codes_sous` : codes ? `${S}.k.codes_seuls` : `${S}.k.codes_rien`)} />
         <Tuile titre={titre(`${S}.k.freines`)} etat={d.freines ? 'attention' : 'bon'} valeur={entier(d.freines)} unite={selon(d.freines, `${S}.k.freines_unite`)}
           sous={maj(selon(d.motsDePasseFaux, `${S}.k.freines_sous`, { n: entier(d.motsDePasseFaux) }))} />
         <Tuile titre={titre(`${S}.k.certificat`)} etat={etatCertificat} {...(c && c.jours !== null ? { valeur: entier(c.jours), unite: selon(c.jours, `${S}.k.jours`) } : { mot: true, valeur: titre(`${S}.k.pas_lu`) })}

@@ -383,8 +383,11 @@ export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, childre
   useEffect(() => {
     const avant = ouvreur;
     // Un champ de la fenêtre a déjà pris le curseur (`premier` : celui qui reste à remplir) : il le garde.
+    // Sinon, le premier qui reste à remplir : un nombre déjà posé (7 jours) laisse le curseur au motif vide (recette du
+    // 19/10/2026) ; tout rempli, le premier champ.
     if (!cadre.current?.contains(document.activeElement)) {
-      const premier = cadre.current?.querySelector<HTMLElement>('input, textarea, select');
+      const champs = [...(cadre.current?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled])') ?? [])];
+      const premier = champs.find((c) => c.value === '' && !(c instanceof HTMLInputElement && (c.type === 'checkbox' || c.type === 'radio'))) ?? champs[0];
       (premier ?? cadre.current?.querySelector<HTMLElement>('.c-fermer'))?.focus();
     }
     // Échap pendant la question, c'est « reprendre » : la touche qui ferme ne jette jamais ce qu'on a tapé.
@@ -393,6 +396,23 @@ export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, childre
     return () => { document.removeEventListener('keydown', echap); avant?.focus?.(); };
   }, [reprendre, ouvreur]);
   useEffect(() => { if (pret && depart.current === null) depart.current = saisieDe(corps.current); }, [pret]);
+  // Entrée dans un champ d'une ligne — ou ⌘/Ctrl + Entrée dans un motif — c'est le bouton principal du pied, comme sur le
+  // Mac ; jamais un bouton rouge : un geste qui détruit se clique (recette du 19/10/2026 : Entrée ne faisait rien).
+  const entree = (e: ToucheReact<HTMLDivElement>) => {
+    if (e.key !== 'Enter' || e.defaultPrevented || e.nativeEvent.isComposing || enQuestion.current || occupe) return;
+    const cible = e.target as HTMLElement;
+    const ligne = cible instanceof HTMLInputElement && !['checkbox', 'radio', 'button', 'submit', 'reset', 'file', 'range'].includes(cible.type);
+    const zone = cible instanceof HTMLTextAreaElement && (e.ctrlKey || e.metaKey);
+    if ((!ligne && !zone) || cible.getAttribute('aria-expanded') === 'true') return;
+    const bouton = cadre.current?.querySelector<HTMLButtonElement>('.c-dialogue-pied .c-btn-principal');
+    if (!bouton || bouton.disabled) return;
+    e.preventDefault();
+    bouton.click();
+  };
+  // Un refus reste à sa place jusqu'au clic suivant (effacé à la frappe, il ferait remonter le bouton sous le curseur) ;
+  // dès qu'on retape, il passe en retrait : il ne dit plus le dernier mot. Le clic suivant le rend entier, s'il tient.
+  const [refusAncien, setRefusAncien] = useState(false);
+  const retape = () => { if (!refusAncien && corps.current?.querySelector('.c-alerte-danger')) setRefusAncien(true); };
   // La question pose le curseur sur « Reprendre la saisie » : Entrée ne jette rien par réflexe.
   useEffect(() => { if (question) cadre.current?.querySelector<HTMLElement>('.c-dialogue-question .c-btn-principal')?.focus(); }, [question]);
   // Un refus se lit sans le chercher : dans une longue fenêtre, il reste juste au-dessus du pied (console.css) au lieu de
@@ -408,7 +428,8 @@ export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, childre
   });
   return createPortal(
     <div className="c-voile">
-      <div className="c-dialogue" role="dialog" aria-modal="true" aria-labelledby={`${id}-titre`} ref={cadre}>
+      <div className="c-dialogue" role="dialog" aria-modal="true" aria-labelledby={`${id}-titre`} ref={cadre} onKeyDown={entree}
+        {...(refusAncien ? { 'data-refus-ancien': '' } : {})}>
         <FermerDuDialogue.Provider value={fermerGarde}>
           <div className="c-dialogue-tete">
             <div>
@@ -418,8 +439,8 @@ export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, childre
             </div>
             <button type="button" className="c-fermer" aria-label={titre('console.ecran.fermer')} onClick={fermerGarde}><Icone nom="croix" /></button>
           </div>
-          <div className="c-dialogue-corps" ref={corps}>{children}</div>
-          <div className="c-dialogue-pied">
+          <div className="c-dialogue-corps" ref={corps} onInput={retape}>{children}</div>
+          <div className="c-dialogue-pied" onClickCapture={() => setRefusAncien(false)}>
             {question ? (
               <div className="c-dialogue-question" role="alert">
                 <p><b>{titre('console.ecran.dialogue.abandonner_q')}</b> {phrase('console.ecran.dialogue.perdu')}</p>

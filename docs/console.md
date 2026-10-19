@@ -1900,3 +1900,51 @@ refusé, la case rougit) puis arrive sur « Bonjour Nesrine ». Corrigé pendant
 - les étapes de la pose du code, décalées à droite sans leurs numéros : alignées sur le titre ;
 - la page de l'invité plantait sur deux phrases du catalogue du serveur, que l'écran ne connaît pas : les siennes.
 
+
+## La recette complète, à la souris et au clavier (19/10/2026, 1.58.0)
+
+Demandée par Skander : « tu vas me tester toute la console […] comme un humain, clavier souris […] avec un regard d'un
+senior designer UI/UX, et testeur senior de logiciel et de backoffice, et ingénieur ergonomie ». Sur la machine de l'outil
+humain (`scripts/humain/lancer.sh`, l'exemple de la console et un mois de mesures inventées), la base passée en `0145` :
+Amira (direction) entre (un mot de passe faux, puis un code faux, puis les bons), parcourt **chaque écran** à 1440 — À
+décider, Clients et une fiche, Abonnements, Paiements, Support, Nos factures, Données personnelles, les huit vues du
+Service, Mesure, Réglages, Équipe, Journal —, fait un geste de bout en bout (prolonger la grâce d'Atelier Mejri, au menu
+« Gestes » parcouru aux flèches), passe en sombre, rétrécit la fenêtre à la largeur d'un téléphone, et se déconnecte.
+
+Ce qui tient : l'entrée en deux étapes (chaque refus montre son champ), Ctrl+K, le menu des gestes au clavier (le geste
+rouge à part), l'aperçu « aujourd'hui → après le geste », Échap qui demande avant de jeter une saisie (le curseur sur
+« Reprendre »), les chiffres d'un écran à l'autre (la grâce prolongée se lit partout au même jour), l'honnêteté de ce qui
+n'est pas mesuré, le sombre et le téléphone.
+
+Corrigé dans la version :
+- **Entrée** dans un champ d'une ligne valide la fenêtre (le bouton principal ; ⌘/Ctrl + Entrée depuis un motif) ; jamais
+  un bouton rouge : un geste qui détruit se clique ;
+- un refus reste à sa place jusqu'au clic suivant (rien ne remonte sous le curseur), mais **passe en retrait** dès qu'on
+  retape : il ne dit plus le dernier mot ;
+- le curseur entre dans le **premier champ qui reste à remplir** (le motif, quand le nombre de jours est déjà posé) ;
+- Journal : « lecture seule reculée au 30/10 » pour un geste qui la mettait au 31/10 (la fiche, l'aperçu, Abonnements) —
+  c'était le **dernier jour du délai**, il se dit ainsi ;
+- Journal : « Gestes de l'équipe 4 » ouvrait une liste de 7 (les gestes de l'outil de l'exploitation) : le chiffre compte
+  ce que sa liste montre (base 0146) ;
+- Sécurité : « 1 code faux · à regarder · chacun se regarde ci-dessous » au-dessus de « rien ne demande un regard » : la
+  tuile ne demande un regard que quand la liste en a un (trois codes faux de suite) ;
+- Support sans demande : plus de grand cadre vide à droite ; la liste et son explication prennent la largeur ;
+- Support : passer de « Ouvertes » à « À moi » (vide) gardait à côté la demande ouverte d'avant, qui n'est pas à moi (vu
+  quand tous les essais ont tourné ensemble, avec des demandes des autres) : changer de vue ferme la demande qui n'y est
+  pas, et la plus urgente **de la vue** s'ouvre ;
+- Abonnements : un libellé court poussé à droite de sa carte, une rangée qui ne remplissait pas la largeur : le libellé à
+  gauche et son point à droite (comme les Clients), six cartes en six colonnes ;
+- Paiements : tant que l'entreprise SkanFact n'est pas désignée, c'est l'étape suivante (le bouton principal), pas
+  « Ajouter un coût » ;
+- Service : « 99,2 % sous le budget » puis « jamais au-dessus du budget » : c'est **la courbe des 95 %** qui ne l'a jamais
+  dépassé ;
+- Fiche : « sa prochaine période, qui commence le 17/10 », lu le 19 : « à partir du » ;
+- Journal, pied : « ce qui concerne des personnes :. À VÉRIFIER » : la ponctuation ;
+- au téléphone, **Échap** referme le menu ouvert.
+- **l'entrée** (vu en refaisant la recette à l'écran, avant l'envoi) : sans adresse remplie d'avance, la première lettre
+  tapée dans l'adresse envoyait le curseur au mot de passe, et la suite de l'adresse s'y écrivait. Le curseur se pose une
+  fois, à l'ouverture (l'adresse, ou le mot de passe quand une invitation l'a remplie) ; il ne suit plus ce qu'on tape.
+
+Expliqué, sans changement : l'accueil compte 13 inscriptions « ces 7 derniers jours » (une ligne par organisation), la
+Mesure 11 « cette semaine » (depuis lundi, les seules entreprises) : deux questions, chacune nommée. Laissé pour plus tard :
+des suggestions sous la recherche de l'accueil pendant la frappe (Entrée ouvre déjà les Clients filtrés).

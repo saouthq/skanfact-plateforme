@@ -13964,7 +13964,7 @@ prouver 'le support qui lit les gestes des autres' 'base/migrations/0114_chiffre
   '  v_qui uuid := case when v_role = '"'"'support'"'"' then socle.moi() else p_qui end;' \
   '  v_qui uuid := p_qui;' \
   "$CJ8"
-prouver 'le chiffre des réservés qui compte autre chose que sa liste' 'base/migrations/0114_chiffres_justes.sql' \
+prouver 'le chiffre des réservés qui compte autre chose que sa liste' 'base/migrations/0146_recette.sql' \
   '    '"'"'reserves'"'"', case when v_role = '"'"'direction'"'"' then (select count(*) from plateforme.geste_console g where g.le >= p_depuis and g.geste = any(p_reserves)) end,' \
   '    '"'"'reserves'"'"', case when v_role = '"'"'direction'"'"' then (select count(*) from plateforme.geste_console g where g.geste = any(p_reserves)) end,' \
   "$CJ8"
@@ -16954,6 +16954,110 @@ prouver 'le second guet sans son rythme' 'exploitation/guet-second/wrangler.toml
   'crons = ["*/10 * * * *"]' \
   'crons = ["0 * * * *"]' \
   'le Worker se pose toutes les dix minutes, sans aucun secret dans le dépôt'
+
+# 1.58.0 : la recette de la console à la souris et au clavier (docs/console.md, « La recette complète »).
+prouver 'le chiffre des gestes sans ceux de l'"'"'outil' 'base/migrations/0146_recette.sql' \
+  '    '"'"'gestes'"'"', (select count(*) from plateforme.geste_console g where g.le >= p_depuis and (v_role = '"'"'direction'"'"' or g.qui = v_moi)),' \
+  '    '"'"'gestes'"'"', (select count(*) from plateforme.geste_console g where g.le >= p_depuis and g.qui is not null and (v_role = '"'"'direction'"'"' or g.qui = v_moi)),' \
+  'par sorte, par période, par mot ; les gestes réservés à la direction ; ses chiffres comptent les listes qu'"'"'ils ouvrent'
+prouver 'Entrée qui ne valide pas une fenêtre' 'web/console/src/ui.tsx' \
+  '    e.preventDefault();
+    bouton.click();
+  };' \
+  '    e.preventDefault();
+  };' \
+  'une fenêtre au clavier : le premier champ vide, Entrée, le refus en retrait, ⌘/Ctrl + Entrée'
+prouver 'un Ctrl + Entrée qui ne valide pas un motif' 'web/console/src/ui.tsx' \
+  '    const zone = cible instanceof HTMLTextAreaElement && (e.ctrlKey || e.metaKey);' \
+  '    const zone = false;' \
+  'une fenêtre au clavier : le premier champ vide, Entrée, le refus en retrait, ⌘/Ctrl + Entrée'
+prouver 'Entrée seule qui valide un motif' 'web/console/src/ui.tsx' \
+  '    const zone = cible instanceof HTMLTextAreaElement && (e.ctrlKey || e.metaKey);' \
+  '    const zone = cible instanceof HTMLTextAreaElement;' \
+  'une fenêtre au clavier : le premier champ vide, Entrée, le refus en retrait, ⌘/Ctrl + Entrée'
+prouver 'un refus qui ne passe pas en retrait' 'web/console/src/ui.tsx' \
+  '  const retape = () => { if (!refusAncien && corps.current?.querySelector('"'"'.c-alerte-danger'"'"')) setRefusAncien(true); };' \
+  '  const retape = () => undefined;' \
+  'une fenêtre au clavier : le premier champ vide, Entrée, le refus en retrait, ⌘/Ctrl + Entrée'
+prouver 'le curseur au premier champ, déjà rempli' 'web/console/src/ui.tsx' \
+  '      const premier = champs.find((c) => c.value === '"'"''"'"' && !(c instanceof HTMLInputElement && (c.type === '"'"'checkbox'"'"' || c.type === '"'"'radio'"'"'))) ?? champs[0];' \
+  '      const premier = champs[0];' \
+  'une fenêtre au clavier : le premier champ vide, Entrée, le refus en retrait, ⌘/Ctrl + Entrée'
+prouver 'la tuile des codes faux qui demande un regard sans liste' 'web/console/src/ecrans/Securite.tsx' \
+  '        <Tuile titre={titre(`${S}.k.codes`)} etat={aRegarder ? '"'"'attention'"'"' : '"'"'bon'"'"'}' \
+  '        <Tuile titre={titre(`${S}.k.codes`)} etat={codes ? '"'"'attention'"'"' : '"'"'bon'"'"'}' \
+  'Sécurité : un code faux isolé se compte sans demander de regard ; trois de suite, la tuile et la liste le disent'
+prouver 'la tuile des codes faux qui promet une liste vide' 'web/console/src/ecrans/Securite.tsx' \
+  'sous={phrase(aRegarder ? `${S}.k.codes_sous` : codes ? `${S}.k.codes_seuls` : `${S}.k.codes_rien`)} />' \
+  'sous={phrase(codes ? `${S}.k.codes_sous` : `${S}.k.codes_rien`)} />' \
+  'Sécurité : un code faux isolé se compte sans demander de regard ; trois de suite, la tuile et la liste le disent'
+prouver 'un cadre vide à côté d'"'"'un Support sans demande' 'web/console/src/ecrans/Support.tsx' \
+  '          ) : !choisie && !liste.length ? null : (' \
+  '          ) : (' \
+  'Support : une vue sans demande prend la largeur, sans cadre vide à côté ; changer de vue ferme la demande qui n'"'"'y est pas'
+prouver 'une liste de Support sans demande serrée à gauche' 'web/console/src/ecrans/Support.tsx' \
+  '<div className={`c-sp-grille${!d && !choisie && !liste.length ? '"'"' c-sp-grille-seule'"'"' : '"'"''"'"'}`} ref={grille}>' \
+  '<div className="c-sp-grille" ref={grille}>' \
+  'Support : une vue sans demande prend la largeur, sans cadre vide à côté ; changer de vue ferme la demande qui n'"'"'y est pas'
+prouver 'la demande des ouvertes gardée à côté de « À moi » vide' 'web/console/src/ecrans/Support.tsx' \
+  '    if (choisie && lu && !listeDe(v, m).some((x) => x.id === choisie)) setChoisie(null);' \
+  '' \
+  'Support : une vue sans demande prend la largeur, sans cadre vide à côté ; changer de vue ferme la demande qui n'"'"'y est pas'
+prouver 'la plus urgente prise hors de la vue choisie' 'web/console/src/ecrans/Support.tsx' \
+  '    const premiere = listeDe(vue, miennes)[0];' \
+  '    const premiere = (vue === '"'"'closes'"'"' ? lu.closes : lu.ouvertes)[0];' \
+  'Support : une vue sans demande prend la largeur, sans cadre vide à côté ; changer de vue ferme la demande qui n'"'"'y est pas'
+prouver 'six cartes dans huit colonnes' 'web/console/src/ecrans/Abonnements.tsx' \
+  '<div className="c-vues c-vues-6" role="group"' \
+  '<div className="c-vues" role="group"' \
+  'Abonnements : les six cartes remplissent leur rangée, chaque libellé avant son point'
+prouver 'Échap qui laisse le menu ouvert' 'web/console/src/Console.tsx' \
+  '      setOuvert(false);
+      document.querySelector<HTMLElement>('"'"'.c-menu-tel'"'"')?.focus();' \
+  '      document.querySelector<HTMLElement>('"'"'.c-menu-tel'"'"')?.focus();' \
+  'au téléphone, Échap referme le menu ouvert et rend le curseur à son bouton'
+prouver 'le menu fermé qui ne rend pas le curseur' 'web/console/src/Console.tsx' \
+  '      setOuvert(false);
+      document.querySelector<HTMLElement>('"'"'.c-menu-tel'"'"')?.focus();' \
+  '      setOuvert(false);' \
+  'au téléphone, Échap referme le menu ouvert et rend le curseur à son bouton'
+prouver 'le curseur qui saute au mot de passe à la première lettre de l'"'"'adresse' 'web/console/src/ecrans/Entree.tsx' \
+  'valeur={email} changer={setEmail} premier={!adresseDonnee} {...sur('"'"'email'"'"')} />|||changer={setMotDePasse} premier={adresseDonnee} {...sur('"'"'motDePasse'"'"')} />' \
+  'valeur={email} changer={setEmail} premier={!email} {...sur('"'"'email'"'"')} />|||changer={setMotDePasse} premier={!!email} {...sur('"'"'motDePasse'"'"')} />' \
+  'l'"'"'entrée de la console : l'"'"'adresse se tape d'"'"'un trait, sans que le curseur saute au mot de passe ; venue remplie, le curseur va au mot de passe'
+prouver 'une adresse venue remplie, le curseur pas au mot de passe' 'web/console/src/ecrans/Entree.tsx' \
+  'changer={setMotDePasse} premier={adresseDonnee} {...sur('"'"'motDePasse'"'"')} />' \
+  'changer={setMotDePasse} {...sur('"'"'motDePasse'"'"')} />' \
+  'l'"'"'entrée de la console : l'"'"'adresse se tape d'"'"'un trait, sans que le curseur saute au mot de passe ; venue remplie, le curseur va au mot de passe'
+prouver 'une inscription en double qui tombe en panne' 'serveur/connexion.ts' \
+  '    if (pgx.code === '"'"'23505'"'"' && pgx.constraint === '"'"'utilisateur_email'"'"') return { ok: false as const, deja: true as const, motif: MOTIF_REFUS() };' \
+  '' \
+  's'"'"'inscrire avec une adresse qui a déjà son compte : la même réponse qu'"'"'une inscription, rien de changé, et le lien du mot de passe oublié par e-mail'
+prouver 'une inscription en double qui dit que l'"'"'adresse a un compte' 'serveur/routes/socle.ts' \
+  '        if (ctx.courriel) await demanderReinitialisation(ctx, corps.email, '"'"'inscription'"'"');
+        return { statut: 201, corps: { ok: true } };' \
+  '        return { statut: 409, corps: { motif: r.motif, champ: '"'"'email'"'"' } };' \
+  's'"'"'inscrire avec une adresse qui a déjà son compte : la même réponse qu'"'"'une inscription, rien de changé, et le lien du mot de passe oublié par e-mail'
+prouver 'une inscription en double sans le lien du mot de passe oublié' 'serveur/routes/socle.ts' \
+  '        if (ctx.courriel) await demanderReinitialisation(ctx, corps.email, '"'"'inscription'"'"');' \
+  '' \
+  's'"'"'inscrire avec une adresse qui a déjà son compte : la même réponse qu'"'"'une inscription, rien de changé, et le lien du mot de passe oublié par e-mail'
+prouver 'la connexion sans curseur' 'web/src/ecrans/Connexion.tsx' \
+  'inputMode="email" premier={!adresseDonnee} {...g.sur('"'"'email'"'"')} />' \
+  'inputMode="email" {...g.sur('"'"'email'"'"')} />' \
+  'le curseur attend dans le premier champ à remplir ; une adresse déjà inscrite : la même suite qu'"'"'une inscription, et le lien du mot de passe oublié par e-mail'
+prouver 'le mot de passe sans curseur, l'"'"'adresse remplie' 'web/src/ecrans/Connexion.tsx' \
+  'revelable premier={adresseDonnee} {...g.sur('"'"'motDePasse'"'"')} />' \
+  'revelable {...g.sur('"'"'motDePasse'"'"')} />' \
+  'le curseur attend dans le premier champ à remplir ; une adresse déjà inscrite : la même suite qu'"'"'une inscription, et le lien du mot de passe oublié par e-mail'
+prouver 'créer son compte sans curseur' 'web/src/ecrans/Inscription.tsx' \
+  'autoComplete="name" premier {...g.sur('"'"'nom'"'"')} />' \
+  'autoComplete="name" {...g.sur('"'"'nom'"'"')} />' \
+  'le curseur attend dans le premier champ à remplir ; une adresse déjà inscrite : la même suite qu'"'"'une inscription, et le lien du mot de passe oublié par e-mail'
+prouver 'la phrase après l'"'"'inscription qui tait l'"'"'e-mail' 'web/src/ecrans/Inscription.tsx' \
+  'toast(phrase(options.oubli ? '"'"'ecran.inscription.faite_courriel'"'"' : '"'"'ecran.inscription.faite'"'"'));' \
+  'toast(phrase('"'"'ecran.inscription.faite'"'"'));' \
+  'le curseur attend dans le premier champ à remplir ; une adresse déjà inscrite : la même suite qu'"'"'une inscription, et le lien du mot de passe oublié par e-mail'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

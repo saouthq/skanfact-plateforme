@@ -54,6 +54,10 @@ export function Vitrine() {
 export function Entree({ message, entre }: { message: string | null; entre: () => void }) {
   // Venue d'une invitation acceptée (C41), l'adresse est déjà remplie : le curseur va au mot de passe.
   const [email, setEmail] = useState(() => new URLSearchParams(location.hash.split('?')[1] ?? '').get('adresse') ?? '');
+  // Le curseur se pose UNE fois, à l'ouverture : sur l'adresse, ou sur le mot de passe quand elle arrive remplie. Suivant
+  // ce qu'on tape, il sautait au mot de passe dès la première lettre de l'adresse (recette à l'écran, 1.58.0 : « a » dans
+  // l'adresse, la suite dans le mot de passe).
+  const [adresseDonnee] = useState(() => email !== '');
   const [motDePasse, setMotDePasse] = useState('');
   const [defi, setDefi] = useState<Defi | null>(null);
   const [pose, setPose] = useState<Pose | null>(null);
@@ -199,8 +203,8 @@ export function Entree({ message, entre }: { message: string | null; entre: () =
             <h1>{titre('console.ecran.entree.titre')}</h1>
             <p className="c-forme-sous">{phrase('console.ecran.entree.sous')}</p>
             <div className="c-champs">
-              <Champ libelle={titre('console.ecran.entree.email')} type="email" autoComplete="username" inputMode="email" valeur={email} changer={setEmail} premier={!email} {...sur('email')} />
-              <Champ libelle={titre('console.ecran.entree.mot_de_passe')} type="password" autoComplete="current-password" revelable valeur={motDePasse} changer={setMotDePasse} premier={!!email} {...sur('motDePasse')} />
+              <Champ libelle={titre('console.ecran.entree.email')} type="email" autoComplete="username" inputMode="email" valeur={email} changer={setEmail} premier={!adresseDonnee} {...sur('email')} />
+              <Champ libelle={titre('console.ecran.entree.mot_de_passe')} type="password" autoComplete="current-password" revelable valeur={motDePasse} changer={setMotDePasse} premier={adresseDonnee} {...sur('motDePasse')} />
             </div>
             {refus ? <Alerte ton="danger">{refus}</Alerte> : null}
             <Bouton ton="principal" type="submit" large occupe={occupe} fleche>{titre('console.ecran.entree.continuer')}</Bouton>

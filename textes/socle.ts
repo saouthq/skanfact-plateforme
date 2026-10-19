@@ -69,6 +69,9 @@ declarerTextes({
   'invitation.equipe_texte': 'Bonjour,\n\n{qui} t\'invite dans l\'équipe SkanFact, comme {role}. Ouvre ce lien pour nous rejoindre avec cette adresse ({email}), ton compte SkanFact ou un compte que tu crées :\n\n{lien}\n\nLe lien vaut jusqu\'au {le}, une seule fois. À ta première connexion, tu poses le code de ton téléphone. Tu ne t\'y attendais pas ? Ne fais rien : il s\'éteint seul.\n\nSkanFact',
   'invitation.equipe_bouton': 'Rejoindre l\'équipe',
   'connexion.oubli_objet': 'Ton nouveau mot de passe SkanFact',
+  // S'inscrire avec une adresse qui a déjà son compte (19/10/2026) : le lien du mot de passe oublié, et ce qui s'est passé.
+  'connexion.deja_inscrit_objet': 'Ton compte SkanFact existe déjà',
+  'connexion.deja_inscrit_texte': 'Bonjour,\n\nQuelqu\'un, sans doute toi, a voulu créer un compte SkanFact avec cette adresse, qui en a déjà un : rien n\'a été créé ni changé. Connecte-toi avec ton mot de passe ; si tu ne t\'en souviens plus, ouvre ce lien dans les {minutes} minutes pour en choisir un nouveau :\n\n{lien}\n\nSi ce n\'est pas toi, ne fais rien : ton mot de passe reste le même.\n\nSkanFact',
   'connexion.oubli_texte': 'Bonjour,\n\nQuelqu\'un, sans doute toi, a demandé à changer le mot de passe de ton compte SkanFact. Pour en choisir un nouveau, ouvre ce lien dans les {minutes} minutes :\n\n{lien}\n\nSi ce n\'est pas toi, ne fais rien : ton mot de passe reste le même.\n\nSkanFact',
   'connexion.oubli_bouton': 'Choisir mon nouveau mot de passe',
   'compte.code_essai_faux': 'ce code ne correspond pas : vérifie que tu as bien ajouté SkanFact dans ton application, et que l\'heure de ton téléphone est réglée automatiquement',

@@ -86,7 +86,10 @@ declarerTextes({
   'ecran.inscription.bouton': 'créer mon compte',
   'ecran.inscription.deja': 'déjà un compte ?',
   'ecran.inscription.se_connecter': 'se connecter',
-  'ecran.inscription.faite': 'ton compte est créé : connecte-toi',
+  // Ce qui suit « Créer mon compte » quand la connexion n'a pas suivi d'elle-même : la même phrase qu'un compte soit né ou
+  // que l'adresse en ait déjà un (on ne dit jamais si une adresse a un compte ; 19/10/2026).
+  'ecran.inscription.faite': 'connecte-toi avec ton adresse et ton mot de passe',
+  'ecran.inscription.faite_courriel': 'connecte-toi avec ton adresse et ton mot de passe. Si cette adresse avait déjà un compte, un e-mail t\'attend pour en choisir un nouveau',
   'ecran.inscription.faite_dedans': 'ton compte est créé : bienvenue dans SkanFact',
 
   // Le mot de passe oublié (lot entrée, 06/10/2026 ; migration 0075).

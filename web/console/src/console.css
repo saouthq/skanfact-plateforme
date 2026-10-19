@@ -502,6 +502,10 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
   position: sticky; bottom: calc(var(--c-pied-h, 0px) + 12px); z-index: 1;
   background: linear-gradient(var(--c-rouge-doux), var(--c-rouge-doux)), var(--c-papier); box-shadow: 0 0 0 12px var(--c-papier);
 }
+/* Le refus d'avant, en retrait dès qu'on retape (Dialogue, ui.tsx) : même place, même taille ; il ne dit plus le dernier
+   mot (recette du 19/10/2026). */
+.c-dialogue[data-refus-ancien] .c-dialogue-corps .c-alerte-danger { color: var(--c-gris); background: var(--c-papier-2); transition: color .15s, background-color .15s; }
+.c-dialogue[data-refus-ancien] .c-dialogue-corps > .c-alerte-danger { background: linear-gradient(var(--c-papier-2), var(--c-papier-2)), var(--c-papier); }
 /* La question avant de jeter une saisie : elle prend la place des boutons du pied, au même endroit (rien ne bouge
    ailleurs dans la fenêtre), la phrase à gauche, les deux gestes à droite. */
 .c-dialogue-question { display: flex; align-items: center; justify-content: space-between; gap: 12px 16px; flex-wrap: wrap; inline-size: 100%; }
@@ -1565,6 +1569,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 
 /* ── Clients : les vues du métier, l'échéance et ce que rapporte chaque ligne (maquette Clients) ─────────────────── */
 .c-vues-5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.c-vues-6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 .c-point-v-tout { color: var(--c-encre); }
 .c-point-v-a_appeler { color: var(--c-orange); }
 .c-point-v-argent { color: var(--c-sarcelle); }
@@ -1694,10 +1699,10 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-menu-liste button.c-menu-trait { border-top: 1px solid var(--c-trait); border-radius: 0 0 10px 10px; margin-top: 2px; }
 .c-menu-liste .c-menu-note { border-top: 1px solid var(--c-trait); margin: 2px 0 0; font-size: 12px; line-height: 1.4; }
 @media (max-width: 1180px) {
-  .c-vues-5 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .c-vues-5, .c-vues-6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 860px) {
-  .c-vues-5 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .c-vues-5, .c-vues-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .c-vues-5 .c-vue:first-child { grid-column: span 2; }
   .c-liste-resume { padding-inline: 18px; }
   .c-select { min-height: 44px; background-position: calc(100% - 18px) 19px, calc(100% - 13px) 19px; }
@@ -2376,6 +2381,7 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
    le sujet sur deux lignes et les réponses types sur trois. Au téléphone, l'une sous l'autre : la liste, la conversation,
    la carte. La conversation se lit comme un échange : la personne à gauche, en gris, l'équipe à droite, en sarcelle. */
 .c-sp-grille { display: grid; gap: 18px; align-items: start; grid-template-columns: 300px minmax(0, 1fr); }
+.c-sp-grille.c-sp-grille-seule { grid-template-columns: minmax(0, 1fr); }
 .c-sp-gauche { display: flex; flex-direction: column; gap: 18px; min-width: 0; min-height: 0; }
 .c-sp-liste { display: flex; flex-direction: column; min-width: 0; }
 .c-sp-liste-tete.c-pilules { padding: 16px 14px 12px; }
