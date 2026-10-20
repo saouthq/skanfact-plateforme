@@ -13756,7 +13756,7 @@
       const onglets = [...(favoris.length ? [['fav', 'Favoris']] : []), ['tout', 'Tout'], ...familles.map(f => [`f:${f}`, f])];
       if (!onglets.some(o => o[0] === s.famille)) s.famille = onglets[0][0];
       const drawFamilles = () => {
-        $('#cs-familles').innerHTML = onglets.length > 1 ? onglets.map(([k, l]) => `<button type="button" role="tab" data-famille="${h(k)}" aria-selected="${s.famille === k && !s.q.trim()}">${h(l)}</button>`).join('') : '';
+        $('#cs-familles').innerHTML = onglets.length && articles.length ? onglets.map(([k, l]) => `<button type="button" role="tab" data-famille="${h(k)}" aria-selected="${s.famille === k && !s.q.trim()}">${h(l)}</button>`).join('') : '';
         $$('#cs-familles [data-famille]').forEach(b => { b.onclick = () => { s.famille = b.dataset.famille; s.q = ''; $('#cs-scan').value = ''; drawFamilles(); drawArticles(); }; });
       };
       const drawArticles = () => {

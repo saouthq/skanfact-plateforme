@@ -147,3 +147,14 @@ d'abord le règlement, geste qui se voit. Et la période close se dit AVANT la q
       if ((p.payments || []).length) { toast(`${p.number || 'Cette pièce'} porte ${(p.payments || []).length > 1 ? 'des règlements' : 'un règlement'} : retire-${(p.payments || []).length > 1 ? 'les' : 'le'} d'abord (« Actions » sur sa ligne, dans « Règlements »). Rien n'a été supprimé.`, true); return; }
       if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ?`)) return;
 -- fin
+
+À la caisse, la rangée « Favoris · Tout » n'existait qu'à partir de la première vente : elle apparaissait sous les doigts
+du caissier et poussait toutes les tuiles de 60 px vers le bas — les trois touches suivantes tombaient dans le vide
+(recette du 20/10/2026). La rangée est là dès qu'il y a des articles ; « Favoris » s'y ajoute sans rien déplacer en hauteur.
+
+== app.js | la caisse : la rangée des familles est là dès le premier ticket
+-- avant
+        $('#cs-familles').innerHTML = onglets.length > 1 ? onglets.map(
+-- après
+        $('#cs-familles').innerHTML = onglets.length && articles.length ? onglets.map(
+-- fin

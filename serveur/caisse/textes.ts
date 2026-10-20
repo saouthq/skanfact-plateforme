@@ -12,6 +12,8 @@ declarerTextes({
   'geste.caisse.session.fermer': 'fermer la caisse (compter le tiroir, le Z)',
   'geste.caisse.voir': 'voir la caisse et ses Z',
   'caisse.nom_par_defaut': 'Caisse 1',
+  'caisse.ecart.manque': 'Écart de caisse au Z : manque dans le tiroir',
+  'caisse.ecart.excedent': 'Écart de caisse au Z : excédent dans le tiroir',
   'caisse.fermee': 'la caisse est fermée : ouvre-la avec ton fond de caisse avant d\'encaisser. Rien n\'a été vendu',
   'caisse.ouverte_ailleurs': 'la caisse est ouverte sur un autre appareil ({appareil}, par {qui}) : une caisse n\'est tenue que par un appareil à la fois. Ferme-la là-bas, puis ouvre-la ici. Rien n\'a été vendu',
   'caisse.deja_ouverte': 'la caisse est déjà ouverte ({appareil}, par {qui}, depuis {depuis}) : on la ferme avant de la rouvrir',

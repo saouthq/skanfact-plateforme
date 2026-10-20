@@ -17,6 +17,8 @@ import { tracer } from '../trace.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
 import { PREMIERE } from './chaine.ts';
 import { routeRetour } from './retour.ts';
+import { appliquer } from '../v10/dossier.ts';
+import { enNombreV10 } from '../v10/lecture.ts';
 import { motif, rendre, t } from '../../textes/index.ts';
 import './textes.ts';
 
@@ -168,6 +170,25 @@ export function routesCaisse(): Route<never>[] {
     },
   });
 
+  // L'écart du Z est de l'argent (1.79.0 ; recette du 20/10/2026) : sans écriture, le compte de caisse du livre gardait ce
+  // que le tiroir n'avait plus. Le serveur, qui fige le Z, pose dans le dossier un mouvement de la caisse, du jour : un
+  // manque en sort contre une charge, un excédent y entre contre un produit (658 et 758, À VÉRIFIER avec un comptable).
+  // Un mouvement par Z (sa clé est celle de la session) ; sans compte de caisse au dossier, rien ne s'écrit.
+  async function noterEcartDuZ(tx: Transaction, ent: string, utilisateur: string, session: string, ecart: bigint, decimales: number) {
+    if (ecart === 0n) return;
+    const caisse = (await tx.query(`select cle from socle.dossier_v10 where entreprise = $1 and collection = 'accounts'
+      and contenu->>'kind' = 'caisse' and coalesce(contenu->>'archived', '') not in ('true') order by rang, cle limit 1`, [ent])).rows[0]?.cle as string | undefined;
+    if (!caisse) return;
+    const n = Number((await tx.query(`select count(*) n from socle.dossier_v10 where entreprise = $1 and collection = 'movements'`, [ent])).rows[0].n);
+    const manque = ecart < 0n;
+    const montant = enNombreV10(versTexte(manque ? -ecart : ecart, decimales));
+    await appliquer(tx, ent, utilisateur, [{ collection: 'movements', cle: `ecart-z-${session}`, rang: n, revision: null, contenu: {
+      id: `ecart-z-${session}`, date: aujourdhuiATunis(), kind: manque ? 'autre-sortie' : 'autre-entree', amount: montant, accountId: caisse,
+      compte: manque ? '658' : '758', method: 'especes', reference: 'Z',
+      label: rendre(t(manque ? 'caisse.ecart.manque' : 'caisse.ecart.excedent'), 'fr'),
+    } }], { serveur: true });
+  }
+
   // Fermer : compter les espèces du tiroir ; le serveur dit ce qu'il devait contenir, l'écart, et fige le Z. Le détail du
   // comptage (la caisse tactile, 05/10/2026 : combien de billets et de pièces de chaque coupure) est facultatif ; donné, il
   // doit tomber sur le total compté, et le Z le garde.
@@ -210,6 +231,7 @@ export function routesCaisse(): Route<never>[] {
       await tx.query(`update caisse.session set fermee_par = socle.moi(), fermee_le = $6, compte = $2, attendu = $3, ecart = $4, z = $5 where id = $1`,
         [s.id, compte.toString(), z0.attendu.toString(), (compte - z0.attendu).toString(), JSON.stringify(z), fermeeLe]);
       await tracer(tx, ent, 'caisse.session.fermer', { type: 'session_caisse', id: s.id }, null, { compte: z.compte, attendu: z.attendu, ecart: z.ecart, nombre: z.nombre });
+      await noterEcartDuZ(tx, ent, qui.utilisateur, s.id, compte - z0.attendu, decimales);
       return { corps: { z } };
     },
   });

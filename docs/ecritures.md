@@ -269,3 +269,22 @@ Une pièce qui change réécrit toujours sa famille, mais le passé validé ne b
   contre-passe entier, et chaque compte revient à zéro.
 - La chaîne : une ligne retouchée par-dessous la base (déclencheurs coupés) se voit au contrôle.
 - Les droits : ni le commercial ni la lecture ne valident, même dans la base.
+
+## Les mouvements de trésorerie (1.79.0, recette du 20/10/2026)
+
+Trouvé à la souris : les mouvements libres de la Trésorerie (frais bancaires, impôts, apports, retraits, emprunts,
+virements entre comptes, salaires réglés sans la Paie) étaient dans le livre de la v10 mais **nulle part** dans les livres
+tenus par le serveur : le Cabinet tenait une banque et une caisse fausses de ces montants-là.
+
+- Chaque mouvement est une **famille** (`serveur/compta/mouvements.ts`, origine `mouvement`, migration `0156`) : il
+  s'écrit, se réécrit et s'efface seul ; validé puis changé, il se contre-passe (0018).
+- Les mêmes comptes que la v10 (`journalEntries`, partie « tresorerie ») : la trésorerie du compte choisi, sinon du compte
+  par défaut ; la contrepartie choisie à la main, sinon le rôle de la nature ; un salaire d'un mois sans bulletin (ni le
+  mois d'avant) au 640, sinon au 425 ; un virement : l'arrivée est la contrepartie, un départ disparu laisse l'arrivée
+  contre le 471, un virement d'un compte vers lui-même n'écrit rien.
+- **L'écart d'un Z** devient un mouvement de la caisse posé par le serveur qui fige le Z (`serveur/caisse/routes.ts`) :
+  un manque sort contre le 658, un excédent entre contre le 758 (**À VÉRIFIER** avec un comptable). Le fond proposé à la
+  session suivante (le solde du compte de caisse) dit alors ce que le tiroir contient vraiment.
+- Preuve : `tests/compta/mouvements.test.ts` (l'exemple de cinq ans et seize cas pièges, ligne à ligne contre la v10 ;
+  rouge si le salaire sans bulletin va au 425), `tests/v10/caisse-session.test.ts` (l'écart du Z, en mouvement puis en
+  écriture).

@@ -102,6 +102,12 @@ describe('la session de caisse', () => {
     const apres = await etat(nadia.jeton);
     expect(apres.session).toBeNull();
     expect(apres.dernierZ).toMatchObject({ attendu: '158.890', ecart: '-1.390' });
+    // L'écart est de l'argent (1.79.0) : un mouvement de la caisse, du jour, qui sort le manque contre une charge (658) ;
+    // les livres du Cabinet l'écrivent au journal de caisse.
+    const mouvements = async () => (await enTantQue(pool, nadia.id, (tx) => tx.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'movements'`, [ent]))).rows.map((r) => r.contenu);
+    expect(await mouvements()).toEqual([expect.objectContaining({ kind: 'autre-sortie', amount: { '~n': '1.39' }, accountId: 'k-caisse', compte: '658', date: aujourdhui })]);
+    expect((await enTantQue(pool, nadia.id, (tx) => tx.query(`select l.compte, l.debit::text d, l.credit::text c from compta.ecriture e join compta.ligne l on l.ecriture = e.id
+      where e.entreprise = $1 and e.origine_type = 'mouvement' order by l.compte`, [ent]))).rows).toEqual([{ compte: '54', d: '0', c: '1390' }, { compte: '658', d: '1390', c: '0' }]);
     // Fermée : rien ne s'encaisse plus, et le Z ne change plus, même en base.
     expect((await encaisser(sami.jeton, ticket('t3', 1, '10', '11.9', 'especes'), '11.900')).statut).toBe(403);
     await expect(enTantQue(pool, nadia.id, (tx) => tx.query(`update caisse.session set ecart = 0 where entreprise = $1`, [ent])))
@@ -115,5 +121,7 @@ describe('la session de caisse', () => {
       .toBe('La caisse se ferme sur l\'appareil qui la tient (Bureau de Nadia), ou par le propriétaire ou un administrateur.');
     // Le Z de la seconde session ne compte que ses tickets.
     expect((await appeler('POST', `/entreprises/${ent}/caisse/fermer`, nadia.jeton, { compte: '11.9' })).corps.z).toMatchObject({ nombre: 1, total: '11.900', attendu: '11.900', ecart: '0.000' });
+    // Un tiroir qui tombe juste n'écrit rien de plus.
+    expect((await mouvements()).length).toBe(1);
   });
 });

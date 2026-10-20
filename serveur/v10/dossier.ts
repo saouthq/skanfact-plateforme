@@ -28,6 +28,7 @@ import { suivrePaie } from './paie.ts';
 import { reecrireLesAchats } from '../compta/achats.ts';
 import { reecrireLaPaie } from '../compta/paie.ts';
 import { planChange } from '../compta/suivre.ts';
+import { reecrireLesMouvements, suivreMouvements } from '../compta/mouvements.ts';
 import { ecrireFamilleDeVente, reecrireLesVentes } from '../compta/ventes.ts';
 import { canonique, deviseV10 as devise, enNombreV10, estObjet, lirePaiements, nombreEnTexte, type Json } from './lecture.ts';
 import { commeLaV10, ecartAvecLeServeur, fichierTeif, manquesAvantNumero } from './teif.ts';
@@ -255,6 +256,8 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
   const lus = changements.map((c) => ({ collection: c.collection, cle: c.cle, avant: actuels.get(`${c.collection}/${c.cle}`)?.contenu ?? null, apres: c.contenu }));
   await suivreAchats(tx, entreprise, utilisateur, lus);
   await suivrePaie(tx, entreprise, utilisateur, lus);
+  // Les mouvements libres de la trésorerie (1.79.0) : après la paie, dont les mois disent le compte d'un salaire réglé.
+  await suivreMouvements(tx, entreprise, lus);
   // La raison sociale et le matricule de la fiche société sont ceux de l'entreprise (lot facture, 0071).
   await suivreIdentite(tx, entreprise, lus);
   // Le plan comptable changé (comptes, auxiliaires, trésorerie) : tout le brouillard le suit (D3).
@@ -262,6 +265,7 @@ export async function appliquer(tx: Transaction, entreprise: string, utilisateur
     await reecrireLesVentes(tx, entreprise);
     await reecrireLesAchats(tx, entreprise);
     await reecrireLaPaie(tx, entreprise);
+    await reecrireLesMouvements(tx, entreprise);
   }
   return resultat;
 }
