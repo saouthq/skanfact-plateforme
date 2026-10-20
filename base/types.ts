@@ -848,6 +848,14 @@ export interface BaseDeDonnees {
     numero: number;
     donne_le: Generated<Date>;
   };
+  'plateforme.offre_choisie': {
+    id: Generated<string>;
+    entreprise: string;
+    offre: string;
+    periodicite: string;
+    par: string;
+    le: Generated<Date>;
+  };
   'plateforme.pause_partenaire': {
     id: Generated<string>;
     partenaire: string;
