@@ -501,6 +501,10 @@ vaut pour tout le dépôt.*
   - **La recette alpha, suite** (1.81.0 ; `docs/recette.md`) : pas de pièce négative, à l'écran (`montantNonEmettable`,
     `web/v10/montant-negatif.txt`) et au serveur (`emettre`, `serveur/ventes/pieces.ts`) ; le client « à valider » d'une
     échéance du Cabinet et sa saisie (`web/v10/echeance-valider.txt`).
+  - **L'abonnement de bout en bout** (1.83.0 ; `docs/recette.md`) : la première abonnée d'un groupe est celle qui a payé
+    (`plateforme.remise_de`, `base/migrations/0157_la_premiere_abonnee.sql`) ; « à facturer » dans « À décider »
+    (`A_FACTURER_JOURS`, `serveur/console/decider.ts`, les factures qui attendent par `argentADecider`,
+    `serveur/console/paiements.ts`) ; les personnes d'un groupe comptées une fois (`plateforme.console_personnes`).
   - **La recette alpha, suite** (1.82.0 ; `docs/recette.md`) : le nom du tiers de chaque écriture (`tiersNom`,
     `serveur/compta/routes.ts`, porté sur les lignes par `web/public/plateforme/pont-cabinet.js`) ; l'en-tête du dossier
     qui suit ses validations (`majAValider`, `web/v10/entete-a-valider.txt`) ; « Ce qui reste dû » sans les soldés

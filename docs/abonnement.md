@@ -431,8 +431,9 @@ mois ; journal `reglages.remise_preparee` / `remise_retiree`).
   du groupe après lui, la première abonnée d'abord, « Prix normal » ou « −20 % » (`plateforme.console_groupe_apercu`).
 - **La première abonnée paie le prix normal** : la société du groupe dont la première période payée est la plus
   ancienne (à égalité, la plus ancienne créée) ; les autres ont la remise pour chaque période qui commence pendant
-  qu'elles sont dans le groupe. Tant qu'aucune n'a payé, chacune paierait le prix normal ; une société qui n'a jamais
-  payé compte sa première période à partir de celle qu'on facture.
+  qu'elles sont dans le groupe. Une société qui a payé passe toujours avant une société qui n'a jamais payé, même si
+  sa période payée commence plus tard que celle qu'on facture à l'autre (1.83.0, `0157`, recette du 20/10/2026 : les
+  deux payaient le prix normal). Tant qu'aucune n'a payé, celle qu'on facture paie le prix normal.
 - **Le cabinet** : un client qui a confié son dossier à un cabinet (un mandat accepté, en cours ou arrêté depuis) qui
   commence **avant son premier paiement** a la remise pour chaque période qui commence dans la durée de la règle depuis
   sa première période payée (choix par délégation du 14/10/2026, Skander ayant demandé « c'est quoi le mieux ? » : un

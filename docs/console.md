@@ -945,7 +945,9 @@ des boutons radio** : la touche Tab entre sur la cochée, les flèches cochent l
   un avoir qui l'annule en entier (retirer la période, ou faire une nouvelle facture), et, payée quand même, la somme à
   rendre dans la même ligne (rembourser et retirer la période, ou garder la somme pour une nouvelle facture : un seul
   événement, une seule ligne, jamais une seconde pour son trop-perçu) ; une facture préparée qui **attend d'être émise**
-  depuis deux jours ou plus ; un **trop-perçu** (le rembourser, ou garder la somme pour la prochaine facture). Chaque
+  depuis deux jours ou plus ; un **renouvellement à facturer** (1.83.0) : un abonnement payé, non résilié, qui finit
+  dans trente jours (dix pour un mois) sans facture préparée ou émise pour la période qui suit — jamais pour un client
+  qui part ; « Préparer sa facture… » sur la fiche ; un **trop-perçu** (le rembourser, ou garder la somme pour la prochaine facture). Chaque
   ligne s'ouvre sur l'écran qui la règle (la facture dans SkanFact, la fiche, Paiements) ; la fiche d'un client montre
   les siennes dans « Ce qui attend ». Paiements montre aussi « Payées, puis défaites », chacune avec sa cause.
 - **Un avoir qui reprend tout sauf le timbre** (un avoir de SkanFact ne coche pas le timbre fiscal d'office) : en 1.20.0,

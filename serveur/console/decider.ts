@@ -189,6 +189,8 @@ export type Ligne =
   | { sorte: 'facture_defaite'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; numero: string | null; payeeLe: string; fin: string; ecran: string;
       cause: 'avoir' | 'reglement'; trop: string | null }
   | { sorte: 'a_emettre'; ouvre: 'facture'; entreprise: { id: string; nom: string }; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
+  // Un abonnement payé qui finit bientôt sans facture pour la période suivante (1.83.0) : la préparer.
+  | { sorte: 'a_facturer'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; jusquAu: string; jours: number; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel' }
   | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: { id: string; nom: string }; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   // 0129 : une facture contestée qui attend sa régularisation depuis une semaine.
   | { sorte: 'contestation'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; numero: string | null; ouverteLe: string; jours: number }
@@ -207,9 +209,15 @@ export type TravauxADecider = { pauses: readonly Pause[]; enPanne: { n: number; 
 // Ce que Paiements sait de l'argent qui attend une décision (serveur/console/paiements.ts, par ses fonctions), les
 // contestations en cours (serveur/console/contestations.ts) et les sorties en cours (serveur/console/sortie.ts), la
 // direction seule.
-export type Argent = { defaites: readonly Defaite[]; aEmettre: readonly AEmettre[]; trop: readonly Trop[]; contestees?: readonly Contestation[]; sorties?: readonly Sortie[] };
+// `facturees` (1.83.0) : les factures d'abonnement préparées ou émises qui attendent encore leur paiement, par entreprise
+// et premier jour de leur période (une facture payée a déjà poussé la période payée).
+export type Argent = { defaites: readonly Defaite[]; aEmettre: readonly AEmettre[]; trop: readonly Trop[]; contestees?: readonly Contestation[]; sorties?: readonly Sortie[];
+  facturees?: readonly { entreprise: string; debut: string }[] };
 // Une facture préparée attend d'être émise : au-delà de deux jours, elle demande un geste (l'émettre, ou la supprimer).
 export const A_EMETTRE_JOURS = 2;
+// Un abonnement payé se facture avant sa fin (1.83.0, recette du 20/10/2026) : trente jours avant pour une année (la
+// facture part avant le rappel des quinze jours), dix pour un mois (sinon un mensuel serait toujours « à facturer »).
+export const A_FACTURER_JOURS = { annuel: 30, mensuel: 10 } as const;
 
 // « A servi » n'a qu'une définition (0114, plateforme.pieces_creees) : une pièce créée dans l'entreprise — un devis, une
 // facture, un achat de son dossier, ou une pièce faite par le serveur ou l'API (une vente, un ticket, un achat). La liste
@@ -281,6 +289,15 @@ export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role
       if (!x.entreprise || !ici.has(x.entreprise.id) || !x.contrat.fin || !sortieADecider(x, jour)) continue;
       const jours = joursEntre(x.contrat.fin, jour);
       lignes.push([3.2, -jours, { sorte: 'sortie', ouvre: 'fiche', entreprise: x.entreprise, fin: x.contrat.fin, jours, restantes: restantes(x) }]);
+    }
+    // Le renouvellement (1.83.0) : un abonnement payé, non résilié, qui finit dans les jours de sa périodicité sans facture
+    // pour la période qui suit ; un client qui part n'en reçoit pas.
+    const partent = new Set((argent.sorties ?? []).filter((x) => !x.close && x.entreprise).map((x) => x.entreprise?.id));
+    for (const e of liste) {
+      const s = e.etat;
+      if (s.etat !== 'actif' || s.resilie || partent.has(e.id) || s.jours < 0 || s.jours > A_FACTURER_JOURS[s.periodicite]) continue;
+      if ((argent.facturees ?? []).some((f) => f.entreprise === e.id && f.debut > s.jusquAu)) continue;
+      lignes.push([2.6, s.jours, { sorte: 'a_facturer', ouvre: 'fiche', entreprise: { id: e.id, nom: e.raisonSociale }, jusquAu: s.jusquAu, jours: s.jours, offre: s.offre, periodicite: s.periodicite }]);
     }
   }
   if (service && veille.etat === 'silencieuse') lignes.push([0, 0, { sorte: 'veille_silencieuse', ouvre: 'service', derniere: veille.derniere }]);

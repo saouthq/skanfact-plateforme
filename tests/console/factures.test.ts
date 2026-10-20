@@ -487,6 +487,35 @@ describe('l\'argent juste (0113)', () => {
     expect(auSupport).not.toContain('facture_defaite');
   });
 
+  it('(1.83.0) un abonnement payé qui finit bientôt sans facture suivante est « à facturer » ; préparée, puis émise sans être payée, la ligne s\'éteint', async () => {
+    const b = await abonnee('Papeterie à Renouveler', 2);
+    const debut = plusJours(jour, 3);
+    expect((await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'essentiel', periodicite: 'mensuel', motif: 'Abonnement mensuel' })).statut).toBe(201);
+    await emettreEtRegler(b.id, debut, '47.410');
+    // Le temps a passé : la période payée finit dans huit jours.
+    await admin.query('update plateforme.abonnement set essai_jusqu_au = $2::date - 30, paye_jusqu_au = $2::date + 8 where entreprise = $1', [b.id, jour]);
+    const accueil = async () => ((await appeler('GET', '/console/accueil', direction.console)).corps.decider as { sorte: string; entreprise?: { id: string }; jusquAu?: string }[])
+      .filter((l) => l.entreprise?.id === b.id);
+    expect(await accueil()).toMatchObject([{ sorte: 'a_facturer', jusquAu: plusJours(jour, 8), jours: 8, offre: 'essentiel', periodicite: 'mensuel' }]);
+    // La fiche le dit aussi, par la même fonction.
+    expect(((await fiche(b.id)).attend as { sorte: string }[]).map((a) => a.sorte)).toContain('a_facturer');
+    // Le support ne facture pas.
+    expect(((await appeler('GET', '/console/accueil', support.console)).corps.decider as { sorte: string; entreprise?: { id: string } }[])
+      .filter((l) => l.entreprise?.id === b.id).map((l) => l.sorte)).not.toContain('a_facturer');
+    // Préparée pour la période qui suit : la ligne s'éteint ; émise et pas encore payée, elle reste éteinte.
+    const suivante = plusJours(jour, 9);
+    const p2 = await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'essentiel', periodicite: 'mensuel', motif: 'Renouvellement' });
+    expect(p2.statut, JSON.stringify(p2.corps)).toBe(201);
+    expect((await accueil()).map((l) => l.sorte)).toEqual([]);
+    const objets = await dossier(editeur, direction.appli);
+    const brouillon = objets.find((o) => o.collection === 'documents' && o.cle === `abonnement-${b.id}-${suivante}`);
+    expect(brouillon, 'le brouillon de la période qui suit').toBeTruthy();
+    const client = objets.find((o) => o.collection === 'clients' && o.cle === brouillon?.contenu.clientId)?.contenu;
+    const e = await appeler('POST', `/entreprises/${editeur}/dossier-v10/emettre`, direction.appli, { document: brouillon?.contenu, client, revision: brouillon?.revision, rang: brouillon?.rang ?? null, netAPayer: '47.410' });
+    expect(e.statut, JSON.stringify(e.corps)).toBe(200);
+    expect((await accueil()).map((l) => l.sorte)).toEqual([]);
+  });
+
   it('un avoir qui annule tout sauf le timbre défait aussi la facture : une ligne, pas un trop-perçu à part (0114)', async () => {
     const b = await abonnee('Pharmacie Sans Timbre', 2);
     const debut = plusJours(jour, 3);

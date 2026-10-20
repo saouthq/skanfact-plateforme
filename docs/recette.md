@@ -432,7 +432,60 @@ payés » solde le 425 au millime par la banque.
 - `tests/web/caisse-z.test.ts` : l'excédent du Z rejoint la caisse de la Trésorerie sans recharger la page.
 - Sept preuves (`tests/preuves.sh`, « 1.82.0 »).
 
+## 1.83.0 — l'abonnement de bout en bout : activé, renouvelé, en groupe (20/10/2026)
+
+Le parcours à la souris, sur les trois espaces : Trabelsi Distribution SARL, venue par Cabinet Mansour Expertise, en
+essai. La console prépare sa facture (Complet à l'année, 690,000 − 138,000 de remise du cabinet = 552,000 HT, TVA
+104,880, timbre 1,000, net 657,880 DT, période du 05/12/2026 au 04/12/2027, juste après l'essai) ; émise dans le
+dossier de SkanFact SARL, elle arrive dans « Ton abonnement › Tes factures » ; Sami la paie en ligne (Konnect simulé,
+657 880 millimes sur le portefeuille de SkanFact) ; « Payé jusqu'au 04/12/2027 », l'histoire nomme la facture, la
+console dit « Actif », « Payée », reste 0,000, et « Encaissé ce mois » 657,880 DT. Le renouvellement prépare la période
+du 05/12/2027 au 04/12/2028 sans remise (la remise du cabinet ne vaut que la première année) : 690,000 + 131,100 + 1,000
+= 822,100 DT. Puis un groupe : Sami crée Trabelsi Logistique SARL dans l'application, la console crée « Groupe
+Trabelsi » depuis la fiche (la société de la même propriétaire cochée d'avance, l'aperçu « Prix normal / −20 % ») ;
+la seconde société est facturée 657,880 DT avec la remise de groupe, et la lit dans « Ton abonnement ».
+
+### Ce que le lot corrige
+
+- **La seconde société d'un groupe payait le prix normal** (l'argent) : la première avait payé une période qui
+  commençait le 05/12/2026 (après son essai), la seconde, jamais payée, était facturée pour une période qui commençait
+  le 20/11/2026 — et la règle comparait les premiers jours, si bien que les deux payaient 690,000 DT, alors que la fiche
+  et l'aperçu du groupe promettaient « −20 % ». Désormais une société qui a payé passe toujours avant celle qui n'a
+  jamais payé ; tant qu'aucune n'a payé, celle qu'on facture paie le prix normal (base `0157`). La fiche, l'aperçu et
+  la facture disent la même chose.
+- **« À facturer »** (nouveau dans « À décider » et « Ce qui attend » de la fiche, la direction seule) : un abonnement
+  payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante — rien ne le signalait
+  avant l'échéance passée, alors que le rappel des quinze jours part au client sans facture à payer. « Préparer sa
+  facture… » l'ouvre avec la même offre ; préparée ou émise, la ligne s'éteint.
+- **Le compteur de « À décider »** ne bougeait pas après « Préparer la facture » ou une contestation, jusqu'à changer
+  d'écran : il se relit.
+- **« Aucun cabinet ne l'a amenée avant son premier paiement »**, d'une société venue par son cabinet dont la remise
+  avait couru sa première année : la phrase dit désormais ce qui est vrai dans les deux cas.
+- **La fiche d'un groupe comptait deux membres** pour la même personne, propriétaire des deux sociétés : chaque
+  personne compte une fois. « Par an » dit ce qu'il compte : les abonnements payés, au prix de leur prochaine facture.
+
+### Vu juste, à la souris (sans correction)
+
+- La facture préparée pendant l'essai commence le lendemain de l'essai : rien de l'essai n'est facturé.
+- Sans portefeuille Konnect branché dans SkanFact SARL, « Tes factures » dit « par virement ou par chèque » au lieu
+  d'un bouton qui échouerait ; branché, « Payer 657,880 DT en ligne ».
+- La facture payée passe sous les offres ; l'histoire de l'abonnement la nomme.
+- Créer un groupe sans motif est refusé, le champ montré, avec la raison.
+
+### Ce qui le prouve
+
+- `tests/abonnement/remises.test.ts` : celle qui a payé est la première, même si sa période payée commence après celle
+  qu'on facture à l'autre ; tant qu'aucune n'a payé, celle qu'on facture paie le prix normal.
+- `tests/console/decider.test.ts` : « à facturer » à trente jours pour une année, dix pour un mois ; éteint par une
+  facture de la période suivante, jamais pour un client qui part, jamais pour le support.
+- `tests/console/factures.test.ts` : par l'API, la ligne naît, se lit sur la fiche, s'éteint préparée, reste éteinte
+  émise et pas payée.
+- `tests/console/echanges.test.ts` : la fiche d'un groupe compte une personne pour la même propriétaire.
+- `tests/web/console-reglages.test.ts` : la phrase sans remise.
+- Quinze preuves (`tests/preuves.sh`) : les quatre nouvelles d'« à facturer », trois du lot (la première abonnée, les
+  personnes, la phrase), et les huit preuves de `remise_de` reportées sur sa définition en vigueur (`0157`).
+
 ## Ce qui reste (les lots suivants)
 
-1. **1.79** : choisir son offre dans l'application (« Je choisis cette offre », que la console voit dans « À décider »),
-   au lieu d'un e-mail. Le processus change, pas les prix : montré à Skander avant l'envoi.
+1. **1.84** : choisir son offre dans l'application (« Je choisis cette offre », que la console voit dans « À décider »
+   et facture d'un geste), au lieu d'un e-mail. Le processus change, pas les prix : montré à Skander avant l'envoi.

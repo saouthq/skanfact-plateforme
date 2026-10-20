@@ -34,6 +34,7 @@ export type Ligne =
   // L'argent (0113), pour la direction : une facture payée puis défaite, une facture qui attend d'être émise, un trop-perçu.
   | { sorte: 'facture_defaite'; ouvre: 'fiche'; entreprise: Qui; numero: string | null; payeeLe: string; fin: string; ecran: string; cause: 'avoir' | 'reglement'; trop: string | null }
   | { sorte: 'a_emettre'; ouvre: 'facture'; entreprise: Qui; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
+  | { sorte: 'a_facturer'; ouvre: 'fiche'; entreprise: Qui; jusquAu: string; jours: number; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel' }
   | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: Qui; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   // 0129 : une facture contestée qui attend sa régularisation depuis une semaine.
   | { sorte: 'contestation'; ouvre: 'fiche'; entreprise: Qui; numero: string | null; ouverteLe: string; jours: number }
@@ -171,6 +172,11 @@ function voir(l: Ligne, aujourdhui: string): Vue {
       return { icone: 'calendrier', titre: titre('console.ecran.decider.a_emettre_titre', { nom: l.entreprise.nom }),
         desc: phrase('console.ecran.decider.a_emettre', { le: jourCourt(l.prepareLe), debut: jourCourt(l.debut), fin: jourCourt(l.fin) }),
         meta: null, urgence: l.debut <= aujourdhui ? 'aujourdhui' : 'semaine', href: l.ecran, bouton: titre('console.ecran.decider.ouvrir_facture'), ailleurs: true };
+    case 'a_facturer':
+      return { icone: 'calendrier', titre: titre('console.ecran.decider.a_facturer_titre', { nom: l.entreprise.nom }),
+        desc: phrase('console.ecran.decider.a_facturer', { quoi: dire('console.ecran.abo.offre_periodicite', { offre: dire(`console.ecran.abo.offre.${l.offre}`), periodicite: dire(`console.ecran.abo.periodicite.${l.periodicite}`) }),
+          jusquAu: jourCourt(l.jusquAu), dans: dans(l.jusquAu, aujourdhui) }),
+        meta: null, urgence: l.jours <= 15 ? 'aujourdhui' : 'semaine', href: fiche(l.entreprise), bouton: titre('console.ecran.decider.ouvrir_fiche') };
     case 'contestation':
       return { icone: 'alerte', titre: titre('console.ecran.decider.contestation_titre', { nom: l.entreprise.nom }),
         desc: phrase('console.ecran.decider.contestation', { numero: l.numero ?? dire('console.ecran.decider.sans_numero'), le: jourCourt(l.ouverteLe), n: l.jours }),

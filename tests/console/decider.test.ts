@@ -158,3 +158,27 @@ describe('« À décider » : l\'argent qui attend (0113)', () => {
     expect(aDecider(seule, { etat: 'absente' }, JOUR, 'direction', [], MAINTENANT, argent).map((l) => l.sorte)).toEqual(['facture_defaite']);
   });
 });
+
+describe('« À décider » : le renouvellement à facturer (1.83.0)', () => {
+  it('un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule', () => {
+    const annuel = ligne({ payeJusquAu: plusJours(JOUR, 30), offre: 'complet', periodicite: 'annuel' });
+    const annuelLoin = ligne({ payeJusquAu: plusJours(JOUR, 31), offre: 'complet', periodicite: 'annuel' });
+    const mensuel = ligne({ payeJusquAu: plusJours(JOUR, 10), offre: 'essentiel', periodicite: 'mensuel' });
+    const mensuelLoin = ligne({ payeJusquAu: plusJours(JOUR, 11), offre: 'essentiel', periodicite: 'mensuel' });
+    const facturee = ligne({ payeJusquAu: plusJours(JOUR, 5), offre: 'complet', periodicite: 'annuel' });
+    const resiliee = ligne({ payeJusquAu: plusJours(JOUR, 5), offre: 'complet', periodicite: 'annuel', resilieLe: plusJours(JOUR, -1) });
+    const liste = lireEntreprises([annuel, annuelLoin, mensuel, mensuelLoin, facturee, resiliee], JOUR, REGLES_DE_DEPART);
+    const qui = (x: { id: string; raisonSociale: string }) => ({ id: x.id, nom: x.raisonSociale });
+    // Une facture préparée pour la période suivante éteint la ligne ; une facture d'une période déjà payée, non.
+    const argent = { defaites: [], trop: [], aEmettre: [], facturees: [
+      { entreprise: facturee.id, debut: plusJours(JOUR, 6) }, { entreprise: annuel.id, debut: plusJours(JOUR, -335) }] };
+    const d = aDecider(liste, veilleOk, JOUR, 'direction', [], MAINTENANT, argent);
+    expect(d.map((l) => [l.sorte, 'entreprise' in l ? l.entreprise.nom : null])).toEqual([['a_facturer', mensuel.raisonSociale], ['a_facturer', annuel.raisonSociale]]);
+    expect(d[1]).toMatchObject({ ouvre: 'fiche', entreprise: qui(annuel), jusquAu: plusJours(JOUR, 30), jours: 30, offre: 'complet', periodicite: 'annuel' });
+    // Le support ne facture pas ; sans l'argent de la direction, rien.
+    expect(aDecider(liste, veilleOk, JOUR, 'support', [], MAINTENANT, argent)).toEqual([]);
+    // Un client qui part n'en reçoit pas.
+    const partant = { ...argent, sorties: [{ entreprise: qui(annuel), close: null, contrat: { fin: null } }] } as unknown as Parameters<typeof aDecider>[6];
+    expect(aDecider(liste, veilleOk, JOUR, 'direction', [], MAINTENANT, partant).map((l) => 'entreprise' in l ? l.entreprise.nom : null)).toEqual([mensuel.raisonSociale]);
+  });
+});

@@ -147,6 +147,9 @@ describe('la fiche d\'un groupe (0110)', () => {
     const societes = r.corps.societes as { id: string; numero: string; ville: string; etat: { etat: string } }[];
     expect(societes.map((s) => s.id).sort()).toEqual([a.ent, b.ent].sort());
     expect(societes.every((s) => /^E-\d{4,}$/.test(s.numero) && s.ville === 'Sousse' && s.etat.etat === 'essai')).toBe(true);
+    // (1.83.0) La même propriétaire des deux sociétés : chacune compte son membre, le groupe compte une personne.
+    expect((r.corps.societes as { membres: number }[]).map((s) => s.membres)).toEqual([1, 1]);
+    expect(r.corps.personnes).toBe(1);
     // La liste dit le groupe en une ligne, avec les mêmes sociétés.
     const liste = (await appeler('GET', `/console/entreprises?q=${encodeURIComponent(`Famille ${marque}`)}&limite=50`, karim.console)).corps.lignes as { id: string; sorte: string; societes: { id: string }[] }[];
     expect(liste.map((o) => [o.id, o.sorte, o.societes.length])).toEqual([[g.corps.id, 'groupe', 2]]);

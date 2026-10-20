@@ -401,7 +401,7 @@ describe('les réglages de la plateforme, à la souris', () => {
     await p.goto(`${serveur.adresse}/console/#/clients/${atelier}?onglet=abonnement`);
     const carte = p.locator('section[aria-labelledby="fiche-groupe"]');
     await expect.poll(() => carte.locator('.c-gr-remise').innerText().then(net).catch(() => ''), { timeout: 15_000 })
-      .toBe('Aucune remise sur sa prochaine facture Elle n\'est dans aucun groupe, et aucun cabinet ne l\'a amenée avant son premier paiement.');
+      .toBe('Aucune remise sur sa prochaine facture Elle n\'est dans aucun groupe, et aucune remise de cabinet ne court sur cette période : celle-ci ne vaut que pour la première année d\'une société venue par son cabinet.');
     expect(net(await carte.locator('.c-gr-voisines').innerText())).toBe('Les autres sociétés de Lina Réglages, dans aucun groupe : Studio Lina Réglages');
     await cliquer(carte.getByRole('button', { name: 'Créer un groupe' }));
     expect(await f.locator('.c-gr-cases input[type="checkbox"]').evaluateAll((e) => e.map((x) => [(x as HTMLInputElement).checked, (x as HTMLInputElement).disabled])))

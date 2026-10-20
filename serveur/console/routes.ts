@@ -676,6 +676,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
         corps: {
           aujourdhui: jour, id: o.id, numero: o.numero, nom: o.nom, ville: o.ville, parAnHt: p.actif ? versTexte(p.actif, 3) : null, attenduHt: p.attendu ? versTexte(p.attendu, 3) : null,
           usage: usageDeLaLigne(o), vu: vuDeLaLigne(o),
+          // Les personnes, chacune une fois : la même propriétaire de deux sociétés compte pour une.
+          personnes: await lireJson<number>(transaction(tx), 'select plateforme.console_personnes($1::uuid[]) v', [o.societes.map((e) => e.id)]),
           societes: o.societes.map((e) => ({ ...ligneClient(e, s.renouvellements), numero: s.identites.get(e.id)?.numero ?? null, ville: s.identites.get(e.id)?.ville ?? null,
             telephone: s.identites.get(e.id)?.telephone ?? null, dernierAppel: s.identites.get(e.id)?.dernierAppel ?? null,
             vues: VUES_CLIENTS.filter((v) => v !== 'tout' && dansLaVue(e, v, jour)), gestes: gestesDeLaListe(role, e),

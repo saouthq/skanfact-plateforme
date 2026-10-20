@@ -195,6 +195,28 @@ describe('les groupes : la première abonnée paie le prix normal, les autres on
     expect(String((await appeler('POST', `/console/entreprises/${epicerie}/groupe/sortir`, amira.console, { motif: 'Encore' })).corps.motif))
       .toBe('Cette société n\'est dans aucun groupe.');
   });
+
+  it('(1.83.0) celle qui a payé est la première, même si sa période payée commence après celle qu\'on facture à l\'autre ; tant qu\'aucune n\'a payé, celle qu\'on facture paie le prix normal', async () => {
+    // La recette du 20/10/2026 : la Distribution paie pendant son essai une période qui commence dans 45 jours ; la
+    // Logistique, jamais payée, est facturée pour une période qui commence dans 30 jours. Les deux payaient le prix normal.
+    const p = await inscrire('sami');
+    const distribution = await nouvelle(p.jeton, 'Distribution du Groupe');
+    const logistique = await nouvelle(p.jeton, 'Logistique du Groupe');
+    const transport = await nouvelle(p.jeton, 'Transport du Groupe');
+    const cree = await appeler('POST', '/console/groupes', amira.console, { nom: 'Famille Sami', entreprises: [distribution, logistique, transport], motif: 'Même propriétaire' });
+    expect(cree.statut, JSON.stringify(cree.corps)).toBe(201);
+    // Aucune n'a payé : chacune, facturée, paierait le prix normal.
+    expect(await remiseDe(logistique, plusJours(jour, 30))).toBeNull();
+    expect(await remiseDe(transport, plusJours(jour, 30))).toBeNull();
+    await paye(distribution, plusJours(jour, 45), jour);
+    expect(await remiseDe(logistique, plusJours(jour, 30))).toEqual({ nature: 'groupe', taux: 20, groupe: 'Famille Sami', premiere: 'Distribution du Groupe' });
+    expect(await remiseDe(transport, plusJours(jour, 30))).toMatchObject({ nature: 'groupe', premiere: 'Distribution du Groupe' });
+    expect(await remiseDe(distribution, plusJours(jour, 45 + 365))).toBeNull();
+    // La fiche et l'aperçu disent la même chose que la facture : la Distribution d'abord, au prix normal.
+    const fiche = (await appeler('GET', `/console/entreprises/${logistique}`, amira.console)).corps.groupe as Corps;
+    expect((fiche.groupe as { membres: Corps[] }).membres[0]).toMatchObject({ entreprise: distribution });
+    expect(fiche.remise).toMatchObject({ nature: 'groupe', taux: 20, premiere: 'Distribution du Groupe' });
+  });
 });
 
 describe('le cabinet : la remise de la première année, jamais additionnée à celle du groupe', () => {

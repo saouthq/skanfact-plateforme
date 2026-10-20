@@ -199,7 +199,8 @@ export function ouvertes(liste: Ouverte[], entreprises: Entreprise[], aujourdhui
 // L'argent qui attend une décision (« À décider », 0113) : les factures payées puis défaites, celles qui attendent d'être
 // émises, les trop-perçus — par les fonctions de cet écran, jamais une seconde règle.
 export const argentADecider = (p: Paiements, entreprises: Entreprise[], aujourdhui: string, contestees: readonly Contestation[] = []) =>
-  ({ defaites: p.defaites, aEmettre: p.aEmettre, trop: ouvertes(p.ouvertes, entreprises, aujourdhui).trop, contestees });
+  ({ defaites: p.defaites, aEmettre: p.aEmettre, trop: ouvertes(p.ouvertes, entreprises, aujourdhui).trop, contestees,
+    facturees: [...p.aEmettre, ...p.ouvertes].map((f) => ({ entreprise: f.entreprise.id, debut: f.debut })) });
 
 // ── Les coûts du mois, et ce qui reste ───────────────────────────────────────────────────────────────────────────────
 // Les coûts sont en millimes de dinar : ce qui reste ne se calcule que si l'encaissé est en dinars aussi, et seulement

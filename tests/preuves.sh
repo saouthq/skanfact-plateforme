@@ -12947,14 +12947,14 @@ prouver 'une remise en vigueur que la base laisse effacer' base/migrations/0106_
 prouver 'un changement de remise sans sa ligne au journal' base/migrations/0106_remises.sql \
   '    values (socle.moi(), v_role, '"'"'reglages.remise_preparee'"'"', btrim(p_motif),' '    values (socle.moi(), v_role, '"'"'reglages.remise'"'"', btrim(p_motif),' \
   "$RM1"
-prouver 'la première abonnée lue à la création, pas à la première période payée' base/migrations/0106_remises.sql \
-  '     order by coalesce(plateforme.premiere_periode(m.entreprise), case when m.entreprise = p_entreprise then p_debut end) nulls last,
-              e.cree_le, e.id' '     order by e.cree_le, e.id' \
+prouver 'la première abonnée lue à la création, pas à la première période payée' base/migrations/0157_la_premiere_abonnee.sql \
+  '     order by case when plateforme.premiere_periode(m.entreprise) is not null then 0 when m.entreprise = p_entreprise then 1 else 2 end,
+              plateforme.premiere_periode(m.entreprise), e.cree_le, e.id' '     order by e.cree_le, e.id' \
   "$RM2"
-prouver 'une remise de groupe pour une période d'"'"'avant l'"'"'entrée' base/migrations/0106_remises.sql \
+prouver 'une remise de groupe pour une période d'"'"'avant l'"'"'entrée' base/migrations/0157_la_premiere_abonnee.sql \
   '   where m.entreprise = p_entreprise and m.depuis <= p_debut and (m.retire_le is null or p_debut < m.retire_le)' '   where m.entreprise = p_entreprise and (m.retire_le is null or p_debut < m.retire_le)' \
   "$RM2"
-prouver 'une société sortie du groupe qui y compte encore' base/migrations/0106_remises.sql \
+prouver 'une société sortie du groupe qui y compte encore' base/migrations/0157_la_premiere_abonnee.sql \
   '     where m.groupe = v_membre.groupe and m.depuis <= p_debut and (m.retire_le is null or p_debut < m.retire_le)' '     where m.groupe = v_membre.groupe' \
   "$RM2"
 prouver 'une société dans deux groupes' base/migrations/0106_remises.sql \
@@ -12972,19 +12972,19 @@ prouver 'la fiche d'"'"'un client qui exige l'"'"'entreprise SkanFact désignée
 prouver '« Ton abonnement » qui dit tout de la remise' serveur/abonnement/routes.ts \
   'remise: remise ? { nature: remise.nature, taux: remise.taux, groupe: remise.groupe, cabinet: remise.cabinet, jusquAu: remise.jusquAu } : null' 'remise' \
   "$RM2"
-prouver 'la remise du cabinet pour un mandat d'"'"'après le premier paiement' base/migrations/0106_remises.sql \
+prouver 'la remise du cabinet pour un mandat d'"'"'après le premier paiement' base/migrations/0157_la_premiere_abonnee.sql \
   ' and (v_paiement is null or d.debut <= v_paiement)' '' \
   "$RM3"
-prouver 'la remise du cabinet pour un mandat seulement proposé' base/migrations/0106_remises.sql \
+prouver 'la remise du cabinet pour un mandat seulement proposé' base/migrations/0157_la_premiere_abonnee.sql \
   'd.statut in ('"'"'actif'"'"', '"'"'termine'"'"')' 'd.statut in ('"'"'actif'"'"', '"'"'termine'"'"', '"'"'propose'"'"')' \
   "$RM3"
-prouver 'la première année comptée depuis la période facturée' base/migrations/0106_remises.sql \
+prouver 'la première année comptée depuis la période facturée' base/migrations/0157_la_premiere_abonnee.sql \
   '  v_premiere date := coalesce(plateforme.premiere_periode(p_entreprise), p_debut);' '  v_premiere date := p_debut;' \
   "$RM3"
-prouver 'la remise du groupe toujours, même plus faible' base/migrations/0106_remises.sql \
+prouver 'la remise du groupe toujours, même plus faible' base/migrations/0157_la_premiere_abonnee.sql \
   '  if (v_c->>'"'"'taux'"'"')::int > (v_g->>'"'"'taux'"'"')::int then return v_c || jsonb_build_object('"'"'aussi'"'"', v_g); end if;' '' \
   "$RM3"
-prouver 'le dernier jour de la remise du cabinet compté un jour trop loin' base/migrations/0106_remises.sql \
+prouver 'le dernier jour de la remise du cabinet compté un jour trop loin' base/migrations/0157_la_premiere_abonnee.sql \
   ''"'"'jusquAu'"'"', v_fin - 1);' ''"'"'jusquAu'"'"', v_fin);' \
   "$RM3"
 prouver 'la base qui rejoue la facture sans sa remise' base/migrations/0113_argent_juste.sql \
@@ -18263,6 +18263,37 @@ prouver 'l'"'"'écart du Z absent de la Trésorerie jusqu'"'"'au rechargement' '
   '      if (r.mouvement) {' \
   '      if (false) {' \
   '(1.82.0) l'"'"'excédent du Z rejoint la caisse de la Trésorerie sans recharger la page'
+prouver 'la seconde société d'"'"'un groupe facturée au prix normal quand la première a payé une période qui commence plus tard' 'base/migrations/0157_la_premiere_abonnee.sql' \
+  '     order by case when plateforme.premiere_periode(m.entreprise) is not null then 0 when m.entreprise = p_entreprise then 1 else 2 end,
+              plateforme.premiere_periode(m.entreprise), e.cree_le, e.id' \
+  '     order by coalesce(plateforme.premiere_periode(m.entreprise), case when m.entreprise = p_entreprise then p_debut end) nulls last,
+              e.cree_le, e.id' \
+  '(1.83.0) celle qui a payé est la première, même si sa période payée commence après celle qu'"'"'on facture à l'"'"'autre ; tant qu'"'"'aucune n'"'"'a payé, celle qu'"'"'on facture paie le prix normal'
+prouver 'la même personne comptée deux fois dans les membres d'"'"'un groupe' 'serveur/console/routes.ts' \
+  'personnes: await lireJson<number>(transaction(tx), '"'"'select plateforme.console_personnes($1::uuid[]) v'"'"', [o.societes.map((e) => e.id)]),' \
+  'personnes: o.societes.reduce((n, e) => n + e.membres, 0),' \
+  'ses sociétés comme la liste les dit, chacune avec son numéro ; rien pour ce qui n'"'"'est pas un groupe'
+prouver '« aucun cabinet ne l'"'"'a amenée » pour une société venue par son cabinet' 'web/console/src/textes.ts' \
+  'aucune remise de cabinet ne court sur cette période : celle-ci ne vaut que pour la première année d\'"'"'une société venue par son cabinet' \
+  'aucun cabinet ne l\'"'"'a amenée avant son premier paiement' \
+  'les remises : préparées avec leur aperçu, retirées avant leur date ; un groupe se déclare depuis la fiche, le client lit sa remise'
+prouver 'un renouvellement « à facturer » alors que sa facture est préparée' 'serveur/console/decider.ts' \
+  '      if ((argent.facturees ?? []).some((f) => f.entreprise === e.id && f.debut > s.jusquAu)) continue;
+' \
+  '' \
+  'un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule'
+prouver 'une facture émise et pas payée oubliée par « à facturer »' 'serveur/console/paiements.ts' \
+  'facturees: [...p.aEmettre, ...p.ouvertes].map(' \
+  'facturees: [...p.aEmettre].map(' \
+  '(1.83.0) un abonnement payé qui finit bientôt sans facture suivante est « à facturer » ; préparée, puis émise sans être payée, la ligne s'"'"'éteint'
+prouver 'un client qui part reçoit encore « à facturer »' 'serveur/console/decider.ts' \
+  's.resilie || partent.has(e.id) ||' \
+  's.resilie ||' \
+  'un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule'
+prouver 'un mensuel « à facturer » dès trente jours' 'serveur/console/decider.ts' \
+  's.jours > A_FACTURER_JOURS[s.periodicite]' \
+  's.jours > 30' \
+  'un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

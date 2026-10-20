@@ -105,6 +105,7 @@ type Attente =
   // L'argent (0113), pour la direction.
   | { sorte: 'facture_defaite'; numero: string | null; payeeLe: string; fin: string; ecran: string; cause: 'avoir' | 'reglement'; trop: string | null }
   | { sorte: 'a_emettre'; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
+  | { sorte: 'a_facturer'; jusquAu: string; jours: number; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel' }
   | { sorte: 'trop_percu'; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   | { sorte: 'contestation'; numero: string | null; ouverteLe: string; jours: number }
   | { sorte: 'remboursement_a_noter'; numero: string | null; montant: string; le: string | null }
@@ -1137,9 +1138,9 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
       {onglet === 'abonnement' ? <GroupeEtRemise f={f} role={moi.role} faire={setGesteGroupe} /> : null}
       {gesteGroupe ? <FenetreGroupe fiche={f} geste={gesteGroupe} fermer={() => setGesteGroupe(null)} fait={() => { setGesteGroupe(null); relire(); }} /> : null}
       {onglet === 'factures' ? <SesFactures f={f} role={moi.role} preparer={() => setFacture(true)} contester={setContestation} /> : null}
-      {contestation?.sorte === 'noter' ? <FenetreContester facture={contestation.facture} client={f.raisonSociale} fermer={() => setContestation(null)} fait={() => { setContestation(null); relire(); }} /> : null}
-      {contestation?.sorte === 'regulariser' ? <FenetreRegulariser c={contestation.c} fermer={() => setContestation(null)} fait={() => { setContestation(null); relire(); }} /> : null}
-      {facture ? <FenetreFacture fiche={f} fermer={() => setFacture(false)} fait={() => { setFacture(false); relire(); }} /> : null}
+      {contestation?.sorte === 'noter' ? <FenetreContester facture={contestation.facture} client={f.raisonSociale} fermer={() => setContestation(null)} fait={() => { setContestation(null); relire(); relireDecisions(); }} /> : null}
+      {contestation?.sorte === 'regulariser' ? <FenetreRegulariser c={contestation.c} fermer={() => setContestation(null)} fait={() => { setContestation(null); relire(); relireDecisions(); }} /> : null}
+      {facture ? <FenetreFacture fiche={f} fermer={() => setFacture(false)} fait={() => { setFacture(false); relire(); relireDecisions(); }} /> : null}
 
       {onglet === 'membres' ? (
         <section className="c-carte" aria-labelledby="fiche-membres">
@@ -1286,6 +1287,10 @@ function attenteEnMots(a: Attente, aujourdhui: string): { icone: NomIcone; titre
     case 'a_emettre':
       return { icone: 'calendrier', titre: titre('console.ecran.fiche.attend.a_emettre_titre'), urgence: 'semaine',
         desc: phrase('console.ecran.decider.a_emettre', { le: jourCourt(a.prepareLe), debut: jourCourt(a.debut), fin: jourCourt(a.fin) }) };
+    case 'a_facturer':
+      return { icone: 'calendrier', titre: titre('console.ecran.fiche.attend.a_facturer_titre'), urgence: a.jours <= 15 ? 'aujourdhui' : 'semaine',
+        desc: phrase('console.ecran.decider.a_facturer', { quoi: dire('console.ecran.abo.offre_periodicite', { offre: dire(`console.ecran.abo.offre.${a.offre}`), periodicite: dire(`console.ecran.abo.periodicite.${a.periodicite}`) }),
+          jusquAu: jourCourt(a.jusquAu), dans: dans(a.jusquAu, aujourdhui) }) };
     case 'contestation':
       return { icone: 'alerte', titre: titre('console.ecran.fiche.attend.contestation_titre'), urgence: 'semaine',
         desc: phrase('console.ecran.decider.contestation', { numero: a.numero ?? dire('console.ecran.decider.sans_numero'), le: jourCourt(a.ouverteLe), n: a.jours }) };

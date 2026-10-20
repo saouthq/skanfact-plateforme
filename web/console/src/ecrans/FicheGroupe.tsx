@@ -18,7 +18,7 @@ import { contexteDe, EcrireAuContact, NoterAppel, resultatEnMots, type Contexte,
 type Societe = Ligne & { telephone: string | null; dernierAppel: { le: string; resultat: ResultatAppel; qui: string | null } | null };
 type Groupe = {
   aujourdhui: string; id: string; numero: string | null; nom: string; ville: string | null;
-  parAnHt: string | null; attenduHt: string | null; usage: number; vu: string | null; societes: Societe[];
+  parAnHt: string | null; attenduHt: string | null; usage: number; vu: string | null; personnes: number; societes: Societe[];
 };
 const K = 'console.ecran.groupe';
 
@@ -59,7 +59,6 @@ export function FicheGroupe({ id }: { id: string }) {
   // Le menu porte les gestes de chaque société, sous son nom (une section par société).
   const actions = g.societes.flatMap((x) => actionsDe(x, moi.role, faireDuMenu(x)).map((a) => ({ ...a, section: x.raisonSociale })));
   const reserve = moi.role === 'direction' ? null : phrase('console.ecran.clients.m.reserve');
-  const membres = g.societes.reduce((n, s) => n + s.membres, 0);
 
   return (
     <>
@@ -123,7 +122,7 @@ export function FicheGroupe({ id }: { id: string }) {
                 {g.parAnHt || g.attenduHt ? <b className="c-mono" data-donnee>{montant(g.parAnHt ?? g.attenduHt ?? '0')}</b> : <b className="c-cl-rien">—</b>}
                 <small>{dire(g.parAnHt ? `${K}.c.par_an_sous` : g.attenduHt ? `${K}.c.attendu_sous` : `${K}.c.rien_sous`)}</small></div>
               <div className="c-chiffre"><span>{titre(`${K}.c.pieces`)}</span><b>{g.usage}</b><small>{dire(`${K}.c.pieces_sous`)}</small></div>
-              <div className="c-chiffre"><span>{titre(`${K}.c.membres`)}</span><b>{membres}</b><small>{dire(`${K}.c.membres_sous`)}</small></div>
+              <div className="c-chiffre"><span>{titre(`${K}.c.membres`)}</span><b>{g.personnes}</b><small>{dire(`${K}.c.membres_sous`)}</small></div>
               <div className="c-chiffre"><span>{titre(`${K}.c.vu`)}</span><b className="c-chiffre-texte">{g.vu ? maj(quand(g.vu, g.aujourdhui)) : maj(dire('console.ecran.temps.jamais'))}</b>
                 <small>{dire(`${K}.c.vu_sous`)}</small></div>
             </div>
