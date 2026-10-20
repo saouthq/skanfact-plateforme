@@ -1,6 +1,8 @@
 // La bulle « i » de la v10 (`button.i`, `#info-pop`) : un titre et son explication, posés par-dessus
 // la page, sous le bouton (au-dessus s'il n'y a pas la place). Rien ne bouge dessous ; une seule
-// bulle ouverte à la fois ; un clic ailleurs, Échap ou un changement de taille la ferme.
+// bulle ouverte à la fois ; un clic ailleurs, Échap ou un changement de taille la ferme. La touche Tab ne s'y arrête
+// pas : elle va d'un champ au suivant (recette du 20/10/2026 : arrêtée sur chaque « i », l'adresse se perdait et le mot
+// de passe tombait en clair dans la case de l'e-mail) ; la bulle s'ouvre à la souris, au doigt ou au lecteur d'écran.
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { titre as enTitre } from '../langue.ts';
@@ -52,7 +54,7 @@ export function Info({ titre, texte }: { titre: string; texte: string }) {
 
   return (
     <>
-      <button ref={bouton} type="button" className="i" aria-expanded={ouverte}
+      <button ref={bouton} type="button" className="i" tabIndex={-1} aria-expanded={ouverte}
         aria-label={enTitre('ecran.explication', { sujet: titre })} title={enTitre('ecran.quest_ce')}
         onClick={(e) => { e.preventDefault(); e.stopPropagation(); basculer(); }}>i</button>
       {ouverte ? createPortal(

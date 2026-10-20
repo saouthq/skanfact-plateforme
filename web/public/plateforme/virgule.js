@@ -29,4 +29,28 @@
     // par ses événements habituels.
     document.execCommand('insertText', false, texte.slice(0, i).replace(/[.,]/g, '') + '.' + texte.slice(i + 1));
   }, true);
+
+  // Un champ de nombre qui ne descend pas sous zéro (`min="0"` : un montant, une quantité) n'accepte pas le signe moins :
+  // « -250 » tapé dans un paiement se refusait à l'enregistrement par « Montant invalide. », sans rien dire du signe
+  // (recette du 20/10/2026). Le reste de ce qui est tapé passe.
+  document.addEventListener('beforeinput', (e) => {
+    const el = e.target;
+    if (!(el instanceof HTMLInputElement) || el.type !== 'number' || el.min === '' || Number(el.min) < 0) return;
+    const texte = e.data || '', sansMoins = texte.replace(/-/g, '');
+    if (sansMoins === texte) return;
+    // Le texte tapé ou collé passe sans son signe moins.
+    e.preventDefault(/* puis il s'écrit sans lui */);
+    if (sansMoins) document.execCommand('insertText', false, sansMoins);
+  }, true);
+
+  // Un champ de nombre ne propose pas les valeurs déjà tapées ailleurs : la liste du navigateur (« 120 », « 250 », d'autres
+  // pièces) se posait sur la case suivante et se choisissait d'une flèche (recette du 20/10/2026). Posé à l'approche du
+  // champ, avant que le navigateur ne l'ouvre ; un champ qui dit déjà ce qu'il veut garde son réglage.
+  /** @param {Event} e */
+  const sansPropositions = (e) => {
+    const el = e.target;
+    if (el instanceof HTMLInputElement && el.type === 'number' && !el.hasAttribute('autocomplete')) el.setAttribute('autocomplete', 'off');
+  };
+  document.addEventListener('pointerdown', sansPropositions, true);
+  document.addEventListener('focusin', sansPropositions, true);
 })();

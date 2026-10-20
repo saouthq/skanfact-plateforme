@@ -32,6 +32,11 @@
 /* La suivante déborde de 12 points de chaque côté pour respirer, sans élargir la liste (la règle de la v10, 10.14.1). */
 .premiers-pas.pp2 .pp-list li.encours { border-radius: 12px; box-shadow: 0 0 0 12px var(--primary-soft); clip-path: inset(0 -12px round 12px); }
 
+/* Ce qui reste des premiers pas, une fois ceux du métier faits (1.75.0) : « Ne plus afficher », un bouton clair sur le
+   haut sombre (le bouton fantôme de la page, sombre sur sombre, ne se voyait pas). */
+.premiers-pas.pp2 .pp-tete .pp-masquer { background: transparent; color: #e8f3f1; border: 1px solid rgba(232, 243, 241, .4); }
+.premiers-pas.pp2 .pp-tete .pp-masquer:hover { background: rgba(255, 255, 255, .08); }
+
 /* Ce que chaque étape est, à côté de son titre. */
 .pp-badge {
   display: inline-block; margin-inline-start: 8px; vertical-align: 2px; padding: 2px 9px; border-radius: 999px;

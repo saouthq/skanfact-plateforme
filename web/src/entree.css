@@ -432,3 +432,8 @@ body.dark .ent-secours { background: var(--e-nuit-2); }
 .ent-etapes-courtes li { display: flex; gap: 14px; align-items: center; padding: 12px 14px; border-radius: 12px; background: var(--e-doux); font-size: 15px; }
 .ent-etapes-courtes .num { flex: none; width: 28px; height: 28px; border-radius: 50%; background: var(--e-nuit); color: var(--e-menthe); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; }
 body.dark .ent-etapes-courtes .num { background: var(--e-menthe); color: var(--e-nuit); }
+
+/* Le message d'un geste (« ton compte est créé ») se lit en haut des écrans d'entrée : en bas, il recouvrait le bouton
+   d'à côté, « Je suis un cabinet comptable » de la porte (recette du 20/10/2026). Rien ne se clique sous lui ici. */
+#toast { top: calc(env(safe-area-inset-top, 0px) + 16px); bottom: auto; transform: translateX(-50%) translateY(-6px); }
+#toast.show { transform: translateX(-50%) translateY(0); }

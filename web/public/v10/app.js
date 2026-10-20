@@ -716,7 +716,10 @@
     if (!x) return '';
     // Le NOM que lit un lecteur d'écran dit ce que la bulle explique (10.12.0, porté du Cabinet) :
     // des bulles toutes nommées « Qu'est-ce que c'est ? » sont des boutons qu'on ne distingue pas.
-    return `<button type="button" class="i" data-info="${h(key)}" aria-label="Explication : ${h(x.t || key)}" title="Qu'est-ce que c'est ?">i</button>`;
+    // (plateforme) 1.75.0 — la touche Tab ne s'y arrête pas : elle va d'un champ au suivant (recette du 20/10/2026 : au
+    // clavier, chaque « i » prenait un Tab, et ce qu'on tapait tombait dans la case d'avant). La bulle s'ouvre à la
+    // souris, au doigt ou au lecteur d'écran, qui la lit toujours.
+    return `<button type="button" class="i" tabindex="-1" data-info="${h(key)}" aria-label="Explication : ${h(x.t || key)}" title="Qu'est-ce que c'est ?">i</button>`;
   }
   // Un libellé de champ suivi de sa bulle. Le <span> garde les deux sur la même ligne dans un label en colonne.
   const lbl = (text, key) => key ? `<span class="fl">${text} ${info(key)}</span>` : text;
@@ -2992,11 +2995,31 @@
       <p class="small muted">Ton rôle t'ouvre ${pages.length > 1 ? 'ces pages' : 'cette page'}. Le propriétaire ou un administrateur met l'entreprise en place (sa fiche, ses réglages) et règle les rôles de l'équipe.</p>
       <div class="inline mt">${pages.map(([r, l], i) => `<a class="btn${vert && i === 0 ? ' btn-primary' : ''}" href="#/${h(r)}">${h(l)}</a>`).join('')}</div></section>`;
   }
+  // (plateforme) 1.75.0 — les premiers pas du métier faits, le panneau partait avec ce qu'il proposait encore (recette du
+  // 20/10/2026 : le premier devis fait, « Protège ton compte » et « Invite ton comptable » n'étaient plus là, sans un
+  // mot). Ce qui reste se dit dans une carte plus petite, sans bouton vert (l'en-tête reprend le sien), jusqu'à ce que
+  // tout soit fait ou qu'on la masque (« Ne plus afficher », retenu pour la personne, comme la porte de l'accueil).
+  // Jamais dans l'exemple ni dans l'entreprise d'essai.
+  function restesDesPremiersPas(p) {
+    if (p.exemple !== false || p.fini || visitesEtat().restesVus) return '';
+    const restes = p.etapes.filter(e => !e.fait && PAS_ACTIONS[e.action]);
+    if (!restes.length) return '';
+    return `<div class="panel premiers-pas pp2 pp-restes" id="pp-restes">
+      <div class="pp-tete"><div class="pp-tete-txt"><h2>Tes premiers pas sont faits</h2>
+        <p>${restes.length > 1 ? 'Restent ces gestes' : 'Reste ce geste'}, quand tu veux : rien ne presse. Masqué, chacun reste à sa place dans l'application.</p></div>
+        <button type="button" class="btn btn-sm pp-masquer" id="pp-restes-masquer">Ne plus afficher</button></div>
+      <ol class="pp-list">${restes.map(e => `<li>
+          <span class="pp-marque"></span>
+          <span class="pp-txt"><strong>${h(e.titre)}${e.badge ? ` <span class="pp-badge${e.reco ? ' reco' : ''}">${h(e.badge)}</span>` : ''}</strong><span class="small muted">${h(e.quoi)}</span></span>
+          <span class="pp-go"><button class="btn btn-sm" data-pas="${h(e.action)}">${h(PAS_ACTIONS[e.action][0])}</button></span>
+        </li>`).join('')}</ol>
+    </div>`;
+  }
   function premiersPas() {
     if (!estResponsable()) return accueilDuRole();
     relireDemarrage();
     const p = lesPas();
-    if (!p.demarrage) return '';
+    if (!p.demarrage) return restesDesPremiersPas(p);
     const suivante = p.suivante;
     const accueil = accueilVisible();
     // L'accueil se présente comme une PORTE, pas comme une alerte : deux grands choix côte à côte,
@@ -3057,6 +3080,8 @@
     });
     $$('[data-pas-guide]').forEach(b => b.onclick = () => lancerVisite(visiteParId(b.dataset.pasGuide)));
     $$('[data-pas-import]').forEach(b => b.onclick = () => importerTableau(b.dataset.pasImport, () => render(true)));
+    // (plateforme) 1.75.0 — ce qui reste des premiers pas, masqué pour la personne.
+    if ($('#pp-restes-masquer')) $('#pp-restes-masquer').onclick = () => { visitesPoser(e => { e.restesVus = true; }); render(true); };
     if ($('#pp-decouvrir')) $('#pp-decouvrir').onclick = () => lancerVisite(visiteParId('decouvrir'));
     if ($('#pp-guider')) $('#pp-guider').onclick = () => { visitesPoser(e => { e.accueilVu = true; }); lancerVisite(visiteParId('premiers-pas')); };
     if ($('#pp-plus-tard')) $('#pp-plus-tard').onclick = () => {
@@ -3883,6 +3908,13 @@
       // devis sans affaire — on le croyait compté dans la marge du chantier, il ne l'était pas.
       const iAff = parts.indexOf('affaire');
       if (iAff > 1 && projectById(parts[iAff + 1])) doc.projectId = parts[iAff + 1];
+      // (plateforme) 1.75.0 — un seul client : la pièce neuve le prend, avec ce qui se copie de sa fiche (recette du
+      // 20/10/2026 : « Ton premier devis » s'ouvrait vide juste après la création du seul client). Il se change dans la liste.
+      if (!doc.clientId && doc.type !== 'avoir' && data.clients.length === 1) {
+        doc.clientId = data.clients[0].id;
+        applyClientDefaults(doc, doc.clientId);
+        if (type !== 'devis') doc.withholdingRate = clientWithholding(doc.clientId);
+      }
     } else {
       doc = docById(parts[0]); if (!doc) return navigate('#/dashboard'); doc = deepCopy(doc);
     }
@@ -5567,7 +5599,8 @@
         $('#ok', root).onclick = async () => {
         const v = formValues($('#pf2', root));
         if (enLecture('documents')) return refus($('[name=amount]', root), refusLecture('documents'));
-        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');
+        // (plateforme) 1.75.0 — le refus dit ce qui est attendu (recette du 20/10/2026 : « Montant invalide. »).
+        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
         if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus($('[name=amount]', root), `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);
         if (!v.date) return refus($('[name=date]', root), 'Date obligatoire.');
         if ($('[name=exchangeRate]', root) && !(Number(v.exchangeRate) > 0)) return refus($('[name=exchangeRate]', root), 'Taux du jour invalide : saisis combien de dinars valait une unité de la devise ce jour-là.');
@@ -8582,7 +8615,9 @@
     'p-caisse': { onglet: 'documents', titre: 'Caisse et tickets', mots: 'caisse ticket comptoir imprimante thermique 80 mm 58 mm papier timbre message douchette' },
     'p-imprimante': { onglet: 'documents', titre: 'Imprimante de tickets', mots: 'imprimante ticket thermique tiroir caisse reseau port usb essai bureau', visible: () => !!bridge.dessinerImprimante },
     'p-envoi': { onglet: 'envois', titre: 'Envoi des emails', mots: 'mail messagerie apple mailto envoyer piece jointe' },
-    'p-comptable': { onglet: 'envois', titre: 'Ton comptable', mots: 'comptable email adresse envoyer journaux' },
+    // (plateforme) 1.75.0 — « Ton comptable » (une adresse) et « Ton cabinet comptable » (un code) se suivaient sous Envois,
+    // et la recherche proposait les deux sous le même mot (recette du 20/10/2026) : le premier dit ce qu'il fait.
+    'p-comptable': { onglet: 'envois', titre: 'Envoyer tes écritures par e-mail', mots: 'comptable email adresse envoyer journaux ecritures' },
     'p-modeles': { onglet: 'envois', titre: 'Modèles de messages', mots: 'modele message objet relance rappel email gabarit variables' },
     'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable expert code confier mandat livres' },
     'p-export': { onglet: 'donnees', titre: 'Toutes les données de l\'entreprise', mots: 'export exporter telecharger donnees tout fichier copie sauvegarde json garder quitter partir recuperer reversibilite', visible: () => exportVisible() },
@@ -9975,7 +10010,8 @@
       }
       $('#ok', root).onclick = async () => {
         const v = formValues($('#spf', root));
-        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');
+        // (plateforme) 1.75.0 — le refus dit ce qui est attendu, comme le paiement d'une facture.
+        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
         if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus($('[name=amount]', root), `Un montant en ${cur} se compte à ${C.decimalsFor(cur)} décimales au plus.`);
         if (!v.date) return refus($('[name=date]', root), 'Date invalide.');
         if ($('[name=exchangeRate]', root) && !(Number(v.exchangeRate) > 0)) return refus($('[name=exchangeRate]', root), 'Taux du jour invalide : saisis combien de dinars valait une unité de la devise ce jour-là.');
@@ -15814,7 +15850,8 @@
         drawPj();
         $('#ok', root).onclick = async () => {
           const v = formValues($('#mf2', root));
-          if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');
+          // (plateforme) 1.75.0 — le refus dit ce qui est attendu, comme le paiement d'une facture.
+          if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
           if (!v.date) return refus($('[name=date]', root), 'Date invalide.');
           if (v.kind === 'virement' && !v.versAccountId) return refus($('[name=versAccountId]', root), 'Choisis le compte qui reçoit l\'argent.');
           if (v.kind === 'virement' && v.versAccountId === v.accountId) return refus($('[name=versAccountId]', root), 'Un virement va d\'un compte à un AUTRE : choisis le compte qui reçoit l\'argent.');
@@ -18467,7 +18504,7 @@
         ${panneau('p-envoi')}<p class="small muted" id="mail-fixe">Le message s'ouvre dans la messagerie de ton appareil, sans pièce jointe : un navigateur ne sait pas en joindre. Pour une facture ou un avoir émis, SkanFact met dans le message le lien de la pièce : ton client y voit la pièce telle que tu l'imprimes, et ce qu'il en doit ; il la règle en ligne si tu as branché le paiement en ligne (onglet Documents). Il n'y a rien à régler ici.</p></div>
         ${panneau('p-comptable')}<div class="grid-2">
           ${field(lbl('Email du comptable', 'compta.comptable'), 'accountantEmail', c.accountantEmail || '', 'email', 'placeholder="comptable@cabinet.tn"')}
-        </div><p class="small muted mt">Utilisé par « Envoyer au comptable » sur la page Comptabilité.</p></div>
+        </div><p class="small muted mt">Utilisé par « Envoyer au comptable » sur la page Comptabilité. Ton comptable a SkanFact Cabinet ? Relie-le plutôt dans « Ton cabinet comptable », plus bas : il voit tes pièces au fil de l'eau, sans e-mail.</p></div>
         ${panneau('p-modeles', info('mail.templates'))}
           <p class="small muted mt">Variables utilisables : {numero} {client} {objet} {montant} {echeance} {jours} {societe} {reference}. Les documents en anglais utilisent les modèles en anglais.</p>
           <!-- Les deux jeux sont REPLIÉS : trente-deux champs de texte à eux seuls, c'est-à-dire

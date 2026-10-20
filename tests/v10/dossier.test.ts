@@ -78,6 +78,20 @@ describe('le dossier v10 tenu par le serveur', () => {
     expect(await e.lire()).toEqual(objets);
   });
 
+  it('la ville donnée à la création ouvre l\'adresse de la fiche ; sans ville, la fiche n\'a pas d\'adresse', async () => {
+    const email = `ville-${++n}-${Date.now()}@exemple.tn`;
+    await appeler('POST', '/inscription', undefined, { email, nom: `Ville ${n}`, motDePasse: 'Un-bon-mot-de-passe' });
+    const jeton = String((await appeler('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    await appeler('POST', '/moi/code', jeton, { methode: 'application' });
+    const fiche = async (corps: Record<string, string>) => {
+      const ent = String((await appeler('POST', '/entreprises', jeton, corps)).corps.id);
+      const objets = (await appeler('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as Objet[];
+      return objets.find((o) => o.collection === '_racine' && o.cle === 'company')?.contenu;
+    };
+    expect(await fiche({ raisonSociale: 'Menuiserie de Sfax', ville: 'Sfax' })).toEqual({ name: 'Menuiserie de Sfax', matricule: '', address: 'Sfax' });
+    expect(await fiche({ raisonSociale: 'Menuiserie sans ville' })).toEqual({ name: 'Menuiserie sans ville', matricule: '' });
+  });
+
   it('un objet changé ailleurs n\'est jamais écrasé, et un envoi refusé n\'écrit rien, pas même ses autres objets', async () => {
     const e = await essai();
     expect((await e.envoyer([{ collection: 'catalog', cle: 'a1', rang: 0, revision: null, contenu: { id: 'a1', label: 'Pose', unitPrice: 85 } }])).statut).toBe(200);

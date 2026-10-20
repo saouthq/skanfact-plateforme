@@ -1,0 +1,131 @@
+Ce que la recette du 20/10/2026 a trouvé côté entreprise (1.75.0 ; docs/recette.md, « Une entreprise neuve, son
+cabinet et la console »). Format : voir sans-paquets.mjs.
+
+Une personne qui crée sa boîte, refait au clavier et à la souris : la touche Tab s'arrêtait sur chaque « i » d'aide, le
+premier devis s'ouvrait sans le seul client, « Montant invalide. » ne disait pas ce qui était attendu, « Tes premiers
+pas » disparaissait avec ce qui restait à faire, et deux blocs « comptable » se suivaient sous Envois.
+
+== app.js | la touche Tab va d'un champ au suivant, sans s'arrêter sur les « i » d'aide
+-- avant
+    return `<button type="button" class="i" data-info="${h(key)}" aria-label="Explication : ${h(x.t || key)}" title="Qu'est-ce que c'est ?">i</button>`;
+-- après
+    // (plateforme) 1.75.0 — la touche Tab ne s'y arrête pas : elle va d'un champ au suivant (recette du 20/10/2026 : au
+    // clavier, chaque « i » prenait un Tab, et ce qu'on tapait tombait dans la case d'avant). La bulle s'ouvre à la
+    // souris, au doigt ou au lecteur d'écran, qui la lit toujours.
+    return `<button type="button" class="i" tabindex="-1" data-info="${h(key)}" aria-label="Explication : ${h(x.t || key)}" title="Qu'est-ce que c'est ?">i</button>`;
+-- fin
+
+== cabinet/app.js | au Cabinet aussi, la touche Tab ne s'arrête pas sur les « i » d'aide
+-- avant
+    return `<button type="button" class="i" data-info="${esc(key)}" aria-label="Explication : ${esc(G.INFO[key].t || key)}" title="Qu'est-ce que c'est ?">i</button>`;
+-- après
+    // (plateforme) 1.75.0 — la touche Tab ne s'y arrête pas, comme dans l'entreprise : elle va d'un champ au suivant.
+    return `<button type="button" class="i" tabindex="-1" data-info="${esc(key)}" aria-label="Explication : ${esc(G.INFO[key].t || key)}" title="Qu'est-ce que c'est ?">i</button>`;
+-- fin
+
+== app.js | une pièce neuve prend le client quand il n'y en a qu'un
+-- avant
+      if (iAff > 1 && projectById(parts[iAff + 1])) doc.projectId = parts[iAff + 1];
+    } else {
+-- après
+      if (iAff > 1 && projectById(parts[iAff + 1])) doc.projectId = parts[iAff + 1];
+      // (plateforme) 1.75.0 — un seul client : la pièce neuve le prend, avec ce qui se copie de sa fiche (recette du
+      // 20/10/2026 : « Ton premier devis » s'ouvrait vide juste après la création du seul client). Il se change dans la liste.
+      if (!doc.clientId && doc.type !== 'avoir' && data.clients.length === 1) {
+        doc.clientId = data.clients[0].id;
+        applyClientDefaults(doc, doc.clientId);
+        if (type !== 'devis') doc.withholdingRate = clientWithholding(doc.clientId);
+      }
+    } else {
+-- fin
+
+== app.js | le paiement d'une facture : un montant refusé dit ce qui est attendu
+-- avant
+        if (enLecture('documents')) return refus($('[name=amount]', root), refusLecture('documents'));
+        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');
+-- après
+        if (enLecture('documents')) return refus($('[name=amount]', root), refusLecture('documents'));
+        // (plateforme) 1.75.0 — le refus dit ce qui est attendu (recette du 20/10/2026 : « Montant invalide. »).
+        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
+-- fin
+
+== app.js | le règlement d'un fournisseur : un montant refusé dit ce qui est attendu
+-- avant
+        const v = formValues($('#spf', root));
+        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');
+-- après
+        const v = formValues($('#spf', root));
+        // (plateforme) 1.75.0 — le refus dit ce qui est attendu, comme le paiement d'une facture.
+        if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
+-- fin
+
+== app.js | un mouvement de trésorerie : un montant refusé dit ce qui est attendu
+-- avant
+          const v = formValues($('#mf2', root));
+          if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Montant invalide.');
+-- après
+          const v = formValues($('#mf2', root));
+          // (plateforme) 1.75.0 — le refus dit ce qui est attendu, comme le paiement d'une facture.
+          if (!(Number(v.amount) > 0)) return refus($('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
+-- fin
+
+== app.js | les premiers pas faits, ce qui reste se dit encore, jusqu'à ce qu'on le masque
+-- avant
+    if (!p.demarrage) return '';
+-- après
+    if (!p.demarrage) return restesDesPremiersPas(p);
+-- fin
+
+== app.js | ce qui reste des premiers pas : la carte
+-- avant
+  function premiersPas() {
+    if (!estResponsable()) return accueilDuRole();
+-- après
+  // (plateforme) 1.75.0 — les premiers pas du métier faits, le panneau partait avec ce qu'il proposait encore (recette du
+  // 20/10/2026 : le premier devis fait, « Protège ton compte » et « Invite ton comptable » n'étaient plus là, sans un
+  // mot). Ce qui reste se dit dans une carte plus petite, sans bouton vert (l'en-tête reprend le sien), jusqu'à ce que
+  // tout soit fait ou qu'on la masque (« Ne plus afficher », retenu pour la personne, comme la porte de l'accueil).
+  // Jamais dans l'exemple ni dans l'entreprise d'essai.
+  function restesDesPremiersPas(p) {
+    if (p.exemple !== false || p.fini || visitesEtat().restesVus) return '';
+    const restes = p.etapes.filter(e => !e.fait && PAS_ACTIONS[e.action]);
+    if (!restes.length) return '';
+    return `<div class="panel premiers-pas pp2 pp-restes" id="pp-restes">
+      <div class="pp-tete"><div class="pp-tete-txt"><h2>Tes premiers pas sont faits</h2>
+        <p>${restes.length > 1 ? 'Restent ces gestes' : 'Reste ce geste'}, quand tu veux : rien ne presse. Masqué, chacun reste à sa place dans l'application.</p></div>
+        <button type="button" class="btn btn-sm pp-masquer" id="pp-restes-masquer">Ne plus afficher</button></div>
+      <ol class="pp-list">${restes.map(e => `<li>
+          <span class="pp-marque"></span>
+          <span class="pp-txt"><strong>${h(e.titre)}${e.badge ? ` <span class="pp-badge${e.reco ? ' reco' : ''}">${h(e.badge)}</span>` : ''}</strong><span class="small muted">${h(e.quoi)}</span></span>
+          <span class="pp-go"><button class="btn btn-sm" data-pas="${h(e.action)}">${h(PAS_ACTIONS[e.action][0])}</button></span>
+        </li>`).join('')}</ol>
+    </div>`;
+  }
+  function premiersPas() {
+    if (!estResponsable()) return accueilDuRole();
+-- fin
+
+== app.js | « Ne plus afficher » masque ce qui reste des premiers pas
+-- avant
+    $$('[data-pas-import]').forEach(b => b.onclick = () => importerTableau(b.dataset.pasImport, () => render(true)));
+-- après
+    $$('[data-pas-import]').forEach(b => b.onclick = () => importerTableau(b.dataset.pasImport, () => render(true)));
+    // (plateforme) 1.75.0 — ce qui reste des premiers pas, masqué pour la personne.
+    if ($('#pp-restes-masquer')) $('#pp-restes-masquer').onclick = () => { visitesPoser(e => { e.restesVus = true; }); render(true); };
+-- fin
+
+== app.js | Paramètres › Envois : l'adresse du comptable dit ce qu'elle fait, et renvoie au cabinet
+-- avant
+    'p-comptable': { onglet: 'envois', titre: 'Ton comptable', mots: 'comptable email adresse envoyer journaux' },
+-- après
+    // (plateforme) 1.75.0 — « Ton comptable » (une adresse) et « Ton cabinet comptable » (un code) se suivaient sous Envois,
+    // et la recherche proposait les deux sous le même mot (recette du 20/10/2026) : le premier dit ce qu'il fait.
+    'p-comptable': { onglet: 'envois', titre: 'Envoyer tes écritures par e-mail', mots: 'comptable email adresse envoyer journaux ecritures' },
+-- fin
+
+== app.js | l'adresse du comptable, puis le cabinet : lequel choisir
+-- avant
+        </div><p class="small muted mt">Utilisé par « Envoyer au comptable » sur la page Comptabilité.</p></div>
+-- après
+        </div><p class="small muted mt">Utilisé par « Envoyer au comptable » sur la page Comptabilité. Ton comptable a SkanFact Cabinet ? Relie-le plutôt dans « Ton cabinet comptable », plus bas : il voit tes pièces au fil de l'eau, sans e-mail.</p></div>
+-- fin

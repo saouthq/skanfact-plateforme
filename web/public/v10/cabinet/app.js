@@ -288,7 +288,8 @@
     // Le NOM que lit un lecteur d'écran dit ce que la bulle explique (10.12.0) : trois bulles
     // nommées « Qu'est-ce que c'est ? » sur une page sont trois boutons qu'on ne distingue pas —
     // c'est Browser Use, qui lit l'arbre d'accessibilité, qui l'a montré.
-    return `<button type="button" class="i" data-info="${esc(key)}" aria-label="Explication : ${esc(G.INFO[key].t || key)}" title="Qu'est-ce que c'est ?">i</button>`;
+    // (plateforme) 1.75.0 — la touche Tab ne s'y arrête pas, comme dans l'entreprise : elle va d'un champ au suivant.
+    return `<button type="button" class="i" tabindex="-1" data-info="${esc(key)}" aria-label="Explication : ${esc(G.INFO[key].t || key)}" title="Qu'est-ce que c'est ?">i</button>`;
   }
   const lbl = (text, key) => key ? `<span class="fl">${text} ${info(key)}</span>` : text;
 

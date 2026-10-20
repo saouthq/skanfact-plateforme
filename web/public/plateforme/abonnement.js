@@ -27,13 +27,17 @@
   const jour = (j) => (j && /^\d{4}-\d{2}-\d{2}$/.test(j) ? `${j.slice(8, 10)}/${j.slice(5, 7)}/${j.slice(0, 4)}` : '');
   /** @param {number} n @param {string} un @param {string} [plusieurs] */
   const pl = (n, un, plusieurs) => `${n}\u00a0${n > 1 ? (plusieurs || `${un}s`) : un}`;
-  // Un montant du serveur (« 390.000 ») : 390 DT ; 39,500 DT s'il a des millimes.
-  /** @param {string} t */
-  function montant(t) {
+  // Un montant du serveur (« 390.000 ») : 390 DT ; 39,500 DT s'il a des millimes, ou si un montant voisin en a
+  // (`millimes`) : « 12 DT par an ou 1,200 DT par mois » se lisait « mille deux cents » (recette du 20/10/2026).
+  /** @param {string} t @param {boolean} [millimes] */
+  function montant(t, millimes = false) {
     const [e = '0', d = ''] = String(t).split('.');
     const entier = e.replace(/\B(?=(\d{3})+(?!\d))/g, '\u00a0');
-    return `${entier}${/^0*$/.test(d) ? '' : `,${d.padEnd(3, '0')}`}\u00a0DT`;
+    return `${entier}${/^0*$/.test(d) && !millimes ? '' : `,${d.padEnd(3, '0')}`}\u00a0DT`;
   }
+  // Deux prix lus côte à côte (par an, par mois) s'écrivent de la même façon : avec leurs millimes dès que l'un en a.
+  /** @param {...(string | undefined)} prix */
+  const avecMillimes = (...prix) => prix.some((x) => x && !/^0*$/.test(String(x).split('.')[1] || ''));
 
   // Les factures de l'abonnement (14b ; docs/abonnement.md B5) : la pièce telle que SkanFact l'imprime, par le gabarit de
   // la v10 (`SkanCore`, chargé avec l'application), comme l'espace client la montre à tout client.
@@ -455,14 +459,15 @@
       const o = OFFRES[k];
       if (!o) return '';
       const an = prixDe(k, 'annuel'), mois = prixDe(k, 'mensuel');
+      const mm = avecMillimes(an, mois);
       const courante = a.etat.etat === 'actif' && a.etat.offre === k;
       const aVenir = annonces(k);
       const pas = courante ? ceQuiNEstPasDansLOffre(k, contenus, a.modules, a.fermes) : '';
       return `<article class="abo-offre${courante ? ' courante' : ''}" data-offre="${k}">
         <header class="abo-offre-tete"><h4>${esc(o.nom)}</h4>${courante ? '<span class="abo-badge">Ton offre</span>' : ''}</header>
         <p class="abo-pour">${esc(o.pour)}</p>
-        <p class="abo-prix">${an ? `<b>${esc(montant(an).replace(/\u00a0DT$/, ''))}</b><span>DT HT par an</span>` : ''}</p>
-        <p class="abo-mois">${mois ? `ou ${esc(montant(mois))} HT par mois` : ''}</p>
+        <p class="abo-prix">${an ? `<b>${esc(montant(an, mm).replace(/\u00a0DT$/, ''))}</b><span>DT HT par an</span>` : ''}</p>
+        <p class="abo-mois">${mois ? `ou ${esc(montant(mois, mm))} HT par mois` : ''}</p>
         ${avecAnnonces ? `<div class="abo-avenir-bloc">${aVenir.length ? aVenir.map((t) => `<p class="abo-avenir">${esc(t)}</p>`).join('')
           : '<p class="abo-avenir-rien">Aucun changement annoncé.</p>'}</div>` : ''}
         <div class="abo-offre-corps"><ul class="abo-inclus">${inclusDe(k, contenus[/** @type {'essentiel' | 'complet'} */ (k)] || {}).map((i) => `<li>${ICONE_COCHE}<span>${esc(i)}</span></li>`).join('')}</ul>
@@ -486,12 +491,13 @@
     };
     const enPlus = EN_PLUS.map((l) => {
       const an = prixOption(l.option, 'annuel'), mois = prixOption(l.option, 'mensuel');
+      const mm = avecMillimes(an, mois);
       const compris = l.compris(contenus);
       // Un module que les deux offres contiennent ne s'achète pas seul : sa ligne se tait.
       if ((!an && !mois) || (!l.compte && !compris)) return '';
       const auj = aujourdhui(l);
       return `<li data-option="${l.option}"><span class="abo-plus-quoi"><b>${esc(l.nom)}</b>${compris ? `<span>${esc(compris)}</span>` : ''}${auj.texte ? `<span class="abo-plus-auj${auj.plus ? ' en-plus' : ''}">${esc(auj.texte)}</span>` : ''}</span>
-        <span class="abo-plus-prix">${an ? `<b>${esc(montant(an))} HT par an</b>` : ''}${mois ? `<span>${an ? 'ou ' : ''}${esc(montant(mois))} HT par mois</span>` : ''}${annonces(l.option).map((t) => `<span class="abo-plus-avenir">${esc(t)}</span>`).join('')}</span></li>`;
+        <span class="abo-plus-prix">${an ? `<b>${esc(montant(an, mm))} HT par an</b>` : ''}${mois ? `<span>${an ? 'ou ' : ''}${esc(montant(mois, mm))} HT par mois</span>` : ''}${annonces(l.option).map((t) => `<span class="abo-plus-avenir">${esc(t)}</span>`).join('')}</span></li>`;
     }).join('');
     const histoire = a.historique.map((v) => `<li><span class="abo-quand">${esc(jour(String(v.le).slice(0, 10)))}</span><span>${esc(NATURES[v.nature] || v.nature)}${apresEnClair(v) ? ` <span class="muted">(${esc(apresEnClair(v))})</span>` : ''}</span></li>`).join('');
     const sujet = encodeURIComponent(a.etat.etat === 'actif' ? 'Mon abonnement SkanFact' : 'M\'abonner à SkanFact');

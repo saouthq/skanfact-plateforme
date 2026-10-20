@@ -1323,11 +1323,13 @@ prouver "« Marquer annulée… » encore proposé" $V10A \
 prouver "un paiement trop précis découvert seulement à l'enregistrement" $V10A \
   "        const v = formValues(\$('#pf2', root));
         if (enLecture('documents')) return refus(\$('[name=amount]', root), refusLecture('documents'));
-        if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Montant invalide.');
+        // (plateforme) 1.75.0 — le refus dit ce qui est attendu (recette du 20/10/2026 : « Montant invalide. »).
+        if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
         if (bridge.emettre && (String(v.amount).split('.')[1] || '').length > C.decimalsFor(cur)) return refus(\$('[name=amount]', root), \`Un montant en \${cur} se compte à \${C.decimalsFor(cur)} décimales au plus.\`);
 " "        const v = formValues(\$('#pf2', root));
         if (enLecture('documents')) return refus(\$('[name=amount]', root), refusLecture('documents'));
-        if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Montant invalide.');
+        // (plateforme) 1.75.0 — le refus dit ce qui est attendu (recette du 20/10/2026 : « Montant invalide. »).
+        if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
 " \
   "$PX"
 prouver "la caisse qui vend sans le serveur" $V10A \
@@ -1418,9 +1420,11 @@ prouver "l'écran qui laisse supprimer une facture sous son avoir" $V10A \
   "$AP"
 prouver "un règlement fournisseur trop précis découvert seulement à l'enregistrement" $V10A \
   "        const v = formValues(\$('#spf', root));
-        if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Montant invalide.');
+        // (plateforme) 1.75.0 — le refus dit ce qui est attendu, comme le paiement d'une facture.
+        if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
         if (bridge.emettre" "        const v = formValues(\$('#spf', root));
-        if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Montant invalide.');
+        // (plateforme) 1.75.0 — le refus dit ce qui est attendu, comme le paiement d'une facture.
+        if (!(Number(v.amount) > 0)) return refus(\$('[name=amount]', root), 'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.');
         if (false" \
   "$AP"
 prouver "des frais d'achat trop précis découverts seulement à l'enregistrement" $V10A \
@@ -18371,6 +18375,78 @@ prouver '« Annuler » qui ne défait rien' 'web/public/v10/app.js' \
   'if (x) { x.paidDate = a.paidDate; x.accountId = a.accountId; }' \
   'if (x) { x.accountId = a.accountId; }' \
   'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+
+# 1.75.0 : la recette d'une entreprise neuve (Tab, client seul, montants, premiers pas, envois, ville, prix).
+prouver 'le « i » d'"'"'aide de l'"'"'entrée dans l'"'"'ordre de la touche Tab' 'web/src/composants/Info.tsx' \
+  'className="i" tabIndex={-1} aria-expanded' \
+  'className="i" aria-expanded' \
+  'au clavier, le compte se crée case après case ; le message se lit en haut ; la ville ouvre l'"'"'adresse'
+prouver 'le « i » d'"'"'aide de l'"'"'application dans l'"'"'ordre de la touche Tab' 'web/public/v10/app.js' \
+  'class="i" tabindex="-1" data-info="${h(key)}"' \
+  'class="i" data-info="${h(key)}"' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+prouver 'le « i » d'"'"'aide du Cabinet dans l'"'"'ordre de la touche Tab' 'web/public/v10/cabinet/app.js' \
+  'class="i" tabindex="-1" data-info="${esc(key)}"' \
+  'class="i" data-info="${esc(key)}"' \
+  'la session ouvre le cabinet ; ses dossiers sont le portefeuille du serveur ; le livre d'"'"'un client est celui du serveur'
+prouver 'le message de l'"'"'entrée posé en bas, sur le bouton d'"'"'à côté' 'web/src/entree.css' \
+  '#toast { top: calc(env(safe-area-inset-top, 0px) + 16px); bottom: auto; transform: translateX(-50%) translateY(-6px); }' \
+  '' \
+  'au clavier, le compte se crée case après case ; le message se lit en haut ; la ville ouvre l'"'"'adresse'
+prouver 'la ville donnée à la création que la fiche ne reprend pas' 'serveur/v10/dossier.ts' \
+  '...(e.ville ? { address: e.ville } : {})' \
+  '' \
+  'la ville donnée à la création ouvre l'"'"'adresse de la fiche ; sans ville, la fiche n'"'"'a pas d'"'"'adresse'
+prouver 'la ville que la fiche prend même absente' 'serveur/v10/dossier.ts' \
+  '...(e.ville ? { address: e.ville } : {})' \
+  'address: e.ville ?? '"'"''"'"'' \
+  'la ville donnée à la création ouvre l'"'"'adresse de la fiche ; sans ville, la fiche n'"'"'a pas d'"'"'adresse'
+prouver 'la pièce neuve qui attend un client quand il n'"'"'y en a qu'"'"'un' 'web/public/v10/app.js' \
+  'if (!doc.clientId && doc.type !== '"'"'avoir'"'"' && data.clients.length === 1) {' \
+  'if (false) {' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+prouver 'la pièce neuve qui prend un client parmi plusieurs' 'web/public/v10/app.js' \
+  'if (!doc.clientId && doc.type !== '"'"'avoir'"'"' && data.clients.length === 1) {' \
+  'if (!doc.clientId && doc.type !== '"'"'avoir'"'"' && data.clients.length >= 1) {' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+prouver 'le signe moins qui s'"'"'écrit dans un montant' 'web/public/plateforme/virgule.js' \
+  '    if (sansMoins === texte) return;' \
+  '    return;' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+prouver 'un champ de nombre qui propose les valeurs déjà tapées' 'web/public/plateforme/virgule.js' \
+  'el.setAttribute('"'"'autocomplete'"'"', '"'"'off'"'"');' \
+  'void el;' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+prouver '« Montant invalide. » qui ne dit pas ce qui est attendu' 'web/public/v10/app.js' \
+  '« Montant invalide. »).
+        if (!(Number(v.amount) > 0)) return refus($('"'"'[name=amount]'"'"', root), '"'"'Écris le montant en chiffres, plus grand que zéro : par exemple 250,500.'"'"');' \
+  '« Montant invalide. »).
+        if (!(Number(v.amount) > 0)) return refus($('"'"'[name=amount]'"'"', root), '"'"'Montant invalide.'"'"');' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+prouver 'ce qui reste des premiers pas qui part avec le panneau' 'web/public/v10/app.js' \
+  '    if (!p.demarrage) return restesDesPremiersPas(p);' \
+  '    if (!p.demarrage) return '"'"''"'"';' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+prouver 'ce qui reste des premiers pas avec un bouton vert' 'web/public/v10/app.js' \
+  '<button class="btn btn-sm" data-pas="${h(e.action)}">${h(PAS_ACTIONS[e.action][0])}</button>' \
+  '<button class="btn btn-sm btn-primary" data-pas="${h(e.action)}">${h(PAS_ACTIONS[e.action][0])}</button>' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+prouver '« Ne plus afficher » qui ne retient rien' 'web/public/v10/app.js' \
+  'visitesPoser(e => { e.restesVus = true; }); render(true); };' \
+  'render(true); };' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+prouver 'l'"'"'adresse du comptable sous le même mot que le cabinet' 'web/public/v10/app.js' \
+  'titre: '"'"'Envoyer tes écritures par e-mail'"'"'' \
+  'titre: '"'"'Ton comptable'"'"'' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+prouver 'l'"'"'adresse du comptable qui ne renvoie pas au cabinet' 'web/public/v10/app.js' \
+  ' Ton comptable a SkanFact Cabinet ? Relie-le plutôt dans « Ton cabinet comptable », plus bas : il voit tes pièces au fil de l'"'"'eau, sans e-mail.' \
+  '' \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'"'"'il attend, ce qui reste des premiers pas, les envois'
+prouver 'deux prix voisins écrits l'"'"'un avec ses millimes, l'"'"'autre sans' 'web/public/plateforme/abonnement.js' \
+  '/^0*$/.test(d) && !millimes ? '"'"''"'"'' \
+  '/^0*$/.test(d) ? '"'"''"'"'' \
+  'la direction ouvre la paie seule, la facture compte ce qui dépasse ; le client voit sa paie ouverte et les prix de ce qui s'"'"'ajoute'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

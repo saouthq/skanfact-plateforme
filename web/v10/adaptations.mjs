@@ -786,4 +786,6 @@ export const ADAPTATIONS = [
   ...lireFichier('paie-cabinet-declaration-employeur.txt'),
   // ── Payer les salaires du mois (20/10/2026, 1.74.0 ; docs/paie.md) : l'ordre de virement, le RIB du salarié contrôlé ──
   ...lireFichier('paie-virement-salaires.txt'),
+  // ── La recette du 20/10/2026, côté entreprise (1.75.0 ; docs/recette.md) : Tab, client seul, montants, premiers pas ──
+  ...lireFichier('recette-entreprise.txt'),
 ];

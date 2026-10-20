@@ -105,7 +105,7 @@
     const exemple = !!C.estDemo(d) || !!e.essai;
     const demarrage = !exemple && lesEtapes.some((x) => !x.fait && !x.facultatif && !x.recommande);
     const suivante = exemple ? null : lesEtapes.find((x) => !x.fait && !x.facultatif) || null;
-    return { etapes: lesEtapes, faits, total: lesEtapes.length, fini: faits === lesEtapes.length, demarrage, suivante };
+    return { etapes: lesEtapes, faits, total: lesEtapes.length, fini: faits === lesEtapes.length, demarrage, suivante, exemple };
   }
 
   /** @type {any} */ (window).SkanPremiersPas = { etapes };

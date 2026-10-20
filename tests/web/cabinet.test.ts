@@ -99,6 +99,9 @@ describe('le Cabinet, à la souris', () => {
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await p.waitForTimeout(1500);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-2-balance.png') });
+    // Au clavier, la touche Tab va d'un champ au suivant, sans s'arrêter sur un « i » d'aide (1.75.0, comme l'entreprise).
+    await expect.poll(() => p.locator('button.i').count()).toBeGreaterThan(0);
+    expect(await p.locator('button.i:not([tabindex="-1"])').count()).toBe(0);
     // Deux chemins, un chiffre : la balance que l'écran du Cabinet calcule (compta.js, sur le livre
     // que le pont lui donne) est celle du serveur, compte par compte.
     const millimes = (t: string) => BigInt(t.replace(/[^0-9,-]/g, '').replace(',', '') || '0');

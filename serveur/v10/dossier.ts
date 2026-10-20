@@ -119,11 +119,13 @@ async function suivreReglements(tx: Transaction, entreprise: string, utilisateur
 // clients (ceux de l'entreprise d'essai, par exemple).
 async function amorcer(tx: Transaction, entreprise: string, utilisateur: string) {
   const db = requetes(tx);
-  const e = await db.selectFrom('socle.entreprise').select(['raison_sociale', 'matricule_fiscal']).where('id', '=', entreprise).executeTakeFirstOrThrow();
+  const e = await db.selectFrom('socle.entreprise').select(['raison_sociale', 'matricule_fiscal', 'ville']).where('id', '=', entreprise).executeTakeFirstOrThrow();
   const tiers = await db.selectFrom('socle.tiers').select(['id', 'raison_sociale', 'identifiant', 'adresse', 'email', 'telephone', 'devise'])
     .where('entreprise', '=', entreprise).where('ref_v10', 'is', null).execute();
   const objets: { collection: string; cle: string; contenu: unknown }[] = [
-    { collection: '_racine', cle: 'company', contenu: { name: e.raison_sociale, matricule: e.matricule_fiscal ?? '' } },
+    // La ville donnée à la création (« Ton entreprise ») ouvre l'adresse : la v10 lit la ville sur sa dernière ligne, et
+    // « Où te joindre ? » ne la redemande pas (recette du 20/10/2026 : on la retapait).
+    { collection: '_racine', cle: 'company', contenu: { name: e.raison_sociale, matricule: e.matricule_fiscal ?? '', ...(e.ville ? { address: e.ville } : {}) } },
     ...tiers.map((t) => ({
       collection: 'clients', cle: t.id, contenu: {
         id: t.id, name: t.raison_sociale, matricule: t.identifiant ?? '', address: t.adresse ?? '', email: t.email ?? '', phone: t.telephone ?? '',

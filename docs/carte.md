@@ -477,6 +477,12 @@ vaut pour tout le dépôt.*
     demandés et parmi ceux qui touchent l'entreprise : **une table de référence nouvelle a sa fonction**
     (`REFERENCES_PAR_FONCTION`), sinon l'export de l'entreprise refuse. Deux brouillons du cabinet ne partent plus (une
     question non envoyée, un fichier non joint).
+  - **La recette d'une entreprise neuve** (1.75.0, 20/10/2026 ; `docs/recette.md`, `web/v10/recette-entreprise.txt`) : la
+    touche Tab sans les « i » d'aide (`Info.tsx`, `info()` de l'application et du Cabinet), le message de l'entrée en haut
+    (`entree.css`), la ville de la porte dans l'adresse (`serveur/v10/dossier.ts`), la pièce neuve qui prend le seul
+    client, le refus d'un montant qui dit ce qui est attendu, le signe moins et les propositions du navigateur hors des
+    champs de nombre (`virgule.js`), ce qui reste des premiers pas (`restesDesPremiersPas`), l'adresse du comptable
+    renommée, deux prix voisins écrits pareil (`abonnement.js`).
   - **Le lot débutant (2)** (12/10/2026 ; `docs/debutant.md`, `web/v10/debutant-2.txt`) : les gênants d'un commerçant
     qui débute, refaits à la souris sur une quincaillerie. Le mot du catalogue suit le métier (`motsCatalogue` :
     « article » pour le commerce, la restauration, l'artisanat) ; une dépense sans fournisseur se range sous UNE fiche
