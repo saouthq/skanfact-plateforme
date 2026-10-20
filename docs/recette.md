@@ -389,6 +389,49 @@ payés » solde le 425 au millime par la banque.
 - `tests/web/cabinet-livre-a-jour.test.ts` : le client à valider nommé sous l'échéance, et sa saisie ouverte.
 - Huit preuves (`tests/preuves.sh`, « 1.81.0 »).
 
+## 1.82.0 — la recette alpha, suite : le Cabinet nomme les clients, et l'en-tête suit (20/10/2026)
+
+### Ce que le lot corrige
+
+- **La balance auxiliaire du Cabinet rangeait tous les clients sous « (sans tiers) ».** Les écritures nées d'une
+  facture, d'un ticket ou d'un achat gardaient l'identifiant de leur tiers, jamais son nom : la colonne « Tiers » du
+  livre-journal était vide, la balance auxiliaire disait deux fois « (sans tiers) » pour Hotel Les Oliviers (8 492,746
+  DT dus) et la vente au comptoir, et « Ce qui reste dû, par ancienneté » ne disait pas qui doit. Le serveur rend le nom
+  du tiers de chaque écriture (`tiersNom`), et le Cabinet le porte sur chaque ligne, comme la v10.
+- **« Ce qui reste dû, par ancienneté »** listait un client soldé (« Vente au comptoir … 0,000 DT ») et comptait
+  « 2 tiers » pour un seul qui doit : un tiers soldé n'y prend plus de ligne (son détail reste dans le lettrage).
+- **L'en-tête d'un dossier disait « 1 mois à valider »** après « Valider les 20 pièces d'octobre 2026 », jusqu'au
+  rechargement de la page : chaque validation (en lot, d'une écriture, à la saisie) et chaque brouillard enregistré
+  relisent l'état, et la phrase se montre, change ou se cache.
+- **La TFP et le FOPROLOS d'octobre** disaient « aucun compte du plan de ce dossier ne la porte » d'un dossier dont
+  septembre les donnait au millime : ce qui manquait, c'était la paie d'octobre. La case dit « Pas encore de paie sur
+  ce mois » et mène à la paie du mois.
+- **L'écart d'un Z** (un excédent ou un manque du tiroir) s'écrivait au dossier, mais l'écran qui venait de fermer la
+  caisse ne le voyait pas : la Trésorerie gardait l'ancien solde de la caisse (352,032 DT au lieu des 369,880 comptés)
+  jusqu'au rechargement de la page. Le serveur rend le mouvement posé avec le Z, et l'écran l'ajoute aussitôt.
+- **Console, Réglages › Nos factures** : « crée l'entreprise SkanFact dans l'application » n'avait pas de lien ;
+  « Ouvrir l'application » y mène.
+
+### Vu juste, à la souris (sans correction)
+
+- Un ticket remisé de 7,5 % en prix TTC : 130,900 − 9,818 = 121,082 DT, TVA extraite du TTC (19,332 DT) ; l'écran, le
+  serveur et le Z disent le même chiffre. L'extraction de la TVA d'un prix TTC reste À VÉRIFIER avec un comptable.
+- Le Z d'une session qui porte un retour : le tiroir devait contenir fond + espèces − remboursement (352,032 DT).
+- Une facture en euros (1 190,29 EUR à 3,4) : 4 046,986 DT au 411, l'écart de 0,014 DT du timbre converti en perte de
+  change. L'écart de 15,550 DT entre « Reste à payer » (entreprise) et le 411 (Cabinet) est la retenue à la source pas
+  encore subie : elle naît au règlement.
+
+### Ce qui le prouve
+
+- `tests/compta/livres.test.ts` : chaque écriture née d'une pièce dit le nom de son tiers.
+- `tests/web/cabinet-balance-tiers.test.ts` (nouveau) : le livre-journal et la balance auxiliaire nomment les clients ;
+  « Ce qui reste dû » ne garde pas le client soldé par son avoir.
+- `tests/web/cabinet-livre-a-jour.test.ts` : l'en-tête dit « 1 mois à valider », puis l'efface une fois tout validé.
+- `tests/moteur/declaration-paie-a-venir.test.ts` (nouveau) : la TFP d'un mois sans paie attend la paie.
+- `tests/web/console.test.ts` : la carte « Nos factures » mène à l'application.
+- `tests/web/caisse-z.test.ts` : l'excédent du Z rejoint la caisse de la Trésorerie sans recharger la page.
+- Sept preuves (`tests/preuves.sh`, « 1.82.0 »).
+
 ## Ce qui reste (les lots suivants)
 
 1. **1.79** : choisir son offre dans l'application (« Je choisis cette offre », que la console voit dans « À décider »),

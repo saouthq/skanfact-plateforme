@@ -2411,9 +2411,10 @@
     const etat = [
       // Un dossier tenu au cabinet dit ce que ça VEUT DIRE (10.12.0) : « pas encore sur SkanFact »
       // répétait le badge du titre, dix pixels plus haut.
-      packs.length ? pl(packs.length, 'mois écrit', 'mois écrits') : (dossier.manual ? 'tenu au cabinet' : 'sur SkanFact : ses livres sont à jour en direct'),
+      (packs.length ? pl(packs.length, 'mois écrit', 'mois écrits') : (dossier.manual ? 'tenu au cabinet' : 'sur SkanFact : ses livres sont à jour en direct'))
+        + `<span id="d-avalider"${row.provisionalCount ? '' : ' hidden'}> · <span class="warn-text">${row.provisionalCount ? pl(row.provisionalCount, 'mois à valider', 'mois à valider') : ''}</span></span>`,
       row.missingCount ? `<span class="warn-text">${pl(row.missingCount, 'manquant')}</span>` : '',
-      row.provisionalCount ? `<span class="warn-text">${pl(row.provisionalCount, 'mois à valider', 'mois à valider')}</span>` : '',
+      // « N mois à valider » est posée avec le premier morceau (1.82.0) : elle se met à jour seule.
       dernierRecu ? 'mis à jour le ' + esc(fmtDay(dernierRecu)) : '',
       packs.length && anneeVue ? `CA ${esc(periodeCA)} : <strong>${esc(money(caAnnee))}</strong>` : '',
       // Les points signalés dans ses paquets (achats sans justificatif, brouillons…) : la colonne
@@ -3301,6 +3302,7 @@
       livresState.livre = r.livre;
       drawLivres(root, dossier);
       toast(`Validée sous le n° ${r.numero}`);
+      majAValider(dossier);
     } catch (err) { await infoDialog('Validation refusée', plainError(err)); }
   }
 
@@ -3473,6 +3475,20 @@
       return n ? { n, titre: `${n} question${n > 1 ? 's' : ''} en attente de réponse` } : null;
     }
     return null;
+  }
+
+  // L'en-tête d'un dossier suit ses écritures (1.82.0) : « 1 mois à valider » y restait après
+  // avoir tout validé, jusqu'au rechargement de la page. On relit l'état, et la phrase se montre,
+  // change ou se cache.
+  async function majAValider(dossier) {
+    try { await refresh(); } catch { return; }
+    const d = (S.dossiers || []).find(x => x.id === dossier.id);
+    const n = d ? K.dossierRow(d).provisionalCount : 0;
+    const el = document.getElementById('d-avalider');
+    if (!el) return;
+    el.hidden = !n;
+    const t = el.querySelector('.warn-text');
+    if (t) t.textContent = n ? pl(n, 'mois à valider', 'mois à valider') : '';
   }
 
   function drawLivres(root, dossier) {
@@ -4023,6 +4039,8 @@
     // que la liste ci-dessous — jamais une seconde liste, qui se désynchroniserait au premier
     // lettrage (SPEC-UI-CAB-022).
     const agee = KC.balanceAgeeDepuisLignes(lignes, prefixe, K.today());
+    // Un tiers soldé (0,000) ne « reste » pas dû : il ne prend ni une ligne ni une place au compte (1.82.0).
+    agee.tiers = agee.tiers.filter(t => t.total);
     // Les tiers OUVERTS sont la réponse ; les soldés tiennent sur une ligne dépliable (T-14).
     const ouverts = l.rows.filter(r => r.ouverts.length), soldes = l.rows.filter(r => !r.ouverts.length);
     return `${barreLivres(`<select id="lv-compte" aria-label="Le compte à lettrer"><option value="">Clients (411)</option>${comptes.map(c => `<option value="${esc(c)}" ${s.compte === c ? 'selected' : ''}>${esc(c)}</option>`).join('')}</select>
@@ -8769,6 +8787,7 @@
         saisieState.piece = pieceVide(p.journal, p.date);
         drawLivres(root, dossier);
         const d2 = $('#sa-piece'); if (d2) d2.focus();
+        majAValider(dossier);
       } catch (e) { await infoDialog('Enregistrement impossible', plainError(e)); }
     };
 
@@ -8908,6 +8927,7 @@
       }
       await infoDialog('Validation', lignes.join('\n'));
       drawLivres(root, dossier);
+      majAValider(dossier);
     } catch (e) { await infoDialog('Validation impossible', plainError(e)); }
   }
 

@@ -18114,9 +18114,8 @@ prouver 'le virement d'"'"'un compte vers lui-même écrit' 'serveur/compta/mouv
   'if (false) return [];' \
   'chaque mouvement : le même journal, la même pièce, les mêmes comptes, libellés et montants que la v10'
 prouver 'l'"'"'écart du Z qui n'"'"'arrive pas en trésorerie' 'serveur/caisse/routes.ts' \
-  '      await noterEcartDuZ(tx, ent, qui.utilisateur, s.id, compte - z0.attendu, decimales);
-' \
-  '' \
+  '      const mouvement = await noterEcartDuZ(tx, ent, qui.utilisateur, s.id, compte - z0.attendu, decimales);' \
+  '      const mouvement = null;' \
   'fermée rien ne s'"'"'encaisse ; ouverte sur un appareil, lui seul la tient ; fermée, le Z dit l'"'"'attendu et l'"'"'écart, et ne change plus'
 prouver 'la date tapée après un clic qui s'"'"'ajoute à celle de la case' 'web/public/v10/app.js' \
   'txt.onfocus = () => txt.select();' \
@@ -18234,6 +18233,36 @@ prouver 'le refus de deux phrases qui disparaît avant sa lecture' 'web/public/v
   "setTimeout(() => t.className = '', Math.min(8000, Math.max(4000, String(msg).length * 60)));" \
   "setTimeout(() => t.className = '', 2600);" \
   'un avoir négatif ne s'"'"'émet pas : le refus vient avant la fenêtre d'"'"'émission'
+
+# ── La recette alpha, suite (1.82.0 ; docs/recette.md) ──
+prouver 'l'"'"'écriture d'"'"'une facture qui ne dit pas le nom de son client' 'serveur/compta/routes.ts' \
+  'tiersNom: e.tiers ? noms.get(e.tiers) ?? null : null,' \
+  'tiersNom: null,' \
+  'l'"'"'API lit le journal page après page, la balance équilibrée et le grand livre avec ses soldes'
+prouver 'la balance auxiliaire du Cabinet qui range tous les clients sous « (sans tiers) »' 'web/public/plateforme/pont-cabinet.js' \
+  "tiers: l.tiers || e.tiersNom || ''," \
+  "tiers: l.tiers || ''," \
+  'une facture émise chez le client : le livre-journal et la balance auxiliaire disent son nom'
+prouver 'l'"'"'en-tête qui dit « 1 mois à valider » après avoir tout validé' 'web/public/v10/cabinet/app.js' \
+  'el.hidden = !n;' \
+  'el.hidden = false;' \
+  'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
+prouver 'le client soldé compté dans « Ce qui reste dû »' 'web/public/v10/cabinet/app.js' \
+  'agee.tiers = agee.tiers.filter(t => t.total);' \
+  '' \
+  'une facture émise chez le client : le livre-journal et la balance auxiliaire disent son nom'
+prouver 'la TFP d'"'"'un mois sans paie qui dit qu'"'"'aucun compte ne la porte' 'web/public/v10/compta.js' \
+  'if (nomTaxe[k] && (livre.bulletins || []).length) {' \
+  'if (false) {' \
+  'une paie tenue, rien sur ce mois : la case attend la paie, sans prétendre qu'"'"'aucun compte ne la porte'
+prouver 'la console qui dit de créer l'"'"'entreprise SkanFact sans mener à l'"'"'application' 'web/console/src/ecrans/Reglages.tsx' \
+  ' <Lien href="/" petit fleche ailleurs>{titre(`${K}.nf.ouvrir_app`)}</Lien>' \
+  '' \
+  'nos factures : la direction désigne l'"'"'entreprise SkanFact ; une échéance passée répond par SA facture, préparée sur son aperçu, puis à émettre'
+prouver 'l'"'"'écart du Z absent de la Trésorerie jusqu'"'"'au rechargement' 'web/public/plateforme/pont.js' \
+  '      if (r.mouvement) {' \
+  '      if (false) {' \
+  '(1.82.0) l'"'"'excédent du Z rejoint la caisse de la Trésorerie sans recharger la page'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -11,7 +11,7 @@ import { montant } from '../argent.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
 import { entier } from '../nombres.ts';
 import { jourCourt, jourDe, quand } from '../temps.ts';
-import { Alerte, Bouton, Champ, Choix, Dialogue, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
+import { Alerte, Bouton, Champ, Choix, Dialogue, Lien, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
 
 const K = 'console.ecran.reglages';
 
@@ -500,7 +500,11 @@ function NosFacturesCarte({ f, aujourdhui, geste, peut }: { f: NosFactures; aujo
           {e.proprietaire ? null : <Alerte ton="info" icone="cadenas"><span>{phrase(`${K}.nf.pas_proprietaire`)}</span></Alerte>}
           {e.factures ? <p className="c-sous">{phrase(`${K}.nf.fixe`)}</p> : null}
         </div>
-      ) : <Vide icone="info">{phrase(autre ? `${K}.nf.aucune` : `${K}.nf.aucune_possible`)}</Vide>}
+      ) : autre ? <Vide icone="info">{phrase(`${K}.nf.aucune`)}</Vide> : (
+        // (1.82.0) « Crée l'entreprise SkanFact dans l'application » mène à l'application : sans ce lien, il fallait
+        // deviner son adresse depuis la console.
+        <Vide icone="info">{phrase(`${K}.nf.aucune_possible`)} <Lien href="/" petit fleche ailleurs>{titre(`${K}.nf.ouvrir_app`)}</Lien></Vide>
+      )}
     </section>
   );
 }

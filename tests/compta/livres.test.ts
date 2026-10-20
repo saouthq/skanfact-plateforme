@@ -225,7 +225,7 @@ describe('les livres tenus par le serveur', () => {
     await e.envoyer('documents', 'f1', { ...(emise.corps.contenu as Record<string, unknown>), payments: [{ id: 'p1', date: '2026-10-05', amount: 500, method: 'especes' }] });
     await appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre-avoir`, e.jeton, { document: avoir('a1', c.cle, 'f1'), client: c.contenu, revision: null, rang: 1, netAPayer: '536.095' });
     // Le journal, une écriture par page : chacune vue une fois, dans l'ordre des dates.
-    const vues: { date: string; journal: string; lignes: { compte: string; debit: string; credit: string }[] }[] = [];
+    const vues: { date: string; journal: string; tiersNom: string | null; lignes: { compte: string; debit: string; credit: string }[] }[] = [];
     let suite: string | null = null;
     do {
       const r = await appeler('GET', `/entreprises/${e.ent}/compta/ecritures?limite=1${suite ? `&apres=${suite}` : ''}`, e.jeton);
@@ -235,6 +235,9 @@ describe('les livres tenus par le serveur', () => {
     } while (suite);
     expect(vues.map((x) => `${x.journal} ${x.date}`)).toEqual(['VT 2026-10-01', 'CA 2026-10-05', 'VT 2026-10-10']);
     expect(vues[0]?.lignes[0]).toEqual({ id: expect.stringMatching(/^[0-9a-f-]{36}$/), compte: '411', libelle: 'Facture FAC-2026-001 — Menuiserie du Lac (exemple)', debit: '1073.190', credit: '0.000', tauxTva: null, tiers: null, lettre: null });
+    // (1.82.0) Chaque écriture née d'une pièce dit le NOM de son tiers : sans lui, la balance auxiliaire du Cabinet
+    // rangeait le client sous « (sans tiers) ».
+    expect(vues.map((x) => x.tiersNom)).toEqual(['Menuiserie du Lac (exemple)', 'Menuiserie du Lac (exemple)', 'Menuiserie du Lac (exemple)']);
     // La balance : ses totaux sont égaux, et chaque compte dit la somme de ses lignes.
     const b = (await appeler('GET', `/entreprises/${e.ent}/compta/balance`, e.jeton)).corps as { comptes: { compte: string; debit: string; credit: string; solde: string }[]; totaux: { debit: string; credit: string } };
     expect(b.totaux.debit).toBe(b.totaux.credit);

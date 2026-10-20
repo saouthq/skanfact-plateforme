@@ -446,6 +446,12 @@ describe('la console de l\'équipe, à la souris', () => {
       select 'timbre.facture', '1000', '2000-01-01', 'Règle d''essai des tests' where not exists (select 1 from socle.regle_fiscale where code = 'timbre.facture')`);
     await admin.query('delete from plateforme.facture_abonnement');
     await admin.query('delete from plateforme.editeur');
+    // (1.82.0) Sans entreprise à elle, la carte dit de la créer dans l'application, et mène à l'application.
+    const avant = await ouvrir(await jetonConsole(direction), '#/reglages?onglet=factures');
+    const versApp = avant.locator('section[aria-labelledby="rg-factures"] .c-vide a');
+    await expect.poll(() => versApp.innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('Ouvrir l\'application');
+    expect(await versApp.getAttribute('href')).toBe('/');
+    await fermer(avant);
     const editeur = String((await api('POST', '/entreprises', direction.appli, { raisonSociale: 'SkanFact Éditions SARL' })).corps.id);
     const p = await ouvrir(await jetonConsole(direction), '#/reglages');
     const carte = p.locator('section[aria-labelledby="rg-factures"]');

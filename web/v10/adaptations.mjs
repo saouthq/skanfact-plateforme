@@ -812,4 +812,10 @@ export const ADAPTATIONS = [
   ...lireFichier('echeance-valider.txt'),
   // ── Une pièce négative ne s'émet pas (1.80.0) : l'avoir de −16,660 DT ──
   ...lireFichier('montant-negatif.txt'),
+  // ── Au Cabinet, l'en-tête d'un dossier suit ses validations (1.82.0) ──
+  ...lireFichier('entete-a-valider.txt'),
+  // ── Au Cabinet, « Ce qui reste dû » ne liste que les tiers qui doivent (1.82.0) ──
+  ...lireFichier('agee-sans-zero.txt'),
+  // ── La TFP d'un mois sans paie encore attend la paie (1.82.0) ──
+  ...lireFichier('declaration-paie-a-venir.txt'),
 ];

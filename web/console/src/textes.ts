@@ -3903,6 +3903,7 @@ declarerTextes({
   'console.ecran.reglages.nf.fixe': 'des factures y sont préparées : elle ne se change plus',
   'console.ecran.reglages.nf.aucune': 'aucune entreprise SkanFact n\'est désignée : aucune facture d\'abonnement ne se prépare. Désigne celle de la plateforme où nos factures naissent',
   'console.ecran.reglages.nf.aucune_possible': 'aucune entreprise SkanFact n\'est désignée, et tu n\'es propriétaire d\'aucune entreprise de la plateforme : crée l\'entreprise SkanFact dans l\'application, puis reviens ici la désigner',
+  'console.ecran.reglages.nf.ouvrir_app': 'ouvrir l\'application',
   'console.ecran.reglages.r.titre': 'le registre des règles communes',
   'console.ecran.reglages.r.sous': 'les règles de droit que SkanFact applique à toutes les entreprises, chacune avec sa source et sa date d\'effet. Une règle ne se modifie jamais : on ferme sa date de fin et on en écrit une nouvelle. Elles s\'écrivent dans le dépôt et se posent à chaque installation ; la console les montre et note qui les a relues',
   'console.ecran.reglages.r.nom.timbre_facture': 'le timbre fiscal d\'une facture',

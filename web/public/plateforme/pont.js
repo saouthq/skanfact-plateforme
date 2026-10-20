@@ -1113,8 +1113,20 @@
     },
     ouvrirCaisse: async (/** @type {string} */ fond) => { const r = await appel('POST', '/caisse/ouvrir', { fond }); retenirNumerotation(r.numerotation); return r; },
     // Le détail du comptage (la caisse tactile, 05/10/2026) : combien de chaque coupure, s'il a été compté au détail ; le Z le garde.
-    fermerCaisse: async (/** @type {string} */ compte, /** @type {{ valeur: string, nombre: number }[] | undefined} */ comptage) =>
-      appel('POST', '/caisse/fermer', { compte, ...(comptage && comptage.length ? { comptage } : {}) }),
+    fermerCaisse: async (/** @type {string} */ compte, /** @type {{ valeur: string, nombre: number }[] | undefined} */ comptage) => {
+      const r = await appel('POST', '/caisse/fermer', { compte, ...(comptage && comptage.length ? { comptage } : {}) });
+      // L'écart du Z, que le serveur pose dans le dossier (1.82.0) : il rejoint ce que l'écran tient, sinon la Trésorerie
+      // gardait l'ancien solde de la caisse jusqu'au rechargement de la page.
+      if (r.mouvement) {
+        const k = `movements\u0000${r.mouvement.cle}`;
+        vu.set(k, { json: JSON.stringify(r.mouvement.contenu), rang: r.mouvement.rang, revision: r.mouvement.revision });
+        base.set(k, r.mouvement.revision);
+        const d = /** @type {any} */ (window).__data;
+        if (d && Array.isArray(d.movements) && !d.movements.some((/** @type {any} */ m) => m && m.id === r.mouvement.contenu.id)) d.movements.push(decoder(r.mouvement.contenu));
+        await garderLaCopieMaintenant();
+      }
+      return r;
+    },
     // Les Z passés (brique 126), par pages : `avant`, la `suite` de la page précédente.
     listeZ: async (/** @type {string | undefined} */ avant) => appel('GET', `/caisse/z${avant ? `?avant=${encodeURIComponent(avant)}` : ''}`),
     // Le retour à la caisse (brique 124 ; docs/caisse.md, T1 à T5) : le serveur numérote l'avoir, rend l'argent sur le

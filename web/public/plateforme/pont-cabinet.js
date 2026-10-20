@@ -337,7 +337,8 @@
         contrepasseDe: e.origine.type === 'contre_passation' ? e.origine.id : null,
         extourneDe: e.origine.type === 'extourne' ? e.origine.id : null, extourne: false, extourneeLe: null,
         lignes: e.lignes.map((/** @type {any} */ l) => ({
-          ligneId: l.id, compte: l.compte, tiersId: e.tiers, tiers: l.tiers || '', libelle: l.libelle, debit: nombre(l.debit), credit: nombre(l.credit), lettre: l.lettre || '',
+          // Le tiers d'une ligne : le sien (saisie), sinon celui de son écriture, comme la v10 (1.82.0).
+          ligneId: l.id, compte: l.compte, tiersId: e.tiers, tiers: l.tiers || e.tiersNom || '', libelle: l.libelle, debit: nombre(l.debit), credit: nombre(l.credit), lettre: l.lettre || '',
         })),
       });
       for (const l of e.lignes) {

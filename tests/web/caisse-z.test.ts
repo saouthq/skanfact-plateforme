@@ -113,4 +113,47 @@ describe('le Z imprimé et relu, à l\'écran', () => {
     await cx.close();
     expect(erreurs).toEqual([]);
   }, 180_000);
+
+  it('(1.82.0) l\'excédent du Z rejoint la caisse de la Trésorerie sans recharger la page', async () => {
+    const email = `nadia-z2-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
+    const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).corps.jeton);
+    const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', premier, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
+    const r = await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Comptoir de Nadia', type: 'navigateur' } });
+    const nadia = String((await api('POST', '/connexion/code', undefined, { defi: r.corps.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).corps.jeton);
+    const ent = String((await api('POST', '/entreprises', nadia, { raisonSociale: 'Boulangerie Ben Youssef' })).corps.id);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, nadia);
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, nadia, { changements: [
+      { collection: 'accounts', cle: 'k-caisse', rang: 0, revision: null, contenu: { id: 'k-caisse', name: 'Caisse', kind: 'caisse', bank: '', rib: '', opening: 30, openingDate: '2026-01-01', isDefault: false, statementBalance: '', notes: '' } },
+      { collection: 'catalog', cle: 'pain', rang: 0, revision: null, contenu: { id: 'pain', label: 'Pain de mie', unit: 'u', unitPrice: { '~n': '1.2' }, vatRate: 7 } },
+    ] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, nadia);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/caisse`);
+    await expect.poll(() => p.locator('#cs-fond').count(), { timeout: 20_000 }).toBe(1);
+    await plusTard(p);
+    await p.locator('#cs-ouvrir').click();
+    await expect.poll(async () => net(await p.locator('#cs-ouverte').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ouverte par Nadia/);
+    await p.locator('#cs-articles .cs-art', { hasText: 'Pain de mie' }).click();
+    await p.locator('#cs-encaisser').click();
+    await p.locator('#cs-valider').click();
+    await expect.poll(async () => net(await p.locator('#toast').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/^Ticket TIC-\d{4}-001 encaissé/);
+    // 31,284 attendus, 32,000 comptés : un excédent de 0,716, que le serveur pose en mouvement de la caisse.
+    await p.locator('#cs-menu-bouton').click();
+    await p.locator('#cs-fermer').click();
+    await p.locator('#cs-tape summary').click();
+    await p.locator('#cs-compte').fill('32');
+    await p.locator('#cs-z').click();
+    await expect.poll(async () => net(await p.locator('#modal-root #cs-z-table').innerText().catch(() => '')), { timeout: 10_000 }).toContain('Écart 0,716 DT');
+    await p.locator('#modal-root #cs-z-ok').click();
+    // La Trésorerie, sans recharger : la caisse tient les 32,000 du tiroir compté.
+    await p.evaluate(() => { location.hash = '#/tresorerie'; });
+    const caisse = p.locator('tr', { hasText: /^\s*Caisse/ }).filter({ hasText: 'Caisse espèces' }).first();
+    await expect.poll(async () => net(await caisse.innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/ 32,000 DT /);
+    await cx.close();
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });

@@ -98,6 +98,12 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
         ? (await db.selectFrom('compta.ligne_lettree as t').innerJoin('compta.lettrage as g', 'g.id', 't.lettrage')
           .select(['t.ligne', 'g.lettre']).where('t.ligne', 'in', lignes.map((l) => l.id)).execute()).map((x) => [x.ligne, x.lettre])
         : []);
+      // Le NOM du tiers de chaque écriture (1.82.0) : la v10 le portait sur chaque ligne, et sans lui
+      // la balance auxiliaire du Cabinet rangeait tous les clients sous « (sans tiers) ».
+      const idsTiers = [...new Set(ecritures.map((e) => e.tiers).filter((x): x is string => x !== null))];
+      const noms = new Map(idsTiers.length
+        ? (await db.selectFrom('socle.tiers').select(['id', 'raison_sociale']).where('entreprise', '=', entreprise).where('id', 'in', idsTiers).execute()).map((x) => [x.id, x.raison_sociale])
+        : []);
       const dernier = ecritures.at(-1);
       return {
         corps: {
@@ -105,7 +111,7 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
             id: e.id, journal: e.journal, date: e.date_ecriture, piece: e.piece, libelle: e.libelle, statut: e.statut, numero: e.numero,
             // Son rang dans la chaîne des livres (validée) : l'ordre unique de validation, tous journaux confondus.
             chaine: e.chaine_rang === null ? null : Number(e.chaine_rang),
-            origine: { type: e.origine_type, id: e.origine }, tiers: e.tiers,
+            origine: { type: e.origine_type, id: e.origine }, tiers: e.tiers, tiersNom: e.tiers ? noms.get(e.tiers) ?? null : null,
             // La révision d'un brouillard saisi : on la renvoie pour le modifier (01 R15).
             revision: e.revision, valideeLe: e.validee_le,
             contrepassee: corrigee(e.id, 'contre_passation'), extournee: corrigee(e.id, 'extourne'),

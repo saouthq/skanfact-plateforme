@@ -4,7 +4,8 @@
 //   - en passant à « Déclarer », l'en-tête du livre et la déclaration sont lus au même moment : un seul chiffre ;
 //   - pendant une saisie, rien ne se redessine sous la main ;
 //   - (1.80.0) aux Échéances, une déclaration pas prête le dit avant d'être marquée déposée ; le client à valider y est
-//     nommé, et « Valider ses écritures » ouvre sa saisie.
+//     nommé, et « Valider ses écritures » ouvre sa saisie ;
+//   - (1.82.0) l'en-tête du dossier dit le mois à valider, et l'efface une fois tout validé.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -120,6 +121,15 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     await expect.poll(() => p.locator('[data-depot]').first().innerText()).toBe('Annuler « déposée »');
     await p.locator('[data-valider-dossier]').first().click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/dossier/${ent}/comptabilite/saisie/${moisDernier.slice(0, 4)}`);
+
+    // 5. (1.82.0) L'en-tête du dossier dit le mois à valider ; tout validé, la phrase s'efface sans recharger la page.
+    const aValider = p.locator('#d-avalider');
+    await expect.poll(() => aValider.isVisible(), { timeout: 15_000 }).toBe(true);
+    expect(await aValider.innerText()).toMatch(/^\s*· 1 mois à valider$/);
+    await p.locator('button').filter({ hasText: /^Valider (les \d+ pièces|la seule pièce) de BQ$/ }).first().click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Valider', exact: true }).click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Fermer', exact: true }).click();
+    await expect.poll(() => aValider.isVisible(), { timeout: 15_000 }).toBe(false);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

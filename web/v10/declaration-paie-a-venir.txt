@@ -1,0 +1,21 @@
+Ce que la 1.82.0 change à la déclaration mensuelle (docs/recette.md, « 1.82.0 ») : la TFP et le FOPROLOS d'un mois
+dont la paie n'est pas encore faite disent l'étape, pas une règle inconnue. Format : voir sans-paquets.mjs.
+
+En octobre, la déclaration de Trabelsi Distribution disait de la TFP « aucun compte du plan de ce dossier ne la porte »
+(recette du 20/10/2026) : faux, le 4335 la porte depuis septembre, et ses bulletins de septembre la donnaient au
+millime. Ce qui manquait, c'était la paie d'octobre. Un dossier dont la paie est tenue (des bulletins dans le livre)
+et qui n'a encore rien sur ce mois attend sa paie, comme l'IRPP d'un mois dont les bulletins ne sont pas écrits.
+
+== compta.js | la TFP d'un mois sans paie encore attend la paie
+-- avant
+      cases[k] = caseInconnue(CASES_A_VERIFIER[k]);
+    });
+-- après
+      // Une paie tenue, rien encore sur CE mois (1.82.0) : ce n'est pas une règle inconnue, c'est une ÉTAPE.
+      if (nomTaxe[k] && (livre.bulletins || []).length) {
+        cases[k] = { ...caseInconnue(`Pas encore de paie sur ce mois : ${nomTaxe[k]} se lira sur ses bulletins dès qu'elle sera faite.`), attente: 'paie' };
+        return;
+      }
+      cases[k] = caseInconnue(CASES_A_VERIFIER[k]);
+    });
+-- fin

@@ -1,0 +1,15 @@
+Ce que la 1.82.0 change au Cabinet (docs/recette.md, « 1.82.0 ») : « Ce qui reste dû, par ancienneté » ne liste que les
+tiers qui doivent quelque chose. Format : voir sans-paquets.mjs.
+
+« Vente au comptoir … 0,000 DT » s'y lisait sous Hotel Les Oliviers, et le pied comptait « 2 tiers » pour un seul qui
+doit (recette du 20/10/2026). Un tiers soldé n'a rien à faire dans ce qui reste dû ; ses lignes encore ouvertes (un
+ticket et son règlement pas lettrés) restent, elles, dans le détail du lettrage plus bas.
+
+== cabinet/app.js | ce qui reste dû ne garde que les tiers qui doivent
+-- avant
+    const agee = KC.balanceAgeeDepuisLignes(lignes, prefixe, K.today());
+-- après
+    const agee = KC.balanceAgeeDepuisLignes(lignes, prefixe, K.today());
+    // Un tiers soldé (0,000) ne « reste » pas dû : il ne prend ni une ligne ni une place au compte (1.82.0).
+    agee.tiers = agee.tiers.filter(t => t.total);
+-- fin

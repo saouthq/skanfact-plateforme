@@ -3162,6 +3162,11 @@
           return;
         }
       }
+      // Une paie tenue, rien encore sur CE mois (1.82.0) : ce n'est pas une règle inconnue, c'est une ÉTAPE.
+      if (nomTaxe[k] && (livre.bulletins || []).length) {
+        cases[k] = { ...caseInconnue(`Pas encore de paie sur ce mois : ${nomTaxe[k]} se lira sur ses bulletins dès qu'elle sera faite.`), attente: 'paie' };
+        return;
+      }
       cases[k] = caseInconnue(CASES_A_VERIFIER[k]);
     });
 

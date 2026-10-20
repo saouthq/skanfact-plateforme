@@ -501,6 +501,11 @@ vaut pour tout le dépôt.*
   - **La recette alpha, suite** (1.81.0 ; `docs/recette.md`) : pas de pièce négative, à l'écran (`montantNonEmettable`,
     `web/v10/montant-negatif.txt`) et au serveur (`emettre`, `serveur/ventes/pieces.ts`) ; le client « à valider » d'une
     échéance du Cabinet et sa saisie (`web/v10/echeance-valider.txt`).
+  - **La recette alpha, suite** (1.82.0 ; `docs/recette.md`) : le nom du tiers de chaque écriture (`tiersNom`,
+    `serveur/compta/routes.ts`, porté sur les lignes par `web/public/plateforme/pont-cabinet.js`) ; l'en-tête du dossier
+    qui suit ses validations (`majAValider`, `web/v10/entete-a-valider.txt`) ; « Ce qui reste dû » sans les soldés
+    (`web/v10/agee-sans-zero.txt`) ; la TFP d'un mois sans paie (`web/v10/declaration-paie-a-venir.txt`) ; l'écart du Z
+    rendu avec le Z (`noterEcartDuZ`, `serveur/caisse/routes.ts`) et ajouté à l'écran (`fermerCaisse`, `pont.js`).
   - **Le lot débutant (2)** (12/10/2026 ; `docs/debutant.md`, `web/v10/debutant-2.txt`) : les gênants d'un commerçant
     qui débute, refaits à la souris sur une quincaillerie. Le mot du catalogue suit le métier (`motsCatalogue` :
     « article » pour le commerce, la restauration, l'artisanat) ; une dépense sans fournisseur se range sous UNE fiche
