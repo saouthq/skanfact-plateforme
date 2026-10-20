@@ -15,12 +15,8 @@ import { requetes, type Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
 import './textes.ts';
-import { Refus } from '../erreurs.ts';
 import { enMots, envoyerInvitation, etatVu, lienApplication, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { matriculeCanonique, refusDuMatricule } from '../matricule.ts';
-import { lireLivreV10, rapportDuLivre } from '../reprise/livre-v10.ts';
-import { lirePortefeuilleV10, PORTEFEUILLE_V10 } from '../reprise/cabinet-v10.ts';
-import { versLaBaseFiche } from '../compta/immobilisations.ts';
 import { PERIODE_REVISION, REVISION } from './revision.ts';
 
 const uuid = z.string().uuid();
@@ -188,11 +184,20 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
     traiter: async ({ params }, tx) => {
       if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
       const r = await tx.query('select * from socle.portefeuille($1)', [params.cabinet]);
+      // Où joindre un client sur SkanFact (1.76.0) : l'adresse e-mail et le téléphone de SA fiche société, que le mandat
+      // actif laisse lire (ces deux champs seuls : socle.coordonnees_de_mes_clients, la fiche entière reste fermée) ; le
+      // Cabinet les montrait « à renseigner » et les faisait retaper (recette du 20/10/2026). Rien pour un dossier tenu (sa
+      // fiche est celle du cabinet) ni pour un mandat qui attend.
+      const clients = r.rows.filter((d) => !d.tenu && d.statut === 'actif').map((d) => d.entreprise as string);
+      const coordonnees = new Map((clients.length ? (await tx.query(`select entreprise, email, telephone
+          from socle.coordonnees_de_mes_clients() where entreprise = any($1::uuid[])`, [clients])).rows : [])
+        .map((x) => [x.entreprise as string, { email: String(x.email ?? ''), telephone: String(x.telephone ?? '') }]));
       return {
         corps: {
           dossiers: r.rows.map((d) => ({
             mandat: d.mandat, entreprise: d.entreprise, raisonSociale: d.raison_sociale, matriculeFiscal: d.matricule_fiscal,
             statut: d.statut, perimetre: d.perimetre, debut: d.debut, tenu: d.tenu, role: d.role,
+            ...(coordonnees.has(d.entreprise) ? { coordonnees: coordonnees.get(d.entreprise) } : {}),
           })),
         },
       };
@@ -497,163 +502,6 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
             courriel: etatVu(i.courriel, i.courriel_le, (ctx.maintenant ?? (() => new Date()))()) })),
         },
       };
-    },
-  });
-  // L'essai à blanc de la reprise d'un livre du Cabinet v10 (brique 62, C52) : lu, contrôlé, rendu en
-  // rapport ; rien n'est créé. Un associé seulement (la porte du cabinet).
-  ajouter({
-    methode: 'POST', chemin: '/cabinets/:cabinet/reprise/livre/essai', geste: 'compte.cabinet.gerer', limiteCorps: 32 * 1024 * 1024,
-    corps: z.object({ livre: z.unknown() }).strict(),
-    traiter: async ({ params, corps }, tx) => {
-      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
-      if (!(await tx.query('select socle.suis_associe($1) a', [params.cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.associe') } };
-      const lu = lireLivreV10(corps.livre);
-      if (!lu) return { statut: 400, corps: { motif: motif('cabinet.reprise.pas_un_livre'), champ: 'livre' } };
-      return { corps: rapportDuLivre(lu) };
-    },
-  });
-  // La reprise d'un livre du Cabinet v10 dans un dossier tenu (brique 63, 0037, C53) : relu et contrôlé
-  // comme à l'essai à blanc ; une seule anomalie, et rien ne s'écrit. Écrit, sa balance est relue dans
-  // la base et comparée à celle du livre : un écart défait tout (deux chemins, un chiffre).
-  ajouter({
-    methode: 'POST', chemin: '/cabinets/:cabinet/reprise/livre', geste: 'compte.cabinet.gerer', limiteCorps: 32 * 1024 * 1024,
-    corps: z.object({ dossier: z.string().uuid(), livre: z.unknown() }).strict(),
-    traiter: async ({ params, corps }, tx) => {
-      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
-      if (!(await tx.query('select socle.suis_associe($1) a', [params.cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.associe') } };
-      const lu = lireLivreV10(corps.livre);
-      if (!lu) return { statut: 400, corps: { motif: motif('cabinet.reprise.pas_un_livre'), champ: 'livre' } };
-      const rapport = rapportDuLivre(lu);
-      if (lu.anomalies.length) return { statut: 400, corps: { motif: motif('cabinet.reprise.anomalies', { n: String(lu.anomalies.length) }), rapport } };
-      const ecritures = lu.ecritures.map((e) => ({
-        date: e.date, journal: e.journal, piece: e.piece, libelle: e.libelle, statut: e.statut, numero: e.numeroV10 === null ? null : String(e.numeroV10),
-        lignes: e.lignes.map((l) => ({ compte: l.compte, libelle: l.libelle, tiers: l.tiers, debit: l.debit.toString(), credit: l.credit.toString(), lettre: l.lettre })),
-      }));
-      const empreinte = createHash('sha256').update(JSON.stringify(corps.livre)).digest('hex');
-      const cree = (await tx.query('select compta.reprendre_livre_v10($1, $2, $3, $4, $5::jsonb, $6) r',
-        [corps.dossier, lu.annee, lu.du, lu.au, JSON.stringify(ecritures), empreinte])).rows[0].r as { validees: number; brouillard: number; lettrages: number; lettres: { v10: string; lettre: string }[]; jusqua: string | null; ids: string[] };
-      // Les relevés (brique 66) : importés par les gestes de la banque, qui refont leurs contrôles ; chaque
-      // rapprochement relié à la ligne d'écriture reprise (son écriture, sa place parmi les lignes écrites).
-      const { ids, ...resultat } = cree;
-      const ecritureDe = new Map(lu.ecritures.map((e, i) => [e.refV10, { id: ids[i] ?? '', rangs: e.lignes.map((l) => l.rangV10) }]));
-      let rapprochees = 0;
-      const lignesEcrites = new Map<string, string>();
-      if (lu.releves.some((r) => r.lignes.some((l) => l.face))) {
-        for (const x of (await tx.query('select id, ecriture, rang from compta.ligne where ecriture = any($1::uuid[])', [ids])).rows as { id: string; ecriture: string; rang: number }[]) {
-          lignesEcrites.set(`${x.ecriture}#${x.rang}`, x.id);
-        }
-      }
-      for (const r of lu.releves) {
-        const releve = (await tx.query('select compta.importer_releve($1, $2, $3::jsonb) id', [corps.dossier, lu.annee, JSON.stringify({
-          compte: r.compte, banque: r.banque, fichier: r.fichier, empreinte: r.empreinte, soldeDebut: r.soldeDebut.toString(), soldeFin: r.soldeFin.toString(),
-          lignes: r.lignes.map((l) => ({ date: l.date, libelle: l.libelle, reference: l.reference, montant: l.montant.toString() })),
-        })])).rows[0].id as string;
-        const lignes = (await tx.query('select id, rang from compta.releve_ligne where releve = $1', [releve])).rows as { id: string; rang: number }[];
-        const ligneDuReleve = new Map(lignes.map((x) => [Number(x.rang), x.id]));
-        const poses: { ligne: string; ecritureLigne: string | null; niveau: string; auto: boolean }[] = [];
-        for (const [i, l] of r.lignes.entries()) {
-          const ligne = ligneDuReleve.get(i + 1) ?? '';
-          if (l.face) {
-            const e = ecritureDe.get(l.face.ecriture);
-            const rang = e ? e.rangs.indexOf(l.face.rangV10) + 1 : 0;
-            poses.push({ ligne, ecritureLigne: lignesEcrites.get(`${e?.id}#${rang}`) ?? null, niveau: l.face.niveau, auto: l.face.auto });
-            rapprochees++;
-          } else if (l.niveau !== 'aucun') poses.push({ ligne, ecritureLigne: null, niveau: l.niveau, auto: true });
-        }
-        if (poses.length) await tx.query('select compta.rapprocher($1, $2, $3::jsonb)', [corps.dossier, releve, JSON.stringify(poses)]);
-      }
-      // Les immobilisations (brique 67) : chaque bien posé une fois pour la vie du dossier (ou retrouvé,
-      // s'il vient d'une autre année reprise), relié aux écritures reprises qui portent sa dotation ou sa
-      // sortie ; l'écriture d'acquisition dont il est né devient l'écriture reprise.
-      const immobilisations = { creees: 0, retrouvees: 0, liees: 0 };
-      for (const b of lu.biens) {
-        const nee = b.docRef ? ecritureDe.get(b.docRef.ecriture) : undefined;
-        const docId = nee && b.docRef ? `${nee.id}#${nee.rangs.indexOf(b.docRef.rangV10)}` : b.fiche.origine.docId;
-        const f = versLaBaseFiche({ ...b.fiche, origine: { ...b.fiche.origine, docId } });
-        if ('statut' in f) throw new Error('fiche relue illisible');
-        const liens = b.liens.map((l) => ({ genre: l.genre, ecriture: ecritureDe.get(l.ecriture)?.id ?? null }));
-        const r = (await tx.query('select compta.reprendre_immobilisation_v10($1, $2, $3::jsonb, $4::jsonb) r', [corps.dossier, lu.annee, JSON.stringify(f.fiche), JSON.stringify(liens)])).rows[0].r as { cree: boolean; liees: number };
-        if (r.cree) immobilisations.creees++; else immobilisations.retrouvees++;
-        immobilisations.liees += r.liees;
-      }
-      // La révision de chaque période (le dossier de travail du cabinet) et les questions au client, dans
-      // leur état (brique 68) : la révision par le geste ordinaire, les questions par la base (0041).
-      for (const r of lu.revisions) {
-        await tx.query('select cabinet.poser_revision($1, $2, $3, $4::jsonb, null)', [params.cabinet, corps.dossier, r.periode, JSON.stringify(r.contenu)]);
-      }
-      // Les déclarations préparées et l'inventaire, reliés à leur écriture reprise (brique 69, 0042).
-      for (const d of lu.declarations) {
-        await tx.query('select compta.reprendre_declaration_v10($1, $2::jsonb)', [corps.dossier, JSON.stringify({
-          periode: d.periode, cases: Object.fromEntries(Object.entries(d.cases).map(([k, v]) => [k, v === null ? null : Number(v)])),
-          preparee: d.preparee, deposee: d.deposee, payee: d.payee, ecriture: ecritureDe.get(d.ecriture)?.id ?? null,
-        })]);
-      }
-      if (lu.inventaire) {
-        const inv = lu.inventaire;
-        await tx.query('select compta.reprendre_inventaire_v10($1, $2, $3::jsonb)', [corps.dossier, lu.annee, JSON.stringify({
-          date: inv.date, compte: inv.compte, lignes: inv.lignes.map((l) => ({ ref: l.ref, libelle: l.libelle, quantite: Number(l.quantite), cout: Number(l.cout) })),
-          ecriture: ecritureDe.get(inv.ecriture)?.id ?? null,
-        })]);
-      }
-      const questions = lu.questions.length ? (await tx.query('select compta.reprendre_questions_v10($1, $2::jsonb) n', [corps.dossier, JSON.stringify(lu.questions.map((q) => ({
-        ...q, montant: q.montant.toString(), ecriture: ecritureDe.get(q.ecriture)?.id ?? null,
-      })))])).rows[0].n as number : 0;
-      // Deux chemins, un chiffre : la balance que la base tient maintenant est celle du livre.
-      const b = (await tx.query(`select l.compte, sum(l.debit)::text debit, sum(l.credit)::text credit from compta.ligne l join compta.ecriture e on e.id = l.ecriture
-          where e.entreprise = $1 and e.statut = 'validee' and e.date_ecriture between $2::date and $3::date group by l.compte`, [corps.dossier, lu.du, lu.au])).rows as { compte: string; debit: string; credit: string }[];
-      const tenue = b.map((x) => ({ compte: x.compte, debit: versTexte(BigInt(x.debit), 3), credit: versTexte(BigInt(x.credit), 3) }))
-        .sort((x, y) => (x.compte < y.compte ? -1 : x.compte > y.compte ? 1 : 0));
-      const attendue = rapport.balance.map((x) => ({ compte: x.compte, debit: x.debit, credit: x.credit }));
-      if (JSON.stringify(tenue) !== JSON.stringify(attendue)) throw new Refus('cabinet.reprise.ecart');
-      return { statut: 201, corps: { ...resultat, releves: lu.releves.length, rapprochees, immobilisations, revisions: lu.revisions.length, questions, declarations: lu.declarations.length, inventaire: !!lu.inventaire, empreinte, rapport } };
-    },
-  });
-  // Le portefeuille du Cabinet v10 (brique 70, C60) : ses dossiers tenus, lus et contrôlés ; ceux déjà
-  // au portefeuille (même matricule, ou même nom sans matricule) sont retrouvés, jamais recréés.
-  const lirePortefeuille = async (tx: Transaction, cabinet: string, corps: z.infer<typeof PORTEFEUILLE_V10>) => {
-    const lu = lirePortefeuilleV10(corps);
-    const anomalies = lu.anomalies.map((a) => ({ nom: a.nom, motif: a.motif }));
-    for (const d of lu.dossiers) {
-      const f = FICHE.safeParse(d.fiche);
-      if (!f.success) anomalies.push({ nom: d.nom, motif: motif('reprise.dossier_fiche', { champ: f.error.issues[0]?.path.join('.') ?? '' }) });
-    }
-    const deja = (await tx.query(`select raison_sociale, matricule_fiscal from socle.portefeuille($1) where tenu`, [cabinet])).rows as { raison_sociale: string; matricule_fiscal: string | null }[];
-    const retrouve = (d: { nom: string; matricule: string | null }) => deja.some((x) => (d.matricule ? x.matricule_fiscal === d.matricule
-      : !x.matricule_fiscal && x.raison_sociale.trim().toLowerCase() === d.nom.toLowerCase()));
-    const aCreer = lu.dossiers.filter((d) => !retrouve(d));
-    return {
-      aCreer, rapport: {
-        aCreer: aCreer.map((d) => ({ nom: d.nom, matricule: d.matricule })), retrouves: lu.dossiers.filter(retrouve).map((d) => d.nom),
-        surSkanfact: lu.surSkanfact, exemples: lu.exemples, anomalies,
-      },
-    };
-  };
-  ajouter({
-    methode: 'POST', chemin: '/cabinets/:cabinet/reprise/portefeuille/essai', geste: 'compte.cabinet.gerer', limiteCorps: 8 * 1024 * 1024, corps: PORTEFEUILLE_V10,
-    traiter: async ({ params, corps }, tx) => {
-      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
-      if (!(await tx.query('select socle.suis_associe($1) a', [params.cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.portefeuille_associe') } };
-      return { corps: (await lirePortefeuille(tx, params.cabinet ?? '', corps)).rapport };
-    },
-  });
-  // Créer les dossiers : chacun par le geste ordinaire (socle.creer_dossier_tenu, qui refait ses
-  // contrôles, dont le matricule libre), avec sa fiche. Une seule anomalie, et rien ne se crée.
-  ajouter({
-    methode: 'POST', chemin: '/cabinets/:cabinet/reprise/portefeuille', geste: 'compte.cabinet.gerer', limiteCorps: 8 * 1024 * 1024, corps: PORTEFEUILLE_V10,
-    traiter: async ({ params, corps, qui }, tx) => {
-      if (!tx || !qui || !uuid.safeParse(params.cabinet).success) return introuvable;
-      const cabinet = params.cabinet ?? '';
-      if (!(await tx.query('select socle.suis_associe($1) a', [cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.portefeuille_associe') } };
-      const { aCreer, rapport } = await lirePortefeuille(tx, cabinet, corps);
-      if (rapport.anomalies.length) return { statut: 400, corps: { motif: motif('cabinet.reprise.portefeuille_anomalies', { n: String(rapport.anomalies.length) }), rapport } };
-      const crees: { v10: string; entreprise: string }[] = [];
-      for (const d of aCreer) {
-        const id = (await tx.query('select socle.creer_dossier_tenu($1, $2, $3) id', [cabinet, d.nom, d.matricule])).rows[0].id as string;
-        await tracer(tx, id, 'cabinet.dossier_tenu.creer', id, null, { cabinet, raisonSociale: d.nom, repriseV10: true });
-        await requetes(tx).insertInto('cabinet.fiche').values({ cabinet, entreprise: id, contenu: JSON.stringify(d.fiche), modifie_par: qui.utilisateur }).execute();
-        crees.push({ v10: d.refV10, entreprise: id });
-      }
-      return { statut: 201, corps: { crees, rapport } };
     },
   });
   // Ce qui a changé dans l'équipe (brique 61, 0036) : les cinquante derniers gestes, pour un associé.

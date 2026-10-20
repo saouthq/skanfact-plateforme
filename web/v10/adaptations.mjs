@@ -672,8 +672,6 @@ export const ADAPTATIONS = [
   ...lireFichier('nom-dossier-tenu.txt'),
   ...lireFichier('liasse-close.txt'),
   ...lireFichier('equipe-trace.txt'),
-  ...lireFichier('reprise-v10.txt'),
-  ...lireFichier('reprise-portefeuille.txt'),
   // ── La balance d'ouverture lue dans un FEC (19/10/2026 ; docs/cabinet.md, C61) ──
   ...lireFichier('reprise-fec.txt'),
   ...lireFichier('reprise-fec-livre.txt'),
@@ -788,4 +786,6 @@ export const ADAPTATIONS = [
   ...lireFichier('paie-virement-salaires.txt'),
   // ── La recette du 20/10/2026, côté entreprise (1.75.0 ; docs/recette.md) : Tab, client seul, montants, premiers pas ──
   ...lireFichier('recette-entreprise.txt'),
+  // ── La recette du 20/10/2026, au Cabinet (1.76.0 ; docs/recette.md) : Dossiers relu, mois, brouillard, mots ──
+  ...lireFichier('recette-cabinet.txt'),
 ];

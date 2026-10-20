@@ -130,7 +130,6 @@ d'identification fiscale. ») : la base le refuse avant d'écrire (0072). Le cha
 Ce qui le prouve : `tests/socle/api.test.ts` (la porte : la forme lisible gardée, cinq écritures fausses refusées sur
 leur champ, un matricule pris refusé sous trois écritures, rien n'est créé), `tests/cabinet/mandats.test.ts` (le dossier
 tenu : une autre écriture du même matricule refusée, la forme lisible gardée, la lettre-clé O refusée en le disant),
-`tests/cabinet/reprise-portefeuille.test.ts` (deux écritures du même matricule, une lettre-clé O : nommées),
 `tests/web/parcours.test.ts` et `tests/web/cabinet-liste.test.ts` (à la souris : la porte, la liste collée). Les
 preuves de `tests/preuves.sh`, section « E4 » (et onze preuves reciblées sur la règle commune).
 

@@ -1346,6 +1346,8 @@ pour le collaborateur.
 
 ## Brique 62 : la reprise d'un livre du Cabinet v10, l'essai à blanc (fait le 30/09/2026)
 
+> **Retirée le 20/10/2026 (1.76.0, décision de Skander : « la v10 n'est installée chez personne… supprime même la fonction »).** Ses routes, ses lecteurs et ses fonctions en base (migration 0152) sont partis ; ce qu'une reprise a déjà écrit reste tel quel. La reprise d'un FEC (C61) reste. Ce qui suit est l'histoire.
+
 C'est le premier pas de la **reprise du Cabinet v10** (cadrage `08` § 2.4) : ce qui permettra aux
 comptables pilotes de passer sur la plateforme avec leurs vrais dossiers (jalon J3). Le Cabinet v10
 écrit un fichier par dossier et par exercice (`livre-AAAA.json`, chiffré avec le mot de passe du
@@ -1388,6 +1390,8 @@ le fichier et montre le rapport ; enfin le fichier entier du cabinet (ses dossie
 
 ## Brique 63 : la reprise d'un livre du Cabinet v10 dans un dossier tenu (fait le 30/09/2026)
 
+> **Retirée le 20/10/2026 (1.76.0, décision de Skander : « la v10 n'est installée chez personne… supprime même la fonction »).** Ses routes, ses lecteurs et ses fonctions en base (migration 0152) sont partis ; ce qu'une reprise a déjà écrit reste tel quel. La reprise d'un FEC (C61) reste. Ce qui suit est l'histoire.
+
 **C53. Le livre s'écrit une fois, avec ses numéros, et sa balance est relue** (par délégation).
 `POST /cabinets/:c/reprise/livre` (un associé ; `{ dossier, livre }`) relit le livre comme l'essai à
 blanc : **une seule anomalie, et rien ne s'écrit** (le rapport les nomme). Sinon la base l'écrit
@@ -1421,6 +1425,8 @@ Cabinet qui envoie le fichier et montre le rapport ; le bouton « Passer à la p
 
 ## Brique 64 : l'écran de reprise d'un livre v10 (fait le 30/09/2026)
 
+> **Retirée le 20/10/2026 (1.76.0, décision de Skander : « la v10 n'est installée chez personne… supprime même la fonction »).** Ses routes, ses lecteurs et ses fonctions en base (migration 0152) sont partis ; ce qu'une reprise a déjà écrit reste tel quel. La reprise d'un FEC (C61) reste. Ce qui suit est l'histoire.
+
 **C54. Le comptable reprend son livre de la v10 depuis le dossier, et lit le rapport avant que rien ne
 s'écrive** (par délégation). Sur un dossier **tenu** qui n'a pas encore de livre, à côté de « Commencer
 le livre », un bouton : **« Reprendre son livre de SkanFact Cabinet v10… »** (adaptation
@@ -1446,6 +1452,8 @@ BQ-2025-000003), le message « Livre de 2025 repris : 3 écritures validées, 1 
 livre de 2025 ouvert, son brouillard à l'écran.
 
 ## Brique 65 : les lettrages repris avec le livre v10 (fait le 30/09/2026)
+
+> **Retirée le 20/10/2026 (1.76.0, décision de Skander : « la v10 n'est installée chez personne… supprime même la fonction »).** Ses routes, ses lecteurs et ses fonctions en base (migration 0152) sont partis ; ce qu'une reprise a déjà écrit reste tel quel. La reprise d'un FEC (C61) reste. Ce qui suit est l'histoire.
 
 **C55. Un livre repris garde ses lettres : une facture payée dans la v10 reste payée** (par
 délégation). Sans elles, chaque facture réglée du livre se serait relue impayée sur la plateforme, et
@@ -1482,6 +1490,8 @@ paie du livre ; un livre dont le dossier n'existe pas encore (le créer depuis l
 le bouton « Passer à la plateforme » de la v10.
 
 ## Brique 66 : les relevés et leurs rapprochements repris avec le livre v10 (fait le 30/09/2026)
+
+> **Retirée le 20/10/2026 (1.76.0, décision de Skander : « la v10 n'est installée chez personne… supprime même la fonction »).** Ses routes, ses lecteurs et ses fonctions en base (migration 0152) sont partis ; ce qu'une reprise a déjà écrit reste tel quel. La reprise d'un FEC (C61) reste. Ce qui suit est l'histoire.
 
 **C56. Un livre repris garde ses relevés bancaires et ce que le comptable y avait rapproché** (par
 délégation). Sans eux, le travail de banque de toute l'année était à refaire : réimporter chaque
@@ -1524,6 +1534,8 @@ un livre dont le dossier n'existe pas encore ; le bouton « Passer à la platefo
 
 ## Brique 67 : les immobilisations reprises avec le livre v10 (fait le 30/09/2026)
 
+> **Retirée le 20/10/2026 (1.76.0, décision de Skander : « la v10 n'est installée chez personne… supprime même la fonction »).** Ses routes, ses lecteurs et ses fonctions en base (migration 0152) sont partis ; ce qu'une reprise a déjà écrit reste tel quel. La reprise d'un FEC (C61) reste. Ce qui suit est l'histoire.
+
 **C57. Un livre repris garde ses biens : une fiche par bien pour toute la vie du dossier, ses dotations
 déjà passées reliées** (par délégation). La v10 tenait les biens dans le livre de chaque exercice (un bien
 « reporté » d'une année à l'autre par « Ouvrir N+1 ») ; la plateforme garde **une fiche par bien** pour
@@ -1564,6 +1576,8 @@ dossier n'existe pas encore ; le bouton « Passer à la plateforme » de la v10.
 
 ## Brique 68 : la révision et les questions au client reprises avec le livre v10 (fait le 30/09/2026)
 
+> **Retirée le 20/10/2026 (1.76.0, décision de Skander : « la v10 n'est installée chez personne… supprime même la fonction »).** Ses routes, ses lecteurs et ses fonctions en base (migration 0152) sont partis ; ce qu'une reprise a déjà écrit reste tel quel. La reprise d'un FEC (C61) reste. Ce qui suit est l'histoire.
+
 **C58. Un livre repris garde le dossier de travail du cabinet et ses questions au client, dans leur
 état** (par délégation). La v10 rangeait dans le livre la révision de chaque période (les comptes
 signés, les notes de revue, le questionnaire, la révision arrêtée) et les questions posées au client,
@@ -1595,6 +1609,8 @@ l'inventaire ; un livre dont le dossier n'existe pas encore ; le bouton « Passe
 v10.
 
 ## Brique 69 : les déclarations et l'inventaire repris avec le livre v10 (fait le 30/09/2026)
+
+> **Retirée le 20/10/2026 (1.76.0, décision de Skander : « la v10 n'est installée chez personne… supprime même la fonction »).** Ses routes, ses lecteurs et ses fonctions en base (migration 0152) sont partis ; ce qu'une reprise a déjà écrit reste tel quel. La reprise d'un FEC (C61) reste. Ce qui suit est l'histoire.
 
 **C59. Un livre repris garde ses déclarations préparées et son inventaire, reliés à leur écriture**
 (par délégation). La v10 rangeait dans le livre la déclaration de chaque mois (ses cases, ses deux
@@ -1629,6 +1645,8 @@ SkanFact. À la souris : les deux lignes du rapport.
 n'existe pas encore ; le bouton « Passer à la plateforme » de la v10.
 
 ## Brique 70 : le portefeuille du Cabinet v10 repris (fait le 30/09/2026)
+
+> **Retirée le 20/10/2026 (1.76.0, décision de Skander : « la v10 n'est installée chez personne… supprime même la fonction »).** Ses routes, ses lecteurs et ses fonctions en base (migration 0152) sont partis ; ce qu'une reprise a déjà écrit reste tel quel. La reprise d'un FEC (C61) reste. Ce qui suit est l'histoire.
 
 **C60. Le comptable reprend son portefeuille de la v10 en une fois : ses dossiers tenus, leur fiche**
 (par délégation). Avant, chaque dossier se recréait à la main avant d'y reprendre son livre ; avec

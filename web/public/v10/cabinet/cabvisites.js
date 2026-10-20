@@ -280,9 +280,9 @@
   b('#sa-joindre', 'Joint un justificatif à la pièce : le fichier est copié dans le dossier.');
   b('#sa-guide', 'Préremplit la pièce avec un guide d\'écriture (un loyer, un salaire…).', { nom: 'Guide' });
   b('[data-sup]', 'Retire cette ligne de la pièce en cours.', { nom: 'Retirer la ligne', cle: 'sup-ligne' });
-  b('#ab-new', 'Crée un abonnement : une pièce qui revient chaque mois (un loyer), générée en brouillard.');
-  b('#ab-gen', 'Génère en brouillard les pièces des abonnements arrivés à échéance.');
-  b('#ab-guides', 'Ouvre les guides d\'écritures dans les Réglages : un abonnement s\'appuie sur un guide, écrit une fois pour tous tes dossiers.');
+  b('#ab-new', 'Crée une écriture qui revient chaque mois (un loyer), générée en brouillard.');
+  b('#ab-gen', 'Génère en brouillard les écritures qui reviennent arrivées à échéance.');
+  b('#ab-guides', 'Ouvre les guides d\'écritures dans les Réglages : une écriture qui revient s\'appuie sur un guide, écrit une fois pour tous tes dossiers.');
 
   // ---------- la banque ----------
   b('#bq-import', 'Importe le relevé de la banque (CSV). Tu vérifies les colonnes et les soldes avant qu\'il entre.');
@@ -1592,15 +1592,15 @@
       id: 'abonnement', theme: 'saisir', type: 'faire', duree: '1 min',
       page: dans('saisie', 'comptabilite/saisie'),
       titre: 'Programmer une écriture qui revient',
-      resume: 'Un loyer, un abonnement : écrit une fois, généré chaque mois en brouillard.',
+      resume: 'Un loyer, une assurance : écrit une fois, généré chaque mois en brouillard.',
       mots: ['abonnement', 'loyer', 'mensuel', 'recurrent', 'revient', 'chaque mois', 'guide'],
       si: () => !!ctx.dossier('saisie'), manque: DOSSIER_MANQUE.saisie,
       suite: ['guide-saisie', 'valider-lot'],
-      bravo: 'Tu sais programmer un abonnement',
+      bravo: 'Tu sais programmer une écriture qui revient',
       conclusion: 'Chaque mois dû arrive en brouillard, jamais validé d\'office : une écriture que personne n\'a regardée n\'engage pas ta signature. Générer deux fois ne double rien.',
       etapes: [
-        { page: dans('saisie', 'comptabilite/saisie'), cible: ['#ab-new', '#ab-guides'], cote: 'dessus', titre: 'Les abonnements',
-          texte: 'Un abonnement part d\'un <b>guide d\'écritures</b> (le loyer : 613 au débit, la banque au crédit) et d\'un montant. Tu dis depuis quand, et jusqu\'à quand.' },
+        { page: dans('saisie', 'comptabilite/saisie'), cible: ['#ab-new', '#ab-guides'], cote: 'dessus', titre: 'Les écritures qui reviennent',
+          texte: 'Une écriture qui revient part d\'un <b>guide d\'écritures</b> (le loyer : 613 au débit, la banque au crédit) et d\'un montant. Tu dis depuis quand, et jusqu\'à quand.' },
         { page: dans('saisie', 'comptabilite/saisie'), cible: ['#ab-gen', '#ab-new'], cote: 'dessus', faire: 'clic', facultatif: true,
           titre: 'Générer ce qui manque', texte: 'Les mois dus arrivent en brouillard, datés : tu les relis, puis tu valides.',
           action: 'Clique sur le bouton, puis relis le brouillard.', essai: { clic: true } }

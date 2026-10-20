@@ -165,6 +165,29 @@ describe('le cabinet et ses mandats', () => {
     expect((await appeler('GET', `/entreprises/${cl.ent}/mandat`, cl.jeton)).corps.mandat).toBeNull();
   });
 
+  it('sous un mandat actif, le cabinet lit l\'e-mail et le téléphone de la fiche de son client, et rien d\'autre ; proposé ou arrêté, rien', async () => {
+    const cl = await client();
+    const cab = await cabinet();
+    // La fiche société du client : son adresse e-mail, son téléphone (des espaces autour), et ce qui ne regarde pas le cabinet ici.
+    await admin.query(`update socle.dossier_v10 set contenu = contenu || $2::jsonb where entreprise = $1 and collection = '_racine' and cle = 'company'`,
+      [cl.ent, JSON.stringify({ email: '  contact@menuiserie.exemple.tn ', phone: '+216 71 234 567', rib: '08006012345678901231' })]);
+    const lues = async () => (await appeler('GET', `/cabinets/${cab.id}/portefeuille`, cab.associe.jeton)).corps.dossiers as { entreprise: string; coordonnees?: unknown }[];
+    const mandat = String((await appeler('POST', `/entreprises/${cl.ent}/mandat`, cl.jeton, { codeCabinet: cab.code })).corps.mandat);
+    // Proposé : rien ne sort encore.
+    expect((await lues()).find((d) => d.entreprise === cl.ent)?.coordonnees).toBeUndefined();
+    await appeler('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, cab.associe.jeton);
+    expect((await lues()).find((d) => d.entreprise === cl.ent)?.coordonnees).toEqual({ email: 'contact@menuiserie.exemple.tn', telephone: '+216 71 234 567' });
+    // La fiche entière reste fermée au cabinet, dans la base : ces deux champs sortent seuls.
+    expect(await enTantQue(pool, cab.associe.utilisateur, async (tx) => (await tx.query(`select count(*)::int n from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'company'`, [cl.ent])).rows[0].n)).toBe(0);
+    const colonnes = await enTantQue(pool, cab.associe.utilisateur, async (tx) => (await tx.query('select * from socle.coordonnees_de_mes_clients() where entreprise = $1', [cl.ent])).fields.map((f) => f.name));
+    expect(colonnes).toEqual(['entreprise', 'email', 'telephone']);
+    // Un autre cabinet n'en lit rien ; arrêté, le cabinet non plus.
+    const autre = await cabinet();
+    expect(await enTantQue(pool, autre.associe.utilisateur, async (tx) => (await tx.query('select count(*)::int n from socle.coordonnees_de_mes_clients() where entreprise = $1', [cl.ent])).rows[0].n)).toBe(0);
+    await appeler('DELETE', `/entreprises/${cl.ent}/mandat`, cl.jeton);
+    expect(await enTantQue(pool, cab.associe.utilisateur, async (tx) => (await tx.query('select count(*)::int n from socle.coordonnees_de_mes_clients() where entreprise = $1', [cl.ent])).rows[0].n)).toBe(0);
+  });
+
   it('le dossier tenu : l\'associé le crée, avec tout le périmètre et aucun membre côté client ; un collaborateur, non', async () => {
     const cab = await cabinet();
     const revision = await cab.collaborateur('revision');

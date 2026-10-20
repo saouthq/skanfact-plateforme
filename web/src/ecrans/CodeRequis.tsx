@@ -115,7 +115,7 @@ export function CodeRequis({ pose, deconnecte, cabinet }: { pose: () => void; de
           <div className="ent-pose-pied">
             <span />
             <div className="droite">
-              <span className={`ent-aide${garde ? ' ok' : ''}`} aria-live="polite">{phrase(garde ? 'ecran.code_pose.garde_ok' : 'ecran.code_pose.garde_avant')}</span>
+              <span className={`ent-aide${garde ? ' ok' : ''}`} aria-live="polite">{phrase(!garde ? 'ecran.code_pose.garde_avant' : /^\d{6}$/.test(essai.replace(/\s/g, '')) ? 'ecran.code_pose.pret' : 'ecran.code_pose.garde_ok')}</span>
               <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.code_pose.bouton')}<Dessin id="fleche" /></Bouton>
             </div>
           </div>

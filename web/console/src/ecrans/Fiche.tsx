@@ -908,6 +908,9 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
   // Le mois en cours et celui d'avant, pour « Pièces émises » (la maquette : « 214 · 353 en septembre »).
   const moisAvant = derniersMois(f.aujourdhui)[10] ?? '';
   const emisesAvant = emises.find((x) => x.mois === moisAvant)?.n ?? 0;
+  // Le mois d'avant n'existe pas pour une entreprise née ce mois-ci (1.76.0) : « aucune en septembre » se lisait sur une
+  // entreprise inscrite en octobre (recette du 20/10/2026). La tuile dit alors depuis quand elle compte.
+  const neeCeMois = String(f.creeLe).slice(0, 7) > moisAvant;
   const derniereActivite = f.derniereActivite ?? null;
   const remiseCabinet = f.groupe.remise && f.groupe.remise.nature === 'cabinet' ? f.groupe.remise : null;
   // Le geste qui répond à une ligne de « Ce qui attend » : encaisser quand le rôle le permet, sinon prolonger ; écrire au
@@ -1033,7 +1036,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
               {/* Huit comptes (la maquette) : ceux que la console mesure, et ceux qu'elle ne mesure pas encore, dits tels (C2). */}
               <div className="c-chiffres c-fiche-chiffres c-fiche-chiffres-8">
                 {([
-                  ['emises', String(f.enPlus?.piecesMois ?? 0), emisesAvant ? dire('console.ecran.fiche.c.emises_avant', { n: emisesAvant, mois: moisEnMots(moisAvant, false) }) : dire('console.ecran.fiche.c.emises_rien_avant', { mois: moisEnMots(moisAvant, false) })],
+                  ['emises', String(f.enPlus?.piecesMois ?? 0), neeCeMois ? dire('console.ecran.fiche.c.emises_depuis', { le: jourCourt(f.creeLe) }) : emisesAvant ? dire('console.ecran.fiche.c.emises_avant', { n: emisesAvant, mois: moisEnMots(moisAvant, false) }) : dire('console.ecran.fiche.c.emises_rien_avant', { mois: moisEnMots(moisAvant, false) })],
                   ['membres', String(f.membres.length), dire('console.ecran.fiche.c.membres_sous')],
                   ['salaries', String(f.comptes.salaries), dire('console.ecran.fiche.c.salaries_sous')],
                   ['caisses_etab', `${f.comptes.caisses} · ${f.comptes.etablissements}`, dire('console.ecran.fiche.c.caisses_etab_sous')],

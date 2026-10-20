@@ -5361,6 +5361,7 @@ declarerTextes({
   'console.ecran.fiche.c.api': 'appels à l\'API',
   'console.ecran.fiche.c.emises_avant': '{n} en {mois}',
   'console.ecran.fiche.c.emises_rien_avant': 'aucune en {mois}',
+  'console.ecran.fiche.c.emises_depuis': 'ce mois-ci, depuis son inscription le {le}',
   'console.ecran.fiche.c.membres_sous': 'son équipe ; aucune offre ne les compte',
   'console.ecran.fiche.c.salaries_sous': 'ceux de sa paie',
   'console.ecran.fiche.c.caisses_etab_sous': 'ce qui se facture en option',

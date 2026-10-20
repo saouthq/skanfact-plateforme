@@ -16,8 +16,10 @@
   const cabinetId = new URLSearchParams(location.search).get('c');
   if (!jeton || !cabinetId || !/^[0-9a-f-]{36}$/.test(cabinetId)) { location.replace('/'); return; }
 
-  // L'écran écrit « v » devant : « v10 · en ligne ».
-  const VERSION = '10 · en ligne';
+  // L'écran écrit « v » devant : le numéro que le serveur a écrit dans la page (« 1.76.0 · 879fcb2 » : serveur/ecrans.ts),
+  // comme l'entreprise le lit (pont.js, `updateVersion`) ; sans rien, « dev ». (1.76.0 — « v10 · en ligne » ne disait
+  // rien de ce qui tourne, et l'entreprise d'à côté disait « v1.75.0 ».)
+  const VERSION = (document.querySelector('meta[name="skanfact-code"]')?.getAttribute('content') || 'dev').split(' · ')[0] || 'dev';
   const PAS_EN_LIGNE = 'Pas encore dans la version en ligne de SkanFact Cabinet : rien n\'a été fait.';
   // Une réponse qui ne vient pas du serveur (vu le 05/10/2026, côté entreprise : un relais qui coupe une demande trop
   // longue ; ou la page d'erreur du frontal pendant une installation) : jamais son texte brut à l'écran, la phrase de
@@ -66,9 +68,6 @@
   // Les écrans du Cabinet se relisent quand elle s'allonge (la déclaration, la révision, la liasse,
   // l'exercice : `revDuLivre`) ; vide, ils gardaient leurs contrôles d'avant une validation.
   let gestesFaits = 0;
-  // Le livre de la v10 choisi pour une reprise, entre l'essai à blanc et l'écriture (brique 64).
-  /** @type {{ dossierId: string, livre: unknown, nom: string } | null} */
-  let repriseEnAttente = null;
 
   // ── L'état du cabinet : le cabinet, son portefeuille, la personne qui travaille ────────────
   /** @type {Map<string, { id: string, name: string, matricule: string, manual: boolean, mandat: string }>} */
@@ -118,7 +117,13 @@
       dossiers.set(d.entreprise, { id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu, mandat: d.mandat });
       // Un dossier tenu est le « dossier créé à la main » de la v10 : un client hors SkanFact.
       const fiche = fiches.get(d.entreprise);
-      return K.migrateDossier({ ...(fiche ? depuisFiche(fiche.contenu) : {}), id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu,
+      /** @type {any} */ const lue = fiche ? depuisFiche(fiche.contenu) : {};
+      // (1.76.0) Un client sur SkanFact : son e-mail et son téléphone sont ceux de sa fiche société, quand celle du cabinet
+      // n'en dit rien (le serveur les donne sous le mandat actif) ; ce que le cabinet a écrit l'emporte.
+      const c = d.coordonnees || {};
+      if (!String(lue.email || '').trim() && c.email) lue.email = c.email;
+      if (!String(lue.phone || '').trim() && c.telephone) lue.phone = c.telephone;
+      return K.migrateDossier({ ...lue, id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu,
         packs: moisVersPaquets(K, (mois.mois || []).filter((/** @type {any} */ x) => x.entreprise === d.entreprise)) });
     });
     // L'équipe (brique 46) : chaque membre du cabinet est un collaborateur de la v10 (son rôle, son
@@ -751,13 +756,6 @@
     fiches.set(ent, { contenu, revision: r.revision });
   }
 
-  // Ce qui part du poste, de chaque dossier du portefeuille v10 (brique 70) : cette liste, et rien d'autre.
-  const CHAMPS_PORTEFEUILLE = ['id', 'name', 'matricule', 'manual', 'demo', 'archived', 'email', 'phone', 'contact', 'note', 'from', 'regime', 'tvaPeriod',
-    'fees', 'cnssEmployeur', 'cnssCode', 'relances', 'abonnements'];
-  /** @param {any} etat */
-  const portefeuilleAEnvoyer = (etat) => ({ dossiers: (etat.dossiers || []).map((/** @type {any} */ d) => Object.fromEntries(CHAMPS_PORTEFEUILLE.map((k) => [k, d[k]]))) });
-  /** @type {any} */ let portefeuilleEnAttente = null;
-
   // Un fichier choisi sur l'ordinateur (le navigateur ouvre sa fenêtre), ou null si on l'a fermée.
   /** @param {string} accepte @returns {Promise<File | null>} */
   const choisirFichier = (accepte) => new Promise((resoudre) => {
@@ -1325,51 +1323,6 @@
       if (!d) throw new Error('Dossier introuvable.');
       await appel('POST', `/cabinets/${cabinetId}/mandats/${d.mandat}/arreter`);
       return construireEtat();
-    },
-    // ── La reprise d'un livre du Cabinet v10 (briques 62 à 64 ; docs/cabinet.md, C54) : le fichier
-    // `livre-AAAA.json` choisi sur l'ordinateur, lu par le serveur sans rien créer (le rapport), puis,
-    // confirmé, écrit dans le dossier tenu. Le fichier lu reste ici entre les deux gestes : c'est le
-    // même qui est essayé puis écrit ──
-    essaiRepriseV10: async (/** @type {any} */ o) => {
-      if (!dossiers.has(o.dossierId)) throw new Error('Dossier introuvable.');
-      const f = await choisirFichier('.json,application/json');
-      if (!f) return null;
-      /** @type {unknown} */ let livre;
-      try { livre = JSON.parse(await f.text()); } catch { throw new Error(`« ${f.name} » ne se lit pas : ce n'est pas un fichier JSON. Choisis le livre d'un exercice (livre-AAAA.json).`); }
-      const rapport = await appel('POST', `/cabinets/${cabinetId}/reprise/livre/essai`, { livre });
-      repriseEnAttente = { dossierId: o.dossierId, livre, nom: f.name };
-      return { nom: f.name, rapport };
-    },
-    // Le portefeuille du Cabinet v10 (brique 70, C60) : le fichier du cabinet est lu SUR CE POSTE ; il porte
-    // la clé privée du cabinet et celles des clients, qui ne partent jamais. De chaque dossier ne part que
-    // la liste comptée (serveur/reprise/cabinet-v10.ts, DOSSIER_V10), telle que la v10 la relit (migrate).
-    essaiRepriseV10Portefeuille: async () => {
-      /** @type {any} */ const K = /** @type {any} */ (window).CabCore;
-      const f = await choisirFichier('.json,application/json');
-      if (!f) return null;
-      /** @type {any} */ let etat;
-      try { etat = JSON.parse(await f.text()); } catch { throw new Error(`« ${f.name} » ne se lit pas : ce n'est pas un fichier JSON. Choisis le fichier de ton cabinet.`); }
-      if (!etat || typeof etat !== 'object' || !Array.isArray(etat.dossiers)) throw new Error(`« ${f.name} » n'est pas le fichier d'un cabinet de SkanFact Cabinet v10 : rien n'a été lu.`);
-      const corps = portefeuilleAEnvoyer(K.migrate(etat));
-      const rapport = await appel('POST', `/cabinets/${cabinetId}/reprise/portefeuille/essai`, corps);
-      portefeuilleEnAttente = corps;
-      return { nom: f.name, rapport };
-    },
-    repriseV10Portefeuille: async () => {
-      const corps = portefeuilleEnAttente;
-      if (!corps) throw new Error('Choisis d\'abord le fichier de ton cabinet : aucun dossier n\'a été créé.');
-      const r = await appel('POST', `/cabinets/${cabinetId}/reprise/portefeuille`, corps);
-      portefeuilleEnAttente = null;
-      return { crees: (r.crees || []).length, state: await construireEtat() };
-    },
-    repriseV10: async (/** @type {any} */ o) => {
-      const r = repriseEnAttente;
-      if (!r || r.dossierId !== o.dossierId) throw new Error('Choisis d\'abord le fichier du livre : rien n\'a été écrit.');
-      const cree = await appel('POST', `/cabinets/${cabinetId}/reprise/livre`, { dossier: o.dossierId, livre: r.livre });
-      repriseEnAttente = null;
-      const annee = Number(cree.rapport.annee);
-      await exercicesDe(o.dossierId);
-      return { ...cree, annee, livre: await livreDe(o.dossierId, annee) };
     },
     // Une génération à la fois : un second clic attend la première, puis relit la fiche (les mois faits)
     // et ne double rien — la v10, dans son processus principal, les jouait déjà l'une après l'autre.

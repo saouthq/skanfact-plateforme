@@ -197,6 +197,8 @@ declarerTextes({
   'ecran.code_pose.garde': 'je les ai mis de côté',
   'ecran.code_pose.garde_avant': 'mets d\'abord tes codes de secours de côté (copie-les ou télécharge-les), puis coche « je les ai mis de côté »',
   'ecran.code_pose.garde_ok': 'codes mis de côté : il reste à taper le code que montre l\'application, puis à vérifier',
+  // 1.76.0 — les six chiffres tapés, la phrase d'avant (« il reste à taper le code ») se trompait (recette du 20/10/2026).
+  'ecran.code_pose.pret': 'tout est prêt : « vérifier et continuer » contrôle le code tapé',
   'ecran.code_pose.essai': 'le code que montre l\'application',
   'ecran.code_pose.essai_aide': 'six chiffres, qui changent toutes les 30 secondes : on vérifie que ton téléphone donne le bon avant de continuer',
   'ecran.code_pose.bouton': 'vérifier et continuer',
@@ -258,7 +260,7 @@ declarerTextes({
   // Un cabinet comptable qui arrive : son nom, puis le Cabinet.
   'ecran.porte.cabinet_lien': 'je suis un cabinet comptable',
   'ecran.porte.cabinet_titre': 'ton cabinet',
-  'ecran.porte.cabinet_sous': 'tes clients te confient leurs livres depuis leur SkanFact ; ceux qui n\'y sont pas encore, tu les tiens toi-même',
+  'ecran.porte.cabinet_sous': 'tes clients te confient leurs livres depuis leur SkanFact. Ceux qui n\'y sont pas encore, tu les tiens toi-même',
   'ecran.porte.cabinet_nom': 'nom du cabinet',
   'ecran.porte.cabinet_nom_aide': 'tel que tes clients le liront quand ils te confieront leur dossier',
   'ecran.porte.cabinet_creer': 'créer mon cabinet',

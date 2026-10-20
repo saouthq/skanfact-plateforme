@@ -383,16 +383,8 @@ vaut pour tout le dépôt.*
     mandat de paie, la paie. Une nouvelle lecture du dossier v10 pour le cabinet passe par cette liste.
   - **Ce qui a changé dans l'équipe** (brique 61, 0036, C51) : `socle.trace_de_l_equipe` (un associé) et
     `GET /cabinets/:c/equipe/trace` ; les phrases sont écrites par le point de contact (`phraseDeLEquipe`).
-  - **La reprise du Cabinet v10, l'essai à blanc** (brique 62, C52) : `serveur/reprise/livre-v10.ts` lit un
-    `livre-AAAA.json` (montants au millime exact, anomalies nommées) ; `POST /cabinets/:c/reprise/livre/essai`
-    (un associé, 32 Mo : `limiteCorps` d'une route) rend le rapport sans rien créer. Règle de numérotation
-    de la reprise (C52) : le numéro de la v10 gardé, `<journal>-<année>-<numéro sur six chiffres>`.
-  - **La reprise d'un livre dans un dossier tenu** (brique 63, 0037, C53) : `POST /cabinets/:c/reprise/livre`
-    → `compta.reprendre_livre_v10` (dossier tenu, exercice vide, numéros v10, chaîne dans leur ordre,
-    compteurs, période validée jusqu'à la veille du premier brouillard, empreinte du fichier dans la
-    trace) ; la balance relue dans la base doit être celle du livre, sinon tout se défait.
-  - **L'écran de reprise** (brique 64, C54) : « Reprendre son livre de SkanFact Cabinet v10… » sur un dossier
-    tenu sans livre (`reprise-v10.txt`) ; `essaiRepriseV10` (fichier choisi, rapport) puis `repriseV10`.
+  - **La reprise du Cabinet v10** (briques 62 à 70, C52 à C60) : **retirée le 20/10/2026** (1.76.0, décision de
+    Skander ; migration 0152). Son histoire reste dans `docs/cabinet.md` ; la reprise d'un FEC (C61) reste.
   - **Le téléphone** : la même page, une mise en page de plus (`web/public/plateforme/telephone.css`
     et `telephone.js`, sous 760 points) ; sur un ordinateur, c'est la v10 au pixel près. Depuis la brique 105
     les deux pages de la v10 disent leur largeur (`<meta name="viewport">`, `web/v10/telephone.txt`) : sans elle,
@@ -483,6 +475,11 @@ vaut pour tout le dépôt.*
     client, le refus d'un montant qui dit ce qui est attendu, le signe moins et les propositions du navigateur hors des
     champs de nombre (`virgule.js`), ce qui reste des premiers pas (`restesDesPremiersPas`), l'adresse du comptable
     renommée, deux prix voisins écrits pareil (`abonnement.js`).
+  - **La recette du Cabinet et de la console** (1.76.0, 20/10/2026 ; `docs/recette.md`, `web/v10/recette-cabinet.txt`) :
+    Dossiers relu au retour (`relirePortefeuille`), les phrases du mois en cours et du brouillard, « Écritures qui
+    reviennent », « Adresse du client », la version du serveur au pied (`pont-cabinet.js`) ; l'e-mail et le téléphone
+    de la fiche d'un client sous mandat actif (`socle.coordonnees_de_mes_clients`, 0153 ; `coordonnees` du
+    portefeuille) ; à la console, « Pièces émises » d'une entreprise née ce mois-ci (`Fiche.tsx`).
   - **Le lot débutant (2)** (12/10/2026 ; `docs/debutant.md`, `web/v10/debutant-2.txt`) : les gênants d'un commerçant
     qui débute, refaits à la souris sur une quincaillerie. Le mot du catalogue suit le métier (`motsCatalogue` :
     « article » pour le commerce, la restauration, l'artisanat) ; une dépense sans fournisseur se range sous UNE fiche

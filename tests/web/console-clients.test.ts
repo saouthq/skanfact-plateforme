@@ -153,6 +153,23 @@ describe('la liste des clients, à la souris', () => {
     await fermer(p);
   }, 90_000);
 
+  it('« Pièces émises » d\'une entreprise née ce mois-ci dit depuis quand elle compte ; née avant, le mois d\'avant (1.76.0)', async () => {
+    const p = await ouvrir(jS, recherche);
+    // Née ce mois-ci : le mois d'avant n'existe pas pour elle.
+    await cliquer(ligne(p, `${MARQUE} 05`).getByRole('link', { name: `${MARQUE} 05`, exact: true }));
+    const tuile = p.locator('.c-fiche-chiffres .c-chiffre').filter({ hasText: 'Pièces émises' });
+    await expect.poll(async () => net(await tuile.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/ce mois-ci, depuis son inscription le \d{2}\/\d{2}\/\d{4}$/);
+    expect(net(await tuile.innerText())).not.toMatch(/aucune en/);
+    // Née trois mois plus tôt : la tuile compare au mois d'avant.
+    await admin.query(`update socle.entreprise set cree_le = cree_le - interval '3 months' where raison_sociale = $1`, [`${MARQUE} 06`]);
+    await p.goto(`${serveur.adresse}/console/${recherche}`);
+    await expect.poll(() => p.locator('.c-table-clients tbody tr').count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    await cliquer(ligne(p, `${MARQUE} 06`).getByRole('link', { name: `${MARQUE} 06`, exact: true }));
+    await expect.poll(async () => net(await tuile.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/aucune en [a-zéû]+$/);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 90_000);
+
   it('la sortie d\'un client (0131) : la direction l\'ouvre sur sa fiche ; la carte dit ce qui reste ; « Il est parti » attend le remboursement ; le support ne la voit pas', async () => {
     const nom = `${MARQUE} 09`;
     const p = await ouvrir(jD, recherche);

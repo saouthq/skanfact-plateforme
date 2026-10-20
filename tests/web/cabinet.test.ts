@@ -156,8 +156,11 @@ describe('le Cabinet, à la souris', () => {
     await p.getByRole('button', { name: 'Mettre en place le code', exact: true }).click();
     // Le téléphone de Nadia donne le code de la clé affichée (brique 145 : le premier code se vérifie avant de partir).
     const cle = (await p.locator('.code-cle').innerText()).replace(/\s/g, '');
-    await p.locator('label.field').filter({ hasText: 'Le code que montre l\'application' }).locator('input').fill(codeTotp(depuisBase32(cle), Date.now()));
+    // Les codes de secours gardés, la phrase dit ce qui reste ; les six chiffres tapés, elle dit que tout est prêt (1.76.0).
     await p.getByText('Je les ai mis de côté', { exact: true }).click();
+    await expect.poll(() => p.locator('.ent-aide.ok').innerText()).toMatch(/il reste à taper le code/);
+    await p.locator('label.field').filter({ hasText: 'Le code que montre l\'application' }).locator('input').fill(codeTotp(depuisBase32(cle), Date.now()));
+    await expect.poll(() => p.locator('.ent-aide.ok').innerText()).toMatch(/^Tout est prêt : « vérifier et continuer » contrôle le code tapé/i);
     await p.getByRole('button', { name: 'Vérifier et continuer', exact: true }).click();
     await p.waitForURL(/\/v10\/cabinet\/\?c=[0-9a-f-]{36}/, { timeout: 15_000 });
     const cabinet = new URL(p.url()).searchParams.get('c');

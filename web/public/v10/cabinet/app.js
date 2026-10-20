@@ -1184,6 +1184,18 @@
   }
 
   async function refresh() { S = await api.state(); }
+  // (plateforme) 1.76.0 — le portefeuille se relit quand on REVIENT sur Dossiers, comme les index juste en dessous :
+  // lu au démarrage, il gardait la proposition d'un client qui n'était pas encore là, et « à valider » sur un mois qu'on
+  // venait de valider, jusqu'au rechargement de la page (recette du 20/10/2026). Une lecture à la fois ; la page se
+  // redessine si l'on y est encore.
+  let lecturePortefeuille = null;
+  function relirePortefeuille() {
+    if (lecturePortefeuille || !api.state) return;
+    lecturePortefeuille = api.state().then(etat => {
+      S = etat;
+      if ((location.hash.replace(/^#\//, '') || 'dossiers').split('/')[0] === 'dossiers') render();
+    }).catch(() => {}).then(() => { lecturePortefeuille = null; });
+  }
   async function refreshBackupInfo() {
     try { backupInfo = await api.backups(); } catch { backupInfo = null; }
     if (location.hash.startsWith('#/reglages')) drawBackupPanels();
@@ -1651,6 +1663,8 @@
     // saisi dans la journée restait « à saisir » au calendrier jusqu'au lendemain. On ne redessine
     // que s'il a changé : la page ne clignote pas, et rien ne boucle.
     if (route !== routeLue && (route === 'echeances' || route === 'dossiers')) chargerQuestionsAttente(true);
+    // (plateforme) 1.76.0 — et le portefeuille, en revenant sur Dossiers (pas à la première ouverture : il vient d'être lu).
+    if (route !== routeLue && route === 'dossiers' && routeLue) relirePortefeuille();
     // (plateforme) Le tableau de production se relit quand on ENTRE sur sa page : lu une fois, un mois
     // saisi dans la journée y restait « à saisir » (même règle que le résumé ci-dessus).
     if (route !== routeLue && route === 'production') prodState.lignes = null;
@@ -1829,8 +1843,9 @@
       const p = K.portfolio(S);
       if (!p.surSkanfact) return '';
       return p.surSkanfact > 1
-        ? `<div class="todo-ok">Tout est à jour : chez tes ${p.surSkanfact} dossiers sur SkanFact, aucun mois passé n'est vide ni à valider.</div>`
-        : `<div class="todo-ok">Tout est à jour : chez ton dossier sur SkanFact, aucun mois passé n'est vide ni à valider.</div>`;
+        // (plateforme) 1.76.0 — « chez ton dossier » ne se disait pas (recette du 20/10/2026).
+        ? `<div class="todo-ok">Tout est à jour : tes ${p.surSkanfact} clients sur SkanFact n'ont aucun mois passé vide ni à valider.</div>`
+        : `<div class="todo-ok">Tout est à jour : ton client sur SkanFact n'a aucun mois passé vide ni à valider.</div>`;
     }
     // 9.4.4 — repliable, et plafonné. Six lignes font 400 px : avec les cartes au-dessus, la liste
     // des clients partait sous l'écran. Le panneau garde les DEUX plus urgentes sous les yeux (la
@@ -2056,7 +2071,6 @@
           <div class="actions">
             <button class="btn" id="demo-on">Voir un exemple (${nbExemple()} clients fictifs)</button>
             <button class="btn" id="imp">Importer un paquet…</button>
-            <button class="btn" id="rp-v10">Reprendre mon portefeuille de SkanFact Cabinet v10…</button>
             <button class="btn btn-primary" id="new-d">Ajouter mes clients…</button>
           </div></div>
         ${/* 10.14.0 — la ligne calme de la clé de secours doublait l'étape « Enregistrer ta clé de secours »
@@ -2076,7 +2090,6 @@
       $('#imp').onclick = () => doImport();
       $('#new-d').onclick = () => newDossierForm();
       $('#demo-on').onclick = async () => { S = await chargerOuRetirerExemple(true); VISITES = null; render(); toast(phraseExemple()); };
-      $('#rp-v10').onclick = () => repriseV10PortefeuilleForm();
       bindInboxBanner(view);
       bindRecoveryBanner(view);
       bindPremiersPas(view);
@@ -2096,7 +2109,6 @@
       <div class="page-head"><h1>Dossiers</h1>
         <div class="actions">
           <button class="btn" id="new-d">Nouveau client…</button>
-          <button class="btn" id="rp-v10">Reprendre mon portefeuille v10…</button>
           <button class="btn${importerVert ? ' btn-primary' : ''}" id="imp">Importer un paquet…</button>
           ${premierLivre ? '<button class="btn btn-primary" id="pp-livre">Commencer un premier livre…</button>' : ''}
         </div></div>
@@ -2156,7 +2168,6 @@
 
     $('#imp').onclick = () => doImport();
     const ppl = $('#pp-livre'); if (ppl) ppl.onclick = () => ouvrirPremierLivre();
-    $('#rp-v10').onclick = () => repriseV10PortefeuilleForm();
     $('#new-d').onclick = () => newDossierForm();
     const q = $('#q');
     q.oninput = () => { listState.q = q.value; listState.page = 1; sansPerdreLaFrappe(q, render); };
@@ -2503,6 +2514,9 @@
       title="${esc(quoi)}" aria-label="${esc(m.label)} — ${esc(etat)}. ${esc(quoi)}">
       <div class="m-lab">${esc(nom)}</div><div class="m-st">${esc(etat)}</div></button>`;
   }).join('')}</div></div>`).join('')
+          // (plateforme) 1.76.0 — un client qui n'a écrit que le mois en cours : « l'attente démarre à la première écriture »
+          // se lisait sous « 1 mois écrit » (recette du 20/10/2026). Le mois en cours n'est jamais réclamé ; il est là.
+          : (dossier.packs || []).length ? `<span class="muted small">Ses écritures commencent en ${esc((dossier.packs.slice().sort((x, y) => x.month < y.month ? -1 : 1)[0] || {}).label || '')} : un mois n'est attendu qu'une fois fini. Le calendrier commence avec lui.</span>`
           : '<span class="muted small">Aucun mois attendu pour l\'instant : l\'attente démarre à la première écriture de ses livres, ou à la date de début de mission que tu renseignes dans la fiche.</span>'}
         ${!dossier.manual && months.length ? `<p class="muted small mt">Un mois <strong>à valider</strong> a encore des écritures au brouillard : valide-les avant de déclarer.
         Un mois <strong>manquant</strong> n'a aucune écriture : c'est lui qu'on relance. Le mois en cours n'est jamais réclamé.</p>` : ''}
@@ -3091,60 +3105,6 @@
   // Reprendre un dossier venu d'ailleurs : exercice, plan, balance d'ouverture. L'écart s'affiche
   // EN DIRECT pendant la saisie — découvrir à l'enregistrement qu'il manque 3 000 DT sur vingt
   // lignes, c'est recommencer ; le voir descendre à zéro pendant qu'on tape, c'est travailler.
-  async function repriseV10Form(root, dossier) {
-    const s = livresState;
-    let lu;
-    try { lu = await api.essaiRepriseV10({ dossierId: dossier.id }); } catch (e) { await infoDialog('Ce livre ne se reprend pas', plainError(e)); return; }
-    if (!lu) return;
-    const R = lu.rapport;
-    const autour = Object.entries(R.autour || {}).filter(([, n]) => n > 0)
-      .map(([k, n]) => `${n} ${({ immobilisations: 'immobilisation(s)', declarations: 'déclaration(s)', inventaires: 'inventaire(s)', revisions: 'révision(s)', questions: 'question(s)', salaries: 'salarié(s)', bulletins: 'bulletin(s)' })[k] || k}`);
-    modal(`<h2>Reprendre le livre de ${esc(String(R.annee))} de ${esc(dossier.name)}</h2>
-      <p class="small muted">Fichier « ${esc(lu.nom)} », lu par le serveur : <b>rien n'est encore écrit</b>.</p>
-      <table class="list compact" id="rv-rapport"><tbody>
-        <tr><td>Exercice</td><td class="r nw">du ${esc(fmtJour(R.du))} au ${esc(fmtJour(R.au))}</td></tr>
-        <tr><td>Écritures validées — elles gardent leur numéro de la v10</td><td class="r">${esc(String(R.ecritures.validees))}</td></tr>
-        <tr><td>Écritures au brouillard — elles restent au brouillard</td><td class="r">${esc(String(R.ecritures.brouillard))}</td></tr>
-        <tr><td>Lettrages — ils se reprennent avec leur lettre</td><td class="r">${esc(String(R.lettrages || 0))}</td></tr>
-        <tr><td>Relevés bancaires — avec leurs rapprochements</td><td class="r nw">${esc(String(R.releves ? R.releves.total : 0))} (${esc(String(R.releves ? R.releves.rapprochees : 0))} ligne${R.releves && R.releves.rapprochees > 1 ? 's' : ''} rapprochée${R.releves && R.releves.rapprochees > 1 ? 's' : ''})</td></tr>
-        <tr><td>Immobilisations — une fiche par bien, pour toute la vie du dossier</td><td class="r nw">${esc(String(R.immobilisations ? R.immobilisations.total : 0))} (${esc(String(R.immobilisations ? R.immobilisations.liees : 0))} écriture${R.immobilisations && R.immobilisations.liees > 1 ? 's' : ''} de l'année reliée${R.immobilisations && R.immobilisations.liees > 1 ? 's' : ''})</td></tr>
-        <tr><td>Révision — le dossier de travail de chaque période</td><td class="r nw">${esc(String(R.revisions ? R.revisions.total : 0))} (${esc(String(R.revisions ? R.revisions.arretees : 0))} arrêtée${R.revisions && R.revisions.arretees > 1 ? 's' : ''})</td></tr>
-        <tr><td>Questions au client — dans leur état</td><td class="r nw">${esc(String(R.questions ? R.questions.total : 0))} (${esc(String(R.questions ? R.questions.enAttente : 0))} en attente)</td></tr>
-        <tr><td>Déclarations du mois — avec leur dépôt et leur paiement</td><td class="r nw">${esc(String(R.declarations ? R.declarations.total : 0))} (${esc(String(R.declarations ? R.declarations.deposees : 0))} déposée${R.declarations && R.declarations.deposees > 1 ? 's' : ''})</td></tr>
-        <tr><td>Inventaire de stock</td><td class="r nw">${R.inventaire ? `${esc(String(R.inventaire.lignes))} ligne${R.inventaire.lignes > 1 ? 's' : ''}` : 'aucun'}</td></tr>
-        <tr><td>Total des validées (débit = crédit)</td><td class="r nw">${money(Number(R.totaux.debit))}</td></tr>
-      </tbody></table>
-      ${R.anomalies.length
-    ? `<div class="warn-box mt" id="rv-anomalies"><b>${R.anomalies.length > 1 ? `${R.anomalies.length} points empêchent la reprise` : 'Un point empêche la reprise'}</b> : corrige-${R.anomalies.length > 1 ? 'les' : 'le'} dans la v10, puis choisis de nouveau le fichier. Rien ne s'écrit tant qu'il en reste une.
-        <ul>${R.anomalies.slice(0, 20).map(a => `<li>${esc(a.piece || '(sans pièce)')} du ${esc(fmtJour(a.date))} : ${esc(a.motif)}</li>`).join('')}</ul>${R.anomalies.length > 20 ? `<p class="small">… et ${R.anomalies.length - 20} autres.</p>` : ''}</div>`
-    : '<p class="small ligne-ok mt" id="rv-ok"><span aria-hidden="true">✓</span> Tout se reprend tel quel. La période se validera jusqu\'à la veille du premier brouillard.</p>'}
-      ${autour.length ? `<p class="small muted mt" id="rv-autour">Pas encore repris avec les écritures : ${esc(autour.join(', '))}. Ils viendront à leur tour.</p>` : ''}
-      <div class="modal-actions"><button class="btn" data-close>Annuler</button>
-        ${R.anomalies.length ? '' : '<button class="btn btn-primary" id="ok">Reprendre ces écritures</button>'}</div>`,
-    (rootModal, close) => {
-      const ok = $('#ok', rootModal);
-      if (!ok) return;
-      ok.onclick = async () => {
-        ok.disabled = true;
-        try {
-          const r = await api.repriseV10({ dossierId: dossier.id });
-          const annee = String(r.annee);
-          s.annee = annee; s.livre = r.livre; s.livreEtat = 'ouvert'; s.livreCle = dossier.id + '|' + annee; livresConnus.set(dossier.id, true);
-          exerciceConnu(annee);
-          suivreExercice(dossier);
-          close();
-          allerSousOnglet(root, dossier, 'saisie');
-          toast(`Livre de ${annee} repris : ${r.validees} écriture${r.validees > 1 ? 's' : ''} validée${r.validees > 1 ? 's' : ''}, ${r.brouillard} au brouillard, ${r.lettrages} lettrage${r.lettrages > 1 ? 's' : ''}, ${r.releves} relevé${r.releves > 1 ? 's' : ''}.`);
-          // Une lettre déjà prise dans le dossier (une autre année reprise) a changé : le dire, un
-          // papier qui cite l'ancienne se retrouve ainsi.
-          if (r.lettres && r.lettres.length) {
-            await infoDialog('Des lettres ont changé', `Ces lettres de la v10 étaient déjà prises dans ce dossier : ${r.lettres.map(x => `${x.v10} s'appelle maintenant ${x.lettre}`).join(', ')}. Les lignes restent lettrées ensemble.`);
-          }
-        } catch (e) { ok.disabled = false; await infoDialog('Reprise impossible', plainError(e)); }
-      };
-    });
-  }
-
   function repriseForm(root, dossier) {
     const s = livresState;
     const annee = s.annee || String(new Date().getFullYear());
@@ -3529,10 +3489,9 @@
           ${dossier.manual ? '' : 'Les pièces qu\'il enregistre dans SkanFact s\'y ajouteront d\'elles-mêmes.'}</div>
         <div class="modal-actions mb">
           <button class="btn btn-primary" id="lv-reprendre">Commencer le livre de ${esc(s.annee)}…</button>
-          ${dossier.manual ? '<button class="btn" id="lv-reprise-v10">Reprendre son livre de SkanFact Cabinet v10…</button>' : '<button class="btn" id="lv-ecrire">Écrire au client</button>'}
+          ${dossier.manual ? '' : '<button class="btn" id="lv-ecrire">Écrire au client</button>'}
         </div>`;
       const b = $('#lv-ecrire', el); if (b) b.onclick = () => writeRelance(K.dossierRow(dossier));
-      const rv = $('#lv-reprise-v10', el); if (rv) rv.onclick = () => repriseV10Form(root, dossier);
       const rp = $('#lv-reprendre', el); if (rp) rp.onclick = () => repriseForm(root, dossier);
       return;
     }
@@ -3618,7 +3577,12 @@
                     : !lignes.length
                       // Un écran de lecture vide sur un livre OUVERT dit d'où viennent les écritures,
                       // et mène à la saisie (7.0.0 : une liste vide donne le geste qui la remplit).
-                      ? (s.livre && s.livreEtat === 'ouvert'
+                      // (plateforme) 1.76.0 — des écritures du client au brouillard : « Aucune écriture sur cette période »
+                      // les taisait (recette du 20/10/2026). La phrase les compte et mène à la saisie, où elles se valident.
+                      ? (s.livre && (s.livre.ecritures || []).some(e => e.statut === 'brouillard') && !s.brouillard
+                        ? `<div class="empty mini">Aucune écriture validée sur cette période : ${esc(pl((s.livre.ecritures || []).filter(e => e.statut === 'brouillard').length, 'écriture'))} de l'exercice ${(s.livre.ecritures || []).filter(e => e.statut === 'brouillard').length > 1 ? 'attendent au brouillard. Elles se valident' : 'attend au brouillard. Elle se valide'} dans la saisie.
+                            <div class="modal-actions" style="justify-content:flex-start"><button class="btn btn-sm btn-primary" id="lv-vers-saisie">Voir le brouillard</button></div></div>`
+                      : s.livre && s.livreEtat === 'ouvert'
                         ? `<div class="empty mini">Aucune écriture sur cette période : elles arrivent par la saisie, un relevé de banque, ou les pièces que ton client enregistre dans SkanFact.
                             <div class="modal-actions" style="justify-content:flex-start"><button class="btn btn-sm btn-primary" id="lv-vers-saisie">Saisir une première pièce</button></div></div>`
                         : `<div class="empty mini">Aucune écriture sur cette période.</div>`)
@@ -8390,7 +8354,7 @@
       ${/* Un abonnement est un modèle d'écriture récurrente : il appartient à la SAISIE (T-18). Posé
             hors des sous-onglets, il s'affichait sous la Balance, le Grand livre, la Banque et la
             Déclaration — un état vide secondaire qui repoussait chaque fois le contenu réel. */''}
-      <div class="panel mt" id="c-abos"><h2>Abonnements ${info('sa.abonnements')}</h2><div id="d-abos"></div></div>`;
+      <div class="panel mt" id="c-abos"><h2>Écritures qui reviennent ${info('sa.abonnements')}</h2><div id="d-abos"></div></div>`;
   }
 
   // Les périmètres qu'un lot peut valider, déduits du brouillard : par journal, puis par mois.
@@ -8920,7 +8884,8 @@
     const abos = dossier.abonnements || [];
     const guides = K.guidesDuDossier(S, dossier);
     if (!guides.length) {
-      box.innerHTML = `<div class="sa-vide">Un abonnement s'appuie sur un guide d'écritures, et il n'y en a aucun pour l'instant.</div>
+      // (plateforme) 1.76.0 — « abonnement » se lisait comme celui de SkanFact (recette du 20/10/2026) : une écriture qui revient.
+      box.innerHTML = `<div class="sa-vide">Une écriture qui revient s'appuie sur un guide d'écritures, et il n'y en a aucun pour l'instant.</div>
         <div class="modal-actions"><button type="button" class="btn" id="ab-guides">Écrire un premier guide…</button></div>`;
       const b = $('#ab-guides', box);
       if (b) b.onclick = () => versReglages('pan-guides');
@@ -8941,11 +8906,11 @@
           <td class="nw">${!a.actif ? '<span class="muted">suspendu</span>' : reste ? `<b>${pl(reste, 'à générer', 'à générer')}</b>` : '<span class="muted">à jour</span>'}</td>
           ${RowMenu.cellule('A:' + a.id, '')}</tr>`;
       }).join('')}</tbody></table></div>`
-      : `<div class="sa-vide">Aucun abonnement. C'est ce qui évite de ressaisir le loyer tous les mois.</div>`}
+      : `<div class="sa-vide">Aucune écriture qui revient. C'est ce qui évite de ressaisir le loyer tous les mois.</div>`}
       <div class="modal-actions">
         ${abos.some(a => a.actif && KC.occurrencesAGenerer(a, K.today()).length)
           ? '<button type="button" class="btn btn-primary" id="ab-gen">Générer ce qui manque</button>' : ''}
-        <button type="button" class="btn" id="ab-new">Nouvel abonnement…</button></div>`;
+        <button type="button" class="btn" id="ab-new">Nouvelle écriture qui revient…</button></div>`;
     const nw = $('#ab-new', box); if (nw) nw.onclick = () => abonnementForm(root, dossier, null);
     const gen = $('#ab-gen', box);
     if (gen) gen.onclick = () => genererAbonnements(root, dossier);
@@ -8958,10 +8923,10 @@
     const a = (dossier.abonnements || []).find(x => x.id === String(cle).slice(2));
     if (!a) return [];
     return [
-      { icon: 'modifier', label: 'Modifier cet abonnement', hint: 'Son guide, son montant, sa période', run: () => abonnementForm(root, dossier, a) },
+      { icon: 'modifier', label: 'Modifier cette écriture qui revient', hint: 'Son guide, son montant, sa période', run: () => abonnementForm(root, dossier, a) },
       a.actif
-        ? { icon: 'pause', label: 'Suspendre cet abonnement', hint: 'Il cesse de proposer des écritures', run: () => basculerAbo(root, dossier, a, false) }
-        : { icon: 'reprendre', label: 'Reprendre cet abonnement', hint: 'Il recommence à proposer des écritures', run: () => basculerAbo(root, dossier, a, true) }
+        ? { icon: 'pause', label: 'Suspendre cette écriture qui revient', hint: 'Elle cesse de se proposer', run: () => basculerAbo(root, dossier, a, false) }
+        : { icon: 'reprendre', label: 'Reprendre cette écriture qui revient', hint: 'Elle recommence à se proposer', run: () => basculerAbo(root, dossier, a, true) }
     ];
   }
 
@@ -8983,7 +8948,7 @@
       if (r.crees) lignes.push('Elles n\'ont pas de numéro : relis-les, puis valide-les.');
       if (r.horsExercice) lignes.push(`${pl(r.horsExercice, 'occurrence tombait', 'occurrences tombaient')} hors de l'exercice ${annee} : elles se génèreront dans le livre de leur année.`);
       if (r.sansGuide.length) lignes.push(`Guide introuvable pour : ${r.sansGuide.join(', ')}.`);
-      await infoDialog('Abonnements', lignes.join('\n\n'));
+      await infoDialog('Écritures qui reviennent', lignes.join('\n\n'));
       render();
     } catch (e) { await infoDialog('Génération impossible', plainError(e)); }
   }
@@ -8995,7 +8960,7 @@
       depuis: `${new Date().getFullYear()}-01-01`, jusqua: '', tousLesMois: 1, montant: 0, piece: '', libelle: '', faites: []
     };
     modal(
-      `<h2>${abo ? 'Modifier l\'abonnement' : 'Nouvel abonnement'}</h2>
+      `<h2>${abo ? 'Modifier l\'écriture qui revient' : 'Nouvelle écriture qui revient'}</h2>
        <div class="grid-2">
          <label class="field obligatoire">${lbl('Nom', 'sa.abNom')}<input type="text" id="ab-nom" value="${esc(a.nom)}" placeholder="Loyer du local"></label>
          <label class="field obligatoire">${lbl('Guide', 'sa.abGuide')}<select id="ab-guide">${guides.map(g => `<option value="${esc(g.id)}" ${a.guideId === g.id ? 'selected' : ''}>${esc(g.nom)}</option>`).join('')}</select></label>
@@ -9019,14 +8984,14 @@
         const sup = $('#ab-sup', layer);
         if (sup) {
           sup.onclick = async () => {
-            const ok = await confirmDialog('Supprimer cet abonnement ?',
-              `<p>« ${esc(a.nom)} » ne proposera plus d'écritures.</p><p>Celles qu'il a déjà créées ne bougent pas : elles vivent leur vie dans le livre.</p>`, 'Supprimer', true);
+            const ok = await confirmDialog('Supprimer cette écriture qui revient ?',
+              `<p>« ${esc(a.nom)} » ne se proposera plus.</p><p>Les écritures qu'elle a déjà créées ne bougent pas : elles vivent leur vie dans le livre.</p>`, 'Supprimer', true);
             if (ok) ecrire((dossier.abonnements || []).filter(x => x.id !== a.id));
           };
         }
         $('#ok', layer).onclick = () => {
           const nom = $('#ab-nom', layer).value.trim();
-          if (!nom) return refus($('#ab-nom', layer), 'Donne un nom à cet abonnement : c\'est lui que tu liras dans la liste.');
+          if (!nom) return refus($('#ab-nom', layer), 'Donne-lui un nom : c\'est lui que tu liras dans la liste (« Loyer du local »).');
           const depuis = $('#ab-depuis', layer).value;
           if (!/^\d{4}-\d{2}-\d{2}$/.test(depuis)) return refus($('#ab-depuis', layer), 'Il faut une date de départ : c\'est elle qui dit à partir de quel mois générer.');
           const montant = lireMontant($('#ab-montant', layer).value);
@@ -9634,7 +9599,7 @@
         <label class="field span-2">${lbl('Interlocuteur', 'd.contact')}<input type="text" id="f-contact" value="${esc(d.contact || '')}" placeholder="La personne que tu appelles"></label>
         ${/* (plateforme) 1.72.0 — l'adresse et le gérant du client : en tête et au bas de ses documents (bulletin, documents du
              personnel), qui les imprimaient sans adresse et « Je soussigné » sans nom. */''}
-        <label class="field span-2">${lbl('Adresse de l\'employeur', 'd.adresse')}<textarea id="f-adresse" rows="2" maxlength="300" placeholder="12 rue de la Liberté&#10;2000 Le Bardo">${esc(d.adresse || '')}</textarea></label>
+        <label class="field span-2">${lbl('Adresse du client', 'd.adresse')}<textarea id="f-adresse" rows="2" maxlength="300" placeholder="12 rue de la Liberté&#10;2000 Le Bardo">${esc(d.adresse || '')}</textarea></label>
         <label class="field span-2">${lbl('Gérant (qui signe)', 'd.gerant')}<input type="text" id="f-gerant" maxlength="200" value="${esc(d.gerant || '')}" placeholder="Prénom et nom"></label>
         <label class="field">${lbl('Régime fiscal', 'd.regime')}<select id="f-regime">
           <option value="">— non précisé —</option>${K.choixRegimes(S, d.regime).map(r => `<option value="${esc(r.id)}" ${d.regime === r.id ? 'selected' : ''}>${esc(r.label)}</option>`).join('')}</select></label>
@@ -9673,41 +9638,6 @@
       cnssCode: $('#f-cnss-code', layer).value.trim(),
       note: $('#f-note', layer).value
     };
-  }
-
-  async function repriseV10PortefeuilleForm() {
-    let lu;
-    try { lu = await api.essaiRepriseV10Portefeuille(); } catch (e) { await infoDialog('Ce portefeuille ne se reprend pas', plainError(e)); return; }
-    if (!lu) return;
-    const R = lu.rapport;
-    const n = R.anomalies.length, k = R.aCreer.length;
-    modal(`<h2>Reprendre mon portefeuille de SkanFact Cabinet v10</h2>
-      <p class="small muted">Fichier « ${esc(lu.nom)} », lu sur ce poste : de chaque dossier ne part que sa fiche, jamais la clé de ton cabinet. <b>Rien n'est encore créé.</b></p>
-      <table class="list compact" id="rpv-rapport"><tbody>
-        <tr><td>Dossiers tenus à créer, avec leur fiche</td><td class="r">${esc(String(k))}</td></tr>
-        <tr><td>Déjà dans ton portefeuille — laissés tels quels</td><td class="r">${esc(String(R.retrouves.length))}</td></tr>
-        <tr><td>Clients sur SkanFact — ils te rejoignent par leur mandat (ton code de cabinet)</td><td class="r">${esc(String(R.surSkanfact.length))}</td></tr>
-        <tr><td>Dossiers d'exemple — laissés</td><td class="r">${esc(String(R.exemples))}</td></tr>
-      </tbody></table>
-      ${n
-    ? `<div class="warn-box mt" id="rpv-anomalies"><b>${n > 1 ? `${n} points empêchent la reprise` : 'Un point empêche la reprise'}</b> : corrige-${n > 1 ? 'les' : 'le'} dans la v10, puis choisis de nouveau le fichier. Aucun dossier ne se crée tant qu'il en reste un.
-        <ul>${R.anomalies.slice(0, 20).map(a => `<li>${esc(a.nom || '(sans nom)')} : ${esc(a.motif)}</li>`).join('')}</ul>${n > 20 ? `<p class="small">… et ${n - 20} autres.</p>` : ''}</div>`
-    : k ? `<p class="small ligne-ok mt" id="rpv-ok"><span aria-hidden="true">✓</span> ${esc(R.aCreer.slice(0, 5).map(d => d.nom).join(', '))}${k > 5 ? ` et ${k - 5} autre${k - 5 > 1 ? 's' : ''}` : ''}. Leurs livres se reprennent ensuite, dossier par dossier.</p>`
-      : '<p class="small muted mt" id="rpv-rien">Rien à créer : chaque dossier tenu de ce fichier est déjà dans ton portefeuille.</p>'}
-      <div class="modal-actions"><button class="btn" data-close>Annuler</button>
-        ${n || !k ? '' : `<button class="btn btn-primary" id="ok">Créer ${k} dossier${k > 1 ? 's' : ''}</button>`}</div>`,
-    (rootModal, close) => {
-      const ok = $('#ok', rootModal);
-      if (!ok) return;
-      ok.onclick = async () => {
-        ok.disabled = true;
-        try {
-          const r = await api.repriseV10Portefeuille();
-          S = r.state; close(); render();
-          toast(`${r.crees} dossier${r.crees > 1 ? 's' : ''} repris de SkanFact Cabinet v10.`);
-        } catch (e) { ok.disabled = false; await infoDialog('Reprise impossible', plainError(e)); }
-      };
-    });
   }
 
   function newDossierForm() {

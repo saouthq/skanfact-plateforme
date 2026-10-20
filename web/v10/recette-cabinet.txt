@@ -1,0 +1,249 @@
+Ce que la recette du 20/10/2026 a trouvé au Cabinet (1.76.0 ; docs/recette.md, « 1.76.0 »). Format : voir
+sans-paquets.mjs.
+
+Un cabinet neuf, relié à une entreprise neuve : la page Dossiers ne se relisait pas quand on y revenait, des phrases
+disaient qu'il n'y avait rien (aucun mois attendu, aucune écriture) là où le client avait écrit, et des mots restaient
+de la paie ou de la v10 (« Adresse de l'employeur », « Abonnements » pour des écritures qui reviennent).
+
+== cabinet/app.js | la page Dossiers se relit quand on y revient
+-- avant
+  async function refresh() { S = await api.state(); }
+-- après
+  async function refresh() { S = await api.state(); }
+  // (plateforme) 1.76.0 — le portefeuille se relit quand on REVIENT sur Dossiers, comme les index juste en dessous :
+  // lu au démarrage, il gardait la proposition d'un client qui n'était pas encore là, et « à valider » sur un mois qu'on
+  // venait de valider, jusqu'au rechargement de la page (recette du 20/10/2026). Une lecture à la fois ; la page se
+  // redessine si l'on y est encore.
+  let lecturePortefeuille = null;
+  function relirePortefeuille() {
+    if (lecturePortefeuille || !api.state) return;
+    lecturePortefeuille = api.state().then(etat => {
+      S = etat;
+      if ((location.hash.replace(/^#\//, '') || 'dossiers').split('/')[0] === 'dossiers') render();
+    }).catch(() => {}).then(() => { lecturePortefeuille = null; });
+  }
+-- fin
+
+== cabinet/app.js | Dossiers relu à chaque retour sur la page
+-- avant
+    if (route !== routeLue && (route === 'echeances' || route === 'dossiers')) chargerQuestionsAttente(true);
+-- après
+    if (route !== routeLue && (route === 'echeances' || route === 'dossiers')) chargerQuestionsAttente(true);
+    // (plateforme) 1.76.0 — et le portefeuille, en revenant sur Dossiers (pas à la première ouverture : il vient d'être lu).
+    if (route !== routeLue && route === 'dossiers' && routeLue) relirePortefeuille();
+-- fin
+
+== cabinet/app.js | « Tout est à jour » se dit des clients, pas « chez ton dossier »
+-- avant
+        ? `<div class="todo-ok">Tout est à jour : chez tes ${p.surSkanfact} dossiers sur SkanFact, aucun mois passé n'est vide ni à valider.</div>`
+        : `<div class="todo-ok">Tout est à jour : chez ton dossier sur SkanFact, aucun mois passé n'est vide ni à valider.</div>`;
+-- après
+        // (plateforme) 1.76.0 — « chez ton dossier » ne se disait pas (recette du 20/10/2026).
+        ? `<div class="todo-ok">Tout est à jour : tes ${p.surSkanfact} clients sur SkanFact n'ont aucun mois passé vide ni à valider.</div>`
+        : `<div class="todo-ok">Tout est à jour : ton client sur SkanFact n'a aucun mois passé vide ni à valider.</div>`;
+-- fin
+
+== cabinet/app.js | des écritures dans le mois en cours : « Aucun mois attendu » ne dit plus qu'il n'y en a pas
+-- avant
+          : '<span class="muted small">Aucun mois attendu pour l\'instant : l\'attente démarre à la première écriture de ses livres, ou à la date de début de mission que tu renseignes dans la fiche.</span>'}
+-- après
+          // (plateforme) 1.76.0 — un client qui n'a écrit que le mois en cours : « l'attente démarre à la première écriture »
+          // se lisait sous « 1 mois écrit » (recette du 20/10/2026). Le mois en cours n'est jamais réclamé ; il est là.
+          : (dossier.packs || []).length ? `<span class="muted small">Ses écritures commencent en ${esc((dossier.packs.slice().sort((x, y) => x.month < y.month ? -1 : 1)[0] || {}).label || '')} : un mois n'est attendu qu'une fois fini. Le calendrier commence avec lui.</span>`
+          : '<span class="muted small">Aucun mois attendu pour l\'instant : l\'attente démarre à la première écriture de ses livres, ou à la date de début de mission que tu renseignes dans la fiche.</span>'}
+-- fin
+
+== cabinet/app.js | une période vide de validé dit ce qui attend au brouillard, et y mène
+-- avant
+                      ? (s.livre && s.livreEtat === 'ouvert'
+                        ? `<div class="empty mini">Aucune écriture sur cette période : elles arrivent par la saisie, un relevé de banque, ou les pièces que ton client enregistre dans SkanFact.
+                            <div class="modal-actions" style="justify-content:flex-start"><button class="btn btn-sm btn-primary" id="lv-vers-saisie">Saisir une première pièce</button></div></div>`
+                        : `<div class="empty mini">Aucune écriture sur cette période.</div>`)
+-- après
+                      // (plateforme) 1.76.0 — des écritures du client au brouillard : « Aucune écriture sur cette période »
+                      // les taisait (recette du 20/10/2026). La phrase les compte et mène à la saisie, où elles se valident.
+                      ? (s.livre && (s.livre.ecritures || []).some(e => e.statut === 'brouillard') && !s.brouillard
+                        ? `<div class="empty mini">Aucune écriture validée sur cette période : ${esc(pl((s.livre.ecritures || []).filter(e => e.statut === 'brouillard').length, 'écriture'))} de l'exercice ${(s.livre.ecritures || []).filter(e => e.statut === 'brouillard').length > 1 ? 'attendent au brouillard. Elles se valident' : 'attend au brouillard. Elle se valide'} dans la saisie.
+                            <div class="modal-actions" style="justify-content:flex-start"><button class="btn btn-sm btn-primary" id="lv-vers-saisie">Voir le brouillard</button></div></div>`
+                      : s.livre && s.livreEtat === 'ouvert'
+                        ? `<div class="empty mini">Aucune écriture sur cette période : elles arrivent par la saisie, un relevé de banque, ou les pièces que ton client enregistre dans SkanFact.
+                            <div class="modal-actions" style="justify-content:flex-start"><button class="btn btn-sm btn-primary" id="lv-vers-saisie">Saisir une première pièce</button></div></div>`
+                        : `<div class="empty mini">Aucune écriture sur cette période.</div>`)
+-- fin
+
+== cabinet/app.js | l'adresse d'un client s'appelle son adresse
+-- avant
+        <label class="field span-2">${lbl('Adresse de l\'employeur', 'd.adresse')}<textarea id="f-adresse" rows="2" maxlength="300" placeholder="12 rue de la Liberté&#10;2000 Le Bardo">${esc(d.adresse || '')}</textarea></label>
+-- après
+        <label class="field span-2">${lbl('Adresse du client', 'd.adresse')}<textarea id="f-adresse" rows="2" maxlength="300" placeholder="12 rue de la Liberté&#10;2000 Le Bardo">${esc(d.adresse || '')}</textarea></label>
+-- fin
+
+== cabinet/cabguide.js | l'aide de l'adresse du client
+-- avant
+    'd.adresse': { t: 'Adresse de l\'employeur',
+-- après
+    'd.adresse': { t: 'Adresse du client',
+-- fin
+
+== cabinet/app.js | « Abonnements » de la saisie : des écritures qui reviennent
+-- avant
+<h2>Abonnements ${info('sa.abonnements')}</h2>
+-- après
+<h2>Écritures qui reviennent ${info('sa.abonnements')}</h2>
+-- fin
+
+== cabinet/app.js | le bilan de leur génération porte le même nom
+-- avant
+await infoDialog('Abonnements', lignes.join
+-- après
+await infoDialog('Écritures qui reviennent', lignes.join
+-- fin
+
+== cabinet/cabguide.js | l'aide des écritures qui reviennent
+-- avant
+    'sa.abonnements': { t: 'Abonnements',
+-- après
+    'sa.abonnements': { t: 'Écritures qui reviennent',
+-- fin
+
+== cabinet/app.js | sans guide, ce qui revient dit son vrai nom
+-- avant
+      box.innerHTML = `<div class="sa-vide">Un abonnement s'appuie sur un guide d'écritures, et il n'y en a aucun pour l'instant.</div>
+-- après
+      // (plateforme) 1.76.0 — « abonnement » se lisait comme celui de SkanFact (recette du 20/10/2026) : une écriture qui revient.
+      box.innerHTML = `<div class="sa-vide">Une écriture qui revient s'appuie sur un guide d'écritures, et il n'y en a aucun pour l'instant.</div>
+-- fin
+
+== cabinet/app.js | aucune écriture qui revient
+-- avant
+      : `<div class="sa-vide">Aucun abonnement. C'est ce qui évite de ressaisir le loyer tous les mois.</div>`}
+-- après
+      : `<div class="sa-vide">Aucune écriture qui revient. C'est ce qui évite de ressaisir le loyer tous les mois.</div>`}
+-- fin
+
+== cabinet/app.js | le bouton d'une nouvelle écriture qui revient
+-- avant
+        <button type="button" class="btn" id="ab-new">Nouvel abonnement…</button></div>`;
+-- après
+        <button type="button" class="btn" id="ab-new">Nouvelle écriture qui revient…</button></div>`;
+-- fin
+
+== cabinet/app.js | le menu d'une écriture qui revient : modifier
+-- avant
+      { icon: 'modifier', label: 'Modifier cet abonnement', hint: 'Son guide, son montant, sa période',
+-- après
+      { icon: 'modifier', label: 'Modifier cette écriture qui revient', hint: 'Son guide, son montant, sa période',
+-- fin
+
+== cabinet/app.js | le menu d'une écriture qui revient : suspendre
+-- avant
+        ? { icon: 'pause', label: 'Suspendre cet abonnement', hint: 'Il cesse de proposer des écritures',
+-- après
+        ? { icon: 'pause', label: 'Suspendre cette écriture qui revient', hint: 'Elle cesse de se proposer',
+-- fin
+
+== cabinet/app.js | le menu d'une écriture qui revient : reprendre
+-- avant
+        : { icon: 'reprendre', label: 'Reprendre cet abonnement', hint: 'Il recommence à proposer des écritures',
+-- après
+        : { icon: 'reprendre', label: 'Reprendre cette écriture qui revient', hint: 'Elle recommence à se proposer',
+-- fin
+
+== cabinet/app.js | la fenêtre d'une écriture qui revient
+-- avant
+      `<h2>${abo ? 'Modifier l\'abonnement' : 'Nouvel abonnement'}</h2>
+-- après
+      `<h2>${abo ? 'Modifier l\'écriture qui revient' : 'Nouvelle écriture qui revient'}</h2>
+-- fin
+
+== cabinet/app.js | supprimer une écriture qui revient
+-- avant
+            const ok = await confirmDialog('Supprimer cet abonnement ?',
+              `<p>« ${esc(a.nom)} » ne proposera plus d'écritures.</p><p>Celles qu'il a déjà créées ne bougent pas : elles vivent leur vie dans le livre.</p>`, 'Supprimer', true);
+-- après
+            const ok = await confirmDialog('Supprimer cette écriture qui revient ?',
+              `<p>« ${esc(a.nom)} » ne se proposera plus.</p><p>Les écritures qu'elle a déjà créées ne bougent pas : elles vivent leur vie dans le livre.</p>`, 'Supprimer', true);
+-- fin
+
+== cabinet/app.js | le nom d'une écriture qui revient, refusé vide
+-- avant
+          if (!nom) return refus($('#ab-nom', layer), 'Donne un nom à cet abonnement : c\'est lui que tu liras dans la liste.');
+-- après
+          if (!nom) return refus($('#ab-nom', layer), 'Donne-lui un nom : c\'est lui que tu liras dans la liste (« Loyer du local »).');
+-- fin
+
+== cabinet/cabguide.js | l'aide du nom d'une écriture qui revient
+-- avant
+    'sa.abNom': { t: 'Le nom de l\'abonnement',
+-- après
+    'sa.abNom': { t: 'Son nom',
+-- fin
+
+== cabinet/cabguide.js | l'aide du guide d'une écriture qui revient
+-- avant
+avec le montant de l\'abonnement.' },
+-- après
+avec le montant écrit ici.' },
+-- fin
+
+== cabinet/cabguide.js | l'aide du dernier mois d'une écriture qui revient
+-- avant
+    'sa.abJusqua': { t: 'Le dernier mois', d: 'Vide, l\'abonnement court tant qu\'il existe.' },
+-- après
+    'sa.abJusqua': { t: 'Le dernier mois', d: 'Vide, elle revient tant qu\'elle existe.' },
+-- fin
+
+== cabinet/cabguide.js | l'aide du libellé d'une écriture qui revient
+-- avant
+Vide, c\'est le nom de l\'abonnement.' },
+-- après
+Vide, c\'est son nom.' },
+-- fin
+
+== cabinet/cabguide.js | dupliquer une pièce : le geste des écritures qui reviennent
+-- avant
+C\'est le geste des abonnements et des loyers saisis à la main.' },
+-- après
+C\'est le geste des loyers saisis à la main, quand ils ne sont pas des écritures qui reviennent.' },
+-- fin
+
+== cabinet/cabguide.js | le guide et l'écriture qui revient, dans l'aide de la saisie
+-- avant
+Un <b>abonnement</b> est un guide plus une périodicité : le loyer de chaque mois. Les deux <b>proposent</b> — l'abonnement génère en brouillard, jamais une écriture validée que personne n'a regardée. Ils se règlent dans Réglages → Comptabilité, et les abonnements sur la fiche du client.</p>
+-- après
+Une <b>écriture qui revient</b> est un guide plus une périodicité : le loyer de chaque mois. Les deux <b>proposent</b> — l'écriture qui revient se génère en brouillard, jamais validée sans que personne l'ait regardée. Les guides se règlent dans Réglages → Comptabilité, les écritures qui reviennent sur la fiche du client.</p>
+-- fin
+
+== cabinet/cabvisites.js | la visite de la saisie : le bouton d'une écriture qui revient
+-- avant
+  b('#ab-new', 'Crée un abonnement : une pièce qui revient chaque mois (un loyer), générée en brouillard.');
+  b('#ab-gen', 'Génère en brouillard les pièces des abonnements arrivés à échéance.');
+  b('#ab-guides', 'Ouvre les guides d\'écritures dans les Réglages : un abonnement s\'appuie sur un guide, écrit une fois pour tous tes dossiers.');
+-- après
+  b('#ab-new', 'Crée une écriture qui revient chaque mois (un loyer), générée en brouillard.');
+  b('#ab-gen', 'Génère en brouillard les écritures qui reviennent arrivées à échéance.');
+  b('#ab-guides', 'Ouvre les guides d\'écritures dans les Réglages : une écriture qui revient s\'appuie sur un guide, écrit une fois pour tous tes dossiers.');
+-- fin
+
+== cabinet/cabvisites.js | la visite « Programmer une écriture qui revient » : son résumé
+-- avant
+      resume: 'Un loyer, un abonnement : écrit une fois, généré chaque mois en brouillard.',
+-- après
+      resume: 'Un loyer, une assurance : écrit une fois, généré chaque mois en brouillard.',
+-- fin
+
+== cabinet/cabvisites.js | la visite « Programmer une écriture qui revient » : sa fin
+-- avant
+      bravo: 'Tu sais programmer un abonnement',
+-- après
+      bravo: 'Tu sais programmer une écriture qui revient',
+-- fin
+
+== cabinet/cabvisites.js | la visite « Programmer une écriture qui revient » : sa première étape
+-- avant
+titre: 'Les abonnements',
+          texte: 'Un abonnement part d\'un <b>guide d\'écritures</b>
+-- après
+titre: 'Les écritures qui reviennent',
+          texte: 'Une écriture qui revient part d\'un <b>guide d\'écritures</b>
+-- fin

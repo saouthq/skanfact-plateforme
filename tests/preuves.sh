@@ -3494,553 +3494,6 @@ prouver "la trace de l'équipe absente de l'écran" web/public/v10/cabinet/app.j
   "      \${(equipe.trace || []).length ? \`<p class=\"small mt\"><b>Ce qui a changé dans l'équipe</b>" "      \${false ? \`<p class=\"small mt\"><b>Ce qui a changé dans l'équipe</b>" \
   "$TE2"
 
-# ── Brique 62 : la reprise d'un livre du Cabinet v10, l'essai à blanc (docs/cabinet.md, C52) ──
-RL1="le livre se lit : ce qui passe compté, la balance des validées égale à celle de la v10, rien de créé"
-RL2="ce qui ne se reprendrait pas tel quel est nommé, écriture par écriture ; un fichier qui n'est pas un livre, refusé ; un collaborateur, refusé"
-RL3="un livre de plusieurs mégaoctets se lit en une fois"
-LV=serveur/reprise/livre-v10.ts
-prouver "un gros livre refusé à la porte" serveur/app.ts \
-  "      ...(r.limiteCorps ? { bodyLimit: r.limiteCorps } : {})," "" \
-  "$RL3"
-prouver "un montant à virgule lu à zéro" $LV \
-  "      const debit = montant(l.debit), credit = montant(l.credit);" "      const debit = BigInt(Math.trunc(Number(l.debit) || 0)) * 1000n, credit = BigInt(Math.trunc(Number(l.credit) || 0)) * 1000n;" \
-  "$RL1"
-prouver "un montant trop fin arrondi en silence" $LV \
-  "  try { return depuisTexte(t, 3); } catch { return null; }" "  return BigInt(Math.round(v * 1000));" \
-  "$RL2"
-prouver "la balance qui compte le brouillard" $LV \
-  "  for (const e of validees) {" "  for (const e of l.ecritures) {" \
-  "$RL1"
-prouver "une écriture déséquilibrée qui passe" $LV \
-  "    if (d !== c) nomme(" "    if (false) nomme(" \
-  "$RL2"
-prouver "une date hors de l'exercice qui passe" $LV \
-  "    else if (e.date < du || e.date > au) nomme(" "    else if (false) nomme(" \
-  "$RL2"
-prouver "un journal inconnu qui passe" $LV \
-  "    if (!(JOURNAUX_REPRIS as readonly string[]).includes(e.journal)) nomme(" "    if (false) nomme(" \
-  "$RL2"
-prouver "un numéro en double qui passe" $LV \
-  "      else if (numeros.has(e.numeroV10)) nomme(" "      else if (false) nomme(" \
-  "$RL2"
-prouver "une écriture d'une seule ligne qui passe" $LV \
-  "    if (e.lignes.length < 2) nomme(" "    if (false) nomme(" \
-  "$RL2"
-prouver "le dernier numéro d'un journal oublié" $LV \
-  "if (e.numeroV10 !== null) j.dernierNumero = Math.max(j.dernierNumero ?? 0, e.numeroV10);" "" \
-  "$RL1"
-prouver "les lettrages oubliés par le rapport" $LV \
-  "    lettrages: l.lettrages," "    lettrages: 0," \
-  "$RL1"
-prouver "un fichier quelconque lu comme un livre" $LV \
-  "  if (!estObjet(o) || o.format !== 1 || !estObjet(o.exercice) || !Array.isArray(o.ecritures)) return null;" "  if (!estObjet(o)) return null;" \
-  "$RL2"
-prouver "la reprise ouverte au collaborateur" serveur/cabinet/routes.ts \
-  "      if (!(await tx.query('select socle.suis_associe(\$1) a', [params.cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.associe') } };
-      const lu = lireLivreV10(corps.livre);
-      if (!lu) return { statut: 400, corps: { motif: motif('cabinet.reprise.pas_un_livre'), champ: 'livre' } };
-      return { corps: rapportDuLivre(lu) };" "      const lu = lireLivreV10(corps.livre);
-      if (!lu) return { statut: 400, corps: { motif: motif('cabinet.reprise.pas_un_livre'), champ: 'livre' } };
-      return { corps: rapportDuLivre(lu) };" \
-  "$RL2"
-
-# ── Brique 63 : la reprise d'un livre du Cabinet v10 dans un dossier tenu (docs/cabinet.md, C53) ──
-RC1="les écritures s'écrivent avec leur numéro de la v10 ; la période se valide jusqu'au dernier jour tout validé ; chaque journal continue ; une seconde reprise, refusée"
-RC2="un livre qui a une anomalie ne s'écrit pas ; un client sur SkanFact ne reçoit pas de reprise ; un collaborateur non plus"
-# compta.reprendre_livre_v10 est redéfinie par 0038 (les lettrages) puis 0039 (les identifiants rendus
-# pour les relevés) : ses preuves visent la dernière.
-M39=base/migrations/0039_compta_reprise_releves.sql
-prouver "une reprise écrite chez un client sur SkanFact" $M39 \
-  "     or not exists (select 1 from socle.entreprise where id = p_entreprise and tenue_par is not null) then" "     or false then" \
-  "$RC2"
-prouver "une reprise mêlée à un livre commencé" $M39 \
-  "  if exists (select 1 from compta.ecriture where entreprise = p_entreprise and date_ecriture between p_du and p_au) then" "  if false then" \
-  "$RC1"
-prouver "un numéro de la v10 renuméroté" $M39 \
-  "    v_numero := e.journal || '-' || p_annee || '-' || lpad(e.numero::text, 6, '0');" "    v_numero := e.journal || '-' || p_annee || '-' || lpad('1', 6, '0');" \
-  "$RC1"
-prouver "la chaîne scellée dans le désordre" $M39 \
-  "from unnest(v_ids, v_nums, v_jnx) r(id, numero, journal) order by r.numero loop" "from unnest(v_ids, v_nums, v_jnx) r(id, numero, journal) order by r.numero desc loop" \
-  "$RC1"
-prouver "un journal qui repart à un" $M39 \
-  "    insert into compta.compteur (entreprise, journal, annee, dernier) values (p_entreprise, e.journal, p_annee, e.dernier)" "    insert into compta.compteur (entreprise, journal, annee, dernier) values (p_entreprise, e.journal, p_annee, 1)" \
-  "$RC1"
-prouver "la période validée par-dessus un brouillard" $M39 \
-  "else least(v_derniere_validee, v_premier_brouillard - 1) end;" "else v_derniere_validee end;" \
-  "$RC1"
-prouver "une reprise sans l'empreinte de son fichier" $M39 \
-  "  perform socle.tracer(p_entreprise, 'compta.reprise.livre_v10', 'exercice', null, null," "  perform socle.tracer(p_entreprise, 'compta.reprise.livre_v10_oubliee', 'exercice', null, null," \
-  "$RC1"
-prouver "un livre à anomalie envoyé à la base" serveur/cabinet/routes.ts \
-  "      if (lu.anomalies.length) return { statut: 400," "      if (false) return { statut: 400," \
-  "$RC2"
-
-# ── Brique 64 : l'écran de reprise d'un livre v10 (docs/cabinet.md, C54) ──
-RE1="le rapport se lit avant que rien ne s'écrive ; une anomalie bloque ; le bon livre se reprend avec ses numéros"
-prouver "la reprise de la v10 absente de l'écran" web/public/v10/cabinet/app.js \
-  "\${dossier.manual ? '<button class=\"btn\" id=\"lv-reprise-v10\">" "\${false ? '<button class=\"btn\" id=\"lv-reprise-v10\">" \
-  "$RE1"
-prouver "un livre à anomalie qu'on peut quand même écrire" web/public/v10/cabinet/app.js \
-  "        \${R.anomalies.length ? '' : '<button class=\"btn btn-primary\" id=\"ok\">Reprendre ces écritures</button>'}" "        \${false ? '' : '<button class=\"btn btn-primary\" id=\"ok\">Reprendre ces écritures</button>'}" \
-  "$RE1"
-prouver "le livre choisi oublié entre l'essai et l'écriture" $PC \
-  "      repriseEnAttente = { dossierId: o.dossierId, livre, nom: f.name };" "" \
-  "$RE1"
-
-# ── Brique 65 : les lettrages repris avec le livre v10 (docs/cabinet.md, C55) ──
-RL4="une lettre qui ne se reprendrait pas telle quelle est nommée : plusieurs comptes, un brouillard, une seule écriture, un reste, une forme illisible"
-RC3="l'année suivante reprise à son tour : une lettre libre se garde, une lettre prise devient la suivante libre et le résultat le dit"
-RC4="la base refait les contrôles de chaque lettre : un livre envoyé sans l'essai ne pose pas un lettrage faux"
-prouver "une lettre à la forme illisible qui passe l'essai" $LV \
-  "    if (!/^[A-Z]{1,5}\$/.test(lettre)) nomme(" "    if (false) nomme(" \
-  "$RL4"
-prouver "une lettre sur deux comptes qui passe l'essai" $LV \
-  "    else if (g.comptes.size > 1) nomme(" "    else if (false) nomme(" \
-  "$RL4"
-prouver "une lettre sur un brouillard qui passe l'essai" $LV \
-  "      if (e.statut !== 'validee') g.brouillard = true;" "" \
-  "$RL4"
-prouver "une lettre d'une seule écriture qui passe l'essai" $LV \
-  "    else if (g.ecritures.size < 2) nomme(" "    else if (false) nomme(" \
-  "$RL4"
-prouver "une lettre qui ne se solde pas et passe l'essai" $LV \
-  "      g.comptes.add(l.compte); g.solde += l.debit - l.credit;" "      g.comptes.add(l.compte); g.solde += 0n;" \
-  "$RL4"
-prouver "les lettres du livre laissées à la porte" serveur/cabinet/routes.ts \
-  "credit: l.credit.toString(), lettre: l.lettre }))," "credit: l.credit.toString() }))," \
-  "$RC1"
-prouver "les lignes d'une lettre reprise oubliées" $M39 \
-  "    insert into compta.ligne_lettree (ligne, lettrage, entreprise) select u.ligne, v_lettrage, p_entreprise from unnest(g.lignes) u(ligne);" "" \
-  "$RC1"
-prouver "une lettre déjà prise dans le dossier, reprise telle quelle" $M39 \
-  "    if exists (select 1 from compta.lettrage lt where lt.entreprise = p_entreprise and lt.lettre = v_lettre) then" "    if false then" \
-  "$RC3"
-prouver "une lettre renommée sur une lettre du même livre" $M39 \
-  " and not (v_lettre = any (v_llettres));" ";" \
-  "$RC3"
-prouver "une lettre renommée sans le dire" $M39 \
-  "      v_renommees := v_renommees || jsonb_build_object('v10', g.lettre, 'lettre', v_lettre);" "" \
-  "$RC3"
-prouver "une lettre sur deux comptes posée par la base" $M39 \
-  "    if g.nc <> 1 or g.lettre" "    if false or g.lettre" \
-  "$RC4"
-prouver "une lettre sur un brouillard posée par la base" $M39 \
-  "where l.id = any (g.lignes) and w.statut <> 'validee')" "where l.id = any (g.lignes) and false)" \
-  "$RC4"
-prouver "une lettre d'une seule écriture posée par la base" $M39 \
-  "from compta.ligne l where l.id = any (g.lignes)) < 2" "from compta.ligne l where l.id = any (g.lignes)) < 1" \
-  "$RC4"
-prouver "une lettre qui ne se solde pas posée par la base" $M39 \
-  "(select sum(l.debit - l.credit) from compta.ligne l where l.id = any (g.lignes)) <> 0 then" "(select sum(l.debit - l.credit) from compta.ligne l where l.id = any (g.lignes)) is null then" \
-  "$RC4"
-prouver "les lettrages absents du rapport à l'écran" web/public/v10/cabinet/app.js \
-  "        <tr><td>Lettrages — ils se reprennent avec leur lettre</td>" "        <tr hidden><td>Lettrages — ils se reprennent avec leur lettre</td>" \
-  "$RE1"
-prouver "des lettres changées sans un mot à l'écran" web/public/v10/cabinet/app.js \
-  "          if (r.lettres && r.lettres.length) {" "          if (false) {" \
-  "$RE1"
-prouver "l'écran qui ne rouvre pas le livre repris" $PC \
-  "      return { ...cree, annee, livre: await livreDe(o.dossierId, annee) };" "      return { ...cree, annee, livre: null };" \
-  "$RE1"
-
-# ── Brique 66 : les relevés et leurs rapprochements repris avec le livre v10 (docs/cabinet.md, C56) ──
-RL5="un relevé qui ne se reprendrait pas tel quel est nommé : ne se boucle pas, sans compte, une ligne illisible, deux fois le même fichier, un rapprochement faux ou pris deux fois"
-prouver "un solde de relevé illisible qui passe l'essai" $LV \
-  "    if (debut === null || fin === null) nomme(motif('reprise.releve_solde'));" "" \
-  "$RL5"
-prouver "un relevé sans compte qui passe l'essai" $LV \
-  "    if (!COMPTE.test(r.compte)) nomme(motif('reprise.releve_compte'));" "" \
-  "$RL5"
-prouver "un relevé vide qui passe l'essai" $LV \
-  "    if (!lignesV10.length) nomme(motif('reprise.releve_vide'));" "" \
-  "$RL5"
-prouver "le même relevé deux fois dans le livre" $LV \
-  "    if (empreintes.has(empreinte)) nomme(motif('reprise.releve_double'));" "" \
-  "$RL5"
-prouver "une ligne de relevé illisible qui passe l'essai" $LV \
-  "      if (m === null || !estJour(l.date)) { nomme(" "      if (!estJour(l.date)) { nomme(" \
-  "$RL5"
-prouver "un rapprochement vers une autre ligne que celle du compte" $LV \
-  "        if (!face || face.compte !== r.compte) nomme(" "        if (!face) nomme(" \
-  "$RL5"
-prouver "une ligne d'écriture reprise qui répond de deux lignes de relevé" $LV \
-  "        else if (faces.has(\`\${cible}#\${rangV10}\`)) nomme(" "        else if (false) nomme(" \
-  "$RL5"
-prouver "un relevé qui ne se boucle pas et passe l'essai" $LV \
-  "r.lignes.length === lignesV10.length && debut + somme !== fin) {" "r.lignes.length === lignesV10.length && false) {" \
-  "$RL5"
-prouver "un relevé sans empreinte envoyé tel quel" $LV \
-  "    const empreinte = /^[0-9a-f]{64}\$/.test(String(x.empreinte ?? '')) ? String(x.empreinte)" "    const empreinte = true ? String(x.empreinte ?? '')" \
-  "$RC3"
-prouver "les relevés du livre laissés de côté" serveur/cabinet/routes.ts \
-  "      for (const r of lu.releves) {" "      for (const r of lu.releves.slice(0, 0)) {" \
-  "$RC1"
-prouver "un rapprochement relié à la place de la v10 et non à la ligne écrite" serveur/cabinet/routes.ts \
-  "            const rang = e ? e.rangs.indexOf(l.face.rangV10) + 1 : 0;" "            const rang = e ? l.face.rangV10 + 1 : 0;" \
-  "$RC1"
-prouver "le niveau d'un rapprochement repris perdu" serveur/cabinet/routes.ts \
-  "ecritureLigne: lignesEcrites.get(\`\${e?.id}#\${rang}\`) ?? null, niveau: l.face.niveau, auto: l.face.auto });" "ecritureLigne: lignesEcrites.get(\`\${e?.id}#\${rang}\`) ?? null, niveau: 'probable', auto: false });" \
-  "$RC1"
-prouver "le jugement « à confirmer » d'une ligne perdu" serveur/cabinet/routes.ts \
-  "          } else if (l.niveau !== 'aucun') poses.push(" "          } else if (false) poses.push(" \
-  "$RC1"
-prouver "les rapprochements repris comptés à zéro" serveur/cabinet/routes.ts \
-  "            rapprochees++;" "" \
-  "$RC1"
-prouver "les identifiants internes rendus au navigateur" serveur/cabinet/routes.ts \
-  "      return { statut: 201, corps: { ...resultat, releves:" "      return { statut: 201, corps: { ...cree, releves:" \
-  "$RC1"
-prouver "les écritures reprises sans leur identifiant rendu" $M39 \
-  "    v_toutes := v_toutes || v_id;" "" \
-  "$RC1"
-prouver "les relevés absents du rapport à l'écran" web/public/v10/cabinet/app.js \
-  "        <tr><td>Relevés bancaires — avec leurs rapprochements</td>" "        <tr hidden><td>Relevés bancaires — avec leurs rapprochements</td>" \
-  "$RE1"
-
-# ── Brique 67 : les immobilisations reprises avec le livre v10 (docs/cabinet.md, C57) ──
-RI1="chaque bien est posé une fois, relié à la dotation reprise et à la facture dont il est né ; l'année suivante le retrouve"
-RI2="un bien déjà dans le dossier avec un autre plan : la reprise s'arrête en le disant, rien n'est écrit"
-RI3="un bien qui ne se reprendrait pas tel quel est nommé : sans libellé, un compte, une date, un montant, une durée, un taux illisibles, une écriture absente ou qui n'est pas la sienne"
-RI4="la base refait ses contrôles : une écriture qui n'est pas reprise, un genre inconnu, une dotation reliée deux fois, un dossier qui n'est pas tenu"
-RE2="les immobilisations reprises : le bien reporté ne se propose pas comme une acquisition, celui né de sa facture non plus, leurs dotations sont passées"
-M40=base/migrations/0040_compta_reprise_immobilisations.sql
-prouver "un bien sans libellé qui passe l'essai" $LV \
-  "    if (!libelle) nomme(motif('reprise.immo_libelle'));" "" \
-  "$RI3"
-prouver "un compte de bien illisible qui passe l'essai" $LV \
-  "    if (comptes.some((c) => !COMPTE.test(c))) nomme(motif('reprise.immo_compte'));" "" \
-  "$RI3"
-prouver "une date de bien illisible qui passe l'essai" $LV \
-  "    if (!estJour(mes) || (ces && !estJour(ces.date))) nomme(motif('reprise.immo_date'));" "" \
-  "$RI3"
-prouver "un montant de bien illisible qui passe l'essai" $LV \
-  "    if (valeurs.some((v) => v === null)) nomme(motif('reprise.immo_montant'));" "" \
-  "$RI3"
-prouver "une durée illisible qui passe l'essai" $LV \
-  "    if (duree === null) nomme(motif('reprise.immo_duree'));" "" \
-  "$RI3"
-prouver "un taux dégressif illisible qui passe l'essai" $LV \
-  "    if (taux === null && x.tauxDegressif !== null" "    if (false && x.tauxDegressif !== null" \
-  "$RI3"
-prouver "une dotation vers une écriture absente qui passe l'essai" $LV \
-  "      if (!e) { nomme(motif('reprise.immo_ecriture', { annee: String(annee) })); continue; }" "      if (!e) continue;" \
-  "$RI3"
-prouver "une écriture qui n'est ni la dotation ni la sortie du bien, reliée" $LV \
-  "      if (!genre) nomme(motif('reprise.immo_genre'" "      if (false) nomme(motif('reprise.immo_genre'" \
-  "$RI3"
-prouver "l'écriture d'une autre année reliée au bien reporté" $LV \
-  "      if (!estObjet(l) || Number(l.annee) !== annee || !texte(l.ecritureId, 200)) continue;" "      if (!estObjet(l) || !texte(l.ecritureId, 200)) continue;" \
-  "$RI1"
-prouver "les biens absents du rapport" $LV \
-  "    immobilisations: { total: l.biens.length, liees:" "    immobilisations: { total: 0, liees:" \
-  "$RI1"
-prouver "le bien né d'une écriture qui perd son origine" $LV \
-  "      docRef: doc && parRef.has(doc[1] ?? '') ? {" "      docRef: false ? {" \
-  "$RI1"
-prouver "l'origine d'un bien laissée à l'écriture de la v10" serveur/cabinet/routes.ts \
-  "        const docId = nee && b.docRef ? \`\${nee.id}#\${nee.rangs.indexOf(b.docRef.rangV10)}\` : b.fiche.origine.docId;" "        const docId = nee && b.docRef ? \`\${nee.id}#\${b.docRef.rangV10}\` : b.fiche.origine.docId;" \
-  "$RI1"
-prouver "les dotations reprises laissées sans leur bien" serveur/cabinet/routes.ts \
-  "        const liens = b.liens.map((l) => ({ genre: l.genre, ecriture: ecritureDe.get(l.ecriture)?.id ?? null }));" "        const liens: unknown[] = [];" \
-  "$RI1"
-prouver "un bien retrouvé compté comme créé" serveur/cabinet/routes.ts \
-  "        if (r.cree) immobilisations.creees++; else immobilisations.retrouvees++;" "        immobilisations.creees++;" \
-  "$RI1"
-prouver "les écritures reliées aux biens comptées à zéro" serveur/cabinet/routes.ts \
-  "        immobilisations.liees += r.liees;" "" \
-  "$RI1"
-prouver "une reprise de bien chez un client sur SkanFact" $M40 \
-  "  if socle.perimetre_cabinet(p_entreprise) is null
-     or not exists (select 1 from socle.entreprise where id = p_entreprise and tenue_par is not null) then
-    perform socle.refus('la reprise d''un livre de la v10 s''écrit dans un dossier que ton cabinet tient');
-  end if;" "" \
-  "$RI4"
-prouver "un bien d'une autre année recréé en double" $M40 \
-  "  select * into x from compta.immobilisation i where i.entreprise = p_entreprise and i.fiche->'libelle' = p_fiche->'libelle'" "  select * into x from compta.immobilisation i where false and i.fiche->'libelle' = p_fiche->'libelle'" \
-  "$RI1"
-prouver "un bien retrouvé dont le plan diffère, repris quand même" $M40 \
-  "      if (x.fiche->k) is distinct from (p_fiche->k) then" "      if false then" \
-  "$RI2"
-prouver "une écriture saisie reliée comme une dotation reprise" $M40 \
-  "and e.origine_type = 'reprise_v10' and extract" "and true and extract" \
-  "$RI4"
-prouver "un genre de lien inconnu" $M40 \
-  "    if coalesce(l->>'genre', '') not in ('dotation', 'cession')" "    if false" \
-  "$RI4"
-prouver "une dotation reliée deux fois" $M40 \
-  "    if exists (select 1 from compta.immobilisation_ecriture i where i.immobilisation = v_id" "    if false and exists (select 1 from compta.immobilisation_ecriture i where i.immobilisation = v_id" \
-  "$RI4"
-prouver "un bien posé dit retrouvé" $M40 \
-  "    v_cree := true;" "" \
-  "$RI1"
-prouver "un bien reporté qui se propose comme une acquisition" $PC \
-  "    livre.immobilisations = biens.map((/** @type {any} */ b) => (String(b.dateMiseEnService || b.dateAcquisition || '') < livre.exercice.du ? { ...b, reporteDe: Number(annee) - 1 } : b));" "    livre.immobilisations = biens;" \
-  "$RE2"
-prouver "les biens absents du rapport à l'écran" web/public/v10/cabinet/app.js \
-  "        <tr><td>Immobilisations — une fiche par bien" "        <tr hidden><td>Immobilisations — une fiche par bien" \
-  "$RE1"
-
-# ── Brique 68 : la révision et les questions reprises avec le livre v10 (docs/cabinet.md, C58) ──
-RQ1="une révision ou une question qui ne se reprendrait pas telle quelle est nommée ; la base refait ses contrôles"
-M41=base/migrations/0041_compta_reprise_questions.sql
-prouver "une révision d'une autre année qui passe l'essai" $LV \
-  "    if (!periodeDuLivre(periode, annee)) { nomme(" "    if (false) { nomme(" \
-  "$RQ1"
-prouver "une révision deux fois dans le livre" $LV \
-  "    if (vues.has(periode)) { nomme(motif('reprise.revision_double')); continue; }" "" \
-  "$RQ1"
-prouver "une révision illisible reprise en silence" $LV \
-  "    if (!lu.success) { nomme(" "    if (!lu.success) { continue; nomme(" \
-  "$RQ1"
-prouver "une révision arrêtée reprise ouverte" $LV \
-  "      faite: x.faite === true, faiteLe:" "      faite: false, faiteLe:" \
-  "$RC1"
-prouver "une question d'une autre année qui passe l'essai" $LV \
-  "    if (!periodeDuLivre(q.periode, annee)) nomme(" "    if (false) nomme(" \
-  "$RQ1"
-prouver "une question sans texte qui passe l'essai" $LV \
-  "    if (!q.texte) nomme(" "    if (false) nomme(" \
-  "$RQ1"
-prouver "le compte illisible d'une question qui passe l'essai" $LV \
-  "    if (q.compte && !COMPTE.test(q.compte)) nomme(" "    if (false) nomme(" \
-  "$RQ1"
-prouver "le montant illisible d'une question qui passe l'essai" $LV \
-  "    if (montant(x.montant) === null) nomme(" "    if (false) nomme(" \
-  "$RQ1"
-prouver "l'état inconnu d'une question qui passe l'essai" $LV \
-  "    if (!(STATUTS as readonly string[]).includes(String(x.statut))) nomme(" "    if (false) nomme(" \
-  "$RQ1"
-prouver "une question répondue sans réponse qui passe l'essai" $LV \
-  "    else if ((q.statut === 'repondue') !== (q.reponse !== null) && q.statut !== 'close') nomme(" "    else if (false) nomme(" \
-  "$RQ1"
-prouver "une question envoyée sans envoi qui passe l'essai" $LV \
-  "    else if ((q.statut === 'ouverte') !== (q.envois.length === 0) && q.statut !== 'close') nomme(" "    else if (false) nomme(" \
-  "$RQ1"
-prouver "les révisions absentes du rapport" $LV \
-  "    revisions: { total: l.revisions.length," "    revisions: { total: 0," \
-  "$RL1"
-prouver "les questions absentes du rapport" $LV \
-  "    questions: { total: l.questions.length," "    questions: { total: 0," \
-  "$RL1"
-prouver "les révisions du livre laissées de côté" serveur/cabinet/routes.ts \
-  "      for (const r of lu.revisions) {" "      for (const r of lu.revisions.slice(0, 0)) {" \
-  "$RC1"
-prouver "une question reprise sans sa pièce" serveur/cabinet/routes.ts \
-  "        ...q, montant: q.montant.toString(), ecriture: ecritureDe.get(q.ecriture)?.id ?? null," "        ...q, montant: q.montant.toString(), ecriture: null," \
-  "$RC1"
-prouver "une question reprise chez un client sur SkanFact" $M41 \
-  "  if socle.perimetre_cabinet(p_entreprise) is null
-     or not exists (select 1 from socle.entreprise where id = p_entreprise and tenue_par is not null) then
-    perform socle.refus('la reprise d''un livre de la v10 s''écrit dans un dossier que ton cabinet tient');
-  end if;" "" \
-  "$RQ1"
-prouver "une question reprise en face d'une écriture saisie" $M41 \
-  "and e.entreprise = p_entreprise and e.origine_type = 'reprise_v10') then" "and e.entreprise = p_entreprise) then" \
-  "$RQ1"
-prouver "les envois d'une question reprise perdus" $M41 \
-  "            coalesce((select array_agg(to_timestamp(x::bigint / 1000.0) order by o) from jsonb_array_elements_text(q->'envois') with ordinality t(x, o)), '{}')," "            '{}'," \
-  "$RC1"
-prouver "l'instant de la réponse d'une question reprise perdu" $M41 \
-  "            nullif(q->>'reponse', ''), case when q->>'repondue' is null then null else to_timestamp((q->>'repondue')::bigint / 1000.0) end," "            nullif(q->>'reponse', ''), null," \
-  "$RC1"
-prouver "la révision absente du rapport à l'écran" web/public/v10/cabinet/app.js \
-  "        <tr><td>Révision — le dossier de travail de chaque période</td>" "        <tr hidden><td>Révision — le dossier de travail de chaque période</td>" \
-  "$RE1"
-prouver "les questions absentes du rapport à l'écran" web/public/v10/cabinet/app.js \
-  "        <tr><td>Questions au client — dans leur état</td>" "        <tr hidden><td>Questions au client — dans leur état</td>" \
-  "$RE1"
-
-# ── Brique 69 : les déclarations et l'inventaire repris avec le livre v10 (docs/cabinet.md, C59) ──
-RD1="la déclaration reprise avec ses cases, son dépôt, son paiement et son écriture ; l'inventaire avec ses lignes et sa variation ; ni l'une ni l'autre ne se repasse"
-RD2="une déclaration ou un inventaire qui ne se reprendrait pas tel quel est nommé ; la base refait ses contrôles"
-M42=base/migrations/0042_compta_reprise_declarations.sql
-prouver "une déclaration d'une autre année qui passe l'essai" $LV \
-  "{ nomme(motif('reprise.declaration_periode', { annee: String(annee) })); continue; }" "{ continue; }" \
-  "$RD2"
-prouver "une déclaration deux fois dans le livre" $LV \
-  "    if (vues.has(periode)) { nomme(motif('reprise.declaration_double')); continue; }" "" \
-  "$RD2"
-prouver "une case inconnue qui passe l'essai" $LV \
-  "      if (!CASES_DECLARATION.includes(k)) { nomme(motif('reprise.declaration_case', { case: k })); continue; }" "" \
-  "$RD2"
-prouver "une case illisible qui passe l'essai" $LV \
-  "      if (m === null && brute !== null && brute !== undefined && brute !== '') { nomme(" "      if (false) { nomme(" \
-  "$RD2"
-prouver "un jour de dépôt illisible qui passe l'essai" $LV \
-  "    if ((dep && !estJour(dep.le)) || (pay && !estJour(pay))) nomme(motif('reprise.declaration_jour'));" "" \
-  "$RD2"
-prouver "une déclaration payée sans dépôt qui passe l'essai" $LV \
-  "    if (pay && !dep) nomme(" "    if (false) nomme(" \
-  "$RD2"
-prouver "l'écriture absente d'une déclaration qui passe l'essai" $LV \
-  "    if (ecriture && !refs.has(ecriture)) nomme(motif('reprise.declaration_ecriture'));" "" \
-  "$RD2"
-prouver "deux inventaires qui passent l'essai" $LV \
-  "  if (tous.length > 1) nomme(" "  if (false) nomme(" \
-  "$RD2"
-prouver "un inventaire d'une autre année qui passe l'essai" $LV \
-  "  if (!estJour(date) || date.slice(0, 4) !== String(annee)) nomme(" "  if (false) nomme(" \
-  "$RD2"
-prouver "le compte de stock illisible qui passe l'essai" $LV \
-  "  if (!COMPTE.test(compte)) nomme(motif('reprise.inventaire_compte'));" "" \
-  "$RD2"
-prouver "une ligne d'inventaire sans désignation qui passe l'essai" $LV \
-  "    if (!texte(l.libelle, 200).trim() || quantite === null" "    if (quantite === null" \
-  "$RD2"
-prouver "une quantité négative qui passe l'essai" $LV \
-  "|| quantite === null || cout === null || quantite < 0n || cout < 0n) { nomme(" "|| quantite === null || cout === null) { nomme(" \
-  "$RD2"
-prouver "l'écriture absente de l'inventaire qui passe l'essai" $LV \
-  "  if (ecriture && !refs.has(ecriture)) nomme(motif('reprise.inventaire_ecriture'));" "" \
-  "$RD2"
-prouver "les déclarations absentes du rapport" $LV \
-  "    declarations: { total: l.declarations.length," "    declarations: { total: 0," \
-  "$RD1"
-prouver "l'inventaire absent du rapport" $LV \
-  "    inventaire: l.inventaire ? { lignes: l.inventaire.lignes.length } : null," "    inventaire: null," \
-  "$RD1"
-prouver "les déclarations du livre laissées de côté" serveur/cabinet/routes.ts \
-  "      for (const d of lu.declarations) {" "      for (const d of lu.declarations.slice(0, 0)) {" \
-  "$RD1"
-prouver "une déclaration reprise sans son écriture" serveur/cabinet/routes.ts \
-  "payee: d.payee, ecriture: ecritureDe.get(d.ecriture)?.id ?? null," "payee: d.payee, ecriture: null," \
-  "$RD1"
-prouver "l'inventaire du livre laissé de côté" serveur/cabinet/routes.ts \
-  "      if (lu.inventaire) {" "      if (false) {" \
-  "$RD1"
-prouver "un inventaire repris sans sa variation" serveur/cabinet/routes.ts \
-  "          ecriture: ecritureDe.get(inv.ecriture)?.id ?? null," "          ecriture: null," \
-  "$RD1"
-prouver "une déclaration reprise chez un client sur SkanFact" $M42 \
-  "v_ecriture uuid := nullif(p_declaration->>'ecriture', '')::uuid;
-begin
-  if socle.perimetre_cabinet(p_entreprise) is null
-     or not exists (select 1 from socle.entreprise where id = p_entreprise and tenue_par is not null) then
-    perform socle.refus('la reprise d''un livre de la v10 s''écrit dans un dossier que ton cabinet tient');
-  end if;" "v_ecriture uuid := nullif(p_declaration->>'ecriture', '')::uuid;
-begin" \
-  "$RD2"
-prouver "un inventaire repris chez un client sur SkanFact" $M42 \
-  "v_ecriture uuid := nullif(p_inventaire->>'ecriture', '')::uuid;
-begin
-  if socle.perimetre_cabinet(p_entreprise) is null
-     or not exists (select 1 from socle.entreprise where id = p_entreprise and tenue_par is not null) then
-    perform socle.refus('la reprise d''un livre de la v10 s''écrit dans un dossier que ton cabinet tient');
-  end if;" "v_ecriture uuid := nullif(p_inventaire->>'ecriture', '')::uuid;
-begin" \
-  "$RD2"
-prouver "une déclaration liée à une écriture saisie" $M42 \
-  "and e.origine_type = 'reprise_v10') then
-    perform socle.refus('l''écriture liée à une déclaration ou à un inventaire repris n''est pas une écriture reprise de ce dossier');
-  end if;
-  v_id :=" "and true) then
-    perform socle.refus('l''écriture liée à une déclaration ou à un inventaire repris n''est pas une écriture reprise de ce dossier');
-  end if;
-  v_id :=" \
-  "$RD2"
-prouver "un inventaire lié à une écriture saisie" $M42 \
-  "and e.origine_type = 'reprise_v10') then
-    perform socle.refus('l''écriture liée à une déclaration ou à un inventaire repris n''est pas une écriture reprise de ce dossier');
-  end if;
-  v_total :=" "and true) then
-    perform socle.refus('l''écriture liée à une déclaration ou à un inventaire repris n''est pas une écriture reprise de ce dossier');
-  end if;
-  v_total :=" \
-  "$RD2"
-prouver "le dépôt d'une déclaration reprise perdu" $M42 \
-  "    deposee_le = (p_declaration->'deposee'->>'le')::date," "    deposee_le = null," \
-  "$RD1"
-prouver "le jour de préparation d'une déclaration reprise perdu" $M42 \
-  "then to_timestamp((p_declaration->>'preparee')::bigint / 1000.0) else preparee_le end," "then preparee_le else preparee_le end," \
-  "$RD1"
-prouver "une déclaration reprise sans le lien de son écriture" $M42 \
-  "    ecriture = v_ecriture
-   where id = v_id;" "    ecriture = null
-   where id = v_id;" \
-  "$RD1"
-prouver "un inventaire repris sans le lien de sa variation" $M42 \
-  "  update compta.inventaire set ecriture = v_ecriture where" "  update compta.inventaire set ecriture = null where" \
-  "$RD1"
-prouver "les déclarations absentes du rapport à l'écran" web/public/v10/cabinet/app.js \
-  "        <tr><td>Déclarations du mois — avec leur dépôt et leur paiement</td>" "        <tr hidden><td>Déclarations du mois — avec leur dépôt et leur paiement</td>" \
-  "$RE1"
-prouver "l'inventaire absent du rapport à l'écran" web/public/v10/cabinet/app.js \
-  "        <tr><td>Inventaire de stock</td>" "        <tr hidden><td>Inventaire de stock</td>" \
-  "$RE1"
-
-# ── Brique 70 : le portefeuille du Cabinet v10 repris (docs/cabinet.md, C60) ──
-RP1="les dossiers tenus créés avec leur fiche ; les clients sur SkanFact et les exemples dits ; une seconde reprise les retrouve"
-RP2="ce qui ne se reprendrait pas tel quel est nommé et rien ne se crée ; un champ de plus (la clé privée) refusé ; un collaborateur refusé"
-RW1="le rapport se lit avant que rien ne se crée ; une anomalie bloque ; le bon fichier crée les dossiers tenus, sans que la clé parte"
-CV=serveur/reprise/cabinet-v10.ts
-prouver "un champ de plus d'un dossier accepté (la clé d'un client)" $CV \
-  "  relances: z.array(z.unknown()).max(200), abonnements: z.array(z.unknown()).max(200),
-}).strict();" "  relances: z.array(z.unknown()).max(200), abonnements: z.array(z.unknown()).max(200),
-});" \
-  "$RP2"
-prouver "la clé privée du cabinet acceptée à côté des dossiers" $CV \
-  "export const PORTEFEUILLE_V10 = z.object({ dossiers: z.array(DOSSIER_V10).max(2000) }).strict();" "export const PORTEFEUILLE_V10 = z.object({ dossiers: z.array(DOSSIER_V10).max(2000) });" \
-  "$RP2"
-prouver "un dossier d'exemple repris comme un vrai" $CV \
-  "    if (d.demo) { exemples++; continue; }" "" \
-  "$RP1"
-prouver "un client sur SkanFact repris comme un dossier tenu" $CV \
-  "    if (!d.manual) { surSkanfact.push(nom); continue; }" "" \
-  "$RP1"
-prouver "un dossier sans nom qui passe l'essai" $CV \
-  "    if (!nom || nom.length > 200) nomme(" "    if (false) nomme(" \
-  "$RP2"
-prouver "un matricule illisible qui passe l'essai" $CV \
-  "    if (lu === undefined) nomme(" "    if (false) nomme(" \
-  "$RP2"
-prouver "un matricule en double dans le fichier qui passe l'essai" $CV \
-  "    else if (lu && matricules.has(lu)) nomme(" "    else if (false) nomme(" \
-  "$RP2"
-prouver "un matricule à points de la v10 refusé" commun/matricule.ts \
-  '.toUpperCase().replace(/[\s/.\-_]/g, '\'''\'');' '.toUpperCase().replace(/[\s/]/g, '\'''\'');' \
-  "$RP1"
-prouver "des honoraires illisibles qui passent l'essai" $CV \
-  "    if (fees === null) nomme(motif('reprise.dossier_honoraires'));" "" \
-  "$RP2"
-prouver "les honoraires repris à zéro" $CV \
-  "fees: Number(fees)," "fees: 0," \
-  "$RP1"
-prouver "le montant d'un abonnement repris tel quel, sans ses millimes" $CV \
-  "montant: m === null ? String(x.montant) : versTexte(m, 3)," "montant: String(x.montant)," \
-  "$RP1"
-prouver "une fiche illisible qui passe l'essai" serveur/cabinet/routes.ts \
-  "      if (!f.success) anomalies.push(" "      if (false) anomalies.push(" \
-  "$RP2"
-prouver "un dossier déjà au portefeuille recréé" serveur/cabinet/routes.ts \
-  "    const aCreer = lu.dossiers.filter((d) => !retrouve(d));" "    const aCreer = lu.dossiers;" \
-  "$RP1"
-prouver "un portefeuille à anomalie créé quand même" serveur/cabinet/routes.ts \
-  "      if (rapport.anomalies.length) return { statut: 400, corps: { motif: motif('cabinet.reprise.portefeuille_anomalies'" "      if (false) return { statut: 400, corps: { motif: motif('cabinet.reprise.portefeuille_anomalies'" \
-  "$RP2"
-prouver "l'essai du portefeuille ouvert au collaborateur" serveur/cabinet/routes.ts \
-  "      if (!(await tx.query('select socle.suis_associe(\$1) a', [params.cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.portefeuille_associe') } };
-      return { corps: (await lirePortefeuille(" "      return { corps: (await lirePortefeuille(" \
-  "$RP2"
-prouver "la reprise du portefeuille ouverte au collaborateur" serveur/cabinet/routes.ts \
-  "      if (!(await tx.query('select socle.suis_associe(\$1) a', [cabinet])).rows[0].a) return { statut: 403, corps: { motif: motif('cabinet.reprise.portefeuille_associe') } };
-      const { aCreer, rapport }" "      const { aCreer, rapport }" \
-  "$RP2"
-prouver "les dossiers repris sans leur fiche" serveur/cabinet/routes.ts \
-  "        await requetes(tx).insertInto('cabinet.fiche').values({ cabinet, entreprise: id, contenu: JSON.stringify(d.fiche), modifie_par: qui.utilisateur }).execute();" "" \
-  "$RP1"
-prouver "le fichier du cabinet envoyé tel quel (sa clé privée)" $PC \
-  "  const portefeuilleAEnvoyer = (etat) => ({ dossiers: (etat.dossiers || []).map((/** @type {any} */ d) => Object.fromEntries(CHAMPS_PORTEFEUILLE.map((k) => [k, d[k]]))) });" "  const portefeuilleAEnvoyer = (etat) => etat;" \
-  "$RW1"
-prouver "le portefeuille lu oublié entre l'essai et la création" $PC \
-  "      portefeuilleEnAttente = corps;" "" \
-  "$RW1"
-prouver "la reprise du portefeuille absente de la page vide" web/public/v10/cabinet/app.js \
-  "            <button class=\"btn\" id=\"rp-v10\">Reprendre mon portefeuille de SkanFact Cabinet v10…</button>" "" \
-  "$RW1"
-prouver "un portefeuille à anomalie qu'on peut quand même créer" web/public/v10/cabinet/app.js \
-  "        \${n || !k ? '' : \`<button class=\"btn btn-primary\" id=\"ok\">Créer" "        \${!k ? '' : \`<button class=\"btn btn-primary\" id=\"ok\">Créer" \
-  "$RW1"
-
 # ── Brique 72 : l'application installable, qui s'ouvre et se consulte sans réseau (docs/hors-ligne.md) ──
 HL1="sur mon ordinateur : la copie chiffrée ; sans réseau, l'entreprise se rouvre et se consulte ; le réseau revenu, on recharge ; déconnecté, le poste oublie"
 HL2="sur l'ordinateur d'un autre : rien n'est gardé, et sans réseau l'écran le dit"
@@ -8862,12 +8315,6 @@ prouver 'le dossier tenu qui garde le matricule tel qu'\''il est écrit' serveur
 prouver 'la lettre-clé I, O ou U acceptée au dossier tenu' commun/matricule.ts \
   '/^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' '/^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
   "$NT1"
-prouver 'deux écritures du même matricule qui passent la reprise' serveur/reprise/cabinet-v10.ts \
-  '    if (matricule) matricules.add(matricule);' '    if (matricule) matricules.add(d.matricule);' \
-  "$RP2"
-prouver 'la lettre-clé I, O ou U acceptée à la reprise' commun/matricule.ts \
-  '/^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' '/^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
-  "$RP2"
 prouver 'la liste collée qui laisse passer la lettre-clé O' web/public/plateforme/pont-cabinet.js \
   'return /^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c)' 'return /^[0-9]{7}[A-Z][A-Z]{2}[0-9]{3}$/.test(c)' \
   "$WL1E4"
@@ -18447,6 +17894,61 @@ prouver 'deux prix voisins écrits l'"'"'un avec ses millimes, l'"'"'autre sans'
   '/^0*$/.test(d) && !millimes ? '"'"''"'"'' \
   '/^0*$/.test(d) ? '"'"''"'"'' \
   'la direction ouvre la paie seule, la facture compte ce qui dépasse ; le client voit sa paie ouverte et les prix de ce qui s'"'"'ajoute'
+
+# 1.76.0 : la recette du Cabinet et de la console (Dossiers relu, mots, coordonnées du client, brouillard, version).
+prouver 'la page Dossiers qui ne se relit pas au retour' 'web/public/v10/cabinet/app.js' \
+  'if (route !== routeLue && route === '"'"'dossiers'"'"' && routeLue) relirePortefeuille();' \
+  'void 0;' \
+  'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
+prouver '« chez ton dossier » pour dire que tout est à jour' 'web/public/v10/cabinet/app.js' \
+  'Tout est à jour : ton client sur SkanFact n'"'"'a aucun mois passé vide ni à valider.' \
+  'Tout est à jour : chez ton dossier sur SkanFact, aucun mois passé n'"'"'est vide ni à valider.' \
+  'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
+prouver '« l'"'"'attente démarre à la première écriture » sous un mois écrit' 'web/public/v10/cabinet/app.js' \
+  ': (dossier.packs || []).length ? `<span' \
+  ': false ? `<span' \
+  'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
+prouver '« Aucune écriture sur cette période » qui tait le brouillard' 'web/public/v10/cabinet/app.js' \
+  '? (s.livre && (s.livre.ecritures || []).some(e => e.statut === '"'"'brouillard'"'"') && !s.brouillard' \
+  '? (false' \
+  'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
+prouver '« Adresse de l'"'"'employeur » dans la fiche d'"'"'un client' 'web/public/v10/cabinet/app.js' \
+  'lbl('"'"'Adresse du client'"'"', '"'"'d.adresse'"'"')' \
+  'lbl('"'"'Adresse de l\'"'"'employeur'"'"', '"'"'d.adresse'"'"')' \
+  'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
+prouver '« Abonnements » pour les écritures qui reviennent' 'web/public/v10/cabinet/app.js' \
+  '<h2>Écritures qui reviennent ${info('"'"'sa.abonnements'"'"')}</h2>' \
+  '<h2>Abonnements ${info('"'"'sa.abonnements'"'"')}</h2>' \
+  'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
+prouver '« Un abonnement s'"'"'appuie sur un guide » dans la saisie' 'web/public/v10/cabinet/app.js' \
+  'Une écriture qui revient s'"'"'appuie sur un guide d'"'"'écritures' \
+  'Un abonnement s'"'"'appuie sur un guide d'"'"'écritures' \
+  'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
+prouver 'le Cabinet qui ignore l'"'"'e-mail de la fiche du client' 'web/public/plateforme/pont-cabinet.js' \
+  '      if (!String(lue.email || '"'"''"'"').trim() && c.email) lue.email = c.email;
+' \
+  '' \
+  'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
+prouver 'le portefeuille sans les coordonnées du client' 'serveur/cabinet/routes.ts' \
+  '...(coordonnees.has(d.entreprise) ? { coordonnees: coordonnees.get(d.entreprise) } : {}),' \
+  '' \
+  'sous un mandat actif, le cabinet lit l'"'"'e-mail et le téléphone de la fiche de son client, et rien d'"'"'autre ; proposé ou arrêté, rien'
+prouver 'les coordonnées d'"'"'un client lues après l'"'"'arrêt du mandat' 'base/migrations/0153_coordonnees_des_clients.sql' \
+  'where x.statut = '"'"'actif'"'"' and x.debut' \
+  'where x.debut' \
+  'sous un mandat actif, le cabinet lit l'"'"'e-mail et le téléphone de la fiche de son client, et rien d'"'"'autre ; proposé ou arrêté, rien'
+prouver 'le Cabinet qui affiche « v10 · en ligne »' 'web/public/plateforme/pont-cabinet.js' \
+  'const VERSION = (document.querySelector('"'"'meta[name="skanfact-code"]'"'"')?.getAttribute('"'"'content'"'"') || '"'"'dev'"'"').split('"'"' · '"'"')[0] || '"'"'dev'"'"';' \
+  'const VERSION = '"'"'10 · en ligne'"'"';' \
+  'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
+prouver '« aucune en septembre » pour une entreprise née en octobre' 'web/console/src/ecrans/Fiche.tsx' \
+  'String(f.enPlus?.piecesMois ?? 0), neeCeMois ?' \
+  'String(f.enPlus?.piecesMois ?? 0), false ?' \
+  '« Pièces émises » d'"'"'une entreprise née ce mois-ci dit depuis quand elle compte ; née avant, le mois d'"'"'avant (1.76.0)'
+prouver '« il reste à taper le code » une fois le code tapé' 'web/src/ecrans/CodeRequis.tsx' \
+  '/^\d{6}$/.test(essai.replace(/\s/g, '"'"''"'"')) ? '"'"'ecran.code_pose.pret'"'"' : '"'"'ecran.code_pose.garde_ok'"'"'' \
+  ''"'"'ecran.code_pose.garde_ok'"'"'' \
+  '« je suis un cabinet comptable » sur la porte : le cabinet se crée, le code du téléphone se pose, le Cabinet s'"'"'ouvre ; « Verrouiller » ferme la session'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
