@@ -16596,10 +16596,6 @@ prouver 'la fenêtre de l'"'"'incident qui se rouvre au retour' 'web/console/src
 ' \
   '' \
   'une facture retouchée par-dessous la base : relue depuis l'"'"'écran, la rupture nommée, l'"'"'incident ouvert d'"'"'un clic'
-prouver 'le curseur qui reste sur le titre déjà rempli' 'web/console/src/ui.tsx' \
-  '    if (!cadre.current?.contains(document.activeElement)) {' \
-  '    if (true) {' \
-  'une facture retouchée par-dessous la base : relue depuis l'"'"'écran, la rupture nommée, l'"'"'incident ouvert d'"'"'un clic'
 prouver 'le choix d'"'"'une entreprise qui pousse le motif' 'web/console/src/console.css' \
   '.c-invisible { visibility: hidden; }' \
   '.c-invisible { display: none; }' \
@@ -16986,8 +16982,8 @@ prouver 'un refus qui ne passe pas en retrait' 'web/console/src/ui.tsx' \
   '  const retape = () => undefined;' \
   'une fenêtre au clavier : le premier champ vide, Entrée, le refus en retrait, ⌘/Ctrl + Entrée'
 prouver 'le curseur au premier champ, déjà rempli' 'web/console/src/ui.tsx' \
-  '      const premier = champs.find((c) => c.value === '"'"''"'"' && !(c instanceof HTMLInputElement && (c.type === '"'"'checkbox'"'"' || c.type === '"'"'radio'"'"'))) ?? champs[0];' \
-  '      const premier = champs[0];' \
+  '    const premier = champs.find((c) => c.value === '"'"''"'"' && !(c instanceof HTMLInputElement && (c.type === '"'"'checkbox'"'"' || c.type === '"'"'radio'"'"'))) ?? champs[0];' \
+  '    const premier = champs[0];' \
   'une fenêtre au clavier : le premier champ vide, Entrée, le refus en retrait, ⌘/Ctrl + Entrée'
 prouver 'la tuile des codes faux qui demande un regard sans liste' 'web/console/src/ecrans/Securite.tsx' \
   '        <Tuile titre={titre(`${S}.k.codes`)} etat={aRegarder ? '"'"'attention'"'"' : '"'"'bon'"'"'}' \

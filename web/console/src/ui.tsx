@@ -382,14 +382,12 @@ export function Dialogue({ titre: t, sous, pour, fermer, occupe = false, childre
   }, []);
   useEffect(() => {
     const avant = ouvreur;
-    // Un champ de la fenêtre a déjà pris le curseur (`premier` : celui qui reste à remplir) : il le garde.
-    // Sinon, le premier qui reste à remplir : un nombre déjà posé (7 jours) laisse le curseur au motif vide (recette du
-    // 19/10/2026) ; tout rempli, le premier champ.
-    if (!cadre.current?.contains(document.activeElement)) {
-      const champs = [...(cadre.current?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled])') ?? [])];
-      const premier = champs.find((c) => c.value === '' && !(c instanceof HTMLInputElement && (c.type === 'checkbox' || c.type === 'radio'))) ?? champs[0];
-      (premier ?? cadre.current?.querySelector<HTMLElement>('.c-fermer'))?.focus();
-    }
+    // Le curseur va au premier champ qui reste à remplir : un nombre déjà posé (7 jours) le laisse au motif vide (recette du
+    // 19/10/2026) ; tout rempli, au premier champ. (Le champ « premier » d'une fenêtre est toujours celui-là : la garde qui
+    // l'y laissait ne changeait rien, et ne se prouvait sur aucune machine — retirée la nuit du 20/10/2026.)
+    const champs = [...(cadre.current?.querySelectorAll<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>('input:not([type=hidden]):not([disabled]), textarea:not([disabled]), select:not([disabled])') ?? [])];
+    const premier = champs.find((c) => c.value === '' && !(c instanceof HTMLInputElement && (c.type === 'checkbox' || c.type === 'radio'))) ?? champs[0];
+    (premier ?? cadre.current?.querySelector<HTMLElement>('.c-fermer'))?.focus();
     // Échap pendant la question, c'est « reprendre » : la touche qui ferme ne jette jamais ce qu'on a tapé.
     const echap = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.preventDefault(); if (enQuestion.current) reprendre(); else demander.current(); } };
     document.addEventListener('keydown', echap);

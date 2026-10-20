@@ -847,6 +847,10 @@ describe('le parcours, à la souris', () => {
     // À l'ordinateur, les dix-sept colonnes se lisent sans faire défiler.
     expect(await p.locator('.modal').evaluate((e) => Math.round(e.getBoundingClientRect().width))).toBeGreaterThan(1300);
     expect(await journal.locator('xpath=..').evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
+    // Sur toute machine : les en-têtes des chiffres passent à la ligne, la largeur du tableau est celle de ses chiffres (la
+    // nuit du 20/10/2026, sur la machine de GitHub, aux polices plus étroites, des en-têtes qui ne se coupaient pas
+    // tenaient encore dans la largeur, et le défaut passait).
+    expect(await journal.locator('thead th.r').evaluateAll((l) => l.filter((x) => getComputedStyle(x).whiteSpace === 'nowrap').map((x) => x.textContent))).toEqual([]);
     // Imprimé : une page en largeur, les mêmes lignes.
     const [imprime] = await Promise.all([p.waitForEvent('popup'), p.locator('#jp-pdf').click()]);
     await expect.poll(() => imprime.content()).toContain('Nombre de salariés : 3');
