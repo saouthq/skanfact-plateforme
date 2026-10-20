@@ -2739,6 +2739,8 @@
     entreeFin = setTimeout(() => view.classList.remove('entree'), 320);
   }
 
+  // (plateforme) 1.79.0 — la page du dernier dessin : un redessin sur place ne repropose pas sa visite.
+  let dernierePageGuide = '';
   function render(keepScroll) {
     return C.enLot(() => {
     const view = $('#view');
@@ -2749,8 +2751,11 @@
     if (name !== 'achat') rangementDuMessage = null;
     // L'invitation « Première fois sur cette page ? » appartient à la page qu'on quitte ; l'observateur
     // qui repose « Guide-moi » se branche une fois, au premier dessin.
+    const appelOuvert = !!document.getElementById('guide-appel');
     fermerAppelGuide();
-    appelEnAttente = '';
+    const guideNeuf = name !== dernierePageGuide;
+    dernierePageGuide = name;
+    if (guideNeuf) appelEnAttente = '';
     surveillerGuideMoi();
     // (plateforme, 05/10/2026) La caisse tactile prend tout l'écran : la barre de gauche s'efface (caisse.css). Une page
     // que le rôle ne voit pas garde la barre, pour en sortir.
@@ -2813,7 +2818,7 @@
     if (bridge.lecture) bridge.lecture.poser(view);
     bandeauModule(active);           // « cette page n'est pas dans ton menu » — et le bouton pour l'y mettre
     bandeauOffre(active);            // « ce module fait partie de l'offre Entreprise » — lecture libre, création fermée
-    if (!pageCachee(name)) appelGuide(name); // « première fois sur cette page ? » — accrochée à « Guide-moi » (10.14.1)
+    if (!pageCachee(name) && (guideNeuf || appelOuvert)) appelGuide(name, !guideNeuf); // « première fois sur cette page ? » — accrochée à « Guide-moi » (10.14.1)
     bindDateFields(view);            // champs date posés par la page qui vient d'être dessinée
     bindWithholdingFields(view);     // « Autre taux… » des retenues à la source, même principe
     bindRibFields(view);             // la clé d'un RIB, vérifiée pendant la frappe (10.12.0)
@@ -19701,7 +19706,7 @@
     const a = document.getElementById('guide-appel');
     if (a) { if (typeof a._fermer === 'function') a._fermer(); else a.remove(); }
   }
-  function appelGuide(route) {
+  function appelGuide(route, reprise) {
     // Sur « Me guider » et sur l'Aide, la page EST déjà l'invitation : la proposer encore serait du bruit.
     if (!data || Visite.enCours() || route === 'guide' || route === 'aide') return;
     // (plateforme, Support S2) En lecture pour le support, la page n'est pas celle de qui la lit : aucune invitation (vue le
@@ -19709,7 +19714,7 @@
     if (bridge.lecture) return;
     const p = visitePage(route);
     const et = visitesEtat();
-    if (!p || !et.proposer || et.faites[p.id] || (et.vues[route] || 0) >= VISITE_PROPOSEE_MAX) return;
+    if (!p || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[route] || 0) >= VISITE_PROPOSEE_MAX)) return;
     // Deux invitations l'une sous l'autre se contredisent (7.18.0) : quand l'accueil propose déjà
     // « Nouveau sur SkanFact ? », la visite de la page se tait — et ne compte pas cette ouverture.
     // (plateforme, lot onboarding) Les premiers pas sont l'invitation de l'accueil : la bulle de la visite de la page s'y
@@ -19719,7 +19724,7 @@
     // Une page asynchrone n'a pas encore son en-tête : l'invitation attend le bouton (`poserGuideMoi`).
     if (!bouton) { appelEnAttente = route; return; }
     fermerAppelGuide();
-    visitesPoser(e => { e.vues[route] = (e.vues[route] || 0) + 1; });
+    if (!reprise) visitesPoser(e => { e.vues[route] = (e.vues[route] || 0) + 1; });
     const coul = SkanVisites.couleurDe(p);
     const el = document.createElement('div');
     el.className = 'guide-appel' + (coul ? ' th-' + coul : '');

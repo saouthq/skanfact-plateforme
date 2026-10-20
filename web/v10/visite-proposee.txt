@@ -1,0 +1,121 @@
+Ce que la 1.79.0 change aux deux applications (docs/recette.md, « 1.79.0 ») : l'invitation « Première fois sur cet
+écran ? » ne se pose qu'en ENTRANT sur un écran. Format : voir sans-paquets.mjs.
+
+Chaque redessin d'un écran la reposait : au Cabinet, cocher « Compter les écritures en brouillard » au journal la faisait
+surgir par-dessus la case qu'on venait de cocher (recette du 20/10/2026), et chaque redessin comptait une « ouverture »
+(trois cases cochées épuisaient les trois propositions). Un redessin sur place ne la pose plus ; celle qui était ouverte
+se repose, sans compter une ouverture de plus ; celle qu'un écran asynchrone attendait l'attend encore.
+
+== cabinet/app.js | le routeur sait si l'écran de la visite a changé
+-- avant
+  function render() {
+    const hash = location.hash
+-- après
+  // (plateforme) 1.79.0 — l'écran (au sens des visites) du dernier dessin : un redessin sur place ne repropose rien.
+  let derniereCleGuide = '';
+  function render() {
+    const hash = location.hash
+-- fin
+
+== cabinet/app.js | un redessin sur place garde l'invitation qui attend
+-- avant
+    fermerAppelGuide();
+    appelEnAttente = '';
+    surveillerGuideMoi();
+    $$('.sidebar nav a')
+-- après
+    const appelOuvert = !!document.getElementById('guide-appel');
+    fermerAppelGuide();
+    const cleGuide = CV.cleDePage(location.hash);
+    const guideNeuf = cleGuide !== derniereCleGuide;
+    derniereCleGuide = cleGuide;
+    if (guideNeuf) appelEnAttente = '';
+    surveillerGuideMoi();
+    $$('.sidebar nav a')
+-- fin
+
+== cabinet/app.js | l'invitation se propose en entrant ; ouverte, elle se repose
+-- avant
+    // La première fois sur un écran, sa visite se propose — accrochée à « Guide-moi » (10.14.1).
+    appelGuide();
+  }
+-- après
+    // La première fois sur un écran, sa visite se propose — accrochée à « Guide-moi » (10.14.1). (plateforme) 1.79.0 —
+    // en entrant seulement ; ouverte pendant un redessin, elle se repose sans compter une ouverture de plus.
+    if (guideNeuf || appelOuvert) appelGuide(!guideNeuf);
+  }
+-- fin
+
+== cabinet/app.js | une invitation reposée ne compte pas une ouverture
+-- avant
+  function appelGuide() {
+    const cle = CV.cleDePage(location.hash);
+-- après
+  function appelGuide(reprise) {
+    const cle = CV.cleDePage(location.hash);
+-- fin
+
+== cabinet/app.js | une invitation reposée ne bute pas sur le compte
+-- avant
+    if (!p || visiteManque(p) || !et.proposer || et.faites[p.id] || (et.vues[cle] || 0) >= VISITE_PROPOSEE_MAX) return;
+-- après
+    if (!p || visiteManque(p) || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[cle] || 0) >= VISITE_PROPOSEE_MAX)) return;
+-- fin
+
+== cabinet/app.js | une invitation reposée n'ajoute rien au compte
+-- avant
+    visitesPoser(e => { e.vues[cle] = (e.vues[cle] || 0) + 1; });
+-- après
+    if (!reprise) visitesPoser(e => { e.vues[cle] = (e.vues[cle] || 0) + 1; });
+-- fin
+
+== app.js | le routeur sait si la page de la visite a changé
+-- avant
+  function render(keepScroll) {
+-- après
+  // (plateforme) 1.79.0 — la page du dernier dessin : un redessin sur place ne repropose pas sa visite.
+  let dernierePageGuide = '';
+  function render(keepScroll) {
+-- fin
+
+== app.js | un redessin sur place garde l'invitation qui attend
+-- avant
+    fermerAppelGuide();
+    appelEnAttente = '';
+    surveillerGuideMoi();
+-- après
+    const appelOuvert = !!document.getElementById('guide-appel');
+    fermerAppelGuide();
+    const guideNeuf = name !== dernierePageGuide;
+    dernierePageGuide = name;
+    if (guideNeuf) appelEnAttente = '';
+    surveillerGuideMoi();
+-- fin
+
+== app.js | l'invitation se propose en entrant ; ouverte, elle se repose
+-- avant
+    if (!pageCachee(name)) appelGuide(name);
+-- après
+    if (!pageCachee(name) && (guideNeuf || appelOuvert)) appelGuide(name, !guideNeuf);
+-- fin
+
+== app.js | une invitation reposée ne compte pas une ouverture
+-- avant
+  function appelGuide(route) {
+-- après
+  function appelGuide(route, reprise) {
+-- fin
+
+== app.js | une invitation reposée ne bute pas sur le compte
+-- avant
+    if (!p || !et.proposer || et.faites[p.id] || (et.vues[route] || 0) >= VISITE_PROPOSEE_MAX) return;
+-- après
+    if (!p || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[route] || 0) >= VISITE_PROPOSEE_MAX)) return;
+-- fin
+
+== app.js | une invitation reposée n'ajoute rien au compte
+-- avant
+    visitesPoser(e => { e.vues[route] = (e.vues[route] || 0) + 1; });
+-- après
+    if (!reprise) visitesPoser(e => { e.vues[route] = (e.vues[route] || 0) + 1; });
+-- fin

@@ -792,4 +792,6 @@ export const ADAPTATIONS = [
   ...lireFichier('inviter-comptable.txt'),
   // ── Le client tenu rejoint son dossier (1.78.0) : le panneau du dossier tenu ──
   ...lireFichier('rejoindre-dossier.txt'),
+  // ── L'invitation « Première fois sur cet écran ? » en entrant seulement (1.79.0) : un redessin ne la repose plus ──
+  ...lireFichier('visite-proposee.txt'),
 ];

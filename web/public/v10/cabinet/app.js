@@ -1629,6 +1629,8 @@
     });
   }
 
+  // (plateforme) 1.79.0 — l'écran (au sens des visites) du dernier dessin : un redessin sur place ne repropose rien.
+  let derniereCleGuide = '';
   function render() {
     const hash = location.hash.replace(/^#\//, '') || 'dossiers';
     const [route, arg] = hash.split('/');
@@ -1639,8 +1641,12 @@
     appliquerTheme();
     // L'invitation « Première fois sur cet écran ? » appartient à l'écran qu'on quitte ; l'observateur
     // qui repose « Guide-moi » se branche une fois, au premier dessin (10.14.1, S-03).
+    const appelOuvert = !!document.getElementById('guide-appel');
     fermerAppelGuide();
-    appelEnAttente = '';
+    const cleGuide = CV.cleDePage(location.hash);
+    const guideNeuf = cleGuide !== derniereCleGuide;
+    derniereCleGuide = cleGuide;
+    if (guideNeuf) appelEnAttente = '';
     surveillerGuideMoi();
     $$('.sidebar nav a').forEach(a => a.classList.toggle('active', a.dataset.route === route));
     $('#brand-cab').textContent = S.cabinet.name || 'Cabinet';
@@ -1692,8 +1698,9 @@
     // l'observateur, quand elle pose son en-tête.
     bandeauOrdinateur(route);
     poserGuideMoi();
-    // La première fois sur un écran, sa visite se propose — accrochée à « Guide-moi » (10.14.1).
-    appelGuide();
+    // La première fois sur un écran, sa visite se propose — accrochée à « Guide-moi » (10.14.1). (plateforme) 1.79.0 —
+    // en entrant seulement ; ouverte pendant un redessin, elle se repose sans compter une ouverture de plus.
+    if (guideNeuf || appelOuvert) appelGuide(!guideNeuf);
   }
 
   // ---------- le bandeau de l'exemple ----------
@@ -12412,19 +12419,19 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     const a = document.getElementById('guide-appel');
     if (a) { if (typeof a._fermer === 'function') a._fermer(); else a.remove(); }
   }
-  function appelGuide() {
+  function appelGuide(reprise) {
     const cle = CV.cleDePage(location.hash);
     if (!S || Visite.enCours() || cle === 'guide' || cle === 'aide') return;
     const p = visitePage(cle);
     const et = visitesEtat();
-    if (!p || visiteManque(p) || !et.proposer || et.faites[p.id] || (et.vues[cle] || 0) >= VISITE_PROPOSEE_MAX) return;
+    if (!p || visiteManque(p) || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[cle] || 0) >= VISITE_PROPOSEE_MAX)) return;
     // Une page vide qui porte « Tes premiers pas » est déjà une invitation.
     if ($('#view .premiers-pas')) return;
     const bouton = $('#guide-moi');
     // Un écran asynchrone n'a pas encore son en-tête : l'invitation attend le bouton (`poserGuideMoi`).
     if (!bouton) { appelEnAttente = cle; return; }
     fermerAppelGuide();
-    visitesPoser(e => { e.vues[cle] = (e.vues[cle] || 0) + 1; });
+    if (!reprise) visitesPoser(e => { e.vues[cle] = (e.vues[cle] || 0) + 1; });
     const coul = CV.couleurDe(p);
     const el = document.createElement('div');
     el.className = 'guide-appel' + (coul ? ' th-' + coul : '');

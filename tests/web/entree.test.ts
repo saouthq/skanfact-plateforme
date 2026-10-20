@@ -476,6 +476,9 @@ describe('l\'entrée refaite, à la souris', () => {
     const place = await verifier.boundingBox();
     await p.getByRole('checkbox', { name: titre('ecran.code_pose.garde') }).check();
     expect(await verifier.boundingBox()).toEqual(place);
+    // Avec ses six chiffres, l'aide dit « prêt » ; sans eux, ce qui reste à faire : jamais « parfait ».
+    await champ(p, 'ecran.code_pose.essai').fill('');
+    expect(await p.locator('.ent-pose-pied .ent-aide').innerText()).toMatch(/il reste à taper le code/);
     expect(await p.locator('.ent-pose-pied .ent-aide').innerText()).not.toMatch(/parfait|sera demandé/i);
     await p.context().close();
   });
