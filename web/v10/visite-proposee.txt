@@ -9,12 +9,10 @@ se repose, sans compter une ouverture de plus ; celle qu'un écran asynchrone at
 == cabinet/app.js | le routeur sait si l'écran de la visite a changé
 -- avant
   function render() {
-    const hash = location.hash
 -- après
   // (plateforme) 1.79.0 — l'écran (au sens des visites) du dernier dessin : un redessin sur place ne repropose rien.
   let derniereCleGuide = '';
   function render() {
-    const hash = location.hash
 -- fin
 
 == cabinet/app.js | un redessin sur place garde l'invitation qui attend
@@ -140,11 +138,18 @@ d'abord le règlement, geste qui se voit. Et la période close se dit AVANT la q
 == app.js | une facture d'achat réglée ne se supprime pas ; la période close se dit avant la question
 -- avant
       if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ? Les règlements enregistrés seront perdus.`)) return;
-      if (closedBlock(p.date, 'Cet achat')) return;
 -- après
       if (closedBlock(p.date, 'Cet achat')) return;
       // (plateforme) 1.79.0 — un règlement est de l'argent sorti de la banque, et sa retenue un fait fiscal de son mois.
       if ((p.payments || []).length) { toast(`${p.number || 'Cette pièce'} porte ${(p.payments || []).length > 1 ? 'des règlements' : 'un règlement'} : retire-${(p.payments || []).length > 1 ? 'les' : 'le'} d'abord (« Actions » sur sa ligne, dans « Règlements »). Rien n'a été supprimé.`, true); return; }
+      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ?`)) return;
+-- fin
+
+== app.js | la période close d'un achat ne se redemande pas après la question
+-- avant
+      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ?`)) return;
+      if (closedBlock(p.date, 'Cet achat')) return;
+-- après
       if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ?`)) return;
 -- fin
 
@@ -157,4 +162,22 @@ du caissier et poussait toutes les tuiles de 60 px vers le bas — les trois tou
         $('#cs-familles').innerHTML = onglets.length > 1 ? onglets.map(
 -- après
         $('#cs-familles').innerHTML = onglets.length && articles.length ? onglets.map(
+-- fin
+
+Une case de date : un clic posait le curseur au milieu de « 20/10/2026 », et la date tapée s'y ajoutait
+(« 20/10/202601092026 ») : « Date incomprise », et la case revenait à aujourd'hui (recette du 20/10/2026, une facture
+antidatée). En entrant dans la case, sa date se sélectionne : la frappe la remplace, comme dans un tableur.
+
+== app.js | une case de date se sélectionne en entrant : la frappe remplace la date
+-- avant
+      txt.oninput = () => {
+        const m = C.masqueDate(txt.value);
+-- après
+      // (plateforme) 1.79.0 — le relâché du clic qui entre ne défait pas la sélection ; un second clic place le curseur.
+      let entreParClic = false;
+      txt.onmousedown = () => { entreParClic = document.activeElement !== txt; };
+      txt.onfocus = () => txt.select();
+      txt.onmouseup = e => { if (entreParClic) { e.preventDefault(); entreParClic = false; } };
+      txt.oninput = () => {
+        const m = C.masqueDate(txt.value);
 -- fin

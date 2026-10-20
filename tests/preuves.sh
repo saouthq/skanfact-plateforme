@@ -1703,7 +1703,7 @@ prouver "un plan changé qui ne réécrit pas les achats" serveur/v10/dossier.ts
 # définition EN VIGUEUR (une preuve qui vise une définition remplacée reste verte : code mort).
 # La contrainte des origines est redéfinie par 0021 : ses preuves visent la définition EN VIGUEUR.
 # La liste des origines est redéfinie par 0037 (la reprise de la v10) : ces trois preuves visent la dernière.
-prouver "la base qui refuse l'origine d'une imputation" base/migrations/0037_compta_reprise_livre_v10.sql \
+prouver "la base qui refuse l'origine d'une imputation" base/migrations/0156_mouvements_de_tresorerie.sql \
   "'achat', 'imputation', 'reglement_fournisseur', 'paie'" "'achat', 'reglement_fournisseur', 'paie'" \
   "$LAC"
 
@@ -1748,7 +1748,7 @@ prouver "la paie réécrite par qui ne la voit pas" $CPA \
 prouver "un plan changé qui ne réécrit pas la paie" serveur/v10/dossier.ts \
   "    await reecrireLaPaie(tx, entreprise);" "" \
   "$PP"
-prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0037_compta_reprise_livre_v10.sql \
+prouver "la base qui refuse l'origine d'une paie du mois" base/migrations/0156_mouvements_de_tresorerie.sql \
   "'reglement_fournisseur', 'paie', 'salaires', 'avance'," "'reglement_fournisseur', 'salaires', 'avance'," \
   "$PE"
 
@@ -1948,7 +1948,7 @@ S4="contre-passer et extourner une écriture saisie : le miroir validé, jamais 
 S5="lettrer une facture et son règlement : la somme fait zéro, sinon l'écart est dit ; un brouillard ne se lettre pas ; délettrer"
 S6="les mois du portefeuille disent ce que disent les livres : écritures, brouillards, chiffre d'affaires (deux chemins, un chiffre)"
 W38="le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur"
-prouver "la base qui refuse l'origine d'une écriture saisie" base/migrations/0037_compta_reprise_livre_v10.sql \
+prouver "la base qui refuse l'origine d'une écriture saisie" base/migrations/0156_mouvements_de_tresorerie.sql \
   "'contre_passation', 'saisie', 'extourne', 'reprise_v10'));" "'contre_passation', 'extourne', 'reprise_v10'));" \
   "$S1"
 prouver "une saisie déséquilibrée qui entre" $M21 \
@@ -5397,7 +5397,7 @@ prouver "une page qui lit deux parties, cachée pour une seule" web/public/v10/a
   "    return !!d && (PARTIES_DES_PAGES[id] || []).some(x => d.cachees.includes(x));" "    return !!d && (PARTIES_DES_PAGES[id] || []).every(x => d.cachees.includes(x));" \
   "$MRW"
 prouver "la visite proposée d'une page cachée" web/public/v10/app.js \
-  "    if (!pageCachee(name)) appelGuide(name);" "    appelGuide(name);" \
+  "    if (!pageCachee(name) && (guideNeuf || appelOuvert)) appelGuide(name, !guideNeuf);" "    if ((guideNeuf || appelOuvert)) appelGuide(name, !guideNeuf);" \
   "$MRW"
 prouver "la paie rangée hors de ses parties" web/public/v10/app.js \
   "    paie: ['employees'], salarie: ['employees'], compta: ['ecrituresOD']," "    paie: [], salarie: ['employees'], compta: ['ecrituresOD']," \
@@ -18087,6 +18087,53 @@ prouver 'l'"'"'invitation du client montrée sur un dossier qui n'"'"'est plus t
   '${dossier.manual && api.dessinerRejoindre ?' \
   '${api.dessinerRejoindre ?' \
   'l'"'"'associé invite son client tenu ; le client crée son compte par le lien et devient le propriétaire de son dossier'
+
+# ── La recette alpha du 20/10/2026 (1.79.0 ; docs/recette.md) ──
+prouver 'l'"'"'invitation d'"'"'une visite reposée à chaque redessin' 'web/public/v10/app.js' \
+  'if (!pageCachee(name) && (guideNeuf || appelOuvert)) appelGuide(name, !guideNeuf);' \
+  'if (!pageCachee(name)) appelGuide(name);' \
+  'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'"'"'invitation ne revient pas, la date se remplace'
+prouver 'une facture d'"'"'achat réglée supprimée d'"'"'un clic' 'web/public/v10/app.js' \
+  'if ((p.payments || []).length) { toast(' \
+  'if (false) { toast(' \
+  'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'"'"'invitation ne revient pas, la date se remplace'
+prouver 'le pied d'"'"'une longue fenêtre sous le bord de l'"'"'écran' 'web/public/v10/style.css' \
+  '.modal > .modal-actions:last-child { position: sticky;' \
+  '.modal > .modal-actions:last-child { position: static;' \
+  'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'"'"'invitation ne revient pas, la date se remplace'
+prouver 'la rangée des familles de la caisse qui naît à la première vente' 'web/public/v10/app.js' \
+  'onglets.length && articles.length ? onglets.map(' \
+  'onglets.length > 1 ? onglets.map(' \
+  'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'"'"'invitation ne revient pas, la date se remplace'
+prouver 'le salaire d'"'"'un mois sans bulletin écrit au 425' 'serveur/compta/mouvements.ts' \
+  'role = '"'"'salairesBruts'"'"';' \
+  'role = '"'"'personnel'"'"';' \
+  'chaque mouvement : le même journal, la même pièce, les mêmes comptes, libellés et montants que la v10'
+prouver 'le virement d'"'"'un compte vers lui-même écrit' 'serveur/compta/mouvements.ts' \
+  'if (depart && depart === vers) return [];' \
+  'if (false) return [];' \
+  'chaque mouvement : le même journal, la même pièce, les mêmes comptes, libellés et montants que la v10'
+prouver 'l'"'"'écart du Z qui n'"'"'arrive pas en trésorerie' 'serveur/caisse/routes.ts' \
+  '      await noterEcartDuZ(tx, ent, qui.utilisateur, s.id, compte - z0.attendu, decimales);
+' \
+  '' \
+  'fermée rien ne s'"'"'encaisse ; ouverte sur un appareil, lui seul la tient ; fermée, le Z dit l'"'"'attendu et l'"'"'écart, et ne change plus'
+prouver 'la date tapée après un clic qui s'"'"'ajoute à celle de la case' 'web/public/v10/app.js' \
+  'txt.onfocus = () => txt.select();' \
+  'txt.onfocus = () => {};' \
+  'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'"'"'invitation ne revient pas, la date se remplace'
+prouver 'le livre du Cabinet qui ne se relit pas en revenant sur la fenêtre' 'web/public/v10/cabinet/app.js' \
+  "window.addEventListener('focus', () => { void relireLeLivreSiChange(); });" \
+  '' \
+  'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
+prouver 'la déclaration lue après un livre resté ancien' 'web/public/v10/cabinet/app.js' \
+  'try { const r = await api.livre(dossier.id, s.annee); if (r && r.livre) s.livre = r.livre; } catch (_) { /* le livre déjà lu */ }' \
+  '' \
+  'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
+prouver 'la saisie du Cabinet redessinée sous la main' 'web/public/v10/cabinet/app.js' \
+  "groupeCompta(s.onglet).id === 'saisir' ||" \
+  'false ||' \
+  'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

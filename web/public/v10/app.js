@@ -1689,6 +1689,11 @@
       btn.onclick = () => (pop.hidden ? openCal() : closeCal());
       // Confort de frappe : les séparateurs s'écrivent tout seuls, rien n'est validé avant de quitter le champ.
       // Les barres TAPÉES se respectent (10.15.0) : « 1/1/2026 » reste le premier janvier.
+      // (plateforme) 1.79.0 — le relâché du clic qui entre ne défait pas la sélection ; un second clic place le curseur.
+      let entreParClic = false;
+      txt.onmousedown = () => { entreParClic = document.activeElement !== txt; };
+      txt.onfocus = () => txt.select();
+      txt.onmouseup = e => { if (entreParClic) { e.preventDefault(); entreParClic = false; } };
       txt.oninput = () => {
         const m = C.masqueDate(txt.value);
         if (m !== txt.value) txt.value = m;

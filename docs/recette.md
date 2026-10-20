@@ -248,6 +248,59 @@ Vu et corrigé en refaisant : le panneau était tout en bas, sous l'équipe (sou
 que le client n'est pas sur SkanFact) ; « tient tes livres sur SkanFact : rejoins-les » (« tient tes livres à jour sur
 SkanFact : rejoins ton dossier »).
 
+## 1.79.0 — la recette alpha, à la souris (20/10/2026)
+
+Refaite comme un premier utilisateur (relances comprises : une facture échue, sa relance notée, un règlement partiel
+depuis la relance, juste au millime dans les livres du serveur) : la Société Trabelsi (Sami) émet, encaisse, achète, tient sa caisse ; le Cabinet
+Mansour (Leila) valide et lit ses livres. L'argent est juste au millime partout où on l'a refait à la main (une facture à
+deux taux avec remise, retenue et timbre ; un règlement partiel et sa retenue au prorata ; un avoir ; un achat avec
+retenue ; des tickets avec remise et leur Z ; un devis, son acompte de 30 % et son solde), et la balance du Cabinet le
+suit.
+
+### Ce que le lot corrige
+
+- **Les mouvements libres de la trésorerie** (un salaire payé sans la Paie, un impôt, des frais bancaires, un apport,
+  un retrait, un virement entre deux comptes) **n'arrivaient pas dans les livres tenus par le serveur** : le Cabinet
+  voyait une banque et une caisse fausses de ces montants. Ils s'écrivent désormais comme la v10 les écrit, compte,
+  journal, pièce et libellé compris (`serveur/compta/mouvements.ts` ; base 0156 ; `docs/ecritures.md`).
+- **L'écart du Z de caisse** (un manque ou un excédent dans le tiroir) ne s'écrivait nulle part : la fermeture l'ajoute
+  aux mouvements de la caisse (658 pour un manque, 758 pour un excédent), et il arrive au Cabinet.
+- **Une facture d'achat réglée se supprimait d'un clic** (« Les règlements enregistrés seront perdus ») : l'argent sorti
+  et la retenue déjà opérée disparaissaient avec elle. Le refus dit pourquoi et où retirer le règlement ; une période
+  close se dit avant la question, plus après.
+- **L'invitation « Première fois sur cet écran ? » revenait à chaque redessin** (au Cabinet, par-dessus la case qu'on
+  venait de cocher) et comptait une ouverture à chaque fois : elle ne se pose plus qu'en entrant sur un écran.
+- **Une fenêtre plus haute que l'écran cachait « Enregistrer »** (la fiche d'un nouveau fournisseur, sur un portable) :
+  le pied d'une fenêtre reste à l'écran.
+- **À la caisse, la rangée « Favoris · Tout » apparaissait à la première vente** et poussait toutes les tuiles sous les
+  doigts du caissier : elle est là dès le premier ticket.
+- **Une date tapée après un clic dans sa case s'ajoutait à celle qui y était** (« 20/10/202601092026 » : « Date
+  incomprise », et la case revenait à aujourd'hui) : en entrant dans une case de date, sa date se sélectionne ; la
+  frappe la remplace.
+- **Au Cabinet, le livre d'un client sur SkanFact ne se relisait pas** pendant que le client vendait : la déclaration
+  disait « 11 pièces encore en brouillard sur ce mois » sous un en-tête qui en comptait 9 sur l'exercice. La
+  déclaration relit le livre avec elle ; en revenant sur la fenêtre, « Consulter » et « Déclarer » se relisent si le
+  livre a bougé (jamais la saisie, ni sous une fenêtre ou un menu ouverts).
+- L'entrée : le pied « il reste à taper le code » se vérifie aussi quand la case du code est vide.
+
+### Ce qui reste ouvert (à décider avec un comptable, À VÉRIFIER)
+
+- Les **soldes de départ** des comptes et le **fond de caisse** ne s'écrivent pas côté serveur : les écrire risque de
+  doubler la reprise que le Cabinet fait de son côté.
+- L'écriture d'un ticket dit « Facture TIC-… ».
+
+### Ce qui le prouve
+
+- `tests/compta/mouvements.test.ts` : deux chemins, un chiffre, sur les mouvements de l'exemple de cinq ans et seize
+  pièges (chaque nature, la contrepartie choisie, le virement vers la caisse, le départ disparu, le virement vers
+  soi-même, un salaire avec et sans bulletin, trois décimales, un négatif) ; corrigé, il se réécrit ; supprimé, il part.
+- `tests/v10/caisse-session.test.ts` : l'écart du Z, mouvement et écriture.
+- `tests/web/recette-alpha.test.ts` : à la souris, l'invitation qui ne revient pas, l'achat réglé refusé, le pied de la
+  fenêtre sur un écran de 700 px, la rangée de la caisse qui ne bouge pas, la date qui se remplace.
+- `tests/web/cabinet-livre-a-jour.test.ts` : au Cabinet, « Consulter » qui se relit en revenant sur la fenêtre,
+  « Déclarer » qui dit le chiffre de l'en-tête, la saisie qui ne se redessine pas.
+- Seize preuves (`tests/preuves.sh`, « La recette alpha du 20/10/2026 »).
+
 ## Ce qui reste (les lots suivants)
 
 1. **1.79** : choisir son offre dans l'application (« Je choisis cette offre », que la console voit dans « À décider »),

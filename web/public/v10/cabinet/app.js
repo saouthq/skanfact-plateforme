@@ -3478,6 +3478,7 @@
   function drawLivres(root, dossier) {
     const s = livresState;
     const el = $('#c-livres', root);
+    s.dossierVu = dossier;
     if (!el) return;
     if (!s.data) { el.innerHTML = '<div class="empty">Lecture des paquets…</div>'; return; }
     if (s.data.erreur) { el.innerHTML = `<div class="warn-box">${esc(s.data.erreur)}</div>`; return; }
@@ -4408,8 +4409,30 @@
 
   // La déclaration se relit au processus principal — jamais recalculée dans l'écran : deux moteurs
   // finiraient par donner deux chiffres, et c'est le genre d'écart qu'on découvre devant un client.
+  // (plateforme) 1.79.0 — le livre d'un client sur SkanFact bouge pendant qu'on le regarde : en revenant sur la fenêtre,
+  // les vues qui ne font que lire (Consulter, Déclarer) se relisent s'il a changé ; la saisie, une fenêtre ou un menu
+  // ouverts ne se redessinent jamais sous la main.
+  async function relireLeLivreSiChange() {
+    const s = livresState, d = s.dossierVu;
+    if (!d || !s.livre || s.livreEtat !== 'ouvert' || document.visibilityState !== 'visible' || !$('#c-livres')) return;
+    if (!s.onglet || groupeCompta(s.onglet).id === 'saisir' || $('#modal-root').children.length) return;
+    const vue = $('#view');
+    if (vue && (vue.querySelector('[aria-expanded="true"]') || (vue.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)))) return;
+    const cle = s.livreCle;
+    try {
+      const r = await api.livre(d.id, s.annee);
+      if (!r.livre || s.livreCle !== cle || revDuLivre(r.livre) === revDuLivre(s.livre)) return;
+      s.livre = r.livre;
+      if ($('#c-livres') && s.dossierVu === d) drawLivres(document, d);
+    } catch (_) { /* la relecture suivante */ }
+  }
+  window.addEventListener('focus', () => { void relireLeLivreSiChange(); });
+  document.addEventListener('visibilitychange', () => { void relireLeLivreSiChange(); });
+
   async function chargerDeclaration(root, dossier) {
     const s = livresState;
+    // (plateforme) 1.79.0 — la déclaration et l'en-tête du livre (« 9 écritures en brouillard ») lus au même moment.
+    try { const r = await api.livre(dossier.id, s.annee); if (r && r.livre) s.livre = r.livre; } catch (_) { /* le livre déjà lu */ }
     try {
       s.decl = await api.declaration({ dossierId: dossier.id, annee: s.annee, periode: declState.mois || moisDeclarationPropose(s.livre) });
     } catch (e) { s.decl = { erreur: plainError(e), periode: declState.mois || moisDeclarationPropose(s.livre) }; }

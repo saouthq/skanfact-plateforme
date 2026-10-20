@@ -1,0 +1,53 @@
+Ce que la 1.79.0 change au Cabinet (docs/recette.md, « 1.79.0 ») : le livre d'un client sur SkanFact se relit quand il
+a bougé. Format : voir sans-paquets.mjs.
+
+Le livre d'un dossier se lisait une fois, à l'ouverture, pendant que le client continuait de vendre et d'encaisser : la
+déclaration, relue au serveur, disait « 11 pièces encore en brouillard sur ce mois » sous un en-tête qui en comptait 9
+sur tout l'exercice (recette du 20/10/2026 : une facture et un règlement saisis chez le client). La déclaration relit
+désormais le livre avec elle ; et en revenant sur la fenêtre, « Consulter » et « Déclarer » se relisent si le livre a
+bougé — jamais pendant une saisie, ni sous une fenêtre ou un menu ouverts.
+
+== cabinet/app.js | l'écran des livres retient le dossier qu'il montre
+-- avant
+  function drawLivres(root, dossier) {
+    const s = livresState;
+    const el = $('#c-livres', root);
+-- après
+  function drawLivres(root, dossier) {
+    const s = livresState;
+    const el = $('#c-livres', root);
+    s.dossierVu = dossier;
+-- fin
+
+== cabinet/app.js | la déclaration relit le livre avec elle, et se relit en revenant sur la fenêtre
+-- avant
+  async function chargerDeclaration(root, dossier) {
+    const s = livresState;
+    try {
+-- après
+  // (plateforme) 1.79.0 — le livre d'un client sur SkanFact bouge pendant qu'on le regarde : en revenant sur la fenêtre,
+  // les vues qui ne font que lire (Consulter, Déclarer) se relisent s'il a changé ; la saisie, une fenêtre ou un menu
+  // ouverts ne se redessinent jamais sous la main.
+  async function relireLeLivreSiChange() {
+    const s = livresState, d = s.dossierVu;
+    if (!d || !s.livre || s.livreEtat !== 'ouvert' || document.visibilityState !== 'visible' || !$('#c-livres')) return;
+    if (!s.onglet || groupeCompta(s.onglet).id === 'saisir' || $('#modal-root').children.length) return;
+    const vue = $('#view');
+    if (vue && (vue.querySelector('[aria-expanded="true"]') || (vue.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)))) return;
+    const cle = s.livreCle;
+    try {
+      const r = await api.livre(d.id, s.annee);
+      if (!r.livre || s.livreCle !== cle || revDuLivre(r.livre) === revDuLivre(s.livre)) return;
+      s.livre = r.livre;
+      if ($('#c-livres') && s.dossierVu === d) drawLivres(document, d);
+    } catch (_) { /* la relecture suivante */ }
+  }
+  window.addEventListener('focus', () => { void relireLeLivreSiChange(); });
+  document.addEventListener('visibilitychange', () => { void relireLeLivreSiChange(); });
+
+  async function chargerDeclaration(root, dossier) {
+    const s = livresState;
+    // (plateforme) 1.79.0 — la déclaration et l'en-tête du livre (« 9 écritures en brouillard ») lus au même moment.
+    try { const r = await api.livre(dossier.id, s.annee); if (r && r.livre) s.livre = r.livre; } catch (_) { /* le livre déjà lu */ }
+    try {
+-- fin

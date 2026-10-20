@@ -490,6 +490,11 @@ vaut pour tout le dépôt.*
     quatre fonctions ; les routes `/cabinets/:c/dossiers/:dossier/invitation`, `/invitations-dossier/apercu` et
     `/rejoindre` ; l'e-mail `invitation.dossier` (`lienDossier`) ; l'entrée (`App.tsx`, `?dossier=`, `VitrineDossier`) ;
     le panneau du dossier tenu (`pont-cabinet.js`, `dessinerRejoindre` ; `web/v10/rejoindre-dossier.txt`).
+  - **La recette alpha** (1.79.0 ; 0156 ; `docs/recette.md`) : les mouvements de trésorerie (`serveur/compta/mouvements.ts`,
+    branché dans `serveur/v10/dossier.ts`) ; l'écart du Z (`noterEcartDuZ`, `serveur/caisse/routes.ts`) ; l'invitation
+    des visites, le pied des fenêtres, l'achat réglé, la rangée de la caisse, la case de date qui se sélectionne
+    (`web/v10/visite-proposee.txt`) ; le livre du Cabinet relu quand il a bougé (`relireLeLivreSiChange`,
+    `web/v10/livre-a-jour.txt`).
   - **Le lot débutant (2)** (12/10/2026 ; `docs/debutant.md`, `web/v10/debutant-2.txt`) : les gênants d'un commerçant
     qui débute, refaits à la souris sur une quincaillerie. Le mot du catalogue suit le métier (`motsCatalogue` :
     « article » pour le commerce, la restauration, l'artisanat) ; une dépense sans fournisseur se range sous UNE fiche

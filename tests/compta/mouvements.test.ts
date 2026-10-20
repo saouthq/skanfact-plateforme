@@ -110,7 +110,7 @@ describe('les mouvements de trésorerie, tenus par le serveur, contre la v10', (
   it('un mouvement corrigé se réécrit ; supprimé, il quitte le brouillard', async () => {
     await exemple();
     const rev = async (cle: string) => Number((await admin.query(`select revision from socle.dossier_v10 where entreprise = $1 and collection = 'movements' and cle = $2`, [ent, cle])).rows[0].revision);
-    const frais = pieges[0];
+    const frais = pieges[0] as Mouvement10;
     await enTantQue(pool, proprio, async (tx) => appliquer(tx, ent, proprio, [{ collection: 'movements', cle: frais.id, rang: 0, revision: await rev(frais.id), contenu: encoder({ ...frais, amount: 8.5 }) }]));
     expect((await tenues()).filter((l) => l.date === frais.date && l.compte === '627').map((l) => l.debit)).toEqual(['8500']);
     await enTantQue(pool, proprio, async (tx) => appliquer(tx, ent, proprio, [{ collection: 'movements', cle: frais.id, rang: 0, revision: await rev(frais.id), contenu: null }]));

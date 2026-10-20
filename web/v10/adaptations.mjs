@@ -794,4 +794,6 @@ export const ADAPTATIONS = [
   ...lireFichier('rejoindre-dossier.txt'),
   // ── L'invitation « Première fois sur cet écran ? » en entrant seulement (1.79.0) : un redessin ne la repose plus ──
   ...lireFichier('visite-proposee.txt'),
+  // ── Le livre d'un client sur SkanFact se relit quand il a bougé (1.79.0) : la déclaration et l'en-tête disent le même chiffre ──
+  ...lireFichier('livre-a-jour.txt'),
 ];
