@@ -18143,11 +18143,11 @@ prouver 'le Stock qui mène au Catalogue au lieu du geste' 'web/public/v10/app.j
 prouver 'le geste des Relances au fond du menu' 'web/public/v10/app.js' \
   "\$\$('[data-relancer]').forEach(b => b.onclick = () => { const x = find(b.dataset.relancer); if (x) sendReminder(x); });" \
   '' \
-  'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas'
+  'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout'
 prouver 'le numéro d'"'"'une facture à relancer coupé en deux' 'web/public/v10/style.css' \
   '#r-wrap table.list td:first-child a { white-space: nowrap; }' \
   '' \
-  'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas'
+  'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout'
 prouver 'une échéance pas prête marquée déposée sans un mot' 'web/public/v10/cabinet/app.js' \
   'if (!avant.includes(cle) && b2.dataset.pasPrets && !await confirmDialog(' \
   'if (false && !await confirmDialog(' \
@@ -18156,6 +18156,14 @@ prouver 'la ligne vide d'"'"'un achat neuf qui reste sous l'"'"'article du catal
   "if (p.lines.length === 1 && !String(p.lines[0].label || '').trim() && !Number(p.lines[0].unitPrice) && !p.lines[0].itemId) p.lines = [];" \
   '' \
   'au Stock, « Choisir dans le Catalogue » ouvre le choix, puis la fiche suivie en stock, le curseur dans le stock de départ'
+prouver 'l'"'"'accueil qui dit « 0 en retard » d'"'"'une facture échue payée en partie' 'web/public/v10/app.js' \
+  'const late = open.filter(d => enRetard.has(d.id));' \
+  "const late = open.filter(d => effStatus(d) === 'retard');" \
+  'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout'
+prouver 'la fiche d'"'"'un client qui oublie sa facture échue payée en partie' 'web/public/v10/app.js' \
+  "const late = docs.filter(d => d.type === 'facture' && enRetardDuClient.has(d.id));" \
+  "const late = docs.filter(d => d.type === 'facture' && effStatus(d) === 'retard');" \
+  'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

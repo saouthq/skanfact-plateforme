@@ -316,21 +316,27 @@ suit.
   stock de 24 à 34 au coût moyen de 1,471 DT, et le serveur écrit 607 / 4366 / 401 au millime.
 - **Le calendrier vide du Cabinet** disait « n'a encore aucune écriture » à un client qui en avait quatre ce mois-ci :
   il dit la vraie règle (une échéance naît à la fin d'un mois qui a des écritures).
+- **Une facture échue payée en partie** sortait du compte des retards : l'accueil disait « 1 facture, 0 en retard » et
+  la fiche du client se taisait, pendant que les Relances la listaient. L'accueil et la fiche lisent la liste des
+  Relances (`overdueInvoices`) : un acompte ne fait pas sortir une facture du retard.
 
 ### Vu bon en passant (20/10/2026)
 
 Le parcours du support croisé : Sami écrit depuis le Stock (« joint : la version et la page »), la console le voit
 avec son contexte et une réponse type du Stock, Amira répond au Ctrl+Entrée, Sami lit la réponse dans l'application.
 La console compte les pièces émises de Trabelsi comme la base (7 : trois factures, un avoir, trois tickets). L'accueil,
-la trésorerie et les relances disent les mêmes restes à encaisser, au millime.
+la trésorerie et les relances disent les mêmes restes à encaisser, au millime. Un remboursement de ticket à la caisse
+(avoir, 411 au débit, 54 au crédit) et une facture en euros (timbre en dinars au 4368, l'écart de change au 655 à
+l'encaissement) s'écrivent justes au livre du serveur.
 
 ### Ce qui le prouve
 
 - `tests/web/recette-alpha.test.ts` : le choix du Stock et sa fiche ; « Relancer » sur la ligne d'une facture émise
-  à la souris, son numéro sur une ligne (sur un écran de 1100 px).
+  à la souris, son numéro sur une ligne (sur un écran de 1100 px) ; un acompte depuis la ligne, et l'accueil comme la
+  fiche du client la disent toujours en retard.
 - `tests/web/cabinet-livre-a-jour.test.ts` : le calendrier vide qui dit sa règle, l'échéance pas prête qui le dit avant
   d'être pointée.
-- Six preuves (`tests/preuves.sh`, « 1.80.0 »).
+- Huit preuves (`tests/preuves.sh`, « 1.80.0 »).
 
 ## Ce qui reste (les lots suivants)
 

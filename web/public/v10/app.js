@@ -3200,7 +3200,9 @@
     const ofYear = issued.filter(d => d.date && d.date.startsWith(year));
     const open = data.documents.filter(d => d.type === 'facture' && ['envoyée', 'partielle', 'retard'].includes(effStatus(d)));
     const openAmount = open.reduce((s, d) => s + enDinars(d, balance(d).remaining), 0);
-    const late = open.filter(d => effStatus(d) === 'retard');
+    // (plateforme) 1.80.0 — une facture échue payée en partie est en retard aussi : la liste des Relances fait foi.
+    const enRetard = new Set(C.overdueInvoices(data, company()).map(x => x.doc.id));
+    const late = open.filter(d => enRetard.has(d.id));
     const sentQuotes = data.documents.filter(d => d.type === 'devis' && d.status === 'envoyé');
     const expiredQuotes = sentQuotes.filter(d => effStatus(d) === 'expiré');
     const pendingQuotes = sentQuotes.filter(d => effStatus(d) === 'envoyé');
@@ -6340,7 +6342,9 @@
     const cur = company().currency;
     const sum = C.clientSummary(data, company(), c.id);
     const docs = sum.docs.slice().sort(byNumberDesc);
-    const late = docs.filter(d => d.type === 'facture' && effStatus(d) === 'retard');
+    // (plateforme) 1.80.0 — la même liste que les Relances (une facture échue payée en partie est en retard).
+    const enRetardDuClient = new Set(C.overdueInvoices(data, company()).map(x => x.doc.id));
+    const late = docs.filter(d => d.type === 'facture' && enRetardDuClient.has(d.id));
     const lateAmount = late.reduce((s2, d) => s2 + C.toBase(d, balance(d).remaining, company()), 0);
     const openQuotes = docs.filter(d => d.type === 'devis' && ['envoyé', 'expiré'].includes(effStatus(d)));
     // Un client qui paie dans une autre devise lit son reste dans SA devise sur le relevé

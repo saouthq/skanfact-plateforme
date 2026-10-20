@@ -178,7 +178,7 @@ describe('la recette alpha, à la souris', () => {
     await cx.close();
   }, 240_000);
 
-  it('aux Relances, chaque facture échue porte « Relancer » à côté d\'« Actions », et son numéro ne se coupe pas', async () => {
+  it('aux Relances, chaque facture échue porte « Relancer » à côté d\'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout', async () => {
     const { jeton, ent } = await commerce();
     const echue = new Date(Date.now() - 20 * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
     const avant = new Date(Date.now() - 25 * 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
@@ -209,6 +209,18 @@ describe('la recette alpha, à la souris', () => {
     const fenetre = p.locator('#modal-root .modal').last();
     await expect.poll(() => fenetre.locator('h2').innerText()).toBe(`Relance — ${numero}`);
     expect(await fenetre.locator('input').first().inputValue()).toBe('compta@lac.exemple.tn');
+    // Un règlement partiel depuis la ligne : la facture reste en retard, et l'accueil le dit comme les Relances.
+    await p.keyboard.press('Escape');
+    await ligne.locator('.row-menu-btn').click();
+    await p.getByRole('menuitem').filter({ hasText: 'Paiement reçu' }).click();
+    const paiement = p.locator('#modal-root .modal').last();
+    await paiement.locator('[name=amount]').fill('100');
+    await paiement.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await expect.poll(() => p.locator('#r-wrap tbody tr').filter({ hasText: numero }).innerText().then(net)).toMatch(/912,095 DT/);
+    await p.evaluate(() => { location.hash = '#/'; });
+    await expect.poll(() => p.locator('[data-stat=encaisser]').innerText().then(net), { timeout: 15_000 }).toMatch(/1 facture, 1 en retard/);
+    await p.evaluate(() => { location.hash = '#/client/c1'; });
+    await expect.poll(() => p.locator('#view .banner').first().innerText().then(net).catch(() => ''), { timeout: 15_000 }).toMatch(/^1 facture en retard — 912,095 DT/);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

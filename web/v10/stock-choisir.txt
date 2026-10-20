@@ -87,3 +87,25 @@ la commande fournisseur la remplaçaient déjà : l'achat fait de même.
         if (p.lines.length === 1 && !String(p.lines[0].label || '').trim() && !Number(p.lines[0].unitPrice) && !p.lines[0].itemId) p.lines = [];
         p.lines.push({ label: it.label, qty: 1, unit: it.unit || '',
 -- fin
+
+L'accueil disait « 5 factures, 0 en retard » le jour où les Relances en montraient une, échue depuis 19 jours et payée
+en partie (recette du 20/10/2026) : la tuile tenait pour « partielle » ce que les Relances tenaient pour « en retard ».
+Un compteur et la liste qu'il annonce se calculent avec la même fonction : la tuile compte celles des Relances.
+
+== app.js | « en retard » à l'accueil compte les factures que les Relances relancent
+-- avant
+    const late = open.filter(d => effStatus(d) === 'retard');
+-- après
+    // (plateforme) 1.80.0 — une facture échue payée en partie est en retard aussi : la liste des Relances fait foi.
+    const enRetard = new Set(C.overdueInvoices(data, company()).map(x => x.doc.id));
+    const late = open.filter(d => enRetard.has(d.id));
+-- fin
+
+== app.js | la fiche d'un client compte ses factures en retard comme les Relances
+-- avant
+    const late = docs.filter(d => d.type === 'facture' && effStatus(d) === 'retard');
+-- après
+    // (plateforme) 1.80.0 — la même liste que les Relances (une facture échue payée en partie est en retard).
+    const enRetardDuClient = new Set(C.overdueInvoices(data, company()).map(x => x.doc.id));
+    const late = docs.filter(d => d.type === 'facture' && enRetardDuClient.has(d.id));
+-- fin
