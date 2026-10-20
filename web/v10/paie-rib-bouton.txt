@@ -12,7 +12,7 @@ compte ».
         if (horsOrdre.length) motifs.push(`<div class="ctrl-geste" id="ps-hors"><span>L'ordre de virement ne portera pas ${horsOrdre.map(l => `<b>${h(l.name)}</b> (${l.mode !== 'virement' ? h(modeDe(l.mode).toLowerCase()) : l.manque === 'rib' ? 'RIB à renseigner' : 'RIB à corriger'})`).join(', ')}.</span></div>`);
 -- après
         // (plateforme) 1.80.0 — chaque salarié au RIB manquant a son bouton, nommé (le seul bouton du cadre ouvrait le compte).
-        if (horsOrdre.length) motifs.push(`<div class="ctrl-geste" id="ps-hors"><span>L'ordre de virement ne portera pas ${horsOrdre.map(l => `<b>${h(l.name)}</b> (${l.mode !== 'virement' ? h(modeDe(l.mode).toLowerCase()) : l.manque === 'rib' ? 'RIB à renseigner' : 'RIB à corriger'})`).join(', ')}.</span>${horsOrdre.filter(l => l.mode === 'virement' && l.manque).map(l => `<button type="button" class="btn btn-sm" data-ps-rib="${h(l.employeeId)}">${l.manque === 'rib' ? 'Renseigner' : 'Corriger'} le RIB de ${h(l.name)}…</button>`).join('')}</div>`);
+        if (horsOrdre.length) motifs.push(`<div class="ctrl-geste" id="ps-hors"><span>L'ordre de virement ne portera pas ${horsOrdre.map(l => `<b>${h(l.name)}</b> (${l.mode !== 'virement' ? h(modeDe(l.mode).toLowerCase()) : l.manque === 'rib' ? 'RIB à renseigner' : 'RIB à corriger'})`).join(', ')}.</span>${horsOrdre.filter(l => l.mode === 'virement' && l.manque).map(l => `<button type="button" class="btn btn-sm" data-ps-rib-cadre="${h(l.employeeId)}">${l.manque === 'rib' ? 'Renseigner' : 'Corriger'} le RIB de ${h(l.name)}…</button>`).join('')}</div>`);
 -- fin
 
 == app.js | « Payer les salaires » : le bouton du compte dit qu'il est celui du compte
@@ -26,10 +26,7 @@ compte ».
 -- avant
         const go = $('#ps-compte-go', root);
 -- après
-        $$('#ps-avert [data-ps-rib]', root).forEach(b => { b.onclick = () => {
-          const emp = employeeById(b.dataset.psRib); if (!emp) return;
-          const t = tenu(); close();
-          employeeForm(emp, () => payerSalairesFenetre(year, month, done, t), { focus: 'iban' });
-        }; });
+        // Le bouton du cadre fait le geste de la pastille du tableau (la fiche du salarié, puis la fenêtre comme on l'a laissée).
+        $$('[data-ps-rib-cadre]', root).forEach(b => { b.onclick = () => { const p = $$('[data-ps-rib]', root).find(x => x.dataset.psRib === b.dataset.psRibCadre); if (p) p.click(); }; });
         const go = $('#ps-compte-go', root);
 -- fin

@@ -5,7 +5,8 @@
 //   - une facture qui doit encore dit son reste et ce qui est déjà reçu ; son bouton ouvre SA pièce dans SkanFact, à côté ;
 //   - un coût se saisit d'après la facture reçue : une case refusée se montre ; saisi, ce qui reste du mois se dit ;
 //     retiré avec son motif, il reste visible, barré ;
-//   - passer d'un mois à l'autre ne déplace pas les boutons sous la souris ; au téléphone, rien ne déborde.
+//   - passer d'un mois à l'autre ne déplace pas les boutons sous la souris ; au téléphone, rien ne déborde ;
+//   - (1.80.0) « Désigner l'entreprise SkanFact » mène à la carte « Nos factures », pas en haut des Réglages.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -258,4 +259,13 @@ describe('les paiements de nos factures, à la souris', () => {
     expect(erreurs).toEqual([]);
     await fermer(t);
   }, 60_000);
+
+  it('« Désigner l\'entreprise SkanFact » descend sur la carte « Nos factures » des Réglages (1.80.0)', async () => {
+    const p = await ouvrir(jD, '#/reglages?onglet=factures');
+    await expect.poll(() => p.evaluate(() => {
+      const r = document.getElementById('rg-factures')?.getBoundingClientRect();
+      return !!r && r.top >= 0 && r.top < window.innerHeight;
+    }), { timeout: 15_000 }).toBe(true);
+    await fermer(p);
+  }, 120_000);
 });

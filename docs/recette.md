@@ -331,6 +331,8 @@ suit.
   RIB », sous un seul bouton « Renseigner son RIB… » qui ouvrait la fiche du COMPTE. Le salarié a son bouton nommé sous
   sa phrase (« Renseigner le RIB de Karim… », qui rouvre la fenêtre comme on l'a laissée) ; celui du compte dit « du
   compte ».
+- **Console, « Désigner l'entreprise SkanFact »** (Paiements, Nos factures) menait en haut des Réglages, sur « Offres
+  et prix », sans le geste : la page descend sur la carte « Nos factures », qui dit quoi faire.
 
 ### Vu bon en passant (20/10/2026)
 
@@ -355,7 +357,8 @@ payés » solde le 425 au millime par la banque.
   « facturé » dans la liste, l'Aide ne promet plus les raccourcis du navigateur.
 - `tests/web/cabinet-livre-a-jour.test.ts` : le calendrier vide qui dit sa règle, l'échéance pas prête qui le dit avant
   d'être pointée.
-- Seize preuves (`tests/preuves.sh`, « 1.80.0 »).
+- `tests/web/console-paiements.test.ts` : « onglet=factures » descend sur la carte « Nos factures ».
+- Dix-sept preuves (`tests/preuves.sh`, « 1.80.0 »).
 
 ## Ce qui reste (les lots suivants)
 

@@ -18193,9 +18193,13 @@ prouver 'le bouton du compte qui ne dit pas qu'"'"'il est celui du compte' 'web/
   'id="ps-compte-go">Renseigner son RIB…</button>' \
   '« Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui'
 prouver 'le bouton du salarié dans le cadre qui n'"'"'ouvre rien' 'web/public/v10/app.js' \
-  "\$\$('#ps-avert [data-ps-rib]', root).forEach(b => { b.onclick = () => {" \
-  "\$\$('#ps-avert [data-ps-rien]', root).forEach(b => { b.onclick = () => {" \
+  "\$\$('[data-ps-rib-cadre]', root).forEach(b => { b.onclick = () => {" \
+  "\$\$('[data-ps-rien]', root).forEach(b => { b.onclick = () => {" \
   '« Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui'
+prouver 'le lien « Désigner l'"'"'entreprise SkanFact » qui reste en haut des Réglages' 'web/console/src/ecrans/Reglages.tsx' \
+  "if (demande === 'factures' && d) document.getElementById('rg-factures')?.scrollIntoView({ block: 'start' });" \
+  "if (demande === 'zzz' && d) document.getElementById('rg-factures')?.scrollIntoView({ block: 'start' });" \
+  '« Désigner l'"'"'entreprise SkanFact » descend sur la carte « Nos factures » des Réglages (1.80.0)'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

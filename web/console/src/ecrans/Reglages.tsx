@@ -1330,6 +1330,11 @@ export function Reglages({ onglet: demande }: { onglet: string | null }) {
   const [geste, setGeste] = useState<Geste | null>(null);
   const onglet: OngletReglages = ONGLETS_REGLAGES.includes(demande as OngletReglages) ? demande as OngletReglages : 'prix';
   const d = l.etat === 'lu' ? l.donnees : null;
+  // « Désigner l'entreprise SkanFact » (Paiements, Nos factures, l'accueil) mène à `onglet=factures` : la carte « Nos factures »
+  // est au bas des offres et prix ; on y descend (1.80.0, recette du 20/10/2026 : on restait en haut, sans le geste).
+  useEffect(() => {
+    if (demande === 'factures' && d) document.getElementById('rg-factures')?.scrollIntoView({ block: 'start' });
+  }, [demande, d]);
   const peut = d?.role === 'direction';
   const aRelire = d ? d.registre.filter((r) => r.aRelire).length : 0;
   // Les pièces qui demandent un geste chez un client : retenues ou refusées par la TTN.
