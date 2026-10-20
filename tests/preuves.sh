@@ -17891,6 +17891,12 @@ prouver 'les boutons d'"'"'une barre de pages qui débordent de la colonne' 'web
   '.c-liste-pied-boutons { display: flex; gap: 8px; }' \
   'l'"'"'instrument ne trouve rien : la page Support de la console, sa fenêtre et ses demandes closes ; la page des demandes du client'
 
+# 1.70.1 : vu rouge sur GitHub — la veille qui mesure le vrai disque de la machine d'essai.
+prouver 'la veille qui mesure tous les disques quand aucun chemin réglé n'"'"'existe' 'exploitation/veiller.ts' \
+  '  if (!chemins.length) return [];' \
+  '  if (!chemins.length) { /* tous */ }' \
+  'une règle en sourdine ne prévient pas ; l'"'"'essai demandé part une fois ; tout se note dans la base, les destinataires masqués'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

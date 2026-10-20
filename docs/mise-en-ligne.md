@@ -438,7 +438,7 @@ par la tâche d'entretien 0007) relève l'état du serveur et en tire les probl�
 | La sauvegarde de la nuit absente, ratée, ou plus de 26 heures sans réussite | oui | `sudo systemctl status skanfact-sauvegarde` ; le détail : `/var/lib/skanfact/sauvegardes/derniere.json` |
 | Une version qui n'a pas pu s'installer (l'ancienne tourne toujours) ; une tâche d'entretien ratée (sauf si une suivante, réussie, la **reprend** : « # Reprend : … » en tête de celle-ci) | non | le détail : `/var/lib/skanfact/public/etat.json` |
 | Le suiveur des versions muet depuis plus de 30 minutes | non | `sudo systemctl status skanfact-suivre.timer` |
-| Un disque plein à 75 % (grave à 90 %) | à 90 % | libérer de la place, ou agrandir le disque chez l'hébergeur |
+| Un disque plein à 75 % (grave à 90 %) : `/`, l'état de SkanFact et la base, ou les chemins de `SKANFACT_VEILLE_DISQUES` (séparés par « : ») ; aucun de ceux-là n'existe : aucun disque mesuré (1.70.1) | à 90 % | libérer de la place, ou agrandir le disque chez l'hébergeur |
 | Le certificat https qui expire dans moins de 30 jours (grave à moins de 7) | à 7 jours | `sudo systemctl status caddy`, puis `sudo journalctl -u caddy -n 50` |
 | L'archivage continu qui échoue (ou, sur un serveur aux vraies données, arrêté) | oui | `sudo journalctl -u postgresql -n 50` (C bis 1) |
 | La copie de base absente, ratée ou de plus de 26 heures (quand l'archivage tourne) | oui | `sudo systemctl status skanfact-base` (C bis 2) |
