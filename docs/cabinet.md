@@ -85,7 +85,7 @@ mêmes données que son client.
 | **41 ter** | La liasse et le résultat fiscal de l'année. |
 | **42** | Les immobilisations : fiches des biens au serveur, dotations et sorties au brouillard, liées à leur bien. |
 | **42 bis** | L'inventaire de stock et sa variation. |
-| **43** | La paie tenue par le cabinet (mandat Paie) : les salariés et les bulletins du client, dans son propre dossier. Depuis la 1.63.0, la paie du dossier se lit à l'ouverture du livre, un bulletin se corrige tant que l'exercice n'est pas clos, et ses lignes gardent leurs marques (`docs/paie.md`, « Le Cabinet ne perd rien d'un bulletin ») ; depuis la 1.65.0, le bulletin imprimé, le journal de paie et l'état récapitulatif CNSS en sortent (« Les documents de la paie au Cabinet ») ; depuis la 1.66.0, les taux propres du dossier (accident du travail, TFP, FOPROLOS) se règlent avec ceux des contrats, dans « Taux de la paie… » (« Les taux propres d'un dossier au Cabinet »). |
+| **43** | La paie tenue par le cabinet (mandat Paie) : les salariés et les bulletins du client, dans son propre dossier. Depuis la 1.63.0, la paie du dossier se lit à l'ouverture du livre, un bulletin se corrige tant que l'exercice n'est pas clos, et ses lignes gardent leurs marques (`docs/paie.md`, « Le Cabinet ne perd rien d'un bulletin ») ; depuis la 1.65.0, le bulletin imprimé, le journal de paie et l'état récapitulatif CNSS en sortent (« Les documents de la paie au Cabinet ») ; depuis la 1.66.0, les taux propres du dossier (accident du travail, TFP, FOPROLOS) se règlent avec ceux des contrats, dans « Taux de la paie… » (« Les taux propres d'un dossier au Cabinet ») ; depuis la 1.67.0, ceux d'un client sur SkanFact sont lus dans son SkanFact, sans être changés (« Le Cabinet lit les réglages de paie du client »). |
 | **44** | La révision (feuilles maîtresses, comptes signés, notes, questionnaire, révision arrêtée) et les questions au client, posées puis envoyées. |
 | **44 bis** | Le client lit les questions de son cabinet dans son SkanFact, en face de la pièce, et y répond. |
 | **45** | La clôture de l'exercice, sa réouverture (avec un motif), l'exercice suivant. |
@@ -1299,6 +1299,11 @@ pas de la ligne : la base les évalue une fois par requête, pas une fois par li
 et le collaborateur ne lisent que le plan (ni la facture, ni la société, ni le salarié) ; une facture
 ne se modifie ni ne s'ajoute ; sous un mandat qui comprend la paie, le salarié aussi ; le client lit
 tout. Toute la suite du cabinet (la saisie, la paie, les déclarations…) passe avec la règle resserrée.
+
+**Depuis la 1.67.0 (19/10/2026, par délégation ; 0148)** : sous un mandat qui comprend la paie, le cabinet **lit**
+aussi les réglages de paie du client (`_racine` : `payrollSettings` ; ses taux, son barème), et rien d'autre de la
+racine ; il ne les modifie ni ne les efface (la règle ne vaut que pour la lecture). Compté : un objet de plus, sous le
+seul mandat de paie (`docs/paie.md`, « Le Cabinet lit les réglages de paie du client »).
 
 ## Brique 61 : ce qui a changé dans l'équipe (fait le 30/09/2026)
 

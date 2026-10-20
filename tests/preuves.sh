@@ -17425,7 +17425,7 @@ prouver 'le formulaire du Cabinet qui ne garde que la première prime' 'web/publ
   'primes: primes.filter(remplie).slice(0, 1).map(' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
 prouver 'la paie du dossier absente du livre qu'"'"'ouvre le Cabinet' 'web/public/plateforme/pont-cabinet.js' \
-  '    return paie ? poserLaPaie(livre, [...paie.values()], annee) : livre;' \
+  '    return paie ? poserLaPaie(livre, [...paie.values()], annee, ent) : livre;' \
   '    return paie ? livre : livre;' \
   'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
 prouver 'un bulletin qui ne se corrige plus au Cabinet dès que l'"'"'écriture du mois existe' 'web/public/v10/cabinet/app.js' \
@@ -17462,11 +17462,9 @@ prouver 'les taux qu'"'"'un régime fixait gardés comme taux de base au Cabinet
   '' \
   'un bulletin modifié au Cabinet garde le barème figé avec son calcul : les taux du client (accident du travail, TFP) et le régime de son contrat ; un nouveau prend ceux du dossier'
 prouver 'l'"'"'aperçu du bulletin au Cabinet calculé avec les taux du dossier' 'web/public/v10/cabinet/app.js' \
-  '      let baremes = KC.baremesDuBulletin(L, b, dossier.paie || {});' \
-  '      let baremes = dossier.paie || {};' \
-  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
-
-# 1.65.0 : les documents de la paie au Cabinet (docs/paie.md, « Les documents de la paie au Cabinet »).
+  '      let baremes = KC.baremesDuBulletin(L, b, reglages);' \
+  '      let baremes = reglages;' \
+  'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
 prouver 'le bulletin imprimé au Cabinet avec l'"'"'avertissement destiné au comptable' 'web/public/v10/cabinet/app.js' \
   'return C.payslipHtml(bulletinDuDossier, d, so, { notice: false });' \
   'return C.payslipHtml(bulletinDuDossier, d, so, {});' \
@@ -17531,7 +17529,7 @@ prouver 'la fenêtre des taux rouverte vide, qui effacerait ceux du client' 'web
   'value=""' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
 prouver 'la case des taux du jour que le pont ignore' 'web/public/plateforme/pont-cabinet.js' \
-  '{ tauxDuJour: !!o.tauxDuJour && !!(dossiers.get(o.dossierId) || {}).manual }' \
+  '{ tauxDuJour: !!o.tauxDuJour }' \
   '{ tauxDuJour: false }' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
 prouver 'le moteur qui ignore les taux du jour demandés' 'web/public/v10/compta.js' \
@@ -17539,7 +17537,7 @@ prouver 'le moteur qui ignore les taux du jour demandés' 'web/public/v10/compta
   'const baremes = baremesDuBulletin(livre, bulletin, baremesDuDossier);' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
 prouver 'l'"'"'aperçu qui ne suit pas la case des taux du jour' 'web/public/v10/cabinet/app.js' \
-  'baremes = caseDuJour.checked ? (dossier.paie || {}) : KC.baremesDuBulletin(L, b, dossier.paie || {}); maj();' \
+  'baremes = caseDuJour.checked ? reglages : KC.baremesDuBulletin(L, b, reglages); maj();' \
   'maj();' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
 prouver 'la fenêtre du bulletin muette sur les taux qui changent' 'web/public/v10/cabinet/app.js' \
@@ -17554,10 +17552,56 @@ prouver 'la case des taux du jour qui ne part pas avec le bulletin' 'web/public/
   'tauxDuJour: !!(caseDuJour && caseDuJour.checked) });' \
   'tauxDuJour: false });' \
   'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
-prouver 'la case des taux du jour offerte au dossier d'"'"'un client sur SkanFact' 'web/public/v10/cabinet/app.js' \
+
+# 1.67.0 : le Cabinet lit les réglages de paie du client (docs/paie.md, « Le Cabinet lit les réglages de paie du client »).
+prouver 'les réglages de paie du client lus sans le mandat de la paie' 'base/migrations/0148_paie_reglages_au_cabinet.sql' \
+  'entreprise in (select socle.mes_entreprises_au_perimetre('"'"'paie'"'"'))' \
+  'entreprise in (select socle.mes_entreprises())' \
+  'dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout'
+prouver 'toute la racine du dossier du client lue sous le mandat de la paie' 'base/migrations/0148_paie_reglages_au_cabinet.sql' \
+  'collection = '"'"'_racine'"'"' and cle = '"'"'payrollSettings'"'"' and' \
+  'collection = '"'"'_racine'"'"' and' \
+  'dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout'
+prouver 'les réglages de paie du client que le cabinet peut réécrire' 'base/migrations/0148_paie_reglages_au_cabinet.sql' \
+  'create policy reglages_de_paie_au_cabinet on socle.dossier_v10 for select using (' \
+  'create policy reglages_de_paie_au_cabinet on socle.dossier_v10 using (' \
+  'dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout'
+prouver 'la route de la paie qui tait les réglages du client' 'serveur/paie/routes.ts' \
+  ' or (collection = '"'"'_racine'"'"' and cle = '"'"'payrollSettings'"'"'))' \
+  ')' \
+  'avec le mandat de la paie, l'"'"'associé tient les salariés et les bulletins du client : recalculés au serveur, écrits au livre ; sans lui, rien'
+prouver 'les réglages du client jamais posés dans le livre' 'web/public/plateforme/pont-cabinet.js' \
+  'livre.reglagesPaie = reglagesDuClient(ent);' \
+  'livre.reglagesPaie = null;' \
+  'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
+prouver 'le bulletin du client enregistré avec les taux de la fiche du Cabinet' 'web/public/plateforme/pont-cabinet.js' \
+  'return reglagesDuClient(ent) || (f &&' \
+  'return (f &&' \
+  'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
+prouver 'un dossier tenu lu comme un client sur SkanFact' 'web/public/plateforme/pont-cabinet.js' \
+  '(dossiers.get(ent) || {}).manual ? null :' \
+  'false ? null :' \
+  'les taux du client et ceux du CIVP se gardent dans la fiche, le panneau les dit, et le bulletin d'"'"'un salarié en CIVP les suit'
+prouver 'l'"'"'écran qui calcule avec la fiche du Cabinet' 'web/public/v10/cabinet/app.js' \
+  'const reglagesPaie = (dossier, L) => (L && L.reglagesPaie) || dossier.paie || {};' \
+  'const reglagesPaie = (dossier) => dossier.paie || {};' \
+  'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
+prouver 'le panneau muet sur l'"'"'origine des taux' 'web/public/v10/cabinet/app.js' \
+  '${duClient ? '"'"'<b>Réglés dans son SkanFact</b> — '"'"' : '"'"''"'"'}' \
+  '${'"'"''"'"'}' \
+  'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
+prouver 'la fenêtre des taux modifiable pour un client sur SkanFact' 'web/public/v10/cabinet/app.js' \
+  '(s.livre && s.livre.reglagesPaie ? tauxDuSkanFactDuClient(s.livre.reglagesPaie) : regimesForm(root, dossier))' \
+  'regimesForm(root, dossier)' \
+  'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
+prouver 'la fenêtre des taux du client qui ne dit pas ce qui suit le barème' 'web/public/v10/cabinet/app.js' \
+  ''"'"'le sien'"'"' : '"'"'le barème général'"'"'' \
+  ''"'"'le sien'"'"' : '"'"'le sien'"'"'' \
+  'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
+prouver 'la case des taux du jour refusée au client sur SkanFact' 'web/public/v10/cabinet/app.js' \
+  'if (!(dossier.manual || L.reglagesPaie) || !b || !b.calcul || !b.calcul.bareme) return [];' \
   'if (!dossier.manual || !b || !b.calcul || !b.calcul.bareme) return [];' \
-  'if (!b || !b.calcul || !b.calcul.bareme) return [];' \
-  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet : aucune ligne ne se perd, ni ses marques, ni son prorata, et il se calcule comme dans l'"'"'entreprise'
+  'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

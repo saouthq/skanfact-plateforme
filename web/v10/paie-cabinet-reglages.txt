@@ -1,0 +1,135 @@
+Le Cabinet lit les réglages de paie du client (19/10/2026, 1.67.0 ; docs/paie.md, « Le Cabinet lit les réglages de paie du client »).
+Format : voir sans-paquets.mjs.
+
+Un client qui tient sa paie dans son SkanFact y règle ses taux (Paie › Barèmes : l'accident du travail de son activité,
+sa TFP, ses taux par contrat, son barème). Le Cabinet, sous un mandat de paie, établissait ses bulletins avec les taux
+par défaut, ou ceux que le comptable réglait dans la fiche du dossier : deux chemins, deux chiffres. Il lit désormais les
+siens (`payrollSettings`, à la racine de son dossier ; migration 0148, route de la paie, pont-cabinet.js, posés dans le
+livre : `L.reglagesPaie`) : chaque bulletin qu'il établit pour lui les prend, et la case « Prendre les taux de la paie
+d'aujourd'hui » d'un bulletin modifié (1.66.0) les offre. Il les lit sans les changer : sa fenêtre des taux les montre,
+et dit où le client les règle. Un dossier tenu garde ceux de sa fiche au Cabinet.
+
+== cabinet/app.js | les réglages de la paie d'un dossier : ceux du SkanFact du client, sinon ceux de sa fiche au Cabinet
+-- avant
+  const tauxDuClient = (paie) => TAUX_DU_CLIENT.filter(([k]) => Number.isFinite(Number((paie || {})[k])) && (paie || {})[k] !== '' && (paie || {})[k] != null)
+    .map(([k, lab]) => `${lab} ${String(Number(paie[k])).replace('.', ',')} %`);
+-- après
+  const tauxDuClient = (paie) => TAUX_DU_CLIENT.filter(([k]) => Number.isFinite(Number((paie || {})[k])) && (paie || {})[k] !== '' && (paie || {})[k] != null)
+    .map(([k, lab]) => `${lab} ${String(Number(paie[k])).replace('.', ',')} %`);
+  // (plateforme) 1.67.0 — les réglages de la paie d'un dossier : ceux du SkanFact du client qui y tient sa paie (lus avec
+  // elle, posés dans le livre), sinon ceux que le Cabinet règle dans sa fiche (un dossier tenu).
+  const reglagesPaie = (dossier, L) => (L && L.reglagesPaie) || dossier.paie || {};
+-- fin
+
+== cabinet/app.js | le panneau des salariés dit les taux du SkanFact du client, et d'où ils viennent
+-- avant
+  function regimesDuDossier(dossier) {
+    const bar = (dossier.paie || {});
+-- après
+  function regimesDuDossier(dossier, L) {
+    // (plateforme) 1.67.0 — les taux du SkanFact du client, s'il y tient sa paie : le Cabinet les lit sans les changer.
+    const bar = reglagesPaie(dossier, L);
+    const duClient = !!(L && L.reglagesPaie);
+-- fin
+
+== cabinet/app.js | le panneau dit d'où viennent les taux, et le bouton ouvre la fenêtre qui les montre
+-- avant
+    return `<div class="small mb ctrl-geste" id="pa-regimes-bloc"><span>${morceaux.length
+      ? morceaux.join(' · ')
+      : 'Tous les contrats suivent le barème général.'} ${info('pa.regimes')}</span>
+      <button type="button" class="btn btn-sm" id="pa-regimes">Taux de la paie…</button></div>`;
+-- après
+    return `<div class="small mb ctrl-geste" id="pa-regimes-bloc"><span>${duClient ? '<b>Réglés dans son SkanFact</b> — ' : ''}${morceaux.length
+      ? morceaux.join(' · ')
+      : 'Tous les contrats suivent le barème général.'} ${info('pa.regimes')}</span>
+      <button type="button" class="btn btn-sm" id="pa-regimes">${duClient ? 'Voir les taux de la paie…' : 'Taux de la paie…'}</button></div>`;
+-- fin
+
+== cabinet/app.js | le panneau reçoit le livre
+-- avant
+        ${regimesDuDossier(dossier)}
+-- après
+        ${regimesDuDossier(dossier, L)}
+-- fin
+
+== cabinet/app.js | le bouton ouvre, pour un client sur SkanFact, la fenêtre qui montre ses taux sans les changer
+-- avant
+    if (rg) rg.onclick = () => regimesForm(root, dossier);
+-- après
+    if (rg) rg.onclick = () => (s.livre && s.livre.reglagesPaie ? tauxDuSkanFactDuClient(s.livre.reglagesPaie) : regimesForm(root, dossier));
+-- fin
+
+== cabinet/app.js | la fenêtre des taux d'un client sur SkanFact : ce qu'il a réglé, ce qui suit le barème, où il les règle
+-- avant
+  function regimesForm(root, dossier) {
+-- après
+  // (plateforme) 1.67.0 — les taux de la paie d'un client qui la tient dans son SkanFact, en lecture : les siens, ceux du
+  // barème général, ses taux par contrat. Le Cabinet ne les change pas (il n'écrit jamais chez un client sans son accord,
+  // et le mandat de paie ouvre ses salariés et ses bulletins, pas ses réglages) : la fenêtre dit où il les règle.
+  function tauxDuSkanFactDuClient(reglages) {
+    const bar = KC.baremesPaie(reglages || {});
+    const pct = n => String(Number(n)).replace('.', ',');
+    const contrats = KC.CONTRACT_TYPES.filter(([k]) => k !== 'cdi')
+      .map(([k, lab]) => ({ nom: lab.split(' —')[0], r: KC.regimeDuContrat(bar, k) }))
+      .filter(x => Object.keys(x.r).length);
+    modal(`<h2>Les taux de la paie de ce client</h2>
+      <p class="small">Ce client tient sa paie dans son SkanFact : ses taux sont ceux qu'il y règle (<b>Paie › Barèmes</b>), et
+      chaque bulletin que tu établis pour lui les prend. Le Cabinet les lit sans les changer : pour en corriger un, demande-le-lui.</p>
+      <table class="list compact" id="rc-lu"><tbody>${KC.REGIME_TAUX.map(([k, lab]) => `<tr><td>${esc((TAUX_DU_CLIENT.find(t => t[0] === k) || [k, lab])[1])}</td>
+        <td class="r nw">${esc(pct(bar[k]))} %</td><td class="small muted">${(reglages || {})[k] != null && (reglages || {})[k] !== '' ? 'le sien' : 'le barème général'}</td></tr>`).join('')}</tbody></table>
+      <p class="small mt">${contrats.length ? `Ses taux par contrat : ${contrats.map(x => `<b>${esc(x.nom)}</b> : ${esc(KC.libelleRegime(x.r))}`).join(' · ')}.`
+    : 'Tous ses contrats suivent ces taux.'}</p>
+      <div class="modal-actions"><button class="btn btn-primary" data-close>Fermer</button></div>`);
+  }
+
+  function regimesForm(root, dossier) {
+-- fin
+
+== cabinet/app.js | la fenêtre d'un bulletin d'un client sur SkanFact sait aussi quels taux d'aujourd'hui diffèrent des siens
+-- avant
+      if (!dossier.manual || !b || !b.calcul || !b.calcul.bareme) return [];
+-- après
+      // (plateforme) 1.67.0 — ou d'un client sur SkanFact : les taux d'aujourd'hui sont ceux qu'il y règle.
+      if (!(dossier.manual || L.reglagesPaie) || !b || !b.calcul || !b.calcul.bareme) return [];
+-- fin
+
+== cabinet/app.js | les taux d'aujourd'hui d'un bulletin : ceux du dossier, le SkanFact du client d'abord
+-- avant
+        KC.baremesPaie(dossier.paie || {})).bareme;
+-- après
+        KC.baremesPaie(reglagesPaie(dossier, L))).bareme;
+-- fin
+
+== cabinet/app.js | l'aperçu et l'enregistrement d'un bulletin calculent avec les réglages du dossier, le SkanFact du client d'abord
+-- avant
+      let baremes = KC.baremesDuBulletin(L, b, dossier.paie || {});
+      if (caseDuJour) caseDuJour.onchange = () => { baremes = caseDuJour.checked ? (dossier.paie || {}) : KC.baremesDuBulletin(L, b, dossier.paie || {}); maj(); };
+-- après
+      // (plateforme) 1.67.0 — les réglages du dossier : ceux du SkanFact du client, s'il y tient sa paie.
+      const reglages = reglagesPaie(dossier, L);
+      let baremes = KC.baremesDuBulletin(L, b, reglages);
+      if (caseDuJour) caseDuJour.onchange = () => { baremes = caseDuJour.checked ? reglages : KC.baremesDuBulletin(L, b, reglages); maj(); };
+-- fin
+
+== cabinet/app.js | l'aperçu dit où se règle le régime d'un contrat
+-- avant
+${esc(KC.libelleRegime(c.regime))} — réglé dans « Taux de la paie… ».</div>
+-- après
+${esc(KC.libelleRegime(c.regime))} — ${L.reglagesPaie ? 'réglé dans son SkanFact' : 'réglé dans « Taux de la paie… »'}.</div>
+-- fin
+
+== cabinet/cabvisites.js | la visite explique la fenêtre des taux d'un client sur SkanFact
+-- avant
+  b('[data-taux]', 'Le taux propre à CE client, à la place du taux général pour chacun de ses bulletins. Vide : le taux général.', { nom: 'Taux du client', cle: 'taux-client' });
+-- après
+  b('[data-taux]', 'Le taux propre à CE client, à la place du taux général pour chacun de ses bulletins. Vide : le taux général.', { nom: 'Taux du client', cle: 'taux-client' });
+  // (plateforme) 1.67.0
+  b('#rc-lu', 'Les taux de la paie de ce client, tels qu\'il les règle dans son SkanFact : le Cabinet les lit, chaque bulletin les prend.', { nom: 'Ses taux', cle: 'taux-lus' });
+-- fin
+
+== cabinet/cabguide.js | l'aide des taux dit ceux d'un client sur SkanFact
+-- avant
+    'pa.regimes': { a: 'paie', t: 'Les taux de la paie', d: 'Pour CE client, deux sortes de taux.
+-- après
+    'pa.regimes': { a: 'paie', t: 'Les taux de la paie', d: 'Un client qui tient sa paie dans son SkanFact y règle ses taux (Paie › Barèmes) : le Cabinet les lit, chaque bulletin qu\'il établit pour lui les prend, et il ne les change pas. Pour un dossier tenu, le Cabinet les règle lui-même. Pour CE client, deux sortes de taux.
+-- fin

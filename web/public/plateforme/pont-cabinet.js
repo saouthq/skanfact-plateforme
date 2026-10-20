@@ -371,7 +371,7 @@
     // l'onglet Paie d'un dossier disait « Aucun salarié déclaré » à côté de l'écriture de paie de ses bulletins, et le
     // livre qu'un autre geste renvoyait (valider une écriture, lettrer…) la faisait disparaître de l'écran.
     const paie = paieLue.get(ent);
-    return paie ? poserLaPaie(livre, [...paie.values()], annee) : livre;
+    return paie ? poserLaPaie(livre, [...paie.values()], annee, ent) : livre;
   };
   // Les révisions d'une année (brique 44), celles du cabinet : l'exercice et ses mois, dans la forme de
   // la v10 (compta.js, revisionVide), et la révision de chacune pour la réécrire sans rien écraser.
@@ -572,20 +572,22 @@
   });
   // La paie du dossier posée dans le livre d'une année : les salariés, les bulletins de l'année, et pour chacun
   // l'écriture de paie de son mois, que le serveur tient (journal PAIE, au dernier jour du mois).
-  /** @param {any} livre @param {any[]} objets @param {string|number} annee */
-  function poserLaPaie(livre, objets, annee) {
+  /** @param {any} livre @param {any[]} objets @param {string|number} annee @param {string} ent */
+  function poserLaPaie(livre, objets, annee, ent) {
     /** @param {string} mois */
     const ecritureDuMois = (mois) => ((livre.ecritures || []).find((/** @type {any} */ e) => e.journal === 'PAIE' && String(e.date).slice(0, 7) === mois && e.statut !== 'contrepassee') || {}).id || null;
     livre.salaries = objets.filter((/** @type {any} */ o) => o.collection === 'employees').map((/** @type {any} */ o) => salarieDe(o.contenu));
     livre.bulletins = objets.filter((/** @type {any} */ o) => o.collection === 'payslips' && Number(o.contenu.year) === Number(annee))
       .map((/** @type {any} */ o) => bulletinDe(o.contenu, ecritureDuMois(`${o.contenu.year}-${String(o.contenu.month).padStart(2, '0')}`)));
+    // 1.67.0 — les réglages de paie du client qui tient sa paie dans SkanFact : l'écran calcule ses bulletins avec eux.
+    livre.reglagesPaie = reglagesDuClient(ent);
     return livre;
   }
   // Le livre d'une année et sa paie, relue (les gestes de la paie).
   /** @param {string} ent @param {string|number} annee */
   async function livreEtPaie(ent, annee) {
     const [livre, objets] = await Promise.all([livreDe(ent, annee), paieDe(ent)]);
-    return poserLaPaie(livre, objets, annee);
+    return poserLaPaie(livre, objets, annee, ent);
   }
   // Écrire un objet de paie dans le dossier du client, dans la révision qu'on a lue.
   /** @param {string} ent @param {string} collection @param {string} cle @param {any} contenu */
@@ -598,11 +600,16 @@
   // L'objet de paie tel que le dossier le garde (pour ne rien perdre de ce que l'entreprise y met).
   /** @param {string} ent @param {string} collection @param {string} cle */
   const paieAvant = (ent, collection, cle) => ((paieLue.get(ent) || new Map()).get(`${collection}/${cle}`) || {}).contenu || null;
-  // Les réglages de paie du dossier (brique 55) : ses taux par contrat, gardés dans sa fiche en texte
-  // décimal, que le moteur de la v10 lit tels quels (regimeDuContrat) ; le bulletin les fige avec son
-  // calcul, et le serveur le recalcule avec ce barème figé.
+  // 1.67.0 — les réglages de paie du client qui tient sa paie dans SkanFact : `payrollSettings`, à la racine de son
+  // dossier, lus avec la paie sous le mandat de paie (migration 0148) ; ses taux, ses taux par contrat, son barème. Le
+  // Cabinet les lit sans les écrire. Un dossier tenu n'en a pas (null) : ses réglages sont ceux de sa fiche au Cabinet.
   /** @param {string} ent */
-  const paieDuDossier = (ent) => { const f = fiches.get(ent); return (f && /** @type {any} */ (depuisFiche(f.contenu)).paie) || {}; };
+  const reglagesDuClient = (ent) => (/** @type {any} */ (dossiers.get(ent) || {}).manual ? null : (paieAvant(ent, '_racine', 'payrollSettings') || {}));
+  // Les réglages de paie du dossier : ceux du client sur SkanFact (1.67.0), sinon ceux de sa fiche au Cabinet (brique 55 et
+  // 1.66.0 : ses taux par contrat et ses taux propres, en texte décimal, que le moteur de la v10 lit tels quels) ; le
+  // bulletin les fige avec son calcul, et le serveur le recalcule avec ce barème figé.
+  /** @param {string} ent */
+  const paieDuDossier = (ent) => { const f = fiches.get(ent); return reglagesDuClient(ent) || (f && /** @type {any} */ (depuisFiche(f.contenu)).paie) || {}; };
   // Sur la plateforme, l'écriture de paie SUIT les bulletins (le serveur la réécrit) : modifier ou
   // supprimer un bulletin d'un mois déjà écrit n'est plus refusé, comme la v10 le refusait.
   /** @param {any} livre */
@@ -1555,10 +1562,9 @@
     saveBulletin: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = sansEcritures(await livreEtPaie(o.dossierId, o.annee));
-      // (1.66.0) La case « Prendre les taux de la paie d'aujourd'hui » d'un bulletin modifié, dans un dossier tenu seulement :
-      // ailleurs, les taux du dossier au Cabinet ne sont pas ceux du client.
-      const r = KC.ajouterBulletin(livre, o.bulletin, paieDuDossier(o.dossierId), '', Date.now(),
-        { tauxDuJour: !!o.tauxDuJour && !!(dossiers.get(o.dossierId) || {}).manual });
+      // (1.66.0) La case « Prendre les taux de la paie d'aujourd'hui » d'un bulletin modifié : ceux du dossier, que ce soient
+      // ceux de sa fiche (un dossier tenu) ou, depuis la 1.67.0, ceux du SkanFact du client.
+      const r = KC.ajouterBulletin(livre, o.bulletin, paieDuDossier(o.dossierId), '', Date.now(), { tauxDuJour: !!o.tauxDuJour });
       if (!r.ok) throw new Error(r.motif);
       await ecrirePaieDuDossier(o.dossierId, 'payslips', r.bulletin.id, fichePayeDe(r.bulletin, paieAvant(o.dossierId, 'payslips', r.bulletin.id)));
       return { ok: true, bulletin: r.bulletin, livre: await livreEtPaie(o.dossierId, o.annee) };

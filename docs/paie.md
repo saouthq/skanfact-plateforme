@@ -641,6 +641,59 @@ les siens : les charges patronales, l'état CNSS et la déclaration du mois éta
 
 ### Ce qui reste
 
-- Un bulletin **nouveau** établi au Cabinet pour un client qui fait sa paie dans SkanFact prend les taux réglés au
-  Cabinet, pas encore ceux de ses réglages (le serveur ne les montre pas au Cabinet : une lecture à ouvrir, droits
-  compris).
+- ~~Un bulletin **nouveau** établi au Cabinet pour un client qui fait sa paie dans SkanFact prend les taux réglés au
+  Cabinet, pas encore ceux de ses réglages~~ : fait en 1.67.0 (« Le Cabinet lit les réglages de paie du client »).
+
+## Le Cabinet lit les réglages de paie du client (19/10/2026, 1.67.0)
+
+*Deux chemins, deux chiffres : le Cabinet calculait les bulletins d'un client sur SkanFact avec d'autres taux que les siens.*
+
+### Le défaut
+
+Un client qui tient sa paie dans son SkanFact y règle ses taux (**Paie › Barèmes** : l'accident du travail de son
+activité, sa TFP, ses taux par contrat, son barème). Ils vivent à la racine de son dossier (`payrollSettings`), que la
+base ne laissait pas lire au cabinet (0035 ne lui ouvre que le plan et, sous un mandat de paie, les salariés et les
+bulletins). Sous un mandat de paie, chaque bulletin que le Cabinet établissait pour lui prenait donc les taux par défaut,
+ou ceux qu'un comptable avait réglés dans la fiche du dossier (1.66.0) : un autre chiffre que celui du SkanFact du client.
+
+### Ce que le lot fait (migration `0148`, `serveur/paie/routes.ts`, `pont-cabinet.js`, `web/v10/paie-cabinet-reglages.txt`)
+
+- **La base** (0148) laisse le cabinet **lire** `_racine/payrollSettings` sous un mandat qui comprend la paie, et rien
+  d'autre de la racine du dossier ; la règle ne vaut que pour la lecture : il ne peut ni le modifier, ni l'effacer.
+- **La route de la paie** (`GET …/paie/dossier`) le rend avec les salariés et les bulletins ; son écriture reste
+  limitée aux salariés et aux bulletins.
+- **Le pont** pose ces réglages dans le livre (`L.reglagesPaie`) pour le dossier d'un client sur SkanFact (un objet
+  vide s'il n'a rien réglé : ce sont alors les taux par défaut, comme dans son SkanFact) ; un dossier **tenu** n'en a
+  pas (ses réglages restent ceux de sa fiche au Cabinet). Chaque bulletin du client s'enregistre avec eux.
+- **L'écran** : le panneau des salariés dit « **Réglés dans son SkanFact** — Ce client : Accident du travail 2,25 %,
+  TFP 1 % · CIVP : … » ; « Voir les taux de la paie… » ouvre une fenêtre **en lecture** (ses taux, « le sien » ou « le
+  barème général », ses taux par contrat), qui dit où il les règle ; la fenêtre d'un bulletin calcule avec eux ; la case
+  « Prendre les taux de la paie d'aujourd'hui » (1.66.0) s'offre aussi quand le client a changé un taux depuis le
+  bulletin ; l'aperçu dit qu'un régime de contrat est « réglé dans son SkanFact ».
+- **Ce qui part au serveur** : rien de plus. Ce qui en revient au Cabinet, compté : un objet de plus, les réglages de paie
+  du client, sous le seul mandat de paie (docs/cabinet.md, C50).
+
+### Décidé par délégation (19/10/2026)
+
+- Le Cabinet **lit** les réglages de paie du client et ne les **change pas** : le mandat de paie ouvre ses salariés et
+  ses bulletins, pas ses réglages, et le Cabinet n'écrit jamais chez un client sans son accord. Pour en corriger un, le
+  comptable le demande au client ; la fenêtre le dit.
+- Les documents imprimés lisent le calcul figé de chaque bulletin : rien n'y change.
+
+### Ce qui le prouve
+
+- `tests/cabinet/paie.test.ts` : dans la base, sous un mandat de comptabilité, le cabinet ne lit pas les réglages de paie ;
+  sous un mandat de paie, il les lit, ni la société ni le reste de la racine ; il ne les modifie ni ne les efface ; la
+  route les rend, et refuse de les écrire.
+- `tests/web/cabinet-paie-reglages.test.ts` : à la souris, sur un vrai client SkanFact (accident du travail 2,25 %, TFP
+  1 %, un CIVP sans CNSS patronale) : le panneau, la fenêtre en lecture (aucune case), un bulletin d'octobre établi au
+  Cabinet à ses taux (le barème que le serveur garde ; l'aperçu au millime du serveur) ; puis le client remet sa TFP à
+  2 % : le bulletin rouvert garde la sienne (l'aperçu au coût que le serveur garde), la case lui donne la nouvelle ; ses
+  réglages et la fiche du dossier au Cabinet sont restés intacts.
+- Douze preuves (`tests/preuves.sh`, « 1.67.0 »), et quatre anciennes reprises.
+
+### Ce qui reste
+
+- Les **heures supplémentaires** : les majorations du client (`hsMaj1` à `hsMaj3`) se lisent désormais, mais le Cabinet
+  n'a pas de pointage (celui de l'entreprise, 1.60.0) ; un bulletin du Cabinet reprend les primes d'heures
+  supplémentaires qu'on y tape.

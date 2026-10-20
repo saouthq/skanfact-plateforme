@@ -5913,7 +5913,7 @@
     ${/* Empilés, pas côte à côte (règle 3.4.0) : deux tableaux de cinq et six colonnes dans un
           `.split` débordaient chacun de leur moitié — 107 et 46 px à 1440 — et coupaient les noms. */''}
     <div class="panel mt"><h2>Les salariés ${info('pa.salaries')}</h2>
-        ${regimesDuDossier(dossier)}
+        ${regimesDuDossier(dossier, L)}
         ${(L.salaries || []).length
     ? `<div class="scroll-x"><table class="list compact"><thead><tr><th>Nom</th><th class="nw">N° CNSS</th>
         <th>Poste</th><th class="nw">Contrat</th><th class="r nw">Brut mensuel</th><th class="row-actions-h"></th></tr></thead>
@@ -6053,7 +6053,7 @@
     }; });
     [$('#pa-bulletin', el), $('#pa-bulletin2', el)].forEach(b => { if (b) b.onclick = () => bulletinForm(root, dossier, null); });
     const rg = $('#pa-regimes', el);
-    if (rg) rg.onclick = () => regimesForm(root, dossier);
+    if (rg) rg.onclick = () => (s.livre && s.livre.reglagesPaie ? tauxDuSkanFactDuClient(s.livre.reglagesPaie) : regimesForm(root, dossier));
     $$('[data-pa-emp]', el).forEach(b => { b.onclick = () => dossierForm(dossier, { focus: b.dataset.paEmp === 'code' ? '#f-cnss-code' : '#f-cnss' }); });
     $$('[data-pa-sal]', el).forEach(b => { b.onclick = () => {
       const x = (s.livre.salaries || []).find(y => y.id === b.dataset.paSal);
@@ -6173,18 +6173,42 @@
   const TAUX_DU_CLIENT = [['accidentRate', 'Accident du travail', 'pa.accident'], ['tfpRate', 'TFP', 'pa.tfp'], ['foprolosRate', 'FOPROLOS', 'pa.foprolos']];
   const tauxDuClient = (paie) => TAUX_DU_CLIENT.filter(([k]) => Number.isFinite(Number((paie || {})[k])) && (paie || {})[k] !== '' && (paie || {})[k] != null)
     .map(([k, lab]) => `${lab} ${String(Number(paie[k])).replace('.', ',')} %`);
-  function regimesDuDossier(dossier) {
-    const bar = (dossier.paie || {});
+  // (plateforme) 1.67.0 — les réglages de la paie d'un dossier : ceux du SkanFact du client qui y tient sa paie (lus avec
+  // elle, posés dans le livre), sinon ceux que le Cabinet règle dans sa fiche (un dossier tenu).
+  const reglagesPaie = (dossier, L) => (L && L.reglagesPaie) || dossier.paie || {};
+  function regimesDuDossier(dossier, L) {
+    // (plateforme) 1.67.0 — les taux du SkanFact du client, s'il y tient sa paie : le Cabinet les lit sans les changer.
+    const bar = reglagesPaie(dossier, L);
+    const duClient = !!(L && L.reglagesPaie);
     const actifs = KC.CONTRACT_TYPES.filter(([k]) => k !== 'cdi')
       .map(([k, lab]) => ({ nom: lab.split(' —')[0], r: KC.regimeDuContrat(bar, k) }))
       .filter(x => Object.keys(x.r).length);
     const propres = tauxDuClient(bar);
     const morceaux = [...(propres.length ? [`<b>Ce client</b> : ${esc(propres.join(', '))}`] : []),
       ...actifs.map(x => `<b>${esc(x.nom)}</b> : ${esc(KC.libelleRegime(x.r))}`)];
-    return `<div class="small mb ctrl-geste" id="pa-regimes-bloc"><span>${morceaux.length
+    return `<div class="small mb ctrl-geste" id="pa-regimes-bloc"><span>${duClient ? '<b>Réglés dans son SkanFact</b> — ' : ''}${morceaux.length
       ? morceaux.join(' · ')
       : 'Tous les contrats suivent le barème général.'} ${info('pa.regimes')}</span>
-      <button type="button" class="btn btn-sm" id="pa-regimes">Taux de la paie…</button></div>`;
+      <button type="button" class="btn btn-sm" id="pa-regimes">${duClient ? 'Voir les taux de la paie…' : 'Taux de la paie…'}</button></div>`;
+  }
+
+  // (plateforme) 1.67.0 — les taux de la paie d'un client qui la tient dans son SkanFact, en lecture : les siens, ceux du
+  // barème général, ses taux par contrat. Le Cabinet ne les change pas (il n'écrit jamais chez un client sans son accord,
+  // et le mandat de paie ouvre ses salariés et ses bulletins, pas ses réglages) : la fenêtre dit où il les règle.
+  function tauxDuSkanFactDuClient(reglages) {
+    const bar = KC.baremesPaie(reglages || {});
+    const pct = n => String(Number(n)).replace('.', ',');
+    const contrats = KC.CONTRACT_TYPES.filter(([k]) => k !== 'cdi')
+      .map(([k, lab]) => ({ nom: lab.split(' —')[0], r: KC.regimeDuContrat(bar, k) }))
+      .filter(x => Object.keys(x.r).length);
+    modal(`<h2>Les taux de la paie de ce client</h2>
+      <p class="small">Ce client tient sa paie dans son SkanFact : ses taux sont ceux qu'il y règle (<b>Paie › Barèmes</b>), et
+      chaque bulletin que tu établis pour lui les prend. Le Cabinet les lit sans les changer : pour en corriger un, demande-le-lui.</p>
+      <table class="list compact" id="rc-lu"><tbody>${KC.REGIME_TAUX.map(([k, lab]) => `<tr><td>${esc((TAUX_DU_CLIENT.find(t => t[0] === k) || [k, lab])[1])}</td>
+        <td class="r nw">${esc(pct(bar[k]))} %</td><td class="small muted">${(reglages || {})[k] != null && (reglages || {})[k] !== '' ? 'le sien' : 'le barème général'}</td></tr>`).join('')}</tbody></table>
+      <p class="small mt">${contrats.length ? `Ses taux par contrat : ${contrats.map(x => `<b>${esc(x.nom)}</b> : ${esc(KC.libelleRegime(x.r))}`).join(' · ')}.`
+    : 'Tous ses contrats suivent ces taux.'}</p>
+      <div class="modal-actions"><button class="btn btn-primary" data-close>Fermer</button></div>`);
   }
 
   function regimesForm(root, dossier) {
@@ -6325,10 +6349,11 @@
     // pas datés) ; une case lui donne ceux d'aujourd'hui (le bon taux d'accident du travail, réglé après coup), et dit
     // d'abord chacun de ceux qui changent.
     const tauxDuJour = (() => {
-      if (!dossier.manual || !b || !b.calcul || !b.calcul.bareme) return [];
+      // (plateforme) 1.67.0 — ou d'un client sur SkanFact : les taux d'aujourd'hui sont ceux qu'il y règle.
+      if (!(dossier.manual || L.reglagesPaie) || !b || !b.calcul || !b.calcul.bareme) return [];
       const sal = (L.salaries || []).find(x => x.id === b.salarieId) || {};
       const jour = KC.computePayslip({ grossSalary: sal.brut, headOfFamily: sal.chefDeFamille, children: sal.enfants, contrat: sal.contrat }, {},
-        KC.baremesPaie(dossier.paie || {})).bareme;
+        KC.baremesPaie(reglagesPaie(dossier, L))).bareme;
       const figes = b.calcul.bareme;
       const virgule = n => String(Number(n)).replace('.', ',');
       return KC.REGIME_TAUX.filter(([k]) => figes[k] != null && Number(figes[k]) !== Number(jour[k]))
@@ -6431,8 +6456,10 @@
       // l'aperçu comme l'enregistrement : avec les réglages du dossier au Cabinet, il changeait de taux en silence.
       // (plateforme) 1.66.0 — ou, dans un dossier tenu, les taux d'aujourd'hui, si la case est cochée.
       const caseDuJour = $('#bf-taux-du-jour', rootModal);
-      let baremes = KC.baremesDuBulletin(L, b, dossier.paie || {});
-      if (caseDuJour) caseDuJour.onchange = () => { baremes = caseDuJour.checked ? (dossier.paie || {}) : KC.baremesDuBulletin(L, b, dossier.paie || {}); maj(); };
+      // (plateforme) 1.67.0 — les réglages du dossier : ceux du SkanFact du client, s'il y tient sa paie.
+      const reglages = reglagesPaie(dossier, L);
+      let baremes = KC.baremesDuBulletin(L, b, reglages);
+      if (caseDuJour) caseDuJour.onchange = () => { baremes = caseDuJour.checked ? reglages : KC.baremesDuBulletin(L, b, reglages); maj(); };
       const maj = () => {
         const v = lire();
         const sal = (L.salaries || []).find(x => x.id === v.salarieId) || {};
@@ -6449,7 +6476,7 @@
         // attend que la case se lise, et le refus dessous dit laquelle.
         apercu.innerHTML = illisible ? '<b>Net à payer —</b> <span class="small muted">— un montant ne se lit pas encore.</span>' : `<b>Net à payer ${esc(money(c.net))}</b>
           <span class="small muted">— brut ${esc(money(c.gross))}, retenues ${esc(money(KC.round3(c.cnssEmployee + c.irpp + c.css + c.otherDeductions)))},
-          coût employeur ${esc(money(c.employerCost))}</span>${c.regime ? `<div class="small mt" id="bf-regime"><b>${esc(KC.contractLabel(c.contrat).split(' —')[0])}</b> : ${esc(KC.libelleRegime(c.regime))} — réglé dans « Taux de la paie… ».</div>` : ''}`;
+          coût employeur ${esc(money(c.employerCost))}</span>${c.regime ? `<div class="small mt" id="bf-regime"><b>${esc(KC.contractLabel(c.contrat).split(' —')[0])}</b> : ${esc(KC.libelleRegime(c.regime))} — ${L.reglagesPaie ? 'réglé dans son SkanFact' : 'réglé dans « Taux de la paie… »'}.</div>` : ''}`;
         const refus = $('#bf-refus', rootModal);
         refus.hidden = verdict.ok;
         refus.textContent = verdict.ok ? '' : verdict.motif;

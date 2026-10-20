@@ -321,6 +321,8 @@
   b('#pa-regimes', 'Règle les taux de la paie de ce client : les siens (accident du travail, TFP, FOPROLOS), puis ceux d\'un contrat particulier (CIVP, Karama, saisonnier). Une case vide garde le taux général, 0 exonère.', { nom: 'Taux de la paie', cle: 'regimes' });
   // (plateforme) 1.66.0
   b('[data-taux]', 'Le taux propre à CE client, à la place du taux général pour chacun de ses bulletins. Vide : le taux général.', { nom: 'Taux du client', cle: 'taux-client' });
+  // (plateforme) 1.67.0
+  b('#rc-lu', 'Les taux de la paie de ce client, tels qu\'il les règle dans son SkanFact : le Cabinet les lit, chaque bulletin les prend.', { nom: 'Ses taux', cle: 'taux-lus' });
   b('[data-rc]', 'Le taux que CE contrat applique à la place du taux général. Vide : le taux général ; 0 : exonéré.', { nom: 'Taux du contrat', cle: 'regime-taux' });
   b('[data-rc-irpp]', 'Coché : les bulletins de ce contrat ne retiennent pas d\'IRPP.', { nom: 'Sans IRPP', cle: 'regime-irpp' });
   b('#pa-ecrire', 'Passe l\'écriture de paie du mois en brouillard.');

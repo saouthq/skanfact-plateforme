@@ -222,7 +222,8 @@ vaut pour tout le dépôt.*
     barème (1.64.0 ; `web/v10/paie-cabinet-bareme.txt`, `baremesDuBulletin`). Les documents de la paie au Cabinet
     (1.65.0 ; `web/v10/paie-cabinet-documents.txt`, `paieDuDossierV10`) : le bulletin, le journal, l'état CNSS. Les
     taux propres d'un dossier au Cabinet (1.66.0 ; `web/v10/paie-cabinet-taux.txt`, `FICHE.paie`) : accident du
-    travail, TFP, FOPROLOS.
+    travail, TFP, FOPROLOS. Le Cabinet lit les réglages de paie du client (1.67.0 ; migration 0148, `GET …/paie/dossier`,
+    `reglagesDuClient` et `L.reglagesPaie`, `web/v10/paie-cabinet-reglages.txt`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

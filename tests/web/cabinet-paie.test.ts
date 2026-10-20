@@ -147,6 +147,9 @@ describe('la paie tenue par le cabinet, à la souris', () => {
     const ecrire = async (collection: string, cle: string, contenu: unknown) => (await api('POST', `/entreprises/${cafe}/paie/dossier`, patron,
       { changements: [{ collection, cle, rang: null, revision: null, contenu: encoder(contenu) }] })).statut;
     expect(await ecrire('employees', 's1', salarie)).toBe(200);
+    // (1.67.0) Ses réglages de paie, ceux de ce calcul, dans son SkanFact : le Cabinet les lit.
+    expect((await api('POST', `/entreprises/${cafe}/dossier-v10`, patron,
+      { changements: [{ collection: '_racine', cle: 'payrollSettings', rang: null, revision: null, contenu: encoder({ accidentRate: 2, tfpRate: 1 }) }] })).statut).toBe(200);
     expect(await ecrire('payslips', bulletin.id, bulletin)).toBe(200);
     // Septembre validé : l'écriture de paie du mois porte son numéro (une écriture validée ne se modifie plus).
     expect((await api('POST', `/entreprises/${cafe}/compta/valider`, associe, { jusqua: '2026-09-30' })).statut).toBe(200);
@@ -173,8 +176,8 @@ describe('la paie tenue par le cabinet, à la souris', () => {
       }
       return p.locator('#bf').count();
     }, { timeout: 20_000 }).toBe(1);
-    // (1.66.0) Le dossier d'un client sur SkanFact : pas de case « Prendre les taux de la paie d'aujourd'hui » (les taux du
-    // dossier au Cabinet ne sont pas les siens).
+    // (1.67.0) Ses taux d'aujourd'hui, lus dans son SkanFact, sont ceux du bulletin : pas de case « Prendre les taux de la
+    // paie d'aujourd'hui ».
     expect(await fenetre.locator('#bf-taux').count()).toBe(0);
     const valeurs = (sel: string) => fenetre.locator(sel).evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value));
     expect(await valeurs('#bf-primes [data-l=label]')).toEqual(primes.map((x) => x.label));

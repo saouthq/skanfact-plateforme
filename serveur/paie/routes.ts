@@ -190,13 +190,15 @@ export function routesPaie(ctx: Contexte): Route<never>[] {
   // Ce que le Cabinet lit et écrit de la paie d'un client : les deux collections du dossier que la
   // paie tient (`employees`, `payslips`), rien d'autre. L'enregistrement passe par le même chemin que
   // celui du client (serveur/v10/dossier.ts, `appliquer`) : chaque bulletin y est recalculé par le
-  // moteur du serveur, au millime, et ses écritures du mois suivent.
+  // moteur du serveur, au millime, et ses écritures du mois suivent. (1.67.0) Il LIT aussi les réglages
+  // de paie du client (`_racine/payrollSettings` : ses taux, son barème ; migration 0148), sans les écrire.
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/paie/dossier', geste: 'paie.dossier.voir',
     traiter: async ({ params }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const objets = (await tx.query(`select collection, cle, rang, revision, contenu from socle.dossier_v10
-          where entreprise = $1 and collection = any($2::text[]) order by collection, rang, cle`, [params.entreprise ?? '', COLLECTIONS_PAIE])).rows;
+          where entreprise = $1 and (collection = any($2::text[]) or (collection = '_racine' and cle = 'payrollSettings'))
+          order by collection collate "C", rang, cle collate "C"`, [params.entreprise ?? '', COLLECTIONS_PAIE])).rows;
       return { corps: { objets: objets.map((o) => ({ collection: o.collection, cle: o.cle, rang: o.rang, revision: Number(o.revision), contenu: o.contenu })) } };
     },
   });

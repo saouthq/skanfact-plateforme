@@ -128,6 +128,15 @@ describe('la paie tenue par le cabinet', () => {
     // Le client voit le même dossier : une seule paie.
     const client = (await appeler('GET', `/entreprises/${d.ent}/dossier-v10`, d.client.jeton)).corps.objets as { collection: string; cle: string }[];
     expect(client.filter((o) => ['employees', 'payslips'].includes(o.collection)).map((o) => o.cle).sort()).toEqual(['bul-3', 'sal-1']);
+    // (1.67.0) Les réglages de paie que le SkanFact du client écrit à la racine de son dossier : le cabinet les lit avec la
+    // paie ; il ne les écrit pas.
+    const reglages = { accidentRate: 2.5, tfpRate: 1, regimesContrat: { civp: { cnssEmployer: 0 } } };
+    expect((await appeler('POST', `/entreprises/${d.ent}/dossier-v10`, d.client.jeton,
+      { changements: [{ collection: '_racine', cle: 'payrollSettings', rang: null, revision: null, contenu: encoder(reglages) }] })).statut).toBe(200);
+    const avecReglages = (await appeler('GET', `/entreprises/${d.ent}/paie/dossier`, d.associe.jeton)).corps.objets as { collection: string; cle: string; contenu: unknown }[];
+    expect(avecReglages.map((o) => `${o.collection}/${o.cle}`)).toEqual(['_racine/payrollSettings', 'employees/sal-1', 'payslips/bul-3']);
+    expect(avecReglages[0]?.contenu).toEqual(encoder(reglages));
+    expect((await ecrire(d.ent, d.associe, [{ collection: '_racine', cle: 'payrollSettings', rang: null, revision: 1, contenu: { tfpRate: 2 } }])).statut).toBe(400);
   });
 
   it('dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout', async () => {
@@ -142,6 +151,8 @@ describe('la paie tenue par le cabinet', () => {
     await poser('clients', 'c1', { id: 'c1', name: 'Hôtel du Lac', email: 'achats@hotel.tn' });
     await poser('documents', 'f1', { id: 'f1', number: 'FAC-1' });
     await poser('employees', 'sal-1', { id: 'sal-1', name: 'Amel Trabelsi' });
+    // (1.67.0) Ses réglages de paie : lus du cabinet sous un mandat de paie seulement, et jamais écrits.
+    await poser('_racine', 'payrollSettings', { accidentRate: 2, tfpRate: 1 });
     const lu = async (p: Personne) => (await enTantQue(pool, p.utilisateur, (tx) => tx.query('select collection, cle from socle.dossier_v10 where entreprise = $1', [d.ent])))
       .rows.map((r) => `${r.collection}/${r.cle}`).sort();  // l'ordre de JavaScript : la collation de la base varie d'un poste à l'autre
     const PLAN = ['_racine/chartAccounts', 'accounts/bq1', 'clients/c1'];
@@ -155,9 +166,13 @@ describe('la paie tenue par le cabinet', () => {
       `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'documents', 'f2', '{}')`, [d.ent]))).rejects.toThrow(/row-level security/);
     // Sous un mandat qui comprend la paie : la paie aussi.
     expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['comptabilite', 'paie'] })).statut).toBe(200);
-    expect(await lu(d.associe)).toEqual([...PLAN, 'employees/sal-1']);
+    expect(await lu(d.associe)).toEqual(['_racine/chartAccounts', '_racine/payrollSettings', 'accounts/bq1', 'clients/c1', 'employees/sal-1']);
+    await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
+      `update socle.dossier_v10 set contenu = '{"tfpRate":2}' where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [d.ent]))).resolves.toMatchObject({ rowCount: 0 });
+    await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
+      `delete from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [d.ent]))).resolves.toMatchObject({ rowCount: 0 });
     // Le client lit tout.
-    expect(await lu(d.client)).toEqual(['_racine/chartAccounts', '_racine/company', 'accounts/bq1', 'clients/c1', 'documents/f1', 'employees/sal-1']);
+    expect(await lu(d.client)).toEqual(['_racine/chartAccounts', '_racine/company', '_racine/payrollSettings', 'accounts/bq1', 'clients/c1', 'documents/f1', 'employees/sal-1']);
   });
 
   it('qui peut : l\'associé et le collaborateur Paie, le propriétaire ; pas le collaborateur comptable', async () => {
