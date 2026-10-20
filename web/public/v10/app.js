@@ -10398,6 +10398,8 @@
           text: `${c.label} ${c.description || ''}` })),
       onPick: id => {
         const it = data.catalog.find(c => c.id === id); if (!it) return;
+        // (plateforme) 1.80.0 — la ligne vide du départ cède sa place, comme dans la facture de vente.
+        if (p.lines.length === 1 && !String(p.lines[0].label || '').trim() && !Number(p.lines[0].unitPrice) && !p.lines[0].itemId) p.lines = [];
         p.lines.push({ label: it.label, qty: 1, unit: it.unit || '',
           unitPrice: coutCatalogue(it), vatRate: C.tauxAchatArticle(it, company()),
           itemId: it.id, destination: it.tracked ? 'stock' : 'charge', deductible: true });

@@ -311,6 +311,9 @@ suit.
   ligne porte « Relancer », au ton du retard ; le menu garde le reste. Le numéro de la facture ne se coupe plus en deux.
 - **Au Cabinet, « Marquer déposée »** pointait une TVA « 0 prêt · 1 à valider » d'un clic, sans un mot : ce qui n'est pas
   prêt se lit avant, et le pointage ne se pose que confirmé (« Marquer déposée quand même »).
+- **Sur un achat neuf, l'article pris au catalogue** s'ajoutait sous la ligne vide du départ, qui s'enregistrait avec
+  la pièce : il la remplace, comme dans la facture de vente. Vérifié en passant : 10 « Produit » à 5,000 DT portent le
+  stock de 24 à 34 au coût moyen de 1,471 DT, et le serveur écrit 607 / 4366 / 401 au millime.
 - **Le calendrier vide du Cabinet** disait « n'a encore aucune écriture » à un client qui en avait quatre ce mois-ci :
   il dit la vraie règle (une échéance naît à la fin d'un mois qui a des écritures).
 
@@ -327,7 +330,7 @@ la trésorerie et les relances disent les mêmes restes à encaisser, au millime
   à la souris, son numéro sur une ligne (sur un écran de 1100 px).
 - `tests/web/cabinet-livre-a-jour.test.ts` : le calendrier vide qui dit sa règle, l'échéance pas prête qui le dit avant
   d'être pointée.
-- Cinq preuves (`tests/preuves.sh`, « 1.80.0 »).
+- Six preuves (`tests/preuves.sh`, « 1.80.0 »).
 
 ## Ce qui reste (les lots suivants)
 

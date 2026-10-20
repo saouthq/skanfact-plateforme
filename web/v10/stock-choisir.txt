@@ -74,3 +74,16 @@ celui du retard, et le menu garde le reste (WhatsApp, un appel, un paiement, rep
 /* (plateforme) 1.80.0 — « FAC-2026-004 » ne se coupe pas en deux quand la ligne porte « Relancer » et « Actions ». */
 #r-wrap table.list td:first-child a { white-space: nowrap; }
 -- fin
+
+Sur une facture d'achat neuve, « Ajouter depuis le catalogue » ajoutait l'article SOUS la ligne vide du départ, qui
+s'enregistrait ensuite avec la pièce (une ligne sans désignation, à zéro ; recette du 20/10/2026). La facture de vente et
+la commande fournisseur la remplaçaient déjà : l'achat fait de même.
+
+== app.js | l'article choisi au catalogue remplace la ligne vide d'un achat neuf
+-- avant
+        p.lines.push({ label: it.label, qty: 1, unit: it.unit || '',
+-- après
+        // (plateforme) 1.80.0 — la ligne vide du départ cède sa place, comme dans la facture de vente.
+        if (p.lines.length === 1 && !String(p.lines[0].label || '').trim() && !Number(p.lines[0].unitPrice) && !p.lines[0].itemId) p.lines = [];
+        p.lines.push({ label: it.label, qty: 1, unit: it.unit || '',
+-- fin

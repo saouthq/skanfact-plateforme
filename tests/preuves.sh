@@ -18152,6 +18152,10 @@ prouver 'une échéance pas prête marquée déposée sans un mot' 'web/public/v
   'if (!avant.includes(cle) && b2.dataset.pasPrets && !await confirmDialog(' \
   'if (false && !await confirmDialog(' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
+prouver 'la ligne vide d'"'"'un achat neuf qui reste sous l'"'"'article du catalogue' 'web/public/v10/app.js' \
+  "if (p.lines.length === 1 && !String(p.lines[0].label || '').trim() && !Number(p.lines[0].unitPrice) && !p.lines[0].itemId) p.lines = [];" \
+  '' \
+  'au Stock, « Choisir dans le Catalogue » ouvre le choix, puis la fiche suivie en stock, le curseur dans le stock de départ'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

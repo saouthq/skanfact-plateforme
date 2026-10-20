@@ -166,6 +166,14 @@ describe('la recette alpha, à la souris', () => {
     await p.keyboard.type('12');
     await fiche.getByRole('button', { name: 'Enregistrer', exact: true }).click();
     await expect.poll(() => p.locator('#view tr').filter({ hasText: 'Colle à bois' }).innerText().then(net), { timeout: 15_000 }).toMatch(/Colle à bois .*12 u/);
+    // Un achat neuf : l'article pris au catalogue remplace la ligne vide du départ (elle s'enregistrait avec la pièce).
+    await p.evaluate(() => { location.hash = '#/achat/new'; });
+    await p.locator('#view h1').filter({ hasText: 'Nouvelle facture d\'achat' }).waitFor({ timeout: 15_000 });
+    const lignes = () => p.locator('#view input[data-k=label]').count();
+    expect(await lignes()).toBe(1);
+    await p.locator('#b-cat .combo-btn').click();
+    await p.locator('#b-cat .combo-it').filter({ hasText: 'Colle à bois' }).click();
+    await expect.poll(() => p.locator('#view input[data-k=label]').evaluateAll((l) => l.map((x) => (x as HTMLInputElement).value))).toEqual(['Colle à bois']);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);
