@@ -18222,8 +18222,8 @@ prouver 'la déclaration de l'"'"'entreprise qui ne dit pas le total du moteur c
   '      gross: round3(sal.gross + 0.001), cnss: sal.cnss, irpp: sal.irpp, css: sal.css, net: sal.net,' \
   'deux chemins, un chiffre : la déclaration de l'"'"'entreprise compte avec la fonction du Cabinet, et exporte ses colonnes'
 prouver 'core.js sans les colonnes communes de l'"'"'état des salaires' 'web/public/v10/core.js' \
-  'cnssNonDeclaree, employerAnnual, COLONNES_SALAIRES_ANNEE, socialDue,' \
-  'cnssNonDeclaree, employerAnnual, socialDue,' \
+  'cnssNonDeclaree, employerAnnual, COLONNES_SALAIRES_ANNEE, salairesAPayer, ordreDeVirementHtml, socialDue,' \
+  'cnssNonDeclaree, employerAnnual, salairesAPayer, ordreDeVirementHtml, socialDue,' \
   'deux chemins, un chiffre : la déclaration de l'"'"'entreprise compte avec la fonction du Cabinet, et exporte ses colonnes'
 prouver 'l'"'"'en-tête « Net versé » de la déclaration de l'"'"'entreprise' 'web/public/v10/app.js' \
   '<th class="r">Solidarité</th><th class="r">Net des bulletins</th></tr></thead><tbody>' \
@@ -18267,6 +18267,110 @@ prouver 'le CSV du Cabinet aux montants que le tableur ne lit pas' 'web/public/v
   '(montant ? K.csvMontant(r[k]) : r[k])' \
   '(r[k])' \
   'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
+
+# 1.74.0 : payer les salaires du mois.
+prouver 'les salaires à payer qui comptent les bulletins déjà payés' 'web/public/v10/core.js' \
+  '    return payslipsOf(data, year, month).filter(x => !x.paidDate).map(x => {' \
+  '    return payslipsOf(data, year, month).map(x => {' \
+  'les salaires à payer : les bulletins non payés du mois, le mode, le RIB et ce qui manque à un virement'
+prouver 'le mode de la fiche qui l'"'"'emporte sur celui du bulletin' 'web/public/v10/core.js' \
+  '      const mode = x.method || e.method || '"'"'virement'"'"';' \
+  '      const mode = e.method || x.method || '"'"'virement'"'"';' \
+  'les salaires à payer : les bulletins non payés du mois, le mode, le RIB et ce qui manque à un virement'
+prouver 'un virement sans RIB qui ne se dit pas' 'web/public/v10/core.js' \
+  '!rib ? '"'"'rib'"'"' : v.ok ? '"'"''"'"' : '"'"'rib-douteux'"'"'' \
+  '!rib ? '"'"''"'"' : v.ok ? '"'"''"'"' : '"'"'rib-douteux'"'"'' \
+  'les salaires à payer : les bulletins non payés du mois, le mode, le RIB et ce qui manque à un virement'
+prouver 'un RIB à la clé fausse qui passe pour bon' 'web/public/v10/core.js' \
+  '!rib ? '"'"'rib'"'"' : v.ok ? '"'"''"'"' : '"'"'rib-douteux'"'"'' \
+  '!rib ? '"'"'rib'"'"' : '"'"''"'"'' \
+  'les salaires à payer : les bulletins non payés du mois, le mode, le RIB et ce qui manque à un virement'
+prouver 'un salarié payé en espèces à qui l'"'"'on réclame un RIB' 'web/public/v10/core.js' \
+  '      const manque = mode !== '"'"'virement'"'"' ? '"'"''"'"' :' \
+  '      const manque = false ? '"'"''"'"' :' \
+  'les salaires à payer : les bulletins non payés du mois, le mode, le RIB et ce qui manque à un virement'
+prouver 'core.js sans les salaires à payer ni l'"'"'ordre de virement' 'web/public/v10/core.js' \
+  'COLONNES_SALAIRES_ANNEE, salairesAPayer, ordreDeVirementHtml, socialDue,' \
+  'COLONNES_SALAIRES_ANNEE, socialDue,' \
+  'les salaires à payer : les bulletins non payés du mois, le mode, le RIB et ce qui manque à un virement'
+prouver 'le total de l'"'"'ordre qui n'"'"'est pas la somme de ses lignes' 'web/public/v10/core.js' \
+  '    const total = round3(lignes.reduce((s, l) => s + (Number(l.net) || 0), 0));
+    const ink' \
+  '    const total = round3(lignes.length ? Number(lignes[0].net) || 0 : 0);
+    const ink' \
+  'l'"'"'ordre de virement : une ligne par bénéficiaire, le compte à débiter, le total en chiffres et en lettres, la ville et le jour'
+prouver 'l'"'"'ordre qui ne dit pas le compte à débiter' 'web/public/v10/core.js' \
+  '${compte.rib ? ` n° <b class="rib">${escapeHtml(compte.rib)}</b>` : '"'"''"'"'}' \
+  '${'"'"''"'"'}' \
+  'l'"'"'ordre de virement : une ligne par bénéficiaire, le compte à débiter, le total en chiffres et en lettres, la ville et le jour'
+prouver 'l'"'"'ordre sans son total en lettres' 'web/public/v10/core.js' \
+  '<em>${escapeHtml(amountToWords(total, cur))}</em>' \
+  '<em></em>' \
+  'l'"'"'ordre de virement : une ligne par bénéficiaire, le compte à débiter, le total en chiffres et en lettres, la ville et le jour'
+prouver 'l'"'"'ordre sans la ville de la société' 'web/public/v10/core.js' \
+  '${ville ? `${escapeHtml(ville)}, le` : '"'"'Le'"'"'} ${fmtDate((o && o.date) || today())}' \
+  'Le ${fmtDate((o && o.date) || today())}' \
+  'l'"'"'ordre de virement : une ligne par bénéficiaire, le compte à débiter, le total en chiffres et en lettres, la ville et le jour'
+prouver '« Payer les salaires… » absent des bulletins du mois' 'web/public/v10/app.js' \
+  '${month.some(x => !x.paidDate) ? ` <button type="button" class="btn btn-sm' \
+  '${false ? ` <button type="button" class="btn btn-sm' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver '« Payer les salaires… » jamais l'"'"'étape suivante' 'web/public/v10/app.js' \
+  'class="btn btn-sm${missing.length ? '"'"''"'"' : '"'"' btn-primary'"'"'}" id="p-payer"' \
+  'class="btn btn-sm" id="p-payer"' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver 'le nom de la société absent qui laisse imprimer l'"'"'ordre' 'web/public/v10/app.js' \
+  '        const sansNom = !String(company().name || '"'"''"'"').trim();' \
+  '        const sansNom = false;' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver 'la fiche société ouverte ailleurs que sur sa raison sociale' 'web/public/v10/app.js' \
+  'if (so) so.onclick = () => { close(); allerParametres('"'"'societe'"'"', '"'"'p-identite:name'"'"'); };' \
+  'if (so) so.onclick = () => { close(); allerParametres('"'"'societe'"'"', '"'"'p-identite'"'"'); };' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver 'décocher une ligne qui pousse les boutons sous le curseur' 'web/public/v10/app.js' \
+  '        const horsOrdre = lignes.filter(l => l.mode !== '"'"'virement'"'"' || l.manque);' \
+  '        const horsOrdre = ch.filter(l => l.mode !== '"'"'virement'"'"' || l.manque);' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver 'ceux que l'"'"'ordre ne portera pas, tus' 'web/public/v10/app.js' \
+  '        if (horsOrdre.length) motifs.push(' \
+  '        if (false) motifs.push(' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver 'le compte sans RIB que la fenêtre ne dit pas' 'web/public/v10/app.js' \
+  '        else if (compte && !String(compte.rib || '"'"''"'"').trim()) motifs.push(' \
+  '        else if (false) motifs.push(' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver 'le RIB à renseigner qui n'"'"'ouvre pas sa case' 'web/public/v10/app.js' \
+  'employeeForm(emp, () => payerSalairesFenetre(year, month, done, t), { focus: '"'"'iban'"'"' });' \
+  'employeeForm(emp, () => payerSalairesFenetre(year, month, done, t));' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver 'la fiche du salarié qui ne rend pas la main à la fenêtre' 'web/public/v10/app.js' \
+  'employeeForm(emp, () => payerSalairesFenetre(year, month, done, t), { focus: '"'"'iban'"'"' });' \
+  'employeeForm(emp, done, { focus: '"'"'iban'"'"' });' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver 'la fenêtre qui revient sans ce qu'"'"'on y avait laissé' 'web/public/v10/app.js' \
+  '    const coches = new Set(g.coches || lignes.map(l => l.id));' \
+  '    const coches = new Set(lignes.map(l => l.id));' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver 'la fiche du compte qui ne s'"'"'ouvre pas sur son RIB' 'web/public/v10/app.js' \
+  'payerSalairesFenetre(year, month, done, t), null, { focus: '"'"'rib'"'"' }); };' \
+  'payerSalairesFenetre(year, month, done, t), null, {}); };' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver 'le RIB d'"'"'un salarié qui ne se contrôle pas à la saisie' 'web/public/v10/app.js' \
+  '    $$('"'"'input[name=rib], input[name=iban]'"'"', root || document).forEach(input => {' \
+  '    $$('"'"'input[name=rib]'"'"', root || document).forEach(input => {' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver '« Marquer payés » qui ne pose pas le compte' 'web/public/v10/app.js' \
+  'x.paidDate = v.date; x.accountId = v.accountId || '"'"''"'"'; });' \
+  'x.paidDate = v.date; });' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver '« Marquer payés » qui paie aussi les lignes décochées' 'web/public/v10/app.js' \
+  '        const ids = choisies().map(l => l.id);' \
+  '        const ids = lignes.map(l => l.id);' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
+prouver '« Annuler » qui ne défait rien' 'web/public/v10/app.js' \
+  'if (x) { x.paidDate = a.paidDate; x.accountId = a.accountId; }' \
+  'if (x) { x.accountId = a.accountId; }' \
+  'les manques dits avant le geste, le RIB renseigné depuis la fenêtre, l'"'"'ordre de virement, marquer payés puis annuler'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -4543,6 +4543,82 @@
     COLONNES_JOURNAL.forEach(([k]) => { totaux[k] = round3(lignes.reduce((a, l) => a + (Number(l[k]) || 0), 0)); });
     return { year: Number(year), month: Number(month), lignes, totaux, nombre: lignes.length };
   }
+  // (plateforme) 1.74.0 — les salaires d'un mois qui restent à payer : un bulletin non payé par ligne, avec son mode (celui
+  // du bulletin, sinon de la fiche), le RIB du salarié et son net. Ce qui manque à un virement se dit sur sa ligne : pas de
+  // RIB, ou un RIB que sa clé refuse (`verifRib`, le contrôle du RIB de la société). Le total d'un ordre de virement est la
+  // somme des nets qu'il porte : ce que la trésorerie sortira quand les bulletins seront marqués payés.
+  function salairesAPayer(data, year, month) {
+    return payslipsOf(data, year, month).filter(x => !x.paidDate).map(x => {
+      const e = x.employee || {};
+      const mode = x.method || e.method || 'virement';
+      const rib = String(e.iban || '').trim();
+      const v = verifRib(rib);
+      const manque = mode !== 'virement' ? '' : !rib ? 'rib' : v.ok ? '' : 'rib-douteux';
+      return { id: x.id, employeeId: x.employeeId, name: x.employeeName, mode, rib, net: round3(Number((x.c || {}).net) || 0),
+        manque, raison: manque === 'rib-douteux' ? v.raison : '' };
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+  }
+
+  // (plateforme) 1.74.0 — l'ordre de virement des salaires d'un mois, à remettre à la banque : la société, sa banque, le
+  // compte à débiter, une ligne par bénéficiaire (son RIB, son net), le total en chiffres et en lettres, la ville et le jour,
+  // la signature. Une lettre d'usage, pas un formulaire officiel : À VÉRIFIER, une banque peut demander le sien, ou un
+  // fichier. `o` : { year, month, date, compte: { bank, rib }, lignes: [{ name, rib, net }] }.
+  function ordreDeVirementHtml(company, o) {
+    const co = company || {};
+    const lignes = (o && o.lignes) || [];
+    const compte = (o && o.compte) || {};
+    const cur = co.currency || 'DT';
+    const fmt = n => money(n, null, decimalsFor(cur), 'fr');
+    const total = round3(lignes.reduce((s, l) => s + (Number(l.net) || 0), 0));
+    const ink = co.primaryColor || '#1b2430';
+    const accent = co.accentColor || '#0f9d8f';
+    const periode = monthLabel(`${o.year}-${pad2(o.month)}-01`);
+    const ville = (co.address || '').split('\n').pop().replace(/^\d+\s*/, '').trim();
+    return `<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<title>Ordre de virement — salaires de ${escapeHtml(periode)}</title>
+<style>
+  @page { size: A4; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif; color: ${ink}; font-size: 10pt; line-height: 1.45; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page { width: 210mm; min-height: 297mm; padding: 16mm; background: #fff; }
+  .head { padding-bottom: 10px; border-bottom: 2px solid ${accent}; }
+  .co-name { font-size: 13pt; font-weight: 700; }
+  .co-sub { font-size: 8.5pt; color: #6a7480; line-height: 1.5; }
+  .dest { margin: 18px 0 0 auto; width: 75mm; }
+  h1 { margin: 22px 0 4px; font-size: 15pt; letter-spacing: .3px; color: ${accent}; }
+  .objet { margin: 0 0 14px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0 6px; }
+  th { font-size: 7.5pt; text-transform: uppercase; letter-spacing: .3px; color: ${accent}; border-bottom: 1px solid ${ink}; padding: 5px 4px; text-align: left; }
+  th.n, td.n { text-align: right; }
+  td { padding: 5px 4px; border-bottom: 1px solid #e6e9ee; }
+  td.n { font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .rib { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 9pt; white-space: nowrap; }
+  tr.tot td { border-top: 1.5px solid ${ink}; border-bottom: none; font-weight: 700; }
+  .sign { margin: 28px 0 0 auto; width: 80mm; text-align: center; }
+  .cachet { height: 26mm; }
+  .pied { margin-top: 16px; font-size: 7.5pt; color: #6a7480; }
+</style></head>
+<body><div class="page">
+  <div class="head">
+    <div class="co-name">${escapeHtml(co.name || '')}</div>
+    <div class="co-sub">${escapeHtml(co.address || '').replace(/\n/g, '<br>')}${co.matricule ? `<br>MF : ${escapeHtml(matriculeLisible(co.matricule))}` : ''}</div>
+  </div>
+  <div class="dest">À l'attention de<br><b>${escapeHtml(compte.bank || 'notre banque')}</b></div>
+  <h1>Ordre de virement</h1>
+  <p class="objet"><b>Objet :</b> virement des salaires de ${escapeHtml(periode)}</p>
+  <p>Nous vous prions de bien vouloir virer, par le débit de notre compte${compte.rib ? ` n° <b class="rib">${escapeHtml(compte.rib)}</b>` : ''}, les sommes suivantes aux bénéficiaires désignés ci-dessous.</p>
+  <table><thead><tr><th>N°</th><th>Bénéficiaire</th><th>RIB / IBAN</th><th class="n">Montant (${escapeHtml(normCurrency(cur))})</th></tr></thead><tbody>
+    ${lignes.map((l, i) => `<tr><td>${i + 1}</td><td>${escapeHtml(l.name || '')}</td><td class="rib">${escapeHtml(l.rib || '')}</td><td class="n">${fmt(l.net)}</td></tr>`).join('')}
+    <tr class="tot"><td colspan="3">Total (${lignes.length} virement${lignes.length > 1 ? 's' : ''})</td><td class="n">${fmt(total)}</td></tr>
+  </tbody></table>
+  <p>Arrêté le présent ordre à la somme de : <em>${escapeHtml(amountToWords(total, cur))}</em>.</p>
+  <div class="sign">${ville ? `${escapeHtml(ville)}, le` : 'Le'} ${fmtDate((o && o.date) || today())}<br>Pour la société${co.managerName ? `<br>${escapeHtml(co.managerName)}` : ''}<div class="cachet"></div>Cachet et signature</div>
+  <div class="pied">Établi avec SkanFact le ${fmtDate(today())}.</div>
+</div></body></html>`;
+  }
+
   // Les colonnes du fichier CSV du journal : une ligne de total à la fin (jours vides).
   const colonnesCsvJournal = () => [{ key: 'n', label: 'N°' }, { key: 'name', label: 'Salarié' }, { key: 'matriculeCnss', label: 'N° CNSS' }]
     .concat(COLONNES_JOURNAL.map(([key, label]) => key === 'jours'
@@ -11561,7 +11637,7 @@
     payslipHtml,
     // (plateforme) 1.61.0 — le journal de paie et les états de la paie.
     joursPayesDuBulletin, COLONNES_JOURNAL, journalDePaie, colonnesCsvJournal, journalDePaieHtml, etatRecapitulatifCnss, etatRecapitulatifCnssHtml, declarationMensuelleSalaires,
-    QUARTERS, quarterMonths, quarterLabel, cnssDeclaration, fichierCnssEntreprise, lireMatriculeCnss: Compta.lireMatriculeCnss, identiteCnss: Compta.identiteCnss, motifIdentiteCnss: Compta.motifIdentiteCnss, cnssNonDeclaree, employerAnnual, COLONNES_SALAIRES_ANNEE, socialDue,
+    QUARTERS, quarterMonths, quarterLabel, cnssDeclaration, fichierCnssEntreprise, lireMatriculeCnss: Compta.lireMatriculeCnss, identiteCnss: Compta.identiteCnss, motifIdentiteCnss: Compta.motifIdentiteCnss, cnssNonDeclaree, employerAnnual, COLONNES_SALAIRES_ANNEE, salairesAPayer, ordreDeVirementHtml, socialDue,
     LEAVE_KINDS, leaveKindLabel, leaveIsPaid, workingDays, leaveDaysInMonth, leavesOf, leaveBalance,
     advancesOf, advanceBalance, payslipInputFor, HR_DOCS, hrDocLabel, hrDocumentHtml, staffRegister,
     // (plateforme) 1.72.0 — du moteur commun : la civilité, l'indemnité de congés non pris, les lignes du solde.

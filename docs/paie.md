@@ -1237,3 +1237,76 @@ dessine presque sans largeur avec la police de la machine d'essai, hors des colo
   avec les pilotes, sur leur tableur.*
 - Les comptes du plan propre à un dossier (un compte de retenues autre que 4321) ne sont pas suivis : ceux du plan par
   défaut, comme la v10.
+
+## Payer les salaires du mois (20/10/2026, 1.74.0)
+
+*Un bulletin se marquait payé un par un, aujourd'hui, sur le compte par défaut. Aucun ordre de virement à remettre à la
+banque ; le RIB d'un salarié ne se contrôlait pas (celui de la société, si).*
+
+### Ce que le lot fait (`core.js`, `app.js`, `guide.js`, `web/v10/paie-virement-salaires.txt`)
+
+- **« Payer les salaires… »** paraît dans « Bulletins du mois » tant qu'un bulletin du mois n'est pas payé ; tous les
+  bulletins établis, c'est le bouton principal (l'étape suivante). Il ouvre la fenêtre du mois : une ligne par bulletin
+  non payé (le salarié, le mode de paiement, son RIB, son net), cochée ; le jour du paiement (aujourd'hui) et le compte
+  d'où l'argent part (celui par défaut) ; le nombre de salaires cochés et leur total.
+- **Le moteur** (`salairesAPayer`) : les bulletins non payés du mois, le mode du bulletin (sinon celui de la fiche), le
+  RIB du salarié et son net ; ce qui manque à un virement se dit sur sa ligne — pas de RIB, ou un RIB que sa clé refuse
+  (`verifRib`, le contrôle du RIB de la société).
+- **Ce qui manque se dit avant le geste**, avec le bouton qui le règle : un salarié sans RIB, ou au RIB faux (« à
+  renseigner », « à corriger » ouvre sa fiche, le curseur dans le RIB ; enregistrée, la fenêtre revient comme on l'a
+  laissée — les cases, le jour, le compte) ; le compte sans RIB (« Renseigner son RIB… » ouvre la fiche du compte sur la
+  case) ; le nom de la société absent (« Renseigner ta fiche… » ouvre Paramètres › Mon entreprise sur la raison sociale :
+  l'ordre ne dirait pas qui l'envoie, il est éteint). Les salariés que l'ordre ne portera pas sont nommés — payés en
+  espèces, ou sans RIB valable —, cochés ou non : cocher ou décocher une ligne ne change rien à la hauteur de la fenêtre.
+- **L'ordre de virement** (`ordreDeVirementHtml`) : la société (nom, adresse, matricule fiscal), « À l'attention de » sa
+  banque, l'objet (« virement des salaires de septembre 2026 »), le compte à débiter, une ligne par bénéficiaire (son RIB,
+  son net), le total en chiffres et en lettres, la ville et le jour, « Pour la société » et le gérant, la place du cachet.
+  Il porte les lignes cochées payées par virement à un RIB valable. *À VÉRIFIER avec la banque : certaines demandent leur
+  propre formulaire, ou un fichier.*
+- **« Marquer payés »** pose le jour et le compte du paiement sur chaque bulletin coché : l'argent sort de la trésorerie,
+  une seule fois (le bulletin payé fait le mouvement, comme « Marquer payé » d'une ligne). « Annuler » le défait.
+- **Le RIB d'un salarié se contrôle à la saisie**, comme celui de la société : « clé incorrecte », « 19 chiffres sur 20 ».
+- L'aide du RIB d'un salarié dit qu'il s'imprime sur l'ordre de virement ; celle de la fenêtre dit ce que font ses deux
+  gestes.
+- **Ce qui part au serveur** : rien de nouveau — le jour et le compte du paiement d'un bulletin (`paidDate`,
+  `accountId`), que « Marquer payé » écrivait déjà.
+
+### Décidé par délégation (20/10/2026)
+
+- L'ordre de virement est une lettre d'usage, pas un fichier de banque : le format des fichiers de virement des banques
+  tunisiennes ne s'écrit qu'avec un vrai fichier en main, jamais en devinant.
+- Le Cabinet n'a pas ce geste : il ne tient pas les comptes en banque d'un client, ni les RIB de ses salariés.
+- Le jour proposé est aujourd'hui : le jour où l'on paie, pas la fin du mois du bulletin.
+
+### Ce qui le prouve
+
+- `tests/moteur/paie-virement.test.ts` : les salaires à payer (un bulletin payé et un d'un autre mois écartés ; le mode du
+  bulletin qui l'emporte sur la fiche ; sans RIB, au RIB faux, en espèces) ; l'ordre (les lignes, le compte à débiter, le
+  total en chiffres — la somme des nets — et en lettres, la ville et le jour, le gérant ; un salarié sans RIB absent).
+- `tests/web/paie-virement.test.ts` : à la souris dans l'entreprise — sans nom de société, l'ordre éteint et la fiche
+  ouverte sur la raison sociale ; « Payer les salaires… » bouton principal ; les manques dits ; décocher ne pousse rien ;
+  le RIB d'un salarié renseigné depuis la fenêtre (une clé fausse dite à la saisie), la fenêtre revenue comme on l'a
+  laissée ; le RIB du compte, la fiche ouverte sur la case ; l'ordre imprimé ; « Marquer payés » au serveur (le jour, le
+  compte, et rien sur la ligne décochée) ; « Annuler ».
+- Vingt-cinq preuves (`tests/preuves.sh`, « 1.74.0 »), et une de la 1.73 reprise sur son texte d'aujourd'hui.
+
+### Refait à la souris (20/10/2026)
+
+Sur une entreprise d'essai (trois salariés : Amel par virement avec son RIB, Karim par virement sans RIB, Nour en
+espèces ; leurs bulletins de septembre non payés ; un compte en banque sans RIB) : la Paie s'ouvre sur octobre (ses
+bulletins à établir) ; septembre choisi, « Payer les salaires… » est le bouton principal. La fenêtre nomme Karim (RIB à
+renseigner) et Nour (espèces), et le compte sans RIB. « à renseigner » ouvre la fiche de Karim dans le RIB ; une clé fausse
+dite aussitôt (« clé incorrecte »), corrigée, Entrée : la fenêtre revient avec son RIB. Nour décoché ; le RIB du compte
+renseigné depuis la fenêtre ; l'ordre imprimé sur une page (« Deux mille vingt-trois dinars et six cent vingt-sept
+millimes », Amel et Karim, le compte à débiter, « Le Bardo, le 20/10/2026 », le gérant). « Marquer payés » : Amel et Karim
+payés au 20/10/2026, la tuile « Net versé » à 2 023,627 DT (801,426 restent à verser) ; Nour payé seul (« 1 salaire …
+marqué payé »), le bouton disparaît ; « Annuler » le remet.
+
+Vu et corrigé : décocher Nour retirait sa ligne de l'avertissement, qui rétrécissait, et le bouton « Renseigner son
+RIB… » remontait sous le curseur (le clic suivant tombait à côté) ; la fiche du compte s'ouvrait dans son nom, pas dans
+son RIB ; l'ordre s'imprimait sans le nom de la société (la fiche de l'entreprise d'essai n'en avait pas).
+
+### Ce qui reste
+
+- Le fichier de virement d'une banque (au format de chacune) : avec un vrai fichier en main.
+- La date de valeur du virement, le libellé que la banque reporte sur le relevé du salarié : à la main, sur la lettre.

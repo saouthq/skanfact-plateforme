@@ -784,4 +784,6 @@ export const ADAPTATIONS = [
   ...lireFichier('paie-cabinet-documents-personnel.txt'),
   // ── La déclaration annuelle d'employeur au Cabinet (20/10/2026, 1.73.0 ; docs/paie.md) : les salaires par salarié, confrontés au livre ──
   ...lireFichier('paie-cabinet-declaration-employeur.txt'),
+  // ── Payer les salaires du mois (20/10/2026, 1.74.0 ; docs/paie.md) : l'ordre de virement, le RIB du salarié contrôlé ──
+  ...lireFichier('paie-virement-salaires.txt'),
 ];

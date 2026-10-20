@@ -233,7 +233,8 @@ vaut pour tout le dépôt.*
     (1.72.0 ; `web/v10/paie-cabinet-documents-personnel.txt`, `HR_DOCS`/`indemniteConges`/`lignesDuSolde`/`CIVILITES` dans
     `compta.js`, `FICHE.adresse`/`FICHE.gerant`, `paieDuDossierV10`). La déclaration annuelle d'employeur au Cabinet
     (1.73.0 ; `web/v10/paie-cabinet-declaration-employeur.txt`, `salairesDeLAnnee`/`COLONNES_SALAIRES_ANNEE`/`ecartsEmployeur`
-    dans `compta.js`, la Liasse).
+    dans `compta.js`, la Liasse). Payer les salaires du mois, dans l'entreprise (1.74.0 ; `web/v10/paie-virement-salaires.txt`,
+    `salairesAPayer`/`ordreDeVirementHtml` dans `core.js`, la fenêtre « Payer les salaires… »).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

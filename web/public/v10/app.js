@@ -1345,7 +1345,8 @@
     return `<label class="field"><span class="fl">${label} ${info('pay.rib')}<span class="rib-note" aria-live="polite"></span></span><input type="text" name="rib" value="${h(value || '')}" autocomplete="off" spellcheck="false" ${extra || ''}></label>`;
   }
   function bindRibFields(root) {
-    $$('input[name=rib]', root || document).forEach(input => {
+    // (plateforme) 1.74.0 — et celui d'un salarié (`iban`), qui s'imprime sur l'ordre de virement des salaires.
+    $$('input[name=rib], input[name=iban]', root || document).forEach(input => {
       const note = input.closest('.field') && $('.rib-note', input.closest('.field'));
       if (!note || input.dataset.ribBound) return;
       input.dataset.ribBound = '1';
@@ -11458,7 +11459,8 @@
         <label class="field">${lbl('Mode de paiement', 'pay.method')}<select name="method">${C.PAYMENT_METHODS.map(([v, l]) => `<option value="${v}" ${e.method === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         <label class="check"><input type="checkbox" name="headOfFamily" ${e.headOfFamily ? 'checked' : ''}> Chef de famille ${info('pay.family')}</label>
         ${field(lbl('Enfants à charge', 'pay.children'), 'children', e.children || 0, 'number', 'step="1" min="0" max="10" class="num"')}
-        ${field(lbl('RIB / IBAN', 'pay.iban'), 'iban', e.iban || '', 'text', '')}
+        ${/* (plateforme) 1.74.0 — sa clé se contrôle à la saisie, comme le RIB de la société : il s'imprime sur l'ordre de virement. */''}
+        <label class="field"><span class="fl">RIB / IBAN ${info('pay.iban')}<span class="rib-note" aria-live="polite"></span></span><input type="text" name="iban" value="${h(e.iban || '')}" autocomplete="off" spellcheck="false"></label>
         <label class="field span-2">${lbl('Notes', 'pay.empNotes')}<input type="text" name="notes" value="${h(e.notes || '')}"></label>
         <div class="span-2 annonce-stable" id="ef-hint"></div>
       </form>
@@ -11713,6 +11715,105 @@
         const f = await bridge.saveText(nom + '.csv', C.toCsv(j.lignes.concat([{ name: 'Total', ...j.totaux, jours: '' }]), C.colonnesCsvJournal()));
         if (f) toast('Exporté : ' + f.split(/[\\/]/).pop());
       };
+    });
+  }
+
+  // (plateforme) 1.74.0 — payer les salaires du mois (docs/paie.md) : les bulletins non payés, cochés ; le jour et le compte
+  // du paiement ; ce qui manque se dit avant le geste, avec son bouton ; l'ordre de virement à remettre à la banque ;
+  // « Marquer payés » d'un geste, qu'« Annuler » défait. SkanFact ne fait aucun virement. `garde` : ce que la fenêtre
+  // tenait (les cases, le jour, le compte), quand elle se rouvre après la fiche d'un salarié ou d'un compte.
+  function payerSalairesFenetre(year, month, done, garde) {
+    const lignes = C.salairesAPayer(data, year, month);
+    if (!lignes.length) { toast('Tous les bulletins du mois sont payés.'); if (done) done(); return; }
+    const g = garde || {};
+    const coches = new Set(g.coches || lignes.map(l => l.id));
+    const cur = company().currency;
+    const comptes = data.accounts || [];
+    const parDefaut = comptes.find(a => a.isDefault) || comptes[0] || null;
+    const compteVu = g.accountId || (parDefaut && parDefaut.id) || '';
+    const periode = `${MONTHS_LONG[month - 1]} ${year}`;
+    const modeDe = v => (C.PAYMENT_METHODS.find(x => x[0] === v) || [, v])[1];
+    modal(`<h2>Payer les salaires de ${h(periode)} ${info('pay.payerMois')}</h2>
+      <p class="small muted mb">Les bulletins du mois qui ne sont pas encore payés. Coche ceux que tu paies : « Marquer payés » les sort de la trésorerie au jour choisi, et l'ordre de virement se remet à ta banque. SkanFact ne fait aucun virement à ta place.</p>
+      <form id="ps" class="grid-2">
+        ${dateFieldHtml(lbl('Payés le', 'pay.paid'), 'date', g.date || C.today(), {})}
+        <label class="field">${lbl('Depuis le compte', 'pay.account')}<select name="accountId">${comptes.length ? '' : '<option value="">— compte par défaut —</option>'}${comptes.map(a => `<option value="${h(a.id)}" ${compteVu === a.id ? 'selected' : ''}>${h(a.name)}</option>`).join('')}</select></label>
+      </form>
+      <div class="scroll-x"><table class="list compact" id="ps-table"><thead><tr><th class="nw"><input type="checkbox" id="ps-tous" aria-label="Tout cocher"></th><th>Salarié</th><th>Mode</th><th>RIB / IBAN</th><th class="r">Net à payer</th></tr></thead><tbody>
+        ${lignes.map(l => `<tr data-ps="${h(l.id)}"><td><input type="checkbox" data-ps-c="${h(l.id)}" aria-label="Payer ${h(l.name)}" ${coches.has(l.id) ? 'checked' : ''}></td>
+          <td><strong>${h(l.name)}</strong></td><td class="nw">${h(modeDe(l.mode))}</td>
+          <td class="nw">${l.rib ? `<span class="mono">${h(l.rib)}</span>` : l.mode === 'virement' ? '' : '<span class="muted">—</span>'}${l.manque ? ` <button type="button" class="montant-lien warn-text small" data-ps-rib="${h(l.employeeId)}">${l.manque === 'rib' ? 'à renseigner' : 'à corriger'}</button>` : ''}${l.raison ? `<div class="small warn-text">${h(l.raison)}</div>` : ''}</td>
+          <td class="r nw">${C.money(l.net, cur)}</td></tr>`).join('')}</tbody>
+        <tfoot><tr class="total-row"><td colspan="4" id="ps-compte"></td><td class="r nw"><strong id="ps-total"></strong></td></tr></tfoot></table></div>
+      <div id="ps-avert" class="mt"></div>
+      <div class="modal-actions"><button type="button" class="btn" data-close>Fermer</button><button type="button" class="btn" id="ps-ordre">Imprimer l'ordre de virement</button><button type="button" class="btn btn-primary" id="ps-payer">Marquer payés</button></div>`,
+    (root, close) => {
+      const choisies = () => lignes.filter(l => $(`[data-ps-c="${l.id}"]`, root).checked);
+      const compteChoisi = () => comptes.find(a => a.id === $('[name=accountId]', root).value) || null;
+      const tenu = () => ({ coches: choisies().map(l => l.id), date: formValues($('#ps', root)).date, accountId: $('[name=accountId]', root).value });
+      // L'ordre porte les lignes cochées payées par virement, au RIB valable ; les autres se disent avant le geste.
+      const dansLOrdre = () => choisies().filter(l => l.mode === 'virement' && !l.manque);
+      const maj = () => {
+        const ch = choisies();
+        $('#ps-tous', root).checked = ch.length === lignes.length;
+        $('#ps-tous', root).indeterminate = ch.length > 0 && ch.length < lignes.length;
+        $('#ps-compte', root).textContent = `${pl(ch.length, 'salaire')} sur ${lignes.length}`;
+        $('#ps-total', root).textContent = C.money(C.round3(ch.reduce((s, l) => s + l.net, 0)), cur);
+        const compte = compteChoisi();
+        // Tous ceux que l'ordre ne peut pas porter, cochés ou non (la phrase reste vraie) : cocher ou décocher une ligne ne
+        // change rien à la hauteur de la fenêtre, et ne pousse pas ses boutons sous le curseur (vu à la souris).
+        const horsOrdre = lignes.filter(l => l.mode !== 'virement' || l.manque);
+        const motifs = [];
+        // L'ordre dit qui l'envoie : sans le nom de la société, il ne vaut rien pour la banque (vu à la souris).
+        const sansNom = !String(company().name || '').trim();
+        if (sansNom) motifs.push(`<div class="ctrl-geste" id="ps-societe"><span>Le nom de ta société n'est pas sur ta fiche : l'ordre de virement ne dirait pas qui l'envoie.</span><button type="button" class="btn btn-sm" id="ps-societe-go">Renseigner ta fiche…</button></div>`);
+        if (horsOrdre.length) motifs.push(`<div class="ctrl-geste" id="ps-hors"><span>L'ordre de virement ne portera pas ${horsOrdre.map(l => `<b>${h(l.name)}</b> (${l.mode !== 'virement' ? h(modeDe(l.mode).toLowerCase()) : l.manque === 'rib' ? 'RIB à renseigner' : 'RIB à corriger'})`).join(', ')}.</span></div>`);
+        if (compte && compte.kind === 'caisse') motifs.push(`<div class="ctrl-geste" id="ps-caisse"><span>« ${h(compte.name)} » est une caisse : un ordre de virement se donne à une banque.</span></div>`);
+        else if (compte && !String(compte.rib || '').trim()) motifs.push(`<div class="ctrl-geste" id="ps-compte-rib"><span>Le compte « ${h(compte.name)} » n'a pas de RIB : l'ordre ne dira pas quel compte débiter.</span><button type="button" class="btn btn-sm" id="ps-compte-go">Renseigner son RIB…</button></div>`);
+        $('#ps-avert', root).innerHTML = motifs.length ? `<div class="warn-box">${motifs.join('')}</div>` : '';
+        const so = $('#ps-societe-go', root);
+        if (so) so.onclick = () => { close(); allerParametres('societe', 'p-identite:name'); };
+        const go = $('#ps-compte-go', root);
+        if (go) go.onclick = () => { const t = tenu(); close(); accountForm(compte, () => payerSalairesFenetre(year, month, done, t), null, { focus: 'rib' }); };
+        const ordre = $('#ps-ordre', root);
+        const pourquoi = !dansLOrdre().length ? 'Aucune ligne cochée n\'est payée par virement à un RIB valable.' : compte && compte.kind === 'caisse' ? 'Un ordre de virement se donne à une banque.' : sansNom ? 'Le nom de ta société manque : l\'ordre ne dirait pas qui l\'envoie.' : '';
+        ordre.disabled = !!pourquoi; ordre.title = pourquoi;
+        $('#ps-payer', root).disabled = !ch.length;
+      };
+      $$('[data-ps-c]', root).forEach(c => { c.onchange = maj; });
+      $('#ps-tous', root).onchange = e => { $$('[data-ps-c]', root).forEach(c => { c.checked = e.target.checked; }); maj(); };
+      $('[name=accountId]', root).onchange = maj;
+      // Le RIB d'un salarié se renseigne sur sa fiche, sur la case ; enregistrée, la fenêtre revient comme on l'a laissée.
+      $$('[data-ps-rib]', root).forEach(b => { b.onclick = () => {
+        const emp = employeeById(b.dataset.psRib); if (!emp) return;
+        const t = tenu(); close();
+        employeeForm(emp, () => payerSalairesFenetre(year, month, done, t), { focus: 'iban' });
+      }; });
+      $('#ps-ordre', root).onclick = async () => {
+        const compte = compteChoisi() || {};
+        const html = C.ordreDeVirementHtml(company(), { year, month, date: formValues($('#ps', root)).date || C.today(),
+          compte: { bank: compte.bank || company().bank || '', rib: compte.rib || company().rib || '' },
+          lignes: dansLOrdre().map(l => ({ name: l.name, rib: l.rib, net: l.net })) });
+        try {
+          const f = await bridge.exportPdf(html, `Ordre_de_virement_salaires_${year}-${String(month).padStart(2, '0')}.pdf`);
+          if (f) toast('PDF enregistré : ' + f.split(/[\\/]/).pop());
+        } catch (e) { toast(e.message || 'Export impossible', true); }
+      };
+      $('#ps-payer', root).onclick = () => {
+        const v = formValues($('#ps', root));
+        if (!v.date) return refus($('[name=date]', root), 'Le jour du paiement est obligatoire.');
+        if (closedBlock(v.date, 'Ce paiement de salaires')) return;
+        const ids = choisies().map(l => l.id);
+        if (!ids.length) return;
+        const avant = ids.map(id => { const x = data.payslips.find(p => p.id === id); return { id, paidDate: x.paidDate || '', accountId: x.accountId || '' }; });
+        ids.forEach(id => { const x = data.payslips.find(p => p.id === id); x.paidDate = v.date; x.accountId = v.accountId || ''; });
+        save(true); close(); if (done) done();
+        toastUndo(`${pl(ids.length, 'salaire')} de ${periode} ${ids.length > 1 ? 'marqués payés' : 'marqué payé'} le ${C.fmtDate(v.date)}`, () => {
+          avant.forEach(a => { const x = data.payslips.find(p => p.id === a.id); if (x) { x.paidDate = a.paidDate; x.accountId = a.accountId; } });
+          save(true); if (done) done();
+        });
+      };
+      maj();
     });
   }
 
@@ -12057,7 +12158,8 @@
         <div class="panel"><h2>Bulletins du mois</h2>
           <div class="filters">
             <select id="p-month">${MONTHS_LONG.map((l, i) => `<option value="${i + 1}" ${m === i + 1 ? 'selected' : ''}>${l}</option>`).join('')}</select>
-            ${missing.length ? `<button class="btn btn-sm btn-primary" id="p-gen">${missing.length > 1 ? `Établir les ${pl(missing.length, 'bulletin')} manquants` : 'Établir le bulletin manquant'}</button>` : month.length ? '<span class="small ok-text">Tous les bulletins du mois sont établis.</span>' : ''}${month.length ? ' <button type="button" class="btn btn-sm" id="p-journal">Journal de paie</button>' : ''}
+            ${missing.length ? `<button class="btn btn-sm btn-primary" id="p-gen">${missing.length > 1 ? `Établir les ${pl(missing.length, 'bulletin')} manquants` : 'Établir le bulletin manquant'}</button>` : month.length ? '<span class="small ok-text">Tous les bulletins du mois sont établis.</span>' : ''}${month.length ? ' <button type="button" class="btn btn-sm" id="p-journal">Journal de paie</button>' : ''}${
+              /* (plateforme) 1.74.0 — payer les salaires du mois : l'étape suivante, une fois les bulletins établis. */''}${month.some(x => !x.paidDate) ? ` <button type="button" class="btn btn-sm${missing.length ? '' : ' btn-primary'}" id="p-payer">Payer les salaires…</button>` : ''}
           </div>
           ${month.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
             <th>Salarié</th><th class="r">Brut</th><th class="r">CNSS</th><th class="r">Impôt retenu ${info('pay.impot')}</th><th class="r">Net à payer</th><th class="r">Coût employeur</th><th>Payé le</th><th class="row-actions-h"></th></tr></thead><tbody>
@@ -12094,6 +12196,7 @@
       if ($('#p-vers-mois')) $('#p-vers-mois').onclick = () => { const mp = C.moisDePaie(data); s.year = String(mp.year); s.month = String(mp.month); s.moisTouche = true; draw(); };
       // (plateforme) 1.61.0 — le journal de paie du mois.
       if ($('#p-journal')) $('#p-journal').onclick = () => journalDePaieFenetre(y, m);
+      if ($('#p-payer')) $('#p-payer').onclick = () => payerSalairesFenetre(y, m, () => draw());
       // 10.12.0 — une ligne garde UN bouton, celui du geste suivant (7.29.0). Elle en portait deux,
       // « PDF » et « Modifier », et pas celui qu'on vient chercher après avoir établi un bulletin : le
       // marquer payé demandait d'ouvrir « Modifier » et de trouver « Payé le ». Le paiement part
@@ -15557,7 +15660,7 @@
   // naître, « Créer un compte » laisse deviner qu'il faudra tout retaper.
   const libelleCompteDepuisFiche = (avecBanque, sans) => { const m = modeleCompte(); return m && m.bank ? `${avecBanque} « ${h(m.bank)} »` : sans; };
 
-  function accountForm(acc, done, modele) {
+  function accountForm(acc, done, modele, opts) {
     const a = acc || { id: C.uid(), name: '', kind: 'banque', bank: '', rib: '', opening: 0, openingDate: C.today(), isDefault: !data.accounts.length, statementBalance: '', notes: '', ...(modele || {}) };
     // Un compte né de la fiche société n'attend plus qu'UNE chose : son solde. Le curseur y va, la
     // valeur proposée (0) sélectionnée — la première frappe la remplace (9.4.5).
@@ -15581,6 +15684,8 @@
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
         if (depuisFiche) { const o = $('[name=opening]', root); o.focus(); o.select(); }
+        // (plateforme) 1.74.0 — ouverte pour UNE case (le RIB que l'ordre de virement réclame), elle y met le curseur.
+        if (opts && opts.focus) { const c = $(`[name=${opts.focus}]`, root); if (c) c.focus(); }
         $('#ok', root).onclick = () => {
           const v = formValues($('#af', root));
           if (!v.name.trim()) return refus($('[name=name]', root), 'Donne un nom à ce compte.');
