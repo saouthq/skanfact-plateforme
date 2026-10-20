@@ -39,7 +39,7 @@ describe('changer de caissier, à l\'écran', () => {
   const annee = new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }).slice(0, 4);
   // Une personne connectée sur un appareil, et la page Caisse ouverte dans son navigateur.
   const ouvrir = async (jeton: string, ent: string) => {
-    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     // Le jeton du départ, une seule fois, gardé comme la connexion le garde sur SON appareil : dans la session ET dans la
     // mémoire du navigateur (web/src/api.ts). Au changement de caissier, la page garde celui qu'elle a reçu — aux deux
     // endroits (vu à la main le 01/10/2026 : seul le second était remplacé, et la caisse retombait sur la connexion).

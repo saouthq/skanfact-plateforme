@@ -507,6 +507,11 @@ rien ne tenait. Se défait sans perte : le choix ne paie rien et ne change pas l
   fait entre minuit et une heure à Tunis se datait de la veille (vu à 0 h 20 : « Le 20/10/2026 » pour un choix du 21).
   Ils se lisent au jour de Tunis.
 
+- **Le rouge de GitHub sur 1.83.0** : « l'excédent du Z rejoint la caisse » tombait entre 23 h et minuit UTC — le
+  navigateur du test vivait en UTC (le jour d'avant), le serveur datait l'écart du jour de Tunis. Reproduit à 23 h 15
+  UTC, réparé comme les autres tests de la caisse : le navigateur vit à l'heure de Tunis (`timezoneId`), dans les quatre
+  fichiers de la caisse qui ne le disaient pas.
+
 ### Ce qui le prouve
 
 - `tests/console/factures.test.ts` : par l'API, la propriétaire choisit (la commerciale non, une offre inconnue non),

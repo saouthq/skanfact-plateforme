@@ -57,7 +57,7 @@ describe('la caisse sans réseau, à la souris', () => {
       .filter((o) => o.collection === 'documents' && o.contenu.ticket === true).map((o) => [o.contenu.number, o.contenu.numeroPoste ?? null, o.contenu.caisseHorsLigne === true]).sort();
 
     // « Mon ordinateur » : la session gardée dans le navigateur, et le navigateur qui promet de garder.
-    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript(() => { if (navigator.storage) Object.assign(navigator.storage, { persist: async () => true, persisted: async () => true }); });
     await cx.addInitScript((j) => {
       if (!location.protocol.startsWith('http') || localStorage.getItem('test.pose')) return;

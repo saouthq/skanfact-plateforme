@@ -55,7 +55,7 @@ describe('la caisse en ligne, à la souris', () => {
     const tickets = async () => ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; contenu: Record<string, unknown> }[])
       .filter((o) => o.collection === 'documents' && o.contenu.ticket === true).map((o) => o.contenu);
 
-    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
     const p = await cx.newPage();
     const erreurs: string[] = [];

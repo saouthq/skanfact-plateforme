@@ -61,7 +61,7 @@ describe('le Z imprimé et relu, à l\'écran', () => {
       expect((await api('POST', `/entreprises/${ent}/caisse/fermer`, sami, { compte: String(i) })).statut).toBe(200);
     }
 
-    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, sami);
     const p = await cx.newPage();
     const erreurs: string[] = [];
@@ -127,7 +127,7 @@ describe('le Z imprimé et relu, à l\'écran', () => {
       { collection: 'accounts', cle: 'k-caisse', rang: 0, revision: null, contenu: { id: 'k-caisse', name: 'Caisse', kind: 'caisse', bank: '', rib: '', opening: 30, openingDate: '2026-01-01', isDefault: false, statementBalance: '', notes: '' } },
       { collection: 'catalog', cle: 'pain', rang: 0, revision: null, contenu: { id: 'pain', label: 'Pain de mie', unit: 'u', unitPrice: { '~n': '1.2' }, vatRate: 7 } },
     ] })).statut).toBe(200);
-    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, nadia);
     const p = await cx.newPage();
     const erreurs: string[] = [];
