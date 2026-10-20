@@ -800,4 +800,8 @@ export const ADAPTATIONS = [
   ...lireFichier('stock-choisir.txt'),
   // ── Une échéance pas prête le dit avant d'être marquée déposée (1.80.0) ──
   ...lireFichier('echeance-avant.txt'),
+  // ── Les raccourcis du clavier dans le navigateur (1.80.0) : l'Aide ne promet que ceux qui marchent ──
+  ...lireFichier('raccourcis-web.txt'),
+  // ── La liste des devis dit ce qui est déjà facturé (1.80.0) ──
+  ...lireFichier('devis-facture.txt'),
 ];

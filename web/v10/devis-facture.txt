@@ -1,0 +1,28 @@
+Ce que la 1.80.0 change à l'application de l'entreprise (docs/recette.md, « 1.80.0 ») : la liste des devis dit ce qui
+est déjà facturé. Format : voir sans-paquets.mjs.
+
+Un devis facturé en entier (une facture, ou un acompte puis son solde) restait « accepté » dans la liste, comme un
+devis qui attend sa facture : on ne voyait pas ce qui restait à facturer sans ouvrir chaque devis (recette du
+20/10/2026). La pastille garde le statut du devis ; à côté, « facturé » quand une facture totale ou de solde est émise,
+« acompte facturé » quand seul un acompte l'est — la règle de `piecesDuDevis`, celle du bouton « Facture de solde ».
+
+== app.js | la liste des devis dit ce qui est déjà facturé
+-- avant
+      { key: 'status', label: 'Statut', val: d => effStatus(d), get: d => `${statusBadge(d)}${
+-- après
+      { key: 'status', label: 'Statut', val: d => effStatus(d), get: d => `${statusBadge(d)}${d.type === 'devis' ? dejaFacture(d) : ''}${
+-- fin
+
+== app.js | ce qu'un devis a déjà fait naître
+-- avant
+  function piecesDuDevis(quoteId) {
+-- après
+  // (plateforme) 1.80.0 — à côté du statut d'un devis, dans la liste : « facturé », ou « acompte facturé ».
+  function dejaFacture(d) {
+    const emise = x => x.status !== 'brouillon' && x.status !== 'annulée';
+    const p = piecesDuDevis(d.id);
+    return p.totales.some(emise) ? ' <span class="small muted nw">facturé</span>'
+      : p.acomptes.some(emise) ? ' <span class="small muted nw">acompte facturé</span>' : '';
+  }
+  function piecesDuDevis(quoteId) {
+-- fin

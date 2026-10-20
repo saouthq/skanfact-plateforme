@@ -4,7 +4,8 @@
 //   - une fenêtre plus haute que l'écran garde « Enregistrer » à l'écran ;
 //   - l'invitation « Première fois sur cette page ? » ne revient pas quand la page se redessine sur place ;
 //   - une date tapée après un clic dans sa case remplace celle qui y était ;
-//   - au Stock, « Choisir dans le Catalogue » mène au geste ; aux Relances, « Relancer » est sur la ligne (1.80.0).
+//   - au Stock, « Choisir dans le Catalogue » mène au geste ; aux Relances, « Relancer » est sur la ligne (1.80.0) ;
+//   - Ctrl+S enregistre dans le navigateur ; la liste des devis dit « facturé » ; l'Aide ne promet que les raccourcis qui marchent.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -221,6 +222,50 @@ describe('la recette alpha, à la souris', () => {
     await expect.poll(() => p.locator('[data-stat=encaisser]').innerText().then(net), { timeout: 15_000 }).toMatch(/1 facture, 1 en retard/);
     await p.evaluate(() => { location.hash = '#/client/c1'; });
     await expect.poll(() => p.locator('#view .banner').first().innerText().then(net).catch(() => ''), { timeout: 15_000 }).toMatch(/^1 facture en retard — 912,095 DT/);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
+
+  it('Ctrl+S enregistre un devis, la liste dit « facturé », l\'Aide ne promet que les raccourcis qui marchent', async () => {
+    const { jeton, ent } = await commerce();
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Hôtel du Lac' } },
+      { collection: 'documents', cle: 'd1', rang: 0, revision: null, contenu: { id: 'd1', type: 'devis', number: 'DEV-2026-041', date: aujourdhui, validUntil: aujourdhui, clientId: 'c1',
+        subject: 'Rayonnages', status: 'accepté', lines: [{ label: 'Rayonnage', description: '', qty: 2, unit: '', unitPrice: { '~n': '312.25' }, vatRate: 19 }], discountRate: 0,
+        applyStamp: false, withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [], stampFee: 0 } },
+    ] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    // 1. Un devis neuf, enregistré au clavier : le navigateur n'ouvre pas « Enregistrer la page », le devis prend son numéro.
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/new/devis`);
+    const objet = p.getByPlaceholder('Ce que couvre cette pièce, en une phrase');
+    await objet.waitFor({ timeout: 20_000 });
+    await objet.fill('Vitrine');
+    await p.getByPlaceholder('Désignation').first().fill('Vitrine éclairée');
+    await p.keyboard.press('Control+s');
+    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^Devis DEV-\d{4}-\d{3}$/);
+    // 2. Le devis accepté devient une facture émise : la liste le dit « facturé », le devis neuf ne dit rien.
+    await p.evaluate(() => { location.hash = '#/doc/d1'; });
+    await p.getByRole('button', { name: /^Facturer/ }).first().click({ timeout: 15_000 });
+    // (la base des tests n'a pas de timbre daté : la facture s'émet sans lui)
+    await p.getByRole('checkbox', { name: /Timbre fiscal/ }).uncheck({ timeout: 15_000 });
+    await p.getByRole('button', { name: 'Émettre la facture', exact: true }).click({ timeout: 15_000 });
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^Facture FAC-\d{4}-\d{3}$/);
+    await p.evaluate(() => { location.hash = '#/devis'; });
+    const ligne = p.locator('#view tbody tr').filter({ hasText: 'DEV-2026-041' });
+    await expect.poll(() => ligne.innerText().then(net), { timeout: 15_000 }).toMatch(/accepté facturé/);
+    expect(await p.locator('#view tbody tr').filter({ hasText: 'Vitrine' }).innerText().then(net)).not.toMatch(/facturé/);
+    // 3. L'Aide ne promet plus Ctrl+N ni Ctrl+1 à 9 (le navigateur les garde) ; elle garde Ctrl+S.
+    await p.evaluate(() => { location.hash = '#/aide/raccourcis'; });
+    const aide = p.locator('#view table.keys');
+    await aide.waitFor({ timeout: 15_000 });
+    expect(await aide.innerText()).toMatch(/Enregistrer/);
+    expect(await aide.innerText()).not.toMatch(/Nouveau devis\s/);
+    expect(await aide.innerText()).not.toMatch(/Trésorerie/);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

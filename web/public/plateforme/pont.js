@@ -1000,6 +1000,23 @@
       poser: (/** @type {HTMLElement} */ view) => /** @type {any} */ (window).SkanLecture.poser(view) } : null,
     dataPath: async () => 'Serveur SkanFact',
     setTitle: (/** @type {string} */ t) => { document.title = t; },
+    // Les raccourcis du menu de la v10 de bureau (1.80.0 ; docs/recette.md) : Electron les tenait par son menu, le
+    // navigateur ne les donnait plus — Ctrl+S ouvrait « Enregistrer la page », et l'Aide les promettait. Seuls ceux
+    // qu'un navigateur laisse à la page (Ctrl+N, Ctrl+1 à 9 restent les siens) ; Ctrl+P n'est pris que sur une pièce.
+    onMenuAction: (/** @type {(nom: string) => void} */ agir) => {
+      window.addEventListener('keydown', (e) => {
+        if (!(e.ctrlKey || e.metaKey) || e.altKey || e.defaultPrevented) return;
+        const k = e.key.toLowerCase();
+        const nom = k === 's' && !e.shiftKey ? 'save'
+          : k === 'p' && !e.shiftKey && document.querySelector('#pdf') ? 'pdf'
+          : k === '[' ? 'back'
+          : k === ',' ? 'settings'
+          : k === '?' || (e.shiftKey && e.code === 'Slash') ? 'go:aide' : '';
+        if (!nom) return;
+        e.preventDefault();
+        agir(nom);
+      });
+    },
 
     // L'émission d'une facture ou d'un avoir (adaptation de `issue()` dans app.js) : le serveur prend la pièce telle
     // que l'écran la montre, la numérote, la scelle, et vérifie qu'il trouve le même net à payer.

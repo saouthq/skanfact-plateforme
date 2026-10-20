@@ -18164,6 +18164,18 @@ prouver 'la fiche d'"'"'un client qui oublie sa facture échue payée en partie'
   "const late = docs.filter(d => d.type === 'facture' && enRetardDuClient.has(d.id));" \
   "const late = docs.filter(d => d.type === 'facture' && effStatus(d) === 'retard');" \
   'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout'
+prouver 'Ctrl+S qui ouvre « Enregistrer la page » au lieu d'"'"'enregistrer le devis' 'web/public/plateforme/pont.js' \
+  "const nom = k === 's' && !e.shiftKey ? 'save'" \
+  "const nom = k === 'zzz' && !e.shiftKey ? 'save'" \
+  'Ctrl+S enregistre un devis, la liste dit « facturé », l'"'"'Aide ne promet que les raccourcis qui marchent'
+prouver 'un devis facturé qui reste « accepté » comme un autre dans la liste' 'web/public/v10/app.js' \
+  "get: d => \`\${statusBadge(d)}\${d.type === 'devis' ? dejaFacture(d) : ''}\${" \
+  "get: d => \`\${statusBadge(d)}\${" \
+  'Ctrl+S enregistre un devis, la liste dit « facturé », l'"'"'Aide ne promet que les raccourcis qui marchent'
+prouver 'l'"'"'Aide qui promet Ctrl+N et Ctrl+1 à 9 que le navigateur garde' 'web/public/v10/guide.js' \
+  '<tr><th>Nouveau devis, nouvelle facture, un écran</th>' \
+  '<tr><th>Trésorerie</th><td>8</td></tr><tr><th>Nouveau devis, nouvelle facture, un écran</th>' \
+  'Ctrl+S enregistre un devis, la liste dit « facturé », l'"'"'Aide ne promet que les raccourcis qui marchent'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

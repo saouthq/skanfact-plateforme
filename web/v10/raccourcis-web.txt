@@ -1,0 +1,39 @@
+Ce que la 1.80.0 change à l'Aide de l'application de l'entreprise (docs/recette.md, « 1.80.0 ») : le tableau des
+raccourcis ne promet que ceux qui marchent dans un navigateur. Format : voir sans-paquets.mjs.
+
+Dans la v10 de bureau, le menu d'Electron tenait les raccourcis. Dans le navigateur, le pont de la plateforme reprend
+ceux qu'une page peut prendre (Ctrl+S, Ctrl+P sur une pièce, Ctrl+[, Ctrl+virgule, Ctrl+?) ; Ctrl+N et Ctrl+1 à 9
+restent ceux du navigateur (une fenêtre, un onglet), et il n'y a ni menu ni mot de passe local à verrouiller : l'Aide
+ne les annonce plus (recette du 20/10/2026 — « une phrase affichée que rien ne tient est un bug »).
+
+== guide.js | les raccourcis que le navigateur laisse à la page
+-- avant
+  <tr><th>Revenir à l'écran précédent</th><td><kbd>⌘</kbd> <kbd>[</kbd></td></tr>
+  <tr><th>Nouveau devis</th><td><kbd>⌘</kbd> <kbd>N</kbd></td></tr>
+  <tr><th>Nouvelle facture</th><td><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>N</kbd></td></tr>
+  <tr><th>Enregistrer</th><td><kbd>⌘</kbd> <kbd>S</kbd></td></tr>
+  <tr><th>Exporter en PDF</th><td><kbd>⌘</kbd> <kbd>P</kbd></td></tr>
+  <tr><th>Voir le document en grand</th><td><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>A</kbd></td></tr>
+  <tr><th>Réglages</th><td><kbd>⌘</kbd> <kbd>,</kbd></td></tr>
+  <tr><th>Accueil, Devis, Factures, Clients, Catalogue</th><td><kbd>⌘</kbd> <kbd>1</kbd> à <kbd>5</kbd></td></tr>
+  <tr><th>Comptabilité</th><td><kbd>⌘</kbd> <kbd>6</kbd></td></tr>
+  <tr><th>Achats et dépenses</th><td><kbd>⌘</kbd> <kbd>7</kbd></td></tr>
+  <tr><th>Trésorerie</th><td><kbd>⌘</kbd> <kbd>8</kbd></td></tr>
+  <tr><th>Marges et rentabilité</th><td><kbd>⌘</kbd> <kbd>9</kbd></td></tr>
+  <tr><th>Verrouiller l'application</th><td><kbd>⌘</kbd> <kbd>L</kbd></td></tr>
+  <tr><th>Valider une fenêtre</th><td><kbd>Entrée</kbd></td></tr>
+  <tr><th>Fermer une fenêtre</th><td><kbd>Échap</kbd></td></tr>
+</table>
+<p class="small muted">Tu n'as rien à retenir : le champ <b>Rechercher…</b> en haut de la barre de gauche fait la même chose que <kbd>⌘</kbd> <kbd>K</kbd>, et chaque raccourci est écrit à côté de sa commande dans les menus de l'application.</p>`
+-- après
+  <tr><th>Revenir à l'écran précédent</th><td><kbd>⌘</kbd> <kbd>[</kbd></td></tr>
+  <tr><th>Enregistrer</th><td><kbd>⌘</kbd> <kbd>S</kbd></td></tr>
+  <tr><th>Exporter en PDF (sur un devis ou une facture)</th><td><kbd>⌘</kbd> <kbd>P</kbd></td></tr>
+  <tr><th>Voir le document en grand</th><td><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>A</kbd></td></tr>
+  <tr><th>Réglages</th><td><kbd>⌘</kbd> <kbd>,</kbd></td></tr>
+  <tr><th>Nouveau devis, nouvelle facture, un écran</th><td><kbd>⌘</kbd> <kbd>K</kbd>, puis son nom</td></tr>
+  <tr><th>Valider une fenêtre</th><td><kbd>Entrée</kbd></td></tr>
+  <tr><th>Fermer une fenêtre</th><td><kbd>Échap</kbd></td></tr>
+</table>
+<p class="small muted">Tu n'as rien à retenir : le champ <b>Rechercher…</b> en haut de la barre de gauche fait la même chose que <kbd>⌘</kbd> <kbd>K</kbd>.</p>`
+-- fin

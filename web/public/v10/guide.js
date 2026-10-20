@@ -1613,22 +1613,15 @@ rencontres. Si un mot affiché dans l'application manque ici, c'est un défaut :
   <tr><th>Ouvrir l'aide</th><td><kbd>⌘</kbd> <kbd>?</kbd></td></tr>
   <tr><th>Rechercher partout</th><td><kbd>⌘</kbd> <kbd>K</kbd></td></tr>
   <tr><th>Revenir à l'écran précédent</th><td><kbd>⌘</kbd> <kbd>[</kbd></td></tr>
-  <tr><th>Nouveau devis</th><td><kbd>⌘</kbd> <kbd>N</kbd></td></tr>
-  <tr><th>Nouvelle facture</th><td><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>N</kbd></td></tr>
   <tr><th>Enregistrer</th><td><kbd>⌘</kbd> <kbd>S</kbd></td></tr>
-  <tr><th>Exporter en PDF</th><td><kbd>⌘</kbd> <kbd>P</kbd></td></tr>
+  <tr><th>Exporter en PDF (sur un devis ou une facture)</th><td><kbd>⌘</kbd> <kbd>P</kbd></td></tr>
   <tr><th>Voir le document en grand</th><td><kbd>⌘</kbd> <kbd>⇧</kbd> <kbd>A</kbd></td></tr>
   <tr><th>Réglages</th><td><kbd>⌘</kbd> <kbd>,</kbd></td></tr>
-  <tr><th>Accueil, Devis, Factures, Clients, Catalogue</th><td><kbd>⌘</kbd> <kbd>1</kbd> à <kbd>5</kbd></td></tr>
-  <tr><th>Comptabilité</th><td><kbd>⌘</kbd> <kbd>6</kbd></td></tr>
-  <tr><th>Achats et dépenses</th><td><kbd>⌘</kbd> <kbd>7</kbd></td></tr>
-  <tr><th>Trésorerie</th><td><kbd>⌘</kbd> <kbd>8</kbd></td></tr>
-  <tr><th>Marges et rentabilité</th><td><kbd>⌘</kbd> <kbd>9</kbd></td></tr>
-  <tr><th>Verrouiller l'application</th><td><kbd>⌘</kbd> <kbd>L</kbd></td></tr>
+  <tr><th>Nouveau devis, nouvelle facture, un écran</th><td><kbd>⌘</kbd> <kbd>K</kbd>, puis son nom</td></tr>
   <tr><th>Valider une fenêtre</th><td><kbd>Entrée</kbd></td></tr>
   <tr><th>Fermer une fenêtre</th><td><kbd>Échap</kbd></td></tr>
 </table>
-<p class="small muted">Tu n'as rien à retenir : le champ <b>Rechercher…</b> en haut de la barre de gauche fait la même chose que <kbd>⌘</kbd> <kbd>K</kbd>, et chaque raccourci est écrit à côté de sa commande dans les menus de l'application.</p>`
+<p class="small muted">Tu n'as rien à retenir : le champ <b>Rechercher…</b> en haut de la barre de gauche fait la même chose que <kbd>⌘</kbd> <kbd>K</kbd>.</p>`
     }
   ];
 

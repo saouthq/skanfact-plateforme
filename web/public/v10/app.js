@@ -3538,7 +3538,7 @@
         ? { key: 'subject', label: 'Objet', asc: true, val: d => (d.subject || '').toLowerCase(), get: d => h(d.subject || '') || '<span class="muted">—</span>' }
         : { key: 'client', label: 'Client', asc: true, val: d => clientName(d.clientId).toLowerCase(), get: d => `${h(clientName(d.clientId))}${d.subject ? `<div class="small muted">${h(d.subject)}</div>` : ''}` },
       { key: 'date', label: 'Date', val: d => d.date || '', get: d => C.fmtDate(d.date) },
-      { key: 'status', label: 'Statut', val: d => effStatus(d), get: d => `${statusBadge(d)}${bridge.etatsTtn && company().efacture === true && (d.type === 'facture' || d.type === 'avoir') && d.number && !d.ticket ? `<span class="ttn-etat" data-ttn="${h(d.id)}"></span>` : ''}` },
+      { key: 'status', label: 'Statut', val: d => effStatus(d), get: d => `${statusBadge(d)}${d.type === 'devis' ? dejaFacture(d) : ''}${bridge.etatsTtn && company().efacture === true && (d.type === 'facture' || d.type === 'avoir') && d.number && !d.ticket ? `<span class="ttn-etat" data-ttn="${h(d.id)}"></span>` : ''}` },
       // Le tri compare des montants CONVERTIS (10.14.1, DEV-15) : trier 952,30 € après 2 000 DT
       // classait une facture de 3 190 DT derrière une de 2 000. L'affichage reste dans la devise de la pièce.
       { key: 'amount', label: opts.extra === 'proforma' || !opts.quotes ? 'Net à payer' : 'Total TTC', r: true, val: d => C.toBase(d, amountOf(d), company()), get: d => C.money(amountOf(d), cur(d)) }
@@ -5400,6 +5400,13 @@
   // travers : c'est exactement ce qui est arrivé au menu de ligne de la 7.28.0.
   // Les deux moitiés ne se lisent pas au même endroit : une facture totale porte `fromQuoteId`,
   // un acompte porte `deposit.quoteId`.
+  // (plateforme) 1.80.0 — à côté du statut d'un devis, dans la liste : « facturé », ou « acompte facturé ».
+  function dejaFacture(d) {
+    const emise = x => x.status !== 'brouillon' && x.status !== 'annulée';
+    const p = piecesDuDevis(d.id);
+    return p.totales.some(emise) ? ' <span class="small muted nw">facturé</span>'
+      : p.acomptes.some(emise) ? ' <span class="small muted nw">acompte facturé</span>' : '';
+  }
   function piecesDuDevis(quoteId) {
     const totales = C.facturesDuDevis(data, quoteId).filter(d => !d.deposit);
     // Les acomptes rangés par devis une fois par lot (10.14.0) : la page « Me guider » cherchait le
