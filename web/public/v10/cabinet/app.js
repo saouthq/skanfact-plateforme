@@ -4854,6 +4854,14 @@
     drawLivres(root, dossier);
   }
 
+  // (plateforme) 1.73.0 — les salaires d'un exercice par salarié, sur la paie du dossier (celle que le Cabinet tient, ou
+  // celle du SkanFact du client) : ses salariés (nom, CIN, CNSS, poste) et ses bulletins (leur calcul), dans la forme de
+  // l'entreprise que lit le moteur commun. La déclaration d'employeur de l'entreprise compte avec la même fonction.
+  const salairesDuDossier = (L, annee) => KC.salairesDeLAnnee({
+    employees: ((L && L.salaries) || []).map(x => ({ id: x.id, name: x.nom, cin: x.cin || '', cnss: x.cnss || '', position: x.poste || '' })),
+    payslips: ((L && L.bulletins) || []).map(b => ({ employeeId: b.salarieId, year: Number(b.annee), month: Number(b.mois), computed: b.calcul || {} }))
+  }, annee);
+
   function vueLiasse(dossier) {
     const s = livresState;
     const L = s.liasse;
@@ -4862,6 +4870,10 @@
     if (L.erreur) return lectureRatee(L.erreur, 'liasse');
     const li = L.liasse, f = L.fiscal;
     const money0 = n => esc(money(n));
+    // (plateforme) 1.73.0 — la déclaration d'employeur : les salaires de l'exercice par salarié (ses bulletins), et l'écart
+    // de chaque masse du livre avec eux.
+    const sal = salairesDuDossier(s.livre, s.annee);
+    const ecarts = sal.rows.length ? KC.ecartsEmployeur(L.employeur, sal) : [];
     const nature = id => (L.natures.find(x => x.id === id) || {}).label || id;
     // U-16 — dix-sept rubriques vides sur vingt-six, chacune avec sa phrase grise, noyaient les neuf
     // qui portent un montant. Elles sont MASQUÉES par défaut, et la case dit combien : masquer sans le
@@ -4937,13 +4949,36 @@
       ${liasseClose ? '' : '<div class="sous-table"><button class="btn btn-sm" id="li-rt-add">Ajouter un retraitement…</button></div>'}
     </div>
 
-    <div class="panel"><h2>Déclaration annuelle d'employeur ${info('li.employeur')}</h2>
+    <div class="panel" id="li-employeur"><h2>Déclaration annuelle d'employeur ${info('li.employeur')}</h2>
       <p class="small">Elle porte <b>deux choses distinctes</b> qu'on confond : les salaires versés, et les
       retenues à la source pratiquées sur des fournisseurs. Les deux figurent sur le même formulaire.</p>
-      <table class="list compact"><tbody>${L.employeur.cases.map(c => `<tr class="${c.montant === null ? 'row-muted' : ''}">
-        <td>${esc(c.label)}<div class="small muted">${esc(c.comptes.join(', '))}${c.raison ? ' · ' + esc(c.raison) : ''}</div></td>
-        <td class="r nw">${c.montant === null ? '<span class="muted">—</span>' : money0(c.montant)}</td></tr>`).join('')}</tbody></table>
-      <p class="small muted mt">${esc(L.employeur.raisonNominatif)}</p>
+      ${/* (plateforme) 1.73.0 — l'état des salaires par salarié, lu sur les bulletins de l'exercice, par la fonction de
+            l'entreprise. La v10 disait que « le détail par bénéficiaire demande les bulletins de paie, que le cabinet ne
+            reçoit pas » : sur la plateforme, il les a. Puis les masses du livre, chacune avec son écart aux bulletins. */''}
+      <h3 class="eyebrow mt">Les salaires, par salarié</h3>
+      ${sal.rows.length
+    ? `<div class="scroll-x"><table class="list compact" id="li-salaires"><thead><tr><th>Salarié</th><th class="nw">CIN</th>
+        <th class="r">Mois payés</th><th class="r">Brut annuel</th><th class="r">CNSS retenue</th><th class="r">IRPP retenu</th>
+        <th class="r">Solidarité</th><th class="r">Net des bulletins</th></tr></thead>
+        <tbody>${sal.rows.map(r => `<tr data-sal-an="${esc(r.employeeId)}"><td class="tronq" title="${esc(r.name)}">${esc(r.name)}${r.position ? `<div class="small muted">${esc(r.position)}</div>` : ''}</td>
+          <td class="nw">${r.cin ? esc(r.cin) : `<button type="button" class="montant-lien warn-text small" data-sal-cin="${esc(r.employeeId)}" title="Ouvrir sa fiche sur la case">à renseigner</button>`}</td><td class="r nw">${r.months}</td>
+          <td class="r nw">${money0(r.gross)}</td><td class="r nw">${money0(r.cnss_)}</td><td class="r nw">${money0(r.irpp)}</td>
+          <td class="r nw">${money0(r.css)}</td><td class="r nw"><b>${money0(r.net)}</b></td></tr>`).join('')}</tbody>
+        <tfoot><tr><th colspan="3">${esc(pl(sal.employees, 'salarié'))}</th><th class="r nw">${money0(sal.gross)}</th>
+          <th class="r nw">${money0(sal.cnss)}</th><th class="r nw">${money0(sal.irpp)}</th><th class="r nw">${money0(sal.css)}</th>
+          <th class="r nw">${money0(sal.net)}</th></tr></tfoot></table></div>
+      <div class="ctrl-geste mt"><button type="button" class="btn btn-sm" id="li-sal-csv">Exporter l'état en CSV</button>
+        <span class="small muted">Une ligne par salarié payé sur l'exercice ${esc(String(s.annee))}, et le total.</span></div>`
+    : `<div class="empty mini" id="li-sal-vide">Aucun bulletin sur l'exercice ${esc(String(s.annee))} dans la paie de ce dossier : l'état par salarié se lit sur ses bulletins (onglet Paie). Une paie établie ailleurs se confronte aux masses du livre, ci-dessous.</div>`}
+      <h3 class="eyebrow mt">Les masses du livre</h3>
+      <table class="list compact" id="li-cases"><tbody>${L.employeur.cases.map(c => {
+    const ec = ecarts.find(x => x.id === c.id);
+    return `<tr class="${c.montant === null ? 'row-muted' : ''}" data-case="${esc(c.id)}">
+        <td>${esc(c.label)}<div class="small muted">${esc(c.comptes.join(', '))}${c.raison ? ' · ' + esc(c.raison) : ''}</div>
+          ${ec ? `<div class="small warn-text ctrl-geste"><span data-ecart="${esc(c.id)}">Les bulletins de l'exercice disent ${money0(ec.bulletins)} : un écart de ${money0(Math.abs(ec.ecart))}. ${esc(ec.cause)}</span>${
+    ec.ecart < 0 ? `<button type="button" class="btn btn-sm" data-ecart-saisie="${esc(c.id)}">Ouvrir la saisie</button>` : ''}</div>` : ''}</td>
+        <td class="r nw">${c.montant === null ? '<span class="muted">—</span>' : money0(c.montant)}</td></tr>`;
+  }).join('')}</tbody></table>
     </div>`;
   }
 
@@ -4996,6 +5031,26 @@
         ])))).join('\r\n') + '\r\n';
       try {
         const r = await api.exportCsv(texte, `liasse-${s.annee}-${dossier.matricule || dossier.name}`);
+        if (r) toast('Fichier enregistré.');
+      } catch (e) { toast(plainError(e), 'error'); }
+    };
+    // (plateforme) 1.73.0 — ce qui manque à la déclaration s'ouvre d'un geste : la CIN d'un salarié (sa fiche, sur la case),
+    // la paie qui n'est pas passée au livre (la saisie, où le brouillard se valide).
+    $$('[data-sal-cin]', el).forEach(b => { b.onclick = () => {
+      const x = (s.livre.salaries || []).find(y => y.id === b.dataset.salCin);
+      if (x) salarieForm(root, dossier, x, { focus: 'cin' });
+    }; });
+    $$('[data-ecart-saisie]', el).forEach(b => { b.onclick = () => allerSousOnglet(root, dossier, 'saisie'); });
+    // (plateforme) 1.73.0 — l'état des salaires de l'exercice : les colonnes de l'entreprise (le moteur commun), et le total.
+    const sc = $('#li-sal-csv', el);
+    if (sc) sc.onclick = async () => {
+      const sal = salairesDuDossier(s.livre, s.annee);
+      const cols = KC.COLONNES_SALAIRES_ANNEE;
+      const ligne = r => K.toCsvLine(cols.map(([k, , montant]) => (montant ? K.csvMontant(r[k]) : r[k])));
+      const total = { name: 'Total', cin: '', cnss: '', months: '', gross: sal.gross, cnss_: sal.cnss, irpp: sal.irpp, css: sal.css, net: sal.net };
+      const texte = [K.toCsvLine(cols.map(c => c[1]))].concat(sal.rows.map(ligne), [ligne(total)]).join('\r\n') + '\r\n';
+      try {
+        const r = await api.exportCsv(texte, `declaration-employeur-${s.annee}-${dossier.matricule || dossier.name}`);
         if (r) toast('Fichier enregistré.');
       } catch (e) { toast(plainError(e), 'error'); }
     };

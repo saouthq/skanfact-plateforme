@@ -231,7 +231,9 @@ vaut pour tout le dépôt.*
     Les avances au Cabinet (1.71.0 ; migration 0151, `web/v10/paie-cabinet-avances.txt`, le moteur des avances dans
     `compta.js`, `saveAvance`/`supprimerAvance`, `L.avances` et `L.remboursements`). Les documents du personnel au Cabinet
     (1.72.0 ; `web/v10/paie-cabinet-documents-personnel.txt`, `HR_DOCS`/`indemniteConges`/`lignesDuSolde`/`CIVILITES` dans
-    `compta.js`, `FICHE.adresse`/`FICHE.gerant`, `paieDuDossierV10`).
+    `compta.js`, `FICHE.adresse`/`FICHE.gerant`, `paieDuDossierV10`). La déclaration annuelle d'employeur au Cabinet
+    (1.73.0 ; `web/v10/paie-cabinet-declaration-employeur.txt`, `salairesDeLAnnee`/`COLONNES_SALAIRES_ANNEE`/`ecartsEmployeur`
+    dans `compta.js`, la Liasse).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

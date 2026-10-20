@@ -12584,7 +12584,7 @@
           <h3 class="sub-h">Salaires versés</h3>
           ${an.rows.length ? `<div class="scroll-x"><table class="list compact"><thead><tr>
             <th>Salarié</th><th>CIN</th><th class="r">Mois payés</th><th class="r">Brut annuel</th>
-            <th class="r">CNSS retenue</th><th class="r">IRPP retenu</th><th class="r">Solidarité</th><th class="r">Net versé</th></tr></thead><tbody>
+            <th class="r">CNSS retenue</th><th class="r">IRPP retenu</th><th class="r">Solidarité</th><th class="r">Net des bulletins</th></tr></thead><tbody>
             ${an.rows.map(r => `<tr><td><strong>${h(r.name)}</strong>${r.position ? `<div class="small muted">${h(r.position)}</div>` : ''}</td>
               <td class="nw">${h(r.cin) || '—'}</td><td class="r nw">${r.months}</td>
               <td class="r nw">${C.money(r.gross, cur)}</td><td class="r nw">${C.money(r.cnss_, cur)}</td>
@@ -12680,13 +12680,10 @@
         emailComptablePret(acc, r, att ? 'le fichier CNSS' : null);
       };
       if ($('#an-csv')) $('#an-csv').onclick = async () => {
-        const cols = [
-          { key: 'name', label: 'Salarié' }, { key: 'cin', label: 'CIN' }, { key: 'cnss', label: 'N° CNSS' },
-          { key: 'months', label: 'Mois payés' }, { key: 'gross', label: 'Brut annuel', type: 'money' },
-          { key: 'cnss_', label: 'CNSS retenue', type: 'money' }, { key: 'irpp', label: 'IRPP retenu', type: 'money' },
-          { key: 'css', label: 'Solidarité', type: 'money' }, { key: 'net', label: 'Net versé', type: 'money' }
-        ];
-        const f = await bridge.saveText(`declaration-employeur-${y}.csv`, C.toCsv(an.rows, cols));
+        // (plateforme) 1.73.0 — les colonnes du moteur commun (le Cabinet exporte le même état pour ses clients), et le total.
+        const cols = C.COLONNES_SALAIRES_ANNEE.map(([key, label, montant]) => (montant ? { key, label, type: 'money' } : { key, label }));
+        const total = { name: 'Total', cin: '', cnss: '', months: '', gross: an.gross, cnss_: an.cnss, irpp: an.irpp, css: an.css, net: an.net };
+        const f = await bridge.saveText(`declaration-employeur-${y}.csv`, C.toCsv(an.rows.concat([total]), cols));
         if (f) toast('Exporté : ' + f.split(/[\\/]/).pop());
       };
     }

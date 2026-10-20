@@ -4725,27 +4725,14 @@
   // La déclaration annuelle d'employeur : le récapitulatif des salaires versés et des retenues opérées.
   // Elle porte sur deux choses distinctes que l'on confond souvent : les salaires, et les retenues à la
   // source pratiquées sur des fournisseurs (honoraires, loyers…).
+  // (plateforme) 1.73.0 — les salaires de l'année par salarié et les colonnes de leur état : le moteur commun (compta.js),
+  // que le Cabinet lit aussi pour la déclaration de ses clients. (L'adaptation commence sous la première ligne de ce
+  // commentaire : celle de la 1.61.0 finit dessus.)
+  const { salairesDeLAnnee, COLONNES_SALAIRES_ANNEE } = Compta;
   function employerAnnual(data, year, company) {
     const y = Number(year);
-    const slips = (data.payslips || []).filter(p => Number(p.year) === y);
-    const byEmp = {};
-    slips.forEach(p => {
-      const c = p.computed || {};
-      const emp = (data.employees || []).find(x => x.id === p.employeeId) || {};
-      const e = byEmp[p.employeeId] || (byEmp[p.employeeId] = {
-        employeeId: p.employeeId, name: emp.name || '', cin: emp.cin || '', cnss: emp.cnss || '',
-        position: emp.position || '', months: 0, gross: 0, cnss_: 0, taxable: 0, irpp: 0, css: 0, net: 0
-      });
-      e.months += 1;
-      e.gross = round3(e.gross + (c.gross || 0));
-      e.cnss_ = round3(e.cnss_ + (c.cnssEmployee || 0));
-      e.taxable = round3(e.taxable + ((c.annualTaxable || 0) / 12));
-      e.irpp = round3(e.irpp + (c.irpp || 0));
-      e.css = round3(e.css + (c.css || 0));
-      e.net = round3(e.net + (c.net || 0));
-    });
-    const rows = Object.values(byEmp).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
-    const sum = f => round3(rows.reduce((s, r) => s + (Number(f(r)) || 0), 0));
+    const sal = salairesDeLAnnee(data, y);
+    const rows = sal.rows;
 
     // Retenues à la source opérées sur des fournisseurs dans l'année : l'autre moitié du formulaire.
     // Celles des RÈGLEMENTS de l'année (10.14.0) : une facture de décembre payée en janvier appartient
@@ -4789,7 +4776,7 @@
 
     return {
       year: y, employees: rows.length, rows,
-      gross: sum(r => r.gross), cnss: sum(r => r.cnss_), irpp: sum(r => r.irpp), css: sum(r => r.css), net: sum(r => r.net),
+      gross: sal.gross, cnss: sal.cnss, irpp: sal.irpp, css: sal.css, net: sal.net,
       held, heldBySupplier: Object.values(heldBySupplier).sort((a, b) => (a.supplier || '').localeCompare(b.supplier || '', 'fr')),
       heldTotal: round3(held.reduce((s, x) => s + x.amount, 0)),
       heldMissing: held.filter(x => !x.certificate).length,
@@ -11574,7 +11561,7 @@
     payslipHtml,
     // (plateforme) 1.61.0 — le journal de paie et les états de la paie.
     joursPayesDuBulletin, COLONNES_JOURNAL, journalDePaie, colonnesCsvJournal, journalDePaieHtml, etatRecapitulatifCnss, etatRecapitulatifCnssHtml, declarationMensuelleSalaires,
-    QUARTERS, quarterMonths, quarterLabel, cnssDeclaration, fichierCnssEntreprise, lireMatriculeCnss: Compta.lireMatriculeCnss, identiteCnss: Compta.identiteCnss, motifIdentiteCnss: Compta.motifIdentiteCnss, cnssNonDeclaree, employerAnnual, socialDue,
+    QUARTERS, quarterMonths, quarterLabel, cnssDeclaration, fichierCnssEntreprise, lireMatriculeCnss: Compta.lireMatriculeCnss, identiteCnss: Compta.identiteCnss, motifIdentiteCnss: Compta.motifIdentiteCnss, cnssNonDeclaree, employerAnnual, COLONNES_SALAIRES_ANNEE, socialDue,
     LEAVE_KINDS, leaveKindLabel, leaveIsPaid, workingDays, leaveDaysInMonth, leavesOf, leaveBalance,
     advancesOf, advanceBalance, payslipInputFor, HR_DOCS, hrDocLabel, hrDocumentHtml, staffRegister,
     // (plateforme) 1.72.0 — du moteur commun : la civilité, l'indemnité de congés non pris, les lignes du solde.

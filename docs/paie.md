@@ -1148,3 +1148,92 @@ percevoir » s'écrit avec l'espace fine des milliers, comme partout dans l'appl
 - Le solde de tout compte ne s'enregistre pas : c'est un document, comme dans l'entreprise. Ses montants (préavis, fin de
   contrat) restent à celui qui l'établit.
 - L'adresse et le gérant d'un client sur SkanFact ne viennent pas de sa fiche société (fermée au cabinet).
+
+## La déclaration annuelle d'employeur au Cabinet (20/10/2026, 1.73.0)
+
+*La Liasse du Cabinet ne donnait que les masses du livre, et disait : « Le détail par bénéficiaire demande les bulletins de
+paie, que le cabinet ne reçoit pas. » Sur la plateforme, il les a.*
+
+### Le manque, et ce que le chemin a montré
+
+La déclaration annuelle d'employeur porte, pour les salaires, une ligne par salarié ; l'entreprise la prépare depuis la
+v10 (Paie › Déclarations), le Cabinet n'en donnait que les masses, avec une phrase devenue fausse : la paie d'un dossier
+— celle que le Cabinet tient, ou celle du SkanFact du client — est dans son livre depuis la 1.63.0. En la portant, deux
+défauts sont apparus :
+
+- **Les retenues étaient le solde du compte.** La case « Retenues à la source sur salaires » lisait le solde créditeur du
+  4321, et celle des fournisseurs celui du 4322. Chaque versement au Trésor débite le compte : au 31 décembre, il ne reste
+  que la retenue du dernier mois. La déclaration aurait porté décembre pour l'année ; celle des fournisseurs, rien.
+- **Deux chiffres sous un nom, dans l'entreprise.** La colonne « Net versé » de la déclaration additionnait tous les
+  bulletins de l'année, payés ou non ; la tuile « Net versé » de la même page ne compte que les bulletins payés.
+
+### Ce que le lot fait (`compta.js`, `core.js`, `web/v10/paie-cabinet-declaration-employeur.txt`)
+
+- **L'état des salaires de l'année par salarié passe dans le moteur commun** (`salairesDeLAnnee`, déménagé de
+  `employerAnnual` de `core.js`, qui la reprend) : par salarié, les mois de bulletin, le brut, la CNSS retenue, l'IRPP, la
+  contribution sociale de solidarité, le net ; le total de chaque colonne est la somme de ses lignes. Ses colonnes
+  (`COLONNES_SALAIRES_ANNEE`) font le fichier CSV des deux applications.
+- **Au Cabinet, la Liasse** porte, sous « Déclaration annuelle d'employeur », **les salaires par salarié** — lus sur les
+  bulletins de l'exercice, par la fonction de l'entreprise ; une CIN manquante se dit « à renseigner », et ce mot ouvre la
+  fiche du salarié sur la case —, exportables en CSV avec leur total ; puis **les masses du livre**. Sans bulletin, l'état le dit (une paie établie ailleurs se confronte
+  aux masses).
+- **Chaque masse dit son écart aux bulletins** (`ecartsEmployeur`) : les salaires (le 64 hors charges sociales) face au
+  brut des bulletins, les retenues sur salaires (le 4321, où l'écriture de paie porte l'IRPP et la contribution sociale)
+  face à ce que les bulletins retiennent. Dans son sens, avec ce qui le fait d'ordinaire : le livre porte moins, une
+  écriture de paie au brouillard ou pas encore passée ; il porte plus, une charge de personnel ou une retenue saisie à la
+  main. Un écart ne bloque rien ; quand le livre porte moins, « Ouvrir la saisie » mène au brouillard, où la paie se
+  valide.
+- **Les retenues sont celles de l'exercice** : ce que ses écritures ont porté au crédit du compte, moins ce que leurs
+  contre-passations et extournes en ont retiré ; les à-nouveaux (le reste de l'an passé) n'en sont pas, les versements au
+  Trésor non plus. Pour les salaires comme pour les fournisseurs.
+- **Dans l'entreprise**, la colonne s'appelle « Net des bulletins », et le CSV de la déclaration porte son total.
+- L'aide de la Liasse (`li.employeur`) dit où se lit le détail par salarié, et ce que sont les retenues.
+- **Ce qui part au serveur** : rien de plus. Le Cabinet lit ce qu'il avait déjà (les bulletins et les salariés du dossier).
+
+### Décidé par délégation (20/10/2026)
+
+- Un débit du compte de retenues qui n'est pas un miroir (contre-passation, extourne) est un versement : une
+  régularisation passée en débit direct ne se retranche donc pas des retenues de l'année. *À VÉRIFIER au premier dossier
+  réel.*
+- L'état par salarié reste celui de la v10 (les colonnes de l'entreprise) : le formulaire officiel de la déclaration
+  (l'annexe des salaires, ses codes et ses colonnes) ne s'écrit qu'avec un vrai fichier en main, jamais en devinant.
+- Les comptes lus sont ceux du plan par défaut (64, 645 et 647, 4321, 4322), comme la v10.
+
+### Ce qui le prouve
+
+- `tests/moteur/paie-declaration-employeur.test.ts` : les salaires de l'année par salarié (deux salariés aux mois
+  différents, un bulletin d'une autre année, des montants au millime) ; deux chemins, un chiffre — la déclaration de
+  l'entreprise compte avec la fonction du Cabinet ; les retenues de l'exercice sur un livre qui a des à-nouveaux, deux
+  versements au Trésor, un mois contre-passé puis réécrit, un brouillard (901,693, quand le solde dirait 482,662) et une
+  retenue sur fournisseur versée (15, quand le solde ne dirait rien) ; les écarts, dans leur sens, avec leur cause.
+- `tests/web/cabinet-declaration-employeur.test.ts` : à la souris sur un dossier tenu — sans bulletin, l'état le dit et
+  la phrase de la v10 a disparu ; les bulletins écrits, l'état porte chaque salarié et les totaux du moteur commun ; la paie
+  au brouillard, les deux masses disent leur écart ; validée, plus d'écart ; un versement au Trésor ne change pas les
+  retenues ; le CSV, aux colonnes de l'entreprise, avec son total. `tests/web/parcours.test.ts` : dans l'entreprise, « Net
+  des bulletins » et le CSV de la déclaration avec son total.
+- Vingt-six preuves (`tests/preuves.sh`, « 1.73.0 »).
+
+### Refait à la souris (20/10/2026)
+
+Sur le dossier tenu du cabinet d'essai (un salarié entré le 15 septembre 2026 ; ses bulletins de septembre, au prorata,
+et d'octobre ; la paie des deux mois au brouillard) : la Liasse, sous « Déclaration annuelle d'employeur », porte le
+salarié (2 mois, 1 975,127 de brut, 135,673 d'IRPP, 7,945 de contribution sociale, 1 266,801 de net), sa CIN « à
+renseigner », et les deux masses du livre vides, chacune avec son écart (« Le livre porte moins : une écriture de paie au
+brouillard ou pas encore passée »). « à renseigner » ouvre la fiche du salarié, le curseur dans la CIN ; tapée, enregistrée
+d'Entrée, la Liasse la montre aussitôt. « Ouvrir la saisie » mène au brouillard, deux pièces de paie ; « Valider les 2 pièces
+de PAIE » valide septembre et garde octobre au brouillard, en le disant (une écriture du 31/10 ne se valide pas avant son
+jour). Revenue à la Liasse : 675,127 de salaires au livre pour 1 975,127 sur les bulletins — l'écart de 1 300,000 est le
+brut d'octobre —, et 19,981 de retenues pour 143,618 (l'écart, 123,637, est la retenue d'octobre). Le CSV : l'en-tête, la
+ligne du salarié avec sa CIN, le total.
+
+Vu et corrigé : « à renseigner » était un texte sans geste, et l'écart « au brouillard » n'offrait pas d'aller à la saisie.
+Vu sans défaut propre au lot : dans la phrase d'écart, l'espace fine des milliers (celle de toute l'application) se
+dessine presque sans largeur avec la police de la machine d'essai, hors des colonnes de chiffres.
+
+### Ce qui reste
+
+- Le formulaire officiel de la déclaration annuelle (l'annexe des salaires, ses codes) : avec un vrai fichier en main.
+- Un tableur qui ouvre le CSV d'un double-clic peut retirer le zéro de tête d'une CIN : l'importer en texte. *À VÉRIFIER
+  avec les pilotes, sur leur tableur.*
+- Les comptes du plan propre à un dossier (un compte de retenues autre que 4321) ne sont pas suivis : ceux du plan par
+  défaut, comme la v10.

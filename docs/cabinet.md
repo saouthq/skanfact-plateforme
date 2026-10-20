@@ -594,8 +594,10 @@ qui tombe juste ; le taux à 25 %, une réintégration de 1 000,125 : 7 800,625 
 renommée, et la liasse qui la montre.
 
 **Reste connu** :
-- La déclaration annuelle d'employeur ne lit que les comptes (les bulletins de la paie tenue par le
-  cabinet : brique 43).
+- ~~La déclaration annuelle d'employeur ne lit que les comptes~~ : depuis la 1.73.0, elle porte aussi l'état des
+  salaires par salarié, lu sur les bulletins de l'exercice, et chaque masse du livre dit son écart aux bulletins ; les
+  retenues sont celles de l'exercice, plus le solde du compte (`docs/paie.md`, « La déclaration annuelle d'employeur au
+  Cabinet »).
 - Un exercice clos (la clôture : brique 45) verrouille sa liasse depuis la brique 59 (C49).
 
 ## Brique 42 : les immobilisations (fait le 29/09/2026)

@@ -18156,6 +18156,118 @@ prouver 'core.js sans les lignes que le solde propose' 'web/public/v10/core.js' 
 ' \
   'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
 
+# 1.73.0 : la déclaration annuelle d'employeur au Cabinet.
+prouver 'les salaires de l'"'"'année qui comptent les bulletins de toutes les années' 'web/public/v10/compta.js' \
+  '    ((data && data.payslips) || []).filter(p => Number(p.year) === y).forEach(p => {' \
+  '    ((data && data.payslips) || []).forEach(p => {' \
+  'les salaires de l'"'"'année par salarié : ses bulletins de l'"'"'année, la somme de chaque colonne'
+prouver 'un salarié payé plusieurs mois qui n'"'"'en compte qu'"'"'un' 'web/public/v10/compta.js' \
+  '      e.months += 1;
+      e.gross = round3(e.gross + (c.gross || 0));' \
+  '      e.months = 1;
+      e.gross = round3(e.gross + (c.gross || 0));' \
+  'les salaires de l'"'"'année par salarié : ses bulletins de l'"'"'année, la somme de chaque colonne'
+prouver 'la contribution sociale d'"'"'un seul bulletin dans l'"'"'année' 'web/public/v10/compta.js' \
+  '      e.css = round3(e.css + (c.css || 0));' \
+  '      e.css = round3(c.css || 0);' \
+  'les salaires de l'"'"'année par salarié : ses bulletins de l'"'"'année, la somme de chaque colonne'
+prouver 'le total d'"'"'une colonne qui n'"'"'est pas la somme de ses lignes' 'web/public/v10/compta.js' \
+  '      gross: sum(r => r.gross), cnss: sum(r => r.cnss_), irpp: sum(r => r.irpp), css: sum(r => r.css), net: sum(r => r.net) };' \
+  '      gross: rows.length ? rows[0].gross : 0, cnss: sum(r => r.cnss_), irpp: sum(r => r.irpp), css: sum(r => r.css), net: sum(r => r.net) };' \
+  'les salaires de l'"'"'année par salarié : ses bulletins de l'"'"'année, la somme de chaque colonne'
+prouver 'les retenues lues sur le solde du compte (ce qui reste à verser)' 'web/public/v10/compta.js' \
+  '    const credit = pref => round3(lignes.filter(l => String(l.account).startsWith(pref) && l.journal !== '"'"'AN'"'"')
+      .reduce((s, l) => s + (l.contrepasseDe || l.extourneDe ? -num(l.debit) : num(l.credit)), 0));' \
+  '    const credit = pref => round3(bal.rows.filter(r => String(r.account).startsWith(pref))
+      .reduce((s, r) => s + r.credit - r.debit, 0));' \
+  'les retenues de l'"'"'exercice, pas le solde du compte : hors à-nouveaux et versements au Trésor, une contre-passation retranchée'
+prouver 'les à-nouveaux comptés comme des retenues de l'"'"'exercice' 'web/public/v10/compta.js' \
+  'String(l.account).startsWith(pref) && l.journal !== '"'"'AN'"'"')' \
+  'String(l.account).startsWith(pref))' \
+  'les retenues de l'"'"'exercice, pas le solde du compte : hors à-nouveaux et versements au Trésor, une contre-passation retranchée'
+prouver 'une contre-passation qui ne retranche rien des retenues' 'web/public/v10/compta.js' \
+  '(l.contrepasseDe || l.extourneDe ? -num(l.debit) : num(l.credit))' \
+  'num(l.credit)' \
+  'les retenues de l'"'"'exercice, pas le solde du compte : hors à-nouveaux et versements au Trésor, une contre-passation retranchée'
+prouver 'les versements au Trésor retranchés des retenues de l'"'"'exercice' 'web/public/v10/compta.js' \
+  '(l.contrepasseDe || l.extourneDe ? -num(l.debit) : num(l.credit))' \
+  '(l.contrepasseDe || l.extourneDe ? -num(l.debit) : num(l.credit) - num(l.debit))' \
+  'les retenues de l'"'"'exercice, pas le solde du compte : hors à-nouveaux et versements au Trésor, une contre-passation retranchée'
+prouver 'la phrase « le cabinet ne reçoit pas les bulletins » revenue' 'web/public/v10/compta.js' \
+  '    return { exercice: livre.exercice.annee, cases };' \
+  '    return { exercice: livre.exercice.annee, cases, raisonNominatif: '"'"'les bulletins, que le cabinet ne reçoit pas'"'"' };' \
+  'les retenues de l'"'"'exercice, pas le solde du compte : hors à-nouveaux et versements au Trésor, une contre-passation retranchée'
+prouver 'l'"'"'écart des salaires du livre qui ne se dit pas' 'web/public/v10/compta.js' \
+  '    const bulletins = { salaires: round3(num(s.gross)), irpp: round3(num(s.irpp) + num(s.css)) };' \
+  '    const bulletins = { irpp: round3(num(s.irpp) + num(s.css)) };' \
+  'les masses du livre confrontées aux bulletins : un écart se dit, dans son sens, avec ce qui le fait d'"'"'ordinaire'
+prouver 'les retenues des bulletins sans la contribution sociale' 'web/public/v10/compta.js' \
+  'irpp: round3(num(s.irpp) + num(s.css)) };' \
+  'irpp: round3(num(s.irpp)) };' \
+  'les masses du livre confrontées aux bulletins : un écart se dit, dans son sens, avec ce qui le fait d'"'"'ordinaire'
+prouver 'un écart dit dans le mauvais sens' 'web/public/v10/compta.js' \
+  'cause: ecart < 0 ? `Le livre porte moins' \
+  'cause: ecart > 0 ? `Le livre porte moins' \
+  'les masses du livre confrontées aux bulletins : un écart se dit, dans son sens, avec ce qui le fait d'"'"'ordinaire'
+prouver 'des masses égales aux bulletins qui disent un écart nul' 'web/public/v10/compta.js' \
+  '    }).filter(x => Math.abs(x.ecart) > 0.0005);' \
+  '    });' \
+  'les masses du livre confrontées aux bulletins : un écart se dit, dans son sens, avec ce qui le fait d'"'"'ordinaire'
+prouver 'la colonne « Net versé » revenue dans l'"'"'état des salaires' 'web/public/v10/compta.js' \
+  '['"'"'net'"'"', '"'"'Net des bulletins'"'"', true]' \
+  '['"'"'net'"'"', '"'"'Net versé'"'"', true]' \
+  'deux chemins, un chiffre : la déclaration de l'"'"'entreprise compte avec la fonction du Cabinet, et exporte ses colonnes'
+prouver 'la déclaration de l'"'"'entreprise qui ne dit pas le total du moteur commun' 'web/public/v10/core.js' \
+  '      gross: sal.gross, cnss: sal.cnss, irpp: sal.irpp, css: sal.css, net: sal.net,' \
+  '      gross: round3(sal.gross + 0.001), cnss: sal.cnss, irpp: sal.irpp, css: sal.css, net: sal.net,' \
+  'deux chemins, un chiffre : la déclaration de l'"'"'entreprise compte avec la fonction du Cabinet, et exporte ses colonnes'
+prouver 'core.js sans les colonnes communes de l'"'"'état des salaires' 'web/public/v10/core.js' \
+  'cnssNonDeclaree, employerAnnual, COLONNES_SALAIRES_ANNEE, socialDue,' \
+  'cnssNonDeclaree, employerAnnual, socialDue,' \
+  'deux chemins, un chiffre : la déclaration de l'"'"'entreprise compte avec la fonction du Cabinet, et exporte ses colonnes'
+prouver 'l'"'"'en-tête « Net versé » de la déclaration de l'"'"'entreprise' 'web/public/v10/app.js' \
+  '<th class="r">Solidarité</th><th class="r">Net des bulletins</th></tr></thead><tbody>' \
+  '<th class="r">Solidarité</th><th class="r">Net versé</th></tr></thead><tbody>' \
+  'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
+prouver 'le CSV de la déclaration de l'"'"'entreprise sans son total' 'web/public/v10/app.js' \
+  'C.toCsv(an.rows.concat([total]), cols)' \
+  'C.toCsv(an.rows, cols)' \
+  'le journal de paie et les états à la souris : le journal du mois, la déclaration mensuelle, l'"'"'état récapitulatif CNSS'
+prouver 'la Liasse du Cabinet sans l'"'"'état des salaires par salarié' 'web/public/v10/cabinet/app.js' \
+  '      ${sal.rows.length
+    ? `<div class="scroll-x"><table class="list compact" id="li-salaires">' \
+  '      ${false
+    ? `<div class="scroll-x"><table class="list compact" id="li-salaires">' \
+  'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
+prouver 'les salaires du dossier lus sans ses bulletins' 'web/public/v10/cabinet/app.js' \
+  '    payslips: ((L && L.bulletins) || []).map(b => ({ employeeId: b.salarieId,' \
+  '    payslips: [].map(b => ({ employeeId: b.salarieId,' \
+  'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
+prouver 'la CIN d'"'"'un salarié perdue en chemin vers l'"'"'état' 'web/public/v10/cabinet/app.js' \
+  'name: x.nom, cin: x.cin || '"'"''"'"', cnss: x.cnss || '"'"''"'"', position: x.poste || '"'"''"'"' })),' \
+  'name: x.nom, cin: '"'"''"'"', cnss: x.cnss || '"'"''"'"', position: x.poste || '"'"''"'"' })),' \
+  'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
+prouver 'un écart du livre qui ne se dit pas à la Liasse' 'web/public/v10/cabinet/app.js' \
+  '    const ecarts = sal.rows.length ? KC.ecartsEmployeur(L.employeur, sal) : [];' \
+  '    const ecarts = [];' \
+  'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
+prouver 'la CIN à renseigner qui n'"'"'ouvre pas sa case' 'web/public/v10/cabinet/app.js' \
+  '      if (x) salarieForm(root, dossier, x, { focus: '"'"'cin'"'"' });' \
+  '      if (x) salarieForm(root, dossier, x);' \
+  'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
+prouver 'l'"'"'écart au brouillard sans le chemin de la saisie' 'web/public/v10/cabinet/app.js' \
+  '    $$('"'"'[data-ecart-saisie]'"'"', el).forEach(b => { b.onclick = () => allerSousOnglet(root, dossier, '"'"'saisie'"'"'); });' \
+  '' \
+  'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
+prouver 'le CSV du Cabinet sans son total' 'web/public/v10/cabinet/app.js' \
+  '.concat(sal.rows.map(ligne), [ligne(total)])' \
+  '.concat(sal.rows.map(ligne))' \
+  'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
+prouver 'le CSV du Cabinet aux montants que le tableur ne lit pas' 'web/public/v10/cabinet/app.js' \
+  '(montant ? K.csvMontant(r[k]) : r[k])' \
+  '(r[k])' \
+  'un dossier tenu : l'"'"'état des salaires par salarié, les écarts du livre au brouillard puis validé, les retenues après un versement, le CSV'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

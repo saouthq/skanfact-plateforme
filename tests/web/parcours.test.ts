@@ -905,6 +905,13 @@ describe('le parcours, à la souris', () => {
     await expect.poll(() => etatImprime.content()).toContain('<h1>État récapitulatif des salaires déclarés</h1>');
     expect(await etatImprime.content()).toContain(KC.amountToWords(salaires, 'DT'));
     await etatImprime.close();
+    // (1.73.0) La déclaration annuelle d'employeur : « Net des bulletins » (la tuile « Net versé » ne compte que les bulletins
+    // payés), et son état en CSV aux colonnes du moteur commun, que le Cabinet exporte aussi, avec son total.
+    expect(await p.locator('h2', { hasText: 'Déclaration annuelle d\'employeur' }).locator('xpath=..').locator('thead th').allTextContents()).toContain('Net des bulletins');
+    const [anCsv] = await Promise.all([p.waitForEvent('download'), p.locator('#an-csv').click()]);
+    const lignesAn = fs.readFileSync(await anCsv.path(), 'utf8').replace(/^\ufeff/, '').split('\r\n').filter(Boolean);
+    expect(lignesAn[0]).toBe('Salarié;CIN;N° CNSS;Mois payés;Brut annuel;CNSS retenue;IRPP retenu;Solidarité;Net des bulletins');
+    expect(lignesAn.at(-1)).toMatch(/^Total;;;;\d/);
     await p.screenshot({ path: path.join(PHOTOS, 'paie-etats.png') });
     expect(qui.erreurs).toEqual([]);
   }, 120_000);

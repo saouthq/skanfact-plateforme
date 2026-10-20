@@ -5177,19 +5177,76 @@
     };
   }
 
+  // (plateforme) 1.73.0 — les salaires de l'année, par salarié : la part « salaires » de la déclaration annuelle
+  // d'employeur. Déménagée de core.js (`employerAnnual`) dans le moteur commun : le Cabinet la prépare aussi pour ses
+  // clients, sur les bulletins de leur paie, et une copie diverge. Sur la forme de l'entreprise (`employees`, `payslips` et
+  // leur `computed`) ; le Cabinet y met ses salariés et ses bulletins. Le total d'une colonne est la somme de ses lignes.
+  function salairesDeLAnnee(data, year) {
+    const y = Number(year);
+    const byEmp = {};
+    ((data && data.payslips) || []).filter(p => Number(p.year) === y).forEach(p => {
+      const c = p.computed || {};
+      const emp = (data.employees || []).find(x => x.id === p.employeeId) || {};
+      const e = byEmp[p.employeeId] || (byEmp[p.employeeId] = {
+        employeeId: p.employeeId, name: emp.name || '', cin: emp.cin || '', cnss: emp.cnss || '',
+        position: emp.position || '', months: 0, gross: 0, cnss_: 0, taxable: 0, irpp: 0, css: 0, net: 0
+      });
+      e.months += 1;
+      e.gross = round3(e.gross + (c.gross || 0));
+      e.cnss_ = round3(e.cnss_ + (c.cnssEmployee || 0));
+      e.taxable = round3(e.taxable + ((c.annualTaxable || 0) / 12));
+      e.irpp = round3(e.irpp + (c.irpp || 0));
+      e.css = round3(e.css + (c.css || 0));
+      e.net = round3(e.net + (c.net || 0));
+    });
+    const rows = Object.values(byEmp).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'));
+    const sum = f => round3(rows.reduce((s, r) => s + (Number(f(r)) || 0), 0));
+    return { year: y, employees: rows.length, rows,
+      gross: sum(r => r.gross), cnss: sum(r => r.cnss_), irpp: sum(r => r.irpp), css: sum(r => r.css), net: sum(r => r.net) };
+  }
+  // Les colonnes de l'état, dans le fichier CSV des deux applications : [clé, libellé, montant ?]. « Net des bulletins » :
+  // ce que les bulletins portent, payé ou non (l'entreprise disait « Net versé », le nom de sa tuile qui ne compte que les
+  // bulletins payés — deux chiffres sous un nom).
+  const COLONNES_SALAIRES_ANNEE = [['name', 'Salarié'], ['cin', 'CIN'], ['cnss', 'N° CNSS'], ['months', 'Mois payés'],
+    ['gross', 'Brut annuel', true], ['cnss_', 'CNSS retenue', true], ['irpp', 'IRPP retenu', true], ['css', 'Solidarité', true],
+    ['net', 'Net des bulletins', true]];
+
+  // (plateforme) 1.73.0 — la déclaration d'employeur du livre confrontée aux bulletins de l'exercice : deux chemins, un
+  // chiffre. Les salaires (le 64 hors charges sociales) face au brut des bulletins ; les retenues sur salaires (le 4321 : l'IRPP
+  // et la contribution sociale de solidarité, comme l'écriture de paie les y porte) face à ce que les bulletins retiennent.
+  // Un écart se dit, avec ce qui le fait d'ordinaire ; il ne bloque rien.
+  function ecartsEmployeur(employeur, salaires) {
+    const s = salaires || {};
+    const bulletins = { salaires: round3(num(s.gross)), irpp: round3(num(s.irpp) + num(s.css)) };
+    const causes = {
+      salaires: ['une écriture de paie au brouillard ou pas encore passée', 'une charge de personnel saisie à la main au 64'],
+      irpp: ['une écriture de paie au brouillard ou pas encore passée', 'une retenue saisie à la main au compte']
+    };
+    return ((employeur && employeur.cases) || []).filter(c => bulletins[c.id] !== undefined).map(c => {
+      const ecart = round3(num(c.montant) - bulletins[c.id]);
+      return { id: c.id, livre: round3(num(c.montant)), bulletins: bulletins[c.id], ecart,
+        cause: ecart < 0 ? `Le livre porte moins : ${causes[c.id][0]}.` : `Le livre porte plus : ${causes[c.id][1]}.` };
+    }).filter(x => Math.abs(x.ecart) > 0.0005);
+  }
+
   // La déclaration annuelle d'employeur, lue dans le LIVRE. Elle porte DEUX choses distinctes
   // qu'on confond (règle 5.2.0) : les salaires versés, et les retenues à la source pratiquées sur
-  // des fournisseurs. Les deux figurent sur le même formulaire. Ici on ne peut donner que les
-  // MASSES — le détail par bénéficiaire demande les bulletins, que le cabinet n'a pas — et l'écran
-  // le dit plutôt que de laisser croire à un état nominatif.
+  // des fournisseurs. Les deux figurent sur le même formulaire. (plateforme) 1.73.0 — les masses ;
+  // le détail par bénéficiaire se lit sur les bulletins (`salairesDeLAnnee`), et s'y confronte
+  // (`ecartsEmployeur`). La v10 disait que le cabinet n'a pas les bulletins : sur la plateforme, il les a.
   function employeurAnnuel(livre, opts) {
     const o = opts || {};
     const lignes = lignesDuLivre(livre, { du: livre.exercice.du, au: livre.exercice.au });
     const bal = balanceDepuisLignes(lignes, {}, () => '');
     const masse = pref => round3(bal.rows.filter(r => String(r.account).startsWith(pref))
       .reduce((s, r) => s + r.debit - r.credit, 0));
-    const credit = pref => round3(bal.rows.filter(r => String(r.account).startsWith(pref))
-      .reduce((s, r) => s + r.credit - r.debit, 0));
+    // (plateforme) 1.73.0 — les retenues de l'EXERCICE : ce que ses écritures ont porté au crédit du compte, moins ce que
+    // leurs contre-passations et extournes en ont retiré. La v10 lisait le SOLDE du compte, qui n'est que ce qui reste à
+    // verser : chaque versement au Trésor le débite, et au 31 décembre il ne restait que la retenue du dernier mois. Les
+    // à-nouveaux (le reste de l'an passé) n'en sont pas. Un débit qui n'est pas un miroir est un versement : une
+    // régularisation passée en débit direct ne se retranche donc pas (À VÉRIFIER au premier dossier réel).
+    const credit = pref => round3(lignes.filter(l => String(l.account).startsWith(pref) && l.journal !== 'AN')
+      .reduce((s, l) => s + (l.contrepasseDe || l.extourneDe ? -num(l.debit) : num(l.credit)), 0));
     // 10.12.0 (U-03) — les charges patronales se lisent là où la paie les ÉCRIT (645, et 647 que le
     // plan nomme « charges sociales légales »), jamais dans le 65 que le plan appelle « charges
     // financières ». Et les salaires sont le 64 MOINS ces charges : lire le 64 entier comptait les
@@ -5204,12 +5261,7 @@
       { id: 'irpp', label: 'Retenues à la source sur salaires', montant: credit(txt(o.compteIrpp) || '4321'), comptes: [txt(o.compteIrpp) || '4321'] },
       { id: 'rsFournisseurs', label: 'Retenues à la source sur fournisseurs', montant: credit(txt(o.compteRs) || '4322'), comptes: [txt(o.compteRs) || '4322'] }
     ].map(c => c.montant ? c : { ...c, montant: null, raison: `Aucun mouvement sur ${c.comptes.join(', ')} dans cet exercice.` });
-    return {
-      exercice: livre.exercice.annee, cases,
-      nominatif: false,
-      raisonNominatif: 'Le détail par bénéficiaire demande les bulletins de paie, que le cabinet ne reçoit pas : '
-        + 'ces masses se confrontent à l\'état nominatif que le client tient dans SkanFact.'
-    };
+    return { exercice: livre.exercice.annee, cases };
   }
 
   // ------------------------------------------------- la révision et les questions (9.10.0)
@@ -7307,6 +7359,8 @@
     LIASSE_ETATS, MODELE_LIASSE, RETRAITEMENTS,
     modeleLiasse, migrerModeleLiasse, rubriqueDuCompte, liasseDepuisLignes,
     retraitementValide, resultatFiscal, employeurAnnuel,
+    // (plateforme) 1.73.0 — les salaires de l'année par salarié, et leurs écarts avec le livre.
+    salairesDeLAnnee, COLONNES_SALAIRES_ANNEE, ecartsEmployeur,
     // La révision et les questions (9.10.0)
     CYCLES_REVISION, QUESTION_STATUTS, QUESTION_ATTENDUS, QUESTION_RELANCE,
     cycleDuCompte, libelleCycle, nomDuCompte,

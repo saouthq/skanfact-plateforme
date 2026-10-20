@@ -782,4 +782,6 @@ export const ADAPTATIONS = [
   ...lireFichier('paie-cabinet-avances.txt'),
   // ── Les documents du personnel au Cabinet (20/10/2026, 1.72.0 ; docs/paie.md) : attestation, certificat, solde de tout compte ──
   ...lireFichier('paie-cabinet-documents-personnel.txt'),
+  // ── La déclaration annuelle d'employeur au Cabinet (20/10/2026, 1.73.0 ; docs/paie.md) : les salaires par salarié, confrontés au livre ──
+  ...lireFichier('paie-cabinet-declaration-employeur.txt'),
 ];
