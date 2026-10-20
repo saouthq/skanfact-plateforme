@@ -48,12 +48,20 @@ export async function problemes([cibles, W]: [boolean, number]): Promise<string[
   // Un texte caché aux yeux pour les lecteurs d'écran (un point de côté, découpé à rien : `clip-path: inset(50%)` ou
   // `clip: rect(0 0 0 0)`) n'est pas un texte coupé : il n'est pas à l'écran du tout (la console, brique Console 1).
   const cacheAuxYeux = (cs: CSSStyleDeclaration) => cs.clipPath === 'inset(50%)' || cs.clip === 'rect(0px, 0px, 0px, 0px)';
+  // Un texte coupé se dit avec ce qui dépasse, et de combien : la liste des demandes closes de la console (en langue
+  // factice) n'était coupée que sous la charge de la vérification d'envoi, jamais seule (20/10/2026), et le seul nom de la
+  // carte ne disait pas laquelle de ses lignes la débordait.
+  const quiDepasse = (el: HTMLElement) => {
+    const bord = el.getBoundingClientRect().left + el.clientLeft + el.clientWidth;
+    const x = [...el.querySelectorAll<HTMLElement>('*')].filter((c) => visible(c) && c.getBoundingClientRect().right > bord + 1).pop();
+    return ` (${el.scrollWidth} points pour ${el.clientWidth}${x ? ` ; dépasse : <${x.tagName.toLowerCase()}${x.className ? `.${String(x.className).split(' ').join('.')}` : ''}> de ${Math.round(x.getBoundingClientRect().width)} points, « ${(x.textContent ?? '').trim().slice(0, 40)} »` : ''})`;
+  };
   for (const el of document.querySelectorAll<HTMLElement>('body *')) {
     if (!visible(el)) continue;
     const cs = getComputedStyle(el);
     const coupe = (['hidden', 'clip'].includes(cs.overflowX) || cs.textOverflow === 'ellipsis') && !cacheAuxYeux(cs);
     // Un champ de saisie défile sous le doigt : son texte n'est pas coupé.
-    if (coupe && cs.textOverflow !== 'ellipsis' && !el.matches('input, textarea, select') && el.scrollWidth > el.clientWidth + 1 && !el.closest('table, .preview, .doc-page')) pb.push(`texte coupé : <${el.tagName.toLowerCase()}${el.className ? `.${String(el.className).split(' ').join('.')}` : ''}> ${(el.textContent || el.getAttribute('placeholder') || el.getAttribute('name') || el.id || '').slice(0, 60)}`);
+    if (coupe && cs.textOverflow !== 'ellipsis' && !el.matches('input, textarea, select') && el.scrollWidth > el.clientWidth + 1 && !el.closest('table, .preview, .doc-page')) pb.push(`texte coupé : <${el.tagName.toLowerCase()}${el.className ? `.${String(el.className).split(' ').join('.')}` : ''}> ${(el.textContent || el.getAttribute('placeholder') || el.getAttribute('name') || el.id || '').slice(0, 60)}${quiDepasse(el)}`);
     const r = el.getBoundingClientRect();
     // Un tableau large défile dans son cadre (telephone.css : les listes, les lignes d'un achat) : ce qui
     // dépasse DANS un cadre qui défile, lui-même dans l'écran, ne sort pas de l'écran.
