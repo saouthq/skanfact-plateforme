@@ -18231,7 +18231,7 @@ prouver 'la liste d'"'"'un choix coupée par une petite fenêtre' 'web/public/v1
   '' \
   '« Partir d'"'"'une pièce existante » ne propose pas un ticket, et sa liste s'"'"'ouvre en entier dans la fenêtre'
 prouver 'le refus de deux phrases qui disparaît avant sa lecture' 'web/public/v10/app.js' \
-  "setTimeout(() => t.className = '', Math.min(8000, Math.max(2600, String(msg).length * 60)));" \
+  "setTimeout(() => t.className = '', Math.min(8000, Math.max(4000, String(msg).length * 60)));" \
   "setTimeout(() => t.className = '', 2600);" \
   'un avoir négatif ne s'"'"'émet pas : le refus vient avant la fenêtre d'"'"'émission'
 

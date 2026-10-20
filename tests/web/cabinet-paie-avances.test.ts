@@ -249,7 +249,8 @@ describe('les avances au Cabinet, à la souris et au clavier', () => {
     await expect.poll(async () => fenetre.locator('#bf-retenues [data-l=label]').inputValue().catch(() => '')).toBe('Remboursement d\'avance du 15/09/2025');
     expect(await fenetre.locator('#bf-retenues [data-l=amount]').inputValue()).toBe('200,250');
     await fenetre.locator('#ok').click();
-    await expect.poll(() => p.locator('#toast').innerText()).toBe('Bulletin enregistré.');
+    // Le texte du toast, qui reste quand il se cache (sur une machine lente, innerText lisait '' après 2,6 s).
+    await expect.poll(async () => (await p.locator('#toast').textContent()) ?? '').toBe('Bulletin enregistré.');
     await expect.poll(async () => net(await p.locator('#av-liste tbody tr').innerText())).toBe('Salarié Numéro Un 15/09/2025 Virement 600,750 DT 200,250 DT 200,250 DT 400,500 DT');
     // Deux chemins, un chiffre : le SkanFact du client, par le moteur de l'entreprise, lit le même reste dans ses données.
     const siennes = ((await api('GET', `/entreprises/${boulangerie}/dossier-v10`, patron)).corps.objets as Objet[]).map((o) => ({ ...o, contenu: decoder(o.contenu) as Record<string, unknown> }));

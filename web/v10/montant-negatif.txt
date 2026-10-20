@@ -51,6 +51,6 @@ des deux chemins (« Émettre », « PDF »), et montre les lignes ; le serveur 
     clearTimeout(t._timer); t._timer = setTimeout(() => t.className = '', 2600);
 -- après
     // (plateforme) 1.81.0 — 2,6 s pour tout message : un refus de deux phrases disparaissait avant la fin de sa lecture.
-    // Le temps de le lire (environ 60 ms par caractère), jamais moins de 2,6 s ni plus de 8 s.
-    clearTimeout(t._timer); t._timer = setTimeout(() => t.className = '', Math.min(8000, Math.max(2600, String(msg).length * 60)));
+    // Le temps de le lire (environ 60 ms par caractère), jamais moins de 4 s ni plus de 8 s.
+    clearTimeout(t._timer); t._timer = setTimeout(() => t.className = '', Math.min(8000, Math.max(4000, String(msg).length * 60)));
 -- fin

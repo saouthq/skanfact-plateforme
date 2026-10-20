@@ -176,6 +176,8 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée · La facture STEG d'août Reçue Lue/);
     await c.p.screenshot({ path: path.join(PHOTOS, 'messagerie-3-cabinet.png') });
     await c.p.getByRole('button', { name: 'C\'est traité', exact: true }).click();
+    // Enregistré avant de changer d'écran (sur une machine lente, la boîte se relisait avant : « À traiter (1) »).
+    await expect.poll(async () => (await c.p.locator('#toast').textContent()) ?? '', { timeout: 15_000 }).toMatch(/^C'est noté/);
     await c.p.getByRole('button', { name: /Les messages de tes clients/ }).click();
     await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText().catch(() => '')), { timeout: 15_000 }).toBe('À traiter (0) Attend le client (0) Tout (1)');
     // Rouvert ailleurs que dans la boîte, la pastille compte ce qui est à traiter : rien, alors qu'un client est en ligne.

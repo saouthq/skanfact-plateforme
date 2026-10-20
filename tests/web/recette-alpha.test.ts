@@ -354,8 +354,8 @@ describe('la recette alpha, à la souris', () => {
       .toMatch(/^Cet avoir fait − ?23,800 DT : un avoir rend de l'argent, son montant est positif\./);
     expect(await p.locator('#modal-root .modal').count()).toBe(0);
     expect(await p.locator('#view h1').first().innerText()).toMatch(/^Nouvel avoir/);
-    // Deux phrases restent le temps de se lire : encore là après 3,5 s (un message court part à 2,6 s).
-    await p.waitForTimeout(3500);
+    // Deux phrases restent le temps de se lire : encore là après 5,5 s (un message court part à 4 s).
+    await p.waitForTimeout(5500);
     expect(await p.locator('#toast').getAttribute('class')).toMatch(/\bshow\b/);
     expect(erreurs).toEqual([]);
     await cx.close();

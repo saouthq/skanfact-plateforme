@@ -125,8 +125,8 @@ describe('payer les salaires du mois, à la souris', () => {
     await payer.click();
     await expect.poll(async () => (await titre()).startsWith(`Payer les salaires de ${periode}`)).toBe(true);
     expect(await fenetre.locator('tr[data-ps]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.ps))).toEqual(['p-s2', 'p-s3', 'p-s1']);
-    expect(await lire('#ps-hors')).toBe('L\'ordre de virement ne portera pas Salarié Numéro Deux (RIB à renseigner), Salarié Numéro Trois (espèces).');
-    expect(await lire('#ps-compte-rib')).toBe('Le compte « Banque du Port — compte courant » n\'a pas de RIB : l\'ordre ne dira pas quel compte débiter. Renseigner son RIB…');
+    expect(await lire('#ps-hors')).toBe('L\'ordre de virement ne portera pas Salarié Numéro Deux (RIB à renseigner), Salarié Numéro Trois (espèces). Renseigner le RIB de Salarié Numéro Deux…');
+    expect(await lire('#ps-compte-rib')).toBe('Le compte « Banque du Port — compte courant » n\'a pas de RIB : l\'ordre ne dira pas quel compte débiter. Renseigner le RIB du compte…');
     expect(await lire('#ps-compte')).toBe('3 salaires sur 3');
 
     // ── Le RIB du salarié : sa fiche s'ouvre sur la case ; une clé fausse se dit ; enregistrée, la fenêtre revient ─────

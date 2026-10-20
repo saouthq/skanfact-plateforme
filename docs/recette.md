@@ -371,7 +371,7 @@ payés » solde le 425 au millime par la banque.
   serveur refuse aussi (`ventes.avoir_negatif`, `ventes.facture_negative`), hors timbre (le dinar du timbre masquait une
   petite facture négative), avant le numéro : rien n'est pris. Un avoir nul ne s'émet pas non plus.
 - **Un refus long** disparaissait en 2,6 s, avant la fin de sa lecture : un message reste le temps de se lire (60 ms par
-  caractère, entre 2,6 et 8 s).
+  caractère, entre 4 et 8 s ; un message court reste 4 s au lieu de 2,6 s).
 - **Au Cabinet, « 1 à valider »** sur une échéance ne disait ni qui ni où aller : le client est nommé sous la carte, et
   « Valider ses écritures » ouvre sa saisie sur l'année du mois (plusieurs clients : la Production).
 - **« Partir d'une pièce existante »** (bon de livraison) proposait en tête un ticket de caisse sans client (« TIC-2026-003
@@ -385,7 +385,7 @@ payés » solde le 425 au millime par la banque.
 - `tests/v10/dossier.test.ts` : une facture négative et un avoir négatif ou nul refusés par le serveur, aucun numéro
   d'avoir pris, puis un vrai avoir qui prend AVO-2026-001.
 - `tests/web/recette-alpha.test.ts` : l'avoir à −23,800 DT refusé avant toute fenêtre, le refus encore lisible après
-  3,5 s ; « Partir d'une pièce existante » sans le ticket, son dernier article visible et cliquable.
+  5,5 s ; « Partir d'une pièce existante » sans le ticket, son dernier article visible et cliquable.
 - `tests/web/cabinet-livre-a-jour.test.ts` : le client à valider nommé sous l'échéance, et sa saisie ouverte.
 - Huit preuves (`tests/preuves.sh`, « 1.81.0 »).
 
