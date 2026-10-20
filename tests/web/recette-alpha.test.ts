@@ -6,7 +6,8 @@
 //   - une date tapée après un clic dans sa case remplace celle qui y était ;
 //   - au Stock, « Choisir dans le Catalogue » mène au geste ; aux Relances, « Relancer » est sur la ligne (1.80.0) ;
 //   - Ctrl+S enregistre dans le navigateur ; la liste des devis dit « facturé » ; l'Aide ne promet que les raccourcis qui marchent ;
-//   - une commande fournisseur crée son fournisseur sans quitter la pièce.
+//   - une commande fournisseur crée son fournisseur sans quitter la pièce ;
+//   - « Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -288,6 +289,37 @@ describe('la recette alpha, à la souris', () => {
     await expect.poll(() => fiche.locator('h2').innerText()).toBe('Nouveau fournisseur');
     await fiche.getByRole('button', { name: 'Enregistrer', exact: true }).click();
     await expect.poll(() => choix.locator('.combo-val').innerText(), { timeout: 10_000 }).toBe('Electro Sfax');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
+
+  it('« Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui', async () => {
+    const { jeton, ent } = await commerce();
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'employees', cle: 'e1', rang: 0, revision: null, contenu: { id: 'e1', name: 'Nadia Gharbi', contract: 'CDI', hireDate: '2026-01-01', grossSalary: { '~n': '1250.75' },
+        method: 'virement', iban: '', headOfFamily: false, children: 0 } },
+    ] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/paie`);
+    await p.locator('#p-gen').click({ timeout: 20_000 });
+    await p.locator('#modal-root #ok').click();
+    await p.getByRole('button', { name: /^Payer les salaires/ }).click({ timeout: 15_000 });
+    const fenetre = p.locator('#modal-root .modal').last();
+    // Le salarié a son bouton sous sa phrase ; celui du compte dit qu'il est celui du compte.
+    await expect.poll(() => fenetre.locator('#ps-hors').innerText().then(net)).toMatch(/Nadia Gharbi \(RIB à renseigner\)\. Renseigner le RIB de Nadia Gharbi…$/);
+    expect(await fenetre.locator('#ps-compte-go').innerText()).toBe('Renseigner le RIB du compte…');
+    await fenetre.getByRole('button', { name: 'Renseigner le RIB de Nadia Gharbi…', exact: true }).click();
+    const fiche = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fiche.locator('h2').first().innerText()).toBe('Modifier le salarié');
+    await fiche.locator('[name=iban]').fill('08006000000012345663');
+    await fiche.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    // La fenêtre revient comme on l'a laissée, le salarié dans l'ordre de virement.
+    await expect.poll(() => p.locator('#modal-root .modal').last().locator('h2').first().innerText(), { timeout: 10_000 }).toMatch(/^Payer les salaires/);
+    expect(await p.locator('#modal-root .modal').last().locator('#ps-hors').count()).toBe(0);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

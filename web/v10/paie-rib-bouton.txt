@@ -1,0 +1,35 @@
+Ce que la 1.80.0 change à l'application de l'entreprise (docs/recette.md, « 1.80.0 ») : dans « Payer les salaires »,
+chaque phrase qui manque d'un RIB porte son propre bouton, qui dit de qui. Format : voir sans-paquets.mjs.
+
+Le cadre disait « L'ordre de virement ne portera pas Karim (RIB à renseigner) », puis « Le compte « Banque » n'a pas de
+RIB », et un seul bouton « Renseigner son RIB… » sous les deux : il ouvrait la fiche du COMPTE, alors qu'on venait de
+lire le nom du salarié (recette du 20/10/2026). La pastille « à renseigner » du tableau, qui ouvre la fiche du salarié,
+ne se lit pas comme un bouton. Le salarié a désormais son bouton, nommé, sous sa phrase ; celui du compte dit « du
+compte ».
+
+== app.js | « Payer les salaires » : le bouton du salarié sans RIB, sous sa phrase
+-- avant
+        if (horsOrdre.length) motifs.push(`<div class="ctrl-geste" id="ps-hors"><span>L'ordre de virement ne portera pas ${horsOrdre.map(l => `<b>${h(l.name)}</b> (${l.mode !== 'virement' ? h(modeDe(l.mode).toLowerCase()) : l.manque === 'rib' ? 'RIB à renseigner' : 'RIB à corriger'})`).join(', ')}.</span></div>`);
+-- après
+        // (plateforme) 1.80.0 — chaque salarié au RIB manquant a son bouton, nommé (le seul bouton du cadre ouvrait le compte).
+        if (horsOrdre.length) motifs.push(`<div class="ctrl-geste" id="ps-hors"><span>L'ordre de virement ne portera pas ${horsOrdre.map(l => `<b>${h(l.name)}</b> (${l.mode !== 'virement' ? h(modeDe(l.mode).toLowerCase()) : l.manque === 'rib' ? 'RIB à renseigner' : 'RIB à corriger'})`).join(', ')}.</span>${horsOrdre.filter(l => l.mode === 'virement' && l.manque).map(l => `<button type="button" class="btn btn-sm" data-ps-rib="${h(l.employeeId)}">${l.manque === 'rib' ? 'Renseigner' : 'Corriger'} le RIB de ${h(l.name)}…</button>`).join('')}</div>`);
+-- fin
+
+== app.js | « Payer les salaires » : le bouton du compte dit qu'il est celui du compte
+-- avant
+<button type="button" class="btn btn-sm" id="ps-compte-go">Renseigner son RIB…</button></div>`);
+-- après
+<button type="button" class="btn btn-sm" id="ps-compte-go">Renseigner le RIB du compte…</button></div>`);
+-- fin
+
+== app.js | « Payer les salaires » : les boutons du cadre ouvrent la fiche du salarié
+-- avant
+        const go = $('#ps-compte-go', root);
+-- après
+        $$('#ps-avert [data-ps-rib]', root).forEach(b => { b.onclick = () => {
+          const emp = employeeById(b.dataset.psRib); if (!emp) return;
+          const t = tenu(); close();
+          employeeForm(emp, () => payerSalairesFenetre(year, month, done, t), { focus: 'iban' });
+        }; });
+        const go = $('#ps-compte-go', root);
+-- fin

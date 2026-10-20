@@ -806,4 +806,6 @@ export const ADAPTATIONS = [
   ...lireFichier('devis-facture.txt'),
   // ── La commande fournisseur crée son fournisseur sans quitter la pièce (1.80.0) ──
   ...lireFichier('commande-fournisseur-neuf.txt'),
+  // ── « Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui (1.80.0) ──
+  ...lireFichier('paie-rib-bouton.txt'),
 ];

@@ -18184,6 +18184,18 @@ prouver 'le fournisseur créé depuis la commande qui n'"'"'y est pas choisi' 'w
   'cfFournisseur.setItems(fournisseursCF(), sup.id); o.supplierId = sup.id; touch();' \
   'cfFournisseur.setItems(fournisseursCF()); touch();' \
   'une commande fournisseur crée son fournisseur sans quitter la pièce, et le prend'
+prouver 'le seul bouton « Renseigner son RIB… » qui ouvre le compte sous le nom du salarié' 'web/public/v10/app.js' \
+  "'Corriger'} le RIB de \${h(l.name)}…</button>\`).join('')}</div>\`);" \
+  "'Corriger'} le RIB de \${h(l.name)}…</button>\`).slice(0, 0).join('')}</div>\`);" \
+  '« Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui'
+prouver 'le bouton du compte qui ne dit pas qu'"'"'il est celui du compte' 'web/public/v10/app.js' \
+  'id="ps-compte-go">Renseigner le RIB du compte…</button>' \
+  'id="ps-compte-go">Renseigner son RIB…</button>' \
+  '« Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui'
+prouver 'le bouton du salarié dans le cadre qui n'"'"'ouvre rien' 'web/public/v10/app.js' \
+  "\$\$('#ps-avert [data-ps-rib]', root).forEach(b => { b.onclick = () => {" \
+  "\$\$('#ps-avert [data-ps-rien]', root).forEach(b => { b.onclick = () => {" \
+  '« Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

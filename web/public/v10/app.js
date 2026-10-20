@@ -11852,12 +11852,18 @@
         // L'ordre dit qui l'envoie : sans le nom de la société, il ne vaut rien pour la banque (vu à la souris).
         const sansNom = !String(company().name || '').trim();
         if (sansNom) motifs.push(`<div class="ctrl-geste" id="ps-societe"><span>Le nom de ta société n'est pas sur ta fiche : l'ordre de virement ne dirait pas qui l'envoie.</span><button type="button" class="btn btn-sm" id="ps-societe-go">Renseigner ta fiche…</button></div>`);
-        if (horsOrdre.length) motifs.push(`<div class="ctrl-geste" id="ps-hors"><span>L'ordre de virement ne portera pas ${horsOrdre.map(l => `<b>${h(l.name)}</b> (${l.mode !== 'virement' ? h(modeDe(l.mode).toLowerCase()) : l.manque === 'rib' ? 'RIB à renseigner' : 'RIB à corriger'})`).join(', ')}.</span></div>`);
+        // (plateforme) 1.80.0 — chaque salarié au RIB manquant a son bouton, nommé (le seul bouton du cadre ouvrait le compte).
+        if (horsOrdre.length) motifs.push(`<div class="ctrl-geste" id="ps-hors"><span>L'ordre de virement ne portera pas ${horsOrdre.map(l => `<b>${h(l.name)}</b> (${l.mode !== 'virement' ? h(modeDe(l.mode).toLowerCase()) : l.manque === 'rib' ? 'RIB à renseigner' : 'RIB à corriger'})`).join(', ')}.</span>${horsOrdre.filter(l => l.mode === 'virement' && l.manque).map(l => `<button type="button" class="btn btn-sm" data-ps-rib="${h(l.employeeId)}">${l.manque === 'rib' ? 'Renseigner' : 'Corriger'} le RIB de ${h(l.name)}…</button>`).join('')}</div>`);
         if (compte && compte.kind === 'caisse') motifs.push(`<div class="ctrl-geste" id="ps-caisse"><span>« ${h(compte.name)} » est une caisse : un ordre de virement se donne à une banque.</span></div>`);
-        else if (compte && !String(compte.rib || '').trim()) motifs.push(`<div class="ctrl-geste" id="ps-compte-rib"><span>Le compte « ${h(compte.name)} » n'a pas de RIB : l'ordre ne dira pas quel compte débiter.</span><button type="button" class="btn btn-sm" id="ps-compte-go">Renseigner son RIB…</button></div>`);
+        else if (compte && !String(compte.rib || '').trim()) motifs.push(`<div class="ctrl-geste" id="ps-compte-rib"><span>Le compte « ${h(compte.name)} » n'a pas de RIB : l'ordre ne dira pas quel compte débiter.</span><button type="button" class="btn btn-sm" id="ps-compte-go">Renseigner le RIB du compte…</button></div>`);
         $('#ps-avert', root).innerHTML = motifs.length ? `<div class="warn-box">${motifs.join('')}</div>` : '';
         const so = $('#ps-societe-go', root);
         if (so) so.onclick = () => { close(); allerParametres('societe', 'p-identite:name'); };
+        $$('#ps-avert [data-ps-rib]', root).forEach(b => { b.onclick = () => {
+          const emp = employeeById(b.dataset.psRib); if (!emp) return;
+          const t = tenu(); close();
+          employeeForm(emp, () => payerSalairesFenetre(year, month, done, t), { focus: 'iban' });
+        }; });
         const go = $('#ps-compte-go', root);
         if (go) go.onclick = () => { const t = tenu(); close(); accountForm(compte, () => payerSalairesFenetre(year, month, done, t), null, { focus: 'rib' }); };
         const ordre = $('#ps-ordre', root);

@@ -327,6 +327,10 @@ suit.
   (ou « acompte facturé » quand seul l'acompte l'est).
 - **Une commande fournisseur** laissait « Aucun résultat » sous un fournisseur introuvable, et rien d'autre : elle offre
   « + Nouveau fournisseur « ce qu'on a tapé » », comme la facture d'achat, et prend la fiche créée.
+- **« Payer les salaires »** disait « L'ordre ne portera pas Karim (RIB à renseigner) », puis « Le compte n'a pas de
+  RIB », sous un seul bouton « Renseigner son RIB… » qui ouvrait la fiche du COMPTE. Le salarié a son bouton nommé sous
+  sa phrase (« Renseigner le RIB de Karim… », qui rouvre la fenêtre comme on l'a laissée) ; celui du compte dit « du
+  compte ».
 
 ### Vu bon en passant (20/10/2026)
 
@@ -339,7 +343,9 @@ l'encaissement) s'écrivent justes au livre du serveur. Un devis à 7,5 % de rem
 puis un acompte de 30 % (29,560 timbre compris) et sa facture de solde (67,640) : le livre écrit 24 + 56 = 80 au 706 et
 4,560 + 10,640 = 15,200 de TVA, le montant du devis au millime. Une commande de 3 climatiseurs, reçue à 2 (« reçue en
 partie »), puis la facture du fournisseur saisie depuis la réception : 2 × 845,500 repris, 606 / 4366 / 401 au millime,
-et le refus honnête du stock (une ligne libre n'est pas un article suivi).
+et le refus honnête du stock (une ligne libre n'est pas un article suivi). Un salarié à 1 250,750 de brut, son bulletin
+de septembre (1 250,750 − 121,073 − 102,802 = 1 026,875) : l'écriture de paie s'équilibre à 1 506,779, et « Marquer
+payés » solde le 425 au millime par la banque.
 
 ### Ce qui le prouve
 
@@ -349,7 +355,7 @@ et le refus honnête du stock (une ligne libre n'est pas un article suivi).
   « facturé » dans la liste, l'Aide ne promet plus les raccourcis du navigateur.
 - `tests/web/cabinet-livre-a-jour.test.ts` : le calendrier vide qui dit sa règle, l'échéance pas prête qui le dit avant
   d'être pointée.
-- Treize preuves (`tests/preuves.sh`, « 1.80.0 »).
+- Seize preuves (`tests/preuves.sh`, « 1.80.0 »).
 
 ## Ce qui reste (les lots suivants)
 
