@@ -98,6 +98,13 @@ les imprime, et son client ne les lisait pas. **Reste** : « Accepter ce devis �
 chose depuis l'espace : à décider) ; un devis sans date de validité (créé par l'API ou repris) imprime « valable
 jusqu'au . » (la v10 ne laisse pas vider ce champ à l'écran).
 
+**E10. L'espace dans la DA de l'application** (1.86.0, 21/10/2026, à la suite de la page de retour d'un paiement,
+demande de Skander). Les mêmes polices (Bricolage Grotesque, Instrument Sans) et la même nuit verte que la page de
+retour : payer et revenir se lisent comme une seule histoire. Ce qui est dû se lit en premier, dans une bande sombre, et
+son montant est le plus grand texte de la page ; « Rien à payer » s'y lit en menthe. Clair et sombre ; la pièce
+elle-même reste sur papier blanc, comme l'entreprise l'imprime. Au téléphone, « Payer … en ligne » prend toute la largeur.
+Seule la feuille de style change : les textes, l'ordre et les gestes restent ceux de E1 à E9.
+
 ## Ce qui part vers le client, compté et décidé
 
 Des **listes fermées** (`serveur/ventes/espace.ts`), tirées de ce que lit le gabarit d'impression pour

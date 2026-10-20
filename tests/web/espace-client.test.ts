@@ -173,6 +173,14 @@ describe('l\'espace client, à la souris', () => {
       .toBe(net(`Avoir AVO-2026-001 Date : 10/10/2026 Échéance : — Montant : 536,095 DT Reste à payer : — Voir
         Facture FAC-2026-001 Payée en partie Payé : 200,000 DT · Avoirs : 536,095 DT Date : 01/10/2026 Échéance : 31/10/2026 Montant : 1 073,190 DT Reste à payer : 337,095 DT Voir`));
     await t.screenshot({ path: path.join(PHOTOS, 'espace-5-telephone.png') });
+    // Ce qui est dû se lit en premier : son montant est le plus grand texte de la page, au-dessus du nom de l'entreprise
+    // (1.86.0, l'espace dans la DA).
+    const tailles = await t.evaluate(() => {
+      const px = (e: Element) => Number(getComputedStyle(e).fontSize.replace('px', ''));
+      const du = document.querySelector('.carte.du strong');
+      return { du: du ? px(du) : 0, autres: Math.max(...[...document.querySelectorAll('#espace *')].filter((e) => e !== du && e.childElementCount === 0 && e.textContent?.trim()).map(px)) };
+    });
+    expect(tailles.du).toBeGreaterThan(tailles.autres);
 
     // « Retirer » le lien de la facture : il ne s'ouvre plus, et la page le dit.
     const ligne = f2.locator('#lc-liste tr').filter({ hasText: 'Cette pièce' });

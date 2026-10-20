@@ -18338,6 +18338,11 @@ prouver 'le montant absent du reçu de retour' web/public/espace/retour.js \
   '<div class="r-montant"><span>Montant</span><b>${esc(recu.montant)}</b></div>' '<div class="r-montant"><span>Montant</span><b></b></div>' \
   "$MFW"
 
+# 1.86.0 — l'espace du client dans la DA : ce qui est dû se lit en premier, le plus grand texte de la page.
+prouver 'le montant dû noyé dans le texte de l'"'"'espace' web/public/espace/espace.css \
+  '  .du strong { font-size: 28px; }' '  .du strong { font-size: 15px; }' \
+  "$EC3"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

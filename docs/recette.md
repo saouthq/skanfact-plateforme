@@ -550,6 +550,17 @@ d'une entreprise (et l'abonné de SkanFact) après Konnect était un paragraphe 
   jamais dit » reportée sur le nouveau code.
 - Vus à l'écran : les cinq états (reçu, en cours, refusé, non abouti, lien incomplet), au téléphone et en sombre.
 
+## 1.86.0 — l'espace du client, dans la DA (21/10/2026)
+
+La suite de 1.85.0 : la page d'où le client paie, et où il revient, était restée dans un gris générique (police du
+système, « Rien à payer Merci ! » sur une ligne). Elle prend la DA de la page de retour (docs/espace-client.md E10) :
+la bande sombre de ce qui est dû, le montant en grand, « Rien à payer » en menthe, les boutons de l'application, le
+sombre ; « Payer … en ligne » sur toute la largeur au téléphone. Seule la feuille de style change.
+
+- `tests/web/espace-client.test.ts` : au téléphone, le montant dû est le plus grand texte de la page.
+- Une preuve (le montant dû ramené à la taille du texte).
+- Vu à l'écran : le relevé dû et soldé, au bureau, au téléphone et en sombre ; la pièce et son bouton « Payer ».
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

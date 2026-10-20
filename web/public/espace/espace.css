@@ -1,20 +1,56 @@
-/* L'espace client (brique 77) : sobre, lisible sur un téléphone comme sur un ordinateur. */
-:root { --fond: #f5f7fa; --carte: #fff; --texte: #1c2430; --doux: #5b6675; --trait: #e3e8ef; --accent: #0f9488; --retard: #b42318; }
+/* L'espace client (brique 77), dans la DA de l'application (1.86.0) : les mêmes polices, la même nuit verte et la même
+   menthe que la page de retour d'un paiement (retour.css), pour que payer et revenir se lisent comme une seule histoire.
+   Sobre, lisible sur un téléphone comme sur un ordinateur ; clair et sombre. Ce qui est dû se lit en premier, en grand. */
+@font-face {
+  font-family: 'Bricolage Grotesque Variable'; font-style: normal; font-display: swap; font-weight: 200 800;
+  src: url(/plateforme/polices/bricolage-grotesque-latin-wght-normal.woff2) format('woff2-variations');
+}
+@font-face {
+  font-family: 'Instrument Sans Variable'; font-style: normal; font-display: swap; font-weight: 400 700;
+  src: url(/plateforme/polices/instrument-sans-latin-wght-normal.woff2) format('woff2-variations');
+}
+:root {
+  --titre: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', system-ui, sans-serif;
+  --police: 'Instrument Sans Variable', 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --fond: #eef3f2; --carte: #fff; --texte: #13201e; --doux: #5a6b68; --trait: #e1e9e7; --tete: #f4f8f7;
+  --nuit: #0b2724; --menthe: #7fe0d3; --brume: #a9c6c1;
+  --accent: #0f766e; --accent-fort: #0b5f58; --retard: #b42318; --retard-fond: #fdecea;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --fond: #08110f; --carte: #101d1b; --texte: #e6efed; --doux: #9fb3af; --trait: #1f302d; --tete: #0c1816;
+    --accent: #2bb3a3; --accent-fort: #39c7b6; --retard: #ffab9f; --retard-fond: rgba(255, 171, 159, .12); color-scheme: dark; }
+}
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--fond); color: var(--texte); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
-main { max-width: 960px; margin: 0 auto; padding: 24px 16px 48px; }
-.attente, .refus { background: var(--carte); border: 1px solid var(--trait); border-radius: 12px; padding: 20px; }
-.refus strong { display: block; margin-bottom: 6px; }
-header.societe { display: flex; gap: 16px; align-items: center; margin-bottom: 20px; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 15px/1.55 var(--police); -webkit-font-smoothing: antialiased; }
+main { max-width: 960px; margin: 0 auto; padding: 32px 16px 48px; }
+.attente, .refus { background: var(--carte); border: 1px solid var(--trait); border-radius: 18px; padding: 22px 24px; }
+.attente { color: var(--doux); }
+.refus strong { display: block; margin-bottom: 6px; font-family: var(--titre); font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+
+/* L'entreprise qui t'écrit : son logo, son nom. */
+header.societe { display: flex; gap: 16px; align-items: center; margin-bottom: 22px; }
 header.societe img { max-height: 56px; max-width: 160px; object-fit: contain; }
-header.societe h1 { font-size: 22px; margin: 0; }
-header.societe p { margin: 2px 0 0; color: var(--doux); }
-.carte { background: var(--carte); border: 1px solid var(--trait); border-radius: 12px; padding: 16px 20px; margin-bottom: 16px; }
-.du { display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: baseline; }
-.du strong { font-size: 22px; }
+header.societe h1 { font-family: var(--titre); font-size: 26px; font-weight: 600; line-height: 1.15; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
+header.societe p { margin: 4px 0 0; color: var(--doux); }
+
+.carte { background: var(--carte); border: 1px solid var(--trait); border-radius: 18px; padding: 18px 22px; margin-bottom: 16px; }
+
+/* Ce qui est dû : la nuit verte, le montant en grand ; « Rien à payer » en menthe. */
+.carte.du { display: flex; flex-wrap: wrap; gap: 4px 20px; align-items: baseline; padding: 22px 24px; border: 0; color: #e8f3f1;
+  background-color: var(--nuit); background-image: repeating-linear-gradient(0deg, rgba(127, 224, 211, .06) 0 1px, transparent 1px 32px); }
+/* Pas de majuscules imposées : ce que le client lit (et copie) est le texte tel qu'il est écrit. */
+.du > span { font-size: 14px; font-weight: 600; color: var(--brume); flex-basis: 100%; }
+.du strong { font-family: var(--titre); font-size: 34px; font-weight: 650; line-height: 1.1; letter-spacing: -0.03em; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.du strong:only-of-type:first-child { color: var(--menthe); font-size: 28px; }
+.du strong:first-child + span { flex-basis: auto; font-size: 15px; font-weight: 500; }
+.du .aide { flex-basis: 100%; margin: 6px 0 0; color: var(--brume); font-size: 14px; }
+
+/* La liste des pièces. */
 table.pieces { width: 100%; border-collapse: collapse; }
-table.pieces th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--doux); font-weight: 600; padding: 8px 6px; border-bottom: 1px solid var(--trait); }
-table.pieces td { padding: 10px 6px; border-bottom: 1px solid var(--trait); vertical-align: top; }
+table.pieces th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--doux); font-weight: 600; padding: 8px 6px; border-bottom: 1px solid var(--trait); }
+table.pieces td { padding: 12px 6px; border-bottom: 1px dashed var(--trait); vertical-align: top; }
+table.pieces td strong { font-weight: 650; }
 table.pieces th.m { text-align: right; }
 table.pieces td.m { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
 table.pieces tr:last-child td { border-bottom: 0; }
@@ -22,29 +58,37 @@ table.pieces tr:last-child td { border-bottom: 0; }
 .statut { font-size: 13px; color: var(--doux); }
 .statut.en_retard { color: var(--retard); font-weight: 600; }
 .statut.accepte { color: var(--accent); font-weight: 600; }
-h2.titre-devis { font-size: 16px; margin: 24px 0 8px; }
+h2.titre-devis { font-family: var(--titre); font-size: 18px; font-weight: 600; letter-spacing: -0.01em; margin: 28px 0 10px; }
 .recu { font-size: 13px; color: var(--doux); }
-button, .bouton { font: inherit; border-radius: 8px; border: 1px solid var(--trait); background: var(--carte); color: var(--texte); padding: 6px 14px; cursor: pointer; }
-button.principal { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
-.barre { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-.barre .reste { color: var(--doux); }
+
+/* Les boutons : un seul principal, la couleur de l'application. */
+button, .bouton { font: inherit; font-weight: 550; border-radius: 12px; border: 1px solid var(--trait); background: var(--carte); color: var(--texte);
+  min-height: 40px; padding: 8px 16px; cursor: pointer; transition: background .15s, border-color .15s; }
+button:hover { border-color: var(--doux); }
+button:focus-visible, a.bouton:focus-visible { outline: 3px solid var(--menthe); outline-offset: 2px; }
+button.principal { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 650; }
+button.principal:hover { background: var(--accent-fort); border-color: var(--accent-fort); }
+.barre { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+.barre .reste { color: var(--doux); font-variant-numeric: tabular-nums; }
+.barre .reste strong { color: var(--texte); }
 .barre .gestes { display: flex; flex-wrap: wrap; gap: 8px; }
-.du .aide { flex-basis: 100%; margin: 0; color: var(--doux); font-size: 14px; }
-.refus-paiement { background: #fdecea; color: var(--retard); border-radius: 8px; padding: 10px 14px; margin: 0 0 12px; }
+.refus-paiement { background: var(--retard-fond); color: var(--retard); border-radius: 12px; padding: 12px 16px; margin: 0 0 14px; }
 button:disabled { opacity: .6; cursor: progress; }
-iframe.piece { width: 100%; border: 1px solid var(--trait); border-radius: 8px; background: #fff; height: 75vh; }
+/* La pièce elle-même reste sur papier blanc, même en sombre : c'est le document que l'entreprise a émis. */
+iframe.piece { width: 100%; border: 1px solid var(--trait); border-radius: 14px; background: #fff; height: 75vh; }
 footer { color: var(--doux); font-size: 13px; margin-top: 24px; }
+
 /* Sur un téléphone : la liste en cartes, une pièce par carte. */
 @media (max-width: 640px) {
+  main { padding-top: 24px; }
+  header.societe h1 { font-size: 22px; }
+  .du strong { font-size: 28px; }
   table.pieces thead { display: none; }
   table.pieces, table.pieces tbody, table.pieces tr, table.pieces td { display: block; width: 100%; }
-  table.pieces tr { border-bottom: 1px solid var(--trait); padding: 8px 0; }
+  table.pieces tr { border-bottom: 1px dashed var(--trait); padding: 10px 0; }
   table.pieces tr:last-child { border-bottom: 0; }
   table.pieces td { border: 0; padding: 2px 0; }
   table.pieces td.m { text-align: left; }
   .etiquette { display: inline; color: var(--doux); }
+  .barre .gestes, .barre .gestes button { width: 100%; }
 }
-/* La page de retour d'un paiement en ligne. */
-.retour h1 { font-size: 22px; margin: 0 0 8px; }
-a.bouton { display: inline-block; text-decoration: none; }
-a.bouton.principal { background: var(--accent); border: 1px solid var(--accent); color: #fff; font-weight: 600; border-radius: 8px; padding: 8px 16px; }
