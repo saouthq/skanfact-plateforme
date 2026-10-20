@@ -119,3 +119,31 @@ se repose, sans compter une ouverture de plus ; celle qu'un écran asynchrone at
 -- après
     if (!reprise) visitesPoser(e => { e.vues[route] = (e.vues[route] || 0) + 1; });
 -- fin
+
+Une fenêtre plus haute que l'écran cachait ses boutons sous son bord : « Nouveau fournisseur », sur un écran de 1440 × 900,
+ne montrait « Enregistrer » qu'après l'avoir fait défiler (recette du 20/10/2026). Le pied d'une fenêtre reste visible.
+
+== style.css | le pied d'une fenêtre reste au bas de l'écran
+-- avant
+.modal .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+-- après
+.modal .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
+/* (plateforme) 1.79.0 — une fenêtre qui défile garde ses boutons à l'écran (le pied est le dernier bloc de la fenêtre). */
+.modal > .modal-actions:last-child { position: sticky; bottom: -26px; margin-bottom: -26px; padding: 12px 0 26px; background: var(--panel); z-index: 3; }
+-- fin
+
+Une facture d'achat RÉGLÉE se supprimait d'un clic (« Les règlements enregistrés seront perdus ») : l'argent sorti de la
+banque et la retenue déjà opérée — un fait fiscal du mois du règlement, dont le fournisseur a reçu l'attestation —
+disparaissaient avec elle (recette du 20/10/2026). Elle ne se supprime plus tant qu'elle porte un règlement : on retire
+d'abord le règlement, geste qui se voit. Et la période close se dit AVANT la question, pas après.
+
+== app.js | une facture d'achat réglée ne se supprime pas ; la période close se dit avant la question
+-- avant
+      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ? Les règlements enregistrés seront perdus.`)) return;
+      if (closedBlock(p.date, 'Cet achat')) return;
+-- après
+      if (closedBlock(p.date, 'Cet achat')) return;
+      // (plateforme) 1.79.0 — un règlement est de l'argent sorti de la banque, et sa retenue un fait fiscal de son mois.
+      if ((p.payments || []).length) { toast(`${p.number || 'Cette pièce'} porte ${(p.payments || []).length > 1 ? 'des règlements' : 'un règlement'} : retire-${(p.payments || []).length > 1 ? 'les' : 'le'} d'abord (« Actions » sur sa ligne, dans « Règlements »). Rien n'a été supprimé.`, true); return; }
+      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ?`)) return;
+-- fin

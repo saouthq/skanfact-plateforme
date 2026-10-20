@@ -10914,8 +10914,10 @@
     if ($('#del')) $('#del').onclick = async () => {
       if (enLecture('purchases')) { toast(refusLecture('purchases', 'supprimé'), true); return; }
       if (bridge.emettre && data.purchases.some(x => x.achatLie === p.id)) { toast('Un avoir ou un acompte est rattaché à cet achat : détache-le (ou supprime-le) d\'abord. Rien n\'a été supprimé.', true); return; }
-      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ? Les règlements enregistrés seront perdus.`)) return;
       if (closedBlock(p.date, 'Cet achat')) return;
+      // (plateforme) 1.79.0 — un règlement est de l'argent sorti de la banque, et sa retenue un fait fiscal de son mois.
+      if ((p.payments || []).length) { toast(`${p.number || 'Cette pièce'} porte ${(p.payments || []).length > 1 ? 'des règlements' : 'un règlement'} : retire-${(p.payments || []).length > 1 ? 'les' : 'le'} d'abord (« Actions » sur sa ligne, dans « Règlements »). Rien n'a été supprimé.`, true); return; }
+      if (!await confirmDialog(`Supprimer ${p.number || 'cette pièce'} ?`)) return;
       forget('purchases', p.id, p.number || '');
       data.purchases = data.purchases.filter(x => x.id !== p.id); save(true); untouch(); navigate('#/achats');
     };
