@@ -5,7 +5,8 @@
 //   - l'invitation « Première fois sur cette page ? » ne revient pas quand la page se redessine sur place ;
 //   - une date tapée après un clic dans sa case remplace celle qui y était ;
 //   - au Stock, « Choisir dans le Catalogue » mène au geste ; aux Relances, « Relancer » est sur la ligne (1.80.0) ;
-//   - Ctrl+S enregistre dans le navigateur ; la liste des devis dit « facturé » ; l'Aide ne promet que les raccourcis qui marchent.
+//   - Ctrl+S enregistre dans le navigateur ; la liste des devis dit « facturé » ; l'Aide ne promet que les raccourcis qui marchent ;
+//   - une commande fournisseur crée son fournisseur sans quitter la pièce.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -266,6 +267,27 @@ describe('la recette alpha, à la souris', () => {
     expect(await aide.innerText()).toMatch(/Enregistrer/);
     expect(await aide.innerText()).not.toMatch(/Nouveau devis\s/);
     expect(await aide.innerText()).not.toMatch(/Trésorerie/);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
+
+  it('une commande fournisseur crée son fournisseur sans quitter la pièce, et le prend', async () => {
+    const { jeton, ent } = await commerce();
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/commandef/new`);
+    const choix = p.locator('[data-combo=supplierId]');
+    await choix.locator('.combo-btn').click({ timeout: 20_000 });
+    await choix.locator('.combo-q').fill('Electro Sfax');
+    await expect.poll(() => choix.locator('.combo-add').innerText().then(net)).toBe('+ Nouveau fournisseur « Electro Sfax »');
+    await choix.locator('.combo-add').click();
+    const fiche = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fiche.locator('h2').innerText()).toBe('Nouveau fournisseur');
+    await fiche.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await expect.poll(() => choix.locator('.combo-val').innerText(), { timeout: 10_000 }).toBe('Electro Sfax');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

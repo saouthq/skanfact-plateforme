@@ -804,4 +804,6 @@ export const ADAPTATIONS = [
   ...lireFichier('raccourcis-web.txt'),
   // ── La liste des devis dit ce qui est déjà facturé (1.80.0) ──
   ...lireFichier('devis-facture.txt'),
+  // ── La commande fournisseur crée son fournisseur sans quitter la pièce (1.80.0) ──
+  ...lireFichier('commande-fournisseur-neuf.txt'),
 ];

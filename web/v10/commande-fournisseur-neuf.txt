@@ -1,0 +1,23 @@
+Ce que la 1.80.0 change à l'application de l'entreprise (docs/recette.md, « 1.80.0 ») : une commande fournisseur crée
+son fournisseur sans quitter la pièce. Format : voir sans-paquets.mjs.
+
+Sur une commande fournisseur, un fournisseur introuvable laissait « Aucun résultat » et rien d'autre : il fallait
+quitter la commande, créer la fiche, revenir et tout retaper (recette du 20/10/2026). La facture d'achat, le devis et
+la facture offrent déjà « + Nouveau fournisseur « ce qu'on a tapé » » sous la recherche (10.12.0) : la commande aussi,
+et la fiche créée est choisie d'elle-même.
+
+== app.js | la commande fournisseur offre « + Nouveau fournisseur »
+-- avant
+            ${combo({ name: 'supplierId', value: o.supplierId, items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', search: 'Rechercher : nom, contact, MF…', ro: figee })}</div>
+-- après
+            ${combo({ name: 'supplierId', value: o.supplierId, items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', search: 'Rechercher : nom, contact, MF…', add: figee ? null : '+ Nouveau fournisseur', ro: figee })}</div>
+-- fin
+
+== app.js | le fournisseur créé depuis la commande y est choisi
+-- avant
+    bindCombo($('[data-combo=supplierId]'), { items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', onPick: v => { o.supplierId = v; touch(); } });
+-- après
+    const cfFournisseur = bindCombo($('[data-combo=supplierId]'), { items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', onPick: v => { o.supplierId = v; touch(); },
+      // (plateforme) 1.80.0 — la fiche naît nommée de ce qu'on a tapé, et la commande la prend.
+      onAdd: saisi => supplierForm(null, sup => { cfFournisseur.setItems(fournisseursCF(), sup.id); o.supplierId = sup.id; touch(); }, { name: saisi }) });
+-- fin

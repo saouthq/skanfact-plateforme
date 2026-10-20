@@ -18176,6 +18176,14 @@ prouver 'l'"'"'Aide qui promet Ctrl+N et Ctrl+1 à 9 que le navigateur garde' 'w
   '<tr><th>Nouveau devis, nouvelle facture, un écran</th>' \
   '<tr><th>Trésorerie</th><td>8</td></tr><tr><th>Nouveau devis, nouvelle facture, un écran</th>' \
   'Ctrl+S enregistre un devis, la liste dit « facturé », l'"'"'Aide ne promet que les raccourcis qui marchent'
+prouver 'la commande fournisseur qui laisse « Aucun résultat » et rien d'"'"'autre' 'web/public/v10/app.js' \
+  "search: 'Rechercher : nom, contact, MF…', add: figee ? null : '+ Nouveau fournisseur', ro: figee })}</div>" \
+  "search: 'Rechercher : nom, contact, MF…', ro: figee })}</div>" \
+  'une commande fournisseur crée son fournisseur sans quitter la pièce, et le prend'
+prouver 'le fournisseur créé depuis la commande qui n'"'"'y est pas choisi' 'web/public/v10/app.js' \
+  'cfFournisseur.setItems(fournisseursCF(), sup.id); o.supplierId = sup.id; touch();' \
+  'cfFournisseur.setItems(fournisseursCF()); touch();' \
+  'une commande fournisseur crée son fournisseur sans quitter la pièce, et le prend'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

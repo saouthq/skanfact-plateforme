@@ -325,6 +325,8 @@ suit.
   puis son nom » les remplace).
 - **Un devis facturé** restait « accepté » dans la liste, comme un devis qui attend sa facture : il dit « facturé »
   (ou « acompte facturé » quand seul l'acompte l'est).
+- **Une commande fournisseur** laissait « Aucun résultat » sous un fournisseur introuvable, et rien d'autre : elle offre
+  « + Nouveau fournisseur « ce qu'on a tapé » », comme la facture d'achat, et prend la fiche créée.
 
 ### Vu bon en passant (20/10/2026)
 
@@ -335,7 +337,9 @@ la trésorerie et les relances disent les mêmes restes à encaisser, au millime
 (avoir, 411 au débit, 54 au crédit) et une facture en euros (timbre en dinars au 4368, l'écart de change au 655 à
 l'encaissement) s'écrivent justes au livre du serveur. Un devis à 7,5 % de remise (95 − 7,125 = 87,875 HT, 104,571 TTC),
 puis un acompte de 30 % (29,560 timbre compris) et sa facture de solde (67,640) : le livre écrit 24 + 56 = 80 au 706 et
-4,560 + 10,640 = 15,200 de TVA, le montant du devis au millime.
+4,560 + 10,640 = 15,200 de TVA, le montant du devis au millime. Une commande de 3 climatiseurs, reçue à 2 (« reçue en
+partie »), puis la facture du fournisseur saisie depuis la réception : 2 × 845,500 repris, 606 / 4366 / 401 au millime,
+et le refus honnête du stock (une ligne libre n'est pas un article suivi).
 
 ### Ce qui le prouve
 
@@ -345,7 +349,7 @@ puis un acompte de 30 % (29,560 timbre compris) et sa facture de solde (67,640) 
   « facturé » dans la liste, l'Aide ne promet plus les raccourcis du navigateur.
 - `tests/web/cabinet-livre-a-jour.test.ts` : le calendrier vide qui dit sa règle, l'échéance pas prête qui le dit avant
   d'être pointée.
-- Onze preuves (`tests/preuves.sh`, « 1.80.0 »).
+- Treize preuves (`tests/preuves.sh`, « 1.80.0 »).
 
 ## Ce qui reste (les lots suivants)
 

@@ -9463,7 +9463,7 @@
       <div class="panel"><h2>La ${quoi} ${info('cf.head')}</h2>
         <form id="cf-head" class="grid-3">
           <div class="field">${lbl('Fournisseur', 'cf.fournisseur')}
-            ${combo({ name: 'supplierId', value: o.supplierId, items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', search: 'Rechercher : nom, contact, MF…', ro: figee })}</div>
+            ${combo({ name: 'supplierId', value: o.supplierId, items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', search: 'Rechercher : nom, contact, MF…', add: figee ? null : '+ Nouveau fournisseur', ro: figee })}</div>
           ${dateFieldHtml(lbl(`Date de la ${quoi}`, 'cf.date'), 'date', o.date)}
           ${dateFieldHtml(lbl('Livraison souhaitée le', 'cf.livraison'), 'dueDate', o.dueDate || '', { quick: true })}
           ${field(lbl('Référence (optionnel)', 'cf.reference'), 'reference', o.reference || '', 'text')}
@@ -9553,7 +9553,9 @@
       totaux();
     };
     dessinerLignes();
-    bindCombo($('[data-combo=supplierId]'), { items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', onPick: v => { o.supplierId = v; touch(); } });
+    const cfFournisseur = bindCombo($('[data-combo=supplierId]'), { items: fournisseursCF(), placeholder: '— Choisir un fournisseur —', onPick: v => { o.supplierId = v; touch(); },
+      // (plateforme) 1.80.0 — la fiche naît nommée de ce qu'on a tapé, et la commande la prend.
+      onAdd: saisi => supplierForm(null, sup => { cfFournisseur.setItems(fournisseursCF(), sup.id); o.supplierId = sup.id; touch(); }, { name: saisi }) });
     if ($('#cf-cat')) bindCombo($('.combo', $('#cf-cat')), {
       reset: true, placeholder: 'Ajouter depuis le catalogue…',
       items: data.catalog.slice().sort((a, b) => (a.label || '').localeCompare(b.label || '', 'fr'))
