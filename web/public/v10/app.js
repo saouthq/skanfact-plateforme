@@ -944,7 +944,9 @@
   function toast(msg, isError) {
     const t = $('#toast');
     t.textContent = msg; t.className = 'show' + (isError ? ' error' : '');
-    clearTimeout(t._timer); t._timer = setTimeout(() => t.className = '', 2600);
+    // (plateforme) 1.81.0 — 2,6 s pour tout message : un refus de deux phrases disparaissait avant la fin de sa lecture.
+    // Le temps de le lire (environ 60 ms par caractère), jamais moins de 2,6 s ni plus de 8 s.
+    clearTimeout(t._timer); t._timer = setTimeout(() => t.className = '', Math.min(8000, Math.max(2600, String(msg).length * 60)));
   }
 
   // Le droit à l'erreur (7.12.0).
@@ -1147,7 +1149,22 @@
   // RIB, date antérieure). Elle garde son troisième geste, « Exporter le brouillon », et rend alors
   // 'emettre', 'brouillon' ou false — une seule fenêtre : deux boîtes à la file se cliquent sans
   // être lues (7.28.0).
+  // (plateforme) 1.80.0 — un avoir rend de l'argent (son montant est positif, jamais nul) ; une facture négative est un
+  // avoir mal nommé. Le serveur le refuse aussi : ici, on le dit avant la fenêtre « Émettre ? », lignes sous les yeux.
+  function montantNonEmettable(doc) {
+    if (doc.type !== 'facture' && doc.type !== 'avoir') return false;
+    const t = C.computeTotals(doc, company());
+    const av = doc.type === 'avoir';
+    // Hors timbre : le dinar du timbre masquait une petite facture négative.
+    const horsTimbre = C.round3(t.netHT + t.totalVAT);
+    if (av ? horsTimbre > 0.0005 : horsTimbre > -0.0005) return false;
+    refus('#lines', av
+      ? `Cet avoir fait ${C.money(horsTimbre, docCur(doc))} : un avoir rend de l'argent, son montant est positif. Corrige ses lignes — une ligne qui déduit (un acompte déjà facturé, par exemple) ne dépasse pas ce que l'avoir rend.`
+      : `Cette facture fait ${C.money(horsTimbre, docCur(doc))} : une facture négative ne s'émet pas. Pour rendre de l'argent à ton client, fais un avoir.`);
+    return true;
+  }
   function confirmerEmission(doc, numero, avertissements, opts) {
+    if (montantNonEmettable(doc)) return Promise.resolve(false);
     const exporter = !!(opts && opts.exporter);
     const isAv = doc.type === 'avoir';
     const cur = docCur(doc);
@@ -11070,7 +11087,8 @@
   };
   const NEW_LABELS = { proforma: 'Nouvelle proforma', commande: 'Nouveau bon de commande', livraison: 'Nouveau bon de livraison', contrat: 'Nouveau contrat' };
   // Les pièces dont une autre peut partir : la table des conversions de core.js, lue à l'envers.
-  const sourcesAutres = type => data.documents.filter(d => d.type !== type && (C.CONVERSIONS[d.type] || []).includes(type))
+  // (plateforme) 1.80.0 — un ticket de caisse n'a pas de client : il venait en tête (« TIC-2026-003 — Facture — — — »).
+  const sourcesAutres = type => data.documents.filter(d => d.type !== type && !d.ticket && !!d.clientId && (C.CONVERSIONS[d.type] || []).includes(type))
     .sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.number || '').localeCompare(a.number || ''));
   const DEPUIS_AUTRES = { proforma: 'Partir d\'un devis existant', commande: 'Partir d\'un devis existant', livraison: 'Partir d\'une pièce existante', contrat: 'Partir d\'un devis existant' };
   // Un onglet vide dit à quoi sert la pièce et donne le geste qui la crée (10.12.0) :

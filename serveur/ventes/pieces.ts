@@ -221,6 +221,14 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   if (!lignes.length) throw new Refus('ventes.sans_ligne');
   const calcul = await calculer(tx, p, lignes);
   const t = calcul.totaux;
+  // Un montant négatif ne se scelle pas (1.80.0, recette du 20/10/2026) : un avoir de « −16,660 DT » — la ligne de l'acompte
+  // déduit plus que la ligne corrigée — AUGMENTAIT la dette du client sous le nom d'un avoir ; une facture négative est un
+  // avoir mal nommé. Un avoir nul ne corrige rien. Hors timbre : le dinar du timbre masquait une petite facture négative.
+  // Contrôlé avant le numéro : rien n'est pris.
+  const horsTimbre = t.netHT + t.totalTVA;
+  if (horsTimbre < 0n || (p.type === 'avoir' && horsTimbre === 0n)) {
+    throw new Refus(p.type === 'avoir' ? 'ventes.avoir_negatif' : 'ventes.facture_negative', { valeurs: { montant: versTexte(horsTimbre, calcul.devise.decimales) } });
+  }
   if (calcul.timbreManquant) {
     // Le jour comme on l'écrit (« 05/10/2026 »), pas comme la base le range.
     throw new Refus('ventes.timbre_manquant', { valeurs: { date: p.date_piece.split('-').reverse().join('/') } });

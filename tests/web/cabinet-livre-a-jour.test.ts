@@ -3,7 +3,8 @@
 //   - en revenant sur la fenêtre, « Consulter » compte le nouveau brouillard sans recharger la page ;
 //   - en passant à « Déclarer », l'en-tête du livre et la déclaration sont lus au même moment : un seul chiffre ;
 //   - pendant une saisie, rien ne se redessine sous la main ;
-//   - (1.80.0) aux Échéances, une déclaration pas prête le dit avant d'être marquée déposée.
+//   - (1.80.0) aux Échéances, une déclaration pas prête le dit avant d'être marquée déposée ; le client à valider y est
+//     nommé, et « Valider ses écritures » ouvre sa saisie.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -105,6 +106,8 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     await depot.waitFor({ timeout: 15_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     expect(await depot.innerText()).toBe('Marquer déposée');
+    // (1.80.0) Le client « à valider » est nommé sous la carte, avec le geste qui mène à sa saisie.
+    expect(await p.locator('.ech-qui').first().innerText()).toMatch(/^Droguerie du Port\s*Valider ses écritures$/);
     await depot.click();
     const fenetre = p.locator('#modal-root .modal').last();
     await expect.poll(() => fenetre.locator('h2').innerText()).toMatch(/n'est pas prête$/);
@@ -115,6 +118,8 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     await p.locator('[data-depot]').first().click();
     await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Marquer déposée quand même', exact: true }).click();
     await expect.poll(() => p.locator('[data-depot]').first().innerText()).toBe('Annuler « déposée »');
+    await p.locator('[data-valider-dossier]').first().click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/dossier/${ent}/comptabilite/saisie/${moisDernier.slice(0, 4)}`);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

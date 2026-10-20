@@ -48,6 +48,8 @@ declarerTextes({
   'ventes.avoir_autre_client': 'un avoir corrige une facture de SON client : la facture choisie est celle d\'un autre client',
   'ventes.avoir_autre_devise': 'un avoir se fait dans la devise de la facture qu\'il corrige ({devise})',
   'ventes.sans_ligne': 'une facture sans ligne ne s\'émet pas',
+  'ventes.avoir_negatif': 'cet avoir fait {montant} : un avoir rend de l\'argent, son montant est positif — corrige ses lignes (une ligne qui déduit ne dépasse pas ce qu\'il rend)',
+  'ventes.facture_negative': 'cette facture fait {montant} : une facture négative ne s\'émet pas ; pour rendre de l\'argent, on fait un avoir',
   'ventes.timbre_manquant': 'le timbre fiscal n\'est pas renseigné au {date} : la facture ne s\'émet pas sans lui',
   'ventes.sans_serie': 'aucune série de factures n\'existe encore : crée-la dans les réglages',
   'ventes.avertissement_timbre': 'le timbre fiscal n\'est pas renseigné à cette date : la facture ne pourra pas être émise',

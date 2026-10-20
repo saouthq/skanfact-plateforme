@@ -1945,7 +1945,7 @@
     // `aSaisir` : les dossiers tenus au cabinet dont un mois n'a encore aucune écriture (10.12.0).
     // Jamais mêlés aux `manquants` : un manquant se RELANCE, un mois à saisir se saisit — relancer
     // un client qui n'envoie rien serait la faute que la 10.12.0 a retirée du livre.
-    const manquants = [], provisoires = [], aSaisir = [], aSaisirIds = [];
+    const manquants = [], provisoires = [], aSaisir = [], aSaisirIds = [], provisoiresIds = [];
     dossiers.forEach(d => {
       // Déjà déposé (sa Déclaration le dit) : ce client n'a plus rien qui manque pour cette date.
       if (deposes.includes(d)) return;
@@ -1954,14 +1954,14 @@
       if (!etats.length) return;
       if (etats.some(e => e === 'manquant')) manquants.push(d.name);
       else if (etats.some(e => e === 'a-saisir')) { aSaisir.push(d.name); aSaisirIds.push(d.id); }
-      else if (etats.some(e => e === 'provisoire')) provisoires.push(d.name);
+      else if (etats.some(e => e === 'provisoire')) { provisoires.push(d.name); provisoiresIds.push(d.id); }
     });
     const jours = Math.round((Date.parse(date + 'T00:00:00Z') - Date.parse(todayIso + 'T00:00:00Z')) / 86400000);
     const clients = dossiers.length;
     const bloques = manquants.length + aSaisir.length;
     return {
       id, label, date, detail, mois: liste,
-      clients, manquants, provisoires, aSaisir, aSaisirIds,
+      clients, manquants, provisoires, aSaisir, aSaisirIds, provisoiresIds,
       deposes: deposes.map(d => d.name),
       // Tous les clients de la date ont leur déclaration notée déposée dans leur livre : la carte
       // l'est aussi, sans un second pointage.

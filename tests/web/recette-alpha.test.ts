@@ -7,7 +7,9 @@
 //   - au Stock, « Choisir dans le Catalogue » mène au geste ; aux Relances, « Relancer » est sur la ligne (1.80.0) ;
 //   - Ctrl+S enregistre dans le navigateur ; la liste des devis dit « facturé » ; l'Aide ne promet que les raccourcis qui marchent ;
 //   - une commande fournisseur crée son fournisseur sans quitter la pièce ;
-//   - « Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui.
+//   - « Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui ;
+//   - un avoir négatif ne s'émet pas : le refus vient avant la fenêtre d'émission ;
+//   - « Partir d'une pièce existante » ne propose pas un ticket, et sa liste s'ouvre en entier (1.81.0).
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -320,6 +322,71 @@ describe('la recette alpha, à la souris', () => {
     // La fenêtre revient comme on l'a laissée, le salarié dans l'ordre de virement.
     await expect.poll(() => p.locator('#modal-root .modal').last().locator('h2').first().innerText(), { timeout: 10_000 }).toMatch(/^Payer les salaires/);
     expect(await p.locator('#modal-root .modal').last().locator('#ps-hors').count()).toBe(0);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
+
+  it('un avoir négatif ne s\'émet pas : le refus vient avant la fenêtre d\'émission', async () => {
+    const { jeton, ent } = await commerce();
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Hôtel du Lac' } },
+      { collection: 'documents', cle: 'f1', rang: 0, revision: null, contenu: { id: 'f1', type: 'facture', number: '', date: aujourdhui, dueDate: aujourdhui, clientId: 'c1', subject: 'Rayonnages',
+        status: 'brouillon', lines: [{ label: 'Pose', description: '', qty: 1, unit: '', unitPrice: 100, vatRate: 19 }, { label: 'Remise accordée', description: '', qty: 1, unit: '', unitPrice: -30, vatRate: 19 }],
+        discountRate: 0, applyStamp: false, withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [], stampFee: 0 } },
+    ] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`);
+    await p.getByRole('button', { name: 'Émettre la facture', exact: true }).click({ timeout: 20_000 });
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^Facture FAC-\d{4}-\d{3}$/);
+    await p.getByRole('button', { name: 'Corriger par un avoir…', exact: true }).click();
+    const prix = p.locator('#lines [data-k=unitPrice]').first();
+    await prix.waitFor({ timeout: 15_000 });
+    await prix.fill('10');
+    await prix.press('Tab');
+    await p.getByRole('button', { name: 'Émettre l\'avoir', exact: true }).click();
+    // Le refus dit le montant et la raison ; aucune fenêtre « Émettre l'avoir ? » ne s'ouvre, rien n'est numéroté.
+    await expect.poll(() => p.locator('#toast').innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toMatch(/^Cet avoir fait − ?23,800 DT : un avoir rend de l'argent, son montant est positif\./);
+    expect(await p.locator('#modal-root .modal').count()).toBe(0);
+    expect(await p.locator('#view h1').first().innerText()).toMatch(/^Nouvel avoir/);
+    // Deux phrases restent le temps de se lire : encore là après 3,5 s (un message court part à 2,6 s).
+    await p.waitForTimeout(3500);
+    expect(await p.locator('#toast').getAttribute('class')).toMatch(/\bshow\b/);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
+
+  it('« Partir d\'une pièce existante » ne propose pas un ticket, et sa liste s\'ouvre en entier dans la fenêtre', async () => {
+    const { jeton, ent } = await commerce();
+    const devis = (id: string, n: number) => ({ collection: 'documents', cle: id, rang: n, revision: null, contenu: { id, type: 'devis', number: `DEV-2026-04${n}`, date: aujourdhui,
+      validUntil: aujourdhui, clientId: 'c1', subject: `Lot ${n}`, status: 'accepté', lines: [{ label: 'Rayonnage', description: '', qty: n, unit: '', unitPrice: { '~n': '31.25' }, vatRate: 19 }],
+      discountRate: 0, applyStamp: false, withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [], stampFee: 0 } });
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Hôtel du Lac' } },
+      devis('d1', 1), devis('d2', 2), devis('d3', 3), devis('d4', 4),
+      { collection: 'documents', cle: 't1', rang: 9, revision: null, contenu: { id: 't1', type: 'facture', ticket: true, number: '', date: aujourdhui, clientId: '', status: 'brouillon',
+        lines: [{ label: 'Vis', description: '', qty: 1, unit: '', unitPrice: 15, vatRate: 19 }], discountRate: 0, applyStamp: false, withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [], stampFee: 0 } },
+    ] })).statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/autres/livraison`);
+    await p.getByRole('button', { name: 'Partir d\'une pièce existante', exact: true }).click({ timeout: 20_000 });
+    const choix = p.locator('#modal-root [data-combo=depuis]');
+    await choix.locator('.combo-btn').click();
+    const items = choix.locator('.combo-it');
+    await expect.poll(() => items.count()).toBe(4);
+    expect((await items.allInnerTexts()).every((t) => /^DEV-2026-04\d — Devis — Hôtel du Lac — /.test(net(t)))).toBe(true);
+    // Le dernier article se voit et se clique : la fenêtre ne coupe pas la liste ouverte.
+    const dernier = items.last();
+    expect(await dernier.evaluate((el) => { const r = el.getBoundingClientRect(); return document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2) === el.querySelector('.ci-main') || document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)?.closest('.combo-it') === el; })).toBe(true);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

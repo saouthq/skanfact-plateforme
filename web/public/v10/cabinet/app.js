@@ -10279,6 +10279,11 @@
         ${/* 10.12.0 — un dossier TENU AU CABINET dont le mois n'a aucune écriture : on ne le relance
               pas (il n'envoie rien), on le SAISIT. Un seul : sa saisie, directement ; plusieurs : la
               Production, qui nomme leurs mois un par un. */''}
+        ${/* (plateforme) 1.80.0 — « 1 à valider » ne disait ni qui ni où aller : les noms, et la saisie (un seul) ou la Production. */''}
+        ${e.provisoires.length ? `<div class="small mt ech-qui">${esc(e.provisoires.slice(0, 8).join(', '))}${e.provisoires.length > 8 ? '…' : ''}
+          ${e.provisoires.length === 1 && (e.provisoiresIds || []).length === 1
+            ? `<button class="btn btn-sm" data-valider-dossier="${esc(e.provisoiresIds[0])}" data-annee="${esc(e.mois[0].slice(0, 4))}" aria-label="${esc('Valider ses écritures — ' + e.label)}">Valider ses écritures</button>`
+            : `<button class="btn btn-sm" data-vers-production="1" aria-label="${esc('Voir dans la Production — ' + e.label)}">Voir dans la Production</button>`}</div>` : ''}
         ${(e.aSaisir || []).length ? `<div class="small mt ech-qui">${esc(e.aSaisir.slice(0, 8).join(', '))}${e.aSaisir.length > 8 ? '…' : ''}
           ${e.aSaisir.length === 1
             ? `<button class="btn btn-sm" data-saisir-tenu="${esc(e.aSaisirIds[0])}" aria-label="${esc('Ouvrir sa saisie — ' + e.label)}">Ouvrir sa saisie</button>`
@@ -10360,6 +10365,9 @@
       b2.onclick = () => { location.hash = '#/dossier/' + encodeURIComponent(b2.dataset.saisirTenu) + '/comptabilite/saisie'; };
     });
     $$('[data-vers-production]', view).forEach(b2 => { b2.onclick = () => { location.hash = '#/production'; }; });
+    $$('[data-valider-dossier]', view).forEach(b2 => {
+      b2.onclick = () => { location.hash = '#/dossier/' + encodeURIComponent(b2.dataset.validerDossier) + '/comptabilite/saisie/' + b2.dataset.annee; };
+    });
     brancherAideDebutDeMission(view);
   }
 

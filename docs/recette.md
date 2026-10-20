@@ -360,6 +360,35 @@ payés » solde le 425 au millime par la banque.
 - `tests/web/console-paiements.test.ts` : « onglet=factures » descend sur la carte « Nos factures ».
 - Dix-sept preuves (`tests/preuves.sh`, « 1.80.0 »).
 
+
+## 1.81.0 — la recette alpha, suite : pas de pièce négative, et les chemins courts (20/10/2026)
+
+### Ce que le lot corrige
+
+- **Un avoir négatif s'émettait.** L'avoir d'une facture de solde reprend la ligne « Acompte déjà facturé » (−24,000) ;
+  la ligne corrigée baissée à 10,000, « Émettre l'avoir AVO-2026-003 ? Montant de l'avoir − 16,660 DT » se proposait —
+  un avoir qui AUGMENTE la dette du client. L'écran refuse avant la fenêtre d'émission, lignes sous les yeux ; le
+  serveur refuse aussi (`ventes.avoir_negatif`, `ventes.facture_negative`), hors timbre (le dinar du timbre masquait une
+  petite facture négative), avant le numéro : rien n'est pris. Un avoir nul ne s'émet pas non plus.
+- **Un refus long** disparaissait en 2,6 s, avant la fin de sa lecture : un message reste le temps de se lire (60 ms par
+  caractère, entre 2,6 et 8 s).
+- **Au Cabinet, « 1 à valider »** sur une échéance ne disait ni qui ni où aller : le client est nommé sous la carte, et
+  « Valider ses écritures » ouvre sa saisie sur l'année du mois (plusieurs clients : la Production).
+- **« Partir d'une pièce existante »** (bon de livraison) proposait en tête un ticket de caisse sans client (« TIC-2026-003
+  — Facture — — — ») : les tickets n'y sont plus. Sa liste ouverte, coupée par la petite fenêtre (une seule ligne
+  visible), déborde de la fenêtre comme il faut — pour tous les choix d'une fenêtre basse.
+- **Un test du coffre** (paiement en ligne) échouait une fois sur 256 environ : il « abîmait » le chiffré en remplaçant
+  ses deux derniers caractères par « AA », qui pouvaient déjà valoir ça. Un octet basculé, toujours.
+
+### Ce qui le prouve
+
+- `tests/v10/dossier.test.ts` : une facture négative et un avoir négatif ou nul refusés par le serveur, aucun numéro
+  d'avoir pris, puis un vrai avoir qui prend AVO-2026-001.
+- `tests/web/recette-alpha.test.ts` : l'avoir à −23,800 DT refusé avant toute fenêtre, le refus encore lisible après
+  3,5 s ; « Partir d'une pièce existante » sans le ticket, son dernier article visible et cliquable.
+- `tests/web/cabinet-livre-a-jour.test.ts` : le client à valider nommé sous l'échéance, et sa saisie ouverte.
+- Huit preuves (`tests/preuves.sh`, « 1.81.0 »).
+
 ## Ce qui reste (les lots suivants)
 
 1. **1.79** : choisir son offre dans l'application (« Je choisis cette offre », que la console voit dans « À décider »),

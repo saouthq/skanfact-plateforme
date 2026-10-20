@@ -18201,6 +18201,40 @@ prouver 'le lien « Désigner l'"'"'entreprise SkanFact » qui reste en haut des
   "if (demande === 'zzz' && d) document.getElementById('rg-factures')?.scrollIntoView({ block: 'start' });" \
   '« Désigner l'"'"'entreprise SkanFact » descend sur la carte « Nos factures » des Réglages (1.80.0)'
 
+# ── La recette alpha, suite (1.81.0 ; docs/recette.md) ──
+prouver 'l'"'"'échéance qui dit « 1 à valider » sans dire qui ni où aller' 'web/public/v10/cabinet/app.js' \
+  "\${e.provisoires.length ? \`<div class=\"small mt ech-qui\">" \
+  "\${false ? \`<div class=\"small mt ech-qui\">" \
+  'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
+prouver 'le bouton « Valider ses écritures » qui n'"'"'ouvre pas la saisie' 'web/public/v10/cabinet/app.js' \
+  "b2.onclick = () => { location.hash = '#/dossier/' + encodeURIComponent(b2.dataset.validerDossier) + '/comptabilite/saisie/' + b2.dataset.annee; };" \
+  "b2.onclick = () => {};" \
+  'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
+prouver 'l'"'"'avoir de −16,660 DT proposé à l'"'"'émission' 'web/public/v10/app.js' \
+  'if (montantNonEmettable(doc)) return Promise.resolve(false);' \
+  '' \
+  'un avoir négatif ne s'"'"'émet pas : le refus vient avant la fenêtre d'"'"'émission'
+prouver 'le serveur qui scelle un avoir négatif' 'serveur/ventes/pieces.ts' \
+  "if (horsTimbre < 0n || (p.type === 'avoir' && horsTimbre === 0n)) {" \
+  "if (false) {" \
+  '1.81.0 : une pièce négative ne se scelle pas — ni une facture négative, ni un avoir nul ou négatif — et aucun numéro n'"'"'est pris'
+prouver 'la petite facture négative que le dinar du timbre cache' 'serveur/ventes/pieces.ts' \
+  "const horsTimbre = t.netHT + t.totalTVA;" \
+  "const horsTimbre = t.totalTTC;" \
+  '1.81.0 : une pièce négative ne se scelle pas — ni une facture négative, ni un avoir nul ou négatif — et aucun numéro n'"'"'est pris'
+prouver 'le ticket de caisse proposé comme pièce de départ d'"'"'un bon de livraison' 'web/public/v10/app.js' \
+  "data.documents.filter(d => d.type !== type && !d.ticket && !!d.clientId && (C.CONVERSIONS[d.type] || []).includes(type))" \
+  "data.documents.filter(d => d.type !== type && (C.CONVERSIONS[d.type] || []).includes(type))" \
+  '« Partir d'"'"'une pièce existante » ne propose pas un ticket, et sa liste s'"'"'ouvre en entier dans la fenêtre'
+prouver 'la liste d'"'"'un choix coupée par une petite fenêtre' 'web/public/v10/style.css' \
+  '.modal:has(.combo-pop:not([hidden])) { overflow: visible; }' \
+  '' \
+  '« Partir d'"'"'une pièce existante » ne propose pas un ticket, et sa liste s'"'"'ouvre en entier dans la fenêtre'
+prouver 'le refus de deux phrases qui disparaît avant sa lecture' 'web/public/v10/app.js' \
+  "setTimeout(() => t.className = '', Math.min(8000, Math.max(2600, String(msg).length * 60)));" \
+  "setTimeout(() => t.className = '', 2600);" \
+  'un avoir négatif ne s'"'"'émet pas : le refus vient avant la fenêtre d'"'"'émission'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

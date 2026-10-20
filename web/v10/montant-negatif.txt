@@ -1,0 +1,56 @@
+Ce que la 1.80.0 change à l'application de l'entreprise (docs/recette.md, « 1.80.0 ») : une pièce négative ne s'émet
+pas. Format : voir sans-paquets.mjs.
+
+L'avoir d'une facture de solde reprend la ligne « Acompte déjà facturé » (−24,000) ; la ligne corrigée baissée à 10,000,
+l'avoir faisait −16,660 DT, et « Émettre l'avoir AVO-2026-003 ? Montant de l'avoir − 16,660 DT » se proposait — un avoir
+qui AUGMENTE la dette du client (recette du 20/10/2026). Le refus vient avant la fenêtre d'émission, à la porte unique
+des deux chemins (« Émettre », « PDF »), et montre les lignes ; le serveur refuse aussi (ventes.avoir_negatif).
+
+== app.js | une pièce négative ne s'émet pas : le refus avant la fenêtre d'émission
+-- avant
+  function confirmerEmission(doc, numero, avertissements, opts) {
+-- après
+  // (plateforme) 1.80.0 — un avoir rend de l'argent (son montant est positif, jamais nul) ; une facture négative est un
+  // avoir mal nommé. Le serveur le refuse aussi : ici, on le dit avant la fenêtre « Émettre ? », lignes sous les yeux.
+  function montantNonEmettable(doc) {
+    if (doc.type !== 'facture' && doc.type !== 'avoir') return false;
+    const t = C.computeTotals(doc, company());
+    const av = doc.type === 'avoir';
+    // Hors timbre : le dinar du timbre masquait une petite facture négative.
+    const horsTimbre = C.round3(t.netHT + t.totalVAT);
+    if (av ? horsTimbre > 0.0005 : horsTimbre > -0.0005) return false;
+    refus('#lines', av
+      ? `Cet avoir fait ${C.money(horsTimbre, docCur(doc))} : un avoir rend de l'argent, son montant est positif. Corrige ses lignes — une ligne qui déduit (un acompte déjà facturé, par exemple) ne dépasse pas ce que l'avoir rend.`
+      : `Cette facture fait ${C.money(horsTimbre, docCur(doc))} : une facture négative ne s'émet pas. Pour rendre de l'argent à ton client, fais un avoir.`);
+    return true;
+  }
+  function confirmerEmission(doc, numero, avertissements, opts) {
+    if (montantNonEmettable(doc)) return Promise.resolve(false);
+-- fin
+
+== app.js | « Partir d'une pièce existante » ne propose pas un ticket de caisse
+-- avant
+  const sourcesAutres = type => data.documents.filter(d => d.type !== type && (C.CONVERSIONS[d.type] || []).includes(type))
+-- après
+  // (plateforme) 1.80.0 — un ticket de caisse n'a pas de client : il venait en tête (« TIC-2026-003 — Facture — — — »).
+  const sourcesAutres = type => data.documents.filter(d => d.type !== type && !d.ticket && !!d.clientId && (C.CONVERSIONS[d.type] || []).includes(type))
+-- fin
+
+== style.css | la liste d'un choix s'ouvre en entier dans une petite fenêtre
+-- avant
+#r-wrap table.list td:first-child a { white-space: nowrap; }
+-- après
+#r-wrap table.list td:first-child a { white-space: nowrap; }
+/* (plateforme) 1.80.0 — dans une fenêtre basse (« Partir d'une pièce existante »), la liste ouverte était coupée par la
+   fenêtre : une seule ligne visible, et une barre de défilement minuscule. Ouverte, elle déborde de la fenêtre. */
+.modal:has(.combo-pop:not([hidden])) { overflow: visible; }
+-- fin
+
+== app.js | un message long reste le temps de se lire
+-- avant
+    clearTimeout(t._timer); t._timer = setTimeout(() => t.className = '', 2600);
+-- après
+    // (plateforme) 1.81.0 — 2,6 s pour tout message : un refus de deux phrases disparaissait avant la fin de sa lecture.
+    // Le temps de le lire (environ 60 ms par caractère), jamais moins de 2,6 s ni plus de 8 s.
+    clearTimeout(t._timer); t._timer = setTimeout(() => t.className = '', Math.min(8000, Math.max(2600, String(msg).length * 60)));
+-- fin

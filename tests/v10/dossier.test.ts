@@ -267,6 +267,29 @@ describe('le dossier v10 tenu par le serveur', () => {
     expect(lue.suivi).toMatchObject({ credite: '536.095', reste: '537.095', statut: 'partielle', avoirs: [{ numero: 'AVO-2026-001', netAPayer: '536.095' }] });
   });
 
+  it('1.81.0 : une pièce négative ne se scelle pas — ni une facture négative, ni un avoir nul ou négatif — et aucun numéro n\'est pris', async () => {
+    const e = await essai();
+    const client = (await e.lire()).find((o) => o.collection === 'clients' && String(o.contenu.name).startsWith('Menuiserie'));
+    if (!client) throw new Error('client d\'exemple absent');
+    // Une facture négative (une remise seule) : refusée, même quand le dinar du timbre rendrait son total positif.
+    const remise = { ...brouillon('fn', client.cle), lines: [{ label: 'Remise', description: '', qty: 1, unit: '', unitPrice: { '~n': '-0.5' }, vatRate: 19 }] };
+    await e.envoyer([{ collection: 'documents', cle: 'fn', rang: 0, revision: null, contenu: remise }]);
+    expect((await appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre`, e.jeton, { document: remise, client: client.contenu, revision: 1, rang: 0, netAPayer: '0.405' })).corps.motif)
+      .toBe('Cette facture fait -0.595 : une facture négative ne s\'émet pas ; pour rendre de l\'argent, on fait un avoir.');
+    await factureEmise(e, 'f1', brouillon('f1', client.cle), '1073.190');
+    const emettreAvoir = (doc: Record<string, unknown>, netAPayer: string) =>
+      appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre-avoir`, e.jeton, { document: doc, client: client.contenu, revision: null, rang: 1, netAPayer });
+    // L'avoir d'une facture de solde : la ligne de l'acompte déduit plus que la ligne corrigée (10 − 24 = −14 HT).
+    const negatif = avoirDe('a1', client.cle, 'f1', [{ label: 'Pose', description: '', qty: 1, unit: '', unitPrice: { '~n': '10' }, vatRate: 19 },
+      { label: 'Acompte déjà facturé', description: '', qty: 1, unit: '', unitPrice: { '~n': '-24' }, vatRate: 19 }]);
+    expect((await emettreAvoir(negatif, '-16.660')).corps.motif).toMatch(/^Cet avoir fait -16\.660 : un avoir rend de l'argent, son montant est positif/);
+    expect((await emettreAvoir(avoirDe('a1', client.cle, 'f1', [{ label: 'Pose', description: '', qty: 1, unit: '', unitPrice: { '~n': '0' }, vatRate: 19 }]), '0.000')).statut).toBe(403);
+    expect((await admin.query(`select count(*)::int n from ventes.piece where entreprise = $1 and type = 'avoir' and statut = 'emise'`, [e.ent])).rows[0].n).toBe(0);
+    expect((await admin.query(`select count(*)::int n from socle.compteur c join socle.serie s on s.id = c.serie where s.entreprise = $1 and s.prefixe = 'AVO'`, [e.ent])).rows[0].n).toBe(0);
+    // Un vrai avoir passe, et prend le premier numéro de la série.
+    expect((await emettreAvoir(avoirDe('a1', client.cle, 'f1'), '536.095')).corps.numero).toBe('AVO-2026-001');
+  });
+
   it('une facture que ses avoirs couvrent en entier se lit « annulée » : c\'est déduit, jamais saisi', async () => {
     const e = await essai();
     const client = (await e.lire()).find((o) => o.collection === 'clients');

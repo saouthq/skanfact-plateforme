@@ -102,7 +102,10 @@ describe('le paiement en ligne', () => {
     expect(() => ouvrir(CLE_DU_COFFRE_D_ESSAI, 'entreprise-b', s)).toThrow(CoffreFaux);
     expect(() => ouvrir(Buffer.alloc(32, 7), 'entreprise-a', s)).toThrow(CoffreFaux);
     const [v, iv, tag, c = ''] = s.split('.');
-    expect(() => ouvrir(CLE_DU_COFFRE_D_ESSAI, 'entreprise-a', [v, iv, tag, `${c.slice(0, -2)}AA`].join('.'))).toThrow(CoffreFaux);
+    // Un octet du chiffré basculé, toujours (remplacer ses deux derniers caractères par « AA » ne changeait rien une fois sur
+    // 256 environ : ils pouvaient déjà valoir « A » et un caractère aux bits utiles nuls — le test échouait au hasard).
+    const abime = Buffer.from(c, 'base64url'); abime[0] = (abime[0] ?? 0) ^ 1;
+    expect(() => ouvrir(CLE_DU_COFFRE_D_ESSAI, 'entreprise-a', [v, iv, tag, abime.toString('base64url')].join('.'))).toThrow(CoffreFaux);
     // L'étiquette tronquée à ses 4 premiers octets (vraie, mais courte : 2^32 essais pour en forger une).
     const courte = Buffer.from(tag ?? '', 'base64url').subarray(0, 4).toString('base64url');
     expect(() => ouvrir(CLE_DU_COFFRE_D_ESSAI, 'entreprise-a', [v, iv, courte, c].join('.'))).toThrow(CoffreFaux);

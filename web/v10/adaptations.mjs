@@ -808,4 +808,8 @@ export const ADAPTATIONS = [
   ...lireFichier('commande-fournisseur-neuf.txt'),
   // ── « Payer les salaires » : chaque RIB manquant a son bouton, qui dit de qui (1.80.0) ──
   ...lireFichier('paie-rib-bouton.txt'),
+  // ── Au Cabinet, une échéance nomme les clients à valider et mène à leur saisie (1.80.0) ──
+  ...lireFichier('echeance-valider.txt'),
+  // ── Une pièce négative ne s'émet pas (1.80.0) : l'avoir de −16,660 DT ──
+  ...lireFichier('montant-negatif.txt'),
 ];
