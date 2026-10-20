@@ -142,9 +142,66 @@ Vu et corrigé en refaisant : l'e-mail restait « à renseigner » — la base, 
 fiche société de son client ; d'où la fonction étroite qui ne rend que ces deux champs. Et la phrase sous « Écritures
 qui reviennent » disait encore « Un abonnement s'appuie… » : tout le vocabulaire de la saisie est passé.
 
+## 1.77.0 — inviter son comptable par e-mail (20/10/2026)
+
+### Ce que le lot ajoute
+
+- **« Ton cabinet comptable »** (Paramètres › Envois) se lit en deux chemins côte à côte, après ce qu'on confie :
+  « Il a SkanFact Cabinet » (son code, « Confier mon dossier ») et **« Il n'est pas encore sur SkanFact »** (son adresse,
+  « Inviter mon comptable »). SkanFact lui écrit (le relais de l'équipe, `invitation.comptable`) ; sans relais, ou si
+  le relais refuse, l'écran le dit et montre le lien une fois, avec « Copier le lien ». L'invitation qui attend se dit
+  (l'adresse, la date de fin, ce que l'e-mail est devenu), avec « Envoyer un nouveau lien » et « Annuler l'invitation ».
+- **Le comptable ouvre le lien** (`/?comptable=…`) : la création du compte, son adresse remplie, une vitrine à lui
+  (« Les livres de … » : son compte, son cabinet et le code du téléphone, le dossier) ; puis directement « Ton
+  cabinet », dont la phrase annonce le dossier ; le code du téléphone ; le Cabinet s'ouvre, le dossier y est
+  **proposé**, avec ce que le client a coché ; l'associé l'accepte comme un code tapé. Déjà un cabinet : il se connecte,
+  et le dossier arrive dans le sien. Un lien qui a servi, été remplacé, annulé ou périmé (30 jours) le dit.
+- **Base 0154** : `socle.invitation_comptable` (l'empreinte du lien seulement), `inviter_comptable` (le propriétaire
+  seul, sans cabinet en cours ; la nouvelle remplace l'ancienne), `annuler_invitation_comptable`,
+  `apercu_invitation_comptable`, `rejoindre_par_invitation_comptable` (un associé ; une fois ; refusé si le dossier a
+  trouvé un cabinet, ou si celui qui invitait n'en est plus le propriétaire) ; l'état de l'e-mail s'y note comme pour
+  l'équipe. La trace « cabinet.mandat.inviter » chez le client.
+
+### Ce que le lot corrige en passant (vu à la souris)
+
+- **La proposition d'un client se lit en tête de la page Dossiers** (`web/v10/inviter-comptable.txt`) : elle était sous
+  « Tes premiers pas » et « Ce que tu verras ici », en bas d'un cabinet neuf.
+- **Le navigateur retenait le nom comme identifiant** à la création du compte (l'adresse portait `autocomplete="email"`) :
+  il le remettait ensuite dans la case de l'e-mail à la connexion. L'adresse est l'identifiant (`username`).
+- La visite « Confier mon dossier » suit l'ordre du panneau, avec l'étape de l'invitation ; « Comment un client arrive
+  jusqu'ici » dit aussi l'invitation par e-mail.
+
+### Compté, ce qui part au relais d'e-mails
+
+L'adresse du comptable, le nom de qui invite, la raison sociale de l'entreprise, le lien et le jour où il cesse de
+valoir — comme l'invitation d'une équipe (C42). Rien d'autre : ni ce que le client confie, ni ses chiffres.
+
+### Ce qui le prouve
+
+- `tests/cabinet/mandats.test.ts` : seul le propriétaire invite ; la seconde invitation éteint la première ; l'aperçu ;
+  un collaborateur ne reçoit pas le dossier, l'associé si (proposé, au périmètre choisi) ; une fois ; « déjà un
+  cabinet » ; annulé, périmé ; la base n'a que l'empreinte ; la trace.
+- `tests/web/inviter-comptable.test.ts` : à la souris, du client (deux chemins, refus d'une adresse, lien de secours,
+  qui ne se remontre pas) au comptable (adresse remplie, vitrine, `username`, cabinet, code, proposition en tête,
+  acceptée), puis le client qui voit son cabinet ; le lien rouvert ne vaut plus.
+- `tests/web/exemple-puis-vraie.test.ts` : la visite dans l'ordre du panneau.
+- Quatorze preuves (`tests/preuves.sh`, « 1.77.0 »), et cinq reprises sur le code d'aujourd'hui.
+
+### Refait à la souris (20/10/2026)
+
+Hela arrête le mandat de Gharbi Electricite (deux clics, la confirmation), invite karim.cabinet@exemple.tn : « Ce
+serveur n'envoie pas d'e-mails : envoie-lui le lien ci-dessous toi-même », le lien. Un navigateur neuf l'ouvre :
+« Hela Gharbi t'invite à tenir les livres de Gharbi Electricite SARL », l'adresse remplie ; le compte au clavier ;
+« Crée ton cabinet : le dossier de Gharbi Electricite SARL y arrive aussitôt » ; le code du téléphone ; le Cabinet
+s'ouvre, la proposition en tête ; acceptée, « Tout est à jour : ton client sur SkanFact… ». Chez Hela : « Cabinet Jlassi
+Conseil tient tes livres depuis le 20/10/2026 ».
+
+Vu et corrigé en refaisant : l'invitation collée sous « Confier mon dossier » et les cases au milieu du premier chemin
+(les deux chemins côte à côte) ; la vitrine « ta première facture » pour un comptable (la sienne) ; la proposition en
+bas du cabinet neuf (en tête) ; le nom retenu comme identifiant par le navigateur (l'adresse).
+
 ## Ce qui reste (les lots suivants)
 
-1. **1.77** : inviter son comptable par e-mail, depuis l'entreprise, quand il n'est pas encore sur SkanFact.
-2. **1.78** : inviter son client tenu à rejoindre son dossier, depuis le Cabinet (prévu au cadrage).
-3. **1.79** : choisir son offre dans l'application (« Je choisis cette offre », que la console voit dans « À décider »),
+1. **1.78** : inviter son client tenu à rejoindre son dossier, depuis le Cabinet (prévu au cadrage).
+2. **1.79** : choisir son offre dans l'application (« Je choisis cette offre », que la console voit dans « À décider »),
    au lieu d'un e-mail. Le processus change, pas les prix : montré à Skander avant l'envoi.

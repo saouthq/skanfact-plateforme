@@ -14,9 +14,11 @@ import { ApercuEntete, AideMatricule } from '../composants/Fiche.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { dire, phrase, titre } from '../langue.ts';
 
-export function Porte({ creee, cabinetCree, decouvrir, deconnecte }: { creee: (ent: string) => void; cabinetCree: (cabinet: string) => void; decouvrir: () => void; deconnecte: () => void }) {
+// `pourUnClient` (1.77.0) : arrivé par le lien d'un client qui l'invite, le comptable sans cabinet commence par le sien ;
+// la phrase dit le client qui l'attend.
+export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient }: { creee: (ent: string) => void; cabinetCree: (cabinet: string) => void; decouvrir: () => void; deconnecte: () => void; pourUnClient?: string | null }) {
   const g = useGeste(deconnecte);
-  const [etape, setEtape] = useState<'porte' | 'entreprise' | 'cabinet'>('porte');
+  const [etape, setEtape] = useState<'porte' | 'entreprise' | 'cabinet'>(pourUnClient ? 'cabinet' : 'porte');
   const [raison, setRaison] = useState('');
   const [nomCabinet, setNomCabinet] = useState('');
   const [matricule, setMatricule] = useState('');
@@ -44,7 +46,7 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte }: { creee: (e
 
   if (etape === 'cabinet') {
     return (
-      <Carte icone="cabinet" droite={sortir} titre={titre('ecran.porte.cabinet_titre')} sous={phrase('ecran.porte.cabinet_sous')} onSubmit={() => { void creerCabinet(); }}
+      <Carte icone="cabinet" droite={sortir} titre={titre('ecran.porte.cabinet_titre')} sous={pourUnClient ? phrase('ecran.porte.cabinet_pour_client', { ou: pourUnClient }) : phrase('ecran.porte.cabinet_sous')} onSubmit={() => { void creerCabinet(); }}
         pied={<>
           <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.porte.cabinet_creer')}</Bouton>
           <Bouton discret onClick={() => setEtape('porte')}>{titre('ecran.porte.retour')}</Bouton>

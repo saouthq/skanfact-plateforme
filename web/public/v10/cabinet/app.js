@@ -2077,6 +2077,8 @@
               de « Tes premiers pas », dix pixels plus bas, avec le même bouton. Sur cet écran, le panneau est le
               corps de la page : c'est lui qui la propose (7.18.0 — deux panneaux qui disent la même chose se
               lisent comme deux choses). Le rouge, lui, ne peut pas vivre ici : il suit un vrai paquet. */''}
+        ${/* (plateforme) 1.77.0 — la proposition d'un client d'abord : elle attend une réponse. */''}
+        ${inboxBanner()}
         ${premiersPasPanel(true)}
         <div class="panel"><h2>Ce que tu verras ici</h2>
           <p>Tes clients, un par ligne : le dernier mois de leurs livres, ce qui reste à valider, et les mois passés sans écriture.</p>
@@ -2085,7 +2087,6 @@
                 dossier suivant : la phrase énumère, elle ne compte pas. */''}
           ${/* (plateforme) L'exemple à six clients fictifs n'est pas dans la version en ligne (C4). */''}
         </div>
-        ${inboxBanner()}
         ${api.commentUnClientArrive()}`;
       $('#imp').onclick = () => doImport();
       $('#new-d').onclick = () => newDossierForm();
@@ -2112,8 +2113,9 @@
           <button class="btn${importerVert ? ' btn-primary' : ''}" id="imp">Importer un paquet…</button>
           ${premierLivre ? '<button class="btn btn-primary" id="pp-livre">Commencer un premier livre…</button>' : ''}
         </div></div>
-      ${portfolioPanel(p)}
+      ${/* (plateforme) 1.77.0 — la proposition d'un client d'abord, comme pour un cabinet neuf. */''}
       ${inboxBanner()}
+      ${portfolioPanel(p)}
       ${todoPanel(todo)}
       <div class="filters">
         <span class="champ-loupe"><input type="search" id="q" placeholder="Chercher un client, un matricule, un téléphone…" value="${esc(listState.q)}"></span>
@@ -8934,7 +8936,8 @@
     const liste = (dossier.abonnements || []).map(a => a.id === abo.id ? { ...a, actif } : a);
     try {
       S = await api.saveAbonnements(dossier.id, liste);
-      toast(actif ? 'Abonnement repris.' : 'Abonnement suspendu.');
+      // (plateforme) 1.77.0 — le même nom que son titre et son menu (1.76.0 : « Écritures qui reviennent »).
+      toast(actif ? 'Écriture qui revient reprise.' : 'Écriture qui revient suspendue.');
       render();
     } catch (e) { toast(plainError(e), 'error'); }
   }
@@ -8978,7 +8981,7 @@
       (layer, close) => {
         $('#no', layer).onclick = close;
         const ecrire = async liste => {
-          try { S = await api.saveAbonnements(dossier.id, liste); close(); render(); toast('Abonnement enregistré.'); }
+          try { S = await api.saveAbonnements(dossier.id, liste); close(); render(); toast('Écriture qui revient enregistrée.'); }
           catch (e) { toast(plainError(e), 'error'); }
         };
         const sup = $('#ab-sup', layer);

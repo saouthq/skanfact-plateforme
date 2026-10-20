@@ -6854,7 +6854,7 @@ prouver "la demande de connexion jamais oubliée en partant" web/src/App.tsx \
   "partir={(adresse) => { connexionDemandee.oublier(); location.assign(adresse); }}" "partir={(adresse) => { location.assign(adresse); }}" \
   "$BW"
 prouver "l'entreprise ouverte par-dessus la page Connecter" web/src/App.tsx \
-  "|| invitation.lire() || demandeConnexion || demande) return;" "|| invitation.lire() || demande) return;" \
+  "|| invitation.lire() || comptable.lire() || demandeConnexion || demande) return;" "|| invitation.lire() || comptable.lire() || demande) return;" \
   "$BW"
 prouver "la demande de connexion perdue à la connexion" web/src/App.tsx \
   "if (location.pathname === '/connecter') {" "if (location.pathname === '/jamais') {" \
@@ -9519,7 +9519,7 @@ prouver "les lignes de soi et du propriétaire avec un menu" web/public/platefor
   "    const modifiable = (m) => m.utilisateur !== eq.moi && !m.roles.includes('proprietaire');" "    const modifiable = (m) => true;" \
   "$EQW"
 prouver "le lien d'invitation qui arrive sur « Bon retour »" web/src/App.tsx \
-  "{ ecran: invitation.lire() ? 'inscription' : 'connexion' }" "{ ecran: 'connexion' }" \
+  "{ ecran: invitation.lire() || comptable.lire() ? 'inscription' : 'connexion' }" "{ ecran: comptable.lire() ? 'inscription' : 'connexion' }" \
   "$EQW"
 # ── Toutes les données de l'entreprise (12/10/2026 ; migration 0080, docs/export-complet.md) ──────────────────────────
 EX1="le fichier téléchargé est celui de l'exploitation, au caractère près (deux chemins, un fichier)"
@@ -9582,7 +9582,7 @@ prouver "la ligne d'état qui pousse le panneau du dessous" web/public/plateform
   ' id="export-etat" style="min-height: 1.5em"></p>' ' id="export-etat"></p>' \
   "$EXW"
 prouver "l'adresse invitée à retaper" web/src/ecrans/Inscription.tsx \
-  "useState(invitation?.email ?? '')" "useState('')" \
+  "useState(invitation?.email ?? comptable?.email ?? '')" "useState(comptable?.email ?? '')" \
   "$EQW"
 prouver "l'arrivée par un lien qui ne dit pas qui invite" web/src/App.tsx \
   "sous={attend ?? sousInvitation('inscription')}" "sous={attend}" \
@@ -15462,11 +15462,11 @@ prouver '« à envoyer » pas écrit avant l'"'"'envoi' 'serveur/routes/socle.ts
 ' \
   '' \
   '« à envoyer » est déjà écrit quand l'"'"'e-mail part : un arrêt entre les deux en laisse la trace (A08)'
-prouver '« à envoyer » refusé par la base' 'base/migrations/0138_audit_lot2b.sql' \
+prouver '« à envoyer » refusé par la base' 'base/migrations/0154_inviter_son_comptable.sql' \
   '  if p_etat not in ('"'"'a_envoyer'"'"', '"'"'parti'"'"', '"'"'refuse'"'"', '"'"'en_attente'"'"', '"'"'sans_relais'"'"') then perform socle.refus('"'"'cet état d'"'"''"'"'un e-mail' \
   '  if p_etat not in ('"'"'parti'"'"', '"'"'refuse'"'"', '"'"'en_attente'"'"', '"'"'sans_relais'"'"') then perform socle.refus('"'"'cet état d'"'"''"'"'un e-mail' \
   '« à envoyer » est déjà écrit quand l'"'"'e-mail part : un arrêt entre les deux en laisse la trace (A08)'
-prouver '« en attente » qui ne remplace plus « à envoyer »' 'base/migrations/0138_audit_lot2b.sql' \
+prouver '« en attente » qui ne remplace plus « à envoyer »' 'base/migrations/0154_inviter_son_comptable.sql' \
   '  update socle.invitation set courriel = p_etat, courriel_le = p_maintenant
    where jeton_empreinte = p_empreinte
      and (p_etat <> '"'"'en_attente'"'"' or courriel is null or courriel = '"'"'a_envoyer'"'"');' \
@@ -17938,8 +17938,8 @@ prouver 'les coordonnées d'"'"'un client lues après l'"'"'arrêt du mandat' 'b
   'where x.debut' \
   'sous un mandat actif, le cabinet lit l'"'"'e-mail et le téléphone de la fiche de son client, et rien d'"'"'autre ; proposé ou arrêté, rien'
 prouver 'le Cabinet qui affiche « v10 · en ligne »' 'web/public/plateforme/pont-cabinet.js' \
-  'const VERSION = (document.querySelector('"'"'meta[name="skanfact-code"]'"'"')?.getAttribute('"'"'content'"'"') || '"'"'dev'"'"').split('"'"' · '"'"')[0] || '"'"'dev'"'"';' \
-  'const VERSION = '"'"'10 · en ligne'"'"';' \
+  'split('"'"' · '"'"')[0] || '"'"'dev'"'"';' \
+  'split('"'"' · '"'"')[0] && '"'"'10 · en ligne'"'"';' \
   'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
 prouver '« aucune en septembre » pour une entreprise née en octobre' 'web/console/src/ecrans/Fiche.tsx' \
   'String(f.enPlus?.piecesMois ?? 0), neeCeMois ?' \
@@ -17949,6 +17949,75 @@ prouver '« il reste à taper le code » une fois le code tapé' 'web/src/ecrans
   '/^\d{6}$/.test(essai.replace(/\s/g, '"'"''"'"')) ? '"'"'ecran.code_pose.pret'"'"' : '"'"'ecran.code_pose.garde_ok'"'"'' \
   ''"'"'ecran.code_pose.garde_ok'"'"'' \
   '« je suis un cabinet comptable » sur la porte : le cabinet se crée, le code du téléphone se pose, le Cabinet s'"'"'ouvre ; « Verrouiller » ferme la session'
+
+# 1.77.0 : inviter son comptable par e-mail (base 0154, routes, entrée, Ton cabinet comptable, Dossiers).
+prouver 'n'"'"'importe quel membre qui invite le comptable' 'base/migrations/0154_inviter_son_comptable.sql' \
+  '    perform socle.refus('"'"'seul le propriétaire de l'"'"''"'"'entreprise invite son comptable'"'"');
+  end if;
+  if v_email' \
+  '    null;
+  end if;
+  if v_email' \
+  'inviter son comptable par e-mail : le lien mène son cabinet au dossier proposé, une fois ; remplacé, annulé ou périmé, il ne vaut plus ; seul le propriétaire invite'
+prouver 'une nouvelle invitation qui laisse valoir l'"'"'ancienne' 'base/migrations/0154_inviter_son_comptable.sql' \
+  '  update socle.invitation_comptable set annulee_le = now()
+   where entreprise = p_entreprise and utilisee_le is null and annulee_le is null;
+  insert' \
+  '  insert' \
+  'inviter son comptable par e-mail : le lien mène son cabinet au dossier proposé, une fois ; remplacé, annulé ou périmé, il ne vaut plus ; seul le propriétaire invite'
+prouver 'le lien du comptable qui sert deux fois' 'base/migrations/0154_inviter_son_comptable.sql' \
+  'if not found or i.utilisee_le is not null or i.annulee_le' \
+  'if not found or i.annulee_le' \
+  'inviter son comptable par e-mail : le lien mène son cabinet au dossier proposé, une fois ; remplacé, annulé ou périmé, il ne vaut plus ; seul le propriétaire invite'
+prouver 'le lien du comptable qui vaut encore périmé' 'base/migrations/0154_inviter_son_comptable.sql' \
+  ' or i.expire_le <= p_maintenant then' \
+  ' then' \
+  'inviter son comptable par e-mail : le lien mène son cabinet au dossier proposé, une fois ; remplacé, annulé ou périmé, il ne vaut plus ; seul le propriétaire invite'
+prouver 'l'"'"'aperçu d'"'"'un lien qui a déjà servi' 'base/migrations/0154_inviter_son_comptable.sql' \
+  'and i.utilisee_le is null and i.annulee_le is null and i.expire_le > p_maintenant' \
+  'and i.annulee_le is null and i.expire_le > p_maintenant' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'l'"'"'invitation du comptable sans trace chez le client' 'serveur/cabinet/routes.ts' \
+  '      await tracer(tx, entreprise, '"'"'cabinet.mandat.inviter'"'"', id, null, { perimetre: p });
+' \
+  '' \
+  'inviter son comptable par e-mail : le lien mène son cabinet au dossier proposé, une fois ; remplacé, annulé ou périmé, il ne vaut plus ; seul le propriétaire invite'
+prouver 'l'"'"'invitation qui oublie ce que le client a coché' 'web/public/plateforme/pont.js' \
+  '{ email, perimetre: perimetre() }' \
+  '{ email }' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'une adresse e-mail qui ne va pas, envoyée au serveur' 'web/public/plateforme/pont.js' \
+  '      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { champ.focus();' \
+  '      if (false) { champ.focus();' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'le lien de secours sans l'"'"'adresse du serveur' 'web/public/plateforme/pont.js' \
+  'lien.startsWith('"'"'/'"'"') ? `${location.origin}${lien}` : lien;' \
+  'lien;' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'le comptable invité dont le cabinet ne reçoit pas le dossier' 'web/src/App.tsx' \
+  '    if (!jeton || !cabinet) return;
+    comptable.oublier();' \
+  '    return;
+    comptable.oublier();' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'le comptable invité qui arrive sur la porte de l'"'"'entreprise' 'web/src/ecrans/Porte.tsx' \
+  'useState<'"'"'porte'"'"' | '"'"'entreprise'"'"' | '"'"'cabinet'"'"'>(pourUnClient ? '"'"'cabinet'"'"' : '"'"'porte'"'"')' \
+  'useState<'"'"'porte'"'"' | '"'"'entreprise'"'"' | '"'"'cabinet'"'"'>('"'"'porte'"'"')' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'la vitrine de la première facture pour le comptable invité' 'web/src/ecrans/Inscription.tsx' \
+  ': comptable ? <VitrineComptable ou={comptable.ou} qui={comptable.qui} /> :' \
+  ':' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'le navigateur qui retient le nom comme identifiant' 'web/src/ecrans/Inscription.tsx' \
+  'type="email" autoComplete="username" inputMode="email" {...g.sur('"'"'email'"'"')}' \
+  'type="email" autoComplete="email" inputMode="email" {...g.sur('"'"'email'"'"')}' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'la proposition d'"'"'un client sous les premiers pas d'"'"'un cabinet neuf' 'web/public/v10/cabinet/app.js' \
+  '        ${inboxBanner()}
+        ${premiersPasPanel(true)}' \
+  '        ${premiersPasPanel(true)}
+        ${inboxBanner()}' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

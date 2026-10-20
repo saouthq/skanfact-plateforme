@@ -785,12 +785,20 @@
     let m;
     try { m = (await appel('GET', '/mandat')).mandat; } catch (x) { poser(`<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`); return; }
     if (!m) {
+      // (1.77.0) Ce que tu confies d'abord, puis les deux chemins côte à côte : il a SkanFact Cabinet (son code), il ne
+      // l'a pas encore (son e-mail). Les cases valent pour les deux (recette du 20/10/2026 : l'invitation se lisait sous
+      // le premier bouton, les cases au milieu du premier chemin).
       poser(`<p>Ton cabinet comptable tient tes livres ici même : il lit tes écritures à jour, et valide tes mois. Rien ne lui est envoyé : il n'y a plus de paquet ni de fichier.</p>
-        <label class="field mt">Le code de ton cabinet<input type="text" id="mandat-code" maxlength="10" autocomplete="off" spellcheck="false" style="max-width:220px"></label>
-        <p class="small muted">Ton comptable le lit dans SkanFact Cabinet (Réglages → Mon cabinet). Ce que tu lui confies :</p>
+        <p class="small muted mt">Ce que tu lui confies :</p>
         <div id="mandat-perimetre">${PERIMETRES.map(([k, l, d]) => `<label class="check"><input type="checkbox" data-perimetre="${k}"${k === 'paie' ? '' : ' checked'}> ${esc(l)} <span class="muted small">— ${esc(d)}</span></label>`).join('')}</div>
-        <p class="small" role="alert"></p>
-        <button type="button" class="btn btn-primary mt" id="mandat-confier">Confier mon dossier</button>`);
+        <div class="mandat-chemins mt">
+          <div class="mandat-chemin"><h3>Il a SkanFact Cabinet</h3>
+            <label class="field">Le code de son cabinet<input type="text" id="mandat-code" maxlength="10" autocomplete="off" spellcheck="false" style="max-width:220px"></label>
+            <p class="small muted">Il le lit dans SkanFact Cabinet, Réglages → Mon cabinet : demande-le-lui.</p>
+            <p class="small" role="alert"></p>
+            <button type="button" class="btn btn-primary" id="mandat-confier">Confier mon dossier</button></div>
+          <div class="mandat-chemin" id="mandat-inviter"></div>
+        </div>`);
       const b = /** @type {HTMLElement} */ (el.querySelector('#mandat-confier'));
       b.onclick = () => agir(async () => {
         const codeCabinet = String(/** @type {HTMLInputElement} */ (el.querySelector('#mandat-code')).value).trim();
@@ -799,6 +807,7 @@
         if (!perimetre.length) throw new Error('Coche au moins ce que tu lui confies : rien n\'a été envoyé.');
         await appel('POST', '/mandat', { codeCabinet, perimetre });
       }, b);
+      dessinerInvitationComptable(/** @type {HTMLElement} */ (el.querySelector('#mandat-inviter')), el, () => dessinerMandat(el));
       return;
     }
     const nom = `<strong>${esc(m.cabinet.nom)}</strong>`;
@@ -819,6 +828,74 @@
       }
       void agir(() => appel('DELETE', '/mandat'), b);
     };
+  }
+
+  // ── Inviter son comptable par e-mail, quand il n'est pas encore sur SkanFact (1.77.0) ─────────────────────────────
+  // SkanFact lui envoie un lien ; il crée son compte puis son cabinet, et le dossier y arrive proposé, avec ce qui est
+  // coché plus haut. Le lien se montre aussi une fois ici, en secours (le relais refuse, ou ce serveur n'en a pas).
+  /** @type {string | null} */
+  let lienDeSecours = null;
+  /** @type {Record<string, string>} */
+  const ETAT_DE_L_EMAIL = {
+    parti: 'L\'e-mail est parti.',
+    a_envoyer: 'L\'e-mail est en route.',
+    en_attente: 'L\'e-mail est en route : le relais n\'a pas encore répondu.',
+    refuse: 'Le relais a refusé l\'e-mail : envoie-lui le lien ci-dessous toi-même.',
+    sans_relais: 'Ce serveur n\'envoie pas d\'e-mails : envoie-lui le lien ci-dessous toi-même.',
+    sans_reponse: 'On ne sait pas si l\'e-mail est parti : invite-le de nouveau, un nouveau lien remplace l\'ancien.',
+  };
+  /** @param {HTMLElement} zone @param {HTMLElement} panneau @param {() => Promise<void>} redessiner */
+  async function dessinerInvitationComptable(zone, panneau, redessiner) {
+    /** @type {any} */ let inv = null;
+    try { inv = (await appel('GET', '/mandat/invitation')).invitation; } catch { /* sans réponse : le formulaire seul */ }
+    const secours = lienDeSecours
+      ? `<label class="field mt">Le lien, à lui envoyer si l'e-mail n'arrive pas<input type="text" id="mandat-lien" readonly value="${esc(lienDeSecours)}"></label>
+         <button type="button" class="btn btn-sm" id="mandat-lien-copier">Copier le lien</button>` : '';
+    lienDeSecours = null;
+    /** @param {unknown} x */
+    const refus = (x) => { const a = zone.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
+    const perimetre = () => [...panneau.querySelectorAll('[data-perimetre]')].filter((x) => /** @type {HTMLInputElement} */ (x).checked).map((x) => String(/** @type {HTMLElement} */ (x).dataset.perimetre));
+    /** @param {string} email */
+    const inviter = async (email) => {
+      const r = await appel('POST', '/mandat/invitation', { email, perimetre: perimetre() });
+      // Le lien d'un serveur sans relais n'a pas d'adresse devant lui : celle de cette page la lui donne.
+      const lien = String(r.lien || '');
+      lienDeSecours = r.courrielEtat === 'parti' || !lien ? null : lien.startsWith('/') ? `${location.origin}${lien}` : lien;
+    };
+    /** @param {() => Promise<unknown>} geste @param {HTMLElement} b */
+    const agir = async (geste, b) => { b.setAttribute('disabled', ''); try { await geste(); await redessiner(); } catch (x) { b.removeAttribute('disabled'); refus(x); } };
+    if (inv) {
+      zone.innerHTML = `<h3>Il n'est pas encore sur SkanFact</h3>
+        <p>Tu as invité <strong>${esc(inv.email)}</strong> : son lien vaut jusqu'au ${esc(jourATunis(inv.expire))}. ${esc(ETAT_DE_L_EMAIL[inv.courriel] || '')}</p>
+        <p class="small muted">Dès qu'il a créé son cabinet, ton dossier y arrive : il le voit une fois qu'il l'a accepté.</p>${secours}
+        <p class="small" role="alert"></p>
+        <div class="inline mt"><button type="button" class="btn" id="mandat-reinviter">Envoyer un nouveau lien</button>
+          <button type="button" class="btn btn-ghost" id="mandat-annuler-invitation">Annuler l'invitation</button></div>`;
+      const copier = /** @type {HTMLElement | null} */ (zone.querySelector('#mandat-lien-copier'));
+      if (copier) copier.onclick = async () => {
+        const champ = /** @type {HTMLInputElement} */ (zone.querySelector('#mandat-lien'));
+        champ.select();
+        try { await navigator.clipboard.writeText(champ.value); copier.textContent = 'Lien copié'; } catch { copier.textContent = 'Sélectionné : Ctrl+C pour le copier'; }
+      };
+      const re = /** @type {HTMLElement} */ (zone.querySelector('#mandat-reinviter'));
+      re.onclick = () => agir(() => inviter(inv.email), re);
+      const an = /** @type {HTMLElement} */ (zone.querySelector('#mandat-annuler-invitation'));
+      an.onclick = () => agir(() => appel('DELETE', '/mandat/invitation'), an);
+      return;
+    }
+    zone.innerHTML = `<h3>Il n'est pas encore sur SkanFact</h3>
+      <label class="field">Son adresse e-mail<input type="email" id="mandat-email" maxlength="200" autocomplete="off" spellcheck="false" style="max-width:320px"></label>
+      <p class="small muted">SkanFact lui envoie un lien : il crée son cabinet, et ton dossier y arrive avec ce que tu as coché ; il ne le voit qu'une fois qu'il l'a accepté.</p>
+      <p class="small" role="alert"></p>
+      <button type="button" class="btn" id="mandat-inviter-envoyer">Inviter mon comptable</button>`;
+    const b = /** @type {HTMLElement} */ (zone.querySelector('#mandat-inviter-envoyer'));
+    b.onclick = () => agir(async () => {
+      const champ = /** @type {HTMLInputElement} */ (zone.querySelector('#mandat-email'));
+      const email = String(champ.value).trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { champ.focus(); throw new Error('Écris l\'adresse e-mail de ton comptable, par exemple nom@cabinet.tn : rien n\'a été envoyé.'); }
+      if (!perimetre().length) throw new Error('Coche au moins ce que tu lui confies : rien n\'a été envoyé.');
+      await inviter(email);
+    }, b);
   }
 
   /** @type {any} */ (window).skanfact = {

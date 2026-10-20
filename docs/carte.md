@@ -480,6 +480,12 @@ vaut pour tout le dépôt.*
     reviennent », « Adresse du client », la version du serveur au pied (`pont-cabinet.js`) ; l'e-mail et le téléphone
     de la fiche d'un client sous mandat actif (`socle.coordonnees_de_mes_clients`, 0153 ; `coordonnees` du
     portefeuille) ; à la console, « Pièces émises » d'une entreprise née ce mois-ci (`Fiche.tsx`).
+  - **Inviter son comptable par e-mail** (1.77.0 ; 0154 ; `docs/recette.md`) : `socle.invitation_comptable` et ses quatre
+    fonctions ; les routes `/entreprises/:e/mandat/invitation`, `/invitations-comptable/apercu`,
+    `/cabinets/:c/invitations-comptable/rejoindre` (`serveur/cabinet/routes.ts`) ; l'e-mail `invitation.comptable`
+    (`invitation-courriel.ts`, `lienComptable`) ; l'entrée (`App.tsx`, `?comptable=`, `VitrineComptable`, la porte
+    `pourUnClient`) ; le panneau (`pont.js`, `dessinerInvitationComptable`, `.mandat-chemins`) ; la proposition en tête
+    de Dossiers (`web/v10/inviter-comptable.txt`).
   - **Le lot débutant (2)** (12/10/2026 ; `docs/debutant.md`, `web/v10/debutant-2.txt`) : les gênants d'un commerçant
     qui débute, refaits à la souris sur une quincaillerie. Le mot du catalogue suit le métier (`motsCatalogue` :
     « article » pour le commerce, la restauration, l'artisanat) ; une dépense sans fournisseur se range sous UNE fiche

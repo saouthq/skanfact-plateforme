@@ -250,11 +250,14 @@ describe('l\'exemple puis la vraie entreprise, autour du versement', () => {
     await as.getByRole('button', { name: 'Ouvrir mon entreprise', exact: true }).click();
     await as.waitFor({ state: 'detached' });
 
-    // La visite démarre dans la vraie entreprise : le panneau du mandat, puis le code de son cabinet.
+    // La visite démarre dans la vraie entreprise : le panneau du mandat, ce qu'on confie, l'invitation par e-mail
+    // (1.77.0 : dans l'ordre du panneau), puis le code de son cabinet.
     const titreBulle = () => p.locator('#visite-bulle #visite-titre').innerText().then(net).catch(() => '');
     await expect.poll(titreBulle, { timeout: 20_000 }).toBe('Ton cabinet comptable');
-    await p.locator('#visite-bulle [data-v=suiv]').first().click();
-    await expect.poll(titreBulle, { timeout: 10_000 }).toBe('Le code de son cabinet');
+    for (const suivant of ['Ce que tu lui confies', 'Il n\'est pas encore sur SkanFact ?', 'Le code de son cabinet']) {
+      await p.locator('#visite-bulle [data-v=suiv]').first().click();
+      await expect.poll(titreBulle, { timeout: 10_000 }).toBe(net(suivant));
+    }
     expect(await p.locator('#mandat-code').isVisible()).toBe(true);
     await p.screenshot({ path: path.join(PHOTOS, 'exemple-vraie-5-mandat.png') });
     expect(erreurs).toEqual([]);

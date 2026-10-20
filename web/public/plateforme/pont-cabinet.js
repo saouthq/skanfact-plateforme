@@ -19,7 +19,9 @@
   // L'écran écrit « v » devant : le numéro que le serveur a écrit dans la page (« 1.76.0 · 879fcb2 » : serveur/ecrans.ts),
   // comme l'entreprise le lit (pont.js, `updateVersion`) ; sans rien, « dev ». (1.76.0 — « v10 · en ligne » ne disait
   // rien de ce qui tourne, et l'entreprise d'à côté disait « v1.75.0 ».)
-  const VERSION = (document.querySelector('meta[name="skanfact-code"]')?.getAttribute('content') || 'dev').split(' · ')[0] || 'dev';
+  // (1.77.0) Lue seulement là où une page existe : chargé hors d'une page (un bac à sable d'essai), « dev ».
+  const VERSION = ((typeof document !== 'undefined' && typeof document.querySelector === 'function'
+    && document.querySelector('meta[name="skanfact-code"]')?.getAttribute('content')) || 'dev').split(' · ')[0] || 'dev';
   const PAS_EN_LIGNE = 'Pas encore dans la version en ligne de SkanFact Cabinet : rien n\'a été fait.';
   // Une réponse qui ne vient pas du serveur (vu le 05/10/2026, côté entreprise : un relais qui coupe une demande trop
   // longue ; ou la page d'erreur du frontal pendant une installation) : jamais son texte brut à l'écran, la phrase de
@@ -920,8 +922,9 @@
   const PERIMETRES = /** @type {Record<string, string>} */ ({ comptabilite: 'la comptabilité', declarations: 'les déclarations', saisie_achats: 'la saisie des achats', paie: 'la paie' });
   /** @param {boolean} [reglages] */
   function commentUnClientArrive(reglages) {
+    // (1.77.0) Ou il t'invite par e-mail, avant même que tu aies SkanFact : son lien te fait créer ton cabinet.
     const corps = `<p class="small">Un client sur SkanFact te confie son dossier lui-même : dans <strong>Paramètres → Envois → Ton cabinet comptable</strong>,
-      il tape le code de ton cabinet. Tu acceptes ici, sur la page Dossiers ; ses livres sont alors ceux du serveur, à jour en direct.
+      il tape le code de ton cabinet, ou il t'invite par e-mail. Tu acceptes ici, sur la page Dossiers ; ses livres sont alors ceux du serveur, à jour en direct.
       Un client qui n'est pas sur SkanFact : « Nouveau client… », et tu tiens ses livres toi-même.</p>
       <div class="mt"><div class="muted small">Le code de ton cabinet</div>
         <div class="empreinte-ligne"><span class="fingerprint" id="code-cabinet">${esc(code)}</span>

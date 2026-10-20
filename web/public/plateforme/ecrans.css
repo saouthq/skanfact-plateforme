@@ -26,3 +26,11 @@
    commercial (onze pages) faisait défiler tout l'accueil de côté — vu le 12/10/2026, à la première connexion d'un vendeur
    invité. Les pages vont à la ligne. */
 #accueil-role .inline { flex-wrap: wrap; }
+
+/* Ton cabinet comptable (1.77.0, pont.js `dessinerMandat`) : deux chemins côte à côte, de même poids — il a SkanFact
+   Cabinet (son code), il ne l'a pas encore (son e-mail) ; l'un sous l'autre sur un écran étroit. */
+.mandat-chemins { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; }
+.mandat-chemin { border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.mandat-chemin h3 { margin: 0 0 4px; font-size: 14px; }
+.mandat-chemin .field { width: 100%; }
+.mandat-chemin .btn { margin-top: auto; }

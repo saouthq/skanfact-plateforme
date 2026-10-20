@@ -111,6 +111,26 @@ export function VitrineInvitation({ ou, qui }: { ou: string; qui: string }) {
   );
 }
 
+// Arriver par le lien d'un client qui invite son comptable (1.77.0) : ni facture ni entreprise à créer — son compte, son
+// cabinet et le code du téléphone (exigé des comptables), puis le dossier du client, proposé, à accepter.
+export function VitrineComptable({ ou, qui }: { ou: string; qui: string }) {
+  const etapes = [['ecran.etape.compte', 'ecran.vitrine.comptable_compte'], ['ecran.etape.cabinet', 'ecran.vitrine.comptable_cabinet'],
+    ['ecran.vitrine.comptable_dossier_titre', 'ecran.vitrine.comptable_dossier']] as const;
+  return (
+    <>
+      <div className="ent-vitrine-titre"><h2>{titre('ecran.vitrine.comptable_titre', { ou })}</h2><p>{phrase('ecran.vitrine.comptable_sous', { qui })}</p></div>
+      <ol className="ent-etapes-liste">
+        {etapes.map(([t, texte], i) => (
+          <li key={t} className={i === 0 ? 'actuelle' : ''}>
+            <span className="num" data-donnee>{i + 1}</span>
+            <span className="txt"><b>{titre(t)}</b><span>{phrase(texte, { ou })}</span></span>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+
 // La page en deux : la vitrine à gauche (au téléphone, la marque seule en haut), le formulaire à droite.
 export function PageDouble({ vitrine, haut, bas, children }: { vitrine: ReactNode; haut?: ReactNode; bas?: ReactNode; children: ReactNode }) {
   return (

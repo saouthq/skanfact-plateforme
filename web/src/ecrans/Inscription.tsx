@@ -9,7 +9,7 @@ import { LONGUEUR_MINIMALE } from '../../../commun/compte.ts';
 import { appeler, ErreurReseau, session } from '../api.ts';
 import { Bouton } from '../composants/Bouton.tsx';
 import { Champ } from '../composants/Champ.tsx';
-import { Dessin, PageDouble, VitrineCompte, VitrineInvitation } from '../composants/Entree.tsx';
+import { Dessin, PageDouble, VitrineComptable, VitrineCompte, VitrineInvitation } from '../composants/Entree.tsx';
 import { toast } from '../composants/Toast.tsx';
 import { refusDe, useGeste } from '../geste.ts';
 import { phrase, titre } from '../langue.ts';
@@ -38,13 +38,14 @@ export function Jauge({ motDePasse }: { motDePasse: string }) {
 
 // `invitation` : arrivée par un lien d'invitation (lot équipe) : l'adresse invitée est déjà remplie, la vitrine dit où
 // la personne entre, et il n'y a pas d'entreprise à créer ensuite.
-export function Inscription({ connecte, code, aConnecter, connexion, sous, invitation }: {
+// `comptable` : un client invite son comptable (1.77.0) : son adresse déjà remplie, et la vitrine du comptable.
+export function Inscription({ connecte, code, aConnecter, connexion, sous, invitation, comptable }: {
   connecte: () => void; code: (d: Defi) => void; aConnecter: (email: string) => void; connexion: () => void; sous?: string | null;
-  invitation?: { email: string; ou: string; qui: string } | null;
+  invitation?: { email: string; ou: string; qui: string } | null; comptable?: { email: string; ou: string; qui: string } | null;
 }) {
   const g = useGeste(rien);
   const options = useOptions();
-  const [email, setEmail] = useState(invitation?.email ?? '');
+  const [email, setEmail] = useState(invitation?.email ?? comptable?.email ?? '');
   const [nom, setNom] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
 
@@ -80,15 +81,17 @@ export function Inscription({ connecte, code, aConnecter, connexion, sous, invit
   });
 
   return (
-    <PageDouble vitrine={invitation ? <VitrineInvitation ou={invitation.ou} qui={invitation.qui} /> : <VitrineCompte code={options.courriel} />}
+    <PageDouble vitrine={invitation ? <VitrineInvitation ou={invitation.ou} qui={invitation.qui} /> : comptable ? <VitrineComptable ou={comptable.ou} qui={comptable.qui} /> : <VitrineCompte code={options.courriel} />}
       haut={<>
-        <span className="etape">{titre(invitation ? 'ecran.invitation.etape' : 'ecran.inscription.etape')}</span>
+        <span className="etape">{titre(invitation || comptable ? 'ecran.invitation.etape' : 'ecran.inscription.etape')}</span>
         <span>{titre('ecran.inscription.deja')} <button type="button" className="ent-lien" onClick={connexion}>{titre('ecran.inscription.se_connecter')}</button></span>
       </>}>
       <form noValidate className="ent-formulaire" onSubmit={(e) => { e.preventDefault(); void envoyer(); }}>
         <div className="ent-entete"><h1>{titre('ecran.inscription.titre')}</h1><p>{sous ?? phrase('ecran.inscription.sous')}</p></div>
         <Champ obligatoire libelle={titre('ecran.inscription.nom')} aide={phrase('ecran.inscription.nom_aide')} valeur={nom} changer={setNom} autoComplete="name" premier {...g.sur('nom')} />
-        <Champ obligatoire libelle={titre('ecran.connexion.email')} aide={phrase('ecran.connexion.email_aide')} valeur={email} changer={setEmail} type="email" autoComplete="email" inputMode="email" {...g.sur('email')} />
+        {/* 1.77.0 — « username » : le navigateur retient l'adresse avec le mot de passe (recette du 20/10/2026 : il retenait
+            le nom, qu'il remettait ensuite dans la case de l'e-mail à la connexion). */}
+        <Champ obligatoire libelle={titre('ecran.connexion.email')} aide={phrase('ecran.connexion.email_aide')} valeur={email} changer={setEmail} type="email" autoComplete="username" inputMode="email" {...g.sur('email')} />
         <Champ obligatoire libelle={titre('ecran.connexion.mot_de_passe')} aide={phrase('ecran.inscription.mot_de_passe_aide', { min: LONGUEUR_MINIMALE })} valeur={motDePasse} changer={setMotDePasse}
           type="password" autoComplete="new-password" revelable dessous={<Jauge motDePasse={motDePasse} />} {...g.sur('motDePasse')} />
         <Bouton principal type="submit" occupe={g.occupe}>{titre('ecran.inscription.bouton')}<Dessin id="fleche" /></Bouton>

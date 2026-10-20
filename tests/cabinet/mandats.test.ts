@@ -188,6 +188,57 @@ describe('le cabinet et ses mandats', () => {
     expect(await enTantQue(pool, cab.associe.utilisateur, async (tx) => (await tx.query('select count(*)::int n from socle.coordonnees_de_mes_clients() where entreprise = $1', [cl.ent])).rows[0].n)).toBe(0);
   });
 
+  it('inviter son comptable par e-mail : le lien mène son cabinet au dossier proposé, une fois ; remplacé, annulé ou périmé, il ne vaut plus ; seul le propriétaire invite', async () => {
+    const cl = await client();
+    const jetonDe = (lien: unknown) => decodeURIComponent(/[?&]comptable=([^&]+)/.exec(String(lien))?.[1] ?? '');
+    const inviter = (email: string, jeton = cl.jeton) => appeler('POST', `/entreprises/${cl.ent}/mandat/invitation`, jeton, { email });
+    // Seul le propriétaire invite.
+    const adm = await personne('administrateur');
+    const inv = String((await appeler('POST', `/entreprises/${cl.ent}/invitations`, cl.jeton, { email: adm.email, roles: ['administrateur'] })).corps.jeton);
+    await appeler('POST', '/invitations/accepter', adm.jeton, { jeton: inv });
+    expect((await inviter('comptable@exemple.tn', adm.jeton)).statut).toBe(403);
+    await expect(enTantQue(pool, adm.utilisateur, (tx) => tx.query('select socle.inviter_comptable($1, $2, $3::text[], $4, $5)',
+      [cl.ent, 'comptable@exemple.tn', ['comptabilite'], 'empreinte-de-essai', new Date(Date.now() + 3600_000)]))).rejects.toThrow(/seul le propriétaire/i);
+    // Une première invitation, puis une seconde : la première ne vaut plus.
+    const premiere = await inviter('ancien-comptable@exemple.tn');
+    expect(premiere.statut, JSON.stringify(premiere.corps)).toBe(201);
+    const seconde = await inviter('  Comptable@Exemple.tn ');
+    expect(seconde.corps.perimetre).toEqual(['comptabilite', 'declarations', 'saisie_achats']);
+    expect((await appeler('POST', '/invitations-comptable/apercu', undefined, { jeton: jetonDe(premiere.corps.lien) })).corps).toEqual({ valable: false });
+    const jeton = jetonDe(seconde.corps.lien);
+    expect((await appeler('POST', '/invitations-comptable/apercu', undefined, { jeton })).corps)
+      .toMatchObject({ valable: true, entreprise: 'Menuiserie Ben Salah', email: 'comptable@exemple.tn' });
+    expect(((await appeler('GET', `/entreprises/${cl.ent}/mandat/invitation`, cl.jeton)).corps.invitation as { email: string }).email).toBe('comptable@exemple.tn');
+    // Le comptable crée son cabinet ; un collaborateur ne reçoit pas le dossier, l'associé si : proposé, au périmètre choisi.
+    const cab = await cabinet();
+    const revision = await cab.collaborateur('revision');
+    expect((await appeler('POST', `/cabinets/${cab.id}/invitations-comptable/rejoindre`, revision.jeton, { jeton })).statut).toBe(403);
+    const r = await appeler('POST', `/cabinets/${cab.id}/invitations-comptable/rejoindre`, cab.associe.jeton, { jeton });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    expect(r.corps).toMatchObject({ entreprise: cl.ent, statut: 'propose' });
+    expect(await portefeuille(cab.id, cab.associe)).toMatchObject([{ entreprise: cl.ent, statut: 'propose', perimetre: ['comptabilite', 'declarations', 'saisie_achats'] }]);
+    expect(((await appeler('GET', `/entreprises/${cl.ent}/mandat`, cl.jeton)).corps.mandat as { statut: string }).statut).toBe('propose');
+    // Le lien ne sert qu'une fois, et le dossier qui a un cabinet n'invite plus.
+    const autre = await cabinet();
+    expect((await appeler('POST', `/cabinets/${autre.id}/invitations-comptable/rejoindre`, autre.associe.jeton, { jeton })).corps.motif).toMatch(/ne vaut plus/);
+    expect((await appeler('GET', `/entreprises/${cl.ent}/mandat/invitation`, cl.jeton)).corps.invitation).toBeNull();
+    expect((await inviter('autre@exemple.tn')).corps.motif).toMatch(/déjà un cabinet/);
+    // L'associé accepte : le dossier entre au portefeuille, comme par un code tapé.
+    expect((await appeler('POST', `/cabinets/${cab.id}/mandats/${String(r.corps.mandat)}/accepter`, cab.associe.jeton)).statut).toBe(200);
+    // Arrêté, une nouvelle invitation s'annule, et une périmée ne mène à rien.
+    await appeler('DELETE', `/entreprises/${cl.ent}/mandat`, cl.jeton);
+    const annulee = jetonDe((await inviter('comptable@exemple.tn')).corps.lien);
+    expect((await appeler('DELETE', `/entreprises/${cl.ent}/mandat/invitation`, cl.jeton)).statut).toBe(200);
+    expect((await appeler('POST', '/invitations-comptable/apercu', undefined, { jeton: annulee })).corps).toEqual({ valable: false });
+    const perimee = jetonDe((await inviter('comptable@exemple.tn')).corps.lien);
+    await admin.query(`update socle.invitation_comptable set expire_le = now() - interval '1 minute' where entreprise = $1 and utilisee_le is null and annulee_le is null`, [cl.ent]);
+    expect((await appeler('POST', `/cabinets/${autre.id}/invitations-comptable/rejoindre`, autre.associe.jeton, { jeton: perimee })).corps.motif).toMatch(/ne vaut plus/);
+    // La base ne garde que l'empreinte du lien.
+    expect((await admin.query('select count(*)::int n from socle.invitation_comptable where jeton_empreinte = $1', [perimee])).rows[0].n).toBe(0);
+    // Chez le client, la trace dit qu'il a invité.
+    expect((await admin.query(`select count(*)::int n from socle.audit where entreprise = $1 and geste = 'cabinet.mandat.inviter'`, [cl.ent])).rows[0].n).toBe(4);
+  });
+
   it('le dossier tenu : l\'associé le crée, avec tout le périmètre et aucun membre côté client ; un collaborateur, non', async () => {
     const cab = await cabinet();
     const revision = await cab.collaborateur('revision');

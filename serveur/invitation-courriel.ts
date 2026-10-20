@@ -10,7 +10,9 @@ import { rendre, t } from '../textes/index.ts';
 import { enTantQue } from './base.ts';
 import type { Contexte } from './connexion.ts';
 
-export type Invitation = { a: string; qui: string; ou: string | null; role: string; lien: string; expire: Date };
+// `cle` : le message à écrire, quand ce n'est pas celui d'une équipe (« invitation.comptable » : un client invite son
+// comptable, 1.77.0).
+export type Invitation = { a: string; qui: string; ou: string | null; role: string; lien: string; expire: Date; cle?: string };
 
 // Le jour, à Tunis (jj/mm/aaaa).
 const jourATunis = (d: Date) => d.toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -50,7 +52,7 @@ export async function envoyerInvitation(ctx: Contexte, i: Invitation, empreinte:
   if (!courriel) { await noter('sans_relais'); return 'sans_relais'; }
   const langue = 'fr';
   const valeurs = { qui: i.qui, ou: i.ou ?? '', role: i.role, lien: i.lien, le: jourATunis(i.expire), email: i.a };
-  const cle = i.ou === null ? 'invitation.equipe' : 'invitation.membre';
+  const cle = i.cle ?? (i.ou === null ? 'invitation.equipe' : 'invitation.membre');
   let finie = false;
   const envoi = courriel.envoi.envoyer({
     a: i.a,
@@ -74,6 +76,8 @@ export const enMots = (etat: EtatCourriel) => ({ courriel: etat === 'parti', cou
 
 // L'adresse d'un lien de l'application (une invitation dans une entreprise, un cabinet), et celle de la console.
 export const lienApplication = (ctx: Contexte, jeton: string) => `${ctx.courriel?.adresse() ?? ''}/?invitation=${encodeURIComponent(jeton)}`;
+// Le lien qu'un client envoie à son comptable (1.77.0) : l'entrée le garde, le temps de créer son compte et son cabinet.
+export const lienComptable = (ctx: Contexte, jeton: string) => `${ctx.courriel?.adresse() ?? ''}/?comptable=${encodeURIComponent(jeton)}`;
 export const lienConsole = (ctx: Contexte, jeton: string) => `${ctx.courriel?.console?.() ?? `${ctx.courriel?.adresse() ?? ''}/console`}/#/invitation/${jeton}`;
 
 // Un rôle dit dans la phrase (« comme commercial »), d'après le catalogue des rôles.

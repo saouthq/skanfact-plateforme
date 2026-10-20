@@ -1374,6 +1374,21 @@ export interface BaseDeDonnees {
     courriel: string | null;
     courriel_le: Date | null;
   };
+  'socle.invitation_comptable': {
+    id: Generated<string>;
+    entreprise: string;
+    email: string;
+    perimetre: string[];
+    jeton_empreinte: string;
+    invite_par: string;
+    cree_le: Generated<Date>;
+    expire_le: Date;
+    utilisee_le: Date | null;
+    annulee_le: Date | null;
+    mandat: string | null;
+    courriel: string | null;
+    courriel_le: Date | null;
+  };
   'socle.maillon': {
     entreprise: string;
     cle: string;

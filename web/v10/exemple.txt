@@ -387,11 +387,13 @@ paquet) n'a plus d'objet : le point de contact la retire de « Guide-moi » (pon
       etapes: [
         { page: '#/compta', avant: onglet('#c-tabs', 'cabinet'), cible: '#p-cabinet-mandat', cote: 'dessus', titre: 'Ton cabinet comptable',
           texte: 'Ton comptable tient tes livres <b>ici même</b> : il lit tes écritures à jour, et valide tes mois. Tu lui confies ton entreprise une fois ; ensuite, rien à lui envoyer.' },
+        { page: '#/compta', si: () => !!$('#mandat-perimetre'), cible: '#mandat-perimetre', cote: 'droite', titre: 'Ce que tu lui confies',
+          texte: 'Coché d\'office : la comptabilité, les déclarations et la saisie de tes achats ; la paie, seulement si tu la lui confies. Il ne touche jamais à tes factures, à ta caisse ni à ton équipe.' },
+        { page: '#/compta', si: () => !!$('#mandat-inviter'), cible: '#mandat-inviter', cote: 'gauche', titre: 'Il n\'est pas encore sur SkanFact ?',
+          texte: 'Écris plutôt son adresse e-mail : SkanFact lui envoie un lien, il crée son cabinet, et ton dossier y arrive avec ce que tu as coché. Sinon, tape son code.' },
         { page: '#/compta', si: () => !!$('#mandat-code'), cible: '#mandat-code', cote: 'droite', faire: 'valeur', bouton: 'Suivant',
           titre: 'Le code de son cabinet', texte: 'Ton comptable le lit dans SkanFact Cabinet, dans Réglages → Mon cabinet : demande-le-lui.',
           action: 'Tape le code de son cabinet.' },
-        { page: '#/compta', si: () => !!$('#mandat-perimetre'), cible: '#mandat-perimetre', cote: 'droite', titre: 'Ce que tu lui confies',
-          texte: 'Coché d\'office : la comptabilité, les déclarations et la saisie de tes achats ; la paie, seulement si tu la lui confies. Il ne touche jamais à tes factures, à ta caisse ni à ton équipe.' },
         { page: '#/compta', si: () => !!$('#mandat-confier'), cible: '#mandat-confier', cote: 'dessous', faire: 'clic',
           titre: 'Confier mon dossier', texte: 'Ton cabinet reçoit ta proposition : il ne voit ton dossier qu\'une fois qu\'il l\'a acceptée.',
           action: 'Clique sur {bouton}.', fait: () => !!$('#mandat-arreter') }

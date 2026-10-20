@@ -54,6 +54,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'socle.mandat': { classe: 'entreprise' },
   'socle.mandat_affectation': { classe: 'entreprise', condition: 'mandat in (select id from socle.mandat where entreprise = $1)' },
   'socle.invitation': { classe: 'entreprise' },
+  // 1.77.0 — l'invitation du comptable par e-mail (0154) : l'empreinte du lien, l'adresse, le mandat qu'elle a fait naître.
+  'socle.invitation_comptable': { classe: 'entreprise' },
   'socle.transfert_propriete': { classe: 'entreprise' },
   'socle.audit': { classe: 'entreprise' },
   'socle.regle_entreprise': { classe: 'entreprise' },

@@ -14,11 +14,13 @@ import { chromium, type Browser } from 'playwright-core';
 import { build } from 'vite';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { versionDuCode } from '../../serveur/ecrans.ts';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
-const VERSION_DU_DEPOT = String(JSON.parse(fs.readFileSync(path.join(RACINE, 'package.json'), 'utf8')).version);
+// Le numéro que le serveur déclare (celui du commit, comme serveur/ecrans.ts le lit).
+const VERSION_DU_DEPOT = versionDuCode().split(' · ')[0];
 
 describe('la recette du Cabinet, à la souris', () => {
   let navigateur: Browser;

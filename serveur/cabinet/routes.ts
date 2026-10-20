@@ -11,11 +11,11 @@ import { sql } from 'kysely';
 import { z } from 'zod';
 import { versTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
-import { requetes, type Transaction } from '../base.ts';
+import { enTantQue, requetes, type Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
 import './textes.ts';
-import { enMots, envoyerInvitation, etatVu, lienApplication, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
+import { enMots, envoyerInvitation, etatVu, lienApplication, lienComptable, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { matriculeCanonique, refusDuMatricule } from '../matricule.ts';
 import { PERIODE_REVISION, REVISION } from './revision.ts';
 
@@ -616,6 +616,74 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       await tx.query('select socle.arreter_mandat($1)', [d.id]);
       await tracer(tx, entreprise, 'cabinet.mandat.arreter', d.id, { statut: d.statut }, { statut: 'termine' });
       return { corps: { statut: 'termine' } };
+    },
+  });
+
+  // ── Inviter son comptable par e-mail, quand il n'est pas encore sur SkanFact (1.77.0, 0154) ──────────────────────
+  // Ce qui part chez le relais, compté : l'adresse du comptable, le nom de qui invite, l'entreprise, le lien et sa date
+  // de fin. Le lien n'est rendu qu'ici, une fois (en secours, à transmettre à la main) ; la base n'en garde que l'empreinte.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/mandat/invitation', geste: 'socle.accueil.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.entreprise).success) return introuvable;
+      const r = (await tx.query(`select id, email, perimetre, expire_le, courriel, courriel_le from socle.invitation_comptable
+          where entreprise = $1 and utilisee_le is null and annulee_le is null and expire_le > $2 order by cree_le desc limit 1`,
+        [params.entreprise, (ctx.maintenant ?? (() => new Date()))()])).rows[0];
+      if (!r) return { corps: { invitation: null } };
+      return { corps: { invitation: { id: r.id, email: r.email, perimetre: r.perimetre, expire: r.expire_le.toISOString(),
+        courriel: etatVu(r.courriel, r.courriel_le, (ctx.maintenant ?? (() => new Date()))()) } } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/mandat/invitation', geste: 'socle.cabinet.choisir',
+    corps: z.object({ email: z.string().trim().email({ message: 'cabinet.champ.email' }), perimetre: perimetre.optional() }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.entreprise).success) return introuvable;
+      const entreprise = params.entreprise ?? '';
+      const p = corps.perimetre ?? ['comptabilite', 'declarations', 'saisie_achats'];
+      const jeton = randomBytes(24).toString('base64url');
+      const empreinte = createHash('sha256').update(jeton).digest('hex');
+      const maintenant = (ctx.maintenant ?? (() => new Date()))();
+      const expire = new Date(maintenant.getTime() + 30 * 24 * 3600_000);
+      const id = (await tx.query('select socle.inviter_comptable($1, $2, $3::text[], $4, $5) id', [entreprise, corps.email, p, empreinte, expire])).rows[0].id as string;
+      await tracer(tx, entreprise, 'cabinet.mandat.inviter', id, null, { perimetre: p });
+      const n = (await tx.query(`select (select coalesce(nullif(btrim(nom), ''), email) from socle.utilisateur where id = socle.moi()) qui,
+          (select raison_sociale from socle.entreprise where id = $1) ou`, [entreprise])).rows[0] as { qui: string | null; ou: string | null };
+      const invitation = { a: corps.email.toLowerCase(), qui: n.qui ?? '', ou: n.ou ?? '', role: '', lien: lienComptable(ctx, jeton), expire, cle: 'invitation.comptable' };
+      await noterAEnvoyer(tx, empreinte, maintenant);
+      return { statut: 201, corps: { id, lien: invitation.lien, expire: expire.toISOString(), perimetre: p },
+        apres: async () => enMots(await envoyerInvitation(ctx, invitation, empreinte)) };
+    },
+  });
+  ajouter({
+    methode: 'DELETE', chemin: '/entreprises/:entreprise/mandat/invitation', geste: 'socle.cabinet.choisir',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.entreprise).success) return introuvable;
+      await tx.query('select socle.annuler_invitation_comptable($1)', [params.entreprise]);
+      return { corps: { annulee: true } };
+    },
+  });
+  // Ce que le lien dit, avant de se connecter : l'entreprise, qui invite, l'adresse invitée.
+  ajouter({
+    methode: 'POST', chemin: '/invitations-comptable/apercu', geste: 'public',
+    corps: z.object({ jeton: z.string().min(10).max(100) }),
+    traiter: async ({ corps }) => {
+      const r = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.apercu_invitation_comptable($1, $2)',
+        [createHash('sha256').update(corps.jeton).digest('hex'), (ctx.maintenant ?? (() => new Date()))()])).rows[0]) as
+        { entreprise: string; invite_par: string; email: string; expire_le: Date } | undefined;
+      if (!r) return { corps: { valable: false } };
+      return { corps: { valable: true, entreprise: r.entreprise, invitePar: r.invite_par, email: r.email, expire: r.expire_le.toISOString() } };
+    },
+  });
+  // Le comptable, associé de son cabinet, reçoit le dossier : il y arrive proposé, à accepter sur la page Dossiers.
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/invitations-comptable/rejoindre', geste: 'compte.cabinet.gerer',
+    corps: z.object({ jeton: z.string().min(10).max(100) }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const r = (await tx.query('select * from socle.rejoindre_par_invitation_comptable($1, $2, $3)',
+        [createHash('sha256').update(corps.jeton).digest('hex'), params.cabinet, (ctx.maintenant ?? (() => new Date()))()])).rows[0] as { entreprise: string; mandat: string };
+      return { corps: { entreprise: r.entreprise, mandat: r.mandat, statut: 'propose' } };
     },
   });
 

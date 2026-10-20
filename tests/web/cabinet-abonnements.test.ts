@@ -92,7 +92,7 @@ describe('les abonnements d\'un dossier, à la souris', () => {
     await fenetre.locator('#ab-piece').fill('LOYER');
     await fenetre.locator('#ab-libelle').fill('Loyer du local');
     await fenetre.locator('#ok').click();
-    await expect.poll(toast).toBe('Abonnement enregistré.');
+    await expect.poll(toast).toBe('Écriture qui revient enregistrée.');
     await expect.poll(async () => (await abos()).map((a) => [a.nom, a.actif, a.montant, a.faites])).toEqual([['Loyer du local', true, '850.500', []]]);
 
     // ── Générer ce qui manque : une pièce au brouillard par mois dû, aux montants du guide ──────────
@@ -119,11 +119,11 @@ describe('les abonnements d\'un dossier, à la souris', () => {
 
     // ── Suspendu, il ne propose plus rien ────────────────────────────────────────────────────────
     await expect.poll(async () => {
-      if (!await p.getByRole('menuitem').filter({ hasText: 'Suspendre cet abonnement' }).count()) await p.locator('[data-rowmenu^="A:"]').first().click({ timeout: 2_000 }).catch(() => {});
-      return p.getByRole('menuitem').filter({ hasText: 'Suspendre cet abonnement' }).count();
+      if (!await p.getByRole('menuitem').filter({ hasText: 'Suspendre cette écriture qui revient' }).count()) await p.locator('[data-rowmenu^="A:"]').first().click({ timeout: 2_000 }).catch(() => {});
+      return p.getByRole('menuitem').filter({ hasText: 'Suspendre cette écriture qui revient' }).count();
     }, { timeout: 30_000 }).toBe(1);
-    await p.getByRole('menuitem').filter({ hasText: 'Suspendre cet abonnement' }).click();
-    await expect.poll(toast).toBe('Abonnement suspendu.');
+    await p.getByRole('menuitem').filter({ hasText: 'Suspendre cette écriture qui revient' }).click();
+    await expect.poll(toast).toBe('Écriture qui revient suspendue.');
     expect((await abos()).map((a) => a.actif)).toEqual([false]);
     expect((await ecritures()).length).toBe(dus.length);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-abonnements.png') });

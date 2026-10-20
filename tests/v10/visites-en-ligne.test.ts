@@ -110,7 +110,8 @@ describe('les visites de l\'entreprise, en ligne', () => {
     if (fs.readFileSync(path.join(PUBLIC, 'v10/app.js'), 'utf8').includes('<div class="panel" id="p-cabinet-mandat">')) dessines.add('#p-cabinet-mandat');
     // Le test mesure : la visite est lue, et le panneau dessiné.
     expect(relier?.titre).toBe('Confier mon dossier à mon comptable');
-    expect(cibles).toEqual(['#p-cabinet-mandat', '#mandat-code', '#mandat-perimetre', '#mandat-confier']);
+    // 1.77.0 : dans l'ordre du panneau — ce qu'on confie, l'invitation par e-mail, puis le code.
+    expect(cibles).toEqual(['#p-cabinet-mandat', '#mandat-perimetre', '#mandat-inviter', '#mandat-code', '#mandat-confier']);
     expect(cibles.filter((c) => !dessines.has(c))).toEqual([]);
     expect(JSON.stringify(relier)).not.toMatch(/appairage|paquet|adresse de ton comptable/i);
     expect(pont.visitesAbsentes).toContain('paquet');

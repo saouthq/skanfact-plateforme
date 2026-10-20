@@ -788,4 +788,6 @@ export const ADAPTATIONS = [
   ...lireFichier('recette-entreprise.txt'),
   // ── La recette du 20/10/2026, au Cabinet (1.76.0 ; docs/recette.md) : Dossiers relu, mois, brouillard, mots ──
   ...lireFichier('recette-cabinet.txt'),
+  // ── Inviter son comptable par e-mail (1.77.0) : la proposition d'un client lue en premier ──
+  ...lireFichier('inviter-comptable.txt'),
 ];

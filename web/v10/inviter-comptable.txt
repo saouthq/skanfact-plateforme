@@ -1,0 +1,53 @@
+Ce que la 1.77.0 change au Cabinet (docs/recette.md, « 1.77.0 ») : le client qui invite son comptable par e-mail, et
+la proposition d'un client lue en premier. Format : voir sans-paquets.mjs.
+
+Un client qui confie son dossier attend une réponse : son bandeau (« … te confie son dossier », Accepter) se lisait
+sous « Tes premiers pas » et « Ce que tu verras ici », en bas d'un cabinet neuf (recette du 20/10/2026).
+
+== cabinet/app.js | un cabinet neuf : la proposition d'un client se lit avant les premiers pas
+-- avant
+        ${premiersPasPanel(true)}
+        <div class="panel"><h2>Ce que tu verras ici</h2>
+-- après
+        ${/* (plateforme) 1.77.0 — la proposition d'un client d'abord : elle attend une réponse. */''}
+        ${inboxBanner()}
+        ${premiersPasPanel(true)}
+        <div class="panel"><h2>Ce que tu verras ici</h2>
+-- fin
+
+== cabinet/app.js | un cabinet neuf : le bandeau n'est plus répété plus bas
+-- avant
+        </div>
+        ${inboxBanner()}
+        ${api.commentUnClientArrive()}`;
+-- après
+        </div>
+        ${api.commentUnClientArrive()}`;
+-- fin
+
+== cabinet/app.js | un portefeuille : la proposition d'un client se lit avant le tableau du portefeuille
+-- avant
+      ${portfolioPanel(p)}
+      ${inboxBanner()}
+      ${todoPanel(todo)}
+-- après
+      ${/* (plateforme) 1.77.0 — la proposition d'un client d'abord, comme pour un cabinet neuf. */''}
+      ${inboxBanner()}
+      ${portfolioPanel(p)}
+      ${todoPanel(todo)}
+-- fin
+
+== cabinet/app.js | les messages d'une écriture qui revient : suspendue, reprise
+-- avant
+      toast(actif ? 'Abonnement repris.' : 'Abonnement suspendu.');
+-- après
+      // (plateforme) 1.77.0 — le même nom que son titre et son menu (1.76.0 : « Écritures qui reviennent »).
+      toast(actif ? 'Écriture qui revient reprise.' : 'Écriture qui revient suspendue.');
+-- fin
+
+== cabinet/app.js | le message d'une écriture qui revient enregistrée
+-- avant
+close(); render(); toast('Abonnement enregistré.'); }
+-- après
+close(); render(); toast('Écriture qui revient enregistrée.'); }
+-- fin

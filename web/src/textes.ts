@@ -17,6 +17,10 @@ declarerTextes({
   'ecran.invitation.etape': 'une invitation',
   'ecran.invitation.sous_inscription': '{qui} t\'invite à rejoindre {ou} sur SkanFact. Crée ton compte avec l\'adresse {email} : l\'invitation lui est réservée',
   'ecran.invitation.sous_connexion': '{qui} t\'invite à rejoindre {ou} sur SkanFact. Connecte-toi avec l\'adresse {email} : l\'invitation lui est réservée',
+  // 1.77.0 — un client invite son comptable par e-mail.
+  'ecran.comptable.sous_inscription': '{qui} t\'invite à tenir les livres de {ou} sur SkanFact. Crée ton compte, puis ton cabinet : le dossier y arrivera',
+  'ecran.comptable.sous_connexion': '{qui} t\'invite à tenir les livres de {ou} sur SkanFact. Connecte-toi : le dossier arrivera dans ton cabinet',
+  'ecran.comptable.perimee': 'ce lien ne vaut plus : il a déjà servi, ton client l\'a remplacé ou annulé, ou ses 30 jours sont passés. Demande-lui de t\'inviter de nouveau',
   'ecran.invitation.perimee': 'ce lien d\'invitation ne vaut plus : il a déjà servi, a été annulé, ou ses 7 jours sont passés. Demande un nouveau lien à la personne qui t\'a invité',
   'ecran.vitrine.invitation_titre': 'rejoins {ou}',
   'ecran.vitrine.invitation_sous': '{qui} t\'a invité dans son équipe',
@@ -31,6 +35,13 @@ declarerTextes({
   'ecran.champ.cacher_mdp': 'cacher le mot de passe',
 
   // La vitrine de l'entrée (lot entrée, 06/10/2026) : ce qu'est SkanFact, et une facture juste au millime.
+  // 1.77.0 — la vitrine du comptable qu'un client invite.
+  'ecran.vitrine.comptable_titre': 'les livres de {ou}',
+  'ecran.vitrine.comptable_sous': '{qui} te confie son dossier sur SkanFact : ses pièces t\'arrivent au fil de l\'eau, sans fichier à envoyer',
+  'ecran.vitrine.comptable_compte': 'ton nom, ton adresse e-mail et un mot de passe : c\'est ici',
+  'ecran.vitrine.comptable_cabinet': 'son nom, puis le code du téléphone, exigé de tout comptable : tu tiens des livres',
+  'ecran.vitrine.comptable_dossier_titre': 'le dossier',
+  'ecran.vitrine.comptable_dossier': '{ou} arrive dans tes Dossiers : tu l\'acceptes, et tu vois ce qu\'il te confie',
   'ecran.vitrine.titre': 'ta gestion, juste au millime',
   'ecran.vitrine.sous': 'devis, factures, caisse, paie et comptabilité, avec ton cabinet comptable dans les mêmes données',
   'ecran.vitrine.facture': 'facture',
@@ -261,6 +272,8 @@ declarerTextes({
   'ecran.porte.cabinet_lien': 'je suis un cabinet comptable',
   'ecran.porte.cabinet_titre': 'ton cabinet',
   'ecran.porte.cabinet_sous': 'tes clients te confient leurs livres depuis leur SkanFact. Ceux qui n\'y sont pas encore, tu les tiens toi-même',
+  // 1.77.0 — le comptable invité par un client, sans cabinet encore.
+  'ecran.porte.cabinet_pour_client': 'crée ton cabinet : le dossier de {ou} y arrive aussitôt, tu n\'auras plus qu\'à l\'accepter',
   'ecran.porte.cabinet_nom': 'nom du cabinet',
   'ecran.porte.cabinet_nom_aide': 'tel que tes clients le liront quand ils te confieront leur dossier',
   'ecran.porte.cabinet_creer': 'créer mon cabinet',
