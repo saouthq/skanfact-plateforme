@@ -11847,6 +11847,14 @@
           if (!v.employeeId) return refus($('[data-combo=employeeId] .combo-btn', root), 'Choisis le salarié.');
           if (!(Number(v.amount) > 0)) return refus(champ('amount'), 'Indique le montant avancé.');
           if (!(Number(v.monthly) > 0)) return refus(champ('monthly'), 'Indique la retenue mensuelle : c\'est elle qui rembourse l\'avance, bulletin après bulletin.');
+          // (plateforme) 1.71.0 — les règles de la fenêtre du Cabinet, vérifiées ici aussi. Ce qui est remboursé se lit sur les
+          // bulletins du salarié : une avance déjà retenue ne change plus de salarié (elle se lirait non remboursée chez
+          // l'autre), et son montant ne descend pas sous ce qui a été retenu. Après la sortie, aucun bulletin ne la retiendrait.
+          const retenu = advance ? (C.advancesOf(data, a.employeeId).find(x => x.id === a.id) || { repaid: 0 }).repaid : 0;
+          if (retenu && v.employeeId !== a.employeeId) return refus($('[data-combo=employeeId] .combo-btn', root), `${C.money(retenu, cur)} ont déjà été retenus sur les bulletins de ${(employeeById(a.employeeId) || {}).name || 'ce salarié'} : l'avance ne change plus de salarié.`);
+          if (Number(v.amount) < retenu - 0.0005) return refus(champ('amount'), `${C.money(retenu, cur)} ont déjà été retenus sur des bulletins : le montant avancé ne descend pas en dessous.`);
+          const sortie = (employeeById(v.employeeId) || {}).endDate;
+          if (sortie && v.date > sortie) return refus(champ('date'), `La sortie de ${employeeById(v.employeeId).name} est le ${C.fmtDate(sortie)} : aucun bulletin ne retiendrait une avance versée après.`);
           if (closedBlock([a.date, v.date], 'Cette avance')) return;
           if (!advance && licenceBlock('Créer une avance sur salaire', 'paie')) return;
           Object.assign(a, v, { amount: Number(v.amount), monthly: Number(v.monthly) });

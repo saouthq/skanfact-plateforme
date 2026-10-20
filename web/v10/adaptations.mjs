@@ -778,4 +778,6 @@ export const ADAPTATIONS = [
   // ── Les congés au Cabinet (20/10/2026, 1.70.0 ; docs/paie.md) : saisis pour un dossier tenu, lus pour un client, avec leur solde ──
   ...lireFichier('paie-cabinet-conges.txt'),
   ...lireFichier('fenetre-entree.txt'),
+  // ── Les avances au Cabinet (20/10/2026, 1.71.0 ; docs/paie.md) : saisies pour un dossier tenu, lues pour un client, retenues par le bulletin ──
+  ...lireFichier('paie-cabinet-avances.txt'),
 ];

@@ -4248,23 +4248,8 @@
   const { LEAVE_KINDS, leaveKindLabel, leaveIsPaid, workingDays, leaveDaysInMonth, leavesOf, leaveBalance } = Compta;
 
   // Les avances : une somme prêtée, remboursée par retenues mensuelles sur le bulletin.
-  function advancesOf(data, employeeId) {
-    return (data.advances || [])
-      .filter(a => !employeeId || a.employeeId === employeeId)
-      .map(a => {
-        const monthly = round3(Number(a.monthly) || 0);
-        const amount = round3(Number(a.amount) || 0);
-        const repaid = round3((data.payslips || [])
-          .filter(p => p.employeeId === a.employeeId)
-          .reduce((s2, p) => s2 + ((p.deductions || []).filter(d => d.advanceId === a.id).reduce((x, d) => x + (Number(d.amount) || 0), 0)), 0));
-        return { ...a, amount, monthly, repaid, remaining: round3(Math.max(0, amount - repaid)), done: repaid >= amount - 0.0005 };
-      })
-      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-  }
-
-  function advanceBalance(data, employeeId) {
-    return round3(advancesOf(data, employeeId).reduce((s, a) => s + a.remaining, 0));
-  }
+  // (plateforme) 1.71.0 — dans le moteur commun (compta.js), que le Cabinet lit aussi : une seule copie.
+  const { advancesOf, advanceBalance, echeancesDuMois } = Compta;
 
   // Ce qu'un bulletin doit reprendre tout seul : les absences non payées du mois, et l'échéance des
   // avances en cours. C'est ce qui évite de ressaisir la même information deux fois.
@@ -4281,9 +4266,8 @@
     const absentDays = round3((data.leaves || [])
       .filter(l => l.employeeId === employee.id && !(l.paid != null ? l.paid : leaveIsPaid(l.kind)))
       .reduce((a, l) => a + leaveDaysInMonth(l, year, month, off), 0));
-    const deductions = advancesOf(data, employee.id).filter(a => !a.done && a.date <= `${year}-${String(month).padStart(2, '0')}-31`)
-      .map(a => ({ label: `Remboursement d'avance du ${fmtDate(a.date)}`, amount: round3(Math.min(a.monthly || a.remaining, a.remaining)), advanceId: a.id }))
-      .filter(d => d.amount > 0);
+    // (plateforme) 1.71.0 — l'échéance de chaque avance en cours, par le moteur commun (celle du bulletin du Cabinet).
+    const deductions = echeancesDuMois(data, employee.id, year, month);
     // 10.12.0 — une entrée ou une sortie en cours de mois se PRORATISE. Le brut de la fiche était
     // repris en entier : un ouvrier embauché le 24 septembre recevait un mois plein pour six jours, et
     // celui qui part le 5 aussi. Les jours hors contrat se comptent en jours ouvrables (le repos

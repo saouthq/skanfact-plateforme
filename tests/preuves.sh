@@ -3438,19 +3438,21 @@ prouver "un retraitement qui s'ajoute encore à un exercice clos" web/public/v10
 # ── Brique 60 : le cabinet ne lit du dossier v10 que ce que son mandat demande (docs/cabinet.md, C50) ──
 DV1="dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout"
 M35=base/migrations/0035_dossier_v10_cabinet.sql
-prouver "le cabinet qui lit tout le dossier v10" $M35 \
+# (1.71.0) La règle « visible » est réécrite par 0151 (les avances en sortent) : ses preuves visent la définition en vigueur.
+M151=base/migrations/0151_paie_avances_du_dossier_tenu.sql
+prouver "le cabinet qui lit tout le dossier v10" $M151 \
   "  entreprise in (select socle.mes_entreprises_entieres())
   or" "  entreprise in (select socle.mes_entreprises())
   or" \
   "$DV1"
-prouver "le cabinet qui lit les réglages de la société" $M35 \
+prouver "le cabinet qui lit les réglages de la société" $M151 \
   "(collection = '_racine' and cle in ('chartAccounts', 'auxiliaires'))" "collection = '_racine'" \
   "$DV1"
-prouver "le cabinet qui ne lit plus les tiers du plan" $M35 \
+prouver "le cabinet qui ne lit plus les tiers du plan" $M151 \
   "collection in ('accounts', 'clients', 'suppliers')" "collection in ('accounts', 'suppliers')" \
   "$DV1"
-prouver "la paie lue sans le mandat de la paie" $M35 \
-  "entreprise in (select socle.mes_entreprises_au_perimetre('paie'))" "entreprise in (select socle.mes_entreprises())" \
+prouver "la paie lue sans le mandat de la paie" $M151 \
+  "collection in ('employees', 'payslips') and entreprise in (select socle.mes_entreprises_au_perimetre('paie'))" "collection in ('employees', 'payslips') and entreprise in (select socle.mes_entreprises())" \
   "$DV1"
 prouver "une entreprise vue par le cabinet comptée entière" $M35 \
   "  select e from socle.mes_entreprises() e where socle.perimetre_cabinet(e) is null" "  select e from socle.mes_entreprises() e" \
@@ -17633,8 +17635,8 @@ prouver 'les primes de la fiche oubliées à l'"'"'enregistrement' 'web/public/v
   'primes: []' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
 prouver 'un bulletin nouveau du Cabinet sans les primes de la fiche' 'web/public/v10/cabinet/app.js' \
-  'primes: depart ? depart.bonuses : [], retenues: []' \
-  'primes: [], retenues: []' \
+  'primes: depart ? depart.bonuses : [], prorata:' \
+  'primes: [], prorata:' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
 prouver 'les primes proposées qui ne suivent pas le salarié choisi' 'web/public/v10/cabinet/app.js' \
   'let primesTouchees = !!b;' \
@@ -17667,12 +17669,12 @@ prouver 'les congés du client tus au cabinet' 'base/migrations/0149_paie_pointa
   'collection = '"'"'aucune'"'"' and entreprise' \
   'dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout'
 prouver 'la route de la paie qui tait les congés du client' 'serveur/paie/routes.ts' \
-  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"', '"'"'leaves'"'"'] as const;' \
-  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"'] as const;' \
+  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"', '"'"'leaves'"'"', '"'"'advances'"'"'] as const;' \
+  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"', '"'"'advances'"'"'] as const;' \
   'avec le mandat de la paie, l'"'"'associé tient les salariés et les bulletins du client : recalculés au serveur, écrits au livre ; sans lui, rien'
 prouver 'la route de la paie qui refuse d'"'"'écrire le pointage' 'serveur/paie/routes.ts' \
-  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"', '"'"'leaves'"'"'] as const;' \
-  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'leaves'"'"'] as const;' \
+  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"', '"'"'leaves'"'"', '"'"'advances'"'"'] as const;' \
+  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'leaves'"'"', '"'"'advances'"'"'] as const;' \
   'avec le mandat de la paie, l'"'"'associé tient les salariés et les bulletins du client : recalculés au serveur, écrits au livre ; sans lui, rien'
 prouver 'la fiche qui refuse les heures d'"'"'un mois complet d'"'"'un dossier tenu' 'serveur/cabinet/routes.ts' \
   'heuresMois: HEURES_DU_MOIS.optional(), hsMaj1: TAUX_POUR_CENT.optional(),' \
@@ -17703,8 +17705,8 @@ prouver 'un mois pointé sans ses heures supplémentaires au bulletin nouveau' '
   'return i;' \
   'le mois pointé : ses absences, sa demi-journée et ses heures supplémentaires arrivent au bulletin'
 prouver 'la prime au jour d'"'"'un bulletin nouveau sur le mois entier' 'web/public/v10/compta.js' \
-  'bonuses: primesDuMois(employee, total - hors - p.absences, total), prorata };' \
-  'bonuses: primesDuMois(employee, total, total), prorata };' \
+  'bonuses: primesDuMois(employee, total - hors - p.absences, total), prorata,' \
+  'bonuses: primesDuMois(employee, total, total), prorata,' \
   'une entrée en cours de mois, un congé sans solde : le brut proratisé, l'"'"'absence, la prime au jour sur les jours payés'
 prouver 'les congés tous payés, quelle que soit leur nature' 'web/public/v10/compta.js' \
   'const leaveIsPaid = k => { const f = LEAVE_KINDS.find(x => x[0] === k); return f ? f[2] : true; };' \
@@ -17773,8 +17775,8 @@ prouver 'les congés d'"'"'un dossier tenu jamais écrits par son cabinet' 'base
   'collection = '"'"'aucune'"'"' and entreprise in (select socle.mes_dossiers_tenus_au_perimetre('"'"'paie'"'"'))' \
   '(1.70.0) les congés d'"'"'un dossier tenu : le cabinet qui le tient les saisit, les corrige et les retire ; un autre cabinet n'"'"'y touche pas'
 prouver 'la route qui laisse la base refuser les congés d'"'"'un client sans le dire' 'serveur/paie/routes.ts' \
-  'if (!ok) return { statut: 403, corps: { motif: motif('"'"'paie.conges_chez_le_client'"'"') } };' \
-  '' \
+  '  leaves: '"'"'paie.conges_chez_le_client'"'"', advances:' \
+  '  advances:' \
   'avec le mandat de la paie, l'"'"'associé tient les salariés et les bulletins du client : recalculés au serveur, écrits au livre ; sans lui, rien'
 prouver 'la route qui refuse les congés d'"'"'un dossier tenu' 'serveur/paie/routes.ts' \
   'or exists (select 1 from socle.mes_dossiers_tenus_au_perimetre('"'"'paie'"'"') e where e = $1) ok' \
@@ -17837,8 +17839,11 @@ prouver 'une fin avant le début acceptée par la fenêtre' 'web/public/v10/cabi
   '' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
 prouver 'une ligne des congés qui ne s'"'"'ouvre pas au clavier' 'web/public/v10/cabinet/app.js' \
-  'tr.onkeydown = ev => { if (ev.key === '"'"'Enter'"'"' || ev.key === '"'"' '"'"') { ev.preventDefault(); ouvrir(); } };' \
-  '' \
+  'if (c) congeForm(root, dossier, c); };
+      tr.onclick = ouvrir;
+      tr.onkeydown = ev => { if (ev.key === '"'"'Enter'"'"' || ev.key === '"'"' '"'"') { ev.preventDefault(); ouvrir(); } };' \
+  'if (c) congeForm(root, dossier, c); };
+      tr.onclick = ouvrir;' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
 prouver 'le droit annuel que le panneau ne règle pas' 'web/public/v10/cabinet/app.js' \
   'if (regler) regler.onclick = () => regimesForm(root, dossier, { focus: '"'"'leaveDaysPerYear'"'"' });' \
@@ -17896,6 +17901,110 @@ prouver 'la veille qui mesure tous les disques quand aucun chemin réglé n'"'"'
   '  if (!chemins.length) return [];' \
   '  if (!chemins.length) { /* tous */ }' \
   'une règle en sourdine ne prévient pas ; l'"'"'essai demandé part une fois ; tout se note dans la base, les destinataires masqués'
+
+# 1.71.0 : les avances sur salaire au Cabinet.
+prouver 'la saisie du mois du Cabinet sans les échéances des avances' 'web/public/v10/compta.js' \
+  '      deductions: echeancesDuMois(data, employee.id, year, month) };' \
+  '      deductions: [] };' \
+  'deux chemins, un chiffre : le bulletin nouveau du Cabinet retient ce que celui de l'"'"'entreprise retient'
+prouver 'l'"'"'échéance qui prend la retenue convenue même quand il reste moins' 'web/public/v10/compta.js' \
+  'amount: round3(Math.min(a.monthly || a.remaining, a.remaining)), advanceId: a.id }))' \
+  'amount: round3(a.monthly || a.remaining), advanceId: a.id }))' \
+  'l'"'"'échéance d'"'"'un mois : la retenue convenue, jamais plus que ce qui reste ; rien avant le versement'
+prouver 'ce qui est remboursé lu sur les bulletins de tous les salariés' 'web/public/v10/compta.js' \
+  '          .filter(p => p.employeeId === a.employeeId)
+          .reduce((s2, p) => s2 + ((p.deductions || []).filter(d => d.advanceId === a.id)' \
+  '          .filter(p => p.employeeId === p.employeeId)
+          .reduce((s2, p) => s2 + ((p.deductions || []).filter(d => d.advanceId === a.id)' \
+  'ce qui reste d'"'"'une avance se lit sur les bulletins de SON salarié, de toutes les années'
+prouver 'les avances de l'"'"'année qui oublient celles d'"'"'avant encore dues' 'web/public/v10/compta.js' \
+  '      || (String(a.date || '"'"''"'"') < `${y}-01-01` && (!a.done || retenueEn.has(a.id))));' \
+  '      || (String(a.date || '"'"''"'"') < `${y}-01-01` && false));' \
+  'les avances d'"'"'une année : versées dans l'"'"'année, ou avant et pas soldées à son début ; ni soldées avant, ni versées après'
+prouver 'un bulletin du Cabinet qui jette le numéro de l'"'"'avance' 'web/public/v10/compta.js' \
+  '        ...(typeof d.advanceId === '"'"'string'"'"' && d.advanceId ? { advanceId: d.advanceId } : {}) })),' \
+  '        ...({}) })),' \
+  'un bulletin enregistré au Cabinet, établi puis modifié, garde le numéro de l'"'"'avance que chaque retenue rembourse'
+prouver 'le cabinet qui écrit les avances d'"'"'un client' 'base/migrations/0151_paie_avances_du_dossier_tenu.sql' \
+  'create policy avances_au_cabinet on socle.dossier_v10 for select using (' \
+  'create policy avances_au_cabinet on socle.dossier_v10 using (' \
+  'dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout'
+prouver 'le cabinet qui tient un dossier sans pouvoir en écrire les avances' 'base/migrations/0151_paie_avances_du_dossier_tenu.sql' \
+  'create policy avances_du_dossier_tenu on socle.dossier_v10 using (' \
+  'create policy avances_du_dossier_tenu on socle.dossier_v10 for select using (' \
+  '(1.71.0) les avances d'"'"'un dossier tenu : le cabinet qui le tient les saisit, leur versement s'"'"'écrit, un bulletin les retient ; un autre cabinet n'"'"'y touche pas'
+prouver 'la route qui laisse la base refuser une avance d'"'"'un client, sans le dire' 'serveur/paie/routes.ts' \
+  '  leaves: '"'"'paie.conges_chez_le_client'"'"', advances: '"'"'paie.avances_chez_le_client'"'"',' \
+  '  leaves: '"'"'paie.conges_chez_le_client'"'"',' \
+  'avec le mandat de la paie, l'"'"'associé tient les salariés et les bulletins du client : recalculés au serveur, écrits au livre ; sans lui, rien'
+prouver 'les avances hors de la paie que la route tient' 'serveur/paie/routes.ts' \
+  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"', '"'"'leaves'"'"', '"'"'advances'"'"'] as const;' \
+  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"', '"'"'leaves'"'"'] as const;' \
+  '(1.71.0) les avances d'"'"'un dossier tenu : le cabinet qui le tient les saisit, leur versement s'"'"'écrit, un bulletin les retient ; un autre cabinet n'"'"'y touche pas'
+prouver 'le livre du Cabinet sans ses avances' 'web/public/plateforme/pont-cabinet.js' \
+  '    Object.assign(livre, avancesDe(objets));' \
+  '    Object.assign(livre, {});' \
+  'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
+prouver 'la paie du dossier sans ce qui rembourse les avances' 'web/public/v10/cabinet/app.js' \
+  '      advances: L.avances || [], payslips: L.remboursements || []' \
+  '      advances: L.avances || [], payslips: []' \
+  'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
+prouver 'un bulletin nouveau du Cabinet sans les échéances' 'web/public/v10/cabinet/app.js' \
+  '      retenues: depart ? depart.deductions : [] };' \
+  '      retenues: [] };' \
+  'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
+prouver 'les échéances qui ne suivent pas le salarié choisi' 'web/public/v10/cabinet/app.js' \
+  '          retenues.splice(0, retenues.length, ...(i.deductions || []).map(d => ({ ...d })));' \
+  '          retenues.splice(0, 0);' \
+  'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
+prouver 'les avances d'"'"'un client saisissables au Cabinet' 'web/public/v10/cabinet/app.js' \
+  '  const avancesTenues = L => !L.reglagesPaie && !(L.exercice || {}).clos;' \
+  '  const avancesTenues = L => !(L.exercice || {}).clos;' \
+  'un client sur SkanFact : ses avances se lisent, et le bulletin du Cabinet en retient l'"'"'échéance — le client lit le même reste'
+prouver 'une avance du Cabinet hors de l'"'"'année regardée' 'web/public/v10/cabinet/app.js' \
+  'if (v.date.slice(0, 4) !== String(s.annee)) return refus(champ('"'"'date'"'"')' \
+  'if (false) return refus(champ('"'"'date'"'"')' \
+  'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
+prouver 'une avance du Cabinet après la sortie du salarié' 'web/public/v10/cabinet/app.js' \
+  'if (sal.sortie && v.date > sal.sortie) return refus(champ('"'"'date'"'"')' \
+  'if (false) return refus(champ('"'"'date'"'"')' \
+  'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
+prouver 'une avance du Cabinet sous ce qui a été retenu' 'web/public/v10/cabinet/app.js' \
+  'if (v.amount < deja - 0.0005) return refus(champ('"'"'amount'"'"')' \
+  'if (false) return refus(champ('"'"'amount'"'"')' \
+  'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
+prouver 'l'"'"'annonce qui dit soldée une avance qu'"'"'on refusera' 'web/public/v10/cabinet/app.js' \
+  '        if (deja && v.amount < deja - 0.0005) { zone.innerHTML' \
+  '        if (false) { zone.innerHTML' \
+  'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
+prouver 'la date proposée avant l'"'"'entrée du salarié' 'web/public/v10/cabinet/app.js' \
+  '    const a = avance || { id: '"'"''"'"', employeeId: salaries[0].id, date: jour,' \
+  '    const a = avance || { id: '"'"''"'"', employeeId: salaries[0].id, date: auMois,' \
+  'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
+prouver 'le brouillard qui ne compte pas le versement d'"'"'une avance' 'web/public/v10/cabinet/app.js' \
+  '          s.livre = r.livre;
+          close();
+          toast(`L'"'"'avance de ${sal.nom} est enregistrée.`);' \
+  '          Object.assign(L, { avances: r.livre.avances, remboursements: r.livre.remboursements });
+          close();
+          toast(`L'"'"'avance de ${sal.nom} est enregistrée.`);' \
+  'un dossier tenu : une avance saisie, son versement écrit, retenue par un bulletin nouveau, corrigée au clavier, supprimée'
+prouver 'une avance de l'"'"'entreprise déjà retenue qui change de salarié' 'web/public/v10/app.js' \
+  'if (retenu && v.employeeId !== a.employeeId) return refus(' \
+  'if (false) return refus(' \
+  'une avance déjà retenue ne change plus de salarié ni ne descend sous ce qui a été retenu ; rien après la sortie'
+prouver 'une avance de l'"'"'entreprise sous ce qui a été retenu' 'web/public/v10/app.js' \
+  'if (Number(v.amount) < retenu - 0.0005) return refus(' \
+  'if (false) return refus(' \
+  'une avance déjà retenue ne change plus de salarié ni ne descend sous ce qui a été retenu ; rien après la sortie'
+prouver 'une avance de l'"'"'entreprise après la sortie du salarié' 'web/public/v10/app.js' \
+  'if (sortie && v.date > sortie) return refus(' \
+  'if (false) return refus(' \
+  'une avance déjà retenue ne change plus de salarié ni ne descend sous ce qui a été retenu ; rien après la sortie'
+prouver 'l'"'"'aide du montant d'"'"'une avance qui dit son versement absent' 'web/public/v10/guide.js' \
+  'Le versement se lit le jour même : il sort de ta Trésorerie (le compte choisi)' \
+  'Le versement ne se lit nulle part (le compte choisi)' \
+  'l'"'"'aide du montant d'"'"'une avance dit où se lit son versement, comme celle de son mode (10.14.0 l'"'"'y fait sortir le jour même)'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

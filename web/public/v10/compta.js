@@ -6537,11 +6537,53 @@
     return { ...r, change, avant, absences, heures };
   }
 
+  // (plateforme) 1.71.0 — les avances sur salaire (celles de l'entreprise, 5.1.0) : une somme prêtée au salarié, remboursée
+  // par retenues mensuelles sur ses bulletins. Dans le moteur commun, que le Cabinet lit aussi : une seule copie (core.js la
+  // reprend). Ce qui est remboursé se lit sur les bulletins eux-mêmes : leurs retenues marquées du numéro de l'avance.
+  function advancesOf(data, employeeId) {
+    return (data.advances || [])
+      .filter(a => !employeeId || a.employeeId === employeeId)
+      .map(a => {
+        const monthly = round3(Number(a.monthly) || 0);
+        const amount = round3(Number(a.amount) || 0);
+        const repaid = round3((data.payslips || [])
+          .filter(p => p.employeeId === a.employeeId)
+          .reduce((s2, p) => s2 + ((p.deductions || []).filter(d => d.advanceId === a.id).reduce((x, d) => x + (Number(d.amount) || 0), 0)), 0));
+        return { ...a, amount, monthly, repaid, remaining: round3(Math.max(0, amount - repaid)), done: repaid >= amount - 0.0005 };
+      })
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }
+
+  function advanceBalance(data, employeeId) {
+    return round3(advancesOf(data, employeeId).reduce((s, a) => s + a.remaining, 0));
+  }
+
+  // Les avances d'une année, telles que le Cabinet les montre : versées cette année-là, ou avant et encore à rembourser, ou
+  // remboursées en partie dans l'année (une avance de décembre se retient sur les bulletins de janvier). Une avance soldée
+  // avant l'année, ou versée après, n'en est pas.
+  function avancesDeLAnnee(data, year) {
+    const y = String(year);
+    const retenueEn = new Set((data.payslips || []).filter(p => String(p.year) === y)
+      .flatMap(p => (p.deductions || []).map(d => d.advanceId).filter(Boolean)));
+    return advancesOf(data, '').filter(a => String(a.date || '').slice(0, 4) === y
+      || (String(a.date || '') < `${y}-01-01` && (!a.done || retenueEn.has(a.id))));
+  }
+
+  // L'échéance de chaque avance en cours d'un salarié sur le bulletin d'un mois : la retenue convenue, jamais plus que ce qui
+  // reste (la dernière solde l'avance) ; une avance versée après ce mois n'en a pas encore. Ce que le bulletin de
+  // l'entreprise propose depuis la 6.0 (core.js, `payslipInputFor`), et celui du Cabinet depuis la 1.71.0.
+  function echeancesDuMois(data, employeeId, year, month) {
+    const jjmmaaaa = iso => String(iso).split('-').reverse().join('/');
+    return advancesOf(data, employeeId).filter(a => !a.done && a.date <= `${year}-${String(month).padStart(2, '0')}-31`)
+      .map(a => ({ label: `Remboursement d'avance du ${jjmmaaaa(a.date)}`, amount: round3(Math.min(a.monthly || a.remaining, a.remaining)), advanceId: a.id }))
+      .filter(d => d.amount > 0);
+  }
+
   // (plateforme) 1.69.0 — la saisie d'un bulletin NOUVEAU, lue sur la grille du mois du salarié : son entrée ou sa sortie
   // (le brut proratisé sur les jours ouvrables hors contrat, 10.12.0), ses absences non payées (ses congés, ou son
   // pointage), ses primes de chaque mois (au jour sur les jours payés, 1.59.0) et, le mois pointé, ses heures
-  // supplémentaires. C'est la saisie de l'entreprise (core.js, `payslipInputFor`), sans les avances, que le Cabinet ne
-  // lit pas : un essai compare les deux (deux chemins, un chiffre).
+  // supplémentaires. C'est la saisie de l'entreprise (core.js, `payslipInputFor`) : un essai compare les deux (deux
+  // chemins, un chiffre). (plateforme) 1.71.0 — avec les échéances de ses avances, que le Cabinet lit désormais.
   function saisieDuMois(data, employee, year, month) {
     const p = pointageDuMois(data, employee, year, month);
     const total = p.total;
@@ -6555,7 +6597,8 @@
     const brutFiche = round3(Number(employee.grossSalary) || 0);
     const gross = hors ? round3(brutFiche * (total - hors) / total) : employee.grossSalary;
     const prorata = hors ? { jours: round3(total - hors), sur: total, motif: motifs.join(', '), brutFiche, brut: gross } : null;
-    const i = { gross, workedDays: total, absentDays: p.absences, bonuses: primesDuMois(employee, total - hors - p.absences, total), prorata };
+    const i = { gross, workedDays: total, absentDays: p.absences, bonuses: primesDuMois(employee, total - hors - p.absences, total), prorata,
+      deductions: echeancesDuMois(data, employee.id, year, month) };
     return p.pointe ? { ...i, ...reprisePointage(i, p, heuresSupDuMois(data, employee, year, month)) } : i;
   }
 
@@ -6724,7 +6767,11 @@
       absentDays: Math.max(0, Number(bulletin.joursAbsence) || 0),
       // (plateforme) 1.63.0 — chaque prime garde ses marques (heures supplémentaires, au jour), et le bulletin son prorata.
       bonuses: (bulletin.primes || []).map(p => ({ label: String(p.label || 'Prime'), amount: round3(Number(p.amount) || 0), taxable: p.taxable !== false, ...marquesDePrime(p) })),
-      deductions: (bulletin.retenues || []).map(d => ({ label: String(d.label || 'Retenue'), amount: round3(Number(d.amount) || 0) })),
+      // (plateforme) 1.71.0 — et chaque retenue le numéro de l'avance qu'elle rembourse (`advanceId`, que le bulletin de
+      // l'entreprise y met) : il était jeté, et un bulletin établi ou MODIFIÉ au Cabinet ne remboursait rien — l'avance
+      // restait ouverte chez le client, et le bulletin suivant en proposait de nouveau l'échéance.
+      deductions: (bulletin.retenues || []).map(d => ({ label: String(d.label || 'Retenue'), amount: round3(Number(d.amount) || 0),
+        ...(typeof d.advanceId === 'string' && d.advanceId ? { advanceId: d.advanceId } : {}) })),
       prorata: prorataDuBulletin(bulletin)
     };
     const emp = { grossSalary: s.brut, headOfFamily: s.chefDeFamille, children: s.enfants, contrat: s.contrat };
@@ -7242,6 +7289,8 @@
     leaveKindLabel, workingDays, leaveDaysInMonth, leavesOf, leaveBalance,
     CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin,
     saisieDuMois,
+    // (plateforme) 1.71.0 — les avances.
+    advancesOf, advanceBalance, echeancesDuMois, avancesDeLAnnee,
     ecritureDePaie, noterEcriturePaie, cnssDuTrimestre, controlesPaie,
     fichierCnss, fichierCnssDuLivre, lireMatriculeCnss, identiteCnss, motifIdentiteCnss, FORMAT_CNSS,
     // La pièce équilibrée et l'amortissement (9.6.1)

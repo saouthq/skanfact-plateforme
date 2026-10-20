@@ -1316,6 +1316,12 @@ aussi les congés (`leaves` : les saisir, les corriger, les retirer), sous le ma
 plus ne se lit ; une écriture de plus, sur un dossier qui n'a personne d'autre pour la faire (`docs/paie.md`, « Les congés
 au Cabinet »).
 
+**Depuis la 1.71.0 (20/10/2026, par délégation ; 0151)** : de même pour les avances sur salaire (`advances`). Depuis la
+brique 60, la règle de 0035 laissait le cabinet sous un mandat de paie les **écrire** chez tout client ; elle est réécrite
+sans elles : il lit celles d'un client sur SkanFact (un bulletin nouveau en retient l'échéance), et n'écrit que celles
+d'un dossier qu'il tient. Compté : rien de plus ne se lit ; une écriture de moins chez les clients (`docs/paie.md`, « Les
+avances au Cabinet »).
+
 ## Brique 61 : ce qui a changé dans l'équipe (fait le 30/09/2026)
 
 **C51. L'associé lit la trace de son équipe, en phrases** (par délégation). Chaque geste sur l'équipe

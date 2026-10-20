@@ -228,6 +228,8 @@ vaut pour tout le dépôt.*
     au Cabinet (1.69.0 ; migration 0149, `web/v10/paie-cabinet-pointage.txt`, le moteur du pointage et `saisieDuMois` dans
     `compta.js`, `savePointage`, `L.pointages` et `L.conges`). Les congés au Cabinet (1.70.0 ; migration 0150,
     `web/v10/paie-cabinet-conges.txt`, le moteur des congés dans `compta.js`, `saveConge`/`supprimerConge`, `FICHE.paie.leaveDaysPerYear`).
+    Les avances au Cabinet (1.71.0 ; migration 0151, `web/v10/paie-cabinet-avances.txt`, le moteur des avances dans
+    `compta.js`, `saveAvance`/`supprimerAvance`, `L.avances` et `L.remboursements`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

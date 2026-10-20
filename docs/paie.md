@@ -773,7 +773,8 @@ pas : son bulletin et celui du client pouvaient différer d'une absence.
 - **Le moteur** du pointage (la grille d'un mois, les jours payés, les heures supplémentaires, la reprise sur un
   bulletin) passe dans le moteur commun (`compta.js`, que le Cabinet charge), avec les natures de congé et celles qui sont
   payées ; `core.js` le reprend, une seule copie. Une fonction nouvelle, `saisieDuMois`, donne la saisie d'un bulletin
-  nouveau lue sur la grille du mois : c'est celle de l'entreprise (`payslipInputFor`), sans les avances, au millime.
+  nouveau lue sur la grille du mois : c'est celle de l'entreprise (`payslipInputFor`), ~~sans les avances~~ (avec elles
+  depuis la 1.71.0, « Les avances au Cabinet », plus bas), au millime.
 - **La base** (0149), sous un mandat qui comprend la paie : le cabinet tient le pointage du client (`timesheets` : il le
   lit et l'écrit, comme les salariés et les bulletins), et **lit** ses congés (`leaves`), sans les écrire. Rien d'autre.
 - **La route de la paie** rend le pointage et les congés avec la paie, et écrit le pointage.
@@ -931,3 +932,108 @@ au singulier quand « 1,5 jours » ne l'était pas, et le renvoi vers l'onglet d
   comme dans l'entreprise depuis la 1.60.0. À VÉRIFIER avec le comptable s'il faut les rapprocher.
 - Le report d'une année sur l'autre (`leaveCarry`) ne se saisit nulle part.
 
+## Les avances au Cabinet (20/10/2026, 1.71.0)
+
+*L'entreprise prête de l'argent à ses salariés depuis la 5.1.0 : une avance, remboursée par retenues mensuelles sur les
+bulletins, dont chaque bulletin nouveau propose l'échéance ; le serveur en écrit le versement (brique 34). Le Cabinet ne
+les lisait pas.*
+
+### Le défaut
+
+Un bulletin que le Cabinet établissait pour un client sur SkanFact ne retenait rien d'une avance du client : l'échéance
+se tapait à la main, ou s'oubliait, et l'avance restait ouverte chez le client mois après mois. Un dossier tenu ne pouvait
+pas en saisir du tout. Dans la base, depuis la brique 60 (0035), le cabinet sous un mandat de paie pouvait **écrire** les
+avances de tout client — aucune route ne le faisait, mais la règle le permettait. Et l'aide de l'entreprise disait que le
+versement d'une avance « n'apparaît ni dans ta Trésorerie ni dans les écritures », faux depuis la 10.14.0 (l'aide de son
+mode disait déjà le contraire).
+
+### Ce que le lot fait (migration `0151`, `serveur/paie/routes.ts`, `pont-cabinet.js`, `web/v10/paie-cabinet-avances.txt`)
+
+- **Le moteur** des avances (ce qui reste de chacune, lu sur les retenues marquées de son numéro dans les bulletins de son
+  salarié, de toutes les années ; l'échéance d'un mois) passe dans le moteur commun (`compta.js`, que le Cabinet charge) ;
+  `core.js` le reprend, une seule copie. La saisie d'un bulletin nouveau du Cabinet (`saisieDuMois`) porte désormais les
+  échéances, comme celle de l'entreprise.
+- **La base** (0151), comme pour les congés (0150) : le cabinet **lit** les avances d'un client sur SkanFact sous un
+  mandat de paie (c'est le client qui verse l'argent), et n'**écrit** que celles d'un dossier qu'il tient. La règle de
+  0035 est réécrite sans `advances`, le reste mot pour mot.
+- **La route de la paie** lit et écrit les avances d'un dossier tenu (leur versement s'écrit par le même chemin que celui
+  du client : journal de banque, ou de caisse pour des espèces), et refuse celles d'un client sur SkanFact en le disant
+  (« Les avances d'un client sur SkanFact se saisissent dans son SkanFact… »), avant que la base ne le refuse.
+- **L'écran** : sous les congés, « Les avances sur salaire de 2025 » — celles versées dans l'année, ou avant et encore à
+  rembourser (ou remboursées en partie dans l'année) : le salarié, le jour, le mode, l'avancé, la retenue de chaque mois,
+  ce qui a été retenu, ce qui reste (« soldée »), la note ; combien sont en cours et ce qui reste à retenir. Pour un dossier
+  tenu, « + Avance sur salaire… » ouvre la fenêtre de l'entreprise (le salarié, versée le, le mode, le montant, la retenue
+  mensuelle, la note), qui dit **avant** d'enregistrer en combien de mois elle se rembourse et la part du net habituel du
+  salarié (au-delà de 30 % : « c'est beaucoup », À VÉRIFIER) ; une ligne s'ouvre au clic ou au clavier pour se corriger
+  ou se supprimer (la fenêtre demande, et dit ce qui reste sur les bulletins). Pour un client sur SkanFact, tout se lit,
+  sans geste pour le changer.
+- **Le bulletin nouveau** du Cabinet propose l'échéance de chaque avance en cours du salarié (« Remboursement d'avance du
+  05/10/2025 », la retenue convenue, jamais plus que ce qui reste), marquée du numéro de l'avance ; elle suit le salarié et
+  le mois choisis tant qu'on n'a pas touché aux retenues, et se change ou se retire comme toute retenue.
+- **Ce que la fenêtre refuse**, et pourquoi : une date hors de l'année regardée (le livre du Cabinet est celui d'une année :
+  « change d'année en haut de la page ») ; une date après la sortie du salarié (aucun bulletin ne la retiendrait) ; un
+  montant illisible, nul ; une retenue nulle ; une fois des retenues faites, un montant sous ce qui a été retenu, et un
+  changement de salarié (ce qui est remboursé se lit sur les bulletins de SON salarié : chez un autre, elle se lirait non
+  remboursée). **Les trois dernières règles valent aussi dans la fenêtre de l'entreprise** (une règle apprise d'un côté se
+  vérifie de l'autre), qui les laissait passer.
+- **Un défaut de la 1.63.0, corrigé** : le bulletin du Cabinet (établi ou modifié, `ajouterBulletin`) gardait les marques
+  de ses primes, pas celle de ses retenues : le numéro de l'avance que chacune rembourse était jeté. Un bulletin d'un
+  client sur SkanFact modifié au Cabinet ne remboursait donc plus son avance — elle restait ouverte chez le client, et le
+  bulletin suivant en reproposait l'échéance. Trouvé par le parcours à la souris de ce lot.
+- **Enregistrer ou supprimer une avance relit le livre de l'année**, comme un bulletin : le brouillard compte le versement
+  écrit ou retiré sans qu'on recharge la page.
+- **L'aide** du montant d'une avance, dans l'entreprise, dit où se lit son versement (la Trésorerie, les écritures).
+- **Ce qui part au serveur**, compté : une avance d'un dossier tenu, dans la forme que l'entreprise écrit déjà (sept
+  champs : `id`, `employeeId`, `date`, `amount`, `monthly`, `method`, `note`) ; une retenue de bulletin garde le numéro de
+  son avance (`advanceId`, que le bulletin de l'entreprise y met déjà).
+
+### Décidé par délégation (20/10/2026)
+
+- Les avances se saisissent là où on les décide, comme les congés : chez le client sur SkanFact (c'est lui qui verse
+  l'argent ; le Cabinet les lit et en retient l'échéance sur les bulletins qu'il établit), au Cabinet pour un dossier tenu.
+- Une avance du Cabinet se saisit dans l'année regardée ; ses modes sont ceux d'un versement à un salarié (virement,
+  chèque, espèces) — un mode venu d'ailleurs se garde tel quel.
+
+### Ce qui le prouve
+
+- `tests/moteur/paie-avances-cabinet.test.ts` : deux chemins, un chiffre — le moteur commun et celui de l'entreprise
+  disent le même reste ; la saisie du bulletin nouveau du Cabinet porte les retenues de celle de l'entreprise, mois par
+  mois ; 1 000,750 à 300,125 par mois (la dernière échéance ne prend que 100,375), une avance de novembre retenue
+  jusqu'en février, une autre sans retenue convenue (retenue en entier), une retenue posée sur le bulletin d'un autre
+  salarié qui ne rembourse rien ; l'aide du montant.
+- `tests/cabinet/paie.test.ts` : un client sur SkanFact — ses avances lues avec la paie, jamais écrites (la porte le dit,
+  la base refuse de les modifier, effacer ou ajouter) ; un dossier tenu — le cabinet qui le tient en saisit une, son
+  versement s'écrit à la banque puis, corrigée en espèces, à la caisse, un bulletin en retient l'échéance, retirée elle
+  quitte les écritures ; un autre cabinet, même sous un mandat de paie, la lit sans l'écrire.
+- `tests/web/cabinet-paie-avances.test.ts` : à la souris et au clavier, sur un dossier tenu (une avance saisie, sa durée
+  et la part du net lues avant d'enregistrer, les refus sur leur case, son versement écrit, le bulletin nouveau qui en
+  retient l'échéance et la reprend en changeant de salarié, retenu et reste, la correction au clavier — ni sous ce qui a
+  été retenu, ni d'un salarié à l'autre —, la suppression, rien qui déborde) et sur un client sur SkanFact (lue sans geste,
+  retenue par le bulletin du Cabinet, et le SkanFact du client lit le même reste). `tests/web/paie-avance-fenetre.test.ts` :
+  dans l'entreprise, les trois refus appris au Cabinet.
+- Vingt-quatre preuves (`tests/preuves.sh`, « 1.71.0 »), et dix anciennes reprises sur leur texte d'aujourd'hui (la règle
+  de 0035 réécrite par 0151, la liste des collections de la paie, la saisie du mois, la ligne des congés au clavier).
+
+### Refait à la souris (20/10/2026)
+
+Sur le dossier tenu du cabinet d'essai (un salarié entré le 15 septembre 2026, 1 300 DT brut) : « + Avance sur
+salaire… » propose le 15/09, son entrée ; 1 200 DT à 400 par mois s'annoncent en orange (38,1 % du net habituel de
+1 050,523 DT, « C'est lourd », À VÉRIFIER), ramenés à 300 ; l'avance s'enregistre d'Entrée depuis la note ; son
+versement entre au brouillard (BQ, le 15/09, « Avances sur salaire — 09/2026 », 1 200,000). Le bulletin d'octobre
+établi ensuite propose « Remboursement d'avance du 15/09/2026 — 300,000 » (net 750,523) ; après lui, la ligne dit
+300 retenus et 900 de reste. Rouverte au clavier : le salarié grisé, un montant de 200 refusé sur sa case, la fenêtre
+abandonnée d'Échap après sa question ; puis supprimée, après une question qui dit ce qui reste sur les bulletins.
+
+Vu et corrigé : la date proposée avant l'entrée du salarié (le 1er septembre) ; l'annonce d'une retenue lourde qui
+poussait « Enregistrer » de 17 points vers le bas (resserrée en trois lignes, la place qu'elle garde) ; l'annonce qui
+disait l'avance « soldée » devant un montant qu'on allait refuser ; le brouillard qui ne comptait ni ne retirait le
+versement avant qu'on recharge la page (le livre de l'année revient relu, comme après un bulletin). Et, trouvé par le
+parcours à la souris automatique avant l'essai humain : **le bulletin du Cabinet jetait le numéro de l'avance** de
+chaque retenue — un défaut de la 1.63.0 : un bulletin d'un client sur SkanFact modifié au Cabinet ne remboursait plus
+son avance, qui restait ouverte chez le client et dont le bulletin suivant reproposait l'échéance.
+
+### Ce qui reste
+
+- Le compte de trésorerie d'une avance d'un dossier tenu (le Cabinet ne tient pas les comptes de trésorerie de
+  l'entreprise) : le mode décide, banque ou caisse.
+- Les avances n'ont pas d'état imprimé au Cabinet (l'entreprise non plus : elles se lisent sur les bulletins).

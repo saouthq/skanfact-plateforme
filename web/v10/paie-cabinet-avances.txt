@@ -1,0 +1,427 @@
+Les avances sur salaire au Cabinet (20/10/2026, 1.71.0 ; docs/paie.md, « Les avances au Cabinet »).
+Format : voir sans-paquets.mjs.
+
+L'entreprise prête de l'argent à ses salariés depuis la 5.1.0 (une avance, remboursée par retenues mensuelles sur les
+bulletins) ; chaque bulletin nouveau en propose l'échéance. Le Cabinet ne lisait pas les avances : un bulletin qu'il
+établissait pour un client sur SkanFact n'en retenait rien (l'avance restait ouverte), et un dossier tenu ne pouvait pas en
+saisir. Le moteur des avances passe dans le moteur commun (compta.js ; core.js le reprend, une seule copie) ; le Cabinet a
+son panneau « Les avances sur salaire », où il les saisit pour un dossier tenu et les lit pour un client, et son bulletin
+nouveau en retient l'échéance. Ce que la fenêtre du Cabinet refuse (une avance déjà retenue qui changerait de salarié ou
+descendrait sous ce qui a été retenu, un versement après la sortie), celle de l'entreprise le refuse aussi ; et l'aide du
+montant d'une avance ne dit plus que son versement ne se lit nulle part.
+
+== compta.js | le moteur des avances, dans le moteur commun, et la saisie du mois qui en retient les échéances
+-- avant
+  // (plateforme) 1.69.0 — la saisie d'un bulletin NOUVEAU, lue sur la grille du mois du salarié : son entrée ou sa sortie
+  // (le brut proratisé sur les jours ouvrables hors contrat, 10.12.0), ses absences non payées (ses congés, ou son
+  // pointage), ses primes de chaque mois (au jour sur les jours payés, 1.59.0) et, le mois pointé, ses heures
+  // supplémentaires. C'est la saisie de l'entreprise (core.js, `payslipInputFor`), sans les avances, que le Cabinet ne
+  // lit pas : un essai compare les deux (deux chemins, un chiffre).
+  function saisieDuMois(data, employee, year, month) {
+-- après
+  // (plateforme) 1.71.0 — les avances sur salaire (celles de l'entreprise, 5.1.0) : une somme prêtée au salarié, remboursée
+  // par retenues mensuelles sur ses bulletins. Dans le moteur commun, que le Cabinet lit aussi : une seule copie (core.js la
+  // reprend). Ce qui est remboursé se lit sur les bulletins eux-mêmes : leurs retenues marquées du numéro de l'avance.
+  function advancesOf(data, employeeId) {
+    return (data.advances || [])
+      .filter(a => !employeeId || a.employeeId === employeeId)
+      .map(a => {
+        const monthly = round3(Number(a.monthly) || 0);
+        const amount = round3(Number(a.amount) || 0);
+        const repaid = round3((data.payslips || [])
+          .filter(p => p.employeeId === a.employeeId)
+          .reduce((s2, p) => s2 + ((p.deductions || []).filter(d => d.advanceId === a.id).reduce((x, d) => x + (Number(d.amount) || 0), 0)), 0));
+        return { ...a, amount, monthly, repaid, remaining: round3(Math.max(0, amount - repaid)), done: repaid >= amount - 0.0005 };
+      })
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }
+
+  function advanceBalance(data, employeeId) {
+    return round3(advancesOf(data, employeeId).reduce((s, a) => s + a.remaining, 0));
+  }
+
+  // Les avances d'une année, telles que le Cabinet les montre : versées cette année-là, ou avant et encore à rembourser, ou
+  // remboursées en partie dans l'année (une avance de décembre se retient sur les bulletins de janvier). Une avance soldée
+  // avant l'année, ou versée après, n'en est pas.
+  function avancesDeLAnnee(data, year) {
+    const y = String(year);
+    const retenueEn = new Set((data.payslips || []).filter(p => String(p.year) === y)
+      .flatMap(p => (p.deductions || []).map(d => d.advanceId).filter(Boolean)));
+    return advancesOf(data, '').filter(a => String(a.date || '').slice(0, 4) === y
+      || (String(a.date || '') < `${y}-01-01` && (!a.done || retenueEn.has(a.id))));
+  }
+
+  // L'échéance de chaque avance en cours d'un salarié sur le bulletin d'un mois : la retenue convenue, jamais plus que ce qui
+  // reste (la dernière solde l'avance) ; une avance versée après ce mois n'en a pas encore. Ce que le bulletin de
+  // l'entreprise propose depuis la 6.0 (core.js, `payslipInputFor`), et celui du Cabinet depuis la 1.71.0.
+  function echeancesDuMois(data, employeeId, year, month) {
+    const jjmmaaaa = iso => String(iso).split('-').reverse().join('/');
+    return advancesOf(data, employeeId).filter(a => !a.done && a.date <= `${year}-${String(month).padStart(2, '0')}-31`)
+      .map(a => ({ label: `Remboursement d'avance du ${jjmmaaaa(a.date)}`, amount: round3(Math.min(a.monthly || a.remaining, a.remaining)), advanceId: a.id }))
+      .filter(d => d.amount > 0);
+  }
+
+  // (plateforme) 1.69.0 — la saisie d'un bulletin NOUVEAU, lue sur la grille du mois du salarié : son entrée ou sa sortie
+  // (le brut proratisé sur les jours ouvrables hors contrat, 10.12.0), ses absences non payées (ses congés, ou son
+  // pointage), ses primes de chaque mois (au jour sur les jours payés, 1.59.0) et, le mois pointé, ses heures
+  // supplémentaires. C'est la saisie de l'entreprise (core.js, `payslipInputFor`) : un essai compare les deux (deux
+  // chemins, un chiffre). (plateforme) 1.71.0 — avec les échéances de ses avances, que le Cabinet lit désormais.
+  function saisieDuMois(data, employee, year, month) {
+-- fin
+
+== compta.js | la saisie du mois porte les échéances des avances
+-- avant
+    const i = { gross, workedDays: total, absentDays: p.absences, bonuses: primesDuMois(employee, total - hors - p.absences, total), prorata };
+-- après
+    const i = { gross, workedDays: total, absentDays: p.absences, bonuses: primesDuMois(employee, total - hors - p.absences, total), prorata,
+      deductions: echeancesDuMois(data, employee.id, year, month) };
+-- fin
+
+== compta.js | un bulletin du Cabinet garde le numéro de l'avance que chaque retenue rembourse
+-- avant
+      deductions: (bulletin.retenues || []).map(d => ({ label: String(d.label || 'Retenue'), amount: round3(Number(d.amount) || 0) })),
+-- après
+      // (plateforme) 1.71.0 — et chaque retenue le numéro de l'avance qu'elle rembourse (`advanceId`, que le bulletin de
+      // l'entreprise y met) : il était jeté, et un bulletin établi ou MODIFIÉ au Cabinet ne remboursait rien — l'avance
+      // restait ouverte chez le client, et le bulletin suivant en proposait de nouveau l'échéance.
+      deductions: (bulletin.retenues || []).map(d => ({ label: String(d.label || 'Retenue'), amount: round3(Number(d.amount) || 0),
+        ...(typeof d.advanceId === 'string' && d.advanceId ? { advanceId: d.advanceId } : {}) })),
+-- fin
+
+== compta.js | le moteur des avances se lit hors du moteur commun
+-- avant
+    saisieDuMois,
+-- après
+    saisieDuMois,
+    // (plateforme) 1.71.0 — les avances.
+    advancesOf, advanceBalance, echeancesDuMois, avancesDeLAnnee,
+-- fin
+
+== core.js | le moteur des avances vient du moteur commun
+-- avant
+  // Les avances : une somme prêtée, remboursée par retenues mensuelles sur le bulletin.
+  function advancesOf(data, employeeId) {
+    return (data.advances || [])
+      .filter(a => !employeeId || a.employeeId === employeeId)
+      .map(a => {
+        const monthly = round3(Number(a.monthly) || 0);
+        const amount = round3(Number(a.amount) || 0);
+        const repaid = round3((data.payslips || [])
+          .filter(p => p.employeeId === a.employeeId)
+          .reduce((s2, p) => s2 + ((p.deductions || []).filter(d => d.advanceId === a.id).reduce((x, d) => x + (Number(d.amount) || 0), 0)), 0));
+        return { ...a, amount, monthly, repaid, remaining: round3(Math.max(0, amount - repaid)), done: repaid >= amount - 0.0005 };
+      })
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }
+
+  function advanceBalance(data, employeeId) {
+    return round3(advancesOf(data, employeeId).reduce((s, a) => s + a.remaining, 0));
+  }
+-- après
+  // Les avances : une somme prêtée, remboursée par retenues mensuelles sur le bulletin.
+  // (plateforme) 1.71.0 — dans le moteur commun (compta.js), que le Cabinet lit aussi : une seule copie.
+  const { advancesOf, advanceBalance, echeancesDuMois } = Compta;
+-- fin
+
+== core.js | le bulletin de l'entreprise prend les échéances du moteur commun
+-- avant
+    const deductions = advancesOf(data, employee.id).filter(a => !a.done && a.date <= `${year}-${String(month).padStart(2, '0')}-31`)
+      .map(a => ({ label: `Remboursement d'avance du ${fmtDate(a.date)}`, amount: round3(Math.min(a.monthly || a.remaining, a.remaining)), advanceId: a.id }))
+      .filter(d => d.amount > 0);
+-- après
+    // (plateforme) 1.71.0 — l'échéance de chaque avance en cours, par le moteur commun (celle du bulletin du Cabinet).
+    const deductions = echeancesDuMois(data, employee.id, year, month);
+-- fin
+
+== app.js | une avance déjà retenue ne change plus de salarié ni ne descend sous ce qui a été retenu ; rien après la sortie
+-- avant
+          if (!(Number(v.monthly) > 0)) return refus(champ('monthly'), 'Indique la retenue mensuelle : c\'est elle qui rembourse l\'avance, bulletin après bulletin.');
+          if (closedBlock([a.date, v.date], 'Cette avance')) return;
+-- après
+          if (!(Number(v.monthly) > 0)) return refus(champ('monthly'), 'Indique la retenue mensuelle : c\'est elle qui rembourse l\'avance, bulletin après bulletin.');
+          // (plateforme) 1.71.0 — les règles de la fenêtre du Cabinet, vérifiées ici aussi. Ce qui est remboursé se lit sur les
+          // bulletins du salarié : une avance déjà retenue ne change plus de salarié (elle se lirait non remboursée chez
+          // l'autre), et son montant ne descend pas sous ce qui a été retenu. Après la sortie, aucun bulletin ne la retiendrait.
+          const retenu = advance ? (C.advancesOf(data, a.employeeId).find(x => x.id === a.id) || { repaid: 0 }).repaid : 0;
+          if (retenu && v.employeeId !== a.employeeId) return refus($('[data-combo=employeeId] .combo-btn', root), `${C.money(retenu, cur)} ont déjà été retenus sur les bulletins de ${(employeeById(a.employeeId) || {}).name || 'ce salarié'} : l'avance ne change plus de salarié.`);
+          if (Number(v.amount) < retenu - 0.0005) return refus(champ('amount'), `${C.money(retenu, cur)} ont déjà été retenus sur des bulletins : le montant avancé ne descend pas en dessous.`);
+          const sortie = (employeeById(v.employeeId) || {}).endDate;
+          if (sortie && v.date > sortie) return refus(champ('date'), `La sortie de ${employeeById(v.employeeId).name} est le ${C.fmtDate(sortie)} : aucun bulletin ne retiendrait une avance versée après.`);
+          if (closedBlock([a.date, v.date], 'Cette avance')) return;
+-- fin
+
+== guide.js | l'aide du montant d'une avance ne dit plus que son versement ne se lit nulle part
+-- avant
+    'hr.advanceAmount': { t: 'Montant avancé', d: 'La somme que tu prêtes au salarié. La retenue mensuelle la rembourse, bulletin après bulletin, jusqu\'à ce qu\'il ne reste rien. <b>Le versement de l\'avance lui-même n\'apparaît ni dans ta Trésorerie ni dans les écritures</b> : seules les retenues se lisent, sur les bulletins. Note le versement en mouvement si tu veux le voir.' },
+-- après
+    // (plateforme) 1.71.0 — « le versement n'apparaît ni dans ta Trésorerie ni dans les écritures » : faux depuis la 10.14.0,
+    // qui l'y fait sortir le jour même (et l'aide du mode le disait déjà). Une phrase que rien ne tient est un défaut.
+    'hr.advanceAmount': { t: 'Montant avancé', d: 'La somme que tu prêtes au salarié. La retenue mensuelle la rembourse, bulletin après bulletin, jusqu\'à ce qu\'il ne reste rien. Le versement se lit le jour même : il sort de ta Trésorerie (le compte choisi), et l\'écriture du comptable le pose au débit du compte du personnel ; les retenues des bulletins le soldent ensuite.' },
+-- fin
+
+== cabinet/app.js | les avances sur salaire de l'année, sous les congés
+-- avant
+    ${vueConges(dossier, L, s.annee)}
+
+-- après
+    ${vueConges(dossier, L, s.annee)}
+
+    ${/* (plateforme) 1.71.0 — les avances sur salaire, sous les congés : un bulletin nouveau en retient l'échéance. */''}
+    ${vueAvances(dossier, L, s.annee)}
+
+-- fin
+
+== cabinet/app.js | la page de la paie branche les avances
+-- avant
+    brancherConges(el, root, dossier);
+
+-- après
+    brancherConges(el, root, dossier);
+    // (plateforme) 1.71.0
+    brancherAvances(el, root, dossier);
+
+-- fin
+
+== cabinet/app.js | le panneau des avances : en cours, retenu, reste ; la fenêtre d'une avance
+-- avant
+  // Le détail d'un bulletin, tel qu'il a été FIGÉ. Un chiffre qu'on ne peut pas ouvrir se croit ou
+-- après
+  // (plateforme) 1.71.0 — les avances sur salaire d'un dossier : celles de l'entreprise (5.1.0), par son moteur (compta.js).
+  // Une somme prêtée au salarié, remboursée par retenues sur ses bulletins ; ce qui est remboursé se lit sur les bulletins
+  // eux-mêmes (leurs retenues marquées du numéro de l'avance), de toutes les années. Un client sur SkanFact les saisit dans
+  // son SkanFact : le Cabinet les lit (il n'écrit jamais chez un client sans son accord), et un bulletin nouveau en retient
+  // l'échéance. Pour un dossier tenu, il les saisit, dans la fenêtre de l'entreprise ; le serveur en écrit le versement.
+  const avancesState = { page: 1, size: prefs.get('avSize', 25), sizeKey: 'avSize' };
+  // Les modes d'un versement au salarié (les clés de l'entreprise) : en espèces, il sort de la caisse ; sinon, de la banque.
+  const MODES_AVANCE = [['virement', 'Virement'], ['cheque', 'Chèque'], ['especes', 'Espèces']];
+  // Qui peut les saisir : le Cabinet, pour un dossier tenu dont l'exercice est ouvert (la règle des congés).
+  const avancesTenues = L => !L.reglagesPaie && !(L.exercice || {}).clos;
+  function vueAvances(dossier, L, annee) {
+    const tient = avancesTenues(L);
+    // Celles de l'année regardée (le moteur commun le dit) : versées cette année-là, ou avant et pas soldées à son début.
+    const toutes = KC.avancesDeLAnnee(donneesDuPointage(dossier, L), annee);
+    const enCours = toutes.filter(a => !a.done);
+    const nomDe = id => ((L.salaries || []).find(x => x.id === id) || {}).nom || '—';
+    const modeDe = m => (MODES_AVANCE.find(x => x[0] === m) || [, m || '—'])[1];
+    const pied = pagerBar(toutes.length, avancesState, 'avance');
+    const page = paginate(toutes, avancesState);
+    return `<div class="panel mt" id="av-panneau"><h2>Les avances sur salaire de ${esc(annee)} ${info('pa.avances')}</h2>
+      <div class="filters">${tient && (L.salaries || []).some(x => x.actif) ? '<button type="button" class="btn btn-sm" id="av-ajouter">+ Avance sur salaire…</button>' : ''}
+        <span class="small muted" id="av-qui">${toutes.length ? `${enCours.length} en cours${enCours.length
+    ? ` · <b>${esc(money(KC.round3(enCours.reduce((s2, a) => s2 + a.remaining, 0))))}</b> encore à retenir` : ''}. ` : ''}${L.reglagesPaie
+    ? 'Ce client les saisit dans son SkanFact (<b>Paie › Avances</b>) : le Cabinet les lit, et un bulletin nouveau en retient l\'échéance.'
+    : (L.exercice || {}).clos ? `L'exercice ${esc(annee)} est clos : ses avances se lisent, elles ne se changent plus.`
+      : 'Un bulletin nouveau en retient l\'échéance du mois, jusqu\'à la dernière ; le versement s\'écrit le jour même, à la banque ou à la caisse.'}</span></div>
+      ${toutes.length ? `<div class="scroll-x"><table class="list compact" id="av-liste"><thead><tr><th>Salarié</th><th class="nw">Versée le</th><th>Mode</th>
+        <th class="r">Avancé</th><th class="r nw">Par mois</th><th class="r">Retenu</th><th class="r">Reste</th><th>Note</th></tr></thead>
+        <tbody>${page.map(a => `<tr data-av="${esc(a.id)}"${tient ? ' class="clickable" tabindex="0" title="Modifier cette avance"' : ''}>
+          <td class="tronq" title="${esc(nomDe(a.employeeId))}">${esc(nomDe(a.employeeId))}</td><td class="nw">${esc(fmtJour(a.date))}</td><td class="nw">${esc(modeDe(a.method))}</td>
+          <td class="r nw">${esc(money(a.amount))}</td><td class="r nw">${esc(money(a.monthly))}</td><td class="r nw">${esc(money(a.repaid))}</td>
+          <td class="r nw">${a.done ? '<span class="ok-text">soldée</span>' : `<b>${esc(money(a.remaining))}</b>`}</td>
+          <td class="tronq" title="${esc(a.note || '')}">${esc(a.note || '')}</td></tr>`).join('')}</tbody></table></div>${pied}`
+    : `<div class="empty mini">Aucune avance en ${esc(annee)}.</div>`}
+    </div>`;
+  }
+  function brancherAvances(el, root, dossier) {
+    const panneau = $('#av-panneau', el);
+    if (!panneau) return;
+    const L = livresState.livre;
+    const ajouter = $('#av-ajouter', panneau);
+    if (ajouter) ajouter.onclick = () => avanceForm(root, dossier, null);
+    bindPager(panneau, () => drawLivres(root, dossier), avancesState);
+    if (!avancesTenues(L)) return;
+    $$('#av-liste tr[data-av]', panneau).forEach(tr => {
+      const ouvrir = () => { const a = (L.avances || []).find(x => x.id === tr.dataset.av); if (a) avanceForm(root, dossier, a); };
+      tr.onclick = ouvrir;
+      tr.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ouvrir(); } };
+    });
+  }
+  // La fenêtre d'une avance (celle de l'entreprise, advanceForm) : le salarié, le jour du versement, le montant, la retenue de
+  // chaque mois, le mode, la note ; la durée du remboursement et la part du net habituel se lisent AVANT d'enregistrer.
+  function avanceForm(root, dossier, avance) {
+    const s = livresState, L = s.livre;
+    const salaries = (L.salaries || []).filter(x => x.actif || (avance && x.id === avance.employeeId))
+      .sort((a, b) => (a.nom || '').localeCompare(b.nom || '', 'fr'));
+    if (!salaries.length) return toast('Déclare d\'abord un salarié.', 'error');
+    // Ce qui a déjà été retenu sur des bulletins : une avance ne descend pas en dessous, ni ne change de salarié.
+    const deja = avance ? (KC.advancesOf(donneesDuPointage(dossier, L), avance.employeeId).find(x => x.id === avance.id) || { repaid: 0 }).repaid : 0;
+    // Une avance nouvelle tombe dans le mois regardé : aujourd'hui s'il en est, sinon son premier jour — jamais avant l'entrée
+    // du salarié proposé (vu au test humain : le 1er septembre proposé pour une entrée le 15, comme pour les congés).
+    const mois = `${s.annee}-${String(s.paieMois || 1).padStart(2, '0')}`;
+    const auMois = String(K.today()).slice(0, 7) === mois ? K.today() : `${mois}-01`;
+    const jour = salaries[0].embauche && salaries[0].embauche > auMois ? salaries[0].embauche : auMois;
+    const a = avance || { id: '', employeeId: salaries[0].id, date: jour, amount: 0, monthly: 0, method: 'virement', note: '' };
+    const modes = MODES_AVANCE.some(m => m[0] === a.method) || !a.method ? MODES_AVANCE : [...MODES_AVANCE, [a.method, a.method]];
+    modal(`<h2>${avance ? 'Modifier l\'avance' : 'Avance sur salaire'}</h2>
+      <p class="small muted">Une somme prêtée au salarié, remboursée par retenues sur ses prochains bulletins : chaque bulletin nouveau en propose l'échéance, jusqu'à la dernière.</p>
+      <form id="av-form" class="grid-2">
+        <label class="field span-2 obligatoire">${lbl('Salarié', 'pa.avSalarie')}<select name="employeeId" ${deja ? 'disabled' : ''}>${salaries.map(x => `<option value="${esc(x.id)}" ${x.id === a.employeeId ? 'selected' : ''}>${esc(x.nom)}</option>`).join('')}</select></label>
+        <label class="field obligatoire">${lbl('Versée le', 'pa.avDate')}<input name="date" placeholder="JJ/MM/AAAA" value="${esc(fmtJour(a.date))}"></label>
+        <label class="field">${lbl('Mode', 'pa.avMode')}<select name="method">${modes.map(([v, lab]) => `<option value="${esc(v)}" ${(a.method || 'virement') === v ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select></label>
+        <label class="field obligatoire">${lbl('Montant avancé (DT)', 'pa.avMontant')}<input name="amount" inputmode="decimal" class="num montant" placeholder="Ce qui lui est prêté" value="${esc(montantChamp(a.amount))}"></label>
+        <label class="field obligatoire">${lbl('Retenue mensuelle (DT)', 'pa.avMensuel')}<input name="monthly" inputmode="decimal" class="num montant" placeholder="Retenue sur chaque bulletin" value="${esc(montantChamp(a.monthly))}"></label>
+        <label class="field span-2">${lbl('Note', 'pa.avNote')}<input name="note" maxlength="200" value="${esc(a.note || '')}" placeholder="Pourquoi, et ce qui a été convenu"></label>
+        <div class="span-2 annonce-stable small" id="av-annonce"></div>
+      </form>
+      <div class="modal-actions">${avance ? '<button type="button" class="btn btn-danger" id="av-supprimer" style="margin-inline-end:auto">Supprimer</button>' : ''}
+        <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
+    (layer, close) => {
+      const f = $('#av-form', layer);
+      const champ = n => $(`[name=${n}]`, f);
+      const lire = () => ({ employeeId: champ('employeeId').value, date: K.dateTapee(champ('date').value.trim(), s.annee),
+        amount: lireMontant(champ('amount').value), monthly: lireMontant(champ('monthly').value), method: champ('method').value, note: champ('note').value.trim() });
+      const annoncer = () => {
+        const v = lire();
+        const zone = $('#av-annonce', layer);
+        if (!(v.amount > 0) || !(v.monthly > 0)) { zone.innerHTML = '<span class="muted">Le montant et la retenue mensuelle disent la durée du remboursement.</span>'; return; }
+        // Sous ce qui a déjà été retenu, le montant se refusera : l'annonce le dit avant (vu au test humain : elle disait
+        // l'avance « soldée »).
+        if (deja && v.amount < deja - 0.0005) { zone.innerHTML = `<span class="warn-text">Déjà retenu : <b>${esc(money(deja))}</b>. Le montant avancé ne descend pas en dessous.</span>`; return; }
+        const sal = salaries.find(x => x.id === v.employeeId) || {};
+        const net = KC.computePayslip({ grossSalary: sal.brut, headOfFamily: sal.chefDeFamille, children: sal.enfants, contrat: sal.contrat }, {},
+          KC.baremesPaie(reglagesPaie(dossier, L))).net;
+        const reste = KC.round3(Math.max(0, v.amount - deja));
+        const lourde = net > 0 && v.monthly > net * 0.3;
+        // Trois lignes au plus, la place que l'annonce garde : plus longue, elle poussait « Enregistrer » sous le curseur (vu au
+        // test humain).
+        zone.innerHTML = `<span class="${lourde ? 'warn-text' : 'muted'}">${deja ? `Déjà retenu : <b>${esc(money(deja))}</b> ; reste ${esc(money(reste))}. ` : ''}`
+          + (deja && !reste ? 'Elle est soldée.' : `Remboursée en <b>${Math.ceil((deja ? reste : v.amount) / v.monthly)} mois</b> à ${esc(money(v.monthly))} par bulletin`
+            + (net > 0 ? ` — ${esc(joursFr(Math.round(v.monthly / net * 1000) / 10))} % du net habituel de ${esc(sal.nom || 'ce salarié')} (${esc(money(net))}).` : '.'))
+          + (lourde ? ' C\'est lourd pour le salarié. <em>À VÉRIFIER : la part du salaire qui peut être retenue.</em>' : '') + '</span>';
+      };
+      f.oninput = f.onchange = annoncer; annoncer();
+      $('#ok', layer).onclick = async () => {
+        const v = lire();
+        const sal = salaries.find(x => x.id === v.employeeId);
+        if (!sal) return refus(champ('employeeId'), 'Choisis le salarié.');
+        if (!champ('date').value.trim()) return refus(champ('date'), 'Indique le jour où l\'argent a été remis.');
+        if (!v.date) return refus(champ('date'), `« ${champ('date').value.trim()} » n'est pas une date lisible. Écris-la JJ/MM/AAAA.`);
+        if (v.date.slice(0, 4) !== String(s.annee)) return refus(champ('date'), `Une avance se saisit dans l'année regardée (${s.annee}) : pour une avance de ${v.date.slice(0, 4)}, change d'année en haut de la page.`);
+        if (sal.sortie && v.date > sal.sortie) return refus(champ('date'), `La sortie de ${sal.nom} est le ${fmtJour(sal.sortie)} : aucun bulletin ne retiendrait une avance versée après.`);
+        const illisible = ['amount', 'monthly'].map(champ).find(el => montantIllisible(el.value));
+        if (illisible) return refus(illisible, motifIllisible(illisible.value));
+        if (!(v.amount > 0)) return refus(champ('amount'), 'Indique le montant avancé.');
+        if (!(v.monthly > 0)) return refus(champ('monthly'), 'Indique la retenue mensuelle : c\'est elle qui rembourse l\'avance, bulletin après bulletin.');
+        if (v.amount < deja - 0.0005) return refus(champ('amount'), `${money(deja)} ont déjà été retenus sur des bulletins : le montant avancé ne descend pas en dessous.`);
+        const ok = $('#ok', layer);
+        ok.disabled = true;
+        try {
+          const id = avance ? avance.id : 'av' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+          // Le livre de l'année revient avec : le versement s'écrit (ou change de journal), et le brouillard le compte.
+          const r = await api.saveAvance({ dossierId: dossier.id, annee: s.annee, avance: { id, employeeId: v.employeeId, date: v.date,
+            amount: KC.round3(v.amount), monthly: KC.round3(v.monthly), method: v.method, note: v.note } });
+          s.livre = r.livre;
+          close();
+          toast(`L'avance de ${sal.nom} est enregistrée.`);
+          drawLivres(root, dossier);
+        } catch (err) { ok.disabled = false; toast(plainError(err), 'error'); }
+      };
+      const sup = $('#av-supprimer', layer);
+      if (sup) sup.onclick = async () => {
+        if (!await confirmDialog('Supprimer cette avance ?', deja
+          ? `${money(deja)} ont déjà été retenus sur des bulletins : ces retenues y restent, et son versement se retire des écritures.`
+          : 'Son versement se retire des écritures ; aucun bulletin ne l\'a encore retenue.', 'Supprimer', true)) return;
+        try {
+          const r = await api.supprimerAvance({ dossierId: dossier.id, annee: s.annee, id: avance.id });
+          s.livre = r.livre;
+          close(); toast('Avance supprimée.'); drawLivres(root, dossier);
+        } catch (err) { toast(plainError(err), 'error'); }
+      };
+    });
+  }
+
+  // Le détail d'un bulletin, tel qu'il a été FIGÉ. Un chiffre qu'on ne peut pas ouvrir se croit ou
+-- fin
+
+== cabinet/app.js | la paie du dossier dans la forme de l'entreprise porte ses avances et ce qui les rembourse
+-- avant
+      leaves: L.conges || [], timesheets: L.pointages, payrollSettings: reglagesPaie(dossier, L)
+
+-- après
+      leaves: L.conges || [], timesheets: L.pointages, payrollSettings: reglagesPaie(dossier, L),
+      // (plateforme) 1.71.0 — les avances, et les retenues de TOUS les bulletins du dossier qui les remboursent (une avance
+      // d'une année se retient souvent sur la suivante) : le moteur commun en tire ce qui reste, et l'échéance du mois.
+      advances: L.avances || [], payslips: L.remboursements || []
+
+-- fin
+
+== cabinet/app.js | un bulletin nouveau retient l'échéance des avances du salarié
+-- avant
+      primes: depart ? depart.bonuses : [], retenues: [], prorata: depart ? depart.prorata : null };
+-- après
+      primes: depart ? depart.bonuses : [], prorata: depart ? depart.prorata : null,
+      // (plateforme) 1.71.0 — et l'échéance de chacune de ses avances en cours, comme dans l'entreprise.
+      retenues: depart ? depart.deductions : [] };
+-- fin
+
+== cabinet/app.js | les retenues proposées suivent le salarié tant qu'on n'y a pas touché
+-- avant
+      let primesTouchees = !!b;
+-- après
+      let primesTouchees = !!b;
+      // (plateforme) 1.71.0 — les retenues proposées (les échéances des avances) suivent le salarié et le mois, de même.
+      let retenuesTouchees = !!b;
+-- fin
+
+== cabinet/app.js | une retenue retouchée ne suit plus le salarié
+-- avant
+          if (liste === primes) primesTouchees = true;
+          if (el.dataset.l === 'taxable')
+-- après
+          if (liste === primes) primesTouchees = true; else retenuesTouchees = true;
+          if (el.dataset.l === 'taxable')
+-- fin
+
+== cabinet/app.js | une retenue retirée ne revient pas
+-- avant
+{ if (liste === primes) primesTouchees = true; liste.splice(Number(bt.dataset.retirer), 1);
+-- après
+{ if (liste === primes) primesTouchees = true; else retenuesTouchees = true; liste.splice(Number(bt.dataset.retirer), 1);
+-- fin
+
+== cabinet/app.js | changer de salarié ou de mois reprend ses échéances
+-- avant
+        if (primesTouchees) return;
+        primes.splice(0, primes.length, ...i.bonuses.map(p => ({ ...p })));
+        dessiner('#bf-primes', primes, 'prime');
+-- après
+        // (plateforme) 1.71.0 — les échéances des avances du salarié et du mois choisis, tant qu'on n'a pas touché aux retenues.
+        if (!retenuesTouchees) {
+          retenues.splice(0, retenues.length, ...(i.deductions || []).map(d => ({ ...d })));
+          dessiner('#bf-retenues', retenues, 'retenue');
+        }
+        if (primesTouchees) return;
+        primes.splice(0, primes.length, ...i.bonuses.map(p => ({ ...p })));
+        dessiner('#bf-primes', primes, 'prime');
+-- fin
+
+== cabinet/app.js | une retenue ajoutée à la main fige les retenues
+-- avant
+      $('#bf-plus-retenue', rootModal).onclick = () => ajouter('#bf-retenues', retenues, 'retenue', { label: '', amount: 0 });
+-- après
+      $('#bf-plus-retenue', rootModal).onclick = () => { retenuesTouchees = true; ajouter('#bf-retenues', retenues, 'retenue', { label: '', amount: 0 }); };
+-- fin
+
+== cabinet/cabguide.js | l'aide des avances sur salaire
+-- avant
+    'pa.cgMotif': { a: 'paie', t: 'Motif',
+-- après
+    // (plateforme) 1.71.0
+    'pa.avances': { a: 'paie', t: 'Les avances sur salaire', d: 'Une somme prêtée à un salarié, remboursée par retenues sur ses bulletins. Ce qui est remboursé se lit sur les bulletins eux-mêmes : chaque bulletin nouveau propose l\'échéance du mois (la retenue convenue, jamais plus que ce qui reste), qui se change ou se retire sur le bulletin. Un client sur SkanFact les saisit dans son SkanFact : le Cabinet les lit. Pour un dossier tenu, c\'est le Cabinet qui les saisit, et le versement s\'écrit le jour même : au débit du compte du personnel, au crédit de la banque, ou de la caisse pour des espèces.' },
+    'pa.avSalarie': { a: 'paie', t: 'Salarié', d: 'La personne à qui l\'argent est avancé : ses prochains bulletins en retiendront l\'échéance. Une avance déjà retenue sur un bulletin ne change plus de salarié.' },
+    'pa.avDate': { a: 'paie', t: 'Versée le', d: 'Le jour où l\'argent a été remis, en JJ/MM/AAAA, dans l\'année regardée : le versement s\'écrit ce jour-là, et le bulletin de ce mois puis ceux des suivants en retiennent l\'échéance. Jamais après la sortie du salarié : aucun bulletin ne la retiendrait.' },
+    'pa.avMontant': { a: 'paie', t: 'Montant avancé', d: 'La somme prêtée. Une fois des retenues faites, il ne descend pas sous ce qui a déjà été retenu.' },
+    'pa.avMensuel': { a: 'paie', t: 'Retenue mensuelle', d: 'Ce que chaque bulletin retient jusqu\'au remboursement ; la dernière échéance ne prend que ce qui reste. La fenêtre dit en combien de mois, et la part du net habituel du salarié. À VÉRIFIER : la loi encadre la part du salaire qui peut être retenue.' },
+    'pa.avMode': { a: 'paie', t: 'Mode', d: 'Comment l\'argent a été remis : en espèces, le versement s\'écrit au journal de caisse ; autrement, au journal de banque.' },
+    'pa.avNote': { a: 'paie', t: 'Note', d: 'Pour le dossier : pourquoi cette avance, ce qui a été convenu. Elle se lit dans la liste des avances et ne s\'imprime sur aucun bulletin, où la retenue s\'appelle « Remboursement d\'avance du … ».' },
+    'pa.cgMotif': { a: 'paie', t: 'Motif',
+-- fin
+
+== cabinet/cabvisites.js | la visite montre les avances
+-- avant
+  b('#pa-regimes',
+-- après
+  // (plateforme) 1.71.0
+  b('#av-panneau', 'Les avances sur salaire : ce qui a été prêté, retenu, et ce qui reste. Un bulletin nouveau en retient l\'échéance du mois ; pour un dossier tenu, « + Avance sur salaire… » les saisit.', { nom: 'Avances', cle: 'avances' });
+  b('#pa-regimes',
+-- fin

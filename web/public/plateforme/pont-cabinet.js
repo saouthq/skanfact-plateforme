@@ -579,6 +579,18 @@
   // Les congés et absences du dossier, dans la forme de l'entreprise.
   /** @param {any[]} objets */
   const congesDe = (objets) => objets.filter((/** @type {any} */ o) => o.collection === 'leaves').map((/** @type {any} */ o) => o.contenu);
+  // 1.71.0 — les avances sur salaire du dossier (la forme de l'entreprise), et les retenues de TOUS ses bulletins qui les
+  // remboursent (une avance d'une année se retient souvent sur la suivante) : le moteur commun en tire ce qui reste.
+  /** @param {any[]} objets */
+  const avancesDe = (objets) => ({
+    avances: objets.filter((/** @type {any} */ o) => o.collection === 'advances').map((/** @type {any} */ o) => o.contenu),
+    remboursements: objets.filter((/** @type {any} */ o) => o.collection === 'payslips').map((/** @type {any} */ o) => {
+      const p = o.contenu || {};
+      const retenues = p.deductions || (p.computed || {}).deductions || [];
+      return { id: p.id, employeeId: p.employeeId, year: Number(p.year), month: Number(p.month),
+        deductions: retenues.filter((/** @type {any} */ d) => d && d.advanceId) };
+    }),
+  });
   // La paie du dossier posée dans le livre d'une année : les salariés, les bulletins de l'année, et pour chacun
   // l'écriture de paie de son mois, que le serveur tient (journal PAIE, au dernier jour du mois).
   /** @param {any} livre @param {any[]} objets @param {string|number} annee @param {string} ent */
@@ -595,6 +607,8 @@
     // Cabinet les tient (1.70.0, migration 0150).
     livre.pointages = objets.filter((/** @type {any} */ o) => o.collection === 'timesheets').map((/** @type {any} */ o) => o.contenu);
     livre.conges = congesDe(objets);
+    // 1.71.0 — ses avances, et ce qui les rembourse : le panneau des avances, et l'échéance d'un bulletin nouveau.
+    Object.assign(livre, avancesDe(objets));
     return livre;
   }
   // Le livre d'une année et sa paie, relue (les gestes de la paie).
@@ -1595,6 +1609,28 @@
       if (!o || typeof o.id !== 'string' || !paieAvant(o.dossierId, 'leaves', o.id)) throw new Error('Ce congé n\'est plus dans le dossier : recharge la page.');
       await ecrirePaieDuDossier(o.dossierId, 'leaves', o.id, null);
       return { ok: true, conges: congesDe(await paieDe(o.dossierId)) };
+    },
+    // 1.71.0 — une avance sur salaire d'un dossier tenu (`advances`, la forme de l'entreprise : le salarié, le jour du
+    // versement, le montant, la retenue de chaque mois, le mode, la note). Seul cet objet s'écrit, dans la révision lue, par
+    // dessus ce que le dossier en garde ; le serveur en écrit le versement (journal de banque ou de caisse). Celles d'un
+    // client sur SkanFact, le serveur refuse de les écrire : il les saisit dans son SkanFact. Le livre de l'année revient
+    // relu, comme après un bulletin : sans lui, le brouillard ne comptait pas le versement écrit ou retiré (vu au test humain).
+    saveAvance: async (/** @type {any} */ o) => {
+      const a = o && o.avance;
+      const jour = (/** @type {unknown} */ v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+      const montant = (/** @type {unknown} */ v) => typeof v === 'number' && Number.isFinite(v) && v > 0 && v < 1e9 && Math.abs(Math.round(v * 1000) - v * 1000) < 1e-6;
+      if (!a || typeof a.id !== 'string' || !a.id || typeof a.employeeId !== 'string' || !a.employeeId) throw new Error('Cette avance ne se lit pas : recharge la page, puis réessaie.');
+      if (!jour(a.date)) throw new Error('Le jour du versement ne se lit pas : écris-le JJ/MM/AAAA.');
+      if (!montant(a.amount) || !montant(a.monthly)) throw new Error('Le montant avancé et la retenue mensuelle se donnent en dinars, au millime au plus.');
+      if (typeof a.method !== 'string' || !/^[a-z_]{1,20}$/.test(a.method)) throw new Error('Ce mode de versement n\'existe pas : choisis-en un dans la liste.');
+      const garde = { id: a.id, employeeId: a.employeeId, date: a.date, amount: a.amount, monthly: a.monthly, method: a.method, note: String(a.note || '').slice(0, 200) };
+      await ecrirePaieDuDossier(o.dossierId, 'advances', a.id, { ...(paieAvant(o.dossierId, 'advances', a.id) || {}), ...garde });
+      return { ok: true, livre: await livreEtPaie(o.dossierId, o.annee) };
+    },
+    supprimerAvance: async (/** @type {any} */ o) => {
+      if (!o || typeof o.id !== 'string' || !paieAvant(o.dossierId, 'advances', o.id)) throw new Error('Cette avance n\'est plus dans le dossier : recharge la page.');
+      await ecrirePaieDuDossier(o.dossierId, 'advances', o.id, null);
+      return { ok: true, livre: await livreEtPaie(o.dossierId, o.annee) };
     },
     // 1.65.0 — la paie du dossier telle que l'entreprise la tient (la forme de la v10), lue avec le livre : les documents de
     // la paie (le bulletin, le journal du mois, l'état CNSS du trimestre) sont ceux de l'entreprise (core.js), sur elle.

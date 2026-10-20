@@ -151,6 +151,16 @@ describe('la paie tenue par le cabinet', () => {
     const congeRefuse = await ecrire(d.ent, d.associe, [{ collection: 'leaves', cle: 'l2', rang: null, revision: null, contenu: conge }]);
     expect(congeRefuse.statut).toBe(403);
     expect(congeRefuse.corps.motif).toBe('Les congés d\'un client sur SkanFact se saisissent dans son SkanFact : son cabinet les lit, et ne les écrit que dans un dossier qu\'il tient.');
+    // (1.71.0) Ses avances, de même : le cabinet les lit avec la paie (un bulletin nouveau en retient l'échéance), et ne les
+    // écrit pas — c'est le client qui verse l'argent. La porte le dit.
+    const avance = { id: 'a1', employeeId: 'sal-1', date: '2025-03-05', amount: 600.75, monthly: 200.25, method: 'virement', note: '' };
+    expect((await appeler('POST', `/entreprises/${d.ent}/dossier-v10`, d.client.jeton,
+      { changements: [{ collection: 'advances', cle: 'a1', rang: null, revision: null, contenu: encoder(avance) }] })).statut).toBe(200);
+    expect(((await appeler('GET', `/entreprises/${d.ent}/paie/dossier`, d.associe.jeton)).corps.objets as { collection: string; contenu: unknown }[])
+      .filter((o) => o.collection === 'advances').map((o) => o.contenu)).toEqual([encoder(avance)]);
+    const avanceRefusee = await ecrire(d.ent, d.associe, [{ collection: 'advances', cle: 'a1', rang: null, revision: 1, contenu: encoder({ ...avance, amount: 900 }) }]);
+    expect(avanceRefusee.statut).toBe(403);
+    expect(avanceRefusee.corps.motif).toBe('Les avances d\'un client sur SkanFact se saisissent dans son SkanFact (c\'est lui qui verse l\'argent) : son cabinet les lit, en retient l\'échéance sur les bulletins, et ne les écrit que dans un dossier qu\'il tient.');
     // Le client voit le pointage que le cabinet a tenu : un seul dossier.
     const vuDuClient = (await appeler('GET', `/entreprises/${d.ent}/dossier-v10`, d.client.jeton)).corps.objets as { collection: string; cle: string }[];
     expect(vuDuClient.filter((o) => o.collection === 'timesheets').map((o) => o.cle)).toEqual(['ts1']);
@@ -173,6 +183,8 @@ describe('la paie tenue par le cabinet', () => {
     // (1.69.0) Ses congés (lus sous un mandat de paie, jamais écrits) et son pointage (tenu sous un mandat de paie).
     await poser('leaves', 'l1', { id: 'l1', employeeId: 'sal-1', kind: 'sans-solde', from: '2025-03-10', to: '2025-03-11' });
     await poser('timesheets', 'ts1', { id: 'ts1', employeeId: 'sal-1', year: 2025, month: 3, jours: {}, hs: {} });
+    // (1.71.0) Ses avances : lues sous un mandat de paie, jamais écrites (depuis 0035, le cabinet pouvait les écrire).
+    await poser('advances', 'a1', { id: 'a1', employeeId: 'sal-1', date: '2025-03-05', amount: 600 });
     const lu = async (p: Personne) => (await enTantQue(pool, p.utilisateur, (tx) => tx.query('select collection, cle from socle.dossier_v10 where entreprise = $1', [d.ent])))
       .rows.map((r) => `${r.collection}/${r.cle}`).sort();  // l'ordre de JavaScript : la collation de la base varie d'un poste à l'autre
     const PLAN = ['_racine/chartAccounts', 'accounts/bq1', 'clients/c1'];
@@ -186,7 +198,7 @@ describe('la paie tenue par le cabinet', () => {
       `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'documents', 'f2', '{}')`, [d.ent]))).rejects.toThrow(/row-level security/);
     // Sous un mandat qui comprend la paie : la paie aussi.
     expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['comptabilite', 'paie'] })).statut).toBe(200);
-    expect(await lu(d.associe)).toEqual(['_racine/chartAccounts', '_racine/payrollSettings', 'accounts/bq1', 'clients/c1', 'employees/sal-1', 'leaves/l1', 'timesheets/ts1']);
+    expect(await lu(d.associe)).toEqual(['_racine/chartAccounts', '_racine/payrollSettings', 'accounts/bq1', 'advances/a1', 'clients/c1', 'employees/sal-1', 'leaves/l1', 'timesheets/ts1']);
     // Le pointage, il le tient : il le modifie, il en ajoute ; les congés, il ne les modifie ni ne les efface ni n'en ajoute.
     await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
       `update socle.dossier_v10 set contenu = '{"id":"ts1","jours":{"12":"A"}}' where entreprise = $1 and collection = 'timesheets'`, [d.ent]))).resolves.toMatchObject({ rowCount: 1 });
@@ -202,8 +214,15 @@ describe('la paie tenue par le cabinet', () => {
       `update socle.dossier_v10 set contenu = '{"tfpRate":2}' where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [d.ent]))).resolves.toMatchObject({ rowCount: 0 });
     await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
       `delete from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [d.ent]))).resolves.toMatchObject({ rowCount: 0 });
+    // (1.71.0) Les avances non plus : ni modifiées, ni effacées, ni ajoutées.
+    await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
+      `update socle.dossier_v10 set contenu = '{"id":"a1","amount":6000}' where entreprise = $1 and collection = 'advances'`, [d.ent]))).resolves.toMatchObject({ rowCount: 0 });
+    await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
+      `delete from socle.dossier_v10 where entreprise = $1 and collection = 'advances'`, [d.ent]))).resolves.toMatchObject({ rowCount: 0 });
+    await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
+      `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'advances', 'a2', '{}')`, [d.ent]))).rejects.toThrow(/row-level security/);
     // Le client lit tout.
-    expect(await lu(d.client)).toEqual(['_racine/chartAccounts', '_racine/company', '_racine/payrollSettings', 'accounts/bq1', 'clients/c1', 'documents/f1', 'employees/sal-1', 'leaves/l1', 'timesheets/ts1', 'timesheets/ts2']);
+    expect(await lu(d.client)).toEqual(['_racine/chartAccounts', '_racine/company', '_racine/payrollSettings', 'accounts/bq1', 'advances/a1', 'clients/c1', 'documents/f1', 'employees/sal-1', 'leaves/l1', 'timesheets/ts1', 'timesheets/ts2']);
   });
 
   it('(1.70.0) les congés d\'un dossier tenu : le cabinet qui le tient les saisit, les corrige et les retire ; un autre cabinet n\'y touche pas', async () => {
@@ -245,6 +264,51 @@ describe('la paie tenue par le cabinet', () => {
       `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'leaves', 'l9', '{}')`, [garage]))).rejects.toThrow(/row-level security/);
     await expect(enTantQue(pool, voisin.utilisateur, (tx) => tx.query(
       `delete from socle.dossier_v10 where entreprise = $1 and collection = 'leaves'`, [garage]))).resolves.toMatchObject({ rowCount: 0 });
+  });
+
+  it('(1.71.0) les avances d\'un dossier tenu : le cabinet qui le tient les saisit, leur versement s\'écrit, un bulletin les retient ; un autre cabinet n\'y touche pas', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);
+    const garage = String((await appeler('POST', `/cabinets/${cabinet}/dossiers`, associe.jeton, { raisonSociale: 'Garage du Port' })).corps.entreprise);
+    expect((await appeler('POST', `/entreprises/${garage}/compta/exercices`, associe.jeton, { annee: 2025, ouverture: [] })).statut).toBe(201);
+    const avance = { id: 'a1', employeeId: 'sal-1', date: '2025-03-05', amount: 600.75, monthly: 200.25, method: 'virement', note: 'Rentrée' };
+    const r = await ecrire(garage, associe, [objet('employees', SALARIE), objet('advances', avance)]);
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    type Lu = { collection: string; cle: string; revision: number; contenu: unknown };
+    const avances = async (p: Personne) => ((await appeler('GET', `/entreprises/${garage}/paie/dossier`, p.jeton)).corps.objets as Lu[])
+      .filter((o) => o.collection === 'advances').map((o) => [o.cle, o.revision, o.contenu]);
+    expect(await avances(associe)).toEqual([['a1', 1, encoder(avance)]]);
+    // Le versement s'écrit le jour même : le compte du personnel au débit, la banque au crédit (un virement).
+    type Ligne = { compte: string; debit: string; credit: string };
+    const versements = async () => ((await appeler('GET', `/entreprises/${garage}/compta/ecritures?limite=500`, associe.jeton)).corps.ecritures as { journal: string; date: string; lignes: Ligne[] }[])
+      .filter((e) => e.journal !== 'PAIE').map((e) => `${e.journal} ${e.date} ${e.lignes.map((l) => `${l.compte} ${l.debit} ${l.credit}`).join(' | ')}`);
+    expect(await versements()).toEqual(['BQ 2025-03-05 425 600.750 0.000 | 532 0.000 600.750']);
+    // Versée en espèces, corrigée : elle sort de la caisse.
+    expect((await ecrire(garage, associe, [{ collection: 'advances', cle: 'a1', rang: null, revision: 1, contenu: encoder({ ...avance, method: 'especes' }) }])).statut).toBe(200);
+    expect(await versements()).toEqual(['CA 2025-03-05 425 600.750 0.000 | 54 0.000 600.750']);
+    // Le bulletin de mars en retient l'échéance : accepté, recalculé au serveur.
+    const saisie = { gross: 1250.5, workedDays: 26, absentDays: 0, bonuses: [], deductions: [{ label: 'Remboursement d\'avance du 05/03/2025', amount: 200.25, advanceId: 'a1' }] };
+    const bul = { id: 'bul-3', employeeId: 'sal-1', year: 2025, month: 3, ...saisie, computed: ecran.computePayslip(SALARIE, saisie, ecran.baremesPaie({})),
+      paidDate: '', accountId: '', method: 'virement', reference: '', issuedAt: '2025-03-31' };
+    const b = await ecrire(garage, associe, [objet('payslips', bul)]);
+    expect(b.statut, JSON.stringify(b.corps)).toBe(200);
+    // Retirée : son versement quitte les écritures.
+    expect((await ecrire(garage, associe, [{ collection: 'advances', cle: 'a1', rang: null, revision: 2, contenu: null }])).statut).toBe(200);
+    expect(await avances(associe)).toEqual([]);
+    expect(await versements()).toEqual([]);
+    // Un autre cabinet, même sous un mandat de paie posé à la main : il lit, il n'écrit pas — la porte le dit, la base refuse.
+    expect((await ecrire(garage, associe, [objet('advances', avance)])).statut).toBe(200);
+    const voisin = await personne('voisin');
+    const c = await appeler('POST', '/cabinets', voisin.jeton, { nom: 'Cabinet Voisin' });
+    await admin.query(`insert into socle.mandat (cabinet, entreprise, accorde_par, debut, perimetre, statut) values ($1, $2, $3, current_date, array['paie'], 'actif')`,
+      [String(c.corps.id), garage, voisin.utilisateur]);
+    expect((await avances(voisin)).map(([cle]) => cle)).toEqual(['a1']);
+    expect((await ecrire(garage, voisin, [objet('advances', { ...avance, id: 'a9' })])).corps.motif)
+      .toBe('Les avances d\'un client sur SkanFact se saisissent dans son SkanFact (c\'est lui qui verse l\'argent) : son cabinet les lit, en retient l\'échéance sur les bulletins, et ne les écrit que dans un dossier qu\'il tient.');
+    await expect(enTantQue(pool, voisin.utilisateur, (tx) => tx.query(
+      `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'advances', 'a9', '{}')`, [garage]))).rejects.toThrow(/row-level security/);
+    await expect(enTantQue(pool, voisin.utilisateur, (tx) => tx.query(
+      `delete from socle.dossier_v10 where entreprise = $1 and collection = 'advances'`, [garage]))).resolves.toMatchObject({ rowCount: 0 });
   });
 
   it('qui peut : l\'associé et le collaborateur Paie, le propriétaire ; pas le collaborateur comptable', async () => {

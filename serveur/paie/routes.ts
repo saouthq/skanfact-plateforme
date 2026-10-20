@@ -38,8 +38,13 @@ const pct = (v: unknown) => versTexte(BigInt(Number(v) || 0), 4);   // un taux e
 
 // Les collections du dossier que la paie tient (brique 43) : les salariés, les bulletins, (1.69.0) le pointage, et
 // (1.70.0) les congés, qui se posent sur la grille du pointage. Ceux d'un client sur SkanFact, le cabinet les lit sans
-// les écrire : il ne les écrit que dans un dossier qu'il tient (0150).
-const COLLECTIONS_PAIE = ['employees', 'payslips', 'timesheets', 'leaves'] as const;
+// les écrire : il ne les écrit que dans un dossier qu'il tient (0150). (1.71.0) De même pour les avances sur salaire, qu'un
+// bulletin nouveau retient (0151).
+const COLLECTIONS_PAIE = ['employees', 'payslips', 'timesheets', 'leaves', 'advances'] as const;
+// Ce que le client décide chez lui : un congé, une avance. Son cabinet ne l'écrit que dans un dossier qu'il tient.
+const DECIDE_CHEZ_LE_CLIENT: Record<string, 'paie.conges_chez_le_client' | 'paie.avances_chez_le_client'> = {
+  leaves: 'paie.conges_chez_le_client', advances: 'paie.avances_chez_le_client',
+};
 const contenuV10: z.ZodType<unknown> = z.lazy(() => z.union([z.number().int(), z.string(), z.boolean(), z.null(), z.array(contenuV10), z.record(z.string(), contenuV10)]));
 const CHANGEMENTS_PAIE = z.object({
   changements: z.array(z.object({
@@ -210,12 +215,13 @@ export function routesPaie(ctx: Contexte): Route<never>[] {
     methode: 'POST', chemin: '/entreprises/:entreprise/paie/dossier', geste: 'paie.dossier.modifier', corps: CHANGEMENTS_PAIE,
     traiter: async ({ params, corps, qui }, tx) => {
       if (!tx || !qui) throw new Error('transaction attendue');
-      // Les congés d'un client sur SkanFact se saisissent chez lui : son cabinet ne les écrit que dans un dossier qu'il
-      // tient. Dit avant que la base ne le refuse (0150).
-      if (corps.changements.some((c) => c.collection === 'leaves')) {
+      // Les congés (et, 1.71.0, les avances) d'un client sur SkanFact se saisissent chez lui : son cabinet ne les écrit que
+      // dans un dossier qu'il tient. Dit avant que la base ne le refuse (0150, 0151).
+      const decide = corps.changements.map((c) => DECIDE_CHEZ_LE_CLIENT[c.collection]).find(Boolean);
+      if (decide) {
         const { ok } = (await tx.query(`select exists (select 1 from socle.mes_entreprises_entieres() e where e = $1)
           or exists (select 1 from socle.mes_dossiers_tenus_au_perimetre('paie') e where e = $1) ok`, [params.entreprise ?? ''])).rows[0] as { ok: boolean };
-        if (!ok) return { statut: 403, corps: { motif: motif('paie.conges_chez_le_client') } };
+        if (!ok) return { statut: 403, corps: { motif: motif(decide) } };
       }
       return { corps: { revisions: await appliquer(tx, params.entreprise ?? '', qui.utilisateur, corps.changements as Changement[]) } };
     },
