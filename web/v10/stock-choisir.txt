@@ -1,0 +1,76 @@
+Ce que la 1.80.0 change à l'application de l'entreprise (docs/recette.md, « 1.80.0 ») : au Stock, « Choisir dans le
+Catalogue » mène au geste. Format : voir sans-paquets.mjs.
+
+« Choisir dans le Catalogue », sur le Stock vide, ouvrait la liste des articles et s'arrêtait là : rien n'y disait quelle
+case cocher, dans quelle fiche (recette du 20/10/2026 — la leçon que la 10.12.0 avait tirée pour les Garanties). On
+choisit l'article ICI ; sa fiche s'ouvre « Suivi en stock » coché, on tape ce qu'il y a en rayon, on enregistre.
+
+== app.js | la fiche d'un article s'ouvre suivie en stock quand on la choisit pour le Stock
+-- avant
+    const suit = { tracked: it.tracked || !!opts.suivre, serialized: it.serialized || !!opts.suivre };
+-- après
+    const suit = { tracked: it.tracked || !!opts.suivre || !!opts.stock, serialized: it.serialized || !!opts.suivre };
+-- fin
+
+== app.js | choisir l'article à suivre en stock, ici
+-- avant
+  function choisirArticleASuivre(done) {
+-- après
+  // (plateforme) 1.80.0 — le même geste pour le Stock : l'article choisi ici, sa fiche ouverte « Suivi en stock » coché.
+  function choisirArticleAStocker(done) {
+    const items = data.catalog.filter(c => !c.tracked && !(c.composants && c.composants.length))
+      .sort((a, b) => (a.label || '').localeCompare(b.label || '', 'fr'))
+      .map(c => ({ v: c.id, label: c.label || '(sans désignation)', sub: c.unit || '' }));
+    if (!items.length) return catalogForm(articleNeuf({ tracked: true }), it => { if (it && done) done(it); }, { creation: true, titre: 'Nouvel article suivi' });
+    modal(`<h2>Quel article suivre en stock ?</h2>
+      <p class="small muted">Sa fiche s'ouvre avec « Suivi en stock » coché : tu indiques ce que tu as en rayon aujourd'hui, le curseur t'attend dans « Stock de départ », puis tu enregistres. Ensuite, tes achats et tes ventes le font bouger tout seuls.</p>
+      <div class="field">${lbl('Article du catalogue', 'stk.tracked')}${combo({ name: 'astocker', items, value: items[0].v, placeholder: '— Choisis un article —', search: 'Rechercher un article…' })}</div>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="astocker-ok">Ouvrir sa fiche</button></div>`,
+    (layer, close) => {
+      bindCombo($('[data-combo=astocker]', layer), { items, placeholder: '— Choisis un article —' });
+      $('#astocker-ok', layer).onclick = () => {
+        const it = data.catalog.find(c => c.id === $('input[name=astocker]', layer).value);
+        if (!it) return toast('Choisis l\'article à suivre en stock.');
+        close();
+        catalogForm(it, x => { if (x && done) done(x); }, { stock: true, focus: 'initialQty', titre: 'Suivre « ' + (it.label || 'l\'article') + ' » en stock' });
+      };
+    });
+  }
+  function choisirArticleASuivre(done) {
+-- fin
+
+== app.js | « Choisir dans le Catalogue » ouvre le choix, pas le Catalogue
+-- avant
+      if ($('#st-pick')) $('#st-pick').onclick = () => navigate('#/catalogue');
+-- après
+      if ($('#st-pick')) $('#st-pick').onclick = () => choisirArticleAStocker(it => { if (it) render(); });
+-- fin
+
+Aux Relances, le geste de la page (relancer) était au fond d'un menu : « Actions », puis « Relancer par email », sur
+chaque ligne (recette du 20/10/2026). Chaque ligne porte désormais « Relancer » à côté d'« Actions » : le ton est
+celui du retard, et le menu garde le reste (WhatsApp, un appel, un paiement, reporter, le relevé).
+
+== app.js | chaque facture à relancer porte « Relancer » à côté d'« Actions »
+-- avant
+        ${rowMenuCell(x.doc.id)}</tr>`;
+-- après
+        ${rowMenuCell(x.doc.id, `<button type="button" class="btn btn-sm" data-relancer="${x.doc.id}" title="Par email, au ton « ${h(C.REMINDER_LABELS[x.level])} »">Relancer</button> `)}</tr>`;
+-- fin
+
+== app.js | « Relancer » ouvre le message de la relance, au ton du retard
+-- avant
+      $$('[data-qrem]').forEach(b => b.onclick = () => sendByEmail(docById(b.dataset.qrem), 'relanceDevis', null, () => {}));
+-- après
+      $$('[data-qrem]').forEach(b => b.onclick = () => sendByEmail(docById(b.dataset.qrem), 'relanceDevis', null, () => {}));
+      // (plateforme) 1.80.0 — le geste de la page, sur sa ligne.
+      $$('[data-relancer]').forEach(b => b.onclick = () => { const x = find(b.dataset.relancer); if (x) sendReminder(x); });
+-- fin
+
+== style.css | le numéro d'une facture à relancer ne se coupe pas
+-- avant
+.modal > .modal-actions:last-child { position: sticky; bottom: -26px; margin-bottom: -26px; padding: 12px 0 26px; background: var(--panel); z-index: 3; }
+-- après
+.modal > .modal-actions:last-child { position: sticky; bottom: -26px; margin-bottom: -26px; padding: 12px 0 26px; background: var(--panel); z-index: 3; }
+/* (plateforme) 1.80.0 — « FAC-2026-004 » ne se coupe pas en deux quand la ligne porte « Relancer » et « Actions ». */
+#r-wrap table.list td:first-child a { white-space: nowrap; }
+-- fin

@@ -6497,6 +6497,26 @@
   // « Choisir une prestation à suivre… » menait au Catalogue, et rien n'y disait quelle case cocher,
   // dans quelle fiche (10.12.0 — un bouton qui change de page mène au GESTE, H-E29). On choisit
   // l'article ICI ; sa fiche s'ouvre suivie par numéro, à enregistrer. Stock et Garanties l'appellent.
+  // (plateforme) 1.80.0 — le même geste pour le Stock : l'article choisi ici, sa fiche ouverte « Suivi en stock » coché.
+  function choisirArticleAStocker(done) {
+    const items = data.catalog.filter(c => !c.tracked && !(c.composants && c.composants.length))
+      .sort((a, b) => (a.label || '').localeCompare(b.label || '', 'fr'))
+      .map(c => ({ v: c.id, label: c.label || '(sans désignation)', sub: c.unit || '' }));
+    if (!items.length) return catalogForm(articleNeuf({ tracked: true }), it => { if (it && done) done(it); }, { creation: true, titre: 'Nouvel article suivi' });
+    modal(`<h2>Quel article suivre en stock ?</h2>
+      <p class="small muted">Sa fiche s'ouvre avec « Suivi en stock » coché : tu indiques ce que tu as en rayon aujourd'hui, le curseur t'attend dans « Stock de départ », puis tu enregistres. Ensuite, tes achats et tes ventes le font bouger tout seuls.</p>
+      <div class="field">${lbl('Article du catalogue', 'stk.tracked')}${combo({ name: 'astocker', items, value: items[0].v, placeholder: '— Choisis un article —', search: 'Rechercher un article…' })}</div>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="astocker-ok">Ouvrir sa fiche</button></div>`,
+    (layer, close) => {
+      bindCombo($('[data-combo=astocker]', layer), { items, placeholder: '— Choisis un article —' });
+      $('#astocker-ok', layer).onclick = () => {
+        const it = data.catalog.find(c => c.id === $('input[name=astocker]', layer).value);
+        if (!it) return toast('Choisis l\'article à suivre en stock.');
+        close();
+        catalogForm(it, x => { if (x && done) done(x); }, { stock: true, focus: 'initialQty', titre: 'Suivre « ' + (it.label || 'l\'article') + ' » en stock' });
+      };
+    });
+  }
   function choisirArticleASuivre(done) {
     const items = data.catalog.filter(c => !c.serialized)
       .sort((a, b) => (a.label || '').localeCompare(b.label || '', 'fr'))
@@ -6650,7 +6670,7 @@
     const already = neuf ? null : C.stockOf(data, it.id);   // stock déjà constitué : on ne rejoue pas le départ
     // `suivre` (10.12.0) : la fiche d'un article EXISTANT s'ouvre cases cochées, depuis « choisir une
     // prestation à suivre ». Rien n'est écrit sur l'article tant qu'on n'a pas enregistré.
-    const suit = { tracked: it.tracked || !!opts.suivre, serialized: it.serialized || !!opts.suivre };
+    const suit = { tracked: it.tracked || !!opts.suivre || !!opts.stock, serialized: it.serialized || !!opts.suivre };
     modal(`<h2>${opts.titre || (neuf ? motsCatalogue().nouveau : `Modifier ${motsCatalogue().le}`)}</h2>
       <form id="kf" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Désignation', 'cat.catalog')}<input type="text" name="label" value="${h(it.label)}"></label>
@@ -8168,7 +8188,7 @@
         <td class="r">${C.money(x.remaining, docCur(x.doc))}</td>
         <td>${x.lastReminder ? `${C.fmtDate(x.lastReminder.date)} <span class="small muted">(${x.lastReminder.channel === 'tel' ? 'téléphone' : 'email'}, niveau ${x.lastReminder.level}, ${x.reminders.length} au total)</span>${x.lastReminder.note ? `<div class="small muted">« ${h(x.lastReminder.note)} »</div>` : ''}` : '<span class="muted">jamais</span>'}
           ${x.snoozed ? `<div class="small warn-link">reporté au ${C.fmtDate(x.remindAfter)}</div>` : ''}</td>
-        ${rowMenuCell(x.doc.id)}</tr>`;
+        ${rowMenuCell(x.doc.id, `<button type="button" class="btn btn-sm" data-relancer="${x.doc.id}" title="Par email, au ton « ${h(C.REMINDER_LABELS[x.level])} »">Relancer</button> `)}</tr>`;
       const relCols = [
         { key: 'number', label: 'Facture', asc: true, val: x => x.doc.number || '' },
         { key: 'client', label: 'Client', asc: true, val: x => clientName(x.doc.clientId).toLowerCase() },
@@ -8242,6 +8262,8 @@
         ];
       });
       $$('[data-qrem]').forEach(b => b.onclick = () => sendByEmail(docById(b.dataset.qrem), 'relanceDevis', null, () => {}));
+      // (plateforme) 1.80.0 — le geste de la page, sur sa ligne.
+      $$('[data-relancer]').forEach(b => b.onclick = () => { const x = find(b.dataset.relancer); if (x) sendReminder(x); });
       // `if (e.target.closest('button')) return` comme les sept autres liaisons de ligne : sans lui,
       // un bouton posé DANS la ligne agit ET fait quitter la page. « Attestation reçue » cochait la
       // case puis emmenait sur la facture — on ne voyait jamais que c'était noté.
@@ -14716,7 +14738,7 @@
       };
       if ($('#st-csv')) $('#st-csv').onclick = exportStock;
       if ($('#st-new')) $('#st-new').onclick = () => catalogForm(articleNeuf({ tracked: true }), it => { if (it) render(); }, { creation: true, titre: 'Nouvel article suivi' });
-      if ($('#st-pick')) $('#st-pick').onclick = () => navigate('#/catalogue');
+      if ($('#st-pick')) $('#st-pick').onclick = () => choisirArticleAStocker(it => { if (it) render(); });
     };
     const draw = dansUnLot(() => {
       $('#st-head').innerHTML = stHead(); bindStHead(); poserGuideMoi();

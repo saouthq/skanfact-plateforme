@@ -1,0 +1,39 @@
+Ce que la 1.80.0 change au Cabinet (docs/recette.md, « 1.80.0 ») : une échéance qui n'est pas prête le dit avant
+d'être marquée déposée. Format : voir sans-paquets.mjs.
+
+« Marquer déposée », sur la TVA de septembre qui disait « 0 prêt · 1 à valider », la pointait déposée d'un clic, sans un
+mot (recette du 20/10/2026) : un pense-bête qui ment au lendemain. Le geste reste permis (le comptable a pu déposer
+autrement), mais il dit d'abord ce qui n'est pas prêt, et le pointage ne se pose que si on le confirme.
+
+== cabinet/app.js | le bouton de l'échéance sait ce qui n'est pas prêt
+-- avant
+          : `<button class="btn btn-sm ${depose ? '' : 'btn-ghost'}" data-depot="${esc(cle)}" aria-label="${esc(depLab + ' — ' + e.label)}">${esc(depLab)}</button>`}</div>
+-- après
+          : `<button class="btn btn-sm ${depose ? '' : 'btn-ghost'}" data-depot="${esc(cle)}" data-depot-lab="${esc(e.label)}" data-pas-prets="${esc([e.provisoires.length ? pl(e.provisoires.length, 'client') + ' à valider' : '', e.manquants.length ? pl(e.manquants.length, 'client') + ' sans ' + (e.mois.length > 1 ? 'les mois' : 'le mois') : '', (e.aSaisir || []).length ? pl(e.aSaisir.length, 'client') + ' à saisir au cabinet' : ''].filter(Boolean).join(', '))}" aria-label="${esc(depLab + ' — ' + e.label)}">${esc(depLab)}</button>`}</div>
+-- fin
+
+== cabinet/app.js | une échéance qui n'est pas prête le dit avant d'être marquée déposée
+-- avant
+        const apres = avant.includes(cle) ? avant.filter(x => x !== cle) : avant.concat([cle]);
+-- après
+        const apres = avant.includes(cle) ? avant.filter(x => x !== cle) : avant.concat([cle]);
+        // (plateforme) 1.80.0 — le pense-bête ne ment pas au lendemain : ce qui n'est pas prêt se lit avant le geste.
+        if (!avant.includes(cle) && b2.dataset.pasPrets && !await confirmDialog(`${b2.dataset.depotLab} n'est pas prête`,
+          `<p>Pas encore prête dans SkanFact : ${esc(b2.dataset.pasPrets)}.</p><p class="muted small">Tu l'as déposée autrement ? Marque-la déposée. Sinon, ouvre d'abord ces dossiers.</p>`,
+          'Marquer déposée quand même', false, 'Pas encore')) return;
+-- fin
+
+Le calendrier vide disait « Droguerie du Port n'a encore aucune écriture » à un client qui en avait quatre, au
+brouillard, ce mois-ci (recette du 20/10/2026) : une échéance ne naît que pour un mois TERMINÉ, et la phrase affirmait
+un fait qu'elle ne vérifiait pas. Elle dit la vraie règle, juste dans les deux cas.
+
+== cabinet/app.js | le calendrier vide dit sa vraie raison : aucun mois terminé à déclarer
+-- avant
+        SkanFact, et ceux dont tu tiens la comptabilité ici. ${seul ? `<b>${esc(seul.name)}</b> n'a encore aucune écriture`
+    : `Tes ${clients.length} clients n'ont encore aucune écriture`} : dès que ses livres en ont une, ses déclarations
+        apparaissent ici.</p>
+-- après
+        SkanFact, et ceux dont tu tiens la comptabilité ici, mois par mois une fois le mois terminé. ${seul ? `<b>${esc(seul.name)}</b> n'a encore rien à déclarer sur un mois terminé`
+    : `Tes ${clients.length} clients n'ont encore rien à déclarer sur un mois terminé`} : leurs déclarations apparaissent ici
+        dès la fin du premier mois qui a des écritures.</p>
+-- fin

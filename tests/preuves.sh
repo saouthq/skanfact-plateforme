@@ -18135,6 +18135,24 @@ prouver 'la saisie du Cabinet redessinée sous la main' 'web/public/v10/cabinet/
   'false ||' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
 
+# ── La recette alpha, suite (1.80.0 ; docs/recette.md) ──
+prouver 'le Stock qui mène au Catalogue au lieu du geste' 'web/public/v10/app.js' \
+  "\$('#st-pick').onclick = () => choisirArticleAStocker(" \
+  "\$('#st-pick').onclick = () => navigate('#/catalogue') && choisirArticleAStocker(" \
+  'au Stock, « Choisir dans le Catalogue » ouvre le choix, puis la fiche suivie en stock, le curseur dans le stock de départ'
+prouver 'le geste des Relances au fond du menu' 'web/public/v10/app.js' \
+  "\$\$('[data-relancer]').forEach(b => b.onclick = () => { const x = find(b.dataset.relancer); if (x) sendReminder(x); });" \
+  '' \
+  'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas'
+prouver 'le numéro d'"'"'une facture à relancer coupé en deux' 'web/public/v10/style.css' \
+  '#r-wrap table.list td:first-child a { white-space: nowrap; }' \
+  '' \
+  'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas'
+prouver 'une échéance pas prête marquée déposée sans un mot' 'web/public/v10/cabinet/app.js' \
+  'if (!avant.includes(cle) && b2.dataset.pasPrets && !await confirmDialog(' \
+  'if (false && !await confirmDialog(' \
+  'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

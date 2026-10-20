@@ -495,6 +495,9 @@ vaut pour tout le dépôt.*
     des visites, le pied des fenêtres, l'achat réglé, la rangée de la caisse, la case de date qui se sélectionne
     (`web/v10/visite-proposee.txt`) ; le livre du Cabinet relu quand il a bougé (`relireLeLivreSiChange`,
     `web/v10/livre-a-jour.txt`).
+  - **La recette alpha, suite** (1.80.0 ; `docs/recette.md`) : le choix du Stock (`choisirArticleAStocker`) et « Relancer »
+    sur la ligne (`web/v10/stock-choisir.txt`) ; l'échéance pas prête et le calendrier vide du Cabinet
+    (`web/v10/echeance-avant.txt`).
   - **Le lot débutant (2)** (12/10/2026 ; `docs/debutant.md`, `web/v10/debutant-2.txt`) : les gênants d'un commerçant
     qui débute, refaits à la souris sur une quincaillerie. Le mot du catalogue suit le métier (`motsCatalogue` :
     « article » pour le commerce, la restauration, l'artisanat) ; une dépense sans fournisseur se range sous UNE fiche

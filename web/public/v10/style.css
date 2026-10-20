@@ -755,6 +755,8 @@ table.lignes-doc th { padding-bottom: 4px; }
 .modal .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 20px; }
 /* (plateforme) 1.79.0 — une fenêtre qui défile garde ses boutons à l'écran (le pied est le dernier bloc de la fenêtre). */
 .modal > .modal-actions:last-child { position: sticky; bottom: -26px; margin-bottom: -26px; padding: 12px 0 26px; background: var(--panel); z-index: 3; }
+/* (plateforme) 1.80.0 — « FAC-2026-004 » ne se coupe pas en deux quand la ligne porte « Relancer » et « Actions ». */
+#r-wrap table.list td:first-child a { white-space: nowrap; }
 
 /* ---------- toast ---------- */
 #toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%) translateY(6px); background: var(--text); color: #fff; padding: 11px 18px; border-radius: 12px; font-size: 13px; font-weight: 500; opacity: 0; transition: opacity .18s, transform .18s; pointer-events: none; z-index: 950; box-shadow: 0 10px 30px rgba(20,40,60,.25); }

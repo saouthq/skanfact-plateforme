@@ -3,10 +3,10 @@
   "branche": "beta",
   "commit": "35bfb8c",
   "reprisLe": "2026-10-20",
-  "adaptations": 1240,
+  "adaptations": 1249,
   "fichiers": {
-    "app.js": "798ec92c78eec21380ea9b2c03fd6b0fcc9b001c4d9a8b9044cd404c68a69a80",
-    "cabinet/app.js": "15207db10a3328d2567b32b9d6221452bd64f36fc59fe16e6f076017c8c5899b",
+    "app.js": "58e28e2fdb2c2af41c5a3adfc8fcbea3a218e6bc5da3ccc41d59401c59caa271",
+    "cabinet/app.js": "d79bfc84b75ab19eee735b6626273181e466d704e4369f44ff44815e5f0e8e2f",
     "cabinet/cabcore.js": "70682c43690aa1f43f1679c0cf5f33213344d79389aa6a9ced985245072e2bf9",
     "cabinet/cabguide.js": "967046437dfc86b213b868e08548a669a8d507410ce8670db9caf7822f761895",
     "cabinet/cabinet.css": "87d227365f0446d8d2aa86cabb94724f8c65c37468fd47250c584ab55cc2b4a4",
@@ -24,7 +24,7 @@
     "placement.js": "2db5b35f4ea8674909daa6587f289ab09e0b95620c62434910e946b28a39d77e",
     "reglages.js": "6bf274073f5ec91c6b2af6923b5f8c5669d55f9b983f59a74c4127dfe1f780b6",
     "rowmenu.js": "9ce5fb1062efcca4890e4e0b93e0ae33feb6cfdd09a76e6a1484d2eadba5d146",
-    "style.css": "1539146ea59d8e0198a3a969c35af67de315af646d82a5083f37359bc039097a",
+    "style.css": "7c9bdae661cf81fe2ea78e7644d93c62eac1433037a89665a2af0a129abb6c89",
     "teif.js": "87e7870460227508739bac49cf77e13c4435c2e7c1ddbaf99f4a9f31679b45d4",
     "visite.js": "fd35828568081770dd67a5311cbfa48066fd92c7ad8894499901996bb594c2e5",
     "visites.js": "73cbac54c4c0dd9228f80467461d88dece23a84c5a5884c226c25ae42dc7e49b"

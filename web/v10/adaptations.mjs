@@ -796,4 +796,8 @@ export const ADAPTATIONS = [
   ...lireFichier('visite-proposee.txt'),
   // ── Le livre d'un client sur SkanFact se relit quand il a bougé (1.79.0) : la déclaration et l'en-tête disent le même chiffre ──
   ...lireFichier('livre-a-jour.txt'),
+  // ── Au Stock, « Choisir dans le Catalogue » mène au geste (1.80.0) : l'article choisi, sa fiche suivie en stock ──
+  ...lireFichier('stock-choisir.txt'),
+  // ── Une échéance pas prête le dit avant d'être marquée déposée (1.80.0) ──
+  ...lireFichier('echeance-avant.txt'),
 ];

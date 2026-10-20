@@ -2,7 +2,8 @@
 // livre-journal d'un client pendant que des mouvements y arrivent :
 //   - en revenant sur la fenêtre, « Consulter » compte le nouveau brouillard sans recharger la page ;
 //   - en passant à « Déclarer », l'en-tête du livre et la déclaration sont lus au même moment : un seul chiffre ;
-//   - pendant une saisie, rien ne se redessine sous la main.
+//   - pendant une saisie, rien ne se redessine sous la main ;
+//   - (1.80.0) aux Échéances, une déclaration pas prête le dit avant d'être marquée déposée.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -91,6 +92,29 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     await p.evaluate(() => window.dispatchEvent(new Event('focus')));
     await p.waitForTimeout(1500);
     expect(await p.evaluate(() => (document.querySelector('#c-livres')?.firstElementChild as (Element & { marque?: number }) | null)?.marque)).toBe(1);
+
+    // 4. (1.80.0) Aux Échéances : sans mois terminé, le calendrier vide dit sa vraie raison ; une pièce du mois dernier au
+    //    brouillard, et la TVA de ce mois-là est « à valider » : « Marquer déposée » le dit avant de pointer.
+    await p.evaluate(() => { location.hash = '#/echeances'; });
+    await expect.poll(() => p.locator('#view').innerText(), { timeout: 15_000 }).toMatch(/Droguerie du Port n'a encore rien à déclarer sur un mois terminé/);
+    const premierDuMois = new Date(`${aujourdhui.slice(0, 7)}-01T12:00:00Z`);
+    const moisDernier = new Date(premierDuMois.getTime() - 5 * 86_400_000).toISOString().slice(0, 10);
+    await envoyer([{ ...frais('m5', '1.5'), contenu: { ...frais('m5', '1.5').contenu, date: moisDernier } }]);
+    await p.reload();
+    const depot = p.locator('[data-depot]').first();
+    await depot.waitFor({ timeout: 15_000 });
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    expect(await depot.innerText()).toBe('Marquer déposée');
+    await depot.click();
+    const fenetre = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fenetre.locator('h2').innerText()).toMatch(/n'est pas prête$/);
+    expect(await fenetre.innerText()).toMatch(/Pas encore prête dans SkanFact\s*:\s*1 client à valider\./);
+    await fenetre.getByRole('button', { name: 'Pas encore', exact: true }).click();
+    await p.waitForTimeout(500);
+    expect(await p.locator('[data-depot]').first().innerText()).toBe('Marquer déposée');
+    await p.locator('[data-depot]').first().click();
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Marquer déposée quand même', exact: true }).click();
+    await expect.poll(() => p.locator('[data-depot]').first().innerText()).toBe('Annuler « déposée »');
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

@@ -301,6 +301,34 @@ suit.
   « Déclarer » qui dit le chiffre de l'en-tête, la saisie qui ne se redessine pas.
 - Seize preuves (`tests/preuves.sh`, « La recette alpha du 20/10/2026 »).
 
+## 1.80.0 — la recette alpha, suite : les gestes au bon endroit (20/10/2026)
+
+### Ce que le lot corrige
+
+- **Au Stock, « Choisir dans le Catalogue »** ouvrait le Catalogue et s'arrêtait là : rien n'y disait quelle case
+  cocher. On choisit l'article ici ; sa fiche s'ouvre « Suivi en stock » coché, le curseur dans « Stock de départ ».
+- **Aux Relances, le geste de la page** était au fond d'un menu (« Actions », puis « Relancer par email ») : chaque
+  ligne porte « Relancer », au ton du retard ; le menu garde le reste. Le numéro de la facture ne se coupe plus en deux.
+- **Au Cabinet, « Marquer déposée »** pointait une TVA « 0 prêt · 1 à valider » d'un clic, sans un mot : ce qui n'est pas
+  prêt se lit avant, et le pointage ne se pose que confirmé (« Marquer déposée quand même »).
+- **Le calendrier vide du Cabinet** disait « n'a encore aucune écriture » à un client qui en avait quatre ce mois-ci :
+  il dit la vraie règle (une échéance naît à la fin d'un mois qui a des écritures).
+
+### Vu bon en passant (20/10/2026)
+
+Le parcours du support croisé : Sami écrit depuis le Stock (« joint : la version et la page »), la console le voit
+avec son contexte et une réponse type du Stock, Amira répond au Ctrl+Entrée, Sami lit la réponse dans l'application.
+La console compte les pièces émises de Trabelsi comme la base (7 : trois factures, un avoir, trois tickets). L'accueil,
+la trésorerie et les relances disent les mêmes restes à encaisser, au millime.
+
+### Ce qui le prouve
+
+- `tests/web/recette-alpha.test.ts` : le choix du Stock et sa fiche ; « Relancer » sur la ligne d'une facture émise
+  à la souris, son numéro sur une ligne (sur un écran de 1100 px).
+- `tests/web/cabinet-livre-a-jour.test.ts` : le calendrier vide qui dit sa règle, l'échéance pas prête qui le dit avant
+  d'être pointée.
+- Cinq preuves (`tests/preuves.sh`, « 1.80.0 »).
+
 ## Ce qui reste (les lots suivants)
 
 1. **1.79** : choisir son offre dans l'application (« Je choisis cette offre », que la console voit dans « À décider »),

@@ -10206,9 +10206,9 @@
     view.innerHTML = `<div class="page-head"><h1>Échéances</h1></div>
       <div class="panel"><h2>Aucune échéance à suivre pour l'instant</h2>
         <p>Le calendrier suit les clients dont les livres ont des écritures : ceux qui enregistrent leurs pièces dans
-        SkanFact, et ceux dont tu tiens la comptabilité ici. ${seul ? `<b>${esc(seul.name)}</b> n'a encore aucune écriture`
-    : `Tes ${clients.length} clients n'ont encore aucune écriture`} : dès que ses livres en ont une, ses déclarations
-        apparaissent ici.</p>
+        SkanFact, et ceux dont tu tiens la comptabilité ici, mois par mois une fois le mois terminé. ${seul ? `<b>${esc(seul.name)}</b> n'a encore rien à déclarer sur un mois terminé`
+    : `Tes ${clients.length} clients n'ont encore rien à déclarer sur un mois terminé`} : leurs déclarations apparaissent ici
+        dès la fin du premier mois qui a des écritures.</p>
         <div class="modal-actions"><button class="btn btn-primary" id="ech-livre">${seul ? `Ouvrir la comptabilité ${esc(K.de(seul.name))}` : 'Choisir un client à tenir…'}</button></div></div>`;
     $('#ech-livre').onclick = () => { location.hash = seul ? `#/dossier/${seul.id}/comptabilite` : '#/dossiers'; };
     typographie(view);
@@ -10297,7 +10297,7 @@
               sur cette page — c'est dans la Déclaration du client que le pointage se défait. */''}
         <div class="ech-fin">${e.toutDepose && !K.echeanceDeposee(S, e)
           ? `<span class="small muted">Notée déposée dans la Déclaration de ${e.clients > 1 ? 'chaque client' : 'ce client'}.</span>`
-          : `<button class="btn btn-sm ${depose ? '' : 'btn-ghost'}" data-depot="${esc(cle)}" aria-label="${esc(depLab + ' — ' + e.label)}">${esc(depLab)}</button>`}</div>
+          : `<button class="btn btn-sm ${depose ? '' : 'btn-ghost'}" data-depot="${esc(cle)}" data-depot-lab="${esc(e.label)}" data-pas-prets="${esc([e.provisoires.length ? pl(e.provisoires.length, 'client') + ' à valider' : '', e.manquants.length ? pl(e.manquants.length, 'client') + ' sans ' + (e.mois.length > 1 ? 'les mois' : 'le mois') : '', (e.aSaisir || []).length ? pl(e.aSaisir.length, 'client') + ' à saisir au cabinet' : ''].filter(Boolean).join(', '))}" aria-label="${esc(depLab + ' — ' + e.label)}">${esc(depLab)}</button>`}</div>
       </div></div>`;
     };
 
@@ -10328,6 +10328,10 @@
         const cle = b2.dataset.depot;
         const avant = ((S.settings || {}).depots || []).slice();
         const apres = avant.includes(cle) ? avant.filter(x => x !== cle) : avant.concat([cle]);
+        // (plateforme) 1.80.0 — le pense-bête ne ment pas au lendemain : ce qui n'est pas prêt se lit avant le geste.
+        if (!avant.includes(cle) && b2.dataset.pasPrets && !await confirmDialog(`${b2.dataset.depotLab} n'est pas prête`,
+          `<p>Pas encore prête dans SkanFact : ${esc(b2.dataset.pasPrets)}.</p><p class="muted small">Tu l'as déposée autrement ? Marque-la déposée. Sinon, ouvre d'abord ces dossiers.</p>`,
+          'Marquer déposée quand même', false, 'Pas encore')) return;
         const poser = async (liste, refaire) => {
           try {
             S = await api.saveCabinet({
