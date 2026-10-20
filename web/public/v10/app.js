@@ -11446,6 +11446,9 @@
         ${field(lbl('CIN', 'pay.cin'), 'cin', e.cin || '', 'text', '')}
         ${field(lbl('Matricule CNSS', 'pay.cnss'), 'cnss', e.cnss || '', 'text', '')}
         <label class="field span-2">${lbl('Identité CNSS (comme sur la carte d\'assuré)', 'pay.cnssName')}<input type="text" name="cnssName" value="${h(e.cnssName || '')}" placeholder="Prénom, prénom du père, nom"></label>
+        ${/* (plateforme) 1.72.0 — la civilité : les documents du personnel la lisaient (`gender`), aucun écran ne l'écrivait —
+             une salariée y était « employé », « l'intéressé ». */''}
+        <label class="field">${lbl('Civilité', 'pay.gender')}<select name="gender"><option value="">— à préciser —</option>${C.CIVILITES.map(([v, l]) => `<option value="${v}" ${e.gender === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
         ${field(lbl('Poste', 'pay.position'), 'position', e.position || '', 'text', 'placeholder="Technicien"')}
         <label class="field">${lbl('Contrat', 'pay.contract')}<select name="contract">${C.CONTRACT_TYPES.map(([v, l]) => `<option value="${v}" ${e.contract === v ? 'selected' : ''} title="${h(l)}">${h(l.split(' —')[0])}</option>`).join('')}</select></label>
         ${dateFieldHtml(lbl('Date d\'embauche', 'pay.hireDate'), 'hireDate', e.hireDate || '', { clearable: true })}
@@ -11500,7 +11503,12 @@
         dessinerPrimes();
         $('#ef', root).oninput = $('#ef', root).onchange = hint; hint();
         // Ouverte pour UNE case (celle que le fichier CNSS du trimestre réclame), elle y met le curseur.
-        if (opts && opts.focus) { const c = $(`[name=${opts.focus}]`, root); if (c) c.focus(); }
+        // (plateforme) 1.72.0 — une date est un couple (le champ caché nommé, le champ visible) : le curseur va dans le visible.
+        if (opts && opts.focus) {
+          const c0 = $(`[name=${opts.focus}]`, root);
+          const c = c0 && c0.type === 'hidden' && c0.closest('.datefield') ? $('.d-txt', c0.closest('.datefield')) : c0;
+          if (c) c.focus();
+        }
         $('#ok', root).onclick = () => {
           if (enLecture('employees')) return refus('#ef input[name=name]', refusLecture('employees'));
           const v = formValues($('#ef', root));
@@ -11873,22 +11881,20 @@
   }
 
   // Générer un document du personnel : on montre ce qu'il contiendra avant de produire le PDF.
-  function hrDocForm(employee, done) {
+  // (plateforme) 1.72.0 — rouverte après une fiche renseignée (la civilité, la sortie), elle reprend le document choisi.
+  function hrDocForm(employee, done, kindDemande) {
     const e = employee;
     const cur = company().currency;
     const st = C.payrollSettings(data);
-    const bal = C.leaveBalance(data, e.id, Number((e.endDate || C.today()).slice(0, 4)));
-    const last = C.payslipsOf(data).filter(p => p.employeeId === e.id)[0];
-    const daily = last ? C.round3(last.c.gross / (Number(st.workedDays) || 26)) : C.round3(e.grossSalary / 26);
-    const lines = [
-      { label: 'Salaire du mois en cours', amount: 0 },
-      { label: `Indemnité de congés non pris (${pct(Math.max(0, bal.remaining))} jour${sPl(Math.max(0, bal.remaining))})`, amount: C.round3(daily * Math.max(0, bal.remaining)) },
-      { label: 'Indemnité de préavis', amount: 0 },
-      { label: 'Indemnité de fin de contrat', amount: 0 }
-    ];
+    // (plateforme) 1.72.0 — les lignes proposées et l'indemnité de congés non pris viennent du moteur commun (compta.js) :
+    // celles que le document imprime, et que le Cabinet propose aussi.
+    const lines = C.lignesDuSolde(data, e.id, C.today());
+    const bal = { remaining: C.indemniteConges(data, e.id, C.today()).solde };
+    const resteAvances = C.round3(C.advancesOf(data, e.id).filter(a => !a.done).reduce((t, a) => t + a.remaining, 0));
+    let dateVue = C.today();
     modal(`<h2>Document pour ${h(e.name)}</h2>
       <form id="hf" class="grid-2">
-        <label class="field span-2">${lbl('Document', 'hr.doc')}<select name="kind">${C.HR_DOCS.map(([v, lab]) => `<option value="${v}">${lab}</option>`).join('')}</select></label>
+        <label class="field span-2">${lbl('Document', 'hr.doc')}<select name="kind">${C.HR_DOCS.map(([v, lab]) => `<option value="${v}" ${v === kindDemande ? 'selected' : ''}>${lab}</option>`).join('')}</select></label>
         ${dateFieldHtml(lbl('Daté du', 'hr.docDate'), 'date', C.today(), {})}
         <label class="check" style="align-self:end"><input type="checkbox" name="withSalary"> Mentionner le salaire ${info('hr.withSalary')}</label>
       </form>
@@ -11897,6 +11903,7 @@
            attestation disait « Je soussigné agissant en qualité de représentant légal » sans nom.
            Le champ vit dans la fiche société ; ici, on le dit AVANT d'exporter. */''}
       ${company().managerName ? '' : `<div class="warn-box mb" id="hf-gerant">Le document dira « Je soussigné » <b>sans nom</b> : le nom du gérant n'est pas renseigné. <button type="button" class="btn btn-sm" id="hf-gerant-go">Renseigner le gérant…</button></div>`}
+      ${e.gender ? '' : `<div class="warn-box mb" id="hf-civ">Le document parlera de ${h(e.name)} au masculin, sans « Madame » ni « Monsieur » : sa civilité n'est pas renseignée. <button type="button" class="btn btn-sm" id="hf-civ-go">Renseigner sa civilité…</button></div>`}
       <div class="panel" id="hf-solde" hidden><h2>Solde de tout compte (${h(C.normCurrency(company().currency))})</h2>
         <p class="small muted mb">Ce que tu dois encore au salarié à son départ. Les montants sont à toi : SkanFact propose seulement l'indemnité de congés non pris, calculée sur son dernier salaire. <em>À VÉRIFIER : les indemnités dépendent du motif de la rupture et de la convention collective.</em></p>
         <div id="hf-lines"></div>
@@ -11904,6 +11911,9 @@
              le solde négatif disparaissait du seul document où il compte. On le dit ; la retenue
              éventuelle est une question de droit, elle se décide avec le comptable. */''}
         ${bal.remaining < 0 ? `<p class="small warn-text mt">Il a pris ${pct(-bal.remaining)} jour${sPl(-bal.remaining)} de congé de plus qu'il n'en a acquis : l'indemnité ci-dessus vaut donc zéro. <em>À VÉRIFIER avec ton comptable : ces jours peuvent se retenir sur le solde.</em></p>` : ''}
+        ${/* (plateforme) 1.72.0 — ses avances pas encore remboursées : le solde ne les retient pas (un bulletin les rembourse,
+             et une avance retenue ici resterait ouverte dans la paie). */''}
+        ${resteAvances > 0 ? `<p class="small mt" id="hf-avances">Il reste <b>${C.money(resteAvances, cur)}</b> à rembourser sur ses avances. Ce document ne les retient pas : un bulletin les rembourse, et ce qu'il ne peut pas retenir se règle avec lui. <em>À VÉRIFIER avec ton comptable : ce qui peut se retenir au départ.</em></p>` : ''}
       </div>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Exporter en PDF</button></div>`,
       (root, close) => {
@@ -11924,6 +11934,7 @@
           $$('[data-f]', $('#hf-lines', root)).forEach(el => el.oninput = () => {
             const i = Number(el.closest('tr').dataset.i);
             lines[i][el.dataset.f] = el.type === 'number' ? Number(el.value) : el.value;
+            lines[i].touche = true;
             $('#hf-total', root).textContent = C.money(total(), cur);
           });
           $$('[data-x]', $('#hf-lines', root)).forEach(b => b.onclick = () => { lines.splice(Number(b.dataset.x), 1); drawLines(); });
@@ -11934,15 +11945,27 @@
           const desc = (C.HR_DOCS.find(x => x[0] === v.kind) || [])[2] || '';
           $('#hf-desc', root).textContent = desc;
           $('#hf-solde', root).hidden = v.kind !== 'solde';
+          // (plateforme) 1.72.0 — sans date de sortie, la date du document arrête le compte des congés : la ligne proposée la
+          // suit (celle que le document imprimera), tant qu'on n'y a pas touché.
+          if (v.date && v.date !== dateVue) {
+            dateVue = v.date;
+            const l = lines.find(x => x.cle === 'conges' && !x.touche), n = C.lignesDuSolde(data, e.id, v.date).find(x => x.cle === 'conges');
+            if (l && n) { Object.assign(l, { label: n.label, amount: n.amount }); drawLines(); }
+          }
           if (v.kind !== 'attestation') $('input[name=withSalary]', root).closest('.check').style.display = 'none';
           else $('input[name=withSalary]', root).closest('.check').style.display = '';
           if (v.kind !== 'attestation' && !e.endDate) {
-            $('#hf-desc', root).innerHTML = h(desc) + ' <span class="warn-text">Ce salarié n\'a pas de date de sortie : renseigne-la sur sa fiche, sinon le document portera la date du jour.</span>';
+            // (plateforme) 1.72.0 — avec le geste qui la renseigne, comme le gérant et la civilité (vu à l'essai humain : la
+            // seule des trois alertes sans bouton).
+            $('#hf-desc', root).innerHTML = h(desc) + ` <span class="warn-text">${h(e.name)} n'a pas de date de sortie : le document portera la date du jour.</span> <button type="button" class="btn btn-sm" id="hf-sortie-go">Renseigner sa sortie…</button>`;
+            $('#hf-sortie-go', root).onclick = () => { close(); employeeForm(e, () => hrDocForm(e, done, v.kind), { focus: 'endDate' }); };
           }
         };
         drawLines(); sync();
         $('#hf', root).onchange = sync;
         if ($('#hf-gerant-go', root)) $('#hf-gerant-go', root).onclick = () => { close(); allerParametres('societe', 'p-identite:managerName'); };
+        // (plateforme) 1.72.0 — sa fiche s'ouvre sur la case ; enregistrée, le document se rouvre.
+        if ($('#hf-civ-go', root)) $('#hf-civ-go', root).onclick = () => { const k = formValues($('#hf', root)).kind; close(); employeeForm(e, () => hrDocForm(e, done, k), { focus: 'gender' }); };
         $('#ok', root).onclick = async () => {
           const v = formValues($('#hf', root));
           const html = C.hrDocumentHtml(v.kind, e, data, company(), { date: v.date, withSalary: !!v.withSalary, lines });

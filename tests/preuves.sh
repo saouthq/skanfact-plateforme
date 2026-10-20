@@ -2804,7 +2804,7 @@ prouver "les salariés que la paie du Cabinet ne lit pas" $PC \
   "    livre.salaries = objets.filter((/** @type {any} */ o) => o.collection === 'employees').map((/** @type {any} */ o) => salarieDe(o.contenu));" "    livre.salaries = [];" \
   "$WP1"
 prouver "le nom du salarié perdu en l'écrivant" $PC \
-  "    method: 'virement', iban: '', ...(avant || {}), id: s.id, name: s.nom," "    method: 'virement', iban: '', ...(avant || {}), id: s.id, name: ''," \
+  "      method: 'virement', iban: '', ...garde, id: s.id, name: s.nom," "      method: 'virement', iban: '', ...garde, id: s.id, name: ''," \
   "$WP1"
 prouver "un bulletin écrit sans son calcul" $PC \
   "gross: b.brut, workedDays: b.joursTravailles, absentDays: b.joursAbsence, bonuses: b.primes, deductions: b.retenues, computed: b.calcul," "gross: b.brut, workedDays: b.joursTravailles, absentDays: b.joursAbsence, bonuses: b.primes, deductions: b.retenues, computed: {}," \
@@ -18005,6 +18005,160 @@ prouver 'l'"'"'aide du montant d'"'"'une avance qui dit son versement absent' 'w
   'Le versement se lit le jour même : il sort de ta Trésorerie (le compte choisi)' \
   'Le versement ne se lit nulle part (le compte choisi)' \
   'l'"'"'aide du montant d'"'"'une avance dit où se lit son versement, comme celle de son mode (10.14.0 l'"'"'y fait sortir le jour même)'
+
+# 1.72.0 : les documents du personnel au Cabinet.
+prouver 'l'"'"'indemnité de congés comptée au jour du document, pas à la sortie' 'web/public/v10/compta.js' \
+  '    const jour = String(e.endDate || dateIso || jourDeLInstant(Date.now()));' \
+  '    const jour = String(dateIso || e.endDate || jourDeLInstant(Date.now()));' \
+  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
+prouver 'l'"'"'indemnité de congés sur le premier bulletin venu' 'web/public/v10/compta.js' \
+  '      .sort((a, b) => (Number(b.year) - Number(a.year)) || (Number(b.month) - Number(a.month)))[0];
+    const ouvrables' \
+  '      .sort(() => 0)[0];
+    const ouvrables' \
+  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
+prouver 'l'"'"'indemnité de congés sur les bulletins de tous les salariés' 'web/public/v10/compta.js' \
+  '    const dernier = (data.payslips || []).filter(p => p.employeeId === employeeId && p.computed)' \
+  '    const dernier = (data.payslips || []).filter(p => p.computed)' \
+  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
+prouver 'des congés pris d'"'"'avance qui s'"'"'indemnisent en négatif' 'web/public/v10/compta.js' \
+  '    const jours = Math.max(0, solde);
+    return { solde, jours, journalier,' \
+  '    const jours = solde;
+    return { solde, jours, journalier,' \
+  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
+prouver 'sans bulletin, une indemnité de congés nulle' 'web/public/v10/compta.js' \
+  '(dernier ? Number(dernier.computed.gross) || 0 : Number(e.grossSalary) || 0) / ouvrables' \
+  '(dernier ? Number(dernier.computed.gross) || 0 : 0) / ouvrables' \
+  'l'"'"'indemnité de congés non pris : au jour de la sortie, au salaire d'"'"'un jour du dernier bulletin de ce salarié'
+prouver 'le document qui compte les congés au jour du document' 'web/public/v10/core.js' \
+  '    const ic = indemniteConges(data, e.id, t);' \
+  '    const ic = indemniteConges({ ...data, employees: (data.employees || []).map(x => (x.id === e.id ? { ...x, endDate: '"'"''"'"' } : x)) }, e.id, t);' \
+  'deux chemins, un chiffre : la ligne que la fenêtre propose est celle que le document imprime'
+prouver 'la civilité que le document n'"'"'imprime pas' 'web/public/v10/core.js' \
+  '    const civ = e.gender === '"'"'f'"'"' ? '"'"'Madame '"'"' : e.gender === '"'"'m'"'"' ? '"'"'Monsieur '"'"' : '"'"''"'"';' \
+  '    const civ = '"'"''"'"';' \
+  'la civilité : « Madame » et l'"'"'accord, « Monsieur », rien quand elle manque'
+prouver 'la fiche du Cabinet qui jette la civilité' 'web/public/v10/compta.js' \
+  '      genre: CIVILITES.some(c => c[0] === e.genre) ? e.genre : '"'"''"'"',' \
+  '      genre: '"'"''"'"',' \
+  'la fiche d'"'"'un salarié du Cabinet garde sa civilité ; ce que la liste ne connaît pas ne se garde pas'
+prouver 'la fiche du Cabinet qui garde une civilité inconnue' 'web/public/v10/compta.js' \
+  '      genre: CIVILITES.some(c => c[0] === e.genre) ? e.genre : '"'"''"'"',' \
+  '      genre: e.genre || '"'"''"'"',' \
+  'la fiche d'"'"'un salarié du Cabinet garde sa civilité ; ce que la liste ne connaît pas ne se garde pas'
+prouver 'le serveur qui refuse l'"'"'adresse et le gérant d'"'"'une fiche' 'serveur/cabinet/routes.ts' \
+  '  adresse: texte(300), gerant: texte(200),
+' \
+  '  // l'"'"'adresse et le gérant retirés
+' \
+  '(1.72.0) l'"'"'adresse et le gérant du client se gardent dans la fiche (ses documents les impriment) ; trop longs, refusés'
+prouver 'un gérant sans limite de longueur' 'serveur/cabinet/routes.ts' \
+  '  adresse: texte(300), gerant: texte(200),' \
+  '  adresse: texte(300), gerant: z.string(),' \
+  '(1.72.0) l'"'"'adresse et le gérant du client se gardent dans la fiche (ses documents les impriment) ; trop longs, refusés'
+prouver 'le point de contact qui n'"'"'envoie ni l'"'"'adresse ni le gérant' 'web/public/plateforme/pont-cabinet.js' \
+  ''"'"'cnssEmployeur'"'"', '"'"'cnssCode'"'"', '"'"'adresse'"'"', '"'"'gerant'"'"'];' \
+  ''"'"'cnssEmployeur'"'"', '"'"'cnssCode'"'"'];' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'la fiche du dossier qui jette le gérant au chargement' 'web/public/v10/cabinet/cabcore.js' \
+  '      adresse: String(d.adresse || '"'"''"'"'), gerant: String(d.gerant || '"'"''"'"'),' \
+  '      adresse: String(d.adresse || '"'"''"'"'),' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'le Cabinet qui lit l'"'"'identité CNSS sous son ancien nom seulement' 'web/public/plateforme/pont-cabinet.js' \
+  'identiteCnss: e.cnssName || e.identiteCnss || '"'"''"'"',' \
+  'identiteCnss: e.identiteCnss || '"'"''"'"',' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'le Cabinet qui écrit l'"'"'identité CNSS sous son ancien nom' 'web/public/plateforme/pont-cabinet.js' \
+  'cnssName: s.identiteCnss, position: s.poste,' \
+  'identiteCnss: s.identiteCnss, position: s.poste,' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'la civilité du Cabinet qui ne part pas au serveur' 'web/public/plateforme/pont-cabinet.js' \
+  '      gender: s.genre || '"'"''"'"',' \
+  '      gender: '"'"''"'"',' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'le gérant absent que le document du Cabinet ne dit pas' 'web/public/v10/cabinet/app.js' \
+  '      ${dossier.gerant ? '"'"''"'"' : `<div class="warn-box mb" id="dp-gerant">' \
+  '      ${true ? '"'"''"'"' : `<div class="warn-box mb" id="dp-gerant">' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'la civilité absente que le document du Cabinet ne dit pas' 'web/public/v10/cabinet/app.js' \
+  '      ${e.gender ? '"'"''"'"' : `<div class="warn-box mb" id="dp-civ">' \
+  '      ${true ? '"'"''"'"' : `<div class="warn-box mb" id="dp-civ">' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'le bouton de la civilité qui n'"'"'ouvre pas sa case' 'web/public/v10/cabinet/app.js' \
+  '      if (civ) civ.onclick = () => ficheDuSalarie('"'"'genre'"'"');' \
+  '      if (civ) civ.onclick = () => ficheDuSalarie('"'"'cin'"'"');' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'la fiche du salarié qui ne rend pas la main au document' 'web/public/v10/cabinet/app.js' \
+  '          if (opts && opts.apres) opts.apres(r.livre);' \
+  '          if (false) opts.apres(r.livre);' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'le solde qui imprime des montants à zéro' 'web/public/v10/cabinet/app.js' \
+  '            gardees.push({ label, amount: KC.round3(Number(l.amount) || 0) });' \
+  '            gardees.push({ label, amount: 0 });' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'le solde du Cabinet qui ne dit pas les avances' 'web/public/v10/cabinet/app.js' \
+  '        ${resteAvances > 0 ? `<p class="small mt" id="dp-avances">' \
+  '        ${false ? `<p class="small mt" id="dp-avances">' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'la paie du dossier sans ses avances' 'web/public/plateforme/pont-cabinet.js' \
+  '        advances: objets.filter((o) => o.collection === '"'"'advances'"'"').map((o) => o.contenu),' \
+  '        advances: [],' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'l'"'"'employeur imprimé sans son adresse' 'web/public/v10/cabinet/app.js' \
+  '      const societe = { name: dossier.name || '"'"''"'"', address: dossier.adresse || '"'"''"'"',' \
+  '      const societe = { name: dossier.name || '"'"''"'"', address: '"'"''"'"',' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'l'"'"'employeur imprimé sans son gérant' 'web/public/v10/cabinet/app.js' \
+  '        cnssCode: dossier.cnssCode || '"'"''"'"', managerName: dossier.gerant || '"'"''"'"', currency: '"'"'DT'"'"' };' \
+  '        cnssCode: dossier.cnssCode || '"'"''"'"', managerName: '"'"''"'"', currency: '"'"'DT'"'"' };' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'la fiche du dossier qui ne rend pas la main au document' 'web/public/v10/cabinet/app.js' \
+  '            if (opts && opts.apres && !(r.id && r.id !== dossier.id)) opts.apres();' \
+  '            if (false) opts.apres();' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'le document de l'"'"'entreprise rouvert sur l'"'"'attestation au lieu du solde' 'web/public/v10/app.js' \
+  'employeeForm(e, () => hrDocForm(e, done, v.kind), { focus: '"'"'endDate'"'"' });' \
+  'employeeForm(e, () => hrDocForm(e, done), { focus: '"'"'endDate'"'"' });' \
+  'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
+prouver 'la fiche ouverte pour une date, le curseur dans le champ caché' 'web/public/v10/app.js' \
+  '          const c = c0 && c0.type === '"'"'hidden'"'"' && c0.closest('"'"'.datefield'"'"') ? $('"'"'.d-txt'"'"', c0.closest('"'"'.datefield'"'"')) : c0;' \
+  '          const c = c0;' \
+  'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
+prouver 'le document du Cabinet rouvert sur l'"'"'attestation' 'web/public/v10/cabinet/app.js' \
+  '          if (d) documentPersonnelForm(root, d, x, kind);' \
+  '          if (d) documentPersonnelForm(root, d, x);' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
+prouver 'la civilité absente que le document de l'"'"'entreprise ne dit pas' 'web/public/v10/app.js' \
+  '      ${e.gender ? '"'"''"'"' : `<div class="warn-box mb" id="hf-civ">' \
+  '      ${true ? '"'"''"'"' : `<div class="warn-box mb" id="hf-civ">' \
+  'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
+prouver 'la fiche du salarié de l'"'"'entreprise sans civilité' 'web/public/v10/app.js' \
+  '<select name="gender"><option value="">— à préciser —</option>' \
+  '<select name="civ"><option value="">— à préciser —</option>' \
+  'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
+prouver 'la fiche de l'"'"'entreprise qui ne rend pas la main au document' 'web/public/v10/app.js' \
+  'employeeForm(e, () => hrDocForm(e, done, k), { focus: '"'"'gender'"'"' });' \
+  'employeeForm(e, done, { focus: '"'"'gender'"'"' });' \
+  'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
+prouver 'l'"'"'indemnité proposée qui ne suit pas la date du document' 'web/public/v10/app.js' \
+  '          if (v.date && v.date !== dateVue) {' \
+  '          if (false) {' \
+  'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
+prouver 'une ligne retouchée qui suit encore la date du document' 'web/public/v10/app.js' \
+  '            lines[i].touche = true;' \
+  '            lines[i].touche = false;' \
+  'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
+prouver 'le solde de l'"'"'entreprise qui ne dit pas les avances' 'web/public/v10/app.js' \
+  '        ${resteAvances > 0 ? `<p class="small mt" id="hf-avances">' \
+  '        ${false ? `<p class="small mt" id="hf-avances">' \
+  'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
+prouver 'core.js sans les lignes que le solde propose' 'web/public/v10/core.js' \
+  '    CIVILITES, indemniteConges, lignesDuSolde,
+' \
+  '    CIVILITES, indemniteConges,
+' \
+  'la civilité renseignée depuis le document ; le solde propose l'"'"'indemnité du moteur commun, qui suit la date, et dit les avances'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

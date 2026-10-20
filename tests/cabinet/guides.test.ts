@@ -165,4 +165,19 @@ describe('les guides d\'écritures et le journal retenu', () => {
     expect(await refuse('')).toBe(400);
     expect((await ecrire({ regimesContrat: {}, leaveDaysPerYear: '60' }, 1)).statut).toBe(200);
   });
+
+  it('(1.72.0) l\'adresse et le gérant du client se gardent dans la fiche (ses documents les impriment) ; trop longs, refusés', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);
+    const garage = String((await appeler('POST', `/cabinets/${cabinet}/dossiers`, associe.jeton, { raisonSociale: 'Garage du Port' })).corps.entreprise);
+    const FICHE = { adresse: 'Rue du Port\n2000 Le Bardo', gerant: 'Gérant Numéro Un', cnssEmployeur: '123456-72' };
+    const ecrire = async (contenu: unknown, revision: number | null) => appeler('PUT', `/cabinets/${cabinet}/fiches/${garage}`, associe.jeton, { contenu, revision });
+    expect((await ecrire(FICHE, null)).statut).toBe(200);
+    expect(((await appeler('GET', `/cabinets/${cabinet}/fiches`, associe.jeton)).corps.fiches as { entreprise: string; contenu: unknown }[])
+      .find((f) => f.entreprise === garage)?.contenu).toEqual(FICHE);
+    expect((await ecrire({ ...FICHE, adresse: 'a'.repeat(301) }, 1)).statut).toBe(400);
+    expect((await ecrire({ ...FICHE, gerant: 'g'.repeat(201) }, 1)).statut).toBe(400);
+    expect((await ecrire({ ...FICHE, gerant: 42 }, 1)).statut).toBe(400);
+    expect((await ecrire({ ...FICHE, adresse: 'a'.repeat(300), gerant: 'g'.repeat(200) }, 1)).statut).toBe(200);
+  });
 });

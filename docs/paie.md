@@ -1037,3 +1037,114 @@ son avance, qui restait ouverte chez le client et dont le bulletin suivant repro
 - Le compte de trésorerie d'une avance d'un dossier tenu (le Cabinet ne tient pas les comptes de trésorerie de
   l'entreprise) : le mode décide, banque ou caisse.
 - Les avances n'ont pas d'état imprimé au Cabinet (l'entreprise non plus : elles se lisent sur les bulletins).
+
+## Les documents du personnel au Cabinet (20/10/2026, 1.72.0)
+
+*L'entreprise imprime depuis la 5.1.0 l'attestation de travail, le certificat de travail et le solde de tout compte d'un
+salarié. Le Cabinet ne le pouvait pas.*
+
+### Le manque, et ce que le chemin a montré
+
+Un cabinet qui tient la paie d'un client établit aussi ses documents du personnel ; le Cabinet n'en avait aucun. En les
+portant, trois défauts sont apparus :
+
+- **La civilité** : les documents lisaient `gender` pour accorder (« immatriculée », « employée », « l'intéressée ») ;
+  aucun écran ne l'écrivait, ni dans l'entreprise ni au Cabinet. Une salariée y était « employé », « l'intéressé ».
+- **Deux chiffres pour une ligne** : l'indemnité de congés non pris se comptait dans la fenêtre au jour de la fenêtre et,
+  sans bulletin, sur la fiche ; dans le document au jour du document et sur le dernier bulletin seul (zéro sans bulletin).
+  Un solde préparé avant la sortie imprimait sous « Solde de congés non pris » un autre chiffre que sa propre ligne.
+- **L'identité CNSS** : l'entreprise l'écrit `cnssName` (son fichier du trimestre la lit là) ; le point de contact du
+  Cabinet lisait et écrivait `identiteCnss`, que l'entreprise ignore. Celle d'un client sur SkanFact n'arrivait pas au
+  fichier CNSS du Cabinet (qui reprenait le nom), et celle saisie au Cabinet n'arrivait pas au sien.
+
+### Ce que le lot fait (`compta.js`, `FICHE`, `pont-cabinet.js`, `web/v10/paie-cabinet-documents-personnel.txt`)
+
+- **Le moteur commun** reçoit la liste des documents (`HR_DOCS`, déménagée de `core.js`, qui la reprend), la civilité
+  (`CIVILITES` : Monsieur, Madame), l'indemnité de congés non pris (`indemniteConges`) et les lignes que le solde propose
+  (`lignesDuSolde`). L'indemnité : le solde des congés **au jour de la sortie** (sans sortie, au jour du document), au
+  salaire d'un jour du **dernier bulletin du salarié** (son brut sur les jours ouvrables d'un mois complet, 26 au barème),
+  à défaut de bulletin de sa fiche ; un solde négatif n'indemnise rien. La fenêtre la propose, le document l'imprime : une
+  fonction, un chiffre. *À VÉRIFIER avec le comptable : la base de l'indemnité (le dernier salaire, la moyenne de l'année).*
+- **Au Cabinet**, le menu d'un salarié porte « Attestation, certificat, solde… » : la fenêtre de l'entreprise (le document,
+  la date en JJ/MM/AAAA, le salaire sur l'attestation), imprimée par le moteur des documents de l'entreprise (`core.js`,
+  `hrDocumentHtml`), au nom du client. Pour le solde, les lignes proposées se retouchent, s'ajoutent, se retirent ; le net
+  à percevoir suit ; un montant illisible se refuse sur sa case, une ligne à montant sans libellé aussi.
+- **Ce qui manque se dit avant d'imprimer**, avec le geste qui le renseigne : le gérant (« Le document dira « Je soussigné »
+  sans nom » → la fiche du dossier, sur la case), la civilité (→ la fiche du salarié, sur la case ; enregistrée, le
+  document se rouvre), la date de sortie (le certificat et le solde porteraient la date du jour). Les mêmes avertissements
+  dans l'entreprise, qui disait déjà le gérant ; la civilité et la sortie s'y renseignent de même. Enregistrée, la fiche
+  (du salarié ou du dossier) rend la main au document, sur le document qu'on avait choisi.
+- **Le solde dit ce qui reste dû sur les avances**, sans le retenir : une avance retenue sur ce document resterait ouverte
+  dans la paie (seul un bulletin la rembourse), et le bulletin de la sortie la retiendrait une seconde fois. *À VÉRIFIER
+  avec le comptable : ce qui peut se retenir au départ.*
+- **L'indemnité proposée suit la date du document** (sans sortie, c'est elle qui arrête le compte), tant qu'on n'a pas
+  touché à la ligne ; retouchée, elle ne bouge plus. Dans les deux applications.
+- **La fiche du dossier** gagne l'adresse et le gérant du client (`FICHE.adresse`, 300 caractères ; `FICHE.gerant`, 200) :
+  l'adresse s'imprime en tête du bulletin (qui n'en avait pas au Cabinet) et des documents du personnel, et sa dernière
+  ligne fait la ville du « Le Bardo, le … » ; le gérant signe « Pour la société ». La fiche d'un dossier, au chargement, ne
+  garde que les champs qu'elle connaît (`migrateDossier`) : les deux y sont, sinon ils seraient jetés (vu par le parcours
+  à la souris : le gérant enregistré, le document le réclamait encore).
+- **La civilité** entre dans la fiche d'un salarié des deux côtés (« — à préciser — », Monsieur, Madame) ; les documents
+  disent « Madame Salariée Numéro Une » et accordent ; non précisée, ni « Madame » ni « Monsieur », et l'accord reste au
+  masculin.
+- **L'identité CNSS** se lit sous les deux noms (un dossier tenu l'a sous l'ancien) et s'écrit sous celui de l'entreprise.
+- **Les documents de la paie du Cabinet** (le bulletin, le journal, l'état CNSS, les documents du personnel) prennent les
+  réglages du dossier — ceux du SkanFact du client s'il y tient sa paie — et sa paie avec ses congés et ses avances.
+- **Ce qui part au serveur**, compté : deux champs de la fiche du dossier (l'adresse et le gérant, que le cabinet écrit
+  sur son client) ; un champ du salarié (`gender`, « m » ou « f », ou vide), dans la forme que l'entreprise écrit ;
+  l'identité CNSS d'un salarié écrite par le Cabinet sous le nom de l'entreprise (`cnssName`) au lieu d'un autre.
+
+### Décidé par délégation (20/10/2026)
+
+- Le solde de tout compte ne retient pas les avances : il dit ce qui reste dû ; un bulletin les rembourse. Aucune règle
+  « tout le reste au départ » n'est posée sur le bulletin de la sortie : la part du salaire qui peut se retenir est À
+  VÉRIFIER, et la valeur par défaut d'une règle inconnue est celle qui ne fait rien.
+- La civilité, deux valeurs et l'inconnu ; l'accord par défaut reste celui de la v10 (le masculin), mais il se dit.
+- L'adresse et le gérant d'un client sur SkanFact se tapent aussi dans la fiche du dossier : le cabinet ne lit pas la
+  fiche société du client (son mandat de paie ouvre ses salariés et ses bulletins, pas son identité).
+
+### Ce qui le prouve
+
+- `tests/moteur/paie-documents-personnel.test.ts` : l'indemnité au jour de la sortie, quel que soit le jour du document
+  (10,5 jours à 50,048, sur le dernier bulletin de ce salarié — ni le plus ancien, ni celui, plus gros et plus récent, d'un
+  autre) ; sans sortie, la date arrête le compte ; sans bulletin, la fiche ; des congés pris d'avance n'indemnisent rien ;
+  deux chemins, un chiffre (la ligne proposée et le document, préparé avant la sortie) ; la civilité et ses accords ; la
+  fiche du Cabinet garde la civilité, rien d'autre.
+- `tests/cabinet/guides.test.ts` : l'adresse et le gérant se gardent dans la fiche ; trop longs ou d'une autre forme,
+  refusés.
+- `tests/web/cabinet-documents-personnel.test.ts` : à la souris sur un dossier tenu — les deux avertissements, la civilité
+  renseignée depuis le document (la fiche ouverte sur la case, le document qui revient), écrite `gender`, l'identité CNSS
+  gardée `cnssName` ; le gérant et l'adresse renseignés depuis le document ; le solde proposé (525,504 pour 10,5 jours, la
+  même que l'entreprise), les avances dites, un montant illisible refusé sans fenêtre d'impression, une ligne ajoutée ; le
+  solde et le certificat imprimés (« Madame », « employée », « l'intéressée », le gérant, l'adresse, la ville).
+  `tests/web/paie-documents-personnel.test.ts` : dans l'entreprise, la civilité renseignée depuis le document ; l'indemnité
+  qui suit la date du document (225,216 au 31 mars, 450,432 au 30 juin), qui ne bouge plus une fois retouchée ; les
+  avances dites.
+- Trente-six preuves (`tests/preuves.sh`, « 1.72.0 »), et une ancienne reprise sur son texte d'aujourd'hui (le nom du
+  salarié écrit par le Cabinet).
+
+### Refait à la souris (20/10/2026)
+
+Sur le dossier tenu du cabinet d'essai (un salarié entré le 15 septembre 2026, sans civilité ni sortie ; un droit
+annuel de 24 jours, deux jours de congé pris) : le menu du salarié porte « Attestation, certificat, solde… » ; la fenêtre
+dit les deux manques, le gérant et la civilité, chacun avec son bouton. « Renseigner sa civilité… » ouvre la fiche du
+salarié sur la case ; « Monsieur » choisi, enregistrée, le document revient sans l'alerte. « Renseigner le gérant… » ouvre
+la fiche du dossier sur la case ; l'adresse s'écrit sur deux lignes (Entrée y passe à la ligne, sans enregistrer). Le
+solde, sans sortie, propose « congés non pris (0 jour) » — juste : 2 jours acquis au 20 octobre, 2 pris, ce que dit le
+panneau des congés ; « Renseigner sa sortie… » ouvre la fiche dans la date ; le 31/10/2026 tapé et enregistré d'Entrée, le
+solde revient avec « 2 jours », 100,000 (deux mois de droit à 24 jours, moins les deux pris, à 50 par jour). Le salaire du
+mois ajouté, le document imprimé : l'adresse en tête, « et Monsieur … employé du 15/09/2026 au 31/10/2026 en qualité de
+Serveur », 1 400,000 de net, la phrase des congés qui redit 2 jours et 100,000, « Le Bardo, le 20/10/2026 ».
+
+Vu et corrigé : la fiche du dossier ne rendait pas la main au document (il fallait repasser par le menu), quand celle du
+salarié la rendait ; la sortie absente était la seule des trois alertes sans bouton (les deux applications) ; un document
+rouvert après une fiche revenait sur l'attestation au lieu du document choisi ; la fiche de l'entreprise ouverte pour une
+date mettait le curseur dans le champ caché. Et, par le parcours à la souris automatique : la fiche d'un dossier jetait au
+chargement l'adresse et le gérant (la liste des champs gardés ne les connaissait pas). Vu sans défaut : le « Net à
+percevoir » s'écrit avec l'espace fine des milliers, comme partout dans l'application.
+
+### Ce qui reste
+
+- Le solde de tout compte ne s'enregistre pas : c'est un document, comme dans l'entreprise. Ses montants (préavis, fin de
+  contrat) restent à celui qui l'établit.
+- L'adresse et le gérant d'un client sur SkanFact ne viennent pas de sa fiche société (fermée au cabinet).

@@ -67,6 +67,8 @@ const FICHE = z.object({
   email: texte(200), phone: texte(40), contact: texte(200), note: texte(2000), archived: z.boolean(),
   from: z.string().regex(/^(\d{4}-\d{2})?$/), regime: texte(40), tvaPeriod: texte(20),
   fees: z.number().int().min(0).max(1_000_000_000_000), cnssEmployeur: texte(40), cnssCode: texte(10),
+  // (1.72.0) L'adresse et le gérant du client : en tête et au bas de ses documents (le bulletin, les documents du personnel).
+  adresse: texte(300), gerant: texte(200),
   relances: z.array(RELANCE).max(50),
   // Le compte bancaire du dossier, sa banque, et l'écart de jours du rapprochement (brique 40, C21).
   banque: z.object({ compte: z.string().regex(/^(\d{1,12})?$/), banque: texte(60), jours: z.number().int().min(0).max(30).nullable() }).partial().strict(),

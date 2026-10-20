@@ -6047,8 +6047,13 @@
       const C = await chargerMoteurDesDocuments();
       const paie = api.paieDuDossierV10(dossier.id);
       // L'employeur : le dossier (son nom, son matricule fiscal, son numéro d'employeur à la CNSS et son code d'exploitation).
-      const societe = { name: dossier.name || '', address: '', matricule: dossier.matricule || '', cnss: dossier.cnssEmployeur || '', cnssCode: dossier.cnssCode || '', currency: 'DT' };
-      w.document.write(fabriquer(C, { employees: paie.employees, payslips: paie.payslips, payrollSettings: dossier.paie || {} }, societe));
+      // (plateforme) 1.72.0 — et, de sa fiche, son adresse (en tête du document ; sa dernière ligne fait la ville du « le … »)
+      // et son gérant (qui signe les documents du personnel). La paie du dossier porte ses congés et ses avances, et ses
+      // réglages sont ceux du dossier : ceux du SkanFact du client, s'il y tient sa paie.
+      const societe = { name: dossier.name || '', address: dossier.adresse || '', matricule: dossier.matricule || '', cnss: dossier.cnssEmployeur || '',
+        cnssCode: dossier.cnssCode || '', managerName: dossier.gerant || '', currency: 'DT' };
+      w.document.write(fabriquer(C, { employees: paie.employees, payslips: paie.payslips, leaves: paie.leaves || [], advances: paie.advances || [],
+        payrollSettings: reglagesPaie(dossier, livresState.livre) }, societe));
       w.document.close();
       w.print();
     } catch (e) { w.close(); toast(plainError(e), 'error'); }
@@ -6273,7 +6278,9 @@
       if (id.startsWith('SAL:')) {
         const x = (s.livre.salaries || []).find(y => y.id === id.slice(4));
         if (!x) return [];
-        const a = [{ icon: 'modifier', label: 'Modifier la fiche', hint: 'Nom, CNSS, poste, brut, primes', run: () => salarieForm(root, dossier, x) }];
+        const a = [{ icon: 'modifier', label: 'Modifier la fiche', hint: 'Nom, CNSS, poste, brut, primes', run: () => salarieForm(root, dossier, x) },
+          // (plateforme) 1.72.0 — les documents du personnel, ceux de l'entreprise.
+          { icon: 'pdf', label: 'Attestation, certificat, solde…', hint: 'Les documents du personnel, à signer', run: () => documentPersonnelForm(root, dossier, x) }];
         if (x.actif) a.push({ sep: true }, { icon: 'non', label: 'Noter la sortie', danger: true,
           hint: 'Son nom reste sur les bulletins déjà établis', run: async () => {
             if (!await confirmDialog(`Noter la sortie de ${x.nom} ?`, 'Il ne sera plus proposé pour un nouveau bulletin. Son nom reste sur ceux qui existent — un bulletin remis ne se réécrit pas.', 'Noter la sortie')) return;
@@ -6615,6 +6622,135 @@
     });
   }
 
+  // (plateforme) 1.72.0 — les documents du personnel d'un dossier (ceux de l'entreprise, 5.1.0) : l'attestation de travail,
+  // le certificat de travail, le solde de tout compte, imprimés par le moteur des documents de l'entreprise (core.js,
+  // `hrDocumentHtml`) sur la paie du dossier. L'employeur : la fiche du dossier (son nom, son matricule fiscal, son adresse,
+  // son gérant, son numéro d'employeur à la CNSS). Ce qui manquerait au document — le gérant qui signe, la civilité du
+  // salarié, sa sortie — se dit avant d'imprimer, avec le geste qui le renseigne. Le solde propose les lignes de l'entreprise
+  // (compta.js, `lignesDuSolde`) : l'indemnité de congés non pris y est celle que le document imprime. Rouverte après une
+  // fiche renseignée, elle reprend le document qu'on avait choisi (`kindDemande`).
+  function documentPersonnelForm(root, dossier, x, kindDemande) {
+    const s = livresState, L = s.livre;
+    const data = { ...api.paieDuDossierV10(dossier.id), payrollSettings: reglagesPaie(dossier, L) };
+    const e = (data.employees || []).find(y => y.id === x.id);
+    if (!e) return toast('Ce salarié n\'est plus dans la paie du dossier : recharge la page.', 'error');
+    const jour = K.today();
+    const lignes = KC.lignesDuSolde(data, e.id, jour);
+    const ic = KC.indemniteConges(data, e.id, jour);
+    const resteAvances = KC.round3(KC.advancesOf(data, e.id).filter(a => !a.done).reduce((t, a) => t + a.remaining, 0));
+    modal(`<h2>Document pour ${esc(x.nom)}</h2>
+      <form id="dp-form" class="grid-2">
+        <label class="field span-2">${lbl('Document', 'pa.docType')}<select name="kind">${KC.HR_DOCS.map(([v, lab]) => `<option value="${esc(v)}" ${v === kindDemande ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Daté du', 'pa.docDate')}<input name="date" placeholder="JJ/MM/AAAA" value="${esc(fmtJour(jour))}"></label>
+        <label class="check" style="align-self:end" id="dp-salaire"><input type="checkbox" name="withSalary"> Mentionner le salaire ${info('pa.docSalaire')}</label>
+      </form>
+      <p class="small muted" id="dp-desc"></p>
+      ${dossier.gerant ? '' : `<div class="warn-box mb" id="dp-gerant">Le document dira « Je soussigné » <b>sans nom</b> : le gérant de ${esc(dossier.name)} n'est pas sur la fiche du dossier. <button type="button" class="btn btn-sm" id="dp-gerant-go">Renseigner le gérant…</button></div>`}
+      ${e.gender ? '' : `<div class="warn-box mb" id="dp-civ">Le document parlera de ${esc(x.nom)} au masculin, sans « Madame » ni « Monsieur » : sa civilité n'est pas renseignée. <button type="button" class="btn btn-sm" id="dp-civ-go">Renseigner sa civilité…</button></div>`}
+      <div class="panel" id="dp-solde" hidden><h2>Solde de tout compte (DT)</h2>
+        <p class="small muted mb">Ce qui reste dû au salarié à son départ. Les montants sont à toi : SkanFact propose l'indemnité de congés non pris, sur son dernier salaire. <em>À VÉRIFIER : les indemnités dépendent du motif de la rupture et de la convention collective.</em></p>
+        <div id="dp-lignes"></div>
+        ${ic.solde < 0 ? `<p class="small warn-text mt">Il a pris ${esc(joursFr(-ic.solde))} jour${-ic.solde >= 2 ? 's' : ''} de congé de plus qu'il n'en a acquis : l'indemnité ci-dessus vaut donc zéro. <em>À VÉRIFIER avec le client : ces jours peuvent se retenir sur le solde.</em></p>` : ''}
+        ${resteAvances > 0 ? `<p class="small mt" id="dp-avances">Il reste <b>${esc(money(resteAvances))}</b> à rembourser sur ses avances. Ce document ne les retient pas : un bulletin les rembourse, et ce qu'il ne peut pas retenir se règle avec lui. <em>À VÉRIFIER avec le client : ce qui peut se retenir au départ.</em></p>` : ''}
+      </div>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Imprimer</button></div>`,
+    (layer, close) => {
+      const f = $('#dp-form', layer);
+      const champ = n => $(`[name=${n}]`, f);
+      const total = () => KC.round3(lignes.reduce((t, l) => t + (Number(l.amount) || 0), 0));
+      // Le tableau ne se redessine qu'à l'ajout ou au retrait d'une ligne : pendant la frappe, seule la donnée change (le
+      // curseur reste dans sa case, 7.17.0).
+      const dessinerLignes = () => {
+        const zone = $('#dp-lignes', layer);
+        zone.innerHTML = `<table class="lines-edit"><tbody>${lignes.map((l, i) => `<tr data-i="${i}">
+            <td><input type="text" data-dl="label" value="${esc(l.label || '')}" aria-label="Ligne ${i + 1} : libellé"></td>
+            <td style="width:130px"><input type="text" inputmode="decimal" class="num montant" data-dl="amount" placeholder="0,000" value="${esc(montantChamp(l.amount))}" aria-label="Ligne ${i + 1} : montant (DT)"></td>
+            <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-dlx="${i}" aria-label="Retirer la ligne ${i + 1}" title="Retirer cette ligne">✕</button></td></tr>`).join('')}</tbody></table>
+          <div class="inline mt"><button type="button" class="btn btn-sm" id="dp-plus">+ Ligne</button>
+            <span class="small muted">Net à percevoir : <b id="dp-total">${esc(money(total()))}</b></span></div>`;
+        $$('[data-dl]', zone).forEach(el => { el.oninput = () => {
+          const l = lignes[Number(el.closest('tr').dataset.i)];
+          if (el.dataset.dl === 'amount') l.amount = lireMontant(el.value); else l.label = el.value;
+          l.touche = true;
+          $('#dp-total', layer).textContent = money(total());
+        }; });
+        $$('[data-dlx]', zone).forEach(b => { b.onclick = () => { lignes.splice(Number(b.dataset.dlx), 1); dessinerLignes(); }; });
+        $('#dp-plus', layer).onclick = () => {
+          lignes.push({ label: '', amount: 0 });
+          dessinerLignes();
+          const l = $$('#dp-lignes [data-dl=label]', layer).pop(); if (l) l.focus();
+        };
+      };
+      let dateVue = jour;
+      const sync = () => {
+        const kind = champ('kind').value;
+        const desc = (KC.HR_DOCS.find(d => d[0] === kind) || [])[2] || '';
+        $('#dp-solde', layer).hidden = kind !== 'solde';
+        $('#dp-salaire', layer).style.display = kind === 'attestation' ? '' : 'none';
+        $('#dp-desc', layer).innerHTML = esc(desc) + (kind !== 'attestation' && !x.sortie
+          ? ` <span class="warn-text">${esc(x.nom)} n'a pas de date de sortie : le document portera la date du jour.</span> <button type="button" class="btn btn-sm" id="dp-sortie-go">Renseigner sa sortie…</button>` : '');
+        // Avec le geste qui la renseigne, comme le gérant et la civilité (vu à l'essai humain : la seule des trois sans bouton).
+        const sortie = $('#dp-sortie-go', layer);
+        if (sortie) sortie.onclick = () => ficheDuSalarie('sortie');
+        // Sans date de sortie, la date du document arrête le compte des congés : la ligne proposée la suit (celle que le
+        // document imprimera), tant qu'on n'y a pas touché.
+        const iso = K.dateTapee(champ('date').value.trim(), s.annee);
+        if (iso && iso !== dateVue) {
+          dateVue = iso;
+          const l = lignes.find(y => y.cle === 'conges' && !y.touche), n = KC.lignesDuSolde(data, e.id, iso).find(y => y.cle === 'conges');
+          if (l && n) { Object.assign(l, { label: n.label, amount: n.amount }); dessinerLignes(); }
+        }
+      };
+      dessinerLignes(); sync();
+      f.onchange = sync;
+      // La fiche du salarié s'ouvre sur la case qui manque ; enregistrée, le document se rouvre, sur le même document.
+      const ficheDuSalarie = focus => {
+        const kind = champ('kind').value;
+        close();
+        salarieForm(root, dossier, x, { focus, apres: livre => {
+          const y = (livre.salaries || []).find(z => z.id === x.id);
+          if (y) documentPersonnelForm(root, dossier, y, kind);
+        } });
+      };
+      const gerant = $('#dp-gerant-go', layer);
+      if (gerant) gerant.onclick = () => {
+        const kind = champ('kind').value;
+        close();
+        // La fiche du dossier s'ouvre sur la case ; enregistrée, le document se rouvre, sur la fiche relue (vu à l'essai
+        // humain : il fallait repasser par le menu, quand la civilité, elle, y revenait).
+        dossierForm(dossier, { focus: '#f-gerant', apres: () => {
+          const d = (S.dossiers || []).find(y => y.id === dossier.id);
+          if (d) documentPersonnelForm(root, d, x, kind);
+        } });
+      };
+      const civ = $('#dp-civ-go', layer);
+      if (civ) civ.onclick = () => ficheDuSalarie('genre');
+      $('#ok', layer).onclick = () => {
+        const kind = champ('kind').value;
+        const t = champ('date').value.trim();
+        const date = K.dateTapee(t, s.annee);
+        if (!date) return refus(champ('date'), t ? `« ${t} » n'est pas une date lisible. Écris-la JJ/MM/AAAA.` : 'Indique la date du document.');
+        const gardees = [];
+        if (kind === 'solde') {
+          // Un montant illisible ne passe pas jusqu'ici : la porte de toutes les fenêtres le refuse sur sa case (10.14.1).
+          for (let i = 0; i < lignes.length; i++) {
+            const l = lignes[i], label = String(l.label || '').trim();
+            if (!label && !Number(l.amount)) continue;
+            if (!label) return refus($(`#dp-lignes tr[data-i="${i}"] [data-dl=label]`, layer), 'Cette ligne a un montant sans libellé : dis ce qu\'il paie, ou retire la ligne.');
+            gardees.push({ label, amount: KC.round3(Number(l.amount) || 0) });
+          }
+        }
+        const opts = { date, withSalary: kind === 'attestation' && champ('withSalary').checked, lines: gardees };
+        imprimerDocumentPaie(dossier, (C, d, so) => {
+          const sal = (d.employees || []).find(y => y.id === e.id);
+          if (!sal) throw new Error('Ce salarié n\'est plus dans la paie du dossier : recharge la page.');
+          return C.hrDocumentHtml(kind, sal, d, so, opts);
+        });
+        close();
+      };
+    });
+  }
+
   // Le détail d'un bulletin, tel qu'il a été FIGÉ. Un chiffre qu'on ne peut pas ouvrir se croit ou
   // ne se croit pas ; celui-ci s'ouvre, ligne par ligne, avec les taux qui ont servi.
   function detailBulletin(b) {
@@ -6830,7 +6966,9 @@
         <label class="field">${lbl('N° CIN', 'pa.cin')}<input name="cin" value="${esc(e.cin || '')}"></label>
         <label class="field">${lbl('N° CNSS', 'pa.numCnss')}<input name="cnss" value="${esc(e.cnss || '')}"></label>
         <label class="field span-2">${lbl('Identité CNSS (comme sur la carte d\'assuré)', 'pa.identite')}<input name="identiteCnss" value="${esc(e.identiteCnss || '')}" placeholder="Prénom, prénom du père, nom"></label>
-        <label class="field span-2">${lbl('Poste occupé', 'pa.poste')}<input name="poste" value="${esc(e.poste || '')}"></label>
+        ${/* (plateforme) 1.72.0 — la civilité, qui fait l'accord des documents du personnel. */''}
+        <label class="field">${lbl('Civilité', 'pa.civilite')}<select name="genre"><option value="">— à préciser —</option>${KC.CIVILITES.map(([v, l]) => `<option value="${v}" ${e.genre === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Poste occupé', 'pa.poste')}<input name="poste" value="${esc(e.poste || '')}"></label>
         <label class="field">${lbl('Type de contrat', 'pa.contrat')}<select name="contrat">${KC.CONTRACT_TYPES.map(c => `<option value="${c[0]}" ${c[0] === (e.contrat || 'cdi') ? 'selected' : ''}>${esc(c[1].split(' —')[0])}</option>`).join('')}</select></label>
         ${/* 10.12.0 — la règle H-3 portée à la Paie (le jumeau manquant) : un montant s'écrit et se
               relit en français (« 1 250,500 »), une date se saisit JJ/MM/AAAA. Les champs
@@ -6900,6 +7038,8 @@
         const v = {
           id: x ? x.id : '', nom: $('[name=nom]', f).value, cin: $('[name=cin]', f).value,
           cnss: $('[name=cnss]', f).value, identiteCnss: $('[name=identiteCnss]', f).value, poste: $('[name=poste]', f).value,
+          // (plateforme) 1.72.0
+          genre: $('[name=genre]', f).value,
           contrat: $('[name=contrat]', f).value, brut: lireMontant($('[name=brut]', f).value),
           embauche, sortie,
           chefDeFamille: $('[name=chefDeFamille]', f).checked, enfants: Number($('[name=enfants]', f).value) || 0,
@@ -6915,6 +7055,8 @@
         try {
           const r = await api.saveSalarie({ dossierId: dossier.id, annee: s.annee, salarie: v });
           s.livre = r.livre; close(); toast('Salarié enregistré.'); drawLivres(root, dossier);
+          // (plateforme) 1.72.0 — ouverte depuis un document du personnel (sa civilité à renseigner), elle y revient.
+          if (opts && opts.apres) opts.apres(r.livre);
         } catch (err) { toast(plainError(err), 'error'); }
       };
     });
@@ -9434,6 +9576,10 @@
         <label class="field">${lbl('Email', 'd.email')}<input type="email" id="f-email" value="${esc(d.email || '')}" placeholder="Pour les relances"></label>
         <label class="field">${lbl('Téléphone', 'd.phone')}<input type="tel" id="f-phone" value="${esc(d.phone || '')}" placeholder="+216 …"></label>
         <label class="field span-2">${lbl('Interlocuteur', 'd.contact')}<input type="text" id="f-contact" value="${esc(d.contact || '')}" placeholder="La personne que tu appelles"></label>
+        ${/* (plateforme) 1.72.0 — l'adresse et le gérant du client : en tête et au bas de ses documents (bulletin, documents du
+             personnel), qui les imprimaient sans adresse et « Je soussigné » sans nom. */''}
+        <label class="field span-2">${lbl('Adresse de l\'employeur', 'd.adresse')}<textarea id="f-adresse" rows="2" maxlength="300" placeholder="12 rue de la Liberté&#10;2000 Le Bardo">${esc(d.adresse || '')}</textarea></label>
+        <label class="field span-2">${lbl('Gérant (qui signe)', 'd.gerant')}<input type="text" id="f-gerant" maxlength="200" value="${esc(d.gerant || '')}" placeholder="Prénom et nom"></label>
         <label class="field">${lbl('Régime fiscal', 'd.regime')}<select id="f-regime">
           <option value="">— non précisé —</option>${K.choixRegimes(S, d.regime).map(r => `<option value="${esc(r.id)}" ${d.regime === r.id ? 'selected' : ''}>${esc(r.label)}</option>`).join('')}</select></label>
         <label class="field">${lbl('TVA', 'd.tvaPeriod')}<select id="f-tva">
@@ -9460,6 +9606,9 @@
       email: $('#f-email', layer).value.trim(),
       phone: $('#f-phone', layer).value.trim(),
       contact: $('#f-contact', layer).value.trim(),
+      // (plateforme) 1.72.0
+      adresse: $('#f-adresse', layer).value.trim(),
+      gerant: $('#f-gerant', layer).value.trim(),
       regime: $('#f-regime', layer).value,
       tvaPeriod: $('#f-tva', layer).value,
       from: from.ok ? from.mois : '',
@@ -9658,6 +9807,8 @@
             if (r.id && r.id !== dossier.id) location.hash = '#/dossier/' + encodeURIComponent(r.id);
             else render();
             toast(r.moved ? `Fiche enregistrée · ${pl(r.moved, 'paquet')} rangé${r.moved > 1 ? 's' : ''} au nouveau nom.` : 'Fiche enregistrée.');
+            // (plateforme) 1.72.0 — ouverte depuis un document du personnel (le gérant à renseigner), elle y revient.
+            if (opts && opts.apres && !(r.id && r.id !== dossier.id)) opts.apres();
           } catch (e) {
             // (plateforme, E5) Un matricule déjà celui d'une entreprise sur SkanFact : refusé sur sa case.
             if (e && e.champ === 'matriculeFiscal') return refus($('#f-mat', layer), plainError(e));

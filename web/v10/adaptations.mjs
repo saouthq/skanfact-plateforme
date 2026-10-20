@@ -780,4 +780,6 @@ export const ADAPTATIONS = [
   ...lireFichier('fenetre-entree.txt'),
   // ── Les avances au Cabinet (20/10/2026, 1.71.0 ; docs/paie.md) : saisies pour un dossier tenu, lues pour un client, retenues par le bulletin ──
   ...lireFichier('paie-cabinet-avances.txt'),
+  // ── Les documents du personnel au Cabinet (20/10/2026, 1.72.0 ; docs/paie.md) : attestation, certificat, solde de tout compte ──
+  ...lireFichier('paie-cabinet-documents-personnel.txt'),
 ];

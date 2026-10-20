@@ -4326,12 +4326,9 @@
     majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin } = Compta;
 
   // ---------- documents du personnel (5.1.0) ----------
-  const HR_DOCS = [
-    ['attestation', 'Attestation de travail', 'Atteste qu\'une personne travaille chez toi aujourd\'hui. Demandée par une banque, un bailleur, une administration.'],
-    ['certificat', 'Certificat de travail', 'Remis à la fin du contrat. Obligatoire : il indique les dates et l\'emploi occupé, rien d\'autre.'],
-    ['solde', 'Solde de tout compte', 'Récapitule ce qui reste dû au départ : salaire du mois, congés non pris, indemnités.']
-  ];
-  const hrDocLabel = k => (HR_DOCS.find(x => x[0] === k) || [, k])[1];
+  // (plateforme) 1.72.0 — leur liste, la civilité et l'indemnité de congés non pris du solde viennent du moteur commun
+  // (compta.js) : le Cabinet les imprime aussi, une seule copie.
+  const { HR_DOCS, hrDocLabel, CIVILITES, indemniteConges, lignesDuSolde } = Compta;
 
   function hrDocumentHtml(kind, employee, data, company, opts) {
     opts = opts || {};
@@ -4345,28 +4342,30 @@
     const [r, g, b] = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
     const tint = a => `rgba(${r}, ${g}, ${b}, ${a})`;
     const city = (company.address || '').split('\n').pop().replace(/^\d+\s*/, '').trim();
-    const bal = leaveBalance(data, e.id, Number((e.endDate || t).slice(0, 4)), t);
-    const last = (data.payslips || []).filter(p => p.employeeId === e.id)
-      .sort((a, x) => (x.year - a.year) || (x.month - a.month))[0];
-    const dailyRate = last ? round3(((last.computed || {}).gross || 0) / (Number(payrollSettings(data).workedDays) || 26)) : 0;
-    const leavePay = round3(dailyRate * Math.max(0, bal.remaining));
+    // (plateforme) 1.72.0 — le solde des congés au départ et son indemnité : ceux que la fenêtre du document propose
+    // (compta.js, `indemniteConges` ; deux chemins, un chiffre).
+    const ic = indemniteConges(data, e.id, t);
+    const bal = { remaining: ic.solde };
+    const leavePay = ic.montant;
+    // (plateforme) 1.72.0 — sa civilité devant son nom ; non précisée, rien (et l'accord reste au masculin).
+    const civ = e.gender === 'f' ? 'Madame ' : e.gender === 'm' ? 'Monsieur ' : '';
 
     const body = {
       attestation: `
         <p>Je soussigné${company.managerName ? `, <b>${escapeHtml(company.managerName)}</b>,` : ''} agissant en qualité de représentant légal de la société <b>${escapeHtml(company.name || '')}</b>${company.matricule ? `, matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : ''}, atteste par la présente que :</p>
-        <p class="who"><b>${escapeHtml(e.name || '')}</b>${e.cin ? `, titulaire de la carte d'identité nationale n° ${escapeHtml(e.cin)}` : ''}${e.cnss ? `, immatriculé${e.gender === 'f' ? 'e' : ''} à la CNSS sous le n° ${escapeHtml(e.cnss)}` : ''},</p>
+        <p class="who"><b>${civ}${escapeHtml(e.name || '')}</b>${e.cin ? `, titulaire de la carte d'identité nationale n° ${escapeHtml(e.cin)}` : ''}${e.cnss ? `, immatriculé${e.gender === 'f' ? 'e' : ''} à la CNSS sous le n° ${escapeHtml(e.cnss)}` : ''},</p>
         <p>fait partie du personnel de notre société depuis le <b>${fmtDate(e.hireDate)}</b>, en qualité de <b>${escapeHtml(e.position || '—')}</b>, dans le cadre d'un <b>${escapeHtml(contractLabel(e.contract || 'cdi').split(' —')[0])}</b>.</p>
         ${opts.withSalary ? `<p>Son salaire brut mensuel s'élève à <b>${fmt(e.grossSalary)} ${escapeHtml(cur)}</b>.</p>` : ''}
         <p>Cette attestation lui est délivrée pour servir et valoir ce que de droit.</p>`,
       certificat: `
         <p>Je soussigné${company.managerName ? `, <b>${escapeHtml(company.managerName)}</b>,` : ''} agissant en qualité de représentant légal de la société <b>${escapeHtml(company.name || '')}</b>${company.matricule ? `, matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : ''}, certifie que :</p>
-        <p class="who"><b>${escapeHtml(e.name || '')}</b>${e.cin ? `, titulaire de la carte d'identité nationale n° ${escapeHtml(e.cin)}` : ''},</p>
+        <p class="who"><b>${civ}${escapeHtml(e.name || '')}</b>${e.cin ? `, titulaire de la carte d'identité nationale n° ${escapeHtml(e.cin)}` : ''},</p>
         <p>a été employé${e.gender === 'f' ? 'e' : ''} au sein de notre société du <b>${fmtDate(e.hireDate)}</b> au <b>${fmtDate(e.endDate || t)}</b>, en qualité de <b>${escapeHtml(e.position || '—')}</b>.</p>
         <p>L'intéressé${e.gender === 'f' ? 'e' : ''} est libre de tout engagement envers notre société à compter de cette date.</p>
         <p>Le présent certificat lui est délivré pour servir et valoir ce que de droit.</p>`,
       solde: `
         <p>Entre la société <b>${escapeHtml(company.name || '')}</b>${company.matricule ? `, matricule fiscal ${escapeHtml(matriculeLisible(company.matricule))}` : ''}, d'une part,</p>
-        <p>et <b>${escapeHtml(e.name || '')}</b>${e.cin ? `, CIN n° ${escapeHtml(e.cin)}` : ''}, employé${e.gender === 'f' ? 'e' : ''} du ${fmtDate(e.hireDate)} au <b>${fmtDate(e.endDate || t)}</b> en qualité de ${escapeHtml(e.position || '—')}, d'autre part.</p>
+        <p>et <b>${civ}${escapeHtml(e.name || '')}</b>${e.cin ? `, CIN n° ${escapeHtml(e.cin)}` : ''}, employé${e.gender === 'f' ? 'e' : ''} du ${fmtDate(e.hireDate)} au <b>${fmtDate(e.endDate || t)}</b> en qualité de ${escapeHtml(e.position || '—')}, d'autre part.</p>
         <p>Il a été arrêté le solde de tout compte suivant :</p>
         <table class="sum">
           ${(opts.lines || []).map(l => `<tr><td>${escapeHtml(l.label)}</td><td class="n">${fmt(l.amount)}</td></tr>`).join('')}
@@ -11578,6 +11577,8 @@
     QUARTERS, quarterMonths, quarterLabel, cnssDeclaration, fichierCnssEntreprise, lireMatriculeCnss: Compta.lireMatriculeCnss, identiteCnss: Compta.identiteCnss, motifIdentiteCnss: Compta.motifIdentiteCnss, cnssNonDeclaree, employerAnnual, socialDue,
     LEAVE_KINDS, leaveKindLabel, leaveIsPaid, workingDays, leaveDaysInMonth, leavesOf, leaveBalance,
     advancesOf, advanceBalance, payslipInputFor, HR_DOCS, hrDocLabel, hrDocumentHtml, staffRegister,
+    // (plateforme) 1.72.0 — du moteur commun : la civilité, l'indemnité de congés non pris, les lignes du solde.
+    CIVILITES, indemniteConges, lignesDuSolde,
     SERIAL_STATUSES, serialStatusLabel, WARRANTY_CHOICES, serializedItems, warrantyEnd, serialView,
     serialList, availableSerials, clientFleet, warrantiesEnding, serialGap, serialGaps,
     mergeData, trackDeletion, MERGE_LISTS, LIST_LABELS, LIST_PLURIELS, compteListe, piecesLiees,

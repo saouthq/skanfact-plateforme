@@ -130,7 +130,8 @@ sont listées, chacune avec sa raison, dans `web/v10/adaptations.mjs` ; l'adress
 **La fiche d'un dossier** (migration `0020`, `cabinet.fiche`) : ce que le cabinet note sur son
 client et qui n'est pas sa comptabilité. **Les champs, comptés** (`FICHE`, serveur/cabinet/routes.ts) :
 e-mail, téléphone, contact, note, archivé, début de mission, régime, période de TVA, honoraires
-(entier, en millimes), matricule CNSS employeur, code CNSS ; tout autre champ se refuse. Elle
+(entier, en millimes), matricule CNSS employeur, code CNSS ; depuis la 1.72.0, l'adresse et le gérant du client (ses
+documents les impriment : `docs/paie.md`, « Les documents du personnel au Cabinet ») ; tout autre champ se refuse. Elle
 appartient au cabinet (ni le client, ni un collaborateur à qui le dossier n'est pas confié, ni un
 autre cabinet ne la lisent) ; une fiche changée ailleurs n'est jamais écrasée (la révision se
 vérifie dans l'écriture elle-même : deux postes au même instant, un seul passe).

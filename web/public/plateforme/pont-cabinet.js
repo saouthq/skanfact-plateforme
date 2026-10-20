@@ -82,7 +82,8 @@
   /** @type {Map<string, { contenu: Record<string, unknown>, revision: number | null }>} */
   const fiches = new Map();
   // Les champs de la fiche : ceux que le serveur garde (serveur/cabinet/routes.ts, FICHE).
-  const TEXTES_FICHE = ['email', 'phone', 'contact', 'note', 'regime', 'tvaPeriod', 'from', 'cnssEmployeur', 'cnssCode'];
+  // (1.72.0) Et l'adresse et le gérant du client, que ses documents impriment.
+  const TEXTES_FICHE = ['email', 'phone', 'contact', 'note', 'regime', 'tvaPeriod', 'from', 'cnssEmployeur', 'cnssCode', 'adresse', 'gerant'];
   // Les taux de la paie propres à l'entreprise (1.66.0) : l'accident du travail, la TFP, le FOPROLOS ; et (1.69.0) les
   // heures supplémentaires du pointage : les heures d'un mois complet, trois majorations. Gardés en texte décimal, comme
   // les taux par contrat, et lus tels quels : le moteur de la v10 les compte en nombres (computePayslip, heuresSupDuMois).
@@ -542,20 +543,33 @@
   // Un salarié du dossier (la forme de l'entreprise) → celui du Cabinet v10, et retour.
   /** @param {any} e */
   const salarieDe = (e) => ({
-    id: e.id, nom: e.name || '', cin: e.cin || '', cnss: e.cnss || '', identiteCnss: e.identiteCnss || '', poste: e.position || '',
+    // 1.72.0 — l'identité CNSS : l'entreprise l'écrit `cnssName` (son fichier du trimestre la lit là) ; le Cabinet lisait et
+    // écrivait `identiteCnss`, que l'entreprise ignore. Celle d'un client sur SkanFact n'arrivait pas au fichier du Cabinet
+    // (qui reprenait le nom), et celle saisie au Cabinet n'arrivait pas au sien. Lue sous les deux noms (un dossier tenu
+    // l'a sous le second), écrite sous le premier.
+    id: e.id, nom: e.name || '', cin: e.cin || '', cnss: e.cnss || '', identiteCnss: e.cnssName || e.identiteCnss || '', poste: e.position || '',
+    // 1.72.0 — sa civilité (l'accord des documents du personnel).
+    genre: e.gender === 'f' || e.gender === 'm' ? e.gender : '',
     contrat: e.contract || 'cdi', embauche: e.hireDate || '', sortie: e.endDate || '', brut: Number(e.grossSalary) || 0,
     chefDeFamille: !!e.headOfFamily, enfants: Number(e.children) || 0, actif: e.active !== false, note: e.notes || '',
     // 1.68.0 — ses primes de chaque mois (celles de l'entreprise, 1.59.0) : un bulletin nouveau les reprend.
     primes: Array.isArray(e.primes) ? e.primes : [],
   });
   /** @param {any} s @param {any} avant */
-  const employeDe = (s, avant) => ({
-    method: 'virement', iban: '', ...(avant || {}), id: s.id, name: s.nom, cin: s.cin, cnss: s.cnss, identiteCnss: s.identiteCnss, position: s.poste,
-    contract: s.contrat, hireDate: s.embauche, endDate: s.sortie, grossSalary: s.brut, headOfFamily: s.chefDeFamille, children: s.enfants,
-    active: s.actif !== false, notes: s.note,
-    // 1.68.0 — ses primes de chaque mois, dans la forme de l'entreprise.
-    primes: Array.isArray(s.primes) ? s.primes : ((avant && avant.primes) || []),
-  });
+  const employeDe = (s, avant) => {
+    // 1.72.0 — l'identité CNSS sous le nom de l'entreprise (`cnssName`) : l'ancien nom du Cabinet ne se garde pas.
+    /** @type {Record<string, unknown>} */ const garde = { ...(avant || {}) };
+    delete garde.identiteCnss;
+    return {
+      method: 'virement', iban: '', ...garde, id: s.id, name: s.nom, cin: s.cin, cnss: s.cnss, cnssName: s.identiteCnss, position: s.poste,
+      // 1.72.0 — sa civilité.
+      gender: s.genre || '',
+      contract: s.contrat, hireDate: s.embauche, endDate: s.sortie, grossSalary: s.brut, headOfFamily: s.chefDeFamille, children: s.enfants,
+      active: s.actif !== false, notes: s.note,
+      // 1.68.0 — ses primes de chaque mois, dans la forme de l'entreprise.
+      primes: Array.isArray(s.primes) ? s.primes : ((avant && avant.primes) || []),
+    };
+  };
   /** @param {any} p @param {string | null} ecritureId */
   const bulletinDe = (p, ecritureId) => {
     const c = p.computed || {};
@@ -1639,6 +1653,10 @@
       return {
         employees: objets.filter((o) => o.collection === 'employees').map((o) => o.contenu),
         payslips: objets.filter((o) => o.collection === 'payslips').map((o) => o.contenu),
+        // 1.72.0 — ses congés et ses avances : le solde de tout compte en compte les congés non pris (et dit ce qui reste dû
+        // sur les avances).
+        leaves: objets.filter((o) => o.collection === 'leaves').map((o) => o.contenu),
+        advances: objets.filter((o) => o.collection === 'advances').map((o) => o.contenu),
       };
     },
     saveBulletin: async (/** @type {any} */ o) => {

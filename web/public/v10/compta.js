@@ -6414,6 +6414,50 @@
       remaining: round3(acquired + carry - taken), perYear, list };
   }
 
+  // ---------- documents du personnel (5.1.0) ----------
+  // (plateforme) 1.72.0 — déménagés de core.js dans le moteur commun : le Cabinet imprime aussi l'attestation, le certificat
+  // de travail et le solde de tout compte d'un salarié, et une copie diverge. core.js les reprend.
+  const HR_DOCS = [
+    ['attestation', 'Attestation de travail', 'Atteste qu\'une personne fait partie du personnel aujourd\'hui. Demandée par une banque, un bailleur, une administration.'],
+    ['certificat', 'Certificat de travail', 'Remis à la fin du contrat. Obligatoire : il indique les dates et l\'emploi occupé, rien d\'autre.'],
+    ['solde', 'Solde de tout compte', 'Récapitule ce qui reste dû au départ : salaire du mois, congés non pris, indemnités.']
+  ];
+  const hrDocLabel = k => (HR_DOCS.find(x => x[0] === k) || [, k])[1];
+  // La civilité d'un salarié (1.72.0) : elle précède son nom sur ces documents, et en fait l'accord (« employée »).
+  const CIVILITES = [['m', 'Monsieur'], ['f', 'Madame']];
+
+  // (plateforme) 1.72.0 — l'indemnité de congés non pris d'un salarié à son départ : le solde de ses congés au jour de sa
+  // sortie (sans sortie, au jour donné), au salaire d'un jour de son dernier bulletin (son brut sur les jours ouvrables d'un
+  // mois complet, 26 au barème), à défaut de bulletin de sa fiche. Ce que la fenêtre du solde de tout compte propose ET ce
+  // que le document imprime (core.js, `hrDocumentHtml`), dans l'entreprise comme au Cabinet : une fonction, un chiffre. Le
+  // document comptait au jour du document et sur le dernier bulletin seul, la fenêtre au jour de la fenêtre et sur la fiche
+  // à défaut de bulletin : deux chiffres pour la même ligne. Un solde négatif (des congés pris d'avance) n'indemnise rien.
+  // À VÉRIFIER avec le comptable : la base de l'indemnité (le dernier salaire, la moyenne de l'année).
+  function indemniteConges(data, employeeId, dateIso) {
+    const e = (data.employees || []).find(x => x.id === employeeId) || {};
+    const jour = String(e.endDate || dateIso || jourDeLInstant(Date.now()));
+    const solde = leaveBalance(data, employeeId, Number(jour.slice(0, 4)), jour).remaining;
+    const dernier = (data.payslips || []).filter(p => p.employeeId === employeeId && p.computed)
+      .sort((a, b) => (Number(b.year) - Number(a.year)) || (Number(b.month) - Number(a.month)))[0];
+    const ouvrables = Number(baremesPaie((data && data.payrollSettings) || {}).workedDays) || 26;
+    const journalier = round3((dernier ? Number(dernier.computed.gross) || 0 : Number(e.grossSalary) || 0) / ouvrables);
+    const jours = Math.max(0, solde);
+    return { solde, jours, journalier, montant: round3(journalier * jours) };
+  }
+
+  // Les lignes que le solde de tout compte propose : le salaire du mois, l'indemnité de congés non pris (`cle: 'conges'`, que
+  // la fenêtre fait suivre la date tant qu'on n'y touche pas), le préavis, la fin de contrat. Les montants sont à celui qui
+  // l'établit : seule l'indemnité de congés se calcule.
+  function lignesDuSolde(data, employeeId, dateIso) {
+    const ic = indemniteConges(data, employeeId, dateIso);
+    return [
+      { label: 'Salaire du mois en cours', amount: 0 },
+      { label: `Indemnité de congés non pris (${String(round3(ic.jours)).replace('.', ',')} jour${ic.jours >= 2 ? 's' : ''})`, amount: ic.montant, cle: 'conges' },
+      { label: 'Indemnité de préavis', amount: 0 },
+      { label: 'Indemnité de fin de contrat', amount: 0 }
+    ];
+  }
+
   // ---------- le pointage (plateforme, 1.60.0) ----------
   // (plateforme) 1.69.0 — déménagé de core.js dans le moteur commun : le Cabinet pointe aussi les salariés d'un dossier,
   // et une copie diverge. L'exception à la règle de ce fichier (une fonction qui prend `data` reste dans core.js) : ces
@@ -6625,6 +6669,8 @@
       // comme sur la carte d'assuré. Vide, le fichier du trimestre reprend `nom` et le dit.
       identiteCnss: String(e.identiteCnss || '').trim(),
       poste: String(e.poste || '').trim(),
+      // (plateforme) 1.72.0 — sa civilité (« m », « f »), qui fait l'accord des documents du personnel ; inconnue, vide.
+      genre: CIVILITES.some(c => c[0] === e.genre) ? e.genre : '',
       contrat: CONTRACT_TYPES.some(c => c[0] === e.contrat) ? e.contrat : 'cdi',
       embauche: String(e.embauche || ''), sortie: String(e.sortie || ''),
       brut: round3(Number(e.brut) || 0),
@@ -7291,6 +7337,8 @@
     saisieDuMois,
     // (plateforme) 1.71.0 — les avances.
     advancesOf, advanceBalance, echeancesDuMois, avancesDeLAnnee,
+    // (plateforme) 1.72.0 — les documents du personnel.
+    HR_DOCS, hrDocLabel, CIVILITES, indemniteConges, lignesDuSolde,
     ecritureDePaie, noterEcriturePaie, cnssDuTrimestre, controlesPaie,
     fichierCnss, fichierCnssDuLivre, lireMatriculeCnss, identiteCnss, motifIdentiteCnss, FORMAT_CNSS,
     // La pièce équilibrée et l'amortissement (9.6.1)
