@@ -223,7 +223,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await client.waitForURL(/\/payer\/[0-9a-f]+$/, { timeout: 15_000 });
     await client.getByRole('button', { name: 'Payer (simulation)', exact: true }).click();
     await client.waitForURL(/\/espace\/retour\.html/, { timeout: 15_000 });
-    await expect.poll(async () => net(await client.locator('#retour').innerText()), { timeout: 15_000 }).toMatch(/^Paiement reçu 1 073,190 DT pour la facture FAC-\d{4}-001\./);
+    await expect.poll(async () => net(await client.locator('#retour').innerText()), { timeout: 15_000 }).toMatch(/^Paiement reçu Merci ! La facture FAC-\d{4}-001 est réglée\. Montant 1 073,190 DT /i);
     await cc.close();
 
     // Chez Nadia : le paiement est sur la facture, qui ne doit plus rien.

@@ -4155,7 +4155,7 @@ prouver "le lien de l'espace oublié au retour" web/public/espace/espace.js \
 " "" \
   "$PW"
 prouver "« Paiement reçu » jamais dit" web/public/espace/retour.js \
-  "if (lu.etat === 'encaisse') { dire('Paiement reçu'" "if (lu.etat === 'jamais') { dire('Paiement reçu'" \
+  "if (lu.etat === 'encaisse') {" "if (lu.etat === 'jamais') {" \
   "$PW"
 prouver "le panneau « Paiement en ligne » jamais dessiné" web/public/v10/app.js \
   "    if (bridge.dessinerPaiement && \$('#paiement-panel')) void bridge.dessinerPaiement(\$('#paiement-panel'));
@@ -18328,6 +18328,15 @@ prouver '« Je choisis cette offre » en bouton principal d'"'"'un abonnement pa
   'class="btn${a.etat.etat === '"'"'actif'"'"' ? '"'"''"'"' : '"'"' btn-primary'"'"'}" id="abo-choisir"' \
   'class="btn btn-primary" id="abo-choisir"' \
   'Walid voit la facture de son abonnement, la paie en ligne, et revient sur son abonnement payé'
+
+# 1.85.0 — la page de retour d'un paiement, dans la DA : le pied « État lu auprès du prestataire » ne vient qu'avec un
+# reçu (un lien coupé, que rien n'a lu, ne le dit pas) ; le montant se lit en grand dans le reçu.
+prouver 'le pied « état lu auprès du prestataire » sur un lien que rien n'"'"'a lu' web/public/espace/retour.js \
+  '</section>${recu ? `' '</section>${true ? `' \
+  "$PW"
+prouver 'le montant absent du reçu de retour' web/public/espace/retour.js \
+  '<div class="r-montant"><span>Montant</span><b>${esc(recu.montant)}</b></div>' '<div class="r-montant"><span>Montant</span><b></b></div>' \
+  "$MFW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

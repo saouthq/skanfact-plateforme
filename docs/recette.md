@@ -521,6 +521,34 @@ rien ne tenait. Se défait sans perte : le choix ne paie rien et ne change pas l
 - `tests/web/abonnement-choix.test.ts` (nouveau) : à la souris, les quatre choix et leur prix, le bouton éteint puis
   allumé, le choix lu, « Changer de choix », le jour de Tunis d'un choix fait à 23 h 30 UTC ; la console a la ligne.
 - Huit preuves (`tests/preuves.sh`).
+- **Refusé par la vérification complète avant l'envoi** : l'export d'une entreprise exige que chaque table soit classée,
+  et `plateforme.offre_choisie` ne l'était pas (classée « hors », comme l'abonnement ; `base/types.ts` régénéré).
+
+## 1.85.0 — la page de retour d'un paiement, dans la DA (21/10/2026)
+
+Skander : « refaire les pages de confirmation de paiement, le UI est à 0/10, avec la DA ». La page où revient le client
+d'une entreprise (et l'abonné de SkanFact) après Konnect était un paragraphe sur fond gris.
+
+### Ce que le lot apporte et corrige
+
+- **Une carte dans la DA** : le haut vert nuit quadrillé avec l'icône de l'état (menthe, ambre, corail), le titre en
+  Bricolage Grotesque ; dessous, le reçu — le montant en grand, la facture, « Paiement en ligne », l'état en pastille —
+  et un seul bouton, « Revenir à ton espace → » (ou « à ton abonnement »). Clair et sombre, vu au téléphone (390 px) et
+  au bureau ; un refus barre le montant.
+- **Une phrase que rien ne tenait** : le pied « Paiement vérifié auprès du prestataire » se lisait aussi sur un lien
+  coupé, où rien n'a été vérifié. Il ne vient plus qu'avec un reçu (« État lu auprès du prestataire de paiement »).
+- **La même phrase deux fois** (lien incomplet, paiement introuvable : « Reviens par le lien que l'entreprise t'a
+  donné » en haut et en bas) : le haut dit ce qui manque, le bas ce qu'on peut faire.
+- Le numéro de la facture ne se coupe plus en fin de ligne (« FAC- » puis « 2026-002 »).
+
+### Ce qui le prouve
+
+- `tests/web/paiement-en-ligne.test.ts`, `jalon-j2.test.ts`, `abonnement-factures.test.ts` : le texte entier de la
+  carte, dans l'ordre (le titre, le merci, le montant, le reçu, le bouton) ; le pied lu après un paiement, absent d'un
+  lien coupé.
+- Deux preuves nouvelles (le pied sur un lien que rien n'a lu, le montant absent du reçu), et « « Paiement reçu »
+  jamais dit » reportée sur le nouveau code.
+- Vus à l'écran : les cinq états (reçu, en cours, refusé, non abouti, lien incomplet), au téléphone et en sombre.
 
 ## Ce qui reste (les lots suivants)
 

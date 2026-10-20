@@ -21,14 +21,36 @@
   // (posée avant de partir ; l'application rouvre l'onglet en la lisant).
   const deLAbonnement = /^[0-9a-f-]{36}$/.test(abonnement);
   const ici = deLAbonnement ? 'ton abonnement' : 'ton espace';
+  const FLECHE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
   const revenir = deLAbonnement
-    ? `<p><a class="bouton principal" href="/v10/?e=${encodeURIComponent(abonnement)}">Revenir à ton abonnement</a></p>`
+    ? `<a class="r-bouton" href="/v10/?e=${encodeURIComponent(abonnement)}">Revenir à ton abonnement ${FLECHE}</a>`
     : jeton
-      ? `<p><a class="bouton principal" href="/espace/#${encodeURIComponent(jeton)}">Revenir à ton espace</a></p>`
+      ? `<a class="r-bouton" href="/espace/#${encodeURIComponent(jeton)}">Revenir à ton espace ${FLECHE}</a>`
       : '<p>Tu peux fermer cette page, et rouvrir le lien que l\'entreprise t\'a donné.</p>';
-  /** @param {string} titre @param {string} texte @param {string} suite */
-  const dire = (titre, texte, suite) => {
-    racine.innerHTML = `<section class="carte retour"><h1>${esc(titre)}</h1><p>${esc(texte)}</p>${suite}</section>`;
+  // Chaque état a son ton (ok : la menthe ; attente : l'ambre ; refus : le corail) et son icône, sans texte : le titre dit.
+  const ICONES = {
+    ok: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+    attente: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/></svg>',
+    refus: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg>',
+  };
+  /** @typedef {{ montant: string, numero: string, etat: string }} Recu */
+  /**
+   * La carte : le haut sombre dit l'état ; dessous, le reçu (le montant, la facture, l'état) et la suite. Le pied « État lu
+   * auprès du prestataire » ne vient qu'avec un reçu : sans réponse du serveur, rien n'a été lu.
+   * @param {'ok' | 'attente' | 'refus'} ton @param {string} titre @param {string} texte @param {string} suite @param {Recu} [recu]
+   */
+  const dire = (ton, titre, texte, suite, recu) => {
+    const corps = recu ? `<div class="r-montant"><span>Montant</span><b>${esc(recu.montant)}</b></div>
+        <dl class="r-lignes">
+          <div><dt>Facture</dt><dd>${esc(recu.numero)}</dd></div>
+          <div><dt>Moyen</dt><dd>Paiement en ligne</dd></div>
+          <div><dt>État</dt><dd><span class="r-pastille">${esc(recu.etat)}</span></dd></div>
+        </dl>` : '';
+    racine.innerHTML = `<section class="r-carte r-${ton}">
+      <div class="r-tete"><span class="r-icone">${ICONES[ton]}</span><h1>${esc(titre)}</h1><p>${texte}</p></div>
+      ${corps || suite ? `<div class="r-corps">${corps}${suite ? `<div class="r-suite">${suite}</div>` : ''}</div>` : ''}
+    </section>${recu ? `
+    <p class="r-pied"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>État lu auprès du prestataire de paiement · SkanFact</p>` : ''}`;
   };
   const devise = (/** @type {string} */ d) => (d === 'TND' ? 'DT' : d);
 
@@ -38,24 +60,31 @@
     try {
       r = await fetch('/v1/espace/paiement', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ paiement, s: secret }) });
     } catch {
-      dire('Le serveur ne répond pas.', 'Vérifie ta connexion, puis recharge cette page : ton paiement sera vérifié.', revenir);
+      dire('attente', 'Le serveur ne répond pas', 'Vérifie ta connexion, puis recharge cette page : ton paiement sera vérifié.', revenir);
       return;
     }
     const lu = await r.json().catch(() => ({}));
-    if (!r.ok) { dire('Ce paiement est inconnu.', typeof lu.motif === 'string' ? lu.motif : deLAbonnement ? 'Reviens à ton abonnement, dans SkanFact.' : 'Reviens à ton espace par le lien que l\'entreprise t\'a donné.', revenir); return; }
+    if (!r.ok) { dire('refus', 'Paiement introuvable', esc(typeof lu.motif === 'string' ? lu.motif : 'SkanFact ne retrouve pas ce paiement : rien n\'a été enregistré.'), revenir); return; }
     const somme = C.money(Number(lu.montant), devise(lu.devise));
-    if (lu.etat === 'encaisse') { dire('Paiement reçu', `${somme} pour la facture ${lu.numero}. Merci !`, revenir); return; }
-    if (lu.etat === 'echoue') { dire('Paiement non accepté', `Ce paiement de ${somme} n'est pas enregistré : écris à l'entreprise.`, revenir); return; }
-    if (echec) { dire('Paiement non abouti', `Le paiement de ${somme} n'a pas abouti : il n'est pas enregistré. Tu peux réessayer depuis ${ici}.`, revenir); return; }
+    // Un numéro ne se coupe pas en fin de ligne (« FAC- » puis « 2026-002 »).
+    const num = `<span class="r-num">${esc(lu.numero)}</span>`;
+    const recu = (/** @type {string} */ etat) => ({ montant: somme, numero: String(lu.numero ?? ''), etat });
+    if (lu.etat === 'encaisse') {
+      dire('ok', 'Paiement reçu', `Merci ! La facture ${num} est réglée.`,
+        `${revenir}<p>${deLAbonnement ? 'Ton abonnement se met à jour tout seul : la facture y est marquée payée.' : 'La facture est marquée payée dans ton espace.'}</p>`, recu('Payée'));
+      return;
+    }
+    if (lu.etat === 'echoue') { dire('refus', 'Paiement non accepté', `Ce paiement de <b>${esc(somme)}</b> n'est pas enregistré : écris à l'entreprise.`, revenir, recu('Refusé')); return; }
+    if (echec) { dire('refus', 'Paiement non abouti', `Le paiement de <b>${esc(somme)}</b> n'a pas abouti : il n'est pas enregistré. Tu peux réessayer depuis ${esc(ici)}.`, revenir, recu('Non abouti')); return; }
     // Le prestataire n'a pas encore confirmé : on redemande un moment, puis on dit ce qui se passera.
     if (essai < 10) {
-      dire('Confirmation en cours…', `Le prestataire confirme ton paiement de ${somme} pour la facture ${lu.numero}.`, '');
+      dire('attente', 'Confirmation en cours…', `Le prestataire confirme ton paiement de <b>${esc(somme)}</b> pour la facture ${num}.`, '', recu('En cours'));
       setTimeout(() => { void verifier(essai + 1); }, 2000);
       return;
     }
-    dire('Confirmation en attente', `Le prestataire n'a pas encore confirmé ton paiement de ${somme}. S'il est confirmé, il s'enregistrera tout seul sur la facture.`, revenir);
+    dire('attente', 'Confirmation en attente', `Le prestataire n'a pas encore confirmé ton paiement de <b>${esc(somme)}</b>. S'il est confirmé, il s'enregistrera tout seul sur la facture.`, revenir, recu('En attente'));
   }
 
-  if (!paiement || !secret) dire('Ce lien de retour est incomplet.', deLAbonnement ? 'Reviens à ton abonnement, dans SkanFact.' : 'Reviens à ton espace par le lien que l\'entreprise t\'a donné.', revenir);
+  if (!paiement || !secret) dire('refus', 'Lien de retour incomplet', 'Il manque la référence du paiement : cette page ne peut pas le vérifier.', revenir);
   else void verifier(0);
 })();

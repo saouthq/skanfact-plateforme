@@ -49,6 +49,12 @@ montant exact ; un « completed » qui ne correspond pas n'est jamais enregistr�
 autre état attend (jamais un échec définitif : un paiement fini plus tard doit pouvoir s'enregistrer). Le
 secret de l'adresse de retour vit dans le fragment « # » (le navigateur ne l'envoie à personne).
 
+**P5 bis. Ce que la page de retour montre** (1.85.0, dans la DA de l'application : `retour.css`, ses propres polices,
+clair et sombre, lisible sur un téléphone). Une carte : en haut, l'état dans son ton (reçu en menthe, en cours en ambre,
+refusé ou non abouti en corail) ; dessous, le reçu (le montant en grand, la facture, le moyen, l'état) et un seul
+bouton, revenir à l'espace ou à l'abonnement. Le pied « État lu auprès du prestataire de paiement » ne vient qu'avec un
+reçu : un lien coupé, un paiement introuvable ou un serveur qui ne répond pas n'ont rien lu, et ne le disent pas.
+
 **P6. Prouvé, le règlement s'ajoute tout seul à la facture**, une fois : au nom du propriétaire de
 l'entreprise (le client n'est pas un utilisateur), mode « Paiement en ligne », référence « Konnect … »,
 sur le compte « Konnect », par le même chemin qu'un règlement saisi (ses écritures comprises). La trace

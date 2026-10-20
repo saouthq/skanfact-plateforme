@@ -142,8 +142,17 @@ describe('le paiement en ligne, à la souris', () => {
     // De retour : « Paiement reçu », puis son espace ne doit plus rien.
     await client.waitForURL(/\/espace\/retour\.html/, { timeout: 15_000 });
     await expect.poll(async () => net(await client.locator('#retour').innerText()), { timeout: 15_000 })
-      .toBe('Paiement reçu 873,190 DT pour la facture FAC-2026-001. Merci ! Revenir à ton espace');
+      .toMatch(/^Paiement reçu Merci ! La facture FAC-2026-001 est réglée\. Montant 873,190 DT Facture FAC-2026-001 Moyen Paiement en ligne État Payée Revenir à ton espace /i);
     await client.screenshot({ path: path.join(PHOTOS, 'paiement-4-recu.png') });
+    // Le pied dit que l'état vient du prestataire, parce que le serveur le lui a redemandé ; un lien coupé, que rien n'a
+    // lu, ne le dit pas (1.85.0).
+    expect(net(await client.locator('.r-pied').innerText())).toBe('État lu auprès du prestataire de paiement · SkanFact');
+    const coupe = await cc.newPage();
+    await coupe.goto(`${serveur.adresse}/espace/retour.html#paiement=${encodeURIComponent('x')}`);
+    await expect.poll(async () => net(await coupe.locator('#retour h1').innerText().catch(() => '')), { timeout: 15_000 }).toBe('Lien de retour incomplet');
+    expect(net(await coupe.locator('#retour').innerText())).toMatch(/^Lien de retour incomplet Il manque la référence du paiement : cette page ne peut pas le vérifier\. Tu peux fermer cette page, et rouvrir le lien que l'entreprise t'a donné\.$/);
+    expect(await coupe.locator('.r-pied').count()).toBe(0);
+    await coupe.close();
     await client.getByRole('link', { name: 'Revenir à ton espace', exact: true }).click();
     await expect.poll(async () => net(await client.locator('.carte.du').innerText()), { timeout: 15_000 }).toBe('Rien à payer Merci !');
     expect(net(await client.locator('table.pieces tbody').innerText())).toBe('Facture FAC-2026-001 Payée Payé : 1 073,190 DT 01/10/2026 31/10/2026 1 073,190 DT 0,000 DT Voir');

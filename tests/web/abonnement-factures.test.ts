@@ -133,7 +133,8 @@ describe('« Tes factures », à la souris', () => {
     await cliquer(p.getByRole('button', { name: 'Payer (simulation)' }));
     await p.waitForURL(/\/espace\/retour\.html/, { timeout: 15_000 });
     await expect.poll(() => p.locator('h1').innerText().catch(() => ''), { timeout: 15_000 }).toBe('Paiement reçu');
-    expect(net(await p.locator('#retour').innerText())).toContain(`47,410 DT pour la facture ${numero}`);
+    expect(net(await p.locator('#retour').innerText())).toContain(`Merci ! La facture ${numero} est réglée.`);
+    expect(net(await p.locator('#retour .r-montant').innerText())).toMatch(/^Montant 47,410 DT$/i);
 
     // ── Il revient : « Ton abonnement » s'ouvre tout seul, payé jusqu'à la fin de la période ─────────────────────────────
     await cliquer(p.getByRole('link', { name: 'Revenir à ton abonnement' }));
