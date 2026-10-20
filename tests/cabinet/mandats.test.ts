@@ -239,6 +239,52 @@ describe('le cabinet et ses mandats', () => {
     expect((await admin.query(`select count(*)::int n from socle.audit where entreprise = $1 and geste = 'cabinet.mandat.inviter'`, [cl.ent])).rows[0].n).toBe(4);
   });
 
+  it('le client tenu rejoint son dossier par le lien de son cabinet : propriétaire, ses livres, le mandat continue ; avec l\'adresse invitée seulement, une fois', async () => {
+    const cab = await cabinet();
+    const d = await appeler('POST', `/cabinets/${cab.id}/dossiers`, cab.associe.jeton, { raisonSociale: 'Boulangerie Ennour' });
+    const ent = String(d.corps.entreprise);
+    const jetonDe = (lien: unknown) => decodeURIComponent(/[?&]dossier=([^&]+)/.exec(String(lien))?.[1] ?? '');
+    const inviter = (email: string, jeton = cab.associe.jeton) => appeler('POST', `/cabinets/${cab.id}/dossiers/${ent}/invitation`, jeton, { email });
+    // Un collaborateur n'invite pas ; l'associé si. La seconde invitation éteint la première.
+    const revision = await cab.collaborateur('revision');
+    const mandatTenu = (await portefeuille(cab.id, cab.associe))[0]?.mandat;
+    await appeler('PUT', `/cabinets/${cab.id}/mandats/${mandatTenu}/affectations/${revision.membre}`, cab.associe.jeton, { role: 'revision' });
+    const refus = await inviter('client@exemple.tn', revision.jeton);
+    expect([refus.statut, String(refus.corps.motif)]).toEqual([403, expect.stringMatching(/seul un associé/i)]);
+    const premiere = jetonDe((await inviter('ancien@exemple.tn')).corps.lien);
+    const client = await personne('client');
+    const r = await inviter(client.email.toUpperCase());
+    expect(r.statut, JSON.stringify(r.corps)).toBe(201);
+    const jeton = jetonDe(r.corps.lien);
+    expect((await appeler('POST', '/invitations-dossier/apercu', undefined, { jeton: premiere })).corps).toEqual({ valable: false });
+    expect((await appeler('POST', '/invitations-dossier/apercu', undefined, { jeton })).corps)
+      .toMatchObject({ valable: true, entreprise: 'Boulangerie Ennour', cabinet: 'Cabinet Ennour', email: client.email });
+    expect(((await appeler('GET', `/cabinets/${cab.id}/dossiers/${ent}/invitation`, cab.associe.jeton)).corps.invitation as { email: string }).email).toBe(client.email);
+    // Un autre compte ne prend pas le dossier avec ce lien.
+    const intrus = await personne('intrus');
+    expect((await appeler('POST', '/invitations-dossier/rejoindre', intrus.jeton, { jeton })).corps.motif).toMatch(/une autre adresse/);
+    // Le client le rejoint : propriétaire, ses livres, le dossier n'est plus tenu, le mandat continue avec son périmètre.
+    await admin.query(`update plateforme.abonnement set essai_jusqu_au = current_date - 40 where entreprise = $1`, [ent]);
+    const j = await appeler('POST', '/invitations-dossier/rejoindre', client.jeton, { jeton });
+    expect(j.statut, JSON.stringify(j.corps)).toBe(200);
+    expect(j.corps.entreprise).toBe(ent);
+    expect((await admin.query('select roles from socle.membre where entreprise = $1 and utilisateur = $2 and actif', [ent, client.utilisateur])).rows[0].roles).toEqual(['proprietaire']);
+    expect((await admin.query('select tenue_par from socle.entreprise where id = $1', [ent])).rows[0].tenue_par).toBeNull();
+    expect((await livres(ent, client)).statut).toBe(200);
+    expect(((await appeler('GET', `/entreprises/${ent}/mandat`, client.jeton)).corps.mandat as { statut: string; perimetre: string[] }))
+      .toMatchObject({ statut: 'actif', perimetre: ['comptabilite', 'declarations', 'saisie_achats', 'paie'] });
+    expect(await portefeuille(cab.id, cab.associe)).toMatchObject([{ entreprise: ent, statut: 'actif', tenu: false }]);
+    // Son essai part d'aujourd'hui (celui du dossier tenu, posé passé ci-dessus, ne compte plus) ; la trace le dit chez lui.
+    const essai = (await admin.query(`select essai_jusqu_au - current_date jours from plateforme.abonnement where entreprise = $1`, [ent])).rows[0].jours as number;
+    expect(essai).toBeGreaterThanOrEqual(29);
+    expect((await admin.query(`select count(*)::int n from plateforme.evenement_abonnement where entreprise = $1 and nature = 'essai_commence' and motif like '%rejoint%'`, [ent])).rows[0].n).toBe(1);
+    expect((await admin.query(`select count(*)::int n from socle.audit where entreprise = $1 and geste = 'socle.dossier.rejoindre'`, [ent])).rows[0].n).toBe(1);
+    // Une fois : le lien ne vaut plus ; et un dossier qui n'est plus tenu ne s'invite plus.
+    expect((await appeler('POST', '/invitations-dossier/rejoindre', client.jeton, { jeton })).corps.motif).toMatch(/ne vaut plus/);
+    expect((await inviter('autre@exemple.tn')).statut).toBe(404);
+    expect((await admin.query('select count(*)::int n from socle.invitation_client_tenu where jeton_empreinte = $1', [jeton])).rows[0].n).toBe(0);
+  });
+
   it('le dossier tenu : l\'associé le crée, avec tout le périmètre et aucun membre côté client ; un collaborateur, non', async () => {
     const cab = await cabinet();
     const revision = await cab.collaborateur('revision');

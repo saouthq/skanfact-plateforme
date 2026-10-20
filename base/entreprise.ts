@@ -56,6 +56,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'socle.invitation': { classe: 'entreprise' },
   // 1.77.0 — l'invitation du comptable par e-mail (0154) : l'empreinte du lien, l'adresse, le mandat qu'elle a fait naître.
   'socle.invitation_comptable': { classe: 'entreprise' },
+  // 1.78.0 — l'invitation du client tenu à rejoindre son dossier (0155) : l'empreinte du lien, l'adresse, le cabinet.
+  'socle.invitation_client_tenu': { classe: 'entreprise' },
   'socle.transfert_propriete': { classe: 'entreprise' },
   'socle.audit': { classe: 'entreprise' },
   'socle.regle_entreprise': { classe: 'entreprise' },

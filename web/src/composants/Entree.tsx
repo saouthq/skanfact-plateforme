@@ -131,6 +131,25 @@ export function VitrineComptable({ ou, qui }: { ou: string; qui: string }) {
   );
 }
 
+// Arriver par le lien d'un cabinet qui invite son client tenu (1.78.0) : son compte, avec l'adresse invitée, puis son
+// dossier, qu'il trouve tenu à jour et dont il devient le propriétaire.
+export function VitrineDossier({ ou, cabinet }: { ou: string; cabinet: string }) {
+  const etapes = [['ecran.etape.compte', 'ecran.vitrine.dossier_compte'], ['ecran.vitrine.dossier_titre_etape', 'ecran.vitrine.dossier_entree']] as const;
+  return (
+    <>
+      <div className="ent-vitrine-titre"><h2>{titre('ecran.vitrine.dossier_titre', { ou })}</h2><p>{phrase('ecran.vitrine.dossier_sous', { cabinet })}</p></div>
+      <ol className="ent-etapes-liste">
+        {etapes.map(([t, texte], i) => (
+          <li key={t} className={i === 0 ? 'actuelle' : ''}>
+            <span className="num" data-donnee>{i + 1}</span>
+            <span className="txt"><b>{titre(t)}</b><span>{phrase(texte, { ou, cabinet })}</span></span>
+          </li>
+        ))}
+      </ol>
+    </>
+  );
+}
+
 // La page en deux : la vitrine à gauche (au téléphone, la marque seule en haut), le formulaire à droite.
 export function PageDouble({ vitrine, haut, bas, children }: { vitrine: ReactNode; haut?: ReactNode; bas?: ReactNode; children: ReactNode }) {
   return (

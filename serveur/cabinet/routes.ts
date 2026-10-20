@@ -15,7 +15,7 @@ import { enTantQue, requetes, type Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
 import './textes.ts';
-import { enMots, envoyerInvitation, etatVu, lienApplication, lienComptable, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
+import { enMots, envoyerInvitation, etatVu, lienApplication, lienComptable, lienDossier, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { matriculeCanonique, refusDuMatricule } from '../matricule.ts';
 import { PERIODE_REVISION, REVISION } from './revision.ts';
 
@@ -684,6 +684,74 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       const r = (await tx.query('select * from socle.rejoindre_par_invitation_comptable($1, $2, $3)',
         [createHash('sha256').update(corps.jeton).digest('hex'), params.cabinet, (ctx.maintenant ?? (() => new Date()))()])).rows[0] as { entreprise: string; mandat: string };
       return { corps: { entreprise: r.entreprise, mandat: r.mandat, statut: 'propose' } };
+    },
+  });
+
+  // ── Le cabinet invite son client tenu à rejoindre son dossier (1.78.0, 0155 ; 03 § 3.5) ───────────────────────────
+  // Ce qui part chez le relais, compté : l'adresse du client, le nom de qui invite, le cabinet, le dossier, le lien et
+  // sa date de fin. Le lien n'est rendu qu'ici, une fois (en secours) ; la base n'en garde que l'empreinte.
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/dossiers/:dossier/invitation', geste: 'compte.cabinets.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      const maintenant = (ctx.maintenant ?? (() => new Date()))();
+      const r = (await tx.query(`select id, email, expire_le, courriel, courriel_le from socle.invitation_client_tenu
+          where cabinet = $1 and entreprise = $2 and utilisee_le is null and annulee_le is null and expire_le > $3 order by cree_le desc limit 1`,
+        [params.cabinet, params.dossier, maintenant])).rows[0];
+      if (!r) return { corps: { invitation: null } };
+      return { corps: { invitation: { id: r.id, email: r.email, expire: r.expire_le.toISOString(), courriel: etatVu(r.courriel, r.courriel_le, maintenant) } } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/dossiers/:dossier/invitation', geste: 'compte.cabinet.gerer',
+    corps: z.object({ email: z.string().trim().email({ message: 'cabinet.champ.email' }) }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      const tenu = (await tx.query('select 1 from socle.entreprise where id = $1 and tenue_par = $2', [params.dossier, params.cabinet])).rowCount;
+      if (!tenu) return introuvable;
+      const jeton = randomBytes(24).toString('base64url');
+      const empreinte = createHash('sha256').update(jeton).digest('hex');
+      const maintenant = (ctx.maintenant ?? (() => new Date()))();
+      const expire = new Date(maintenant.getTime() + 30 * 24 * 3600_000);
+      const id = (await tx.query('select socle.inviter_client_tenu($1, $2, $3, $4) id', [params.dossier, corps.email, empreinte, expire])).rows[0].id as string;
+      const n = (await tx.query(`select (select coalesce(nullif(btrim(nom), ''), email) from socle.utilisateur where id = socle.moi()) qui,
+          (select nom from socle.organisation where id = $1) cabinet, (select raison_sociale from socle.entreprise where id = $2) dossier`,
+        [params.cabinet, params.dossier])).rows[0] as { qui: string | null; cabinet: string | null; dossier: string | null };
+      const invitation = { a: corps.email.toLowerCase(), qui: n.qui ?? '', ou: n.dossier ?? '', role: n.cabinet ?? '', lien: lienDossier(ctx, jeton), expire, cle: 'invitation.dossier' };
+      await noterAEnvoyer(tx, empreinte, maintenant);
+      return { statut: 201, corps: { id, lien: invitation.lien, expire: expire.toISOString() },
+        apres: async () => enMots(await envoyerInvitation(ctx, invitation, empreinte)) };
+    },
+  });
+  ajouter({
+    methode: 'DELETE', chemin: '/cabinets/:cabinet/dossiers/:dossier/invitation', geste: 'compte.cabinet.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      await tx.query('select socle.annuler_invitation_client_tenu($1)', [params.dossier]);
+      return { corps: { annulee: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/invitations-dossier/apercu', geste: 'public',
+    corps: z.object({ jeton: z.string().min(10).max(100) }),
+    traiter: async ({ corps }) => {
+      const r = await enTantQue(ctx.pool, null, async (tx) => (await tx.query('select * from socle.apercu_invitation_client_tenu($1, $2)',
+        [createHash('sha256').update(corps.jeton).digest('hex'), (ctx.maintenant ?? (() => new Date()))()])).rows[0]) as
+        { entreprise: string; cabinet: string; invite_par: string; email: string; expire_le: Date } | undefined;
+      if (!r) return { corps: { valable: false } };
+      return { corps: { valable: true, entreprise: r.entreprise, cabinet: r.cabinet, invitePar: r.invite_par, email: r.email, expire: r.expire_le.toISOString() } };
+    },
+  });
+  // Le client rejoint son dossier : il en devient le propriétaire (la trace le dit, chez lui).
+  ajouter({
+    methode: 'POST', chemin: '/invitations-dossier/rejoindre', geste: 'compte.invitation.accepter',
+    corps: z.object({ jeton: z.string().min(10).max(100) }),
+    traiter: async ({ corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const entreprise = (await tx.query('select socle.rejoindre_dossier_tenu($1, $2) e',
+        [createHash('sha256').update(corps.jeton).digest('hex'), (ctx.maintenant ?? (() => new Date()))()])).rows[0].e as string;
+      await tx.query('select socle.tracer($1, $2, $3, $4, $5, $6)', [entreprise, 'socle.dossier.rejoindre', 'entreprise', entreprise, JSON.stringify({ tenu: true }), JSON.stringify({ tenu: false })]);
+      return { corps: { entreprise } };
     },
   });
 

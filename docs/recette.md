@@ -200,8 +200,55 @@ Vu et corrigé en refaisant : l'invitation collée sous « Confier mon dossier �
 (les deux chemins côte à côte) ; la vitrine « ta première facture » pour un comptable (la sienne) ; la proposition en
 bas du cabinet neuf (en tête) ; le nom retenu comme identifiant par le navigateur (l'adresse).
 
+## 1.78.0 — le client tenu rejoint son dossier (20/10/2026)
+
+### Ce que le lot ajoute (03 § 3.5)
+
+- **Au Cabinet, sur un dossier tenu**, le panneau **« Ton client sur SkanFact »**, juste sous « Les mois de ce client » :
+  l'adresse de la fiche déjà remplie, « Inviter mon client ». SkanFact lui écrit (`invitation.dossier`) ; sans relais,
+  l'écran le dit et montre le lien une fois, avec « Copier le lien ». L'invitation qui attend se dit, avec « Envoyer un
+  nouveau lien » et « Annuler l'invitation ». Seul un associé invite.
+- **Le client ouvre le lien** (`/?dossier=…`) : une vitrine à lui (« Ton dossier … », son cabinet), son adresse remplie ;
+  il crée son compte (ou se connecte) **avec cette adresse**, et son dossier s'ouvre : il en est le **propriétaire**, ses
+  livres sont ceux que le cabinet a tenus, le mandat continue avec le même périmètre (la paie comprise si le cabinet la
+  faisait : il peut la décocher). Au Cabinet, le dossier n'est plus « tenu » : « sur SkanFact : ses livres sont à jour
+  en direct », et le panneau disparaît.
+- **Base 0155** : `socle.invitation_client_tenu` (l'empreinte du lien seulement), `inviter_client_tenu`,
+  `annuler_invitation_client_tenu`, `apercu_invitation_client_tenu`, `rejoindre_dossier_tenu` (l'adresse invitée
+  seulement ; une fois ; le dossier encore tenu par ce cabinet). La trace « socle.dossier.rejoindre » chez le client.
+
+### Décidé par délégation (20/10/2026), à confirmer par Skander
+
+**L'essai du client part du jour où il rejoint**, comme pour toute entreprise qui arrive : celui du dossier tenu courait
+depuis sa création (souvent passé). S'il a déjà payé, rien ne change. Le cadrage dit déjà qu'un dossier tenu qui
+devient abonné devient gratuit pour le cabinet (07) ; aucun prix ne change.
+
+### Compté, ce qui part au relais d'e-mails
+
+L'adresse du client, le nom de qui invite, le cabinet, la raison sociale du dossier, le lien et sa date de fin.
+
+### Ce qui le prouve
+
+- `tests/cabinet/mandats.test.ts` : un collaborateur n'invite pas ; la seconde invitation éteint la première ; l'aperçu ;
+  une autre adresse refusée ; le client propriétaire, ses livres, le dossier plus tenu, le mandat actif au même
+  périmètre ; l'essai qui repart ; les traces ; une fois ; un dossier plus tenu ne s'invite plus ; l'empreinte seule.
+- `tests/web/rejoindre-dossier.test.ts` : à la souris, du Cabinet (le panneau sous les mois, le refus d'une adresse, le
+  lien de secours) au client (vitrine, adresse remplie, compte créé, son dossier ouvert, l'essai), puis le Cabinet qui
+  le voit sur SkanFact.
+- Quatorze preuves (`tests/preuves.sh`, « 1.78.0 »), et cinq reprises sur le code d'aujourd'hui.
+
+### Refait à la souris (20/10/2026)
+
+Leila, au Cabinet Mansour Expertise, ouvre la Boulangerie El Amen (tenue) : le panneau, l'adresse elamen@exemple.tn
+remplie, « Inviter mon client », le lien. Un navigateur neuf l'ouvre : « Ton dossier Boulangerie El Amen », l'adresse
+remplie, le compte au clavier ; la Boulangerie s'ouvre, « Essai — 30 jours », « Mon comptable ». Au Cabinet : « sur
+SkanFact : ses livres sont à jour en direct », plus de panneau.
+
+Vu et corrigé en refaisant : le panneau était tout en bas, sous l'équipe (sous « Les mois de ce client », qui dit déjà
+que le client n'est pas sur SkanFact) ; « tient tes livres sur SkanFact : rejoins-les » (« tient tes livres à jour sur
+SkanFact : rejoins ton dossier »).
+
 ## Ce qui reste (les lots suivants)
 
-1. **1.78** : inviter son client tenu à rejoindre son dossier, depuis le Cabinet (prévu au cadrage).
-2. **1.79** : choisir son offre dans l'application (« Je choisis cette offre », que la console voit dans « À décider »),
+1. **1.79** : choisir son offre dans l'application (« Je choisis cette offre », que la console voit dans « À décider »),
    au lieu d'un e-mail. Le processus change, pas les prix : montré à Skander avant l'envoi.

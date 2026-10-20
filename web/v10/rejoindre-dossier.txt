@@ -1,0 +1,29 @@
+Ce que la 1.78.0 ajoute au Cabinet (docs/recette.md, « 1.78.0 » ; 03 § 3.5) : sur un dossier tenu, l'associé invite son
+client à rejoindre son dossier. Le panneau est dessiné par le point de contact (pont-cabinet.js, `dessinerRejoindre`).
+Format : voir sans-paquets.mjs.
+
+== cabinet/app.js | le dossier tenu : le panneau qui invite le client à le rejoindre, sous ses mois
+-- avant
+      </div>
+
+      <div class="panel"><h2>Relances ${info('r.history')}</h2>
+-- après
+      </div>
+      ${/* (plateforme) 1.78.0 — un client hors SkanFact peut rejoindre le dossier que le cabinet tient pour lui : le
+            panneau suit « Les mois de ce client », qui dit qu'il n'est pas sur SkanFact (vu à la souris : sous l'équipe,
+            en bas de page, on ne le trouvait pas). */''}
+      ${dossier.manual && api.dessinerRejoindre ? '<div class="panel" id="d-rejoindre"></div>' : ''}
+
+      <div class="panel"><h2>Relances ${info('r.history')}</h2>
+-- fin
+
+== cabinet/app.js | le panneau se dessine avec la page
+-- avant
+    $('#note-rel').onclick = () => noteRelanceForm(row);
+    brancherDroits(view, dossier);
+-- après
+    $('#note-rel').onclick = () => noteRelanceForm(row);
+    brancherDroits(view, dossier);
+    // (plateforme) 1.78.0 — le client tenu invité à rejoindre son dossier.
+    if ($('#d-rejoindre', view)) api.dessinerRejoindre($('#d-rejoindre', view), dossier);
+-- fin

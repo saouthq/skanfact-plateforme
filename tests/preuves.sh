@@ -6854,7 +6854,7 @@ prouver "la demande de connexion jamais oubliée en partant" web/src/App.tsx \
   "partir={(adresse) => { connexionDemandee.oublier(); location.assign(adresse); }}" "partir={(adresse) => { location.assign(adresse); }}" \
   "$BW"
 prouver "l'entreprise ouverte par-dessus la page Connecter" web/src/App.tsx \
-  "|| invitation.lire() || comptable.lire() || demandeConnexion || demande) return;" "|| invitation.lire() || comptable.lire() || demande) return;" \
+  "|| invitation.lire() || comptable.lire() || dossierTenu.lire() || demandeConnexion || demande) return;" "|| invitation.lire() || comptable.lire() || dossierTenu.lire() || demande) return;" \
   "$BW"
 prouver "la demande de connexion perdue à la connexion" web/src/App.tsx \
   "if (location.pathname === '/connecter') {" "if (location.pathname === '/jamais') {" \
@@ -9519,7 +9519,7 @@ prouver "les lignes de soi et du propriétaire avec un menu" web/public/platefor
   "    const modifiable = (m) => m.utilisateur !== eq.moi && !m.roles.includes('proprietaire');" "    const modifiable = (m) => true;" \
   "$EQW"
 prouver "le lien d'invitation qui arrive sur « Bon retour »" web/src/App.tsx \
-  "{ ecran: invitation.lire() || comptable.lire() ? 'inscription' : 'connexion' }" "{ ecran: comptable.lire() ? 'inscription' : 'connexion' }" \
+  "{ ecran: invitation.lire() || comptable.lire() || dossierTenu.lire() ? 'inscription' : 'connexion' }" "{ ecran: comptable.lire() || dossierTenu.lire() ? 'inscription' : 'connexion' }" \
   "$EQW"
 # ── Toutes les données de l'entreprise (12/10/2026 ; migration 0080, docs/export-complet.md) ──────────────────────────
 EX1="le fichier téléchargé est celui de l'exploitation, au caractère près (deux chemins, un fichier)"
@@ -9582,7 +9582,7 @@ prouver "la ligne d'état qui pousse le panneau du dessous" web/public/plateform
   ' id="export-etat" style="min-height: 1.5em"></p>' ' id="export-etat"></p>' \
   "$EXW"
 prouver "l'adresse invitée à retaper" web/src/ecrans/Inscription.tsx \
-  "useState(invitation?.email ?? comptable?.email ?? '')" "useState(comptable?.email ?? '')" \
+  "useState(invitation?.email ?? comptable?.email ?? dossier?.email ?? '')" "useState(comptable?.email ?? dossier?.email ?? '')" \
   "$EQW"
 prouver "l'arrivée par un lien qui ne dit pas qui invite" web/src/App.tsx \
   "sous={attend ?? sousInvitation('inscription')}" "sous={attend}" \
@@ -15462,11 +15462,11 @@ prouver '« à envoyer » pas écrit avant l'"'"'envoi' 'serveur/routes/socle.ts
 ' \
   '' \
   '« à envoyer » est déjà écrit quand l'"'"'e-mail part : un arrêt entre les deux en laisse la trace (A08)'
-prouver '« à envoyer » refusé par la base' 'base/migrations/0154_inviter_son_comptable.sql' \
+prouver '« à envoyer » refusé par la base' 'base/migrations/0155_inviter_son_client_tenu.sql' \
   '  if p_etat not in ('"'"'a_envoyer'"'"', '"'"'parti'"'"', '"'"'refuse'"'"', '"'"'en_attente'"'"', '"'"'sans_relais'"'"') then perform socle.refus('"'"'cet état d'"'"''"'"'un e-mail' \
   '  if p_etat not in ('"'"'parti'"'"', '"'"'refuse'"'"', '"'"'en_attente'"'"', '"'"'sans_relais'"'"') then perform socle.refus('"'"'cet état d'"'"''"'"'un e-mail' \
   '« à envoyer » est déjà écrit quand l'"'"'e-mail part : un arrêt entre les deux en laisse la trace (A08)'
-prouver '« en attente » qui ne remplace plus « à envoyer »' 'base/migrations/0154_inviter_son_comptable.sql' \
+prouver '« en attente » qui ne remplace plus « à envoyer »' 'base/migrations/0155_inviter_son_client_tenu.sql' \
   '  update socle.invitation set courriel = p_etat, courriel_le = p_maintenant
    where jeton_empreinte = p_empreinte
      and (p_etat <> '"'"'en_attente'"'"' or courriel is null or courriel = '"'"'a_envoyer'"'"');' \
@@ -18018,6 +18018,75 @@ prouver 'la proposition d'"'"'un client sous les premiers pas d'"'"'un cabinet n
   '        ${premiersPasPanel(true)}
         ${inboxBanner()}' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+
+# 1.78.0 : le client tenu rejoint son dossier (base 0155, routes, entrée, panneau du dossier tenu).
+prouver 'un collaborateur qui invite le client tenu' 'base/migrations/0155_inviter_son_client_tenu.sql' \
+  '  if v_cabinet is null or not socle.suis_associe(v_cabinet) then
+    perform socle.refus('"'"'seul un associé du cabinet qui tient ce dossier invite son client'"'"');
+  end if;
+  if v_email' \
+  '  if v_email' \
+  'le client tenu rejoint son dossier par le lien de son cabinet : propriétaire, ses livres, le mandat continue ; avec l'"'"'adresse invitée seulement, une fois'
+prouver 'une nouvelle invitation du client tenu qui laisse valoir l'"'"'ancienne' 'base/migrations/0155_inviter_son_client_tenu.sql' \
+  '  update socle.invitation_client_tenu set annulee_le = now()
+   where entreprise = p_entreprise and utilisee_le is null and annulee_le is null;
+  insert' \
+  '  insert' \
+  'le client tenu rejoint son dossier par le lien de son cabinet : propriétaire, ses livres, le mandat continue ; avec l'"'"'adresse invitée seulement, une fois'
+prouver 'le dossier tenu rejoint avec une autre adresse' 'base/migrations/0155_inviter_son_client_tenu.sql' \
+  '  if lower(v_email) <> i.email then' \
+  '  if false then' \
+  'le client tenu rejoint son dossier par le lien de son cabinet : propriétaire, ses livres, le mandat continue ; avec l'"'"'adresse invitée seulement, une fois'
+prouver 'le lien du dossier tenu qui sert deux fois' 'base/migrations/0155_inviter_son_client_tenu.sql' \
+  'if not found or i.utilisee_le is not null or i.annulee_le' \
+  'if not found or i.annulee_le' \
+  'le client tenu rejoint son dossier par le lien de son cabinet : propriétaire, ses livres, le mandat continue ; avec l'"'"'adresse invitée seulement, une fois'
+prouver 'le client qui rejoint sans en devenir le propriétaire' 'base/migrations/0155_inviter_son_client_tenu.sql' \
+  'values (socle.moi(), i.entreprise, array['"'"'proprietaire'"'"'])' \
+  'values (socle.moi(), i.entreprise, array['"'"'administrateur'"'"'])' \
+  'le client tenu rejoint son dossier par le lien de son cabinet : propriétaire, ses livres, le mandat continue ; avec l'"'"'adresse invitée seulement, une fois'
+prouver 'le dossier qui reste tenu après que le client l'"'"'a rejoint' 'base/migrations/0155_inviter_son_client_tenu.sql' \
+  '  update socle.entreprise set tenue_par = null where id = i.entreprise;
+' \
+  '' \
+  'le client tenu rejoint son dossier par le lien de son cabinet : propriétaire, ses livres, le mandat continue ; avec l'"'"'adresse invitée seulement, une fois'
+prouver 'l'"'"'essai du dossier tenu qui ne repart pas quand le client le rejoint' 'base/migrations/0155_inviter_son_client_tenu.sql' \
+  'set essai_jusqu_au = greatest(a.essai_jusqu_au, v_jusqu_au)' \
+  'set essai_jusqu_au = a.essai_jusqu_au' \
+  'le client tenu rejoint son dossier par le lien de son cabinet : propriétaire, ses livres, le mandat continue ; avec l'"'"'adresse invitée seulement, une fois'
+prouver 'le client qui rejoint son dossier sans trace chez lui' 'serveur/cabinet/routes.ts' \
+  '      await tx.query('"'"'select socle.tracer($1, $2, $3, $4, $5, $6)'"'"', [entreprise, '"'"'socle.dossier.rejoindre'"'"', '"'"'entreprise'"'"', entreprise, JSON.stringify({ tenu: true }), JSON.stringify({ tenu: false })]);
+' \
+  '' \
+  'le client tenu rejoint son dossier par le lien de son cabinet : propriétaire, ses livres, le mandat continue ; avec l'"'"'adresse invitée seulement, une fois'
+prouver 'le lien du dossier tenu qui n'"'"'ouvre pas le dossier' 'web/src/App.tsx' \
+  '    const jeton = dossierTenu.lire();
+    if (!jeton) return;
+    dossierTenu.oublier();' \
+  '    const jeton = dossierTenu.lire();
+    if (jeton || !jeton) return;
+    dossierTenu.oublier();' \
+  'l'"'"'associé invite son client tenu ; le client crée son compte par le lien et devient le propriétaire de son dossier'
+prouver 'la vitrine de la première facture pour le client tenu' 'web/src/ecrans/Inscription.tsx' \
+  ' : dossier ? <VitrineDossier ou={dossier.ou} cabinet={dossier.cabinet} /> :' \
+  ' :' \
+  'l'"'"'associé invite son client tenu ; le client crée son compte par le lien et devient le propriétaire de son dossier'
+prouver 'l'"'"'adresse invitée du client tenu à retaper' 'web/src/ecrans/Inscription.tsx' \
+  'comptable?.email ?? dossier?.email ?? '"'"''"'"'' \
+  'comptable?.email ?? '"'"''"'"'' \
+  'l'"'"'associé invite son client tenu ; le client crée son compte par le lien et devient le propriétaire de son dossier'
+prouver 'le lien de secours du dossier tenu jamais montré' 'web/public/plateforme/pont-cabinet.js' \
+  'lienDuDossier[d.id] = r.courrielEtat === '"'"'parti'"'"' || !lien ? null :' \
+  'lienDuDossier[d.id] = true ? null :' \
+  'l'"'"'associé invite son client tenu ; le client crée son compte par le lien et devient le propriétaire de son dossier'
+prouver 'une adresse du client tenu qui ne va pas, envoyée au serveur' 'web/public/plateforme/pont-cabinet.js' \
+  '      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { champ.focus(); throw new Error('"'"'Écris l\'"'"'adresse e-mail de ton client' \
+  '      if (false) { champ.focus(); throw new Error('"'"'Écris l\'"'"'adresse e-mail de ton client' \
+  'l'"'"'associé invite son client tenu ; le client crée son compte par le lien et devient le propriétaire de son dossier'
+prouver 'l'"'"'invitation du client montrée sur un dossier qui n'"'"'est plus tenu' 'web/public/v10/cabinet/app.js' \
+  '${dossier.manual && api.dessinerRejoindre ?' \
+  '${api.dessinerRejoindre ?' \
+  'l'"'"'associé invite son client tenu ; le client crée son compte par le lien et devient le propriétaire de son dossier'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

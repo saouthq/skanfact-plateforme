@@ -2523,6 +2523,10 @@
         ${!dossier.manual && months.length ? `<p class="muted small mt">Un mois <strong>à valider</strong> a encore des écritures au brouillard : valide-les avant de déclarer.
         Un mois <strong>manquant</strong> n'a aucune écriture : c'est lui qu'on relance. Le mois en cours n'est jamais réclamé.</p>` : ''}
       </div>
+      ${/* (plateforme) 1.78.0 — un client hors SkanFact peut rejoindre le dossier que le cabinet tient pour lui : le
+            panneau suit « Les mois de ce client », qui dit qu'il n'est pas sur SkanFact (vu à la souris : sous l'équipe,
+            en bas de page, on ne le trouvait pas). */''}
+      ${dossier.manual && api.dessinerRejoindre ? '<div class="panel" id="d-rejoindre"></div>' : ''}
 
       <div class="panel"><h2>Relances ${info('r.history')}</h2>
       ${relances.length ? `<table class="list compact"><thead><tr><th class="nw">Date</th><th class="nw">Moyen</th><th>Mois réclamés</th><th>Note</th></tr></thead>
@@ -2636,6 +2640,8 @@
     const rel = $('#rel'); if (rel) rel.onclick = () => writeRelance(row);
     $('#note-rel').onclick = () => noteRelanceForm(row);
     brancherDroits(view, dossier);
+    // (plateforme) 1.78.0 — le client tenu invité à rejoindre son dossier.
+    if ($('#d-rejoindre', view)) api.dessinerRejoindre($('#d-rejoindre', view), dossier);
     $$('[data-m]', view).forEach(c => {
       c.onclick = () => {
         // (plateforme) Le mois s'ouvre dans les livres : sa saisie s'il reste à valider, son livre-journal sinon.

@@ -107,6 +107,22 @@ const comptable = {
   lire: () => { try { return sessionStorage.getItem(COMPTABLE); } catch { return null; } },
   oublier: () => { try { sessionStorage.removeItem(COMPTABLE); } catch { /* rien à oublier */ } },
 };
+// Le lien d'un cabinet qui invite son client tenu à rejoindre son dossier (`/?dossier=<jeton>`, 1.78.0) : gardé le temps de
+// créer son compte (ou de se connecter) avec l'adresse invitée ; il en devient alors le propriétaire, et son dossier s'ouvre.
+const DOSSIER = 'skanfact.dossier';
+{
+  const q = new URLSearchParams(location.search);
+  const j = q.get('dossier');
+  if (j) {
+    try { sessionStorage.setItem(DOSSIER, j); } catch { /* sans stockage : le lien ne survit pas à la connexion */ }
+    q.delete('dossier');
+    history.replaceState(null, '', `${location.pathname}${q.size ? `?${q}` : ''}`);
+  }
+}
+const dossierTenu = {
+  lire: () => { try { return sessionStorage.getItem(DOSSIER); } catch { return null; } },
+  oublier: () => { try { sessionStorage.removeItem(DOSSIER); } catch { /* rien à oublier */ } },
+};
 // Une demande venue d'une page de l'entreprise (lot onboarding ; web/public/plateforme/pont.js) : préparer l'exemple
 // (`/?exemple=<visite>`), ou créer une entreprise (`/?entreprise=exemple|menu&retour=<entreprise>&visite=<visite>`). Elle
 // reste dans l'adresse : un rechargement retrouve le même écran (la préparation reprend sans rien faire deux fois).
@@ -155,7 +171,7 @@ export function App() {
     const defi = defiEnCours.lire();
     // Un lien d'invitation est le plus souvent ouvert par quelqu'un qui n'a pas encore de compte (un vendeur, une
     // caissière) : il arrive sur la création du compte, l'adresse invitée déjà remplie (lot équipe).
-    return defi ? { ecran: 'code', defi } : { ecran: invitation.lire() || comptable.lire() ? 'inscription' : 'connexion' };
+    return defi ? { ecran: 'code', defi } : { ecran: invitation.lire() || comptable.lire() || dossierTenu.lire() ? 'inscription' : 'connexion' };
   });
   // L'écran du code se garde dans l'onglet ; tout autre écran l'oublie.
   const setAccueil = useCallback((a: Accueil) => {
@@ -202,8 +218,24 @@ export function App() {
       if (!r.corps.valable && !session.jeton()) setAccueilBrut((a) => (a.ecran === 'inscription' ? { ecran: 'connexion' } : a));
     }).catch(() => undefined);
   }, []);
+  // Arrivé par le lien d'un cabinet qui l'invite à rejoindre son dossier tenu : ce que le lien dit, de même (1.78.0).
+  type ApercuDossier = { valable: false } | { valable: true; email: string; entreprise: string; cabinet: string; invitePar: string };
+  const [tenu, setTenu] = useState<ApercuDossier | null>(null);
+  useEffect(() => {
+    const jeton = dossierTenu.lire();
+    if (!jeton) return;
+    void appeler<ApercuDossier>('POST', '/invitations-dossier/apercu', { jeton }).then((r) => {
+      if (r.statut !== 200) return;
+      if (!r.corps.valable) dossierTenu.oublier();
+      setTenu(r.corps);
+      if (!r.corps.valable && !session.jeton()) setAccueilBrut((a) => (a.ecran === 'inscription' ? { ecran: 'connexion' } : a));
+    }).catch(() => undefined);
+  }, []);
   const invite = apercu?.valable ? { email: apercu.email, ou: apercu.ou, qui: apercu.invitePar } : null;
-  const sousInvitation = (ecran: 'inscription' | 'connexion') => (client !== null ? (client.valable
+  const sousInvitation = (ecran: 'inscription' | 'connexion') => (tenu !== null ? (tenu.valable
+    ? phrase(ecran === 'inscription' ? 'ecran.dossier.sous_inscription' : 'ecran.dossier.sous_connexion', { cabinet: tenu.cabinet, ou: tenu.entreprise, email: tenu.email })
+    : phrase('ecran.dossier.perimee'))
+    : client !== null ? (client.valable
     ? phrase(ecran === 'inscription' ? 'ecran.comptable.sous_inscription' : 'ecran.comptable.sous_connexion', { qui: client.invitePar, ou: client.entreprise })
     : phrase('ecran.comptable.perimee'))
     : apercu === null ? null : invite
@@ -211,6 +243,7 @@ export function App() {
     : phrase('ecran.invitation.perimee'));
   const emailDuClient = client?.valable ? client.email : undefined;
   const duClient = client?.valable ? { email: client.email, ou: client.entreprise, qui: client.invitePar } : null;
+  const duDossier = tenu?.valable ? { email: tenu.email, ou: tenu.entreprise, cabinet: tenu.cabinet } : null;
 
   const sortir = useCallback(async () => {
     await appeler('POST', '/deconnexion').catch(() => undefined);
@@ -281,10 +314,29 @@ export function App() {
     })();
   }, [moi]);
 
+  // Le lien d'un cabinet (1.78.0) : la personne rejoint son dossier tenu, en devient la propriétaire, et il s'ouvre.
+  // Refusé (une autre adresse, un lien qui ne vaut plus), la raison se lit.
+  useEffect(() => {
+    if (!moi || moi.codeAConfigurer || invitation.lire()) return;
+    const jeton = dossierTenu.lire();
+    if (!jeton) return;
+    dossierTenu.oublier();
+    setRefusInvitation('');
+    void (async () => {
+      try {
+        const r = await appeler<{ entreprise: string }>('POST', '/invitations-dossier/rejoindre', { jeton });
+        if (r.statut === 200) { ouvrirEntreprise(r.corps.entreprise); return; }
+        setRefusInvitation(r.corps.motif ?? phrase('ecran.erreur_serveur'));
+      } catch (x) {
+        setRefusInvitation(phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'));
+      }
+    })();
+  }, [moi]);
+
   // Une entreprise ou un cabinet existe et le code est en place : l'application v10 s'ouvre.
   const miennes = moi ? moi.entreprises.filter((x) => !x.parCabinet) : [];
   useEffect(() => {
-    if (!moi || moi.codeAConfigurer || refusInvitation !== null || invitation.lire() || comptable.lire() || demandeConnexion || demande) return;
+    if (!moi || moi.codeAConfigurer || refusInvitation !== null || invitation.lire() || comptable.lire() || dossierTenu.lire() || demandeConnexion || demande) return;
     let retenue: string | null = null;
     try { retenue = localStorage.getItem(RETENUE); } catch { /* pas de mémoire : la première */ }
     const siennes = moi.entreprises.filter((x) => !x.parCabinet);
@@ -304,7 +356,7 @@ export function App() {
   switch (accueil.ecran) {
     case 'inscription': ecran = <Inscription connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })}
       aConnecter={(email) => setAccueil({ ecran: 'connexion', email })} connexion={vers({ ecran: 'connexion' })} sous={attend ?? sousInvitation('inscription')}
-      invitation={invite} comptable={duClient} key={invite?.email ?? emailDuClient ?? ''} />; break;
+      invitation={invite} comptable={duClient} dossier={duDossier} key={invite?.email ?? emailDuClient ?? duDossier?.email ?? ''} />; break;
     case 'code': {
       const defi = accueil.defi;
       ecran = <Code defi={defi} connecte={vers({ ecran: 'dedans' })} retour={vers({ ecran: 'connexion' })}
@@ -313,7 +365,7 @@ export function App() {
     }
     case 'connexion': ecran = <Connexion connecte={vers({ ecran: 'dedans' })} code={(defi) => setAccueil({ ecran: 'code', defi })} oubli={(email) => setAccueil({ ecran: 'oubli', email })}
       inscription={vers({ ecran: 'inscription' })} sous={attend ?? sousInvitation('connexion')} key={accueil.email ?? invite?.email ?? ''}
-      {...(accueil.email ? { email: accueil.email } : invite ? { email: invite.email } : emailDuClient ? { email: emailDuClient } : {})} />; break;
+      {...(accueil.email ? { email: accueil.email } : invite ? { email: invite.email } : emailDuClient ? { email: emailDuClient } : duDossier ? { email: duDossier.email } : {})} />; break;
     case 'oubli': ecran = <Oubli email={accueil.email} retour={vers({ ecran: 'connexion', email: accueil.email })} />; break;
     case 'nouveau': ecran = <NouveauMotDePasse jeton={accueil.jeton} fait={() => { session.quitter(); setMoi(null); setAccueil({ ecran: 'connexion' }); }}
       redemander={vers({ ecran: 'oubli', email: '' })} retour={vers({ ecran: 'connexion' })} />; break;
@@ -336,7 +388,8 @@ export function App() {
         ecran = <EntrepriseNeuve depuis={demande.depuis} retour={demande.retour} visite={demande.visite} creee={ouvrirLaCreee} deconnecte={() => { void sortir(); }} />;
       }
       // L'entreprise ou le cabinet créé, on relit le compte : un cabinet exige le code du téléphone d'abord.
-      else if (moi && moi.cabinets.length === 0 && (miennes.length === 0 || comptable.lire())) {
+      // (1.78.0) Un lien de dossier tenu attend : le dossier s'ouvre, pas la porte d'une entreprise à créer.
+      else if (moi && !dossierTenu.lire() && moi.cabinets.length === 0 && (miennes.length === 0 || comptable.lire())) {
         ecran = <Porte creee={(id) => { retenir(id); void charger(); }} cabinetCree={(id) => { retenir(id); void charger(); }} deconnecte={() => { void sortir(); }}
           pourUnClient={comptable.lire() && client?.valable ? client.entreprise : null} key={client?.valable ? 'client' : 'porte'}
           decouvrir={() => { history.replaceState(null, '', '/?exemple=decouvrir'); setDemande({ ecran: 'exemple', visite: 'decouvrir' }); }} />;

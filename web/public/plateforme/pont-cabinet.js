@@ -961,9 +961,79 @@
     }
   });
 
+  // ── Le client tenu rejoint son dossier (1.78.0 ; 03 § 3.5) ────────────────────────────────────────────────────────
+  // L'associé écrit l'adresse de son client ; SkanFact lui envoie un lien. Le client crée son compte avec cette adresse et
+  // devient le propriétaire de son dossier : ses livres, tes écritures, le même périmètre. Le lien se montre une fois ici,
+  // en secours (le relais refuse, ou ce serveur n'en a pas).
+  /** @type {Record<string, string | null>} */
+  const lienDuDossier = {};
+  /** @type {Record<string, string>} */
+  const ETAT_EMAIL = {
+    parti: 'L\'e-mail est parti.',
+    a_envoyer: 'L\'e-mail est en route.',
+    en_attente: 'L\'e-mail est en route : le relais n\'a pas encore répondu.',
+    refuse: 'Le relais a refusé l\'e-mail : envoie-lui le lien ci-dessous toi-même.',
+    sans_relais: 'Ce serveur n\'envoie pas d\'e-mails : envoie-lui le lien ci-dessous toi-même.',
+    sans_reponse: 'On ne sait pas si l\'e-mail est parti : invite-le de nouveau, un nouveau lien remplace l\'ancien.',
+  };
+  /** @param {string} iso */
+  const jourTunis = (iso) => new Date(iso).toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', year: 'numeric' });
+  /** @param {HTMLElement} zone @param {any} d */
+  async function dessinerRejoindre(zone, d) {
+    const chemin = `/cabinets/${cabinetId}/dossiers/${d.id}/invitation`;
+    /** @type {any} */ let inv = null;
+    try { inv = (await appel('GET', chemin)).invitation; } catch { /* sans réponse : le formulaire seul */ }
+    const secours = lienDuDossier[d.id];
+    lienDuDossier[d.id] = null;
+    /** @param {unknown} x */
+    const refus = (x) => { const a = zone.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
+    /** @param {() => Promise<unknown>} geste @param {HTMLElement} b */
+    const agir = async (geste, b) => { b.setAttribute('disabled', ''); try { await geste(); await dessinerRejoindre(zone, d); } catch (x) { b.removeAttribute('disabled'); refus(x); } };
+    /** @param {string} email */
+    const inviter = async (email) => {
+      const r = await appel('POST', chemin, { email });
+      const lien = String(r.lien || '');
+      lienDuDossier[d.id] = r.courrielEtat === 'parti' || !lien ? null : lien.startsWith('/') ? `${location.origin}${lien}` : lien;
+    };
+    const tete = `<h2>Ton client sur SkanFact</h2>
+      <p class="small muted">Invite-le à rejoindre son dossier : il en devient le propriétaire, voit ses livres à jour et peut y faire ses factures. Tu continues de tenir sa comptabilité, avec le même périmètre.</p>`;
+    if (inv) {
+      zone.innerHTML = `${tete}
+        <p>Tu as invité <strong>${esc(inv.email)}</strong> : son lien vaut jusqu'au ${esc(jourTunis(inv.expire))}. ${esc(ETAT_EMAIL[inv.courriel] || '')}</p>
+        ${secours ? `<label class="field mt">Le lien, à lui envoyer si l'e-mail n'arrive pas<input type="text" id="rejoindre-lien" readonly value="${esc(secours)}"></label>
+          <button type="button" class="btn btn-sm" id="rejoindre-copier">Copier le lien</button>` : ''}
+        <p class="small" role="alert"></p>
+        <div class="inline mt"><button type="button" class="btn" id="rejoindre-renvoyer">Envoyer un nouveau lien</button>
+          <button type="button" class="btn btn-ghost" id="rejoindre-annuler">Annuler l'invitation</button></div>`;
+      const copier = /** @type {HTMLElement | null} */ (zone.querySelector('#rejoindre-copier'));
+      if (copier) copier.onclick = async () => {
+        const champ = /** @type {HTMLInputElement} */ (zone.querySelector('#rejoindre-lien'));
+        champ.select();
+        try { await navigator.clipboard.writeText(champ.value); copier.textContent = 'Lien copié'; } catch { copier.textContent = 'Sélectionné : Ctrl+C pour le copier'; }
+      };
+      const re = /** @type {HTMLElement} */ (zone.querySelector('#rejoindre-renvoyer'));
+      re.onclick = () => agir(() => inviter(inv.email), re);
+      const an = /** @type {HTMLElement} */ (zone.querySelector('#rejoindre-annuler'));
+      an.onclick = () => agir(() => appel('DELETE', chemin), an);
+      return;
+    }
+    zone.innerHTML = `${tete}
+      <label class="field">Son adresse e-mail<input type="email" id="rejoindre-email" maxlength="200" autocomplete="off" spellcheck="false" style="max-width:320px" value="${esc(d.email || '')}"></label>
+      <p class="small" role="alert"></p>
+      <button type="button" class="btn" id="rejoindre-inviter">Inviter mon client</button>`;
+    const b = /** @type {HTMLElement} */ (zone.querySelector('#rejoindre-inviter'));
+    b.onclick = () => agir(async () => {
+      const champ = /** @type {HTMLInputElement} */ (zone.querySelector('#rejoindre-email'));
+      const email = String(champ.value).trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { champ.focus(); throw new Error('Écris l\'adresse e-mail de ton client, par exemple gerant@entreprise.tn : rien n\'a été envoyé.'); }
+      await inviter(email);
+    }, b);
+  }
+
   /** @type {Record<string, any>} */
   const pont = {
     commentUnClientArrive,
+    dessinerRejoindre,
     bandeauMandats,
     panneauxAbsents: PANNEAUX_ABSENTS,
     etapesAbsentes: ETAPES_ABSENTES,

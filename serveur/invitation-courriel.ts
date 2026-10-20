@@ -78,6 +78,8 @@ export const enMots = (etat: EtatCourriel) => ({ courriel: etat === 'parti', cou
 export const lienApplication = (ctx: Contexte, jeton: string) => `${ctx.courriel?.adresse() ?? ''}/?invitation=${encodeURIComponent(jeton)}`;
 // Le lien qu'un client envoie à son comptable (1.77.0) : l'entrée le garde, le temps de créer son compte et son cabinet.
 export const lienComptable = (ctx: Contexte, jeton: string) => `${ctx.courriel?.adresse() ?? ''}/?comptable=${encodeURIComponent(jeton)}`;
+// Le lien qu'un cabinet envoie à son client tenu (1.78.0) : l'entrée le garde, le temps de créer son compte.
+export const lienDossier = (ctx: Contexte, jeton: string) => `${ctx.courriel?.adresse() ?? ''}/?dossier=${encodeURIComponent(jeton)}`;
 export const lienConsole = (ctx: Contexte, jeton: string) => `${ctx.courriel?.console?.() ?? `${ctx.courriel?.adresse() ?? ''}/console`}/#/invitation/${jeton}`;
 
 // Un rôle dit dans la phrase (« comme commercial »), d'après le catalogue des rôles.

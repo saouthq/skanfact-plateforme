@@ -790,4 +790,6 @@ export const ADAPTATIONS = [
   ...lireFichier('recette-cabinet.txt'),
   // ── Inviter son comptable par e-mail (1.77.0) : la proposition d'un client lue en premier ──
   ...lireFichier('inviter-comptable.txt'),
+  // ── Le client tenu rejoint son dossier (1.78.0) : le panneau du dossier tenu ──
+  ...lireFichier('rejoindre-dossier.txt'),
 ];

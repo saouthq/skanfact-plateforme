@@ -486,6 +486,10 @@ vaut pour tout le dépôt.*
     (`invitation-courriel.ts`, `lienComptable`) ; l'entrée (`App.tsx`, `?comptable=`, `VitrineComptable`, la porte
     `pourUnClient`) ; le panneau (`pont.js`, `dessinerInvitationComptable`, `.mandat-chemins`) ; la proposition en tête
     de Dossiers (`web/v10/inviter-comptable.txt`).
+  - **Le client tenu rejoint son dossier** (1.78.0 ; 0155 ; `docs/recette.md`) : `socle.invitation_client_tenu` et ses
+    quatre fonctions ; les routes `/cabinets/:c/dossiers/:dossier/invitation`, `/invitations-dossier/apercu` et
+    `/rejoindre` ; l'e-mail `invitation.dossier` (`lienDossier`) ; l'entrée (`App.tsx`, `?dossier=`, `VitrineDossier`) ;
+    le panneau du dossier tenu (`pont-cabinet.js`, `dessinerRejoindre` ; `web/v10/rejoindre-dossier.txt`).
   - **Le lot débutant (2)** (12/10/2026 ; `docs/debutant.md`, `web/v10/debutant-2.txt`) : les gênants d'un commerçant
     qui débute, refaits à la souris sur une quincaillerie. Le mot du catalogue suit le métier (`motsCatalogue` :
     « article » pour le commerce, la restauration, l'artisanat) ; une dépense sans fournisseur se range sous UNE fiche
