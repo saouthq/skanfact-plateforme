@@ -27,7 +27,7 @@ import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_M
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
 import { lireDiffusions, portee, PUBLICS } from './diffusion.ts';
 import { lireEffets, periodes } from './impact.ts';
-import { aDecider, CATEGORIES, inscriteCetteSemaine, lireEntreprises, lireVeille, tableau, type Entreprise, type Veille } from './decider.ts';
+import { aDecider, CATEGORIES, inscriteCetteSemaine, lireChoisies, lireEntreprises, lireVeille, tableau, type Entreprise, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
 import { renouvellementsDe } from './renouvellements.ts';
 import { prevoir } from './previsions.ts';
@@ -333,7 +333,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       // Les contestations (0129) et les sorties en cours (0131) entrent dans l'argent : la direction seule.
       const argent = paiements ? { ...argentADecider(paiements, liste, jour,
         lireContestations(await lireJson(transaction(tx), 'select plateforme.console_contestations($1) v', [instant]))),
-        sorties: lireSorties(await lireJson(transaction(tx), 'select plateforme.console_sorties($1::date) v', [jour])) } : null;
+        sorties: lireSorties(await lireJson(transaction(tx), 'select plateforme.console_sorties($1::date) v', [jour])),
+        choisies: lireChoisies(await lireJson(transaction(tx), 'select plateforme.console_offres_choisies() v')) } : null;
       // La tuile « Inscriptions » compte les lignes de la liste qu'elle ouvre, par la fonction de la liste (C3 ; 0114).
       const inscriptions = base ? selectionClients(base.valeur, jour, { nouvelles: '1' }).dansVue.length : 0;
       const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus, inscriptions);
@@ -500,7 +501,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const sortie = role === 'direction' ? lireSortie(await lireJson(transaction(tx), 'select plateforme.console_sortie($1, $2::date) v', [id, jour])) : null;
       const argent = role === 'direction'
         ? { ...argentADecider(lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`])), liste, jour, contestations),
-            sorties: sortie && !sortie.close ? [{ ...sortie, entreprise: { id, nom: String(fiche.raisonSociale ?? '') } }] : [] } : null;
+            sorties: sortie && !sortie.close ? [{ ...sortie, entreprise: { id, nom: String(fiche.raisonSociale ?? '') } }] : [],
+            choisies: lireChoisies(await lireJson(transaction(tx), 'select plateforme.console_offres_choisies() v')) } : null;
       const attend = aDecider(liste, { etat: 'absente' }, jour, role, support.ouvertes, maintenant(), argent);
       const instant = maintenant();
       // Ses factures d'abonnement (docs/abonnement.md B2–B4), et l'entreprise SkanFact où elles naissent.

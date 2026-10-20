@@ -35,6 +35,7 @@ export type Ligne =
   | { sorte: 'facture_defaite'; ouvre: 'fiche'; entreprise: Qui; numero: string | null; payeeLe: string; fin: string; ecran: string; cause: 'avoir' | 'reglement'; trop: string | null }
   | { sorte: 'a_emettre'; ouvre: 'facture'; entreprise: Qui; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
   | { sorte: 'a_facturer'; ouvre: 'fiche'; entreprise: Qui; jusquAu: string; jours: number; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel' }
+  | { sorte: 'offre_choisie'; ouvre: 'fiche'; entreprise: Qui; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; le: string; par: string | null }
   | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: Qui; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   // 0129 : une facture contestée qui attend sa régularisation depuis une semaine.
   | { sorte: 'contestation'; ouvre: 'fiche'; entreprise: Qui; numero: string | null; ouverteLe: string; jours: number }
@@ -172,6 +173,10 @@ function voir(l: Ligne, aujourdhui: string): Vue {
       return { icone: 'calendrier', titre: titre('console.ecran.decider.a_emettre_titre', { nom: l.entreprise.nom }),
         desc: phrase('console.ecran.decider.a_emettre', { le: jourCourt(l.prepareLe), debut: jourCourt(l.debut), fin: jourCourt(l.fin) }),
         meta: null, urgence: l.debut <= aujourdhui ? 'aujourdhui' : 'semaine', href: l.ecran, bouton: titre('console.ecran.decider.ouvrir_facture'), ailleurs: true };
+    case 'offre_choisie':
+      return { icone: 'facture', titre: titre('console.ecran.decider.offre_choisie_titre', { nom: l.entreprise.nom, quoi: dire('console.ecran.abo.offre_periodicite', { offre: dire(`console.ecran.abo.offre.${l.offre}`), periodicite: dire(`console.ecran.abo.periodicite.${l.periodicite}`) }) }),
+        desc: phrase('console.ecran.decider.offre_choisie', { qui: l.par ?? dire('console.ecran.decider.offre_choisie_quelquun'), le: jourCourt(jourDe(l.le)) }),
+        meta: null, urgence: 'aujourdhui', href: fiche(l.entreprise), bouton: titre('console.ecran.decider.ouvrir_fiche') };
     case 'a_facturer':
       return { icone: 'calendrier', titre: titre('console.ecran.decider.a_facturer_titre', { nom: l.entreprise.nom }),
         desc: phrase('console.ecran.decider.a_facturer', { quoi: dire('console.ecran.abo.offre_periodicite', { offre: dire(`console.ecran.abo.offre.${l.offre}`), periodicite: dire(`console.ecran.abo.periodicite.${l.periodicite}`) }),

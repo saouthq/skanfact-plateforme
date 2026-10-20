@@ -538,3 +538,63 @@ describe('l\'argent juste (0113)', () => {
     expect(p.trop.find((t) => t.entreprise.id === b.id)).toMatchObject({ annulee: true, trop: '46.410' });
   });
 });
+
+describe('l\'offre choisie dans l\'application (1.84.0, 0158)', () => {
+  it('la propriétaire choisit ; la console la voit dans « À décider » et prépare la facture sur elle ; préparée, le choix s\'éteint', async () => {
+    // Une propriétaire, son entreprise en essai, et une commerciale de son équipe.
+    const email = `choix-proprio-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await appeler('POST', '/inscription', undefined, { email, nom: 'Hela Choix', motDePasse: MDP });
+    const hela = String((await appeler('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    const ent = String((await appeler('POST', '/entreprises', hela, { raisonSociale: 'Droguerie du Choix' })).corps.id);
+    await admin.query('update plateforme.abonnement set essai_jusqu_au = $2::date + 10 where entreprise = $1', [ent, jour]);
+    const emailC = `choix-commerciale-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await appeler('POST', '/inscription', undefined, { email: emailC, nom: 'Commerciale', motDePasse: MDP });
+    const commerciale = String((await appeler('POST', '/connexion', undefined, { email: emailC, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    const inv = String((await appeler('POST', `/entreprises/${ent}/invitations`, hela, { email: emailC, roles: ['commercial'] })).corps.jeton);
+    expect((await appeler('POST', '/invitations/accepter', commerciale, { jeton: inv })).statut).toBe(200);
+    // Avant : rien de choisi ; elle peut choisir.
+    const avant = (await appeler('GET', `/entreprises/${ent}/abonnement`, hela)).corps;
+    expect(avant).toMatchObject({ choix: null, peutChoisir: true });
+    // La commerciale ne choisit pas ; une offre inconnue est refusée.
+    expect((await appeler('POST', `/entreprises/${ent}/abonnement/choisir`, commerciale, { offre: 'complet', periodicite: 'annuel' })).statut).toBe(403);
+    expect((await appeler('POST', `/entreprises/${ent}/abonnement/choisir`, hela, { offre: 'premium', periodicite: 'annuel' })).statut).toBe(400);
+    // Elle choisit Essentiel au mois, puis se ravise : Complet à l'année. Le dernier choix compte.
+    expect((await appeler('POST', `/entreprises/${ent}/abonnement/choisir`, hela, { offre: 'essentiel', periodicite: 'mensuel' })).statut).toBe(201);
+    const c = await appeler('POST', `/entreprises/${ent}/abonnement/choisir`, hela, { offre: 'complet', periodicite: 'annuel' });
+    expect(c.statut, JSON.stringify(c.corps)).toBe(201);
+    expect(c.corps.choix).toMatchObject({ offre: 'complet', periodicite: 'annuel', par: 'Hela Choix' });
+    expect((await appeler('GET', `/entreprises/${ent}/abonnement`, hela)).corps.choix).toMatchObject({ offre: 'complet', periodicite: 'annuel' });
+    // Un choix ne se réécrit pas.
+    await expect(admin.query('update plateforme.offre_choisie set offre = \'essentiel\' where entreprise = $1', [ent])).rejects.toThrow(/ne se modifie/);
+    // La console (la direction) : une ligne, qui dit qui a choisi quoi ; elle tient lieu de « à facturer ». Le support ne la lit pas.
+    const lignes = async (jeton = direction.console) => ((await appeler('GET', '/console/accueil', jeton)).corps.decider as { sorte: string; entreprise?: { id: string } }[])
+      .filter((l) => l.entreprise?.id === ent);
+    expect(await lignes()).toMatchObject([{ sorte: 'offre_choisie', offre: 'complet', periodicite: 'annuel', par: 'Hela Choix' }]);
+    expect((await lignes(support.console)).map((l) => l.sorte)).not.toContain('offre_choisie');
+    expect(((await appeler('GET', `/console/entreprises/${ent}`, direction.console)).corps.attend as { sorte: string }[]).map((a) => a.sorte)).toContain('offre_choisie');
+    // La facture préparée sur ce choix l'éteint, des deux côtés.
+    const f = await appeler('POST', `/console/entreprises/${ent}/factures`, direction.console, { offre: 'complet', periodicite: 'annuel', motif: 'Choisie dans l\'application' });
+    expect(f.statut, JSON.stringify(f.corps)).toBe(201);
+    expect((await lignes()).map((l) => l.sorte)).not.toContain('offre_choisie');
+    expect((await appeler('GET', `/entreprises/${ent}/abonnement`, hela)).corps.choix).toBeNull();
+  });
+
+  it('une facture qui attend son paiement passe d\'abord : choisir est refusé, avec son numéro ; une entreprise offerte n\'a rien à choisir', async () => {
+    const b = await abonnee('Mercerie à Facture Ouverte', 2);
+    const proprio = String((await appeler('POST', '/connexion', undefined, { email: b.email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    const debut = plusJours(jour, 3);
+    expect((await appeler('POST', `/console/entreprises/${b.id}/factures`, direction.console, { offre: 'essentiel', periodicite: 'mensuel', motif: 'Abonnement mensuel' })).statut).toBe(201);
+    const objets = await dossier(editeur, direction.appli);
+    const brouillon = objets.find((o) => o.collection === 'documents' && o.cle === `abonnement-${b.id}-${debut}`);
+    const client = objets.find((o) => o.collection === 'clients' && o.cle === brouillon?.contenu.clientId)?.contenu;
+    const e = await appeler('POST', `/entreprises/${editeur}/dossier-v10/emettre`, direction.appli, { document: brouillon?.contenu, client, revision: brouillon?.revision, rang: brouillon?.rang ?? null, netAPayer: '47.410' });
+    expect(e.statut, JSON.stringify(e.corps)).toBe(200);
+    const refus = await appeler('POST', `/entreprises/${b.id}/abonnement/choisir`, proprio, { offre: 'complet', periodicite: 'annuel' });
+    expect(refus.statut).toBe(409);
+    expect(String(refus.corps.motif)).toContain(`Ta facture ${String(e.corps.numero)} attend déjà son paiement`);
+    // SkanFact elle-même (offerte) n'a pas d'abonnement à choisir.
+    const offerte = await appeler('POST', `/entreprises/${editeur}/abonnement/choisir`, direction.appli, { offre: 'complet', periodicite: 'annuel' });
+    expect(offerte.statut).toBe(403);
+    expect(String(offerte.corps.motif)).toMatch(/n'a pas d'abonnement à choisir/);
+  });
+});

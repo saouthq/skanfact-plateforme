@@ -14,6 +14,7 @@ import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { aujourdhuiATunis } from '../reglements.ts';
+import { peut } from '../porte/porte.ts';
 import { tracer } from '../trace.ts';
 import { demanderPaiementAbonnement } from '../v10/paiement.ts';
 import { nettoyerClient, nettoyerSociete, vueDePiece, type PieceLue } from '../ventes/espace.ts';
@@ -74,8 +75,8 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
 
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/abonnement', geste: 'socle.abonnement.voir',
-    traiter: async ({ params }, tx) => {
-      if (!tx) throw new Error('transaction attendue');
+    traiter: async ({ params, qui }, tx) => {
+      if (!tx || !qui) throw new Error('transaction attendue');
       const ent = params.entreprise ?? '';
       const jour = aujourdhuiATunis();
       const f = await faitsDe(tx, ent);
@@ -107,9 +108,36 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
       // l'onglet dit avec sa raison ; rien pour qui ne gère pas l'abonnement (la base ne rend rien).
       const prochaine = f ? periodeDeLaFacture(f, f.periodicite ?? 'annuel', jour).debut : null;
       const remise = prochaine ? lireRemise((await tx.query('select plateforme.ma_remise($1, $2::date) r', [ent, prochaine])).rows[0]?.r) : null;
-      return { corps: { aujourdhui: jour, etat, prix, options, aVenir, historique, factures, enLigne: lu.paiement === true, modules: f?.modules ?? [],
+      // `choix` (1.84.0, 0158) : l'offre qu'elle a choisie ici et dont la facture n'est pas encore préparée ;
+      // `peutChoisir` : qui peut payer l'abonnement le choisit (la propriétaire, l'administratrice ; les textes des refus le
+      // disent).
+      const choix = lireChoix((await tx.query('select plateforme.mon_offre_choisie($1) c', [ent])).rows[0]?.c);
+      const peutChoisir = (await peut(tx, qui, ent, 'socle.abonnement.payer')).ok;
+      return { corps: { aujourdhui: jour, etat, prix, options, aVenir, historique, factures, enLigne: lu.paiement === true, modules: f?.modules ?? [], choix, peutChoisir,
         compte: await ceQueLOffreCompte(tx, ent, jour), regles: reglesPourMoi(f, historique, jour), contenu, fermes: modulesFermes(f, jour),
         remise: remise ? { nature: remise.nature, taux: remise.taux, groupe: remise.groupe, cabinet: remise.cabinet, jusquAu: remise.jusquAu } : null } };
+    },
+  });
+
+  // Choisir son offre (1.84.0 ; docs/abonnement.md C19 ; 0158) : la propriétaire dit l'offre et la périodicité qu'elle
+  // veut ; la console la voit dans « À décider » et prépare la facture sur elle. Rien n'est payé ni changé ici. Refusé
+  // quand une facture de l'abonnement attend déjà son paiement (la régler d'abord), ou sans abonnement à choisir.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/abonnement/choisir', geste: 'socle.abonnement.payer',
+    corps: z.object({ offre: z.enum(['essentiel', 'complet']), periodicite: z.enum(['annuel', 'mensuel']) }),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const ent = params.entreprise ?? '';
+      const jour = aujourdhuiATunis();
+      const f = await faitsDe(tx, ent);
+      const etat: Etat = f ? etatAbonnement(f, jour) : { etat: 'hors', raison: 'inconnu' };
+      if (etat.etat === 'hors') return { statut: 403, corps: { motif: motif('abonnement.choix.hors') } };
+      const lu = (await tx.query('select plateforme.mes_factures_abonnement($1) v', [ent])).rows[0].v as MesFactures;
+      const doit = lu.pieces.map((p) => vueDePiece(p, lu.paiement === true, jour)).find((p) => p.statut === 'a_payer' || p.statut === 'en_retard' || p.statut === 'partielle');
+      if (doit) return { statut: 409, corps: { motif: motif('abonnement.choix.facture_a_payer', { numero: String(doit.numero ?? '') }) } };
+      const choix = lireChoix((await tx.query('select plateforme.choisir_mon_offre($1, $2, $3) c', [ent, corps.offre, corps.periodicite])).rows[0]?.c);
+      await tracer(tx, ent, 'socle.abonnement.payer', { type: 'abonnement', id: null }, null, { choix: true, offre: corps.offre, periodicite: corps.periodicite });
+      return { statut: 201, corps: { choix } };
     },
   });
 
@@ -130,6 +158,14 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
   });
 
   return routes;
+}
+
+// Le choix qui attend sa facture (0158), lu prudemment : rien plutôt qu'un choix deviné.
+export type Choix = { offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; le: string; par: string | null };
+export function lireChoix(v: unknown): Choix | null {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>;
+  if ((o.offre !== 'essentiel' && o.offre !== 'complet') || (o.periodicite !== 'annuel' && o.periodicite !== 'mensuel') || typeof o.le !== 'string') return null;
+  return { offre: o.offre, periodicite: o.periodicite, le: o.le, par: typeof o.par === 'string' ? o.par : null };
 }
 
 // La période qu'une facture paie, lue prudemment (ce que la base rend).

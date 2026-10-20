@@ -18294,6 +18294,40 @@ prouver 'un mensuel « à facturer » dès trente jours' 'serveur/console/decide
   's.jours > A_FACTURER_JOURS[s.periodicite]' \
   's.jours > 30' \
   'un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule'
+prouver 'un choix d'"'"'offre qui reste en attente après sa facture' 'base/migrations/0158_offre_choisie.sql' \
+  '   where c.entreprise = p_entreprise
+     and not exists (select 1 from plateforme.facture_abonnement f where f.entreprise = c.entreprise and f.prepare_le >= c.le)' \
+  '   where c.entreprise = p_entreprise' \
+  'la propriétaire choisit ; la console la voit dans « À décider » et prépare la facture sur elle ; préparée, le choix s'"'"'éteint'
+prouver 'la console qui voit encore un choix déjà facturé' 'base/migrations/0158_offre_choisie.sql' \
+  '     where not exists (select 1 from plateforme.facture_abonnement f where f.entreprise = c.entreprise and f.prepare_le >= c.le)) x);' \
+  '     where true) x);' \
+  'la propriétaire choisit ; la console la voit dans « À décider » et prépare la facture sur elle ; préparée, le choix s'"'"'éteint'
+prouver 'un choix d'"'"'offre accepté pendant qu'"'"'une facture attend son paiement' 'serveur/abonnement/routes.ts' \
+  '      if (doit) return { statut: 409,' \
+  '      if (doit && false) return { statut: 409,' \
+  'une facture qui attend son paiement passe d'"'"'abord : choisir est refusé, avec son numéro ; une entreprise offerte n'"'"'a rien à choisir'
+prouver 'une entreprise offerte qui choisit une offre' 'serveur/abonnement/routes.ts' \
+  '      if (etat.etat === '"'"'hors'"'"') return { statut: 403, corps: { motif: motif('"'"'abonnement.choix.hors'"'"') } };
+' \
+  '' \
+  'une facture qui attend son paiement passe d'"'"'abord : choisir est refusé, avec son numéro ; une entreprise offerte n'"'"'a rien à choisir'
+prouver '« à facturer » en plus de l'"'"'offre choisie' 'serveur/console/decider.ts' \
+  '|| partent.has(e.id) || choisies.has(e.id) ||' \
+  '|| partent.has(e.id) ||' \
+  'un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule'
+prouver '« Je choisis cette offre » allumé avant qu'"'"'on coche' 'web/public/plateforme/abonnement.js' \
+  'id="abo-choisir" disabled>' \
+  'id="abo-choisir">' \
+  'Hela coche une offre, la choisit, et lit son choix ; la console le voit dans « À décider »'
+prouver 'le jour d'"'"'un choix lu en UTC, pas à Tunis' 'web/public/plateforme/abonnement.js' \
+  '${esc(jourDeTunis(String(a.choix.le)))}' \
+  '${esc(jour(String(a.choix.le).slice(0, 10)))}' \
+  'Hela coche une offre, la choisit, et lit son choix ; la console le voit dans « À décider »'
+prouver '« Je choisis cette offre » en bouton principal d'"'"'un abonnement payé' 'web/public/plateforme/abonnement.js' \
+  'class="btn${a.etat.etat === '"'"'actif'"'"' ? '"'"''"'"' : '"'"' btn-primary'"'"'}" id="abo-choisir"' \
+  'class="btn btn-primary" id="abo-choisir"' \
+  'Walid voit la facture de son abonnement, la paie en ligne, et revient sur son abonnement payé'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

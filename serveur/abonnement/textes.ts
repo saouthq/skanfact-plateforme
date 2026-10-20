@@ -12,6 +12,9 @@ declarerTextes({
   // l'ouvre (règle du projet).
   'abonnement.offre.paie': 'la paie n\'est pas dans l\'offre Essentiel : les salariés, les bulletins, les absences et les avances qui existent se lisent, s\'impriment et se corrigent, mais rien de nouveau ne s\'y crée. Le propriétaire ou un administrateur l\'ouvre en passant à Complet (Paramètres, Ton abonnement)',
   'abonnement.offre.compta': 'la comptabilité complète n\'est pas dans l\'offre Essentiel : les immobilisations qui existent se lisent, s\'impriment et se corrigent, mais aucune nouvelle ne se crée. Ta TVA, tes déclarations, tes écritures et le paquet de ton comptable restent ouverts. Le propriétaire ou un administrateur l\'ouvre en passant à Complet (Paramètres, Ton abonnement)',
+  // Choisir son offre (1.84.0, 0158) : ce qui est refusé, pourquoi, et ce qui débloque.
+  'abonnement.choix.hors': 'cette entreprise n\'a pas d\'abonnement à choisir (offert par SkanFact, tenu par son cabinet, ou un exemple)',
+  'abonnement.choix.facture_a_payer': 'ta facture {numero} attend déjà son paiement : règle-la dans « Tes factures », juste au-dessus. Pour changer d\'offre ensuite, écris-nous à contact@skanfact.tn',
   // Les relances par e-mail. Ce qui part chez le relais, compté et décidé (règle du projet ; décidé le 12/10/2026, comme
   // l'alerte de la messagerie du 09/10/2026) : l'adresse de qui gère l'abonnement, un objet, la date d'échéance et
   // l'adresse de l'application. Ni le nom de l'entreprise, ni un identifiant, ni un montant.

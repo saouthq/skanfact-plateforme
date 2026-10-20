@@ -25,6 +25,14 @@
   // Un jour de calendrier tel qu'on le lit : 19/11/2026.
   /** @param {string | undefined} j */
   const jour = (j) => (j && /^\d{4}-\d{2}-\d{2}$/.test(j) ? `${j.slice(8, 10)}/${j.slice(5, 7)}/${j.slice(0, 4)}` : '');
+  // Le jour de Tunis d'un instant (un instant n'est pas un jour : passé 23 h en UTC, c'est déjà le lendemain à Tunis).
+  /** @param {string} instant */
+  const jourDeTunis = (instant) => {
+    const d = new Date(instant);
+    if (Number.isNaN(d.getTime())) return jour(String(instant).slice(0, 10));
+    const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Tunis', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d).map((x) => [x.type, x.value]));
+    return jour(`${p.year}-${p.month}-${p.day}`);
+  };
   /** @param {number} n @param {string} un @param {string} [plusieurs] */
   const pl = (n, un, plusieurs) => `${n}\u00a0${n > 1 ? (plusieurs || `${un}s`) : un}`;
   // Un montant du serveur (« 390.000 ») : 390 DT ; 39,500 DT s'il a des millimes, ou si un montant voisin en a
@@ -430,9 +438,34 @@
       <span>Elle porte sur tout le hors taxes de la facture, l'offre et ce qui s'ajoute. Les prix ci-dessous sont ceux d'avant la remise.</span></div>`;
   }
 
+  // Le choix d'une offre (1.84.0) : le bouton s'allume quand un choix est coché ; envoyé, l'onglet se redessine et dit ce
+  // qui a été choisi. Un refus se dit sous les choix, avec sa raison.
+  /** @param {HTMLElement} el @param {Outils} o */
+  function brancherChoix(el, o) {
+    const form = /** @type {HTMLElement | null} */ (el.querySelector('#abo-choix'));
+    const re = /** @type {HTMLButtonElement | null} */ (el.querySelector('#abo-rechoisir'));
+    if (re && form) re.onclick = () => { form.hidden = false; re.disabled = true; form.scrollIntoView({ block: 'nearest' }); };
+    const b = /** @type {HTMLButtonElement | null} */ (el.querySelector('#abo-choisir'));
+    if (!form || !b) return;
+    const refus = /** @type {HTMLElement} */ (form.querySelector('.abo-refus'));
+    const coche = () => /** @type {HTMLInputElement | null} */ (form.querySelector('input[name="abo-choix"]:checked'));
+    form.querySelectorAll('input[name="abo-choix"]').forEach((i) => { /** @type {HTMLInputElement} */ (i).onchange = () => { b.disabled = !coche(); }; });
+    b.onclick = async () => {
+      const c = coche();
+      if (!c) return;
+      const [offre, periodicite] = c.value.split(':');
+      b.disabled = true; refus.hidden = true;
+      try { await o.appel('POST', '/abonnement/choisir', { offre, periodicite }); } catch (x) {
+        refus.textContent = x instanceof Error ? x.message : String(x); refus.hidden = false; b.disabled = false; return;
+      }
+      await dessiner(el, o);
+      /** @type {HTMLElement | null} */ (el.querySelector('#abo-payer'))?.scrollIntoView({ block: 'nearest' });
+    };
+  }
+
   /** @param {HTMLElement} el @param {Outils} o */
   async function dessiner(el, o) {
-    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], options?: { option: string, periodicite: string, montantHt: string }[], aVenir?: { quoi: string, periodicite: string, aPartirDu: string, montantHt: string }[], compte?: { offre: string, comptes: Record<string, number>, inclus: Record<string, number | null> } | null, historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[], regles?: { essai?: number | null, grace?: number | null, relances?: number[] }, contenu?: { duJour?: Contenus, aVenir?: { offre: string, quoi: string, nombre: number, aPartirDu: string }[] }, fermes?: string[], remise?: Remise | null }} */
+    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], options?: { option: string, periodicite: string, montantHt: string }[], aVenir?: { quoi: string, periodicite: string, aPartirDu: string, montantHt: string }[], compte?: { offre: string, comptes: Record<string, number>, inclus: Record<string, number | null> } | null, historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[], regles?: { essai?: number | null, grace?: number | null, relances?: number[] }, contenu?: { duJour?: Contenus, aVenir?: { offre: string, quoi: string, nombre: number, aPartirDu: string }[] }, fermes?: string[], remise?: Remise | null, choix?: { offre: string, periodicite: string, le: string, par: string | null } | null, peutChoisir?: boolean }} */
     let a;
     try { a = await o.appel('GET', '/abonnement'); } catch (x) {
       el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p><button type="button" class="btn btn-sm" id="abo-relire">Réessayer</button>`;
@@ -499,7 +532,7 @@
       return `<li data-option="${l.option}"><span class="abo-plus-quoi"><b>${esc(l.nom)}</b>${compris ? `<span>${esc(compris)}</span>` : ''}${auj.texte ? `<span class="abo-plus-auj${auj.plus ? ' en-plus' : ''}">${esc(auj.texte)}</span>` : ''}</span>
         <span class="abo-plus-prix">${an ? `<b>${esc(montant(an, mm))} HT par an</b>` : ''}${mois ? `<span>${an ? 'ou ' : ''}${esc(montant(mois, mm))} HT par mois</span>` : ''}${annonces(l.option).map((t) => `<span class="abo-plus-avenir">${esc(t)}</span>`).join('')}</span></li>`;
     }).join('');
-    const histoire = a.historique.map((v) => `<li><span class="abo-quand">${esc(jour(String(v.le).slice(0, 10)))}</span><span>${esc(NATURES[v.nature] || v.nature)}${apresEnClair(v) ? ` <span class="muted">(${esc(apresEnClair(v))})</span>` : ''}</span></li>`).join('');
+    const histoire = a.historique.map((v) => `<li><span class="abo-quand">${esc(jourDeTunis(String(v.le)))}</span><span>${esc(NATURES[v.nature] || v.nature)}${apresEnClair(v) ? ` <span class="muted">(${esc(apresEnClair(v))})</span>` : ''}</span></li>`).join('');
     const sujet = encodeURIComponent(a.etat.etat === 'actif' ? 'Mon abonnement SkanFact' : 'M\'abonner à SkanFact');
     // Les factures, lues comme la pièce les imprime : la fiche de l'entreprise SkanFact complétée de ses valeurs par défaut
     // par la même fonction que la v10 (`migrateData`), comme l'espace client.
@@ -509,8 +542,43 @@
     // Une facture qui doit encore passe juste sous l'état : c'est ce qu'il y a à faire. Sinon, elles se lisent plus bas.
     const aFaire = !!fa && fa.pieces.some((p) => !!p.statut && DOIT.includes(p.statut));
     const factures = fa ? sesFactures(fa) : '';
-    const reglement = a.enLigne ? 'Ta facture arrive ici, dans « Tes factures » : tu la règles en ligne, ou par virement ou par chèque.'
-      : 'Ta facture arrive ici, dans « Tes factures » : tu la règles par virement ou par chèque.';
+    // Choisir son offre ici (1.84.0, 0158) : quatre choix et leur prix ; « Je choisis cette offre » le dit à SkanFact, qui
+    // prépare la facture sur lui. Rien n'est payé ni changé tant que la facture n'est pas réglée. Une facture qui attend
+    // son paiement passe d'abord : pour changer d'offre ensuite, on écrit.
+    const titreChoix = a.etat.etat === 'actif' ? 'Renouveler ou changer d\'offre' : 'T\'abonner';
+    const contact = `<a href="mailto:contact@skanfact.tn?subject=${sujet}">contact@skanfact.tn</a>`;
+    const choixPossibles = ['essentiel', 'complet'].flatMap((k) => ['annuel', 'mensuel'].map((p) => ({ k, p, ht: prixDe(k, p) }))).filter((x) => !!x.ht);
+    const choisir = aFaire ? `<section class="abo-payer" id="abo-payer">
+        <span class="abo-payer-ico">${ICONE_MAIL}</span>
+        <div class="abo-payer-txt"><h4>${esc(titreChoix)}</h4><p>Ta facture attend son paiement, juste au-dessus. Pour changer d'offre ensuite, écris-nous à ${contact}.</p></div>
+      </section>` : a.choix ? `<section class="abo-payer abo-choisi" id="abo-payer">
+        <span class="abo-payer-ico">${ICONE_MAIL}</span>
+        <div class="abo-payer-txt">
+          <h4>Tu as choisi ${esc((OFFRES[a.choix.offre] || { nom: a.choix.offre }).nom)}, ${a.choix.periodicite === 'annuel' ? 'à l\'année' : 'au mois'}</h4>
+          <p>Le ${esc(jourDeTunis(String(a.choix.le)))}${a.choix.par ? `, par ${esc(a.choix.par)}` : ''}. SkanFact prépare ta facture sur ce choix : elle arrive ici, dans « Tes factures ». ${a.enLigne ? 'Tu la règles en ligne, ou par virement ou par chèque.' : 'Tu la règles par virement ou par chèque.'} ${esc(quandCommence(a.etat))}</p>
+          ${a.peutChoisir ? '<p><button type="button" class="btn btn-sm" id="abo-rechoisir">Changer de choix</button></p>' : ''}
+        </div>
+      </section>` : a.etat.etat === 'actif' && a.peutChoisir ? `<section class="abo-payer" id="abo-payer">
+        <span class="abo-payer-ico">${ICONE_MAIL}</span>
+        <div class="abo-payer-txt"><h4>${esc(titreChoix)}</h4><p>Ton abonnement court jusqu'au ${esc(jour(a.etat.jusquAu))}. Pour la période suivante, choisis ton offre ici : SkanFact prépare ta facture sur elle. ${esc(quandCommence(a.etat))}</p>
+          <p><button type="button" class="btn btn-sm" id="abo-rechoisir">Choisir mon offre suivante…</button></p></div>
+      </section>` : '';
+    // Pendant un abonnement payé, choisir n'est pas l'étape suivante : les choix se replient, et leur bouton n'est pas le
+    // bouton principal de l'onglet.
+    const replie = !!a.choix || a.etat.etat === 'actif';
+    const formulaire = !aFaire && choixPossibles.length ? `<section class="abo-payer abo-choix" id="abo-choix"${replie ? ' hidden' : ''}>
+        <span class="abo-payer-ico">${ICONE_MAIL}</span>
+        <div class="abo-payer-txt">
+          <h4>${esc(titreChoix)}</h4>
+          ${a.peutChoisir ? `<fieldset class="abo-choix-liste" aria-label="Ton offre">
+            ${choixPossibles.map((x) => `<label class="abo-choix-un"><input type="radio" name="abo-choix" value="${x.k}:${x.p}"><span><b>${esc((OFFRES[x.k] || { nom: x.k }).nom)}, ${x.p === 'annuel' ? 'à l\'année' : 'au mois'}</b><span>${esc(montant(String(x.ht)))} HT ${x.p === 'annuel' ? 'par an' : 'par mois'}</span></span></label>`).join('')}
+          </fieldset>
+          <p>${a.remise ? `La remise (−${a.remise.taux} %) se déduit sur la facture. ` : ''}SkanFact prépare ta facture sur ce choix : elle arrive ici, dans « Tes factures ». Rien n'est payé avant que tu la règles. ${esc(quandCommence(a.etat))}</p>
+          <p class="small abo-refus" role="alert" hidden></p>
+          <p><button type="button" class="btn${a.etat.etat === 'actif' ? '' : ' btn-primary'}" id="abo-choisir" disabled>Je choisis cette offre</button></p>`
+          : `<p>Ton offre se choisit par la propriétaire ou l'administratrice de l'entreprise. Une question ? ${contact}.</p>`}
+        </div>
+      </section>` : '';
     el.innerHTML = `<div class="abo">
       <section class="abo-tete ${c.ton}" id="abo-etat">
         <div class="abo-tete-txt">
@@ -531,13 +599,7 @@
           <ul class="abo-plus-liste">${enPlus}</ul>
         </div>` : ''}
       </div>
-      <section class="abo-payer" id="abo-payer">
-        <span class="abo-payer-ico">${ICONE_MAIL}</span>
-        <div class="abo-payer-txt">
-          <h4>${a.etat.etat === 'actif' ? 'Renouveler ou changer d\'offre' : 'T\'abonner'}</h4>
-          <p>Écris-nous à <a href="mailto:contact@skanfact.tn?subject=${sujet}">contact@skanfact.tn</a> en disant l'offre choisie (Essentiel ou Complet, à l'année ou au mois). ${esc(reglement)} ${esc(quandCommence(a.etat))}</p>
-        </div>
-      </section>
+      ${choisir}${formulaire}
       <div class="abo-section">
         <div class="abo-section-tete"><h3>À l'échéance</h3><p>Tes données restent à toi : tu peux tout télécharger à tout moment (Données et sécurité).</p></div>
         <ol class="abo-etapes">
@@ -551,6 +613,7 @@
       ${fa && !aFaire ? factures : ''}
       ${histoire ? `<div class="abo-section"><div class="abo-section-tete"><h3>L'histoire de l'abonnement</h3></div><ul class="abo-histoire">${histoire}</ul></div>` : ''}
     </div>`;
+    brancherChoix(el, o);
     if (!fa) return;
     const refus = /** @type {HTMLElement} */ (el.querySelector('#abo-factures .abo-refus'));
     el.querySelectorAll('#abo-factures [data-voir]').forEach((b) => {

@@ -177,6 +177,10 @@ describe('« À décider » : le renouvellement à facturer (1.83.0)', () => {
     expect(d[1]).toMatchObject({ ouvre: 'fiche', entreprise: qui(annuel), jusquAu: plusJours(JOUR, 30), jours: 30, offre: 'complet', periodicite: 'annuel' });
     // Le support ne facture pas ; sans l'argent de la direction, rien.
     expect(aDecider(liste, veilleOk, JOUR, 'support', [], MAINTENANT, argent)).toEqual([]);
+    // Une offre choisie dans l'application (1.84.0) tient lieu de « à facturer » : une seule ligne, la sienne.
+    const choisie = { ...argent, choisies: [{ entreprise: qui(annuel), offre: 'essentiel' as const, periodicite: 'mensuel' as const, le: '2026-10-13T07:00:00Z', par: 'Proprio' }] };
+    expect(aDecider(liste, veilleOk, JOUR, 'direction', [], MAINTENANT, choisie).filter((l) => 'entreprise' in l && l.entreprise.id === annuel.id).map((l) => l.sorte)).toEqual(['offre_choisie']);
+    expect(aDecider(liste, veilleOk, JOUR, 'support', [], MAINTENANT, choisie)).toEqual([]);
     // Un client qui part n'en reçoit pas.
     const partant = { ...argent, sorties: [{ entreprise: qui(annuel), close: null, contrat: { fin: null } }] } as unknown as Parameters<typeof aDecider>[6];
     expect(aDecider(liste, veilleOk, JOUR, 'direction', [], MAINTENANT, partant).map((l) => 'entreprise' in l ? l.entreprise.nom : null)).toEqual([mensuel.raisonSociale]);

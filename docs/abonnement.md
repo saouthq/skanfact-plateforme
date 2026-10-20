@@ -486,6 +486,21 @@ endroit chacune (`serveur/abonnement/gestes.ts`, `serveur/abonnement/factures.ts
   échéances (le montant, « Ce qui revient chaque année »), la fiche (« Prochaine facture : … ») disent ce chiffre-là ; un
   mensuel compte douze mois, sans le rattrapage qui ne se paie qu'une fois.
 
+**C19. L'offre se choisit dans l'application** (1.84.0 ; `0158` ; recette du 20/10/2026, décidé par délégation : les
+rappels par e-mail disaient déjà « choisis ton offre dans SkanFact : Paramètres, puis Ton abonnement », que rien ne
+tenait — « T'abonner » demandait d'écrire à contact@skanfact.tn).
+- **Dans « Ton abonnement »**, qui peut payer l'abonnement (la propriétaire, l'administratrice) coche une offre et sa
+  périodicité parmi les prix du jour et clique « Je choisis cette offre » (éteint tant que rien n'est coché). Le choix
+  ne paie rien et ne change pas l'abonnement : la facture préparée puis réglée le fait, comme avant. L'onglet dit
+  ensuite « Tu as choisi Complet, à l'année », le jour (de Tunis) et qui, et que la facture arrive ici ; « Changer de
+  choix » rouvre les choix ; un nouveau choix remplace le précédent (`plateforme.offre_choisie`, jamais réécrite).
+- **Refusé** quand une facture de l'abonnement attend son paiement (« Ta facture … attend déjà son paiement : règle-la
+  … Pour changer d'offre ensuite, écris-nous »), et pour une entreprise sans abonnement à choisir (offerte, tenue par
+  son cabinet, un exemple).
+- **La console** (la direction) le lit dans « À décider » et « Ce qui attend » : « … a choisi Complet, à l'année »,
+  par qui et quand ; il tient lieu de « à facturer ». « Préparer sa facture… » s'ouvre sur cette offre ; préparée, la
+  ligne s'éteint des deux côtés. Le geste est tracé (`socle.abonnement.payer`, `choix`).
+
 ## Revu à la souris (14/10/2026, C17 : les remises)
 
 Sur l'essai de l'outil humain, la base passée en `0106`, dans la console (Amira, direction). Une seconde société pour

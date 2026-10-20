@@ -106,6 +106,7 @@ type Attente =
   | { sorte: 'facture_defaite'; numero: string | null; payeeLe: string; fin: string; ecran: string; cause: 'avoir' | 'reglement'; trop: string | null }
   | { sorte: 'a_emettre'; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
   | { sorte: 'a_facturer'; jusquAu: string; jours: number; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel' }
+  | { sorte: 'offre_choisie'; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; le: string; par: string | null }
   | { sorte: 'trop_percu'; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   | { sorte: 'contestation'; numero: string | null; ouverteLe: string; jours: number }
   | { sorte: 'remboursement_a_noter'; numero: string | null; montant: string; le: string | null }
@@ -391,8 +392,10 @@ type FactureApercu = {
 };
 function FenetreFacture({ fiche, fermer, fait }: { fiche: Donnees; fermer: () => void; fait: () => void }) {
   const api = useApi();
-  const [offre, setOffre] = useState<Offre>(fiche.faits.offre ?? 'complet');
-  const [periodicite, setPeriodicite] = useState<Periodicite>(fiche.faits.periodicite ?? 'annuel');
+  // L'offre choisie dans l'application (1.84.0), sinon celle qui court.
+  const choisie = fiche.attend.find((a): a is Extract<Attente, { sorte: 'offre_choisie' }> => a.sorte === 'offre_choisie');
+  const [offre, setOffre] = useState<Offre>(choisie?.offre ?? fiche.faits.offre ?? 'complet');
+  const [periodicite, setPeriodicite] = useState<Periodicite>(choisie?.periodicite ?? fiche.faits.periodicite ?? 'annuel');
   const [motif, setMotif] = useState('');
   const [apercu, setApercu] = useState<FactureApercu | null>(null);
   // Le prix d'aujourd'hui, quand la période commence après un nouveau prix (0103) : l'aperçu dit pourquoi le montant change.
@@ -1287,6 +1290,9 @@ function attenteEnMots(a: Attente, aujourdhui: string): { icone: NomIcone; titre
     case 'a_emettre':
       return { icone: 'calendrier', titre: titre('console.ecran.fiche.attend.a_emettre_titre'), urgence: 'semaine',
         desc: phrase('console.ecran.decider.a_emettre', { le: jourCourt(a.prepareLe), debut: jourCourt(a.debut), fin: jourCourt(a.fin) }) };
+    case 'offre_choisie':
+      return { icone: 'facture', titre: titre('console.ecran.fiche.attend.offre_choisie_titre', { quoi: offreEtPeriode(a.offre, a.periodicite) }), urgence: 'aujourdhui',
+        desc: phrase('console.ecran.decider.offre_choisie', { qui: a.par ?? dire('console.ecran.decider.offre_choisie_quelquun'), le: jourCourt(jourDe(a.le)) }) };
     case 'a_facturer':
       return { icone: 'calendrier', titre: titre('console.ecran.fiche.attend.a_facturer_titre'), urgence: a.jours <= 15 ? 'aujourdhui' : 'semaine',
         desc: phrase('console.ecran.decider.a_facturer', { quoi: dire('console.ecran.abo.offre_periodicite', { offre: dire(`console.ecran.abo.offre.${a.offre}`), periodicite: dire(`console.ecran.abo.periodicite.${a.periodicite}`) }),

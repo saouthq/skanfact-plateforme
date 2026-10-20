@@ -501,6 +501,10 @@ vaut pour tout le dépôt.*
   - **La recette alpha, suite** (1.81.0 ; `docs/recette.md`) : pas de pièce négative, à l'écran (`montantNonEmettable`,
     `web/v10/montant-negatif.txt`) et au serveur (`emettre`, `serveur/ventes/pieces.ts`) ; le client « à valider » d'une
     échéance du Cabinet et sa saisie (`web/v10/echeance-valider.txt`).
+  - **L'offre choisie dans l'application** (1.84.0 ; `docs/abonnement.md` C19) : `plateforme.offre_choisie`
+    (`base/migrations/0158_offre_choisie.sql`), `POST /entreprises/:e/abonnement/choisir` (`serveur/abonnement/routes.ts`),
+    les choix de « Ton abonnement » (`brancherChoix`, `web/public/plateforme/abonnement.js`), la ligne `offre_choisie`
+    d'« À décider » (`serveur/console/decider.ts`).
   - **L'abonnement de bout en bout** (1.83.0 ; `docs/recette.md`) : la première abonnée d'un groupe est celle qui a payé
     (`plateforme.remise_de`, `base/migrations/0157_la_premiere_abonnee.sql`) ; « à facturer » dans « À décider »
     (`A_FACTURER_JOURS`, `serveur/console/decider.ts`, les factures qui attendent par `argentADecider`,

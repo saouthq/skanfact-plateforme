@@ -106,6 +106,13 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-payer-txt { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .abo-payer-txt h4 { font-family: var(--abo-titre); font-weight: 650; font-size: 17px; color: var(--text); }
 .abo-payer-txt p { font-size: 14px; line-height: 1.55; color: var(--text); }
+.abo-choix-liste { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; border: 0; padding: 0; margin: 4px 0; }
+.abo-choix-un { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface, #fff); border: 1px solid var(--border); cursor: pointer; }
+.abo-choix-un:has(input:checked) { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary) inset; }
+.abo-choix-un input { margin-top: 3px; accent-color: var(--primary); }
+.abo-choix-un > span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
+.abo-choix-un > span > span { color: var(--muted); font-variant-numeric: tabular-nums; }
+@media (max-width: 640px) { .abo-choix-liste { grid-template-columns: 1fr; } }
 .abo-payer-txt a { font-weight: 650; color: var(--primary); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
 
 /* ── À l'échéance : trois étapes, dans l'ordre où elles arrivent ── */

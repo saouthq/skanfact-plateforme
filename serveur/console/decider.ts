@@ -190,6 +190,8 @@ export type Ligne =
       cause: 'avoir' | 'reglement'; trop: string | null }
   | { sorte: 'a_emettre'; ouvre: 'facture'; entreprise: { id: string; nom: string }; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
   // Un abonnement payé qui finit bientôt sans facture pour la période suivante (1.83.0) : la préparer.
+  // Une offre choisie dans l'application (1.84.0, 0158), dont la facture n'est pas encore préparée.
+  | { sorte: 'offre_choisie'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; le: string; par: string | null }
   | { sorte: 'a_facturer'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; jusquAu: string; jours: number; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel' }
   | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: { id: string; nom: string }; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   // 0129 : une facture contestée qui attend sa régularisation depuis une semaine.
@@ -206,13 +208,27 @@ export type Ligne =
   | { sorte: 'envois_en_panne'; ouvre: 'service'; n: number; depuis: string; heures: number };
 // Ce que Travaux sait de ce qui ne part pas (0145), pour qui tient le service.
 export type TravauxADecider = { pauses: readonly Pause[]; enPanne: { n: number; depuis: string | null; heures: number } };
+// Les offres choisies dans l'application (0158, plateforme.console_offres_choisies), lues prudemment : une ligne illisible
+// ne vient pas.
+export function lireChoisies(brut: unknown): NonNullable<Argent['choisies']>[number][] {
+  if (!Array.isArray(brut)) return [];
+  return brut.flatMap((x: Record<string, unknown>) => {
+    const e = (x?.entreprise ?? {}) as Record<string, unknown>;
+    if (typeof e.id !== 'string' || typeof e.nom !== 'string' || typeof x.le !== 'string') return [];
+    if ((x.offre !== 'essentiel' && x.offre !== 'complet') || (x.periodicite !== 'annuel' && x.periodicite !== 'mensuel')) return [];
+    return [{ entreprise: { id: e.id, nom: e.nom }, offre: x.offre, periodicite: x.periodicite, le: x.le, par: typeof x.par === 'string' ? x.par : null }];
+  });
+}
+
 // Ce que Paiements sait de l'argent qui attend une décision (serveur/console/paiements.ts, par ses fonctions), les
 // contestations en cours (serveur/console/contestations.ts) et les sorties en cours (serveur/console/sortie.ts), la
 // direction seule.
 // `facturees` (1.83.0) : les factures d'abonnement préparées ou émises qui attendent encore leur paiement, par entreprise
 // et premier jour de leur période (une facture payée a déjà poussé la période payée).
 export type Argent = { defaites: readonly Defaite[]; aEmettre: readonly AEmettre[]; trop: readonly Trop[]; contestees?: readonly Contestation[]; sorties?: readonly Sortie[];
-  facturees?: readonly { entreprise: string; debut: string }[] };
+  facturees?: readonly { entreprise: string; debut: string }[];
+  // `choisies` (1.84.0) : les offres choisies dans l'application qui attendent leur facture.
+  choisies?: readonly { entreprise: { id: string; nom: string }; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; le: string; par: string | null }[] };
 // Une facture préparée attend d'être émise : au-delà de deux jours, elle demande un geste (l'émettre, ou la supprimer).
 export const A_EMETTRE_JOURS = 2;
 // Un abonnement payé se facture avant sa fin (1.83.0, recette du 20/10/2026) : trente jours avant pour une année (la
@@ -293,9 +309,16 @@ export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role
     // Le renouvellement (1.83.0) : un abonnement payé, non résilié, qui finit dans les jours de sa périodicité sans facture
     // pour la période qui suit ; un client qui part n'en reçoit pas.
     const partent = new Set((argent.sorties ?? []).filter((x) => !x.close && x.entreprise).map((x) => x.entreprise?.id));
+    // Une offre choisie dans l'application (1.84.0) : sa facture se prépare sur elle ; elle tient lieu de « à facturer ».
+    const choisies = new Set<string>();
+    for (const c of argent.choisies ?? []) {
+      if (!ici.has(c.entreprise.id) || partent.has(c.entreprise.id)) continue;
+      choisies.add(c.entreprise.id);
+      lignes.push([2.4, Date.parse(c.le), { sorte: 'offre_choisie', ouvre: 'fiche', entreprise: c.entreprise, offre: c.offre, periodicite: c.periodicite, le: c.le, par: c.par }]);
+    }
     for (const e of liste) {
       const s = e.etat;
-      if (s.etat !== 'actif' || s.resilie || partent.has(e.id) || s.jours < 0 || s.jours > A_FACTURER_JOURS[s.periodicite]) continue;
+      if (s.etat !== 'actif' || s.resilie || partent.has(e.id) || choisies.has(e.id) || s.jours < 0 || s.jours > A_FACTURER_JOURS[s.periodicite]) continue;
       if ((argent.facturees ?? []).some((f) => f.entreprise === e.id && f.debut > s.jusquAu)) continue;
       lignes.push([2.6, s.jours, { sorte: 'a_facturer', ouvre: 'fiche', entreprise: { id: e.id, nom: e.raisonSociale }, jusquAu: s.jusquAu, jours: s.jours, offre: s.offre, periodicite: s.periodicite }]);
     }

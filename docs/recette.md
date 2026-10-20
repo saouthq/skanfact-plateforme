@@ -485,7 +485,39 @@ la seconde société est facturée 657,880 DT avec la remise de groupe, et la li
 - Quinze preuves (`tests/preuves.sh`) : les quatre nouvelles d'« à facturer », trois du lot (la première abonnée, les
   personnes, la phrase), et les huit preuves de `remise_de` reportées sur sa définition en vigueur (`0157`).
 
+## 1.84.0 — choisir son offre dans l'application (21/10/2026)
+
+Décidé par délégation (Skander : « prends la décision à ma place ») : le processus change, pas les prix ni les offres,
+et les rappels par e-mail promettaient déjà « choisis ton offre dans SkanFact : Paramètres, puis Ton abonnement », que
+rien ne tenait. Se défait sans perte : le choix ne paie rien et ne change pas l'abonnement (docs/abonnement.md C19).
+
+### Ce que le lot apporte et corrige
+
+- **« T'abonner » / « Renouveler ou changer d'offre »** : au lieu de « Écris-nous à contact@skanfact.tn », les quatre
+  choix avec leur prix du jour, et « Je choisis cette offre » (éteint tant que rien n'est coché). Ensuite : « Tu as
+  choisi Essentiel, à l'année », le jour, qui, et que la facture arrive ici ; « Changer de choix ». Pendant un abonnement
+  payé, choisir n'est pas l'étape suivante : les choix se replient derrière « Choisir mon offre suivante… », sans bouton
+  principal.
+- **La console** : « Trabelsi Distribution SARL a choisi Essentiel, à l'année » dans « À décider » (et « Ce qui attend »
+  de la fiche), qui tient lieu de « à facturer » ; « Préparer sa facture… » s'ouvre sur cette offre (vu : 390,000 +
+  74,100 + 1,000 = 465,100 DT, pour la période du 05/12/2027 au 04/12/2028).
+- **Refusé, avec la raison** : une facture qui attend son paiement passe d'abord ; une entreprise offerte n'a rien à
+  choisir.
+- **Les jours de « Ton abonnement »** (l'histoire de l'abonnement, le jour d'un choix) se lisaient en UTC : un geste
+  fait entre minuit et une heure à Tunis se datait de la veille (vu à 0 h 20 : « Le 20/10/2026 » pour un choix du 21).
+  Ils se lisent au jour de Tunis.
+
+### Ce qui le prouve
+
+- `tests/console/factures.test.ts` : par l'API, la propriétaire choisit (la commerciale non, une offre inconnue non),
+  le dernier choix compte, il ne se réécrit pas ; la console le voit, pas le support ; la facture préparée l'éteint ;
+  refusé pendant qu'une facture attend son paiement, et pour une entreprise offerte.
+- `tests/console/decider.test.ts` : l'offre choisie tient lieu de « à facturer ».
+- `tests/web/abonnement-choix.test.ts` (nouveau) : à la souris, les quatre choix et leur prix, le bouton éteint puis
+  allumé, le choix lu, « Changer de choix », le jour de Tunis d'un choix fait à 23 h 30 UTC ; la console a la ligne.
+- Huit preuves (`tests/preuves.sh`).
+
 ## Ce qui reste (les lots suivants)
 
-1. **1.84** : choisir son offre dans l'application (« Je choisis cette offre », que la console voit dans « À décider »
-   et facture d'un geste), au lieu d'un e-mail. Le processus change, pas les prix : montré à Skander avant l'envoi.
+1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
+   l'application.
