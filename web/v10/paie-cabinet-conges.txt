@@ -1,0 +1,474 @@
+Les congés au Cabinet (20/10/2026, 1.70.0 ; docs/paie.md, « Les congés au Cabinet »).
+Format : voir sans-paquets.mjs.
+
+L'entreprise saisit les congés et absences de ses salariés depuis la 5.1.0 (la nature, payée ou non, du … au …), et en
+suit le solde (acquis au prorata des mois travaillés, pris) ; le pointage les pose de lui-même. Le Cabinet lisait ceux
+d'un client sur SkanFact (1.69.0) ; pour un dossier tenu, il ne pouvait que pointer les jours un par un, sans solde, et le
+repos de la semaine était le dimanche. Le moteur des congés passe dans le moteur commun (compta.js ; core.js le reprend,
+une seule copie) ; le Cabinet a son panneau « Les congés et absences », où il les saisit pour un dossier tenu et les lit
+pour un client sur SkanFact, avec le solde de chaque salarié ; « Taux de la paie… » règle le repos de la semaine et le
+droit annuel d'un dossier tenu.
+
+== compta.js | le moteur des congés, dans le moteur commun
+-- avant
+  const leaveIsPaid = k => { const f = LEAVE_KINDS.find(x => x[0] === k); return f ? f[2] : true; };
+-- après
+  const leaveIsPaid = k => { const f = LEAVE_KINDS.find(x => x[0] === k); return f ? f[2] : true; };
+  // (plateforme) 1.70.0 — les congés et absences (5.1.0), déménagés de core.js dans le moteur commun : le Cabinet les
+  // saisit pour un dossier tenu, et en montre le solde ; core.js les reprend tels quels. Comme le pointage, ils ne lisent
+  // de `data` que la paie (les salariés, les congés, les réglages).
+  const leaveKindLabel = k => (LEAVE_KINDS.find(x => x[0] === k) || [, k])[1];
+  // Le nombre de jours entre deux jours du calendrier, en UTC pur (règle 5.2.3).
+  const joursEntre = (a, b) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
+
+  // Jours ouvrables entre deux dates incluses. `offDays` = jours de la semaine chômés (0 = dimanche).
+  // Par défaut le dimanche seul : c'est la semaine de six jours encore courante en Tunisie, et c'est
+  // cohérent avec les 26 jours ouvrables du bulletin. À VÉRIFIER avec le comptable.
+  function workingDays(fromIso, toIso, offDays) {
+    if (!fromIso || !toIso || toIso < fromIso) return 0;
+    const off = Array.isArray(offDays) ? offDays : [0];
+    // On compte sur des instants UTC, jamais en avançant une chaîne jour par jour : c'est cette
+    // boucle-là qui ne finissait jamais dès que l'ordinateur n'était pas réglé en UTC. Et une borne,
+    // parce qu'une absence de trente ans est une faute de saisie, pas un calcul à faire.
+    const start = Date.parse(fromIso + 'T00:00:00Z'), end = Date.parse(toIso + 'T00:00:00Z');
+    if (isNaN(start) || isNaN(end)) return 0;
+    const span = Math.min(Math.round((end - start) / 86400000), 366 * 30);
+    let n = 0;
+    for (let i = 0; i <= span; i++) {
+      if (!off.includes(new Date(start + i * 86400000).getUTCDay())) n++;
+    }
+    return n;
+  }
+
+  // Les jours d'un congé qui tombent dans un mois donné : un congé à cheval sur deux mois se répartit
+  // entre les deux bulletins, sinon le salarié serait retenu deux fois ou pas du tout.
+  function leaveDaysInMonth(leave, year, month, offDays) {
+    const first = `${year}-${String(month).padStart(2, '0')}-01`;
+    const last = ajouterJoursIso(first, daysInMonth(year, month) - 1);
+    const from = leave.from > first ? leave.from : first;
+    const to = leave.to < last ? leave.to : last;
+    if (to < from) return 0;
+    return workingDays(from, to, offDays);
+  }
+
+  function leavesOf(data, employeeId, year) {
+    return (data.leaves || [])
+      .filter(l => (!employeeId || l.employeeId === employeeId)
+        && (!year || (l.from || '').slice(0, 4) === String(year) || (l.to || '').slice(0, 4) === String(year)))
+      .map(l => ({ ...l, days: workingDays(l.from, l.to, (data.payrollSettings || {}).offDays),
+        paid: l.paid != null ? l.paid : leaveIsPaid(l.kind), kindLabel: leaveKindLabel(l.kind) }))
+      .sort((a, b) => (b.from || '').localeCompare(a.from || ''));
+  }
+
+  // Le compteur de congés : acquis au prorata des mois travaillés, moins ce qui a été pris.
+  // Le droit annuel se règle dans les barèmes — il dépend de la convention collective.
+  function leaveBalance(data, employeeId, year, todayIso) {
+    const s = baremesPaie((data && data.payrollSettings) || {});
+    const emp = (data.employees || []).find(e => e.id === employeeId) || {};
+    const t = todayIso || jourDeLInstant(Date.now());
+    const y = Number(year) || Number(t.slice(0, 4));
+    const start = `${y}-01-01`, end = `${y}-12-31`;
+    // Mois effectivement travaillés dans l'année, bornés par l'embauche, la sortie et aujourd'hui.
+    const from = emp.hireDate && emp.hireDate > start ? emp.hireDate : start;
+    const stop = [emp.endDate || end, end, t > end ? end : t].filter(Boolean).sort()[0];
+    const months = stop < from ? 0 : Math.max(0, Math.min(12, Math.round((joursEntre(from, stop) + 1) / 30.4)));
+    const perYear = Number(s.leaveDaysPerYear) || 0;
+    const acquired = round3(perYear * months / 12);
+    const carry = Number((emp.leaveCarry || {})[y]) || 0;
+    const list = leavesOf(data, employeeId, y);
+    const taken = round3(list.filter(l => l.kind === 'conges').reduce((a, l) => a + l.days, 0));
+    const byKind = {};
+    LEAVE_KINDS.forEach(([k]) => { byKind[k] = round3(list.filter(l => l.kind === k).reduce((a, l) => a + l.days, 0)); });
+    return { year: y, months, acquired, carry, taken, byKind,
+      remaining: round3(acquired + carry - taken), perYear, list };
+  }
+-- fin
+
+== compta.js | le moteur des congés se lit hors du moteur commun
+-- avant
+    LEAVE_KINDS, leaveIsPaid,
+-- après
+    LEAVE_KINDS, leaveIsPaid,
+    // (plateforme) 1.70.0 — les congés.
+    leaveKindLabel, workingDays, leaveDaysInMonth, leavesOf, leaveBalance,
+-- fin
+
+== core.js | le moteur des congés vient du moteur commun
+-- avant
+  // (plateforme) 1.69.0 — dans le moteur commun (compta.js), que le pointage du Cabinet lit aussi : une seule copie.
+  const LEAVE_KINDS = Compta.LEAVE_KINDS;
+  const leaveKindLabel = k => (LEAVE_KINDS.find(x => x[0] === k) || [, k])[1];
+  const leaveIsPaid = Compta.leaveIsPaid;
+
+  // Jours ouvrables entre deux dates incluses. `offDays` = jours de la semaine chômés (0 = dimanche).
+  // Par défaut le dimanche seul : c'est la semaine de six jours encore courante en Tunisie, et c'est
+  // cohérent avec les 26 jours ouvrables du bulletin. À VÉRIFIER avec le comptable.
+  function workingDays(fromIso, toIso, offDays) {
+    if (!fromIso || !toIso || toIso < fromIso) return 0;
+    const off = Array.isArray(offDays) ? offDays : [0];
+    // On compte sur des instants UTC, jamais en avançant une chaîne jour par jour : c'est cette
+    // boucle-là qui ne finissait jamais dès que l'ordinateur n'était pas réglé en UTC. Et une borne,
+    // parce qu'une absence de trente ans est une faute de saisie, pas un calcul à faire.
+    const start = Date.parse(fromIso + 'T00:00:00Z'), end = Date.parse(toIso + 'T00:00:00Z');
+    if (isNaN(start) || isNaN(end)) return 0;
+    const span = Math.min(Math.round((end - start) / 86400000), 366 * 30);
+    let n = 0;
+    for (let i = 0; i <= span; i++) {
+      if (!off.includes(new Date(start + i * 86400000).getUTCDay())) n++;
+    }
+    return n;
+  }
+
+  // Les jours d'un congé qui tombent dans un mois donné : un congé à cheval sur deux mois se répartit
+  // entre les deux bulletins, sinon le salarié serait retenu deux fois ou pas du tout.
+  function leaveDaysInMonth(leave, year, month, offDays) {
+    const first = `${year}-${String(month).padStart(2, '0')}-01`;
+    const last = addDays(first, daysInMonth(year, month) - 1);
+    const from = leave.from > first ? leave.from : first;
+    const to = leave.to < last ? leave.to : last;
+    if (to < from) return 0;
+    return workingDays(from, to, offDays);
+  }
+
+  function leavesOf(data, employeeId, year) {
+    return (data.leaves || [])
+      .filter(l => (!employeeId || l.employeeId === employeeId)
+        && (!year || (l.from || '').slice(0, 4) === String(year) || (l.to || '').slice(0, 4) === String(year)))
+      .map(l => ({ ...l, days: workingDays(l.from, l.to, (data.payrollSettings || {}).offDays),
+        paid: l.paid != null ? l.paid : leaveIsPaid(l.kind), kindLabel: leaveKindLabel(l.kind) }))
+      .sort((a, b) => (b.from || '').localeCompare(a.from || ''));
+  }
+
+  // Le compteur de congés : acquis au prorata des mois travaillés, moins ce qui a été pris.
+  // Le droit annuel se règle dans les barèmes — il dépend de la convention collective.
+  function leaveBalance(data, employeeId, year, todayIso) {
+    const s = payrollSettings(data);
+    const emp = (data.employees || []).find(e => e.id === employeeId) || {};
+    const t = todayIso || today();
+    const y = Number(year) || Number(t.slice(0, 4));
+    const start = `${y}-01-01`, end = `${y}-12-31`;
+    // Mois effectivement travaillés dans l'année, bornés par l'embauche, la sortie et aujourd'hui.
+    const from = emp.hireDate && emp.hireDate > start ? emp.hireDate : start;
+    const stop = [emp.endDate || end, end, t > end ? end : t].filter(Boolean).sort()[0];
+    const months = stop < from ? 0 : Math.max(0, Math.min(12, Math.round((daysBetween(from, stop) + 1) / 30.4)));
+    const perYear = Number(s.leaveDaysPerYear) || 0;
+    const acquired = round3(perYear * months / 12);
+    const carry = Number((emp.leaveCarry || {})[y]) || 0;
+    const list = leavesOf(data, employeeId, y);
+    const taken = round3(list.filter(l => l.kind === 'conges').reduce((a, l) => a + l.days, 0));
+    const byKind = {};
+    LEAVE_KINDS.forEach(([k]) => { byKind[k] = round3(list.filter(l => l.kind === k).reduce((a, l) => a + l.days, 0)); });
+    return { year: y, months, acquired, carry, taken, byKind,
+      remaining: round3(acquired + carry - taken), perYear, list };
+  }
+-- après
+  // (plateforme) 1.69.0 — dans le moteur commun (compta.js), que le pointage du Cabinet lit aussi : une seule copie.
+  // (plateforme) 1.70.0 — et les congés : leurs jours ouvrables, leur liste, le solde (le Cabinet les tient aussi).
+  const { LEAVE_KINDS, leaveKindLabel, leaveIsPaid, workingDays, leaveDaysInMonth, leavesOf, leaveBalance } = Compta;
+-- fin
+
+== cabinet/app.js | les congés et absences de l'année, sous le pointage
+-- avant
+    ${/* (plateforme) 1.69.0 — le pointage du mois, juste sous ses bulletins (l'onglet Pointage de l'entreprise). */''}
+    ${vuePointage(dossier, L, s.annee, m)}
+
+    ${/* Empilés, pas côte à côte (règle 3.4.0) : deux tableaux de cinq et six colonnes dans un
+-- après
+    ${/* (plateforme) 1.69.0 — le pointage du mois, juste sous ses bulletins (l'onglet Pointage de l'entreprise). */''}
+    ${vuePointage(dossier, L, s.annee, m)}
+
+    ${/* (plateforme) 1.70.0 — les congés et absences de l'année et le solde de chacun, sous le pointage où ils se posent. */''}
+    ${vueConges(dossier, L, s.annee)}
+
+    ${/* Empilés, pas côte à côte (règle 3.4.0) : deux tableaux de cinq et six colonnes dans un
+-- fin
+
+== cabinet/app.js | la page de la paie branche les congés
+-- avant
+    brancherPointage(el, root, dossier);
+    const trim = $('#pa-trim', el);
+-- après
+    brancherPointage(el, root, dossier);
+    // (plateforme) 1.70.0
+    brancherConges(el, root, dossier);
+    const trim = $('#pa-trim', el);
+-- fin
+
+== cabinet/app.js | le panneau des congés : le solde de chacun, la liste de l'année, la fenêtre d'une absence
+-- avant
+  // Le détail d'un bulletin, tel qu'il a été FIGÉ. Un chiffre qu'on ne peut pas ouvrir se croit ou
+-- après
+  // (plateforme) 1.70.0 — les congés et absences d'un dossier : ceux de l'entreprise (5.1.0), par son moteur (compta.js).
+  // Le solde de chaque salarié en poste, puis les congés et absences de l'année. Un client sur SkanFact les saisit dans son
+  // SkanFact : le Cabinet les lit (il n'écrit jamais chez un client sans son accord). Pour un dossier tenu, il les saisit,
+  // dans la fenêtre de l'entreprise. Chacun se pose de lui-même sur la grille du pointage, et un bulletin établi ensuite
+  // retire du brut une absence non payée.
+  const congesState = { page: 1, size: prefs.get('cgSize', 25), sizeKey: 'cgSize' };
+  // Le pluriel des deux applications : au-delà d'un jour, en valeur absolue (« −1,5 jour » disait le singulier).
+  const joursCg = n => `${joursFr(n)} jour${Math.abs(Number(n)) > 1 ? 's' : ''}`;
+  // Qui peut les saisir : le Cabinet, pour un dossier tenu dont l'exercice est ouvert.
+  const congesTenus = L => !L.reglagesPaie && !(L.exercice || {}).clos;
+  function vueConges(dossier, L, annee) {
+    const data = donneesDuPointage(dossier, L);
+    const y = Number(annee);
+    const tient = congesTenus(L);
+    const tous = KC.leavesOf(data, '', y);
+    const soldes = data.employees.filter(e => ((L.salaries || []).find(x => x.id === e.id) || {}).actif)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr')).map(e => ({ e, b: KC.leaveBalance(data, e.id, y) }));
+    const nomDe = id => ((L.salaries || []).find(x => x.id === id) || {}).nom || '—';
+    const droit = KC.baremesPaie(data.payrollSettings).leaveDaysPerYear;
+    // Le pied borne la page AVANT qu'on la découpe (une liste raccourcie ne garde pas une page qui n'existe plus).
+    const pied = pagerBar(tous.length, congesState, 'absence');
+    const page = paginate(tous, congesState);
+    const tiret = '<span class="muted">—</span>';
+    return `<div class="panel mt" id="cg-panneau"><h2>Les congés et absences de ${esc(annee)} ${info('pa.conges')}</h2>
+      <div class="small mb ctrl-geste" id="cg-droit"><span>Le droit annuel : <b>${esc(joursCg(droit))} ouvrables</b>, acquis au prorata des mois travaillés${L.reglagesPaie
+    ? ' ; ce client le règle dans son SkanFact (<b>Paie › Barèmes</b>).' : '. <em>À VÉRIFIER avec la convention collective du client.</em>'}</span>${L.reglagesPaie ? ''
+    : '<button type="button" class="btn btn-sm" id="cg-droit-regler">Régler le droit annuel…</button>'}</div>
+      ${soldes.length ? `<div class="scroll-x"><table class="list compact" id="cg-soldes"><thead><tr><th>Salarié</th>
+        <th class="r nw">Acquis ${esc(annee)}</th><th class="r">Pris</th><th class="r">Solde</th><th class="r">Maladie</th><th class="r nw">Sans solde</th></tr></thead>
+        <tbody>${soldes.map(({ e, b }) => `<tr data-cg-solde="${esc(e.id)}"><td class="tronq" title="${esc(e.name)}">${esc(e.name)}</td>
+          <td class="r nw">${esc(joursFr(b.acquired))}</td><td class="r nw">${esc(joursFr(b.taken))}</td>
+          <td class="r nw${b.remaining < 0 ? ' warn-text' : ''}"><b>${esc(joursFr(b.remaining))}</b></td>
+          <td class="r nw">${b.byKind.maladie ? esc(joursFr(b.byKind.maladie)) : tiret}</td>
+          <td class="r nw">${b.byKind['sans-solde'] ? esc(joursFr(b.byKind['sans-solde'])) : tiret}</td></tr>`).join('')}</tbody></table></div>
+      ${soldes.some(x => x.b.remaining < 0) ? '<p class="small muted mt">Un solde négatif : le salarié a pris plus de jours qu\'il n\'en a acquis. Ce n\'est pas interdit, mais il faut le savoir.</p>' : ''}`
+    : '<div class="empty mini">Aucun salarié en poste : le solde de chacun se calcule dès qu\'il est déclaré.</div>'}
+      <div class="filters mt">${tient && (L.salaries || []).some(x => x.actif) ? '<button type="button" class="btn btn-sm" id="cg-ajouter">+ Congé ou absence…</button>' : ''}
+        <span class="small muted" id="cg-qui">${L.reglagesPaie ? 'Ce client les saisit dans son SkanFact (<b>Paie › Congés et absences</b>) : le Cabinet les lit.'
+    : (L.exercice || {}).clos ? `L'exercice ${esc(annee)} est clos : ses congés se lisent, ils ne se changent plus.`
+      : 'Chacun se pose de lui-même sur la grille du pointage ; un bulletin établi ensuite retire du brut une absence non payée.'}</span></div>
+      ${tous.length ? `<div class="scroll-x"><table class="list compact" id="cg-liste"><thead><tr><th>Salarié</th><th>Nature</th>
+        <th class="nw">Du</th><th class="nw">Au</th><th class="r">Jours</th><th>Effet</th><th>Motif</th></tr></thead>
+        <tbody>${page.map(l => `<tr data-cg="${esc(l.id)}"${tient ? ' class="clickable" tabindex="0" title="Modifier cette absence"' : ''}>
+          <td class="tronq" title="${esc(nomDe(l.employeeId))}">${esc(nomDe(l.employeeId))}</td><td>${esc(l.kindLabel)}</td>
+          <td class="nw">${esc(fmtJour(l.from))}</td><td class="nw">${esc(fmtJour(l.to))}</td><td class="r nw">${esc(joursFr(l.days))}</td>
+          <td class="nw">${l.paid ? '<span class="ok-text">payée</span>' : '<span class="warn-text">retirée du salaire</span>'}</td>
+          <td class="tronq" title="${esc(l.note || '')}">${esc(l.note || '')}</td></tr>`).join('')}</tbody></table></div>${pied}`
+    : `<div class="empty mini">Aucun congé ni absence en ${esc(annee)}.</div>`}
+    </div>`;
+  }
+  function brancherConges(el, root, dossier) {
+    const panneau = $('#cg-panneau', el);
+    if (!panneau) return;
+    const L = livresState.livre;
+    const regler = $('#cg-droit-regler', panneau);
+    if (regler) regler.onclick = () => regimesForm(root, dossier, { focus: 'leaveDaysPerYear' });
+    const ajouter = $('#cg-ajouter', panneau);
+    if (ajouter) ajouter.onclick = () => congeForm(root, dossier, null);
+    bindPager(panneau, () => drawLivres(root, dossier), congesState);
+    if (!congesTenus(L)) return;
+    $$('#cg-liste tr[data-cg]', panneau).forEach(tr => {
+      const ouvrir = () => { const c = (L.conges || []).find(x => x.id === tr.dataset.cg); if (c) congeForm(root, dossier, c); };
+      tr.onclick = ouvrir;
+      tr.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ouvrir(); } };
+    });
+  }
+  // La fenêtre d'un congé ou d'une absence (celle de l'entreprise, leaveForm) : le salarié, la nature, l'effet sur le
+  // salaire, du … au …, le motif ; les jours ouvrables qu'elle compte, ce qu'elle fait au salaire et, pour un congé payé, le
+  // solde avant et après, se lisent AVANT d'enregistrer.
+  function congeForm(root, dossier, conge) {
+    const s = livresState, L = s.livre;
+    const salaries = (L.salaries || []).filter(x => x.actif || (conge && x.id === conge.employeeId))
+      .sort((a, b) => (a.nom || '').localeCompare(b.nom || '', 'fr'));
+    if (!salaries.length) return toast('Déclare d\'abord un salarié.', 'error');
+    // Un congé nouveau tombe dans le mois regardé : aujourd'hui s'il en est, sinon son premier jour — jamais avant l'entrée
+    // du salarié (vu au test humain : le 1er septembre proposé pour une entrée le 15).
+    const mois = `${s.annee}-${String(s.paieMois || 1).padStart(2, '0')}`;
+    const auMois = String(K.today()).slice(0, 7) === mois ? K.today() : `${mois}-01`;
+    const jour = salaries[0].embauche && salaries[0].embauche > auMois ? salaries[0].embauche : auMois;
+    const c = conge || { id: '', employeeId: salaries[0].id, kind: 'conges', from: jour, to: jour, paid: null, note: '' };
+    // Hors du contrat, une absence ne se pose sur aucun pointage ni aucun bulletin, mais entamerait le compteur : elle se dit
+    // dans l'annonce, et se refuse.
+    const horsContrat = v => {
+      const x = salaries.find(y => y.id === v.employeeId) || {};
+      return x.embauche && v.from && v.from < x.embauche ? { champ: 'from', motif: `L'entrée de ${x.nom} est le ${fmtJour(x.embauche)} : une absence ne commence pas avant.` }
+        : x.sortie && v.to && v.to > x.sortie ? { champ: 'to', motif: `La sortie de ${x.nom} est le ${fmtJour(x.sortie)} : une absence ne finit pas après.` } : null;
+    };
+    modal(`<h2>${conge ? 'Modifier l\'absence' : 'Congé ou absence'}</h2>
+      <form id="cg-form" class="grid-2">
+        <label class="field span-2 obligatoire">${lbl('Salarié', 'pa.cgSalarie')}<select name="employeeId">${salaries.map(x => `<option value="${esc(x.id)}" ${x.id === c.employeeId ? 'selected' : ''}>${esc(x.nom)}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Nature', 'pa.cgNature')}<select name="kind">${KC.LEAVE_KINDS.map(([v, lab, payee]) => `<option value="${v}" ${c.kind === v ? 'selected' : ''}>${esc(lab)}${payee ? '' : ' (non payée)'}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Effet sur le salaire', 'pa.cgEffet')}<select name="paid">
+          <option value="">selon la nature</option><option value="1" ${c.paid === true ? 'selected' : ''}>payée</option><option value="0" ${c.paid === false ? 'selected' : ''}>non payée</option></select></label>
+        <label class="field obligatoire">${lbl('Du', 'pa.cgDates')}<input name="from" placeholder="JJ/MM/AAAA" value="${esc(fmtJour(c.from))}"></label>
+        <label class="field obligatoire">${lbl('Au', 'pa.cgDates')}<input name="to" placeholder="JJ/MM/AAAA" value="${esc(fmtJour(c.to))}"></label>
+        <label class="field span-2">${lbl('Motif', 'pa.cgMotif')}<input name="note" maxlength="200" value="${esc(c.note || '')}" placeholder="Certificat médical, congé annuel…"></label>
+        <div class="span-2 annonce-stable small" id="cg-annonce"></div>
+      </form>
+      <div class="modal-actions">${conge ? '<button type="button" class="btn btn-danger" id="cg-supprimer" style="margin-inline-end:auto">Supprimer</button>' : ''}
+        <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
+    (layer, close) => {
+      const f = $('#cg-form', layer);
+      const champ = n => $(`[name=${n}]`, f);
+      const lire = () => ({ employeeId: champ('employeeId').value, kind: champ('kind').value, paid: champ('paid').value,
+        from: K.dateTapee(champ('from').value.trim(), s.annee), to: K.dateTapee(champ('to').value.trim(), s.annee), note: champ('note').value.trim() });
+      const annoncer = () => {
+        const v = lire();
+        const a = $('#cg-annonce', layer);
+        if (!v.from || !v.to || v.to < v.from) { a.innerHTML = '<span class="muted">Le premier et le dernier jour de l\'absence, compris.</span>'; return; }
+        const data = donneesDuPointage(dossier, L);
+        const jours = KC.workingDays(v.from, v.to, data.payrollSettings.offDays);
+        const payee = v.paid === '' ? KC.leaveIsPaid(v.kind) : v.paid === '1';
+        let solde = '';
+        if (v.kind === 'conges') {
+          // Une absence déjà comptée l'est dans le solde du moteur : « avant » la lui rend, sinon elle se retrancherait deux fois.
+          const b = KC.leaveBalance(data, v.employeeId, Number(v.from.slice(0, 4)));
+          const deja = conge && conge.kind === 'conges' && conge.employeeId === v.employeeId && String(conge.from).slice(0, 4) === v.from.slice(0, 4)
+            ? KC.workingDays(conge.from, conge.to, data.payrollSettings.offDays) : 0;
+          const avant = KC.round3(b.remaining + deja), apres = KC.round3(avant - jours);
+          solde = ` Solde de congés : <b>${esc(joursCg(avant))}</b> avant, <b>${esc(joursCg(apres))}</b> après.${apres < 0
+            ? ` <span class="warn-text">Il prendrait ${esc(joursCg(-apres))} de plus qu'il n'en a acquis : ce n'est pas interdit, mais il faut le savoir.</span>` : ''}`;
+        }
+        const hors = horsContrat(v);
+        a.innerHTML = hors ? `<span class="warn-text">${esc(hors.motif)}</span>`
+          : `<span class="${jours ? 'muted' : 'warn-text'}">${jours ? `<b>${esc(joursCg(jours))} ouvrable${jours > 1 ? 's' : ''}</b>, dimanches exclus. `
+          : 'Aucun jour ouvrable dans cette période : vérifie les dates. '}${payee ? 'Payée : le salaire du mois n\'est pas réduit.'
+          : 'Non payée : le brut d\'un bulletin établi ensuite est réduit au prorata.'}${solde}</span>`;
+      };
+      f.oninput = f.onchange = annoncer; annoncer();
+      $('#ok', layer).onclick = async () => {
+        const v = lire();
+        if (!v.employeeId) return refus(champ('employeeId'), 'Choisis le salarié.');
+        if (!champ('from').value.trim()) return refus(champ('from'), 'Indique le premier jour de l\'absence.');
+        if (!v.from) return refus(champ('from'), `« ${champ('from').value.trim()} » n'est pas une date lisible. Écris-la JJ/MM/AAAA.`);
+        if (!champ('to').value.trim()) return refus(champ('to'), 'Indique le dernier jour de l\'absence.');
+        if (!v.to) return refus(champ('to'), `« ${champ('to').value.trim()} » n'est pas une date lisible. Écris-la JJ/MM/AAAA.`);
+        if (v.to < v.from) return refus(champ('to'), `La fin ne peut pas précéder le début (${fmtJour(v.from)}).`);
+        const hors = horsContrat(v);
+        if (hors) return refus(champ(hors.champ), hors.motif);
+        const ok = $('#ok', layer);
+        ok.disabled = true;
+        try {
+          const id = conge ? conge.id : 'cg' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+          const r = await api.saveConge({ dossierId: dossier.id, conge: { id, employeeId: v.employeeId, kind: v.kind, from: v.from, to: v.to,
+            paid: v.paid === '' ? null : v.paid === '1', note: v.note } });
+          L.conges = r.conges;
+          close();
+          toast(`L'absence de ${((L.salaries || []).find(x => x.id === v.employeeId) || {}).nom || ''} est enregistrée.`);
+          drawLivres(root, dossier);
+        } catch (err) { ok.disabled = false; toast(plainError(err), 'error'); }
+      };
+      const sup = $('#cg-supprimer', layer);
+      if (sup) sup.onclick = async () => {
+        if (!await confirmDialog('Supprimer cette absence ?', 'Elle se retire du pointage. Un bulletin déjà établi ne change pas de lui-même : le pointage dira s\'il ne le suit plus.', 'Supprimer', true)) return;
+        try {
+          const r = await api.supprimerConge({ dossierId: dossier.id, id: conge.id });
+          L.conges = r.conges;
+          close(); toast('Absence supprimée.'); drawLivres(root, dossier);
+        } catch (err) { toast(plainError(err), 'error'); }
+      };
+    });
+  }
+
+  // Le détail d'un bulletin, tel qu'il a été FIGÉ. Un chiffre qu'on ne peut pas ouvrir se croit ou
+-- fin
+
+== cabinet/app.js | la fenêtre des taux règle aussi le droit annuel aux congés payés (un dossier tenu)
+-- avant
+      <h3 class="mt">Les heures supplémentaires</h3>
+      <p class="small">Pour le pointage de ce client : une heure vaut son brut divisé par les heures d'un mois complet (208 =
+      26 jours de 8 heures ; 173,33 pour 40 heures par semaine), majoré. Chaque majoration réglée a sa colonne dans la grille ;
+      une case vide n'y paraît pas. <b>À VÉRIFIER</b> : le régime horaire et la convention collective du client.</p>
+      <div class="grid-3" id="rc-hs" style="grid-template-columns:minmax(0,210px) repeat(3,minmax(0,150px))">${HS_DU_CLIENT.map(([k, lab, aide]) => `<label class="field">${lbl(lab, aide)}<input type="text" inputmode="decimal" class="num" data-hs-k="${k}"
+        value="${(dossier.paie || {})[k] != null && (dossier.paie || {})[k] !== '' && Number((dossier.paie || {})[k]) > 0 ? esc(pct(Number(dossier.paie[k]))) : ''}" placeholder="${k === 'heuresMois' ? '208' : ''}"></label>`).join('')}</div>
+      <h3 class="mt">Les taux par contrat</h3>
+-- après
+      <h3 class="mt">Les heures supplémentaires</h3>
+      <p class="small">Pour le pointage de ce client : une heure vaut son brut divisé par les heures d'un mois complet (208 =
+      26 jours de 8 heures ; 173,33 pour 40 heures par semaine), majoré. Chaque majoration réglée a sa colonne dans la grille ;
+      une case vide n'y paraît pas. <b>À VÉRIFIER</b> : le régime horaire et la convention collective du client.</p>
+      <div class="grid-3" id="rc-hs" style="grid-template-columns:minmax(0,210px) repeat(3,minmax(0,150px))">${HS_DU_CLIENT.map(([k, lab, aide]) => `<label class="field">${lbl(lab, aide)}<input type="text" inputmode="decimal" class="num" data-hs-k="${k}"
+        value="${(dossier.paie || {})[k] != null && (dossier.paie || {})[k] !== '' && Number((dossier.paie || {})[k]) > 0 ? esc(pct(Number(dossier.paie[k]))) : ''}" placeholder="${k === 'heuresMois' ? '208' : ''}"></label>`).join('')}</div>
+      ${/* (plateforme) 1.70.0 */''}
+      <h3 class="mt">Les congés payés</h3>
+      <p class="small">Le droit de chaque salarié sur une année entière, en jours ouvrables ; il s'acquiert au prorata des mois
+      travaillés. Laisse la case <b>vide</b> pour celui du barème (en gris). <b>À VÉRIFIER</b> : la convention collective du
+      client, souvent plus favorable que le minimum du Code du travail.</p>
+      <div class="grid-3" id="rc-conges" style="grid-template-columns:minmax(0,260px)"><label class="field">${lbl('Congés payés par an (jours ouvrables)', 'pa.congesDroit')}<input type="text" inputmode="decimal" class="num" data-cg-k="leaveDaysPerYear"
+        value="${(dossier.paie || {}).leaveDaysPerYear != null && (dossier.paie || {}).leaveDaysPerYear !== '' ? esc(pct(Number(dossier.paie.leaveDaysPerYear))) : ''}" placeholder="${esc(pct(tauxGeneraux.leaveDaysPerYear))}"></label></div>
+      <h3 class="mt">Les taux par contrat</h3>
+-- fin
+
+== cabinet/app.js | le droit annuel aux congés s'enregistre avec les taux du client
+-- avant
+          taux[i.dataset.hsK] = n;
+        }
+        const rc = {};
+-- après
+          taux[i.dataset.hsK] = n;
+        }
+        // (plateforme) 1.70.0 — le droit annuel aux congés payés : de 1 à 60 jours, deux décimales au plus.
+        for (const i of $$('[data-cg-k]', layer)) {
+          const t = i.value.trim();
+          if (!t) continue;
+          const n = Number(t.replace(/\s/g, '').replace(',', '.'));
+          if (!Number.isFinite(n) || n < 1 || n > 60 || Math.round(n * 100) / 100 !== n) return refus(i, `« ${t} » n'est pas un nombre de jours entre 1 et 60 (deux décimales au plus) : 18, ou 24. Laisse la case vide pour celui du barème.`);
+          taux[i.dataset.cgK] = n;
+        }
+        const rc = {};
+-- fin
+
+== cabinet/app.js | ouverte depuis les congés, la fenêtre des taux amène à la case du droit annuel
+-- avant
+      // (plateforme) 1.69.0 — ouverte depuis la grille du pointage, elle amène à la case des majorations.
+      if (opts && opts.focus) { const c = $(`[data-hs-k="${opts.focus}"]`, layer); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); } }
+-- après
+      // (plateforme) 1.69.0 — ouverte depuis la grille du pointage, elle amène à la case des majorations ; (1.70.0) depuis les
+      // congés, à celle du droit annuel.
+      if (opts && opts.focus) { const c = $(`[data-hs-k="${opts.focus}"], [data-cg-k="${opts.focus}"]`, layer); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); } }
+-- fin
+
+== cabinet/app.js | la fenêtre des taux d'un client sur SkanFact dit aussi son droit annuel aux congés
+-- avant
+    : 'Il n\'a réglé aucune majoration d\'heures supplémentaires : la grille du pointage n\'en a pas de colonne.'}</p>
+      <div class="modal-actions"><button class="btn btn-primary" data-close>Fermer</button></div>`);
+-- après
+    : 'Il n\'a réglé aucune majoration d\'heures supplémentaires : la grille du pointage n\'en a pas de colonne.'}</p>
+      ${/* (plateforme) 1.70.0 */''}
+      <p class="small mt" id="rc-lu-conges">Son droit annuel aux congés payés : ${esc(pct(bar.leaveDaysPerYear))} jours ouvrables (${(reglages || {}).leaveDaysPerYear != null && (reglages || {}).leaveDaysPerYear !== '' ? 'le sien' : 'celui du barème'}).</p>
+      <div class="modal-actions"><button class="btn btn-primary" data-close>Fermer</button></div>`);
+-- fin
+
+== cabinet/cabguide.js | l'aide des congés et absences
+-- avant
+    // (plateforme) 1.69.0
+    'pa.pointage': { a: 'paie', t: 'Le pointage', d: 'Une case par salarié et par jour : P présent, ½ demi-journée (la moitié n\'est pas payée), A absent et non payé, C congé payé, M maladie, F férié, R repos ; « · » hors contrat (avant l\'entrée, après la sortie). Les congés et absences que le client saisit dans son SkanFact s\'y posent d\'eux-mêmes ; ce que tu changes à la main est souligné. Les jours payés sont ceux du bulletin : le mois complet (26 jours) moins les jours hors contrat et les absences non payées. Un bulletin établi ensuite les reprend, avec les heures supplémentaires ; un bulletin déjà établi qui ne suit plus le pointage le dit. À VÉRIFIER avec la convention du client : ce qu\'une maladie ou un jour férié paie.' },
+    'pa.hs': { a: 'paie', t: 'Heures supplémentaires', d: 'Les heures faites au-delà de l\'horaire normal, payées avec une majoration (par exemple 25 ou 50 %). Chaque majoration réglée a sa colonne dans le pointage, et les heures pointées arrivent sur le bulletin en prime imposable. Un client sur SkanFact les règle dans son SkanFact ; pour un dossier tenu, ici. À VÉRIFIER : les taux dépendent du régime horaire (40 ou 48 heures), de la nuit, du repos et des jours fériés, et de la convention collective.' },
+    'pa.heuresMois': { a: 'paie', t: 'Heures d\'un mois complet', d: 'Ce que vaut une heure supplémentaire : le brut mensuel de la fiche divisé par ce nombre, puis majoré. 208 heures, ce sont 26 jours de 8 heures (48 heures par semaine) ; 173,33 pour 40 heures par semaine. Vide : 208. À VÉRIFIER avec le régime horaire du client.' },
+    'pa.regimes': { a: 'paie', t: 'Les taux de la paie',
+-- après
+    // (plateforme) 1.69.0
+    'pa.pointage': { a: 'paie', t: 'Le pointage', d: 'Une case par salarié et par jour : P présent, ½ demi-journée (la moitié n\'est pas payée), A absent et non payé, C congé payé, M maladie, F férié, R repos ; « · » hors contrat (avant l\'entrée, après la sortie). Les congés et absences s\'y posent d\'eux-mêmes : ceux que le client saisit dans son SkanFact, ou, pour un dossier tenu, ceux du panneau « Les congés et absences » ; ce que tu changes à la main est souligné. Les jours payés sont ceux du bulletin : le mois complet (26 jours) moins les jours hors contrat et les absences non payées. Un bulletin établi ensuite les reprend, avec les heures supplémentaires ; un bulletin déjà établi qui ne suit plus le pointage le dit. À VÉRIFIER avec la convention du client : ce qu\'une maladie ou un jour férié paie.' },
+    'pa.hs': { a: 'paie', t: 'Heures supplémentaires', d: 'Les heures faites au-delà de l\'horaire normal, payées avec une majoration (par exemple 25 ou 50 %). Chaque majoration réglée a sa colonne dans le pointage, et les heures pointées arrivent sur le bulletin en prime imposable. Un client sur SkanFact les règle dans son SkanFact ; pour un dossier tenu, ici. À VÉRIFIER : les taux dépendent du régime horaire (40 ou 48 heures), de la nuit, du repos et des jours fériés, et de la convention collective.' },
+    'pa.heuresMois': { a: 'paie', t: 'Heures d\'un mois complet', d: 'Ce que vaut une heure supplémentaire : le brut mensuel de la fiche divisé par ce nombre, puis majoré. 208 heures, ce sont 26 jours de 8 heures (48 heures par semaine) ; 173,33 pour 40 heures par semaine. Vide : 208. À VÉRIFIER avec le régime horaire du client.' },
+    // (plateforme) 1.70.0
+    'pa.conges': { a: 'paie', t: 'Les congés et absences', d: 'Ceux de l\'année, avec le solde de chaque salarié en poste : les jours acquis au prorata des mois travaillés, moins les congés payés pris (une maladie ou une absence sans solde n\'entame pas ce compteur). Un client sur SkanFact les saisit dans son SkanFact : le Cabinet les lit. Pour un dossier tenu, c\'est le Cabinet qui les saisit. Chacun se pose de lui-même sur la grille du pointage ; une absence non payée se retire du brut d\'un bulletin établi ensuite, et un bulletin déjà établi qui ne suit plus le pointage le dit.' },
+    'pa.congesDroit': { a: 'paie', t: 'Congés payés par an', d: 'Le droit d\'un salarié sur une année entière, en jours ouvrables (les dimanches ne comptent pas) ; il s\'acquiert au prorata des mois travaillés : un salarié entré en juillet n\'a pas droit à une année entière. Vide : celui du barème. À VÉRIFIER avec la convention collective du client : c\'est elle qui s\'applique, dès qu\'elle est plus favorable que le minimum du Code du travail.' },
+    'pa.cgSalarie': { a: 'paie', t: 'Salarié', d: 'La personne absente. L\'absence se lit sur le pointage des mois qu\'elle touche, et sur les bulletins établis ensuite.' },
+    'pa.cgNature': { a: 'paie', t: 'Nature de l\'absence', d: 'Un congé payé entame le compteur annuel sans réduire le salaire. Un arrêt maladie, une maternité, une autorisation ne réduisent pas le salaire non plus, et n\'entament pas le compteur. Une absence sans solde ou injustifiée réduit le brut au prorata des jours. À VÉRIFIER avec la convention du client : le traitement d\'un arrêt maladie dépend de sa durée et de la prise en charge par la CNSS.' },
+    'pa.cgEffet': { a: 'paie', t: 'Effet sur le salaire', d: 'Chaque nature a son effet habituel ; il se force au cas par cas : une autorisation retenue sur le salaire, un arrêt maladie maintenu en entier. Dans le doute, « selon la nature ».' },
+    'pa.cgDates': { a: 'paie', t: 'Du… au…', d: 'Le premier et le dernier jour d\'absence, compris, en JJ/MM/AAAA. Les dimanches ne comptent pas ; une absence à cheval sur deux mois se répartit entre leurs deux pointages, et leurs deux bulletins.' },
+    'pa.cgMotif': { a: 'paie', t: 'Motif', d: 'Pour le dossier : un certificat médical, un congé convenu. Il se lit dans la liste des absences et ne s\'imprime sur aucun bulletin ; il ne change rien au calcul.' },
+    'pa.regimes': { a: 'paie', t: 'Les taux de la paie',
+-- fin
+
+== cabinet/cabvisites.js | la visite montre les congés et absences
+-- avant
+  b('#pt-grille', 'Le pointage du mois : clique une case, ou tape sa lettre (P, A, C…). Un bulletin établi ensuite reprend ses absences et ses heures supplémentaires.', { nom: 'Pointage', cle: 'pointage' });
+  b('#pa-regimes',
+-- après
+  b('#pt-grille', 'Le pointage du mois : clique une case, ou tape sa lettre (P, A, C…). Un bulletin établi ensuite reprend ses absences et ses heures supplémentaires.', { nom: 'Pointage', cle: 'pointage' });
+  // (plateforme) 1.70.0
+  b('#cg-panneau', 'Les congés et absences de l\'année et le solde de chacun. Pour un dossier tenu, « + Congé ou absence… » les saisit ; chacun se pose de lui-même sur le pointage.', { nom: 'Congés', cle: 'conges' });
+  b('#pa-regimes',
+-- fin
+
+== guide.js | l'aide des dates d'une absence ne promet plus un réglage qui n'existe pas
+-- avant
+'hr.leaveDates': { t: 'Du… au…', d: 'Premier et dernier jour d\'absence, compris. Les jours de repos (le dimanche par défaut, réglable dans les barèmes) ne comptent pas ; une absence à cheval sur deux mois se répartit entre les deux bulletins.' },
+-- après
+// (plateforme) 1.70.0 — « réglable dans les barèmes » : aucun barème ne règle le repos de la semaine (une phrase que rien
+    // ne tient est un défaut). Le dimanche, partout : dans le compte des jours, la grille du pointage et le Cabinet.
+    'hr.leaveDates': { t: 'Du… au…', d: 'Premier et dernier jour d\'absence, compris. Les dimanches ne comptent pas : c\'est la semaine de six jours, celle des 26 jours du bulletin (À VÉRIFIER si ton entreprise chôme un autre jour) ; une absence à cheval sur deux mois se répartit entre les deux bulletins.' },
+-- fin

@@ -1904,9 +1904,9 @@ prouver "une fiche lue sans voir le dossier" $M20 \
   "  using (cabinet in (select socle.mes_organisations()) and entreprise in (select socle.mes_entreprises()));" "  using (cabinet in (select socle.mes_organisations()));" \
   "$E3"
 prouver "une fiche aux champs non comptés" serveur/cabinet/routes.ts \
-  "hsMaj3: TAUX_POUR_CENT.optional(),
+  "leaveDaysPerYear: JOURS_DE_CONGE.optional(),
   }).strict(),
-}).partial().strict();" "hsMaj3: TAUX_POUR_CENT.optional(),
+}).partial().strict();" "leaveDaysPerYear: JOURS_DE_CONGE.optional(),
   }).strict(),
 }).partial().passthrough();" \
   "$E3"
@@ -17667,12 +17667,12 @@ prouver 'les congés du client tus au cabinet' 'base/migrations/0149_paie_pointa
   'collection = '"'"'aucune'"'"' and entreprise' \
   'dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout'
 prouver 'la route de la paie qui tait les congés du client' 'serveur/paie/routes.ts' \
-  'const COLLECTIONS_PAIE_LUES = [...COLLECTIONS_PAIE, '"'"'leaves'"'"'];' \
-  'const COLLECTIONS_PAIE_LUES = [...COLLECTIONS_PAIE];' \
+  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"', '"'"'leaves'"'"'] as const;' \
+  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"'] as const;' \
   'avec le mandat de la paie, l'"'"'associé tient les salariés et les bulletins du client : recalculés au serveur, écrits au livre ; sans lui, rien'
 prouver 'la route de la paie qui refuse d'"'"'écrire le pointage' 'serveur/paie/routes.ts' \
-  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"'] as const;' \
-  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"'] as const;' \
+  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"', '"'"'leaves'"'"'] as const;' \
+  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'leaves'"'"'] as const;' \
   'avec le mandat de la paie, l'"'"'associé tient les salariés et les bulletins du client : recalculés au serveur, écrits au livre ; sans lui, rien'
 prouver 'la fiche qui refuse les heures d'"'"'un mois complet d'"'"'un dossier tenu' 'serveur/cabinet/routes.ts' \
   'heuresMois: HEURES_DU_MOIS.optional(), hsMaj1: TAUX_POUR_CENT.optional(),' \
@@ -17683,16 +17683,16 @@ prouver 'le pointage du client jamais posé dans le livre' 'web/public/plateform
   'livre.pointages = [].filter(' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
 prouver 'les congés du client jamais posés dans le livre' 'web/public/plateforme/pont-cabinet.js' \
-  'livre.conges = objets.filter(' \
-  'livre.conges = [].filter(' \
+  'livre.conges = congesDe(objets);' \
+  'livre.conges = [];' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
 prouver 'le pointage enregistré sans ses heures supplémentaires' 'web/public/plateforme/pont-cabinet.js' \
   'jours: { ...(t.jours || {}) }, hs: { ...(t.hs || {}) } };' \
   'jours: { ...(t.jours || {}) }, hs: {} };' \
   'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
 prouver 'les heures supplémentaires d'"'"'un dossier tenu jamais gardées dans sa fiche' 'web/public/plateforme/pont-cabinet.js' \
-  ''"'"'foprolosRate'"'"', '"'"'heuresMois'"'"', '"'"'hsMaj1'"'"', '"'"'hsMaj2'"'"', '"'"'hsMaj3'"'"'];' \
-  ''"'"'foprolosRate'"'"'];' \
+  ''"'"'foprolosRate'"'"', '"'"'heuresMois'"'"', '"'"'hsMaj1'"'"', '"'"'hsMaj2'"'"', '"'"'hsMaj3'"'"', '"'"'leaveDaysPerYear'"'"'];' \
+  ''"'"'foprolosRate'"'"', '"'"'leaveDaysPerYear'"'"'];' \
   'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
 prouver 'un bulletin nouveau sans le prorata de l'"'"'entrée' 'web/public/v10/compta.js' \
   'const gross = hors ? round3(brutFiche * (total - hors) / total) : employee.grossSalary;' \
@@ -17751,7 +17751,7 @@ prouver 'la grille muette sur où régler les heures supplémentaires' 'web/publ
   '' \
   'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
 prouver 'la fenêtre des taux qui n'"'"'amène pas à la case des majorations' 'web/public/v10/cabinet/app.js' \
-  'if (opts && opts.focus) { const c = $(`[data-hs-k="${opts.focus}"]`, layer); if (c) { c.scrollIntoView({ block: '"'"'center'"'"' }); c.focus(); } }' \
+  'if (opts && opts.focus) { const c = $(`[data-hs-k="${opts.focus}"], [data-cg-k="${opts.focus}"]`, layer); if (c) { c.scrollIntoView({ block: '"'"'center'"'"' }); c.focus(); } }' \
   '' \
   'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
 
@@ -17759,6 +17759,132 @@ prouver 'la grille du pointage du Cabinet qui déborde de sa page' 'web/public/v
   '<div class="panel mt pt-cabinet" id="pt-panneau">' \
   '<div class="panel mt" id="pt-panneau">' \
   'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
+# 1.70.0 : les congés au Cabinet (docs/paie.md, « Les congés au Cabinet »).
+prouver 'les congés de tout dossier au périmètre écrits par le cabinet' 'base/migrations/0150_paie_conges_du_dossier_tenu.sql' \
+  'where exists (select 1 from socle.entreprise x where x.id = e and x.tenue_par in (select socle.mes_organisations()))' \
+  'where true' \
+  'dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout'
+prouver 'les congés d'"'"'un dossier tenu par un autre cabinet écrits par le voisin' 'base/migrations/0150_paie_conges_du_dossier_tenu.sql' \
+  'x.tenue_par in (select socle.mes_organisations())' \
+  'x.tenue_par is not null' \
+  '(1.70.0) les congés d'"'"'un dossier tenu : le cabinet qui le tient les saisit, les corrige et les retire ; un autre cabinet n'"'"'y touche pas'
+prouver 'les congés d'"'"'un dossier tenu jamais écrits par son cabinet' 'base/migrations/0150_paie_conges_du_dossier_tenu.sql' \
+  'collection = '"'"'leaves'"'"' and entreprise in (select socle.mes_dossiers_tenus_au_perimetre('"'"'paie'"'"'))' \
+  'collection = '"'"'aucune'"'"' and entreprise in (select socle.mes_dossiers_tenus_au_perimetre('"'"'paie'"'"'))' \
+  '(1.70.0) les congés d'"'"'un dossier tenu : le cabinet qui le tient les saisit, les corrige et les retire ; un autre cabinet n'"'"'y touche pas'
+prouver 'la route qui laisse la base refuser les congés d'"'"'un client sans le dire' 'serveur/paie/routes.ts' \
+  'if (!ok) return { statut: 403, corps: { motif: motif('"'"'paie.conges_chez_le_client'"'"') } };' \
+  '' \
+  'avec le mandat de la paie, l'"'"'associé tient les salariés et les bulletins du client : recalculés au serveur, écrits au livre ; sans lui, rien'
+prouver 'la route qui refuse les congés d'"'"'un dossier tenu' 'serveur/paie/routes.ts' \
+  'or exists (select 1 from socle.mes_dossiers_tenus_au_perimetre('"'"'paie'"'"') e where e = $1) ok' \
+  'or false ok' \
+  '(1.70.0) les congés d'"'"'un dossier tenu : le cabinet qui le tient les saisit, les corrige et les retire ; un autre cabinet n'"'"'y touche pas'
+prouver 'la fiche qui refuse le droit annuel d'"'"'un dossier tenu' 'serveur/cabinet/routes.ts' \
+  'leaveDaysPerYear: JOURS_DE_CONGE.optional(),' \
+  '' \
+  '(1.70.0) le droit annuel aux congés payés d'"'"'un dossier tenu se garde dans la fiche, en jours ouvrables ; une forme fausse est refusée'
+prouver 'un droit annuel de zéro jour gardé dans la fiche' 'serveur/cabinet/routes.ts' \
+  '.refine((v) => Number(v) >= 1 && Number(v) <= 60);' \
+  '.refine((v) => Number(v) <= 60);' \
+  '(1.70.0) le droit annuel aux congés payés d'"'"'un dossier tenu se garde dans la fiche, en jours ouvrables ; une forme fausse est refusée'
+prouver 'le droit annuel d'"'"'un dossier tenu jamais gardé dans sa fiche' 'web/public/plateforme/pont-cabinet.js' \
+  ''"'"'hsMaj3'"'"', '"'"'leaveDaysPerYear'"'"'];' \
+  ''"'"'hsMaj3'"'"'];' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'un congé jamais enregistré' 'web/public/plateforme/pont-cabinet.js' \
+  'await ecrirePaieDuDossier(o.dossierId, '"'"'leaves'"'"', c.id, { ...(paieAvant(o.dossierId, '"'"'leaves'"'"', c.id) || {}), ...garde });' \
+  '' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'un congé enregistré sans son motif' 'web/public/plateforme/pont-cabinet.js' \
+  'paid: c.paid === true || c.paid === false ? c.paid : null, note: String(c.note || '"'"''"'"').slice(0, 200) };' \
+  'paid: c.paid === true || c.paid === false ? c.paid : null };' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'un congé supprimé qui reste dans le dossier' 'web/public/plateforme/pont-cabinet.js' \
+  'await ecrirePaieDuDossier(o.dossierId, '"'"'leaves'"'"', o.id, null);' \
+  '' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'le solde qui compte la maladie comme un congé pris' 'web/public/v10/compta.js' \
+  'const taken = round3(list.filter(l => l.kind === '"'"'conges'"'"').reduce((a, l) => a + l.days, 0));' \
+  'const taken = round3(list.reduce((a, l) => a + l.days, 0));' \
+  'le solde : acquis au prorata des mois travaillés, moins les congés payés pris ; la maladie et le sans-solde à part'
+prouver 'un congé à cheval sur deux mois compté entier dans chacun' 'web/public/v10/compta.js' \
+  'const from = leave.from > first ? leave.from : first;' \
+  'const from = leave.from;' \
+  'les jours ouvrables d'"'"'un congé, et sa part dans chaque mois'
+prouver 'le droit annuel gardé en texte que le solde ne lit pas' 'web/public/v10/compta.js' \
+  'const perYear = Number(s.leaveDaysPerYear) || 0;' \
+  'const perYear = typeof s.leaveDaysPerYear === '"'"'number'"'"' ? s.leaveDaysPerYear : 0;' \
+  'deux chemins, un chiffre : le moteur commun et celui de l'"'"'entreprise ; le droit gardé en texte par la fiche du Cabinet'
+prouver 'le panneau des congés absent de la paie du Cabinet' 'web/public/v10/cabinet/app.js' \
+  '    ${vueConges(dossier, L, s.annee)}' \
+  '    ${'"'"''"'"'}' \
+  'un client sur SkanFact : ses congés et son droit se lisent, sans geste pour les changer'
+prouver 'un client sur SkanFact dont le Cabinet saisit les congés' 'web/public/v10/cabinet/app.js' \
+  'const congesTenus = L => !L.reglagesPaie && !(L.exercice || {}).clos;' \
+  'const congesTenus = L => !(L.exercice || {}).clos;' \
+  'un client sur SkanFact : ses congés et son droit se lisent, sans geste pour les changer'
+prouver 'le solde d'"'"'après jamais dit avant d'"'"'enregistrer' 'web/public/v10/cabinet/app.js' \
+  '        if (v.kind === '"'"'conges'"'"') {' \
+  '        if (false) {' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'une correction qui retranche deux fois ses jours' 'web/public/v10/cabinet/app.js' \
+  'const avant = KC.round3(b.remaining + deja), apres = KC.round3(avant - jours);' \
+  'const avant = KC.round3(b.remaining), apres = KC.round3(avant - jours);' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'une fin avant le début acceptée par la fenêtre' 'web/public/v10/cabinet/app.js' \
+  'if (v.to < v.from) return refus(champ('"'"'to'"'"'), `La fin ne peut pas précéder le début (${fmtJour(v.from)}).`);' \
+  '' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'une ligne des congés qui ne s'"'"'ouvre pas au clavier' 'web/public/v10/cabinet/app.js' \
+  'tr.onkeydown = ev => { if (ev.key === '"'"'Enter'"'"' || ev.key === '"'"' '"'"') { ev.preventDefault(); ouvrir(); } };' \
+  '' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'le droit annuel que le panneau ne règle pas' 'web/public/v10/cabinet/app.js' \
+  'if (regler) regler.onclick = () => regimesForm(root, dossier, { focus: '"'"'leaveDaysPerYear'"'"' });' \
+  '' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'un droit annuel de zéro jour gardé par la fenêtre des taux' 'web/public/v10/cabinet/app.js' \
+  'if (!Number.isFinite(n) || n < 1 || n > 60 || Math.round(n * 100) / 100 !== n) return refus(i, `« ${t} » n'"'"'est pas un nombre de jours' \
+  'if (false) return refus(i, `« ${t} » n'"'"'est pas un nombre de jours' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'la fenêtre des taux qui n'"'"'amène pas à la case du droit annuel' 'web/public/v10/cabinet/app.js' \
+  '[data-hs-k="${opts.focus}"], [data-cg-k="${opts.focus}"]' \
+  '[data-hs-k="${opts.focus}"]' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'la fenêtre des taux du client muette sur son droit annuel' 'web/public/v10/cabinet/app.js' \
+  'id="rc-lu-conges"' \
+  'id="rc-lu-autre"' \
+  'un client sur SkanFact : ses congés et son droit se lisent, sans geste pour les changer'
+prouver 'les congés saisis au Cabinet absents de la grille du pointage' 'web/public/v10/cabinet/app.js' \
+  'leaves: L.conges || [], timesheets: L.pointages,' \
+  'leaves: [], timesheets: L.pointages,' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+
+# 1.70.0 (suite) : vu au test humain — Entrée et la fenêtre, une absence hors du contrat.
+prouver 'Entrée qui clique « Supprimer » dans une fenêtre de l'"'"'entreprise' 'web/public/v10/app.js' \
+  'const main = $('"'"'.modal-actions .btn-primary'"'"', layer) || $('"'"'.modal-actions .btn-danger'"'"', layer);' \
+  'const main = $('"'"'.modal-actions .btn-primary, .modal-actions .btn-danger'"'"', layer);' \
+  'Entrée dans un champ enregistre l'"'"'absence, sans jamais demander de la supprimer ; une absence avant l'"'"'entrée se refuse'
+prouver 'Entrée qui clique « Supprimer » dans une fenêtre du Cabinet' 'web/public/v10/cabinet/app.js' \
+  '      const principal = $('"'"'.modal-actions .btn-primary'"'"', layer) || $('"'"'.modal-actions .btn-danger'"'"', layer);
+      if (principal && !principal.disabled) { e.preventDefault(); principal.click(); }' \
+  '      const principal = $('"'"'.modal-actions .btn-primary, .modal-actions .btn-danger'"'"', layer);
+      if (principal && !principal.disabled) { e.preventDefault(); principal.click(); }' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'une absence de l'"'"'entreprise avant l'"'"'entrée du salarié acceptée' 'web/public/v10/app.js' \
+  'if (salarieLf.hireDate && v.from < salarieLf.hireDate) return refus(' \
+  'if (false) return refus(' \
+  'Entrée dans un champ enregistre l'"'"'absence, sans jamais demander de la supprimer ; une absence avant l'"'"'entrée se refuse'
+prouver 'une absence du Cabinet avant l'"'"'entrée du salarié acceptée' 'web/public/v10/cabinet/app.js' \
+  '        if (hors) return refus(champ(hors.champ), hors.motif);' \
+  '' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+prouver 'l'"'"'annonce muette sur une absence hors du contrat' 'web/public/v10/cabinet/app.js' \
+  'a.innerHTML = hors ? `<span class="warn-text">${esc(hors.motif)}</span>`' \
+  'a.innerHTML = false ? '"'"''"'"'' \
+  'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

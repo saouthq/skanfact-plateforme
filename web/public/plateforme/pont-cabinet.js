@@ -86,7 +86,8 @@
   // Les taux de la paie propres à l'entreprise (1.66.0) : l'accident du travail, la TFP, le FOPROLOS ; et (1.69.0) les
   // heures supplémentaires du pointage : les heures d'un mois complet, trois majorations. Gardés en texte décimal, comme
   // les taux par contrat, et lus tels quels : le moteur de la v10 les compte en nombres (computePayslip, heuresSupDuMois).
-  const TAUX_DU_DOSSIER = ['accidentRate', 'tfpRate', 'foprolosRate', 'heuresMois', 'hsMaj1', 'hsMaj2', 'hsMaj3'];
+  // (1.70.0) Et le droit annuel aux congés payés (leaveBalance).
+  const TAUX_DU_DOSSIER = ['accidentRate', 'tfpRate', 'foprolosRate', 'heuresMois', 'hsMaj1', 'hsMaj2', 'hsMaj3', 'leaveDaysPerYear'];
   /** @param {Record<string, unknown>} c */
   const depuisFiche = (c) => ({ ...c, fees: Number(c.fees || 0) / 1000,
     // Les abonnements (brique 51) : leur montant, gardé en texte décimal, redevient un nombre pour la v10.
@@ -575,6 +576,9 @@
     prorata: b.prorata || null,
     paidDate: b.payeLe || '', issuedAt: (avant && avant.issuedAt) || new Date().toISOString().slice(0, 10),
   });
+  // Les congés et absences du dossier, dans la forme de l'entreprise.
+  /** @param {any[]} objets */
+  const congesDe = (objets) => objets.filter((/** @type {any} */ o) => o.collection === 'leaves').map((/** @type {any} */ o) => o.contenu);
   // La paie du dossier posée dans le livre d'une année : les salariés, les bulletins de l'année, et pour chacun
   // l'écriture de paie de son mois, que le serveur tient (journal PAIE, au dernier jour du mois).
   /** @param {any} livre @param {any[]} objets @param {string|number} annee @param {string} ent */
@@ -587,9 +591,10 @@
     // 1.67.0 — les réglages de paie du client qui tient sa paie dans SkanFact : l'écran calcule ses bulletins avec eux.
     livre.reglagesPaie = reglagesDuClient(ent);
     // 1.69.0 — son pointage et ses congés, dans la forme de l'entreprise : la grille du mois, et le bulletin nouveau qui la
-    // suit. Les congés se lisent sans s'écrire (migration 0149).
+    // suit. Les congés d'un client sur SkanFact se lisent sans s'écrire (migration 0149) ; ceux d'un dossier tenu, le
+    // Cabinet les tient (1.70.0, migration 0150).
     livre.pointages = objets.filter((/** @type {any} */ o) => o.collection === 'timesheets').map((/** @type {any} */ o) => o.contenu);
-    livre.conges = objets.filter((/** @type {any} */ o) => o.collection === 'leaves').map((/** @type {any} */ o) => o.contenu);
+    livre.conges = congesDe(objets);
     return livre;
   }
   // Le livre d'une année et sa paie, relue (les gestes de la paie).
@@ -1569,6 +1574,27 @@
       await ecrirePaieDuDossier(o.dossierId, 'timesheets', t.id, { ...(paieAvant(o.dossierId, 'timesheets', t.id) || {}), ...garde });
       await paieDe(o.dossierId);
       return { ok: true };
+    },
+    // 1.70.0 — un congé ou une absence d'un salarié d'un dossier tenu (`leaves`, la forme de l'entreprise : la nature, du …
+    // au …, payée ou non selon la nature, le motif). Seul cet objet s'écrit, dans la révision lue ; les congés relus
+    // reviennent à l'écran, qui en refait la grille du pointage et les soldes. Ceux d'un client sur SkanFact, le serveur
+    // refuse de les écrire : il les saisit dans son SkanFact.
+    saveConge: async (/** @type {any} */ o) => {
+      /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
+      const c = o && o.conge;
+      const jour = (/** @type {unknown} */ v) => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v);
+      if (!c || typeof c.id !== 'string' || !c.id || typeof c.employeeId !== 'string' || !c.employeeId) throw new Error('Ce congé ne se lit pas : recharge la page, puis réessaie.');
+      if (!KC.LEAVE_KINDS.some((/** @type {any} */ k) => k[0] === c.kind)) throw new Error('Cette nature d\'absence n\'existe pas : choisis-en une dans la liste.');
+      if (!jour(c.from) || !jour(c.to) || c.to < c.from) throw new Error('Les dates de ce congé ne se lisent pas : le premier et le dernier jour, la fin après le début.');
+      const garde = { id: c.id, employeeId: c.employeeId, kind: c.kind, from: c.from, to: c.to,
+        paid: c.paid === true || c.paid === false ? c.paid : null, note: String(c.note || '').slice(0, 200) };
+      await ecrirePaieDuDossier(o.dossierId, 'leaves', c.id, { ...(paieAvant(o.dossierId, 'leaves', c.id) || {}), ...garde });
+      return { ok: true, conges: congesDe(await paieDe(o.dossierId)) };
+    },
+    supprimerConge: async (/** @type {any} */ o) => {
+      if (!o || typeof o.id !== 'string' || !paieAvant(o.dossierId, 'leaves', o.id)) throw new Error('Ce congé n\'est plus dans le dossier : recharge la page.');
+      await ecrirePaieDuDossier(o.dossierId, 'leaves', o.id, null);
+      return { ok: true, conges: congesDe(await paieDe(o.dossierId)) };
     },
     // 1.65.0 — la paie du dossier telle que l'entreprise la tient (la forme de la v10), lue avec le livre : les documents de
     // la paie (le bulletin, le journal du mois, l'état CNSS du trimestre) sont ceux de l'entreprise (core.js), sur elle.

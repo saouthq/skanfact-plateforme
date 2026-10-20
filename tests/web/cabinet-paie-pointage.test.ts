@@ -96,7 +96,7 @@ describe('le pointage au Cabinet, à la souris et au clavier', () => {
     const objets = async () => ((await api('GET', `/entreprises/${boulangerie}/paie/dossier`, associe)).corps.objets as Objet[]).map((o) => ({ ...o, contenu: decoder(o.contenu) as Record<string, unknown> }));
     // La base laisse le cabinet lire les congés du client, sans les écrire.
     expect((await objets()).filter((o) => o.collection === 'leaves').map((o) => o.cle)).toEqual(['l1']);
-    expect((await api('POST', `/entreprises/${boulangerie}/paie/dossier`, associe, { changements: [{ collection: 'leaves', cle: 'l2', rang: null, revision: null, contenu: {} }] })).statut).toBe(400);
+    expect((await api('POST', `/entreprises/${boulangerie}/paie/dossier`, associe, { changements: [{ collection: 'leaves', cle: 'l2', rang: null, revision: null, contenu: {} }] })).statut).toBe(403);
 
     const erreurs: string[] = [];
     const p = await page(associe, erreurs);

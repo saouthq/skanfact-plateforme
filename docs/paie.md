@@ -835,6 +835,99 @@ d'heures supplémentaires quand il n'y en avait pas.
 
 ### Ce qui reste
 
-- Le repos de la semaine d'un dossier tenu est le dimanche (celui de l'entreprise se règle dans ses Barèmes).
-- Les congés d'un dossier tenu ne se saisissent pas au Cabinet : une absence se pointe.
+- Le repos de la semaine est le dimanche, des deux côtés : contrairement à ce que cette ligne disait, aucun barème de
+  l'entreprise ne le règle (corrigé en 1.70.0, avec l'aide qui l'annonçait).
+- ~~Les congés d'un dossier tenu ne se saisissent pas au Cabinet : une absence se pointe~~ : fait en 1.70.0 (« Les congés
+  au Cabinet », ci-dessous).
 - Les heures supplémentaires au jour près, et l'import d'une pointeuse.
+
+## Les congés au Cabinet (20/10/2026, 1.70.0)
+
+*L'entreprise saisit les congés et absences de ses salariés depuis la 5.1.0, et en suit le solde ; le Cabinet lisait ceux
+d'un client sur SkanFact (1.69.0), sans solde, et un dossier tenu n'en avait pas.*
+
+### Le défaut
+
+Pour un dossier tenu, le comptable pointait une absence jour par jour dans la grille : un congé de deux semaines faisait
+douze cases, rien ne gardait sa nature ni son motif, et aucun compteur ne disait ce qui restait au salarié de son droit
+annuel. Pour un client sur SkanFact, le Cabinet posait ses congés sur la grille, mais ne montrait ni leur liste ni le
+solde de chacun. L'aide de l'entreprise annonçait un repos de la semaine « réglable dans les barèmes » : aucun barème ne
+le règle.
+
+### Ce que le lot fait (migration `0150`, `serveur/paie/routes.ts`, `FICHE.paie`, `pont-cabinet.js`, `web/v10/paie-cabinet-conges.txt`)
+
+- **Le moteur** des congés (leurs jours ouvrables, leur part dans chaque mois, la liste de l'année, le solde) passe dans le
+  moteur commun (`compta.js`, que le Cabinet charge) ; `core.js` le reprend, une seule copie.
+- **La base** (0150) : le cabinet qui **tient** un dossier (`tenue_par`, 0019) en écrit les congés (`leaves`) sous le
+  mandat de paie, et lui seul ; ceux d'un client sur SkanFact restent lus sans être écrits (0149), même par un cabinet qui
+  aurait un mandat de paie sur un dossier tenu par un autre.
+- **La route de la paie** écrit les congés d'un dossier tenu, et refuse ceux d'un client sur SkanFact en le disant
+  (« Les congés d'un client sur SkanFact se saisissent dans son SkanFact… »), avant que la base ne le refuse.
+- **L'écran** : sous le pointage, « Les congés et absences de 2025 » — le droit annuel et d'où il vient, le solde de
+  chaque salarié en poste (acquis au prorata des mois travaillés, pris, solde ; la maladie et le sans-solde à part), puis
+  la liste de l'année (paginée). Pour un dossier tenu, « + Congé ou absence… » ouvre la fenêtre de l'entreprise (le
+  salarié, la nature, l'effet sur le salaire, du … au … en JJ/MM/AAAA, le motif), qui dit **avant** d'enregistrer les jours
+  ouvrables, ce que l'absence fait au salaire et, pour un congé payé, le solde d'avant et d'après ; une ligne s'ouvre au
+  clic ou au clavier pour se corriger ou se supprimer (la fenêtre demande). Chaque congé se pose de lui-même sur la grille
+  du pointage ; un bulletin établi ensuite retire du brut une absence non payée, et un bulletin déjà établi qui ne suit
+  plus le pointage le dit (1.69.0). Pour un client sur SkanFact, tout se lit, sans geste pour le changer.
+- **Le droit annuel** d'un dossier tenu se règle dans « Taux de la paie… » (section « Les congés payés », de 1 à 60 jours
+  ouvrables ; vide : celui du barème), où le panneau amène d'un bouton ; celui d'un client sur SkanFact est le sien, et la
+  fenêtre de ses taux le dit.
+- **Vu à l'écran et corrigé, dans les deux applications** (`web/v10/fenetre-entree.txt`) : dans une fenêtre qui porte
+  « Supprimer » (rouge, à gauche) et « Enregistrer », **Entrée dans un champ cliquait « Supprimer »** — la règle commune
+  prenait le premier bouton principal *ou* rouge — et la question qui suit se validait d'Entrée aussi : Entrée, Entrée
+  supprimait ce qu'on voulait enregistrer. Entrée vise désormais le bouton principal, et le rouge seulement quand il est le
+  seul geste (une confirmation). Les fenêtres touchées : une absence (l'entreprise et le Cabinet), un abonnement, la fiche
+  d'un dossier, un guide de saisie. Et une absence hors du contrat du salarié (avant son entrée, après sa sortie), qui ne se
+  posait sur aucun pointage mais entamait son compteur, se refuse des deux côtés (au Cabinet, l'annonce le dit avant) ; la
+  fenêtre du Cabinet propose l'entrée du salarié plutôt qu'un jour d'avant.
+- **Ce qui part au serveur**, compté : un congé d'un dossier tenu, dans la forme que l'entreprise écrit déjà (sept champs :
+  `id`, `employeeId`, `kind`, `from`, `to`, `paid`, `note`) ; dans la fiche d'un dossier tenu, un champ de plus
+  (`paie.leaveDaysPerYear`, en texte décimal).
+
+### Décidé par délégation (20/10/2026)
+
+- Les congés se saisissent là où on les décide : chez le client sur SkanFact (le Cabinet les lit), au Cabinet pour un
+  dossier tenu (personne d'autre ne les saisirait). Seul le cabinet qui tient le dossier les écrit.
+- Le repos de la semaine reste le dimanche des deux côtés : un réglage n'aurait de sens que s'il existait aussi chez
+  l'entreprise. L'aide qui le disait réglable est corrigée. À VÉRIFIER avec le comptable : les entreprises qui chôment un
+  autre jour.
+- Le report d'une année sur l'autre (`leaveCarry`) que le moteur sait lire, aucun écran ne le saisit, ni chez l'entreprise
+  ni au Cabinet : la colonne « Reporté » n'est pas montrée au Cabinet.
+
+### Ce qui le prouve
+
+- `tests/moteur/paie-conges-cabinet.test.ts` : deux chemins, un chiffre — le moteur commun et celui de l'entreprise, le
+  même solde et la même liste ; le droit gardé en texte par la fiche (« 21.5 ») compte comme le nombre ; un congé à cheval
+  sur juillet et août (cinq et six jours), une entrée le 16 mars (sept mois, 12,542 jours), une sortie le 30 juin
+  (−1,25).
+- `tests/cabinet/paie.test.ts` : un dossier tenu — le cabinet qui le tient y saisit, corrige et retire un congé, par la
+  route et dans la base ; un autre cabinet n'y touche pas, même sous un mandat de paie ; la route refuse un congé d'un
+  client sur SkanFact, en le disant. `tests/cabinet/guides.test.ts` : le droit annuel gardé dans la fiche, les formes
+  fausses refusées.
+- `tests/web/cabinet-paie-conges.test.ts` : à la souris et au clavier, sur un dossier tenu (les soldes, un congé saisi et
+  lu avant d'enregistrer, refusé illisible, posé sur la grille, une absence sans solde qu'un bulletin nouveau retire, la
+  correction au clavier, la suppression, le droit annuel réglé depuis le panneau, rien qui déborde) et sur un client sur
+  SkanFact (son droit, ses congés et son solde, lus sans geste). `tests/web/paie-absence-fenetre.test.ts` : dans
+  l'entreprise, Entrée dans le motif d'une absence l'enregistre, sans question de suppression ; une absence avant l'entrée
+  du salarié se refuse.
+- Trente preuves (`tests/preuves.sh`, « 1.70.0 » et « 1.70.0 (suite) »), et six de la 1.69.0 reprises sur leur ligne
+  d'aujourd'hui.
+
+### Refait à la souris (20/10/2026)
+
+Sur le dossier tenu du cabinet d'essai (un salarié entré le 15 septembre, 18 jours au barème : 1,5 acquis) : un congé
+payé du 22 au 24 septembre saisi dans la fenêtre (trois jours, le solde d'avant et d'après lu avant d'enregistrer, −1,5
+dit en orange), posé sur la grille (C les 22, 23 et 24) ; corrigé au 23 au clavier ; une date avant l'entrée refusée, et
+la fenêtre abandonnée d'Échap après sa question ; le droit annuel réglé à 24 jours depuis le panneau (2 acquis, solde 0).
+Sur le client sur SkanFact : ses congés et son droit lus, sans geste. Vu et corrigé : **Entrée qui cliquait
+« Supprimer »** (les deux applications, ci-dessus), le 1er septembre proposé pour un salarié entré le 15, « −1,5 jour »
+au singulier quand « 1,5 jours » ne l'était pas, et le renvoi vers l'onglet du client (« Paie › Congés et absences »).
+
+### Ce qui reste
+
+- Une absence pointée « C » à la main sur la grille, sans être saisie comme congé, n'entame pas le compteur — des deux côtés,
+  comme dans l'entreprise depuis la 1.60.0. À VÉRIFIER avec le comptable s'il faut les rapprocher.
+- Le report d'une année sur l'autre (`leaveCarry`) ne se saisit nulle part.
+

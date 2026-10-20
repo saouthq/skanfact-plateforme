@@ -451,7 +451,10 @@
     layer.addEventListener('keydown', e => {
       if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return;
       if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
-      const principal = $('.modal-actions .btn-primary, .modal-actions .btn-danger', layer);
+      // (plateforme) 1.70.0 — le bouton PRINCIPAL d'abord, le rouge seulement s'il est le seul geste (une confirmation) : posé à
+      // gauche, « Supprimer » passait avant « Enregistrer », et Entrée dans un champ supprimait (vu au test humain, la fenêtre
+      // d'une absence ; puis Entrée confirmait la question).
+      const principal = $('.modal-actions .btn-primary', layer) || $('.modal-actions .btn-danger', layer);
       if (principal && !principal.disabled) { e.preventDefault(); principal.click(); }
     });
     if (onMount) onMount(layer, close);
@@ -484,7 +487,8 @@
     // Le focus va au premier champ de SAISIE. Il allait au premier `input, select, textarea,
     // button` : dans une confirmation, qui n'a pas de champ, c'était le bouton « Annuler ».
     const saisie = layer.querySelector('input:not([type=hidden]):not([disabled]), select, textarea');
-    const principal = $('.modal-actions .btn-primary, .modal-actions .btn-danger', layer);
+    // (plateforme) 1.70.0 — le bouton principal d'abord (voir Entrée, plus haut).
+    const principal = $('.modal-actions .btn-primary', layer) || $('.modal-actions .btn-danger', layer);
     const cible = saisie || (principal && !principal.disabled ? principal : null);
     // Un appelant qui a déjà posé le curseur DANS la fenêtre garde sa décision (10.12.0) :
     // « Renseigner le n° de Yassine Gharbi… » ouvrait sa fiche avec le curseur dans le NOM — le
@@ -5913,6 +5917,9 @@
     ${/* (plateforme) 1.69.0 — le pointage du mois, juste sous ses bulletins (l'onglet Pointage de l'entreprise). */''}
     ${vuePointage(dossier, L, s.annee, m)}
 
+    ${/* (plateforme) 1.70.0 — les congés et absences de l'année et le solde de chacun, sous le pointage où ils se posent. */''}
+    ${vueConges(dossier, L, s.annee)}
+
     ${/* Empilés, pas côte à côte (règle 3.4.0) : deux tableaux de cinq et six colonnes dans un
           `.split` débordaient chacun de leur moitié — 107 et 46 px à 1440 — et coupaient les noms. */''}
     <div class="panel mt"><h2>Les salariés ${info('pa.salaries')}</h2>
@@ -6204,6 +6211,8 @@
     if (mois) mois.onchange = () => { s.paieMois = Number(mois.value) || 1; redraw(); };
     // (plateforme) 1.69.0
     brancherPointage(el, root, dossier);
+    // (plateforme) 1.70.0
+    brancherConges(el, root, dossier);
     const trim = $('#pa-trim', el);
     if (trim) trim.onchange = () => { s.paieTrimestre = Number(trim.value) || 1; redraw(); };
     [$('#pa-salarie', el), $('#pa-salarie2', el)].forEach(b => { if (b) b.onclick = () => salarieForm(root, dossier, null); });
@@ -6291,6 +6300,169 @@
           catch (err) { toast(plainError(err), 'error'); }
         } });
       return a;
+    });
+  }
+
+  // (plateforme) 1.70.0 — les congés et absences d'un dossier : ceux de l'entreprise (5.1.0), par son moteur (compta.js).
+  // Le solde de chaque salarié en poste, puis les congés et absences de l'année. Un client sur SkanFact les saisit dans son
+  // SkanFact : le Cabinet les lit (il n'écrit jamais chez un client sans son accord). Pour un dossier tenu, il les saisit,
+  // dans la fenêtre de l'entreprise. Chacun se pose de lui-même sur la grille du pointage, et un bulletin établi ensuite
+  // retire du brut une absence non payée.
+  const congesState = { page: 1, size: prefs.get('cgSize', 25), sizeKey: 'cgSize' };
+  // Le pluriel des deux applications : au-delà d'un jour, en valeur absolue (« −1,5 jour » disait le singulier).
+  const joursCg = n => `${joursFr(n)} jour${Math.abs(Number(n)) > 1 ? 's' : ''}`;
+  // Qui peut les saisir : le Cabinet, pour un dossier tenu dont l'exercice est ouvert.
+  const congesTenus = L => !L.reglagesPaie && !(L.exercice || {}).clos;
+  function vueConges(dossier, L, annee) {
+    const data = donneesDuPointage(dossier, L);
+    const y = Number(annee);
+    const tient = congesTenus(L);
+    const tous = KC.leavesOf(data, '', y);
+    const soldes = data.employees.filter(e => ((L.salaries || []).find(x => x.id === e.id) || {}).actif)
+      .sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr')).map(e => ({ e, b: KC.leaveBalance(data, e.id, y) }));
+    const nomDe = id => ((L.salaries || []).find(x => x.id === id) || {}).nom || '—';
+    const droit = KC.baremesPaie(data.payrollSettings).leaveDaysPerYear;
+    // Le pied borne la page AVANT qu'on la découpe (une liste raccourcie ne garde pas une page qui n'existe plus).
+    const pied = pagerBar(tous.length, congesState, 'absence');
+    const page = paginate(tous, congesState);
+    const tiret = '<span class="muted">—</span>';
+    return `<div class="panel mt" id="cg-panneau"><h2>Les congés et absences de ${esc(annee)} ${info('pa.conges')}</h2>
+      <div class="small mb ctrl-geste" id="cg-droit"><span>Le droit annuel : <b>${esc(joursCg(droit))} ouvrables</b>, acquis au prorata des mois travaillés${L.reglagesPaie
+    ? ' ; ce client le règle dans son SkanFact (<b>Paie › Barèmes</b>).' : '. <em>À VÉRIFIER avec la convention collective du client.</em>'}</span>${L.reglagesPaie ? ''
+    : '<button type="button" class="btn btn-sm" id="cg-droit-regler">Régler le droit annuel…</button>'}</div>
+      ${soldes.length ? `<div class="scroll-x"><table class="list compact" id="cg-soldes"><thead><tr><th>Salarié</th>
+        <th class="r nw">Acquis ${esc(annee)}</th><th class="r">Pris</th><th class="r">Solde</th><th class="r">Maladie</th><th class="r nw">Sans solde</th></tr></thead>
+        <tbody>${soldes.map(({ e, b }) => `<tr data-cg-solde="${esc(e.id)}"><td class="tronq" title="${esc(e.name)}">${esc(e.name)}</td>
+          <td class="r nw">${esc(joursFr(b.acquired))}</td><td class="r nw">${esc(joursFr(b.taken))}</td>
+          <td class="r nw${b.remaining < 0 ? ' warn-text' : ''}"><b>${esc(joursFr(b.remaining))}</b></td>
+          <td class="r nw">${b.byKind.maladie ? esc(joursFr(b.byKind.maladie)) : tiret}</td>
+          <td class="r nw">${b.byKind['sans-solde'] ? esc(joursFr(b.byKind['sans-solde'])) : tiret}</td></tr>`).join('')}</tbody></table></div>
+      ${soldes.some(x => x.b.remaining < 0) ? '<p class="small muted mt">Un solde négatif : le salarié a pris plus de jours qu\'il n\'en a acquis. Ce n\'est pas interdit, mais il faut le savoir.</p>' : ''}`
+    : '<div class="empty mini">Aucun salarié en poste : le solde de chacun se calcule dès qu\'il est déclaré.</div>'}
+      <div class="filters mt">${tient && (L.salaries || []).some(x => x.actif) ? '<button type="button" class="btn btn-sm" id="cg-ajouter">+ Congé ou absence…</button>' : ''}
+        <span class="small muted" id="cg-qui">${L.reglagesPaie ? 'Ce client les saisit dans son SkanFact (<b>Paie › Congés et absences</b>) : le Cabinet les lit.'
+    : (L.exercice || {}).clos ? `L'exercice ${esc(annee)} est clos : ses congés se lisent, ils ne se changent plus.`
+      : 'Chacun se pose de lui-même sur la grille du pointage ; un bulletin établi ensuite retire du brut une absence non payée.'}</span></div>
+      ${tous.length ? `<div class="scroll-x"><table class="list compact" id="cg-liste"><thead><tr><th>Salarié</th><th>Nature</th>
+        <th class="nw">Du</th><th class="nw">Au</th><th class="r">Jours</th><th>Effet</th><th>Motif</th></tr></thead>
+        <tbody>${page.map(l => `<tr data-cg="${esc(l.id)}"${tient ? ' class="clickable" tabindex="0" title="Modifier cette absence"' : ''}>
+          <td class="tronq" title="${esc(nomDe(l.employeeId))}">${esc(nomDe(l.employeeId))}</td><td>${esc(l.kindLabel)}</td>
+          <td class="nw">${esc(fmtJour(l.from))}</td><td class="nw">${esc(fmtJour(l.to))}</td><td class="r nw">${esc(joursFr(l.days))}</td>
+          <td class="nw">${l.paid ? '<span class="ok-text">payée</span>' : '<span class="warn-text">retirée du salaire</span>'}</td>
+          <td class="tronq" title="${esc(l.note || '')}">${esc(l.note || '')}</td></tr>`).join('')}</tbody></table></div>${pied}`
+    : `<div class="empty mini">Aucun congé ni absence en ${esc(annee)}.</div>`}
+    </div>`;
+  }
+  function brancherConges(el, root, dossier) {
+    const panneau = $('#cg-panneau', el);
+    if (!panneau) return;
+    const L = livresState.livre;
+    const regler = $('#cg-droit-regler', panneau);
+    if (regler) regler.onclick = () => regimesForm(root, dossier, { focus: 'leaveDaysPerYear' });
+    const ajouter = $('#cg-ajouter', panneau);
+    if (ajouter) ajouter.onclick = () => congeForm(root, dossier, null);
+    bindPager(panneau, () => drawLivres(root, dossier), congesState);
+    if (!congesTenus(L)) return;
+    $$('#cg-liste tr[data-cg]', panneau).forEach(tr => {
+      const ouvrir = () => { const c = (L.conges || []).find(x => x.id === tr.dataset.cg); if (c) congeForm(root, dossier, c); };
+      tr.onclick = ouvrir;
+      tr.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); ouvrir(); } };
+    });
+  }
+  // La fenêtre d'un congé ou d'une absence (celle de l'entreprise, leaveForm) : le salarié, la nature, l'effet sur le
+  // salaire, du … au …, le motif ; les jours ouvrables qu'elle compte, ce qu'elle fait au salaire et, pour un congé payé, le
+  // solde avant et après, se lisent AVANT d'enregistrer.
+  function congeForm(root, dossier, conge) {
+    const s = livresState, L = s.livre;
+    const salaries = (L.salaries || []).filter(x => x.actif || (conge && x.id === conge.employeeId))
+      .sort((a, b) => (a.nom || '').localeCompare(b.nom || '', 'fr'));
+    if (!salaries.length) return toast('Déclare d\'abord un salarié.', 'error');
+    // Un congé nouveau tombe dans le mois regardé : aujourd'hui s'il en est, sinon son premier jour — jamais avant l'entrée
+    // du salarié (vu au test humain : le 1er septembre proposé pour une entrée le 15).
+    const mois = `${s.annee}-${String(s.paieMois || 1).padStart(2, '0')}`;
+    const auMois = String(K.today()).slice(0, 7) === mois ? K.today() : `${mois}-01`;
+    const jour = salaries[0].embauche && salaries[0].embauche > auMois ? salaries[0].embauche : auMois;
+    const c = conge || { id: '', employeeId: salaries[0].id, kind: 'conges', from: jour, to: jour, paid: null, note: '' };
+    // Hors du contrat, une absence ne se pose sur aucun pointage ni aucun bulletin, mais entamerait le compteur : elle se dit
+    // dans l'annonce, et se refuse.
+    const horsContrat = v => {
+      const x = salaries.find(y => y.id === v.employeeId) || {};
+      return x.embauche && v.from && v.from < x.embauche ? { champ: 'from', motif: `L'entrée de ${x.nom} est le ${fmtJour(x.embauche)} : une absence ne commence pas avant.` }
+        : x.sortie && v.to && v.to > x.sortie ? { champ: 'to', motif: `La sortie de ${x.nom} est le ${fmtJour(x.sortie)} : une absence ne finit pas après.` } : null;
+    };
+    modal(`<h2>${conge ? 'Modifier l\'absence' : 'Congé ou absence'}</h2>
+      <form id="cg-form" class="grid-2">
+        <label class="field span-2 obligatoire">${lbl('Salarié', 'pa.cgSalarie')}<select name="employeeId">${salaries.map(x => `<option value="${esc(x.id)}" ${x.id === c.employeeId ? 'selected' : ''}>${esc(x.nom)}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Nature', 'pa.cgNature')}<select name="kind">${KC.LEAVE_KINDS.map(([v, lab, payee]) => `<option value="${v}" ${c.kind === v ? 'selected' : ''}>${esc(lab)}${payee ? '' : ' (non payée)'}</option>`).join('')}</select></label>
+        <label class="field">${lbl('Effet sur le salaire', 'pa.cgEffet')}<select name="paid">
+          <option value="">selon la nature</option><option value="1" ${c.paid === true ? 'selected' : ''}>payée</option><option value="0" ${c.paid === false ? 'selected' : ''}>non payée</option></select></label>
+        <label class="field obligatoire">${lbl('Du', 'pa.cgDates')}<input name="from" placeholder="JJ/MM/AAAA" value="${esc(fmtJour(c.from))}"></label>
+        <label class="field obligatoire">${lbl('Au', 'pa.cgDates')}<input name="to" placeholder="JJ/MM/AAAA" value="${esc(fmtJour(c.to))}"></label>
+        <label class="field span-2">${lbl('Motif', 'pa.cgMotif')}<input name="note" maxlength="200" value="${esc(c.note || '')}" placeholder="Certificat médical, congé annuel…"></label>
+        <div class="span-2 annonce-stable small" id="cg-annonce"></div>
+      </form>
+      <div class="modal-actions">${conge ? '<button type="button" class="btn btn-danger" id="cg-supprimer" style="margin-inline-end:auto">Supprimer</button>' : ''}
+        <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
+    (layer, close) => {
+      const f = $('#cg-form', layer);
+      const champ = n => $(`[name=${n}]`, f);
+      const lire = () => ({ employeeId: champ('employeeId').value, kind: champ('kind').value, paid: champ('paid').value,
+        from: K.dateTapee(champ('from').value.trim(), s.annee), to: K.dateTapee(champ('to').value.trim(), s.annee), note: champ('note').value.trim() });
+      const annoncer = () => {
+        const v = lire();
+        const a = $('#cg-annonce', layer);
+        if (!v.from || !v.to || v.to < v.from) { a.innerHTML = '<span class="muted">Le premier et le dernier jour de l\'absence, compris.</span>'; return; }
+        const data = donneesDuPointage(dossier, L);
+        const jours = KC.workingDays(v.from, v.to, data.payrollSettings.offDays);
+        const payee = v.paid === '' ? KC.leaveIsPaid(v.kind) : v.paid === '1';
+        let solde = '';
+        if (v.kind === 'conges') {
+          // Une absence déjà comptée l'est dans le solde du moteur : « avant » la lui rend, sinon elle se retrancherait deux fois.
+          const b = KC.leaveBalance(data, v.employeeId, Number(v.from.slice(0, 4)));
+          const deja = conge && conge.kind === 'conges' && conge.employeeId === v.employeeId && String(conge.from).slice(0, 4) === v.from.slice(0, 4)
+            ? KC.workingDays(conge.from, conge.to, data.payrollSettings.offDays) : 0;
+          const avant = KC.round3(b.remaining + deja), apres = KC.round3(avant - jours);
+          solde = ` Solde de congés : <b>${esc(joursCg(avant))}</b> avant, <b>${esc(joursCg(apres))}</b> après.${apres < 0
+            ? ` <span class="warn-text">Il prendrait ${esc(joursCg(-apres))} de plus qu'il n'en a acquis : ce n'est pas interdit, mais il faut le savoir.</span>` : ''}`;
+        }
+        const hors = horsContrat(v);
+        a.innerHTML = hors ? `<span class="warn-text">${esc(hors.motif)}</span>`
+          : `<span class="${jours ? 'muted' : 'warn-text'}">${jours ? `<b>${esc(joursCg(jours))} ouvrable${jours > 1 ? 's' : ''}</b>, dimanches exclus. `
+          : 'Aucun jour ouvrable dans cette période : vérifie les dates. '}${payee ? 'Payée : le salaire du mois n\'est pas réduit.'
+          : 'Non payée : le brut d\'un bulletin établi ensuite est réduit au prorata.'}${solde}</span>`;
+      };
+      f.oninput = f.onchange = annoncer; annoncer();
+      $('#ok', layer).onclick = async () => {
+        const v = lire();
+        if (!v.employeeId) return refus(champ('employeeId'), 'Choisis le salarié.');
+        if (!champ('from').value.trim()) return refus(champ('from'), 'Indique le premier jour de l\'absence.');
+        if (!v.from) return refus(champ('from'), `« ${champ('from').value.trim()} » n'est pas une date lisible. Écris-la JJ/MM/AAAA.`);
+        if (!champ('to').value.trim()) return refus(champ('to'), 'Indique le dernier jour de l\'absence.');
+        if (!v.to) return refus(champ('to'), `« ${champ('to').value.trim()} » n'est pas une date lisible. Écris-la JJ/MM/AAAA.`);
+        if (v.to < v.from) return refus(champ('to'), `La fin ne peut pas précéder le début (${fmtJour(v.from)}).`);
+        const hors = horsContrat(v);
+        if (hors) return refus(champ(hors.champ), hors.motif);
+        const ok = $('#ok', layer);
+        ok.disabled = true;
+        try {
+          const id = conge ? conge.id : 'cg' + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+          const r = await api.saveConge({ dossierId: dossier.id, conge: { id, employeeId: v.employeeId, kind: v.kind, from: v.from, to: v.to,
+            paid: v.paid === '' ? null : v.paid === '1', note: v.note } });
+          L.conges = r.conges;
+          close();
+          toast(`L'absence de ${((L.salaries || []).find(x => x.id === v.employeeId) || {}).nom || ''} est enregistrée.`);
+          drawLivres(root, dossier);
+        } catch (err) { ok.disabled = false; toast(plainError(err), 'error'); }
+      };
+      const sup = $('#cg-supprimer', layer);
+      if (sup) sup.onclick = async () => {
+        if (!await confirmDialog('Supprimer cette absence ?', 'Elle se retire du pointage. Un bulletin déjà établi ne change pas de lui-même : le pointage dira s\'il ne le suit plus.', 'Supprimer', true)) return;
+        try {
+          const r = await api.supprimerConge({ dossierId: dossier.id, id: conge.id });
+          L.conges = r.conges;
+          close(); toast('Absence supprimée.'); drawLivres(root, dossier);
+        } catch (err) { toast(plainError(err), 'error'); }
+      };
     });
   }
 
@@ -6387,6 +6559,8 @@
       <p class="small mt" id="rc-lu-hs">${KC.majorationsHs(bar).length
     ? `Ses heures supplémentaires : ${esc(pct(bar.heuresMois))} heures pour un mois complet ; majorations ${KC.majorationsHs(bar).map(x => `${esc(pct(x))} %`).join(', ')}.`
     : 'Il n\'a réglé aucune majoration d\'heures supplémentaires : la grille du pointage n\'en a pas de colonne.'}</p>
+      ${/* (plateforme) 1.70.0 */''}
+      <p class="small mt" id="rc-lu-conges">Son droit annuel aux congés payés : ${esc(pct(bar.leaveDaysPerYear))} jours ouvrables (${(reglages || {}).leaveDaysPerYear != null && (reglages || {}).leaveDaysPerYear !== '' ? 'le sien' : 'celui du barème'}).</p>
       <div class="modal-actions"><button class="btn btn-primary" data-close>Fermer</button></div>`);
   }
 
@@ -6415,6 +6589,13 @@
       une case vide n'y paraît pas. <b>À VÉRIFIER</b> : le régime horaire et la convention collective du client.</p>
       <div class="grid-3" id="rc-hs" style="grid-template-columns:minmax(0,210px) repeat(3,minmax(0,150px))">${HS_DU_CLIENT.map(([k, lab, aide]) => `<label class="field">${lbl(lab, aide)}<input type="text" inputmode="decimal" class="num" data-hs-k="${k}"
         value="${(dossier.paie || {})[k] != null && (dossier.paie || {})[k] !== '' && Number((dossier.paie || {})[k]) > 0 ? esc(pct(Number(dossier.paie[k]))) : ''}" placeholder="${k === 'heuresMois' ? '208' : ''}"></label>`).join('')}</div>
+      ${/* (plateforme) 1.70.0 */''}
+      <h3 class="mt">Les congés payés</h3>
+      <p class="small">Le droit de chaque salarié sur une année entière, en jours ouvrables ; il s'acquiert au prorata des mois
+      travaillés. Laisse la case <b>vide</b> pour celui du barème (en gris). <b>À VÉRIFIER</b> : la convention collective du
+      client, souvent plus favorable que le minimum du Code du travail.</p>
+      <div class="grid-3" id="rc-conges" style="grid-template-columns:minmax(0,260px)"><label class="field">${lbl('Congés payés par an (jours ouvrables)', 'pa.congesDroit')}<input type="text" inputmode="decimal" class="num" data-cg-k="leaveDaysPerYear"
+        value="${(dossier.paie || {}).leaveDaysPerYear != null && (dossier.paie || {}).leaveDaysPerYear !== '' ? esc(pct(Number(dossier.paie.leaveDaysPerYear))) : ''}" placeholder="${esc(pct(tauxGeneraux.leaveDaysPerYear))}"></label></div>
       <h3 class="mt">Les taux par contrat</h3>
       <p class="small">Laisse une case <b>vide</b> pour appliquer le taux général (en gris) ; mets <b>0</b> pour une exonération.
       Chaque bulletin de ce client pour un salarié sous ce contrat suivra la ligne, et gardera ses taux une fois établi.
@@ -6430,8 +6611,9 @@
         <button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
     (layer, close) => {
       $('.modal', layer).classList.add('cab-large');
-      // (plateforme) 1.69.0 — ouverte depuis la grille du pointage, elle amène à la case des majorations.
-      if (opts && opts.focus) { const c = $(`[data-hs-k="${opts.focus}"]`, layer); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); } }
+      // (plateforme) 1.69.0 — ouverte depuis la grille du pointage, elle amène à la case des majorations ; (1.70.0) depuis les
+      // congés, à celle du droit annuel.
+      if (opts && opts.focus) { const c = $(`[data-hs-k="${opts.focus}"], [data-cg-k="${opts.focus}"]`, layer); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); } }
       // (plateforme) 1.66.0 — un taux du client change le taux général d'un contrat : la case grise le suit.
       $$('[data-taux]', layer).forEach(i => { i.oninput = () => {
         const n = Number(i.value.trim().replace(/\s/g, '').replace(',', '.'));
@@ -6460,6 +6642,14 @@
             if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, `« ${t} » : une majoration se garde avec quatre décimales au plus.`);
           }
           taux[i.dataset.hsK] = n;
+        }
+        // (plateforme) 1.70.0 — le droit annuel aux congés payés : de 1 à 60 jours, deux décimales au plus.
+        for (const i of $$('[data-cg-k]', layer)) {
+          const t = i.value.trim();
+          if (!t) continue;
+          const n = Number(t.replace(/\s/g, '').replace(',', '.'));
+          if (!Number.isFinite(n) || n < 1 || n > 60 || Math.round(n * 100) / 100 !== n) return refus(i, `« ${t} » n'est pas un nombre de jours entre 1 et 60 (deux décimales au plus) : 18, ou 24. Laisse la case vide pour celui du barème.`);
+          taux[i.dataset.cgK] = n;
         }
         const rc = {};
         for (const i of $$('[data-rc]', layer)) {

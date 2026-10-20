@@ -1,0 +1,64 @@
+La fenêtre et Entrée (20/10/2026, 1.70.0 ; docs/paie.md, « Les congés au Cabinet », ce qui a été vu à l'écran).
+Format : voir sans-paquets.mjs.
+
+Vu au test humain des congés au Cabinet : dans une fenêtre qui porte « Supprimer » (rouge, à gauche) et « Enregistrer »,
+Entrée dans un champ cliquait « Supprimer » — la règle commune des deux applications prenait le premier bouton principal
+OU rouge. La question qui suit se valide aussi d'Entrée : Entrée, Entrée supprimait ce qu'on voulait enregistrer. Les
+fenêtres touchées : une absence (l'entreprise et le Cabinet), un abonnement, la fiche d'un dossier, un guide de saisie.
+Et une absence hors du contrat du salarié se refuse, des deux côtés.
+
+== app.js | Entrée valide une fenêtre par son bouton principal, jamais par « Supprimer »
+-- avant
+      const main = $('.modal-actions .btn-primary, .modal-actions .btn-danger', layer);
+-- après
+      // (plateforme) 1.70.0 — le bouton PRINCIPAL d'abord, le rouge seulement s'il est le seul geste (une confirmation) : posé à
+      // gauche, « Supprimer » passait avant « Enregistrer », et Entrée dans un champ supprimait (vu au test humain, la fenêtre
+      // d'une absence ; puis Entrée confirmait la question).
+      const main = $('.modal-actions .btn-primary', layer) || $('.modal-actions .btn-danger', layer);
+-- fin
+
+== app.js | le curseur d'une fenêtre sans champ va à son bouton principal
+-- avant
+    const principal = $('.modal-actions .btn-primary, .modal-actions .btn-danger', layer);
+    const cible = saisie || (principal && !principal.disabled ? principal : null);
+    if (cible && !layer.contains(document.activeElement)) cible.focus();
+-- après
+    // (plateforme) 1.70.0 — le bouton principal d'abord (voir Entrée, plus haut).
+    const principal = $('.modal-actions .btn-primary', layer) || $('.modal-actions .btn-danger', layer);
+    const cible = saisie || (principal && !principal.disabled ? principal : null);
+    if (cible && !layer.contains(document.activeElement)) cible.focus();
+-- fin
+
+== cabinet/app.js | Entrée valide une fenêtre par son bouton principal, jamais par « Supprimer »
+-- avant
+      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
+      const principal = $('.modal-actions .btn-primary, .modal-actions .btn-danger', layer);
+-- après
+      if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
+      // (plateforme) 1.70.0 — le bouton PRINCIPAL d'abord, le rouge seulement s'il est le seul geste (une confirmation) : posé à
+      // gauche, « Supprimer » passait avant « Enregistrer », et Entrée dans un champ supprimait (vu au test humain, la fenêtre
+      // d'une absence ; puis Entrée confirmait la question).
+      const principal = $('.modal-actions .btn-primary', layer) || $('.modal-actions .btn-danger', layer);
+-- fin
+
+== cabinet/app.js | le curseur d'une fenêtre sans champ va à son bouton principal
+-- avant
+    const saisie = layer.querySelector('input:not([type=hidden]):not([disabled]), select, textarea');
+    const principal = $('.modal-actions .btn-primary, .modal-actions .btn-danger', layer);
+-- après
+    const saisie = layer.querySelector('input:not([type=hidden]):not([disabled]), select, textarea');
+    // (plateforme) 1.70.0 — le bouton principal d'abord (voir Entrée, plus haut).
+    const principal = $('.modal-actions .btn-primary', layer) || $('.modal-actions .btn-danger', layer);
+-- fin
+
+== app.js | une absence hors du contrat du salarié se refuse
+-- avant
+          if (v.to < v.from) return refus(champ('to'), `La fin ne peut pas précéder le début (${C.fmtDate(v.from)}).`);
+-- après
+          if (v.to < v.from) return refus(champ('to'), `La fin ne peut pas précéder le début (${C.fmtDate(v.from)}).`);
+          // (plateforme) 1.70.0 — hors du contrat du salarié, une absence ne se pose sur aucun pointage ni aucun bulletin, mais
+          // entamait son compteur : refusée, avec la date qui la borne (la règle de la fenêtre du Cabinet).
+          const salarieLf = employeeById(v.employeeId) || {};
+          if (salarieLf.hireDate && v.from < salarieLf.hireDate) return refus(champ('from'), `L'entrée de ${salarieLf.name} est le ${C.fmtDate(salarieLf.hireDate)} : une absence ne commence pas avant.`);
+          if (salarieLf.endDate && v.to > salarieLf.endDate) return refus(champ('to'), `La sortie de ${salarieLf.name} est le ${C.fmtDate(salarieLf.endDate)} : une absence ne finit pas après.`);
+-- fin

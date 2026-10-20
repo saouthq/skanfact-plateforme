@@ -4244,71 +4244,8 @@
   // du mois les reprend tout seul — c'est la même règle que partout ailleurs dans SkanFact.
 
   // (plateforme) 1.69.0 — dans le moteur commun (compta.js), que le pointage du Cabinet lit aussi : une seule copie.
-  const LEAVE_KINDS = Compta.LEAVE_KINDS;
-  const leaveKindLabel = k => (LEAVE_KINDS.find(x => x[0] === k) || [, k])[1];
-  const leaveIsPaid = Compta.leaveIsPaid;
-
-  // Jours ouvrables entre deux dates incluses. `offDays` = jours de la semaine chômés (0 = dimanche).
-  // Par défaut le dimanche seul : c'est la semaine de six jours encore courante en Tunisie, et c'est
-  // cohérent avec les 26 jours ouvrables du bulletin. À VÉRIFIER avec le comptable.
-  function workingDays(fromIso, toIso, offDays) {
-    if (!fromIso || !toIso || toIso < fromIso) return 0;
-    const off = Array.isArray(offDays) ? offDays : [0];
-    // On compte sur des instants UTC, jamais en avançant une chaîne jour par jour : c'est cette
-    // boucle-là qui ne finissait jamais dès que l'ordinateur n'était pas réglé en UTC. Et une borne,
-    // parce qu'une absence de trente ans est une faute de saisie, pas un calcul à faire.
-    const start = Date.parse(fromIso + 'T00:00:00Z'), end = Date.parse(toIso + 'T00:00:00Z');
-    if (isNaN(start) || isNaN(end)) return 0;
-    const span = Math.min(Math.round((end - start) / 86400000), 366 * 30);
-    let n = 0;
-    for (let i = 0; i <= span; i++) {
-      if (!off.includes(new Date(start + i * 86400000).getUTCDay())) n++;
-    }
-    return n;
-  }
-
-  // Les jours d'un congé qui tombent dans un mois donné : un congé à cheval sur deux mois se répartit
-  // entre les deux bulletins, sinon le salarié serait retenu deux fois ou pas du tout.
-  function leaveDaysInMonth(leave, year, month, offDays) {
-    const first = `${year}-${String(month).padStart(2, '0')}-01`;
-    const last = addDays(first, daysInMonth(year, month) - 1);
-    const from = leave.from > first ? leave.from : first;
-    const to = leave.to < last ? leave.to : last;
-    if (to < from) return 0;
-    return workingDays(from, to, offDays);
-  }
-
-  function leavesOf(data, employeeId, year) {
-    return (data.leaves || [])
-      .filter(l => (!employeeId || l.employeeId === employeeId)
-        && (!year || (l.from || '').slice(0, 4) === String(year) || (l.to || '').slice(0, 4) === String(year)))
-      .map(l => ({ ...l, days: workingDays(l.from, l.to, (data.payrollSettings || {}).offDays),
-        paid: l.paid != null ? l.paid : leaveIsPaid(l.kind), kindLabel: leaveKindLabel(l.kind) }))
-      .sort((a, b) => (b.from || '').localeCompare(a.from || ''));
-  }
-
-  // Le compteur de congés : acquis au prorata des mois travaillés, moins ce qui a été pris.
-  // Le droit annuel se règle dans les barèmes — il dépend de la convention collective.
-  function leaveBalance(data, employeeId, year, todayIso) {
-    const s = payrollSettings(data);
-    const emp = (data.employees || []).find(e => e.id === employeeId) || {};
-    const t = todayIso || today();
-    const y = Number(year) || Number(t.slice(0, 4));
-    const start = `${y}-01-01`, end = `${y}-12-31`;
-    // Mois effectivement travaillés dans l'année, bornés par l'embauche, la sortie et aujourd'hui.
-    const from = emp.hireDate && emp.hireDate > start ? emp.hireDate : start;
-    const stop = [emp.endDate || end, end, t > end ? end : t].filter(Boolean).sort()[0];
-    const months = stop < from ? 0 : Math.max(0, Math.min(12, Math.round((daysBetween(from, stop) + 1) / 30.4)));
-    const perYear = Number(s.leaveDaysPerYear) || 0;
-    const acquired = round3(perYear * months / 12);
-    const carry = Number((emp.leaveCarry || {})[y]) || 0;
-    const list = leavesOf(data, employeeId, y);
-    const taken = round3(list.filter(l => l.kind === 'conges').reduce((a, l) => a + l.days, 0));
-    const byKind = {};
-    LEAVE_KINDS.forEach(([k]) => { byKind[k] = round3(list.filter(l => l.kind === k).reduce((a, l) => a + l.days, 0)); });
-    return { year: y, months, acquired, carry, taken, byKind,
-      remaining: round3(acquired + carry - taken), perYear, list };
-  }
+  // (plateforme) 1.70.0 — et les congés : leurs jours ouvrables, leur liste, le solde (le Cabinet les tient aussi).
+  const { LEAVE_KINDS, leaveKindLabel, leaveIsPaid, workingDays, leaveDaysInMonth, leavesOf, leaveBalance } = Compta;
 
   // Les avances : une somme prêtée, remboursée par retenues mensuelles sur le bulletin.
   function advancesOf(data, employeeId) {

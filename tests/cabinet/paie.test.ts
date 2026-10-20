@@ -147,7 +147,10 @@ describe('la paie tenue par le cabinet', () => {
     const avecPointage = (await appeler('GET', `/entreprises/${d.ent}/paie/dossier`, d.associe.jeton)).corps.objets as { collection: string; cle: string; contenu: unknown }[];
     expect(avecPointage.map((o) => `${o.collection}/${o.cle}`)).toEqual(['_racine/payrollSettings', 'employees/sal-1', 'leaves/l1', 'payslips/bul-3', 'timesheets/ts1']);
     expect(avecPointage.find((o) => o.collection === 'timesheets')?.contenu).toEqual(pointage);
-    expect((await ecrire(d.ent, d.associe, [{ collection: 'leaves', cle: 'l2', rang: null, revision: null, contenu: conge }])).statut).toBe(400);
+    // (1.70.0) Ses congés, il ne les écrit pas : la porte le dit, avant que la base ne le refuse.
+    const congeRefuse = await ecrire(d.ent, d.associe, [{ collection: 'leaves', cle: 'l2', rang: null, revision: null, contenu: conge }]);
+    expect(congeRefuse.statut).toBe(403);
+    expect(congeRefuse.corps.motif).toBe('Les congés d\'un client sur SkanFact se saisissent dans son SkanFact : son cabinet les lit, et ne les écrit que dans un dossier qu\'il tient.');
     // Le client voit le pointage que le cabinet a tenu : un seul dossier.
     const vuDuClient = (await appeler('GET', `/entreprises/${d.ent}/dossier-v10`, d.client.jeton)).corps.objets as { collection: string; cle: string }[];
     expect(vuDuClient.filter((o) => o.collection === 'timesheets').map((o) => o.cle)).toEqual(['ts1']);
@@ -201,6 +204,47 @@ describe('la paie tenue par le cabinet', () => {
       `delete from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [d.ent]))).resolves.toMatchObject({ rowCount: 0 });
     // Le client lit tout.
     expect(await lu(d.client)).toEqual(['_racine/chartAccounts', '_racine/company', '_racine/payrollSettings', 'accounts/bq1', 'clients/c1', 'documents/f1', 'employees/sal-1', 'leaves/l1', 'timesheets/ts1', 'timesheets/ts2']);
+  });
+
+  it('(1.70.0) les congés d\'un dossier tenu : le cabinet qui le tient les saisit, les corrige et les retire ; un autre cabinet n\'y touche pas', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);
+    const garage = String((await appeler('POST', `/cabinets/${cabinet}/dossiers`, associe.jeton, { raisonSociale: 'Garage du Port' })).corps.entreprise);
+    const conge = { id: 'l1', employeeId: 'sal-1', kind: 'conges', from: '2025-03-10', to: '2025-03-14', paid: null, note: 'Congé annuel' };
+    const r = await ecrire(garage, associe, [objet('employees', SALARIE), { collection: 'leaves', cle: 'l1', rang: null, revision: null, contenu: conge }]);
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    type Lu = { collection: string; cle: string; revision: number; contenu: unknown };
+    const conges = async (p: Personne) => ((await appeler('GET', `/entreprises/${garage}/paie/dossier`, p.jeton)).corps.objets as Lu[])
+      .filter((o) => o.collection === 'leaves').map((o) => [o.cle, o.revision, o.contenu]);
+    expect(await conges(associe)).toEqual([['l1', 1, conge]]);
+    // Il le corrige (une maladie, pas un congé), puis le retire.
+    expect((await ecrire(garage, associe, [{ collection: 'leaves', cle: 'l1', rang: null, revision: 1, contenu: { ...conge, kind: 'maladie' } }])).statut).toBe(200);
+    expect(await conges(associe)).toEqual([['l1', 2, { ...conge, kind: 'maladie' }]]);
+    expect((await ecrire(garage, associe, [{ collection: 'leaves', cle: 'l1', rang: null, revision: 2, contenu: null }])).statut).toBe(200);
+    expect(await conges(associe)).toEqual([]);
+    // Dans la base aussi : le cabinet qui tient le dossier y écrit ses congés.
+    await expect(enTantQue(pool, associe.utilisateur, (tx) => tx.query(
+      `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'leaves', 'l2', '{"id":"l2"}')`, [garage]))).resolves.toMatchObject({ rowCount: 1 });
+    // Un autre cabinet : ni la porte (le dossier lui est inconnu), ni la base ; il ne les lit même pas.
+    const voisin = await personne('voisin');
+    const c = await appeler('POST', '/cabinets', voisin.jeton, { nom: 'Cabinet Voisin' });
+    expect(c.statut).toBe(201);
+    expect((await ecrire(garage, voisin, [{ collection: 'leaves', cle: 'l9', rang: null, revision: null, contenu: conge }])).statut).toBe(404);
+    await expect(enTantQue(pool, voisin.utilisateur, (tx) => tx.query(
+      `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'leaves', 'l9', '{}')`, [garage]))).rejects.toThrow(/row-level security/);
+    expect((await enTantQue(pool, voisin.utilisateur, (tx) => tx.query(`select cle from socle.dossier_v10 where entreprise = $1`, [garage]))).rows).toEqual([]);
+    // Même sous un mandat de paie sur ce dossier (posé ici à la main : un dossier tenu n'en donne qu'au cabinet qui le
+    // tient), le voisin lit ses congés sans les écrire : seul le cabinet qui TIENT le dossier les écrit.
+    await admin.query(`insert into socle.mandat (cabinet, entreprise, accorde_par, debut, perimetre, statut) values ($1, $2, $3, current_date, array['paie'], 'actif')`,
+      [String(c.corps.id), garage, voisin.utilisateur]);
+    expect((await enTantQue(pool, voisin.utilisateur, (tx) => tx.query(`select cle from socle.dossier_v10 where entreprise = $1 and collection = 'leaves'`, [garage]))).rows)
+      .toEqual([{ cle: 'l2' }]);
+    expect((await ecrire(garage, voisin, [{ collection: 'leaves', cle: 'l9', rang: null, revision: null, contenu: conge }])).corps.motif)
+      .toBe('Les congés d\'un client sur SkanFact se saisissent dans son SkanFact : son cabinet les lit, et ne les écrit que dans un dossier qu\'il tient.');
+    await expect(enTantQue(pool, voisin.utilisateur, (tx) => tx.query(
+      `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'leaves', 'l9', '{}')`, [garage]))).rejects.toThrow(/row-level security/);
+    await expect(enTantQue(pool, voisin.utilisateur, (tx) => tx.query(
+      `delete from socle.dossier_v10 where entreprise = $1 and collection = 'leaves'`, [garage]))).resolves.toMatchObject({ rowCount: 0 });
   });
 
   it('qui peut : l\'associé et le collaborateur Paie, le propriétaire ; pas le collaborateur comptable', async () => {

@@ -55,6 +55,9 @@ const TAUX_POUR_CENT = z.string().regex(/^(100(\.0{1,4})?|\d{1,2}(\.\d{1,4})?)$/
 // (1.69.0) Les heures d'un mois complet, qui font le prix d'une heure supplémentaire (208 = 26 jours de 8 heures ; 173,33
 // pour 40 heures par semaine) : en texte décimal, deux décimales au plus, de 1 à 400.
 const HEURES_DU_MOIS = z.string().regex(/^\d{1,3}(\.\d{1,2})?$/).refine((v) => Number(v) >= 1 && Number(v) <= 400);
+// (1.70.0) Le droit annuel aux congés payés d'un dossier tenu, en jours ouvrables (18 au barème : À VÉRIFIER avec la
+// convention collective du client) : en texte décimal, deux décimales au plus, de 1 à 60.
+const JOURS_DE_CONGE = z.string().regex(/^\d{1,2}(\.\d{1,2})?$/).refine((v) => Number(v) >= 1 && Number(v) <= 60);
 const REGIME_DE_CONTRAT = z.object({
   cnssEmployee: TAUX_POUR_CENT, cnssEmployer: TAUX_POUR_CENT, accidentRate: TAUX_POUR_CENT, tfpRate: TAUX_POUR_CENT,
   foprolosRate: TAUX_POUR_CENT, solidarity: TAUX_POUR_CENT, sansIrpp: z.literal(true),
@@ -74,11 +77,13 @@ const FICHE = z.object({
   // Les taux par contrat de la paie du dossier (brique 55), et les taux propres à l'entreprise (1.66.0) :
   // l'accident du travail (selon l'activité), la TFP (1 % ou 2 %), le FOPROLOS ; un taux absent suit le barème.
   // (1.69.0) Les heures supplémentaires du pointage : les heures d'un mois complet et jusqu'à trois majorations (%) ;
-  // aucune n'est écrite d'avance, une majoration absente ne paraît pas dans la grille.
+  // aucune n'est écrite d'avance, une majoration absente ne paraît pas dans la grille. (1.70.0) Le droit annuel aux congés
+  // payés : absent, il suit le barème.
   paie: z.object({
     regimesContrat: z.partialRecord(z.enum(CONTRATS_A_REGIME), REGIME_DE_CONTRAT),
     accidentRate: TAUX_POUR_CENT.optional(), tfpRate: TAUX_POUR_CENT.optional(), foprolosRate: TAUX_POUR_CENT.optional(),
     heuresMois: HEURES_DU_MOIS.optional(), hsMaj1: TAUX_POUR_CENT.optional(), hsMaj2: TAUX_POUR_CENT.optional(), hsMaj3: TAUX_POUR_CENT.optional(),
+    leaveDaysPerYear: JOURS_DE_CONGE.optional(),
   }).strict(),
 }).partial().strict();
 // Les réglages du cabinet (0023, C21) : cette liste, et rien d'autre. L'association des colonnes d'un

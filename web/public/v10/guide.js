@@ -512,7 +512,9 @@
     'buy.payDate': { t: 'Date du règlement', d: 'Le jour où tu as payé le fournisseur. Elle date la sortie d\'argent dans la trésorerie et dans le journal des règlements fournisseurs.' },
     'pay.hireDate': { t: 'Date d\'embauche', d: 'Le premier jour du contrat. Elle s\'imprime sur l\'attestation, le certificat de travail et le registre du personnel ; une embauche en cours de mois propose un premier salaire au prorata des jours.' },
     'hr.leaveEmployee': { t: 'Salarié', d: 'La personne absente. L\'absence se lira sur ses bulletins des mois qu\'elle touche.' },
-    'hr.leaveDates': { t: 'Du… au…', d: 'Premier et dernier jour d\'absence, compris. Les jours de repos (le dimanche par défaut, réglable dans les barèmes) ne comptent pas ; une absence à cheval sur deux mois se répartit entre les deux bulletins.' },
+    // (plateforme) 1.70.0 — « réglable dans les barèmes » : aucun barème ne règle le repos de la semaine (une phrase que rien
+    // ne tient est un défaut). Le dimanche, partout : dans le compte des jours, la grille du pointage et le Cabinet.
+    'hr.leaveDates': { t: 'Du… au…', d: 'Premier et dernier jour d\'absence, compris. Les dimanches ne comptent pas : c\'est la semaine de six jours, celle des 26 jours du bulletin (À VÉRIFIER si ton entreprise chôme un autre jour) ; une absence à cheval sur deux mois se répartit entre les deux bulletins.' },
     'hr.advanceEmployee': { t: 'Salarié', d: 'La personne à qui tu avances l\'argent. La retenue se proposera sur ses prochains bulletins.' },
     'hr.advanceDate': { t: 'Date de l\'avance', d: 'Le jour où l\'argent a été remis. Les retenues se proposent sur les bulletins des mois qui suivent.' },
     'hr.docDate': { t: 'Daté du', d: 'La date imprimée sur le document — en général le jour où tu le remets.' },

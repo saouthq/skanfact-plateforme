@@ -1040,7 +1040,10 @@
     layer.addEventListener('keydown', e => {
       if (e.key !== 'Enter' || e.shiftKey) return;
       if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'BUTTON') return;
-      const main = $('.modal-actions .btn-primary, .modal-actions .btn-danger', layer);
+      // (plateforme) 1.70.0 — le bouton PRINCIPAL d'abord, le rouge seulement s'il est le seul geste (une confirmation) : posé à
+      // gauche, « Supprimer » passait avant « Enregistrer », et Entrée dans un champ supprimait (vu au test humain, la fenêtre
+      // d'une absence ; puis Entrée confirmait la question).
+      const main = $('.modal-actions .btn-primary', layer) || $('.modal-actions .btn-danger', layer);
       if (main && !main.disabled) { e.preventDefault(); main.click(); }
     });
     if (onMount) onMount(layer, close);
@@ -1061,7 +1064,8 @@
     // Le jumeau de l'app du comptable, qui le fait depuis la 10.12.0 (7.3.0). Un appelant qui a déjà
     // posé le curseur DANS la fenêtre garde sa décision (`prudent` le met sur « Annuler »).
     const saisie = $('input:not([type=hidden]):not([disabled]), select, textarea', layer);
-    const principal = $('.modal-actions .btn-primary, .modal-actions .btn-danger', layer);
+    // (plateforme) 1.70.0 — le bouton principal d'abord (voir Entrée, plus haut).
+    const principal = $('.modal-actions .btn-primary', layer) || $('.modal-actions .btn-danger', layer);
     const cible = saisie || (principal && !principal.disabled ? principal : null);
     if (cible && !layer.contains(document.activeElement)) cible.focus();
     return close;
@@ -11775,6 +11779,11 @@
           if (!v.from) return refus(champ('from'), 'Indique le premier jour de l\'absence.');
           if (!v.to) return refus(champ('to'), 'Indique le dernier jour de l\'absence.');
           if (v.to < v.from) return refus(champ('to'), `La fin ne peut pas précéder le début (${C.fmtDate(v.from)}).`);
+          // (plateforme) 1.70.0 — hors du contrat du salarié, une absence ne se pose sur aucun pointage ni aucun bulletin, mais
+          // entamait son compteur : refusée, avec la date qui la borne (la règle de la fenêtre du Cabinet).
+          const salarieLf = employeeById(v.employeeId) || {};
+          if (salarieLf.hireDate && v.from < salarieLf.hireDate) return refus(champ('from'), `L'entrée de ${salarieLf.name} est le ${C.fmtDate(salarieLf.hireDate)} : une absence ne commence pas avant.`);
+          if (salarieLf.endDate && v.to > salarieLf.endDate) return refus(champ('to'), `La sortie de ${salarieLf.name} est le ${C.fmtDate(salarieLf.endDate)} : une absence ne finit pas après.`);
           if (closedBlock([l.from, l.to, v.from, v.to], 'Cette absence')) return;
           if (!leave && licenceBlock('Créer une absence', 'paie')) return;
           Object.assign(l, v, { paid: v.paid === '' ? null : v.paid === '1' });

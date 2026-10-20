@@ -145,4 +145,24 @@ describe('les guides d\'écritures et le journal retenu', () => {
     expect(await refuse({ cnssEmployer: '16' })).toBe(400);
     expect(await refuse({ solidarity: '1' })).toBe(400);
   });
+
+  it('(1.70.0) le droit annuel aux congés payés d\'un dossier tenu se garde dans la fiche, en jours ouvrables ; une forme fausse est refusée', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await appeler('POST', '/cabinets', associe.jeton, { nom: 'Cabinet Ennour' })).corps.id);
+    const garage = String((await appeler('POST', `/cabinets/${cabinet}/dossiers`, associe.jeton, { raisonSociale: 'Garage du Port' })).corps.entreprise);
+    const PAIE = { regimesContrat: {}, accidentRate: '2.75', leaveDaysPerYear: '21.5' };
+    const ecrire = async (paie: unknown, revision: number | null) => appeler('PUT', `/cabinets/${cabinet}/fiches/${garage}`, associe.jeton, { contenu: { paie }, revision });
+    expect((await ecrire(PAIE, null)).statut).toBe(200);
+    expect(((await appeler('GET', `/cabinets/${cabinet}/fiches`, associe.jeton)).corps.fiches as { entreprise: string; contenu: unknown }[])
+      .find((f) => f.entreprise === garage)?.contenu).toEqual({ paie: PAIE });
+    const refuse = async (jours: unknown) => (await ecrire({ regimesContrat: {}, leaveDaysPerYear: jours }, 1)).statut;
+    expect(await refuse(21.5)).toBe(400);
+    expect(await refuse('21,5')).toBe(400);
+    expect(await refuse('0')).toBe(400);
+    expect(await refuse('0.5')).toBe(400);
+    expect(await refuse('60.01')).toBe(400);
+    expect(await refuse('18.125')).toBe(400);
+    expect(await refuse('')).toBe(400);
+    expect((await ecrire({ regimesContrat: {}, leaveDaysPerYear: '60' }, 1)).statut).toBe(200);
+  });
 });

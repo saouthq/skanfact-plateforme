@@ -322,6 +322,8 @@
   b('#sf-plus-prime', 'Pose une prime que ce salarié touche chaque mois : chaque bulletin nouveau la reprendra.', { nom: 'Prime de chaque mois', cle: 'prime-fiche' });
   // (plateforme) 1.69.0
   b('#pt-grille', 'Le pointage du mois : clique une case, ou tape sa lettre (P, A, C…). Un bulletin établi ensuite reprend ses absences et ses heures supplémentaires.', { nom: 'Pointage', cle: 'pointage' });
+  // (plateforme) 1.70.0
+  b('#cg-panneau', 'Les congés et absences de l\'année et le solde de chacun. Pour un dossier tenu, « + Congé ou absence… » les saisit ; chacun se pose de lui-même sur le pointage.', { nom: 'Congés', cle: 'conges' });
   b('#pa-regimes', 'Règle les taux de la paie de ce client : les siens (accident du travail, TFP, FOPROLOS), puis ceux d\'un contrat particulier (CIVP, Karama, saisonnier). Une case vide garde le taux général, 0 exonère.', { nom: 'Taux de la paie', cle: 'regimes' });
   // (plateforme) 1.66.0
   b('[data-taux]', 'Le taux propre à CE client, à la place du taux général pour chacun de ses bulletins. Vide : le taux général.', { nom: 'Taux du client', cle: 'taux-client' });
