@@ -318,6 +318,8 @@
   // ---------- paie, biens, inventaire ----------
   b('#pa-bulletin, #pa-bulletin2', 'Établit le bulletin d\'un salarié pour le mois choisi.', { nom: 'Bulletin', cle: 'bulletin' });
   b('#pa-salarie, #pa-salarie2', 'Déclare un salarié : son contrat, son salaire, son numéro CNSS.', { nom: 'Salarié', cle: 'salarie' });
+  // (plateforme) 1.68.0
+  b('#sf-plus-prime', 'Pose une prime que ce salarié touche chaque mois : chaque bulletin nouveau la reprendra.', { nom: 'Prime de chaque mois', cle: 'prime-fiche' });
   b('#pa-regimes', 'Règle les taux de la paie de ce client : les siens (accident du travail, TFP, FOPROLOS), puis ceux d\'un contrat particulier (CIVP, Karama, saisonnier). Une case vide garde le taux général, 0 exonère.', { nom: 'Taux de la paie', cle: 'regimes' });
   // (plateforme) 1.66.0
   b('[data-taux]', 'Le taux propre à CE client, à la place du taux général pour chacun de ses bulletins. Vide : le taux général.', { nom: 'Taux du client', cle: 'taux-client' });

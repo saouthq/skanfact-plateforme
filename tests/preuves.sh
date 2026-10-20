@@ -17076,19 +17076,19 @@ prouver 'la CNSS patronale d'"'"'avant 2026 livrée' 'web/public/v10/compta.js' 
   '    cnssEmployer: 17.07,       // part employeur' \
   '    cnssEmployer: 16.57,       // part employeur' \
   'chaque ligne du journal tombe au millime, par l'"'"'écran comme par le serveur, sauf les écarts d'"'"'un millime nommés'
-prouver 'une prime au jour qui ne suit pas les jours payés' 'web/public/v10/core.js' \
+prouver 'une prime au jour qui ne suit pas les jours payés' 'web/public/v10/compta.js' \
   'amount: round3(mensuel * j / t), taxable' \
   'amount: mensuel, taxable' \
   'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
-prouver 'une prime au jour tronquée au millime' 'web/public/v10/core.js' \
+prouver 'une prime au jour tronquée au millime' 'web/public/v10/compta.js' \
   'amount: round3(mensuel * j / t), taxable' \
   'amount: Math.floor(mensuel * j / t * 1000) / 1000, taxable' \
   'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
-prouver 'une prime à zéro reprise sur le bulletin' 'web/public/v10/core.js' \
+prouver 'une prime à zéro reprise sur le bulletin' 'web/public/v10/compta.js' \
   '.filter(x => x && Number(x.amount) > 0)' \
   '.filter(x => x)' \
   'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
-prouver 'des jours payés sans borne' 'web/public/v10/core.js' \
+prouver 'des jours payés sans borne' 'web/public/v10/compta.js' \
   'Math.max(0, Math.min(t, round3(p)))' \
   'round3(p)' \
   'une prime au jour suit les jours payés, arrondie au millime ; une prime fixe passe entière ; une prime vide ne compte pas'
@@ -17163,7 +17163,7 @@ prouver 'les barèmes d'"'"'avant 2026 tus dans l'"'"'onglet Bulletins' 'web/pub
   '${false ? `<div class="warn-box mb" id="p-2026">' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
 prouver 'la fiche d'"'"'un salarié qui s'"'"'élargit à la première prime' 'web/public/v10/style.css' \
-  '.modal:where(:has(#ef-primes-p, #bf-bon)) { width: 860px; }' \
+  '.modal:where(:has(#ef-primes-p, #bf-bon, #sf-primes-p)) { width: 860px; }' \
   '' \
   'les primes de chaque mois à la souris : posées sur la fiche, reprises au jour par le bulletin, et des barèmes d'"'"'avant 2026 se disent'
 prouver 'les primes d'"'"'un bulletin serrées à côté des retenues' 'web/public/v10/app.js' \
@@ -17603,6 +17603,56 @@ prouver 'la case des taux du jour refusée au client sur SkanFact' 'web/public/v
   'if (!dossier.manual || !b || !b.calcul || !b.calcul.bareme) return [];' \
   'le Cabinet montre les taux du SkanFact du client sans les changer, et chaque bulletin qu'"'"'il établit pour lui les prend'
 
+# 1.68.0 : les primes de chaque mois au Cabinet (docs/paie.md, « Les primes de chaque mois au Cabinet »).
+prouver 'la fiche du Cabinet qui perd ses primes à la lecture' 'web/public/plateforme/pont-cabinet.js' \
+  'primes: Array.isArray(e.primes) ? e.primes : [],' \
+  'primes: [],' \
+  'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
+prouver 'les primes de la fiche du Cabinet qui ne partent pas au serveur' 'web/public/plateforme/pont-cabinet.js' \
+  'primes: Array.isArray(s.primes) ? s.primes : ((avant && avant.primes) || []),' \
+  'primes: ((avant && avant.primes) || []),' \
+  'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
+prouver 'les primes de la fiche que le moteur du Cabinet jette' 'web/public/v10/compta.js' \
+  'primes: (Array.isArray(e.primes) ? e.primes : [])' \
+  'primes: ([])' \
+  'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
+prouver 'la prime de la fiche gardée imposable et au jour quoi qu'"'"'on coche' 'web/public/v10/compta.js' \
+  'taxable: p.taxable !== false, parJour: !!p.parJour' \
+  'taxable: true, parJour: true' \
+  'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
+prouver 'les cases d'"'"'une prime de la fiche sans effet' 'web/public/v10/cabinet/app.js' \
+  'if (el.type === '"'"'checkbox'"'"') p[el.dataset.fp] = el.checked;' \
+  'if (el.type === '"'"'checkbox'"'"') return;' \
+  'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
+prouver 'une prime négative gardée sur la fiche' 'web/public/v10/cabinet/app.js' \
+  'if (primeNegative) return refus(' \
+  'if (false) return refus(' \
+  'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
+prouver 'les primes de la fiche oubliées à l'"'"'enregistrement' 'web/public/v10/cabinet/app.js' \
+  'primes: primesFiche' \
+  'primes: []' \
+  'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
+prouver 'un bulletin nouveau du Cabinet sans les primes de la fiche' 'web/public/v10/cabinet/app.js' \
+  'primes: KC.primesDuMois(actifs[0] || {}, 26, 26)' \
+  'primes: []' \
+  'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
+prouver 'les primes proposées qui ne suivent pas le salarié choisi' 'web/public/v10/cabinet/app.js' \
+  'let primesTouchees = !!b;' \
+  'let primesTouchees = true;' \
+  'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
+prouver 'une prime retouchée remplacée au changement de salarié' 'web/public/v10/cabinet/app.js' \
+  'if (primesTouchees) return;' \
+  'if (false) return;' \
+  'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
+
+prouver 'la liste des salariés du Cabinet qui tait les primes de la fiche' 'web/public/v10/cabinet/app.js' \
+  '+ ${esc(money(Math.round((x.primes || []).reduce((a, p) => a + (Number(p.amount) || 0), 0) * 1000) / 1000))} de primes' \
+  '+ ${esc(money(0))} de primes' \
+  'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
+prouver 'la fiche d'"'"'un salarié au Cabinet qui s'"'"'élargit à la première prime' 'web/public/v10/style.css' \
+  '#ef-primes-p, #bf-bon, #sf-primes-p))' \
+  '#ef-primes-p, #bf-bon))' \
+  'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

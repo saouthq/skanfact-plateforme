@@ -543,12 +543,16 @@
     id: e.id, nom: e.name || '', cin: e.cin || '', cnss: e.cnss || '', identiteCnss: e.identiteCnss || '', poste: e.position || '',
     contrat: e.contract || 'cdi', embauche: e.hireDate || '', sortie: e.endDate || '', brut: Number(e.grossSalary) || 0,
     chefDeFamille: !!e.headOfFamily, enfants: Number(e.children) || 0, actif: e.active !== false, note: e.notes || '',
+    // 1.68.0 — ses primes de chaque mois (celles de l'entreprise, 1.59.0) : un bulletin nouveau les reprend.
+    primes: Array.isArray(e.primes) ? e.primes : [],
   });
   /** @param {any} s @param {any} avant */
   const employeDe = (s, avant) => ({
     method: 'virement', iban: '', ...(avant || {}), id: s.id, name: s.nom, cin: s.cin, cnss: s.cnss, identiteCnss: s.identiteCnss, position: s.poste,
     contract: s.contrat, hireDate: s.embauche, endDate: s.sortie, grossSalary: s.brut, headOfFamily: s.chefDeFamille, children: s.enfants,
     active: s.actif !== false, notes: s.note,
+    // 1.68.0 — ses primes de chaque mois, dans la forme de l'entreprise.
+    primes: Array.isArray(s.primes) ? s.primes : ((avant && avant.primes) || []),
   });
   /** @param {any} p @param {string | null} ecritureId */
   const bulletinDe = (p, ecritureId) => {

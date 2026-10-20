@@ -6307,6 +6307,27 @@
   const TRIMESTRES_PAIE = [[1, '1er trimestre', [1, 2, 3]], [2, '2e trimestre', [4, 5, 6]],
     [3, '3e trimestre', [7, 8, 9]], [4, '4e trimestre', [10, 11, 12]]];
 
+  // (plateforme) 1.59.0 — les primes de chaque mois, posées sur la fiche du salarié (`primes` : { label, amount,
+  // taxable, parJour }). Une prime « au jour » suit les jours payés : le journal de paie réel de septembre 2026 prorate
+  // ainsi la prime de présence et celle de transport, arrondies au millime. Une prime fixe passe entière. Le bulletin
+  // garde, avec le montant du mois, le montant de la fiche et les jours qui l'ont proratisé (`mensuel`, `jours`, `sur`).
+  // (plateforme) 1.68.0 — déménagé de core.js : le Cabinet en a besoin, et une copie diverge. À VÉRIFIER avec le
+  // comptable : quelles primes la convention collective proratise.
+  function primesDuMois(employee, payes, total) {
+    const t = Number(total) || 26;
+    const p = Number(payes);
+    const j = Number.isFinite(p) ? Math.max(0, Math.min(t, round3(p))) : t;
+    return ((employee && employee.primes) || [])
+      .filter(x => x && Number(x.amount) > 0)
+      .map(x => {
+        const mensuel = round3(Number(x.amount) || 0);
+        const label = String(x.label || '').trim() || 'Prime';
+        return x.parJour
+          ? { label, amount: round3(mensuel * j / t), taxable: x.taxable !== false, parJour: true, mensuel, jours: j, sur: t }
+          : { label, amount: mensuel, taxable: x.taxable !== false };
+      });
+  }
+
   // Un salarié se REFUSE tant qu'il manque ce sans quoi aucun bulletin n'est possible. Le reste —
   // CIN, numéro CNSS, poste — se complète plus tard : on ne bloque pas une paie parce qu'un numéro
   // manque, on le signale.
@@ -6334,7 +6355,11 @@
       embauche: String(e.embauche || ''), sortie: String(e.sortie || ''),
       brut: round3(Number(e.brut) || 0),
       chefDeFamille: !!e.chefDeFamille, enfants: Math.max(0, Number(e.enfants) || 0),
-      actif: e.actif !== false, note: String(e.note || '')
+      actif: e.actif !== false, note: String(e.note || ''),
+      // (plateforme) 1.68.0 — ses primes de chaque mois (celles de l'entreprise, 1.59.0) : un bulletin nouveau les
+      // reprend. Une ligne sans nom ni montant ne se garde pas.
+      primes: (Array.isArray(e.primes) ? e.primes : []).filter(p => p && (String(p.label || '').trim() || Number(p.amount) > 0))
+        .map(p => ({ label: String(p.label || '').trim() || 'Prime', amount: round3(Number(p.amount) || 0), taxable: p.taxable !== false, parJour: !!p.parJour }))
     };
   }
 
@@ -6978,6 +7003,8 @@
     bulletinsDuMois, bulletinValide, saisiePaieValide, ajouterBulletin, supprimerBulletin, masseSalariale, moisEmployeur,
     // (plateforme) 1.64.0
     baremesDuBulletin,
+    // (plateforme) 1.68.0
+    primesDuMois,
     ecritureDePaie, noterEcriturePaie, cnssDuTrimestre, controlesPaie,
     fichierCnss, fichierCnssDuLivre, lireMatriculeCnss, identiteCnss, motifIdentiteCnss, FORMAT_CNSS,
     // La pièce équilibrée et l'amortissement (9.6.1)

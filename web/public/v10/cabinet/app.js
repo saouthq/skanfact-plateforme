@@ -5924,7 +5924,9 @@
           <td class="nw">${x.cnss ? esc(x.cnss) : '<span class="warn-text small">à renseigner</span>'}</td>
           <td class="tronq" title="${esc(x.poste)}">${esc(x.poste || '—')}</td>
           <td class="nw small">${esc(KC.contractLabel(x.contrat).split(' —')[0])}</td>
-          <td class="r nw">${esc(money(x.brut))}</td>
+          <td class="r nw">${esc(money(x.brut))}${/* (plateforme) 1.68.0 — les primes de chaque mois de la fiche, comme la liste de
+            l'entreprise : celles qu'un bulletin nouveau reprendra, pour un mois entier. */''}${(x.primes || []).length
+    ? `<div class="small muted">+ ${esc(money(Math.round((x.primes || []).reduce((a, p) => a + (Number(p.amount) || 0), 0) * 1000) / 1000))} de primes</div>` : ''}</td>
           ${RowMenu.cellule('SAL:' + x.id)}</tr>`).join('')}</tbody></table></div>`
     : `<div class="empty mini">Aucun salarié déclaré. C'est par là qu'une paie commence.
         <div class="mt"><button class="btn btn-sm" id="pa-salarie2">Déclarer un salarié…</button></div></div>`}
@@ -6099,7 +6101,7 @@
       if (id.startsWith('SAL:')) {
         const x = (s.livre.salaries || []).find(y => y.id === id.slice(4));
         if (!x) return [];
-        const a = [{ icon: 'modifier', label: 'Modifier la fiche', hint: 'Nom, CNSS, poste, brut', run: () => salarieForm(root, dossier, x) }];
+        const a = [{ icon: 'modifier', label: 'Modifier la fiche', hint: 'Nom, CNSS, poste, brut, primes', run: () => salarieForm(root, dossier, x) }];
         if (x.actif) a.push({ sep: true }, { icon: 'non', label: 'Noter la sortie', danger: true,
           hint: 'Son nom reste sur les bulletins déjà établis', run: async () => {
             if (!await confirmDialog(`Noter la sortie de ${x.nom} ?`, 'Il ne sera plus proposé pour un nouveau bulletin. Son nom reste sur ceux qui existent — un bulletin remis ne se réécrit pas.', 'Noter la sortie')) return;
@@ -6296,12 +6298,42 @@
         <label class="check span-2"><input type="checkbox" name="chefDeFamille" ${e.chefDeFamille ? 'checked' : ''}> Chef de famille (déduction annuelle)</label>
         <label class="field">${lbl('Enfants à charge', 'pa.enfants')}<input name="enfants" type="number" min="0" step="1" class="num" value="${esc(String(e.enfants || 0))}"></label>
       </form>
+      ${/* (plateforme) 1.68.0 — les primes de chaque mois : posées une fois, reprises par chaque bulletin nouveau (celles de
+           l'entreprise, 1.59.0 ; celles d'un client sur SkanFact y apparaissent, et se gardent). */''}
+      <div class="panel mt" id="sf-primes-p"><h2>Primes de chaque mois (DT) ${info('pa.primesFiche')}</h2><div id="sf-primes"></div>
+        <button type="button" class="btn btn-sm mt" id="sf-plus-prime">+ Prime</button></div>
       <p class="small muted">Le numéro CNSS n'est pas nécessaire pour calculer un bulletin ; la déclaration trimestrielle le
       demande. Le chef de famille et les enfants à charge entrent dans le calcul de l'IRPP.
       <b>À VÉRIFIER</b> — les conditions et les montants dépendent de la loi de finances.</p>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button>
         <button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
     (rootModal, close) => {
+      // (plateforme) 1.68.0 — les primes de chaque mois de la fiche. Le tableau ne se redessine qu'à l'ajout ou au retrait
+      // d'une ligne : pendant la frappe, seule la donnée change (le curseur reste dans sa case, 7.17.0).
+      const primesFiche = (e.primes || []).map(p => ({ ...p }));
+      const dessinerPrimes = () => {
+        const zone = $('#sf-primes', rootModal);
+        zone.innerHTML = primesFiche.length ? `<table class="lines-edit"><tbody>${primesFiche.map((p, i) => `<tr data-i="${i}">
+            <td><input type="text" data-fp="label" value="${esc(p.label || '')}" placeholder="Prime de présence" aria-label="Prime ${i + 1} : libellé"></td>
+            <td style="width:130px"><input type="text" inputmode="decimal" class="num montant" data-fp="amount" placeholder="0,000" value="${esc(Number(p.amount) ? montantChamp(p.amount) : '')}" aria-label="Prime ${i + 1} : montant du mois (DT)"></td>
+            <td style="width:110px"><label class="check small"><input type="checkbox" data-fp="taxable" ${p.taxable !== false ? 'checked' : ''}> imposable</label></td>
+            <td style="width:110px"><label class="check small" title="Au prorata des jours payés du mois : 24 jours sur 26 en donnent les 24 vingt-sixièmes"><input type="checkbox" data-fp="parJour" ${p.parJour ? 'checked' : ''}> au jour</label></td>
+            <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-fpx="${i}" aria-label="Retirer la prime ${i + 1}" title="Retirer cette prime">✕</button></td></tr>`).join('')}</tbody></table>`
+          : '<p class="small muted">Aucune prime de chaque mois. Une prime de présence, de transport : pose-la ici une fois, chaque bulletin nouveau la reprendra.</p>';
+        $$('[data-fp]', zone).forEach(el => { el.oninput = el.onchange = () => {
+          const p = primesFiche[Number(el.closest('tr').dataset.i)];
+          if (el.type === 'checkbox') p[el.dataset.fp] = el.checked;
+          else if (el.dataset.fp === 'amount') p.amount = lireMontant(el.value);
+          else p.label = el.value;
+        }; });
+        $$('[data-fpx]', zone).forEach(bt => { bt.onclick = () => { primesFiche.splice(Number(bt.dataset.fpx), 1); dessinerPrimes(); }; });
+      };
+      $('#sf-plus-prime', rootModal).onclick = () => {
+        primesFiche.push({ label: '', amount: 0, taxable: true, parJour: true });
+        dessinerPrimes();
+        const l = $$('#sf-primes [data-fp=label]', rootModal).pop(); if (l) l.focus();
+      };
+      dessinerPrimes();
       // Ouverte pour UN champ (le numéro CNSS qu'un contrôle vient de nommer), elle y met le curseur.
       if (opts && opts.focus) { const c = $(`[name=${opts.focus}]`, rootModal); if (c) c.focus(); }
       $('#ok', rootModal).onclick = async () => {
@@ -6314,6 +6346,11 @@
           if (!iso) { refus(champ, `${quoi} : « ${t} » n'est pas une date lisible. Écris-la JJ/MM/AAAA.`); return null; }
           return iso;
         };
+        // (plateforme) 1.68.0 — un montant de prime illisible ou négatif se refuse sur sa case, avant l'enregistrement.
+        const primeIllisible = $$('#sf-primes [data-fp=amount]', rootModal).find(i => montantIllisible(i.value));
+        if (primeIllisible) return refus(primeIllisible, motifIllisible(primeIllisible.value));
+        const primeNegative = $$('#sf-primes [data-fp=amount]', rootModal).find(i => lireMontant(i.value) < 0);
+        if (primeNegative) return refus(primeNegative, 'Une prime ne peut pas être négative : une retenue se saisit sur le bulletin.');
         const embauche = dateDe('embauche', 'Date d\'embauche'); if (embauche === null) return;
         const sortie = dateDe('sortie', 'Date de sortie'); if (sortie === null) return;
         const v = {
@@ -6322,7 +6359,9 @@
           contrat: $('[name=contrat]', f).value, brut: lireMontant($('[name=brut]', f).value),
           embauche, sortie,
           chefDeFamille: $('[name=chefDeFamille]', f).checked, enfants: Number($('[name=enfants]', f).value) || 0,
-          actif: x ? x.actif : true
+          actif: x ? x.actif : true,
+          // (plateforme) 1.68.0
+          primes: primesFiche
         };
         // Ce que le fichier CNSS refuserait se refuse ICI, où l'on peut le corriger (10.14.1).
         if (String(v.cnss || '').trim() && !KC.lireMatriculeCnss(v.cnss).ok) return refus($('[name=cnss]', f), 'Le matricule CNSS s\'écrit 12345678-90 : huit chiffres au plus, puis la clé sur deux (comme sur la carte d\'assuré).');
@@ -6341,7 +6380,9 @@
     const s = livresState;
     const L = s.livre;
     const actifs = (L.salaries || []).filter(x => x.actif || (b && x.id === b.salarieId));
-    const e = b || { mois: s.paieMois, annee: s.annee, joursTravailles: 26, joursAbsence: 0, primes: [], retenues: [] };
+    // (plateforme) 1.68.0 — un bulletin nouveau part des primes de chaque mois de la fiche du salarié proposé (celles de
+    // l'entreprise, au prorata des jours payés pour une prime au jour) : sans elles, on les retapait chaque mois.
+    const e = b || { mois: s.paieMois, annee: s.annee, joursTravailles: 26, joursAbsence: 0, primes: KC.primesDuMois(actifs[0] || {}, 26, 26), retenues: [] };
     const salDefaut = b ? b.salarieId : (actifs[0] || {}).id;
     const brutDefaut = b ? b.brut : ((actifs[0] || {}).brut || 0);
     // (plateforme) 1.66.0 — dans un dossier TENU, les taux de la paie sont ceux que le Cabinet règle pour le client. Un
@@ -6389,6 +6430,8 @@
       // (plateforme) 1.63.0 — les lignes du bulletin, TOUTES, avec ce qu'elles portent (une prime d'heures
       // supplémentaires, une prime au jour : `marquesDePrime` du moteur), et le prorata d'une entrée ou d'une sortie.
       const primes = (e.primes || []).map(p => ({ ...p }));
+      // (plateforme) 1.68.0 — les primes proposées suivent le salarié choisi, tant qu'on n'y a pas touché (règle 10.6.0).
+      let primesTouchees = !!b;
       const retenues = (e.retenues || []).map(r => ({ ...r }));
       const prorata = (b && b.prorata) || null;
       const jourFr = n => String(KC.round3(Number(n) || 0)).replace('.', ',');
@@ -6403,6 +6446,7 @@
           : `<p class="small muted">${sorte === 'prime' ? 'Aucune prime ce mois-ci.' : 'Aucune retenue ce mois-ci.'}</p>`;
         $$('[data-l]', zone).forEach(el => { el.oninput = el.onchange = () => {
           const x = liste[Number(el.closest('tr').dataset.i)];
+          if (liste === primes) primesTouchees = true;
           if (el.dataset.l === 'taxable') x.taxable = el.checked;
           else if (el.dataset.l === 'label') x.label = el.value;
           else {
@@ -6412,7 +6456,7 @@
           }
           maj();
         }; });
-        $$('[data-retirer]', zone).forEach(bt => { bt.onclick = () => { liste.splice(Number(bt.dataset.retirer), 1); dessiner(sel, liste, sorte); maj(); }; });
+        $$('[data-retirer]', zone).forEach(bt => { bt.onclick = () => { if (liste === primes) primesTouchees = true; liste.splice(Number(bt.dataset.retirer), 1); dessiner(sel, liste, sorte); maj(); }; });
       };
       // Les primes au jour suivent les jours payés, comme dans l'entreprise : ceux du mois, moins ce que le contrat ne
       // couvre pas (l'entrée, la sortie), moins l'absence non payée.
@@ -6495,6 +6539,15 @@
         const sal = (L.salaries || []).find(x => x.id === choixSal.value) || {};
         $('[name=brut]', f).value = montantChamp(sal.brut);
       });
+      // (plateforme) 1.68.0 — les primes PROPOSÉES suivent le salarié choisi, comme le brut, tant qu'on n'y a pas touché ;
+      // celles « au jour » suivent ensuite les jours payés (le formulaire le refait juste après).
+      if (choixSal) choixSal.addEventListener('change', () => {
+        if (primesTouchees) return;
+        const sal = (L.salaries || []).find(x => x.id === choixSal.value) || {};
+        const ouvrables = Number($('[name=joursTravailles]', f).value) || 26;
+        primes.splice(0, primes.length, ...KC.primesDuMois(sal, ouvrables, ouvrables));
+        dessiner('#bf-primes', primes, 'prime');
+      });
       f.oninput = f.onchange = () => { suivreLesJours(); maj(); };
       dessiner('#bf-primes', primes, 'prime');
       dessiner('#bf-retenues', retenues, 'retenue');
@@ -6503,7 +6556,7 @@
         const champs = $$(`${sel} [data-l=label]`, rootModal); if (champs.length) champs[champs.length - 1].focus();
         maj();
       };
-      $('#bf-plus-prime', rootModal).onclick = () => ajouter('#bf-primes', primes, 'prime', { label: '', amount: 0, taxable: true });
+      $('#bf-plus-prime', rootModal).onclick = () => { primesTouchees = true; ajouter('#bf-primes', primes, 'prime', { label: '', amount: 0, taxable: true }); };
       $('#bf-plus-retenue', rootModal).onclick = () => ajouter('#bf-retenues', retenues, 'retenue', { label: '', amount: 0 });
       maj();
       $('#ok', rootModal).onclick = async () => {

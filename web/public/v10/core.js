@@ -4387,20 +4387,8 @@
   // pour 19,5 jours), arrondies au millime. Une prime fixe passe entière. Le bulletin garde, avec le montant
   // du mois, le montant de la fiche et les jours qui l'ont proratisé (`mensuel`, `jours`, `sur`).
   // À VÉRIFIER avec le comptable : quelles primes la convention collective proratise.
-  function primesDuMois(employee, payes, total) {
-    const t = Number(total) || 26;
-    const p = Number(payes);
-    const j = Number.isFinite(p) ? Math.max(0, Math.min(t, round3(p))) : t;
-    return ((employee && employee.primes) || [])
-      .filter(x => x && Number(x.amount) > 0)
-      .map(x => {
-        const mensuel = round3(Number(x.amount) || 0);
-        const label = String(x.label || '').trim() || 'Prime';
-        return x.parJour
-          ? { label, amount: round3(mensuel * j / t), taxable: x.taxable !== false, parJour: true, mensuel, jours: j, sur: t }
-          : { label, amount: mensuel, taxable: x.taxable !== false };
-      });
-  }
+  // (plateforme) 1.68.0 — dans le moteur commun (compta.js), que le Cabinet charge aussi : une copie diverge.
+  const primesDuMois = Compta.primesDuMois;
   // Ce qu'une fiche coûte un mois plein (la liste des salariés, la fiche, l'aide de la fenêtre) : ses primes
   // comprises, sinon le « net estimé » d'un salarié qui touche deux primes chaque mois serait faux.
   const saisieDeLaFiche = (employee, settings) => {

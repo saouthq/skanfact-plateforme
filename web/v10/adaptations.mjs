@@ -771,4 +771,6 @@ export const ADAPTATIONS = [
   ...lireFichier('paie-cabinet-taux.txt'),
   // ── Le Cabinet lit les réglages de paie du client (19/10/2026, 1.67.0 ; docs/paie.md) : ceux de son SkanFact, en lecture ──
   ...lireFichier('paie-cabinet-reglages.txt'),
+  // ── Les primes de chaque mois au Cabinet (20/10/2026, 1.68.0 ; docs/paie.md) : sur la fiche, reprises par chaque bulletin nouveau ──
+  ...lireFichier('paie-cabinet-primes.txt'),
 ];

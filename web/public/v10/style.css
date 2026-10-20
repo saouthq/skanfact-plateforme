@@ -1513,7 +1513,9 @@ table.list.pt-grille input.pt-hs { width: 64px; height: 30px; padding: 2px 8px; 
 /* (plateforme) 1.59.0 — vu à l'écran : la fenêtre passait de 580 à 860 pixels à la première ligne de prime (la règle des
    tableaux de lignes), et « + Prime » fuyait sous le curseur. Les deux fenêtres qui portent des primes sont larges d'emblée ;
    sur un bulletin, les primes et les retenues se suivent. */
-.modal:where(:has(#ef-primes-p, #bf-bon)) { width: 860px; }
+/* (plateforme) 1.68.0 — vu à l'écran : la fiche d'un salarié au Cabinet passait elle aussi de 580 à 860 pixels à la
+   première prime, et « + Prime » fuyait sous le curseur. Elle est large d'emblée, comme celle de l'entreprise. */
+.modal:where(:has(#ef-primes-p, #bf-bon, #sf-primes-p)) { width: 860px; }
 .bf-lignes { display: grid; gap: 14px; }
 .import-tableau textarea { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; line-height: 1.6; white-space: pre; overflow-x: auto; tab-size: 18; }
 .imp-source { margin-block-start: 8px; }

@@ -512,8 +512,8 @@ pont-cabinet.js` le lit et le réécrit dans la paie du dossier). Refait à la s
 
 ### Ce qui reste
 
-- Les primes de chaque mois de la fiche ne se proposent pas encore dans un **nouveau** bulletin du Cabinet (elles se
-  tapent) ; ~~le bulletin imprimé, le journal de paie et les états restent à l'entreprise~~ : au Cabinet depuis la 1.65.0
+- ~~Les primes de chaque mois de la fiche ne se proposent pas encore dans un **nouveau** bulletin du Cabinet (elles se
+  tapent)~~ : depuis la 1.68.0 (« Les primes de chaque mois au Cabinet », plus bas) ; ~~le bulletin imprimé, le journal de paie et les états restent à l'entreprise~~ : au Cabinet depuis la 1.65.0
   (« Les documents de la paie au Cabinet », plus bas).
 
 ## Un bulletin modifié au Cabinet garde son barème (19/10/2026, 1.64.0)
@@ -697,3 +697,61 @@ ou ceux qu'un comptable avait réglés dans la fiche du dossier (1.66.0) : un au
 - Les **heures supplémentaires** : les majorations du client (`hsMaj1` à `hsMaj3`) se lisent désormais, mais le Cabinet
   n'a pas de pointage (celui de l'entreprise, 1.60.0) ; un bulletin du Cabinet reprend les primes d'heures
   supplémentaires qu'on y tape.
+
+## Les primes de chaque mois au Cabinet (20/10/2026, 1.68.0)
+
+*Une prime posée une fois sur la fiche, que chaque bulletin reprend : l'entreprise l'avait depuis la 1.59.0, le Cabinet
+non.*
+
+### Le défaut
+
+L'entreprise pose sur la fiche d'un salarié ses primes de chaque mois (une prime de présence, de transport ; « au jour »
+ou fixe), et chaque bulletin nouveau les reprend, une prime au jour au prorata des jours payés (1.59.0). Au Cabinet, la
+fiche du salarié n'avait pas ces primes : un bulletin nouveau partait sans elles, et le comptable les retapait chaque
+mois, ou les oubliait. Pire, pour un client sur SkanFact, le Cabinet lisait la fiche sans ses primes : elles
+n'apparaissaient nulle part de son côté.
+
+### Ce que le lot fait (`web/v10/paie-cabinet-primes.txt`, `pont-cabinet.js`)
+
+- **Le calcul** (`primesDuMois`) passe dans le moteur commun (`compta.js`, que le Cabinet charge) ; `core.js` le reprend
+  tel quel : une seule copie, qui ne peut pas diverger (ses quatre preuves de la 1.59.0 l'ont suivi).
+- **La fiche du salarié** au Cabinet a son panneau « Primes de chaque mois (DT) » : un libellé, un montant, « imposable »,
+  « au jour » (cochée d'office, comme dans l'entreprise) ; « + Prime », « ✕ ». Un montant illisible ou négatif se refuse
+  sur sa case (« Une prime ne peut pas être négative : une retenue se saisit sur le bulletin. »). Une ligne sans libellé ni
+  montant ne se garde pas. La fenêtre est large dès l'ouverture, comme celle de l'entreprise (vu à l'écran : la première
+  prime la faisait passer de 580 à 860 pixels, et « + Prime » fuyait sous le curseur).
+- **La liste des salariés** dit, sous le brut, « + 105,500 DT de primes » (celles d'un mois entier), comme l'entreprise ;
+  le menu d'un salarié dit que sa fiche porte ses primes.
+- **Le pont** lit et écrit ces primes dans la forme de l'entreprise (`primes` : `label`, `amount`, `taxable`,
+  `parJour`) : celles d'un client sur SkanFact apparaissent sur la fiche du Cabinet, et se gardent quand il la modifie.
+- **Un bulletin nouveau** part des primes du salarié proposé ; elles suivent le salarié choisi, comme le brut, tant qu'on
+  n'y a pas touché (une prime retouchée, retirée ou ajoutée à la main reste) ; une prime au jour suit ensuite les jours
+  payés (deux jours d'absence sur 26 : 52 → 48,000). Le bulletin garde, avec chaque prime au jour, le montant de la fiche
+  et les jours qui l'ont proratisée (1.63.0).
+- **Ce qui part au serveur** : sur la fiche du salarié, le champ `primes` que l'entreprise écrit déjà (rien de nouveau
+  dans sa forme) ; compté dans `docs/cabinet.md`, brique 43.
+- L'aide (« i ») et la visite de la fiche disent ce qu'est une prime de chaque mois, et « au jour ».
+
+### Ce qui le prouve
+
+- `tests/web/cabinet-paie-primes.test.ts` : à la souris, dans un dossier tenu : une prime négative refusée sur sa case,
+  rien d'écrit ; la fiche gardée au serveur avec ses deux primes (transport au jour, panier fixe non imposable) ; un
+  bulletin nouveau qui les reprend d'office ; les primes qui suivent le salarié choisi ; deux jours d'absence qui font
+  48,000 ; le bulletin enregistré avec ses marques ; la fiche rouverte avec ses primes et ses cases ; une prime retouchée
+  qui reste au changement de salarié ; la liste qui dit « + 82,000 DT de primes » ; la fenêtre qui garde sa largeur à la
+  première prime.
+- Douze preuves (`tests/preuves.sh`, « 1.68.0 »), et cinq anciennes reprises : les quatre du calcul (1.59.0), qui le
+  suivent dans le moteur commun, et celle de la largeur de la fiche de l'entreprise.
+
+### Refait à la souris (20/10/2026)
+
+Sur le client inventé du cabinet d'essai : deux primes posées sur la fiche (présence au jour 45,500, transport fixe 60),
+relues après rechargement, et dites sous le brut ; un bulletin de novembre à trois jours d'absence qui les reprend
+(40,250 = 45,500 × 23 / 26, et 60) : brut 1 118,000, net 923,867 DT, coût employeur 1 350,768 DT, au serveur comme à
+l'aperçu.
+
+### Ce qui reste
+
+- Le **pointage** au Cabinet (celui de l'entreprise, 1.60.0) : les heures supplémentaires d'un client s'y tapent encore
+  en primes.
+- À VÉRIFIER avec le comptable : quelles primes la convention collective proratise.

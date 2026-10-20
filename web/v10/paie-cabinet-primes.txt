@@ -1,0 +1,255 @@
+Les primes de chaque mois au Cabinet (20/10/2026, 1.68.0 ; docs/paie.md, « Les primes de chaque mois au Cabinet »).
+Format : voir sans-paquets.mjs.
+
+L'entreprise pose sur la fiche d'un salarié ses primes de chaque mois (1.59.0 : une prime de présence, de transport,
+« au jour » ou fixe), et chaque bulletin nouveau les reprend, au prorata des jours payés pour une prime au jour. Au
+Cabinet, la fiche d'un salarié n'avait pas ces primes, et un bulletin nouveau partait sans elles : le comptable les
+retapait chaque mois, ou les oubliait. Le calcul (`primesDuMois`) passe dans le moteur commun (compta.js, que le Cabinet
+charge ; core.js le reprend, une seule copie) ; la fiche du salarié au Cabinet a ses « Primes de chaque mois » (celles
+du client sur SkanFact y apparaissent, et se gardent), et un bulletin nouveau les reprend, et les suit quand on change
+de salarié tant qu'on n'y a pas touché.
+
+== compta.js | le calcul des primes de chaque mois, dans le moteur commun
+-- avant
+  // Un salarié se REFUSE tant qu'il manque ce sans quoi aucun bulletin n'est possible. Le reste —
+-- après
+  // (plateforme) 1.59.0 — les primes de chaque mois, posées sur la fiche du salarié (`primes` : { label, amount,
+  // taxable, parJour }). Une prime « au jour » suit les jours payés : le journal de paie réel de septembre 2026 prorate
+  // ainsi la prime de présence et celle de transport, arrondies au millime. Une prime fixe passe entière. Le bulletin
+  // garde, avec le montant du mois, le montant de la fiche et les jours qui l'ont proratisé (`mensuel`, `jours`, `sur`).
+  // (plateforme) 1.68.0 — déménagé de core.js : le Cabinet en a besoin, et une copie diverge. À VÉRIFIER avec le
+  // comptable : quelles primes la convention collective proratise.
+  function primesDuMois(employee, payes, total) {
+    const t = Number(total) || 26;
+    const p = Number(payes);
+    const j = Number.isFinite(p) ? Math.max(0, Math.min(t, round3(p))) : t;
+    return ((employee && employee.primes) || [])
+      .filter(x => x && Number(x.amount) > 0)
+      .map(x => {
+        const mensuel = round3(Number(x.amount) || 0);
+        const label = String(x.label || '').trim() || 'Prime';
+        return x.parJour
+          ? { label, amount: round3(mensuel * j / t), taxable: x.taxable !== false, parJour: true, mensuel, jours: j, sur: t }
+          : { label, amount: mensuel, taxable: x.taxable !== false };
+      });
+  }
+
+  // Un salarié se REFUSE tant qu'il manque ce sans quoi aucun bulletin n'est possible. Le reste —
+-- fin
+
+== compta.js | la fiche d'un salarié au Cabinet garde ses primes de chaque mois
+-- avant
+      actif: e.actif !== false, note: String(e.note || '')
+    };
+-- après
+      actif: e.actif !== false, note: String(e.note || ''),
+      // (plateforme) 1.68.0 — ses primes de chaque mois (celles de l'entreprise, 1.59.0) : un bulletin nouveau les
+      // reprend. Une ligne sans nom ni montant ne se garde pas.
+      primes: (Array.isArray(e.primes) ? e.primes : []).filter(p => p && (String(p.label || '').trim() || Number(p.amount) > 0))
+        .map(p => ({ label: String(p.label || '').trim() || 'Prime', amount: round3(Number(p.amount) || 0), taxable: p.taxable !== false, parJour: !!p.parJour }))
+    };
+-- fin
+
+== compta.js | le calcul des primes de chaque mois se lit depuis l'écran du Cabinet
+-- avant
+    // (plateforme) 1.64.0
+    baremesDuBulletin,
+-- après
+    // (plateforme) 1.64.0
+    baremesDuBulletin,
+    // (plateforme) 1.68.0
+    primesDuMois,
+-- fin
+
+== core.js | le calcul des primes de chaque mois est celui du moteur commun
+-- avant
+  function primesDuMois(employee, payes, total) {
+    const t = Number(total) || 26;
+    const p = Number(payes);
+    const j = Number.isFinite(p) ? Math.max(0, Math.min(t, round3(p))) : t;
+    return ((employee && employee.primes) || [])
+      .filter(x => x && Number(x.amount) > 0)
+      .map(x => {
+        const mensuel = round3(Number(x.amount) || 0);
+        const label = String(x.label || '').trim() || 'Prime';
+        return x.parJour
+          ? { label, amount: round3(mensuel * j / t), taxable: x.taxable !== false, parJour: true, mensuel, jours: j, sur: t }
+          : { label, amount: mensuel, taxable: x.taxable !== false };
+      });
+  }
+-- après
+  // (plateforme) 1.68.0 — dans le moteur commun (compta.js), que le Cabinet charge aussi : une copie diverge.
+  const primesDuMois = Compta.primesDuMois;
+-- fin
+
+== cabinet/app.js | un bulletin nouveau part des primes de chaque mois du salarié proposé
+-- avant
+    const e = b || { mois: s.paieMois, annee: s.annee, joursTravailles: 26, joursAbsence: 0, primes: [], retenues: [] };
+-- après
+    // (plateforme) 1.68.0 — un bulletin nouveau part des primes de chaque mois de la fiche du salarié proposé (celles de
+    // l'entreprise, au prorata des jours payés pour une prime au jour) : sans elles, on les retapait chaque mois.
+    const e = b || { mois: s.paieMois, annee: s.annee, joursTravailles: 26, joursAbsence: 0, primes: KC.primesDuMois(actifs[0] || {}, 26, 26), retenues: [] };
+-- fin
+
+== cabinet/app.js | une prime retouchée à la main n'est plus « proposée »
+-- avant
+      const primes = (e.primes || []).map(p => ({ ...p }));
+-- après
+      const primes = (e.primes || []).map(p => ({ ...p }));
+      // (plateforme) 1.68.0 — les primes proposées suivent le salarié choisi, tant qu'on n'y a pas touché (règle 10.6.0).
+      let primesTouchees = !!b;
+-- fin
+
+== cabinet/app.js | une prime retouchée à la main n'est plus « proposée » (la frappe)
+-- avant
+          const x = liste[Number(el.closest('tr').dataset.i)];
+-- après
+          const x = liste[Number(el.closest('tr').dataset.i)];
+          if (liste === primes) primesTouchees = true;
+-- fin
+
+== cabinet/app.js | une prime retirée à la main n'est plus « proposée »
+-- avant
+        $$('[data-retirer]', zone).forEach(bt => { bt.onclick = () => { liste.splice(Number(bt.dataset.retirer), 1); dessiner(sel, liste, sorte); maj(); }; });
+-- après
+        $$('[data-retirer]', zone).forEach(bt => { bt.onclick = () => { if (liste === primes) primesTouchees = true; liste.splice(Number(bt.dataset.retirer), 1); dessiner(sel, liste, sorte); maj(); }; });
+-- fin
+
+== cabinet/app.js | les primes proposées suivent le salarié choisi
+-- avant
+      f.oninput = f.onchange = () => { suivreLesJours(); maj(); };
+-- après
+      // (plateforme) 1.68.0 — les primes PROPOSÉES suivent le salarié choisi, comme le brut, tant qu'on n'y a pas touché ;
+      // celles « au jour » suivent ensuite les jours payés (le formulaire le refait juste après).
+      if (choixSal) choixSal.addEventListener('change', () => {
+        if (primesTouchees) return;
+        const sal = (L.salaries || []).find(x => x.id === choixSal.value) || {};
+        const ouvrables = Number($('[name=joursTravailles]', f).value) || 26;
+        primes.splice(0, primes.length, ...KC.primesDuMois(sal, ouvrables, ouvrables));
+        dessiner('#bf-primes', primes, 'prime');
+      });
+      f.oninput = f.onchange = () => { suivreLesJours(); maj(); };
+-- fin
+
+== cabinet/app.js | une prime ajoutée à la main : les primes ne sont plus « proposées »
+-- avant
+      $('#bf-plus-prime', rootModal).onclick = () => ajouter('#bf-primes', primes, 'prime', { label: '', amount: 0, taxable: true });
+-- après
+      $('#bf-plus-prime', rootModal).onclick = () => { primesTouchees = true; ajouter('#bf-primes', primes, 'prime', { label: '', amount: 0, taxable: true }); };
+-- fin
+
+== cabinet/app.js | la fiche d'un salarié au Cabinet a ses primes de chaque mois
+-- avant
+      </form>
+      <p class="small muted">Le numéro CNSS n'est pas nécessaire pour calculer un bulletin ; la déclaration trimestrielle le
+-- après
+      </form>
+      ${/* (plateforme) 1.68.0 — les primes de chaque mois : posées une fois, reprises par chaque bulletin nouveau (celles de
+           l'entreprise, 1.59.0 ; celles d'un client sur SkanFact y apparaissent, et se gardent). */''}
+      <div class="panel mt" id="sf-primes-p"><h2>Primes de chaque mois (DT) ${info('pa.primesFiche')}</h2><div id="sf-primes"></div>
+        <button type="button" class="btn btn-sm mt" id="sf-plus-prime">+ Prime</button></div>
+      <p class="small muted">Le numéro CNSS n'est pas nécessaire pour calculer un bulletin ; la déclaration trimestrielle le
+-- fin
+
+== cabinet/app.js | les lignes des primes de la fiche, à la frappe
+-- avant
+      // Ouverte pour UN champ (le numéro CNSS qu'un contrôle vient de nommer), elle y met le curseur.
+      if (opts && opts.focus) { const c = $(`[name=${opts.focus}]`, rootModal); if (c) c.focus(); }
+-- après
+      // (plateforme) 1.68.0 — les primes de chaque mois de la fiche. Le tableau ne se redessine qu'à l'ajout ou au retrait
+      // d'une ligne : pendant la frappe, seule la donnée change (le curseur reste dans sa case, 7.17.0).
+      const primesFiche = (e.primes || []).map(p => ({ ...p }));
+      const dessinerPrimes = () => {
+        const zone = $('#sf-primes', rootModal);
+        zone.innerHTML = primesFiche.length ? `<table class="lines-edit"><tbody>${primesFiche.map((p, i) => `<tr data-i="${i}">
+            <td><input type="text" data-fp="label" value="${esc(p.label || '')}" placeholder="Prime de présence" aria-label="Prime ${i + 1} : libellé"></td>
+            <td style="width:130px"><input type="text" inputmode="decimal" class="num montant" data-fp="amount" placeholder="0,000" value="${esc(Number(p.amount) ? montantChamp(p.amount) : '')}" aria-label="Prime ${i + 1} : montant du mois (DT)"></td>
+            <td style="width:110px"><label class="check small"><input type="checkbox" data-fp="taxable" ${p.taxable !== false ? 'checked' : ''}> imposable</label></td>
+            <td style="width:110px"><label class="check small" title="Au prorata des jours payés du mois : 24 jours sur 26 en donnent les 24 vingt-sixièmes"><input type="checkbox" data-fp="parJour" ${p.parJour ? 'checked' : ''}> au jour</label></td>
+            <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-fpx="${i}" aria-label="Retirer la prime ${i + 1}" title="Retirer cette prime">✕</button></td></tr>`).join('')}</tbody></table>`
+          : '<p class="small muted">Aucune prime de chaque mois. Une prime de présence, de transport : pose-la ici une fois, chaque bulletin nouveau la reprendra.</p>';
+        $$('[data-fp]', zone).forEach(el => { el.oninput = el.onchange = () => {
+          const p = primesFiche[Number(el.closest('tr').dataset.i)];
+          if (el.type === 'checkbox') p[el.dataset.fp] = el.checked;
+          else if (el.dataset.fp === 'amount') p.amount = lireMontant(el.value);
+          else p.label = el.value;
+        }; });
+        $$('[data-fpx]', zone).forEach(bt => { bt.onclick = () => { primesFiche.splice(Number(bt.dataset.fpx), 1); dessinerPrimes(); }; });
+      };
+      $('#sf-plus-prime', rootModal).onclick = () => {
+        primesFiche.push({ label: '', amount: 0, taxable: true, parJour: true });
+        dessinerPrimes();
+        const l = $$('#sf-primes [data-fp=label]', rootModal).pop(); if (l) l.focus();
+      };
+      dessinerPrimes();
+      // Ouverte pour UN champ (le numéro CNSS qu'un contrôle vient de nommer), elle y met le curseur.
+      if (opts && opts.focus) { const c = $(`[name=${opts.focus}]`, rootModal); if (c) c.focus(); }
+-- fin
+
+== cabinet/app.js | une prime illisible ou négative se refuse sur sa case ; les primes partent avec la fiche
+-- avant
+        const embauche = dateDe('embauche', 'Date d\'embauche'); if (embauche === null) return;
+-- après
+        // (plateforme) 1.68.0 — un montant de prime illisible ou négatif se refuse sur sa case, avant l'enregistrement.
+        const primeIllisible = $$('#sf-primes [data-fp=amount]', rootModal).find(i => montantIllisible(i.value));
+        if (primeIllisible) return refus(primeIllisible, motifIllisible(primeIllisible.value));
+        const primeNegative = $$('#sf-primes [data-fp=amount]', rootModal).find(i => lireMontant(i.value) < 0);
+        if (primeNegative) return refus(primeNegative, 'Une prime ne peut pas être négative : une retenue se saisit sur le bulletin.');
+        const embauche = dateDe('embauche', 'Date d\'embauche'); if (embauche === null) return;
+-- fin
+
+== cabinet/app.js | les primes de la fiche partent avec elle
+-- avant
+          actif: x ? x.actif : true
+        };
+-- après
+          actif: x ? x.actif : true,
+          // (plateforme) 1.68.0
+          primes: primesFiche
+        };
+-- fin
+
+== cabinet/cabguide.js | l'aide des primes de chaque mois
+-- avant
+    'pa.regimes': { a: 'paie', t: 'Les taux de la paie',
+-- après
+    // (plateforme) 1.68.0
+    'pa.primesFiche': { a: 'paie', t: 'Les primes de chaque mois', d: 'Les primes que ce salarié touche chaque mois : une prime de présence, de transport. Posées une fois sur sa fiche, chaque bulletin nouveau les reprend. « Au jour » : au prorata des jours payés du mois (24 jours sur 26 en donnent les 24 vingt-sixièmes) ; sinon, entière. Le bulletin garde la sienne, qu\'on peut encore changer. À VÉRIFIER avec la convention collective : quelles primes se proratisent.' },
+    'pa.regimes': { a: 'paie', t: 'Les taux de la paie',
+-- fin
+
+== cabinet/cabvisites.js | la visite explique les primes de la fiche
+-- avant
+  b('#pa-salarie, #pa-salarie2', 'Déclare un salarié : son contrat, son salaire, son numéro CNSS.', { nom: 'Salarié', cle: 'salarie' });
+-- après
+  b('#pa-salarie, #pa-salarie2', 'Déclare un salarié : son contrat, son salaire, son numéro CNSS.', { nom: 'Salarié', cle: 'salarie' });
+  // (plateforme) 1.68.0
+  b('#sf-plus-prime', 'Pose une prime que ce salarié touche chaque mois : chaque bulletin nouveau la reprendra.', { nom: 'Prime de chaque mois', cle: 'prime-fiche' });
+-- fin
+
+== cabinet/app.js | le menu d'un salarié dit que sa fiche porte ses primes
+-- avant
+        const a = [{ icon: 'modifier', label: 'Modifier la fiche', hint: 'Nom, CNSS, poste, brut', run: () => salarieForm(root, dossier, x) }];
+-- après
+        const a = [{ icon: 'modifier', label: 'Modifier la fiche', hint: 'Nom, CNSS, poste, brut, primes', run: () => salarieForm(root, dossier, x) }];
+-- fin
+
+== style.css | la fiche d'un salarié au Cabinet est large dès l'ouverture : la première prime ne l'élargit pas sous le curseur
+-- avant
+.modal:where(:has(#ef-primes-p, #bf-bon)) { width: 860px; }
+-- après
+/* (plateforme) 1.68.0 — vu à l'écran : la fiche d'un salarié au Cabinet passait elle aussi de 580 à 860 pixels à la
+   première prime, et « + Prime » fuyait sous le curseur. Elle est large d'emblée, comme celle de l'entreprise. */
+.modal:where(:has(#ef-primes-p, #bf-bon, #sf-primes-p)) { width: 860px; }
+-- fin
+
+== cabinet/app.js | la liste des salariés dit, sous le brut, les primes de chaque mois de la fiche (comme l'entreprise)
+-- avant
+          <td class="r nw">${esc(money(x.brut))}</td>
+          ${RowMenu.cellule('SAL:' + x.id)}</tr>`).join('')}</tbody></table></div>`
+-- après
+          <td class="r nw">${esc(money(x.brut))}${/* (plateforme) 1.68.0 — les primes de chaque mois de la fiche, comme la liste de
+            l'entreprise : celles qu'un bulletin nouveau reprendra, pour un mois entier. */''}${(x.primes || []).length
+    ? `<div class="small muted">+ ${esc(money(Math.round((x.primes || []).reduce((a, p) => a + (Number(p.amount) || 0), 0) * 1000) / 1000))} de primes</div>` : ''}</td>
+          ${RowMenu.cellule('SAL:' + x.id)}</tr>`).join('')}</tbody></table></div>`
+-- fin
