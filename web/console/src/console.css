@@ -398,7 +398,9 @@ a.c-tuile:hover { border-color: rgba(127, 224, 211, .5); background: rgba(127, 2
 }
 .c-avatar-nuit { background: var(--c-menthe); color: var(--c-nuit); }
 .c-liste-pied { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 24px; border-top: 1px solid var(--c-trait); color: var(--c-gris); font-size: 14px; flex-wrap: wrap; }
-.c-liste-pied-boutons { display: flex; gap: 8px; }
+/* 1.70.0 — les boutons d'une barre de pages passent à la ligne quand la place manque : sur la colonne des demandes closes
+   du Support (298 points), « Plus récentes » et « Plus anciennes » en langue factice débordaient de 147 points. */
+.c-liste-pied-boutons { display: flex; gap: 8px; flex-wrap: wrap; }
 .c-liste-carte { padding: 0; overflow: hidden; }
 .c-liste-outils { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; padding: 16px 24px 12px; }
 .c-liste-outils .c-pilules { padding: 0; }

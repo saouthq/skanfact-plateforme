@@ -981,7 +981,10 @@ délégation le 15/10/2026 — Skander : « faut faire tout ce qui manque »).
   de l'application, se ferment ; il repart de zéro, le code compris). La personne reste dans l'équipe. La liste des
   membres dit aussi ses codes de secours qui restent, ses appareils reconnus et ses gestes des trente jours.
 - **Les demandes closes du support se lisent par pages de cinquante**, toutes comptées (« 51 à 100 sur 340 ») ; plus de
-  limite à cent.
+  limite à cent. (20/10/2026, vu rouge à la vérification d'envoi de la 1.70.0) Les boutons d'une barre de pages passent à
+  la ligne quand la place manque : sur la colonne des closes (298 points), ils débordaient de 147 points en langue
+  factice ; l'essai de l'instrument ne le voyait que lorsque la suite entière closait assez de demandes pour faire paraître
+  la barre. Il en clôt désormais cinquante et une lui-même.
 - **Le journal, exploitable** (la maquette Journal) : quatre chiffres sur trente jours — les gestes de l'équipe, ceux
   **réservés à la direction** (un geste dont le geste de la console n'est ouvert qu'à elle, lu dans la liste des gestes,
   jamais recopié), les accès aux dossiers ouverts en ce moment, ce que **le système a fait seul** (les relances parties,

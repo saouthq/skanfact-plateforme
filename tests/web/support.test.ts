@@ -541,11 +541,13 @@ describe('le support, à la souris, des deux côtés', () => {
   }, 120_000);
 
   it('l\'instrument ne trouve rien : la page Support de la console, sa fenêtre et ses demandes closes ; la page des demandes du client', async () => {
-    // Une demande close, pour que la vue des closes ait de quoi se montrer ; et douze de plus, pour que l'instrument mesure
-    // aussi une liste qui défile (la suite entière en clôt d'autres, et la colonne de 300 points porte alors sa barre).
+    // Une demande close, pour que la vue des closes ait de quoi se montrer ; et cinquante de plus, pour que l'instrument mesure
+    // aussi une liste qui défile (la colonne de 300 points porte alors sa barre) et la barre de ses pages (cinquante closes
+    // par page). Douze ne la faisaient paraître que quand la suite entière en closait d'autres : ses boutons débordaient
+    // alors, en langue factice, sans que ce test, lancé seul, le voie jamais (20/10/2026).
     const close = String((await api('POST', `/entreprises/${ent}/support`, jClient, { sujet: 'Le logo flou sur le devis', texte: 'Le logo est flou sur le devis imprimé.', version: '1.3.0', page: 'devis' })).corps.id);
     expect((await api('POST', `/entreprises/${ent}/support/${close}/reglee`, jClient)).statut).toBeLessThan(300);
-    for (let i = 1; i <= 12; i++) {
+    for (let i = 1; i <= 50; i++) {
       const id = String((await api('POST', `/entreprises/${ent}/support`, jClient, { sujet: `Une question réglée n° ${i}`, texte: 'Réglée le jour même.', version: '1.3.0', page: 'devis' })).corps.id);
       expect((await api('POST', `/entreprises/${ent}/support/${id}/reglee`, jClient)).statut).toBeLessThan(300);
     }

@@ -17885,6 +17885,12 @@ prouver 'l'"'"'annonce muette sur une absence hors du contrat' 'web/public/v10/c
   'a.innerHTML = false ? '"'"''"'"'' \
   'un dossier tenu : le solde de chacun, un congé saisi qui se pose sur le pointage, corrigé, supprimé ; le droit annuel'
 
+# 1.70.0 (fin) : vu rouge à la vérification d'envoi — la barre de pages d'une liste de la console qui ne passe pas à la ligne.
+prouver 'les boutons d'"'"'une barre de pages qui débordent de la colonne' 'web/console/src/console.css' \
+  '.c-liste-pied-boutons { display: flex; gap: 8px; flex-wrap: wrap; }' \
+  '.c-liste-pied-boutons { display: flex; gap: 8px; }' \
+  'l'"'"'instrument ne trouve rien : la page Support de la console, sa fenêtre et ses demandes closes ; la page des demandes du client'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
