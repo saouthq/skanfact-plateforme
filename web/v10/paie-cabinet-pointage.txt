@@ -1,0 +1,760 @@
+Le pointage au Cabinet (20/10/2026, 1.69.0 ; docs/paie.md, « Le pointage au Cabinet »).
+Format : voir sans-paquets.mjs.
+
+L'entreprise pointe ses salariés depuis la 1.60.0 (une case par salarié et par jour, les heures supplémentaires du mois),
+et un bulletin établi ensuite reprend ses absences non payées et ses heures supplémentaires. Le Cabinet tient la paie de
+ses clients bulletin par bulletin : il n'avait pas de pointage. Le moteur du pointage passe dans le moteur commun
+(compta.js, que le Cabinet charge ; core.js le reprend, une seule copie), avec les jours du calendrier et les natures de
+congé qu'il compte ; le Cabinet a sa grille du mois, et un bulletin nouveau suit le pointage, comme dans l'entreprise.
+
+== compta.js | les jours du calendrier, l'identifiant d'un objet et les natures de congé, dans le moteur commun
+-- avant
+  // Un salarié se REFUSE tant qu'il manque ce sans quoi aucun bulletin n'est possible. Le reste —
+-- après
+  // (plateforme) 1.69.0 — pour le pointage, que le Cabinet tient aussi : les natures de congé (5.1.0) et celles qui sont
+  // payées (core.js les reprend : une seule liste), le nombre de jours d'un mois (en UTC pur, règle 5.2.3) et
+  // l'identifiant d'un objet du dossier (core.js garde les siens, deux lignes chacun : des essais le chargent sans le
+  // moteur commun).
+  function daysInMonth(year, month) { return new Date(Date.UTC(year, month, 0)).getUTCDate(); }   // month 1-12
+  function uid() {
+    return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  }
+  const LEAVE_KINDS = [
+    ['conges', 'Congé payé', true],
+    ['maladie', 'Arrêt maladie', true],
+    ['maternite', 'Congé de maternité', true],
+    ['autorisation', 'Autorisation d\'absence', true],
+    ['sans-solde', 'Absence sans solde', false],
+    ['abandon', 'Absence injustifiée', false]
+  ];
+  const leaveIsPaid = k => { const f = LEAVE_KINDS.find(x => x[0] === k); return f ? f[2] : true; };
+
+  // ---------- le pointage (plateforme, 1.60.0) ----------
+  // (plateforme) 1.69.0 — déménagé de core.js dans le moteur commun : le Cabinet pointe aussi les salariés d'un dossier,
+  // et une copie diverge. L'exception à la règle de ce fichier (une fonction qui prend `data` reste dans core.js) : ces
+  // fonctions ne lisent de `data` que la paie (`employees`, `leaves`, `timesheets`, `payrollSettings`), que l'entreprise y
+  // tient et que le Cabinet compose dans la même forme. core.js les reprend telles quelles.
+  // Une case par salarié et par jour. Les codes : P présent, D demi-journée (la moitié non payée), A absent non payé,
+  // C congé payé, M maladie, F férié, R repos ; « - » hors contrat (avant l'entrée, après la sortie), qui ne se pointe
+  // pas. Une maladie et un férié sont payés, comme les congés de la v10 (`leaveIsPaid`). À VÉRIFIER avec le comptable.
+  const CODES_POINTAGE = [['P', 'Présent'], ['D', 'Demi-journée'], ['A', 'Absent, non payé'], ['C', 'Congé payé'],
+    ['M', 'Maladie'], ['F', 'Jour férié'], ['R', 'Repos']];
+  // Un jour de repos de la semaine se pointe « Repos », ou « Présent » s'il a été travaillé (ses heures se paient en
+  // heures supplémentaires) : il n'est ni payé ni retiré du mois complet.
+  const CODES_REPOS = ['R', 'P'];
+  const libellePointage = code => code === '-' ? 'Hors contrat' : (CODES_POINTAGE.find(x => x[0] === code) || [, code])[1];
+  const pointageEnregistre = (data, employeeId, year, month) => (data.timesheets || [])
+    .find(t => t.employeeId === employeeId && Number(t.year) === Number(year) && Number(t.month) === Number(month)) || null;
+  // La grille d'un mois : ce qui a été pointé à la main, sinon le congé ou l'absence saisis, sinon le calendrier (le
+  // repos de la semaine des barèmes). Les jours payés suivent la règle du bulletin : le mois complet des barèmes (26),
+  // moins les jours ouvrables hors contrat, moins les absences non payées.
+  function pointageDuMois(data, employee, year, month) {
+    const s = baremesPaie((data && data.payrollSettings) || {});
+    const off = Array.isArray(s.offDays) ? s.offDays : [0];
+    const total = Number(s.workedDays) || 26;
+    const premier = `${year}-${String(month).padStart(2, '0')}-01`;
+    const t = pointageEnregistre(data, employee.id, year, month);
+    const conges = (data.leaves || []).filter(l => l.employeeId === employee.id);
+    const jours = [];
+    for (let d = 1; d <= daysInMonth(year, month); d++) {
+      const iso = ajouterJoursIso(premier, d - 1);
+      const wd = new Date(iso + 'T00:00:00Z').getUTCDay();
+      let code = off.includes(wd) ? 'R' : 'P', source = 'calendrier';
+      if ((employee.hireDate && iso < employee.hireDate) || (employee.endDate && iso > employee.endDate)) code = '-';
+      else {
+        const l = code === 'P' ? conges.find(x => x.from <= iso && iso <= x.to) : null;
+        if (l) { code = !(l.paid != null ? l.paid : leaveIsPaid(l.kind)) ? 'A' : l.kind === 'maladie' ? 'M' : 'C'; source = 'conge'; }
+        const o = t && t.jours ? t.jours[String(d)] : null;
+        if (o && CODES_POINTAGE.some(x => x[0] === o)) { code = o; source = 'pointe'; }
+      }
+      jours.push({ jour: d, iso, wd, code, source, repos: off.includes(wd) });
+    }
+    // Une absence ne se compte que sur un jour ouvrable : le repos de la semaine n'est pas payé en plus, il ne se retire
+    // pas non plus (poserPointage n'y pose que « Repos » ou « Présent »).
+    const absences = round3(jours.reduce((a, j) => a + (j.repos ? 0 : j.code === 'A' ? 1 : j.code === 'D' ? 0.5 : 0), 0));
+    const hors = Math.min(total, jours.filter(j => j.code === '-' && !off.includes(j.wd)).length);
+    const payes = round3(Math.max(0, total - hors - absences));
+    const hs = {};
+    Object.keys((t && t.hs) || {}).forEach(k => { const h = round3(Number(t.hs[k]) || 0); if (h > 0) hs[k] = h; });
+    return { jours, absences, payes, total, hs, pointe: !!t };
+  }
+  // Poser le code d'un jour : seul ce qui diffère de ce que le calendrier et les congés donneraient se garde. Un jour hors
+  // contrat, ou un code qu'un jour de repos ne prend pas, se refuse sans rien écrire.
+  function poserPointage(data, employee, year, month, jour, code) {
+    if (!CODES_POINTAGE.some(x => x[0] === code)) return false;
+    let t = pointageEnregistre(data, employee.id, year, month);
+    const garde = t && t.jours ? t.jours[String(jour)] : undefined;
+    if (garde !== undefined) delete t.jours[String(jour)];
+    const naturel = pointageDuMois(data, employee, year, month).jours.find(j => j.jour === Number(jour));
+    if (!naturel || naturel.code === '-' || (naturel.repos && !CODES_REPOS.includes(code))) {
+      if (garde !== undefined) t.jours[String(jour)] = garde;
+      return false;
+    }
+    if (!t) {
+      if (!Array.isArray(data.timesheets)) data.timesheets = [];
+      t = { id: uid(), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
+      data.timesheets.push(t);
+    }
+    t.jours = t.jours || {};
+    if (naturel.code !== code) t.jours[String(jour)] = code;
+    return true;
+  }
+  // Les heures supplémentaires du mois, par majoration (en %).
+  function poserHeuresSup(data, employee, year, month, majoration, heures) {
+    let t = pointageEnregistre(data, employee.id, year, month);
+    if (!t) {
+      if (!Array.isArray(data.timesheets)) data.timesheets = [];
+      t = { id: uid(), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
+      data.timesheets.push(t);
+    }
+    t.hs = t.hs || {};
+    const h = round3(Number(heures) || 0);
+    if (h > 0) t.hs[String(majoration)] = h; else delete t.hs[String(majoration)];
+    return true;
+  }
+  const majorationsHs = s => [s && s.hsMaj1, s && s.hsMaj2, s && s.hsMaj3].map(Number).filter(x => x > 0);
+  // Une prime imposable par majoration : le brut de la fiche divisé par les heures d'un mois complet, majoré.
+  function heuresSupDuMois(data, employee, year, month) {
+    const s = baremesPaie((data && data.payrollSettings) || {});
+    const t = pointageEnregistre(data, employee.id, year, month);
+    const heuresMois = Number(s.heuresMois) || 0;
+    if (!t || !t.hs || !(heuresMois > 0)) return [];
+    const brut = round3(Number(employee.grossSalary) || 0);
+    const pct = n => String(n).replace('.', ',');
+    return majorationsHs(s).filter(x => Number(t.hs[String(x)]) > 0).map(x => {
+      const h = round3(Number(t.hs[String(x)]));
+      return { label: `Heures supplémentaires : ${pct(h)} h à +${pct(x)} %`, amount: round3(brut * h * (100 + x) / 100 / heuresMois), taxable: true, hs: x, heures: h };
+    }).filter(b => b.amount > 0);
+  }
+  // Ce que le pointage change à une saisie de bulletin : les absences non payées, les primes au jour (sur les jours
+  // payés), les heures supplémentaires (celles d'avant s'en vont). Le reste de la saisie ne bouge pas.
+  function reprisePointage(i, p, hs) {
+    const total = Number(i.workedDays) || 26;
+    const hors = i.prorata ? Math.max(0, Number(i.prorata.sur) - Number(i.prorata.jours)) : 0;
+    const absentDays = p.absences;
+    const j = Math.max(0, Math.min(total, round3(total - hors - absentDays)));
+    const bonuses = (i.bonuses || []).filter(b => !b.hs)
+      .map(b => b.parJour ? { ...b, amount: round3(Number(b.mensuel) * j / total), jours: j, sur: total } : b)
+      .concat(hs);
+    return { absentDays, bonuses };
+  }
+  // Un bulletin établi qui ne suit plus le pointage de son mois : ce qu'il deviendrait. `null` sans pointage.
+  function pointageSurBulletin(data, slip) {
+    const e = (data.employees || []).find(x => x.id === slip.employeeId);
+    if (!e || !pointageEnregistre(data, e.id, slip.year, slip.month)) return null;
+    const r = reprisePointage(slip, pointageDuMois(data, e, slip.year, slip.month), heuresSupDuMois(data, e, slip.year, slip.month));
+    const empreinte = l => JSON.stringify((l || []).map(b => [b.label, round3(Number(b.amount) || 0)]));
+    const avant = round3(Number(slip.absentDays) || 0);
+    // Ce qui diffère, pour le dire : les absences, les heures supplémentaires (les primes au jour suivent les absences).
+    const absences = avant !== r.absentDays;
+    const heures = empreinte((slip.bonuses || []).filter(b => b.hs)) !== empreinte(r.bonuses.filter(b => b.hs));
+    const change = absences || empreinte(slip.bonuses) !== empreinte(r.bonuses);
+    return { ...r, change, avant, absences, heures };
+  }
+
+  // (plateforme) 1.69.0 — la saisie d'un bulletin NOUVEAU, lue sur la grille du mois du salarié : son entrée ou sa sortie
+  // (le brut proratisé sur les jours ouvrables hors contrat, 10.12.0), ses absences non payées (ses congés, ou son
+  // pointage), ses primes de chaque mois (au jour sur les jours payés, 1.59.0) et, le mois pointé, ses heures
+  // supplémentaires. C'est la saisie de l'entreprise (core.js, `payslipInputFor`), sans les avances, que le Cabinet ne
+  // lit pas : un essai compare les deux (deux chemins, un chiffre).
+  function saisieDuMois(data, employee, year, month) {
+    const p = pointageDuMois(data, employee, year, month);
+    const total = p.total;
+    const hors = Math.min(total, p.jours.filter(j => j.code === '-' && !j.repos).length);
+    const premier = `${year}-${String(month).padStart(2, '0')}-01`;
+    const dernier = ajouterJoursIso(premier, daysInMonth(year, month) - 1);
+    const jjmmaaaa = iso => String(iso).split('-').reverse().join('/');
+    const motifs = [];
+    if (employee.hireDate && employee.hireDate > premier && employee.hireDate <= dernier) motifs.push(`entrée le ${jjmmaaaa(employee.hireDate)}`);
+    if (employee.endDate && employee.endDate >= premier && employee.endDate < dernier) motifs.push(`sortie le ${jjmmaaaa(employee.endDate)}`);
+    const brutFiche = round3(Number(employee.grossSalary) || 0);
+    const gross = hors ? round3(brutFiche * (total - hors) / total) : employee.grossSalary;
+    const prorata = hors ? { jours: round3(total - hors), sur: total, motif: motifs.join(', '), brutFiche, brut: gross } : null;
+    const i = { gross, workedDays: total, absentDays: p.absences, bonuses: primesDuMois(employee, total - hors - p.absences, total), prorata };
+    return p.pointe ? { ...i, ...reprisePointage(i, p, heuresSupDuMois(data, employee, year, month)) } : i;
+  }
+
+  // Un salarié se REFUSE tant qu'il manque ce sans quoi aucun bulletin n'est possible. Le reste —
+-- fin
+
+== compta.js | le pointage se lit hors du moteur commun
+-- avant
+    // (plateforme) 1.68.0
+    primesDuMois,
+-- après
+    // (plateforme) 1.68.0
+    primesDuMois,
+    // (plateforme) 1.69.0 — le pointage, et ce qu'il compte.
+    LEAVE_KINDS, leaveIsPaid,
+    CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup, majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin,
+    saisieDuMois,
+-- fin
+
+== core.js | les natures de congé viennent du moteur commun
+-- avant
+  const LEAVE_KINDS = [
+    ['conges', 'Congé payé', true],
+    ['maladie', 'Arrêt maladie', true],
+    ['maternite', 'Congé de maternité', true],
+    ['autorisation', 'Autorisation d\'absence', true],
+    ['sans-solde', 'Absence sans solde', false],
+    ['abandon', 'Absence injustifiée', false]
+  ];
+  const leaveKindLabel = k => (LEAVE_KINDS.find(x => x[0] === k) || [, k])[1];
+  const leaveIsPaid = k => { const f = LEAVE_KINDS.find(x => x[0] === k); return f ? f[2] : true; };
+-- après
+  // (plateforme) 1.69.0 — dans le moteur commun (compta.js), que le pointage du Cabinet lit aussi : une seule copie.
+  const LEAVE_KINDS = Compta.LEAVE_KINDS;
+  const leaveKindLabel = k => (LEAVE_KINDS.find(x => x[0] === k) || [, k])[1];
+  const leaveIsPaid = Compta.leaveIsPaid;
+-- fin
+
+== core.js | le pointage d'un mois vient du moteur commun
+-- avant
+  // ---------- le pointage (plateforme, 1.60.0) ----------
+  // Une case par salarié et par jour. Les codes : P présent, D demi-journée (la moitié non payée), A absent non payé,
+  // C congé payé, M maladie, F férié, R repos ; « - » hors contrat (avant l'entrée, après la sortie), qui ne se pointe
+  // pas. Une maladie et un férié sont payés, comme les congés de la v10 (`leaveIsPaid`). À VÉRIFIER avec le comptable.
+  const CODES_POINTAGE = [['P', 'Présent'], ['D', 'Demi-journée'], ['A', 'Absent, non payé'], ['C', 'Congé payé'],
+    ['M', 'Maladie'], ['F', 'Jour férié'], ['R', 'Repos']];
+  // Un jour de repos de la semaine se pointe « Repos », ou « Présent » s'il a été travaillé (ses heures se paient en
+  // heures supplémentaires) : il n'est ni payé ni retiré du mois complet.
+  const CODES_REPOS = ['R', 'P'];
+  const libellePointage = code => code === '-' ? 'Hors contrat' : (CODES_POINTAGE.find(x => x[0] === code) || [, code])[1];
+  const pointageEnregistre = (data, employeeId, year, month) => (data.timesheets || [])
+    .find(t => t.employeeId === employeeId && Number(t.year) === Number(year) && Number(t.month) === Number(month)) || null;
+  // La grille d'un mois : ce qui a été pointé à la main, sinon le congé ou l'absence saisis, sinon le calendrier (le
+  // repos de la semaine des barèmes). Les jours payés suivent la règle du bulletin : le mois complet des barèmes (26),
+  // moins les jours ouvrables hors contrat, moins les absences non payées.
+  function pointageDuMois(data, employee, year, month) {
+    const s = payrollSettings(data);
+    const off = Array.isArray(s.offDays) ? s.offDays : [0];
+    const total = Number(s.workedDays) || 26;
+    const premier = `${year}-${String(month).padStart(2, '0')}-01`;
+    const t = pointageEnregistre(data, employee.id, year, month);
+    const conges = (data.leaves || []).filter(l => l.employeeId === employee.id);
+    const jours = [];
+    for (let d = 1; d <= daysInMonth(year, month); d++) {
+      const iso = addDays(premier, d - 1);
+      const wd = new Date(iso + 'T00:00:00Z').getUTCDay();
+      let code = off.includes(wd) ? 'R' : 'P', source = 'calendrier';
+      if ((employee.hireDate && iso < employee.hireDate) || (employee.endDate && iso > employee.endDate)) code = '-';
+      else {
+        const l = code === 'P' ? conges.find(x => x.from <= iso && iso <= x.to) : null;
+        if (l) { code = !(l.paid != null ? l.paid : leaveIsPaid(l.kind)) ? 'A' : l.kind === 'maladie' ? 'M' : 'C'; source = 'conge'; }
+        const o = t && t.jours ? t.jours[String(d)] : null;
+        if (o && CODES_POINTAGE.some(x => x[0] === o)) { code = o; source = 'pointe'; }
+      }
+      jours.push({ jour: d, iso, wd, code, source, repos: off.includes(wd) });
+    }
+    // Une absence ne se compte que sur un jour ouvrable : le repos de la semaine n'est pas payé en plus, il ne se retire
+    // pas non plus (poserPointage n'y pose que « Repos » ou « Présent »).
+    const absences = round3(jours.reduce((a, j) => a + (j.repos ? 0 : j.code === 'A' ? 1 : j.code === 'D' ? 0.5 : 0), 0));
+    const hors = Math.min(total, jours.filter(j => j.code === '-' && !off.includes(j.wd)).length);
+    const payes = round3(Math.max(0, total - hors - absences));
+    const hs = {};
+    Object.keys((t && t.hs) || {}).forEach(k => { const h = round3(Number(t.hs[k]) || 0); if (h > 0) hs[k] = h; });
+    return { jours, absences, payes, total, hs, pointe: !!t };
+  }
+  // Poser le code d'un jour : seul ce qui diffère de ce que le calendrier et les congés donneraient se garde. Un jour hors
+  // contrat, ou un code qu'un jour de repos ne prend pas, se refuse sans rien écrire.
+  function poserPointage(data, employee, year, month, jour, code) {
+    if (!CODES_POINTAGE.some(x => x[0] === code)) return false;
+    let t = pointageEnregistre(data, employee.id, year, month);
+    const garde = t && t.jours ? t.jours[String(jour)] : undefined;
+    if (garde !== undefined) delete t.jours[String(jour)];
+    const naturel = pointageDuMois(data, employee, year, month).jours.find(j => j.jour === Number(jour));
+    if (!naturel || naturel.code === '-' || (naturel.repos && !CODES_REPOS.includes(code))) {
+      if (garde !== undefined) t.jours[String(jour)] = garde;
+      return false;
+    }
+    if (!t) {
+      if (!Array.isArray(data.timesheets)) data.timesheets = [];
+      t = { id: uid(), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
+      data.timesheets.push(t);
+    }
+    t.jours = t.jours || {};
+    if (naturel.code !== code) t.jours[String(jour)] = code;
+    return true;
+  }
+  // Les heures supplémentaires du mois, par majoration (en %).
+  function poserHeuresSup(data, employee, year, month, majoration, heures) {
+    let t = pointageEnregistre(data, employee.id, year, month);
+    if (!t) {
+      if (!Array.isArray(data.timesheets)) data.timesheets = [];
+      t = { id: uid(), employeeId: employee.id, year: Number(year), month: Number(month), jours: {}, hs: {} };
+      data.timesheets.push(t);
+    }
+    t.hs = t.hs || {};
+    const h = round3(Number(heures) || 0);
+    if (h > 0) t.hs[String(majoration)] = h; else delete t.hs[String(majoration)];
+    return true;
+  }
+  const majorationsHs = s => [s && s.hsMaj1, s && s.hsMaj2, s && s.hsMaj3].map(Number).filter(x => x > 0);
+  // Une prime imposable par majoration : le brut de la fiche divisé par les heures d'un mois complet, majoré.
+  function heuresSupDuMois(data, employee, year, month) {
+    const s = payrollSettings(data);
+    const t = pointageEnregistre(data, employee.id, year, month);
+    const heuresMois = Number(s.heuresMois) || 0;
+    if (!t || !t.hs || !(heuresMois > 0)) return [];
+    const brut = round3(Number(employee.grossSalary) || 0);
+    const pct = n => String(n).replace('.', ',');
+    return majorationsHs(s).filter(x => Number(t.hs[String(x)]) > 0).map(x => {
+      const h = round3(Number(t.hs[String(x)]));
+      return { label: `Heures supplémentaires : ${pct(h)} h à +${pct(x)} %`, amount: round3(brut * h * (100 + x) / 100 / heuresMois), taxable: true, hs: x, heures: h };
+    }).filter(b => b.amount > 0);
+  }
+  // Ce que le pointage change à une saisie de bulletin : les absences non payées, les primes au jour (sur les jours
+  // payés), les heures supplémentaires (celles d'avant s'en vont). Le reste de la saisie ne bouge pas.
+  function reprisePointage(i, p, hs) {
+    const total = Number(i.workedDays) || 26;
+    const hors = i.prorata ? Math.max(0, Number(i.prorata.sur) - Number(i.prorata.jours)) : 0;
+    const absentDays = p.absences;
+    const j = Math.max(0, Math.min(total, round3(total - hors - absentDays)));
+    const bonuses = (i.bonuses || []).filter(b => !b.hs)
+      .map(b => b.parJour ? { ...b, amount: round3(Number(b.mensuel) * j / total), jours: j, sur: total } : b)
+      .concat(hs);
+    return { absentDays, bonuses };
+  }
+  // Un bulletin établi qui ne suit plus le pointage de son mois : ce qu'il deviendrait. `null` sans pointage.
+  function pointageSurBulletin(data, slip) {
+    const e = (data.employees || []).find(x => x.id === slip.employeeId);
+    if (!e || !pointageEnregistre(data, e.id, slip.year, slip.month)) return null;
+    const r = reprisePointage(slip, pointageDuMois(data, e, slip.year, slip.month), heuresSupDuMois(data, e, slip.year, slip.month));
+    const empreinte = l => JSON.stringify((l || []).map(b => [b.label, round3(Number(b.amount) || 0)]));
+    const avant = round3(Number(slip.absentDays) || 0);
+    // Ce qui diffère, pour le dire : les absences, les heures supplémentaires (les primes au jour suivent les absences).
+    const absences = avant !== r.absentDays;
+    const heures = empreinte((slip.bonuses || []).filter(b => b.hs)) !== empreinte(r.bonuses.filter(b => b.hs));
+    const change = absences || empreinte(slip.bonuses) !== empreinte(r.bonuses);
+    return { ...r, change, avant, absences, heures };
+  }
+-- après
+  // ---------- le pointage (plateforme, 1.60.0) ----------
+  // (plateforme) 1.69.0 — dans le moteur commun (compta.js) : le Cabinet pointe aussi, et une copie diverge.
+  const { CODES_POINTAGE, CODES_REPOS, libellePointage, pointageEnregistre, pointageDuMois, poserPointage, poserHeuresSup,
+    majorationsHs, heuresSupDuMois, reprisePointage, pointageSurBulletin } = Compta;
+-- fin
+
+== cabinet/app.js | la paie du dossier dans la forme de l'entreprise, que lit le pointage du moteur commun
+-- avant
+  const reglagesPaie = (dossier, L) => (L && L.reglagesPaie) || dossier.paie || {};
+-- après
+  const reglagesPaie = (dossier, L) => (L && L.reglagesPaie) || dossier.paie || {};
+  // (plateforme) 1.69.0 — la paie du dossier dans la forme de l'entreprise, celle que lit le pointage du moteur commun : les
+  // salariés (leur entrée, leur sortie, leur brut, leurs primes de chaque mois), les congés du client sur SkanFact, le
+  // pointage, les réglages de la paie. Le pointage est le tableau du livre lui-même : ce que la grille pose s'y écrit.
+  const donneesDuPointage = (dossier, L) => {
+    if (!Array.isArray(L.pointages)) L.pointages = [];
+    return {
+      employees: (L.salaries || []).map(x => ({ id: x.id, name: x.nom, hireDate: x.embauche || '', endDate: x.sortie || '', grossSalary: x.brut, primes: x.primes || [] })),
+      leaves: L.conges || [], timesheets: L.pointages, payrollSettings: reglagesPaie(dossier, L)
+    };
+  };
+  // Un bulletin du Cabinet dans la forme de l'entreprise, que le pointage compare et reprend.
+  const bulletinPourLePointage = b => ({ id: b.id, employeeId: b.salarieId, year: Number(b.annee), month: Number(b.mois),
+    workedDays: b.joursTravailles, absentDays: b.joursAbsence, bonuses: b.primes || [], prorata: b.prorata || null });
+  // Les enregistrements du pointage, l'un après l'autre : une case pointée juste après l'autre s'écrit dans la bonne révision.
+  let pointageEnCours = Promise.resolve();
+-- fin
+
+== cabinet/app.js | le pointage du mois, juste sous ses bulletins
+-- avant
+    ${/* Empilés, pas côte à côte (règle 3.4.0) : deux tableaux de cinq et six colonnes dans un
+-- après
+    ${/* (plateforme) 1.69.0 — le pointage du mois, juste sous ses bulletins (l'onglet Pointage de l'entreprise). */''}
+    ${vuePointage(dossier, L, s.annee, m)}
+
+    ${/* Empilés, pas côte à côte (règle 3.4.0) : deux tableaux de cinq et six colonnes dans un
+-- fin
+
+== cabinet/app.js | la grille du pointage : une case par salarié et par jour, au clic et au clavier ; ce qu'elle change aux bulletins
+-- avant
+  function brancherPaie(el, root, dossier) {
+-- après
+  // (plateforme) 1.69.0 — le pointage du mois d'un dossier : la grille de l'entreprise (1.60.0), que le Cabinet tient pour
+  // son client. Une case par salarié et par jour ; les jours payés et les absences se recalculent à chaque geste ; un
+  // bulletin déjà établi qui ne suit plus le pointage le dit, et se met à jour d'un geste. Les salariés : ceux en poste ce
+  // mois-là (leur entrée, leur sortie), et un salarié sorti s'il a un bulletin du mois.
+  const INITIALES_JOURS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+  const affichePointage = c => c === 'D' ? '½' : c === '-' ? '·' : c;
+  const libelleDuJour = j => KC.libellePointage(j.code) + (j.source === 'conge' ? ' (Congés et absences)' : j.source === 'pointe' ? ' (pointé)' : '');
+  const joursFr = n => String(KC.round3(Number(n) || 0)).replace('.', ',');
+  const ecartDuPointage = r => [r.absences ? `${joursFr(r.avant)} jour${Number(r.avant) > 1 ? 's' : ''} non payé${Number(r.avant) > 1 ? 's' : ''} au bulletin, ${joursFr(r.absentDays)} au pointage` : '',
+    r.heures ? 'pas les mêmes heures supplémentaires' : '', !r.absences && !r.heures ? 'ses primes au jour ne suivent plus les jours payés' : ''].filter(Boolean).join(' ; ');
+  function lignesDuPointage(dossier, L, annee, m) {
+    const data = donneesDuPointage(dossier, L);
+    const n = new Date(Date.UTC(Number(annee), Number(m), 0)).getUTCDate();   // le jour 0 du mois qui suit, en UTC (règle 5.2.3)
+    const premier = `${annee}-${String(m).padStart(2, '0')}-01`, dernier = `${annee}-${String(m).padStart(2, '0')}-${String(n).padStart(2, '0')}`;
+    const avecBulletin = new Set(KC.bulletinsDuMois(L, annee, m).map(b => b.salarieId));
+    const lignes = data.employees.filter(e => {
+      const x = (L.salaries || []).find(y => y.id === e.id) || {};
+      return (x.actif || avecBulletin.has(e.id)) && (!e.hireDate || e.hireDate <= dernier) && (!e.endDate || e.endDate >= premier);
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'))
+      .map(e => ({ e, p: KC.pointageDuMois(data, e, Number(annee), Number(m)) }));
+    return { data, lignes };
+  }
+  function vuePointage(dossier, L, annee, m) {
+    const { data, lignes } = lignesDuPointage(dossier, L, annee, m);
+    const majorations = KC.majorationsHs(KC.baremesPaie(data.payrollSettings));
+    const clos = !!(L.exercice || {}).clos;
+    const ecarts = clos ? [] : KC.bulletinsDuMois(L, annee, m).map(b => ({ b, r: KC.pointageSurBulletin(data, bulletinPourLePointage(b)) })).filter(o => o.r && o.r.change);
+    const nomDe = id => ((L.salaries || []).find(x => x.id === id) || {}).nom || '—';
+    const leMois = `${KC.deMois(KC.moisPaie(m))} ${annee}`;
+    const pct = x => String(x).replace('.', ',');
+    return `<div class="panel mt pt-cabinet" id="pt-panneau"><h2>Le pointage ${esc(leMois)} ${info('pa.pointage')}</h2>
+      <p class="small muted">${clos ? `L'exercice ${esc(annee)} est clos : son pointage se lit, il ne se change plus.`
+    : `Clique une case pour changer son code, ou tape sa lettre ; les flèches passent d'une case à l'autre.${L.reglagesPaie ? ' Les congés et absences que le client saisit dans son SkanFact s\'y posent d\'eux-mêmes.' : ''} Un bulletin établi ensuite reprend ses absences non payées et ses heures supplémentaires.`}</p>
+      <div class="pt-legende">${KC.CODES_POINTAGE.map(([c, l]) => `<span class="pt-cle"><span class="pt-c pt-${c}" aria-hidden="true">${affichePointage(c)}</span>${esc(l)}</span>`).join('')}<span class="pt-cle"><span class="pt-c pt-hors" aria-hidden="true">·</span>Hors contrat</span></div>
+      ${lignes.length ? `<div class="scroll-x"><table class="list compact pt-grille" id="pt-grille"><thead><tr><th>Salarié</th>
+        <th class="r" title="Le mois complet, moins les jours hors contrat et les absences non payées : les jours du bulletin">Payés</th><th class="r">Non payés</th>
+        ${majorations.map(x => `<th class="r nw">HS +${esc(pct(x))} %</th>`).join('')}
+        ${lignes[0].p.jours.map(j => `<th class="pt-j${j.repos ? ' pt-repos' : ''}">${j.jour}<span>${INITIALES_JOURS[j.wd]}</span></th>`).join('')}</tr></thead><tbody>
+        ${lignes.map(({ e, p }) => `<tr data-pe="${esc(e.id)}"><td class="nw"><strong>${esc(e.name)}</strong></td>
+          <td class="r nw"><strong data-pt-payes>${esc(joursFr(p.payes))}</strong></td><td class="r nw" data-pt-abs>${p.absences ? esc(joursFr(p.absences)) : '<span class="muted">—</span>'}</td>
+          ${majorations.map(x => `<td class="r"><input type="number" class="num pt-hs" data-hs="${x}" value="${p.hs[String(x)] || ''}" min="0" step="0.5" placeholder="0" ${clos ? 'disabled' : ''} aria-label="${esc(e.name)} : heures supplémentaires à +${esc(pct(x))} %"></td>`).join('')}
+          ${p.jours.map(j => `<td class="pt-td"><button type="button" class="pt-c pt-${j.code === '-' ? 'hors' : j.code}${j.source === 'pointe' ? ' pt-main' : ''}" data-pt="${j.jour}"${j.repos ? ' data-repos="1"' : ''} ${j.code === '-' || clos ? 'disabled' : ''} title="${esc(libelleDuJour(j))}" aria-label="${esc(e.name)}, ${j.jour} ${esc(KC.moisPaie(m))} : ${esc(libelleDuJour(j))}">${affichePointage(j.code)}</button></td>`).join('')}
+        </tr>`).join('')}</tbody></table></div>`
+    : `<div class="empty">Aucun salarié en poste ${esc(leMois)}.</div>`}
+      ${/* Sous la grille : apparue au-dessus, l'alerte poussait les cases sous la souris (vu dans l'entreprise, 1.60.0). */''}
+      ${ecarts.length ? `<div class="warn-box mt" id="pt-ecarts">${ecarts.map(({ b, r }) => `<div class="ctrl-geste"><span>Le bulletin de <b>${esc(nomDe(b.salarieId))}</b> ne suit plus le pointage : ${esc(ecartDuPointage(r))}.${b.payeLe ? ' Il est déjà payé : son net changera.' : ''}</span><button type="button" class="btn btn-sm" data-pt-reprendre="${esc(b.id)}">Reprendre le pointage dans le bulletin</button></div>`).join('')}</div>` : ''}
+      ${majorations.length || clos || !lignes.length ? '' : L.reglagesPaie
+    ? '<p class="small muted mt" id="pt-sans-hs">Pour pointer des heures supplémentaires, il faut leurs majorations : ce client les règle dans son SkanFact (<b>Paie › Barèmes</b>).</p>'
+    : '<div class="small muted mt ctrl-geste" id="pt-sans-hs"><span>Pour pointer des heures supplémentaires, règle d\'abord leurs majorations. <em>À VÉRIFIER : le Code du travail et la convention collective du client.</em></span><button type="button" class="btn btn-sm" id="pt-taux">Régler les heures supplémentaires…</button></div>'}
+    </div>`;
+  }
+  // La case de la grille où est le curseur, pour la lui rendre après un redessin.
+  const ouEstLeCurseurDuPointage = el => {
+    const a = document.activeElement, tr = a && a.closest && a.closest('#pt-grille tr[data-pe]');
+    if (!tr || !el.contains(tr)) return null;
+    return a.dataset.hs ? { e: tr.dataset.pe, hs: a.dataset.hs } : a.dataset.pt ? { e: tr.dataset.pe, d: Number(a.dataset.pt) } : null;
+  };
+  function brancherPointage(el, root, dossier) {
+    const s = livresState;
+    const L = s.livre, y = Number(s.annee), m = Number(s.paieMois);
+    const taux = $('#pt-taux', el);
+    if (taux) taux.onclick = () => regimesForm(root, dossier, { focus: 'hsMaj1' });
+    if (!$('#pt-grille', el) || (L.exercice || {}).clos) return;
+    const { data } = lignesDuPointage(dossier, L, y, m);
+    const employe = id => data.employees.find(e => e.id === id);
+    // Seul le panneau se redessine (pas toute la page), et le curseur revient à sa case.
+    const redessiner = focus => {
+      const neuf = document.createElement('div');
+      neuf.innerHTML = vuePointage(dossier, L, y, m);
+      $('#pt-panneau', el).replaceWith(neuf.firstElementChild);
+      brancherPointage(el, root, dossier);
+      if (focus) {
+        const c = $(`#pt-grille tr[data-pe="${focus.e}"] ${focus.hs ? `.pt-hs[data-hs="${focus.hs}"]` : `.pt-c[data-pt="${focus.d}"]`}`, el);
+        if (c) { c.focus(); if (focus.hs) c.select(); }
+      }
+    };
+    const enregistrer = id => {
+      const t = KC.pointageEnregistre(data, id, y, m);
+      if (!t) return;
+      const copie = JSON.parse(JSON.stringify(t));
+      pointageEnCours = pointageEnCours.then(() => api.savePointage({ dossierId: dossier.id, pointage: copie }))
+        .catch(err => toast(`Le pointage n'est pas enregistré : ${plainError(err)} Recharge la page pour revoir celui du serveur.`, 'error'));
+    };
+    const poser = (b, code) => {
+      const e = employe(b.closest('tr').dataset.pe);
+      if (!e) return;
+      if (!KC.poserPointage(data, e, y, m, Number(b.dataset.pt), code)) {
+        if (b.dataset.repos) toast(`Le ${b.dataset.pt} ${KC.moisPaie(m)} est un jour de repos : il se pointe « Repos », ou « Présent » s'il a été travaillé (ses heures vont en heures supplémentaires).`, 'error');
+        return;
+      }
+      enregistrer(e.id);
+      redessiner({ e: e.id, d: Number(b.dataset.pt) });
+    };
+    const ORDRE = KC.CODES_POINTAGE.map(x => x[0]);
+    $$('#pt-grille .pt-c[data-pt]', el).forEach(b => {
+      // Un jour de repos ne passe que de « Repos » à « Présent » et retour.
+      const ordre = b.dataset.repos ? KC.CODES_REPOS : ORDRE;
+      b.onclick = () => { const c = ordre[(ordre.indexOf(b.textContent === '½' ? 'D' : b.textContent) + 1) % ordre.length]; poser(b, c); };
+      b.onkeydown = ev => {
+        const k = ev.key.length === 1 ? ev.key.toUpperCase() : ev.key;
+        if (ORDRE.includes(k)) { ev.preventDefault(); poser(b, k); return; }
+        const pas = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[ev.key];
+        if (!pas) return;
+        ev.preventDefault();
+        const tr = b.closest('tr');
+        const ligne = pas[0] ? (pas[0] < 0 ? tr.previousElementSibling : tr.nextElementSibling) : tr;
+        if (!ligne) return;
+        const cases = [...ligne.querySelectorAll('.pt-c[data-pt]')];
+        let d = Number(b.dataset.pt) + pas[1];
+        let cible = cases.find(x => Number(x.dataset.pt) === d);
+        // Un jour hors contrat ne se pointe pas : on le saute.
+        while (cible && cible.disabled) { d += pas[1] || 1; cible = cases.find(x => Number(x.dataset.pt) === d); }
+        if (cible) cible.focus();
+      };
+    });
+    $$('#pt-grille .pt-hs', el).forEach(i => {
+      i.onchange = () => {
+        const e = employe(i.closest('tr').dataset.pe);
+        if (!e) return;
+        if (i.value !== '' && !(Number(i.value) >= 0)) return refus(i, 'Un nombre d\'heures se tape en chiffres : 6, ou 7,5.');
+        KC.poserHeuresSup(data, e, y, m, Number(i.dataset.hs), i.value);
+        enregistrer(e.id);
+        // La grille se redessine APRÈS que Tab a posé le curseur, et le lui rend (vu dans l'entreprise, 1.60.0).
+        setTimeout(() => redessiner(ouEstLeCurseurDuPointage(el)), 0);
+      };
+      // Comme dans un tableur : Entrée ou ↓ passe au salarié suivant, dans la même colonne ; ↑ au précédent.
+      i.onkeydown = ev => {
+        const pas = ev.key === 'ArrowDown' || ev.key === 'Enter' ? 1 : ev.key === 'ArrowUp' ? -1 : 0;
+        if (!pas) return;
+        ev.preventDefault();
+        const tr = i.closest('tr'), autre = pas > 0 ? tr.nextElementSibling : tr.previousElementSibling;
+        const c = autre && autre.querySelector(`.pt-hs[data-hs="${i.dataset.hs}"]`);
+        if (c) { c.focus(); c.select(); } else i.blur();
+      };
+    });
+    $$('[data-pt-reprendre]', el).forEach(bt => { bt.onclick = async () => {
+      const b = (L.bulletins || []).find(x => x.id === bt.dataset.ptReprendre);
+      if (!b) return;
+      const nom = ((L.salaries || []).find(x => x.id === b.salarieId) || {}).nom || '';
+      if (b.payeLe && !await confirmDialog(`Le bulletin de ${nom} est déjà payé`, 'Reprendre le pointage change son net. Continuer ?', 'Reprendre le pointage')) return;
+      const r = KC.pointageSurBulletin(data, bulletinPourLePointage(b));
+      if (!r) return;
+      bt.disabled = true;
+      try {
+        await pointageEnCours;
+        const v = { id: b.id, salarieId: b.salarieId, annee: b.annee, mois: b.mois, brut: b.brut, joursTravailles: b.joursTravailles,
+          joursAbsence: r.absentDays, primes: r.bonuses, retenues: b.retenues || [], prorata: b.prorata || null };
+        const rep = await api.saveBulletin({ dossierId: dossier.id, annee: s.annee, bulletin: v });
+        s.livre = rep.livre; toast(`Bulletin de ${nom} mis à jour sur le pointage.`); drawLivres(root, dossier);
+      } catch (err) { bt.disabled = false; toast(plainError(err), 'error'); }
+    }; });
+  }
+
+  function brancherPaie(el, root, dossier) {
+-- fin
+
+== cabinet/app.js | la page de la paie branche la grille du pointage
+-- avant
+    if (mois) mois.onchange = () => { s.paieMois = Number(mois.value) || 1; redraw(); };
+-- après
+    if (mois) mois.onchange = () => { s.paieMois = Number(mois.value) || 1; redraw(); };
+    // (plateforme) 1.69.0
+    brancherPointage(el, root, dossier);
+-- fin
+
+== cabinet/app.js | un bulletin nouveau part du mois du salarié : son entrée ou sa sortie, ses absences, ses primes, son pointage
+-- avant
+    // (plateforme) 1.68.0 — un bulletin nouveau part des primes de chaque mois de la fiche du salarié proposé (celles de
+    // l'entreprise, au prorata des jours payés pour une prime au jour) : sans elles, on les retapait chaque mois.
+    const e = b || { mois: s.paieMois, annee: s.annee, joursTravailles: 26, joursAbsence: 0, primes: KC.primesDuMois(actifs[0] || {}, 26, 26), retenues: [] };
+    const salDefaut = b ? b.salarieId : (actifs[0] || {}).id;
+    const brutDefaut = b ? b.brut : ((actifs[0] || {}).brut || 0);
+-- après
+    // (plateforme) 1.68.0 — un bulletin nouveau part des primes de chaque mois de la fiche du salarié proposé (celles de
+    // l'entreprise, au prorata des jours payés pour une prime au jour) : sans elles, on les retapait chaque mois.
+    // (plateforme) 1.69.0 — un bulletin nouveau part du MOIS du salarié proposé, comme dans l'entreprise : son entrée ou sa
+    // sortie (le brut proratisé), ses absences non payées (ses congés, son pointage), ses primes de chaque mois (au jour sur
+    // les jours payés, 1.68.0), ses heures supplémentaires pointées. Sans pointage ni congé : le brut et les primes de la fiche.
+    const donnees = donneesDuPointage(dossier, L);
+    const saisieDe = (salarieId, mois) => {
+      const emp = donnees.employees.find(x => x.id === salarieId);
+      return emp ? KC.saisieDuMois(donnees, emp, Number(s.annee), Number(mois)) : null;
+    };
+    const depart = b ? null : saisieDe((actifs[0] || {}).id, s.paieMois);
+    const e = b || { mois: s.paieMois, annee: s.annee, joursTravailles: depart ? depart.workedDays : 26, joursAbsence: depart ? depart.absentDays : 0,
+      primes: depart ? depart.bonuses : [], retenues: [], prorata: depart ? depart.prorata : null };
+    const salDefaut = b ? b.salarieId : (actifs[0] || {}).id;
+    const brutDefaut = b ? b.brut : (depart ? depart.gross : 0);
+-- fin
+
+== cabinet/app.js | une absence d'une demi-journée se tape
+-- avant
+<input name="joursAbsence" type="number" min="0" step="1"
+-- après
+<input name="joursAbsence" type="number" min="0" step="0.5"
+-- fin
+
+== cabinet/app.js | la fenêtre du bulletin dit d'où vient son brut, et que le mois est pointé
+-- avant
+      <div class="bf-lignes mt">
+-- après
+      ${/* (plateforme) 1.69.0 — d'où viennent le brut et l'absence proposés : un brut proratisé, un mois pointé. */''}
+      <p class="small muted mt" id="bf-mois-note" hidden></p>
+      <div class="bf-lignes mt">
+-- fin
+
+== cabinet/app.js | le prorata d'un bulletin nouveau est celui de son mois
+-- avant
+      const prorata = (b && b.prorata) || null;
+-- après
+      // (plateforme) 1.69.0 — celui du bulletin, ou celui du mois du salarié pour un bulletin nouveau (son entrée, sa sortie).
+      let prorata = e.prorata || null;
+-- fin
+
+== cabinet/app.js | la note du mois se met à jour avec l'aperçu
+-- avant
+        const refus = $('#bf-refus', rootModal);
+-- après
+        direLeMois(v);
+        const refus = $('#bf-refus', rootModal);
+-- fin
+
+== cabinet/app.js | ce qui est proposé suit le salarié et le mois choisis, tant qu'on n'y a pas touché
+-- avant
+      let brutTouche = !!b;
+      $('[name=brut]', f).addEventListener('input', () => { brutTouche = true; });
+      const choixSal = $('[name=salarieId]', f);
+      if (choixSal) choixSal.addEventListener('change', () => {
+        if (brutTouche) return;
+        const sal = (L.salaries || []).find(x => x.id === choixSal.value) || {};
+        $('[name=brut]', f).value = montantChamp(sal.brut);
+      });
+      // (plateforme) 1.68.0 — les primes PROPOSÉES suivent le salarié choisi, comme le brut, tant qu'on n'y a pas touché ;
+      // celles « au jour » suivent ensuite les jours payés (le formulaire le refait juste après).
+      if (choixSal) choixSal.addEventListener('change', () => {
+        if (primesTouchees) return;
+        const sal = (L.salaries || []).find(x => x.id === choixSal.value) || {};
+        const ouvrables = Number($('[name=joursTravailles]', f).value) || 26;
+        primes.splice(0, primes.length, ...KC.primesDuMois(sal, ouvrables, ouvrables));
+        dessiner('#bf-primes', primes, 'prime');
+      });
+      f.oninput = f.onchange = () => { suivreLesJours(); maj(); };
+-- après
+      let brutTouche = !!b;
+      $('[name=brut]', f).addEventListener('input', () => { brutTouche = true; });
+      const choixSal = $('[name=salarieId]', f);
+      // (plateforme) 1.68.0 et 1.69.0 — ce qui est PROPOSÉ suit le salarié et le mois choisis, tant qu'on n'y a pas touché
+      // (règle 10.6.0) : le brut (proratisé à l'entrée ou à la sortie), les jours et l'absence (ses congés, son pointage),
+      // les primes de chaque mois et les heures supplémentaires pointées ; celles « au jour » suivent ensuite les jours payés
+      // (le formulaire le refait juste après).
+      let absenceTouchee = !!b;
+      ['joursAbsence', 'joursTravailles'].forEach(n => $(`[name=${n}]`, f).addEventListener('input', () => { absenceTouchee = true; }));
+      const reprendreLeMois = () => {
+        if (b) return;
+        const i = saisieDe(choixSal.value, $('[name=mois]', f).value);
+        if (!i) return;
+        prorata = i.prorata;
+        if (!brutTouche) $('[name=brut]', f).value = montantChamp(i.gross);
+        if (!absenceTouchee) { $('[name=joursTravailles]', f).value = String(i.workedDays); $('[name=joursAbsence]', f).value = String(i.absentDays); }
+        if (primesTouchees) return;
+        primes.splice(0, primes.length, ...i.bonuses.map(p => ({ ...p })));
+        dessiner('#bf-primes', primes, 'prime');
+      };
+      if (choixSal) choixSal.addEventListener('change', reprendreLeMois);
+      $('[name=mois]', f).addEventListener('change', reprendreLeMois);
+      f.oninput = f.onchange = () => { suivreLesJours(); maj(); };
+-- fin
+
+== cabinet/app.js | la note du mois : un brut proratisé, un mois pointé
+-- avant
+      const caseDuJour = $('#bf-taux-du-jour', rootModal);
+-- après
+      // (plateforme) 1.69.0 — d'où viennent le brut et l'absence proposés, sous l'en-tête : un brut proratisé (l'entrée, la
+      // sortie), un mois pointé (l'absence et les heures supplémentaires viennent de sa grille).
+      const direLeMois = v => {
+        const note = $('#bf-mois-note', rootModal);
+        const lignes = [];
+        if (v.prorata) lignes.push(`Brut proratisé : ${v.prorata.motif || 'une entrée ou une sortie dans le mois'}, ${joursFr(v.prorata.jours)} jours sur ${joursFr(v.prorata.sur)} (${money(v.prorata.brutFiche)} pour un mois plein).`);
+        if (!b && KC.pointageEnregistre(donnees, v.salarieId, Number(s.annee), v.mois)) lignes.push(`Le mois est pointé : ${(v.primes || []).some(x => x.hs) ? 'l\'absence et les heures supplémentaires viennent' : 'l\'absence vient'} de sa grille.`);
+        note.hidden = !lignes.length;
+        note.textContent = lignes.join(' ');
+      };
+      const caseDuJour = $('#bf-taux-du-jour', rootModal);
+-- fin
+
+== cabinet/app.js | la fenêtre des taux règle aussi les heures supplémentaires du pointage (un dossier tenu)
+-- avant
+  function regimesForm(root, dossier) {
+-- après
+  // (plateforme) 1.69.0 — les heures supplémentaires du pointage d'un dossier tenu : les heures d'un mois complet (ce que
+  // vaut une heure) et jusqu'à trois majorations. Aucune n'est écrite d'avance (À VÉRIFIER, comme dans l'entreprise).
+  const HS_DU_CLIENT = [['heuresMois', 'Heures d\'un mois complet', 'pa.heuresMois'], ['hsMaj1', 'Majoration 1 (%)', 'pa.hs'],
+    ['hsMaj2', 'Majoration 2 (%)', 'pa.hs'], ['hsMaj3', 'Majoration 3 (%)', 'pa.hs']];
+  function regimesForm(root, dossier, opts) {
+-- fin
+
+== cabinet/app.js | la section des heures supplémentaires de la fenêtre des taux
+-- avant
+      <h3 class="mt">Les taux par contrat</h3>
+-- après
+      <h3 class="mt">Les heures supplémentaires</h3>
+      <p class="small">Pour le pointage de ce client : une heure vaut son brut divisé par les heures d'un mois complet (208 =
+      26 jours de 8 heures ; 173,33 pour 40 heures par semaine), majoré. Chaque majoration réglée a sa colonne dans la grille ;
+      une case vide n'y paraît pas. <b>À VÉRIFIER</b> : le régime horaire et la convention collective du client.</p>
+      <div class="grid-3" id="rc-hs" style="grid-template-columns:minmax(0,210px) repeat(3,minmax(0,150px))">${HS_DU_CLIENT.map(([k, lab, aide]) => `<label class="field">${lbl(lab, aide)}<input type="text" inputmode="decimal" class="num" data-hs-k="${k}"
+        value="${(dossier.paie || {})[k] != null && (dossier.paie || {})[k] !== '' && Number((dossier.paie || {})[k]) > 0 ? esc(pct(Number(dossier.paie[k]))) : ''}" placeholder="${k === 'heuresMois' ? '208' : ''}"></label>`).join('')}</div>
+      <h3 class="mt">Les taux par contrat</h3>
+-- fin
+
+== cabinet/app.js | les heures supplémentaires s'enregistrent avec les taux du client
+-- avant
+          taux[i.dataset.taux] = n;
+        }
+-- après
+          taux[i.dataset.taux] = n;
+        }
+        // (plateforme) 1.69.0 — les heures d'un mois complet (de 1 à 400, deux décimales au plus) et les majorations (%).
+        for (const i of $$('[data-hs-k]', layer)) {
+          const t = i.value.trim();
+          if (!t) continue;
+          const n = Number(t.replace(/\s/g, '').replace(',', '.'));
+          if (i.dataset.hsK === 'heuresMois') {
+            if (!Number.isFinite(n) || n < 1 || n > 400 || Math.round(n * 100) / 100 !== n) return refus(i, `« ${t} » n'est pas un nombre d'heures entre 1 et 400 (deux décimales au plus) : 208, ou 173,33. Laisse la case vide pour 208.`);
+          } else {
+            if (!Number.isFinite(n) || n < 0 || n > 100) return refus(i, `« ${t} » n'est pas une majoration entre 0 et 100 %. Laisse la case vide si ce client n'en a pas.`);
+            if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, `« ${t} » : une majoration se garde avec quatre décimales au plus.`);
+          }
+          taux[i.dataset.hsK] = n;
+        }
+-- fin
+
+== cabinet/app.js | ouverte depuis la grille, la fenêtre des taux amène à la case des heures supplémentaires
+-- avant
+      // (plateforme) 1.66.0 — un taux du client change le taux général d'un contrat : la case grise le suit.
+-- après
+      // (plateforme) 1.69.0 — ouverte depuis la grille du pointage, elle amène à la case des majorations.
+      if (opts && opts.focus) { const c = $(`[data-hs-k="${opts.focus}"]`, layer); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); } }
+      // (plateforme) 1.66.0 — un taux du client change le taux général d'un contrat : la case grise le suit.
+-- fin
+
+== cabinet/app.js | la fenêtre des taux d'un client sur SkanFact dit aussi ses heures supplémentaires
+-- avant
+    : 'Tous ses contrats suivent ces taux.'}</p>
+-- après
+    : 'Tous ses contrats suivent ces taux.'}</p>
+      ${/* (plateforme) 1.69.0 */''}
+      <p class="small mt" id="rc-lu-hs">${KC.majorationsHs(bar).length
+    ? `Ses heures supplémentaires : ${esc(pct(bar.heuresMois))} heures pour un mois complet ; majorations ${KC.majorationsHs(bar).map(x => `${esc(pct(x))} %`).join(', ')}.`
+    : 'Il n\'a réglé aucune majoration d\'heures supplémentaires : la grille du pointage n\'en a pas de colonne.'}</p>
+-- fin
+
+== cabinet/cabguide.js | l'aide du pointage et des heures supplémentaires
+-- avant
+    'pa.regimes': { a: 'paie', t: 'Les taux de la paie',
+-- après
+    // (plateforme) 1.69.0
+    'pa.pointage': { a: 'paie', t: 'Le pointage', d: 'Une case par salarié et par jour : P présent, ½ demi-journée (la moitié n\'est pas payée), A absent et non payé, C congé payé, M maladie, F férié, R repos ; « · » hors contrat (avant l\'entrée, après la sortie). Les congés et absences que le client saisit dans son SkanFact s\'y posent d\'eux-mêmes ; ce que tu changes à la main est souligné. Les jours payés sont ceux du bulletin : le mois complet (26 jours) moins les jours hors contrat et les absences non payées. Un bulletin établi ensuite les reprend, avec les heures supplémentaires ; un bulletin déjà établi qui ne suit plus le pointage le dit. À VÉRIFIER avec la convention du client : ce qu\'une maladie ou un jour férié paie.' },
+    'pa.hs': { a: 'paie', t: 'Heures supplémentaires', d: 'Les heures faites au-delà de l\'horaire normal, payées avec une majoration (par exemple 25 ou 50 %). Chaque majoration réglée a sa colonne dans le pointage, et les heures pointées arrivent sur le bulletin en prime imposable. Un client sur SkanFact les règle dans son SkanFact ; pour un dossier tenu, ici. À VÉRIFIER : les taux dépendent du régime horaire (40 ou 48 heures), de la nuit, du repos et des jours fériés, et de la convention collective.' },
+    'pa.heuresMois': { a: 'paie', t: 'Heures d\'un mois complet', d: 'Ce que vaut une heure supplémentaire : le brut mensuel de la fiche divisé par ce nombre, puis majoré. 208 heures, ce sont 26 jours de 8 heures (48 heures par semaine) ; 173,33 pour 40 heures par semaine. Vide : 208. À VÉRIFIER avec le régime horaire du client.' },
+    'pa.regimes': { a: 'paie', t: 'Les taux de la paie',
+-- fin
+
+== cabinet/cabvisites.js | la visite explique la grille du pointage
+-- avant
+  b('#sf-plus-prime', 'Pose une prime que ce salarié touche chaque mois : chaque bulletin nouveau la reprendra.', { nom: 'Prime de chaque mois', cle: 'prime-fiche' });
+-- après
+  b('#sf-plus-prime', 'Pose une prime que ce salarié touche chaque mois : chaque bulletin nouveau la reprendra.', { nom: 'Prime de chaque mois', cle: 'prime-fiche' });
+  // (plateforme) 1.69.0
+  b('#pt-grille', 'Le pointage du mois : clique une case, ou tape sa lettre (P, A, C…). Un bulletin établi ensuite reprend ses absences et ses heures supplémentaires.', { nom: 'Pointage', cle: 'pointage' });
+-- fin
+
+== style.css | la grille du pointage du Cabinet tient dans sa page, avec une colonne d'heures supplémentaires
+-- avant
+table.list.pt-grille input.pt-hs { width: 64px; height: 30px; padding: 2px 8px; }
+-- après
+table.list.pt-grille input.pt-hs { width: 64px; height: 30px; padding: 2px 8px; }
+/* (plateforme) 1.69.0 — vu à l'écran : au Cabinet, dont la page est plus étroite que celle de l'entreprise (la barre de
+   gauche, le cadre du dossier), la grille d'un mois de trente jours débordait de 70 pixels dès sa première colonne
+   d'heures supplémentaires. Des cases d'un pixel plus étroites et des marges serrées la font tenir ; au-delà (trois
+   majorations, un mois de trente et un jours), elle défile, le nom du salarié restant en place. */
+.pt-cabinet table.list.pt-grille th, .pt-cabinet table.list.pt-grille td { padding-inline: 5px; }
+.pt-cabinet table.list.pt-grille th.pt-j { min-width: 22px; padding-inline: 1px; }
+.pt-cabinet table.list.pt-grille td.pt-td { padding-inline: 1px; }
+.pt-cabinet .pt-c { width: 20px; }
+.pt-cabinet table.list.pt-grille input.pt-hs { width: 56px; }
+-- fin

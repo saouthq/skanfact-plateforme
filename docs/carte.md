@@ -224,7 +224,9 @@ vaut pour tout le dépôt.*
     taux propres d'un dossier au Cabinet (1.66.0 ; `web/v10/paie-cabinet-taux.txt`, `FICHE.paie`) : accident du
     travail, TFP, FOPROLOS. Le Cabinet lit les réglages de paie du client (1.67.0 ; migration 0148, `GET …/paie/dossier`,
     `reglagesDuClient` et `L.reglagesPaie`, `web/v10/paie-cabinet-reglages.txt`). Les primes de chaque mois au Cabinet
-    (1.68.0 ; `web/v10/paie-cabinet-primes.txt`, `primesDuMois` dans `compta.js`, `salarieDe`/`employeDe`).
+    (1.68.0 ; `web/v10/paie-cabinet-primes.txt`, `primesDuMois` dans `compta.js`, `salarieDe`/`employeDe`). Le pointage
+    au Cabinet (1.69.0 ; migration 0149, `web/v10/paie-cabinet-pointage.txt`, le moteur du pointage et `saisieDuMois` dans
+    `compta.js`, `savePointage`, `L.pointages` et `L.conges`).
   - **Les écritures** (brique 32, `docs/ecritures.md`) : le serveur TIENT les écritures des ventes
     (`compta.ecriture`/`ligne`, 0015), en brouillard, écrites avec la pièce dans la même
     transaction ; l'unité qui se réécrit est la FAMILLE d'une facture (ses avoirs, tous leurs

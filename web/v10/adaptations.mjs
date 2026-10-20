@@ -773,4 +773,6 @@ export const ADAPTATIONS = [
   ...lireFichier('paie-cabinet-reglages.txt'),
   // ── Les primes de chaque mois au Cabinet (20/10/2026, 1.68.0 ; docs/paie.md) : sur la fiche, reprises par chaque bulletin nouveau ──
   ...lireFichier('paie-cabinet-primes.txt'),
+  // ── Le pointage au Cabinet (20/10/2026, 1.69.0 ; docs/paie.md) : la grille du mois, que le bulletin nouveau suit ──
+  ...lireFichier('paie-cabinet-pointage.txt'),
 ];

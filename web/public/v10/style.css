@@ -1510,6 +1510,15 @@ span.pt-c { cursor: default; }
 .pt-c.pt-hors { background: transparent; color: var(--line); cursor: default; }
 .pt-c.pt-main { box-shadow: inset 0 -2px 0 currentColor; }
 table.list.pt-grille input.pt-hs { width: 64px; height: 30px; padding: 2px 8px; }
+/* (plateforme) 1.69.0 — vu à l'écran : au Cabinet, dont la page est plus étroite que celle de l'entreprise (la barre de
+   gauche, le cadre du dossier), la grille d'un mois de trente jours débordait de 70 pixels dès sa première colonne
+   d'heures supplémentaires. Des cases d'un pixel plus étroites et des marges serrées la font tenir ; au-delà (trois
+   majorations, un mois de trente et un jours), elle défile, le nom du salarié restant en place. */
+.pt-cabinet table.list.pt-grille th, .pt-cabinet table.list.pt-grille td { padding-inline: 5px; }
+.pt-cabinet table.list.pt-grille th.pt-j { min-width: 22px; padding-inline: 1px; }
+.pt-cabinet table.list.pt-grille td.pt-td { padding-inline: 1px; }
+.pt-cabinet .pt-c { width: 20px; }
+.pt-cabinet table.list.pt-grille input.pt-hs { width: 56px; }
 /* (plateforme) 1.59.0 — vu à l'écran : la fenêtre passait de 580 à 860 pixels à la première ligne de prime (la règle des
    tableaux de lignes), et « + Prime » fuyait sous le curseur. Les deux fenêtres qui portent des primes sont larges d'emblée ;
    sur un bulletin, les primes et les retenues se suivent. */

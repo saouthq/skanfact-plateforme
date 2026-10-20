@@ -5910,6 +5910,9 @@
         ${actifs.length ? '<div class="mt"><button class="btn" id="pa-bulletin2">Établir un bulletin…</button></div>' : ''}</div>`}
     </div>
 
+    ${/* (plateforme) 1.69.0 — le pointage du mois, juste sous ses bulletins (l'onglet Pointage de l'entreprise). */''}
+    ${vuePointage(dossier, L, s.annee, m)}
+
     ${/* Empilés, pas côte à côte (règle 3.4.0) : deux tableaux de cinq et six colonnes dans un
           `.split` débordaient chacun de leur moitié — 107 et 46 px à 1440 — et coupaient les noms. */''}
     <div class="panel mt"><h2>Les salariés ${info('pa.salaries')}</h2>
@@ -6041,11 +6044,166 @@
     } catch (e) { w.close(); toast(plainError(e), 'error'); }
   }
 
+  // (plateforme) 1.69.0 — le pointage du mois d'un dossier : la grille de l'entreprise (1.60.0), que le Cabinet tient pour
+  // son client. Une case par salarié et par jour ; les jours payés et les absences se recalculent à chaque geste ; un
+  // bulletin déjà établi qui ne suit plus le pointage le dit, et se met à jour d'un geste. Les salariés : ceux en poste ce
+  // mois-là (leur entrée, leur sortie), et un salarié sorti s'il a un bulletin du mois.
+  const INITIALES_JOURS = ['D', 'L', 'M', 'M', 'J', 'V', 'S'];
+  const affichePointage = c => c === 'D' ? '½' : c === '-' ? '·' : c;
+  const libelleDuJour = j => KC.libellePointage(j.code) + (j.source === 'conge' ? ' (Congés et absences)' : j.source === 'pointe' ? ' (pointé)' : '');
+  const joursFr = n => String(KC.round3(Number(n) || 0)).replace('.', ',');
+  const ecartDuPointage = r => [r.absences ? `${joursFr(r.avant)} jour${Number(r.avant) > 1 ? 's' : ''} non payé${Number(r.avant) > 1 ? 's' : ''} au bulletin, ${joursFr(r.absentDays)} au pointage` : '',
+    r.heures ? 'pas les mêmes heures supplémentaires' : '', !r.absences && !r.heures ? 'ses primes au jour ne suivent plus les jours payés' : ''].filter(Boolean).join(' ; ');
+  function lignesDuPointage(dossier, L, annee, m) {
+    const data = donneesDuPointage(dossier, L);
+    const n = new Date(Date.UTC(Number(annee), Number(m), 0)).getUTCDate();   // le jour 0 du mois qui suit, en UTC (règle 5.2.3)
+    const premier = `${annee}-${String(m).padStart(2, '0')}-01`, dernier = `${annee}-${String(m).padStart(2, '0')}-${String(n).padStart(2, '0')}`;
+    const avecBulletin = new Set(KC.bulletinsDuMois(L, annee, m).map(b => b.salarieId));
+    const lignes = data.employees.filter(e => {
+      const x = (L.salaries || []).find(y => y.id === e.id) || {};
+      return (x.actif || avecBulletin.has(e.id)) && (!e.hireDate || e.hireDate <= dernier) && (!e.endDate || e.endDate >= premier);
+    }).sort((a, b) => (a.name || '').localeCompare(b.name || '', 'fr'))
+      .map(e => ({ e, p: KC.pointageDuMois(data, e, Number(annee), Number(m)) }));
+    return { data, lignes };
+  }
+  function vuePointage(dossier, L, annee, m) {
+    const { data, lignes } = lignesDuPointage(dossier, L, annee, m);
+    const majorations = KC.majorationsHs(KC.baremesPaie(data.payrollSettings));
+    const clos = !!(L.exercice || {}).clos;
+    const ecarts = clos ? [] : KC.bulletinsDuMois(L, annee, m).map(b => ({ b, r: KC.pointageSurBulletin(data, bulletinPourLePointage(b)) })).filter(o => o.r && o.r.change);
+    const nomDe = id => ((L.salaries || []).find(x => x.id === id) || {}).nom || '—';
+    const leMois = `${KC.deMois(KC.moisPaie(m))} ${annee}`;
+    const pct = x => String(x).replace('.', ',');
+    return `<div class="panel mt pt-cabinet" id="pt-panneau"><h2>Le pointage ${esc(leMois)} ${info('pa.pointage')}</h2>
+      <p class="small muted">${clos ? `L'exercice ${esc(annee)} est clos : son pointage se lit, il ne se change plus.`
+    : `Clique une case pour changer son code, ou tape sa lettre ; les flèches passent d'une case à l'autre.${L.reglagesPaie ? ' Les congés et absences que le client saisit dans son SkanFact s\'y posent d\'eux-mêmes.' : ''} Un bulletin établi ensuite reprend ses absences non payées et ses heures supplémentaires.`}</p>
+      <div class="pt-legende">${KC.CODES_POINTAGE.map(([c, l]) => `<span class="pt-cle"><span class="pt-c pt-${c}" aria-hidden="true">${affichePointage(c)}</span>${esc(l)}</span>`).join('')}<span class="pt-cle"><span class="pt-c pt-hors" aria-hidden="true">·</span>Hors contrat</span></div>
+      ${lignes.length ? `<div class="scroll-x"><table class="list compact pt-grille" id="pt-grille"><thead><tr><th>Salarié</th>
+        <th class="r" title="Le mois complet, moins les jours hors contrat et les absences non payées : les jours du bulletin">Payés</th><th class="r">Non payés</th>
+        ${majorations.map(x => `<th class="r nw">HS +${esc(pct(x))} %</th>`).join('')}
+        ${lignes[0].p.jours.map(j => `<th class="pt-j${j.repos ? ' pt-repos' : ''}">${j.jour}<span>${INITIALES_JOURS[j.wd]}</span></th>`).join('')}</tr></thead><tbody>
+        ${lignes.map(({ e, p }) => `<tr data-pe="${esc(e.id)}"><td class="nw"><strong>${esc(e.name)}</strong></td>
+          <td class="r nw"><strong data-pt-payes>${esc(joursFr(p.payes))}</strong></td><td class="r nw" data-pt-abs>${p.absences ? esc(joursFr(p.absences)) : '<span class="muted">—</span>'}</td>
+          ${majorations.map(x => `<td class="r"><input type="number" class="num pt-hs" data-hs="${x}" value="${p.hs[String(x)] || ''}" min="0" step="0.5" placeholder="0" ${clos ? 'disabled' : ''} aria-label="${esc(e.name)} : heures supplémentaires à +${esc(pct(x))} %"></td>`).join('')}
+          ${p.jours.map(j => `<td class="pt-td"><button type="button" class="pt-c pt-${j.code === '-' ? 'hors' : j.code}${j.source === 'pointe' ? ' pt-main' : ''}" data-pt="${j.jour}"${j.repos ? ' data-repos="1"' : ''} ${j.code === '-' || clos ? 'disabled' : ''} title="${esc(libelleDuJour(j))}" aria-label="${esc(e.name)}, ${j.jour} ${esc(KC.moisPaie(m))} : ${esc(libelleDuJour(j))}">${affichePointage(j.code)}</button></td>`).join('')}
+        </tr>`).join('')}</tbody></table></div>`
+    : `<div class="empty">Aucun salarié en poste ${esc(leMois)}.</div>`}
+      ${/* Sous la grille : apparue au-dessus, l'alerte poussait les cases sous la souris (vu dans l'entreprise, 1.60.0). */''}
+      ${ecarts.length ? `<div class="warn-box mt" id="pt-ecarts">${ecarts.map(({ b, r }) => `<div class="ctrl-geste"><span>Le bulletin de <b>${esc(nomDe(b.salarieId))}</b> ne suit plus le pointage : ${esc(ecartDuPointage(r))}.${b.payeLe ? ' Il est déjà payé : son net changera.' : ''}</span><button type="button" class="btn btn-sm" data-pt-reprendre="${esc(b.id)}">Reprendre le pointage dans le bulletin</button></div>`).join('')}</div>` : ''}
+      ${majorations.length || clos || !lignes.length ? '' : L.reglagesPaie
+    ? '<p class="small muted mt" id="pt-sans-hs">Pour pointer des heures supplémentaires, il faut leurs majorations : ce client les règle dans son SkanFact (<b>Paie › Barèmes</b>).</p>'
+    : '<div class="small muted mt ctrl-geste" id="pt-sans-hs"><span>Pour pointer des heures supplémentaires, règle d\'abord leurs majorations. <em>À VÉRIFIER : le Code du travail et la convention collective du client.</em></span><button type="button" class="btn btn-sm" id="pt-taux">Régler les heures supplémentaires…</button></div>'}
+    </div>`;
+  }
+  // La case de la grille où est le curseur, pour la lui rendre après un redessin.
+  const ouEstLeCurseurDuPointage = el => {
+    const a = document.activeElement, tr = a && a.closest && a.closest('#pt-grille tr[data-pe]');
+    if (!tr || !el.contains(tr)) return null;
+    return a.dataset.hs ? { e: tr.dataset.pe, hs: a.dataset.hs } : a.dataset.pt ? { e: tr.dataset.pe, d: Number(a.dataset.pt) } : null;
+  };
+  function brancherPointage(el, root, dossier) {
+    const s = livresState;
+    const L = s.livre, y = Number(s.annee), m = Number(s.paieMois);
+    const taux = $('#pt-taux', el);
+    if (taux) taux.onclick = () => regimesForm(root, dossier, { focus: 'hsMaj1' });
+    if (!$('#pt-grille', el) || (L.exercice || {}).clos) return;
+    const { data } = lignesDuPointage(dossier, L, y, m);
+    const employe = id => data.employees.find(e => e.id === id);
+    // Seul le panneau se redessine (pas toute la page), et le curseur revient à sa case.
+    const redessiner = focus => {
+      const neuf = document.createElement('div');
+      neuf.innerHTML = vuePointage(dossier, L, y, m);
+      $('#pt-panneau', el).replaceWith(neuf.firstElementChild);
+      brancherPointage(el, root, dossier);
+      if (focus) {
+        const c = $(`#pt-grille tr[data-pe="${focus.e}"] ${focus.hs ? `.pt-hs[data-hs="${focus.hs}"]` : `.pt-c[data-pt="${focus.d}"]`}`, el);
+        if (c) { c.focus(); if (focus.hs) c.select(); }
+      }
+    };
+    const enregistrer = id => {
+      const t = KC.pointageEnregistre(data, id, y, m);
+      if (!t) return;
+      const copie = JSON.parse(JSON.stringify(t));
+      pointageEnCours = pointageEnCours.then(() => api.savePointage({ dossierId: dossier.id, pointage: copie }))
+        .catch(err => toast(`Le pointage n'est pas enregistré : ${plainError(err)} Recharge la page pour revoir celui du serveur.`, 'error'));
+    };
+    const poser = (b, code) => {
+      const e = employe(b.closest('tr').dataset.pe);
+      if (!e) return;
+      if (!KC.poserPointage(data, e, y, m, Number(b.dataset.pt), code)) {
+        if (b.dataset.repos) toast(`Le ${b.dataset.pt} ${KC.moisPaie(m)} est un jour de repos : il se pointe « Repos », ou « Présent » s'il a été travaillé (ses heures vont en heures supplémentaires).`, 'error');
+        return;
+      }
+      enregistrer(e.id);
+      redessiner({ e: e.id, d: Number(b.dataset.pt) });
+    };
+    const ORDRE = KC.CODES_POINTAGE.map(x => x[0]);
+    $$('#pt-grille .pt-c[data-pt]', el).forEach(b => {
+      // Un jour de repos ne passe que de « Repos » à « Présent » et retour.
+      const ordre = b.dataset.repos ? KC.CODES_REPOS : ORDRE;
+      b.onclick = () => { const c = ordre[(ordre.indexOf(b.textContent === '½' ? 'D' : b.textContent) + 1) % ordre.length]; poser(b, c); };
+      b.onkeydown = ev => {
+        const k = ev.key.length === 1 ? ev.key.toUpperCase() : ev.key;
+        if (ORDRE.includes(k)) { ev.preventDefault(); poser(b, k); return; }
+        const pas = { ArrowLeft: [0, -1], ArrowRight: [0, 1], ArrowUp: [-1, 0], ArrowDown: [1, 0] }[ev.key];
+        if (!pas) return;
+        ev.preventDefault();
+        const tr = b.closest('tr');
+        const ligne = pas[0] ? (pas[0] < 0 ? tr.previousElementSibling : tr.nextElementSibling) : tr;
+        if (!ligne) return;
+        const cases = [...ligne.querySelectorAll('.pt-c[data-pt]')];
+        let d = Number(b.dataset.pt) + pas[1];
+        let cible = cases.find(x => Number(x.dataset.pt) === d);
+        // Un jour hors contrat ne se pointe pas : on le saute.
+        while (cible && cible.disabled) { d += pas[1] || 1; cible = cases.find(x => Number(x.dataset.pt) === d); }
+        if (cible) cible.focus();
+      };
+    });
+    $$('#pt-grille .pt-hs', el).forEach(i => {
+      i.onchange = () => {
+        const e = employe(i.closest('tr').dataset.pe);
+        if (!e) return;
+        if (i.value !== '' && !(Number(i.value) >= 0)) return refus(i, 'Un nombre d\'heures se tape en chiffres : 6, ou 7,5.');
+        KC.poserHeuresSup(data, e, y, m, Number(i.dataset.hs), i.value);
+        enregistrer(e.id);
+        // La grille se redessine APRÈS que Tab a posé le curseur, et le lui rend (vu dans l'entreprise, 1.60.0).
+        setTimeout(() => redessiner(ouEstLeCurseurDuPointage(el)), 0);
+      };
+      // Comme dans un tableur : Entrée ou ↓ passe au salarié suivant, dans la même colonne ; ↑ au précédent.
+      i.onkeydown = ev => {
+        const pas = ev.key === 'ArrowDown' || ev.key === 'Enter' ? 1 : ev.key === 'ArrowUp' ? -1 : 0;
+        if (!pas) return;
+        ev.preventDefault();
+        const tr = i.closest('tr'), autre = pas > 0 ? tr.nextElementSibling : tr.previousElementSibling;
+        const c = autre && autre.querySelector(`.pt-hs[data-hs="${i.dataset.hs}"]`);
+        if (c) { c.focus(); c.select(); } else i.blur();
+      };
+    });
+    $$('[data-pt-reprendre]', el).forEach(bt => { bt.onclick = async () => {
+      const b = (L.bulletins || []).find(x => x.id === bt.dataset.ptReprendre);
+      if (!b) return;
+      const nom = ((L.salaries || []).find(x => x.id === b.salarieId) || {}).nom || '';
+      if (b.payeLe && !await confirmDialog(`Le bulletin de ${nom} est déjà payé`, 'Reprendre le pointage change son net. Continuer ?', 'Reprendre le pointage')) return;
+      const r = KC.pointageSurBulletin(data, bulletinPourLePointage(b));
+      if (!r) return;
+      bt.disabled = true;
+      try {
+        await pointageEnCours;
+        const v = { id: b.id, salarieId: b.salarieId, annee: b.annee, mois: b.mois, brut: b.brut, joursTravailles: b.joursTravailles,
+          joursAbsence: r.absentDays, primes: r.bonuses, retenues: b.retenues || [], prorata: b.prorata || null };
+        const rep = await api.saveBulletin({ dossierId: dossier.id, annee: s.annee, bulletin: v });
+        s.livre = rep.livre; toast(`Bulletin de ${nom} mis à jour sur le pointage.`); drawLivres(root, dossier);
+      } catch (err) { bt.disabled = false; toast(plainError(err), 'error'); }
+    }; });
+  }
+
   function brancherPaie(el, root, dossier) {
     const s = livresState;
     const redraw = () => drawLivres(root, dossier);
     const mois = $('#pa-mois', el);
     if (mois) mois.onchange = () => { s.paieMois = Number(mois.value) || 1; redraw(); };
+    // (plateforme) 1.69.0
+    brancherPointage(el, root, dossier);
     const trim = $('#pa-trim', el);
     if (trim) trim.onchange = () => { s.paieTrimestre = Number(trim.value) || 1; redraw(); };
     [$('#pa-salarie', el), $('#pa-salarie2', el)].forEach(b => { if (b) b.onclick = () => salarieForm(root, dossier, null); });
@@ -6178,6 +6336,21 @@
   // (plateforme) 1.67.0 — les réglages de la paie d'un dossier : ceux du SkanFact du client qui y tient sa paie (lus avec
   // elle, posés dans le livre), sinon ceux que le Cabinet règle dans sa fiche (un dossier tenu).
   const reglagesPaie = (dossier, L) => (L && L.reglagesPaie) || dossier.paie || {};
+  // (plateforme) 1.69.0 — la paie du dossier dans la forme de l'entreprise, celle que lit le pointage du moteur commun : les
+  // salariés (leur entrée, leur sortie, leur brut, leurs primes de chaque mois), les congés du client sur SkanFact, le
+  // pointage, les réglages de la paie. Le pointage est le tableau du livre lui-même : ce que la grille pose s'y écrit.
+  const donneesDuPointage = (dossier, L) => {
+    if (!Array.isArray(L.pointages)) L.pointages = [];
+    return {
+      employees: (L.salaries || []).map(x => ({ id: x.id, name: x.nom, hireDate: x.embauche || '', endDate: x.sortie || '', grossSalary: x.brut, primes: x.primes || [] })),
+      leaves: L.conges || [], timesheets: L.pointages, payrollSettings: reglagesPaie(dossier, L)
+    };
+  };
+  // Un bulletin du Cabinet dans la forme de l'entreprise, que le pointage compare et reprend.
+  const bulletinPourLePointage = b => ({ id: b.id, employeeId: b.salarieId, year: Number(b.annee), month: Number(b.mois),
+    workedDays: b.joursTravailles, absentDays: b.joursAbsence, bonuses: b.primes || [], prorata: b.prorata || null });
+  // Les enregistrements du pointage, l'un après l'autre : une case pointée juste après l'autre s'écrit dans la bonne révision.
+  let pointageEnCours = Promise.resolve();
   function regimesDuDossier(dossier, L) {
     // (plateforme) 1.67.0 — les taux du SkanFact du client, s'il y tient sa paie : le Cabinet les lit sans les changer.
     const bar = reglagesPaie(dossier, L);
@@ -6210,10 +6383,18 @@
         <td class="r nw">${esc(pct(bar[k]))} %</td><td class="small muted">${(reglages || {})[k] != null && (reglages || {})[k] !== '' ? 'le sien' : 'le barème général'}</td></tr>`).join('')}</tbody></table>
       <p class="small mt">${contrats.length ? `Ses taux par contrat : ${contrats.map(x => `<b>${esc(x.nom)}</b> : ${esc(KC.libelleRegime(x.r))}`).join(' · ')}.`
     : 'Tous ses contrats suivent ces taux.'}</p>
+      ${/* (plateforme) 1.69.0 */''}
+      <p class="small mt" id="rc-lu-hs">${KC.majorationsHs(bar).length
+    ? `Ses heures supplémentaires : ${esc(pct(bar.heuresMois))} heures pour un mois complet ; majorations ${KC.majorationsHs(bar).map(x => `${esc(pct(x))} %`).join(', ')}.`
+    : 'Il n\'a réglé aucune majoration d\'heures supplémentaires : la grille du pointage n\'en a pas de colonne.'}</p>
       <div class="modal-actions"><button class="btn btn-primary" data-close>Fermer</button></div>`);
   }
 
-  function regimesForm(root, dossier) {
+  // (plateforme) 1.69.0 — les heures supplémentaires du pointage d'un dossier tenu : les heures d'un mois complet (ce que
+  // vaut une heure) et jusqu'à trois majorations. Aucune n'est écrite d'avance (À VÉRIFIER, comme dans l'entreprise).
+  const HS_DU_CLIENT = [['heuresMois', 'Heures d\'un mois complet', 'pa.heuresMois'], ['hsMaj1', 'Majoration 1 (%)', 'pa.hs'],
+    ['hsMaj2', 'Majoration 2 (%)', 'pa.hs'], ['hsMaj3', 'Majoration 3 (%)', 'pa.hs']];
+  function regimesForm(root, dossier, opts) {
     const bar = KC.baremesPaie(dossier.paie || {});
     const pct = n => String(n).replace('.', ',');
     const contrats = KC.CONTRACT_TYPES.filter(([k]) => k !== 'cdi');
@@ -6228,6 +6409,12 @@
       <b>À VÉRIFIER</b> sur ses avis et avec les textes de l'année.</p>
       <div class="grid-3" id="rc-client" style="grid-template-columns:repeat(3,minmax(0,170px))">${TAUX_DU_CLIENT.map(([k, lab, aide]) => `<label class="field">${lbl(lab + ' (%)', aide)}<input type="text" inputmode="decimal" class="num" data-taux="${k}"
         value="${(dossier.paie || {})[k] != null && (dossier.paie || {})[k] !== '' ? esc(pct(Number(dossier.paie[k]))) : ''}" placeholder="${esc(pct(tauxGeneraux[k]))}"></label>`).join('')}</div>
+      <h3 class="mt">Les heures supplémentaires</h3>
+      <p class="small">Pour le pointage de ce client : une heure vaut son brut divisé par les heures d'un mois complet (208 =
+      26 jours de 8 heures ; 173,33 pour 40 heures par semaine), majoré. Chaque majoration réglée a sa colonne dans la grille ;
+      une case vide n'y paraît pas. <b>À VÉRIFIER</b> : le régime horaire et la convention collective du client.</p>
+      <div class="grid-3" id="rc-hs" style="grid-template-columns:minmax(0,210px) repeat(3,minmax(0,150px))">${HS_DU_CLIENT.map(([k, lab, aide]) => `<label class="field">${lbl(lab, aide)}<input type="text" inputmode="decimal" class="num" data-hs-k="${k}"
+        value="${(dossier.paie || {})[k] != null && (dossier.paie || {})[k] !== '' && Number((dossier.paie || {})[k]) > 0 ? esc(pct(Number(dossier.paie[k]))) : ''}" placeholder="${k === 'heuresMois' ? '208' : ''}"></label>`).join('')}</div>
       <h3 class="mt">Les taux par contrat</h3>
       <p class="small">Laisse une case <b>vide</b> pour appliquer le taux général (en gris) ; mets <b>0</b> pour une exonération.
       Chaque bulletin de ce client pour un salarié sous ce contrat suivra la ligne, et gardera ses taux une fois établi.
@@ -6243,6 +6430,8 @@
         <button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
     (layer, close) => {
       $('.modal', layer).classList.add('cab-large');
+      // (plateforme) 1.69.0 — ouverte depuis la grille du pointage, elle amène à la case des majorations.
+      if (opts && opts.focus) { const c = $(`[data-hs-k="${opts.focus}"]`, layer); if (c) { c.scrollIntoView({ block: 'center' }); c.focus(); } }
       // (plateforme) 1.66.0 — un taux du client change le taux général d'un contrat : la case grise le suit.
       $$('[data-taux]', layer).forEach(i => { i.oninput = () => {
         const n = Number(i.value.trim().replace(/\s/g, '').replace(',', '.'));
@@ -6258,6 +6447,19 @@
           if (!Number.isFinite(n) || n < 0 || n > 100) return refus(i, `« ${t} » n'est pas un taux entre 0 et 100. Laisse la case vide pour le taux général.`);
           if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, `« ${t} » : un taux se garde avec quatre décimales au plus.`);
           taux[i.dataset.taux] = n;
+        }
+        // (plateforme) 1.69.0 — les heures d'un mois complet (de 1 à 400, deux décimales au plus) et les majorations (%).
+        for (const i of $$('[data-hs-k]', layer)) {
+          const t = i.value.trim();
+          if (!t) continue;
+          const n = Number(t.replace(/\s/g, '').replace(',', '.'));
+          if (i.dataset.hsK === 'heuresMois') {
+            if (!Number.isFinite(n) || n < 1 || n > 400 || Math.round(n * 100) / 100 !== n) return refus(i, `« ${t} » n'est pas un nombre d'heures entre 1 et 400 (deux décimales au plus) : 208, ou 173,33. Laisse la case vide pour 208.`);
+          } else {
+            if (!Number.isFinite(n) || n < 0 || n > 100) return refus(i, `« ${t} » n'est pas une majoration entre 0 et 100 %. Laisse la case vide si ce client n'en a pas.`);
+            if (Math.round(n * 1e4) / 1e4 !== n) return refus(i, `« ${t} » : une majoration se garde avec quatre décimales au plus.`);
+          }
+          taux[i.dataset.hsK] = n;
         }
         const rc = {};
         for (const i of $$('[data-rc]', layer)) {
@@ -6382,9 +6584,19 @@
     const actifs = (L.salaries || []).filter(x => x.actif || (b && x.id === b.salarieId));
     // (plateforme) 1.68.0 — un bulletin nouveau part des primes de chaque mois de la fiche du salarié proposé (celles de
     // l'entreprise, au prorata des jours payés pour une prime au jour) : sans elles, on les retapait chaque mois.
-    const e = b || { mois: s.paieMois, annee: s.annee, joursTravailles: 26, joursAbsence: 0, primes: KC.primesDuMois(actifs[0] || {}, 26, 26), retenues: [] };
+    // (plateforme) 1.69.0 — un bulletin nouveau part du MOIS du salarié proposé, comme dans l'entreprise : son entrée ou sa
+    // sortie (le brut proratisé), ses absences non payées (ses congés, son pointage), ses primes de chaque mois (au jour sur
+    // les jours payés, 1.68.0), ses heures supplémentaires pointées. Sans pointage ni congé : le brut et les primes de la fiche.
+    const donnees = donneesDuPointage(dossier, L);
+    const saisieDe = (salarieId, mois) => {
+      const emp = donnees.employees.find(x => x.id === salarieId);
+      return emp ? KC.saisieDuMois(donnees, emp, Number(s.annee), Number(mois)) : null;
+    };
+    const depart = b ? null : saisieDe((actifs[0] || {}).id, s.paieMois);
+    const e = b || { mois: s.paieMois, annee: s.annee, joursTravailles: depart ? depart.workedDays : 26, joursAbsence: depart ? depart.absentDays : 0,
+      primes: depart ? depart.bonuses : [], retenues: [], prorata: depart ? depart.prorata : null };
     const salDefaut = b ? b.salarieId : (actifs[0] || {}).id;
-    const brutDefaut = b ? b.brut : ((actifs[0] || {}).brut || 0);
+    const brutDefaut = b ? b.brut : (depart ? depart.gross : 0);
     // (plateforme) 1.66.0 — dans un dossier TENU, les taux de la paie sont ceux que le Cabinet règle pour le client. Un
     // bulletin modifié garde ceux de son calcul (un bulletin de septembre, les taux de septembre : les barèmes ne sont
     // pas datés) ; une case lui donne ceux d'aujourd'hui (le bon taux d'accident du travail, réglé après coup), et dit
@@ -6407,10 +6619,12 @@
         <label class="field">${lbl('Mois', 'pa.bMois')}<select name="mois">${KC.MOIS_PAIE.map((lab, i) => `<option value="${i + 1}" ${i + 1 === Number(e.mois) ? 'selected' : ''}>${esc(lab)}</option>`).join('')}</select></label>
         <label class="field obligatoire">${lbl('Brut du mois (DT)', 'pa.bBrut')}<input name="brut" type="text" inputmode="decimal" class="num montant" placeholder="0,000" value="${esc(montantChamp(brutDefaut))}"></label>
         <label class="field">${lbl('Jours ouvrables du mois', 'pa.bOuvrables')}<input name="joursTravailles" type="number" min="1" step="1" class="num" value="${esc(String(e.joursTravailles || 26))}"></label>
-        <label class="field">${lbl('Jours d\'absence non payés', 'pa.bAbsence')}<input name="joursAbsence" type="number" min="0" step="1" class="num" value="${esc(String(e.joursAbsence || 0))}"></label>
+        <label class="field">${lbl('Jours d\'absence non payés', 'pa.bAbsence')}<input name="joursAbsence" type="number" min="0" step="0.5" class="num" value="${esc(String(e.joursAbsence || 0))}"></label>
       </form>
       ${/* (plateforme) 1.63.0 — toutes les primes et toutes les retenues du bulletin, l'une sous l'autre (la disposition
            de l'entreprise) : le formulaire n'en montrait qu'une de chaque, et l'enregistrement effaçait les autres. */''}
+      ${/* (plateforme) 1.69.0 — d'où viennent le brut et l'absence proposés : un brut proratisé, un mois pointé. */''}
+      <p class="small muted mt" id="bf-mois-note" hidden></p>
       <div class="bf-lignes mt">
         <div class="panel"><h2>Primes et indemnités (DT) ${info('pa.bPrime')}</h2><div id="bf-primes"></div>
           <button type="button" class="btn btn-sm mt" id="bf-plus-prime">+ Prime</button></div>
@@ -6433,7 +6647,8 @@
       // (plateforme) 1.68.0 — les primes proposées suivent le salarié choisi, tant qu'on n'y a pas touché (règle 10.6.0).
       let primesTouchees = !!b;
       const retenues = (e.retenues || []).map(r => ({ ...r }));
-      const prorata = (b && b.prorata) || null;
+      // (plateforme) 1.69.0 — celui du bulletin, ou celui du mois du salarié pour un bulletin nouveau (son entrée, sa sortie).
+      let prorata = e.prorata || null;
       const jourFr = n => String(KC.round3(Number(n) || 0)).replace('.', ',');
       const noteAuJour = x => `au jour : ${jourFr(x.jours)} j payé${Number(x.jours) > 1 ? 's' : ''} sur ${jourFr(x.sur)} · ${money(x.mensuel)} pour un mois plein`;
       const dessiner = (sel, liste, sorte) => {
@@ -6499,6 +6714,16 @@
       // (plateforme) 1.64.0 — un bulletin modifié garde le barème figé avec son calcul (les taux du client ce mois-là),
       // l'aperçu comme l'enregistrement : avec les réglages du dossier au Cabinet, il changeait de taux en silence.
       // (plateforme) 1.66.0 — ou, dans un dossier tenu, les taux d'aujourd'hui, si la case est cochée.
+      // (plateforme) 1.69.0 — d'où viennent le brut et l'absence proposés, sous l'en-tête : un brut proratisé (l'entrée, la
+      // sortie), un mois pointé (l'absence et les heures supplémentaires viennent de sa grille).
+      const direLeMois = v => {
+        const note = $('#bf-mois-note', rootModal);
+        const lignes = [];
+        if (v.prorata) lignes.push(`Brut proratisé : ${v.prorata.motif || 'une entrée ou une sortie dans le mois'}, ${joursFr(v.prorata.jours)} jours sur ${joursFr(v.prorata.sur)} (${money(v.prorata.brutFiche)} pour un mois plein).`);
+        if (!b && KC.pointageEnregistre(donnees, v.salarieId, Number(s.annee), v.mois)) lignes.push(`Le mois est pointé : ${(v.primes || []).some(x => x.hs) ? 'l\'absence et les heures supplémentaires viennent' : 'l\'absence vient'} de sa grille.`);
+        note.hidden = !lignes.length;
+        note.textContent = lignes.join(' ');
+      };
       const caseDuJour = $('#bf-taux-du-jour', rootModal);
       // (plateforme) 1.67.0 — les réglages du dossier : ceux du SkanFact du client, s'il y tient sa paie.
       const reglages = reglagesPaie(dossier, L);
@@ -6521,6 +6746,7 @@
         apercu.innerHTML = illisible ? '<b>Net à payer —</b> <span class="small muted">— un montant ne se lit pas encore.</span>' : `<b>Net à payer ${esc(money(c.net))}</b>
           <span class="small muted">— brut ${esc(money(c.gross))}, retenues ${esc(money(KC.round3(c.cnssEmployee + c.irpp + c.css + c.otherDeductions)))},
           coût employeur ${esc(money(c.employerCost))}</span>${c.regime ? `<div class="small mt" id="bf-regime"><b>${esc(KC.contractLabel(c.contrat).split(' —')[0])}</b> : ${esc(KC.libelleRegime(c.regime))} — ${L.reglagesPaie ? 'réglé dans son SkanFact' : 'réglé dans « Taux de la paie… »'}.</div>` : ''}`;
+        direLeMois(v);
         const refus = $('#bf-refus', rootModal);
         refus.hidden = verdict.ok;
         refus.textContent = verdict.ok ? '' : verdict.motif;
@@ -6534,20 +6760,25 @@
       let brutTouche = !!b;
       $('[name=brut]', f).addEventListener('input', () => { brutTouche = true; });
       const choixSal = $('[name=salarieId]', f);
-      if (choixSal) choixSal.addEventListener('change', () => {
-        if (brutTouche) return;
-        const sal = (L.salaries || []).find(x => x.id === choixSal.value) || {};
-        $('[name=brut]', f).value = montantChamp(sal.brut);
-      });
-      // (plateforme) 1.68.0 — les primes PROPOSÉES suivent le salarié choisi, comme le brut, tant qu'on n'y a pas touché ;
-      // celles « au jour » suivent ensuite les jours payés (le formulaire le refait juste après).
-      if (choixSal) choixSal.addEventListener('change', () => {
+      // (plateforme) 1.68.0 et 1.69.0 — ce qui est PROPOSÉ suit le salarié et le mois choisis, tant qu'on n'y a pas touché
+      // (règle 10.6.0) : le brut (proratisé à l'entrée ou à la sortie), les jours et l'absence (ses congés, son pointage),
+      // les primes de chaque mois et les heures supplémentaires pointées ; celles « au jour » suivent ensuite les jours payés
+      // (le formulaire le refait juste après).
+      let absenceTouchee = !!b;
+      ['joursAbsence', 'joursTravailles'].forEach(n => $(`[name=${n}]`, f).addEventListener('input', () => { absenceTouchee = true; }));
+      const reprendreLeMois = () => {
+        if (b) return;
+        const i = saisieDe(choixSal.value, $('[name=mois]', f).value);
+        if (!i) return;
+        prorata = i.prorata;
+        if (!brutTouche) $('[name=brut]', f).value = montantChamp(i.gross);
+        if (!absenceTouchee) { $('[name=joursTravailles]', f).value = String(i.workedDays); $('[name=joursAbsence]', f).value = String(i.absentDays); }
         if (primesTouchees) return;
-        const sal = (L.salaries || []).find(x => x.id === choixSal.value) || {};
-        const ouvrables = Number($('[name=joursTravailles]', f).value) || 26;
-        primes.splice(0, primes.length, ...KC.primesDuMois(sal, ouvrables, ouvrables));
+        primes.splice(0, primes.length, ...i.bonuses.map(p => ({ ...p })));
         dessiner('#bf-primes', primes, 'prime');
-      });
+      };
+      if (choixSal) choixSal.addEventListener('change', reprendreLeMois);
+      $('[name=mois]', f).addEventListener('change', reprendreLeMois);
       f.oninput = f.onchange = () => { suivreLesJours(); maj(); };
       dessiner('#bf-primes', primes, 'prime');
       dessiner('#bf-retenues', retenues, 'retenue');

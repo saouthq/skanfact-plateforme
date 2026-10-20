@@ -752,6 +752,89 @@ l'aperçu.
 
 ### Ce qui reste
 
-- Le **pointage** au Cabinet (celui de l'entreprise, 1.60.0) : les heures supplémentaires d'un client s'y tapent encore
-  en primes.
+- ~~Le **pointage** au Cabinet (celui de l'entreprise, 1.60.0) : les heures supplémentaires d'un client s'y tapent encore
+  en primes~~ : fait en 1.69.0 (« Le pointage au Cabinet », ci-dessous).
 - À VÉRIFIER avec le comptable : quelles primes la convention collective proratise.
+
+## Le pointage au Cabinet (20/10/2026, 1.69.0)
+
+*L'entreprise pointe ses salariés depuis la 1.60.0 ; le Cabinet tenait la paie de ses clients bulletin par bulletin, sans
+grille, et un bulletin nouveau ignorait l'entrée ou la sortie du mois.*
+
+### Le défaut
+
+Au Cabinet, un bulletin nouveau partait du brut de la fiche, sans absence : le comptable comptait à la main les jours
+d'absence du mois et les heures supplémentaires (qu'il tapait en primes), et un salarié entré le 14 recevait un mois
+plein (l'entreprise proratise depuis la 10.12.0). Les congés qu'un client sur SkanFact saisit, le Cabinet ne les voyait
+pas : son bulletin et celui du client pouvaient différer d'une absence.
+
+### Ce que le lot fait (migration `0149`, `serveur/paie/routes.ts`, `pont-cabinet.js`, `web/v10/paie-cabinet-pointage.txt`)
+
+- **Le moteur** du pointage (la grille d'un mois, les jours payés, les heures supplémentaires, la reprise sur un
+  bulletin) passe dans le moteur commun (`compta.js`, que le Cabinet charge), avec les natures de congé et celles qui sont
+  payées ; `core.js` le reprend, une seule copie. Une fonction nouvelle, `saisieDuMois`, donne la saisie d'un bulletin
+  nouveau lue sur la grille du mois : c'est celle de l'entreprise (`payslipInputFor`), sans les avances, au millime.
+- **La base** (0149), sous un mandat qui comprend la paie : le cabinet tient le pointage du client (`timesheets` : il le
+  lit et l'écrit, comme les salariés et les bulletins), et **lit** ses congés (`leaves`), sans les écrire. Rien d'autre.
+- **La route de la paie** rend le pointage et les congés avec la paie, et écrit le pointage.
+- **L'écran** : sous les bulletins du mois, « Le pointage d'octobre 2026 » — la grille de l'entreprise : une case par
+  salarié et par jour, au clic (le code suivant), à la lettre (P, ½ par D, A, C, M, F, R) et aux flèches ; les jours
+  payés et non payés de chacun ; une colonne par majoration d'heures supplémentaires réglée. Les congés du client s'y
+  posent d'eux-mêmes ; un jour hors contrat ne se pointe pas ; un dimanche ne prend que « Repos » ou « Présent », et le
+  dit. Chaque geste s'écrit au serveur, l'un après l'autre ; seul le panneau se redessine, et le curseur reste sur sa
+  case. Un exercice clos se lit sans se changer. La grille tient dans la page du Cabinet, plus étroite que celle de
+  l'entreprise (vu à l'écran : elle débordait de 70 pixels dès une colonne d'heures supplémentaires) ; au-delà, elle
+  défile, le nom du salarié restant en place.
+- **Un bulletin nouveau part du mois du salarié** : son entrée ou sa sortie (le brut proratisé sur les jours ouvrables hors
+  contrat), ses absences non payées (ses congés, son pointage), ses primes de chaque mois au jour sur les jours payés
+  (1.68.0), ses heures supplémentaires pointées. Ce qui est proposé suit le salarié et le mois choisis tant qu'on n'y a
+  pas touché, et une note dit d'où vient le brut (« Brut proratisé : entrée le 14/10/2026, 15 jours sur 26 ») et que le
+  mois est pointé. Une absence d'une demi-journée se tape.
+- **Un bulletin déjà établi qui ne suit plus le pointage** le dit sous la grille (« 3,5 jours non payés au bulletin, 4,5 au
+  pointage »), et « Reprendre le pointage dans le bulletin » le met à jour — un bulletin payé demande d'abord.
+- **Les majorations** : celles d'un client sur SkanFact sont celles qu'il règle (Paie › Barèmes), et la fenêtre de ses
+  taux les dit ; pour un dossier tenu, « Taux de la paie… » a sa section « Les heures supplémentaires » (les heures d'un
+  mois complet, trois majorations), et la grille, sans majoration, y amène d'un bouton (« Régler les heures
+  supplémentaires… »). Aucune n'est écrite d'avance.
+- **Ce qui part au serveur**, compté : le pointage du client (dans sa forme : jours pointés, heures supplémentaires), et,
+  dans la fiche d'un dossier tenu, quatre champs de plus (`paie.heuresMois`, `hsMaj1` à `hsMaj3`, en texte décimal).
+  Ce qui en revient : ses congés, sous le seul mandat de paie (`docs/cabinet.md`, C50).
+
+### Décidé par délégation (20/10/2026)
+
+- Le pointage est tenu des deux côtés, dans le même objet : le client le voit dans son SkanFact, le Cabinet dans le sien.
+  Les congés restent au client (le Cabinet les lit) : un congé se saisit là où on le décide.
+- Le moteur du pointage ne lit de `data` que la paie : l'exception à la règle de `compta.js` (une fonction qui prend
+  `data` reste dans `core.js`), écrite dans son en-tête, plutôt qu'une copie.
+- Un bulletin nouveau au Cabinet proratise l'entrée et la sortie, comme l'entreprise : c'était un écart entre les deux.
+
+### Ce qui le prouve
+
+- `tests/moteur/paie-pointage-cabinet.test.ts` : deux chemins, un chiffre — la saisie du Cabinet et celle de
+  l'entreprise, au millime, sur une entrée en cours de mois avec un congé sans solde, le même mois pointé (une absence,
+  une demi-journée, six heures à +25 %), une sortie, un mois plein où la maladie ne se retire pas.
+- `tests/cabinet/paie.test.ts` : dans la base, le pointage et les congés ne se lisent que sous un mandat de paie ; le
+  pointage s'y modifie et s'y ajoute, les congés ni ne se modifient, ni ne s'effacent, ni ne s'ajoutent ; la route rend
+  les deux, écrit le pointage et refuse d'écrire un congé ; le client voit le pointage du cabinet.
+- `tests/web/cabinet-paie-pointage.test.ts` : à la souris et au clavier, sur un client sur SkanFact (sa grille, son congé,
+  son dimanche, ses heures, le pointage relu après rechargement, un bulletin nouveau au net du serveur, puis l'écart et sa
+  reprise), et sur un dossier tenu (la majoration réglée depuis la grille, refusée illisible, gardée dans la fiche, sa
+  colonne, la grille d'octobre qui tient sans défiler, et son bulletin à 33,924).
+- Vingt-six preuves (`tests/preuves.sh`, « 1.69.0 »), et seize anciennes reprises : les treize du pointage (1.60.0), qui le
+  suivent dans le moteur commun, celles de la fiche, de la route de la paie et du bulletin nouveau (1.68.0).
+
+### Refait à la souris (20/10/2026)
+
+Sur le client inventé du cabinet d'essai : une demi-journée, une absence et un congé pointés en octobre au clic et au
+clavier ; le bulletin d'octobre qui ne suivait plus le pointage, repris d'un geste (brut 1 084,125 DT, net 900,293 DT,
+au serveur comme à l'écran) ; un bulletin de décembre établi après deux absences pointées (la prime de présence à 42,000,
+24 jours sur 26 ; net 955,879 DT, coût 1 406,345 DT, au serveur comme à l'aperçu). Sur le dossier tenu : la majoration
+de 25 % réglée depuis la grille (la fenêtre amène à sa case), sa colonne, quatre heures pointées. Vu et corrigé : la
+grille qui débordait, le libellé « Heures d'un mois complet » qui décalait sa case, la note du bulletin qui parlait
+d'heures supplémentaires quand il n'y en avait pas.
+
+### Ce qui reste
+
+- Le repos de la semaine d'un dossier tenu est le dimanche (celui de l'entreprise se règle dans ses Barèmes).
+- Les congés d'un dossier tenu ne se saisissent pas au Cabinet : une absence se pointe.
+- Les heures supplémentaires au jour près, et l'import d'une pointeuse.

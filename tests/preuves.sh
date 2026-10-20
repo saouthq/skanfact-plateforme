@@ -1904,9 +1904,9 @@ prouver "une fiche lue sans voir le dossier" $M20 \
   "  using (cabinet in (select socle.mes_organisations()) and entreprise in (select socle.mes_entreprises()));" "  using (cabinet in (select socle.mes_organisations()));" \
   "$E3"
 prouver "une fiche aux champs non comptés" serveur/cabinet/routes.ts \
-  "foprolosRate: TAUX_POUR_CENT.optional(),
+  "hsMaj3: TAUX_POUR_CENT.optional(),
   }).strict(),
-}).partial().strict();" "foprolosRate: TAUX_POUR_CENT.optional(),
+}).partial().strict();" "hsMaj3: TAUX_POUR_CENT.optional(),
   }).strict(),
 }).partial().passthrough();" \
   "$E3"
@@ -2792,7 +2792,7 @@ PA1="avec le mandat de la paie, l'associé tient les salariés et les bulletins 
 PA2="qui peut : l'associé et le collaborateur Paie, le propriétaire ; pas le collaborateur comptable"
 WP1="un salarié et son bulletin, écrits dans le dossier du client ; le serveur les tient au millime et écrit le mois"
 prouver "le cabinet qui écrit autre chose que la paie du dossier" serveur/paie/routes.ts \
-  "collection: z.enum(['employees', 'payslips'], { message: 'paie.champ.collection' }), cle:" "collection: z.string(), cle:" \
+  "collection: z.enum(COLLECTIONS_PAIE, { message: 'paie.champ.collection' }), cle:" "collection: z.string(), cle:" \
   "$PA1"
 prouver "la paie ouverte au cabinet sans le mandat de la paie" serveur/paie/gestes.ts \
   "  { code: 'paie.dossier.modifier', module: 'paie', ecrit: true, horsCle: true," "  { code: 'paie.dossier.modifier', module: 'paie', ecrit: true, horsCle: true, perimetre: ['comptabilite']," \
@@ -17186,40 +17186,40 @@ prouver 'une majoration d'"'"'heures supplémentaires écrite d'"'"'avance' 'web
   '    hsMaj1: 0, hsMaj2: 0, hsMaj3: 0,' \
   '    hsMaj1: 25, hsMaj2: 0, hsMaj3: 0,' \
   'aucune majoration d'"'"'heures supplémentaires n'"'"'est écrite d'"'"'avance ; un mois complet fait 208 heures'
-prouver 'une demi-journée comptée entière' 'web/public/v10/core.js' \
+prouver 'une demi-journée comptée entière' 'web/public/v10/compta.js' \
   'j.code === '"'"'D'"'"' ? 0.5 : 0' \
   'j.code === '"'"'D'"'"' ? 1 : 0' \
   'pointer un jour ne garde que ce qui diffère ; une demi-journée retire une moitié ; revenir au calendrier efface'
-prouver 'tout le pointage gardé, même ce que le calendrier donne' 'web/public/v10/core.js' \
+prouver 'tout le pointage gardé, même ce que le calendrier donne' 'web/public/v10/compta.js' \
   '    if (naturel.code !== code) t.jours[String(jour)] = code;' \
   '    t.jours[String(jour)] = code;' \
   'pointer un jour ne garde que ce qui diffère ; une demi-journée retire une moitié ; revenir au calendrier efface'
-prouver 'les congés saisis absents de la grille' 'web/public/v10/core.js' \
+prouver 'les congés saisis absents de la grille' 'web/public/v10/compta.js' \
   '        if (l) { code = !(l.paid != null' \
   '        if (false) { code = !(l.paid != null' \
   'les congés et absences saisis s'"'"'y posent : une absence sans solde se retire, une maladie et un congé se paient'
-prouver 'une absence comptée un jour de repos' 'web/public/v10/core.js' \
+prouver 'une absence comptée un jour de repos' 'web/public/v10/compta.js' \
   '(j.repos ? 0 : j.code === '"'"'A'"'"'' \
   '(false ? 0 : j.code === '"'"'A'"'"'' \
   'un jour de repos ne prend que « Repos » ou « Présent », et ne retire jamais un jour payé ; un refus n'"'"'écrit rien'
-prouver 'un jour de repos qui prend une absence' 'web/public/v10/core.js' \
+prouver 'un jour de repos qui prend une absence' 'web/public/v10/compta.js' \
   ' || (naturel.repos && !CODES_REPOS.includes(code))' \
   '' \
   'un jour de repos ne prend que « Repos » ou « Présent », et ne retire jamais un jour payé ; un refus n'"'"'écrit rien'
-prouver 'un refus qui efface le jour déjà pointé' 'web/public/v10/core.js' \
+prouver 'un refus qui efface le jour déjà pointé' 'web/public/v10/compta.js' \
   '      if (garde !== undefined) t.jours[String(jour)] = garde;
 ' \
   '' \
   'un jour de repos ne prend que « Repos » ou « Présent », et ne retire jamais un jour payé ; un refus n'"'"'écrit rien'
-prouver 'les jours hors contrat payés' 'web/public/v10/core.js' \
+prouver 'les jours hors contrat payés' 'web/public/v10/compta.js' \
   '    const hors = Math.min(total, jours.filter(j => j.code === '"'"'-'"'"' && !off.includes(j.wd)).length);' \
   '    const hors = 0;' \
   'hors contrat, un jour ne se pointe pas ; les jours payés du pointage sont ceux du bulletin proratisé'
-prouver 'des heures supplémentaires sans majoration' 'web/public/v10/core.js' \
+prouver 'des heures supplémentaires sans majoration' 'web/public/v10/compta.js' \
   'amount: round3(brut * h * (100 + x) / 100 / heuresMois)' \
   'amount: round3(brut * h / heuresMois)' \
   'les heures supplémentaires : rien sans majoration réglée ; sinon le taux horaire de la fiche, majoré, au millime'
-prouver 'une majoration non réglée payée' 'web/public/v10/core.js' \
+prouver 'une majoration non réglée payée' 'web/public/v10/compta.js' \
   'return majorationsHs(s).filter(x => Number(t.hs[String(x)]) > 0)' \
   'return Object.keys(t.hs).map(Number).filter(x => Number(t.hs[String(x)]) > 0)' \
   'les heures supplémentaires : rien sans majoration réglée ; sinon le taux horaire de la fiche, majoré, au millime'
@@ -17227,19 +17227,19 @@ prouver 'un mois pointé qui ne donne rien au bulletin' 'web/public/v10/core.js'
   '    if (!pointageEnregistre(data, employee.id, year, month)) return i;' \
   '    return i;' \
   'un mois pointé donne au bulletin ses absences, ses primes au jour et ses heures ; le bulletin calcule comme une saisie à la main'
-prouver 'des primes au jour qui ne suivent pas le pointage' 'web/public/v10/core.js' \
+prouver 'des primes au jour qui ne suivent pas le pointage' 'web/public/v10/compta.js' \
   '.map(b => b.parJour ? { ...b, amount: round3(Number(b.mensuel) * j / total), jours: j, sur: total } : b)' \
   '.map(b => b)' \
   'un mois pointé donne au bulletin ses absences, ses primes au jour et ses heures ; le bulletin calcule comme une saisie à la main'
-prouver 'la reprise qui double les heures' 'web/public/v10/core.js' \
+prouver 'la reprise qui double les heures' 'web/public/v10/compta.js' \
   '    const bonuses = (i.bonuses || []).filter(b => !b.hs)' \
   '    const bonuses = (i.bonuses || []).filter(b => b)' \
   'un bulletin établi avant le pointage le sait ; repris, il le suit, et ses heures se remplacent sans se doubler'
-prouver 'un bulletin qui ne voit pas qu'"'"'il ne suit plus le pointage' 'web/public/v10/core.js' \
+prouver 'un bulletin qui ne voit pas qu'"'"'il ne suit plus le pointage' 'web/public/v10/compta.js' \
   '    const change = absences || empreinte(slip.bonuses) !== empreinte(r.bonuses);' \
   '    const change = false;' \
   'un bulletin établi avant le pointage le sait ; repris, il le suit, et ses heures se remplacent sans se doubler'
-prouver 'un écart d'"'"'heures tu' 'web/public/v10/core.js' \
+prouver 'un écart d'"'"'heures tu' 'web/public/v10/compta.js' \
   '    const heures = empreinte((slip.bonuses || []).filter(b => b.hs)) !== empreinte(r.bonuses.filter(b => b.hs));' \
   '    const heures = false;' \
   'un bulletin établi avant le pointage le sait ; repris, il le suit, et ses heures se remplacent sans se doubler'
@@ -17633,8 +17633,8 @@ prouver 'les primes de la fiche oubliées à l'"'"'enregistrement' 'web/public/v
   'primes: []' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
 prouver 'un bulletin nouveau du Cabinet sans les primes de la fiche' 'web/public/v10/cabinet/app.js' \
-  'primes: KC.primesDuMois(actifs[0] || {}, 26, 26)' \
-  'primes: []' \
+  'primes: depart ? depart.bonuses : [], retenues: []' \
+  'primes: [], retenues: []' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
 prouver 'les primes proposées qui ne suivent pas le salarié choisi' 'web/public/v10/cabinet/app.js' \
   'let primesTouchees = !!b;' \
@@ -17653,6 +17653,112 @@ prouver 'la fiche d'"'"'un salarié au Cabinet qui s'"'"'élargit à la premièr
   '#ef-primes-p, #bf-bon, #sf-primes-p))' \
   '#ef-primes-p, #bf-bon))' \
   'la fiche garde les primes de chaque mois, et un bulletin nouveau les reprend, la prime au jour suivant les jours payés'
+# 1.69.0 : le pointage au Cabinet (docs/paie.md, « Le pointage au Cabinet »).
+prouver 'le pointage du client tenu sans le mandat de la paie' 'base/migrations/0149_paie_pointage_au_cabinet.sql' \
+  'collection = '"'"'timesheets'"'"' and entreprise in (select socle.mes_entreprises_au_perimetre('"'"'paie'"'"'))' \
+  'collection = '"'"'timesheets'"'"' and entreprise in (select socle.mes_entreprises())' \
+  'dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout'
+prouver 'les congés du client que le cabinet peut réécrire' 'base/migrations/0149_paie_pointage_au_cabinet.sql' \
+  'create policy conges_au_cabinet on socle.dossier_v10 for select using (' \
+  'create policy conges_au_cabinet on socle.dossier_v10 using (' \
+  'dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout'
+prouver 'les congés du client tus au cabinet' 'base/migrations/0149_paie_pointage_au_cabinet.sql' \
+  'collection = '"'"'leaves'"'"' and entreprise' \
+  'collection = '"'"'aucune'"'"' and entreprise' \
+  'dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout'
+prouver 'la route de la paie qui tait les congés du client' 'serveur/paie/routes.ts' \
+  'const COLLECTIONS_PAIE_LUES = [...COLLECTIONS_PAIE, '"'"'leaves'"'"'];' \
+  'const COLLECTIONS_PAIE_LUES = [...COLLECTIONS_PAIE];' \
+  'avec le mandat de la paie, l'"'"'associé tient les salariés et les bulletins du client : recalculés au serveur, écrits au livre ; sans lui, rien'
+prouver 'la route de la paie qui refuse d'"'"'écrire le pointage' 'serveur/paie/routes.ts' \
+  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"', '"'"'timesheets'"'"'] as const;' \
+  'const COLLECTIONS_PAIE = ['"'"'employees'"'"', '"'"'payslips'"'"'] as const;' \
+  'avec le mandat de la paie, l'"'"'associé tient les salariés et les bulletins du client : recalculés au serveur, écrits au livre ; sans lui, rien'
+prouver 'la fiche qui refuse les heures d'"'"'un mois complet d'"'"'un dossier tenu' 'serveur/cabinet/routes.ts' \
+  'heuresMois: HEURES_DU_MOIS.optional(), hsMaj1: TAUX_POUR_CENT.optional(),' \
+  'hsMaj1: TAUX_POUR_CENT.optional(),' \
+  'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
+prouver 'le pointage du client jamais posé dans le livre' 'web/public/plateforme/pont-cabinet.js' \
+  'livre.pointages = objets.filter(' \
+  'livre.pointages = [].filter(' \
+  'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
+prouver 'les congés du client jamais posés dans le livre' 'web/public/plateforme/pont-cabinet.js' \
+  'livre.conges = objets.filter(' \
+  'livre.conges = [].filter(' \
+  'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
+prouver 'le pointage enregistré sans ses heures supplémentaires' 'web/public/plateforme/pont-cabinet.js' \
+  'jours: { ...(t.jours || {}) }, hs: { ...(t.hs || {}) } };' \
+  'jours: { ...(t.jours || {}) }, hs: {} };' \
+  'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
+prouver 'les heures supplémentaires d'"'"'un dossier tenu jamais gardées dans sa fiche' 'web/public/plateforme/pont-cabinet.js' \
+  ''"'"'foprolosRate'"'"', '"'"'heuresMois'"'"', '"'"'hsMaj1'"'"', '"'"'hsMaj2'"'"', '"'"'hsMaj3'"'"'];' \
+  ''"'"'foprolosRate'"'"'];' \
+  'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
+prouver 'un bulletin nouveau sans le prorata de l'"'"'entrée' 'web/public/v10/compta.js' \
+  'const gross = hors ? round3(brutFiche * (total - hors) / total) : employee.grossSalary;' \
+  'const gross = employee.grossSalary;' \
+  'une entrée en cours de mois, un congé sans solde : le brut proratisé, l'"'"'absence, la prime au jour sur les jours payés'
+prouver 'un mois pointé sans ses heures supplémentaires au bulletin nouveau' 'web/public/v10/compta.js' \
+  'return p.pointe ? { ...i, ...reprisePointage(i, p, heuresSupDuMois(data, employee, year, month)) } : i;' \
+  'return i;' \
+  'le mois pointé : ses absences, sa demi-journée et ses heures supplémentaires arrivent au bulletin'
+prouver 'la prime au jour d'"'"'un bulletin nouveau sur le mois entier' 'web/public/v10/compta.js' \
+  'bonuses: primesDuMois(employee, total - hors - p.absences, total), prorata };' \
+  'bonuses: primesDuMois(employee, total, total), prorata };' \
+  'une entrée en cours de mois, un congé sans solde : le brut proratisé, l'"'"'absence, la prime au jour sur les jours payés'
+prouver 'les congés tous payés, quelle que soit leur nature' 'web/public/v10/compta.js' \
+  'const leaveIsPaid = k => { const f = LEAVE_KINDS.find(x => x[0] === k); return f ? f[2] : true; };' \
+  'const leaveIsPaid = () => true;' \
+  'le moteur du pointage vit dans le moteur commun, et l'"'"'entreprise le reprend'
+prouver 'la grille du pointage absente de la paie du Cabinet' 'web/public/v10/cabinet/app.js' \
+  '    ${vuePointage(dossier, L, s.annee, m)}' \
+  '    ${'"'"''"'"'}' \
+  'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
+prouver 'un bulletin nouveau du Cabinet qui ignore le mois du salarié' 'web/public/v10/cabinet/app.js' \
+  'const depart = b ? null : saisieDe((actifs[0] || {}).id, s.paieMois);' \
+  'const depart = null;' \
+  'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
+prouver 'ce qui est proposé qui ne suit pas le salarié choisi' 'web/public/v10/cabinet/app.js' \
+  'if (choixSal) choixSal.addEventListener('"'"'change'"'"', reprendreLeMois);' \
+  '' \
+  'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
+prouver 'une case pointée jamais enregistrée' 'web/public/v10/cabinet/app.js' \
+  'pointageEnCours = pointageEnCours.then(() => api.savePointage({ dossierId: dossier.id, pointage: copie }))' \
+  'pointageEnCours = pointageEnCours.then(() => null)' \
+  'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
+prouver 'le curseur perdu après une lettre de la grille' 'web/public/v10/cabinet/app.js' \
+  'redessiner({ e: e.id, d: Number(b.dataset.pt) });' \
+  'redessiner(null);' \
+  'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
+prouver 'l'"'"'écart au pointage jamais dit au Cabinet' 'web/public/v10/cabinet/app.js' \
+  'const ecarts = clos ? [] : KC.bulletinsDuMois(' \
+  'const ecarts = true ? [] : KC.bulletinsDuMois(' \
+  'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
+prouver 'la reprise du pointage qui garde l'"'"'ancienne absence' 'web/public/v10/cabinet/app.js' \
+  'joursAbsence: r.absentDays, primes: r.bonuses, retenues: b.retenues || []' \
+  'joursAbsence: b.joursAbsence, primes: r.bonuses, retenues: b.retenues || []' \
+  'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
+prouver 'la note qui tait le brut proratisé' 'web/public/v10/cabinet/app.js' \
+  'if (v.prorata) lignes.push(' \
+  'if (false) lignes.push(' \
+  'un client sur SkanFact : sa grille, son pointage gardé, et un bulletin nouveau qui part du mois du salarié'
+prouver 'une majoration illisible gardée dans la fiche' 'web/public/v10/cabinet/app.js' \
+  'if (!Number.isFinite(n) || n < 0 || n > 100) return refus(i, `« ${t} » n'"'"'est pas une majoration' \
+  'if (false) return refus(i, `« ${t} » n'"'"'est pas une majoration' \
+  'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
+prouver 'la grille muette sur où régler les heures supplémentaires' 'web/public/v10/cabinet/app.js' \
+  '<button type="button" class="btn btn-sm" id="pt-taux">Régler les heures supplémentaires…</button>' \
+  '' \
+  'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
+prouver 'la fenêtre des taux qui n'"'"'amène pas à la case des majorations' 'web/public/v10/cabinet/app.js' \
+  'if (opts && opts.focus) { const c = $(`[data-hs-k="${opts.focus}"]`, layer); if (c) { c.scrollIntoView({ block: '"'"'center'"'"' }); c.focus(); } }' \
+  '' \
+  'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
+
+prouver 'la grille du pointage du Cabinet qui déborde de sa page' 'web/public/v10/cabinet/app.js' \
+  '<div class="panel mt pt-cabinet" id="pt-panneau">' \
+  '<div class="panel mt" id="pt-panneau">' \
+  'un dossier tenu : la grille dit où régler les heures supplémentaires, la fenêtre des taux les garde, la colonne paraît'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

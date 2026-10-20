@@ -83,9 +83,10 @@
   const fiches = new Map();
   // Les champs de la fiche : ceux que le serveur garde (serveur/cabinet/routes.ts, FICHE).
   const TEXTES_FICHE = ['email', 'phone', 'contact', 'note', 'regime', 'tvaPeriod', 'from', 'cnssEmployeur', 'cnssCode'];
-  // Les taux de la paie propres à l'entreprise (1.66.0) : l'accident du travail, la TFP, le FOPROLOS. Gardés en texte
-  // décimal, comme les taux par contrat, et lus tels quels : le moteur de la v10 les compte en nombres (computePayslip).
-  const TAUX_DU_DOSSIER = ['accidentRate', 'tfpRate', 'foprolosRate'];
+  // Les taux de la paie propres à l'entreprise (1.66.0) : l'accident du travail, la TFP, le FOPROLOS ; et (1.69.0) les
+  // heures supplémentaires du pointage : les heures d'un mois complet, trois majorations. Gardés en texte décimal, comme
+  // les taux par contrat, et lus tels quels : le moteur de la v10 les compte en nombres (computePayslip, heuresSupDuMois).
+  const TAUX_DU_DOSSIER = ['accidentRate', 'tfpRate', 'foprolosRate', 'heuresMois', 'hsMaj1', 'hsMaj2', 'hsMaj3'];
   /** @param {Record<string, unknown>} c */
   const depuisFiche = (c) => ({ ...c, fees: Number(c.fees || 0) / 1000,
     // Les abonnements (brique 51) : leur montant, gardé en texte décimal, redevient un nombre pour la v10.
@@ -585,6 +586,10 @@
       .map((/** @type {any} */ o) => bulletinDe(o.contenu, ecritureDuMois(`${o.contenu.year}-${String(o.contenu.month).padStart(2, '0')}`)));
     // 1.67.0 — les réglages de paie du client qui tient sa paie dans SkanFact : l'écran calcule ses bulletins avec eux.
     livre.reglagesPaie = reglagesDuClient(ent);
+    // 1.69.0 — son pointage et ses congés, dans la forme de l'entreprise : la grille du mois, et le bulletin nouveau qui la
+    // suit. Les congés se lisent sans s'écrire (migration 0149).
+    livre.pointages = objets.filter((/** @type {any} */ o) => o.collection === 'timesheets').map((/** @type {any} */ o) => o.contenu);
+    livre.conges = objets.filter((/** @type {any} */ o) => o.collection === 'leaves').map((/** @type {any} */ o) => o.contenu);
     return livre;
   }
   // Le livre d'une année et sa paie, relue (les gestes de la paie).
@@ -1553,6 +1558,17 @@
       const s = livre.salaries.find((/** @type {any} */ x) => x.id === o.id);
       await ecrirePaieDuDossier(o.dossierId, 'employees', o.id, employeDe(s, paieAvant(o.dossierId, 'employees', o.id)));
       return { ok: true, livre: await livreEtPaie(o.dossierId, o.annee) };
+    },
+    // 1.69.0 — le pointage d'un salarié pour un mois (`timesheets`, la forme de l'entreprise : ses jours pointés, ses
+    // heures supplémentaires). Seul cet objet s'écrit, dans la révision lue ; la paie relue tient les révisions à jour
+    // pour le geste suivant (une case pointée juste après l'autre). Le livre ne se relit pas : l'écran l'a déjà.
+    savePointage: async (/** @type {any} */ o) => {
+      const t = o && o.pointage;
+      if (!t || typeof t.id !== 'string' || !t.id || typeof t.employeeId !== 'string' || !Number(t.year) || !Number(t.month)) throw new Error('Ce pointage ne se lit pas : recharge la page, puis réessaie.');
+      const garde = { id: t.id, employeeId: t.employeeId, year: Number(t.year), month: Number(t.month), jours: { ...(t.jours || {}) }, hs: { ...(t.hs || {}) } };
+      await ecrirePaieDuDossier(o.dossierId, 'timesheets', t.id, { ...(paieAvant(o.dossierId, 'timesheets', t.id) || {}), ...garde });
+      await paieDe(o.dossierId);
+      return { ok: true };
     },
     // 1.65.0 — la paie du dossier telle que l'entreprise la tient (la forme de la v10), lue avec le livre : les documents de
     // la paie (le bulletin, le journal du mois, l'état CNSS du trimestre) sont ceux de l'entreprise (core.js), sur elle.

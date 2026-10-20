@@ -137,6 +137,20 @@ describe('la paie tenue par le cabinet', () => {
     expect(avecReglages.map((o) => `${o.collection}/${o.cle}`)).toEqual(['_racine/payrollSettings', 'employees/sal-1', 'payslips/bul-3']);
     expect(avecReglages[0]?.contenu).toEqual(encoder(reglages));
     expect((await ecrire(d.ent, d.associe, [{ collection: '_racine', cle: 'payrollSettings', rang: null, revision: 1, contenu: { tfpRate: 2 } }])).statut).toBe(400);
+    // (1.69.0) Les congés que le client saisit : le cabinet les lit avec la paie, sans les écrire ; son pointage, il le
+    // tient (le lit et l'écrit), comme les salariés et les bulletins.
+    const conge = { id: 'l1', employeeId: 'sal-1', kind: 'sans-solde', from: '2025-03-10', to: '2025-03-11' };
+    expect((await appeler('POST', `/entreprises/${d.ent}/dossier-v10`, d.client.jeton,
+      { changements: [{ collection: 'leaves', cle: 'l1', rang: null, revision: null, contenu: conge }] })).statut).toBe(200);
+    const pointage = { id: 'ts1', employeeId: 'sal-1', year: 2025, month: 3, jours: { 12: 'A' }, hs: { 25: 6 } };
+    expect((await ecrire(d.ent, d.associe, [{ collection: 'timesheets', cle: 'ts1', rang: null, revision: null, contenu: pointage }])).statut).toBe(200);
+    const avecPointage = (await appeler('GET', `/entreprises/${d.ent}/paie/dossier`, d.associe.jeton)).corps.objets as { collection: string; cle: string; contenu: unknown }[];
+    expect(avecPointage.map((o) => `${o.collection}/${o.cle}`)).toEqual(['_racine/payrollSettings', 'employees/sal-1', 'leaves/l1', 'payslips/bul-3', 'timesheets/ts1']);
+    expect(avecPointage.find((o) => o.collection === 'timesheets')?.contenu).toEqual(pointage);
+    expect((await ecrire(d.ent, d.associe, [{ collection: 'leaves', cle: 'l2', rang: null, revision: null, contenu: conge }])).statut).toBe(400);
+    // Le client voit le pointage que le cabinet a tenu : un seul dossier.
+    const vuDuClient = (await appeler('GET', `/entreprises/${d.ent}/dossier-v10`, d.client.jeton)).corps.objets as { collection: string; cle: string }[];
+    expect(vuDuClient.filter((o) => o.collection === 'timesheets').map((o) => o.cle)).toEqual(['ts1']);
   });
 
   it('dans la base, le cabinet ne lit du dossier v10 du client que son plan et, sous un mandat de paie, sa paie ; le client lit tout', async () => {
@@ -153,6 +167,9 @@ describe('la paie tenue par le cabinet', () => {
     await poser('employees', 'sal-1', { id: 'sal-1', name: 'Amel Trabelsi' });
     // (1.67.0) Ses réglages de paie : lus du cabinet sous un mandat de paie seulement, et jamais écrits.
     await poser('_racine', 'payrollSettings', { accidentRate: 2, tfpRate: 1 });
+    // (1.69.0) Ses congés (lus sous un mandat de paie, jamais écrits) et son pointage (tenu sous un mandat de paie).
+    await poser('leaves', 'l1', { id: 'l1', employeeId: 'sal-1', kind: 'sans-solde', from: '2025-03-10', to: '2025-03-11' });
+    await poser('timesheets', 'ts1', { id: 'ts1', employeeId: 'sal-1', year: 2025, month: 3, jours: {}, hs: {} });
     const lu = async (p: Personne) => (await enTantQue(pool, p.utilisateur, (tx) => tx.query('select collection, cle from socle.dossier_v10 where entreprise = $1', [d.ent])))
       .rows.map((r) => `${r.collection}/${r.cle}`).sort();  // l'ordre de JavaScript : la collation de la base varie d'un poste à l'autre
     const PLAN = ['_racine/chartAccounts', 'accounts/bq1', 'clients/c1'];
@@ -166,13 +183,24 @@ describe('la paie tenue par le cabinet', () => {
       `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'documents', 'f2', '{}')`, [d.ent]))).rejects.toThrow(/row-level security/);
     // Sous un mandat qui comprend la paie : la paie aussi.
     expect((await appeler('PUT', `/entreprises/${d.ent}/mandat/perimetre`, d.client.jeton, { perimetre: ['comptabilite', 'paie'] })).statut).toBe(200);
-    expect(await lu(d.associe)).toEqual(['_racine/chartAccounts', '_racine/payrollSettings', 'accounts/bq1', 'clients/c1', 'employees/sal-1']);
+    expect(await lu(d.associe)).toEqual(['_racine/chartAccounts', '_racine/payrollSettings', 'accounts/bq1', 'clients/c1', 'employees/sal-1', 'leaves/l1', 'timesheets/ts1']);
+    // Le pointage, il le tient : il le modifie, il en ajoute ; les congés, il ne les modifie ni ne les efface ni n'en ajoute.
+    await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
+      `update socle.dossier_v10 set contenu = '{"id":"ts1","jours":{"12":"A"}}' where entreprise = $1 and collection = 'timesheets'`, [d.ent]))).resolves.toMatchObject({ rowCount: 1 });
+    await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
+      `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'timesheets', 'ts2', '{}')`, [d.ent]))).resolves.toMatchObject({ rowCount: 1 });
+    await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
+      `update socle.dossier_v10 set contenu = '{"id":"l1","kind":"conges"}' where entreprise = $1 and collection = 'leaves'`, [d.ent]))).resolves.toMatchObject({ rowCount: 0 });
+    await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
+      `delete from socle.dossier_v10 where entreprise = $1 and collection = 'leaves'`, [d.ent]))).resolves.toMatchObject({ rowCount: 0 });
+    await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
+      `insert into socle.dossier_v10 (entreprise, collection, cle, contenu) values ($1, 'leaves', 'l2', '{}')`, [d.ent]))).rejects.toThrow(/row-level security/);
     await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
       `update socle.dossier_v10 set contenu = '{"tfpRate":2}' where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [d.ent]))).resolves.toMatchObject({ rowCount: 0 });
     await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query(
       `delete from socle.dossier_v10 where entreprise = $1 and collection = '_racine' and cle = 'payrollSettings'`, [d.ent]))).resolves.toMatchObject({ rowCount: 0 });
     // Le client lit tout.
-    expect(await lu(d.client)).toEqual(['_racine/chartAccounts', '_racine/company', '_racine/payrollSettings', 'accounts/bq1', 'clients/c1', 'documents/f1', 'employees/sal-1']);
+    expect(await lu(d.client)).toEqual(['_racine/chartAccounts', '_racine/company', '_racine/payrollSettings', 'accounts/bq1', 'clients/c1', 'documents/f1', 'employees/sal-1', 'leaves/l1', 'timesheets/ts1', 'timesheets/ts2']);
   });
 
   it('qui peut : l\'associé et le collaborateur Paie, le propriétaire ; pas le collaborateur comptable', async () => {
