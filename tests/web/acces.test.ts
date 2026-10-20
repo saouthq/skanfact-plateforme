@@ -217,10 +217,22 @@ describe('l\'accès du support au dossier, à la souris, des deux côtés', () =
     await expect.poll(async () => net(await panneau.innerText()), { timeout: 10_000 }).toMatch(/Retiré à \d\d:\d\d par Lina Acces/);
     await expect.poll(() => c.locator('.acc-bandeau').count()).toBe(0);
     // Le support change de page : la lecture se ferme sur la raison, et la page qu'il lisait disparaît.
-    await lecture.evaluate(() => { location.hash = '#/devis'; });
+    // Mesuré À L'INSTANT où la fenêtre se pose, avant tout autre dessin du routeur : sur une machine lente, la page
+    // suivante se dessine après la fermeture et l'observateur l'efface aussi — il masquait alors un effacement
+    // immédiat absent (la preuve restait verte sur GitHub, 20/10/2026).
+    await lecture.evaluate(() => {
+      const w = window as unknown as { vueALaFermeture?: number };
+      new MutationObserver((_m, o) => {
+        if (!document.querySelector('.lec-ferme')) return;
+        w.vueALaFermeture = document.getElementById('view')?.childNodes.length ?? -1;
+        o.disconnect();
+      }).observe(document.body, { childList: true });
+      location.hash = '#/devis';
+    });
     const ferme = lecture.getByRole('alertdialog');
     await expect.poll(() => ferme.count(), { timeout: 15_000 }).toBe(1);
     expect(net(await ferme.innerText())).toContain('La lecture de ce dossier est fermée L\'entreprise a retiré cet accès. Rien n\'a été écrit chez le client.');
+    expect(await lecture.evaluate(() => (window as unknown as { vueALaFermeture?: number }).vueALaFermeture)).toBe(0);
     await expect.poll(() => lecture.evaluate(() => document.getElementById('view')?.innerHTML ?? null)).toBe('');
     // Et ce que le routeur redessine ensuite (une autre page demandée derrière la fenêtre) ne revient pas.
     await lecture.evaluate(() => { location.hash = '#/clients'; });
