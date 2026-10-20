@@ -110,6 +110,9 @@ describe('la recette de la console, tenue par l\'écran', () => {
     expect(await refus.count()).toBe(1);
     // Entrée seule dans un motif va à la ligne ; ⌘/Ctrl + Entrée bloque l'adresse.
     await f.getByLabel('Motif', { exact: true }).press('Enter');
+    // La ligne nouvelle se lit dans le motif : l'envoi, lui, attend la réponse du serveur, et la fenêtre encore ouverte
+    // juste après la touche ne prouverait rien.
+    expect(await f.getByLabel('Motif', { exact: true }).inputValue()).toBe('Des mots de passe faux en rafale\n');
     expect(await f.count()).toBe(1);
     await f.getByLabel('Motif', { exact: true }).press('Control+Enter');
     await expect.poll(() => p.getByRole('dialog').count()).toBe(0);
