@@ -8416,8 +8416,11 @@ prouver "une liste redessinée qui perd ses cartes" web/public/plateforme/teleph
 prouver "« Actions » qui sort de sa carte" web/public/plateforme/telephone.css \
   "inset-inline-end: 8px; width: auto; }" "inset-inline-end: 8px; }" \
   "$TL1"
-prouver "« Enregistrer » au bout d'une fenêtre longue" web/public/plateforme/telephone.css \
-  ".modal > .modal-actions:last-child { position: sticky; bottom: -18px;" ".modal > .modal-actions:last-child { bottom: -18px;" \
+# Les boutons collés au bas d'une fenêtre : la règle du téléphone ET celle de la feuille commune (d3547ac l'y a mise pour
+# toutes les tailles) ; ne retirer que la première ne change plus rien (preuve restée verte sur GitHub, 21/10/2026).
+prouver "« Enregistrer » au bout d'une fenêtre longue" "web/public/plateforme/telephone.css|||web/public/v10/style.css" \
+  ".modal > .modal-actions:last-child { position: sticky; bottom: -18px;|||.modal > .modal-actions:last-child { position: sticky; bottom: -26px; margin-bottom: -26px;" \
+  ".modal > .modal-actions:last-child { bottom: -18px;|||.modal > .modal-actions:last-child { bottom: -26px; margin-bottom: -26px;" \
   "$TL2"
 prouver "« Plus ▾ » accroché à son bouton, hors de l'écran" web/public/plateforme/telephone.css \
   ".more-list { position: fixed; inset: auto 8px" ".more-list { inset: auto 8px" \

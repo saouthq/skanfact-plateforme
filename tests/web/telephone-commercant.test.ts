@@ -175,10 +175,14 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     const { cx, p, erreurs } = await ouvrir(c, '#/clients', TELEPHONE);
     await p.getByRole('button', { name: '+ Nouveau client' }).click();
     await p.locator('#modal-root #cf').waitFor();
-    // À l'ouverture comme au milieu de la fenêtre : « Enregistrer » dans l'écran, sans rien faire défiler.
+    // À l'ouverture comme au milieu de la fenêtre : « Enregistrer » dans l'écran, sans rien faire défiler. La fenêtre doit
+    // être plus haute que l'écran et défiler vraiment : sinon le bouton se verrait sans être collé en bas, et le test ne
+    // prouverait rien (preuve restée verte sur GitHub, 21/10/2026).
+    expect(await p.locator('#modal-root .modal').evaluate((m) => m.scrollHeight - m.clientHeight)).toBeGreaterThan(400);
     for (const defile of [0, 400]) {
       await p.locator('#modal-root .modal').evaluate((m, d) => { m.scrollTop = d; }, defile);
       await p.waitForTimeout(150);
+      expect(await p.locator('#modal-root .modal').evaluate((m) => m.scrollTop)).toBe(defile);
       const r = await rect(p, '#modal-root #ok');
       expect(r.top).toBeGreaterThanOrEqual(0);
       expect(r.bottom).toBeLessThanOrEqual(844);
