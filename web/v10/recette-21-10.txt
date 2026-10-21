@@ -278,3 +278,43 @@ refusées sur GitHub (la vérification locale ne le jouait pas) ; elles passent 
       }
       // L'attestation d'exonération de retenue (10.15.0, H7) : ses trois champs ne sont pas des
 -- fin
+
+== app.js | une caisse tenue sur un appareil perdu ou éteint se ferme d'ici par le propriétaire ou un administrateur (1.87.14)
+-- avant
+      if (caisseEtat && (!ss || !ss.ici)) { s.ecran = 'vente'; return drawFermee(); }
+-- après
+      // (plateforme, 1.87.14) Tenue sur un autre appareil, le propriétaire ou un administrateur la ferme d'ici, par le même
+      // comptage du tiroir (le serveur ne l'accepte que d'eux).
+      if (caisseEtat && (!ss || (!ss.ici && !(s.ecran === 'fermeture' && fermerDIci())))) { s.ecran = 'vente'; return drawFermee(); }
+-- fin
+
+== app.js | le menu de la caisse offre la fermeture d'ici à qui peut la faire (1.87.14)
+-- avant
+      ss && ss.ici ? '<button type="button" role="menuitem" id="cs-fermer">Fermer la caisse (Z)…</button>' : '',
+-- après
+      ss && (ss.ici || fermerDIci()) ? `<button type="button" role="menuitem" id="cs-fermer">${ss.ici ? 'Fermer la caisse (Z)…' : 'Fermer d\'ici la caisse de cet appareil (Z)…'}</button>` : '',
+-- fin
+
+== app.js | qui peut fermer la caisse d'un autre appareil (1.87.14)
+-- avant
+  function fermerCaisse() {
+    caisseState.tab = 'vendre'; caisseState.ecran = 'fermeture';
+-- après
+  // (plateforme, 1.87.14) Le propriétaire et l'administrateur ferment la caisse d'un autre appareil (perdu, éteint, loin) :
+  // c'est la règle du serveur (caisse.fermer_ailleurs). L'écran la taisait, et le commerçant au téléphone perdu restait
+  // sans caisse (recette du 21/10/2026).
+  function fermerDIci() { return Boolean(bridge.droitsDossier && bridge.droitsDossier().responsable); }
+  function fermerCaisse() {
+    caisseState.tab = 'vendre'; caisseState.ecran = 'fermeture';
+-- fin
+
+== app.js | l'écran « ouverte sur un autre appareil » porte le bouton qui débloque (1.87.14)
+-- avant
+          <p>« ${h(ss.appareil)} », par ${h(ss.qui)}, depuis le ${h(heureCaisse(ss.ouverteLe))} : une caisse n'est tenue que par un appareil à la fois. Ferme-la là-bas pour l'ouvrir ici. ${info('cs.session')}</p></div></div>`;
+        return;
+-- après
+          <p>« ${h(ss.appareil)} », par ${h(ss.qui)}, depuis le ${h(heureCaisse(ss.ouverteLe))} : une caisse n'est tenue que par un appareil à la fois. ${fermerDIci() ? 'Ferme-la là-bas ; perdu, éteint ou loin, ferme-la d\'ici : le Z dira l\'écart du tiroir, et un ticket encaissé là-bas sans réseau arrivera quand même.' : 'Ferme-la là-bas pour l\'ouvrir ici, ou demande au propriétaire ou à un administrateur de la fermer d\'ici.'} ${info('cs.session')}</p>
+          ${fermerDIci() ? '<button type="button" class="ct-principal" id="cs-fermer-ici">Fermer la caisse d\'ici</button>' : ''}</div></div>`;
+        if ($('#cs-fermer-ici')) $('#cs-fermer-ici').onclick = fermerCaisse;
+        return;
+-- fin

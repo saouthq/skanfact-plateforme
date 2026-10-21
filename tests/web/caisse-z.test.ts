@@ -156,4 +156,61 @@ describe('le Z imprimé et relu, à l\'écran', () => {
     await cx.close();
     expect(erreurs).toEqual([]);
   }, 180_000);
+
+  it('(1.87.14) la caisse tenue sur un appareil perdu : la propriétaire la ferme d\'ici, le caissier sait à qui le demander', async () => {
+    const email = `nadia-z3-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
+    const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).corps.jeton);
+    const secret = /secret=([A-Z2-7]+)/.exec(String((await api('POST', '/moi/code', premier, { methode: 'application' })).corps.adresseApplication))?.[1] ?? '';
+    const r = await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Bureau de Nadia', type: 'navigateur' } });
+    const nadia = String((await api('POST', '/connexion/code', undefined, { defi: r.corps.defi, code: codeTotp(depuisBase32(secret), Date.now()) })).corps.jeton);
+    const ent = String((await api('POST', '/entreprises', nadia, { raisonSociale: 'Boulangerie Ben Youssef' })).corps.id);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, nadia);
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, nadia, { changements: [
+      { collection: 'accounts', cle: 'k-caisse', rang: 0, revision: null, contenu: { id: 'k-caisse', name: 'Caisse', kind: 'caisse', bank: '', rib: '', opening: 0, openingDate: '2026-01-01', isDefault: false, statementBalance: '', notes: '' } },
+      { collection: 'catalog', cle: 'pain', rang: 0, revision: null, contenu: { id: 'pain', label: 'Pain de mie', unit: 'u', unitPrice: { '~n': '1.2' }, vatRate: 7 } },
+    ] })).statut).toBe(200);
+    const emailSami = `sami-z3-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email: emailSami, nom: 'Sami', motDePasse: 'Un-bon-mot-de-passe' });
+    const comptoir = String((await api('POST', '/connexion', undefined, { email: emailSami, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Téléphone du comptoir', type: 'navigateur' } })).corps.jeton);
+    const inv = String((await api('POST', `/entreprises/${ent}/invitations`, nadia, { email: emailSami, roles: ['caissier'] })).corps.jeton);
+    expect((await api('POST', '/invitations/accepter', comptoir, { jeton: inv })).statut).toBe(200);
+    // Sami ouvre la caisse sur le téléphone du comptoir, qui se perd ensuite.
+    expect((await api('POST', `/entreprises/${ent}/caisse/ouvrir`, comptoir, { fond: '12.345' })).statut).toBe(200);
+    const ouvrir = async (jeton: string) => {
+      const cx = await navigateur.newContext({ viewport: { width: 390, height: 844 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', isMobile: true, hasTouch: true });
+      await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+      const p = await cx.newPage();
+      p.on('pageerror', (e) => erreurs.push(e.message));
+      await p.goto(`${serveur.adresse}/v10/?e=${ent}#/caisse`);
+      await expect.poll(() => p.locator('#cs-ailleurs').count(), { timeout: 20_000 }).toBe(1);
+      await plusTard(p);
+      return { cx, p };
+    };
+    const erreurs: string[] = [];
+
+    // Sami, d'un autre appareil : la caisse ne se ferme pas d'ici pour un caissier ; l'écran dit à qui le demander.
+    const autre = String((await api('POST', '/connexion', undefined, { email: emailSami, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Ordinateur du fond', type: 'navigateur' } })).corps.jeton);
+    const s = await ouvrir(autre);
+    expect(net(await s.p.locator('#cs-ailleurs').innerText())).toContain('demande au propriétaire ou à un administrateur de la fermer d\'ici');
+    expect(await s.p.locator('#cs-fermer-ici').count()).toBe(0);
+    await s.p.locator('#cs-menu-bouton').click();
+    expect(await s.p.locator('#cs-fermer').count()).toBe(0);
+    await s.cx.close();
+
+    // Nadia, la propriétaire, de son bureau : le bouton qui débloque, le même comptage du tiroir, et le Z de la session.
+    const n = await ouvrir(nadia);
+    await n.p.locator('#cs-fermer-ici').click();
+    await n.p.locator('#cs-tape summary').click();
+    await n.p.locator('#cs-compte').fill('12.3');
+    await n.p.locator('#cs-z').click();
+    await expect.poll(async () => net(await n.p.locator('#modal-root #cs-z-qui').innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/sur « Téléphone du comptoir », fermée par Nadia le /);
+    expect(net(await n.p.locator('#modal-root #cs-z-table').innerText())).toContain('Fond de caisse 12,345 DT Le tiroir devait contenir 12,345 DT Espèces comptées 12,300 DT Écart − 0,045 DT');
+    await n.p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'z-3-ferme-d-ici.png') });
+    await n.p.locator('#modal-root #cs-z-ok').click();
+    // Fermée : la caisse s'ouvre maintenant ici.
+    await expect.poll(() => n.p.locator('#cs-fond').count(), { timeout: 10_000 }).toBe(1);
+    await n.cx.close();
+    expect(erreurs).toEqual([]);
+  }, 180_000);
 });

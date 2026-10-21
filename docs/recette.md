@@ -707,6 +707,22 @@ tapée y reste la décimale (virgule.js). Une preuve.
 La fiche le refuse maintenant avant d'écrire quoi que ce soit, avec la phrase de « Compléter ma fiche », et montre la
 case. Écrit comme adaptation des écrans repris (`web/v10/recette-21-10.txt`). Une preuve.
 
+### 1.87.14 — une caisse tenue sur un téléphone perdu
+
+La caisse ouverte sur un appareil ne se fermait que de cet appareil : perdu, déchargé ou resté chez le caissier, plus
+rien ne s'encaissait, et l'écran disait seulement « Ferme-la là-bas ». Le serveur acceptait pourtant que le
+propriétaire ou un administrateur la ferme d'ailleurs (`caisse.fermer_ailleurs`). L'écran « ouverte sur un autre
+appareil » porte maintenant, pour eux, « Fermer la caisse d'ici » (et le menu de la caisse aussi) : le même comptage
+du tiroir, et un Z qui dit sur quel appareil elle était ouverte et qui l'a fermée. Un caissier lit à qui le demander.
+Un ticket encaissé là-bas sans réseau arrive quand même au serveur (il est accepté, avec l'alerte « après la
+fermeture »). Vu au téléphone : fond de 150,250 DT, 150,250 comptés, écart nul. Un test (fond 12,345, compté 12,300,
+écart − 0,045), une preuve ; l'ancienne preuve « la caisse fermée qui laisse encaisser » suit le nouveau texte.
+
+Vu juste au téléphone dans la même passe, sans correction : le Cabinet de Nour (dossiers, dossier, saisie, balance,
+échéances, production) et dix écrans de l'entreprise (achats, caisse, stock, paie, trésorerie, comptabilité,
+immobilisations, relances, statistiques, marges), sans débordement ni erreur ; les statistiques tombent sur la
+facture (370,371 HT + 70,370 de TVA + 1 de timbre = 441,741).
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

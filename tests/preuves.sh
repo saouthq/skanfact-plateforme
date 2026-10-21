@@ -5759,7 +5759,7 @@ prouver "un fond tapé avec une virgule illisible" serveur/caisse/routes.ts \
 # (La caisse tactile, 05/10/2026) Fermée, l'écran de vente laisse la place à la carte « La caisse est fermée » : rien ne
 # s'y vend, elle s'ouvre d'abord.
 prouver "la caisse fermée qui laisse encaisser à l'écran" web/public/v10/app.js \
-  "      if (caisseEtat && (!ss || !ss.ici)) { s.ecran = 'vente'; return drawFermee(); }" "      if (false) { s.ecran = 'vente'; return drawFermee(); }" \
+  "      if (caisseEtat && (!ss || (!ss.ici && !(s.ecran === 'fermeture' && fermerDIci())))) { s.ecran = 'vente'; return drawFermee(); }" "      if (false) { s.ecran = 'vente'; return drawFermee(); }" \
   "$CSW"
 prouver "la page Caisse muette sur sa session" web/public/v10/app.js \
   "    if (bridge.caisse) dessinerSession();" "" \
@@ -18467,6 +18467,10 @@ prouver '« Aperçu » qui masque l'\''aperçu du bas de page au téléphone' we
 prouver 'un matricule mal formé enregistré sans un mot par la fiche société' web/public/v10/app.js \
   "      if (mfEl && String(v.matricule || '').trim() && !C.matriculeBienForme(v.matricule)) {" '      if (false) {' \
   'la fiche société : un matricule mal formé est refusé avant d'\''écrire, la case montrée, rien d'\''autre n'\''est enregistré'
+
+prouver 'la caisse tenue sur un appareil perdu, que personne ne peut plus fermer' web/public/v10/app.js \
+  '  function fermerDIci() { return Boolean(bridge.droitsDossier && bridge.droitsDossier().responsable); }' '  function fermerDIci() { return false; }' \
+  'la caisse tenue sur un appareil perdu : la propriétaire la ferme d'\''ici, le caissier sait à qui le demander'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

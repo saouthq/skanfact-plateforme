@@ -13575,7 +13575,7 @@
       ? `<button type="button" class="ct-bouton ct-caissier" id="cs-relais" aria-label="${h(e.moi || 'Le caissier')} est au poste : changer de caissier"><span class="ct-avatar" aria-hidden="true">${h(initialeDe(e.moi))}</span><span id="cs-moi">${h(e.moi || 'Changer de caissier')}</span><span aria-hidden="true" class="ct-chevron">⌄</span></button>`
       : e.moi ? `<span class="ct-caissier"><span class="ct-avatar" aria-hidden="true">${h(initialeDe(e.moi))}</span><span id="cs-moi">${h(e.moi)}</span></span>` : '';
     $('#cs-menu').innerHTML = [
-      ss && ss.ici ? '<button type="button" role="menuitem" id="cs-fermer">Fermer la caisse (Z)…</button>' : '',
+      ss && (ss.ici || fermerDIci()) ? `<button type="button" role="menuitem" id="cs-fermer">${ss.ici ? 'Fermer la caisse (Z)…' : 'Fermer d\'ici la caisse de cet appareil (Z)…'}</button>` : '',
       e.posteDeCaisse ? '<button type="button" role="menuitem" id="cs-relais-menu">Changer de caissier…</button>' : '',
       d.caisse && !d.responsable ? '<button type="button" role="menuitem" id="cs-mon-code">Mon code de caisse…</button>' : '',
       d.responsable && bridge.poserCodeResponsable ? '<button type="button" role="menuitem" id="cs-code-responsable">Mon code de responsable…</button>' : '',
@@ -13652,6 +13652,10 @@
   }
   // Fermer : compter le tiroir sans voir ce qu'il devrait contenir ; le serveur dit l'attendu et l'écart, et fige le Z.
   // (05/10/2026) Le comptage se fait sur l'écran de la caisse, billet par billet et pièce par pièce, ou le total tapé.
+  // (plateforme, 1.87.14) Le propriétaire et l'administrateur ferment la caisse d'un autre appareil (perdu, éteint, loin) :
+  // c'est la règle du serveur (caisse.fermer_ailleurs). L'écran la taisait, et le commerçant au téléphone perdu restait
+  // sans caisse (recette du 21/10/2026).
+  function fermerDIci() { return Boolean(bridge.droitsDossier && bridge.droitsDossier().responsable); }
   function fermerCaisse() {
     caisseState.tab = 'vendre'; caisseState.ecran = 'fermeture';
     vers('#/caisse')();
@@ -13800,7 +13804,9 @@
       }
       const ss = caisseEtat ? caisseEtat.session : undefined;
       // Fermée, ou tenue sur un autre appareil : rien ne se vend ici ; l'écran le dit, et l'ouvre.
-      if (caisseEtat && (!ss || !ss.ici)) { s.ecran = 'vente'; return drawFermee(); }
+      // (plateforme, 1.87.14) Tenue sur un autre appareil, le propriétaire ou un administrateur la ferme d'ici, par le même
+      // comptage du tiroir (le serveur ne l'accepte que d'eux).
+      if (caisseEtat && (!ss || (!ss.ici && !(s.ecran === 'fermeture' && fermerDIci())))) { s.ecran = 'vente'; return drawFermee(); }
       if (s.ecran === 'fermeture') return drawFermeture();
       if (s.ecran === 'paiement' && s.panier.length) return drawPaiement();
       if (s.ecran === 'rendu') return drawRendu();
@@ -14242,7 +14248,9 @@
       ecranClient('repos');
       if (ss && !ss.ici) {
         $('#cs-body').innerHTML = `<div class="ct-fermee"><div class="ct-fermee-carte" id="cs-ailleurs"><h2>La caisse est ouverte sur un autre appareil.</h2>
-          <p>« ${h(ss.appareil)} », par ${h(ss.qui)}, depuis le ${h(heureCaisse(ss.ouverteLe))} : une caisse n'est tenue que par un appareil à la fois. Ferme-la là-bas pour l'ouvrir ici. ${info('cs.session')}</p></div></div>`;
+          <p>« ${h(ss.appareil)} », par ${h(ss.qui)}, depuis le ${h(heureCaisse(ss.ouverteLe))} : une caisse n'est tenue que par un appareil à la fois. ${fermerDIci() ? 'Ferme-la là-bas ; perdu, éteint ou loin, ferme-la d\'ici : le Z dira l\'écart du tiroir, et un ticket encaissé là-bas sans réseau arrivera quand même.' : 'Ferme-la là-bas pour l\'ouvrir ici, ou demande au propriétaire ou à un administrateur de la fermer d\'ici.'} ${info('cs.session')}</p>
+          ${fermerDIci() ? '<button type="button" class="ct-principal" id="cs-fermer-ici">Fermer la caisse d\'ici</button>' : ''}</div></div>`;
+        if ($('#cs-fermer-ici')) $('#cs-fermer-ici').onclick = fermerCaisse;
         return;
       }
       if (!comptes.especes) {
