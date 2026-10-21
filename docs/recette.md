@@ -941,6 +941,16 @@ aux deux questions qui restaient ; Hatem les lit et les ferme. Ce que l'écran f
   « À traiter » : le fil reçoit l'état de la boîte (la même requête, `etatsDesDossiers`) et le bouton ne se montre que
   pour un client à traiter.
 
+### 1.99.0 — Sami s'inscrit, crée son entreprise et choisit son offre
+
+- « Créer ton compte » et « Ton entreprise » s'ouvraient sans curseur : il faut cliquer dans le premier champ. Le
+  curseur est dans le nom, puis dans la raison sociale ;
+- un matricule déjà pris : le champ passait au rouge, et la raison n'apparaissait que dans un message de 2,6 s en bas
+  de l'écran, coupé avant la fin. La raison se lit sous le champ, et un message d'erreur reste le temps de le lire
+  (60 ms par caractère, entre 2,6 et 8 s) ;
+- dans la fiche du client à la console, « elle a choisi Complet, à l'année », à côté du nom de Sami, se lisait comme
+  une personne : « l'entreprise a choisi ».
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

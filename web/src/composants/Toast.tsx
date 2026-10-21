@@ -14,7 +14,10 @@ export function Toast() {
   useEffect(() => { poser = setM; return () => { poser = null; }; }, []);
   useEffect(() => {
     if (!m) return;
-    const t = setTimeout(() => setM((x) => (x?.n === m.n ? null : x)), 2600);
+    // (1.99.0) Un refus se lit avant de s'effacer : 2,6 secondes pour « Ce matricule fiscal est déjà celui d'une autre
+    // entreprise sur SkanFact : relis-le sur ta carte d'identification fiscale. », c'était trop court (parcours du
+    // 21/10/2026). Un message court garde les 2,6 secondes de la v10.
+    const t = setTimeout(() => setM((x) => (x?.n === m.n ? null : x)), m.erreur ? Math.min(8000, Math.max(2600, m.texte.length * 60)) : 2600);
     return () => clearTimeout(t);
   }, [m]);
   return <div id="toast" role={m?.erreur ? 'alert' : 'status'} className={m ? `show${m.erreur ? ' error' : ''}` : ''}>{m?.texte ?? ''}</div>;

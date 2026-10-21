@@ -39,7 +39,7 @@ export function EntrepriseNeuve({ depuis, retour, visite, creee, deconnecte }: {
           ) : null}
           {exemple ? <span className="ent-pastille"><Dessin id="boussole" />{phrase('ecran.vraie.exemple_reste')}</span> : null}
           <div className="ent-titre-page"><h1>{titre(exemple ? 'ecran.vraie.titre' : 'ecran.vraie.titre_nouvelle')}</h1><p>{phrase(exemple ? 'ecran.vraie.sous' : 'ecran.vraie.sous_nouvelle')}</p></div>
-          <Champ obligatoire libelle={titre('ecran.porte.raison')} aide={phrase('ecran.porte.raison_aide')} valeur={raison} changer={setRaison} autoComplete="organization"
+          <Champ obligatoire libelle={titre('ecran.porte.raison')} aide={phrase('ecran.porte.raison_aide')} valeur={raison} changer={setRaison} autoComplete="organization" premier
             dessous={<div className="ent-exemples"><span>{phrase('ecran.porte.raison_patente')}</span><span>{phrase('ecran.porte.raison_societe')}</span></div>} {...g.sur('raisonSociale')} />
           <Champ libelle={titre('ecran.porte.matricule')} aide={phrase('ecran.porte.matricule_aide')} valeur={matricule} changer={setMatricule} placeholder="1234567A/A/M/000"
             dessous={<AideMatricule matricule={matricule} />} {...g.sur('matriculeFiscal')} />

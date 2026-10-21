@@ -42,7 +42,7 @@ export function useGeste(deconnecte: () => void) {
   // du serveur, « brouillon.lignes.0.prixUnitaire », en celui de l'écran).
   const refuser = useCallback((v: RefusVu, renommer?: (champ: string) => string) => {
     toast(v.texte, true);
-    setFaute(v.champ ? { champ: renommer ? renommer(v.champ) : v.champ, n: ++numero } : null);
+    setFaute(v.champ ? { champ: renommer ? renommer(v.champ) : v.champ, n: ++numero, texte: v.texte } : null);
   }, []);
 
   const geste = useCallback(async (f: () => Promise<void>) => {
@@ -54,6 +54,6 @@ export function useGeste(deconnecte: () => void) {
   }, [refuser]);
 
   // Ce qu'un champ reçoit pour se montrer refusé : `faute` et le numéro du refus.
-  const sur = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : undefined });
+  const sur = (champ: string) => ({ faute: faute?.champ === champ, n: faute?.champ === champ ? faute.n : undefined, refus: faute?.champ === champ ? faute.texte : undefined });
   return { faute, occupe, api, geste, refuser, sur };
 }

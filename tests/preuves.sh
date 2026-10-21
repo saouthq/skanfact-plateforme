@@ -18764,6 +18764,15 @@ prouver '« C'\''est traité » offert à un client qui n'\''est plus à traiter
 prouver 'le fil du cabinet qui ne dit pas si le client est à traiter' serveur/messagerie/routes.ts \
   $"aTraiter: cote.data === 'cabinet' && (await etatsDesDossiers(tx, cabinet, entreprise))[0]?.etat === 'a_traiter'," $"aTraiter: cote.data === 'cabinet'," \
   'Amine et son comptable s'\''écrivent'
+prouver '« Ton entreprise » qui s'\''ouvre sans curseur dans la raison sociale' web/src/ecrans/Porte.tsx \
+  $'valeur={raison} changer={setRaison} autoComplete="organization" premier' $'valeur={raison} changer={setRaison} autoComplete="organization"' \
+  '« Ton entreprise » : le curseur'
+prouver 'le champ refusé dont l'\''aide dit le contraire du refus' web/src/composants/Champ.tsx \
+  $'const sous = f.rouge && refus ? <span className="ent-aide alerte" role="alert">{refus}</span> : dessous;' $'const sous = dessous;' \
+  '« Ton entreprise » : le curseur'
+prouver 'le refus en bas de l'\''écran effacé avant d'\''être lu' web/src/composants/Toast.tsx \
+  $'m.erreur ? Math.min(8000, Math.max(2600, m.texte.length * 60)) : 2600' $'2600' \
+  '« Ton entreprise » : le curseur'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

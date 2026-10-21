@@ -6,8 +6,8 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { titre } from '../langue.ts';
 import { Libelle } from './Info.tsx';
 
-// Le refus d'un champ : `n` change à chaque refus, même quand le champ est le même.
-export type Faute = { champ: string; n: number } | null;
+// Le refus d'un champ : `n` change à chaque refus, même quand le champ est le même ; `texte`, ce qu'il dit.
+export type Faute = { champ: string; n: number; texte?: string } | null;
 
 function useFaute<T extends HTMLElement>(faute: boolean, n: number | undefined) {
   const ref = useRef<T>(null);
@@ -21,7 +21,7 @@ function useFaute<T extends HTMLElement>(faute: boolean, n: number | undefined) 
   return { ref, rouge, effacer: () => setRouge(false) };
 }
 
-type Commun = { libelle: string; aide?: string | undefined; faute?: boolean; n?: number | undefined; obligatoire?: boolean; classe?: string };
+type Commun = { libelle: string; aide?: string | undefined; faute?: boolean; n?: number | undefined; refus?: string | undefined; obligatoire?: boolean; classe?: string };
 
 function Cadre({ libelle, aide, rouge, obligatoire, classe, children }: Commun & { rouge: boolean; children: ReactNode }) {
   return (
@@ -42,7 +42,7 @@ type PropsChamp = Commun & {
   revelable?: boolean; dessous?: ReactNode; maxLength?: number;
 };
 
-export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode, placeholder, propositions, nom, premier = false, revelable = false, dessous, maxLength, faute = false, n, ...cadre }: PropsChamp) {
+export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode, placeholder, propositions, nom, premier = false, revelable = false, dessous, maxLength, faute = false, n, refus, ...cadre }: PropsChamp) {
   const f = useFaute<HTMLInputElement>(faute, n);
   const [vu, setVu] = useState(false);
   useEffect(() => { if (premier) f.ref.current?.focus(); }, [premier, f.ref]);
@@ -55,7 +55,11 @@ export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode,
       {liste ? <datalist id={liste}>{propositions?.map((p) => <option key={p} value={p} />)}</datalist> : null}
     </Cadre>
   );
-  if (!revelable && !dessous) return champ;
+  // (1.99.0) Refusé, le champ dit pourquoi sous lui, tant qu'on n'y a pas retouché : le message du bas de l'écran
+  // s'efface en quelques secondes, et l'aide d'en dessous (« Matricule complet ») disait le contraire du refus
+  // (« déjà celui d'une autre entreprise »), parcours du 21/10/2026.
+  const sous = f.rouge && refus ? <span className="ent-aide alerte" role="alert">{refus}</span> : dessous;
+  if (!revelable && !sous) return champ;
   // Le bouton « Afficher » vit à côté du libellé, jamais dedans : un libellé ne porte qu'une saisie.
   return (
     <div className={['ent-champ', cadre.classe ?? ''].filter(Boolean).join(' ')}>
@@ -66,7 +70,7 @@ export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode,
             onClick={() => { setVu(!vu); f.ref.current?.focus(); }}>{titre(vu ? 'ecran.champ.cacher' : 'ecran.champ.afficher')}</button>
         </div>
       ) : champ}
-      {dessous}
+      {sous}
     </div>
   );
 }

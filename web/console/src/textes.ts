@@ -5704,7 +5704,8 @@ declarerTextes({
   'console.ecran.decider.ouvrir_paiements': 'ouvrir Paiements',
   'console.ecran.decider.sans_numero': 'sa facture',
   'console.ecran.fiche.attend.defaite_titre': 'sa facture : payée, puis défaite',
-  'console.ecran.fiche.attend.offre_choisie_titre': 'elle a choisi {quoi}',
+  // (1.99.0) « Elle a choisi » à côté du nom de Sami se lisait comme une personne : c'est l'entreprise qui choisit.
+  'console.ecran.fiche.attend.offre_choisie_titre': 'l\'entreprise a choisi {quoi}',
   'console.ecran.fiche.attend.a_facturer_titre': 'son renouvellement est à facturer',
   'console.ecran.fiche.attend.a_emettre_titre': 'sa facture attend d\'être émise',
   'console.ecran.fiche.attend.trop_titre': 'un trop-perçu de {montant}',

@@ -62,7 +62,7 @@ export function Porte({ creee, cabinetCree, decouvrir, deconnecte, pourUnClient 
           <form noValidate onSubmit={(e) => { e.preventDefault(); void creer(); }}>
             <button type="button" className="ent-lien" onClick={() => setEtape('porte')}><Dessin id="retour" />{titre('ecran.porte.retour')}</button>
             <div className="ent-titre-page"><h1>{titre('ecran.porte.entreprise_titre')}</h1><p>{phrase('ecran.porte.entreprise_sous')}</p></div>
-            <Champ obligatoire libelle={titre('ecran.porte.raison')} aide={phrase('ecran.porte.raison_aide')} valeur={raison} changer={setRaison} autoComplete="organization"
+            <Champ obligatoire libelle={titre('ecran.porte.raison')} aide={phrase('ecran.porte.raison_aide')} valeur={raison} changer={setRaison} autoComplete="organization" premier
               dessous={<div className="ent-exemples"><span>{phrase('ecran.porte.raison_patente')}</span><span>{phrase('ecran.porte.raison_societe')}</span></div>} {...g.sur('raisonSociale')} />
             <Champ libelle={titre('ecran.porte.matricule')} aide={phrase('ecran.porte.matricule_aide')} valeur={matricule} changer={setMatricule} placeholder="1234567A/A/M/000"
               dessous={<AideMatricule matricule={matricule} />} {...g.sur('matriculeFiscal')} />

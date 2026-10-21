@@ -198,6 +198,37 @@ describe('les premiers pas de la plateforme, à la souris', () => {
     await p.context().close();
   }, 120_000);
 
+  // Parcours du 21/10/2026 : « Ton entreprise » s'ouvrait sans curseur dans la raison sociale (la frappe faisait défiler la
+  // page) ; et un matricule déjà celui d'une autre entreprise se disait en bas de l'écran 2,6 secondes, pendant que
+  // l'aide sous le champ affirmait « Matricule complet ».
+  it('« Ton entreprise » : le curseur dans la raison sociale ; un matricule déjà pris se dit sous le champ, et le message se lit', async () => {
+    const a = await personne('premier');
+    expect((await api('POST', '/entreprises', a.jeton, { raisonSociale: 'Premier SARL', matriculeFiscal: '1732052M/A/M/000' })).statut).toBe(201);
+    const b = await personne('second');
+    const { p, erreurs } = await page(b.jeton);
+    await p.goto(serveur.adresse);
+    await p.getByRole('button', { name: 'Créer mon entreprise', exact: true }).first().click();
+    const raison = p.locator('label.field').filter({ hasText: 'Raison sociale' }).locator('input');
+    await expect.poll(() => raison.evaluate((n) => n === document.activeElement)).toBe(true);
+    await p.keyboard.type('Second SARL');
+    expect(await raison.inputValue()).toBe('Second SARL');
+    const mf = p.locator('label.field').filter({ hasText: 'Matricule fiscal' });
+    const zone = p.locator('.ent-champ').filter({ has: mf });
+    await mf.locator('input').fill('1732052M/A/M/000');
+    await expect.poll(() => zone.innerText()).toMatch(/Matricule complet/);
+    await p.locator('form').getByRole('button', { name: /Créer mon entreprise/ }).click();
+    await expect.poll(() => zone.locator('[role=alert]').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/déjà celui d'une autre entreprise/);
+    expect(await zone.innerText()).not.toMatch(/Matricule complet/);
+    // Le message du bas reste le temps de se lire (2,6 secondes ne suffisaient pas à ses deux lignes).
+    await p.waitForTimeout(3500);
+    expect(await p.locator('#toast').innerText()).toMatch(/déjà celui d'une autre entreprise/);
+    // Retouché, le champ ne se dit plus refusé.
+    await mf.locator('input').press('End');
+    await mf.locator('input').press('Backspace');
+    await expect.poll(() => zone.locator('[role=alert]').count()).toBe(0);
+    expect(erreurs).toEqual([]);
+  }, 120_000);
+
   it('au téléphone : le panneau ne déborde pas, et chaque bouton se touche du doigt', async () => {
     const { jeton } = await personne('rania');
     const { p, erreurs } = await page(jeton, 390, 844);
