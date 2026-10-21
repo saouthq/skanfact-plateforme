@@ -3223,3 +3223,21 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 }
 /* « Ctrl K » ne sert à rien sans clavier : au téléphone et à la tablette tactile, il cède sa place au texte du champ. */
 @media (max-width: 860px), (hover: none) and (pointer: coarse) { .c-touche { display: none; } }
+
+/* Au téléphone, un geste du journal par carte (1.87.0) : l'heure et qui en tête, puis le geste, sur quoi, le motif et ce
+   qui a changé, chacun nommé — le tableau de six colonnes coupait le geste au bord (vu à 390 px le 21/10/2026). */
+@media (max-width: 860px) {
+  .c-defile:has(> .c-table-journal) { overflow: visible; }
+  .c-table-journal thead { display: none; }
+  .c-table-journal, .c-table-journal tbody, .c-table-journal td { display: block; }
+  .c-table-journal tr.c-table-jour { display: block; }
+  .c-table-journal tr.c-table-jour th { display: block; padding: 10px 16px; }
+  .c-table-journal tr:not(.c-table-jour) { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; padding: 14px 16px; border-bottom: 1px solid var(--c-trait); }
+  .c-table-journal td, .c-table-journal td:first-child, .c-table-journal td:last-child { padding: 0; border: 0; min-width: 0; text-align: start; }
+  .c-table-journal td.c-jr-heure { grid-column: 1; grid-row: 1; align-self: center; }
+  .c-table-journal td.c-jr-qui { grid-column: 2; grid-row: 1; }
+  .c-table-journal td[data-libelle] { grid-column: 1 / -1; display: grid; grid-template-columns: 6.5em minmax(0, 1fr); gap: 2px 10px; align-items: baseline; }
+  .c-table-journal td[data-libelle]::before { content: attr(data-libelle); grid-row: 1 / span 4; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); font-weight: 500; }
+  .c-table-journal td[data-libelle] > * { grid-column: 2; justify-self: start; }
+  .c-table-journal tbody tr:hover td { background: transparent; }
+}

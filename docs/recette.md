@@ -602,6 +602,12 @@ Vue à 390 px, compte de direction, sur la base de recette (accueil, Clients, Ab
 - `tests/web/console-recette.test.ts` : au téléphone, l'état de chaque client dans l'écran, les cases nommées, « Ctrl K »
   caché ; `tests/web/console.test.ts` : la phrase. Trois preuves.
 
+### 1.87.1 — le journal au téléphone
+
+Le journal gardait ses six colonnes ; le geste passait derrière le bord. Un geste par carte : l'heure et qui en tête,
+puis le geste, sur quoi, le motif et ce qui a changé, chacun nommé. Vu à 390 px ; l'écran Service, d'abord resté sur
+« Lecture… », n'était que lent à lire (la veille de la recette ne tourne pas). Une preuve (le bloc du téléphone éteint).
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

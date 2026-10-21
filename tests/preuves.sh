@@ -18375,6 +18375,13 @@ prouver '« abonnements actifs » pour ce qui se renouvelle' web/console/src/tex
   "'un abonnement qui se renouvelle dans la sélection :'" "'un abonnement actif dans la sélection :'" \
   'les clients : chaque vue du métier ouvre la liste qu'"'"'elle compte ; chaque ligne dit son échéance et ce qu'"'"'elle rapporte ; le tri suit l'"'"'adresse'
 
+# 1.87.1 — le journal de la console au téléphone, un geste par carte.
+prouver 'le journal en tableau qui coupe le geste au bord du téléphone' web/console/src/console.css \
+  '@media (max-width: 860px) {
+  .c-defile:has(> .c-table-journal) { overflow: visible; }' '@media (max-width: 1px) {
+  .c-defile:has(> .c-table-journal) { overflow: visible; }' \
+  "$CTEL"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -377,8 +377,8 @@ export function Journal({ entreprise, qui: quiDemande }: { entreprise: string | 
                             const sorte = l.sorte ?? null;
                             return (
                               <tr key={l.id} className={l.systeme ? 'c-jr-systeme' : undefined}>
-                                <td className="c-mono">{heureDe(l.le)}</td>
-                                <td>
+                                <td className="c-mono c-jr-heure">{heureDe(l.le)}</td>
+                                <td className="c-jr-qui">
                                   {l.qui ? (
                                     <span className="c-jr-qui-cellule">
                                       <Avatar nom={l.qui.nom} nuit={l.role === 'direction'} />
@@ -386,21 +386,21 @@ export function Journal({ entreprise, qui: quiDemande }: { entreprise: string | 
                                     </span>
                                   ) : <span className="c-attente">{titre(l.systeme ? `${J}.le_systeme` : `${J}.outil`)}</span>}
                                 </td>
-                                <td>
+                                <td className="c-jr-geste" data-libelle={titre(`${J}.colonne.geste`)}>
                                   <b>{titre(`${J}.g.${l.geste.replaceAll('-', '_')}`)}</b>
                                   <span className="c-sous c-sous-espace">
                                     {sorte ? <span className={`c-jr-famille c-jr-sorte-${sorte}`}>{titre(`${J}.s.${sorte}`)}</span> : null}
                                     {l.reserve ? <span className="c-jr-reserve"><Icone nom="cadenas" taille={12} />{dire(`${J}.reserve`)}</span> : null}
                                   </span>
                                 </td>
-                                <td className="c-jr-sur">
+                                <td className="c-jr-sur" data-libelle={titre(`${J}.colonne.sur`)}>
                                   {l.entreprise ? <a href={`#/clients/${l.entreprise.id}`} data-donnee>{l.entreprise.raisonSociale}</a>
                                     : l.membre ? <span data-donnee>{l.membre.nom}</span>
                                       : l.service ? <SurLeService s={l.service} /> : l.reglages ? <SurLesReglages r={l.reglages} />
                                         : famille === 'paiements' ? <SurLesCouts avant={l.avant} apres={l.apres} /> : '—'}
                                 </td>
-                                <td>{l.systeme || !l.motif ? <span className="c-attente">—</span> : <span className="c-jr-motif" data-donnee>{'« '}{l.motif}{' »'}</span>}</td>
-                                <td>{l.systeme ? <GesteDuSysteme l={l} /> : l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : l.reglages ? <ChangeDesReglages geste={l.geste} r={l.reglages} />
+                                <td data-libelle={titre(`${J}.colonne.motif`)}>{l.systeme || !l.motif ? <span className="c-attente">—</span> : <span className="c-jr-motif" data-donnee>{'« '}{l.motif}{' »'}</span>}</td>
+                                <td data-libelle={titre(`${J}.colonne.change`)}>{l.systeme ? <GesteDuSysteme l={l} /> : l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : l.reglages ? <ChangeDesReglages geste={l.geste} r={l.reglages} />
                                   : famille === 'support' ? <LaDemande avant={l.avant} apres={l.apres} />
                                     : famille === 'groupes' ? <LeGroupe geste={l.geste} avant={l.avant} apres={l.apres} />
                                       : famille === 'paiements' ? <LeCout avant={l.avant} apres={l.apres} /> : <Changements avant={l.avant} apres={l.apres} empile />}</td>

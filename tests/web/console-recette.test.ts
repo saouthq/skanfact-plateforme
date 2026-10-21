@@ -197,6 +197,12 @@ describe('la recette de la console, tenue par l\'écran', () => {
     // Chaque case dit ce qu'elle est : « État », « Échéance »… devant sa valeur.
     const libelles = await p.locator('.c-table-clients tbody tr').first().locator('td[data-libelle]').evaluateAll((l) => l.map((e) => getComputedStyle(e, '::before').content));
     expect(libelles.slice(0, 4)).toEqual(['"Abonnement"', '"État"', '"Échéance"', '"Par an, HT"']);
+    // Le journal aussi, un geste par carte : le geste tient dans l'écran, nommé.
+    await p.goto(`${serveur.adresse}/console/#/journal`);
+    const gestes = p.locator('.c-table-journal td.c-jr-geste');
+    await expect.poll(() => gestes.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    expect((await gestes.evaluateAll((l) => l.map((e) => e.getBoundingClientRect().right))).every((d) => d <= 390)).toBe(true);
+    expect(await gestes.first().evaluate((e) => getComputedStyle(e, '::before').content)).toBe('"Geste"');
     await p.goto(`${serveur.adresse}/console/#/`);
     await expect.poll(() => p.locator('.c-touche').count(), { timeout: 20_000 }).toBeGreaterThan(0);
     expect(await p.locator('.c-touche').first().isVisible()).toBe(false);
