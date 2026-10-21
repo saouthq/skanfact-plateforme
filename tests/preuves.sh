@@ -18472,6 +18472,10 @@ prouver 'la caisse tenue sur un appareil perdu, que personne ne peut plus fermer
   '  function fermerDIci() { return Boolean(bridge.droitsDossier && bridge.droitsDossier().responsable); }' '  function fermerDIci() { return false; }' \
   'la caisse tenue sur un appareil perdu : la propriétaire la ferme d'\''ici, le caissier sait à qui le demander'
 
+prouver 'la monnaie à rendre coupée au téléphone (« 16,70… »)' web/public/plateforme/caisse.css \
+  '  .ct-montants { grid-template-columns: minmax(0, 1fr); }' '  .ct-montants { }' \
+  'au téléphone : le ticket se replie sous les tuiles, et le tiroir se compte par un pavé dans une fenêtre'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

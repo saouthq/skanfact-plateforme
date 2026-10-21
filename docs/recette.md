@@ -723,6 +723,14 @@ Vu juste au téléphone dans la même passe, sans correction : le Cabinet de Nou
 immobilisations, relances, statistiques, marges), sans débordement ni erreur ; les statistiques tombent sur la
 facture (370,371 HT + 70,370 de TVA + 1 de timbre = 441,741).
 
+### 1.87.15 — la monnaie à rendre, au téléphone
+
+Une vente au doigt (deux courses urbaines et une manutention, 83,300 DT, payées d'un billet de 100) : le ticket, la TVA
+(13,300), la monnaie et le Z du soir (50 de fond + 83,300 = 133,300 comptés, écart nul) tombent juste. Mais la case
+« À rendre », côte à côte avec « Reçu du client », coupait le montant en « 16,70… » : c'est le chiffre que le caissier
+lit pour rendre l'argent. Sous 560 px de large, les deux cases se posent l'une sous l'autre. Le test « au téléphone »
+de la caisse touche le plus gros billet et exige la monnaie entière dans sa case ; une preuve.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

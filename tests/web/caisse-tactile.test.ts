@@ -237,6 +237,11 @@ describe('la caisse tactile, à l\'écran', () => {
     }).map((e) => `${e.id || e.dataset.mode || e.dataset.touche || e.dataset.billet || e.textContent?.trim()} ${Math.round(e.getBoundingClientRect().width)}×${Math.round(e.getBoundingClientRect().height)}`));
     expect(petits).toEqual([]);
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    // (1.87.15) Le plus gros billet proposé : la monnaie à rendre se lit en entier dans sa case (elle se coupait en
+    // « 16,70… » à côté de « Reçu du client »).
+    await p.locator('#cs-body [data-billet]').last().click();
+    await expect.poll(() => texte(p, '#cs-rendu')).toMatch(/^\d[\d\s\u202f]*,\d{3} DT$/);
+    expect(await p.locator('#cs-rendu').evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
     await p.locator('#cs-revenir').click();
 
     // Le soir : une coupure touchée demande son nombre dans une fenêtre (le pavé de la colonne serait loin sous la liste).

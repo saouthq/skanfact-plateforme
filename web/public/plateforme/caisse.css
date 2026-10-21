@@ -351,6 +351,11 @@ body.dark .ct-pastille { background: hsl(var(--teinte, 175) 35% 22%); color: hsl
   /* Le pavé du comptage vient dans une fenêtre, au toucher d'une coupure : sous la liste, il serait trop loin. */
   #cs-active, #cs-pave-compte { display: none; }
 }
+/* (1.87.15) Au téléphone, « Reçu du client » et « À rendre » côte à côte coupaient la monnaie à rendre (« 16,70… », vu
+   le 21/10/2026) : l'une sous l'autre, chaque montant a toute la largeur. */
+@media (max-width: 560px) {
+  .ct-montants { grid-template-columns: minmax(0, 1fr); }
+}
 /* ── Le téléphone (maquette « Téléphone ») : la page défile, le ticket se tient replié en bas de l'écran ── */
 .ct-tirer { display: none; }
 @media (max-width: 760px) {
