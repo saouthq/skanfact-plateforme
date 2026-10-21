@@ -456,7 +456,7 @@ function LEquipe() {
               </div>
             </div>
             <div className="c-defile">
-              <table className="c-table">
+              <table className="c-table c-eq-membres">
                 <thead>
                   <tr>
                     <th scope="col">{titre('console.ecran.equipe.colonne.personne')}</th>
@@ -477,25 +477,25 @@ function LEquipe() {
                           <div><span className="c-nom-ligne"><b data-donnee>{m.nom}</b>{m.moi ? <b className="c-eq-toi">({dire('console.ecran.equipe.toi')})</b> : null}</span><span className="c-sous" data-donnee>{m.email}</span></div>
                         </div>
                       </td>
-                      <td><Puce ton={m.role}>{titre(`console.ecran.role.${m.role}`)}</Puce></td>
-                      <td>
+                      <td data-libelle={titre('console.ecran.equipe.colonne.role')}><Puce ton={m.role}>{titre(`console.ecran.role.${m.role}`)}</Puce></td>
+                      <td data-libelle={titre('console.ecran.equipe.colonne.code')}>
                         {m.code ? titre(`console.ecran.equipe.code.${m.code}`) : <Puce ton="en_retard">{dire('console.ecran.equipe.code.aucun')}</Puce>}
                         {m.code && m.secours !== undefined ? <span className={`c-sous${m.secours === 0 ? ' c-eq-secours-aucun' : ''}`}>{selon(m.secours, 'console.ecran.equipe.secours')}</span> : null}
                         {attend(m) ? <span className="c-sous c-eq-secours-aucun">{dire('console.ecran.equipe.ur.ligne')}</span> : null}
                       </td>
-                      <td>
+                      <td data-libelle={titre('console.ecran.equipe.colonne.appareils')}>
                         <button type="button" className="c-lien-bouton" onClick={() => setAppareils(m)} aria-label={titre(m.moi ? 'console.ecran.equipe.mes_appareils' : 'console.ecran.equipe.ses_appareils_de', { nom: m.nom })}>
                           {maj(selon(m.reconnus ?? 0, 'console.ecran.equipe.reconnus'))}
                         </button>
                       </td>
-                      <td>
+                      <td data-libelle={titre('console.ecran.equipe.colonne.connexion')}>
                         {maj(m.derniereConnexion ? quand(m.derniereConnexion, moi.aujourdhui) : dire('console.ecran.temps.jamais'))}
                         {m.appareils.length ? <span className="c-sous">{titre('console.ecran.equipe.ouvert_sur', { appareils: m.appareils.map((a) => a.nom).join(', ') })}</span> : null}
                       </td>
-                      <td className="c-droite c-mono">
+                      <td className="c-droite c-mono" data-libelle={titre('console.ecran.equipe.colonne.gestes')}>
                         {m.gestes30 ? <a href={`#/journal?qui=${m.utilisateur}`} aria-label={titre('console.ecran.equipe.gestes_de', { nom: m.nom, n: m.gestes30 })}>{m.gestes30}</a> : '—'}
                       </td>
-                      <td className="c-droite"><MenuLigne etiquette={titre('console.ecran.equipe.menu', { nom: m.nom })} actions={actions(m)} /></td>
+                      <td className="c-droite c-eq-menu"><MenuLigne etiquette={titre('console.ecran.equipe.menu', { nom: m.nom })} actions={actions(m)} /></td>
                     </tr>
                   ))}
                   {invitations.map((i) => (
@@ -506,15 +506,15 @@ function LEquipe() {
                           <div><b data-donnee>{i.email}</b><span className={`c-sous${i.courriel === 'refuse' || i.courriel === 'sans_reponse' ? ' c-eq-secours-aucun' : ''}`}>{dire(i.courriel ? `console.ecran.equipe.inv.courriel.${i.courriel}` : 'console.ecran.equipe.inv.ligne')}</span></div>
                         </div>
                       </td>
-                      <td><Puce ton={i.role}>{titre(`console.ecran.role.${i.role}`)}</Puce></td>
-                      <td><span className="c-sous">{titre('console.ecran.equipe.inv.pas_active')}</span></td>
-                      <td>—</td>
-                      <td>
+                      <td data-libelle={titre('console.ecran.equipe.colonne.role')}><Puce ton={i.role}>{titre(`console.ecran.role.${i.role}`)}</Puce></td>
+                      <td data-libelle={titre('console.ecran.equipe.colonne.code')}><span className="c-sous">{titre('console.ecran.equipe.inv.pas_active')}</span></td>
+                      <td data-libelle={titre('console.ecran.equipe.colonne.appareils')}>—</td>
+                      <td data-libelle={titre('console.ecran.equipe.colonne.connexion')}>
                         {titre('console.ecran.equipe.inv.invitee_le', { le: jourCourt(jourDe(i.inviteeLe)) })}
                         <span className={`c-sous${i.expiree ? ' c-eq-secours-aucun' : ''}`}>{dire(i.expiree ? 'console.ecran.equipe.inv.ne_vaut_plus' : 'console.ecran.equipe.inv.vaut', { le: jourCourt(jourDe(i.expireLe)) })}</span>
                       </td>
-                      <td className="c-droite c-mono">—</td>
-                      <td className="c-droite">
+                      <td className="c-droite c-mono" data-libelle={titre('console.ecran.equipe.colonne.gestes')}>—</td>
+                      <td className="c-droite c-eq-menu">
                         <MenuLigne etiquette={titre('console.ecran.equipe.inv.menu', { email: i.email })} actions={[
                           { icone: 'relire', titre: titre('console.ecran.equipe.inv.renvoyer_menu'), sous: phrase('console.ecran.equipe.inv.renvoyer_menu_sous'), faire: () => setInvit({ sorte: 'renvoyer', i }) },
                           { icone: 'croix', titre: titre('console.ecran.equipe.inv.annuler_menu'), sous: phrase('console.ecran.equipe.inv.annuler_menu_sous'), faire: () => setInvit({ sorte: 'annuler', i }), danger: true },

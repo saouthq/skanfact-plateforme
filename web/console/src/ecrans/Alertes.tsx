@@ -356,7 +356,7 @@ function Regles({ d, faire, voirHistoire }: { d: Donnees; faire: (g: Geste) => v
         </div>
       </div>
       <div className="c-defile">
-        <table className="c-table c-al-table">
+        <table className="c-table c-al-table c-al-t-regles">
           <thead>
             <tr>
               <th scope="col">{titre(`${A}.regles.col.regle`)}</th>
@@ -382,12 +382,12 @@ function Regles({ d, faire, voirHistoire }: { d: Donnees; faire: (g: Geste) => v
                       <div><b>{maj(nomRegle(r.id))}</b><span className="c-sous">{maj(dire(`${K}.regle.${r.id}.regarde`, v))}</span></div>
                     </div>
                   </td>
-                  <td>{maj(dire(`${K}.regle.${r.id}.parle`, v))}</td>
-                  <td>
+                  <td data-libelle={titre(`${A}.regles.col.parle`)}>{maj(dire(`${K}.regle.${r.id}.parle`, v))}</td>
+                  <td data-libelle={titre(`${A}.regles.col.maintenant`)}>
                     <span className={`c-al-maintenant c-al-maintenant-${m.ton}`} {...(m.donnee ? { 'data-donnee': true } : {})}>{enTitre(m.texte)}</span>
                     {r.sourdine ? <span className="c-al-sourdine"><Icone nom="sourdine" taille={14} />{dire(`${A}.regles.sourdine`, { heure: moment(r.sourdine.fin, d.aujourdhui) })}</span> : null}
                   </td>
-                  <td>
+                  <td data-libelle={titre(`${A}.regles.col.derniere`)}>
                     {!r.branchee ? '—' : !der ? maj(dire(`${A}.regles.jamais`))
                       : der.fin === null ? maj(dire(`${A}.regles.derniere_ouverte`)) : (
                         <>
@@ -396,8 +396,8 @@ function Regles({ d, faire, voirHistoire }: { d: Donnees; faire: (g: Geste) => v
                         </>
                       )}
                   </td>
-                  <td><Puce ton={PUCE_REGLE[r.etat]}>{dire(`${A}.regles.etat.${r.etat}`)}</Puce></td>
-                  <td className="c-droite">{r.branchee ? <MenuRegle r={r} faire={faire} voirHistoire={() => voirHistoire(r.id)} /> : null}</td>
+                  <td data-libelle={titre(`${A}.regles.col.etat`)}><Puce ton={PUCE_REGLE[r.etat]}>{dire(`${A}.regles.etat.${r.etat}`)}</Puce></td>
+                  <td className="c-droite c-al-menu">{r.branchee ? <MenuRegle r={r} faire={faire} voirHistoire={() => voirHistoire(r.id)} /> : null}</td>
                 </tr>
               );
             })}
@@ -442,7 +442,7 @@ function Histoire({ d, regle, oublierRegle }: { d: Donnees; regle: string | null
       </div>
       {choisies.length === 0 ? <Vide icone="ok">{phrase(`${A}.histoire.${d.histoire.length ? 'vide_filtre' : 'vide'}`)}</Vide> : (
         <div className="c-defile">
-          <table className="c-table c-al-table">
+          <table className="c-table c-al-table c-al-t-histoire">
             <thead>
               <tr>
                 <th scope="col">{titre(`${A}.histoire.col.quand`)}</th>
@@ -457,9 +457,9 @@ function Histoire({ d, regle, oublierRegle }: { d: Donnees; regle: string | null
                 <tr key={h.id}>
                   <td className="c-al-nw">{maj(quand(h.debut, d.aujourdhui))}</td>
                   <td><b data-donnee>{enTitre(h.titre)}</b>{h.regle && !regle ? <span className="c-sous">{maj(nomRegle(h.regle))}</span> : null}</td>
-                  <td><Puce ton={h.grave ? 'urgent' : 'en_retard'}>{dire(`${A}.histoire.${h.grave ? 'grave' : 'normale'}`)}</Puce></td>
-                  <td className="c-al-nw c-num">{minutes(h.minutes)}{h.fin === null ? <span className="c-sous">{dire(`${A}.histoire.jusqua_maintenant`)}</span> : null}</td>
-                  <td>
+                  <td data-libelle={titre(`${A}.histoire.col.gravite`)}><Puce ton={h.grave ? 'urgent' : 'en_retard'}>{dire(`${A}.histoire.${h.grave ? 'grave' : 'normale'}`)}</Puce></td>
+                  <td className="c-al-nw c-num" data-libelle={titre(`${A}.histoire.col.duree`)}>{minutes(h.minutes)}{h.fin === null ? <span className="c-sous">{dire(`${A}.histoire.jusqua_maintenant`)}</span> : null}</td>
+                  <td data-libelle={titre(`${A}.histoire.col.comment`)}>
                     {maj(h.reglee === 'seule' ? dire(`${A}.histoire.seule`)
                       : h.reglee === 'prise' ? dire(`${A}.histoire.prise`, { nom: h.prise?.par ?? '—' })
                         : h.prise ? dire(`${A}.histoire.en_cours_prise`, { nom: h.prise.par }) : dire(`${A}.histoire.en_cours`))}

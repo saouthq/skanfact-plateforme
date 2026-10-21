@@ -269,6 +269,26 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await o.cx.close();
   }, 180_000);
 
+  // Au téléphone, la page entière défile (pas `#view`) : l'invitation « Première fois sur cette page ? » restait sur le bas
+  // de l'écran de l'éditeur de facture (230 points) pendant tout le défilement (1.87.3). Le défilement la ferme.
+  it('au téléphone, faire défiler l\'éditeur de facture referme « Première fois sur cette page ? »', async () => {
+    const c = await commercante();
+    const cx = await navigateur.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 1, locale: 'fr-FR', timezoneId: 'Africa/Tunis', isMobile: true, hasTouch: true });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, c.jeton);
+    await cx.addInitScript(() => { const e = new URLSearchParams(location.search).get('e'); if (e) sessionStorage.setItem('skanfact.essai_tel_quel', e); });
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (x) => erreurs.push(x.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${c.ent}#/doc/new/facture`);
+    await p.locator('#guide-appel').waitFor({ timeout: 20_000 });
+    await p.evaluate(() => window.scrollTo(0, 400));
+    // L'instrument exige d'avoir défilé : une page qui ne défile pas ne prouve rien.
+    expect(await p.evaluate(() => window.scrollY)).toBeGreaterThan(300);
+    await expect.poll(() => p.locator('#guide-appel').count()).toBe(0);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
+
   it('les lignes d\'un achat et d\'une photo relue au téléphone : la désignation, puis prix, TVA et total dans l\'écran', async () => {
     const c = await commercante({ pieces: true });
     const { cx, p, erreurs } = await ouvrir(c, '#/achat/p1', TELEPHONE);

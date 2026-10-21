@@ -19806,6 +19806,9 @@
     document.body.appendChild(el);
     const scroller = $('#view');
     const depart = scroller ? scroller.scrollTop : 0;
+    // (plateforme, 1.87.3) Au téléphone, c'est la page entière qui défile, pas `#view` : l'invitation restait posée sur le
+    // bas de l'écran (230 points d'un éditeur de facture) pendant tout le défilement. Le défilement de la fenêtre la ferme.
+    const departFenetre = window.scrollY;
     // Sous le bouton, calée sur son bord droit, la flèche sur son milieu ; jamais hors de l'écran.
     const placer = () => {
       const r = bouton.getBoundingClientRect();
@@ -19825,7 +19828,7 @@
     // le menu (qui la referme aussi) ; un défilement de la page aussi — elle flotterait loin du bouton.
     const dehors = e => { if (!el.contains(e.target)) fermer(); };
     const clavier = e => { if (e.key === 'Escape' && el.contains(document.activeElement)) { e.stopPropagation(); fermer(); bouton.focus(); } };
-    const defile = () => { if (!scroller || Math.abs(scroller.scrollTop - depart) > 4) fermer(); };
+    const defile = () => { if (!scroller || Math.abs(scroller.scrollTop - depart) > 4 || Math.abs(window.scrollY - departFenetre) > 4) fermer(); };
     function fermer() {
       el.remove();
       bouton.classList.remove('guide-moi-signale');
@@ -19833,6 +19836,7 @@
       document.removeEventListener('keydown', clavier, true);
       window.removeEventListener('resize', placer);
       if (scroller) scroller.removeEventListener('scroll', defile);
+      window.removeEventListener('scroll', defile);
     }
     el._fermer = fermer;
     placer();
@@ -19840,6 +19844,7 @@
     document.addEventListener('keydown', clavier, true);
     window.addEventListener('resize', placer);
     if (scroller) scroller.addEventListener('scroll', defile);
+    window.addEventListener('scroll', defile, { passive: true });
     $('#ga-go', el).onclick = () => { fermer(); lancerVisite(p); };
     $('#ga-non', el).onclick = () => { visitesPoser(e => { e.vues[route] = VISITE_PROPOSEE_MAX; }); fermer(); };
   }

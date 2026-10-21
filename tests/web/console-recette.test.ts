@@ -209,6 +209,36 @@ describe('la recette de la console, tenue par l\'écran', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
+  // Les tableaux de six ou sept colonnes défilaient de côté sur 600 à 1 000 points (1.87.3) : la grille des prix, les membres
+  // de l'équipe, les règles de la veille. Seuls restent des tableaux la matrice des droits et les routes du serveur.
+  it('au téléphone, Réglages, Équipe et Alertes : une ligne par carte, chaque case nommée, aucun tableau qui défile de côté', async () => {
+    const p = await ouvrir('#/reglages', 390);
+    const qui = (sel: string) => p.locator(sel).first().locator('td[data-libelle]').evaluateAll((l) => l.map((e) => getComputedStyle(e, '::before').content));
+    // Ce qui défile de côté, hors des deux tableaux qu'on garde.
+    const deCote = () => p.locator('.c-defile').evaluateAll((l) => l.filter((d) => d.scrollWidth > d.clientWidth + 2 && !d.querySelector('.c-eq-droits, .c-pf-table-routes'))
+      .map((d) => d.querySelector('table')?.className ?? '?'));
+    await expect.poll(() => p.locator('.c-rg-grille tbody tr').count(), { timeout: 20_000 }).toBeGreaterThan(1);
+    expect((await qui('.c-rg-grille tbody tr:nth-child(2)')).slice(0, 2)).toEqual(['"À l\'année, HT"', '"Au mois, HT"']);
+    expect(await deCote()).toEqual([]);
+    await p.goto(`${serveur.adresse}/console/#/equipe`);
+    await expect.poll(() => p.locator('.c-eq-membres tbody tr').count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    expect((await qui('.c-eq-membres tbody tr')).slice(0, 2)).toEqual(['"Son rôle"', '"Son code"']);
+    expect(await deCote()).toEqual([]);
+    // « À régler dans l'équipe » : le bouton passe sous son texte (à côté, il le réduisait à un mot par ligne et se coupait).
+    const regler = await p.locator('.c-eq-regler-liste li:has(> .c-btn)').evaluateAll((l) => l.map((li) => {
+      const t = li.querySelector('.c-eq-regler-texte')?.getBoundingClientRect();
+      const b = li.querySelector(':scope > .c-btn')?.getBoundingClientRect();
+      return { dessous: !!t && !!b && b.top >= t.bottom - 1, dedans: !!b && b.right <= 390 };
+    }));
+    expect(regler.length).toBeGreaterThan(0);
+    expect(regler.every((r) => r.dessous && r.dedans)).toBe(true);
+    await p.goto(`${serveur.adresse}/console/#/service/alertes`);
+    await expect.poll(() => p.locator('.c-al-t-regles tbody tr').count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    expect((await qui('.c-al-t-regles tbody tr'))[0]).toBe('"Elle parle quand"');
+    expect(await deCote()).toEqual([]);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
   it('l\'entrée de la console : l\'adresse se tape d\'un trait, sans que le curseur saute au mot de passe ; venue remplie, le curseur va au mot de passe', async () => {
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
     const p = await cx.newPage();

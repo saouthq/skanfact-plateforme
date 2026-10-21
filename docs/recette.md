@@ -616,6 +616,17 @@ comme à l'entreprise. La page de connexion, commune aux entreprises et aux cabi
 factures et ta gestion » à un comptable : « retrouver ta gestion, ou les dossiers de ton cabinet ». Le Cabinet exige le
 code du téléphone de chaque comptable, et sa page de mise en place se lit bien au téléphone. Une preuve.
 
+### 1.87.3 — l'éditeur de facture et la console au téléphone
+
+L'éditeur d'une nouvelle facture, à 390 px : « Émettre la facture » en tête, les totaux justes, rien ne déborde ; mais
+l'invitation « Première fois sur cette page ? » restait sur le bas de l'écran (230 points) pendant tout le défilement. Au
+téléphone c'est la page entière qui défile, pas sa zone centrale : le défilement de la fenêtre la ferme maintenant. Tous
+les écrans de la console relevés au téléphone : la grille des prix des Réglages, les membres de l'Équipe et les règles et
+alertes passées de la veille étaient des tableaux qui défilaient de côté (600 à 1 000 points) ; ils passent en cartes,
+chaque case nommée. « À régler dans l'équipe » réduisait son texte à un mot par ligne à côté d'un bouton coupé : le
+bouton passe dessous. Restent des tableaux, par choix, la matrice des droits et les routes du serveur (triées par leurs
+titres, on les lit en croisant). Cinq preuves.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

@@ -18387,6 +18387,26 @@ prouver '« Menu » du Cabinet qui flotte au milieu de la barre' web/public/plat
   '  .sidebar > .brand > .menu-tel { margin-inline-start: auto; }' '' \
   'le Cabinet qui commence, au téléphone : « Tes premiers pas » ne déborde pas, et chaque étape garde son texte en entier'
 
+prouver '« Première fois sur cette page ? » qui reste sur l'\''éditeur pendant le défilement du téléphone' web/public/v10/app.js \
+  "    window.addEventListener('scroll', defile, { passive: true });" '' \
+  'au téléphone, faire défiler l'\''éditeur de facture referme « Première fois sur cette page ? »'
+
+prouver 'la grille des prix qui défile de côté au téléphone' web/console/src/console.css \
+  $'@media (max-width: 860px) {\n  .c-defile:has(> .c-rg-grille)' $'@media (max-width: 1px) {\n  .c-defile:has(> .c-rg-grille)' \
+  'au téléphone, Réglages, Équipe et Alertes : une ligne par carte, chaque case nommée, aucun tableau qui défile de côté'
+
+prouver 'les membres de l'\''équipe dans un tableau qui défile de côté au téléphone' web/console/src/console.css \
+  $'@media (max-width: 860px) {\n  .c-defile:has(> .c-eq-membres)' $'@media (max-width: 1px) {\n  .c-defile:has(> .c-eq-membres)' \
+  'au téléphone, Réglages, Équipe et Alertes : une ligne par carte, chaque case nommée, aucun tableau qui défile de côté'
+
+prouver 'une règle de la veille sans le nom de « Elle parle quand »' web/console/src/ecrans/Alertes.tsx \
+  '<td data-libelle={titre(`${A}.regles.col.parle`)}>' '<td>' \
+  'au téléphone, Réglages, Équipe et Alertes : une ligne par carte, chaque case nommée, aucun tableau qui défile de côté'
+
+prouver '« À régler dans l'\''équipe » : le bouton à côté du texte, coupé' web/console/src/console.css \
+  '  .c-eq-regler-liste li { flex-wrap: wrap; }' '' \
+  'au téléphone, Réglages, Équipe et Alertes : une ligne par carte, chaque case nommée, aucun tableau qui défile de côté'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -1785,6 +1785,13 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-eq-regler-texte span { font-size: 13.5px; color: var(--c-gris); }
 .c-eq-regler-liste li > .c-eq-regler-texte { flex: 1 1 auto; min-width: 0; }
 .c-eq-regler-liste li > .c-btn { flex: none; align-self: center; }
+/* Au téléphone, le bouton passe sous le texte, aligné sur lui : à côté, il laissait au texte un mot par ligne et se coupait
+   (« Inviter quelqu'un… » tronqué, vu à 390 px le 21/10/2026). */
+@media (max-width: 560px) {
+  .c-eq-regler-liste li { flex-wrap: wrap; }
+  .c-eq-regler-liste li > .c-eq-regler-texte { flex: 1 1 calc(100% - 52px); }
+  .c-eq-regler-liste li > .c-btn { margin-inline-start: 52px; align-self: flex-start; }
+}
 /* Les deux tableaux de l'équipe ont leur titre dans la carte, comme leur maquette. */
 .c-eq-liste-tete { padding: 22px 24px 4px; }
 .c-eq-toi { font-weight: 600; color: var(--c-gris); }
@@ -3240,4 +3247,42 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-table-journal td[data-libelle]::before { content: attr(data-libelle); grid-row: 1 / span 4; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); font-weight: 500; }
   .c-table-journal td[data-libelle] > * { grid-column: 2; justify-self: start; }
   .c-table-journal tbody tr:hover td { background: transparent; }
+}
+
+/* Au téléphone, une offre de la grille des prix par carte (1.87.3) : son nom (et ce qui vient) en tête, puis l'année, le
+   mois, depuis quand et ses abonnés, chacun nommé — le tableau de cinq colonnes défilait de côté et écrasait le nom de
+   l'offre à un mot par ligne (vu à 390 px le 21/10/2026). */
+@media (max-width: 860px) {
+  .c-defile:has(> .c-rg-grille) { overflow: visible; }
+  .c-rg-grille thead { display: none; }
+  .c-rg-grille, .c-rg-grille tbody, .c-rg-grille td { display: block; }
+  .c-rg-grille tr { display: grid; gap: 6px; padding: 14px 0; border-bottom: 1px solid var(--c-trait); }
+  .c-rg-grille tr:last-child { border-bottom: 0; }
+  .c-rg-grille td, .c-rg-grille td:first-child, .c-rg-grille td:last-child, .c-rg-grille td.c-droite { padding: 0; border: 0; min-width: 0; text-align: start; }
+  .c-rg-grille td[data-libelle] { display: grid; grid-template-columns: 8.5em minmax(0, 1fr); gap: 2px 10px; align-items: baseline; }
+  .c-rg-grille td[data-libelle]::before { content: attr(data-libelle); grid-row: 1 / span 2; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); font-weight: 500; }
+  .c-rg-grille td[data-libelle] > * { grid-column: 2; justify-self: start; }
+  .c-rg-grille tbody tr:hover td { background: transparent; }
+}
+
+/* Au téléphone, un membre de l'équipe par carte, et une règle de la veille ou une alerte passée par carte (1.87.3) : le nom
+   (et son menu) en tête, puis chaque case nommée — les tableaux de six et sept colonnes défilaient de côté sur 600 à 700
+   points (vu à 390 px le 21/10/2026). La matrice des droits et les routes du serveur (triées par leurs titres) restent des
+   tableaux : on les lit en croisant lignes et colonnes. */
+@media (max-width: 860px) {
+  .c-defile:has(> .c-eq-membres), .c-defile:has(> .c-al-t-regles), .c-defile:has(> .c-al-t-histoire) { overflow: visible; }
+  .c-eq-membres thead, .c-al-t-regles thead, .c-al-t-histoire thead { display: none; }
+  .c-eq-membres, .c-eq-membres tbody, .c-eq-membres td,
+  .c-al-t-regles, .c-al-t-regles tbody, .c-al-t-regles td,
+  .c-al-t-histoire, .c-al-t-histoire tbody, .c-al-t-histoire td { display: block; }
+  .c-eq-membres tr, .c-al-t-regles tr, .c-al-t-histoire tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 14px 16px; border-bottom: 1px solid var(--c-trait); }
+  .c-eq-membres tr:last-child, .c-al-t-regles tr:last-child, .c-al-t-histoire tr:last-child { border-bottom: 0; }
+  .c-eq-membres td:nth-child(n), .c-eq-membres td.c-droite, .c-al-table.c-al-t-regles td:nth-child(n), .c-al-table.c-al-t-histoire td:nth-child(n) { padding: 0; border: 0; min-width: 0; max-width: none; text-align: start; white-space: normal; }
+  .c-eq-membres td:first-child, .c-al-t-regles td:first-child, .c-al-t-histoire td:first-child { grid-column: 1; grid-row: 1; }
+  .c-eq-membres td.c-eq-menu, .c-al-t-regles td.c-al-menu { grid-column: 2; grid-row: 1; align-self: start; }
+  .c-al-t-histoire td:nth-child(2) { grid-column: 1 / -1; }
+  .c-eq-membres td[data-libelle], .c-al-t-regles td[data-libelle], .c-al-t-histoire td[data-libelle] { grid-column: 1 / -1; display: grid; grid-template-columns: 8em minmax(0, 1fr); gap: 2px 10px; align-items: baseline; }
+  .c-eq-membres td[data-libelle]::before, .c-al-t-regles td[data-libelle]::before, .c-al-t-histoire td[data-libelle]::before { content: attr(data-libelle); grid-row: 1 / span 3; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); font-weight: 500; text-transform: none; letter-spacing: 0; }
+  .c-eq-membres td[data-libelle] > *, .c-al-t-regles td[data-libelle] > *, .c-al-t-histoire td[data-libelle] > * { grid-column: 2; justify-self: start; }
+  .c-eq-membres tbody tr:hover td, .c-al-t-regles tbody tr:hover td, .c-al-t-histoire tbody tr:hover td { background: transparent; }
 }
