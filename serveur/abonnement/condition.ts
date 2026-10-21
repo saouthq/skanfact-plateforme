@@ -39,6 +39,8 @@ export const POLITIQUE_LECTURE_SEULE: Record<string, Politique> = {
   // Demander de l'aide au support de SkanFact (docs/support.md) ne crée rien dans le dossier, et c'est souvent ce qui
   // fait sortir de la lecture seule.
   'support.ecrire': 'ouvert',
+  // Demander de revenir à une minute passée (docs/sauvegardes-ecran.md) : une demande au support, rien ne change d'ici.
+  'socle.sauvegardes.demander': 'ouvert',
   'socle.cles_api.gerer': 'ouvert',
   'socle.avis.gerer': 'ouvert',
   // Le dossier de la v10 : l'écran y retient la création avant le geste ; une modification reste permise (6.4.0 :

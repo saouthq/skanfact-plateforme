@@ -75,10 +75,14 @@ describe('les pièces jointes d\'un devis, à la souris', () => {
     await ligne.waitFor({ timeout: 15_000 });
     await expect.poll(() => p.locator('#toast').innerText().catch(() => '')).toContain('2 pièces jointes ajoutées');
     // La pièce garde la fiche sur le serveur, et le fichier y est.
-    const dossier = await api('GET', `/entreprises/${ent}/dossier-v10`, nadia);
-    const devis = (dossier.corps.objets as { cle: string; contenu: { attachments?: { name: string; file: string }[] } }[]).find((o) => o.cle === 'd1');
-    const fiche = devis?.contenu.attachments?.[0];
-    expect(fiche?.name).toBe('Devis signé DEV-2026-031.pdf');
+    // La pièce s'enregistre juste après (comme toute pièce) : on attend qu'elle soit au serveur.
+    const ficheAuServeur = async () => {
+      const dossier = await api('GET', `/entreprises/${ent}/dossier-v10`, nadia);
+      const devis = (dossier.corps.objets as { cle: string; contenu: { attachments?: { name: string; file: string }[] } }[]).find((o) => o.cle === 'd1');
+      return devis?.contenu.attachments?.[0];
+    };
+    await expect.poll(async () => (await ficheAuServeur())?.name, { timeout: 15_000 }).toBe('Devis signé DEV-2026-031.pdf');
+    const fiche = await ficheAuServeur();
     const lu = await api('GET', `/entreprises/${ent}/pieces-jointes/${String(fiche?.file)}`, nadia);
     expect(Buffer.from(String(lu.corps.contenu), 'base64').equals(PDF)).toBe(true);
 

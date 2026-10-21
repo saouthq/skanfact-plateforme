@@ -80,7 +80,10 @@ describe('la liasse d\'un exercice clos, à la souris', () => {
     expect(await p.locator('#li-close').innerText()).toMatch(/L'exercice 2025 est clos\s:\ssa liasse ne change plus\. Pour changer un retraitement ou le taux, rouvre-le dans l'onglet Exercice \(avec un motif\)\./);
     expect(await p.locator('#view').innerText()).toMatch(/Amende fiscale non déductible/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-liasse-close.png') });
-    await p.locator('#li-close').locator('xpath=ancestor::div[contains(@class, "panel")][1]').screenshot({ path: path.join(PHOTOS, 'cabinet-liasse-close-fiscal.png') });
+    // La photo du seul panneau : la liasse se redessine quand la relecture du dossier revient (vu sur GitHub le
+    // 21/10/2026 : « Element is not attached to the DOM ») ; le panneau se reprend à chaque essai.
+    const panneau = p.locator('#li-close').locator('xpath=ancestor::div[contains(@class, "panel")][1]');
+    await expect.poll(() => panneau.screenshot({ path: path.join(PHOTOS, 'cabinet-liasse-close-fiscal.png'), timeout: 5_000 }).then(() => true, () => false), { timeout: 20_000 }).toBe(true);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

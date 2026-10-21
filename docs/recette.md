@@ -820,6 +820,13 @@ Paramètres › L'application : « Aide et dépannage » est de retour. Une erre
 journal de cet écran » ; « Signaler un problème… » propose, case cochée, de la joindre (« Le lire » avant) : elle part
 sous le texte de la demande ; décochée, rien n'en part. Détail : `docs/signaler.md`.
 
+### 1.91.1 — le rouge de GitHub sur 1.91.0
+
+Trois tests : « demander de revenir en arrière » n'avait pas sa décision de lecture seule (ouverte, comme écrire au
+support) ; le test des pièces jointes lisait le dossier au serveur avant que la pièce y soit enregistrée (il attend
+maintenant qu'elle y soit) ; la photo du panneau de la liasse close se prenait pendant que la liasse se redessinait (elle se
+reprend).
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
