@@ -906,6 +906,14 @@ Trouvé et corrigé en chemin, chaque fois revu à l'écran :
 - un fichier ouvert depuis le fil s'appelait « d1eebff2-… » et s'enregistrait sous ce nom : une photo s'ouvre dans une
   page à son nom, et chaque fichier du fil a « Enregistrer », qui le garde sous son nom.
 
+### 1.96.0 — Hatem ouvre la déclaration d'un mois en cours
+
+Le 21 octobre, Hatem ouvre Déclarer et clôturer › Déclaration du dossier de Leïla, commencé en octobre. L'écran
+proposait en vert « Déclarer septembre 2026 » (un mois d'avant le livre, rien à y déclarer) et affichait en orange « Le
+compte 4367 porte encore 313,666 DT à la fin du mois » pour un mois qui n'est pas fini. Désormais : « Rien avant dans ce
+livre : ce sera sa première déclaration », et une ligne neutre à la place de l'alerte. Les cases, elles, étaient justes
+(TVA due 313,666, timbre 1,000, à payer 313,666).
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

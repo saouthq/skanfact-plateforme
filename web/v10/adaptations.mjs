@@ -848,4 +848,6 @@ export const ADAPTATIONS = [
   ...lireFichier('repondre-avec-piece.txt'),
   // ── « Envoyer au comptable… » sur la plateforme (1.94.0) ──
   ...lireFichier('envoyer-au-comptable.txt'),
+  // ── La déclaration d'un mois en cours, au Cabinet (1.96.0) ──
+  ...lireFichier('declaration-mois-en-cours.txt'),
 ];

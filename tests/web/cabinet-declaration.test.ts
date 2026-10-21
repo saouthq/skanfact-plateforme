@@ -53,6 +53,47 @@ describe('la déclaration du mois, à la souris', () => {
   type Ecriture = { id: string; statut: string; piece: string | null; lignes: { compte: string; debit: string; credit: string }[] };
   const ecritures = async (ent: string, jeton: string) => (await api('GET', `/entreprises/${ent}/compta/ecritures?limite=500`, jeton)).corps.ecritures as Ecriture[];
 
+  // (1.96.0, parcours du 21/10/2026) Un dossier commencé ce mois-ci : le mois en cours ne propose pas de déclarer le mois
+  // d'avant (rien dans le livre), et le contrôle « TVA soldée » se tait tant que le mois n'est pas fini.
+  it('un dossier commencé ce mois-ci : pas de « Déclarer le mois d\'avant », pas d\'alerte 4367 avant la fin du mois', async () => {
+    const associe = await personne('associe');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' })).corps.id);
+    const dossier = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Librairie du Lac' })).corps.entreprise);
+    const aujourdhui = new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
+    const [annee, mois] = aujourdhui.split('-');
+    const saisir = async (date: string, piece: string) =>
+      String((await api('POST', `/entreprises/${dossier}/compta/ecritures`, associe, { date, journal: 'VT', piece, libelle: `Facture ${piece}`, lignes: [{ compte: '411', debit: '1191,785', credit: '' }, { compte: '7071', debit: '', credit: '1000,660' }, { compte: '4367', debit: '', credit: '190,125' }, { compte: '4368', debit: '', credit: '1,000' }] })).corps.id);
+    const ce = await saisir(`${annee}-${mois}-01`, 'F-1');
+    expect((await api('POST', `/entreprises/${dossier}/compta/ecritures/valider`, associe, { ids: [ce] })).statut).toBe(200);
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    const ouvrir = async () => {
+      await p.goto('about:blank');
+      await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${dossier}/comptabilite/declaration/${annee}`);
+      await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+      for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+      await p.locator('#dc-mois').waitFor({ timeout: 15_000 });
+      if (await p.locator('#dc-mois').inputValue() !== `${annee}-${mois}`) await p.locator('#dc-mois').selectOption(`${annee}-${mois}`);
+      await p.locator('#dc-en-cours').waitFor({ timeout: 15_000 });
+    };
+    await ouvrir();
+    expect(await p.locator('[data-dc-mois]').count()).toBe(0);
+    expect(await p.locator('#view').innerText()).not.toMatch(/porte encore/);
+    expect(await p.locator('#dc-controles-attente').count()).toBe(1);
+    if (mois !== '01') {
+      expect(await p.locator('#dc-premier-mois').count()).toBe(1);
+      // Une écriture le mois d'avant : il se propose de nouveau.
+      const avant = await saisir(`${annee}-${String(Number(mois) - 1).padStart(2, '0')}-10`, 'F-0');
+      expect((await api('POST', `/entreprises/${dossier}/compta/ecritures/valider`, associe, { ids: [avant] })).statut).toBe(200);
+      await ouvrir();
+      expect(await p.locator('[data-dc-mois]').count()).toBe(1);
+      expect(await p.locator('#dc-premier-mois').count()).toBe(0);
+    }
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
   it('préparer, écrire, recalculer après une vente oubliée, compléter, déposer, payer, dé-pointer ; la forme copiée se retient', async () => {
     const associe = await personne('associe');
     const cab = await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' });

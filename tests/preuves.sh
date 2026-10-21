@@ -18722,6 +18722,12 @@ prouver '« 1 documents » dans le message au comptable' web/public/v10/app.js \
 prouver 'le fichier d'\''un message qui ne s'\''enregistre pas sous son nom' web/public/plateforme/messagerie.js \
   $'      surClic(fil, \'[data-msg-enregistrer]\', async (b) => { await ouvrirFichier(o.appel, String(b.dataset.msgEnregistrer), true); });' $'' \
   'Amine et son comptable s'\''écrivent : la pastille'
+prouver 'un mois en cours qui propose de déclarer un mois d'\''avant le livre' web/public/v10/cabinet/app.js \
+  $': ((s.livre && s.livre.ecritures) || []).some(e => String(e.date || \'\').slice(0, 7) <= precedent)' $': true' \
+  'un dossier commencé ce mois-ci : pas de « Déclarer le mois d'\''avant »'
+prouver 'l'\''alerte du 4367 sur un mois qui n'\''est pas fini' web/public/v10/cabinet/app.js \
+  $'const visibles = enCours && !posee ? echecs.filter(c => c.id !== \'tva-soldee\') : echecs;' $'const visibles = echecs;' \
+  'un dossier commencé ce mois-ci : pas de « Déclarer le mois d'\''avant »'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

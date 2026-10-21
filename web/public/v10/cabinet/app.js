@@ -4260,7 +4260,12 @@
     <div class="panel dc-suite" id="dc-suite"><h2>Les étapes du mois ${info('dc.suite')}</h2>
       ${ligneEcheanceDeclaration(dossier, d.periode, deposee && posee.deposee.le)}
       ${enCours && !posee ? `<div class="warn-box mt" id="dc-en-cours"><div>${esc(K.monthLabel(d.periode).replace(/^./, c => c.toUpperCase()))} n'est pas terminé : sa TVA se déclare le mois prochain, une fois toutes ses pièces saisies.${
-          precedent.startsWith(String(s.annee) + '-') ? ` <button type="button" class="${cls('mois')}" data-dc-mois="${esc(precedent)}">Déclarer ${esc(K.monthLabel(precedent))}</button>` : ''}</div></div>` : ''}
+          // (plateforme) 1.96.0 — le mois d'avant, seulement si le livre y a des écritures (un dossier commencé ce mois-ci
+          // n'a rien à déclarer avant lui).
+          !precedent.startsWith(String(s.annee) + '-') ? ''
+            : ((s.livre && s.livre.ecritures) || []).some(e => String(e.date || '').slice(0, 7) <= precedent)
+            ? ` <button type="button" class="${cls('mois')}" data-dc-mois="${esc(precedent)}">Déclarer ${esc(K.monthLabel(precedent))}</button>`
+            : ` <span id="dc-premier-mois">Rien avant dans ce livre : ce sera sa première déclaration.</span>`}</div></div>` : ''}
       ${motif ? `<p class="small muted dc-motif">${esc(motif)}</p>` : ''}
       <div class="dc-etapes">
         <button class="${cls('preparer')}" id="dc-preparer">${posee ? fait(true) + 'Préparée — recalculer' : 'Préparer la déclaration'}</button>${fleche}
@@ -4284,9 +4289,12 @@
     </div>
     ${/* 10.14.1 — un contrôle qui échoue porte le geste qui le débloque (7.20.0) : « 1 pièce encore en
           brouillard » laissait le débutant chercher où elle était. */''}
-    ${echecs.length ? `<div class="warn-box mt" id="dc-controles">${echecs.map(c => `<div>${esc(c.detail)}${c.id === 'brouillard'
+    ${/* (plateforme) 1.96.0 — un mois en cours (pas encore préparé) n'a pas de fin : le contrôle « TVA soldée » se tait,
+          et la ligne verte ne promet pas une TVA soldée qui ne peut pas l'être encore. */''}
+    ${(() => { const visibles = enCours && !posee ? echecs.filter(c => c.id !== 'tva-soldee') : echecs; return visibles.length ? `<div class="warn-box mt" id="dc-controles">${visibles.map(c => `<div>${esc(c.detail)}${c.id === 'brouillard'
           ? ' <button type="button" class="btn btn-sm" data-vers-saisie>Voir le brouillard</button>' : ''}</div>`).join('')}</div>`
-      : `<p class="small ligne-ok mt"><span aria-hidden="true">✓</span> Les contrôles passent : aucun brouillard sur le mois, aucun compte d'attente ouvert, la TVA du mois soldée par son écriture, aucun crédit imputé en trop.</p>`}
+      : enCours && !posee ? `<p class="small muted mt" id="dc-controles-attente">Aucun brouillard ni compte d'attente ouvert pour l'instant ; la TVA se solde par l'écriture du mois, une fois ${esc(K.monthLabel(d.periode))} terminé.</p>`
+      : `<p class="small ligne-ok mt"><span aria-hidden="true">✓</span> Les contrôles passent : aucun brouillard sur le mois, aucun compte d'attente ouvert, la TVA du mois soldée par son écriture, aucun crédit imputé en trop.</p>`; })()}
     ${panneauFormulaire(d)}
     ${declState.ouverte && d.cases[declState.ouverte] ? panneauPieces(d.cases[declState.ouverte], LIBELLE_CASE[declState.ouverte]) : ''}`;
   }

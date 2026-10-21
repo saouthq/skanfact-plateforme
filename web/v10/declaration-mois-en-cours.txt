@@ -1,0 +1,34 @@
+La déclaration d'un mois en cours, au Cabinet (1.96.0, parcours du 21/10/2026). Format : voir sans-paquets.mjs.
+
+Le dossier de Leïla commence en octobre 2026. Ouvert le 21 octobre, l'écran « Déclaration » disait « Octobre 2026 n'est
+pas terminé » et proposait en vert « Déclarer septembre 2026 » : un mois d'avant le livre, où il n'y a rien à déclarer
+ici. Et il affichait, en orange, « Le compte 4367 porte encore 313,666 DT à la fin du mois : l'écriture de déclaration
+n'a pas été passée » — pour un mois qui n'a pas encore de fin. Désormais : le mois d'avant ne se propose que si le livre
+a des écritures jusque-là, sinon la phrase dit que la première déclaration sera celle de ce mois ; et tant que le mois
+n'est pas fini (et pas préparé), le contrôle du 4367 se tait (les autres, le brouillard, l'attente, parlent encore).
+
+== cabinet/app.js | le mois d'avant ne se propose que si le livre a des écritures jusque-là
+-- avant
+          precedent.startsWith(String(s.annee) + '-') ? ` <button type="button" class="${cls('mois')}" data-dc-mois="${esc(precedent)}">Déclarer ${esc(K.monthLabel(precedent))}</button>` : ''}</div></div>` : ''}
+-- après
+          // (plateforme) 1.96.0 — le mois d'avant, seulement si le livre y a des écritures (un dossier commencé ce mois-ci
+          // n'a rien à déclarer avant lui).
+          !precedent.startsWith(String(s.annee) + '-') ? ''
+            : ((s.livre && s.livre.ecritures) || []).some(e => String(e.date || '').slice(0, 7) <= precedent)
+            ? ` <button type="button" class="${cls('mois')}" data-dc-mois="${esc(precedent)}">Déclarer ${esc(K.monthLabel(precedent))}</button>`
+            : ` <span id="dc-premier-mois">Rien avant dans ce livre : ce sera sa première déclaration.</span>`}</div></div>` : ''}
+-- fin
+
+== cabinet/app.js | un mois en cours : le 4367 n'a pas encore de fin de mois, son contrôle se tait
+-- avant
+    ${echecs.length ? `<div class="warn-box mt" id="dc-controles">${echecs.map(c => `<div>${esc(c.detail)}${c.id === 'brouillard'
+          ? ' <button type="button" class="btn btn-sm" data-vers-saisie>Voir le brouillard</button>' : ''}</div>`).join('')}</div>`
+      : `<p class="small ligne-ok mt"><span aria-hidden="true">✓</span> Les contrôles passent : aucun brouillard sur le mois, aucun compte d'attente ouvert, la TVA du mois soldée par son écriture, aucun crédit imputé en trop.</p>`}
+-- après
+    ${/* (plateforme) 1.96.0 — un mois en cours (pas encore préparé) n'a pas de fin : le contrôle « TVA soldée » se tait,
+          et la ligne verte ne promet pas une TVA soldée qui ne peut pas l'être encore. */''}
+    ${(() => { const visibles = enCours && !posee ? echecs.filter(c => c.id !== 'tva-soldee') : echecs; return visibles.length ? `<div class="warn-box mt" id="dc-controles">${visibles.map(c => `<div>${esc(c.detail)}${c.id === 'brouillard'
+          ? ' <button type="button" class="btn btn-sm" data-vers-saisie>Voir le brouillard</button>' : ''}</div>`).join('')}</div>`
+      : enCours && !posee ? `<p class="small muted mt" id="dc-controles-attente">Aucun brouillard ni compte d'attente ouvert pour l'instant ; la TVA se solde par l'écriture du mois, une fois ${esc(K.monthLabel(d.periode))} terminé.</p>`
+      : `<p class="small ligne-ok mt"><span aria-hidden="true">✓</span> Les contrôles passent : aucun brouillard sur le mois, aucun compte d'attente ouvert, la TVA du mois soldée par son écriture, aucun crédit imputé en trop.</p>`; })()}
+-- fin
