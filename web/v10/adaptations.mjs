@@ -860,4 +860,8 @@ export const ADAPTATIONS = [
   ...lireFichier('production-sans-mois.txt'),
   // ── Les colonnes d'un formulaire ne s'élargissent plus pour un long nom (1.100.0) ──
   ...lireFichier('colonnes-egales.txt'),
+  // ── Le brouillard d'une pièce venue de SkanFact se lit avant d'être validé (1.100.0) ──
+  ...lireFichier('brouillard-voir-lignes.txt'),
+  // ── « Voir le brouillard » mène au brouillard, pas en haut de la grille (1.100.0) ──
+  ...lireFichier('voir-le-brouillard.txt'),
 ];

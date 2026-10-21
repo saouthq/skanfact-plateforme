@@ -977,6 +977,18 @@ aux deux questions qui restaient ; Hatem les lit et les ferme. Ce que l'écran f
   confié). Les cases disent ce que l'invitation confie, et la phrase le nomme (« pour la comptabilité, les
   déclarations, la saisie des achats et la paie »).
 
+### 1.101.0 — Hatem accepte le dossier de Sami et valide sa première facture
+
+- vu et juste : le lien d'invitation, ouvert par Hatem déjà connecté, met la proposition en tête de ses Dossiers
+  (« la comptabilité, les déclarations, la saisie des achats et la paie ») ; acceptée, le dossier compte octobre à
+  4 842,000 DT, 6 492,875 DT pour le cabinet ;
+- le brouillard de FAC-2026-001 ne disait que son total et « équilibrée », et son menu ne proposait que « Valider » ou
+  « Joindre un justificatif… » : une pièce venue de SkanFact ne se « reprend » pas dans la grille, et rien ne montrait
+  ses comptes avant de la valider à jamais. « Voir ses lignes », en tête du menu, ouvre le livre-journal, le brouillard
+  compté, cherché sur sa pièce (411 D 5 762,980 ; 706 C 4 842,000 ; 4367 C 919,980 ; 4368 C 1,000) ;
+- « Voir le brouillard » du livre-journal vide arrivait en haut de la saisie, le brouillard sous la grille, hors de
+  l'écran ; il y arrive, et le curseur posé dans « Pièce » (1.87.7) ne fait plus remonter la page.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
@@ -995,3 +1007,7 @@ aux deux questions qui restaient ; Hatem les lit et les ferme. Ce que l'écran f
 9. Le PDF du Cabinet se fait au serveur, comme celui de l'entreprise (1.92.0).
 10. Les questions du comptable arrivent sans recharger ; une relance se fait un autre jour (1.94.0) ; on y répond avec
     le fichier attendu (1.95.0).
+11. À VÉRIFIER avec les comptables pilotes (vu le 21/10/2026) : les ventes d'une quincaillerie (« Commerce et vente de
+    produits ») tombent en 706 (prestations de services), le compte de ventes par défaut du moteur ; des marchandises
+    iraient en 707. Le compte se règle par dossier ; la question est le défaut : 707 pour une activité de commerce, ou
+    une ventilation par article (produit ou service).

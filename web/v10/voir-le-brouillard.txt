@@ -1,0 +1,28 @@
+« Voir le brouillard » mène au brouillard, pas en haut de la grille (1.100.0, parcours du 21/10/2026). Format : voir sans-paquets.mjs.
+
+Au livre-journal vide d'un client, Hatem clique « Voir le brouillard » : il arrive en haut de la saisie, sur la grille
+vide, et le brouillard qu'il venait chercher est sous elle, hors de l'écran. Le geste des contrôles de clôture y menait
+déjà (`pageFocus`, 7.18.0) ; ces deux boutons-là aussi.
+
+== cabinet/app.js | « Voir le brouillard » du livre-journal vide mène au brouillard
+-- avant
+    const vs = $('#lv-vers-saisie', el); if (vs) vs.onclick = () => allerSousOnglet(root, dossier, 'saisie');
+-- après
+    const vs = $('#lv-vers-saisie', el); if (vs) vs.onclick = () => { if (/brouillard/.test(vs.textContent || '')) pageFocus = 'sa-brouillard'; allerSousOnglet(root, dossier, 'saisie'); };
+-- fin
+
+== cabinet/app.js | « Voir le brouillard » de la déclaration mène au brouillard
+-- avant
+    $$('[data-vers-saisie]', el).forEach(b => { b.onclick = () => allerSousOnglet(root, dossier, 'saisie'); });
+-- après
+    $$('[data-vers-saisie]', el).forEach(b => { b.onclick = () => { pageFocus = 'sa-brouillard'; allerSousOnglet(root, dossier, 'saisie'); }; });
+-- fin
+
+== cabinet/app.js | le curseur dans « Pièce » ne fait plus remonter la page arrivée au brouillard
+-- avant
+        const pc = $('#sa-piece', el); if (pc) pc.focus();
+-- après
+        // (plateforme) 1.100.0 — sans défiler : arrivée au brouillard (« Voir le brouillard »), la page remontait à la
+        // grille sous l'effet de ce focus ; ouverte normalement, elle est déjà en haut, où est « Pièce ».
+        const pc = $('#sa-piece', el); if (pc) pc.focus({ preventScroll: true });
+-- fin

@@ -18430,7 +18430,7 @@ prouver '« Rien n'\''a été enregistré » qui reste ouvert après l'\''enregi
   'un navigateur qui ne promet pas de garder : la page restée ouverte enregistre seule au retour du réseau, et le dit'
 
 prouver 'la saisie du Cabinet qui s'\''ouvre sans curseur' web/public/v10/cabinet/app.js \
-  "const pc = \$('#sa-piece', el); if (pc) pc.focus();" "const pc = \$('#sa-piece', el); void pc;" \
+  "const pc = \$('#sa-piece', el); if (pc) pc.focus({ preventScroll: true });" "const pc = \$('#sa-piece', el); void pc;" \
   'le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur'
 
 prouver '« Plus tard » qui emporte le curseur de la saisie' web/public/v10/cabinet/app.js \
@@ -18788,6 +18788,15 @@ prouver 'le champ refusé qui perd le curseur quand son refus s'\''affiche desso
 prouver 'la paie confiée qui se montre décochée après l'\''invitation' web/public/plateforme/pont.js \
   $"      if (confie) for (const c of panneau.querySelectorAll('[data-perimetre]'))" $"      if (false) for (const c of panneau.querySelectorAll('[data-perimetre]'))" \
   'le client invite par e-mail'
+prouver 'le brouillard venu de SkanFact validé sans qu'\''on puisse lire ses comptes' web/public/v10/cabinet/app.js \
+  $"      if (e.source === 'skanfact' && livresState.onglet === 'saisie') a.push({ icon: 'loupe', label: 'Voir ses lignes'," $"      if (false) a.push({ icon: 'loupe', label: 'Voir ses lignes'," \
+  'Consulter se relit en revenant sur la fenêtre'
+prouver '« Voir le brouillard » qui arrive en haut de la grille' web/public/v10/cabinet/app.js \
+  $"if (vs) vs.onclick = () => { if (/brouillard/.test(vs.textContent || '')) pageFocus = 'sa-brouillard'; allerSousOnglet" $"if (vs) vs.onclick = () => { allerSousOnglet" \
+  'Consulter se relit en revenant sur la fenêtre'
+prouver 'le curseur dans « Pièce » qui fait remonter la page au-dessus du brouillard' web/public/v10/cabinet/app.js \
+  $"if (pc) pc.focus({ preventScroll: true });" $"if (pc) pc.focus();" \
+  'Consulter se relit en revenant sur la fenêtre'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

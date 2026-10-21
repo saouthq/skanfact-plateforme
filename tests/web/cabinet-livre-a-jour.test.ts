@@ -78,6 +78,15 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     await p.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect.poll(enTete, { timeout: 10_000 }).toBe('Compter 2 écritures en brouillard');
 
+    // (1.100.0) Le livre-journal vide : « Voir le brouillard » arrive AU brouillard, sous la grille (il arrivait en haut de
+    // la saisie, le brouillard hors de l'écran), et le curseur attend quand même dans « Pièce ».
+    await p.locator('#lv-vers-saisie').click();
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toMatch(/comptabilite\/saisie\//);
+    await expect.poll(() => p.evaluate(() => { const r = document.querySelector('#sa-brouillard')?.getBoundingClientRect(); return !!r && r.top >= 0 && r.top < innerHeight / 2; }), { timeout: 5_000 }).toBe(true);
+    expect(await p.evaluate(() => document.activeElement?.id)).toBe('sa-piece');
+    await p.locator('.seg button, button').filter({ hasText: /^Consulter$/ }).first().click();
+    await p.locator('#lv-vers-saisie').waitFor({ timeout: 15_000 });
+
     // 2. Un autre arrive ; elle passe à « Déclarer » : l'en-tête et la déclaration du mois, lus au même moment.
     await envoyer([frais('m3', '1.75')]);
     await p.locator('.seg button, button').filter({ hasText: /^Déclarer et clôturer$/ }).first().click();
@@ -97,6 +106,23 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     await p.evaluate(() => window.dispatchEvent(new Event('focus')));
     await p.waitForTimeout(1500);
     expect(await p.evaluate(() => (document.querySelector('#c-livres')?.firstElementChild as (Element & { marque?: number }) | null)?.marque)).toBe(1);
+    // (1.100.0) Une pièce venue de SkanFact ne se reprend pas dans la grille : « Voir ses lignes », en tête de son menu,
+    // ouvre le livre-journal, le brouillard compté, cherché sur sa pièce (avant, rien ne montrait ses comptes).
+    const br = p.locator('tr.br-ligne').first();
+    const piece = (await br.locator('td').nth(2).innerText()).trim();
+    expect(piece).not.toBe('—');
+    await br.getByRole('button', { name: /Actions/ }).click();
+    await expect.poll(() => p.locator('.row-menu').last().innerText()).toMatch(/^Voir ses lignes\s/);
+    await p.locator('.row-menu').last().getByText('Voir ses lignes', { exact: true }).click();
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toMatch(/comptabilite\/journal\//);
+    await expect.poll(() => p.locator('#lv-q').inputValue()).toBe(piece);
+    expect(await p.locator('#lv-brouillard').isChecked()).toBe(true);
+    expect(await p.locator('#c-livres').innerText()).toContain(piece);
+    // Au livre-journal, ses lignes sont sous les yeux : le menu ne propose plus d'aller les voir.
+    await p.locator('#c-livres').getByRole('button', { name: /Actions/ }).first().click();
+    await expect.poll(() => p.locator('.row-menu').last().innerText()).toMatch(/^Valider cette écriture/);
+    expect(await p.locator('.row-menu').last().innerText()).not.toContain('Voir ses lignes');
+    await p.keyboard.press('Escape');
 
     // 4. (1.80.0) Aux Échéances : sans mois terminé, le calendrier vide dit sa vraie raison ; une pièce du mois dernier au
     //    brouillard, et la TVA de ce mois-là est « à valider » : « Marquer déposée » le dit avant de pointer.

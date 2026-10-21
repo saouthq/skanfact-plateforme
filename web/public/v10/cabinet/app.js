@@ -3717,7 +3717,7 @@
     [$('#lv-relire', el), $('#lv-relire2')].forEach(b => { if (b) b.onclick = () => relireLesPaquets(root, dossier); });
     const rp = $('#lv-reprendre', el); if (rp) rp.onclick = () => repriseForm(root, dossier);
     const ov = $('#lv-ouvrir'); if (ov) ov.onclick = () => repriseForm(root, dossier);
-    const vs = $('#lv-vers-saisie', el); if (vs) vs.onclick = () => allerSousOnglet(root, dossier, 'saisie');
+    const vs = $('#lv-vers-saisie', el); if (vs) vs.onclick = () => { if (/brouillard/.test(vs.textContent || '')) pageFocus = 'sa-brouillard'; allerSousOnglet(root, dossier, 'saisie'); };
     // Le manque NOMMÉ porte son geste (7.15.0) : la relance part préremplie sur CES mois-là.
     const rm = $('#lv-relancer', el);
     if (rm) rm.onclick = () => {
@@ -4367,7 +4367,7 @@
       s.paieMois = Number(String(s.decl && s.decl.periode || '').slice(5, 7)) || s.paieMois;
       allerSousOnglet(root, dossier, 'paie');
     }; });
-    $$('[data-vers-saisie]', el).forEach(b => { b.onclick = () => allerSousOnglet(root, dossier, 'saisie'); });
+    $$('[data-vers-saisie]', el).forEach(b => { b.onclick = () => { pageFocus = 'sa-brouillard'; allerSousOnglet(root, dossier, 'saisie'); }; });
     // UN bouton « Préparer » (U-11) : il était répété sous « Ce qui suit » (T-17) parce que les
     // gestes qu'il débloque vivaient deux écrans plus bas ; ils sont maintenant sur la même rangée.
     const prep = $('#dc-preparer', el);
@@ -8501,7 +8501,9 @@
     requestAnimationFrame(() => {
       const libre = !document.activeElement || document.activeElement === document.body;
       if (libre && matchMedia('(hover: hover) and (pointer: fine)').matches && !document.querySelector('#modal-root .modal')) {
-        const pc = $('#sa-piece', el); if (pc) pc.focus();
+        // (plateforme) 1.100.0 — sans défiler : arrivée au brouillard (« Voir le brouillard »), la page remontait à la
+        // grille sous l'effet de ce focus ; ouverte normalement, elle est déjà en haut, où est « Pièce ».
+        const pc = $('#sa-piece', el); if (pc) pc.focus({ preventScroll: true });
       }
     });
     // La pagination du brouillard : la pièce en cours vit dans `saisieState`, le redessin la garde.
@@ -9222,6 +9224,11 @@
     // justificatif… » — un clic qui glisse d'une ligne efface une pièce au lieu d'y joindre un scan.
     let detruire = null;
     if (e.statut === 'brouillard') {
+      // (plateforme) 1.100.0 — une pièce venue de SkanFact ne se reprend pas dans la grille : ses lignes se lisent au
+      // livre-journal, le brouillard compté et cherché sur sa pièce. Le geste vient avant « Valider » : on regarde, puis on
+      // valide. Depuis le brouillard de la saisie seulement : au livre-journal, ses lignes sont déjà sous les yeux.
+      if (e.source === 'skanfact' && livresState.onglet === 'saisie') a.push({ icon: 'loupe', label: 'Voir ses lignes', hint: 'Au livre-journal, avant de la valider',
+        run: () => { const s = livresState; s.brouillard = true; s.q = e.piece || ''; s.journal = ''; s.page = 1; allerSousOnglet(root, dossier, 'journal'); } });
       a.push({ icon: 'oui', label: 'Valider cette écriture', hint: 'Elle prend son numéro et ne se modifiera plus',
         run: () => validerEcriture(root, dossier, e) });
       if (e.source !== 'skanfact') a.push({ icon: 'modifier', label: 'Reprendre dans la grille', hint: 'Elle remonte dans la saisie, modifiable',

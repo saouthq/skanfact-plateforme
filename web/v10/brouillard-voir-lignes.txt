@@ -1,0 +1,19 @@
+Le brouillard d'une pièce venue de SkanFact se lit avant d'être validé (1.100.0, parcours du 21/10/2026). Format : voir sans-paquets.mjs.
+
+Hatem reçoit la facture FAC-2026-001 de Sami au brouillard : la ligne dit le total et « équilibrée », et son menu ne
+propose que « Valider cette écriture » ou « Joindre un justificatif… ». Une écriture tapée au Cabinet se « reprend dans
+la grille », où ses lignes se lisent ; celle venue de SkanFact ne s'y reprend pas (elle suit la pièce du client), et
+rien ne montrait ses comptes avant de la valider à jamais. « Voir ses lignes » ouvre le livre-journal, le brouillard
+compté, cherché sur sa pièce.
+
+== cabinet/app.js | « Voir ses lignes » pour un brouillard venu de SkanFact
+-- avant
+      a.push({ icon: 'oui', label: 'Valider cette écriture', hint: 'Elle prend son numéro et ne se modifiera plus',
+-- après
+      // (plateforme) 1.100.0 — une pièce venue de SkanFact ne se reprend pas dans la grille : ses lignes se lisent au
+      // livre-journal, le brouillard compté et cherché sur sa pièce. Le geste vient avant « Valider » : on regarde, puis on
+      // valide. Depuis le brouillard de la saisie seulement : au livre-journal, ses lignes sont déjà sous les yeux.
+      if (e.source === 'skanfact' && livresState.onglet === 'saisie') a.push({ icon: 'loupe', label: 'Voir ses lignes', hint: 'Au livre-journal, avant de la valider',
+        run: () => { const s = livresState; s.brouillard = true; s.q = e.piece || ''; s.journal = ''; s.page = 1; allerSousOnglet(root, dossier, 'journal'); } });
+      a.push({ icon: 'oui', label: 'Valider cette écriture', hint: 'Elle prend son numéro et ne se modifiera plus',
+-- fin
