@@ -1,0 +1,263 @@
+Ce que la recette du 21/10/2026 change aux écrans repris (docs/recette.md, « 1.87.3 » à « 1.87.7 »). Format : voir
+sans-paquets.mjs. Ces retouches avaient d'abord été faites à la main dans web/public/v10 : le test de provenance les a
+refusées sur GitHub (la vérification locale ne le jouait pas) ; elles passent ici, comme toutes les autres.
+
+== app.js | en lecture seule, le bandeau d'une pièce neuve porte le seul bouton principal, « Voir l'abonnement » (1.87.4)
+-- avant
+  // « Enregistrer », et la saisie était perdue (la règle 10.14.0 d'une pièce d'un mois clôturé).
+  function bandeauAbonnement(neuve) {
+    if (!neuve || !licence.locked || !bridge.dessinerAbonnement) return '';
+    return `<div class="banner info lock-banner" id="abo-banner">
+        <span><b>${h(licence.label)} : cette nouvelle pièce ne pourra pas être enregistrée.</b> ${h(licence.detail)}
+        Tout ce qui existe déjà se lit, s'imprime, s'exporte et se corrige ; seule la création attend l'abonnement.</span>
+        <span class="lock-go"><button class="btn btn-sm" id="abo-voir">${abonnementVisible() ? 'Voir l\'abonnement' : 'Qui le règle ?'}</button></span></div>`;
+  }
+-- après
+  // « Enregistrer », et la saisie était perdue (la règle 10.14.0 d'une pièce d'un mois clôturé).
+  // (plateforme, 1.87.4) La pièce neuve qui ne pourra pas être enregistrée : l'étape suivante n'est plus d'émettre, c'est
+  // l'abonnement. Le bouton principal passe au bandeau (« Émettre la facture » restait vert, vu en recette le 21/10/2026).
+  function aboBloque(neuve) { return !!(neuve && licence.locked && bridge.dessinerAbonnement); }
+  function bandeauAbonnement(neuve) {
+    if (!aboBloque(neuve)) return '';
+    return `<div class="banner info lock-banner" id="abo-banner">
+        <span><b>${h(licence.label)} : cette nouvelle pièce ne pourra pas être enregistrée.</b> ${h(licence.detail)}
+        Tout ce qui existe déjà se lit, s'imprime, s'exporte et se corrige ; seule la création attend l'abonnement.</span>
+        <span class="lock-go"><button class="btn btn-sm btn-primary" id="abo-voir">${abonnementVisible() ? 'Voir l\'abonnement' : 'Qui le règle ?'}</button></span></div>`;
+  }
+-- fin
+
+== app.js | un enregistrement qui passe ensuite referme « Rien n'a été enregistré » (1.87.6)
+-- avant
+      .then(r => { if (r && r.matriculeRefuse) matriculeRefuse(r.matriculeRefuse); if (r && r.conflict) return resolveConflict(r); })
+-- après
+      .then(r => { if (fermerEchec) fermerEchec(); if (r && r.matriculeRefuse) matriculeRefuse(r.matriculeRefuse); if (r && r.conflict) return resolveConflict(r); })
+-- fin
+
+== app.js | la fenêtre « Rien n'a été enregistré » se souvient de sa fermeture (1.87.6)
+-- avant
+  let echecOuvert = false;
+  function echecEnregistrement(e) {
+-- après
+  let echecOuvert = false;
+  // (plateforme, 1.87.6) Un enregistrement qui passe ensuite (le réseau revenu, le point de contact a relancé) referme
+  // la fenêtre : elle disait encore « Rien n'a été enregistré ».
+  let fermerEchec = null;
+  function echecEnregistrement(e) {
+-- fin
+
+== app.js | la fenêtre « Rien n'a été enregistré » se souvient de sa fermeture (1.87.6)
+-- avant
+      $('#reessayer', root).onclick = () => { close(); save(true); };
+-- après
+      fermerEchec = close;
+      $('#reessayer', root).onclick = () => { close(); save(true); };
+-- fin
+
+== app.js | la fenêtre « Rien n'a été enregistré » oublie sa fermeture une fois fermée (1.87.6)
+-- avant
+    }, () => { echecOuvert = false; });
+  }
+
+  // (plateforme, E5) Le matricule de la fiche société
+-- après
+    }, () => { echecOuvert = false; fermerEchec = null; });
+  }
+
+  // (plateforme, E5) Le matricule de la fiche société
+-- fin
+
+== app.js | « Enregistrer » d'un devis neuf n'est plus le bouton principal en lecture seule, « Émettre » non plus (1.87.4)
+-- avant
+          ${facturerMenu}${transformMenu}
+          ${!figee ? `<button class="btn ${(isNew && (isQ || isExtra)) || suiteExtra === 'save' ? 'btn-primary' : ''}" id="save">Enregistrer${isQ || isExtra ? '' : ' le brouillon'}</button>` : ''}
+          ${!figee && (isInv || isAv) ? `<button class="btn btn-primary" id="issue">${isInv ? 'Émettre ' + laPiece() : 'Émettre l\'avoir'}</button> ${info('ed.issue')}` : ''}
+          ${avecPlus ? `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
+-- après
+          ${facturerMenu}${transformMenu}
+          ${!figee ? `<button class="btn ${((isNew && (isQ || isExtra)) || suiteExtra === 'save') && !aboBloque(isNew) ? 'btn-primary' : ''}" id="save">Enregistrer${isQ || isExtra ? '' : ' le brouillon'}</button>` : ''}
+          ${!figee && (isInv || isAv) ? `<button class="btn${aboBloque(isNew) ? '' : ' btn-primary'}" id="issue">${isInv ? 'Émettre ' + laPiece() : 'Émettre l\'avoir'}</button> ${info('ed.issue')}` : ''}
+          ${avecPlus ? `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
+-- fin
+
+== app.js | « Enregistrer » d'un achat neuf n'est plus le bouton principal en lecture seule (1.87.4)
+-- avant
+          <span class="colle-bouton"><button class="btn" id="photo" hidden>Lire une photo…</button>${info('ocr.photo')}</span>
+          ${clos ? '' : `<button class="btn ${isNew ? 'btn-primary' : ''}" id="save">Enregistrer</button>`}
+          ${isNew ? '' : `<div class="more"><button class="btn" id="more-btn">Plus ▾</button><div class="more-list" id="more-list" hidden>
+-- après
+          <span class="colle-bouton"><button class="btn" id="photo" hidden>Lire une photo…</button>${info('ocr.photo')}</span>
+          ${clos ? '' : `<button class="btn ${isNew && !aboBloque(isNew) ? 'btn-primary' : ''}" id="save">Enregistrer</button>`}
+          ${isNew ? '' : `<div class="more"><button class="btn" id="more-btn">Plus ▾</button><div class="more-list" id="more-list" hidden>
+-- fin
+
+== app.js | l'invitation « Première fois sur cette page ? » note où en est le défilement de la fenêtre (1.87.3)
+-- avant
+    const depart = scroller ? scroller.scrollTop : 0;
+    // Sous le bouton, calée sur son bord droit, la flèche sur son milieu ; jamais hors de l'écran.
+-- après
+    const depart = scroller ? scroller.scrollTop : 0;
+    // (plateforme, 1.87.3) Au téléphone, c'est la page entière qui défile, pas `#view` : l'invitation restait posée sur le
+    // bas de l'écran (230 points d'un éditeur de facture) pendant tout le défilement. Le défilement de la fenêtre la ferme.
+    const departFenetre = window.scrollY;
+    // Sous le bouton, calée sur son bord droit, la flèche sur son milieu ; jamais hors de l'écran.
+-- fin
+
+== app.js | au téléphone, le défilement de la fenêtre referme l'invitation « Première fois sur cette page ? » (1.87.3)
+-- avant
+    const clavier = e => { if (e.key === 'Escape' && el.contains(document.activeElement)) { e.stopPropagation(); fermer(); bouton.focus(); } };
+    const defile = () => { if (!scroller || Math.abs(scroller.scrollTop - depart) > 4) fermer(); };
+    function fermer() {
+      el.remove();
+      bouton.classList.remove('guide-moi-signale');
+      document.removeEventListener('mousedown', dehors, true);
+      document.removeEventListener('keydown', clavier, true);
+      window.removeEventListener('resize', placer);
+      if (scroller) scroller.removeEventListener('scroll', defile);
+    }
+    el._fermer = fermer;
+    placer();
+    document.addEventListener('mousedown', dehors, true);
+    document.addEventListener('keydown', clavier, true);
+    window.addEventListener('resize', placer);
+    if (scroller) scroller.addEventListener('scroll', defile);
+    $('#ga-go', el).onclick = () => { fermer(); lancerVisite(p); };
+-- après
+    const clavier = e => { if (e.key === 'Escape' && el.contains(document.activeElement)) { e.stopPropagation(); fermer(); bouton.focus(); } };
+    const defile = () => { if (!scroller || Math.abs(scroller.scrollTop - depart) > 4 || Math.abs(window.scrollY - departFenetre) > 4) fermer(); };
+    function fermer() {
+      el.remove();
+      bouton.classList.remove('guide-moi-signale');
+      document.removeEventListener('mousedown', dehors, true);
+      document.removeEventListener('keydown', clavier, true);
+      window.removeEventListener('resize', placer);
+      if (scroller) scroller.removeEventListener('scroll', defile);
+      window.removeEventListener('scroll', defile);
+    }
+    el._fermer = fermer;
+    placer();
+    document.addEventListener('mousedown', dehors, true);
+    document.addEventListener('keydown', clavier, true);
+    window.addEventListener('resize', placer);
+    if (scroller) scroller.addEventListener('scroll', defile);
+    window.addEventListener('scroll', defile, { passive: true });
+    $('#ga-go', el).onclick = () => { fermer(); lancerVisite(p); };
+-- fin
+
+== cabinet/app.js | la saisie du Cabinet s'ouvre le curseur dans « Pièce », à la souris et au clavier (1.87.7)
+-- avant
+    if (!s.livre || !saisieState.piece) return;
+    // La pagination du brouillard : la pièce en cours vit dans `saisieState`, le redessin la garde.
+-- après
+    if (!s.livre || !saisieState.piece) return;
+    // (plateforme, 1.87.7) La saisie s'ouvre le curseur dans « Pièce », comme après chaque enregistrement : elle s'ouvrait
+    // sans curseur, et la saisie au clavier commençait par un clic (vu en recette le 21/10/2026). Seulement à la souris et au
+    // clavier (au doigt, le clavier de l'écran s'ouvrirait), quand rien d'autre n'a le curseur ni de fenêtre ouverte.
+    requestAnimationFrame(() => {
+      const libre = !document.activeElement || document.activeElement === document.body;
+      if (libre && matchMedia('(hover: hover) and (pointer: fine)').matches && !document.querySelector('#modal-root .modal')) {
+        const pc = $('#sa-piece', el); if (pc) pc.focus();
+      }
+    });
+    // La pagination du brouillard : la pièce en cours vit dans `saisieState`, le redessin la garde.
+-- fin
+
+== cabinet/app.js | au Cabinet, le refus de créer un dossier vient avant la saisie : seul un associé le crée (1.87.5)
+-- avant
+
+  function newDossierForm() {
+    const empty = { packs: [] };
+-- après
+
+  async function newDossierForm() {
+    // (plateforme, 1.87.5) Le refus avant la saisie : seul un associé crée un dossier (vu en recette le 21/10/2026).
+    const peut = api.creationDossier ? await api.creationDossier().catch(() => null) : null;
+    if (peut && !peut.ok) {
+      modal(`<h2>Ajouter un client</h2><p><b>${esc(peut.motif)}</b> ${esc(peut.geste)}</p>
+        <div class="modal-actions"><button class="btn btn-primary" data-close>Compris</button></div>`);
+      return;
+    }
+    const empty = { packs: [] };
+-- fin
+
+== cabinet/app.js | au Cabinet, chaque « Me guider » des premiers pas porte le nom de son étape (1.87.4)
+-- avant
+  // mérite pas au défilement, 9.4.4) et la liste entière vit dans « Me guider ».
+  // `vertEnTete` : l'en-tête porte déjà le vert de l'étape (U-11) — l'étape en cours ne le double pas.
+-- après
+  // mérite pas au défilement, 9.4.4) et la liste entière vit dans « Me guider ».
+  // (plateforme, 1.87.4) Chaque « Me guider » porte le nom de son étape : trois boutons du même nom, un lecteur d'écran ne
+  // disait pas où chacun mène (vu au clavier le 21/10/2026).
+  // `vertEnTete` : l'en-tête porte déjà le vert de l'étape (U-11) — l'étape en cours ne le double pas.
+-- fin
+
+== cabinet/app.js | au Cabinet, chaque « Me guider » des premiers pas porte le nom de son étape, sur le bouton (1.87.4)
+-- avant
+          <span class="pp-txt"><strong>${esc(e.titre)}${e.facultatif && !e.fait ? ' <span class="pp-facult">facultatif</span>' : ''}</strong><span class="small muted">${esc(e.quoi)}</span></span>
+          <span class="pp-go">${guide ? `<button type="button" class="pp-guide" data-pas-guide="${esc(guide)}" title="Je te montre où cliquer, étape par étape">${ICONE_GUIDE}Me guider</button>` : ''}${!e.fait && a
+            ? `<button class="btn btn-sm ${encours && !vertEnTete ? 'btn-primary' : ''}" data-pas="${esc(e.action)}">${esc(libelle)}</button>` : ''}</span>
+-- après
+          <span class="pp-txt"><strong>${esc(e.titre)}${e.facultatif && !e.fait ? ' <span class="pp-facult">facultatif</span>' : ''}</strong><span class="small muted">${esc(e.quoi)}</span></span>
+          <span class="pp-go">${guide ? `<button type="button" class="pp-guide" data-pas-guide="${esc(guide)}" aria-label="Me guider : ${esc(e.titre)}" title="Je te montre où cliquer, étape par étape">${ICONE_GUIDE}Me guider</button>` : ''}${!e.fait && a
+            ? `<button class="btn btn-sm ${encours && !vertEnTete ? 'btn-primary' : ''}" data-pas="${esc(e.action)}">${esc(libelle)}</button>` : ''}</span>
+-- fin
+
+== cabinet/app.js | l'invitation du Cabinet note le défilement de la fenêtre et le curseur que « Plus tard » rendra (1.87.7)
+-- avant
+    const depart = scroller ? scroller.scrollTop : 0;
+    // Sous le bouton, calée sur son bord droit, la flèche sur son milieu ; jamais hors de l'écran.
+-- après
+    const depart = scroller ? scroller.scrollTop : 0;
+    // (plateforme, 1.87.7) Au téléphone, c'est la page entière qui défile, pas `#view` (comme à l'entreprise, 1.87.3).
+    const departFenetre = window.scrollY;
+    // Le curseur que la personne avait (la case « Pièce » de la saisie) : « Plus tard » le lui rend, au lieu de le perdre
+    // avec le bouton qui disparaît.
+    let retour = null;
+    el.addEventListener('mousedown', () => { retour = document.activeElement; }, true);
+    // Sous le bouton, calée sur son bord droit, la flèche sur son milieu ; jamais hors de l'écran.
+-- fin
+
+== cabinet/app.js | au téléphone, le défilement de la fenêtre referme l'invitation du Cabinet ; « Plus tard » rend le curseur (1.87.7)
+-- avant
+    const clavier = e => { if (e.key === 'Escape' && el.contains(document.activeElement)) { e.stopPropagation(); fermer(); bouton.focus(); } };
+    const defile = () => { if (!scroller || Math.abs(scroller.scrollTop - depart) > 4) fermer(); };
+    function fermer() {
+      el.remove();
+      document.removeEventListener('mousedown', dehors, true);
+      document.removeEventListener('keydown', clavier, true);
+      window.removeEventListener('resize', placer);
+      if (scroller) scroller.removeEventListener('scroll', defile);
+    }
+    el._fermer = fermer;
+    placer();
+    document.addEventListener('mousedown', dehors, true);
+    document.addEventListener('keydown', clavier, true);
+    window.addEventListener('resize', placer);
+    if (scroller) scroller.addEventListener('scroll', defile);
+    $('#ga-go', el).onclick = () => { fermer(); lancerVisite(p); };
+    $('#ga-non', el).onclick = () => { visitesPoser(e => { e.vues[cle] = VISITE_PROPOSEE_MAX; }); fermer(); };
+  }
+-- après
+    const clavier = e => { if (e.key === 'Escape' && el.contains(document.activeElement)) { e.stopPropagation(); fermer(); bouton.focus(); } };
+    const defile = () => { if (!scroller || Math.abs(scroller.scrollTop - depart) > 4 || Math.abs(window.scrollY - departFenetre) > 4) fermer(); };
+    function fermer() {
+      el.remove();
+      document.removeEventListener('mousedown', dehors, true);
+      document.removeEventListener('keydown', clavier, true);
+      window.removeEventListener('resize', placer);
+      if (scroller) scroller.removeEventListener('scroll', defile);
+      window.removeEventListener('scroll', defile);
+    }
+    el._fermer = fermer;
+    placer();
+    document.addEventListener('mousedown', dehors, true);
+    document.addEventListener('keydown', clavier, true);
+    window.addEventListener('resize', placer);
+    if (scroller) scroller.addEventListener('scroll', defile);
+    window.addEventListener('scroll', defile, { passive: true });
+    $('#ga-go', el).onclick = () => { fermer(); lancerVisite(p); };
+    $('#ga-non', el).onclick = () => {
+      visitesPoser(e => { e.vues[cle] = VISITE_PROPOSEE_MAX; }); fermer();
+      if (retour && retour !== document.body && document.body.contains(retour)) retour.focus();
+    };
+  }
+-- fin

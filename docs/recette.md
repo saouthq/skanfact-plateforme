@@ -665,6 +665,13 @@ s'ouvrirait). « Plus tard » sur l'invitation à la visite emportait ce curseur
 Et l'invitation du Cabinet restait posée sur le téléphone pendant le défilement, comme celle de l'entreprise avant la
 1.87.3 : elle se ferme. Trois preuves.
 
+### 1.87.8 — les retouches des écrans repris passent par leurs adaptations
+
+Les retouches de la 1.87.3 à la 1.87.7 avaient été faites à la main dans `web/public/v10` : le test de provenance les a
+refusées sur GitHub (chaque fichier repris doit avoir l'empreinte notée à la reprise), et la vérification locale ne le
+jouait pas. Elles sont maintenant écrites comme toutes les autres (`web/v10/recette-21-10.txt`), et `npm run
+reprendre-v10` redonne les fichiers à l'octet près. Rien ne change à l'écran.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
