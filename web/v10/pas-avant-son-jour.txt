@@ -1,0 +1,68 @@
+Une écriture datée après aujourd'hui le dit avant le geste (1.102.0, parcours du 21/10/2026). Format : voir
+sans-paquets.mjs.
+
+Sami établit et paie le bulletin d'octobre le 21/10 ; l'écriture de paie est datée du 31/10, dernier jour du mois. Hatem
+lit à la Paie « La valider dans la saisie » (le bouton principal), puis au brouillard « Valider la seule pièce de PAIE »
+et, au menu de la ligne, « Valider cette écriture » : les trois menaient au refus « elle est datée du 31/10/2026 : une
+écriture ne se valide pas avant son jour » (la base le tient : un numéro suit l'ordre des jours). L'écran le dit
+désormais avant : la Paie nomme le jour où elle se validera, sans bouton principal ; le menu grise le geste avec sa
+date ; les lots du brouillard ne comptent que ce qui se valide aujourd'hui, et nomment ce qui attend son jour.
+
+== cabinet/app.js | la Paie sait si son écriture attend son jour
+-- avant
+    const auBrouillard = bulletins.some(b => etatDe(b) === 'brouillard');
+-- après
+    const auBrouillard = bulletins.some(b => etatDe(b) === 'brouillard');
+    // (plateforme) 1.102.0 — l'écriture de paie est datée du dernier jour du mois : avant ce jour, elle ne se valide pas
+    // (son numéro suit l'ordre des jours). L'écran le dit avant le geste, sans bouton qui mène au refus.
+    const ecrPaie = auBrouillard ? ecritureDuLivre(L, (bulletins.find(b => etatDe(b) === 'brouillard') || {}).ecritureId) : null;
+    const paieAttendSonJour = ecrPaie && String(ecrPaie.date || '') > K.today() ? String(ecrPaie.date) : '';
+-- fin
+
+== cabinet/app.js | la Paie nomme le jour où son écriture se validera
+-- avant
+    ${auBrouillard ? `<div class="small mb ctrl-geste" id="pa-brouillard"><span>L'écriture de paie ${esc(KC.deMois(KC.moisPaie(m)))} est <b>au brouillard</b> : elle n'entre dans les livres — et dans la déclaration du mois — qu'une fois validée.</span>
+-- après
+    ${auBrouillard && paieAttendSonJour ? `<div class="small mb ctrl-geste" id="pa-brouillard"><span>L'écriture de paie ${esc(KC.deMois(KC.moisPaie(m)))} est <b>au brouillard</b>, datée du ${esc(fmtJour(paieAttendSonJour))} : elle se valide à partir de ce jour-là (une écriture ne se valide pas avant sa date), puis entre dans les livres et dans la déclaration du mois.</span></div>`
+    : auBrouillard ? `<div class="small mb ctrl-geste" id="pa-brouillard"><span>L'écriture de paie ${esc(KC.deMois(KC.moisPaie(m)))} est <b>au brouillard</b> : elle n'entre dans les livres — et dans la déclaration du mois — qu'une fois validée.</span>
+-- fin
+
+== cabinet/app.js | au menu d'une ligne, « Valider » se grise jusqu'au jour de l'écriture
+-- avant
+        run: () => validerEcriture(root, dossier, e) });
+-- après
+        run: () => validerEcriture(root, dossier, e) });
+      // (plateforme) 1.102.0 — datée après aujourd'hui (l'écriture de paie, au dernier jour du mois), elle ne se valide pas
+      // encore : le geste se grise et dit son jour, au lieu d'un refus après le clic.
+      if (String(e.date || '') > K.today()) Object.assign(a[a.length - 1], { hint: `À partir du ${fmtJour(e.date)}, sa date`, off: true,
+        run: () => infoDialog(`Pas avant le ${fmtJour(e.date)}`, `Cette écriture est datée du ${fmtJour(e.date)} : une écriture ne se valide pas avant sa date, son numéro suit l'ordre des jours. Elle reste au brouillard et se valide à partir de ce jour-là.`) });
+-- fin
+
+== cabinet/app.js | les lots du brouillard ne comptent que ce qui se valide aujourd'hui, et nomment ce qui attend
+-- avant
+      ${brouillards.length ? `${r.validerParLot ? `<div class="sa-lot">
+          ${lotsDuBrouillard(brouillards).map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')}
+          <span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div>` : ''}
+-- après
+      ${brouillards.length ? `${r.validerParLot && lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today())).length ? `<div class="sa-lot">
+          ${lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today())).map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')}
+          <span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div>` : ''}
+        ${(a => a.length === 1 ? `<p class="muted small" id="sa-attend">L'écriture ${esc(a[0].piece || '')} du journal ${esc(a[0].journal)} est datée du ${esc(fmtJour(a[0].date))} : elle se valide à partir de ce jour-là.</p>`
+    : a.length ? `<p class="muted small" id="sa-attend">${a.length} pièces sont datées après aujourd'hui : chacune se valide à partir de sa date.</p>` : '')(brouillards.filter(e => String(e.date || '') > K.today()))}
+-- fin
+
+== cabinet/app.js | un lot ne demande à valider que ce qui se valide aujourd'hui
+-- avant
+      && (!filtre.mois || String(e.date || '').slice(0, 7) === filtre.mois));
+    if (!cibles.length) { await infoDialog('Rien à valider', 'Aucune écriture en brouillard ne correspond.'); return; }
+-- après
+      && (!filtre.mois || String(e.date || '').slice(0, 7) === filtre.mois) && String(e.date || '') <= K.today());
+    if (!cibles.length) { await infoDialog('Rien à valider', 'Aucune écriture en brouillard ne correspond.'); return; }
+-- fin
+
+== cabinet/app.js | et le lot n'envoie que celles-là
+-- avant
+      const r = await api.validerLot({ dossierId: dossier.id, annee: s.annee, journal: filtre.journal, mois: filtre.mois });
+-- après
+      const r = await api.validerLot({ dossierId: dossier.id, annee: s.annee, journal: filtre.journal, mois: filtre.mois, ids: cibles.map(e => e.id) });
+-- fin

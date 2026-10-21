@@ -5,7 +5,8 @@
 //   - pendant une saisie, rien ne se redessine sous la main ;
 //   - (1.80.0) aux Échéances, une déclaration pas prête le dit avant d'être marquée déposée ; le client à valider y est
 //     nommé, et « Valider ses écritures » ouvre sa saisie ;
-//   - (1.82.0) l'en-tête du dossier dit le mois à valider, et l'efface une fois tout validé.
+//   - (1.82.0) l'en-tête du dossier dit le mois à valider, et l'efface une fois tout validé ;
+//   - (1.102.0) la Paie se relit aussi : le salarié que le client vient de déclarer paraît en revenant sur la fenêtre.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -54,7 +55,7 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     const client = await personne('client');
     const ent = String((await api('POST', '/entreprises', client, { raisonSociale: 'Droguerie du Port' })).corps.id);
     await api('GET', `/entreprises/${ent}/dossier-v10`, client);
-    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, client, { codeCabinet: String(cab.corps.code) })).corps.mandat);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, client, { codeCabinet: String(cab.corps.code), perimetre: ['comptabilite', 'declarations', 'paie'] })).corps.mandat);
     await api('POST', `/cabinets/${cabinet}/mandats/${mandat}/accepter`, leila);
     const frais = (id: string, montant: string) => ({ collection: 'movements', cle: id, rang: 0, revision: null,
       contenu: { id, date: aujourdhui, kind: 'banque', amount: { '~n': montant }, accountId: 'k-banque', method: 'virement', label: `Frais ${id}` } });
@@ -123,6 +124,19 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     await expect.poll(() => p.locator('.row-menu').last().innerText()).toMatch(/^Valider cette écriture/);
     expect(await p.locator('.row-menu').last().innerText()).not.toContain('Voir ses lignes');
     await p.keyboard.press('Escape');
+
+    // 3 bis. (1.102.0) À la Paie, le client déclare son premier salarié : en revenant sur la fenêtre, il paraît (Hatem lisait
+    //    « Aucun salarié déclaré » jusqu'à recharger la page, recette du 21/10/2026).
+    await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/paie/${annee}`);
+    await expect.poll(() => p.locator('#c-livres').innerText(), { timeout: 15_000 }).toMatch(/Aucun salarié déclaré/);
+    // Le livre déjà à jour de ses écritures (m4 attendait depuis la saisie) : seule la paie change ensuite.
+    await p.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+    await p.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await p.waitForTimeout(1500);
+    expect((await api('POST', `/entreprises/${ent}/paie/dossier`, client, { changements: [{ collection: 'employees', cle: 's1', rang: null, revision: null,
+      contenu: { id: 's1', name: 'Salarié Revenu Sur La Fenêtre', grossSalary: 1250, hireDate: `${annee}-01-02`, contract: 'cdi', headOfFamily: false, children: 0, active: true, method: 'virement', iban: '' } }] })).statut).toBe(200);
+    await p.evaluate(() => window.dispatchEvent(new Event('focus')));
+    await expect.poll(() => p.locator('#c-livres').innerText(), { timeout: 10_000 }).toContain('Salarié Revenu Sur La Fenêtre');
 
     // 4. (1.80.0) Aux Échéances : sans mois terminé, le calendrier vide dit sa vraie raison ; une pièce du mois dernier au
     //    brouillard, et la TVA de ce mois-là est « à valider » : « Marquer déposée » le dit avant de pointer.

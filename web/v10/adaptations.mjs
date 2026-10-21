@@ -864,4 +864,8 @@ export const ADAPTATIONS = [
   ...lireFichier('brouillard-voir-lignes.txt'),
   // ── « Voir le brouillard » mène au brouillard, pas en haut de la grille (1.100.0) ──
   ...lireFichier('voir-le-brouillard.txt'),
+  // ── « La valider dans la saisie », depuis la Paie, arrive au brouillard (1.102.0) ──
+  ...lireFichier('paie-vers-brouillard.txt'),
+  // ── Une écriture datée après aujourd'hui le dit avant le geste (1.102.0) ──
+  ...lireFichier('pas-avant-son-jour.txt'),
 ];

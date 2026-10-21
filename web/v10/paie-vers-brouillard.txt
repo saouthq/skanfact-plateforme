@@ -1,0 +1,13 @@
+« La valider dans la saisie », depuis la Paie, mène au brouillard (1.102.0, parcours du 21/10/2026). Format : voir
+sans-paquets.mjs.
+
+Hatem lit à la Paie « L'écriture de paie d'octobre est au brouillard » et clique « La valider dans la saisie » : la
+saisie s'ouvrait en haut de sa grille vide, le brouillard (et son « Valider la seule pièce de PAIE ») sous le bord de
+l'écran. Il arrive maintenant au brouillard, comme « Voir le brouillard » du livre-journal.
+
+== cabinet/app.js | « La valider dans la saisie » arrive au brouillard
+-- avant
+    if (pv) pv.onclick = () => allerSousOnglet(root, dossier, 'saisie');
+-- après
+    if (pv) pv.onclick = () => { pageFocus = 'sa-brouillard'; allerSousOnglet(root, dossier, 'saisie'); };
+-- fin

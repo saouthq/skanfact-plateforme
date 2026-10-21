@@ -18127,7 +18127,7 @@ prouver 'la déclaration lue après un livre resté ancien' 'web/public/v10/cabi
   '' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
 prouver 'la saisie du Cabinet redessinée sous la main' 'web/public/v10/cabinet/app.js' \
-  "groupeCompta(s.onglet).id === 'saisir' ||" \
+  "(groupeCompta(s.onglet).id === 'saisir' && s.onglet !== 'paie') ||" \
   'false ||' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
 
@@ -18546,7 +18546,7 @@ prouver 'le panneau des pièces jointes encore caché sur la plateforme' web/pub
   $'\'p-editeur\', \'p-cloture-cabinet\'' $'\'p-editeur\', \'p-pj\', \'p-cloture-cabinet\'' \
   'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
 prouver '« Ouvrir » une pièce jointe qui laisse un onglet vide' web/public/plateforme/pont.js \
-  $'if (w) { w.opener = null; w.location.href = adresse; } else enregistrerSous(adresse, nom);' $'if (w) { w.opener = null; } else enregistrerSous(adresse, nom);' \
+  $'if (w && montrer) { montrer(w, adresse, nom, type); w.opener = null; }' $'if (w && montrer) { w.opener = null; }' \
   'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
 prouver '« Télécharger le fichier » qui ne télécharge rien' web/public/plateforme/pont.js \
   $'      const { adresse, nom } = await lirePiece(fichier);\n      enregistrerSous(adresse, nom);\n' $'      await lirePiece(fichier);\n' \
@@ -18797,6 +18797,50 @@ prouver '« Voir le brouillard » qui arrive en haut de la grille' web/public/v1
 prouver 'le curseur dans « Pièce » qui fait remonter la page au-dessus du brouillard' web/public/v10/cabinet/app.js \
   $"if (pc) pc.focus({ preventScroll: true });" $"if (pc) pc.focus();" \
   'Consulter se relit en revenant sur la fenêtre'
+# ── 1.102.0 : la Paie du Cabinet se relit en revenant sur la fenêtre (docs/recette.md, « 1.102.0 ») ──
+prouver 'la Paie du Cabinet qui attend F5 pour montrer le salarié du client' 'web/public/v10/cabinet/app.js' \
+  "(groupeCompta(s.onglet).id === 'saisir' && s.onglet !== 'paie')" \
+  "groupeCompta(s.onglet).id === 'saisir'" \
+  'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
+prouver 'la Paie relue sans jamais se redessiner' 'web/public/v10/cabinet/app.js' \
+  '(revDuLivre(r.livre) === revDuLivre(s.livre) && paieDuLivre(r.livre) === paieDuLivre(s.livre))' \
+  'revDuLivre(r.livre) === revDuLivre(s.livre)' \
+  'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
+
+# ── 1.102.0 : une écriture datée après aujourd'hui le dit avant le geste (docs/recette.md, « 1.102.0 ») ──
+prouver 'la Paie qui pousse à valider une écriture de paie avant son jour' 'web/public/v10/cabinet/app.js' \
+  'const paieAttendSonJour = ecrPaie && String(ecrPaie.date || '\'''\'') > K.today() ? String(ecrPaie.date) : '\'''\'';' \
+  'const paieAttendSonJour = '\'''\'';' \
+  'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
+prouver '« Valider cette écriture » offert avant le jour de l'\''écriture' 'web/public/v10/cabinet/app.js' \
+  'if (String(e.date || '\'''\'') > K.today()) Object.assign(a[a.length - 1],' \
+  'if (false) Object.assign(a[a.length - 1],' \
+  'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
+prouver 'un lot qui compte la pièce de paie du 31' 'web/public/v10/cabinet/app.js' \
+  '${lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today())).map(' \
+  '${lotsDuBrouillard(brouillards).map(' \
+  'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
+prouver 'la pièce qui attend son jour, jamais nommée' 'web/public/v10/cabinet/app.js' \
+  '(brouillards.filter(e => String(e.date || '\'''\'') > K.today()))}' \
+  '([])}' \
+  'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
+prouver '« Ce qui ne tombe pas juste » sous un brouillard sans lot' 'web/public/v10/cabinet/app.js' \
+  '${r.validerParLot && lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today())).length ? `<div class="sa-lot">' \
+  '${r.validerParLot ? `<div class="sa-lot">' \
+  'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
+prouver 'un lot qui demande à valider la pièce de demain' 'web/public/v10/cabinet/app.js' \
+  '&& (!filtre.mois || String(e.date || '\'''\'').slice(0, 7) === filtre.mois) && String(e.date || '\'''\'') <= K.today());' \
+  '&& (!filtre.mois || String(e.date || '\'''\'').slice(0, 7) === filtre.mois));' \
+  'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
+prouver 'un lot qui envoie au serveur la pièce de demain' 'web/public/v10/cabinet/app.js' \
+  'mois: filtre.mois, ids: cibles.map(e => e.id) });' \
+  'mois: filtre.mois });' \
+  'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
+prouver '« La valider dans la saisie » qui ouvre le haut de la grille' 'web/public/v10/cabinet/app.js' \
+  'if (pv) pv.onclick = () => { pageFocus = '\''sa-brouillard'\''; allerSousOnglet(root, dossier, '\''saisie'\''); };' \
+  'if (pv) pv.onclick = () => { allerSousOnglet(root, dossier, '\''saisie'\''); };' \
+  'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

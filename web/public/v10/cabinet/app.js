@@ -4437,17 +4437,19 @@
   // finiraient par donner deux chiffres, et c'est le genre d'écart qu'on découvre devant un client.
   // (plateforme) 1.79.0 — le livre d'un client sur SkanFact bouge pendant qu'on le regarde : en revenant sur la fenêtre,
   // les vues qui ne font que lire (Consulter, Déclarer) se relisent s'il a changé ; la saisie, une fenêtre ou un menu
-  // ouverts ne se redessinent jamais sous la main.
+  // ouverts ne se redessinent jamais sous la main. (1.102.0) La Paie aussi : un salarié ou un bulletin que le client
+  // vient d'établir y paraît (Hatem lisait « il faut d'abord un salarié » jusqu'à F5, recette du 21/10/2026).
+  const paieDuLivre = l => JSON.stringify([l.salaries, l.bulletins, l.pointages, l.conges, l.avances]);
   async function relireLeLivreSiChange() {
     const s = livresState, d = s.dossierVu;
     if (!d || !s.livre || s.livreEtat !== 'ouvert' || document.visibilityState !== 'visible' || !$('#c-livres')) return;
-    if (!s.onglet || groupeCompta(s.onglet).id === 'saisir' || $('#modal-root').children.length) return;
+    if (!s.onglet || (groupeCompta(s.onglet).id === 'saisir' && s.onglet !== 'paie') || $('#modal-root').children.length) return;
     const vue = $('#view');
     if (vue && (vue.querySelector('[aria-expanded="true"]') || (vue.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)))) return;
     const cle = s.livreCle;
     try {
       const r = await api.livre(d.id, s.annee);
-      if (!r.livre || s.livreCle !== cle || revDuLivre(r.livre) === revDuLivre(s.livre)) return;
+      if (!r.livre || s.livreCle !== cle || (revDuLivre(r.livre) === revDuLivre(s.livre) && paieDuLivre(r.livre) === paieDuLivre(s.livre))) return;
       s.livre = r.livre;
       if ($('#c-livres') && s.dossierVu === d) drawLivres(document, d);
     } catch (_) { /* la relecture suivante */ }
@@ -5919,6 +5921,10 @@
     const statutDe = id => (ecritureDuLivre(L, id) || {}).statut;
     const etatDe = b => !b.ecritureId ? 'a-passer' : statutDe(b.ecritureId) === 'brouillard' ? 'brouillard' : 'ecrite';
     const auBrouillard = bulletins.some(b => etatDe(b) === 'brouillard');
+    // (plateforme) 1.102.0 — l'écriture de paie est datée du dernier jour du mois : avant ce jour, elle ne se valide pas
+    // (son numéro suit l'ordre des jours). L'écran le dit avant le geste, sans bouton qui mène au refus.
+    const ecrPaie = auBrouillard ? ecritureDuLivre(L, (bulletins.find(b => etatDe(b) === 'brouillard') || {}).ecritureId) : null;
+    const paieAttendSonJour = ecrPaie && String(ecrPaie.date || '') > K.today() ? String(ecrPaie.date) : '';
     const t = s.paieTrimestre || Math.ceil(m / 3);
     const cnss = KC.cnssDuTrimestre(L, s.annee, t);
     // 10.14.1 (DECL D2) — le fichier de télédéclaration du trimestre, par la MÊME fonction que le
@@ -5985,7 +5991,8 @@
     ${etatsNormaux.length ? `<p class="small muted mb">${etatsNormaux.map(c => `${esc(c.quoi)} — ${esc(c.detail)}`).join(' · ')}</p>` : ''}
     ${/* Le geste vit dans une rangée flex, pas dans la phrase (T-56) : passé à la ligne, le bouton se
          collait sous le texte, à zéro pixel (vu au test humain, 10.14.1). */''}
-    ${auBrouillard ? `<div class="small mb ctrl-geste" id="pa-brouillard"><span>L'écriture de paie ${esc(KC.deMois(KC.moisPaie(m)))} est <b>au brouillard</b> : elle n'entre dans les livres — et dans la déclaration du mois — qu'une fois validée.</span>
+    ${auBrouillard && paieAttendSonJour ? `<div class="small mb ctrl-geste" id="pa-brouillard"><span>L'écriture de paie ${esc(KC.deMois(KC.moisPaie(m)))} est <b>au brouillard</b>, datée du ${esc(fmtJour(paieAttendSonJour))} : elle se valide à partir de ce jour-là (une écriture ne se valide pas avant sa date), puis entre dans les livres et dans la déclaration du mois.</span></div>`
+    : auBrouillard ? `<div class="small mb ctrl-geste" id="pa-brouillard"><span>L'écriture de paie ${esc(KC.deMois(KC.moisPaie(m)))} est <b>au brouillard</b> : elle n'entre dans les livres — et dans la déclaration du mois — qu'une fois validée.</span>
       <button type="button" class="${cls('valider')}" id="pa-valider">La valider dans la saisie</button></div>` : ''}
 
     <div class="panel mt"><h2>Les bulletins ${esc(KC.deMois(KC.moisPaie(m)))} ${esc(s.annee)} ${info('pa.bulletins')}</h2>
@@ -6373,7 +6380,7 @@
       finally { fc.disabled = false; }
     };
     const pv = $('#pa-valider', el);
-    if (pv) pv.onclick = () => allerSousOnglet(root, dossier, 'saisie');
+    if (pv) pv.onclick = () => { pageFocus = 'sa-brouillard'; allerSousOnglet(root, dossier, 'saisie'); };
     const ec = $('#pa-ecrire', el);
     if (ec) ec.onclick = async () => {
       ec.disabled = true;
@@ -8430,9 +8437,11 @@
             journal VT » quand le seul brouillard est en BQ ouvrait une fenêtre pour dire qu'il n'y
             avait rien à faire — un bouton vif qui ne peut rien valider de ce qui est affiché. Le
             compte est connu avant le clic, donc il est écrit dessus. */''}
-      ${brouillards.length ? `${r.validerParLot ? `<div class="sa-lot">
-          ${lotsDuBrouillard(brouillards).map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')}
+      ${brouillards.length ? `${r.validerParLot && lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today())).length ? `<div class="sa-lot">
+          ${lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today())).map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')}
           <span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div>` : ''}
+        ${(a => a.length === 1 ? `<p class="muted small" id="sa-attend">L'écriture ${esc(a[0].piece || '')} du journal ${esc(a[0].journal)} est datée du ${esc(fmtJour(a[0].date))} : elle se valide à partir de ce jour-là.</p>`
+    : a.length ? `<p class="muted small" id="sa-attend">${a.length} pièces sont datées après aujourd'hui : chacune se valide à partir de sa date.</p>` : '')(brouillards.filter(e => String(e.date || '') > K.today()))}
         <div class="scroll-x"><table class="list compact"><thead><tr>
           <th class="nw">Date</th><th>Journal</th><th class="nw">Pièce</th><th>Libellé</th>
           <th class="r nw">Total</th><th class="nw">État</th><th></th></tr></thead>
@@ -8947,7 +8956,7 @@
     const s = livresState;
     const cibles = (s.livre.ecritures || []).filter(e => e.statut === 'brouillard'
       && (!filtre.journal || e.journal === filtre.journal)
-      && (!filtre.mois || String(e.date || '').slice(0, 7) === filtre.mois));
+      && (!filtre.mois || String(e.date || '').slice(0, 7) === filtre.mois) && String(e.date || '') <= K.today());
     if (!cibles.length) { await infoDialog('Rien à valider', 'Aucune écriture en brouillard ne correspond.'); return; }
     if (await refusLicence('Valider un lot d\'écritures')) return;
     const quoi = filtre.journal ? `du journal ${filtre.journal}` : KC.deMois(moisLabelCourt(filtre.mois));
@@ -8961,7 +8970,7 @@
       'Valider');
     if (!ok) return;
     try {
-      const r = await api.validerLot({ dossierId: dossier.id, annee: s.annee, journal: filtre.journal, mois: filtre.mois });
+      const r = await api.validerLot({ dossierId: dossier.id, annee: s.annee, journal: filtre.journal, mois: filtre.mois, ids: cibles.map(e => e.id) });
       s.livre = r.livre;
       // Les numéros pris se DISENT : c'est ce que le comptable reporte sur la pièce papier, et « 3
       // écritures validées » l'obligeait à rouvrir le journal pour les lire (vu au test humain).
@@ -9231,6 +9240,10 @@
         run: () => { const s = livresState; s.brouillard = true; s.q = e.piece || ''; s.journal = ''; s.page = 1; allerSousOnglet(root, dossier, 'journal'); } });
       a.push({ icon: 'oui', label: 'Valider cette écriture', hint: 'Elle prend son numéro et ne se modifiera plus',
         run: () => validerEcriture(root, dossier, e) });
+      // (plateforme) 1.102.0 — datée après aujourd'hui (l'écriture de paie, au dernier jour du mois), elle ne se valide pas
+      // encore : le geste se grise et dit son jour, au lieu d'un refus après le clic.
+      if (String(e.date || '') > K.today()) Object.assign(a[a.length - 1], { hint: `À partir du ${fmtJour(e.date)}, sa date`, off: true,
+        run: () => infoDialog(`Pas avant le ${fmtJour(e.date)}`, `Cette écriture est datée du ${fmtJour(e.date)} : une écriture ne se valide pas avant sa date, son numéro suit l'ordre des jours. Elle reste au brouillard et se valide à partir de ce jour-là.`) });
       if (e.source !== 'skanfact') a.push({ icon: 'modifier', label: 'Reprendre dans la grille', hint: 'Elle remonte dans la saisie, modifiable',
         run: () => { saisieState.piece = pieceDepuis(e); allerSousOnglet(root, dossier, 'saisie'); } });
       if (e.source !== 'skanfact') detruire = { icon: 'supprimer', label: 'Supprimer ce brouillard', hint: 'Il n\'a pas de numéro : rien ne restera', danger: true,

@@ -989,6 +989,23 @@ aux deux questions qui restaient ; Hatem les lit et les ferme. Ce que l'écran f
 - « Voir le brouillard » du livre-journal vide arrivait en haut de la saisie, le brouillard sous la grille, hors de
   l'écran ; il y arrive, et le curseur posé dans « Pièce » (1.87.7) ne fait plus remonter la page.
 
+### 1.102.0 — Sami paie Mourad, Hatem lit la paie et attend son jour
+
+- vu et juste : Sami déclare Mourad Gharbi (brut 1 250,000), établit le bulletin d'octobre (net 1 015,727 ; coût
+  employeur 1 505,875) et le marque payé le 21/10. Au Cabinet, l'écriture de paie tombe juste : 640 D 1 250,000 ;
+  645 D 218,375 ; 661 D 37,500 (TFP et FOPROLOS) ; 4531 C 339,375 (121,000 + 218,375) ; 4321 C 113,273 ; 4335 C
+  37,500 ; 425 C 1 015,727 ; et le versement BQ 425 D / 532 C 1 015,727 ;
+- la Paie du Cabinet, ouverte avant que Sami déclare Mourad, disait « il faut d'abord un salarié » jusqu'à F5 : en
+  revenant sur la fenêtre, elle se relit maintenant comme « Consulter » et « Déclarer » (salariés, bulletins, pointage,
+  congés, avances), avec les mêmes gardes (jamais sous un champ tenu, une fenêtre ou un menu ouverts) ;
+- l'écriture de paie est datée du 31/10 et la base refuse de la valider avant ce jour (un numéro suit l'ordre des
+  jours) ; mais la Paie offrait « La valider dans la saisie » en bouton principal, le brouillard « Valider la seule
+  pièce de PAIE » et le menu « Valider cette écriture » : trois gestes vers un refus. La Paie nomme le jour (« datée du
+  31/10/2026 : elle se valide à partir de ce jour-là ») sans bouton ; le menu grise le geste avec sa date et l'explique
+  au clic ; les lots du brouillard ne comptent et n'envoient que les pièces du jour, et nomment celle qui attend ;
+- « La valider dans la saisie », le jour venu, arrivait en haut de la grille, le brouillard sous le bord de l'écran : il
+  arrive au brouillard, comme « Voir le brouillard » (1.101.0).
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

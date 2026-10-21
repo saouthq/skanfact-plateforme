@@ -5,7 +5,8 @@ Le livre d'un dossier se lisait une fois, à l'ouverture, pendant que le client 
 déclaration, relue au serveur, disait « 11 pièces encore en brouillard sur ce mois » sous un en-tête qui en comptait 9
 sur tout l'exercice (recette du 20/10/2026 : une facture et un règlement saisis chez le client). La déclaration relit
 désormais le livre avec elle ; et en revenant sur la fenêtre, « Consulter » et « Déclarer » se relisent si le livre a
-bougé — jamais pendant une saisie, ni sous une fenêtre ou un menu ouverts.
+bougé — jamais pendant une saisie, ni sous une fenêtre ou un menu ouverts. Depuis la 1.102.0, la Paie aussi (ses salariés,
+ses bulletins, son pointage, ses congés, ses avances), avec les mêmes gardes.
 
 == cabinet/app.js | l'écran des livres retient le dossier qu'il montre
 -- avant
@@ -27,17 +28,19 @@ bougé — jamais pendant une saisie, ni sous une fenêtre ou un menu ouverts.
 -- après
   // (plateforme) 1.79.0 — le livre d'un client sur SkanFact bouge pendant qu'on le regarde : en revenant sur la fenêtre,
   // les vues qui ne font que lire (Consulter, Déclarer) se relisent s'il a changé ; la saisie, une fenêtre ou un menu
-  // ouverts ne se redessinent jamais sous la main.
+  // ouverts ne se redessinent jamais sous la main. (1.102.0) La Paie aussi : un salarié ou un bulletin que le client
+  // vient d'établir y paraît (Hatem lisait « il faut d'abord un salarié » jusqu'à F5, recette du 21/10/2026).
+  const paieDuLivre = l => JSON.stringify([l.salaries, l.bulletins, l.pointages, l.conges, l.avances]);
   async function relireLeLivreSiChange() {
     const s = livresState, d = s.dossierVu;
     if (!d || !s.livre || s.livreEtat !== 'ouvert' || document.visibilityState !== 'visible' || !$('#c-livres')) return;
-    if (!s.onglet || groupeCompta(s.onglet).id === 'saisir' || $('#modal-root').children.length) return;
+    if (!s.onglet || (groupeCompta(s.onglet).id === 'saisir' && s.onglet !== 'paie') || $('#modal-root').children.length) return;
     const vue = $('#view');
     if (vue && (vue.querySelector('[aria-expanded="true"]') || (vue.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)))) return;
     const cle = s.livreCle;
     try {
       const r = await api.livre(d.id, s.annee);
-      if (!r.livre || s.livreCle !== cle || revDuLivre(r.livre) === revDuLivre(s.livre)) return;
+      if (!r.livre || s.livreCle !== cle || (revDuLivre(r.livre) === revDuLivre(s.livre) && paieDuLivre(r.livre) === paieDuLivre(s.livre))) return;
       s.livre = r.livre;
       if ($('#c-livres') && s.dossierVu === d) drawLivres(document, d);
     } catch (_) { /* la relecture suivante */ }
