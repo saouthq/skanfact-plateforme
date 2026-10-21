@@ -1,0 +1,14 @@
+Une question répondue puis fermée se dit « close », au Cabinet (1.97.0, parcours du 21/10/2026). Format : voir sans-paquets.mjs.
+
+Hatem ferme la question « Loyer d'octobre » à laquelle Leïla a répondu : le bouton devient « Rouvrir cette question »,
+mais la pastille de la colonne « Réponse » reste « répondue », comme celles qu'il n'a pas encore fermées ; chez Leïla,
+la même question dit « Close par le cabinet ». La pastille suit désormais l'état : « close » (grise), la réponse
+toujours lisible dessous.
+
+== cabinet/app.js | la pastille d'une question répondue suit sa fermeture
+-- avant
+          <td>${q.reponse ? `<span class="badge b-paid">répondue</span><div class="small">${esc(q.reponse.texte || '')}</div>`
+-- après
+          ${/* (plateforme) 1.97.0 — répondue puis fermée : « close », comme chez le client ; la réponse reste dessous. */''}
+          <td>${q.reponse ? `${q.statut === 'close' ? '<span class="badge">close</span>' : '<span class="badge b-paid">répondue</span>'}<div class="small">${esc(q.reponse.texte || '')}</div>`
+-- fin

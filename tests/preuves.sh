@@ -18728,6 +18728,30 @@ prouver 'un mois en cours qui propose de déclarer un mois d'\''avant le livre' 
 prouver 'l'\''alerte du 4367 sur un mois qui n'\''est pas fini' web/public/v10/cabinet/app.js \
   $'const visibles = enCours && !posee ? echecs.filter(c => c.id !== \'tva-soldee\') : echecs;' $'const visibles = echecs;' \
   'un dossier commencé ce mois-ci : pas de « Déclarer le mois d'\''avant »'
+prouver 'le nom et la date du signataire qui élargissent la colonne « Revu »' web/public/v10/cabinet/app.js \
+  $'? \'<span class="badge b-paid">revu</span>\'' $'? \'<span class="badge b-paid">revu</span> \' + esc(c.revuPar || \'\') + \' · 21/10/2026\'' \
+  'la révision se tient à la souris'
+prouver 'le menu d'\''un compte signé qui ne dit pas qui l'\''a signé' web/public/v10/cabinet/app.js \
+  $'.filter(Boolean).join(\' \')} ; le compte redeviendra « à revoir ».`' $'.filter(Boolean).slice(9).join(\' \')}Le compte redevient « à revoir ».`' \
+  'la révision se tient à la souris'
+prouver 'la ligne d'\''avancement de la révision plus haute avec son bouton' web/public/v10/cabinet/cabinet.css \
+  $'align-items: center; gap: 8px 14px; min-height: 32px; }' $'align-items: baseline; gap: 8px 14px; }' \
+  'la révision se tient à la souris'
+prouver '« En attente de toi » qui ne mène pas à la question' web/public/plateforme/messagerie.js \
+  $'        if (champ) champ.focus({ preventScroll: true });' $'' \
+  'Amine et son comptable s'\''écrivent'
+prouver '« Répondre » qui ne trouve pas une pièce demandée' web/public/plateforme/messagerie.js \
+  $'(el.querySelector(\'.msg-question.attend, .msg-demande-carte:not(.recue)\'))' $'(el.querySelector(\'.msg-question.attend\'))' \
+  'Amine et son comptable s'\''écrivent'
+prouver 'la réponse qui ne dit pas à quelle question' web/public/plateforme/messagerie.js \
+  $'Réponse à la question${q.objet ? ` « ${esc(q.objet)} »` : \'\'}' $'Réponse à la question' \
+  'Amine et son comptable s'\''écrivent'
+prouver 'la page qui glisse de côté quand elle ne défile plus' web/public/v10/style.css \
+  $'overflow-y: auto; scrollbar-gutter: stable; padding: var(--main-haut)' $'overflow-y: auto; padding: var(--main-haut)' \
+  'Amine et son comptable s'\''écrivent'
+prouver 'une question fermée qui se dit encore « répondue » au Cabinet' web/public/v10/cabinet/app.js \
+  $'${q.statut === \'close\' ? \'<span class="badge">close</span>\' : \'<span class="badge b-paid">répondue</span>\'}<div class="small">' $'<span class="badge b-paid">répondue</span><div class="small">' \
+  'la révision se tient à la souris'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -95,11 +95,28 @@ describe('la révision et les questions au client, à la souris', () => {
 
     // ── Signer un compte de la trésorerie ────────────────────────────────────────────────────────
     await expect.poll(() => p.locator('#view').innerText(), { timeout: 20_000 }).toMatch(/0\scompte signé sur 2/);
+    // La ligne d'avancement garde sa hauteur, qu'elle porte le bouton « Revoir Trésorerie » ou la phrase « Signe les
+    // comptes… » : sinon toute la feuille descendait de 5 px au dernier compte signé d'un cycle (1.97.0).
+    const hauteurAvance = async () => (await p.locator('.rv-avance').boundingBox())?.height ?? 0;
+    await expect.poll(() => p.locator('#rv-suivant').count()).toBe(1);
+    const avecBouton = await hauteurAvance();
     await ouvrir('.cy-carte:has-text("Trésorerie")', '[data-rowmenu="RV:512"]');
+    await expect.poll(() => p.locator('#rv-signer').count()).toBe(1);
+    expect(await hauteurAvance()).toBe(avecBouton);
+    // Signer ne pousse rien : « revu » tient la place de « à revoir ». Le nom et la date écrits dans la cellule
+    // l'élargissaient de 175 px, l'intitulé voisin se coupait et le tableau débordait (parcours du 21/10/2026) ;
+    // qui a signé et quand se lit dans le menu de la ligne.
+    const intitule471 = async () => (await p.locator('tr:has([data-rowmenu="RV:471"]) td.tronq').boundingBox())?.width ?? 0;
+    const avant = await intitule471();
     await menu('RV:512', 'Signer ce compte');
     await expect.poll(toast, APRES_LE_SERVEUR).toBe('Compte 512 signé.');
     expect((await revision())?.comptes.map((c) => [c.compte, c.revuPar])).toEqual([['512', 'associe']]);
     await expect.poll(() => p.locator('#view').innerText()).toMatch(/1\scompte signé sur 2/);
+    await expect.poll(() => p.locator('tr:has([data-rowmenu="RV:512"]) td.rv-revu').innerText()).toBe('revu');
+    expect(Math.abs(await intitule471() - avant)).toBeLessThan(4);
+    await p.locator('[data-rowmenu="RV:512"]').first().click();
+    await expect.poll(() => p.getByRole('menuitem').filter({ hasText: 'Retirer ma signature' }).innerText()).toMatch(/Revu par associe le \d\d\/\d\d\/\d{4}/);
+    await p.keyboard.press('Escape');
 
     // ── Une note de revue, puis levée ────────────────────────────────────────────────────────────
     await ouvrir('#rv-note', '#nv-texte');
@@ -171,6 +188,10 @@ describe('la révision et les questions au client, à la souris', () => {
     expect((await api('POST', `/entreprises/${ent}/compta/questions/${recue[0]?.id}/repondre`, client, { texte: 'La facture est jointe à l\'achat du 9 mars.' })).statut).toBe(200);
     await p.reload();
     await expect.poll(() => p.locator('#rv-questions').innerText(), { timeout: 20_000 }).toMatch(/répondue\s+La facture est jointe à l'achat du 9 mars\./);
+    // Fermée, elle se dit « close » (comme chez le client), sa réponse toujours dessous : la pastille restait « répondue »
+    // (parcours du 21/10/2026).
+    await p.locator(`[data-rowmenu="QU:${String(recue[0]?.id)}"]`).filter({ hasText: 'Fermer cette question' }).click();
+    await expect.poll(() => p.locator('#rv-questions').innerText(), { timeout: 20_000 }).toMatch(/close\s+La facture est jointe à l'achat du 9 mars\./);
 
     // ── Arrêter la révision ─────────────────────────────────────────────────────────────────────
     await ouvrir('#rv-arreter', '#modal-root .modal');

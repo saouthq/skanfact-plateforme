@@ -5154,8 +5154,9 @@
       <td class="r nw">${money0(c.credit)}</td>
       <td class="r nw"><b>${money0(c.solde)}</b></td>
       <td class="r nw">${money0(c.variation)}</td>
-      <td class="nw small">${c.revu
-    ? `<span class="badge b-paid">revu</span> ${esc(c.revuPar || '')}${c.revuLe ? ' · ' + esc(fmtJour(KC.jourDeLInstant(c.revuLe))) : ''}`
+      ${/* (plateforme) 1.97.0 — la même largeur signée ou pas : le nom et la date ne s'écrivent plus dans la cellule. */''}
+      <td class="nw small rv-revu"${c.revu ? ` title="${esc(['Revu', c.revuPar ? 'par ' + c.revuPar : '', c.revuLe ? 'le ' + fmtJour(KC.jourDeLInstant(c.revuLe)) : ''].filter(Boolean).join(' '))}"` : ''}>${c.revu
+    ? '<span class="badge b-paid">revu</span>'
     : '<span class="muted">à revoir</span>'}</td>
       ${rowMenuCell('RV:' + c.compte)}</tr>`;
     // 10.12.0 (U-11) — un seul vert, et c'est l'ÉTAPE SUIVANTE. À 0 compte signé sur 19, le vert
@@ -5251,7 +5252,8 @@
           <td>${esc(q.objet || '')}<div class="small">${esc(q.texte)}</div></td>
           <td class="nw small">${esc(libelleAttendu(q.attendu))}</td>
           <td class="nw small">${(q.envois || []).length ? esc(pl((q.envois || []).length, 'fois', 'fois')) : '<span class="muted">pas encore</span>'}</td>
-          <td>${q.reponse ? `<span class="badge b-paid">répondue</span><div class="small">${esc(q.reponse.texte || '')}</div>`
+          ${/* (plateforme) 1.97.0 — répondue puis fermée : « close », comme chez le client ; la réponse reste dessous. */''}
+          <td>${q.reponse ? `${q.statut === 'close' ? '<span class="badge">close</span>' : '<span class="badge b-paid">répondue</span>'}<div class="small">${esc(q.reponse.texte || '')}</div>`
     : q.statut === 'close' ? '<span class="badge">close</span>' : '<span class="badge b-due">en attente</span>'}</td>
           ${rowMenuCell('QU:' + q.id)}</tr>`).join('')}</tbody></table></div>`
     : `<div class="empty mini">Aucune question posée sur cet exercice. Une question naît d'une LIGNE :
@@ -5297,7 +5299,7 @@
         if (!c) return [];
         return [
           { icon: c.revu ? 'non' : 'oui', label: c.revu ? 'Retirer ma signature' : 'Signer ce compte', cle: c.revu ? 'retirer-signature' : 'signer-compte',
-            hint: c.revu ? 'Le compte redevient « à revoir ».' : 'Je l\'ai revu : il est juste.',
+            hint: c.revu ? `${['Revu', c.revuPar ? 'par ' + c.revuPar : '', c.revuLe ? 'le ' + fmtJour(KC.jourDeLInstant(c.revuLe)) : ''].filter(Boolean).join(' ')} ; le compte redeviendra « à revoir ».` : 'Je l\'ai revu : il est juste.',
             run: async () => {
               try {
                 const r = await api.signerCompte({ dossierId: dossier.id, annee: s.annee, periode: s.revision.dossier.periode, compte: id, revu: !c.revu });

@@ -145,7 +145,9 @@
    pèse autant qu'une alerte (U-13). Partagé par la Déclaration, l'Inventaire et la Révision. */
 /* L'avancement d'une révision et son étape suivante, sur la même ligne (U-11) : le chiffre dit où on
    en est, le bouton à côté dit où aller. */
-.rv-avance { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+/* (plateforme) 1.97.0 — la phrase « Signe les comptes… » puis le bouton « Revoir Fiscal » : la même hauteur (celle du
+   bouton), sinon signer le dernier compte d'un cycle faisait descendre toute la feuille de 5 px. */
+.rv-avance { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; min-height: 32px; }
 .rv-avance .lead { margin: 0; }
 .ligne-ok { color: var(--muted); }
 .ligne-ok > span { color: var(--success); font-weight: 700; margin-inline-end: 4px; }

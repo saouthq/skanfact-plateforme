@@ -342,7 +342,9 @@ input.champ-doute { border-color: var(--warning) !important; }
    un défilement qui posait le tableau AU BORD (une visite, un raccourci vers un panneau) le faisait
    recouvrir la première ligne — celle qu'on voulait montrer (vu à l'écran : le 📎 de « Le trombone »).
    Les défilements s'arrêtent donc à la même marge que le contenu. */
-main { --main-haut: 32px; flex: 1; overflow-y: auto; padding: var(--main-haut) 36px 48px; scroll-padding-block-start: var(--main-haut); }
+/* (plateforme) 1.97.0 — `scrollbar-gutter: stable` : une page qui passe sous la hauteur de l'écran ne fait plus glisser
+   tout son contenu de la largeur de la barre (15 px), sous le curseur. */
+main { --main-haut: 32px; flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: var(--main-haut) 36px 48px; scroll-padding-block-start: var(--main-haut); }
 /* La hauteur d'un CHAMP (38 px), pas celle d'un bouton (35) : la liste d'années n'existe que sur
    certains onglets (Marges, Paie…), et l'en-tête grandissait de 3 px quand elle paraissait — les
    onglets descendaient sous le curseur au moment du clic (10.12.0, un état actif ne change pas la

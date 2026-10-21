@@ -88,7 +88,11 @@ describe('les pièces jointes d\'un devis, à la souris', () => {
 
     // Ouvrir : un onglet, avec le fichier (la photo : un Chromium sans écran télécharge un PDF au lieu de le montrer).
     const [onglet] = await Promise.all([p.waitForEvent('popup'), p.locator('#attachments tr', { hasText: 'Chantier.png' }).locator('[data-open]').click()]);
-    await expect.poll(() => onglet.url()).toMatch(/^blob:/);
+    // (1.95.0) Une photo s'ouvre dans une page à son nom, l'image dedans (le fichier lui-même) et « Enregistrer » qui le
+    // garde sous ce nom : l'onglet d'un simple `blob:` s'appelait « d1eebff2-… » et s'enregistrait sous ce nom-là.
+    await expect.poll(() => onglet.title()).toBe('Chantier.png');
+    await expect.poll(() => onglet.locator('img').getAttribute('src')).toMatch(/^blob:/);
+    expect(await onglet.getByRole('link', { name: 'Enregistrer' }).getAttribute('download')).toBe('Chantier.png');
     await onglet.close();
     // « Télécharger le fichier », depuis le menu de sa ligne.
     await ligne.getByRole('button', { name: /Actions/ }).click();

@@ -850,4 +850,10 @@ export const ADAPTATIONS = [
   ...lireFichier('envoyer-au-comptable.txt'),
   // ── La déclaration d'un mois en cours, au Cabinet (1.96.0) ──
   ...lireFichier('declaration-mois-en-cours.txt'),
+  // ── Signer un compte ne fait plus déborder la feuille maîtresse (1.97.0) ──
+  ...lireFichier('revu-sans-deborder.txt'),
+  // ── La zone principale garde la place de sa barre de défilement (1.97.0) ──
+  ...lireFichier('gouttiere-stable.txt'),
+  // ── Une question répondue puis fermée se dit « close », au Cabinet (1.97.0) ──
+  ...lireFichier('question-close.txt'),
 ];

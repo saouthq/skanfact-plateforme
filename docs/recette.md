@@ -914,6 +914,23 @@ compte 4367 porte encore 313,666 DT à la fin du mois » pour un mois qui n'est 
 livre : ce sera sa première déclaration », et une ligne neutre à la place de l'alerte. Les cases, elles, étaient justes
 (TVA due 313,666, timbre 1,000, à payer 313,666).
 
+### 1.97.0 — Hatem révise, Leïla répond, Hatem ferme
+
+Hatem signe les quatre comptes du dossier de Leïla (411, 706, 4367, 4368), au clavier puis à la souris ; Leïla répond
+aux deux questions qui restaient ; Hatem les lit et les ferme. Ce que l'écran faisait mal :
+- signer le 411 écrivait « revu Hatem Ben Salah · 21/10/2026 » dans la cellule : la colonne s'élargissait de 175 px,
+  l'intitulé voisin tombait à « Prestatio… » et le tableau prenait une barre de défilement. La cellule dit « revu » ;
+  qui et quand se lisent dans l'infobulle et dans le menu de la ligne ;
+- au dernier compte signé d'un cycle, la ligne d'avancement passait de la phrase au bouton « Revoir Fiscal » et toute
+  la feuille descendait de 5 px : elle garde la hauteur du bouton ;
+- chez Leïla, « En attente de toi : 2 questions sans réponse » ne menait nulle part, et les questions étaient plus haut
+  dans le fil, hors de la vue à l'ouverture : « Répondre » y mène, le curseur dans la réponse de la plus ancienne (ou
+  sur « Envoyer la pièce… » d'une pièce demandée) ;
+- sa réponse disait « Réponse à la question » sans dire laquelle : elle porte l'objet (« « Fond de caisse » ») ;
+- à la dernière réponse, la page devenue courte perdait sa barre de défilement et tout glissait de 15 px sous le
+  curseur : la zone principale garde la place de sa barre ;
+- une question fermée restait « répondue » au Cabinet (le client lisait « Close par le cabinet ») : elle dit « close ».
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

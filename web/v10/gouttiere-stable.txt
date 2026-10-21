@@ -1,0 +1,15 @@
+La page ne glisse plus de côté quand elle grandit ou rapetisse (1.97.0, parcours du 21/10/2026). Format : voir sans-paquets.mjs.
+
+Leïla répond à une question de son comptable : la carte se referme, la page devient assez courte pour tenir à l'écran,
+la barre de défilement de la zone principale disparaît, et tout ce qui est à l'écran (le fil, l'encart « En attente de
+toi », les boutons) glisse de 15 px vers la droite sous son curseur. La place de la barre est désormais gardée, qu'elle
+serve ou pas.
+
+== style.css | la zone principale garde la place de sa barre de défilement
+-- avant
+main { --main-haut: 32px; flex: 1; overflow-y: auto; padding: var(--main-haut) 36px 48px; scroll-padding-block-start: var(--main-haut); }
+-- après
+/* (plateforme) 1.97.0 — `scrollbar-gutter: stable` : une page qui passe sous la hauteur de l'écran ne fait plus glisser
+   tout son contenu de la largeur de la barre (15 px), sous le curseur. */
+main { --main-haut: 32px; flex: 1; overflow-y: auto; scrollbar-gutter: stable; padding: var(--main-haut) 36px 48px; scroll-padding-block-start: var(--main-haut); }
+-- fin

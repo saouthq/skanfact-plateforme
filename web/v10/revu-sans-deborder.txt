@@ -1,0 +1,35 @@
+Signer un compte ne fait plus déborder la feuille maîtresse (1.97.0, parcours du 21/10/2026). Format : voir sans-paquets.mjs.
+
+Hatem signe le compte 411 du dossier de Leïla : la colonne « Revu » passe de « à revoir » à « revu Hatem Ben Salah ·
+21/10/2026 », s'élargit de 175 px, l'intitulé de la ligne voisine tombe à « Prestatio… » et le tableau prend une barre
+de défilement. Un état ne change pas la géométrie : la cellule ne montre que la pastille « revu », pas plus large que
+« à revoir » (une date à côté coupait l'intitulé à « Prestations de s… » dans les deux états) ; qui a signé et quand
+se lit dans l'infobulle de la cellule et dans le menu de la ligne, ce qui reste lisible au clavier.
+
+== cabinet/app.js | la cellule « Revu » : la pastille seule, qui et quand dans l'infobulle
+-- avant
+      <td class="nw small">${c.revu
+    ? `<span class="badge b-paid">revu</span> ${esc(c.revuPar || '')}${c.revuLe ? ' · ' + esc(fmtJour(KC.jourDeLInstant(c.revuLe))) : ''}`
+    : '<span class="muted">à revoir</span>'}</td>
+-- après
+      ${/* (plateforme) 1.97.0 — la même largeur signée ou pas : le nom et la date ne s'écrivent plus dans la cellule. */''}
+      <td class="nw small rv-revu"${c.revu ? ` title="${esc(['Revu', c.revuPar ? 'par ' + c.revuPar : '', c.revuLe ? 'le ' + fmtJour(KC.jourDeLInstant(c.revuLe)) : ''].filter(Boolean).join(' '))}"` : ''}>${c.revu
+    ? '<span class="badge b-paid">revu</span>'
+    : '<span class="muted">à revoir</span>'}</td>
+-- fin
+
+== cabinet/app.js | le menu de la ligne dit qui a signé et quand
+-- avant
+            hint: c.revu ? 'Le compte redevient « à revoir ».' : 'Je l\'ai revu : il est juste.',
+-- après
+            hint: c.revu ? `${['Revu', c.revuPar ? 'par ' + c.revuPar : '', c.revuLe ? 'le ' + fmtJour(KC.jourDeLInstant(c.revuLe)) : ''].filter(Boolean).join(' ')} ; le compte redeviendra « à revoir ».` : 'Je l\'ai revu : il est juste.',
+-- fin
+
+== cabinet/cabinet.css | la ligne d'avancement a la même hauteur, avec ou sans bouton
+-- avant
+.rv-avance { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px 14px; }
+-- après
+/* (plateforme) 1.97.0 — la phrase « Signe les comptes… » puis le bouton « Revoir Fiscal » : la même hauteur (celle du
+   bouton), sinon signer le dernier compte d'un cycle faisait descendre toute la feuille de 5 px. */
+.rv-avance { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; min-height: 32px; }
+-- fin

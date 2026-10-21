@@ -311,7 +311,8 @@
       const qui = q.repondueePar === 'moi' ? 'Toi' : q.repondueePar || (entreprise ? 'Ton entreprise' : 'Le client');
       return `<div class="msg-ligne${moi ? ' moi' : ''}">
         <span class="msg-qui">${moi ? `${esc(heure(q.reponduLe))} · <b>${esc(qui)}</b>` : `<b>${esc(qui)}</b> · ${esc(heure(q.reponduLe))}`}</span>
-        <span class="msg-reponse-a">Réponse à la question${q.piece ? ` sur ${esc(q.piece)}` : ''}</span>
+        ${/* (1.97.0) Une réponse dit à quelle question : « Réponse à la question » seul ne dit rien d'une question sans pièce. */''}
+        <span class="msg-reponse-a">Réponse à la question${q.objet ? ` « ${esc(q.objet)} »` : ''}${q.piece ? ` sur ${esc(q.piece)}` : ''}</span>
         <div class="msg-bulle">${esc(q.reponse)}</div></div>`;
     }
 
@@ -362,7 +363,11 @@
           ${cabinetRelu ? '<button type="button" class="msg-lien" data-msg-actuel>Revenir au fil de ton cabinet</button>'
             : (lu.anciens || []).map((/** @type {any} */ x) => `<button type="button" class="msg-lien" data-msg-ancien="${esc(x.cabinet)}">Relire vos échanges avec ${esc(x.nom || 'ce cabinet')}</button>`).join('')}
         </div>` : '';
-      cote.innerHTML = `${f ? `<div class="msg-encart${rien ? ' ok' : ' attend'}" data-msg-attente><b>${entreprise ? 'En attente de toi' : 'Ce qui attend le client'}</b><span>${esc(texte)}</span></div>` : ''}
+      // (1.97.0) Ce qui attend la réponse du client se trouve plus haut dans le fil, hors de la vue quand la page s'ouvre
+      // sur les derniers messages : l'encart y mène, le curseur dans la réponse de la plus ancienne.
+      const aller = entreprise && !rien && f && f.actif && o.repondre
+        ? `<button type="button" class="msg-lien" data-msg-aller>${a.questions + a.demandes > 1 ? 'Répondre, en commençant par la plus ancienne' : 'Répondre'}</button>` : '';
+      cote.innerHTML = `${f ? `<div class="msg-encart${rien ? ' ok' : ' attend'}" data-msg-attente><b>${entreprise ? 'En attente de toi' : 'Ce qui attend le client'}</b><span>${esc(texte)}</span>${aller}</div>` : ''}
         ${entreprise ? `<div class="msg-encart"><b>Ce que voit ton cabinet</b><span>Ce fil, et ce que ton mandat lui confie, pour cette entreprise seulement. Chaque message garde sa date et son auteur, dans ton dossier.</span>
           ${o.voirMandat ? '<button type="button" class="msg-lien" data-msg-mandat>Voir le mandat</button>' : ''}</div>`
           : `<div class="msg-encart"><b>Rien à faire ?</b><span>Le client quitte « À traiter » jusqu'à son prochain message.</span>
@@ -509,6 +514,14 @@
         await o.appel('POST', '/messages/traite');
         if (o.toast) o.toast('C\'est noté : ce client quitte « À traiter » jusqu\'à son prochain message.');
         await relire();
+      });
+      surClic(cote, '[data-msg-aller]', async () => {
+        // La première dans l'ordre du fil, question ou pièce demandée : la plus ancienne.
+        const carte = /** @type {HTMLElement | null} */ (el.querySelector('.msg-question.attend, .msg-demande-carte:not(.recue)'));
+        if (!carte) return;
+        carte.scrollIntoView({ block: 'center' });
+        const champ = /** @type {HTMLElement | null} */ (carte.querySelector('textarea, input, button'));
+        if (champ) champ.focus({ preventScroll: true });
       });
       const rev = cote.querySelector('[data-msg-revision]');
       if (rev && o.revision) /** @type {HTMLElement} */ (rev).onclick = o.revision;
