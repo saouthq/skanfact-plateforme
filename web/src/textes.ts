@@ -80,7 +80,7 @@ declarerTextes({
   'ecran.etape.securite': 'la sécurité',
 
   'ecran.connexion.titre': 'bon retour',
-  'ecran.connexion.sous': 'connecte-toi pour retrouver tes devis, tes factures et ta gestion',
+  'ecran.connexion.sous': 'connecte-toi pour retrouver ta gestion, ou les dossiers de ton cabinet',
   'ecran.connexion.email': 'adresse e-mail',
   'ecran.connexion.email_aide': 'celle avec laquelle tu as créé ton compte',
   'ecran.connexion.mot_de_passe': 'mot de passe',

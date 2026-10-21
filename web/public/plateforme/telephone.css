@@ -25,6 +25,9 @@
   .sidebar .brand-wrap { padding-bottom: 0; display: flex; align-items: center; gap: 8px; }
   .sidebar .brand { flex: 1 1 auto; min-width: 0; min-height: 44px; }
   .menu-tel { display: inline-flex; }
+  /* Au Cabinet, « Menu » est posé dans la marque même (pas de `.brand-wrap`) : poussé au bout de la ligne, comme à
+     l'entreprise, au lieu de flotter au milieu juste après le nom du cabinet (vu à 390 px le 21/10/2026). */
+  .sidebar > .brand > .menu-tel { margin-inline-start: auto; }
   .sidebar > .nav-search, .sidebar > nav, .sidebar > .sidebar-foot { display: none; }
   .sidebar.menu-ouvert > .nav-search, .sidebar.menu-ouvert > .sidebar-foot { display: flex; }
   .sidebar.menu-ouvert > nav { display: flex; max-height: 60vh; overflow-y: auto; }

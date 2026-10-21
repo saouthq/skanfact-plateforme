@@ -18382,6 +18382,11 @@ prouver 'le journal en tableau qui coupe le geste au bord du téléphone' web/co
   .c-defile:has(> .c-table-journal) { overflow: visible; }' \
   "$CTEL"
 
+# 1.87.2 — au Cabinet, « Menu » au bout de la barre du haut au téléphone.
+prouver '« Menu » du Cabinet qui flotte au milieu de la barre' web/public/plateforme/telephone.css \
+  '  .sidebar > .brand > .menu-tel { margin-inline-start: auto; }' '' \
+  'le Cabinet qui commence, au téléphone : « Tes premiers pas » ne déborde pas, et chaque étape garde son texte en entier'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

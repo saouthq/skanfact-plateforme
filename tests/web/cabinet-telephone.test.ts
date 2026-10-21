@@ -139,6 +139,9 @@ describe('le Cabinet au téléphone', () => {
         return ecarts;
       });
       expect(deTravers).toEqual([]);
+      // « Menu » au bout de la barre du haut, comme à l'entreprise : pas au milieu, juste après le nom du cabinet (1.87.2).
+      const menu = await page.locator('.sidebar .menu-tel').boundingBox();
+      expect(390 - ((menu?.x ?? 0) + (menu?.width ?? 0))).toBeLessThan(24);
       expect(erreurs).toEqual([]);
     } finally {
       await contexte.close();

@@ -608,6 +608,14 @@ Le journal gardait ses six colonnes ; le geste passait derrière le bord. Un ges
 puis le geste, sur quoi, le motif et ce qui a changé, chacun nommé. Vu à 390 px ; l'écran Service, d'abord resté sur
 « Lecture… », n'était que lent à lire (la veille de la recette ne tourne pas). Une preuve (le bloc du téléphone éteint).
 
+### 1.87.2 — le Cabinet au téléphone
+
+Vu à 390 px avec une comptable du Cabinet Ben Youssef (dossiers, production, échéances, écritures, messages, relances) :
+rien ne déborde. « Menu » flottait au milieu de la barre du haut, juste après le nom du cabinet : il passe au bout,
+comme à l'entreprise. La page de connexion, commune aux entreprises et aux cabinets, disait « retrouver tes devis, tes
+factures et ta gestion » à un comptable : « retrouver ta gestion, ou les dossiers de ton cabinet ». Le Cabinet exige le
+code du téléphone de chaque comptable, et sa page de mise en place se lit bien au téléphone. Une preuve.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
