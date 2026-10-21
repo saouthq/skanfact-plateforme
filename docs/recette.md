@@ -931,6 +931,16 @@ aux deux questions qui restaient ; Hatem les lit et les ferme. Ce que l'écran f
   curseur : la zone principale garde la place de sa barre ;
 - une question fermée restait « répondue » au Cabinet (le client lisait « Close par le cabinet ») : elle dit « close ».
 
+### 1.98.0 — Hatem parcourt Production et répond dans le fil
+
+- Production, le 21 octobre, avec un seul dossier commencé en octobre : « Sur 12 mois » et « Aucun mois n'attend de
+  saisie » au-dessus d'une grille sans colonne de mois, avec la légende de cinq signes absents (le mois en cours n'entre
+  jamais dans la grille). La phrase dit qu'un mois entre dans la grille une fois terminé, que le mois en cours se suit
+  dans la comptabilité du client, et la légende ne se montre pas ;
+- dans le fil, après la réponse de Hatem, « Rien à faire ? C'est traité » se proposait encore pour un client sorti de
+  « À traiter » : le fil reçoit l'état de la boîte (la même requête, `etatsDesDossiers`) et le bouton ne se montre que
+  pour un client à traiter.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

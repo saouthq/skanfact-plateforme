@@ -856,4 +856,6 @@ export const ADAPTATIONS = [
   ...lireFichier('gouttiere-stable.txt'),
   // ── Une question répondue puis fermée se dit « close », au Cabinet (1.97.0) ──
   ...lireFichier('question-close.txt'),
+  // ── La Production sans mois fini dit pourquoi elle est vide (1.97.0) ──
+  ...lireFichier('production-sans-mois.txt'),
 ];

@@ -1,0 +1,31 @@
+La Production d'un cabinet dont aucun mois n'est fini dit pourquoi elle est vide (1.97.0, parcours du 21/10/2026). Format :
+voir sans-paquets.mjs.
+
+Hatem ouvre Production le 21 octobre : son seul dossier, celui de Leïla, commence en octobre. Le mois en cours n'entre
+jamais dans la grille (il n'est pas encore dû) : l'écran annonçait « Sur 12 mois » et « Aucun mois n'attend de saisie »
+au-dessus d'une grille sans aucune colonne de mois, avec la légende de cinq signes qui n'apparaissaient nulle part.
+Désormais, sans colonne, la phrase dit qu'un mois entre dans la grille une fois fini et que le mois en cours se suit
+dans la comptabilité du client, et la légende ne se montre pas.
+
+== cabinet/app.js | sans mois fini, la phrase dit pourquoi la grille n'a pas de colonne
+-- avant
+      : 'Aucun mois n\'attend de saisie.'}</div>
+-- après
+      /* (plateforme) 1.97.0 — le mois en cours n'entre jamais dans la grille : sans aucun mois fini, elle n'a pas de
+         colonne, et la phrase le dit au lieu de promettre une grille vide. */
+      : colonnes.length ? 'Aucun mois n\'attend de saisie.'
+      : 'Aucun mois fini à suivre pour l\'instant : un mois entre dans la grille une fois terminé. Le mois en cours se suit dans la comptabilité de chaque client (clique sa ligne).'}</div>
+-- fin
+
+== cabinet/app.js | sans colonne de mois, pas de légende des signes
+-- avant
+      <div class="prod-leg small muted">${LEGENDE_PRODUCTION.map(([etape, mot]) =>
+    `<span><span class="prod-p prod-${etape}">${esc(SIGNE_PRODUCTION[etape])}</span> ${esc(mot)}</span>`).join('')}</div>
+      <p class="muted small">Clique une ligne pour ouvrir la comptabilité du client.
+      « Révisé » affiche « — » tant que le dossier de révision n'existe pas : ne pas savoir n'est pas « non ».</p>
+-- après
+      ${colonnes.length ? `<div class="prod-leg small muted">${LEGENDE_PRODUCTION.map(([etape, mot]) =>
+    `<span><span class="prod-p prod-${etape}">${esc(SIGNE_PRODUCTION[etape])}</span> ${esc(mot)}</span>`).join('')}</div>
+      <p class="muted small">Clique une ligne pour ouvrir la comptabilité du client.
+      « Révisé » affiche « — » tant que le dossier de révision n'existe pas : ne pas savoir n'est pas « non ».</p>` : ''}
+-- fin

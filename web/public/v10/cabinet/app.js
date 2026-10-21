@@ -10213,7 +10213,10 @@
     // reçoit rien : la phrase dit ce que la colonne compte, pour les deux sortes de dossiers.
     : `<div class="${retard ? 'warn-box' : 'ok-box'} mb">${retard
       ? `${pl(retard, 'mois', 'mois')} ${retard > 1 ? 'attendent' : 'attend'} leur saisie.`
-      : 'Aucun mois n\'attend de saisie.'}</div>
+      /* (plateforme) 1.97.0 — le mois en cours n'entre jamais dans la grille : sans aucun mois fini, elle n'a pas de
+         colonne, et la phrase le dit au lieu de promettre une grille vide. */
+      : colonnes.length ? 'Aucun mois n\'attend de saisie.'
+      : 'Aucun mois fini à suivre pour l\'instant : un mois entre dans la grille une fois terminé. Le mois en cours se suit dans la comptabilité de chaque client (clique sa ligne).'}</div>
       ${/* 10.12.0 (U-02) — des en-têtes de mois COURTS, l'année seulement quand elle change : douze
             « juillet 2026 » sur deux lignes faisaient déborder la grille, et la dernière colonne,
             collante, cachait juillet et août. (U-29) Le nom du client se tronque, jamais son badge :
@@ -10243,10 +10246,10 @@
       ${/* Une couleur seule n'est pas une information (9.4.4) : la légende nomme chaque étape, et
             elle est engendrée depuis `ETAPES_PRODUCTION` — écrite à la main, elle oublierait la
             cinquième le jour où le cabinet en ajoute une. */''}
-      <div class="prod-leg small muted">${LEGENDE_PRODUCTION.map(([etape, mot]) =>
+      ${colonnes.length ? `<div class="prod-leg small muted">${LEGENDE_PRODUCTION.map(([etape, mot]) =>
     `<span><span class="prod-p prod-${etape}">${esc(SIGNE_PRODUCTION[etape])}</span> ${esc(mot)}</span>`).join('')}</div>
       <p class="muted small">Clique une ligne pour ouvrir la comptabilité du client.
-      « Révisé » affiche « — » tant que le dossier de révision n'existe pas : ne pas savoir n'est pas « non ».</p>
+      « Révisé » affiche « — » tant que le dossier de révision n'existe pas : ne pas savoir n'est pas « non ».</p>` : ''}
       </div>`}`;
 
     const c = $('#pr-collab', view);

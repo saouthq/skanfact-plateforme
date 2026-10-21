@@ -9353,8 +9353,8 @@ prouver "« C'est traité » sans effet sur la boîte" $MR \
   "cl.quand > greatest(coalesce(f.traite_le, '-infinity'), coalesce(ca.quand, '-infinity')) then 'a_traiter'" "cl.quand > coalesce(ca.quand, '-infinity') then 'a_traiter'" \
   "$MSG4"
 prouver "une pièce demandée qui n'attend pas le client dans la boîte" $MR \
-  "            union all
-            select m.entreprise from messagerie.message m where m.cabinet = \$1 and m.demande is not null and m.demande_recue_le is null" "" \
+  "        union all
+        select m.entreprise from messagerie.message m where m.cabinet = \$1 and m.demande is not null and m.demande_recue_le is null" "" \
   "$MSG4"
 prouver "le fil d'un ancien cabinet écrit par l'entreprise" $MG \
   "  if v is null then perform socle.refus('aucun cabinet ne tient ce dossier : la messagerie s''ouvre avec le mandat'); end if;" "  if v is null then select f.cabinet into v from messagerie.fil f where f.entreprise = p_entreprise limit 1; end if;" \
@@ -18752,6 +18752,18 @@ prouver 'la page qui glisse de côté quand elle ne défile plus' web/public/v10
 prouver 'une question fermée qui se dit encore « répondue » au Cabinet' web/public/v10/cabinet/app.js \
   $'${q.statut === \'close\' ? \'<span class="badge">close</span>\' : \'<span class="badge b-paid">répondue</span>\'}<div class="small">' $'<span class="badge b-paid">répondue</span><div class="small">' \
   'la révision se tient à la souris'
+prouver 'la Production sans mois fini qui promet une grille vide' web/public/v10/cabinet/app.js \
+  $'      : colonnes.length ? \'Aucun mois n\\\'attend de saisie.\'' $'      : true ? \'Aucun mois n\\\'attend de saisie.\'' \
+  'sans aucun mois fini'
+prouver 'la légende des signes sous une grille sans mois' web/public/v10/cabinet/app.js \
+  $'${colonnes.length ? `<div class="prod-leg' $'${true ? `<div class="prod-leg' \
+  'sans aucun mois fini'
+prouver '« C'\''est traité » offert à un client qui n'\''est plus à traiter' web/public/plateforme/messagerie.js \
+  $'<div class="msg-encart">${f && f.aTraiter ? `<b>Rien à faire ?</b>' $'<div class="msg-encart">${true ? `<b>Rien à faire ?</b>' \
+  'Amine et son comptable s'\''écrivent'
+prouver 'le fil du cabinet qui ne dit pas si le client est à traiter' serveur/messagerie/routes.ts \
+  $"aTraiter: cote.data === 'cabinet' && (await etatsDesDossiers(tx, cabinet, entreprise))[0]?.etat === 'a_traiter'," $"aTraiter: cote.data === 'cabinet'," \
+  'Amine et son comptable s'\''écrivent'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

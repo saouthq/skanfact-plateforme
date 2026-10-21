@@ -147,4 +147,21 @@ describe('la production du cabinet, à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-production-2-visite.png') });
     expect(erreurs).toEqual([]);
   }, 240_000);
+
+  // Parcours du 21/10/2026 : le seul dossier de Hatem commence ce mois-ci, et le mois en cours n'entre jamais dans la
+  // grille. L'écran annonçait « Aucun mois n'attend de saisie » au-dessus d'une grille sans colonne de mois, avec la
+  // légende de cinq signes qui n'apparaissaient nulle part.
+  it('sans aucun mois fini, la phrase dit pourquoi la grille n\'a pas de colonne, sans légende', async () => {
+    const associe = await personne('Hatem');
+    const cabinet = String((await api('POST', '/cabinets', associe, { nom: 'Cabinet Ben Salah' })).corps.id);
+    await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Mansouri Informatique' });
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/production`);
+    const ligne = p.locator('#view tr[data-id]').filter({ hasText: 'Mansouri Informatique' });
+    await expect.poll(() => ligne.count(), { timeout: 20_000 }).toBe(1);
+    expect(await p.locator('#view thead th').allInnerTexts()).toEqual(['CLIENT', 'À SAISIR']);
+    expect(await p.locator('#view .ok-box').innerText()).toMatch(/^Aucun mois fini à suivre pour l'instant\s:\sun mois entre dans la grille une fois terminé\./);
+    expect(await p.locator('.prod-leg').count()).toBe(0);
+  }, 120_000);
 });

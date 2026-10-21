@@ -370,9 +370,11 @@
       cote.innerHTML = `${f ? `<div class="msg-encart${rien ? ' ok' : ' attend'}" data-msg-attente><b>${entreprise ? 'En attente de toi' : 'Ce qui attend le client'}</b><span>${esc(texte)}</span>${aller}</div>` : ''}
         ${entreprise ? `<div class="msg-encart"><b>Ce que voit ton cabinet</b><span>Ce fil, et ce que ton mandat lui confie, pour cette entreprise seulement. Chaque message garde sa date et son auteur, dans ton dossier.</span>
           ${o.voirMandat ? '<button type="button" class="msg-lien" data-msg-mandat>Voir le mandat</button>' : ''}</div>`
-          : `<div class="msg-encart"><b>Rien à faire ?</b><span>Le client quitte « À traiter » jusqu'à son prochain message.</span>
-            <button type="button" class="btn btn-sm" data-msg-traite>C'est traité</button>
-            ${o.revision ? '<button type="button" class="msg-lien" data-msg-revision>Poser une question sur une pièce (révision)</button>' : ''}</div>`}
+          // (1.98.0) « C'est traité » seulement quand ce client est « À traiter » : après une réponse du cabinet, il ne
+          // l'est plus, et le bouton promettait de l'en sortir.
+          : f && f.aTraiter || o.revision ? `<div class="msg-encart">${f && f.aTraiter ? `<b>Rien à faire ?</b><span>Le client quitte « À traiter » jusqu'à son prochain message.</span>
+            <button type="button" class="btn btn-sm" data-msg-traite>C'est traité</button>` : ''}
+            ${o.revision ? '<button type="button" class="msg-lien" data-msg-revision>Poser une question sur une pièce (révision)</button>' : ''}</div>` : ''}
         ${f && f.actif ? `<label class="msg-encart msg-alerte"><input type="checkbox" data-msg-alerte ${f.alerte ? 'checked' : ''}>
           <span><b>Me prévenir par e-mail</b><span>« Un nouveau message t'attend dans SkanFact », cinq minutes après s'il n'est pas lu. Le message lui-même reste dans SkanFact.</span></span></label>` : ''}
         ${anciens}`;

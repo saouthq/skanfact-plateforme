@@ -87,6 +87,59 @@ type LigneQuestion = {
   pose_moi: boolean; pose_nom: string | null; reponse_moi: boolean; reponse_nom: string | null;
 };
 
+// L'état de chaque dossier en ligne du cabinet dans sa boîte — « À traiter » (le client a écrit ou répondu depuis la
+// dernière réponse du cabinet, ou depuis qu'il a dit le fil traité), « Attend le client » (une question ou une pièce
+// demandée sans réponse), « Rien à faire » —, le dernier échange, et combien sont à lire. `entreprise` : un seul dossier
+// (le fil ouvert dit son état avec la MÊME requête que la boîte, 1.98.0 : deux écrans, un chiffre).
+async function etatsDesDossiers(tx: Transaction, cabinet: string, entreprise: string | null) {
+  const r = await tx.query(`with d as (
+      select p.entreprise, p.raison_sociale from socle.portefeuille($1) p where p.statut = 'actif' and not p.tenu and ($2::uuid is null or p.entreprise = $2)
+    ),
+    evenements as (
+      select m.entreprise, m.ecrit_le quand, m.id, m.cote, m.auteur_nom auteur,
+             case when m.demande is not null then 'demande' when m.fichier is not null and m.texte = '' then 'fichier' else 'message' end sorte,
+             coalesce(nullif(m.texte, ''), m.demande, fi.nom, '') extrait
+        from messagerie.message m left join messagerie.fichier fi on fi.id = m.fichier
+       where m.cabinet = $1 and m.entreprise in (select entreprise from d)
+      union all
+      select q.entreprise, q.envois[cardinality(q.envois)], q.id, 'cabinet', '', 'question', coalesce(nullif(q.objet, ''), q.texte)
+        from compta.question q where q.cabinet = $1 and cardinality(q.envois) > 0 and q.entreprise in (select entreprise from d)
+      union all
+      select q.entreprise, q.repondu_le, q.id, 'entreprise', '', 'reponse', q.reponse
+        from compta.question q where q.cabinet = $1 and q.repondu_le is not null and q.entreprise in (select entreprise from d)
+    ),
+    dernier as (select distinct on (e.entreprise) e.* from evenements e order by e.entreprise, e.quand desc, e.id desc),
+    client as (select entreprise, max(quand) quand from evenements where cote = 'entreprise' group by entreprise),
+    cabinet as (select entreprise, max(quand) quand from evenements where cote = 'cabinet' and sorte = 'message' group by entreprise),
+    attend as (
+      select entreprise, count(*) n from (
+        select q.entreprise from compta.question q where q.cabinet = $1 and q.statut = 'envoyee'
+        union all
+        select m.entreprise from messagerie.message m where m.cabinet = $1 and m.demande is not null and m.demande_recue_le is null
+      ) x group by entreprise
+    )
+    select d.entreprise, d.raison_sociale,
+           case when cl.quand is not null and cl.quand > greatest(coalesce(f.traite_le, '-infinity'), coalesce(ca.quand, '-infinity')) then 'a_traiter'
+                when coalesce(at.n, 0) > 0 then 'attend_client' else 'rien' end etat,
+           (select count(*) from evenements e where e.entreprise = d.entreprise and e.cote = 'entreprise'
+              and e.quand > coalesce(f.lu_cabinet, '-infinity')) non_lus,
+           coalesce(at.n, 0) attentes,
+           dn.quand, dn.cote, dn.auteur, dn.sorte, dn.extrait
+      from d
+      left join messagerie.fil f on f.entreprise = d.entreprise and f.cabinet = $1
+      left join client cl on cl.entreprise = d.entreprise
+      left join cabinet ca on ca.entreprise = d.entreprise
+      left join attend at on at.entreprise = d.entreprise
+      left join dernier dn on dn.entreprise = d.entreprise
+     order by case when cl.quand is not null and cl.quand > greatest(coalesce(f.traite_le, '-infinity'), coalesce(ca.quand, '-infinity')) then 0
+                   when coalesce(at.n, 0) > 0 then 1 else 2 end, dn.quand desc nulls last, d.raison_sociale, d.entreprise`, [cabinet, entreprise]);
+  return (r.rows as { entreprise: string; raison_sociale: string; etat: string; non_lus: string; attentes: string; quand: Date | null;
+    cote: string | null; auteur: string | null; sorte: string | null; extrait: string | null }[]).map((x) => ({
+    entreprise: x.entreprise, nom: x.raison_sociale, etat: x.etat, nonLus: Number(x.non_lus), attentes: Number(x.attentes),
+    dernier: x.quand ? { quand: x.quand.toISOString(), cote: x.cote, auteur: x.auteur, sorte: x.sorte, extrait: (x.extrait ?? '').slice(0, 200) } : null,
+  }));
+}
+
 export function routesMessagerie(ctx: Contexte): Route<never>[] {
   void ctx;
   const routes: Route<never>[] = [];
@@ -152,6 +205,9 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
           fil: {
             cabinet, cabinetNom: info.nom, depuis: info.depuis, actif: info.depuis !== null,
             luParLautre: luParLautre?.toISOString() ?? null, alerte: info.alerte ?? true,
+            // Côté cabinet, l'état de ce client dans la boîte (la même requête) : « C'est traité » ne se propose que s'il y
+            // a quelque chose à traiter (1.98.0).
+            aTraiter: cote.data === 'cabinet' && (await etatsDesDossiers(tx, cabinet, entreprise))[0]?.etat === 'a_traiter',
           },
           messages: page.map((m) => ({
             id: m.id, cote: m.cote, auteur: m.auteur_nom, texte: m.texte, ecritLe: m.ecrit_le.toISOString(),
@@ -309,52 +365,7 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
     methode: 'GET', chemin: '/cabinets/:cabinet/messages', geste: 'compte.cabinets.voir',
     traiter: async ({ params }, tx) => {
       if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
-      const r = await tx.query(`with d as (
-          select p.entreprise, p.raison_sociale from socle.portefeuille($1) p where p.statut = 'actif' and not p.tenu
-        ),
-        evenements as (
-          select m.entreprise, m.ecrit_le quand, m.id, m.cote, m.auteur_nom auteur,
-                 case when m.demande is not null then 'demande' when m.fichier is not null and m.texte = '' then 'fichier' else 'message' end sorte,
-                 coalesce(nullif(m.texte, ''), m.demande, fi.nom, '') extrait
-            from messagerie.message m left join messagerie.fichier fi on fi.id = m.fichier
-           where m.cabinet = $1 and m.entreprise in (select entreprise from d)
-          union all
-          select q.entreprise, q.envois[cardinality(q.envois)], q.id, 'cabinet', '', 'question', coalesce(nullif(q.objet, ''), q.texte)
-            from compta.question q where q.cabinet = $1 and cardinality(q.envois) > 0 and q.entreprise in (select entreprise from d)
-          union all
-          select q.entreprise, q.repondu_le, q.id, 'entreprise', '', 'reponse', q.reponse
-            from compta.question q where q.cabinet = $1 and q.repondu_le is not null and q.entreprise in (select entreprise from d)
-        ),
-        dernier as (select distinct on (e.entreprise) e.* from evenements e order by e.entreprise, e.quand desc, e.id desc),
-        client as (select entreprise, max(quand) quand from evenements where cote = 'entreprise' group by entreprise),
-        cabinet as (select entreprise, max(quand) quand from evenements where cote = 'cabinet' and sorte = 'message' group by entreprise),
-        attend as (
-          select entreprise, count(*) n from (
-            select q.entreprise from compta.question q where q.cabinet = $1 and q.statut = 'envoyee'
-            union all
-            select m.entreprise from messagerie.message m where m.cabinet = $1 and m.demande is not null and m.demande_recue_le is null
-          ) x group by entreprise
-        )
-        select d.entreprise, d.raison_sociale,
-               case when cl.quand is not null and cl.quand > greatest(coalesce(f.traite_le, '-infinity'), coalesce(ca.quand, '-infinity')) then 'a_traiter'
-                    when coalesce(at.n, 0) > 0 then 'attend_client' else 'rien' end etat,
-               (select count(*) from evenements e where e.entreprise = d.entreprise and e.cote = 'entreprise'
-                  and e.quand > coalesce(f.lu_cabinet, '-infinity')) non_lus,
-               coalesce(at.n, 0) attentes,
-               dn.quand, dn.cote, dn.auteur, dn.sorte, dn.extrait
-          from d
-          left join messagerie.fil f on f.entreprise = d.entreprise and f.cabinet = $1
-          left join client cl on cl.entreprise = d.entreprise
-          left join cabinet ca on ca.entreprise = d.entreprise
-          left join attend at on at.entreprise = d.entreprise
-          left join dernier dn on dn.entreprise = d.entreprise
-         order by case when cl.quand is not null and cl.quand > greatest(coalesce(f.traite_le, '-infinity'), coalesce(ca.quand, '-infinity')) then 0
-                       when coalesce(at.n, 0) > 0 then 1 else 2 end, dn.quand desc nulls last, d.raison_sociale, d.entreprise`, [params.cabinet]);
-      const dossiers = (r.rows as { entreprise: string; raison_sociale: string; etat: string; non_lus: string; attentes: string; quand: Date | null;
-        cote: string | null; auteur: string | null; sorte: string | null; extrait: string | null }[]).map((x) => ({
-        entreprise: x.entreprise, nom: x.raison_sociale, etat: x.etat, nonLus: Number(x.non_lus), attentes: Number(x.attentes),
-        dernier: x.quand ? { quand: x.quand.toISOString(), cote: x.cote, auteur: x.auteur, sorte: x.sorte, extrait: (x.extrait ?? '').slice(0, 200) } : null,
-      }));
+      const dossiers = await etatsDesDossiers(tx, params.cabinet ?? '', null);
       return {
         corps: {
           dossiers,
