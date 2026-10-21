@@ -206,6 +206,19 @@
     table.buy-lines:has(> #b-lines) tr > :nth-child(8), table.buy-lines:has(> #orf-lines) tr > :nth-child(6) { grid-area: outils; text-align: end; }
     table.buy-lines:has(> #b-lines) tbody tr + tr, table.buy-lines:has(> #orf-lines) tbody tr + tr { border-top: 1px solid var(--ink-soft); padding-top: 6px; }
     table.buy-lines:has(> #b-lines) tr + tr td, table.buy-lines:has(> #orf-lines) tr + tr td { border-top: 0; }
+    /* (1.87.17) L'en-tête, calqué sur la grille, posait chaque titre loin de sa case (« Qté » trois rangs au-dessus du
+       3, vu le 21/10/2026) : il se cache, et chaque case porte son titre, comme les cartes des listes. */
+    table.buy-lines:has(> #b-lines) > thead, table.buy-lines:has(> #orf-lines) > thead { display: none; }
+    :is(#b-lines, #orf-lines) > tr > td:nth-child(-n + 4)::before, #b-lines > tr > td:nth-child(5)::before, #b-lines > tr > td:nth-child(6)::before,
+    #b-lines > tr > td:nth-child(7)::before, #orf-lines > tr > td:nth-child(5)::before {
+      display: block; margin-bottom: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+    :is(#b-lines, #orf-lines) > tr > td:nth-child(1)::before { content: 'Désignation'; }
+    :is(#b-lines, #orf-lines) > tr > td:nth-child(2)::before { content: 'Qté'; }
+    :is(#b-lines, #orf-lines) > tr > td:nth-child(3)::before { content: 'P.U. HT'; }
+    :is(#b-lines, #orf-lines) > tr > td:nth-child(4)::before { content: 'TVA'; }
+    #b-lines > tr > td:nth-child(5)::before { content: 'Destination'; }
+    #b-lines > tr > td:nth-child(6)::before { content: 'TVA déductible'; }
+    #b-lines > tr > td:nth-child(7)::before, #orf-lines > tr > td:nth-child(5)::before { content: 'Total HT'; }
   }
 
   /* Une pièce émise : la phrase qui le dit, sa bulle et ses gestes ; le pourquoi est dans la bulle. Le bandeau prenait

@@ -18483,6 +18483,13 @@ prouver 'à la tablette debout, « Envoyer au comptable… » poussé hors de l'
   '  #view .inline { flex-wrap: wrap; }' '  #view .inline { }' \
   'à 820 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté'
 
+prouver 'au téléphone, l'\''en-tête des lignes d'\''achat qui pose « Qté » trois rangs au-dessus du 3' web/public/plateforme/telephone.css \
+  '    table.buy-lines:has(> #b-lines) > thead, table.buy-lines:has(> #orf-lines) > thead { display: none; }' '    table.buy-lines:has(> #b-lines) > thead, table.buy-lines:has(> #orf-lines) > thead { }' \
+  'les lignes d'\''un achat et d'\''une photo relue au téléphone : la désignation, puis prix, TVA et total dans l'\''écran'
+prouver 'au téléphone, la quantité d'\''une ligne d'\''achat sans son titre' web/public/plateforme/telephone.css \
+  "    :is(#b-lines, #orf-lines) > tr > td:nth-child(2)::before { content: 'Qté'; }" "    :is(#b-lines, #orf-lines) > tr > td:nth-child(2)::before { }" \
+  'les lignes d'\''un achat et d'\''une photo relue au téléphone : la désignation, puis prix, TVA et total dans l'\''écran'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -741,6 +741,15 @@ la ligne. Quatorze écrans de l'entreprise et six du Cabinet remesurés à 820 p
 « Actions » d'une ligne s'ouvre en entier. À 1 024 px, rien ne débordait. Un test (`tests/web/tablette.test.ts`),
 deux preuves.
 
+### 1.87.17 — une facture d'achat au téléphone
+
+Saisie au doigt : un fournisseur créé depuis la facture, une ligne de 3 × 416,667 DT à 19 %, une retenue de 1,5 % :
+1 250,001 HT, 237,500 de TVA, 1 487,501 TTC, 22,313 retenus, 1 465,188 à payer — juste. Mais l'en-tête des lignes,
+calqué sur leur grille, posait chaque titre loin de sa case (« Qté » trois rangs au-dessus du 3, « Déduct. » seul) :
+au téléphone, il se cache, et chaque case porte son titre juste au-dessus (« TVA déductible » en entier), comme les
+cartes des listes ; de même pour les lignes d'une photo relue. Le test des lignes d'achat au téléphone l'exige ; deux
+preuves.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

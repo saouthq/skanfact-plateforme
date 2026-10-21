@@ -303,6 +303,11 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     for (const sel of ['#b-lines tr:first-child [data-k=label]', '#b-lines tr:first-child [data-k=unitPrice]', '#b-lines tr:first-child [data-k=vatRate]', '#b-lines tr:first-child [data-total]', '#b-lines tr:first-child [data-k=destination]']) expect(await dansLecran(sel), sel).toBe(true);
     expect(await p.locator('table.buy-lines:has(#b-lines)').evaluate((t) => t.scrollWidth <= t.clientWidth + 1)).toBe(true);
     expect(net(await p.locator('#b-lines tr:first-child [data-total]').innerText())).toBe('216,000');
+    // (1.87.17) Chaque case porte son titre juste au-dessus d'elle ; l'en-tête calqué sur la grille posait « Qté » trois
+    // rangs plus haut que le 3.
+    expect(await p.locator('table.buy-lines:has(#b-lines) > thead').isVisible()).toBe(false);
+    expect(await p.locator('#b-lines tr:first-child').evaluate((tr) => [...tr.children].slice(0, 7).map((td) => getComputedStyle(td, '::before').content)))
+      .toEqual(['"Désignation"', '"Qté"', '"P.U. HT"', '"TVA"', '"Destination"', '"TVA déductible"', '"Total HT"']);
 
     // Une photo relue : ses lignes aussi, et « Utiliser ces informations » au bas de l'écran.
     await aller(p, '#/achat/new', /^Nouvelle facture d'achat/);
