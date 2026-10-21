@@ -186,6 +186,23 @@ describe('la recette de la console, tenue par l\'écran', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
+  it('au téléphone, Clients : un client par carte, chaque case nommée, rien caché derrière le bord ; ni « Ctrl K » sans clavier', async () => {
+    const p = await ouvrir('#/clients', 390);
+    const lignes = p.locator('.c-table-clients tbody tr');
+    await expect.poll(() => lignes.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    expect(await p.locator('.c-table-clients thead').isVisible()).toBe(false);
+    // L'état de chaque client tient dans l'écran (avant 1.87.0, la colonne passait derrière le bord droit).
+    const etats = await p.locator('.c-table-clients td.c-cl-etat').evaluateAll((l) => l.map((e) => e.getBoundingClientRect()).map((b) => ({ g: b.left, d: b.right })));
+    expect(etats.every((b) => b.g >= 0 && b.d <= 390)).toBe(true);
+    // Chaque case dit ce qu'elle est : « État », « Échéance »… devant sa valeur.
+    const libelles = await p.locator('.c-table-clients tbody tr').first().locator('td[data-libelle]').evaluateAll((l) => l.map((e) => getComputedStyle(e, '::before').content));
+    expect(libelles.slice(0, 4)).toEqual(['"Abonnement"', '"État"', '"Échéance"', '"Par an, HT"']);
+    await p.goto(`${serveur.adresse}/console/#/`);
+    await expect.poll(() => p.locator('.c-touche').count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    expect(await p.locator('.c-touche').first().isVisible()).toBe(false);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
   it('l\'entrée de la console : l\'adresse se tape d\'un trait, sans que le curseur saute au mot de passe ; venue remplie, le curseur va au mot de passe', async () => {
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
     const p = await cx.newPage();

@@ -18361,6 +18361,20 @@ prouver 'deux cartes « Renouveler ou changer d'"'"'offre » à l'"'"'écran' we
       else re.disabled = true;" "      re.disabled = true;" \
   "$MFW"
 
+# 1.87.0 — la console au téléphone : un client par carte ; « Ctrl K » sans clavier ; « par an » ne compte que ce qui se
+# renouvelle, et le dit (un abonnement résilié n'y est pas, l'écran Abonnements le compte actif).
+CTEL='au téléphone, Clients : un client par carte, chaque case nommée, rien caché derrière le bord ; ni « Ctrl K » sans clavier'
+prouver 'les clients en tableau qui passe derrière le bord du téléphone' web/console/src/console.css \
+  '  .c-table-clients thead { display: none; }
+  .c-table-clients, .c-table-clients tbody, .c-table-clients td { display: block; }' '' \
+  "$CTEL"
+prouver '« Ctrl K » montré sans clavier' web/console/src/console.css \
+  '@media (max-width: 860px), (hover: none) and (pointer: coarse) { .c-touche { display: none; } }' '' \
+  "$CTEL"
+prouver '« abonnements actifs » pour ce qui se renouvelle' web/console/src/textes.ts \
+  "'un abonnement qui se renouvelle dans la sélection :'" "'un abonnement actif dans la sélection :'" \
+  'les clients : chaque vue du métier ouvre la liste qu'"'"'elle compte ; chaque ligne dit son échéance et ce qu'"'"'elle rapporte ; le tri suit l'"'"'adresse'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -585,6 +585,23 @@ Vu à la souris, au format d'un téléphone (390 px), sur l'abonnement payé de 
 - `tests/web/abonnement-factures.test.ts` : un seul « Renouveler ou changer d'offre » à l'écran, plus de bouton pour
   l'ouvrir, les quatre choix ; une preuve.
 
+## 1.87.0 — la console au téléphone (21/10/2026)
+
+Vue à 390 px, compte de direction, sur la base de recette (accueil, Clients, Abonnements, Paiements) :
+
+- **Clients en tableau** : la liste gardait ses huit colonnes ; l'état passait derrière le bord droit (« pa… se… »). Au
+  téléphone, un client par carte : son nom et le bouton de sa fiche en tête, puis chaque case nommée (Abonnement, État,
+  Échéance, Par an, l'usage du mois, Vu). Le fond de survol, qui colorait chaque case à part et restait après un toucher,
+  ne s'y applique plus.
+- **« 4 abonnements actifs dans la sélection »**, quand l'écran Abonnements en compte 5 : le chiffre par an ne retient
+  que ce qui se renouvelle (une résiliation n'y est pas, l'Imprimerie Zitouna dans la recette). La phrase le dit
+  maintenant : « 4 abonnements qui se renouvellent dans la sélection ».
+- **« Ctrl K »** au bout du champ de recherche, sans clavier, coupait le texte du champ : caché au téléphone et sur un
+  écran tactile.
+
+- `tests/web/console-recette.test.ts` : au téléphone, l'état de chaque client dans l'écran, les cases nommées, « Ctrl K »
+  caché ; `tests/web/console.test.ts` : la phrase. Trois preuves.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

@@ -319,7 +319,7 @@ describe('la console de l\'équipe, à la souris', () => {
     expect(net(await clinique.locator('.c-cl-par-an').innerText())).toBe('690,000 DT');
     // Ce que rapporte la sélection : la clinique seule, abonnée à l'année au Complet.
     // Puis de quand datent ses chiffres (C65 : le calcul que l'équipe partage), et « Actualiser ».
-    expect(net(await p.locator('.c-liste-resume p').innerText())).toMatch(/^Une organisation · un abonnement actif dans la sélection : 690,000 DT hors taxes par an · chiffres de \d\d:\d\d Actualiser$/);
+    expect(net(await p.locator('.c-liste-resume p').innerText())).toMatch(/^Une organisation · un abonnement qui se renouvelle dans la sélection : 690,000 DT hors taxes par an · chiffres de \d\d:\d\d Actualiser$/);
     const pharmacie = await ligne('Pharmacie en Lecture Seule');
     expect(net(await pharmacie.locator('.c-cl-echeance').innerText())).toBe('— en lecture seule');
     expect(net(await pharmacie.innerText())).toContain(`depuis le ${jourCourt(plusJours(aujourdhui, -1))}`);

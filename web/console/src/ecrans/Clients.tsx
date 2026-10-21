@@ -341,7 +341,7 @@ function LigneDeLaListe({ o, aujourdhui, role, reserve, arrivees, risques, faire
           </div>
         </div>
       </td>
-      <td className="c-cl-abo">
+      <td className="c-cl-abo" data-libelle={titre('console.ecran.clients.colonne.abonnement')}>
         {cabinet ? <><b>{maj(dire('console.ecran.clients.cab.offre'))}</b>
           <span className="c-sous">{selon(o.cabinet?.comptes.client ?? 0, 'console.ecran.clients.cab.clients')} · {selon(o.cabinet?.comptes.tenu ?? 0, 'console.ecran.clients.cab.tenus')}</span></>
           : groupe ? <><b data-donnee>{offres.length ? offres.join(' + ') : maj(dire('console.ecran.clients.l.aucune_offre'))}</b>
@@ -351,22 +351,22 @@ function LigneDeLaListe({ o, aujourdhui, role, reserve, arrivees, risques, faire
               {m.precise ? <span className="c-sous" data-donnee>{m.precise}</span> : null}
               {m.remise ? <span className="c-cl-remise" data-donnee>{m.remise}</span> : null}</> : null}
       </td>
-      <td className="c-cl-etat">
+      <td className="c-cl-etat" data-libelle={titre('console.ecran.clients.colonne.etat')}>
         <Puce ton={puce.ton}>{puce.texte}</Puce>
         {cabinet ? <span className="c-sous c-sous-espace">{dire('console.ecran.clients.cab.sans')}</span>
           : m?.phrase ? <span className={`c-sous c-sous-espace${m.alerte ? ' c-cl-proche' : ''}`} data-donnee>{groupe && e ? `${e.raisonSociale} : ${m.phrase}` : m.phrase}</span> : null}
       </td>
-      <td className="c-cl-echeance">
+      <td className="c-cl-echeance" data-libelle={titre('console.ecran.clients.colonne.echeance')}>
         {e?.echeance ? <><b className="c-mono">{jourCourt(e.echeance)}</b><span className={`c-sous${proche ? ' c-cl-proche' : ''}`}>{dansCourt(e.echeance, aujourdhui)}</span></>
           : <><span className="c-cl-rien">—</span><span className="c-sous">{dire(e?.etat.etat === 'lecture_seule' ? 'console.ecran.clients.ech.en_lecture' : 'console.ecran.clients.ech.sans')}</span></>}
       </td>
-      <td className="c-droite c-cl-par-an">
+      <td className="c-droite c-cl-par-an" data-libelle={titre('console.ecran.clients.colonne.par_an')}>
         {o.parAnHt ? <><b className="c-mono" data-donnee>{montant(o.parAnHt)}</b>
           {e && !groupe && e.etat.etat === 'actif' && e.etat.periodicite === 'mensuel' ? <span className="c-sous">{dire('console.ecran.clients.mensuel_12')}</span> : null}</>
           : o.attenduHt ? <><b className="c-mono c-cl-attendu" data-donnee>{montant(o.attenduHt)}</b><span className="c-sous">{dire('console.ecran.clients.quand_paye')}</span></>
             : <><span className="c-cl-rien">—</span>{e && !groupe && e.etat.etat === 'actif' && e.etat.resilie ? <span className="c-sous">{dire('console.ecran.clients.ne_revient_pas')}</span> : null}</>}
       </td>
-      <td className="c-cl-usage">
+      <td className="c-cl-usage" data-libelle={arrivees ? titre('console.ecran.clients.colonne.arrivee') : risques ? titre('console.ecran.clients.colonne.risque') : titre('console.ecran.clients.colonne.usage_mois', { mois: deMois(aujourdhui.slice(0, 7), false) })}>
         {risque ? <>
           <span className="c-cl-proche">{maj(risque.signes.map((x) => dire(`console.ecran.clients.ri.${x}`)).join(' · '))}</span>
           <span className="c-sous">{risque.usage ? dire('console.ecran.clients.ri.usage', { trente: risque.usage.trente, avant: risque.usage.avant }) : dire('console.ecran.clients.ri.usage_rien')}</span>
@@ -381,7 +381,7 @@ function LigneDeLaListe({ o, aujourdhui, role, reserve, arrivees, risques, faire
             : nombre(membres, 'console.ecran.clients.membre', 'console.ecran.clients.membres', tenu ? 'console.ecran.clients.aucun_membre_tenu' : 'console.ecran.clients.aucun_membre'))}</span>
         </>}
       </td>
-      <td className={`c-cl-vu${silencieux ? ' c-cl-proche' : ''}`}>{maj(vuEnMots(o.vu, aujourdhui))}</td>
+      <td className={`c-cl-vu${silencieux ? ' c-cl-proche' : ''}`} data-libelle={titre('console.ecran.clients.colonne.vu')}>{maj(vuEnMots(o.vu, aujourdhui))}</td>
       <td className="c-droite c-cl-ouvrir">
         <span className="c-boutons-ligne c-cl-boutons">
           <Lien href={lienDe(o)} petit fleche etiquette={titre('console.ecran.clients.ouvrir_fiche', { nom })}><span className="c-cl-ouvrir-mot">{titre('console.ecran.clients.ouvrir')}</span></Lien>

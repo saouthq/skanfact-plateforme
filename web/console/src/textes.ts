@@ -304,9 +304,9 @@ declarerTextes({
   'console.ecran.clients.resume_tout_0': 'aucune organisation',
   'console.ecran.clients.resume_tout_1': 'une organisation',
   'console.ecran.clients.resume_tout_n': '{n} organisations',
-  'console.ecran.clients.par_an_0': 'aucun abonnement actif dans la sélection',
-  'console.ecran.clients.par_an_1': 'un abonnement actif dans la sélection :',
-  'console.ecran.clients.par_an_n': '{n} abonnements actifs dans la sélection :',
+  'console.ecran.clients.par_an_0': 'aucun abonnement qui se renouvelle dans la sélection',
+  'console.ecran.clients.par_an_1': 'un abonnement qui se renouvelle dans la sélection :',
+  'console.ecran.clients.par_an_n': '{n} abonnements qui se renouvellent dans la sélection :',
   'console.ecran.clients.par_an_fin': 'hors taxes par an',
   // C65 : la liste se calcule une fois pour l'équipe et sert une minute ; elle dit de quand datent ses chiffres.
   'console.ecran.clients.calcule': 'chiffres de {heure}',

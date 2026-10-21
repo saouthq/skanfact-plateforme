@@ -3200,3 +3200,26 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-tr-pause p { margin: 0; display: grid; gap: 2px; }
 .c-tr-pause .c-sous { color: inherit; opacity: .85; }
 .c-tr-barres-24 { grid-template-columns: repeat(24, minmax(0, 1fr)); gap: 2px; }
+
+/* Au téléphone, un client par carte (1.87.0) : son nom et le bouton qui ouvre sa fiche en tête, puis chaque case nommée —
+   jamais un tableau qui défile de côté et cache l'état derrière le bord (vu à 390 px le 21/10/2026, « pa… se… »). */
+@media (max-width: 860px) {
+  .c-liste-clients .c-defile, .c-defile:has(> .c-table-clients) { overflow: visible; }
+  .c-table-clients thead { display: none; }
+  .c-table-clients, .c-table-clients tbody, .c-table-clients td { display: block; }
+  .c-table-clients tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; padding: 16px; border-bottom: 1px solid var(--c-trait); }
+  .c-table-clients tr:last-child { border-bottom: 0; }
+  .c-table-clients td, .c-table-clients td:first-child, .c-table-clients td:last-child { padding: 0; border: 0; text-align: start; min-width: 0; }
+  .c-table-clients td:first-child { grid-column: 1; grid-row: 1; }
+  .c-table-clients .c-cellule-nom { min-width: 0; max-width: none; }
+  .c-table-clients td.c-cl-ouvrir { grid-column: 2; grid-row: 1; align-self: start; }
+  .c-table-clients td[data-libelle] { grid-column: 1 / -1; display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 2px 10px; align-items: baseline; }
+  .c-table-clients td[data-libelle]::before { content: attr(data-libelle); grid-row: 1 / span 3; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); font-weight: 500; }
+  .c-table-clients td[data-libelle] > * { grid-column: 2; justify-self: start; }
+  .c-table-clients td.c-droite { text-align: start; }
+  .c-table-clients .c-cl-usage > .c-ar-ligne { min-width: 0; max-width: none; }
+  /* Le survol colorait chaque case à part : des bandes grises, restées accrochées après un toucher. */
+  .c-table-clients tbody tr:hover td { background: transparent; }
+}
+/* « Ctrl K » ne sert à rien sans clavier : au téléphone et à la tablette tactile, il cède sa place au texte du champ. */
+@media (max-width: 860px), (hover: none) and (pointer: coarse) { .c-touche { display: none; } }
