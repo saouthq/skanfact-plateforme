@@ -9699,7 +9699,14 @@
     };
   }
 
-  function newDossierForm() {
+  async function newDossierForm() {
+    // (plateforme, 1.87.5) Le refus avant la saisie : seul un associé crée un dossier (vu en recette le 21/10/2026).
+    const peut = api.creationDossier ? await api.creationDossier().catch(() => null) : null;
+    if (peut && !peut.ok) {
+      modal(`<h2>Ajouter un client</h2><p><b>${esc(peut.motif)}</b> ${esc(peut.geste)}</p>
+        <div class="modal-actions"><button class="btn btn-primary" data-close>Compris</button></div>`);
+      return;
+    }
     const empty = { packs: [] };
     let change = () => false;
     modal(

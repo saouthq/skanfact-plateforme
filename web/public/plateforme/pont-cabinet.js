@@ -1930,6 +1930,15 @@
       return construireEtat();
     },
 
+    // Qui crée un dossier (1.87.5) : un associé (0019, `socle.suis_associe`). Le formulaire le demande à l'ouverture : une
+    // comptable remplissait toute la fiche, et le refus n'arrivait qu'à « Créer le dossier », dans un message qui passe.
+    creationDossier: async () => {
+      const etat = await construireEtat();
+      const associes = equipeLue.membres.filter((/** @type {any} */ m) => (m.roles || []).includes('supervision'));
+      if (associes.some((/** @type {any} */ m) => m.utilisateur === etat.moi)) return { ok: true };
+      return { ok: false, motif: 'Seul un associé du cabinet crée un dossier.',
+        geste: `${associes.map((/** @type {any} */ m) => m.nom).join(', ')} ${associes.length > 1 ? 'peuvent' : 'peut'} ajouter ce client.` };
+    },
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).
     newDossier: async (/** @type {Record<string, unknown>} */ f) => {
       const nom = String(f.name || '').trim();

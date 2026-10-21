@@ -18423,6 +18423,10 @@ prouver 'trois « Me guider » du même nom dans les premiers pas du Cabinet' we
   ' aria-label="Me guider : ${esc(e.titre)}"' '' \
   'le Cabinet qui commence, au téléphone : « Tes premiers pas » ne déborde pas, et chaque étape garde son texte en entier'
 
+prouver 'une comptable remplit toute la fiche d'\''un dossier avant d'\''apprendre qu'\''elle ne peut pas le créer' web/public/v10/cabinet/app.js \
+  '    if (peut && !peut.ok) {' '    if (false) {' \
+  'inviter par l'\''adresse, rejoindre par le lien, confier un dossier, changer le rôle, retirer'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

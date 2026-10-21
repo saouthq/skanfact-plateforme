@@ -638,6 +638,14 @@ timbre, 441,741 DT à payer, et la fenêtre d'émission dit ce qui manque (matri
 l'éditeur se parcourt dans l'ordre de l'écran. Le Cabinet aussi, chaque élément avec son anneau ; mais ses premiers
 pas montraient trois « Me guider » du même nom : chacun porte maintenant le nom de son étape. Quatre preuves.
 
+### 1.87.5 — une comptable qui ajoute un client
+
+Rim, comptable du Cabinet Ben Youssef (pas associée), clique « Ajouter un client… » : la fiche s'ouvre, elle la remplit
+en entier (nom, matricule, honoraires), et « Créer le dossier » ne fait qu'afficher « Seul un associé du cabinet crée un
+dossier » dans un message qui passe, la fiche restant ouverte. Le refus vient maintenant à l'ouverture, avant la saisie,
+avec qui peut le faire (« … peut ajouter ce client »). La règle est celle de la base (seul un associé crée un dossier),
+lue par le pont comme pour l'équipe. Une preuve.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
