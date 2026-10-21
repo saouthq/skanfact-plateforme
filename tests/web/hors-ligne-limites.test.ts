@@ -130,6 +130,33 @@ describe('les limites du hors-ligne, à la souris', () => {
     expect(await clients(jeton, ent)).toEqual(['Boulangerie du Lac']);
   }, 180_000);
 
+  // La fenêtre promet « rien n'est perdu tant que l'application reste ouverte ». Fermée, le client restait à l'écran sans
+  // être sur le serveur, et rien ne repartait au retour du réseau : un rechargement l'effaçait (1.87.6, vu en recette).
+  it('un navigateur qui ne promet pas de garder : la page restée ouverte enregistre seule au retour du réseau, et le dit', async () => {
+    const { jeton, ent } = await patron();
+    const c = await monOrdinateur(jeton, false, false);
+    const p = await c.newPage();
+    await pret(p, ent);
+    await couper(c);
+    await nouveauClient(p, 'Épicerie Patiente');
+    await expect.poll(() => fenetre(p).count(), { timeout: 10_000 }).toBe(1);
+    await fenetre(p).getByRole('button', { name: 'Fermer', exact: true }).click();
+    expect(await clients(jeton, ent).catch(() => null)).toBe(null);
+    await retablir();
+    await c.setOffline(false);
+    await expect.poll(() => clients(jeton, ent), { timeout: 40_000 }).toEqual(['Boulangerie du Lac', 'Épicerie Patiente']);
+    await expect.poll(() => bandeau(p), { timeout: 10_000 }).toContain('enregistr');
+    expect(await fenetre(p).count()).toBe(0);
+    // La fenêtre laissée ouverte se referme quand l'enregistrement passe : elle ne dit plus « Rien n'a été enregistré ».
+    await couper(c);
+    await nouveauClient(p, 'Fromagerie Ouverte');
+    await expect.poll(() => fenetre(p).count(), { timeout: 10_000 }).toBe(1);
+    await retablir();
+    await c.setOffline(false);
+    await expect.poll(() => clients(jeton, ent), { timeout: 40_000 }).toEqual(['Boulangerie du Lac', 'Fromagerie Ouverte', 'Épicerie Patiente']);
+    await expect.poll(() => fenetre(p).count(), { timeout: 10_000 }).toBe(0);
+  }, 180_000);
+
   it('plus de 72 heures sans le serveur : ce qui attendait partira, mais rien de neuf ne s\'enregistre ; à 71 heures, si', async () => {
     const { jeton, ent } = await patron();
     // Un premier lancement de l'application installée : elle demande à garder, c'est accordé.

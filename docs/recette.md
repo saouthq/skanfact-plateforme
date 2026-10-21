@@ -646,7 +646,23 @@ dossier » dans un message qui passe, la fiche restant ouverte. Le refus vient m
 avec qui peut le faire (« … peut ajouter ce client »). La règle est celle de la base (seul un associé crée un dossier),
 lue par le pont comme pour l'équipe. Une preuve.
 
+### 1.87.6 — une coupure du réseau au téléphone
+
+Le téléphone de Sami (Trabelsi Logistique), un navigateur qui ne garde rien : le réseau coupé, le bandeau le dit avant
+tout geste (« Enregistrer demande le réseau »), et un nouveau client est refusé par « Rien n'a été enregistré », qui
+promet que rien n'est perdu tant que l'application reste ouverte. « Réessayer », le réseau revenu, l'enregistre. Mais
+« Fermer » laissait le client à l'écran, compté dans la liste, sans qu'il soit sur le serveur, et rien ne repartait au
+retour du réseau : un rechargement l'effaçait. Il repart maintenant seul au retour du réseau (comme ce que garde « mon
+ordinateur »), le bandeau dit qu'il est enregistré, et une fenêtre restée ouverte se referme. Au Cabinet, la saisie d'une
+vente au clavier seul (Tab, Entrée, Tab pour solder, Ctrl+Entrée) se valide sous le n° 1 et la balance tombe juste.
+Deux preuves (et une ancienne, réécrite pour rester lisible par le navigateur).
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
    l'application.
+2. Au téléphone, plus aucun écran ne défile de côté (console, entreprise et Cabinet relevés le 21/10/2026) ; restent
+   voulus la matrice des droits, les routes du serveur et la rangée des tris en pastilles.
+3. À juger : la saisie du Cabinet s'ouvre sans curseur dans la grille (un clic sur le libellé de la pièce).
+4. Le vrai hors-ligne des devis et brouillons (vision § 4.5) ne vaut que sur « mon ordinateur » ; ailleurs, l'écran le
+   dit avant le geste.

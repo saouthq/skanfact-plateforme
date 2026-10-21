@@ -3613,7 +3613,8 @@ prouver "le retour du réseau qui ne relance rien" $PONT \
   "$HE1"
 prouver "l'envoi réussi qui tait ce qui attendait" $PONT \
   "        if (r === true && attenteGardee) await finirAttente(0);
-" "" \
+" "        if (false) await finirAttente(0);
+" \
   "$HE1"
 prouver "rechargée sans réseau, ce qui attend disparaît de l'écran" $PONT \
   "        return { data: attente.contenu.data, corruptFile: null };" "        return { data: copie, corruptFile: null };" \
@@ -18426,6 +18427,14 @@ prouver 'trois « Me guider » du même nom dans les premiers pas du Cabinet' we
 prouver 'une comptable remplit toute la fiche d'\''un dossier avant d'\''apprendre qu'\''elle ne peut pas le créer' web/public/v10/cabinet/app.js \
   '    if (peut && !peut.ok) {' '    if (false) {' \
   'inviter par l'\''adresse, rejoindre par le lien, confier un dossier, changer le rôle, retirer'
+
+prouver 'un client refusé sans réseau, resté à l'\''écran, qui ne repart pas au retour du réseau' web/public/plateforme/pont.js \
+  '(attenteGardee || nonEnregistre) && !enCours' 'attenteGardee && !enCours' \
+  'un navigateur qui ne promet pas de garder : la page restée ouverte enregistre seule au retour du réseau, et le dit'
+
+prouver '« Rien n'\''a été enregistré » qui reste ouvert après l'\''enregistrement' web/public/v10/app.js \
+  '.then(r => { if (fermerEchec) fermerEchec(); if (r && r.matriculeRefuse)' '.then(r => { if (r && r.matriculeRefuse)' \
+  'un navigateur qui ne promet pas de garder : la page restée ouverte enregistre seule au retour du réseau, et le dit'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

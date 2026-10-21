@@ -333,6 +333,11 @@
     garderLaCopie();
     return true;
   }
+  // (1.87.6) Un enregistrement refusé faute de réseau, sur un poste qui ne garde rien : l'écran l'a encore (« rien n'est
+  // perdu tant que l'application reste ouverte »), et il repart seul au retour du réseau, comme ce que garde « mon
+  // ordinateur ». Avant, il attendait le prochain geste : fermée la fenêtre, le client créé restait à l'écran sans être
+  // sur le serveur, et un rechargement l'effaçait (vu en recette le 21/10/2026).
+  let nonEnregistre = false;
   /** @param {Record<string, unknown>} data */
   function enregistrer(data) {
     enAttente = data;
@@ -345,6 +350,8 @@
         while (enAttente) { const d = enAttente; enAttente = null; r = await envoyer(d); if (r !== true) { enAttente = null; break; } }
         // Ce qui attendait le réseau est parti avec cet envoi.
         if (r === true && attenteGardee) await finirAttente(0);
+        else if (r === true && nonEnregistre) poste.envoye(0);
+        if (r === true) nonEnregistre = false;
         // Le matricule refusé seul (E5) : l'écran le dit. Refusé pendant une reprise à l'ouverture (`rejouer`), il se
         // dit au premier enregistrement qui suit.
         if (matriculeRefuse) {
@@ -356,6 +363,7 @@
       } catch (e) {
         // L'envoi refusé quand même : le refus se dit tel quel (« Rien n'a été enregistré »), sans le matricule d'avant.
         matriculeRefuse = null;
+        if (e && /** @type {any} */ (e).horsLigne) nonEnregistre = true;
         throw e;
       } finally { enCours = null; }
     })();
@@ -557,7 +565,7 @@
   const relancer = () => {
     const w = /** @type {any} */ (window);
     void (fileTickets.length ? remettreTickets() : Promise.resolve(0)).then(() => {
-      if (!fileTickets.length && attenteGardee && !enCours && w.__data && typeof w.__enregistrerMaintenant === 'function') w.__enregistrerMaintenant();
+      if (!fileTickets.length && (attenteGardee || nonEnregistre) && !enCours && w.__data && typeof w.__enregistrerMaintenant === 'function') w.__enregistrerMaintenant();
     });
   };
   poste.auRetour(relancer);

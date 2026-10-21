@@ -276,7 +276,7 @@
     rappelerModules();
     clearTimeout(saveTimer);
     const doSave = () => bridge.saveData(data)
-      .then(r => { if (r && r.matriculeRefuse) matriculeRefuse(r.matriculeRefuse); if (r && r.conflict) return resolveConflict(r); })
+      .then(r => { if (fermerEchec) fermerEchec(); if (r && r.matriculeRefuse) matriculeRefuse(r.matriculeRefuse); if (r && r.conflict) return resolveConflict(r); })
       .catch(echecEnregistrement);
     if (immediate) return doSave();
     saveTimer = setTimeout(doSave, 300);
@@ -294,6 +294,9 @@
   // et le bouton qui sort), et un drapeau empêche qu'un enregistrement automatique toutes les
   // 300 ms n'en empile dix.
   let echecOuvert = false;
+  // (plateforme, 1.87.6) Un enregistrement qui passe ensuite (le réseau revenu, le point de contact a relancé) referme
+  // la fenêtre : elle disait encore « Rien n'a été enregistré ».
+  let fermerEchec = null;
   function echecEnregistrement(e) {
     if (echecOuvert) return;
     echecOuvert = true;
@@ -308,8 +311,9 @@
       </div>`, (root, close) => {
       // `close()` déclenche `onDismiss`, qui rouvre la porte : si le second essai échoue aussi, la
       // fenêtre revient. C'est voulu — on ne se tait pas parce qu'on a déjà parlé une fois.
+      fermerEchec = close;
       $('#reessayer', root).onclick = () => { close(); save(true); };
-    }, () => { echecOuvert = false; });
+    }, () => { echecOuvert = false; fermerEchec = null; });
   }
 
   // (plateforme, E5) Le matricule de la fiche société est déjà celui d'une autre entreprise sur SkanFact : lui seul est
