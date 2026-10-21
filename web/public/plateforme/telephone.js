@@ -22,6 +22,8 @@
 //    n'avaient d'autre nom que le titre de leur colonne, que rien ne relie à la case : au clavier, un lecteur d'écran
 //    disait « zone d'édition » (vu en recette le 21/10/2026). Chaque case d'un tableau de lignes qui n'a pas de nom
 //    reçoit « le titre de sa colonne, ligne N » (`aria-label`, marqué `data-nom-ligne` pour suivre l'ordre des lignes).
+//    Les listes de filtre d'une page (l'année, le mois, le statut…) n'avaient pas de nom non plus : chacune garde le
+//    même identifiant d'une page à l'autre, qui dit ce qu'elle choisit.
 (function () {
   'use strict';
   function poserMenu() {
@@ -147,8 +149,16 @@
       });
     }
   }
+  /** @type {Record<string, string>} */
+  const FILTRES = { f: 'Filtrer la liste', kind: 'Type de pièce', st: 'Statut', 'c-year': 'Année', 'c-month': 'Mois', 'p-year': 'Année', 's-year': 'Année' };
+  function nommerFiltres() {
+    for (const [id, nom] of Object.entries(FILTRES)) {
+      const el = document.getElementById(id);
+      if (el && el.tagName === 'SELECT' && !el.hasAttribute('aria-label') && !/** @type {HTMLSelectElement} */ (el).labels?.length) el.setAttribute('aria-label', nom);
+    }
+  }
   let nomsPrevus = 0;
-  function nommer() { nomsPrevus = 0; for (const t of document.querySelectorAll('table.lines-edit')) nommerLignes(/** @type {HTMLTableElement} */ (t)); }
+  function nommer() { nomsPrevus = 0; for (const t of document.querySelectorAll('table.lines-edit')) nommerLignes(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); }
   function suivreLesLignes() {
     new MutationObserver(() => { if (!nomsPrevus) nomsPrevus = requestAnimationFrame(nommer); }).observe(document.body, { childList: true, subtree: true });
     nommer();

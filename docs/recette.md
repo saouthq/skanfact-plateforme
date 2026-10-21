@@ -766,6 +766,15 @@ reçoit maintenant « le titre de sa colonne, ligne N » (« Qté, ligne 2 »), 
 toutes les largeurs, pour l'entreprise comme pour le Cabinet (`plateforme/telephone.js`, cinquième partie). Les
 boutons ⧉ et ✕ portaient déjà leur nom. Un test, une preuve ; l'ancienne preuve de l'aperçu au téléphone suit le texte.
 
+### 1.87.20 — les listes de filtre au clavier
+
+La même passe, sur treize écrans de l'entreprise et sept du Cabinet : toutes les cases ont un nom, sauf sept listes de
+filtre (l'année et le mois de la Comptabilité, l'année de la Paie et des Statistiques, le statut et le type des
+Factures et des Achats, le filtre des Clients et des Fournisseurs). Chacune garde le même identifiant d'une page à
+l'autre : elle reçoit le nom de ce qu'elle choisit (« Année », « Mois », « Statut », « Type de pièce », « Filtrer la
+liste »). Le test de la 1.87.19, qui réutilisait l'entreprise du test d'avant (son matricule déjà pris, la vérification
+complète l'a vu), a la sienne. Une preuve.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

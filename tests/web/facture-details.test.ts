@@ -311,13 +311,17 @@ describe('le lot facture, à l\'écran', () => {
   }, 120_000);
 
   it('(1.87.19) au clavier, chaque case d\'une ligne se nomme : le titre de sa colonne et le numéro de sa ligne', async () => {
-    const { jeton, ent } = await personne('Ines', 'Pharmacie du Port', '8406192E/A/M/000');
+    const { jeton, ent } = await personne('Kamel', 'Librairie du Lac', '5729314K/A/M/000');
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
-    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/new/facture`);
+    // (1.87.20) Les listes de filtre d'une page aussi : l'année et le mois de la Comptabilité.
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/compta`);
+    await expect.poll(() => p.getByRole('combobox', { name: 'Année', exact: true }).count(), { timeout: 20_000 }).toBe(1);
+    expect(await p.getByRole('combobox', { name: 'Mois', exact: true }).count()).toBe(1);
+    await p.evaluate(() => { location.hash = '#/doc/new/facture'; });
     await p.locator('#lines tr [data-k=qty]').first().waitFor({ timeout: 20_000 });
     await plusTard(p);
     await p.locator('#add-line').click();
