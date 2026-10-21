@@ -16394,6 +16394,26 @@
     for (let i = navStack.length - 1; i >= 0; i--) { const r = routeOf(navStack[i]); if (!PAGES_DU_SUPPORT.includes(r)) return r; }
     return ici;
   };
+  // (plateforme, « Signaler un problème ») Le journal de cet écran (pont.js) : lu ici, et joint à la demande si on le coche,
+  // sous le texte de la personne, dans les 4 000 signes d'un message (les plus anciennes lignes partent d'abord).
+  const ligneDuJournal = e => `${new Date(e.le).toLocaleString('fr-FR', { timeZone: 'Africa/Tunis', hourCycle: 'h23' })} ${e.message}${e.ou ? ` (${e.ou})` : ''}`;
+  function avecJournal(texte, journal) {
+    const lignes = journal.map(ligneDuJournal);
+    let joint = '';
+    while (lignes.length) {
+      joint = `\n\n--- journal de cet écran (${pl(lignes.length, 'erreur')}) ---\n${lignes.join('\n')}`;
+      if (texte.length + joint.length <= 4000) return texte + joint;
+      lignes.shift();
+    }
+    return texte;
+  }
+  function voirJournal(journal) {
+    modal(`<h2>Le journal de cet écran</h2>
+      <p class="small muted">Les erreurs que l'écran a notées depuis son ouverture : l'heure, le message, et l'endroit du code de SkanFact. Il ne part au support que si tu le coches en écrivant ta demande.</p>
+      ${journal.length ? `<ul class="small" id="journal-ecran">${journal.map(e => `<li>${h(ligneDuJournal(e))}</li>`).join('')}</ul>`
+        : '<p id="journal-ecran">Aucune erreur notée depuis l\'ouverture de cet écran.</p>'}
+      <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`);
+  }
   async function ecrireAuSupport(genre) {
     const idee = genre === 'idee';
     let v = null;
@@ -16402,6 +16422,7 @@
     const page = pageDuSupport();
     const nomPage = PAGE_LABELS[page] || '';
     const joint = [version ? `la version de SkanFact (v${h(v.version)})` : 'la version de SkanFact', nomPage ? `la page où tu étais (${h(nomPage)})` : ''].filter(Boolean).join(' et ');
+    const journalEcran = !idee && bridge.journalDeLEcran ? bridge.journalDeLEcran() : [];
     modal(`<h2>${idee ? 'Proposer une amélioration' : 'Écrire au support'}</h2>
       <p class="small">${idee
         ? 'Dis ce qui te manque — même si ça te paraît petit : c\'est souvent le petit geste répété tous les lundis qui fait gagner le plus. L\'équipe SkanFact lit chaque idée et te répond ici.'
@@ -16419,6 +16440,8 @@
       </form>
       <div class="notes-md mt"><strong>Joint automatiquement</strong>
         <p class="small">${joint} : c'est ce qui aide l'équipe à voir ce que tu vois.</p>
+        ${journalEcran.length ? `<label class="check small"><input type="checkbox" id="sup-journal" checked> Et le journal de cet écran : ${pl(journalEcran.length, 'erreur')} depuis son ouverture (l'heure, le message, l'endroit du code).</label>
+        <p class="small"><a href="#" id="sup-voir-journal">Lire ce journal avant de l'envoyer</a></p>` : ''}
         <p class="small muted">Rien d'autre : ni client, ni montant, ni document de ton entreprise.</p>
       </div>
       <div class="modal-actions">
@@ -16426,6 +16449,7 @@
         <button class="btn btn-primary" id="sup-send">Envoyer au support</button></div>`,
       (root, close) => {
         const bouton = $('#sup-send', root);
+        if ($('#sup-voir-journal', root)) $('#sup-voir-journal', root).onclick = e => { e.preventDefault(); voirJournal(journalEcran); };
         const envoyer = async () => {
           if (bouton.disabled) return;
           let sujet, texte;
@@ -16445,6 +16469,7 @@
             if (/[<>]/.test(sujet)) return refus($('#sup-sujet', root), 'Le sujet s\'écrit sans les signes < et >.');
             if (texte.length < 3) return refus($('#sup-texte-demande', root), 'Dis ce qui se passe : ce que tu faisais, ce que tu attendais. C\'est ce qui permet de t\'aider.');
           }
+          if ($('#sup-journal', root) && $('#sup-journal', root).checked) texte = avecJournal(texte, journalEcran);
           bouton.disabled = true;
           try {
             const r = await bridge.support.ecrire({ sujet, texte, version, page: /^[a-z][a-z0-9_-]{0,39}$/.test(page) ? page : null });
@@ -18658,13 +18683,13 @@
       ${licence.editeur ? `${panneau('p-editeur', info('lic.editeur'))}<div id="editeur-panel"></div></div>` : ''}
       ${panneau('p-depannage')}
         <p class="small muted mb">Quand quelque chose ne va pas, le journal vaut mieux qu'une description : il dit où
-        l'application s'est arrêtée, et il ne contient ni nom de client, ni montant. Et quand quelque chose manque,
+        ${bridge.journalDeLEcran ? 'l\'écran s\'est arrêté ; tu le lis avant, et il ne part avec ta demande que si tu le coches.' : 'l\'application s\'est arrêtée, et il ne contient ni nom de client, ni montant.'} Et quand quelque chose manque,
         dis-le : SkanFact est écrit par une seule personne, et c'est ce qui décide de la suite.</p>
         <div class="inline">
           ${/* 10.12.0 — vert au repos, « Signaler un problème » disait qu'il y en avait un. */''}
           <button type="button" class="btn" id="set-support">Signaler un problème…</button>
           <button type="button" class="btn" id="set-idee">Proposer une amélioration…</button>
-          <button type="button" class="btn" id="set-log">Ouvrir le journal technique</button>
+          <button type="button" class="btn" id="set-log">${bridge.journalDeLEcran ? 'Voir le journal de cet écran' : 'Ouvrir le journal technique'}</button>
           <button type="button" class="btn" id="set-aide">Ouvrir l'aide</button>
         </div>
       </div>
@@ -19047,7 +19072,7 @@
     // n'était atteignable que depuis un message d'erreur de mise à jour.
     $('#set-support').onclick = supportForm;
     $('#set-idee').onclick = ideeForm;
-    $('#set-log').onclick = () => bridge.openLog();
+    $('#set-log').onclick = () => bridge.journalDeLEcran ? voirJournal(bridge.journalDeLEcran()) : bridge.openLog();
     $('#set-aide').onclick = () => navigate('#/aide');
     $('#backup-now').onclick = async () => { const p = await bridge.createBackup(); toast(p ? 'Sauvegarde créée : elle est en tête de la liste ci-dessous.' : 'Rien à sauvegarder pour l\'instant'); drawExternal(); drawBackups(); };
 

@@ -2504,7 +2504,7 @@
     visite({
       id: 'signaler', theme: 'appli', type: 'faire', duree: '1 min', page: '#/parametres',
       titre: 'Signaler un problème ou proposer une idée',
-      resume: 'Le journal technique part avec ton message : il dit où l\'application s\'est arrêtée, sans rien de ta gestion.',
+      resume: 'Une demande au support, avec la version, la page et, si tu le coches, le journal de cet écran ; la réponse revient ici.',
       mots: ['probleme', 'bug', 'signaler', 'support', 'idee', 'amelioration', 'journal', 'depannage', 'contact'],
       suite: ['mise-a-jour'],
       bravo: 'Tu sais à qui parler',
@@ -2513,11 +2513,11 @@
         { page: '#/parametres', avant: onglet('#set-tabs', 'app'), cible: '#p-depannage', cote: 'dessus', titre: 'Aide et dépannage',
           texte: 'Quand quelque chose ne va pas, ou quand quelque chose te manque.' },
         { page: '#/parametres', cible: '#set-support', cote: 'dessous', titre: 'Signaler un problème',
-          texte: 'Prépare un mail avec le <b>journal technique</b> joint : il dit où l\'application s\'est arrêtée, et ne contient ni nom de client, ni montant.' },
+          texte: 'Écris au support : la demande part avec la version et la page, et le <b>journal de cet écran</b> si tu le coches. La réponse revient ici, dans « Tes demandes au support ».' },
         { page: '#/parametres', cible: '#set-idee', cote: 'dessous', titre: 'Proposer une amélioration',
           texte: 'Ce que tu aimerais faire, puis comment tu t\'en sors aujourd\'hui : c\'est la seconde réponse qui apprend le plus.' },
         { page: '#/parametres', cible: '#set-log', cote: 'dessous', facultatif: true, titre: 'Le journal',
-          texte: 'Tu peux le lire avant de l\'envoyer.' }
+          texte: 'Les erreurs que l\'écran a notées depuis son ouverture : tu peux les lire avant de les envoyer.' }
       ]
     });
 

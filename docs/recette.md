@@ -814,6 +814,12 @@ restauration réussi. « Demander de revenir en arrière… » dit d'abord ce qu
 la case, puis envoie la demande au support ; rien ne change. Un commercial ne voit pas le panneau. Détail :
 `docs/sauvegardes-ecran.md`.
 
+### 1.91.0 — « Signaler un problème », avec le journal de cet écran
+
+Paramètres › L'application : « Aide et dépannage » est de retour. Une erreur levée dans l'écran se lit dans « Voir le
+journal de cet écran » ; « Signaler un problème… » propose, case cochée, de la joindre (« Le lire » avant) : elle part
+sous le texte de la demande ; décochée, rien n'en part. Détail : `docs/signaler.md`.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

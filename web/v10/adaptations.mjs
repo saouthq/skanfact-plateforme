@@ -824,4 +824,6 @@ export const ADAPTATIONS = [
   ...lireFichier('pieces-jointes.txt'),
   // ── Les sauvegardes, vues de l'entreprise (1.90.0) ──
   ...lireFichier('sauvegardes-ecran.txt'),
+  // ── « Signaler un problème », avec le journal de cet écran (1.91.0) ──
+  ...lireFichier('signaler.txt'),
 ];

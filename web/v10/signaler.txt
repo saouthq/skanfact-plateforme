@@ -1,0 +1,116 @@
+« Signaler un problème », avec le journal de cet écran (lot Fonctions 3, 1.91.0 ; docs/signaler.md). Format : voir
+sans-paquets.mjs.
+
+La v10 joignait le journal de l'ordinateur ; la plateforme cachait « Aide et dépannage » et la visite « Signaler », faute
+de journal. L'écran garde maintenant ses dernières erreurs (plateforme/pont.js, `journalDeLEcran`), qui se lisent et
+partent avec une demande au support, seulement si la personne le coche.
+
+== app.js | le journal de cet écran : le lire, et le joindre à une demande dans la limite d'un message
+-- avant
+  async function ecrireAuSupport(genre) {
+-- après
+  // (plateforme, « Signaler un problème ») Le journal de cet écran (pont.js) : lu ici, et joint à la demande si on le coche,
+  // sous le texte de la personne, dans les 4 000 signes d'un message (les plus anciennes lignes partent d'abord).
+  const ligneDuJournal = e => `${new Date(e.le).toLocaleString('fr-FR', { timeZone: 'Africa/Tunis', hourCycle: 'h23' })} ${e.message}${e.ou ? ` (${e.ou})` : ''}`;
+  function avecJournal(texte, journal) {
+    const lignes = journal.map(ligneDuJournal);
+    let joint = '';
+    while (lignes.length) {
+      joint = `\n\n--- journal de cet écran (${pl(lignes.length, 'erreur')}) ---\n${lignes.join('\n')}`;
+      if (texte.length + joint.length <= 4000) return texte + joint;
+      lignes.shift();
+    }
+    return texte;
+  }
+  function voirJournal(journal) {
+    modal(`<h2>Le journal de cet écran</h2>
+      <p class="small muted">Les erreurs que l'écran a notées depuis son ouverture : l'heure, le message, et l'endroit du code de SkanFact. Il ne part au support que si tu le coches en écrivant ta demande.</p>
+      ${journal.length ? `<ul class="small" id="journal-ecran">${journal.map(e => `<li>${h(ligneDuJournal(e))}</li>`).join('')}</ul>`
+        : '<p id="journal-ecran">Aucune erreur notée depuis l\'ouverture de cet écran.</p>'}
+      <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`);
+  }
+  async function ecrireAuSupport(genre) {
+-- fin
+
+== app.js | une demande lit le journal de cet écran
+-- avant
+    const joint = [version ? `la version de SkanFact (v${h(v.version)})` : 'la version de SkanFact', nomPage ? `la page où tu étais (${h(nomPage)})` : ''].filter(Boolean).join(' et ');
+-- après
+    const joint = [version ? `la version de SkanFact (v${h(v.version)})` : 'la version de SkanFact', nomPage ? `la page où tu étais (${h(nomPage)})` : ''].filter(Boolean).join(' et ');
+    const journalEcran = !idee && bridge.journalDeLEcran ? bridge.journalDeLEcran() : [];
+-- fin
+
+== app.js | la case qui joint le journal de cet écran, cochée, avec de quoi le lire avant
+-- avant
+        <p class="small">${joint} : c'est ce qui aide l'équipe à voir ce que tu vois.</p>
+        <p class="small muted">Rien d'autre : ni client, ni montant, ni document de ton entreprise.</p>
+-- après
+        <p class="small">${joint} : c'est ce qui aide l'équipe à voir ce que tu vois.</p>
+        ${journalEcran.length ? `<label class="check small"><input type="checkbox" id="sup-journal" checked> Et le journal de cet écran : ${pl(journalEcran.length, 'erreur')} depuis son ouverture (l'heure, le message, l'endroit du code).</label>
+        <p class="small"><a href="#" id="sup-voir-journal">Lire ce journal avant de l'envoyer</a></p>` : ''}
+        <p class="small muted">Rien d'autre : ni client, ni montant, ni document de ton entreprise.</p>
+-- fin
+
+== app.js | « Le lire » ouvre le journal
+-- avant
+        const bouton = $('#sup-send', root);
+        const envoyer = async () => {
+-- après
+        const bouton = $('#sup-send', root);
+        if ($('#sup-voir-journal', root)) $('#sup-voir-journal', root).onclick = e => { e.preventDefault(); voirJournal(journalEcran); };
+        const envoyer = async () => {
+-- fin
+
+== app.js | le journal coché part sous le texte
+-- avant
+            if (texte.length < 3) return refus($('#sup-texte-demande', root), 'Dis ce qui se passe : ce que tu faisais, ce que tu attendais. C\'est ce qui permet de t\'aider.');
+          }
+-- après
+            if (texte.length < 3) return refus($('#sup-texte-demande', root), 'Dis ce qui se passe : ce que tu faisais, ce que tu attendais. C\'est ce qui permet de t\'aider.');
+          }
+          if ($('#sup-journal', root) && $('#sup-journal', root).checked) texte = avecJournal(texte, journalEcran);
+-- fin
+
+== app.js | « Voir le journal de cet écran », dans les Paramètres
+-- avant
+    $('#set-log').onclick = () => bridge.openLog();
+-- après
+    $('#set-log').onclick = () => bridge.journalDeLEcran ? voirJournal(bridge.journalDeLEcran()) : bridge.openLog();
+-- fin
+
+== app.js | le bouton dit ce qu'il ouvre en ligne
+-- avant
+          <button type="button" class="btn" id="set-log">Ouvrir le journal technique</button>
+-- après
+          <button type="button" class="btn" id="set-log">${bridge.journalDeLEcran ? 'Voir le journal de cet écran' : 'Ouvrir le journal technique'}</button>
+-- fin
+
+== app.js | le panneau dit ce que le journal de cet écran contient
+-- avant
+        <p class="small muted mb">Quand quelque chose ne va pas, le journal vaut mieux qu'une description : il dit où
+        l'application s'est arrêtée, et il ne contient ni nom de client, ni montant.
+-- après
+        <p class="small muted mb">Quand quelque chose ne va pas, le journal vaut mieux qu'une description : il dit où
+        ${bridge.journalDeLEcran ? 'l\'écran s\'est arrêté ; tu le lis avant, et il ne part avec ta demande que si tu le coches.' : 'l\'application s\'est arrêtée, et il ne contient ni nom de client, ni montant.'}
+-- fin
+
+== visites.js | la visite « Signaler » en ligne : une demande au support, le journal de cet écran si on le coche
+-- avant
+      resume: 'Le journal technique part avec ton message : il dit où l\'application s\'est arrêtée, sans rien de ta gestion.',
+-- après
+      resume: 'Une demande au support, avec la version, la page et, si tu le coches, le journal de cet écran ; la réponse revient ici.',
+-- fin
+
+== visites.js | l'étape « Signaler un problème » en ligne
+-- avant
+          texte: 'Prépare un mail avec le <b>journal technique</b> joint : il dit où l\'application s\'est arrêtée, et ne contient ni nom de client, ni montant.' },
+-- après
+          texte: 'Écris au support : la demande part avec la version et la page, et le <b>journal de cet écran</b> si tu le coches. La réponse revient ici, dans « Tes demandes au support ».' },
+-- fin
+
+== visites.js | l'étape du journal en ligne
+-- avant
+          texte: 'Tu peux le lire avant de l\'envoyer.' }
+-- après
+          texte: 'Les erreurs que l\'écran a notées depuis son ouverture : tu peux les lire avant de les envoyer.' }
+-- fin

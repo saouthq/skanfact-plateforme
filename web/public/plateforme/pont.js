@@ -28,6 +28,25 @@
     jeton = LECTURE ? sessionStorage.getItem('skanfact.console.jeton') : sessionStorage.getItem('skanfact.jeton') || localStorage.getItem('skanfact.jeton');
   } catch { /* stockage refusé : pas de session */ }
   /** @type {any} */ const poste = /** @type {any} */ (window).SkanPoste;
+  // ── Le journal de cet écran (lot Fonctions 3, « Signaler un problème » ; docs/signaler.md) ────────────────────────────
+  // La v10 joignait le journal de l'ordinateur ; dans un navigateur, l'écran garde lui-même ses dernières erreurs, en
+  // mémoire, le temps de l'onglet : rien ne se garde sur le poste, rien ne part sans que la personne le coche. Ce qui
+  // s'en garde, compté et décidé : l'heure, le message de l'erreur (300 signes au plus) et l'endroit du code de
+  // SkanFact (fichier:ligne). Les vingt dernières.
+  /** @type {{ le: string, message: string, ou: string }[]} */
+  const journal = [];
+  /** @param {unknown} message @param {string} [fichier] @param {number} [ligne] @param {number} [colonne] */
+  const noterErreur = (message, fichier, ligne, colonne) => {
+    const nom = (() => { try { const u = new URL(String(fichier || ''), location.href); return u.origin === location.origin ? u.pathname.split('/').pop() || '' : ''; } catch { return ''; } })();
+    journal.push({ le: new Date().toISOString(), message: String(message || 'Erreur sans message').replace(/\s+/g, ' ').slice(0, 300), ou: nom ? `${nom}:${ligne || 0}:${colonne || 0}` : '' });
+    if (journal.length > 20) journal.shift();
+  };
+  window.addEventListener('error', (e) => noterErreur(e.message, e.filename, e.lineno, e.colno));
+  window.addEventListener('unhandledrejection', (e) => {
+    const r = /** @type {any} */ (e.reason);
+    const pile = /(\/[\w.-]+\.js):(\d+):(\d+)/.exec(String(r && r.stack || ''));
+    noterErreur(r instanceof Error ? r.message : r, pile ? pile[1] : '', pile ? Number(pile[2]) : 0, pile ? Number(pile[3]) : 0);
+  });
   const ent = new URLSearchParams(location.search).get('e');
   // La lecture sans session de la console, ou mal adressée : retour à la console, qui la rouvre.
   if (LECTURE && (!jeton || !ent || !/^[0-9a-f-]{36}$/.test(ent) || !/^[0-9a-f-]{36}$/.test(accesLu))) { location.replace('/console/'); return; }
@@ -720,9 +739,8 @@
   // Les panneaux des Paramètres sans objet sur la plateforme (voir `panneauxAbsents`), avec leur puce du sommaire et leur
   // résultat de recherche (reglages.js lit l'écran : un panneau caché y restait, et sa puce ne menait nulle part — vu
   // dans Données et sécurité le 05/10/2026 : « Dossiers », « Sauvegardes », « Copie externe », « Mot de passe »…).
-  // `p-depannage` (le journal de l'ordinateur, le signalement) quand le serveur tiendra le sien.
   // « La clôture de ton comptable » attendait un fichier .skanclose : le cabinet clôt l'exercice ici même (brique 45).
-  const PANNEAUX_ABSENTS = ['p-dossiers', 'p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-ocr', 'p-danger', 'p-maj', 'p-licence', 'p-editeur', 'p-depannage', 'p-cloture-cabinet'];
+  const PANNEAUX_ABSENTS = ['p-dossiers', 'p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-ocr', 'p-danger', 'p-maj', 'p-licence', 'p-editeur', 'p-cloture-cabinet'];
   const style = document.createElement('style');
   style.textContent = `${PANNEAUX_ABSENTS.flatMap((id) => [`#${id}`, `[data-somm="${id}"]`, `[data-go="${id}"]`]).join(', ')} { display: none !important; }
     .ttn-etat { display: block; min-height: 1.4em; }`;
@@ -730,12 +748,13 @@
   // Les visites guidées que « Guide-moi » ne propose pas (adaptation de `visites`, web/v10/exemple.txt) : celles dont
   // le sujet n'existe pas en ligne (les fichiers et les sauvegardes de l'ordinateur, sa copie de sécurité, les mises à
   // jour, la licence, un dossier partagé entre deux ordinateurs, la clôture du comptable reçue en fichier), et celles
-  // d'un geste pas encore en ligne, qui reviennent avec leur brique (le signalement avec le journal de l'ordinateur ;
-  // le justificatif joint est revenu avec les pièces jointes, 1.89.0).
+  // d'un geste pas encore en ligne, qui reviennent avec leur brique (aucune aujourd'hui : le justificatif joint est
+  // revenu avec les pièces jointes, 1.89.0, et le signalement avec le journal de cet écran, 1.91.0).
   // Le paquet du mois n'existe plus : le cabinet lit les livres ici même (« Confier mon dossier à mon comptable »,
   // adaptée dans web/v10/exemple.txt).
   const VISITES_SANS_OBJET = ['sauvegarde', 'restaurer', 'fichiers', 'mise-a-jour', 'licence', 'partager', 'recevoir-cloture', 'paquet'];
-  const VISITES_PAS_ENCORE = ['signaler'];
+  /** @type {string[]} */
+  const VISITES_PAS_ENCORE = [];
 
   // ── L'entreprise d'essai, vue à l'ouverture (lot onboarding ; docs/entree.md) ───────────────────
   // Remplie de l'exemple, son bandeau dit « Créer ma vraie entreprise » tant que le compte n'en a pas (`aUneVraieEntreprise`).
@@ -913,6 +932,8 @@
     dessinerEquipe,
     dessinerExport,
     dessinerSauvegardes,
+    // Le journal de cet écran (« Signaler un problème ») : une copie, la page la lit et la montre.
+    journalDeLEcran: () => journal.slice(),
     dessinerAbonnement,
     // La licence de la v10, tirée de l'abonnement : sa pastille, sa carte d'essai, et sa porte de création (licenceBlock).
     licenceStatus: async () => {

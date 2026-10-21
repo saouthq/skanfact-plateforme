@@ -7820,7 +7820,7 @@ prouver "le bouton du justificatif encore absent en ligne" web/public/plateforme
   "    piecesJointes: true," "    piecesJointes: false," \
   "dans « Saisir une facture d'achat », l'étape du justificatif vise un bouton qui existe en ligne (1.89.0)"
 prouver "la visite « Joindre un justificatif » encore cachée en ligne" web/public/plateforme/pont.js \
-  "  const VISITES_PAS_ENCORE = ['signaler'];" "  const VISITES_PAS_ENCORE = ['justificatif', 'signaler'];" \
+  "  const VISITES_PAS_ENCORE = [];" "  const VISITES_PAS_ENCORE = ['justificatif'];" \
   "Skander, sur un compte neuf : l'exemple se remplit, la découverte va au bout, puis sa vraie entreprise et sa première facture, guidée jusqu'au brouillon"
 prouver "l'objet d'un avoir qui invite à dire ce qu'on a acheté" web/public/v10/app.js \
   "        if (objet) objet.placeholder = inviteObjet(p.kind);
@@ -18553,7 +18553,7 @@ prouver 'une pièce jointe de plus de 10 Mo acceptée' serveur/v10/pieces-jointe
   $'if (fichier.length > LIMITE_PIECE) {' $'if (fichier.length > LIMITE_PIECE * 2) {' \
   'ni photo ni PDF (aux octets, pas au nom), ou plus de 10 Mo : refusé, rien de gardé'
 prouver 'le panneau des pièces jointes encore caché sur la plateforme' web/public/plateforme/pont.js \
-  $'\'p-editeur\', \'p-depannage\'' $'\'p-editeur\', \'p-pj\', \'p-depannage\'' \
+  $'\'p-editeur\', \'p-cloture-cabinet\'' $'\'p-editeur\', \'p-pj\', \'p-cloture-cabinet\'' \
   'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
 prouver '« Ouvrir » une pièce jointe qui laisse un onglet vide' web/public/plateforme/pont.js \
   $'if (w) { w.opener = null; w.location.href = adresse; } else enregistrerSous(adresse, nom);' $'if (w) { w.opener = null; } else enregistrerSous(adresse, nom);' \
@@ -18592,6 +18592,19 @@ prouver 'une demande de retour en arrière sans motif, sans la case montrée' we
 prouver 'le panneau des sauvegardes montré à un commercial' web/public/v10/app.js \
   $'${exportVisible() && bridge.dessinerSauvegardes ? `${panneau(\'p-mes-sauvegardes\'' $'${bridge.dessinerSauvegardes ? `${panneau(\'p-mes-sauvegardes\'' \
   'le propriétaire voit les copies telles qu'\''elles sont, et demande de revenir en arrière ; un commercial ne voit pas le panneau'
+
+prouver 'une erreur de l'\''écran que le journal ne note pas' web/public/plateforme/pont.js \
+  $'  window.addEventListener(\'error\', (e) => noterErreur(e.message, e.filename, e.lineno, e.colno));\n' $'' \
+  'l'\''erreur de l'\''écran se lit, part avec la demande si on le coche, et pas sinon'
+prouver 'le journal de l'\''écran envoyé même décoché' web/public/v10/app.js \
+  $'          if ($(\'#sup-journal\', root) && $(\'#sup-journal\', root).checked) texte = avecJournal(texte, journalEcran);' $'          if ($(\'#sup-journal\', root)) texte = avecJournal(texte, journalEcran);' \
+  'l'\''erreur de l'\''écran se lit, part avec la demande si on le coche, et pas sinon'
+prouver '« Aide et dépannage » encore caché en ligne' web/public/plateforme/pont.js \
+  $'\'p-editeur\', \'p-cloture-cabinet\'' $'\'p-editeur\', \'p-depannage\', \'p-cloture-cabinet\'' \
+  'l'\''erreur de l'\''écran se lit, part avec la demande si on le coche, et pas sinon'
+prouver 'la case du journal décochée d'\''avance' web/public/v10/app.js \
+  $'<input type="checkbox" id="sup-journal" checked>' $'<input type="checkbox" id="sup-journal">' \
+  'l'\''erreur de l'\''écran se lit, part avec la demande si on le coche, et pas sinon'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

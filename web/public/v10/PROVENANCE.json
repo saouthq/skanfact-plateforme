@@ -3,9 +3,9 @@
   "branche": "beta",
   "commit": "35bfb8c",
   "reprisLe": "2026-10-21",
-  "adaptations": 1311,
+  "adaptations": 1322,
   "fichiers": {
-    "app.js": "177405966d725b1a5a317ac9e2b1dcd4d00b949e068804dbfad3ebdb1fc0d30d",
+    "app.js": "5cee70697ccf2ce44d592d0dbf9b2db4ae44622d97a0e6a5732304b144c9472c",
     "cabinet/app.js": "064098816573d159c33ca95f27761e6cb53e3f28771441dfe540df478560a977",
     "cabinet/cabcore.js": "ea2dd5bcc75e3d9546242d4b253831091f464927586cbdecfcf2a3a0c61e190a",
     "cabinet/cabguide.js": "967046437dfc86b213b868e08548a669a8d507410ce8670db9caf7822f761895",
@@ -27,6 +27,6 @@
     "style.css": "6a881d141c264085df3e52fadb9961ea1c6f53910ba0813b8de853c9259f687b",
     "teif.js": "87e7870460227508739bac49cf77e13c4435c2e7c1ddbaf99f4a9f31679b45d4",
     "visite.js": "fd35828568081770dd67a5311cbfa48066fd92c7ad8894499901996bb594c2e5",
-    "visites.js": "d185fce07f425c6d813d95e23fecb1731d0d316af3854a3ae20a8459f4f2df5c"
+    "visites.js": "56b97ea10aa0f85433eda78b7bd3c1981ae6bf37c4fa2a1f0c8a87e1af68513e"
   }
 }
