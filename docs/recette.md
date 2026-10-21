@@ -627,6 +627,17 @@ chaque case nommée. « À régler dans l'équipe » réduisait son texte à un 
 bouton passe dessous. Restent des tableaux, par choix, la matrice des droits et les routes du serveur (triées par leurs
 titres, on les lit en croisant). Cinq preuves.
 
+### 1.87.4 — une pièce neuve en lecture seule
+
+Le Café El Medina, en lecture seule depuis le 07/10/2026, ouvre une nouvelle facture : le bandeau dit d'avance qu'elle ne
+pourra pas être enregistrée, et le clic sur « Émettre » ouvre le refus qui mène à l'abonnement. Mais « Émettre la
+facture » restait le bouton vert, l'étape suivante d'un écran où elle est impossible. Le bouton principal passe au
+bandeau (« Voir l'abonnement ») sur une facture, un devis ou un achat neuf. La facture remplie au doigt (Trabelsi
+Logistique, nouveau client depuis le choix du client, 3 × 123,457 DT) : 370,371 DT HT, 70,370 DT de TVA, 1,000 DT de
+timbre, 441,741 DT à payer, et la fenêtre d'émission dit ce qui manque (matricule, RIB) avant le geste. Au clavier,
+l'éditeur se parcourt dans l'ordre de l'écran. Le Cabinet aussi, chaque élément avec son anneau ; mais ses premiers
+pas montraient trois « Me guider » du même nom : chacun porte maintenant le nom de son étape. Quatre preuves.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

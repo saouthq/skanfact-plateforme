@@ -139,6 +139,10 @@ describe('le Cabinet au téléphone', () => {
         return ecarts;
       });
       expect(deTravers).toEqual([]);
+      // Chaque « Me guider » dit vers quelle étape il guide : plusieurs boutons du même nom ne se distinguent pas (1.87.4).
+      const guides = await panneau.locator('.pp-guide').evaluateAll((l) => l.map((b) => b.getAttribute('aria-label') ?? b.textContent?.trim()));
+      expect(guides.length).toBeGreaterThan(1);
+      expect(new Set(guides).size).toBe(guides.length);
       // « Menu » au bout de la barre du haut, comme à l'entreprise : pas au milieu, juste après le nom du cabinet (1.87.2).
       const menu = await page.locator('.sidebar .menu-tel').boundingBox();
       expect(390 - ((menu?.x ?? 0) + (menu?.width ?? 0))).toBeLessThan(24);

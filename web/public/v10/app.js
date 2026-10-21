@@ -114,12 +114,15 @@
   }
   // Une NOUVELLE pièce ouverte en lecture seule le dit à l'ouverture, avant la saisie : sinon le refus n'arrivait qu'à
   // « Enregistrer », et la saisie était perdue (la règle 10.14.0 d'une pièce d'un mois clôturé).
+  // (plateforme, 1.87.4) La pièce neuve qui ne pourra pas être enregistrée : l'étape suivante n'est plus d'émettre, c'est
+  // l'abonnement. Le bouton principal passe au bandeau (« Émettre la facture » restait vert, vu en recette le 21/10/2026).
+  function aboBloque(neuve) { return !!(neuve && licence.locked && bridge.dessinerAbonnement); }
   function bandeauAbonnement(neuve) {
-    if (!neuve || !licence.locked || !bridge.dessinerAbonnement) return '';
+    if (!aboBloque(neuve)) return '';
     return `<div class="banner info lock-banner" id="abo-banner">
         <span><b>${h(licence.label)} : cette nouvelle pièce ne pourra pas être enregistrée.</b> ${h(licence.detail)}
         Tout ce qui existe déjà se lit, s'imprime, s'exporte et se corrige ; seule la création attend l'abonnement.</span>
-        <span class="lock-go"><button class="btn btn-sm" id="abo-voir">${abonnementVisible() ? 'Voir l\'abonnement' : 'Qui le règle ?'}</button></span></div>`;
+        <span class="lock-go"><button class="btn btn-sm btn-primary" id="abo-voir">${abonnementVisible() ? 'Voir l\'abonnement' : 'Qui le règle ?'}</button></span></div>`;
   }
   // (plateforme) Le point de contact mène à un panneau des Paramètres (brique 74 bis).
   window.__allerParametres = (tab, focus) => allerParametres(tab, focus);
@@ -4150,8 +4153,8 @@
             return bf && bf.remaining < -0.0005 ? `<button class="btn ${envoiSuivant ? '' : 'btn-primary'}" id="rembourser-avoir" data-facture="${h(fi.id)}">Rembourser ${C.money(-bf.remaining, cur)} au client…</button>` : '';
           })()}
           ${facturerMenu}${transformMenu}
-          ${!figee ? `<button class="btn ${(isNew && (isQ || isExtra)) || suiteExtra === 'save' ? 'btn-primary' : ''}" id="save">Enregistrer${isQ || isExtra ? '' : ' le brouillon'}</button>` : ''}
-          ${!figee && (isInv || isAv) ? `<button class="btn btn-primary" id="issue">${isInv ? 'Émettre ' + laPiece() : 'Émettre l\'avoir'}</button> ${info('ed.issue')}` : ''}
+          ${!figee ? `<button class="btn ${((isNew && (isQ || isExtra)) || suiteExtra === 'save') && !aboBloque(isNew) ? 'btn-primary' : ''}" id="save">Enregistrer${isQ || isExtra ? '' : ' le brouillon'}</button>` : ''}
+          ${!figee && (isInv || isAv) ? `<button class="btn${aboBloque(isNew) ? '' : ' btn-primary'}" id="issue">${isInv ? 'Émettre ' + laPiece() : 'Émettre l\'avoir'}</button> ${info('ed.issue')}` : ''}
           ${avecPlus ? `<div class="more"><button class="btn" id="more-btn" aria-label="Autres actions">Plus ▾</button><div class="more-list" id="more-list" hidden>
             ${emailDansPlus ? `<button id="email">Envoyer par email…</button>` : ''}
             <div class="ml-ligne"><button id="wa">Envoyer par WhatsApp…</button>${info('wa.envoi')}</div>
@@ -10222,7 +10225,7 @@
           ${/* Une pièce déjà saisie ne se relit pas par-dessus : la lecture la remplacerait. */''}
           ${clos || !isNew ? '' : `<span class="colle-bouton"><button class="btn" id="teif-lire">Lire une e-facture…</button>${info('buy.teif')}</span>`}
           <span class="colle-bouton"><button class="btn" id="photo" hidden>Lire une photo…</button>${info('ocr.photo')}</span>
-          ${clos ? '' : `<button class="btn ${isNew ? 'btn-primary' : ''}" id="save">Enregistrer</button>`}
+          ${clos ? '' : `<button class="btn ${isNew && !aboBloque(isNew) ? 'btn-primary' : ''}" id="save">Enregistrer</button>`}
           ${isNew ? '' : `<div class="more"><button class="btn" id="more-btn">Plus ▾</button><div class="more-list" id="more-list" hidden>
             <button id="dup">Dupliquer</button>
             ${clos ? '' : '<button id="del" class="danger">Supprimer</button>'}

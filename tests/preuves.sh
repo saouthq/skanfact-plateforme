@@ -18407,6 +18407,22 @@ prouver '« À régler dans l'\''équipe » : le bouton à côté du texte, coup
   '  .c-eq-regler-liste li { flex-wrap: wrap; }' '' \
   'au téléphone, Réglages, Équipe et Alertes : une ligne par carte, chaque case nommée, aucun tableau qui défile de côté'
 
+prouver '« Émettre la facture » en vert sur une pièce qui ne pourra pas être enregistrée' web/public/v10/app.js \
+  'class="btn${aboBloque(isNew) ? '\'''\'' : '\'' btn-primary'\''}" id="issue">' 'class="btn btn-primary" id="issue">' \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+
+prouver '« Enregistrer » d'\''un devis neuf en vert en lecture seule' web/public/v10/app.js \
+  "'save') && !aboBloque(isNew) ? 'btn-primary'" "'save') ? 'btn-primary'" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+
+prouver '« Enregistrer » d'\''un achat neuf en vert en lecture seule' web/public/v10/app.js \
+  "\${isNew && !aboBloque(isNew) ? 'btn-primary' : ''}\" id=\"save\">Enregistrer</button>" "\${isNew ? 'btn-primary' : ''}\" id=\"save\">Enregistrer</button>" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+
+prouver 'trois « Me guider » du même nom dans les premiers pas du Cabinet' web/public/v10/cabinet/app.js \
+  ' aria-label="Me guider : ${esc(e.titre)}"' '' \
+  'le Cabinet qui commence, au téléphone : « Tes premiers pas » ne déborde pas, et chaque étape garde son texte en entier'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -12303,6 +12303,8 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
   // Le panneau complet des premiers pas : sur la page Dossiers VIDE, où il est le corps de l'écran.
   // Quand des dossiers existent, il se réduit à UNE ligne de « À faire » (la liste des clients ne se
   // mérite pas au défilement, 9.4.4) et la liste entière vit dans « Me guider ».
+  // (plateforme, 1.87.4) Chaque « Me guider » porte le nom de son étape : trois boutons du même nom, un lecteur d'écran ne
+  // disait pas où chacun mène (vu au clavier le 21/10/2026).
   // `vertEnTete` : l'en-tête porte déjà le vert de l'étape (U-11) — l'étape en cours ne le double pas.
   function premiersPasPanel(vertEnTete) {
     const p = lesPas();
@@ -12319,7 +12321,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
         return `<li class="${e.fait ? 'fait' : ''}${encours ? ' encours' : ''}">
           <span class="pp-marque">${e.fait ? '✓' : ''}</span>
           <span class="pp-txt"><strong>${esc(e.titre)}${e.facultatif && !e.fait ? ' <span class="pp-facult">facultatif</span>' : ''}</strong><span class="small muted">${esc(e.quoi)}</span></span>
-          <span class="pp-go">${guide ? `<button type="button" class="pp-guide" data-pas-guide="${esc(guide)}" title="Je te montre où cliquer, étape par étape">${ICONE_GUIDE}Me guider</button>` : ''}${!e.fait && a
+          <span class="pp-go">${guide ? `<button type="button" class="pp-guide" data-pas-guide="${esc(guide)}" aria-label="Me guider : ${esc(e.titre)}" title="Je te montre où cliquer, étape par étape">${ICONE_GUIDE}Me guider</button>` : ''}${!e.fait && a
             ? `<button class="btn btn-sm ${encours && !vertEnTete ? 'btn-primary' : ''}" data-pas="${esc(e.action)}">${esc(libelle)}</button>` : ''}</span>
         </li>`;
       }).join('')}</ol></div>`;

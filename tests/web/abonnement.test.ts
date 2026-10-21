@@ -116,6 +116,18 @@ describe('l\'abonnement, à la souris', () => {
     await expect.poll(() => p.locator('#abo-banner').innerText().then(net).catch(() => ''), { timeout: 15_000 })
       .toContain(`Lecture seule depuis le ${depuis} : cette nouvelle pièce ne pourra pas être enregistrée.`);
     expect(await p.locator('#abo-voir').innerText()).toBe('Voir l\'abonnement');
+    // Le seul bouton principal est l'étape suivante : l'abonnement, plus « Enregistrer » (1.87.4).
+    expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-voir']);
+    // Une facture aussi : « Émettre la facture » n'est plus le bouton principal.
+    await p.evaluate(() => { location.hash = '#/doc/new/facture'; });
+    await p.locator('#issue').waitFor({ timeout: 15_000 });
+    expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-voir']);
+    // Et un achat.
+    await p.evaluate(() => { location.hash = '#/achat/new'; });
+    await p.locator('#view #abo-banner').waitFor({ timeout: 15_000 });
+    expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-voir']);
+    await p.evaluate(() => { location.hash = '#/doc/new/devis'; });
+    await p.locator('#abo-banner').waitFor({ timeout: 15_000 });
     // « Enregistrer » est refusé AVANT le contrôle de la saisie (on ne fait pas choisir un client pour rien)…
     await p.locator('#save').click();
     const refus = p.locator('#modal-root .modal').last();
