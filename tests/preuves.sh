@@ -18498,7 +18498,7 @@ prouver 'au clavier, les cases d'\''une ligne qu'\''un lecteur d'\''écran ne no
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 
 prouver 'au clavier, les listes de filtre d'\''une page sans nom (l'\''année, le mois)' web/public/plateforme/telephone.js \
-  '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); }' '(/** @type {HTMLTableElement} */ (t)); lierVoisins(); }' \
+  '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); bullesDesColonnes(); }' '(/** @type {HTMLTableElement} */ (t)); lierVoisins(); bullesDesColonnes(); }' \
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 
 prouver 'au téléphone, l'\''en-tête des lignes d'\''un devis qui pose « Qté » loin de sa case' web/public/plateforme/telephone.css \
@@ -18506,7 +18506,7 @@ prouver 'au téléphone, l'\''en-tête des lignes d'\''un devis qui pose « Qté
   'les lignes d'\''un devis au téléphone : chaque case porte son titre juste au-dessus d'\''elle'
 
 prouver 'au clavier, l'\''unité d'\''une prestation sans nom (son titre posé à côté)' web/public/plateforme/telephone.js \
-  '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); }' '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); }' \
+  '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); bullesDesColonnes(); }' '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); bullesDesColonnes(); }' \
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 
 prouver 'au PDF du serveur, le script de la page qui tourne' serveur/pdf/imprimeur.ts \
@@ -18625,6 +18625,34 @@ prouver 'le pied du bulletin qui dit « Bulletin de octobre »' web/public/v10/c
 prouver 'l'\''ordre de virement qui dit « salaires de octobre »' web/public/v10/core.js \
   $'virement des salaires ${escapeHtml(Compta.deMois(periode))}</p>' $'virement des salaires de ${escapeHtml(periode)}</p>' \
   'l'\''ordre de virement : une ligne par bénéficiaire, le compte à débiter'
+
+prouver 'au téléphone, les bulles des titres de colonne d'\''une ligne perdues avec l'\''en-tête' web/public/plateforme/telephone.js \
+  $'nommerFiltres(); lierVoisins(); bullesDesColonnes(); }' $'nommerFiltres(); lierVoisins(); }' \
+  'les lignes d'\''un devis au téléphone : chaque case porte son titre juste au-dessus d'\''elle'
+prouver 'au téléphone, la bulle de la TVA déductible nommée par l'\''en-tête abrégé (« Déduct. »)' web/public/plateforme/telephone.js \
+  $'(x.getAttribute(\'aria-label\') || \'\').replace(/^Explication : /, \'\') || titreDe' $'\'\' || titreDe' \
+  'les lignes d'\''un achat et d'\''une photo relue au téléphone'
+prouver 'à l'\''ordinateur, les bulles des colonnes ajoutées au-dessus des lignes' web/public/plateforme/telephone.js \
+  $'const bulles = tete && TELEPHONE.matches && sansEnTete(table)' $'const bulles = tete && sansEnTete(table)' \
+  'les lignes d'\''un devis au téléphone : chaque case porte son titre juste au-dessus d'\''elle'
+
+prouver '« Exporter tous les PDF » qui ne fait rien en ligne' web/public/plateforme/pont.js \
+  $'    exportPdf,\n    exportPdfMany,\n' $'    exportPdf,\n' \
+  'Exporter tous les PDF de la période'
+prouver 'le .zip des PDF avec une somme de contrôle fausse' web/public/plateforme/pont.js \
+  $'return (c ^ 0xffffffff) >>> 0; };' $'return 0; };' \
+  'Exporter tous les PDF de la période'
+prouver 'le .zip des PDF qui ne dit pas son nom' web/public/v10/app.js \
+  $'toast(`${files.length} PDF exportés dans ${dir.split(/[\\\\/]/).pop()}`)' $'toast(`${files.length} PDF exportés`)' \
+  'Exporter tous les PDF de la période'
+
+prouver 'au clavier, « + description » entre la désignation et la quantité d'\''une ligne' web/public/v10/app.js \
+  $'class="link-add" tabindex="-1" data-desc="${i}"' $'class="link-add" data-desc="${i}"' \
+  'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
+
+prouver 'le refus d'\''une entreprise pas ouverte qui ne nomme pas le compte connecté' web/public/plateforme/pont.js \
+  $'ton compte${email ? ` (${email})` : \'\'} ne fait pas partie' $'ton compte ne fait pas partie' \
+  'une entreprise dont le compte n'\''est pas de l'\''équipe'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -26,6 +26,11 @@
 //    même identifiant d'une page à l'autre, qui dit ce qu'elle choisit. Et un titre de champ posé À CÔTÉ de sa case
 //    (`<span class="fl">`, l'unité d'une prestation) ne nommait pas la case qui le suit : elle prend son texte, sans la
 //    bulle.
+// 6. Les bulles des titres de colonne d'une ligne (1.93.0). Au téléphone, l'en-tête d'un tableau de lignes se cache, et
+//    chaque case porte son titre juste au-dessus d'elle (1.87.17, 1.87.21) : les bulles « i » de l'en-tête (l'unité, la
+//    TVA, la destination, la TVA déductible) partaient avec lui (vu en recette le 21/10/2026). Elles se rangent au-dessus
+//    des lignes, une seule fois et non sur chaque ligne, chacune avec ce qu'elle explique : les mêmes bulles, qui
+//    s'ouvrent au doigt (`.aide-colonnes`, telephone.css). À l'ordinateur, l'en-tête les porte : rien ne s'ajoute.
 (function () {
   'use strict';
   function poserMenu() {
@@ -169,10 +174,37 @@
       poser(champ, 'data-nom-titre', 'oui');
     }
   }
+  // ── Les bulles des titres de colonne d'une ligne ──
+  // Les tableaux de lignes dont l'en-tête se cache au téléphone (telephone.css) : ceux d'une pièce, d'un achat, d'une
+  // photo relue.
+  /** @param {HTMLTableElement} t */
+  const sansEnTete = (t) => t.classList.contains('lignes-doc') || (t.classList.contains('buy-lines') && !!t.querySelector(':scope > #b-lines, :scope > #orf-lines'));
+  function bullesDesColonnes() {
+    for (const t of document.querySelectorAll('table.lines-edit')) {
+      const table = /** @type {HTMLTableElement} */ (t);
+      const tete = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
+      const bulles = tete && TELEPHONE.matches && sansEnTete(table) ? [...tete.querySelectorAll('th .i[data-info]')] : [];
+      const avant = table.previousElementSibling;
+      let aide = avant && avant.classList.contains('aide-colonnes') ? /** @type {HTMLElement} */ (avant) : null;
+      if (!bulles.length) { if (aide) aide.remove(); continue; }
+      const cles = bulles.map((x) => /** @type {HTMLElement} */ (x).dataset.info).join(' ');
+      if (aide && aide.dataset.cles === cles) continue;
+      if (!aide) { aide = document.createElement('p'); aide.className = 'aide-colonnes small muted'; table.before(aide); }
+      aide.dataset.cles = cles;
+      // Ce qu'explique la bulle : le titre qu'elle porte (« Explication : TVA déductible »), plus clair que l'en-tête
+      // abrégé du bureau (« Déduct. »).
+      aide.replaceChildren('Les colonnes :', ...bulles.map((x) => {
+        const s = document.createElement('span');
+        s.append(`${(x.getAttribute('aria-label') || '').replace(/^Explication : /, '') || titreDe(/** @type {Element} */ (x.closest('th')))} `, x.cloneNode(true));
+        return s;
+      }));
+    }
+  }
   let nomsPrevus = 0;
-  function nommer() { nomsPrevus = 0; for (const t of document.querySelectorAll('table.lines-edit')) nommerLignes(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); }
+  function nommer() { nomsPrevus = 0; for (const t of document.querySelectorAll('table.lines-edit')) nommerLignes(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); bullesDesColonnes(); }
   function suivreLesLignes() {
     new MutationObserver(() => { if (!nomsPrevus) nomsPrevus = requestAnimationFrame(nommer); }).observe(document.body, { childList: true, subtree: true });
+    TELEPHONE.addEventListener('change', bullesDesColonnes);
     nommer();
   }
 

@@ -304,6 +304,14 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     expect(await p.locator('table.lignes-doc > thead').isVisible()).toBe(false);
     expect(await p.locator('#lines tr:first-child').evaluate((tr) => [...tr.children].slice(0, 6).map((td) => getComputedStyle(td, '::before').content)))
       .toEqual(['"Désignation"', '"Qté"', '"Unité"', '"P.U. HT"', '"TVA"', '"Total HT"']);
+    // (1.93.0) Les bulles « i » de l'en-tête caché se rangent au-dessus des lignes, chacune avec ce qu'elle explique, et
+    // s'ouvrent au doigt ; à l'ordinateur, l'en-tête les porte, rien ne s'ajoute.
+    const aide = p.locator('table.lignes-doc').locator('xpath=preceding-sibling::p[contains(@class, "aide-colonnes")]');
+    await expect.poll(() => aide.innerText().then((t) => t.replace(/\s+/g, ' ')).catch(() => '')).toBe('Les colonnes : Unité i TVA i');
+    await aide.locator('[data-info="ed.vat"]').click();
+    await expect.poll(() => p.locator('#info-pop').innerText().catch(() => '')).toContain('La taxe que tu collectes');
+    await p.setViewportSize({ width: 1280, height: 800 });
+    await expect.poll(() => p.locator('.aide-colonnes').count()).toBe(0);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 120_000);
@@ -321,6 +329,9 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     expect(await p.locator('table.buy-lines:has(#b-lines) > thead').isVisible()).toBe(false);
     expect(await p.locator('#b-lines tr:first-child').evaluate((tr) => [...tr.children].slice(0, 7).map((td) => getComputedStyle(td, '::before').content)))
       .toEqual(['"Désignation"', '"Qté"', '"P.U. HT"', '"TVA"', '"Destination"', '"TVA déductible"', '"Total HT"']);
+    // (1.93.0) Leurs bulles « i », au-dessus des lignes, nommées par ce qu'elles expliquent (pas « Déduct. »).
+    await expect.poll(() => p.locator('table.buy-lines:has(#b-lines)').locator('xpath=preceding-sibling::p[contains(@class, "aide-colonnes")]').innerText()
+      .then((t) => t.replace(/\s+/g, ' ')).catch(() => '')).toBe('Les colonnes : Destination de la ligne i TVA déductible i');
 
     // Une photo relue : ses lignes aussi, et « Utiliser ces informations » au bas de l'écran.
     await aller(p, '#/achat/new', /^Nouvelle facture d'achat/);

@@ -672,7 +672,11 @@
     // de son équipe », pour une entreprise que ce compte n'avait jamais eue).
     const [copie, attente] = await Promise.all([poste.lireCopie(ent).catch(() => null), poste.lireAttente(ent).catch(() => null)]);
     if (!copie && !attente) {
-      poste.conclure('Cette entreprise ne t\'est pas ouverte : ton compte ne fait pas partie de son équipe, ou elle n\'existe pas.');
+      // (1.93.0) Le compte connecté se nomme : qui tient deux comptes (le sien, celui de son équipe) voit lequel ouvre
+      // cette page (vu au parcours du 21/10/2026, un lien de la console ouvert dans le navigateur d'un autre compte).
+      /** @type {any} */ const moi = await lireMoi().catch(() => null);
+      const email = moi && typeof moi.email === 'string' ? moi.email : '';
+      poste.conclure(`Cette entreprise ne t'est pas ouverte : ton compte${email ? ` (${email})` : ''} ne fait pas partie de son équipe, ou elle n'existe pas.`);
       return await new Promise(() => { /* rien ne s'ouvre */ });
     }
     const recus = await remettre();
@@ -926,6 +930,7 @@
 
   /** @type {any} */ (window).skanfact = {
     exportPdf,
+    exportPdfMany,
     dessinerMandat,
     dessinerCompte,
     dessinerAppareils,
@@ -1546,6 +1551,59 @@
     a.remove();
     setTimeout(() => URL.revokeObjectURL(adresse), 60_000);
     return String(lu.nom);
+  }
+  // « Exporter tous les PDF de la période » (1.93.0) : le bouton annonçait « Génération de N PDF… » et rien ne venait (la
+  // v10 les rangeait dans un dossier de l'ordinateur). Chaque PDF est fait par le serveur, deux à la fois (sa file), et
+  // tous se réunissent dans UN fichier .zip qui se télécharge : un navigateur demande avant d'enregistrer dix fichiers
+  // d'un coup. Sans l'outil sur ce serveur, rien ne part : le refus le dit (pas cinquante fenêtres d'impression).
+  /** @param {{ name: string, html: string }[]} fichiers @param {string} nom */
+  async function exportPdfMany(fichiers, nom) {
+    const liste = Array.isArray(fichiers) ? fichiers : [];
+    /** @type {{ nom: string, octets: Uint8Array }[]} */ const faits = [];
+    let suivant = 0;
+    const ouvrier = async () => {
+      while (suivant < liste.length) {
+        const i = suivant++;
+        const f = liste[i];
+        if (!f) continue;
+        /** @type {any} */ const lu = await appelCompte('POST', '/pdf', { html: f.html, nom: f.name });
+        faits[i] = { nom: String(lu.nom), octets: Uint8Array.from(atob(String(lu.pdf)), (c) => c.charCodeAt(0)) };
+      }
+    };
+    await Promise.all([ouvrier(), ouvrier()]);
+    return telecharger(`${nom}.zip`, zipSansCompression(faits));
+  }
+  // Un .zip « rangé sans compresser » (méthode 0) : un PDF est déjà compressé. Les noms en UTF-8 (bit 11), pour les
+  // accents d'un nom de client ; la date de chaque fichier, l'heure de l'export.
+  /** @param {{ nom: string, octets: Uint8Array }[]} fichiers */
+  function zipSansCompression(fichiers) {
+    const crcTable = Array.from({ length: 256 }, (_, n) => { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; return c >>> 0; });
+    /** @param {Uint8Array} u */
+    const crc32 = (u) => { let c = 0xffffffff; for (const o of u) c = (crcTable[(c ^ o) & 0xff] ?? 0) ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+    const d = new Date();
+    const heure = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    const jour = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    // Chaque champ d'un en-tête : [son décalage, sa valeur, sa taille en octets (2 ou 4)], en petit-boutiste.
+    /** @param {DataView} vue @param {Array<[number, number, number]>} champs */
+    const ecrire = (vue, champs) => { for (const [o, v, t] of champs) { if (t === 4) vue.setUint32(o, v, true); else vue.setUint16(o, v, true); } };
+    /** @type {Uint8Array[]} */ const morceaux = [];
+    /** @type {Uint8Array[]} */ const annuaire = [];
+    let decalage = 0;
+    for (const f of fichiers) {
+      const nom = new TextEncoder().encode(f.nom);
+      const crc = crc32(f.octets);
+      const tete = new DataView(new ArrayBuffer(30));
+      ecrire(tete, [[0, 0x04034b50, 4], [4, 20, 2], [6, 0x0800, 2], [8, 0, 2], [10, heure, 2], [12, jour, 2], [14, crc, 4], [18, f.octets.length, 4], [22, f.octets.length, 4], [26, nom.length, 2], [28, 0, 2]]);
+      const ici = new DataView(new ArrayBuffer(46));
+      ecrire(ici, [[0, 0x02014b50, 4], [4, 20, 2], [6, 20, 2], [8, 0x0800, 2], [10, 0, 2], [12, heure, 2], [14, jour, 2], [16, crc, 4], [20, f.octets.length, 4], [24, f.octets.length, 4], [28, nom.length, 2], [30, 0, 2], [32, 0, 2], [34, 0, 2], [36, 0, 2], [38, 0, 4], [42, decalage, 4]]);
+      morceaux.push(new Uint8Array(tete.buffer), nom, f.octets);
+      annuaire.push(new Uint8Array(ici.buffer), nom);
+      decalage += 30 + nom.length + f.octets.length;
+    }
+    const tailleAnnuaire = annuaire.reduce((t, u) => t + u.length, 0);
+    const fin = new DataView(new ArrayBuffer(22));
+    ecrire(fin, [[0, 0x06054b50, 4], [8, fichiers.length, 2], [10, fichiers.length, 2], [12, tailleAnnuaire, 4], [16, decalage, 4]]);
+    return new Blob(/** @type {BlobPart[]} */ ([...morceaux, ...annuaire, new Uint8Array(fin.buffer)]), { type: 'application/zip' });
   }
   // Le chemin de la v10 dans un navigateur (son repli `exportPdf`) : la page dans une fenêtre, et l'impression.
   /** @param {string} html */
@@ -2526,7 +2584,7 @@
   function pasEncore(quoi) {
     return async () => { throw new Error(`${quoi} n'est pas encore dans la version en ligne de SkanFact : rien n'a été fait.`); };
   }
-  /** @param {string} nom @param {string} contenu */
+  /** @param {string} nom @param {string | Blob} contenu */
   function telecharger(nom, contenu) {
     const propre = String(nom || 'export.txt').replace(/[\\/:*?"<>|]/g, '_');
     const url = URL.createObjectURL(new Blob([contenu], { type: 'application/octet-stream' }));

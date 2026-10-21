@@ -37,6 +37,14 @@ documents du personnel) passent par le même chemin : `exportPdf` du point de co
 l'entreprise lui donne : `Bulletin_<salarié>_2026-09.pdf`, `Journal_de_paie_2026-09.pdf`,
 `Etat_recapitulatif_CNSS_2026-T3.pdf`, `Certificat_de_travail_<salarié>.pdf` (adaptation `web/v10/pdf-cabinet.txt`).
 
+## Tous les PDF de la période (1.93.0)
+
+« Exporter tous les PDF de la période » (Comptabilité, onglet des ventes) annonçait « Génération de N PDF… » puis ne
+faisait rien en ligne. Chaque facture et chaque avoir de la période se fait au serveur, deux à la fois (sa file), et tous
+se réunissent dans UN fichier `SkanFact-<période>.zip` qui se télécharge (`exportPdfMany`, pont.js) : un navigateur
+demande avant d'enregistrer dix fichiers d'un coup. Le .zip range les PDF sans les recompresser (ils le sont déjà), leurs
+noms en UTF-8. Sans l'outil sur ce serveur, rien ne part et le refus le dit : pas cinquante fenêtres d'impression.
+
 ## Décisions (par délégation, 21/10/2026)
 
 - **Tout de suite, pas dans la file de travaux.** Le cadrage (12 § 2) mettait le PDF dans la file de travaux
@@ -51,13 +59,20 @@ l'entreprise lui donne : `Bulletin_<salarié>_2026-09.pdf`, `Journal_de_paie_202
 
 ## Ce qui n'est pas couvert
 
-- « Exporter plusieurs PDF » d'un coup (`exportPdfMany`) ne fait toujours rien dans le navigateur.
-- **À VÉRIFIER** sur le serveur d'essai : Chromium sous le service systemd enfermé (`ProtectSystem=strict`,
-  `NoNewPrivileges`) ; s'il refuse de se lancer, le repli joue, et l'état de la tâche 0011 le dit.
+- Rien de connu.
+
+## Vérifié sur le serveur d'essai (21/10/2026)
+
+La tâche 0011 a posé Chromium 1194 (celui de `playwright-core` 1.56.1) dans `/opt/skanfact/navigateurs`, et
+`PLAYWRIGHT_BROWSERS_PATH` dans les réglages du service. Son journal montre des erreurs « ENOTFOUND
+playwright.download.prss.microsoft.com » : c'est l'une des adresses de téléchargement de Playwright, qu'il essaie tour à
+tour ; une autre a répondu, et la tâche a réussi. Une facture d'essai imprimée par l'imprimeur du serveur, dans
+l'enfermement du service (`systemd-run` avec `User=skanfact`, `ProtectSystem=strict`, `NoNewPrivileges`,
+`PrivateTmp`, les réglages du service) : un PDF d'une page, 15 840 octets, en 513 ms.
 
 ## Tests
 
 `tests/socle/pdf.test.ts` (une facture de 3 × 416,667 à 19 % sur une page, relue par `pdftotext` ; la page enfermée ;
-la file ; les refus) et `tests/web/pdf.test.ts` (le téléchargement sous le nom de la pièce, sans fenêtre ; le repli
-sans Chromium) ; au Cabinet, `tests/web/cabinet-paie.test.ts` (le bulletin, le journal, l'état CNSS et le repli) et
+la file ; les refus) et `tests/web/pdf.test.ts` (le téléchargement sous le nom de la pièce, sans fenêtre ; le .zip de
+la période, relu par `unzip` ; le repli sans Chromium) ; au Cabinet, `tests/web/cabinet-paie.test.ts` (le bulletin, le journal, l'état CNSS et le repli) et
 `tests/web/cabinet-documents-personnel.test.ts` (le solde de tout compte, le certificat de travail). Preuves dans `tests/preuves.sh`.

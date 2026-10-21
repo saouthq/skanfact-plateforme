@@ -1,0 +1,11 @@
+« Exporter tous les PDF de la période », en ligne (1.93.0 ; docs/pdf.md). Format : voir sans-paquets.mjs.
+
+Le bouton annonçait « Génération de N PDF… » puis rien (le point de contact n'avait pas `exportPdfMany`). Les PDF se
+font au serveur et se réunissent dans un .zip qui se télécharge (pont.js) ; le message dit son nom.
+
+== app.js | « 12 PDF exportés dans SkanFact-2026-T3.zip »
+-- avant
+        try { const dir = await bridge.exportPdfMany(files, `SkanFact-${tag}`); if (dir) { toast(`${files.length} PDF exportés`); ditOuverture(await bridge.openPath(dir), dir.split(/[\\/]/).pop()); } }
+-- après
+        try { const dir = await bridge.exportPdfMany(files, `SkanFact-${tag}`); if (dir) { toast(`${files.length} PDF exportés dans ${dir.split(/[\\/]/).pop()}`); ditOuverture(await bridge.openPath(dir), dir.split(/[\\/]/).pop()); } }
+-- fin

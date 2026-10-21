@@ -166,7 +166,9 @@ describe('les documents du personnel au Cabinet, à la souris', () => {
     expect(solde).toContain('Net à percevoir 725,504 DT');
     expect(solde).toContain('Solde de congés non pris au départ : 10,5 jours, soit 525,504 DT');
     expect(solde).toContain('Rue du Port 2000 Le Bardo');
-    expect(solde).toContain('Pour la société Gérant Numéro Un');
+    // Le texte d'un PDF ne se lit pas dans le même ordre d'une machine à l'autre (ses polices) : la signature, en deux.
+    expect(solde).toContain('Pour la société');
+    expect(solde).toContain('Gérant Numéro Un');
 
     // ── Le certificat de travail, daté du jour de la sortie ─────────────────────────────────────────────
     await ouvrirDocument();

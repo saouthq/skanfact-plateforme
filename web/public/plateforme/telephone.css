@@ -73,6 +73,9 @@
      (vu au devis, le 21/10/2026) : il se cache, et chaque case porte son titre juste au-dessus, comme les lignes d'un
      achat (1.87.17). */
   table.lignes-doc > thead { display: none; }
+  /* (1.93.0) Les bulles « i » de l'en-tête caché, rangées au-dessus des lignes (telephone.js, 6). */
+  .aide-colonnes { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 0 0 6px; }
+  .aide-colonnes > span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
   table.lignes-doc > tbody > tr > td:nth-child(-n + 6)::before {
     display: block; margin-bottom: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
   table.lignes-doc > tbody > tr > td:nth-child(1)::before { content: 'Désignation'; }

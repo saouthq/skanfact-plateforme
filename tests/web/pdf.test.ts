@@ -2,9 +2,11 @@
 // plateforme fait le PDF sur le serveur, et il se télécharge sous le nom de la pièce, sans aucune fenêtre. Un serveur
 // sans Chromium le dit, et la fenêtre d'impression revient, comme avant.
 
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import pg from 'pg';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
@@ -25,12 +27,19 @@ describe('« PDF » d\'une pièce, à l\'écran', () => {
     sansChromium = await demarrer({ ...lireConfiguration({ ...base, SKANFACT_NAVIGATEUR: '/chemin/sans/chromium' }), port: 0, web: dossier, livreurMs: 60_000 });
     // Un nom de fichier accentué : Chromium le garde si sa langue est en UTF-8 (sans LANG, il le remplace par « download »).
     navigateur = await chromium.launch({ env: { ...process.env, LANG: 'C.UTF-8' } });
+    // Une facture ne s'émet pas sans le timbre de son jour : la règle des tests, si la base ne l'a pas encore.
+    const admin = new pg.Client({ connectionString: inject('pgAdmin') });
+    await admin.connect();
+    await admin.query(`insert into socle.regle_fiscale (code, valeur, debut, source)
+      select 'timbre.facture', '1000', '2000-01-01', 'Règle d''essai des tests' where not exists (select 1 from socle.regle_fiscale where code = 'timbre.facture')`);
+    await admin.end();
   }, 120_000);
   afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); await sansChromium?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
 
   const plusTard = async (p: Page) => { for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click().catch(() => undefined); };
   // Nadia, son entreprise, un client et un devis d'une ligne (3 × 416,667 à 19 %), ouvert sur le serveur donné.
-  async function devisOuvert(adresse: string) {
+  type Api = (methode: string, chemin: string, jeton?: string, corps?: unknown) => Promise<{ statut: number; corps: Record<string, unknown> }>;
+  async function devisOuvert(adresse: string, avant?: (api: Api, jeton: string, ent: string) => Promise<void>, ecran = '#/doc/d1') {
     const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
       const r = await fetch(`${adresse}/v1${chemin}`, { method: methode, headers: { ...(jeton ? { authorization: `Bearer ${jeton}` } : {}), ...(corps === undefined ? {} : { 'content-type': 'application/json' }) },
         ...(corps === undefined ? {} : { body: JSON.stringify(corps) }), signal: AbortSignal.timeout(20_000) });
@@ -50,13 +59,14 @@ describe('« PDF » d\'une pièce, à l\'écran', () => {
       { collection: 'documents', cle: 'd1', rang: 0, revision: null, contenu: { id: 'd1', type: 'devis', status: 'brouillon', date: '2026-10-21', clientId: 'c1',
         lines: [{ id: 'l1', label: 'Cartons et palettes', qty: 3, unitPrice: { '~n': '416.667' }, vatRate: 19 }] } },
     ] })).statut).toBe(200);
+    if (avant) await avant(api, nadia, ent);
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', acceptDownloads: true });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, nadia);
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
-    await p.goto(`${adresse}/v10/?e=${ent}#/doc/d1`);
-    await p.locator('#pdf').waitFor({ timeout: 20_000 });
+    await p.goto(`${adresse}/v10/?e=${ent}${ecran}`);
+    await p.locator(ecran === '#/doc/d1' ? '#pdf' : '#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(p);
     return { cx, p, erreurs };
   }
@@ -79,6 +89,38 @@ describe('« PDF » d\'une pièce, à l\'écran', () => {
     expect(fs.readFileSync(fichier).subarray(0, 5).toString('latin1')).toBe('%PDF-');
     await expect.poll(() => p.locator('#toast').innerText().catch(() => '')).toContain(`PDF enregistré : ${nom}`);
     expect(fenetres).toBe(0);
+    await cx.close();
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
+  it('« Exporter tous les PDF de la période » : un .zip des PDF du serveur, un par facture émise, sous leur nom', async () => {
+    // Deux factures émises ce mois (3 × 416,667 à 19 %, timbre compris : 1 488,501 DT).
+    const emettre = async (api: Api, jeton: string, ent: string) => {
+      for (const id of ['f1', 'f2']) {
+        const brouillon = { id, type: 'facture', status: 'brouillon', date: new Date().toISOString().slice(0, 10), clientId: 'c1',
+          lines: [{ id: 'l1', label: 'Cartons et palettes', qty: 3, unitPrice: { '~n': '416.667' }, vatRate: 19 }] };
+        const r = await api('POST', `/entreprises/${ent}/dossier-v10/emettre`, jeton, { document: brouillon, client: { id: 'c1', name: 'Société des Transports du Sahel' }, revision: null, rang: null, netAPayer: '1488.501' });
+        expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+      }
+    };
+    const { cx, p, erreurs } = await devisOuvert(serveur.adresse, emettre, '#/compta');
+    await p.locator('#exp-pdfs').waitFor({ timeout: 20_000 });
+    const [telechargement] = await Promise.all([p.waitForEvent('download', { timeout: 60_000 }), p.locator('#exp-pdfs').click()]);
+    const nom = telechargement.suggestedFilename();
+    expect(nom).toMatch(/^SkanFact-.+\.zip$/);
+    const fichier = path.join(dossier, 'lot.zip');
+    await telechargement.saveAs(fichier);
+    const zip = fs.readFileSync(fichier);
+    // Le zip se relit par l'outil du système (« unzip -l » : ses noms et leurs tailles), et chaque fichier est un PDF.
+    const liste = execFileSync('unzip', ['-Z1', fichier], { encoding: 'utf8' }).trim().split('\n').sort();
+    expect(liste).toHaveLength(2);
+    for (const n of liste) {
+      expect(n).toMatch(/_Société_des_Transports_du_Sahel\.pdf$/);
+      expect(execFileSync('unzip', ['-p', fichier, n]).subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    }
+    execFileSync('unzip', ['-tq', fichier]);
+    expect(zip.length).toBeGreaterThan(2000);
+    await expect.poll(() => p.locator('#toast').innerText().catch(() => '')).toBe(`2 PDF exportés dans ${nom}`);
     await cx.close();
     expect(erreurs).toEqual([]);
   }, 180_000);

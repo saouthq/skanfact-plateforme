@@ -4397,7 +4397,7 @@
         <td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation" ${ro}>
             ${openDesc.has(i)
               ? `<textarea data-k="description" placeholder="Description : ce que comprend la prestation" ${ro}>${h(l.description || '')}</textarea>`
-              : (figee ? '' : `<button type="button" class="link-add" data-desc="${i}">+ description</button>`)}${lotChoix(l, i)}</td>
+              : (figee ? '' : `<button type="button" class="link-add" tabindex="-1" data-desc="${i}">+ description</button>`)}${lotChoix(l, i)}</td>
         <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01" ${ro}></td>
         <td><select data-k="unit" ${ro}>${unitOptions(l.unit, extraUnits)}</select></td>
         <td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="0.001" ${ro}></td>
@@ -7798,7 +7798,7 @@
         const drawL = () => {
           const extraUnits = C.usedUnits(data, r.lines.map(l => l.unit));
           body.innerHTML = r.lines.map((l, i) => `<tr data-i="${i}"><td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation">
-              ${openRl.has(i) ? `<textarea data-k="description" rows="2" placeholder="Description reprise sur chaque facture">${h(l.description || '')}</textarea>` : `<button type="button" class="link-add" data-rdesc="${i}">+ description</button>`}</td>
+              ${openRl.has(i) ? `<textarea data-k="description" rows="2" placeholder="Description reprise sur chaque facture">${h(l.description || '')}</textarea>` : `<button type="button" class="link-add" tabindex="-1" data-rdesc="${i}">+ description</button>`}</td>
             <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01"></td><td><select data-k="unit">${unitOptions(l.unit, extraUnits)}</select></td><td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="0.001"></td><td><select data-k="vatRate">${C.VAT_RATES.map(v => `<option value="${v}" ${Number(l.vatRate) === v ? 'selected' : ''}>${v}%</option>`).join('')}</select></td><td><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}">✕</button></td></tr>`).join('');
           $$('[data-k]', body).forEach(el => {
             if (el.dataset.k === 'unit') return;
@@ -16968,7 +16968,7 @@
         if (!rows.length) return toast('Rien à exporter sur cette période.', true);
         const files = rows.map(r => { const d = docById(r.id); return { name: `${d.number}_${(r.client || '').replace(/[^\w\-àâäéèêëïîôöùûüç ]/gi, '').trim().replace(/\s+/g, '_')}.pdf`, html: C.documentHtml(d, clientById(d.clientId), company(), { stampText: stampFor(d) }) }; });
         toast(`Génération de ${files.length} PDF…`);
-        try { const dir = await bridge.exportPdfMany(files, `SkanFact-${tag}`); if (dir) { toast(`${files.length} PDF exportés`); ditOuverture(await bridge.openPath(dir), dir.split(/[\\/]/).pop()); } }
+        try { const dir = await bridge.exportPdfMany(files, `SkanFact-${tag}`); if (dir) { toast(`${files.length} PDF exportés dans ${dir.split(/[\\/]/).pop()}`); ditOuverture(await bridge.openPath(dir), dir.split(/[\\/]/).pop()); } }
         catch (e) { toast(plainError(e), true); }
       };
     });

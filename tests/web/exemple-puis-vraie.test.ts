@@ -5,7 +5,8 @@
 //     coupée à chaque fois, la préparation dit quoi faire (« Réessayer »), jamais le texte du relais ; un conflit se
 //     redemande ; un refus se lit en entier, et « telle quelle » l'ouvre sans y revenir, sans premiers pas ;
 //   - une entreprise d'essai qui a ses propres pièces s'ouvre telle quelle, sans premiers pas ;
-//   - une entreprise dont le compte n'est pas de l'équipe : « ne t'est pas ouverte », sans parler d'un retrait ;
+//   - une entreprise dont le compte n'est pas de l'équipe : « ne t'est pas ouverte », sans parler d'un retrait, et le
+//     compte connecté se nomme (qui en tient deux voit lequel ouvre la page) ;
 //   - « Nouvelle entreprise… » : la page qui la crée, et le lien qui revient ; créée, l'assistant s'y ouvre ; « Le groupe »
 //     attend deux vraies sociétés (l'exemple n'en est pas une) ;
 //   - l'exemple déjà là s'ouvre aussitôt ; sans vraie entreprise, son bandeau dit « Créer ma vraie entreprise » et mène à
@@ -45,8 +46,10 @@ describe('l\'exemple puis la vraie entreprise, autour du versement', () => {
     return { statut: r.status, corps: (texte ? JSON.parse(texte) : {}) as Record<string, unknown> };
   };
   // Une personne inscrite et connectée (ce serveur n'envoie pas d'e-mail : pas de code à recevoir).
+  const emails = new Map<string, string>();
   async function personne(nom: string) {
     const email = `${nom}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    emails.set(nom, email);
     await api('POST', '/inscription', undefined, { email, nom, motDePasse: 'Un-bon-mot-de-passe' });
     return String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
   }
@@ -148,7 +151,7 @@ describe('l\'exemple puis la vraie entreprise, autour du versement', () => {
     const { p, erreurs } = await page(jeton);
     await p.goto(`${serveur.adresse}/v10/?e=${sienne}#/dashboard`);
     await expect.poll(() => p.locator('#poste-bandeau').innerText().then(net).catch(() => ''), { timeout: 20_000 })
-      .toBe('Cette entreprise ne t\'est pas ouverte : ton compte ne fait pas partie de son équipe, ou elle n\'existe pas. Continuer');
+      .toBe(`Cette entreprise ne t'est pas ouverte : ton compte (${emails.get('lina')}) ne fait pas partie de son équipe, ou elle n'existe pas. Continuer`);
     await p.screenshot({ path: path.join(PHOTOS, 'exemple-vraie-2-pas-ouverte.png') });
     expect(erreurs).toEqual([]);
   }, 60_000);

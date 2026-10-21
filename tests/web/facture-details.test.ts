@@ -338,6 +338,14 @@ describe('le lot facture, à l\'écran', () => {
     expect(await seconde.locator('[data-k=unitPrice]').getAttribute('aria-label')).toBe('P.U. HT, ligne 2');
     expect(await seconde.locator('[data-k=vatRate]').getAttribute('aria-label')).toBe('TVA, ligne 2');
     expect(await p.getByRole('spinbutton', { name: 'Qté, ligne 1', exact: true }).count()).toBe(1);
+    // (1.93.0) Une ligne se tape d'un trait : désignation, Tab, quantité, Tab, unité, Tab, prix. « + description » se
+    // glissait entre la désignation et la quantité : le 2,5 tapé tombait sur lui, la ligne restait à 1 × 0,000.
+    await seconde.locator('[data-k=label]').click();
+    await p.keyboard.type('Installation du réseau');
+    await p.keyboard.press('Tab'); await p.keyboard.type('2,5');
+    await p.keyboard.press('Tab'); await p.keyboard.press('Tab'); await p.keyboard.type('180,350');
+    await p.keyboard.press('Tab');
+    expect([await seconde.locator('[data-k=qty]').inputValue(), await seconde.locator('[data-k=unitPrice]').inputValue()]).toEqual(['2.5', '180.350']);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 120_000);

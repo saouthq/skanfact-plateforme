@@ -837,6 +837,30 @@ n'a pas l'outil. Trouvé en relisant le PDF : son pied disait « Bulletin de oct
 2026 », comme l'ordre de virement (« salaires d'avril ») et la fenêtre « Payer les salaires d'août ». Détail :
 `docs/pdf.md`.
 
+### 1.93.0 — au téléphone, les bulles « i » des colonnes d'une ligne
+
+Au téléphone, sur une facture neuve puis sur une facture d'achat : au-dessus des lignes, « Les colonnes : Unité ⓘ TVA ⓘ »
+(à l'achat : « Destination de la ligne ⓘ TVA déductible ⓘ »). Au doigt, la bulle de l'unité s'ouvre et se lit en entier,
+rien ne déborde de côté. À l'ordinateur, rien ne s'ajoute : l'en-tête du tableau porte ses bulles, comme avant.
+
+Et deux trouvailles. « Exporter tous les PDF de la période » annonçait « Génération de N PDF… » et rien ne venait : les PDF
+se font au serveur et arrivent dans un seul .zip (« 2 PDF exportés dans SkanFact-….zip »). Sur le serveur d'essai, le
+Chromium de la tâche 0011 imprime dans l'enfermement du service (une page en 513 ms) : `docs/pdf.md`.
+
+### Le grand parcours du 21/10/2026 (1.93.0) — une personne neuve, de l'inscription au cabinet
+
+Leïla s'inscrit au clavier (Tab d'une case à l'autre, Entrée valide), crée Mansouri Informatique SARL (le matricule tapé
+« 1234567l a m 000 » se range en 1234567L/A/M/000), son activité, sa TVA, son menu ; ajoute son RIB, un client à
+retenue de 1,5 %, un devis à deux lignes (2,5 j × 180,350 = 450,875), Ctrl+S l'enregistre ; le devis devient une
+facture, émise : 1 650,875 HT, TVA 313,666, timbre 1,000, retenue 29,468, net 1 936,073 DT, juste au millime. Puis elle
+choisit Complet à l'année ; la console le voit dans « À décider », la fiche prépare la facture (822,100 DT).
+
+Trouvé et corrigé en chemin :
+- au clavier, dans une ligne, Tab passait de la désignation au bouton « + description » : la quantité tapée tombait
+  dessus, la ligne restait à 1 × 0,000. Le bouton sort de l'ordre du Tab (comme les bulles « i ») ;
+- le refus « Cette entreprise ne t'est pas ouverte » nomme maintenant le compte connecté : un lien de la console ouvert
+  dans le navigateur d'un autre compte le dit sans qu'on ait à deviner lequel.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
@@ -851,7 +875,5 @@ n'a pas l'outil. Trouvé en relisant le PDF : son pied disait « Bulletin de oct
    relevés porte un nom (1.87.19, 1.87.20, 1.87.22).
 7. La caisse : vendue, rendue et fermée au téléphone, juste au millime ; tenue sur un appareil perdu, elle se ferme
    d'ici (1.87.14).
-8. Au téléphone, les bulles « i » des titres de colonne d'une ligne (Unité, TVA, Destination, TVA déductible) ne se
-   voient plus depuis que chaque case porte son titre (1.87.17, 1.87.21) : à rendre, par exemple en bulle à côté du
-   titre de la case.
+8. Au téléphone, les bulles « i » des titres de colonne d'une ligne se rangent au-dessus des lignes (1.93.0).
 9. Le PDF du Cabinet se fait au serveur, comme celui de l'entreprise (1.92.0).

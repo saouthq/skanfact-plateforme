@@ -830,4 +830,8 @@ export const ADAPTATIONS = [
   ...lireFichier('pdf-cabinet.txt'),
   // ── « d'octobre », pas « de octobre », sur le bulletin et l'ordre de virement (1.92.0) ──
   ...lireFichier('de-mois.txt'),
+  // ── « Exporter tous les PDF de la période » en ligne : un .zip des PDF du serveur (1.93.0) ──
+  ...lireFichier('pdf-lot.txt'),
+  // ── Au clavier, Tab va de la désignation à la quantité d'une ligne (1.93.0) ──
+  ...lireFichier('ligne-clavier.txt'),
 ];

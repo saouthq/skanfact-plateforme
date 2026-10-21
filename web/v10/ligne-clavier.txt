@@ -1,0 +1,19 @@
+Au clavier, Tab va de la désignation à la quantité (1.93.0, parcours du 21/10/2026). Format : voir sans-paquets.mjs.
+
+Dans une ligne de pièce, le bouton « + description » se plaçait entre la désignation et la quantité : au clavier, la
+quantité tapée après un Tab tombait sur ce bouton, et la ligne restait à 1 × 0,000 (vu en tapant un devis). Comme les
+bulles « i » (1.75.0), il sort de l'ordre du Tab : il s'ouvre à la souris, au doigt ou au lecteur d'écran.
+
+== app.js | « + description » d'une ligne de pièce, hors de l'ordre du Tab
+-- avant
+              : (figee ? '' : `<button type="button" class="link-add" data-desc="${i}">+ description</button>`)}${lotChoix(l, i)}</td>
+-- après
+              : (figee ? '' : `<button type="button" class="link-add" tabindex="-1" data-desc="${i}">+ description</button>`)}${lotChoix(l, i)}</td>
+-- fin
+
+== app.js | « + description » d'une ligne de facturation récurrente, hors de l'ordre du Tab
+-- avant
+<button type="button" class="link-add" data-rdesc="${i}">+ description</button>`}</td>
+-- après
+<button type="button" class="link-add" tabindex="-1" data-rdesc="${i}">+ description</button>`}</td>
+-- fin

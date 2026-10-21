@@ -70,3 +70,11 @@ boutons à droite quand l'entreprise les aligne sur le texte (la maquette valid�
 l'entreprise a sa propre preuve, et celle de `telephone.css` ne vise plus que le Cabinet (`:not(.pp2)`) : posée sur
 toutes les listes, elle remplaçait celle de l'entreprise quand elle manquait, et sa preuve restait verte. Chaque
 panneau a sa règle, et une seule.
+
+## Les bulles « i » des colonnes d'une ligne (1.93.0)
+
+Au téléphone, l'en-tête d'un tableau de lignes (une pièce, un achat, une photo relue) se cache depuis 1.87.17 et 1.87.21 :
+chaque case porte son titre juste au-dessus d'elle. Ses bulles « i » (l'unité, la TVA, la destination, la TVA
+déductible) partaient avec lui. Elles se rangent maintenant au-dessus des lignes, une seule fois, chacune avec ce qu'elle
+explique (« Les colonnes : Unité ⓘ TVA ⓘ ») : ce sont les mêmes bulles, qui s'ouvrent au doigt (`telephone.js`, 6 ;
+`.aide-colonnes` dans `telephone.css`). À l'ordinateur, rien ne s'ajoute. Test : `tests/web/telephone-commercant.test.ts`.
