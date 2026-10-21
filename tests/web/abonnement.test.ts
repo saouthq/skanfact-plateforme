@@ -141,6 +141,18 @@ describe('l\'abonnement, à la souris', () => {
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 10_000 }).toBe('#/parametres');
     await expect.poll(() => p.locator('#abonnement-panel .abo-tete h3').isVisible().catch(() => false), { timeout: 15_000 }).toBe(true);
 
+    // Au téléphone, menu fermé : la pastille se voit sous la barre du haut (1.87.9) — elle vivait dans le menu replié, et
+    // la lecture seule ne se lisait qu'au refus d'une nouvelle facture. Le reste du pied du menu reste replié.
+    const tel = await navigateur.newContext({ viewport: { width: 390, height: 844 }, locale: 'fr-FR', isMobile: true, hasTouch: true });
+    await tel.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, nadia.jeton);
+    const t = await tel.newPage();
+    await t.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
+    await expect.poll(() => pastille(t), { timeout: 20_000 }).toBe('Lecture seule — voir l\'abonnement');
+    const boite = await t.locator('#lic-banner').boundingBox();
+    expect(boite && boite.y < 160 && boite.width > 300).toBe(true);
+    expect(await t.locator('.sidebar-foot a[data-route="modules"]').isVisible()).toBe(false);
+    await tel.close();
+
     // ── Un commercial : la lecture seule, pas l'onglet ; la pastille lui dit qui règle ─────────────────────────────────
     const k = await ouvrir(karim.jeton, ent, '#/parametres');
     await expect.poll(() => pastille(k), { timeout: 15_000 }).toBe('Lecture seule — voir l\'abonnement');

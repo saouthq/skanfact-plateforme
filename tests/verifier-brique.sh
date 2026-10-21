@@ -42,6 +42,10 @@ choisis="$(
     # service non rangées, des filtres de 32 points au téléphone) : ce tri ne les donnait pas.
     if [[ "$f" =~ ^base/migrations/.*\.sql$ ]]; then echo tests/socle/export-entreprise.test.ts; continue; fi
     if [[ "$f" =~ ^web/console/src/ ]]; then echo tests/web/console.test.ts; continue; fi
+    # Un écran repris de la v10, ou ses adaptations : chaque fichier repris garde l'empreinte notée à la reprise. Des
+    # retouches faites à la main dans web/public/v10 sont passées ici cinq envois de suite (1.87.3 à 1.87.7) et ne sont
+    # tombées que sur GitHub.
+    if [[ "$f" =~ ^web/(public/v10|v10)/ ]]; then echo tests/v10/provenance.test.ts; continue; fi
     # Les tests qui importent directement un fichier changé — sauf un fichier que plus de trois
     # fichiers de test importent (les routes, par exemple) : ceux-là, GitHub les rejoue.
     if [[ "$f" =~ ^(serveur|moteur|commun|textes|base)/.*\.ts$ ]]; then

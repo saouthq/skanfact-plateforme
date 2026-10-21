@@ -32,6 +32,12 @@
   .sidebar.menu-ouvert > .nav-search, .sidebar.menu-ouvert > .sidebar-foot { display: flex; }
   .sidebar.menu-ouvert > nav { display: flex; max-height: 60vh; overflow-y: auto; }
   .sidebar.menu-ouvert > .nav-search { margin-block: 8px; }
+  /* La pastille de l'abonnement qui alerte (lecture seule, fin d'essai proche) se voit menu fermé, sous la barre du haut :
+     au téléphone, elle vivait dans le pied du menu replié, et une entreprise en lecture seule ne le lisait qu'au refus de
+     sa nouvelle facture (vu en recette le 21/10/2026, 1.87.9). */
+  .sidebar:not(.menu-ouvert) > .sidebar-foot:has(> #lic-banner.warn:not([hidden])) { display: flex; margin-top: 6px; padding: 0; border: 0; }
+  .sidebar:not(.menu-ouvert) > .sidebar-foot > :not(#lic-banner) { display: none; }
+  .sidebar:not(.menu-ouvert) > .sidebar-foot > #lic-banner { width: 100%; justify-content: center; }
   main { --main-haut: 16px; padding: var(--main-haut) 14px 40px; overflow-y: visible; }
 
   .page-head { flex-direction: column; align-items: stretch; }

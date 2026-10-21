@@ -672,6 +672,14 @@ refusées sur GitHub (chaque fichier repris doit avoir l'empreinte notée à la 
 jouait pas. Elles sont maintenant écrites comme toutes les autres (`web/v10/recette-21-10.txt`), et `npm run
 reprendre-v10` redonne les fichiers à l'octet près. Rien ne change à l'écran.
 
+### 1.87.9 — la lecture seule se voit au téléphone
+
+Le Café El Medina, en lecture seule depuis le 07/10/2026, ouvert au téléphone : l'accueil offrait « + Nouvelle facture »
+et la découverte, et rien ne disait la lecture seule. La pastille « Lecture seule — voir l'abonnement » vivait dans le
+pied du menu, replié au téléphone : on ne l'apprenait qu'au refus. Elle se voit maintenant sous la barre du haut, menu
+fermé, quand elle alerte (lecture seule, fin d'essai proche). Et la vérification locale joue désormais le test de
+provenance dès qu'un écran repris bouge (la cause du rouge réparé par la 1.87.8). Une preuve.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
