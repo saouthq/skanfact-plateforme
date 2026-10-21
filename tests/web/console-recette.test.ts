@@ -241,7 +241,7 @@ describe('la recette de la console, tenue par l\'écran', () => {
   }, 60_000);
   // Au clavier, la fiche d'un client était à quinze tabulations de sa recherche (1.87.10) : une seule organisation
   // trouvée, « Entrée » l'ouvre ; deux, la liste reste.
-  it('Clients au clavier : Ctrl K, le nom, « Entrée » ouvre la seule fiche trouvée', async () => {
+  it('Clients au clavier : Ctrl K, le nom, « Entrée » ouvre la seule fiche trouvée, depuis Clients comme depuis l\'accueil', async () => {
     const email = `clavier-${Date.now()}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Clavier', motDePasse: MDP });
     const j = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
@@ -257,6 +257,12 @@ describe('la recette de la console, tenue par l\'écran', () => {
     await p.keyboard.type(nom, { delay: 10 });
     await p.keyboard.press('Enter');
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 20_000 }).toBe(`#/clients/${id}`);
+    // Depuis l'accueil aussi : sa recherche ouvrait la liste, même pour un seul nom.
+    await p.goto(`${serveur.adresse}/console/#/`);
+    await p.locator('form.c-recherche input').waitFor({ timeout: 20_000 });
+    await p.locator('form.c-recherche input').fill(nom);
+    await p.locator('form.c-recherche input').press('Enter');
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 20_000 }).toBe(`#/clients/${id}`);
     // Deux trouvées (« Fromagerie Clavier » en a au moins deux d'un essai à l'autre, et l'autre ici) : la liste reste.
     await api('POST', '/entreprises', j, { raisonSociale: `${nom} bis` });
     expect((await api('GET', '/console/entreprises?frais=1', jD)).statut).toBe(200);
@@ -266,6 +272,12 @@ describe('la recette de la console, tenue par l\'écran', () => {
     await p.locator('.c-recherche input').press('Enter');
     await expect.poll(() => p.locator('.c-table-clients tbody tr').count(), { timeout: 20_000 }).toBe(2);
     expect(await p.evaluate(() => location.hash)).toMatch(/^#\/clients\?/);
+    // Deux, depuis l'accueil : la liste.
+    await p.goto(`${serveur.adresse}/console/#/`);
+    await p.locator('form.c-recherche input').waitFor({ timeout: 20_000 });
+    await p.locator('form.c-recherche input').fill(nom);
+    await p.locator('form.c-recherche input').press('Enter');
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 20_000 }).toBe(`#/clients?${new URLSearchParams({ q: nom }).toString()}`);
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);

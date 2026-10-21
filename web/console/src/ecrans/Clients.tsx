@@ -283,6 +283,15 @@ export function actionsDe(e: Ligne, role: string, faire: FaireDuMenu): ActionLig
 // numéro ; l'abonnement et l'état de sa société la plus urgente (un groupe dit les offres de toutes, et l'état qui presse
 // le plus) ; l'échéance, ce qu'elle rapporte, son usage du mois, quand on l'a vue ; « Ouvrir » et son menu.
 const lienDe = (o: LigneOrg) => (o.sorte === 'groupe' ? `#/clients/groupe/${o.id}` : o.sorte === 'cabinet' ? `#/cabinets/${o.id}` : `#/clients/${o.id}`);
+// La fiche de la seule organisation qui répond à une sélection, ou rien (1.87.10) : « Entrée » dans une recherche l'ouvre,
+// celle de Clients comme celle de l'accueil. La question part au serveur : la liste à l'écran peut être encore celle d'avant.
+export async function laSeuleFiche(api: ReturnType<typeof useApi>, selection: Record<string, string>): Promise<string | null> {
+  try {
+    const r = await api<Liste>('GET', `/console/entreprises?${new URLSearchParams({ ...selection, limite: '2', debut: '0' }).toString()}`);
+    const seule = r && r.statut === 200 && r.corps.total === 1 ? r.corps.lignes[0] : undefined;
+    return seule ? lienDe(seule) : null;
+  } catch { return null; }
+}
 // Chaque morceau reste entier (« E-0094 » ne se coupe jamais au trait d'union) ; la ligne se coupe entre eux, jamais
 // avant le point qui les sépare.
 function sousNom(o: LigneOrg): string[] {
@@ -455,11 +464,8 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
     const cherche = q.trim();
     if (!cherche) return;
     if (cherche !== qLue) { setQLue(cherche); setDebut(0); }
-    try {
-      const r = await apiActualiser<Liste>('GET', `/console/entreprises?${new URLSearchParams({ ...selection, q: cherche, limite: '2', debut: '0' }).toString()}`);
-      const seule = r && r.statut === 200 && r.corps.total === 1 ? r.corps.lignes[0] : undefined;
-      if (seule) location.hash = lienDe(seule);
-    } catch { /* la liste dit la panne */ }
+    const lien = await laSeuleFiche(apiActualiser, { ...selection, q: cherche });
+    if (lien) location.hash = lien;
   };
   const choisir = (c: Categorie | null) => { setEtat(c); setDebut(0); };
   // Une vue du métier est un raccourci : elle ouvre toute sa liste, quelle que soit la puce d'état choisie avant.

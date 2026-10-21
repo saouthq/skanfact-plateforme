@@ -5,7 +5,7 @@
 import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
 import { dire, phrase, titre, typo } from './langue.ts';
 import { appeler, session } from './api.ts';
-import { ContexteConsole, panneDe, type Ctx, type Moi, type Role } from './contexte.ts';
+import { ContexteConsole, panneDe, useApi, type Ctx, type Moi, type Role } from './contexte.ts';
 import { Abonnements } from './ecrans/Abonnements.tsx';
 import { Accueil } from './ecrans/Accueil.tsx';
 import { Alertes } from './ecrans/Alertes.tsx';
@@ -17,7 +17,7 @@ import { Sauvegardes } from './ecrans/Sauvegardes.tsx';
 import { Performances } from './ecrans/Performances.tsx';
 import { Cabinet } from './ecrans/Cabinet.tsx';
 import { Donnees } from './ecrans/Donnees.tsx';
-import { Clients } from './ecrans/Clients.tsx';
+import { Clients, laSeuleFiche } from './ecrans/Clients.tsx';
 import { Entree } from './ecrans/Entree.tsx';
 import { Invitation } from './ecrans/Invitation.tsx';
 import { Equipe } from './ecrans/Equipe.tsx';
@@ -184,10 +184,17 @@ function Cote({ moi, page, decisions, support, sortir, theme }: { moi: Moi; page
 const SUR_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 function Recherche({ role }: { role: Role }) {
   const [q, setQ] = useState('');
+  const api = useApi();
   if (!OUVRE.clients.includes(role)) return <span />;
-  const chercher = (e: FormEvent) => { e.preventDefault(); location.hash = `#/clients${q.trim() ? `?q=${encodeURIComponent(q.trim())}` : ''}`; };
+  // Une seule organisation répond : sa fiche s'ouvre, comme dans la recherche de Clients (1.87.10) ; sinon la liste.
+  const chercher = async (e: FormEvent) => {
+    e.preventDefault();
+    const cherche = q.trim();
+    const lien = cherche ? await laSeuleFiche(api, { q: cherche }) : null;
+    location.hash = lien ?? `#/clients${cherche ? `?q=${encodeURIComponent(cherche)}` : ''}`;
+  };
   return (
-    <form className="c-recherche" role="search" onSubmit={chercher}>
+    <form className="c-recherche" role="search" onSubmit={(e) => { void chercher(e); }}>
       <label><span className="c-cache">{titre('console.ecran.chercher_label')}</span>
         <Icone nom="chercher" />
         <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={titre('console.ecran.chercher')} />

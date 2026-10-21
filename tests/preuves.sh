@@ -18454,7 +18454,11 @@ prouver 'la lecture seule cachée dans le menu replié du téléphone' web/publi
 
 prouver 'la seule fiche trouvée à quinze tabulations de sa recherche' web/console/src/ecrans/Clients.tsx \
   " onKeyDown={(e) => { if (e.key === 'Enter') void entree(); }}" '' \
-  'Clients au clavier : Ctrl K, le nom, « Entrée » ouvre la seule fiche trouvée'
+  'Clients au clavier : Ctrl K, le nom, « Entrée » ouvre la seule fiche trouvée, depuis Clients comme depuis l'\''accueil'
+
+prouver 'la recherche de l'\''accueil qui ouvre la liste pour un seul nom' web/console/src/Console.tsx \
+  '    const lien = cherche ? await laSeuleFiche(api, { q: cherche }) : null;' '    const lien = cherche ? null : null;' \
+  'Clients au clavier : Ctrl K, le nom, « Entrée » ouvre la seule fiche trouvée, depuis Clients comme depuis l'\''accueil'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

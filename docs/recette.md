@@ -686,6 +686,11 @@ La console se parcourt au clavier dans l'ordre de l'écran, chaque élément ave
 recherche. Mais une recherche qui ne trouvait qu'une organisation laissait sa fiche à quinze tabulations (tous les
 filtres d'abord). « Entrée » l'ouvre maintenant ; deux trouvées ou plus, la liste reste. Une preuve.
 
+### 1.87.11 — la recherche de l'accueil de la console
+
+La recherche en tête de l'accueil (où mène `Ctrl K` depuis l'accueil) ouvrait la liste des clients même pour un seul nom
+trouvé. Elle ouvre maintenant sa fiche, comme celle de Clients ; deux ou plus, la liste. Une preuve.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
