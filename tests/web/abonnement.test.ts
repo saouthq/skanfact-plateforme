@@ -124,6 +124,9 @@ describe('l\'abonnement, à la souris', () => {
     expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-voir']);
     // Et un achat.
     await p.evaluate(() => { location.hash = '#/achat/new'; });
+    // La page d'achat elle-même (ses lignes) : le bandeau de la facture d'avant suffisait à l'attente, et l'instrument
+    // lisait alors les boutons de la facture (preuve non faite sur GitHub, 1.87.13).
+    await p.locator('#view #b-lines').waitFor({ timeout: 15_000 });
     await p.locator('#view #abo-banner').waitFor({ timeout: 15_000 });
     expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-voir']);
     await p.evaluate(() => { location.hash = '#/doc/new/devis'; });

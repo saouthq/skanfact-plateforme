@@ -750,6 +750,13 @@ au téléphone, il se cache, et chaque case porte son titre juste au-dessus (« 
 cartes des listes ; de même pour les lignes d'une photo relue. Le test des lignes d'achat au téléphone l'exige ; deux
 preuves.
 
+### 1.87.18 — le rouge de GitHub sur 1.87.13
+
+Une preuve n'y était pas faite : « Enregistrer » d'un achat neuf remis en vert en lecture seule, le test restait vert.
+Le test passait de la facture à l'achat et attendait le bandeau de lecture seule… que la facture d'avant portait déjà :
+selon la vitesse de la machine, il lisait les boutons de la facture. Il attend maintenant la page d'achat elle-même (ses
+lignes). La preuve, rejouée deux fois ici, tombe chaque fois.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
