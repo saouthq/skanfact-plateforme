@@ -15,6 +15,9 @@
 //    (« 12 500,000 DT », le prix de vente d'un stock) dépassait de sa carte, qui le coupait. Un montant se lit d'un
 //    bloc, il ne passe pas à la ligne : trop long pour sa carte, il se resserre d'un cran, puis d'un second
 //    (`data-tel-serre`, telephone.css). Ce qui tient garde la taille de la v10.
+// 4. « Aperçu » d'une pièce (1.87.12). Au téléphone, l'aperçu est déjà là, tout en bas sous le formulaire ; le bouton le
+//    MASQUAIT, sans que rien ne bouge à l'écran, puis disait « Afficher l'aperçu » (vu en recette le 21/10/2026). Au
+//    téléphone, il ouvre l'aperçu en grand, comme « Agrandir » : c'est ce qu'on attend en le touchant.
 (function () {
   'use strict';
   function poserMenu() {
@@ -103,6 +106,18 @@
     passer();
   }
 
-  function demarrer() { poserMenu(); suivre(); }
+  function apercuEnGrand() {
+    document.addEventListener('click', (e) => {
+      const t = /** @type {Element | null} */ (e.target);
+      if (!TELEPHONE.matches || !t || !t.closest('#pv-toggle')) return;
+      const grand = /** @type {HTMLButtonElement | null} */ (document.getElementById('pv-big'));
+      if (!grand) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      grand.click();
+    }, true);
+  }
+
+  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer); else demarrer();
 })();

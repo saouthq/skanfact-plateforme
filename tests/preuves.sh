@@ -18460,6 +18460,10 @@ prouver 'la recherche de l'\''accueil qui ouvre la liste pour un seul nom' web/c
   '    const lien = cherche ? await laSeuleFiche(api, { q: cherche }) : null;' '    const lien = cherche ? null : null;' \
   'Clients au clavier : Ctrl K, le nom, « Entrée » ouvre la seule fiche trouvée, depuis Clients comme depuis l'\''accueil'
 
+prouver '« Aperçu » qui masque l'\''aperçu du bas de page au téléphone' web/public/plateforme/telephone.js \
+  '  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); }' '  function demarrer() { poserMenu(); suivre(); void apercuEnGrand; }' \
+  'une pièce au téléphone : l'\''étape suivante en tête, « WhatsApp » à côté d'\''« Email », chaque bulle avec son bouton ; le bandeau d'\''une pièce émise tient'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

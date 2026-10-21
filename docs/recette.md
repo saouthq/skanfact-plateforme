@@ -691,6 +691,15 @@ filtres d'abord). « Entrée » l'ouvre maintenant ; deux trouvées ou plus, la 
 La recherche en tête de l'accueil (où mène `Ctrl K` depuis l'accueil) ouvrait la liste des clients même pour un seul nom
 trouvé. Elle ouvre maintenant sa fiche, comme celle de Clients ; deux ou plus, la liste. Une preuve.
 
+### 1.87.12 — émettre, encaisser et voir une facture au téléphone
+
+La facture de Trabelsi Logistique émise au doigt (FAC-2026-001, 441,741 DT), puis son paiement : la fenêtre propose le
+reste à payer, « Enregistrer » la dit « payée intégralement ». Mais « Aperçu » masquait l'aperçu, déjà posé tout en bas
+sous le formulaire : rien ne bougeait à l'écran, et le bouton devenait « Afficher l'aperçu ». Au téléphone, il ouvre
+maintenant la pièce en grand (comme « Agrandir » ; Échap la referme). Le montant du paiement s'écrit avec un point dans
+un navigateur réglé en anglais : c'est l'affichage d'un champ de nombre selon la langue du navigateur ; une virgule
+tapée y reste la décimale (virgule.js). Une preuve.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
