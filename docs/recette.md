@@ -888,6 +888,24 @@ preuves qui gardaient l'écran sans pièces jointes ne pouvaient plus tomber dep
 Vérifié, pas un défaut : « + Comptabilité complète » dans la Comptabilité d'une entreprise en Complet mène à Modules, où
 le grand livre, la balance et les états s'allument (le sous-module n'est pas allumé d'office).
 
+### 1.95.0 — le parcours à l'écran, geste par geste : Leïla répond, Hatem lit
+
+Fait à la souris et au clavier sur l'écran (de vrais clics, une capture après chaque geste), pas par un script. Leïla
+répond au comptable depuis Comptabilité › Cabinet, envoie le bon de commande signé par « Mon comptable » (le sélecteur de
+fichiers du système, « Parler d'une pièce », Entrée envoie) ; Hatem, dans une fenêtre privée (mot de passe, code de son
+application), le lit dans ses Messages et l'ouvre.
+
+Trouvé et corrigé en chemin, chaque fois revu à l'écran :
+- la fenêtre « Répondre » d'une question qui attend une pièce ne prenait que du texte (« dis-lui où la trouver ») : elle
+  prend maintenant le fichier ; il part dans la messagerie, rattaché à la pièce visée, sous un mot qui nomme la question ;
+- dans le fil, la carte d'une pièce commençait sa deuxième ligne par un « · » orphelin ; « Ranger dans mes achats… » se
+  proposait sous un document de vente envoyé avec une facture ;
+- « Envoyer au comptable… » restait le bouton vert alors que le cabinet lit déjà les livres en direct : il redevient
+  secondaire, une phrase dit qu'il n'y a rien à lui envoyer ; sa fenêtre disait « Le journal des ventes est joint en
+  CSV » (un navigateur ne joint rien : il se télécharge, à joindre soi-même) et « 1 documents » ;
+- un fichier ouvert depuis le fil s'appelait « d1eebff2-… » et s'enregistrait sous ce nom : une photo s'ouvre dans une
+  page à son nom, et chaque fichier du fil a « Enregistrer », qui le garde sous son nom.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
@@ -904,4 +922,5 @@ le grand livre, la balance et les états s'allument (le sous-module n'est pas al
    d'ici (1.87.14).
 8. Au téléphone, les bulles « i » des titres de colonne d'une ligne se rangent au-dessus des lignes (1.93.0).
 9. Le PDF du Cabinet se fait au serveur, comme celui de l'entreprise (1.92.0).
-10. Les questions du comptable arrivent sans recharger ; une relance se fait un autre jour (1.94.0).
+10. Les questions du comptable arrivent sans recharger ; une relance se fait un autre jour (1.94.0) ; on y répond avec
+    le fichier attendu (1.95.0).

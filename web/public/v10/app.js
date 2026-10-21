@@ -824,6 +824,8 @@
   function messageOuvert(r, joint) {
     const f = /^la /.test(joint || '') ? 'e' : '';
     if (r && r.state === 'mail') return 'Message ouvert dans Mail' + (joint ? ` avec ${joint} joint${f}` : '');
+    // (plateforme) 1.94.0 — un lien d'e-mail ouvert par le navigateur : la pièce s'est téléchargée, rien ne la joint.
+    if (r && r.state === 'mailto') return 'Message ouvert dans ta messagerie' + (joint ? ` — joins-y ${joint}, téléchargé${f} dans tes Téléchargements` : '');
     return 'Message ouvert dans ta messagerie' + (joint ? ` — glisse ${joint} affiché${f} dans ${EXPLORATEUR}` : '');
   }
 
@@ -2082,6 +2084,8 @@
     const avant = avecMessagerie(messagerieVue);
     messagerieVue = a;
     if (avant !== avecMessagerie(a)) {
+      // (plateforme) 1.94.0 — la Comptabilité dit si un cabinet lit ses ventes : elle se redessine quand on l'apprend.
+      if (/^#\/compta/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
       drawNav();
       $$('nav a, .sidebar-foot a').forEach(x => x.classList.toggle('active', x.dataset.route === navActif));
     }
@@ -8414,18 +8418,35 @@
       <div class="warn-box mb">${h(q.objet ? q.objet + ' — ' : '')}${h(C.typoFr(q.texte))}</div>
       <form id="qf"><label class="field obligatoire">${lbl('Ta réponse', 'cab.reponse')}
         <textarea name="texte" rows="4" placeholder="Réponds en une phrase : c'est ce que ton comptable lira.">${h((q.reponse && q.reponse.texte) || '')}</textarea></label>
-        <p class="small muted">Ton comptable la lit dès que tu l'enregistres. Si ton comptable attend une pièce,
-        dis-lui dans ta réponse où la trouver.</p></form>
+        ${bridge.messagerie && bridge.messagerie.envoyerFichier ? `<label class="field">${q.attendu === 'piece' ? 'Le fichier qu\'il attend' : 'Un fichier, si besoin'} <span class="muted small">(une photo ou un PDF, 10 Mo au plus)</span>
+          <input type="file" name="fichier" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"></label>
+        <p class="small muted">Ton comptable lit ta réponse dès que tu l'enregistres ; le fichier lui arrive dans « Mon comptable », avec elle.</p>`
+          : `<p class="small muted">Ton comptable la lit dès que tu l'enregistres. Si ton comptable attend une pièce,
+        dis-lui dans ta réponse où la trouver.</p>`}</form>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer ma réponse</button></div>`,
       (root, close) => {
-        $('#ok', root).onclick = () => {
-          const t = $('textarea[name=texte]', root).value.trim();
+        $('#ok', root).onclick = async () => {
+          const champ = $('input[name=fichier]', root);
+          const fichier = champ && champ.files && champ.files[0] ? champ.files[0] : null;
+          let t = $('textarea[name=texte]', root).value.trim();
+          if (!t && fichier) t = `Le fichier : ${fichier.name}`;
           if (!t) return refus($('textarea[name=texte]', root), 'Une réponse vide n\'apprend rien à ton comptable.');
+          if (fichier) {
+            // La pièce visée, si elle est dans le dossier : le cabinet ouvre le fichier en face d'elle.
+            const doc = q.piece ? (data.documents || []).find(d => d.number === q.piece) : null;
+            const achat = q.piece && !doc ? (data.purchases || []).find(a => a.number === q.piece) : null;
+            const piece = doc && ['facture', 'avoir', 'devis'].includes(doc.type) ? { genre: doc.type, id: doc.id, libelle: [doc.number, (clientById(doc.clientId) || {}).name].filter(Boolean).join(' · ') }
+              : achat ? { genre: 'achat', id: achat.id, libelle: achat.number } : null;
+            const ok = $('#ok', root);
+            ok.disabled = true;
+            try { await bridge.messagerie.envoyerFichier(fichier, `Le fichier pour ta question « ${q.objet || q.texte} ».`, piece); }
+            catch (e) { ok.disabled = false; return refus(champ, e && e.message ? e.message : String(e)); }
+          }
           const r = C.repondreQuestion(data.questionsCabinet || [], id, { texte: t }, Date.now());
           if (!r.ok) return toast(r.motif, true);
           data.questionsCabinet = r.liste;
           save(true); close();
-          toast('Réponse enregistrée : ton comptable la lit dans SkanFact Cabinet');
+          toast(fichier ? `Réponse enregistrée, et ${fichier.name} envoyé à ton comptable` : 'Réponse enregistrée : ton comptable la lit dans SkanFact Cabinet');
           render(true); updateNavCounts();
         };
       });
@@ -16926,7 +16947,8 @@
           <p class="small muted mt">Timbres fiscaux : ${C.money(sum.timbre, cur)} · TTC facturé : ${C.money(sum.ttc, cur)} · Retenues à la source subies sur les encaissements de la période : ${C.money(rsSubies, cur)}${Math.abs(sum.rs - rsSubies) > 0.0005 ? ` (les factures de la période en portent ${C.money(sum.rs, cur)} : un client la retient en payant)` : ''}. <em>À VÉRIFIER avec le comptable</em> avant déclaration.</p>
         </div>
         <div class="panel"><h2>Journal des ventes — ${h(periodLabel())} ${info('compta.journal')}</h2>
-          <div class="inline mb"><button class="btn" id="exp-journal">Exporter en CSV</button><button class="btn" id="exp-pdfs">Exporter tous les PDF de la période</button><button class="btn btn-primary" id="exp-comptable">Envoyer au comptable…</button>${info('compta.comptable')}</div>
+          <div class="inline mb"><button class="btn" id="exp-journal">Exporter en CSV</button><button class="btn" id="exp-pdfs">Exporter tous les PDF de la période</button><button class="btn${messagerieVue && messagerieVue.cabinet ? '' : ' btn-primary'}" id="exp-comptable">Envoyer au comptable…</button>${info('compta.comptable')}</div>
+          ${messagerieVue && messagerieVue.cabinet ? '<p class="small muted mb" id="exp-cabinet-lit">Ton cabinet lit ces ventes en direct : il n\'y a rien à lui envoyer. Ce bouton sert à les envoyer à quelqu\'un d\'autre, par e-mail.</p>' : ''}
           ${rows.length ? `<div class="scroll-x" id="j-wrap"><table class="list compact sortable"><thead>${sortHead(journalCols, comptaState.journal.sort)}</thead><tbody>
             ${jPage.rows.map(r => `<tr class="clickable" data-id="${r.id}">${journalCols.map(c => `<td class="${c.r ? 'r nw' : ''}">${c.get(r)}</td>`).join('')}</tr>`).join('')}
           </tbody></table></div>${pagerBar(jPage.pg, { noun: 'document' })}` : '<div class="empty">Aucune facture émise sur cette période.</div>'}
@@ -16980,9 +17002,9 @@
             ${field(lbl('Email du comptable', 'compta.comptableEmail'), 'to', company().accountantEmail || '', 'email', 'placeholder="comptable@cabinet.tn"')}
             <label class="check" style="align-self:end"><input type="checkbox" name="remember" checked> Retenir cette adresse</label>
             <label class="field span-2">${lbl('Objet', 'mail.objet')}<input type="text" name="subject" value="${h(C.fillTemplate(tpl.subject, vars))}"></label>
-            <label class="field span-2">${lbl('Message', 'mail.message')}<textarea name="body" rows="8">${h(C.fillTemplate(tpl.body, vars))}</textarea></label>
+            <label class="field span-2">${lbl('Message', 'mail.message')}<textarea name="body" rows="8">${h(C.fillTemplate(tpl.body, vars).replace(/(^|\D)1 documents\b/, (m, avant) => `${avant}1 document`))}</textarea></label>
           </form>
-          <p class="small muted">Le journal des ventes est joint en CSV. Les encaissements et les PDF s'exportent séparément si ton comptable les demande.</p>
+          <p class="small muted">${bridge.dessinerMandat ? 'Le journal des ventes se télécharge en CSV : joins-le au message (un navigateur ne joint pas de fichier lui-même).' : 'Le journal des ventes est joint en CSV.'} Les encaissements et les PDF s'exportent séparément si ton comptable les demande.</p>
           <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Ouvrir dans la messagerie</button></div>`,
           (root, close) => { $('#ok', root).onclick = async () => {
             const v = formValues($('#cpf', root));

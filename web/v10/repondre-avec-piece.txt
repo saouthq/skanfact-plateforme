@@ -1,0 +1,58 @@
+Répondre au comptable avec la pièce qu'il attend (1.94.0, parcours du 21/10/2026). Format : voir sans-paquets.mjs.
+
+Hatem demandait « Une pièce justificative » (le bon de commande signé d'une facture) ; la fenêtre « Répondre » de Leïla ne
+prenait que du texte (« dis-lui dans ta réponse où la trouver ») : il fallait deviner qu'il fallait passer par « Mon
+comptable » et y joindre le fichier. La fenêtre prend maintenant le fichier (une photo ou un PDF) : il part dans la
+messagerie avec la réponse, rattaché à la pièce visée quand elle est dans le dossier ; la réponse se dit d'elle-même si
+le fichier suffit. Le message du fichier ne répète pas la réponse : elle se lit juste en dessous, dans le fil. Sans messagerie (une lecture seule, un rôle qui n'écrit pas au cabinet), la phrase d'avant reste.
+
+== app.js | la fenêtre « Répondre » prend le fichier que le comptable attend
+-- avant
+        <p class="small muted">Ton comptable la lit dès que tu l'enregistres. Si ton comptable attend une pièce,
+        dis-lui dans ta réponse où la trouver.</p></form>
+-- après
+        ${bridge.messagerie && bridge.messagerie.envoyerFichier ? `<label class="field">${q.attendu === 'piece' ? 'Le fichier qu\'il attend' : 'Un fichier, si besoin'} <span class="muted small">(une photo ou un PDF, 10 Mo au plus)</span>
+          <input type="file" name="fichier" accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf"></label>
+        <p class="small muted">Ton comptable lit ta réponse dès que tu l'enregistres ; le fichier lui arrive dans « Mon comptable », avec elle.</p>`
+          : `<p class="small muted">Ton comptable la lit dès que tu l'enregistres. Si ton comptable attend une pièce,
+        dis-lui dans ta réponse où la trouver.</p>`}</form>
+-- fin
+
+== app.js | le fichier part d'abord (refusé, rien ne s'enregistre) ; puis la réponse, qui le nomme
+-- avant
+        $('#ok', root).onclick = () => {
+          const t = $('textarea[name=texte]', root).value.trim();
+          if (!t) return refus($('textarea[name=texte]', root), 'Une réponse vide n\'apprend rien à ton comptable.');
+          const r = C.repondreQuestion(data.questionsCabinet || [], id, { texte: t }, Date.now());
+          if (!r.ok) return toast(r.motif, true);
+          data.questionsCabinet = r.liste;
+          save(true); close();
+          toast('Réponse enregistrée : ton comptable la lit dans SkanFact Cabinet');
+          render(true); updateNavCounts();
+        };
+-- après
+        $('#ok', root).onclick = async () => {
+          const champ = $('input[name=fichier]', root);
+          const fichier = champ && champ.files && champ.files[0] ? champ.files[0] : null;
+          let t = $('textarea[name=texte]', root).value.trim();
+          if (!t && fichier) t = `Le fichier : ${fichier.name}`;
+          if (!t) return refus($('textarea[name=texte]', root), 'Une réponse vide n\'apprend rien à ton comptable.');
+          if (fichier) {
+            // La pièce visée, si elle est dans le dossier : le cabinet ouvre le fichier en face d'elle.
+            const doc = q.piece ? (data.documents || []).find(d => d.number === q.piece) : null;
+            const achat = q.piece && !doc ? (data.purchases || []).find(a => a.number === q.piece) : null;
+            const piece = doc && ['facture', 'avoir', 'devis'].includes(doc.type) ? { genre: doc.type, id: doc.id, libelle: [doc.number, (clientById(doc.clientId) || {}).name].filter(Boolean).join(' · ') }
+              : achat ? { genre: 'achat', id: achat.id, libelle: achat.number } : null;
+            const ok = $('#ok', root);
+            ok.disabled = true;
+            try { await bridge.messagerie.envoyerFichier(fichier, `Le fichier pour ta question « ${q.objet || q.texte} ».`, piece); }
+            catch (e) { ok.disabled = false; return refus(champ, e && e.message ? e.message : String(e)); }
+          }
+          const r = C.repondreQuestion(data.questionsCabinet || [], id, { texte: t }, Date.now());
+          if (!r.ok) return toast(r.motif, true);
+          data.questionsCabinet = r.liste;
+          save(true); close();
+          toast(fichier ? `Réponse enregistrée, et ${fichier.name} envoyé à ton comptable` : 'Réponse enregistrée : ton comptable la lit dans SkanFact Cabinet');
+          render(true); updateNavCounts();
+        };
+-- fin

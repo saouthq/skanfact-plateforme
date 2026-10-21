@@ -1,0 +1,54 @@
+« Envoyer au comptable… » sur la plateforme (1.94.0, parcours du 21/10/2026). Format : voir sans-paquets.mjs.
+
+Le journal des ventes portait « Envoyer au comptable… » en bouton principal, même quand le cabinet de l'entreprise lit
+ses livres en direct : Leïla aurait envoyé par e-mail ce que son comptable avait déjà. Et la fenêtre disait « Le journal
+des ventes est joint en CSV » : un navigateur ne joint rien à un message, le fichier se télécharge (une phrase que rien
+ne tient). Le message disait « 1 documents ». Désormais : avec un cabinet, le bouton redevient secondaire et une phrase
+dit qu'il n'y a rien à lui envoyer ; la fenêtre et le message disent que le fichier est dans les Téléchargements, à
+joindre soi-même ; « 1 document ».
+
+== app.js | un message ouvert depuis le navigateur : la pièce est dans les Téléchargements, à joindre soi-même
+-- avant
+    return 'Message ouvert dans ta messagerie' + (joint ? ` — glisse ${joint} affiché${f} dans ${EXPLORATEUR}` : '');
+-- après
+    // (plateforme) 1.94.0 — un lien d'e-mail ouvert par le navigateur : la pièce s'est téléchargée, rien ne la joint.
+    if (r && r.state === 'mailto') return 'Message ouvert dans ta messagerie' + (joint ? ` — joins-y ${joint}, téléchargé${f} dans tes Téléchargements` : '');
+    return 'Message ouvert dans ta messagerie' + (joint ? ` — glisse ${joint} affiché${f} dans ${EXPLORATEUR}` : '');
+-- fin
+
+== app.js | avec un cabinet qui tient les livres, « Envoyer au comptable… » n'est plus le geste principal
+-- avant
+<button class="btn btn-primary" id="exp-comptable">Envoyer au comptable…</button>${info('compta.comptable')}</div>
+-- après
+<button class="btn${messagerieVue && messagerieVue.cabinet ? '' : ' btn-primary'}" id="exp-comptable">Envoyer au comptable…</button>${info('compta.comptable')}</div>
+          ${messagerieVue && messagerieVue.cabinet ? '<p class="small muted mb" id="exp-cabinet-lit">Ton cabinet lit ces ventes en direct : il n\'y a rien à lui envoyer. Ce bouton sert à les envoyer à quelqu\'un d\'autre, par e-mail.</p>' : ''}
+-- fin
+
+== app.js | la fenêtre dit la vérité sur la pièce jointe
+-- avant
+          <p class="small muted">Le journal des ventes est joint en CSV. Les encaissements et les PDF s'exportent séparément si ton comptable les demande.</p>
+-- après
+          <p class="small muted">${bridge.dessinerMandat ? 'Le journal des ventes se télécharge en CSV : joins-le au message (un navigateur ne joint pas de fichier lui-même).' : 'Le journal des ventes est joint en CSV.'} Les encaissements et les PDF s'exportent séparément si ton comptable les demande.</p>
+-- fin
+
+== app.js | « 1 document », pas « 1 documents »
+-- avant
+            <label class="field span-2">${lbl('Message', 'mail.message')}<textarea name="body" rows="8">${h(C.fillTemplate(tpl.body, vars))}</textarea></label>
+          </form>
+          <p class="small muted">${bridge.dessinerMandat
+-- après
+            <label class="field span-2">${lbl('Message', 'mail.message')}<textarea name="body" rows="8">${h(C.fillTemplate(tpl.body, vars).replace(/(^|\D)1 documents\b/, (m, avant) => `${avant}1 document`))}</textarea></label>
+          </form>
+          <p class="small muted">${bridge.dessinerMandat
+-- fin
+
+== app.js | le cabinet connu après le premier dessin : la Comptabilité se redessine (son bouton, sa phrase)
+-- avant
+    if (avant !== avecMessagerie(a)) {
+      drawNav();
+-- après
+    if (avant !== avecMessagerie(a)) {
+      // (plateforme) 1.94.0 — la Comptabilité dit si un cabinet lit ses ventes : elle se redessine quand on l'apprend.
+      if (/^#\/compta/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
+      drawNav();
+-- fin

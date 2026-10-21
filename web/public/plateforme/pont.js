@@ -991,6 +991,8 @@
       attente: () => appel('GET', '/messages/attente'),
       dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, { ...o, appel, cote: 'entreprise' }),
       rangerAchat: (/** @type {string} */ message, /** @type {string} */ achat, /** @type {string} */ libelle) => appel('POST', `/messages/${encodeURIComponent(message)}/achat`, { achat, libelle }),
+      envoyerFichier: (/** @type {File} */ f, /** @type {string} */ texte, /** @type {any} */ piece) =>
+        /** @type {any} */ (window).SkanMessagerie.envoyerFichier(appel, 'entreprise', f, texte, piece),
     },
     // Le support de SkanFact (Support S1 ; plateforme/support.js ; serveur/support) : écrire une demande, ce qui attend
     // (la pastille de l'Aide et le bandeau), et la page de ses demandes. Ce qui part avec une demande, compté et décidé :
@@ -1371,8 +1373,10 @@
     openAttachment: async (/** @type {string} */ _id, /** @type {string} */ fichier) => {
       const w = window.open('', '_blank');
       try {
-        const { adresse, nom } = await lirePiece(fichier);
-        if (w) { w.opener = null; w.location.href = adresse; } else enregistrerSous(adresse, nom);
+        const { adresse, nom, type } = await lirePiece(fichier);
+        // (1.94.0) L'onglet porte le nom du fichier, et l'enregistre sous ce nom (plateforme/messagerie.js, `montrerFichier`).
+        const montrer = /** @type {any} */ (window).SkanMessagerie?.montrerFichier;
+        if (w && montrer) { montrer(w, adresse, nom, type); w.opener = null; } else if (w) { w.opener = null; w.location.href = adresse; } else enregistrerSous(adresse, nom);
         return { ouvert: true };
       } catch (e) { w?.close(); throw e; }
     },
@@ -2592,7 +2596,7 @@
     const octets = Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0));
     const adresse = URL.createObjectURL(new Blob([octets], { type: String(f.type) }));
     setTimeout(() => URL.revokeObjectURL(adresse), 120_000);
-    return { adresse, nom: String(f.nom) };
+    return { adresse, nom: String(f.nom), type: String(f.type) };
   }
   /** @param {string} adresse @param {string} nom */
   function enregistrerSous(adresse, nom) {

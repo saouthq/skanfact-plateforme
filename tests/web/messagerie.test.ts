@@ -55,7 +55,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     return jeton;
   };
   const page = async (jeton: string, largeur = 1440, hauteur = 900) => {
-    const cx = await navigateur.newContext({ viewport: { width: largeur, height: hauteur }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', ...(largeur < 500 ? { isMobile: true, hasTouch: true } : {}) });
+    const cx = await navigateur.newContext({ viewport: { width: largeur, height: hauteur }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', acceptDownloads: true, ...(largeur < 500 ? { isMobile: true, hasTouch: true } : {}) });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
     const p = await cx.newPage();
     const erreurs: string[] = [];
@@ -149,6 +149,21 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await a.p.locator('[data-msg-texte]').fill('Et voici le devis.');
     await a.p.locator('[data-msg-texte]').press('Enter');
     await expect.poll(async () => net(await a.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Et voici le devis\. Devis · DEV-2026-004 · Société Atlas/);
+    // (1.94.0) La carte garde son « · » avec le genre : la ligne qui passe à la suivante commence par le numéro.
+    expect(await a.p.locator('[data-msg-fil] .msg-carte-txt').last().evaluate((n) => [...n.children].map((x) => (x as HTMLElement).innerText.trim().charAt(0)))).toEqual(['D', 'D']);
+    // Une photo envoyée avec le devis n'est pas un achat : « Ranger dans mes achats… » ne se propose pas sous elle.
+    await a.p.getByRole('button', { name: 'Parler d\'une pièce', exact: true }).click();
+    await a.p.locator('.msg-fp-ligne').filter({ hasText: 'DEV-2026-004' }).click();
+    const [joindre] = await Promise.all([a.p.waitForEvent('filechooser'), a.p.getByRole('button', { name: 'Joindre une photo ou un PDF', exact: true }).click()]);
+    await joindre.setFiles(photo);
+    await a.p.locator('[data-msg-texte]').fill('Le devis signé, en photo.');
+    await a.p.locator('[data-msg-texte]').press('Enter');
+    const derniere = a.p.locator('[data-msg-fil] .msg-ligne').filter({ hasText: 'Le devis signé, en photo.' });
+    await expect.poll(() => derniere.locator('.msg-fichier').count(), { timeout: 15_000 }).toBe(1);
+    expect(await derniere.locator('[data-msg-ranger]').count()).toBe(0);
+    // (1.94.0) « Enregistrer » garde le fichier sous son nom (ouvert dans un onglet, il s'appelait d'un identifiant).
+    const [enregistre] = await Promise.all([a.p.waitForEvent('download'), derniere.locator('[data-msg-enregistrer]').click()]);
+    expect(enregistre.suggestedFilename()).toBe('facture-steg-aout.png');
     const lus = (await api('GET', `/entreprises/${ent}/messages?cote=cabinet`, sonia)).corps.messages ?? [];
     expect(lus[0]?.piece).toEqual({ genre: 'devis', id: 'd1', libelle: expect.stringMatching(/^DEV-2026-004 · Société Atlas · /) });
     await a.p.screenshot({ path: path.join(PHOTOS, 'messagerie-2-echanges.png') });

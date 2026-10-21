@@ -18695,6 +18695,33 @@ prouver 'le Cabinet qui ouvre une fenêtre d'\''envoi quand rien ne partirait' w
 prouver 'le .zip des PDF qui ne dit pas que ses noms sont en UTF-8' web/public/plateforme/pont.js \
   $'[8, 0x0800, 2], [10, 0, 2]' $'[8, 0, 2], [10, 0, 2]' \
   '« Exporter tous les PDF de la période » : un .zip des PDF du serveur'
+prouver 'la carte d'\''une pièce dont la ligne suivante commence par « · »' web/public/plateforme/messagerie.js \
+  $'<span><b>${esc(GENRES[m.piece.genre] || \'Pièce\')}</b> ·</span><span>${esc(m.piece.libelle)}</span>' $'<b>${esc(GENRES[m.piece.genre] || \'Pièce\')}</b> · ${esc(m.piece.libelle)}' \
+  'Amine et son comptable s'\''écrivent : la pastille'
+prouver '« Ranger dans mes achats » proposé sous un fichier envoyé avec un devis' web/public/plateforme/messagerie.js \
+  $' && !(m.piece && m.piece.genre !== \'achat\')' $'' \
+  'Amine et son comptable s'\''écrivent : la pastille'
+prouver 'la réponse à une question qui ne prend pas le fichier attendu' web/public/v10/app.js \
+  $'${bridge.messagerie && bridge.messagerie.envoyerFichier ? `<label class="field">' $'${false ? `<label class="field">' \
+  'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
+prouver 'le fichier d'\''une réponse qui ne part pas au comptable' web/public/v10/app.js \
+  $'try { await bridge.messagerie.envoyerFichier(fichier, ' $'try { void (fichier, ' \
+  'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
+prouver '« Envoyer au comptable » en geste principal quand le cabinet lit déjà les ventes' web/public/v10/app.js \
+  $'<button class="btn${messagerieVue && messagerieVue.cabinet ? \'\' : \' btn-primary\'}" id="exp-comptable">' $'<button class="btn btn-primary" id="exp-comptable">' \
+  'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
+prouver 'la Comptabilité qui ne se redessine pas quand elle apprend le cabinet' web/public/v10/app.js \
+  $'if (/^#\\/compta/.test(location.hash) && !$(\'#modal-root .modal\')' $'if (false && !$(\'#modal-root .modal\')' \
+  'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
+prouver 'la fenêtre d'\''envoi au comptable qui dit le CSV joint' web/public/v10/app.js \
+  $'${bridge.dessinerMandat ? \'Le journal des ventes se télécharge' $'${false ? \'Le journal des ventes se télécharge' \
+  '« Envoyer au comptable… » : le journal se télécharge'
+prouver '« 1 documents » dans le message au comptable' web/public/v10/app.js \
+  $'.replace(/(^|\\D)1 documents\\b/, (m, avant) => `${avant}1 document`)' $'' \
+  '« Envoyer au comptable… » : le journal se télécharge'
+prouver 'le fichier d'\''un message qui ne s'\''enregistre pas sous son nom' web/public/plateforme/messagerie.js \
+  $'      surClic(fil, \'[data-msg-enregistrer]\', async (b) => { await ouvrirFichier(o.appel, String(b.dataset.msgEnregistrer), true); });' $'' \
+  'Amine et son comptable s'\''écrivent : la pastille'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

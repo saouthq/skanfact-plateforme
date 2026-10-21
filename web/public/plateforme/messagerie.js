@@ -96,18 +96,37 @@
 
   // Ouvrir un fichier du fil : le serveur le rend en base 64, la page l'ouvre dans un onglet.
   /** @param {(m: string, c: string, b?: unknown) => Promise<any>} appel @param {string} id */
-  async function ouvrirFichier(appel, id) {
-    const onglet = window.open('', '_blank');
+  /** @param {(m: string, c: string, b?: unknown) => Promise<any>} appel @param {string} id @param {boolean} [enregistrer] */
+  async function ouvrirFichier(appel, id, enregistrer = false) {
+    const onglet = enregistrer ? null : window.open('', '_blank');
     const f = await appel('GET', `/messages/fichiers/${encodeURIComponent(id)}`);
     const octets = Uint8Array.from(atob(f.contenu), (c) => c.charCodeAt(0));
     const adresse = URL.createObjectURL(new Blob([octets], { type: f.type }));
-    if (onglet) onglet.location.href = adresse;
+    if (onglet) montrerFichier(onglet, adresse, f.nom, f.type);
     else {
       const a = document.createElement('a');
       a.href = adresse; a.download = f.nom;
       document.body.append(a); a.click(); a.remove();
     }
     setTimeout(() => URL.revokeObjectURL(adresse), 60_000);
+  }
+
+  // (1.94.0) Une photo s'ouvre dans une page à son nom (le titre de l'onglet), avec « Enregistrer » qui le garde : ouverte
+  // directement, l'onglet s'appelait « d1eebff2-… » et elle s'enregistrait sous ce nom. Un PDF s'ouvre en plein onglet,
+  // dans la visionneuse du navigateur (la politique de la page interdit de l'encadrer, `object-src 'none'`) : c'est le
+  // bouton « Enregistrer » du fil qui le garde sous son nom.
+  /** @param {Window} onglet @param {string} adresse @param {string} nom @param {string} type */
+  function montrerFichier(onglet, adresse, nom, type) {
+    if (!String(type).startsWith('image/')) { onglet.location.href = adresse; return; }
+    const n = esc(nom);
+    const vue = `<img src="${adresse}" alt="${n}">`;
+    onglet.document.write(`<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${n}</title>
+      <style>body{margin:0;font:14px system-ui,sans-serif;display:flex;flex-direction:column;height:100vh;background:#f3f5f4}
+      header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 16px;background:#fff;border-bottom:1px solid #dde3e0}
+      b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}a{flex:none;padding:8px 14px;border-radius:8px;background:#0f8a74;color:#fff;text-decoration:none;font-weight:600}
+      img{max-width:100%;margin:16px auto;display:block}</style></head>
+      <body><header><b>${n}</b><a href="${adresse}" download="${n}">Enregistrer</a></header>${vue}</body></html>`);
+    onglet.document.close();
   }
 
   /**
@@ -226,20 +245,21 @@
       if (m.texte) corps += `<div class="msg-bulle">${esc(m.texte)}</div>`;
       if (m.piece) {
         const ouvre = entreprise && o.ouvrirPiece ? `<button type="button" class="msg-lien" data-msg-ouvrir="${esc(m.piece.genre)}:${esc(m.piece.id)}">Ouvrir</button>` : '';
-        corps += `<div class="msg-carte">${dessin('piece')}<span class="msg-carte-txt"><b>${esc(GENRES[m.piece.genre] || 'Pièce')}</b> · ${esc(m.piece.libelle)}</span>${ouvre}</div>`;
+        corps += `<div class="msg-carte">${dessin('piece')}<span class="msg-carte-txt"><span><b>${esc(GENRES[m.piece.genre] || 'Pièce')}</b> ·</span><span>${esc(m.piece.libelle)}</span></span>${ouvre}</div>`;
       }
       if (m.demande) {
         const recue = !!m.demande.recueLe;
         const geste = recue || !actif ? ''
           : entreprise ? `<button type="button" class="btn btn-sm btn-primary" data-msg-envoyer-piece="${esc(m.id)}">Envoyer la pièce…</button>`
             : `<button type="button" class="btn btn-sm" data-msg-recue="${esc(m.id)}">Reçue autrement</button>`;
-        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>Pièce demandée</b> · ${esc(m.demande.texte)}</span>
+        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}">${dessin('piece')}<span class="msg-carte-txt"><span><b>Pièce demandée</b> ·</span><span>${esc(m.demande.texte)}</span></span>
           <span class="msg-etat">${recue ? 'Reçue' : entreprise ? 'À envoyer' : 'Attendue'}</span>${geste}</div>`;
       }
       if (m.fichier) {
         corps += `<div class="msg-fichier">${dessin(m.fichier.type === 'application/pdf' ? 'piece' : 'image')}
           <span class="msg-carte-txt"><b>${esc(m.fichier.nom)}</b><span class="msg-poids">${esc(m.fichier.type === 'application/pdf' ? 'PDF' : 'Photo')} · ${esc(poids(m.fichier.taille))}</span></span>
-          <button type="button" class="msg-lien" data-msg-fichier="${esc(m.fichier.id)}">Ouvrir</button></div>`;
+          <button type="button" class="msg-lien" data-msg-fichier="${esc(m.fichier.id)}">Ouvrir</button>
+          <button type="button" class="msg-lien" data-msg-enregistrer="${esc(m.fichier.id)}" aria-label="Enregistrer ${esc(m.fichier.nom)}">Enregistrer</button></div>`;
       }
       if (m.repondA) {
         const d = demandes().get(m.repondA);
@@ -249,7 +269,9 @@
       const pied = [];
       if (moi && m.lu) pied.push('Lue');
       if (m.achat) pied.push(`rangée dans ${entreprise ? 'tes' : 'ses'} achats (${esc(m.achat.libelle)})`);
-      const ranger = entreprise && actif && m.fichier && !m.achat && o.rangerAchat
+      // (1.94.0) Le « · » reste avec le genre (une ligne qui passe à la suivante ne commence plus par lui), et un fichier
+      // envoyé avec une facture, un avoir ou un devis n'est pas un achat : il ne se propose pas d'y être rangé.
+      const ranger = entreprise && actif && m.fichier && !m.achat && o.rangerAchat && !(m.piece && m.piece.genre !== 'achat')
         ? `<button type="button" class="btn btn-sm" data-msg-ranger="${esc(m.id)}">Ranger dans mes achats…</button>` : '';
       return `<div class="msg-ligne${moi ? ' moi' : ''}" data-msg-id="${esc(m.id)}">
         <span class="msg-qui">${tete}</span>${corps}
@@ -423,6 +445,7 @@
         fil.scrollTop = fil.scrollHeight - avant;
       });
       surClic(fil, '[data-msg-fichier]', async (b) => { await ouvrirFichier(o.appel, String(b.dataset.msgFichier)); });
+      surClic(fil, '[data-msg-enregistrer]', async (b) => { await ouvrirFichier(o.appel, String(b.dataset.msgEnregistrer), true); });
       fil.querySelectorAll('[data-msg-ouvrir]').forEach((n) => {
         const b = /** @type {HTMLElement} */ (n);
         b.onclick = () => {
@@ -719,5 +742,15 @@
     return { arreter };
   }
 
-  w.SkanMessagerie = { conversation, boite };
+  // (1.94.0) Un fichier qui part avec un mot (et la pièce qu'il concerne), hors du fil : la fenêtre « Répondre » d'une
+  // question qui attend une pièce l'envoie ainsi. Trop lourd, il est refusé avant de partir, comme dans le fil.
+  /** @param {(m: string, c: string, b?: unknown) => Promise<any>} appel @param {string} cote @param {File} f
+   *  @param {string} texte @param {{ genre: string, id: string, libelle: string } | null} piece */
+  async function envoyerFichier(appel, cote, f, texte, piece) {
+    const lourd = tropLourd(f);
+    if (lourd) throw new Error(lourd);
+    const depot = await appel('POST', '/messages/fichiers', { cote, nom: f.name, contenu: await enBase64(f) });
+    await appel('POST', '/messages', { cote, texte, piece, demande: null, fichier: depot.id });
+  }
+  w.SkanMessagerie = { conversation, boite, envoyerFichier, montrerFichier };
 })();

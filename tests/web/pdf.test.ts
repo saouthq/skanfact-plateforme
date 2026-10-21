@@ -164,6 +164,28 @@ describe('« PDF » d\'une pièce, à l\'écran', () => {
     expect(erreurs).toEqual([]);
   }, 180_000);
 
+  // (1.94.0) « Envoyer au comptable… » sans cabinet : le geste principal ; la fenêtre dit que le CSV se télécharge, au
+  // singulier pour une facture.
+  it('« Envoyer au comptable… » : le journal se télécharge, à joindre soi-même ; « 1 document »', async () => {
+    const emettre = async (api: Api, jeton: string, ent: string) => {
+      const brouillon = { id: 'f1', type: 'facture', status: 'brouillon', date: new Date().toISOString().slice(0, 10), clientId: 'c1',
+        lines: [{ id: 'l1', label: 'Cartons et palettes', qty: 3, unitPrice: { '~n': '416.667' }, vatRate: 19 }] };
+      const r = await api('POST', `/entreprises/${ent}/dossier-v10/emettre`, jeton, { document: brouillon, client: { id: 'c1', name: 'Société des Transports du Sahel' }, revision: null, rang: null, netAPayer: '1488.501' });
+      expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    };
+    const { cx, p, erreurs } = await devisOuvert(serveur.adresse, emettre, '#/compta');
+    await p.locator('#exp-comptable').waitFor({ timeout: 20_000 });
+    expect(await p.locator('#exp-comptable').getAttribute('class')).toContain('btn-primary');
+    expect(await p.locator('#exp-cabinet-lit').count()).toBe(0);
+    await p.locator('#exp-comptable').click();
+    const fenetre = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fenetre.locator('textarea[name=body]').inputValue()).toMatch(/: 1 document, /);
+    expect(await fenetre.innerText()).toMatch(/se télécharge en CSV\s:\sjoins-le au message/);
+    expect(await fenetre.innerText()).not.toMatch(/est joint en CSV/);
+    await cx.close();
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
   it('un serveur sans Chromium : la fenêtre d\'impression du navigateur revient, comme avant', async () => {
     const { cx, p, erreurs } = await devisOuvert(sansChromium.adresse);
     const [fenetre] = await Promise.all([p.waitForEvent('popup', { timeout: 30_000 }), cliquerPdf(p)]);

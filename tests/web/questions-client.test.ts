@@ -98,10 +98,16 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     expect(await p.locator('#view').innerText()).not.toMatch(/paquet/i);
     await p.screenshot({ path: path.join(PHOTOS, 'questions-client-1-onglet.png') });
 
+    // (1.94.0) La fenêtre prend aussi un fichier : il part dans la messagerie, avec un mot qui nomme la question.
     await panneau.locator(`[data-rep="${generale}"]`).click();
     await fenetre.locator('textarea[name=texte]').fill('Oui, 200 DT, compté ce matin.');
+    const photo = path.join(dossier, 'fond-de-caisse.png');
+    fs.writeFileSync(photo, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'));
+    await fenetre.locator('input[name=fichier]').setInputFiles(photo);
     await fenetre.locator('#ok').click();
-    await expect.poll(toast).toBe('Réponse enregistrée : ton comptable la lit dans SkanFact Cabinet');
+    await expect.poll(toast).toBe('Réponse enregistrée, et fond-de-caisse.png envoyé à ton comptable');
+    const fil = (await api('GET', `/entreprises/${ent}/messages?cote=entreprise`, client)).corps.messages as { texte: string; fichier: { nom: string } | null }[];
+    expect(fil.filter((m) => m.fichier).map((m) => [m.texte, m.fichier?.nom])).toEqual([['Le fichier pour ta question « Caisse ».', 'fond-de-caisse.png']]);
     await expect.poll(async () => (await lues()).find((q) => q.id === generale)).toMatchObject({ statut: 'repondue', reponse: 'Oui, 200 DT, compté ce matin.' });
 
     // ── En face de la pièce qu'elle vise : l'achat FF-12 ─────────────────────────────────────────
@@ -143,6 +149,14 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
     await p.waitForTimeout(1_500);
     expect(await p.evaluate(() => { const c = (window as unknown as Fenetre).champ; return !!c && c.isConnected && document.activeElement === c; })).toBe(true);
+
+    // ── (1.94.0) « Envoyer au comptable… » : son cabinet lit déjà les ventes, le bouton n'est plus le geste principal ──
+    // La page rechargée sur la Comptabilité, sans un geste : le cabinet s'apprend après le premier dessin, qui se refait.
+    await p.locator('#c-tabs [data-tab="ventes"]').click();
+    await p.reload();
+    await p.locator('#exp-comptable').waitFor({ timeout: 20_000 });
+    await expect.poll(() => p.locator('#exp-cabinet-lit').count(), { timeout: 20_000 }).toBe(1);
+    expect(await p.locator('#exp-comptable').getAttribute('class')).not.toContain('btn-primary');
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

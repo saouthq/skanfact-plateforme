@@ -844,4 +844,8 @@ export const ADAPTATIONS = [
   ...lireFichier('menus-clavier.txt'),
   // ── Au Cabinet, une relance se fait un autre jour ; la fenêtre dit ce qui part (1.94.0) ──
   ...lireFichier('relance-un-autre-jour.txt'),
+  // ── Répondre au comptable avec la pièce qu'il attend (1.94.0) ──
+  ...lireFichier('repondre-avec-piece.txt'),
+  // ── « Envoyer au comptable… » sur la plateforme (1.94.0) ──
+  ...lireFichier('envoyer-au-comptable.txt'),
 ];
