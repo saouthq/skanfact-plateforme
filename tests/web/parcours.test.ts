@@ -14,6 +14,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { chromium, type Browser, type Page } from 'playwright-core';
+import { pdfTelecharge } from '../pdf-telecharge.ts';
 import { build } from 'vite';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
@@ -47,7 +48,8 @@ describe('le parcours, à la souris', () => {
       select 'timbre.facture', '1000', '2000-01-01', 'Règle d''essai des tests' where not exists (select 1 from socle.regle_fiscale where code = 'timbre.facture')`);
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_VERSION: VERSION }), port: 0, web: dossier, livreurMs: 60_000 });
-    navigateur = await chromium.launch();
+    // Un nom de fichier accentué : Chromium le garde si sa langue est en UTF-8 (sans LANG, il le remplace par « download »).
+    navigateur = await chromium.launch({ env: { ...process.env, LANG: 'C.UTF-8' } });
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
   afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); await admin.end(); fs.rmSync(dossier, { recursive: true, force: true }); });
@@ -851,11 +853,10 @@ describe('le parcours, à la souris', () => {
     // nuit du 20/10/2026, sur la machine de GitHub, aux polices plus étroites, des en-têtes qui ne se coupaient pas
     // tenaient encore dans la largeur, et le défaut passait).
     expect(await journal.locator('thead th.r').evaluateAll((l) => l.filter((x) => getComputedStyle(x).whiteSpace === 'nowrap').map((x) => x.textContent))).toEqual([]);
-    // Imprimé : une page en largeur, les mêmes lignes.
-    const [imprime] = await Promise.all([p.waitForEvent('popup'), p.locator('#jp-pdf').click()]);
-    await expect.poll(() => imprime.content()).toContain('Nombre de salariés : 3');
-    expect(await imprime.content()).toMatch(/<h1>Journal de paie<\/h1>[\s\S]*0001<\/td><td class="g">Salarié Numéro Un/);
-    await imprime.close();
+    // Imprimé (le PDF fait par le serveur, 1.88.0) : les mêmes lignes.
+    const imprime = await pdfTelecharge(p, () => p.locator('#jp-pdf').click());
+    expect(imprime.texte).toContain('Nombre de salariés : 3');
+    expect(imprime.texte).toMatch(/Journal de paie[\s\S]*0001 Salarié Numéro Un/);
     // En CSV, pour le comptable : une ligne par bulletin et le total.
     const [csv] = await Promise.all([p.waitForEvent('download'), p.locator('#jp-csv').click()]);
     expect(csv.suggestedFilename()).toMatch(/^Journal_de_paie_\d{4}-\d{2}\.csv$/);
@@ -901,10 +902,9 @@ describe('le parcours, à la souris', () => {
     expect(await etat.innerText()).toMatch(/Sécurité sociale\s+26,75\s%/);
     const KC = ecranDeLaPlateforme('core.js') as { amountToWords: (n: number, c: string) => string };
     expect(await etat.locator('[data-etat=lettres]').innerText()).toBe(KC.amountToWords(salaires, 'DT'));
-    const [etatImprime] = await Promise.all([p.waitForEvent('popup'), p.locator('#cn-etat-pdf').click()]);
-    await expect.poll(() => etatImprime.content()).toContain('<h1>État récapitulatif des salaires déclarés</h1>');
-    expect(await etatImprime.content()).toContain(KC.amountToWords(salaires, 'DT'));
-    await etatImprime.close();
+    const etatImprime = await pdfTelecharge(p, () => p.locator('#cn-etat-pdf').click());
+    expect(etatImprime.texte).toContain('État récapitulatif des salaires déclarés');
+    expect(etatImprime.texte).toContain(KC.amountToWords(salaires, 'DT').replace(/[\u00a0\u202f]/g, ' '));
     // (1.73.0) La déclaration annuelle d'employeur : « Net des bulletins » (la tuile « Net versé » ne compte que les bulletins
     // payés), et son état en CSV aux colonnes du moteur commun, que le Cabinet exporte aussi, avec son total.
     expect(await p.locator('h2', { hasText: 'Déclaration annuelle d\'employeur' }).locator('xpath=..').locator('thead th').allTextContents()).toContain('Net des bulletins');

@@ -108,6 +108,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   // Un fichier jamais joint à un message est un dépôt en cours, que seul son auteur lit (0078) : il ne fait pas encore
   // partie du fil, et ne part pas (0080).
   'messagerie.fichier': { classe: 'entreprise', condition: 'entreprise = $1 and id in (select m.fichier from messagerie.message m where m.entreprise = $1 and m.fichier is not null)' },
+  // Les pièces jointes du dossier (0160) : gardées dix ans avec l'entreprise, elles partent et reviennent avec elle.
+  'socle.piece_jointe': { classe: 'entreprise' },
   // L'alerte par e-mail est un réglage de chaque personne (cochée par défaut) : restaurée, l'entreprise la rend cochée.
   'messagerie.alerte': { classe: 'hors', raison: 'un réglage de chaque personne, coché par défaut' },
   // La révision d'un dossier (0028) : le dossier de travail du CABINET ; elle ne part pas avec l'entreprise.

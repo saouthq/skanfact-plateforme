@@ -198,7 +198,9 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     await p.locator('#view h1').filter({ hasText: 'Me guider' }).waitFor({ timeout: 15_000 });
     const guide = net(await p.locator('#view').innerText());
     expect(guide).toContain('Faire une facture');
-    for (const absente of ['Revenir à une sauvegarde', 'Installer une mise à jour', 'Mettre mes données à l\'abri', 'Recevoir la clôture de mon comptable', 'Joindre un justificatif, et le retrouver']) expect(guide).not.toContain(absente);
+    for (const absente of ['Revenir à une sauvegarde', 'Installer une mise à jour', 'Mettre mes données à l\'abri', 'Recevoir la clôture de mon comptable']) expect(guide).not.toContain(absente);
+    // Revenue avec les pièces jointes (1.89.0).
+    expect(guide).toContain('Joindre un justificatif, et le retrouver');
 
     // 6. Les Paramètres : aucune puce vers un panneau absent ; « Ouvrir l'exemple » ramène à l'exemple, sans rien
     // reverser ni rien écrire ici.

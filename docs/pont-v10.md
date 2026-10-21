@@ -48,7 +48,9 @@ Cabinet a son propre point de contact (`pont-cabinet.js`), décrit dans `docs/ca
 | `composeMail` | Le message s'ouvre dans la messagerie de l'appareil (lien « mailto »), **sans pièce jointe** ; pour une facture ou un avoir émis, il porte le lien de la pièce (`ajouterLien`, brique 79) ; aucune question « Mail ou une autre messagerie » |
 | `ouvrirWhatsApp` | La conversation WhatsApp s'ouvre dans un nouvel onglet (ouvert pendant le geste quand le lien de la pièce se crée d'abord) ; défaut corrigé à la brique 79 : l'ouverture était toujours dite « bloquée » (`noopener` fait rendre null à `window.open`) |
 | `setDirty` | Fermer l'onglet en pleine saisie : le navigateur demande d'abord |
-| `exportPdf`, `imprimerTicket` | La fenêtre d'impression du navigateur (« Enregistrer au format PDF ») : le repli de la v10 |
+| `exportPdf` | Le PDF fait par le serveur, téléchargé sous le nom de la pièce (1.88.0, `docs/pdf.md`) ; sans Chromium sur le serveur, la fenêtre d'impression du navigateur |
+| `imprimerTicket` | La fenêtre d'impression du navigateur (« Enregistrer au format PDF ») : le repli de la v10 |
+| `addAttachments`, `attachPath`, `openAttachment`, `revealAttachment`, `removeAttachment`, `piecesJointes` | Les pièces jointes gardées dix ans par le serveur (1.89.0, `docs/pieces-jointes.md`) : un nouvel onglet pour ouvrir, un téléchargement pour « montrer » |
 
 ## 3. Refusé avec sa phrase (pas encore en ligne)
 
@@ -62,7 +64,8 @@ entreprise de la liste. Le refus dit ce qui n'existe pas encore et que **rien n'
 Panneaux des Paramètres (et leurs entrées de la palette Ctrl K) : dossiers de l'ordinateur,
 sauvegardes du disque, copie externe, mot de passe du fichier, la clé de la lecture par photo (un service
 à l'étranger : sur la plateforme, c'est le serveur qui lit), « Tout effacer »,
-mises à jour, licence, éditeur, pièces jointes, dépannage.
+mises à jour, licence, éditeur, dépannage (les pièces jointes sont revenues avec le serveur qui les garde, 1.89.0 :
+`docs/pieces-jointes.md`).
 Le panneau « Ton cabinet comptable » ne parle plus d'appairage : le propriétaire y confie son
 dossier par le code du cabinet (brique 37).
 Un panneau de plus en tête de l'onglet « Données et sécurité » : **« Tes appareils »** (brique 74,

@@ -1,0 +1,97 @@
+Les pièces jointes gardées par le serveur (lot Fonctions 3, 1.89.0 ; docs/pieces-jointes.md). Format : voir sans-paquets.mjs.
+
+== app.js | le panneau des pièces jointes dit ce que le serveur garde (plus de « copie externe »)
+-- avant
+        <span class="small muted">${isNew && list.length ? 'Joint à cette pièce : il sera enregistré avec elle. ' : ''}Les fichiers sont copiés à côté de tes données. Ils ne sont pas dans les sauvegardes quotidiennes (qui ne contiennent qu'un fichier texte) mais le sont dans la copie externe.</span></div>`;
+-- après
+        <span class="small muted">${isNew && list.length ? 'Joint à cette pièce : il sera enregistré avec elle. ' : ''}Une photo ou un PDF, 10 Mo au plus. SkanFact le garde dix ans avec tes données, sauvegardes comprises.</span></div>`;
+-- fin
+
+== app.js | « Montrer dans l'Explorateur » devient « Télécharger le fichier » ; retirer dit ce que le serveur garde
+-- avant
+        { icon: 'dossier', label: `Montrer dans ${EXPLORATEUR}`, hint: 'La copie que SkanFact range à côté de tes données', run: () => bridge.revealAttachment(ownerId, a.file) },
+        { sep: true },
+        { icon: 'supprimer', label: 'Retirer ce justificatif', hint: 'La copie est supprimée ; ton fichier d\'origine ne bouge pas', danger: true, run: () => retirer(a) }
+      ];
+    });
+  }
+-- après
+        // (plateforme, pièces jointes) Un navigateur n'a pas de dossier à montrer : le fichier se télécharge.
+        { icon: 'dossier', label: 'Télécharger le fichier', hint: 'Une copie sur cet appareil', run: () => bridge.revealAttachment(ownerId, a.file).catch(e => toast(plainError(e), true)) },
+        { sep: true },
+        { icon: 'supprimer', label: 'Retirer ce justificatif', hint: 'Il quitte cette pièce ; ton fichier d\'origine ne bouge pas', danger: true, run: () => retirer(a) }
+      ];
+    });
+  }
+  // (plateforme, pièces jointes) Retirer : le serveur efface le fichier que tu as joint il y a moins de 24 heures ; plus
+  // ancien (ou joint par un autre), il en garde la copie dix ans (un justificatif se conserve) et seule la pièce l'oublie.
+  // La question le dit avant, le message après.
+  async function retirerJustificatif(ownerId, a) {
+    if (!await confirmDialog(`Retirer « ${a.name || a.file} » de cette pièce ? Si tu l'as joint il y a moins de 24 heures, il est effacé ; sinon SkanFact en garde la copie dix ans (un justificatif se conserve), sans la montrer ici. Ton fichier d'origine ne bouge pas.`, 'Retirer')) return false;
+    let r;
+    try { r = await bridge.removeAttachment(ownerId, a.file); } catch (e) { toast(plainError(e), true); return false; }
+    if (r && r.garde) toast(`« ${a.name || a.file} » ne fait plus partie de cette pièce. SkanFact en garde la copie jusqu'au ${C.fmtDate(r.conserverJusquAu)}.`);
+    return true;
+  }
+-- fin
+
+== app.js | retirer une pièce jointe (doc.id) passe par la question qui dit ce que le serveur garde
+-- avant
+        if (!await confirmDialog(`Retirer « ${a.name || a.file} » ? La copie rangée par SkanFact sera supprimée ; ton fichier d'origine ne bouge pas.`, 'Retirer')) return;
+        await bridge.removeAttachment(doc.id, a.file);
+-- après
+        if (!await retirerJustificatif(doc.id, a)) return;
+-- fin
+
+== app.js | retirer une pièce jointe (p.id) passe par la question qui dit ce que le serveur garde
+-- avant
+        if (!await confirmDialog(`Retirer « ${a.name || a.file} » ? La copie rangée par SkanFact sera supprimée ; ton fichier d'origine ne bouge pas.`, 'Retirer')) return;
+        await bridge.removeAttachment(p.id, a.file);
+-- après
+        if (!await retirerJustificatif(p.id, a)) return;
+-- fin
+
+== app.js | retirer une pièce jointe (m.id) passe par la question qui dit ce que le serveur garde
+-- avant
+            if (!await confirmDialog(`Retirer « ${a.name || a.file} » ? La copie rangée par SkanFact sera supprimée ; ton fichier d'origine ne bouge pas.`, 'Retirer')) return;
+            await bridge.removeAttachment(m.id, a.file);
+-- après
+            if (!await retirerJustificatif(m.id, a)) return;
+-- fin
+
+== guide.js | l'aide d'une pièce jointe : gardée dix ans par le serveur
+-- avant
+Les fichiers sont <b>copiés</b> à côté de tes données — si tu déplaces ou supprimes l\'original, la pièce reste attachée. Le nom ouvre le fichier ; le menu « Actions » de sa ligne le montre dans son dossier ou le retire.
+-- après
+Une photo ou un PDF, 10 Mo au plus : SkanFact le <b>garde dix ans</b> avec tes données (sauvegardes comprises) — si tu déplaces ou supprimes l\'original, la pièce reste attachée. Le nom ouvre le fichier ; le menu « Actions » de sa ligne le télécharge ou le retire (joint par toi il y a moins de 24 heures, il est effacé ; sinon la copie reste dix ans).
+-- fin
+
+== guide.js | l'aide d'une pièce jointe ne parle plus de la copie externe ni du paquet du mois (il n'y en a plus)
+-- avant
+, et ceux d\'une facture émise ou d\'un achat partent dans le paquet du mois de ton comptable. Ils ne sont pas dans les sauvegardes quotidiennes (qui ne contiennent qu\'un fichier texte) mais bien dans la copie externe : une raison de plus de la configurer.' },
+-- après
+.' },
+-- fin
+
+== guide.js | l'article de l'aide sur les pièces jointes : gardées dix ans par le serveur
+-- avant
+<p>Les fichiers sont <b>copiés</b> à côté de tes données : si tu déplaces ou supprimes l'original, la pièce reste attachée au document. Attention à un point : elles ne sont <b>pas</b> dans les sauvegardes quotidiennes, qui ne contiennent qu'un fichier texte. Elles sont en revanche dans la <b>copie externe</b> (Paramètres → Données et sécurité). Si tu joins des documents importants, configure cette copie.</p>`
+-- après
+<p>Une photo ou un PDF, 10 Mo au plus. SkanFact garde chaque fichier <b>dix ans</b> avec tes données, sauvegardes comprises : si tu déplaces ou supprimes l'original, la pièce reste attachée au document. Un fichier que tu as joint par erreur s'efface dans les 24 heures ; après, « Retirer » le détache de la pièce et SkanFact en garde la copie jusqu'à sa date.</p>`
+-- fin
+
+== visites.js | la fin de la visite « joindre un justificatif » : le serveur le garde
+-- avant
+      conclusion: 'Il part dans le paquet du mois avec son achat, et ta copie de sécurité l\'emporte. Les sauvegardes quotidiennes, elles, ne gardent que tes données — pas les fichiers joints.',
+-- après
+      conclusion: 'SkanFact le garde dix ans avec tes données : il se retrouve depuis l\'achat, qui porte un 📎 dans la liste.',
+-- fin
+
+== app.js | une lecture refusée parce que le fichier n'est ni une photo ni un PDF ne propose pas de le joindre (le serveur le refuserait aussi)
+-- avant
+        if (bridge.piecesJointes === false) return infoDialog('La lecture de la facture a échoué', (e.message || 'Erreur inconnue.') + depuisMessage);
+-- après
+        // (plateforme, pièces jointes) Un fichier qui n'est ni une photo ni un PDF (415) ne se joint pas non plus : l'échec
+        // se dit sans proposer de le joindre.
+        if (bridge.piecesJointes === false || e.statut === 415) return infoDialog('La lecture de la facture a échoué', (e.message || 'Erreur inconnue.') + depuisMessage);
+-- fin

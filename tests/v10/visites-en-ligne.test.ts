@@ -76,12 +76,14 @@ describe('les visites de l\'entreprise, en ligne', () => {
   const absente = (alt: string) => absents.some((a) => new RegExp(`${a}(?![\\w-])`).test(alt));
   const surUnAbsent = (e: Etape) => { const a = alternatives(e.cible); return a.length > 0 && a.every(absente); };
 
-  it('dans « Saisir une facture d\'achat », l\'étape du justificatif, absent en ligne, est facultative', () => {
+  it('dans « Saisir une facture d\'achat », l\'étape du justificatif vise un bouton qui existe en ligne (1.89.0)', () => {
     const achat = visites.find((v) => v.id === 'achat');
-    const visees = (achat?.etapes ?? []).filter(surUnAbsent);
-    // Le test mesure : l'étape du justificatif est lue, et elle vise bien un élément absent.
-    expect(visees.map((e) => e.titre)).toContain('Le justificatif d\'abord');
-    expect(visees.filter((e) => !e.facultatif).map((e) => e.titre)).toEqual([]);
+    const etapes = achat?.etapes ?? [];
+    // Le test mesure : l'étape du justificatif est lue, et elle ne vise plus un élément absent.
+    expect(etapes.map((e) => e.titre)).toContain('Le justificatif d\'abord');
+    expect(pont.piecesJointes).toBe(true);
+    expect(etapes.filter(surUnAbsent).map((e) => e.titre)).not.toContain('Le justificatif d\'abord');
+    expect(etapes.filter(surUnAbsent).filter((e) => !e.facultatif).map((e) => e.titre)).toEqual([]);
   });
 
   // Retour de Skander (05/10/2026 ; docs/exemple.md) : en refaisant la découverte en ligne, neuf visites attendaient un

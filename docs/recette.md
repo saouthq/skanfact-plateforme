@@ -799,6 +799,13 @@ fenêtre d'impression. Un serveur sans Chromium rouvre la fenêtre d'impression,
 réglée en UTF-8, Chromium renomme « download » un fichier au nom accentué (les tests règlent la leur ; un vrai
 navigateur l'a toujours). Détail : `docs/pdf.md`.
 
+### 1.89.0 — les pièces jointes, gardées par le serveur
+
+« + Joindre un fichier… » sur un devis disait « pas encore dans la version en ligne » ; le panneau était même caché.
+Maintenant : deux fichiers joints d'un coup (un PDF et une photo), la photo ouverte dans un onglet, le PDF téléchargé à
+l'identique, toujours là après un rechargement, puis retiré (la question dit, avant, ce que le serveur efface et ce
+qu'il garde). Un document Word renommé en `.pdf` se refuse et dit pourquoi. Détail : `docs/pieces-jointes.md`.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

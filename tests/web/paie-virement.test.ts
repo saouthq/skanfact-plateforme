@@ -10,6 +10,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { chromium, type Browser } from 'playwright-core';
+import { pdfTelecharge } from '../pdf-telecharge.ts';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
@@ -31,7 +32,8 @@ describe('payer les salaires du mois, à la souris', () => {
   beforeAll(async () => {
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
-    navigateur = await chromium.launch();
+    // Un nom de fichier accentué : Chromium le garde si sa langue est en UTF-8 (sans LANG, il le remplace par « download »).
+    navigateur = await chromium.launch({ env: { ...process.env, LANG: 'C.UTF-8' } });
   }, 120_000);
   afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
 
@@ -157,10 +159,11 @@ describe('payer les salaires du mois, à la souris', () => {
     await expect.poll(async () => (await titre()).startsWith(`Payer les salaires de ${periode}`)).toBe(true);
     expect(await fenetre.locator('#ps-compte-rib').count()).toBe(0);
     const total = Math.round((net(bulletins[0]) + net(bulletins[1])) * 1000) / 1000;
-    const [ordre] = await Promise.all([p.waitForEvent('popup'), fenetre.locator('#ps-ordre').click()]);
-    await expect.poll(() => ordre.content()).toContain('<h1>Ordre de virement</h1>');
-    const texte = (await ordre.content()).replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/[\u00a0\u202f]/g, ' ').replace(/\s+/g, ' ');
-    expect(texte).toMatch(/^ ?Ordre de virement — salaires de .+ Boulangerie du Port Rue du Port 2000 Le Bardo À l'attention de Banque Numéro Une /);
+    // Le PDF fait par le serveur (1.88.0), relu tel que la banque le reçoit.
+    const ordre = await pdfTelecharge(p, () => fenetre.locator('#ps-ordre').click());
+    expect(ordre.nom).toMatch(/^Ordre_de_virement_salaires_\d{4}-\d{2}\.pdf$/);
+    const texte = ordre.texte;
+    expect(texte).toMatch(/^Boulangerie du Port Rue du Port 2000 Le Bardo À l'attention de Banque Numéro Une Ordre de virement Objet : virement des salaires de /);
     expect(texte).toContain(`par le débit de notre compte n° ${RIB_UN}`);
     expect(texte).toContain(`Salarié Numéro Deux ${RIB_DEUX}`);
     expect(texte).toContain(`Salariée Numéro Une ${RIB_UN}`);
@@ -168,7 +171,6 @@ describe('payer les salaires du mois, à la souris', () => {
     expect(texte).toContain('Total (2 virements)');
     expect(texte).toContain(core.amountToWords(total, 'DT').replace(/[\u00a0\u202f]/g, ' '));
     expect(texte).toContain('Le Bardo, le');
-    await ordre.close();
     await p.screenshot({ path: path.join(PHOTOS, 'paie-virement-fenetre.png') });
 
     // ── Marquer payés : le jour et le compte sur les deux bulletins cochés, au serveur ; « Annuler » le défait ──────

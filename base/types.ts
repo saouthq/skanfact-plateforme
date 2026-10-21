@@ -1482,6 +1482,18 @@ export interface BaseDeDonnees {
     code_cabinet: string | null;
     cree_le: Generated<Date>;
   };
+  'socle.piece_jointe': {
+    id: Generated<string>;
+    entreprise: string;
+    nom: string;
+    type: string;
+    taille: number;
+    contenu: Buffer;
+    empreinte: string;
+    depose_par: string;
+    depose_le: Generated<Date>;
+    conserver_jusqu_au: Generated<string>;
+  };
   'socle.quarantaine': {
     id: Generated<string>;
     entreprise: string;

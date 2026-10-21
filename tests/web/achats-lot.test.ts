@@ -191,8 +191,8 @@ describe('le lot achats, à l\'écran', () => {
     expect(await p.locator('#guide-moi').getAttribute('class')).not.toContain('guide-moi-signale');
     // Le bandeau compte ce que les réceptions ont fait entrer : la farine, suivie.
     expect(net(await p.locator('#b-receptions').innerText())).toMatch(/: sa marchandise suivie est déjà entrée en stock par elles, ces lignes ne l'y font pas entrer une seconde fois\./);
-    // Sans pièces jointes en ligne, « Joindre un justificatif » n'est pas proposé.
-    expect(await p.locator('#attach-top').count()).toBe(0);
+    // Les pièces jointes sont en ligne (1.89.0) : « Joindre un justificatif » est proposé.
+    expect(await p.locator('#attach-top').count()).toBe(1);
     // La catégorie : « Mati » propose d'abord ce qui commence par la frappe (sa catégorie à elle, pourtant la dernière de
     // la liste), puis ce dont un mot commence par elle ; « Formation » (forMATIon) passe après.
     await p.locator('[data-combo=category] .combo-btn').click();
@@ -260,26 +260,25 @@ describe('le lot achats, à l\'écran', () => {
     await p.locator('#back').click();
     if (await p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).count()) await p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).click();
 
-    // 8. La liste des achats ne propose pas de filtrer « Sans justificatif » (on ne peut pas en joindre en ligne) ; la
-    // visite « Saisir une facture d'achat » saute l'étape du justificatif et passe au fournisseur, sans se perdre.
+    // 8. Les pièces jointes en ligne (1.89.0) : la liste des achats propose de filtrer « Sans justificatif » ; la visite
+    // « Saisir une facture d'achat » montre d'abord le justificatif, sans se perdre.
     await aller(p, '#/achats');
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Achats/);
     await plusTard(p);
-    expect((await p.locator('#view option').allInnerTexts()).map(net)).not.toContain('Sans justificatif');
+    expect((await p.locator('#view option').allInnerTexts()).map(net)).toContain('Sans justificatif');
     await p.locator('#guide-moi').click();
     await p.locator('.guide-menu').getByText('Saisir une facture d\'achat', { exact: true }).click();
     await expect.poll(async () => net(await p.locator('#visite-titre').innerText()), { timeout: 5_000 }).toBe('Nouvelle facture d\'achat');
     await p.locator('.page-head #new').click();
-    await expect.poll(async () => net(await p.locator('#visite-titre').innerText()), { timeout: 8_000 }).toBe('Le fournisseur');
+    await expect.poll(async () => net(await p.locator('#visite-titre').innerText()), { timeout: 8_000 }).toBe('Le justificatif d\'abord');
     expect(await p.locator('#visite-bulle').getAttribute('class')).not.toContain('perdu');
     await p.keyboard.press('Escape');
-    // La clôture du mois ne réclame pas les justificatifs qu'on ne peut pas joindre en ligne (FA-2026/118, en mars, n'en
-    // a pas).
+    // La clôture du mois réclame de nouveau les justificatifs, qu'on joint en ligne (FA-2026/118, en mars, n'en a pas).
     await aller(p, '#/compta');
     await plusTard(p);
     await p.locator('#c-tabs [data-tab=clotures]').click();
     await expect.poll(async () => net(await p.locator('#c-body').innerText()), { timeout: 10_000 }).toMatch(/État/);
-    expect(net(await p.locator('#c-body').innerText())).not.toContain('sans justificatif');
+    expect(net(await p.locator('#c-body').innerText())).toContain('sans justificatif');
 
     // 9. La fiche du fournisseur, à 1366 px : rien ne défile de côté, et le reste à payer se lit.
     await aller(p, '#/fournisseur/s1');

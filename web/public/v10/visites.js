@@ -1623,7 +1623,7 @@
       manque: { texte: 'Il te faut d\'abord une facture d\'achat.', visite: 'achat' },
       suite: ['fichiers', 'repondre-comptable'],
       bravo: 'Tu sais joindre un justificatif',
-      conclusion: 'Il part dans le paquet du mois avec son achat, et ta copie de sécurité l\'emporte. Les sauvegardes quotidiennes, elles, ne gardent que tes données — pas les fichiers joints.',
+      conclusion: 'SkanFact le garde dix ans avec tes données : il se retrouve depuis l\'achat, qui porte un 📎 dans la liste.',
       etapes: [
         { page: () => ctx.premier('achatSansJustif'), cible: '#attach-top', cote: 'dessous', faire: 'clic',
           titre: 'Joindre le justificatif', texte: 'La photo ou le PDF de la facture du fournisseur. Sans lui, ni la charge ni la TVA ne se récupèrent — et c\'est la première chose que ton comptable réclame.',

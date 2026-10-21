@@ -4621,8 +4621,8 @@ prouver "le bouton de lecture sur un achat déjà enregistré" web/public/v10/ap
 prouver "la lecture qui essaie de joindre la photo sans pièces jointes" web/public/v10/app.js \
   "      const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);" "      const jointe = await joindreFichier(file);" \
   "$LW1"
-prouver "un échec de lecture qui propose de joindre la photo, sans pièces jointes" web/public/v10/app.js \
-  "        if (bridge.piecesJointes === false) return infoDialog('La lecture de la facture a échoué', (e.message || 'Erreur inconnue.') + depuisMessage);
+prouver "un échec de lecture qui propose de joindre un fichier que le serveur refuserait" web/public/v10/app.js \
+  "        if (bridge.piecesJointes === false || e.statut === 415) return infoDialog('La lecture de la facture a échoué', (e.message || 'Erreur inconnue.') + depuisMessage);
 " "" \
   "$LW2"
 prouver "la ligne lue coupée sur un téléphone" web/public/v10/app.js \
@@ -7816,9 +7816,12 @@ prouver "la clôture qui réclame des justificatifs qu'on ne peut pas joindre" w
 prouver "la page de clôture qui ne dit pas qu'on ne peut pas joindre" web/public/v10/app.js \
   "const checks = next ? C.closureChecks(data, company(), next.from, next.to, { reserves: licence.reserves || [], sansPiecesJointes: bridge.piecesJointes === false }) : [];" "const checks = next ? C.closureChecks(data, company(), next.from, next.to, { reserves: licence.reserves || [] }) : [];" \
   "$ACW1"
-prouver "l'étape du justificatif qui attend un bouton absent" web/public/v10/visites.js \
-  "titre: 'Le justificatif d\\'abord', facultatif: true," "titre: 'Le justificatif d\\'abord'," \
-  "dans « Saisir une facture d'achat », l'étape du justificatif, absent en ligne, est facultative"
+prouver "le bouton du justificatif encore absent en ligne" web/public/plateforme/pont.js \
+  "    piecesJointes: true," "    piecesJointes: false," \
+  "dans « Saisir une facture d'achat », l'étape du justificatif vise un bouton qui existe en ligne (1.89.0)"
+prouver "la visite « Joindre un justificatif » encore cachée en ligne" web/public/plateforme/pont.js \
+  "  const VISITES_PAS_ENCORE = ['signaler'];" "  const VISITES_PAS_ENCORE = ['justificatif', 'signaler'];" \
+  "Skander, sur un compte neuf : l'exemple se remplit, la découverte va au bout, puis sa vraie entreprise et sa première facture, guidée jusqu'au brouillon"
 prouver "l'objet d'un avoir qui invite à dire ce qu'on a acheté" web/public/v10/app.js \
   "        if (objet) objet.placeholder = inviteObjet(p.kind);
 " "" \
@@ -18530,6 +18533,40 @@ prouver 'le PDF du serveur que l'\''écran ne demande pas (la fenêtre d'\''impr
 prouver 'un serveur sans Chromium : « PDF » qui ne fait plus rien' web/public/plateforme/pont.js \
   $'      if (!(x && (x.indisponible || x.horsLigne || x.lecture))) throw e;' $'      if (!(x && (x.horsLigne || x.lecture))) throw e;' \
   'un serveur sans Chromium : la fenêtre d'\''impression du navigateur revient, comme avant'
+
+prouver 'une pièce jointe ancienne effacée par « Retirer » (la garde de dix ans perdue)' base/migrations/0160_pieces_jointes.sql \
+  $'depose_par = socle.moi()\n  and depose_le > now() - interval \'24 hours\');' $'depose_par = socle.moi());' \
+  'qui l'\''a déposé l'\''efface le jour même ; après 24 heures, ou déposé par un autre, il reste jusqu'\''à sa date'
+prouver 'une pièce jointe effacée par un autre que celui qui l'\''a déposée' base/migrations/0160_pieces_jointes.sql \
+  $'create policy retirer on socle.piece_jointe for delete using (entreprise in (select socle.mes_entreprises_entieres()) and depose_par = socle.moi()\n' $'create policy retirer on socle.piece_jointe for delete using (entreprise in (select socle.mes_entreprises_entieres())\n' \
+  'qui l'\''a déposé l'\''efface le jour même ; après 24 heures, ou déposé par un autre, il reste jusqu'\''à sa date'
+prouver 'une pièce jointe que le compte de l'\''application réécrit' base/migrations/0160_pieces_jointes.sql \
+  $'grant select, insert, delete on socle.piece_jointe to skanfact_app;' $'grant select, insert, update, delete on socle.piece_jointe to skanfact_app;\ncreate policy changer on socle.piece_jointe for update using (true);' \
+  'un PDF revient octet pour octet, avec sa fiche et son empreinte, gardé dix ans'
+prouver 'une pièce jointe gardée moins de dix ans' base/migrations/0160_pieces_jointes.sql \
+  $'conserver_jusqu_au date not null default ((now() at time zone \'Africa/Tunis\')::date + interval \'10 years\')::date,' $'conserver_jusqu_au date not null default ((now() at time zone \'Africa/Tunis\')::date + interval \'5 years\')::date,' \
+  'un PDF revient octet pour octet, avec sa fiche et son empreinte, gardé dix ans'
+prouver 'une pièce jointe reconnue à son nom (un SVG appelé .pdf accepté)' serveur/v10/pieces-jointes.ts \
+  $'      const sorte = sorteDe(fichier);\n' $'      const sorte = sorteDe(fichier) ?? (/\\.pdf$/i.test(corps.nom) ? \'pdf\' : null);\n' \
+  'ni photo ni PDF (aux octets, pas au nom), ou plus de 10 Mo : refusé, rien de gardé'
+prouver 'une pièce jointe de plus de 10 Mo acceptée' serveur/v10/pieces-jointes.ts \
+  $'if (fichier.length > LIMITE_PIECE) {' $'if (fichier.length > LIMITE_PIECE * 2) {' \
+  'ni photo ni PDF (aux octets, pas au nom), ou plus de 10 Mo : refusé, rien de gardé'
+prouver 'le panneau des pièces jointes encore caché sur la plateforme' web/public/plateforme/pont.js \
+  $'\'p-editeur\', \'p-depannage\'' $'\'p-editeur\', \'p-pj\', \'p-depannage\'' \
+  'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
+prouver '« Ouvrir » une pièce jointe qui laisse un onglet vide' web/public/plateforme/pont.js \
+  $'if (w) { w.opener = null; w.location.href = adresse; } else enregistrerSous(adresse, nom);' $'if (w) { w.opener = null; } else enregistrerSous(adresse, nom);' \
+  'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
+prouver '« Télécharger le fichier » qui ne télécharge rien' web/public/plateforme/pont.js \
+  $'      const { adresse, nom } = await lirePiece(fichier);\n      enregistrerSous(adresse, nom);\n' $'      await lirePiece(fichier);\n' \
+  'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
+prouver 'un seul fichier joint quand on en choisit deux' web/public/plateforme/pont.js \
+  $'i.type = \'file\'; i.accept = accepte; i.multiple = true; i.hidden = true;' $'i.type = \'file\'; i.accept = accepte; i.hidden = true;' \
+  'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
+prouver 'une pièce jointe refusée dont l'\''écran ne dit rien' web/public/v10/app.js \
+  $'          const added = await bridge.addAttachments(doc.id);\n          if (!added.length) return;' $'          const added = await bridge.addAttachments(doc.id).catch(() => []);\n          if (!added.length) return;' \
+  'un fichier qui n'\''est ni une photo ni un PDF se refuse, et dit pourquoi'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

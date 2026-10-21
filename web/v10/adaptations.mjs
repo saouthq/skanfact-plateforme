@@ -820,4 +820,6 @@ export const ADAPTATIONS = [
   ...lireFichier('declaration-paie-a-venir.txt'),
   // ── La recette du 21/10/2026 (1.87.3 à 1.87.7) : lecture seule, coupure du réseau, saisie au clavier, téléphone ──
   ...lireFichier('recette-21-10.txt'),
+  // ── Les pièces jointes gardées par le serveur (1.89.0) ──
+  ...lireFichier('pieces-jointes.txt'),
 ];

@@ -3538,11 +3538,22 @@
       const a = list.find(x => x.file === file); if (!a) return [];
       return [
         { icon: 'ouvrir', label: 'Ouvrir le fichier', hint: a.name || a.file, run: () => ouvrirJustificatif(ownerId, a) },
-        { icon: 'dossier', label: `Montrer dans ${EXPLORATEUR}`, hint: 'La copie que SkanFact range à côté de tes données', run: () => bridge.revealAttachment(ownerId, a.file) },
+        // (plateforme, pièces jointes) Un navigateur n'a pas de dossier à montrer : le fichier se télécharge.
+        { icon: 'dossier', label: 'Télécharger le fichier', hint: 'Une copie sur cet appareil', run: () => bridge.revealAttachment(ownerId, a.file).catch(e => toast(plainError(e), true)) },
         { sep: true },
-        { icon: 'supprimer', label: 'Retirer ce justificatif', hint: 'La copie est supprimée ; ton fichier d\'origine ne bouge pas', danger: true, run: () => retirer(a) }
+        { icon: 'supprimer', label: 'Retirer ce justificatif', hint: 'Il quitte cette pièce ; ton fichier d\'origine ne bouge pas', danger: true, run: () => retirer(a) }
       ];
     });
+  }
+  // (plateforme, pièces jointes) Retirer : le serveur efface le fichier que tu as joint il y a moins de 24 heures ; plus
+  // ancien (ou joint par un autre), il en garde la copie dix ans (un justificatif se conserve) et seule la pièce l'oublie.
+  // La question le dit avant, le message après.
+  async function retirerJustificatif(ownerId, a) {
+    if (!await confirmDialog(`Retirer « ${a.name || a.file} » de cette pièce ? Si tu l'as joint il y a moins de 24 heures, il est effacé ; sinon SkanFact en garde la copie dix ans (un justificatif se conserve), sans la montrer ici. Ton fichier d'origine ne bouge pas.`, 'Retirer')) return false;
+    let r;
+    try { r = await bridge.removeAttachment(ownerId, a.file); } catch (e) { toast(plainError(e), true); return false; }
+    if (r && r.garde) toast(`« ${a.name || a.file} » ne fait plus partie de cette pièce. SkanFact en garde la copie jusqu'au ${C.fmtDate(r.conserverJusquAu)}.`);
+    return true;
   }
 
   function docColumns(opts) {
@@ -5374,7 +5385,7 @@
       el.innerHTML = `
         ${list.length ? tableauJustificatifs(list) : '<p class="small muted">Aucune pièce jointe. Le devis signé scanné, le bon de commande du client, une photo du chantier : tout ce qui justifie ce document a sa place ici.</p>'}
         <div class="inline mt"><button class="btn btn-sm" id="add-att">+ Joindre un fichier…</button>
-        <span class="small muted">${isNew && list.length ? 'Joint à cette pièce : il sera enregistré avec elle. ' : ''}Les fichiers sont copiés à côté de tes données. Ils ne sont pas dans les sauvegardes quotidiennes (qui ne contiennent qu'un fichier texte) mais le sont dans la copie externe.</span></div>`;
+        <span class="small muted">${isNew && list.length ? 'Joint à cette pièce : il sera enregistré avec elle. ' : ''}Une photo ou un PDF, 10 Mo au plus. SkanFact le garde dix ans avec tes données, sauvegardes comprises.</span></div>`;
       $('#add-att').onclick = async () => {
         try {
           const added = await bridge.addAttachments(doc.id);
@@ -5386,8 +5397,7 @@
         } catch (e) { toast(plainError(e), true); }
       };
       brancherJustificatifs(el, doc.id, list, async a => {
-        if (!await confirmDialog(`Retirer « ${a.name || a.file} » ? La copie rangée par SkanFact sera supprimée ; ton fichier d'origine ne bouge pas.`, 'Retirer')) return;
-        await bridge.removeAttachment(doc.id, a.file);
+        if (!await retirerJustificatif(doc.id, a)) return;
         doc.attachments = (doc.attachments || []).filter(x => x.file !== a.file);
         if (s2) { s2.attachments = (s2.attachments || []).filter(x => x.file !== a.file); save(true); } else touch();
         drawAttachments(); drawHistory();
@@ -10787,7 +10797,9 @@
         // Sans pièces jointes en ligne (pour l'instant), l'échec se dit sans proposer de joindre la photo. Venue d'un message,
         // la photo se range quand même : l'achat se saisit à la main, et le message dira où il est rangé.
         const depuisMessage = rangementDuMessage && rangementDuMessage.lu ? ' Saisis l\'achat à la main, puis « Enregistrer » : ton cabinet lira dans votre fil où la pièce est rangée.' : '';
-        if (bridge.piecesJointes === false) return infoDialog('La lecture de la facture a échoué', (e.message || 'Erreur inconnue.') + depuisMessage);
+        // (plateforme, pièces jointes) Un fichier qui n'est ni une photo ni un PDF (415) ne se joint pas non plus : l'échec
+        // se dit sans proposer de le joindre.
+        if (bridge.piecesJointes === false || e.statut === 415) return infoDialog('La lecture de la facture a échoué', (e.message || 'Erreur inconnue.') + depuisMessage);
         const retry = await confirmDialog(`La lecture a échoué.\n\n${e.message || 'Erreur inconnue.'}\n\nTu peux joindre la photo et saisir la facture à la main.`, 'Joindre la photo', false, { titre: 'La lecture de la photo a échoué' });
         if (retry) await joindreFichier(file);
         return;
@@ -10888,8 +10900,7 @@
         catch (e) { toast(plainError(e), true); }
       };
       brancherJustificatifs(el, p.id, list, async a => {
-        if (!await confirmDialog(`Retirer « ${a.name || a.file} » ? La copie rangée par SkanFact sera supprimée ; ton fichier d'origine ne bouge pas.`, 'Retirer')) return;
-        await bridge.removeAttachment(p.id, a.file);
+        if (!await retirerJustificatif(p.id, a)) return;
         p.attachments = (p.attachments || []).filter(x => x.file !== a.file);
         if (s2) { s2.attachments = (s2.attachments || []).filter(x => x.file !== a.file); save(true); } else touch();
         drawBuyAttachments();
@@ -15924,8 +15935,7 @@
             } catch (e) { toast(plainError(e), true); }
           };
           brancherJustificatifs(el, m.id, list, async a => {
-            if (!await confirmDialog(`Retirer « ${a.name || a.file} » ? La copie rangée par SkanFact sera supprimée ; ton fichier d'origine ne bouge pas.`, 'Retirer')) return;
-            await bridge.removeAttachment(m.id, a.file);
+            if (!await retirerJustificatif(m.id, a)) return;
             m.attachments = (m.attachments || []).filter(x => x.file !== a.file);
             const i = ajoutes.findIndex(x => x.file === a.file); if (i >= 0) ajoutes.splice(i, 1);
             if (mv) save(true);

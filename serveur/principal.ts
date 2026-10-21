@@ -93,6 +93,7 @@ import { declarerGestesVentes } from './ventes/gestes.ts';
 import { routesVentes } from './ventes/routes.ts';
 import { envoyerALaTtn } from './v10/envoi.ts';
 import { verifierEnAttente } from './v10/paiement.ts';
+import { routesPiecesJointes } from './v10/pieces-jointes.ts';
 import { routesV10 } from './v10/routes.ts';
 import { lirePartenaires, routesPartenaires, type Partenaire } from './partenaires.ts';
 import { KONNECT_PAR_DEFAUT } from './ventes/konnect.ts';
@@ -261,7 +262,7 @@ export function routesDuServeur(ctx: Contexte, options: { veille: string | null;
   declarerGestesMessagerie();
   declarerGestesSupport();
   return [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx),
-    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesAbonnement(ctx), ...routesConsole(ctx, options),
+    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPiecesJointes(), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesAbonnement(ctx), ...routesConsole(ctx, options),
     ...routesMessageClients(ctx.maintenant), ...routesNouveautes(ctx), ...routesPdf(ctx)];
 }
 

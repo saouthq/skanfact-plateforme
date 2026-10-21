@@ -13,6 +13,7 @@ import os from 'node:os';
 import path from 'node:path';
 import pg from 'pg';
 import { chromium, type Browser, type Page } from 'playwright-core';
+import { pdfTelecharge } from '../pdf-telecharge.ts';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
@@ -30,7 +31,8 @@ describe('une demande de prix envoyée à deux fournisseurs, comparée, puis com
     await admin.connect();
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
-    navigateur = await chromium.launch();
+    // Un nom de fichier accentué : Chromium le garde si sa langue est en UTF-8 (sans LANG, il le remplace par « download »).
+    navigateur = await chromium.launch({ env: { ...process.env, LANG: 'C.UTF-8' } });
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
   afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); await admin.end(); fs.rmSync(dossier, { recursive: true, force: true }); });
@@ -95,17 +97,12 @@ describe('une demande de prix envoyée à deux fournisseurs, comparée, puis com
     expect((await p.locator('#view .panel h2').allInnerTexts()).map(net).filter((t) => /^(La|Notes)/.test(t))).toEqual(['La demande i', 'Notes (imprimées sur la demande)']);
 
     // 2. Elle s'imprime sans prix, avec la demande de les donner.
-    const fenetre = p.waitForEvent('popup');
-    await p.locator('#cf-pdf').click();
-    const imprimee = await fenetre;
-    await imprimee.waitForLoadState();
-    const texte = net(await imprimee.locator('body').innerText());
+    // Le PDF fait par le serveur (1.88.0), relu tel que le fournisseur le reçoit.
+    const texte = net((await pdfTelecharge(p, () => p.locator('#cf-pdf').click())).texte);
     expect(texte).toMatch(/Demande de prix/i);
     expect(texte).toContain('Merci de nous indiquer vos prix unitaires hors taxes et votre délai de livraison pour ces articles.');
     expect(texte).toMatch(/Ciment gris 50 kg 100/);
     expect(texte).not.toMatch(/17,250|Total/i);
-    await imprimee.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'demandes-prix-1-imprimee.png') });
-    await imprimee.close();
 
     // 3. « Demander aussi à… » Béton du Nord : la même demande, sans prix ; les deux se comparent.
     await p.locator('#cf-aussi').click();

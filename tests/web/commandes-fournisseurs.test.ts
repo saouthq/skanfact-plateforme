@@ -17,6 +17,7 @@ import os from 'node:os';
 import path from 'node:path';
 import pg from 'pg';
 import { chromium, type Browser, type Page } from 'playwright-core';
+import { pdfTelecharge } from '../pdf-telecharge.ts';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
@@ -34,7 +35,8 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await admin.connect();
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
-    navigateur = await chromium.launch();
+    // Un nom de fichier accentué : Chromium le garde si sa langue est en UTF-8 (sans LANG, il le remplace par « download »).
+    navigateur = await chromium.launch({ env: { ...process.env, LANG: 'C.UTF-8' } });
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
   afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); await admin.end(); fs.rmSync(dossier, { recursive: true, force: true }); });
@@ -117,17 +119,12 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'commandes-fournisseurs-1-commande.png') });
 
     // 2. Elle s'imprime pour le fournisseur.
-    const fenetre = p.waitForEvent('popup');
-    await p.locator('#cf-pdf').click();
-    const imprimee = await fenetre;
-    await imprimee.waitForLoadState();
-    const texte = net(await imprimee.locator('body').innerText());
+    // Le PDF fait par le serveur (1.88.0), relu tel que le fournisseur le reçoit.
+    const texte = net((await pdfTelecharge(p, () => p.locator('#cf-pdf').click())).texte);
     expect(texte).toMatch(/Bon de commande/i);
     expect(texte).toContain(numero);
     expect(texte).toMatch(/FOURNISSEUR Ciments de Bizerte/);
     expect(texte).toContain('Merci de nous confirmer cette commande, ses prix et sa date de livraison.');
-    await imprimee.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'commandes-fournisseurs-2-imprimee.png') });
-    await imprimee.close();
 
     // 3. Première réception : tout est proposé, 60 sacs et 1,25 t arrivent.
     await p.locator('#cf-recevoir').click();

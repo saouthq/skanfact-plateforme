@@ -720,10 +720,9 @@
   // Les panneaux des Paramètres sans objet sur la plateforme (voir `panneauxAbsents`), avec leur puce du sommaire et leur
   // résultat de recherche (reglages.js lit l'écran : un panneau caché y restait, et sa puce ne menait nulle part — vu
   // dans Données et sécurité le 05/10/2026 : « Dossiers », « Sauvegardes », « Copie externe », « Mot de passe »…).
-  // `p-pj` (les pièces jointes d'une pièce) reviendra quand le serveur gardera les fichiers ;
   // `p-depannage` (le journal de l'ordinateur, le signalement) quand le serveur tiendra le sien.
   // « La clôture de ton comptable » attendait un fichier .skanclose : le cabinet clôt l'exercice ici même (brique 45).
-  const PANNEAUX_ABSENTS = ['p-dossiers', 'p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-ocr', 'p-danger', 'p-maj', 'p-licence', 'p-editeur', 'p-pj', 'p-depannage', 'p-cloture-cabinet'];
+  const PANNEAUX_ABSENTS = ['p-dossiers', 'p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-ocr', 'p-danger', 'p-maj', 'p-licence', 'p-editeur', 'p-depannage', 'p-cloture-cabinet'];
   const style = document.createElement('style');
   style.textContent = `${PANNEAUX_ABSENTS.flatMap((id) => [`#${id}`, `[data-somm="${id}"]`, `[data-go="${id}"]`]).join(', ')} { display: none !important; }
     .ttn-etat { display: block; min-height: 1.4em; }`;
@@ -731,12 +730,12 @@
   // Les visites guidées que « Guide-moi » ne propose pas (adaptation de `visites`, web/v10/exemple.txt) : celles dont
   // le sujet n'existe pas en ligne (les fichiers et les sauvegardes de l'ordinateur, sa copie de sécurité, les mises à
   // jour, la licence, un dossier partagé entre deux ordinateurs, la clôture du comptable reçue en fichier), et celles
-  // d'un geste pas encore en ligne, qui reviennent avec leur brique (le justificatif joint, le signalement avec le
-  // journal de l'ordinateur).
+  // d'un geste pas encore en ligne, qui reviennent avec leur brique (le signalement avec le journal de l'ordinateur ;
+  // le justificatif joint est revenu avec les pièces jointes, 1.89.0).
   // Le paquet du mois n'existe plus : le cabinet lit les livres ici même (« Confier mon dossier à mon comptable »,
   // adaptée dans web/v10/exemple.txt).
   const VISITES_SANS_OBJET = ['sauvegarde', 'restaurer', 'fichiers', 'mise-a-jour', 'licence', 'partager', 'recevoir-cloture', 'paquet'];
-  const VISITES_PAS_ENCORE = ['justificatif', 'signaler'];
+  const VISITES_PAS_ENCORE = ['signaler'];
 
   // ── L'entreprise d'essai, vue à l'ouverture (lot onboarding ; docs/entree.md) ───────────────────
   // Remplie de l'exemple, son bandeau dit « Créer ma vraie entreprise » tant que le compte n'en a pas (`aUneVraieEntreprise`).
@@ -1290,17 +1289,47 @@
     },
 
     // ── Ce qui n'est pas encore sur le serveur : un refus qui le dit, jamais une panne ─────────
-    addAttachments: pasEncore('Joindre un fichier'),
-    attachPath: pasEncore('Joindre un fichier'),
-    openAttachment: pasEncore('Ouvrir une pièce jointe'),
-    revealAttachment: pasEncore('Montrer une pièce jointe'),
-    removeAttachment: async () => undefined,
+    // ── Les pièces jointes (lot Fonctions 3 ; docs/pieces-jointes.md) : gardées dix ans par le serveur ──────
+    // La pièce garde la fiche (name, file, size, date), comme dans la v10 ; `file` est l'identifiant du fichier.
+    addAttachments: async () => {
+      const choisis = await choisirFichiers('image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf');
+      /** @type {unknown[]} */ const fiches = [];
+      for (const f of choisis) fiches.push(await deposerPiece(f));
+      return fiches;
+    },
+    // Le fichier qu'on vient de lire (une facture d'achat en photo) : joint sans le rechoisir.
+    attachPath: async (/** @type {string} */ _id, /** @type {string} */ chemin) => {
+      const f = fichiersALire.get(chemin);
+      if (!f) throw new Error('Le fichier lu n\'est plus là : joins-le avec « Joindre un justificatif… ».');
+      fichiersALire.delete(chemin);
+      return deposerPiece(f);
+    },
+    // Ouvrir : la photo ou le PDF dans un nouvel onglet (la fenêtre s'ouvre tout de suite, pendant le clic : un
+    // navigateur bloque celle qui s'ouvre après l'attente) ; sans onglet, le fichier se télécharge.
+    openAttachment: async (/** @type {string} */ _id, /** @type {string} */ fichier) => {
+      const w = window.open('', '_blank');
+      try {
+        const { adresse, nom } = await lirePiece(fichier);
+        if (w) { w.opener = null; w.location.href = adresse; } else enregistrerSous(adresse, nom);
+        return { ouvert: true };
+      } catch (e) { w?.close(); throw e; }
+    },
+    // « Montrer dans le dossier » n'a pas de sens dans un navigateur : le fichier se télécharge.
+    revealAttachment: async (/** @type {string} */ _id, /** @type {string} */ fichier) => {
+      const { adresse, nom } = await lirePiece(fichier);
+      enregistrerSous(adresse, nom);
+    },
+    // Retirer : effacé s'il a été déposé dans les vingt-quatre heures ; sinon la copie reste jusqu'à sa date (0160).
+    removeAttachment: async (/** @type {string} */ _id, /** @type {string} */ fichier) => {
+      if (!/^[0-9a-f-]{36}$/.test(String(fichier))) return true;
+      const r = await appel('DELETE', `/pieces-jointes/${fichier}`);
+      return r && r.efface === false ? { garde: true, conserverJusquAu: r.conserverJusquAu } : true;
+    },
+    piecesJointes: true,
     // ── La lecture d'une facture d'achat (brique 84 ; docs/achats.md) : par le serveur de SkanFact ──────
     // Le serveur dit s'il sait lire (et si cette personne a le geste) ; le fichier choisi part tel quel, et
-    // revient une PROPOSITION que la fenêtre de la v10 fait relire. Les pièces jointes, elles, ne sont pas
-    // encore en ligne : la lecture ne tente pas d'y ranger le fichier.
+    // revient une PROPOSITION que la fenêtre de la v10 fait relire, et le fichier se joint ensuite à la pièce (attachPath).
     lectureSurLeServeur: true,
-    piecesJointes: false,
     ocrStatus: async () => {
       etatLecture ??= appel('GET', '/achats/lecture').catch((/** @type {any} */ e) => { if (e.horsLigne) etatLecture = null; return { disponible: false }; });
       const st = await etatLecture;
@@ -1318,7 +1347,7 @@
     ocrRead: async (/** @type {string} */ chemin) => {
       const f = fichiersALire.get(chemin);
       if (!f) throw new Error('Le fichier choisi n\'est plus là : choisis-le de nouveau.');
-      fichiersALire.delete(chemin);
+      // Gardé : une fois la facture lue, il se joint à elle (attachPath).
       const contenu = await new Promise((ok, ko) => {
         const r = new FileReader();
         r.onload = () => ok(String(r.result).replace(/^data:[^,]*,/, ''));
@@ -2355,6 +2384,49 @@
     location.assign(`/v10/?e=${encodeURIComponent(id)}`);
   }
   const PARTAGE = 'Sur la plateforme, une entreprise n\'est plus un fichier à poser dans un dossier partagé : elle vit sur le serveur, et chacun l\'ouvre avec son propre compte. Pour travailler à plusieurs, invite tes collaborateurs dans Paramètres → L\'équipe.';
+  // ── Les pièces jointes : déposer, lire, enregistrer ──────────────────────────────────────────
+  const PIECE_MAX = 10 * 1048576;
+  /** @param {File} f */
+  async function deposerPiece(f) {
+    if (f.size > PIECE_MAX) throw new Error(`Le fichier « ${f.name} » pèse ${(f.size / 1048576).toFixed(1).replace('.', ',')} Mo : une pièce jointe pèse 10 Mo au plus. Une photo moins lourde, ou un PDF compressé, passera.`);
+    const contenu = await new Promise((ok, ko) => {
+      const r = new FileReader();
+      r.onload = () => ok(String(r.result).replace(/^data:[^,]*,/, ''));
+      r.onerror = () => ko(new Error(`« ${f.name} » ne se lit pas sur cet appareil.`));
+      r.readAsDataURL(f);
+    });
+    const r = await appel('POST', '/pieces-jointes', { nom: f.name, contenu });
+    return { name: r.name, file: r.file, size: r.size, date: r.date };
+  }
+  /** @param {string} fichier */
+  async function lirePiece(fichier) {
+    if (!/^[0-9a-f-]{36}$/.test(String(fichier))) throw new Error('Cette pièce jointe vient de l\'application de bureau : son fichier est resté sur l\'ordinateur où elle a été jointe.');
+    const f = await appel('GET', `/pieces-jointes/${fichier}`);
+    const octets = Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0));
+    const adresse = URL.createObjectURL(new Blob([octets], { type: String(f.type) }));
+    setTimeout(() => URL.revokeObjectURL(adresse), 120_000);
+    return { adresse, nom: String(f.nom) };
+  }
+  /** @param {string} adresse @param {string} nom */
+  function enregistrerSous(adresse, nom) {
+    const a = document.createElement('a');
+    a.href = adresse;
+    a.download = nom;
+    document.body.append(a);
+    a.click();
+    a.remove();
+  }
+  /** @param {string} accepte @returns {Promise<File[]>} */
+  function choisirFichiers(accepte) {
+    return new Promise((resolve) => {
+      const i = document.createElement('input');
+      i.type = 'file'; i.accept = accepte; i.multiple = true; i.hidden = true;
+      i.addEventListener('change', () => { resolve(i.files ? [...i.files] : []); i.remove(); });
+      i.addEventListener('cancel', () => { resolve([]); i.remove(); });
+      document.body.appendChild(i);
+      i.click();
+    });
+  }
   // Ce qui n'existe pas encore en ligne se refuse avec sa phrase : ce qui est refusé, et que rien n'a changé.
   /** @param {string} quoi */
   function pasEncore(quoi) {
