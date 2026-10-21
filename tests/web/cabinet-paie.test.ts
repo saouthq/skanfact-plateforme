@@ -18,6 +18,7 @@ import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { ecranDeLaPlateforme } from '../moteur/v10.ts';
+import { pdfTelecharge } from '../pdf-telecharge.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -29,7 +30,8 @@ describe('la paie tenue par le cabinet, à la souris', () => {
   beforeAll(async () => {
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
-    navigateur = await chromium.launch();
+    // Le nom d'un PDF téléchargé garde ses accents dans une langue UTF-8 (sinon : « download »).
+    navigateur = await chromium.launch({ env: { ...process.env, LANG: 'C.UTF-8' } });
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
   afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
@@ -223,36 +225,41 @@ describe('la paie tenue par le cabinet, à la souris', () => {
     expect(ecritures.filter((e) => e.journal === 'PAIE').map((e) => `${e.origine.type} ${e.date} ${e.statut}`).sort())
       .toEqual(['contre_passation 2026-10-01 brouillard', 'paie 2026-09-30 validee', 'paie 2026-10-01 brouillard']);
 
-    // ── Les documents de la paie, ceux de l'entreprise (1.65.0) : la fenêtre qui s'imprime ───────────────────
-    const imprimer = async (geste: () => Promise<unknown>) => {
-      const [fenetreImprimee] = await Promise.all([p.waitForEvent('popup'), geste()]);
-      await expect.poll(() => fenetreImprimee.content(), { timeout: 15_000 }).toMatch(/<h1>/);
-      // Les espaces insécables des montants (« 1 300,000 »), sérialisés « &nbsp; » : des espaces.
-      const html = (await fenetreImprimee.content()).replace(/&nbsp;|[\u00a0\u202f]/g, ' ');
-      await fenetreImprimee.close();
-      return html;
-    };
+    // ── Les documents de la paie, ceux de l'entreprise (1.65.0), en PDF fait par le serveur (1.92.0), sous leur nom ──
     const net = Number(lu.computed.net).toFixed(3).replace('.', ',');
-    const imprime = await imprimer(async () => {
+    const imprime = await pdfTelecharge(p, async () => {
       await p.locator(`[data-rowmenu="PAIE:${bulletin.id}"]`).first().click();
       await p.getByRole('menuitem').filter({ hasText: 'Imprimer le bulletin' }).first().click();
     });
-    expect(imprime).toContain('<h1>Bulletin de paie</h1>');
-    expect(imprime).toContain('Café des Arts');
-    expect(imprime).toContain('Salarié Numéro Un');
-    expect(imprime).toContain('Prime de présence (11 j sur 26)');
-    expect(imprime).toMatch(/Absence \(3 jours\)<\/td>\s*<td class="n">1 300,000<\/td>/);
-    expect(imprime).toContain(`${net} DT`);
+    expect([imprime.nom, imprime.pages]).toEqual(['Bulletin_Salarié_Numéro_Un_2026-09.pdf', 1]);
+    expect(imprime.texte).toContain('Bulletin de paie');
+    expect(imprime.texte).toContain('Café des Arts');
+    expect(imprime.texte).toContain('Salarié Numéro Un');
+    expect(imprime.texte).toContain('Prime de présence (11 j sur 26)');
+    // L'absence au taux du salaire du contrat (1 300 × 3 / 26 = 150).
+    expect(imprime.texte).toContain('Absence (3 jours)');
+    expect(imprime.texte).toMatch(/TAUX 1 300,000 .* − 150,000 /);
+    expect(imprime.texte).toContain(`${net} DT`);
     // C'est le comptable qui l'imprime : pas d'« À faire valider par votre comptable ».
-    expect(imprime).not.toContain('À faire valider par votre comptable');
-    const journal = await imprimer(() => p.locator('#pa-journal').click());
-    expect(journal).toContain('<h1>Journal de paie</h1>');
-    expect(journal).toContain('septembre 2026');
-    expect(journal).toMatch(/Salarié Numéro Un<\/td>/);
-    expect(journal).toContain('Nombre de salariés : 1');
-    const etat = await imprimer(() => p.locator('#pa-etat').click());
-    expect(etat).toContain('<h1>État récapitulatif des salaires déclarés</h1>');
-    expect(etat).toMatch(/Trimestre<\/span><b>3<\/b>/);
+    expect(imprime.texte).not.toContain('À faire valider par votre comptable');
+    await expect.poll(() => p.locator('#toast').innerText()).toBe('PDF enregistré : Bulletin_Salarié_Numéro_Un_2026-09.pdf');
+    const journal = await pdfTelecharge(p, () => p.locator('#pa-journal').click());
+    expect(journal.nom).toBe('Journal_de_paie_2026-09.pdf');
+    expect(journal.texte).toContain('Journal de paie');
+    expect(journal.texte).toContain('septembre 2026');
+    expect(journal.texte).toContain('Salarié Numéro Un');
+    expect(journal.texte).toContain('Nombre de salariés : 1');
+    const etat = await pdfTelecharge(p, () => p.locator('#pa-etat').click());
+    expect(etat.nom).toBe('Etat_recapitulatif_CNSS_2026-T3.pdf');
+    expect(etat.texte).toContain('État récapitulatif des salaires déclarés');
+    expect(etat.texte).toMatch(/Trimestre Année .* 3 2026 NOM ET ADRESSE/);
+    expect(etat.texte).toContain('d\'après les bulletins du 3e trimestre 2026');
+    // Un serveur sans l'outil (Chromium absent) : la fenêtre d'impression du navigateur revient, comme avant.
+    await p.route('**/v1/pdf', (r) => r.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ motif: 'Le PDF ne se fait pas sur ce serveur.', bouton: null, indisponible: true }) }));
+    const [fenetreImprimee] = await Promise.all([p.waitForEvent('popup'), p.locator('#pa-journal').click()]);
+    await expect.poll(() => fenetreImprimee.content(), { timeout: 15_000 }).toContain('<h1>Journal de paie</h1>');
+    await fenetreImprimee.close();
+    await p.unroute('**/v1/pdf');
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

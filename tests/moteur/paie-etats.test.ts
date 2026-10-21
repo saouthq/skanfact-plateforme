@@ -97,6 +97,10 @@ describe('le journal de paie et les états de la paie, contre les documents rée
     expect(l?.base).toBe(r3(612 * 18 / 26));
     // Le bulletin imprimé dit sur quel salaire l'absence s'est retirée.
     expect(lu(core.payslipHtml(b, d, { name: 'Essai', currency: 'DT' }, {}))).toMatch(/<td>Absence \(2 jours\)<\/td>\s*<td class="n">612,000<\/td>/);
+    // Le pied du bulletin élide devant une voyelle (« d'octobre », pas « de octobre ») : septembre garde « de ».
+    expect(lu(core.payslipHtml(b, d, { name: 'Essai', currency: 'DT' }, {}))).toContain('· Bulletin de septembre 2026 ·');
+    const octobre = bulletin(e, 2026, 10, core.payslipInputFor(d, e, 2026, 10));
+    expect(lu(core.payslipHtml(octobre, { ...d, payslips: [b, octobre] }, { name: 'Essai', currency: 'DT' }, {}))).toContain('· Bulletin d&#39;octobre 2026 ·');
     // Un brut retouché à la main n'est plus proratisé : l'absence se retire de lui.
     const retouche = bulletin(e, 2026, 9, { ...i, gross: 500 });
     expect([retouche.computed.absenceCut, retouche.computed.brutDuMois]).toEqual([38.462, 500]);

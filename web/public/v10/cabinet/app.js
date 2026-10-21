@@ -6116,9 +6116,14 @@
     sc.onerror = () => { moteurDesDocuments = null; ko(new Error('Le moteur des documents ne se charge pas : vérifie ta connexion, puis réessaie.')); };
     document.head.appendChild(sc);
   }));
-  async function imprimerDocumentPaie(dossier, fabriquer) {
-    const w = window.open('', '_blank');
-    if (!w) return toast('Le navigateur a bloqué la fenêtre du document : autorise les fenêtres de SkanFact, puis réessaie.', 'error');
+  // (plateforme) 1.92.0 — le PDF fait par le serveur (pont-cabinet.js, `exportPdf`) : le document se télécharge sous son
+  // nom, celui que l'entreprise lui donne (`nommer` le dit, de la paie du dossier). Sans l'outil sur ce serveur, ou sans
+  // réseau, le pont rend la fenêtre d'impression. Le nom d'un fichier ne garde que des lettres, des chiffres et des tirets.
+  const nomDeFichier = s => String(s || '').replace(/[^\w\-àâäéèêëïîôöùûüç ]/gi, '').trim().replace(/\s+/g, '_');
+  async function imprimerDocumentPaie(dossier, fabriquer, nommer) {
+    // Sans le PDF du serveur, la fenêtre s'ouvre tout de suite, dans le geste.
+    const w = api.exportPdf ? null : window.open('', '_blank');
+    if (!api.exportPdf && !w) return toast('Le navigateur a bloqué la fenêtre du document : autorise les fenêtres de SkanFact, puis réessaie.', 'error');
     try {
       const C = await chargerMoteurDesDocuments();
       const paie = api.paieDuDossierV10(dossier.id);
@@ -6128,11 +6133,18 @@
       // réglages sont ceux du dossier : ceux du SkanFact du client, s'il y tient sa paie.
       const societe = { name: dossier.name || '', address: dossier.adresse || '', matricule: dossier.matricule || '', cnss: dossier.cnssEmployeur || '',
         cnssCode: dossier.cnssCode || '', managerName: dossier.gerant || '', currency: 'DT' };
-      w.document.write(fabriquer(C, { employees: paie.employees, payslips: paie.payslips, leaves: paie.leaves || [], advances: paie.advances || [],
-        payrollSettings: reglagesPaie(dossier, livresState.livre) }, societe));
+      const d = { employees: paie.employees, payslips: paie.payslips, leaves: paie.leaves || [], advances: paie.advances || [],
+        payrollSettings: reglagesPaie(dossier, livresState.livre) };
+      const html = fabriquer(C, d, societe);
+      if (!w) {
+        const f = await api.exportPdf(html, `${nommer(d)}.pdf`);
+        if (f) toast('PDF enregistré : ' + f);
+        return;
+      }
+      w.document.write(html);
       w.document.close();
       w.print();
-    } catch (e) { w.close(); toast(plainError(e), 'error'); }
+    } catch (e) { if (w) w.close(); toast(plainError(e), 'error'); }
   }
 
   // (plateforme) 1.69.0 — le pointage du mois d'un dossier : la grille de l'entreprise (1.60.0), que le Cabinet tient pour
@@ -6316,9 +6328,13 @@
     }; });
     // (plateforme) 1.65.0 — le journal de paie du mois et l'état récapitulatif CNSS du trimestre, imprimés.
     const jp = $('#pa-journal', el);
-    if (jp) jp.onclick = () => imprimerDocumentPaie(dossier, (C, d, so) => C.journalDePaieHtml(d, so, Number(s.annee), Number(s.paieMois)));
+    if (jp) jp.onclick = () => imprimerDocumentPaie(dossier, (C, d, so) => C.journalDePaieHtml(d, so, Number(s.annee), Number(s.paieMois)),
+      () => `Journal_de_paie_${s.annee}-${String(s.paieMois).padStart(2, '0')}`);
     const et = $('#pa-etat', el);
-    if (et) et.onclick = () => imprimerDocumentPaie(dossier, (C, d, so) => C.etatRecapitulatifCnssHtml(d, so, Number(s.annee), Number(s.paieTrimestre || Math.ceil(s.paieMois / 3))));
+    if (et) et.onclick = () => {
+      const trimestre = Number(s.paieTrimestre || Math.ceil(s.paieMois / 3));
+      imprimerDocumentPaie(dossier, (C, d, so) => C.etatRecapitulatifCnssHtml(d, so, Number(s.annee), trimestre), () => `Etat_recapitulatif_CNSS_${s.annee}-T${trimestre}`);
+    };
     const fc = $('#pa-fichier', el);
     if (fc) fc.onclick = async () => {
       fc.disabled = true;
@@ -6374,6 +6390,10 @@
           const bulletinDuDossier = (d.payslips || []).find(p => p.id === b.id);
           if (!bulletinDuDossier) throw new Error('Ce bulletin n\'est plus dans la paie du dossier : recharge la page.');
           return C.payslipHtml(bulletinDuDossier, d, so, { notice: false });
+        }, d => {
+          const p = (d.payslips || []).find(y => y.id === b.id) || {};
+          const sal = (d.employees || []).find(y => y.id === p.employeeId) || {};
+          return `Bulletin_${nomDeFichier(sal.name)}_${p.year}-${String(p.month).padStart(2, '0')}`;
         }) }];
       // (plateforme) 1.63.0 — l'écriture de paie du mois SUIT les bulletins : le serveur la réécrit, et contre-passe celle
       // qui était validée (une écriture validée ne se modifie jamais). Un bulletin se corrige donc tant que l'exercice
@@ -6821,7 +6841,7 @@
           const sal = (d.employees || []).find(y => y.id === e.id);
           if (!sal) throw new Error('Ce salarié n\'est plus dans la paie du dossier : recharge la page.');
           return C.hrDocumentHtml(kind, sal, d, so, opts);
-        });
+        }, () => `${nomDeFichier(KC.hrDocLabel(kind))}_${nomDeFichier(e.name)}`);
         close();
       };
     });

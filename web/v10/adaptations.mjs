@@ -826,4 +826,8 @@ export const ADAPTATIONS = [
   ...lireFichier('sauvegardes-ecran.txt'),
   // ── « Signaler un problème », avec le journal de cet écran (1.91.0) ──
   ...lireFichier('signaler.txt'),
+  // ── Le PDF fait par le serveur, au Cabinet : les documents de la paie d'un dossier (1.92.0) ──
+  ...lireFichier('pdf-cabinet.txt'),
+  // ── « d'octobre », pas « de octobre », sur le bulletin et l'ordre de virement (1.92.0) ──
+  ...lireFichier('de-mois.txt'),
 ];

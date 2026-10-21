@@ -97,13 +97,15 @@ describe('payer les salaires du mois, à la souris', () => {
     const titre = () => fenetre.locator('h2').first().innerText({ timeout: 500 }).catch(() => '');
     const lire = (sel: string) => fenetre.locator(sel).innerText().then((x) => x.replace(/[\u00a0\u202f]/g, ' ').replace(/\s+/g, ' ').trim());
     const periode = new Date(Date.UTC(annee, mois - 1, 1)).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    // « d'avril », « d'août », « d'octobre » ; « de septembre » : le mois du test dépend du jour où il tourne.
+    const dePeriode = `${/^[aeiouéèê]/i.test(periode) ? 'd\'' : 'de '}${periode}`;
 
     // ── Sans le nom de la société, l'ordre ne dirait pas qui l'envoie : la fenêtre le dit, l'ordre est éteint, et le bouton
     //    ouvre la fiche société sur la case ──────────────────────────────────────────────────────────────────
     if (await p.locator('#p-year').inputValue() !== String(annee)) await p.locator('#p-year').selectOption(String(annee));
     await p.locator('#p-month').selectOption(String(mois));
     await p.locator('#p-payer').click();
-    await expect.poll(async () => (await titre()).startsWith(`Payer les salaires de ${periode}`)).toBe(true);
+    await expect.poll(async () => (await titre()).startsWith(`Payer les salaires ${dePeriode}`)).toBe(true);
     expect(await lire('#ps-societe')).toBe('Le nom de ta société n\'est pas sur ta fiche : l\'ordre de virement ne dirait pas qui l\'envoie. Renseigner ta fiche…');
     expect(await fenetre.locator('#ps-ordre').isDisabled()).toBe(true);
     await fenetre.locator('#ps-societe-go').click();
@@ -125,7 +127,7 @@ describe('payer les salaires du mois, à la souris', () => {
     expect(await payer.getAttribute('class')).toContain('btn-primary');
     expect(await p.locator('#p-body .btn-primary').count()).toBe(1);
     await payer.click();
-    await expect.poll(async () => (await titre()).startsWith(`Payer les salaires de ${periode}`)).toBe(true);
+    await expect.poll(async () => (await titre()).startsWith(`Payer les salaires ${dePeriode}`)).toBe(true);
     expect(await fenetre.locator('tr[data-ps]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.ps))).toEqual(['p-s2', 'p-s3', 'p-s1']);
     expect(await lire('#ps-hors')).toBe('L\'ordre de virement ne portera pas Salarié Numéro Deux (RIB à renseigner), Salarié Numéro Trois (espèces). Renseigner le RIB de Salarié Numéro Deux…');
     expect(await lire('#ps-compte-rib')).toBe('Le compte « Banque du Port — compte courant » n\'a pas de RIB : l\'ordre ne dira pas quel compte débiter. Renseigner le RIB du compte…');
@@ -144,7 +146,7 @@ describe('payer les salaires du mois, à la souris', () => {
     await fenetre.locator('[name=iban]').fill(RIB_DEUX);
     await expect.poll(() => fenetre.locator('.rib-note').first().innerText()).toBe('');
     await fenetre.locator('#ok').click();
-    await expect.poll(async () => (await titre()).startsWith(`Payer les salaires de ${periode}`)).toBe(true);
+    await expect.poll(async () => (await titre()).startsWith(`Payer les salaires ${dePeriode}`)).toBe(true);
     // La fenêtre revient comme on l'a laissée : la ligne décochée l'est restée ; le RIB est là.
     expect(await fenetre.locator('[data-ps-c="p-s3"]').isChecked()).toBe(false);
     expect(await lire('tr[data-ps="p-s2"] td:nth-child(4)')).toBe(RIB_DEUX);
@@ -156,14 +158,14 @@ describe('payer les salaires du mois, à la souris', () => {
     await expect.poll(() => p.evaluate(() => document.activeElement?.getAttribute('name'))).toBe('rib');
     await fenetre.locator('[name=rib]').fill(RIB_UN);
     await fenetre.locator('#ok').click();
-    await expect.poll(async () => (await titre()).startsWith(`Payer les salaires de ${periode}`)).toBe(true);
+    await expect.poll(async () => (await titre()).startsWith(`Payer les salaires ${dePeriode}`)).toBe(true);
     expect(await fenetre.locator('#ps-compte-rib').count()).toBe(0);
     const total = Math.round((net(bulletins[0]) + net(bulletins[1])) * 1000) / 1000;
     // Le PDF fait par le serveur (1.88.0), relu tel que la banque le reçoit.
     const ordre = await pdfTelecharge(p, () => fenetre.locator('#ps-ordre').click());
     expect(ordre.nom).toMatch(/^Ordre_de_virement_salaires_\d{4}-\d{2}\.pdf$/);
     const texte = ordre.texte;
-    expect(texte).toMatch(/^Boulangerie du Port Rue du Port 2000 Le Bardo À l'attention de Banque Numéro Une Ordre de virement Objet : virement des salaires de /);
+    expect(texte.startsWith(`Boulangerie du Port Rue du Port 2000 Le Bardo À l'attention de Banque Numéro Une Ordre de virement Objet : virement des salaires ${dePeriode}`)).toBe(true);
     expect(texte).toContain(`par le débit de notre compte n° ${RIB_UN}`);
     expect(texte).toContain(`Salarié Numéro Deux ${RIB_DEUX}`);
     expect(texte).toContain(`Salariée Numéro Une ${RIB_UN}`);
@@ -180,7 +182,7 @@ describe('payer les salaires du mois, à la souris', () => {
     const dates = (await payes()).slice(0, 2).map((x) => x[1]);
     expect(dates[0]).toBe(dates[1]);
     expect(String(dates[0])).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(await p.locator('#toast').innerText()).toMatch(/^2 salaires de .+ marqués payés le \d{2}\/\d{2}\/\d{4}/);
+    expect((await p.locator('#toast').innerText()).startsWith(`2 salaires ${dePeriode} marqués payés le `)).toBe(true);
     // La ligne restante garde son bouton ; l'étape suivante reste de la payer.
     expect(await p.locator('#p-payer').count()).toBe(1);
     await p.locator('#toast-undo').click();

@@ -60,5 +60,9 @@ describe('payer les salaires du mois, dans le moteur', () => {
     expect(texte).toContain('Objet : virement des salaires de septembre 2026');
     expect(texte).toContain('Le Bardo, le 02/10/2026 Pour la société Gérant Numéro Un');
     expect(texte).not.toContain('Salarié Numéro Deux');
+    // Devant une voyelle, le mois s'élide : « salaires d'octobre », pas « salaires de octobre ».
+    const octobre = core.ordreDeVirementHtml({ name: 'Boulangerie du Port', currency: 'DT' }, { year: 2026, month: 10, date: '2026-11-02', compte: { bank: 'Banque Numéro Une', rib: RIB_DEUX }, lignes });
+    expect(octobre).toContain('<title>Ordre de virement — salaires d&#39;octobre 2026</title>');
+    expect(octobre.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ')).toContain('virement des salaires d&#39;octobre 2026');
   });
 });

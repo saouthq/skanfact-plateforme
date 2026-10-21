@@ -29,6 +29,14 @@ d'impression revient, comme avant. Rien ne se perd.
 - **Le geste** `compte.pdf.imprimer` est personnel : il faut être connecté, rien de plus (la page vient de l'écran de
   la personne).
 
+## Au Cabinet (1.92.0)
+
+Les documents de la paie d'un dossier (le bulletin, le journal du mois, l'état récapitulatif CNSS du trimestre, les
+documents du personnel) passent par le même chemin : `exportPdf` du point de contact du Cabinet
+(`web/public/plateforme/pont-cabinet.js`), le même `POST /v1/pdf`, le même repli. Chacun se télécharge sous le nom que
+l'entreprise lui donne : `Bulletin_<salarié>_2026-09.pdf`, `Journal_de_paie_2026-09.pdf`,
+`Etat_recapitulatif_CNSS_2026-T3.pdf`, `Certificat_de_travail_<salarié>.pdf` (adaptation `web/v10/pdf-cabinet.txt`).
+
 ## Décisions (par délégation, 21/10/2026)
 
 - **Tout de suite, pas dans la file de travaux.** Le cadrage (12 § 2) mettait le PDF dans la file de travaux
@@ -43,7 +51,6 @@ d'impression revient, comme avant. Rien ne se perd.
 
 ## Ce qui n'est pas couvert
 
-- Le **Cabinet** imprime encore par la fenêtre d'impression du navigateur (`window.print`).
 - « Exporter plusieurs PDF » d'un coup (`exportPdfMany`) ne fait toujours rien dans le navigateur.
 - **À VÉRIFIER** sur le serveur d'essai : Chromium sous le service systemd enfermé (`ProtectSystem=strict`,
   `NoNewPrivileges`) ; s'il refuse de se lancer, le repli joue, et l'état de la tâche 0011 le dit.
@@ -52,4 +59,5 @@ d'impression revient, comme avant. Rien ne se perd.
 
 `tests/socle/pdf.test.ts` (une facture de 3 × 416,667 à 19 % sur une page, relue par `pdftotext` ; la page enfermée ;
 la file ; les refus) et `tests/web/pdf.test.ts` (le téléchargement sous le nom de la pièce, sans fenêtre ; le repli
-sans Chromium). Preuves dans `tests/preuves.sh`.
+sans Chromium) ; au Cabinet, `tests/web/cabinet-paie.test.ts` (le bulletin, le journal, l'état CNSS et le repli) et
+`tests/web/cabinet-documents-personnel.test.ts` (le solde de tout compte, le certificat de travail). Preuves dans `tests/preuves.sh`.

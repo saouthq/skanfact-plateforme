@@ -1,0 +1,97 @@
+Le PDF fait par le serveur, au Cabinet (1.92.0 ; docs/pdf.md). Format : voir sans-paquets.mjs.
+
+Les documents de la paie d'un dossier (le bulletin, le journal du mois, l'état CNSS du trimestre, les documents du
+personnel) s'ouvraient dans une fenêtre d'impression du navigateur : le fichier dépendait du navigateur, et un téléphone
+n'en faisait souvent rien. Comme dans l'entreprise (1.88.0), la page part au serveur, qui l'imprime ; le PDF se
+télécharge sous le nom que l'entreprise lui donne. Sans l'outil sur ce serveur, ou sans réseau, la fenêtre revient.
+
+== cabinet/app.js | le document de la paie en PDF, fait par le serveur, sous son nom ; la fenêtre d'impression en repli
+-- avant
+  async function imprimerDocumentPaie(dossier, fabriquer) {
+    const w = window.open('', '_blank');
+    if (!w) return toast('Le navigateur a bloqué la fenêtre du document : autorise les fenêtres de SkanFact, puis réessaie.', 'error');
+    try {
+-- après
+  // (plateforme) 1.92.0 — le PDF fait par le serveur (pont-cabinet.js, `exportPdf`) : le document se télécharge sous son
+  // nom, celui que l'entreprise lui donne (`nommer` le dit, de la paie du dossier). Sans l'outil sur ce serveur, ou sans
+  // réseau, le pont rend la fenêtre d'impression. Le nom d'un fichier ne garde que des lettres, des chiffres et des tirets.
+  const nomDeFichier = s => String(s || '').replace(/[^\w\-àâäéèêëïîôöùûüç ]/gi, '').trim().replace(/\s+/g, '_');
+  async function imprimerDocumentPaie(dossier, fabriquer, nommer) {
+    // Sans le PDF du serveur, la fenêtre s'ouvre tout de suite, dans le geste.
+    const w = api.exportPdf ? null : window.open('', '_blank');
+    if (!api.exportPdf && !w) return toast('Le navigateur a bloqué la fenêtre du document : autorise les fenêtres de SkanFact, puis réessaie.', 'error');
+    try {
+-- fin
+
+== cabinet/app.js | le document fait, il part au serveur (ou dans la fenêtre)
+-- avant
+      // L'employeur : le dossier (son nom, son matricule fiscal, son numéro d'employeur à la CNSS et son code d'exploitation).
+      // (plateforme) 1.72.0 — et, de sa fiche, son adresse (en tête du document ; sa dernière ligne fait la ville du « le … »)
+      // et son gérant (qui signe les documents du personnel). La paie du dossier porte ses congés et ses avances, et ses
+      // réglages sont ceux du dossier : ceux du SkanFact du client, s'il y tient sa paie.
+      const societe = { name: dossier.name || '', address: dossier.adresse || '', matricule: dossier.matricule || '', cnss: dossier.cnssEmployeur || '',
+        cnssCode: dossier.cnssCode || '', managerName: dossier.gerant || '', currency: 'DT' };
+      w.document.write(fabriquer(C, { employees: paie.employees, payslips: paie.payslips, leaves: paie.leaves || [], advances: paie.advances || [],
+        payrollSettings: reglagesPaie(dossier, livresState.livre) }, societe));
+      w.document.close();
+      w.print();
+    } catch (e) { w.close(); toast(plainError(e), 'error'); }
+-- après
+      // L'employeur : le dossier (son nom, son matricule fiscal, son numéro d'employeur à la CNSS et son code d'exploitation).
+      // (plateforme) 1.72.0 — et, de sa fiche, son adresse (en tête du document ; sa dernière ligne fait la ville du « le … »)
+      // et son gérant (qui signe les documents du personnel). La paie du dossier porte ses congés et ses avances, et ses
+      // réglages sont ceux du dossier : ceux du SkanFact du client, s'il y tient sa paie.
+      const societe = { name: dossier.name || '', address: dossier.adresse || '', matricule: dossier.matricule || '', cnss: dossier.cnssEmployeur || '',
+        cnssCode: dossier.cnssCode || '', managerName: dossier.gerant || '', currency: 'DT' };
+      const d = { employees: paie.employees, payslips: paie.payslips, leaves: paie.leaves || [], advances: paie.advances || [],
+        payrollSettings: reglagesPaie(dossier, livresState.livre) };
+      const html = fabriquer(C, d, societe);
+      if (!w) {
+        const f = await api.exportPdf(html, `${nommer(d)}.pdf`);
+        if (f) toast('PDF enregistré : ' + f);
+        return;
+      }
+      w.document.write(html);
+      w.document.close();
+      w.print();
+    } catch (e) { if (w) w.close(); toast(plainError(e), 'error'); }
+-- fin
+
+== cabinet/app.js | le journal de paie et l'état CNSS, sous le nom que l'entreprise leur donne
+-- avant
+    if (jp) jp.onclick = () => imprimerDocumentPaie(dossier, (C, d, so) => C.journalDePaieHtml(d, so, Number(s.annee), Number(s.paieMois)));
+    const et = $('#pa-etat', el);
+    if (et) et.onclick = () => imprimerDocumentPaie(dossier, (C, d, so) => C.etatRecapitulatifCnssHtml(d, so, Number(s.annee), Number(s.paieTrimestre || Math.ceil(s.paieMois / 3))));
+-- après
+    if (jp) jp.onclick = () => imprimerDocumentPaie(dossier, (C, d, so) => C.journalDePaieHtml(d, so, Number(s.annee), Number(s.paieMois)),
+      () => `Journal_de_paie_${s.annee}-${String(s.paieMois).padStart(2, '0')}`);
+    const et = $('#pa-etat', el);
+    if (et) et.onclick = () => {
+      const trimestre = Number(s.paieTrimestre || Math.ceil(s.paieMois / 3));
+      imprimerDocumentPaie(dossier, (C, d, so) => C.etatRecapitulatifCnssHtml(d, so, Number(s.annee), trimestre), () => `Etat_recapitulatif_CNSS_${s.annee}-T${trimestre}`);
+    };
+-- fin
+
+== cabinet/app.js | le bulletin, sous le nom que l'entreprise lui donne (le salarié et le mois)
+-- avant
+          return C.payslipHtml(bulletinDuDossier, d, so, { notice: false });
+        }) }];
+-- après
+          return C.payslipHtml(bulletinDuDossier, d, so, { notice: false });
+        }, d => {
+          const p = (d.payslips || []).find(y => y.id === b.id) || {};
+          const sal = (d.employees || []).find(y => y.id === p.employeeId) || {};
+          return `Bulletin_${nomDeFichier(sal.name)}_${p.year}-${String(p.month).padStart(2, '0')}`;
+        }) }];
+-- fin
+
+== cabinet/app.js | un document du personnel, sous le nom que l'entreprise lui donne (le document et le salarié)
+-- avant
+          return C.hrDocumentHtml(kind, sal, d, so, opts);
+        });
+        close();
+-- après
+          return C.hrDocumentHtml(kind, sal, d, so, opts);
+        }, () => `${nomDeFichier(KC.hrDocLabel(kind))}_${nomDeFichier(e.name)}`);
+        close();
+-- fin

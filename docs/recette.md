@@ -827,6 +827,16 @@ support) ; le test des pièces jointes lisait le dossier au serveur avant que la
 maintenant qu'elle y soit) ; la photo du panneau de la liasse close se prenait pendant que la liasse se redessinait (elle se
 reprend).
 
+### 1.92.0 — le PDF du Cabinet, fait par le serveur ; « d'octobre », pas « de octobre »
+
+Au Cabinet, à la souris et au clavier, sur un dossier tenu : un salarié déclaré (1 287,350 DT brut, embauché le
+01/03/2026), son bulletin d'octobre établi, puis « Imprimer le bulletin » : le PDF se télécharge en une seconde environ,
+une page A4, net à payer 1 041,721 DT comme à l'écran, et « PDF enregistré : Bulletin_Salarié_Recette_Un_2026-10.pdf » le
+dit. Le journal de paie suit (`Journal_de_paie_2026-10.pdf`). Plus aucune fenêtre d'impression, sauf sur un serveur qui
+n'a pas l'outil. Trouvé en relisant le PDF : son pied disait « Bulletin de octobre 2026 » ; il dit « Bulletin d'octobre
+2026 », comme l'ordre de virement (« salaires d'avril ») et la fenêtre « Payer les salaires d'août ». Détail :
+`docs/pdf.md`.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
@@ -844,4 +854,4 @@ reprend).
 8. Au téléphone, les bulles « i » des titres de colonne d'une ligne (Unité, TVA, Destination, TVA déductible) ne se
    voient plus depuis que chaque case porte son titre (1.87.17, 1.87.21) : à rendre, par exemple en bulle à côté du
    titre de la case.
-9. Le PDF du Cabinet passe encore par la fenêtre d'impression du navigateur (1.88.0 ne couvre que l'entreprise).
+9. Le PDF du Cabinet se fait au serveur, comme celui de l'entreprise (1.92.0).

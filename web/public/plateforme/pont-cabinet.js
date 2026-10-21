@@ -55,17 +55,47 @@
     try {
       r = await fetch(`/v1${chemin}`, { method: methode, headers: entetes, cache: 'no-store', ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
     } catch (e) {
-      throw new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e });
+      throw Object.assign(new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e }), { horsLigne: true });
     }
     if (r.status === 401) { location.replace('/'); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     /** @type {any} */
     const lu = lire(r, await r.text());
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
     // Un refus qui tient à un champ le nomme (E5) : l'écran marque sa case (le matricule déjà pris d'un dossier).
-    if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { champ: typeof lu.champ === 'string' ? lu.champ : null, statut: r.status });
+    // `indisponible` : ce serveur n'a pas l'outil (le PDF, docs/pdf.md) ; l'écran prend un autre chemin.
+    if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { champ: typeof lu.champ === 'string' ? lu.champ : null, statut: r.status, indisponible: lu.indisponible === true });
     if (methode !== 'GET') gestesFaits++;
     return lu;
   }
+  // Le PDF fait par le serveur (docs/pdf.md), comme dans l'entreprise : la page dessinée par l'écran part au serveur, qui
+  // l'imprime ; le PDF se télécharge sous son nom, qui revient. Sans l'outil sur ce serveur, ou sans réseau, la fenêtre
+  // d'impression du navigateur revient, comme avant (null).
+  /** @param {string} html @param {string} nom @returns {Promise<string | null>} */
+  async function exportPdf(html, nom) {
+    /** @type {any} */
+    let lu;
+    try { lu = await appel('POST', '/pdf', { html, nom }); } catch (e) {
+      const x = /** @type {any} */ (e);
+      if (!(x && (x.indisponible || x.horsLigne))) throw e;
+      const w = window.open('', '_blank');
+      if (!w) throw new Error('Le navigateur a bloqué la fenêtre du document : autorise les fenêtres de SkanFact, puis réessaie.', { cause: e });
+      w.document.write(html);
+      w.document.close();
+      w.print();
+      return null;
+    }
+    const octets = Uint8Array.from(atob(String(lu.pdf)), (c) => c.charCodeAt(0));
+    const adresse = URL.createObjectURL(new Blob([octets], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = adresse;
+    a.download = String(lu.nom);
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(adresse), 60_000);
+    return String(lu.nom);
+  }
+
   // Les gestes enregistrés depuis l'ouverture : la piste d'audit du livre en porte autant (brique 45).
   // Les écrans du Cabinet se relisent quand elle s'allonge (la déclaration, la révision, la liasse,
   // l'exercice : `revDuLivre`) ; vide, ils gardaient leurs contrôles d'avant une validation.
@@ -1040,6 +1070,8 @@
     etapesAbsentes: ETAPES_ABSENTES,
     visitesAbsentes: [...VISITES_SANS_OBJET, ...VISITES_PAS_ENCORE],
     articlesAbsents: ARTICLES_ABSENTS,
+    // Le PDF fait par le serveur (docs/pdf.md) : les documents de la paie d'un dossier.
+    exportPdf,
     // Ton compte (lot onboarding, 0076 ; compte.js, le même que dans l'entreprise) et tes appareils (brique 74).
     dessinerCompte: (/** @type {HTMLElement} */ el, /** @type {any} */ v10) => /** @type {any} */ (window).SkanCompte.dessiner(el, { appel, modal: v10.modal, toast: v10.toast }),
     dessinerAppareils: (/** @type {HTMLElement} */ el) => /** @type {any} */ (window).SkanCompte.appareils(el, { appel }),

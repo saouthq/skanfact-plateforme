@@ -8236,7 +8236,7 @@ prouver 'l'\''en-tête du bulletin de paie qui imprime le matricule tel que tap�
         ${company.matricule ? `<br>MF : ${escapeHtml(company.matricule)}`' \
   "$MAT3"
 prouver 'le pied du bulletin de paie qui imprime le matricule tel que tapé' web/public/v10/core.js \
-  ''\'' — MF '\'' + escapeHtml(matriculeLisible(company.matricule)) : '\'''\''} · Bulletin de' ''\'' — MF '\'' + escapeHtml(company.matricule) : '\'''\''} · Bulletin de' \
+  $' — MF \' + escapeHtml(matriculeLisible(company.matricule)) : \'\'} · Bulletin ${' $' — MF \' + escapeHtml(company.matricule) : \'\'} · Bulletin ${' \
   "$MAT3"
 prouver 'l'\''en-tête des documents du personnel qui imprime le matricule tel que tapé' web/public/v10/core.js \
   '    <div><div class="co-name">${escapeHtml(company.name || '\'''\'')}</div>
@@ -8368,7 +8368,7 @@ prouver 'le matricule déjà pris dans la fiche d'\''un dossier tenu, dit en bas
   "$NDT5"
 for t in "$WLE5" "$NDT5"; do
   prouver "le refus du serveur qui perd son champ au Cabinet (${t:0:40}…)" web/public/plateforme/pont-cabinet.js \
-    '{ champ: typeof lu.champ === '\''string'\'' ? lu.champ : null, statut: r.status }' '{ champ: null, statut: r.status }' \
+    '{ champ: typeof lu.champ === '\''string'\'' ? lu.champ : null, statut: r.status, indisponible' '{ champ: null, statut: r.status, indisponible' \
     "$t"
 done
 prouver 'la liste collée qui s'\''arrête sans nommer la ligne ni dire ce qui est entré' web/public/plateforme/pont-cabinet.js \
@@ -18605,6 +18605,26 @@ prouver '« Aide et dépannage » encore caché en ligne' web/public/plateforme/
 prouver 'la case du journal décochée d'\''avance' web/public/v10/app.js \
   $'<input type="checkbox" id="sup-journal" checked>' $'<input type="checkbox" id="sup-journal">' \
   'l'\''erreur de l'\''écran se lit, part avec la demande si on le coche, et pas sinon'
+
+prouver 'au Cabinet, le PDF du serveur que le pont n'\''offre pas' web/public/plateforme/pont-cabinet.js \
+  $'    exportPdf,\n    // Ton compte (lot onboarding' $'    // Ton compte (lot onboarding' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet'
+prouver 'au Cabinet, un serveur sans l'\''outil du PDF qui ne rend pas la fenêtre d'\''impression' web/public/plateforme/pont-cabinet.js \
+  $'      if (!(x && (x.indisponible || x.horsLigne))) throw e;\n      const w = window.open' $'      throw e;\n      const w = window.open' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet'
+prouver 'au Cabinet, le bulletin en PDF sans son nom' web/public/v10/cabinet/app.js \
+  $'await api.exportPdf(html, `${nommer(d)}.pdf`);' $'await api.exportPdf(html, \'document.pdf\');' \
+  'un bulletin du client à trois primes et deux retenues, modifié au Cabinet'
+prouver 'au Cabinet, un document du personnel en PDF sans le nom du salarié' web/public/v10/cabinet/app.js \
+  $'_${nomDeFichier(e.name)}`);' $'`);' \
+  'un dossier tenu : le gérant et la civilité renseignés depuis le document'
+
+prouver 'le pied du bulletin qui dit « Bulletin de octobre »' web/public/v10/core.js \
+  $' · Bulletin ${escapeHtml(Compta.deMois(label))} · ' $' · Bulletin de ${escapeHtml(label)} · ' \
+  'une entrée et une absence le même mois : l'\''absence se retire au taux du salaire du contrat'
+prouver 'l'\''ordre de virement qui dit « salaires de octobre »' web/public/v10/core.js \
+  $'virement des salaires ${escapeHtml(Compta.deMois(periode))}</p>' $'virement des salaires de ${escapeHtml(periode)}</p>' \
+  'l'\''ordre de virement : une ligne par bénéficiaire, le compte à débiter'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

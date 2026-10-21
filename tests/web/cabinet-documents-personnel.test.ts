@@ -17,6 +17,7 @@ import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { ecranDeLaPlateforme } from '../moteur/v10.ts';
+import { pdfTelecharge } from '../pdf-telecharge.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const compta = ecranDeLaPlateforme('compta.js') as {
@@ -31,7 +32,8 @@ describe('les documents du personnel au Cabinet, à la souris', () => {
   beforeAll(async () => {
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
-    navigateur = await chromium.launch();
+    // Le nom d'un PDF téléchargé garde ses accents dans une langue UTF-8 (sinon : « download »).
+    navigateur = await chromium.launch({ env: { ...process.env, LANG: 'C.UTF-8' } });
   }, 120_000);
   afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
 
@@ -142,6 +144,7 @@ describe('les documents du personnel au Cabinet, à la souris', () => {
     // Un montant illisible se refuse sur sa case, sans fenêtre d'impression.
     let fenetresOuvertes = 0;
     p.on('popup', () => { fenetresOuvertes++; });
+    p.on('download', () => { fenetresOuvertes++; });
     await fenetre.locator('#ok').click();
     await expect.poll(toast).toBe('« deux cents » ne se lit pas comme un montant. Écris-le en chiffres, par exemple 1\u202f250,500.');
     expect(await p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.value)).toBe('deux cents');
@@ -149,20 +152,19 @@ describe('les documents du personnel au Cabinet, à la souris', () => {
     await fenetre.locator('#dp-lignes [data-dl=amount]').last().fill('200');
     await expect.poll(() => fenetre.locator('#dp-total').innerText().then((t) => t.replace(/[\u00a0\u202f]/g, ' '))).toBe('725,504 DT');
 
-    const imprimer = async (geste: () => Promise<unknown>) => {
-      const [imprimee] = await Promise.all([p.waitForEvent('popup'), geste()]);
-      await expect.poll(() => imprimee.content(), { timeout: 15_000 }).toMatch(/<h1>/);
-      const html = (await imprimee.content()).replace(/&nbsp;|[\u00a0\u202f]/g, ' ');
-      await imprimee.close();
-      return html.replace(/<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/&#39;|&apos;/g, '\'').replace(/\s+/g, ' ');
+    // Le document en PDF fait par le serveur (1.92.0), sous le nom que l'entreprise lui donne.
+    const imprimer = async (geste: () => Promise<unknown>, nom: string) => {
+      const pdf = await pdfTelecharge(p, geste);
+      expect(pdf.nom).toBe(nom);
+      return pdf.texte;
     };
-    const solde = await imprimer(() => fenetre.locator('#ok').click());
-    expect(solde).toContain('Solde de tout compte');
-    expect(solde).toContain('et Madame Salariée Numéro Une , CIN n° 07123456, employée du 10/03/2025 au 14/08/2026');
+    const solde = await imprimer(() => fenetre.locator('#ok').click(), 'Solde_de_tout_compte_Salariée_Numéro_Une.pdf');
+    expect(solde).toContain('SOLDE DE TOUT COMPTE');
+    expect(solde).toContain('et Madame Salariée Numéro Une, CIN n° 07123456, employée du 10/03/2025 au 14/08/2026');
     expect(solde).toContain('Indemnité de congés non pris (10,5 jours) 525,504');
     expect(solde).toContain('Prime de fin d\'année 200,000');
     expect(solde).toContain('Net à percevoir 725,504 DT');
-    expect(solde).toContain('Solde de congés non pris au départ : 10,5 jours , soit 525,504 DT');
+    expect(solde).toContain('Solde de congés non pris au départ : 10,5 jours, soit 525,504 DT');
     expect(solde).toContain('Rue du Port 2000 Le Bardo');
     expect(solde).toContain('Pour la société Gérant Numéro Un');
 
@@ -170,10 +172,10 @@ describe('les documents du personnel au Cabinet, à la souris', () => {
     await ouvrirDocument();
     await fenetre.locator('[name=kind]').selectOption('certificat');
     await fenetre.locator('[name=date]').fill('14/08/2026');
-    const certificat = await imprimer(() => fenetre.locator('#ok').click());
-    expect(certificat).toContain('Je soussigné, Gérant Numéro Un , agissant en qualité de représentant légal de la société Boulangerie du Port');
+    const certificat = await imprimer(() => fenetre.locator('#ok').click(), 'Certificat_de_travail_Salariée_Numéro_Une.pdf');
+    expect(certificat).toContain('Je soussigné, Gérant Numéro Un, agissant en qualité de représentant légal de la société Boulangerie du Port');
     expect(certificat).toContain('Madame Salariée Numéro Une');
-    expect(certificat).toContain('a été employée au sein de notre société du 10/03/2025 au 14/08/2026 , en qualité de Comptable');
+    expect(certificat).toContain('a été employée au sein de notre société du 10/03/2025 au 14/08/2026, en qualité de Comptable');
     expect(certificat).toContain('L\'intéressée est libre de tout engagement');
     expect(certificat).toContain('Le Bardo, le 14/08/2026');
     // Le document n'a rien écrit : l'avance reste à rembourser.

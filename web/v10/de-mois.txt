@@ -1,0 +1,39 @@
+« d'octobre », pas « de octobre » (1.92.0, recette du 21/10/2026). Format : voir sans-paquets.mjs.
+
+Le pied du bulletin imprimé disait « Bulletin de octobre 2026 », et l'ordre de virement « salaires de avril 2026 ». Le
+moteur comptable sait déjà élider (`deMois`, compta.js) : les documents de la paie s'en servent.
+
+== core.js | le pied du bulletin : « Bulletin d'octobre 2026 »
+-- avant
+${company.matricule ? ' — MF ' + escapeHtml(matriculeLisible(company.matricule)) : ''} · Bulletin de ${escapeHtml(label)} · ${escapeHtml(emp.name || '')}</div>
+-- après
+${company.matricule ? ' — MF ' + escapeHtml(matriculeLisible(company.matricule)) : ''} · Bulletin ${escapeHtml(Compta.deMois(label))} · ${escapeHtml(emp.name || '')}</div>
+-- fin
+
+== core.js | l'ordre de virement : « salaires d'avril 2026 » (le titre)
+-- avant
+<title>Ordre de virement — salaires de ${escapeHtml(periode)}</title>
+-- après
+<title>Ordre de virement — salaires ${escapeHtml(Compta.deMois(periode))}</title>
+-- fin
+
+== core.js | l'ordre de virement : « salaires d'avril 2026 » (l'objet)
+-- avant
+  <p class="objet"><b>Objet :</b> virement des salaires de ${escapeHtml(periode)}</p>
+-- après
+  <p class="objet"><b>Objet :</b> virement des salaires ${escapeHtml(Compta.deMois(periode))}</p>
+-- fin
+
+== app.js | « Payer les salaires d'octobre 2026 » (le moteur comptable, chargé avant l'écran, élide)
+-- avant
+    modal(`<h2>Payer les salaires de ${h(periode)} ${info('pay.payerMois')}</h2>
+-- après
+    modal(`<h2>Payer les salaires ${h(window.SkanCompta.deMois(periode))} ${info('pay.payerMois')}</h2>
+-- fin
+
+== app.js | « 2 salaires d'octobre 2026 marqués payés »
+-- avant
+        toastUndo(`${pl(ids.length, 'salaire')} de ${periode} ${ids.length > 1 ? 'marqués payés' : 'marqué payé'} le ${C.fmtDate(v.date)}`, () => {
+-- après
+        toastUndo(`${pl(ids.length, 'salaire')} ${window.SkanCompta.deMois(periode)} ${ids.length > 1 ? 'marqués payés' : 'marqué payé'} le ${C.fmtDate(v.date)}`, () => {
+-- fin

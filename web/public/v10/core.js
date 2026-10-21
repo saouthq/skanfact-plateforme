@@ -4234,7 +4234,7 @@
     <div class="s">Le salarié — reçu pour solde du mois</div>
   </div>
 
-  <div class="foot">${escapeHtml(company.name || '')}${company.matricule ? ' — MF ' + escapeHtml(matriculeLisible(company.matricule)) : ''} · Bulletin de ${escapeHtml(label)} · ${escapeHtml(emp.name || '')}</div>
+  <div class="foot">${escapeHtml(company.name || '')}${company.matricule ? ' — MF ' + escapeHtml(matriculeLisible(company.matricule)) : ''} · Bulletin ${escapeHtml(Compta.deMois(label))} · ${escapeHtml(emp.name || '')}</div>
 </div></body></html>`;
   }
 
@@ -4576,7 +4576,7 @@
     const ville = (co.address || '').split('\n').pop().replace(/^\d+\s*/, '').trim();
     return `<!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
-<title>Ordre de virement — salaires de ${escapeHtml(periode)}</title>
+<title>Ordre de virement — salaires ${escapeHtml(Compta.deMois(periode))}</title>
 <style>
   @page { size: A4; margin: 0; }
   * { box-sizing: border-box; }
@@ -4607,7 +4607,7 @@
   </div>
   <div class="dest">À l'attention de<br><b>${escapeHtml(compte.bank || 'notre banque')}</b></div>
   <h1>Ordre de virement</h1>
-  <p class="objet"><b>Objet :</b> virement des salaires de ${escapeHtml(periode)}</p>
+  <p class="objet"><b>Objet :</b> virement des salaires ${escapeHtml(Compta.deMois(periode))}</p>
   <p>Nous vous prions de bien vouloir virer, par le débit de notre compte${compte.rib ? ` n° <b class="rib">${escapeHtml(compte.rib)}</b>` : ''}, les sommes suivantes aux bénéficiaires désignés ci-dessous.</p>
   <table><thead><tr><th>N°</th><th>Bénéficiaire</th><th>RIB / IBAN</th><th class="n">Montant (${escapeHtml(normCurrency(cur))})</th></tr></thead><tbody>
     ${lignes.map((l, i) => `<tr><td>${i + 1}</td><td>${escapeHtml(l.name || '')}</td><td class="rib">${escapeHtml(l.rib || '')}</td><td class="n">${fmt(l.net)}</td></tr>`).join('')}

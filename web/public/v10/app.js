@@ -11855,7 +11855,7 @@
     const compteVu = g.accountId || (parDefaut && parDefaut.id) || '';
     const periode = `${MONTHS_LONG[month - 1]} ${year}`;
     const modeDe = v => (C.PAYMENT_METHODS.find(x => x[0] === v) || [, v])[1];
-    modal(`<h2>Payer les salaires de ${h(periode)} ${info('pay.payerMois')}</h2>
+    modal(`<h2>Payer les salaires ${h(window.SkanCompta.deMois(periode))} ${info('pay.payerMois')}</h2>
       <p class="small muted mb">Les bulletins du mois qui ne sont pas encore payés. Coche ceux que tu paies : « Marquer payés » les sort de la trésorerie au jour choisi, et l'ordre de virement se remet à ta banque. SkanFact ne fait aucun virement à ta place.</p>
       <form id="ps" class="grid-2">
         ${dateFieldHtml(lbl('Payés le', 'pay.paid'), 'date', g.date || C.today(), {})}
@@ -11933,7 +11933,7 @@
         const avant = ids.map(id => { const x = data.payslips.find(p => p.id === id); return { id, paidDate: x.paidDate || '', accountId: x.accountId || '' }; });
         ids.forEach(id => { const x = data.payslips.find(p => p.id === id); x.paidDate = v.date; x.accountId = v.accountId || ''; });
         save(true); close(); if (done) done();
-        toastUndo(`${pl(ids.length, 'salaire')} de ${periode} ${ids.length > 1 ? 'marqués payés' : 'marqué payé'} le ${C.fmtDate(v.date)}`, () => {
+        toastUndo(`${pl(ids.length, 'salaire')} ${window.SkanCompta.deMois(periode)} ${ids.length > 1 ? 'marqués payés' : 'marqué payé'} le ${C.fmtDate(v.date)}`, () => {
           avant.forEach(a => { const x = data.payslips.find(p => p.id === a.id); if (x) { x.paidDate = a.paidDate; x.accountId = a.accountId; } });
           save(true); if (done) done();
         });
