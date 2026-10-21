@@ -1,0 +1,31 @@
+« Inviter mon comptable » mène au champ où l'on écrit son adresse (1.94.0, parcours du 21/10/2026). Format : voir
+sans-paquets.mjs.
+
+Le premier pas « Inviter mon comptable » ouvrait Comptabilité › Cabinet, le curseur au début de la page : au clavier, il
+fallait traverser l'onglet entier (les questions, le périmètre) pour atteindre l'adresse e-mail. Le panneau dessiné, le
+curseur s'y pose, et la page le montre.
+
+== app.js | le premier pas « Inviter mon comptable » dit à la Comptabilité d'aller au champ de l'adresse
+-- avant
+    mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; navigate('#/compta'); }]
+-- après
+    // (plateforme) 1.94.0 — et le curseur se pose sur l'adresse de son comptable (`versInvitation`, lu par l'onglet Cabinet).
+    mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; comptaState.versInvitation = true; navigate('#/compta'); }]
+-- fin
+
+== app.js | l'onglet Cabinet, dessiné après le premier pas : le curseur sur l'adresse e-mail du comptable
+-- avant
+        void bridge.dessinerMandat($('#cab-pair'));
+-- après
+        // (plateforme) 1.94.0 — venu du premier pas « Inviter mon comptable » : le curseur sur son adresse, et la page la montre.
+        // L'adresse se dessine après la réponse du serveur (l'invitation en cours) : on l'attend trois secondes au plus.
+        void bridge.dessinerMandat($('#cab-pair'));
+        if (comptaState.versInvitation) {
+          comptaState.versInvitation = false;
+          const poser = n => {
+            const champ = $('#mandat-email');
+            if (champ) { champ.scrollIntoView({ block: 'center' }); champ.focus(); } else if (n > 0) setTimeout(() => poser(n - 1), 100);
+          };
+          poser(30);
+        }
+-- fin

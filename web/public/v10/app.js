@@ -2977,7 +2977,8 @@
     assistant: ['Choisir mon activité', () => runSetup(true).then(fait => { if (fait) render(true); })],
     rib: ['Ajouter mon RIB', () => allerParametres('societe', 'p-banque:rib')],
     code: ['Choisir mon code', () => allerParametres('compte', 'p-compte')],
-    mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; navigate('#/compta'); }]
+    // (plateforme) 1.94.0 — et le curseur se pose sur l'adresse de son comptable (`versInvitation`, lu par l'onglet Cabinet).
+    mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; comptaState.versInvitation = true; navigate('#/compta'); }]
   };
   // Les premiers pas, lus de la MÊME façon partout (accueil, jauge de fin de visite, « Me guider ») :
   // la copie externe vit sur le poste et la découverte sur la personne — ni l'une ni l'autre dans les
@@ -5419,6 +5420,13 @@
     drawPayments();
     drawHistory();
     drawAttachments();
+    // (plateforme) 1.94.0 — un document neuf : le curseur là où l'on commence (le client, ou la première ligne).
+    if (isNew && (!document.activeElement || document.activeElement === document.body) && !$('#modal-root .modal')) {
+      // Au doigt, une case de texte ouvrirait le clavier sur la moitié de l'écran : seulement le bouton du client.
+      const doigt = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      const debut = doc.clientId ? (doigt ? null : $('input[data-k=label]', linesBody)) : $('[data-combo="clientId"] .combo-btn');
+      if (debut) debut.focus({ preventScroll: true });
+    }
   };
 
   // Taille de fichier lisible : « 1,4 Mo » vaut mieux que 1468006.
@@ -8951,6 +8959,39 @@
     draw(); input.focus();
   }
   const closeMenus = () => $$('.more-list').forEach(l => l.hidden = true);
+  // (plateforme) 1.94.0 — chaque menu « ▾ » (`.more`) : son bouton dit ce qu'il ouvre et si c'est ouvert ; la liste
+  // ouverte, le curseur va à sa première entrée.
+  const entreesDuMenu = l => [...l.querySelectorAll('button:not(.i):not([disabled])')].filter(x => x.getClientRects().length);
+  let menusSuivis = 0;
+  const suivreLesMenus = () => {
+    menusSuivis = 0;
+    $$('.more').forEach(m => {
+      const b = m.querySelector(':scope > .btn'), l = m.querySelector(':scope > .more-list');
+      if (!b || !l) return;
+      if (!l.id) l.id = 'menu' + (++uiSeq);
+      const etait = b.getAttribute('aria-expanded') === 'true', ouvert = !l.hidden;
+      b.setAttribute('aria-controls', l.id);
+      b.setAttribute('aria-expanded', String(ouvert));
+      l.setAttribute('role', 'group');
+      if (!l.hasAttribute('aria-label')) l.setAttribute('aria-label', (b.getAttribute('aria-label') || b.textContent || '').replace('▾', '').trim());
+      if (ouvert && !etait && document.activeElement === b) { const x = entreesDuMenu(l)[0]; if (x) x.focus(); }
+    });
+  };
+  new MutationObserver(() => { if (!menusSuivis) menusSuivis = requestAnimationFrame(suivreLesMenus); })
+    .observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+  // Dans une liste : les flèches, Début et Fin ; Échap (qui la referme, plus haut) rend le curseur à son bouton.
+  document.addEventListener('keydown', e => {
+    const l = e.target instanceof Element ? e.target.closest('.more-list') : null;
+    if (!l) return;
+    if (e.key === 'Escape') { const b = l.parentElement && l.parentElement.querySelector(':scope > .btn'); if (b) b.focus(); return; }
+    if (l.hidden || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+    const xs = entreesDuMenu(l);
+    if (!xs.length) return;
+    e.preventDefault();
+    const i = xs.indexOf(e.target);
+    const j = e.key === 'Home' ? 0 : e.key === 'End' ? xs.length - 1 : (i + (e.key === 'ArrowDown' ? 1 : -1) + xs.length) % xs.length;
+    xs[j].focus();
+  });
   document.addEventListener('keydown', e => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); openPalette(); }
     // ⌘↵ à la caisse (10.15.0) : encaisser sans lâcher le clavier, la douchette dans l'autre main.
@@ -13562,6 +13603,13 @@
   const bilanAImprimer = b => (caisseDuJour(b.jour) ? Object.assign({}, b, { tiroir: null }) : b);
   // (brique 120) Les tickets gardés sans réseau sont partis : la page Caisse redit l'état de sa session.
   window.addEventListener('skanfact-tickets-remis', () => { if ($('#cs-session')) dessinerSession(); });
+  // (plateforme) 1.94.0 — les questions du cabinet, relues par le point de contact : elles entrent dans les données, et
+  // l'Accueil (« À faire ») et la Comptabilité se redessinent ; jamais pendant une saisie (une fenêtre, une case active).
+  window.addEventListener('skanfact-questions', e => {
+    data.questionsCabinet = Array.isArray(e.detail) ? e.detail : [];
+    const enSaisie = !!$('#modal-root .modal') || !!(document.activeElement && document.activeElement.matches('input, textarea, select'));
+    if (!enSaisie && /^(#\/(dashboard|compta)([?].*)?)?$/.test(location.hash)) render();
+  });
   const PHRASES_ALERTE = {
     numero: a => `Le ticket imprimé ${h(a.numeroPoste)} est enregistré sous le numéro ${h(a.numeroSerie)} : les deux numéros diffèrent.`,
     chaine: a => `Le ticket ${h(a.numeroSerie)} ne suit pas le ticket précédent de cette caisse : la chaîne des tickets est cassée (un ticket manque ou a été remplacé).`,
@@ -17955,7 +18003,17 @@
       if (bridge.dessinerMandat) {
         $('#c-body').innerHTML = `${panneauQuestions()}
           <div class="panel" id="p-cabinet-mandat"><h2>Ton cabinet comptable</h2><div id="cab-pair"></div></div>`;
+        // (plateforme) 1.94.0 — venu du premier pas « Inviter mon comptable » : le curseur sur son adresse, et la page la montre.
+        // L'adresse se dessine après la réponse du serveur (l'invitation en cours) : on l'attend trois secondes au plus.
         void bridge.dessinerMandat($('#cab-pair'));
+        if (comptaState.versInvitation) {
+          comptaState.versInvitation = false;
+          const poser = n => {
+            const champ = $('#mandat-email');
+            if (champ) { champ.scrollIntoView({ block: 'center' }); champ.focus(); } else if (n > 0) setTimeout(() => poser(n - 1), 100);
+          };
+          poser(30);
+        }
         $$('[data-rep]').forEach(b => b.onclick = () => repondreA(b.dataset.rep));
         return;
       }

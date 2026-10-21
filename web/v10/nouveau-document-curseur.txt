@@ -1,0 +1,28 @@
+Un nouveau document s'ouvre le curseur à sa place (1.94.0, parcours du 21/10/2026). Format : voir sans-paquets.mjs.
+
+« + Nouveau devis » ouvrait le formulaire, le curseur nulle part : au clavier, Tab repartait du menu de gauche, et il
+fallait traverser toute la barre avant d'atteindre le client. Un document neuf pose le curseur sur le choix du client ;
+venu de la fiche d'un client (le client déjà choisi), sur la désignation de la première ligne. Jamais quand le curseur
+est déjà ailleurs (une visite guidée, une fenêtre) ; au doigt, jamais dans une case de texte (le clavier s'ouvrirait).
+
+== app.js | un document neuf : le curseur sur le client, ou sur la première ligne quand le client est déjà choisi
+-- avant
+    drawLines();
+    drawPayments();
+    drawHistory();
+    drawAttachments();
+  };
+-- après
+    drawLines();
+    drawPayments();
+    drawHistory();
+    drawAttachments();
+    // (plateforme) 1.94.0 — un document neuf : le curseur là où l'on commence (le client, ou la première ligne).
+    if (isNew && (!document.activeElement || document.activeElement === document.body) && !$('#modal-root .modal')) {
+      // Au doigt, une case de texte ouvrirait le clavier sur la moitié de l'écran : seulement le bouton du client.
+      const doigt = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+      const debut = doc.clientId ? (doigt ? null : $('input[data-k=label]', linesBody)) : $('[data-combo="clientId"] .combo-btn');
+      if (debut) debut.focus({ preventScroll: true });
+    }
+  };
+-- fin

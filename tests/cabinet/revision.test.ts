@@ -161,8 +161,13 @@ describe('les questions au client', () => {
     // Envoyée, elle ne s'efface plus ; elle se précise encore.
     expect((await appeler('DELETE', `${url}/${id}`, d.associe.jeton)).corps.motif).toBe('Cette question est déjà partie chez le client : elle se ferme, elle ne s\'efface pas.');
     expect((await appeler('PUT', `${url}/${id}`, d.associe.jeton, { texte: 'Peux-tu m\'envoyer la facture du virement du 12 mars ?' })).statut).toBe(200);
-    // Deux envois sans réponse : « À faire » la compte à relancer.
-    await appeler('POST', `${url}/envoyer`, d.associe.jeton, { annee: 2026 });
+    // (1.94.0) Le même jour, elle ne repart pas : elle est partie aujourd'hui, une relance se fait un autre jour.
+    expect((await appeler('POST', `${url}/envoyer`, d.associe.jeton, { annee: 2026 })).corps.motif)
+      .toBe('Les questions qui attendent sont parties aujourd\'hui : une relance se fait un autre jour.');
+    expect((await lire(d.client)).map((q) => q.envois.length)).toEqual([1]);
+    // Partie hier (à Tunis) : la renvoyer est une relance. Deux envois sans réponse : « À faire » la compte à relancer.
+    await admin.query(`update compta.question set envois = array[envois[1] - interval '1 day'] where id = $1`, [id]);
+    expect((await appeler('POST', `${url}/envoyer`, d.associe.jeton, { annee: 2026 })).corps.envoyees).toBe(1);
     const aFaire = async () => (await appeler('GET', `/cabinets/${d.cabinet}/questions`, d.associe.jeton)).corps.dossiers;
     expect(await aFaire()).toEqual([{ entreprise: d.ent, ouvertes: 1, aRelancer: 1, repondues: 0 }]);
     // Le cabinet ne répond pas à la place du client ; le client répond.

@@ -5441,9 +5441,20 @@
     const s = livresState;
     const en = (s.revision && s.revision.questions || []).filter(q => q.statut !== 'close' && q.statut !== 'repondue');
     if (!en.length) return toast('Aucune question n\'attend de réponse : il n\'y a rien à envoyer.', 'error');
+    // (plateforme) 1.94.0 — une question partie aujourd'hui (à Tunis) ne repart pas : une relance se fait un autre jour.
+    const jourDe = ms => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
+    const aujourdhui = jourDe(Date.now());
+    const neuves = en.filter(q => !(q.envois || []).length).length;
+    const relances = en.filter(q => (q.envois || []).length && jourDe(q.envois[q.envois.length - 1]) < aujourdhui).length;
+    const attendent = en.length - neuves - relances;
+    if (!neuves && !relances) return toast('Les questions qui attendent sont parties aujourd\'hui : une relance se fait un autre jour.', 'error');
+    const partent = neuves + relances;
     modal(`<h2>Envoyer les questions à ${esc(dossier.name)}</h2>
-      <p class="small">${esc(pl(en.length, 'question partira', 'questions partiront'))} chez le client : il ${en.length > 1 ? 'les' : 'la'} lira dans son SkanFact,
-      en face de la pièce qu'${en.length > 1 ? 'elles visent' : 'elle vise'}, et y répondra. Rien de ce que tu envoies ne touche à ses chiffres.</p>
+      <p class="small">${esc(pl(partent, 'question partira', 'questions partiront'))} chez le client : il ${partent > 1 ? 'les' : 'la'} lira dans son SkanFact,
+      en face de la pièce qu'${partent > 1 ? 'elles visent' : 'elle vise'}, et y répondra. Rien de ce que tu envoies ne touche à ses chiffres.</p>
+      <ul class="small" id="qe-detail">${neuves ? `<li>${esc(pl(neuves, 'question neuve', 'questions neuves'))}</li>` : ''}${relances
+        ? `<li>${esc(pl(relances, 'relance', 'relances'))} : ${relances > 1 ? 'des questions parties un autre jour, toujours' : 'une question partie un autre jour, toujours'} sans réponse</li>` : ''}${attendent
+        ? `<li class="muted">${esc(pl(attendent, 'question partie', 'questions parties'))} aujourd'hui ${attendent > 1 ? 'ne repartent' : 'ne repart'} pas : une relance se fait un autre jour</li>` : ''}</ul>
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="qe-ok">Envoyer</button></div>`,
     (couche, close) => {
       $('#qe-ok', couche).onclick = async () => {

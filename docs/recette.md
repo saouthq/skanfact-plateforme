@@ -861,6 +861,33 @@ Trouvé et corrigé en chemin :
 - le refus « Cette entreprise ne t'est pas ouverte » nomme maintenant le compte connecté : un lien de la console ouvert
   dans le navigateur d'un autre compte le dit sans qu'on ait à deviner lequel.
 
+### 1.94.0 — le grand parcours, suite : le comptable invité, ses questions, au clavier
+
+Leïla, son SkanFact ouvert sur Comptabilité › Cabinet ; Hatem, dans son cabinet, lui pose une question et l'envoie. Sans
+rien recharger, la question arrive sur l'écran de Leïla (70 s plus tard : le point de contact relit les questions toutes
+les deux minutes, et dès que l'onglet revient au premier plan) ; jamais pendant une saisie (une fenêtre ouverte, une case
+où l'on écrit).
+
+Trouvé et corrigé en chemin :
+- Hatem envoyait une question neuve, et celle partie le matin même repartait avec : « 2 fois », et chez Leïla « envoyée
+  deux fois sans réponse : ton comptable ne peut pas arrêter ton mois », le jour où elle l'avait reçue. Une relance se
+  fait maintenant **un autre jour** (base 0162) ; la fenêtre d'envoi dit avant le geste « 1 question neuve ; 2 questions
+  parties aujourd'hui ne repartent pas » ; rien de neuf, le refus le dit sans fenêtre ;
+- inviter son comptable au clavier : Entrée dans son adresse envoie l'invitation (elle ne faisait rien), le curseur va
+  ensuite à « Copier le lien », et la copie se dit en une phrase (« Lien copié : colle-le dans ton message… ») ; le
+  premier pas « Inviter mon comptable » de l'Accueil pose le curseur dans son adresse ;
+- un devis neuf s'ouvrait le curseur nulle part : il se pose sur le choix du client (Entrée ouvre la liste), ou, le
+  client déjà choisi, sur la désignation de la première ligne (jamais au doigt, où le clavier couvrirait l'écran) ;
+- les menus « Facturer ▾ », « Transformer ▾ », « Plus ▾ » : le bouton dit s'il est ouvert, la liste ouverte reçoit le
+  curseur, les flèches (Début, Fin) passent d'une entrée à l'autre, Échap rend le curseur au bouton.
+
+Et le rouge de GitHub sur 1.93.0 : le test du .zip lisait ses noms avec « unzip », qui les décode selon la machine
+(« Soci├йt├й » sur celle de GitHub) ; il lit maintenant le zip lui-même, et vérifie le drapeau qui dit « UTF-8 ». Quatre
+preuves qui gardaient l'écran sans pièces jointes ne pouvaient plus tomber depuis la 1.89.0 : retirées, avec leur raison.
+
+Vérifié, pas un défaut : « + Comptabilité complète » dans la Comptabilité d'une entreprise en Complet mène à Modules, où
+le grand livre, la balance et les états s'allument (le sous-module n'est pas allumé d'office).
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
@@ -877,3 +904,4 @@ Trouvé et corrigé en chemin :
    d'ici (1.87.14).
 8. Au téléphone, les bulles « i » des titres de colonne d'une ligne se rangent au-dessus des lignes (1.93.0).
 9. Le PDF du Cabinet se fait au serveur, comme celui de l'entreprise (1.92.0).
+10. Les questions du comptable arrivent sans recharger ; une relance se fait un autre jour (1.94.0).

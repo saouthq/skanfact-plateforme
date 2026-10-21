@@ -2849,7 +2849,7 @@ prouver "une réponse à une question jamais reçue" $M28 \
 prouver "une question envoyée qui s'efface" $M28 \
   "  if cardinality(q.envois) > 0 then perform socle.refus('cette question est déjà partie" "  if false then perform socle.refus('cette question est déjà partie" \
   "$QU1"
-prouver "un envoi qui ne se compte qu'une fois" $M28 \
+prouver "un envoi qui ne se compte qu'une fois" base/migrations/0162_relance_un_autre_jour.sql \
   "  update compta.question set envois = envois || now(), statut" "  update compta.question set envois = case when cardinality(envois) = 0 then envois || now() else envois end, statut" \
   "$QU1"
 prouver "une question répondue qui se réécrit" $M28 \
@@ -7801,20 +7801,13 @@ prouver "« la déclaration de août »" web/public/v10/app.js \
 prouver "l'attestation de retenue sans dire où elle s'établit" web/public/v10/app.js \
   "au fournisseur ; elle s'établit sur TEJ, la plateforme du ministère des Finances. <em>À VÉRIFIER avec ton comptable.</em>" "au fournisseur." \
   "$ACW1"
-prouver "« Joindre un justificatif » proposé en ligne, où il refuse toujours" web/public/v10/app.js \
-  "\${bridge.piecesJointes === false ? '' : \`<span class=\"colle-bouton\"><button class=\"btn\" id=\"attach-top\">" "\${false ? '' : \`<span class=\"colle-bouton\"><button class=\"btn\" id=\"attach-top\">" \
-  "$ACW1"
+# (1.94.0) Quatre preuves retirées : « Joindre un justificatif » proposé en ligne, le filtre « Sans justificatif », la
+# clôture qui réclame des justificatifs, la page de clôture qui le dit. Elles gardaient le cas d'un écran sans pièces
+# jointes ; depuis la 1.89.0 le serveur les garde (bridge.piecesJointes vaut toujours true) : réintroduire leur défaut ne
+# change plus rien, elles ne pouvaient plus tomber (rouge de GitHub sur 1.93.0). Le bouton présent en ligne, sa visite
+# et son étape sont tenus plus bas (« le bouton du justificatif encore absent en ligne »).
 prouver "le bouton du justificatif absent, branché quand même" web/public/v10/app.js \
   "    if (\$('#attach-top')) \$('#attach-top').onclick = async () => {" "    \$('#attach-top').onclick = async () => {" \
-  "$ACW1"
-prouver "le filtre « Sans justificatif » proposé en ligne" web/public/v10/app.js \
-  "\${bridge.piecesJointes === false && s.st !== SANS_JUSTIF ? '' :" "\${false ? '' :" \
-  "$ACW1"
-prouver "la clôture qui réclame des justificatifs qu'on ne peut pas joindre" web/public/v10/core.js \
-  "const noProof = opts && opts.sansPiecesJointes ? [] : (data.purchases" "const noProof = (data.purchases" \
-  "$ACW1"
-prouver "la page de clôture qui ne dit pas qu'on ne peut pas joindre" web/public/v10/app.js \
-  "const checks = next ? C.closureChecks(data, company(), next.from, next.to, { reserves: licence.reserves || [], sansPiecesJointes: bridge.piecesJointes === false }) : [];" "const checks = next ? C.closureChecks(data, company(), next.from, next.to, { reserves: licence.reserves || [] }) : [];" \
   "$ACW1"
 prouver "le bouton du justificatif encore absent en ligne" web/public/plateforme/pont.js \
   "    piecesJointes: true," "    piecesJointes: false," \
@@ -9263,7 +9256,7 @@ prouver "le compte dit protégé sans relais d'e-mails" $PPJS \
   "const code = !!(compte && (compte.codeActif || compte.courriel));" "const code = !!(compte && (compte.codeActif || true));" \
   "$PPW5"
 prouver "« Inviter mon comptable » qui ne mène pas à l'onglet du cabinet" $ASAPP \
-  "    mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; navigate('#/compta'); }]" "    mandat: ['Inviter mon comptable', () => navigate('#/compta')]" \
+  "    mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; comptaState.versInvitation = true; navigate('#/compta'); }]" "    mandat: ['Inviter mon comptable', () => { comptaState.versInvitation = true; navigate('#/compta'); }]" \
   "$PPW1"
 prouver "« Vérifier mon adresse » qui ne mène pas à Ton compte" $ASAPP \
   "    adresse: ['Vérifier mon adresse', () => allerParametres('compte', 'p-compte')]," "    adresse: ['Vérifier mon adresse', () => allerParametres('societe')]," \
@@ -18654,6 +18647,54 @@ prouver 'le refus d'\''une entreprise pas ouverte qui ne nomme pas le compte con
   $'ton compte${email ? ` (${email})` : \'\'} ne fait pas partie' $'ton compte ne fait pas partie' \
   'une entreprise dont le compte n'\''est pas de l'\''équipe'
 
+prouver 'une question du cabinet qui n'\''arrive qu'\''au rechargement' web/public/plateforme/pont.js \
+  $'window.dispatchEvent(new CustomEvent(\'skanfact-questions\', { detail: q }));' $'void q;' \
+  'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
+prouver 'une question du cabinet qui arrive sans que l'\''écran se redessine' web/public/v10/app.js \
+  $'if (!enSaisie && /^(#\\/(dashboard|compta)([?].*)?)?$/.test(location.hash)) render();' $'void enSaisie;' \
+  'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
+prouver 'une question du cabinet qui redessine l'\''écran sous le champ où l'\''on choisit' web/public/v10/app.js \
+  $'if (!enSaisie && /^(#\\/(dashboard|compta)' $'if (/^(#\\/(dashboard|compta)' \
+  'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
+prouver 'Entrée dans l'\''adresse du comptable qui ne l'\''invite pas' web/public/plateforme/pont.js \
+  $'    entreeFait(/** @type {HTMLElement} */ (zone.querySelector(\'#mandat-email\')), b);' $'' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien'
+prouver 'le comptable invité, le curseur qui tombe au début de la page' web/public/plateforme/pont.js \
+  $'        suite?.focus();' $'        void suite;' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien'
+prouver 'le lien du comptable copié sans une phrase qui le dise' web/public/plateforme/pont.js \
+  $'copier.textContent = \'Lien copié\'; dit.textContent = \'Lien copié : colle-le dans ton message à ton comptable.\';' $'copier.textContent = \'Lien copié\'; void dit;' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien'
+prouver 'le premier pas « Inviter mon comptable » qui laisse le curseur au début de la page' web/public/v10/app.js \
+  $'if (champ) { champ.scrollIntoView({ block: \'center\' }); champ.focus(); }' $'if (champ) { champ.scrollIntoView({ block: \'center\' }); }' \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien'
+prouver 'une pièce neuve qui laisse le curseur nulle part' web/public/v10/app.js \
+  $'      if (debut) debut.focus({ preventScroll: true });' $'      void debut;' \
+  'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
+prouver 'un menu « ▾ » qui laisse le curseur sur son bouton' web/public/v10/app.js \
+  $'if (ouvert && !etait && document.activeElement === b) { const x = entreesDuMenu(l)[0]; if (x) x.focus(); }' $'void etait;' \
+  'au clavier, un menu « ▾ » d'\''un devis'
+prouver 'un menu « ▾ » sans flèches' web/public/v10/app.js \
+  $'    xs[j].focus();\n  });' $'    void j;\n  });' \
+  'au clavier, un menu « ▾ » d'\''un devis'
+prouver 'un menu « ▾ » fermé par Échap qui perd le curseur' web/public/v10/app.js \
+  $'if (e.key === \'Escape\') { const b = l.parentElement && l.parentElement.querySelector(\':scope > .btn\'); if (b) b.focus(); return; }' $'' \
+  'au clavier, un menu « ▾ » d'\''un devis'
+prouver 'un menu « ▾ » qui ne dit pas s'\''il est ouvert' web/public/v10/app.js \
+  $'      b.setAttribute(\'aria-expanded\', String(ouvert));' $'' \
+  'au clavier, un menu « ▾ » d'\''un devis'
+prouver 'une question partie le matin, relancée le jour même' base/migrations/0162_relance_un_autre_jour.sql \
+  $'     and (cardinality(envois) = 0\n          or (envois[cardinality(envois)] at time zone \'Africa/Tunis\')::date < (now() at time zone \'Africa/Tunis\')::date);' $';' \
+  'posée, elle reste au cabinet ; envoyée, le client la lit et y répond ; chaque envoi se compte'
+prouver 'la fenêtre d'\''envoi du Cabinet qui tait les questions parties aujourd'\''hui' web/public/v10/cabinet/app.js \
+  $'${attendent\n        ? `<li class="muted">' $'${false\n        ? `<li class="muted">' \
+  'la révision se tient à la souris et se garde au serveur'
+prouver 'le Cabinet qui ouvre une fenêtre d'\''envoi quand rien ne partirait' web/public/v10/cabinet/app.js \
+  $'    if (!neuves && !relances) return toast(' $'    if (false) return toast(' \
+  'la révision se tient à la souris et se garde au serveur'
+prouver 'le .zip des PDF qui ne dit pas que ses noms sont en UTF-8' web/public/plateforme/pont.js \
+  $'[8, 0x0800, 2], [10, 0, 2]' $'[8, 0, 2], [10, 0, 2]' \
+  '« Exporter tous les PDF de la période » : un .zip des PDF du serveur'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

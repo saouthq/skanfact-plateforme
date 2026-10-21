@@ -589,6 +589,20 @@
   };
   poste.auRetour(relancer);
   setInterval(() => { if (navigator.onLine) relancer(); }, 30_000);
+  // (1.94.0) Les questions du cabinet arrivent sans recharger la page : la page ouverte ne les lisait qu'à son
+  // ouverture, et « À faire » ne disait rien d'une question posée l'heure d'avant (vu au parcours du 21/10/2026). Elles
+  // se relisent toutes les deux minutes et au retour sur l'onglet ; nouvelles, l'écran les reçoit
+  // (`skanfact-questions`) et se redessine.
+  async function relireLesQuestions() {
+    if (!ent || LECTURE || document.hidden || !navigator.onLine) return;
+    /** @type {any[] | null} */ const q = await questionsDuCabinet().catch(() => null);
+    if (!q || JSON.stringify(q) === JSON.stringify(questionsLues)) return;
+    questionsLues = q;
+    garderLaCopie();
+    window.dispatchEvent(new CustomEvent('skanfact-questions', { detail: q }));
+  }
+  setInterval(() => { void relireLesQuestions(); }, 120_000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) void relireLesQuestions(); });
   // À l'ouverture, avec le réseau : ce qui attendait part d'abord, par rapport à la copie ; ce qui
   // avait changé ailleurs se fusionne comme la v10 le fait (version du serveur gardée, l'autre mise de
   // côté), puis le dossier se relit.
@@ -804,8 +818,8 @@
     ['paie', 'La paie', 'le salaire de chacun : décochée tant que tu ne la confies pas']];
   /** @param {string[]} p */
   const lesPerimetres = (p) => PERIMETRES.filter(([k]) => p.includes(k)).map(([, l]) => l.toLowerCase()).join(', ').replace(/, ([^,]*)$/, ' et $1');
-  /** @param {HTMLElement} el */
-  async function dessinerMandat(el) {
+  /** @param {HTMLElement} el @param {boolean} [attendre] */
+  async function dessinerMandat(el, attendre = false) {
     /** @param {string} html */
     const poser = (html) => { el.innerHTML = html; };
     /** @param {unknown} x */
@@ -837,7 +851,11 @@
         if (!perimetre.length) throw new Error('Coche au moins ce que tu lui confies : rien n\'a été envoyé.');
         await appel('POST', '/mandat', { codeCabinet, perimetre });
       }, b);
-      dessinerInvitationComptable(/** @type {HTMLElement} */ (el.querySelector('#mandat-inviter')), el, () => dessinerMandat(el));
+      // (1.94.0) Entrée dans le champ fait le bouton d'à côté (parcours du 21/10/2026 : elle ne faisait rien).
+      entreeFait(/** @type {HTMLElement} */ (el.querySelector('#mandat-code')), b);
+      // (1.94.0) Redessiné après un geste de l'invitation, le panneau attend qu'elle soit dessinée (le curseur va à la suite).
+      const invitation = dessinerInvitationComptable(/** @type {HTMLElement} */ (el.querySelector('#mandat-inviter')), el, () => dessinerMandat(el, true));
+      if (attendre) await invitation;
       return;
     }
     const nom = `<strong>${esc(m.cabinet.nom)}</strong>`;
@@ -865,6 +883,10 @@
   // coché plus haut. Le lien se montre aussi une fois ici, en secours (le relais refuse, ou ce serveur n'en a pas).
   /** @type {string | null} */
   let lienDeSecours = null;
+  /** @param {HTMLElement} champ @param {HTMLElement} bouton */
+  const entreeFait = (champ, bouton) => {
+    champ.addEventListener('keydown', (ev) => { if (ev.key === 'Enter' && !ev.isComposing) { ev.preventDefault(); bouton.click(); } });
+  };
   /** @type {Record<string, string>} */
   const ETAT_DE_L_EMAIL = {
     parti: 'L\'e-mail est parti.',
@@ -880,7 +902,8 @@
     try { inv = (await appel('GET', '/mandat/invitation')).invitation; } catch { /* sans réponse : le formulaire seul */ }
     const secours = lienDeSecours
       ? `<label class="field mt">Le lien, à lui envoyer si l'e-mail n'arrive pas<input type="text" id="mandat-lien" readonly value="${esc(lienDeSecours)}"></label>
-         <button type="button" class="btn btn-sm" id="mandat-lien-copier">Copier le lien</button>` : '';
+         <button type="button" class="btn btn-sm" id="mandat-lien-copier">Copier le lien</button>
+         <p class="small" role="status" id="mandat-lien-copie"></p>` : '';
     lienDeSecours = null;
     /** @param {unknown} x */
     const refus = (x) => { const a = zone.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
@@ -893,10 +916,19 @@
       lienDeSecours = r.courrielEtat === 'parti' || !lien ? null : lien.startsWith('/') ? `${location.origin}${lien}` : lien;
     };
     /** @param {() => Promise<unknown>} geste @param {HTMLElement} b */
-    const agir = async (geste, b) => { b.setAttribute('disabled', ''); try { await geste(); await redessiner(); } catch (x) { b.removeAttribute('disabled'); refus(x); } };
+    // (1.94.0) L'invitation faite, le panneau se redessine : le curseur va à ce qui suit (copier le lien de secours, ou la
+    // phrase qui dit à qui il est parti), au lieu de tomber au début de la page.
+    const agir = async (geste, b) => {
+      b.setAttribute('disabled', '');
+      try {
+        await geste(); await redessiner();
+        const suite = ['#mandat-lien-copier', '#mandat-invite', '#mandat-email'].map((q) => /** @type {HTMLElement | null} */ (panneau.querySelector(q))).find(Boolean);
+        suite?.focus();
+      } catch (x) { b.removeAttribute('disabled'); refus(x); }
+    };
     if (inv) {
       zone.innerHTML = `<h3>Il n'est pas encore sur SkanFact</h3>
-        <p>Tu as invité <strong>${esc(inv.email)}</strong> : son lien vaut jusqu'au ${esc(jourATunis(inv.expire))}. ${esc(ETAT_DE_L_EMAIL[inv.courriel] || '')}</p>
+        <p id="mandat-invite" tabindex="-1">Tu as invité <strong>${esc(inv.email)}</strong> : son lien vaut jusqu'au ${esc(jourATunis(inv.expire))}. ${esc(ETAT_DE_L_EMAIL[inv.courriel] || '')}</p>
         <p class="small muted">Dès qu'il a créé son cabinet, ton dossier y arrive : il le voit une fois qu'il l'a accepté.</p>${secours}
         <p class="small" role="alert"></p>
         <div class="inline mt"><button type="button" class="btn" id="mandat-reinviter">Envoyer un nouveau lien</button>
@@ -905,7 +937,9 @@
       if (copier) copier.onclick = async () => {
         const champ = /** @type {HTMLInputElement} */ (zone.querySelector('#mandat-lien'));
         champ.select();
-        try { await navigator.clipboard.writeText(champ.value); copier.textContent = 'Lien copié'; } catch { copier.textContent = 'Sélectionné : Ctrl+C pour le copier'; }
+        // (1.94.0) Le bouton change, et une phrase dit quoi faire du lien (le bouton seul ne se lisait pas).
+        const dit = /** @type {HTMLElement} */ (zone.querySelector('#mandat-lien-copie'));
+        try { await navigator.clipboard.writeText(champ.value); copier.textContent = 'Lien copié'; dit.textContent = 'Lien copié : colle-le dans ton message à ton comptable.'; } catch { copier.textContent = 'Sélectionné : Ctrl+C pour le copier'; dit.textContent = 'Le lien est sélectionné : copie-le (Ctrl+C), puis colle-le dans ton message.'; }
       };
       const re = /** @type {HTMLElement} */ (zone.querySelector('#mandat-reinviter'));
       re.onclick = () => agir(() => inviter(inv.email), re);
@@ -926,6 +960,7 @@
       if (!perimetre().length) throw new Error('Coche au moins ce que tu lui confies : rien n\'a été envoyé.');
       await inviter(email);
     }, b);
+    entreeFait(/** @type {HTMLElement} */ (zone.querySelector('#mandat-email')), b);
   }
 
   /** @type {any} */ (window).skanfact = {

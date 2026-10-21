@@ -834,4 +834,14 @@ export const ADAPTATIONS = [
   ...lireFichier('pdf-lot.txt'),
   // ── Au clavier, Tab va de la désignation à la quantité d'une ligne (1.93.0) ──
   ...lireFichier('ligne-clavier.txt'),
+  // ── Les questions du comptable arrivent sans recharger la page (1.94.0) ──
+  ...lireFichier('questions-vivantes.txt'),
+  // ── « Inviter mon comptable » mène au champ de son adresse (1.94.0) ──
+  ...lireFichier('vers-l-invitation.txt'),
+  // ── Un nouveau document s'ouvre le curseur à sa place (1.94.0) ──
+  ...lireFichier('nouveau-document-curseur.txt'),
+  // ── Les menus « ▾ » se parcourent au clavier (1.94.0) ──
+  ...lireFichier('menus-clavier.txt'),
+  // ── Au Cabinet, une relance se fait un autre jour ; la fenêtre dit ce qui part (1.94.0) ──
+  ...lireFichier('relance-un-autre-jour.txt'),
 ];

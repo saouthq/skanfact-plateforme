@@ -1,0 +1,47 @@
+Les menus « ▾ » se parcourent au clavier (1.94.0, parcours du 21/10/2026). Format : voir sans-paquets.mjs.
+
+« Facturer ▾ », « Transformer ▾ » et « Plus ▾ » s'ouvraient à Entrée, mais le curseur restait sur le bouton : au
+clavier, il fallait deviner que Tab menait dans la liste, et un lecteur d'écran ne disait ni qu'un menu s'ouvrait ni s'il
+était ouvert. Désormais : le bouton dit qu'il ouvre une liste et si elle est ouverte ; la liste ouverte, le curseur va à
+sa première entrée ; les flèches passent d'une entrée à l'autre (Début, Fin aussi) ; Échap la referme et rend le curseur
+au bouton. Les entrées restent des boutons (un clic, Entrée, et les parcours qui les nomment ainsi).
+
+== app.js | les menus « ▾ » : leur état dit au lecteur d'écran, le curseur dans la liste, les flèches, Échap
+-- avant
+  const closeMenus = () => $$('.more-list').forEach(l => l.hidden = true);
+-- après
+  const closeMenus = () => $$('.more-list').forEach(l => l.hidden = true);
+  // (plateforme) 1.94.0 — chaque menu « ▾ » (`.more`) : son bouton dit ce qu'il ouvre et si c'est ouvert ; la liste
+  // ouverte, le curseur va à sa première entrée.
+  const entreesDuMenu = l => [...l.querySelectorAll('button:not(.i):not([disabled])')].filter(x => x.getClientRects().length);
+  let menusSuivis = 0;
+  const suivreLesMenus = () => {
+    menusSuivis = 0;
+    $$('.more').forEach(m => {
+      const b = m.querySelector(':scope > .btn'), l = m.querySelector(':scope > .more-list');
+      if (!b || !l) return;
+      if (!l.id) l.id = 'menu' + (++uiSeq);
+      const etait = b.getAttribute('aria-expanded') === 'true', ouvert = !l.hidden;
+      b.setAttribute('aria-controls', l.id);
+      b.setAttribute('aria-expanded', String(ouvert));
+      l.setAttribute('role', 'group');
+      if (!l.hasAttribute('aria-label')) l.setAttribute('aria-label', (b.getAttribute('aria-label') || b.textContent || '').replace('▾', '').trim());
+      if (ouvert && !etait && document.activeElement === b) { const x = entreesDuMenu(l)[0]; if (x) x.focus(); }
+    });
+  };
+  new MutationObserver(() => { if (!menusSuivis) menusSuivis = requestAnimationFrame(suivreLesMenus); })
+    .observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+  // Dans une liste : les flèches, Début et Fin ; Échap (qui la referme, plus haut) rend le curseur à son bouton.
+  document.addEventListener('keydown', e => {
+    const l = e.target instanceof Element ? e.target.closest('.more-list') : null;
+    if (!l) return;
+    if (e.key === 'Escape') { const b = l.parentElement && l.parentElement.querySelector(':scope > .btn'); if (b) b.focus(); return; }
+    if (l.hidden || !['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+    const xs = entreesDuMenu(l);
+    if (!xs.length) return;
+    e.preventDefault();
+    const i = xs.indexOf(e.target);
+    const j = e.key === 'Home' ? 0 : e.key === 'End' ? xs.length - 1 : (i + (e.key === 'ArrowDown' ? 1 : -1) + xs.length) % xs.length;
+    xs[j].focus();
+  });
+-- fin

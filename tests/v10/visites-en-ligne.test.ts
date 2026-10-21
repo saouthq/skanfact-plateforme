@@ -106,7 +106,10 @@ describe('les visites de l\'entreprise, en ligne', () => {
     const cibles = (relier?.etapes ?? []).flatMap((e) => alternatives(e.cible));
     // Le panneau, dessiné comme dans Comptabilité → Cabinet, sans mandat encore (pont.js, `dessinerMandat`) ; son cadre
     // vient de l'onglet (web/v10/questions-client.txt).
-    const panneau = { innerHTML: '', querySelector: () => ({}) };
+    // (1.94.0) Ses cases reçoivent Entrée : un nœud qui en a les gestes.
+    type Noeud = { innerHTML: string; addEventListener: () => void; querySelector: () => Noeud; querySelectorAll: () => Noeud[] };
+    const noeud = (): Noeud => ({ innerHTML: '', addEventListener: () => {}, querySelector: () => noeud(), querySelectorAll: () => [] });
+    const panneau = noeud();
     await pont.dessinerMandat(panneau);
     const dessines = new Set([...panneau.innerHTML.matchAll(/id="([^"]+)"/g)].map((m) => `#${m[1]}`));
     if (fs.readFileSync(path.join(PUBLIC, 'v10/app.js'), 'utf8').includes('<div class="panel" id="p-cabinet-mandat">')) dessines.add('#p-cabinet-mandat');

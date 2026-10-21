@@ -93,6 +93,33 @@ describe('« PDF » d\'une pièce, à l\'écran', () => {
     expect(erreurs).toEqual([]);
   }, 180_000);
 
+  // (1.94.0, parcours du 21/10/2026) Ce test ouvre déjà un devis : il porte aussi les menus « ▾ » au clavier.
+  it('au clavier, un menu « ▾ » d\'un devis : le curseur dans la liste, les flèches, Échap rend le curseur au bouton', async () => {
+    const { cx, p, erreurs } = await devisOuvert(serveur.adresse);
+    const bouton = p.locator('#view .more > .btn').first();
+    const liste = p.locator('#view .more > .more-list').first();
+    await expect.poll(() => bouton.getAttribute('aria-expanded')).toBe('false');
+    expect(await bouton.getAttribute('aria-controls')).toBe(await liste.getAttribute('id'));
+    await bouton.focus();
+    await p.keyboard.press('Enter');
+    await expect.poll(() => bouton.getAttribute('aria-expanded')).toBe('true');
+    const dedans = () => p.evaluate(() => { const a = document.activeElement; const l = a?.closest('.more-list'); return l ? [...l.querySelectorAll('button:not(.i):not([disabled])')].filter((x) => x.getClientRects().length).indexOf(a as Element) : -2; });
+    await expect.poll(dedans).toBe(0);
+    const n = await liste.evaluate((l) => [...l.querySelectorAll('button:not(.i):not([disabled])')].filter((x) => x.getClientRects().length).length);
+    expect(n).toBeGreaterThan(1);
+    await p.keyboard.press('ArrowDown');
+    expect(await dedans()).toBe(1);
+    await p.keyboard.press('ArrowUp'); await p.keyboard.press('ArrowUp');
+    expect(await dedans()).toBe(n - 1);
+    await p.keyboard.press('Home');
+    expect(await dedans()).toBe(0);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => bouton.getAttribute('aria-expanded')).toBe('false');
+    expect(await bouton.evaluate((b) => document.activeElement === b)).toBe(true);
+    await cx.close();
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
   it('« Exporter tous les PDF de la période » : un .zip des PDF du serveur, un par facture émise, sous leur nom', async () => {
     // Deux factures émises ce mois (3 × 416,667 à 19 %, timbre compris : 1 488,501 DT).
     const emettre = async (api: Api, jeton: string, ent: string) => {
@@ -111,12 +138,24 @@ describe('« PDF » d\'une pièce, à l\'écran', () => {
     const fichier = path.join(dossier, 'lot.zip');
     await telechargement.saveAs(fichier);
     const zip = fs.readFileSync(fichier);
-    // Le zip se relit par l'outil du système (« unzip -l » : ses noms et leurs tailles), et chaque fichier est un PDF.
-    const liste = execFileSync('unzip', ['-Z1', fichier], { encoding: 'utf8' }).trim().split('\n').sort();
-    expect(liste).toHaveLength(2);
-    for (const n of liste) {
-      expect(n).toMatch(/_Société_des_Transports_du_Sahel\.pdf$/);
-      expect(execFileSync('unzip', ['-p', fichier, n]).subarray(0, 5).toString('latin1')).toBe('%PDF-');
+    // (1.94.0) Les noms se lisent dans le zip lui-même (son répertoire central), en UTF-8, le drapeau qui le dit posé :
+    // « unzip -Z1 » les décodait selon la machine (sur celle de GitHub, « Soci├йt├й »). Chaque fichier est un PDF ;
+    // l'outil du système vérifie le tout (« unzip -tq »).
+    const fin = zip.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
+    expect(fin).toBeGreaterThan(0);
+    const entrees: { nom: string; utf8: boolean; contenu: Buffer }[] = [];
+    for (let i = 0, o = zip.readUInt32LE(fin + 16); i < zip.readUInt16LE(fin + 10); i++) {
+      expect(zip.readUInt32LE(o)).toBe(0x02014b50);
+      const [drapeaux, taille, n, e, c, local] = [zip.readUInt16LE(o + 8), zip.readUInt32LE(o + 20), zip.readUInt16LE(o + 28), zip.readUInt16LE(o + 30), zip.readUInt16LE(o + 32), zip.readUInt32LE(o + 42)];
+      const debut = local + 30 + zip.readUInt16LE(local + 26) + zip.readUInt16LE(local + 28);
+      entrees.push({ nom: zip.subarray(o + 46, o + 46 + n).toString('utf8'), utf8: (drapeaux & 0x0800) !== 0, contenu: zip.subarray(debut, debut + taille) });
+      o += 46 + n + e + c;
+    }
+    expect(entrees).toHaveLength(2);
+    for (const x of entrees) {
+      expect(x.nom).toMatch(/_Société_des_Transports_du_Sahel\.pdf$/);
+      expect(x.utf8).toBe(true);
+      expect(x.contenu.subarray(0, 5).toString('latin1')).toBe('%PDF-');
     }
     execFileSync('unzip', ['-tq', fichier]);
     expect(zip.length).toBeGreaterThan(2000);

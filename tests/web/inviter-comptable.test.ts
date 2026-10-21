@@ -47,12 +47,17 @@ describe('inviter son comptable par e-mail, à la souris', () => {
     const erreurs: string[] = [];
 
     // Le client : Paramètres › Envois › Ton cabinet comptable ; la paie cochée en plus ; l'adresse de son comptable.
-    const e = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    const e = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', permissions: ['clipboard-read', 'clipboard-write'] })).newPage();
     e.on('pageerror', (x) => erreurs.push(x.message));
     await e.addInitScript((j) => { sessionStorage.setItem('skanfact.jeton', j); }, client);
-    await e.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
+    // (1.94.0) Le premier pas « Inviter mon comptable » de l'Accueil mène au champ de son adresse, le curseur dedans.
+    await e.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
     await e.locator('#view h1').first().waitFor({ timeout: 15_000 });
     for (let i = 0; i < 3 && await e.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await e.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    await e.locator('#view').getByRole('button', { name: 'Inviter mon comptable', exact: true }).first().click();
+    await expect.poll(() => e.evaluate(() => document.activeElement?.id), { timeout: 15_000 }).toBe('mandat-email');
+    await e.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
+    await e.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await e.getByRole('tab', { name: 'Envois', exact: true }).click();
     await e.locator('#mandat-email').waitFor({ timeout: 15_000 });
     // Les deux chemins se lisent côte à côte, de même poids.
@@ -64,10 +69,16 @@ describe('inviter son comptable par e-mail, à la souris', () => {
     expect((await api('GET', `/entreprises/${ent}/mandat/invitation`, client)).corps.invitation).toBeNull();
     await e.locator('[data-perimetre="paie"]').check();
     const adresse = `comptable-${Date.now()}@exemple.tn`;
+    // (1.94.0) Au clavier : Entrée dans le champ invite, comme le bouton.
     await e.locator('#mandat-email').fill(adresse);
-    await e.getByRole('button', { name: 'Inviter mon comptable', exact: true }).click();
+    await e.locator('#mandat-email').press('Enter');
     // Ce serveur n'envoie pas d'e-mails : l'écran le dit, et montre le lien.
     await expect.poll(() => e.locator('#mandat-inviter').innerText(), { timeout: 15_000 }).toContain(`Tu as invité ${adresse}`);
+    // Le curseur va au geste qui suit (copier le lien), et la copie se dit en une phrase.
+    await expect.poll(() => e.evaluate(() => document.activeElement?.id)).toBe('mandat-lien-copier');
+    await e.keyboard.press('Enter');
+    await expect.poll(() => e.locator('#mandat-lien-copie').innerText()).toMatch(/^Lien copié\s:\scolle-le dans ton message à ton comptable\.$/);
+    expect(await e.evaluate(() => navigator.clipboard.readText())).toBe(await e.locator('#mandat-lien').inputValue());
     expect(await e.locator('#mandat-inviter').innerText()).toContain('Ce serveur n\'envoie pas d\'e-mails');
     const lien = await e.locator('#mandat-lien').inputValue();
     expect(lien).toMatch(new RegExp(`^${serveur.adresse.replace(/[.]/g, '\\.')}/\\?comptable=[A-Za-z0-9_-]{20,}$`));

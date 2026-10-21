@@ -263,6 +263,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cette question a reçu sa réponse : elle ne se réécrit plus', cle: 'base.compta.question_repondue', fr: 'cette question a reçu sa réponse : elle ne se réécrit plus' },
   { base: 'cette question est déjà partie chez le client : elle se ferme, elle ne s\'efface pas', cle: 'base.compta.question_partie', fr: 'cette question est déjà partie chez le client : elle se ferme, elle ne s\'efface pas' },
   { base: 'aucune question n\'attend de réponse : il n\'y aurait rien à envoyer', cle: 'base.compta.questions_rien', fr: 'aucune question n\'attend de réponse : il n\'y aurait rien à envoyer' },
+  { base: 'les questions qui attendent sont parties aujourd\'hui : une relance se fait un autre jour', cle: 'base.compta.questions_aujourdhui', fr: 'les questions qui attendent sont parties aujourd\'hui : une relance se fait un autre jour' },
   { base: 'seule l\'entreprise répond aux questions de son cabinet', cle: 'base.compta.question_entreprise', fr: 'seule l\'entreprise répond aux questions de son cabinet' },
   { base: 'cette question est fermée : ton cabinet n\'attend plus de réponse', cle: 'base.compta.question_fermee', fr: 'cette question est fermée : ton cabinet n\'attend plus de réponse' },
   { base: 'une réponse vide ne répond à rien', cle: 'base.compta.question_reponse_vide', fr: 'une réponse vide ne répond à rien' },

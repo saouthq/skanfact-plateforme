@@ -154,6 +154,20 @@ describe('la révision et les questions au client, à la souris', () => {
     await expect.poll(toast, APRES_LE_SERVEUR).toMatch(/^1\squestion envoyée à Menuiserie Ben Salah\.$/);
     const recue = await questions(client);
     expect(recue.map((q) => [q.statut, q.envois.length, q.texte])).toEqual([['envoyee', 1, 'Peux-tu m\'envoyer la facture de ce virement de 1 200,500 DT ?']]);
+    // (1.94.0) Une question neuve le même jour : seule elle part ; celle partie aujourd'hui ne repart pas (une relance se
+    // fait un autre jour), et la fenêtre le dit avant le geste.
+    expect((await api('POST', `/entreprises/${ent}/compta/questions`, associe, { periode: '2026-03', objet: 'Caisse', texte: 'Le fond de caisse est-il toujours de 200 DT ?' })).statut).toBe(201);
+    await p.reload();
+    await aller();
+    await ouvrir('#rv-envoyer', '#qe-ok');
+    expect(await fenetre.innerText()).toMatch(/1\squestion partira chez le client/);
+    expect((await fenetre.locator('#qe-detail').innerText()).split('\n')).toEqual(['1 question neuve', '1 question partie aujourd\'hui ne repart pas : une relance se fait un autre jour']);
+    await fenetre.locator('#qe-ok').click();
+    await expect.poll(toast, APRES_LE_SERVEUR).toMatch(/^1\squestion envoyée à Menuiserie Ben Salah\.$/);
+    expect((await questions(client)).map((q) => q.envois.length).sort()).toEqual([1, 1]);
+    // Plus rien de neuf : le refus le dit, sans fenêtre.
+    await p.locator('#rv-envoyer').click();
+    await expect.poll(toast).toBe('Les questions qui attendent sont parties aujourd\'hui : une relance se fait un autre jour.');
     expect((await api('POST', `/entreprises/${ent}/compta/questions/${recue[0]?.id}/repondre`, client, { texte: 'La facture est jointe à l\'achat du 9 mars.' })).statut).toBe(200);
     await p.reload();
     await expect.poll(() => p.locator('#rv-questions').innerText(), { timeout: 20_000 }).toMatch(/répondue\s+La facture est jointe à l'achat du 9 mars\./);

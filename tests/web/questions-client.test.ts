@@ -118,6 +118,31 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     const objets = (await api('GET', `/entreprises/${ent}/dossier-v10`, client)).corps.objets as { collection: string; cle: string; contenu: unknown }[];
     expect(objets.filter((o) => o.collection === 'questionsCabinet')).toEqual([]);
     expect(objets.filter((o) => o.cle === 'questionsCabinet').map((o) => o.contenu)).toEqual([[]]);
+
+    // ── 1.94.0 : une question envoyée pendant que l'écran est ouvert y arrive, sans recharger la page ──
+    // (le pont relit les questions toutes les deux minutes, et quand l'onglet revient au premier plan).
+    await p.evaluate(() => { location.hash = '#/compta'; (window as unknown as { pasRecharge: boolean }).pasRecharge = true; });
+    await expect.poll(async () => {
+      if (!await p.locator('#p-questions').count()) await p.locator('#c-tabs [data-tab="cabinet"]').click({ timeout: 2_000 }).catch(() => {});
+      return p.locator('#p-questions').count();
+    }, { timeout: 20_000 }).toBe(1);
+    expect(await panneau.innerText()).not.toMatch(/fournisseur de l'achat FF-30/);
+    await poserQuestion({ objet: 'Achat FF-30', texte: 'Qui est le fournisseur de l\'achat FF-30 ?' });
+    expect((await api('POST', `${url}/envoyer`, associe, { annee: 2026 })).corps.envoyees).toBe(2);
+    await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect.poll(() => panneau.innerText(), { timeout: 20_000 }).toMatch(/Qui est le fournisseur de l'achat FF-30/);
+    expect(await p.evaluate(() => (window as unknown as { pasRecharge?: boolean }).pasRecharge)).toBe(true);
+    // Un champ de l'écran où la personne est en train de choisir ne se redessine pas sous elle : la question attend.
+    type Fenetre = { champ?: Element | undefined };
+    await p.locator('#c-tabs [data-tab="ventes"]').click();
+    await p.locator('#c-year').waitFor({ state: 'visible' });
+    await p.locator('#c-year').focus();
+    expect(await p.evaluate(() => { const c = document.activeElement; (window as unknown as Fenetre).champ = c ?? undefined; return c?.id; })).toBe('c-year');
+    await poserQuestion({ objet: 'Caisse 2', texte: 'Et le fond de caisse de septembre ?' });
+    expect((await api('POST', `${url}/envoyer`, associe, { annee: 2026 })).corps.envoyees).toBeGreaterThan(0);
+    await p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await p.waitForTimeout(1_500);
+    expect(await p.evaluate(() => { const c = (window as unknown as Fenetre).champ; return !!c && c.isConnected && document.activeElement === c; })).toBe(true);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

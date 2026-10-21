@@ -330,6 +330,11 @@ describe('le lot facture, à l\'écran', () => {
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     await p.evaluate(() => { location.hash = '#/doc/new/facture'; });
     await p.locator('#lines tr [data-k=qty]').first().waitFor({ timeout: 20_000 });
+    // (1.94.0) Une pièce neuve pose le curseur sur le choix du client : Entrée ouvre la liste, sans traverser le menu.
+    await expect.poll(() => p.evaluate(() => document.activeElement?.closest('[data-combo]')?.getAttribute('data-combo'))).toBe('clientId');
+    await p.keyboard.press('Enter');
+    await expect.poll(() => p.locator('[data-combo="clientId"] .combo-pop').isVisible()).toBe(true);
+    await p.keyboard.press('Escape');
     await plusTard(p);
     await p.locator('#add-line').click();
     // Le nom que lit un lecteur d'écran : la quantité, le prix et la TVA de la seconde ligne.

@@ -1,0 +1,21 @@
+Les questions du comptable arrivent sans recharger la page (1.94.0, parcours du 21/10/2026). Format : voir
+sans-paquets.mjs.
+
+La page ouverte ne lisait les questions du cabinet qu'à son ouverture : une question posée pendant que Leïla travaillait
+n'apparaissait ni dans « À faire » ni dans Comptabilité › Cabinet avant un rechargement. Le point de contact les relit
+(pont.js, toutes les deux minutes et au retour sur l'onglet) ; l'écran les reçoit et redessine les deux pages où elles se
+lisent, jamais pendant une saisie.
+
+== app.js | les questions du cabinet reçues sans recharger : l'Accueil et la Comptabilité se redessinent
+-- avant
+  window.addEventListener('skanfact-tickets-remis', () => { if ($('#cs-session')) dessinerSession(); });
+-- après
+  window.addEventListener('skanfact-tickets-remis', () => { if ($('#cs-session')) dessinerSession(); });
+  // (plateforme) 1.94.0 — les questions du cabinet, relues par le point de contact : elles entrent dans les données, et
+  // l'Accueil (« À faire ») et la Comptabilité se redessinent ; jamais pendant une saisie (une fenêtre, une case active).
+  window.addEventListener('skanfact-questions', e => {
+    data.questionsCabinet = Array.isArray(e.detail) ? e.detail : [];
+    const enSaisie = !!$('#modal-root .modal') || !!(document.activeElement && document.activeElement.matches('input, textarea, select'));
+    if (!enSaisie && /^(#\/(dashboard|compta)([?].*)?)?$/.test(location.hash)) render();
+  });
+-- fin

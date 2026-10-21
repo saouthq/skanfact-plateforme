@@ -1,0 +1,34 @@
+Au Cabinet, « Envoyer les questions » dit ce qui part, et ne relance pas le jour même (1.94.0, parcours du 21/10/2026 ;
+base 0162). Format : voir sans-paquets.mjs.
+
+Envoyer une question neuve renvoyait aussi celles parties le matin même : elles passaient à « 2 fois », et le client
+lisait qu'elles avaient été envoyées deux fois sans réponse, le jour où il les avait reçues. Le serveur ne renvoie plus
+une question partie aujourd'hui (à Tunis) ; la fenêtre dit, avant le geste, combien partent pour la première fois,
+combien sont relancées, et combien, parties aujourd'hui, attendent un autre jour.
+
+== cabinet/app.js | ce qui part vraiment : les neuves, les relances (parties un autre jour) ; rien à envoyer, le refus le dit
+-- avant
+    if (!en.length) return toast('Aucune question n\'attend de réponse : il n\'y a rien à envoyer.', 'error');
+-- après
+    if (!en.length) return toast('Aucune question n\'attend de réponse : il n\'y a rien à envoyer.', 'error');
+    // (plateforme) 1.94.0 — une question partie aujourd'hui (à Tunis) ne repart pas : une relance se fait un autre jour.
+    const jourDe = ms => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
+    const aujourdhui = jourDe(Date.now());
+    const neuves = en.filter(q => !(q.envois || []).length).length;
+    const relances = en.filter(q => (q.envois || []).length && jourDe(q.envois[q.envois.length - 1]) < aujourdhui).length;
+    const attendent = en.length - neuves - relances;
+    if (!neuves && !relances) return toast('Les questions qui attendent sont parties aujourd\'hui : une relance se fait un autre jour.', 'error');
+    const partent = neuves + relances;
+-- fin
+
+== cabinet/app.js | la fenêtre compte ce qui part (neuves, relances) et ce qui attend un autre jour
+-- avant
+      <p class="small">${esc(pl(en.length, 'question partira', 'questions partiront'))} chez le client : il ${en.length > 1 ? 'les' : 'la'} lira dans son SkanFact,
+      en face de la pièce qu'${en.length > 1 ? 'elles visent' : 'elle vise'}, et y répondra. Rien de ce que tu envoies ne touche à ses chiffres.</p>
+-- après
+      <p class="small">${esc(pl(partent, 'question partira', 'questions partiront'))} chez le client : il ${partent > 1 ? 'les' : 'la'} lira dans son SkanFact,
+      en face de la pièce qu'${partent > 1 ? 'elles visent' : 'elle vise'}, et y répondra. Rien de ce que tu envoies ne touche à ses chiffres.</p>
+      <ul class="small" id="qe-detail">${neuves ? `<li>${esc(pl(neuves, 'question neuve', 'questions neuves'))}</li>` : ''}${relances
+        ? `<li>${esc(pl(relances, 'relance', 'relances'))} : ${relances > 1 ? 'des questions parties un autre jour, toujours' : 'une question partie un autre jour, toujours'} sans réponse</li>` : ''}${attendent
+        ? `<li class="muted">${esc(pl(attendent, 'question partie', 'questions parties'))} aujourd'hui ${attendent > 1 ? 'ne repartent' : 'ne repart'} pas : une relance se fait un autre jour</li>` : ''}</ul>
+-- fin

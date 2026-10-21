@@ -714,7 +714,9 @@ sont des réglages du cabinet (`cabinet.reglages`), écrits une fois pour tous s
 face de sa pièce (`compta.question`). Le cabinet la **pose** (qui saisit, l'assistant aussi, comme la
 v10) ; elle reste chez lui jusqu'à ce qu'il l'**envoie** (qui valide) : plus de fichier, l'envoi la rend
 visible au client, et **chaque envoi se compte** comme chaque fichier se comptait — deux envois sans
-réponse, elle remonte dans « À faire ». Jamais envoyée, elle se retire sans trace ; envoyée, elle se
+réponse, elle remonte dans « À faire ». **Une relance se fait un autre jour** (1.94.0, base 0162) : une
+question partie aujourd'hui (à Tunis) ne repart pas avec la suivante ; la fenêtre d'envoi compte, avant le geste, les
+questions neuves, les relances et celles qui attendent un autre jour. Jamais envoyée, elle se retire sans trace ; envoyée, elle se
 ferme (et se rouvre), elle ne s'efface plus ; elle se précise tant qu'elle n'a pas sa réponse. Le
 client y répond (le propriétaire, l'administrateur, la comptabilité interne — jamais le cabinet à sa
 place), tant qu'elle n'est pas fermée ; répondue, elle ne se réécrit plus. **Ce qui part au serveur**
