@@ -89,6 +89,9 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     await p.locator('button').filter({ hasText: /^Saisir/ }).first().click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toMatch(/comptabilite\/saisie\//);
     await p.waitForTimeout(800);
+    // La saisie s'ouvre le curseur dans « Pièce » (1.87.7), et un champ tenu ne se redessine jamais : Leïla l'a quitté
+    // (elle relit sa saisie), et c'est la saisie elle-même qui ne bouge pas.
+    await p.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
     await p.evaluate(() => { const e = document.querySelector('#c-livres')?.firstElementChild as (Element & { marque?: number }) | null | undefined; if (e) e.marque = 1; });
     await envoyer([frais('m4', '2.25')]);
     await p.evaluate(() => window.dispatchEvent(new Event('focus')));

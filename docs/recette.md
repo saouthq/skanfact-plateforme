@@ -951,6 +951,12 @@ aux deux questions qui restaient ; Hatem les lit et les ferme. Ce que l'écran f
 - dans la fiche du client à la console, « elle a choisi Complet, à l'année », à côté du nom de Sami, se lisait comme
   une personne : « l'entreprise a choisi ».
 
+### 1.99.1 — la preuve de la saisie du Cabinet qui ne bouge pas, tenue
+
+- GitHub était rouge depuis 1.97.0 : la preuve « la saisie du Cabinet redessinée sous la main » restait verte. La
+  saisie s'ouvre le curseur dans « Pièce » (1.87.7), et un champ tenu bloque déjà toute relecture : le défaut était
+  masqué. Le test quitte le champ avant le mouvement qui arrive ; c'est la saisie elle-même qui ne doit pas bouger.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
