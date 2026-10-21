@@ -957,6 +957,26 @@ aux deux questions qui restaient ; Hatem les lit et les ferme. Ce que l'écran f
   saisie s'ouvre le curseur dans « Pièce » (1.87.7), et un champ tenu bloque déjà toute relecture : le défaut était
   masqué. Le test quitte le champ avant le mouvement qui arrive ; c'est la saisie elle-même qui ne doit pas bouger.
 
+### 1.100.0 — Amira émet la facture de Sami, Sami la paie, puis fait son premier devis
+
+- GitHub rouge sur 1.99.0 : un refus sous le champ (1.99.0) rebâtit le champ, et le curseur, posé avant, tombait sur la
+  saisie remplacée. Le curseur vient après le rendu qui montre le refus ;
+- « L'émettre dans SkanFact » (console), ouvert dans le navigateur d'un autre compte (celui du comptable) : « Cette
+  entreprise ne t'est pas ouverte », avec « Continuer » seulement, qui ouvrait l'entreprise de ce compte-là. Le bandeau
+  propose « Me connecter avec un autre compte » : la session est fermée au serveur, la connexion attend, et le bon
+  compte rouvre la même adresse ;
+- vu et juste : FAC-2026-004 (690,000 HT, TVA 131,100, timbre 1,000, 822,100), payée en ligne ; « Payé jusqu'au
+  20/11/2027, encore 395 jours » ; la console dit « Payée », reste 0,000, « Actif » ; la facture payée reste dans
+  « Tes factures » ;
+- le premier devis de Sami pour « Entreprise Générale de Bâtiment Chaabane » : la colonne du client s'élargissait au nom
+  entier, et les deux dates coupaient l'année (« 21/10/202 »). Les colonnes d'une grille restent égales ; le nom finit
+  par « … » (il est entier dans l'aperçu). Devis 4 842,000 HT, TVA 919,980, 5 761,980 ; facture FAC-2026-001,
+  5 762,980 avec le timbre ;
+- Sami invite Hatem par e-mail en confiant aussi la paie : l'invitation part avec la paie, mais le panneau, redessiné,
+  remettait les cases à leur départ et « La paie » se montrait décochée (l'écran disait le contraire de ce qui était
+  confié). Les cases disent ce que l'invitation confie, et la phrase le nomme (« pour la comptabilité, les
+  déclarations, la saisie des achats et la paie »).
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

@@ -80,6 +80,9 @@ describe('inviter son comptable par e-mail, à la souris', () => {
     await expect.poll(() => e.locator('#mandat-lien-copie').innerText()).toMatch(/^Lien copié\s:\scolle-le dans ton message à ton comptable\.$/);
     expect(await e.evaluate(() => navigator.clipboard.readText())).toBe(await e.locator('#mandat-lien').inputValue());
     expect(await e.locator('#mandat-inviter').innerText()).toContain('Ce serveur n\'envoie pas d\'e-mails');
+    // (1.100.0) Redessinées, les cases disent ce que l'invitation confie : la paie cochée restait décochée à l'écran.
+    expect(await e.locator('[data-perimetre="paie"]').isChecked()).toBe(true);
+    expect((await e.locator('#mandat-invite').innerText()).replace(/\s+/g, ' ')).toContain(`Tu as invité ${adresse} pour la comptabilité, les déclarations, la saisie des achats et la paie :`);
     const lien = await e.locator('#mandat-lien').inputValue();
     expect(lien).toMatch(new RegExp(`^${serveur.adresse.replace(/[.]/g, '\\.')}/\\?comptable=[A-Za-z0-9_-]{20,}$`));
     await e.screenshot({ path: path.join(PHOTOS, 'inviter-comptable-1-client.png') });
@@ -89,6 +92,7 @@ describe('inviter son comptable par e-mail, à la souris', () => {
     await e.getByRole('tab', { name: 'Envois', exact: true }).click();
     await expect.poll(() => e.locator('#mandat-inviter').innerText(), { timeout: 15_000 }).toContain(`Tu as invité ${adresse}`);
     expect(await e.locator('#mandat-lien').count()).toBe(0);
+    expect(await e.locator('[data-perimetre="paie"]').isChecked()).toBe(true);
 
     // Le comptable, sur un navigateur neuf : le lien ouvre la création du compte, son adresse remplie.
     const c = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();

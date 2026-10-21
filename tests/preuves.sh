@@ -1164,9 +1164,10 @@ prouver "un net à payer de l'écran qui n'est pas celui que le serveur scelle" 
   "netAPayer: Number(netAPayer).toFixed(decimales)," "netAPayer: Number(netAPayer + 0.001).toFixed(decimales)," \
   "$PA"
 prouver "« Se déconnecter » qui ne ferme rien" $PONT \
-  "      try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
-      await poste.effacer();
-      location.replace('/');" "      void 0;" \
+  "    try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
+    if (destination) try { sessionStorage.setItem('skanfact.destination', destination); } catch { /* sans stockage : l'accueil */ }
+    await poste.effacer();
+    location.replace('/');" "    void 0;" \
   "$PA"
 prouver "un conflit d'enregistrement qui finit en « Rien n'a été enregistré »" $PONT \
   "        if (/** @type {any} */ (e).statut === 409) return { conflict: true, disk: Object.assign(await relire(), { syncWrittenAt: Date.now() }) };" "" \
@@ -3543,9 +3544,7 @@ prouver "la copie jamais écrite après une lecture" $PONT \
 " \
   "$HL1"
 prouver "la session gardée après « Se déconnecter »" $PONT \
-  "sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
-      await poste.effacer();" "sessionStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
-      await poste.effacer();" \
+  "sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }" "sessionStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }" \
   "$HL1"
 prouver "la session du navigateur ignorée par l'application" $PONT \
   "sessionStorage.getItem('skanfact.jeton') || localStorage.getItem('skanfact.jeton');" "sessionStorage.getItem('skanfact.jeton');" \
@@ -3632,7 +3631,7 @@ prouver "rouverte, le conflit passé sous silence" $PONT \
 " "" \
   "$HE3"
 prouver "se déconnecter sans demander, des changements en attente" $PONT \
-  "      if (attenteGardee && !(await poste.demander(" "      if (false && !(await poste.demander(" \
+  "    if (attenteGardee && !(await poste.demander(" "    if (false && !(await poste.demander(" \
   "$HE4"
 prouver "les réglages du dossier comptés comme des changements" $PONT \
   "  const compter = (changements) => changements.filter((c) => c.collection !== '_racine').length;" "  const compter = (changements) => changements.length;" \
@@ -3868,9 +3867,7 @@ prouver "le nombre remis jamais lu" $PONT \
   "$MR1"
 prouver "« Continuer » qui ne mène nulle part" $POSTE \
   "    if (b) b.onclick = () => location.replace('/');
-  }
-  // Hors ligne, sans rien à montrer" "  }
-  // Hors ligne, sans rien à montrer" \
+    const a = document.getElementById('poste-autre');" "    const a = document.getElementById('poste-autre');" \
   "$MR1"
 
 # ── Brique 77 : l'espace client (docs/espace-client.md) ──
@@ -18773,6 +18770,24 @@ prouver 'le champ refusé dont l'\''aide dit le contraire du refus' web/src/comp
 prouver 'le refus en bas de l'\''écran effacé avant d'\''être lu' web/src/composants/Toast.tsx \
   $'m.erreur ? Math.min(8000, Math.max(2600, m.texte.length * 60)) : 2600' $'2600' \
   '« Ton entreprise » : le curseur'
+prouver 'la page ouverte avec le mauvais compte, sans moyen d'\''en changer' web/public/plateforme/poste.js \
+  $'${autre ? `<button type="button" id="poste-autre">${esc(autre.libelle)}</button>` : \'\'}' $'' \
+  '(1.100.0) ouverte avec le mauvais compte'
+prouver 'l'\''autre compte qui laisse ouverte la session du premier' web/public/plateforme/pont.js \
+  $"    try { await appelCompte('POST', '/deconnexion'); } catch { /* la session se ferme de toute façon ici */ }" $"" \
+  '(1.100.0) ouverte avec le mauvais compte'
+prouver 'l'\''autre compte qui rouvre son accueil au lieu de la page' web/public/plateforme/pont.js \
+  $"    if (destination) try { sessionStorage.setItem('skanfact.destination', destination); }" $"    if (destination) try { void 0; }" \
+  '(1.100.0) ouverte avec le mauvais compte'
+prouver 'la colonne du client qui s'\''élargit et coupe l'\''année des dates' web/public/v10/style.css \
+  $'.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 20px; }\n.grid-2 > *, .grid-3 > * { min-width: 0; }' $'.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 20px; }' \
+  'les deux dates d'\''un devis se lisent en entier'
+prouver 'le champ refusé qui perd le curseur quand son refus s'\''affiche dessous' web/src/composants/Champ.tsx \
+  $'  }, [faute, n, rouge]);' $'  }, [faute, n]);' \
+  'la sécurité du comptable d'\''un cabinet'
+prouver 'la paie confiée qui se montre décochée après l'\''invitation' web/public/plateforme/pont.js \
+  $"      if (confie) for (const c of panneau.querySelectorAll('[data-perimetre]'))" $"      if (false) for (const c of panneau.querySelectorAll('[data-perimetre]'))" \
+  'le client invite par e-mail'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

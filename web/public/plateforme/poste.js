@@ -255,13 +255,16 @@
       const o = document.getElementById('poste-oui'); if (o) o.onclick = () => fin(true);
     });
   }
-  // Ce qui clôt la page (brique 76), et le bouton qui continue, vers l'entrée.
-  /** @param {string} texte */
-  function conclure(texte) {
+  // Ce qui clôt la page (brique 76), et le bouton qui continue, vers l'entrée. (1.100.0) `autre` : un second geste, avant
+  // « Continuer » (« Me connecter avec un autre compte », quand la page est ouverte dans le navigateur d'un autre compte).
+  /** @param {string} texte @param {{ libelle: string, geste: () => void }} [autre] */
+  function conclure(texte, autre) {
     close = true;
-    poser(`<span><strong>${esc(texte)}</strong></span><button type="button" id="poste-continuer">Continuer</button>`);
+    poser(`<span><strong>${esc(texte)}</strong></span>${autre ? `<button type="button" id="poste-autre">${esc(autre.libelle)}</button>` : ''}<button type="button" id="poste-continuer">Continuer</button>`);
     const b = document.getElementById('poste-continuer');
     if (b) b.onclick = () => location.replace('/');
+    const a = document.getElementById('poste-autre');
+    if (a && autre) a.onclick = () => autre.geste();
   }
   // Hors ligne, sans rien à montrer : la raison, et le bouton qui réessaie.
   /** @param {string} motif */

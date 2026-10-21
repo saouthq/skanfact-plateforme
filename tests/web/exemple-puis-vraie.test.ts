@@ -151,8 +151,40 @@ describe('l\'exemple puis la vraie entreprise, autour du versement', () => {
     const { p, erreurs } = await page(jeton);
     await p.goto(`${serveur.adresse}/v10/?e=${sienne}#/dashboard`);
     await expect.poll(() => p.locator('#poste-bandeau').innerText().then(net).catch(() => ''), { timeout: 20_000 })
-      .toBe(`Cette entreprise ne t'est pas ouverte : ton compte (${emails.get('lina')}) ne fait pas partie de son équipe, ou elle n'existe pas. Continuer`);
+      .toBe(`Cette entreprise ne t'est pas ouverte : ton compte (${emails.get('lina')}) ne fait pas partie de son équipe, ou elle n'existe pas. Me connecter avec un autre compte Continuer`);
     await p.screenshot({ path: path.join(PHOTOS, 'exemple-vraie-2-pas-ouverte.png') });
+    expect(erreurs).toEqual([]);
+  }, 60_000);
+
+  it('(1.100.0) ouverte avec le mauvais compte : « Me connecter avec un autre compte » ferme celui-ci, et le bon rouvre la même adresse', async () => {
+    const jeton = await personne('lina');
+    const autre = await personne('omar');
+    const sienne = String((await api('POST', '/entreprises', autre, { raisonSociale: 'Librairie Omar' })).corps.id);
+    // Le jeton de Lina, posé une seule fois dans l'onglet (celui de `page` se reposerait à chaque page) : déconnectée,
+    // elle reste déconnectée.
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', serviceWorkers: 'block' });
+    await cx.addInitScript((j) => {
+      if (location.protocol.startsWith('http') && !sessionStorage.getItem('essai.pose')) { sessionStorage.setItem('skanfact.jeton', j); sessionStorage.setItem('essai.pose', '1'); }
+    }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(`${e.message} @ ${p.url()}`));
+    await p.goto(`${serveur.adresse}/v10/?e=${sienne}#/clients`);
+    const bandeau = p.locator('#poste-bandeau');
+    await expect.poll(() => bandeau.innerText().then(net).catch(() => ''), { timeout: 20_000 })
+      .toBe(`Cette entreprise ne t'est pas ouverte : ton compte (${emails.get('lina')}) ne fait pas partie de son équipe, ou elle n'existe pas. Me connecter avec un autre compte Continuer`);
+    await bandeau.getByRole('button', { name: 'Me connecter avec un autre compte', exact: true }).click();
+    // La session de Lina est fermée au serveur, et la connexion attend le bon compte.
+    await p.locator('input[type=email]').waitFor({ timeout: 20_000 });
+    expect(new URL(p.url()).pathname).toBe('/');
+    expect((await api('GET', '/moi', jeton)).statut).toBe(401);
+    await p.locator('input[type=email]').fill(emails.get('omar') ?? '');
+    await p.locator('input[type=password]').fill('Un-bon-mot-de-passe');
+    await p.getByRole('button', { name: /^Se connecter/ }).click();
+    // Omar est connecté : son entreprise s'ouvre, à la même page (pas à son accueil).
+    await expect.poll(() => p.url(), { timeout: 20_000 }).toBe(`${serveur.adresse}/v10/?e=${sienne}#/clients`);
+    await p.locator('#view h1').filter({ hasText: 'Clients' }).waitFor({ timeout: 20_000 });
+    await cx.close();
     expect(erreurs).toEqual([]);
   }, 60_000);
 

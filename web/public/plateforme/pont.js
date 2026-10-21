@@ -678,6 +678,19 @@
       return typeof lu.recus === 'number' ? lu.recus : 0;
     } catch { return null; }
   }
+  // Se déconnecter efface aussi ce que le poste garde (la copie chiffrée et sa clé). `destination` : l'adresse à rouvrir
+  // une fois l'autre compte connecté (App.tsx, `destination`), gardée dans l'onglet.
+  /** @param {string} [destination] */
+  async function sortirDuCompte(destination) {
+    // Ce qui attend le réseau serait perdu : on le demande d'abord.
+    if (attenteGardee && !(await poste.demander('Des changements faits hors ligne ne sont pas encore partis : te déconnecter maintenant les efface de ce poste.',
+      'Me déconnecter quand même', 'Attendre le réseau'))) return;
+    try { await appelCompte('POST', '/deconnexion'); } catch { /* la session se ferme de toute façon ici */ }
+    try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
+    if (destination) try { sessionStorage.setItem('skanfact.destination', destination); } catch { /* sans stockage : l'accueil */ }
+    await poste.effacer();
+    location.replace('/');
+  }
   // L'entreprise ne s'ouvre plus à cette personne (retirée de son équipe, brique 76 ; 03 D8) : ce qui
   // l'attendait est remis, puis ce que le poste en gardait s'efface — elle seule —, et le bandeau le dit.
   async function plusOuverte() {
@@ -690,7 +703,11 @@
       // cette page (vu au parcours du 21/10/2026, un lien de la console ouvert dans le navigateur d'un autre compte).
       /** @type {any} */ const moi = await lireMoi().catch(() => null);
       const email = moi && typeof moi.email === 'string' ? moi.email : '';
-      poste.conclure(`Cette entreprise ne t'est pas ouverte : ton compte${email ? ` (${email})` : ''} ne fait pas partie de son équipe, ou elle n'existe pas.`);
+      // (1.100.0) « Continuer » ouvrait l'entreprise de ce compte-là : qui a ouvert le lien avec le mauvais compte (vu au
+      // parcours du 21/10/2026 : la facture de la console ouverte dans le navigateur du comptable) n'avait que le menu
+      // pour se déconnecter, et perdait la pièce. L'autre compte se connecte ici, et la même adresse se rouvre.
+      poste.conclure(`Cette entreprise ne t'est pas ouverte : ton compte${email ? ` (${email})` : ''} ne fait pas partie de son équipe, ou elle n'existe pas.`,
+        { libelle: 'Me connecter avec un autre compte', geste: () => { void sortirDuCompte(location.pathname + location.search + location.hash); } });
       return await new Promise(() => { /* rien ne s'ouvre */ });
     }
     const recus = await remettre();
@@ -927,8 +944,13 @@
       } catch (x) { b.removeAttribute('disabled'); refus(x); }
     };
     if (inv) {
+      // (1.100.0) Les cases disent ce que l'invitation confie : redessinées, elles revenaient à leur état de départ, et « La
+      // paie », confiée, se montrait décochée (parcours du 21/10/2026). « Envoyer un nouveau lien » part avec ce qu'elles
+      // disent alors.
+      const confie = Array.isArray(inv.perimetre) ? inv.perimetre.map(String) : null;
+      if (confie) for (const c of panneau.querySelectorAll('[data-perimetre]')) /** @type {HTMLInputElement} */ (c).checked = confie.includes(String(/** @type {HTMLElement} */ (c).dataset.perimetre));
       zone.innerHTML = `<h3>Il n'est pas encore sur SkanFact</h3>
-        <p id="mandat-invite" tabindex="-1">Tu as invité <strong>${esc(inv.email)}</strong> : son lien vaut jusqu'au ${esc(jourATunis(inv.expire))}. ${esc(ETAT_DE_L_EMAIL[inv.courriel] || '')}</p>
+        <p id="mandat-invite" tabindex="-1">Tu as invité <strong>${esc(inv.email)}</strong>${confie && confie.length ? ` pour ${esc(lesPerimetres(confie))}` : ''} : son lien vaut jusqu'au ${esc(jourATunis(inv.expire))}. ${esc(ETAT_DE_L_EMAIL[inv.courriel] || '')}</p>
         <p class="small muted">Dès qu'il a créé son cabinet, ton dossier y arrive : il le voit une fois qu'il l'a accepté.</p>${secours}
         <p class="small" role="alert"></p>
         <div class="inline mt"><button type="button" class="btn" id="mandat-reinviter">Envoyer un nouveau lien</button>
@@ -1284,16 +1306,7 @@
     shareDossier: async () => ({ ok: false, error: PARTAGE }),
     joinDossier: async () => ({ ok: false, error: PARTAGE }),
     renameDevice: pasEncore('Nommer cet appareil'),
-    // Se déconnecter efface aussi ce que le poste garde (la copie chiffrée et sa clé).
-    deconnecter: async () => {
-      // Ce qui attend le réseau serait perdu : on le demande d'abord.
-      if (attenteGardee && !(await poste.demander('Des changements faits hors ligne ne sont pas encore partis : te déconnecter maintenant les efface de ce poste.',
-        'Me déconnecter quand même', 'Attendre le réseau'))) return;
-      try { await appelCompte('POST', '/deconnexion'); } catch { /* la session se ferme de toute façon ici */ }
-      try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); } catch { /* rien à retirer */ }
-      await poste.effacer();
-      location.replace('/');
-    },
+    deconnecter: () => sortirDuCompte(),
 
     // ── Les fichiers : ce que le navigateur sait faire ────────────────────────────────────────
     // Enregistrer = télécharger : le fichier arrive dans « Téléchargements », sous son nom.

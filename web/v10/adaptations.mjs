@@ -858,4 +858,6 @@ export const ADAPTATIONS = [
   ...lireFichier('question-close.txt'),
   // ── La Production sans mois fini dit pourquoi elle est vide (1.97.0) ──
   ...lireFichier('production-sans-mois.txt'),
+  // ── Les colonnes d'un formulaire ne s'élargissent plus pour un long nom (1.100.0) ──
+  ...lireFichier('colonnes-egales.txt'),
 ];

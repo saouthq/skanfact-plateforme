@@ -3,7 +3,7 @@
   "branche": "beta",
   "commit": "35bfb8c",
   "reprisLe": "2026-10-21",
-  "adaptations": 1358,
+  "adaptations": 1359,
   "fichiers": {
     "app.js": "7ff79df59d8b4093f2f23a63f5a9b5a88db8ab95cae0abf659706ff72e6c1206",
     "cabinet/app.js": "509024337d51eb0f2075ea8195841c811e34abf938ad920084f6faf3c73b5641",
@@ -24,7 +24,7 @@
     "placement.js": "2db5b35f4ea8674909daa6587f289ab09e0b95620c62434910e946b28a39d77e",
     "reglages.js": "6bf274073f5ec91c6b2af6923b5f8c5669d55f9b983f59a74c4127dfe1f780b6",
     "rowmenu.js": "9ce5fb1062efcca4890e4e0b93e0ae33feb6cfdd09a76e6a1484d2eadba5d146",
-    "style.css": "19a85238322ee1b56ff4f568ab5fb552dd47e3b206ae4f24551fff4841d4dca5",
+    "style.css": "6a9d36a043d3d978934c331572fc7ee82c18e7dafb7fd860f422a1e210fed8b0",
     "teif.js": "87e7870460227508739bac49cf77e13c4435c2e7c1ddbaf99f4a9f31679b45d4",
     "visite.js": "fd35828568081770dd67a5311cbfa48066fd92c7ad8894499901996bb594c2e5",
     "visites.js": "56b97ea10aa0f85433eda78b7bd3c1981ae6bf37c4fa2a1f0c8a87e1af68513e"

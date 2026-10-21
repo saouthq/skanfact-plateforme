@@ -12,12 +12,14 @@ export type Faute = { champ: string; n: number; texte?: string } | null;
 function useFaute<T extends HTMLElement>(faute: boolean, n: number | undefined) {
   const ref = useRef<T>(null);
   const [rouge, setRouge] = useState(false);
+  useEffect(() => { if (faute) setRouge(true); }, [faute, n]);
+  // (1.99.2) Le focus vient APRÈS le rendu qui montre le refus : son message sous le champ (1.99.0) rebâtit le champ, et
+  // un focus posé avant tombait sur la saisie remplacée (le curseur n'était plus nulle part).
   useEffect(() => {
-    if (!faute) return;
-    setRouge(true);
+    if (!faute || !rouge) return;
     ref.current?.focus();
     try { ref.current?.scrollIntoView({ block: 'center' }); } catch { /* un vieux navigateur : le focus suffit */ }
-  }, [faute, n]);
+  }, [faute, n, rouge]);
   return { ref, rouge, effacer: () => setRouge(false) };
 }
 

@@ -1,0 +1,18 @@
+Les colonnes d'un formulaire ne s'élargissent plus pour un long nom (1.100.0, parcours du 21/10/2026). Format : voir sans-paquets.mjs.
+
+Sami fait son premier devis pour « Entreprise Générale de Bâtiment Chaabane » : la colonne du client s'élargit pour le
+nom entier (330 px), et les deux dates voisines tombent à 125 px, où « 21/10/2026 » se lit « 21/10/202 » (l'année
+coupée). Avec un nom court, les mêmes dates ont 179 px. Une grille de deux ou trois colonnes les garde égales : un texte
+trop long y finit par « … » (les listes de choix le font déjà), jamais en écrasant ses voisines.
+
+== style.css | des colonnes égales, quel que soit ce qu'elles contiennent
+-- avant
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px 20px; }
+-- après
+/* (plateforme) 1.100.0 — `minmax(0, 1fr)` : un `1fr` seul grandit jusqu'au contenu le plus large (le nom d'un client),
+   et ses voisines (les dates) rapetissent jusqu'à couper l'année. */
+.grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 20px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px 20px; }
+.grid-2 > *, .grid-3 > * { min-width: 0; }
+-- fin
