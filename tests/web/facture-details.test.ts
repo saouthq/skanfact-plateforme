@@ -280,4 +280,33 @@ describe('le lot facture, à l\'écran', () => {
     expect(await p.getByRole('heading', { name: 'Ton matricule fiscal n\'a pas changé' }).count()).toBe(0);
     expect(erreurs).toEqual([]);
   }, 180_000);
+
+  // La fiche des Paramètres enregistrait « 1234567X » (la suite oubliée) sans un mot, et seule l'émission le disait
+  // (1.87.13) : comme « Compléter ma fiche », elle le refuse avant d'écrire, et montre la case.
+  it('la fiche société : un matricule mal formé est refusé avant d\'écrire, la case montrée, rien d\'autre n\'est enregistré', async () => {
+    const { jeton, ent } = await personne('Ines', 'Pharmacie du Port', '8406192E/A/M/000');
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(`${e.message} @ ${p.url()}`));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
+    const mf = p.locator('#pf [name="matricule"]');
+    await mf.waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    await mf.fill('8406192E');
+    await p.locator('#pf [name="phone"]').fill('+216 74 400 100');
+    await p.locator('#save').click();
+    await expect.poll(() => p.locator('#toast').innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toContain('« 8406192E » n\'a pas la forme d\'un matricule fiscal');
+    expect(await mf.evaluate((e) => e === document.activeElement)).toBe(true);
+    // Rien n'est parti : ni le matricule, ni le téléphone tapé avec lui.
+    await p.waitForTimeout(1500);
+    const fiche = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; cle: string; contenu: Record<string, unknown> }[])
+      .find((o) => o.collection === '_racine' && o.cle === 'company')?.contenu ?? {};
+    expect(fiche.matricule).not.toBe('8406192E');
+    expect(fiche.phone).not.toBe('+216 74 400 100');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
 });

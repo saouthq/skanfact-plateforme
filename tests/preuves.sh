@@ -18464,6 +18464,10 @@ prouver '« Aperçu » qui masque l'\''aperçu du bas de page au téléphone' we
   '  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); }' '  function demarrer() { poserMenu(); suivre(); void apercuEnGrand; }' \
   'une pièce au téléphone : l'\''étape suivante en tête, « WhatsApp » à côté d'\''« Email », chaque bulle avec son bouton ; le bandeau d'\''une pièce émise tient'
 
+prouver 'un matricule mal formé enregistré sans un mot par la fiche société' web/public/v10/app.js \
+  "      if (mfEl && String(v.matricule || '').trim() && !C.matriculeBienForme(v.matricule)) {" '      if (false) {' \
+  'la fiche société : un matricule mal formé est refusé avant d'\''écrire, la case montrée, rien d'\''autre n'\''est enregistré'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

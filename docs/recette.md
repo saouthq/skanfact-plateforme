@@ -700,6 +700,13 @@ maintenant la pièce en grand (comme « Agrandir » ; Échap la referme). Le mon
 un navigateur réglé en anglais : c'est l'affichage d'un champ de nombre selon la langue du navigateur ; une virgule
 tapée y reste la décimale (virgule.js). Une preuve.
 
+### 1.87.13 — un matricule fiscal mal formé dans la fiche société
+
+« 1234567X » tapé dans les Paramètres (la suite oubliée : code TVA, catégorie, établissement) s'enregistrait sans un mot
+(« Paramètres enregistrés ») ; le serveur ne le portait pas à l'entreprise, et seule l'émission d'une facture le disait.
+La fiche le refuse maintenant avant d'écrire quoi que ce soit, avec la phrase de « Compléter ma fiche », et montre la
+case. Écrit comme adaptation des écrans repris (`web/v10/recette-21-10.txt`). Une preuve.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

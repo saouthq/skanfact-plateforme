@@ -18849,6 +18849,14 @@
       for (const el of nums) { const r = numEssai(el); if (!r.ok) { refus(el, r.motif); return false; } }
       nums.forEach(el => { C.poserNumerotation(data, el.dataset.num, anneeNum, el.value); el.dataset.avant = el.value.trim(); });
       const v = formValues($('#pf'));
+      // (plateforme, 1.87.13) Un matricule mal formé se refuse ici comme dans « Compléter ma fiche » : la fiche
+      // l'enregistrait sans un mot (« 1234567X », la suite oubliée), le serveur ne le portait pas à l'entreprise, et seule
+      // l'émission le disait (recette du 21/10/2026). Le contrôle passe avant l'écriture : rien d'autre n'est enregistré.
+      const mfEl = $('#pf [name="matricule"]');
+      if (mfEl && String(v.matricule || '').trim() && !C.matriculeBienForme(v.matricule)) {
+        refus(mfEl, `« ${String(v.matricule).trim()} » n'a pas la forme d'un matricule fiscal : sept chiffres, une lettre (jamais I, O ni U), puis code TVA, catégorie et établissement (1234567A/A/M/000), tels qu'ils figurent sur ta carte d'identification fiscale.`);
+        return false;
+      }
       // L'attestation d'exonération de retenue (10.15.0, H7) : ses trois champs ne sont pas des
       // réglages de la fiche, et une attestation sans fin se refuse avant d'écrire quoi que ce soit.
       const exosCo = lireAttestationRS(data.company, v, $('#pf'));
