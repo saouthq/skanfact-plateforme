@@ -239,6 +239,36 @@ describe('la recette de la console, tenue par l\'écran', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
+  // Au clavier, la fiche d'un client était à quinze tabulations de sa recherche (1.87.10) : une seule organisation
+  // trouvée, « Entrée » l'ouvre ; deux, la liste reste.
+  it('Clients au clavier : Ctrl K, le nom, « Entrée » ouvre la seule fiche trouvée', async () => {
+    const email = `clavier-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Clavier', motDePasse: MDP });
+    const j = String((await api('POST', '/connexion', undefined, { email, motDePasse: MDP, appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    await api('POST', '/moi/code', j, { methode: 'application' });
+    const nom = `Fromagerie Clavier ${Date.now()}`;
+    const id = String((await api('POST', '/entreprises', j, { raisonSociale: nom })).corps.id);
+    // La liste se lit sur les chiffres que l'équipe partage : « Actualiser » les refait (C65).
+    expect((await api('GET', '/console/entreprises?frais=1', jD)).statut).toBe(200);
+    const p = await ouvrir('#/clients');
+    await p.locator('.c-table-clients tbody tr').first().waitFor({ timeout: 20_000 });
+    await p.keyboard.press('Control+k');
+    await expect.poll(() => actif(p).then((a) => a.tag)).toBe('INPUT');
+    await p.keyboard.type(nom, { delay: 10 });
+    await p.keyboard.press('Enter');
+    await expect.poll(() => p.evaluate(() => location.hash), { timeout: 20_000 }).toBe(`#/clients/${id}`);
+    // Deux trouvées (« Fromagerie Clavier » en a au moins deux d'un essai à l'autre, et l'autre ici) : la liste reste.
+    await api('POST', '/entreprises', j, { raisonSociale: `${nom} bis` });
+    expect((await api('GET', '/console/entreprises?frais=1', jD)).statut).toBe(200);
+    await p.goto(`${serveur.adresse}/console/#/clients`);
+    await p.locator('.c-table-clients tbody tr').first().waitFor({ timeout: 20_000 });
+    await p.locator('.c-recherche input').fill(nom);
+    await p.locator('.c-recherche input').press('Enter');
+    await expect.poll(() => p.locator('.c-table-clients tbody tr').count(), { timeout: 20_000 }).toBe(2);
+    expect(await p.evaluate(() => location.hash)).toMatch(/^#\/clients\?/);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
   it('l\'entrée de la console : l\'adresse se tape d\'un trait, sans que le curseur saute au mot de passe ; venue remplie, le curseur va au mot de passe', async () => {
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
     const p = await cx.newPage();

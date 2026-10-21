@@ -18452,6 +18452,10 @@ prouver 'la lecture seule cachée dans le menu replié du téléphone' web/publi
   '  .sidebar:not(.menu-ouvert) > .sidebar-foot:has(> #lic-banner.warn:not([hidden])) { display: flex; margin-top: 6px; padding: 0; border: 0; }' '' \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
+prouver 'la seule fiche trouvée à quinze tabulations de sa recherche' web/console/src/ecrans/Clients.tsx \
+  " onKeyDown={(e) => { if (e.key === 'Enter') void entree(); }}" '' \
+  'Clients au clavier : Ctrl K, le nom, « Entrée » ouvre la seule fiche trouvée'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

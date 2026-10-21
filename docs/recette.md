@@ -680,6 +680,12 @@ pied du menu, replié au téléphone : on ne l'apprenait qu'au refus. Elle se vo
 fermé, quand elle alerte (lecture seule, fin d'essai proche). Et la vérification locale joue désormais le test de
 provenance dès qu'un écran repris bouge (la cause du rouge réparé par la 1.87.8). Une preuve.
 
+### 1.87.10 — la console au clavier
+
+La console se parcourt au clavier dans l'ordre de l'écran, chaque élément avec son anneau, et `Ctrl K` mène à la
+recherche. Mais une recherche qui ne trouvait qu'une organisation laissait sa fiche à quinze tabulations (tous les
+filtres d'abord). « Entrée » l'ouvre maintenant ; deux trouvées ou plus, la liste reste. Une preuve.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

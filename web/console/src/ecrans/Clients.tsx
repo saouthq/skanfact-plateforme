@@ -448,6 +448,19 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
     try { await apiActualiser('GET', `/console/entreprises?${p.toString()}&frais=1`); } catch { /* la relecture dit la panne */ } finally { setActualise(false); relire(); }
   };
   const aujourdhui = lu?.aujourdhui ?? moi.aujourdhui;
+  // « Entrée » dans la recherche (1.87.10) : une seule organisation trouvée, sa fiche s'ouvre. Au clavier, elle était à
+  // quinze tabulations (Ctrl K, le nom, puis tous les filtres). La question part tout de suite, avec la sélection telle
+  // qu'elle sera (la frappe pas encore lue comprise) : la liste à l'écran peut être encore celle d'avant.
+  const entree = async () => {
+    const cherche = q.trim();
+    if (!cherche) return;
+    if (cherche !== qLue) { setQLue(cherche); setDebut(0); }
+    try {
+      const r = await apiActualiser<Liste>('GET', `/console/entreprises?${new URLSearchParams({ ...selection, q: cherche, limite: '2', debut: '0' }).toString()}`);
+      const seule = r && r.statut === 200 && r.corps.total === 1 ? r.corps.lignes[0] : undefined;
+      if (seule) location.hash = lienDe(seule);
+    } catch { /* la liste dit la panne */ }
+  };
   const choisir = (c: Categorie | null) => { setEtat(c); setDebut(0); };
   // Une vue du métier est un raccourci : elle ouvre toute sa liste, quelle que soit la puce d'état choisie avant.
   const choisirVue = (v: VueClients) => { setVue(v); setEtat(null); setDebut(0); };
@@ -504,7 +517,7 @@ export function Clients({ etat: etatDemande, q: qDemande, nouvelles: nouvellesDe
             <label className="c-recherche">
               <span className="c-cache">{titre('console.ecran.chercher_label')}</span>
               <Icone nom="chercher" />
-              <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder={titre('console.ecran.clients.chercher')} />
+              <input type="search" value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void entree(); }} placeholder={titre('console.ecran.clients.chercher')} />
             </label>
             <label className="c-cl-filtre">
               <span className="c-cache">{titre('console.ecran.clients.filtre.type')}</span>
