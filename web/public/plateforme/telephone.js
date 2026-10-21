@@ -18,6 +18,10 @@
 // 4. « Aperçu » d'une pièce (1.87.12). Au téléphone, l'aperçu est déjà là, tout en bas sous le formulaire ; le bouton le
 //    MASQUAIT, sans que rien ne bouge à l'écran, puis disait « Afficher l'aperçu » (vu en recette le 21/10/2026). Au
 //    téléphone, il ouvre l'aperçu en grand, comme « Agrandir » : c'est ce qu'on attend en le touchant.
+// 5. Le nom des cases d'une ligne (1.87.19), à toutes les largeurs. La quantité, le prix, la TVA d'une ligne de pièce
+//    n'avaient d'autre nom que le titre de leur colonne, que rien ne relie à la case : au clavier, un lecteur d'écran
+//    disait « zone d'édition » (vu en recette le 21/10/2026). Chaque case d'un tableau de lignes qui n'a pas de nom
+//    reçoit « le titre de sa colonne, ligne N » (`aria-label`, marqué `data-nom-ligne` pour suivre l'ordre des lignes).
 (function () {
   'use strict';
   function poserMenu() {
@@ -118,6 +122,38 @@
     }, true);
   }
 
-  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); }
+  // ── Le nom des cases d'une ligne ──
+  /** @param {HTMLTableElement} table */
+  function nommerLignes(table) {
+    const tete = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
+    if (!tete) return;
+    /** @type {string[]} */ const titres = [];
+    for (const th of tete.cells) { titres.push(titreDe(th)); for (let k = 1; k < th.colSpan; k++) titres.push(''); }
+    for (const corps of table.tBodies) {
+      [...corps.rows].forEach((tr, n) => {
+        let col = 0;
+        for (const td of tr.cells) {
+          const titre = td.colSpan === 1 ? titres[col] || '' : '';
+          col += td.colSpan;
+          for (const champ of td.querySelectorAll('input:not([type=hidden]), select, textarea')) {
+            // Une case qui a déjà un nom (le sien, ou une étiquette) le garde ; seul ce que ce fichier a posé se refait.
+            if (champ.hasAttribute('aria-label') && !champ.hasAttribute('data-nom-ligne')) continue;
+            if (/** @type {HTMLInputElement} */ (champ).labels?.length) continue;
+            const nom = titre ? `${titre}, ligne ${n + 1}` : '';
+            poser(champ, 'aria-label', nom);
+            poser(champ, 'data-nom-ligne', nom ? 'oui' : '');
+          }
+        }
+      });
+    }
+  }
+  let nomsPrevus = 0;
+  function nommer() { nomsPrevus = 0; for (const t of document.querySelectorAll('table.lines-edit')) nommerLignes(/** @type {HTMLTableElement} */ (t)); }
+  function suivreLesLignes() {
+    new MutationObserver(() => { if (!nomsPrevus) nomsPrevus = requestAnimationFrame(nommer); }).observe(document.body, { childList: true, subtree: true });
+    nommer();
+  }
+
+  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); suivreLesLignes(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer); else demarrer();
 })();

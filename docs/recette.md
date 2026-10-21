@@ -757,6 +757,15 @@ Le test passait de la facture à l'achat et attendait le bandeau de lecture seul
 selon la vitesse de la machine, il lisait les boutons de la facture. Il attend maintenant la page d'achat elle-même (ses
 lignes). La preuve, rejouée deux fois ici, tombe chaque fois.
 
+### 1.87.19 — une facture au clavier seul
+
+Une nouvelle facture parcourue à la touche Tab : chaque case et chaque bouton montre son anneau, dans l'ordre de
+l'écran. Mais la quantité, le prix, l'unité et la TVA d'une ligne n'avaient d'autre nom que le titre de leur colonne,
+que rien ne relie à la case : un lecteur d'écran disait « zone d'édition ». Chaque case d'un tableau de lignes sans nom
+reçoit maintenant « le titre de sa colonne, ligne N » (« Qté, ligne 2 »), et le suit quand les lignes changent ; à
+toutes les largeurs, pour l'entreprise comme pour le Cabinet (`plateforme/telephone.js`, cinquième partie). Les
+boutons ⧉ et ✕ portaient déjà leur nom. Un test, une preuve ; l'ancienne preuve de l'aperçu au téléphone suit le texte.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

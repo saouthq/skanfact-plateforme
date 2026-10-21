@@ -309,4 +309,25 @@ describe('le lot facture, à l\'écran', () => {
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 120_000);
+
+  it('(1.87.19) au clavier, chaque case d\'une ligne se nomme : le titre de sa colonne et le numéro de sa ligne', async () => {
+    const { jeton, ent } = await personne('Ines', 'Pharmacie du Port', '8406192E/A/M/000');
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/new/facture`);
+    await p.locator('#lines tr [data-k=qty]').first().waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    await p.locator('#add-line').click();
+    // Le nom que lit un lecteur d'écran : la quantité, le prix et la TVA de la seconde ligne.
+    const seconde = p.locator('#lines tr').nth(1);
+    await expect.poll(() => seconde.locator('[data-k=qty]').getAttribute('aria-label')).toBe('Qté, ligne 2');
+    expect(await seconde.locator('[data-k=unitPrice]').getAttribute('aria-label')).toBe('P.U. HT, ligne 2');
+    expect(await seconde.locator('[data-k=vatRate]').getAttribute('aria-label')).toBe('TVA, ligne 2');
+    expect(await p.getByRole('spinbutton', { name: 'Qté, ligne 1', exact: true }).count()).toBe(1);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
 });

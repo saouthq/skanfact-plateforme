@@ -18461,7 +18461,7 @@ prouver 'la recherche de l'\''accueil qui ouvre la liste pour un seul nom' web/c
   'Clients au clavier : Ctrl K, le nom, « Entrée » ouvre la seule fiche trouvée, depuis Clients comme depuis l'\''accueil'
 
 prouver '« Aperçu » qui masque l'\''aperçu du bas de page au téléphone' web/public/plateforme/telephone.js \
-  '  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); }' '  function demarrer() { poserMenu(); suivre(); void apercuEnGrand; }' \
+  '  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); suivreLesLignes(); }' '  function demarrer() { poserMenu(); suivre(); void apercuEnGrand; suivreLesLignes(); }' \
   'une pièce au téléphone : l'\''étape suivante en tête, « WhatsApp » à côté d'\''« Email », chaque bulle avec son bouton ; le bandeau d'\''une pièce émise tient'
 
 prouver 'un matricule mal formé enregistré sans un mot par la fiche société' web/public/v10/app.js \
@@ -18489,6 +18489,10 @@ prouver 'au téléphone, l'\''en-tête des lignes d'\''achat qui pose « Qté »
 prouver 'au téléphone, la quantité d'\''une ligne d'\''achat sans son titre' web/public/plateforme/telephone.css \
   "    :is(#b-lines, #orf-lines) > tr > td:nth-child(2)::before { content: 'Qté'; }" "    :is(#b-lines, #orf-lines) > tr > td:nth-child(2)::before { }" \
   'les lignes d'\''un achat et d'\''une photo relue au téléphone : la désignation, puis prix, TVA et total dans l'\''écran'
+
+prouver 'au clavier, les cases d'\''une ligne qu'\''un lecteur d'\''écran ne nomme pas' web/public/plateforme/telephone.js \
+  '  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); suivreLesLignes(); }' '  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); }' \
+  'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
