@@ -1,0 +1,39 @@
+Les sauvegardes, vues de l'entreprise (lot Fonctions 3, 1.90.0 ; migration 0161, docs/sauvegardes-ecran.md). Format : voir
+sans-paquets.mjs.
+
+La v10 de bureau montrait ses copies du disque ; la plateforme cachait ce panneau, et rien ne disait au propriétaire que
+ses données étaient gardées. Le panneau « Tes sauvegardes », sous « Toutes les données de l'entreprise », pour le
+propriétaire et un administrateur : ce que la veille a vu des copies, et « Demander de revenir en arrière… »
+(plateforme/pont.js, `dessinerSauvegardes`).
+
+== app.js | le panneau a son entrée (le sommaire de l'onglet, la recherche des réglages, la palette)
+-- avant
+    'p-export': { onglet: 'donnees',
+-- après
+    'p-mes-sauvegardes': { onglet: 'donnees', titre: 'Tes sauvegardes', mots: 'sauvegarde sauvegardes copie copies nuit restaurer restauration revenir arriere minute perdu efface annuler secours', visible: () => exportVisible() && !!bridge.dessinerSauvegardes },
+    'p-export': { onglet: 'donnees',
+-- fin
+
+== app.js | le panneau, sous « Toutes les données de l'entreprise »
+-- avant
+      ${exportVisible() ? `${panneau('p-export', info('data.export'))}<div id="export-panel"></div></div>` : ''}
+-- après
+      ${exportVisible() ? `${panneau('p-export', info('data.export'))}<div id="export-panel"></div></div>` : ''}
+      ${exportVisible() && bridge.dessinerSauvegardes ? `${panneau('p-mes-sauvegardes', info('data.mes-sauvegardes'))}<div id="mes-sauvegardes-panel"></div></div>` : ''}
+-- fin
+
+== app.js | le point de contact dessine le panneau quand les Paramètres s'ouvrent
+-- avant
+    if (bridge.dessinerExport && $('#export-panel')) bridge.dessinerExport($('#export-panel'));
+-- après
+    if (bridge.dessinerExport && $('#export-panel')) bridge.dessinerExport($('#export-panel'));
+    if (bridge.dessinerSauvegardes && $('#mes-sauvegardes-panel')) void bridge.dessinerSauvegardes($('#mes-sauvegardes-panel'), { modal, toast });
+-- fin
+
+== guide.js | la bulle du panneau
+-- avant
+    'data.export': {
+-- après
+    'data.mes-sauvegardes': { t: 'Tes sauvegardes', d: 'SkanFact copie toutes les données <b>chaque nuit</b>, garde les dernières nuits, et de quoi revenir à n\'importe quelle <b>minute</b> des derniers jours. Ce panneau dit ce que la surveillance du serveur a vu : la dernière copie de la nuit, la copie hors de la machine, le dernier essai de restauration. Une copie qui a échoué se dit ici, comme une copie qui n\'est pas encore en place.<br><br><b>Revenir en arrière</b> efface tout ce qui a été fait après la minute choisie : ça ne se fait pas d\'un clic. Ta demande part au support ; l\'équipe SkanFact fait d\'abord un essai, qui ne change rien et nomme les pièces numérotées qui disparaîtraient, puis te le dit. Les autres entreprises ne bougent jamais.<br><br>Seuls le propriétaire et un administrateur voient ce panneau et demandent un retour en arrière.' },
+    'data.export': {
+-- fin

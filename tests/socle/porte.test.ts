@@ -25,6 +25,8 @@ const MATRICE: Record<string, string[]> = {
   'socle.cabinet.choisir':        ['✓', '—', '—', '—', '—', '—', '—', '—', '—'],
   'socle.support.autoriser':      ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
   'socle.export_complet':         ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
+  'socle.sauvegardes.voir':       ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
+  'socle.sauvegardes.demander':   ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
   'socle.audit.lire':             ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],
   'socle.abonnement.resilier':    ['✓', '—', '—', '—', '—', '—', '—', '—', '—'],
   'socle.cles_api.gerer':         ['✓', '✓', '—', '—', '—', '—', '—', '—', '—'],

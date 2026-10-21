@@ -70,6 +70,12 @@ export const GESTES_SOCLE: Geste[] = [
     roles: { proprietaire: P, administrateur: P } },
   { code: 'socle.export_complet', module: 'socle', horsCle: true, ecrit: false, prevenirProprietaire: true, sensible: true,
     roles: { proprietaire: P, administrateur: P } },
+  // Les sauvegardes, vues de l'entreprise (0161, docs/sauvegardes-ecran.md) : les lire, et demander de revenir à une
+  // minute passée (une demande au support ; rien ne change d'ici).
+  { code: 'socle.sauvegardes.voir', module: 'socle', horsCle: true, ecrit: false,
+    roles: { proprietaire: P, administrateur: P } },
+  { code: 'socle.sauvegardes.demander', module: 'socle', horsCle: true, ecrit: true, prevenirProprietaire: true,
+    roles: { proprietaire: P, administrateur: P } },
   { code: 'socle.audit.lire', module: 'socle', ecrit: false,
     roles: { proprietaire: P, administrateur: P } },
   { code: 'socle.cles_api.gerer', module: 'socle', horsCle: true, ecrit: true, prevenirProprietaire: true,

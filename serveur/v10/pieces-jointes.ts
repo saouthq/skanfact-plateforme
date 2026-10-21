@@ -9,7 +9,7 @@ import { z } from 'zod';
 import type { Route } from '../app.ts';
 import { motif } from '../../textes/index.ts';
 import { sorteDe } from '../achats/lecteur.ts';
-import './textes-pieces-jointes.ts';
+import './textes.ts';
 
 const uuid = z.string().uuid();
 export const LIMITE_PIECE = 10 * 1_048_576;

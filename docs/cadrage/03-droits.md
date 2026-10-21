@@ -165,6 +165,8 @@ module ne paraît pas) ; *en italique*, une condition.
 | Choisir le cabinet, fixer son périmètre, arrêter le mandat | ✓ | — | — | — | — | — | — | — |
 | Accorder un accès au support | ✓ | ✓ *prévient P* | — | — | — | — | — | — |
 | **Export complet** de l'entreprise (jamais bloqué par l'abonnement, même en lecture seule : `07`) | ✓ | ✓ *prévient P* | — | — | — | — | — | — |
+| **Ses sauvegardes** : voir ce que la surveillance a vu des copies (ajouté le 21/10/2026, `docs/sauvegardes-ecran.md`) | ✓ | ✓ | — | — | — | — | — | — |
+| **Demander de revenir à une minute passée** (une demande au support, rien ne change d'ici ; ajouté le 21/10/2026) | ✓ | ✓ *prévient P* | — | — | — | — | — | — |
 | Exporter une liste (CSV) qu'on voit | ✓ | ✓ | ✓ | — | ✓ | ✓ | ✓ | ✓ |
 | Lire la piste d'audit de toute l'entreprise | ✓ | ✓ | — | — | — | — | — | — |
 | Créer, voir et révoquer les **clés de l'API** (§ 8) | ✓ | ✓ *prévient P* | — | — | — | — | — | — |

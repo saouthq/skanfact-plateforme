@@ -822,4 +822,6 @@ export const ADAPTATIONS = [
   ...lireFichier('recette-21-10.txt'),
   // ── Les pièces jointes gardées par le serveur (1.89.0) ──
   ...lireFichier('pieces-jointes.txt'),
+  // ── Les sauvegardes, vues de l'entreprise (1.90.0) ──
+  ...lireFichier('sauvegardes-ecran.txt'),
 ];

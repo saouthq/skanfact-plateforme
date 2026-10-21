@@ -81,6 +81,7 @@ import { declarerGestesMessagerie } from './messagerie/gestes.ts';
 import { prevenirParCourriel } from './messagerie/postier.ts';
 import { prevenirDesReponses } from './support/postier.ts';
 import { declarerGestesSupport } from './support/gestes.ts';
+import { routesSauvegardes } from './sauvegardes.ts';
 import { routesSupport } from './support/routes.ts';
 import { relancerLesAbonnements } from './abonnement/relances.ts';
 import { routesAbonnement } from './abonnement/routes.ts';
@@ -262,7 +263,7 @@ export function routesDuServeur(ctx: Contexte, options: { veille: string | null;
   declarerGestesMessagerie();
   declarerGestesSupport();
   return [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx),
-    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPiecesJointes(), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesAbonnement(ctx), ...routesConsole(ctx, options),
+    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPiecesJointes(), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesSauvegardes(ctx), ...routesAbonnement(ctx), ...routesConsole(ctx, options),
     ...routesMessageClients(ctx.maintenant), ...routesNouveautes(ctx), ...routesPdf(ctx)];
 }
 

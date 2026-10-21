@@ -806,6 +806,14 @@ Maintenant : deux fichiers joints d'un coup (un PDF et une photo), la photo ouve
 l'identique, toujours là après un rechargement, puis retiré (la question dit, avant, ce que le serveur efface et ce
 qu'il garde). Un document Word renommé en `.pdf` se refuse et dit pourquoi. Détail : `docs/pieces-jointes.md`.
 
+### 1.90.0 — les sauvegardes, vues de l'entreprise
+
+Paramètres › Données et sécurité : le panneau « Tes sauvegardes » dit, sur une nuit qui a échoué, « La copie de la nuit du
+… a échoué. La dernière réussie : le … à 3 h 30. », une copie hors de la machine pas encore en place, l'essai de
+restauration réussi. « Demander de revenir en arrière… » dit d'abord ce qui disparaîtrait, refuse sans motif en montrant
+la case, puis envoie la demande au support ; rien ne change. Un commercial ne voit pas le panneau. Détail :
+`docs/sauvegardes-ecran.md`.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

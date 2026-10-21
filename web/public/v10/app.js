@@ -8697,6 +8697,7 @@
     'p-comptable': { onglet: 'envois', titre: 'Envoyer tes écritures par e-mail', mots: 'comptable email adresse envoyer journaux ecritures' },
     'p-modeles': { onglet: 'envois', titre: 'Modèles de messages', mots: 'modele message objet relance rappel email gabarit variables' },
     'p-cabinet': { onglet: 'envois', titre: 'Ton cabinet comptable', mots: 'cabinet comptable expert code confier mandat livres' },
+    'p-mes-sauvegardes': { onglet: 'donnees', titre: 'Tes sauvegardes', mots: 'sauvegarde sauvegardes copie copies nuit restaurer restauration revenir arriere minute perdu efface annuler secours', visible: () => exportVisible() && !!bridge.dessinerSauvegardes },
     'p-export': { onglet: 'donnees', titre: 'Toutes les données de l\'entreprise', mots: 'export exporter telecharger donnees tout fichier copie sauvegarde json garder quitter partir recuperer reversibilite', visible: () => exportVisible() },
     'p-quarantaine': { onglet: 'donnees', titre: 'Remis par un appareil retiré', mots: 'appareil retire quarantaine remis hors ligne accepter rejeter changement attente', visible: () => !!(bridge.quarantaine && bridge.quarantaine()) },
     'p-acces-support': { onglet: 'equipe', titre: 'Le support de SkanFact', mots: 'support skanfact acces dossier lecture accorder refuser retirer qui a regarde mes donnees pages lues equipe confidentialite', visible: () => equipeVisible() && !!bridge.accesSupport },
@@ -18685,6 +18686,7 @@
 
       <section data-pane="donnees" hidden>
       ${exportVisible() ? `${panneau('p-export', info('data.export'))}<div id="export-panel"></div></div>` : ''}
+      ${exportVisible() && bridge.dessinerSauvegardes ? `${panneau('p-mes-sauvegardes', info('data.mes-sauvegardes'))}<div id="mes-sauvegardes-panel"></div></div>` : ''}
       ${bridge.quarantaine && bridge.quarantaine() ? `${panneau('p-quarantaine')}<div id="quarantaine-panel"></div></div>` : ''}
       ${bridge.dessinerServices ? `${panneau('p-services')}<div id="services-panel"></div></div>` : ''}
       ${panneau('p-dossiers', info('data.dossiers'))}
@@ -19025,6 +19027,7 @@
     if (bridge.dessinerAbonnement && $('#abonnement-panel')) void bridge.dessinerAbonnement($('#abonnement-panel'));
     if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
     if (bridge.dessinerExport && $('#export-panel')) bridge.dessinerExport($('#export-panel'));
+    if (bridge.dessinerSauvegardes && $('#mes-sauvegardes-panel')) void bridge.dessinerSauvegardes($('#mes-sauvegardes-panel'), { modal, toast });
     if (bridge.dessinerServices && $('#services-panel')) void bridge.dessinerServices($('#services-panel'));
     if (bridge.dessinerPaiement && $('#paiement-panel')) void bridge.dessinerPaiement($('#paiement-panel'));
     if (bridge.dessinerSignataire && $('#signataire-panel')) void bridge.dessinerSignataire($('#signataire-panel'));

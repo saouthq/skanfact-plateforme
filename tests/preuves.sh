@@ -18568,6 +18568,31 @@ prouver 'une pièce jointe refusée dont l'\''écran ne dit rien' web/public/v10
   $'          const added = await bridge.addAttachments(doc.id);\n          if (!added.length) return;' $'          const added = await bridge.addAttachments(doc.id).catch(() => []);\n          if (!added.length) return;' \
   'un fichier qui n'\''est ni une photo ni un PDF se refuse, et dit pourquoi'
 
+prouver 'les sauvegardes de l'\''entreprise lues par un commercial' base/migrations/0161_mes_sauvegardes.sql \
+  $'  if socle.ma_cle() is not null or not (socle.mes_roles(p_entreprise) && array[\'proprietaire\', \'administrateur\']::text[]) then' $'  if socle.ma_cle() is not null or not (socle.mes_roles(p_entreprise) && array[\'proprietaire\', \'administrateur\', \'commercial\']::text[]) then' \
+  'le propriétaire et un administrateur lisent les copies ; un commercial et la voisine, non ; une veille muette se dit'
+prouver 'une surveillance muette depuis une heure lue comme celle de maintenant' serveur/sauvegardes.ts \
+  $'recente: quand.getTime() - Date.parse(veille.minute) <= VEILLE_RECENTE_MIN * 60_000' $'recente: quand.getTime() - Date.parse(veille.minute) <= VEILLE_RECENTE_MIN * 60_000 * 24' \
+  'le propriétaire et un administrateur lisent les copies ; un commercial et la voisine, non ; une veille muette se dit'
+prouver 'revenir à une minute qui n'\''est pas encore passée' serveur/sauvegardes.ts \
+  $'visee.getTime() >= quand.getTime()) {' $'visee.getTime() >= quand.getTime() + 3_600_000) {' \
+  'demander de revenir à une minute : une demande au support avec la minute et le motif ; à venir ou trop vieille, refusée'
+prouver 'revenir à une minute plus vieille que ce qu'\''on garde' serveur/sauvegardes.ts \
+  $'quand.getTime() - visee.getTime() > GARDE.jours * 86_400_000' $'quand.getTime() - visee.getTime() > GARDE.jours * 2 * 86_400_000' \
+  'demander de revenir à une minute : une demande au support avec la minute et le motif ; à venir ou trop vieille, refusée'
+prouver 'une copie de la nuit échouée dite réussie' web/public/plateforme/pont.js \
+  $'else if (s.nuit.sauvegarde && s.nuit.sauvegarde.ok) lignes.push' $'else if (s.nuit.sauvegarde) lignes.push' \
+  'le propriétaire voit les copies telles qu'\''elles sont, et demande de revenir en arrière ; un commercial ne voit pas le panneau'
+prouver 'une copie hors de la machine pas en place dite à jour' web/public/plateforme/pont.js \
+  $'if (!s.horsMachine || !s.horsMachine.regle) lignes.push' $'if (!s.horsMachine) lignes.push' \
+  'le propriétaire voit les copies telles qu'\''elles sont, et demande de revenir en arrière ; un commercial ne voit pas le panneau'
+prouver 'une demande de retour en arrière sans motif, sans la case montrée' web/public/plateforme/pont.js \
+  $': motif.length < 3 ? \'#sv-motif\' : \'\';' $': \'\';' \
+  'le propriétaire voit les copies telles qu'\''elles sont, et demande de revenir en arrière ; un commercial ne voit pas le panneau'
+prouver 'le panneau des sauvegardes montré à un commercial' web/public/v10/app.js \
+  $'${exportVisible() && bridge.dessinerSauvegardes ? `${panneau(\'p-mes-sauvegardes\'' $'${bridge.dessinerSauvegardes ? `${panneau(\'p-mes-sauvegardes\'' \
+  'le propriétaire voit les copies telles qu'\''elles sont, et demande de revenir en arrière ; un commercial ne voit pas le panneau'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

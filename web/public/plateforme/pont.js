@@ -912,6 +912,7 @@
     dessinerAppareils,
     dessinerEquipe,
     dessinerExport,
+    dessinerSauvegardes,
     dessinerAbonnement,
     // La licence de la v10, tirée de l'abonnement : sa pastille, sa carte d'essai, et sa porte de création (licenceBlock).
     licenceStatus: async () => {
@@ -1634,6 +1635,78 @@
         bouton.textContent = 'Télécharger toutes les données';
       }
     };
+  }
+  // ── Les sauvegardes, vues de l'entreprise (lot Fonctions 3, 0161 ; docs/sauvegardes-ecran.md) : ce que la veille a vu
+  // des copies, dit tel quel (une copie échouée, une copie hors de la machine pas encore en place, une surveillance
+  // muette se disent), les remises faites, et « Demander de revenir en arrière… » : une demande au support, jamais un clic
+  // qui efface (06 § 4.4 : l'équipe fait d'abord l'essai, et te dit ce qui disparaîtrait).
+  /** @param {HTMLElement} el @param {{ modal: any, toast: (t: string, erreur?: boolean) => void }} v10 */
+  async function dessinerSauvegardes(el, v10) {
+    /** @type {any} */ let s;
+    try { s = await appel('GET', '/sauvegardes'); } catch (x) { el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`; return; }
+    /** @param {string} jour */
+    const date = (jour) => String(jour).split('-').reverse().join('/');
+    /** @type {string[]} */ const lignes = [];
+    if (!s.veille) lignes.push('<li data-sv="veille">La surveillance du serveur n\'a encore rien relevé : rien ne dit encore l\'état des copies.</li>');
+    else if (!s.veille.recente) lignes.push(`<li data-sv="veille"><b>Ces informations datent du ${esc(quand(s.veille.minute))}</b> : la surveillance du serveur ne s'est pas manifestée depuis.</li>`);
+    if (!s.nuit) lignes.push('<li data-sv="nuit">Copie de la nuit : pas encore faite sur ce serveur.</li>');
+    else if (s.nuit.sauvegarde && s.nuit.sauvegarde.ok) lignes.push(`<li data-sv="nuit">Dernière copie de la nuit : le ${esc(quand(s.nuit.sauvegarde.le))}, réussie.</li>`);
+    else lignes.push(`<li data-sv="nuit"><b>La copie de la nuit du ${esc(date(s.nuit.jour))} a échoué.</b> ${s.reussie ? `La dernière réussie : le ${esc(quand(s.reussie.le))}.` : 'Aucune n\'a encore réussi sur ce serveur.'}</li>`);
+    if (s.archivage && !s.archivage.enMarche) lignes.push('<li data-sv="archivage"><b>L\'archivage à la minute ne tourne pas</b> : on revient seulement à une nuit, pas à une minute précise.</li>');
+    // Sans relevé de la veille, rien ne dit l'état de la copie hors de la machine : la ligne de la veille le dit déjà.
+    if (!s.veille) { /* rien à affirmer */ } else if (!s.horsMachine || !s.horsMachine.regle) lignes.push('<li data-sv="hors">Copie hors de la machine : pas encore en place sur ce serveur. Les copies restent sur la machine qui fait tourner SkanFact.</li>');
+    else if (s.horsMachine.attenteDepuis) lignes.push(`<li data-sv="hors">Copie hors de la machine : en attente depuis le ${esc(quand(s.horsMachine.attenteDepuis))}.</li>`);
+    else lignes.push('<li data-sv="hors">Copie hors de la machine : à jour.</li>');
+    if (!s.exercice) lignes.push('<li data-sv="essai">Essai de restauration : pas encore fait sur ce serveur.</li>');
+    else lignes.push(`<li data-sv="essai">Dernier essai de restauration : le ${esc(date(s.exercice.jour))}, ${s.exercice.ok ? 'réussi' : '<b>échoué</b>'}.</li>`);
+    const archive = !s.archivage || s.archivage.enMarche;
+    /** @param {string} hm */
+    const heure = (hm) => `${Number(hm.slice(0, 2))} h ${hm.slice(3, 5)}`;
+    const jourDuMois = s.calendrier.exercice.jourDuMois === 1 ? '1er' : String(s.calendrier.exercice.jourDuMois);
+    el.innerHTML = `<p class="small muted mb">Chaque nuit à ${esc(heure(s.calendrier.sauvegarde))} (heure de Tunis), SkanFact copie toutes les données ; il garde les ${esc(s.garde.nuits)} dernières nuits${archive ? `, et de quoi revenir à n'importe quelle minute des ${esc(s.garde.jours)} derniers jours` : ''}. Le ${esc(jourDuMois)} de chaque mois, une copie est remise en place à côté, pour vérifier qu'elle se relit.</p>
+      <ul class="small sv-etat" id="sv-etat">${lignes.join('')}</ul>
+      ${s.remises.length ? `<p class="small mt"><b>Retours en arrière faits</b></p><ul class="small" id="sv-remises">${s.remises.map((/** @type {any} */ r) => `<li>Le ${esc(quand(r.le))}${r.minute ? `, revenue au ${esc(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/.test(r.minute) ? `${date(r.minute.slice(0, 10))} à ${r.minute.slice(11)}` : r.minute)}` : ''} : ${esc(r.motif || '')}</li>`).join('')}</ul>` : ''}
+      <div class="inline mt"><button type="button" class="btn" id="sv-revenir">Demander de revenir en arrière…</button></div>`;
+    /** @type {HTMLButtonElement} */ (el.querySelector('#sv-revenir')).onclick = () => demanderDeRevenir(v10, s);
+  }
+  /** @param {{ modal: any, toast: (t: string, erreur?: boolean) => void }} v10 @param {any} s */
+  function demanderDeRevenir(v10, s) {
+    v10.modal(`<h2>Revenir en arrière</h2>
+      <p class="small">Tout ce qui a été fait dans l'entreprise <b>après</b> cette minute disparaîtrait : pièces, règlements, saisies. Les autres entreprises ne bougent pas.</p>
+      <p class="small muted">Rien ne change maintenant : ta demande part au support. L'équipe SkanFact fait d'abord un essai, qui ne change rien et nomme les pièces numérotées qui disparaîtraient, puis te le dit avant de faire quoi que ce soit. On revient à une minute des ${esc(s.garde.jours)} derniers jours, à l'heure de Tunis.</p>
+      <form class="cpt-form" novalidate>
+        <div class="inline"><label class="field">Le jour<input type="date" id="sv-jour" required></label>
+        <label class="field">À l'heure (Tunis)<input type="text" id="sv-heure" inputmode="numeric" placeholder="09:15" maxlength="5" autocomplete="off"></label></div>
+        <label class="field">Pourquoi<textarea id="sv-motif" rows="3" placeholder="Une importation a écrasé mes prix ce matin…"></textarea></label>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="submit" class="btn btn-primary" id="sv-envoyer">Envoyer la demande</button></div>
+        <p class="small cpt-alerte" role="alert"></p>
+      </form>`, (/** @type {HTMLElement} */ racine, /** @type {() => void} */ fermer) => {
+      const champ = (/** @type {string} */ id) => /** @type {HTMLInputElement} */ (racine.querySelector(id));
+      const alerte = /** @type {HTMLElement} */ (racine.querySelector('[role=alert]'));
+      champ('#sv-jour').focus();
+      /** @type {HTMLFormElement} */ (racine.querySelector('form')).onsubmit = async (e) => {
+        e.preventDefault();
+        alerte.textContent = '';
+        // L'heure en 24 heures, tapée « 9:15 », « 9h15 » ou « 0915 » ; le champ du navigateur parlait la langue de
+        // l'ordinateur (« --:-- -- », matin et soir).
+        const lue = /^(\d{1,2})\s*[:hH.]?\s*(\d{2})$/.exec(champ('#sv-heure').value.trim());
+        const heure = lue && Number(lue[1]) < 24 && Number(lue[2]) < 60 ? `${String(lue[1]).padStart(2, '0')}:${lue[2]}` : '';
+        const jour = champ('#sv-jour').value, motif = champ('#sv-motif').value.trim();
+        const manque = !jour ? '#sv-jour' : !heure ? '#sv-heure' : motif.length < 3 ? '#sv-motif' : '';
+        if (manque) { alerte.textContent = manque === '#sv-motif' ? 'Dis pourquoi revenir en arrière : l\'équipe en a besoin pour faire l\'essai.' : manque === '#sv-heure' ? 'L\'heure s\'écrit en 24 heures, comme 09:15 ou 17:40.' : 'Écris le jour où revenir, comme 20/10/2026.'; champ(manque).focus(); return; }
+        const bouton = /** @type {HTMLButtonElement} */ (racine.querySelector('#sv-envoyer'));
+        bouton.disabled = true;
+        try {
+          await appel('POST', '/sauvegardes/revenir', { minute: `${jour} ${heure}`, motif });
+          fermer();
+          v10.toast('Demande envoyée au support : tu la suis dans « Tes demandes au support ». Rien n\'a changé.');
+        } catch (x) {
+          alerte.textContent = x instanceof Error ? x.message : String(x);
+          const c = /** @type {any} */ (x).champ;
+          if (c === 'minute') champ('#sv-jour').focus(); else if (c === 'motif') champ('#sv-motif').focus();
+        } finally { bouton.disabled = false; }
+      };
+    });
   }
   // ── Services connectés (brique 134 ; docs/boutique.md, B0) : les services qui agissent pour l'entreprise avec une
   // clé de l'API (une boutique SkanEcom reliée, un outil branché), ce qu'ils peuvent faire, et « Couper l'accès ».
