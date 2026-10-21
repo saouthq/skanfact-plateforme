@@ -775,6 +775,14 @@ l'autre : elle reçoit le nom de ce qu'elle choisit (« Année », « Mois », �
 liste »). Le test de la 1.87.19, qui réutilisait l'entreprise du test d'avant (son matricule déjà pris, la vérification
 complète l'a vu), a la sienne. Une preuve.
 
+### 1.87.21 — les lignes d'un devis au téléphone
+
+Un devis au doigt (le client choisi dans sa liste, une course urbaine du catalogue : 25,000 HT, 4,750 de TVA,
+29,750 TTC — juste) : l'en-tête des lignes, rangé sur la grille du bureau, posait « Qté », « Unité » et « P.U. HT »
+loin de leurs cases, comme aux achats (1.87.17). Au téléphone, il se cache, et chaque case porte son titre juste
+au-dessus. Ce que cela coûte, et qui reste ouvert : les bulles « i » de ces titres de colonne (Unité, TVA ; aux
+achats, Destination et TVA déductible) ne se voient plus au téléphone ; elles restent au bureau. Un test, une preuve.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
@@ -784,3 +792,11 @@ complète l'a vu), a la sienne. Une preuve.
 3. Rien d'ouvert sur la saisie du Cabinet au clavier (1.87.7).
 4. Le vrai hors-ligne des devis et brouillons (vision § 4.5) ne vaut que sur « mon ordinateur » ; ailleurs, l'écran le
    dit avant le geste.
+5. À la tablette debout (761 à 1 023 px), plus rien ne défile de côté (1.87.16) ; à 1 024 px, rien ne débordait.
+6. Au clavier, chaque case des treize écrans de l'entreprise et des sept du Cabinet relevés porte un nom (1.87.19,
+   1.87.20) ; les autres écrans restent à relever de la même façon.
+7. La caisse : vendue, rendue et fermée au téléphone, juste au millime ; tenue sur un appareil perdu, elle se ferme
+   d'ici (1.87.14).
+8. Au téléphone, les bulles « i » des titres de colonne d'une ligne (Unité, TVA, Destination, TVA déductible) ne se
+   voient plus depuis que chaque case porte son titre (1.87.17, 1.87.21) : à rendre, par exemple en bulle à côté du
+   titre de la case.

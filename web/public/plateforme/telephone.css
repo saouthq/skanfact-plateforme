@@ -69,6 +69,18 @@
     grid-template-areas: "lab lab lab" "qte unite pu" "tva total total" "outils outils outils";
   }
   table.lignes-doc td.line-tools { text-align: start; }
+  /* (1.87.21) L'en-tête, rangé sur la grille du bureau, posait « Qté », « Unité » et « P.U. HT » loin de leurs cases
+     (vu au devis, le 21/10/2026) : il se cache, et chaque case porte son titre juste au-dessus, comme les lignes d'un
+     achat (1.87.17). */
+  table.lignes-doc > thead { display: none; }
+  table.lignes-doc > tbody > tr > td:nth-child(-n + 6)::before {
+    display: block; margin-bottom: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .6px; text-transform: uppercase; color: var(--muted); }
+  table.lignes-doc > tbody > tr > td:nth-child(1)::before { content: 'Désignation'; }
+  table.lignes-doc > tbody > tr > td:nth-child(2)::before { content: 'Qté'; }
+  table.lignes-doc > tbody > tr > td:nth-child(3)::before { content: 'Unité'; }
+  table.lignes-doc > tbody > tr > td:nth-child(4)::before { content: 'P.U. HT'; }
+  table.lignes-doc > tbody > tr > td:nth-child(5)::before { content: 'TVA'; }
+  table.lignes-doc > tbody > tr > td:nth-child(6)::before { content: 'Total HT'; }
 
   /* Les lignes d'un achat ailleurs (une commande, une demande de prix) : le tableau défile dans son cadre, jamais la
      page. Celles de l'écran d'achat et de la relecture d'une photo se rangent comme les lignes d'une pièce (plus bas). */

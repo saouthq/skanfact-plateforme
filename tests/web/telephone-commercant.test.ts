@@ -295,6 +295,19 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await cx.close();
   }, 120_000);
 
+  it('(1.87.21) les lignes d\'un devis au téléphone : chaque case porte son titre juste au-dessus d\'elle', async () => {
+    const c = await commercante({});
+    const { cx, p, erreurs } = await ouvrir(c, '#/doc/new/devis', TELEPHONE);
+    await p.locator('#add-line').click();
+    await p.locator('#lines tr').first().waitFor();
+    // L'en-tête rangé sur la grille du bureau posait « Qté » et « P.U. HT » loin de leurs cases : il se cache.
+    expect(await p.locator('table.lignes-doc > thead').isVisible()).toBe(false);
+    expect(await p.locator('#lines tr:first-child').evaluate((tr) => [...tr.children].slice(0, 6).map((td) => getComputedStyle(td, '::before').content)))
+      .toEqual(['"Désignation"', '"Qté"', '"Unité"', '"P.U. HT"', '"TVA"', '"Total HT"']);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
+
   it('les lignes d\'un achat et d\'une photo relue au téléphone : la désignation, puis prix, TVA et total dans l\'écran', async () => {
     const c = await commercante({ pieces: true });
     const { cx, p, erreurs } = await ouvrir(c, '#/achat/p1', TELEPHONE);

@@ -18498,6 +18498,10 @@ prouver 'au clavier, les listes de filtre d'\''une page sans nom (l'\''année, l
   '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); }' '(/** @type {HTMLTableElement} */ (t)); }' \
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 
+prouver 'au téléphone, l'\''en-tête des lignes d'\''un devis qui pose « Qté » loin de sa case' web/public/plateforme/telephone.css \
+  '  table.lignes-doc > thead { display: none; }' '  table.lignes-doc > thead { }' \
+  'les lignes d'\''un devis au téléphone : chaque case porte son titre juste au-dessus d'\''elle'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
