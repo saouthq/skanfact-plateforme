@@ -94,6 +94,8 @@ describe('la saisie du Cabinet, à la souris', () => {
 
     // La grille de saisie : une OD en brouillard.
     await aller(`#/dossier/${ent}/comptabilite/saisie/2026`);
+    // La saisie s'ouvre le curseur dans « Pièce » : on tape sans cliquer (1.87.7).
+    await expect.poll(() => p.evaluate(() => document.activeElement?.id), { timeout: 10_000 }).toBe('sa-piece');
     const remplir = async (piece: string, libelle: string, lignes: [string, string, string][]) => {
       await p.locator('#sa-journal').selectOption('OD');
       await p.locator('#sa-date').fill('20/08/2026');

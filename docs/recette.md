@@ -657,12 +657,20 @@ ordinateur »), le bandeau dit qu'il est enregistré, et une fenêtre restée ou
 vente au clavier seul (Tab, Entrée, Tab pour solder, Ctrl+Entrée) se valide sous le n° 1 et la balance tombe juste.
 Deux preuves (et une ancienne, réécrite pour rester lisible par le navigateur).
 
+### 1.87.7 — la saisie du Cabinet au clavier, l'invitation au téléphone
+
+La saisie s'ouvrait sans curseur : la saisie au clavier commençait par un clic. Elle s'ouvre maintenant le curseur dans
+« Pièce », comme après chaque enregistrement (à la souris et au clavier seulement : au doigt, le clavier de l'écran
+s'ouvrirait). « Plus tard » sur l'invitation à la visite emportait ce curseur avec le bouton qui disparaît : il le rend.
+Et l'invitation du Cabinet restait posée sur le téléphone pendant le défilement, comme celle de l'entreprise avant la
+1.87.3 : elle se ferme. Trois preuves.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
    l'application.
 2. Au téléphone, plus aucun écran ne défile de côté (console, entreprise et Cabinet relevés le 21/10/2026) ; restent
    voulus la matrice des droits, les routes du serveur et la rangée des tris en pastilles.
-3. À juger : la saisie du Cabinet s'ouvre sans curseur dans la grille (un clic sur le libellé de la pièce).
+3. Rien d'ouvert sur la saisie du Cabinet au clavier (1.87.7).
 4. Le vrai hors-ligne des devis et brouillons (vision § 4.5) ne vaut que sur « mon ordinateur » ; ailleurs, l'écran le
    dit avant le geste.

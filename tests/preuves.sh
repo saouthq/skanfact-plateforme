@@ -18436,6 +18436,18 @@ prouver '« Rien n'\''a été enregistré » qui reste ouvert après l'\''enregi
   '.then(r => { if (fermerEchec) fermerEchec(); if (r && r.matriculeRefuse)' '.then(r => { if (r && r.matriculeRefuse)' \
   'un navigateur qui ne promet pas de garder : la page restée ouverte enregistre seule au retour du réseau, et le dit'
 
+prouver 'la saisie du Cabinet qui s'\''ouvre sans curseur' web/public/v10/cabinet/app.js \
+  "const pc = \$('#sa-piece', el); if (pc) pc.focus();" "const pc = \$('#sa-piece', el); void pc;" \
+  'le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur'
+
+prouver '« Plus tard » qui emporte le curseur de la saisie' web/public/v10/cabinet/app.js \
+  '      if (retour && retour !== document.body && document.body.contains(retour)) retour.focus();' '' \
+  'le portefeuille compte les mois du serveur ; la grille saisit, valide ; le livre-journal contre-passe ; le lettrage automatique lettre ; la balance reste celle du serveur'
+
+prouver 'l'\''invitation du Cabinet qui reste posée pendant le défilement du téléphone' web/public/v10/cabinet/app.js \
+  "    window.addEventListener('scroll', defile, { passive: true });" '' \
+  'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'\''ordinateur le disent'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

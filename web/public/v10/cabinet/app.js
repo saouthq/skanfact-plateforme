@@ -8454,6 +8454,15 @@
   function brancherSaisie(el, root, dossier) {
     const s = livresState;
     if (!s.livre || !saisieState.piece) return;
+    // (plateforme, 1.87.7) La saisie s'ouvre le curseur dans « Pièce », comme après chaque enregistrement : elle s'ouvrait
+    // sans curseur, et la saisie au clavier commençait par un clic (vu en recette le 21/10/2026). Seulement à la souris et au
+    // clavier (au doigt, le clavier de l'écran s'ouvrirait), quand rien d'autre n'a le curseur ni de fenêtre ouverte.
+    requestAnimationFrame(() => {
+      const libre = !document.activeElement || document.activeElement === document.body;
+      if (libre && matchMedia('(hover: hover) and (pointer: fine)').matches && !document.querySelector('#modal-root .modal')) {
+        const pc = $('#sa-piece', el); if (pc) pc.focus();
+      }
+    });
     // La pagination du brouillard : la pièce en cours vit dans `saisieState`, le redessin la garde.
     bindPager(el, () => drawLivres(root, dossier), s);
     const p = saisieState.piece;
@@ -12513,6 +12522,12 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     typographie(el);
     const scroller = $('#view');
     const depart = scroller ? scroller.scrollTop : 0;
+    // (plateforme, 1.87.7) Au téléphone, c'est la page entière qui défile, pas `#view` (comme à l'entreprise, 1.87.3).
+    const departFenetre = window.scrollY;
+    // Le curseur que la personne avait (la case « Pièce » de la saisie) : « Plus tard » le lui rend, au lieu de le perdre
+    // avec le bouton qui disparaît.
+    let retour = null;
+    el.addEventListener('mousedown', () => { retour = document.activeElement; }, true);
     // Sous le bouton, calée sur son bord droit, la flèche sur son milieu ; jamais hors de l'écran.
     const placer = () => {
       const r = bouton.getBoundingClientRect();
@@ -12526,13 +12541,14 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     // Le premier geste ailleurs la referme : on s'est mis au travail.
     const dehors = e => { if (!el.contains(e.target)) fermer(); };
     const clavier = e => { if (e.key === 'Escape' && el.contains(document.activeElement)) { e.stopPropagation(); fermer(); bouton.focus(); } };
-    const defile = () => { if (!scroller || Math.abs(scroller.scrollTop - depart) > 4) fermer(); };
+    const defile = () => { if (!scroller || Math.abs(scroller.scrollTop - depart) > 4 || Math.abs(window.scrollY - departFenetre) > 4) fermer(); };
     function fermer() {
       el.remove();
       document.removeEventListener('mousedown', dehors, true);
       document.removeEventListener('keydown', clavier, true);
       window.removeEventListener('resize', placer);
       if (scroller) scroller.removeEventListener('scroll', defile);
+      window.removeEventListener('scroll', defile);
     }
     el._fermer = fermer;
     placer();
@@ -12540,8 +12556,12 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     document.addEventListener('keydown', clavier, true);
     window.addEventListener('resize', placer);
     if (scroller) scroller.addEventListener('scroll', defile);
+    window.addEventListener('scroll', defile, { passive: true });
     $('#ga-go', el).onclick = () => { fermer(); lancerVisite(p); };
-    $('#ga-non', el).onclick = () => { visitesPoser(e => { e.vues[cle] = VISITE_PROPOSEE_MAX; }); fermer(); };
+    $('#ga-non', el).onclick = () => {
+      visitesPoser(e => { e.vues[cle] = VISITE_PROPOSEE_MAX; }); fermer();
+      if (retour && retour !== document.body && document.body.contains(retour)) retour.focus();
+    };
   }
 
   // La page « Me guider » : où j'en suis, LE prochain geste (un seul vert), les grands départs, chaque

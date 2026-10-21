@@ -76,6 +76,7 @@ describe('le Cabinet au téléphone', () => {
     ];
     const faux: string[] = [];
     let vus = 0;
+    let invitationsFermees = 0;
     for (const largeur of [390, 1440]) {
       const doigt = largeur < 760;
       const contexte = await navigateur.newContext({ viewport: { width: largeur, height: 844 }, deviceScaleFactor: 1, locale: 'fr-FR', isMobile: doigt, hasTouch: doigt });
@@ -91,6 +92,14 @@ describe('le Cabinet au téléphone', () => {
         await page.locator('#view h1').first().waitFor({ timeout: 10_000 });
         // Les pages du Cabinet se dessinent souvent en deux temps (le serveur répond) : on attend que la page tienne.
         await page.waitForTimeout(1200);
+        // Au téléphone, la page entière défile : l'invitation « Première fois ? » se ferme au défilement (1.87.7), au lieu de
+        // rester posée sur l'écran.
+        if (doigt && await page.locator('#guide-appel').count() && await page.evaluate(() => document.documentElement.scrollHeight > innerHeight + 300)) {
+          await page.evaluate(() => window.scrollTo(0, 300));
+          await expect.poll(() => page.locator('#guide-appel').count()).toBe(0);
+          await page.evaluate(() => window.scrollTo(0, 0));
+          invitationsFermees++;
+        }
         for (let i = 0; i < 3 && await page.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await page.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
         await page.waitForTimeout(300);
         faux.push(...(await page.evaluate(problemes, [doigt, largeur] as [boolean, number])).map((x) => `${nom} : ${x}`));
@@ -104,6 +113,7 @@ describe('le Cabinet au téléphone', () => {
     }
     expect(faux).toEqual([]);
     expect(vus).toBe(PAGES.length * 2);
+    expect(invitationsFermees).toBeGreaterThan(0);
   }, 400_000);
 
   // « Tes premiers pas » du Cabinet : le corps de la page Dossiers tant qu'elle est vide (le cabinet du test précédent a
