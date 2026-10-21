@@ -233,3 +233,13 @@
   .modal > .modal-actions:last-child { position: sticky; bottom: -26px; z-index: 6; flex-wrap: wrap; margin: 20px -28px -26px; padding: 12px 28px 16px;
     background: var(--panel); border-top: 1px solid var(--border); }
 }
+
+/* ── (1.87.16) La tablette debout (761 à 1 023 px), vue le 21/10/2026 ──
+   Le menu de gauche y reste, et une liste plus large que la place restante (Accueil, Factures, Clients, Trésorerie)
+   faisait défiler toute la page de côté, titre et boutons compris ; la rangée d'export de la Comptabilité poussait
+   « Envoyer au comptable » hors de l'écran. La liste défile dans son cadre, comme au téléphone, et les boutons passent
+   à la ligne. */
+@media (min-width: 761px) and (max-width: 1023px) {
+  #view .panel:has(> table), #view #list-wrap { overflow-x: auto; }
+  #view .inline { flex-wrap: wrap; }
+}

@@ -18476,6 +18476,13 @@ prouver 'la monnaie à rendre coupée au téléphone (« 16,70… »)' web/publi
   '  .ct-montants { grid-template-columns: minmax(0, 1fr); }' '  .ct-montants { }' \
   'au téléphone : le ticket se replie sous les tuiles, et le tiroir se compte par un pavé dans une fenêtre'
 
+prouver 'à la tablette debout, une liste large qui fait défiler toute la page de côté' web/public/plateforme/telephone.css \
+  '  #view .panel:has(> table), #view #list-wrap { overflow-x: auto; }' '  #view .panel:has(> table), #view #list-wrap { }' \
+  'à 820 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté'
+prouver 'à la tablette debout, « Envoyer au comptable… » poussé hors de l'\''écran' web/public/plateforme/telephone.css \
+  '  #view .inline { flex-wrap: wrap; }' '  #view .inline { }' \
+  'à 820 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

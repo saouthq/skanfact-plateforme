@@ -731,6 +731,16 @@ Une vente au doigt (deux courses urbaines et une manutention, 83,300 DT, payées
 lit pour rendre l'argent. Sous 560 px de large, les deux cases se posent l'une sous l'autre. Le test « au téléphone »
 de la caisse touche le plus gros billet et exige la monnaie entière dans sa case ; une preuve.
 
+### 1.87.16 — la tablette debout
+
+À 820 px (une tablette tenue debout), le menu de gauche reste, et une liste plus large que la place restante faisait
+défiler toute la zone de la page de côté, titre et boutons compris : l'Accueil, les Factures, les Clients (dès un seul
+client), la Trésorerie ; la rangée d'export de la Comptabilité poussait « Envoyer au comptable… » hors de l'écran.
+Entre 761 et 1 023 px, la liste défile maintenant dans son cadre (comme au téléphone), et une rangée de boutons passe à
+la ligne. Quatorze écrans de l'entreprise et six du Cabinet remesurés à 820 px : plus rien ne déborde ; le menu
+« Actions » d'une ligne s'ouvre en entier. À 1 024 px, rien ne débordait. Un test (`tests/web/tablette.test.ts`),
+deux preuves.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
