@@ -18506,6 +18506,31 @@ prouver 'au clavier, l'\''unité d'\''une prestation sans nom (son titre posé �
   '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); }' '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); }' \
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 
+prouver 'au PDF du serveur, le script de la page qui tourne' serveur/pdf/imprimeur.ts \
+  $'newContext({ javaScriptEnabled: false, offline: true,' $'newContext({ offline: true,' \
+  'la page est enfermée : son script ne tourne pas, elle ne joint rien, elle ne lit aucun fichier'
+prouver 'au PDF du serveur, la page qui joint d'\''autres adresses' serveur/pdf/imprimeur.ts \
+  $'        await cx.route(\'**/*\', (route) => route.abort());\n' $'' \
+  'la page est enfermée : son script ne tourne pas, elle ne joint rien, elle ne lit aucun fichier'
+prouver 'au PDF du serveur, une page de 9 Mo imprimée quand même' serveur/pdf/routes.ts \
+  $'if (taille > LIMITE_PAGE) {' $'if (taille > LIMITE_PAGE * 4) {' \
+  'il faut être connecté ; une page trop lourde se refuse ; un serveur sans Chromium le dit'
+prouver 'au PDF du serveur, une file qui ne se borne pas' serveur/pdf/imprimeur.ts \
+  $'if (file.length >= attente) throw new ImprimeurOccupe(\'file-pleine\');' $'' \
+  'au-delà de sa file, l'\''imprimeur dit qu'\''il est occupé'
+prouver 'au PDF du serveur, un Chromium absent pris pour une erreur' serveur/pdf/routes.ts \
+  $'if (e instanceof ImpressionImpossible && e.message === \'navigateur-absent\') return' $'if (e instanceof ImpressionImpossible && e.message === \'jamais\') return' \
+  'il faut être connecté ; une page trop lourde se refuse ; un serveur sans Chromium le dit'
+prouver 'le PDF du serveur que le programme n'\''offre pas' serveur/principal.ts \
+  $'...routesNouveautes(ctx), ...routesPdf(ctx)];' $'...routesNouveautes(ctx)];' \
+  'le PDF se télécharge sous le nom de la pièce, sans fenêtre d'\''impression'
+prouver 'le PDF du serveur que l'\''écran ne demande pas (la fenêtre d'\''impression)' web/public/plateforme/pont.js \
+  $'    exportPdf,\n' $'' \
+  'le PDF se télécharge sous le nom de la pièce, sans fenêtre d'\''impression'
+prouver 'un serveur sans Chromium : « PDF » qui ne fait plus rien' web/public/plateforme/pont.js \
+  $'      if (!(x && (x.indisponible || x.horsLigne || x.lecture))) throw e;' $'      if (!(x && (x.horsLigne || x.lecture))) throw e;' \
+  'un serveur sans Chromium : la fenêtre d'\''impression du navigateur revient, comme avant'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -791,6 +791,14 @@ fenêtres de saisie (client, salarié, prestation, article, fournisseur, dépens
 l'unité d'une prestation ou d'un article, dont le titre (`span.fl`) est posé à côté de la liste sans la nommer. Une case
 sans nom qui suit un tel titre prend maintenant son texte, sans la bulle. Le test de la 1.87.19 l'exige ; une preuve.
 
+### 1.88.0 — le PDF d'une pièce, fait par le serveur
+
+« PDF » sur une facture, à l'ordinateur puis au téléphone : le fichier `FAC-2026-001_Société_des_Transports_du_Sahel.pdf`
+se télécharge en une seconde environ, une page A4, 441,741 DT comme à l'écran, et « PDF enregistré : … » le dit. Aucune
+fenêtre d'impression. Un serveur sans Chromium rouvre la fenêtre d'impression, comme avant. Trouvé en route : sans langue
+réglée en UTF-8, Chromium renomme « download » un fichier au nom accentué (les tests règlent la leur ; un vrai
+navigateur l'a toujours). Détail : `docs/pdf.md`.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
@@ -808,3 +816,4 @@ sans nom qui suit un tel titre prend maintenant son texte, sans la bulle. Le tes
 8. Au téléphone, les bulles « i » des titres de colonne d'une ligne (Unité, TVA, Destination, TVA déductible) ne se
    voient plus depuis que chaque case porte son titre (1.87.17, 1.87.21) : à rendre, par exemple en bulle à côté du
    titre de la case.
+9. Le PDF du Cabinet passe encore par la fenêtre d'impression du navigateur (1.88.0 ne couvre que l'entreprise).

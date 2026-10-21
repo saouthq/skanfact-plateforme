@@ -907,6 +907,7 @@
   }
 
   /** @type {any} */ (window).skanfact = {
+    exportPdf,
     dessinerMandat,
     dessinerCompte,
     dessinerAppareils,
@@ -1466,8 +1467,44 @@
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
     // Le bouton qui débloque voyage avec le refus (brique 123 : « session_de_caisse ») ; la case refusée aussi (Ton
     // compte, 0076).
-    if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { bouton: typeof lu.bouton === 'string' ? lu.bouton : null, statut: r.status, champ: typeof lu.champ === 'string' ? lu.champ : null });
+    // `indisponible` : ce serveur n'a pas l'outil (le PDF, docs/pdf.md) ; l'écran prend un autre chemin.
+    if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { bouton: typeof lu.bouton === 'string' ? lu.bouton : null, statut: r.status, champ: typeof lu.champ === 'string' ? lu.champ : null, indisponible: lu.indisponible === true });
     return lu;
+  }
+
+  // Le PDF fait par le serveur (docs/pdf.md). La v10 ouvrait ici la fenêtre d'impression du navigateur : le fichier
+  // dépendait du navigateur, et un téléphone n'en faisait souvent rien. La page dessinée par l'écran part au serveur,
+  // qui l'imprime comme l'application de bureau ; le PDF se télécharge sous son nom. Sans l'outil sur ce serveur, en
+  // lecture pour le support, ou sans réseau, la fenêtre d'impression revient, comme avant.
+  /** @param {string} html @param {string} nom */
+  async function exportPdf(html, nom) {
+    /** @type {any} */
+    let lu;
+    try { lu = await appelCompte('POST', '/pdf', { html, nom }); } catch (e) {
+      const x = /** @type {any} */ (e);
+      if (!(x && (x.indisponible || x.horsLigne || x.lecture))) throw e;
+      return fenetreDImpression(html);
+    }
+    const octets = Uint8Array.from(atob(String(lu.pdf)), (c) => c.charCodeAt(0));
+    const adresse = URL.createObjectURL(new Blob([octets], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = adresse;
+    a.download = String(lu.nom);
+    document.body.append(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(adresse), 60_000);
+    return String(lu.nom);
+  }
+  // Le chemin de la v10 dans un navigateur (son repli `exportPdf`) : la page dans une fenêtre, et l'impression.
+  /** @param {string} html */
+  function fenetreDImpression(html) {
+    const w = window.open('', '_blank');
+    if (!w) return null;
+    w.document.write(html);
+    w.document.close();
+    w.print();
+    return null;
   }
   // ── Ton compte (lot onboarding, 0076 ; compte.js, partagé avec le Cabinet) et tes appareils (brique 74) ──────
   /** @param {HTMLElement} el @param {{ modal: any, toast: (t: string, erreur?: boolean) => void }} v10 */

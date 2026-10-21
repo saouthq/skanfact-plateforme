@@ -50,6 +50,7 @@ lettres de mission dans le parcours du comptable).
 
 | Date | Décision | Où |
 |---|---|---|
+| 21/10/2026 | **Le PDF d'une pièce, fait par le serveur** (1.88.0, lot Fonctions 3, par délégation) : « PDF » télécharge le fichier sous le nom de la pièce, au lieu d'ouvrir la fenêtre d'impression du navigateur ; le serveur imprime la page que l'écran a dessinée (mêmes gabarits, mêmes marges que la v10), enfermée (sans script, sans réseau, sans fichier). **Écart au `12` § 2** : tout de suite, dans une file bornée en mémoire (deux à la fois), pas dans la file de travaux, pour un PDF qu'on attend devant l'écran ; les PDF faits sans personne devant (e-mail, archivage) iront dans la file de travaux. Le Chromium de Playwright, posé par la tâche 0011 ; sans lui, la fenêtre d'impression revient. Le Cabinet imprime encore par le navigateur. | `docs/pdf.md` (plateforme) |
 | 27/09/2026 | Serveur qui fait foi, web installable + bureau hybride, modules, PostgreSQL RLS, argent en entiers, journal inaltérable, API d'abord | `VISION-ARCHITECTURE.md` § 4 |
 | 27/09/2026 | TypeScript et bibliothèque d'interface | § 9 |
 | 27/09/2026 | Hébergement en Tunisie (secours compris), budget accepté, démarches par le père de Skander | § 9 |

@@ -69,6 +69,8 @@ import { routesCaisse } from './caisse/routes.ts';
 import { declarerGestesAchats } from './achats/gestes.ts';
 import { declarerGestesCaisse } from './caisse/gestes.ts';
 import { lecteurDuServeur } from './achats/lecteur.ts';
+import { imprimeurDuServeur } from './pdf/imprimeur.ts';
+import { routesPdf } from './pdf/routes.ts';
 import { routesAchats } from './achats/routes.ts';
 import { declarerGestesCompta } from './compta/gestes.ts';
 import { routesCabinet } from './cabinet/routes.ts';
@@ -103,6 +105,8 @@ export type Configuration = {
   digigo: { base: string; cle: string } | null;
   ttn: string | null; ttnMs: number; contratsMs: number; alertesMs: number; relancesMs: number; mesuresMs: number;
   lectures: number;
+  // Le PDF fait par le serveur (docs/pdf.md) : combien à la fois, et le Chromium (celui de Playwright si aucun).
+  impressions: number; navigateur: string | null;
   partenaires: Partenaire[];
   // Combien de relais de confiance (le frontal) se tiennent devant le serveur (brique 142) : 0, le serveur est
   // appelé en direct.
@@ -165,6 +169,8 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   if (ttn && !/^https?:\/\//.test(ttn)) throw new ConfigurationFausse(`SKANFACT_TTN « ${ttn} » n'est pas une adresse`);
   const lectures = Number(env.SKANFACT_LECTURES ?? 2);
   if (!Number.isInteger(lectures) || lectures < 1 || lectures > 32) throw new ConfigurationFausse(`SKANFACT_LECTURES « ${env.SKANFACT_LECTURES} » : un nombre de lectures à la fois, de 1 à 32`);
+  const impressions = Number(env.SKANFACT_IMPRESSIONS ?? 2);
+  if (!Number.isInteger(impressions) || impressions < 1 || impressions > 16) throw new ConfigurationFausse(`SKANFACT_IMPRESSIONS « ${env.SKANFACT_IMPRESSIONS} » : un nombre de PDF à la fois, de 1 à 16`);
   const proxy = Number(env.SKANFACT_PROXY ?? 0);
   if (!Number.isInteger(proxy) || proxy < 0 || proxy > 5) throw new ConfigurationFausse(`SKANFACT_PROXY « ${env.SKANFACT_PROXY} » : le nombre de relais de confiance devant le serveur, de 0 à 5`);
   const smtp = env.SKANFACT_SMTP ?? null;
@@ -190,7 +196,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     alertesMs: Number(env.SKANFACT_ALERTES_MS ?? 60_000),
     relancesMs: Number(env.SKANFACT_RELANCES_MS ?? 3_600_000),
     mesuresMs: Number(env.SKANFACT_MESURES_MS ?? 60_000),
-    lectures, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
+    lectures, impressions, navigateur: env.SKANFACT_NAVIGATEUR || null, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
     courriel: smtp && de ? { smtp, de } : null,
     veille: env.SKANFACT_VEILLE_FICHIER ?? path.join(env.SKANFACT_ETAT ?? '/var/lib/skanfact', 'veille.json'),
     consoleFraisMs: Number(env.SKANFACT_CONSOLE_FRAIS_MS ?? (environnement === 'test' ? 0 : FRAIS_MS)),
@@ -256,7 +262,7 @@ export function routesDuServeur(ctx: Contexte, options: { veille: string | null;
   declarerGestesSupport();
   return [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx),
     ...routesCabinet(ctx), ...routesV10(ctx), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesAbonnement(ctx), ...routesConsole(ctx, options),
-    ...routesMessageClients(ctx.maintenant), ...routesNouveautes(ctx)];
+    ...routesMessageClients(ctx.maintenant), ...routesNouveautes(ctx), ...routesPdf(ctx)];
 }
 
 export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur; courriel?: EnvoiCourriel; sms?: Contexte['sms']; nouveautes?: readonly Nouveaute[] } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
@@ -267,7 +273,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const sms = dependances.sms ?? (c.sms === 'aucun' ? smsAucun : smsWinsms({ cle: c.sms.cle, expediteur: c.sms.expediteur, adresse: c.sms.adresse }));
   const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
     ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
-    lecteur: await lecteurDuServeur({ simultanees: c.lectures }), partenaires: { liste: c.partenaires, cle: c.coffre },
+    lecteur: await lecteurDuServeur({ simultanees: c.lectures }), imprimeur: imprimeurDuServeur({ simultanees: c.impressions, navigateur: c.navigateur }), partenaires: { liste: c.partenaires, cle: c.coffre },
     // Les nouveautés que ce serveur porte : celles du code (serveur/nouveautes.ts), sauf dans un essai.
     ...(dependances.nouveautes ? { nouveautes: dependances.nouveautes } : {}),
     // Les adresses internet de l'entrée (0143) : comptées, et fermées depuis la console.
@@ -436,6 +442,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       await lesAdresses?.passer(pool).catch(() => undefined);
       await mesures;
       await envoyerMesures(pool, exemplaire, collecte);
+      await ctx.imprimeur?.arreter();
       await pool.end();
     },
   };

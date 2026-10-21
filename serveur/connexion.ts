@@ -14,6 +14,7 @@
 
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 import type pg from 'pg';
+import type { Imprimeur } from './pdf/imprimeur.ts';
 import type { Lecteur } from './achats/lecteur.ts';
 import type { Adresses } from './adresses.ts';
 import type { EnvoiCourriel } from './courriel.ts';
@@ -49,6 +50,8 @@ export type Contexte = {
   // La lecture des factures d'achat (brique 84) : le moteur de ce serveur (Tesseract et Poppler), et sa
   // file ; absent ou non disponible, la lecture n'est pas branchée (et l'écran le dit).
   lecteur?: Lecteur;
+  // Le PDF fait par le serveur (docs/pdf.md) : Chromium et sa file ; absent, l'écran ouvre la fenêtre d'impression.
+  imprimeur?: Imprimeur;
   // L'envoi des e-mails (lot entrée ; serveur/courriel.ts) et l'adresse publique où mènent ses liens ; absent, aucun
   // e-mail ne part.
   // `console` : où mène le lien d'une invitation dans l'équipe SkanFact (0119).
