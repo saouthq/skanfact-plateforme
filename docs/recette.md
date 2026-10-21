@@ -783,6 +783,14 @@ loin de leurs cases, comme aux achats (1.87.17). Au téléphone, il se cache, et
 au-dessus. Ce que cela coûte, et qui reste ouvert : les bulles « i » de ces titres de colonne (Unité, TVA ; aux
 achats, Destination et TVA déductible) ne se voient plus au téléphone ; elles restent au bureau. Un test, une preuve.
 
+### 1.87.22 — le relevé des cases sans nom, clos
+
+Dix-neuf autres écrans de l'entreprise (accueil, devis, commandes fournisseurs, listes de prix, immobilisations,
+marges, garanties, contrats, accords, groupe, modules, aide, support, caisse, stock, paie, trésorerie…) et six
+fenêtres de saisie (client, salarié, prestation, article, fournisseur, dépense) : toutes les cases ont un nom, sauf
+l'unité d'une prestation ou d'un article, dont le titre (`span.fl`) est posé à côté de la liste sans la nommer. Une case
+sans nom qui suit un tel titre prend maintenant son texte, sans la bulle. Le test de la 1.87.19 l'exige ; une preuve.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
@@ -793,8 +801,8 @@ achats, Destination et TVA déductible) ne se voient plus au téléphone ; elles
 4. Le vrai hors-ligne des devis et brouillons (vision § 4.5) ne vaut que sur « mon ordinateur » ; ailleurs, l'écran le
    dit avant le geste.
 5. À la tablette debout (761 à 1 023 px), plus rien ne défile de côté (1.87.16) ; à 1 024 px, rien ne débordait.
-6. Au clavier, chaque case des treize écrans de l'entreprise et des sept du Cabinet relevés porte un nom (1.87.19,
-   1.87.20) ; les autres écrans restent à relever de la même façon.
+6. Au clavier, chaque case des trente-deux écrans de l'entreprise, des sept du Cabinet et des six fenêtres de saisie
+   relevés porte un nom (1.87.19, 1.87.20, 1.87.22).
 7. La caisse : vendue, rendue et fermée au téléphone, juste au millime ; tenue sur un appareil perdu, elle se ferme
    d'ici (1.87.14).
 8. Au téléphone, les bulles « i » des titres de colonne d'une ligne (Unité, TVA, Destination, TVA déductible) ne se

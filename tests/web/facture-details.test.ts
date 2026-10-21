@@ -321,6 +321,13 @@ describe('le lot facture, à l\'écran', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/compta`);
     await expect.poll(() => p.getByRole('combobox', { name: 'Année', exact: true }).count(), { timeout: 20_000 }).toBe(1);
     expect(await p.getByRole('combobox', { name: 'Mois', exact: true }).count()).toBe(1);
+    // (1.87.22) Un titre posé à côté de sa case la nomme : l'unité d'une nouvelle prestation.
+    await p.evaluate(() => { location.hash = '#/catalogue'; });
+    await plusTard(p);
+    await p.getByRole('button', { name: '+ Nouvelle prestation' }).first().click();
+    await expect.poll(() => p.getByRole('combobox', { name: 'Unité', exact: true }).count(), { timeout: 15_000 }).toBe(1);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     await p.evaluate(() => { location.hash = '#/doc/new/facture'; });
     await p.locator('#lines tr [data-k=qty]').first().waitFor({ timeout: 20_000 });
     await plusTard(p);

@@ -18495,12 +18495,16 @@ prouver 'au clavier, les cases d'\''une ligne qu'\''un lecteur d'\''écran ne no
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 
 prouver 'au clavier, les listes de filtre d'\''une page sans nom (l'\''année, le mois)' web/public/plateforme/telephone.js \
-  '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); }' '(/** @type {HTMLTableElement} */ (t)); }' \
+  '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); }' '(/** @type {HTMLTableElement} */ (t)); lierVoisins(); }' \
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 
 prouver 'au téléphone, l'\''en-tête des lignes d'\''un devis qui pose « Qté » loin de sa case' web/public/plateforme/telephone.css \
   '  table.lignes-doc > thead { display: none; }' '  table.lignes-doc > thead { }' \
   'les lignes d'\''un devis au téléphone : chaque case porte son titre juste au-dessus d'\''elle'
+
+prouver 'au clavier, l'\''unité d'\''une prestation sans nom (son titre posé à côté)' web/public/plateforme/telephone.js \
+  '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); }' '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); }' \
+  'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

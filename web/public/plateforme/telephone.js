@@ -23,7 +23,9 @@
 //    disait « zone d'édition » (vu en recette le 21/10/2026). Chaque case d'un tableau de lignes qui n'a pas de nom
 //    reçoit « le titre de sa colonne, ligne N » (`aria-label`, marqué `data-nom-ligne` pour suivre l'ordre des lignes).
 //    Les listes de filtre d'une page (l'année, le mois, le statut…) n'avaient pas de nom non plus : chacune garde le
-//    même identifiant d'une page à l'autre, qui dit ce qu'elle choisit.
+//    même identifiant d'une page à l'autre, qui dit ce qu'elle choisit. Et un titre de champ posé À CÔTÉ de sa case
+//    (`<span class="fl">`, l'unité d'une prestation) ne nommait pas la case qui le suit : elle prend son texte, sans la
+//    bulle.
 (function () {
   'use strict';
   function poserMenu() {
@@ -157,8 +159,18 @@
       if (el && el.tagName === 'SELECT' && !el.hasAttribute('aria-label') && !/** @type {HTMLSelectElement} */ (el).labels?.length) el.setAttribute('aria-label', nom);
     }
   }
+  function lierVoisins() {
+    for (const titre of document.querySelectorAll('.field > span.fl')) {
+      const champ = titre.nextElementSibling;
+      if (!champ || !champ.matches('select, textarea, input:not([type=hidden])')) continue;
+      if (champ.hasAttribute('aria-label') && !champ.hasAttribute('data-nom-titre')) continue;
+      if (/** @type {HTMLInputElement} */ (champ).labels?.length) continue;
+      poser(champ, 'aria-label', titreDe(titre));
+      poser(champ, 'data-nom-titre', 'oui');
+    }
+  }
   let nomsPrevus = 0;
-  function nommer() { nomsPrevus = 0; for (const t of document.querySelectorAll('table.lines-edit')) nommerLignes(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); }
+  function nommer() { nomsPrevus = 0; for (const t of document.querySelectorAll('table.lines-edit')) nommerLignes(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); }
   function suivreLesLignes() {
     new MutationObserver(() => { if (!nomsPrevus) nomsPrevus = requestAnimationFrame(nommer); }).observe(document.body, { childList: true, subtree: true });
     nommer();
