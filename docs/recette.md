@@ -570,6 +570,21 @@ se lit et ne s'écrit que par ses fonctions), et ses trois phrases n'étaient pa
 doit faire jouer aussi `tests/socle/cloisonnement.test.ts`, `tests/socle/textes.test.ts` et
 `tests/socle/export-entreprise.test.ts` (trois rouges de 1.84 et 1.85 venaient de là). Deux preuves.
 
+## 1.86.1 — « Ton abonnement » au téléphone (21/10/2026)
+
+Vu à la souris, au format d'un téléphone (390 px), sur l'abonnement payé de Trabelsi Logistique :
+
+- **Deux cartes de même titre** : « Choisir mon offre suivante… » ouvrait les choix SOUS l'annonce, qui restait avec
+  son bouton éteint et répétait « aucun jour ne se perd ». Les choix prennent maintenant la place de l'annonce ; « Tu as
+  choisi… » reste, il dit le choix qu'on change.
+- **Le texte dans un tiers de l'écran** : l'icône de la carte gardait sa colonne. Au téléphone, elle passe au-dessus.
+- **Le rouge de GitHub sur 12d21ed** : `tests/web/cabinet-revision.test.ts` lisait « Révision arrêtée. » avant qu'il
+  paraisse (le délai d'`expect.poll` est d'une seconde ; le geste passe par le serveur). Le test attend le message
+  quinze secondes ; l'application n'avait rien de faux (le message dure près de trois secondes).
+
+- `tests/web/abonnement-factures.test.ts` : un seul « Renouveler ou changer d'offre » à l'écran, plus de bouton pour
+  l'ouvrir, les quatre choix ; une preuve.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

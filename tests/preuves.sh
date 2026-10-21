@@ -18352,6 +18352,12 @@ prouver 'une phrase de l'"'"'offre choisie absente du catalogue' textes/base.ts 
   "  { base: 'Offre inconnue.', cle: 'base.offre_choisie.inconnue'," "  { base: 'Offre retirée.', cle: 'base.offre_choisie.inconnue'," \
   'chaque phrase de la base est au catalogue, et chaque phrase du catalogue de la base est encore dans la base'
 
+# 1.86.1 — « Choisir mon offre suivante… » : les choix prennent la place de l'annonce, pas une seconde carte de même titre.
+prouver 'deux cartes « Renouveler ou changer d'"'"'offre » à l'"'"'écran' web/public/plateforme/abonnement.js \
+  "      if (annonce instanceof HTMLElement && !annonce.classList.contains('abo-choisi')) annonce.hidden = true;
+      else re.disabled = true;" "      re.disabled = true;" \
+  "$MFW"
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

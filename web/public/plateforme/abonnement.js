@@ -444,7 +444,15 @@
   function brancherChoix(el, o) {
     const form = /** @type {HTMLElement | null} */ (el.querySelector('#abo-choix'));
     const re = /** @type {HTMLButtonElement | null} */ (el.querySelector('#abo-rechoisir'));
-    if (re && form) re.onclick = () => { form.hidden = false; re.disabled = true; form.scrollIntoView({ block: 'nearest' }); };
+    // Ouvert depuis l'annonce d'un abonnement payé, le formulaire PREND SA PLACE : sinon deux cartes de même titre se
+    // suivaient, la première avec un bouton éteint qui ne servait plus (vu au téléphone le 21/10/2026). « Tu as choisi… »
+    // reste : il dit le choix qu'on s'apprête à changer.
+    if (re && form) re.onclick = () => {
+      const annonce = re.closest('#abo-payer');
+      if (annonce instanceof HTMLElement && !annonce.classList.contains('abo-choisi')) annonce.hidden = true;
+      else re.disabled = true;
+      form.hidden = false; form.scrollIntoView({ block: 'nearest' });
+    };
     const b = /** @type {HTMLButtonElement | null} */ (el.querySelector('#abo-choisir'));
     if (!form || !b) return;
     const refus = /** @type {HTMLElement} */ (form.querySelector('.abo-refus'));

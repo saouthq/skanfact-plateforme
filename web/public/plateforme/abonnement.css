@@ -183,6 +183,10 @@ iframe.abo-piece { width: 100%; height: 75vh; border: 1px solid var(--border); b
   .abo-fa-gestes { grid-column: 1 / -1; justify-content: stretch; }
   .abo-fa-gestes .btn { flex: 1 1 auto; min-height: 44px; }
   .abo-piece-gestes, .abo-piece-gestes .btn { flex: 1 1 auto; }
+  /* Au téléphone, l'icône d'« Renouveler ou changer d'offre » (et de « T'abonner ») passe au-dessus : le texte et ses
+     choix prennent toute la largeur, au lieu d'un tiers de l'écran à côté d'une colonne vide (vu le 21/10/2026). */
+  .abo-payer { flex-direction: column; gap: 12px; padding: 18px; }
+  .abo-payer-txt { width: 100%; }
   .abo-piece-gestes .btn { min-height: 44px; }
   /* La barre du haut du téléphone reste à l'écran : la facture s'ouvre sous elle, « ← Ton abonnement » en vue. */
   .abo-vue-piece { scroll-margin-top: 76px; }

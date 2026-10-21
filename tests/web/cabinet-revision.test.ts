@@ -77,6 +77,9 @@ describe('la révision et les questions au client, à la souris', () => {
     };
     await aller();
     const toast = () => p.locator('#toast').innerText();
+    // Un message suit un geste qui passe par le serveur : sur une machine chargée, plus d'une seconde (le délai de
+    // expect.poll par défaut) peut s'écouler avant lui (rouge de GitHub du 21/10/2026, « Révision arrêtée. » lu vide).
+    const APRES_LE_SERVEUR = { timeout: 15_000 };
     const fenetre = p.locator('#modal-root .modal').last();
     const ouvrir = async (bouton: string, dedans: string) => expect.poll(async () => {
       if (!await p.locator(dedans).count()) await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
@@ -94,7 +97,7 @@ describe('la révision et les questions au client, à la souris', () => {
     await expect.poll(() => p.locator('#view').innerText(), { timeout: 20_000 }).toMatch(/0\scompte signé sur 2/);
     await ouvrir('.cy-carte:has-text("Trésorerie")', '[data-rowmenu="RV:512"]');
     await menu('RV:512', 'Signer ce compte');
-    await expect.poll(toast).toBe('Compte 512 signé.');
+    await expect.poll(toast, APRES_LE_SERVEUR).toBe('Compte 512 signé.');
     expect((await revision())?.comptes.map((c) => [c.compte, c.revuPar])).toEqual([['512', 'associe']]);
     await expect.poll(() => p.locator('#view').innerText()).toMatch(/1\scompte signé sur 2/);
 
@@ -148,7 +151,7 @@ describe('la révision et les questions au client, à la souris', () => {
     await ouvrir('#rv-envoyer', '#qe-ok');
     expect(await fenetre.innerText()).toMatch(/1\squestion partira chez le client\s:\sil la lira dans son SkanFact/);
     await fenetre.locator('#qe-ok').click();
-    await expect.poll(toast).toMatch(/^1\squestion envoyée à Menuiserie Ben Salah\.$/);
+    await expect.poll(toast, APRES_LE_SERVEUR).toMatch(/^1\squestion envoyée à Menuiserie Ben Salah\.$/);
     const recue = await questions(client);
     expect(recue.map((q) => [q.statut, q.envois.length, q.texte])).toEqual([['envoyee', 1, 'Peux-tu m\'envoyer la facture de ce virement de 1 200,500 DT ?']]);
     expect((await api('POST', `/entreprises/${ent}/compta/questions/${recue[0]?.id}/repondre`, client, { texte: 'La facture est jointe à l\'achat du 9 mars.' })).statut).toBe(200);
@@ -158,7 +161,7 @@ describe('la révision et les questions au client, à la souris', () => {
     // ── Arrêter la révision ─────────────────────────────────────────────────────────────────────
     await ouvrir('#rv-arreter', '#modal-root .modal');
     await fenetre.getByRole('button', { name: 'Arrêter la révision', exact: true }).click();
-    await expect.poll(toast).toBe('Révision arrêtée.');
+    await expect.poll(toast, APRES_LE_SERVEUR).toBe('Révision arrêtée.');
     expect(await revision()).toMatchObject({ faite: true, faitePar: 'associe' });
     expect((await revision())?.notes[0]?.levee).toBe(true);
     await expect.poll(() => p.locator('#rv-arretee').innerText()).toMatch(/par associe$/);
