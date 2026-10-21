@@ -786,6 +786,10 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'reprendre dit pourquoi (trois caractères au moins) : le motif reste au journal de la console', cle: 'base.pause.motif_reprendre', fr: 'reprendre dit pourquoi (trois caractères au moins) : le motif reste au journal de la console' },
   { base: 'seuls le dépôt à la TTN et les relances d\'échéance se mettent en pause', cle: 'base.pause.partenaire', fr: 'seuls le dépôt à la TTN et les relances d\'échéance se mettent en pause' },
   { base: 'une pause dure une heure, quatre heures ou un jour', cle: 'base.pause.duree', fr: 'une pause dure une heure, quatre heures ou un jour' },
+  // L'offre choisie dans l'application (0158, docs/abonnement.md C19).
+  { base: 'Un choix d\'offre ne se modifie ni ne s\'efface : un nouveau choix le remplace.', cle: 'base.offre_choisie.immuable', fr: 'un choix d\'offre ne se modifie ni ne s\'efface : un nouveau choix le remplace' },
+  { base: 'Seuls la propriétaire et l\'administratrice de l\'entreprise choisissent son offre.', cle: 'base.offre_choisie.qui', fr: 'seuls la propriétaire et l\'administratrice de l\'entreprise choisissent son offre' },
+  { base: 'Offre inconnue.', cle: 'base.offre_choisie.inconnue', fr: 'cette offre n\'existe pas : choisis Essentiel ou Complet, à l\'année ou au mois' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

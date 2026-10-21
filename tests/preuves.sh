@@ -18343,6 +18343,15 @@ prouver 'le montant dû noyé dans le texte de l'"'"'espace' web/public/espace/e
   '  .du strong { font-size: 28px; }' '  .du strong { font-size: 15px; }' \
   "$EC3"
 
+# Le rouge de GitHub sur 1.85.0 : la table des offres choisies (0158) sans sécurité par ligne forcée, et ses trois
+# phrases absentes du catalogue des textes.
+prouver 'l'"'"'offre choisie sans sécurité par ligne forcée' base/migrations/0159_offre_choisie_forcee.sql \
+  'alter table plateforme.offre_choisie force row level security;' 'select 1;' \
+  'chaque table de chaque schéma a sa sécurité par ligne, forcée (sauf la trace des migrations)'
+prouver 'une phrase de l'"'"'offre choisie absente du catalogue' textes/base.ts \
+  "  { base: 'Offre inconnue.', cle: 'base.offre_choisie.inconnue'," "  { base: 'Offre retirée.', cle: 'base.offre_choisie.inconnue'," \
+  'chaque phrase de la base est au catalogue, et chaque phrase du catalogue de la base est encore dans la base'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

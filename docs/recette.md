@@ -561,6 +561,15 @@ sombre ; « Payer … en ligne » sur toute la largeur au téléphone. Seule la 
 - Une preuve (le montant dû ramené à la taille du texte).
 - Vu à l'écran : le relevé dû et soldé, au bureau, au téléphone et en sombre ; la pièce et son bouton « Payer ».
 
+### Le rouge de GitHub sur 1.85.0 (21/10/2026)
+
+Deux garde-fous de la base tombaient sur GitHub, pas ici : la table `plateforme.offre_choisie` (0158) avait sa
+sécurité par ligne activée mais pas **forcée** (`0159`, comme `plateforme.contestation` : aucune politique, la table ne
+se lit et ne s'écrit que par ses fonctions), et ses trois phrases n'étaient pas au catalogue des textes
+(`textes/base.ts`). La vérification d'avant l'envoi ne joue que les tests que la brique touche : une table nouvelle
+doit faire jouer aussi `tests/socle/cloisonnement.test.ts`, `tests/socle/textes.test.ts` et
+`tests/socle/export-entreprise.test.ts` (trois rouges de 1.84 et 1.85 venaient de là). Deux preuves.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
