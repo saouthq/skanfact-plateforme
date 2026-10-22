@@ -65,9 +65,11 @@ describe('une liste de clients collée, à la souris', () => {
     await p.waitForTimeout(800);
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     const toast = () => p.locator('#toast').innerText();
+    // (1.117.0) On ne reclique que si la fenêtre n'existe pas encore : sur une machine lente, un second clic partait avant
+    // qu'elle ne s'affiche, et deux fenêtres s'ouvraient (rouge GitHub de la 1.117.0, Node 24).
     const ouvrir = async (bouton: string, dedans: string) => expect.poll(async () => {
-      if (!await p.locator(dedans).isVisible()) await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
-      return p.locator(dedans).isVisible();
+      if (!await p.locator(dedans).count()) await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
+      return p.locator(dedans).first().isVisible();
     }, { timeout: 30_000 }).toBe(true);
 
     await ouvrir('#new-d', '#nd-coller');
