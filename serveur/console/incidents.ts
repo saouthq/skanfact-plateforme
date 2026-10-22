@@ -62,6 +62,32 @@ export function lireIncidents(brut: unknown): IncidentsLus {
   };
 }
 
+// ── Les exercices de crise (0166 ; docs/console.md C24 quater) ─────────────────────────────────────────────────────
+// Une fiche jouée à blanc, chronométrée : la minute où chacun de ses quatre temps a été fait, puis son compte rendu.
+export type ExerciceLu = {
+  id: string; fiche: Fiche; debut: string; fin: string; temps: (number | null)[]; participants: string;
+  marche: string; coince: string; change: string; reussi: boolean; par: string;
+};
+export function lireExercices(brut: unknown): ExerciceLu[] {
+  return tableau(brut).flatMap((e) => {
+    const debut = date(e.debut), fin = date(e.fin), t = Array.isArray(e.temps) ? e.temps as unknown[] : [];
+    if (!debut || !fin || !estFiche(e.fiche)) return [];
+    return [{
+      id: String(e.id), fiche: e.fiche, debut, fin, temps: [0, 1, 2, 3].map((k) => { const m = t[k]; return typeof m === 'number' && Number.isInteger(m) && m >= 0 ? m : null; }),
+      participants: String(e.participants ?? ''), marche: String(e.marche ?? ''), coince: String(e.coince ?? ''), change: String(e.change ?? ''),
+      reussi: e.reussi === true, par: String(e.par ?? ''),
+    }];
+  });
+}
+// Le lancement (docs/cadrage/09-feuille-de-route.md, J5) veut chaque fiche RÉUSSIE au moins une fois dans les douze derniers
+// mois : celles qui le sont, celles qui manquent, dans l'ordre des fiches. Un exercice à refaire ne compte pas.
+export const EXERCICE_VAUT_JOURS = 365;
+export function exercicesDuLancement(ex: ExerciceLu[], maintenant: Date) {
+  const depuis = maintenant.getTime() - EXERCICE_VAUT_JOURS * 86_400_000;
+  const reussies = new Set(ex.filter((e) => e.reussi && Date.parse(e.fin) >= depuis).map((e) => e.fiche));
+  return { reussies: FICHES.filter((f) => reussies.has(f)), manquent: FICHES.filter((f) => !reussies.has(f)), total: FICHES.length };
+}
+
 // ── Les incidents ouverts ───────────────────────────────────────────────────────────────────────────────────────────
 // Le plus grave d'abord, puis le plus ancien : c'est celui qu'on traite.
 export function ouverts(lu: IncidentsLus): IncidentLu[] {

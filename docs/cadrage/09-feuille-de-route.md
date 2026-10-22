@@ -134,6 +134,8 @@ plus incertain de toute la feuille de route.
 
 **Jalon J5, le lancement** : tout ce qui précède est vrai **et mesuré**. Il faut en particulier :
 - trois exercices de restauration réussis d'affilée ;
+- chacune des dix fiches réflexes **jouée à blanc et réussie** dans les douze derniers mois (exercices de crise,
+  `docs/console.md` C24 quater ; décidé par délégation le 22/10/2026) ;
 - l'audit sans défaut grave ouvert ;
 - les pilotes qui disent oui ;
 - la reprise d'un concurrent réussie sur de vrais fichiers, à chiffres identiques (`08` § 3.3) ;

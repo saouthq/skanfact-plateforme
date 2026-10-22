@@ -52,6 +52,7 @@ la machine de la répétition, l'accès de Claude n'existe pas non plus, `docs/m
 | 4.6 | S | Bloquer une adresse internet une heure, puis la débloquer (C67) | L'entrée refuse cette adresse et dit jusqu'à quand ; une autre passe |
 | 4.7 | — | Le lendemain : Sécurité › Les chaînes d'empreintes | Tout relu, contenu compris, **aucune rupture** |
 | 4.8 | S | Les secrets et leur échéance (C53) : chacun noté, avec où il vit | Aucun « en retard » ; le plus proche dans « À décider » trente jours avant |
+| 4.9 | S | **Trois exercices de crise** (C24 quater, 1.113.0) : « le service ne répond plus », « une sauvegarde manque ou est en retard », « un accès suspect, un compte volé », chacun joué à blanc avec le chrono, temps par temps | Chacun noté « réussi » (sinon rejoué après ce qu'on change) ; le compteur en dit trois sur dix ; les dix avant le lancement (J5) |
 
 ## 5. Les partenaires
 

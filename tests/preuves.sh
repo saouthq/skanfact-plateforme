@@ -19228,6 +19228,32 @@ prouver 'la recherche des Paramètres qui sort d'\''un téléphone de 320' 'web/
   '' \
   'au plus étroit (320 points, au doigt)'
 
+# ── 1.113.0 : les exercices de crise (0166 ; C24 quater) ──
+prouver 'des temps d'\''exercice dans le désordre, acceptés par la base' 'base/migrations/0166_exercices_crise.sql' \
+  "    if (v_t #>> '{}')::int < v_avant then perform socle.refus" \
+  "    if false then perform socle.refus" \
+  'la base refuse ce qui ne s'\''est pas joué ainsi'
+prouver 'un exercice dit réussi sans ses quatre temps' 'base/migrations/0166_exercices_crise.sql' \
+  "  if p_reussi and v_faits < 4 then perform socle.refus" \
+  "  if false then perform socle.refus" \
+  'la base refuse ce qui ne s'\''est pas joué ainsi'
+prouver 'un exercice à refaire compté pour le lancement' 'serveur/console/incidents.ts' \
+  '  const reussies = new Set(ex.filter((e) => e.reussi && Date.parse(e.fin) >= depuis)' \
+  '  const reussies = new Set(ex.filter((e) => Date.parse(e.fin) >= depuis)' \
+  'une fiche réussie depuis un an compte'
+prouver 'un exercice de la veille rouvert pour être refusé' 'web/console/src/ecrans/Incidents.tsx' \
+  '    return x && frais && typeof x.fiche' \
+  '    return x && typeof x.fiche' \
+  'un exercice de plus de douze heures'
+prouver 'Enregistrer cliqué pendant que la photo lue se joint' 'web/public/v10/app.js' \
+  "      for (const b of [\$('#save'), \$('#b-save-bas')]) if (b) b.disabled = true;" \
+  '' \
+  'acheter, la banque, la déclaration du mois'
+prouver 'le chrono d'\''un exercice qui part hors de la vue' 'web/console/src/ecrans/Incidents.tsx' \
+  '    const f = requestAnimationFrame(() => { cadre.current?.focus({ preventScroll: true }); cadre.current?.scrollIntoView({ block: '\''start'\'' }); });' \
+  '    const f = 0;' \
+  'un exercice se joue temps par temps'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

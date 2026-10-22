@@ -516,6 +516,25 @@ lui ; ce qu'on fait se lit alors sur un papier ou sur le téléphone.
   touché. **Un passage entre crochets ne part jamais sur la page d'état** : la fenêtre le refuse en le citant, et le
   serveur aussi (à l'ouverture, en point public, en maintenance annoncée).
 
+**C24 quater. Les exercices de crise** (demandé par Skander le 22/10/2026 : « se préparer à la gestion de crise » ;
+1.113.0, base 0166, `serveur/console/incidents.ts`, `web/console/src/ecrans/Incidents.tsx`). Un incident qu'on n'a
+jamais joué se joue mal le jour où il arrive : on le joue avant, à blanc. Direction et technique, sous les fiches
+réflexes de `#/service/incidents`.
+- **Faire un exercice…** : une fiche (d'abord une que le lancement attend encore) et qui joue (les prénoms, qui tient le
+  chrono). Le chrono part en tête de l'écran ; il **vit dans l'onglet** (il survit à une page rechargée) et rien n'en
+  part au serveur avant le compte rendu. Il ne touche à rien : ni la page d'état, ni un client, ni un incident.
+- **Les quatre temps de la fiche** (contenir, dire, réparer, écrire) se cochent dans l'ordre, d'un seul bouton « Fait »
+  à la fois ; chacun garde sa minute. « Lire la fiche » l'ouvre à côté ; « Abandonner… » demande, et ne note rien.
+- **Le compte rendu** : ce qui a marché, ce qui a coincé, ce qu'on change, et le verdict. **« Réussi » demande les
+  quatre temps faits** ; un exercice qui coince se note « à refaire » (c'est ce qu'on veut savoir). La base tient la
+  règle elle-même : commencé il y a moins de douze heures, des temps à la minute entre le début et la fin, dans l'ordre ;
+  chaque exercice a sa ligne au journal (`service.exercice_crise`). Un exercice resté ouvert plus de douze heures dans
+  l'onglet n'est pas rouvert (il serait refusé).
+- **Ce qu'on en lit** : chaque fiche dit « exercée le … » ou « à refaire depuis le … » ; la liste de l'année (400 jours)
+  se relit, temps par temps ; le compteur dit combien de fiches sont **réussies depuis un an** et lesquelles manquent.
+  C'est la condition de J5 (`docs/cadrage/09-feuille-de-route.md`) ; la répétition générale en demande trois avant les
+  pilotes (`docs/repetition-generale.md` 4.9).
+
 **C25. Les travaux et les envois du service** (10 § 2.8 ; base 0090). `#/service/travaux`, la direction et la technique.
 Ce que le serveur fait seul, et ce qu'il envoie aux partenaires : quatre chiffres (ce qui attend son dépôt à la TTN, ce
 qui est parti aujourd'hui chez tous les partenaires comptés, ce qui reste à regarder, le dernier tour du facteur) ; une

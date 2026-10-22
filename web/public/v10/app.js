@@ -10833,6 +10833,9 @@
       // (plateforme, lot achats) L'échéance que la pièce ne dit pas se calcule comme pour un achat neuf : la date plus le délai
       // du fournisseur (souvent celui qu'on vient de créer depuis la lecture). Elle restait vide.
       if (!p.dueDate && p.date && p.kind !== 'depense' && p.kind !== 'avoir') p.dueDate = C.addDays(p.date, delaiAchat(p.supplierId));
+      // (plateforme, 1.113.0) Pendant l'envoi de la pièce lue, « Enregistrer » attend : enregistré avant, l'achat partait sans
+      // sa photo, et le dessin qui suit le rouvrait en « Nouvelle facture d'achat » (lecture-attente.txt).
+      for (const b of [$('#save'), $('#b-save-bas')]) if (b) b.disabled = true;
       const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);
       achatReprise = { hash: location.hash, p, isNew };
       render(true);

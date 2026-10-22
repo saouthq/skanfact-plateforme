@@ -184,6 +184,21 @@ describe('les incidents du service, à la souris', () => {
       { nom: 'incident-lire', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-table tbody tr').last().locator('button')); await fen(p); } },
       { nom: 'incident-annoncer', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-maint-gestes button:not(.c-btn-danger)')); await fen(p); } },
       { nom: 'incident-fermer-maintenant', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-maint-gestes .c-btn-danger')); await fen(p); } },
+      // 1.113.0 : l'exercice de crise, de sa fenêtre à son compte rendu, son chrono en tête de l'écran.
+      { nom: 'exercice-commencer', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-exercices .c-al-section-tete button')); await fen(p); } },
+      { nom: 'exercice-en-cours', hash: H, geste: async (p) => {
+        await cliquer(p.locator('.c-in-exercices .c-al-section-tete button')); await fen(p);
+        await p.locator('[role="dialog"] input').first().fill('Amira et Karim');
+        await cliquer(p.locator('[role="dialog"] .c-btn-principal'));
+        await cliquer(p.locator('.c-in-ex-en .c-in-ex-suivant button'));
+        await p.locator('.c-in-ex-en .c-in-ex-fait').waitFor();
+      } },
+      { nom: 'exercice-compte-rendu', hash: H, geste: async (p) => {
+        await cliquer(p.locator('.c-in-exercices .c-al-section-tete button')); await fen(p);
+        await p.locator('[role="dialog"] input').first().fill('Amira et Karim');
+        await cliquer(p.locator('[role="dialog"] .c-btn-principal'));
+        await cliquer(p.locator('.c-in-ex-en-pied .c-btn').last()); await fen(p);
+      } },
     ];
     const { faux, vus } = await mesurerLaConsole({ ecrans: ECRANS, ouvrir: ouvrirEcran, photos: path.join(RACINE, 'dist/photos') });
     expect(faux).toEqual([]);
@@ -394,6 +409,102 @@ describe('les incidents du service, à la souris', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
+
+  // 1.113.0 (0166 ; C24 quater) : les exercices de crise.
+  it('un exercice se joue temps par temps, survit à la page rechargée ; « réussi » attend les quatre temps ; noté, il se relit et compte', async () => {
+    const p = await ouvrir(jD);
+    await cliquer(p.getByRole('button', { name: 'Faire un exercice…' }));
+    let f = fenetre(p);
+    await f.getByLabel('La fiche jouée').selectOption('site');
+    // Personne pour jouer : refusé, le champ montré.
+    await cliquer(f.getByRole('button', { name: 'Commencer l\'exercice' }));
+    await expect.poll(() => f.getByRole('alert').innerText()).toMatch(/Dis qui joue/);
+    expect(await p.evaluate(() => document.activeElement?.tagName)).toBe('INPUT');
+    await f.getByLabel('Qui joue').fill('Amira et Karim, chrono : Amira');
+    await cliquer(f.getByRole('button', { name: 'Commencer l\'exercice' }));
+    // Le chrono part en tête de l'écran, à la vue : l'exercice commence d'un bouton du bas (recette du 22/10/2026).
+    const en = p.locator('.c-in-ex-en');
+    await expect.poll(() => en.count()).toBe(1);
+    expect(net(await en.locator('h2').innerText())).toBe('Exercice en cours : le site principal est perdu');
+    // Le chrono se lit à l'écran (le cadre peut dépasser vers le bas ; jamais le chrono hors de la vue).
+    await expect.poll(() => en.locator('.c-in-ex-chrono').evaluate((e) => {
+      const r = e.getBoundingClientRect();
+      return r.top >= -1 && r.bottom <= innerHeight + 1 ? 'à la vue' : `hors de la vue : haut ${Math.round(r.top)}, bas ${Math.round(r.bottom)}, écran ${innerHeight}, défilé ${Math.round(scrollY)}`;
+    })).toBe('à la vue');
+    // Un seul « Fait » à la fois : celui du temps suivant ; pendant l'exercice, on n'en commence pas un second.
+    expect(await en.getByRole('button', { name: 'Fait', exact: true }).count()).toBe(1);
+    expect(await p.getByRole('button', { name: 'Faire un exercice…' }).count()).toBe(0);
+    await cliquer(en.getByRole('button', { name: 'Fait', exact: true }));
+    await expect.poll(() => en.locator('.c-in-ex-fait').count()).toBe(1);
+    // Rechargée, la page retrouve l'exercice et le temps coché.
+    await p.reload();
+    await expect.poll(() => p.locator('.c-in-ex-en .c-in-ex-fait').count(), { timeout: 20_000 }).toBe(1);
+    await cliquer(p.locator('.c-in-ex-en').getByRole('button', { name: 'Fait', exact: true }));
+    await cliquer(p.locator('.c-in-ex-en').getByRole('button', { name: 'Terminer et écrire le compte rendu…' }));
+    f = fenetre(p);
+    await f.getByLabel('Ce qui a marché').fill('La fiche se lit vite.');
+    await f.getByLabel('Ce qui a coincé').fill('Personne ne savait où était la copie du site.');
+    await f.getByLabel('Ce qu\'on change').fill('Noter l\'adresse de la copie au carnet.');
+    // Deux temps sur quatre : le verdict proposé est « à refaire » ; « réussi » se refuse et dit ce qui manque.
+    expect(await f.getByRole('button', { name: 'À refaire' }).getAttribute('aria-pressed')).toBe('true');
+    await cliquer(f.getByRole('button', { name: 'Réussi' }));
+    await cliquer(f.getByRole('button', { name: 'Noter l\'exercice' }));
+    await expect.poll(() => f.getByRole('alert').innerText()).toMatch(/il en manque 2/);
+    await cliquer(f.getByRole('button', { name: 'À refaire' }));
+    await cliquer(f.getByRole('button', { name: 'Noter l\'exercice' }));
+    expect(await toast(p)).toBe('Exercice noté, à refaire.');
+    // Noté : le bandeau s'en va, l'onglet l'oublie, la fiche le dit, la liste le porte.
+    await expect.poll(() => p.locator('.c-in-ex-en').count()).toBe(0);
+    expect(await p.evaluate(() => sessionStorage.getItem('skanfact.console.exercice'))).toBeNull();
+    const carte = p.locator('.c-in-fiche').filter({ hasText: 'Le site principal est perdu' });
+    await expect.poll(async () => net(await carte.locator('.c-in-fiche-pied .c-sous').innerText())).toMatch(/^À refaire depuis le /);
+    const ligne = p.locator('.c-in-table-ex tbody tr').filter({ hasText: 'Le site principal est perdu' }).first();
+    expect(net(await ligne.innerText())).toContain('À refaire');
+    await cliquer(ligne.getByRole('button', { name: 'Lire' }));
+    f = fenetre(p);
+    expect(net(await f.innerText())).toMatch(/Joué aujourd'hui, \d\d:\d\d · \d+ min · Amira et Karim, chrono : Amira\./);
+    expect((await f.locator('.c-in-temps > li p').allInnerTexts()).map(net)).toEqual([expect.stringMatching(/^Fait à \d+ min$/), expect.stringMatching(/^Fait à \d+ min$/), 'Pas fait', 'Pas fait']);
+    expect(net(await f.locator('.c-in-ex-cr').innerText())).toContain('Personne ne savait où était la copie du site.');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 90_000);
+
+  it('quatre temps faits : « réussi » est proposé, et la fiche compte pour le lancement ; un exercice de plus de douze heures n\'est pas rouvert', async () => {
+    const p = await ouvrir(jD);
+    await cliquer(p.getByRole('button', { name: 'Faire un exercice…' }));
+    let f = fenetre(p);
+    await f.getByLabel('La fiche jouée').selectOption('acces');
+    await f.getByLabel('Qui joue').fill('Walid, seul au poste');
+    await cliquer(f.getByRole('button', { name: 'Commencer l\'exercice' }));
+    const en = p.locator('.c-in-ex-en');
+    for (let k = 1; k <= 4; k++) {
+      await cliquer(en.getByRole('button', { name: 'Fait', exact: true }));
+      await expect.poll(() => en.locator('.c-in-ex-fait').count()).toBe(k);
+    }
+    await cliquer(en.getByRole('button', { name: 'Terminer et écrire le compte rendu…' }));
+    f = fenetre(p);
+    expect(await f.getByRole('button', { name: 'Réussi' }).getAttribute('aria-pressed')).toBe('true');
+    await f.getByLabel('Ce qui a marché').fill('Les sessions se coupent d\'un geste.');
+    await f.getByLabel('Ce qui a coincé').fill('Rien de bloquant.');
+    await f.getByLabel('Ce qu\'on change').fill('Rien pour cette fiche.');
+    await cliquer(f.getByRole('button', { name: 'Noter l\'exercice' }));
+    expect(await toast(p)).toBe('Exercice noté : il compte pour le lancement.');
+    // Les données se relisent après le toast : on attend la fiche, puis le compteur (la même lecture).
+    await expect.poll(async () => net(await p.locator('.c-in-fiche').filter({ hasText: 'Un accès suspect, un compte volé' }).locator('.c-in-fiche-pied .c-sous').innerText())).toMatch(/^Exercée le /);
+    expect(net(await p.locator('.c-in-ex-compte').innerText())).not.toMatch(/Un accès suspect/);
+    await fermer(p);
+    // Un exercice laissé ouvert dans l'onglet depuis treize heures ne se noterait plus : la page ne le rouvre pas.
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cx.addInitScript(([j, e]) => { sessionStorage.setItem('skanfact.console.jeton', j); sessionStorage.setItem('skanfact.console.exercice', e); },
+      [jD, JSON.stringify({ fiche: 'base', debut: new Date(Date.now() - 13 * 3_600_000).toISOString(), participants: 'Hier soir', temps: [3, null, null, null] })] as const);
+    const q = await cx.newPage();
+    await q.goto(`${serveur.adresse}/console/#/service/incidents`);
+    await expect.poll(() => q.locator('.c-in-fiche').count(), { timeout: 20_000 }).toBe(FICHES.length);
+    expect(await q.locator('.c-in-ex-en').count()).toBe(0);
+    expect(await q.getByRole('button', { name: 'Faire un exercice…' }).count()).toBe(1);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 90_000);
 
   it('au téléphone : rien ne déborde, et chaque cible se touche du doigt', async () => {
     const p = await ouvrir(jD, 390);

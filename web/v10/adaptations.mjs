@@ -874,4 +874,6 @@ export const ADAPTATIONS = [
   ...lireFichier('cabinet-hors-ligne.txt'),
   // ── La saisie au brouillard du Cabinet sans réseau (1.105.0) ──
   ...lireFichier('cabinet-saisie-hors-ligne.txt'),
+  // ── « Enregistrer » attend la lecture d'une pièce jointe (1.113.0) ──
+  ...lireFichier('lecture-attente.txt'),
 ];

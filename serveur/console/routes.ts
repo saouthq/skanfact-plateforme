@@ -61,7 +61,7 @@ import { argentADecider, couts, encaisse, encaisseDuMois, lirePaiements, moisAva
 import { dansLeFiltre, etatTtn, FILTRES, ligne, lireNosFactures, resume as resumeDesFactures, type Filtre } from './nosfactures.ts';
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
 import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe, taches, titreDeTache, versionDAvant, type EtatSuiveur } from './versions.ts';
-import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
+import { exercicesDuLancement, fichesServies, FICHES, lireExercices, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
 import { oublierLaFermeture } from '../fermeture.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import {
@@ -1428,6 +1428,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const mesure = (a: string) => v.jours.filter((j) => j.jour >= a).reduce((m, j) => ({ mesurees: m.mesurees + j.mesurees, bas: m.bas + j.bas }), { mesurees: 0, bas: 0 });
       const deVeille30 = { ...v, jours: v.jours.filter((j) => j.jour >= debut30), alertes: v.alertes };
       const s = suites(lu, jour);
+      const exercices = lireExercices(await lireJson(x, 'select plateforme.console_exercices_crise($1) v', [t.toISOString()]));
       return {
         corps: {
           maintenant: t.toISOString(), aujourdhui: jour, veille, alertesEnCours: alertesOuvertes(deVeille30.alertes), briques: briques(deVeille30, jour, t, veille.etat === 'ok'),
@@ -1436,6 +1437,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
           maintenances: maintenances(lu, misesEnLigne(v).filter((m) => m.le >= `${debut30}T00:00:00`), v.coupures, t, fermees),
           passes: { trente: passes(lu, `${debut30}T00:00:00+01:00`, mesure(debut30)), annee: passes(lu, `${debutAn}T00:00:00+01:00`, mesure(debutAn)), annee_n: Number(jour.slice(0, 4)) },
           fiches: fichesServies(lu), exercice: v.exercice, equipe: lu.equipe, fichesConnues: FICHES,
+          // 0166 (C24 quater) : les exercices de crise, et ce qu'il en manque pour le lancement.
+          exercices, lancement: exercicesDuLancement(exercices, t),
         },
       };
     },
@@ -1721,6 +1724,19 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const r = await lireJson<{ id: string; annee: number; numero: number }>(transaction(tx), 'select plateforme.console_ouvrir_incident($1, $2, $3, $4, $5, $6) v',
         [corps.titre, corps.gravite, corps.fiche, corps.public, corps.motif, maintenant()]);
       return { statut: 201, corps: { id: r.id, ref: refIncident(r.annee, r.numero) } };
+    },
+  });
+  // Un exercice de crise fini (0166 ; C24 quater) : il finit quand on le note, la base dit s'il tient (ses temps dans l'ordre,
+  // entre son début et sa fin ; réussi seulement si ses quatre temps ont été faits). Il ne touche à rien d'autre.
+  const texteExercice = z.string().trim().min(3).max(2000);
+  ajouter({
+    methode: 'POST', chemin: '/console/service/exercices', geste: 'console.service.gerer',
+    corps: z.object({ fiche: z.enum(FICHES), debut: z.string().datetime({ offset: true }), temps: z.array(z.number().int().min(0).nullable()).length(4),
+      participants: z.string().trim().min(3).max(300), marche: texteExercice, coince: texteExercice, change: texteExercice, reussi: z.boolean() }),
+    traiter: async ({ corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_noter_exercice($1, $2, $3, $4, $5, $6, $7, $8, $9) v',
+        [corps.fiche, corps.debut, JSON.stringify(corps.temps), corps.participants, corps.marche, corps.coince, corps.change, corps.reussi, maintenant()]);
+      return { statut: 201, corps: { id } };
     },
   });
   ajouter({

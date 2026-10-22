@@ -702,6 +702,19 @@ export interface BaseDeDonnees {
     le: Date;
     par: string;
   };
+  'plateforme.exercice_crise': {
+    id: Generated<string>;
+    fiche: string;
+    debut: Date;
+    fin: Date;
+    temps: ColumnType<Json, string, string>;
+    participants: string;
+    marche: string;
+    coince: string;
+    change: string;
+    reussi: boolean;
+    par: string;
+  };
   'plateforme.facture_abonnement': {
     id: Generated<string>;
     entreprise: string;

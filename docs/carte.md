@@ -869,6 +869,8 @@ vaut pour tout le dépôt.*
   maintenances, la page d'état et le mot « sans JavaScript », d'un seul habit ; `node scripts/pages-a-part.ts` les écrit.
   (1.109.0) **Le carnet de crise** (`web/console/src/carnet.ts`, `docs/console.md` C24 ter) : un fichier hors ligne, écrit
   avec les textes de la console ; `node scripts/carnet-de-crise.ts` l'écrit hors de la console.
+  (1.113.0) **Les exercices de crise** (base 0166, `docs/console.md` C24 quater) : une fiche jouée à blanc, chronométrée,
+  close par son compte rendu ; le lancement (J5) veut les dix réussies dans l'année.
   **Deux sortes de serveurs** (`installer.sh <adresse> essai|pilotes`, B bis) : l'essai (données inventées) et les
   pilotes (vraies données : relais d'e-mails exigé, aucun état détaillé public, **jamais l'accès de Claude**).
   **Claude a la main dessus** (Skander, 05/10/2026) :

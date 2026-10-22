@@ -50,7 +50,29 @@ type Donnees = {
   fiches: Record<string, { le: string; ref: string } | null>; fichesConnues: string[];
   exercice: { jour: string; restauration: { le: string; ok: boolean } } | null;
   equipe: { id: string; nom: string }[];
+  // 0166 (C24 quater) : les exercices de crise de l'année, et les fiches que le lancement attend encore.
+  exercices: Exercice[]; lancement: { reussies: string[]; manquent: string[]; total: number };
 };
+type Exercice = {
+  id: string; fiche: string; debut: string; fin: string; temps: (number | null)[]; participants: string;
+  marche: string; coince: string; change: string; reussi: boolean; par: string;
+};
+// L'exercice qu'on joue : il vit dans l'onglet (sessionStorage), et survit à une page rechargée ; rien n'en part au serveur
+// avant son compte rendu.
+type EnCours = { fiche: string; debut: string; participants: string; temps: (number | null)[] };
+const CLE_EXERCICE = 'skanfact.console.exercice';
+function lireEnCours(): EnCours | null {
+  try {
+    const x = JSON.parse(sessionStorage.getItem(CLE_EXERCICE) ?? 'null') as EnCours | null;
+    // Commencé il y a plus de douze heures, il ne se note plus (0166) : on ne le rouvre pas pour qu'il soit refusé.
+    const frais = x && typeof x.debut === 'string' && Date.now() - Date.parse(x.debut) < 12 * 3_600_000;
+    return x && frais && typeof x.fiche === 'string' && Array.isArray(x.temps) && x.temps.length === 4 ? x : null;
+  } catch { return null; }
+}
+function ecrireEnCours(e: EnCours | null) {
+  try { if (e) sessionStorage.setItem(CLE_EXERCICE, JSON.stringify(e)); else sessionStorage.removeItem(CLE_EXERCICE); } catch { /* l'onglet refuse : l'exercice vit en mémoire */ }
+}
+const minutesDepuis = (debut: string, maintenant = Date.now()) => Math.max(0, Math.floor((maintenant - Date.parse(debut)) / 60_000));
 
 // ── Les mots ────────────────────────────────────────────────────────────────────────────────────────────────────────
 const nomGravite = (g: Gravite) => dire(`${I}.gravite.${g}`);
@@ -85,7 +107,12 @@ type Geste =
   | { sorte: 'fermer'; m: Extract<Maintenance, { sorte: 'annoncee' }> }
   | { sorte: 'rouvrir'; m: Extract<Maintenance, { sorte: 'annoncee' }> }
   | { sorte: 'lire'; p: Passe }
-  | { sorte: 'fiche'; f: string };
+  | { sorte: 'fiche'; f: string }
+  // 0166 : commencer un exercice, l'abandonner, écrire son compte rendu ; relire celui d'un exercice joué.
+  | { sorte: 'exercice' }
+  | { sorte: 'abandonner' }
+  | { sorte: 'compte_rendu'; en: EnCours }
+  | { sorte: 'lire_exercice'; e: Exercice };
 
 // ── L'incident ouvert, ou l'absence d'incident ──────────────────────────────────────────────────────────────────────
 function AucunIncident({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
@@ -454,7 +481,9 @@ function Fiches({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
         {d.fichesConnues.map((f) => {
           const servie = d.fiches[f] ?? null;
           const badge = FICHES_A_DECIDER[f];
-          const exercee = f === 'base' && d.exercice ? d.exercice : null;
+          // Le dernier exercice joué sur la fiche (0166), ou, pour la base, l'exercice de restauration de la nuit.
+          const joue = d.exercices.find((e) => e.fiche === f) ?? null;
+          const exercee = joue ? { jour: jourDe(joue.fin) } : f === 'base' && d.exercice ? d.exercice : null;
           return (
             <article key={f} className="c-carte c-in-fiche">
               <div className="c-in-fiche-tete"><h3>{maj(dire(`${I}.fiche.${f}.nom`))}</h3>{badge ? <span className="c-in-badge">{dire(`${I}.${badge}`)}</span> : null}</div>
@@ -464,7 +493,8 @@ function Fiches({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
                 <button type="button" className="c-in-lien" onClick={() => faire({ sorte: 'fiche', f })}>{titre(`${I}.fiches.lire`)}</button>
                 <span className="c-sous" {...(servie ? { title: servie.ref } : {})}>
                   {servie ? maj(dire(`${I}.fiches.servie`, { jour: jourMois(jourDe(servie.le)) }))
-                    : exercee ? maj(dire(`${I}.fiches.exercee`, { jour: jourMois(exercee.jour) })) : maj(dire(`${I}.fiches.jamais`))}
+                    : joue && !joue.reussi ? maj(dire(`${I}.fiches.a_refaire`, { jour: jourMois(jourDe(joue.fin)) }))
+                      : exercee ? maj(dire(`${I}.fiches.exercee`, { jour: jourMois(exercee.jour) })) : maj(dire(`${I}.fiches.jamais`))}
                 </span>
               </div>
             </article>
@@ -483,6 +513,204 @@ function telechargerCarnet(d: Donnees) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
   toast(phrase(`${I}.fiches.carnet_fait`));
+}
+
+// ── Les exercices de crise (0166 ; docs/console.md C24 quater) ─────────────────────────────────────────────────────
+// Une fiche jouée à blanc, chronométrée, temps par temps ; son compte rendu ; ce qu'il en manque pour le lancement (J5 :
+// chaque fiche réussie dans l'année).
+function Exercices({ d, faire, enCours }: { d: Donnees; faire: (g: Geste) => void; enCours: boolean }) {
+  const { reussies, manquent, total } = d.lancement;
+  return (
+    <section className="c-carte c-liste-carte c-in-exercices" aria-labelledby="in-exercices">
+      <div className="c-al-section-tete">
+        <div>
+          <h2 id="in-exercices">{titre(`${I}.ex.titre`)}</h2>
+          <p className="c-carte-sous">{phrase(`${I}.ex.sous`)}</p>
+        </div>
+        {enCours ? null : <Bouton icone="plus" onClick={() => faire({ sorte: 'exercice' })}>{titre(`${I}.ex.faire`)}</Bouton>}
+      </div>
+      <p className={`c-in-ex-compte${manquent.length ? '' : ' c-in-ex-compte-ok'}`}>
+        <b>{manquent.length ? maj(selon(reussies.length, `${I}.ex.compte`, { total })) : maj(dire(`${I}.ex.toutes`, { total }))}</b>
+        {manquent.length ? <span className="c-sous">{phrase(`${I}.ex.manquent`, { liste: manquent.map((f) => dire(`${I}.fiche.${f}.nom`)).join(', ') })}</span> : null}
+      </p>
+      {d.exercices.length === 0 ? <Vide icone="info">{phrase(`${I}.ex.vide`)}</Vide> : (
+        <div className="c-defile">
+          <table className="c-table c-in-table c-in-table-ex">
+            <thead>
+              <tr>
+                <th scope="col">{titre(`${I}.ex.col.le`)}</th>
+                <th scope="col">{titre(`${I}.ex.col.fiche`)}</th>
+                <th scope="col" className="c-droite">{titre(`${I}.ex.col.duree`)}</th>
+                <th scope="col">{titre(`${I}.ex.col.temps`)}</th>
+                <th scope="col">{titre(`${I}.ex.col.verdict`)}</th>
+                <th scope="col">{titre(`${I}.ex.col.par`)}</th>
+                <th scope="col"><span className="c-cache">{titre(`${I}.ex.lire`)}</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.exercices.map((e) => (
+                <tr key={e.id}>
+                  <td className="c-al-nw" data-libelle={titre(`${I}.ex.col.le`)}>{maj(jourHeure(e.debut, d.aujourdhui))}</td>
+                  <td data-libelle={titre(`${I}.ex.col.fiche`)}><b>{maj(dire(`${I}.fiche.${e.fiche}.nom`))}</b></td>
+                  <td className="c-droite c-al-nw c-num" data-libelle={titre(`${I}.ex.col.duree`)}>{minutes(minutesDepuis(e.debut, Date.parse(e.fin)))}</td>
+                  <td data-libelle={titre(`${I}.ex.col.temps`)}>
+                    <span className="c-in-ex-temps">
+                      {TEMPS.map((t, k) => {
+                        const m = e.temps[k] ?? null;
+                        const dit = m === null ? dire(`${I}.ex.pas_fait`) : dire(`${I}.ex.minute`, { n: m });
+                        return <span key={t} title={dire(`${I}.ex.temps_titre`, { temps: dire(`${I}.temps.${t}`), quand: dit })}>{dit}</span>;
+                      })}
+                    </span>
+                  </td>
+                  <td data-libelle={titre(`${I}.ex.col.verdict`)}><Puce ton={e.reussi ? 'actif' : 'en_retard'}>{maj(dire(e.reussi ? `${I}.ex.reussi` : `${I}.ex.a_refaire`))}</Puce></td>
+                  <td data-libelle={titre(`${I}.ex.col.par`)}><span data-donnee>{e.par}</span></td>
+                  <td className="c-droite"><Bouton petit onClick={() => faire({ sorte: 'lire_exercice', e })}>{titre(`${I}.ex.lire`)}</Bouton></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// L'exercice qu'on joue, en tête de l'écran : le chrono, les quatre temps à cocher dans l'ordre, la fiche à relire.
+function ExerciceEnCours({ en, poser, faire }: { en: EnCours; poser: (e: EnCours | null) => void; faire: (g: Geste) => void }) {
+  const [maintenant, setMaintenant] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setMaintenant(Date.now()), 1000); return () => clearInterval(t); }, []);
+  // L'exercice commence d'un bouton en bas de l'écran : on remonte jusqu'à son chrono (recette du 22/10/2026 : il tournait
+  // hors de vue, et rien ne disait qu'il était parti).
+  const cadre = useRef<HTMLElement>(null);
+  // Après le dessin, et après la fenêtre qui se ferme (elle rend le curseur à son bouton, en bas : vu sous la charge des
+  // essais, le chrono restait hors de vue).
+  useEffect(() => {
+    const f = requestAnimationFrame(() => { cadre.current?.focus({ preventScroll: true }); cadre.current?.scrollIntoView({ block: 'start' }); });
+    return () => cancelAnimationFrame(f);
+  }, []);
+  const ecoule = Math.max(0, Math.floor((maintenant - Date.parse(en.debut)) / 1000));
+  const suivant = en.temps.findIndex((m) => m === null);
+  const cocher = (k: number) => poser({ ...en, temps: en.temps.map((m, i) => (i === k ? minutesDepuis(en.debut) : m)) });
+  return (
+    <section className="c-carte c-in-ex-en" aria-labelledby="in-ex-en" ref={cadre} tabIndex={-1}>
+      <div className="c-in-ex-en-tete">
+        <div>
+          <h2 id="in-ex-en">{titre(`${I}.ex.en.titre`, { fiche: dire(`${I}.fiche.${en.fiche}.nom`) })}</h2>
+          <p className="c-carte-sous">{phrase(`${I}.ex.en.sous`, { heure: heureDe(en.debut), participants: en.participants })}</p>
+        </div>
+        <p className="c-in-ex-chrono" role="timer" aria-label={dire(`${I}.ex.en.chrono_libelle`)}>
+          {dire(`${I}.ex.en.chrono`, { m: Math.floor(ecoule / 60), s: String(ecoule % 60).padStart(2, '0') })}
+        </p>
+      </div>
+      <ol className="c-in-ex-etapes">
+        {TEMPS.map((t, k) => {
+          const m = en.temps[k] ?? null;
+          return (
+            <li key={t} className={m !== null ? 'c-in-ex-fait' : k === suivant ? 'c-in-ex-suivant' : ''}>
+              <b>{maj(dire(`${I}.temps.${t}`))}</b>
+              <span className="c-sous">{phrase(`${I}.fiche.${en.fiche}.${t}`)}</span>
+              {m !== null ? <span className="c-in-ex-quand">{dire(`${I}.ex.en.fait_a`, { n: m })}</span>
+                : k === suivant ? <Bouton petit ton="principal" onClick={() => cocher(k)}>{titre(`${I}.ex.en.fait`)}</Bouton>
+                  : <span className="c-sous">{phrase(`${I}.ex.en.attend`)}</span>}
+            </li>
+          );
+        })}
+      </ol>
+      <div className="c-in-ex-en-pied">
+        <Bouton petit onClick={() => faire({ sorte: 'fiche', f: en.fiche })}>{titre(`${I}.ex.en.lire`)}</Bouton>
+        <Bouton petit onClick={() => faire({ sorte: 'abandonner' })}>{titre(`${I}.ex.en.abandonner`)}</Bouton>
+        <Bouton ton={suivant === -1 ? 'principal' : 'secondaire'} onClick={() => faire({ sorte: 'compte_rendu', en })}>{titre(`${I}.ex.en.terminer`)}</Bouton>
+      </div>
+    </section>
+  );
+}
+
+function FenetreExercice({ d, fermer, commencer }: { d: Donnees; fermer: () => void; commencer: (e: EnCours) => void }) {
+  const e = useEnvoi(fermer);
+  // D'abord une fiche que le lancement attend encore.
+  const [fiche, setFiche] = useState(d.lancement.manquent[0] ?? d.fichesConnues[0] ?? '');
+  const [qui, setQui] = useState('');
+  const envoyer = () => {
+    if (qui.trim().length < 3) { e.refuser(phrase(`${I}.ex.f.participants_court`), 'participants'); return; }
+    commencer({ fiche, debut: new Date().toISOString(), participants: qui.trim(), temps: [null, null, null, null] });
+  };
+  return (
+    <Dialogue titre={titre(`${I}.ex.f.titre`)} sous={phrase(`${I}.ex.f.sous`)} fermer={fermer}
+      pied={<Pied fermer={fermer} occupe={false} envoyer={envoyer} bouton={titre(`${I}.ex.f.bouton`)} />}>
+      <Choix libelle={titre(`${I}.ex.f.fiche`)} aide={phrase(`${I}.ex.f.fiche_aide`)} valeur={fiche} changer={setFiche}
+        options={d.fichesConnues.map((f) => ({ valeur: f, texte: maj(dire(`${I}.fiche.${f}.nom`)) }))} />
+      <Champ libelle={titre(`${I}.ex.f.participants`)} aide={phrase(`${I}.ex.f.participants_aide`)} valeur={qui} changer={setQui} faute={e.faute('participants')} n={e.n} premier />
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre(`${K}.al.geste.ce_qui_va`)}</span>
+        <ul><li>{phrase(`${I}.ex.f.p1`)}</li><li>{phrase(`${I}.ex.f.p2`)}</li><li>{phrase(`${I}.ex.f.p3`)}</li></ul>
+      </div>
+      {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+function FenetreAbandonner({ fermer, abandonner }: { fermer: () => void; abandonner: () => void }) {
+  return (
+    <Dialogue titre={titre(`${I}.ex.ab.titre`)} fermer={fermer}
+      pied={<Pied fermer={fermer} occupe={false} envoyer={abandonner} bouton={titre(`${I}.ex.ab.bouton`)} sortie={titre(`${I}.ex.ab.garder`)} />}>
+      <div className="c-al-ce-qui-va"><ul><li>{phrase(`${I}.ex.ab.p1`)}</li><li>{phrase(`${I}.ex.ab.p2`)}</li></ul></div>
+    </Dialogue>
+  );
+}
+
+function FenetreCompteRendu({ en, fermer, fait }: { en: EnCours; fermer: () => void; fait: () => void }) {
+  const [reussi, setReussi] = useState(en.temps.every((m) => m !== null));
+  const e = useEnvoi(fait);
+  const [marche, setMarche] = useState('');
+  const [coince, setCoince] = useState('');
+  const [change, setChange] = useState('');
+  const manque = en.temps.filter((m) => m === null).length;
+  const envoyer = () => {
+    for (const [v, nom] of [[marche, 'marche'], [coince, 'coince'], [change, 'change']] as const) {
+      if (v.trim().length < 3) { e.refuser(phrase(`${I}.ex.cr.court`), nom); return; }
+    }
+    if (reussi && manque) { e.refuser(phrase(`${I}.ex.cr.reussi_pas`, { n: manque }), 'verdict'); return; }
+    e.envoyer('/console/service/exercices', { fiche: en.fiche, debut: en.debut, temps: en.temps, participants: en.participants,
+      marche: marche.trim(), coince: coince.trim(), change: change.trim(), reussi }, phrase(reussi ? `${I}.ex.cr.fait` : `${I}.ex.cr.fait_refaire`));
+  };
+  return (
+    <Dialogue titre={titre(`${I}.ex.cr.titre`)} sous={phrase(`${I}.ex.cr.sous`, { fiche: maj(dire(`${I}.fiche.${en.fiche}.nom`)), duree: minutes(minutesDepuis(en.debut)) })}
+      fermer={fermer} occupe={e.occupe} pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(`${I}.ex.cr.bouton`)} />}>
+      <Zone libelle={titre(`${I}.ex.cr.marche`)} valeur={marche} changer={setMarche} faute={e.faute('marche')} n={e.n} premier max={2000} />
+      <Zone libelle={titre(`${I}.ex.cr.coince`)} valeur={coince} changer={setCoince} faute={e.faute('coince')} n={e.n} max={2000} />
+      <Zone libelle={titre(`${I}.ex.cr.change`)} aide={phrase(`${I}.ex.cr.change_aide`)} valeur={change} changer={setChange} faute={e.faute('change')} n={e.n} max={2000} />
+      <div className="c-champ">
+        <span className="c-champ-libelle" id="in-ex-verdict">{titre(`${I}.ex.cr.verdict`)}</span>
+        <div className="c-pilules c-in-pilules" role="group" aria-labelledby="in-ex-verdict">
+          <button type="button" className="c-pilule" aria-pressed={reussi} onClick={() => setReussi(true)}>{maj(dire(`${I}.ex.reussi`))}</button>
+          <button type="button" className="c-pilule" aria-pressed={!reussi} onClick={() => setReussi(false)}>{maj(dire(`${I}.ex.a_refaire`))}</button>
+        </div>
+        {manque ? <span className="c-champ-aide">{phrase(`${I}.ex.cr.reussi_pas`, { n: manque })}</span> : null}
+      </div>
+      <Qui />
+      {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+function FenetreLireExercice({ x, d, fermer }: { x: Exercice; d: Donnees; fermer: () => void }) {
+  return (
+    <Dialogue titre={maj(dire(`${I}.fiche.${x.fiche}.nom`))} fermer={fermer} pied={<Bouton onClick={fermer}>{titre('console.ecran.fermer')}</Bouton>}
+      sous={phrase(`${I}.ex.lu.sous`, { jour: jourHeure(x.debut, d.aujourdhui), duree: minutes(minutesDepuis(x.debut, Date.parse(x.fin))), participants: x.participants })}>
+      <p><Puce ton={x.reussi ? 'actif' : 'en_retard'}>{maj(dire(x.reussi ? `${I}.ex.reussi` : `${I}.ex.a_refaire`))}</Puce></p>
+      <ol className="c-in-temps">
+        {TEMPS.map((t, k) => {
+          const m = x.temps[k] ?? null;
+          return <li key={t}><b>{dire(`${I}.temps.${t}`)}</b><p>{maj(m === null ? dire(`${I}.ex.lu.pas_fait`) : dire(`${I}.ex.en.fait_a`, { n: m }))}</p></li>;
+        })}
+      </ol>
+      <div className="c-in-ex-cr">
+        <p><b>{titre(`${I}.ex.cr.marche`)}</b><span data-donnee>{x.marche}</span></p>
+        <p><b>{titre(`${I}.ex.cr.coince`)}</b><span data-donnee>{x.coince}</span></p>
+        <p><b>{titre(`${I}.ex.cr.change`)}</b><span data-donnee>{x.change}</span></p>
+      </div>
+    </Dialogue>
+  );
 }
 
 // ── Les fenêtres ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -903,8 +1131,14 @@ function MessagesPrets({ f }: { f: string }) {
   );
 }
 
-function Fenetre({ g, d, fermer, fait, changer }: { g: Geste; d: Donnees; fermer: () => void; fait: () => void; changer: (g: Geste) => void }) {
+function Fenetre({ g, d, fermer, fait, changer, poser }: {
+  g: Geste; d: Donnees; fermer: () => void; fait: () => void; changer: (g: Geste) => void; poser: (e: EnCours | null) => void;
+}) {
   switch (g.sorte) {
+    case 'exercice': return <FenetreExercice d={d} fermer={fermer} commencer={(e) => { poser(e); fermer(); }} />;
+    case 'abandonner': return <FenetreAbandonner fermer={fermer} abandonner={() => { poser(null); fermer(); toast(phrase(`${I}.ex.ab.fait`)); }} />;
+    case 'compte_rendu': return <FenetreCompteRendu en={g.en} fermer={fermer} fait={() => { poser(null); fait(); }} />;
+    case 'lire_exercice': return <FenetreLireExercice x={g.e} d={d} fermer={fermer} />;
     case 'ouvrir': return <FenetreOuvrir d={d} pre={g.fiche} fermer={fermer} fait={fait} />;
     case 'point': return <FenetrePoint i={g.i} publicDemande={g.public} fermer={fermer} fait={fait} />;
     case 'clore': return <FenetreClore i={g.i} d={d} fermer={fermer} fait={fait} />;
@@ -937,6 +1171,8 @@ export function Incidents({ ouvrir = null }: { ouvrir?: string | null }) {
   const [l, relire] = useLecture<Donnees>('/console/service/incidents', 'service-incidents');
   useRelireTantQueRegarde(relire);
   const [geste, setGeste] = useState<Geste | null>(null);
+  const [enCours, setEnCours] = useState<EnCours | null>(lireEnCours);
+  const poser = (e: EnCours | null) => { ecrireEnCours(e); setEnCours(e); };
   const d = l.etat === 'lu' ? l.donnees : null;
   // Arrivé pour ouvrir un incident sur une fiche (l'écran Sécurité, 0142) : la fenêtre s'ouvre une fois, remplie, et
   // l'adresse s'en défait (revenir sur la page ne la rouvre pas).
@@ -955,6 +1191,7 @@ export function Incidents({ ouvrir = null }: { ouvrir?: string | null }) {
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
       {d ? (
         <>
+          {enCours ? <ExerciceEnCours en={enCours} poser={poser} faire={setGeste} /> : null}
           {(() => { const f = fermeture(d); return f ? <Fermee m={f} d={d} faire={setGeste} /> : null; })()}
           {d.ouverts.length ? (
             <div className="c-in-ouverts">
@@ -973,9 +1210,10 @@ export function Incidents({ ouvrir = null }: { ouvrir?: string | null }) {
           <Passes d={d} faire={setGeste} />
           <Regles />
           <Fiches d={d} faire={setGeste} />
+          <Exercices d={d} faire={setGeste} enCours={!!enCours} />
         </>
       ) : null}
-      {geste && d ? <Fenetre g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} changer={setGeste} /> : null}
+      {geste && d ? <Fenetre g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} changer={setGeste} poser={poser} /> : null}
     </>
   );
 }

@@ -2052,6 +2052,29 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-in-pret-courriel p { margin: 0; padding: 8px 12px; }
 .c-in-pret-courriel p:first-child { border-bottom: 1px solid var(--c-trait); }
 .c-in-pret-corps { white-space: pre-wrap; }
+/* (1.113.0) Les exercices de crise : à blanc, en violet (jamais la couleur d'un vrai incident) ; le chrono en chiffres fixes. */
+.c-in-ex-compte { display: grid; gap: 2px; margin: 0 24px 12px; padding: 12px 16px; border-radius: 14px; background: var(--c-violet-doux); color: var(--c-violet-texte); }
+.c-in-ex-compte .c-sous { color: inherit; opacity: .85; }
+.c-in-ex-compte-ok { background: var(--c-doux); color: var(--c-doux-texte); }
+.c-in-ex-temps { display: inline-flex; gap: 6px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.c-in-ex-temps > span { padding: 1px 8px; border-radius: 999px; background: var(--c-gris-doux); font-size: 13px; white-space: nowrap; }
+.c-in-ex-en { border-left: 4px solid var(--c-violet-texte); display: grid; gap: 16px; }
+.c-in-ex-en:focus { outline: none; }
+.c-in-ex-en-tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px 24px; flex-wrap: wrap; }
+.c-in-ex-en-tete h2 { margin: 0; }
+.c-in-ex-chrono { margin: 0; padding: 8px 14px; border-radius: 12px; background: var(--c-violet-doux); color: var(--c-violet-texte);
+  font-family: var(--c-titre); font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.c-in-ex-etapes { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.c-in-ex-etapes > li { display: grid; gap: 6px; align-content: start; padding: 12px; border: 1px solid var(--c-trait); border-radius: 12px; }
+.c-in-ex-etapes > li > .c-btn { justify-self: start; }
+.c-in-ex-etapes > li.c-in-ex-suivant { border-color: var(--c-violet-texte); }
+.c-in-ex-etapes > li.c-in-ex-fait { background: var(--c-doux); border-color: transparent; }
+.c-in-ex-quand { color: var(--c-doux-texte); font-weight: 600; font-variant-numeric: tabular-nums; }
+.c-in-ex-en-pied { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.c-in-ex-cr { display: grid; gap: 10px; border-top: 1px dashed var(--c-trait); padding-top: 12px; }
+.c-in-ex-cr p { margin: 0; display: grid; gap: 2px; white-space: pre-line; }
+@media (max-width: 900px) { .c-in-ex-etapes { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) { .c-in-ex-etapes { grid-template-columns: minmax(0, 1fr); } .c-in-ex-compte { margin-inline: 18px; } }
 .c-in-cr { display: grid; gap: 4px; }
 .c-in-cr > .c-btn { justify-self: start; margin-top: 4px; }
 .c-in-cr p { margin: 0; white-space: pre-line; }

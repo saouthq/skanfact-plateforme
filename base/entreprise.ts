@@ -178,6 +178,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.relecture_demandee': { classe: 'hors', raison: 'une relecture des chaînes demandée depuis la console (0142) : un geste de l\'équipe SkanFact, pas une donnée de l\'entreprise' },
   'plateforme.service_maintenance': { classe: 'hors', raison: 'les maintenances annoncées sur la page d\'état : l\'histoire de la plateforme' },
   'plateforme.service_fermeture': { classe: 'hors', raison: 'l\'application fermée aux clients pendant une maintenance (0164) : l\'histoire de la plateforme' },
+  'plateforme.exercice_crise': { classe: 'hors', raison: 'les exercices de crise de l\'équipe (0166), joués à blanc : rien d\'un client' },
   // Les réglages (0093, docs/console.md C28) : la relecture d'une règle commune par un comptable, et le message affiché en
   // haut de l'application de tous les clients. Communs à la plateforme, à aucune entreprise.
   'plateforme.relecture_regle': { classe: 'hors', raison: 'la relecture d\'une règle commune par un comptable : le registre de la plateforme, commun à toutes les entreprises' },
