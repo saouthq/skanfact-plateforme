@@ -860,6 +860,8 @@ vaut pour tout le dépôt.*
   l'application aux clients pendant un geste risqué, et la rouvre (base 0164, `serveur/fermeture.ts`).
   (1.108.0) **Les pages à part dans la DA** (`commun/page-a-part.ts`, `docs/mise-en-ligne.md`, M bis) : les deux
   maintenances, la page d'état et le mot « sans JavaScript », d'un seul habit ; `node scripts/pages-a-part.ts` les écrit.
+  (1.109.0) **Le carnet de crise** (`web/console/src/carnet.ts`, `docs/console.md` C24 ter) : un fichier hors ligne, écrit
+  avec les textes de la console ; `node scripts/carnet-de-crise.ts` l'écrit hors de la console.
   **Deux sortes de serveurs** (`installer.sh <adresse> essai|pilotes`, B bis) : l'essai (données inventées) et les
   pilotes (vraies données : relais d'e-mails exigé, aucun état détaillé public, **jamais l'accès de Claude**).
   **Claude a la main dessus** (Skander, 05/10/2026) :

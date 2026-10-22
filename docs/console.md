@@ -497,6 +497,25 @@ journal (« application fermée aux clients », « application rouverte aux clie
 répond pas (il redémarre pendant une mise à jour), c'est le frontal qui dit « Maintenance en cours »
 (`docs/mise-en-ligne.md`, M).
 
+**C24 ter. Le carnet de crise et les messages prêts** (demandé par Skander le 22/10/2026 : « se préparer à la gestion de
+crise » ; 1.109.0, `web/console/src/carnet.ts`, cadrage 06 § 9). Le jour où SkanFact tombe, la console peut tomber avec
+lui ; ce qu'on fait se lit alors sur un papier ou sur le téléphone.
+- **Le carnet** : « Télécharger le carnet de crise » (en tête des fiches réflexes, `#/service/incidents`) écrit un seul
+  fichier HTML, sans rien à charger, qui s'imprime une fiche par page (18 pages en A4) : les cinq premières minutes, la
+  gravité, ce qu'on s'est promis (06 § 4.1), qui appeler, où est quoi (dont la commande de l'accès d'urgence, C59), les
+  dix fiches avec leurs messages prêts, et l'après. Il est écrit avec les textes de la console : une fiche changée
+  change le carnet suivant (« un carnet plus ancien que la dernière fiche changée se réimprime »). **Il ne porte aucune
+  donnée** : « qui appeler » a des cases vides, à remplir à la main sur le papier, jamais dans le dépôt (il est public).
+  `node scripts/carnet-de-crise.ts [fichier]` écrit le même hors de la console.
+- **Les messages prêts** : chaque fiche porte ce que dit la page d'état et l'e-mail aux entreprises touchées, écrits à
+  froid ; une fiche dont la crise ne se dit pas sur la page (un accès volé, une pièce changée : on prévient la personne)
+  ou ne touche pas les clients (une sauvegarde) n'en a pas. Ils se lisent dans la fiche et se **copient d'un geste**
+  (l'e-mail avec son objet) ; ils ne partent jamais d'eux-mêmes.
+- **Entre crochets, ce qui se remplit au moment** (« [heure] », « [le partenaire] »). Ouvrir un incident sur une fiche
+  et cocher « le dire tout de suite » pose son message dans le champ ; changer de fiche le change tant qu'on n'y a pas
+  touché. **Un passage entre crochets ne part jamais sur la page d'état** : la fenêtre le refuse en le citant, et le
+  serveur aussi (à l'ouverture, en point public, en maintenance annoncée).
+
 **C25. Les travaux et les envois du service** (10 § 2.8 ; base 0090). `#/service/travaux`, la direction et la technique.
 Ce que le serveur fait seul, et ce qu'il envoie aux partenaires : quatre chiffres (ce qui attend son dépôt à la TTN, ce
 qui est parti aujourd'hui chez tous les partenaires comptés, ce qui reste à regarder, le dernier tour du facteur) ; une

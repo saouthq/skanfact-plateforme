@@ -15,14 +15,15 @@ import { problemes } from '../instrument-rendu.ts';
 export type EcranConsole = { nom: string; hash: string; geste?: (p: Page) => Promise<void>; sansSession?: boolean };
 export type OuvrirConsole = (e: EcranConsole, o: { largeur: number; theme?: 'clair' | 'sombre'; factice?: boolean }) => Promise<Page>;
 
-// En langue factice, chaque texte visible vient du catalogue (⟦…⟧), sauf les données (data-donnee) ; chaque nom donné
+// En langue factice, chaque texte visible vient du catalogue (⟦…⟧), sauf les données (data-donnee) ; le mot « sans
+// JavaScript » (<noscript>, 1.108.0) ne se montre jamais à qui a JavaScript, et l'arbre le garde en texte brut ; chaque nom donné
 // aux lecteurs d'écran aussi (tests/web/rendu.test.ts).
 export function horsCatalogue(): string[] {
   const pb: string[] = [];
   const marcheur = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   for (let n = marcheur.nextNode(); n; n = marcheur.nextNode()) {
     const texte = (n.textContent ?? '').trim();
-    if (!/\p{L}{2,}/u.test(texte) || n.parentElement?.closest('[data-donnee], script, style')) continue;
+    if (!/\p{L}{2,}/u.test(texte) || n.parentElement?.closest('[data-donnee], script, style, noscript')) continue;
     if (!texte.includes('⟦')) pb.push(texte.slice(0, 60));
   }
   for (const el of document.querySelectorAll<HTMLElement>('[aria-label]')) {

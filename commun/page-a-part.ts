@@ -40,6 +40,17 @@ export const DESSINS = {
 export const assurance = (dessin: keyof typeof DESSINS, titre: string, texte: string) =>
   `<li><span class="pa-icone">${DESSINS[dessin]}</span><span><b>${echapper(titre)}</b><span>${echapper(texte)}</span></span></li>`;
 
+// Les morceaux de la carte (1.109.0 : la page de la fermeture, serveur/fermeture.ts, les assemble ; le code du serveur
+// n'écrit ni phrase ni balise en dur). Les textes passés sont du HTML échappé, sauf `texteDeLEquipe` et `x`, échappés ici.
+export const chiffres = (x: string) => `<span data-chiffres>${echapper(x)}</span>`;
+export const encartHeure = (etiquette: string, heure: string, note: string) =>
+  `<div class="pa-heure"><span class="pa-etiquette">${etiquette}</span><strong data-chiffres>${echapper(heure)}</strong><small>${note}</small></div>`;
+export const encartMessage = (etiquette: string, texteDeLEquipe: string) =>
+  `<div class="pa-heure"><span class="pa-etiquette">${etiquette}</span><blockquote class="pa-message" data-texte>${echapper(texteDeLEquipe)}</blockquote></div>`;
+export const assurances = (lignes: string[]) => `<ul class="pa-assurances">\n${lignes.join('\n')}\n</ul>`;
+export const basDeCarte = (essai: string, lien: { href: string; texte: string }) =>
+  `<hr class="pa-trait">\n<div class="pa-bas"><p class="pa-essai">${essai}</p><a class="pa-lien" href="${lien.href}">${lien.texte} ${DESSINS.fleche}</a></div>`;
+
 function polices(dossier: string) {
   return `@font-face{font-family:'Bricolage Grotesque Variable';font-style:normal;font-display:swap;font-weight:200 800;src:url(${dossier}bricolage-grotesque-latin-wght-normal.woff2) format('woff2-variations')}
 @font-face{font-family:'Instrument Sans Variable';font-style:normal;font-display:swap;font-weight:400 700;src:url(${dossier}instrument-sans-latin-wght-normal.woff2) format('woff2-variations')}

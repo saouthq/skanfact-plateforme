@@ -1705,7 +1705,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     },
   });
   const gravite = z.enum(['mineur', 'majeur', 'critique']);
-  const sansBalise = (min: number, max: number) => z.string().trim().min(min).max(max).refine((x) => !/[<>]/.test(x), 'console.sans_balise');
+  // (1.109.0) Les messages prêts des fiches portent des passages entre crochets (« [heure] ») : la page d'état publique n'en
+  // montre jamais un qu'on aurait oublié de remplir.
+  const aRemplir = (x: string) => /\[[^\]]*\]/.test(x);
+  const sansBalise = (min: number, max: number) => z.string().trim().min(min).max(max).refine((x) => !/[<>]/.test(x), 'console.sans_balise')
+    .refine((x) => !aRemplir(x), 'console.a_remplir');
   const lireUuid = (x: string | undefined) => { if (!x || !uuid.safeParse(x).success) throw new Introuvable(); return x; };
   ajouter({
     methode: 'POST', chemin: '/console/service/incidents', geste: 'console.service.gerer',
@@ -1718,7 +1722,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
   });
   ajouter({
     methode: 'POST', chemin: '/console/service/incidents/:incident/points', geste: 'console.service.gerer',
-    corps: z.object({ texte: z.string().trim().min(3).max(1000), public: z.boolean(), gravite: gravite.nullable() }),
+    corps: z.object({ texte: z.string().trim().min(3).max(1000), public: z.boolean(), gravite: gravite.nullable() })
+      .refine((c) => !(c.public && aRemplir(c.texte)), { message: 'console.a_remplir', path: ['texte'] }),
     traiter: async ({ params, corps }, tx) => {
       await transaction(tx).query('select plateforme.console_point_incident($1, $2, $3, $4, $5)', [lireUuid(params.incident), corps.texte, corps.public, corps.gravite, maintenant()]);
       return { statut: 201, corps: { ok: true } };

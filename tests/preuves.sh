@@ -19114,9 +19114,9 @@ prouver 'le mot « sans JavaScript » absent de la console' 'web/console/index.h
   '<section class="sans-js">' \
   '<section class="sans-jss">' \
   'les fichiers écrits par scripts/pages-a-part.ts sont à jour : la page du frontal, le mot « sans JavaScript » de l'\''application et de la console'
-prouver 'le texte de l'\''équipe affiché sans échappement' 'serveur/fermeture.ts' \
-  'data-texte>${echapper(f.texte)}' \
-  'data-texte>${f.texte}' \
+prouver 'le texte de l'\''équipe affiché sans échappement' 'commun/page-a-part.ts' \
+  'data-texte>${echapper(texteDeLEquipe)}' \
+  'data-texte>${texteDeLEquipe}' \
   'la fermeture : l'\''heure du retour, le texte de l'\''équipe échappé, aucun script, les polices des écrans, rechargée chaque minute'
 prouver 'les polices des pages à part jamais copiées au frontal' 'exploitation/frontal.sh' \
   'install -m 0644 "$(dirname "$0")"/../web/public/plateforme/polices/*.woff2 "$ETAT/public/etat-polices/"
@@ -19134,6 +19134,49 @@ prouver 'la page d'\''état qui cherche ses polices chez le programme' 'exploita
   '    polices: '\''/etat-polices/'\'',' \
   '    polices: '\''/plateforme/polices/'\'',' \
   'la page d'\''état : l'\''état d'\''un mot dans la vitrine, les polices du frontal (le frontal la sert seul)'
+
+# ── 1.109.0 : le carnet de crise et les messages prêts (web/console/src/carnet.ts) ──
+prouver 'un message de la page d'\''état ouvert avec ses crochets' 'serveur/console/routes.ts' \
+  '.refine((x) => !aRemplir(x), '\''console.a_remplir'\'');' \
+  '.refine((x) => x === x, '\''console.a_remplir'\'');' \
+  'ouvrir : un numéro par année, sans trou ; la page d'\''état dit le message public, le plus grave d'\''abord'
+prouver 'un point public envoyé avec ses crochets' 'serveur/console/routes.ts' \
+  '.refine((c) => !(c.public && aRemplir(c.texte)),' \
+  '.refine((c) => !(c.public && c.texte === ""),' \
+  'un point public avec un passage entre crochets ne part pas sur la page d'\''état'
+prouver 'le message prêt jamais posé dans « ouvrir »' 'web/console/src/ecrans/Incidents.tsx' \
+  'const cocher = (oui: boolean) => { if (oui && !pub) setPub(pret(fiche)); setPublier(oui); };' \
+  'const cocher = (oui: boolean) => { setPublier(oui); };' \
+  'une fiche porte ses messages prêts, copiés d'\''un geste ; « ouvrir » pose celui de la page d'\''état, et le refuse tant que ses crochets ne sont pas remplis'
+prouver 'un texte écrit à la main remplacé en changeant de fiche' 'web/console/src/ecrans/Incidents.tsx' \
+  'const choisirFiche = (f: string) => { if (pub === pret(fiche)) setPub(pret(f)); setFiche(f); };' \
+  'const choisirFiche = (f: string) => { setPub(pret(f)); setFiche(f); };' \
+  'une fiche porte ses messages prêts, copiés d'\''un geste ; « ouvrir » pose celui de la page d'\''état, et le refuse tant que ses crochets ne sont pas remplis'
+prouver 'les crochets laissés au serveur, sans dire lesquels' 'web/console/src/ecrans/Incidents.tsx' \
+  '    if (trou) { e.refuser(phrase(`${I}.a_remplir`, { passage: trou }), '\''public'\''); return; }
+' \
+  '' \
+  'une fiche porte ses messages prêts, copiés d'\''un geste ; « ouvrir » pose celui de la page d'\''état, et le refuse tant que ses crochets ne sont pas remplis'
+prouver 'l'\''e-mail copié sans son objet' 'web/console/src/ecrans/Incidents.tsx' \
+  'copier(`${titre(`${I}.fiche.objet`)}\u202f: ${m.courriel?.objet ?? '\'''\''}\n\n${m.courriel?.corps ?? '\'''\''}`)' \
+  'copier(`${m.courriel?.corps ?? '\'''\''}`)' \
+  'une fiche porte ses messages prêts, copiés d'\''un geste ; « ouvrir » pose celui de la page d'\''état, et le refuse tant que ses crochets ne sont pas remplis'
+prouver 'le carnet qui cite sans échapper' 'web/console/src/carnet.ts' \
+  'const e = echapper;' \
+  'const e = (s: string) => s;' \
+  'chaque fiche du serveur, une par page, ses quatre temps et ses messages prêts, échappés'
+prouver 'le carnet qui oublie une fiche' 'web/console/src/carnet.ts' \
+  '${fiches.map((f, n) => fiche(f, n + 1, fiches.length)).join' \
+  '${fiches.slice(1).map((f, n) => fiche(f, n + 1, fiches.length)).join' \
+  'chaque fiche du serveur, une par page, ses quatre temps et ses messages prêts, échappés'
+prouver 'le carnet téléchargé sans les fiches du serveur' 'web/console/src/ecrans/Incidents.tsx' \
+  'carnetDeCrise({ fiches: d.fichesConnues, jour: d.aujourdhui })' \
+  'carnetDeCrise({ fiches: d.fichesConnues.slice(0, 9), jour: d.aujourdhui })' \
+  'le carnet de crise se télécharge : les fiches du serveur, rien à charger'
+prouver 'la page fermée qui écrit sa phrase en dur' 'serveur/fermeture.ts' \
+  '    vitrineBas: d('\''vitrine'\''),' \
+  '    vitrineBas: '\''Gestion, caisse, paie et comptabilité.'\'',' \
+  'aucune phrase n'\''est écrite en dur dans le code du serveur'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

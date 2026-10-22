@@ -65,6 +65,8 @@ declarerTextes({
   'console.remise.motif_court': 'une remise demande son motif, trois caractères au moins : il entre dans la piste d\'audit de l\'entreprise',
   'console.remise.motif_illisible': 'le motif tient sur une ligne, trois cents caractères au plus',
   'console.sans_balise': 'ce texte part sur la page d\'état publique : sans les signes < ni >',
+  // (1.109.0) Un message prêt d'une fiche (ses passages entre crochets) envoyé sans être rempli.
+  'console.a_remplir': 'un passage entre crochets reste à remplir : la page d\'état publique ne montre que des phrases finies',
   'console.motif_requis': 'un geste de la console demande son motif, trois caractères au moins : il reste dans son histoire',
   // Les versions du service (docs/console.md C27).
   'console.versions.hors_depot': 'le suiveur n\'installe qu\'une des trente dernières versions du dépôt : celle-ci n\'en est plus',

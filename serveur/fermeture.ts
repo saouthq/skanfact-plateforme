@@ -12,9 +12,9 @@
 import type { FastifyInstance } from 'fastify';
 import { enTantQue } from './base.ts';
 import type { Contexte } from './connexion.ts';
-import { motif } from '../textes/index.ts';
-import './fermeture-textes.ts';
-import { assurance, DESSINS, echapper, pageAPart } from '../commun/page-a-part.ts';
+import { motif, rendre, t, type Valeurs } from '../textes/index.ts';
+import './fermeture/textes.ts';
+import { assurance, assurances, basDeCarte, chiffres, encartHeure, encartMessage, pageAPart } from '../commun/page-a-part.ts';
 
 export type Fermeture = { texte: string; fin: string } | null;
 const RELIRE_MS = 5_000;
@@ -47,23 +47,22 @@ export function finDite(fin: string, maintenant: Date): string {
 export function pageFermee(f: NonNullable<Fermeture>, maintenant: Date): string {
   const fin = finDite(f.fin, maintenant);
   const affichee = maintenant.toLocaleTimeString('fr-FR', { timeZone: 'Africa/Tunis', hour: '2-digit', minute: '2-digit', hour12: false });
+  // Les phrases du catalogue (fermeture/textes.ts) sont les nôtres : sans balise ; ce qui vient d'ailleurs est échappé.
+  const d = (cle: string, valeurs: Valeurs = {}) => rendre(t(`fermeture.page.${cle}`, valeurs), 'fr');
   return pageAPart({
-    onglet: 'Maintenance en cours — SkanFact',
+    onglet: d('onglet'),
     polices: '/plateforme/polices/',
     rafraichir: 60,
-    pastille: { texte: 'Maintenance en cours', ton: 'bleu', anime: true },
-    titre: `SkanFact revient vers <span data-chiffres>${echapper(fin)}</span>.`,
-    chapo: 'L\'équipe fait une maintenance : l\'application est fermée le temps qu\'elle dure, pour que rien ne s\'écrive à moitié.',
-    corps: `<div class="pa-heure"><span class="pa-etiquette">Retour prévu</span><strong data-chiffres>${echapper(fin)}</strong><small>Heure de Tunis.</small></div>
-<div class="pa-heure"><span class="pa-etiquette">Le mot de l'équipe</span><blockquote class="pa-message" data-texte>${echapper(f.texte)}</blockquote></div>
-<ul class="pa-assurances">
-${assurance('bouclier', 'Tes données sont en sécurité', 'Rien ne se perd pendant la maintenance.')}
-${assurance('refaire', 'Ce que tu envoyais n\'est pas parti', 'Rien n\'a été enregistré à moitié : refais-le au retour.')}
-${assurance('horloge', 'Cette page revient seule', 'Elle se recharge chaque minute ; l\'application réapparaît d\'elle-même.')}
-</ul>
-<hr class="pa-trait">
-<div class="pa-bas"><p class="pa-essai">Affichée à <span data-chiffres>${echapper(affichee)}</span></p><a class="pa-lien" href="/etat">Page d'état ${DESSINS.fleche}</a></div>`,
-    vitrineBas: 'Gestion, caisse, paie et comptabilité, avec ton cabinet comptable.',
+    pastille: { texte: d('pastille'), ton: 'bleu', anime: true },
+    titre: d('titre', { fin: chiffres(fin) }),
+    chapo: d('chapo'),
+    corps: [
+      encartHeure(d('retour'), fin, d('tunis')),
+      encartMessage(d('mot'), f.texte),
+      assurances([assurance('bouclier', d('donnees'), d('donnees_dit')), assurance('refaire', d('envoi'), d('envoi_dit')), assurance('horloge', d('revient'), d('revient_dit'))]),
+      basDeCarte(d('affichee', { heure: chiffres(affichee) }), { href: '/etat', texte: d('etat') }),
+    ].join('\n'),
+    vitrineBas: d('vitrine'),
   });
 }
 

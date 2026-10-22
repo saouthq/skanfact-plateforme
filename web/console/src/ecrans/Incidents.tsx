@@ -12,6 +12,7 @@ import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts
 import { entier, minutes, pourCent } from '../nombres.ts';
 import { heureDe, jourDe, jourMois, quand } from '../temps.ts';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
+import { carnetDeCrise, FICHES_A_DECIDER, messagesDe, passageARemplir, TEMPS } from '../carnet.ts';
 import { EnteteService, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type Veille } from './Service.tsx';
 
 const K = 'console.ecran.service';
@@ -63,11 +64,9 @@ const enChamp = (iso: string) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'A
 const duChamp = (v: string) => (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v) ? `${v}:00+01:00` : null);
 // « aujourd'hui, 16:26 », « le 02/10/2026, 21:14 » : le jour et l'heure, une fois.
 const jourHeure = (iso: string, aujourdhui: string) => quand(iso, aujourdhui);
-const FICHES_A_DECIDER: Record<string, 'a_decider' | 'a_verifier'> = { site: 'a_decider', fuite: 'a_verifier', rancon: 'a_verifier', empreinte: 'a_verifier' };
 // Un incident ouvert depuis un autre écran sur sa fiche (« #/service/incidents?ouvrir=empreinte », l'écran Sécurité, 0142) :
 // la gravité que la fiche dit (« critique »).
 const GRAVITE_DE_FICHE: Record<string, Gravite> = { empreinte: 'critique' };
-const TEMPS = ['contenir', 'dire', 'reparer', 'ecrire'] as const;
 
 // ── Les gestes ──────────────────────────────────────────────────────────────────────────────────────────────────────
 type Geste =
@@ -441,8 +440,16 @@ function Regles() {
 function Fiches({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
   return (
     <section className="c-in-fiches" aria-labelledby="in-fiches" id="in-fiches">
-      <h2 id="in-fiches">{titre(`${I}.fiches.titre`)}</h2>
-      <p className="c-carte-sous">{phrase(`${I}.fiches.sous`)}</p>
+      <div className="c-in-fiches-tete">
+        <div>
+          <h2 id="in-fiches">{titre(`${I}.fiches.titre`)}</h2>
+          <p className="c-carte-sous">{phrase(`${I}.fiches.sous`)}</p>
+        </div>
+        <div className="c-in-carnet">
+          <Bouton icone="telecharger" onClick={() => telechargerCarnet(d)}>{titre(`${I}.fiches.carnet`)}</Bouton>
+          <span className="c-sous">{phrase(`${I}.fiches.carnet_aide`)}</span>
+        </div>
+      </div>
       <div className="c-in-fiches-grille">
         {d.fichesConnues.map((f) => {
           const servie = d.fiches[f] ?? null;
@@ -466,6 +473,16 @@ function Fiches({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
       </div>
     </section>
   );
+}
+
+// Le carnet de crise (carnet.ts), écrit ici avec les fiches que le serveur connaît, et téléchargé : il se garde hors ligne.
+function telechargerCarnet(d: Donnees) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([carnetDeCrise({ fiches: d.fichesConnues, jour: d.aujourdhui })], { type: 'text/html;charset=utf-8' }));
+  a.download = `${dire('console.ecran.service.carnet.fichier')}-${d.aujourdhui}.html`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+  toast(phrase(`${I}.fiches.carnet_fait`));
 }
 
 // ── Les fenêtres ────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -514,9 +531,16 @@ function FenetreOuvrir({ d, pre, fermer, fait }: { d: Donnees; pre?: string | un
   const [publier, setPublier] = useState(false);
   const [pub, setPub] = useState('');
   const [motif, setMotif] = useState('');
+  // Le message prêt de la fiche se pose dans le champ de la page d'état tant qu'on ne l'a pas changé : changer de fiche
+  // change de message, un texte écrit à la main reste.
+  const pret = (f: string) => (f ? messagesDe(f).public ?? '' : '');
+  const choisirFiche = (f: string) => { if (pub === pret(fiche)) setPub(pret(f)); setFiche(f); };
+  const cocher = (oui: boolean) => { if (oui && !pub) setPub(pret(fiche)); setPublier(oui); };
   const envoyer = () => {
     if (t.trim().length < 3) { e.refuser(phrase(`${I}.ouvrir_f.titre_court`), 'titre'); return; }
     if (publier && pub.trim().length < 3) { e.refuser(phrase(`${I}.ouvrir_f.public_court`), 'public'); return; }
+    const trou = publier ? passageARemplir(pub) : null;
+    if (trou) { e.refuser(phrase(`${I}.a_remplir`, { passage: trou }), 'public'); return; }
     if (motifCourt(motif)) { e.refuser(phrase('console.ecran.geste.motif_court'), 'motif'); return; }
     e.envoyer('/console/service/incidents', { titre: t.trim(), gravite: g, fiche: fiche || null, public: publier ? pub.trim() : null, motif: motif.trim() },
       phrase(`${I}.ouvrir_f.fait`));
@@ -534,13 +558,13 @@ function FenetreOuvrir({ d, pre, fermer, fait }: { d: Donnees; pre?: string | un
         </div>
         <span className="c-champ-aide">{phrase(`${I}.regles.${g}.quand`)}</span>
       </div>
-      <Choix libelle={titre(`${I}.ouvrir_f.fiche`)} aide={phrase(`${I}.ouvrir_f.fiche_aide`)} valeur={fiche} changer={setFiche}
+      <Choix libelle={titre(`${I}.ouvrir_f.fiche`)} aide={phrase(`${I}.ouvrir_f.fiche_aide`)} valeur={fiche} changer={choisirFiche}
         options={[{ valeur: '', texte: maj(dire(`${I}.ouvrir_f.aucune_fiche`)) }, ...d.fichesConnues.map((f) => ({ valeur: f, texte: maj(dire(`${I}.fiche.${f}.nom`)) }))]} />
       <label className="c-in-case">
-        <input type="checkbox" checked={publier} onChange={(x) => setPublier(x.target.checked)} />
+        <input type="checkbox" checked={publier} onChange={(x) => cocher(x.target.checked)} />
         <span>{phrase(`${I}.ouvrir_f.publier`)}</span>
       </label>
-      {publier ? <Zone libelle={titre(`${I}.ouvrir_f.public`)} aide={phrase(`${I}.ouvrir_f.public_aide`)} valeur={pub} changer={setPub} faute={e.faute('public')} n={e.n} /> : null}
+      {publier ? <Zone libelle={titre(`${I}.ouvrir_f.public`)} aide={phrase(pub && pub === pret(fiche) ? `${I}.ouvrir_f.public_pret` : `${I}.ouvrir_f.public_aide`)} valeur={pub} changer={setPub} faute={e.faute('public')} n={e.n} /> : null}
       {/* Arrivé rempli sur sa fiche (l'écran Sécurité) : il ne reste que le motif, le curseur y est. */}
       <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${I}.ouvrir_f.motif_aide`)} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} premier={!!pre} />
       <Qui />
@@ -558,6 +582,8 @@ function FenetrePoint({ i, publicDemande, fermer, fait }: { i: Incident; publicD
   const envoyer = () => {
     if (texte.trim().length < 3) { e.refuser(phrase(`${I}.point.court`), 'texte'); return; }
     if (pub && /[<>]/.test(texte)) { e.refuser(phrase(`${I}.point.balise`), 'texte'); return; }
+    const trou = pub ? passageARemplir(texte) : null;
+    if (trou) { e.refuser(phrase(`${I}.a_remplir`, { passage: trou }), 'texte'); return; }
     e.envoyer(`/console/service/incidents/${i.id}/points`, { texte: texte.trim(), public: pub, gravite: monte || null },
       phrase(pub ? `${I}.point.fait_public` : `${I}.point.fait`));
   };
@@ -837,7 +863,43 @@ function FenetreFiche({ f, fermer }: { f: string; fermer: () => void }) {
         ))}
       </ol>
       {FICHES_A_DECIDER[f] ? <Alerte ton="attention"><span>{phrase(`${I}.fiches.${FICHES_A_DECIDER[f]}_dit`)}</span></Alerte> : null}
+      <MessagesPrets f={f} />
     </Dialogue>
+  );
+}
+
+// Les messages prêts d'une fiche : copiés d'un geste, à remplir là où ils partent. Jamais envoyés d'ici : chaque phrase se
+// relit (elle doit être vraie) et ce qui est entre crochets ne se sait qu'au moment.
+function MessagesPrets({ f }: { f: string }) {
+  const m = messagesDe(f);
+  const copier = (texte: string) => {
+    if (!navigator.clipboard) { toast(phrase(`${I}.fiche.copie_ratee`), true); return; }
+    navigator.clipboard.writeText(texte).then(() => toast(phrase(`${I}.fiche.copie`)), () => toast(phrase(`${I}.fiche.copie_ratee`), true));
+  };
+  return (
+    <div className="c-in-prets">
+      <div className="c-in-pret">
+        <div className="c-in-pret-tete">
+          <span className="c-champ-libelle">{titre(`${I}.fiche.public_titre`)}</span>
+          {m.public ? <Bouton petit icone="copier" etiquette={titre(`${I}.fiche.copier_public`)} onClick={() => copier(m.public ?? '')}>{titre(`${I}.fiche.copier`)}</Bouton> : null}
+        </div>
+        {m.public ? <blockquote className="c-in-pret-texte" data-pret="public">{m.public}</blockquote> : <p className="c-sous">{phrase(`${I}.fiche.public_rien`)}</p>}
+      </div>
+      <div className="c-in-pret">
+        <div className="c-in-pret-tete">
+          <span className="c-champ-libelle">{titre(`${I}.fiche.courriel_titre`)}</span>
+          {m.courriel ? <Bouton petit icone="copier" etiquette={titre(`${I}.fiche.copier_courriel`)}
+            onClick={() => copier(`${titre(`${I}.fiche.objet`)}\u202f: ${m.courriel?.objet ?? ''}\n\n${m.courriel?.corps ?? ''}`)}>{titre(`${I}.fiche.copier`)}</Bouton> : null}
+        </div>
+        {m.courriel ? (
+          <div className="c-in-pret-courriel" data-pret="courriel">
+            <p><b>{titre(`${I}.fiche.objet`)}{'\u202f:'}</b> {m.courriel.objet}</p>
+            <p className="c-in-pret-corps">{m.courriel.corps}</p>
+          </div>
+        ) : <p className="c-sous">{phrase(`${I}.fiche.courriel_rien`)}</p>}
+      </div>
+      {m.public || m.courriel ? <p className="c-sous">{phrase(`${I}.fiche.crochets`)}</p> : null}
+    </div>
   );
 }
 

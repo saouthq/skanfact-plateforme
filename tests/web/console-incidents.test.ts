@@ -274,6 +274,56 @@ describe('les incidents du service, à la souris', () => {
     await fermer(p);
   }, 60_000);
 
+  // 1.109.0 : les messages prêts d'une fiche, et le carnet de crise.
+  it('une fiche porte ses messages prêts, copiés d\'un geste ; « ouvrir » pose celui de la page d\'état, et le refuse tant que ses crochets ne sont pas remplis', async () => {
+    const p = await ouvrir(jD);
+    await p.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: serveur.adresse });
+    const carte = (nom: string) => p.locator('.c-in-fiche').filter({ has: p.getByRole('heading', { name: nom, exact: true }) });
+    await cliquer(carte('Un partenaire ne répond plus').getByRole('button', { name: 'Lire la fiche · 4 temps' }));
+    const f = fenetre(p);
+    expect(net(await f.locator('[data-pret="public"]').innerText())).toMatch(/^\[Le partenaire\] ne répond plus depuis \[heure\]/);
+    await cliquer(f.getByRole('button', { name: 'Copier l\'e-mail, objet compris' }));
+    await expect.poll(() => p.evaluate(() => navigator.clipboard.readText()))
+      .toMatch(/^Objet\u202f: \[Le partenaire\] ne répond plus\u202f: tes envois attendent\n\nBonjour,\n\nDepuis \[heure\]/);
+    await p.keyboard.press('Escape');
+    // La sauvegarde ne touche pas les clients : rien à copier.
+    await cliquer(carte('Une sauvegarde manque ou est en retard').getByRole('button', { name: 'Lire la fiche · 4 temps' }));
+    expect(await f.getByRole('button', { name: /^Copier/ }).count()).toBe(0);
+    expect(net(await f.locator('.c-in-prets').innerText())).toContain('Rien sur la page d\'état');
+    await p.keyboard.press('Escape');
+
+    // Ouvrir sur la fiche (le lien des autres écrans) : la case cochée pose son message ; changer de fiche le change, tant
+    // qu'on n'y a pas touché ; envoyé avec ses crochets, il se refuse en citant ce qui reste à remplir.
+    await p.goto(`${serveur.adresse}/console/#/service/incidents?ouvrir=partenaire`);
+    await p.reload();
+    await f.getByRole('heading', { name: 'Ouvrir un incident' }).waitFor();
+    await cliquer(f.getByRole('checkbox', { name: /Le dire tout de suite/ }));
+    const pub = f.getByLabel('Ce que la page d\'état dira', { exact: true });
+    expect(await pub.inputValue()).toMatch(/^\[Le partenaire\] ne répond plus depuis \[heure\]/);
+    await f.getByLabel('La fiche réflexe', { exact: true }).selectOption('service');
+    expect(net(await pub.inputValue())).toBe('SkanFact ne répond plus pour l\'instant ; nous y travaillons. Rien de ce qui est enregistré n\'est perdu. Prochain point dans trente minutes.');
+    await pub.fill('Konnect ne répond plus depuis [heure].');
+    await f.getByLabel('La fiche réflexe', { exact: true }).selectOption('partenaire');
+    expect(await pub.inputValue()).toBe('Konnect ne répond plus depuis [heure].');
+    await f.getByLabel('Motif', { exact: true }).fill('trois appels');
+    await cliquer(f.getByRole('button', { name: 'Ouvrir l\'incident' }));
+    await expect.poll(async () => net(await f.locator('.c-alerte-danger').innerText())).toContain('« [heure] »');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
+  it('le carnet de crise se télécharge : les fiches du serveur, rien à charger', async () => {
+    const p = await ouvrir(jD);
+    const [t] = await Promise.all([p.waitForEvent('download'), cliquer(p.getByRole('button', { name: 'Télécharger le carnet de crise' }))]);
+    const jour = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Africa/Tunis' }).format(new Date());
+    expect(t.suggestedFilename()).toBe(`carnet-de-crise-${jour}.html`);
+    const html = fs.readFileSync(await t.path(), 'utf8');
+    expect([...html.matchAll(/<article class="fiche" id="fiche-([a-z]+)">/g)].map((m) => m[1])).toEqual([...FICHES]);
+    expect(html).not.toMatch(/<script|src=|url\(|https?:/i);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
   // 1.107.0 (C24 bis). Les réponses du serveur sont jouées ici : les autres fichiers d'essais partagent la base, à l'heure
   // du jour, et une vraie fermeture leur répondrait « Maintenance en cours ». Le serveur est essayé à part
   // (tests/console/console.test.ts), à une heure où personne d'autre ne vit.

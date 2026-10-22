@@ -1030,6 +1030,13 @@ export interface BaseDeDonnees {
     sms: boolean | null;
     demande: string | null;
   };
+  'plateforme.service_fermeture': {
+    maintenance: string;
+    posee_le: Date;
+    posee_par: string;
+    rouverte_le: Date | null;
+    rouverte_par: string | null;
+  };
   'plateforme.service_heure': {
     heure: Date;
     exemplaire: string;

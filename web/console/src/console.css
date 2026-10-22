@@ -2040,6 +2040,18 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-in-fiche-pied .c-sous { display: inline; }
 .c-in-temps { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
 .c-in-temps p { margin: 4px 0 0; }
+/* (1.109.0) Le carnet de crise à télécharger, et les messages prêts d'une fiche. */
+.c-in-fiches-tete { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px 32px; flex-wrap: wrap; }
+.c-in-carnet { display: grid; gap: 6px; justify-items: start; max-width: 340px; }
+.c-in-carnet .c-sous { font-size: 13px; }
+.c-in-prets { display: grid; gap: 14px; border-top: 1px dashed var(--c-trait); padding-top: 14px; }
+.c-in-pret { display: grid; gap: 6px; }
+.c-in-pret-tete { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.c-in-pret-texte { margin: 0; padding: 10px 12px; border-left: 3px solid var(--c-sarcelle); background: var(--c-papier-2); border-radius: 0 10px 10px 0; }
+.c-in-pret-courriel { border: 1px solid var(--c-trait); border-radius: 10px; overflow: hidden; }
+.c-in-pret-courriel p { margin: 0; padding: 8px 12px; }
+.c-in-pret-courriel p:first-child { border-bottom: 1px solid var(--c-trait); }
+.c-in-pret-corps { white-space: pre-wrap; }
 .c-in-cr { display: grid; gap: 4px; }
 .c-in-cr > .c-btn { justify-self: start; margin-top: 4px; }
 .c-in-cr p { margin: 0; white-space: pre-line; }

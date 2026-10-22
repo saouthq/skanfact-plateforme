@@ -1009,6 +1009,10 @@ describe('les incidents du service et la page d\'état (0089, docs/console.md C2
     expect((await appeler('POST', '/console/service/incidents', jT, { titre: 'x', gravite: 'majeur', fiche: null, public: null, motif: 'la veille crie' })).statut).toBe(400);
     expect((await appeler('POST', '/console/service/incidents', jT, { titre: 'Un titre', gravite: 'majeur', fiche: 'inventee', public: null, motif: 'la veille crie' })).statut).toBe(400);
     expect((await appeler('POST', '/console/service/incidents', jT, { titre: 'Un titre', gravite: 'majeur', fiche: null, public: '<script>', motif: 'la veille crie' })).statut).toBe(400);
+    // 1.109.0 : le message prêt d'une fiche, ses crochets pas remplis, ne part jamais sur la page d'état.
+    const trou = await appeler('POST', '/console/service/incidents', jT, { titre: 'Un titre', gravite: 'majeur', fiche: 'service', public: 'SkanFact ne répond plus depuis [heure].', motif: 'la veille crie' });
+    expect(trou).toMatchObject({ statut: 400, corps: { champ: 'public' } });
+    expect(String(trou.corps.raison)).toMatch(/entre crochets reste à remplir/);
     const a = await appeler('POST', '/console/service/incidents', jT, { titre: 'Les e-mails de connexion arrivent en retard', gravite: 'mineur', fiche: 'partenaire', public: 'Les e-mails de connexion arrivent avec du retard.', motif: 'trois appels' });
     expect(a.statut).toBe(201);
     // Un numéro par incident et par année, sans trou : le suivant est le suivant (l'écran ouvre les siens dans la même base).
@@ -1026,6 +1030,13 @@ describe('les incidents du service et la page d\'état (0089, docs/console.md C2
     l = await lire();
     expect(l.ouverts[0]?.public).toBe('SkanFact ne répond plus ; nous y travaillons.');
     expect(l.fiches.service).toMatchObject({ ref: suivant });
+  });
+
+  // 1.109.0 : un point public porte les mêmes règles que l'ouverture.
+  it('un point public avec un passage entre crochets ne part pas sur la page d\'état', async () => {
+    const trou = await appeler('POST', `/console/service/incidents/${id}/points`, jT, { texte: 'SkanFact revient vers [heure].', public: true, gravite: null });
+    expect(trou).toMatchObject({ statut: 400, corps: { champ: 'texte' } });
+    expect(String(trou.corps.raison)).toMatch(/entre crochets reste à remplir/);
   });
 
   it('une gravité monte, elle ne descend pas ; retirer le message rend la page à la veille ; le journal garde le numéro', async () => {
