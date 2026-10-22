@@ -609,6 +609,16 @@ Deux cas, deux réponses :
 - **L'équipe ferme l'application** pendant un geste risqué : depuis la console (`docs/console.md`, C24 bis). C'est le
   programme qui répond alors, avec l'heure de la fin et ce que l'équipe a écrit ; la console reste ouverte.
 
+**M bis. Les pages à part, dans la DA** (demandé par Skander le 22/10/2026 : « une vraie UI belle dans notre DA » ;
+1.108.0). Les pages qu'on voit rarement portent l'habit de l'entrée — la vitrine vert nuit quadrillée, la pastille « S »,
+Bricolage Grotesque, Instrument Sans — à partir d'une seule source, `commun/page-a-part.ts` : les deux « Maintenance en
+cours » (la fermeture par l'équipe, le redémarrage), la page d'état publique, et le mot « SkanFact a besoin de
+JavaScript » de l'application et de la console (une page blanche jusqu'ici). Clair ou sombre selon le système, et au
+téléphone. La page du frontal et le mot « sans JavaScript » s'écrivent par `node scripts/pages-a-part.ts` (un test
+vérifie qu'ils sont à jour). Le frontal sert lui-même les polices de la page d'état et du redémarrage (`/etat-polices/`,
+copiées par `exploitation/frontal.sh` ; tâche 0013 pour les serveurs déjà installés) : le programme peut être arrêté
+quand elles s'affichent. Le redémarrage compte le prochain essai (15 secondes) et se recharge seul.
+
 ## Reste à faire avant les testeurs
 
 - ~~Une fiche pour les testeurs~~ : `docs/testeurs.md` (05/10/2026).

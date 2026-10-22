@@ -19105,6 +19105,36 @@ prouver 'la case « fermer l'\''application » d'\''une annonce qui ne part pas'
   'motif: motif.trim() }' \
   'annoncer une maintenance qui fermera l'\''application : la case part avec l'\''annonce'
 
+# ── 1.108.0 : les pages à part dans la DA (commun/page-a-part.ts) ──
+prouver 'la page du frontal restée à son ancien habit' 'commun/page-a-part.ts' \
+  'en général en moins d\'\''une minute.' \
+  'en général moins d\'\''une minute.' \
+  'les fichiers écrits par scripts/pages-a-part.ts sont à jour : la page du frontal, le mot « sans JavaScript » de l'\''application et de la console'
+prouver 'le mot « sans JavaScript » absent de la console' 'web/console/index.html' \
+  '<section class="sans-js">' \
+  '<section class="sans-jss">' \
+  'les fichiers écrits par scripts/pages-a-part.ts sont à jour : la page du frontal, le mot « sans JavaScript » de l'\''application et de la console'
+prouver 'le texte de l'\''équipe affiché sans échappement' 'serveur/fermeture.ts' \
+  'data-texte>${echapper(f.texte)}' \
+  'data-texte>${f.texte}' \
+  'la fermeture : l'\''heure du retour, le texte de l'\''équipe échappé, aucun script, les polices des écrans, rechargée chaque minute'
+prouver 'les polices des pages à part jamais copiées au frontal' 'exploitation/frontal.sh' \
+  'install -m 0644 "$(dirname "$0")"/../web/public/plateforme/polices/*.woff2 "$ETAT/public/etat-polices/"
+' \
+  '' \
+  'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
+prouver 'l'\''adresse de la console sans les polices des pages à part' 'exploitation/frontal.sh' \
+  '    polices
+    cat <<CADDY
+' \
+  '    cat <<CADDY
+' \
+  'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
+prouver 'la page d'\''état qui cherche ses polices chez le programme' 'exploitation/veille.ts' \
+  '    polices: '\''/etat-polices/'\'',' \
+  '    polices: '\''/plateforme/polices/'\'',' \
+  'la page d'\''état : l'\''état d'\''un mot dans la vitrine, les polices du frontal (le frontal la sert seul)'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

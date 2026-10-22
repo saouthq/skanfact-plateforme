@@ -858,6 +858,8 @@ vaut pour tout le dépôt.*
   (1.107.0) **« Maintenance en cours »** (`docs/mise-en-ligne.md`, M ; `docs/console.md`, C24 bis) : le frontal la
   sert quand le programme ne répond pas (`exploitation/maintenance.html`, tâche 0012) ; la console ferme
   l'application aux clients pendant un geste risqué, et la rouvre (base 0164, `serveur/fermeture.ts`).
+  (1.108.0) **Les pages à part dans la DA** (`commun/page-a-part.ts`, `docs/mise-en-ligne.md`, M bis) : les deux
+  maintenances, la page d'état et le mot « sans JavaScript », d'un seul habit ; `node scripts/pages-a-part.ts` les écrit.
   **Deux sortes de serveurs** (`installer.sh <adresse> essai|pilotes`, B bis) : l'essai (données inventées) et les
   pilotes (vraies données : relais d'e-mails exigé, aucun état détaillé public, **jamais l'accès de Claude**).
   **Claude a la main dessus** (Skander, 05/10/2026) :

@@ -14,6 +14,7 @@ import { enTantQue } from './base.ts';
 import type { Contexte } from './connexion.ts';
 import { motif } from '../textes/index.ts';
 import './fermeture-textes.ts';
+import { assurance, DESSINS, echapper, pageAPart } from '../commun/page-a-part.ts';
 
 export type Fermeture = { texte: string; fin: string } | null;
 const RELIRE_MS = 5_000;
@@ -40,30 +41,30 @@ export function finDite(fin: string, maintenant: Date): string {
   return jour(f) === jour(maintenant) ? heure : `${jour(f)} à ${heure}`;
 }
 
-const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-
-// La page que voit un client : ce que l'équipe a écrit, l'heure de la fin, et le lien vers la page d'état. Elle se
-// recharge seule chaque minute : l'application revient d'elle-même.
+// La page que voit un client (1.108.0, l'habit des pages à part : commun/page-a-part.ts) : l'heure du retour, ce que
+// l'équipe a écrit, ce qui est sûr, et le lien vers la page d'état. Elle se recharge seule chaque minute : l'application
+// revient d'elle-même. Aucun script (le programme n'en permet pas hors des écrans) ; les polices sont celles des écrans.
 export function pageFermee(f: NonNullable<Fermeture>, maintenant: Date): string {
-  return `<!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="refresh" content="60"><title>Maintenance en cours — SkanFact</title>
-<style>
-  :root { color-scheme: light dark; --fond: #f6f8f7; --carte: #fff; --encre: #16302b; --doux: #5b6b67; --accent: #0f766e; }
-  @media (prefers-color-scheme: dark) { :root { --fond: #0f1715; --carte: #17221f; --encre: #e6efec; --doux: #9fb3ad; --accent: #4fd1c5; } }
-  body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: var(--fond); color: var(--encre);
-    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; padding: 16px; box-sizing: border-box; }
-  main { max-width: 34rem; background: var(--carte); border-radius: 14px; padding: 28px 28px 22px; box-shadow: 0 1px 3px rgb(0 0 0 / .08); }
-  h1 { margin: 0 0 6px; font-size: 1.35rem; } .fin { color: var(--accent); font-weight: 600; margin: 0 0 14px; }
-  p { margin: 0 0 12px; } .doux { color: var(--doux); font-size: .9rem; } a { color: var(--accent); }
-</style></head>
-<body><main>
-  <h1>Maintenance en cours</h1>
-  <p class="fin">SkanFact revient vers ${esc(finDite(f.fin, maintenant))}.</p>
-  <p data-texte>${esc(f.texte)}</p>
-  <p class="doux">Tes données sont en sécurité : rien ne se perd pendant la maintenance. Cette page se recharge seule ; tu peux aussi suivre la <a href="/etat">page d'état</a>.</p>
-</main></body></html>
-`;
+  const fin = finDite(f.fin, maintenant);
+  const affichee = maintenant.toLocaleTimeString('fr-FR', { timeZone: 'Africa/Tunis', hour: '2-digit', minute: '2-digit', hour12: false });
+  return pageAPart({
+    onglet: 'Maintenance en cours — SkanFact',
+    polices: '/plateforme/polices/',
+    rafraichir: 60,
+    pastille: { texte: 'Maintenance en cours', ton: 'bleu', anime: true },
+    titre: `SkanFact revient vers <span data-chiffres>${echapper(fin)}</span>.`,
+    chapo: 'L\'équipe fait une maintenance : l\'application est fermée le temps qu\'elle dure, pour que rien ne s\'écrive à moitié.',
+    corps: `<div class="pa-heure"><span class="pa-etiquette">Retour prévu</span><strong data-chiffres>${echapper(fin)}</strong><small>Heure de Tunis.</small></div>
+<div class="pa-heure"><span class="pa-etiquette">Le mot de l'équipe</span><blockquote class="pa-message" data-texte>${echapper(f.texte)}</blockquote></div>
+<ul class="pa-assurances">
+${assurance('bouclier', 'Tes données sont en sécurité', 'Rien ne se perd pendant la maintenance.')}
+${assurance('refaire', 'Ce que tu envoyais n\'est pas parti', 'Rien n\'a été enregistré à moitié : refais-le au retour.')}
+${assurance('horloge', 'Cette page revient seule', 'Elle se recharge chaque minute ; l\'application réapparaît d\'elle-même.')}
+</ul>
+<hr class="pa-trait">
+<div class="pa-bas"><p class="pa-essai">Affichée à <span data-chiffres>${echapper(affichee)}</span></p><a class="pa-lien" href="/etat">Page d'état ${DESSINS.fleche}</a></div>`,
+    vitrineBas: 'Gestion, caisse, paie et comptabilité, avec ton cabinet comptable.',
+  });
 }
 
 // Le branchement : à chaque requête, la fermeture en cours (gardée cinq secondes), et la réponse des clients s'il y en a une.
