@@ -799,6 +799,15 @@
       .concat(rows.map(r => K.toCsvLine(cols.map(c => c.get(r))))).join('\r\n');
   }
 
+  // (plateforme) 1.104.0 — se déconnecter (au pied de la barre, et dans Réglages) : la session se ferme sur ce poste, et
+  // ce qu'il gardait pour consulter les dossiers sans réseau s'efface (pont-cabinet.js, `lock`).
+  async function seDeconnecter() {
+    const ok = await confirmDialog('Te déconnecter ?',
+      '<p>La session se ferme sur ce poste, et ce qu\'il gardait pour consulter tes dossiers sans réseau s\'efface. Tu te reconnectes avec ton adresse et ton mot de passe.</p>', 'Me déconnecter');
+    if (!ok) return;
+    await api.lock();
+  }
+
   // ---------- ouverture ----------
   async function boot() {
     const st = await api.status();
@@ -809,6 +818,7 @@
       appliquerTheme();
       $('#lock-screen').remove();
       $('#app').hidden = false;
+      $('#se-deconnecter').onclick = () => seDeconnecter();
       start(false, null, false, null);
       return;
     }
@@ -11877,7 +11887,7 @@
         <button class="btn" id="s-rec-in">Restaurer une clé de secours…</button>
         <span class="grow"></span>
         <button class="btn" id="s-pw">Changer le mot de passe…</button>${info('b.password')}
-        <button class="btn" id="s-lock">Verrouiller maintenant</button>
+        <button class="btn" id="s-lock">Se déconnecter</button>
       </div>
 
       <p class="muted small mt">Tu changes d'ordinateur ? N'y crée <strong>jamais</strong> un cabinet neuf : il aurait une autre empreinte,
@@ -11921,13 +11931,7 @@
     $('#s-rec').onclick = exportRecovery;
     $('#s-rec-in').onclick = importRecovery;
     $('#s-pw').onclick = changePassword;
-    $('#s-lock').onclick = async () => {
-      const ok = await confirmDialog('Verrouiller le cabinet ?',
-        '<p>L\'application se referme sur son écran de mot de passe. Rien n\'est perdu : tu rouvres avec ton mot de passe.</p>', 'Verrouiller');
-      if (!ok) return;
-      await api.lock();
-      location.reload();
-    };
+    $('#s-lock').onclick = () => seDeconnecter();
   }
 
   // Le bandeau qui ne peut pas se cacher derrière un onglet. Les onglets rangent — mais ils rangent

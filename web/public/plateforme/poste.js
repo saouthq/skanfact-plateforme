@@ -53,14 +53,23 @@
       });
     } finally { db.close(); }
   }
-  // La clé de l'appareil : créée une fois, jamais exportable (le navigateur refuse de la donner).
+  // La clé de l'appareil : créée une fois, jamais exportable (le navigateur refuse de la donner). (1.104.0) Une seule
+  // demande à la fois : le Cabinet garde plusieurs lectures en même temps à son ouverture, et chacune créait sa clé (la
+  // dernière écrite gagnait) ; les copies chiffrées par les autres ne se relisaient plus sans réseau.
+  /** @type {Promise<CryptoKey> | null} */ let cleEnCours = null;
   /** @returns {Promise<CryptoKey>} */
-  async function cle() {
-    const deja = await faire('cles', 'readonly', (s) => s.get('appareil'));
-    if (deja) return deja;
-    const k = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-    await faire('cles', 'readwrite', (s) => s.put(k, 'appareil'));
-    return k;
+  function cle() {
+    if (!cleEnCours) {
+      cleEnCours = (async () => {
+        const deja = await faire('cles', 'readonly', (s) => s.get('appareil'));
+        if (deja) return deja;
+        const k = await crypto.subtle.generateKey({ name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+        await faire('cles', 'readwrite', (s) => s.put(k, 'appareil'));
+        return k;
+      })();
+      cleEnCours.catch(() => { cleEnCours = null; });
+    }
+    return cleEnCours;
   }
 
   // Chiffrer et garder ; relire et déchiffrer (la copie, ou ce qui attend le réseau).
@@ -87,6 +96,17 @@
   }
   /** @param {string} id */
   const lireCopie = async (id) => (garde() ? relire('copies', id) : null);
+  // (1.104.0) Le Cabinet (04 § 2 : les dossiers qu'on emporte) : ce qu'il a lu du serveur, chemin par chemin, gardé
+  // chiffré comme la copie d'une entreprise ; sans réseau, il se relit. « c:<cabinet> » est ce que l'entrée rouvre.
+  /** @param {string} cabinet @param {string} chemin @param {unknown} contenu */
+  async function garderLecture(cabinet, chemin, contenu) {
+    if (!garde()) return;
+    await garder('copies', `c:${cabinet}:${chemin}`, contenu);
+    if (!garde()) return;
+    try { localStorage.setItem(DERNIERE, `c:${cabinet}`); } catch { /* sans mémoire : l'entrée ne saura pas quoi ouvrir hors ligne */ }
+  }
+  /** @param {string} cabinet @param {string} chemin */
+  const relireLecture = async (cabinet, chemin) => (garde() ? relire('copies', `c:${cabinet}:${chemin}`) : null);
   // Ce qui a été enregistré sans réseau (brique 73) : l'état du dossier que l'écran a enregistré, qui
   // part par rapport à la copie (ses révisions disent au serveur ce que le poste avait vu).
   /** @param {string} id @param {unknown} contenu */
@@ -99,6 +119,7 @@
   async function effacer() {
     if (enLecture) return;
     efface = true;
+    cleEnCours = null;
     try { localStorage.removeItem(DERNIERE); localStorage.removeItem('skanfact.poste_de'); } catch { /* rien à retirer */ }
     // Bloquée, la suppression attend que la lecture en cours se referme (quelques millisecondes) : on l'attend un
     // instant, plutôt que de partir en la laissant derrière soi. Bornée : un autre onglet figé ne retient pas la page.
@@ -199,6 +220,8 @@
   // du dossier qui changent avec elles ne se comptent pas : on dit ce que la personne a fait).
   let attend = false;
   let enAttente = 0;
+  // (1.104.0) Une page qui se consulte sans réseau, mais n'y enregistre rien (le Cabinet) : le bandeau le dit.
+  let consulterSeulement = false;
   const attendent = (/** @type {number} */ n) => (n > 1 ? `${n} changements attendent le réseau : gardés sur ce poste, ils partiront seuls à son retour.`
     : n === 1 ? 'Un changement attend le réseau : gardé sur ce poste, il partira seul à son retour.'
       : 'Tes changements attendent le réseau : gardés sur ce poste, ils partiront seuls à son retour.');
@@ -211,6 +234,7 @@
     const vu = copieLue ? `Tu consultes la copie de ce poste, du ${jour(copieLue)} à ${heure(copieLue)}.` : 'Ce que tu vois reste à l\'écran.';
     const l = limite();
     const suite = !garde() ? 'Enregistrer demande le réseau : sur l\'ordinateur d\'un autre, rien n\'est gardé sur le poste.'
+      : consulterSeulement ? 'Enregistrer demande le réseau.'
       : attend ? `${attendent(enAttente)}${l ? ` ${l}` : ''}`
         : l || 'Ce que tu enregistres se garde sur ce poste, et partira seul au retour du réseau.';
     poser(`<span><strong>Hors ligne depuis ${heure(horsLigneDepuis)}.</strong> ${vu} ${suite}</span>`);
@@ -287,8 +311,9 @@
   window.addEventListener('online', () => enLigne(false));
 
   /** @type {any} */ (window).SkanPoste = {
-    garde, ecrireCopie, lireCopie, ecrireAttente, lireAttente, effacerAttente, effacer, effacerEntreprise, conclure,
+    garde, ecrireCopie, lireCopie, garderLecture, relireLecture, ecrireAttente, lireAttente, effacerAttente, effacer, effacerEntreprise, conclure,
     horsLigne, enLigne, sansCopie, attente, envoye, demander, annoncer, limite, limiteCaisse,
     /** @param {() => void} f */ auRetour: (f) => { quandRevenu = f; },
+    seulementConsulter: () => { consulterSeulement = true; },
   };
 })();

@@ -3550,8 +3550,8 @@ prouver "la session du navigateur ignorée par l'application" $PONT \
   "sessionStorage.getItem('skanfact.jeton') || localStorage.getItem('skanfact.jeton');" "sessionStorage.getItem('skanfact.jeton');" \
   "$HL1"
 prouver "l'entrée qui, sans réseau, n'ouvre pas la copie" web/src/App.tsx \
-  "      if (copie) { location.assign(\`/v10/?e=\${encodeURIComponent(copie)}\`); return; }
-" "" \
+  '        location.assign(copie.startsWith('\''c:'\'') ? `/v10/cabinet/?c=${encodeURIComponent(copie.slice(2))}` : `/v10/?e=${encodeURIComponent(copie)}`);
+' "" \
   "$HL1"
 prouver "la session jamais gardée sur mon ordinateur" web/src/api.ts \
   "ecrire('skanfact.jeton', garder ? j : null, localStorage);" "ecrire('skanfact.jeton', null, localStorage);" \
@@ -3757,7 +3757,7 @@ prouver "un serveur qui trébuche pris pour une remise reçue" $PONT \
 " "" \
   "$AW2"
 prouver "l'entrée qui efface avant que l'entreprise ne remette" web/src/api.ts \
-  "    if (gardee && jeton) {" "    if (false) {" \
+  "    else if (gardee && jeton) {" "    else if (false) {" \
   "$AW2"
 prouver "le bandeau qui tait les remises à décider" $PONT \
   "    poste.annoncer(\`\${qui} \${quoi} ta décision.\`, 'Voir', () => {" "    ((..._) => undefined)(\`\${qui} \${quoi} ta décision.\`, 'Voir', () => {" \
@@ -18867,6 +18867,51 @@ prouver '« Répondre » qui ne mène pas au fil du cabinet' 'web/public/v10/app
   '    '\''cabinet-attend'\'': { label: '\''Répondre'\'', run: vers('\''#/comptable'\'') },' \
   '    '\''cabinet-attend'\'': { label: '\''Répondre'\'', run: vers('\''#/dashboard'\'') },' \
   'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+
+# ── 1.104.0 : le Cabinet se consulte sans réseau, et on s'en déconnecte (docs/hors-ligne.md, H13) ──
+prouver 'une clé de l'\''appareil par lecture gardée en même temps' 'web/public/plateforme/poste.js' \
+  $'    if (!cleEnCours) {\n      cleEnCours = (async () => {' \
+  $'    if (true) {\n      cleEnCours = (async () => {' \
+  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+prouver 'le Cabinet sans réseau qui ne relit pas sa copie' 'web/public/plateforme/pont-cabinet.js' \
+  '      const c = methode === '\''GET'\'' && poste ? await poste.relireLecture(cabinetId, chemin).catch(() => null) : null;' \
+  '      const c = null;' \
+  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+prouver 'le Cabinet qui ne garde pas ce qu'\''il lit' 'web/public/plateforme/pont-cabinet.js' \
+  '    else if (poste) poste.garderLecture(cabinetId, chemin, lu)' \
+  '    else if (false) poste.garderLecture(cabinetId, chemin, lu)' \
+  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+prouver 'la paie hors du mandat qui ferme le livre sans réseau' 'web/public/plateforme/pont-cabinet.js' \
+  '    if (r.status === 403 && methode === '\''GET'\'' && poste) poste.garderLecture(' \
+  '    if (false) poste.garderLecture(' \
+  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+prouver 'les dossiers confiés jamais emportés' 'web/public/plateforme/pont-cabinet.js' \
+  '      setTimeout(() => { void emporter(); }, 4000);' \
+  '' \
+  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+prouver 'l'\''entrée qui rouvre l'\''entreprise à la place du cabinet' 'web/src/App.tsx' \
+  'location.assign(copie.startsWith('\''c:'\'') ? `/v10/cabinet/?c=${encodeURIComponent(copie.slice(2))}` : `/v10/?e=${encodeURIComponent(copie)}`);' \
+  'location.assign(`/v10/?e=${encodeURIComponent(copie)}`);' \
+  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+prouver 'le bandeau du Cabinet qui promet de garder ce qu'\''on enregistre' 'web/public/plateforme/poste.js' \
+  '      : consulterSeulement ? '\''Enregistrer demande le réseau.'\''' \
+  '      : false ? '\''Enregistrer demande le réseau.'\''' \
+  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+prouver 'se déconnecter du Cabinet, introuvable' 'web/public/v10/cabinet/index.html' \
+  '<button type="button" class="foot-link" id="se-deconnecter">' \
+  '<button type="button" class="foot-link" id="se-deconnecter" hidden>' \
+  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+
+prouver 'le bandeau hors ligne qui recouvre le haut du Cabinet' 'web/public/plateforme/cabinet.css' \
+  'body { box-sizing: border-box; padding-top: var(--poste-bandeau-h, 0px); }' \
+  '' \
+  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+
+prouver 'la page du Cabinet qui déborde sous le bandeau hors ligne' 'web/public/plateforme/cabinet.css' \
+  'body { box-sizing: border-box; padding-top: var(--poste-bandeau-h, 0px); }
+#app { height: 100%; }' \
+  '#app { height: calc(100vh - var(--poste-bandeau-h, 0px)); margin-top: var(--poste-bandeau-h, 0px); }' \
+  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

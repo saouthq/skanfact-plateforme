@@ -7,3 +7,13 @@
 /* L'écran du mot de passe du cabinet n'existe plus en ligne (la session ouvre le cabinet) : il ne se
    montre pas le temps du chargement. */
 #lock-screen { visibility: hidden !important; }
+
+/* (1.104.0) « Se déconnecter », au pied de la barre : un bouton dessiné comme les liens du pied (style.css, .foot-link). */
+.sidebar-foot button.foot-link { background: none; border: 0; cursor: pointer; font-family: inherit; width: 100%; text-align: start; }
+
+/* (1.104.0) Le bandeau du poste (sans réseau : plateforme/poste.js) se tient en haut de la fenêtre : le Cabinet se pousse
+   dessous de sa hauteur (--poste-bandeau-h), et rien ne passe sous lui (le nom du cabinet était rogné). Un retrait du
+   corps, pas une marge du Cabinet : la marge traversait le corps et la page débordait d'autant (barre de défilement). */
+body { box-sizing: border-box; padding-top: var(--poste-bandeau-h, 0px); }
+#app { height: 100%; }
+@media (max-width: 760px) { #app .sidebar { top: var(--poste-bandeau-h, 0px); } }

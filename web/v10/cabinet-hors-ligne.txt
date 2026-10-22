@@ -1,0 +1,76 @@
+Le Cabinet se consulte sans réseau, et on s'en déconnecte (1.104.0 ; docs/hors-ligne.md, H13). Format : voir
+sans-paquets.mjs.
+
+Le Cabinet n'avait pas de hors-ligne (04 § 2 : les dossiers qu'on emporte). La page charge désormais le poste
+(plateforme/poste.js), comme l'entreprise : le service des écrans, la copie chiffrée de ce qu'elle a lu, et le bandeau.
+
+== cabinet/index.html | la page du Cabinet charge le poste avant son pont
+-- avant
+  <script src="../../plateforme/pont-cabinet.js"></script>
+-- après
+  <script src="../../plateforme/poste.js"></script>
+  <script src="../../plateforme/pont-cabinet.js"></script>
+-- fin
+
+Et se déconnecter se trouve : au Cabinet, le seul chemin était « Réglages › Données et sécurité › Verrouiller
+maintenant », le mot de l'application de bureau, alors que le geste ferme la session et efface ce que le poste garde
+(parcours du 22/10/2026). « Se déconnecter » est au pied de la barre, comme dans l'entreprise, et la fenêtre dit ce qui
+s'efface.
+
+== cabinet/index.html | « Se déconnecter » au pied de la barre
+-- avant
+        <div class="app-version" id="app-version"></div>
+-- après
+        <button type="button" class="foot-link" id="se-deconnecter"><svg viewBox="0 0 24 24"><path d="M15 12H4"/><path d="M8 8l-4 4 4 4"/><path d="M14 4h5a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-5"/></svg>Se déconnecter</button>
+        <div class="app-version" id="app-version"></div>
+-- fin
+
+== cabinet/app.js | se déconnecter dit ce qui s'efface
+-- avant
+  // ---------- ouverture ----------
+  async function boot() {
+-- après
+  // (plateforme) 1.104.0 — se déconnecter (au pied de la barre, et dans Réglages) : la session se ferme sur ce poste, et
+  // ce qu'il gardait pour consulter les dossiers sans réseau s'efface (pont-cabinet.js, `lock`).
+  async function seDeconnecter() {
+    const ok = await confirmDialog('Te déconnecter ?',
+      '<p>La session se ferme sur ce poste, et ce qu\'il gardait pour consulter tes dossiers sans réseau s\'efface. Tu te reconnectes avec ton adresse et ton mot de passe.</p>', 'Me déconnecter');
+    if (!ok) return;
+    await api.lock();
+  }
+
+  // ---------- ouverture ----------
+  async function boot() {
+-- fin
+
+== cabinet/app.js | le bouton du pied de barre s'arme à l'ouverture
+-- avant
+      $('#lock-screen').remove();
+      $('#app').hidden = false;
+      start(false, null, false, null);
+-- après
+      $('#lock-screen').remove();
+      $('#app').hidden = false;
+      $('#se-deconnecter').onclick = () => seDeconnecter();
+      start(false, null, false, null);
+-- fin
+
+== cabinet/app.js | dans Réglages, le même geste sous son vrai nom
+-- avant
+        <button class="btn" id="s-lock">Verrouiller maintenant</button>
+-- après
+        <button class="btn" id="s-lock">Se déconnecter</button>
+-- fin
+
+== cabinet/app.js | « Se déconnecter » des Réglages passe par la même fenêtre
+-- avant
+    $('#s-lock').onclick = async () => {
+      const ok = await confirmDialog('Verrouiller le cabinet ?',
+        '<p>L\'application se referme sur son écran de mot de passe. Rien n\'est perdu : tu rouvres avec ton mot de passe.</p>', 'Verrouiller');
+      if (!ok) return;
+      await api.lock();
+      location.reload();
+    };
+-- après
+    $('#s-lock').onclick = () => seDeconnecter();
+-- fin

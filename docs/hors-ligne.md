@@ -38,7 +38,7 @@ changement attend le réseau : gardé sur ce poste, il partira seul à son retou
 et « Réessayer ». Le menu des entreprises reste ouvert sans réseau (l'entreprise ouverte), pour que
 « Se déconnecter » y soit toujours.
 
-Le Cabinet n'a pas encore son hors-ligne (04 § 2 : les dossiers qu'on choisit d'emporter).
+Le Cabinet a son hors-ligne depuis la 1.104.0 (en consultation : H14, en fin de document).
 
 **Les tests** (`tests/web/hors-ligne.test.ts`, dans un vrai navigateur ; le réseau se coupe pour de
 vrai — le serveur s'arrête et revient au même port, car le service des écrans passe à côté de la
@@ -86,7 +86,7 @@ dit « Modifications des deux côtés ») comme rouverte plus tard (le bandeau l
 serveur gardée, la mienne dans ce que le dossier met de côté ; se déconnecter avec des changements qui
 attendent : la question, « Attendre le réseau » ne perd rien, et ça part au retour.
 
-**Reste à faire** : le Cabinet hors ligne (les dossiers emportés). (Le stockage persistant et la durée
+**Reste à faire** : la saisie au brouillard du Cabinet sans réseau (sa consultation : H14). (Le stockage persistant et la durée
 des droits hors ligne : brique 75, H11 et H12.)
 
 **H8. Ce que le poste garde est à une personne, pas à une session** (par délégation, 30/09/2026 ; défaut
@@ -235,3 +235,32 @@ Le parcours J2 l'exige mot pour mot ; sa preuve retire la devise à la naissance
 Un filtre plus large (ne pas compter une fiche qui n'a fait que changer de place dans sa liste) a été essayé puis
 retiré : il ne faisait rien tomber, donc rien ne le justifiait. D'autres retouchages du chargement pourraient
 exister sur d'autres objets anciens : chacun se corrige à la naissance de l'objet, quand un parcours le montre.
+
+## 1.104.0 : le Cabinet se consulte sans réseau (fait le 22/10/2026)
+
+**H14. Le Cabinet emporte tous ses dossiers, l'exercice en cours, et se consulte sans réseau ; rien ne s'y fait sans
+lui** (par délégation ; 04 § 2 : « les dossiers qu'on choisit d'emporter, par défaut ses dossiers confiés, exercice en
+cours »). Sur « mon ordinateur » seulement (sur l'ordinateur d'un autre, rien n'est gardé, comme pour l'entreprise) :
+
+- chaque page du Cabinet lue avec le réseau se garde **chiffrée** sur le poste (la même clé que l'entreprise, non
+  extractible, H3), page par page ; un refus du serveur (une paie que le client n'a pas confiée) se garde aussi, pour
+  dire le même refus sans réseau ;
+- quatre secondes après l'ouverture, le Cabinet **emporte** en arrière-plan le livre de l'année de chacun de ses
+  dossiers, un dossier après l'autre, au plus toutes les six heures ; le réseau qui tombe en route l'arrête,
+  l'ouverture suivante reprend. Le choix des dossiers à emporter (au lieu de tous) viendra si un cabinet en a trop ;
+- sans réseau, le bandeau dit depuis quand, de quand date la copie consultée, et qu'« enregistrer demande le
+  réseau » ; une page jamais lue le dit (« ouvre-la une fois avec le réseau pour la consulter ensuite sans lui ») ;
+  un geste refusé dit que **rien n'a été fait**. Le Cabinet se recharge et se rouvre depuis l'entrée sans réseau ;
+  le réseau revenu, « Recharger » ;
+- « Se déconnecter » est au pied de la barre du Cabinet (il était caché dans les réglages) : la session se ferme,
+  et ce que le poste gardait s'efface. Une session refusée par le serveur efface aussi le poste.
+
+Défaut trouvé en route : deux lectures au même instant créaient chacune leur clé, et la copie ne se relisait plus
+après un rechargement ; la clé naît maintenant une seule fois. Le bandeau, enfin, recouvrait le haut du Cabinet :
+la page se pousse dessous, sans barre de défilement.
+
+**Les tests** (`tests/web/cabinet-hors-ligne.test.ts`, à la souris) : le Cabinet emporte ses dossiers, chiffrés ;
+sans réseau, le livre se consulte (« 1 écriture de l'exercice attend au brouillard »), la page se recharge, une page
+jamais lue le dit, l'entrée rouvre le Cabinet ; le réseau revenu, on recharge ; « Se déconnecter » efface le poste.
+
+**Reste à faire** : saisir au brouillard sans réseau (gardé chiffré, envoyé au retour ; la validation reste en ligne).

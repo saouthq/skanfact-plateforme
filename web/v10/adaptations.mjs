@@ -870,4 +870,6 @@ export const ADAPTATIONS = [
   ...lireFichier('pas-avant-son-jour.txt'),
   // ── Ce que le cabinet attend est une chose à faire, sur l'Accueil (1.102.0) ──
   ...lireFichier('comptable-a-faire.txt'),
+  // ── Le Cabinet se consulte sans réseau (1.104.0) ──
+  ...lireFichier('cabinet-hors-ligne.txt'),
 ];

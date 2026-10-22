@@ -46,6 +46,13 @@
     return /^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c) ? `${c.slice(0, 8)}/${c[8]}/${c[9]}/${c.slice(10)}` : null;
   }
 
+  // (1.104.0) Le poste (plateforme/poste.js ; docs/hors-ligne.md, H13) : sur « mon ordinateur », chaque lecture faite en
+  // ligne se garde, chiffrée ; sans réseau, le Cabinet se consulte sur elle, et le bandeau le dit. Rien ne s'y enregistre
+  // encore sans réseau : un geste attend le réseau, et le dit.
+  /** @type {any} */ const poste = /** @type {any} */ (window).SkanPoste || null;
+  if (poste) poste.seulementConsulter();
+  // La plus ancienne lecture relue sur le poste depuis l'ouverture : le bandeau dit de quand date ce qu'on voit.
+  /** @type {number | null} */ let copieLe = null;
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
   async function appel(methode, chemin, corps) {
     /** @type {Record<string, string>} */
@@ -55,17 +62,68 @@
     try {
       r = await fetch(`/v1${chemin}`, { method: methode, headers: entetes, cache: 'no-store', ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
     } catch (e) {
-      throw Object.assign(new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e }), { horsLigne: true });
+      const c = methode === 'GET' && poste ? await poste.relireLecture(cabinetId, chemin).catch(() => null) : null;
+      if (c) {
+        if (copieLe === null || c.le < copieLe) copieLe = c.le;
+        poste.horsLigne({ copieLe });
+        // Un refus lu en ligne (la paie hors du mandat) se refait à l'identique : l'écran le traite comme en ligne.
+        if (c.contenu && c.contenu['~refus']) throw Object.assign(new Error(String(c.contenu.motif || '')), { statut: c.contenu['~refus'], champ: null, indisponible: false });
+        return c.contenu;
+      }
+      if (poste) poste.horsLigne();
+      throw Object.assign(new Error(methode !== 'GET' ? 'Hors ligne : rien n\'a été fait. Ce geste demande le réseau ; sans lui, le Cabinet se consulte.'
+        : poste && poste.garde() ? 'Hors ligne, et ce poste n\'a pas encore lu cette page : ouvre-la une fois avec le réseau pour la consulter ensuite sans lui.'
+          : 'Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e }), { horsLigne: true });
     }
+    if (poste) poste.enLigne();
     if (r.status === 401) { location.replace('/'); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     /** @type {any} */
     const lu = lire(r, await r.text());
     if (r.status === 403 && lu.bouton === 'compte.code.configurer') { location.replace('/'); throw new Error(lu.motif); }
     // Un refus qui tient à un champ le nomme (E5) : l'écran marque sa case (le matricule déjà pris d'un dossier).
     // `indisponible` : ce serveur n'a pas l'outil (le PDF, docs/pdf.md) ; l'écran prend un autre chemin.
+    // (1.104.0) Une lecture refusée (403 : la paie hors du mandat) se garde aussi : sans réseau, le même refus revient,
+    // au lieu d'un « pas encore lu » qui fermait le livre entier.
+    if (r.status === 403 && methode === 'GET' && poste) poste.garderLecture(cabinetId, chemin, { '~refus': 403, motif: typeof lu.motif === 'string' ? lu.motif : '' }).catch(() => { /* la prochaine lecture */ });
     if (!r.ok) throw Object.assign(new Error(typeof lu.motif === 'string' ? lu.motif : 'Le serveur a rencontré une erreur : réessaie dans un instant.'), { champ: typeof lu.champ === 'string' ? lu.champ : null, statut: r.status, indisponible: lu.indisponible === true });
     if (methode !== 'GET') gestesFaits++;
+    else if (poste) poste.garderLecture(cabinetId, chemin, lu).catch(() => { /* sans copie, le hors-ligne attendra la prochaine lecture */ });
     return lu;
+  }
+  // (1.104.0) Les dossiers emportés (04 § 2 : par défaut, ses dossiers confiés, l'exercice en cours) : sur « mon
+  // ordinateur », le livre de l'année de chacun se lit en arrière-plan, un dossier après l'autre, et se garde avec le reste.
+  // Relu au plus toutes les six heures ; le réseau qui tombe en route l'arrête, l'ouverture suivante reprend.
+  const EMPORTES = `skanfact.emportes.${cabinetId}`;
+  let emportEnCours = false;
+  async function emporter() {
+    if (!poste || !poste.garde() || emportEnCours || !navigator.onLine) return;
+    let le = 0;
+    try { le = Number(localStorage.getItem(EMPORTES)) || 0; } catch { /* sans mémoire : on emporte */ }
+    if (Date.now() - le < 6 * 3600 * 1000) return;
+    emportEnCours = true;
+    try {
+      const annee = String(new Date().getFullYear());
+      for (const id of [...dossiers.keys()]) {
+        await pont.livres(id);
+        await pont.livre(id, annee);
+        await new Promise((ok) => setTimeout(ok, 150));
+      }
+      try { localStorage.setItem(EMPORTES, String(Date.now())); } catch { /* relu à la prochaine ouverture */ }
+    } catch { /* le réseau est tombé, ou un dossier s'est refermé : l'ouverture suivante reprendra */ } finally { emportEnCours = false; }
+  }
+  // L'ouverture : le cabinet, ou, sans réseau ni copie, la raison (et « Réessayer »).
+  async function ouvrirLeCabinet() {
+    try {
+      const etat = await construireEtat();
+      setTimeout(() => { void emporter(); }, 4000);
+      return etat;
+    } catch (e) {
+      if (!(poste && e && /** @type {any} */ (e).horsLigne)) throw e;
+      poste.sansCopie(poste.garde()
+        ? 'Hors ligne, et ce poste n\'a pas encore de copie de ce cabinet : ouvre-le une fois avec le réseau pour pouvoir le consulter ensuite sans lui.'
+        : 'Hors ligne : sur l\'ordinateur d\'un autre, rien n\'est gardé sur le poste. Reviens quand le réseau sera là.');
+      return await new Promise(() => { /* rien ne s'ouvre sans données */ });
+    }
   }
   // Le PDF fait par le serveur (docs/pdf.md), comme dans l'entreprise : la page dessinée par l'écran part au serveur, qui
   // l'imprime ; le PDF se télécharge sous son nom, qui revient. Sans l'outil sur ce serveur, ou sans réseau, la fenêtre
@@ -1088,14 +1146,16 @@
     sansCleDeSecours: true,
     // L'ouverture : la session de la plateforme ouvre le cabinet (adaptation de boot()).
     status: async () => ({ exists: true, session: true, version: VERSION, backups: 0, corruptFile: false }),
-    unlock: async () => ({ state: await construireEtat(), created: false, reorganized: null, exemple: null }),
+    unlock: async () => ({ state: await ouvrirLeCabinet(), created: false, reorganized: null, exemple: null }),
     state: construireEtat,
     // Verrouiller ferme la session : on rouvre avec son mot de passe, comme la v10 le promet.
     lock: async () => {
       try { await fetch('/v1/deconnexion', { method: 'POST', headers: { authorization: `Bearer ${jeton}` } }); } catch { /* la session se ferme de toute façon ici */ }
-      try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.hors_ligne'); localStorage.removeItem('skanfact.poste_de'); } catch { /* rien à retirer */ }
-      // Ce que le poste gardait pour le hors-ligne (les copies chiffrées et leur clé) s'efface aussi.
-      try { indexedDB.deleteDatabase('skanfact-poste'); } catch { /* rien de gardé */ }
+      try { sessionStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.jeton'); localStorage.removeItem('skanfact.hors_ligne'); localStorage.removeItem('skanfact.poste_de'); localStorage.removeItem(EMPORTES); } catch { /* rien à retirer */ }
+      // Ce que le poste gardait pour le hors-ligne (les copies chiffrées et leur clé) s'efface aussi. (1.104.0) Par le
+      // poste : une lecture gardée en route (les dossiers emportés) ne recrée plus la base qu'on vient d'effacer.
+      if (poste) await poste.effacer();
+      else try { indexedDB.deleteDatabase('skanfact-poste'); } catch { /* rien de gardé */ }
       location.replace('/');
       return true;
     },

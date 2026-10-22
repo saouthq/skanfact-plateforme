@@ -265,9 +265,13 @@ export function App() {
       session.personne(r.corps.id);
       setMoi(r.corps);
     } catch (x) {
-      // Sans réseau, l'entreprise dont ce poste garde une copie s'ouvre quand même (brique 72).
+      // Sans réseau, l'entreprise dont ce poste garde une copie s'ouvre quand même (brique 72) ; (1.104.0) ou le cabinet
+      // (« c:<cabinet> », plateforme/poste.js).
       const copie = x instanceof ErreurReseau ? session.horsLigne() : null;
-      if (copie) { location.assign(`/v10/?e=${encodeURIComponent(copie)}`); return; }
+      if (copie) {
+        location.assign(copie.startsWith('c:') ? `/v10/cabinet/?c=${encodeURIComponent(copie.slice(2))}` : `/v10/?e=${encodeURIComponent(copie)}`);
+        return;
+      }
       toast(phrase(x instanceof ErreurReseau ? 'ecran.erreur_reseau' : 'ecran.erreur_serveur'), true);
     }
   }, []);

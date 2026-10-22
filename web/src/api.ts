@@ -65,7 +65,10 @@ export async function appeler<T = Record<string, unknown>>(methode: 'GET' | 'POS
   // le poste ne garde rien (la copie et ce qui attend s'écrivent avec elle).
   if (r.status === 401 && lu.effacer) {
     const gardee = lire('skanfact.hors_ligne', localStorage);
-    if (gardee && jeton) {
+    // (1.104.0) Le Cabinet ne garde que ce qu'il a lu (rien n'attend le réseau) : sa copie s'efface ici, et l'entrée dit
+    // pourquoi.
+    if (gardee && gardee.startsWith('c:')) effacerLePoste();
+    else if (gardee && jeton) {
       location.replace(`/v10/?e=${encodeURIComponent(gardee)}`);
       return await new Promise<never>(() => { /* la page s'en va */ });
     }

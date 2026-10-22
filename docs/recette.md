@@ -1020,6 +1020,20 @@ aux deux questions qui restaient ; Hatem les lit et les ferme. Ce que l'écran f
 - le refus « Un message vide… » restait affiché sous la pièce qu'on était en train de nommer : un refus se lève au
   premier mot du champ qu'il montre (message ou pièce demandée).
 
+### 1.104.0 — le Cabinet sans réseau
+
+Hatem ouvre son Cabinet, puis le serveur de recette est arrêté pour de vrai :
+
+- vu et juste : le dossier de Sami s'ouvre sans réseau, le bandeau dit « Hors ligne depuis 0 h 41. Tu consultes la
+  copie de ce poste, du 22/10/2026 à 0 h 41. Enregistrer demande le réseau. », le journal montre 6 778,707 comme en
+  ligne ; la page se recharge sans réseau ; le réseau revenu, « Recharger » remet en ligne ;
+- avant, le Cabinet ne gardait rien : sans réseau, plus rien ne s'ouvrait ; il emporte maintenant ses dossiers
+  (l'exercice en cours), chiffrés ;
+- « Verrouiller maintenant » était caché dans Réglages › Données et sécurité : « Se déconnecter » est au pied de la
+  barre, et dit ce qu'il efface avant de le faire ;
+- le bandeau hors ligne recouvrait le nom du cabinet, puis la page débordait d'autant (barre de défilement) : la
+  page se range dessous et tient dans la fenêtre.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans
