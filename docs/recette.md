@@ -1074,3 +1074,9 @@ Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT d
     produits ») tombent en 706 (prestations de services), le compte de ventes par défaut du moteur ; des marchandises
     iraient en 707. Le compte se règle par dossier ; la question est le défaut : 707 pour une activité de commerce, ou
     une ventilation par article (produit ou service).
+12. **À faire (demandé par Skander le 22/10/2026)** : la revue UI et UX de la messagerie entre l'entreprise et son
+    cabinet (`docs/messagerie.md`), en développeur designer : comment les deux se parlent (messages, questions du
+    comptable, pièces demandées, relances, réponses avec fichier), si c'est pratique et ergonomique des deux côtés, à
+    la souris, au clavier et au téléphone, et comparé à ce que font les autres (Hesabi, Pennylane, Tiime, Dext,
+    Karbon, les messageries des cabinets). Le but : que ce soit parfait. Un rapport d'abord, avec captures, puis les
+    corrections.
