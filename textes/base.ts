@@ -355,7 +355,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cette pièce ne se reconnaît pas : une facture, un avoir, un devis ou un achat, avec son libellé', cle: 'base.messagerie.piece', fr: 'cette pièce ne se reconnaît pas : une facture, un avoir, un devis ou un achat, avec son libellé' },
   { base: 'ce fichier n\'est pas là : dépose-le d\'abord', cle: 'base.messagerie.fichier_absent', fr: 'ce fichier n\'est pas là : joins-le à nouveau' },
   { base: 'ce fichier est déjà joint à un message', cle: 'base.messagerie.fichier_pris', fr: 'ce fichier est déjà joint à un message' },
-  { base: 'on répond à une pièce demandée en l\'envoyant', cle: 'base.messagerie.reponse_demande', fr: 'on répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF' },
+  { base: 'on répond à une pièce demandée en l\'envoyant', cle: 'base.messagerie.reponse_demande', fr: 'on répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF, ou choisis la pièce de ton dossier' },
   { base: 'cette pièce demandée n\'attend plus rien', cle: 'base.messagerie.demande_close', fr: 'cette pièce demandée n\'attend plus rien' },
   { base: 'un achat se nomme par son identifiant et son libellé', cle: 'base.messagerie.achat', fr: 'un achat se nomme par son identifiant et son libellé' },
   { base: 'ce message n\'a pas de fichier à ranger', cle: 'base.messagerie.rien_a_ranger', fr: 'ce message n\'a pas de fichier à ranger' },

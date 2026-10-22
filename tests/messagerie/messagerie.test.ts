@@ -165,7 +165,9 @@ describe('le fil entre l\'entreprise et son cabinet', () => {
     expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ nonLus: 0, demandes: 1, aLire: true });
     // Le client ne demande pas de pièce ; il ne répond à une demande qu'en envoyant la pièce.
     expect((await ecrire(ent, client, 'entreprise', { demande: 'Ton RIB' })).corps.motif).toBe('Seul le cabinet demande une pièce.');
-    expect((await ecrire(ent, client, 'entreprise', { texte: 'La voilà', repondA: d.corps.id })).corps.motif).toBe('On répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF.');
+    expect((await ecrire(ent, client, 'entreprise', { texte: 'La voilà', repondA: d.corps.id })).corps.motif).toBe('On répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF, ou choisis la pièce de ton dossier.');
+    // Le cabinet ne répond pas à sa propre demande, même avec une pièce.
+    expect((await ecrire(ent, cab.associe, 'cabinet', { piece: { genre: 'achat', id: 'a9', libelle: 'STEG' }, repondA: d.corps.id })).corps.motif).toBe('On répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF, ou choisis la pièce de ton dossier.');
 
     // Le fichier : reconnu à ses octets (un texte nommé .png ne passe pas), 10 Mo au plus.
     const faux = await appeler('POST', `/entreprises/${ent}/messages/fichiers`, client.jeton, { cote: 'entreprise', nom: 'facture.png', contenu: Buffer.from('ceci n\'est pas une image').toString('base64') });
@@ -202,6 +204,18 @@ describe('le fil entre l\'entreprise et son cabinet', () => {
     expect((await appeler('POST', `/entreprises/${ent}/messages/${d2.corps.id}/recue`, client.jeton)).statut).toBe(403);
     expect((await appeler('POST', `/entreprises/${ent}/messages/${d2.corps.id}/recue`, cab.associe.jeton)).statut).toBe(200);
     expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 0 });
+
+    // (1.115.0) Répondre avec la pièce DÉJÀ dans le dossier (la facture STEG était saisie dans les achats : il fallait
+    // renvoyer un fichier), sans un mot : la demande est reçue, le message ne porte que la pièce.
+    const d3 = await ecrire(ent, cab.associe, 'cabinet', { demande: 'La facture Ooredoo de septembre' });
+    const parPiece = await ecrire(ent, client, 'entreprise', { piece: { genre: 'achat', id: 'a7', libelle: 'F-120 · Ooredoo · 59,000 DT' }, repondA: d3.corps.id });
+    expect(parPiece.statut, JSON.stringify(parPiece.corps)).toBe(201);
+    const vu3 = (await fil(ent, cab.associe, 'cabinet')).corps.messages;
+    expect(vu3.find((m) => m.id === d3.corps.id)?.demande?.recueLe).toEqual(expect.any(String));
+    expect(vu3.find((m) => m.id === parPiece.corps.id)).toMatchObject({ texte: '', piece: { genre: 'achat', id: 'a7', libelle: 'F-120 · Ooredoo · 59,000 DT' }, fichier: null, repondA: d3.corps.id });
+    // Une pièce seule, hors de toute demande, part aussi (« Parler d'une pièce » sans un mot).
+    expect((await ecrire(ent, client, 'entreprise', { piece: { genre: 'facture', id: 'f1', libelle: 'FAC-2026-001' } })).statut).toBe(201);
+    expect((await ecrire(ent, client, 'entreprise', {})).corps.motif).toMatch(/^Un message vide n'apprend rien/);
   });
 
   it('cinquante messages à la fois, du plus récent ; la suite donne les plus anciens, sans en perdre ni en doubler', async () => {
@@ -248,11 +262,18 @@ describe('la boîte du cabinet', () => {
     const filC = (await fil(c.ent, c.p, 'entreprise')).corps;
     expect(filC.questions.map((x) => [x.piece, x.montant, x.statut])).toEqual([['FF-12', '1200.500', 'envoyee']]);
     expect(filC.attente).toEqual({ nonLus: 0, questions: 1, demandes: 0, aLire: false });
-    // Qui l'a posée : l'associé la lit comme la sienne ; chez le client, ni son nom ni son adresse ne passent.
-    expect(filC.questions[0]?.poseePar).toBeNull();
+    // Qui l'a posée : l'associé la lit comme la sienne ; (1.115.0) chez le client, son nom, comme sous ses messages (la
+    // question se disait posée par « Ton cabinet » à côté d'un message signé de son nom) ; son adresse, jamais.
+    expect(filC.questions[0]?.poseePar).toBe('associe');
+    expect(JSON.stringify(filC)).not.toContain(cab.associe.email);
     expect((await fil(c.ent, cab.associe, 'cabinet')).corps.questions[0]?.poseePar).toBe('moi');
     expect((await appeler('POST', `/entreprises/${c.ent}/compta/questions/${q.corps.id}/repondre`, c.p.jeton, { texte: 'Elle est jointe à l\'achat FF-12.' })).statut).toBe(200);
     expect((await fil(c.ent, c.p, 'entreprise')).corps.questions[0]?.repondueePar).toBe('moi');
+    expect((await fil(c.ent, cab.associe, 'cabinet')).corps.questions[0]?.repondueePar).toBe('Leïla Mansour');
+    // Les noms ne se lisent que d'un fil qu'on lit : la cliente d'à côté n'en tire rien, même en appelant la base.
+    const voisine = await personne('voisine');
+    expect((await enTantQue(pool, voisine.utilisateur, (tx) => tx.query('select * from messagerie.noms_des_questions($1, $2)', [c.ent, cab.id]))).rows).toEqual([]);
+    expect((await enTantQue(pool, c.p.utilisateur, (tx) => tx.query('select pose_nom from messagerie.noms_des_questions($1, $2)', [c.ent, cab.id]))).rows).toEqual([{ pose_nom: 'associe' }]);
     // Le cabinet a du neuf à lire : la réponse du client.
     expect((await fil(c.ent, cab.associe, 'cabinet')).corps.attente).toMatchObject({ nonLus: 1, aLire: true });
     // A : le cabinet répond (écrire, c'est avoir lu), rien à faire ; B : le client envoie la pièce, à traiter ; puis le

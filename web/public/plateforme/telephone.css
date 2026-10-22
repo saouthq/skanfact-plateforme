@@ -28,6 +28,14 @@
   /* Au Cabinet, « Menu » est posé dans la marque même (pas de `.brand-wrap`) : poussé au bout de la ligne, comme à
      l'entreprise, au lieu de flotter au milieu juste après le nom du cabinet (vu à 390 px le 21/10/2026). */
   .sidebar > .brand > .menu-tel { margin-inline-start: auto; }
+  /* (1.115.0) Les messages à côté de « Menu » (telephone.js, 7) : une bulle et sa pastille, 44 px au doigt. */
+  .sidebar > .brand > .msg-tel + .menu-tel { margin-inline-start: 6px; }
+  .msg-tel { position: relative; width: 44px; min-height: 44px; padding: 0; justify-content: center; align-items: center; }
+  .msg-tel[aria-current="page"] { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+  .msg-tel-pastille {
+    position: absolute; top: -6px; inset-inline-end: -6px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center; background: #c2410c; color: #fff; font-size: 11px; font-weight: 700;
+  }
   .sidebar > .nav-search, .sidebar > nav, .sidebar > .sidebar-foot { display: none; }
   .sidebar.menu-ouvert > .nav-search, .sidebar.menu-ouvert > .sidebar-foot { display: flex; }
   .sidebar.menu-ouvert > nav { display: flex; max-height: 60vh; overflow-y: auto; }

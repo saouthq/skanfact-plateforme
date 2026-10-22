@@ -81,6 +81,14 @@ demandées, et la demande groupée (P2).
 - **Hesabi** : sa collaboration avec les cabinets n'est pas documentée en ligne (À VÉRIFIER sur un compte d'essai).
   Pennylane et Karbon : d'après leurs pages publiques (les sources ci-dessous), pas d'un compte d'essai.
 
+## Ce qui est fait
+
+- **Lot 1, 1.115.0 (22/10/2026)** : P1 (1 à 5) et les finitions P3 (12 à 20), vérifiés à la souris et au téléphone
+  (390 px). En chemin, deux défauts trouvés par les tests : une pièce du dossier envoyée sans un mot était refusée par
+  la base (la table exigeait un texte, un fichier ou une demande), et une question arrivée avant tout message restait
+  signée « Ton cabinet » (les noms passaient par le fil, qui ne naît qu'au premier message). Le détail :
+  `docs/messagerie.md` (M4, M7 bis, « Les écrans »).
+
 ## Le plan proposé
 
 - **Lot 1 (P1, 1–5)** : l'entrée visible, la conversation à droite de la boîte, l'écriture collée en bas au téléphone,

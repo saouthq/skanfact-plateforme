@@ -1623,8 +1623,11 @@
     const racine = $('#msg-racine');
     const revision = id => { location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/revision'; };
     if (!ent) {
+      // (1.115.0) La conversation du client choisi s'ouvre à droite de la liste (le pont la fabrique) ; « Ouvrir en grand »,
+      // et une ligne touchée au téléphone, mènent à sa page.
       messagerieOuverte = api.messagerie.boite(racine, {
         ouvrir: (id, demander) => { location.hash = '#/messages/' + encodeURIComponent(id) + (demander ? '/demande' : ''); },
+        toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
         revision,
         surCompteurs: c => majPastilleMessages(c.aTraiter),
       });

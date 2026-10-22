@@ -2062,8 +2062,7 @@
     stats: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
     compta: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/>',
     modules: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/>',
-    licences: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l2 2M14 9l2 2"/>',
-    comptable: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/>'
+    licences: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l2 2M14 9l2 2"/>'
   };
   const icone = id => `<svg viewBox="0 0 24 24">${ICONES[id] || ICONES.modules}</svg>`;
   // Le cadenas d'un module fermé par l'offre (7.33.0), à côté du titre dans la barre.
@@ -2071,14 +2070,15 @@
 
   // Les compteurs de la barre : ils vivaient en dur dans index.html (<span id="nav-relances">…).
   // Maintenant qu'on dessine, on les pose en même temps que le lien.
-  const NAV_COMPTEURS = { relances: 'nav-relances', contrats: 'nav-contrats', achats: 'nav-achats', tresorerie: 'nav-treso', paie: 'nav-paie', stock: 'nav-stock', immos: 'nav-immos', licences: 'nav-licences', comptable: 'nav-comptable' };
+  const NAV_COMPTEURS = { relances: 'nav-relances', contrats: 'nav-contrats', achats: 'nav-achats', tresorerie: 'nav-treso', paie: 'nav-paie', stock: 'nav-stock', immos: 'nav-immos', licences: 'nav-licences' };
   const NAV_INFO = ['contrats', 'immos'];          // compteur bleu « pour information », pas une alerte
   // (plateforme, lot messagerie) Ce qui attend dans le fil du cabinet, lu au serveur (null : pas encore lu, ou pas pour
   // ce rôle) ; et la photo d'un message en route vers un achat.
   let messagerieVue = null;
   let rangementDuMessage = null;
-  // L'entrée « Mon comptable » : quand un cabinet tient le dossier, ou l'a tenu (ses échanges se relisent). UNE règle,
-  // pour la barre et pour savoir s'il faut la redessiner.
+  // L'entrée « Mon comptable » : quand un cabinet tient le dossier, ou l'a tenu (ses échanges se relisent). UNE règle.
+  // (1.115.0) Elle vit dans le pied de la barre, qui ne défile jamais (index.html) : en bas du menu, elle était hors de
+  // l'écran à l'ouverture (revue du 22/10/2026).
   const avecMessagerie = a => !!(a && (a.cabinet || a.anciens));
   function majMessagerie(a) {
     const avant = avecMessagerie(messagerieVue), vueAvant = messagerieVue;
@@ -2091,8 +2091,8 @@
     if (avant !== avecMessagerie(a)) {
       // (plateforme) 1.94.0 — la Comptabilité dit si un cabinet lit ses ventes : elle se redessine quand on l'apprend.
       if (/^#\/compta/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
-      drawNav();
-      $$('nav a, .sidebar-foot a').forEach(x => x.classList.toggle('active', x.dataset.route === navActif));
+      const lien = $('#foot-comptable');
+      if (lien) lien.hidden = !avecMessagerie(a);
     }
     updateNavCounts();
   }
@@ -2312,9 +2312,6 @@
     // La page de l'ÉDITEUR de SkanFact : elle n'existe que sur le poste où vit la clé privée de
     // signature. Elle n'est pas un module (elle ne se coche pas, elle ne dépend pas du dossier).
     if (licence.editeur) pages.push({ ...C.pageById('licences'), famille: 'Éditeur' });
-    // (plateforme, lot messagerie) « Mon comptable » : quand un cabinet tient le dossier (ou l'a tenu : ses échanges se
-    // relisent), pour qui lui écrit (le serveur le dit en lisant ce qui attend). Seule en bas de la barre, comme la maquette.
-    if (avecMessagerie(messagerieVue)) pages.push({ ...C.pageById('comptable'), famille: '' });
     // Groupé par FAMILLE, pas par module : huit intertitres coûteraient 250 px de barre, et on aurait
     // remplacé un débordement par un autre.
     const familles = [];

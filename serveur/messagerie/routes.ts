@@ -188,14 +188,13 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       // Les questions envoyées pendant la période de cette page : depuis le plus ancien message de la page (ou depuis
       // toujours, à la dernière page), jusqu'au curseur (ou jusqu'à maintenant, à la première).
       const depuis = suite ? page.at(-1)?.ecrit_le ?? null : null;
-      // Qui l'a posée, qui y a répondu : « Toi », sinon son nom quand on le voit (un collègue), sinon rien (l'écran dit « le
-      // cabinet », « le client »).
+      // Qui l'a posée, qui y a répondu : « Toi », sinon son nom, lu par les deux côtés du fil (0167 : l'entreprise ne
+      // voyait pas le nom d'un membre du cabinet, et la question se disait posée par « Ton cabinet »).
       const questions = (await tx.query(`select q.id, q.objet, q.texte, q.piece, q.montant, q.attendu, q.statut, q.envois[1] envoyee_le, q.reponse,
-          q.repondu_le, q.periode, coalesce(q.pose_par = socle.moi(), false) pose_moi, pu.nom pose_nom,
-          coalesce(q.repondu_par = socle.moi(), false) reponse_moi, ru.nom reponse_nom
+          q.repondu_le, q.periode, coalesce(q.pose_par = socle.moi(), false) pose_moi, n.pose_nom,
+          coalesce(q.repondu_par = socle.moi(), false) reponse_moi, n.repondu_nom reponse_nom
         from compta.question q
-          left join socle.utilisateur pu on pu.id = q.pose_par
-          left join socle.utilisateur ru on ru.id = q.repondu_par
+          left join messagerie.noms_des_questions($1, $2) n on n.question = q.id
         where q.entreprise = $1 and q.cabinet = $2 and cardinality(q.envois) > 0
           and ($3::timestamptz is null or q.envois[1] < $3::timestamptz) and ($4::timestamptz is null or q.envois[1] >= $4::timestamptz)
         order by q.envois[1], q.id`, [entreprise, cabinet, avant?.[0] ?? null, depuis])).rows as LigneQuestion[];

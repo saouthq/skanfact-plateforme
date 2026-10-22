@@ -33,8 +33,10 @@ attend, et leur réponse à sa date. L'entreprise y répond sur place (le même 
 **M4. Une pièce, une photo, une pièce demandée.** Un message peut :
 - **parler d'une pièce** (« Parler d'une pièce » : une facture, un avoir, un devis ou un achat du dossier ; le message
   garde son libellé du moment, « Ouvrir » la retrouve) ;
-- **demander une pièce** (le cabinet) : la demande attend jusqu'à ce que le client l'envoie (« Envoyer la pièce… »,
-  une photo ou un PDF, qui y répond), ou que le cabinet la dise « Reçue autrement » ;
+- **demander une pièce** (le cabinet) : la demande attend jusqu'à ce que le client l'envoie, ou que le cabinet la dise
+  « Reçue autrement ». (1.115.0) « Envoyer la pièce… » ouvre une fenêtre : **une photo ou un PDF** (vu avant de partir,
+  « Changer », « Annuler »), **ou la pièce déjà dans le dossier** (une facture, un avoir, un devis ou un achat, à
+  chercher, avec sa date), et un mot facultatif ; rien ne part avant « Envoyer à mon cabinet » ;
 - **porter une photo (JPEG, PNG, WebP) ou un PDF**, 10 Mo au plus, reconnu à ses premiers octets par le serveur (jamais à
   son nom), gardé sur nos serveurs avec l'entreprise, joint à un seul message ; déposé mais pas encore joint, seul celui
   qui l'a déposé le lit ;
@@ -66,21 +68,37 @@ dans les pièces demandées plutôt que dans les non-lus) ; l'autre côté voit 
 range du côté de qui l'a écrit, signé « Toi » pour ses propres messages et du nom de l'auteur sinon (un collègue du
 cabinet, un administrateur de l'entreprise).
 
+**M7 bis. Les noms de qui pose et de qui répond aux questions** (1.115.0). Une question se signe du nom de la personne
+qui l'a posée, comme un message (elle se disait posée par « Ton cabinet » à côté d'un message signé « Sonia Ben
+Youssef ») ; sa réponse, du nom de qui a répondu. Les noms seuls (jamais l'adresse), lus par
+`messagerie.noms_des_questions` pour un fil qu'on lit, ou côté entreprise pour son cabinet (une question peut arriver
+avant le premier message). Une question répondue le dit : « Répondue ».
+
 **M8. Ce qui part vers le serveur, compté** (règle du projet). Un message : son texte, la pièce dont il parle (genre,
 identifiant, libellé), la pièce demandée, le fichier déposé, la demande à laquelle il répond. Un fichier : son nom et ses
 octets. Rien d'autre. Ce qui part chez le relais d'e-mails : l'adresse de la personne, l'objet et le texte fixes.
 
 ## Les écrans
 
-- **Entreprise — « Mon comptable »** : une entrée en bas du menu, qui paraît quand un cabinet tient le dossier (ou l'a
-  tenu), avec sa pastille (non lus + questions sans réponse + pièces demandées). Le haut : le cabinet, « tient ta
-  comptabilité depuis le … ». Le fil par jour ; à côté, « En attente de toi », « Ce que voit ton cabinet » (et le
-  mandat), « Me prévenir par e-mail ». Écrire : « Joindre une photo ou un PDF », « Parler d'une pièce », « Envoyer »
-  (Entrée envoie, Maj+Entrée va à la ligne ; au téléphone, le bouton).
-- **Cabinet — « Messages »** : la boîte, filtres « À traiter (n) », « Attend le client (n) », « Tout (n) » ; une ligne
-  par client en ligne (pas les dossiers tenus seul au cabinet) ; le client choisi à côté, avec « Ouvrir la
-  conversation », « Demander une pièce », « Question sur une pièce ». La conversation : « Demander une pièce », « Reçue
-  autrement », « C'est traité », « Me prévenir par e-mail ».
+- **Entreprise — « Mon comptable »** : (1.115.0) une entrée **dans le pied du menu**, qui ne défile jamais (avec
+  « Tous les modules », « Paramètres », « Aide »), qui paraît quand un cabinet tient le dossier (ou l'a tenu), avec sa
+  pastille (non lus + questions sans réponse + pièces demandées). Le haut : le cabinet, « tient ta comptabilité depuis
+  le … ». Le fil par jour, **à la hauteur de l'écran**, la zone d'écriture en bas ; à côté, « En attente de toi »
+  (« Répondre » y mène et éclaire la carte), « Ce que voit ton cabinet » (et le mandat), « Me prévenir par e-mail ».
+  Écrire : « Joindre une photo ou un PDF », « Parler d'une pièce », « Envoyer » (Entrée envoie, Maj+Entrée va à la
+  ligne ; au téléphone, le bouton). Ce qui est joint se range sous les boutons (« Envoyer » ne bouge pas). Sous ses
+  messages : « Envoyé », puis « Lue ».
+- **Cabinet — « Messages »** : (1.115.0) la boîte, filtres « À traiter (n) », « Attend le client (n) », « Tout (n) » ;
+  **la liste à gauche, la conversation entière du client choisi à droite** (comme Karbon, Front et toute messagerie :
+  il fallait un aperçu, puis « Ouvrir la conversation », sur une autre page) ; ↑ et ↓ passent d'un client à l'autre ;
+  un client traité ou qui a reçu une réponse reste dans la liste tant qu'on le lit ; la pastille des non-lus suffit (pas
+  d'étiquette « À traiter » en plus). Au-dessus du fil, un bandeau : ce qui attend le client, « Marquer comme traité »,
+  « Question sur une pièce (révision) », « Me prévenir par e-mail ». « Ouvrir en grand » mène à la page du client
+  (`#/messages/<entreprise>`), qui a « Demander une pièce », « Reçue autrement », « Marquer comme traité ».
+- **Au téléphone** (1.115.0) : un bouton de bulle à côté de « Menu », avec la même pastille, mène à « Mon comptable »
+  ou aux « Messages » (dans le menu replié, la pastille ne se voyait pas) ; le fil et la zone d'écriture tiennent dans
+  l'écran, « Envoyer » sous le pouce, les gestes en mots courts (« Joindre », « Une pièce », « Demander ») ; une ligne
+  de la boîte ouvre la conversation sur sa page.
 
 ## À VÉRIFIER
 

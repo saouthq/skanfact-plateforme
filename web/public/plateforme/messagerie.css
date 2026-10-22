@@ -33,10 +33,14 @@
   flex: 1 1 520px; min-width: 0; display: flex; flex-direction: column; border-radius: 20px; background: var(--panel);
   border: 1px solid var(--border); overflow: hidden;
 }
+/* (1.115.0) Le fil prend la hauteur de l'écran, la zone d'écriture reste en bas (revue du 22/10/2026 : 400 px de fil, de
+   la place vide dessous). --msg-haut : ce qui est au-dessus de la zone (la barre, l'en-tête de la page). */
+.msg-corps > .msg-zone { height: calc(100dvh - var(--msg-haut, 210px)); min-height: 440px; }
 .msg-a-cote { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
 
 /* Le fil : il défile en lui-même, le champ d'écriture reste sous les yeux. */
-.msg-fil { display: flex; flex-direction: column; gap: 18px; padding: 24px; max-height: max(300px, calc(100vh - 400px)); min-height: 260px; overflow-y: auto; }
+.msg-fil { flex: 1 1 auto; display: flex; flex-direction: column; gap: 18px; padding: 24px; min-height: 0; overflow-y: auto; }
+.msg-fil > * { flex: none; }
 .msg-jour { align-self: center; padding: 4px 12px; border-radius: 999px; background: var(--ink-soft); font-size: 12px; font-weight: 600; color: var(--muted); }
 .msg-plus { align-self: center; }
 .msg-ligne { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; max-width: 80%; }
@@ -78,6 +82,11 @@
 .msg-q-attendu { font-size: 13px; color: var(--muted); }
 .msg-q-etat { align-self: flex-start; padding: 2px 10px; border-radius: 999px; background: var(--ink-soft); font-size: 12px; font-weight: 700; color: var(--muted); }
 .msg-q-etat.attend { background: var(--warning-soft); color: var(--warning); }
+.msg-q-etat.ok { background: var(--primary-soft); color: var(--primary); }
+/* « Répondre » mène à ce qui attend : la carte s'éclaire un instant, pour que l'œil la trouve. */
+.msg-eclaire { animation: msg-eclaire 2.2s ease-out; }
+@keyframes msg-eclaire { 0%, 30% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--warning) 55%, transparent); } 100% { box-shadow: 0 0 0 4px transparent; } }
+@media (prefers-reduced-motion: reduce) { .msg-eclaire { animation: none; box-shadow: 0 0 0 4px color-mix(in srgb, var(--warning) 55%, transparent); } }
 .msg-q-repondre { display: flex; flex-direction: column; gap: 8px; }
 .msg-q-repondre textarea, .msg-ecrire textarea, .msg-demande input {
   width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--panel);
@@ -107,6 +116,7 @@
 .msg-gestes .btn { min-height: 40px; display: inline-flex; align-items: center; gap: 8px; }
 .msg-gestes .btn[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
 .msg-gestes .btn-primary { padding-inline: 22px; }
+.msg-court { display: none; }
 
 /* À côté : ce qui attend, ce que voit le cabinet, l'alerte par e-mail. */
 .msg-encart {
@@ -139,7 +149,38 @@
 .msg-fp-ligne:hover, .msg-fp-ligne:focus-visible { background: var(--primary-soft); outline: none; }
 .msg-fp-ligne b { flex: none; min-width: 64px; }
 .msg-fp-ligne span { min-width: 0; overflow-wrap: anywhere; }
-.msg-fp-gestes { display: flex; justify-content: flex-end; }
+.msg-fp-ligne > span:not(.msg-fp-date) { flex: 1 1 auto; }
+.msg-fp-ligne .msg-fp-date { flex: none; margin-inline-start: auto; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.msg-fp-ligne[aria-selected="true"] { background: var(--primary-soft); box-shadow: inset 3px 0 0 var(--primary); }
+.msg-fp-liste > .msg-fp-ligne:last-child { border-bottom: 0; }
+.msg-fp-gestes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+
+/* « Envoyer la pièce demandée » : comment (un fichier, ou une pièce du dossier), ce qui part, un mot ; rien ne part avant le bouton. */
+.msg-fenetre form, form.msg-fenetre { margin: 0; }
+.msg-ep-facons { display: flex; flex-wrap: wrap; gap: 8px; }
+.msg-ep-facon {
+  flex: 1 1 200px; display: flex; gap: 10px; align-items: flex-start; padding: 12px 14px; border: 1.5px solid var(--line); border-radius: 12px;
+  cursor: pointer; font-size: 14px; line-height: 1.4;
+}
+.msg-ep-facon:has(input:checked) { border-color: var(--primary); background: var(--primary-soft); }
+.msg-ep-facon input { flex: none; margin: 2px 0 0; accent-color: var(--primary); }
+.msg-ep-facon > span { display: flex; flex-direction: column; gap: 2px; }
+.msg-ep-facon > span > span { font-size: 13px; color: var(--muted); }
+.msg-ep-choisir { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; min-height: 44px; }
+.msg-ep-choisi { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; }
+.msg-ep-choisi img { flex: none; width: 72px; height: 72px; object-fit: cover; border-radius: 8px; background: var(--ink-soft); }
+.msg-ep-choisi .msg-carte-txt { flex-direction: column; }
+[data-ep-dossier] { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+[data-ep-dossier] .msg-fp-liste { max-height: 30vh; }
+[data-ep-dossier][hidden], [data-ep-fichier][hidden] { display: none; }
+.msg-ep-mot { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; }
+.msg-ep-mot textarea {
+  width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--panel);
+  color: var(--text); font: inherit; font-size: 15px; line-height: 1.5; resize: vertical;
+}
+.msg-fenetre { overflow-y: auto; }
+.msg-ep-gestes { align-items: flex-start; }
+.msg-ep-gestes .msg-refus { flex: 1 1 12em; display: block; align-self: center; }
 
 /* La boîte du cabinet : les filtres, une ligne par client, et le client choisi à côté. */
 .msg-boite-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; }
@@ -149,13 +190,14 @@
   font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
 }
 .msg-filtre[aria-selected="true"] { background: #0b2724; border-color: #0b2724; color: #fff; }
-.msg-liste { padding: 0; }
+.msg-liste { padding: 0; overflow-y: auto; }
 .msg-dossier {
   width: 100%; display: flex; align-items: center; gap: 14px; padding: 16px 20px; border: 0; border-bottom: 1px solid var(--border);
   background: var(--panel); color: var(--text); font: inherit; text-align: left; cursor: pointer;
 }
 .msg-dossier:hover { background: var(--ink-soft); }
-.msg-dossier.choisi { background: var(--primary-soft); }
+.msg-dossier.choisi { background: var(--primary-soft); box-shadow: inset 3px 0 0 var(--primary); }
+.msg-dossier:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
 .msg-dossier-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .msg-dossier-l1 { display: flex; justify-content: space-between; gap: 12px; }
 .msg-dossier-l1 b { font-size: 15px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -165,24 +207,61 @@
 .msg-etat-pastille { flex: none; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--ink-soft); color: var(--muted); }
 .msg-etat-pastille.traiter { background: var(--warning-soft); color: var(--warning); }
 .msg-etat-pastille.client { background: var(--primary-soft); color: var(--primary); }
-.msg-choisi { padding: 22px; border-radius: 20px; background: var(--panel); border: 1px solid var(--border); }
-.msg-choisi-nom { font-family: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 600; font-size: 20px; }
-.msg-dernier { display: flex; flex-direction: column; gap: 6px; padding: 14px; border-radius: 14px; background: var(--ink-soft); font-size: 14px; line-height: 1.55; overflow-wrap: anywhere; }
-.msg-choisi > .btn { min-height: 44px; }
-.msg-boite-gestes { display: flex; flex-wrap: wrap; gap: 8px; }
-.msg-boite-gestes .btn { flex: 1 1 140px; min-height: 44px; }
+
+/* (1.115.0) La liste à gauche, la conversation entière à droite (revue du 22/10/2026 : un aperçu, puis une autre page). */
+.msg-boite-a-cote .msg-boite-corps {
+  display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 20px;
+  height: calc(100dvh - var(--msg-haut-boite, 170px)); min-height: 480px;
+}
+.msg-boite-a-cote .msg-liste { height: 100%; }
+.msg-boite-a-cote .msg-dossier { padding: 14px 16px; gap: 12px; }
+.msg-boite-conv, .msg-boite-conv > div { min-width: 0; min-height: 0; height: 100%; }
+.msg-conv-vide { height: 100%; box-sizing: border-box; justify-content: center; align-items: center; text-align: center; border: 1px dashed var(--line); border-radius: 20px; }
+.msg-integre {
+  height: 100%; max-width: none; gap: 0; border-radius: 20px; background: var(--panel); border: 1px solid var(--border); overflow: hidden;
+}
+.msg-tete-integre { padding: 12px 20px; border-bottom: 1px solid var(--border); }
+.msg-tete-integre .msg-tete-txt { flex: 1 1 auto; }
+.msg-integre h2 {
+  margin: 0; font-family: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', system-ui, sans-serif; font-weight: 600; font-size: 20px;
+  line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.msg-tete-integre .msg-sous { font-size: 13px; }
+.msg-en-grand { flex: none; }
+.msg-bandeau {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px; padding: 10px 20px;
+  border-bottom: 1px solid var(--border); font-size: 13px;
+}
+.msg-bandeau:empty { display: none; }
+.msg-bandeau-etat { padding: 4px 12px; border-radius: 999px; font-weight: 600; }
+.msg-bandeau-etat.attend { background: var(--warning-soft); color: var(--warning); }
+.msg-bandeau-etat.ok { background: var(--primary-soft); color: var(--primary); }
+.msg-bandeau-gestes { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; }
+.msg-bandeau-alerte { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); cursor: pointer; }
+.msg-bandeau-alerte input { margin: 0; accent-color: var(--primary); }
+.msg-integre .msg-zone { flex: 1 1 auto; min-height: 0; border: 0; border-radius: 0; }
 
 /* Au téléphone (même seuil que telephone.css) : une colonne, le fil d'abord, sans bulle trop étroite. */
 @media (max-width: 760px) {
   .msg-page h1 { font-size: 24px; }
   .msg-avatar { width: 40px; height: 40px; font-size: 15px; }
-  .msg-fil { padding: 16px; max-height: 64vh; }
+  .msg-fil { padding: 16px; }
+  /* (1.115.0) Au téléphone, le fil et la zone d'écriture tiennent dans l'écran : « Envoyer » reste en bas, comme dans
+     toute messagerie ; ce qui attend et l'alerte se lisent en dessous. */
+  .msg-corps > .msg-zone { flex-basis: 100%; height: calc(100dvh - var(--msg-haut-tel, 172px)); min-height: 360px; }
   .msg-ligne { max-width: 92%; }
   .msg-question { min-width: 0; }
-  .msg-ecrire { padding: 12px 14px 14px; }
-  .msg-gestes, .msg-gestes-g { width: 100%; }
-  .msg-gestes-g .btn { flex: 1 1 auto; justify-content: center; }
-  .msg-gestes .btn-primary { width: 100%; justify-content: center; }
+  .msg-ecrire { gap: 8px; padding: 10px 12px 12px; }
+  .msg-ecrire textarea { min-height: 48px; }
+  /* Une ligne : les gestes en mots courts, « Envoyer » au bout (sous le pouce). */
+  .msg-gestes { flex-wrap: nowrap; gap: 6px; }
+  .msg-gestes-g { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; gap: 6px; }
+  .msg-gestes-g .btn { flex: 1 1 0; min-width: 0; justify-content: center; gap: 6px; padding-inline: 8px; }
+  .msg-gestes .btn-primary { flex: none; padding-inline: 16px; }
+  .msg-long { display: none; }
+  .msg-court { display: inline; }
+  .msg-tete .msg-sous { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .msg-page:has(> .msg-retour) { --msg-haut-tel: 222px; }
   .msg-dossier { padding: 14px 14px; gap: 10px; }
   .msg-dossier .msg-etat-pastille { padding: 3px 8px; font-size: 11px; }
 }

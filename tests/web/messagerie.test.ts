@@ -1,15 +1,18 @@
 // La messagerie à la souris (lot messagerie ; docs/messagerie.md ; maquettes « Mon comptable » et « Les messages de tes
 // clients »). Amine (Gharbi Informatique SARL) et son comptable, Sonia (Cabinet Ben Youssef). Ce que le parcours
 // vérifie, écran ET serveur :
-//   - « Mon comptable » paraît dans le menu avec le mandat ; sa pastille compte une question et une pièce demandée UNE
-//     fois chacune ; la page dit le cabinet et depuis quand ;
-//   - la question de la révision se répond sur place (la pastille et l'encart baissent) ; la pièce demandée s'envoie en
-//     photo et se dit reçue ; « Parler d'une pièce » n'envoie que le genre, l'identifiant et le libellé ; un message vide
-//     est refusé sous le champ ;
-//   - la boîte du cabinet s'ouvre sur ce qui l'attend (« Attend le client » quand rien n'est à traiter), passe le client
-//     « À traiter » quand il écrit, avec la pastille du menu ; la conversation signe chaque message de son auteur ;
-//     « C'est traité » le sort de « À traiter » ; « Demander une pièce » ouvre la conversation sur le champ de la pièce ;
-//   - au téléphone, rien ne déborde.
+//   - « Mon comptable » paraît dans le pied du menu (qui ne défile jamais) avec le mandat ; sa pastille compte une
+//     question et une pièce demandée UNE fois chacune ; la page dit le cabinet et depuis quand ;
+//   - la question de la révision se répond sur place (la pastille et l'encart baissent, elle se dit « Répondue ») ; la
+//     pièce demandée s'envoie par une fenêtre (la photo vue avant de partir, « Annuler » n'envoie rien) et se dit reçue ;
+//     « Parler d'une pièce » n'envoie que le genre, l'identifiant et le libellé ; un message vide est refusé sous le champ ;
+//   - la boîte du cabinet s'ouvre sur ce qui l'attend (« Attend le client » quand rien n'est à traiter), la conversation
+//     du client à droite de la liste ; elle passe le client « À traiter » quand il écrit, avec la pastille du menu ; la
+//     conversation signe chaque message de son auteur ; « Marquer comme traité » le sort de « À traiter » ;
+//   - (1.115.0) avec deux clients : ↑ et ↓ passent de l'un à l'autre, le client traité reste sous les yeux, la pastille
+//     des non-lus ne se répète pas en « À traiter », « Ouvrir en grand » mène à sa page ; la pièce demandée se répond
+//     avec un achat déjà saisi ;
+//   - au téléphone, rien ne déborde, « Envoyer » est dans l'écran, et les messages ont leur bouton à côté de « Menu ».
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -90,6 +93,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await sans.p.evaluate(() => { location.hash = '#/clients'; });
     await sans.p.locator('#view h1').filter({ hasText: 'Clients' }).waitFor({ timeout: 15_000 });
     expect(await sans.p.locator('nav a[data-route="comptable"]').count()).toBe(0);
+    expect(await sans.p.locator('.sidebar-foot a[data-route="comptable"]').isVisible()).toBe(false);
     await sans.p.context().close();
 
     const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, amine, { codeCabinet: cab.code })).corps.mandat);
@@ -116,15 +120,18 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await champPiece.fill('La facture STEG d\'août');
     await c.p.locator('[data-msg-texte]').fill('Il me manque une pièce pour ta TVA.');
     await c.p.getByRole('button', { name: 'Envoyer', exact: true }).click();
-    await expect.poll(async () => net(await c.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Pièce demandée · La facture STEG d'août Attendue Reçue autrement/);
+    await expect.poll(async () => net(await c.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Pièce demandée La facture STEG d'août Attendue Reçue autrement/);
 
     // ── Amine : l'entrée, sa pastille (une question et une pièce, comptées une fois chacune) ──────────────────────
     const a = await page(amine);
     await a.p.goto(`${serveur.adresse}/v10/?e=${ent}`);
     await a.p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(a.p);
-    const entree = a.p.locator('nav a[data-route="comptable"]');
+    // (1.115.0) Dans le pied du menu, à l'écran dès l'ouverture : en bas du menu, il fallait le faire défiler.
+    const entree = a.p.locator('.sidebar-foot a[data-route="comptable"]');
     await expect.poll(async () => net(await entree.innerText().catch(() => '')), { timeout: 15_000 }).toBe('Mon comptable 2');
+    expect(await a.p.locator('nav a[data-route="comptable"]').count()).toBe(0);
+    expect(await entree.evaluate((e) => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })).toBe(true);
     // (1.102.0) L'Accueil le dit dans « À faire », du même compte que la pastille (la pastille, au bas d'un menu à faire
     // défiler, en était le seul signe : parcours du 21/10/2026) ; il se relit sans recharger quand ce compte change.
     const aFaire = a.p.locator('#todo-list li', { hasText: 'Ton cabinet attend' });
@@ -154,6 +161,8 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await a.p.keyboard.type('Oui, accepté le 7 octobre.');
     await a.p.getByRole('button', { name: 'Envoyer ma réponse', exact: true }).click();
     await expect.poll(async () => net(await attente.innerText()), { timeout: 15_000 }).toBe('En attente de toi 1 pièce demandée de ton cabinet. Répondre');
+    // (1.115.0) Répondue, elle le dit (son étiquette disparaissait sans rien à sa place).
+    expect(net(await a.p.locator('.msg-question').first().innerText())).toMatch(/Répondue$/);
     // Une pièce demandée qui arrive le fil ouvert, sans aucun autre message à lire : vue ici, elle est dite lue (elle ne
     // compte pas parmi les non-lus ; plus haut, la question non lue suffisait à tout marquer). Reçue, elle s'en va.
     const autre = await api('POST', `/entreprises/${ent}/messages`, sonia, { cote: 'cabinet', texte: '', demande: 'Le relevé de septembre' });
@@ -168,11 +177,28 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await attente.getByRole('button', { name: 'Répondre', exact: true }).click();
     await expect.poll(() => a.p.evaluate(() => document.activeElement?.textContent ?? '')).toBe('Envoyer la pièce…');
     await expect.poll(async () => net(await entree.innerText())).toBe('Mon comptable 1');
-    // La pièce demandée, en photo.
-    const [choix] = await Promise.all([a.p.waitForEvent('filechooser'), a.p.getByRole('button', { name: 'Envoyer la pièce…', exact: true }).click()]);
+    // (1.115.0) La pièce demandée, par une fenêtre : rien ne part avant « Envoyer à mon cabinet » (le fichier partait dès
+    // qu'il était choisi) ; « Annuler » ne laisse rien derrière lui.
+    const fenetre = a.p.getByRole('dialog', { name: 'Envoyer la pièce demandée' });
+    await a.p.getByRole('button', { name: 'Envoyer la pièce…', exact: true }).click();
+    await fenetre.getByRole('button', { name: 'Envoyer à mon cabinet', exact: true }).click();
+    expect(await fenetre.locator('[data-ep-refus]').innerText()).toBe('Choisis d\'abord la photo ou le PDF de la pièce.');
+    let [choix] = await Promise.all([a.p.waitForEvent('filechooser'), fenetre.getByRole('button', { name: 'Choisir la photo ou le PDF…', exact: true }).click()]);
     await choix.setFiles(photo);
+    await expect.poll(() => fenetre.locator('.msg-ep-choisi img').count()).toBe(1);
+    await fenetre.getByRole('button', { name: 'Annuler', exact: true }).click();
+    expect(await fenetre.count()).toBe(0);
+    expect(((await api('GET', `/entreprises/${ent}/messages?cote=cabinet`, sonia)).corps.messages ?? []).filter((m) => (m as unknown as { fichier: unknown }).fichier).length).toBe(0);
+    await a.p.getByRole('button', { name: 'Envoyer la pièce…', exact: true }).click();
+    [choix] = await Promise.all([a.p.waitForEvent('filechooser'), fenetre.getByRole('button', { name: 'Choisir la photo ou le PDF…', exact: true }).click()]);
+    await choix.setFiles(photo);
+    expect(net(await fenetre.locator('.msg-ep-choisi').innerText())).toBe('facture-steg-aout.png Photo · 1 Ko Changer');
+    await fenetre.locator('[data-ep-mot]').fill('La voici.');
+    await fenetre.getByRole('button', { name: 'Envoyer à mon cabinet', exact: true }).click();
     await expect.poll(async () => net(await attente.innerText()), { timeout: 15_000 }).toBe('En attente de toi Rien : aucune question ni pièce demandée n\'attend ta réponse.');
-    expect(net(await a.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée · La facture STEG d'août Reçue/);
+    expect(await fenetre.count()).toBe(0);
+    expect(net(await a.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée La facture STEG d'août Reçue/);
+    expect(net(await a.p.locator('[data-msg-fil]').innerText())).toMatch(/En réponse à : La facture STEG d'août La voici\. facture-steg-aout\.png Photo · 1 Ko/);
     // La page, devenue assez courte pour tenir sans défiler, garde la place de sa barre : sinon tout son contenu glissait
     // de 15 px vers la droite, sous le curseur, à la dernière réponse (parcours du 21/10/2026).
     const zone = await a.p.evaluate(() => { const m = document.querySelector('main') as HTMLElement; return { court: m.scrollHeight <= m.clientHeight, garde: m.offsetWidth - m.clientWidth }; });
@@ -191,7 +217,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await a.p.locator('.msg-fp-ligne').filter({ hasText: 'DEV-2026-004' }).click();
     await a.p.locator('[data-msg-texte]').fill('Et voici le devis.');
     await a.p.locator('[data-msg-texte]').press('Enter');
-    await expect.poll(async () => net(await a.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Et voici le devis\. Devis · DEV-2026-004 · Société Atlas/);
+    await expect.poll(async () => net(await a.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Et voici le devis\. Devis DEV-2026-004 · Société Atlas/);
     // (1.94.0) La carte garde son « · » avec le genre : la ligne qui passe à la suivante commence par le numéro.
     expect(await a.p.locator('[data-msg-fil] .msg-carte-txt').last().evaluate((n) => [...n.children].map((x) => (x as HTMLElement).innerText.trim().charAt(0)))).toEqual(['D', 'D']);
     // Une photo envoyée avec le devis n'est pas un achat : « Ranger dans mes achats… » ne se propose pas sous elle.
@@ -212,8 +238,8 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await a.p.screenshot({ path: path.join(PHOTOS, 'messagerie-2-echanges.png') });
     expect(a.erreurs).toEqual([]);
 
-    // ── Le cabinet : la pastille des Messages, vue d'une autre page ; le client à traiter ; la conversation signée ;
-    // « C'est traité » ─────────────────────────────────────────────────────────────────────────────────────────────
+    // ── Le cabinet : la pastille des Messages, vue d'une autre page ; le client à traiter ; la conversation signée, à
+    // droite de la liste ; « Marquer comme traité » ─────────────────────────────────────────────────────────────────
     const compteurs = (p: Page) => p.waitForResponse((r) => r.url().endsWith(`/cabinets/${cab.id}/messages`));
     // Le Cabinet rouvert (une page neuve : changer seulement l'adresse après « # » ne recharge rien), au premier plan (un
     // onglet caché ne relit rien : la pastille attend qu'on le regarde).
@@ -226,25 +252,29 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await c.p.locator('nav a[data-route="messages"]').click();
     await c.p.locator('.msg-boite h1').waitFor({ timeout: 20_000 });
     await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText()), { timeout: 15_000 }).toBe('À traiter (1) Attend le client (0) Tout (1)');
-    await c.p.getByRole('button', { name: 'Ouvrir la conversation', exact: true }).click();
-    await c.p.locator('[data-msg-fil]').waitFor({ timeout: 15_000 });
-    await expect.poll(async () => net(await c.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Amine Gharbi · \d\d:\d\d En réponse à : La facture STEG d'août facture-steg-aout\.png Photo · 1 Ko Ouvrir/);
+    // (1.115.0) La conversation du client est déjà là, à droite de la liste : il fallait un aperçu, puis « Ouvrir la
+    // conversation », sur une autre page.
+    await c.p.locator('.msg-boite [data-msg-fil]').waitFor({ timeout: 15_000 });
+    expect(await c.p.getByRole('button', { name: 'Ouvrir la conversation', exact: true }).count()).toBe(0);
+    await expect.poll(async () => net(await c.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Amine Gharbi · \d\d:\d\d En réponse à : La facture STEG d'août La voici\. facture-steg-aout\.png Photo · 1 Ko Ouvrir/);
     expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Amine Gharbi · \d\d:\d\d Réponse à la question « Paiement » sur DEV-2026-004 Oui, accepté le 7 octobre\./);
     // Amine a ouvert le fil : sa pièce demandée, qui ne compte pas comme un message non lu, est pourtant lue.
-    expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée · La facture STEG d'août Reçue Lue/);
+    expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée La facture STEG d'août Reçue Lue/);
     // (1.102.0) Ce qui attend le client se dit sans affirmer ce qu'on ne sait pas (« ce client a répondu à tes questions »
     // s'affichait aussi sur un fil où rien n'avait jamais été demandé).
-    expect(net(await c.p.locator('[data-msg-cote]').innerText())).toMatch(/^Ce qui attend le client Rien : aucune question ni pièce demandée n'attend sa réponse\./);
+    expect(net(await c.p.locator('[data-msg-cote]').innerText())).toMatch(/^Rien : aucune question ni pièce demandée n'attend sa réponse\./);
     await c.p.screenshot({ path: path.join(PHOTOS, 'messagerie-3-cabinet.png') });
-    await c.p.getByRole('button', { name: 'C\'est traité', exact: true }).click();
+    // (1.115.0) « Marquer comme traité » dit ce que fait le geste (« Rien à faire ? » et un petit « C'est traité »).
+    await c.p.getByRole('button', { name: 'Marquer comme traité', exact: true }).click();
     // Enregistré avant de changer d'écran (sur une machine lente, la boîte se relisait avant : « À traiter (1) »).
     await expect.poll(async () => (await c.p.locator('#toast').textContent()) ?? '', { timeout: 15_000 }).toMatch(/^C'est noté/);
     // (1.98.0) Plus rien à traiter : le bouton ne se propose plus (il promettait de sortir de « À traiter » un client qui
     // n'y était plus, après une réponse du cabinet : parcours du 21/10/2026). Le lien vers la révision reste.
-    await expect.poll(() => c.p.getByRole('button', { name: 'C\'est traité', exact: true }).count(), { timeout: 15_000 }).toBe(0);
+    await expect.poll(() => c.p.getByRole('button', { name: 'Marquer comme traité', exact: true }).count(), { timeout: 15_000 }).toBe(0);
     expect(await c.p.locator('[data-msg-revision]').count()).toBe(1);
-    await c.p.getByRole('button', { name: /Les messages de tes clients/ }).click();
+    // La liste se relit d'elle-même, et le client reste sous les yeux, choisi, même hors de « À traiter ».
     await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText().catch(() => '')), { timeout: 15_000 }).toBe('À traiter (0) Attend le client (0) Tout (1)');
+    expect(await c.p.locator('.msg-dossier.choisi').count()).toBe(1);
     // Rouvert ailleurs que dans la boîte, la pastille compte ce qui est à traiter : rien, alors qu'un client est en ligne.
     await c.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossiers`);
     pastille = compteurs(c.p);
@@ -260,10 +290,115 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await t.p.locator('.msg-page h1').waitFor({ timeout: 20_000 });
     await plusTard(t.p);
     expect(await deborde(t.p)).toBe(0);
+    // (1.115.0) « Envoyer » dans l'écran, sans défiler (il fallait descendre sous toute la conversation pour écrire), et
+    // les messages à côté de « Menu » (dans le menu replié, leur pastille ne se voyait pas).
+    expect(await t.p.getByRole('button', { name: 'Envoyer', exact: true }).evaluate((e) => e.getBoundingClientRect().bottom <= innerHeight)).toBe(true);
+    const raccourci = t.p.locator('.sidebar .msg-tel');
+    expect(await raccourci.isVisible()).toBe(true);
+    expect([await raccourci.getAttribute('href'), await raccourci.getAttribute('aria-label'), await raccourci.getAttribute('aria-current')]).toEqual(['#/comptable', 'Mon comptable', 'page']);
     const tc = await page(sonia, 390, 844);
     await tc.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages`);
     await tc.p.locator('.msg-boite h1').waitFor({ timeout: 20_000 });
     expect(await deborde(tc.p)).toBe(0);
+    // Au téléphone, une ligne ouvre la conversation sur sa page (deux colonnes n'y tiennent pas).
+    expect(await tc.p.locator('[data-conv]').count()).toBe(0);
+    await tc.p.locator('.msg-dossier').first().click();
+    await tc.p.locator('[data-msg-fil]').waitFor({ timeout: 15_000 });
+    expect(tc.p.url()).toContain(`#/messages/${ent}`);
+    expect(await tc.p.getByRole('button', { name: 'Envoyer', exact: true }).evaluate((e) => e.getBoundingClientRect().bottom <= innerHeight)).toBe(true);
+    expect(await deborde(tc.p)).toBe(0);
     expect([...t.erreurs, ...tc.erreurs]).toEqual([]);
+  }, 180_000);
+
+  it('(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi', async () => {
+    const sonia = await personne('sonia2', 'Sonia Ben Youssef');
+    const cab = (await api('POST', '/cabinets', sonia, { nom: 'Cabinet Ben Youssef' })).corps;
+    const relier = async (prefixe: string, nom: string, raison: string) => {
+      const j = await personne(prefixe, nom);
+      const e = String((await api('POST', '/entreprises', j, { raisonSociale: raison })).corps.id);
+      const m = String((await api('POST', `/entreprises/${e}/mandat`, j, { codeCabinet: cab.code })).corps.mandat);
+      expect((await api('POST', `/cabinets/${cab.id}/mandats/${m}/accepter`, sonia)).statut).toBe(200);
+      return { j, e };
+    };
+    const amine = await relier('amine2', 'Amine Gharbi', 'Gharbi Informatique SARL');
+    const leila = await relier('leila2', 'Leïla Mansour', 'Boulangerie du Lac');
+    // L'achat que le cabinet va demander est déjà saisi chez Amine.
+    expect((await api('POST', `/entreprises/${amine.e}/dossier-v10`, amine.j, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Société Atlas' } },
+      { collection: 'suppliers', cle: 's1', rang: 0, revision: null, contenu: { id: 's1', name: 'STEG' } },
+      { collection: 'purchases', cle: 'p1', rang: 0, revision: null, contenu: { id: 'p1', kind: 'facture', number: 'F-8841', date: '2026-10-10', supplierId: 's1', currency: 'DT', category: 'Électricité', fees: 0, withholdingRate: 0, createdAt: 1,
+        lines: [{ id: 'pl1', label: 'Électricité septembre', qty: 1, unitPrice: { '~n': '85.4' }, vatRate: 19, destination: 'charge' }] } },
+    ] })).statut).toBe(200);
+    // Une conversation plus haute que l'écran : le fil défile en lui-même, la boîte ne déborde pas.
+    for (let i = 1; i <= 8; i++) {
+      expect((await api('POST', `/entreprises/${leila.e}/messages`, leila.j, { cote: 'entreprise', texte: `Question ${i} : la caisse du ${i} octobre ne tombe pas juste, faut-il la corriger avant la déclaration ?` })).statut).toBe(201);
+    }
+    expect((await api('POST', `/entreprises/${leila.e}/messages`, leila.j, { cote: 'entreprise', texte: 'Quand dois-je déposer la TVA ?' })).statut).toBe(201);
+    expect((await api('POST', `/entreprises/${amine.e}/messages`, amine.j, { cote: 'entreprise', texte: 'Bonjour, les pièces arrivent.' })).statut).toBe(201);
+    const demande = await api('POST', `/entreprises/${amine.e}/messages`, sonia, { cote: 'cabinet', texte: '', demande: 'La facture STEG d\'août' });
+    expect(demande.statut).toBe(201);
+    expect((await api('POST', `/entreprises/${amine.e}/messages`, amine.j, { cote: 'entreprise', texte: 'Je regarde.' })).statut).toBe(201);
+
+    const c = await page(sonia);
+    await c.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages`);
+    await c.p.locator('.msg-boite [data-msg-fil]').waitFor({ timeout: 20_000 });
+    await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText())).toBe('À traiter (2) Attend le client (0) Tout (2)');
+    const ligne = (nom: string) => c.p.locator('.msg-dossier').filter({ hasText: nom });
+    // Le premier client s'ouvre à droite ; l'autre attend, sa pastille de non-lus seule : elle dit déjà « À traiter »,
+    // l'étiquette ne la répète pas.
+    const premier = net(await c.p.locator('.msg-dossier').first().innerText());
+    const [nomPremier, nomSecond] = premier.startsWith('Boulangerie') ? ['Boulangerie du Lac', 'Gharbi Informatique SARL'] : ['Gharbi Informatique SARL', 'Boulangerie du Lac'];
+    expect(await ligne(nomPremier).getAttribute('aria-current')).toBe('true');
+    expect(await ligne(nomSecond).locator('.msg-non-lus').count()).toBe(1);
+    expect(await ligne(nomSecond).locator('.msg-etat-pastille').count()).toBe(0);
+    // ↓ passe au client suivant, sa conversation s'ouvre à droite (et se lit : sa pastille s'en va, l'étiquette revient).
+    await ligne(nomPremier).focus();
+    await c.p.keyboard.press('ArrowDown');
+    await expect.poll(async () => net(await c.p.locator('.msg-tete-integre h2').innerText())).toBe(nomSecond);
+    expect(await ligne(nomSecond).evaluate((e) => e === document.activeElement && e.classList.contains('choisi'))).toBe(true);
+    await c.p.keyboard.press('ArrowUp');
+    await expect.poll(async () => net(await c.p.locator('.msg-tete-integre h2').innerText())).toBe(nomPremier);
+    await expect.poll(() => ligne(nomSecond).locator('.msg-non-lus').count(), { timeout: 15_000 }).toBe(0);
+    await ligne('Boulangerie du Lac').click();
+    await expect.poll(async () => net(await c.p.locator('.msg-tete-integre h2').innerText())).toBe('Boulangerie du Lac');
+    expect(net(await ligne('Boulangerie du Lac').locator('.msg-etat-pastille').innerText())).toBe('À traiter');
+    // Traité : il quitte « À traiter », mais reste dans la liste, choisi, tant qu'on le lit.
+    await c.p.getByRole('button', { name: 'Marquer comme traité', exact: true }).click();
+    await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText()), { timeout: 15_000 }).toBe('À traiter (1) Attend le client (0) Tout (2)');
+    expect(await ligne('Boulangerie du Lac').getAttribute('aria-current')).toBe('true');
+    expect(net(await ligne('Boulangerie du Lac').locator('.msg-etat-pastille').innerText())).toBe('Rien à faire');
+    // Le fil prend la hauteur : la boîte tient dans l'écran, « Envoyer » compris.
+    expect(await c.p.evaluate(() => { const m = document.querySelector('main') as HTMLElement; return m.scrollHeight <= m.clientHeight; })).toBe(true);
+    expect(await c.p.getByRole('button', { name: 'Envoyer', exact: true }).evaluate((e) => e.getBoundingClientRect().bottom <= innerHeight)).toBe(true);
+    // « Ouvrir en grand » : la conversation sur sa page.
+    await c.p.getByRole('button', { name: 'Ouvrir en grand', exact: true }).click();
+    await expect.poll(() => c.p.url()).toContain(`#/messages/${leila.e}`);
+    await c.p.locator('.msg-retour').waitFor({ timeout: 15_000 });
+    expect(c.erreurs).toEqual([]);
+
+    // Amine répond à la pièce demandée avec l'achat déjà saisi : la demande est reçue, la pièce citée.
+    const a = await page(amine.j);
+    await a.p.goto(`${serveur.adresse}/v10/?e=${amine.e}`);
+    await a.p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    await plusTard(a.p);
+    await a.p.locator('.sidebar-foot a[data-route="comptable"]').click({ timeout: 15_000 });
+    await a.p.locator('.msg-page h1').waitFor({ timeout: 20_000 });
+    const fenetre = a.p.getByRole('dialog', { name: 'Envoyer la pièce demandée' });
+    await a.p.getByRole('button', { name: 'Envoyer la pièce…', exact: true }).click();
+    await fenetre.getByText('Elle est déjà dans SkanFact').click();
+    await fenetre.getByRole('button', { name: 'Envoyer à mon cabinet', exact: true }).click();
+    expect(await fenetre.locator('[data-ep-refus]').innerText()).toBe('Choisis la pièce de ton dossier qui répond à la demande.');
+    await fenetre.locator('.msg-fp-chercher').fill('steg');
+    expect(net(await fenetre.locator('.msg-fp-liste').innerText())).toMatch(/^Achat F-8841 · STEG · 101,626 DT 10\/10\/2026$/);
+    await fenetre.locator('.msg-fp-ligne').click();
+    expect(await fenetre.locator('.msg-fp-ligne').getAttribute('aria-selected')).toBe('true');
+    await fenetre.getByRole('button', { name: 'Envoyer à mon cabinet', exact: true }).click();
+    await expect.poll(() => fenetre.count(), { timeout: 15_000 }).toBe(0);
+    await expect.poll(async () => net(await a.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Pièce demandée La facture STEG d'août Reçue/);
+    const lus = (await api('GET', `/entreprises/${amine.e}/messages?cote=cabinet`, sonia)).corps.messages ?? [];
+    const envoi = lus.find((m) => (m as unknown as { repondA: string }).repondA === demande.corps.id) as unknown as { piece: unknown; fichier: unknown } | undefined;
+    expect(envoi?.piece).toEqual({ genre: 'achat', id: 'p1', libelle: expect.stringMatching(/^F-8841 · STEG · 101,626\s+DT$/) });
+    expect(envoi?.fichier).toBeNull();
+    expect(a.erreurs).toEqual([]);
   }, 180_000);
 });

@@ -1211,6 +1211,11 @@
     }, b);
   }
 
+  // La conversation du cabinet avec un client (plateforme/messagerie.js) : ses chemins passent par l'entreprise.
+  /** @param {HTMLElement} el @param {string} entreprise @param {any} o */
+  const conversationAvec = (el, entreprise, o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, {
+    ...o, cote: 'cabinet', appel: (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b),
+  });
   /** @type {Record<string, any>} */
   const pont = {
     commentUnClientArrive,
@@ -1227,11 +1232,12 @@
     dessinerAppareils: (/** @type {HTMLElement} */ el) => /** @type {any} */ (window).SkanCompte.appareils(el, { appel }),
     // Les messages des clients (lot messagerie ; plateforme/messagerie.js) : la boîte de tous les clients, la
     // conversation d'un client, et le compte de ceux « À traiter » (la pastille du menu).
+    // (1.115.0) La boîte ouvre la conversation du client choisi à droite de sa liste : la même, fabriquée ici.
     messagerie: {
-      boite: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.boite(el, { ...o, appel, cabinet: cabinetId, nomCabinet: nomDuCabinet }),
-      conversation: (/** @type {HTMLElement} */ el, /** @type {string} */ entreprise, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, {
-        ...o, cote: 'cabinet', appel: (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b),
+      boite: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.boite(el, {
+        ...o, appel, cabinet: cabinetId, nomCabinet: nomDuCabinet, conversation: conversationAvec,
       }),
+      conversation: conversationAvec,
       compteurs: async () => (await appel('GET', `/cabinets/${cabinetId}/messages`)).compteurs,
     },
     // Pas de clé de secours en ligne (C4) : le Cabinet ne la réclame jamais (adaptation de chargerRecovery).

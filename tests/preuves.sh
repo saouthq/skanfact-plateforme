@@ -9300,6 +9300,7 @@ prouver "un refus de la préparation offert à réessayer" $EXP \
 # ── Lot messagerie (09/10/2026 ; docs/messagerie.md ; base/migrations/0078_messagerie.sql, serveur/messagerie/,
 # web/public/plateforme/messagerie.js ; tests/messagerie/messagerie.test.ts, tests/web/messagerie.test.ts) ──
 MG=base/migrations/0078_messagerie.sql
+# (1.115.0) `messagerie.ecrire` est redéfinie par 0167_messagerie_revue.sql : ses preuves y retirent la règle.
 MR=serveur/messagerie/routes.ts
 MJ=web/public/plateforme/messagerie.js
 MSG1="ils s'écrivent ; chacun voit ce qui l'attend, « lu » se dit à l'autre ; ni la voisine, ni un autre rôle, ni un collaborateur sans le dossier"
@@ -9324,15 +9325,15 @@ prouver "le fil lu d'un membre du cabinet à qui le dossier n'est pas confié" $
 prouver "« Toi » sous le message d'un collègue" $MR \
   "            moi: m.de_moi," "            moi: m.cote === cote.data," \
   "$MSG1"
-prouver "le client qui demande une pièce" $MG \
+prouver "le client qui demande une pièce" base/migrations/0167_messagerie_revue.sql \
   "  if v_demande is not null and p_cote <> 'cabinet' then perform socle.refus('seul le cabinet demande une pièce'); end if;" "" \
   "$MSG2"
-prouver "la pièce demandée envoyée, jamais reçue" $MG \
+prouver "la pièce demandée envoyée, jamais reçue" base/migrations/0167_messagerie_revue.sql \
   "    update messagerie.message set demande_recue_le = clock_timestamp(), demande_recue_par = socle.moi()
      where id = v_repond and entreprise = p_entreprise and cabinet = v_cabinet and demande is not null and demande_recue_le is null;
     if not found then perform socle.refus('cette pièce demandée n''attend plus rien'); end if;" "" \
   "$MSG2"
-prouver "un fichier joint à deux messages" $MG \
+prouver "un fichier joint à deux messages" base/migrations/0167_messagerie_revue.sql \
   "    if exists (select 1 from messagerie.message m where m.fichier = v_fichier) then perform socle.refus('ce fichier est déjà joint à un message'); end if;" "" \
   "$MSG2"
 prouver "un fichier pas encore joint, lu de l'autre côté" $MG \
@@ -9384,10 +9385,10 @@ prouver "la boîte qui s'ouvre sur « Rien à traiter » quand le client est att
   "      if (!filtre) filtre = c.aTraiter ? 'a_traiter' : c.attendClient ? 'attend_client' : 'tout';" "      if (!filtre) filtre = 'a_traiter';" \
   "$MSGW"
 prouver "« Demander une pièce » qui n'ouvre pas le champ de la pièce" $MJ \
-  "      if (demande) setTimeout(() => demandeTxt.focus(), 0);" "" \
+  "montrerDemande(); if (demande) demandeTxt.focus(); else texte.focus(); };" "montrerDemande(); };" \
   "$MSGW"
 prouver "un message vide parti au serveur" $MJ \
-  "        if (!t && !fichier && !d) {" "        if (false) {" \
+  "        if (!t && !fichier && !d && !piece) {" "        if (false) {" \
   "$MSGW"
 prouver "« Mon comptable » dans le menu sans cabinet" web/public/v10/app.js \
   "  const avecMessagerie = a => !!(a && (a.cabinet || a.anciens));" "  const avecMessagerie = a => !!a;" \
@@ -18682,8 +18683,8 @@ prouver 'le Cabinet qui ouvre une fenêtre d'\''envoi quand rien ne partirait' w
 prouver 'le .zip des PDF qui ne dit pas que ses noms sont en UTF-8' web/public/plateforme/pont.js \
   $'[8, 0x0800, 2], [10, 0, 2]' $'[8, 0, 2], [10, 0, 2]' \
   '« Exporter tous les PDF de la période » : un .zip des PDF du serveur'
-prouver 'la carte d'\''une pièce dont la ligne suivante commence par « · »' web/public/plateforme/messagerie.js \
-  $'<span><b>${esc(GENRES[m.piece.genre] || \'Pièce\')}</b> ·</span><span>${esc(m.piece.libelle)}</span>' $'<b>${esc(GENRES[m.piece.genre] || \'Pièce\')}</b> · ${esc(m.piece.libelle)}' \
+prouver 'la carte d'\''une pièce dont le numéro se coupe de son genre (« Achat · » seul au bout de la ligne)' web/public/plateforme/messagerie.js \
+  $'<b>${esc(GENRES[m.piece.genre] || \'Pièce\')}</b><span>${esc(m.piece.libelle)}</span>' $'<b>${esc(GENRES[m.piece.genre] || \'Pièce\')}</b> · ${esc(m.piece.libelle)}' \
   'Amine et son comptable s'\''écrivent : la pastille'
 prouver '« Ranger dans mes achats » proposé sous un fichier envoyé avec un devis' web/public/plateforme/messagerie.js \
   $' && !(m.piece && m.piece.genre !== \'achat\')' $'' \
@@ -18746,7 +18747,7 @@ prouver 'la légende des signes sous une grille sans mois' web/public/v10/cabine
   $'${colonnes.length ? `<div class="prod-leg' $'${true ? `<div class="prod-leg' \
   'sans aucun mois fini'
 prouver '« C'\''est traité » offert à un client qui n'\''est plus à traiter' web/public/plateforme/messagerie.js \
-  $'<div class="msg-encart">${f && f.aTraiter ? `<b>Rien à faire ?</b>' $'<div class="msg-encart">${true ? `<b>Rien à faire ?</b>' \
+  $'${f && f.aTraiter ? \'<button type="button" class="btn btn-sm" data-msg-traite title=' $'${true ? \'<button type="button" class="btn btn-sm" data-msg-traite title=' \
   'Amine et son comptable s'\''écrivent'
 prouver 'le fil du cabinet qui ne dit pas si le client est à traiter' serveur/messagerie/routes.ts \
   $"aTraiter: cote.data === 'cabinet' && (await etatsDesDossiers(tx, cabinet, entreprise))[0]?.etat === 'a_traiter'," $"aTraiter: cote.data === 'cabinet'," \
@@ -19279,6 +19280,57 @@ prouver 'la page d'\''état qui cite n'\''importe quelle adresse de secours' 'ex
   "export const adresseDeSecours = (x: string | undefined) => (/^https:\/\/[a-z0-9.-]+\$/.test(x ?? '') ? (x as string) : null);" \
   "export const adresseDeSecours = (x: string | undefined) => x ?? null;" \
   'la page de secours se cite une fois posée'
+
+# ── 1.115.0 : la messagerie après sa revue (docs/revue-messagerie.md, lot 1) ──
+MR115=base/migrations/0167_messagerie_revue.sql
+MW115="(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi"
+prouver 'une pièce du dossier envoyée seule, refusée par la base' $MR115 \
+  'or demande is not null or piece_genre is not null);' 'or demande is not null);' \
+  "$MSG2"
+prouver 'la pièce demandée qui ne se répond qu'\''avec un fichier' $MR115 \
+  "or (v_fichier is null and v_genre is null) then perform socle.refus('on répond à une pièce demandée en l''envoyant')" "or v_fichier is null then perform socle.refus('on répond à une pièce demandée en l''envoyant')" \
+  "$MSG2"
+prouver 'la question signée « Ton cabinet » avant le premier message' $MR115 \
+  '       or (messagerie.cote_entreprise(p_entreprise) and exists (select 1 from socle.mandat d where d.entreprise = p_entreprise and d.cabinet = p_cabinet)))' '       or false)' \
+  "$MSG4"
+prouver 'les noms des questions lus par la voisine' $MR115 \
+  '     and (exists (select 1 from messagerie.mes_fils() f where f.entreprise = p_entreprise and f.cabinet = p_cabinet)' '     and (true' \
+  "$MSG4"
+prouver 'la liste de la boîte qui ne se relit pas après un geste' $MJ \
+  '        surAttente: () => { clearTimeout(relecture); relecture = setTimeout(() => { void lire(); }, 250); },' '        surAttente: () => undefined,' \
+  "$MW115"
+prouver 'le client traité qui disparaît sous le curseur' $MJ \
+  "      const vus = ds.filter((d) => filtre === 'tout' || d.etat === filtre || d.entreprise === choisi);" "      const vus = ds.filter((d) => filtre === 'tout' || d.etat === filtre);" \
+  "$MW115"
+prouver 'la pastille de non-lus répétée en « À traiter »' $MJ \
+  "          \${x.nonLus && x.etat === 'a_traiter' ? '' : \`<span" "          \${false ? '' : \`<span" \
+  "$MW115"
+prouver 'les flèches du clavier qui ne passent pas au client suivant' $MJ \
+  "          const vers = e.key === 'ArrowDown' ? lignes[i + 1] : e.key === 'ArrowUp' ? lignes[i - 1] : null;" "          const vers = null;" \
+  "$MW115"
+prouver 'la boîte plus haute que l'\''écran' web/public/plateforme/messagerie.css \
+  'grid-template-rows: minmax(0, 1fr); gap: 20px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; min-height: 0; height: 100%; }' 'gap: 20px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; height: 100%; }' \
+  "$MW115"
+prouver 'la pièce du dossier choisie, mais pas envoyée' $MJ \
+  "            await o.appel('POST', '/messages', { cote: o.cote, texte, piece: dejaLa, repondA: m.id });" "            await o.appel('POST', '/messages', { cote: o.cote, texte, piece: null, repondA: m.id });" \
+  "$MW115"
+prouver 'la pièce demandée qui part dès le fichier choisi' $MJ \
+  "          choisi = f; apercu = String(f.type).startsWith('image/') ? URL.createObjectURL(f) : null; refus.textContent = '';
+          dessinerFichier();" "          choisi = f; apercu = String(f.type).startsWith('image/') ? URL.createObjectURL(f) : null; refus.textContent = '';
+          dessinerFichier(); form.requestSubmit();" \
+  "$MSGW"
+prouver 'la question répondue sans étiquette' $MJ \
+  "          : q.reponse ? '<span class=\"msg-q-etat ok\">Répondue</span>' : '';" "          : '';" \
+  "$MSGW"
+prouver '« Mon comptable » qui ne paraît pas dans le pied du menu' web/public/v10/app.js \
+  '      if (lien) lien.hidden = !avecMessagerie(a);' '      if (lien) lien.hidden = true;' \
+  "$MSGW"
+prouver 'au téléphone, « Envoyer » sous l'\''écran' web/public/plateforme/messagerie.css \
+  '  .msg-corps > .msg-zone { flex-basis: 100%; height: calc(100dvh - var(--msg-haut-tel, 172px)); min-height: 360px; }' '  .msg-corps > .msg-zone { flex-basis: 100%; height: auto; }' \
+  "$MSGW"
+prouver 'au téléphone, les messages cachés dans le menu replié' web/public/plateforme/telephone.js \
+  '    poserMessages(barre, tete, b);' '' \
+  "$MSGW"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

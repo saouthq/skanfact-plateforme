@@ -445,7 +445,10 @@ vaut pour tout le dépôt.*
     y être recopiées ; une pièce demandée se reçoit quand le client l'envoie ; une photo ou un PDF (10 Mo, reconnus à
     leurs octets) se range dans les achats. L'alerte par e-mail ne porte RIEN du message (ni nom, ni identifiant),
     part une fois cinq minutes après, à une adresse vérifiée (`postier.ts`, `SKANFACT_ALERTES_MS`). Pas de « en train
-    d'écrire » : la page relit toutes les 30 secondes, page visible.
+    d'écrire » : la page relit toutes les 30 secondes, page visible. (1.115.0, après la revue UI/UX du 22/10/2026,
+    `docs/revue-messagerie.md` ; `0167`) « Mon comptable » dans le pied fixe du menu ; la boîte du cabinet en deux
+    colonnes, la conversation à droite, ↑/↓ ; le fil à la hauteur de l'écran ; « Envoyer la pièce » en fenêtre (photo
+    vue, ou pièce déjà saisie) ; au téléphone, un bouton de bulle à côté de « Menu » (`telephone.js`, 7).
   - **Les e-mails du serveur sont habillés** (12/10/2026, maquette validée par Skander ; `serveur/courriel.ts`,
     `serveur/courriel.html`) : la version HTML dit EXACTEMENT le texte (qui part aussi), le code en grand, le lien en
     bouton qui nomme son geste (`…_bouton` au catalogue : un e-mail neuf qui porte un lien en déclare un, un test le
