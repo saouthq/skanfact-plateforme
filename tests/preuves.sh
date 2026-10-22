@@ -19042,6 +19042,78 @@ prouver 'un nom de branche bizarre accepté' 'exploitation/installer.sh' \
   'true || { echo' \
   'le serveur de développement suit dev ; un serveur des pilotes ne suit que main ; un nom bizarre est refusé'
 
+# ── 1.107.0 : l'application fermée aux clients pendant une maintenance (docs/console.md, C24 bis) ──
+prouver 'l'\''API des clients ouverte pendant la fermeture' 'serveur/fermeture.ts' \
+  '  if (chemin === '\''/v1'\'' || chemin.startsWith('\''/v1/'\'')) return false;' \
+  '  if (chemin === '\''/v1'\'' || chemin.startsWith('\''/v1/'\'')) return true;' \
+  'l'\''application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main'
+prouver 'la console fermée avec les clients' 'serveur/fermeture.ts' \
+  '  if (chemin === '\''/v1/console'\'' || chemin.startsWith('\''/v1/console/'\'') || chemin === '\''/v1/documentation'\'') return true;' \
+  '  if (chemin === '\''/v1/documentation'\'') return true;' \
+  'l'\''application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main'
+prouver 'rouvrir sans rendre la main (la fermeture gardée)' 'serveur/console/routes.ts' \
+  '      await transaction(tx).query('\''select plateforme.console_rouvrir($1, $2, $3)'\'', [lireUuid(params.maintenance), corps.motif, maintenant()]);
+      oublierLaFermeture();' \
+  '      await transaction(tx).query('\''select plateforme.console_rouvrir($1, $2, $3)'\'', [lireUuid(params.maintenance), corps.motif, maintenant()]);' \
+  'l'\''application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main'
+prouver 'rouvrir sans marquer la fermeture rouverte' 'base/migrations/0164_application_fermee.sql' \
+  '  update plateforme.service_fermeture set rouverte_le = p_maintenant, rouverte_par = socle.moi() where maintenance = p_maintenance;
+' \
+  '' \
+  'l'\''application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main'
+prouver 'une maintenance annoncée qui ferme avant son créneau' 'base/migrations/0164_application_fermee.sql' \
+  'f.rouverte_le is null and m.debut <= p_maintenant and m.fin' \
+  'f.rouverte_le is null and m.fin' \
+  'l'\''application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main'
+prouver 'la case « fermer l'\''application » d'\''une annonce oubliée' 'serveur/console/routes.ts' \
+  '      if (corps.fermee) await transaction(tx).query('\''select plateforme.console_fermer_pendant($1, $2, $3)'\'', [id, corps.motif, maintenant()]);
+' \
+  '' \
+  'l'\''application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main'
+
+prouver 'la page de maintenance oubliée sur l'\''adresse du serveur' 'exploitation/frontal.sh' \
+  'CADDY
+  maintenance
+  echo "}"
+  if [ -n "$CONSOLE" ]; then' \
+  'CADDY
+  echo "}"
+  if [ -n "$CONSOLE" ]; then' \
+  'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
+prouver 'la page de maintenance jamais copiée' 'exploitation/frontal.sh' \
+  'install -m 0644 "$(dirname "$0")/maintenance.html" "$ETAT/public/maintenance.html"
+' \
+  '' \
+  'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
+prouver 'seul le 502 mène à la page de maintenance' 'exploitation/frontal.sh' \
+  'in [502, 503, 504]' \
+  'in [502]' \
+  'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
+prouver 'l'\''API qui reçoit la page de maintenance au lieu de son 503' 'exploitation/frontal.sh' \
+  '			handle /v1/* {
+' \
+  '			handle /v2/* {
+' \
+  'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
+
+prouver 'le bandeau « l'\''application est fermée » absent' 'web/console/src/ecrans/Incidents.tsx' \
+  '{(() => { const f = fermeture(d); return f ? <Fermee m={f} d={d} faire={setGeste} /> : null; })()}' \
+  '{null}' \
+  'fermer l'\''application maintenant : la fenêtre dit ce qui va se passer ; fermée, un bandeau dont « Rouvrir » est le seul bouton principal'
+prouver 'deux boutons principaux quand l'\''application est fermée' 'web/console/src/ecrans/Incidents.tsx' \
+  'ton={fermee ? '\''secondaire'\'' : '\''principal'\''}' \
+  'ton="principal"' \
+  'fermer l'\''application maintenant : la fenêtre dit ce qui va se passer ; fermée, un bandeau dont « Rouvrir » est le seul bouton principal'
+prouver 'fermer maintenant sans ce que les clients liront' 'web/console/src/ecrans/Incidents.tsx' \
+  '    if (texte.trim().length < 3 || /[<>]/.test(texte)) { e.refuser(phrase(`${I}.annoncer.texte_court`), '\''texte'\''); return; }
+    const b = duChamp(fin);' \
+  '    const b = duChamp(fin);' \
+  'fermer l'\''application maintenant : la fenêtre dit ce qui va se passer ; fermée, un bandeau dont « Rouvrir » est le seul bouton principal'
+prouver 'la case « fermer l'\''application » d'\''une annonce qui ne part pas' 'web/console/src/ecrans/Incidents.tsx' \
+  'motif: motif.trim(), fermee }' \
+  'motif: motif.trim() }' \
+  'annoncer une maintenance qui fermera l'\''application : la case part avec l'\''annonce'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

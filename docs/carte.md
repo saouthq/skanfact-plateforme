@@ -855,6 +855,9 @@ vaut pour tout le dépôt.*
   (1.106.0) **Deux branches, deux serveurs** (`docs/mise-en-ligne.md`, L) : le travail arrive sur `dev`
   (`dev.skanfact.tn`) ; `main` (`app.skanfact.tn`) ne reçoit qu'une version de `dev` passée par toutes les preuves
   (`tests/promouvoir.sh`).
+  (1.107.0) **« Maintenance en cours »** (`docs/mise-en-ligne.md`, M ; `docs/console.md`, C24 bis) : le frontal la
+  sert quand le programme ne répond pas (`exploitation/maintenance.html`, tâche 0012) ; la console ferme
+  l'application aux clients pendant un geste risqué, et la rouvre (base 0164, `serveur/fermeture.ts`).
   **Deux sortes de serveurs** (`installer.sh <adresse> essai|pilotes`, B bis) : l'essai (données inventées) et les
   pilotes (vraies données : relais d'e-mails exigé, aucun état détaillé public, **jamais l'accès de Claude**).
   **Claude a la main dessus** (Skander, 05/10/2026) :

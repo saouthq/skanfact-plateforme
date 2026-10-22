@@ -33,7 +33,7 @@ type PageEtat = {
   annonce: { incident: { gravite: Gravite; texte: string; le: string } | null; maintenance: { titre: string; texte: string; debut: string; fin: string } | null };
 };
 type Maintenance =
-  | { sorte: 'annoncee'; le: string; id: string; titre: string; texte: string; debut: string; fin: string; par: string; etat: 'a_venir' | 'en_cours' | 'faite' | 'annulee' }
+  | { sorte: 'annoncee'; le: string; id: string; titre: string; texte: string; debut: string; fin: string; par: string; etat: 'a_venir' | 'en_cours' | 'faite' | 'annulee'; fermee: boolean }
   | { sorte: 'version'; le: string; version: string; retour: boolean; coupure: number };
 type Passe = {
   id: string; ref: string; titre: string; gravite: Gravite; ouvertLe: string; minutes: number; effet: string; cause: string; change: string;
@@ -81,11 +81,17 @@ type Geste =
   | { sorte: 'repousser'; s: SuiteATenir }
   | { sorte: 'annoncer' }
   | { sorte: 'annuler'; m: Extract<Maintenance, { sorte: 'annoncee' }> }
+  // 1.107.0 (base 0164, C24 bis) : l'application fermée aux clients pendant une maintenance, ou maintenant ; rouverte.
+  | { sorte: 'fermer_maintenant' }
+  | { sorte: 'fermer'; m: Extract<Maintenance, { sorte: 'annoncee' }> }
+  | { sorte: 'rouvrir'; m: Extract<Maintenance, { sorte: 'annoncee' }> }
   | { sorte: 'lire'; p: Passe }
   | { sorte: 'fiche'; f: string };
 
 // ── L'incident ouvert, ou l'absence d'incident ──────────────────────────────────────────────────────────────────────
 function AucunIncident({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
+  // L'application fermée : rouvrir est l'étape suivante (un seul bouton principal).
+  const fermee = fermeture(d) !== null;
   const grave = d.alertesEnCours.graves > 0;
   return (
     <section className="c-carte c-in-aucun" aria-labelledby="in-aucun">
@@ -94,7 +100,7 @@ function AucunIncident({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) 
         <h2 id="in-aucun">{titre(`${I}.aucun.titre`)}</h2>
         <p className="c-carte-sous">{phrase(`${I}.aucun.${grave ? 'avec_alerte' : 'sans_alerte'}`)}</p>
       </div>
-      <Bouton ton="principal" icone="plus" onClick={() => faire({ sorte: 'ouvrir' })}>{titre(`${I}.ouvrir`)}</Bouton>
+      <Bouton ton={fermee ? 'secondaire' : 'principal'} icone="plus" onClick={() => faire({ sorte: 'ouvrir' })}>{titre(`${I}.ouvrir`)}</Bouton>
     </section>
   );
 }
@@ -275,9 +281,29 @@ function PageDEtat({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
   );
 }
 
+// ── L'application fermée aux clients (1.107.0, C24 bis) ─────────────────────────────────────────────────────────────
+type Annoncee = Extract<Maintenance, { sorte: 'annoncee' }>;
+const fermeture = (d: Donnees): Annoncee | null =>
+  d.maintenances.find((m): m is Annoncee => m.sorte === 'annoncee' && m.fermee && m.etat === 'en_cours') ?? null;
+function Fermee({ m, d, faire }: { m: Annoncee; d: Donnees; faire: (g: Geste) => void }) {
+  return (
+    <section className="c-carte c-in-fermee" aria-labelledby="in-fermee">
+      <span className="c-in-fermee-icone" aria-hidden="true"><Icone nom="cadenas" /></span>
+      <div>
+        <h2 id="in-fermee">{titre(`${I}.fermee.titre`)}</h2>
+        <p>{phrase(`${I}.fermee.jusqua`, { fin: quand(m.fin, d.aujourdhui) })}</p>
+        <blockquote className="c-in-fermee-texte" data-donnee>{m.texte}</blockquote>
+        <p className="c-carte-sous">{phrase(`${I}.fermee.reste`)}</p>
+      </div>
+      <Bouton ton="principal" onClick={() => faire({ sorte: 'rouvrir', m })}>{titre(`${I}.rouvrir.ouvrir`)}</Bouton>
+    </section>
+  );
+}
+
 // ── Les maintenances ────────────────────────────────────────────────────────────────────────────────────────────────
 function Maintenances({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
   const montrees = d.maintenances.slice(0, 6);
+  const fermee = fermeture(d);
   return (
     <section className="c-carte c-in-maintenances" aria-labelledby="in-maint">
       <div className="c-al-section-tete">
@@ -285,7 +311,10 @@ function Maintenances({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
           <h2 id="in-maint">{titre(`${I}.maint.titre`)}</h2>
           <p className="c-carte-sous">{phrase(`${I}.maint.sous`)}</p>
         </div>
-        <Bouton onClick={() => faire({ sorte: 'annoncer' })}>{titre(`${I}.annoncer.ouvrir`)}</Bouton>
+        <div className="c-in-maint-gestes">
+          <Bouton onClick={() => faire({ sorte: 'annoncer' })}>{titre(`${I}.annoncer.ouvrir`)}</Bouton>
+          {fermee ? null : <Bouton ton="danger" icone="cadenas" onClick={() => faire({ sorte: 'fermer_maintenant' })}>{titre(`${I}.fermer_maintenant.ouvrir`)}</Bouton>}
+        </div>
       </div>
       {montrees.length === 0 ? <Vide icone="calendrier">{phrase(`${I}.maint.vide`)}</Vide> : (
         <ul className="c-in-maint-liste">
@@ -301,7 +330,10 @@ function Maintenances({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
                       <p className="c-sous" data-donnee>{m.texte}</p>
                       <p className={`c-in-maint-etat c-in-maint-${m.etat}`}>
                         {maj(dire(`${I}.maint.etat.${m.etat}`, { quand: quand(m.debut, d.aujourdhui), nom: m.par }))}
+                        {m.fermee && m.etat !== 'annulee' ? <> · <span className="c-in-maint-ferme">{dire(`${I}.maint.ferme_${m.etat}`)}</span></> : null}
                         {m.etat === 'a_venir' ? <> · <button type="button" className="c-in-lien" onClick={() => faire({ sorte: 'annuler', m })}>{titre(`${I}.annuler.ouvrir`)}</button></> : null}
+                        {!m.fermee && (m.etat === 'a_venir' || m.etat === 'en_cours') && !fermee ? <> · <button type="button" className="c-in-lien" onClick={() => faire({ sorte: 'fermer', m })}>{titre(`${I}.fermer.ouvrir`)}</button></> : null}
+                        {m.fermee && m.etat === 'en_cours' ? <> · <button type="button" className="c-in-lien" onClick={() => faire({ sorte: 'rouvrir', m })}>{titre(`${I}.rouvrir.ouvrir`)}</button></> : null}
                       </p>
                     </>
                   ) : (
@@ -708,6 +740,7 @@ function FenetreAnnoncer({ d, fermer, fait }: { d: Donnees; fermer: () => void; 
   const [debut, setDebut] = useState(demain);
   const [fin, setFin] = useState(enChamp(new Date(Date.parse(`${d.aujourdhui}T02:00:00Z`) + 86_400_000).toISOString()));
   const [motif, setMotif] = useState('');
+  const [fermee, setFermee] = useState(false);
   const envoyer = () => {
     if (t.trim().length < 3 || /[<>]/.test(t)) { e.refuser(phrase(`${I}.annoncer.titre_court`), 'titre'); return; }
     if (texte.trim().length < 3 || /[<>]/.test(texte)) { e.refuser(phrase(`${I}.annoncer.texte_court`), 'texte'); return; }
@@ -715,7 +748,7 @@ function FenetreAnnoncer({ d, fermer, fait }: { d: Donnees; fermer: () => void; 
     if (!a || Date.parse(a) <= Date.parse(d.maintenant)) { e.refuser(phrase(`${I}.annoncer.debut_futur`), 'debut'); return; }
     if (!b || Date.parse(b) <= Date.parse(a) || Date.parse(b) - Date.parse(a) > 12 * 3_600_000) { e.refuser(phrase(`${I}.annoncer.douze`), 'fin'); return; }
     if (motifCourt(motif)) { e.refuser(phrase('console.ecran.geste.motif_court'), 'motif'); return; }
-    e.envoyer('/console/service/maintenances', { titre: t.trim(), texte: texte.trim(), debut: a, fin: b, motif: motif.trim() }, phrase(`${I}.annoncer.fait`));
+    e.envoyer('/console/service/maintenances', { titre: t.trim(), texte: texte.trim(), debut: a, fin: b, motif: motif.trim(), fermee }, phrase(`${I}.annoncer.${fermee ? 'fait_fermee' : 'fait'}`));
   };
   return (
     <Dialogue titre={titre(`${I}.annoncer.titre`)} sous={phrase(`${I}.annoncer.sous`)} fermer={fermer} occupe={e.occupe}
@@ -726,6 +759,39 @@ function FenetreAnnoncer({ d, fermer, fait }: { d: Donnees; fermer: () => void; 
         <Champ libelle={titre(`${I}.annoncer.debut`)} type="datetime-local" valeur={debut} changer={setDebut} faute={e.faute('debut')} n={e.n} />
         <Champ libelle={titre(`${I}.annoncer.fin`)} type="datetime-local" valeur={fin} changer={setFin} faute={e.faute('fin')} n={e.n} />
       </div>
+      <label className="c-in-case">
+        <input type="checkbox" checked={fermee} onChange={(x) => setFermee(x.target.checked)} />
+        <span>{phrase(`${I}.annoncer.fermee`)}</span>
+      </label>
+      <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
+      <Qui />
+      {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+// Fermer l'application maintenant : ce que les clients liront, jusqu'à quand (douze heures au plus), et le motif.
+function FenetreFermerMaintenant({ d, fermer, fait }: { d: Donnees; fermer: () => void; fait: () => void }) {
+  const e = useEnvoi(fait);
+  const [texte, setTexte] = useState('');
+  const [fin, setFin] = useState(enChamp(new Date(Math.ceil((Date.parse(d.maintenant) + 3_600_000) / 900_000) * 900_000).toISOString()));
+  const [motif, setMotif] = useState('');
+  const envoyer = () => {
+    if (texte.trim().length < 3 || /[<>]/.test(texte)) { e.refuser(phrase(`${I}.annoncer.texte_court`), 'texte'); return; }
+    const b = duChamp(fin);
+    if (!b || Date.parse(b) <= Date.parse(d.maintenant) || Date.parse(b) - Date.parse(d.maintenant) > 12 * 3_600_000) { e.refuser(phrase(`${I}.fermer_maintenant.douze`), 'fin'); return; }
+    if (motifCourt(motif)) { e.refuser(phrase('console.ecran.geste.motif_court'), 'motif'); return; }
+    e.envoyer('/console/service/fermer-maintenant', { texte: texte.trim(), fin: b, motif: motif.trim() }, phrase(`${I}.fermer_maintenant.fait`));
+  };
+  return (
+    <Dialogue titre={titre(`${I}.fermer_maintenant.titre`)} sous={phrase(`${I}.fermer_maintenant.sous`)} fermer={fermer} occupe={e.occupe}
+      pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(`${I}.fermer_maintenant.bouton`)} sortie={titre(`${I}.fermer_maintenant.garder`)} />}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre(`${K}.al.geste.ce_qui_va`)}</span>
+        <ul>{(['p1', 'p2', 'p3'] as const).map((k) => <li key={k}>{phrase(`${I}.fermer_maintenant.${k}`)}</li>)}</ul>
+      </div>
+      <Zone libelle={titre(`${I}.fermer_maintenant.texte`)} aide={phrase(`${I}.fermer_maintenant.texte_aide`)} valeur={texte} changer={setTexte} faute={e.faute('texte')} n={e.n} />
+      <Champ libelle={titre(`${I}.fermer_maintenant.fin`)} aide={phrase(`${I}.fermer_maintenant.fin_aide`)} type="datetime-local" valeur={fin} changer={setFin} faute={e.faute('fin')} n={e.n} />
       <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
       <Qui />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
@@ -782,6 +848,13 @@ function Fenetre({ g, d, fermer, fait, changer }: { g: Geste; d: Donnees; fermer
     case 'clore': return <FenetreClore i={g.i} d={d} fermer={fermer} fait={fait} />;
     case 'repousser': return <FenetreRepousser s={g.s} d={d} fermer={fermer} fait={fait} />;
     case 'annoncer': return <FenetreAnnoncer d={d} fermer={fermer} fait={fait} />;
+    case 'fermer_maintenant': return <FenetreFermerMaintenant d={d} fermer={fermer} fait={fait} />;
+    case 'fermer':
+      return <FenetreMotif titreF={titre(`${I}.fermer.titre`)} sous={maj(g.m.titre)} points={[phrase(`${I}.fermer.p1`, { debut: quand(g.m.debut, d.aujourdhui), fin: quand(g.m.fin, d.aujourdhui) }), phrase(`${I}.fermer.p2`), phrase(`${I}.fermer.p3`)]}
+        chemin={`/console/service/maintenances/${g.m.id}/fermer`} corps={{}} dit={phrase(`${I}.fermer.fait`)} bouton={titre(`${I}.fermer.bouton`)} fermer={fermer} fait={fait} />;
+    case 'rouvrir':
+      return <FenetreMotif titreF={titre(`${I}.rouvrir.titre`)} sous={maj(g.m.titre)} points={[phrase(`${I}.rouvrir.p1`), phrase(`${I}.rouvrir.p2`)]}
+        chemin={`/console/service/maintenances/${g.m.id}/rouvrir`} corps={{}} dit={phrase(`${I}.rouvrir.fait`)} bouton={titre(`${I}.rouvrir.bouton`)} sortie={titre(`${I}.rouvrir.garder`)} fermer={fermer} fait={fait} />;
     case 'lire': return <FenetreLire p={g.p} d={d} fermer={fermer} faire={changer} />;
     case 'prevenir': return <FenetrePrevenir cible={g.cible} fermer={fermer} fait={fait} />;
     case 'fiche': return <FenetreFiche f={g.f} fermer={fermer} />;
@@ -820,6 +893,7 @@ export function Incidents({ ouvrir = null }: { ouvrir?: string | null }) {
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
       {d ? (
         <>
+          {(() => { const f = fermeture(d); return f ? <Fermee m={f} d={d} faire={setGeste} /> : null; })()}
           {d.ouverts.length ? (
             <div className="c-in-ouverts">
               <div className="c-in-ouverts-tete">

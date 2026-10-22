@@ -306,6 +306,7 @@ lecture des factures d'achat, brique 84) : `apt-get install -y libxml2-utils tes
 poppler-utils` s'ils manquent (GitHub les installe à chaque envoi). `npm run banc:lecture -- <lot>` mesure la
 lecture sur un lot de vraies factures, gardé HORS du dépôt (`docs/achats.md`, brique 84).
 
-Dans une session Claude : PostgreSQL 16 tourne sur `127.0.0.1:5433`
-(`su postgres -c "/usr/lib/postgresql/16/bin/pg_ctl -D /var/lib/pgproto/data -o '-p 5433' start"`
-s'il est arrêté), donc `PG_ADMIN=postgres://postgres@127.0.0.1:5433/postgres`.
+Dans une session Claude : PostgreSQL 16 tourne sur `127.0.0.1:5433`, donc
+`PG_ADMIN=postgres://postgres@127.0.0.1:5433/postgres`. Le démarrage de chaque session
+(`.claude/hooks/session-start.sh`, 1.107.0) pose ce qui manque : les outils des tests, les dépendances, la base
+(créée, ou relancée si la machine a redémarré) et `PG_ADMIN`. À la main, s'il le faut : relancer ce script.

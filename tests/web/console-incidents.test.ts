@@ -88,7 +88,7 @@ describe('les incidents du service, à la souris', () => {
     // viderait aussi les demandes des autres essais.
     await admin.query('update plateforme.demande_support set incident = null where incident is not null');
     await admin.query('delete from plateforme.service_suite; delete from plateforme.service_incident_point; delete from plateforme.service_incident');
-    await admin.query('truncate plateforme.service_maintenance');
+    await admin.query('truncate plateforme.service_fermeture, plateforme.service_maintenance');
     fs.writeFileSync(veille, JSON.stringify({ problemes: {} }));
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_VEILLE_FICHIER: veille }), port: 0, web: dossier, livreurMs: 60_000 });
@@ -182,7 +182,8 @@ describe('les incidents du service, à la souris', () => {
       { nom: 'incident-fiche', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-fiche').first().locator('button').last()); await fen(p); } },
       { nom: 'incident-repousser', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-suites-liste > li').first().locator('.c-in-suite-gestes button').first()); await fen(p); } },
       { nom: 'incident-lire', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-table tbody tr').last().locator('button')); await fen(p); } },
-      { nom: 'incident-annoncer', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-maintenances .c-al-section-tete button')); await fen(p); } },
+      { nom: 'incident-annoncer', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-maint-gestes button:not(.c-btn-danger)')); await fen(p); } },
+      { nom: 'incident-fermer-maintenant', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-maint-gestes .c-btn-danger')); await fen(p); } },
     ];
     const { faux, vus } = await mesurerLaConsole({ ecrans: ECRANS, ouvrir: ouvrirEcran, photos: path.join(RACINE, 'dist/photos') });
     expect(faux).toEqual([]);
@@ -269,6 +270,77 @@ describe('les incidents du service, à la souris', () => {
     const f = fenetre(p);
     expect(await f.locator('.c-in-temps > li').count()).toBe(4);
     expect(net(await f.locator('h2').innerText())).toBe('Le service ne répond plus');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
+  // 1.107.0 (C24 bis). Les réponses du serveur sont jouées ici : les autres fichiers d'essais partagent la base, à l'heure
+  // du jour, et une vraie fermeture leur répondrait « Maintenance en cours ». Le serveur est essayé à part
+  // (tests/console/console.test.ts), à une heure où personne d'autre ne vit.
+  it('fermer l\'application maintenant : la fenêtre dit ce qui va se passer ; fermée, un bandeau dont « Rouvrir » est le seul bouton principal', async () => {
+    const p = await ouvrir(jD);
+    let ferme: { texte: string; fin: string } | null = null;
+    const envoye: { chemin: string; corps: Record<string, unknown> }[] = [];
+    await p.route('**/v1/console/service/incidents', async (r) => {
+      const rep = await r.fetch();
+      const j = await rep.json() as { maintenances: unknown[]; maintenant: string };
+      if (ferme) j.maintenances.unshift({ sorte: 'annoncee', le: j.maintenant, id: '01900000-0000-7000-8000-000000000164', titre: 'Maintenance urgente', texte: ferme.texte, debut: j.maintenant, fin: ferme.fin, par: 'Amira Essai', etat: 'en_cours', fermee: true });
+      await r.fulfill({ response: rep, json: j });
+    });
+    await p.route(/\/v1\/console\/service\/(fermer-maintenant|maintenances\/[^/]+\/rouvrir)$/, async (r) => {
+      const corps = r.request().postDataJSON() as Record<string, unknown>;
+      envoye.push({ chemin: new URL(r.request().url()).pathname, corps });
+      if (envoye.at(-1)?.chemin.endsWith('/fermer-maintenant')) { ferme = { texte: String(corps.texte), fin: String(corps.fin) }; await r.fulfill({ status: 201, json: { id: '01900000-0000-7000-8000-000000000164' } }); }
+      else { ferme = null; await r.fulfill({ json: { ok: true } }); }
+    });
+    await cliquer(p.locator('.c-in-maintenances').getByRole('button', { name: 'Fermer l\'application maintenant…' }));
+    const f = fenetre(p);
+    expect(net(await f.locator('.c-al-ce-qui-va').innerText())).toMatch(/Maintenance en cours.*la console reste ouverte.*se rouvre seule/s);
+    // Rien d'écrit : refusé sur ce que les clients liront, et rien ne part.
+    await cliquer(f.getByRole('button', { name: 'Fermer l\'application', exact: true }));
+    await expect.poll(() => f.locator('.c-alerte-danger').innerText().then(net)).toMatch(/de trois à cinq cents caractères/);
+    expect(envoye).toEqual([]);
+    const zones = f.locator('textarea');
+    await zones.nth(0).fill('La base change de disque.');
+    await zones.nth(1).fill('le disque se remplit');
+    await cliquer(f.getByRole('button', { name: 'Fermer l\'application', exact: true }));
+    expect(await toast(p)).toMatch(/^Application fermée aux clients/);
+    expect(envoye.map((x) => x.chemin)).toEqual(['/v1/console/service/fermer-maintenant']);
+    const fin = Date.parse(String(envoye[0]?.corps.fin));
+    expect(fin - Date.now()).toBeGreaterThan(55 * 60_000);
+    expect(fin - Date.now()).toBeLessThanOrEqual(12 * 3_600_000);
+    // Fermée : le bandeau en tête, ce que lisent les clients, et un seul bouton principal, « Rouvrir ».
+    await expect.poll(() => p.locator('.c-in-fermee').count()).toBe(1);
+    expect(net(await p.locator('.c-in-fermee').innerText())).toMatch(/L'application est fermée aux clients.*La base change de disque\./s);
+    expect(await p.locator('main .c-btn-principal').count()).toBe(1);
+    expect(net(await p.locator('main .c-btn-principal').innerText())).toBe('Rouvrir l\'application…');
+    expect(await p.locator('.c-in-maintenances').getByRole('button', { name: 'Fermer l\'application maintenant…' }).count()).toBe(0);
+    expect(net(await p.locator('.c-in-maint-liste').innerText())).toContain('l\'application est fermée · Rouvrir l\'application…');
+    await cliquer(p.locator('main .c-btn-principal'));
+    await f.locator('textarea').fill('le disque est changé');
+    await cliquer(f.getByRole('button', { name: 'Rouvrir l\'application', exact: true }));
+    await expect.poll(() => toast(p)).toMatch(/^Application rouverte/);
+    expect(envoye.at(-1)).toEqual({ chemin: '/v1/console/service/maintenances/01900000-0000-7000-8000-000000000164/rouvrir', corps: { motif: 'le disque est changé' } });
+    await expect.poll(() => p.locator('.c-in-fermee').count()).toBe(0);
+    expect(net(await p.locator('main .c-btn-principal').innerText())).not.toBe('Rouvrir l\'application…');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
+  it('annoncer une maintenance qui fermera l\'application : la case part avec l\'annonce', async () => {
+    const p = await ouvrir(jD);
+    let corps: Record<string, unknown> | null = null;
+    await p.route('**/v1/console/service/maintenances', async (r) => { corps = r.request().postDataJSON() as Record<string, unknown>; await r.fulfill({ status: 201, json: { id: '01900000-0000-7000-8000-000000000165' } }); });
+    await cliquer(p.locator('.c-in-maintenances').getByRole('button', { name: 'Annoncer…' }));
+    const f = fenetre(p);
+    await f.locator('input[type="text"]').first().fill('Le disque agrandi');
+    const zones = f.locator('textarea');
+    await zones.nth(0).fill('Rien ne s\'écrit pendant une heure.');
+    await cliquer(f.getByText('fermer l\'application aux clients pendant le créneau', { exact: false }));
+    await zones.nth(1).fill('prévu avec l\'hébergeur');
+    await cliquer(f.getByRole('button', { name: 'Annoncer', exact: true }));
+    expect(await toast(p)).toMatch(/l'application sera fermée pendant/);
+    expect(corps).toMatchObject({ titre: 'Le disque agrandi', fermee: true });
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);

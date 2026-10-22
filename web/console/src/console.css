@@ -1919,6 +1919,14 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-in-aucun { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 18px 22px; }
 .c-in-aucun h2 { font-size: 22px; }
 .c-in-aucun-icone { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--c-doux); color: var(--c-doux-texte); }
+/* 1.107.0 (C24 bis) : l'application fermée aux clients — le bandeau en tête de l'écran, tant qu'elle l'est. */
+.c-in-fermee { margin-top: 24px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 14px 22px; border-inline-start: 4px solid var(--c-rouge-texte); }
+.c-in-fermee h2 { font-size: 20px; margin: 0 0 4px; }
+.c-in-fermee p { margin: 0 0 6px; }
+.c-in-fermee-icone { display: grid; place-items: center; width: 48px; height: 48px; border-radius: 14px; background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
+.c-in-fermee-texte { margin: 0 0 8px; padding: 8px 12px; border-radius: 8px; background: var(--c-doux); font-size: 15px; overflow-wrap: anywhere; }
+.c-in-maint-gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+.c-in-maint-ferme { color: var(--c-rouge-texte); }
 .c-in-gravite { display: inline-flex; align-items: center; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .c-in-gravite-mineur { background: var(--c-orange-doux); color: var(--c-orange-texte); }
 .c-in-gravite-majeur { background: var(--c-rouge-doux); color: var(--c-rouge-texte); }
@@ -2052,6 +2060,8 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 @media (max-width: 860px) {
   .c-in-aucun { grid-template-columns: minmax(0, 1fr); }
   .c-in-aucun-icone { display: none; }
+  .c-in-fermee { grid-template-columns: minmax(0, 1fr); }
+  .c-in-fermee-icone { display: none; }
   .c-in-regles-grille, .c-in-fiches-grille, .c-in-suite-saisie-ligne { grid-template-columns: minmax(0, 1fr); }
   .c-in-suites-liste > li { grid-template-columns: minmax(0, 1fr); }
   .c-in-points li { grid-template-columns: minmax(0, 1fr); gap: 2px; }

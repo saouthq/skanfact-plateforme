@@ -62,6 +62,7 @@ import { dansLeFiltre, etatTtn, FILTRES, ligne, lireNosFactures, resume as resum
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
 import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe, taches, titreDeTache, versionDAvant, type EtatSuiveur } from './versions.ts';
 import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
+import { oublierLaFermeture } from '../fermeture.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import {
   ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, lireContenuOffres, lireRemises, CODES_REMISE, QUOI_CONTENU, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
@@ -1422,6 +1423,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const depuis = debut30 < debutAn ? debut30 : debutAn;
       const v = lireVeilleDeLaBase(await lireJson(x, 'select plateforme.console_service_veille($1) v', [`${depuis}T00:00:00+01:00`]));
       const lu = lireIncidents(await lireJson(x, 'select plateforme.console_service_incidents($1) v', [t.toISOString()]));
+      const fermees = new Set((await lireJson<unknown[]>(x, 'select plateforme.console_fermetures($1) v', [`${debut30}T00:00:00+01:00`])).map(String));
       const veille = await lireLaVeille(fichierVeille, t);
       const mesure = (a: string) => v.jours.filter((j) => j.jour >= a).reduce((m, j) => ({ mesurees: m.mesurees + j.mesurees, bas: m.bas + j.bas }), { mesurees: 0, bas: 0 });
       const deVeille30 = { ...v, jours: v.jours.filter((j) => j.jour >= debut30), alertes: v.alertes };
@@ -1431,7 +1433,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
           maintenant: t.toISOString(), aujourdhui: jour, veille, alertesEnCours: alertesOuvertes(deVeille30.alertes), briques: briques(deVeille30, jour, t, veille.etat === 'ok'),
           ouverts: ouverts(lu), suites: s.aTenir, suitesEnRetard: s.enRetard, suitesFaites: s.faites,
           page: await pageEtatDe(), disponibilite30: disponibilite(deVeille30).taux,
-          maintenances: maintenances(lu, misesEnLigne(v).filter((m) => m.le >= `${debut30}T00:00:00`), v.coupures, t),
+          maintenances: maintenances(lu, misesEnLigne(v).filter((m) => m.le >= `${debut30}T00:00:00`), v.coupures, t, fermees),
           passes: { trente: passes(lu, `${debut30}T00:00:00+01:00`, mesure(debut30)), annee: passes(lu, `${debutAn}T00:00:00+01:00`, mesure(debutAn)), annee_n: Number(jour.slice(0, 4)) },
           fiches: fichesServies(lu), exercice: v.exercice, equipe: lu.equipe, fichesConnues: FICHES,
         },
@@ -1761,11 +1763,43 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
   });
   ajouter({
     methode: 'POST', chemin: '/console/service/maintenances', geste: 'console.service.gerer',
-    corps: z.object({ titre: sansBalise(3, 200), texte: sansBalise(3, 500), debut: z.string().datetime({ offset: true }), fin: z.string().datetime({ offset: true }), motif: motifGeste }),
+    corps: z.object({ titre: sansBalise(3, 200), texte: sansBalise(3, 500), debut: z.string().datetime({ offset: true }), fin: z.string().datetime({ offset: true }), motif: motifGeste,
+      // (1.107.0) L'application fermée aux clients pendant le créneau (base 0164).
+      fermee: z.boolean().optional() }),
     traiter: async ({ corps }, tx) => {
       const id = await lireJson<string>(transaction(tx), 'select plateforme.console_annoncer_maintenance($1, $2, $3, $4, $5, $6) v',
         [corps.titre, corps.texte, corps.debut, corps.fin, corps.motif, maintenant()]);
+      if (corps.fermee) await transaction(tx).query('select plateforme.console_fermer_pendant($1, $2, $3)', [id, corps.motif, maintenant()]);
       return { statut: 201, corps: { id } };
+    },
+  });
+  // (1.107.0 ; base 0164, docs/console.md C24 bis) Fermer l'application aux clients : pendant une maintenance annoncée, ou
+  // maintenant (une urgence) ; et la rouvrir. Le serveur l'apprend à la requête suivante (serveur/fermeture.ts).
+  ajouter({
+    methode: 'POST', chemin: '/console/service/maintenances/:maintenance/fermer', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_fermer_pendant($1, $2, $3)', [lireUuid(params.maintenance), corps.motif, maintenant()]);
+      oublierLaFermeture();
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/fermer-maintenant', geste: 'console.service.gerer',
+    corps: z.object({ texte: sansBalise(3, 500), fin: z.string().datetime({ offset: true }), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_fermer_maintenant($1, $2, $3, $4) v', [corps.texte, corps.fin, corps.motif, maintenant()]);
+      oublierLaFermeture();
+      return { statut: 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/maintenances/:maintenance/rouvrir', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_rouvrir($1, $2, $3)', [lireUuid(params.maintenance), corps.motif, maintenant()]);
+      oublierLaFermeture();
+      return { corps: { ok: true } };
     },
   });
   ajouter({

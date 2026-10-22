@@ -124,7 +124,7 @@ export function passes(lu: IncidentsLus, depuis: string, mesure: Mesure) {
 // coupure, lue dans les minutes que la veille a relevées sans réponse autour d'elle (dix minutes de part et d'autre).
 export type EtatMaintenance = 'a_venir' | 'en_cours' | 'faite' | 'annulee';
 export type LigneMaintenance =
-  | { sorte: 'annoncee'; le: string; id: string; titre: string; texte: string; debut: string; fin: string; par: string; etat: EtatMaintenance }
+  | { sorte: 'annoncee'; le: string; id: string; titre: string; texte: string; debut: string; fin: string; par: string; etat: EtatMaintenance; fermee: boolean }
   | { sorte: 'version'; le: string; version: string; retour: boolean; coupure: number };
 export const AUTOUR_VERSION_MIN = 10;
 export function maintenances(
@@ -132,11 +132,14 @@ export function maintenances(
   versions: readonly { version: string; le: string; retour: boolean }[],
   coupures: readonly { debut: string; fin: string; minutes: number }[],
   maintenant: Date,
+  // (1.107.0, base 0164) Les maintenances qui ferment l'application aux clients.
+  fermees: ReadonlySet<string> = new Set(),
 ): LigneMaintenance[] {
   const t = maintenant.getTime();
   const annoncees: LigneMaintenance[] = lu.maintenances.map((m) => ({
     sorte: 'annoncee', le: m.debut, id: m.id, titre: m.titre, texte: m.texte, debut: m.debut, fin: m.fin, par: m.par,
     etat: m.annuleeLe ? 'annulee' : Date.parse(m.debut) > t ? 'a_venir' : Date.parse(m.fin) > t ? 'en_cours' : 'faite',
+    fermee: fermees.has(m.id),
   }));
   const autour = AUTOUR_VERSION_MIN * 60_000;
   const vues: LigneMaintenance[] = versions.map((v) => {

@@ -474,6 +474,29 @@ geste demande son motif et entre au journal avec le numéro de l'incident.
   chacune : contenir, dire, réparer, écrire) disent quand chacune a servi pour la dernière fois ; trois portent un
   « à décider » ou un « à vérifier » (le site de secours, l'INPDP).
 
+**C24 bis. L'application fermée aux clients : « Maintenance en cours »** (demandé par Skander le 22/10/2026 : « la
+partie gestion (maintenance en cours) » ; 1.107.0, base 0164, `serveur/fermeture.ts`). Pendant un geste risqué (une
+migration lourde, une reprise de données), annoncer ne suffisait pas : les clients continuaient d'écrire. Dans
+`#/service/incidents`, la direction et la technique peuvent **fermer l'application aux clients** :
+- **maintenant** (« Fermer l'application maintenant… », une urgence) : ce que les clients liront, l'heure où elle se
+  rouvre (douze heures au plus) et le motif ; une « Maintenance urgente » qui commence à la seconde naît,
+  et la page d'état l'annonce comme les autres ;
+- **pendant une maintenance annoncée** : la case de la fenêtre « annoncer », ou « fermer l'application pendant… » sur
+  une maintenance à venir ou en cours ;
+- **rouvrir** à tout moment (« Rouvrir l'application… ») : la maintenance finit à la seconde ; à sa fin prévue, elle se
+  rouvre seule.
+
+Fermée, un **bandeau** tient la tête de l'écran (jusqu'à quand, ce que lisent les clients) et « Rouvrir » y est le seul
+bouton principal. Le serveur répond alors à chaque client un **503** (« Maintenance en cours : SkanFact revient vers
+14 h 30, et rien n'a été fait. … », avec `Retry-After`), et à qui ouvre l'application une page « Maintenance en
+cours » qui se recharge seule chaque minute. **Restent ouverts** : la console (ses pages et son API), la documentation
+de l'API (la veille la demande chaque minute) et les fichiers des écrans (ils ne lisent rien). Le serveur relit la
+fermeture au plus toutes les cinq secondes ; les gestes de la console l'oublient tout de suite. Une base illisible
+laisse l'application ouverte (une panne de lecture ne met personne dehors). Chaque geste demande son motif et entre au
+journal (« application fermée aux clients », « application rouverte aux clients »). Quand le programme lui-même ne
+répond pas (il redémarre pendant une mise à jour), c'est le frontal qui dit « Maintenance en cours »
+(`docs/mise-en-ligne.md`, M).
+
 **C25. Les travaux et les envois du service** (10 § 2.8 ; base 0090). `#/service/travaux`, la direction et la technique.
 Ce que le serveur fait seul, et ce qu'il envoie aux partenaires : quatre chiffres (ce qui attend son dépôt à la TTN, ce
 qui est parti aujourd'hui chez tous les partenaires comptés, ce qui reste à regarder, le dernier tour du facteur) ; une

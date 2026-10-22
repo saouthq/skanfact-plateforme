@@ -594,6 +594,21 @@ l'ordre de 5 à 7 € par mois), l'enregistrement `A` `dev` chez Cloudflare vers
 `console`), puis cette ligne dans la console du VPS. Un seul VPS pour les deux a été écarté : une version de travail qui
 consomme trop ralentirait la version stable.
 
+## M. « Maintenance en cours » (demandé par Skander le 22/10/2026, 1.107.0)
+
+Deux cas, deux réponses :
+
+- **Le programme ne répond pas** (il redémarre pendant une mise à jour, ou il est en panne). Le frontal (Caddy) le voit
+  (502, 503 ou 504 de son côté) et sert `exploitation/maintenance.html` à qui ouvre l'application, et à un appel de
+  l'API un 503 en JSON (« Maintenance en cours : SkanFact redémarre, et rien n'a été fait. Réessaie dans une
+  minute. »), avec `Retry-After: 30`, sur chaque adresse (l'application et la console). La page se recharge seule
+  toutes les quinze secondes. Écrit en un seul endroit (`exploitation/frontal.sh`, qui copie aussi la page dans
+  `/var/lib/skanfact/public`) ; les serveurs déjà installés la reçoivent par la tâche 0012. Essayé le 22/10/2026 avec le
+  Caddy d'Ubuntu 24.04 (2.6.2) : le programme arrêté, la page (502) et le 503 de l'API ; un 503 répondu **par** le
+  programme passe tel quel (ce n'est pas une erreur du frontal).
+- **L'équipe ferme l'application** pendant un geste risqué : depuis la console (`docs/console.md`, C24 bis). C'est le
+  programme qui répond alors, avec l'heure de la fin et ce que l'équipe a écrit ; la console reste ouverte.
+
 ## Reste à faire avant les testeurs
 
 - ~~Une fiche pour les testeurs~~ : `docs/testeurs.md` (05/10/2026).
