@@ -160,7 +160,8 @@ describe('la production du cabinet, à la souris', () => {
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/production`);
     const ligne = p.locator('#view tr[data-id]').filter({ hasText: 'Mansouri Informatique' });
     await expect.poll(() => ligne.count(), { timeout: 20_000 }).toBe(1);
-    expect(await p.locator('#view thead th').allInnerTexts()).toEqual(['CLIENT', 'À SAISIR']);
+    // Les titres en capitales viennent de la feuille de style : sur une machine lente, elle arrive après la ligne.
+    await expect.poll(() => p.locator('#view thead th').allInnerTexts()).toEqual(['CLIENT', 'À SAISIR']);
     expect(await p.locator('#view .ok-box').innerText()).toMatch(/^Aucun mois fini à suivre pour l'instant\s:\sun mois entre dans la grille une fois terminé\./);
     expect(await p.locator('.prod-leg').count()).toBe(0);
   }, 120_000);

@@ -46,6 +46,8 @@ function charger() {
     sessionStorage: { getItem: () => 'jeton' }, localStorage: { getItem: () => null, setItem: () => undefined },
     location: { search: '?c=00000000-0000-4000-8000-000000000000', replace: () => undefined, hash: '' },
     URLSearchParams, document, console, fetch: () => Promise.reject(new Error('hors ligne')),
+    // (1.105.0) pont-cabinet.js relance l'envoi de ce qui attend toutes les trente secondes : le bac ne relance rien.
+    navigator: { onLine: true }, setInterval: () => 0, clearInterval: () => undefined,
   };
   bac.window = bac;
   bac.self = bac;

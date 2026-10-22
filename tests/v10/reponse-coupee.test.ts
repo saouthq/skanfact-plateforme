@@ -34,6 +34,8 @@ function cabinet(reponse: () => Reponse) {
     location: { search: `?c=${CABINET}`, pathname: '/v10/cabinet/', hash: '', replace: () => undefined, assign: () => undefined },
     document: { createElement: element, head: element(), body: element(), addEventListener: () => undefined, querySelector: () => null, querySelectorAll: () => [] },
     URLSearchParams, console, setTimeout, clearTimeout, addEventListener: () => undefined,
+    // (1.105.0) pont-cabinet.js relance l'envoi de ce qui attend toutes les trente secondes : le bac ne relance rien.
+    navigator: { onLine: true }, setInterval: () => 0, clearInterval: () => undefined,
     fetch: async () => { const r = reponse(); return { status: r.statut, ok: r.statut >= 200 && r.statut < 300, text: async () => r.texte }; },
   };
   bac.window = bac;

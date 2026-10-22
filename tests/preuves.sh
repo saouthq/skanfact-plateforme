@@ -8063,8 +8063,10 @@ prouver "« Me guider » qui propose en ligne les visites sans objet" web/public
 prouver "« Guide-moi » d'une nouvelle facture sans « Faire une facture »" web/public/v10/visites.js \
   "      surLaPage: cle => cle !== 'doc' || /^#\\/doc\\/new\\/facture/.test(hash())," "      surLaPage: () => false," \
   "$EXW"
-prouver "l'étape des pièces jointes du devis qui attend un panneau absent" web/public/v10/visites.js \
-  "        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes', facultatif: true," "        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes'," \
+# (1.107.0) Depuis la 1.89.0, les pièces jointes existent en ligne : le défaut vise un panneau qui, lui, n'y est pas (les
+# mises à jour de l'application de bureau).
+prouver "une étape du devis qui attend un panneau absent en ligne" web/public/v10/visites.js \
+  "        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes', facultatif: true," "        { cible: '#p-maj', cote: 'dessus', titre: 'Les pièces jointes'," \
   "$VEL"
 prouver "la découverte qui attend le panneau des mises à jour" web/public/v10/visites.js \
   "        { page: '#/parametres', cible: '#app-version', cote: 'droite', titre: 'Les mises à jour'," "        { page: '#/parametres', cible: '#p-maj', cote: 'droite', titre: 'Les mises à jour'," \
@@ -9628,8 +9630,8 @@ prouver "la dépense sans fournisseur refusée" web/public/v10/app.js \
 prouver "une fiche « Dépenses diverses » de plus à chaque dépense" web/public/v10/app.js \
   "let s = data.suppliers.find(x => x.divers || x.name === NOM_DIVERS);" "let s = null;" \
   "$KN4"
-prouver "l'étape des notes qui parle des pièces jointes, absentes en ligne" web/public/v10/visites.js \
-  "texte: 'Un texte libre <b>imprimé</b> sur le devis : délai" "eclairer: '#p-pj', texte: 'Un texte libre <b>imprimé</b> sur le devis : délai" \
+prouver "l'étape des notes qui éclaire un panneau absent en ligne" web/public/v10/visites.js \
+  "texte: 'Un texte libre <b>imprimé</b> sur le devis : délai" "eclairer: '#p-maj', texte: 'Un texte libre <b>imprimé</b> sur le devis : délai" \
   "$KNV1"
 prouver "une étape par case dans l'en-tête du devis" web/public/v10/visites.js \
   "{ cible: '#f-head', liste: '.datefield .d-txt, input[name=\"reference\"], [data-combo=\"projectId\"] .combo-btn, select[name=\"lang\"], select[name=\"currency\"], select[name=\"status\"]" "{ cible: 'input[name=\"reference\"]', titre: 'Référence' }, { cible: '#f-head', liste: '.datefield .d-txt, input[name=\"reference\"], [data-combo=\"projectId\"] .combo-btn, select[name=\"lang\"], select[name=\"currency\"], select[name=\"status\"]" \
@@ -12893,18 +12895,7 @@ prouver 'un module proposé dans l'"'"'état qu'"'"'il a déjà' web/console/src
 
 CTTEL='au téléphone : aucun onglet ne déborde'
 prouver 'ce que chaque offre comprend en tableau au téléphone, Complet caché à droite' web/console/src/console.css \
-  '  /* Ce que chaque offre comprend (0105) : une fiche par ligne, puis ce qu'"'"'Essentiel et Complet en comprennent, chacun
-     avec son nom ; aucune colonne ne se cache à droite. */
-  .c-rg-contenu-carte .c-defile { overflow: visible; }
-  .c-rg-contenu { min-width: 0; }
-  .c-rg-contenu thead { display: none; }
-  .c-rg-contenu, .c-rg-contenu tbody, .c-rg-contenu tr, .c-rg-contenu td { display: block; }
-  .c-rg-contenu tr { padding: 14px 0; border-bottom: 1px solid var(--c-trait); display: grid; gap: 6px; }
-  .c-rg-contenu tr:last-child { border-bottom: 0; }
-  .c-rg-contenu td, .c-rg-contenu td.c-droite { padding: 0; border: 0; min-width: 0 !important; text-align: start; }
-  .c-rg-contenu td[data-libelle]::before { content: attr(data-libelle) '"'"' : '"'"'; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
-  .c-rg-contenu .c-rg-avenir-droite { margin-inline-start: 0; }
-' '' \
+  $'@media (max-width: 860px) {\n  .c-defile:has(> .c-rg-grille)' $'@media (max-width: 1px) {\n  .c-defile:has(> .c-rg-grille)' \
   "$CTTEL"
 
 # Les remises (0106 ; docs/abonnement.md C17) : celle du groupe et celle du cabinet, jamais additionnées.

@@ -2371,17 +2371,6 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
   .c-rg-ajouts tr:last-child { border-bottom: 0; }
   .c-rg-ajouts td, .c-rg-ajouts td.c-droite { padding: 0; border: 0; min-width: 0 !important; text-align: start; }
   .c-rg-ajouts td[data-libelle]::before { content: attr(data-libelle) ' : '; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
-  /* Ce que chaque offre comprend (0105) : une fiche par ligne, puis ce qu'Essentiel et Complet en comprennent, chacun
-     avec son nom ; aucune colonne ne se cache à droite. */
-  .c-rg-contenu-carte .c-defile { overflow: visible; }
-  .c-rg-contenu { min-width: 0; }
-  .c-rg-contenu thead { display: none; }
-  .c-rg-contenu, .c-rg-contenu tbody, .c-rg-contenu tr, .c-rg-contenu td { display: block; }
-  .c-rg-contenu tr { padding: 14px 0; border-bottom: 1px solid var(--c-trait); display: grid; gap: 6px; }
-  .c-rg-contenu tr:last-child { border-bottom: 0; }
-  .c-rg-contenu td, .c-rg-contenu td.c-droite { padding: 0; border: 0; min-width: 0 !important; text-align: start; }
-  .c-rg-contenu td[data-libelle]::before { content: attr(data-libelle) ' : '; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
-  .c-rg-contenu .c-rg-avenir-droite { margin-inline-start: 0; }
   /* Les entreprises pour qui une nouveauté est allumée (C43) : une fiche par entreprise, son geste au bout. */
   .c-rg-nv .c-defile { overflow: visible; }
   .c-rg-nv-table { min-width: 0; }
@@ -3261,7 +3250,8 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 
 /* Au téléphone, une offre de la grille des prix par carte (1.87.3) : son nom (et ce qui vient) en tête, puis l'année, le
    mois, depuis quand et ses abonnés, chacun nommé — le tableau de cinq colonnes défilait de côté et écrasait le nom de
-   l'offre à un mot par ligne (vu à 390 px le 21/10/2026). */
+   l'offre à un mot par ligne (vu à 390 px le 21/10/2026). Le tableau de ce que chaque offre comprend (0105) porte
+   la même classe : une fiche par ligne, Essentiel et Complet chacun nommé, aucune colonne cachée à droite. */
 @media (max-width: 860px) {
   .c-defile:has(> .c-rg-grille) { overflow: visible; }
   .c-rg-grille thead { display: none; }
