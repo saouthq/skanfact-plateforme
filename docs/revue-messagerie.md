@@ -97,6 +97,10 @@ demandées, et la demande groupée (P2).
   « Demander à plusieurs clients… »). En chemin : la photo d'un client s'ouvrait vide chez le cabinet depuis la 1.94 et
   l'aperçu de la fenêtre « Envoyer la pièce » aussi (la page interdisait les images faites sur place, `blob:`).
   Le détail : `docs/messagerie.md` (M4 bis, M4 ter, M4 quater).
+- **Lot 3, 1.117.0 (22/10/2026)** : les points 9, 10 et 11. Les modèles de messages du cabinet ({client}, {mois}),
+  partagés par l'équipe ; chercher dans un fil (sans majuscules ni accents) et chercher un client dans la boîte ; la
+  pastille des messages sur la ligne d'un client « À traiter » de la liste des dossiers. Les trois lots de la revue sont
+  faits. Le détail : `docs/messagerie.md` (M4 quinquies à septies).
 
 ## Le plan proposé
 

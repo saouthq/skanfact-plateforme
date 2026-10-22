@@ -146,7 +146,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await expect.poll(async () => net(await aFaire.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Ton cabinet attend 1 pièce et 1 réponse /);
     await aFaire.getByRole('button', { name: 'Répondre', exact: true }).click();
     await a.p.locator('.msg-page h1').waitFor({ timeout: 15_000 });
-    expect(net(await a.p.locator('.msg-tete').innerText())).toMatch(/Mon comptable Cabinet Ben Youssef tient ta comptabilité depuis le \d\d\/\d\d\/\d{4}$/);
+    expect(net(await a.p.locator('.msg-tete').innerText())).toMatch(/Mon comptable Cabinet Ben Youssef tient ta comptabilité depuis le \d\d\/\d\d\/\d{4} Chercher$/);
     const attente = a.p.locator('[data-msg-attente]');
     await expect.poll(async () => net(await attente.innerText())).toBe('En attente de toi 1 question sans réponse et 1 pièce demandée de ton cabinet. Répondre, en commençant par la plus ancienne');
     // Ouvrir le fil le marque lu, pièce demandée comprise (elle ne compte pas parmi les non-lus) : le cabinet voit « Lue ».
@@ -440,6 +440,68 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await carte.getByRole('button', { name: 'Ouvrir', exact: true }).click({ timeout: 20_000 });
     await expect.poll(() => c.p.url(), { timeout: 15_000 }).toContain(`#/dossier/${amine.e}/comptabilite/journal`);
     await expect.poll(() => c.p.locator('#lv-q').inputValue(), { timeout: 15_000 }).toBe('F-8841');
+
+    // (1.117.0) La liste des dossiers : la ligne d'un client « À traiter » porte la pastille de ses messages (Amine vient
+    // de répondre), autant de lignes que le chiffre du menu ; elle mène à la conversation, pas à la fiche.
+    await c.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossiers`);
+    await c.p.locator(`tr[data-id="${amine.e}"]`).waitFor({ timeout: 20_000 });
+    await expect.poll(() => c.p.locator(`tr[data-id="${amine.e}"] .dl-msg`).count(), { timeout: 15_000 }).toBe(1);
+    expect(await c.p.locator(`tr[data-id="${leila.e}"] .dl-msg`).count()).toBe(0);
+    await expect.poll(async () => (await c.p.locator('#nav-messages').textContent()) ?? '').toBe(String(await c.p.locator('tr[data-id] .dl-msg').count()));
+    await c.p.locator(`tr[data-id="${amine.e}"] .dl-msg`).click();
+    await expect.poll(() => c.p.url()).toContain(`#/messages/${amine.e}`);
+    await c.p.locator('[data-msg-fil]').waitFor({ timeout: 15_000 });
+
+    // (1.117.0) Chercher dans le fil : « steg » trouve la pièce demandée (sans les majuscules), le mot surligné ; choisie,
+    // elle se montre dans le fil, éclairée.
+    await c.p.getByRole('button', { name: 'Chercher', exact: true }).click();
+    const champQ = c.p.getByRole('searchbox', { name: 'Chercher dans ces messages' });
+    await expect.poll(() => champQ.evaluate((e) => e === document.activeElement)).toBe(true);
+    await champQ.fill('s');
+    await expect.poll(async () => net(await c.p.locator('[data-msg-trouves]').innerText())).toBe('Encore une lettre : la recherche commence à deux.');
+    await champQ.fill('steg');
+    const trouve = c.p.locator('[data-msg-trouve]').filter({ hasText: 'Pièce demandée : La facture STEG d\'août' });
+    await trouve.waitFor({ timeout: 15_000 });
+    expect(await trouve.locator('mark').innerText()).toBe('STEG');
+    expect(await c.p.locator('[data-msg-fil]').isVisible()).toBe(false);
+    await trouve.click();
+    await expect.poll(() => c.p.locator('[data-msg-fil]').isVisible()).toBe(true);
+    expect(await c.p.locator('[data-msg-trouves]').isVisible()).toBe(false);
+    await expect.poll(() => c.p.locator(`[data-msg-id="${String(demande.corps.id)}"].msg-eclaire`).count()).toBe(1);
+    await champQ.waitFor({ state: 'hidden' });
+
+    // (1.117.0) Les modèles : le premier se crée d'un exemple ; « Utiliser » le pose dans le champ, {client} et {mois}
+    // remplacés ; une saisie commencée ne se jette pas sans le dire.
+    const texteCab = c.p.locator('[data-msg-texte]');
+    await c.p.getByRole('button', { name: 'Modèles de messages', exact: true }).click();
+    const fm = c.p.getByRole('dialog', { name: 'Modèles de messages' });
+    await expect.poll(async () => net(await fm.locator('[data-mo-liste]').innerText())).toMatch(/^Aucun modèle encore\./);
+    await fm.getByRole('button', { name: 'Pièces du mois', exact: true }).click();
+    await fm.getByRole('button', { name: 'Ajouter le modèle', exact: true }).click();
+    const utiliser = fm.getByRole('button', { name: 'Utiliser', exact: true });
+    await utiliser.waitFor({ timeout: 15_000 });
+    await utiliser.click();
+    expect(await fm.count()).toBe(0);
+    const pose = await texteCab.inputValue();
+    expect(pose).toMatch(/^Bonjour Gharbi Informatique SARL, pour boucler [a-zéû]+ \d{4}, il me manque des pièces\./);
+    expect(pose).not.toContain('{');
+    expect(await texteCab.evaluate((e) => e === document.activeElement)).toBe(true);
+    expect(((await api('GET', `/cabinets/${cab.id}/messages/modeles`, sonia)).corps.modeles as { titre: string }[]).map((m) => m.titre)).toEqual(['Pièces du mois']);
+    await c.p.getByRole('button', { name: 'Modèles de messages', exact: true }).click();
+    await fm.locator('[data-mo-titre]').fill('Brouillon');
+    await c.p.keyboard.press('Escape');
+    expect(net(await fm.locator('[data-mo-refus]').innerText())).toMatch(/^Ce modèle n'est pas enregistré/);
+    await c.p.keyboard.press('Escape');
+    expect(await fm.count()).toBe(0);
+
+    // (1.117.0) Chercher un client dans la boîte, quel que soit le filtre.
+    await c.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages`);
+    const qClient = c.p.getByRole('searchbox', { name: 'Chercher un client' });
+    await qClient.waitFor({ timeout: 20_000 });
+    await qClient.fill('BOUL');
+    await expect.poll(async () => c.p.locator('.msg-dossier-l1 b').allInnerTexts()).toEqual(['Boulangerie du Lac']);
+    await qClient.fill('zzz');
+    await expect.poll(async () => net(await c.p.locator('[data-liste]').innerText())).toMatch(/^Aucun client ne s'appelle « zzz »\./);
     expect(c.erreurs).toEqual([]);
   }, 180_000);
 });

@@ -406,6 +406,14 @@ export interface BaseDeDonnees {
     relances: Generated<number>;
     relance_le: Date | null;
   };
+  'messagerie.modele': {
+    id: Generated<string>;
+    cabinet: string;
+    titre: string;
+    texte: string;
+    modifie_par: string | null;
+    modifie_le: Generated<Date>;
+  };
   'paie.bulletin': {
     id: Generated<string>;
     entreprise: string;

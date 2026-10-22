@@ -131,6 +131,14 @@
 .msg-gestes .btn[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
 .msg-gestes .btn-primary { padding-inline: 22px; }
 .msg-court { display: none; }
+/* (1.117.0) Les gestes en mots courts quand la zone d'écriture est étroite (la page d'un client, la boîte) : avec
+   « Modèles », les mots longs faisaient passer « Envoyer » à la ligne. */
+.msg-ecrire { container-type: inline-size; }
+@container (max-width: 820px) {
+  .msg-gestes .msg-long { display: none; }
+  .msg-gestes .msg-court { display: inline; }
+}
+.msg-gestes-g .btn svg { flex: none; }
 
 /* À côté : ce qui attend, ce que voit le cabinet, l'alerte par e-mail. */
 .msg-encart {
@@ -271,6 +279,52 @@
 .msg-integre .msg-zone { flex: 1 1 auto; min-height: 0; border: 0; border-radius: 0; }
 
 /* Au téléphone (même seuil que telephone.css) : une colonne, le fil d'abord, sans bulle trop étroite. */
+/* (1.117.0) La pastille des messages sur la ligne d'un client « À traiter » (la liste des dossiers du Cabinet). */
+.dl-msg {
+  flex: none; display: inline-flex; align-items: center; gap: 4px; margin-inline-start: 8px; padding: 2px 8px; border-radius: 999px;
+  background: var(--primary); color: #fff; font-size: 12px; font-weight: 700; line-height: 18px; text-decoration: none;
+}
+.dl-msg:hover { filter: brightness(1.1); }
+.dl-msg:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+/* (1.117.0) Chercher dans un fil : la barre au-dessus du fil, les messages trouvés à sa place tant qu'on cherche. */
+.msg-chercher { margin-inline-start: auto; display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.msg-tete-integre .msg-chercher + .msg-en-grand { margin-inline-start: 0; }
+.msg-recherche { display: flex; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--ink-soft); }
+.msg-recherche[hidden] { display: none; }
+.msg-recherche input, .msg-liste-chercher input {
+  flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 10px;
+  background: var(--panel); color: var(--text); font: inherit; font-size: 15px;
+}
+.msg-trouves { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 16px 24px; }
+.msg-trouves[hidden] { display: none; }
+.msg-trouves-dit { margin: 0 0 4px; font-size: 14px; color: var(--muted); }
+.msg-trouve {
+  display: flex; flex-direction: column; gap: 4px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel);
+  font: inherit; text-align: left; color: var(--text); cursor: pointer;
+}
+.msg-trouve:hover { background: var(--ink-soft); }
+.msg-trouve:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.msg-trouve-tete { font-size: 12px; font-weight: 600; color: var(--muted); }
+.msg-trouve-txt { font-size: 14px; line-height: 1.5; overflow-wrap: anywhere; }
+.msg-trouve mark { padding: 0 2px; border-radius: 3px; background: color-mix(in srgb, var(--warning) 35%, transparent); color: inherit; }
+/* Chercher un client dans la boîte : en haut de la liste, qui défile dessous. */
+.msg-liste-chercher { position: sticky; top: 0; z-index: 1; padding: 10px 12px; border-bottom: 1px solid var(--border); background: var(--panel); }
+/* Les modèles de messages : une liste, et dessous le modèle qu'on écrit. */
+.msg-mo-fenetre { width: min(640px, 100%); }
+.msg-mo-liste { display: flex; flex-direction: column; gap: 8px; max-height: 40vh; overflow-y: auto; }
+.msg-mo { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 12px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; }
+.msg-mo-txt { flex: 1 1 260px; min-width: 0; display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+.msg-mo-txt > span { color: var(--muted); white-space: pre-line; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.msg-mo-gestes { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.msg-mo-exemples { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-top: 4px; }
+.msg-mo-form { display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid var(--border); }
+.msg-mo-form h3 { margin: 0; font-size: 15px; }
+.msg-mo-form input {
+  width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--panel);
+  color: var(--text); font: inherit; font-size: 15px;
+}
+.msg-dg-mot-tete { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+
 @media (max-width: 760px) {
   .msg-page h1 { font-size: 24px; }
   .msg-avatar { width: 40px; height: 40px; font-size: 15px; }
@@ -290,7 +344,14 @@
   .msg-long { display: none; }
   .msg-court { display: inline; }
   .msg-tete .msg-sous { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  /* (1.117.0) Le nom aussi, sur une ligne : sur deux ou trois (un nom long, la loupe à côté), il poussait « Envoyer »
+     sous l'écran. Il se lit en entier dans la liste et au survol. */
+  .msg-tete h1 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .msg-page:has(> .msg-retour) { --msg-haut-tel: 222px; }
   .msg-dossier { padding: 14px 14px; gap: 10px; }
   .msg-dossier .msg-etat-pastille { padding: 3px 8px; font-size: 11px; }
+  /* (1.117.0) « Modèles » en icône seule : quatre gestes et « Envoyer » tiennent sur la ligne. */
+  .msg-gestes-g [data-msg-modeles] { flex: none; padding-inline: 12px; }
+  .msg-gestes-g [data-msg-modeles] .msg-court { display: none; }
+  .msg-trouves { padding: 12px 16px; }
 }

@@ -9397,7 +9397,7 @@ prouver "la pastille de « Mon comptable » sans les pièces demandées" web/pub
   "const n = (a.nonLus || 0) + (a.questions || 0) + (a.demandes || 0);" "const n = (a.nonLus || 0) + (a.questions || 0);" \
   "$MSGW"
 prouver "la pastille des Messages qui compte tous les clients" web/public/v10/cabinet/app.js \
-  "majPastilleMessages((await api.messagerie.compteurs()).aTraiter)" "majPastilleMessages((await api.messagerie.compteurs()).tout)" \
+  "majPastilleMessages(b.compteurs.aTraiter);" "majPastilleMessages(b.compteurs.tout);" \
   "$MSGW"
 
 # ── Les e-mails habillés (12/10/2026 ; serveur/courriel.ts, courriel.html) ──
@@ -19300,7 +19300,7 @@ prouver 'la liste de la boîte qui ne se relit pas après un geste' $MJ \
   '        surAttente: () => { clearTimeout(relecture); relecture = setTimeout(() => { void lire(); }, 250); },' '        surAttente: () => undefined,' \
   "$MW115"
 prouver 'le client traité qui disparaît sous le curseur' $MJ \
-  "      const vus = ds.filter((d) => filtre === 'tout' || d.etat === filtre || d.entreprise === choisi);" "      const vus = ds.filter((d) => filtre === 'tout' || d.etat === filtre);" \
+  "        : ds.filter((d) => filtre === 'tout' || d.etat === filtre || d.entreprise === choisi);" "        : ds.filter((d) => filtre === 'tout' || d.etat === filtre);" \
   "$MW115"
 prouver 'la pastille de non-lus répétée en « À traiter »' $MJ \
   "          \${x.nonLus && x.etat === 'a_traiter' ? '' : \`<span" "          \${false ? '' : \`<span" \
@@ -19427,6 +19427,57 @@ prouver 'la demande groupée absente de la conversation ouverte' $MJ \
   "$MW115"
 prouver 'la pièce citée ouverte sans son numéro cherché' web/public/v10/cabinet/app.js \
   "      Object.assign(livresState, { brouillard: true, q: numero, journal: '', page: 1, onglet: 'journal' });" "      Object.assign(livresState, { onglet: 'journal' });" \
+  "$MW115"
+
+# ── 1.117.0 : la messagerie après sa revue, lot 3 (les modèles du cabinet, chercher, la pastille des dossiers ;
+# docs/revue-messagerie.md) ──
+MR117=base/migrations/0169_messagerie_modeles.sql
+T117M="les modèles du cabinet : toute l'équipe les lit et les pose ; un titre, un texte, pas deux fois le même titre, cinquante au plus ; un autre cabinet n'y touche pas"
+T117R="chercher dans un fil : les mots, sans majuscules ni accents, dans le texte, la pièce demandée, la pièce citée ou le fichier ; pour qui lit le fil seulement"
+prouver 'les modèles d'\''un cabinet lus par un autre' $MR117 \
+  "  using (cabinet in (select socle.mes_organisations()))" "  using (true)" \
+  "$T117M"
+prouver 'un modèle posé chez un autre cabinet' $MR117 \
+  "  if socle.moi() is null or not exists (select 1 from socle.mes_organisations() o join socle.organisation g on g.id = o" "  if false and not exists (select 1 from socle.mes_organisations() o join socle.organisation g on g.id = o" \
+  "$T117M"
+prouver 'un modèle retiré par un autre cabinet' $MR117 \
+  "  if socle.moi() is null or not exists (select 1 from socle.mes_organisations() o where o = p_cabinet) then" "  if false then" \
+  "$T117M"
+prouver 'deux modèles au même titre, en d'\''autres majuscules' $MR117 \
+  "lower(m.titre) = lower(v_titre)" "m.titre = v_titre" \
+  "$T117M"
+prouver 'un modèle de trop' $MR117 \
+  "where m.cabinet = p_cabinet) >= 50 then" "where m.cabinet = p_cabinet) >= 500 then" \
+  "$T117M"
+prouver 'un modèle sans titre, refusé sans le dire' $MR117 \
+  "  if length(v_titre) = 0 then perform socle.refus('un modèle a un titre'); end if;" "" \
+  "$T117M"
+prouver 'la recherche qui tient aux accents' $MR117 \
+  "translate(lower(coalesce(p, '')), 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ', 'aaaaaaceeeeiiiinooooouuuuyyoa')" "lower(coalesce(p, ''))" \
+  "$T117R"
+prouver 'un « % » cherché comme n'\''importe quoi' $MR \
+  "replace(replace(replace(messagerie.plier(\$3), '\\\\', '\\\\\\\\'), '%', '\\\\%'), '_', '\\\\_')" "messagerie.plier(\$3)" \
+  "$T117R"
+prouver 'le modèle posé sans le nom du client' $MJ \
+  ".replace(/\\{client\\}/g, client || '{client}');" ";" \
+  "$MW115"
+prouver 'le modèle posé sans le mois' $MJ \
+  "texte.replace(/\\{mois\\}/g, moisPasse())" "texte" \
+  "$MW115"
+prouver 'un modèle commencé jeté sans le dire' $MJ \
+  "      if (!force && rempli() && !insiste) {" "      if (false) {" \
+  "$MW115"
+prouver 'le message trouvé qui ne se montre pas' $MJ \
+  "        ligne.classList.add('msg-eclaire');" "" \
+  "$MW115"
+prouver 'les messages trouvés sous le fil' $MJ \
+  "        fil.hidden = html !== null;" "" \
+  "$MW115"
+prouver 'un client cherché en majuscules, introuvable' $MJ \
+  "ds.filter((d) => plier(d.nom).includes(plier(cherche)))" "ds.filter((d) => d.nom.includes(cherche))" \
+  "$MW115"
+prouver 'la pastille des messages sur un client sans rien à traiter' web/public/v10/cabinet/app.js \
+  "      if (!d || d.etat !== 'a_traiter') return;" "      if (!d) return;" \
   "$MW115"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite

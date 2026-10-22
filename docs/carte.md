@@ -452,7 +452,9 @@ vaut pour tout le dépôt.*
     `0168`) La pièce demandée a une date « pour le » et se relance par e-mail, sans rien de la demande (le jour venu,
     puis chaque semaine, trois au plus : `messagerie.relances_dues`, `relancerLesDemandes` dans `postier.ts`) ;
     plusieurs pièces en une demande, la même à plusieurs clients ; « Ouvrir » et « Saisir cette pièce » chez le cabinet
-    (adaptation de `web/v10/messagerie.txt`).
+    (adaptation de `web/v10/messagerie.txt`). (1.117.0, `0169`) Les modèles du cabinet (`messagerie.modele`, hors de
+    l'export), chercher dans un fil (`/messages/recherche`, `messagerie.plier`) et un client dans la boîte, la pastille
+    des messages sur la liste des dossiers du Cabinet.
   - **Les e-mails du serveur sont habillés** (12/10/2026, maquette validée par Skander ; `serveur/courriel.ts`,
     `serveur/courriel.html`) : la version HTML dit EXACTEMENT le texte (qui part aussi), le code en grand, le lien en
     bouton qui nomme son geste (`…_bouton` au catalogue : un e-mail neuf qui porte un lien en déclare un, un test le

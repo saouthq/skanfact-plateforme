@@ -1212,9 +1212,18 @@
   }
 
   // La conversation du cabinet avec un client (plateforme/messagerie.js) : ses chemins passent par l'entreprise.
+  // (1.117.0) Les modèles de messages du cabinet (0169) : lus et posés par toute son équipe.
+  const modelesDuCabinet = {
+    lire: async () => (await appel('GET', `/cabinets/${cabinetId}/messages/modeles`)).modeles,
+    poser: (/** @type {string | null} */ id, /** @type {string} */ titre, /** @type {string} */ texte) => (id
+      ? appel('PUT', `/cabinets/${cabinetId}/messages/modeles/${encodeURIComponent(id)}`, { titre, texte })
+      : appel('POST', `/cabinets/${cabinetId}/messages/modeles`, { titre, texte })),
+    retirer: (/** @type {string} */ id) => appel('DELETE', `/cabinets/${cabinetId}/messages/modeles/${encodeURIComponent(id)}`),
+  };
   /** @param {HTMLElement} el @param {string} entreprise @param {any} o */
   const conversationAvec = (el, entreprise, o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, {
-    ...o, cote: 'cabinet', appel: (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b),
+    ...o, cote: 'cabinet', modeles: modelesDuCabinet,
+    appel: (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b),
   });
   /** @type {Record<string, any>} */
   const pont = {
@@ -1235,10 +1244,12 @@
     // (1.115.0) La boîte ouvre la conversation du client choisi à droite de sa liste : la même, fabriquée ici.
     messagerie: {
       boite: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.boite(el, {
-        ...o, appel, cabinet: cabinetId, nomCabinet: nomDuCabinet, conversation: conversationAvec,
+        ...o, appel, cabinet: cabinetId, nomCabinet: nomDuCabinet, conversation: conversationAvec, modeles: modelesDuCabinet,
       }),
       conversation: conversationAvec,
       compteurs: async () => (await appel('GET', `/cabinets/${cabinetId}/messages`)).compteurs,
+      // (1.117.0) La boîte entière : la pastille du menu, et celle de chaque ligne de la liste des dossiers.
+      lireBoite: () => appel('GET', `/cabinets/${cabinetId}/messages`),
     },
     // Pas de clé de secours en ligne (C4) : le Cabinet ne la réclame jamais (adaptation de chargerRecovery).
     sansCleDeSecours: true,

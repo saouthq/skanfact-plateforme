@@ -112,6 +112,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'socle.piece_jointe': { classe: 'entreprise' },
   // L'alerte par e-mail est un réglage de chaque personne (cochée par défaut) : restaurée, l'entreprise la rend cochée.
   'messagerie.alerte': { classe: 'hors', raison: 'un réglage de chaque personne, coché par défaut' },
+  // 1.117.0 — les modèles de messages du cabinet (0169) : les phrases du cabinet, pour tous ses clients.
+  'messagerie.modele': { classe: 'hors', raison: 'les modèles de messages appartiennent au cabinet, pas à un client' },
   // La révision d'un dossier (0028) : le dossier de travail du CABINET ; elle ne part pas avec l'entreprise.
   'cabinet.revision': { classe: 'hors', raison: 'le dossier de révision appartient au cabinet qui révise' },
   // Le dossier v10 de l'entreprise (0011) : ce que son interface tient, objet par objet.

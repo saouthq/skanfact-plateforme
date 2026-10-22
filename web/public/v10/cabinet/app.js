@@ -1608,9 +1608,36 @@
   let messagerieOuverte = null;
   let pastilleMessagesLue = false;
   function majPastilleMessages(n) { const p = $('#nav-messages'); if (p) { p.hidden = !n; p.textContent = n ? String(n) : ''; } }
+  // (1.117.0) La même lecture donne aussi l'état de chaque client : la liste des dossiers montre, sur la ligne d'un client
+  // « À traiter », la pastille de ses messages (revue du 22/10/2026, point 11 : elle n'était que dans le menu). Un client
+  // a la pastille sur sa ligne exactement quand il compte dans celle du menu (les mêmes lignes du serveur).
+  let etatsMessages = new Map();
+  function majPastillesDossiers(racine) {
+    $$('tr[data-id]', racine || document).forEach(tr => {
+      const cellule = tr.querySelector('.dl-cell');
+      if (!cellule) return;
+      const avant = cellule.querySelector('.dl-msg');
+      if (avant) avant.remove();
+      const d = etatsMessages.get(tr.dataset.id);
+      if (!d || d.etat !== 'a_traiter') return;
+      const dit = d.nonLus ? (d.nonLus > 1 ? d.nonLus + ' nouveaux messages de ce client' : 'Un nouveau message de ce client') : 'Ce client t\'a répondu';
+      const a = document.createElement('a');
+      a.className = 'dl-msg';
+      a.href = '#/messages/' + encodeURIComponent(tr.dataset.id);
+      a.title = dit + ' : ouvrir la conversation';
+      a.setAttribute('aria-label', dit + ' : ouvrir la conversation');
+      a.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' + (d.nonLus ? '<span>' + d.nonLus + '</span>' : '');
+      cellule.appendChild(a);
+    });
+  }
   async function rafraichirPastilleMessages() {
     if (!api.messagerie || document.visibilityState !== 'visible') return;
-    try { majPastilleMessages((await api.messagerie.compteurs()).aTraiter); } catch (_) { /* la pastille attend la relecture suivante */ }
+    try {
+      const b = await api.messagerie.lireBoite();
+      etatsMessages = new Map(b.dossiers.map(d => [d.entreprise, d]));
+      majPastilleMessages(b.compteurs.aTraiter);
+      majPastillesDossiers();
+    } catch (_) { /* les pastilles attendent la relecture suivante */ }
   }
   if (api.messagerie) {
     setInterval(rafraichirPastilleMessages, 60 * 1000);
@@ -2245,11 +2272,14 @@
     if (ct) ct.onclick = () => { prefs.set('colTout', true); render(); };
     const cv = $('#col-vides');
     if (cv) cv.onclick = () => { prefs.set('colTout', false); render(); };
+    majPastillesDossiers(view);
     $$('tr[data-id]', view).forEach(tr => {
       tr.onclick = e => {
         // Le menu d'actions vit DANS la ligne : sans cette garde, l'ouvrir ouvrirait aussi la fiche
         // (règle 7.28.0 — un menu ne vole pas le clic de sa ligne, et la ligne ne vole pas le sien).
         if (e.target.closest('.row-actions')) return;
+        // (plateforme, 1.117.0) La pastille des messages mène à la conversation, pas à la fiche.
+        if (e.target.closest('.dl-msg')) return;
         location.hash = '#/dossier/' + encodeURIComponent(tr.dataset.id);
       };
     });

@@ -365,6 +365,14 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'un achat se nomme par son identifiant et son libellé', cle: 'base.messagerie.achat', fr: 'un achat se nomme par son identifiant et son libellé' },
   { base: 'ce message n\'a pas de fichier à ranger', cle: 'base.messagerie.rien_a_ranger', fr: 'ce message n\'a pas de fichier à ranger' },
   { base: 'seul le serveur note une alerte partie', cle: 'base.messagerie.alerte_serveur', fr: 'seul le serveur note une alerte partie' },
+  // (1.117.0) Les modèles de messages du cabinet (0169).
+  { base: 'ce cabinet n\'est pas le tien', cle: 'base.messagerie.modele_cabinet', fr: 'ce cabinet n\'est pas le tien' },
+  { base: 'un modèle a un titre', cle: 'base.messagerie.modele_titre', fr: 'un modèle a un titre : par exemple « Pièces du mois »' },
+  { base: 'le titre d\'un modèle tient en 80 caractères', cle: 'base.messagerie.modele_titre_long', fr: 'le titre d\'un modèle tient en 80 caractères' },
+  { base: 'un modèle a un texte', cle: 'base.messagerie.modele_texte', fr: 'un modèle a un texte : la phrase que tu écris souvent' },
+  { base: 'un modèle de ton cabinet porte déjà ce titre', cle: 'base.messagerie.modele_double', fr: 'un modèle de ton cabinet porte déjà ce titre : choisis-en un autre' },
+  { base: 'un cabinet garde cinquante modèles au plus', cle: 'base.messagerie.modele_trop', fr: 'un cabinet garde cinquante modèles au plus : retire ceux qui ne servent plus' },
+  { base: 'ce modèle n\'est plus là', cle: 'base.messagerie.modele_absent', fr: 'ce modèle n\'est plus là : un collègue l\'a retiré' },
   // La console de SkanFact (0083, docs/console.md) : sa session, ses rôles, son journal, ses gestes.
   { base: 'un geste de la console ne se modifie pas et ne s\'efface pas', cle: 'base.console.geste_intouchable', fr: 'un geste de la console ne se modifie pas et ne s\'efface pas' },
   { base: 'la console demande une session de la console : connecte-toi à la console', cle: 'base.console.session', fr: 'la console demande une session de la console : connecte-toi à la console' },

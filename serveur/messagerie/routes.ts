@@ -403,5 +403,79 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // ── (1.117.0) Chercher dans un fil (revue du 22/10/2026, point 10 : « STEG ») ──────────────────────────────────────
+  // Les messages du fil dont le texte, la pièce demandée, la pièce citée ou le nom du fichier contiennent les mots
+  // cherchés, sans tenir compte des majuscules ni des accents ; trente au plus, du plus récent. La même porte que le fil
+  // (`filDe`) : qui ne lit pas le fil n'y cherche rien.
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/messages/recherche', geste: 'messagerie.lire',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const entreprise = params.entreprise ?? '';
+      const cote = COTE.safeParse(query.cote ?? 'entreprise');
+      if (!cote.success) return champInvalide('cote', t('messagerie.champ.cote'));
+      if (query.cabinet !== undefined && !uuid.safeParse(query.cabinet).success) return introuvable;
+      const q = (query.q ?? '').trim();
+      if (q.length < 2 || q.length > 100) return champInvalide('q', t('messagerie.champ.recherche'));
+      const fil = await filDe(tx, entreprise, cote.data, query.cabinet);
+      if ('refus' in fil) return { statut: 403, corps: { motif: fil.refus, bouton: null } };
+      if (!fil.cabinet) return { corps: { trouves: [], plus: false } };
+      const lignes = (await tx.query(`with mots as (select '%' || replace(replace(replace(messagerie.plier($3), '\\', '\\\\'), '%', '\\%'), '_', '\\_') || '%' motif)
+        select m.id, m.cote, m.auteur_nom, m.auteur = socle.moi() de_moi, m.texte, m.demande, m.piece_libelle, fi.nom fichier_nom, m.ecrit_le
+          from messagerie.message m left join messagerie.fichier fi on fi.id = m.fichier, mots
+         where m.entreprise = $1 and m.cabinet = $2
+           and (messagerie.plier(m.texte) like mots.motif or messagerie.plier(coalesce(m.demande, '')) like mots.motif
+             or messagerie.plier(coalesce(m.piece_libelle, '')) like mots.motif or messagerie.plier(coalesce(fi.nom, '')) like mots.motif)
+         order by m.ecrit_le desc, m.id desc limit 31`, [entreprise, fil.cabinet, q])).rows as
+        { id: string; cote: Cote; auteur_nom: string; de_moi: boolean; texte: string; demande: string | null; piece_libelle: string | null; fichier_nom: string | null; ecrit_le: Date }[];
+      return {
+        corps: {
+          trouves: lignes.slice(0, 30).map((m) => ({
+            id: m.id, cote: m.cote, auteur: m.auteur_nom, moi: m.de_moi, ecritLe: m.ecrit_le.toISOString(),
+            texte: m.texte, demande: m.demande, piece: m.piece_libelle, fichier: m.fichier_nom,
+          })),
+          plus: lignes.length > 30,
+        },
+      };
+    },
+  });
+
+  // ── (1.117.0) Les modèles de messages du cabinet (0169 ; revue du 22/10/2026, point 9) ──────────────────────────────
+  // Toute l'équipe du cabinet les lit et les pose ; la base garde les règles (titre, longueur, cinquante au plus).
+  const MODELE = z.object({ titre: z.string().max(200), texte: z.string().max(8000) }).strict();
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/messages/modeles', geste: 'compte.cabinets.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const r = (await tx.query(`select id, titre, texte, modifie_le from messagerie.modele where cabinet = $1 order by lower(titre), id`, [params.cabinet])).rows as
+        { id: string; titre: string; texte: string; modifie_le: Date }[];
+      return { corps: { modeles: r.map((m) => ({ id: m.id, titre: m.titre, texte: m.texte, modifieLe: m.modifie_le.toISOString() })) } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/messages/modeles', geste: 'compte.cabinet.gerer', corps: MODELE,
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const id = (await tx.query('select messagerie.modele_poser($1, null, $2, $3) id', [params.cabinet, corps.titre, corps.texte])).rows[0].id as string;
+      return { statut: 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'PUT', chemin: '/cabinets/:cabinet/messages/modeles/:modele', geste: 'compte.cabinet.gerer', corps: MODELE,
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.modele).success) return introuvable;
+      await tx.query('select messagerie.modele_poser($1, $2, $3, $4)', [params.cabinet, params.modele, corps.titre, corps.texte]);
+      return { corps: { id: params.modele } };
+    },
+  });
+  ajouter({
+    methode: 'DELETE', chemin: '/cabinets/:cabinet/messages/modeles/:modele', geste: 'compte.cabinet.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.modele).success) return introuvable;
+      await tx.query('select messagerie.modele_retirer($1, $2)', [params.cabinet, params.modele]);
+      return { corps: { id: params.modele } };
+    },
+  });
+
   return routes;
 }

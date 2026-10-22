@@ -65,6 +65,8 @@
     image: '<rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/>',
     question: '<circle cx="12" cy="12" r="9"/><path d="M9.2 9.2a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4"/><path d="M12 17.5v.01"/>',
     croix: '<path d="M6 6l12 12M18 6 6 18"/>',
+    modele: '<path d="M4 5h16M4 10h16M4 15h10M4 20h7"/>',
+    loupe: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
   };
   /** @param {keyof typeof DESSINS} id */
   const dessin = (id) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${DESSINS[id]}</svg>`;
@@ -93,6 +95,185 @@
   const tropLourd = (f) => (f.size > LIMITE ? `« ${f.name} » pèse ${poids(f.size)} : un fichier joint pèse 10\u00a0Mo au plus. Prends une photo moins lourde.` : '');
   /** @param {unknown} x */
   const motif = (x) => (x instanceof Error ? x.message : String(x));
+
+  // ── (1.117.0) Chercher, et les modèles de messages ───────────────────────────────────────────────────────────────
+  // Plier un texte pour chercher : minuscules, lettres accentuées ramenées à leur lettre simple, caractère par caractère
+  // (la règle de `messagerie.plier`, côté base) : les positions ne bougent pas, et le mot trouvé se surligne.
+  const PLIS = /** @type {Record<string, string>} */ ({ à: 'a', â: 'a', ä: 'a', á: 'a', ã: 'a', å: 'a', ç: 'c', é: 'e', è: 'e', ê: 'e', ë: 'e', í: 'i', ì: 'i', î: 'i', ï: 'i', ñ: 'n', ó: 'o', ò: 'o', ô: 'o', ö: 'o', õ: 'o', ú: 'u', ù: 'u', û: 'u', ü: 'u', ý: 'y', ÿ: 'y', œ: 'o', æ: 'a' });
+  /** @param {unknown} t */
+  const plier = (t) => {
+    const x = String(t == null ? '' : t);
+    let r = '';
+    for (let i = 0; i < x.length; i++) {
+      const c = x.charAt(i);
+      const l = c.toLowerCase();
+      const m = l.length === 1 ? l : c;
+      r += PLIS[m] || m;
+    }
+    return r;
+  };
+  // Un extrait d'une soixantaine de caractères autour du mot trouvé, le mot surligné (le texte entier s'il est court).
+  /** @param {string} texte @param {string} q */
+  function surligner(texte, q) {
+    const i = plier(texte).indexOf(plier(q));
+    if (i < 0) return esc(texte.length > 120 ? `${texte.slice(0, 117)}…` : texte);
+    const debut = Math.max(0, i - 40);
+    const fin = Math.min(texte.length, i + q.length + 60);
+    return `${debut ? '…' : ''}${esc(texte.slice(debut, i))}<mark>${esc(texte.slice(i, i + q.length))}</mark>${esc(texte.slice(i + q.length, fin))}${fin < texte.length ? '…' : ''}`;
+  }
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  // Le mois qui vient de finir (jour de Tunis) : en octobre, « septembre 2026 » ; en janvier, « décembre » de l'an passé.
+  const moisPasse = () => {
+    const [a, m] = jourCle(Date.now()).split('-').map(Number);
+    return m === 1 ? `${MOIS[11]} ${(a || 0) - 1}` : `${MOIS[(m || 1) - 2]} ${a}`;
+  };
+  // Un modèle posé dans un message : {client} devient le nom du client (gardé tel quel s'il n'est pas encore connu : la
+  // demande groupée le remplace pour chacun), {mois} le mois qui vient de finir.
+  /** @param {string} texte @param {string | null} client */
+  const remplir = (texte, client) => texte.replace(/\{mois\}/g, moisPasse()).replace(/\{client\}/g, client || '{client}');
+  const EXEMPLES = [
+    { titre: 'Pièces du mois', texte: 'Bonjour {client}, pour boucler {mois}, il me manque des pièces. Peux-tu me les envoyer ici, en photo ou en PDF ? Merci.' },
+    { titre: 'Déclaration déposée', texte: 'Bonjour {client}, ta déclaration de {mois} est déposée.' },
+    { titre: 'Bien reçu', texte: 'Bien reçu, merci {client}. Je m\'en occupe.' },
+  ];
+
+  // La fenêtre des modèles du cabinet : les lire, en prendre un (il se pose dans le champ, où il se relit et se change
+  // avant de partir), en ajouter, les changer, les retirer. Toute l'équipe du cabinet partage les mêmes (0169).
+  /** @param {{ modeles: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
+   *   utiliser?: (texte: string) => void, client?: string | null }} o */
+  function fenetreModeles(o) {
+    const fond = document.createElement('div');
+    fond.className = 'msg-fenetre-fond';
+    fond.innerHTML = `<div class="msg-fenetre msg-mo-fenetre" role="dialog" aria-modal="true" aria-labelledby="msg-mo-titre">
+      <h2 id="msg-mo-titre">Modèles de messages</h2>
+      <p class="small muted">Les phrases que ton cabinet écrit souvent, pour toute l'équipe. En les prenant, <b>{client}</b> devient le nom du client, et <b>{mois}</b> le mois qui vient de finir (${esc(moisPasse())}).</p>
+      <div class="msg-mo-liste" data-mo-liste><p class="small muted">Lecture des modèles…</p></div>
+      <form class="msg-mo-form" data-mo-form novalidate>
+        <h3 data-mo-form-titre>Un nouveau modèle</h3>
+        <label class="msg-ep-mot"><span>Titre</span><input type="text" maxlength="80" placeholder="Par exemple : Pièces du mois" data-mo-titre></label>
+        <label class="msg-ep-mot"><span>Texte</span><textarea rows="3" maxlength="4000" placeholder="Bonjour {client}, …" data-mo-texte></textarea></label>
+        <div class="msg-fp-gestes msg-ep-gestes"><p class="msg-refus" role="alert" data-mo-refus></p>
+          <button type="button" class="btn" data-mo-annuler hidden>Annuler la modification</button>
+          <button type="submit" class="btn" data-mo-poser>Ajouter le modèle</button></div>
+      </form>
+      <div class="msg-fp-gestes"><button type="button" class="btn" data-fermer>Fermer</button></div>
+    </div>`;
+    document.body.appendChild(fond);
+    const liste = /** @type {HTMLElement} */ (fond.querySelector('[data-mo-liste]'));
+    const form = /** @type {HTMLFormElement} */ (fond.querySelector('[data-mo-form]'));
+    const titre = /** @type {HTMLInputElement} */ (fond.querySelector('[data-mo-titre]'));
+    const texte = /** @type {HTMLTextAreaElement} */ (fond.querySelector('[data-mo-texte]'));
+    const refus = /** @type {HTMLElement} */ (fond.querySelector('[data-mo-refus]'));
+    const poser = /** @type {HTMLButtonElement} */ (fond.querySelector('[data-mo-poser]'));
+    const annuler = /** @type {HTMLButtonElement} */ (fond.querySelector('[data-mo-annuler]'));
+    const fermerBtn = /** @type {HTMLButtonElement} */ (fond.querySelector('[data-fermer]'));
+    /** @type {any[]} */ let modeles = [];
+    /** @type {string | null} */ let enCours = null;   // le modèle qu'on change
+    /** @type {string | null} */ let aRetirer = null;  // celui dont on confirme le retrait
+    let insiste = false;
+    // Une saisie commencée ne se jette pas sans le dire (une fenêtre remplie demande avant de fermer).
+    const rempli = () => !!(titre.value.trim() || texte.value.trim());
+    const fermer = (force = false) => {
+      if (!force && rempli() && !insiste) {
+        insiste = true;
+        refus.textContent = 'Ce modèle n\'est pas enregistré : « Ajouter le modèle » le garde. « Fermer » encore une fois le laisse.';
+        fermerBtn.textContent = 'Fermer sans l\'enregistrer';
+        return;
+      }
+      fond.remove(); document.removeEventListener('keydown', echap, true);
+    };
+    // Échap ferme celle-ci seulement : ouverte depuis la demande groupée, elle ne ferme pas la fenêtre de dessous.
+    const echap = (/** @type {KeyboardEvent} */ e) => { if (e.key === 'Escape') { e.stopPropagation(); fermer(); } };
+    document.addEventListener('keydown', echap, true);
+    fermerBtn.onclick = () => fermer();
+    fond.onclick = (e) => { if (e.target === fond) fermer(); };
+    const champs = () => { insiste = false; fermerBtn.textContent = 'Fermer'; refus.textContent = ''; };
+    titre.addEventListener('input', champs);
+    texte.addEventListener('input', champs);
+    const vider = () => {
+      enCours = null; titre.value = ''; texte.value = ''; champs();
+      poser.textContent = 'Ajouter le modèle'; annuler.hidden = true;
+      /** @type {HTMLElement} */ (fond.querySelector('[data-mo-form-titre]')).textContent = 'Un nouveau modèle';
+    };
+    annuler.onclick = vider;
+    function dessiner() {
+      liste.innerHTML = modeles.length
+        ? modeles.map((m) => `<div class="msg-mo" data-mo="${esc(m.id)}">
+            <span class="msg-mo-txt"><b>${esc(m.titre)}</b><span>${esc(m.texte)}</span></span>
+            <span class="msg-mo-gestes">${aRetirer === m.id
+              ? `<span class="small">Retirer « ${esc(m.titre)} » pour toute l'équipe ?</span><button type="button" class="btn btn-sm" data-mo-oui="${esc(m.id)}">Oui, le retirer</button><button type="button" class="msg-lien" data-mo-non>Non</button>`
+              : `${o.utiliser ? `<button type="button" class="btn btn-sm btn-primary" data-mo-utiliser="${esc(m.id)}">Utiliser</button>` : ''}
+                <button type="button" class="msg-lien" data-mo-modifier="${esc(m.id)}">Modifier</button>
+                <button type="button" class="msg-lien" data-mo-retirer="${esc(m.id)}">Retirer</button>`}</span></div>`).join('')
+        : `<div class="msg-vide msg-mo-vide"><b>Aucun modèle encore.</b><span>Écris en dessous la phrase que tu envoies le plus souvent, ou pars d'un exemple :</span>
+            <span class="msg-mo-exemples">${EXEMPLES.map((x, i) => `<button type="button" class="btn btn-sm" data-mo-exemple="${i}">${esc(x.titre)}</button>`).join('')}</span></div>`;
+      liste.querySelectorAll('[data-mo-utiliser]').forEach((n) => {
+        /** @type {HTMLElement} */ (n).onclick = () => {
+          const m = modeles.find((x) => x.id === /** @type {HTMLElement} */ (n).dataset.moUtiliser);
+          if (!m || !o.utiliser) return;
+          o.utiliser(remplir(m.texte, o.client || null));
+          fermer(true);
+        };
+      });
+      liste.querySelectorAll('[data-mo-modifier]').forEach((n) => {
+        /** @type {HTMLElement} */ (n).onclick = () => {
+          const m = modeles.find((x) => x.id === /** @type {HTMLElement} */ (n).dataset.moModifier);
+          if (!m) return;
+          enCours = m.id; titre.value = m.titre; texte.value = m.texte; champs();
+          poser.textContent = 'Enregistrer le modèle'; annuler.hidden = false;
+          /** @type {HTMLElement} */ (fond.querySelector('[data-mo-form-titre]')).textContent = `Modifier « ${m.titre} »`;
+          texte.focus();
+        };
+      });
+      liste.querySelectorAll('[data-mo-retirer]').forEach((n) => {
+        /** @type {HTMLElement} */ (n).onclick = () => { aRetirer = String(/** @type {HTMLElement} */ (n).dataset.moRetirer); dessiner(); };
+      });
+      const non = liste.querySelector('[data-mo-non]');
+      if (non) /** @type {HTMLElement} */ (non).onclick = () => { aRetirer = null; dessiner(); };
+      const oui = /** @type {HTMLButtonElement | null} */ (liste.querySelector('[data-mo-oui]'));
+      if (oui) oui.onclick = async () => {
+        oui.disabled = true;
+        try {
+          await o.modeles.retirer(String(oui.dataset.moOui));
+          if (enCours === oui.dataset.moOui) vider();
+        } catch (x) { refus.textContent = motif(x); }
+        aRetirer = null;
+        await lire();
+      };
+      liste.querySelectorAll('[data-mo-exemple]').forEach((n) => {
+        /** @type {HTMLElement} */ (n).onclick = () => {
+          const x = EXEMPLES[Number(/** @type {HTMLElement} */ (n).dataset.moExemple)];
+          if (!x) return;
+          titre.value = x.titre; texte.value = x.texte; champs(); texte.focus();
+        };
+      });
+    }
+    async function lire() {
+      try { modeles = await o.modeles.lire(); } catch (x) { liste.innerHTML = `<p class="msg-refus">${esc(motif(x))}</p>`; return; }
+      dessiner();
+      if (premiere) {
+        premiere = false;
+        // Le premier geste : prendre un modèle s'il y en a, sinon en écrire un.
+        const b = /** @type {HTMLElement} */ (fond.querySelector('[data-mo-utiliser]') || titre);
+        b.focus();
+      }
+    }
+    let premiere = true;
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      if (poser.disabled) return;
+      if (!titre.value.trim()) { refus.textContent = 'Donne un titre à ce modèle (par exemple : Pièces du mois).'; titre.focus(); return; }
+      if (!texte.value.trim()) { refus.textContent = 'Écris le texte de ce modèle : la phrase que tu envoies souvent.'; texte.focus(); return; }
+      poser.disabled = true;
+      try {
+        await o.modeles.poser(enCours, titre.value, texte.value);
+        vider();
+        await lire();
+      } catch (x) { refus.textContent = motif(x); }
+      poser.disabled = false;
+    };
+    void lire();
+  }
 
   // Ouvrir un fichier du fil : le serveur le rend en base 64, la page l'ouvre dans un onglet.
   /** @param {(m: string, c: string, b?: unknown) => Promise<any>} appel @param {string} id */
@@ -151,6 +332,7 @@
    *   surAttente?: (a: { nonLus: number, questions: number, demandes: number, enRetard?: number }) => void,
    *   integre?: boolean,
    *   enGrand?: () => void,
+   *   modeles?: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
    * }} o
    */
   function conversation(el, o) {
@@ -192,13 +374,21 @@
         ? `<header class="msg-tete msg-tete-integre">
           <span class="msg-avatar petit" aria-hidden="true">${esc(initiales(nomAutre))}</span>
           <span class="msg-tete-txt"><h2>${esc(nomAutre)}</h2>${sous ? `<span class="msg-sous">${sous}</span>` : ''}</span>
+          <button type="button" class="msg-lien msg-chercher" data-msg-chercher aria-expanded="false" aria-label="Chercher">${dessin('loupe')}<span class="msg-long">Chercher</span></button>
           ${o.enGrand ? '<button type="button" class="msg-lien msg-en-grand" data-msg-en-grand>Ouvrir en grand</button>' : ''}
         </header>`
         : `${o.retour ? `<button type="button" class="msg-retour" data-msg-retour>← ${esc(o.retour.texte)}</button>` : ''}
         <header class="msg-tete">
           <span class="msg-avatar" aria-hidden="true">${esc(initiales(nomAutre))}</span>
-          <span class="msg-tete-txt"><h1>${entreprise ? 'Mon comptable' : esc(nomAutre)}</h1>${sous ? `<span class="msg-sous">${sous}</span>` : ''}</span>
+          <span class="msg-tete-txt"><h1 title="${entreprise ? 'Mon comptable' : esc(nomAutre)}">${entreprise ? 'Mon comptable' : esc(nomAutre)}</h1>${sous ? `<span class="msg-sous">${sous}</span>` : ''}</span>
+          <button type="button" class="btn btn-sm msg-chercher" data-msg-chercher aria-expanded="false" aria-label="Chercher">${dessin('loupe')}<span class="msg-long">Chercher</span></button>
         </header>`;
+      // (1.117.0) Chercher dans les messages de ce fil (revue du 22/10/2026, point 10 : « STEG ») : la barre au-dessus du
+      // fil, les messages trouvés à la place du fil tant qu'on cherche ; un message choisi se montre dans le fil.
+      const recherche = `<div class="msg-recherche" data-msg-recherche hidden>
+          <input type="search" maxlength="100" placeholder="Chercher dans ces messages : STEG, relevé…" aria-label="Chercher dans ces messages" data-msg-q>
+          <button type="button" class="msg-lien" data-msg-q-fermer>Fermer</button></div>
+        <div class="msg-trouves" data-msg-trouves aria-live="polite" hidden></div>`;
       // (1.115.0, 1.116.0) Ce qui s'ajoute au message (la pièce demandée, une pièce, un fichier) se range AU-DESSUS du champ :
       // la zone d'écriture tient au bas de l'écran, ce qui s'ouvre sous les boutons les faisait remonter sous le curseur.
       const ecrire = f && f.actif ? `<form class="msg-ecrire" data-msg-ecrire novalidate>
@@ -224,6 +414,8 @@
                   <button type="button" class="btn" data-msg-joindre aria-label="Joindre une photo ou un PDF">${dessin('trombone')}<span class="msg-long">Joindre une photo ou un PDF</span><span class="msg-court" aria-hidden="true">Joindre</span></button>
                   ${entreprise && o.pieces ? `<button type="button" class="btn" data-msg-piece aria-label="Parler d'une pièce">${dessin('piece')}<span class="msg-long">Parler d'une pièce</span><span class="msg-court" aria-hidden="true">Une pièce</span></button>` : ''}
                   ${entreprise ? '' : `<button type="button" class="btn" data-msg-demander aria-pressed="false" aria-label="Demander une pièce">${dessin('piece')}<span class="msg-long">Demander une pièce</span><span class="msg-court" aria-hidden="true">Demander</span></button>`}
+                  ${/* (1.117.0) Les modèles du cabinet : la phrase écrite cent fois, prise d'un geste (point 9). */''}
+                  ${!entreprise && o.modeles ? `<button type="button" class="btn" data-msg-modeles aria-label="Modèles de messages">${dessin('modele')}<span class="msg-long">Modèles</span><span class="msg-court" aria-hidden="true">Modèles</span></button>` : ''}
                 </span>
                 <button type="submit" class="btn btn-primary" data-msg-envoyer>Envoyer</button>
               </div>
@@ -231,11 +423,12 @@
       el.innerHTML = integre
         ? `<div class="msg-page msg-integre msg-cabinet">${tete}
           <div class="msg-bandeau" data-msg-cote></div>
-          <section class="msg-zone" aria-label="Les messages"><div class="msg-fil" data-msg-fil></div>${ecrire}</section>
+          <section class="msg-zone" aria-label="Les messages">${recherche}<div class="msg-fil" data-msg-fil></div>${ecrire}</section>
         </div>`
         : `<div class="msg-page${entreprise ? '' : ' msg-cabinet'}">${tete}
         <div class="msg-corps">
           <section class="msg-zone" aria-label="Les messages">
+            ${recherche}
             <div class="msg-fil" data-msg-fil></div>
             ${ecrire}
           </section>
@@ -247,6 +440,80 @@
       const r = el.querySelector('[data-msg-retour]');
       if (r && o.retour) /** @type {HTMLElement} */ (r).onclick = o.retour.aller;
       brancherEcrire();
+      brancherRecherche();
+    }
+
+    // ── (1.117.0) Chercher dans le fil ─────────────────────────────────────────────────────────────────────────────
+    function brancherRecherche() {
+      const btn = /** @type {HTMLElement} */ (el.querySelector('[data-msg-chercher]'));
+      const barre = /** @type {HTMLElement} */ (el.querySelector('[data-msg-recherche]'));
+      const champ = /** @type {HTMLInputElement} */ (el.querySelector('[data-msg-q]'));
+      const trouves = /** @type {HTMLElement} */ (el.querySelector('[data-msg-trouves]'));
+      /** @type {ReturnType<typeof setTimeout> | undefined} */ let minuterie;
+      /** @param {string | null} html */
+      const montrer = (html) => {
+        const fil = /** @type {HTMLElement} */ (el.querySelector('[data-msg-fil]'));
+        trouves.hidden = html === null;
+        fil.hidden = html !== null;
+        if (html !== null) trouves.innerHTML = html;
+      };
+      /** @param {boolean} oui */
+      const ouvrir = (oui) => {
+        barre.hidden = !oui;
+        btn.setAttribute('aria-expanded', String(oui));
+        if (oui) { champ.focus(); return; }
+        clearTimeout(minuterie);
+        champ.value = '';
+        montrer(null);
+      };
+      btn.onclick = () => { const ouverte = !barre.hidden; ouvrir(!ouverte); if (ouverte) btn.focus(); };
+      /** @type {HTMLElement} */ (el.querySelector('[data-msg-q-fermer]')).onclick = () => { ouvrir(false); btn.focus(); };
+      champ.onkeydown = (e) => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); ouvrir(false); btn.focus(); } };
+      champ.oninput = () => { clearTimeout(minuterie); minuterie = setTimeout(() => { void chercher(); }, 250); };
+      async function chercher() {
+        const q = champ.value.trim();
+        if (q.length < 2) { montrer(q ? '<p class="msg-trouves-dit">Encore une lettre : la recherche commence à deux.</p>' : null); return; }
+        const p = new URLSearchParams({ cote: o.cote, q });
+        if (cabinetRelu) p.set('cabinet', cabinetRelu);
+        /** @type {any} */ let r;
+        try { r = await o.appel('GET', `/messages/recherche?${p}`); } catch (x) { montrer(`<p class="msg-refus">${esc(motif(x))}</p>`); return; }
+        // Une recherche plus récente est partie entre-temps : celle-ci ne s'affiche pas.
+        if (champ.value.trim() !== q || barre.hidden !== false) return;
+        const n = r.trouves.length;
+        const dit = !n ? `Aucun message ne contient « ${esc(q)} ».`
+          : r.plus ? `Plus de ${n} messages contiennent « ${esc(q)} » : voici les ${n} plus récents. Précise ta recherche pour les autres.`
+            : `${pl(n, 'message')} ${n > 1 ? 'contiennent' : 'contient'} « ${esc(q)} ». Choisis-en un pour le voir dans la conversation.`;
+        montrer(`<p class="msg-trouves-dit">${dit}</p>${r.trouves.map((/** @type {any} */ m) => {
+          const champs = [m.texte, m.demande ? `Pièce demandée : ${m.demande}` : '', m.piece || '', m.fichier || ''].filter(Boolean);
+          const montre = champs.find((x) => plier(x).includes(plier(q))) || champs[0] || '';
+          return `<button type="button" class="msg-trouve" data-msg-trouve="${esc(m.id)}">
+            <span class="msg-trouve-tete">${esc(dateCourte(jourCle(m.ecritLe)))} · ${esc(m.moi ? 'Toi' : m.auteur)}</span>
+            <span class="msg-trouve-txt">${surligner(montre, q)}</span></button>`;
+        }).join('')}`);
+        trouves.querySelectorAll('[data-msg-trouve]').forEach((b) => {
+          /** @type {HTMLElement} */ (b).onclick = () => { void allerAuMessage(String(/** @type {HTMLElement} */ (b).dataset.msgTrouve)); };
+        });
+      }
+      // Le message choisi se montre dans le fil : les pages plus anciennes se lisent jusqu'à lui, puis il s'éclaire.
+      /** @param {string} id */
+      async function allerAuMessage(id) {
+        ouvrir(false);
+        const present = () => [...(lu.messages || []), ...anciensMessages].some((m) => m.id === id);
+        for (let tours = 0; !present() && suite && tours < 40; tours++) {
+          const r = await o.appel('GET', chemin(suite));
+          anciensMessages = [...anciensMessages, ...r.messages];
+          anciennesQuestions = [...anciennesQuestions, ...r.questions];
+          suite = r.suite;
+        }
+        dessinerFil();
+        const ligne = /** @type {HTMLElement | null} */ (el.querySelector(`[data-msg-id="${CSS.escape(id)}"]`));
+        if (!ligne) return;
+        ligne.scrollIntoView({ block: 'center' });
+        ligne.classList.remove('msg-eclaire');
+        void ligne.offsetWidth;
+        ligne.classList.add('msg-eclaire');
+        setTimeout(() => ligne.classList.remove('msg-eclaire'), 2200);
+      }
     }
 
     // ── Le fil ───────────────────────────────────────────────────────────────────────────────
@@ -676,6 +943,19 @@
       if (bPiece) bPiece.onclick = () => choisirPiece((p) => { piece = { genre: p.genre, id: p.id, libelle: p.libelle }; dire(''); dessinerJoints(); texte.focus(); });
       const bDemander = /** @type {HTMLButtonElement | null} */ (form.querySelector('[data-msg-demander]'));
       if (bDemander) bDemander.onclick = () => { demande = !demande; montrerDemande(); if (demande) demandeTxt.focus(); else texte.focus(); };
+      // (1.117.0) Un modèle se pose dans le champ, là où est le curseur : il se relit et se change avant de partir.
+      const bModeles = /** @type {HTMLButtonElement | null} */ (form.querySelector('[data-msg-modeles]'));
+      const modeles = o.modeles;
+      if (bModeles && modeles) bModeles.onclick = () => fenetreModeles({ modeles, client: o.nom || null, utiliser: (t) => {
+        const debut = texte.selectionStart ?? texte.value.length;
+        const avant = texte.value.slice(0, debut);
+        const apres = texte.value.slice(texte.selectionEnd ?? debut);
+        const pose = `${avant && !avant.endsWith('\n') ? '\n' : ''}${t}`;
+        texte.value = `${avant}${pose}${apres}`;
+        texte.setSelectionRange(avant.length + pose.length, avant.length + pose.length);
+        dire('');
+        texte.focus();
+      } });
       // Entrée envoie ; Maj+Entrée va à la ligne. Au téléphone (doigt), Entrée va à la ligne : on envoie du bouton.
       texte.onkeydown = (e) => {
         if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !window.matchMedia('(pointer: coarse)').matches) { e.preventDefault(); form.requestSubmit(); }
@@ -878,6 +1158,7 @@
    *   saisirPiece?: (entreprise: string, message: { id: string, ecritLe: string }) => void,
    *   revision?: (entreprise: string) => void,
    *   surCompteurs?: (c: { aTraiter: number, attendClient: number, tout: number }) => void,
+   *   modeles?: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
    * }} o
    */
   function boite(el, o) {
@@ -886,6 +1167,8 @@
     // s'ouvre sur « Rien à traiter » cachait les clients qu'on venait voir : vu à la souris le 09/10/2026).
     /** @type {string | null} */ let filtre = null;
     /** @type {string | null} */ let choisi = null;
+    // (1.117.0) Chercher un client par son nom (point 10) : parmi tous les clients, quel que soit le filtre.
+    let cherche = '';
     let fini = false;
     let signature = '';
     /** @type {ReturnType<typeof setTimeout> | undefined} */ let relecture;
@@ -928,13 +1211,21 @@
       if (choisi && !ds.some((d) => d.entreprise === choisi)) choisi = null;
       // (1.115.0) Le client choisi reste dans la liste même s'il en sort (« Marquer comme traité », une réponse) : la
       // conversation qu'on lit ne disparaît pas sous le curseur. Un autre filtre, un autre client : il la quitte.
-      const vus = ds.filter((d) => filtre === 'tout' || d.etat === filtre || d.entreprise === choisi);
+      const vus = cherche
+        ? ds.filter((d) => plier(d.nom).includes(plier(cherche)))
+        : ds.filter((d) => filtre === 'tout' || d.etat === filtre || d.entreprise === choisi);
       if (!choisi && aCote() && vus[0]) choisi = vus[0].entreprise;
       const F = [['a_traiter', `À traiter (${c.aTraiter})`], ['attend_client', `Attend le client (${c.attendClient})`], ['tout', `Tout (${c.tout})`]];
       const filtres = /** @type {HTMLElement} */ (el.querySelector('[data-filtres]'));
-      filtres.innerHTML = F.map(([id, nom]) => `<button type="button" role="tab" class="msg-filtre" aria-selected="${filtre === id}" data-filtre="${id}">${esc(nom)}</button>`).join('');
+      filtres.innerHTML = F.map(([id, nom]) => `<button type="button" role="tab" class="msg-filtre" aria-selected="${!cherche && filtre === id}" data-filtre="${id}">${esc(nom)}</button>`).join('');
       filtres.querySelectorAll('[data-filtre]').forEach((n) => {
-        /** @type {HTMLElement} */ (n).onclick = () => { filtre = String(/** @type {HTMLElement} */ (n).dataset.filtre); choisi = null; dessiner(); };
+        /** @type {HTMLElement} */ (n).onclick = () => {
+          filtre = String(/** @type {HTMLElement} */ (n).dataset.filtre); choisi = null;
+          cherche = '';
+          const q = /** @type {HTMLInputElement | null} */ (el.querySelector('[data-boite-q]'));
+          if (q) q.value = '';
+          dessiner();
+        };
       });
       const corps = /** @type {HTMLElement} */ (el.querySelector('[data-boite-corps]'));
       if (!ds.length) {
@@ -943,7 +1234,20 @@
         return;
       }
       if (!corps.querySelector('[data-liste]')) {
-        corps.innerHTML = `<section class="msg-zone msg-liste" aria-label="Les dossiers" data-liste></section>${aCote() ? '<div class="msg-boite-conv" data-conv></div>' : ''}`;
+        corps.innerHTML = `<section class="msg-zone msg-liste" aria-label="Les dossiers">
+            <div class="msg-liste-chercher"><input type="search" maxlength="100" placeholder="Chercher un client" aria-label="Chercher un client" data-boite-q></div>
+            <div data-liste></div></section>${aCote() ? '<div class="msg-boite-conv" data-conv></div>' : ''}`;
+        const q = /** @type {HTMLInputElement} */ (corps.querySelector('[data-boite-q]'));
+        q.value = cherche;
+        q.oninput = () => { cherche = q.value.trim(); dessiner(); };
+        q.onkeydown = (e) => {
+          if (e.key === 'Escape' && q.value) { e.preventDefault(); q.value = ''; cherche = ''; dessiner(); }
+          // ↓ passe du champ au premier client trouvé.
+          if (e.key === 'ArrowDown') {
+            const premier = /** @type {HTMLElement | null} */ (corps.querySelector('[data-dossier]'));
+            if (premier) { e.preventDefault(); premier.focus(); choisir(String(premier.dataset.dossier)); }
+          }
+        };
       }
       const liste = /** @type {HTMLElement} */ (corps.querySelector('[data-liste]'));
       const avaitLeFocus = liste.contains(document.activeElement);
@@ -955,6 +1259,7 @@
           <span class="msg-dossier-pastilles">${x.nonLus ? `<span class="msg-non-lus" title="${esc(pl(x.nonLus, 'nouveau message', 'nouveaux messages'))}">${x.nonLus}<span class="msg-cache"> ${x.nonLus > 1 ? 'nouveaux messages' : 'nouveau message'}</span></span>` : ''}
           ${x.nonLus && x.etat === 'a_traiter' ? '' : `<span class="msg-etat-pastille ${etatDit(x.etat)[1]}">${esc(etatDit(x.etat)[0])}</span>`}
           ${x.retards ? `<span class="msg-etat-pastille retard" title="${esc(pl(x.retards, 'pièce demandée passée sa date', 'pièces demandées passées leur date'))}">${esc(pl(x.retards, 'en retard', 'en retard'))}</span>` : ''}</span></button>`).join('')
+        : cherche ? `<div class="msg-vide"><b>Aucun client ne s'appelle « ${esc(cherche)} ».</b><span>La recherche lit le nom de chaque client en ligne, quel que soit le filtre.</span></div>`
         : `<div class="msg-vide"><b>${filtre === 'a_traiter' ? 'Rien à traiter.' : 'Aucun client n\'a de réponse en retard.'}</b><span>${filtre === 'a_traiter' ? 'Aucun client ne t\'a écrit depuis ta dernière réponse.' : 'Toutes tes questions et pièces demandées ont leur réponse.'}</span></div>`;
       const lignes = /** @type {HTMLElement[]} */ ([...liste.querySelectorAll('[data-dossier]')]);
       lignes.forEach((b, i) => {
@@ -1030,7 +1335,10 @@
           <div class="msg-demande-liste" data-dg-liste><input type="text" maxlength="300" placeholder="Par exemple : le relevé bancaire de septembre" data-dg-piece aria-labelledby="msg-dg-p"></div>
           <span class="msg-demande-pied"><button type="button" class="msg-lien" data-dg-plus>+ Une autre pièce</button>
             <label class="msg-demande-pour"><span>Pour le</span><input type="date" data-dg-pour></label></span></div>
-        <label class="msg-ep-mot"><span>Un mot <span class="muted">(facultatif)</span></span><textarea rows="2" maxlength="4000" data-dg-mot></textarea></label>
+        <div class="msg-ep-mot"><span class="msg-dg-mot-tete"><label for="msg-dg-mot">Un mot <span class="muted">(facultatif)</span></label>
+            ${o.modeles ? '<button type="button" class="msg-lien" data-dg-modeles>Prendre un modèle…</button>' : ''}</span>
+          <textarea id="msg-dg-mot" rows="2" maxlength="4000" data-dg-mot></textarea>
+          <span class="small muted">{client} devient le nom de chaque client.</span></div>
         <fieldset class="msg-dg-clients"><legend>À quels clients <button type="button" class="msg-lien" data-dg-tous>Tous</button> <button type="button" class="msg-lien" data-dg-aucun>Aucun</button></legend>
           ${ds.map((d) => `<label class="msg-dg-client"><input type="checkbox" value="${esc(d.entreprise)}" data-dg-client><span>${esc(d.nom)}</span></label>`).join('')}
         </fieldset>
@@ -1053,6 +1361,13 @@
       fond.onclick = (e) => { if (e.target === fond) fermer(); };
       /** @type {HTMLElement} */ (fond.querySelector('[data-dg-tous]')).onclick = () => { cases().forEach((c) => { c.checked = true; }); refus.textContent = ''; };
       /** @type {HTMLElement} */ (fond.querySelector('[data-dg-aucun]')).onclick = () => { cases().forEach((c) => { c.checked = false; }); };
+      const bModeles = /** @type {HTMLElement | null} */ (fond.querySelector('[data-dg-modeles]'));
+      const modeles = o.modeles;
+      if (bModeles && modeles) bModeles.onclick = () => fenetreModeles({ modeles, client: null, utiliser: (t) => {
+        const mot = /** @type {HTMLTextAreaElement} */ (fond.querySelector('[data-dg-mot]'));
+        mot.value = mot.value.trim() ? `${mot.value.trimEnd()}\n${t}` : t;
+        mot.focus();
+      } });
       /** @type {HTMLElement} */ (fond.querySelector('[data-dg-plus]')).onclick = () => {
         const n = liste.querySelectorAll('[data-dg-piece]').length;
         if (n >= 10) { refus.textContent = 'Dix pièces au plus dans une demande.'; return; }
@@ -1068,10 +1383,12 @@
         if (!pieces.length) { refus.textContent = 'Nomme au moins une pièce (par exemple : le relevé bancaire de septembre).'; /** @type {HTMLElement} */ (liste.querySelector('input')).focus(); return; }
         if (!clients.length) { refus.textContent = 'Coche au moins un client.'; return; }
         envoyer.disabled = true; refus.textContent = '';
-        const texte = /** @type {HTMLTextAreaElement} */ (fond.querySelector('[data-dg-mot]')).value.trim();
+        const mot = /** @type {HTMLTextAreaElement} */ (fond.querySelector('[data-dg-mot]')).value.trim();
         /** @type {string[]} */ const ratees = [];
         for (const c of clients) {
           try {
+            // (1.117.0) {client} : le nom de chacun (un modèle pris pour tous).
+            const texte = mot.replace(/\{client\}/g, (ds.find((d) => d.entreprise === c) || {}).nom || '');
             await o.appel('POST', `/entreprises/${encodeURIComponent(c)}/messages`, { cote: 'cabinet', texte, pour: pourChamp.value || null,
               ...(pieces.length > 1 ? { demandes: pieces } : { demande: pieces[0] }) });
             // Partie : la case se décoche (un second « Envoyer » ne la redemanderait pas à ce client).

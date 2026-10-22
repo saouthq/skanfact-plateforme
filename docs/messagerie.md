@@ -70,6 +70,27 @@ le dit). Une photo ou un PDF du client a « Saisir cette pièce » : la photo s'
 client à l'année du message en face. Le justificatif ne s'y joint pas seul (le Cabinet en ligne ne joint pas encore de
 fichier à une écriture) : la photo reste dans le fil, à sa date.
 
+**M4 quinquies. Les modèles de messages du cabinet** (1.117.0 ; décidé par délégation, revue du 22/10/2026, point 9).
+Le cabinet garde ses phrases (un titre de 80 caractères, un texte de 4 000), partagées par toute son équipe, cinquante au
+plus, deux jamais sous le même titre (majuscules comprises). « Modèles » (sous le champ, chez le cabinet) ouvre la
+fenêtre : en prendre un le pose dans le champ, là où est le curseur, où il se relit et se change avant de partir ; en
+ajouter, le changer, le retirer (après « Oui, le retirer »). Deux mots se remplacent au moment de le prendre :
+**{client}** (le nom du client) et **{mois}** (le mois qui vient de finir, jour de Tunis). Dans « Demander à plusieurs
+clients… », {client} devient le nom de chacun. Vide, la fenêtre propose trois exemples. Les modèles appartiennent au
+cabinet (`messagerie.modele`, 0169) : ils ne partent pas avec l'export d'une entreprise. La base garde les règles
+(`messagerie.modele_poser`, `messagerie.modele_retirer`) ; un autre cabinet ne les lit ni ne les touche.
+
+**M4 sexies. Chercher** (1.117.0, point 10). Dans un fil, « Chercher » (des deux côtés) : les messages dont le texte, la
+pièce demandée, la pièce citée ou le nom du fichier contiennent les mots, sans tenir compte des majuscules ni des
+accents (`messagerie.plier`), trente au plus, du plus récent ; un message choisi se montre dans le fil, éclairé (les
+pages plus anciennes se lisent jusqu'à lui). Les questions de la révision ne sont pas cherchées (elles vivent dans les
+livres). Dans la boîte du cabinet, « Chercher un client » : par son nom, parmi tous les clients, quel que soit le filtre.
+
+**M4 septies. La pastille sur la liste des dossiers** (1.117.0, point 11). Dans le Cabinet, la ligne d'un client « À
+traiter » porte la pastille de ses messages (le nombre de non-lus, ou la bulle seule s'il a répondu à une question) ;
+elle mène à sa conversation. Une ligne a la pastille exactement quand le client compte dans celle du menu « Messages »
+(la même lecture du serveur).
+
 **M5. L'alerte par e-mail, sans contenu** (décidé par Skander le 09/10/2026 ; détails par délégation). Chaque minute,
 le serveur cherche qui a, **depuis plus de cinq minutes**, quelque chose à lire dans un fil (un message de l'autre côté,
 une question envoyée, la réponse du client à une question), et le prévient **une fois** ; plus rien avant qu'il ait relu
@@ -125,6 +146,8 @@ fixes.
   (1.116.0) « Demander une pièce » ouvre, au-dessus du champ (rien ne pousse les boutons), la liste des pièces et
   « Pour le » ; en haut de la boîte, « Demander à plusieurs clients… » ; sur une ligne, la pastille d'état et, en
   dessous, « N en retard ». Sous une pièce citée, « Ouvrir » ; sous une photo du client, « Saisir cette pièce ».
+  (1.117.0) « Modèles » sous le champ ; « Chercher » en haut de la conversation ; « Chercher un client » en haut de la
+  liste ; au téléphone, « Modèles » et « Chercher » en icône seule, les gestes en mots courts dès que la zone est étroite.
 - **Au téléphone** (1.115.0) : un bouton de bulle à côté de « Menu », avec la même pastille, mène à « Mon comptable »
   ou aux « Messages » (dans le menu replié, la pastille ne se voyait pas) ; le fil et la zone d'écriture tiennent dans
   l'écran, « Envoyer » sous le pouce, les gestes en mots courts (« Joindre », « Une pièce », « Demander ») ; une ligne
