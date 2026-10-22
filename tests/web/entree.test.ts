@@ -379,7 +379,9 @@ describe('l\'entrée refaite, à la souris', () => {
     await champ(p, 'ecran.code_pose.essai').fill(juste === '000000' ? '111111' : '000000');
     await bouton(p, 'ecran.code_pose.bouton').click();
     await expect.poll(() => p.getByRole('alert').first().innerText()).toBe(phrase('compte.code_essai_faux'));
-    expect(await champ(p, 'ecran.code_pose.essai').evaluate((e) => e === document.activeElement && e.getAttribute('aria-invalid') === 'true')).toBe(true);
+    // Le curseur revient dans le champ juste après le refus (sur GitHub, Node 24, le refus se lisait un instant avant) : on
+    // attend l'état que la personne voit.
+    await expect.poll(() => champ(p, 'ecran.code_pose.essai').evaluate((e) => e === document.activeElement && e.getAttribute('aria-invalid') === 'true')).toBe(true);
     expect((await api('GET', '/moi', jeton)).code_methode).toBeNull();
     // Le premier code juste : l'ouverture coche ce qui est fait le temps que l'application arrive.
     await champ(p, 'ecran.code_pose.essai').fill(codeTotp(depuisBase32(cle), Date.now()));
