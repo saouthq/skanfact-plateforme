@@ -817,6 +817,9 @@ vaut pour tout le dépôt.*
     pièces tenu à jour, des index, la fiche qui ne lit que la sienne) ; `serveur/console/instantane.ts` (le calcul de la
     liste partagé par l'équipe, une minute) ; le banc `banc/console/mesurer.ts` (`npm run banc:console` : 5 000 entreprises,
     cinq personnes, 95 % sous 300 ms).
+  - **La charge des clients** (1.110.0 ; VISION § 6) : le banc `banc/clients/mesurer.ts` (`npm run banc:clients` :
+    500 utilisateurs au travail sur 60 entreprises de cinq ans, le programme en deux exemplaires) ; base
+    `0165_equilibree_sans_detour.sql` (le contrôle d'équilibre des écritures sans la sécurité par ligne).
   - **Le contenu des pièces relu contre son empreinte** (1.53.0 ; `docs/console.md` C66) : base `0142_relire_contenus.sql`
     (l'état du contenu de chaque chaîne, les pièces rendues au serveur seul, la relecture demandée, ce que la console et la
     veille en lisent) ; `serveur/service/contenus.ts` (la relecture : chaque heure après les liens, et celle qu'on demande),

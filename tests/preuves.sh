@@ -19178,6 +19178,12 @@ prouver 'la page fermée qui écrit sa phrase en dur' 'serveur/fermeture.ts' \
   '    vitrineBas: '\''Gestion, caisse, paie et comptabilité.'\'',' \
   'aucune phrase n'\''est écrite en dur dans le code du serveur'
 
+# ── 1.110.0 : le banc des clients (banc/clients) et le contrôle d'équilibre sans détour (0165) ──
+prouver 'le contrôle d'\''équilibre repassé par la sécurité par ligne' 'base/migrations/0165_equilibree_sans_detour.sql' \
+  'alter function compta.equilibree() security definer set search_path = pg_catalog, compta;' \
+  'select 1;' \
+  'le contrôle d'\''équilibre des écritures, qui tourne à chaque ligne, ne repasse pas par la sécurité par ligne'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

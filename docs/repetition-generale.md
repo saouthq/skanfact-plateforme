@@ -18,6 +18,7 @@ la machine de la répétition, l'accès de Claude n'existe pas non plus, `docs/m
 | 1.3 | C | Lire l'état de la machine dans la console (Service › Versions) | Le suiveur attend **toutes les preuves** (« toutes ») ; aucune version sans elles ne s'installe |
 | 1.4 | S | Ouvrir `https://<adresse>/etat.json` depuis un navigateur | **Refusé** : l'état détaillé ne se lit que dans la console |
 | 1.5 | S | La console à son adresse (J) | L'entrée de la console s'ouvre ; l'application des clients, à côté, aussi |
+| 1.6 | C | **La charge** (1.110.0) : `npm run banc:clients 500 60 60` sur cette machine, avant toute donnée réelle (une base à part, détruite ensuite) | Tous les seuils tiennent (VISION § 6) ; sinon la machine se change avant les pilotes, pas les seuils |
 
 ## 2. Les copies
 
