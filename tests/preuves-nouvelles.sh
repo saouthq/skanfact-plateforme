@@ -1,15 +1,15 @@
 #!/bin/bash
-# Les preuves NOUVELLES ou CHANGÉES depuis BASE (par défaut origin/main : ce que GitHub a déjà) — celles
+# Les preuves NOUVELLES ou CHANGÉES depuis BASE (par défaut origin/dev : ce que GitHub a déjà) — celles
 # de la brique en cours —, et elles seules, en groupes côte à côte. Pendant le travail, on ne prouve
 # qu'elles ; GitHub rejoue TOUTES les preuves à chaque envoi, et on lit son verdict avant l'envoi
 # suivant (décision de Skander, 30/09/2026 : avancer plus vite, sans retirer une seule preuve).
 # Une preuve est « changée » dès qu'un de ses cinq arguments change, variables comprises.
 #
-#   PG_ADMIN=postgres://… bash tests/preuves-nouvelles.sh           (BASE=origin/main, GROUPES=2)
+#   PG_ADMIN=postgres://… bash tests/preuves-nouvelles.sh           (BASE=origin/dev, GROUPES=2)
 set -u
 ICI="$(cd "$(dirname "$0")/.." && pwd)"
 : "${PG_ADMIN:?PG_ADMIN manque (adresse d'un compte d'administration PostgreSQL)}"
-BASE="${BASE:-origin/main}"
+BASE="${BASE:-origin/dev}"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 git -C "$ICI" show "$BASE:tests/preuves.sh" > "$tmp/base.sh" 2>/dev/null \

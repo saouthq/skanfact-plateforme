@@ -28,8 +28,9 @@ qu'une règle qui vaut pour TOUT le dépôt, en une ou deux lignes.*
   que dans une adaptation (`web/v10/<sujet>.txt`, chargée par `web/v10/adaptations.mjs`, avec sa raison ;
   `tests/v10/provenance.test.ts` refuse toute retouche à la main). Le pont (`web/public/plateforme/pont.js`) remplace ce
   que la v10 demandait à l'ordinateur. Les écrans écrits pour la plateforme (l'entrée, la console) sont en React.
-- **Les serveurs** (`docs/mise-en-ligne.md`) : le serveur d'essai (`app.skanfact.tn`, données inventées seulement) suit
-  `main` tout seul et n'installe qu'une version que GitHub a vérifiée en vert ; personne ne s'y connecte, sauf Claude
+- **Les serveurs** (`docs/mise-en-ligne.md`, B et L) : chacun suit sa branche tout seul. `app.skanfact.tn` (données
+  inventées) suit **`main`**, les versions validées ; `dev.skanfact.tn` (données inventées) suit **`dev`**, le travail du
+  jour, dès qu'il est envoyé ; personne ne s'y connecte, sauf Claude
   par `scripts/serveur.sh '<commande>'` (clé de la session, hors dépôt) ; un réglage du serveur passe par une tâche
   d'entretien (`exploitation/taches/`). Les serveurs des pilotes (vraies données) : **jamais l'accès de Claude**.
 - L'entreprise d'essai des développeurs (`0009`) : jamais facturée par l'abonnement, jamais transmise à la TTN,
@@ -184,7 +185,7 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
 - **Vérifier ciblé, GitHub vérifie tout** (décision de Skander, 30/09/2026 : avancer et livrer plus
   par jour). Pendant le travail et avant un envoi : `npm run verifier:brique` (une minute ou deux) —
   types, lint (0 erreur, 0 avertissement), contrôle éclair des preuves, les tests des fichiers de
-  test changés depuis `origin/main` (et ceux qu'on ajoute : `-- tests/x.test.ts`), puis les preuves
+  test changés depuis `origin/dev` (et ceux qu'on ajoute : `-- tests/x.test.ts`), puis les preuves
   **nouvelles ou changées** (`npm run preuves:nouvelles`). Lire le **code de sortie**. Tous les
   tests et toutes les preuves tournent sur GitHub à chaque envoi (depuis le 05/10/2026, décidé par Skander
   pour ne plus attendre une heure : à chaque envoi, les tests en deux moitiés par Node et les **preuves du
@@ -272,7 +273,11 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
   décidée.
 
 **Git**
-- Branche **`main`** pour l'instant (dépôt neuf, pas encore de publication). Pas de PR sans demande.
+- **Deux branches** (décidé avec Skander le 22/10/2026 ; `docs/mise-en-ligne.md`, L). On travaille et on envoie sur
+  **`dev`** (`git push origin dev`) ; **`main`** ne reçoit qu'une version de `dev` que GitHub a vérifiée en entier (la
+  vérification de l'envoi ET toutes les preuves de la nuit, ou lancées sur elle) : `bash tests/promouvoir.sh` la fait
+  avancer, jamais à la main, jamais en la réécrivant. Une nuit rouge sur `dev` se répare avant tout passage. Pas de PR
+  sans demande.
 - Messages de commit en français, terminés par les lignes `Co-Authored-By` et `Claude-Session`
   fournies par la session. Aucun identifiant de modèle dans ce qui est envoyé.
 - **Chaque envoi relève le numéro de version** (`version` de `package.json`, « 1.4.2 » ; décidé par Skander le
@@ -288,7 +293,7 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
 | `npm run preuves` | Chaque défaut remis dans une copie, chaque test doit tomber (`SEULES`, `FICHIERS`, `PARTIE=k/n`) |
 | `npm run preuves:paralleles` | Les mêmes, en `GROUPES` groupes côte à côte (4 par défaut) |
 | `npm run verifier:brique` | La vérification ciblée d'une brique (types, lint, contrôle éclair, tests changés, preuves nouvelles) |
-| `npm run preuves:nouvelles` | Les seules preuves nouvelles ou changées depuis `origin/main` (`BASE`, `GROUPES`, `NOMS`) |
+| `npm run preuves:nouvelles` | Les seules preuves nouvelles ou changées depuis `origin/dev` (`BASE`, `GROUPES`, `NOMS`) |
 | `npm run preuves:eclair` | Le contrôle éclair des preuves, sans rien lancer (`DETAIL=1` pour le détail) |
 | `npm run verdict` | Le verdict de GitHub sur le dernier envoi (ou `-- <commit>`) : 0 vert, 1 rouge, 3 pas fini |
 | `npm run migrer` | Applique les migrations sur la base de `PG_ADMIN` |

@@ -19032,6 +19032,16 @@ prouver 'le serveur revenu sans que le navigateur le dise, attendu en vain' 'web
   '' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
 
+# ── 1.106.0 : la branche que suit un serveur (docs/mise-en-ligne.md, L) ──
+prouver 'un serveur des pilotes qui suit dev' 'exploitation/installer.sh' \
+  '[ "$SORTE" = essai ] || [ "$BRANCHE" = main ] || { echo "Un serveur des pilotes suit main' \
+  'false && { echo "Un serveur des pilotes suit main' \
+  'le serveur de développement suit dev ; un serveur des pilotes ne suit que main ; un nom bizarre est refusé'
+prouver 'un nom de branche bizarre accepté' 'exploitation/installer.sh' \
+  '[[ "$BRANCHE" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo' \
+  'true || { echo' \
+  'le serveur de développement suit dev ; un serveur des pilotes ne suit que main ; un nom bizarre est refusé'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

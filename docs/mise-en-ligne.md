@@ -559,6 +559,41 @@ La console de l'équipe (docs/console.md) vit sous `/console/` du serveur ; elle
 La session de la console vit dans l'onglet (docs/console.md) : rien ne se partage entre les deux adresses. Un serveur aux
 vraies données reçoit l'adresse de sa console à l'installation, décidée par Skander.
 
+## L. Deux branches, deux serveurs (décidé avec Skander le 22/10/2026, 1.106.0)
+
+« Il faut me faire la partie gestion : une branche dev, un environnement de dev. » Jusqu'ici, tout arrivait sur `main`
+et le serveur d'essai l'installait aussitôt : ce que Skander, son père et les testeurs regardaient changeait plusieurs
+fois par jour, et pouvait casser entre deux envois.
+
+| | `dev` | `main` |
+|---|---|---|
+| Ce qui y arrive | le travail du jour, chaque envoi de Claude (vérifié avant, `npm run verifier:brique`) | seulement une version de `dev` vérifiée **en entier** |
+| Le serveur | `dev.skanfact.tn` (données inventées, l'accès de Claude) | `app.skanfact.tn` (données inventées) ; un jour, celui des vraies données |
+| Il installe | chaque version dès qu'elle est envoyée (`aucune`, E2) | ce que `main` reçoit (`aucune` sur un serveur d'essai, `toutes` sur celui des pilotes) |
+
+**L1. Le passage de `dev` à `main`** : `bash tests/promouvoir.sh` prend la plus récente version de `dev` passée par
+**toutes les preuves** et fait avancer `main` jusqu'à elle. Il refuse une version qui n'est pas sur `dev`, une `main`
+qu'il faudrait réécrire (elle ne se réécrit jamais), et une version dont une vérification de GitHub n'est pas verte :
+il exige les quatre moitiés des tests et les quatorze groupes de toutes les preuves. `ESSAI=1` dit ce qui se ferait.
+Claude le fait, après avoir refait la version à l'écran ; Skander n'a rien à taper.
+
+**L2. La nuit vérifie `dev`.** Une tâche planifiée de GitHub tourne toujours sur la branche par défaut (`main`) et y
+attache son verdict : à 1 h 30 de Tunis, `preuves-completes.yml` relance donc toutes les preuves **sur `dev`** (un
+lancement à la demande, que le jeton de la vérification a le droit de faire), et leur verdict s'attache à la version de
+`dev` vérifiée. Le passage de la nuit lui-même ne prouve rien : le suiveur d'un serveur des pilotes (`toutes`) ne lit
+que les passages lancés à la demande, et sans filtre de branche, puisqu'une version vérifiée sur `dev` arrive telle
+quelle (le même identifiant) sur `main`.
+
+**L3. Installer le serveur de `dev`** : le troisième mot de la ligne d'installation est la branche suivie (`main` par
+défaut ; un serveur des pilotes ne suit que `main`, l'installation refuse le reste) :
+
+`curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/installer.sh | sudo bash -s dev.skanfact.tn essai dev`
+
+Ce qu'il faut à Skander, une fois : un second VPS chez OVH (le plus petit, Ubuntu 24.04 ; prix **À VÉRIFIER**, de
+l'ordre de 5 à 7 € par mois), l'enregistrement `A` `dev` chez Cloudflare vers son adresse (nuage gris, comme `app` et
+`console`), puis cette ligne dans la console du VPS. Un seul VPS pour les deux a été écarté : une version de travail qui
+consomme trop ralentirait la version stable.
+
 ## Reste à faire avant les testeurs
 
 - ~~Une fiche pour les testeurs~~ : `docs/testeurs.md` (05/10/2026).

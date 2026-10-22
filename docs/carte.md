@@ -852,6 +852,9 @@ vaut pour tout le dépôt.*
   (`exploitation/suivre.ts`, toutes les deux minutes) et installe la plus récente version que GitHub a vérifiée en
   vert ; un réglage du serveur passe par une tâche d'entretien (`exploitation/taches/NNNN-nom.sh`, une fois chacune).
   Son état se lit à `https://app.skanfact.tn/etat.json` (serveur d'essai seulement ; `/etat`, la page publique, partout).
+  (1.106.0) **Deux branches, deux serveurs** (`docs/mise-en-ligne.md`, L) : le travail arrive sur `dev`
+  (`dev.skanfact.tn`) ; `main` (`app.skanfact.tn`) ne reçoit qu'une version de `dev` passée par toutes les preuves
+  (`tests/promouvoir.sh`).
   **Deux sortes de serveurs** (`installer.sh <adresse> essai|pilotes`, B bis) : l'essai (données inventées) et les
   pilotes (vraies données : relais d'e-mails exigé, aucun état détaillé public, **jamais l'accès de Claude**).
   **Claude a la main dessus** (Skander, 05/10/2026) :

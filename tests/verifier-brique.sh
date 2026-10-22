@@ -10,9 +10,9 @@
 set -u
 ICI="$(cd "$(dirname "$0")/.." && pwd)"
 : "${PG_ADMIN:?PG_ADMIN manque (adresse d'un compte d'administration PostgreSQL)}"
-BASE="${BASE:-origin/main}"
+BASE="${BASE:-origin/dev}"
 cd "$ICI" || exit 2
-git rev-parse --verify -q "$BASE^{commit}" >/dev/null || { echo "BASE=$BASE introuvable (git fetch origin main ?)" >&2; exit 2; }
+git rev-parse --verify -q "$BASE^{commit}" >/dev/null || { echo "BASE=$BASE introuvable (git fetch origin dev ?)" >&2; exit 2; }
 etape() { echo; echo "── $1"; }
 
 etape "Types"; npm run -s types || exit 1
