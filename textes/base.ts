@@ -167,6 +167,12 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'l\'application est déjà fermée pendant cette maintenance', cle: 'base.service.deja_fermee_pendant', fr: 'l\'application est déjà fermée pendant cette maintenance' },
   { base: 'l\'application est déjà fermée : rouvre-la, ou attends la fin de la maintenance', cle: 'base.service.deja_fermee', fr: 'l\'application est déjà fermée : rouvre-la, ou attends la fin de la maintenance' },
   { base: 'l\'application n\'est pas fermée par cette maintenance en ce moment', cle: 'base.service.pas_fermee', fr: 'l\'application n\'est pas fermée par cette maintenance en ce moment' },
+  // 0166 (1.113.0) : les exercices de crise.
+  { base: 'un exercice se note le jour où il est joué : commencé il y a moins de douze heures', cle: 'base.service.exercice_trop_vieux', fr: 'un exercice se note le jour où il est joué : commencé il y a moins de douze heures' },
+  { base: 'un exercice dit ses quatre temps : contenir, dire, réparer, écrire', cle: 'base.service.exercice_quatre_temps', fr: 'un exercice dit ses quatre temps : contenir, dire, réparer, écrire' },
+  { base: 'chaque temps fait l\'est entre le début et la fin de l\'exercice, à la minute', cle: 'base.service.exercice_temps_hors', fr: 'chaque temps fait l\'est entre le début et la fin de l\'exercice, à la minute' },
+  { base: 'les temps se font dans l\'ordre de la fiche : contenir, dire, réparer, écrire', cle: 'base.service.exercice_ordre', fr: 'les temps se font dans l\'ordre de la fiche : contenir, dire, réparer, écrire' },
+  { base: 'un exercice n\'est réussi que si ses quatre temps ont été faits', cle: 'base.service.exercice_reussi_incomplet', fr: 'un exercice n\'est réussi que si ses quatre temps ont été faits' },
   { base: 'cet identifiant d\'écriture est déjà pris : rien n\'a été enregistré', cle: 'base.compta.identifiant_pris', fr: 'cet identifiant d\'écriture est déjà pris : rien n\'a été enregistré' },
   { base: 'cette écriture est déjà validée : elle se contre-passe, elle ne se revalide pas', cle: 'base.compta.deja_validee_ecriture', fr: 'cette écriture est déjà validée : elle se contre-passe, elle ne se revalide pas' },
   { base: 'elle est datée du %s : une écriture ne se valide pas avant son jour', cle: 'base.compta.valider_avant_son_jour', fr: 'elle est datée du {jour} : une écriture ne se valide pas avant son jour', valeurs: ['jour'] },

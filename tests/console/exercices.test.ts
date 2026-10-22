@@ -123,13 +123,13 @@ describe('noter un exercice (0166)', () => {
 
   it('la base refuse ce qui ne s\'est pas joué ainsi, et dit pourquoi', async () => {
     const refus = async (corps: Record<string, unknown>) => { const r = await noter(direction, corps); expect(r.statut, JSON.stringify(r.corps)).toBe(403); return r.corps.motif; };
-    expect(await refus(exercice(13 * 60))).toBe('un exercice se note le jour où il est joué : commencé il y a moins de douze heures');
-    expect(await refus(exercice(-5))).toBe('un exercice se note le jour où il est joué : commencé il y a moins de douze heures');
+    expect(await refus(exercice(13 * 60))).toBe('Un exercice se note le jour où il est joué : commencé il y a moins de douze heures.');
+    expect(await refus(exercice(-5))).toBe('Un exercice se note le jour où il est joué : commencé il y a moins de douze heures.');
     // Un temps après la fin (l'exercice a duré 30 minutes, l'écrit serait à la 37e).
-    expect(await refus(exercice(30))).toBe('chaque temps fait l\'est entre le début et la fin de l\'exercice, à la minute');
-    expect(await refus(exercice(40, { temps: [1, 22, 4, 37] }))).toBe('les temps se font dans l\'ordre de la fiche : contenir, dire, réparer, écrire');
+    expect(await refus(exercice(30))).toBe('Chaque temps fait l\'est entre le début et la fin de l\'exercice, à la minute.');
+    expect(await refus(exercice(40, { temps: [1, 22, 4, 37] }))).toBe('Les temps se font dans l\'ordre de la fiche : contenir, dire, réparer, écrire.');
     // Un temps sauté ne casse pas l'ordre des autres ; il interdit seulement de dire l'exercice réussi.
-    expect(await refus(exercice(40, { temps: [1, null, 22, 37] }))).toBe('un exercice n\'est réussi que si ses quatre temps ont été faits');
+    expect(await refus(exercice(40, { temps: [1, null, 22, 37] }))).toBe('Un exercice n\'est réussi que si ses quatre temps ont été faits.');
     expect((await noter(direction, exercice(40, { temps: [1, null, 22, 37], reussi: false }))).statut).toBe(201);
     // Ce que la route refuse avant la base : une fiche inconnue, trois temps, un compte rendu vide.
     expect((await noter(direction, exercice(40, { fiche: 'inventee' }))).statut).toBe(400);
