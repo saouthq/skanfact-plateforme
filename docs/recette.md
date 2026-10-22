@@ -1006,6 +1006,20 @@ aux deux questions qui restaient ; Hatem les lit et les ferme. Ce que l'écran f
 - « La valider dans la saisie », le jour venu, arrivait en haut de la grille, le brouillard sous le bord de l'écran : il
   arrive au brouillard, comme « Voir le brouillard » (1.101.0).
 
+### 1.103.0 — Hatem demande une pièce, Sami l'envoie
+
+- vu et juste : Hatem demande « Le relevé BIAT d'octobre 2026 » depuis Messages ; chez Sami, le fil le montre « À
+  envoyer », il choisit le PDF au clavier, la demande passe « Reçue » des deux côtés, et le fichier arrive chez Hatem
+  sans recharger, marqué « Lue » ;
+- chez Sami, la demande ne se voyait qu'à la pastille « 1 » de « Mon comptable », au bas d'un menu à faire défiler :
+  « À faire » de l'Accueil porte désormais « Ton cabinet attend 1 pièce » (ou des réponses), du même compte que la
+  pastille, avec « Répondre » qui mène au fil ; l'Accueil ouvert se relit quand ce compte change ;
+- au Cabinet, « Ce qui attend le client » affirmait « ce client a répondu à tes questions et envoyé les pièces
+  demandées » sur un fil où rien n'avait jamais été demandé : il dit « aucune question ni pièce demandée n'attend sa
+  réponse », vrai dans tous les cas ;
+- le refus « Un message vide… » restait affiché sous la pièce qu'on était en train de nommer : un refus se lève au
+  premier mot du champ qu'il montre (message ou pièce demandée).
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

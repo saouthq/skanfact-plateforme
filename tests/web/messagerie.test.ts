@@ -108,6 +108,11 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await c.p.getByRole('button', { name: 'Demander une pièce', exact: true }).click();
     const champPiece = c.p.locator('[data-msg-demande-txt]');
     await expect.poll(() => champPiece.evaluate((e) => e === document.activeElement), { timeout: 15_000 }).toBe(true);
+    // (1.102.0) Sans nom, la pièce est refusée ; le refus se lève dès qu'on la nomme.
+    await c.p.getByRole('button', { name: 'Envoyer', exact: true }).click();
+    expect(net(await c.p.locator('[data-msg-refus]').innerText())).toMatch(/^Nomme la pièce que tu demandes/);
+    await champPiece.pressSequentially('L');
+    expect(await c.p.locator('[data-msg-refus]').innerText()).toBe('');
     await champPiece.fill('La facture STEG d\'août');
     await c.p.locator('[data-msg-texte]').fill('Il me manque une pièce pour ta TVA.');
     await c.p.getByRole('button', { name: 'Envoyer', exact: true }).click();
@@ -120,7 +125,19 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await plusTard(a.p);
     const entree = a.p.locator('nav a[data-route="comptable"]');
     await expect.poll(async () => net(await entree.innerText().catch(() => '')), { timeout: 15_000 }).toBe('Mon comptable 2');
-    await entree.click();
+    // (1.102.0) L'Accueil le dit dans « À faire », du même compte que la pastille (la pastille, au bas d'un menu à faire
+    // défiler, en était le seul signe : parcours du 21/10/2026) ; il se relit sans recharger quand ce compte change.
+    const aFaire = a.p.locator('#todo-list li', { hasText: 'Ton cabinet attend' });
+    await expect.poll(async () => net(await aFaire.innerText().catch(() => '')), { timeout: 15_000 })
+      .toBe('Ton cabinet attend 1 pièce et 1 réponse Réponds-lui dans « Mon comptable », avec le fichier qu\'il attend. Répondre');
+    const encore = await api('POST', `/entreprises/${ent}/messages`, sonia, { cote: 'cabinet', texte: '', demande: 'Le contrat de location' });
+    expect(encore.statut).toBe(201);
+    await a.p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect.poll(async () => net(await aFaire.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Ton cabinet attend 2 pièces et 1 réponse /);
+    expect((await api('POST', `/entreprises/${ent}/messages/${String(encore.corps.id)}/recue`, sonia)).statut).toBe(200);
+    await a.p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect.poll(async () => net(await aFaire.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Ton cabinet attend 1 pièce et 1 réponse /);
+    await aFaire.getByRole('button', { name: 'Répondre', exact: true }).click();
     await a.p.locator('.msg-page h1').waitFor({ timeout: 15_000 });
     expect(net(await a.p.locator('.msg-tete').innerText())).toMatch(/Mon comptable Cabinet Ben Youssef tient ta comptabilité depuis le \d\d\/\d\d\/\d{4}$/);
     const attente = a.p.locator('[data-msg-attente]');
@@ -155,6 +172,10 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     // Un message vide : refusé sous le champ, rien ne part.
     await a.p.getByRole('button', { name: 'Envoyer', exact: true }).click();
     expect(net(await a.p.locator('[data-msg-refus]').innerText())).toBe('Un message vide n\'apprend rien à ton cabinet : écris quelque chose ou joins une photo.');
+    // (1.102.0) Le refus se lève au premier mot tapé (il restait sous le message qu'on écrivait).
+    await a.p.locator('[data-msg-texte]').pressSequentially('E');
+    expect(await a.p.locator('[data-msg-refus]').innerText()).toBe('');
+    await a.p.locator('[data-msg-texte]').fill('');
     // « Parler d'une pièce » : le devis, puis un mot ; Entrée envoie.
     await a.p.getByRole('button', { name: 'Parler d\'une pièce', exact: true }).click();
     await a.p.locator('.msg-fp-ligne').filter({ hasText: 'DEV-2026-004' }).click();
@@ -201,6 +222,9 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Amine Gharbi · \d\d:\d\d Réponse à la question « Paiement » sur DEV-2026-004 Oui, accepté le 7 octobre\./);
     // Amine a ouvert le fil : sa pièce demandée, qui ne compte pas comme un message non lu, est pourtant lue.
     expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée · La facture STEG d'août Reçue Lue/);
+    // (1.102.0) Ce qui attend le client se dit sans affirmer ce qu'on ne sait pas (« ce client a répondu à tes questions »
+    // s'affichait aussi sur un fil où rien n'avait jamais été demandé).
+    expect(net(await c.p.locator('[data-msg-cote]').innerText())).toMatch(/^Ce qui attend le client Rien : aucune question ni pièce demandée n'attend sa réponse\./);
     await c.p.screenshot({ path: path.join(PHOTOS, 'messagerie-3-cabinet.png') });
     await c.p.getByRole('button', { name: 'C\'est traité', exact: true }).click();
     // Enregistré avant de changer d'écran (sur une machine lente, la boîte se relisait avant : « À traiter (1) »).

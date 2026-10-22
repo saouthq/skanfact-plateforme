@@ -868,4 +868,6 @@ export const ADAPTATIONS = [
   ...lireFichier('paie-vers-brouillard.txt'),
   // ── Une écriture datée après aujourd'hui le dit avant le geste (1.102.0) ──
   ...lireFichier('pas-avant-son-jour.txt'),
+  // ── Ce que le cabinet attend est une chose à faire, sur l'Accueil (1.102.0) ──
+  ...lireFichier('comptable-a-faire.txt'),
 ];

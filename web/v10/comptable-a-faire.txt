@@ -1,0 +1,44 @@
+Ce que le cabinet attend est une chose à faire, sur l'Accueil (1.102.0, parcours du 21/10/2026). Format : voir
+sans-paquets.mjs.
+
+Hatem demande à Sami le relevé BIAT d'octobre. Chez Sami, le seul signe était la pastille « 1 » de « Mon comptable », au
+bas d'un menu qu'il fallait faire défiler ; l'Accueil, son « À faire » compris, n'en disait rien. « À faire » porte
+désormais « Ton cabinet attend 1 pièce » (ou des réponses), le même compte que la pastille, avec « Répondre » qui mène
+au fil ; et l'Accueil ouvert se redessine quand ce compte change (jamais sous une fenêtre ni pendant une saisie).
+
+== app.js | la messagerie retient ce qu'elle disait avant de relire
+-- avant
+    const avant = avecMessagerie(messagerieVue);
+    messagerieVue = a;
+-- après
+    const avant = avecMessagerie(messagerieVue), vueAvant = messagerieVue;
+    messagerieVue = a;
+    // (plateforme) 1.102.0 — l'Accueil compte ce que le cabinet attend (« À faire ») : il se redessine quand ce compte
+    // change, jamais sous une fenêtre ni pendant une saisie.
+    const cleAttente = x => (x ? `${x.questions || 0}:${x.demandes || 0}` : '');
+    if (cleAttente(vueAvant) !== cleAttente(a) && /^(#\/dashboard)?$/.test(location.hash) && !$('#modal-root .modal')
+      && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
+-- fin
+
+== app.js | « À faire » dit ce que le cabinet attend
+-- avant
+    if (premiersPasVisibles()) items = items.filter(x => x.id !== 'societe');
+-- après
+    if (premiersPasVisibles()) items = items.filter(x => x.id !== 'societe');
+    // (plateforme) 1.102.0 — une pièce demandée ou une question sans réponse du cabinet est une chose à faire : la
+    // pastille de « Mon comptable », au bas d'un menu à faire défiler, en était le seul signe. Le même compte que la
+    // pastille et que l'encart « En attente de toi » (`bridge.messagerie.attente`).
+    const mv = messagerieVue || {};
+    const attendu = [mv.demandes ? pl(mv.demandes, 'pièce') : '', mv.questions ? pl(mv.questions, 'réponse') : ''].filter(Boolean);
+    if (attendu.length && !pageCachee('comptable')) items = [{ id: 'cabinet-attend', level: 'warn', label: `Ton cabinet attend ${attendu.join(' et ')}`,
+      detail: 'Réponds-lui dans « Mon comptable », avec le fichier qu\'il attend.' }, ...items];
+-- fin
+
+== app.js | « Répondre » mène au fil du cabinet
+-- avant
+  const TODO_ACTIONS = {
+-- après
+  const TODO_ACTIONS = {
+    // (plateforme) 1.102.0 — ce que le cabinet attend se règle dans son fil.
+    'cabinet-attend': { label: 'Répondre', run: vers('#/comptable') },
+-- fin

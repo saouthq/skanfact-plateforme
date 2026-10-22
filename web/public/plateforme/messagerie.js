@@ -357,7 +357,9 @@
       const rien = !attend.length;
       const texte = entreprise
         ? (rien ? 'Rien : aucune question ni pièce demandée n\'attend ta réponse.' : `${attend.join(' et ')} de ton cabinet.`)
-        : (rien ? 'Rien : ce client a répondu à tes questions et envoyé les pièces demandées.' : `${attend.join(' et ')} : le client n'a pas encore répondu.`);
+        // (1.102.0) Sans rien qui attend, la phrase ne dit que cela : « ce client a répondu à tes questions » s'affichait
+        // aussi sur un fil où rien n'avait jamais été demandé (parcours du 21/10/2026).
+        : (rien ? 'Rien : aucune question ni pièce demandée n\'attend sa réponse.' : `${attend.join(' et ')} : le client n'a pas encore répondu.`);
       const anciens = entreprise && (lu.anciens || []).length ? `<div class="msg-encart">
           <b>${cabinetRelu ? 'Ton cabinet d\'aujourd\'hui' : 'Tes cabinets d\'avant'}</b>
           ${cabinetRelu ? '<button type="button" class="msg-lien" data-msg-actuel>Revenir au fil de ton cabinet</button>'
@@ -562,6 +564,10 @@
       const champDemande = /** @type {HTMLElement} */ (form.querySelector('[data-msg-demande]'));
       const demandeTxt = /** @type {HTMLInputElement} */ (form.querySelector('[data-msg-demande-txt]'));
       const dire = (/** @type {string} */ t) => { refus.textContent = t; };
+      // (1.102.0) Un refus se lève au premier mot du champ qu'il montre : « Un message vide… » restait affiché sous la
+      // pièce qu'on était en train de nommer (parcours du 21/10/2026).
+      texte.addEventListener('input', () => dire(''));
+      demandeTxt.addEventListener('input', () => dire(''));
       const montrerDemande = () => {
         champDemande.hidden = !demande;
         const b = form.querySelector('[data-msg-demander]');

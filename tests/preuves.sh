@@ -18841,6 +18841,33 @@ prouver '« La valider dans la saisie » qui ouvre le haut de la grille' 'web/pu
   'if (pv) pv.onclick = () => { allerSousOnglet(root, dossier, '\''saisie'\''); };' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 
+prouver 'la boîte du Cabinet qui affirme que le client a répondu à des questions jamais posées' 'web/public/plateforme/messagerie.js' \
+  "(rien ? 'Rien : aucune question ni pièce demandée n\\'attend sa réponse.'" \
+  "(rien ? 'Rien : ce client a répondu à tes questions et envoyé les pièces demandées.'" \
+  'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+
+prouver 'le refus du message vide qui reste sous le message qu'"'"'on écrit' 'web/public/plateforme/messagerie.js' \
+  "      texte.addEventListener('input', () => dire(''));" \
+  '' \
+  'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'le refus de la pièce sans nom qui reste quand on la nomme' 'web/public/plateforme/messagerie.js' \
+  "      demandeTxt.addEventListener('input', () => dire(''));" \
+  '' \
+  'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+
+prouver 'l'\''Accueil muet sur la pièce que le cabinet attend' 'web/public/v10/app.js' \
+  '    if (attendu.length && !pageCachee('\''comptable'\'')) items = [{ id: '\''cabinet-attend'\'',' \
+  '    if (false) items = [{ id: '\''cabinet-attend'\'',' \
+  'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver '« À faire » qui ne suit pas ce que le cabinet attend sans recharger' 'web/public/v10/app.js' \
+  '    if (cleAttente(vueAvant) !== cleAttente(a) && /^(#\/dashboard)?$/.test(location.hash)' \
+  '    if (false && /^(#\/dashboard)?$/.test(location.hash)' \
+  'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver '« Répondre » qui ne mène pas au fil du cabinet' 'web/public/v10/app.js' \
+  '    '\''cabinet-attend'\'': { label: '\''Répondre'\'', run: vers('\''#/comptable'\'') },' \
+  '    '\''cabinet-attend'\'': { label: '\''Répondre'\'', run: vers('\''#/dashboard'\'') },' \
+  'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

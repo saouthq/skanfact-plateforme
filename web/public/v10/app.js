@@ -2081,8 +2081,13 @@
   // pour la barre et pour savoir s'il faut la redessiner.
   const avecMessagerie = a => !!(a && (a.cabinet || a.anciens));
   function majMessagerie(a) {
-    const avant = avecMessagerie(messagerieVue);
+    const avant = avecMessagerie(messagerieVue), vueAvant = messagerieVue;
     messagerieVue = a;
+    // (plateforme) 1.102.0 — l'Accueil compte ce que le cabinet attend (« À faire ») : il se redessine quand ce compte
+    // change, jamais sous une fenêtre ni pendant une saisie.
+    const cleAttente = x => (x ? `${x.questions || 0}:${x.demandes || 0}` : '');
+    if (cleAttente(vueAvant) !== cleAttente(a) && /^(#\/dashboard)?$/.test(location.hash) && !$('#modal-root .modal')
+      && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
     if (avant !== avecMessagerie(a)) {
       // (plateforme) 1.94.0 — la Comptabilité dit si un cabinet lit ses ventes : elle se redessine quand on l'apprend.
       if (/^#\/compta/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
@@ -8453,6 +8458,8 @@
   }
 
   const TODO_ACTIONS = {
+    // (plateforme) 1.102.0 — ce que le cabinet attend se règle dans son fil.
+    'cabinet-attend': { label: 'Répondre', run: vers('#/comptable') },
     // E-04 : la ligne mène au MOIS du premier bulletin impossible, pas à la liste du mois courant —
     // un bulletin qu'on doit chercher mois par mois ne se corrige pas.
     'bulletins-impossibles': { label: 'Voir le bulletin', run: vers('#/paie', () => {
@@ -8568,6 +8575,13 @@
     // libellé « Fiche société incomplète », c'est dire deux fois la même chose, dont une fois comme
     // un reproche, à quelqu'un qui vient de finir l'assistant.
     if (premiersPasVisibles()) items = items.filter(x => x.id !== 'societe');
+    // (plateforme) 1.102.0 — une pièce demandée ou une question sans réponse du cabinet est une chose à faire : la
+    // pastille de « Mon comptable », au bas d'un menu à faire défiler, en était le seul signe. Le même compte que la
+    // pastille et que l'encart « En attente de toi » (`bridge.messagerie.attente`).
+    const mv = messagerieVue || {};
+    const attendu = [mv.demandes ? pl(mv.demandes, 'pièce') : '', mv.questions ? pl(mv.questions, 'réponse') : ''].filter(Boolean);
+    if (attendu.length && !pageCachee('comptable')) items = [{ id: 'cabinet-attend', level: 'warn', label: `Ton cabinet attend ${attendu.join(' et ')}`,
+      detail: 'Réponds-lui dans « Mon comptable », avec le fichier qu\'il attend.' }, ...items];
     // Rien à faire et rien du tout ne sont pas la même chose. « Aucun retard, aucun contrat en
     // attente » sur une entreprise qui n'a jamais rien facturé, c'est féliciter quelqu'un pour un
     // travail qu'il n'a pas commencé. Dans ce cas la place revient aux premiers pas.
