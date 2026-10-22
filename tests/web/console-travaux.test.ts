@@ -106,6 +106,14 @@ describe('les travaux et les envois du service, à la souris', () => {
     expect(facteur).not.toMatch(/\bBon\b/);
     const tache = net(await p.locator('.c-tr-tache').filter({ hasText: 'Le facteur de la TTN' }).innerText());
     expect(tache).toMatch(/il ne tourne pas/);
+    // Chaque partenaire qu'aucun réglage ne branche ici le dit, comme la TTN (recette du 22/10/2026 : la signature et les
+    // SMS, sans DigiGo ni fournisseur de SMS sur ce serveur, disaient « 0 · Bon »). Le paiement en ligne de l'essai, lui,
+    // est réglé (son coffre de test) : il reste branché.
+    const cartes = await p.locator('.c-tr-partenaire').evaluateAll((l) => l.map((c) => [c.querySelector('h3')?.textContent ?? '', c.querySelector('.c-tr-compte')?.textContent ?? '']));
+    expect(cartes.map(([n, c]) => `${n} : ${/pas branché/i.test(c ?? '') ? 'pas branché' : 'branché'}`)).toEqual([
+      'La TTN : pas branché', 'La signature : pas branché', 'Les SMS : pas branché', 'Les paiements en ligne : branché',
+      'Les relances d\'abonnement : pas branché', 'Les e-mails : pas branché',
+    ]);
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);

@@ -19184,6 +19184,28 @@ prouver 'le contrôle d'\''équilibre repassé par la sécurité par ligne' 'bas
   'select 1;' \
   'le contrôle d'\''équilibre des écritures, qui tourne à chaque ligne, ne repasse pas par la sécurité par ligne'
 
+# ── 1.111.0 : la recette de la console (Réglages, Versions, Sécurité, Données personnelles, Travaux) ──
+prouver 'la pastille des messages muette pour un lecteur d'\''écran' 'web/console/src/ecrans/Reglages.tsx' \
+  '<span className="c-cache">{dire(`${K}.onglet.affiche`)}</span>' \
+  '' \
+  'écrire, remplacer, retirer : le bandeau du client suit'
+prouver 'le suiveur muet qui ne dit pas depuis quand' 'web/console/src/ecrans/Versions.tsx' \
+  'phrase(`${V}.k.suiveur_arrete`, { silence: minutes(silence / 60_000) })' \
+  'phrase(`${V}.k.suiveur_arrete`, { silence: dire(`${V}.k.six_minutes`) })' \
+  'un suiveur muet depuis des jours le dit en jours'
+prouver 'les consignes lues un autre jour, dites à la seule heure' 'web/console/src/ecrans/Versions.tsx' \
+  '{ heure: lues ? aQuelleHeure(lues, d.aujourdhui) : '\'''\'' }' \
+  '{ heure: lues ? `à ${heureDe(lues)}` : '\'''\'' }' \
+  'ses consignes lues disent leur jour'
+prouver 'l'\''adresse illisible refusée après le motif' 'web/console/src/ecrans/Securite.tsx' \
+  '    if (!adresseLisible(ip.trim())) { fauter('\''adresse'\'', phrase(`${S}.ad.f.adresse_illisible`)); return; }' \
+  '    if (!adresseLisible(ip.trim()) && motif.trim().length >= 3) { fauter('\''adresse'\'', phrase(`${S}.ad.f.adresse_illisible`)); return; }' \
+  'une adresse illisible se refuse avant le motif vide'
+prouver 'la signature sans DigiGo dite « Bon »' 'web/console/src/ecrans/Travaux.tsx' \
+  '  const branche = (p: Partenaire) => d.branches[p === '\''relances'\'' ? '\''courriel'\'' : p];' \
+  '  const branche = (p: Partenaire) => (p === '\''relances'\'' ? d.branches.courriel : p === '\''ttn'\'' ? d.branches.ttn : true);' \
+  'une TTN sans adresse est « pas branchée », jamais « bonne »'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

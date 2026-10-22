@@ -1470,8 +1470,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
           aRegarder: lu.aRegarder.map(({ motif: m, ...r }) => ({ ...r, attente: attenteDe({ ...r, motif: m }), motifCle: m?.cle ?? null,
             motifTexte: m && roleDe(qui) === 'direction' ? texteDuMotif(m) : null })),
           nuit: v.nuits.at(-1) ?? null, exercice: v.exercice, version: v.dernier?.version ?? null,
-          // La TTN est branchée par son adresse (le contexte porte toujours son coffre) ; le relais d'e-mails, par sa présence.
-          branches: { ttn: Boolean(ctx.ttn?.adresse), courriel: Boolean(ctx.courriel) },
+          // La TTN est branchée par son adresse (le contexte porte toujours son coffre) ; le relais d'e-mails, par sa présence ;
+          // DigiGo, les SMS et le paiement en ligne, comme partout ailleurs (recette du 22/10/2026 : « Bon » sur des partenaires
+          // qu'aucun réglage ne branchait, quand la TTN disait « pas branché »).
+          branches: { ttn: Boolean(ctx.ttn?.adresse), courriel: Boolean(ctx.courriel), signature: Boolean(ctx.efacture?.digigo),
+            sms: ctx.sms.disponible !== false, paiements: Boolean(ctx.paiement) },
         },
       };
     },

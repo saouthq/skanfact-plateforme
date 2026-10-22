@@ -50,6 +50,15 @@ export function quand(instant: string | null | undefined, aujourdhui: string): s
   return `${jour}, ${heureDe(instant)}`;
 }
 
+// À quelle heure, et quel jour quand ce n'est pas aujourd'hui : « à 08:12 », « hier à 19:40 », « le 03/10/2026 à 14:02 »
+// (recette du 22/10/2026 : « lues à 18:10 » se lisait aujourd'hui, pour un tour vieux de neuf jours).
+export function aQuelleHeure(instant: string, aujourdhui: string): string {
+  const j = jourDe(instant), heure = heureDe(instant);
+  const n = joursEntre(j, aujourdhui);
+  return n === 0 ? dire('console.ecran.temps.a_heure', { heure }) : n === 1 ? dire('console.ecran.temps.hier_a', { heure })
+    : dire('console.ecran.temps.le_a', { jour: jourCourt(j), heure });
+}
+
 // Il y a combien de temps, pour ce qui se compte en minutes (le dernier passage de la veille).
 export function ilYA(instant: string, maintenant = Date.now()): string {
   const min = Math.floor((maintenant - new Date(instant).getTime()) / 60_000);

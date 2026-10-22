@@ -10,8 +10,8 @@
 import { useState } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts';
-import { duree as dureeMs, entier, pourCent } from '../nombres.ts';
-import { heureDe, jourCourt, jourDe, quand } from '../temps.ts';
+import { duree as dureeMs, entier, minutes, pourCent } from '../nombres.ts';
+import { aQuelleHeure, heureDe, jourCourt, jourDe, quand } from '../temps.ts';
 import { nomDeVersion } from '../version.ts';
 import { Alerte, Bouton, Choix, Dialogue, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
 import { EnteteService, EtatPuce, Tuile, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type EtatBrique, type Veille } from './Service.tsx';
@@ -79,7 +79,7 @@ function Chiffres({ d }: { d: Donnees }) {
             + (enService?.dureeS !== null && enService?.dureeS !== undefined ? ` · ${dire(`${V}.k.en`, { duree: duree(enService.dureeS) })}` : '') : phrase(`${V}.k.suiveur_muet`)} />
         <Tuile titre={titre(`${V}.k.suiveur`)} etat={etatSuiveur} mot
           valeur={s?.regardeLe ? maj(quand(s.regardeLe, d.aujourdhui)) : titre(`${V}.k.pas_lu`)}
-          sous={silence !== null && silence > SUIVEUR_ARRETE_MS ? phrase(`${V}.k.suiveur_arrete`)
+          sous={silence !== null && silence > SUIVEUR_ARRETE_MS ? phrase(`${V}.k.suiveur_arrete`, { silence: minutes(silence / 60_000) })
             : phrase(`${V}.k.suiveur_sous`, { attend: dire(`${V}.verif.${s?.verification ?? 'toutes'}`) })} />
         <Tuile titre={titre(`${V}.k.prochaine`)} {...(etatProchaine ? { etat: etatProchaine } : {})} mot={!p} donnee={Boolean(p)}
           valeur={p ? nomDeVersion(p.version, d.numeros) : titre(`${V}.k.a_jour`)}
@@ -210,8 +210,8 @@ function Consignes({ d, geste }: { d: Donnees; geste: (g: Geste) => void }) {
     <section className="c-carte c-ve-consignes" aria-labelledby="ve-consignes">
       <div className="c-al-section-tete"><div>
         <h2 id="ve-consignes">{titre(`${V}.c.titre`)}</h2>
-        {illisibles ? <Alerte ton="attention"><span>{phrase(lues ? `${V}.c.illisibles` : `${V}.c.illisibles_jamais`, { heure: heureDe(illisibles), lues: lues ? heureDe(lues) : '' })}</span></Alerte>
-          : <p className="c-carte-sous">{phrase(lues ? `${V}.c.lues` : `${V}.c.pas_lues`, { heure: lues ? heureDe(lues) : '' })}</p>}
+        {illisibles ? <Alerte ton="attention"><span>{phrase(lues ? `${V}.c.illisibles` : `${V}.c.illisibles_jamais`, { heure: aQuelleHeure(illisibles, d.aujourdhui), lues: lues ? aQuelleHeure(lues, d.aujourdhui) : '' })}</span></Alerte>
+          : <p className="c-carte-sous">{phrase(lues ? `${V}.c.lues` : `${V}.c.pas_lues`, { heure: lues ? aQuelleHeure(lues, d.aujourdhui) : '' })}</p>}
       </div></div>
       {d.consignes.length ? (
         <ul className="c-ve-consignes-liste">

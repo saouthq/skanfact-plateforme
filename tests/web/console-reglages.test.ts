@@ -545,6 +545,8 @@ describe('les réglages de la plateforme, à la souris', () => {
     // Qui l'a écrit et pourquoi, sans point derrière les deux-points ; et pas encore de message passé.
     expect(net(await p.locator('.c-rg-actuel').innerText())).toMatch(/Écrit par Amira Réglages, aujourd'hui, \d\d:\d\d : « annonce de la relance »$/);
     expect(net(await p.locator('main').innerText())).toContain('Aucun message passé : celui d\'au-dessus est le premier.');
+    // La pastille de l'onglet se lit aussi sans la voir (1.111.0, recette du 22/10/2026 : un « 1 » caché, rien à sa place).
+    expect(net(await p.locator('.c-onglets a[aria-current="page"]').textContent() ?? '')).toBe('Messages aux clients1un message affiché en ce moment');
     let c = await client();
     const bandeau = c.locator('#view > .sk-message');
     await expect.poll(() => bandeau.count(), { timeout: 20_000 }).toBe(1);

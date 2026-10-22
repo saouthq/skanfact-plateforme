@@ -1363,7 +1363,7 @@ export function Reglages({ onglet: demande }: { onglet: string | null }) {
             {o === 'formats' && aRegarder ? (
               <><span className="c-onglet-n" aria-hidden="true">{entier(aRegarder)}</span><span className="c-cache">{selon(aRegarder, `${K}.onglet.a_regarder`, { n: entier(aRegarder) })}</span></>
             ) : null}
-            {o === 'messages' && d?.message ? <span className="c-onglet-n" aria-hidden="true">1</span> : null}
+            {o === 'messages' && d?.message ? <><span className="c-onglet-n" aria-hidden="true">1</span><span className="c-cache">{dire(`${K}.onglet.affiche`)}</span></> : null}
             {o === 'nouveautes' && d && allumees(d) ? <><span className="c-onglet-n" aria-hidden="true">{entier(allumees(d))}</span><span className="c-cache">{selon(allumees(d), `${K}.onglet.allumees`, { n: entier(allumees(d)) })}</span></> : null}
           </a>
         ))}

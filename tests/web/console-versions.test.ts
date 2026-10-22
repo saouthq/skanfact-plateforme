@@ -275,4 +275,21 @@ describe('les versions du service, à la souris', () => {
       await fermer(p);
     } finally { fs.writeFileSync(etat, avant); }
   }, 60_000);
+
+  it('un suiveur muet depuis des jours le dit en jours, pas « plus de six minutes » ; ses consignes lues disent leur jour', async () => {
+    // Recette du 22/10/2026 : le suiveur se taisait depuis neuf jours, la tuile disait « depuis plus de six minutes ».
+    const avant = fs.readFileSync(etat, 'utf8');
+    // Les consignes lues au même dernier tour : « lues à 18:10 » se lisait aujourd'hui ; le jour se dit.
+    const tour = new Date(Date.now() - (2 * 24 * 60 + 3 * 60 + 10) * 60_000).toISOString();
+    fs.writeFileSync(etat, JSON.stringify({ ...JSON.parse(avant), regardeLe: tour, consignes: { lues: tour, gel: null, retenues: [], retour: null } }));
+    try {
+      const p = await ouvrir();
+      const tuile = p.locator('.c-sv-tuile').filter({ hasText: 'Le suiveur' });
+      await expect.poll(async () => net(await tuile.innerText().catch(() => '')), { timeout: 10_000 })
+        .toMatch(/Il n'a pas regardé le dépôt depuis 2 j 3 h \(il passe toutes les deux minutes\) : plus rien ne s'installe\.$/);
+      expect(net(await p.locator('.c-ve-consignes .c-carte-sous').innerText())).toMatch(/^Le suiveur les a lues le \d\d\/\d\d\/\d{4} à \d\d:\d\d, à son dernier tour\.$/);
+      expect(erreurs).toEqual([]);
+      await fermer(p);
+    } finally { fs.writeFileSync(etat, avant); }
+  }, 60_000);
 });

@@ -1204,7 +1204,7 @@ describe('les travaux et les envois du service (0090, docs/console.md C25)', () 
     await admin.query('commit');
   }
   type Lu = { aRegarder: { cle: string; entreprise: { id: string; nom: string } | null; statut: string; attente: string; motifCle: string | null; motifTexte: string | null }[];
-    tours: { nom: string; etat: string; tour: { echec: string | null } | null }[]; branches: { ttn: boolean; courriel: boolean }; sansTrace: string[] };
+    tours: { nom: string; etat: string; tour: { echec: string | null } | null }[]; branches: { ttn: boolean; courriel: boolean; signature: boolean; sms: boolean; paiements: boolean }; sansTrace: string[] };
   const lire = async (j: string) => (await appeler('GET', '/console/service/travaux', j)).corps as Lu;
 
   it('ce qui reste à regarder : une clé courte prise à la FIN de l\'identifiant, qui attend quoi ; le nom et le motif pour la direction seule', async () => {
@@ -1247,7 +1247,7 @@ describe('les travaux et les envois du service (0090, docs/console.md C25)', () 
     expect(d.tours.find((x) => x.nom === 'paiements')).toMatchObject({ etat: 'echec', tour: { echec: 'ECONNREFUSED' } });
     const brut = (await admin.query("select compte from plateforme.service_tour where nom = 'contrats'")).rows[0].compte;
     expect(brut).toEqual({ emises: 2 });
-    expect(d.branches).toEqual({ ttn: false, courriel: false });
+    expect(d.branches).toMatchObject({ ttn: false, courriel: false, signature: false });
     // Le serveur porte toujours le coffre de la TTN, même sans son adresse : ce n'est pas un accès.
     const sansAdresse: Contexte = { ...ctx, ttn: { adresse: null, coffre: Buffer.alloc(32) } };
     const autre = creerApp(sansAdresse, routesConsole(sansAdresse, { veille }));
