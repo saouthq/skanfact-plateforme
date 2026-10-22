@@ -140,14 +140,15 @@
    *   retour?: { texte: string, aller: () => void },
    *   demander?: boolean,
    *   pieces?: () => { genre: string, id: string, libelle: string, date?: string }[],
-   *   ouvrirPiece?: (genre: string, id: string) => boolean,
+   *   ouvrirPiece?: (genre: string, id: string, libelle: string) => boolean,
+   *   saisirPiece?: (message: { id: string, ecritLe: string, fichier: { id: string, nom: string, type: string } }) => void,
    *   pieceDuNumero?: (numero: string) => { genre: string, id: string } | null,
    *   repondre?: (question: string, texte: string) => Promise<void>,
    *   rangerAchat?: (message: { id: string, nom: string, type: string, contenu: string }) => void,
    *   voirMandat?: () => void,
    *   inviter?: () => void,
    *   revision?: () => void,
-   *   surAttente?: (a: { nonLus: number, questions: number, demandes: number }) => void,
+   *   surAttente?: (a: { nonLus: number, questions: number, demandes: number, enRetard?: number }) => void,
    *   integre?: boolean,
    *   enGrand?: () => void,
    * }} o
@@ -198,10 +199,23 @@
           <span class="msg-avatar" aria-hidden="true">${esc(initiales(nomAutre))}</span>
           <span class="msg-tete-txt"><h1>${entreprise ? 'Mon comptable' : esc(nomAutre)}</h1>${sous ? `<span class="msg-sous">${sous}</span>` : ''}</span>
         </header>`;
-      // (1.115.0) Ce qui s'ajoute au message (la pièce demandée, une pièce, un fichier) se range SOUS les boutons : posé
-      // au-dessus, il faisait descendre « Envoyer » sous le curseur.
+      // (1.115.0, 1.116.0) Ce qui s'ajoute au message (la pièce demandée, une pièce, un fichier) se range AU-DESSUS du champ :
+      // la zone d'écriture tient au bas de l'écran, ce qui s'ouvre sous les boutons les faisait remonter sous le curseur.
       const ecrire = f && f.actif ? `<form class="msg-ecrire" data-msg-ecrire novalidate>
               <label class="msg-cache" for="msg-texte${integre ? '-i' : ''}">${entreprise ? 'Ton message à ton cabinet' : 'Ton message à ce client'}</label>
+              ${/* (1.116.0) Plusieurs pièces en une fois (dix au plus), et la date « pour le » : passée sans réponse, la demande
+                 se relance seule par e-mail (une par semaine, trois au plus). Vide, elle ne se relance pas. */''}
+              <div class="msg-demande" data-msg-demande hidden>
+                <span class="msg-demande-titre" id="msg-dt${integre ? '-i' : ''}">Les pièces que tu demandes</span>
+                <div class="msg-demande-liste" data-msg-demande-liste>
+                  <input type="text" maxlength="300" placeholder="Par exemple : la facture STEG d'août" data-msg-demande-txt aria-labelledby="msg-dt${integre ? '-i' : ''}"></div>
+                <span class="msg-demande-pied">
+                  <button type="button" class="msg-lien" data-msg-demande-plus>+ Une autre pièce</button>
+                  <label class="msg-demande-pour"><span>Pour le</span><input type="date" data-msg-demande-pour></label>
+                  <span class="small muted">Sans réponse à cette date, ${esc(nomAutre)} reçoit un rappel par e-mail (une fois par semaine, trois au plus).</span>
+                </span>
+              </div>
+              <div class="msg-joints" data-msg-joints hidden></div>
               <textarea id="msg-texte${integre ? '-i' : ''}" rows="2" maxlength="4000" placeholder="Écris à ${esc(nomAutre)}…" data-msg-texte></textarea>
               <p class="msg-refus" role="alert" data-msg-refus></p>
               <div class="msg-gestes">
@@ -213,9 +227,6 @@
                 </span>
                 <button type="submit" class="btn btn-primary" data-msg-envoyer>Envoyer</button>
               </div>
-              <label class="msg-demande" data-msg-demande hidden><span>La pièce que tu demandes</span>
-                <input type="text" maxlength="300" placeholder="Par exemple : la facture STEG d'août" data-msg-demande-txt></label>
-              <div class="msg-joints" data-msg-joints hidden></div>
             </form>` : '';
       el.innerHTML = integre
         ? `<div class="msg-page msg-integre msg-cabinet">${tete}
@@ -267,23 +278,31 @@
       let corps = '';
       if (m.texte) corps += `<div class="msg-bulle">${esc(m.texte)}</div>`;
       if (m.piece) {
-        const ouvre = entreprise && o.ouvrirPiece ? `<button type="button" class="msg-lien" data-msg-ouvrir="${esc(m.piece.genre)}:${esc(m.piece.id)}">Ouvrir</button>` : '';
+        // (1.116.0) « Ouvrir » des deux côtés : chez le cabinet, la pièce se cherche dans les livres du client, par son numéro.
+        const ouvre = o.ouvrirPiece ? `<button type="button" class="msg-lien" data-msg-ouvrir="${esc(m.piece.genre)}:${esc(m.piece.id)}" data-msg-libelle="${esc(m.piece.libelle)}">Ouvrir</button>` : '';
         // (1.115.0) Le genre en titre, le libellé dessous : au téléphone, « Achat · » restait seul au bout de sa ligne.
         corps += `<div class="msg-carte">${dessin('piece')}<span class="msg-carte-txt"><b>${esc(GENRES[m.piece.genre] || 'Pièce')}</b><span>${esc(m.piece.libelle)}</span></span>${ouvre}</div>`;
       }
       if (m.demande) {
         const recue = !!m.demande.recueLe;
+        // (1.116.0) Sa date « pour le », et passée sans réponse, « En retard », des deux côtés ; côté cabinet, les relances
+        // parties (le client ne voit que la date : la relance est un e-mail, pas un reproche dans le fil).
+        const retard = !recue && !!m.demande.enRetard;
         const geste = recue || !actif ? ''
           : entreprise ? `<button type="button" class="btn btn-sm btn-primary" data-msg-envoyer-piece="${esc(m.id)}">Envoyer la pièce…</button>`
             : `<button type="button" class="btn btn-sm" data-msg-recue="${esc(m.id)}">Reçue autrement</button>`;
-        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>Pièce demandée</b><span>${esc(m.demande.texte)}</span></span>
-          <span class="msg-etat">${recue ? 'Reçue' : entreprise ? 'À envoyer' : 'Attendue'}</span>${geste}</div>`;
+        const pour = m.demande.pour && !recue ? `<span class="msg-pour">pour le ${esc(dateCourte(m.demande.pour))}</span>` : '';
+        const relances = !entreprise && m.demande.relances && !recue
+          ? `<span class="msg-carte-sous">${m.demande.relances > 1 ? `Relancée ${m.demande.relances} fois par e-mail, la dernière le` : 'Relancée par e-mail le'} ${esc(dateCourte(jourCle(m.demande.relanceLe)))}${m.demande.relances >= 3 ? ' : plus de relance automatique' : ''}</span>` : '';
+        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}${retard ? ' retard' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>Pièce demandée</b><span>${esc(m.demande.texte)}</span>${pour}</span>
+          <span class="msg-etat">${recue ? 'Reçue' : retard ? 'En retard' : entreprise ? 'À envoyer' : 'Attendue'}</span>${geste}${relances}</div>`;
       }
       if (m.fichier) {
         corps += `<div class="msg-fichier">${dessin(m.fichier.type === 'application/pdf' ? 'piece' : 'image')}
           <span class="msg-carte-txt"><b>${esc(m.fichier.nom)}</b><span class="msg-poids">${esc(m.fichier.type === 'application/pdf' ? 'PDF' : 'Photo')} · ${esc(poids(m.fichier.taille))}</span></span>
           <button type="button" class="msg-lien" data-msg-fichier="${esc(m.fichier.id)}">Ouvrir</button>
-          <button type="button" class="msg-lien" data-msg-enregistrer="${esc(m.fichier.id)}" aria-label="Enregistrer ${esc(m.fichier.nom)}">Enregistrer</button></div>`;
+          <button type="button" class="msg-lien" data-msg-enregistrer="${esc(m.fichier.id)}" aria-label="Enregistrer ${esc(m.fichier.nom)}">Enregistrer</button>
+          ${!entreprise && m.cote === 'entreprise' && o.saisirPiece && actif ? `<button type="button" class="msg-lien" data-msg-saisir="${esc(m.id)}">Saisir cette pièce</button>` : ''}</div>`;
       }
       if (m.repondA) {
         const d = demandes().get(m.repondA);
@@ -380,7 +399,7 @@
       const f = lu.fil;
       /** @type {string[]} */ const attend = [];
       if (a.questions) attend.push(pl(a.questions, 'question sans réponse', 'questions sans réponse'));
-      if (a.demandes) attend.push(pl(a.demandes, 'pièce demandée', 'pièces demandées'));
+      if (a.demandes) attend.push(pl(a.demandes, 'pièce demandée', 'pièces demandées') + (a.enRetard ? ` (${a.enRetard === a.demandes ? (a.demandes > 1 ? 'toutes en retard' : 'en retard') : `dont ${a.enRetard} en retard`})` : ''));
       const rien = !attend.length;
       const texte = entreprise
         ? (rien ? 'Rien : aucune question ni pièce demandée n\'attend ta réponse.' : `${attend.join(' et ')} de ton cabinet.`)
@@ -502,8 +521,15 @@
         const b = /** @type {HTMLElement} */ (n);
         b.onclick = () => {
           const [genre = '', id = ''] = String(b.dataset.msgOuvrir).split(':');
-          if (o.ouvrirPiece && !o.ouvrirPiece(genre, id) && o.toast) o.toast('Cette pièce n\'est plus dans ton dossier : elle a été supprimée.', true);
+          if (o.ouvrirPiece && !o.ouvrirPiece(genre, id, String(b.dataset.msgLibelle || '')) && o.toast) o.toast('Cette pièce n\'est plus dans ton dossier : elle a été supprimée.', true);
         };
+      });
+      // (1.116.0) « Saisir cette pièce » : la photo s'ouvre à côté, la saisie du client au mois du message (le cabinet).
+      surClic(fil, '[data-msg-saisir]', async (b) => {
+        const m = [...(lu.messages || []), ...anciensMessages].find((x) => x.id === b.dataset.msgSaisir);
+        if (!m || !m.fichier || !o.saisirPiece) return;
+        await ouvrirFichier(o.appel, String(m.fichier.id));
+        o.saisirPiece({ id: m.id, ecritLe: m.ecritLe, fichier: m.fichier });
       });
       surClic(fil, '[data-msg-recue]', async (b) => {
         await o.appel('POST', `/messages/${encodeURIComponent(String(b.dataset.msgRecue))}/recue`);
@@ -608,6 +634,23 @@
       const refus = /** @type {HTMLElement} */ (form.querySelector('[data-msg-refus]'));
       const champDemande = /** @type {HTMLElement} */ (form.querySelector('[data-msg-demande]'));
       const demandeTxt = /** @type {HTMLInputElement} */ (form.querySelector('[data-msg-demande-txt]'));
+      const listeDemandes = /** @type {HTMLElement} */ (form.querySelector('[data-msg-demande-liste]'));
+      const pourChamp = /** @type {HTMLInputElement} */ (form.querySelector('[data-msg-demande-pour]'));
+      // La date proposée : dans sept jours (jour de Tunis) ; pas avant aujourd'hui.
+      const dansSeptJours = () => jourCle(Date.now() + 7 * 86_400_000);
+      pourChamp.min = jourCle(Date.now());
+      pourChamp.value = dansSeptJours();
+      const lesDemandes = () => [...listeDemandes.querySelectorAll('[data-msg-demande-txt]')].map((x) => /** @type {HTMLInputElement} */ (x).value.trim()).filter(Boolean);
+      const plus = /** @type {HTMLButtonElement} */ (form.querySelector('[data-msg-demande-plus]'));
+      plus.onclick = () => {
+        const n = listeDemandes.querySelectorAll('[data-msg-demande-txt]').length;
+        if (n >= 10) { dire('Dix pièces au plus dans une demande : envoie celle-ci, puis une autre.'); return; }
+        const i = document.createElement('input');
+        i.type = 'text'; i.maxLength = 300; i.dataset.msgDemandeTxt = ''; i.setAttribute('aria-label', `Pièce demandée ${n + 1}`);
+        i.addEventListener('input', () => dire(''));
+        listeDemandes.appendChild(i);
+        i.focus();
+      };
       const dire = (/** @type {string} */ t) => { refus.textContent = t; };
       // (1.102.0) Un refus se lève au premier mot du champ qu'il montre : « Un message vide… » restait affiché sous la
       // pièce qu'on était en train de nommer (parcours du 21/10/2026).
@@ -642,7 +685,8 @@
         e.preventDefault();
         if (envoyer.disabled) return;
         const t = texte.value.trim();
-        const d = demande ? demandeTxt.value.trim() : '';
+        const ds = demande ? lesDemandes() : [];
+        const d = ds[0] || '';
         if (demande && !d) { dire('Nomme la pièce que tu demandes (par exemple : la facture STEG d\'août), puis « Envoyer ».'); demandeTxt.focus(); return; }
         if (!t && !fichier && !d && !piece) { dire(entreprise ? 'Un message vide n\'apprend rien à ton cabinet : écris quelque chose ou joins une photo.' : 'Un message vide n\'apprend rien à ton client : écris quelque chose, joins un fichier ou demande une pièce.'); texte.focus(); return; }
         envoyer.disabled = true;
@@ -650,8 +694,12 @@
         try {
           let depot = null;
           if (fichier) depot = await o.appel('POST', '/messages/fichiers', { cote: o.cote, nom: fichier.name, contenu: await enBase64(fichier) });
-          await o.appel('POST', '/messages', { cote: o.cote, texte: t, piece, demande: d || null, fichier: depot ? depot.id : null });
+          const pour = demande && pourChamp.value ? pourChamp.value : null;
+          await o.appel('POST', '/messages', { cote: o.cote, texte: t, piece, fichier: depot ? depot.id : null,
+            ...(ds.length > 1 ? { demandes: ds, pour } : { demande: d || null, pour }) });
           texte.value = ''; demandeTxt.value = ''; piece = null; fichier = null; demande = false;
+          listeDemandes.querySelectorAll('[data-msg-demande-txt]').forEach((x, i) => { if (i > 0) x.remove(); });
+          pourChamp.value = dansSeptJours();
           montrerDemande(); dessinerJoints();
           await relire();
           const fil = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-fil]'));
@@ -826,6 +874,8 @@
    *   ouvrir: (entreprise: string, demander?: boolean) => void,
    *   conversation?: (el: HTMLElement, entreprise: string, o: any) => { arreter: () => void, relire: () => Promise<void> },
    *   toast?: (texte: string, erreur?: boolean) => void,
+   *   ouvrirPiece?: (entreprise: string, genre: string, id: string, libelle: string) => boolean,
+   *   saisirPiece?: (entreprise: string, message: { id: string, ecritLe: string }) => void,
    *   revision?: (entreprise: string) => void,
    *   surCompteurs?: (c: { aTraiter: number, attendClient: number, tout: number }) => void,
    * }} o
@@ -860,13 +910,18 @@
       el.innerHTML = `<div class="msg-page msg-boite${aCote() ? ' msg-boite-a-cote' : ''}">
         <div class="msg-boite-tete">
           <span class="msg-tete-txt"><span class="msg-surtitre">${esc(o.nomCabinet)}</span><h1>Les messages de tes clients</h1></span>
-          <div class="msg-filtres" role="tablist" aria-label="Quels clients" data-filtres></div>
+          <div class="msg-boite-actions">
+            <div class="msg-filtres" role="tablist" aria-label="Quels clients" data-filtres></div>
+            <button type="button" class="btn" data-demande-groupee>Demander à plusieurs clients…</button>
+          </div>
         </div>
         <div class="msg-boite-corps" data-boite-corps></div>
       </div>`;
     }
     function dessiner() {
       if (!el.querySelector('[data-boite-corps]')) poser();
+      const groupee = /** @type {HTMLButtonElement | null} */ (el.querySelector('[data-demande-groupee]'));
+      if (groupee) { groupee.hidden = !lu.dossiers.length; groupee.onclick = () => demandeGroupee(); }
       const ds = /** @type {any[]} */ (lu.dossiers);
       const c = lu.compteurs;
       if (!filtre) filtre = c.aTraiter ? 'a_traiter' : c.attendClient ? 'attend_client' : 'tout';
@@ -897,8 +952,9 @@
           <span class="msg-avatar petit" aria-hidden="true">${esc(initiales(x.nom))}</span>
           <span class="msg-dossier-txt"><span class="msg-dossier-l1"><b>${esc(x.nom)}</b>${x.dernier ? `<span class="msg-quand">${esc(quandCourt(x.dernier.quand))}</span>` : ''}</span>
             <span class="msg-extrait">${esc(extrait(x))}</span></span>
-          ${x.nonLus ? `<span class="msg-non-lus" title="${esc(pl(x.nonLus, 'nouveau message', 'nouveaux messages'))}">${x.nonLus}<span class="msg-cache"> ${x.nonLus > 1 ? 'nouveaux messages' : 'nouveau message'}</span></span>` : ''}
-          ${x.nonLus && x.etat === 'a_traiter' ? '' : `<span class="msg-etat-pastille ${etatDit(x.etat)[1]}">${esc(etatDit(x.etat)[0])}</span>`}</button>`).join('')
+          <span class="msg-dossier-pastilles">${x.nonLus ? `<span class="msg-non-lus" title="${esc(pl(x.nonLus, 'nouveau message', 'nouveaux messages'))}">${x.nonLus}<span class="msg-cache"> ${x.nonLus > 1 ? 'nouveaux messages' : 'nouveau message'}</span></span>` : ''}
+          ${x.nonLus && x.etat === 'a_traiter' ? '' : `<span class="msg-etat-pastille ${etatDit(x.etat)[1]}">${esc(etatDit(x.etat)[0])}</span>`}
+          ${x.retards ? `<span class="msg-etat-pastille retard" title="${esc(pl(x.retards, 'pièce demandée passée sa date', 'pièces demandées passées leur date'))}">${esc(pl(x.retards, 'en retard', 'en retard'))}</span>` : ''}</span></button>`).join('')
         : `<div class="msg-vide"><b>${filtre === 'a_traiter' ? 'Rien à traiter.' : 'Aucun client n\'a de réponse en retard.'}</b><span>${filtre === 'a_traiter' ? 'Aucun client ne t\'a écrit depuis ta dernière réponse.' : 'Toutes tes questions et pièces demandées ont leur réponse.'}</span></div>`;
       const lignes = /** @type {HTMLElement[]} */ ([...liste.querySelectorAll('[data-dossier]')]);
       lignes.forEach((b, i) => {
@@ -952,10 +1008,92 @@
         enGrand: () => o.ouvrir(id),
         toast: o.toast,
         revision: revision ? () => revision(id) : undefined,
+        ouvrirPiece: o.ouvrirPiece ? (/** @type {string} */ g, /** @type {string} */ p, /** @type {string} */ l) => (o.ouvrirPiece ? o.ouvrirPiece(id, g, p, l) : false) : undefined,
+        saisirPiece: o.saisirPiece ? (/** @type {any} */ m) => { if (o.saisirPiece) o.saisirPiece(id, m); } : undefined,
         // Ce que la conversation change (lu, traité, une réponse) se relit aussitôt dans la liste : elle se relit à chaque
         // lecture de la conversation (après un geste, et toutes les 30 secondes), une fois pour plusieurs appels rapprochés.
         surAttente: () => { clearTimeout(relecture); relecture = setTimeout(() => { void lire(); }, 250); },
       }) };
+    }
+    // (1.116.0) « Demander à plusieurs clients » (revue du 22/10/2026 : en fin de mois, la même demande à tous — les
+    // relevés bancaires — se faisait client par client). Les mêmes pièces, la même date, un mot facultatif ; chaque client
+    // la reçoit dans SON fil (rien d'un client ne passe chez un autre). Un client qui refuse n'arrête pas les autres : la
+    // fenêtre dit lesquels l'ont reçue et lesquels non.
+    function demandeGroupee() {
+      const ds = /** @type {any[]} */ (lu.dossiers);
+      const fond = document.createElement('div');
+      fond.className = 'msg-fenetre-fond';
+      fond.innerHTML = `<form class="msg-fenetre" role="dialog" aria-modal="true" aria-labelledby="msg-dg-titre" novalidate>
+        <h2 id="msg-dg-titre">Demander des pièces à plusieurs clients</h2>
+        <p class="small muted">Chaque client reçoit la demande dans son fil avec toi, comme si tu la lui écrivais : aucun ne voit les autres.</p>
+        <div class="msg-demande"><span class="msg-demande-titre" id="msg-dg-p">Les pièces que tu demandes</span>
+          <div class="msg-demande-liste" data-dg-liste><input type="text" maxlength="300" placeholder="Par exemple : le relevé bancaire de septembre" data-dg-piece aria-labelledby="msg-dg-p"></div>
+          <span class="msg-demande-pied"><button type="button" class="msg-lien" data-dg-plus>+ Une autre pièce</button>
+            <label class="msg-demande-pour"><span>Pour le</span><input type="date" data-dg-pour></label></span></div>
+        <label class="msg-ep-mot"><span>Un mot <span class="muted">(facultatif)</span></span><textarea rows="2" maxlength="4000" data-dg-mot></textarea></label>
+        <fieldset class="msg-dg-clients"><legend>À quels clients <button type="button" class="msg-lien" data-dg-tous>Tous</button> <button type="button" class="msg-lien" data-dg-aucun>Aucun</button></legend>
+          ${ds.map((d) => `<label class="msg-dg-client"><input type="checkbox" value="${esc(d.entreprise)}" data-dg-client><span>${esc(d.nom)}</span></label>`).join('')}
+        </fieldset>
+        <div class="msg-fp-gestes msg-ep-gestes"><p class="msg-refus" role="alert" data-dg-refus></p>
+          <button type="button" class="btn" data-fermer>Annuler</button><button type="submit" class="btn btn-primary" data-dg-envoyer>Envoyer la demande</button></div>
+      </form>`;
+      document.body.appendChild(fond);
+      const form = /** @type {HTMLFormElement} */ (fond.querySelector('form'));
+      const liste = /** @type {HTMLElement} */ (fond.querySelector('[data-dg-liste]'));
+      const pourChamp = /** @type {HTMLInputElement} */ (fond.querySelector('[data-dg-pour]'));
+      const refus = /** @type {HTMLElement} */ (fond.querySelector('[data-dg-refus]'));
+      const envoyer = /** @type {HTMLButtonElement} */ (fond.querySelector('[data-dg-envoyer]'));
+      const cases = () => /** @type {HTMLInputElement[]} */ ([...fond.querySelectorAll('[data-dg-client]')]);
+      pourChamp.min = jourCle(Date.now());
+      pourChamp.value = jourCle(Date.now() + 7 * 86_400_000);
+      const fermer = () => { fond.remove(); document.removeEventListener('keydown', echap); };
+      const echap = (/** @type {KeyboardEvent} */ e) => { if (e.key === 'Escape') fermer(); };
+      document.addEventListener('keydown', echap);
+      /** @type {HTMLElement} */ (fond.querySelector('[data-fermer]')).onclick = fermer;
+      fond.onclick = (e) => { if (e.target === fond) fermer(); };
+      /** @type {HTMLElement} */ (fond.querySelector('[data-dg-tous]')).onclick = () => { cases().forEach((c) => { c.checked = true; }); refus.textContent = ''; };
+      /** @type {HTMLElement} */ (fond.querySelector('[data-dg-aucun]')).onclick = () => { cases().forEach((c) => { c.checked = false; }); };
+      /** @type {HTMLElement} */ (fond.querySelector('[data-dg-plus]')).onclick = () => {
+        const n = liste.querySelectorAll('[data-dg-piece]').length;
+        if (n >= 10) { refus.textContent = 'Dix pièces au plus dans une demande.'; return; }
+        const i = document.createElement('input');
+        i.type = 'text'; i.maxLength = 300; i.dataset.dgPiece = ''; i.setAttribute('aria-label', `Pièce demandée ${n + 1}`);
+        liste.appendChild(i); i.focus();
+      };
+      form.onsubmit = async (e) => {
+        e.preventDefault();
+        if (envoyer.disabled) return;
+        const pieces = [...liste.querySelectorAll('[data-dg-piece]')].map((x) => /** @type {HTMLInputElement} */ (x).value.trim()).filter(Boolean);
+        const clients = cases().filter((c) => c.checked).map((c) => c.value);
+        if (!pieces.length) { refus.textContent = 'Nomme au moins une pièce (par exemple : le relevé bancaire de septembre).'; /** @type {HTMLElement} */ (liste.querySelector('input')).focus(); return; }
+        if (!clients.length) { refus.textContent = 'Coche au moins un client.'; return; }
+        envoyer.disabled = true; refus.textContent = '';
+        const texte = /** @type {HTMLTextAreaElement} */ (fond.querySelector('[data-dg-mot]')).value.trim();
+        /** @type {string[]} */ const ratees = [];
+        for (const c of clients) {
+          try {
+            await o.appel('POST', `/entreprises/${encodeURIComponent(c)}/messages`, { cote: 'cabinet', texte, pour: pourChamp.value || null,
+              ...(pieces.length > 1 ? { demandes: pieces } : { demande: pieces[0] }) });
+            // Partie : la case se décoche (un second « Envoyer » ne la redemanderait pas à ce client).
+            const fait = cases().find((x) => x.value === c);
+            if (fait) fait.checked = false;
+          } catch (x) { ratees.push(`${(ds.find((d) => d.entreprise === c) || {}).nom || 'un client'} (${motif(x)})`); }
+        }
+        envoyer.disabled = false;
+        const parties = clients.length - ratees.length;
+        if (ratees.length) {
+          refus.textContent = `${parties ? `Envoyée à ${pl(parties, 'client')} (leur case est décochée). ` : ''}Pas envoyée à : ${ratees.join(' ; ')}.`;
+          if (parties) { void lire(); if (ouverte) void ouverte.c.relire(); }
+          return;
+        }
+        fermer();
+        // La conversation ouverte à droite les montre aussitôt (elle ne se relisait qu'au tour suivant).
+        if (ouverte) void ouverte.c.relire();
+        if (o.toast) o.toast(`Demande envoyée à ${pl(parties, 'client')} : chacun la lit dans son fil.`);
+        signature = '';
+        void lire();
+      };
+      /** @type {HTMLElement} */ (liste.querySelector('input')).focus();
     }
     async function lire() {
       if (fini) return;

@@ -120,7 +120,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await champPiece.fill('La facture STEG d\'août');
     await c.p.locator('[data-msg-texte]').fill('Il me manque une pièce pour ta TVA.');
     await c.p.getByRole('button', { name: 'Envoyer', exact: true }).click();
-    await expect.poll(async () => net(await c.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Pièce demandée La facture STEG d'août Attendue Reçue autrement/);
+    await expect.poll(async () => net(await c.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Pièce demandée La facture STEG d'août pour le \d\d\/\d\d\/\d{4} Attendue Reçue autrement/);
 
     // ── Amine : l'entrée, sa pastille (une question et une pièce, comptées une fois chacune) ──────────────────────
     const a = await page(amine);
@@ -186,6 +186,8 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     let [choix] = await Promise.all([a.p.waitForEvent('filechooser'), fenetre.getByRole('button', { name: 'Choisir la photo ou le PDF…', exact: true }).click()]);
     await choix.setFiles(photo);
     await expect.poll(() => fenetre.locator('.msg-ep-choisi img').count()).toBe(1);
+    // (1.116.0) L'aperçu se voit vraiment : la page interdisait les images faites sur place (blob:), l'image restait vide.
+    await expect.poll(() => fenetre.locator('.msg-ep-choisi img').evaluate((i) => (i as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     await fenetre.getByRole('button', { name: 'Annuler', exact: true }).click();
     expect(await fenetre.count()).toBe(0);
     expect(((await api('GET', `/entreprises/${ent}/messages?cote=cabinet`, sonia)).corps.messages ?? []).filter((m) => (m as unknown as { fichier: unknown }).fichier).length).toBe(0);
@@ -264,6 +266,10 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     // s'affichait aussi sur un fil où rien n'avait jamais été demandé).
     expect(net(await c.p.locator('[data-msg-cote]').innerText())).toMatch(/^Rien : aucune question ni pièce demandée n'attend sa réponse\./);
     await c.p.screenshot({ path: path.join(PHOTOS, 'messagerie-3-cabinet.png') });
+    // (1.116.0) La photo du client s'ouvre dans un onglet où elle se voit (il restait vide : la page interdisait blob:).
+    const [onglet] = await Promise.all([c.p.waitForEvent('popup'), c.p.locator('[data-msg-fil] [data-msg-fichier]').first().click()]);
+    await expect.poll(() => onglet.evaluate(() => (document.querySelector('img') as HTMLImageElement | null)?.naturalWidth ?? 0), { timeout: 15_000 }).toBeGreaterThan(0);
+    await onglet.close();
     // (1.115.0) « Marquer comme traité » dit ce que fait le geste (« Rien à faire ? » et un petit « C'est traité »).
     await c.p.getByRole('button', { name: 'Marquer comme traité', exact: true }).click();
     // Enregistré avant de changer d'écran (sur une machine lente, la boîte se relisait avant : « À traiter (1) »).
@@ -282,6 +288,14 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await pastille;
     await c.p.waitForTimeout(300);
     expect(await c.p.locator('#nav-messages').isVisible()).toBe(false);
+    // (1.116.0) « Saisir cette pièce » : la photo s'ouvre dans un onglet, la saisie du client à l'année du message.
+    await c.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages/${ent}`);
+    const saisir = c.p.locator('[data-msg-fil] .msg-fichier').filter({ hasText: 'facture-steg-aout.png' }).getByRole('button', { name: 'Saisir cette pièce', exact: true }).first();
+    await saisir.waitFor({ timeout: 20_000 });
+    const [photoSaisie] = await Promise.all([c.p.waitForEvent('popup'), saisir.click()]);
+    await photoSaisie.close();
+    await expect.poll(() => c.p.url(), { timeout: 15_000 }).toMatch(new RegExp(`#/dossier/${ent}/comptabilite/saisie/\\d{4}$`));
+    expect(await c.p.locator('#toast').textContent()).toMatch(/^La photo s'ouvre dans un autre onglet/);
     expect(c.erreurs).toEqual([]);
 
     // ── Au téléphone : rien ne déborde ───────────────────────────────────────────────────────────────────────────
@@ -374,6 +388,26 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await c.p.getByRole('button', { name: 'Ouvrir en grand', exact: true }).click();
     await expect.poll(() => c.p.url()).toContain(`#/messages/${leila.e}`);
     await c.p.locator('.msg-retour').waitFor({ timeout: 15_000 });
+    // (1.116.0) Demander à plusieurs clients : les mêmes pièces, la même date (dans sept jours), chacun dans son fil.
+    await c.p.locator('.msg-retour').click();
+    await c.p.locator('.msg-boite [data-msg-fil]').waitFor({ timeout: 15_000 });
+    await c.p.getByRole('button', { name: 'Demander à plusieurs clients…', exact: true }).click();
+    const dg = c.p.getByRole('dialog', { name: 'Demander des pièces à plusieurs clients' });
+    await dg.locator('[data-dg-piece]').fill('Le relevé bancaire de septembre');
+    await dg.getByRole('button', { name: '+ Une autre pièce', exact: true }).click();
+    await c.p.keyboard.type('La facture Ooredoo de septembre');
+    await dg.getByRole('button', { name: 'Envoyer la demande', exact: true }).click();
+    expect(await dg.locator('[data-dg-refus]').innerText()).toBe('Coche au moins un client.');
+    await dg.getByRole('button', { name: 'Tous', exact: true }).click();
+    await dg.getByRole('button', { name: 'Envoyer la demande', exact: true }).click();
+    await expect.poll(() => dg.count(), { timeout: 15_000 }).toBe(0);
+    const dans7 = new Date(Date.now() + 7 * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Africa/Tunis' });
+    for (const x of [amine, leila]) {
+      const d = ((await api('GET', `/entreprises/${x.e}/messages?cote=entreprise`, x.j)).corps.messages ?? []) as unknown as { demande: { texte: string; pour: string } | null }[];
+      expect(d.filter((m) => m.demande?.pour === dans7).map((m) => m.demande?.texte).sort()).toEqual(['La facture Ooredoo de septembre', 'Le relevé bancaire de septembre']);
+    }
+    // La conversation ouverte les montre aussitôt.
+    await expect.poll(async () => net(await c.p.locator('.msg-boite [data-msg-fil]').innerText()), { timeout: 15_000 }).toContain(`La facture Ooredoo de septembre pour le ${dans7.slice(8, 10)}/${dans7.slice(5, 7)}/${dans7.slice(0, 4)}`);
     expect(c.erreurs).toEqual([]);
 
     // Amine répond à la pièce demandée avec l'achat déjà saisi : la demande est reçue, la pièce citée.
@@ -384,7 +418,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await a.p.locator('.sidebar-foot a[data-route="comptable"]').click({ timeout: 15_000 });
     await a.p.locator('.msg-page h1').waitFor({ timeout: 20_000 });
     const fenetre = a.p.getByRole('dialog', { name: 'Envoyer la pièce demandée' });
-    await a.p.getByRole('button', { name: 'Envoyer la pièce…', exact: true }).click();
+    await a.p.locator('.msg-demande-carte').filter({ hasText: 'La facture STEG d\'août' }).getByRole('button', { name: 'Envoyer la pièce…', exact: true }).click();
     await fenetre.getByText('Elle est déjà dans SkanFact').click();
     await fenetre.getByRole('button', { name: 'Envoyer à mon cabinet', exact: true }).click();
     expect(await fenetre.locator('[data-ep-refus]').innerText()).toBe('Choisis la pièce de ton dossier qui répond à la demande.');
@@ -400,5 +434,12 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     expect(envoi?.piece).toEqual({ genre: 'achat', id: 'p1', libelle: expect.stringMatching(/^F-8841 · STEG · 101,626\s+DT$/) });
     expect(envoi?.fichier).toBeNull();
     expect(a.erreurs).toEqual([]);
+    // (1.116.0) Chez le cabinet, « Ouvrir » mène l'achat cité aux livres du client : son numéro cherché au livre-journal.
+    await c.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages/${amine.e}`);
+    const carte = c.p.locator('[data-msg-fil] .msg-carte').filter({ hasText: 'F-8841' });
+    await carte.getByRole('button', { name: 'Ouvrir', exact: true }).click({ timeout: 20_000 });
+    await expect.poll(() => c.p.url(), { timeout: 15_000 }).toContain(`#/dossier/${amine.e}/comptabilite/journal`);
+    await expect.poll(() => c.p.locator('#lv-q').inputValue(), { timeout: 15_000 }).toBe('F-8841');
+    expect(c.erreurs).toEqual([]);
   }, 180_000);
 });

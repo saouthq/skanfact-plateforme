@@ -44,6 +44,32 @@ attend, et leur réponse à sa date. L'entreprise y répond sur place (le même 
   serveur (la lecture de la brique 84 ; sans elle, l'achat se saisit à la main) ; enregistré, le message dit où la
   pièce est rangée (« rangée dans tes achats (STEG, 85,400 DT) »).
 
+**M4 bis. Une pièce demandée a une date, et se relance** (1.116.0 ; décidé par délégation après la revue du 22/10/2026,
+`docs/revue-messagerie.md` point 6). La demande porte une date « pour le » (facultative ; l'écran propose dans sept
+jours, jamais avant aujourd'hui, jour de Tunis). Passée sans réponse, elle est **en retard** des deux côtés : la carte
+le dit (« En retard », en rouge), l'encart aussi (« (dont 1 en retard) »), et la boîte du cabinet a une pastille
+« N en retard » sur la ligne du client (`attente` et la boîte comptent avec les mêmes lignes). Restée sans réponse à sa
+date, elle **se relance par e-mail** ce jour-là, puis une fois par semaine, **trois relances au plus** ; une demande sans
+date ne se relance jamais (le cabinet garde la main), une demande reçue non plus, ni un dossier dont le mandat s'est
+arrêté, ni une personne qui a décoché « Me prévenir par e-mail » pour ce fil. L'e-mail suit la règle de M5 : ni la
+pièce, ni l'entreprise, ni le cabinet, un objet et un texte fixes (« Ton cabinet attend une pièce dans SkanFact ») ;
+une personne reçoit un seul e-mail par tour, quel que soit le nombre de demandes. Le cabinet voit sous la carte
+« Relancée 2 fois par e-mail, la dernière le … » ; le client ne voit que la date (la relance est un e-mail, pas un
+reproche dans le fil). Le serveur seul note une relance partie (`messagerie.relance_partie`).
+
+**M4 ter. Plusieurs pièces, plusieurs clients** (1.116.0). « Demander une pièce » prend une liste (« + Une autre
+pièce », dix au plus) : un message par pièce, le mot sur la première, la même date, **toutes ou aucune** (une seule
+transaction). La boîte du cabinet a « Demander à plusieurs clients… » : les mêmes pièces, la même date et le même mot,
+envoyés à chaque client coché, chacun dans son fil (jamais un fil commun : un client ne voit pas les autres) ; un client
+qui refuse (mandat arrêté entre-temps) est nommé, les autres partent et leur case se décoche.
+
+**M4 quater. Le cabinet agit sur ce qu'il reçoit** (1.116.0). Une pièce citée par le client (« Achat F-8841 ») a
+« Ouvrir » chez le cabinet aussi : les livres du client, au livre-journal, son numéro cherché, brouillard compris (le
+Cabinet ne voit pas la facture elle-même, mais ses écritures ; un devis n'en a pas, une pièce sans numéro non plus : on
+le dit). Une photo ou un PDF du client a « Saisir cette pièce » : la photo s'ouvre dans un autre onglet, la saisie du
+client à l'année du message en face. Le justificatif ne s'y joint pas seul (le Cabinet en ligne ne joint pas encore de
+fichier à une écriture) : la photo reste dans le fil, à sa date.
+
 **M5. L'alerte par e-mail, sans contenu** (décidé par Skander le 09/10/2026 ; détails par délégation). Chaque minute,
 le serveur cherche qui a, **depuis plus de cinq minutes**, quelque chose à lire dans un fil (un message de l'autre côté,
 une question envoyée, la réponse du client à une question), et le prévient **une fois** ; plus rien avant qu'il ait relu
@@ -75,8 +101,9 @@ Youssef ») ; sa réponse, du nom de qui a répondu. Les noms seuls (jamais l'ad
 avant le premier message). Une question répondue le dit : « Répondue ».
 
 **M8. Ce qui part vers le serveur, compté** (règle du projet). Un message : son texte, la pièce dont il parle (genre,
-identifiant, libellé), la pièce demandée, le fichier déposé, la demande à laquelle il répond. Un fichier : son nom et ses
-octets. Rien d'autre. Ce qui part chez le relais d'e-mails : l'adresse de la personne, l'objet et le texte fixes.
+identifiant, libellé), la pièce demandée et sa date « pour le », le fichier déposé, la demande à laquelle il répond. Un fichier : son nom et ses
+octets. Rien d'autre. Ce qui part chez le relais d'e-mails (l'alerte comme la relance) : l'adresse de la personne, l'objet et le texte
+fixes.
 
 ## Les écrans
 
@@ -95,6 +122,9 @@ octets. Rien d'autre. Ce qui part chez le relais d'e-mails : l'adresse de la per
   d'étiquette « À traiter » en plus). Au-dessus du fil, un bandeau : ce qui attend le client, « Marquer comme traité »,
   « Question sur une pièce (révision) », « Me prévenir par e-mail ». « Ouvrir en grand » mène à la page du client
   (`#/messages/<entreprise>`), qui a « Demander une pièce », « Reçue autrement », « Marquer comme traité ».
+  (1.116.0) « Demander une pièce » ouvre, au-dessus du champ (rien ne pousse les boutons), la liste des pièces et
+  « Pour le » ; en haut de la boîte, « Demander à plusieurs clients… » ; sur une ligne, la pastille d'état et, en
+  dessous, « N en retard ». Sous une pièce citée, « Ouvrir » ; sous une photo du client, « Saisir cette pièce ».
 - **Au téléphone** (1.115.0) : un bouton de bulle à côté de « Menu », avec la même pastille, mène à « Mon comptable »
   ou aux « Messages » (dans le menu replié, la pastille ne se voyait pas) ; le fil et la zone d'écriture tiennent dans
   l'écran, « Envoyer » sous le pouce, les gestes en mots courts (« Joindre », « Une pièce », « Demander ») ; une ligne

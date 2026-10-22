@@ -402,6 +402,9 @@ export interface BaseDeDonnees {
     achat_libelle: string | null;
     repond_a: string | null;
     ecrit_le: Generated<Date>;
+    demande_pour: string | null;
+    relances: Generated<number>;
+    relance_le: Date | null;
   };
   'paie.bulletin': {
     id: Generated<string>;

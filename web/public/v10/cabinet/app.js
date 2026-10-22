@@ -1622,6 +1622,26 @@
     view.innerHTML = '<div id="msg-racine"></div>';
     const racine = $('#msg-racine');
     const revision = id => { location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/revision'; };
+    // (1.116.0) Une pièce citée par le client s'ouvre dans ses livres : son numéro cherché au livre-journal, brouillard
+    // compris (le Cabinet ne voit pas la facture elle-même, mais ses écritures). Un devis n'en a pas ; une pièce sans
+    // numéro non plus : on le dit.
+    const ouvrirPiece = (id, genre, _piece, libelle) => {
+      const numero = String(libelle || '').split(' · ')[0].trim();
+      if (genre === 'devis') { toast('Un devis n\'entre pas dans les livres : il n\'a pas d\'écriture à ouvrir.'); return true; }
+      if (!numero || /^(brouillon|sans numéro)$/i.test(numero)) { toast('Cette pièce n\'a pas encore de numéro : elle n\'est pas encore dans les livres.'); return true; }
+      changerDeDossierCompta(id);
+      Object.assign(livresState, { brouillard: true, q: numero, journal: '', page: 1, onglet: 'journal' });
+      location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/journal';
+      return true;
+    };
+    // (1.116.0) « Saisir cette pièce » : la photo s'ouvre dans un autre onglet (le fil l'ouvre), la saisie du client à
+    // l'année du message. Le justificatif ne s'y joint pas seul (le Cabinet en ligne ne joint pas encore de fichier à une
+    // écriture) : la photo reste dans le fil, à sa date.
+    const saisirPiece = (id, m) => {
+      changerDeDossierCompta(id);
+      location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/saisie/' + String(m.ecritLe).slice(0, 4);
+      toast('La photo s\'ouvre dans un autre onglet : saisis la pièce ici, en face d\'elle. Elle reste dans votre fil.');
+    };
     if (!ent) {
       // (1.115.0) La conversation du client choisi s'ouvre à droite de la liste (le pont la fabrique) ; « Ouvrir en grand »,
       // et une ligne touchée au téléphone, mènent à sa page.
@@ -1629,6 +1649,8 @@
         ouvrir: (id, demander) => { location.hash = '#/messages/' + encodeURIComponent(id) + (demander ? '/demande' : ''); },
         toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
         revision,
+        ouvrirPiece,
+        saisirPiece,
         surCompteurs: c => majPastilleMessages(c.aTraiter),
       });
       return;
@@ -1641,6 +1663,8 @@
       toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
       retour: { texte: 'Les messages de tes clients', aller: () => { location.hash = '#/messages'; } },
       revision: () => revision(id),
+      ouvrirPiece: (genre, piece, libelle) => ouvrirPiece(id, genre, piece, libelle),
+      saisirPiece: m => saisirPiece(id, m),
       surAttente: () => { void rafraichirPastilleMessages(); },
     });
   }

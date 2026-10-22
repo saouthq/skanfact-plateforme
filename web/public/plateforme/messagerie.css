@@ -111,6 +111,20 @@
 .msg-joint button { flex: none; display: inline-flex; padding: 4px; border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; }
 .msg-joint button:hover { background: var(--panel); color: var(--text); }
 .msg-demande { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; }
+/* (1.116.0) Plusieurs pièces, et la date « pour le ». */
+.msg-demande-liste { display: flex; flex-direction: column; gap: 6px; }
+.msg-demande-liste input {
+  width: 100%; box-sizing: border-box; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 12px; background: var(--panel);
+  color: var(--text); font: inherit; font-size: 15px; font-weight: 400;
+}
+.msg-demande-pied { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; font-weight: 400; }
+.msg-demande-pied > .small { flex: 1 1 100%; }
+.msg-demande-pour { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; white-space: nowrap; }
+.msg-demande-pour input { padding: 6px 10px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--panel); color: var(--text); font: inherit; }
+.msg-pour { flex: 1 1 100%; font-size: 13px; color: var(--muted); }
+.msg-demande-carte.retard { border-color: color-mix(in srgb, var(--danger) 45%, transparent); background: color-mix(in srgb, var(--danger) 7%, var(--panel)); }
+.msg-demande-carte.retard .msg-etat, .msg-demande-carte.retard .msg-pour { color: var(--danger); font-weight: 600; }
+.msg-carte-sous { flex: 1 1 100%; font-size: 12px; color: var(--muted); }
 .msg-gestes { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 10px; }
 .msg-gestes-g { display: flex; flex-wrap: wrap; gap: 8px; }
 .msg-gestes .btn { min-height: 40px; display: inline-flex; align-items: center; gap: 8px; }
@@ -181,6 +195,9 @@
 .msg-fenetre { overflow-y: auto; }
 .msg-ep-gestes { align-items: flex-start; }
 .msg-ep-gestes .msg-refus { flex: 1 1 12em; display: block; align-self: center; }
+/* (1.116.0) Au téléphone, le refus sous les boutons, sur sa ligne : à côté, il les faisait passer l'un sous l'autre
+   (« Annuler », puis « Envoyer la demande » seul en dessous), et il ne les pousse pas en paraissant. */
+@media (max-width: 600px) { .msg-ep-gestes .msg-refus { order: 2; flex-basis: 100%; } }
 
 /* La boîte du cabinet : les filtres, une ligne par client, et le client choisi à côté. */
 .msg-boite-tete { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-end; gap: 12px; }
@@ -207,6 +224,18 @@
 .msg-etat-pastille { flex: none; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; background: var(--ink-soft); color: var(--muted); }
 .msg-etat-pastille.traiter { background: var(--warning-soft); color: var(--warning); }
 .msg-etat-pastille.client { background: var(--primary-soft); color: var(--primary); }
+/* Les pastilles d'une ligne, l'une sous l'autre : côte à côte, elles mangeaient le nom du client. */
+.msg-dossier-pastilles { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 4px; }
+.msg-dossier-pastilles:empty { display: none; }
+.msg-etat-pastille.retard { background: color-mix(in srgb, var(--danger) 12%, var(--panel)); color: var(--danger); }
+.msg-boite-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.msg-boite-actions > .btn { min-height: 40px; }
+/* (1.116.0) Demander à plusieurs clients : la liste à cocher défile, les gestes restent sous les yeux. */
+.msg-dg-clients { margin: 0; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; max-height: 32vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.msg-dg-clients legend { padding: 0 6px; font-size: 13px; font-weight: 600; }
+.msg-dg-clients legend .msg-lien { font-size: 13px; margin-inline-start: 8px; }
+.msg-dg-client { display: flex; align-items: center; gap: 10px; min-height: 36px; font-size: 14px; cursor: pointer; }
+.msg-dg-client input { width: 18px; height: 18px; margin: 0; accent-color: var(--primary); }
 
 /* (1.115.0) La liste à gauche, la conversation entière à droite (revue du 22/10/2026 : un aperçu, puis une autre page). */
 .msg-boite-a-cote .msg-boite-corps {

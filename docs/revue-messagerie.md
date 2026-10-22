@@ -88,6 +88,15 @@ demandées, et la demande groupée (P2).
   la base (la table exigeait un texte, un fichier ou une demande), et une question arrivée avant tout message restait
   signée « Ton cabinet » (les noms passaient par le fil, qui ne naît qu'au premier message). Le détail :
   `docs/messagerie.md` (M4, M7 bis, « Les écrans »).
+- **Lot 2, 1.116.0 (22/10/2026)** : les points 6, 7 et 8. La date « pour le » et les relances (le jour venu, puis
+  chaque semaine, trois au plus ; Karbon en fait cinq, chaque jour : une par semaine lasse moins le client, décidé par
+  délégation, à revoir avec les pilotes), le
+  retard des deux côtés et dans la boîte ; plusieurs pièces en une demande ; la même demande à plusieurs clients ;
+  « Ouvrir » une pièce citée et « Saisir cette pièce » chez le cabinet. **Pas fait** : la demande *récurrente* (« chaque
+  mois, le relevé bancaire ») ; elle attend l'avis des pilotes (le cabinet l'envoie aujourd'hui en deux clics par
+  « Demander à plusieurs clients… »). En chemin : la photo d'un client s'ouvrait vide chez le cabinet depuis la 1.94 et
+  l'aperçu de la fenêtre « Envoyer la pièce » aussi (la page interdisait les images faites sur place, `blob:`).
+  Le détail : `docs/messagerie.md` (M4 bis, M4 ter, M4 quater).
 
 ## Le plan proposé
 

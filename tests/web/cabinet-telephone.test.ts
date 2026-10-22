@@ -154,7 +154,8 @@ describe('le Cabinet au téléphone', () => {
       expect(guides.length).toBeGreaterThan(1);
       expect(new Set(guides).size).toBe(guides.length);
       // « Menu » au bout de la barre du haut, comme à l'entreprise : pas au milieu, juste après le nom du cabinet (1.87.2).
-      const menu = await page.locator('.sidebar .menu-tel').boundingBox();
+      // (1.116.0) Reconnu à ce qu'il est, un bouton nommé « Menu » : le raccourci des messages (1.115.0) porte la même classe.
+      const menu = await page.locator('.sidebar').getByRole('button', { name: 'Menu', exact: true }).boundingBox();
       expect(390 - ((menu?.x ?? 0) + (menu?.width ?? 0))).toBeLessThan(24);
       expect(erreurs).toEqual([]);
     } finally {

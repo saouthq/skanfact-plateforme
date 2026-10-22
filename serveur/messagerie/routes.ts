@@ -43,7 +43,9 @@ function depuisCurseur(texte: string): [string, string] | null {
 // des deux côtés (elles attendent l'entreprise ; la boîte du cabinet les compte dans « Attend le client », avec la même
 // règle). UNE fonction pour la pastille du menu, l'encart du fil et la boîte. `aLire` : il y a du neuf depuis la
 // dernière lecture de ce côté (pièces demandées comprises) : l'écran ouvert le marque lu.
-export async function attente(tx: Transaction, entreprise: string, cabinet: string, cote: Cote): Promise<{ nonLus: number; questions: number; demandes: number; aLire: boolean }> {
+// (1.116.0) `enRetard` : celles des pièces demandées dont la date « pour le » est passée (jour de Tunis), comptées dans
+// `demandes` ; l'encart et la boîte le disent.
+export async function attente(tx: Transaction, entreprise: string, cabinet: string, cote: Cote): Promise<{ nonLus: number; questions: number; demandes: number; enRetard: number; aLire: boolean }> {
   const r = (await tx.query(`select
       (select count(*) from messagerie.message m where m.entreprise = $1 and m.cabinet = $2 and m.cote <> $3
           and m.ecrit_le > coalesce(case $3 when 'entreprise' then f.lu_entreprise else f.lu_cabinet end, '-infinity')
@@ -56,9 +58,11 @@ export async function attente(tx: Transaction, entreprise: string, cabinet: stri
           and q.repondu_le > coalesce(f.lu_cabinet, '-infinity'))) a_lire,
       (select count(*) from compta.question q where q.entreprise = $1 and q.cabinet = $2 and q.statut = 'envoyee') questions,
       (select count(*) from messagerie.message m where m.entreprise = $1 and m.cabinet = $2
-          and m.demande is not null and m.demande_recue_le is null) demandes
-    from (select 1) x left join messagerie.fil f on f.entreprise = $1 and f.cabinet = $2`, [entreprise, cabinet, cote])).rows[0] as { non_lus: string; questions: string; demandes: string; a_lire: boolean };
-  return { nonLus: Number(r.non_lus), questions: Number(r.questions), demandes: Number(r.demandes), aLire: r.a_lire };
+          and m.demande is not null and m.demande_recue_le is null) demandes,
+      (select count(*) from messagerie.message m where m.entreprise = $1 and m.cabinet = $2
+          and m.demande is not null and m.demande_recue_le is null and m.demande_pour < (now() at time zone 'Africa/Tunis')::date) en_retard
+    from (select 1) x left join messagerie.fil f on f.entreprise = $1 and f.cabinet = $2`, [entreprise, cabinet, cote])).rows[0] as { non_lus: string; questions: string; demandes: string; en_retard: string; a_lire: boolean };
+  return { nonLus: Number(r.non_lus), questions: Number(r.questions), demandes: Number(r.demandes), enRetard: Number(r.en_retard), aLire: r.a_lire };
 }
 
 // Le fil que lit ce côté : celui de mon cabinet (côté cabinet) ; celui du cabinet d'aujourd'hui, ou d'un ancien
@@ -78,7 +82,8 @@ async function filDe(tx: Transaction, entreprise: string, cote: Cote, nomme: str
 
 type LigneMessage = {
   id: string; cote: Cote; auteur_nom: string; de_moi: boolean; texte: string; piece_genre: string | null; piece_id: string | null; piece_libelle: string | null;
-  demande: string | null; demande_recue_le: Date | null; fichier: string | null; fichier_nom: string | null; fichier_type: string | null;
+  demande: string | null; demande_recue_le: Date | null; demande_pour: string | null; en_retard: boolean; relances: number; relance_le: Date | null;
+  fichier: string | null; fichier_nom: string | null; fichier_type: string | null;
   fichier_taille: number | null; achat_id: string | null; achat_libelle: string | null; repond_a: string | null; ecrit_le: Date;
 };
 type LigneQuestion = {
@@ -117,25 +122,30 @@ async function etatsDesDossiers(tx: Transaction, cabinet: string, entreprise: st
         union all
         select m.entreprise from messagerie.message m where m.cabinet = $1 and m.demande is not null and m.demande_recue_le is null
       ) x group by entreprise
+    ),
+    retard as (
+      select m.entreprise, count(*) n from messagerie.message m where m.cabinet = $1 and m.demande is not null and m.demande_recue_le is null
+         and m.demande_pour < (now() at time zone 'Africa/Tunis')::date group by m.entreprise
     )
     select d.entreprise, d.raison_sociale,
            case when cl.quand is not null and cl.quand > greatest(coalesce(f.traite_le, '-infinity'), coalesce(ca.quand, '-infinity')) then 'a_traiter'
                 when coalesce(at.n, 0) > 0 then 'attend_client' else 'rien' end etat,
            (select count(*) from evenements e where e.entreprise = d.entreprise and e.cote = 'entreprise'
               and e.quand > coalesce(f.lu_cabinet, '-infinity')) non_lus,
-           coalesce(at.n, 0) attentes,
+           coalesce(at.n, 0) attentes, coalesce(rt.n, 0) retards,
            dn.quand, dn.cote, dn.auteur, dn.sorte, dn.extrait
       from d
       left join messagerie.fil f on f.entreprise = d.entreprise and f.cabinet = $1
       left join client cl on cl.entreprise = d.entreprise
       left join cabinet ca on ca.entreprise = d.entreprise
       left join attend at on at.entreprise = d.entreprise
+      left join retard rt on rt.entreprise = d.entreprise
       left join dernier dn on dn.entreprise = d.entreprise
      order by case when cl.quand is not null and cl.quand > greatest(coalesce(f.traite_le, '-infinity'), coalesce(ca.quand, '-infinity')) then 0
                    when coalesce(at.n, 0) > 0 then 1 else 2 end, dn.quand desc nulls last, d.raison_sociale, d.entreprise`, [cabinet, entreprise]);
-  return (r.rows as { entreprise: string; raison_sociale: string; etat: string; non_lus: string; attentes: string; quand: Date | null;
+  return (r.rows as { entreprise: string; raison_sociale: string; etat: string; non_lus: string; attentes: string; retards: string; quand: Date | null;
     cote: string | null; auteur: string | null; sorte: string | null; extrait: string | null }[]).map((x) => ({
-    entreprise: x.entreprise, nom: x.raison_sociale, etat: x.etat, nonLus: Number(x.non_lus), attentes: Number(x.attentes),
+    entreprise: x.entreprise, nom: x.raison_sociale, etat: x.etat, nonLus: Number(x.non_lus), attentes: Number(x.attentes), retards: Number(x.retards),
     dernier: x.quand ? { quand: x.quand.toISOString(), cote: x.cote, auteur: x.auteur, sorte: x.sorte, extrait: (x.extrait ?? '').slice(0, 200) } : null,
   }));
 }
@@ -165,7 +175,7 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
               where d.entreprise = f.entreprise and d.cabinet = f.cabinet order by d.debut desc limit 1) nom
             from messagerie.fil f where f.entreprise = $1 and f.cabinet is distinct from $2 order by f.cree_le`, [entreprise, fil.cabinet])).rows as { cabinet: string; nom: string | null }[]
         : [];
-      if (!fil.cabinet) return { corps: { fil: null, messages: [], questions: [], suite: null, attente: { nonLus: 0, questions: 0, demandes: 0, aLire: false }, anciens } };
+      if (!fil.cabinet) return { corps: { fil: null, messages: [], questions: [], suite: null, attente: { nonLus: 0, questions: 0, demandes: 0, enRetard: 0, aLire: false }, anciens } };
       const cabinet = fil.cabinet;
 
       const info = (await tx.query(`select
@@ -178,7 +188,9 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       const luParLautre = cote.data === 'entreprise' ? info.lu_cabinet : info.lu_entreprise;
 
       const lignes = (await tx.query(`select m.id, m.cote, m.auteur_nom, m.auteur = socle.moi() de_moi, m.texte, m.piece_genre, m.piece_id, m.piece_libelle, m.demande,
-          m.demande_recue_le, m.fichier, fi.nom fichier_nom, fi.type fichier_type, fi.taille fichier_taille, m.achat_id, m.achat_libelle,
+          m.demande_recue_le, to_char(m.demande_pour, 'YYYY-MM-DD') demande_pour,
+          coalesce(m.demande_recue_le is null and m.demande_pour < (now() at time zone 'Africa/Tunis')::date, false) en_retard, m.relances, m.relance_le,
+          m.fichier, fi.nom fichier_nom, fi.type fichier_type, fi.taille fichier_taille, m.achat_id, m.achat_libelle,
           m.repond_a, m.ecrit_le
         from messagerie.message m left join messagerie.fichier fi on fi.id = m.fichier
         where m.entreprise = $1 and m.cabinet = $2 and ($3::timestamptz is null or (m.ecrit_le, m.id) < ($3::timestamptz, $4::uuid))
@@ -214,7 +226,9 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
             moi: m.de_moi,
             lu: m.cote === cote.data ? !!luParLautre && m.ecrit_le <= luParLautre : true,
             piece: m.piece_genre ? { genre: m.piece_genre, id: m.piece_id, libelle: m.piece_libelle } : null,
-            demande: m.demande ? { texte: m.demande, recueLe: m.demande_recue_le?.toISOString() ?? null } : null,
+            // (1.116.0) Sa date « pour le », si elle est passée sans réponse, et les relances parties.
+            demande: m.demande ? { texte: m.demande, recueLe: m.demande_recue_le?.toISOString() ?? null, pour: m.demande_pour, enRetard: m.en_retard,
+              relances: m.relances, relanceLe: m.relance_le?.toISOString() ?? null } : null,
             fichier: m.fichier ? { id: m.fichier, nom: m.fichier_nom, type: m.fichier_type, taille: m.fichier_taille } : null,
             achat: m.achat_id ? { id: m.achat_id, libelle: m.achat_libelle } : null,
             repondA: m.repond_a,
@@ -243,13 +257,15 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       const fil = await filDe(tx, entreprise, 'entreprise', undefined);
       if ('refus' in fil) return { statut: 403, corps: { motif: fil.refus, bouton: null } };
       const anciens = Number((await tx.query('select count(*) n from messagerie.fil where entreprise = $1 and cabinet is distinct from $2', [entreprise, fil.cabinet])).rows[0].n);
-      if (!fil.cabinet) return { corps: { cabinet: null, nonLus: 0, questions: 0, demandes: 0, anciens } };
+      if (!fil.cabinet) return { corps: { cabinet: null, nonLus: 0, questions: 0, demandes: 0, enRetard: 0, anciens } };
       return { corps: { cabinet: fil.cabinet, ...(await attente(tx, entreprise, fil.cabinet, 'entreprise')), anciens } };
     },
   });
 
   // Écrire. Ce qui part au serveur : le texte, la pièce dont on parle (son genre, son identifiant, son libellé), la
-  // pièce demandée (le cabinet), le fichier déposé, la demande à laquelle on répond. Rien d'autre.
+  // pièce demandée (le cabinet) et sa date « pour le », le fichier déposé, la demande à laquelle on répond. Rien d'autre.
+  // (1.116.0) Plusieurs pièces demandées d'un coup (`demandes`, dix au plus) : un message chacune, dans la même
+  // transaction (toutes ou aucune), le mot sur la première, la même date pour toutes.
   ajouter({
     methode: 'POST', chemin: '/entreprises/:entreprise/messages', geste: 'messagerie.ecrire',
     corps: z.object({
@@ -257,15 +273,24 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       texte: z.string().max(4000).default(''),
       piece: z.object({ genre: z.enum(['facture', 'avoir', 'devis', 'achat']), id: z.string().trim().min(1).max(100), libelle: z.string().trim().min(1).max(300) }).strict().nullable().default(null),
       demande: z.string().trim().max(300).nullable().default(null),
+      demandes: z.array(z.string().trim().min(1).max(300)).min(1).max(10).nullable().default(null),
+      pour: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine((x) => !Number.isNaN(Date.parse(`${x}T00:00:00Z`)) && new Date(`${x}T00:00:00Z`).toISOString().startsWith(x), { message: 'jour' })
+        .nullable().default(null),
       fichier: uuid.nullable().default(null),
       repondA: uuid.nullable().default(null),
     }).strict(),
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
-      const id = (await tx.query('select messagerie.ecrire($1, $2, $3::jsonb) id', [params.entreprise ?? '', corps.cote, JSON.stringify({
-        texte: corps.texte, piece: corps.piece, demande: corps.demande, fichier: corps.fichier, repondA: corps.repondA,
-      })])).rows[0].id as string;
-      return { statut: 201, corps: { id } };
+      const liste = corps.demandes ?? [corps.demande];
+      if (corps.demandes && corps.demande) return champInvalide('demande', t('messagerie.champ.demandes'));
+      const ids: string[] = [];
+      for (const [i, demande] of liste.entries()) {
+        ids.push((await tx.query('select messagerie.ecrire($1, $2, $3::jsonb) id', [params.entreprise ?? '', corps.cote, JSON.stringify({
+          texte: i === 0 ? corps.texte : '', piece: i === 0 ? corps.piece : null, demande, pour: corps.pour,
+          fichier: i === 0 ? corps.fichier : null, repondA: i === 0 ? corps.repondA : null,
+        })])).rows[0].id as string);
+      }
+      return { statut: 201, corps: { id: ids[0], ids } };
     },
   });
 

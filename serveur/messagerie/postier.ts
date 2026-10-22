@@ -53,3 +53,44 @@ export async function prevenirParCourriel(ctx: Contexte, maintenant: Date = ctx.
   }
   return partis;
 }
+
+// (1.116.0, 0168) Les relances des pièces demandées : restée sans réponse à sa date « pour le », une demande se relance
+// ce jour-là, puis une fois par semaine, trois fois au plus (messagerie.relances_dues). Le même e-mail sans contenu que
+// l'alerte : ni la pièce, ni le cabinet, ni l'entreprise. Une personne reçoit un seul e-mail par tour, quel que soit le
+// nombre de demandes qui l'attendent ; une demande se note relancée quand au moins une personne l'a reçue.
+type Relance = { message: string; utilisateur: string; email: string; langue: string; entreprise: string; cabinet: string };
+export async function relancerLesDemandes(ctx: Contexte, maintenant: Date = ctx.maintenant?.() ?? new Date()): Promise<number> {
+  const courriel = ctx.courriel;
+  if (!courriel) return 0;
+  const dues = await enTantQue(ctx.pool, null, async (tx) =>
+    (await tx.query('select messagerie.relances_dues($1) d', [maintenant])).rows[0].d as Relance[]);
+  const parPersonne = new Map<string, Relance[]>();
+  for (const d of dues) parPersonne.set(d.utilisateur, [...(parPersonne.get(d.utilisateur) ?? []), d]);
+  const relancees = new Set<string>();
+  let partis = 0;
+  for (const demandes of parPersonne.values()) {
+    const p = demandes[0];
+    if (!p) continue;
+    const langue = 'fr';
+    try {
+      await courriel.envoi.envoyer({
+        a: p.email,
+        objet: rendre(t('messagerie.relance.objet'), langue),
+        texte: rendre(t('messagerie.relance.texte', { lien: `${courriel.adresse()}/` }), langue),
+        bouton: rendre(t('messagerie.relance.bouton'), langue),
+        langue,
+      });
+    } catch (e) {
+      console.error(`une relance de la messagerie n'est pas partie : ${String(e)}`);
+      continue;
+    }
+    for (const d of demandes) relancees.add(d.message);
+    partis++;
+  }
+  if (relancees.size) {
+    await enTantQue(ctx.pool, null, async (tx) => {
+      for (const m of relancees) await tx.query('select messagerie.relance_partie($1, $2)', [m, maintenant]);
+    });
+  }
+  return partis;
+}

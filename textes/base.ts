@@ -355,6 +355,11 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cette pièce ne se reconnaît pas : une facture, un avoir, un devis ou un achat, avec son libellé', cle: 'base.messagerie.piece', fr: 'cette pièce ne se reconnaît pas : une facture, un avoir, un devis ou un achat, avec son libellé' },
   { base: 'ce fichier n\'est pas là : dépose-le d\'abord', cle: 'base.messagerie.fichier_absent', fr: 'ce fichier n\'est pas là : joins-le à nouveau' },
   { base: 'ce fichier est déjà joint à un message', cle: 'base.messagerie.fichier_pris', fr: 'ce fichier est déjà joint à un message' },
+  // (1.116.0, 0168) La date « pour le » d'une pièce demandée, et les relances notées par le serveur seul.
+  { base: 'une date « pour le » s\'écrit en jour, mois et année', cle: 'base.messagerie.pour_format', fr: 'une date « pour le » s\'écrit en jour, mois et année : choisis-la dans le calendrier' },
+  { base: 'une date « pour le » va avec une pièce demandée', cle: 'base.messagerie.pour_sans_demande', fr: 'une date « pour le » va avec une pièce demandée : nomme la pièce, ou retire la date' },
+  { base: 'une pièce se demande pour aujourd\'hui ou plus tard', cle: 'base.messagerie.pour_passee', fr: 'une pièce se demande pour aujourd\'hui ou plus tard : choisis une autre date' },
+  { base: 'seul le serveur note une relance partie', cle: 'base.messagerie.relance_serveur', fr: 'seul le serveur note une relance partie' },
   { base: 'on répond à une pièce demandée en l\'envoyant', cle: 'base.messagerie.reponse_demande', fr: 'on répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF, ou choisis la pièce de ton dossier' },
   { base: 'cette pièce demandée n\'attend plus rien', cle: 'base.messagerie.demande_close', fr: 'cette pièce demandée n\'attend plus rien' },
   { base: 'un achat se nomme par son identifiant et son libellé', cle: 'base.messagerie.achat', fr: 'un achat se nomme par son identifiant et son libellé' },

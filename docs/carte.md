@@ -448,7 +448,11 @@ vaut pour tout le dépôt.*
     d'écrire » : la page relit toutes les 30 secondes, page visible. (1.115.0, après la revue UI/UX du 22/10/2026,
     `docs/revue-messagerie.md` ; `0167`) « Mon comptable » dans le pied fixe du menu ; la boîte du cabinet en deux
     colonnes, la conversation à droite, ↑/↓ ; le fil à la hauteur de l'écran ; « Envoyer la pièce » en fenêtre (photo
-    vue, ou pièce déjà saisie) ; au téléphone, un bouton de bulle à côté de « Menu » (`telephone.js`, 7).
+    vue, ou pièce déjà saisie) ; au téléphone, un bouton de bulle à côté de « Menu » (`telephone.js`, 7). (1.116.0,
+    `0168`) La pièce demandée a une date « pour le » et se relance par e-mail, sans rien de la demande (le jour venu,
+    puis chaque semaine, trois au plus : `messagerie.relances_dues`, `relancerLesDemandes` dans `postier.ts`) ;
+    plusieurs pièces en une demande, la même à plusieurs clients ; « Ouvrir » et « Saisir cette pièce » chez le cabinet
+    (adaptation de `web/v10/messagerie.txt`).
   - **Les e-mails du serveur sont habillés** (12/10/2026, maquette validée par Skander ; `serveur/courriel.ts`,
     `serveur/courriel.html`) : la version HTML dit EXACTEMENT le texte (qui part aussi), le code en grand, le lien en
     bouton qui nomme son geste (`…_bouton` au catalogue : un e-mail neuf qui porte un lien en déclare un, un test le

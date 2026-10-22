@@ -9300,7 +9300,7 @@ prouver "un refus de la préparation offert à réessayer" $EXP \
 # ── Lot messagerie (09/10/2026 ; docs/messagerie.md ; base/migrations/0078_messagerie.sql, serveur/messagerie/,
 # web/public/plateforme/messagerie.js ; tests/messagerie/messagerie.test.ts, tests/web/messagerie.test.ts) ──
 MG=base/migrations/0078_messagerie.sql
-# (1.115.0) `messagerie.ecrire` est redéfinie par 0167_messagerie_revue.sql : ses preuves y retirent la règle.
+# (1.115.0, puis 1.116.0) `messagerie.ecrire` est redéfinie par 0167, puis 0168_messagerie_relances.sql : ses preuves y retirent la règle.
 MR=serveur/messagerie/routes.ts
 MJ=web/public/plateforme/messagerie.js
 MSG1="ils s'écrivent ; chacun voit ce qui l'attend, « lu » se dit à l'autre ; ni la voisine, ni un autre rôle, ni un collaborateur sans le dossier"
@@ -9325,15 +9325,15 @@ prouver "le fil lu d'un membre du cabinet à qui le dossier n'est pas confié" $
 prouver "« Toi » sous le message d'un collègue" $MR \
   "            moi: m.de_moi," "            moi: m.cote === cote.data," \
   "$MSG1"
-prouver "le client qui demande une pièce" base/migrations/0167_messagerie_revue.sql \
+prouver "le client qui demande une pièce" base/migrations/0168_messagerie_relances.sql \
   "  if v_demande is not null and p_cote <> 'cabinet' then perform socle.refus('seul le cabinet demande une pièce'); end if;" "" \
   "$MSG2"
-prouver "la pièce demandée envoyée, jamais reçue" base/migrations/0167_messagerie_revue.sql \
+prouver "la pièce demandée envoyée, jamais reçue" base/migrations/0168_messagerie_relances.sql \
   "    update messagerie.message set demande_recue_le = clock_timestamp(), demande_recue_par = socle.moi()
      where id = v_repond and entreprise = p_entreprise and cabinet = v_cabinet and demande is not null and demande_recue_le is null;
     if not found then perform socle.refus('cette pièce demandée n''attend plus rien'); end if;" "" \
   "$MSG2"
-prouver "un fichier joint à deux messages" base/migrations/0167_messagerie_revue.sql \
+prouver "un fichier joint à deux messages" base/migrations/0168_messagerie_relances.sql \
   "    if exists (select 1 from messagerie.message m where m.fichier = v_fichier) then perform socle.refus('ce fichier est déjà joint à un message'); end if;" "" \
   "$MSG2"
 prouver "un fichier pas encore joint, lu de l'autre côté" $MG \
@@ -9359,7 +9359,7 @@ prouver "le fil d'un ancien cabinet écrit par l'entreprise" $MG \
   "  if v is null then perform socle.refus('aucun cabinet ne tient ce dossier : la messagerie s''ouvre avec le mandat'); end if;" "  if v is null then select f.cabinet into v from messagerie.fil f where f.entreprise = p_entreprise limit 1; end if;" \
   "$MSG5"
 prouver "l'alerte qui nomme l'entreprise dans son lien" serveur/messagerie/postier.ts \
-  "{ lien: \`\${courriel.adresse()}/\` }" "{ lien: \`\${courriel.adresse()}/v10/?e=\${p.entreprise}\` }" \
+  "'messagerie.alerte.entreprise', { lien: \`\${courriel.adresse()}/\` }" "'messagerie.alerte.entreprise', { lien: \`\${courriel.adresse()}/v10/?e=\${p.entreprise}\` }" \
   "$MSG6"
 prouver "l'alerte envoyée à une adresse que personne n'a vérifiée" $MG \
   "    join socle.utilisateur u on u.id = p.utilisateur and u.adresse_verifiee_le is not null" "    join socle.utilisateur u on u.id = p.utilisateur" \
@@ -19287,7 +19287,7 @@ MW115="(1.115.0) la boîte de deux clients : le clavier, le client traité qui r
 prouver 'une pièce du dossier envoyée seule, refusée par la base' $MR115 \
   'or demande is not null or piece_genre is not null);' 'or demande is not null);' \
   "$MSG2"
-prouver 'la pièce demandée qui ne se répond qu'\''avec un fichier' $MR115 \
+prouver 'la pièce demandée qui ne se répond qu'\''avec un fichier' base/migrations/0168_messagerie_relances.sql \
   "or (v_fichier is null and v_genre is null) then perform socle.refus('on répond à une pièce demandée en l''envoyant')" "or v_fichier is null then perform socle.refus('on répond à une pièce demandée en l''envoyant')" \
   "$MSG2"
 prouver 'la question signée « Ton cabinet » avant le premier message' $MR115 \
@@ -19331,6 +19331,103 @@ prouver 'au téléphone, « Envoyer » sous l'\''écran' web/public/plateforme/m
 prouver 'au téléphone, les messages cachés dans le menu replié' web/public/plateforme/telephone.js \
   '    poserMessages(barre, tete, b);' '' \
   "$MSGW"
+
+# ── 1.116.0 : la messagerie après sa revue, lot 2 (pièces demandées datées et relancées, demandes groupées, le cabinet
+# agit sur ce qu'il reçoit ; docs/revue-messagerie.md) ──
+MR116=base/migrations/0168_messagerie_relances.sql
+T116A="la date « pour le » : aujourd'hui ou plus tard, avec une pièce demandée ; passée sans réponse, la demande est en retard des deux côtés et dans la boîte"
+T116B="plusieurs pièces d'un coup : un message chacune, le mot sur la première, la même date ; toutes ou aucune"
+T116C="la relance : à sa date si rien n'est venu, puis chaque semaine, trois au plus ; rien de la demande dans l'e-mail ; une demande reçue, sans date ou décochée ne se relance pas"
+prouver 'une pièce demandée pour hier' $MR116 \
+  "  if v_pour < (clock_timestamp() at time zone 'Africa/Tunis')::date then
+    perform socle.refus('une pièce se demande pour aujourd''hui ou plus tard');
+  end if;" "" \
+  "$T116A"
+prouver 'une date « pour le » sans pièce demandée' $MR116 \
+  "  if v_pour is not null and v_demande is null then perform socle.refus('une date « pour le » va avec une pièce demandée'); end if;" "" \
+  "$T116A"
+prouver 'un 30 février pris pour une date' $MR \
+  '.refine((x) => !Number.isNaN(Date.parse(`${x}T00:00:00Z`)) && new Date(`${x}T00:00:00Z`).toISOString().startsWith(x), {' '.refine((x) => x.length > 0, {' \
+  "$T116A"
+prouver 'une pièce reçue toujours en retard' $MR \
+  "          coalesce(m.demande_recue_le is null and m.demande_pour < " "          coalesce(m.demande_pour < " \
+  "$T116A"
+prouver 'en retard avant sa date (ce qui attend)' $MR \
+  "and m.demande_recue_le is null and m.demande_pour < (now() at time zone 'Africa/Tunis')::date) en_retard" "and m.demande_recue_le is null) en_retard" \
+  "$T116A"
+prouver 'en retard avant sa date (la boîte)' $MR \
+  "and m.demande_pour < (now() at time zone 'Africa/Tunis')::date group by m.entreprise" "group by m.entreprise" \
+  "$T116A"
+prouver 'le mot répété sous chaque pièce demandée' $MR \
+  "          texte: i === 0 ? corps.texte : ''," "          texte: corps.texte," \
+  "$T116B"
+prouver 'une pièce et une liste de pièces à la fois' $MR \
+  "      if (corps.demandes && corps.demande) return champInvalide('demande', t('messagerie.champ.demandes'));" "" \
+  "$T116B"
+prouver 'une relance chaque minute' $MR116 \
+  "(m.relance_le is null or m.relance_le <= p_maintenant - interval '7 days')" "true" \
+  "$T116C"
+prouver 'des relances sans fin' $MR116 \
+  "       and m.relances < 3 and " "       and " \
+  "$T116C"
+prouver 'une relance avant sa date' $MR116 \
+  "       and m.demande_pour <= (p_maintenant at time zone 'Africa/Tunis')::date" "" \
+  "$T116C"
+prouver 'une pièce reçue relancée quand même' $MR116 \
+  "     where m.demande is not null and m.demande_recue_le is null and m.demande_pour is not null" "     where m.demande is not null and m.demande_pour is not null" \
+  "$T116C"
+prouver 'une relance à qui a décoché « Me prévenir par e-mail »' $MR116 \
+  "   where socle.moi() is null and coalesce(al.active, true)" "   where socle.moi() is null" \
+  "$T116C"
+prouver 'une relance d'\''un cabinet qui ne tient plus le dossier' $MR116 \
+  "d.cabinet = m.cabinet and d.statut = 'actif'
+                     and d.debut <= (p_maintenant at time zone 'Africa/Tunis')::date
+                     and (d.fin is null or d.fin >= (p_maintenant at time zone 'Africa/Tunis')::date))" "d.cabinet = m.cabinet)" \
+  "$T116C"
+prouver 'le cabinet qui note lui-même une relance partie' $MR116 \
+  "  if socle.moi() is not null then perform socle.refus('seul le serveur note une relance partie'); end if;" "" \
+  "$T116C"
+prouver 'la relance qui nomme l'\''entreprise dans son lien' serveur/messagerie/postier.ts \
+  "t('messagerie.relance.texte', { lien: \`\${courriel.adresse()}/\` })" "t('messagerie.relance.texte', { lien: \`\${courriel.adresse()}/v10/?e=\${p.entreprise}\` })" \
+  "$T116C"
+prouver 'une relance repartie à chaque tour' serveur/messagerie/postier.ts \
+  "    for (const d of demandes) relancees.add(d.message);" "" \
+  "$T116C"
+prouver 'la date « pour le » écrite mais pas envoyée' $MJ \
+  "          const pour = demande && pourChamp.value ? pourChamp.value : null;" "          const pour = null;" \
+  "$MSGW"
+prouver 'la demande sans date proposée' $MJ \
+  "      pourChamp.min = jourCle(Date.now());
+      pourChamp.value = dansSeptJours();" "      pourChamp.min = jourCle(Date.now());" \
+  "$MSGW"
+prouver 'la date « pour le » qui ne se voit pas sur la carte' $MJ \
+  "        const pour = m.demande.pour && !recue ? " "        const pour = false ? " \
+  "$MSGW"
+prouver 'l'\''aperçu de la photo vide (entreprise)' web/public/v10/index.html \
+  "img-src 'self' data: blob:;" "img-src 'self' data:;" \
+  "$MSGW"
+prouver 'la photo du client vide (cabinet)' web/public/v10/cabinet/index.html \
+  "img-src 'self' data: blob:;" "img-src 'self' data:;" \
+  "$MSGW"
+prouver '« Saisir cette pièce » absent' $MJ \
+  "\${!entreprise && m.cote === 'entreprise' && o.saisirPiece && actif ?" "\${false ?" \
+  "$MSGW"
+prouver '« Saisir cette pièce » qui ne mène pas à la saisie' web/public/v10/cabinet/app.js \
+  "      location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/saisie/' + String(m.ecritLe).slice(0, 4);" "" \
+  "$MSGW"
+prouver 'la demande groupée sans client' $MJ \
+  "        if (!clients.length) { refus.textContent = 'Coche au moins un client.'; return; }" "" \
+  "$MW115"
+prouver 'la demande groupée sans sa date' $MJ \
+  "pour: pourChamp.value || null," "pour: null," \
+  "$MW115"
+prouver 'la demande groupée absente de la conversation ouverte' $MJ \
+  "        if (ouverte) void ouverte.c.relire();
+        if (o.toast)" "        if (o.toast)" \
+  "$MW115"
+prouver 'la pièce citée ouverte sans son numéro cherché' web/public/v10/cabinet/app.js \
+  "      Object.assign(livresState, { brouillard: true, q: numero, journal: '', page: 1, onglet: 'journal' });" "      Object.assign(livresState, { onglet: 'journal' });" \
+  "$MW115"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

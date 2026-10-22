@@ -78,7 +78,7 @@ import { routesCompta } from './compta/routes.ts';
 import { declarerGestesPaie } from './paie/gestes.ts';
 import { routesPaie } from './paie/routes.ts';
 import { declarerGestesMessagerie } from './messagerie/gestes.ts';
-import { prevenirParCourriel } from './messagerie/postier.ts';
+import { prevenirParCourriel, relancerLesDemandes } from './messagerie/postier.ts';
 import { prevenirDesReponses } from './support/postier.ts';
 import { declarerGestesSupport } from './support/gestes.ts';
 import { routesSauvegardes } from './sauvegardes.ts';
@@ -334,13 +334,14 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const contrats = setInterval(tourDesContrats, c.contratsMs);
 
   // Les alertes par e-mail de la messagerie (lot messagerie) et du support (docs/support.md) : chaque minute, qui a un
-  // message ou une réponse à lire depuis cinq minutes ; un seul tour à la fois, et rien sans relais d'e-mails.
+  // message ou une réponse à lire depuis cinq minutes, et (1.116.0) les relances des pièces demandées restées sans
+  // réponse à leur date ; un seul tour à la fois, et rien sans relais d'e-mails.
   let alertes: Promise<unknown> = Promise.resolve();
   let enAlertes = false;
   const postier = setInterval(() => {
     if (enAlertes || !ctx.courriel) return;
     enAlertes = true;
-    alertes = suivreTour(pool, 'postier', async () => ({ alertes: await prevenirParCourriel(ctx) + await prevenirDesReponses(ctx) }))
+    alertes = suivreTour(pool, 'postier', async () => ({ alertes: await prevenirParCourriel(ctx) + await relancerLesDemandes(ctx) + await prevenirDesReponses(ctx) }))
       .catch((e: unknown) => { noterPanne('tâche prevenirParCourriel', e); }).finally(() => { enAlertes = false; });
   }, c.alertesMs);
 

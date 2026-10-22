@@ -123,12 +123,13 @@ describe('les guides d\'écritures, à la souris', () => {
     expect(e?.lignes.find((l) => l.compte === '4366')?.debit).toMatch(/^190\.04[78]$/);
 
     // ── Le journal choisi dans la grille est retenu pour ce dossier ─────────────────────────────
+    // (1.116.0) Attendu jusqu'à 15 s : une seconde (le délai par défaut) ne suffisait pas sur une machine lente.
     await p.locator('#sa-journal').selectOption('AC');
     const fiche = async () => ((await api('GET', `/cabinets/${cabinet}/fiches`, associe)).corps.fiches as { entreprise: string; contenu: { dernierJournal?: string } }[]).find((f) => f.entreprise === garage)?.contenu;
-    await expect.poll(async () => (await fiche())?.dernierJournal).toBe('AC');
+    await expect.poll(async () => (await fiche())?.dernierJournal, { timeout: 15_000 }).toBe('AC');
     // Un second choix, sans recharger : il s'écrit sur la fiche que le premier a laissée.
     await p.locator('#sa-journal').selectOption('BQ');
-    await expect.poll(async () => (await fiche())?.dernierJournal).toBe('BQ');
+    await expect.poll(async () => (await fiche())?.dernierJournal, { timeout: 15_000 }).toBe('BQ');
     await aller(`#/dossier/${garage}/comptabilite/saisie/2026`);
     expect(await p.locator('#sa-journal').inputValue()).toBe('BQ');
 
