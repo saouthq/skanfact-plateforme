@@ -9814,7 +9814,7 @@ prouver "la page publique qui montre une panne pas encore confirmée" exploitati
   '.filter(([c, e]) => confirme(c, e.vus))' '.filter(() => true)' \
   "$VE12"
 prouver "le nom du serveur posé tel quel dans la page publique" exploitation/veille.ts \
-  '<p class="sous">${echapper(serveur)}</p>' '<p class="sous">${serveur}</p>' \
+  'chapo: `${echapper(serveur)} — ce que' 'chapo: `${serveur} — ce que' \
   "$VE13"
 VW1="un fichier de réglages se lit comme systemd le lit : la valeur jusqu'au bout de la ligne, espaces comprises"
 VW2="la place des disques, chacun compté une fois"
@@ -14528,8 +14528,8 @@ prouver 'le ticket jamais fermé' 'exploitation/guetter.ts' \
   '' \
   'le retour dit l'"'"'heure et ferme le ticket ; une autre adresse n'"'"'est pas touchée'
 prouver 'la page d'"'"'état sans son heure' 'exploitation/veille.ts' \
-  '<p class="pied" data-verifie="${echapper(e.le)}">' \
-  '<p class="pied">' \
+  '<p class="pa-essai" data-verifie="${echapper(e.le)}">' \
+  '<p class="pa-essai">' \
   'la page d'"'"'état que la veille écrit porte l'"'"'heure que le guet lit (l'"'"'une ne change pas sans l'"'"'autre)'
 prouver 'le guet muet jamais dit' 'exploitation/veille.ts' \
   '  if (!Number.isFinite(age) || age > GUET_MUET_MIN * 60_000) {' \
