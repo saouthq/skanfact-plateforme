@@ -515,6 +515,8 @@ lui ; ce qu'on fait se lit alors sur un papier ou sur le téléphone.
   et cocher « le dire tout de suite » pose son message dans le champ ; changer de fiche le change tant qu'on n'y a pas
   touché. **Un passage entre crochets ne part jamais sur la page d'état** : la fenêtre le refuse en le citant, et le
   serveur aussi (à l'ouverture, en point public, en maintenance annoncée).
+- (1.114.0) **« Où est quoi »** cite aussi la page de secours (`etat.skanfact.tn`, `docs/mise-en-ligne.md` I quater) :
+  quand la console est tombée avec le serveur, le mot aux clients s'écrit là, avec la clé de secours du pli scellé.
 
 **C24 quater. Les exercices de crise** (demandé par Skander le 22/10/2026 : « se préparer à la gestion de crise » ;
 1.113.0, base 0166, `serveur/console/incidents.ts`, `web/console/src/ecrans/Incidents.tsx`). Un incident qu'on n'a

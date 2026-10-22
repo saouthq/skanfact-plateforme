@@ -536,6 +536,38 @@ Sans adresse, il le dit dans son journal ; sans jeton, il regarde sans ouvrir de
 
 Tests : `tests/exploitation/guet-second.test.ts`.
 
+## I quater. La page d'état de secours (1.114.0, 22/10/2026 ; décidé par délégation)
+
+La page d'état publique (`/etat`) vit sur **notre** machine : le jour où la machine tombe, elle tombe avec elle, au
+moment où les clients la cherchent. La **page de secours** vit chez **Cloudflare**, dans le Worker du second guet
+(`exploitation/guet-second/secours.ts`, servie par `worker.ts`), à l'adresse **`etat.skanfact.tn`** :
+- elle dit ce que le second guet a vu de la **première** adresse de sa variable `SKANFACT_GUET` (celle des clients :
+  `https://app.skanfact.tn` d'abord) : « SkanFact répond », avec le lien vers la vraie page d'état, ou « SkanFact ne
+  répond pas depuis … » (l'heure où la panne a commencé, gardée tant qu'elle dure). Une veille muette, le programme
+  répondant, n'est pas une panne pour les clients. Un regard de plus de trente minutes (le Worker ne passe plus) ne se
+  fait jamais passer pour un état : la page dit « Cette page ne regarde plus » ;
+- **le mot de l'équipe** : quand la console est tombée avec le serveur, on écrit ici, sur `etat.skanfact.tn/ecrire`,
+  avec la **clé de secours** (un secret du Worker, rangé dans le pli scellé, jamais dans le dépôt). Il se lit en tête de
+  la page, avec son heure ; « Retirer le mot » l'efface au retour. Un passage entre crochets (un message prêt du carnet
+  pas rempli) ne se publie jamais ; dix essais faux en une heure ferment l'écriture jusqu'à l'heure suivante ;
+- rien d'un client ni d'interne : l'état vu de dehors, l'heure, et le mot choisi. Aucun script, rien à charger.
+La page d'état publique de nos serveurs la cite à son pied (« si cette page ne s'ouvre plus »), dès que la variable
+`SKANFACT_PAGE_SECOURS` du serveur porte son adresse ; le carnet de crise aussi (« où est quoi »).
+
+**La poser (une fois, par Skander, après le second guet, I ter)** — dans le dossier `exploitation/guet-second` :
+1. `npx wrangler kv namespace create ETAT` : il répond par un identifiant (une suite de lettres et de chiffres, pas un
+   secret) ; **l'envoyer à Claude**, qui le colle dans `wrangler.toml`.
+2. `npx wrangler secret put SKANFACT_SECOURS_CLE` : coller une clé d'au moins vingt caractères (un gestionnaire de mots
+   de passe la tire au sort) ; la noter dans le pli scellé, jamais ailleurs. Plus courte, l'écriture reste fermée.
+3. `npx wrangler deploy` : le Worker prend son adresse `etat.skanfact.tn` (la zone est chez Cloudflare : l'enregistrement
+   se fait seul). **À VÉRIFIER** au premier déploiement : que Cloudflare crée bien l'adresse sans geste de plus.
+4. Ouvrir `https://etat.skanfact.tn` : « SkanFact répond » au plus tard dix minutes après ; puis
+   `https://etat.skanfact.tn/ecrire`, publier un mot d'essai, le lire sur la page, le retirer.
+5. Dire à Claude que c'est fait : une tâche d'entretien pose `SKANFACT_PAGE_SECOURS=https://etat.skanfact.tn` sur le
+   serveur, et la page d'état publique la cite.
+
+Tests : `tests/exploitation/secours.test.ts`, `tests/exploitation/guet-second.test.ts`.
+
 ## K. La répétition générale (1.57.0)
 
 Avant la première donnée réelle d'un client, tout ce qui peut arriver à un serveur des pilotes se joue sur une machine

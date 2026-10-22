@@ -38,6 +38,7 @@ la machine de la répétition, l'accès de Claude n'existe pas non plus, `docs/m
 | 3.2 | S | La variable `SKANFACT_GUET` sur GitHub, avec cette adresse (I bis) | Le guet de GitHub passe toutes les dix minutes ; la veille ne dit plus « ce serveur n'est pas guetté » |
 | 3.3 | S | Le second guet (I ter) : le Worker de Cloudflare, sa variable et son jeton | Un passage toutes les dix minutes dans le journal du Worker |
 | 3.4 | S | Couper la machine du réseau vingt minutes (le pare-feu de l'hébergeur) | **Deux** tickets s'ouvrent sur GitHub (« Le guet extérieur : … », « Le second guet : … ») et partent par e-mail ; au retour, les deux se ferment seuls |
+| 3.4 bis | S | **La page de secours** (I quater, 1.114.0) : le magasin, la clé, `npx wrangler deploy` ; puis couper la machine du réseau vingt minutes (avec 3.4) | `etat.skanfact.tn` dit « SkanFact ne répond pas depuis … » ; un mot écrit sur `/ecrire` s'y lit ; au retour, « SkanFact répond », et le mot se retire |
 | 3.5 | S | Remplir le disque à 90 % (un fichier, puis l'effacer) | L'alerte du disque, puis son retour |
 
 ## 4. La console

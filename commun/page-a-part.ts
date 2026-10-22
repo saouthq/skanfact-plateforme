@@ -21,6 +21,7 @@ export type PageAPart = {
   pied?: string;               // sous la carte (HTML échappé)
   vitrineBas?: string;         // au bas de la vitrine (HTML échappé)
   script?: string;             // un script de la page (le frontal seulement : le programme n'en permet aucun)
+  style?: string;              // des règles de plus, propres à la page (le formulaire de la page de secours)
 };
 
 export const echapper = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -150,7 +151,7 @@ export function pageAPart(p: PageAPart): string {
 ${p.rafraichir ? `<meta http-equiv="refresh" content="${p.rafraichir}">` : ''}<meta name="robots" content="noindex"><meta name="theme-color" content="#0b2724">
 <title>${echapper(p.onglet)}</title>
 <style>
-${p.polices ? polices(p.polices) : ''}${STYLE}</style></head>
+${p.polices ? polices(p.polices) : ''}${STYLE}${p.style ?? ''}</style></head>
 <body><div class="pa-double">
 <aside class="pa-nuit">
 <div class="pa-marque"><span class="pa-logo" aria-hidden="true">S</span>SkanFact</div>

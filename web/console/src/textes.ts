@@ -3781,6 +3781,8 @@ declarerTextes({
   'console.ecran.service.carnet.ou.console.ou': 'son adresse, ton mot de passe et ton code à deux facteurs. Chaque geste y est tracé',
   'console.ecran.service.carnet.ou.etat.quoi': 'la page d\'état publique',
   'console.ecran.service.carnet.ou.etat.ou': 'l\'adresse de SkanFact suivie de /etat. Le frontal la sert seul : elle répond même quand le programme est arrêté',
+  'console.ecran.service.carnet.ou.secours.quoi': 'la page de secours',
+  'console.ecran.service.carnet.ou.secours.ou': 'etat.skanfact.tn, hors de nos serveurs, chez Cloudflare : elle dit si SkanFact répond, même quand tout est tombé. Quand la console est tombée aussi, le mot aux clients s\'y écrit (etat.skanfact.tn/ecrire), avec la clé de secours du pli scellé',
   'console.ecran.service.carnet.ou.fermer.quoi': 'fermer l\'application aux clients',
   'console.ecran.service.carnet.ou.fermer.ou': 'console › Service › Incidents › « Fermer maintenant » : les clients lisent « Maintenance en cours », la console reste ouverte',
   'console.ecran.service.carnet.ou.urgence.quoi': 'entrer quand la console refuse',

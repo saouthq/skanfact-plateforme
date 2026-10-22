@@ -869,6 +869,9 @@ vaut pour tout le dépôt.*
   maintenances, la page d'état et le mot « sans JavaScript », d'un seul habit ; `node scripts/pages-a-part.ts` les écrit.
   (1.109.0) **Le carnet de crise** (`web/console/src/carnet.ts`, `docs/console.md` C24 ter) : un fichier hors ligne, écrit
   avec les textes de la console ; `node scripts/carnet-de-crise.ts` l'écrit hors de la console.
+  (1.114.0) **La page d'état de secours** (`exploitation/guet-second/secours.ts`, `docs/mise-en-ligne.md` I quater) :
+  `etat.skanfact.tn`, chez Cloudflare, dans le Worker du second guet ; elle répond quand SkanFact ne répond plus, et
+  porte le mot de l'équipe (écrit avec la clé de secours).
   (1.113.0) **Les exercices de crise** (base 0166, `docs/console.md` C24 quater) : une fiche jouée à blanc, chronométrée,
   close par son compte rendu ; le lancement (J5) veut les dix réussies dans l'année.
   **Deux sortes de serveurs** (`installer.sh <adresse> essai|pilotes`, B bis) : l'essai (données inventées) et les

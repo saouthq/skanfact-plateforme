@@ -30,7 +30,7 @@ export function messagesDe(f: string): Messages {
 export const passageARemplir = (texte: string) => /\[[^\]]*\]/.exec(texte)?.[0] ?? null;
 
 const QUI = ['direction', 'relais', 'seconde', 'hebergeur', 'domaine', 'paiement', 'signature', 'ttn', 'sms', 'courriel', 'banque', 'juriste', 'inpdp', 'comptable'] as const;
-const OU = ['console', 'etat', 'fermer', 'urgence', 'remise', 'pli', 'procedures'] as const;
+const OU = ['console', 'etat', 'secours', 'fermer', 'urgence', 'remise', 'pli', 'procedures'] as const;
 const OBJECTIFS = ['programme', 'base', 'site', 'erreur', 'rancon'] as const;
 const GRAVITES = ['mineur', 'majeur', 'critique'] as const;
 // Une commande, pas une phrase : elle reste telle quelle dans toutes les langues.

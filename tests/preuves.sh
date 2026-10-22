@@ -9835,7 +9835,7 @@ prouver "l'essai des alertes réussi sans rien envoyer" exploitation/veiller.ts 
   'return p.courriel !== false && p.sms !== false && (p.courriel === true || p.sms === true);' 'return p.courriel !== false && p.sms !== false;' \
   "$VW4"
 prouver "la page d'état jamais écrite" exploitation/veiller.ts \
-  "    ecrire(path.join(ETAT, 'public', 'etat.html'), pageEtat(SERVEUR, r, garde(aNoter), annonce));" "" \
+  "    ecrire(path.join(ETAT, 'public', 'etat.html'), pageEtat(SERVEUR, r, garde(aNoter), annonce, adresseDeSecours(R.SKANFACT_PAGE_SECOURS)));" "" \
   "$VW5"
 prouver "la veille qui oublie d'une minute à l'autre" exploitation/veiller.ts \
   '  const avant = lire<Veille>(fichier, { problemes: {} });' '  const avant: Veille = { problemes: {} };' \
@@ -19253,6 +19253,32 @@ prouver 'le chrono d'\''un exercice qui part hors de la vue' 'web/console/src/ec
   '    const f = requestAnimationFrame(() => { cadre.current?.focus({ preventScroll: true }); cadre.current?.scrollIntoView({ block: '\''start'\'' }); });' \
   '    const f = 0;' \
   'un exercice se joue temps par temps'
+
+# ── 1.114.0 : la page d'état de secours (mise en ligne, I quater) ──
+prouver 'une panne qui oublie quand elle a commencé' 'exploitation/guet-second/secours.ts' \
+  '  const depuis = repond ? null : avant && !avant.repond && avant.adresse === r.adresse && avant.depuis ? avant.depuis : r.le;' \
+  '  const depuis = repond ? null : r.le;' \
+  'la panne garde l'\''heure où elle a commencé'
+prouver 'un vieux regard qui passe pour l'\''état de SkanFact' 'exploitation/guet-second/secours.ts' \
+  '  if (age > REGARD_PERIME_MIN) {' \
+  '  if (false) {' \
+  'un regard trop vieux ne dit plus l'\''état'
+prouver 'un message prêt publié avec ses crochets' 'exploitation/guet-second/secours.ts' \
+  '  if (crochet) return' \
+  '  if (false) return' \
+  'un mot vide, trop long, ou avec un passage entre crochets'
+prouver 'la clé de secours essayée sans fin' 'exploitation/guet-second/secours.ts' \
+  '  if (echecs >= ESSAIS_PAR_HEURE) return' \
+  '  if (false) return' \
+  'la bonne clé publie et revient à la page'
+prouver 'une clé de secours trop courte qui ouvre' 'exploitation/guet-second/secours.ts' \
+  '  if (!posee || posee.length < CLE_MIN) return false;' \
+  '  if (!posee) return false;' \
+  'la clé se compare entière'
+prouver 'la page d'\''état qui cite n'\''importe quelle adresse de secours' 'exploitation/veille.ts' \
+  "export const adresseDeSecours = (x: string | undefined) => (/^https:\/\/[a-z0-9.-]+\$/.test(x ?? '') ? (x as string) : null);" \
+  "export const adresseDeSecours = (x: string | undefined) => x ?? null;" \
+  'la page de secours se cite une fois posée'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
