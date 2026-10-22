@@ -61,6 +61,20 @@ la machine de la répétition, l'accès de Claude n'existe pas non plus, `docs/m
 | 5.2 | S | Un paiement d'essai par Konnect (son bac à sable) | Encaissé, la facture payée, le reçu envoyé |
 | 5.3 | S | Le code de connexion par SMS (WinSMS) | Reçu en moins d'une minute ; Service › Travaux le compte |
 
+## 5 bis. Les appareils
+
+Ce que la machine des essais ne peut pas voir (1.112.0) : elle n'a que Chromium. Le code envoyé au navigateur est tenu
+au plancher (Chrome et Edge 111, Firefox 121, Safari et iOS 16.4 : `commun/navigateurs.ts`, `tests/web/navigateurs.test.ts`)
+et chaque écran du quotidien tient à 320 points au doigt (`tests/web/telephone-commercant.test.ts`) ; le rendu lui-même
+se regarde sur de vrais appareils.
+
+| | Qui | Le geste | Ce qu'on doit voir |
+|---|---|---|---|
+| 5b.1 | S | Un iPhone (Safari) : se connecter, faire une facture, l'émettre, l'envoyer par WhatsApp ; ajouter SkanFact à l'écran d'accueil | Tout se touche du doigt ; rien ne glisse de côté ; l'icône ouvre l'application seule, sans la barre de Safari |
+| 5b.2 | S | Un téléphone Android d'entrée de gamme (Chrome) : la même facture, puis la caisse, sans réseau dix minutes | Le ticket se fait sans réseau et part seul au retour ; le clavier ne cache pas le bouton « Enregistrer » |
+| 5b.3 | S | Firefox et Safari sur un ordinateur : la console, la fiche d'un client, un geste avec son motif | Même écran qu'avec Chrome ; aucune règle de mise en page qui manque (les cartes, les pastilles) |
+| 5b.4 | S | La tablette du comptoir (la caisse, au doigt, en paysage et en portrait) | Le comptage tient au-dessus de « Fermer la caisse et faire le Z » |
+
 ## 6. Signer la répétition
 
 Quand tout est coché : une ligne datée dans `docs/cadrage/README.md` (« répétition générale passée »), avec le temps de

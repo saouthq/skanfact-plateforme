@@ -383,6 +383,26 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await o.cx.close();
   }, 180_000);
 
+  // Navigateurs et appareils (1.112.0, 22/10/2026) : à 360 points tout tenait ; à 320, le plus petit téléphone encore en
+  // service, la recherche des Paramètres demandait 320 points pour elle seule et sortait de l'écran, « Guide-moi » avec elle.
+  it('au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté', async () => {
+    const c = await commercante({ pieces: true, factures: 2 });
+    const { cx, p, erreurs } = await ouvrir(c, '#/dashboard', { largeur: 320, hauteur: 640, doigt: true });
+    const deCote: string[] = [];
+    for (const r of ['dashboard', 'factures', 'devis', 'clients', 'catalogue', 'stock', 'achats', 'fournisseurs', 'caisse', 'tresorerie',
+      'compta', 'paie', 'parametres', 'relances', 'doc/new/facture']) {
+      await p.goto(`${serveur.adresse}/v10/?e=${c.ent}#/${r}`);
+      await p.reload();
+      await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+      await plusTard(p);
+      const large = await p.evaluate(() => document.scrollingElement?.scrollWidth ?? 0);
+      if (large > 320) deCote.push(`${r} : ${large} points`);
+    }
+    expect(deCote).toEqual([]);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
+
   it('la caisse sur la tablette (1 180 × 820) et sur un écran de 1 024 × 768 : rien n\'est tranché, le comptage tient', async () => {
     const c = await commercante({ pieces: true, caisse: true });
     const TABLETTE: Ecran = { largeur: 1180, hauteur: 820, doigt: true };

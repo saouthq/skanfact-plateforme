@@ -196,6 +196,9 @@
   /* « ▾ » (les autres façons de facturer) reste collé à son bouton, à sa taille ; l'aperçu perd son trait de séparation. */
   .colle-bouton > .more { flex: 0 0 auto; }
   .page-head .actions > .pv-cmd { border: 0; padding: 0; margin: 0; }
+  /* La recherche des Paramètres demandait 320 points pour elle seule : sur un téléphone de 320 (le plus étroit), elle
+     sortait de l'écran, « Guide-moi » avec elle (navigateurs et appareils, 22/10/2026). Elle prend la rangée. */
+  .set-search, .set-search input[type=search] { min-width: 0; flex: 1 1 100%; width: 100%; max-width: none; }
   /* Sous les filtres d'une liste, la bulle se range à côté de la case qui la précède, au lieu d'une ligne à elle. */
   .filters > :has(+ button.i) { flex-basis: calc(100% - 56px); }
   .filters > button.i { flex: 0 0 44px; margin: 0; }

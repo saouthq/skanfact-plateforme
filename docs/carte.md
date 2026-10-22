@@ -820,6 +820,10 @@ vaut pour tout le dépôt.*
   - **La charge des clients** (1.110.0 ; VISION § 6) : le banc `banc/clients/mesurer.ts` (`npm run banc:clients` :
     500 utilisateurs au travail sur 60 entreprises de cinq ans, le programme en deux exemplaires) ; base
     `0165_equilibree_sans_detour.sql` (le contrôle d'équilibre des écritures sans la sécurité par ligne).
+  - **Le plancher des navigateurs** (1.112.0 ; VISION § 4.1) : `commun/navigateurs.ts` (Chrome et Edge 111, Firefox 121,
+    Safari et iOS 16.4), visé par `web/vite.config.ts` ; `tests/web/navigateurs.test.ts` relit tout ce qui est servi (la
+    syntaxe ES2022, les fonctions plus jeunes, les feuilles de style). Le plus petit téléphone (320 points) :
+    `tests/web/telephone-commercant.test.ts`. Les vrais appareils : `docs/repetition-generale.md`, 5 bis.
   - **Le contenu des pièces relu contre son empreinte** (1.53.0 ; `docs/console.md` C66) : base `0142_relire_contenus.sql`
     (l'état du contenu de chaque chaîne, les pièces rendues au serveur seul, la relecture demandée, ce que la console et la
     veille en lisent) ; `serveur/service/contenus.ts` (la relecture : chaque heure après les liens, et celle qu'on demande),

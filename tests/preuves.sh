@@ -19206,6 +19206,28 @@ prouver 'la signature sans DigiGo dite « Bon »' 'web/console/src/ecrans/Travau
   '  const branche = (p: Partenaire) => (p === '\''relances'\'' ? d.branches.courriel : p === '\''ttn'\'' ? d.branches.ttn : true);' \
   'une TTN sans adresse est « pas branchée », jamais « bonne »'
 
+# ── 1.112.0 : navigateurs et appareils (le plancher, le plus petit téléphone) ──
+prouver 'une fonction plus jeune que le plancher dans un écran' 'web/public/plateforme/telephone.js' \
+  '(function () {' \
+  '(function () { Object.groupBy([], () => 0);' \
+  'chaque script se lit en ES2022'
+prouver 'une syntaxe plus jeune que le plancher dans un écran' 'web/public/plateforme/telephone.js' \
+  '(function () {' \
+  '(function () { const v = /[a&&b]/v;' \
+  'chaque script se lit en ES2022'
+prouver 'des règles emboîtées dans une feuille servie' 'web/public/plateforme/telephone.css' \
+  '.menu-tel { display: none; }' \
+  '.menu-tel { display: none; & .x { color: red; } }' \
+  'aucune feuille de style n'\''emboîte ses règles'
+prouver 'l'\''entrée construite sans le plancher' 'web/vite.config.ts' \
+  '  build: { outDir: '\''../dist/web'\'', emptyOutDir: true, target: PLANCHER },' \
+  '  build: { outDir: '\''../dist/web'\'', emptyOutDir: true },' \
+  'la construction vise le plancher déclaré'
+prouver 'la recherche des Paramètres qui sort d'\''un téléphone de 320' 'web/public/plateforme/telephone.css' \
+  '  .set-search, .set-search input[type=search] { min-width: 0; flex: 1 1 100%; width: 100%; max-width: none; }' \
+  '' \
+  'au plus étroit (320 points, au doigt)'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
