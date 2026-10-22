@@ -154,6 +154,16 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await a.p.keyboard.type('Oui, accepté le 7 octobre.');
     await a.p.getByRole('button', { name: 'Envoyer ma réponse', exact: true }).click();
     await expect.poll(async () => net(await attente.innerText()), { timeout: 15_000 }).toBe('En attente de toi 1 pièce demandée de ton cabinet. Répondre');
+    // Une pièce demandée qui arrive le fil ouvert, sans aucun autre message à lire : vue ici, elle est dite lue (elle ne
+    // compte pas parmi les non-lus ; plus haut, la question non lue suffisait à tout marquer). Reçue, elle s'en va.
+    const autre = await api('POST', `/entreprises/${ent}/messages`, sonia, { cote: 'cabinet', texte: '', demande: 'Le relevé de septembre' });
+    expect(autre.statut).toBe(201);
+    await a.p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/messages?cote=cabinet`, sonia)).corps.messages ?? [])
+      .find((m) => (m as unknown as { id: string }).id === autre.corps.id)?.lu, { timeout: 15_000 }).toBe(true);
+    expect((await api('POST', `/entreprises/${ent}/messages/${String(autre.corps.id)}/recue`, sonia)).statut).toBe(200);
+    await a.p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+    await expect.poll(async () => net(await attente.innerText()), { timeout: 15_000 }).toBe('En attente de toi 1 pièce demandée de ton cabinet. Répondre');
     // Une pièce demandée aussi : « Répondre » mène à son bouton.
     await attente.getByRole('button', { name: 'Répondre', exact: true }).click();
     await expect.poll(() => a.p.evaluate(() => document.activeElement?.textContent ?? '')).toBe('Envoyer la pièce…');

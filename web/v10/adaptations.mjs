@@ -872,4 +872,6 @@ export const ADAPTATIONS = [
   ...lireFichier('comptable-a-faire.txt'),
   // ── Le Cabinet se consulte sans réseau (1.104.0) ──
   ...lireFichier('cabinet-hors-ligne.txt'),
+  // ── La saisie au brouillard du Cabinet sans réseau (1.105.0) ──
+  ...lireFichier('cabinet-saisie-hors-ligne.txt'),
 ];

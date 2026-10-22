@@ -17,3 +17,7 @@
 body { box-sizing: border-box; padding-top: var(--poste-bandeau-h, 0px); }
 #app { height: 100%; }
 @media (max-width: 760px) { #app .sidebar { top: var(--poste-bandeau-h, 0px); } }
+
+/* (1.105.0) Une écriture gardée sur le poste, qui attend le réseau (docs/hors-ligne.md, H15) : sa marque se lit, dans la
+   teinte d'un avertissement, droite dans une ligne de brouillard en italique (vue pâle à l'écran le 22/10/2026). */
+.badge.sa-attente { background: var(--warning-soft); color: var(--warning); font-style: normal; }

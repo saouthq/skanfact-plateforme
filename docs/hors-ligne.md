@@ -86,7 +86,7 @@ dit « Modifications des deux côtés ») comme rouverte plus tard (le bandeau l
 serveur gardée, la mienne dans ce que le dossier met de côté ; se déconnecter avec des changements qui
 attendent : la question, « Attendre le réseau » ne perd rien, et ça part au retour.
 
-**Reste à faire** : la saisie au brouillard du Cabinet sans réseau (sa consultation : H14). (Le stockage persistant et la durée
+**Reste à faire** : la remise en quarantaine des écritures du Cabinet d'un appareil retiré (la consultation : H14 ; la saisie au brouillard : H15). (Le stockage persistant et la durée
 des droits hors ligne : brique 75, H11 et H12.)
 
 **H8. Ce que le poste garde est à une personne, pas à une session** (par délégation, 30/09/2026 ; défaut
@@ -263,4 +263,46 @@ la page se pousse dessous, sans barre de défilement.
 sans réseau, le livre se consulte (« 1 écriture de l'exercice attend au brouillard »), la page se recharge, une page
 jamais lue le dit, l'entrée rouvre le Cabinet ; le réseau revenu, on recharge ; « Se déconnecter » efface le poste.
 
-**Reste à faire** : saisir au brouillard sans réseau (gardé chiffré, envoyé au retour ; la validation reste en ligne).
+**Reste à faire** : saisir au brouillard sans réseau (fait en 1.105.0 : H15).
+
+## 1.105.0 : la saisie au brouillard du Cabinet sans réseau (fait le 22/10/2026)
+
+**H15. Sans réseau, le Cabinet saisit au brouillard ; la pièce part seule au retour, une fois ; valider attend le
+serveur** (par délégation ; 04 § 2 et § 4, vision § 4.5 : le comptable avance sa saisie pendant une coupure). Aux mêmes
+conditions que l'entreprise (« mon ordinateur », un navigateur qui promet de garder, moins de 72 heures sans le serveur :
+H11 et H12 ; sinon le refus dit pourquoi, et rien n'est enregistré) :
+
+- « Enregistrer en brouillard » garde l'écriture sur le poste, **chiffrée**, avec un identifiant que le poste choisit ;
+  elle se montre au brouillard, marquée « attend le réseau », se reprend dans la grille et se supprime ; elle tient au
+  rechargement ; le bandeau compte les écritures qui attendent ;
+- **valider demande le réseau** (le numéro naît au serveur, et ne se promet pas) : « Enregistrer et valider » le dit
+  AVANT d'écrire, la pièce reste dans la grille ; au menu, « Valider cette écriture » est grisé et dit quand il
+  viendra ; les lots ne la comptent pas ;
+- au retour du réseau (ou à la réouverture du Cabinet avec le réseau), les écritures partent une après l'autre. Une
+  réponse perdue en route la fait renvoyer : le serveur reconnaît son identifiant et ne la prend **qu'une fois**
+  (`compta.saisir_une_fois`, 0163 ; un identifiant d'une autre entreprise est refusé). Les droits et les contrôles de
+  la saisie valent comme en ligne ;
+- **refusée** au retour (la période validée entre-temps, le mandat arrêté…), elle reste au brouillard **de ce poste**,
+  avec la raison du serveur sur sa ligne : on la corrige dans la grille (elle repart) ou on la supprime. Rien ne se
+  perd sans qu'on l'ait décidé ;
+- « Se déconnecter » efface ce que le poste garde : s'il reste des écritures à envoyer, la fenêtre le dit, avec leur
+  nombre, et le bouton dit qu'on les perd.
+
+Limite assumée : un appareil **retiré** (H9) efface le poste sans rien envoyer ; l'entreprise remet d'abord ce qui
+attendait en quarantaine (H10), le Cabinet pas encore. Le compte « à valider » du portefeuille (Dossiers) ne compte que
+ce que le serveur a.
+
+En route, deux preuves de l'entreprise (la lecture d'une photo sans pièces jointes, le bouton du justificatif absent)
+sont retirées : depuis la 1.89.0, le serveur garde les pièces jointes, et la garde qu'elles protégeaient ne se joue plus.
+Le test de la messagerie redevient discriminant : une pièce demandée qui arrive le fil ouvert, sans autre message à
+lire, est dite lue.
+
+**Les tests** : par l'API (`tests/compta/saisie.test.ts`) — la même écriture renvoyée n'entre qu'une fois, même modifiée
+entre-temps ; l'identifiant pris par une autre entreprise est refusé ; la lecture seule ne saisit pas ; les contrôles
+valent. À la souris (`tests/web/cabinet-saisie-hors-ligne.test.ts`, le serveur arrêté pour de vrai) — le parcours entier
+(garder, griser, corriger, supprimer, recharger, se déconnecter qui prévient, le retour qui envoie avec l'identifiant du
+poste, valider ensuite ; une écriture refusée qui garde sa raison) ; le Cabinet fermé sans réseau et rouvert avec, qui
+envoie à l'ouverture ; un navigateur qui ne promet pas de garder, qui refuse et dit pourquoi.
+
+**Reste à faire** : la remise en quarantaine des écritures d'un appareil retiré ; les autres gestes du Cabinet sans
+réseau (la banque, la paie, les déclarations) restent en ligne, et le disent.

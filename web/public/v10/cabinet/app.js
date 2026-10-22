@@ -802,8 +802,11 @@
   // (plateforme) 1.104.0 — se déconnecter (au pied de la barre, et dans Réglages) : la session se ferme sur ce poste, et
   // ce qu'il gardait pour consulter les dossiers sans réseau s'efface (pont-cabinet.js, `lock`).
   async function seDeconnecter() {
+    const n = typeof api.ecrituresEnAttente === 'function' ? await api.ecrituresEnAttente() : 0;
     const ok = await confirmDialog('Te déconnecter ?',
-      '<p>La session se ferme sur ce poste, et ce qu\'il gardait pour consulter tes dossiers sans réseau s\'efface. Tu te reconnectes avec ton adresse et ton mot de passe.</p>', 'Me déconnecter');
+      '<p>La session se ferme sur ce poste, et ce qu\'il gardait pour consulter tes dossiers sans réseau s\'efface. Tu te reconnectes avec ton adresse et ton mot de passe.</p>'
+      + (n ? `<p class="err-inline" id="deco-attente"><b>${n > 1 ? `${n} écritures saisies sans réseau ne sont pas encore parties` : 'Une écriture saisie sans réseau n\'est pas encore partie'} au serveur : ${n > 1 ? 'elles seraient perdues' : 'elle serait perdue'}.</b> Attends le retour du réseau : ${n > 1 ? 'elles partiront' : 'elle partira'} seule${n > 1 ? 's' : ''}.</p>` : ''),
+      n > 1 ? 'Me déconnecter et les perdre' : n ? 'Me déconnecter et la perdre' : 'Me déconnecter', !!n);
     if (!ok) return;
     await api.lock();
   }
@@ -8447,8 +8450,8 @@
             journal VT » quand le seul brouillard est en BQ ouvrait une fenêtre pour dire qu'il n'y
             avait rien à faire — un bouton vif qui ne peut rien valider de ce qui est affiché. Le
             compte est connu avant le clic, donc il est écrit dessus. */''}
-      ${brouillards.length ? `${r.validerParLot && lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today())).length ? `<div class="sa-lot">
-          ${lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today())).map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')}
+      ${brouillards.length ? `${r.validerParLot && lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today() && !e.attente)).length ? `<div class="sa-lot">
+          ${lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today() && !e.attente)).map(l => `<button type="button" class="btn btn-sm" data-lot-${l.type}="${esc(l.cle)}">${esc(K.libelleLot(l))}</button>`).join('')}
           <span class="muted small">Ce qui ne tombe pas juste n'est pas validé, et te sera nommé.</span></div>` : ''}
         ${(a => a.length === 1 ? `<p class="muted small" id="sa-attend">L'écriture ${esc(a[0].piece || '')} du journal ${esc(a[0].journal)} est datée du ${esc(fmtJour(a[0].date))} : elle se valide à partir de ce jour-là.</p>`
     : a.length ? `<p class="muted small" id="sa-attend">${a.length} pièces sont datées après aujourd'hui : chacune se valide à partir de sa date.</p>` : '')(brouillards.filter(e => String(e.date || '') > K.today()))}
@@ -8461,7 +8464,8 @@
             <td class="nw">${esc(fmtJour(e.date))}</td><td>${esc(e.journal)}</td><td class="nw">${esc(e.piece || '—')}</td>
             <td>${esc(e.libelle || '')}${e.pieceJointe ? ' <span title="Justificatif joint">📎</span>' : ''}</td>
             <td class="r nw">${esc(montant(t.debit))}</td>
-            <td class="nw">${t.equilibre ? '<span class="muted">équilibrée</span>' : `<span class="err-inline">écart ${esc(montant(t.ecart))}</span>`}</td>
+            <td class="nw">${e.attente ? (e.refus ? `<span class="err-inline sa-refusee" title="${esc(e.refus)}">refusée : ${esc(e.refus)}</span>` : '<span class="badge sa-attente">attend le réseau</span>')
+              : t.equilibre ? '<span class="muted">équilibrée</span>' : `<span class="err-inline">écart ${esc(montant(t.ecart))}</span>`}</td>
             ${RowMenu.cellule('B:' + e.id, '')}</tr>`;
         }).join('')}</tbody></table></div>${pagerBrouillard}`
         : `<div class="empty mini"><p>Rien en brouillard.</p><p class="muted small">Tout ce que tu saisis ici arrive en brouillard : rien ne prend de numéro tant que tu ne l'as pas validé.</p></div>`}
@@ -8841,6 +8845,11 @@
       // « Enregistrer et valider » sans licence : on le dit AVANT d'écrire quoi que ce soit, et la
       // pièce reste dans la grille — elle s'enregistre en brouillard d'un clic (10.14.0).
       if (puisValider && await refusLicence('Valider une écriture')) return;
+      // (plateforme) 1.105.0 — sans réseau, valider attend le serveur : on le dit avant d'écrire, la pièce reste ici.
+      if (puisValider && typeof api.horsLigne === 'function' && api.horsLigne()) {
+        if (await confirmDialog('Valider demande le réseau', '<p>Sans réseau, une écriture se garde au brouillard de ce poste, sans numéro : elle partira seule au retour du réseau, et tu la valideras alors.</p>', 'Enregistrer en brouillard')) await enregistrer(false);
+        return;
+      }
       try {
         const res = p.id
           ? await api.modifierEcriture(dossier.id, s.annee, p.id, ecr)
@@ -8851,7 +8860,8 @@
           s.livre = w.livre;
           toast(`Écriture validée sous le n° ${w.numero}.`);
         } else {
-          toast(p.id ? 'Brouillard enregistré.' : 'Écriture enregistrée en brouillard : elle n\'a pas encore de numéro.');
+          toast(res.attente ? 'Gardée sur ce poste, au brouillard : elle partira seule au serveur au retour du réseau.'
+            : p.id ? 'Brouillard enregistré.' : 'Écriture enregistrée en brouillard : elle n\'a pas encore de numéro.');
         }
         // On enchaîne : même journal, même date, tout le reste vide. C'est ça, la saisie au
         // kilomètre — on ne revient jamais au menu entre deux pièces.
@@ -9254,6 +9264,9 @@
       // encore : le geste se grise et dit son jour, au lieu d'un refus après le clic.
       if (String(e.date || '') > K.today()) Object.assign(a[a.length - 1], { hint: `À partir du ${fmtJour(e.date)}, sa date`, off: true,
         run: () => infoDialog(`Pas avant le ${fmtJour(e.date)}`, `Cette écriture est datée du ${fmtJour(e.date)} : une écriture ne se valide pas avant sa date, son numéro suit l'ordre des jours. Elle reste au brouillard et se valide à partir de ce jour-là.`) });
+      // (plateforme) 1.105.0 — gardée sur ce poste sans réseau (docs/hors-ligne.md, H15) : elle part d'abord au serveur.
+      if (e.attente) Object.assign(a[a.length - 1], { hint: 'Une fois partie au serveur, au retour du réseau', off: true,
+        run: () => infoDialog('Elle attend le réseau', 'Cette écriture est gardée sur ce poste : elle part seule au serveur au retour du réseau, puis se valide comme les autres. D\'ici là, tu peux la reprendre dans la grille ou la supprimer.') });
       if (e.source !== 'skanfact') a.push({ icon: 'modifier', label: 'Reprendre dans la grille', hint: 'Elle remonte dans la saisie, modifiable',
         run: () => { saisieState.piece = pieceDepuis(e); allerSousOnglet(root, dossier, 'saisie'); } });
       if (e.source !== 'skanfact') detruire = { icon: 'supprimer', label: 'Supprimer ce brouillard', hint: 'Il n\'a pas de numéro : rien ne restera', danger: true,
@@ -9288,6 +9301,9 @@
     a.push({ icon: 'texte', label: e.pieceJointe ? 'Remplacer le justificatif…' : 'Joindre un justificatif…',
       court: 'Justificatif…',
       hint: 'Le fichier est copié dans le dossier du client', run: () => joindreJustificatif(root, dossier, e.id) });
+    // (plateforme) 1.105.0 — la pièce n'est pas encore au serveur : son justificatif attend qu'elle y soit.
+    if (e.attente) Object.assign(a[a.length - 1], { hint: 'Une fois partie au serveur, au retour du réseau', off: true,
+      run: () => infoDialog('Elle attend le réseau', 'Cette écriture est gardée sur ce poste : son justificatif se joint une fois qu\'elle est partie au serveur, au retour du réseau.') });
     a.push(...actionsJustifsClient(e));
     if (e.pieceJointe) {
       a.push({ icon: 'ouvrir', label: 'Ouvrir le justificatif', hint: esc(e.pieceJointe),

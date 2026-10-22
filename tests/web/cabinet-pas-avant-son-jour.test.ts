@@ -132,7 +132,9 @@ describe('une écriture datée après aujourd\'hui le dit avant le geste, à la 
     expect(await p.locator('#pa-valider').getAttribute('class')).toMatch(/\bbtn-primary\b/);
     await p.locator('#pa-valider').click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toMatch(/comptabilite\/saisie\//);
-    await expect.poll(() => p.evaluate(() => { const r = document.querySelector('#sa-brouillard')?.getBoundingClientRect(); return !!r && r.top >= 0 && r.top < innerHeight / 2; }), { timeout: 5_000 }).toBe(true);
+    // Amené à l'écran (le haut du brouillard visible), pas forcément en haut : sur une page courte, la fin du défilement
+    // l'arrête plus bas (sur GitHub, d'autres polices : « moins d'une demi-fenêtre » tombait sans défaut).
+    await expect.poll(() => p.evaluate(() => { const r = document.querySelector('#sa-brouillard')?.getBoundingClientRect(); return !!r && r.top >= 0 && r.top < innerHeight - 80; }), { timeout: 10_000 }).toBe(true);
     expect(await lots.allInnerTexts()).toEqual(['Valider la seule pièce de PAIE']);
     expect(await p.locator('#sa-attend').count()).toBe(0);
     expect(erreurs).toEqual([]);

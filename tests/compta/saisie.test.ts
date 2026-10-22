@@ -169,6 +169,43 @@ describe('la saisie dans les livres du serveur', () => {
     ]);
   });
 
+  // (1.105.0 ; docs/hors-ligne.md, H15) Le Cabinet sans réseau garde l'écriture avec l'identifiant qu'il choisit, et la
+  // renvoie tant qu'il n'a pas lu de réponse : la même écriture n'entre qu'une fois.
+  it('une écriture saisie sans réseau, renvoyée, n\'entre qu\'une fois ; son identifiant pris ailleurs est refusé ; les droits d\'abord', async () => {
+    const d = await dossier();
+    const id = '0192f6a1-7c00-7abc-8def-0123456789ab';
+    const corps = { ...od('2026-08-20', [['6132', '120,250', ''], ['401', '', '120,250']], { piece: 'HL-1' }), id };
+    const premiere = await appeler('POST', `/entreprises/${d.ent}/compta/ecritures`, d.assistant.jeton, corps);
+    expect(premiere).toEqual({ statut: 201, corps: { id, revision: 1, dejaRecue: false } });
+    // Modifiée en ligne entre-temps, puis la même renvoyée (la réponse s'était perdue) : déjà reçue, rien ne change.
+    await appeler('PUT', `/entreprises/${d.ent}/compta/ecritures/${id}`, d.collaborateur.jeton,
+      { ...od('2026-08-21', [['6132', '130', ''], ['401', '', '130']], { piece: 'HL-1' }), revision: 1 });
+    const seconde = await appeler('POST', `/entreprises/${d.ent}/compta/ecritures`, d.assistant.jeton, corps);
+    expect(seconde).toEqual({ statut: 200, corps: { id, revision: 1, dejaRecue: true } });
+    const lues = (await livres(d.ent, d.client)).filter((e) => e.piece === 'HL-1');
+    expect(lues.map((e) => [e.id, e.date, e.revision, e.lignes[0]?.debit])).toEqual([[id, '2026-08-21', 2, '130.000']]);
+    const traces = (await admin.query(`select geste from socle.audit where entreprise = $1 and objet_id = $2 order by instant, id`, [d.ent, id])).rows;
+    expect(traces.map((t) => t.geste)).toEqual(['compta.ecriture.saisir', 'compta.ecriture.modifier']);
+    // Le même identifiant pour une autre entreprise : refusé, et rien de la première ne s'y lit.
+    const autre = await dossier();
+    const ailleurs = await appeler('POST', `/entreprises/${autre.ent}/compta/ecritures`, autre.assistant.jeton, { ...corps, piece: 'HL-2' });
+    expect(ailleurs.statut).toBe(403);
+    expect(ailleurs.corps.motif).toBe('Cet identifiant d\'écriture est déjà pris : rien n\'a été enregistré.');
+    expect((await livres(autre.ent, autre.client)).some((e) => e.id === id)).toBe(false);
+    // Les droits d'abord : le client en lecture seule ne saisit pas, même une écriture déjà reçue ; les contrôles de la
+    // saisie valent de même (une écriture qui ne tombe pas juste n'entre pas).
+    const lecteur = await personne('lecture');
+    const inv = String((await appeler('POST', `/entreprises/${d.ent}/invitations`, d.client.jeton, { email: lecteur.email, roles: ['lecture'] })).corps.jeton);
+    await appeler('POST', '/invitations/accepter', lecteur.jeton, { jeton: inv });
+    expect((await appeler('POST', `/entreprises/${d.ent}/compta/ecritures`, lecteur.jeton, corps)).statut).toBe(403);
+    await expect(enTantQue(pool, lecteur.utilisateur, (tx) => tx.query('select compta.saisir_une_fois($1, $2, $3::jsonb)', [d.ent, id, JSON.stringify(corps)])))
+      .rejects.toThrow(/ne permet pas de saisir/);
+    const boiteuse = await appeler('POST', `/entreprises/${d.ent}/compta/ecritures`, d.assistant.jeton,
+      { ...od('2026-08-20', [['6132', '10', ''], ['401', '', '9']]), id: '0192f6a1-7c00-7abc-8def-0123456789ac' });
+    expect(boiteuse.corps.motif).toBe('Débit 10,000 ≠ crédit 9,000 : l\'écriture ne tombe pas juste.');
+    expect((await appeler('POST', `/entreprises/${d.ent}/compta/ecritures`, d.assistant.jeton, { ...corps, id: 'pas-un-uuid' })).statut).toBe(400);
+  });
+
   it('qui saisit : la comptabilité de l\'entreprise et tout le cabinet ; ni la lecture, ni un cabinet sans la comptabilité, ni dans la base', async () => {
     const d = await dossier();
     expect(await saisir(d.ent, d.client, od('2026-08-20', [['6132', '10', ''], ['401', '', '10']]))).toMatch(/^[0-9a-f-]{36}$/);

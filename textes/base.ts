@@ -163,6 +163,7 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'cette écriture n\'existe pas', cle: 'base.compta.ecriture_introuvable', fr: 'cette écriture n\'existe pas' },
   { base: 'cette écriture vient d\'une pièce de l\'entreprise : elle suit sa pièce, elle ne se change pas dans les livres', cle: 'base.compta.saisie_piece', fr: 'cette écriture vient d\'une pièce de l\'entreprise : elle suit sa pièce, elle ne se change pas dans les livres' },
   { base: 'ce brouillard a été changé ailleurs entre-temps : recharge-le, rien n\'a été enregistré', cle: 'base.compta.brouillard_change', fr: 'ce brouillard a été changé ailleurs entre-temps : recharge-le, rien n\'a été enregistré' },
+  { base: 'cet identifiant d\'écriture est déjà pris : rien n\'a été enregistré', cle: 'base.compta.identifiant_pris', fr: 'cet identifiant d\'écriture est déjà pris : rien n\'a été enregistré' },
   { base: 'cette écriture est déjà validée : elle se contre-passe, elle ne se revalide pas', cle: 'base.compta.deja_validee_ecriture', fr: 'cette écriture est déjà validée : elle se contre-passe, elle ne se revalide pas' },
   { base: 'elle est datée du %s : une écriture ne se valide pas avant son jour', cle: 'base.compta.valider_avant_son_jour', fr: 'elle est datée du {jour} : une écriture ne se valide pas avant son jour', valeurs: ['jour'] },
   { base: 'une écriture en brouillard se modifie : elle n\'a pas besoin d\'être contre-passée', cle: 'base.compta.contrepasser_brouillard', fr: 'une écriture en brouillard se modifie : elle n\'a pas besoin d\'être contre-passée' },

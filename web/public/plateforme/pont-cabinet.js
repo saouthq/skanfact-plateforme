@@ -46,11 +46,13 @@
     return /^[0-9]{7}[A-HJ-NP-TV-Z][A-Z]{2}[0-9]{3}$/.test(c) ? `${c.slice(0, 8)}/${c[8]}/${c[9]}/${c.slice(10)}` : null;
   }
 
-  // (1.104.0) Le poste (plateforme/poste.js ; docs/hors-ligne.md, H13) : sur « mon ordinateur », chaque lecture faite en
-  // ligne se garde, chiffrée ; sans réseau, le Cabinet se consulte sur elle, et le bandeau le dit. Rien ne s'y enregistre
-  // encore sans réseau : un geste attend le réseau, et le dit.
+  // (1.104.0) Le poste (plateforme/poste.js ; docs/hors-ligne.md, H14) : sur « mon ordinateur », chaque lecture faite en
+  // ligne se garde, chiffrée ; sans réseau, le Cabinet se consulte sur elle, et le bandeau le dit. (1.105.0, H15) Sans
+  // réseau, seule la saisie au brouillard s'enregistre (gardée chiffrée, elle part au retour) ; tout autre geste le dit.
   /** @type {any} */ const poste = /** @type {any} */ (window).SkanPoste || null;
-  if (poste) poste.seulementConsulter();
+  if (poste) poste.pourLeCabinet();
+  // Le dernier appel a manqué le réseau : « Enregistrer et valider » le dit avant d'écrire quoi que ce soit.
+  let sansReseau = false;
   // La plus ancienne lecture relue sur le poste depuis l'ouverture : le bandeau dit de quand date ce qu'on voit.
   /** @type {number | null} */ let copieLe = null;
   /** @param {string} methode @param {string} chemin @param {unknown} [corps] */
@@ -62,6 +64,7 @@
     try {
       r = await fetch(`/v1${chemin}`, { method: methode, headers: entetes, cache: 'no-store', ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
     } catch (e) {
+      sansReseau = true;
       const c = methode === 'GET' && poste ? await poste.relireLecture(cabinetId, chemin).catch(() => null) : null;
       if (c) {
         if (copieLe === null || c.le < copieLe) copieLe = c.le;
@@ -71,10 +74,11 @@
         return c.contenu;
       }
       if (poste) poste.horsLigne();
-      throw Object.assign(new Error(methode !== 'GET' ? 'Hors ligne : rien n\'a été fait. Ce geste demande le réseau ; sans lui, le Cabinet se consulte.'
+      throw Object.assign(new Error(methode !== 'GET' ? 'Hors ligne : rien n\'a été fait. Ce geste demande le réseau ; sans lui, le Cabinet se consulte, et seule la saisie au brouillard se garde sur ce poste.'
         : poste && poste.garde() ? 'Hors ligne, et ce poste n\'a pas encore lu cette page : ouvre-la une fois avec le réseau pour la consulter ensuite sans lui.'
           : 'Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e }), { horsLigne: true });
     }
+    sansReseau = false;
     if (poste) poste.enLigne();
     if (r.status === 401) { location.replace('/'); throw new Error('Ta session est terminée : reconnecte-toi.'); }
     /** @type {any} */
@@ -111,11 +115,95 @@
       try { localStorage.setItem(EMPORTES, String(Date.now())); } catch { /* relu à la prochaine ouverture */ }
     } catch { /* le réseau est tombé, ou un dossier s'est refermé : l'ouverture suivante reprendra */ } finally { emportEnCours = false; }
   }
+  // ── (1.105.0) La saisie au brouillard sans réseau (docs/hors-ligne.md, H15 ; cadrage 04 § 2 et § 4) ─────────────────
+  // Sur « mon ordinateur », si le navigateur promet de garder et depuis moins de 72 heures (H11, H12) : l'écriture se garde
+  // chiffrée sur le poste, avec un identifiant qu'il choisit, et se montre au brouillard, marquée. Au retour du réseau,
+  // elle part, une après l'autre ; une réponse perdue en route la fait renvoyer, et le serveur ne la prend qu'une fois
+  // (0163). Refusée (la période validée entre-temps, le mandat arrêté), elle reste au brouillard de ce poste avec sa
+  // raison : on la reprend dans la grille, ou on la supprime. Valider demande le réseau : le numéro naît au serveur.
+  const ATTENTE = `c:${cabinetId}`;
+  /** @type {{ id: string, dossier: string, ecriture: any, le: number, refus?: string }[] | null} */
+  let attentes = null;
+  async function lesAttentes() {
+    if (attentes === null) {
+      const lu = poste ? await poste.lireAttente(ATTENTE).catch(() => null) : null;
+      attentes = lu && Array.isArray(lu.contenu) ? lu.contenu : [];
+    }
+    return attentes || (attentes = []);
+  }
+  async function garderAttentes() {
+    if (!poste || !attentes) return;
+    if (attentes.length) await poste.ecrireAttente(ATTENTE, attentes); else await poste.effacerAttente(ATTENTE);
+    poste.attente(attentes.filter((x) => !x.refus).length);
+  }
+  // Un identifiant choisi par le poste : un uuid v7 (l'heure en tête, comme ceux du serveur).
+  function idDuPoste() {
+    const o = crypto.getRandomValues(new Uint8Array(16));
+    let t = Date.now();
+    for (let i = 5; i >= 0; i--) { o[i] = t % 256; t = Math.floor(t / 256); }
+    o[6] = ((o[6] ?? 0) & 0x0f) | 0x70; o[8] = ((o[8] ?? 0) & 0x3f) | 0x80;
+    const h = [...o].map((b) => b.toString(16).padStart(2, '0')).join('');
+    return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+  }
+  // Une écriture gardée, dans la forme d'une écriture lue au serveur : le livre la montre au brouillard, marquée.
+  /** @param {{ id: string, ecriture: any, refus?: string }} x */
+  const commeLue = (x) => ({
+    id: x.id, journal: x.ecriture.journal, date: x.ecriture.date, piece: x.ecriture.piece || null, libelle: x.ecriture.libelle || '', statut: 'brouillard', numero: null,
+    chaine: null, origine: { type: 'saisie', id: x.id }, tiers: null, tiersNom: null, revision: 1, valideeLe: null, contrepassee: false, extournee: false,
+    lignes: (x.ecriture.lignes || []).map((/** @type {any} */ l, /** @type {number} */ i) => ({ id: `${x.id}-${i}`, compte: l.compte, libelle: l.libelle || x.ecriture.libelle || '',
+      debit: l.debit || '0', credit: l.credit || '0', tauxTva: null, tiers: l.tiers || null, lettre: null })),
+    attente: true, refus: x.refus || '',
+  });
+  // Sans réseau : la garder, si le poste le peut ; sinon, la raison (rien n'est enregistré).
+  /** @param {string} dossier @param {string} id @param {any} ecriture */
+  async function garderSansReseau(dossier, id, ecriture) {
+    const raison = !poste || !poste.garde() ? 'Sur l\'ordinateur d\'un autre, rien ne se garde sur le poste : la saisie demande le réseau.' : poste.limite();
+    if (raison) throw Object.assign(new Error(`Hors ligne : rien n'a été enregistré. ${raison}`), { horsLigne: true });
+    (await lesAttentes()).push({ id, dossier, ecriture, le: Date.now() });
+    await garderAttentes();
+  }
+  // L'envoi d'une écriture gardée : partie (true), le réseau manque encore (false), ou refusée (sa raison, levée).
+  /** @param {{ id: string, dossier: string, ecriture: any, refus?: string }} x */
+  async function envoyerUne(x) {
+    try {
+      await appel('POST', `/entreprises/${x.dossier}/compta/ecritures`, { ...x.ecriture, id: x.id });
+    } catch (e) {
+      const statut = Number(/** @type {any} */ (e).statut) || 0;
+      // Le réseau, ou un serveur en panne (5xx) : elle attend encore. Un refus (4xx) se garde avec sa raison.
+      if (/** @type {any} */ (e).horsLigne || statut < 400 || statut >= 500) return false;
+      x.refus = e instanceof Error ? e.message : String(e);
+      await garderAttentes();
+      throw e;
+    }
+    attentes = (attentes || []).filter((y) => y.id !== x.id);
+    await garderAttentes();
+    return true;
+  }
+  let envoiEnCours = false;
+  async function envoyer() {
+    if (!poste || envoiEnCours) return;
+    envoiEnCours = true;
+    let parties = 0, refusees = 0, coupe = false;
+    try {
+      const a = await lesAttentes();
+      poste.attente(a.filter((y) => !y.refus).length);
+      for (const x of a.filter((y) => !y.refus)) {
+        try { if (await envoyerUne(x)) parties++; else { coupe = true; break; } } catch { refusees++; }
+      }
+    } finally { envoiEnCours = false; }
+    if (!coupe && (parties || refusees)) poste.envoyeEcritures(parties, refusees);
+  }
+  if (poste) poste.auRetour(() => { void envoyer(); });
+  // Le serveur peut revenir sans que le navigateur le dise (seul le serveur était tombé, pas le réseau du poste : vu à
+  // l'écran le 22/10/2026) : tant qu'une écriture attend, le poste réessaie toutes les 30 secondes, comme l'entreprise.
+  setInterval(() => { if (navigator.onLine && attentes && attentes.some((x) => !x.refus)) void envoyer(); }, 30_000);
+
   // L'ouverture : le cabinet, ou, sans réseau ni copie, la raison (et « Réessayer »).
   async function ouvrirLeCabinet() {
     try {
       const etat = await construireEtat();
       setTimeout(() => { void emporter(); }, 4000);
+      void envoyer();
       return etat;
     } catch (e) {
       if (!(poste && e && /** @type {any} */ (e).horsLigne)) throw e;
@@ -354,7 +442,11 @@
       toutes.push(...(page.ecritures || []));
       suite = page.suite;
     } while (suite);
-    return toutes;
+    // (1.105.0) Ce que ce poste garde pour ce dossier et qui n'est pas encore parti : au brouillard, à sa date, marqué.
+    const gardees = (await lesAttentes()).filter((x) => x.dossier === ent && (!du || x.ecriture.date >= du) && (!au || x.ecriture.date <= au)
+      && !toutes.some((e) => e.id === x.id));
+    if (!gardees.length) return toutes;
+    return [...toutes, ...gardees.map(commeLue)].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   }
   // Les exercices OUVERTS sur le serveur (brique 39) : leur année, leurs bornes, leur balance
   // d'ouverture. Gardés par dossier, pour l'écran qui demande sans attendre si un exercice est ouvert.
@@ -419,7 +511,7 @@
       revisions.set(e.id, e.revision);
       livre.ecritures.push({
         id: e.id, numero: e.chaine ?? null, date: e.date, journal: e.journal, piece: e.piece || '', libelle: e.libelle,
-        source: source(e), mois: String(e.date).slice(0, 7), docId: e.origine.id, pieceJointe: null,
+        source: source(e), mois: String(e.date).slice(0, 7), docId: e.origine.id, pieceJointe: null, ...(e.attente ? { attente: true, refus: e.refus } : {}),
         statut: e.statut === 'validee' ? (e.contrepassee ? 'contrepassee' : 'validee') : 'brouillard',
         auteur: '', creeLe: 0, valideeLe: e.valideeLe ? Date.parse(e.valideeLe) : null,
         contrepasseDe: e.origine.type === 'contre_passation' ? e.origine.id : null,
@@ -2114,19 +2206,43 @@
     },
 
     // ── La saisie (brique 38) : chaque geste va au serveur, puis le livre se relit ─────────────
+    // (1.105.0) Chaque écriture part avec l'identifiant choisi ici : sans réseau, elle se garde sur le poste (H15).
     saisir: async (/** @type {string} */ id, /** @type {string} */ annee, /** @type {any} */ ec) => {
-      const r = await appel('POST', `/entreprises/${id}/compta/ecritures`, versLeServeur(ec));
-      return { ok: true, id: r.id, livre: await livreDe(id, annee) };
+      const ecriture = versLeServeur(ec);
+      const choisi = idDuPoste();
+      try {
+        const r = await appel('POST', `/entreprises/${id}/compta/ecritures`, { ...ecriture, id: choisi });
+        return { ok: true, id: r.id, livre: await livreDe(id, annee) };
+      } catch (e) {
+        if (!(/** @type {any} */ (e).horsLigne)) throw e;
+        await garderSansReseau(id, choisi, ecriture);
+        return { ok: true, id: choisi, attente: true, livre: await livreDe(id, annee) };
+      }
     },
     modifierEcriture: async (/** @type {string} */ id, /** @type {string} */ annee, /** @type {string} */ ecriture, /** @type {any} */ patch) => {
+      // Une écriture gardée sur le poste se change sur le poste, et part (en ligne, tout de suite ; sa raison, si refusée).
+      const gardee = (await lesAttentes()).find((x) => x.id === ecriture);
+      if (gardee) {
+        gardee.ecriture = versLeServeur(patch);
+        delete gardee.refus;
+        await garderAttentes();
+        const partie = await envoyerUne(gardee);
+        return { ok: true, id: ecriture, ...(partie ? {} : { attente: true }), livre: await livreDe(id, annee) };
+      }
       await appel('PUT', `/entreprises/${id}/compta/ecritures/${ecriture}`, { ...versLeServeur(patch), revision: revisions.get(ecriture) ?? 1 });
       return { ok: true, id: ecriture, livre: await livreDe(id, annee) };
     },
     supprimerEcriture: async (/** @type {string} */ id, /** @type {string} */ annee, /** @type {string} */ ecriture) => {
+      if ((await lesAttentes()).some((x) => x.id === ecriture)) {
+        attentes = (attentes || []).filter((x) => x.id !== ecriture);
+        await garderAttentes();
+        return { ok: true, livre: await livreDe(id, annee) };
+      }
       await appel('DELETE', `/entreprises/${id}/compta/ecritures/${ecriture}?revision=${revisions.get(ecriture) ?? 1}`);
       return { ok: true, livre: await livreDe(id, annee) };
     },
     valider: async (/** @type {string} */ id, /** @type {string} */ annee, /** @type {string} */ ecriture) => {
+      if ((await lesAttentes()).some((x) => x.id === ecriture)) throw new Error('Cette écriture attend le réseau : gardée sur ce poste, elle part au serveur à son retour, puis se valide comme les autres.');
       const r = await appel('POST', `/entreprises/${id}/compta/ecritures/valider`, { ids: [ecriture] });
       if (!r.validees.length) throw new Error((r.refusees[0] && r.refusees[0].motif) || 'Cette écriture n\'a pas été validée.');
       return { ok: true, numero: r.validees[0].chaine, livre: await livreDe(id, annee) };
@@ -2136,7 +2252,7 @@
     validerLot: async (/** @type {any} */ o) => {
       const avant = await livreDe(o.dossierId, o.annee);
       const ids = o.ids ? new Set(o.ids) : null;
-      const cibles = avant.ecritures.filter((/** @type {any} */ e) => e.statut === 'brouillard' && (!o.journal || e.journal === o.journal)
+      const cibles = avant.ecritures.filter((/** @type {any} */ e) => e.statut === 'brouillard' && !e.attente && (!o.journal || e.journal === o.journal)
         && (!o.mois || String(e.date).slice(0, 7) === o.mois) && (!ids || ids.has(e.id)));
       /** @type {any[]} */ const validees = [];
       /** @type {any[]} */ const refusees = [];
@@ -2189,6 +2305,10 @@
       const l = await appel('POST', `/entreprises/${o.dossierId}/compta/lettrages`, { compte: String(o.compte), ecritures: o.ids || [], ...(o.lettre ? { lettre: String(o.lettre) } : {}) });
       return { ok: true, lettre: l.lettre, livre: await livreDe(o.dossierId, o.annee) };
     },
+
+    // (1.105.0) Le réseau manque (le dernier appel l'a vu, ou le navigateur le dit) ; ce qui attend le réseau sur ce poste.
+    horsLigne: () => sansReseau || !navigator.onLine,
+    ecrituresEnAttente: async () => (await lesAttentes()).length,
 
     // Ce qui n'a pas d'objet en ligne, et que l'ouverture demande : sans réponse, sans erreur.
     updVersion: async () => ({ version: VERSION }),

@@ -1,4 +1,4 @@
-Le Cabinet se consulte sans réseau, et on s'en déconnecte (1.104.0 ; docs/hors-ligne.md, H13). Format : voir
+Le Cabinet se consulte sans réseau, et on s'en déconnecte (1.104.0 ; docs/hors-ligne.md, H14). Format : voir
 sans-paquets.mjs.
 
 Le Cabinet n'avait pas de hors-ligne (04 § 2 : les dossiers qu'on emporte). La page charge désormais le poste

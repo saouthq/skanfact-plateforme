@@ -75,12 +75,19 @@ export function routesSaisie(ctx: Contexte): Route<never>[] {
   const routes: Route<never>[] = [];
   const ajouter = <C>(r: Route<C>) => { routes.push(r as unknown as Route<never>); };
 
+  // (1.105.0) `id` : celui que le poste a choisi pour une écriture saisie sans réseau (docs/hors-ligne.md, H15). Renvoyée
+  // (la réponse perdue en route), elle n'entre qu'une fois : « déjà reçue », sans rien changer.
   ajouter({
-    methode: 'POST', chemin: '/entreprises/:entreprise/compta/ecritures', geste: 'compta.ecritures.saisir', corps: ECRITURE,
+    methode: 'POST', chemin: '/entreprises/:entreprise/compta/ecritures', geste: 'compta.ecritures.saisir', corps: ECRITURE.extend({ id: uuid.optional() }),
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
-      const e = versLaBase(corps);
+      const { id: choisi, ...ecriture } = corps;
+      const e = versLaBase(ecriture);
       if ('statut' in e) return e;
+      if (choisi) {
+        const neuve = (await tx.query('select compta.saisir_une_fois($1, $2, $3::jsonb) neuve', [params.entreprise ?? '', choisi, e.json])).rows[0].neuve as boolean;
+        return { statut: neuve ? 201 : 200, corps: { id: choisi, revision: 1, dejaRecue: !neuve } };
+      }
       const id = (await tx.query('select compta.saisir($1, $2::jsonb) id', [params.entreprise ?? '', e.json])).rows[0].id as string;
       return { statut: 201, corps: { id, revision: 1 } };
     },

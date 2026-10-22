@@ -4615,9 +4615,9 @@ prouver "le bouton de lecture caché sur la plateforme" web/public/v10/app.js \
 prouver "le bouton de lecture sur un achat déjà enregistré" web/public/v10/app.js \
   "(bridge.lectureSurLeServeur && isNew && !clos)" "(bridge.lectureSurLeServeur && !clos)" \
   "$LW1"
-prouver "la lecture qui essaie de joindre la photo sans pièces jointes" web/public/v10/app.js \
-  "      const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);" "      const jointe = await joindreFichier(file);" \
-  "$LW1"
+# (1.105.0) « la lecture qui essaie de joindre la photo sans pièces jointes » retirée : depuis la 1.89.0, le serveur garde
+# les pièces jointes (pont.js, `piecesJointes: true`), et la garde ne se joue plus jamais ; son défaut ne faisait plus rien
+# tomber (vu sur GitHub le 22/10/2026). Le drapeau lui-même est tenu par « le bouton du justificatif encore absent en ligne ».
 prouver "un échec de lecture qui propose de joindre un fichier que le serveur refuserait" web/public/v10/app.js \
   "        if (bridge.piecesJointes === false || e.statut === 415) return infoDialog('La lecture de la facture a échoué', (e.message || 'Erreur inconnue.') + depuisMessage);
 " "" \
@@ -7803,9 +7803,8 @@ prouver "l'attestation de retenue sans dire où elle s'établit" web/public/v10/
 # jointes ; depuis la 1.89.0 le serveur les garde (bridge.piecesJointes vaut toujours true) : réintroduire leur défaut ne
 # change plus rien, elles ne pouvaient plus tomber (rouge de GitHub sur 1.93.0). Le bouton présent en ligne, sa visite
 # et son étape sont tenus plus bas (« le bouton du justificatif encore absent en ligne »).
-prouver "le bouton du justificatif absent, branché quand même" web/public/v10/app.js \
-  "    if (\$('#attach-top')) \$('#attach-top').onclick = async () => {" "    \$('#attach-top').onclick = async () => {" \
-  "$ACW1"
+# (1.105.0) « le bouton du justificatif absent, branché quand même » retirée, pour la même raison : le bouton existe toujours
+# en ligne depuis la 1.89.0, la garde ne se joue plus.
 prouver "le bouton du justificatif encore absent en ligne" web/public/plateforme/pont.js \
   "    piecesJointes: true," "    piecesJointes: false," \
   "dans « Saisir une facture d'achat », l'étape du justificatif vise un bouton qui existe en ligne (1.89.0)"
@@ -18817,15 +18816,15 @@ prouver '« Valider cette écriture » offert avant le jour de l'\''écriture' '
   'if (false) Object.assign(a[a.length - 1],' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 prouver 'un lot qui compte la pièce de paie du 31' 'web/public/v10/cabinet/app.js' \
-  '${lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today())).map(' \
-  '${lotsDuBrouillard(brouillards).map(' \
+  '${lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).map(' \
+  '${lotsDuBrouillard(brouillards.filter(e => !e.attente)).map(' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 prouver 'la pièce qui attend son jour, jamais nommée' 'web/public/v10/cabinet/app.js' \
   '(brouillards.filter(e => String(e.date || '\'''\'') > K.today()))}' \
   '([])}' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 prouver '« Ce qui ne tombe pas juste » sous un brouillard sans lot' 'web/public/v10/cabinet/app.js' \
-  '${r.validerParLot && lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today())).length ? `<div class="sa-lot">' \
+  '${r.validerParLot && lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).length ? `<div class="sa-lot">' \
   '${r.validerParLot ? `<div class="sa-lot">' \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 prouver 'un lot qui demande à valider la pièce de demain' 'web/public/v10/cabinet/app.js' \
@@ -18893,9 +18892,9 @@ prouver 'l'\''entrée qui rouvre l'\''entreprise à la place du cabinet' 'web/sr
   'location.assign(copie.startsWith('\''c:'\'') ? `/v10/cabinet/?c=${encodeURIComponent(copie.slice(2))}` : `/v10/?e=${encodeURIComponent(copie)}`);' \
   'location.assign(`/v10/?e=${encodeURIComponent(copie)}`);' \
   'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
-prouver 'le bandeau du Cabinet qui promet de garder ce qu'\''on enregistre' 'web/public/plateforme/poste.js' \
-  '      : consulterSeulement ? '\''Enregistrer demande le réseau.'\''' \
-  '      : false ? '\''Enregistrer demande le réseau.'\''' \
+prouver 'le bandeau du Cabinet qui promet de garder tout ce qu'\''on enregistre' 'web/public/plateforme/poste.js' \
+  '      : cabinet ? l || '\''Ta saisie au brouillard se garde sur ce poste et partira seule au retour du réseau ; le reste demande le réseau.'\''' \
+  '      : false ? l || '\''Ta saisie au brouillard se garde sur ce poste et partira seule au retour du réseau ; le reste demande le réseau.'\''' \
   'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
 prouver 'se déconnecter du Cabinet, introuvable' 'web/public/v10/cabinet/index.html' \
   '<button type="button" class="foot-link" id="se-deconnecter">' \
@@ -18912,6 +18911,126 @@ prouver 'la page du Cabinet qui déborde sous le bandeau hors ligne' 'web/public
 #app { height: 100%; }' \
   '#app { height: calc(100vh - var(--poste-bandeau-h, 0px)); margin-top: var(--poste-bandeau-h, 0px); }' \
   'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+
+# ── 1.105.0 : la saisie au brouillard du Cabinet sans réseau (docs/hors-ligne.md, H15) ──
+prouver 'l'\''écriture renvoyée qui entre deux fois' 'base/migrations/0163_saisie_hors_ligne.sql' \
+  '  select entreprise into v_entreprise from compta.ecriture where id = p_id;' \
+  '  select entreprise into v_entreprise from compta.ecriture where false;' \
+  'une écriture saisie sans réseau, renvoyée, n'\''entre qu'\''une fois ; son identifiant pris ailleurs est refusé ; les droits d'\''abord'
+prouver 'l'\''identifiant d'\''une autre entreprise pris pour déjà reçu' 'base/migrations/0163_saisie_hors_ligne.sql' \
+  '    if v_entreprise = p_entreprise then return false; end if;' \
+  '    return false;' \
+  'une écriture saisie sans réseau, renvoyée, n'\''entre qu'\''une fois ; son identifiant pris ailleurs est refusé ; les droits d'\''abord'
+prouver 'la saisie hors ligne qui passe avant les droits' 'base/migrations/0163_saisie_hors_ligne.sql' \
+  '  perform compta.exiger(p_entreprise, '\''compta.ecritures.saisir'\'');
+  select entreprise' \
+  '  select entreprise' \
+  'une écriture saisie sans réseau, renvoyée, n'\''entre qu'\''une fois ; son identifiant pris ailleurs est refusé ; les droits d'\''abord'
+prouver 'l'\''identifiant du poste ignoré par le serveur' 'serveur/compta/saisie.ts' \
+  '      if (choisi) {' \
+  '      if (false) {' \
+  'une écriture saisie sans réseau, renvoyée, n'\''entre qu'\''une fois ; son identifiant pris ailleurs est refusé ; les droits d'\''abord'
+prouver 'l'\''écriture gardée envoyée sans son identifiant' 'web/public/plateforme/pont-cabinet.js' \
+  '{ ...x.ecriture, id: x.id });' \
+  'x.ecriture);' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'la saisie sans réseau refusée comme avant' 'web/public/plateforme/pont-cabinet.js' \
+  '        await garderSansReseau(id, choisi, ecriture);' \
+  '        throw e;' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'la saisie gardée sur un navigateur qui peut tout vider' 'web/public/plateforme/pont-cabinet.js' \
+  ': poste.limite();' \
+  ': null;' \
+  'un navigateur qui ne promet pas de garder : sans réseau, la saisie est refusée, et dit pourquoi'
+prouver 'l'\''écriture gardée absente du livre' 'web/public/plateforme/pont-cabinet.js' \
+  '    if (!gardees.length) return toutes;' \
+  '    return toutes;' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'l'\''écriture gardée sans sa marque dans le livre' 'web/public/plateforme/pont-cabinet.js' \
+  ' ...(e.attente ? { attente: true, refus: e.refus } : {}),' \
+  '' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'le refus du serveur pris pour une coupure' 'web/public/plateforme/pont-cabinet.js' \
+  '      if (/** @type {any} */ (e).horsLigne || statut < 400 || statut >= 500) return false;' \
+  '      if (true) return false;' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'le retour du réseau qui n'\''envoie rien' 'web/public/plateforme/pont-cabinet.js' \
+  '  if (poste) poste.auRetour(() => { void envoyer(); });' \
+  '' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'l'\''ouverture qui n'\''envoie pas ce qui attendait' 'web/public/plateforme/pont-cabinet.js' \
+  '      void envoyer();
+      return etat;' \
+  '      return etat;' \
+  'fermé sans réseau, rouvert avec : ce qui attendait part à l'\''ouverture'
+prouver 'l'\''écriture gardée corrigée par le serveur sans réseau' 'web/public/plateforme/pont-cabinet.js' \
+  '      if (gardee) {' \
+  '      if (false) {' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'l'\''écriture gardée supprimée par le serveur sans réseau' 'web/public/plateforme/pont-cabinet.js' \
+  '      if ((await lesAttentes()).some((x) => x.id === ecriture)) {
+        attentes =' \
+  '      if (false) {
+        attentes =' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'le bandeau du Cabinet qui compte des changements' 'web/public/plateforme/poste.js' \
+  '  const attendent = (/** @type {number} */ n) => (cabinet ? (' \
+  '  const attendent = (/** @type {number} */ n) => (false ? (' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'le retour qui ne dit pas où sont les écritures' 'web/public/plateforme/pont-cabinet.js' \
+  'poste.envoyeEcritures(parties, refusees);' \
+  'poste.envoye(parties);' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'le brouillard qui ne dit pas ce qui attend le réseau' 'web/public/v10/cabinet/app.js' \
+  '<td class="nw">${e.attente ? (e.refus ?' \
+  '<td class="nw">${false ? (e.refus ?' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'un lot qui compte l'\''écriture que le serveur n'\''a pas' 'web/public/v10/cabinet/app.js' \
+  'lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today() && !e.attente)).map(' \
+  'lotsDuBrouillard(brouillards.filter(e => String(e.date || '\'''\'') <= K.today())).map(' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'valider une écriture qui attend le réseau, offert' 'web/public/v10/cabinet/app.js' \
+  '      if (e.attente) Object.assign(a[a.length - 1], {' \
+  '      if (false) Object.assign(a[a.length - 1], {' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver '« Enregistrer et valider » sans réseau qui écrit d'\''abord' 'web/public/v10/cabinet/app.js' \
+  '      if (puisValider && typeof api.horsLigne === '\''function'\'' && api.horsLigne()) {' \
+  '      if (false) {' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'le message qui dit enregistrée ce qui est gardé' 'web/public/v10/cabinet/app.js' \
+  'toast(res.attente ? '\''Gardée' \
+  'toast(false ? '\''Gardée' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'se déconnecter sans dire ce qui serait perdu' 'web/public/v10/cabinet/app.js' \
+  '      + (n ? `<p class="err-inline" id="deco-attente">' \
+  '      + (false ? `<p class="err-inline" id="deco-attente">' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'le Cabinet qui ne sait pas qu'\''il est hors ligne' 'web/public/plateforme/pont-cabinet.js' \
+  '    horsLigne: () => sansReseau || !navigator.onLine,' \
+  '    horsLigne: () => false,' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'le compte de ce qui attend, toujours nul' 'web/public/plateforme/pont-cabinet.js' \
+  '    ecrituresEnAttente: async () => (await lesAttentes()).length,' \
+  '    ecrituresEnAttente: async () => 0,' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'la fenêtre qui refuse de valider sans offrir le brouillard' 'web/public/v10/cabinet/app.js' \
+  ''\''Enregistrer en brouillard'\'')) await enregistrer(false);' \
+  ''\''Enregistrer en brouillard'\'')) { /* rien */ }' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'joindre un justificatif à une écriture qui attend le réseau, offert' 'web/public/v10/cabinet/app.js' \
+  '    if (e.attente) Object.assign(a[a.length - 1], { hint: '\''Une fois partie au serveur, au retour du réseau'\'', off: true,
+      run: () => infoDialog('\''Elle attend le réseau'\'', '\''Cette écriture est gardée sur ce poste : son justificatif' \
+  '    if (false) Object.assign(a[a.length - 1], { hint: '\''Une fois partie au serveur, au retour du réseau'\'', off: true,
+      run: () => infoDialog('\''Elle attend le réseau'\'', '\''Cette écriture est gardée sur ce poste : son justificatif' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'la marque « attend le réseau » pâle, en italique' 'web/public/plateforme/cabinet.css' \
+  '.badge.sa-attente { background: var(--warning-soft); color: var(--warning); font-style: normal; }' \
+  '' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
+prouver 'le serveur revenu sans que le navigateur le dise, attendu en vain' 'web/public/plateforme/pont-cabinet.js' \
+  '  setInterval(() => { if (navigator.onLine && attentes && attentes.some((x) => !x.refus)) void envoyer(); }, 30_000);' \
+  '' \
+  'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

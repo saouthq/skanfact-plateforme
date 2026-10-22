@@ -1034,6 +1034,24 @@ Hatem ouvre son Cabinet, puis le serveur de recette est arrêté pour de vrai :
 - le bandeau hors ligne recouvrait le nom du cabinet, puis la page débordait d'autant (barre de défilement) : la
   page se range dessous et tient dans la fenêtre.
 
+### 1.105.0 — le Cabinet saisit sans réseau
+
+Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT dans le dossier de Sami :
+
+- vu et juste : « Enregistrer en brouillard » la garde sur le poste ; le bandeau dit « Une écriture attend le réseau »,
+  la ligne du brouillard « attend le réseau », « Valider cette écriture » est grisé avec sa raison ; « Se déconnecter »
+  dit qu'elle serait perdue ; au premier geste après le retour du serveur, elle part, et la base n'en a qu'une ;
+- « Enregistrer et valider » (le bouton vert) refusait sans offrir la suite : la fenêtre propose maintenant
+  « Enregistrer en brouillard » ;
+- « Joindre un justificatif… » restait proposé sur une pièce que le serveur n'a pas encore : il se grise, comme valider ;
+- la marque « attend le réseau » était pâle, en italique, presque illisible : elle prend la teinte d'un avertissement ;
+- le bouton de la déconnexion disait « les perdre » pour une seule écriture : « la perdre » ;
+- le serveur revenu, rien ne partait tant qu'on ne touchait à rien (seul le serveur était tombé, le navigateur ne dit
+  rien) : le poste réessaie seul toutes les 30 secondes tant qu'une écriture attend ;
+- noté, gardé : le bandeau qui apparaît pousse la page de sa hauteur ; le curseur reste dans son champ (la frappe
+  continue), seul un clic au même instant peut viser une ligne trop haut. Le recouvrement, avant, cachait le nom du
+  cabinet : on garde la page poussée.
+
 ## Ce qui reste (les lots suivants)
 
 1. Rien d'ouvert sur l'abonnement après la recette du 20/10/2026 : activé, renouvelé, en groupe, choisi dans

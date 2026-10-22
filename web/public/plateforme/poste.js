@@ -220,11 +220,14 @@
   // du dossier qui changent avec elles ne se comptent pas : on dit ce que la personne a fait).
   let attend = false;
   let enAttente = 0;
-  // (1.104.0) Une page qui se consulte sans réseau, mais n'y enregistre rien (le Cabinet) : le bandeau le dit.
-  let consulterSeulement = false;
-  const attendent = (/** @type {number} */ n) => (n > 1 ? `${n} changements attendent le réseau : gardés sur ce poste, ils partiront seuls à son retour.`
-    : n === 1 ? 'Un changement attend le réseau : gardé sur ce poste, il partira seul à son retour.'
-      : 'Tes changements attendent le réseau : gardés sur ce poste, ils partiront seuls à son retour.');
+  // (1.104.0) Le Cabinet se consulte sans réseau ; (1.105.0) il n'y enregistre que sa saisie au brouillard (H15) : le
+  // bandeau dit ce qui se garde, et compte des écritures.
+  let cabinet = false;
+  const attendent = (/** @type {number} */ n) => (cabinet ? (n > 1 ? `${n} écritures attendent le réseau : gardées sur ce poste, elles partiront seules à son retour.`
+    : 'Une écriture attend le réseau : gardée sur ce poste, elle partira seule à son retour.')
+    : n > 1 ? `${n} changements attendent le réseau : gardés sur ce poste, ils partiront seuls à son retour.`
+      : n === 1 ? 'Un changement attend le réseau : gardé sur ce poste, il partira seul à son retour.'
+        : 'Tes changements attendent le réseau : gardés sur ce poste, ils partiront seuls à son retour.');
   // Le réseau manque : on le dit, avec ce qu'on voit (la copie de ce poste, et de quand) et ce qui attend.
   /** @param {{ copieLe?: number }} [o] */
   function horsLigne(o = {}) {
@@ -234,14 +237,14 @@
     const vu = copieLue ? `Tu consultes la copie de ce poste, du ${jour(copieLue)} à ${heure(copieLue)}.` : 'Ce que tu vois reste à l\'écran.';
     const l = limite();
     const suite = !garde() ? 'Enregistrer demande le réseau : sur l\'ordinateur d\'un autre, rien n\'est gardé sur le poste.'
-      : consulterSeulement ? 'Enregistrer demande le réseau.'
       : attend ? `${attendent(enAttente)}${l ? ` ${l}` : ''}`
+      : cabinet ? l || 'Ta saisie au brouillard se garde sur ce poste et partira seule au retour du réseau ; le reste demande le réseau.'
         : l || 'Ce que tu enregistres se garde sur ce poste, et partira seul au retour du réseau.';
     poser(`<span><strong>Hors ligne depuis ${heure(horsLigneDepuis)}.</strong> ${vu} ${suite}</span>`);
   }
   // Le nombre de changements gardés sur le poste, que le bandeau dit tant que le réseau manque.
   /** @param {number} n */
-  function attente(n) { attend = true; enAttente = n; if (horsLigneDepuis !== null) horsLigne(); }
+  function attente(n) { attend = n > 0 || !cabinet; enAttente = n; if (horsLigneDepuis !== null) horsLigne(); }
   // Le réseau est revenu : ce qui attendait part (le point de contact s'en charge, `auRetour`). Si
   // l'écran montre la copie du poste, un bouton recharge ce que le serveur a.
   /** @type {(() => void) | null} */ let quandRevenu = null;
@@ -254,7 +257,7 @@
     if (horsLigneDepuis === null || close) return;
     horsLigneDepuis = null;
     if (quandRevenu) quandRevenu();
-    if (attend) { poser(`<span>Le réseau est revenu : ${enAttente === 1 ? 'ton changement part' : 'tes changements partent'}…</span>`, true); return; }
+    if (attend) { poser(`<span>Le réseau est revenu : ${cabinet ? (enAttente === 1 ? 'ton écriture part' : 'tes écritures partent') : enAttente === 1 ? 'ton changement part' : 'tes changements partent'}…</span>`, true); return; }
     if (!copieLue) { cacher(); return; }
     poser('<span>Le réseau est revenu. Recharge pour voir ce que les autres ont fait depuis ta copie.</span><button type="button" id="poste-recharger">Recharger</button>', true);
     recharger();
@@ -267,6 +270,17 @@
     const faits = n > 1 ? `tes ${n} changements faits hors ligne sont enregistrés` : n === 1 ? 'ton changement fait hors ligne est enregistré' : 'tes changements faits hors ligne sont enregistrés';
     poser(`<span>Le réseau est revenu : ${faits}.${conflits
       ? ` ${pieces} : la version du serveur est gardée, la tienne est mise de côté, rien n'est perdu.` : ''}</span>${copieLue ? '<button type="button" id="poste-recharger">Recharger</button>' : ''}`, true);
+    recharger();
+  }
+  // (1.105.0) Les écritures du Cabinet faites hors ligne sont parties (H15) : on le dit, et ce que le serveur a refusé
+  // reste au brouillard de ce poste, avec sa raison.
+  /** @param {number} n @param {number} refusees */
+  function envoyeEcritures(n, refusees) {
+    attend = false; enAttente = 0;
+    const faites = n > 1 ? `tes ${n} écritures faites hors ligne sont au brouillard` : n === 1 ? 'ton écriture faite hors ligne est au brouillard' : '';
+    const refus = refusees > 1 ? `${refusees} écritures ne sont pas entrées : elles restent au brouillard de ce poste, avec la raison du refus ; reprends-les dans la grille, ou supprime-les.`
+      : refusees === 1 ? 'Une écriture n\'est pas entrée : elle reste au brouillard de ce poste, avec la raison du refus ; reprends-la dans la grille, ou supprime-la.' : '';
+    poser(`<span>Le réseau est revenu${faites ? ` : ${faites}.` : '.'}${refus ? ` ${refus}` : ''}</span><button type="button" id="poste-recharger">Recharger</button>`, true);
     recharger();
   }
   // Une question posée dans le bandeau, avant un geste qui perdrait quelque chose (ce qui détruit demande).
@@ -312,8 +326,8 @@
 
   /** @type {any} */ (window).SkanPoste = {
     garde, ecrireCopie, lireCopie, garderLecture, relireLecture, ecrireAttente, lireAttente, effacerAttente, effacer, effacerEntreprise, conclure,
-    horsLigne, enLigne, sansCopie, attente, envoye, demander, annoncer, limite, limiteCaisse,
+    horsLigne, enLigne, sansCopie, attente, envoye, envoyeEcritures, demander, annoncer, limite, limiteCaisse,
     /** @param {() => void} f */ auRetour: (f) => { quandRevenu = f; },
-    seulementConsulter: () => { consulterSeulement = true; },
+    pourLeCabinet: () => { cabinet = true; },
   };
 })();

@@ -1,4 +1,4 @@
-// Le Cabinet se consulte sans réseau (1.104.0 ; docs/hors-ligne.md, H13 ; cadrage 04 § 2 : les dossiers qu'on
+// Le Cabinet se consulte sans réseau (1.104.0 ; docs/hors-ligne.md, H14 ; cadrage 04 § 2 : les dossiers qu'on
 // emporte). À la souris, dans un vrai navigateur, le réseau coupé pour de vrai (le serveur s'arrête, et revient au même
 // port), comme tests/web/hors-ligne.test.ts. Ce que le parcours vérifie :
 //   - sur « mon ordinateur », ce que le Cabinet lit se garde sur le poste, CHIFFRÉ (une écriture du client ne s'y lit
@@ -118,11 +118,11 @@ describe('le Cabinet sans réseau, à la souris', () => {
     // ── Le réseau coupé : le livre du client se consulte, le bandeau le dit ───────────────────────
     await couper(c);
     await expect.poll(() => p.locator('#poste-bandeau').innerText(), { timeout: 15_000 })
-      .toMatch(/^Hors ligne depuis \d{1,2} h \d\d\. (Ce que tu vois reste à l'écran|Tu consultes la copie de ce poste, du \d\d\/\d\d\/\d{4} à \d{1,2} h \d\d)\. Enregistrer demande le réseau\.$/);
+      .toMatch(/^Hors ligne depuis \d{1,2} h \d\d\. (Ce que tu vois reste à l'écran|Tu consultes la copie de ce poste, du \d\d\/\d\d\/\d{4} à \d{1,2} h \d\d)\. Ta saisie au brouillard se garde sur ce poste et partira seule au retour du réseau ; le reste demande le réseau\.$/);
     await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/journal/${annee}`);
     await expect.poll(() => p.locator('#c-livres').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/1 écriture de l'exercice attend au brouillard/);
     await expect.poll(() => p.locator('#poste-bandeau').innerText())
-      .toMatch(/^Hors ligne depuis \d{1,2} h \d\d\. Tu consultes la copie de ce poste, du \d\d\/\d\d\/\d{4} à \d{1,2} h \d\d\. Enregistrer demande le réseau\.$/);
+      .toMatch(/^Hors ligne depuis \d{1,2} h \d\d\. Tu consultes la copie de ce poste, du \d\d\/\d\d\/\d{4} à \d{1,2} h \d\d\. Ta saisie au brouillard se garde sur ce poste et partira seule au retour du réseau ; le reste demande le réseau\.$/);
     // Le Cabinet se pousse sous le bandeau : rien ne passe dessous (le nom du cabinet était rogné).
     await expect.poll(() => p.evaluate(() => {
       const b = document.getElementById('poste-bandeau')?.getBoundingClientRect();

@@ -1,0 +1,95 @@
+La saisie au brouillard du Cabinet se fait sans réseau (1.105.0 ; docs/hors-ligne.md, H15). Format : voir
+sans-paquets.mjs.
+
+Sans réseau, l'écriture saisie se garde sur le poste (pont-cabinet.js) et revient dans le livre au brouillard, marquée
+`attente` (et `refus` : la raison du serveur, si elle a été refusée au retour). L'écran le dit sur sa ligne, au lieu de
+« équilibrée » : on sait ce qui n'est pas encore au serveur.
+
+== cabinet/app.js | le brouillard dit ce qui attend le réseau, et ce que le serveur a refusé
+-- avant
+            <td class="nw">${t.equilibre ? '<span class="muted">équilibrée</span>' : `<span class="err-inline">écart ${esc(montant(t.ecart))}</span>`}</td>
+            ${RowMenu.cellule('B:' + e.id, '')}</tr>`;
+-- après
+            <td class="nw">${e.attente ? (e.refus ? `<span class="err-inline sa-refusee" title="${esc(e.refus)}">refusée : ${esc(e.refus)}</span>` : '<span class="badge sa-attente">attend le réseau</span>')
+              : t.equilibre ? '<span class="muted">équilibrée</span>' : `<span class="err-inline">écart ${esc(montant(t.ecart))}</span>`}</td>
+            ${RowMenu.cellule('B:' + e.id, '')}</tr>`;
+-- fin
+
+Les lots de validation ne comptent pas ce qui attend le réseau : un bouton « Valider les 3 pièces de OD » ne doit pas en
+compter une que le serveur n'a pas encore.
+
+== cabinet/app.js | les lots ne comptent que ce que le serveur a
+-- avant
+      ${brouillards.length ? `${r.validerParLot && lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today())).length ? `<div class="sa-lot">
+          ${lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today())).map(l =>
+-- après
+      ${brouillards.length ? `${r.validerParLot && lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today() && !e.attente)).length ? `<div class="sa-lot">
+          ${lotsDuBrouillard(brouillards.filter(e => String(e.date || '') <= K.today() && !e.attente)).map(l =>
+-- fin
+
+Valider demande le réseau (le numéro naît au serveur) : sur une écriture qui l'attend, le geste se grise et dit quand il
+viendra, comme une écriture datée après aujourd'hui (1.102.0).
+
+== cabinet/app.js | valider une écriture qui attend le réseau se grise
+-- avant
+        run: () => infoDialog(`Pas avant le ${fmtJour(e.date)}`, `Cette écriture est datée du ${fmtJour(e.date)} : une écriture ne se valide pas avant sa date, son numéro suit l'ordre des jours. Elle reste au brouillard et se valide à partir de ce jour-là.`) });
+-- après
+        run: () => infoDialog(`Pas avant le ${fmtJour(e.date)}`, `Cette écriture est datée du ${fmtJour(e.date)} : une écriture ne se valide pas avant sa date, son numéro suit l'ordre des jours. Elle reste au brouillard et se valide à partir de ce jour-là.`) });
+      // (plateforme) 1.105.0 — gardée sur ce poste sans réseau (docs/hors-ligne.md, H15) : elle part d'abord au serveur.
+      if (e.attente) Object.assign(a[a.length - 1], { hint: 'Une fois partie au serveur, au retour du réseau', off: true,
+        run: () => infoDialog('Elle attend le réseau', 'Cette écriture est gardée sur ce poste : elle part seule au serveur au retour du réseau, puis se valide comme les autres. D\'ici là, tu peux la reprendre dans la grille ou la supprimer.') });
+-- fin
+
+« Enregistrer et valider » sans réseau : le refus se lit AVANT d'écrire quoi que ce soit, et la pièce reste dans la
+grille (un avertissement se lit avant le geste) ; la fenêtre offre le geste qui débloque, « Enregistrer en brouillard »
+(vu à l'écran le 22/10/2026 : elle ne disait que de fermer). Enregistrée sans réseau, le message dit où elle est.
+
+== cabinet/app.js | enregistrer et valider sans réseau le dit avant, et le brouillard gardé se dit
+-- avant
+      if (puisValider && await refusLicence('Valider une écriture')) return;
+      try {
+-- après
+      if (puisValider && await refusLicence('Valider une écriture')) return;
+      // (plateforme) 1.105.0 — sans réseau, valider attend le serveur : on le dit avant d'écrire, la pièce reste ici.
+      if (puisValider && typeof api.horsLigne === 'function' && api.horsLigne()) {
+        if (await confirmDialog('Valider demande le réseau', '<p>Sans réseau, une écriture se garde au brouillard de ce poste, sans numéro : elle partira seule au retour du réseau, et tu la valideras alors.</p>', 'Enregistrer en brouillard')) await enregistrer(false);
+        return;
+      }
+      try {
+-- fin
+
+== cabinet/app.js | une écriture gardée sur le poste se dit
+-- avant
+          toast(p.id ? 'Brouillard enregistré.' : 'Écriture enregistrée en brouillard : elle n\'a pas encore de numéro.');
+-- après
+          toast(res.attente ? 'Gardée sur ce poste, au brouillard : elle partira seule au serveur au retour du réseau.'
+            : p.id ? 'Brouillard enregistré.' : 'Écriture enregistrée en brouillard : elle n\'a pas encore de numéro.');
+-- fin
+
+Se déconnecter efface ce que le poste garde, donc aussi les écritures qui n'ont pas encore pu partir : la fenêtre le dit,
+avec leur nombre, et le bouton dit qu'on les perd (ce qui détruit demande).
+
+== cabinet/app.js | se déconnecter dit les écritures qui n'ont pas encore pu partir
+-- avant
+    const ok = await confirmDialog('Te déconnecter ?',
+      '<p>La session se ferme sur ce poste, et ce qu\'il gardait pour consulter tes dossiers sans réseau s\'efface. Tu te reconnectes avec ton adresse et ton mot de passe.</p>', 'Me déconnecter');
+-- après
+    const n = typeof api.ecrituresEnAttente === 'function' ? await api.ecrituresEnAttente() : 0;
+    const ok = await confirmDialog('Te déconnecter ?',
+      '<p>La session se ferme sur ce poste, et ce qu\'il gardait pour consulter tes dossiers sans réseau s\'efface. Tu te reconnectes avec ton adresse et ton mot de passe.</p>'
+      + (n ? `<p class="err-inline" id="deco-attente"><b>${n > 1 ? `${n} écritures saisies sans réseau ne sont pas encore parties` : 'Une écriture saisie sans réseau n\'est pas encore partie'} au serveur : ${n > 1 ? 'elles seraient perdues' : 'elle serait perdue'}.</b> Attends le retour du réseau : ${n > 1 ? 'elles partiront' : 'elle partira'} seule${n > 1 ? 's' : ''}.</p>` : ''),
+      n > 1 ? 'Me déconnecter et les perdre' : n ? 'Me déconnecter et la perdre' : 'Me déconnecter', !!n);
+-- fin
+
+Joindre un justificatif à une écriture qui attend le réseau : le fichier part au serveur, qui n'a pas encore la pièce.
+Le geste se grise comme « Valider », et dit quand il viendra (vu à l'écran le 22/10/2026).
+
+== cabinet/app.js | joindre un justificatif à une écriture qui attend le réseau se grise
+-- avant
+      hint: 'Le fichier est copié dans le dossier du client', run: () => joindreJustificatif(root, dossier, e.id) });
+-- après
+      hint: 'Le fichier est copié dans le dossier du client', run: () => joindreJustificatif(root, dossier, e.id) });
+    // (plateforme) 1.105.0 — la pièce n'est pas encore au serveur : son justificatif attend qu'elle y soit.
+    if (e.attente) Object.assign(a[a.length - 1], { hint: 'Une fois partie au serveur, au retour du réseau', off: true,
+      run: () => infoDialog('Elle attend le réseau', 'Cette écriture est gardée sur ce poste : son justificatif se joint une fois qu\'elle est partie au serveur, au retour du réseau.') });
+-- fin
