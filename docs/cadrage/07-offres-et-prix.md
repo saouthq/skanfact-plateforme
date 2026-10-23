@@ -105,6 +105,30 @@ année se compte depuis sa première période payée : chaque période qui comme
 Reprendre un dossier que le cabinet tenait déjà (un client qui devient abonné, plus haut) n'existe pas encore dans la
 plateforme ; il s'y branchera quand il existera.
 
+### Comment l'abonnement du cabinet s'applique (Skander, 23/10/2026)
+
+Proposé par Claude, accepté par Skander (« oui d'accord go », 23/10/2026). Le cabinet est le canal de vente : l'argent
+vient des entreprises ; le prix du cabinet sert surtout à le pousser à faire abonner ses clients.
+
+1. **Le prix** reste celui de la grille : 3 dossiers tenus gratuits, puis 60 DT HT par dossier tenu et par an, jamais plus
+   de 1 990 DT HT par an. Comme tout prix, il vit dans la base, daté, et la direction le change dans la console.
+2. **Quand facturer : une facture par an, et un rattrapage.** L'abonnement du cabinet commence le jour où il a plus de
+   dossiers tenus que de gratuits (le 4ᵉ) : ce jour devient son anniversaire. Chaque année à cette date, une facture compte
+   les dossiers tenus payants ce jour-là. Un dossier ajouté en cours d'année se rattrape au prorata des jours sur la
+   facture suivante (la règle du module ouvert en cours de période, 0113). Pas de facture au mois pour un cabinet.
+3. **Le 4ᵉ dossier : jamais bloqué, prévenu avant.** Le dossier se crée librement ; avant le geste, l'écran dit ce qu'il
+   coûtera (« ce dossier est ton 4ᵉ dossier tenu : il sera facturé 60 DT par an »).
+4. **Sans paiement : jamais de données en otage, jamais les clients du cabinet en difficulté.** Les dossiers de ses
+   clients abonnés restent entiers (ils paient eux-mêmes) ; les 3 dossiers gratuits aussi. Après l'échéance et la grâce,
+   les dossiers tenus payants passent en lecture seule (tout se lit, s'imprime, s'exporte) et la création d'un nouveau
+   dossier tenu se ferme ; le paiement rouvre tout.
+5. **Un dossier tenu que son client rejoint** (il devient abonné, 0155) ne se compte plus à la facture suivante. Choix de
+   Claude dans le détail : la période déjà payée ne se rembourse pas.
+
+**À VÉRIFIER aux entretiens** : 60 DT par dossier tenu (question 2 plus bas), le nombre de dossiers d'un cabinet type
+(au-delà de 36, le plafond joue), et, avec l'Ordre, qu'un comptable peut pousser ses clients à s'abonner (jamais de
+commission versée).
+
 ## Après l'essai, et en cas d'impayé
 
 - À la fin de l'essai ou d'une période payée sans renouvellement : **lecture seule**. On voit tout, on
