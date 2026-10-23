@@ -19,11 +19,13 @@
   } catch { /* sans eux, on propose de fermer la page */ }
   // L'abonné de SkanFact, parti de « Ton abonnement » (14b ; docs/abonnement.md B5) : il y revient, dans son entreprise
   // (posée avant de partir ; l'application rouvre l'onglet en la lisant).
-  const deLAbonnement = /^[0-9a-f-]{36}$/.test(abonnement);
+  // Un associé parti de « Ton abonnement » de son Cabinet (lot 3, 23/10/2026) : « c: » et le cabinet.
+  const deLAbonnement = /^(c:)?[0-9a-f-]{36}$/.test(abonnement);
+  const duCabinet = abonnement.startsWith('c:');
   const ici = deLAbonnement ? 'ton abonnement' : 'ton espace';
   const FLECHE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
   const revenir = deLAbonnement
-    ? `<a class="r-bouton" href="/v10/?e=${encodeURIComponent(abonnement)}">Revenir à ton abonnement ${FLECHE}</a>`
+    ? `<a class="r-bouton" href="${duCabinet ? `/v10/cabinet/?c=${encodeURIComponent(abonnement.slice(2))}` : `/v10/?e=${encodeURIComponent(abonnement)}`}">Revenir à ton abonnement ${FLECHE}</a>`
     : jeton
       ? `<a class="r-bouton" href="/espace/#${encodeURIComponent(jeton)}">Revenir à ton espace ${FLECHE}</a>`
       : '<p>Tu peux fermer cette page, et rouvrir le lien que l\'entreprise t\'a donné.</p>';

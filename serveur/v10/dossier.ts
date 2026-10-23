@@ -113,6 +113,8 @@ async function suivreReglements(tx: Transaction, entreprise: string, utilisateur
   // elle ne doit plus rien, elle paie cet abonnement jusqu'à la fin de sa période. La base le constate elle-même sur les
   // pièces (rien de ce qu'on lui passe n'est cru), une fois par facture.
   if (paiements.length && cle.startsWith('abonnement-')) await tx.query('select plateforme.abonnement_paye_par_facture($1, $2)', [entreprise, cle]);
+  // Celle de l'abonnement d'un cabinet (1.120.0 ; docs/abonnement.md C22) : elle le paie jusqu'à la fin de sa période.
+  if (paiements.length && cle.startsWith('cabinet-')) await tx.query('select plateforme.cabinet_paye_par_facture($1, $2)', [entreprise, cle]);
 }
 
 // ── Lire le dossier ─────────────────────────────────────────────────────────────────────────────

@@ -27,7 +27,7 @@ import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_M
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
 import { lireDiffusions, portee, PUBLICS } from './diffusion.ts';
 import { lireEffets, periodes } from './impact.ts';
-import { aDecider, CATEGORIES, inscriteCetteSemaine, lireChoisies, lireEntreprises, lireVeille, tableau, type Entreprise, type Veille } from './decider.ts';
+import { aDecider, CATEGORIES, inscriteCetteSemaine, lireCabinetsRefuses, lireChoisies, lireEntreprises, lireVeille, tableau, type Entreprise, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
 import { renouvellementsDe } from './renouvellements.ts';
 import { prevoir } from './previsions.ts';
@@ -65,7 +65,7 @@ import { exercicesDuLancement, fichesServies, FICHES, lireExercices, lireInciden
 import { oublierLaFermeture } from '../fermeture.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import {
-  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, lireContenuOffres, lireRemises, CODES_REMISE, QUOI_CONTENU, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
+  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, lireContenuOffres, lireRemises, CODES_REMISE, CODES_CABINET, CABINET_EN_ARGENT, lireReglesCabinet, QUOI_CONTENU, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
 } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
 import { etatDesNouveautes, listeDesNouveautes, NOUVEAUTES } from '../nouveautes.ts';
@@ -335,7 +335,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const argent = paiements ? { ...argentADecider(paiements, liste, jour,
         lireContestations(await lireJson(transaction(tx), 'select plateforme.console_contestations($1) v', [instant]))),
         sorties: lireSorties(await lireJson(transaction(tx), 'select plateforme.console_sorties($1::date) v', [jour])),
-        choisies: lireChoisies(await lireJson(transaction(tx), 'select plateforme.console_offres_choisies() v')) } : null;
+        choisies: lireChoisies(await lireJson(transaction(tx), 'select plateforme.console_offres_choisies() v')),
+        cabinets: lireCabinetsRefuses(await lireJson(transaction(tx), 'select plateforme.console_factures_cabinet_refusees() v')) } : null;
       // La tuile « Inscriptions » compte les lignes de la liste qu'elle ouvre, par la fonction de la liste (C3 ; 0114).
       const inscriptions = base ? selectionClients(base.valeur, jour, { nouvelles: '1' }).dansVue.length : 0;
       const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus, inscriptions);
@@ -503,7 +504,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const argent = role === 'direction'
         ? { ...argentADecider(lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`])), liste, jour, contestations),
             sorties: sortie && !sortie.close ? [{ ...sortie, entreprise: { id, nom: String(fiche.raisonSociale ?? '') } }] : [],
-            choisies: lireChoisies(await lireJson(transaction(tx), 'select plateforme.console_offres_choisies() v')) } : null;
+            choisies: lireChoisies(await lireJson(transaction(tx), 'select plateforme.console_offres_choisies() v')),
+        cabinets: lireCabinetsRefuses(await lireJson(transaction(tx), 'select plateforme.console_factures_cabinet_refusees() v')) } : null;
       const attend = aDecider(liste, { etat: 'absente' }, jour, role, support.ouvertes, maintenant(), argent);
       const instant = maintenant();
       // Ses factures d'abonnement (docs/abonnement.md B2–B4), et l'entreprise SkanFact où elles naissent.
@@ -733,7 +735,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
   });
   ajouter({
     methode: 'GET', chemin: '/console/cabinets/:id', geste: 'console.clients.voir',
-    traiter: async ({ params }, tx) => {
+    traiter: async ({ params, qui }, tx) => {
       const id = params.id ?? '';
       if (!uuid.safeParse(id).success) throw new Introuvable();
       const t = transaction(tx);
@@ -741,7 +743,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       if (!cabinet) throw new Introuvable();
       const jour = aujourdhuiATunis();
       const entreprises = await lesEntreprises(t, jour);
-      return { corps: { aujourdhui: jour, ...ficheCabinet(cabinet, entreprises) } };
+      // Son abonnement (0172) : la direction et le support le lisent ; la technique, non (aucune donnée de client).
+      const role = roleDe(qui);
+      const abonnement = role === 'direction' || role === 'support'
+        ? await lireJson(t, 'select plateforme.console_abonnement_cabinet($1, $2::date) v', [id, jour]) : null;
+      return { corps: { aujourdhui: jour, ...ficheCabinet(cabinet, entreprises), abonnement } };
     },
   });
 
@@ -1855,6 +1861,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const contenu = lireContenuOffres(await lireJson(x, 'select plateforme.console_contenu_offres($1::date) v', [jour]));
       // Les remises (0106) : celle du groupe et celle du cabinet, ce qui est préparé, et combien de sociétés sont en groupe.
       const remises = lireRemises(await lireJson(x, 'select plateforme.console_remises($1::date) v', [jour]));
+      // L'abonnement des cabinets (0172) : ses règles du jour, ce qui est préparé, et combien de cabinets sont abonnés.
+      const cabinets = lireReglesCabinet(await lireJson(x, 'select plateforme.console_regles_cabinet($1::date) v', [jour]));
       // Les formats officiels : le registre du code, ce que la plateforme en a fait (0094), et si ce serveur a l'adresse
       // de la TTN et de DigiGo (sans elle, les pièces attendent).
       const formats = registreDesFormats(lireFormats(await lireJson(x, 'select plateforme.console_formats() v')), { teif: versionTeif() },
@@ -1874,6 +1882,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
           regles,
           contenu,
           remises,
+          cabinets,
           registre: registre(r.regles, jour),
           // Chaque message avec son public et sa diffusion (0139, C63) ; et ce que chaque public atteint aujourd'hui.
           ...(() => {
@@ -2020,6 +2029,33 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     traiter: async ({ corps }, tx) => {
       const instant = maintenant();
       await transaction(tx).query('select plateforme.console_retirer_remise($1, $2::date, $3, $4, $5::date)',
+        [corps.code, corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { corps: { ok: true } };
+    },
+  });
+  // Une règle de l'abonnement des cabinets (0172) : préparée comme un prix, avec le préavis, puis retirée avant sa date
+  // si besoin. Un montant se tape en dinars ; un nombre de dossiers ou de jours, en entier.
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/cabinet', geste: 'console.reglages.gerer',
+    corps: z.object({ code: z.enum(CODES_CABINET), valeur: z.string().max(40), aPartirDu: jourIso, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      const argent = CABINET_EN_ARGENT.includes(corps.code);
+      const v = corps.valeur.replace(/\s/g, '');
+      const valeur = argent ? prixTape(v) : /^\d{1,4}$/.test(v) ? BigInt(v) : null;
+      if (valeur === null || (argent && valeur <= 0n)) return refusDuChamp('valeur', argent ? 'console.reglages.prix_illisible' : 'console.reglages.nombre_illisible');
+      if (!jourExiste(corps.aPartirDu)) return refusDuChamp('aPartirDu', 'console.reglages.jour_illisible');
+      await transaction(tx).query('select plateforme.console_preparer_regle_cabinet($1, $2::bigint, $3::date, $4, $5, $6::date)',
+        [corps.code, valeur.toString(), corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { statut: 201, corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/cabinet/retirer', geste: 'console.reglages.gerer',
+    corps: z.object({ code: z.enum(CODES_CABINET), aPartirDu: jourIso, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      await transaction(tx).query('select plateforme.console_retirer_regle_cabinet($1, $2::date, $3, $4, $5::date)',
         [corps.code, corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
       return { corps: { ok: true } };
     },

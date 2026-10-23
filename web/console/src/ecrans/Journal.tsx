@@ -400,7 +400,7 @@ export function Journal({ entreprise, qui: quiDemande }: { entreprise: string | 
                                         : famille === 'paiements' ? <SurLesCouts avant={l.avant} apres={l.apres} /> : '—'}
                                 </td>
                                 <td data-libelle={titre(`${J}.colonne.motif`)}>{l.systeme || !l.motif ? <span className="c-attente">—</span> : <span className="c-jr-motif" data-donnee>{'« '}{l.motif}{' »'}</span>}</td>
-                                <td data-libelle={titre(`${J}.colonne.change`)}>{l.systeme ? <GesteDuSysteme l={l} /> : l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : l.reglages ? <ChangeDesReglages geste={l.geste} r={l.reglages} />
+                                <td className="c-jr-change" data-libelle={titre(`${J}.colonne.change`)}>{l.systeme ? <GesteDuSysteme l={l} /> : l.service ? <ChangeDuService geste={l.geste} s={l.service} /> : l.reglages ? <ChangeDesReglages geste={l.geste} r={l.reglages} />
                                   : famille === 'support' ? <LaDemande avant={l.avant} apres={l.apres} />
                                     : famille === 'groupes' ? <LeGroupe geste={l.geste} avant={l.avant} apres={l.apres} />
                                       : famille === 'paiements' ? <LeCout avant={l.avant} apres={l.apres} /> : <Changements avant={l.avant} apres={l.apres} empile />}</td>

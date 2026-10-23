@@ -1727,6 +1727,8 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-jr-sorte-equipe { background: var(--c-violet-doux); color: var(--c-violet-texte); }
 .c-jr-reserve { display: inline-flex; align-items: center; gap: 4px; margin-inline-start: 6px; font-size: 12px; font-weight: 600; color: var(--c-rouge-texte); }
 .c-jr-systeme td { color: var(--c-gris); }
+/* Ce qu'un geste a changé nomme parfois un code sans espace (une nouveauté) : il passe à la ligne, au téléphone surtout. */
+.c-jr-change, .c-jr-sur { overflow-wrap: anywhere; }
 .c-jr-onglets { margin: 4px 0 -4px; }
 .c-onglets button {
   display: inline-flex; align-items: center; min-height: 46px; padding: 0 14px; margin-bottom: -1px; border: 0; background: none; cursor: pointer;
@@ -1873,6 +1875,13 @@ th[aria-sort] .c-pf-tri { color: var(--c-doux-texte); }
 .c-cab-ligne-droite { display: flex; align-items: center; gap: 10px; flex: none; color: var(--c-gris); font-size: 13.5px; }
 .c-cab-place-vide { margin: 0; padding: 14px 24px 22px; color: var(--c-gris); font-size: 14px; border-top: 1px solid var(--c-trait); }
 .c-cab-place-pied { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 24px; border-top: 1px solid var(--c-trait); color: var(--c-gris); font-size: 14px; }
+.c-cab-ab-corps { display: grid; gap: 10px; padding: 0 24px 16px; }
+.c-cab-ab-corps p { margin: 0; }
+/* Au téléphone, une facture du cabinet passe à la ligne : le montant et son état sous la période, jamais coupés. */
+@media (max-width: 720px) {
+  .c-cab-abonnement .c-cab-lignes li { flex-wrap: wrap; }
+  .c-cab-abonnement .c-cab-ligne-droite { flex: 1 1 100%; flex-wrap: wrap; }
+}
 .c-cab-place-pied .c-fiche-vers { margin: 0; }
 .c-note-titree > div { display: grid; gap: 3px; }
 .c-note-titree b { color: var(--c-encre); }

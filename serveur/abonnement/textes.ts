@@ -3,6 +3,17 @@
 import { declarerTextes } from '../../textes/index.ts';
 
 declarerTextes({
+  // L'abonnement des cabinets (1.120.0 ; 0172 ; docs/abonnement.md C22).
+  'abonnement.cabinet.lecture_seule': 'ce dossier est en lecture seule depuis le {depuis} : la facture de l\'abonnement de ton cabinet attend son paiement. Tout se lit, s\'imprime et s\'exporte. Un associé la règle dans les Réglages du Cabinet (Mon cabinet, Ton abonnement), et tout se rouvre',
+  'abonnement.cabinet.sans_prix': 'le prix d\'un dossier tenu n\'est pas réglé pour cette période : la console doit le poser',
+  'abonnement.cabinet.rien_a_facturer': 'rien à facturer : plus aucun dossier tenu payant ni rattrapage',
+  'abonnement.cabinet.facture.objet': 'Abonnement cabinet SkanFact du {du} au {au}',
+  'abonnement.cabinet.facture.dossiers': 'Dossiers tenus au-delà des {gratuits} gratuits',
+  'abonnement.cabinet.facture.periode': 'Du {du} au {au}, par dossier',
+  'abonnement.cabinet.facture.rattrapage': 'Rattrapage d\'un dossier tenu ajouté en cours d\'année',
+  'abonnement.cabinet.facture.rattrapage_detail': 'Du {du} au {au} : {jours} jours sur {sur}',
+  'abonnement.cabinet.facture.plafond': 'Abonnement cabinet, plafond annuel',
+  'abonnement.cabinet.facture.plafond_detail': 'Du {du} au {au} : {dossiers} dossiers tenus payants et {rattrapes} rattrapages, au plafond annuel',
   // Le refus d'un geste en lecture seule : ce qui est refusé, pourquoi, et ce qui rouvre (règle du projet).
   'abonnement.lecture_seule.essai_termine': 'cette entreprise est en lecture seule depuis le {depuis} : son essai est terminé. Tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée. Le propriétaire ou un administrateur la rouvre en choisissant une offre (Paramètres, Ton abonnement)',
   'abonnement.lecture_seule.non_renouvele': 'cette entreprise est en lecture seule depuis le {depuis} : son abonnement n\'a pas été renouvelé. Tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée. Le propriétaire ou un administrateur la rouvre en renouvelant l\'abonnement (Paramètres, Ton abonnement)',

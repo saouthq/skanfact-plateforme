@@ -120,6 +120,16 @@ export async function refuserSiLectureSeule(tx: Transaction, entreprise: string,
   if (r) throw new Refus(r.motif.cle, { valeurs: r.motif.valeurs, bouton: r.bouton });
 }
 
+// Un dossier tenu PAYANT d'un cabinet qui ne paie plus (1.120.0 ; 0172 ; docs/abonnement.md C22) : la lecture seule
+// ferme tout ce qui écrit dans le dossier — la saisie du cabinet comprise, c'est le travail que son abonnement paie —
+// sauf parler (au client, au support) et demander de l'aide. Les dossiers gratuits et ceux des clients abonnés ne sont
+// jamais touchés. Tout se lit, s'imprime, s'exporte : une lecture ne passe jamais ici.
+export const OUVERT_DOSSIER_TENU_BLOQUE: ReadonlySet<string> = new Set(['messagerie.ecrire', 'support.ecrire', 'socle.sauvegardes.demander']);
+export async function refusDuDossierTenu(tx: Transaction, entreprise: string, jour = aujourdhuiATunis()): Promise<{ motif: Texte; bouton: string } | null> {
+  const depuis = (await tx.query('select plateforme.dossier_tenu_bloque_depuis($1, $2::date) d', [entreprise, jour])).rows[0]?.d as string | null | undefined;
+  return depuis ? { motif: motif('abonnement.cabinet.lecture_seule', { depuis: jourEnFrancais(depuis) }), bouton: 'compte.cabinet.gerer' } : null;
+}
+
 // Branchée une fois, par l'application (serveur/app.ts) : tout serveur la porte.
 let branchee = false;
 export function brancherAbonnement(): void {
@@ -130,5 +140,9 @@ export function brancherAbonnement(): void {
     if (!ecrire || (POLITIQUE_LECTURE_SEULE[geste.code] ?? 'ouvert') !== 'ferme') return null;
     const e = await etatDe(tx, entreprise);
     return e ? refusDeLectureSeule(e) : null;
+  });
+  brancherCondition(async (tx, entreprise, geste, ecrire) => {
+    if (!ecrire || OUVERT_DOSSIER_TENU_BLOQUE.has(geste.code)) return null;
+    return refusDuDossierTenu(tx, entreprise);
   });
 }

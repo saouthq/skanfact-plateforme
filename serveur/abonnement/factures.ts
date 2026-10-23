@@ -28,6 +28,9 @@ const C = () => codeDeLEcran<Core>('core.js');
 // l'application les pose en ouvrant le dossier (`migrateData`) — sinon l'aperçu dirait un autre chiffre qu'elle.
 const commeLEcran = (societe: Json): Json => (C().migrateData({ company: commeLaV10(societe) }).company ?? {}) as Json;
 
+// Le taux de TVA d'une ligne de l'entreprise SkanFact, tel que l'écran le pose (1.120.0 : la facture d'un cabinet).
+export const tvaDeLaFiche = (societe: Json): number => C().defaultVat(commeLEcran(societe));
+
 // Ce que la pièce écrit, du catalogue (14 § 5), en français : la facture est en français (`lang`).
 const enFrancais = (cle: string, valeurs?: Record<string, string>) => rendre(t(cle, valeurs), 'fr');
 

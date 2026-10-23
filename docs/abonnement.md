@@ -575,6 +575,42 @@ lui-même. Décidé par délégation dans le détail) :
   jours sur 11 » quand la facture n'aurait rien rattrapé. Changer d'offre au milieu
   d'une période (Essentiel → Complet avec un avoir au prorata) ne se fait pas : la console ne le sait pas non plus.
 
+**C22. L'abonnement des cabinets, lot 3** (1.120.0 ; `0172` ; `docs/revue-abonnement.md` ; décision de Skander du
+23/10/2026, « oui d'accord go », écrite au cadrage : `docs/cadrage/07-offres-et-prix.md`, « Comment l'abonnement du
+cabinet s'applique ». Le détail par délégation, À VÉRIFIER aux entretiens des cabinets) :
+- **Ce qui se compte** (`plateforme.dossiers_du_cabinet`) : les dossiers tenus du cabinet (ceux qu'il a créés et que leur
+  client n'a pas rejoints), actifs, dans l'ordre de leur création ; un dossier archivé dans la fiche du cabinet ne compte
+  pas. Les trois premiers sont gratuits, pour toujours ; les suivants se paient. Un client abonné à SkanFact qui a donné
+  son mandat ne compte jamais. Les règles sont datées dans `plateforme.regle_cabinet` (`prix_dossier` 60 DT HT par an,
+  `gratuits` 3, `plafond` 1 990 DT HT par an, `delai` 15 jours pour régler) et se préparent dans la console, avec le
+  préavis d'un nouveau prix (Réglages, « L'abonnement des cabinets ») ; une règle inconnue ne facture rien.
+- **L'anniversaire** : l'abonnement du cabinet (`plateforme.abonnement_cabinet`) commence le jour où son premier dossier
+  payant est créé ; la facture de chaque année part ce jour-là (le tour du facturier, et juste après la création d'un
+  dossier tenu : `serveur/abonnement/cabinet.ts`, `facturerLesCabinets`). Elle compte les dossiers payants de ce jour
+  au prix du jour, plus un **rattrapage** pour chaque dossier payant arrivé pendant l'année d'avant et absent de la
+  facture d'avant : le prix de l'année d'avant, au prorata de ses jours (`(prix × jours × 2 + jours de l'année) / (2 ×
+  jours de l'année)`, l'arrondi des modules, 0113). Le **plafond** la limite : une seule ligne, « Abonnement cabinet,
+  plafond annuel ». La pièce compte les dossiers, elle ne les nomme pas. Préparée et émise par la propriétaire de
+  l'entreprise SkanFact comme une facture au choix (C21), revérifiée par la base (`plateforme.noter_facture_cabinet`
+  refait le même calcul), dans une transaction ; un dossier créé pendant ce temps attend (le même verrou). Une période
+  qui ne se facture pas garde son motif (`plateforme.facture_cabinet_refus`) : « À décider » le dit, le serveur réessaie
+  le lendemain.
+- **Payer** : « Ton abonnement », dans les Réglages du Cabinet (le panneau qui était « Licence »), pour un associé
+  seulement ; « Payer en ligne » par le prestataire de l'entreprise SkanFact, la page de retour ramène au Cabinet, sur ce
+  panneau. Payée, l'abonnement court jusqu'à la veille de l'anniversaire suivant (`plateforme.cabinet_paye_par_facture`).
+  Les e-mails « facture prête » et « paiement reçu » partent aux associés (C20).
+- **Avant le dossier qui se paie** : « Nouveau dossier client » le dit avant la saisie (« Ce sera ton 4e dossier tenu :
+  … il se paie 60 DT HT par an »), sans rien bloquer.
+- **Sans paiement** : après l'échéance et la grâce de l'abonnement (0104), **seuls les dossiers payants** passent en
+  lecture seule (`plateforme.dossier_tenu_bloque_depuis`, une condition de la porte : `serveur/abonnement/condition.ts`) ;
+  tout s'y lit, s'imprime et s'exporte, la messagerie, le support et les sauvegardes restent ouverts ; les dossiers
+  gratuits restent ouverts ; créer un dossier tenu de plus se refuse, en le disant. Payée, tout se rouvre.
+- **La console** : la fiche d'un cabinet dit son abonnement (l'état, payants sur tenus, la prochaine facture, ses
+  factures et leur reste) ; « À décider » la période qui ne s'est pas facturée seule.
+- **Pas encore** : les rappels par e-mail avant l'échéance (les e-mails « facture prête » et « paiement reçu » partent) ;
+  un dossier que son client rejoint en cours d'année ne se rembourse pas (décidé : il ne compte plus, sans avoir) ; le
+  client qui « reprend » un dossier tenu (le chemin `0155` existe ; ce lot le compte, il ne le crée pas).
+
 ## Revu à la souris (14/10/2026, C17 : les remises)
 
 Sur l'essai de l'outil humain, la base passée en `0106`, dans la console (Amira, direction). Une seconde société pour

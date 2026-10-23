@@ -523,6 +523,13 @@ vaut pour tout le dépôt.*
     `serveur/abonnement/factures.ts`), « Ne pas renouveler » (`POST /abonnement/renouvellement`,
     `plateforme.mon_renouvellement`), un module ouvert tout de suite (`POST /abonnement/module`,
     `plateforme.mon_module_ouvrir`), et dans l'écran `brancherRenouvellement`, `brancherModules`.
+  - **L'abonnement des cabinets** (1.120.0 ; `docs/abonnement.md` C22 ; `base/migrations/0172_abonnement_cabinet.sql`) :
+    les règles datées (`plateforme.regle_cabinet`), les dossiers comptés (`plateforme.dossiers_du_cabinet`), l'état
+    (`plateforme.etat_cabinet`), le calcul de la facture (`plateforme.calcul_facture_cabinet`), la facture émise seule
+    (`serveur/abonnement/cabinet.ts`), la lecture seule des payants (`serveur/abonnement/condition.ts`), « Ton
+    abonnement » du Cabinet (`web/public/plateforme/abonnement-cabinet.js`, `web/v10/abonnement-cabinet.txt`, le pont
+    `licenceStatus`, `dessinerAbonnementCabinet`, `creationDossier`), et la console (`Reglages.tsx`, « L'abonnement des
+    cabinets » ; `Cabinet.tsx`, « Son abonnement » ; la ligne `facture_cabinet` d'« À décider »).
   - **L'abonnement de bout en bout** (1.83.0 ; `docs/recette.md`) : la première abonnée d'un groupe est celle qui a payé
     (`plateforme.remise_de`, `base/migrations/0157_la_premiere_abonnee.sql`) ; « à facturer » dans « À décider »
     (`A_FACTURER_JOURS`, `serveur/console/decider.ts`, les factures qui attendent par `argentADecider`,

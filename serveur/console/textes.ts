@@ -90,6 +90,7 @@ declarerTextes({
   'console.donnees.raison': 'la raison de la décision, en trois caractères au moins : elle se répond à la personne',
   // Préparer un prix (docs/abonnement.md C14) : chaque refus nomme sa case.
   'console.reglages.prix_illisible': 'le prix s\'écrit en dinars hors taxes, avec trois décimales au plus : « 420 » ou « 420,500 »',
+  'console.reglages.nombre_illisible': 'le nombre s\'écrit en chiffres, sans virgule : « 3 » ou « 15 »',
   'console.reglages.nouveaute_inconnue': 'la version en service ne porte pas cette nouveauté : elle n\'existe que dans une version à venir, ou elle est devenue la règle pour tous',
   'console.reglages.jour_illisible': 'ce jour n\'existe pas au calendrier : choisis-en un dans le calendrier',
   // Les coûts du mois (docs/console.md C30) : chaque refus nomme sa case.

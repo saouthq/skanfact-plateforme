@@ -6,6 +6,7 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { dire, phrase, selon, titre } from '../langue.ts';
 import { abonnementEnMots, expliquer, puceDe, type Etat, type Faits } from '../abonnement.ts';
+import { montant } from '../argent.ts';
 import { useLecture } from '../contexte.ts';
 import { jourCourt, jourDe, quand } from '../temps.ts';
 import { Alerte, Avatar, Bouton, Icone, Lien, maj, Puce, Vide } from '../ui.tsx';
@@ -17,7 +18,17 @@ type Dossier = {
   entreprise: { id: string; raisonSociale: string; matricule: string | null; creeLe: string; faits: Faits; etat: Etat; pieces: number; derniereActivite: string | null };
 };
 type Collaborateur = { nom: string; email: string; roles: string[]; depuis: string; derniereConnexion: string | null };
-type Donnees = { aujourdhui: string; id: string; nom: string; creeLe: string; collaborateurs: Collaborateur[]; dossiers: Dossier[]; comptes: Record<Place, number> };
+// Son abonnement (lot 3 ; 0172, docs/abonnement.md C22), pour la direction et le support (la technique ne le lit pas) :
+// l'état, ses dossiers tenus et payants, la prochaine facture (le calcul de la facture), ses factures, et le refus de la
+// période qui court. Les montants en millimes (texte).
+type EtatCabinet = { etat: 'gratuit' | 'a_facturer' | 'a_payer' | 'actif' | 'lecture_seule'; echeance?: string; lectureSeuleLe?: string | null; jusquAu?: string; depuis?: string };
+type FactureCabinet = { debut: string; fin: string; echeance: string; montantHt: string; numero: string | null; net: string | null; reste: string | null; payeeLe: string | null; dossiers: number; rattrapes: number };
+type AbonnementCabinet = { etat: EtatCabinet; depuis: string | null; payeJusquAu: string | null; tenus: number; payants: number;
+  prochaine: { debut: string; totalHt: string; plafonne: boolean } | null; factures: FactureCabinet[]; refus: string | null };
+type Donnees = { aujourdhui: string; id: string; nom: string; creeLe: string; collaborateurs: Collaborateur[]; dossiers: Dossier[]; comptes: Record<Place, number>;
+  abonnement?: AbonnementCabinet | null };
+// Des millimes (« 60000 ») en dinars (« 60.000 ») pour `montant`, sans passer par un nombre à virgule.
+const enDinars = (m: string) => `${m.length > 3 ? m.slice(0, -3) : '0'}.${m.slice(-3).padStart(3, '0')}`;
 
 const K = 'console.ecran.cabinet';
 export type OngletCabinet = 'apercu' | 'dossiers' | 'collaborateurs';
@@ -60,6 +71,7 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
     );
   }
   const c = l.donnees;
+  const a = c.abonnement ?? null;
   const montres = place ? c.dossiers.filter((d) => d.place === place) : c.dossiers;
   const associes = c.collaborateurs.filter((x) => x.roles.includes('supervision'));
   // « Écrire » : à son premier associé (ou, à défaut, à qui y travaille).
@@ -120,8 +132,13 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
           </p>
         </div>
         <div className="c-bandeau-paie">
-          <b>{phrase(`${K}.paie_ligne`)}</b>
-          <span>{phrase(`${K}.paie_sous`)}</span>
+          {a ? <>
+            <b>{phrase(`${K}.ab.ligne.${a.etat.etat}`, { echeance: jourCourt(a.etat.echeance ?? ''), depuis: jourCourt(a.etat.depuis ?? ''), jusquAu: jourCourt(a.etat.jusquAu ?? '') })}</b>
+            <span>{phrase(`${K}.ab.sous`, { payants: selon(a.payants, `${K}.ab.payants`), tenus: selon(a.tenus, `${K}.ab.tenus`) })}</span>
+          </> : <>
+            <b>{phrase(`${K}.paie_ligne`)}</b>
+            <span>{phrase(`${K}.paie_sous`)}</span>
+          </>}
         </div>
       </header>
 
@@ -140,6 +157,7 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
             {blocPlace('tenu')}
           </div>
           {parPlace('en_attente').length ? blocPlace('en_attente', true) : null}
+          {a ? <SonAbonnement a={a} aujourdhui={c.aujourdhui} /> : null}
           <div className="c-note c-note-titree">
             <Icone nom="cache" />
             <div><b>{titre(`${K}.jamais_titre`)}</b><span>{phrase(`${K}.contenu`)}</span></div>
@@ -271,5 +289,41 @@ export function Cabinet({ id, onglet: ongletDemande, place: placeDemandee }: { i
       </section>
       ) : null}
     </>
+  );
+}
+
+// Son abonnement, sur l'aperçu : la prochaine facture, ses factures (la plus récente d'abord) et le refus de la période
+// qui court. Les dossiers se comptent, ils ne se nomment pas (la facture non plus).
+function SonAbonnement({ a, aujourdhui }: { a: AbonnementCabinet; aujourdhui: string }) {
+  return (
+    <section className="c-carte c-cab-place c-cab-place-large c-cab-abonnement" aria-labelledby="cab-abonnement">
+      <div className="c-cab-place-tete">
+        <h2 id="cab-abonnement">{titre(`${K}.ab.titre`)}</h2>
+        <p className="c-carte-sous">{a.depuis ? phrase(`${K}.ab.depuis`, { le: jourCourt(a.depuis) }) : phrase(`${K}.ab.pas_encore`)}</p>
+      </div>
+      {a.refus || (a.prochaine && Number(a.prochaine.totalHt) > 0) ? (
+        <div className="c-cab-ab-corps">
+          {a.refus ? <Alerte ton="danger">{phrase(`${K}.ab.refus`, { motif: a.refus })}</Alerte> : null}
+          {a.prochaine && Number(a.prochaine.totalHt) > 0 ? (
+            <p>{phrase(a.prochaine.plafonne ? `${K}.ab.prochaine_plafond` : `${K}.ab.prochaine`, { le: jourCourt(a.prochaine.debut), montant: montant(enDinars(a.prochaine.totalHt)) })}</p>
+          ) : null}
+        </div>
+      ) : null}
+      {a.factures.length ? (
+        <ul className="c-cab-lignes">
+          {a.factures.map((f) => (
+            <li key={f.debut}>
+              <span><b data-donnee>{f.numero ?? titre(`${K}.ab.sans_numero`)}</b>{' '}
+                <span className="c-sous">{dire(`${K}.ab.periode`, { du: jourCourt(f.debut), au: jourCourt(f.fin), dossiers: selon(f.dossiers, `${K}.ab.payants`) })}</span></span>
+              <span className="c-cab-ligne-droite">
+                <span data-donnee>{montant(enDinars(f.montantHt))} HT</span>
+                {f.payeeLe ? <Puce ton="actif">{dire(`${K}.ab.payee`, { le: jourCourt(jourDe(f.payeeLe)) })}</Puce>
+                  : f.reste && Number(f.reste) > 0 ? <Puce ton={f.echeance < aujourdhui ? 'en_retard' : 'aujourdhui'}>{dire(`${K}.ab.reste`, { reste: montant(enDinars(f.reste)), echeance: jourCourt(f.echeance) })}</Puce> : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : <p className="c-cab-place-vide">{phrase(`${K}.ab.aucune`)}</p>}
+    </section>
   );
 }

@@ -212,6 +212,11 @@ describe('la console de l\'équipe, à la souris', () => {
     cabinet = await cabinetAvecDossiers('Cabinet de la Console');
     // Un second cabinet, sans dossier : la recherche a quelque chose à écarter.
     await cabinetSeul('Fiduciaire Témoin');
+    // Un geste du journal qui nomme un code sans espace (une nouveauté) : au téléphone, il passe à la ligne (vu le
+    // 23/10/2026 : « banque_mvkqjt4n53w6 », laissé par un autre test, débordait de l'écran).
+    await admin.query(`insert into plateforme.geste_console (qui, role, geste, motif, avant, apres)
+      select id, 'direction', 'reglages.nouveaute_ouverte', 'Ouverte à toutes les entreprises', null, '{"nouveaute": "banque_releves_importes_mvkqjt4n53w6"}'::jsonb
+        from socle.utilisateur where email = $1`, [direction.email]);
   }, 180_000);
   afterAll(async () => {
     await navigateur?.close(); await serveur?.arreter(); await admin.end();

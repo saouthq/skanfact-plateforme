@@ -201,6 +201,32 @@ export function lireContenuOffres(brut: unknown): { duJour: Record<Offre, Conten
 
 // Les remises (0106) : celle du groupe et celle du cabinet telles qu'elles valent aujourd'hui (un taux en pourcent ; pour
 // le cabinet, sa durée en mois), qui les a posées et pourquoi ; ce qui est préparé ; combien de sociétés sont en groupe.
+// L'abonnement des cabinets (lot 3 ; 0172, docs/abonnement.md C22) : le prix d'un dossier tenu au-delà des gratuits, le
+// nombre de gratuits, le plafond annuel, le délai pour régler. Les montants en millimes (texte), les autres en nombres.
+export const CODES_CABINET = ['prix_dossier', 'gratuits', 'plafond', 'delai'] as const;
+export type CodeCabinet = typeof CODES_CABINET[number];
+export const CABINET_EN_ARGENT: readonly CodeCabinet[] = ['prix_dossier', 'plafond'];
+export type RegleCabinet = { valeur: string; aPartirDu: string; motif: string; par: string | null; le: string | null };
+export type ReglesCabinetLues = { duJour: Record<CodeCabinet, RegleCabinet | null>; aVenir: (RegleCabinet & { code: CodeCabinet })[]; cabinets: number };
+const regleCabinet = (x: Record<string, unknown>): RegleCabinet | null => {
+  const valeur = typeof x.valeur === 'string' && /^\d+$/.test(x.valeur) ? x.valeur : null;
+  const aPartirDu = jour(x.aPartirDu), motif = texte(x.motif);
+  return valeur !== null && aPartirDu && motif ? { valeur, aPartirDu, motif, par: texte(x.par), le: date(x.le) } : null;
+};
+export function lireReglesCabinet(brut: unknown): ReglesCabinetLues {
+  const b = objet(brut);
+  const duJour = objet(b.duJour);
+  return {
+    duJour: Object.fromEntries(CODES_CABINET.map((c) => [c, regleCabinet(objet(duJour[c]))])) as Record<CodeCabinet, RegleCabinet | null>,
+    aVenir: tableau(b.aVenir).flatMap((x) => {
+      const code = (CODES_CABINET as readonly unknown[]).includes(x.code) ? x.code as CodeCabinet : null;
+      const r = regleCabinet(x);
+      return code && r ? [{ ...r, code }] : [];
+    }),
+    cabinets: typeof b.cabinets === 'number' && Number.isInteger(b.cabinets) && b.cabinets >= 0 ? b.cabinets : 0,
+  };
+}
+
 export const CODES_REMISE = ['groupe', 'cabinet'] as const;
 export type CodeRemise = typeof CODES_REMISE[number];
 export type RegleRemise = { taux: number; mois: number | null; aPartirDu: string; motif: string; par: string | null; le: string | null };

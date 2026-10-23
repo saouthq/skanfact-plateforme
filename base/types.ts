@@ -501,6 +501,12 @@ export interface BaseDeDonnees {
     a_venir_periodicite: string | null;
     a_venir_retraits: Generated<string[]>;
   };
+  'plateforme.abonnement_cabinet': {
+    cabinet: string;
+    depuis: string;
+    paye_jusqu_au: string | null;
+    cree_le: Generated<Date>;
+  };
   'plateforme.acces_support': {
     id: Generated<string>;
     entreprise: string;
@@ -754,6 +760,31 @@ export interface BaseDeDonnees {
     recu_le: Date | null;
     au_choix: Generated<boolean>;
   };
+  'plateforme.facture_cabinet': {
+    id: Generated<string>;
+    cabinet: string;
+    editeur: string;
+    piece_v10: string;
+    client_v10: string;
+    debut: string;
+    fin: string;
+    echeance: string;
+    dossiers: string[];
+    rattrapes: Generated<string[]>;
+    montant_ht: bigint;
+    prepare_le: Generated<Date>;
+    prepare_par: string | null;
+    payee_le: Date | null;
+    annoncee_le: Date | null;
+    recu_le: Date | null;
+  };
+  'plateforme.facture_cabinet_refus': {
+    cabinet: string;
+    debut: string;
+    le: Generated<Date>;
+    vide: Generated<boolean>;
+    motif: string;
+  };
   'plateforme.geste_console': {
     id: Generated<string>;
     le: Generated<Date>;
@@ -925,6 +956,15 @@ export interface BaseDeDonnees {
     motif: string;
     qui: string | null;
     le: Generated<Date>;
+  };
+  'plateforme.regle_cabinet': {
+    id: Generated<string>;
+    code: string;
+    valeur: bigint;
+    a_partir_du: string;
+    motif: string;
+    pose_par: string | null;
+    pose_le: Generated<Date>;
   };
   'plateforme.regle_remise': {
     id: Generated<string>;

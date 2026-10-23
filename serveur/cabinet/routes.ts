@@ -18,6 +18,7 @@ import './textes.ts';
 import { enMots, envoyerInvitation, etatVu, lienApplication, lienComptable, lienDossier, noterAEnvoyer, roleDansLaPhrase } from '../invitation-courriel.ts';
 import { matriculeCanonique, refusDuMatricule } from '../matricule.ts';
 import { PERIODE_REVISION, REVISION } from './revision.ts';
+import { facturerCabinetBientot } from '../abonnement/cabinet.ts';
 
 const uuid = z.string().uuid();
 const PERIMETRES = ['comptabilite', 'declarations', 'saisie_achats', 'paie'] as const;
@@ -293,6 +294,8 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       if (matricule === undefined) return refusDuMatricule(corps.matriculeFiscal);
       const id = (await tx.query('select socle.creer_dossier_tenu($1, $2, $3) id', [params.cabinet, corps.raisonSociale, matricule])).rows[0].id as string;
       await tracer(tx, id, 'cabinet.dossier_tenu.creer', id, null, { cabinet: params.cabinet, raisonSociale: corps.raisonSociale });
+      // Au-delà des dossiers gratuits, la facture de l'abonnement du cabinet part dans la minute (1.120.0).
+      facturerCabinetBientot(ctx, params.cabinet ?? '');
       return { statut: 201, corps: { entreprise: id } };
     },
   });

@@ -568,8 +568,10 @@ describe('les cabinets', () => {
 
     const f = await appeler('GET', `/console/cabinets/${cabinet}`, jS);
     expect(f.statut).toBe(200);
-    // La liste fermée (10 § 4) : son nom, ses collaborateurs, ses dossiers et leurs comptes ; rien d'autre.
-    expect(Object.keys(f.corps).sort()).toEqual(['aujourdhui', 'collaborateurs', 'comptes', 'creeLe', 'dossiers', 'id', 'nom']);
+    // La liste fermée (10 § 4) : son nom, ses collaborateurs, ses dossiers et leurs comptes, son abonnement (0172 : ce
+    // qu'il paie, compté, jamais le nom d'un dossier) ; rien d'autre.
+    expect(Object.keys(f.corps).sort()).toEqual(['abonnement', 'aujourdhui', 'collaborateurs', 'comptes', 'creeLe', 'dossiers', 'id', 'nom']);
+    expect(Object.keys(f.corps.abonnement as object).sort()).toEqual(['depuis', 'etat', 'factures', 'payants', 'payeJusquAu', 'prochaine', 'refus', 'tenus']);
     expect(Object.keys((f.corps.collaborateurs as object[])[0] ?? {}).sort()).toEqual(['depuis', 'derniereConnexion', 'email', 'nom', 'roles']);
     expect(f.corps.comptes).toEqual(ligne?.comptes);
     const dossiers = f.corps.dossiers as { place: string; mandat: { statut: string } | null; entreprise: { id: string; raisonSociale: string; etat: unknown } }[];

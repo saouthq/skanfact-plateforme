@@ -878,4 +878,6 @@ export const ADAPTATIONS = [
   ...lireFichier('lecture-attente.txt'),
   // ── L'abonnement après sa revue : le bandeau de l'accueil (1.118.0) ──
   ...lireFichier('abonnement-revue.txt'),
+  // ── L'abonnement du cabinet : « Ton abonnement » dans ses Réglages, la pastille, l'avertissement (lot 3, 1.120.0) ──
+  ...lireFichier('abonnement-cabinet.txt'),
 ];

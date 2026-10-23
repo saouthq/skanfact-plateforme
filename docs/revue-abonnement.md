@@ -131,6 +131,12 @@ manque, c'est comment il s'applique) :
   dans « À décider » ; le prix TTC sous chaque prix ; « Ne pas renouveler » et sa reprise ; Complet pour la période
   suivante par un choix, et la paie ou la comptabilité ouvertes tout de suite, rattrapées au prorata. `docs/abonnement.md`
   C21.
+- **Lot 3 (1.120.0)** : l'abonnement des cabinets, sur la décision de Skander du 23/10/2026 (`07`) : trois dossiers
+  tenus gratuits, 60 DT HT par dossier au-delà, 1 990 DT HT par an au plus ; une facture par an à l'anniversaire du
+  premier dossier payant, émise d'elle-même, les dossiers ajoutés en cours d'année rattrapés au prorata ; « Ton
+  abonnement » dans les Réglages du Cabinet, payé en ligne ; l'annonce avant le quatrième dossier ; sans paiement, seuls
+  les dossiers payants en lecture seule ; les règles dans les Réglages de la console, l'abonnement sur la fiche d'un
+  cabinet, les refus dans « À décider ». `docs/abonnement.md` C22. Reste : les rappels par e-mail avant l'échéance.
 
 ## Sources
 

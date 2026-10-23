@@ -1,0 +1,131 @@
+L'abonnement du cabinet (lot 3 de l'abonnement, 23/10/2026 ; migration 0172, docs/abonnement.md C22 ; décision de
+Skander : docs/cadrage/07-offres-et-prix.md « Comment l'abonnement du cabinet s'applique »). Format : voir sans-paquets.mjs.
+
+Le Cabinet v10 a une licence, avec trois endroits qui la disent : la pastille du haut (`#lic-banner`), le panneau
+« Licence » des Réglages (une clé à coller, `dessinerLicence`), et la ligne « Voir ce qui est compté » de « À faire ». Sur
+la plateforme, la licence EST l'abonnement du cabinet : le point de contact lit l'état que le serveur déduit
+(plateforme/abonnement-cabinet.js), le panneau s'appelle « Ton abonnement » et le dessine, la pastille parle quand une
+facture attend ou que des dossiers payants sont en lecture seule. Avant d'ajouter le dossier qui se paie, la fenêtre
+« Nouveau dossier client » dit ce qu'il coûtera (dit AVANT la saisie, jamais découvert sur la facture). Après un paiement
+en ligne, la page de retour ramène au panneau.
+
+== cabinet/index.html | le dessin de l'abonnement du cabinet et sa feuille se chargent avec le point de contact
+-- avant
+  <link rel="stylesheet" href="../../plateforme/messagerie.css">
+  <script src="../rowmenu.js"></script>
+-- après
+  <link rel="stylesheet" href="../../plateforme/messagerie.css">
+  <script src="../../plateforme/abonnement-cabinet.js"></script>
+  <link rel="stylesheet" href="../../plateforme/abonnement.css">
+  <script src="../rowmenu.js"></script>
+-- fin
+
+== cabinet/app.js | le panneau de la licence s'appelle « Ton abonnement » sur la plateforme, et sa recherche connaît ses mots
+-- avant
+    'pan-licence': { onglet: 'cabinet', titre: 'Licence', mots: 'licence cle payer prix dossiers hors skanfact quota gratuit acheter abonnement facture' },
+-- après
+    'pan-licence': api.dessinerAbonnementCabinet
+      ? { onglet: 'cabinet', titre: 'Ton abonnement', mots: 'abonnement licence payer prix dossiers tenus gratuits payants plafond facture echeance lecture seule anniversaire prorata' }
+      : { onglet: 'cabinet', titre: 'Licence', mots: 'licence cle payer prix dossiers hors skanfact quota gratuit acheter abonnement facture' },
+-- fin
+
+== cabinet/app.js | le panneau dessine l'abonnement du cabinet (le serveur le lit à chaque affichage), au lieu d'une clé à coller
+-- avant
+  async function dessinerLicence(view, dejaLu) {
+    if (!dejaLu) {
+-- après
+  async function dessinerLicence(view, dejaLu) {
+    // (plateforme, abonnement du cabinet) Le panneau dit l'abonnement que le serveur déduit, et la pastille du haut avec.
+    if (api.dessinerAbonnementCabinet) {
+      const boite = $('#lic-panel', view);
+      if (boite) await api.dessinerAbonnementCabinet(boite);
+      await chargerLicence();
+      return;
+    }
+    if (!dejaLu) {
+-- fin
+
+== cabinet/app.js | la bulle du panneau parle de l'abonnement du cabinet
+-- avant
+      ${panneauReg('pan-licence', info('lic.cab'))}
+-- après
+      ${panneauReg('pan-licence', info(api.dessinerAbonnementCabinet ? 'abo.cab' : 'lic.cab'))}
+-- fin
+
+== cabinet/app.js | après un paiement en ligne, le Cabinet rouvre sur « Ton abonnement »
+-- avant
+    $('#lic-banner').onclick = () => versReglages('pan-licence');
+    chargerLicence();
+-- après
+    $('#lic-banner').onclick = () => versReglages('pan-licence');
+    chargerLicence();
+    // (plateforme, abonnement du cabinet) Sans « hashchange » : un second rendu remettrait la page en haut, loin du panneau.
+    if (api.ouvertureAbonnement && api.ouvertureAbonnement()) {
+      reglagesTab = REG_PANNEAUX['pan-licence'].onglet; reglagesFocus = 'pan-licence';
+      history.replaceState(null, '', '#/reglages');
+    }
+-- fin
+
+== cabinet/app.js | avant le dossier qui se paie, la fenêtre dit ce qu'il coûtera
+-- avant
+       <p class="small nd-plusieurs">Plusieurs clients d'un coup ? <button type="button" class="btn btn-sm" id="nd-coller">Coller une liste de clients…</button></p>
+       ${dossierFields(empty)}
+-- après
+       ${peut && peut.avertissement ? `<p class="info-box small" id="nd-abonnement"><b>Ce dossier se paie.</b> ${esc(peut.avertissement)}</p>` : ''}
+       <p class="small nd-plusieurs">Plusieurs clients d'un coup ? <button type="button" class="btn btn-sm" id="nd-coller">Coller une liste de clients…</button></p>
+       ${dossierFields(empty)}
+-- fin
+
+== cabinet/cabguide.js | la bulle de « Ton abonnement »
+-- avant
+    'lic.cab': {
+-- après
+    'abo.cab': { t: 'Ton abonnement', d: 'Ce que le cabinet paie pour SkanFact : ses <b>trois premiers dossiers tenus</b> (ceux dont le client n\'a pas son propre abonnement) sont <b>gratuits</b>, pour toujours ; chacun au-delà se paie <b>par an</b>, avec un <b>plafond</b> annuel quel que soit leur nombre (les montants du jour sont écrits dans le panneau). Tes clients abonnés à SkanFact ne comptent jamais. Un dossier archivé ne compte pas.<br><br>Une facture par an, le jour anniversaire de ton premier dossier payant ; un dossier ajouté en cours d\'année se paie au prorata de ses jours, sur la facture suivante. Tu la règles ici, en ligne, ou par virement ou par chèque.<br><br>Sans paiement après l\'échéance et quelques jours de grâce, <b>seuls les dossiers payants</b> passent en lecture seule : tout s\'y lit, s\'imprime et s\'exporte, et tu parles toujours au client. Les dossiers gratuits restent ouverts. Jamais de données en otage.<br><br>Seul un associé du cabinet voit et règle l\'abonnement.' },
+    'lic.cab': {
+-- fin
+
+== cabinet/app.js | « Ton abonnement » s'amène par son haut (son état, son bouton) : centré, ce grand panneau montrait son milieu
+-- avant
+      if (vise && location.hash.startsWith('#/reglages')) reg.montrer(vise);
+-- après
+      // (plateforme, abonnement du cabinet) Le panneau est amené : la consigne s'éteint ; un redessin sur place remet le
+      // lecteur où il était, une fois les panneaux remplis.
+      if (reglagesAAmener === vise) reglagesAAmener = '';
+      if (lieu) { defileur.scrollTop = lieu.haut; window.scrollTo(0, lieu.page); }
+      if (vise && location.hash.startsWith('#/reglages')) {
+        // (plateforme, abonnement du cabinet) Le panneau est plus haut que l'écran : il arrive par son haut, sans glisser.
+        const haut = vise === 'pan-licence' && api.dessinerAbonnementCabinet ? document.getElementById(vise) : null;
+        if (haut) { haut.scrollIntoView({ block: 'start' }); haut.classList.add('flash'); setTimeout(() => haut.classList.remove('flash'), 1600); } else reg.montrer(vise);
+      }
+-- fin
+
+== cabinet/app.js | le panneau demandé reste demandé jusqu'à l'écran ; un redessin sur place garde la place du lecteur
+-- avant
+  let reglagesRefus = null;
+
+  function drawReglages(view) {
+    const c = S.cabinet || {};
+-- après
+  let reglagesRefus = null;
+  // (plateforme, abonnement du cabinet) Au démarrage, les Réglages se redessinent quand une relecture arrive après le
+  // premier dessin (la boîte de réception, la clé de secours, les questions). Le second dessin ne savait plus quel
+  // panneau amener, et remettait la page en haut : au retour d'un paiement, loin de « Ton abonnement », sur une machine
+  // lente. Le panneau demandé reste demandé jusqu'à ce qu'il soit à l'écran ; un redessin sur place, sans panneau à
+  // amener, garde le lecteur où il était.
+  let reglagesAAmener = '';
+
+  function drawReglages(view) {
+    const c = S.cabinet || {};
+    const defileur = view.closest('main') || document.scrollingElement;
+    const lieu = view.querySelector('#set-corps') && !reglagesFocus && !reglagesAAmener ? { haut: defileur.scrollTop, page: window.scrollY } : null;
+-- fin
+
+== cabinet/app.js | le panneau demandé passe au dessin suivant
+-- avant
+    const vise = reglagesFocus;
+    reglagesFocus = '';
+-- après
+    const vise = reglagesFocus || reglagesAAmener;
+    reglagesFocus = '';
+    reglagesAAmener = vise;
+-- fin

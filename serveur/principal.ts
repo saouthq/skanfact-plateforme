@@ -86,6 +86,7 @@ import { routesSupport } from './support/routes.ts';
 import { relancerLesAbonnements } from './abonnement/relances.ts';
 import { annoncerLesFactures } from './abonnement/courriels.ts';
 import { facturerLesChoix } from './abonnement/facturier.ts';
+import { facturerLesCabinets, routesAbonnementCabinet } from './abonnement/cabinet.ts';
 import { routesAbonnement } from './abonnement/routes.ts';
 import { routesConsole } from './console/routes.ts';
 import { FRAIS_MS } from './console/instantane.ts';
@@ -270,7 +271,7 @@ export function routesDuServeur(ctx: Contexte, options: { veille: string | null;
   declarerGestesMessagerie();
   declarerGestesSupport();
   return [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx),
-    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPiecesJointes(), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesSauvegardes(ctx), ...routesAbonnement(ctx), ...routesConsole(ctx, options),
+    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPiecesJointes(), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesSauvegardes(ctx), ...routesAbonnement(ctx), ...routesAbonnementCabinet(ctx), ...routesConsole(ctx, options),
     ...routesMessageClients(ctx.maintenant), ...routesNouveautes(ctx), ...routesPdf(ctx)];
 }
 
@@ -353,14 +354,14 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       .catch((e: unknown) => { noterPanne('tâche prevenirParCourriel', e); }).finally(() => { enAlertes = false; });
   }, c.alertesMs);
 
-  // Les factures au choix (1.119.0) : chaque minute, les choix d'offre qui attendent leur facture ; un seul tour à la
-  // fois, et seulement là où la facture au choix est branchée.
+  // Les factures au choix (1.119.0) et celles des cabinets (1.120.0) : chaque minute, les choix d'offre qui attendent
+  // leur facture, puis les périodes de cabinet à facturer ; un seul tour à la fois, là où la facture au choix est branchée.
   let factures: Promise<unknown> = Promise.resolve();
   let enFactures = false;
   const facturier = setInterval(() => {
     if (enFactures || !ctx.factureAuChoix) return;
     enFactures = true;
-    factures = suivreTour(pool, 'facturier', () => facturerLesChoix(ctx)).catch((e: unknown) => { noterPanne('tâche facturerLesChoix', e); }).finally(() => { enFactures = false; });
+    factures = suivreTour(pool, 'facturier', async () => ({ choix: await facturerLesChoix(ctx), cabinets: await facturerLesCabinets(ctx) })).catch((e: unknown) => { noterPanne('tâche facturerLesChoix', e); }).finally(() => { enFactures = false; });
   }, c.facturierMs);
 
   // Les relances de l'abonnement (docs/abonnement.md) : au démarrage, puis chaque heure, les échéances proches ; un seul

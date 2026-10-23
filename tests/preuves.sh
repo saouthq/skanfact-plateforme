@@ -1867,10 +1867,10 @@ prouver "l'assistant de saisie qui valide, à la porte" serveur/compta/gestes.ts
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true, auCabinet: 'comptabilite',
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
   "$CM"
-prouver "un dossier tenu créé par un collaborateur" $M33 \
+prouver "un dossier tenu créé par un collaborateur" base/migrations/0172_abonnement_cabinet.sql \
   "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet crée un dossier'); end if;" "" \
   "$CT"
-prouver "un dossier tenu sans tout son périmètre" $M33 \
+prouver "un dossier tenu sans tout son périmètre" base/migrations/0172_abonnement_cabinet.sql \
   "array['comptabilite', 'declarations', 'saisie_achats', 'paie'], 'actif');" "array['comptabilite'], 'actif');" \
   "$CT"
 prouver "un matricule mal formé qui fait tomber le serveur" serveur/cabinet/routes.ts \
@@ -1922,7 +1922,7 @@ prouver "« Tes premiers pas » qui réclame encore l'appairage et la clé de se
   "const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie'];" "const ETAPES_ABSENTES = [];" \
   "$W2"
 prouver "les réglages de la boîte de réception et des sauvegardes sur l'ordinateur" $PC \
-  "const PANNEAUX_ABSENTS = ['pan-licence', 'pan-inbox', 'pan-backup', 'pan-maj', 'pan-exemple', 'pan-comptes'];" "const PANNEAUX_ABSENTS = ['pan-licence', 'pan-maj'];" \
+  "const PANNEAUX_ABSENTS = ['pan-inbox', 'pan-backup', 'pan-maj', 'pan-exemple', 'pan-comptes'];" "const PANNEAUX_ABSENTS = ['pan-maj'];" \
   "$W2"
 prouver "« Verrouiller » qui laisse la session ouverte" $PC \
   "      try { await fetch('/v1/deconnexion', { method: 'POST', headers: { authorization: \`Bearer \${jeton}\` } }); } catch { /* la session se ferme de toute façon ici */ }" "" \
@@ -3361,7 +3361,7 @@ prouver "un dossier renommé hors du portefeuille" $M33 \
 prouver "un matricule déjà pris, renommé sans un mot" $M33 \
   "  perform socle.exiger_matricule_libre(p_matricule, p_entreprise);" "" \
   "$NT1"
-prouver "un matricule déjà pris, créé sans un mot" $M33 \
+prouver "un matricule déjà pris, créé sans un mot" base/migrations/0172_abonnement_cabinet.sql \
   "  perform socle.exiger_matricule_libre(p_matricule, null);" "" \
   "$NT1"
 prouver "son propre matricule compté comme déjà pris" $M33 \
@@ -12437,7 +12437,7 @@ prouver 'une facture due rangée sous les offres' web/public/plateforme/abonneme
   '    const aFaire = !!a.factures && a.factures.pieces.some((p) => !!p.statut && DOIT.includes(p.statut));' '    const aFaire = false;' \
   "$MFW"
 prouver 'le retour qui ne ramène pas à l'"'"'abonnement' web/public/espace/retour.js \
-  '  const deLAbonnement = /^[0-9a-f-]{36}$/.test(abonnement);' '  const deLAbonnement = false;' \
+  '  const deLAbonnement = /^(c:)?[0-9a-f-]{36}$/.test(abonnement);' '  const deLAbonnement = false;' \
   "$MFW"
 prouver 'l'"'"'abonnement qui ne s'"'"'ouvre pas au retour d'"'"'un paiement' web/public/v10/app.js \
   '    if (bridge.ouvertureDemandee && bridge.ouvertureDemandee() === '"'"'abonnement'"'"') allerAbonnement();
@@ -19496,26 +19496,38 @@ W118G="en grâce, le bouton du bandeau est le seul vert : « + Nouvelle facture 
 W118C="à un commercial, le bandeau dit qui règle l'abonnement ; à l'essai qui court, l'accueil ne dit rien"
 W118S="suspendue, l'entreprise est invitée à nous écrire, jamais à s'abonner ; prolongé, l'essai ne dit pas un total faux"
 W118H="Hela choisit son offre dans sa carte, confirme, et lit son choix ; la console le voit dans « À décider »"
-prouver 'abo 118 : une facture annoncée à chaque tour' $AR118 \
-  "     where f.annoncee_le is null and f.payee_le is null" "     where f.payee_le is null" \
+prouver 'abo 118 : une facture annoncée à chaque tour' base/migrations/0172_abonnement_cabinet.sql \
+  "      from plateforme.facture_abonnement f
+      join ventes.piece p on p.entreprise = f.editeur and p.ref_v10 = f.piece_v10 and p.type = 'facture' and p.statut = 'emise'
+     where f.annoncee_le is null and f.payee_le is null" "      from plateforme.facture_abonnement f
+      join ventes.piece p on p.entreprise = f.editeur and p.ref_v10 = f.piece_v10 and p.type = 'facture' and p.statut = 'emise'
+     where f.payee_le is null" \
   "$T118E"
-prouver 'abo 118 : un brouillon annoncé' $AR118 \
-  "      join ventes.piece p on p.entreprise = f.editeur and p.ref_v10 = f.piece_v10 and p.type = 'facture' and p.statut = 'emise'
-     where f.annoncee_le is null" "      left join ventes.piece p on false
+prouver 'abo 118 : un brouillon annoncé' base/migrations/0172_abonnement_cabinet.sql \
+  "      from plateforme.facture_abonnement f
+      join ventes.piece p on p.entreprise = f.editeur and p.ref_v10 = f.piece_v10 and p.type = 'facture' and p.statut = 'emise'
+     where f.annoncee_le is null" "      from plateforme.facture_abonnement f
+      left join ventes.piece p on false
      where f.annoncee_le is null" \
   "$T118E"
-prouver 'abo 118 : le reçu à chaque tour' $AR118 \
-  "     where f.payee_le is not null and f.recu_le is null" "     where f.payee_le is not null" \
+prouver 'abo 118 : le reçu à chaque tour' base/migrations/0172_abonnement_cabinet.sql \
+  "      from plateforme.facture_abonnement f join plateforme.abonnement a on a.entreprise = f.entreprise
+     where f.payee_le is not null and f.recu_le is null" "      from plateforme.facture_abonnement f join plateforme.abonnement a on a.entreprise = f.entreprise
+     where f.payee_le is not null" \
   "$T118E"
 prouver 'abo 118 : un e-mail raté noté comme parti' $AC118 \
   "      console.error(\`un e-mail de facture d'abonnement n'est pas parti : \${String(x)}\`);
       continue;" "      console.error(\`un e-mail de facture d'abonnement n'est pas parti : \${String(x)}\`);" \
   "$T118E"
-prouver 'abo 118 : l'\''annonce d'\''une facture déjà payée' $AR118 \
-  "     where f.annoncee_le is null and f.payee_le is null" "     where f.annoncee_le is null" \
+prouver 'abo 118 : l'\''annonce d'\''une facture déjà payée' base/migrations/0172_abonnement_cabinet.sql \
+  "      from plateforme.facture_abonnement f
+      join ventes.piece p on p.entreprise = f.editeur and p.ref_v10 = f.piece_v10 and p.type = 'facture' and p.statut = 'emise'
+     where f.annoncee_le is null and f.payee_le is null" "      from plateforme.facture_abonnement f
+      join ventes.piece p on p.entreprise = f.editeur and p.ref_v10 = f.piece_v10 and p.type = 'facture' and p.statut = 'emise'
+     where f.annoncee_le is null" \
   "$T118P"
-prouver 'abo 118 : un commercial prévenu de la facture' $AR118 \
-  "                           and m.roles && array['proprietaire', 'administrateur']::text[]))" "                           and m.roles && array['proprietaire', 'administrateur', 'commercial']::text[]))" \
+prouver 'abo 118 : un commercial prévenu de la facture' base/migrations/0172_abonnement_cabinet.sql \
+  "m.entreprise = d.entreprise and m.actif and m.roles && array['proprietaire', 'administrateur']::text[])" "m.entreprise = d.entreprise and m.actif and m.roles && array['proprietaire', 'administrateur', 'commercial']::text[])" \
   "$T118P"
 prouver 'abo 118 : les factures lues pour un commercial' serveur/abonnement/routes.ts \
   "      if (proche && qui && (await peut(tx, qui, params.entreprise ?? '', 'socle.abonnement.voir')).ok) {" "      if (proche) {" \
@@ -19720,6 +19732,103 @@ prouver 'la fin d'\''une maintenance après minuit sans son jour' serveur/fermet
 prouver 'le jour du retour compté en UTC' serveur/fermeture.ts \
   "  const jour = (d: Date) => d.toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis'," "  const jour = (d: Date) => d.toLocaleDateString('fr-FR', { timeZone: 'UTC'," \
   "$TFIN"
+
+# ── 1.120.0 : l'abonnement des cabinets, lot 3 (trois dossiers tenus gratuits, 60 DT HT par dossier au-delà, plafond,
+# une facture par an, rattrapage au prorata, lecture seule des seuls payants ; docs/abonnement.md C22) ──
+AM120=base/migrations/0172_abonnement_cabinet.sql
+AC120=serveur/abonnement/cabinet.ts
+T120A="trois dossiers tenus gratuits ; le quatrième fixe l'anniversaire, et sa facture s'émet seule ; payée en ligne, elle paie l'année"
+T120R="un dossier ajouté en cours d'année se rattrape au prorata de ses jours sur la facture suivante"
+T120P="le plafond limite la facture : une seule ligne, au plafond annuel"
+T120L="sans paiement après l'échéance et la grâce : les payants en lecture seule, les gratuits ouverts, la création fermée ; payé, tout se rouvre"
+T120J="un dossier que son client rejoint ne compte plus ; seul un associé lit l'abonnement"
+T120C="la console : les règles des cabinets se préparent et se retirent, la fiche dit l'abonnement, « À décider » la facture qui ne s'est pas faite"
+W120="Nadia : trois dossiers gratuits, le quatrième annoncé puis facturé, payé en ligne, et le retour sur son abonnement"
+prouver 'abo 120 : le troisième dossier déjà payant' $AM120 \
+  "d.rang > coalesce(plateforme.regle_cabinet_du_jour('gratuits'" "d.rang >= coalesce(plateforme.regle_cabinet_du_jour('gratuits'" \
+  "$T120A"
+prouver 'abo 120 : l'\''abonnement qui ne commence pas au premier dossier payant' $AM120 \
+  "    insert into plateforme.abonnement_cabinet (cabinet, depuis) values (p_cabinet, v_jour);" "    null;" \
+  "$T120A"
+prouver 'abo 120 : la facture du cabinet laissée en brouillon' $AC120 \
+  "  const r = await emettreDepuisV10(tx, editeur, utilisateur, { document: ecrite.contenu, client, revision: Number(ecrite.revision), rang: null, netAPayer: null });
+  return String(r.numero);" "  return cle;" \
+  "$T120A"
+prouver 'abo 120 : le dossier créé qui n'\''appelle pas sa facture' serveur/cabinet/routes.ts \
+  "      facturerCabinetBientot(ctx, params.cabinet ?? '');" "" \
+  "$T120A"
+prouver 'abo 120 : la facture payée qui ne paie pas l'\''année' serveur/v10/dossier.ts \
+  "  if (paiements.length && cle.startsWith('cabinet-')) await tx.query('select plateforme.cabinet_paye_par_facture(\$1, \$2)', [entreprise, cle]);" "" \
+  "$T120A"
+prouver 'abo 120 : la facture du cabinet annoncée à personne' $AM120 \
+  "where m.organisation = d.cabinet and m.actif and 'supervision' = any(m.roles)) end)" "where m.organisation = d.cabinet and m.actif and 'proprietaire' = any(m.roles)) end)" \
+  "$T120A"
+prouver 'abo 120 : le rattrapage oublié' $AM120 \
+  "      v_ratt_ht := v_ratt_ht + v_m;" "      v_ratt_ht := v_ratt_ht;" \
+  "$T120R"
+prouver 'abo 120 : le rattrapage compté sur toute l'\''année' $AM120 \
+  "      v_jours := v_prev_fin - greatest(d.cree, v_prev_debut, v_a.depuis) + 1;" "      v_jours := v_sur;" \
+  "$T120R"
+prouver 'abo 120 : le plafond oublié' $AM120 \
+  "    'totalHt', (case when v_plafond is not null and v_brut > v_plafond then v_plafond else v_brut end)::text," "    'totalHt', v_brut::text," \
+  "$T120P"
+prouver 'abo 120 : la lecture seule qui ne ferme rien' serveur/abonnement/condition.ts \
+  "  const depuis = (await tx.query('select plateforme.dossier_tenu_bloque_depuis(\$1, \$2::date) d', [entreprise, jour])).rows[0]?.d as string | null | undefined;" "  const depuis = null as string | null | undefined;" \
+  "$T120L"
+prouver 'abo 120 : la messagerie fermée avec le dossier' serveur/abonnement/condition.ts \
+  "new Set(['messagerie.ecrire', 'support.ecrire', 'socle.sauvegardes.demander']);" "new Set(['support.ecrire', 'socle.sauvegardes.demander']);" \
+  "$T120L"
+prouver 'abo 120 : la création ouverte en lecture seule' $AM120 \
+  "  if plateforme.etat_cabinet(p_cabinet, v_jour) ->> 'etat' = 'lecture_seule' then" "  if false then" \
+  "$T120L"
+prouver 'abo 120 : un collaborateur qui lit l'\''abonnement' $AM120 \
+  "  if socle.moi() is null or socle.ma_cle() is not null or not socle.suis_associe(p_cabinet) then" "  if socle.moi() is null or socle.ma_cle() is not null then" \
+  "$T120J"
+prouver 'abo 120 : une règle des cabinets hors du journal' $AM120 \
+  "'reglages.regle_cabinet', btrim(p_motif)," "'reglages.regle_cabinet', 'sans motif'," \
+  "$T120C"
+prouver 'abo 120 : la règle tapée en dinars lue en millimes' serveur/console/routes.ts \
+  "      const valeur = argent ? prixTape(v) : /^\\d{1,4}\$/.test(v) ? BigInt(v) : null;" "      const valeur = /^\\d{1,9}\$/.test(v) ? BigInt(v) : prixTape(v);" \
+  "$T120C"
+prouver 'abo 120 : la facture refusée que « À décider » tait' serveur/console/decider.ts \
+  "    for (const c of argent.cabinets ?? []) lignes.push(" "    for (const c of [] as typeof argent.cabinets & []) lignes.push(" \
+  "$T120C"
+prouver 'abo 120 : la fiche du cabinet sans son abonnement' serveur/console/routes.ts \
+  "        ? await lireJson(t, 'select plateforme.console_abonnement_cabinet(\$1, \$2::date) v', [id, jour]) : null;" "        ? null : null;" \
+  "$T120C"
+prouver 'abo 120 : le quatrième dossier qui ne s'\''annonce pas' web/public/plateforme/pont-cabinet.js \
+  "        return { ok: true, avertissement: a && A ? A.avertissement(a.prochainDossier, a.regles) : '' };" "        return { ok: true, avertissement: '' };" \
+  "$W120"
+prouver 'abo 120 : la pastille qui ne suit pas le panneau' web/public/plateforme/abonnement-cabinet.js \
+  "    bandeau(a.etat);
+" "" \
+  "$W120"
+prouver 'abo 120 : le retour du paiement vers l'\''entreprise' web/public/espace/retour.js \
+  "  const duCabinet = abonnement.startsWith('c:');" "  const duCabinet = false;" \
+  "$W120"
+prouver 'abo 120 : « Ton abonnement » amené par son milieu' web/public/v10/cabinet/app.js \
+  "        if (haut) { haut.scrollIntoView({ block: 'start' });" "        if (haut) { haut.scrollIntoView({ block: 'center', behavior: 'smooth' });" \
+  "$W120"
+prouver 'abo 120 : le second dessin des Réglages qui oublie le panneau demandé' web/public/v10/cabinet/app.js \
+  "    const vise = reglagesFocus || reglagesAAmener;" "    const vise = reglagesFocus;" \
+  "$W120"
+prouver 'abo 120 : un redessin sur place qui perd la place du lecteur' web/public/v10/cabinet/app.js \
+  "    const lieu = view.querySelector('#set-corps') && !reglagesFocus && !reglagesAAmener ? { haut: defileur.scrollTop, page: window.scrollY } : null;" "    const lieu = null;" \
+  "$W120"
+prouver 'abo 120 : la place du lecteur rendue avant que les panneaux soient remplis' web/public/v10/cabinet/app.js \
+  "      if (lieu) { defileur.scrollTop = lieu.haut; window.scrollTo(0, lieu.page); }
+" "" \
+  "$W120"
+prouver 'abo 120 : le panneau ramené de force à chaque redessin' web/public/v10/cabinet/app.js \
+  "      if (reglagesAAmener === vise) reglagesAAmener = '';
+" "" \
+  "$W120"
+prouver 'abo 120 : le code d'\''une nouveauté qui déborde du journal au téléphone' web/console/src/console.css \
+  ".c-jr-change, .c-jr-sur { overflow-wrap: anywhere; }" "" \
+  "en clair et en sombre, à l'ordinateur et au téléphone : l'instrument ne trouve rien ; en langue factice, tout vient du catalogue"
+prouver 'abo 120 : le retour du paiement qui n'\''ouvre pas « Ton abonnement »' web/public/v10/cabinet/app.js \
+  "    if (api.ouvertureAbonnement && api.ouvertureAbonnement()) {" "    if (false) {" \
+  "$W120"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

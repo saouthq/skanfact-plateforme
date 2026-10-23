@@ -1135,6 +1135,11 @@
     // jour, pas depuis le dernier »).
     $('#lic-banner').onclick = () => versReglages('pan-licence');
     chargerLicence();
+    // (plateforme, abonnement du cabinet) Sans « hashchange » : un second rendu remettrait la page en haut, loin du panneau.
+    if (api.ouvertureAbonnement && api.ouvertureAbonnement()) {
+      reglagesTab = REG_PANNEAUX['pan-licence'].onglet; reglagesFocus = 'pan-licence';
+      history.replaceState(null, '', '#/reglages');
+    }
     // La visite guidée (10.14.0) : le moteur apprend à naviguer et à expliquer dans le Cabinet.
     installerVisites();
     if (!location.hash) location.hash = '#/dossiers';
@@ -9866,6 +9871,7 @@
       `<h2>Nouveau dossier client</h2>
        <p class="muted small">Ajoute un client même s'il n'utilise pas encore SkanFact ${info('d.manual')} : il compte dans ton portefeuille,
        et rien ne lui est réclamé tant qu'il n'a pas commencé.</p>
+       ${peut && peut.avertissement ? `<p class="info-box small" id="nd-abonnement"><b>Ce dossier se paie.</b> ${esc(peut.avertissement)}</p>` : ''}
        <p class="small nd-plusieurs">Plusieurs clients d'un coup ? <button type="button" class="btn btn-sm" id="nd-coller">Coller une liste de clients…</button></p>
        ${dossierFields(empty)}
        <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Créer le dossier</button></div>`,
@@ -10903,6 +10909,13 @@
   }
 
   async function dessinerLicence(view, dejaLu) {
+    // (plateforme, abonnement du cabinet) Le panneau dit l'abonnement que le serveur déduit, et la pastille du haut avec.
+    if (api.dessinerAbonnementCabinet) {
+      const boite = $('#lic-panel', view);
+      if (boite) await api.dessinerAbonnementCabinet(boite);
+      await chargerLicence();
+      return;
+    }
     if (!dejaLu) {
       await chargerLicence();
       // La page a pu changer pendant l'attente : on redemande l'élément APRÈS, jamais avant
@@ -11477,7 +11490,9 @@
     'pan-cabinet': { onglet: 'cabinet', titre: 'Ton cabinet', mots: 'cabinet nom email telephone jour relance tva cnss depot echeance' },
     'pan-appairage': { onglet: 'cabinet', titre: 'Le code de ton cabinet', mots: 'code cabinet client confier dossier mandat accepter' },
     'pan-equipe': { onglet: 'cabinet', titre: 'L\'équipe', mots: 'equipe collaborateur collaborateurs qui saisit valide supervision role droits personne poste partage plusieurs assistant stagiaire chef mission' },
-    'pan-licence': { onglet: 'cabinet', titre: 'Licence', mots: 'licence cle payer prix dossiers hors skanfact quota gratuit acheter abonnement facture' },
+    'pan-licence': api.dessinerAbonnementCabinet
+      ? { onglet: 'cabinet', titre: 'Ton abonnement', mots: 'abonnement licence payer prix dossiers tenus gratuits payants plafond facture echeance lecture seule anniversaire prorata' }
+      : { onglet: 'cabinet', titre: 'Licence', mots: 'licence cle payer prix dossiers hors skanfact quota gratuit acheter abonnement facture' },
     'pan-saisie': { onglet: 'compta', titre: 'La grille de saisie', mots: 'saisie clavier touches raccourci solder recopier dupliquer journal date kilometre grille brouillard validation' },
     'pan-guides': { onglet: 'compta', titre: 'Guides d\'écritures', mots: 'guide modele ecriture type loyer salaire achat tva honoraires steg prerempli abonnement recurrent' },
     'pan-comptes': { onglet: 'compta', titre: 'Correspondance des comptes', mots: 'correspondance compte plan client cabinet traduire import export numero prefixe' },
@@ -11502,9 +11517,17 @@
   let reglagesTab = 'cabinet';
   let reglagesFocus = '';
   let reglagesRefus = null;
+  // (plateforme, abonnement du cabinet) Au démarrage, les Réglages se redessinent quand une relecture arrive après le
+  // premier dessin (la boîte de réception, la clé de secours, les questions). Le second dessin ne savait plus quel
+  // panneau amener, et remettait la page en haut : au retour d'un paiement, loin de « Ton abonnement », sur une machine
+  // lente. Le panneau demandé reste demandé jusqu'à ce qu'il soit à l'écran ; un redessin sur place, sans panneau à
+  // amener, garde le lecteur où il était.
+  let reglagesAAmener = '';
 
   function drawReglages(view) {
     const c = S.cabinet || {};
+    const defileur = view.closest('main') || document.scrollingElement;
+    const lieu = view.querySelector('#set-corps') && !reglagesFocus && !reglagesAAmener ? { haut: defileur.scrollTop, page: window.scrollY } : null;
     if (!REG_TABS.some(t => t[0] === reglagesTab)) reglagesTab = 'cabinet';
     view.innerHTML = `
       <div class="page-head"><h1>Réglages</h1>
@@ -11560,7 +11583,7 @@
         <div id="eq-panel"><p class="muted small">Chargement…</p></div>
       </div>
 
-      ${panneauReg('pan-licence', info('lic.cab'))}
+      ${panneauReg('pan-licence', info(api.dessinerAbonnementCabinet ? 'abo.cab' : 'lic.cab'))}
         <div id="lic-panel"><p class="muted small">Chargement…</p></div>
       </div>
 
@@ -11738,8 +11761,9 @@
     // « Chargement… » au premier dessin et grandissent ensuite : le défilement posé tout de suite
     // visait une page plus courte, et la pastille de licence ouvrait « Le fichier à remettre »,
     // le panneau Licence 50 px sous le bas de l'écran. Trouvé à la souris.
-    const vise = reglagesFocus;
+    const vise = reglagesFocus || reglagesAAmener;
     reglagesFocus = '';
+    reglagesAAmener = vise;
     const aRefuser = reglagesRefus;
     reglagesRefus = null;
     const sup = $('#s-support'); if (sup) sup.onclick = supportDialog;
@@ -11769,7 +11793,15 @@
     const corps = $('#set-corps', view);
     if (corps) { corps.addEventListener('input', e => sale(e.target)); corps.addEventListener('change', e => sale(e.target)); }
     Promise.allSettled([dessinerEquipe(view), dessinerLicence(view)]).then(() => {
-      if (vise && location.hash.startsWith('#/reglages')) reg.montrer(vise);
+      // (plateforme, abonnement du cabinet) Le panneau est amené : la consigne s'éteint ; un redessin sur place remet le
+      // lecteur où il était, une fois les panneaux remplis.
+      if (reglagesAAmener === vise) reglagesAAmener = '';
+      if (lieu) { defileur.scrollTop = lieu.haut; window.scrollTo(0, lieu.page); }
+      if (vise && location.hash.startsWith('#/reglages')) {
+        // (plateforme, abonnement du cabinet) Le panneau est plus haut que l'écran : il arrive par son haut, sans glisser.
+        const haut = vise === 'pan-licence' && api.dessinerAbonnementCabinet ? document.getElementById(vise) : null;
+        if (haut) { haut.scrollIntoView({ block: 'start' }); haut.classList.add('flash'); setTimeout(() => haut.classList.remove('flash'), 1600); } else reg.montrer(vise);
+      }
       if (aRefuser && location.hash.startsWith('#/reglages')) refus(aRefuser.sel, aRefuser.message);
     });
     bindRecoveryBanner(view);

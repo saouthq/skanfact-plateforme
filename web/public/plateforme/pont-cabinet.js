@@ -1039,7 +1039,8 @@
   // L'exemple à six clients fictifs n'est pas en ligne ; la correspondance des comptes traduisait
   // les comptes d'un paquet importé : il n'y a plus d'import, et le client et son cabinet tiennent
   // les mêmes livres.
-  const PANNEAUX_ABSENTS = ['pan-licence', 'pan-inbox', 'pan-backup', 'pan-maj', 'pan-exemple', 'pan-comptes'];
+  // Le panneau « Licence » revient sous le nom « Ton abonnement » (lot 3 de l'abonnement, 23/10/2026 ; abonnement-cabinet.js).
+  const PANNEAUX_ABSENTS = ['pan-inbox', 'pan-backup', 'pan-maj', 'pan-exemple', 'pan-comptes'];
   // Les étapes de « Tes premiers pas » sans objet : la découverte sur l'exemple, l'appairage, la clé
   // de secours, la copie sur un disque. « Tenir un premier livre » revient avec la saisie (38 bis).
   const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie'];
@@ -2136,9 +2137,40 @@
     creationDossier: async () => {
       const etat = await construireEtat();
       const associes = equipeLue.membres.filter((/** @type {any} */ m) => (m.roles || []).includes('supervision'));
-      if (associes.some((/** @type {any} */ m) => m.utilisateur === etat.moi)) return { ok: true };
+      if (associes.some((/** @type {any} */ m) => m.utilisateur === etat.moi)) {
+        // (lot 3 de l'abonnement) Le dossier qui dépasse les gratuits le dit avant la saisie : ce qu'il coûtera ; et quand la
+        // facture attend son paiement au-delà de la grâce, la création se refuse ici, avec le chemin pour la rouvrir.
+        /** @type {any} */ const A = /** @type {any} */ (window).SkanAbonnementCabinet;
+        /** @type {any} */ let a;
+        try { a = A ? await appel('GET', `/cabinets/${cabinetId}/abonnement`) : null; } catch { a = null; }
+        if (a && a.etat && a.etat.etat === 'lecture_seule') {
+          return { ok: false, motif: 'La facture de l\'abonnement du cabinet attend son paiement : un dossier tenu de plus attend qu\'elle soit réglée.',
+            geste: 'Règle-la dans Réglages, « Ton abonnement » : tout se rouvre aussitôt. Tes dossiers se lisent et s\'exportent toujours.' };
+        }
+        return { ok: true, avertissement: a && A ? A.avertissement(a.prochainDossier, a.regles) : '' };
+      }
       return { ok: false, motif: 'Seul un associé du cabinet crée un dossier.',
         geste: `${associes.map((/** @type {any} */ m) => m.nom).join(', ')} ${associes.length > 1 ? 'peuvent' : 'peut'} ajouter ce client.` };
+    },
+    // L'abonnement du cabinet (lot 3, 0172 ; docs/abonnement.md C22) : la pastille du haut (`#lic-banner`), le panneau
+    // « Ton abonnement » des Réglages, et le retour d'un paiement en ligne. Seul un associé le lit (la base refuse aux
+    // autres) : pour eux, la pastille se tait, et le panneau dit qui s'en occupe.
+    licenceStatus: async () => {
+      /** @type {any} */ const A = /** @type {any} */ (window).SkanAbonnementCabinet;
+      if (!A) return { pastille: { show: false } };
+      try { return { pastille: A.pastille((await appel('GET', `/cabinets/${cabinetId}/abonnement`)).etat) }; } catch { return { pastille: { show: false } }; }
+    },
+    dessinerAbonnementCabinet: async (/** @type {HTMLElement} */ el) => {
+      /** @type {any} */ const A = /** @type {any} */ (window).SkanAbonnementCabinet;
+      if (A) await A.dessiner(el, { appel, cabinet: cabinetId });
+    },
+    ouvertureAbonnement: () => {
+      try {
+        const v = sessionStorage.getItem('skanfact.abonnement.retour');
+        if (v !== `c:${cabinetId}`) return false;
+        sessionStorage.removeItem('skanfact.abonnement.retour');
+        return true;
+      } catch { return false; }
     },
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).
     newDossier: async (/** @type {Record<string, unknown>} */ f) => {
