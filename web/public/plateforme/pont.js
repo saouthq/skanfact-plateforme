@@ -1018,6 +1018,10 @@
       attente: () => appel('GET', '/messages/attente'),
       dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, { ...o, appel, cote: 'entreprise' }),
       rangerAchat: (/** @type {string} */ message, /** @type {string} */ achat, /** @type {string} */ libelle) => appel('POST', `/messages/${encodeURIComponent(message)}/achat`, { achat, libelle }),
+      // (1.124.0) Ce que le cabinet a fait d'une période dans les livres (carte « Ce mois-ci ») ; qui ne lit pas les livres : null.
+      resume: async (/** @type {string} */ du, /** @type {string} */ au) => {
+        try { return await appel('GET', `/compta/resume?du=${encodeURIComponent(du)}&au=${encodeURIComponent(au)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
+      },
       envoyerFichier: (/** @type {File} */ f, /** @type {string} */ texte, /** @type {any} */ piece) =>
         /** @type {any} */ (window).SkanMessagerie.envoyerFichier(appel, 'entreprise', f, texte, piece),
     },

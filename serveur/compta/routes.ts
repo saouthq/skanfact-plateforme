@@ -126,6 +126,25 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // (1.124.0) Le résumé d'une période pour le client : combien d'écritures son cabinet a validées, combien attendent au
+  // brouillard, et le jour de la dernière validation. La carte « Ce mois-ci » de « Mon comptable » le dit (revue du mois
+  // d'un client, 23/10/2026, point 4 : le client ne voyait rien de ce que faisait son comptable).
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/compta/resume', geste: 'compta.livres.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const p = periode(query);
+      if ('statut' in p) return p;
+      const r = (await sql<{ validees: string; brouillard: string; validee_le: string | null }>`
+        select count(*) filter (where statut = 'validee') validees, count(*) filter (where statut = 'brouillard') brouillard,
+          to_char(max(validee_le) at time zone 'Africa/Tunis', 'YYYY-MM-DD') validee_le
+        from compta.ecriture where entreprise = ${params.entreprise ?? ''}
+          and (${p.du}::date is null or date_ecriture >= ${p.du}::date) and (${p.au}::date is null or date_ecriture <= ${p.au}::date)`
+        .execute(requetes(tx))).rows[0];
+      return { corps: { validees: Number(r?.validees ?? 0), brouillard: Number(r?.brouillard ?? 0), valideeLe: r?.validee_le ?? null } };
+    },
+  });
+
   // La balance : chaque compte mouvementé sur la période, et les totaux (ils sont égaux).
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/compta/balance', geste: 'compta.livres.voir',

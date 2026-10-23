@@ -101,7 +101,7 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
 
 ## Les lots
 
-- **Lot 1 (P1, 1–5)**. *Fait en 1.123.0, sauf le 4 (la carte « Ce mois-ci »), qui suit seul :*
+- **Lot 1 (P1, 1–5)**. *Fait en 1.123.0 (1, 2, 3, 5) et 1.124.0 (4) :*
   - **1** : quand la demande à laquelle la photo répond cite le numéro d'un achat du dossier (un seul), le fil propose
     « Joindre à l'achat GMS-26-4471 · Grands Moulins de Sfax · 577,150 DT » ; la photo s'ajoute aux pièces jointes de
     cet achat, sans en créer un autre, et le fil dit où elle est rangée. « C'est un autre achat… » garde l'ancien chemin.
@@ -114,11 +114,26 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
   - **3** : le bandeau dit « Rien en retard. Ton client a des écritures du mois en cours à valider. » quand c'est le cas,
     et le point de la ligne passe à l'orange de la légende. La carte « 1 / 1 à jour, aucun retard » au-dessus reste
     juste (elle compte les retards), mais se lit encore vite comme « rien à faire » : à revoir avec UX 3 (les tons).
+  - **4** (1.124.0) : « Mon comptable » a une carte « Ce mois-ci · octobre 2026 », sous « En attente de toi » : les
+    ventes et les achats du mois (« Aucune vente · 1 achat, dont 1 sans justificatif. ») avec « Voir l'achat sans
+    justificatif » (la liste filtrée sur le mois, comme le contrôle de clôture), et ce que le cabinet en a fait (« Ton
+    cabinet a validé tout le mois : 1 écriture (dernière validation le 23/10/2026). », ou ce qui attend encore au
+    brouillard). Le serveur donne ces trois chiffres (`GET /entreprises/:e/compta/resume`), relus à chaque visite. La
+    prochaine déclaration n'y est pas encore : elle attend la réponse du point 10 (À VÉRIFIER), pour que les deux écrans
+    disent la même date.
   - **5** : après l'invitation par e-mail, « Copier le lien » est le seul vert ; au Cabinet, « Ajouter mes clients… »
     cède le vert à « Accepter » tant qu'une entreprise attend.
-  - Tenu par `tests/web/mois-client.test.ts` (le parcours de Sarra et Hatem, à la souris) et onze preuves
-    « mois 123 » ; vu à l'écran le 23/10/2026.
+  - Tenu par `tests/web/mois-client.test.ts` (le parcours de Sarra et Hatem, à la souris), onze preuves « mois 123 » et
+    sept « mois 124 » ; vu à l'écran le 23/10/2026 (ordinateur et téléphone).
 - **Lot 2 (P2, 6–13)**, sauf le 10 qui attend la réponse d'un comptable (À VÉRIFIER).
+  - **12** (1.124.0) : le Cabinet ne demande plus la paie d'un dossier dont le mandat ne la confie pas (il la demandait à
+    chaque ouverture du livre, et le serveur refusait) ; un dossier tenu, ou un mandat dont l'étendue n'est pas connue, la
+    lit comme avant.
+  - **7, 8 et 13** suivent ensemble : pour proposer « Demander le justificatif » sur une ligne du brouillard, et prévenir
+    à la validation, le Cabinet doit savoir si l'achat du client porte déjà sa photo. Aujourd'hui il ne lit pas les pièces
+    jointes du client (`0160_pieces_jointes.sql` : elles ne sont ouvertes qu'à qui voit l'entreprise en entier). Le plus
+    simple : le serveur dit seulement, pour l'écriture née d'un achat, si cet achat a un justificatif (oui ou non), sans
+    ouvrir le fichier ; ouvrir le fichier lui-même au cabinet (point 13) est un droit de plus, à décider.
 - **Lot 3 (P3, 14–18)**, avec la passe visuelle UX 3 du carnet.
 
 Les captures : `m01` à `m48` de la recette (scratchpad de la session, non versées).

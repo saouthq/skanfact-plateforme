@@ -92,6 +92,10 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     // Un seul vert, chez un cabinet neuf : Sarra lui confie la boulangerie par son code ; « Accepter » est le vert.
     const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, sarra, { codeCabinet: cab.code })).corps.mandat);
     const h = await page(hatem);
+    // (1.124.0) Le mandat par le code ne confie pas la paie : le Cabinet ne la demande pas (point 12, un refus à chaque
+    // ouverture du dossier).
+    const paieRefusee: string[] = [];
+    h.p.on('response', (r) => { if (r.status() === 403 && r.url().includes('/paie/')) paieRefusee.push(r.url()); });
     await h.p.bringToFront(); await h.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossiers`);
     await h.p.getByRole('button', { name: 'Accepter', exact: true }).waitFor({ timeout: 20_000 });
     expect(await h.p.getByRole('button', { name: 'Accepter', exact: true }).evaluate((b) => b.classList.contains('btn-primary'))).toBe(true);
@@ -129,12 +133,26 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     await s.p.bringToFront(); await s.p.goto(`${serveur.adresse}/v10/?e=${ent}#/comptable`);
     const joindre = s.p.locator('[data-msg-joindre-achat]');
     await joindre.waitFor({ timeout: 20_000 });
+    // (1.124.0) « Ce mois-ci » : l'achat du mois, encore sans justificatif ; rien de validé par le cabinet ; le bouton mène
+    // à cet achat-là, et revenir le retrouve.
+    const nomDuMois = new Date().toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'Africa/Tunis' });
+    const carte = s.p.locator('[data-msg-mois]');
+    await expect.poll(async () => net(await carte.innerText().catch(() => '')), { timeout: 15_000 })
+      .toBe(`Ce mois-ci · ${nomDuMois} Aucune vente · 1 achat, dont 1 sans justificatif. Ton cabinet n'a encore rien validé : 1 écriture attend au brouillard. Voir l'achat sans justificatif`);
+    await carte.getByRole('button', { name: 'Voir l\'achat sans justificatif', exact: true }).click();
+    await expect.poll(() => s.p.url(), { timeout: 15_000 }).toContain('#/achats');
+    await expect.poll(async () => net(await s.p.locator('#view').innerText()), { timeout: 15_000 }).toContain('GMS-26-4471');
+    await s.p.goBack();
+    await joindre.waitFor({ timeout: 20_000 });
     expect(net(await joindre.innerText())).toMatch(/^Joindre à l'achat GMS-26-4471 · Grands Moulins de Sfax · 577,150\s?DT$/);
-    expect(await s.p.getByRole('button', { name: 'C\'est un autre achat…', exact: true }).count()).toBe(1);
+    await expect.poll(() => s.p.getByRole('button', { name: 'C\'est un autre achat…', exact: true }).count(), { timeout: 10_000 }).toBe(1);
     expect(await s.p.getByRole('button', { name: 'Ranger dans mes achats…', exact: true }).count()).toBe(0);
     await joindre.click();
     await expect.poll(async () => net(await s.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/rangée dans tes achats \(GMS-26-4471 · Grands Moulins de Sfax/);
     expect(s.p.url()).toContain('#/comptable');
+    // Jointe, la photo sort l'achat des « sans justificatif », et le bouton s'en va.
+    await expect.poll(async () => net(await carte.innerText().catch(() => '')), { timeout: 15_000 })
+      .toBe(`Ce mois-ci · ${nomDuMois} Aucune vente · 1 achat. Ton cabinet n'a encore rien validé : 1 écriture attend au brouillard.`);
     await s.p.screenshot({ path: path.join(PHOTOS, 'mois-client-joindre.png') });
     // L'achat porte la photo ; il n'y a toujours qu'un achat.
     await s.p.bringToFront(); await s.p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/p1`);
@@ -162,5 +180,15 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     await plusTard(h.p);
     await h.p.screenshot({ path: path.join(PHOTOS, 'mois-client-dossiers.png') });
     expect(h.erreurs).toEqual([]);
+    expect(paieRefusee).toEqual([]);
+
+    // Hatem valide le mois jusqu'à aujourd'hui : Sarra le lit dans « Ce mois-ci », à la date du jour.
+    const valide = await api('POST', `/entreprises/${ent}/compta/valider`, hatem, { jusqua: aujourdhui });
+    expect(valide.statut, JSON.stringify(valide.corps)).toBe(200);
+    await s.p.bringToFront(); await s.p.goto(`${serveur.adresse}/v10/?e=${ent}#/comptable`);
+    await expect.poll(async () => net(await s.p.locator('[data-msg-mois]').innerText().catch(() => '')), { timeout: 15_000 })
+      .toBe(`Ce mois-ci · ${nomDuMois} Aucune vente · 1 achat. Ton cabinet a validé tout le mois : 1 écriture (dernière validation le ${fr(aujourdhui)}).`);
+    await s.p.screenshot({ path: path.join(PHOTOS, 'mois-client-ce-mois.png') });
+    expect(s.erreurs).toEqual([]);
   }, 240_000);
 });

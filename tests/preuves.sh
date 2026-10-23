@@ -3337,7 +3337,7 @@ prouver "retirer un dossier qui ne fait rien" $PC \
   '      await appel('"'"'POST'"'"', `/cabinets/${cabinetId}/mandats/${d.mandat}/arreter`);' "" \
   "$RD2"
 prouver "le mandat d'un dossier oublié par l'écran" $PC \
-  "manual: !!d.tenu, mandat: d.mandat });" "manual: !!d.tenu, mandat: '' });" \
+  "manual: !!d.tenu, mandat: d.mandat, perimetre: d.perimetre });" "manual: !!d.tenu, mandat: '', perimetre: d.perimetre });" \
   "$RD2"
 prouver "le bouton qui dit encore Supprimer" web/public/v10/cabinet/app.js \
   'id="del">Retirer du portefeuille…' 'id="del">Supprimer…' \
@@ -19995,6 +19995,32 @@ prouver 'mois 123 : le point vert d'\''une ligne à valider' web/public/v10/cabi
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
 prouver 'mois 123 : « Ajouter mes clients » vert pendant qu'\''une entreprise attend « Accepter »' web/public/v10/cabinet/app.js \
   "class=\"btn\${/btn-primary/.test(inboxBanner()) ? '' : ' btn-primary'}\" id=\"new-d\"" "class=\"btn btn-primary\" id=\"new-d\"" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+
+# ── 1.124.0 : « Ce mois-ci » dans « Mon comptable » (docs/revue-mois-client.md, point 4) ──
+prouver 'mois 124 : le résumé qui compte le brouillard comme validé' serveur/compta/routes.ts \
+  "select count(*) filter (where statut = 'validee') validees," "select count(*) validees," \
+  'le résumé d'\''un mois : validées, au brouillard, le jour de la dernière validation ; rien hors du mois ; la lecture le lit'
+prouver 'mois 124 : le résumé qui déborde avant le début du mois' serveur/compta/routes.ts \
+  "and (\${p.du}::date is null or date_ecriture >= \${p.du}::date)" "and (true)" \
+  'le résumé d'\''un mois : validées, au brouillard, le jour de la dernière validation ; rien hors du mois ; la lecture le lit'
+prouver 'mois 124 : « Mon comptable » sans la carte « Ce mois-ci »' web/public/plateforme/messagerie.js \
+  "const carteMois = mois ?" "const carteMois = false ?" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 124 : l'\''achat sans justificatif que la carte tait' web/public/v10/app.js \
+  "const sansPiece = achats.filter(p => C.sansJustificatif(p)).length;" "const sansPiece = 0;" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 124 : la carte qui ne mène pas aux achats sans justificatif' web/public/v10/app.js \
+  "action: sansPiece ? {" "action: false ? {" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 124 : « tout le mois » validé qui ne se dit pas' web/public/v10/app.js \
+  "if (!r.brouillard) return \`Ton cabinet a validé tout le mois" "if (false) return \`Ton cabinet a validé tout le mois" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 124 : une visite neuve qui garde la lecture d'\''avant la validation' web/public/v10/app.js \
+  "    ceMoisLu = null; // une visite neuve" "    void 0; // une visite neuve" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 124 : la paie demandée à chaque ouverture d'\''un dossier qui ne la confie pas' web/public/plateforme/pont-cabinet.js \
+  "const sansPaie = !!d.perimetre" "const sansPaie = false && !!d.perimetre" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite

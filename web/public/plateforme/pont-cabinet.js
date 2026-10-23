@@ -248,7 +248,7 @@
   let gestesFaits = 0;
 
   // ── L'état du cabinet : le cabinet, son portefeuille, la personne qui travaille ────────────
-  /** @type {Map<string, { id: string, name: string, matricule: string, manual: boolean, mandat: string }>} */
+  /** @type {Map<string, { id: string, name: string, matricule: string, manual: boolean, mandat: string, perimetre?: string[] }>} */
   const dossiers = new Map();
   // Les réglages du cabinet (0023) : les banques et les mots retenus, et leur révision.
   /** @type {{ contenu: Record<string, any>, revision: number | null }} */
@@ -292,7 +292,7 @@
     proposes = (porte.dossiers || []).filter((/** @type {any} */ d) => d.statut === 'propose');
     dossiers.clear();
     const liste = (porte.dossiers || []).filter((/** @type {any} */ d) => d.statut === 'actif').map((/** @type {any} */ d) => {
-      dossiers.set(d.entreprise, { id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu, mandat: d.mandat });
+      dossiers.set(d.entreprise, { id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu, mandat: d.mandat, perimetre: d.perimetre });
       // Un dossier tenu est le « dossier créé à la main » de la v10 : un client hors SkanFact.
       const fiche = fiches.get(d.entreprise);
       /** @type {any} */ const lue = fiche ? depuisFiche(fiche.contenu) : {};
@@ -1280,10 +1280,14 @@
     // Une année sans écriture et sans exercice ouvert n'a pas encore de livre : l'écran propose de le
     // commencer (son exercice, sa balance d'ouverture).
     livre: async (/** @type {string} */ id, /** @type {string} */ annee) => {
-      const d = dossiers.get(id) || { id, name: '', matricule: '' };
+      const d = dossiers.get(id) || { id, name: '', matricule: '', manual: false, mandat: '' };
       // 1.63.0 — avec la paie du dossier (ses salariés, ses bulletins) ; un mandat qui ne comprend pas la paie ne ferme
       // pas le livre : l'onglet Paie reste vide, et le serveur dit pourquoi au premier geste.
-      const paie = paieDe(id).catch((/** @type {any} */ e) => { if (e && e.statut === 403) { paieLue.delete(id); return []; } throw e; });
+      // (1.124.0) Ce mandat-là, on le sait d'avance : la paie n'est pas demandée (un refus du serveur à chaque ouverture du
+      // dossier, revue du mois d'un client, point 12). Un dossier tenu, ou un mandat dont on ne connaît pas l'étendue, la lit.
+      const sansPaie = !!d.perimetre && !d.manual && Array.isArray(d.perimetre) && !d.perimetre.includes('paie');
+      const paie = sansPaie ? Promise.resolve(paieLue.delete(id))
+        : paieDe(id).catch((/** @type {any} */ e) => { if (e && e.statut === 403) { paieLue.delete(id); return []; } throw e; });
       const [ecritures] = await Promise.all([ecrituresDe(id, `${annee}-01-01`, `${annee}-12-31`), exercicesDe(id), paie]);
       if (!ecritures.length && !exerciceDe(id, annee)) return { dossier: d, livre: null };
       return { dossier: d, livre: await livreDe(id, annee, ecritures) };

@@ -97,6 +97,15 @@ traiter » porte la pastille de ses messages (le nombre de non-lus, ou la bulle 
 elle mène à sa conversation. Une ligne a la pastille exactement quand le client compte dans celle du menu « Messages »
 (la même lecture du serveur).
 
+**M4 octies. « Ce mois-ci » dans « Mon comptable »** (1.124.0 ; `docs/revue-mois-client.md`, point 4). Côté
+entreprise, sous « En attente de toi », une carte dit le mois en cours : les ventes (factures et avoirs émis) et les
+achats, dont ceux sans justificatif (les mêmes règles que l'accueil et le contrôle de clôture), avec le bouton vers ces
+achats-là ; et ce que le cabinet en a fait dans les livres : combien d'écritures il a validées, le jour de la dernière
+validation, combien attendent encore au brouillard (`GET /entreprises/:e/compta/resume?du&au`, geste
+`compta.livres.voir` ; un rôle qui ne lit pas les livres ne voit pas cette ligne). La lecture du serveur se fait à chaque
+visite de la page ; la phrase garde sa place pendant qu'elle se lit. La prochaine déclaration n'y est pas encore (point
+10, À VÉRIFIER avec un comptable).
+
 **M5. L'alerte par e-mail, sans contenu** (décidé par Skander le 09/10/2026 ; détails par délégation). Chaque minute,
 le serveur cherche qui a, **depuis plus de cinq minutes**, quelque chose à lire dans un fil (un message de l'autre côté,
 une question envoyée, la réponse du client à une question), et le prévient **une fois** ; plus rien avant qu'il ait relu

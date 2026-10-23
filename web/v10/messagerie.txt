@@ -191,8 +191,10 @@ les achats (elle passe par la lecture de la brique 84, devenue une fonction).
   // par Skander le 09/10/2026). La page fournit ce que le fil ne sait pas : les pièces du dossier (« Parler d'une pièce »),
   // les ouvrir, répondre à une question de la révision (le chemin de `repondreA`), ranger une photo dans les achats.
   let conversationOuverte = null;
+  let ceMoisLu = null;
   routes.comptable = () => {
     if (conversationOuverte) { conversationOuverte.arreter(); conversationOuverte = null; }
+    ceMoisLu = null; // une visite neuve relit ce que le cabinet a fait ; les redessins de la même visite gardent leur lecture
     const view = $('#view');
     if (!bridge.messagerie) {
       view.innerHTML = '<div class="page-head"><h1>Mon comptable</h1></div><div class="panel"><p class="small muted">La messagerie avec ton cabinet se tient en ligne, au serveur.</p></div>';
@@ -249,6 +251,35 @@ les achats (elle passe par la lecture de la brique 84, devenue une fonction).
         await save(true);
         await bridge.messagerie.rangerAchat(m.id, p.id, achat(p));
         return achat(p);
+      },
+      // (1.124.0) « Ce mois-ci » : les ventes et les achats du mois (les mêmes règles que l'accueil et le contrôle de
+      // clôture : facture ou avoir émis, achat sans pièce jointe), et ce que le cabinet en a fait dans les livres, relu à
+      // chaque visite de la page (revue du mois d'un client, 23/10/2026, point 4).
+      ceMois: () => {
+        const mois = C.today().slice(0, 7);
+        const du = mois + '-01', au = C.today();
+        const pl = (n, un, plur) => `${n} ${n > 1 ? plur || un + 's' : un}`;
+        const ventes = data.documents.filter(d => (d.type === 'facture' || d.type === 'avoir') && d.status !== 'brouillon' && d.status !== 'annulée' && (d.date || '').startsWith(mois)).length;
+        const achats = (data.purchases || []).filter(p => (p.date || '').startsWith(mois));
+        const sansPiece = achats.filter(p => C.sansJustificatif(p)).length;
+        const pieces = !ventes && !achats.length ? 'Aucune vente ni aucun achat enregistré ce mois-ci.'
+          : `${ventes ? pl(ventes, 'vente') : 'Aucune vente'} · ${achats.length ? pl(achats.length, 'achat') : 'aucun achat'}${sansPiece ? `, dont ${sansPiece} sans justificatif` : ''}.`;
+        if (!ceMoisLu || ceMoisLu.du !== du) {
+          ceMoisLu = { du, r: bridge.messagerie.resume ? bridge.messagerie.resume(du, au) : Promise.resolve(null) };
+        }
+        const cabinet = ceMoisLu.r.then(r => {
+          if (!r) return null;
+          const le = r.valideeLe ? ` (dernière validation le ${C.fmtDate(r.valideeLe)})` : '';
+          if (!r.validees && !r.brouillard) return 'Rien encore dans tes livres pour ce mois.';
+          if (!r.validees) return `Ton cabinet n'a encore rien validé : ${pl(r.brouillard, 'écriture attend', 'écritures attendent')} au brouillard.`;
+          if (!r.brouillard) return `Ton cabinet a validé tout le mois : ${pl(r.validees, 'écriture')}${le}.`;
+          return `Ton cabinet a validé ${pl(r.validees, 'écriture')}${le} ; ${pl(r.brouillard, 'autre attend', 'autres attendent')} au brouillard.`;
+        });
+        const nom = new Date(du + 'T00:00:00Z').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+        return {
+          titre: `Ce mois-ci · ${nom}`, lignes: [pieces], cabinet,
+          action: sansPiece ? { libelle: sansPiece > 1 ? 'Voir les achats sans justificatif' : 'Voir l\'achat sans justificatif', faire: () => CHECK_ACTIONS.justificatifs.run({ du, au }) } : null,
+        };
       },
       voirMandat: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
       inviter: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },

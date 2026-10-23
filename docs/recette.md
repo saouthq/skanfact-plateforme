@@ -1084,7 +1084,7 @@ Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT d
     l'expérience meilleure dans les parcours, et une interface qui donne envie de travailler dessus. Dans cet ordre :
     - **UX 1 — le mois d'un client vu des deux côtés** : `docs/revue-mois-client.md` (18 points, trois lots). Lot 1 :
       la pièce reçue qui retrouve l'achat déjà saisi, la demande du comptable dans l'« À faire », le bandeau « tout est à
-      jour » honnête, la carte « Ce mois-ci » de « Mon comptable », un seul vert (*fait en 1.123.0, sauf la carte, qui suit*). Lot 2 : les achats confiés, réclamer le
+      jour » honnête, la carte « Ce mois-ci » de « Mon comptable », un seul vert (*fait en 1.123.0 et 1.124.0*). Lot 2 : les achats confiés, réclamer le
       justificatif depuis le brouillard, la validation qui prévient, le « Suivi » du mois, l'invitation, l'appel de paie
       refusé. Lot 3 : la facture émise en page de lecture, la création rapide d'un client, les visites proposées, les
       noms de boutons, la fin de la validation.

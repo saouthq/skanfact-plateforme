@@ -191,4 +191,23 @@ describe('la validation des livres', () => {
     expect(ok.statut, JSON.stringify(ok.corps)).toBe(200);
     expect(ok.corps.validees).toBe(1);
   });
+
+  // (1.124.0) La carte « Ce mois-ci » de « Mon comptable » : ce que le cabinet a validé du mois, ce qui attend au
+  // brouillard, et le jour de la dernière validation (jour de Tunis).
+  it('le résumé d\'un mois : validées, au brouillard, le jour de la dernière validation ; rien hors du mois ; la lecture le lit', async () => {
+    const e = await essai();
+    await e.envoyer('suppliers', 's1', { id: 's1', name: 'Papeterie du Lac' });
+    await e.envoyer('purchases', 'a1', achat(1000));
+    const resume = async (du: string, au: string, jeton = e.jeton) => appeler('GET', `/entreprises/${e.ent}/compta/resume?du=${du}&au=${au}`, jeton);
+    expect((await resume('2026-08-01', '2026-08-31')).corps).toEqual({ validees: 0, brouillard: 2, valideeLe: null });
+    await e.valider('2026-08-05');
+    const aujourdhui = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Tunis' }).format(new Date());
+    expect((await resume('2026-08-01', '2026-08-31')).corps).toEqual({ validees: 1, brouillard: 1, valideeLe: aujourdhui });
+    // Les bornes comptent : le 10 août seul (le règlement), et juillet, vide.
+    expect((await resume('2026-08-10', '2026-08-10')).corps).toEqual({ validees: 0, brouillard: 1, valideeLe: null });
+    expect((await resume('2026-07-01', '2026-07-31')).corps).toEqual({ validees: 0, brouillard: 0, valideeLe: null });
+    const lecture = await e.inviter('lecture');
+    expect((await resume('2026-08-01', '2026-08-31', lecture.jeton)).corps).toMatchObject({ validees: 1, brouillard: 1 });
+    expect((await resume('2026-08-01', '2026-02-30')).statut).toBe(400);
+  });
 });

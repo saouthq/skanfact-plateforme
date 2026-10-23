@@ -328,6 +328,7 @@
    *   rangerAchat?: (message: { id: string, nom: string, type: string, contenu: string }) => void,
    *   achatCite?: (texte: string) => { id: string, libelle: string } | null,
    *   joindreAchat?: (message: { id: string, nom: string, type: string, contenu: string }, achat: string) => Promise<string>,
+   *   ceMois?: () => { titre: string, lignes: string[], action: { libelle: string, faire: () => void } | null, cabinet: Promise<string | null> | null } | null,
    *   voirMandat?: () => void,
    *   inviter?: () => void,
    *   revision?: () => void,
@@ -344,6 +345,7 @@
     /** @type {any[]} */ let anciennesQuestions = [];
     /** @type {string | null} */ let suite = null;
     /** @type {string | null} */ let cabinetRelu = null; // un ancien cabinet relu (côté entreprise)
+    /** @type {string | null} */ let texteCabinetDuMois = null; // la dernière phrase lue de ce que le cabinet a fait du mois
     /** @type {{ genre: string, id: string, libelle: string } | null} */ let piece = null;
     /** @type {File | null} */ let fichier = null;
     let demande = !!o.demander && !entreprise;
@@ -703,7 +705,16 @@
         brancherCote(cote);
         return;
       }
+      // (1.124.0) « Ce mois-ci » : les pièces du mois et ce que le cabinet en a fait, sous ce qui attend (revue du mois d'un
+      // client, point 4 : après la validation d'octobre, rien ne le disait à la cliente). La phrase du cabinet garde sa place
+      // pendant qu'elle se relit (la dernière lue, ou « … ») : rien ne bouge sous le curseur.
+      const mois = entreprise && f && f.actif && !cabinetRelu && o.ceMois ? o.ceMois() : null;
+      const carteMois = mois ? `<div class="msg-encart msg-mois" data-msg-mois><b>${esc(mois.titre)}</b>
+          ${mois.lignes.map((x) => `<span>${esc(x)}</span>`).join('')}
+          ${mois.cabinet ? `<span data-msg-mois-cabinet>${esc(texteCabinetDuMois || 'Ce que ton cabinet en a fait : …')}</span>` : ''}
+          ${mois.action ? `<button type="button" class="msg-lien" data-msg-mois-aller>${esc(mois.action.libelle)}</button>` : ''}</div>` : '';
       cote.innerHTML = `${f ? `<div class="msg-encart${rien ? ' ok' : ' attend'}" data-msg-attente><b>${entreprise ? 'En attente de toi' : 'Ce qui attend le client'}</b><span>${esc(texte)}</span>${aller}</div>` : ''}
+        ${carteMois}
         ${entreprise ? `<div class="msg-encart"><b>Ce que voit ton cabinet</b><span>Ce fil, et ce que ton mandat lui confie, pour cette entreprise seulement. Chaque message garde sa date et son auteur, dans ton dossier.</span>
           ${o.voirMandat ? '<button type="button" class="msg-lien" data-msg-mandat>Voir le mandat</button>' : ''}</div>`
           // (1.98.0) « C'est traité » seulement quand ce client est « À traiter » : après une réponse du cabinet, il ne
@@ -717,6 +728,18 @@
           <span><b>Me prévenir par e-mail</b><span>« Un nouveau message t'attend dans SkanFact », cinq minutes après s'il n'est pas lu. Le message lui-même reste dans SkanFact.</span></span></label>` : ''}
         ${anciens}`;
       brancherCote(cote);
+      if (mois && mois.action) {
+        const allerMois = cote.querySelector('[data-msg-mois-aller]');
+        if (allerMois) /** @type {HTMLElement} */ (allerMois).onclick = () => { if (mois.action) mois.action.faire(); };
+      }
+      if (mois && mois.cabinet) {
+        mois.cabinet.then((t) => {
+          texteCabinetDuMois = t;
+          const n = cote.querySelector('[data-msg-mois-cabinet]');
+          if (!n) return;
+          if (t) n.textContent = t; else n.remove();
+        }).catch(() => { const n = cote.querySelector('[data-msg-mois-cabinet]'); if (n && !texteCabinetDuMois) n.remove(); });
+      }
     }
 
     // ── Lire, relire ───────────────────────────────────────────────────────────────────────────
