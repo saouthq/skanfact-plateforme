@@ -1101,7 +1101,9 @@ Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT d
       plus proposer de confier ses dossiers (`web/v10/suivi-seul.txt`) ; au téléphone, les montants d'une carte remontent sous son
       titre, et le nom du client se lit sur la carte d'un dossier (`telephone.css`). En 1.140.0 : un seul « Envoyer la
       pièce… » vert dans « Mon comptable » (la plus ancienne demande), et plus de carte des totaux pour une liste d'une
-      seule ligne au téléphone.*
+      seule ligne au téléphone. En 1.143.0 : le bloc « À payer » des Achats ne répète plus une liste où tout est à payer (il en
+      dit la somme, `web/v10/listes-quotidien.txt`) ; au téléphone, une date ne titre plus une carte (la pièce la nomme), le
+      client ou le fournisseur se lit juste sous les montants, et « Actions » a le même air sur chaque carte.*
     - **Ensuite** : la recherche Ctrl K aussi au Cabinet et à la console ; la barre du bas au téléphone pour les écrans du
       quotidien ; la photo d'un ticket qui file dans les achats et chez le comptable d'un geste ; les rappels par e-mail du
       cabinet au rythme choisi par le client ; ce que le cabinet a le droit de faire, dit en clair, avec une seule liste

@@ -10147,6 +10147,13 @@
     const soon = due.filter(x => !x.late && x.dueDate && C.daysBetween(C.today(), x.dueDate) <= 7);
     const total = due.reduce((s, x) => s + x.remaining, 0);
     const open = prefs.get('payablesOpen', true);
+    // (plateforme) 1.143.0 — chaque pièce est à payer : la liste en dessous montre déjà ces lignes, le bloc n'en garde
+    // que la somme (UX 3).
+    if (due.length <= 8 && due.length === (data.purchases || []).length) {
+      return `<div class="panel todo" id="payables" data-payables-resume>
+      <p style="margin:0"><b>${C.money(total, cur)} à payer</b> sur ${pl(due.length, 'pièce')} ${info('buy.payables')}${late.length ? ` · <span class="warn-text">${pl(late.length, 'pièce')} en retard</span>` : ''}${soon.length ? ` · ${soon.length} à régler sous 7 jours` : ''}.
+        <span class="small muted">Chaque pièce de la liste se règle de son menu « Actions ».</span></p></div>`;
+    }
     return `<div class="panel todo" id="payables">
       <h2 class="collapse-h" id="pay-h" role="button" tabindex="0" aria-expanded="${open}">
         <span class="chev">${open ? '▾' : '▸'}</span>À payer ${info('buy.payables')}<span class="count">${due.length}</span></h2>

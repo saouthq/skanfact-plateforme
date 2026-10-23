@@ -147,6 +147,14 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
       expect(a.top).toBeGreaterThanOrEqual(x.carte.top);
     }
     expect(cartes[0]?.montants.map((m) => m.texte)).toEqual(['714,000 DT', '714,000 DT']);
+    // (1.143.0) Le client juste sous les montants, avant le type de la pièce.
+    // L'ordre de lecture : la rangée, puis la gauche.
+    const sous = await p.locator('table.list > tbody > tr').first().evaluate((tr) => ['Client', 'Type'].map((t) => { const r = tr.querySelector(`td[data-label="${t}"]`)?.getBoundingClientRect(); return r ? Math.round(r.top) * 10_000 + Math.round(r.left) : -1; }));
+    expect(sous[0]).toBeGreaterThan(0);
+    expect(sous[0]).toBeLessThan(sous[1] ?? 0);
+    // (1.143.0) Le doigt laisse la carte touchée « survolée » : son « Actions » ne s'allume pas seul.
+    await p.locator('table.list > tbody > tr').nth(1).locator('td[data-label="Date"]').hover();
+    expect(new Set(await p.locator('table.list > tbody > tr td.row-actions .row-menu-btn').evaluateAll((bs) => bs.map((b) => getComputedStyle(b).backgroundColor))).size).toBe(1);
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await p.screenshot({ path: path.join(PHOTOS, 'telephone-factures-cartes.png'), fullPage: true });
     // Les titres qui trient restent : « Client » trie, et la liste redessinée garde ses titres.
@@ -406,6 +414,18 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
       // (1.140.0) Une liste d'une seule ligne ne répète pas ses chiffres dans une carte des totaux.
       deCote.push(...(await p.evaluate((route) => [...document.querySelectorAll('table.list[data-cartes]')].filter((tb) => tb.querySelectorAll(':scope > tbody > tr').length === 1
         && [...tb.querySelectorAll(':scope > tfoot > tr')].some((tr) => (tr as HTMLElement).offsetHeight > 0)).map(() => `${route} : une seule ligne, et sa carte des totaux`), r)));
+      // (1.143.0) Une date seule ne titre pas une carte ; « Actions » a le même air sur chaque carte (le doigt laissait la
+      // dernière carte touchée allumée).
+      deCote.push(...(await p.evaluate((route) => [...document.querySelectorAll('table.list[data-cartes] > tbody > tr > [data-tel="titre"]')]
+        .filter((td) => /^\d{2}\/\d{2}\/\d{4}$/.test((td.textContent ?? '').trim())).map((td) => `${route} : une carte titrée « ${(td.textContent ?? '').trim()} »`), r)));
+      deCote.push(...(await p.evaluate((route) => [...document.querySelectorAll('table.list[data-cartes]')].filter((tb) => new Set([...tb.querySelectorAll(':scope > tbody > tr > td.row-actions .row-menu-btn:not(.btn)')]
+        .map((b) => getComputedStyle(b).backgroundColor)).size > 1).map(() => `${route} : des « Actions » de deux styles`), r)));
+      if (r === 'achats') {
+        // (1.143.0) La seule pièce de la liste est à payer : le bloc « À payer » n'en répète pas la ligne, il en dit la somme.
+        expect(await p.locator('#payables[data-payables-resume]').innerText()).toMatch(/à payer sur 1 pièce/);
+        expect(await p.locator('#payables table').count()).toBe(0);
+        expect(await p.locator('table.list > tbody > tr [data-tel=titre]').allInnerTexts()).toEqual([expect.stringContaining('CB-2026-0457')]);
+      }
       if (r === 'fournisseurs') unSeul = await p.evaluate(() => [...document.querySelectorAll('table.list[data-cartes]')].some((tb) => tb.querySelectorAll(':scope > tbody > tr').length === 1 && tb.querySelector(':scope > tfoot')));
     }
     expect(deCote).toEqual([]);

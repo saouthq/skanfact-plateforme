@@ -20240,7 +20240,7 @@ prouver 'ux3 139 : les libellés de la rangée de chiffres coupés au téléphon
   "  .stats.rangee .lbl, .stats.rangee .sub { white-space: normal; overflow: visible; }" "" \
   'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'\''ordinateur le disent'
 prouver 'ux3 139 : les montants sous le pli dans une carte de facture au téléphone' web/public/plateforme/telephone.css \
-  "  table.list[data-cartes] > tbody > tr > td:not(.r):not([data-tel=\"titre\"]):not(.row-actions) { order: 2; }" "" \
+  "  table.list[data-cartes] > tbody > tr > td:not(.r):not([data-tel=\"titre\"]):not(.row-actions):not([data-tel-tiers=\"oui\"]) { order: 3; }" "" \
   'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'\''ordinateur, un tableau'
 prouver 'ux3 140 : la carte des totaux qui répète une liste d'\''une seule ligne au téléphone' web/public/plateforme/telephone.css \
   "  table.list[data-cartes]:has(> tbody > tr:only-child) > tfoot { display: none; }" "" \
@@ -20252,6 +20252,18 @@ prouver 'ux2 141 : la page d’échec posée par-dessus le bandeau qui dit pourq
   "    if (close) { return; }" "" \
   'le portable retiré remet ce qu'\''il avait fait hors ligne ; accepté, ce qui a changé depuis est mis de côté et dit'
 
+prouver 'ux3 143 : le bloc « À payer » qui répète une liste où tout est à payer' web/public/v10/app.js \
+  "    if (due.length <= 8 && due.length === (data.purchases || []).length) {" "    if (false) {" \
+  'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
+prouver 'ux3 143 : une carte du téléphone titrée par sa date' web/public/plateforme/telephone.js \
+  "!choix(td) && !dateSeule(td) && " "!choix(td) && " \
+  'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
+prouver 'ux3 143 : le client sous le type de la pièce au téléphone' web/public/plateforme/telephone.css \
+  '  table.list[data-cartes] > tbody > tr > td[data-tel-tiers="oui"] { order: 2; }' '  table.list[data-cartes] > tbody > tr > td[data-tel-tiers="oui"] { order: 4; }' \
+  'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'"'"'ordinateur, un tableau'
+prouver 'ux3 143 : « Actions » allumé sur la seule carte touchée' web/public/plateforme/telephone.css \
+  '  table.list[data-cartes] > tbody > tr > td.row-actions .row-menu-btn:not(.btn) { opacity: 1; background: var(--ink-soft); color: var(--text); }' '' \
+  'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'"'"'ordinateur, un tableau'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

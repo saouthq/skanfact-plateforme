@@ -101,6 +101,10 @@
   // Une case qui ne porte qu'une case à cocher (choisir la ligne) ne nomme pas la ligne.
   /** @param {HTMLTableCellElement} td */
   const choix = (td) => !(td.textContent || '').trim() && td.querySelectorAll('input[type=checkbox]').length === 1 && td.querySelectorAll('input, select, button, a').length === 1;
+  // (1.143.0) Une date seule ne nomme pas la ligne non plus : la carte d'un achat se titrait « 23/10/2026 », la pièce et
+  // le fournisseur venaient dessous (UX 3). La ligne prend le nom de la case suivante, la date reste une case.
+  /** @param {HTMLTableCellElement} td */
+  const dateSeule = (td) => /^\d{2}\/\d{2}\/\d{4}$/.test((td.textContent || '').trim()) && !td.querySelector('input, select, button, a');
   /** @param {HTMLTableElement} table */
   function enCartes(table) {
     const tete = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
@@ -116,10 +120,12 @@
           const titre = td.colSpan === 1 ? titres[col] || '' : '';
           col += td.colSpan;
           const vide = !(td.textContent || '').trim() && !td.querySelector('input, select, button, a, img, svg, canvas');
-          const nomme = !vide && !nommee && !choix(td) && !td.classList.contains('row-actions');
+          const nomme = !vide && !nommee && !choix(td) && !dateSeule(td) && !td.classList.contains('row-actions');
           if (nomme) nommee = true;
           poser(td, 'data-tel', vide ? 'vide' : nomme ? 'titre' : '');
           poser(td, 'data-label', nomme ? '' : titre);
+          // (1.143.0) Le client ou le fournisseur se lit juste sous les montants : « Type : Facture » passait avant lui (UX 3).
+          poser(td, 'data-tel-tiers', !nomme && !vide && /^(client|fournisseur|tiers)$/i.test(titre) ? 'oui' : '');
         }
       }
     }

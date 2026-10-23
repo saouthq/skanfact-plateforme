@@ -177,7 +177,11 @@
      après le type, le client, la date et le statut. Les colonnes de chiffres (alignées à droite, `.r`) remontent juste
      sous ce qui nomme la ligne, en gras ; le reste suit dans son ordre (UX 3). */
   table.list[data-cartes] > tbody > tr > td.r:not([data-tel="titre"]) { order: 1; font-weight: 650; font-variant-numeric: tabular-nums; }
-  table.list[data-cartes] > tbody > tr > td:not(.r):not([data-tel="titre"]):not(.row-actions) { order: 2; }
+  table.list[data-cartes] > tbody > tr > td[data-tel-tiers="oui"] { order: 2; }
+  /* (1.143.0) Au doigt, le survol reste collé à la dernière carte touchée : son « Actions » s'allumait seul. Toutes les
+     cartes le montrent allumé, au même style (UX 3). */
+  table.list[data-cartes] > tbody > tr > td.row-actions .row-menu-btn:not(.btn) { opacity: 1; background: var(--ink-soft); color: var(--text); }
+  table.list[data-cartes] > tbody > tr > td:not(.r):not([data-tel="titre"]):not(.row-actions):not([data-tel-tiers="oui"]) { order: 3; }
   /* (1.139.0) La liste des dossiers du Cabinet : au bureau, la case du client tient sa largeur par `max-width: 0` (le
      nom long se coupe d'une ellipse) ; en carte, elle s'écrasait à zéro et le nom du client disparaissait (UX 3). */
   table.list[data-cartes].dl-table > * > tr > td.dl-client { max-width: none; width: auto; min-width: 0; }
