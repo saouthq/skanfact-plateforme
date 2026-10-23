@@ -233,9 +233,19 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     const carte = h.p.locator('#d-ce-mois');
     await expect.poll(async () => net(await carte.innerText().catch(() => '')), { timeout: 20_000 }).toContain('rien n\'est encore validé');
     await plusTard(h.p);
-    expect(net(await carte.innerText())).toMatch(new RegExp(`^Ce mois-ci · ${nomDuMois} Aucune vente · 2 achats, dont 1 sans justificatif, dans ses livres\\. 2 écritures attendent au brouillard : rien n'est encore validé\\. Valider les écritures d(e |')${nomDuMois} Voir le livre-journal d(e |')${nomDuMois}$`));
+    expect(net(await carte.innerText())).toMatch(new RegExp(`^Ce mois-ci · ${nomDuMois} Aucune vente · 2 achats, dont 1 sans justificatif, dans ses livres\\. 2 écritures attendent au brouillard : rien n'est encore validé\\. Valider les écritures d(e |')${nomDuMois} Voir le livre-journal d(e |')${nomDuMois} Demander le justificatif$`));
     expect(await h.p.locator('#view .btn-primary').filter({ visible: true }).allInnerTexts()).toEqual([expect.stringMatching(/^Valider les écritures d/)]);
+    // (1.139.0) Hatem est seul au cabinet : personne à qui confier le dossier, le bloc n'est pas là.
+    expect(await h.p.locator('#d-droits').count()).toBe(0);
     await h.p.screenshot({ path: path.join(PHOTOS, 'mois-client-suivi-ce-mois.png') });
+    // (1.139.0) « dont 1 sans justificatif » se réclame depuis la carte : la demande s'ouvre dans le fil, écrite d'avance.
+    await carte.getByRole('button', { name: 'Demander le justificatif', exact: true }).click();
+    await expect.poll(() => h.p.url(), { timeout: 15_000 }).toContain(`#/messages/${ent}/demande`);
+    await expect.poll(() => h.p.locator('#view textarea, #view input[type="text"]').evaluateAll((x) => x.map((e) => (e as HTMLInputElement).value).join(' | ')), { timeout: 15_000 })
+      .toContain(`Le justificatif de ton achat d${/^[aeiou]/i.test(nomDuMois) ? '\'' : 'e '}${nomDuMois} enregistré sans pièce dans SkanFact`);
+    await h.p.keyboard.press('Escape');
+    await h.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossier/${ent}/suivi`);
+    await expect.poll(async () => net(await carte.innerText().catch(() => '')), { timeout: 20_000 }).toContain('rien n\'est encore validé');
     await carte.getByRole('button', { name: /^Valider les écritures/ }).click();
     await expect.poll(() => h.p.url(), { timeout: 15_000 }).toContain(`#/dossier/${ent}/comptabilite/saisie/`);
     await h.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossier/${ent}/comptabilite/journal`);

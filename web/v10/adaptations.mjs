@@ -903,4 +903,6 @@ export const ADAPTATIONS = [
   ...lireFichier('justificatif-cabinet.txt'),
   ...lireFichier('declaration-mois-avant.txt'),
   ...lireFichier('etats-cabinet.txt'),
+  ...lireFichier('accueil-au-travail.txt'),
+  ...lireFichier('suivi-seul.txt'),
 ];

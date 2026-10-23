@@ -1,0 +1,19 @@
+Au Cabinet, le Suivi d'un dossier ne propose pas de confier le dossier quand le cabinet n'a qu'une personne (1.139.0 ;
+UX 3, une interface qui donne envie). Format : voir sans-paquets.mjs.
+
+La recette du 23/10/2026 : Hatem travaille seul. Le Suivi de chaque dossier finissait sur « Qui travaille sur ce
+dossier » : un tableau d'une ligne (lui), un choix « — pas confié — », « Ce dossier n'est confié à personne : seuls
+les associés y travaillent. » et « Enregistrer les droits ». Confier un dossier n'a de sens qu'à partir de deux : le
+bloc paraît dès qu'un second collaborateur est actif (Réglages › L'équipe).
+
+== cabinet/app.js | un cabinet d'une seule personne ne se voit pas proposer de confier ses dossiers
+-- avant
+    const liste = (S.collaborateurs || []).filter(c => c.actif);
+    if (!liste.length) return '';
+    const droits = dossier.droits || {};
+-- après
+    const liste = (S.collaborateurs || []).filter(c => c.actif);
+    // (plateforme) 1.139.0 — seul au cabinet, il n'y a personne à qui confier le dossier (UX 3).
+    if (liste.length < 2) return '';
+    const droits = dossier.droits || {};
+-- fin

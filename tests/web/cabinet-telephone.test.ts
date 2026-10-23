@@ -103,6 +103,16 @@ describe('le Cabinet au téléphone', () => {
         for (let i = 0; i < 3 && await page.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await page.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
         await page.waitForTimeout(300);
         faux.push(...(await page.evaluate(problemes, [doigt, largeur] as [boolean, number])).map((x) => `${nom} : ${x}`));
+        // (1.139.0) La liste des dossiers : le nom de chaque client se lit (au téléphone, sa case s'écrasait à zéro), et les
+        // libellés de la rangée de chiffres ne se coupent pas (« 444,000 DT de … »).
+        if (pg2.nom === 'dossiers') {
+          const ecrases = await page.locator('.dl-nom').evaluateAll((x) => x.filter((e) => e.getBoundingClientRect().width < 40).map((e) => e.textContent));
+          if (ecrases.length) faux.push(`${nom} : nom du client écrasé (${ecrases.join(', ')})`);
+          if (doigt) {
+            const coupes = await page.locator('.stats.rangee .lbl, .stats.rangee .sub').evaluateAll((x) => x.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
+            if (coupes.length) faux.push(`${nom} : chiffre au libellé coupé (${coupes.join(', ')})`);
+          }
+        }
         const avis = await page.locator('#bandeau-ordinateur').count();
         if (avis !== (pg2.ordinateur && doigt ? 1 : 0)) faux.push(`${nom} : ${avis ? 'dit « pensé pour un ordinateur » sans l\'être' : 'ne dit pas qu\'il est pensé pour un ordinateur'}`);
         await page.screenshot({ path: path.join(PHOTOS, `${nom}.png`), fullPage: true });

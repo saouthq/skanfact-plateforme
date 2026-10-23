@@ -20218,6 +20218,30 @@ prouver 'ux2 138 : la Production refusée qui ne dit pas ce qui manque' web/publ
 prouver 'ux2 138 : les Échéances qui disent « aucune échéance » d'\''une lecture refusée' web/public/v10/cabinet/app.js \
   "    if (!liste.length && questionsAttenteRefus) {" "    if (false) {" \
   'au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit'
+prouver 'ux3 139 : la bienvenue qui reste devant une entreprise qui facture déjà' web/public/v10/app.js \
+  " && !et.accueilVu && !metierCommence(); };" " && !et.accueilVu; };" \
+  'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
+prouver 'ux3 139 : les premiers pas faits qui restent listés une fois le métier commencé' web/public/v10/app.js \
+  "p.etapes.filter(e => !(e.fait && metierCommence())).map(e => {" "p.etapes.map(e => {" \
+  'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
+prouver 'ux3 139 : les premiers pas qui passent devant l'\''À faire et les chiffres' web/public/v10/app.js \
+  "      \${duGrain && metierCommence() ? '' : pas}" "      \${pas}" \
+  'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
+prouver 'ux3 139 : le cabinet seul à qui l'\''on propose de se confier ses dossiers' web/public/v10/cabinet/app.js \
+  "    if (liste.length < 2) return '';" "    if (!liste.length) return '';" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'ux3 139 : « dont 1 sans justificatif » sans le geste qui le réclame' web/public/v10/cabinet/app.js \
+  "    if (dj) dj.onclick = () => {" "    if (dj) dj.remove(); if (false) {" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'ux3 139 : le nom du client écrasé à zéro sur la carte d'\''un dossier au téléphone' web/public/plateforme/telephone.css \
+  "  table.list[data-cartes].dl-table > * > tr > td.dl-client { max-width: none; width: auto; min-width: 0; }" "" \
+  'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'\''ordinateur le disent'
+prouver 'ux3 139 : les libellés de la rangée de chiffres coupés au téléphone' web/public/plateforme/telephone.css \
+  "  .stats.rangee .lbl, .stats.rangee .sub { white-space: normal; overflow: visible; }" "" \
+  'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'\''ordinateur le disent'
+prouver 'ux3 139 : les montants sous le pli dans une carte de facture au téléphone' web/public/plateforme/telephone.css \
+  "  table.list[data-cartes] > tbody > tr > td:not(.r):not([data-tel=\"titre\"]):not(.row-actions) { order: 2; }" "" \
+  'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'\''ordinateur, un tableau'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

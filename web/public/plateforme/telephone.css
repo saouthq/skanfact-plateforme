@@ -171,6 +171,18 @@
     text-transform: uppercase; color: var(--muted); }
   table.list[data-cartes] > * > tr > [data-tel="titre"], table.list[data-cartes] > * > tr > td[colspan] { grid-column: 1 / -1; font-size: 15px; }
   table.list[data-cartes] > * > tr > [data-tel="vide"] { display: none; }
+  /* (1.139.0) Les montants d'abord : une carte de facture rangeait le net à payer et le reste dû en dernier, sous le pli,
+     après le type, le client, la date et le statut. Les colonnes de chiffres (alignées à droite, `.r`) remontent juste
+     sous ce qui nomme la ligne, en gras ; le reste suit dans son ordre (UX 3). */
+  table.list[data-cartes] > tbody > tr > td.r:not([data-tel="titre"]) { order: 1; font-weight: 650; font-variant-numeric: tabular-nums; }
+  table.list[data-cartes] > tbody > tr > td:not(.r):not([data-tel="titre"]):not(.row-actions) { order: 2; }
+  /* (1.139.0) La liste des dossiers du Cabinet : au bureau, la case du client tient sa largeur par `max-width: 0` (le
+     nom long se coupe d'une ellipse) ; en carte, elle s'écrasait à zéro et le nom du client disparaissait (UX 3). */
+  table.list[data-cartes].dl-table > * > tr > td.dl-client { max-width: none; width: auto; min-width: 0; }
+  /* (1.139.0) La rangée de chiffres du Cabinet en deux colonnes : « 444,000 DT de … », « 1 client s… » se coupaient.
+     Au téléphone, le libellé et la ligne du dessous reviennent à la ligne ; le chiffre, lui, reste entier. */
+  .stats.rangee .pf-l { flex-wrap: wrap; row-gap: 0; }
+  .stats.rangee .lbl, .stats.rangee .sub { white-space: normal; overflow: visible; }
   table.list[data-cartes] > * > tr > td.row-actions { position: absolute; top: 8px; inset-inline-end: 8px; width: auto; }
   table.list[data-cartes] > * > tr:has(> td.row-actions:not([data-tel="vide"])) > [data-tel="titre"] { min-height: 44px; padding-inline-end: 118px; display: flex; flex-direction: column; justify-content: center; }
   table.list[data-cartes] tr.clickable:hover td { background: none; }

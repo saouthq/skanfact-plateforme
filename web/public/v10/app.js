@@ -3030,7 +3030,10 @@
   // dans chaque étape ». Il vit DANS le panneau des premiers pas, pas dans une fenêtre : une fenêtre
   // posée à la fin de l'assistant se fermerait d'un Échap sans avoir été lue, et bloquerait l'écran
   // qu'elle présente. Il se tait quand la découverte est faite, ou quand on a dit « Non merci ».
-  const accueilVisible = () => { const et = visitesEtat(); return !et.faites.decouvrir && !et.accueilVu; };
+  // (plateforme) 1.139.0 — le métier a commencé : une facture ou un avoir émis. La porte de la bienvenue se retire, et
+  // l'Accueil se lit dans l'ordre du travail (UX 3).
+  const metierCommence = () => (data.documents || []).some(d => (d.type === 'facture' || d.type === 'avoir') && d.status && d.status !== 'brouillon');
+  const accueilVisible = () => { const et = visitesEtat(); return !et.faites.decouvrir && !et.accueilVu && !metierCommence(); };
   // (plateforme, brique 111) Ce qu'un membre de l'équipe trouve sur l'accueil à la place de la mise en place de
   // l'entreprise (le travail du propriétaire et des administrateurs) : les pages que son rôle lui ouvre, celles du
   // menu (déjà filtré par le rôle, brique 101). Le premier bouton est vert quand l'en-tête n'en a pas.
@@ -3096,10 +3099,10 @@
         <button type="button" class="btn btn-ghost btn-sm" id="pp-plus-tard" title="Les deux restent dans « Me guider », en bas du menu">Non merci, je découvre seul</button>
       </section>` : ''}<div class="panel premiers-pas pp2">
       <div class="pp-tete"><div class="pp-tete-txt"><h2>Tes premiers pas</h2>
-        <p>Dans l'ordre où ils servent. Ce panneau disparaît tout seul une fois parcouru, et se retrouve dans l'Aide.</p></div>
+        <p>${metierCommence() ? `Ta gestion tourne déjà. ${p.total - p.faits > 1 ? `Restent ${p.total - p.faits} gestes` : 'Reste un geste'}, quand tu veux ; ce panneau disparaît une fois tout fait.` : 'Dans l\'ordre où ils servent. Ce panneau disparaît tout seul une fois parcouru, et se retrouve dans l\'Aide.'}</p></div>
         <div class="pp-jauge"><span class="pp-compte">${p.faits} sur ${p.total} faits</span>
           <div class="pp-barre" role="progressbar" aria-label="Tes premiers pas" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${p.faits}"><i style="width:${Math.round(p.faits / Math.max(p.total, 1) * 100)}%"></i></div></div></div>
-      <ol class="pp-list">${p.etapes.map(e => {
+      <ol class="pp-list">${p.etapes.filter(e => !(e.fait && metierCommence())).map(e => {
         // La découverte a déjà sa grande porte juste au-dessus tant que l'accueil est là : un second
         // bouton pour le même geste, dix lignes plus bas, ferait douter que ce soit le même.
         const a = e.action === 'decouverte' && accueil ? null : PAS_ACTIONS[e.action];
@@ -3275,7 +3278,7 @@
         </div></div>
       ${bandeauAbonnementAccueil()}
       ${bandeauAccordsAccueil()}
-      ${pas}
+      ${duGrain && metierCommence() ? '' : pas}
       ${todoPanel()}
       ${!duGrain ? '' : `
       <!-- Les quatre chiffres menaient nulle part (7.15.0). « Reste à encaisser : 8 400 DT,
@@ -3288,6 +3291,7 @@
         <div class="stat" data-stat="encaisser" role="button" tabindex="0" title="${open.length > 1 ? `Voir les ${pl(open.length, 'facture')} qui restent à encaisser` : open.length ? 'Voir la facture qui reste à encaisser' : 'Aucune facture ne reste à encaisser'}"><div class="lbl">Reste à encaisser ${info('dash.open')}</div><div class="val">${C.money(openAmount, cur)}</div><div class="sub">${pl(open.length, 'facture')}, ${late.length} en retard</div></div>
         <div class="stat" data-stat="devis" role="button" tabindex="0" title="Voir les devis envoyés sans réponse"><div class="lbl">Devis en attente ${info('dash.quotes')}</div><div class="val">${C.money(sumQ(pendingQuotes), cur)}</div><div class="sub">${pendingQuotes.length} devis ${pendingQuotes.length > 1 ? 'envoyés' : 'envoyé'}${expiredQuotes.length ? ` · <a href="#/devis" class="warn-link" id="go-expired">${expiredQuotes.length} ${expiredQuotes.length > 1 ? 'expirés' : 'expiré'}</a>` : ''}</div></div>
       </div>
+      ${metierCommence() ? pas : ''}
       <div class="dash-grid">
         <div class="panel"><h2>Activité des 12 derniers mois ${info('dash.chart')}</h2>
           ${duGraphique ? `${barChart(series)}

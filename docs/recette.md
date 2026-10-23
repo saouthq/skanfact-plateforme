@@ -1094,7 +1094,11 @@ Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT d
       l'ouverture qui tarde ou que le serveur refuse, dans l'entreprise et au Cabinet (*fait en 1.136.0 : `docs/hors-ligne.md`*).
     - **UX 3 — une interface qui donne envie** : une seule façon de dire un état (calme, attire, alerte) dans
       l'entreprise, le Cabinet et la console, un catalogue des pièces de l'écran tenu par des tests, puis une passe
-      visuelle sur les écrans du quotidien (accueil, listes, pièces, téléphone), dans la DA.
+      visuelle sur les écrans du quotidien (accueil, listes, pièces, téléphone), dans la DA. *Commencé en 1.139.0 :
+      l'Accueil d'une entreprise qui facture déjà se lit dans l'ordre du travail (l'« À faire », les chiffres, puis
+      seulement les premiers pas qui restent ; la bienvenue se retire, `web/v10/accueil-au-travail.txt`) ; au Cabinet,
+      « dont 1 sans justificatif » se réclame depuis la carte du mois, et un cabinet d'une seule personne ne se voit
+      plus proposer de confier ses dossiers (`web/v10/suivi-seul.txt`).*
     - **Ensuite** : la recherche Ctrl K aussi au Cabinet et à la console ; la barre du bas au téléphone pour les écrans du
       quotidien ; la photo d'un ticket qui file dans les achats et chez le comptable d'un geste ; les rappels par e-mail du
       cabinet au rythme choisi par le client ; ce que le cabinet a le droit de faire, dit en clair, avec une seule liste

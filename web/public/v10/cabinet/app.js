@@ -2435,7 +2435,8 @@
     zone.innerHTML = `<h2>Ce mois-ci · ${esc(nom)}</h2>
       <p class="small" data-ce-mois-pieces>${esc(pieces)}</p>${etat ? `<p class="small" data-ce-mois-etat>${esc(etat)}</p>` : ''}
       ${r.validees || r.brouillard ? `<div class="inline mt">${r.brouillard ? `<button type="button" class="btn btn-sm${vert ? ' btn-primary' : ''}" data-ce-mois-valider>Valider les écritures ${esc(K.de(nom))}</button>` : ''}
-        <button type="button" class="btn btn-sm" data-ce-mois-journal>Voir le livre-journal ${esc(K.de(nom))}</button></div>` : ''}`;
+        <button type="button" class="btn btn-sm" data-ce-mois-journal>Voir le livre-journal ${esc(K.de(nom))}</button>${r.sansJustificatif && api.messagerie ? `
+        <button type="button" class="btn btn-sm" data-ce-mois-justif>${r.sansJustificatif > 1 ? 'Demander les justificatifs' : 'Demander le justificatif'}</button>` : ''}</div>` : ''}`;
     const ouvrir = aValider => {
       changerDeDossierCompta(dossier.id);
       livresState.annee = mois.slice(0, 4);
@@ -2445,6 +2446,14 @@
     const v = zone.querySelector('[data-ce-mois-valider]'), j = zone.querySelector('[data-ce-mois-journal]');
     if (v) v.onclick = () => ouvrir(true);
     if (j) j.onclick = () => ouvrir(false);
+    // (plateforme) 1.139.0 — « dont 1 sans justificatif » se réclame d'ici, la demande écrite d'avance dans le fil du
+    // client, comme depuis la ligne de l'achat (UX 3 : la carte disait le manque sans offrir le geste).
+    const dj = zone.querySelector('[data-ce-mois-justif]');
+    if (dj) dj.onclick = () => {
+      const n = r.sansJustificatif;
+      demandePreparee = { id: dossier.id, texte: n > 1 ? `Les justificatifs de tes ${n} achats ${K.de(nom)} enregistrés sans pièce dans SkanFact` : `Le justificatif de ton achat ${K.de(nom)} enregistré sans pièce dans SkanFact` };
+      location.hash = '#/messages/' + encodeURIComponent(dossier.id) + '/demande';
+    };
   }
   async function dessinerMoisTenus(dossier) {
     let index = null;
@@ -10856,7 +10865,8 @@
   // pas d'appel, donc pas de panneau qui apparaît une seconde après le reste.
   function panneauDroits(dossier) {
     const liste = (S.collaborateurs || []).filter(c => c.actif);
-    if (!liste.length) return '';
+    // (plateforme) 1.139.0 — seul au cabinet, il n'y a personne à qui confier le dossier (UX 3).
+    if (liste.length < 2) return '';
     const droits = dossier.droits || {};
     const confies = liste.filter(c => droits[c.id]);
     return `<div class="panel" id="d-droits"><h2>Qui travaille sur ce dossier ${info('eq.droits')}</h2>

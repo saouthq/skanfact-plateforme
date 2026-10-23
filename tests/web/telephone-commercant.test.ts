@@ -128,13 +128,16 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
       return {
         carte: { left: r.left, right: r.right, top: r.top, bottom: r.bottom },
         titre: cases.find((x) => x.role === 'titre')?.texte,
-        montants: cases.filter((x) => /Net à payer|Reste/.test(x.titre)).map((x) => ({ titre: x.titre, texte: x.texte, left: x.r.left, right: x.r.right })),
+        montants: cases.filter((x) => /Net à payer|Reste/.test(x.titre)).map((x) => ({ titre: x.titre, texte: x.texte, left: x.r.left, right: x.r.right, top: x.r.top })),
+        // (1.139.0) Les montants d'abord : rien d'autre que le titre n'est au-dessus d'eux.
+        dessus: cases.filter((x) => x.role !== 'titre' && x.texte && x.texte !== 'Actions' && !/Net à payer|Reste/.test(x.titre)).map((x) => x.r.top),
         actions: actions && { left: actions.left, right: actions.right, top: actions.top, bottom: actions.bottom },
       };
     }));
     expect(cartes.map((x) => x.titre)).toEqual(['FAC-2026-002', 'FAC-2026-001']);
     for (const x of cartes) {
       expect(x.montants.map((m) => m.titre)).toEqual(['"Net à payer"', '"Reste"']);
+      expect(Math.min(...x.dessus)).toBeGreaterThan(Math.max(...x.montants.map((m) => m.top)));
       for (const m of x.montants) { expect(m.left).toBeGreaterThanOrEqual(x.carte.left); expect(m.right).toBeLessThanOrEqual(Math.min(x.carte.right, 390) + 0.5); }
       // « Actions » dans sa carte, en haut à droite.
       const a = x.actions;
