@@ -36,6 +36,8 @@ vaut pour tout le dépôt.*
   efface tout ; le propriétaire décide. Un test hors ligne coupe le réseau en ARRÊTANT le serveur : le
   service des écrans passe à côté de la coupure que le navigateur simule (ou on le bloque dans le
   contexte du navigateur, `serviceWorkers: 'block'`, quand le parcours n'a pas à rouvrir sans réseau).
+  (1.136.0) L'ouverture qui tarde le dit (« Ouverture de ton entreprise… », plus de dix secondes : « plus long que
+  d'habitude ») ; refusée par le serveur, elle le dit, avec « Réessayer » et la page d'état (`poste.js`, « L'ouverture »).
 - **La lecture d'une facture d'achat en photo ou en PDF** (brique 84, `docs/achats.md`) : sur NOS serveurs
   (Tesseract, Poppler : `serveur/achats/lecteur.ts`, une file de deux lectures), le fichier jamais gardé ;
   une proposition que la v10 fait relire, chaque champ avec la ligne où il a été lu, le total recompté

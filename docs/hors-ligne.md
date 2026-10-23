@@ -316,3 +316,22 @@ un geste « Pas de réseau : rien n'a été fait. Refais ce geste quand la conne
 un serveur qui ne répond pas, le réseau présent, garde l'ancienne phrase. La messagerie et la boîte du cabinet gardent
 leur titre, le disent (« Pas de réseau : la messagerie attend la connexion. ») et se relisent dès le retour du réseau
 (`docs/messagerie.md`). Tenu par `tests/web/messagerie.test.ts`, preuves « ux2 134 ».
+
+## 1.136.0 : l'ouverture qui tarde, ou que le serveur refuse (UX 2, fait le 23/10/2026)
+
+La recette du 23/10/2026, le serveur ralenti puis mis en erreur par le navigateur : pendant une ouverture lente, le
+Cabinet restait **tout blanc**, et l'entreprise montrait une barre sans menu ni contenu ; rien ne disait que ça venait.
+Une erreur du serveur à l'ouverture (une 500 sur le dossier ou le portefeuille) laissait la page blanche **pour toujours**
+(l'erreur ne remontait à personne). Désormais (`poste.js`, « L'ouverture », appelée par `pont.js` et `pont-cabinet.js`) :
+
+- au-delà de 400 ms (une ouverture rapide ne clignote pas), la page dit « Ouverture de ton entreprise… » (ou « de ton
+  cabinet ») ; au-delà de 10 secondes : « C'est plus long que d'habitude : la connexion est peut-être lente. Rien n'est
+  perdu ; la page s'ouvre dès que le serveur répond. » La réponse venue, le message s'en va ;
+- refusée par le serveur, la page dit « SkanFact n'a pas pu ouvrir ton entreprise. », la raison du serveur, que rien
+  n'est perdu, et offre « Réessayer » (qui recharge) et « Voir la page d'état » (`/etat`) ;
+- sans réseau, rien ne change : la copie du poste s'ouvre, ou le bandeau dit pourquoi (`sansCopie`, qui retire le
+  message d'ouverture).
+
+Vu à l'écran (ordinateur et téléphone). Tenu par `tests/web/ouverture.test.ts` (les réponses retenues, puis refusées, par
+le navigateur), cinq preuves « ux2 136 ». **Reste à faire** (UX 2) : une lecture de page qui échoue après l'ouverture (la
+carte « Ce mois-ci » du Suivi au Cabinet disparaît sans rien dire quand le serveur la refuse), et la console.

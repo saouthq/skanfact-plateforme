@@ -1,0 +1,117 @@
+// L'ouverture d'une page, quand le serveur tarde ou refuse (1.136.0 ; UX 2, docs/hors-ligne.md). À la souris, dans un
+// vrai navigateur ; le serveur est ralenti ou mis en erreur par le navigateur lui-même (ses réponses retenues, ou
+// remplacées par une erreur 500). Ce que le parcours vérifie, dans l'entreprise ET au Cabinet :
+//   - lente, la page dit « Ouverture de ton entreprise… » (ou « de ton cabinet »), au lieu d'un écran blanc ; au-delà de
+//     dix secondes, que c'est plus long que d'habitude ; la réponse venue, la page s'ouvre et le message s'en va ;
+//   - refusée par le serveur, la page le dit, avec la raison, « Réessayer » et la page d'état ; « Réessayer », le
+//     serveur revenu, ouvre la page.
+
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { chromium, type Browser, type Page } from 'playwright-core';
+import { build } from 'vite';
+import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
+import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
+
+const RACINE = path.join(import.meta.dirname, '../..');
+
+describe('l\'ouverture d\'une page, le serveur lent ou en erreur', () => {
+  let navigateur: Browser;
+  let serveur: Awaited<ReturnType<typeof demarrer>>;
+  const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-ouverture-'));
+  beforeAll(async () => {
+    await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
+    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
+    navigateur = await chromium.launch();
+  }, 120_000);
+  afterAll(async () => { await navigateur?.close(); await serveur?.arreter(); fs.rmSync(dossier, { recursive: true, force: true }); });
+
+  const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
+    const r = await fetch(`${serveur.adresse}/v1${chemin}`, {
+      method: methode, headers: { ...(jeton ? { authorization: `Bearer ${jeton}` } : {}), ...(corps === undefined ? {} : { 'content-type': 'application/json' }) },
+      ...(corps === undefined ? {} : { body: JSON.stringify(corps) }),
+    });
+    const texte = await r.text();
+    return { statut: r.status, corps: (texte ? JSON.parse(texte) : {}) as Record<string, unknown> };
+  };
+  const personne = async (nom: string) => {
+    const email = `${nom}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom, motDePasse: 'Un-bon-mot-de-passe' });
+    const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    await api('POST', '/moi/code', jeton, { methode: 'application' });
+    return jeton;
+  };
+  const ouvrir = async (jeton: string) => {
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    return cx.newPage();
+  };
+  const couche = (p: Page) => p.locator('#poste-ouverture');
+  // Les lectures qui ouvrent la page, retenues jusqu'à ce que le parcours les relâche (ou remplacées par une erreur).
+  const retenir = async (p: Page, motif: RegExp) => {
+    let relacher = () => {};
+    const relache = new Promise<void>((ok) => { relacher = ok; });
+    await p.route((u) => motif.test(u.pathname), async (r) => { await relache; await r.continue().catch(() => {}); });
+    return () => relacher();
+  };
+  const refuser = (p: Page, motif: RegExp) => p.route((u) => motif.test(u.pathname), (r) => r.fulfill({ status: 500, contentType: 'application/json', body: JSON.stringify({ erreur: 'interne' }) }));
+
+  it('l\'entreprise : lente, elle dit qu\'elle s\'ouvre ; refusée, elle le dit, et « Réessayer » l\'ouvre', async () => {
+    const jeton = await personne('sarra');
+    const ent = String((await api('POST', '/entreprises', jeton, { raisonSociale: 'Boulangerie El Amal' })).corps.id);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, jeton);
+    const p = await ouvrir(jeton);
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    const relacher = await retenir(p, /\/dossier-v10$/);
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
+    await expect.poll(() => couche(p).innerText().catch(() => ''), { timeout: 5000 }).toContain('Ouverture de ton entreprise…');
+    expect(await p.locator('#po-lent').count()).toBe(0);
+    await expect.poll(() => p.locator('#po-lent').count(), { timeout: 15_000 }).toBe(1);
+    expect(await p.locator('#po-lent').innerText()).toContain('plus long que d\'habitude');
+    relacher();
+    await expect.poll(() => couche(p).count(), { timeout: 15_000 }).toBe(0);
+    await expect.poll(() => p.locator('#view').innerText().catch(() => ''), { timeout: 15_000 }).not.toBe('');
+
+    // Le serveur refuse : la raison, « Réessayer », la page d'état. Rien ne reste blanc, et la page ne plante pas.
+    await p.unrouteAll({ behavior: 'ignoreErrors' });
+    await refuser(p, /\/dossier-v10$/);
+    await p.reload();
+    await expect.poll(() => couche(p).innerText().catch(() => ''), { timeout: 10_000 }).toContain('SkanFact n\'a pas pu ouvrir ton entreprise.');
+    expect(await couche(p).getAttribute('role')).toBe('alert');
+    expect(await p.locator('#po-motif').innerText()).toMatch(/erreur/i);
+    expect(await couche(p).getByRole('link', { name: 'Voir la page d\'état' }).getAttribute('href')).toBe('/etat');
+    expect(erreurs).toEqual([]);
+    await p.unrouteAll({ behavior: 'ignoreErrors' });
+    await couche(p).getByRole('button', { name: 'Réessayer', exact: true }).click();
+    await expect.poll(() => couche(p).count(), { timeout: 15_000 }).toBe(0);
+    await expect.poll(() => p.locator('#view').innerText().catch(() => ''), { timeout: 15_000 }).not.toBe('');
+    await p.context().close();
+  }, 120_000);
+
+  it('le Cabinet : lent, il dit qu\'il s\'ouvre ; refusé, il le dit, et « Réessayer » l\'ouvre', async () => {
+    const jeton = await personne('hatem');
+    const cabinet = String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Jlassi Conseil' })).corps.id);
+    const p = await ouvrir(jeton);
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    const relacher = await retenir(p, /\/portefeuille$/);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossiers`);
+    await expect.poll(() => couche(p).innerText().catch(() => ''), { timeout: 5000 }).toContain('Ouverture de ton cabinet…');
+    relacher();
+    await expect.poll(() => couche(p).count(), { timeout: 15_000 }).toBe(0);
+    await expect.poll(() => p.getByRole('heading', { name: 'Dossiers', exact: true }).count(), { timeout: 15_000 }).toBe(1);
+
+    await p.unrouteAll({ behavior: 'ignoreErrors' });
+    await refuser(p, /\/portefeuille$/);
+    await p.reload();
+    await expect.poll(() => couche(p).innerText().catch(() => ''), { timeout: 10_000 }).toContain('SkanFact n\'a pas pu ouvrir ton cabinet.');
+    expect(erreurs).toEqual([]);
+    await p.unrouteAll({ behavior: 'ignoreErrors' });
+    await couche(p).getByRole('button', { name: 'Réessayer', exact: true }).click();
+    await expect.poll(() => p.getByRole('heading', { name: 'Dossiers', exact: true }).count(), { timeout: 15_000 }).toBe(1);
+    expect(await couche(p).count()).toBe(0);
+    await p.context().close();
+  }, 120_000);
+});

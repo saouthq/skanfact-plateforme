@@ -3533,9 +3533,7 @@ prouver "la raison d'un écran vide recouverte par « Hors ligne depuis… »" w
 " "" \
   "$HL2"
 prouver "hors ligne, la copie du poste jamais ouverte" $PONT \
-  "        if (!/** @type {any} */ (e).horsLigne) throw e;
-        const copie = avecTicketsEnAttente(await lireLaCopie());" "        throw e;
-        const copie = avecTicketsEnAttente(await lireLaCopie());" \
+  "        if (!/** @type {any} */ (e).horsLigne) {" "        if (true) {" \
   "$HL1"
 prouver "la copie jamais écrite après une lecture" $PONT \
   "    questionsLues = data.questionsCabinet;
@@ -20190,6 +20188,21 @@ prouver 'mois 135 : l'\''onglet du justificatif qui reste vide' web/public/plate
 prouver 'mois 135 : le mois d'\''avant le livre dit sans déclaration' web/public/v10/cabinet/app.js \
   "n'est pas dans ce livre : sa déclaration, à déposer au plus tard le \${esc(fmtJour(K.dateLimiteDeclaration(S, precedent, 'tva', dossier)))}, se fait" "n'est pas dans ce livre : rien à déposer avant lui, se fait" \
   'un dossier commencé ce mois-ci : pas de « Déclarer le mois d'\''avant », pas d'\''alerte 4367 avant la fin du mois'
+prouver 'ux2 136 : l'\''entreprise qui s'\''ouvre sur un écran muet' web/public/plateforme/pont.js \
+  "      poste.ouverture('ton entreprise');" "" \
+  'l'\''entreprise : lente, elle dit qu'\''elle s'\''ouvre ; refusée, elle le dit, et « Réessayer » l'\''ouvre'
+prouver 'ux2 136 : l'\''entreprise refusée à l'\''ouverture qui reste blanche' web/public/plateforme/pont.js \
+  "poste.echecOuverture('ton entreprise', e);" "throw e;" \
+  'l'\''entreprise : lente, elle dit qu'\''elle s'\''ouvre ; refusée, elle le dit, et « Réessayer » l'\''ouvre'
+prouver 'ux2 136 : l'\''ouverture longue qui ne dit pas qu'\''elle tarde' web/public/plateforme/poste.js \
+  ", 10_000)," ", 1e9)," \
+  'l'\''entreprise : lente, elle dit qu'\''elle s'\''ouvre ; refusée, elle le dit, et « Réessayer » l'\''ouvre'
+prouver 'ux2 136 : le Cabinet qui s'\''ouvre sur une page blanche' web/public/plateforme/pont-cabinet.js \
+  "    if (poste) poste.ouverture('ton cabinet');" "" \
+  'le Cabinet : lent, il dit qu'\''il s'\''ouvre ; refusé, il le dit, et « Réessayer » l'\''ouvre'
+prouver 'ux2 136 : le Cabinet refusé à l'\''ouverture qui reste blanc' web/public/plateforme/pont-cabinet.js \
+  "poste.echecOuverture('ton cabinet', e);" "throw e;" \
+  'le Cabinet : lent, il dit qu'\''il s'\''ouvre ; refusé, il le dit, et « Réessayer » l'\''ouvre'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

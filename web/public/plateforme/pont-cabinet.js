@@ -202,14 +202,22 @@
   setInterval(() => { if (navigator.onLine && attentes && attentes.some((x) => !x.refus)) void envoyer(); }, 30_000);
 
   // L'ouverture : le cabinet, ou, sans réseau ni copie, la raison (et « Réessayer »).
+  // (1.136.0) Tant que le serveur n'a pas répondu, la page dit qu'elle s'ouvre (l'écran restait blanc) ; un refus du serveur
+  // le dit, avec « Réessayer » (poste.js, « L'ouverture »), au lieu d'une page blanche pour toujours.
   async function ouvrirLeCabinet() {
+    if (poste) poste.ouverture('ton cabinet');
     try {
       const etat = await construireEtat();
+      if (poste) poste.finOuverture();
       setTimeout(() => { void emporter(); }, 4000);
       void envoyer();
       return etat;
     } catch (e) {
-      if (!(poste && e && /** @type {any} */ (e).horsLigne)) throw e;
+      if (!poste) throw e;
+      if (!(e && /** @type {any} */ (e).horsLigne)) {
+        poste.echecOuverture('ton cabinet', e);
+        return await new Promise(() => { /* rien ne s'ouvre : « Réessayer » recharge */ });
+      }
       poste.sansCopie(poste.garde()
         ? 'Hors ligne, et ce poste n\'a pas encore de copie de ce cabinet : ouvre-le une fois avec le réseau pour pouvoir le consulter ensuite sans lui.'
         : 'Hors ligne : sur l\'ordinateur d\'un autre, rien n\'est gardé sur le poste. Reviens quand le réseau sera là.');

@@ -1093,6 +1093,8 @@
       // (docs/leger.md, S2) : l'état de l'abonnement (la v10 le lit juste avant de dessiner) et les remises des appareils
       // retirés ; les questions du cabinet partent avec le dossier (`relire`). Demandées l'une après l'autre, elles
       // coûtaient trois allers-retours, presque une seconde sur une connexion lente.
+      // (1.136.0) Tant que le serveur n'a pas répondu, la page dit qu'elle s'ouvre (poste.js, « L'ouverture »).
+      poste.ouverture('ton entreprise');
       avancerAbonnement();
       const remisesLues = lireRemises();
       const attente = await poste.lireAttente(ent).catch(() => null);
@@ -1106,11 +1108,18 @@
         // La page reçoit ce dossier : elle a chacun de ses objets (brique 112).
         adopter();
         await chargerRemises(remisesLues);
+        poste.finOuverture();
         return { data, corruptFile: null };
       } catch (e) {
         if (/** @type {any} */ (e).statut === 404) return await plusOuverte();
-        if (!/** @type {any} */ (e).horsLigne) throw e;
+        // (1.136.0) Un refus du serveur à l'ouverture laissait l'écran blanc pour toujours (l'erreur ne remontait à
+        // personne) : la page le dit, avec « Réessayer ».
+        if (!/** @type {any} */ (e).horsLigne) {
+          poste.echecOuverture('ton entreprise', e);
+          return await new Promise(() => { /* rien ne s'ouvre : « Réessayer » recharge */ });
+        }
         const copie = avecTicketsEnAttente(await lireLaCopie());
+        poste.finOuverture();
         if (fileTickets.length) annoncerAttente();
         if (!attente) return { data: copie, corruptFile: null };
         // Ce qui a été enregistré sans réseau se montre, et attend toujours.

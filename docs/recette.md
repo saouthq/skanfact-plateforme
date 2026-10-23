@@ -1090,7 +1090,8 @@ Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT d
       noms de boutons, la fin de la validation.
     - **UX 2 — les états de chaque écran** (vide, chargement, erreur, lecture seule, hors ligne), dans les trois
       applications ; d'abord la lecture seule des autres listes (achats, clients, stock…), comme les factures et les devis
-      en 1.122.0 (*fait en 1.134.0 : `docs/abonnement.md` C24 ; et la messagerie sans réseau, `docs/messagerie.md`*).
+      en 1.122.0 (*fait en 1.134.0 : `docs/abonnement.md` C24 ; et la messagerie sans réseau, `docs/messagerie.md`*) ;
+      l'ouverture qui tarde ou que le serveur refuse, dans l'entreprise et au Cabinet (*fait en 1.136.0 : `docs/hors-ligne.md`*).
     - **UX 3 — une interface qui donne envie** : une seule façon de dire un état (calme, attire, alerte) dans
       l'entreprise, le Cabinet et la console, un catalogue des pièces de l'écran tenu par des tests, puis une passe
       visuelle sur les écrans du quotidien (accueil, listes, pièces, téléphone), dans la DA.
