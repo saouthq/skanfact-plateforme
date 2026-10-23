@@ -20038,6 +20038,9 @@
   // (U-11). Elle porte la couleur du domaine de la page, comme la visite qu'elle propose.
   const VISITE_PROPOSEE_MAX = 3;
   let appelEnAttente = '';
+  // (plateforme) 1.129.0 — une seule proposition par ouverture de l'application : trois en cinq minutes, c'était du bruit
+  // (revue du mois d'un client, point 16). Les pages suivantes se taisent jusqu'à la prochaine ouverture.
+  let visiteProposeeIci = false;
   function fermerAppelGuide() {
     const a = document.getElementById('guide-appel');
     if (a) { if (typeof a._fermer === 'function') a._fermer(); else a.remove(); }
@@ -20051,6 +20054,7 @@
     const p = visitePage(route);
     const et = visitesEtat();
     if (!p || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[route] || 0) >= VISITE_PROPOSEE_MAX)) return;
+    if (visiteProposeeIci && !reprise) return;
     // Deux invitations l'une sous l'autre se contredisent (7.18.0) : quand l'accueil propose déjà
     // « Nouveau sur SkanFact ? », la visite de la page se tait — et ne compte pas cette ouverture.
     // (plateforme, lot onboarding) Les premiers pas sont l'invitation de l'accueil : la bulle de la visite de la page s'y
@@ -20061,6 +20065,7 @@
     if (!bouton) { appelEnAttente = route; return; }
     fermerAppelGuide();
     if (!reprise) visitesPoser(e => { e.vues[route] = (e.vues[route] || 0) + 1; });
+    visiteProposeeIci = true;
     const coul = SkanVisites.couleurDe(p);
     const el = document.createElement('div');
     el.className = 'guide-appel' + (coul ? ' th-' + coul : '');
@@ -20073,7 +20078,8 @@
       <p class="ga-txt">${h(p.resume || '')} Je te montre à quoi elle sert et ce que fait chaque bouton, en ${h(p.duree || 'une minute')}.</p>
       <div class="ga-actions"><button type="button" class="btn btn-sm ga-go" id="ga-go">${ICONE_LECTURE}Faire la visite</button>
         <button type="button" class="btn btn-ghost btn-sm" id="ga-non" title="Ne plus me proposer la visite de cette page">Plus tard</button></div>
-      <p class="ga-note">Tu la retrouves dans « Guide-moi », avec tout ce qu'on peut faire ici.</p>`;
+      <p class="ga-note">Tu la retrouves dans « Guide-moi », avec tout ce qu'on peut faire ici.
+        <button type="button" class="ga-jamais" id="ga-jamais">Ne plus me proposer de visites</button></p>`;
     document.body.appendChild(el);
     const scroller = $('#view');
     const depart = scroller ? scroller.scrollTop : 0;
@@ -20118,6 +20124,11 @@
     window.addEventListener('scroll', defile, { passive: true });
     $('#ga-go', el).onclick = () => { fermer(); lancerVisite(p); };
     $('#ga-non', el).onclick = () => { visitesPoser(e => { e.vues[route] = VISITE_PROPOSEE_MAX; }); fermer(); };
+    $('#ga-jamais', el).onclick = () => {
+      visitesPoser(e => { e.proposer = false; });
+      fermer();
+      toast('Plus de proposition de visite. Les visites restent dans « Guide-moi » ; la case de « Me guider » les rallume.');
+    };
   }
   const ICONE_GUIDE = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>';
   const ICONE_LECTURE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10.2 8.6l5 3.4-5 3.4z"/></svg>';

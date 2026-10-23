@@ -20101,6 +20101,15 @@ prouver 'mois 128 : le vert qui ne revient pas au code tapé' web/public/platefo
 prouver 'mois 128 : le cabinet qui nomme un chemin que le client ne prend pas' web/public/plateforme/pont-cabinet.js \
   "dans <strong>Comptabilité › Cabinet</strong> (ou Paramètres › Envois)," "dans <strong>Paramètres → Envois → Ton cabinet comptable</strong>," \
   'le client confie son dossier par le code que le Cabinet affiche ; l'\''associé accepte sur sa page Dossiers ; le client arrête le mandat après confirmation'
+prouver 'mois 129 : une proposition à chaque page neuve de la même ouverture' web/public/v10/app.js \
+  "if (visiteProposeeIci && !reprise) return;" "if (false) return;" \
+  'la première page neuve propose sa visite, la suivante se tait ; rouverte, elle propose ; « Ne plus me proposer » les éteint'
+prouver 'mois 129 : la proposition posée qui ne se compte pas' web/public/v10/app.js \
+  "visiteProposeeIci = true;" "visiteProposeeIci = false;" \
+  'la première page neuve propose sa visite, la suivante se tait ; rouverte, elle propose ; « Ne plus me proposer » les éteint'
+prouver 'mois 129 : « Ne plus me proposer » qui n'\''éteint rien' web/public/v10/app.js \
+  "visitesPoser(e => { e.proposer = false; });" "visitesPoser(e => { e.proposer = true; });" \
+  'la première page neuve propose sa visite, la suivante se tait ; rouverte, elle propose ; « Ne plus me proposer » les éteint'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

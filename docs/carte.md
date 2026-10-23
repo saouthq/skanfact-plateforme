@@ -454,11 +454,11 @@ vaut pour tout le dépôt.*
     plusieurs pièces en une demande, la même à plusieurs clients ; « Ouvrir » et « Saisir cette pièce » chez le cabinet
     (adaptation de `web/v10/messagerie.txt`). (1.117.0, `0169`) Les modèles du cabinet (`messagerie.modele`, hors de
     l'export), chercher dans un fil (`/messages/recherche`, `messagerie.plier`) et un client dans la boîte, la pastille
-    des messages sur la liste des dossiers du Cabinet. (1.123.0 à 1.128.0 ; `docs/revue-mois-client.md`,
-    `web/v10/mois-client.txt`, `web/v10/achats-confies.txt`, `web/v10/ce-mois-cabinet.txt`, `web/v10/invitation-d-abord.txt`) La photo jointe à l'achat que la demande cite ; la date de la pièce dans l'« À faire »
+    des messages sur la liste des dossiers du Cabinet. (1.123.0 à 1.129.0 ; `docs/revue-mois-client.md`,
+    `web/v10/mois-client.txt`, `web/v10/achats-confies.txt`, `web/v10/ce-mois-cabinet.txt`, `web/v10/invitation-d-abord.txt`, `web/v10/visites-une-fois.txt`) La photo jointe à l'achat que la demande cite ; la date de la pièce dans l'« À faire »
     (`pourLe`) ; « Ce mois-ci » dans « Mon comptable » (`GET /compta/resume`) ; au Cabinet, le oui ou non du
     justificatif d'un achat (`compta.achats_justifies`, `0173`), « Demander le justificatif » depuis la ligne, la
-    validation qui le dit ; la page Achats qui, les achats confiés au cabinet (`achatsConfies`), envoie d'abord la photo ; « Ce mois-ci » dans le Suivi d'un dossier au Cabinet, avec son geste ; l'invitation du comptable d'abord, son vert là où est le curseur.
+    validation qui le dit ; la page Achats qui, les achats confiés au cabinet (`achatsConfies`), envoie d'abord la photo ; « Ce mois-ci » dans le Suivi d'un dossier au Cabinet, avec son geste ; l'invitation du comptable d'abord, son vert là où est le curseur ; une proposition de visite par ouverture, et « Ne plus me proposer de visites ».
   - **Les e-mails du serveur sont habillés** (12/10/2026, maquette validée par Skander ; `serveur/courriel.ts`,
     `serveur/courriel.html`) : la version HTML dit EXACTEMENT le texte (qui part aussi), le code en grand, le lien en
     bouton qui nomme son geste (`…_bouton` au catalogue : un e-mail neuf qui porte un lien en déclare un, un test le

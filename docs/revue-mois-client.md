@@ -154,5 +154,8 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
     comptable » ; le code, « Confier mon dossier ». Au Cabinet, « Comment un client arrive jusqu'ici » nomme le chemin
     réel : « dans Comptabilité › Cabinet (ou Paramètres › Envois) ».
 - **Lot 3 (P3, 14–18)**, avec la passe visuelle UX 3 du carnet.
+  - **16** (1.129.0) : « Première fois sur cette page ? » se pose une fois par ouverture de l'application au plus (les
+    pages suivantes se taisent jusqu'à la prochaine), et porte « Ne plus me proposer de visites » : un geste éteint les
+    propositions, le dit, et la case de « Me guider » le montre (elle les rallume).
 
 Les captures : `m01` à `m48` de la recette (scratchpad de la session, non versées).

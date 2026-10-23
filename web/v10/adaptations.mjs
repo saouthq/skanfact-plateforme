@@ -890,4 +890,6 @@ export const ADAPTATIONS = [
   ...lireFichier('ce-mois-cabinet.txt'),
   // ── L'invitation d'abord : sans question reçue, le panneau du cabinet passe avant leur carte vide (1.128.0) ──
   ...lireFichier('invitation-d-abord.txt'),
+  // ── Une proposition de visite par ouverture, et « Ne plus me proposer de visites » d'un geste (1.129.0) ──
+  ...lireFichier('visites-une-fois.txt'),
 ];

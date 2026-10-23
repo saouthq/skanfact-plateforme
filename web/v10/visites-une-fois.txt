@@ -1,0 +1,66 @@
+Une proposition de visite par visite de l'application, et « Ne plus me proposer de visites » d'un geste (1.129.0 ;
+docs/revue-mois-client.md, point 16). Format : voir sans-paquets.mjs.
+
+La recette du 23/10/2026 : « Première fois sur cette page ? » trois fois en cinq minutes (Factures, Achats, Comptabilité),
+à chaque page neuve ; et pour ne plus les voir, il fallait trouver la case au fond de « Me guider ». La proposition se
+pose maintenant une fois par ouverture de l'application au plus, et elle porte son interrupteur.
+
+== app.js | une proposition de visite par ouverture de l'application au plus
+-- avant
+  const VISITE_PROPOSEE_MAX = 3;
+  let appelEnAttente = '';
+-- après
+  const VISITE_PROPOSEE_MAX = 3;
+  let appelEnAttente = '';
+  // (plateforme) 1.129.0 — une seule proposition par ouverture de l'application : trois en cinq minutes, c'était du bruit
+  // (revue du mois d'un client, point 16). Les pages suivantes se taisent jusqu'à la prochaine ouverture.
+  let visiteProposeeIci = false;
+-- fin
+
+== app.js | la proposition ne revient pas dans la même ouverture
+-- avant
+    if (!p || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[route] || 0) >= VISITE_PROPOSEE_MAX)) return;
+-- après
+    if (!p || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[route] || 0) >= VISITE_PROPOSEE_MAX)) return;
+    if (visiteProposeeIci && !reprise) return;
+-- fin
+
+== app.js | la proposition se compte quand elle se pose
+-- avant
+    if (!reprise) visitesPoser(e => { e.vues[route] = (e.vues[route] || 0) + 1; });
+    const coul = SkanVisites.couleurDe(p);
+-- après
+    if (!reprise) visitesPoser(e => { e.vues[route] = (e.vues[route] || 0) + 1; });
+    visiteProposeeIci = true;
+    const coul = SkanVisites.couleurDe(p);
+-- fin
+
+== app.js | « Ne plus me proposer de visites » sur la proposition même
+-- avant
+      <p class="ga-note">Tu la retrouves dans « Guide-moi », avec tout ce qu'on peut faire ici.</p>`;
+-- après
+      <p class="ga-note">Tu la retrouves dans « Guide-moi », avec tout ce qu'on peut faire ici.
+        <button type="button" class="ga-jamais" id="ga-jamais">Ne plus me proposer de visites</button></p>`;
+-- fin
+
+== app.js | « Ne plus me proposer de visites » éteint la case de « Me guider », et le dit
+-- avant
+    $('#ga-non', el).onclick = () => { visitesPoser(e => { e.vues[route] = VISITE_PROPOSEE_MAX; }); fermer(); };
+-- après
+    $('#ga-non', el).onclick = () => { visitesPoser(e => { e.vues[route] = VISITE_PROPOSEE_MAX; }); fermer(); };
+    $('#ga-jamais', el).onclick = () => {
+      visitesPoser(e => { e.proposer = false; });
+      fermer();
+      toast('Plus de proposition de visite. Les visites restent dans « Guide-moi » ; la case de « Me guider » les rallume.');
+    };
+-- fin
+
+== style.css | « Ne plus me proposer de visites » se lit comme un lien discret, sous la note
+-- avant
+.guide-appel .ga-note { margin: 10px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+-- après
+.guide-appel .ga-note { margin: 10px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.45; }
+/* (plateforme) 1.129.0 — l'interrupteur des propositions, sur la proposition même : discret, il ne prend pas le vert. */
+.guide-appel .ga-jamais { display: block; margin-top: 6px; padding: 0; border: 0; background: none; font: inherit; color: var(--muted); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.guide-appel .ga-jamais:hover { color: var(--text); }
+-- fin

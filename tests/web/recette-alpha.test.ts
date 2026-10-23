@@ -124,7 +124,11 @@ describe('la recette alpha, à la souris', () => {
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     expect((await p.locator('#cs-familles [data-famille]').allInnerTexts()).map(net)).toEqual(['Tout']);
     const haut = () => p.locator('#cs-articles').evaluate((e) => Math.round(e.getBoundingClientRect().top));
-    const avant = await haut();
+    // (1.129.0) La position se lit une fois la caisse posée (deux lectures égales à 300 ms d'écart) : la proposition de
+    // visite, qu'il fallait fermer avant, ne se pose plus qu'une fois par ouverture de l'application, et la caisse se
+    // lisait encore en train de se dessiner.
+    let avant = -1;
+    await expect.poll(async () => { const a = await haut(); await p.waitForTimeout(300); const b = await haut(); avant = b; return a === b; }, { timeout: 10_000 }).toBe(true);
     await p.locator('#cs-articles .cs-art').filter({ hasText: 'Colle à bois' }).click();
     await p.locator('#cs-encaisser').click();
     await p.locator('#cs-paiement [data-mode=carte]').click();
