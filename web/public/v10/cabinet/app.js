@@ -2400,6 +2400,40 @@
   // Chaque mois porte son geste : saisir celui qui n'a rien, ouvrir la déclaration des autres.
   const MOT_TENU = { saisi: 'à saisir', revise: 'saisi', declare: 'révisé', fini: 'déclaré' };
   const CASE_TENU = { saisi: 'manquant', revise: 'provisoire', declare: 'provisoire', fini: 'complet' };
+  // (plateforme) 1.127.0 — le mois en cours d'un client sur SkanFact, lu dans ses livres : les pièces arrivées (ventes,
+  // achats, achats sans justificatif), ce qui attend au brouillard, la dernière validation ; et le geste, valider les
+  // écritures du mois (revue du mois d'un client, point 9). Même résumé que la carte du client dans « Mon comptable ».
+  async function dessinerCeMois(dossier, vert) {
+    const mois = K.today().slice(0, 7), nom = K.monthLabel(mois);
+    let r = null;
+    try { r = await api.ceMois(dossier.id, mois + '-01', K.today()); } catch (_) { r = null; }
+    // La page a pu changer pendant la lecture : la zone doit être celle de CE dossier.
+    const zone = document.getElementById('d-ce-mois');
+    if (!zone || zone.dataset.id !== dossier.id) return;
+    if (!r) { zone.remove(); return; }
+    const fr = d => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+    const le = r.valideeLe ? ` (dernière validation le ${fr(r.valideeLe)})` : '';
+    const pieces = !r.ventes && !r.achats ? 'Aucune vente ni aucun achat dans ses livres ce mois-ci.'
+      : `${r.ventes ? pl(r.ventes, 'vente') : 'Aucune vente'} · ${r.achats ? pl(r.achats, 'achat') : 'aucun achat'}${r.sansJustificatif ? `, dont ${r.sansJustificatif} sans justificatif` : ''}, dans ses livres.`;
+    const etat = !r.validees && !r.brouillard ? ''
+      : !r.validees ? `${pl(r.brouillard, 'écriture attend', 'écritures attendent')} au brouillard : rien n'est encore validé.`
+        : !r.brouillard ? `Tout le mois est validé : ${pl(r.validees, 'écriture')}${le}.`
+          : `${pl(r.brouillard, 'écriture attend', 'écritures attendent')} au brouillard ; ${pl(r.validees, 'écriture validée', 'écritures validées')}${le}.`;
+    // Un seul vert par écran : celui-ci, sauf quand « Relancer », en haut, l'est déjà (un mois manque).
+    zone.innerHTML = `<h2>Ce mois-ci · ${esc(nom)}</h2>
+      <p class="small" data-ce-mois-pieces>${esc(pieces)}</p>${etat ? `<p class="small" data-ce-mois-etat>${esc(etat)}</p>` : ''}
+      ${r.validees || r.brouillard ? `<div class="inline mt">${r.brouillard ? `<button type="button" class="btn btn-sm${vert ? ' btn-primary' : ''}" data-ce-mois-valider>Valider les écritures ${esc(K.de(nom))}</button>` : ''}
+        <button type="button" class="btn btn-sm" data-ce-mois-journal>Voir le livre-journal ${esc(K.de(nom))}</button></div>` : ''}`;
+    const ouvrir = aValider => {
+      changerDeDossierCompta(dossier.id);
+      livresState.annee = mois.slice(0, 4);
+      if (!aValider) { livresState.mode = 'mois'; livresState.mois = mois; }
+      location.hash = '#/dossier/' + encodeURIComponent(dossier.id) + '/comptabilite/' + (aValider ? 'saisie' : 'journal') + '/' + mois.slice(0, 4);
+    };
+    const v = zone.querySelector('[data-ce-mois-valider]'), j = zone.querySelector('[data-ce-mois-journal]');
+    if (v) v.onclick = () => ouvrir(true);
+    if (j) j.onclick = () => ouvrir(false);
+  }
   async function dessinerMoisTenus(dossier) {
     let index = null;
     try { index = await api.livreIndex(dossier.id); } catch (_) { index = null; }
@@ -2568,6 +2602,8 @@
       </div>
 
       <section data-onglet="suivi" ${onglet === 'suivi' ? '' : 'hidden'}>
+      ${!dossier.manual && api.ceMois ? `<div class="panel" id="d-ce-mois" data-id="${esc(dossier.id)}"><h2>Ce mois-ci · ${esc(K.monthLabel(K.today().slice(0, 7)))}</h2>
+        <span class="muted small">Lecture de ses livres…</span></div>` : ''}
       <div class="panel"><h2>Les mois de ce client ${dossier.manual ? info('p.moisTenus') : info('p.definitif')}</h2>
         ${/* Les DOUZE mois de chaque année, pas seulement ceux attendus. L'écran en montrait six
               sous une étiquette « 2026 », sans dire pourquoi : on ne savait pas si la mission
@@ -2755,6 +2791,7 @@
       };
     });
     if (dossier.manual) dessinerMoisTenus(dossier);
+    else if (api.ceMois && document.getElementById('d-ce-mois')) dessinerCeMois(dossier, !row.missingCount);
     // Le menu d'un paquet dit « Voir ses écritures » ou « Créer le livre » : il le demande à
     // l'INDEX de CE dossier, lu sans déchiffrer (9.1.0). Il jugeait sur le livre gardé en mémoire —
     // absent après un redémarrage (« Créer le livre » sur un livre qui existe), ou celui d'un AUTRE

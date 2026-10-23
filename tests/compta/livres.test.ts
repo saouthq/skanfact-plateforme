@@ -138,6 +138,30 @@ describe('les livres tenus par le serveur', () => {
     expect(origines.every((o) => o.n === 1)).toBe(true);
   });
 
+  // (1.127.0) Le résumé d'un mois compte les pièces arrivées dans les livres : une vente ou un achat, une fois chacun
+  // (ni l'encaissement ni le règlement), et les achats sans justificatif. Le Suivi d'un dossier au Cabinet le dit.
+  it('le résumé d\'un mois : les ventes (facture, avoir) et les achats, sans leurs règlements, et les achats sans justificatif', async () => {
+    const e = await essai();
+    const c = await clientDe(e);
+    await e.envoyer('documents', 'f1', facture('f1', c.cle));
+    const emise = await appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre`, e.jeton, { document: facture('f1', c.cle), client: c.contenu, revision: 1, rang: 0, netAPayer: '1057.107' });
+    expect(emise.statut, JSON.stringify(emise.corps)).toBe(200);
+    const contenu = emise.corps.contenu as Record<string, unknown>;
+    expect((await e.envoyer('documents', 'f1', { ...contenu, payments: [{ id: 'p1', date: '2026-10-05', amount: 500, method: 'especes' }] })).statut).toBe(200);
+    expect((await appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre-avoir`, e.jeton, { document: avoir('a1', c.cle, 'f1'), client: c.contenu, revision: null, rang: 1, netAPayer: '536.095' })).statut).toBe(200);
+    expect((await e.envoyer('suppliers', 's1', { id: 's1', name: 'Papeterie du Lac' })).statut).toBe(200);
+    const achat = (id: string, date: string, payments: unknown[]) => ({ id, kind: 'facture', number: `FF-${id}`, date, supplierId: 's1', currency: 'DT', exchangeRate: 1, fees: 0, withholdingRate: 0, tvaRecuperable: true, payments,
+      lines: [{ label: 'Papier', qty: 1, unitPrice: 250, vatRate: 19, destination: 'charge', deductible: true }] });
+    expect((await e.envoyer('purchases', 'b1', achat('b1', '2026-10-03', [{ id: 'r1', date: '2026-10-08', amount: 100, method: 'especes' }]))).statut).toBe(200);
+    expect((await e.envoyer('purchases', 'b2', achat('b2', '2026-10-12', []), 1)).statut).toBe(200);
+    expect((await e.envoyer('purchases', 'b3', achat('b3', '2026-09-30', []), 2)).statut).toBe(200);
+    // Octobre : sept écritures (facture, encaissement, avoir ; deux achats et un règlement) ; deux ventes, deux achats.
+    const resume = async (du: string, au: string) => (await appeler('GET', `/entreprises/${e.ent}/compta/resume?du=${du}&au=${au}`, e.jeton)).corps;
+    expect(await resume('2026-10-01', '2026-10-31')).toEqual({ validees: 0, brouillard: 6, valideeLe: null, ventes: 2, achats: 2, sansJustificatif: 2 });
+    expect(await resume('2026-09-01', '2026-09-30')).toEqual({ validees: 0, brouillard: 1, valideeLe: null, ventes: 0, achats: 1, sansJustificatif: 1 });
+    expect(await resume('2026-08-01', '2026-08-31')).toEqual({ validees: 0, brouillard: 0, valideeLe: null, ventes: 0, achats: 0, sansJustificatif: 0 });
+  });
+
   it('les achats : chaque enregistrement réécrit la famille (la facture, son acompte, son avoir, leurs règlements), jamais en double', async () => {
     const e = await essai();
     expect((await e.envoyer('suppliers', 's1', { id: 's1', name: 'Papeterie du Lac' })).statut).toBe(200);

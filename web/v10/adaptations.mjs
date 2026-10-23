@@ -886,4 +886,6 @@ export const ADAPTATIONS = [
   ...lireFichier('mois-client.txt'),
   // ── Les achats confiés au cabinet : la page Achats le dit, son bouton principal envoie la photo (1.126.0) ──
   ...lireFichier('achats-confies.txt'),
+  // ── « Ce mois-ci » dans le Suivi d'un dossier, au Cabinet : les pièces, le brouillard, le geste (1.127.0) ──
+  ...lireFichier('ce-mois-cabinet.txt'),
 ];

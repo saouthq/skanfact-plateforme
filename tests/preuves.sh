@@ -20071,6 +20071,24 @@ prouver 'mois 126 : la photo qui part sans dire qu'\''elle est une facture à sa
 prouver 'mois 126 : la page Achats qui ne se redessine pas quand on apprend que les achats sont confiés' web/public/v10/app.js \
   "if (!!(vueAvant && vueAvant.achatsConfies) !== !!(a && a.achatsConfies) && routeOf(location.hash) === 'achats'" "if (false && routeOf(location.hash) === 'achats'" \
   'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
+prouver 'mois 127 : les encaissements comptés comme des ventes' serveur/compta/routes.ts \
+  "count(distinct origine) filter (where origine_type = 'vente') ventes" "count(*) ventes" \
+  'le résumé d'\''un mois : les ventes (facture, avoir) et les achats, sans leurs règlements, et les achats sans justificatif'
+prouver 'mois 127 : les règlements comptés comme des achats' serveur/compta/routes.ts \
+  "filter (where origine_type = 'achat'), '{}') achats" "filter (where origine_type in ('achat', 'reglement_fournisseur')), '{}') achats" \
+  'le résumé d'\''un mois : les ventes (facture, avoir) et les achats, sans leurs règlements, et les achats sans justificatif'
+prouver 'mois 127 : un achat justifié compté sans justificatif' serveur/compta/routes.ts \
+  ".filter((x) => !x.justifie).length" ".length" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 127 : le Suivi qui ne lit pas le mois' web/public/v10/cabinet/app.js \
+  "else if (api.ceMois && document.getElementById('d-ce-mois')) dessinerCeMois(dossier, !row.missingCount);" "else if (false) dessinerCeMois(dossier, !row.missingCount);" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 127 : la carte du mois sans son vert' web/public/v10/cabinet/app.js \
+  "\${vert ? ' btn-primary' : ''}\" data-ce-mois-valider>" "\" data-ce-mois-valider>" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 127 : « Valider » qui mène au livre-journal' web/public/v10/cabinet/app.js \
+  "if (v) v.onclick = () => ouvrir(true);" "if (v) v.onclick = () => ouvrir(false);" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

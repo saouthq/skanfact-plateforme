@@ -142,6 +142,12 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
     comptable » : la photo (une ou plusieurs) part dans le fil du cabinet avec « Une facture d'achat à saisir : … », où
     Hatem a « Saisir cette pièce ». Vide, la page s'intitule « Ton cabinet saisit tes achats » ; « Saisir moi-même » et
     « + Facture d'achat » restent là, sans couleur. Sans ce périmètre, la page redevient celle de qui saisit lui-même.
+  - **9** (1.127.0) : le Suivi d'un dossier sur SkanFact ouvre sur « Ce mois-ci · octobre 2026 » : les pièces du mois
+    arrivées dans ses livres (« Aucune vente · 2 achats, dont 1 sans justificatif »), ce qui attend au brouillard et la
+    dernière validation ; son vert, « Valider les écritures d'octobre 2026 », mène au brouillard du mois (« Relancer »
+    garde le vert quand un mois manque), et « Voir le livre-journal ». Le résumé du serveur (`/compta/resume`) compte
+    désormais les ventes et les achats (une pièce une fois, sans ses règlements) et les achats sans justificatif : les
+    deux cartes, chez le client et au cabinet, disent les mêmes chiffres (vu à l'écran).
 - **Lot 3 (P3, 14–18)**, avec la passe visuelle UX 3 du carnet.
 
 Les captures : `m01` à `m48` de la recette (scratchpad de la session, non versées).

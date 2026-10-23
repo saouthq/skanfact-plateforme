@@ -144,13 +144,22 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
       if (!tx) throw new Error('transaction attendue');
       const p = periode(query);
       if ('statut' in p) return p;
-      const r = (await sql<{ validees: string; brouillard: string; validee_le: string | null }>`
+      // (1.127.0) Et les pièces arrivées dans les livres : les ventes et les achats du client (une pièce, une fois), et
+      // combien d'achats n'ont pas de justificatif (oui ou non, compta.achats_justifies, 0173). Le Suivi d'un dossier au
+      // Cabinet le dit dans sa carte « Ce mois-ci » (revue du mois d'un client, point 9).
+      const r = (await sql<{ validees: string; brouillard: string; validee_le: string | null; ventes: string; achats: string[] }>`
         select count(*) filter (where statut = 'validee') validees, count(*) filter (where statut = 'brouillard') brouillard,
-          to_char(max(validee_le) at time zone 'Africa/Tunis', 'YYYY-MM-DD') validee_le
+          to_char(max(validee_le) at time zone 'Africa/Tunis', 'YYYY-MM-DD') validee_le,
+          count(distinct origine) filter (where origine_type = 'vente') ventes,
+          coalesce(array_agg(distinct origine::text) filter (where origine_type = 'achat'), '{}') achats
         from compta.ecriture where entreprise = ${params.entreprise ?? ''}
           and (${p.du}::date is null or date_ecriture >= ${p.du}::date) and (${p.au}::date is null or date_ecriture <= ${p.au}::date)`
         .execute(requetes(tx))).rows[0];
-      return { corps: { validees: Number(r?.validees ?? 0), brouillard: Number(r?.brouillard ?? 0), valideeLe: r?.validee_le ?? null } };
+      const achats = r?.achats ?? [];
+      const sansJustificatif = achats.length
+        ? ((await tx.query('select justifie from compta.achats_justifies($1, $2::uuid[])', [params.entreprise ?? '', achats])).rows as { justifie: boolean }[]).filter((x) => !x.justifie).length
+        : 0;
+      return { corps: { validees: Number(r?.validees ?? 0), brouillard: Number(r?.brouillard ?? 0), valideeLe: r?.validee_le ?? null, ventes: Number(r?.ventes ?? 0), achats: achats.length, sansJustificatif } };
     },
   });
 

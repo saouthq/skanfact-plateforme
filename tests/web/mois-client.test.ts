@@ -221,6 +221,18 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
 
     // À l'écran du cabinet : le 📎 dit que le client l'a joint ; l'autre ligne dit « sans justificatif ».
     const h = await page(hatem);
+    // (1.127.0) Point 9 : le Suivi du dossier ouvre sur « Ce mois-ci », les mêmes chiffres que chez le client, et son
+    // seul vert mène au brouillard du mois.
+    const nomDuMois = new Date(`${aujourdhui}T12:00:00Z`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+    await h.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossier/${ent}/suivi`);
+    const carte = h.p.locator('#d-ce-mois');
+    await expect.poll(async () => net(await carte.innerText().catch(() => '')), { timeout: 20_000 }).toContain('rien n\'est encore validé');
+    await plusTard(h.p);
+    expect(net(await carte.innerText())).toMatch(new RegExp(`^Ce mois-ci · ${nomDuMois} Aucune vente · 2 achats, dont 1 sans justificatif, dans ses livres\\. 2 écritures attendent au brouillard : rien n'est encore validé\\. Valider les écritures d(e |')${nomDuMois} Voir le livre-journal d(e |')${nomDuMois}$`));
+    expect(await h.p.locator('#view .btn-primary').filter({ visible: true }).allInnerTexts()).toEqual([expect.stringMatching(/^Valider les écritures d/)]);
+    await h.p.screenshot({ path: path.join(PHOTOS, 'mois-client-suivi-ce-mois.png') });
+    await carte.getByRole('button', { name: /^Valider les écritures/ }).click();
+    await expect.poll(() => h.p.url(), { timeout: 15_000 }).toContain(`#/dossier/${ent}/comptabilite/saisie/`);
     await h.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossier/${ent}/comptabilite/journal`);
     // Rien n'est encore validé : le livre propose de compter les deux écritures du brouillard.
     const brouillard = h.p.locator('label').filter({ hasText: /Compter 2 écritures en brouillard/ }).locator('input');

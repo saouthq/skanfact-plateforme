@@ -1274,6 +1274,11 @@
 
     // Le livre d'un dossier.
     livreIndex: async (/** @type {string} */ id) => ({ format: 1, exercices: (await moisEtExercices(id)).exercices }),
+    // (1.127.0) « Ce mois-ci » dans le Suivi d'un dossier : les pièces du mois arrivées dans ses livres, ce qui attend au
+    // brouillard, la dernière validation (le résumé que lit aussi le client). Sans le droit : null, la carte se tait.
+    ceMois: async (/** @type {string} */ id, /** @type {string} */ du, /** @type {string} */ au) => {
+      try { return await appel('GET', `/entreprises/${id}/compta/resume?du=${encodeURIComponent(du)}&au=${encodeURIComponent(au)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
+    },
     livres: async (/** @type {string} */ id) => {
       const d = dossiers.get(id);
       const m = await moisEtExercices(id);
