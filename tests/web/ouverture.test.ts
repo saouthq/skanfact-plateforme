@@ -114,4 +114,27 @@ describe('l\'ouverture d\'une page, le serveur lent ou en erreur', () => {
     expect(await couche(p).count()).toBe(0);
     await p.context().close();
   }, 120_000);
+
+  // (1.137.0) Après l'ouverture : la carte « Ce mois-ci » du Suivi d'un dossier disparaissait sans rien dire quand le
+  // serveur refusait de la lire.
+  it('le Suivi d\'un dossier : « Ce mois-ci » refusé par le serveur le dit, et « Réessayer » le relit', async () => {
+    // Un client sur SkanFact, sous mandat accepté (un dossier tenu au cabinet n'a pas de « Ce mois-ci »).
+    const jeton = await personne('hatem');
+    const cab = (await api('POST', '/cabinets', jeton, { nom: 'Cabinet Jlassi Conseil' })).corps;
+    const sarra = await personne('sarra');
+    const dossier = String((await api('POST', '/entreprises', sarra, { raisonSociale: 'Boulangerie El Amal' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${dossier}/mandat`, sarra, { codeCabinet: cab.code })).corps.mandat);
+    expect((await api('POST', `/cabinets/${String(cab.id)}/mandats/${mandat}/accepter`, jeton)).statut).toBe(200);
+    const p = await ouvrir(jeton);
+    await refuser(p, /\/compta\/resume$/);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${String(cab.id)}#/dossier/${dossier}`);
+    const carte = p.locator('#d-ce-mois');
+    await expect.poll(() => carte.locator('[data-ce-mois-refus]').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^Ce mois-ci n'a pas pu se lire\. ./);
+    expect(await carte.locator('[data-ce-mois-pieces]').count()).toBe(0);
+    await p.unrouteAll({ behavior: 'ignoreErrors' });
+    await carte.getByRole('button', { name: 'Réessayer', exact: true }).click();
+    await expect.poll(() => carte.locator('[data-ce-mois-pieces]').innerText().catch(() => ''), { timeout: 15_000 }).toBe('Aucune vente ni aucun achat dans ses livres ce mois-ci.');
+    expect(await carte.locator('[data-ce-mois-refus]').count()).toBe(0);
+    await p.context().close();
+  }, 120_000);
 });

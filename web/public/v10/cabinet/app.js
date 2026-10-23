@@ -2405,11 +2405,23 @@
   // écritures du mois (revue du mois d'un client, point 9). Même résumé que la carte du client dans « Mon comptable ».
   async function dessinerCeMois(dossier, vert) {
     const mois = K.today().slice(0, 7), nom = K.monthLabel(mois);
-    let r = null;
-    try { r = await api.ceMois(dossier.id, mois + '-01', K.today()); } catch (_) { r = null; }
+    let r = null, refus = null;
+    try { r = await api.ceMois(dossier.id, mois + '-01', K.today()); } catch (x) { refus = x; }
     // La page a pu changer pendant la lecture : la zone doit être celle de CE dossier.
     const zone = document.getElementById('d-ce-mois');
     if (!zone || zone.dataset.id !== dossier.id) return;
+    // (1.137.0) Une lecture refusée par le serveur (ou sans réseau) le dit, avec « Réessayer » : la carte disparaissait
+    // sans rien dire (UX 2). Un mandat qui ne confie pas les livres (null) la retire, comme avant.
+    if (refus) {
+      zone.innerHTML = `<h2>Ce mois-ci · ${esc(nom)}</h2>
+        <p class="small" data-ce-mois-refus>Ce mois-ci n'a pas pu se lire. ${esc(plainError(refus))}</p>
+        <div class="inline mt"><button type="button" class="btn btn-sm" data-ce-mois-relire>Réessayer</button></div>`;
+      zone.querySelector('[data-ce-mois-relire]').onclick = () => {
+        zone.innerHTML = `<h2>Ce mois-ci · ${esc(nom)}</h2><span class="muted small">Lecture de ses livres…</span>`;
+        dessinerCeMois(dossier, vert);
+      };
+      return;
+    }
     if (!r) { zone.remove(); return; }
     const fr = d => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
     const le = r.valideeLe ? ` (dernière validation le ${fr(r.valideeLe)})` : '';

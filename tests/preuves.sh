@@ -20203,6 +20203,12 @@ prouver 'ux2 136 : le Cabinet qui s'\''ouvre sur une page blanche' web/public/pl
 prouver 'ux2 136 : le Cabinet refusé à l'\''ouverture qui reste blanc' web/public/plateforme/pont-cabinet.js \
   "poste.echecOuverture('ton cabinet', e);" "throw e;" \
   'le Cabinet : lent, il dit qu'\''il s'\''ouvre ; refusé, il le dit, et « Réessayer » l'\''ouvre'
+prouver 'ux2 137 : « Ce mois-ci » refusé qui disparaît sans rien dire' web/public/v10/cabinet/app.js \
+  "    if (refus) {" "    if (refus) { zone.remove(); return; } if (false) {" \
+  'le Suivi d'\''un dossier : « Ce mois-ci » refusé par le serveur le dit, et « Réessayer » le relit'
+prouver 'ux2 137 : le « Réessayer » de « Ce mois-ci » qui ne relit rien' web/public/v10/cabinet/app.js \
+  "        dessinerCeMois(dossier, vert);" "        void vert;" \
+  'le Suivi d'\''un dossier : « Ce mois-ci » refusé par le serveur le dit, et « Réessayer » le relit'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

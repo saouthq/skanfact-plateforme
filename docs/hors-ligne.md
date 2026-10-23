@@ -333,5 +333,10 @@ Une erreur du serveur à l'ouverture (une 500 sur le dossier ou le portefeuille)
   message d'ouverture).
 
 Vu à l'écran (ordinateur et téléphone). Tenu par `tests/web/ouverture.test.ts` (les réponses retenues, puis refusées, par
-le navigateur), cinq preuves « ux2 136 ». **Reste à faire** (UX 2) : une lecture de page qui échoue après l'ouverture (la
-carte « Ce mois-ci » du Suivi au Cabinet disparaît sans rien dire quand le serveur la refuse), et la console.
+le navigateur), cinq preuves « ux2 136 ».
+
+(1.137.0) Après l'ouverture : au Cabinet, la carte « Ce mois-ci » du Suivi d'un dossier disparaissait sans rien dire
+quand le serveur refusait de la lire. Elle dit « Ce mois-ci n'a pas pu se lire. », la raison, et « Réessayer », qui la
+relit ; un mandat qui ne confie pas les livres la retire, comme avant (`web/v10/ce-mois-cabinet.txt`). Tenu par
+`tests/web/ouverture.test.ts`, deux preuves « ux2 137 ». **Reste à faire** (UX 2) : les autres lectures faites après
+l'ouverture, une à une, et la console.
