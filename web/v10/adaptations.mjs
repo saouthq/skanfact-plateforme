@@ -892,4 +892,6 @@ export const ADAPTATIONS = [
   ...lireFichier('invitation-d-abord.txt'),
   // ── Une proposition de visite par ouverture, et « Ne plus me proposer de visites » d'un geste (1.129.0) ──
   ...lireFichier('visites-une-fois.txt'),
+  // ── « Envoyer par e-mail… » quand un cabinet lit déjà les livres (1.130.0) ──
+  ...lireFichier('envoyer-par-email.txt'),
 ];

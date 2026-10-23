@@ -157,5 +157,8 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
   - **16** (1.129.0) : « Première fois sur cette page ? » se pose une fois par ouverture de l'application au plus (les
     pages suivantes se taisent jusqu'à la prochaine), et porte « Ne plus me proposer de visites » : un geste éteint les
     propositions, le dit, et la case de « Me guider » le montre (elle les rallume).
+  - **17** (1.130.0) : avec un cabinet relié, « Envoyer au comptable… » (Comptabilité › Ventes) s'appelle « Envoyer
+    par e-mail… », sa fenêtre « Envoyer la comptabilité par e-mail » et son champ « Son adresse e-mail » : il envoie à
+    quelqu'un d'autre, le cabinet lisant déjà tout en direct.
 
 Les captures : `m01` à `m48` de la recette (scratchpad de la session, non versées).

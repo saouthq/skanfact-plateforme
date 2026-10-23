@@ -20110,6 +20110,9 @@ prouver 'mois 129 : la proposition posée qui ne se compte pas' web/public/v10/a
 prouver 'mois 129 : « Ne plus me proposer » qui n'\''éteint rien' web/public/v10/app.js \
   "visitesPoser(e => { e.proposer = false; });" "visitesPoser(e => { e.proposer = true; });" \
   'la première page neuve propose sa visite, la suivante se tait ; rouverte, elle propose ; « Ne plus me proposer » les éteint'
+prouver 'mois 130 : « Envoyer au comptable… » sous « ton cabinet lit tout en direct »' web/public/v10/app.js \
+  "\${messagerieVue && messagerieVue.cabinet ? 'Envoyer par e-mail…' : 'Envoyer au comptable…'}</button>" "Envoyer au comptable…</button>" \
+  'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet et en face de la pièce ; la réponse est au serveur'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
