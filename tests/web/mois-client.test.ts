@@ -191,4 +191,70 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     await s.p.screenshot({ path: path.join(PHOTOS, 'mois-client-ce-mois.png') });
     expect(s.erreurs).toEqual([]);
   }, 240_000);
+
+  // (1.125.0) Points 7 et 8 : le cabinet sait seulement si l'achat du client a un justificatif (oui ou non, jamais le
+  // fichier) ; il le réclame d'un geste depuis la ligne, la pièce écrite d'avance ; valider le dit avant.
+  it('Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d\'avance, la validation qui prévient', async () => {
+    const hatem = await personne('hatem', 'Hatem Jlassi');
+    const cab = (await api('POST', '/cabinets', hatem, { nom: 'Cabinet Jlassi Conseil' })).corps;
+    const sarra = await personne('sarra', 'Sarra Mansour');
+    const ent = String((await api('POST', '/entreprises', sarra, { raisonSociale: 'Boulangerie El Amal' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, sarra, { codeCabinet: cab.code })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, hatem)).statut).toBe(200);
+    await api('GET', `/entreprises/${ent}/dossier-v10`, sarra);
+    const aujourdhui = jour(0);
+    const photo = await api('POST', `/entreprises/${ent}/pieces-jointes`, sarra, { nom: 'facture-farine.png', contenu: PNG });
+    expect(photo.statut, JSON.stringify(photo.corps)).toBe(201);
+    const fiche = { name: photo.corps.name, file: photo.corps.file, size: photo.corps.size, date: photo.corps.date };
+    const achat = (id: string, numero: string, prix: string, pj: unknown[]) => ({ id, kind: 'facture', number: numero, date: aujourdhui, supplierId: 's1', currency: 'DT', category: 'Matières premières', fees: 0, withholdingRate: 0, createdAt: 1, attachments: pj,
+      lines: [{ id: `${id}-l`, label: 'Farine', qty: 1, unitPrice: { '~n': prix }, vatRate: 19, destination: 'charge' }] });
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, sarra, { changements: [
+      { collection: 'suppliers', cle: 's1', rang: 0, revision: null, contenu: { id: 's1', name: 'Grands Moulins de Sfax' } },
+      { collection: 'purchases', cle: 'p1', rang: 0, revision: null, contenu: achat('p1', 'GMS-26-4471', '485', [fiche]) },
+      { collection: 'purchases', cle: 'p2', rang: 1, revision: null, contenu: achat('p2', 'GMS-26-4502', '253.8', []) },
+    ] })).statut).toBe(200);
+
+    // Le serveur : oui pour l'achat qui porte sa photo, non pour l'autre ; rien de plus (ni le nom du fichier).
+    const lues = (await api('GET', `/entreprises/${ent}/compta/ecritures`, hatem)).corps.ecritures as { piece: string; justificatif: boolean | null }[];
+    expect(lues.map((e) => `${e.piece} ${e.justificatif}`).sort()).toEqual(['GMS-26-4471 true', 'GMS-26-4502 false']);
+    expect(JSON.stringify(lues)).not.toContain('facture-farine');
+
+    // À l'écran du cabinet : le 📎 dit que le client l'a joint ; l'autre ligne dit « sans justificatif ».
+    const h = await page(hatem);
+    await h.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossier/${ent}/comptabilite/journal`);
+    // Rien n'est encore validé : le livre propose de compter les deux écritures du brouillard.
+    const brouillard = h.p.locator('label').filter({ hasText: /Compter 2 écritures en brouillard/ }).locator('input');
+    await brouillard.waitFor({ timeout: 20_000 });
+    await plusTard(h.p);
+    if (!(await brouillard.isChecked())) await brouillard.click();
+    const ligne = (piece: string) => h.p.locator('tr').filter({ hasText: piece }).first();
+    await expect.poll(async () => net(await ligne('GMS-26-4502').innerText().catch(() => '')), { timeout: 15_000 }).toContain('GMS-26-4502 sans justificatif');
+    expect(await ligne('GMS-26-4471').locator('.att-mark').getAttribute('title')).toBe('1 justificatif : joint par le client à son achat, dans SkanFact');
+    expect(await ligne('GMS-26-4471').getByText('sans justificatif').count()).toBe(0);
+
+    // La validation de cette ligne le dit avant ; on annule.
+    await ligne('GMS-26-4502').getByRole('button', { name: /^Actions/ }).click();
+    await h.p.getByRole('menuitem', { name: /Valider cette écriture/ }).or(h.p.getByRole('button', { name: /Valider cette écriture/ })).first().click();
+    await expect.poll(async () => net(await h.p.locator('#ecr-sans-justif').innerText().catch(() => '')), { timeout: 10_000 })
+      .toBe('Cet achat du client n\'a pas de justificatif. Tu peux valider quand même, ou le lui demander d\'abord (le menu de la ligne, « Demander le justificatif »).');
+    await h.p.getByRole('button', { name: 'Annuler', exact: true }).click();
+
+    // Le geste depuis la ligne : la demande s'ouvre dans le fil, la pièce écrite d'avance ; envoyée, Sarra la voit.
+    await ligne('GMS-26-4502').getByRole('button', { name: /^Actions/ }).click();
+    await h.p.getByText('Demander le justificatif à Boulangerie El Amal', { exact: true }).click();
+    await expect.poll(() => h.p.url(), { timeout: 15_000 }).toContain(`#/messages/${ent}/demande`);
+    const champ = h.p.locator('[data-msg-demande-txt]').first();
+    await expect.poll(() => champ.inputValue(), { timeout: 15_000 }).toBe(`Le justificatif de l'achat GMS-26-4502 du ${fr(aujourdhui)} (Grands Moulins de Sfax)`);
+    await h.p.screenshot({ path: path.join(PHOTOS, 'mois-client-demander-justificatif.png') });
+    await h.p.getByRole('button', { name: 'Envoyer', exact: true }).click();
+    await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/messages/attente`, sarra)).corps as { demandes?: number }).demandes, { timeout: 15_000 }).toBe(1);
+
+    // La validation du lot (le journal des achats) le dit aussi, avec la pièce.
+    await h.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossier/${ent}/comptabilite/saisie`);
+    await h.p.locator('[data-lot-journal="AC"]').click({ timeout: 20_000 });
+    await expect.poll(async () => net(await h.p.locator('#lot-sans-justif').innerText().catch(() => '')), { timeout: 10_000 })
+      .toBe('Un achat du client n\'a pas de justificatif : GMS-26-4502. Tu peux valider quand même, ou le lui demander d\'abord (le menu de la ligne, « Demander le justificatif »).');
+    await h.p.getByRole('button', { name: 'Annuler', exact: true }).click();
+    expect(h.erreurs).toEqual([]);
+  }, 240_000);
 });

@@ -28,7 +28,11 @@ un devis, une facture, un bon, un achat ou un mouvement de banque :
   reconnu à ses premiers octets, jamais à son nom), `GET …/:fichier`, `DELETE …/:fichier` (qui répond `efface` ou la date
   de garde). Les gestes sont ceux du dossier (`socle.dossier.modifier`, `socle.dossier.voir`).
 - **Qui voit quoi** : qui voit l'entreprise en entier. Un cabinet qui la tient ne voit pas ses pièces (0035) : il ne voit
-  pas non plus leurs fichiers (la porte le refuse, la base le redit). La voisine, rien.
+  pas non plus leurs fichiers (la porte le refuse, la base le redit). La voisine, rien. (1.125.0) Il sait seulement, pour
+  l'écriture née d'un achat, si cet achat porte un justificatif : oui ou non, sans le fichier, son nom ni leur nombre
+  (`compta.achats_justifies`, 0173, pour qui lit les livres de l'entreprise) ; c'est ce qui lui permet de le réclamer
+  depuis la ligne et d'en être prévenu en validant (`docs/revue-mois-client.md`, points 7, 8 et 13). Ouvrir la photo
+  elle-même depuis le Cabinet reste à décider (un droit de plus).
 
 ## Décisions (par délégation, 21/10/2026)
 

@@ -351,6 +351,7 @@ les achats (elle passe par la lecture de la brique 84, devenue une fonction).
   // (plateforme, lot messagerie) Les messages des clients : la boîte de tous les clients (« À traiter », « Attend le
   // client », « Tout »), puis la conversation d'un client (plateforme/messagerie.js ; maquette validée le 09/10/2026).
   let messagerieOuverte = null;
+  let demandePreparee = null; // (1.125.0) une demande de pièce préparée depuis une ligne du livre
   let pastilleMessagesLue = false;
   function majPastilleMessages(n) { const p = $('#nav-messages'); if (p) { p.hidden = !n; p.textContent = n ? String(n) : ''; } }
   // (1.117.0) La même lecture donne aussi l'état de chaque client : la liste des dossiers montre, sur la ligne d'un client
@@ -429,9 +430,13 @@ les achats (elle passe par la lecture de la brique 84, devenue une fonction).
     }
     const id = decodeURIComponent(ent);
     const d = (S.dossiers || []).find(x => x.id === id);
+    // (1.125.0) Une demande préparée depuis une ligne du livre : sa pièce est déjà écrite (une seule fois).
+    const prete = demandePreparee && demandePreparee.id === id && geste === 'demande' ? demandePreparee.texte : '';
+    demandePreparee = null;
     messagerieOuverte = api.messagerie.conversation(racine, id, {
       nom: d ? d.name : 'Ce client',
       demander: geste === 'demande',
+      ...(prete ? { demandeTexte: prete } : {}),
       toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
       retour: { texte: 'Les messages de tes clients', aller: () => { location.hash = '#/messages'; } },
       revision: () => revision(id),

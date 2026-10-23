@@ -20023,6 +20023,39 @@ prouver 'mois 124 : la paie demandée à chaque ouverture d'\''un dossier qui ne
   "const sansPaie = !!d.perimetre" "const sansPaie = false && !!d.perimetre" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
 
+# ── 1.125.0 : le cabinet sait si l'achat du client a son justificatif, oui ou non (docs/revue-mois-client.md, 7, 8, 13) ──
+prouver 'mois 125 : l'\''écriture d'\''achat qui ne dit pas son justificatif' serveur/compta/routes.ts \
+  "justificatif: e.origine_type === 'achat' ? justifies.get(e.origine) ?? null : null," "justificatif: null," \
+  'une écriture d'\''achat dit si l'\''achat a un justificatif, oui ou non ; la base ne le dit qu'\''à qui lit les livres'
+prouver 'mois 125 : le oui ou non dit à qui ne lit pas les livres' base/migrations/0173_achats_justifies.sql \
+  "
+     and p_entreprise in (select compta.mes_entreprises())" "" \
+  'une écriture d'\''achat dit si l'\''achat a un justificatif, oui ou non ; la base ne le dit qu'\''à qui lit les livres'
+prouver 'mois 125 : un justificatif compté sur une liste vide' base/migrations/0173_achats_justifies.sql \
+  "jsonb_array_length(d.contenu -> 'attachments') > 0 end, false)" "jsonb_array_length(d.contenu -> 'attachments') >= 0 end, false)" \
+  'une écriture d'\''achat dit si l'\''achat a un justificatif, oui ou non ; la base ne le dit qu'\''à qui lit les livres'
+prouver 'mois 125 : le Cabinet qui oublie ce que dit le serveur' web/public/plateforme/pont-cabinet.js \
+  "justifClient: typeof e.justificatif === 'boolean' ? e.justificatif : null," "justifClient: null," \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 125 : le 📎 qui tait le justificatif du client' web/public/v10/cabinet/app.js \
+  "if (ec && ec.justifClient === true) noms.push(" "if (false) noms.push(" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 125 : la ligne d'\''achat qui ne dit pas « sans justificatif »' web/public/v10/cabinet/app.js \
+  "if (!noms.length) return ec && ec.justifClient === false ?" "if (!noms.length) return false ?" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 125 : « Demander le justificatif » absent du menu de la ligne' web/public/v10/cabinet/app.js \
+  "if (e.justifClient === false && !dossier.manual && api.messagerie) {" "if (false) {" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 125 : la demande qui ne porte pas la pièce écrite d'\''avance' web/public/plateforme/messagerie.js \
+  "if (demande && o.demandeTexte && !demandeTxt.value) demandeTxt.value = o.demandeTexte;" "" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 125 : valider une écriture d'\''achat sans justificatif sans le dire' web/public/v10/cabinet/app.js \
+  "\${e.justifClient === false ? \`<p class=\"small\" id=\"ecr-sans-justif\">" "\${false ? \`<p class=\"small\" id=\"ecr-sans-justif\">" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 125 : valider un lot qui tait les achats sans justificatif' web/public/v10/cabinet/app.js \
+  "const sansJustif = cibles.filter(e => e.justifClient === false);" "const sansJustif = [];" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

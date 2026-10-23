@@ -320,6 +320,7 @@
    *   nom?: string,
    *   retour?: { texte: string, aller: () => void },
    *   demander?: boolean,
+   *   demandeTexte?: string,
    *   pieces?: () => { genre: string, id: string, libelle: string, date?: string }[],
    *   ouvrirPiece?: (genre: string, id: string, libelle: string) => boolean,
    *   saisirPiece?: (message: { id: string, ecritLe: string, fichier: { id: string, nom: string, type: string } }) => void,
@@ -969,6 +970,8 @@
         if (b) b.setAttribute('aria-pressed', String(demande));
       };
       montrerDemande();
+      // (1.125.0) Une demande préparée ailleurs (une ligne du livre du cabinet) arrive avec sa pièce déjà écrite.
+      if (demande && o.demandeTexte && !demandeTxt.value) demandeTxt.value = o.demandeTexte;
       if (demande) setTimeout(() => demandeTxt.focus(), 0);
       const joindre = /** @type {HTMLButtonElement} */ (form.querySelector('[data-msg-joindre]'));
       joindre.onclick = async () => {

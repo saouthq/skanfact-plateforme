@@ -104,10 +104,19 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
       const noms = new Map(idsTiers.length
         ? (await db.selectFrom('socle.tiers').select(['id', 'raison_sociale']).where('entreprise', '=', entreprise).where('id', 'in', idsTiers).execute()).map((x) => [x.id, x.raison_sociale])
         : []);
+      // (1.125.0) L'écriture née d'un achat dit si cet achat porte un justificatif chez le client : oui ou non, sans le
+      // fichier ni son nom (le cabinet ne lit ni les achats ni les pièces jointes : compta.achats_justifies, 0173). Le Cabinet propose ainsi de le réclamer, et
+      // la validation prévient (revue du mois d'un client, points 7 et 8). Inconnu (l'achat introuvable) : null.
+      const achats = ecritures.filter((e) => e.origine_type === 'achat').map((e) => e.origine);
+      const justifies = new Map(achats.length
+        ? ((await tx.query('select piece, justifie from compta.achats_justifies($1, $2::uuid[])', [entreprise, achats])).rows as { piece: string; justifie: boolean }[])
+          .map((x) => [x.piece, x.justifie])
+        : []);
       const dernier = ecritures.at(-1);
       return {
         corps: {
           ecritures: ecritures.map((e) => ({
+            justificatif: e.origine_type === 'achat' ? justifies.get(e.origine) ?? null : null,
             id: e.id, journal: e.journal, date: e.date_ecriture, piece: e.piece, libelle: e.libelle, statut: e.statut, numero: e.numero,
             // Son rang dans la chaîne des livres (validée) : l'ordre unique de validation, tous journaux confondus.
             chaine: e.chaine_rang === null ? null : Number(e.chaine_rang),

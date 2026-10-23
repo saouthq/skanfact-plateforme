@@ -129,11 +129,13 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
   - **12** (1.124.0) : le Cabinet ne demande plus la paie d'un dossier dont le mandat ne la confie pas (il la demandait à
     chaque ouverture du livre, et le serveur refusait) ; un dossier tenu, ou un mandat dont l'étendue n'est pas connue, la
     lit comme avant.
-  - **7, 8 et 13** suivent ensemble : pour proposer « Demander le justificatif » sur une ligne du brouillard, et prévenir
-    à la validation, le Cabinet doit savoir si l'achat du client porte déjà sa photo. Aujourd'hui il ne lit pas les pièces
-    jointes du client (`0160_pieces_jointes.sql` : elles ne sont ouvertes qu'à qui voit l'entreprise en entier). Le plus
-    simple : le serveur dit seulement, pour l'écriture née d'un achat, si cet achat a un justificatif (oui ou non), sans
-    ouvrir le fichier ; ouvrir le fichier lui-même au cabinet (point 13) est un droit de plus, à décider.
+  - **7, 8 et 13** (1.125.0) : le serveur dit au Cabinet, pour l'écriture née d'un achat, si cet achat a un justificatif
+    (oui ou non, sans le fichier ; `compta.achats_justifies`, 0173 ; décidé par délégation, voir le journal du cadrage).
+    Au livre-journal, le 📎 dit « joint par le client à son achat, dans SkanFact », et une ligne d'achat sans lui porte
+    « sans justificatif ». Son menu offre « Demander le justificatif à Boulangerie El Amal » : la demande s'ouvre dans le
+    fil, la pièce écrite d'avance (« Le justificatif de l'achat GMS-26-4502 du 23/10/2026 (Grands Moulins de Sfax) »). La
+    validation d'une écriture, ou d'un lot, le dit avant le geste. Reste du point 13 : ouvrir la photo elle-même depuis le
+    Cabinet (un droit de plus, à décider par Skander).
 - **Lot 3 (P3, 14–18)**, avec la passe visuelle UX 3 du carnet.
 
 Les captures : `m01` à `m48` de la recette (scratchpad de la session, non versées).

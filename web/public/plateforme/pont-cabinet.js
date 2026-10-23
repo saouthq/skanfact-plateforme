@@ -511,7 +511,9 @@
       revisions.set(e.id, e.revision);
       livre.ecritures.push({
         id: e.id, numero: e.chaine ?? null, date: e.date, journal: e.journal, piece: e.piece || '', libelle: e.libelle,
-        source: source(e), mois: String(e.date).slice(0, 7), docId: e.origine.id, pieceJointe: null, ...(e.attente ? { attente: true, refus: e.refus } : {}),
+        source: source(e), mois: String(e.date).slice(0, 7), docId: e.origine.id, pieceJointe: null,
+        // (1.125.0) L'achat du client porte-t-il un justificatif ? oui, non, ou null (inconnu : pas un achat).
+        justifClient: typeof e.justificatif === 'boolean' ? e.justificatif : null, ...(e.attente ? { attente: true, refus: e.refus } : {}),
         statut: e.statut === 'validee' ? (e.contrepassee ? 'contrepassee' : 'validee') : 'brouillard',
         auteur: '', creeLe: 0, valideeLe: e.valideeLe ? Date.parse(e.valideeLe) : null,
         contrepasseDe: e.origine.type === 'contre_passation' ? e.origine.id : null,

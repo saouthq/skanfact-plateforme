@@ -210,4 +210,32 @@ describe('la validation des livres', () => {
     expect((await resume('2026-08-01', '2026-08-31', lecture.jeton)).corps).toMatchObject({ validees: 1, brouillard: 1 });
     expect((await resume('2026-08-01', '2026-02-30')).statut).toBe(400);
   });
+
+  // (1.125.0) L'écriture née d'un achat dit si l'achat porte un justificatif : oui ou non, rien d'autre ; la base ne le
+  // dit qu'à qui lit les livres de l'entreprise (points 7 et 8 de la revue du mois d'un client).
+  it('une écriture d\'achat dit si l\'achat a un justificatif, oui ou non ; la base ne le dit qu\'à qui lit les livres', async () => {
+    const e = await essai();
+    await e.envoyer('suppliers', 's1', { id: 's1', name: 'Papeterie du Lac' });
+    await e.envoyer('purchases', 'a1', achat(1000));
+    const lire = async () => ((await appeler('GET', `/entreprises/${e.ent}/compta/ecritures`, e.jeton)).corps.ecritures as { journal: string; justificatif: boolean | null }[])
+      .map((x) => `${x.journal} ${x.justificatif}`);
+    // L'achat sans pièce jointe : non ; son règlement (une écriture qui n'est pas un achat) : on ne dit rien.
+    expect(await lire()).toEqual(['AC false', 'CA null']);
+    // Une liste de pièces jointes vide : toujours non.
+    await e.envoyer('purchases', 'a1', achat(1000, { attachments: [] }));
+    expect(await lire()).toEqual(['AC false', 'CA null']);
+    const r = await e.envoyer('purchases', 'a1', achat(1000, { attachments: [{ name: 'facture-papier.pdf', file: 'f1', size: 1200, date: '2026-08-03' }] }));
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    expect(await lire()).toEqual(['AC true', 'CA null']);
+    const tout = JSON.stringify((await appeler('GET', `/entreprises/${e.ent}/compta/ecritures`, e.jeton)).corps);
+    expect(tout).not.toContain('facture-papier');
+    // Une personne d'une autre entreprise, en appelant la base elle-même : rien.
+    const autre = await personne('autre');
+    const pieces = (await admin.query(`select origine from compta.ecriture where entreprise = $1 and origine_type = 'achat'`, [e.ent])).rows.map((x) => x.origine as string);
+    expect(pieces.length).toBe(1);
+    const vu = await enTantQue(pool, autre.utilisateur, (tx) => tx.query('select * from compta.achats_justifies($1, $2::uuid[])', [e.ent, pieces]));
+    expect(vu.rows).toEqual([]);
+    const moi = await enTantQue(pool, e.utilisateur, (tx) => tx.query('select justifie from compta.achats_justifies($1, $2::uuid[])', [e.ent, pieces]));
+    expect(moi.rows).toEqual([{ justifie: true }]);
+  });
 });

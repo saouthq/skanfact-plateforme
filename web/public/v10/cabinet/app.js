@@ -1611,6 +1611,7 @@
   // (plateforme, lot messagerie) Les messages des clients : la boîte de tous les clients (« À traiter », « Attend le
   // client », « Tout »), puis la conversation d'un client (plateforme/messagerie.js ; maquette validée le 09/10/2026).
   let messagerieOuverte = null;
+  let demandePreparee = null; // (1.125.0) une demande de pièce préparée depuis une ligne du livre
   let pastilleMessagesLue = false;
   function majPastilleMessages(n) { const p = $('#nav-messages'); if (p) { p.hidden = !n; p.textContent = n ? String(n) : ''; } }
   // (1.117.0) La même lecture donne aussi l'état de chaque client : la liste des dossiers montre, sur la ligne d'un client
@@ -1689,9 +1690,13 @@
     }
     const id = decodeURIComponent(ent);
     const d = (S.dossiers || []).find(x => x.id === id);
+    // (1.125.0) Une demande préparée depuis une ligne du livre : sa pièce est déjà écrite (une seule fois).
+    const prete = demandePreparee && demandePreparee.id === id && geste === 'demande' ? demandePreparee.texte : '';
+    demandePreparee = null;
     messagerieOuverte = api.messagerie.conversation(racine, id, {
       nom: d ? d.name : 'Ce client',
       demander: geste === 'demande',
+      ...(prete ? { demandeTexte: prete } : {}),
       toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
       retour: { texte: 'Les messages de tes clients', aller: () => { location.hash = '#/messages'; } },
       revision: () => revision(id),
@@ -3375,7 +3380,7 @@
       `<p><b>${quoi}</b>${e.libelle ? ' — ' + esc(e.libelle) : ''}</p>
        <p class="small muted">Elle prendra son numéro dans le livre-journal et <b>ne pourra plus être modifiée</b> :
        on corrige une écriture validée en la contre-passant, jamais en la réécrivant. C'est ce qui fait qu'un
-       livre relu dans deux ans dit la vérité de ce qui a été fait.</p>`, 'Valider');
+       livre relu dans deux ans dit la vérité de ce qui a été fait.</p>${e.justifClient === false ? `<p class="small" id="ecr-sans-justif"><b>Cet achat du client n'a pas de justificatif.</b> Tu peux valider quand même, ou le lui demander d'abord (le menu de la ligne, « Demander le justificatif »).</p>` : ''}`, 'Valider');
     if (!ok) return;
     try {
       const r = await api.valider(dossier.id, livresState.annee, e.id);
@@ -3850,7 +3855,11 @@
     const noms = [];
     if (pieceJointe) noms.push(`${String(pieceJointe).split(/[\\/]/).pop()} (joint au cabinet)`);
     justifsDuClient(e).forEach(j => noms.push(`${j.nom} (joint par le client)`));
-    if (!noms.length) return '';
+    // (plateforme) 1.125.0 — en ligne, le serveur dit seulement si l'achat du client porte un justificatif (oui ou non,
+    // jamais le fichier) : le 📎 le dit, et une ligne d'achat sans lui le montre (revue du mois d'un client, point 7).
+    const ec = e && e.justifClient !== undefined ? e : (e && e.ecritureId && livresState.livre ? ecritureDuLivre(livresState.livre, e.ecritureId) : null);
+    if (ec && ec.justifClient === true) noms.push('joint par le client à son achat, dans SkanFact');
+    if (!noms.length) return ec && ec.justifClient === false ? ' <span class="badge b-part" title="L\'achat du client n\'a pas encore de justificatif : demande-le-lui depuis le menu de la ligne.">sans justificatif</span>' : '';
     const dit = `${pl(noms.length, 'justificatif')} : ${noms.join(', ')}`;
     return ` <span class="att-mark" role="img" aria-label="${esc(dit)}" title="${esc(dit)}">📎</span>`;
   }
@@ -9050,10 +9059,14 @@
     // L'accord suit le nombre (10.12.0, vu au test humain) : « Chacune… Celles qui… » sous « Valider
     // 1 écriture » se lisait comme un modèle de phrase qu'on n'a pas fini de remplir.
     const une = cibles.length === 1;
+    // (plateforme) 1.125.0 — un achat du client sans justificatif se dit avant de valider (revue du mois d'un client,
+    // point 8) : on peut valider quand même, ou le demander d'abord depuis la ligne.
+    const sansJustif = cibles.filter(e => e.justifClient === false);
+    const avert = sansJustif.length ? `<p class="small" id="lot-sans-justif"><b>${sansJustif.length > 1 ? `${sansJustif.length} achats du client n'ont pas de justificatif` : 'Un achat du client n\'a pas de justificatif'}</b> : ${sansJustif.slice(0, 5).map(e => esc(e.piece || e.libelle || '—')).join(', ')}${sansJustif.length > 5 ? '…' : ''}. Tu peux valider quand même, ou le lui demander d'abord (le menu de la ligne, « Demander le justificatif »).</p>` : '';
     const ok = await confirmDialog(`Valider ${pl(cibles.length, 'écriture')} ${quoi} ?`,
-      une
+      (une
         ? '<p>Elle prend son numéro et ne se modifiera plus : une validée se contre-passe.</p><p>Si elle ne tombe pas juste, elle ne sera pas validée, et te sera nommée.</p>'
-        : '<p>Chacune prend son numéro et ne se modifiera plus : une validée se contre-passe.</p><p>Celles qui ne tombent pas juste ne seront pas validées, et te seront nommées.</p>',
+        : '<p>Chacune prend son numéro et ne se modifiera plus : une validée se contre-passe.</p><p>Celles qui ne tombent pas juste ne seront pas validées, et te seront nommées.</p>') + avert,
       'Valider');
     if (!ok) return;
     try {
@@ -9372,6 +9385,13 @@
     if (e.attente) Object.assign(a[a.length - 1], { hint: 'Une fois partie au serveur, au retour du réseau', off: true,
       run: () => infoDialog('Elle attend le réseau', 'Cette écriture est gardée sur ce poste : son justificatif se joint une fois qu\'elle est partie au serveur, au retour du réseau.') });
     a.push(...actionsJustifsClient(e));
+    // (plateforme) 1.125.0 — l'achat du client n'a pas de justificatif : le réclamer d'ici, la pièce citée d'avance, dans
+    // le fil du client (revue du mois d'un client, point 7 : il fallait passer par les Messages et retaper le numéro).
+    if (e.justifClient === false && !dossier.manual && api.messagerie) {
+      a.push({ icon: 'texte', label: `Demander le justificatif à ${dossier.name}`, court: 'Demander le justificatif',
+        hint: 'Une demande de pièce dans vos messages, la pièce citée d\'avance',
+        run: () => { demandePreparee = { id: dossier.id, texte: `Le justificatif de l'achat ${e.piece || e.libelle || ''} du ${fmtJour(e.date)}${((e.lignes || []).find(l => l.tiers) || {}).tiers ? ` (${(e.lignes.find(l => l.tiers) || {}).tiers})` : ''}`.replace(/\s+/g, ' ') }; location.hash = '#/messages/' + encodeURIComponent(dossier.id) + '/demande'; } });
+    }
     if (e.pieceJointe) {
       a.push({ icon: 'ouvrir', label: 'Ouvrir le justificatif', hint: esc(e.pieceJointe),
         run: async () => { try { ditOuverture(await api.ouvrirJustificatif(dossier.id, e.pieceJointe), String(e.pieceJointe).split(/[\\/]/).pop()); } catch (x) { await infoDialog('Justificatif introuvable', plainError(x)); } } });
