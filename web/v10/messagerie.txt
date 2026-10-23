@@ -233,6 +233,23 @@ les achats (elle passe par la lecture de la brique 84, devenue une fonction).
         updateNavCounts();
       },
       rangerAchat: m => { rangementDuMessage = { message: m.id, fichier: m, lu: false }; navigate('#/achat/new'); },
+      // (1.123.0) La demande cite le numéro d'un achat déjà saisi (un seul) : la photo s'y joint, et le fil dit où elle
+      // est rangée (« Ranger dans mes achats » ouvrait un achat neuf, un doublon : revue du mois d'un client, 23/10/2026).
+      achatCite: texte => {
+        const net = x => String(x || '').toLowerCase().replace(/\s+/g, '');
+        const t = net(texte);
+        const vus = data.purchases.filter(p => net(p.number).length >= 3 && t.includes(net(p.number)));
+        return vus.length === 1 ? { id: vus[0].id, libelle: achat(vus[0]) } : null;
+      },
+      joindreAchat: async (m, id) => {
+        const p = purchaseById(id);
+        if (!p) throw new Error('Cet achat n\'est plus dans ton dossier : range la photo comme un autre achat.');
+        const fiche = await bridge.attachPath(p.id, bridge.ocrDepuisFichier(m).path);
+        p.attachments = (p.attachments || []).concat([fiche]);
+        await save(true);
+        await bridge.messagerie.rangerAchat(m.id, p.id, achat(p));
+        return achat(p);
+      },
       voirMandat: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
       inviter: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
       surAttente: a => majMessagerie({ ...(messagerieVue || {}), ...a }),

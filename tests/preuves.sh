@@ -17888,9 +17888,10 @@ prouver 'la page Dossiers qui ne se relit pas au retour' 'web/public/v10/cabinet
   'if (route !== routeLue && route === '"'"'dossiers'"'"' && routeLue) relirePortefeuille();' \
   'void 0;' \
   'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
-prouver '« chez ton dossier » pour dire que tout est à jour' 'web/public/v10/cabinet/app.js' \
-  'Tout est à jour : ton client sur SkanFact n'"'"'a aucun mois passé vide ni à valider.' \
-  'Tout est à jour : chez ton dossier sur SkanFact, aucun mois passé n'"'"'est vide ni à valider.' \
+# (1.123.0) Ce client a des écritures du mois en cours au brouillard : la phrase qui se lit est celle de « rien en retard ».
+prouver '« ton dossier » pour dire que rien n'"'"'est en retard' 'web/public/v10/cabinet/app.js' \
+  ": 'Ton client a'} des écritures du mois en cours" \
+  ": 'Ton dossier a'} des écritures du mois en cours" \
   'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
 prouver '« l'"'"'attente démarre à la première écriture » sous un mois écrit' 'web/public/v10/cabinet/app.js' \
   ': (dossier.packs || []).length ? `<span' \
@@ -18850,8 +18851,8 @@ prouver 'l'\''Accueil muet sur la pièce que le cabinet attend' 'web/public/v10/
   '    if (false) items = [{ id: '\''cabinet-attend'\'',' \
   'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
 prouver '« À faire » qui ne suit pas ce que le cabinet attend sans recharger' 'web/public/v10/app.js' \
-  '    if (cleAttente(vueAvant) !== cleAttente(a) && /^(#\/dashboard)?$/.test(location.hash)' \
-  '    if (false && /^(#\/dashboard)?$/.test(location.hash)' \
+  '    if (cleAttente(vueAvant) !== cleAttente(a) && routeOf(location.hash)' \
+  '    if (false && routeOf(location.hash)' \
   'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
 prouver '« Répondre » qui ne mène pas au fil du cabinet' 'web/public/v10/app.js' \
   '    '\''cabinet-attend'\'': { label: '\''Répondre'\'', run: vers('\''#/comptable'\'') },' \
@@ -19409,7 +19410,7 @@ prouver 'la photo du client vide (cabinet)' web/public/v10/cabinet/index.html \
   "img-src 'self' data: blob:;" "img-src 'self' data:;" \
   "$MSGW"
 prouver '« Saisir cette pièce » absent' $MJ \
-  "\${!entreprise && m.cote === 'entreprise' && o.saisirPiece && actif ?" "\${false ?" \
+  ": !entreprise && m.cote === 'entreprise' && !m.achat && o.saisirPiece && actif ?" ": false ?" \
   "$MSGW"
 prouver '« Saisir cette pièce » qui ne mène pas à la saisie' web/public/v10/cabinet/app.js \
   "      location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/saisie/' + String(m.ecritLe).slice(0, 4);" "" \
@@ -19959,6 +19960,42 @@ prouver 'abo 122 : le premier dossier tenu qui ne dit pas qu'\''il est gratuit' 
 prouver 'abo 122 : la pastille du cabinet sur trois lignes' web/public/plateforme/abonnement-cabinet.js \
   "texte: \`Facture à régler avant le \${jour(e.echeance)}\` };" "texte: \`Facture de l'abonnement à régler avant le \${jour(e.echeance)}\` };" \
   "$W122"
+
+# ── 1.123.0 : le mois d'un client vu des deux côtés, lot 1 (docs/revue-mois-client.md, points 1 à 5) ──
+prouver 'mois 123 : la date « pour le » que le serveur tait' serveur/messagerie/routes.ts \
+  "pourLe: r.pour_le, aLire" "pourLe: null, aLire" \
+  'la date « pour le » : aujourd'\''hui ou plus tard, avec une pièce demandée ; passée sans réponse, la demande est en retard des deux côtés et dans la boîte'
+prouver 'mois 123 : l'\''Accueil « #/ » que l'\''« À faire » ne redessine pas' web/public/v10/app.js \
+  "routeOf(location.hash) === 'dashboard' && !\$('#modal-root .modal')" "/^(#\\/dashboard)?\$/.test(location.hash) && !\$('#modal-root .modal')" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : l'\''« À faire » qui tait la date de la pièce attendue' web/public/v10/app.js \
+  "detail: \`\${quand}Réponds-lui" "detail: \`Réponds-lui" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : la date de la première de plusieurs pièces attendues' web/public/v10/app.js \
+  "\${mv.demandes > 1 ? 'La première est attendue' : 'Elle est attendue'}" "Elle est attendue" \
+  'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'mois 123 : la photo qui ne retrouve pas l'\''achat que la demande cite' web/public/plateforme/messagerie.js \
+  "const cite = demandeLiee && o.achatCite" "const cite = false && o.achatCite" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : la photo rangée que le cabinet ne peut pas suivre jusqu'\''à l'\''écriture' web/public/plateforme/messagerie.js \
+  "m.achat && o.ouvrirPiece && /\\s·\\s/.test(m.achat.libelle) ?" "false ?" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : « Confier mon dossier » qui reste vert après l'\''invitation' web/public/plateforme/pont.js \
+  "      panneau.querySelector('#mandat-confier')?.classList.remove('btn-primary');
+" "" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : « Copier le lien » qui n'\''est pas l'\''étape suivante' web/public/plateforme/pont.js \
+  "class=\"btn btn-sm btn-primary\" id=\"mandat-lien-copier\"" "class=\"btn btn-sm\" id=\"mandat-lien-copier\"" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : « tout est à jour » à côté d'\''une ligne à valider' web/public/v10/cabinet/app.js \
+  "      if (enCours) return" "      if (false) return" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : le point vert d'\''une ligne à valider' web/public/v10/cabinet/app.js \
+  "(r.lastMonth && !r.lastDefinitive ? 'warn' : '')" "''" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : « Ajouter mes clients » vert pendant qu'\''une entreprise attend « Accepter »' web/public/v10/cabinet/app.js \
+  "class=\"btn\${/btn-primary/.test(inboxBanner()) ? '' : ' btn-primary'}\" id=\"new-d\"" "class=\"btn btn-primary\" id=\"new-d\"" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

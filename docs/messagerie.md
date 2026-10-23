@@ -42,13 +42,19 @@ attend, et leur réponse à sa date. L'entreprise y répond sur place (le même 
   qui l'a déposé le lit ;
 - **être rangé dans les achats** : « Ranger dans mes achats… » ouvre un nouvel achat et y fait lire la photo par le
   serveur (la lecture de la brique 84 ; sans elle, l'achat se saisit à la main) ; enregistré, le message dit où la
-  pièce est rangée (« rangée dans tes achats (STEG, 85,400 DT) »).
+  pièce est rangée (« rangée dans tes achats (STEG, 85,400 DT) »). (1.123.0) Quand la photo répond à une demande qui cite
+  le numéro d'**un** achat déjà saisi (sans espaces ni majuscules, trois caractères au moins), le fil propose d'abord
+  « Joindre à l'achat GMS-26-4471 · … » : la photo s'ajoute aux pièces jointes de cet achat (aucun achat neuf, aucun
+  doublon), et « C'est un autre achat… » garde le chemin du nouvel achat. Chez le cabinet, une photo rangée offre « Voir
+  l'écriture » (le livre-journal cherché sur son numéro) au lieu de « Saisir cette pièce » (`docs/revue-mois-client.md`).
 
 **M4 bis. Une pièce demandée a une date, et se relance** (1.116.0 ; décidé par délégation après la revue du 22/10/2026,
 `docs/revue-messagerie.md` point 6). La demande porte une date « pour le » (facultative ; l'écran propose dans sept
 jours, jamais avant aujourd'hui, jour de Tunis). Passée sans réponse, elle est **en retard** des deux côtés : la carte
 le dit (« En retard », en rouge), l'encart aussi (« (dont 1 en retard) »), et la boîte du cabinet a une pastille
-« N en retard » sur la ligne du client (`attente` et la boîte comptent avec les mêmes lignes). Restée sans réponse à sa
+« N en retard » sur la ligne du client (`attente` et la boîte comptent avec les mêmes lignes ; depuis la 1.123.0,
+`attente` donne aussi `pourLe`, la date la plus proche des pièces encore attendues, que l'« À faire » de l'accueil dit :
+« Elle est attendue pour le … », ou le retard, en rouge). Restée sans réponse à sa
 date, elle **se relance par e-mail** ce jour-là, puis une fois par semaine, **trois relances au plus** ; une demande sans
 date ne se relance jamais (le cabinet garde la main), une demande reçue non plus, ni un dossier dont le mandat s'est
 arrêté, ni une personne qui a décoché « Me prévenir par e-mail » pour ce fil. L'e-mail suit la règle de M5 : ni la

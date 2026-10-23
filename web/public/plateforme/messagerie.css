@@ -64,6 +64,9 @@
 .msg-etat { font-weight: 600; color: var(--warning); }
 .msg-demande-carte.recue .msg-etat { color: var(--primary); }
 .msg-pied { font-size: 12px; font-weight: 600; color: var(--primary); }
+/* (1.123.0) Joindre à l'achat déjà saisi, et l'autre chemin à côté, sur la même ligne (passe dessous s'il manque de place). */
+.msg-ranger-cite { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 4px 12px; max-width: 100%; }
+.msg-ranger-cite .btn { white-space: normal; text-align: left; }
 .msg-reponse-a { font-size: 12px; color: var(--muted); }
 .msg-lien { padding: 4px 2px; border: 0; background: none; font: inherit; font-size: 14px; font-weight: 600; color: var(--primary); cursor: pointer; text-align: left; }
 .msg-lien:hover { text-decoration: underline; }

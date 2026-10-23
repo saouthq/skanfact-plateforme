@@ -1921,6 +1921,11 @@
     if (!todo.length) {
       const p = K.portfolio(S);
       if (!p.surSkanfact) return '';
+      // (plateforme) 1.123.0 — rien en retard ne veut pas dire rien à valider : le mois en cours d'un client peut avoir
+      // des écritures au brouillard (sa ligne dit « à valider ») ; la phrase dit les deux (revue du mois d'un client).
+      const enCours = (S.dossiers || []).filter(d => !d.archived && !d.manual).map(d => K.dossierRow(d))
+        .filter(r => r.level === 'ok' && r.lastMonth && !r.lastDefinitive).length;
+      if (enCours) return `<div class="todo-ok">Rien en retard${p.surSkanfact > 1 ? ` chez tes ${p.surSkanfact} clients sur SkanFact` : ''}. ${enCours > 1 ? `${enCours} clients ont` : p.surSkanfact > 1 ? '1 client a' : 'Ton client a'} des écritures du mois en cours à valider.</div>`;
       return p.surSkanfact > 1
         // (plateforme) 1.76.0 — « chez ton dossier » ne se disait pas (recette du 20/10/2026).
         ? `<div class="todo-ok">Tout est à jour : tes ${p.surSkanfact} clients sur SkanFact n'ont aucun mois passé vide ni à valider.</div>`
@@ -2150,7 +2155,7 @@
           <div class="actions">
             <button class="btn" id="demo-on">Voir un exemple (${nbExemple()} clients fictifs)</button>
             <button class="btn" id="imp">Importer un paquet…</button>
-            <button class="btn btn-primary" id="new-d">Ajouter mes clients…</button>
+            <button class="btn${/btn-primary/.test(inboxBanner()) ? '' : ' btn-primary'}" id="new-d">Ajouter mes clients…</button>
           </div></div>
         ${/* 10.14.0 — la ligne calme de la clé de secours doublait l'étape « Enregistrer ta clé de secours »
               de « Tes premiers pas », dix pixels plus bas, avec le même bouton. Sur cet écran, le panneau est le
@@ -2217,7 +2222,7 @@
         ${col.provisoires ? '<th class="r nw">À valider</th>' : ''}${col.signale ? '<th class="r nw">Signalés</th>' : ''}
         ${col.relance ? sortHead('Relancé le', 'relance', 'r.history') : ''}${sortHead('Mis à jour', 'recu')}<th></th></tr></thead>
         <tbody>${shown.map(r => `<tr class="clickable" data-id="${esc(r.id)}">
-          <td class="dl-client"><div class="dl-cell"><span class="dot-lvl ${r.level === 'ok' ? '' : esc(r.level)}" title="${esc(NIVEAUX[r.level] || '')}"></span><span class="dl-nom" title="${esc(r.name)}">${esc(r.name)}</span>${r.archived ? ' <span class="badge">archivé</span>' : ''}</div></td>
+          <td class="dl-client"><div class="dl-cell"><span class="dot-lvl ${r.level === 'ok' ? (r.lastMonth && !r.lastDefinitive ? 'warn' : '') : esc(r.level)}" title="${esc(NIVEAUX[r.level === 'ok' && r.lastMonth && !r.lastDefinitive ? 'warn' : r.level] || '')}"></span><span class="dl-nom" title="${esc(r.name)}">${esc(r.name)}</span>${r.archived ? ' <span class="badge">archivé</span>' : ''}</div></td>
           ${/* « hors SkanFact » vit dans « Dernier mois », pas à côté du nom (H-1, trouvé en testant
                 comme un humain) : dans la cellule du nom, il le coupait — « Garage Ben… » — alors
                 que la ligne avait de la place partout ailleurs. Ici, il remplace un tiret qui ne

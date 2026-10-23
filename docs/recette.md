@@ -1079,4 +1079,24 @@ Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT d
     comptable, pièces demandées, relances, réponses avec fichier), si c'est pratique et ergonomique des deux côtés, à
     la souris, au clavier et au téléphone, et comparé à ce que font les autres (Hesabi, Pennylane, Tiime, Dext,
     Karbon, les messageries des cabinets). Le but : que ce soit parfait. Un rapport d'abord, avec captures, puis les
-    corrections.
+    corrections. *Fait : `docs/revue-messagerie.md`, trois lots (1.115.0 à 1.117.0).*
+13. **À faire (demandé par Skander le 23/10/2026 : « note tout dans le backlog car ça doit être fait »)** : rendre
+    l'expérience meilleure dans les parcours, et une interface qui donne envie de travailler dessus. Dans cet ordre :
+    - **UX 1 — le mois d'un client vu des deux côtés** : `docs/revue-mois-client.md` (18 points, trois lots). Lot 1 :
+      la pièce reçue qui retrouve l'achat déjà saisi, la demande du comptable dans l'« À faire », le bandeau « tout est à
+      jour » honnête, la carte « Ce mois-ci » de « Mon comptable », un seul vert (*fait en 1.123.0, sauf la carte, qui suit*). Lot 2 : les achats confiés, réclamer le
+      justificatif depuis le brouillard, la validation qui prévient, le « Suivi » du mois, l'invitation, l'appel de paie
+      refusé. Lot 3 : la facture émise en page de lecture, la création rapide d'un client, les visites proposées, les
+      noms de boutons, la fin de la validation.
+    - **UX 2 — les états de chaque écran** (vide, chargement, erreur, lecture seule, hors ligne), dans les trois
+      applications ; d'abord la lecture seule des autres listes (achats, clients, stock…), comme les factures et les devis
+      en 1.122.0.
+    - **UX 3 — une interface qui donne envie** : une seule façon de dire un état (calme, attire, alerte) dans
+      l'entreprise, le Cabinet et la console, un catalogue des pièces de l'écran tenu par des tests, puis une passe
+      visuelle sur les écrans du quotidien (accueil, listes, pièces, téléphone), dans la DA.
+    - **Ensuite** : la recherche Ctrl K aussi au Cabinet et à la console ; la barre du bas au téléphone pour les écrans du
+      quotidien ; la photo d'un ticket qui file dans les achats et chez le comptable d'un geste ; les rappels par e-mail du
+      cabinet au rythme choisi par le client ; ce que le cabinet a le droit de faire, dit en clair, avec une seule liste
+      « à accepter » ; la demande qui revient chaque mois (attend l'avis des pilotes).
+    - **À décider par Skander** : compter quelques gestes sur notre serveur pour savoir où les gens bloquent (une donnée
+      de plus : la liste se fait d'abord) ; et regarder travailler les comptables pilotes, le levier le plus fort.

@@ -882,4 +882,6 @@ export const ADAPTATIONS = [
   ...lireFichier('abonnement-cabinet.txt'),
   // ── L'abonnement dans tous ses états, revu à la souris : pastille, bandeau, support, listes en lecture seule (1.122.0) ──
   ...lireFichier('abonnement-etats.txt'),
+  // ── Le mois d'un client vu des deux côtés, lot 1 : le bandeau honnête du cabinet, un seul vert (1.123.0) ──
+  ...lireFichier('mois-client.txt'),
 ];

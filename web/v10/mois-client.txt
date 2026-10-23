@@ -1,0 +1,36 @@
+Le mois d'un client vu des deux côtés, lot 1 (1.123.0 ; docs/revue-mois-client.md). Format : voir sans-paquets.mjs.
+
+La recette du 23/10/2026 a suivi Sarra (Boulangerie El Amal) et son comptable Hatem pendant un mois, à l'écran. Ici, ce qui
+touche les écrans repris de la v10 côté cabinet : le bandeau vert « Tout est à jour… aucun mois… à valider » s'affichait à
+côté d'une ligne « octobre 2026 · à valider » au point vert (le moteur ne compte que les mois passés, le badge regarde le
+dernier mois reçu) ; et « Ajouter mes clients… » restait vert pendant qu'une entreprise attendait « Accepter ».
+
+== cabinet/app.js | « tout est à jour » dit aussi ce qui attend dans le mois en cours
+-- avant
+      if (!p.surSkanfact) return '';
+      return p.surSkanfact > 1
+-- après
+      if (!p.surSkanfact) return '';
+      // (plateforme) 1.123.0 — rien en retard ne veut pas dire rien à valider : le mois en cours d'un client peut avoir
+      // des écritures au brouillard (sa ligne dit « à valider ») ; la phrase dit les deux (revue du mois d'un client).
+      const enCours = (S.dossiers || []).filter(d => !d.archived && !d.manual).map(d => K.dossierRow(d))
+        .filter(r => r.level === 'ok' && r.lastMonth && !r.lastDefinitive).length;
+      if (enCours) return `<div class="todo-ok">Rien en retard${p.surSkanfact > 1 ? ` chez tes ${p.surSkanfact} clients sur SkanFact` : ''}. ${enCours > 1 ? `${enCours} clients ont` : p.surSkanfact > 1 ? '1 client a' : 'Ton client a'} des écritures du mois en cours à valider.</div>`;
+      return p.surSkanfact > 1
+-- fin
+
+== cabinet/app.js | le point d'une ligne dit « à valider » quand son dernier mois l'est
+-- avant
+<span class="dot-lvl ${r.level === 'ok' ? '' : esc(r.level)}" title="${esc(NIVEAUX[r.level] || '')}"></span>
+-- après
+<span class="dot-lvl ${r.level === 'ok' ? (r.lastMonth && !r.lastDefinitive ? 'warn' : '') : esc(r.level)}" title="${esc(NIVEAUX[r.level === 'ok' && r.lastMonth && !r.lastDefinitive ? 'warn' : r.level] || '')}"></span>
+-- fin
+
+== cabinet/app.js | une entreprise qui attend « Accepter » garde le seul vert de l'écran
+-- avant
+            <button class="btn btn-primary" id="new-d">Ajouter mes clients…</button>
+          </div></div>
+-- après
+            <button class="btn${/btn-primary/.test(inboxBanner()) ? '' : ' btn-primary'}" id="new-d">Ajouter mes clients…</button>
+          </div></div>
+-- fin

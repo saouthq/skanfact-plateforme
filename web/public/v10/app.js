@@ -2085,8 +2085,9 @@
     messagerieVue = a;
     // (plateforme) 1.102.0 — l'Accueil compte ce que le cabinet attend (« À faire ») : il se redessine quand ce compte
     // change, jamais sous une fenêtre ni pendant une saisie.
-    const cleAttente = x => (x ? `${x.questions || 0}:${x.demandes || 0}` : '');
-    if (cleAttente(vueAvant) !== cleAttente(a) && /^(#\/dashboard)?$/.test(location.hash) && !$('#modal-root .modal')
+    const cleAttente = x => (x ? `${x.questions || 0}:${x.demandes || 0}:${x.enRetard || 0}:${x.pourLe || ''}` : '');
+    // (1.123.0) L'Accueil, c'est aussi « #/ » : on demande au routeur (revue du mois d'un client, 23/10/2026).
+    if (cleAttente(vueAvant) !== cleAttente(a) && routeOf(location.hash) === 'dashboard' && !$('#modal-root .modal')
       && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
     if (avant !== avecMessagerie(a)) {
       // (plateforme) 1.94.0 — la Comptabilité dit si un cabinet lit ses ventes : elle se redessine quand on l'apprend.
@@ -8605,8 +8606,11 @@
     // pastille et que l'encart « En attente de toi » (`bridge.messagerie.attente`).
     const mv = messagerieVue || {};
     const attendu = [mv.demandes ? pl(mv.demandes, 'pièce') : '', mv.questions ? pl(mv.questions, 'réponse') : ''].filter(Boolean);
-    if (attendu.length && !pageCachee('comptable')) items = [{ id: 'cabinet-attend', level: 'warn', label: `Ton cabinet attend ${attendu.join(' et ')}`,
-      detail: 'Réponds-lui dans « Mon comptable », avec le fichier qu\'il attend.' }, ...items];
+    // (1.123.0) La date « pour le » la plus proche, ou le retard, se dit dans la ligne (revue du mois d'un client).
+    const quand = mv.enRetard ? `${mv.enRetard > 1 ? `${mv.enRetard} pièces sont en retard` : 'Une pièce est en retard'} : ton cabinet l'attendait déjà. `
+      : mv.demandes && mv.pourLe ? `${mv.demandes > 1 ? 'La première est attendue' : 'Elle est attendue'} pour le ${C.fmtDate(mv.pourLe)}. ` : '';
+    if (attendu.length && !pageCachee('comptable')) items = [{ id: 'cabinet-attend', level: mv.enRetard ? 'danger' : 'warn', label: `Ton cabinet attend ${attendu.join(' et ')}`,
+      detail: `${quand}Réponds-lui dans « Mon comptable », avec le fichier qu'il attend.` }, ...items];
     // Rien à faire et rien du tout ne sont pas la même chose. « Aucun retard, aucun contrat en
     // attente » sur une entreprise qui n'a jamais rien facturé, c'est féliciter quelqu'un pour un
     // travail qu'il n'a pas commencé. Dans ce cas la place revient aux premiers pas.
@@ -16486,6 +16490,23 @@
         updateNavCounts();
       },
       rangerAchat: m => { rangementDuMessage = { message: m.id, fichier: m, lu: false }; navigate('#/achat/new'); },
+      // (1.123.0) La demande cite le numéro d'un achat déjà saisi (un seul) : la photo s'y joint, et le fil dit où elle
+      // est rangée (« Ranger dans mes achats » ouvrait un achat neuf, un doublon : revue du mois d'un client, 23/10/2026).
+      achatCite: texte => {
+        const net = x => String(x || '').toLowerCase().replace(/\s+/g, '');
+        const t = net(texte);
+        const vus = data.purchases.filter(p => net(p.number).length >= 3 && t.includes(net(p.number)));
+        return vus.length === 1 ? { id: vus[0].id, libelle: achat(vus[0]) } : null;
+      },
+      joindreAchat: async (m, id) => {
+        const p = purchaseById(id);
+        if (!p) throw new Error('Cet achat n\'est plus dans ton dossier : range la photo comme un autre achat.');
+        const fiche = await bridge.attachPath(p.id, bridge.ocrDepuisFichier(m).path);
+        p.attachments = (p.attachments || []).concat([fiche]);
+        await save(true);
+        await bridge.messagerie.rangerAchat(m.id, p.id, achat(p));
+        return achat(p);
+      },
       voirMandat: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
       inviter: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
       surAttente: a => majMessagerie({ ...(messagerieVue || {}), ...a }),

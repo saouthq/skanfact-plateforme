@@ -326,6 +326,8 @@
    *   pieceDuNumero?: (numero: string) => { genre: string, id: string } | null,
    *   repondre?: (question: string, texte: string) => Promise<void>,
    *   rangerAchat?: (message: { id: string, nom: string, type: string, contenu: string }) => void,
+   *   achatCite?: (texte: string) => { id: string, libelle: string } | null,
+   *   joindreAchat?: (message: { id: string, nom: string, type: string, contenu: string }, achat: string) => Promise<string>,
    *   voirMandat?: () => void,
    *   inviter?: () => void,
    *   revision?: () => void,
@@ -569,7 +571,8 @@
           <span class="msg-carte-txt"><b>${esc(m.fichier.nom)}</b><span class="msg-poids">${esc(m.fichier.type === 'application/pdf' ? 'PDF' : 'Photo')} · ${esc(poids(m.fichier.taille))}</span></span>
           <button type="button" class="msg-lien" data-msg-fichier="${esc(m.fichier.id)}">Ouvrir</button>
           <button type="button" class="msg-lien" data-msg-enregistrer="${esc(m.fichier.id)}" aria-label="Enregistrer ${esc(m.fichier.nom)}">Enregistrer</button>
-          ${!entreprise && m.cote === 'entreprise' && o.saisirPiece && actif ? `<button type="button" class="msg-lien" data-msg-saisir="${esc(m.id)}">Saisir cette pièce</button>` : ''}</div>`;
+          ${!entreprise && m.cote === 'entreprise' && m.achat && o.ouvrirPiece && /\s·\s/.test(m.achat.libelle) ? `<button type="button" class="msg-lien" data-msg-ouvrir="achat:${esc(m.achat.id)}" data-msg-libelle="${esc(m.achat.libelle)}">Voir l'écriture</button>`
+            : !entreprise && m.cote === 'entreprise' && !m.achat && o.saisirPiece && actif ? `<button type="button" class="msg-lien" data-msg-saisir="${esc(m.id)}">Saisir cette pièce</button>` : ''}</div>`;
       }
       if (m.repondA) {
         const d = demandes().get(m.repondA);
@@ -582,8 +585,14 @@
       if (m.achat) pied.push(`rangée dans ${entreprise ? 'tes' : 'ses'} achats (${esc(m.achat.libelle)})`);
       // (1.94.0) Le « · » reste avec le genre (une ligne qui passe à la suivante ne commence plus par lui), et un fichier
       // envoyé avec une facture, un avoir ou un devis n'est pas un achat : il ne se propose pas d'y être rangé.
-      const ranger = entreprise && actif && m.fichier && !m.achat && o.rangerAchat && !(m.piece && m.piece.genre !== 'achat')
-        ? `<button type="button" class="btn btn-sm" data-msg-ranger="${esc(m.id)}">Ranger dans mes achats…</button>` : '';
+      // (1.123.0) La photo répond à une demande qui cite le numéro d'un achat déjà saisi : elle s'y joint d'un geste
+      // (« Ranger dans mes achats » ouvrait un achat neuf : un doublon ; revue du mois d'un client, 23/10/2026).
+      const peutRanger = entreprise && actif && m.fichier && !m.achat && !(m.piece && m.piece.genre !== 'achat');
+      const demandeLiee = peutRanger && m.repondA ? demandes().get(m.repondA) : null;
+      const cite = demandeLiee && o.achatCite && o.joindreAchat ? o.achatCite(demandeLiee.demande.texte) : null;
+      const ranger = !peutRanger ? ''
+        : cite ? `<span class="msg-ranger-cite"><button type="button" class="btn btn-sm" data-msg-joindre-achat="${esc(m.id)}" data-msg-achat="${esc(cite.id)}">Joindre à l'achat ${esc(cite.libelle)}</button>${o.rangerAchat ? `<button type="button" class="msg-lien" data-msg-ranger="${esc(m.id)}">C'est un autre achat…</button>` : ''}</span>`
+          : o.rangerAchat ? `<button type="button" class="btn btn-sm" data-msg-ranger="${esc(m.id)}">Ranger dans mes achats…</button>` : '';
       return `<div class="msg-ligne${moi ? ' moi' : ''}" data-msg-id="${esc(m.id)}">
         <span class="msg-qui">${tete}</span>${corps}
         ${pied.length ? `<span class="msg-pied">${pied.map((x, i) => (i ? x : x.charAt(0).toUpperCase() + x.slice(1))).join(' · ')}</span>` : ''}${ranger}</div>`;
@@ -808,6 +817,14 @@
       surClic(fil, '[data-msg-envoyer-piece]', async (b) => {
         const m = demandes().get(String(b.dataset.msgEnvoyerPiece));
         if (m) envoyerPiece(m);
+      });
+      surClic(fil, '[data-msg-joindre-achat]', async (b) => {
+        const m = [...(lu.messages || []), ...anciensMessages].find((x) => x.id === b.dataset.msgJoindreAchat);
+        if (!m || !m.fichier || !o.joindreAchat) return;
+        const f = await o.appel('GET', `/messages/fichiers/${encodeURIComponent(m.fichier.id)}`);
+        const libelle = await o.joindreAchat({ id: m.id, nom: f.nom, type: f.type, contenu: f.contenu }, String(b.dataset.msgAchat));
+        if (o.toast) o.toast(`« ${f.nom} » est jointe à l'achat ${libelle} ; ton cabinet la garde aussi dans ce fil.`);
+        await relire();
       });
       surClic(fil, '[data-msg-ranger]', async (b) => {
         const m = [...(lu.messages || []), ...anciensMessages].find((x) => x.id === b.dataset.msgRanger);

@@ -45,7 +45,9 @@ function depuisCurseur(texte: string): [string, string] | null {
 // dernière lecture de ce côté (pièces demandées comprises) : l'écran ouvert le marque lu.
 // (1.116.0) `enRetard` : celles des pièces demandées dont la date « pour le » est passée (jour de Tunis), comptées dans
 // `demandes` ; l'encart et la boîte le disent.
-export async function attente(tx: Transaction, entreprise: string, cabinet: string, cote: Cote): Promise<{ nonLus: number; questions: number; demandes: number; enRetard: number; aLire: boolean }> {
+// (1.123.0) `pourLe` : la date « pour le » la plus proche des pièces encore attendues (jour, AAAA-MM-JJ), ou null :
+// l'« À faire » de l'accueil la dit (revue du mois d'un client, 23/10/2026).
+export async function attente(tx: Transaction, entreprise: string, cabinet: string, cote: Cote): Promise<{ nonLus: number; questions: number; demandes: number; enRetard: number; pourLe: string | null; aLire: boolean }> {
   const r = (await tx.query(`select
       (select count(*) from messagerie.message m where m.entreprise = $1 and m.cabinet = $2 and m.cote <> $3
           and m.ecrit_le > coalesce(case $3 when 'entreprise' then f.lu_entreprise else f.lu_cabinet end, '-infinity')
@@ -60,9 +62,11 @@ export async function attente(tx: Transaction, entreprise: string, cabinet: stri
       (select count(*) from messagerie.message m where m.entreprise = $1 and m.cabinet = $2
           and m.demande is not null and m.demande_recue_le is null) demandes,
       (select count(*) from messagerie.message m where m.entreprise = $1 and m.cabinet = $2
-          and m.demande is not null and m.demande_recue_le is null and m.demande_pour < (now() at time zone 'Africa/Tunis')::date) en_retard
-    from (select 1) x left join messagerie.fil f on f.entreprise = $1 and f.cabinet = $2`, [entreprise, cabinet, cote])).rows[0] as { non_lus: string; questions: string; demandes: string; en_retard: string; a_lire: boolean };
-  return { nonLus: Number(r.non_lus), questions: Number(r.questions), demandes: Number(r.demandes), enRetard: Number(r.en_retard), aLire: r.a_lire };
+          and m.demande is not null and m.demande_recue_le is null and m.demande_pour < (now() at time zone 'Africa/Tunis')::date) en_retard,
+      (select to_char(min(m.demande_pour), 'YYYY-MM-DD') from messagerie.message m where m.entreprise = $1 and m.cabinet = $2
+          and m.demande is not null and m.demande_recue_le is null) pour_le
+    from (select 1) x left join messagerie.fil f on f.entreprise = $1 and f.cabinet = $2`, [entreprise, cabinet, cote])).rows[0] as { non_lus: string; questions: string; demandes: string; en_retard: string; pour_le: string | null; a_lire: boolean };
+  return { nonLus: Number(r.non_lus), questions: Number(r.questions), demandes: Number(r.demandes), enRetard: Number(r.en_retard), pourLe: r.pour_le, aLire: r.a_lire };
 }
 
 // Le fil que lit ce côté : celui de mon cabinet (côté cabinet) ; celui du cabinet d'aujourd'hui, ou d'un ancien
@@ -175,7 +179,7 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
               where d.entreprise = f.entreprise and d.cabinet = f.cabinet order by d.debut desc limit 1) nom
             from messagerie.fil f where f.entreprise = $1 and f.cabinet is distinct from $2 order by f.cree_le`, [entreprise, fil.cabinet])).rows as { cabinet: string; nom: string | null }[]
         : [];
-      if (!fil.cabinet) return { corps: { fil: null, messages: [], questions: [], suite: null, attente: { nonLus: 0, questions: 0, demandes: 0, enRetard: 0, aLire: false }, anciens } };
+      if (!fil.cabinet) return { corps: { fil: null, messages: [], questions: [], suite: null, attente: { nonLus: 0, questions: 0, demandes: 0, enRetard: 0, pourLe: null, aLire: false }, anciens } };
       const cabinet = fil.cabinet;
 
       const info = (await tx.query(`select

@@ -136,11 +136,11 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     // défiler, en était le seul signe : parcours du 21/10/2026) ; il se relit sans recharger quand ce compte change.
     const aFaire = a.p.locator('#todo-list li', { hasText: 'Ton cabinet attend' });
     await expect.poll(async () => net(await aFaire.innerText().catch(() => '')), { timeout: 15_000 })
-      .toBe('Ton cabinet attend 1 pièce et 1 réponse Réponds-lui dans « Mon comptable », avec le fichier qu\'il attend. Répondre');
+      .toMatch(/^Ton cabinet attend 1 pièce et 1 réponse Elle est attendue pour le \d\d\/\d\d\/\d{4}\. Réponds-lui dans « Mon comptable », avec le fichier qu'il attend\. Répondre$/);
     const encore = await api('POST', `/entreprises/${ent}/messages`, sonia, { cote: 'cabinet', texte: '', demande: 'Le contrat de location' });
     expect(encore.statut).toBe(201);
     await a.p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
-    await expect.poll(async () => net(await aFaire.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Ton cabinet attend 2 pièces et 1 réponse /);
+    await expect.poll(async () => net(await aFaire.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Ton cabinet attend 2 pièces et 1 réponse La première est attendue pour le /);
     expect((await api('POST', `/entreprises/${ent}/messages/${String(encore.corps.id)}/recue`, sonia)).statut).toBe(200);
     await a.p.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
     await expect.poll(async () => net(await aFaire.innerText().catch(() => '')), { timeout: 15_000 }).toMatch(/^Ton cabinet attend 1 pièce et 1 réponse /);

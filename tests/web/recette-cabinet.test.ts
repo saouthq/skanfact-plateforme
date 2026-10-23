@@ -1,7 +1,7 @@
 // La recette du 20/10/2026 côté Cabinet (1.76.0 ; docs/recette.md), à la souris : un cabinet neuf, relié à une
 // entreprise neuve qui n'a écrit que le mois en cours. Ce que le parcours vérifie :
 //   - la page Dossiers se relit quand on y revient : la proposition d'un client s'y annonce sans recharger ;
-//   - « Tout est à jour » se dit du client ; plus aucun reste de la v10 (ni sa reprise, ni « v10 · en ligne ») ;
+//   - « Rien en retard » se dit du client (et ce qui attend au brouillard du mois) ; plus aucun reste de la v10 (ni sa reprise, ni « v10 · en ligne ») ;
 //   - le dossier montre l'e-mail et le téléphone de la fiche du client, que « Modifier la fiche » reprend ;
 //   - un client qui n'a écrit que le mois en cours n'entend pas « aucun mois attendu… à la première écriture » ;
 //   - une période sans écriture validée dit ce qui attend au brouillard, et y mène ;
@@ -94,8 +94,9 @@ describe('la recette du Cabinet, à la souris', () => {
     await bandeau.getByRole('button', { name: 'Accepter', exact: true }).click();
     await expect.poll(() => p.locator('.banner').filter({ hasText: 'Droguerie Bou Hamed' }).count(), { timeout: 15_000 }).toBe(0);
     expect(((await api('GET', `/entreprises/${ent}/mandat`, client)).corps.mandat as { id: string; statut: string }).statut).toBe('actif');
-    // Son seul mois est le mois en cours : rien n'est en retard, et la phrase parle du client.
-    await expect.poll(() => p.locator('#view').innerText(), { timeout: 15_000 }).toContain('Tout est à jour : ton client sur SkanFact n\'a aucun mois passé vide ni à valider.');
+    // Son seul mois est le mois en cours, avec des écritures au brouillard : rien n'est en retard, la phrase parle du
+    // client et dit ce qui attend (1.123.0 : « tout est à jour » s'affichait à côté d'une ligne « à valider »).
+    await expect.poll(() => p.locator('#view').innerText(), { timeout: 15_000 }).toContain('Rien en retard. Ton client a des écritures du mois en cours à valider.');
     expect(await p.locator('#view').innerText()).not.toContain('chez ton dossier');
     await p.screenshot({ path: path.join(PHOTOS, 'recette-cabinet-1-dossiers.png') });
     expect(mandat).toMatch(/^[0-9a-f-]{36}$/);

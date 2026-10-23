@@ -113,7 +113,7 @@ describe('le fil entre l\'entreprise et son cabinet', () => {
     const vu = await fil(ent, cab.associe, 'cabinet');
     expect(vu.statut, JSON.stringify(vu.corps)).toBe(200);
     expect(vu.corps.messages.map((m) => [m.texte, m.auteur, m.moi, m.cote])).toEqual([['Bonjour, voici ma question.', 'Leïla Mansour', false, 'entreprise']]);
-    expect(vu.corps.attente).toEqual({ nonLus: 1, questions: 0, demandes: 0, enRetard: 0, aLire: true });
+    expect(vu.corps.attente).toEqual({ nonLus: 1, questions: 0, demandes: 0, enRetard: 0, pourLe: null, aLire: true });
     // Écrire, c'est avoir lu ce qui précède : le client a lu le fil jusqu'à son message.
     expect(vu.corps.fil).toMatchObject({ cabinet: cab.id, cabinetNom: 'Cabinet Ennour', actif: true, luParLautre: expect.any(String), alerte: true });
     // Pas encore lu par le cabinet : le client ne voit pas « Lue ».
@@ -128,7 +128,7 @@ describe('le fil entre l\'entreprise et son cabinet', () => {
       ['Je regarde.', 'cabinet', false, 'revision'], ['Bonjour, voici ma question.', 'entreprise', false, 'Leïla Mansour'],
     ]);
     expect((await fil(ent, collaborateur, 'cabinet')).corps.messages[0]?.moi).toBe(true);
-    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toEqual({ cabinet: cab.id, nonLus: 1, questions: 0, demandes: 0, enRetard: 0, aLire: true, anciens: 0 });
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toEqual({ cabinet: cab.id, nonLus: 1, questions: 0, demandes: 0, enRetard: 0, pourLe: null, aLire: true, anciens: 0 });
 
     // Personne d'autre : un membre du cabinet sans ce dossier (la porte ne le lui connaît pas), la voisine, un commercial
     // de l'entreprise.
@@ -262,7 +262,7 @@ describe('la boîte du cabinet', () => {
     // Le fil de C montre la question, et le client y répond : C passe à traiter.
     const filC = (await fil(c.ent, c.p, 'entreprise')).corps;
     expect(filC.questions.map((x) => [x.piece, x.montant, x.statut])).toEqual([['FF-12', '1200.500', 'envoyee']]);
-    expect(filC.attente).toEqual({ nonLus: 0, questions: 1, demandes: 0, enRetard: 0, aLire: false });
+    expect(filC.attente).toEqual({ nonLus: 0, questions: 1, demandes: 0, enRetard: 0, pourLe: null, aLire: false });
     // Qui l'a posée : l'associé la lit comme la sienne ; (1.115.0) chez le client, son nom, comme sous ses messages (la
     // question se disait posée par « Ton cabinet » à côté d'un message signé de son nom) ; son adresse, jamais.
     expect(filC.questions[0]?.poseePar).toBe('associe');
@@ -394,21 +394,26 @@ describe('(1.116.0) les pièces demandées : une date, des relances, plusieurs �
     expect(d.statut, JSON.stringify(d.corps)).toBe(201);
     let vu = (await fil(ent, client, 'entreprise')).corps.messages.find((m) => m.id === d.corps.id);
     expect(vu?.demande).toMatchObject({ pour: jour(3), enRetard: false, relances: 0, relanceLe: null });
-    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 1, enRetard: 0 });
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 1, enRetard: 0, pourLe: jour(3) });
+    // (1.123.0) `pourLe` : la date la plus proche des pièces encore attendues (l'« À faire » de l'accueil la dit) ; une
+    // seconde demande, plus lointaine, ne la déplace pas, et une pièce reçue ne compte plus.
+    const d2 = await ecrire(ent, cab.associe, 'cabinet', { demande: 'La facture Ooredoo de septembre', pour: jour(6) });
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 2, pourLe: jour(3) });
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${d2.corps.id}/recue`, cab.associe.jeton)).statut).toBe(200);
     const retards = async () => (await appeler('GET', `/cabinets/${cab.id}/messages`, cab.associe.jeton)).corps.dossiers.find((x) => x.nom === 'Garage Ennasr')?.retards;
     expect(await retards()).toBe(0);
     // La date passe (la base est ramenée trois jours plus tôt) : en retard, partout, avec le même compte.
     await admin.query('update messagerie.message set demande_pour = $2 where id = $1', [d.corps.id, jour(-2)]);
     vu = (await fil(ent, client, 'entreprise')).corps.messages.find((m) => m.id === d.corps.id);
     expect(vu?.demande?.enRetard).toBe(true);
-    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 1, enRetard: 1 });
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 1, enRetard: 1, pourLe: jour(-2) });
     expect((await fil(ent, cab.associe, 'cabinet')).corps.attente).toMatchObject({ demandes: 1, enRetard: 1 });
     expect(await retards()).toBe(1);
     // Reçue : plus en retard.
     expect((await appeler('POST', `/entreprises/${ent}/messages/${d.corps.id}/recue`, cab.associe.jeton)).statut).toBe(200);
     vu = (await fil(ent, client, 'entreprise')).corps.messages.find((m) => m.id === d.corps.id);
     expect(vu?.demande?.enRetard).toBe(false);
-    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 0, enRetard: 0 });
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 0, enRetard: 0, pourLe: null });
     expect(await retards()).toBe(0);
   });
 

@@ -15,8 +15,9 @@ au fil ; et l'Accueil ouvert se redessine quand ce compte change (jamais sous un
     messagerieVue = a;
     // (plateforme) 1.102.0 — l'Accueil compte ce que le cabinet attend (« À faire ») : il se redessine quand ce compte
     // change, jamais sous une fenêtre ni pendant une saisie.
-    const cleAttente = x => (x ? `${x.questions || 0}:${x.demandes || 0}` : '');
-    if (cleAttente(vueAvant) !== cleAttente(a) && /^(#\/dashboard)?$/.test(location.hash) && !$('#modal-root .modal')
+    const cleAttente = x => (x ? `${x.questions || 0}:${x.demandes || 0}:${x.enRetard || 0}:${x.pourLe || ''}` : '');
+    // (1.123.0) L'Accueil, c'est aussi « #/ » : on demande au routeur (revue du mois d'un client, 23/10/2026).
+    if (cleAttente(vueAvant) !== cleAttente(a) && routeOf(location.hash) === 'dashboard' && !$('#modal-root .modal')
       && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
 -- fin
 
@@ -30,8 +31,11 @@ au fil ; et l'Accueil ouvert se redessine quand ce compte change (jamais sous un
     // pastille et que l'encart « En attente de toi » (`bridge.messagerie.attente`).
     const mv = messagerieVue || {};
     const attendu = [mv.demandes ? pl(mv.demandes, 'pièce') : '', mv.questions ? pl(mv.questions, 'réponse') : ''].filter(Boolean);
-    if (attendu.length && !pageCachee('comptable')) items = [{ id: 'cabinet-attend', level: 'warn', label: `Ton cabinet attend ${attendu.join(' et ')}`,
-      detail: 'Réponds-lui dans « Mon comptable », avec le fichier qu\'il attend.' }, ...items];
+    // (1.123.0) La date « pour le » la plus proche, ou le retard, se dit dans la ligne (revue du mois d'un client).
+    const quand = mv.enRetard ? `${mv.enRetard > 1 ? `${mv.enRetard} pièces sont en retard` : 'Une pièce est en retard'} : ton cabinet l'attendait déjà. `
+      : mv.demandes && mv.pourLe ? `${mv.demandes > 1 ? 'La première est attendue' : 'Elle est attendue'} pour le ${C.fmtDate(mv.pourLe)}. ` : '';
+    if (attendu.length && !pageCachee('comptable')) items = [{ id: 'cabinet-attend', level: mv.enRetard ? 'danger' : 'warn', label: `Ton cabinet attend ${attendu.join(' et ')}`,
+      detail: `${quand}Réponds-lui dans « Mon comptable », avec le fichier qu'il attend.` }, ...items];
 -- fin
 
 == app.js | « Répondre » mène au fil du cabinet

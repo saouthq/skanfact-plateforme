@@ -919,7 +919,7 @@
     try { inv = (await appel('GET', '/mandat/invitation')).invitation; } catch { /* sans réponse : le formulaire seul */ }
     const secours = lienDeSecours
       ? `<label class="field mt">Le lien, à lui envoyer si l'e-mail n'arrive pas<input type="text" id="mandat-lien" readonly value="${esc(lienDeSecours)}"></label>
-         <button type="button" class="btn btn-sm" id="mandat-lien-copier">Copier le lien</button>
+         <button type="button" class="btn btn-sm btn-primary" id="mandat-lien-copier">Copier le lien</button>
          <p class="small" role="status" id="mandat-lien-copie"></p>` : '';
     lienDeSecours = null;
     /** @param {unknown} x */
@@ -948,6 +948,9 @@
       // paie », confiée, se montrait décochée (parcours du 21/10/2026). « Envoyer un nouveau lien » part avec ce qu'elles
       // disent alors.
       const confie = Array.isArray(inv.perimetre) ? inv.perimetre.map(String) : null;
+      // (1.123.0) Un seul vert, l'étape suivante : l'invitation partie, « Confier mon dossier » (le chemin du code, pas
+      // pris) cède le vert à « Copier le lien » (revue du mois d'un client, 23/10/2026 : les deux étaient verts).
+      panneau.querySelector('#mandat-confier')?.classList.remove('btn-primary');
       if (confie) for (const c of panneau.querySelectorAll('[data-perimetre]')) /** @type {HTMLInputElement} */ (c).checked = confie.includes(String(/** @type {HTMLElement} */ (c).dataset.perimetre));
       zone.innerHTML = `<h3>Il n'est pas encore sur SkanFact</h3>
         <p id="mandat-invite" tabindex="-1">Tu as invité <strong>${esc(inv.email)}</strong>${confie && confie.length ? ` pour ${esc(lesPerimetres(confie))}` : ''} : son lien vaut jusqu'au ${esc(jourATunis(inv.expire))}. ${esc(ETAT_DE_L_EMAIL[inv.courriel] || '')}</p>
