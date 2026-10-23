@@ -884,4 +884,6 @@ export const ADAPTATIONS = [
   ...lireFichier('abonnement-etats.txt'),
   // ── Le mois d'un client vu des deux côtés, lot 1 : le bandeau honnête du cabinet, un seul vert (1.123.0) ──
   ...lireFichier('mois-client.txt'),
+  // ── Les achats confiés au cabinet : la page Achats le dit, son bouton principal envoie la photo (1.126.0) ──
+  ...lireFichier('achats-confies.txt'),
 ];

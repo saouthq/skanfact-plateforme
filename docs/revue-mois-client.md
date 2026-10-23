@@ -136,6 +136,12 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
     fil, la pièce écrite d'avance (« Le justificatif de l'achat GMS-26-4502 du 23/10/2026 (Grands Moulins de Sfax) »). La
     validation d'une écriture, ou d'un lot, le dit avant le geste. Reste du point 13 : ouvrir la photo elle-même depuis le
     Cabinet (un droit de plus, à décider par Skander).
+  - **6** (1.126.0) : le serveur dit, avec ce qui attend dans le fil, si le mandat actif confie la saisie des achats
+    (`achatsConfies`, lu dans son périmètre). Alors la page Achats le dit (« Tu as confié la saisie de tes achats à ton
+    cabinet : envoie-lui la photo de chaque facture, il la saisit. ») et son seul vert est « Envoyer une photo à mon
+    comptable » : la photo (une ou plusieurs) part dans le fil du cabinet avec « Une facture d'achat à saisir : … », où
+    Hatem a « Saisir cette pièce ». Vide, la page s'intitule « Ton cabinet saisit tes achats » ; « Saisir moi-même » et
+    « + Facture d'achat » restent là, sans couleur. Sans ce périmètre, la page redevient celle de qui saisit lui-même.
 - **Lot 3 (P3, 14–18)**, avec la passe visuelle UX 3 du carnet.
 
 Les captures : `m01` à `m48` de la recette (scratchpad de la session, non versées).

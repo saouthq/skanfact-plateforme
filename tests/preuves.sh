@@ -20056,6 +20056,22 @@ prouver 'mois 125 : valider un lot qui tait les achats sans justificatif' web/pu
   "const sansJustif = cibles.filter(e => e.justifClient === false);" "const sansJustif = [];" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
 
+prouver 'mois 126 : des achats dits confiés quand le mandat ne les confie pas' serveur/messagerie/routes.ts \
+  "const achatsConfies = !!m && (m.perimetre ?? []).includes('saisie_achats');" "const achatsConfies = !!m;" \
+  'ils s'\''écrivent ; chacun voit ce qui l'\''attend, « lu » se dit à l'\''autre ; ni la voisine, ni un autre rôle, ni un collaborateur sans le dossier'
+prouver 'mois 126 : la page Achats qui ne regarde pas le périmètre du mandat' web/public/v10/app.js \
+  "messagerieVue.cabinet && messagerieVue.achatsConfies && bridge.messagerie" "messagerieVue.cabinet && bridge.messagerie" \
+  'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
+prouver 'mois 126 : deux verts en haut de la page Achats confiés' web/public/v10/app.js \
+  "<button class=\"btn \${videAchats || confies ? '' : 'btn-primary'}\" id=\"new\">" "<button class=\"btn \${videAchats ? '' : 'btn-primary'}\" id=\"new\">" \
+  'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
+prouver 'mois 126 : la photo qui part sans dire qu'\''elle est une facture à saisir' web/public/v10/app.js \
+  "bridge.messagerie.envoyerFichier(f, \`Une facture d'achat à saisir : \${f.name}\`, null)" "bridge.messagerie.envoyerFichier(f, f.name, null)" \
+  'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
+prouver 'mois 126 : la page Achats qui ne se redessine pas quand on apprend que les achats sont confiés' web/public/v10/app.js \
+  "if (!!(vueAvant && vueAvant.achatsConfies) !== !!(a && a.achatsConfies) && routeOf(location.hash) === 'achats'" "if (false && routeOf(location.hash) === 'achats'" \
+  'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

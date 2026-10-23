@@ -54,7 +54,8 @@ jours, jamais avant aujourd'hui, jour de Tunis). Passée sans réponse, elle est
 le dit (« En retard », en rouge), l'encart aussi (« (dont 1 en retard) »), et la boîte du cabinet a une pastille
 « N en retard » sur la ligne du client (`attente` et la boîte comptent avec les mêmes lignes ; depuis la 1.123.0,
 `attente` donne aussi `pourLe`, la date la plus proche des pièces encore attendues, que l'« À faire » de l'accueil dit :
-« Elle est attendue pour le … », ou le retard, en rouge). Restée sans réponse à sa
+« Elle est attendue pour le … », ou le retard, en rouge ; depuis la 1.126.0, `achatsConfies` : le mandat actif confie
+la saisie des achats, et la page Achats de l'entreprise propose d'abord d'envoyer la photo). Restée sans réponse à sa
 date, elle **se relance par e-mail** ce jour-là, puis une fois par semaine, **trois relances au plus** ; une demande sans
 date ne se relance jamais (le cabinet garde la main), une demande reçue non plus, ni un dossier dont le mandat s'est
 arrêté, ni une personne qui a décoché « Me prévenir par e-mail » pour ce fil. L'e-mail suit la règle de M5 : ni la

@@ -128,7 +128,11 @@ describe('le fil entre l\'entreprise et son cabinet', () => {
       ['Je regarde.', 'cabinet', false, 'revision'], ['Bonjour, voici ma question.', 'entreprise', false, 'Leïla Mansour'],
     ]);
     expect((await fil(ent, collaborateur, 'cabinet')).corps.messages[0]?.moi).toBe(true);
-    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toEqual({ cabinet: cab.id, nonLus: 1, questions: 0, demandes: 0, enRetard: 0, pourLe: null, aLire: true, anciens: 0 });
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toEqual({ cabinet: cab.id, nonLus: 1, questions: 0, demandes: 0, enRetard: 0, pourLe: null, aLire: true, anciens: 0, achatsConfies: true });
+    // (1.126.0) Le mandat ne confie plus la saisie des achats : l'attente le dit (la page Achats ne propose plus la photo).
+    expect((await appeler('PUT', `/entreprises/${ent}/mandat/perimetre`, client.jeton, { perimetre: ['comptabilite', 'declarations'] })).statut).toBe(200);
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ achatsConfies: false });
+    expect((await appeler('PUT', `/entreprises/${ent}/mandat/perimetre`, client.jeton, { perimetre: ['comptabilite', 'declarations', 'saisie_achats'] })).statut).toBe(200);
 
     // Personne d'autre : un membre du cabinet sans ce dossier (la porte ne le lui connaît pas), la voisine, un commercial
     // de l'entreprise.

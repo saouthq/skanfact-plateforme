@@ -261,8 +261,12 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       const fil = await filDe(tx, entreprise, 'entreprise', undefined);
       if ('refus' in fil) return { statut: 403, corps: { motif: fil.refus, bouton: null } };
       const anciens = Number((await tx.query('select count(*) n from messagerie.fil where entreprise = $1 and cabinet is distinct from $2', [entreprise, fil.cabinet])).rows[0].n);
-      if (!fil.cabinet) return { corps: { cabinet: null, nonLus: 0, questions: 0, demandes: 0, enRetard: 0, anciens } };
-      return { corps: { cabinet: fil.cabinet, ...(await attente(tx, entreprise, fil.cabinet, 'entreprise')), anciens } };
+      if (!fil.cabinet) return { corps: { cabinet: null, nonLus: 0, questions: 0, demandes: 0, enRetard: 0, anciens, achatsConfies: false } };
+      // (1.126.0) Le mandat confie-t-il la saisie des achats ? La page Achats propose alors d'abord la photo au cabinet
+      // (revue du mois d'un client, point 6).
+      const m = (await tx.query(`select perimetre from socle.mandat where entreprise = $1 and cabinet = $2 and statut = 'actif' limit 1`, [entreprise, fil.cabinet])).rows[0] as { perimetre: string[] } | undefined;
+      const achatsConfies = !!m && (m.perimetre ?? []).includes('saisie_achats');
+      return { corps: { cabinet: fil.cabinet, ...(await attente(tx, entreprise, fil.cabinet, 'entreprise')), anciens, achatsConfies } };
     },
   });
 

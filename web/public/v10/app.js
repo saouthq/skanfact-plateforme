@@ -2089,6 +2089,9 @@
     // (1.123.0) L'Accueil, c'est aussi « #/ » : on demande au routeur (revue du mois d'un client, 23/10/2026).
     if (cleAttente(vueAvant) !== cleAttente(a) && routeOf(location.hash) === 'dashboard' && !$('#modal-root .modal')
       && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
+    // (plateforme) 1.126.0 — la page Achats dit si le cabinet en tient la saisie : elle se redessine quand on l'apprend.
+    if (!!(vueAvant && vueAvant.achatsConfies) !== !!(a && a.achatsConfies) && routeOf(location.hash) === 'achats' && !$('#modal-root .modal')
+      && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
     if (avant !== avecMessagerie(a)) {
       // (plateforme) 1.94.0 — la Comptabilité dit si un cabinet lit ses ventes : elle se redessine quand on l'apprend.
       if (/^#\/compta/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
@@ -9996,9 +9999,15 @@
       bindPager($('#list-wrap'), s, () => draw(), '#list-wrap');
     });
     const videAchats = !data.purchases.length && !(s.q || s.st || s.kind || s.cat || s.year || s.du);
+    // (plateforme) 1.126.0 — le mandat confie la saisie des achats au cabinet : ce qu'on attend de l'entreprise, c'est la
+    // photo de chaque facture. Le bouton principal l'envoie dans le fil du cabinet ; saisir soi-même reste possible
+    // (revue du mois d'un client, point 6).
+    const confies = !!(messagerieVue && messagerieVue.cabinet && messagerieVue.achatsConfies && bridge.messagerie && bridge.messagerie.envoyerFichier);
     $('#view').innerHTML = `
       <div class="page-head"><h1>Achats et dépenses</h1>
-        <div class="actions"><button class="btn" id="new-dep">+ Dépense</button><button class="btn ${videAchats ? '' : 'btn-primary'}" id="new">+ Facture d'achat</button></div></div>
+        <div class="actions"><button class="btn" id="new-dep">+ Dépense</button><button class="btn ${videAchats || confies ? '' : 'btn-primary'}" id="new">+ Facture d'achat</button>${confies ? `<button class="btn btn-primary" id="photo-cab">Envoyer une photo à mon comptable</button>
+          <input type="file" id="photo-cab-f" hidden multiple accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf">` : ''}</div></div>
+      ${confies && !videAchats ? '<p class="small muted mb" id="achats-confies">Tu as confié la saisie de tes achats à ton cabinet : envoie-lui la photo de chaque facture, il la saisit. Tu peux aussi en saisir une toi-même.</p>' : ''}
       ${payablesPanel()}
       ${filtersBar(`
         <input type="text" id="q" placeholder="Rechercher : n°, fournisseur, objet…" value="${h(s.q)}">
@@ -10009,7 +10018,11 @@
         ${info('list.filters')}
         <span class="f-note" id="f-note" hidden></span>
       `, data.purchases.length, !!(s.q || s.st || s.kind || s.cat || s.year || s.du))}
-      ${videAchats ? etatVide('Ce que tu dépenses, et la TVA que tu récupères',
+      ${videAchats && confies ? etatVide('Ton cabinet saisit tes achats',
+        ['Tu as confié la saisie de tes achats à ton cabinet : envoie-lui la photo ou le PDF de chaque facture fournisseur, il la saisit pour toi. C\'est ce qui permet de récupérer la TVA que tu as payée.',
+         'La photo part dans « Mon comptable », où tu retrouves vos échanges. Tu peux aussi saisir une facture toi-même.'],
+        [['vide-photo', 'Envoyer une photo à mon comptable', true], ['vide-achat', 'Saisir moi-même'], ['vide-dep', '+ Noter une dépense']])
+      : videAchats ? etatVide('Ce que tu dépenses, et la TVA que tu récupères',
         ['Saisis ici tes factures fournisseurs et tes dépenses : c\'est ce qui permet de récupérer la TVA que tu as payée, et de connaître ta marge réelle.',
          'Commence par joindre la photo ou le PDF de la facture : la saisie se fait en la regardant.'],
         [['vide-achat', '+ Saisir ma première facture d\'achat', true], ['vide-dep', '+ Noter une dépense']]) : '<div id="list-wrap"></div>'}`;
@@ -10017,6 +10030,28 @@
     $('#new-dep').onclick = () => navigate('#/achat/new/-/depense');
     if ($('#vide-achat')) $('#vide-achat').onclick = () => navigate('#/achat/new');
     if ($('#vide-dep')) $('#vide-dep').onclick = () => navigate('#/achat/new/-/depense');
+    if (confies) {
+      // Le sélecteur s'ouvre dans le geste même (un navigateur refuse de l'ouvrir plus tard) ; chaque fichier part seul,
+      // avec un mot que le cabinet lit dans son fil. Trop lourd, il est refusé avant de partir, et les autres partent.
+      const choisir = () => $('#photo-cab-f').click();
+      $('#photo-cab').onclick = choisir;
+      if ($('#vide-photo')) $('#vide-photo').onclick = choisir;
+      $('#photo-cab-f').onchange = async e => {
+        const fichiers = Array.from(e.target.files || []);
+        e.target.value = '';
+        if (!fichiers.length) return;
+        const bouton = $('#photo-cab');
+        if (bouton) bouton.disabled = true;
+        const partis = [], refuses = [];
+        for (const f of fichiers) {
+          try { await bridge.messagerie.envoyerFichier(f, `Une facture d'achat à saisir : ${f.name}`, null); partis.push(f.name); }
+          catch (err) { refuses.push(`${f.name} : ${err && err.message ? err.message : String(err)}`); }
+        }
+        if (bouton) bouton.disabled = false;
+        if (partis.length) toast(`${partis.length > 1 ? `${partis.length} factures envoyées` : `${partis[0]} envoyée`} à ton comptable : ${partis.length > 1 ? 'il les saisit' : 'il la saisit'}. Tu ${partis.length > 1 ? 'les' : 'la'} retrouves dans « Mon comptable ».`);
+        if (refuses.length) toast(`Pas envoyé${refuses.length > 1 ? 's' : ''} : ${refuses.join(' ; ')}`, true);
+      };
+    }
     if ($('#q')) $('#q').oninput = e => { s.q = e.target.value.toLowerCase(); s.page = 1; draw(); };
     if ($('#st')) $('#st').onchange = e => { s.st = e.target.value; s.page = 1; draw(); };
     if ($('#kind')) $('#kind').onchange = e => { s.kind = e.target.value; s.page = 1; draw(); };

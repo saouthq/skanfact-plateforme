@@ -257,4 +257,62 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     await h.p.getByRole('button', { name: 'Annuler', exact: true }).click();
     expect(h.erreurs).toEqual([]);
   }, 240_000);
+
+  // (1.126.0) Point 6 : le mandat confie la saisie des achats au cabinet ; la page Achats le dit, et son bouton principal
+  // envoie la photo dans le fil du cabinet. Sans ce périmètre, la page redevient celle de qui saisit lui-même.
+  it('Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus', async () => {
+    const hatem = await personne('hatem', 'Hatem Jlassi');
+    const cab = (await api('POST', '/cabinets', hatem, { nom: 'Cabinet Jlassi Conseil' })).corps;
+    const sarra = await personne('sarra', 'Sarra Mansour');
+    const ent = String((await api('POST', '/entreprises', sarra, { raisonSociale: 'Boulangerie El Amal' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, sarra, { codeCabinet: cab.code })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, hatem)).statut).toBe(200);
+    expect((await api('GET', `/entreprises/${ent}/messages/attente`, sarra)).corps).toMatchObject({ cabinet: cab.id, achatsConfies: true });
+
+    const s = await page(sarra);
+    await s.p.goto(`${serveur.adresse}/v10/?e=${ent}#/achats`);
+    await plusTard(s.p);
+    const vide = s.p.locator('.vide-utile');
+    await expect.poll(async () => net(await vide.locator('h2').innerText().catch(() => '')), { timeout: 20_000 }).toBe('Ton cabinet saisit tes achats');
+    // Un seul geste en vert : la photo (en haut et dans l'état vide) ; saisir soi-même reste là, sans couleur.
+    const verts = s.p.locator('#view .btn-primary').filter({ visible: true });
+    expect(await verts.allInnerTexts()).toEqual(['Envoyer une photo à mon comptable', 'Envoyer une photo à mon comptable']);
+    expect(await vide.getByRole('button', { name: 'Saisir moi-même', exact: true }).count()).toBe(1);
+    await s.p.screenshot({ path: path.join(PHOTOS, 'mois-client-achats-confies.png') });
+
+    // La photo, choisie depuis l'état vide : elle part dans le fil du cabinet, avec son mot.
+    const fichier = path.join(dossier, 'facture-huile.png');
+    fs.writeFileSync(fichier, Buffer.from(PNG, 'base64'));
+    const [choix] = await Promise.all([s.p.waitForEvent('filechooser'), vide.getByRole('button', { name: 'Envoyer une photo à mon comptable', exact: true }).click()]);
+    await choix.setFiles(fichier);
+    await expect.poll(async () => net(await s.p.locator('#toast').innerText().catch(() => '')), { timeout: 15_000 })
+      .toBe('facture-huile.png envoyée à ton comptable : il la saisit. Tu la retrouves dans « Mon comptable ».');
+    const messages = (await api('GET', `/entreprises/${ent}/messages?cote=cabinet`, hatem)).corps.messages as { texte: string; fichier: { nom: string } | null }[];
+    expect(messages.map((m) => `${m.texte} · ${m.fichier?.nom ?? '—'}`)).toContain('Une facture d\'achat à saisir : facture-huile.png · facture-huile.png');
+
+    // Un achat déjà là (saisi par Sarra elle-même) : la liste, et en haut un seul vert, la photo ; la page le dit.
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, sarra, { changements: [
+      { collection: 'suppliers', cle: 's1', rang: 0, revision: null, contenu: { id: 's1', name: 'Huilerie du Sahel' } },
+      { collection: 'purchases', cle: 'p1', rang: 0, revision: null, contenu: { id: 'p1', kind: 'facture', number: 'HS-118', date: jour(0), supplierId: 's1', currency: 'DT', fees: 0, withholdingRate: 0, createdAt: 1, attachments: [],
+        lines: [{ id: 'p1-l', label: 'Huile d\'olive', qty: 3, unitPrice: { '~n': '41.275' }, vatRate: 19, destination: 'charge' }] } },
+    ] })).statut).toBe(200);
+    await s.p.reload();
+    await s.p.locator('#list-wrap tr', { hasText: 'HS-118' }).waitFor({ timeout: 20_000 });
+    expect(await verts.allInnerTexts()).toEqual(['Envoyer une photo à mon comptable']);
+    expect(net(await s.p.locator('#achats-confies').innerText())).toBe('Tu as confié la saisie de tes achats à ton cabinet : envoie-lui la photo de chaque facture, il la saisit. Tu peux aussi en saisir une toi-même.');
+
+    // Le mandat ne confie plus les achats : la page redevient celle de qui saisit lui-même.
+    // Sarra y revient par le menu, une fois le fil lu (« Mon comptable » au pied de la barre), comme chaque jour.
+    expect((await api('PUT', `/entreprises/${ent}/mandat/perimetre`, sarra, { perimetre: ['comptabilite', 'declarations'] })).statut).toBe(200);
+    await s.p.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
+    await s.p.reload();
+    await s.p.locator('#foot-comptable').filter({ visible: true }).waitFor({ timeout: 20_000 });
+    await plusTard(s.p);
+    // Le lien du menu change l'adresse sans recharger la page : la même chose, sans dépendre d'une famille dépliée.
+    await s.p.evaluate(() => { location.hash = '#/achats'; });
+    await s.p.locator('#list-wrap tr', { hasText: 'HS-118' }).waitFor({ timeout: 20_000 });
+    await expect.poll(() => verts.allInnerTexts(), { timeout: 15_000 }).toEqual(['+ Facture d\'achat']);
+    expect(await s.p.locator('#photo-cab, #achats-confies').count()).toBe(0);
+    expect(s.erreurs).toEqual([]);
+  }, 240_000);
 });

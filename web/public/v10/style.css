@@ -167,6 +167,8 @@ nav a.active svg { opacity: 1; }
    itinéraire, un panneau qui dit à quoi sert la page et porte les vrais boutons. */
 .vide-utile { max-width: 720px; }
 .vide-utile h2 { margin-bottom: 6px; }
+/* (plateforme) 1.126.0 — trois boutons ou un téléphone : la rangée passe à la ligne, rien ne dépasse du cadre. */
+.vide-utile .inline { flex-wrap: wrap; }
 .vide-utile p { line-height: 1.6; color: var(--muted); }
 
 /* ---------- page « Tous les modules » (7.0.0) ---------- */
