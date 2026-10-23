@@ -15,7 +15,8 @@ type Etat = Record<string, unknown>;
 const net = (t: string) => t.replace(/[\u00a0\u202f]/g, ' ');
 const A = fenetre.SkanAbonnement as {
   etatEnClair: (e: Etat, regles?: { essai?: number; relances?: number[] }, suite?: { aFaire?: string | null; prolonge?: boolean; rappels?: { rang: string; le: string }[] }) => { titre: string; texte: string; pastille: string; jauge: { texte: string } | null };
-  bandeau: (e: Etat | null, gere: boolean) => { titre: string; texte: string; bouton: string; principal: boolean; ecrire: boolean } | null;
+  bandeau: (e: Etat | null, gere: boolean) => { titre: string; texte: string; bouton: string; principal: boolean; ecrire: boolean; vers: string | null } | null;
+  pastille: (e: Etat | null) => { show: boolean; ton: string; texte: string };
 };
 const actif = { etat: 'actif', offre: 'essentiel', periodicite: 'mensuel', jusquAu: '2026-11-01', jours: 10, resilie: false };
 
@@ -50,5 +51,30 @@ describe('les textes de l\'abonnement', () => {
     expect(A.bandeau(grace, false)).toMatchObject({ bouton: 'Qui le règle ?' });
     expect(A.bandeau({ ...actif, jours: 10 }, true)).toMatchObject({ bouton: 'Renouveler', principal: false });
     expect(A.bandeau({ etat: 'lecture_seule', depuis: '2026-10-20', raison: 'suspendu' }, true)).toMatchObject({ bouton: 'Écrire à SkanFact', ecrire: true });
+  });
+
+  // La recette de tous les états, à la souris (1.122.0 ; 23/10/2026).
+  it('la pastille tient sur une ligne, rouge quand l\'état l\'est ; le bouton du bandeau dit où il mène', () => {
+    const textes = (e: Etat) => { const p = A.pastille(e); return `${p.ton}|${p.texte}`; };
+    expect(net(textes({ etat: 'essai', jusquAu: '2026-11-12', jours: 20 }))).toBe('calme|Essai : 20 jours');
+    expect(net(textes({ etat: 'essai', jusquAu: '2026-10-28', jours: 5 }))).toBe('attire|Essai : encore 5 jours');
+    expect(net(textes({ etat: 'essai', jusquAu: '2026-10-23', jours: 0 }))).toBe('alerte|Essai : dernier jour');
+    expect(textes(actif)).toBe('attire|Échéance le 01/11/2026');
+    expect(textes({ ...actif, resilie: true })).toBe('attire|S\'arrête le 01/11/2026');
+    expect(textes({ etat: 'en_retard', echeance: '2026-10-20', lectureSeuleLe: '2026-10-28', jours: 5, apresEssai: false })).toBe('alerte|Lecture seule le 28/10/2026');
+    expect(textes({ etat: 'lecture_seule', depuis: '2026-10-20', raison: 'non_renouvele' })).toBe('alerte|Lecture seule');
+    const grace = { etat: 'en_retard', echeance: '2026-10-20', lectureSeuleLe: '2026-10-28', jours: 5, apresEssai: false };
+    expect(A.bandeau(grace, true)).toMatchObject({ titre: 'Ton abonnement n\'est plus payé', bouton: 'Choisir mon offre', vers: 'offres' });
+    expect(A.bandeau({ ...grace, aFaire: 'payer' }, true)).toMatchObject({ bouton: 'Régler ma facture', vers: null });
+    expect(A.bandeau(actif, true)).toMatchObject({ titre: 'Ton abonnement arrive à échéance le 01/11/2026', bouton: 'Renouveler', vers: null });
+    expect(A.etatEnClair(grace, {}, {})).toMatchObject({ pastille: 'Non renouvelé', titre: 'L\'abonnement n\'est plus payé depuis le 21/10/2026' });
+  });
+
+  it('une entreprise sans échéance dit ce qu\'elle est ; payé, l\'état montre la facture du renouvellement qui attend', () => {
+    expect(A.etatEnClair({ etat: 'hors', raison: 'offert' }, {}, {})).toMatchObject({ pastille: 'Offert', titre: 'Abonnement offert par SkanFact' });
+    expect(A.etatEnClair({ etat: 'hors', raison: 'bac_a_sable' }, {}, {})).toMatchObject({ titre: 'Une entreprise pour essayer' });
+    expect(A.etatEnClair({ etat: 'hors', raison: 'tenu_par_cabinet' }, {}, {})).toMatchObject({ titre: 'Ton cabinet tient ce dossier' });
+    expect(net(A.etatEnClair(actif, { relances: [15, 7, 1] }, { aFaire: 'payer' }).texte))
+      .toBe('Encore 10 jours. Ta facture du renouvellement t\'attend juste en dessous : réglée d\'ici le 01/11/2026, rien ne s\'arrête.');
   });
 });

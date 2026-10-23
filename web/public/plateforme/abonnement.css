@@ -89,6 +89,12 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-confirmer[hidden] { display: none; }
 .abo-confirmer p { margin: 0; }
 .abo-confirmer-gestes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+/* (1.122.0) La pastille du pied du menu prend le rouge de l'état quand il est rouge (la grâce, la lecture seule, le dernier
+   jour de l'essai) : orange, elle disait moins que le bandeau rouge de l'accueil (recette du 23/10/2026). */
+.update-pill.warn.alerte { color: var(--danger); background: var(--danger-soft); }
+/* « Ne pas renouveler », en bas de l'onglet, discret : il n'est jamais l'étape suivante. */
+.abo-arret-bas p { margin: 0; }
+.abo-arret-bas .abo-section-tete p { max-width: 68ch; }
 /* (1.121.0) Le récapitulatif d'un geste qui engage : une fenêtre au-dessus de l'onglet, rien ne bouge dessous. */
 .abo-dialogue { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; border: 0; border-radius: 18px; padding: 26px 26px 22px; background: var(--panel); color: var(--text); box-shadow: 0 28px 72px rgba(4, 28, 24, .32); }
 .abo-dialogue::backdrop { background: rgba(4, 24, 21, .48); backdrop-filter: blur(2px); }
@@ -229,6 +235,10 @@ iframe.abo-piece { width: 100%; height: 75vh; border: 1px solid var(--border); b
   .abo-piece-gestes .btn { min-height: 44px; }
   /* Au téléphone, les boutons d'une offre et de sa confirmation prennent toute la largeur, à 44 px. */
   .abo-offre-boutons .btn, .abo-confirmer-gestes .btn { flex: 1 1 auto; min-height: 44px; }
+  /* (1.122.0) Un libellé long (« Ouvrir la comptabilité complète maintenant… ») passe à la ligne : sans retour, il
+     élargissait la carte au-delà de son bord, tout son contenu débordait (recette du 23/10/2026, 390 px). */
+  .abo-offre { min-width: 0; }
+  .abo-offre-boutons .btn { white-space: normal; text-align: center; line-height: 1.3; }
   .abo-dialogue { padding: 22px 18px 18px; }
   .abo-recap > div { flex-wrap: wrap; }
   .abo-tete-btn { align-self: stretch; min-height: 44px; text-align: center; }

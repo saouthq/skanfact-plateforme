@@ -3307,7 +3307,11 @@
       </div>`}`;
     if ($('#abo-accueil-go')) $('#abo-accueil-go').onclick = () => {
       const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
-      if (b && b.ecrire) { location.href = 'mailto:contact@skanfact.tn?subject=' + encodeURIComponent('Mon abonnement SkanFact'); return; }
+      if (b && b.ecrire) {
+        if (bridge.support) { void ecrireAuSupport('question'); return; }
+        location.href = 'mailto:contact@skanfact.tn?subject=' + encodeURIComponent('Mon abonnement SkanFact'); return;
+      }
+      if (b && b.vers && window.SkanAbonnement) window.SkanAbonnement.aAmener = b.vers;
       allerAbonnement();
     };
     if ($('#new-devis')) $('#new-devis').onclick = () => navigate('#/doc/new/devis');
@@ -3873,7 +3877,7 @@
     const FILTRES_REGROUPES = isQ ? {} : { 'émis': 'Toutes les pièces émises', 'à encaisser': 'À encaisser' };
     $('#view').innerHTML = `
       <div class="page-head"><h1>${isQ ? 'Devis' : 'Factures'}</h1>${!isQ && bridge.dessinerASigner && company().efacture === true ? '<span id="sg-a-signer" style="margin-right:auto"></span>' : ''}
-        <div class="actions">${isQ || !data.documents.some(d => d.type === 'facture' && d.status !== 'brouillon' && d.number) ? '' : '<button class="btn" id="new-avoir">+ Avoir</button>'}<button class="btn ${mine.length ? 'btn-primary' : ''}" id="new">+ ${isQ ? 'Nouveau devis' : 'Nouvelle facture'}</button></div></div>
+        <div class="actions">${isQ || !data.documents.some(d => d.type === 'facture' && d.status !== 'brouillon' && d.number) ? '' : '<button class="btn" id="new-avoir">+ Avoir</button>'}${aboBloque(true) ? `<button class="btn ${mine.length ? 'btn-primary' : ''}" id="list-abo">Voir l'abonnement</button>` : `<button class="btn ${mine.length ? 'btn-primary' : ''}" id="new">+ ${isQ ? 'Nouveau devis' : 'Nouvelle facture'}</button>`}</div></div>
       ${filtersBar(`
         <input type="text" id="q" placeholder="Rechercher : n°, client, objet…" value="${h(s.q)}">
         ${isQ ? '' : `<select id="kind"><option value="">Factures et avoirs</option><option value="facture" ${s.kind === 'facture' ? 'selected' : ''}>Factures</option><option value="avoir" ${s.kind === 'avoir' ? 'selected' : ''}>Avoirs</option></select>`}
@@ -3884,16 +3888,20 @@
         `, mine.length, !!(s.q || s.st || s.kind || s.year))}
       ${mine.length ? '<div id="list-wrap"></div>' : etatVide(
         isQ ? 'Proposer un prix, avant de travailler' : 'Réclamer l\'argent du travail fait',
-        isQ
+        (isQ
           ? ['Un devis annonce un prix ferme à ton client. Il n\'engage rien tant qu\'il n\'est pas accepté — et une fois accepté, il devient une facture <b>en un clic</b>, sans rien ressaisir.',
              'Tu n\'as pas besoin de créer le client d\'abord : tu le crées depuis le devis.']
           : ['Une facture est la pièce officielle : elle prend son numéro au moment où tu l\'émets, et n\'est plus modifiable ensuite. Pour corriger après coup, on fait un avoir.',
-             'SkanFact suit ensuite toute seule ce qu\'on te doit, et te la remonte dans « Relances » dès qu\'elle dépasse son échéance.'],
-        [['vide-new', isQ ? '+ Créer mon premier devis' : '+ Créer ma première facture', true],
-         ['vide-demo', 'Voir un exemple rempli']])}`;
+             'SkanFact suit ensuite toute seule ce qu\'on te doit, et te la remonte dans « Relances » dès qu\'elle dépasse son échéance.'])
+          .concat(aboBloque(true) ? [`<b>${h(licence.label)}.</b> ${h(licence.detail || '')} La création reprend dès que l'abonnement est réglé.`] : []),
+        aboBloque(true) ? [['vide-abo', 'Voir l\'abonnement', true]]
+          : [['vide-new', isQ ? '+ Créer mon premier devis' : '+ Créer ma première facture', true],
+             ['vide-demo', 'Voir un exemple rempli']])}`;
     if ($('#vide-new')) $('#vide-new').onclick = () => navigate('#/doc/new/' + type);
     if ($('#vide-demo')) $('#vide-demo').onclick = loadDemo;
-    $('#new').onclick = () => navigate('#/doc/new/' + type);
+    if ($('#vide-abo')) $('#vide-abo').onclick = () => allerAbonnement();
+    if ($('#list-abo')) $('#list-abo').onclick = () => allerAbonnement();
+    if ($('#new')) $('#new').onclick = () => navigate('#/doc/new/' + type);
     if ($('#new-avoir')) $('#new-avoir').onclick = () => navigate('#/doc/new/avoir');
     if ($('#sg-a-signer')) void bridge.dessinerASigner($('#sg-a-signer'), modal, () => render(true));
     if ($('#q')) $('#q').oninput = e => { s.q = e.target.value.toLowerCase(); s.page = 1; draw(); };
@@ -19163,7 +19171,7 @@
     if (bridge.dessinerCompte && $('#compte-panel')) void bridge.dessinerCompte($('#compte-panel'), { modal, toast });
     if (bridge.dessinerEquipe && $('#equipe-panel')) void bridge.dessinerEquipe($('#equipe-panel'), { modal, toast, confirmDialog, nom: company().name });
     if (bridge.accesSupport && $('#acces-panel')) bridge.accesSupport.dessiner($('#acces-panel'), { toast: (t, erreur) => toast(t, erreur), nomDePage: p => PAGE_LABELS[p] || p });
-    if (bridge.dessinerAbonnement && $('#abonnement-panel')) void bridge.dessinerAbonnement($('#abonnement-panel'));
+    if (bridge.dessinerAbonnement && $('#abonnement-panel')) void bridge.dessinerAbonnement($('#abonnement-panel'), { ecrire: bridge.support ? () => ecrireAuSupport('question') : null });
     if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
     if (bridge.dessinerExport && $('#export-panel')) bridge.dessinerExport($('#export-panel'));
     if (bridge.dessinerSauvegardes && $('#mes-sauvegardes-panel')) void bridge.dessinerSauvegardes($('#mes-sauvegardes-panel'), { modal, toast });
@@ -20849,6 +20857,7 @@
     const p = bridge.pastilleAbonnement ? bridge.pastilleAbonnement() : C.pastilleLicence(licence);
     el.hidden = !p.show;
     el.classList.toggle('warn', p.ton === 'alerte' || p.ton === 'attire');
+    el.classList.toggle('alerte', p.ton === 'alerte');
     el.classList.toggle('calme', p.ton === 'calme');
     if (p.show) el.textContent = p.texte;
   }

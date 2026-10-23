@@ -142,7 +142,18 @@ describe('l\'abonnement après sa revue, à la souris', () => {
     await p.evaluate(() => { location.hash = '#/parametres'; });
     await p.locator('#set-tabs [data-tab="abonnement"]').click();
     await expect.poll(() => p.locator('#abonnement-panel .abo-pastille').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('Suspendu');
-    expect(await p.locator('#abonnement-panel a.abo-tete-btn').getAttribute('href')).toMatch(/^mailto:contact@skanfact\.tn/);
+    // (1.122.0) Elle écrit au support dans SkanFact : le lien d'e-mail ne faisait rien sur un poste sans logiciel de courrier.
+    expect(net(await p.locator('#abonnement-panel #abo-ecrire').innerText())).toBe('Écrire au support');
+    await p.locator('#abonnement-panel #abo-ecrire').click();
+    await expect.poll(() => p.locator('#modal-root .modal h2').last().innerText().catch(() => ''), { timeout: 10_000 }).toBe('Écrire au support');
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Annuler', exact: true }).click();
+    await p.evaluate(() => { location.hash = '#/dashboard'; });
+    await p.locator('#abo-accueil-go').click();
+    await expect.poll(() => p.locator('#modal-root .modal h2').last().innerText().catch(() => ''), { timeout: 10_000 }).toBe('Écrire au support');
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Annuler', exact: true }).click();
+    await p.evaluate(() => { location.hash = '#/parametres'; });
+    await p.locator('#set-tabs [data-tab="abonnement"]').click();
+    await expect.poll(() => p.locator('#abonnement-panel .abo-pastille').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('Suspendu');
     expect(await p.locator('#abonnement-panel [data-choisir]').count()).toBe(0);
     expect(net(await p.locator('#abonnement-panel').innerText())).not.toMatch(/abonne-toi|Choisis ton offre/);
 

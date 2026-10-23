@@ -627,6 +627,28 @@ cabinet s'applique ». Le détail par délégation, À VÉRIFIER aux entretiens 
   bulle « i », un bouton, auquel le navigateur le reliait ; un lecteur d'écran disait « champ de texte », un clic sur le
   libellé ne posait pas le curseur. Le message d'un geste se lit sous la barre des étapes, plus dessus.
 
+**C24. L'abonnement dans tous ses états, revu à la souris** (1.122.0 ; `web/v10/abonnement-etats.txt` ;
+`docs/revue-abonnement.md`, « Tous les états ») :
+- **La pastille du menu** tient sur une ligne (« Essai : encore 5 jours », « Échéance le 01/11/2026 », « Lecture seule le
+  28/10/2026 », « Lecture seule ») et prend le rouge quand l'état l'est : la grâce, la lecture seule, le dernier jour de
+  l'essai. Celle du Cabinet aussi (« Facture à régler avant le … », « Dossiers payants en lecture seule »).
+- **Le bandeau de l'accueil** : une échéance n'est pas une fin (« Ton abonnement arrive à échéance le … ») ; « Choisir mon
+  offre » mène aux offres de l'onglet (il ouvrait le haut, où le même bouton attendait) ; une entreprise suspendue écrit
+  au support dans SkanFact (le lien d'e-mail ne faisait rien sans logiciel de courrier), dans l'onglet comme sur l'accueil.
+- **L'état de l'onglet** : à quinze jours de l'échéance, « Renouveler maintenant » (la même offre, par le même
+  récapitulatif, « Renouveler Essentiel, au mois ») ; renouvelé, l'état montre la facture qui attend. « Ne pas
+  renouveler » quitte l'état pour le bas de l'onglet, discret, avec ce qu'il fait. Un abonnement qui ne se renouvelle pas
+  prend l'ambre ; « échu » devient « n'est plus payé depuis le … » ; un abonnement offert, une entreprise d'essai, un
+  dossier tenu disent ce qu'ils sont (« Rien ne s'arrête ici » ne disait rien).
+- **La prochaine facture** dit ce qu'elle compte (« avec la paie », quand la carte dit 390 et la facture 540) et, quand
+  l'offre seule la fait (sans module ni remise), son total TVA et timbre compris.
+- **Les cartes** : la carte de son offre ne propose plus de « Renouveler » ce qui se renouvelle déjà ; elle propose l'autre
+  durée (« Passer à l'année »). L'offre choisie dont la facture attend porte « Ton choix ». Au téléphone, un long libellé
+  passe à la ligne : il élargissait la carte au-delà de son bord.
+- **En lecture seule**, les listes des factures et des devis ne proposent plus de créer : « Voir l'abonnement », et l'état
+  vide dit pourquoi la création attend.
+- **Le Cabinet** : les trois premiers dossiers tenus disent, avant la saisie, qu'ils ne coûtent rien.
+
 ## Revu à la souris (14/10/2026, C17 : les remises)
 
 Sur l'essai de l'outil humain, la base passée en `0106`, dans la console (Amira, direction). Une seconde société pour

@@ -146,10 +146,11 @@ describe('« Tes factures », à la souris', () => {
     const ligneAbo = (await admin.query('select paye_jusqu_au::text paye from plateforme.abonnement where entreprise = $1', [ent])).rows[0] as { paye: string };
     expect(ligneAbo.paye).toBe(fin);
     await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(PHOTOS, 'abonnement-factures-2-payee.png') });
-    // Payé, l'onglet dit la prochaine facture (son montant, par la règle de la facture), et chaque carte propose la période
-    // suivante : « Renouveler » sur son offre, « Passer à » sur l'autre ; aucun ne se met en vert (1.118.0).
-    expect(net(await p.locator('#abo-prochaine').innerText())).toMatch(/^Prochaine facture : [0-9 ]+(,[0-9]{3})? DT HT, pour la période qui commence le /);
-    expect((await p.locator('#abonnement-panel [data-offre="essentiel"] [data-choisir]').allInnerTexts()).map(net)[0]).toBe('Renouveler à l\'année');
+    // Payé, l'onglet dit la prochaine facture (son montant, par la règle de la facture, et TVA et timbre compris), et chaque
+    // carte propose la période suivante : l'autre durée sur son offre (1.122.0 : jamais « Renouveler » ce qui se renouvelle
+    // déjà), « Passer à » sur l'autre ; aucun ne se met en vert (1.118.0).
+    expect(net(await p.locator('#abo-prochaine').innerText())).toMatch(/^Prochaine facture : [0-9 ]+(,[0-9]{3})? DT HT, soit 47,410 DT TVA et timbre compris, pour la période qui commence le /);
+    expect((await p.locator('#abonnement-panel [data-offre="essentiel"] [data-choisir]').allInnerTexts()).map(net)).toEqual(['Passer à l\'année']);
     expect((await p.locator('#abonnement-panel [data-offre="complet"] [data-choisir]').allInnerTexts()).map(net)[0]).toBe('Passer à Complet à l\'année');
     expect(erreurs).toEqual([]);
     await cx.close();

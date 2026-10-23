@@ -124,7 +124,7 @@ describe('l\'abonnement du cabinet, à la souris', () => {
     const echeance = plusJours(jour, 15);
     expect(net(await panneau.locator('#abo-etat h3').innerText())).toBe(`Ta facture est à régler avant le ${jourEnFrancais(echeance)}`);
     await expect.poll(() => p.locator('#lic-banner').innerText().then(net).catch(() => ''), { timeout: 15_000 })
-      .toBe(`Facture de l'abonnement à régler avant le ${jourEnFrancais(echeance)}`);
+      .toBe(`Facture à régler avant le ${jourEnFrancais(echeance)}`);
     // Le vert de l'écran : régler la facture (un seul).
     expect((await panneau.locator('.btn-primary').allInnerTexts()).map(net)).toEqual(['Régler ma facture']);
     await p.screenshot({ path: path.join(PHOTOS, 'abonnement-cabinet-2-facture.png'), fullPage: true });
@@ -185,6 +185,25 @@ describe('l\'abonnement du cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);
+
+  // Recette de tous les états (23/10/2026) : le premier dossier ne disait pas qu'il ne coûte rien.
+  it('Hédi : le premier dossier tenu dit qu\'il est gratuit, avant la saisie', async () => {
+    const hedi = await personne('Hedi');
+    await api('POST', '/moi/code', hedi.jeton, { methode: 'application' });
+    const cabinet = String((await api('POST', '/cabinets', hedi.jeton, { nom: 'Cabinet Trabelsi' })).corps.id);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cx.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, hedi.jeton);
+    const p = await cx.newPage();
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossiers`);
+    await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    await cliquer(p.locator('#new-d'));
+    const fenetre = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fenetre.locator('#nd-gratuit').innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toBe('Ce sera ton 1er dossier tenu sur 3 gratuits : il ne coûte rien.');
+    expect(await fenetre.locator('#nd-abonnement').count()).toBe(0);
+    await cx.close();
+  }, 120_000);
 
   // Recette du 23/10/2026 : la création refusée faute de paiement disait où aller (« Réglages, Ton abonnement ») mais
   // n'offrait que « Compris » ; Walid devait chercher le panneau lui-même. Le refus mène maintenant à l'abonnement, d'un bouton.

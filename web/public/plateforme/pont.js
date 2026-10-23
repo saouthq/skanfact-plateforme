@@ -1699,7 +1699,9 @@
     return abonnement;
   }
   /** @param {HTMLElement} el */
-  function dessinerAbonnement(el) { return /** @type {any} */ (window).SkanAbonnement.dessiner(el, { appel }); }
+  // (1.122.0) `plus.ecrire` : écrire au support dans SkanFact (une entreprise suspendue), que l'écran de la v10 fournit.
+  /** @param {HTMLElement} el @param {{ ecrire?: (() => unknown) | null }} [plus] */
+  function dessinerAbonnement(el, plus = {}) { return /** @type {any} */ (window).SkanAbonnement.dessiner(el, { appel, ecrire: plus.ecrire || null }); }
   // ── Le message de SkanFact à ses clients (0093 ; message.js, docs/console.md C28) : relu avec la licence de la v10 (au
   // chargement, chaque heure, au retour au premier plan), posé en haut de la page ouverte, puis de chaque page que le
   // routeur dessine. Sans réponse du serveur, le dernier connu reste.

@@ -50,8 +50,9 @@
   /** @param {Etat | null | undefined} e @returns {{ show: boolean, ton: string, texte: string }} */
   function pastille(e) {
     if (!e) return { show: false, ton: '', texte: '' };
-    if (e.etat === 'lecture_seule') return { show: true, ton: 'alerte', texte: `Dossiers payants en lecture seule depuis le ${jour(e.depuis)} — voir l'abonnement` };
-    if (e.etat === 'a_payer') return { show: true, ton: 'attire', texte: `Facture de l'abonnement à régler avant le ${jour(e.echeance)}` };
+    // (1.122.0) Une ligne courte au pied du menu (elle tenait sur trois lignes, recette du 23/10/2026) ; le panneau dit le reste.
+    if (e.etat === 'lecture_seule') return { show: true, ton: 'alerte', texte: 'Dossiers payants en lecture seule' };
+    if (e.etat === 'a_payer') return { show: true, ton: 'attire', texte: `Facture à régler avant le ${jour(e.echeance)}` };
     return { show: false, ton: '', texte: '' };
   }
 
@@ -64,6 +65,7 @@
     const p = pastille(e);
     el.hidden = !p.show;
     el.classList.toggle('warn', p.ton === 'alerte' || p.ton === 'attire');
+    el.classList.toggle('alerte', p.ton === 'alerte');
     el.classList.toggle('calme', p.ton === 'calme');
     if (p.show) el.textContent = p.texte;
   }
@@ -344,5 +346,12 @@
       : `Ce sera ton ${d.rang}e dossier tenu : au-delà de tes ${r && typeof r.gratuits === 'number' ? r.gratuits : 'premiers'} gratuits, il se paie ${montant(d.prixHt)} HT par an${plafond}. Ton abonnement commence le jour où tu le crées : sa facture arrive aussitôt dans Réglages, « Ton abonnement ». Un client qui s'abonne lui-même à SkanFact, lui, ne compte pas.`;
   }
 
-  w.SkanAbonnementCabinet = { dessiner, pastille, avertissement, etatEnClair };
+  // (1.122.0) Un dossier gratuit le dit aussi, avant la saisie : rien ne disait qu'il ne coûte rien (recette du 23/10/2026).
+  /** @param {Lu['prochainDossier'] | null | undefined} d @param {Lu['regles'] | null | undefined} r */
+  function gratuit(d, r) {
+    if (!d || d.payant || !r || typeof r.gratuits !== 'number' || d.rang > r.gratuits) return '';
+    return `Ce sera ton ${d.rang === 1 ? '1er' : `${d.rang}e`} dossier tenu sur ${r.gratuits} gratuits : il ne coûte rien.`;
+  }
+
+  w.SkanAbonnementCabinet = { dessiner, pastille, avertissement, gratuit, etatEnClair };
 })();

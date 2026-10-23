@@ -18305,8 +18305,8 @@ prouver '« à facturer » en plus de l'"'"'offre choisie' 'serveur/console/deci
   '|| partent.has(e.id) ||' \
   'un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule'
 prouver 'la confirmation qui ne dit pas l'"'"'offre choisie' 'web/public/plateforme/abonnement.js' \
-  'data-confirmer>Je choisis ${esc(nom)}, ${dit}</button>' \
-  'data-confirmer>Je choisis cette offre</button>' \
+  'data-confirmer>${renouvelle ? '"'"'Renouveler'"'"' : `Je choisis ${esc(nom)}, ${dit}`}</button>' \
+  'data-confirmer>${renouvelle ? '"'"'Renouveler'"'"' : '"'"'Je choisis cette offre'"'"'}</button>' \
   'Hela choisit son offre dans sa carte, confirme, et lit son choix ; la console le voit dans « À décider »'
 prouver 'le jour d'"'"'un choix lu en UTC, pas à Tunis' 'web/public/plateforme/abonnement.js' \
   '${esc(jourDeTunis(String(a.choix.le)))}' \
@@ -19576,7 +19576,7 @@ prouver 'abo 118 : la grâce sans sa durée' $AJ118 \
   "\`Encore \${pl(j, 'jour')} de grâce, sur \${grace}\`" "\`\${pl(j, 'jour')} de grâce\`" \
   "$W118G"
 prouver 'abo 118 : « À régler » sans facture' $AJ118 \
-  "pastille: suite.aFaire === 'payer' ? 'À régler' : e.apresEssai ? 'Essai terminé' : 'Abonnement échu'," "pastille: 'À régler'," \
+  "pastille: suite.aFaire === 'payer' ? 'À régler' : e.apresEssai ? 'Essai terminé' : 'Non renouvelé'," "pastille: 'À régler'," \
   "$W118G"
 prouver 'abo 118 : le bouton du bandeau qui ne mène nulle part' web/public/v10/app.js \
   "      allerAbonnement();
@@ -19590,7 +19590,7 @@ prouver 'abo 118 : le commercial à qui on ne dit pas qui règle' web/public/v10
     if (!b) return '';" \
   "$W118C"
 prouver 'abo 118 : la suspendue sans l'\''adresse où écrire' $AJ118 \
-  "    const boutonTete = suspendue ? \`<a class=\"btn abo-tete-btn\" href=\"mailto:contact@skanfact.tn?subject=\${sujet}\">Écrire à SkanFact</a>\`" "    const boutonTete = suspendue ? ''" \
+  "    const boutonTete = suspendue ? (o.ecrire ? '<button type=\"button\" class=\"btn abo-tete-btn\" id=\"abo-ecrire\">Écrire au support</button>'" "    const boutonTete = suspendue ? (o.ecrire ? ''" \
   "$W118S"
 prouver 'abo 118 : l'\''essai prolongé qui dit un total faux' $AJ118 \
   "          const sur = regles.essai && !suite.prolonge ?" "          const sur = regles.essai ?" \
@@ -19707,7 +19707,7 @@ prouver 'abo 119 : la facture qu'\''il faut recharger pour voir' $AJ119 \
   "        setTimeout(() => { if (el.isConnected && el.querySelector('#abo-payer.abo-choisi')) void dessiner(el, o); }, 3000);" "" \
   "$W119N"
 prouver 'abo 119 : « Ne pas renouveler » en bouton principal' $AJ119 \
-  "'<button type=\"button\" class=\"btn btn-sm abo-tete-btn abo-tete-discret\" id=\"abo-arreter\">" "'<button type=\"button\" class=\"btn btn-primary abo-tete-btn\" id=\"abo-arreter\">" \
+  "<button type=\"button\" class=\"btn btn-sm\" id=\"abo-arreter\">" "<button type=\"button\" class=\"btn btn-primary btn-sm\" id=\"abo-arreter\">" \
   "$W119S"
 prouver 'abo 119 : « Garder mon abonnement » qui ne referme pas' $AJ119 \
   "<button type=\"button\" class=\"btn btn-primary\" data-annuler>Garder mon abonnement</button>" "<button type=\"button\" hidden data-annuler></button><button type=\"button\" class=\"btn btn-primary\">Garder mon abonnement</button>" \
@@ -19795,7 +19795,7 @@ prouver 'abo 120 : la fiche du cabinet sans son abonnement' serveur/console/rout
   "        ? await lireJson(t, 'select plateforme.console_abonnement_cabinet(\$1, \$2::date) v', [id, jour]) : null;" "        ? null : null;" \
   "$T120C"
 prouver 'abo 120 : le quatrième dossier qui ne s'\''annonce pas' web/public/plateforme/pont-cabinet.js \
-  "        return { ok: true, avertissement: a && A ? A.avertissement(a.prochainDossier, a.regles) : '' };" "        return { ok: true, avertissement: '' };" \
+  "        return { ok: true, avertissement: a && A ? A.avertissement(a.prochainDossier, a.regles) : ''," "        return { ok: true, avertissement: ''," \
   "$W120"
 prouver 'abo 120 : la pastille qui ne suit pas le panneau' web/public/plateforme/abonnement-cabinet.js \
   "    bandeau(a.etat);
@@ -19866,6 +19866,99 @@ prouver 'abo 121 : la case nommée avec l'\''explication de sa bulle' web/src/co
 prouver 'abo 121 : le message de l'\''entrée posé sur les étapes' web/src/entree.css \
   "#toast { top: calc(env(safe-area-inset-top, 0px) + 84px);" "#toast { top: calc(env(safe-area-inset-top, 0px) + 16px);" \
   "$T121E"
+
+# ── 1.122.0 : l'abonnement dans tous ses états, revu à la souris (quinze entreprises, le cabinet ; docs/revue-abonnement.md
+# « Tous les états ») ──
+AJ122=web/public/plateforme/abonnement.js
+T122R="Rania, à neuf jours de son échéance : l'accueil dit l'échéance, l'état propose de renouveler, et sa facture arrive"
+T122L="Lina, cinq jours avant la fin de l'essai : « Choisir mon offre » de l'accueil mène aux offres, d'un clic"
+T122Y="au téléphone, la carte d'Essentiel avec la paie ne déborde pas, et la prochaine facture dit ce qu'elle compte"
+T122N="Nadia choisit Essentiel au mois : le prix TTC se lit avant, et sa facture arrive d'elle-même dans « Tes factures »"
+T122S="Sami ne renouvelle pas, se ravise et reprend ; puis il ouvre la paie, et la confirmation dit le rattrapage"
+T122E="l'essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'arrive au serveur"
+T122U="suspendue, l'entreprise est invitée à nous écrire, jamais à s'abonner ; prolongé, l'essai ne dit pas un total faux"
+T122P="la pastille tient sur une ligne, rouge quand l'état l'est ; le bouton du bandeau dit où il mène"
+T122H="une entreprise sans échéance dit ce qu'elle est ; payé, l'état montre la facture du renouvellement qui attend"
+T122C="Hédi : le premier dossier tenu dit qu'il est gratuit, avant la saisie"
+W122="Nadia : trois dossiers gratuits, le quatrième annoncé puis facturé, payé en ligne, et le retour sur son abonnement"
+prouver 'abo 122 : la pastille de l'\''échéance sur trois lignes' $AJ122 \
+  "texte: e.resilie ? \`S'arrête le \${jour(e.jusquAu)}\` : \`Échéance le \${jour(e.jusquAu)}\` };" "texte: e.resilie ? \`Abonnement résilié — il s'arrête le \${jour(e.jusquAu)}\` : \`\${nomOffre(e.offre)} jusqu'au \${jour(e.jusquAu)} — pense à le renouveler\` };" \
+  "$T122R"
+prouver 'abo 122 : le dernier jour de l'\''essai qui ne passe pas au rouge' $AJ122 \
+  "return j <= 0 ? { show: true, ton: 'alerte', texte: 'Essai : dernier jour' }" "return j <= 0 ? { show: true, ton: 'attire', texte: 'Essai : dernier jour' }" \
+  "$T122P"
+prouver 'abo 122 : la pastille orange à côté d'\''un bandeau rouge' web/public/v10/app.js \
+  "    el.classList.toggle('alerte', p.ton === 'alerte');
+" "" \
+  "$T122E"
+prouver 'abo 122 : « Choisir mon offre » du bandeau qui ouvre le haut de l'\''onglet' $AJ122 \
+  "      vers: bouton === 'Choisir mon offre' ? 'offres' : null };" "      vers: null };" \
+  "$T122L"
+prouver 'abo 122 : l'\''endroit demandé par le bandeau oublié au dessin' $AJ122 \
+  "    if (vers) {" "    if (false) {" \
+  "$T122L"
+prouver 'abo 122 : le bandeau de l'\''entreprise suspendue qui ouvre un e-mail' web/public/v10/app.js \
+  "        if (bridge.support) { void ecrireAuSupport('question'); return; }
+" "" \
+  "$T122U"
+prouver 'abo 122 : l'\''onglet de l'\''entreprise suspendue qui ouvre un e-mail' $AJ122 \
+  "    const boutonTete = suspendue ? (o.ecrire ?" "    const boutonTete = suspendue ? (false ?" \
+  "$T122U"
+prouver 'abo 122 : l'\''échéance proche sans « Renouveler maintenant »' $AJ122 \
+  "          : renouveler ? \`<button type=\"button\" class=\"btn btn-primary abo-tete-btn\" id=\"abo-renouveler\"" "          : false ? \`<button type=\"button\" class=\"btn btn-primary abo-tete-btn\" id=\"abo-renouveler\"" \
+  "$T122R"
+prouver 'abo 122 : « Renouveler » ce qui se renouvelle déjà' $AJ122 \
+  "        .filter(([p]) => !(courante && p === a.etat.periodicite))
+" "" \
+  "$T122R"
+prouver 'abo 122 : le renouvellement confirmé comme un choix d'\''offre' $AJ122 \
+  "          titre: renouvelle ? \`Renouveler \${esc(nom)}, \${dit}\` : \`\${esc(nom)}, \${dit}\`," "          titre: \`\${esc(nom)}, \${dit}\`," \
+  "$T122R"
+prouver 'abo 122 : la prochaine facture sans son total TTC' $AJ122 \
+  "\${netDeLaProchaine ? \`, soit" "\${false ? \`, soit" \
+  "$T122R"
+prouver 'abo 122 : la prochaine facture qui tait le module acheté' $AJ122 \
+  "\${modulesEnPlus.length ? \`, avec" "\${false ? \`, avec" \
+  "$T122Y"
+prouver 'abo 122 : la carte qui déborde au téléphone' web/public/plateforme/abonnement.css \
+  "  .abo-offre-boutons .btn { white-space: normal; text-align: center; line-height: 1.3; }" "" \
+  "$T122Y"
+prouver 'abo 122 : l'\''offre choisie qu'\''aucune carte ne montre' $AJ122 \
+  ": choisie ? '<span class=\"abo-badge\">Ton choix</span>' : ''}" ": ''}" \
+  "$T122N"
+prouver 'abo 122 : l'\''abonnement qui s'\''arrêtera, au vert du calme' $AJ122 \
+  "      return { ton: j <= 15 || e.resilie ? 'attire' : 'calme'," "      return { ton: j <= 15 ? 'attire' : 'calme'," \
+  "$T122S"
+prouver 'abo 122 : « Ne pas renouveler » seul bouton de l'\''état' $AJ122 \
+  "          : renouveler ? \`<button" "          : a.etat.etat === 'actif' && a.peutChoisir && !aFaire ? '<button type=\"button\" class=\"btn btn-sm abo-tete-btn\" id=\"abo-arreter\">Ne pas renouveler…</button>' : renouveler ? \`<button" \
+  "$T122S"
+prouver 'abo 122 : « Rien ne s'\''arrête ici » pour un abonnement offert' $AJ122 \
+  "offert: 'Abonnement offert par SkanFact' })" "offert: 'Rien ne s\\'arrête ici' })" \
+  "$T122H"
+prouver 'abo 122 : l'\''abonnement « échu »' $AJ122 \
+  ": \`L'abonnement n'est plus payé depuis le" ": \`L'abonnement est échu depuis le" \
+  "$T122P"
+prouver 'abo 122 : l'\''échéance annoncée comme une fin' $AJ122 \
+  ": \`Ton abonnement arrive à échéance le \${jour(e.jusquAu)}\`;" ": \`Ton abonnement se termine le \${jour(e.jusquAu)}\`;" \
+  "$T122R"
+prouver 'abo 122 : l'\''état qui annonce un rappel quand la facture du renouvellement attend' $AJ122 \
+  "          : suite.aFaire === 'payer' ? \`Encore \${pl(j, 'jour')}. Ta facture du renouvellement" "          : false ? \`Encore \${pl(j, 'jour')}. Ta facture du renouvellement" \
+  "$T122H"
+prouver 'abo 122 : la liste en lecture seule qui propose de créer' web/public/v10/app.js \
+  "\${aboBloque(true) ? \`<button class=\"btn \${mine.length ? 'btn-primary' : ''}\" id=\"list-abo\">" "\${false ? \`<button class=\"btn \${mine.length ? 'btn-primary' : ''}\" id=\"list-abo\">" \
+  "$T122E"
+prouver 'abo 122 : l'\''état vide en lecture seule qui pousse à créer' web/public/v10/app.js \
+  "        aboBloque(true) ? [['vide-abo', 'Voir l\\'abonnement', true]]" "        false ? [['vide-abo', 'Voir l\\'abonnement', true]]" \
+  "$T122E"
+prouver 'abo 122 : l'\''état vide qui ne dit pas pourquoi la création attend' web/public/v10/app.js \
+  "          .concat(aboBloque(true) ? [" "          .concat(false ? [" \
+  "$T122E"
+prouver 'abo 122 : le premier dossier tenu qui ne dit pas qu'\''il est gratuit' web/public/v10/cabinet/app.js \
+  "       \${peut && peut.gratuit ?" "       \${false ?" \
+  "$T122C"
+prouver 'abo 122 : la pastille du cabinet sur trois lignes' web/public/plateforme/abonnement-cabinet.js \
+  "texte: \`Facture à régler avant le \${jour(e.echeance)}\` };" "texte: \`Facture de l'abonnement à régler avant le \${jour(e.echeance)}\` };" \
+  "$W122"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

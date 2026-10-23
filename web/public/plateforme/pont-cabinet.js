@@ -2148,7 +2148,7 @@
             geste: 'Règle-la dans Réglages, « Ton abonnement » : tout se rouvre aussitôt. Tes dossiers se lisent et s\'exportent toujours.',
             vers: 'pan-licence', bouton: 'Ouvrir mon abonnement' };
         }
-        return { ok: true, avertissement: a && A ? A.avertissement(a.prochainDossier, a.regles) : '' };
+        return { ok: true, avertissement: a && A ? A.avertissement(a.prochainDossier, a.regles) : '', gratuit: a && A && A.gratuit ? A.gratuit(a.prochainDossier, a.regles) : '' };
       }
       return { ok: false, motif: 'Seul un associé du cabinet crée un dossier.',
         geste: `${associes.map((/** @type {any} */ m) => m.nom).join(', ')} ${associes.length > 1 ? 'peuvent' : 'peut'} ajouter ce client.` };

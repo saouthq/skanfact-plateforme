@@ -138,6 +138,7 @@ manque, c'est comment il s'applique) :
   les dossiers payants en lecture seule ; les règles dans les Réglages de la console, l'abonnement sur la fiche d'un
   cabinet, les refus dans « À décider ». `docs/abonnement.md` C22. Reste : les rappels par e-mail avant l'échéance.
 - **La recette à l'écran (1.121.0)** : ci-dessous ; `docs/abonnement.md` C23.
+- **Tous les états, à la souris (1.122.0)** : ci-dessous ; `docs/abonnement.md` C24.
 
 ## La recette à l'écran (23/10/2026)
 
@@ -159,6 +160,37 @@ Ce que la recette laisse à décider (pas des défauts du code) :
   ne se fait pas (C21) ;
 - la prochaine facture se dit en HT seulement dans l'état ; le TTC se lit dans la carte et dans le récapitulatif ;
 - au téléphone, la recherche des dossiers du Cabinet reste étroite à côté de ses boutons (une finition, pas un blocage).
+
+## Tous les états, à la souris (23/10/2026)
+
+Demande de Skander : couvrir tous les états, à l'écran, une capture à chaque geste, et une passe UI/UX sur le modèle des
+pages d'abonnement des grands éditeurs (le forfait en tête, la prochaine échéance et ce qu'elle coûte, les factures, changer
+ou arrêter en bas). Quinze entreprises de l'outil humain, une par état (l'essai à 20 jours, à 5 jours, le dernier jour, avec
+sa facture ; payé à l'année, au mois à neuf jours de l'échéance, qui ne se renouvelle pas ; la grâce après l'essai et après
+une période ; la lecture seule de l'essai fini, du non-renouvellement, de la résiliation ; la suspension ; l'offert ;
+Essentiel avec la paie), à l'ordinateur et au téléphone ; le Cabinet, de zéro dossier au quatrième, sa facture, son paiement.
+Seul le temps qui passe a été posé en base (la fin d'un essai, une échéance passée) ; tout le reste au clic.
+
+Trouvé et corrigé dans la 1.122.0 :
+- **« Renouveler » qui mène à « Ne pas renouveler »** : à neuf jours de l'échéance, l'accueil disait « Ton abonnement se
+  termine » et son bouton « Renouveler » ouvrait un onglet dont le seul bouton était « Ne pas renouveler… » ;
+- **« Choisir mon offre » qui ne mène pas aux offres** (un second clic attendait en haut de l'onglet) ;
+- **la suspension qui ne mène nulle part** : « Écrire à SkanFact » ouvrait un e-mail, rien sans logiciel de courrier ;
+- **la carte qui déborde au téléphone** (un libellé long sans retour à la ligne) ;
+- **les listes qui proposent de créer en lecture seule** (« + Créer ma première facture », en vert) ;
+- **la pastille sur trois lignes**, orange à côté d'un bandeau rouge ; « Renouveler à l'année » d'un abonnement à l'année
+  payé 150 jours encore ; la prochaine facture qui tait la paie (540 quand la carte dit 390) et son total TTC ; l'offre
+  choisie qu'aucune carte ne montre ; « échu » ; « Rien ne s'arrête ici » pour un abonnement offert ; « Ne se renouvelle
+  pas » au vert du calme ; le premier dossier du Cabinet qui ne dit pas qu'il est gratuit.
+
+Ce qui reste, à décider ou plus tard (pas des défauts de calcul) :
+- un ancien abonné en grâce ou en lecture seule voit « Choisir mon offre », pas « Renouveler Essentiel, au mois » : l'état
+  ne porte pas son offre d'avant (il faudrait la lire au serveur) ;
+- la page de l'abonnement ne montre pas de moyen de paiement enregistré : il n'y en a pas (chaque facture se règle en
+  ligne ou par virement, sans carte gardée) — à garder, ou un prélèvement plus tard (À VÉRIFIER avec Konnect) ;
+- au téléphone, l'abonnement commence à mi-écran (le titre, « Guide-moi », la recherche et trois rangs d'onglets au-dessus)
+  et la recherche des Réglages ne prend pas toute la largeur : la tête des Paramètres, commune à tous les onglets ;
+- au Cabinet, le prix d'un dossier se dit hors taxes seulement dans l'annonce (la facture dit 72,400 DT TTC).
 
 ## Sources
 
