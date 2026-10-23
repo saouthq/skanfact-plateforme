@@ -1124,7 +1124,11 @@ describe('les incidents du service et la page d\'état (0089, docs/console.md C2
       const r = await app.inject({ method: 'GET', url: `${VERSION}/moi`, headers: { authorization: `Bearer ${client.jeton}` } });
       expect(r.statusCode).toBe(503);
       expect(Number(r.headers['retry-after'])).toBeGreaterThanOrEqual(3_000);
-      expect(String(r.json().motif)).toMatch(/^Maintenance en cours : SkanFact revient vers \d+ h \d\d, et rien n'a été fait\. La base change de disque\.$/);
+      // L'heure seule le jour même ; une fin qui passe minuit à Tunis (l'essai lancé entre 23 h et minuit) dit son jour.
+      const memeJour = aujourdhuiATunis(horloge) === aujourdhuiATunis(new Date(urgence.fin));
+      expect(String(r.json().motif)).toMatch(memeJour
+        ? /^Maintenance en cours : SkanFact revient vers \d+ h \d\d, et rien n'a été fait\. La base change de disque\.$/
+        : new RegExp(`^Maintenance en cours : SkanFact revient vers ${aujourdhuiATunis(new Date(urgence.fin)).split('-').reverse().join('/')} à \\d+ h \\d\\d, et rien n'a été fait\\. La base change de disque\\.$`));
       const ecrire = await app.inject({ method: 'POST', url: `${VERSION}/inscription`, payload: { email: `ferme${++n}@exemple.tn`, nom: 'Ferme', motDePasse: MDP } });
       expect(ecrire.statusCode).toBe(503);
       expect(Number((await admin.query('select count(*) n from socle.utilisateur where email = $1', [`ferme${n}@exemple.tn`])).rows[0].n)).toBe(0);

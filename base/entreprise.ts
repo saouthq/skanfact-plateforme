@@ -195,6 +195,7 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.editeur': { classe: 'hors', raison: 'l\'entreprise de SkanFact où naissent nos factures : un réglage de la plateforme, commun à toutes' },
   'plateforme.facture_abonnement': { classe: 'hors', raison: 'le lien entre une facture de SkanFact et l\'abonnement qu\'elle paie : la relation avec SkanFact, comme l\'abonnement ; la pièce elle-même est dans le dossier de SkanFact' },
   'plateforme.offre_choisie': { classe: 'hors', raison: 'l\'offre choisie dans « Ton abonnement » (0158) : la relation avec SkanFact, comme l\'abonnement ; une remise ne fait jamais revenir un ancien choix' },
+  'plateforme.choix_refuse': { classe: 'hors', raison: 'pourquoi un choix d\'offre ne s\'est pas facturé seul (0171) : la relation avec SkanFact, comme le choix lui-même' },
   'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },
   // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
   'socle.quarantaine': { classe: 'entreprise' },

@@ -552,6 +552,11 @@ export interface BaseDeDonnees {
     close_par: string;
     motif: string;
   };
+  'plateforme.choix_refuse': {
+    choix: string;
+    le: Generated<Date>;
+    motif: string;
+  };
   'plateforme.contenu_offre': {
     id: Generated<string>;
     offre: string;
@@ -747,6 +752,7 @@ export interface BaseDeDonnees {
     mois_offert: Generated<boolean>;
     annoncee_le: Date | null;
     recu_le: Date | null;
+    au_choix: Generated<boolean>;
   };
   'plateforme.geste_console': {
     id: Generated<string>;

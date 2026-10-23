@@ -73,7 +73,8 @@ par offre avec son bouton ; le paiement qui ouvre le compte tout de suite ; la f
     le TTC en petit sous le HT (le taux de TVA vient des réglages, **À VÉRIFIER** avec un comptable).
 12. **Résilier, changer d'offre : seulement en nous écrivant.** *À faire* (décision de Skander) : « Ne pas
     renouveler » dans l'onglet (l'abonnement va jusqu'au bout de la période payée, puis lecture seule ; il se reprend
-    d'un clic) ; passer d'Essentiel à Complet en cours de période (la console sait déjà facturer au prorata).
+    d'un clic) ; passer d'Essentiel à Complet en cours de période (la console sait ouvrir un module en cours de période,
+    rattrapé au prorata sur la facture suivante ; changer d'offre au milieu d'une période, non : corrigé le 23/10/2026).
     **À VÉRIFIER** : ce que la loi tunisienne demande pour résilier un abonnement en ligne.
 
 ## P3 — les finitions
@@ -126,6 +127,10 @@ manque, c'est comment il s'applique) :
   et un bouton par offre, confirmé avant de partir ; les phrases exactes (suspendue, « aussitôt », « À régler », la
   grâce sur sa durée, l'essai prolongé, le rappel déjà parti) ; les e-mails « facture prête » et « paiement reçu » ; la
   prochaine facture et son montant ; « deux mois offerts » ; ce qui peut s'ajouter replié. `docs/abonnement.md` C20.
+- **Lot 2 (1.119.0)** : la facture préparée et émise d'elle-même au choix de l'offre, les cas à part et les refus
+  dans « À décider » ; le prix TTC sous chaque prix ; « Ne pas renouveler » et sa reprise ; Complet pour la période
+  suivante par un choix, et la paie ou la comptabilité ouvertes tout de suite, rattrapées au prorata. `docs/abonnement.md`
+  C21.
 
 ## Sources
 

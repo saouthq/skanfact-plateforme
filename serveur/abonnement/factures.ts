@@ -118,6 +118,15 @@ export function ceQueDiraLaFacture(piece: Json, societe: Json) {
   return { ht: m(t.netHT), tva: m(t.totalVAT), timbre: m(t.stamp), ttc: m(t.totalTTC), net: m(t.netToPay) };
 }
 
+// Ce qu'une facture d'une offre coûtera, TVA et timbre compris (1.119.0 ; docs/revue-abonnement.md, P2 11) : la pièce
+// telle que la préparation la fabriquerait (la ligne de l'offre au prix du jour, la TVA de l'entreprise SkanFact, le
+// timbre d'une fiche de client qui n'en est pas exemptée), calculée par le moteur de la v10 — le calcul de la facture.
+// Avant la remise et ce qui s'ajoute : l'écran le dit.
+export function netDUneOffre(societe: Json, offre: Offre, periodicite: Periodicite, prixHt: bigint, jour: string) {
+  const piece = pieceDAbonnement({ cle: 'apercu', client: { id: 'apercu' }, offre, periodicite, debut: jour, fin: jour, echeance: jour, jour, prixHt, societe });
+  return ceQueDiraLaFacture(piece, societe);
+}
+
 const lire = async (tx: Transaction, entreprise: string, collection: string, cle: string) =>
   (await tx.query('select contenu, revision, rang from socle.dossier_v10 where entreprise = $1 and collection = $2 and cle = $3 for update',
     [entreprise, collection, cle])).rows[0] as { contenu: Json; revision: string; rang: number | null } | undefined;
@@ -132,18 +141,27 @@ export type FacturePreparee = { cle: string; editeur: string; offre: Offre; peri
   // Le mois offert que la facture porte (0113) : sa période en couvre un de plus.
   moisOffert: boolean };
 
+// Le chemin d'une facture qui ne vient pas de la console (1.119.0, la facture au choix : serveur/abonnement/facturier.ts) :
+// ses factures d'avant (la fiche du client à reprendre, le mois offert) et la fonction qui la note, lues autrement que
+// par la console ; le reste — la période, la pièce, les chiffres — est le même.
+export type VoieFacture = {
+  factures: { client?: string; editeur?: string; piece?: string; moisOffert?: boolean }[];
+  noter: (n: { cle: string; client: string; debut: string; fin: string; totalHt: bigint; moisOffert: boolean }) => Promise<void>;
+};
+
 // Préparer (ou, `apercu`, seulement montrer) la facture d'une période. Au nom de la personne, dans la transaction de la
-// console : la base vérifie qu'elle est propriétaire de l'entreprise SkanFact.
+// console : la base vérifie qu'elle est propriétaire de l'entreprise SkanFact. `voie` : le choix du client (1.119.0).
 export async function preparerFacture(tx: Transaction, utilisateur: string, abonne: Abonne, faits: Faits,
   voulue: { offre: Offre; periodicite: Periodicite }, prix: bigint | null, jour: string, o: { apercu: boolean; motif: string },
-  enPlus: readonly LigneEnPlus[] = [], remise: Remise | null = null): Promise<FacturePreparee> {
+  enPlus: readonly LigneEnPlus[] = [], remise: Remise | null = null, voie?: VoieFacture): Promise<FacturePreparee> {
   const editeur = String((await tx.query('select plateforme.editeur_de_mes_factures() v')).rows[0]?.v);
   if (editeur === abonne.id) throw new Refus('abonnement.facture.editeur_lui_meme');
   if (prix === null) throw new Refus('abonnement.facture.sans_prix');
   const cle = clePiece(abonne.id, periodeDeLaFacture(faits, voulue.periodicite, jour).debut);
   // Le mois offert (0113) : il attend sur l'abonnement, ou cette facture le portait déjà (préparée de nouveau) — la
   // prochaine facture le porte, toujours (la base le revérifie).
-  const factures = (await tx.query('select plateforme.console_factures_abonnement($1) v', [abonne.id])).rows[0]?.v as { client?: string; editeur?: string; piece?: string; moisOffert?: boolean }[] | null;
+  const factures = voie ? voie.factures
+    : (await tx.query('select plateforme.console_factures_abonnement($1) v', [abonne.id])).rows[0]?.v as { client?: string; editeur?: string; piece?: string; moisOffert?: boolean }[] | null;
   const moisOffert = faits.moisOffert === true || (factures ?? []).some((f) => f.piece === cle && f.moisOffert === true);
   const { debut, fin, echeance } = periodeDeLaFacture(faits, voulue.periodicite, jour, moisOffert);
   // Une autre période payée d'avance attend déjà son premier jour (l'audit 1.42.0, A01) : une facture qui changerait autre
@@ -179,8 +197,11 @@ export async function preparerFacture(tx: Transaction, utilisateur: string, abon
     await appliquer(tx, editeur, utilisateur, [{ collection: 'clients', cle: String(client.id), rang: n, revision: null, contenu: client }], { serveur: true });
   }
   await appliquer(tx, editeur, utilisateur, [{ collection: 'documents', cle, rang: null, revision: null, contenu: piece }], { serveur: true });
-  await tx.query('select plateforme.console_noter_facture($1, $2, $3, $4, $5, $6::date, $7::date, $8::bigint, $9, $10::date, $11)',
-    [abonne.id, cle, String(client.id), voulue.offre, voulue.periodicite, debut, fin, total.toString(), o.motif, jour, moisOffert]);
+  if (voie) await voie.noter({ cle, client: String(client.id), debut, fin, totalHt: total, moisOffert });
+  else {
+    await tx.query('select plateforme.console_noter_facture($1, $2, $3, $4, $5, $6::date, $7::date, $8::bigint, $9, $10::date, $11)',
+      [abonne.id, cle, String(client.id), voulue.offre, voulue.periodicite, debut, fin, total.toString(), o.motif, jour, moisOffert]);
+  }
   return resultat;
 }
 

@@ -517,7 +517,12 @@ vaut pour tout le dépôt.*
     `docs/abonnement.md` C20 ; `0170`) Le bandeau de l'accueil (`bandeau`, `web/v10/abonnement-revue.txt`, `aFaire` de
     `/abonnement/etat`), un bouton par offre confirmé sous lui, la prochaine facture (`plateforme.ma_prochaine_facture`,
     `aRenouveler`), les rappels déjà partis (`plateforme.mes_rappels`), les e-mails « facture prête » et « paiement reçu »
-    (`serveur/abonnement/courriels.ts`, `plateforme.factures_a_annoncer`, avec le postier).
+    (`serveur/abonnement/courriels.ts`, `plateforme.factures_a_annoncer`, avec le postier). (1.119.0, `docs/abonnement.md`
+    C21 ; `0171`) La facture au choix (`serveur/abonnement/facturier.ts` : `facturerLesChoix`, `facturerBientot`,
+    `plateforme.choix_a_facturer`, `noter_facture_au_choix`, `choix_refuse`), le prix TTC (`netDUneOffre`,
+    `serveur/abonnement/factures.ts`), « Ne pas renouveler » (`POST /abonnement/renouvellement`,
+    `plateforme.mon_renouvellement`), un module ouvert tout de suite (`POST /abonnement/module`,
+    `plateforme.mon_module_ouvrir`), et dans l'écran `brancherRenouvellement`, `brancherModules`.
   - **L'abonnement de bout en bout** (1.83.0 ; `docs/recette.md`) : la première abonnée d'un groupe est celle qui a payé
     (`plateforme.remise_de`, `base/migrations/0157_la_premiere_abonnee.sql`) ; « à facturer » dans « À décider »
     (`A_FACTURER_JOURS`, `serveur/console/decider.ts`, les factures qui attendent par `argentADecider`,

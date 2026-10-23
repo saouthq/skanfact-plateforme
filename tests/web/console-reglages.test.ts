@@ -324,6 +324,8 @@ describe('les réglages de la plateforme, à la souris', () => {
     // Ce que chaque carte dit aujourd'hui vient des mêmes nombres que la console.
     expect(await c.locator('.abo-offre[data-offre="complet"] .abo-inclus li').allInnerTexts().then((t) => t.map(net)))
       .toEqual(['Tout Essentiel', 'La paie, jusqu\'à vingt salariés', 'La comptabilité complète', 'Deux caisses au comptoir', 'Des utilisateurs sans limite, deux établissements']);
+    // « Ce qui peut s'ajouter à l'offre » est replié tant que l'entreprise ne dépasse pas son offre (1.118.0) : il s'ouvre.
+    await cliquer(c.locator('#abo-plus > summary'));
     expect(net(await c.locator('#abo-plus li[data-option="caisse"] .abo-plus-quoi').innerText())).toBe('Une caisse de plus Essentiel en comprend une ; Complet, deux.');
     await fermer(c);
     // Retiré avant sa date : il quitte la grille ; le journal dit sur quoi, de quoi à quoi.

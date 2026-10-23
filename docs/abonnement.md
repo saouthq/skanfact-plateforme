@@ -157,7 +157,8 @@ propriétaire de l'abonné ; une seule fiche par abonné, reprise ensuite, donc 
 reste), puis la facture en **brouillon**. Une facture par abonné et par début de période (son identifiant le dit : deux
 clics n'en font jamais deux).
 
-**B3. L'émission reste dans l'application de SkanFact.** La console montre le brouillon « à émettre » et l'ouvre dans
+**B3. L'émission reste dans l'application de SkanFact.** (Sauf, depuis 1.119.0, la facture d'un choix fait dans « Ton
+abonnement » : elle s'émet seule, C21 ; sa signature et son envoi à la TTN restent à une personne.) La console montre le brouillon « à émettre » et l'ouvre dans
 `app.skanfact.tn`, dans un autre onglet (on s'y connecte avec son propre compte, celui de la propriétaire) : Skander la
 relit, l'émet, la signe, l'envoie, comme n'importe quelle facture (C4 : la console ne refait pas l'émission). La console
 suit ensuite son état : à émettre, à payer (le reste), payée en partie, en retard, payée, annulée ; et la fiche se relit
@@ -532,6 +533,47 @@ tenait — « T'abonner » demandait d'écrire à contact@skanfact.tn).
   payée avant d'être annoncée, seul le reçu part ; un envoi raté se retente ; les factures d'avant 0170 ne s'annoncent
   pas. Ce qui part chez le relais, compté et décidé comme les rappels : l'adresse, un objet, une date, l'adresse de
   l'application ; ni le montant, ni le numéro, ni le nom de l'entreprise.
+
+**C21. Après la revue de l'abonnement, lot 2** (1.119.0 ; `0171` ; `docs/revue-abonnement.md` ; Skander, « go 1 et 2 »,
+22/10/2026, sur trois points : la facture préparée et émise d'elle-même au choix de l'offre, la console prévenue et
+gardant les cas à part ; le prix TTC à côté du HT ; « Ne pas renouveler » et « Passer à Complet » faits par le client
+lui-même. Décidé par délégation dans le détail) :
+- **La facture au choix** (`serveur/abonnement/facturier.ts`) : quand qui gère l'abonnement choisit son offre, sa
+  facture se prépare ET s'émet dans la minute (le tour part juste après le choix, et chaque minute pour les autres),
+  au nom de la propriétaire de l'entreprise SkanFact, comme une facture périodique émise seule. Préparée par la même
+  fonction que la console (`preparerFacture`), notée par la jumelle de `console_noter_facture` qui revérifie les mêmes
+  chiffres (`plateforme.noter_facture_au_choix`, la facture marquée `au_choix`), émise par le serveur (le numéro de la
+  série, les montants scellés), tout dans une transaction. Sa signature et son envoi à la TTN restent à une personne.
+  L'e-mail « facture prête » (C20) part comme pour toute facture émise. « Ton abonnement » se relit seul jusqu'à ce
+  qu'elle soit là.
+- **Les cas à part restent à la console** : ni l'entreprise SkanFact elle-même, ni un exemple, ni un dossier tenu par un
+  cabinet, ni un abonnement offert ou suspendu, ni une période payée qui ne se renouvelle pas. Un choix qui ne se facture
+  pas (pas de prix, une pièce de cette période déjà dans l'application de SkanFact, le timbre non renseigné…) garde son
+  motif (`plateforme.choix_refuse`) : la console le lit sur la ligne « a choisi » d'« À décider » (« … mais sa
+  facture ne s'est pas faite seule : » et le motif), où sa facture se prépare à la main comme avant ; l'abonnée lit que SkanFact prépare sa facture ; il se
+  retente le lendemain. Branchée en production (`SKANFACT_FACTURE_AU_CHOIX`, `1` par défaut en production, `0`
+  ailleurs).
+- **Le prix TTC** de chaque offre, sous le prix HT (« TVA et timbre compris : 465,100 DT par an, ou 47,410 DT par
+  mois ») : calculé au serveur par le moteur de la facture, avec la fiche de l'entreprise SkanFact (sa TVA, son timbre ;
+  la fiche ne sort pas : seuls les montants partent), avant la remise et ce qui s'ajoute. Rien quand l'entreprise
+  SkanFact n'est pas désignée.
+- **« Ne pas renouveler… »** (`plateforme.mon_renouvellement`) : pendant une période payée qui court, un bouton discret
+  sous l'état ; la confirmation dit ce qui se passera (« Ton abonnement ira jusqu'au …, puis l'entreprise passera en
+  lecture seule ») avant le geste, « Garder mon abonnement » referme sans rien faire. Fait, l'état dit « Il ne se
+  renouvelle pas » et propose « Reprendre mon abonnement », d'un clic, jusqu'à la fin de la période ; pas de choix
+  d'offre ni de module entre-temps. Refusé quand la facture de la période suivante attend déjà son paiement (« écris-nous
+  à contact@skanfact.tn, et nous l'annulerons »), et pour un abonnement offert ou suspendu. L'histoire le dit, par
+  « le client » (`par = 'abonne'`).
+- **« Passer à Complet »** : pour la période suivante, c'est un choix d'offre (sur la carte de Complet), facturé d'avance
+  comme tout choix. Tout de suite, c'est un module : « Ouvrir la paie maintenant… », « Ouvrir la comptabilité complète
+  maintenant… » sur la carte de son offre (`plateforme.mon_module_ouvrir`) ; la confirmation dit, lu au serveur, ce que
+  la prochaine facture rattrapera (« 10,161 DT HT : du … au …, 21 jours sur 31, au prix de la paie ») par la règle de
+  `rattrapage_modules` (0113), le geste « ouvrir un module » de la console fait par le client. Sans le paiement de la
+  période dans l'histoire, cette règle ne rattrape rien : la confirmation le dit (« Rien à rattraper pour les jours qui
+  restent »). La facture de la période suivante déjà faite (un choix facturé d'avance), le module attend : elle ne le
+  compterait pas (« écris-nous à contact@skanfact.tn »). Recette du 23/10/2026 : l'aperçu annonçait 15 DT pour « 11
+  jours sur 11 » quand la facture n'aurait rien rattrapé. Changer d'offre au milieu
+  d'une période (Essentiel → Complet avec un avoir au prorata) ne se fait pas : la console ne le sait pas non plus.
 
 ## Revu à la souris (14/10/2026, C17 : les remises)
 

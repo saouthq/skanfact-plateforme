@@ -819,6 +819,27 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   // Les e-mails d'une facture de l'abonnement (0170, docs/abonnement.md C20).
   { base: 'seul le serveur note un e-mail de facture parti', cle: 'base.abonnement.annonce_serveur', fr: 'seul le serveur note un e-mail de facture parti' },
   { base: 'nature inconnue', cle: 'base.abonnement.annonce_nature', fr: 'cet e-mail de facture n\'existe pas : une facture s\'annonce émise ou payée' },
+  // La facture au choix, « Ne pas renouveler », un module ouvert par le client (0171, docs/abonnement.md C21).
+  { base: 'aucun choix de cette offre n\'attend sa facture', cle: 'base.abonnement.choix_absent', fr: 'aucun choix de cette offre n\'attend sa facture' },
+  { base: 'ce module est déjà acheté pour ton abonnement', cle: 'base.abonnement.module_deja', fr: 'ce module est déjà acheté pour ton abonnement' },
+  { base: 'la facture de ta période suivante est déjà faite : pour ouvrir ce module maintenant, écris-nous à contact@skanfact.tn', cle: 'base.abonnement.module_facture_faite', fr: 'la facture de ta période suivante est déjà faite : pour ouvrir ce module maintenant, écris-nous à contact@skanfact.tn' },
+  { base: 'ce module n\'a pas de prix dans la grille : écris-nous à contact@skanfact.tn', cle: 'base.abonnement.module_sans_prix', fr: 'ce module n\'a pas de prix dans la grille : écris-nous à contact@skanfact.tn' },
+  { base: 'ce module part avec la période déjà payée : il se rouvre une fois qu\'elle a commencé', cle: 'base.abonnement.module_part', fr: 'ce module part avec la période déjà payée : il se rouvre une fois qu\'elle a commencé' },
+  { base: 'cet abonnement ne se renouvelle déjà plus', cle: 'base.abonnement.deja_arrete', fr: 'cet abonnement ne se renouvelle déjà plus' },
+  { base: 'cet abonnement se renouvelle déjà', cle: 'base.abonnement.deja_renouvele', fr: 'cet abonnement se renouvelle déjà' },
+  { base: 'cette entreprise n\'a pas d\'abonnement à facturer', cle: 'base.abonnement.rien_a_facturer', fr: 'cette entreprise n\'a pas d\'abonnement à facturer' },
+  { base: 'la facture de cette période existe déjà', cle: 'base.abonnement.facture_existe', fr: 'la facture de cette période existe déjà' },
+  { base: 'la facture de ta période suivante attend déjà son paiement : pour ne pas renouveler, écris-nous à contact@skanfact.tn, et nous l\'annulerons', cle: 'base.abonnement.arret_facture_due', fr: 'la facture de ta période suivante attend déjà son paiement : pour ne pas renouveler, écris-nous à contact@skanfact.tn, et nous l\'annulerons' },
+  { base: 'la période de la facture n\'est pas la bonne', cle: 'base.abonnement.periode_fausse', fr: 'la période de la facture n\'est pas la bonne' },
+  { base: 'le module est la paie ou la comptabilité complète', cle: 'base.abonnement.module_inconnu', fr: 'le module est la paie ou la comptabilité complète' },
+  { base: 'le mois offert de cette facture n\'est pas celui qui attend', cle: 'base.abonnement.mois_offert_faux', fr: 'le mois offert de cette facture n\'est pas celui qui attend' },
+  { base: 'le total n\'est pas celui de la grille au premier jour de la période', cle: 'base.abonnement.total_faux', fr: 'le total n\'est pas celui de la grille au premier jour de la période' },
+  { base: 'offre inconnue', cle: 'base.abonnement.offre_inconnue', fr: 'cette offre n\'existe pas : choisis Essentiel ou Complet, à l\'année ou au mois' },
+  { base: 'seul le serveur note un choix qui ne s\'est pas facturé', cle: 'base.abonnement.refus_serveur', fr: 'seul le serveur note un choix qui ne s\'est pas facturé' },
+  { base: 'seul un abonnement payé qui court se renouvelle ou non', cle: 'base.abonnement.renouvellement_hors', fr: 'seul un abonnement payé qui court se renouvelle ou non : choisis ton offre' },
+  { base: 'seuls la propriétaire et l\'administratrice de l\'entreprise règlent son abonnement', cle: 'base.abonnement.qui_regle', fr: 'seuls la propriétaire et l\'administratrice de l\'entreprise règlent son abonnement : préviens-les' },
+  { base: 'ton offre contient déjà ce module', cle: 'base.abonnement.module_compris', fr: 'ton offre contient déjà ce module' },
+  { base: 'un module s\'ouvre tout de suite sur un abonnement payé qui court et se renouvelle', cle: 'base.abonnement.module_hors', fr: 'un module s\'ouvre tout de suite sur un abonnement payé qui court et se renouvelle' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

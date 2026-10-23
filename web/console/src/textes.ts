@@ -607,6 +607,8 @@ declarerTextes({
   // Le seul paiement que SkanFact note seul : celui d'une de nos factures, réglée dans le dossier de l'entreprise SkanFact.
   'console.ecran.fiche.par_facture': 'SkanFact, quand sa facture a été réglée',
   'console.ecran.fiche.par_outil': 'l\'outil de l\'exploitation',
+  // 1.119.0 (0171) : un geste du client lui-même, dans « Ton abonnement » (ne pas renouveler, reprendre, ouvrir un module).
+  'console.ecran.fiche.par_abonne': 'le client, dans son application',
   'console.ecran.fiche.voir_journal': 'ses gestes au journal',
   'console.ecran.fiche.identite': 'qui elle est',
   'console.ecran.fiche.i.matricule': 'matricule fiscal',
@@ -5922,6 +5924,8 @@ declarerTextes({
   'console.ecran.decider.offre_choisie_titre': '{nom} a choisi {quoi}',
   'console.ecran.decider.offre_choisie': 'choisie dans l\'application par {qui}, le {le} : prépare sa facture sur cette offre ; elle arrive dans son onglet « Ton abonnement »',
   'console.ecran.decider.offre_choisie_quelquun': 'quelqu\'un de son équipe',
+  // 1.119.0 : sa facture ne s'est pas faite seule (0171) : pourquoi, et ce qui reste à faire.
+  'console.ecran.decider.offre_choisie_refus': 'choisie dans l\'application par {qui}, le {le}, mais sa facture ne s\'est pas faite seule : {motif} Prépare-la sur cette offre ; elle arrive dans son onglet « Ton abonnement »',
   'console.ecran.decider.a_facturer_titre': '{nom} : son renouvellement est à facturer',
   'console.ecran.decider.a_facturer': '{quoi}, payé jusqu\'au {jusquAu} ({dans}) : la facture de la période suivante n\'est pas encore préparée',
   'console.ecran.decider.a_emettre_titre': '{nom} : une facture attend d\'être émise',

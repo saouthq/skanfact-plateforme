@@ -34,6 +34,9 @@
 /* Le bouton de l'état (1.118.0) : l'étape suivante, sous la phrase qui la dit. */
 .abo-tete-btn { margin-top: 6px; }
 .abo-tete .abo-prochaine { color: #e8f3f1; font-weight: 600; }
+/* « Ne pas renouveler… » (1.119.0) : un geste qu'on ne fait pas par erreur, discret sur le haut sombre. */
+.abo-tete .abo-tete-discret { background: transparent; color: var(--abo-brume); border: 1px solid rgba(255, 255, 255, .28); box-shadow: none; }
+.abo-tete .abo-tete-discret:hover { color: #fff; border-color: rgba(255, 255, 255, .5); }
 .abo-jauge { flex: 0 1 240px; min-width: 180px; display: flex; flex-direction: column; gap: 8px; }
 .abo-jauge-txt { font-size: 14px; font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; }
 .abo-barre { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .12); overflow: hidden; }
@@ -55,10 +58,10 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
    qu'elle comprend commence à la même hauteur. Une colonne au téléphone : chaque carte garde ses lignes. */
 .abo-offres { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .abo-offre {
-  display: grid; grid-row: span 7; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;
+  display: grid; grid-row: span 8; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;
   background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow);
 }
-.abo-offres.avec-avenir .abo-offre { grid-row: span 8; }
+.abo-offres.avec-avenir .abo-offre { grid-row: span 9; }
 .abo-offre-corps { display: flex; flex-direction: column; gap: 10px; }
 .abo-offre.courante { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary), var(--shadow); }
 .abo-offre-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -72,6 +75,9 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 /* L'année contre douze mois (1.118.0) : ce qu'on gagne à l'année, sous les deux prix. */
 .abo-annee { font-size: 13.5px; font-weight: 650; color: var(--primary); }
 .abo-annee:empty { display: none; }
+/* Ce que la facture coûtera, TVA et timbre compris (1.119.0), sous les prix hors taxes. */
+.abo-ttc { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.abo-ttc:empty { display: none; }
 /* Les boutons de la carte (1.118.0), sous le prix : à l'année, puis au mois ; et, sous eux, ce que le choix fera, avec
    « Annuler » et la confirmation (rien ne part au premier clic). Repliés tant qu'un choix attend sa facture. */
 .abo-offre-gestes { display: flex; flex-direction: column; gap: 10px; }

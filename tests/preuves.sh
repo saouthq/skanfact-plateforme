@@ -12685,7 +12685,7 @@ prouver "l'aperçu d'un prix qui pousse le motif en arrivant" web/console/src/co
   '.c-rg-prix-zone { min-height: 124px; }' '.c-rg-prix-zone { min-height: 0; }' \
   "$PXW"
 prouver 'les cartes des offres qui ne partagent plus leurs lignes' web/public/plateforme/abonnement.css \
-  '  display: grid; grid-row: span 7; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;' '  display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; border-radius: 20px;' \
+  '  display: grid; grid-row: span 8; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;' '  display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; border-radius: 20px;' \
   "$PXW"
 prouver 'un écart de moitié ou plus dit comme un écart ordinaire' web/console/src/ecrans/Reglages.tsx \
   '  const fort = (apercu?.ecart?.dixiemes ?? 0) >= 500;' '  const fort = false;' \
@@ -18282,12 +18282,12 @@ prouver 'un mensuel « à facturer » dès trente jours' 'serveur/console/decide
   's.jours > A_FACTURER_JOURS[s.periodicite]' \
   's.jours > 30' \
   'un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule'
-prouver 'un choix d'"'"'offre qui reste en attente après sa facture' 'base/migrations/0158_offre_choisie.sql' \
+prouver 'un choix d'"'"'offre qui reste en attente après sa facture' 'base/migrations/0171_abonnement_au_choix.sql' \
   '   where c.entreprise = p_entreprise
      and not exists (select 1 from plateforme.facture_abonnement f where f.entreprise = c.entreprise and f.prepare_le >= c.le)' \
   '   where c.entreprise = p_entreprise' \
   'la propriétaire choisit ; la console la voit dans « À décider » et prépare la facture sur elle ; préparée, le choix s'"'"'éteint'
-prouver 'la console qui voit encore un choix déjà facturé' 'base/migrations/0158_offre_choisie.sql' \
+prouver 'la console qui voit encore un choix déjà facturé' 'base/migrations/0171_abonnement_au_choix.sql' \
   '     where not exists (select 1 from plateforme.facture_abonnement f where f.entreprise = c.entreprise and f.prepare_le >= c.le)) x);' \
   '     where true) x);' \
   'la propriétaire choisit ; la console la voit dans « À décider » et prépare la facture sur elle ; préparée, le choix s'"'"'éteint'
@@ -19584,7 +19584,9 @@ prouver 'abo 118 : l'\''essai prolongé qui dit un total faux' $AJ118 \
   "          const sur = regles.essai && !suite.prolonge ?" "          const sur = regles.essai ?" \
   "$W118S"
 prouver 'abo 118 : le choix parti au premier clic' $AJ118 \
-  "        boite.hidden = false;" "        boite.hidden = false; void o.appel('POST', '/abonnement/choisir', { offre, periodicite });" \
+  "\${dit}</button></div>\`;
+        boite.hidden = false;" "\${dit}</button></div>\`;
+        boite.hidden = false; void o.appel('POST', '/abonnement/choisir', { offre, periodicite });" \
   "$W118H"
 prouver 'abo 118 : deux verts pendant la confirmation' $AJ118 \
   "        if (tete) tete.classList.remove('btn-primary');" "" \
@@ -19595,6 +19597,129 @@ prouver 'abo 118 : les mois offerts mal comptés' $AJ118 \
 prouver 'abo 118 : « Annuler » qui ne referme pas' $AJ118 \
   "        /** @type {HTMLElement} */ (boite.querySelector('[data-annuler]')).onclick = () => { fermer(); b.focus(); };" "" \
   "$W118H"
+
+# ── 1.119.0 : l'abonnement après sa revue, lot 2 (la facture au choix émise seule, le prix TTC, « Ne pas renouveler »,
+# un module ouvert tout de suite ; docs/revue-abonnement.md) ──
+AM119=base/migrations/0171_abonnement_au_choix.sql
+AF119=serveur/abonnement/facturier.ts
+AR119=serveur/abonnement/routes.ts
+AJ119=web/public/plateforme/abonnement.js
+T119E="l'abonnée choisit son offre : sa facture s'émet seule, à payer en ligne, au nom de SkanFact ; un second tour n'en fait pas deux"
+T119R="un choix qui ne se facture pas garde son motif : la console le lit dans « À décider », l'abonnée l'apprend, et il attend le lendemain"
+T119C="ni pour un abonnement offert, ni pour un dossier qui ne se renouvelle plus : la console garde ces cas"
+T119N="« Ne pas renouveler » puis le reprendre, pendant la période payée ; l'histoire dit que c'est le client ; un commercial ne le fait pas"
+T119F="ne pas renouveler est refusé quand la facture de la période suivante attend son paiement : le refus dit quoi faire"
+T119M="un module ouvert tout de suite : l'aperçu dit le rattrapage, et la prochaine facture le compte au même millime"
+T119T="chaque offre dit son prix TTC, par le moteur de la facture (TVA et timbre de l'entreprise SkanFact)"
+W119N="Nadia choisit Essentiel au mois : le prix TTC se lit avant, et sa facture arrive d'elle-même dans « Tes factures »"
+W119S="Sami ne renouvelle pas, se ravise et reprend ; puis il ouvre la paie, et la confirmation dit le rattrapage"
+prouver 'abo 119 : la facture au choix laissée en brouillon' $AF119 \
+  "  const r = await emettreDepuisV10(tx, facture.editeur, utilisateur, { document: piece.contenu, client: client ?? null, revision: Number(piece.revision), rang: null, netAPayer: null });
+  return String(r.numero);" "  return facture.cle;" \
+  "$T119E"
+prouver 'abo 119 : le choix qui n'\''appelle pas sa facture' $AR119 \
+  "      facturerBientot(ctx, ent);" "" \
+  "$T119E"
+prouver 'abo 119 : la facture au choix notée comme celle de la console' $AM119 \
+  "            case when v_taux > 0 then v_remise->>'nature' end, v_taux, v_remise_ht, p_mois_offert, true)" "            case when v_taux > 0 then v_remise->>'nature' end, v_taux, v_remise_ht, p_mois_offert, false)" \
+  "$T119E"
+prouver 'abo 119 : un refus qui ne se note pas' $AF119 \
+  "      await enTantQue(ctx.pool, null, async (tx) => { await tx.query('select plateforme.choix_refus_noter(\$1, \$2)', [a.choix, motif]); });" "" \
+  "$T119R"
+prouver 'abo 119 : un choix refusé retenté à chaque minute' $AM119 \
+  "     and not exists (select 1 from plateforme.choix_refuse r where r.choix = c.id and r.le > now() - interval '1 day')" "" \
+  "$T119R"
+prouver 'abo 119 : le refus que la console ne lit pas' $AM119 \
+  "             'refus', (select r.motif from plateforme.choix_refuse r where r.choix = c.id)) v" "             'refus', null) v" \
+  "$T119R"
+prouver 'abo 119 : le refus perdu en lisant la console' serveur/console/decider.ts \
+  "      refus: typeof x.refus === 'string' && x.refus ? x.refus : null }];" "      refus: null }];" \
+  "$T119R"
+prouver 'abo 119 : le refus perdu dans « À décider »' serveur/console/decider.ts \
+  "le: c.le, par: c.par, refus: c.refus ?? null }]);" "le: c.le, par: c.par, refus: null }]);" \
+  "$T119R"
+prouver 'abo 119 : l'\''abonnée qui ne sait pas que SkanFact prend la main' $AM119 \
+  "           'refuse', exists (select 1 from plateforme.choix_refuse r where r.choix = c.id))" "           'refuse', false)" \
+  "$T119R"
+prouver 'abo 119 : un abonnement offert facturé seul' $AM119 \
+  "     and not a.offert and a.suspendu_le is null
+" "" \
+  "$T119C"
+prouver 'abo 119 : un dossier qui ne se renouvelle plus facturé seul' $AM119 \
+  "     and not (a.resilie_le is not null and a.paye_jusqu_au is not null and a.paye_jusqu_au >= (now() at time zone 'Africa/Tunis')::date)
+" "" \
+  "$T119C"
+prouver 'abo 119 : ne pas renouveler ce qui ne se renouvelle déjà plus' $AM119 \
+  "    if v_a.resilie_le is not null then perform socle.refus('cet abonnement ne se renouvelle déjà plus'); end if;" "" \
+  "$T119N"
+prouver 'abo 119 : l'\''histoire qui ne dit pas que c'\''est le client' $AM119 \
+  "case when p_renouveler then 'resiliation_annulee' else 'resilie' end, 'abonne'," "case when p_renouveler then 'resiliation_annulee' else 'resilie' end, 'exploitation'," \
+  "$T119N"
+prouver 'abo 119 : reprendre qui ne reprend pas' $AM119 \
+  "    update plateforme.abonnement set resilie_le = null, modifie_le = now() where entreprise = p_entreprise returning * into v_a;" "    select * into v_a from plateforme.abonnement a where a.entreprise = p_entreprise;" \
+  "$T119N"
+prouver 'abo 119 : ne pas renouveler pendant que la facture suivante attend' $AM119 \
+  "      perform socle.refus('la facture de ta période suivante attend déjà son paiement : pour ne pas renouveler, écris-nous à contact@skanfact.tn, et nous l''annulerons');" "      null;" \
+  "$T119F"
+prouver 'abo 119 : le rattrapage compté depuis le début de la période' $AM119 \
+  "else v_a.paye_jusqu_au - greatest(p_jour, v_debut) + 1 end;" "else v_a.paye_jusqu_au - v_debut + 1 end;" \
+  "$T119M"
+T119H="sans le paiement de sa période dans l'histoire, rien à rattraper, et la facture compte pareil ; la facture suivante déjà faite, le module attend"
+prouver 'abo 119 : un rattrapage annoncé que la facture ne fera pas' $AM119 \
+  "  v_jours := case when v_debut is null then 0 else v_a.paye_jusqu_au - greatest(p_jour, v_debut) + 1 end;
+  v_sur := case when v_debut is null then 0 else v_a.paye_jusqu_au - v_debut + 1 end;" "  v_jours := v_a.paye_jusqu_au - p_jour + 1;
+  v_sur := v_a.paye_jusqu_au - coalesce(v_debut, p_jour) + 1;" \
+  "$T119H"
+prouver 'abo 119 : un module ouvert quand la facture suivante est déjà faite' $AM119 \
+  "    perform socle.refus('la facture de ta période suivante est déjà faite : pour ouvrir ce module maintenant, écris-nous à contact@skanfact.tn');" "    null;" \
+  "$T119H"
+prouver 'abo 119 : l'\''aperçu qui ouvre le module' $AM119 \
+  "  if p_apercu then
+    return" "  if false then
+    return" \
+  "$T119M"
+prouver 'abo 119 : un module acheté deux fois' $AM119 \
+  "  if p_module = any(v_a.modules) then perform socle.refus('ce module est déjà acheté pour ton abonnement'); end if;" "" \
+  "$T119M"
+prouver 'abo 119 : le module ouvert au nom de SkanFact' $AM119 \
+  "    values (p_entreprise, 'module_ouvert', 'abonne', 'dans l''application'," "    values (p_entreprise, 'module_ouvert', 'exploitation', 'dans l''application'," \
+  "$T119M"
+prouver 'abo 119 : le TTC qui dit le HT' $AR119 \
+  "? { net: netDUneOffre(societe, p.offre, p.periodicite, BigInt(p.montantHt), jour).net } : {})" "? { net: netDUneOffre(societe, p.offre, p.periodicite, BigInt(p.montantHt), jour).ht } : {})" \
+  "$T119T"
+prouver 'abo 119 : le TTC qui ne se lit pas' $AJ119 \
+  "        <p class=\"abo-ttc\">\${esc(ttcDe(k))}</p>" "        <p class=\"abo-ttc\"></p>" \
+  "$W119N"
+prouver 'abo 119 : la confirmation qui promet la console quand la facture se fait seule' $AJ119 \
+  "\${infos.auto ? 'Ta facture est faite tout de suite" "\${false ? 'Ta facture est faite tout de suite" \
+  "$W119N"
+prouver 'abo 119 : la facture qu'\''il faut recharger pour voir' $AJ119 \
+  "        setTimeout(() => { if (el.isConnected && el.querySelector('#abo-payer.abo-choisi')) void dessiner(el, o); }, 3000);" "" \
+  "$W119N"
+prouver 'abo 119 : « Ne pas renouveler » en bouton principal' $AJ119 \
+  "'<button type=\"button\" class=\"btn btn-sm abo-tete-btn abo-tete-discret\" id=\"abo-arreter\">" "'<button type=\"button\" class=\"btn btn-primary abo-tete-btn\" id=\"abo-arreter\">" \
+  "$W119S"
+prouver 'abo 119 : « Garder mon abonnement » qui ne referme pas' $AJ119 \
+  "(boite.querySelector('[data-garder]')).onclick = () => { boite.hidden = true; boite.innerHTML = ''; arreter.disabled = false; arreter.focus(); };" "(boite.querySelector('[data-garder]')).onclick = () => { arreter.focus(); };" \
+  "$W119S"
+prouver 'abo 119 : la reprise qui ne se propose pas' $AJ119 \
+  "id=\"abo-reprendre\">Reprendre mon abonnement</button>'" "id=\"abo-reprendre\" hidden>Reprendre mon abonnement</button>'" \
+  "$W119S"
+prouver 'abo 119 : un choix d'\''offre proposé pendant qu'\''il ne se renouvelle pas' $AJ119 \
+  "&& !suspendue && !resilie;" "&& !suspendue;" \
+  "$W119S"
+prouver 'abo 119 : la confirmation qui ne dit pas le rattrapage' $AJ119 \
+  "Ta prochaine facture rattrape \${esc(montant(String(ap.rattrapageHt), true))} HT" "Ta prochaine facture rattrape \${esc(montant(String(ap.prixHt), true))} HT" \
+  "$W119S"
+
+# ── 1.119.0 : le jour du retour d'une maintenance qui passe minuit (rouge GitHub du 22/10/2026) ──
+TFIN="le jour même, l'heure seule ; passé minuit à Tunis, le jour et l'heure"
+prouver 'la fin d'\''une maintenance après minuit sans son jour' serveur/fermeture.ts \
+  "  return jour(f) === jour(maintenant) ? heure : \`\${jour(f)} à \${heure}\`;" "  return heure;" \
+  "$TFIN"
+prouver 'le jour du retour compté en UTC' serveur/fermeture.ts \
+  "  const jour = (d: Date) => d.toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis'," "  const jour = (d: Date) => d.toLocaleDateString('fr-FR', { timeZone: 'UTC'," \
+  "$TFIN"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -40,6 +40,8 @@ if [ "$GARDER" != "--garder" ] || [ ! -f "$TRAVAIL/base.url" ]; then
 fi
 (cd "$RACINE" && npx vite build --config web/vite.config.ts --outDir "$TRAVAIL/web" --emptyOutDir --logLevel error)
 
+# La facture au choix (1.119.0) : branchée ici comme en production, pour la voir à la souris.
+SKANFACT_FACTURE_AU_CHOIX=${SKANFACT_FACTURE_AU_CHOIX:-1} \
 SKANFACT_BASE=$(cat "$TRAVAIL/base.url") SKANFACT_ENVIRONNEMENT=test SKANFACT_PORT=$PORT SKANFACT_WEB="$TRAVAIL/web" \
   nohup node "$RACINE/serveur/principal.ts" >"$TRAVAIL/serveur.log" 2>&1 &
 echo $! > "$TRAVAIL/serveur.pid"
