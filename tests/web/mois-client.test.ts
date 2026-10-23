@@ -266,7 +266,12 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     await h.p.locator('[data-lot-journal="AC"]').click({ timeout: 20_000 });
     await expect.poll(async () => net(await h.p.locator('#lot-sans-justif').innerText().catch(() => '')), { timeout: 10_000 })
       .toBe('Un achat du client n\'a pas de justificatif : GMS-26-4502. Tu peux valider quand même, ou le lui demander d\'abord (le menu de la ligne, « Demander le justificatif »).');
-    await h.p.getByRole('button', { name: 'Annuler', exact: true }).click();
+    // (1.131.0) Point 18 : validé quand même, le mois n'a plus rien au brouillard ; un message bref dit l'étape suivante,
+    // sans fenêtre à fermer.
+    await h.p.getByRole('button', { name: 'Valider', exact: true }).click();
+    await expect.poll(async () => net(await h.p.locator('#toast').innerText().catch(() => '')), { timeout: 15_000 })
+      .toMatch(/^2 écritures validées sous les n° \d+ à \d+\. Prochaine étape : la déclaration, dans « Déclarer et clôturer »\.$/);
+    expect(await h.p.locator('#modal-root .modal').count()).toBe(0);
     expect(h.erreurs).toEqual([]);
   }, 240_000);
 

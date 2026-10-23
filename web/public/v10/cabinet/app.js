@@ -9123,7 +9123,16 @@
         lignes.push(`${pl(r.refusees.length, 'écriture n\'est pas entrée', 'écritures ne sont pas entrées')} — ${plus ? 'elles restent' : 'elle reste'} en brouillard :`);
         r.refusees.slice(0, 10).forEach(x => lignes.push(`  • ${x.journal} ${x.piece || '(sans pièce)'} du ${fmtJour(x.date)} : ${x.motif}`));
       }
-      await infoDialog('Validation', lignes.join('\n'));
+      if (r.refusees.length) await infoDialog('Validation', lignes.join('\n'));
+      else {
+        // (plateforme) 1.131.0 — tout est entré : ce qui reste au brouillard des mois validés, tous journaux confondus, ou
+        // l'étape suivante (revue du mois d'un client, point 18 : la validation finissait sur une fenêtre à fermer).
+        const mois = new Set(cibles.map(e => String(e.date || '').slice(0, 7)));
+        const reste = (s.livre.ecritures || []).filter(e => e.statut === 'brouillard' && mois.has(String(e.date || '').slice(0, 7))).length;
+        const deQuand = mois.size === 1 ? KC.deMois(moisLabelCourt([...mois][0])) : 'de ces mois';
+        toast(`${lignes[0]} ${reste ? `${pl(reste, 'autre reste', 'autres restent')} au brouillard ${deQuand}.`
+          : `Prochaine étape : la déclaration, dans « Déclarer et clôturer ».`}`);
+      }
       drawLivres(root, dossier);
       majAValider(dossier);
     } catch (e) { await infoDialog('Validation impossible', plainError(e)); }

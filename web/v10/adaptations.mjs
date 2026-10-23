@@ -894,4 +894,6 @@ export const ADAPTATIONS = [
   ...lireFichier('visites-une-fois.txt'),
   // ── « Envoyer par e-mail… » quand un cabinet lit déjà les livres (1.130.0) ──
   ...lireFichier('envoyer-par-email.txt'),
+  // ── La validation d'un lot finit sur un message bref et l'étape suivante (1.131.0) ──
+  ...lireFichier('valider-sans-fenetre.txt'),
 ];

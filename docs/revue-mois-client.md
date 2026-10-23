@@ -160,5 +160,9 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
   - **17** (1.130.0) : avec un cabinet relié, « Envoyer au comptable… » (Comptabilité › Ventes) s'appelle « Envoyer
     par e-mail… », sa fenêtre « Envoyer la comptabilité par e-mail » et son champ « Son adresse e-mail » : il envoie à
     quelqu'un d'autre, le cabinet lisant déjà tout en direct.
+  - **18** (1.131.0) : la validation d'un lot dont tout est entré finit sur un message bref, sans fenêtre à fermer :
+    « 2 écritures validées sous les n° 3 à 4. Prochaine étape : la déclaration, dans « Déclarer et clôturer ». », ou ce
+    qui reste au brouillard des mois validés, tous journaux confondus (« 1 autre reste au brouillard d'octobre 2026 »).
+    Un refus garde sa fenêtre, à lire ligne à ligne.
 
 Les captures : `m01` à `m48` de la recette (scratchpad de la session, non versées).

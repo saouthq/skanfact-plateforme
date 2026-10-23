@@ -18872,10 +18872,11 @@ prouver 'le Cabinet qui ne garde pas ce qu'\''il lit' 'web/public/plateforme/pon
   '    else if (poste) poste.garderLecture(cabinetId, chemin, lu)' \
   '    else if (false) poste.garderLecture(cabinetId, chemin, lu)' \
   'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
-prouver 'la paie hors du mandat qui ferme le livre sans réseau' 'web/public/plateforme/pont-cabinet.js' \
-  '    if (r.status === 403 && methode === '\''GET'\'' && poste) poste.garderLecture(' \
-  '    if (false) poste.garderLecture(' \
-  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+# (1.131.0) Retirée : « la paie hors du mandat qui ferme le livre sans réseau » (1.104.0). Depuis la 1.124.0, le Cabinet
+# ne demande plus la paie d'un mandat qui ne la confie pas (revue du mois d'un client, point 12) : le refus (403) que la
+# preuve effaçait n'arrive plus dans ce parcours, et rien ne pouvait tomber (rouge sur GitHub, 1.125.0). Le refus gardé
+# reste dans le code pour un mandat dont l'étendue n'est pas connue ; le parcours vérifie que l'onglet Paie s'ouvre sans
+# réseau (tests/web/cabinet-hors-ligne.test.ts).
 prouver 'les dossiers confiés jamais emportés' 'web/public/plateforme/pont-cabinet.js' \
   '      setTimeout(() => { void emporter(); }, 4000);' \
   '' \
@@ -20113,6 +20114,12 @@ prouver 'mois 129 : « Ne plus me proposer » qui n'\''éteint rien' web/public/
 prouver 'mois 130 : « Envoyer au comptable… » sous « ton cabinet lit tout en direct »' web/public/v10/app.js \
   "\${messagerieVue && messagerieVue.cabinet ? 'Envoyer par e-mail…' : 'Envoyer au comptable…'}</button>" "Envoyer au comptable…</button>" \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet et en face de la pièce ; la réponse est au serveur'
+prouver 'mois 131 : la validation qui finit encore sur une fenêtre à fermer' web/public/v10/cabinet/app.js \
+  "if (r.refusees.length) await infoDialog('Validation', lignes.join('\\n'));" "await infoDialog('Validation', lignes.join('\\n')); if (r.refusees.length) void 0;" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 131 : « prochaine étape » avec des écritures encore au brouillard' web/public/v10/cabinet/app.js \
+  "mois.has(String(e.date || '').slice(0, 7))).length;" "mois.has(String(e.date || '').slice(0, 7)) && false).length;" \
+  'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
