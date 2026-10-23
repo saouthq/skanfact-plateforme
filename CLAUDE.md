@@ -272,7 +272,11 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
   décidée.
 
 **Git**
-- Branche **`main`** pour l'instant (dépôt neuf, pas encore de publication). Pas de PR sans demande.
+- **Branche + PR, jamais `main` directement** (Skander, 23/10/2026). Chaque fonctionnalité part sur sa branche
+  (`fonction/…`, `correctif/…`), poussée, puis `gh pr create` en français. Codex (ChatGPT) relit chaque PR tout seul et
+  commente dedans : lire ses remarques (`gh pr view <n> --comments`), corriger ce qui est juste, repousser sur la même
+  branche, dire en commentaire ce qui est écarté et pourquoi. **Fusionner vers `main` appartient à Skander.**
+- Avant chaque version montrée : une revue complète de tout le dépôt par Codex, en plus des revues de PR.
 - Messages de commit en français, terminés par les lignes `Co-Authored-By` et `Claude-Session`
   fournies par la session. Aucun identifiant de modèle dans ce qui est envoyé.
 - **Chaque envoi relève le numéro de version** (`version` de `package.json`, « 1.4.2 » ; décidé par Skander le
