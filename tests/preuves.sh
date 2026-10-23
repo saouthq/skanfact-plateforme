@@ -20248,6 +20248,9 @@ prouver 'ux3 140 : la carte des totaux qui répète une liste d'\''une seule lig
 prouver 'ux3 140 : chaque pièce demandée avec son « Envoyer la pièce… » en vert' web/public/plateforme/messagerie.js \
   "class=\"btn btn-sm\${m.id === plusAncienneAttendue() ? ' btn-primary' : ''}\" data-msg-envoyer-piece" "class=\"btn btn-sm btn-primary\" data-msg-envoyer-piece" \
   '(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi'
+prouver 'ux2 141 : la page d’échec posée par-dessus le bandeau qui dit pourquoi' web/public/plateforme/poste.js \
+  "    if (close) { return; }" "" \
+  'le portable retiré remet ce qu'\''il avait fait hors ligne ; accepté, ce qui a changé depuis est mis de côté et dit'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

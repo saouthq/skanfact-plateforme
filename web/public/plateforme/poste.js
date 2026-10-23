@@ -339,6 +339,9 @@
   /** @param {string} quoi @param {unknown} e l'erreur du serveur (son message, quand il en a un) */
   function echecOuverture(quoi, e) {
     finOuverture();
+    // La page est déjà close par un bandeau qui dit pourquoi (un appareil retiré, une entreprise qui n'est plus
+    // ouverte) : son « Réessayer » suffit ; en ajouter un second, plein écran, cachait la raison (vu sur GitHub, 1.136.0).
+    if (close) { return; }
     const motif = e instanceof Error && e.message ? e.message : 'Le serveur a rencontré une erreur.';
     poserOuverture(`<p><strong>SkanFact n'a pas pu ouvrir ${esc(quoi)}.</strong></p><p id="po-motif">${esc(motif)}</p>
       <p class="po-petit">Rien n'est perdu : ce qui était enregistré l'est toujours. Si ça dure, la page d'état dit si SkanFact a un souci en ce moment.</p>

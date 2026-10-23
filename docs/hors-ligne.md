@@ -348,3 +348,7 @@ perdu, et « Réessayer » (`web/v10/etats-cabinet.txt`). L'entreprise, elle, ti
 et « Mon comptable » disait déjà l'erreur avec « Réessayer ». Tenu par `tests/web/ouverture.test.ts`, trois preuves
 « ux2 138 ». Dans la console, chaque écran disait déjà la panne avec « Réessayer » ; les deux listes des personnes
 d'un client (Support, Nos échanges) l'ont désormais aussi.
+
+(1.141.0) Une page déjà close par un bandeau qui dit pourquoi (un appareil retiré dont la remise n'a pas passé, une
+entreprise qui n'est plus ouverte) ne reçoit plus, par-dessus, la page « SkanFact n'a pas pu ouvrir… » : son « Réessayer »
+suffit (rouge de GitHub sur la 1.138.0, `tests/web/quarantaine.test.ts` ; preuve « ux2 141 »).
