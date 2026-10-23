@@ -31,8 +31,11 @@ un devis, une facture, un bon, un achat ou un mouvement de banque :
   pas non plus leurs fichiers (la porte le refuse, la base le redit). La voisine, rien. (1.125.0) Il sait seulement, pour
   l'écriture née d'un achat, si cet achat porte un justificatif : oui ou non, sans le fichier, son nom ni leur nombre
   (`compta.achats_justifies`, 0173, pour qui lit les livres de l'entreprise) ; c'est ce qui lui permet de le réclamer
-  depuis la ligne et d'en être prévenu en validant (`docs/revue-mois-client.md`, points 7, 8 et 13). Ouvrir la photo
-  elle-même depuis le Cabinet reste à décider (un droit de plus).
+  depuis la ligne et d'en être prévenu en validant (`docs/revue-mois-client.md`, points 7, 8 et 13). (1.135.0, décidé
+  par délégation le 23/10/2026) Il ouvre, en lecture, les justificatifs de l'achat ou de la vente d'où naît une écriture,
+  et rien d'autre (`compta.justificatifs_ecriture` et `compta.justificatif_ecriture`, 0174 ; `GET
+  /entreprises/:e/compta/ecritures/:ecriture/justificatifs[/:fichier]`, geste `compta.livres.voir`) : ni un devis, ni un
+  bon, ni une pièce sans écriture. Le mandat le dit au client (le périmètre « La comptabilité »).
 
 ## Décisions (par délégation, 21/10/2026)
 
@@ -48,7 +51,8 @@ un devis, une facture, un bon, un achat ou un mouvement de banque :
 
 - **Une pièce jointe venue de l'application de bureau** (une pièce reprise de la v10) : sa fiche est là, son fichier est
   resté sur l'ordinateur ; l'ouvrir le dit.
-- **Le Cabinet** ne voit pas les justificatifs de ses clients (0035). À décider : les lui ouvrir sous mandat.
+- **Le Cabinet** ne voit, de ses clients, que les justificatifs des pièces d'où naît une écriture (1.135.0) ; il ne
+  joint rien chez eux (il réclame la pièce, le client la joint).
 - **Hors ligne**, joindre demande le réseau (le refus le dit).
 - La purge à la fin des dix ans n'est pas écrite (la première arrive en 2036).
 

@@ -218,6 +218,11 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     const lues = (await api('GET', `/entreprises/${ent}/compta/ecritures`, hatem)).corps.ecritures as { piece: string; justificatif: boolean | null }[];
     expect(lues.map((e) => `${e.piece} ${e.justificatif}`).sort()).toEqual(['GMS-26-4471 true', 'GMS-26-4502 false']);
     expect(JSON.stringify(lues)).not.toContain('facture-farine');
+    // (1.135.0) Le fichier lui-même, par l'écriture de son achat ; l'autre achat n'en a pas (0174).
+    const ecr = (await api('GET', `/entreprises/${ent}/compta/ecritures`, hatem)).corps.ecritures as { id: string; piece: string }[];
+    const justifs = async (piece: string) => (await api('GET', `/entreprises/${ent}/compta/ecritures/${ecr.find((e) => e.piece === piece)?.id}/justificatifs`, hatem)).corps.justificatifs as { nom: string }[];
+    expect((await justifs('GMS-26-4471')).map((x) => x.nom)).toEqual(['facture-farine.png']);
+    expect(await justifs('GMS-26-4502')).toEqual([]);
 
     // À l'écran du cabinet : le 📎 dit que le client l'a joint ; l'autre ligne dit « sans justificatif ».
     const h = await page(hatem);
@@ -241,8 +246,19 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     if (!(await brouillard.isChecked())) await brouillard.click();
     const ligne = (piece: string) => h.p.locator('tr').filter({ hasText: piece }).first();
     await expect.poll(async () => net(await ligne('GMS-26-4502').innerText().catch(() => '')), { timeout: 15_000 }).toContain('GMS-26-4502 sans justificatif');
-    expect(await ligne('GMS-26-4471').locator('.att-mark').getAttribute('title')).toBe('1 justificatif : joint par le client à son achat, dans SkanFact');
+    expect(await ligne('GMS-26-4471').locator('.att-mark').getAttribute('title')).toBe('1 justificatif : joint par le client à son achat, dans SkanFact (il s\'ouvre depuis le menu de la ligne)');
     expect(await ligne('GMS-26-4471').getByText('sans justificatif').count()).toBe(0);
+    // (1.135.0) Point 13 : le justificatif du client s'ouvre depuis la ligne, dans un onglet à son nom (il n'était que dans
+    // le fil) ; l'achat sans justificatif n'offre rien à ouvrir.
+    await ligne('GMS-26-4471').getByRole('button', { name: /^Actions/ }).click();
+    const [onglet] = await Promise.all([h.p.context().waitForEvent('page', { timeout: 15_000 }), h.p.getByText('Ouvrir le justificatif du client', { exact: true }).click()]);
+    await expect.poll(() => onglet.title(), { timeout: 15_000 }).toBe('facture-farine.png');
+    expect(await onglet.locator('img').count()).toBe(1);
+    await onglet.close();
+    await h.p.keyboard.press('Escape');
+    await ligne('GMS-26-4502').getByRole('button', { name: /^Actions/ }).click();
+    expect(await h.p.getByText('Ouvrir le justificatif du client', { exact: true }).count()).toBe(0);
+    await h.p.keyboard.press('Escape');
 
     // La validation de cette ligne le dit avant ; on annule.
     await ligne('GMS-26-4502').getByRole('button', { name: /^Actions/ }).click();

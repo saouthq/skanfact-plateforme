@@ -84,6 +84,11 @@ describe('la déclaration du mois, à la souris', () => {
     expect(await p.locator('#dc-controles-attente').count()).toBe(1);
     if (mois !== '01') {
       expect(await p.locator('#dc-premier-mois').count()).toBe(1);
+      // (1.135.0) Le mois d'avant se déclare quand même, à sa date (l'accueil du client l'annonce) : la phrase le dit.
+      const libelle = (m: string) => new Date(`${m}-15T12:00:00Z`).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+      const avantLivre = libelle(`${annee}-${String(Number(mois) - 1).padStart(2, '0')}`);
+      const ceMois = libelle(`${annee}-${mois}`);
+      expect((await p.locator('#dc-premier-mois').innerText()).replace(/\s+/g, ' ')).toMatch(new RegExp(`^${avantLivre.replace(/^./, (c) => c.toUpperCase())} n'est pas dans ce livre : sa déclaration, à déposer au plus tard le \\d\\d/${mois}/${annee}, se fait avec ce que le client tenait avant SkanFact\\. La première tirée de ce livre sera celle (d'|de )${ceMois}\\.$`));
       // Une écriture le mois d'avant : il se propose de nouveau.
       const avant = await saisir(`${annee}-${String(Number(mois) - 1).padStart(2, '0')}-10`, 'F-0');
       expect((await api('POST', `/entreprises/${dossier}/compta/ecritures/valider`, associe, { ids: [avant] })).statut).toBe(200);

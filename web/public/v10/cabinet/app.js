@@ -3895,7 +3895,7 @@
     // (plateforme) 1.125.0 — en ligne, le serveur dit seulement si l'achat du client porte un justificatif (oui ou non,
     // jamais le fichier) : le 📎 le dit, et une ligne d'achat sans lui le montre (revue du mois d'un client, point 7).
     const ec = e && e.justifClient !== undefined ? e : (e && e.ecritureId && livresState.livre ? ecritureDuLivre(livresState.livre, e.ecritureId) : null);
-    if (ec && ec.justifClient === true) noms.push('joint par le client à son achat, dans SkanFact');
+    if (ec && ec.justifClient === true) noms.push('joint par le client à son achat, dans SkanFact (il s\'ouvre depuis le menu de la ligne)');
     if (!noms.length) return ec && ec.justifClient === false ? ' <span class="badge b-part" title="L\'achat du client n\'a pas encore de justificatif : demande-le-lui depuis le menu de la ligne.">sans justificatif</span>' : '';
     const dit = `${pl(noms.length, 'justificatif')} : ${noms.join(', ')}`;
     return ` <span class="att-mark" role="img" aria-label="${esc(dit)}" title="${esc(dit)}">📎</span>`;
@@ -3923,6 +3923,23 @@
       if (!password) return;
       try { await ouvrir(password); } catch (e2) { toast(plainError(e2), 'error'); }
     }
+  }
+  // (plateforme) 1.135.0 — en ligne, le justificatif que le client a joint à son achat : un s'ouvre dans un onglet,
+  // plusieurs se nomment dans une fenêtre (revue du mois d'un client, point 13).
+  async function ouvrirJustifEnLigne(dossier, e) {
+    let l;
+    try { l = await api.justificatifsEcriture(dossier.id, e.id); } catch (x) { toast(plainError(x), 'error'); return; }
+    if (!l.length) { toast(`Le justificatif n'est plus joint à l'achat de ${dossier.name} : il a pu le retirer.`, 'error'); return; }
+    const ouvrir = f => api.ouvrirJustificatif(dossier.id, e.id, f.fichier).catch(x => toast(plainError(x), 'error'));
+    if (l.length === 1) { await ouvrir(l[0]); return; }
+    modal(`<h2>Les justificatifs du client</h2>
+      <p class="small">${esc(dossier.name)} a joint ${l.length} fichiers à l'achat ${esc(e.piece || e.libelle || '')}.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">${l.map((f, i) => `<button class="btn" data-jc="${i}">${esc(f.nom)}</button>`).join('')}</div>
+      <div class="modal-actions"><button class="btn" id="jc-fermer">Fermer</button></div>`,
+    (layer, close) => {
+      $('#jc-fermer', layer).onclick = () => close();
+      $$('[data-jc]', layer).forEach(b => { b.onclick = () => { void ouvrir(l[Number(b.dataset.jc)]); }; });
+    });
   }
   // Les gestes d'ouverture d'une pièce : un par justificatif du client (trois au plus, le paquet
   // montre le reste). Rangés par la table d'actions de l'écriture ET par celle d'une ligne de paquet.
@@ -4391,7 +4408,9 @@
           !precedent.startsWith(String(s.annee) + '-') ? ''
             : ((s.livre && s.livre.ecritures) || []).some(e => String(e.date || '').slice(0, 7) <= precedent)
             ? ` <button type="button" class="${cls('mois')}" data-dc-mois="${esc(precedent)}">Déclarer ${esc(K.monthLabel(precedent))}</button>`
-            : ` <span id="dc-premier-mois">Rien avant dans ce livre : ce sera sa première déclaration.</span>`}</div></div>` : ''}
+            // (plateforme) 1.135.0 — le mois d'avant le livre se déclare quand même (l'accueil du client l'annonce) :
+            // l'écran dit sa date limite, et que la première tirée de ce livre est celle du mois en cours.
+            : ` <span id="dc-premier-mois">${esc(K.monthLabel(precedent).replace(/^./, c => c.toUpperCase()))} n'est pas dans ce livre : sa déclaration, à déposer au plus tard le ${esc(fmtJour(K.dateLimiteDeclaration(S, precedent, 'tva', dossier)))}, se fait avec ce que le client tenait avant SkanFact. La première tirée de ce livre sera celle ${esc(K.de(K.monthLabel(d.periode)))}.</span>`}</div></div>` : ''}
       ${motif ? `<p class="small muted dc-motif">${esc(motif)}</p>` : ''}
       <div class="dc-etapes">
         <button class="${cls('preparer')}" id="dc-preparer">${posee ? fait(true) + 'Préparée — recalculer' : 'Préparer la déclaration'}</button>${fleche}
@@ -9431,6 +9450,11 @@
     if (e.attente) Object.assign(a[a.length - 1], { hint: 'Une fois partie au serveur, au retour du réseau', off: true,
       run: () => infoDialog('Elle attend le réseau', 'Cette écriture est gardée sur ce poste : son justificatif se joint une fois qu\'elle est partie au serveur, au retour du réseau.') });
     a.push(...actionsJustifsClient(e));
+    // (plateforme) 1.135.0 — l'achat du client porte un justificatif : il s'ouvre d'ici (il n'était que dans le fil).
+    if (e.justifClient === true && !e.attente && api.justificatifsEcriture) {
+      a.push({ icon: 'ouvrir', label: 'Ouvrir le justificatif du client', court: 'Justificatif',
+        hint: `Joint par ${dossier.name} à son achat, dans SkanFact`, run: () => ouvrirJustifEnLigne(dossier, e) });
+    }
     // (plateforme) 1.125.0 — l'achat du client n'a pas de justificatif : le réclamer d'ici, la pièce citée d'avance, dans
     // le fil du client (revue du mois d'un client, point 7 : il fallait passer par les Messages et retaper le numéro).
     if (e.justifClient === false && !dossier.manual && api.messagerie) {

@@ -20161,7 +20161,7 @@ prouver 'ux2 134 : « Voir l'\''abonnement » de l'\''état vide qui ne mène nu
   "e.target.closest('#vide-voir-abo')) allerAbonnement();" "e.target.closest('#vide-voir-abo')) void 0;" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 prouver 'ux2 134 : la messagerie hors ligne qui dit « le serveur ne répond pas »' web/public/plateforme/messagerie.js \
-  "const sansReseau = () => typeof navigator !== 'undefined' && navigator.onLine === false;" "const sansReseau = () => false;" \
+  "const sansReseau = (x) => typeof navigator !== 'undefined' && navigator.onLine === false && !(x && /** @type {any} */ (x).jamaisLue);" "const sansReseau = (x) => false && !!x;" \
   'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
 prouver 'ux2 134 : la messagerie qui attend trente secondes le retour du réseau' web/public/plateforme/messagerie.js \
   "    window.addEventListener('online', auRetour);" "" \
@@ -20172,6 +20172,24 @@ prouver 'ux2 134 : le Cabinet sans réseau qui dit « le serveur ne répond pas 
 prouver 'ux2 134 : la boîte du cabinet qui attend trente secondes le retour du réseau' web/public/plateforme/messagerie.js \
   "    window.addEventListener('online', auReseau);" "" \
   'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'ux2 134 : la page jamais lue du Cabinet qui perd son motif sans réseau' web/public/plateforme/pont-cabinet.js \
+  "jamaisLue: methode === 'GET' && !!poste && poste.garde() });" "jamaisLue: false });" \
+  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+prouver 'mois 135 : les justificatifs d'\''une écriture lus par n'\''importe qui' base/migrations/0174_justificatifs_ecriture.sql \
+  "   where p_entreprise in (select compta.mes_entreprises())" "   where true" \
+  'les justificatifs d'\''une écriture : ceux de son achat, octet pour octet ; ni un autre fichier, ni un règlement, ni une autre personne'
+prouver 'mois 135 : un fichier de l'\''entreprise rendu par une écriture qui ne le porte pas' base/migrations/0174_justificatifs_ecriture.sql \
+  "     and p_fichier in (select l.fichier from compta.justificatifs_ecriture(p_entreprise, p_ecriture) l)" "" \
+  'les justificatifs d'\''une écriture : ceux de son achat, octet pour octet ; ni un autre fichier, ni un règlement, ni une autre personne'
+prouver 'mois 135 : le justificatif du client qui ne s'\''ouvre pas depuis la ligne' web/public/v10/cabinet/app.js \
+  "if (e.justifClient === true && !e.attente && api.justificatifsEcriture) {" "if (false && api.justificatifsEcriture) {" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 135 : l'\''onglet du justificatif qui reste vide' web/public/plateforme/pont-cabinet.js \
+  "if (onglet) /** @type {any} */ (window).SkanMessagerie.montrerFichier(onglet, adresse, f.nom, f.type);" "void adresse;" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 135 : le mois d'\''avant le livre dit sans déclaration' web/public/v10/cabinet/app.js \
+  "n'est pas dans ce livre : sa déclaration, à déposer au plus tard le \${esc(fmtJour(K.dateLimiteDeclaration(S, precedent, 'tva', dossier)))}, se fait" "n'est pas dans ce livre : rien à déposer avant lui, se fait" \
+  'un dossier commencé ce mois-ci : pas de « Déclarer le mois d'\''avant », pas d'\''alerte 4367 avant la fin du mois'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

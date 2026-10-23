@@ -138,6 +138,31 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // (1.135.0) Les justificatifs que le client a joints à la pièce d'où naît une écriture (son achat ou sa vente), pour qui lit
+  // ses livres : la liste, puis un fichier (revue du mois d'un client, point 13 ; 0174, qui le redit dans la base).
+  const introuvable = { statut: 404 as const, corps: { motif: motif('commun.introuvable') } };
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/compta/ecritures/:ecriture/justificatifs', geste: 'compta.livres.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      if (!uuid.safeParse(params.ecriture).success) return introuvable;
+      const l = (await tx.query('select fichier, nom, type, taille from compta.justificatifs_ecriture($1, $2)', [params.entreprise ?? '', params.ecriture])).rows as
+        { fichier: string; nom: string; type: string; taille: number }[];
+      return { corps: { justificatifs: l } };
+    },
+  });
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/compta/ecritures/:ecriture/justificatifs/:fichier', geste: 'compta.livres.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      if (!uuid.safeParse(params.ecriture).success || !uuid.safeParse(params.fichier).success) return introuvable;
+      const f = (await tx.query('select nom, type, contenu from compta.justificatif_ecriture($1, $2, $3)', [params.entreprise ?? '', params.ecriture, params.fichier])).rows[0] as
+        { nom: string; type: string; contenu: Buffer } | undefined;
+      if (!f) return introuvable;
+      return { corps: { nom: f.nom, type: f.type, taille: f.contenu.length, contenu: f.contenu.toString('base64') } };
+    },
+  });
+
   // (1.124.0) Le résumé d'une période pour le client : combien d'écritures son cabinet a validées, combien attendent au
   // brouillard, et le jour de la dernière validation. La carte « Ce mois-ci » de « Mon comptable » le dit (revue du mois
   // d'un client, 23/10/2026, point 4 : le client ne voyait rien de ce que faisait son comptable).

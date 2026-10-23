@@ -125,7 +125,7 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
     cède le vert à « Accepter » tant qu'une entreprise attend.
   - Tenu par `tests/web/mois-client.test.ts` (le parcours de Sarra et Hatem, à la souris), onze preuves « mois 123 » et
     sept « mois 124 » ; vu à l'écran le 23/10/2026 (ordinateur et téléphone).
-- **Lot 2 (P2, 6–13)**, sauf le 10 qui attend la réponse d'un comptable (À VÉRIFIER).
+- **Lot 2 (P2, 6–13)**.
   - **12** (1.124.0) : le Cabinet ne demande plus la paie d'un dossier dont le mandat ne la confie pas (il la demandait à
     chaque ouverture du livre, et le serveur refusait) ; un dossier tenu, ou un mandat dont l'étendue n'est pas connue, la
     lit comme avant.
@@ -134,8 +134,14 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
     Au livre-journal, le 📎 dit « joint par le client à son achat, dans SkanFact », et une ligne d'achat sans lui porte
     « sans justificatif ». Son menu offre « Demander le justificatif à Boulangerie El Amal » : la demande s'ouvre dans le
     fil, la pièce écrite d'avance (« Le justificatif de l'achat GMS-26-4502 du 23/10/2026 (Grands Moulins de Sfax) »). La
-    validation d'une écriture, ou d'un lot, le dit avant le geste. Reste du point 13 : ouvrir la photo elle-même depuis le
-    Cabinet (un droit de plus, à décider par Skander).
+    validation d'une écriture, ou d'un lot, le dit avant le geste.
+  - **13, la suite** (1.135.0, décidé par délégation le 23/10/2026) : le menu de l'écriture offre « Ouvrir le
+    justificatif du client » ; un fichier s'ouvre dans un onglet, plusieurs se nomment dans une fenêtre. Le serveur ne rend
+    que les justificatifs de l'achat ou de la vente d'où naît l'écriture (0174), à qui lit les livres de l'entreprise.
+  - **10** (1.135.0, décidé par délégation le 23/10/2026) : au Cabinet, le mois d'avant le livre ne dit plus « ce sera sa
+    première déclaration » : « Septembre 2026 n'est pas dans ce livre : sa déclaration, à déposer au plus tard le
+    28/10/2026, se fait avec ce que le client tenait avant SkanFact. » Les deux écrans disent la même date. Une déclaration
+    « néant » pour un mois sans activité reste À VÉRIFIER.
   - **6** (1.126.0) : le serveur dit, avec ce qui attend dans le fil, si le mandat actif confie la saisie des achats
     (`achatsConfies`, lu dans son périmètre). Alors la page Achats le dit (« Tu as confié la saisie de tes achats à ton
     cabinet : envoie-lui la photo de chaque facture, il la saisit. ») et son seul vert est « Envoyer une photo à mon

@@ -900,4 +900,6 @@ export const ADAPTATIONS = [
   ...lireFichier('fiche-courte.txt'),
   ...lireFichier('lecture-piece.txt'),
   ...lireFichier('lecture-seule-listes.txt'),
+  ...lireFichier('justificatif-cabinet.txt'),
+  ...lireFichier('declaration-mois-avant.txt'),
 ];

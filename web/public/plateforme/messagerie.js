@@ -97,7 +97,9 @@
   const motif = (x) => (x instanceof Error ? x.message : String(x));
   // (1.134.0) Sans réseau, la messagerie le dit avec les mots du bandeau « Hors ligne » et se rouvre seule quand il revient
   // (UX 2 : « Le serveur ne répond pas : vérifie la connexion » sous un bandeau qui le disait déjà, et la page sans titre).
-  const sansReseau = () => typeof navigator !== 'undefined' && navigator.onLine === false;
+  // Une page que ce poste n'a jamais lue garde son motif, plus précis (« ouvre-la une fois avec le réseau ») : `jamaisLue`.
+  /** @param {unknown} [x] */
+  const sansReseau = (x) => typeof navigator !== 'undefined' && navigator.onLine === false && !(x && /** @type {any} */ (x).jamaisLue);
 
   // ── (1.117.0) Chercher, et les modèles de messages ───────────────────────────────────────────────────────────────
   // Plier un texte pour chercher : minuscules, lettres accentuées ramenées à leur lettre simple, caractère par caractère
@@ -784,7 +786,7 @@
         }
       } catch (x) {
         if (!lu) el.innerHTML = `<div class="msg-page"><header class="msg-tete"><span class="msg-tete-txt"><h1>${entreprise ? 'Mon comptable' : esc(o.nom || 'Ce client')}</h1></span></header>
-          <div class="msg-zone"><div class="msg-vide" data-msg-echec>${sansReseau()
+          <div class="msg-zone"><div class="msg-vide" data-msg-echec>${sansReseau(x)
             ? '<b>Pas de réseau : la messagerie attend la connexion.</b><span>Elle s\'ouvre toute seule dès que le réseau revient.</span>'
             : `<b>La messagerie ne s'est pas ouverte.</b><span>${esc(motif(x))}</span>`}
           <button type="button" class="btn" data-msg-relire>Réessayer</button></div></div></div>`;
@@ -1475,7 +1477,7 @@
         signature = s;
       } catch (x) {
         if (!lu) {
-          el.innerHTML = `<div class="msg-page"><div class="msg-vide" data-msg-echec>${sansReseau()
+          el.innerHTML = `<div class="msg-page"><div class="msg-vide" data-msg-echec>${sansReseau(x)
             ? '<b>Pas de réseau : la boîte attend la connexion.</b><span>Elle s\'ouvre toute seule dès que le réseau revient.</span>'
             : `<b>La boîte ne s'est pas ouverte.</b><span>${esc(motif(x))}</span>`}<button type="button" class="btn" data-relire>Réessayer</button></div></div>`;
           const b = el.querySelector('[data-relire]');

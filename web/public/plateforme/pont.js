@@ -835,7 +835,7 @@
   /** @param {string} iso */
   const jourATunis = (iso) => new Date(iso).toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', year: 'numeric' });
   /** @type {[string, string, string][]} */
-  const PERIMETRES = [['comptabilite', 'La comptabilité', 'ses écritures, la validation des mois, la balance'],
+  const PERIMETRES = [['comptabilite', 'La comptabilité', 'ses écritures, la validation des mois, la balance, et les justificatifs joints à tes achats'], // (1.135.0) le justificatif s'ouvre au Cabinet
     ['declarations', 'Les déclarations', 'TVA, retenues à la source'],
     ['saisie_achats', 'La saisie des achats', 'tes factures d\'achat, s\'il les saisit pour toi'],
     ['paie', 'La paie', 'le salaire de chacun : décochée tant que tu ne la confies pas']];

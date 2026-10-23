@@ -79,7 +79,7 @@
           // (1.134.0) Sans réseau du tout, les mots du bandeau « Hors ligne » : « le serveur ne répond pas » faisait chercher
           // une panne chez SkanFact (UX 2, la Production hors ligne).
           : typeof navigator !== 'undefined' && navigator.onLine === false ? 'Pas de réseau pour lire cette page : réessaie quand la connexion revient.'
-          : 'Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e }), { horsLigne: true });
+          : 'Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e }), { horsLigne: true, jamaisLue: methode === 'GET' && !!poste && poste.garde() });
     }
     sansReseau = false;
     if (poste) poste.enLigne();
@@ -1283,6 +1283,20 @@
     // brouillard, la dernière validation (le résumé que lit aussi le client). Sans le droit : null, la carte se tait.
     ceMois: async (/** @type {string} */ id, /** @type {string} */ du, /** @type {string} */ au) => {
       try { return await appel('GET', `/entreprises/${id}/compta/resume?du=${encodeURIComponent(du)}&au=${encodeURIComponent(au)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
+    },
+    // (1.135.0) Les justificatifs que le client a joints à la pièce d'une écriture (son achat ou sa vente) : la liste, et un
+    // fichier ouvert dans un onglet (revue du mois d'un client, point 13 ; 0174). L'onglet s'ouvre avant l'appel : après,
+    // le navigateur le bloquerait.
+    justificatifsEcriture: async (/** @type {string} */ id, /** @type {string} */ ecriture) =>
+      /** @type {{ fichier: string, nom: string, type: string, taille: number }[]} */ ((await appel('GET', `/entreprises/${id}/compta/ecritures/${encodeURIComponent(ecriture)}/justificatifs`)).justificatifs || []),
+    ouvrirJustificatif: async (/** @type {string} */ id, /** @type {string} */ ecriture, /** @type {string} */ fichier) => {
+      const onglet = window.open('', '_blank');
+      try {
+        const f = await appel('GET', `/entreprises/${id}/compta/ecritures/${encodeURIComponent(ecriture)}/justificatifs/${encodeURIComponent(fichier)}`);
+        const adresse = URL.createObjectURL(new Blob([Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0))], { type: f.type }));
+        if (onglet) /** @type {any} */ (window).SkanMessagerie.montrerFichier(onglet, adresse, f.nom, f.type);
+        setTimeout(() => URL.revokeObjectURL(adresse), 60_000);
+      } catch (e) { if (onglet) onglet.close(); throw e; }
     },
     livres: async (/** @type {string} */ id) => {
       const d = dossiers.get(id);
