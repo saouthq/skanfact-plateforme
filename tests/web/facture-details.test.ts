@@ -190,6 +190,24 @@ describe('le lot facture, à l\'écran', () => {
     await expect.poll(async () => ((await surLeServeur()).find((o) => o.contenu.number === 'FAC-2026-001')?.contenu.payments as unknown[] | undefined)?.length ?? 0, { timeout: 10_000 }).toBe(1);
     expect(await p.getByRole('heading', { name: 'Rien n\'a été enregistré' }).count()).toBe(0);
 
+    // 5 bis. (1.133.0) Émise, la pièce se lit (revue du mois d'un client, point 14) : un résumé à la place des cases grisées
+    // (seule l'affaire reste à choisir), ce qui est reçu et ce qui reste, et son écriture au journal des ventes, au
+    // brouillard puis validée, relue à l'ouverture.
+    const resume = () => p.locator('#lecture-piece').innerText().then(net).catch(() => '');
+    await expect.poll(resume, { timeout: 10_000 }).toContain('Payée en partie : 100,000 DT sur 228,373 DT, reste 128,373 DT.');
+    expect(await resume()).toMatch(/^Client Hôtel Les Oliviers Date \d\d\/\d\d\/2026 · échéance le \d\d\/\d\d\/20\d\d Objet Pièces montées, octobre 2026 Net à payer 228,373 DT · retenue à la source 2,297 DT · timbre fiscal 1,000 DT Situation /);
+    expect(await p.locator('#f-head [name=subject]').isVisible()).toBe(false);
+    expect(await p.locator('#ed-affaire').isVisible()).toBe(true);
+    await expect.poll(() => p.locator('#lp-compta').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe('Comptabilité Au journal des ventes, au brouillard : pas encore validée.');
+    const vente = ((await api('GET', `/entreprises/${ent}/compta/ecritures?journal=VT&piece=FAC-2026-001`, jeton)).corps.ecritures as { id: string }[]);
+    expect(vente.length).toBe(1);
+    const validee = await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, jeton, { ids: [vente[0]?.id] });
+    expect(validee.statut, JSON.stringify(validee.corps)).toBe(200);
+    const numero = ((await api('GET', `/entreprises/${ent}/compta/ecritures?journal=VT&piece=FAC-2026-001`, jeton)).corps.ecritures as { numero: string }[])[0]?.numero;
+    const aujourdhui = new Date().toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis' });
+    await p.reload();
+    await expect.poll(() => p.locator('#lp-compta').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe(`Comptabilité Validée le ${aujourdhui}, écriture n° ${numero}.`);
+
     // 6. Le menu d'une pièce émise, dans la liste.
     await p.evaluate(() => { location.hash = '#/factures'; });
     await p.locator('#view tr').filter({ hasText: 'FAC-2026-001' }).getByRole('button', { name: /Actions/ }).click();

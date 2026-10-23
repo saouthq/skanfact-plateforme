@@ -82,6 +82,9 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
         .$if(p.du !== null, (q) => q.where('date_ecriture', '>=', p.du ?? ''))
         .$if(p.au !== null, (q) => q.where('date_ecriture', '<=', p.au ?? ''))
         .$if(query.journal !== undefined, (q) => q.where('journal', '=', query.journal ?? ''))
+        // (1.133.0) `piece` : les écritures d'une pièce (son numéro), la page de lecture d'une facture émise dit ce qu'en a
+        // fait le comptable (revue du mois d'un client, point 14).
+        .$if(query.piece !== undefined, (q) => q.where('piece', '=', query.piece ?? ''))
         .$if(apres !== null, (q) => q.where(sql<boolean>`(date_ecriture, id) > (${apres?.[0] ?? ''}::date, ${apres?.[1] ?? ''}::uuid)`))
         .orderBy('date_ecriture').orderBy('id').limit(n).execute();
       const lignes = ecritures.length

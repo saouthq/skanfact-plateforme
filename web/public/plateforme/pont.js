@@ -1030,6 +1030,15 @@
       resume: async (/** @type {string} */ du, /** @type {string} */ au) => {
         try { return await appel('GET', `/compta/resume?du=${encodeURIComponent(du)}&au=${encodeURIComponent(au)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
       },
+      // (1.133.0) L'écriture de vente d'une pièce émise (son numéro) : la page de lecture de la facture dit ce qu'en a fait
+      // le comptable. Le jour de sa validation se lit à Tunis. Qui ne lit pas les livres, ou une pièce pas encore au journal : null.
+      ecriturePiece: async (/** @type {string} */ numero) => {
+        /** @type {any} */
+        let r;
+        try { r = await appel('GET', `/compta/ecritures?journal=VT&piece=${encodeURIComponent(numero)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
+        const x = (r.ecritures || []).find((/** @type {any} */ e) => e.origine && e.origine.type === 'vente');
+        return x ? { statut: x.statut, numero: x.numero, valideeLe: x.valideeLe ? new Date(x.valideeLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }) : null } : null;
+      },
       envoyerFichier: (/** @type {File} */ f, /** @type {string} */ texte, /** @type {any} */ piece) =>
         /** @type {any} */ (window).SkanMessagerie.envoyerFichier(appel, 'entreprise', f, texte, piece),
     },

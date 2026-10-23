@@ -1,0 +1,109 @@
+Une facture ou un avoir émis se lit : un résumé de la pièce à la place du formulaire grisé (1.133.0 ;
+docs/revue-mois-client.md, point 14). Format : voir sans-paquets.mjs.
+
+La recette du 23/10/2026 : Sarra ouvre FAC-2026-001, émise. La page reste le formulaire de saisie, toutes cases grisées
+(client, date, échéance, objet, langue, devise, statut, remise, retenue, timbre), et les lignes en champs éteints. Elle
+doit déchiffrer douze cases pour savoir à qui, pour combien, et si c'est payé ; rien ne dit ce qu'en a fait le
+comptable. Une pièce qui ne se modifie plus se lit : le client, les dates (et le retard), ce qui est dû et ce qui est
+reçu, et son écriture au journal des ventes (au brouillard, ou validée par le cabinet, le jour et le numéro). L'affaire
+reste à choisir comme avant (elle ne s'imprime pas et ne change aucun montant) ; les lignes se lisent comme un texte.
+
+== app.js | une facture ou un avoir émis se lit : le résumé de la pièce
+-- avant
+    const verrou = C.motifVerrou(bal);
+-- après
+    const verrou = C.motifVerrou(bal);
+    // (plateforme) 1.133.0 — une facture ou un avoir émis se LIT (revue du mois d'un client, point 14) : la page restait le
+    // formulaire de saisie, douze cases grisées à déchiffrer. Le résumé dit le client, les dates, ce qui est dû et reçu, et
+    // ce que le comptable en a fait ; seule l'affaire (qui ne s'imprime pas) reste à choisir, comme avant.
+    const lecture = locked && (isInv || isAv) && !isNew;
+    const resumeLecture = () => {
+      const t = (bal && bal.totals) || C.computeTotals(stored || doc, company());
+      const fi = isAv && doc.creditOf ? docById(doc.creditOf) : null;
+      const retard = bal && !bal.annulee && bal.remaining > 0.0005 && doc.dueDate && doc.dueDate < C.today() ? C.daysBetween(doc.dueDate, C.today()) : 0;
+      const ligne = (k, v) => `<div class="lp-ligne"><dt>${k}</dt><dd>${v}</dd></div>`;
+      const conditions = [
+        Number(doc.discountRate) ? `remise ${pct(doc.discountRate)} %` : '',
+        t.withholding ? `retenue à la source ${C.money(t.withholding, cur)}` : '',
+        t.stamp ? `timbre fiscal ${C.money(t.stamp, cur)}` : '',
+        cur !== company().currency && doc.exchangeRate ? `1 ${h(cur)} = ${h(pct(doc.exchangeRate))} ${h(company().currency)}` : ''].filter(Boolean);
+      const recu = bal ? C.round3(bal.paid + bal.credited) : 0;
+      const situation = !bal ? '' : bal.annulee ? 'Annulée : plus rien n\'est dû.'
+        : bal.remaining < -0.0005 ? `Payée en trop : ${C.money(-bal.remaining, cur)} à rendre au client.`
+        : bal.remaining <= 0.0005 ? 'Réglée : plus rien n\'est dû.'
+        : recu ? `Payée en partie : ${C.money(recu, cur)} sur ${C.money(t.netToPay, cur)}, reste <b>${C.money(bal.remaining, cur)}</b>.`
+        : `Rien de reçu : reste <b>${C.money(bal.remaining, cur)}</b>.`;
+      return `<dl class="lecture-piece" id="lecture-piece">
+        ${ligne('Client', doc.clientId ? `<a href="#/client/${h(doc.clientId)}">${h(clientName(doc.clientId))}</a>` : '—')}
+        ${fi ? ligne('Facture corrigée', `<a href="#/doc/${h(fi.id)}">${h(fi.number)}</a>${doc.creditReason ? ` · ${h(doc.creditReason)}` : ''}`) : ''}
+        ${ligne('Date', `${C.fmtDate(doc.date)}${isInv && doc.dueDate ? ` · échéance le ${C.fmtDate(doc.dueDate)}${retard ? ` <span class="lp-retard">en retard de ${pl(retard, 'jour')}</span>` : ''}` : ''}`)}
+        ${doc.subject ? ligne('Objet', h(doc.subject)) : ''}
+        ${doc.reference ? ligne('Référence', h(doc.reference)) : ''}
+        ${ligne(isAv ? 'Montant' : 'Net à payer', `<span class="lp-montant">${C.money(t.netToPay, cur)}</span>${conditions.length ? ` <span class="small muted">· ${conditions.join(' · ')}</span>` : ''}`)}
+        ${bal ? ligne('Situation', `${statusBadge(stored)} <span id="lp-situation">${situation}</span>`) : ''}
+        <div class="lp-ligne" id="lp-compta" hidden><dt>Comptabilité</dt><dd></dd></div>
+      </dl>`;
+    };
+-- fin
+
+== app.js | la pièce émise : le résumé à la place des cases grisées
+-- avant
+      <div class="editor" data-devise="${h(cur)}">
+        <div>
+          <div class="panel"><h2>Informations</h2>
+-- après
+      <div class="editor${lecture ? ' lecture' : ''}" data-devise="${h(cur)}">
+        <div>
+          <div class="panel"><h2>${lecture ? 'La pièce' : 'Informations'}</h2>${lecture ? resumeLecture() : ''}
+-- fin
+
+== app.js | l'affaire reste à choisir sur une pièce émise : elle se reconnaît
+-- avant
+              <div class="field">${lbl('Affaire (optionnel)', 'ed.project')}
+-- après
+              <div class="field" id="ed-affaire">${lbl('Affaire (optionnel)', 'ed.project')}
+-- fin
+
+== app.js | ce que le comptable a fait de la pièce : son écriture au journal des ventes
+-- avant
+    $('#pv-big').onclick = () => apercuPleinEcran();
+    applyPreview();
+-- après
+    $('#pv-big').onclick = () => apercuPleinEcran();
+    applyPreview();
+    // (plateforme) 1.133.0 — ce que le comptable a fait de la pièce : son écriture de vente, lue au serveur. Sans réponse
+    // (qui ne lit pas les livres, une pièce pas encore au journal, pas de réseau), la ligne ne s'affiche pas.
+    if (lecture && doc.number && doc.status !== 'annulée' && bridge.messagerie && bridge.messagerie.ecriturePiece) {
+      const numero = doc.number;
+      bridge.messagerie.ecriturePiece(numero).then(x => {
+        const el = $('#lp-compta');
+        if (!x || !el || doc.number !== numero) return;
+        const cab = !!(messagerieVue && messagerieVue.cabinet);
+        el.querySelector('dd').innerHTML = x.statut === 'validee'
+          ? `Validée${cab ? ' par ton cabinet' : ''} le ${C.fmtDate(x.valideeLe)}${x.numero ? `, écriture n° ${h(String(x.numero))}` : ''}.`
+          : `Au journal des ventes, au brouillard : ${cab ? 'ton cabinet ne l\'a pas encore validée' : 'pas encore validée'}.`;
+        el.hidden = false;
+      }).catch(() => {});
+    }
+-- fin
+
+== style.css | la page de lecture d'une pièce émise
+-- avant
+.modal.pc-modal { width: min(760px, calc(100vw - 32px)); }
+-- après
+.modal.pc-modal { width: min(760px, calc(100vw - 32px)); }
+/* (plateforme) 1.133.0 — la page de lecture d'une pièce émise : un résumé, puis l'affaire seule ; les lignes se lisent
+   comme un texte, sans cadre ni flèche de liste. */
+.lecture-piece { display: grid; gap: 8px; margin: 0 0 14px; }
+.lp-ligne { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.lp-ligne[hidden] { display: none; }
+.lp-ligne > dt { color: var(--muted); font-size: 13px; }
+.lp-ligne > dd { margin: 0; overflow-wrap: anywhere; }
+.lp-montant { font-weight: 700; font-variant-numeric: tabular-nums; }
+.lp-retard { color: var(--danger); font-weight: 600; }
+.editor.lecture #f-head > :not(#ed-affaire) { display: none; }
+.editor.lecture #f-head { padding-top: 12px; border-top: 1px dashed var(--line); }
+.editor.lecture #lines :is(input, select, textarea):disabled { border-color: transparent; background: transparent; color: var(--text);
+  -webkit-text-fill-color: var(--text); opacity: 1; appearance: none; padding-inline: 0; resize: none; box-shadow: none; }
+@media (max-width: 600px) { .lp-ligne { grid-template-columns: 1fr; gap: 2px; } }
+-- fin

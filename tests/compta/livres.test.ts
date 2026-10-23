@@ -162,6 +162,28 @@ describe('les livres tenus par le serveur', () => {
     expect(await resume('2026-08-01', '2026-08-31')).toEqual({ validees: 0, brouillard: 0, valideeLe: null, ventes: 0, achats: 0, sansJustificatif: 0 });
   });
 
+  // (1.133.0) Les écritures d'une pièce, par son numéro : la page de lecture d'une facture émise dit ce qu'en a fait le
+  // comptable. La vente et son encaissement portent le numéro de la facture ; l'avoir, le sien.
+  it('les écritures d\'une pièce, par son numéro : la vente et son encaissement, rien de l\'avoir ni d\'une autre pièce', async () => {
+    const e = await essai();
+    const c = await clientDe(e);
+    await e.envoyer('documents', 'f1', facture('f1', c.cle));
+    const emise = await appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre`, e.jeton, { document: facture('f1', c.cle), client: c.contenu, revision: 1, rang: 0, netAPayer: '1057.107' });
+    expect(emise.statut, JSON.stringify(emise.corps)).toBe(200);
+    const contenu = emise.corps.contenu as Record<string, unknown>;
+    const numero = String(contenu.number);
+    expect((await e.envoyer('documents', 'f1', { ...contenu, payments: [{ id: 'p1', date: '2026-10-05', amount: 500, method: 'especes' }] })).statut).toBe(200);
+    const a = await appeler('POST', `/entreprises/${e.ent}/dossier-v10/emettre-avoir`, e.jeton, { document: avoir('a1', c.cle, 'f1'), client: c.contenu, revision: null, rang: 1, netAPayer: '536.095' });
+    expect(a.statut, JSON.stringify(a.corps)).toBe(200);
+    const dePiece = async (n: string) => ((await appeler('GET', `/entreprises/${e.ent}/compta/ecritures?piece=${encodeURIComponent(n)}`, e.jeton)).corps.ecritures as { piece: string; journal: string; statut: string; origine: { type: string } }[])
+      .map((x) => `${x.piece} ${x.journal} ${x.origine.type} ${x.statut}`);
+    expect(await dePiece(numero)).toEqual([`${numero} VT vente brouillard`, `${numero} CA encaissement brouillard`]);
+    const numAvoir = String((a.corps.contenu as Record<string, unknown>).number);
+    expect(numAvoir).not.toBe(numero);
+    expect(await dePiece(numAvoir)).toEqual([`${numAvoir} VT vente brouillard`]);
+    expect(await dePiece('FAC-1999-999')).toEqual([]);
+  });
+
   it('les achats : chaque enregistrement réécrit la famille (la facture, son acompte, son avoir, leurs règlements), jamais en double', async () => {
     const e = await essai();
     expect((await e.envoyer('suppliers', 's1', { id: 's1', name: 'Papeterie du Lac' })).statut).toBe(200);

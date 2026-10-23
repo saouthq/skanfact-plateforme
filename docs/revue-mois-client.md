@@ -167,5 +167,12 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
   - **15** (1.132.0) : un client ou un fournisseur neuf (depuis une pièce ou sa liste) s'écrit en quatre cases : le
     nom, le matricule, le téléphone et l'adresse ; le reste se plie sous « Plus de détails » (contact, retenue, timbre,
     encours, e-mail, langue, devise, notes ; pour un fournisseur, délai, banque, RIB). Modifier une fiche montre tout.
+  - **14** (1.133.0) : une facture ou un avoir émis se lit. « La pièce » remplace les cases grisées : le client (sa
+    fiche d'un clic), la date et l'échéance (et le retard), l'objet, le net à payer avec la retenue et le timbre, la
+    situation (« Payée en partie : 100,000 DT sur 228,373 DT, reste 128,373 DT. ») et la comptabilité, lue au serveur
+    (`GET /compta/ecritures?piece=`) : « Au journal des ventes, au brouillard : ton cabinet ne l'a pas encore validée. »
+    ou « Validée par ton cabinet le 23/10/2026, écriture n° VT-2026-000001. ». Seule l'affaire reste à choisir (elle ne
+    s'imprime pas) ; les lignes se lisent comme un texte. Les paiements, les pièces jointes et l'historique restent
+    dessous.
 
 Les captures : `m01` à `m48` de la recette (scratchpad de la session, non versées).

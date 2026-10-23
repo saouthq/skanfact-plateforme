@@ -4020,6 +4020,37 @@
     // Pourquoi elle ne se rouvre plus, et si ses avoirs l'annulent EN ENTIER (10.12.0) : le bandeau,
     // sa bulle et son bouton principal lisent la même réponse.
     const verrou = C.motifVerrou(bal);
+    // (plateforme) 1.133.0 — une facture ou un avoir émis se LIT (revue du mois d'un client, point 14) : la page restait le
+    // formulaire de saisie, douze cases grisées à déchiffrer. Le résumé dit le client, les dates, ce qui est dû et reçu, et
+    // ce que le comptable en a fait ; seule l'affaire (qui ne s'imprime pas) reste à choisir, comme avant.
+    const lecture = locked && (isInv || isAv) && !isNew;
+    const resumeLecture = () => {
+      const t = (bal && bal.totals) || C.computeTotals(stored || doc, company());
+      const fi = isAv && doc.creditOf ? docById(doc.creditOf) : null;
+      const retard = bal && !bal.annulee && bal.remaining > 0.0005 && doc.dueDate && doc.dueDate < C.today() ? C.daysBetween(doc.dueDate, C.today()) : 0;
+      const ligne = (k, v) => `<div class="lp-ligne"><dt>${k}</dt><dd>${v}</dd></div>`;
+      const conditions = [
+        Number(doc.discountRate) ? `remise ${pct(doc.discountRate)} %` : '',
+        t.withholding ? `retenue à la source ${C.money(t.withholding, cur)}` : '',
+        t.stamp ? `timbre fiscal ${C.money(t.stamp, cur)}` : '',
+        cur !== company().currency && doc.exchangeRate ? `1 ${h(cur)} = ${h(pct(doc.exchangeRate))} ${h(company().currency)}` : ''].filter(Boolean);
+      const recu = bal ? C.round3(bal.paid + bal.credited) : 0;
+      const situation = !bal ? '' : bal.annulee ? 'Annulée : plus rien n\'est dû.'
+        : bal.remaining < -0.0005 ? `Payée en trop : ${C.money(-bal.remaining, cur)} à rendre au client.`
+        : bal.remaining <= 0.0005 ? 'Réglée : plus rien n\'est dû.'
+        : recu ? `Payée en partie : ${C.money(recu, cur)} sur ${C.money(t.netToPay, cur)}, reste <b>${C.money(bal.remaining, cur)}</b>.`
+        : `Rien de reçu : reste <b>${C.money(bal.remaining, cur)}</b>.`;
+      return `<dl class="lecture-piece" id="lecture-piece">
+        ${ligne('Client', doc.clientId ? `<a href="#/client/${h(doc.clientId)}">${h(clientName(doc.clientId))}</a>` : '—')}
+        ${fi ? ligne('Facture corrigée', `<a href="#/doc/${h(fi.id)}">${h(fi.number)}</a>${doc.creditReason ? ` · ${h(doc.creditReason)}` : ''}`) : ''}
+        ${ligne('Date', `${C.fmtDate(doc.date)}${isInv && doc.dueDate ? ` · échéance le ${C.fmtDate(doc.dueDate)}${retard ? ` <span class="lp-retard">en retard de ${pl(retard, 'jour')}</span>` : ''}` : ''}`)}
+        ${doc.subject ? ligne('Objet', h(doc.subject)) : ''}
+        ${doc.reference ? ligne('Référence', h(doc.reference)) : ''}
+        ${ligne(isAv ? 'Montant' : 'Net à payer', `<span class="lp-montant">${C.money(t.netToPay, cur)}</span>${conditions.length ? ` <span class="small muted">· ${conditions.join(' · ')}</span>` : ''}`)}
+        ${bal ? ligne('Situation', `${statusBadge(stored)} <span id="lp-situation">${situation}</span>`) : ''}
+        <div class="lp-ligne" id="lp-compta" hidden><dt>Comptabilité</dt><dd></dd></div>
+      </dl>`;
+    };
     // Le timbre fiscal est fixé EN DINARS (7.0.1) : sur une facture en euros il vaut 1 DT converti,
     // soit 0,29 € au taux 3,4. L'étiquette à côté de la case annonçait le réglage brut — donc
     // « 1,00 € » sur une pièce où le total, lui, comptait 0,29 €. Et une pièce émise garde son
@@ -4250,9 +4281,9 @@
         </span></div>`}
       ${bandeauAbonnement(isNew)}
       ${bandeauQuestions(doc.number)}
-      <div class="editor" data-devise="${h(cur)}">
+      <div class="editor${lecture ? ' lecture' : ''}" data-devise="${h(cur)}">
         <div>
-          <div class="panel"><h2>Informations</h2>
+          <div class="panel"><h2>${lecture ? 'La pièce' : 'Informations'}</h2>${lecture ? resumeLecture() : ''}
             <form id="f-head" class="grid-3">
               <!-- Le lien vers la fiche vit dans la LIGNE DU LIBELLÉ (10.12.0). Posé sous le champ,
                    il apparaissait au choix du client et poussait tout le formulaire de 45 px : le
@@ -4268,7 +4299,7 @@
               ${C.depotsDe(data).length > 1 && (isInv || isDelivery || isAv) && doc.fromDocType !== 'livraison' ? `<label class="field">${lbl('Dépôt', 'dep.piece')}<select name="depotId" ${ro}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (doc.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
               <label class="field span-2">${lbl('Objet', 'ed.subject')}<input type="text" name="subject" value="${h(doc.subject)}" placeholder="${h(exempleObjet())}" ${ro}></label>
               ${field(lbl('Référence (optionnel)', 'ed.reference'), 'reference', doc.reference || '', 'text', ro)}
-              <div class="field">${lbl('Affaire (optionnel)', 'ed.project')}
+              <div class="field" id="ed-affaire">${lbl('Affaire (optionnel)', 'ed.project')}
                 ${/* Jamais en lecture seule, même émise : l'affaire ne s'imprime pas et ne change aucun
                     montant (voir `poserAffaire`). */''}
                 ${combo({ name: 'projectId', value: doc.projectId || '', items: projectItems(doc.clientId), placeholder: '— Aucune affaire —', search: 'Rechercher une affaire…', add: '+ Nouvelle affaire' })}
@@ -4351,6 +4382,20 @@
     $('#pv-hide').onclick = () => apercuPleinEcran();
     $('#pv-big').onclick = () => apercuPleinEcran();
     applyPreview();
+    // (plateforme) 1.133.0 — ce que le comptable a fait de la pièce : son écriture de vente, lue au serveur. Sans réponse
+    // (qui ne lit pas les livres, une pièce pas encore au journal, pas de réseau), la ligne ne s'affiche pas.
+    if (lecture && doc.number && doc.status !== 'annulée' && bridge.messagerie && bridge.messagerie.ecriturePiece) {
+      const numero = doc.number;
+      bridge.messagerie.ecriturePiece(numero).then(x => {
+        const el = $('#lp-compta');
+        if (!x || !el || doc.number !== numero) return;
+        const cab = !!(messagerieVue && messagerieVue.cabinet);
+        el.querySelector('dd').innerHTML = x.statut === 'validee'
+          ? `Validée${cab ? ' par ton cabinet' : ''} le ${C.fmtDate(x.valideeLe)}${x.numero ? `, écriture n° ${h(String(x.numero))}` : ''}.`
+          : `Au journal des ventes, au brouillard : ${cab ? 'ton cabinet ne l\'a pas encore validée' : 'pas encore validée'}.`;
+        el.hidden = false;
+      }).catch(() => {});
+    }
 
     // --- modifications non enregistrées : marqueur visible + garde-fou à la navigation
     let dirty = false;

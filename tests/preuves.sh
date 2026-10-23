@@ -20126,6 +20126,21 @@ prouver 'mois 132 : le client neuf qui ouvre ses douze cases' web/public/v10/app
 prouver 'mois 132 : le fournisseur neuf qui ouvre toutes ses cases' web/public/v10/app.js \
   "<details class=\"span-2 plus-details\" id=\"sf-plus\">" "<details open class=\"span-2 plus-details\" id=\"sf-plus\">" \
   'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'\''invitation ne revient pas, la date se remplace'
+prouver 'mois 133 : les écritures d'\''une pièce qui ne regardent pas son numéro' serveur/compta/routes.ts \
+  ".\$if(query.piece !== undefined, (q) => q.where('piece', '=', query.piece ?? ''))" ".\$if(query.piece === '§', (q) => q)" \
+  'les écritures d'\''une pièce, par son numéro : la vente et son encaissement, rien de l'\''avoir ni d'\''une autre pièce'
+prouver 'mois 133 : la pièce émise restée un formulaire grisé' web/public/v10/app.js \
+  "const lecture = locked && (isInv || isAv) && !isNew;" "const lecture = false;" \
+  'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
+prouver 'mois 133 : le reçu compté sans les paiements' web/public/v10/app.js \
+  "const recu = bal ? C.round3(bal.paid + bal.credited) : 0;" "const recu = bal ? C.round3(bal.credited) : 0;" \
+  'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
+prouver 'mois 133 : les cases grisées encore là sous le résumé' web/public/v10/style.css \
+  ".editor.lecture #f-head > :not(#ed-affaire) { display: none; }" ".editor.lecture #f-head > :not(#ed-affaire) { }" \
+  'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
+prouver 'mois 133 : une écriture validée dite au brouillard' web/public/v10/app.js \
+  "x.statut === 'validee'" "x.statut === 'valide'" \
+  'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

@@ -2764,3 +2764,17 @@ body.dark .g-ligne.faite .g-l-ico { color: #0d1418; }
 .exo-titre > .small { font-weight: 400; }
 .exo-rs .grid-3 { gap: 10px 14px; }
 .modal.pc-modal { width: min(760px, calc(100vw - 32px)); }
+/* (plateforme) 1.133.0 — la page de lecture d'une pièce émise : un résumé, puis l'affaire seule ; les lignes se lisent
+   comme un texte, sans cadre ni flèche de liste. */
+.lecture-piece { display: grid; gap: 8px; margin: 0 0 14px; }
+.lp-ligne { display: grid; grid-template-columns: 9.5em minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.lp-ligne[hidden] { display: none; }
+.lp-ligne > dt { color: var(--muted); font-size: 13px; }
+.lp-ligne > dd { margin: 0; overflow-wrap: anywhere; }
+.lp-montant { font-weight: 700; font-variant-numeric: tabular-nums; }
+.lp-retard { color: var(--danger); font-weight: 600; }
+.editor.lecture #f-head > :not(#ed-affaire) { display: none; }
+.editor.lecture #f-head { padding-top: 12px; border-top: 1px dashed var(--line); }
+.editor.lecture #lines :is(input, select, textarea):disabled { border-color: transparent; background: transparent; color: var(--text);
+  -webkit-text-fill-color: var(--text); opacity: 1; appearance: none; padding-inline: 0; resize: none; box-shadow: none; }
+@media (max-width: 600px) { .lp-ligne { grid-template-columns: 1fr; gap: 2px; } }
