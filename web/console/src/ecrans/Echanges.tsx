@@ -59,7 +59,7 @@ type Personne = { id: string; nom: string; roles: string[] };
 export function EcrireAuContact({ client, contexte, valeurs = {}, fermer, fait }: { client: { id: string; nom: string }; contexte: Contexte; valeurs?: Record<string, string>; fermer: () => void; fait: () => void }) {
   const api = useApi();
   const { moi } = useConsole();
-  const [personnes] = useLecture<{ personnes: Personne[] }>(`/console/support/personnes/${client.id}`);
+  const [personnes, relirePersonnes] = useLecture<{ personnes: Personne[] }>(`/console/support/personnes/${client.id}`);
   const liste = personnes.etat === 'lu' ? personnes.donnees.personnes : [];
   // La propriétaire d'abord : c'est à elle qu'on écrit d'abord.
   const tries = [...liste].sort((a, b) => Number(b.roles.includes('proprietaire')) - Number(a.roles.includes('proprietaire')));
@@ -100,7 +100,7 @@ export function EcrireAuContact({ client, contexte, valeurs = {}, fermer, fait }
         <span className="c-champ-libelle">{titre('console.ecran.service.al.geste.ce_qui_va')}</span>
         <ul>{['p1', 'p2', 'p3'].map((x) => <li key={x}>{phrase(`${K}.ecrire.${x}`)}</li>)}</ul>
       </div>
-      {personnes.etat === 'panne' ? <Alerte ton="danger">{personnes.texte}</Alerte> : null}
+      {personnes.etat === 'panne' ? <Alerte ton="danger"><span>{personnes.texte}</span><span><Bouton petit onClick={relirePersonnes}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       {personnes.etat === 'lu' && !liste.length ? <Alerte ton="info">{phrase(`${K}.ecrire.sans_personne`)}</Alerte> : null}
       {tries.length ? (
         <Choix libelle={titre(`${K}.ecrire.a_qui`)} valeur={choisi} changer={setQui}

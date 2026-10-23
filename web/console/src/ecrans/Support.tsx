@@ -348,7 +348,7 @@ type Personne = { id: string; nom: string; roles: string[] };
 export function NoterDemande({ client, fermer }: { client: { id: string; nom: string }; fermer: () => void }) {
   const api = useApi();
   const { moi } = useConsole();
-  const [personnes] = useLecture<{ personnes: Personne[] }>(`/console/support/personnes/${client.id}`);
+  const [personnes, relirePersonnes] = useLecture<{ personnes: Personne[] }>(`/console/support/personnes/${client.id}`);
   const [qui, setQui] = useState('');
   const [canal, setCanal] = useState<Canal>('email');
   const [sujet, setSujet] = useState('');
@@ -385,7 +385,7 @@ export function NoterDemande({ client, fermer }: { client: { id: string; nom: st
         <Bouton ton="principal" occupe={occupe} desactive={personnes.etat === 'lu' && !liste.length} onClick={envoyer}>{titre(`${k}.bouton`)}</Bouton>
       </>}>
       <p className="c-sp-intro">{phrase(`${k}.sous`)}</p>
-      {personnes.etat === 'panne' ? <Alerte ton="danger">{personnes.texte}</Alerte> : null}
+      {personnes.etat === 'panne' ? <Alerte ton="danger"><span>{personnes.texte}</span><span><Bouton petit onClick={relirePersonnes}>{titre('console.ecran.reessayer')}</Bouton></span></Alerte> : null}
       {personnes.etat === 'lu' && !liste.length ? <Alerte ton="info">{phrase(`${k}.sans_personne`)}</Alerte> : null}
       {liste.length ? (
         <Choix libelle={titre(`${k}.qui`)} aide={phrase(`${k}.qui_aide`)} valeur={choisi} changer={setQui}

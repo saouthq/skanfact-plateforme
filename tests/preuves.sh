@@ -20209,6 +20209,15 @@ prouver 'ux2 137 : « Ce mois-ci » refusé qui disparaît sans rien dire' web/p
 prouver 'ux2 137 : le « Réessayer » de « Ce mois-ci » qui ne relit rien' web/public/v10/cabinet/app.js \
   "        dessinerCeMois(dossier, vert);" "        void vert;" \
   'le Suivi d'\''un dossier : « Ce mois-ci » refusé par le serveur le dit, et « Réessayer » le relit'
+prouver 'ux2 138 : la Comptabilité refusée dont « Réessayer » ne relit rien' web/public/v10/cabinet/app.js \
+  "        chargerLivres(dossier).then(() => { if (\$('#c-livres')) drawLivres(document, dossier); });" "        void dossier;" \
+  'au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit'
+prouver 'ux2 138 : la Production refusée qui ne dit pas ce qui manque' web/public/v10/cabinet/app.js \
+  "<b>La production n'a pas pu se lire.</b> " "" \
+  'au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit'
+prouver 'ux2 138 : les Échéances qui disent « aucune échéance » d'\''une lecture refusée' web/public/v10/cabinet/app.js \
+  "    if (!liste.length && questionsAttenteRefus) {" "    if (false) {" \
+  'au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

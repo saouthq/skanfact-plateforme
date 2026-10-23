@@ -137,4 +137,38 @@ describe('l\'ouverture d\'une page, le serveur lent ou en erreur', () => {
     expect(await carte.locator('[data-ce-mois-refus]').count()).toBe(0);
     await p.context().close();
   }, 120_000);
+
+  // (1.138.0) La Comptabilité d'un dossier, la Production et les Échéances : la lecture refusée le dit, avec « Réessayer »
+  // (les Échéances disaient « Aucune échéance à suivre » d'une lecture qui avait échoué).
+  it('au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit', async () => {
+    const jeton = await personne('hatem');
+    const cab = (await api('POST', '/cabinets', jeton, { nom: 'Cabinet Jlassi Conseil' })).corps;
+    const sarra = await personne('sarra');
+    const dossier = String((await api('POST', '/entreprises', sarra, { raisonSociale: 'Boulangerie El Amal' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${dossier}/mandat`, sarra, { codeCabinet: cab.code })).corps.mandat);
+    expect((await api('POST', `/cabinets/${String(cab.id)}/mandats/${mandat}/accepter`, jeton)).statut).toBe(200);
+    const p = await ouvrir(jeton);
+    await refuser(p, /\/(compta\/ecritures|production|questions)$/);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${String(cab.id)}#/echeances`);
+    await expect.poll(() => p.locator('#ech-refus h2').innerText().catch(() => ''), { timeout: 15_000 }).toBe('Le calendrier n\'a pas pu se lire');
+    expect(await p.getByText('Aucune échéance à suivre', { exact: false }).count()).toBe(0);
+    await p.evaluate(() => { location.hash = '#/production'; });
+    await expect.poll(() => p.locator('#pr-refus').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^La production n'a pas pu se lire\. ./);
+    await p.evaluate((d) => { location.hash = `#/dossier/${d}/comptabilite`; }, dossier);
+    await expect.poll(() => p.locator('#lv-refus').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^La comptabilité n'a pas pu se lire\. ./);
+    // Le serveur revenu, chaque « Réessayer » relit sans recharger la page.
+    await p.unrouteAll({ behavior: 'ignoreErrors' });
+    await p.locator('#lv-relire-tout').click();
+    await expect.poll(async () => { const v = await p.locator('#c-livres').innerText().catch(() => ''); return v.length > 0 && !v.includes('Lecture des paquets') && !v.includes('Lecture du livre'); }, { timeout: 15_000 }).toBe(true);
+    expect(await p.locator('#lv-refus').count()).toBe(0);
+    // La Production se relit d'elle-même quand on y revient ; les Échéances, par leur « Réessayer » s'il est encore là.
+    await p.evaluate(() => { location.hash = '#/production'; });
+    await expect.poll(async () => { const v = await p.locator('#view').innerText().catch(() => ''); return v.startsWith('Production') && !v.includes('Lecture des dossiers'); }, { timeout: 15_000 }).toBe(true);
+    expect(await p.locator('#pr-refus').count()).toBe(0);
+    await p.evaluate(() => { location.hash = '#/echeances'; });
+    await p.waitForTimeout(1000);
+    if (await p.locator('#ech-relire').count()) await p.locator('#ech-relire').click();
+    await expect.poll(() => p.getByText('Aucune échéance à suivre', { exact: false }).count(), { timeout: 15_000 }).toBe(1);
+    await p.context().close();
+  }, 120_000);
 });

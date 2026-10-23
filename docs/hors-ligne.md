@@ -338,5 +338,13 @@ le navigateur), cinq preuves « ux2 136 ».
 (1.137.0) Après l'ouverture : au Cabinet, la carte « Ce mois-ci » du Suivi d'un dossier disparaissait sans rien dire
 quand le serveur refusait de la lire. Elle dit « Ce mois-ci n'a pas pu se lire. », la raison, et « Réessayer », qui la
 relit ; un mandat qui ne confie pas les livres la retire, comme avant (`web/v10/ce-mois-cabinet.txt`). Tenu par
-`tests/web/ouverture.test.ts`, deux preuves « ux2 137 ». **Reste à faire** (UX 2) : les autres lectures faites après
-l'ouverture, une à une, et la console.
+`tests/web/ouverture.test.ts`, deux preuves « ux2 137 ».
+
+(1.138.0) La passe sur tout le Cabinet, chaque lecture du serveur mise en erreur après l'ouverture : la Comptabilité d'un
+dossier et la Production disaient l'erreur sans bouton (il fallait recharger la page) ; elles disent « La comptabilité
+(ou la production) n'a pas pu se lire. », la raison, et « Réessayer ». Les Échéances disaient « Aucune échéance à suivre
+pour l'instant » d'une lecture qui avait échoué : elles disent « Le calendrier n'a pas pu se lire », que rien n'est
+perdu, et « Réessayer » (`web/v10/etats-cabinet.txt`). L'entreprise, elle, tient : ses données sont là dès l'ouverture,
+et « Mon comptable » disait déjà l'erreur avec « Réessayer ». Tenu par `tests/web/ouverture.test.ts`, trois preuves
+« ux2 138 ». Dans la console, chaque écran disait déjà la panne avec « Réessayer » ; les deux listes des personnes
+d'un client (Support, Nos échanges) l'ont désormais aussi.

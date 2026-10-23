@@ -3631,7 +3631,17 @@
     s.dossierVu = dossier;
     if (!el) return;
     if (!s.data) { el.innerHTML = '<div class="empty">Lecture des paquets…</div>'; return; }
-    if (s.data.erreur) { el.innerHTML = `<div class="warn-box">${esc(s.data.erreur)}</div>`; return; }
+    // (plateforme) 1.138.0 — la lecture refusée offre « Réessayer » : il fallait recharger toute la page (UX 2).
+    if (s.data.erreur) {
+      el.innerHTML = `<div class="warn-box" id="lv-refus"><b>La comptabilité n'a pas pu se lire.</b> ${esc(s.data.erreur)}
+        <div class="inline mt"><button type="button" class="btn btn-sm" id="lv-relire-tout">Réessayer</button></div></div>`;
+      $('#lv-relire-tout', el).onclick = () => {
+        s.data = null;
+        el.innerHTML = '<div class="empty">Lecture des paquets…</div>';
+        chargerLivres(dossier).then(() => { if ($('#c-livres')) drawLivres(document, dossier); });
+      };
+      return;
+    }
     // Le livre se lit encore : on ne décide de rien. Sans cette garde, un sous-onglet venu de
     // l'adresse (« banque ») serait jugé indisponible le temps de la lecture et remplacé pour de bon
     // par le livre-journal.
@@ -10388,8 +10398,11 @@
         const r = await api.production({});
         prodState = { ...prodState, lignes: r.lignes || [], etapes: r.etapes || [], collaborateurs: r.collaborateurs || [] };
       } catch (e) {
+        // (plateforme) 1.138.0 — la lecture refusée offre « Réessayer » (UX 2).
         view.innerHTML = `<div class="page-head"><h1>Production</h1></div>
-          <div class="panel"><div class="warn-box">${esc(plainError(e))}</div></div>`;
+          <div class="panel"><div class="warn-box" id="pr-refus"><b>La production n'a pas pu se lire.</b> ${esc(plainError(e))}
+          <div class="inline mt"><button type="button" class="btn btn-sm" id="pr-relire">Réessayer</button></div></div></div>`;
+        $('#pr-relire', view).onclick = () => drawProduction(view);
         return;
       }
       // La page a pu changer pendant l'attente : on ne redessine que si on y est encore (7.6.0).
@@ -10542,6 +10555,15 @@
     const prochaines = liste.filter(e => !e.passee);
     const passees = liste.filter(e => e.passee).reverse();
 
+    if (!liste.length && questionsAttenteRefus) {
+      view.innerHTML = `<div class="page-head"><h1>Échéances</h1></div>
+        <div class="panel" id="ech-refus"><h2>Le calendrier n'a pas pu se lire</h2>
+          <p>${esc(plainError(questionsAttenteRefus))}</p>
+          <p class="small muted">Rien n'est perdu : les livres de tes clients sont intacts. Le calendrier se remplit dès que la lecture réussit.</p>
+          <div class="modal-actions"><button class="btn btn-primary" id="ech-relire">Réessayer</button></div></div>`;
+      $('#ech-relire', view).onclick = () => { chargerQuestionsAttente(false).then(() => drawEcheances(view)); };
+      return;
+    }
     if (!liste.length) { drawEcheancesVides(view); return; }
 
     // Deux répétitions que la capture montre et qu'aucun test ne voit. (1) Le `detail` explique la
@@ -12220,13 +12242,21 @@
   const tenusConnus = () => Object.fromEntries(questionsAttente.filter(q => q.tenu).map(q => [q.dossierId, q.tenu]));
   // Les mois dont la déclaration est notée déposée dans le livre de chaque client (10.14.1).
   const declaresConnus = () => Object.fromEntries(questionsAttente.filter(q => (q.declares || []).length).map(q => [q.dossierId, q.declares]));
+  // (plateforme) 1.138.0 — la lecture refusée se retient : les Échéances disaient « Aucune échéance à suivre » d'une
+  // lecture qui avait échoué (UX 2). Ce qu'on savait avant reste, plutôt qu'une liste vide.
+  let questionsAttenteRefus = null;
   function chargerQuestionsAttente(redessiner) {
     if (!api.questionsEnAttente) return Promise.resolve();
     const avant = JSON.stringify(questionsAttente);
     return api.questionsEnAttente().then(r => {
+      questionsAttenteRefus = null;
       questionsAttente = Array.isArray(r) ? r : [];
       if (redessiner && JSON.stringify(questionsAttente) !== avant && !$('#modal-root').children.length && !$('#palette-root')) render();
-    }).catch(() => { questionsAttente = []; });
+    }).catch(x => {
+      const deja = questionsAttenteRefus;
+      questionsAttenteRefus = x;
+      if (redessiner && !deja && location.hash.startsWith('#/echeances') && !$('#modal-root').children.length && !$('#palette-root')) render();
+    });
   }
 
   async function doRestore(entry) {

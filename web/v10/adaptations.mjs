@@ -902,4 +902,5 @@ export const ADAPTATIONS = [
   ...lireFichier('lecture-seule-listes.txt'),
   ...lireFichier('justificatif-cabinet.txt'),
   ...lireFichier('declaration-mois-avant.txt'),
+  ...lireFichier('etats-cabinet.txt'),
 ];
