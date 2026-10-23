@@ -322,6 +322,36 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     expect(await tc.p.getByRole('button', { name: 'Envoyer', exact: true }).evaluate((e) => e.getBoundingClientRect().bottom <= innerHeight)).toBe(true);
     expect(await deborde(tc.p)).toBe(0);
     expect([...t.erreurs, ...tc.erreurs]).toEqual([]);
+
+    // (1.134.0) Sans réseau, « Mon comptable » garde son titre et le dit avec les mots du bandeau « Hors ligne » ; le réseau
+    // revenu, la conversation se rouvre seule, sans attendre la relecture des trente secondes.
+    const h = await page(amine);
+    await h.p.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
+    await h.p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    await plusTard(h.p);
+    await h.p.context().setOffline(true);
+    await h.p.evaluate(() => { location.hash = '#/comptable'; });
+    await expect.poll(() => h.p.locator('[data-msg-echec]').innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toBe('Pas de réseau : la messagerie attend la connexion. Elle s\'ouvre toute seule dès que le réseau revient. Réessayer');
+    expect(await h.p.locator('.msg-page h1').innerText()).toBe('Mon comptable');
+    await h.p.context().setOffline(false);
+    await h.p.locator('[data-msg-fil]').waitFor({ timeout: 8_000 });
+    expect(h.erreurs).toEqual([]);
+    // Au Cabinet, sur l'ordinateur d'un autre (rien ne se garde sur le poste) : la boîte et une page du serveur disent qu'il
+    // n'y a pas de réseau, plus « le serveur ne répond pas » ; le réseau revenu, la boîte se rouvre seule.
+    const hc = await page(sonia);
+    await hc.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossiers`);
+    await hc.p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    await plusTard(hc.p);
+    await hc.p.context().setOffline(true);
+    await hc.p.evaluate(() => { location.hash = '#/production'; });
+    await expect.poll(() => hc.p.locator('#view').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('Pas de réseau pour lire cette page : réessaie quand la connexion revient.');
+    await hc.p.evaluate(() => { location.hash = '#/messages'; });
+    await expect.poll(() => hc.p.locator('[data-msg-echec]').innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toBe('Pas de réseau : la boîte attend la connexion. Elle s\'ouvre toute seule dès que le réseau revient. Réessayer');
+    await hc.p.context().setOffline(false);
+    await hc.p.locator('.msg-boite h1').waitFor({ timeout: 8_000 });
+    expect(hc.erreurs).toEqual([]);
   }, 180_000);
 
   it('(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi', async () => {

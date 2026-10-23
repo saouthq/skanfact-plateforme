@@ -76,6 +76,9 @@
       if (poste) poste.horsLigne();
       throw Object.assign(new Error(methode !== 'GET' ? 'Hors ligne : rien n\'a été fait. Ce geste demande le réseau ; sans lui, le Cabinet se consulte, et seule la saisie au brouillard se garde sur ce poste.'
         : poste && poste.garde() ? 'Hors ligne, et ce poste n\'a pas encore lu cette page : ouvre-la une fois avec le réseau pour la consulter ensuite sans lui.'
+          // (1.134.0) Sans réseau du tout, les mots du bandeau « Hors ligne » : « le serveur ne répond pas » faisait chercher
+          // une panne chez SkanFact (UX 2, la Production hors ligne).
+          : typeof navigator !== 'undefined' && navigator.onLine === false ? 'Pas de réseau pour lire cette page : réessaie quand la connexion revient.'
           : 'Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e }), { horsLigne: true });
     }
     sansReseau = false;

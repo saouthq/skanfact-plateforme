@@ -168,6 +168,10 @@ fixes.
   ou aux « Messages » (dans le menu replié, la pastille ne se voyait pas) ; le fil et la zone d'écriture tiennent dans
   l'écran, « Envoyer » sous le pouce, les gestes en mots courts (« Joindre », « Une pièce », « Demander ») ; une ligne
   de la boîte ouvre la conversation sur sa page.
+- **Sans réseau** (1.134.0) : « Mon comptable » garde son titre et dit « Pas de réseau : la messagerie attend la
+  connexion. Elle s'ouvre toute seule dès que le réseau revient. » (la boîte du cabinet, la même phrase) ; elle se relit
+  au retour du réseau (l'événement `online`), sans attendre la relecture des trente secondes. Une autre panne garde son
+  motif et « Réessayer ».
 
 ## À VÉRIFIER
 

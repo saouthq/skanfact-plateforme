@@ -20142,6 +20142,37 @@ prouver 'mois 133 : une écriture validée dite au brouillard' web/public/v10/ap
   "x.statut === 'validee'" "x.statut === 'valide'" \
   'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
 
+prouver 'ux2 134 : l'\''état vide d'\''une liste en lecture seule qui garde son vert de création' web/public/v10/app.js \
+  "const retenue = aboBloque(true) && (boutons || []).some(([id]) => CREATION_RETENUE.has(id));" "const retenue = false;" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+prouver 'ux2 134 : la paie sans salarié, en lecture seule, qui garde son vert' web/public/v10/app.js \
+  "\${aboBloque(true) ? \`<p class=\"small\">\${phraseRetenue()}</p><div class=\"inline mt\">\${boutonRetenue()}<button class=\"btn\" id=\"emp-first\">" "\${false ? \`<p class=\"small\">\${phraseRetenue()}</p><div class=\"inline mt\">\${boutonRetenue()}<button class=\"btn\" id=\"emp-first\">" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+prouver 'ux2 134 : la trésorerie sans compte, en lecture seule, qui garde son vert' web/public/v10/app.js \
+  "\${aboBloque(true) ? \`<p class=\"small\">\${phraseRetenue()}</p><div class=\"inline mt\">\${boutonRetenue()}<button class=\"btn\" id=\"first-acc\">" "\${false ? \`<p class=\"small\">\${phraseRetenue()}</p><div class=\"inline mt\">\${boutonRetenue()}<button class=\"btn\" id=\"first-acc\">" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+prouver 'ux2 134 : le « + Nouveau… » de tête qui reste vert en lecture seule' web/public/v10/app.js \
+  "if (aboBloque(true)) \$\$('.page-head .btn-primary', view)" "if (false) \$\$('.page-head .btn-primary', view)" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+prouver 'ux2 134 : le fournisseur neuf qui ne refuse qu'\''à « Enregistrer »' web/public/v10/app.js \
+  "if (!supplier && licenceBlock('Créer un fournisseur', 'achats')) { return; }" "" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+prouver 'ux2 134 : « Voir l'\''abonnement » de l'\''état vide qui ne mène nulle part' web/public/v10/app.js \
+  "e.target.closest('#vide-voir-abo')) allerAbonnement();" "e.target.closest('#vide-voir-abo')) void 0;" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+prouver 'ux2 134 : la messagerie hors ligne qui dit « le serveur ne répond pas »' web/public/plateforme/messagerie.js \
+  "const sansReseau = () => typeof navigator !== 'undefined' && navigator.onLine === false;" "const sansReseau = () => false;" \
+  'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'ux2 134 : la messagerie qui attend trente secondes le retour du réseau' web/public/plateforme/messagerie.js \
+  "    window.addEventListener('online', auRetour);" "" \
+  'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'ux2 134 : le Cabinet sans réseau qui dit « le serveur ne répond pas »' web/public/plateforme/pont-cabinet.js \
+  "navigator.onLine === false ? 'Pas de réseau pour lire cette page : réessaie quand la connexion revient.'" "false ? 'Pas de réseau pour lire cette page : réessaie quand la connexion revient.'" \
+  'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'ux2 134 : la boîte du cabinet qui attend trente secondes le retour du réseau' web/public/plateforme/messagerie.js \
+  "    window.addEventListener('online', auReseau);" "" \
+  'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

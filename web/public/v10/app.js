@@ -2861,6 +2861,9 @@
     bindDateFields(view);            // champs date posés par la page qui vient d'être dessinée
     bindWithholdingFields(view);     // « Autre taux… » des retenues à la source, même principe
     bindRibFields(view);             // la clé d'un RIB, vérifiée pendant la frappe (10.12.0)
+    // (plateforme) 1.134.0 — en lecture seule, un « + Nouveau… » en tête de liste n'est plus le vert de la page : l'étape
+    // suivante est l'abonnement (le bandeau et l'état vide y mènent), pas une création que la fenêtre refuse.
+    if (aboBloque(true)) $$('.page-head .btn-primary', view).forEach(b => { if (/^\+/.test(b.textContent.trim())) b.classList.remove('btn-primary'); });
     // Une route ASYNCHRONE pose son écran après ce bloc : les Paramètres attendent `dataPath()`
     // avant d'écrire leur HTML, donc les deux branchements ci-dessus travaillaient sur la page
     // qu'on venait de quitter — un champ date ou un taux libre y restait inerte, sans une erreur
@@ -3476,7 +3479,23 @@
   // montage : il demande de retenir une phrase, de naviguer ailleurs, et de retrouver le bon
   // bouton. Celui-ci dit à quoi sert la chose, puis donne les vrais boutons.
   //   titre, phrases[], boutons[[id, label, primaire?]]
+  // (plateforme) 1.134.0 — en lecture seule, l'état vide d'une liste dont la création attend l'abonnement le dit, et son
+  // bouton principal y mène (UX 2 : les factures et les devis le faisaient depuis la 1.122.0 ; les autres listes gardaient
+  // « + Saisir ma première… » en vert, qui menait au refus). Les boutons de création restent, en second : leur fenêtre
+  // explique. Les identifiants sont ceux des états vides dont le geste passe par `licenceBlock`.
+  const CREATION_RETENUE = new Set(['rec-first', 'rel-vers-new', 'vide-fournisseur', 'vide-import-f', 'cf-vide-new', 'vide-achat',
+    'vide-dep', 'vide-new', 'vide-depuis', 'proj-first', 'immo-premier', 'immo-vers-achats']);
+  const phraseRetenue = () => `<b>${h(licence.label)}.</b> ${h(licence.detail || '')} La création reprend dès que l'abonnement est réglé.`;
+  const boutonRetenue = () => `<button class="btn btn-primary" id="vide-voir-abo">${abonnementVisible() ? 'Voir l\'abonnement' : 'Qui le règle ?'}</button>`;
+  document.addEventListener('click', e => { if (e.target && e.target.closest && e.target.closest('#vide-voir-abo')) allerAbonnement(); });
   function etatVide(titre, phrases, boutons) {
+    const retenue = aboBloque(true) && (boutons || []).some(([id]) => CREATION_RETENUE.has(id));
+    if (retenue) {
+      return `<div class="panel vide-utile"><h2>${h(titre)}</h2>
+      ${[...(phrases || []), phraseRetenue()].map(p => `<p class="small">${p}</p>`).join('')}
+      <div class="inline mt">${boutonRetenue()}${boutons.map(([id, label]) => `<button class="btn" id="${h(id)}">${h(label)}</button>`).join('')}</div>
+    </div>`;
+    }
     return `<div class="panel vide-utile"><h2>${h(titre)}</h2>
       ${(phrases || []).map(p => `<p class="small">${p}</p>`).join('')}
       ${(boutons || []).length ? `<div class="inline mt">${boutons.map(([id, label, p]) =>
@@ -9278,6 +9297,8 @@
   }
 
   function supplierForm(supplier, done, preset) {
+    // (plateforme) 1.134.0 — le refus arrive à l'ouverture : à « Enregistrer », la saisie était faite pour rien.
+    if (!supplier && licenceBlock('Créer un fournisseur', 'achats')) { return; }
     const s = supplier || C.fournisseurVierge(preset);
     modal(`<h2>${supplier ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}</h2>
       <form id="sf" class="grid-2">
@@ -11337,6 +11358,8 @@
     .map(p => ({ v: p.id, label: p.name, sub: [clientName(p.clientId), p.status].filter(Boolean).join(' · '), text: `${p.name} ${clientName(p.clientId)}` })));
 
   function projectForm(proj, done, preset) {
+    // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
+    if (!proj && licenceBlock('Créer une affaire', 'pilotage')) return;
     const p = proj || Object.assign({ id: C.uid(), name: '', clientId: '', status: 'en cours', startDate: C.today(), endDate: '', notes: '' }, preset || {});
     modal(`<h2>${proj ? 'Modifier l\'affaire' : 'Nouvelle affaire'}</h2>
       <p class="small muted">Une affaire relie des ventes et des achats. C'est le seul endroit où la marge est <b>exacte</b> : on ne devine plus le coût, on l'a payé.</p>
@@ -12448,7 +12471,8 @@
       ${data.employees.length ? '' : `<div class="panel"><h2>Aucun salarié</h2>
         <p class="small">Ce module calcule les bulletins de paie à partir de barèmes que <b>tu règles toi-même</b> : CNSS, impôt sur le revenu, contribution de solidarité. Les valeurs livrées sont celles couramment appliquées en Tunisie, mais elles changent à chaque loi de finances — <em>fais valider les premiers bulletins par ton comptable avant de les remettre.</em></p>
         <p class="small muted">Commence par créer la fiche d'un salarié, avec son brut mensuel.</p>
-        <button class="btn btn-primary mt" id="emp-first">+ Créer mon premier salarié</button></div>`}
+        ${aboBloque(true) ? `<p class="small">${phraseRetenue()}</p><div class="inline mt">${boutonRetenue()}<button class="btn" id="emp-first">+ Créer mon premier salarié</button></div>`
+          : '<button class="btn btn-primary mt" id="emp-first">+ Créer mon premier salarié</button>'}</div>`}
       <div class="tabs" id="p-tabs" role="tablist" aria-label="La paie" ${data.employees.length ? '' : 'hidden'}>${PAIE_TABS.map(([id, label]) =>
         `<button role="tab" data-tab="${id}" class="${id === s.tab ? 'active' : ''}">${label}</button>`).join('')}</div>
       <div id="p-body"></div>`;
@@ -15996,6 +16020,8 @@
   const libelleCompteDepuisFiche = (avecBanque, sans) => { const m = modeleCompte(); return m && m.bank ? `${avecBanque} « ${h(m.bank)} »` : sans; };
 
   function accountForm(acc, done, modele, opts) {
+    // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
+    if (!acc && licenceBlock('Créer un compte de trésorerie', 'pilotage')) return;
     const a = acc || { id: C.uid(), name: '', kind: 'banque', bank: '', rib: '', opening: 0, openingDate: C.today(), isDefault: !data.accounts.length, statementBalance: '', notes: '', ...(modele || {}) };
     // Un compte né de la fiche société n'attend plus qu'UNE chose : son solde. Le curseur y va, la
     // valeur proposée (0) sélectionnée — la première frappe la remplace (9.4.5).
@@ -16060,6 +16086,8 @@
   }
 
   function movementForm(mv, done) {
+    // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
+    if (!mv && licenceBlock('Créer un mouvement de trésorerie', 'pilotage')) return;
     const m = mv || { id: C.uid(), date: C.today(), kind: 'autre-sortie', amount: 0, accountId: (data.accounts.find(a => a.isDefault) || data.accounts[0] || {}).id || '', label: '', reference: '', method: 'virement' };
     // Les justificatifs d'un mouvement libre (10.14.1, S-04) : la quittance d'un loyer payé sans
     // facture, l'avis d'imposition, le relevé qui prouve des frais bancaires. Un mouvement sans facture
@@ -16192,7 +16220,8 @@
           Pour y répondre, SkanFact a besoin de savoir ce que tu as aujourd'hui. Crée ton compte bancaire et saisis son solde actuel — il reprendra ensuite tout seul tes encaissements et tes règlements.</p>
           ${m ? `<p class="small" id="tre-depuis-fiche">Ta fiche société porte déjà ${quoi} : le compte naît avec. Il ne te reste que son solde d'aujourd'hui.</p>` : ''}
           <p class="small muted">Rien à ressaisir : les paiements clients et les règlements fournisseurs déjà enregistrés remontent automatiquement.</p>
-          <button class="btn btn-primary" id="first-acc">+ ${libelleCompteDepuisFiche('Créer le compte', 'Créer mon premier compte')}</button></div>`;
+          ${aboBloque(true) ? `<p class="small">${phraseRetenue()}</p><div class="inline mt">${boutonRetenue()}<button class="btn" id="first-acc">+ ${libelleCompteDepuisFiche('Créer le compte', 'Créer mon premier compte')}</button></div>`
+            : `<button class="btn btn-primary" id="first-acc">+ ${libelleCompteDepuisFiche('Créer le compte', 'Créer mon premier compte')}</button>`}</div>`;
       $('#first-acc').onclick = () => accountForm(null, () => render(), modeleCompte());
       return;
     }

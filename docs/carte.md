@@ -562,7 +562,8 @@ vaut pour tout le dépôt.*
     l'exige pour tout geste neuf) : la porte ferme ce qui crée de la valeur ou engage (émettre, ouvrir la caisse, lire
     une facture d'achat), jamais une lecture, un export ni ce que la loi demande pour l'existant. **L'écran retient la
     création AVANT le geste**, à l'ouverture de l'éditeur ou de la caisse (`licenceBlock` de la v10 nourri par l'état) :
-    un refus pris à « Enregistrer » jette la saisie. Les relances (15 j, 7 j, la veille, la lecture seule ; une fois par
+    un refus pris à « Enregistrer » jette la saisie ; l'état vide d'une liste dont la création attend mène à
+    l'abonnement, et un « + Nouveau… » de tête n'y est plus vert (1.134.0, `web/v10/lecture-seule-listes.txt`). Les relances (15 j, 7 j, la veille, la lecture seule ; une fois par
     échéance) ne disent pas le nom de l'entreprise. Les gestes de SkanFact (`exploitation/abonnement.sh`, et la console
     depuis Console 1, une seule règle : `serveur/abonnement/gestes.ts`) exigent un motif et laissent un événement qu'on
     ne modifie ni n'efface ; l'entreprise ne voit jamais le motif. Le paiement en ligne est venu en 14b ; ce qui

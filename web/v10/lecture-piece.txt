@@ -48,10 +48,14 @@ reste à choisir comme avant (elle ne s'imprime pas et ne change aucun montant) 
 
 == app.js | la pièce émise : le résumé à la place des cases grisées
 -- avant
+      ${bandeauAbonnement(isNew)}
+      ${bandeauQuestions(doc.number)}
       <div class="editor" data-devise="${h(cur)}">
         <div>
           <div class="panel"><h2>Informations</h2>
 -- après
+      ${bandeauAbonnement(isNew)}
+      ${bandeauQuestions(doc.number)}
       <div class="editor${lecture ? ' lecture' : ''}" data-devise="${h(cur)}">
         <div>
           <div class="panel"><h2>${lecture ? 'La pièce' : 'Informations'}</h2>${lecture ? resumeLecture() : ''}

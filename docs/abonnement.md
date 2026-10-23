@@ -647,6 +647,13 @@ cabinet s'applique ». Le détail par délégation, À VÉRIFIER aux entretiens 
   passe à la ligne : il élargissait la carte au-delà de son bord.
 - **En lecture seule**, les listes des factures et des devis ne proposent plus de créer : « Voir l'abonnement », et l'état
   vide dit pourquoi la création attend.
+- **(1.134.0, UX 2) Les autres listes en lecture seule** : les achats, les fournisseurs, les commandes, les proformas, les
+  contrats, les affaires, les biens, la trésorerie et la paie gardaient « + Saisir ma première… » en vert, qui menait au
+  refus. Leur état vide dit la phrase de l'abonnement, et son seul vert est « Voir l'abonnement » (« Qui le règle ? » pour
+  qui ne le règle pas) ; les boutons de création restent, en second, et leur fenêtre explique. En tête d'une liste, un
+  « + Nouveau… » n'est plus le vert (une fiche de client ou un article se créent encore : leur bouton reste, sans le vert).
+  Un fournisseur, une affaire, un compte ou un mouvement de trésorerie neufs refusent à l'ouverture, plus après la saisie.
+  Ce que la lecture seule ferme ne change pas (A3 ; `web/v10/lecture-seule-listes.txt`).
 - **Le Cabinet** : les trois premiers dossiers tenus disent, avant la saisie, qu'ils ne coûtent rien.
 
 ## Revu à la souris (14/10/2026, C17 : les remises)

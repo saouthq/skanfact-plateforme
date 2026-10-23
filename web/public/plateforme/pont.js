@@ -87,6 +87,12 @@
     const w = /** @type {any} */ (window);
     if (w.SkanLecture) w.SkanLecture.fermer(motif);
   }
+  // (1.134.0) Le réseau manque : sans réseau du tout, les mots du bandeau « Hors ligne » (« le serveur ne répond pas » faisait
+  // chercher une panne chez SkanFact) ; un geste dit qu'il n'a rien fait (UX 2).
+  /** @param {string} methode */
+  const motifReseau = (methode) => (typeof navigator !== 'undefined' && navigator.onLine === false
+    ? (methode === 'GET' ? 'Pas de réseau pour lire cette page : réessaie quand la connexion revient.' : 'Pas de réseau : rien n\'a été fait. Refais ce geste quand la connexion revient.')
+    : 'Le serveur ne répond pas : vérifie ta connexion, puis réessaie.');
   /** @param {string} methode @param {string} chemin */
   async function appelLecture(methode, chemin) {
     if (methode !== 'GET' || !/^\/dossier-v10(\?|$)/.test(chemin)) throw Object.assign(new Error(EN_LECTURE), { statut: 403, bouton: null, champ: null, lecture: true });
@@ -131,7 +137,7 @@
     } catch (e) {
       // Le réseau manque (brique 72) : le bandeau le dit, et la copie du poste prend le relais.
       poste.horsLigne();
-      const x = new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e });
+      const x = new Error(motifReseau(methode), { cause: e });
       /** @type {any} */ (x).horsLigne = true;
       throw x;
     }
@@ -1590,7 +1596,7 @@
       r = await fetch(`/v1${chemin}`, { method: methode, headers: entetes, cache: 'no-store', ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
     } catch (e) {
       poste.horsLigne();
-      const x = new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e });
+      const x = new Error(motifReseau(methode), { cause: e });
       /** @type {any} */ (x).horsLigne = true;
       throw x;
     }

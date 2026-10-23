@@ -306,3 +306,13 @@ envoie à l'ouverture ; un navigateur qui ne promet pas de garder, qui refuse et
 
 **Reste à faire** : la remise en quarantaine des écritures d'un appareil retiré ; les autres gestes du Cabinet sans
 réseau (la banque, la paie, les déclarations) restent en ligne, et le disent.
+
+## 1.134.0 : les mots d'une page sans réseau (UX 2, fait le 23/10/2026)
+
+Sous le bandeau « Hors ligne depuis… », une page qui demande le serveur disait « Le serveur ne répond pas : vérifie ta
+connexion, puis réessaie. », ce qui fait chercher une panne chez SkanFact. Quand le poste n'a pas de réseau du tout
+(`navigator.onLine` faux), la lecture dit « Pas de réseau pour lire cette page : réessaie quand la connexion revient. » et
+un geste « Pas de réseau : rien n'a été fait. Refais ce geste quand la connexion revient. » (`pont.js`, `pont-cabinet.js`) ;
+un serveur qui ne répond pas, le réseau présent, garde l'ancienne phrase. La messagerie et la boîte du cabinet gardent
+leur titre, le disent (« Pas de réseau : la messagerie attend la connexion. ») et se relisent dès le retour du réseau
+(`docs/messagerie.md`). Tenu par `tests/web/messagerie.test.ts`, preuves « ux2 134 ».

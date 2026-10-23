@@ -899,4 +899,5 @@ export const ADAPTATIONS = [
   // ── Une fiche neuve en quatre cases, le reste derrière « Plus de détails » (1.132.0) ──
   ...lireFichier('fiche-courte.txt'),
   ...lireFichier('lecture-piece.txt'),
+  ...lireFichier('lecture-seule-listes.txt'),
 ];

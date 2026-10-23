@@ -3,9 +3,9 @@
   "branche": "beta",
   "commit": "35bfb8c",
   "reprisLe": "2026-10-23",
-  "adaptations": 1446,
+  "adaptations": 1454,
   "fichiers": {
-    "app.js": "8ccb4622335bc879e65a9279664d96df102865c03dd91c6da19515390aa08a5f",
+    "app.js": "8303d58924038c48a1980923ecbd107f07e559b95eac85d2f10875164f9df1df",
     "cabinet/app.js": "443357fb4ad15c03a29dc81e01c1085aa9162b5add218ee982025fd116ee29f5",
     "cabinet/cabcore.js": "ea2dd5bcc75e3d9546242d4b253831091f464927586cbdecfcf2a3a0c61e190a",
     "cabinet/cabguide.js": "7c0627b0d97702a4b5879b4b85d479c2c0809f9df9efd1faca783d2000efc7ea",

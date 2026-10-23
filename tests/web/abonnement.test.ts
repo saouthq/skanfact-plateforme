@@ -125,6 +125,36 @@ describe('l\'abonnement, à la souris', () => {
     await p.locator('#vide-abo').click();
     await expect.poll(() => p.locator('#abonnement-panel .abo-tete h3').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe(`En lecture seule depuis le ${depuis}`);
 
+    // (1.134.0) Les autres listes dont la création attend l'abonnement aussi (UX 2) : l'état vide dit pourquoi, son seul vert
+    // mène à l'abonnement, et ses boutons de création restent, en second ; en tête, « + Nouveau… » n'est plus vert.
+    for (const [route, creer] of [['#/achats', 'vide-achat'], ['#/fournisseurs', 'vide-fournisseur'], ['#/commandesf', 'cf-vide-new'],
+      ['#/marges', 'proj-first'], ['#/immos', 'immo-premier'], ['#/tresorerie', 'first-acc'], ['#/paie', 'emp-first']] as const) {
+      await p.evaluate((r) => { location.hash = r; }, route);
+      await p.locator(`#view #${creer}`).waitFor({ timeout: 15_000 });
+      expect(net(await p.locator('#view').innerText()), route).toContain(`Lecture seule depuis le ${depuis}. L'essai est terminé. La création reprend dès que l'abonnement est réglé.`);
+      expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id)), route).toEqual(['vide-voir-abo']);
+    }
+    // Un fournisseur neuf refuse à l'ouverture, avant la saisie (le refus venait à « Enregistrer »).
+    await p.evaluate(() => { location.hash = '#/fournisseurs'; });
+    await p.locator('#view #new').click({ timeout: 15_000 });
+    await expect.poll(() => p.locator('#modal-root .modal').last().locator('h2').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe(`Lecture seule depuis le ${depuis}`);
+    expect(await p.locator('#modal-root #sf').count()).toBe(0);
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Voir l\'abonnement', exact: true }).click();
+    await expect.poll(() => p.locator('#abonnement-panel .abo-tete h3').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe(`En lecture seule depuis le ${depuis}`);
+    await p.evaluate(() => { location.hash = '#/achats'; });
+    await p.locator('#view #vide-voir-abo').click({ timeout: 15_000 });
+    await expect.poll(() => p.locator('#abonnement-panel .abo-tete h3').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe(`En lecture seule depuis le ${depuis}`);
+    // Une liste qui a des lignes : son « + Nouveau client » reste (une fiche se crée encore), mais n'est plus le vert.
+    await api('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton);
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, nadia.jeton, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Hôtel du Lac' } }] })).statut).toBe(200);
+    await p.reload();
+    await plusTard(p);
+    await p.evaluate(() => { location.hash = '#/clients'; });
+    await p.locator('#view tr').filter({ hasText: 'Hôtel du Lac' }).first().waitFor({ timeout: 15_000 });
+    expect(net(await p.locator('#view .page-head #new').innerText())).toBe('+ Nouveau client');
+    expect(await p.locator('#view .btn-primary:visible').count()).toBe(0);
+
     // Une nouvelle pièce le dit à l'ouverture, avant qu'on tape quoi que ce soit.
     await p.evaluate(() => { location.hash = '#/doc/new/devis'; });
     await expect.poll(() => p.locator('#abo-banner').innerText().then(net).catch(() => ''), { timeout: 15_000 })

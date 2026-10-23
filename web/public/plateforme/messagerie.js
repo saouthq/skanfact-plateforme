@@ -95,6 +95,9 @@
   const tropLourd = (f) => (f.size > LIMITE ? `« ${f.name} » pèse ${poids(f.size)} : un fichier joint pèse 10\u00a0Mo au plus. Prends une photo moins lourde.` : '');
   /** @param {unknown} x */
   const motif = (x) => (x instanceof Error ? x.message : String(x));
+  // (1.134.0) Sans réseau, la messagerie le dit avec les mots du bandeau « Hors ligne » et se rouvre seule quand il revient
+  // (UX 2 : « Le serveur ne répond pas : vérifie la connexion » sous un bandeau qui le disait déjà, et la page sans titre).
+  const sansReseau = () => typeof navigator !== 'undefined' && navigator.onLine === false;
 
   // ── (1.117.0) Chercher, et les modèles de messages ───────────────────────────────────────────────────────────────
   // Plier un texte pour chercher : minuscules, lettres accentuées ramenées à leur lettre simple, caractère par caractère
@@ -780,8 +783,11 @@
           if (o.surAttente && !cabinetRelu) o.surAttente({ ...r.attente, nonLus: 0, aLire: false });
         }
       } catch (x) {
-        if (!lu) el.innerHTML = `<div class="msg-page"><div class="msg-vide"><b>La messagerie ne s'est pas ouverte.</b><span>${esc(motif(x))}</span>
-          <button type="button" class="btn" data-msg-relire>Réessayer</button></div></div>`;
+        if (!lu) el.innerHTML = `<div class="msg-page"><header class="msg-tete"><span class="msg-tete-txt"><h1>${entreprise ? 'Mon comptable' : esc(o.nom || 'Ce client')}</h1></span></header>
+          <div class="msg-zone"><div class="msg-vide" data-msg-echec>${sansReseau()
+            ? '<b>Pas de réseau : la messagerie attend la connexion.</b><span>Elle s\'ouvre toute seule dès que le réseau revient.</span>'
+            : `<b>La messagerie ne s'est pas ouverte.</b><span>${esc(motif(x))}</span>`}
+          <button type="button" class="btn" data-msg-relire>Réessayer</button></div></div></div>`;
         const b = el.querySelector('[data-msg-relire]');
         if (b) /** @type {HTMLElement} */ (b).onclick = () => { void lire(); };
       } finally { enCours = false; }
@@ -1183,7 +1189,8 @@
     const minuterie = setInterval(() => { if (document.visibilityState === 'visible' && el.isConnected) void lire(); else if (!el.isConnected) arreter(); }, RELIRE_MS);
     const auRetour = () => { if (document.visibilityState === 'visible' && el.isConnected) void lire(); };
     document.addEventListener('visibilitychange', auRetour);
-    function arreter() { fini = true; clearInterval(minuterie); document.removeEventListener('visibilitychange', auRetour); }
+    window.addEventListener('online', auRetour);
+    function arreter() { fini = true; clearInterval(minuterie); document.removeEventListener('visibilitychange', auRetour); window.removeEventListener('online', auRetour); }
     return { arreter, relire };
   }
 
@@ -1468,7 +1475,9 @@
         signature = s;
       } catch (x) {
         if (!lu) {
-          el.innerHTML = `<div class="msg-page"><div class="msg-vide"><b>La boîte ne s'est pas ouverte.</b><span>${esc(motif(x))}</span><button type="button" class="btn" data-relire>Réessayer</button></div></div>`;
+          el.innerHTML = `<div class="msg-page"><div class="msg-vide" data-msg-echec>${sansReseau()
+            ? '<b>Pas de réseau : la boîte attend la connexion.</b><span>Elle s\'ouvre toute seule dès que le réseau revient.</span>'
+            : `<b>La boîte ne s'est pas ouverte.</b><span>${esc(motif(x))}</span>`}<button type="button" class="btn" data-relire>Réessayer</button></div></div>`;
           const b = el.querySelector('[data-relire]');
           if (b) /** @type {HTMLElement} */ (b).onclick = () => { void lire(); };
         }
@@ -1480,7 +1489,10 @@
     void lire();
     // Une conversation ouverte à côté relit la liste à chaque lecture : la boîte ne la relit seule que sans elle.
     const minuterie = setInterval(() => { if (!el.isConnected) arreter(); else if (document.visibilityState === 'visible' && !ouverte) void lire(); }, RELIRE_MS);
-    function arreter() { fini = true; clearInterval(minuterie); clearTimeout(relecture); TELEPHONE.removeEventListener('change', auChangement); fermer(); }
+    // (1.134.0) Le réseau revenu, la boîte se relit tout de suite (l'échec hors ligne le promet).
+    const auReseau = () => { if (el.isConnected && !ouverte) void lire(); };
+    window.addEventListener('online', auReseau);
+    function arreter() { fini = true; clearInterval(minuterie); clearTimeout(relecture); TELEPHONE.removeEventListener('change', auChangement); window.removeEventListener('online', auReseau); fermer(); }
     return { arreter };
   }
 

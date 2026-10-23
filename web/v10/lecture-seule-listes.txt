@@ -1,0 +1,107 @@
+En lecture seule, les listes dont la création attend l'abonnement le disent, et leur bouton principal y mène (1.134.0 ;
+UX 2, docs/recette.md § 13 : les états de chaque écran, d'abord la lecture seule des autres listes). Format : voir
+sans-paquets.mjs.
+
+La recette du 23/10/2026, sur une entreprise en lecture seule (un essai fini) : les factures et les devis ne proposaient
+plus de créer depuis la 1.122.0, mais les achats, les fournisseurs, les commandes, les proformas, les contrats, les
+affaires, les biens, la trésorerie et la paie gardaient « + Saisir ma première facture d'achat » (ou leur pareil) en vert,
+qui menait à la fenêtre du refus. Un fournisseur, une affaire, un compte ou un mouvement de trésorerie neufs refusaient
+même APRÈS la saisie, à « Enregistrer ». Ce que la lecture seule ferme ne change pas (docs/abonnement.md, A3) : l'état
+vide le dit, avec la phrase de l'abonnement, et son bouton principal mène à l'abonnement (« Qui le règle ? » pour qui
+ne le règle pas) ; les boutons de création restent, en second, et leur fenêtre explique. En tête des listes, un
+« + Nouveau… » n'est plus le vert de la page. Ces quatre fiches refusent à l'ouverture, avant la saisie.
+
+== app.js | en lecture seule, l'état vide d'une liste dont la création attend l'abonnement le dit, et mène à l'abonnement
+-- avant
+  function etatVide(titre, phrases, boutons) {
+    return `<div class="panel vide-utile"><h2>${h(titre)}</h2>
+      ${(phrases || []).map(p => `<p class="small">${p}</p>`).join('')}
+      ${(boutons || []).length ? `<div class="inline mt">${boutons.map(([id, label, p]) =>
+-- après
+  // (plateforme) 1.134.0 — en lecture seule, l'état vide d'une liste dont la création attend l'abonnement le dit, et son
+  // bouton principal y mène (UX 2 : les factures et les devis le faisaient depuis la 1.122.0 ; les autres listes gardaient
+  // « + Saisir ma première… » en vert, qui menait au refus). Les boutons de création restent, en second : leur fenêtre
+  // explique. Les identifiants sont ceux des états vides dont le geste passe par `licenceBlock`.
+  const CREATION_RETENUE = new Set(['rec-first', 'rel-vers-new', 'vide-fournisseur', 'vide-import-f', 'cf-vide-new', 'vide-achat',
+    'vide-dep', 'vide-new', 'vide-depuis', 'proj-first', 'immo-premier', 'immo-vers-achats']);
+  const phraseRetenue = () => `<b>${h(licence.label)}.</b> ${h(licence.detail || '')} La création reprend dès que l'abonnement est réglé.`;
+  const boutonRetenue = () => `<button class="btn btn-primary" id="vide-voir-abo">${abonnementVisible() ? 'Voir l\'abonnement' : 'Qui le règle ?'}</button>`;
+  document.addEventListener('click', e => { if (e.target && e.target.closest && e.target.closest('#vide-voir-abo')) allerAbonnement(); });
+  function etatVide(titre, phrases, boutons) {
+    const retenue = aboBloque(true) && (boutons || []).some(([id]) => CREATION_RETENUE.has(id));
+    if (retenue) {
+      return `<div class="panel vide-utile"><h2>${h(titre)}</h2>
+      ${[...(phrases || []), phraseRetenue()].map(p => `<p class="small">${p}</p>`).join('')}
+      <div class="inline mt">${boutonRetenue()}${boutons.map(([id, label]) => `<button class="btn" id="${h(id)}">${h(label)}</button>`).join('')}</div>
+    </div>`;
+    }
+    return `<div class="panel vide-utile"><h2>${h(titre)}</h2>
+      ${(phrases || []).map(p => `<p class="small">${p}</p>`).join('')}
+      ${(boutons || []).length ? `<div class="inline mt">${boutons.map(([id, label, p]) =>
+-- fin
+
+== app.js | la paie sans salarié, en lecture seule : la phrase de l'abonnement, et le vert y mène
+-- avant
+        <button class="btn btn-primary mt" id="emp-first">+ Créer mon premier salarié</button></div>`}
+-- après
+        ${aboBloque(true) ? `<p class="small">${phraseRetenue()}</p><div class="inline mt">${boutonRetenue()}<button class="btn" id="emp-first">+ Créer mon premier salarié</button></div>`
+          : '<button class="btn btn-primary mt" id="emp-first">+ Créer mon premier salarié</button>'}</div>`}
+-- fin
+
+== app.js | la trésorerie sans compte, en lecture seule : la phrase de l'abonnement, et le vert y mène
+-- avant
+          <button class="btn btn-primary" id="first-acc">+ ${libelleCompteDepuisFiche('Créer le compte', 'Créer mon premier compte')}</button></div>`;
+-- après
+          ${aboBloque(true) ? `<p class="small">${phraseRetenue()}</p><div class="inline mt">${boutonRetenue()}<button class="btn" id="first-acc">+ ${libelleCompteDepuisFiche('Créer le compte', 'Créer mon premier compte')}</button></div>`
+            : `<button class="btn btn-primary" id="first-acc">+ ${libelleCompteDepuisFiche('Créer le compte', 'Créer mon premier compte')}</button>`}</div>`;
+-- fin
+
+== app.js | en lecture seule, un « + Nouveau… » en tête de liste n'est plus le vert de la page
+-- avant
+    bindRibFields(view);             // la clé d'un RIB, vérifiée pendant la frappe (10.12.0)
+-- après
+    bindRibFields(view);             // la clé d'un RIB, vérifiée pendant la frappe (10.12.0)
+    // (plateforme) 1.134.0 — en lecture seule, un « + Nouveau… » en tête de liste n'est plus le vert de la page : l'étape
+    // suivante est l'abonnement (le bandeau et l'état vide y mènent), pas une création que la fenêtre refuse.
+    if (aboBloque(true)) $$('.page-head .btn-primary', view).forEach(b => { if (/^\+/.test(b.textContent.trim())) b.classList.remove('btn-primary'); });
+-- fin
+
+== app.js | un fournisseur neuf, en lecture seule : le refus à l'ouverture, avant la saisie
+-- avant
+  function supplierForm(supplier, done, preset) {
+    const s = supplier || C.fournisseurVierge(preset);
+-- après
+  function supplierForm(supplier, done, preset) {
+    // (plateforme) 1.134.0 — le refus arrive à l'ouverture : à « Enregistrer », la saisie était faite pour rien.
+    if (!supplier && licenceBlock('Créer un fournisseur', 'achats')) { return; }
+    const s = supplier || C.fournisseurVierge(preset);
+-- fin
+
+== app.js | une affaire neuve, en lecture seule : le refus à l'ouverture, avant la saisie
+-- avant
+  function projectForm(proj, done, preset) {
+    const p = proj || Object.assign({ id: C.uid(), name: '', clientId: '', status: 'en cours', startDate: C.today(), endDate: '', notes: '' }, preset || {});
+-- après
+  function projectForm(proj, done, preset) {
+    // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
+    if (!proj && licenceBlock('Créer une affaire', 'pilotage')) return;
+    const p = proj || Object.assign({ id: C.uid(), name: '', clientId: '', status: 'en cours', startDate: C.today(), endDate: '', notes: '' }, preset || {});
+-- fin
+
+== app.js | un compte de trésorerie neuf, en lecture seule : le refus à l'ouverture, avant la saisie
+-- avant
+  function accountForm(acc, done, modele, opts) {
+-- après
+  function accountForm(acc, done, modele, opts) {
+    // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
+    if (!acc && licenceBlock('Créer un compte de trésorerie', 'pilotage')) return;
+-- fin
+
+== app.js | un mouvement de trésorerie neuf, en lecture seule : le refus à l'ouverture, avant la saisie
+-- avant
+  function movementForm(mv, done) {
+-- après
+  function movementForm(mv, done) {
+    // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
+    if (!mv && licenceBlock('Créer un mouvement de trésorerie', 'pilotage')) return;
+-- fin
