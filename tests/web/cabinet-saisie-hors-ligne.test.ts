@@ -210,6 +210,9 @@ describe('la saisie du Cabinet sans réseau, à la souris', () => {
     await (await actions('OD-HL1')).filter({ hasText: 'Valider cette écriture' }).click();
     await fenetre.getByRole('button', { name: 'Valider', exact: true }).click();
     await expect.poll(async () => (await livres(ent, leila)).find((e) => e.piece === 'OD-HL1')?.statut, { timeout: 10_000 }).toBe('validee');
+    // L'écran a fini (le livre relu, le numéro dit) avant qu'on coupe le serveur : la base dit « validée » dès le premier
+    // appel, et couper entre les deux laissait « Validation refusée » sur le bouton (rouge sur GitHub, 23/10/2026).
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 10_000 }).toMatch(/^Validée sous le n° /);
 
     // ── Refusée au retour : la période validée entre-temps. Cette fois, seul le serveur tombe (le réseau du poste reste) :
     //    le navigateur ne dira pas qu'il revient, le poste réessaie seul toutes les 30 secondes. ─────────────────────
