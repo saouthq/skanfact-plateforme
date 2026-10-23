@@ -544,6 +544,13 @@
       return ev.sort((a, b) => (a.quand < b.quand ? -1 : a.quand > b.quand ? 1 : 0));
     }
     const demandes = () => new Map([...(lu.messages || []), ...anciensMessages].filter((m) => m.demande).map((m) => [m.id, m]));
+    // (1.140.0) Un seul vert (UX 3) : chaque pièce demandée portait son « Envoyer la pièce… » en vert, deux ou trois à la
+    // fois. Seule la plus ancienne qui attend l'est, comme le dit « En attente de toi » (« en commençant par la plus
+    // ancienne ») ; les autres gardent leur bouton, sans couleur.
+    const plusAncienneAttendue = () => {
+      const x = [...demandes().values()].filter((m) => !m.demande.recueLe).sort((a, b) => (a.ecritLe < b.ecritLe ? -1 : a.ecritLe > b.ecritLe ? 1 : 0))[0];
+      return x ? x.id : null;
+    };
 
     /** @param {any} m */
     function bulleMessage(m) {
@@ -566,7 +573,7 @@
         // parties (le client ne voit que la date : la relance est un e-mail, pas un reproche dans le fil).
         const retard = !recue && !!m.demande.enRetard;
         const geste = recue || !actif ? ''
-          : entreprise ? `<button type="button" class="btn btn-sm btn-primary" data-msg-envoyer-piece="${esc(m.id)}">Envoyer la pièce…</button>`
+          : entreprise ? `<button type="button" class="btn btn-sm${m.id === plusAncienneAttendue() ? ' btn-primary' : ''}" data-msg-envoyer-piece="${esc(m.id)}">Envoyer la pièce…</button>`
             : `<button type="button" class="btn btn-sm" data-msg-recue="${esc(m.id)}">Reçue autrement</button>`;
         const pour = m.demande.pour && !recue ? `<span class="msg-pour">pour le ${esc(dateCourte(m.demande.pour))}</span>` : '';
         const relances = !entreprise && m.demande.relances && !recue

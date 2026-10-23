@@ -447,6 +447,11 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await plusTard(a.p);
     await a.p.locator('.sidebar-foot a[data-route="comptable"]').click({ timeout: 15_000 });
     await a.p.locator('.msg-page h1').waitFor({ timeout: 20_000 });
+    // (1.140.0) Un seul vert : plusieurs pièces attendent, seule la plus ancienne porte « Envoyer la pièce… » en vert.
+    const envois = a.p.locator('[data-msg-envoyer-piece]');
+    await expect.poll(() => envois.count(), { timeout: 15_000 }).toBeGreaterThan(1);
+    expect(await envois.evaluateAll((b) => b.filter((x) => x.classList.contains('btn-primary')).length)).toBe(1);
+    expect(await envois.first().evaluate((x) => x.classList.contains('btn-primary'))).toBe(true);
     const fenetre = a.p.getByRole('dialog', { name: 'Envoyer la pièce demandée' });
     await a.p.locator('.msg-demande-carte').filter({ hasText: 'La facture STEG d\'août' }).getByRole('button', { name: 'Envoyer la pièce…', exact: true }).click();
     await fenetre.getByText('Elle est déjà dans SkanFact').click();

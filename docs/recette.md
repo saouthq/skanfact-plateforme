@@ -1098,7 +1098,10 @@ Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT d
       l'Accueil d'une entreprise qui facture déjà se lit dans l'ordre du travail (l'« À faire », les chiffres, puis
       seulement les premiers pas qui restent ; la bienvenue se retire, `web/v10/accueil-au-travail.txt`) ; au Cabinet,
       « dont 1 sans justificatif » se réclame depuis la carte du mois, et un cabinet d'une seule personne ne se voit
-      plus proposer de confier ses dossiers (`web/v10/suivi-seul.txt`).*
+      plus proposer de confier ses dossiers (`web/v10/suivi-seul.txt`) ; au téléphone, les montants d'une carte remontent sous son
+      titre, et le nom du client se lit sur la carte d'un dossier (`telephone.css`). En 1.140.0 : un seul « Envoyer la
+      pièce… » vert dans « Mon comptable » (la plus ancienne demande), et plus de carte des totaux pour une liste d'une
+      seule ligne au téléphone.*
     - **Ensuite** : la recherche Ctrl K aussi au Cabinet et à la console ; la barre du bas au téléphone pour les écrans du
       quotidien ; la photo d'un ticket qui file dans les achats et chez le comptable d'un geste ; les rappels par e-mail du
       cabinet au rythme choisi par le client ; ce que le cabinet a le droit de faire, dit en clair, avec une seule liste

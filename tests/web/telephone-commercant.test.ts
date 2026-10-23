@@ -394,6 +394,7 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     const c = await commercante({ pieces: true, factures: 2 });
     const { cx, p, erreurs } = await ouvrir(c, '#/dashboard', { largeur: 320, hauteur: 640, doigt: true });
     const deCote: string[] = [];
+    let unSeul = false;
     for (const r of ['dashboard', 'factures', 'devis', 'clients', 'catalogue', 'stock', 'achats', 'fournisseurs', 'caisse', 'tresorerie',
       'compta', 'paie', 'parametres', 'relances', 'doc/new/facture']) {
       await p.goto(`${serveur.adresse}/v10/?e=${c.ent}#/${r}`);
@@ -402,8 +403,13 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
       await plusTard(p);
       const large = await p.evaluate(() => document.scrollingElement?.scrollWidth ?? 0);
       if (large > 320) deCote.push(`${r} : ${large} points`);
+      // (1.140.0) Une liste d'une seule ligne ne répète pas ses chiffres dans une carte des totaux.
+      deCote.push(...(await p.evaluate((route) => [...document.querySelectorAll('table.list[data-cartes]')].filter((tb) => tb.querySelectorAll(':scope > tbody > tr').length === 1
+        && [...tb.querySelectorAll(':scope > tfoot > tr')].some((tr) => (tr as HTMLElement).offsetHeight > 0)).map(() => `${route} : une seule ligne, et sa carte des totaux`), r)));
+      if (r === 'fournisseurs') unSeul = await p.evaluate(() => [...document.querySelectorAll('table.list[data-cartes]')].some((tb) => tb.querySelectorAll(':scope > tbody > tr').length === 1 && tb.querySelector(':scope > tfoot')));
     }
     expect(deCote).toEqual([]);
+    expect(unSeul).toBe(true);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

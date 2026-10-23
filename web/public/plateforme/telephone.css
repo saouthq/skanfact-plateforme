@@ -166,6 +166,8 @@
   table.list[data-cartes] > tbody > tr, table.list[data-cartes] > tfoot > tr { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px;
     padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
   table.list[data-cartes] > tfoot > tr { background: var(--bg); box-shadow: none; }
+  /* (1.140.0) Une seule ligne : la carte des totaux répétait ses chiffres (« 1 client », 2 documents, 444,000 DT). */
+  table.list[data-cartes]:has(> tbody > tr:only-child) > tfoot { display: none; }
   table.list[data-cartes] > * > tr > td, table.list[data-cartes] > tbody > tr > th { display: block; min-width: 0; padding: 0; border: 0; background: none; text-align: start; font-size: 14px; }
   table.list[data-cartes] > * > tr > td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .6px;
     text-transform: uppercase; color: var(--muted); }

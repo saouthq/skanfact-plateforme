@@ -20242,6 +20242,12 @@ prouver 'ux3 139 : les libellés de la rangée de chiffres coupés au téléphon
 prouver 'ux3 139 : les montants sous le pli dans une carte de facture au téléphone' web/public/plateforme/telephone.css \
   "  table.list[data-cartes] > tbody > tr > td:not(.r):not([data-tel=\"titre\"]):not(.row-actions) { order: 2; }" "" \
   'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'\''ordinateur, un tableau'
+prouver 'ux3 140 : la carte des totaux qui répète une liste d'\''une seule ligne au téléphone' web/public/plateforme/telephone.css \
+  "  table.list[data-cartes]:has(> tbody > tr:only-child) > tfoot { display: none; }" "" \
+  'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
+prouver 'ux3 140 : chaque pièce demandée avec son « Envoyer la pièce… » en vert' web/public/plateforme/messagerie.js \
+  "class=\"btn btn-sm\${m.id === plusAncienneAttendue() ? ' btn-primary' : ''}\" data-msg-envoyer-piece" "class=\"btn btn-sm btn-primary\" data-msg-envoyer-piece" \
+  '(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
