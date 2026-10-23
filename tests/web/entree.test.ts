@@ -243,6 +243,10 @@ describe('l\'entrée refaite, à la souris', () => {
     await bouton(p, 'ecran.courriel.bouton_inscription').click();
     await ecran(p, 'ecran.porte.titre');
     await expect.poll(() => p.locator('#toast').innerText()).toBe(phrase('ecran.courriel.verifiee'));
+    // Le message se lit sous la barre du haut, pas dessus : il y cachait les étapes juste quand il annonçait la première
+    // faite (recette de l'abonnement, 23/10/2026).
+    const barre = await p.locator('.ent-barre').boundingBox();
+    await expect.poll(async () => (await p.locator('#toast.show').boundingBox())?.y ?? -1).toBeGreaterThanOrEqual((barre?.y ?? 0) + (barre?.height ?? 0));
     expect((await admin.query('select email, adresse_verifiee_le is not null verifiee from socle.utilisateur where email in ($1, $2)', [faute, bonne])).rows)
       .toEqual([{ email: bonne, verifiee: true }]);
     await p.context().close();
@@ -284,6 +288,14 @@ describe('l\'entrée refaite, à la souris', () => {
     await p.goto(serveur.adresse);
     await bouton(p, 'ecran.connexion.creer_compte').click();
     await ecran(p, 'ecran.inscription.titre');
+    // Chaque case porte le nom de son libellé, seul : le libellé contient la bulle « i » (un bouton), à laquelle le navigateur
+    // le reliait ; la case restait sans nom, et un clic sur le libellé ne posait pas le curseur (recette du 23/10/2026).
+    for (const cle of ['ecran.connexion.email', 'ecran.inscription.nom']) expect(await p.getByRole('textbox', { name: titre(cle), exact: true }).count()).toBe(1);
+    for (const cle of ['ecran.connexion.email', 'ecran.inscription.nom', 'ecran.connexion.mot_de_passe']) {
+      expect(await p.getByLabel(titre(cle), { exact: true }).evaluate((e) => e.tagName)).toBe('INPUT');
+    }
+    await p.locator('label.field').filter({ hasText: titre('ecran.inscription.nom') }).locator('span').first().click({ position: { x: 4, y: 6 } });
+    await expect.poll(() => champ(p, 'ecran.inscription.nom').evaluate((i) => i === document.activeElement)).toBe(true);
     const mdp = champ(p, 'ecran.connexion.mot_de_passe');
     const aide = p.locator('.ent-aide[aria-live]');
     expect(await aide.innerText()).toBe(phrase('ecran.inscription.mot_de_passe_aide', { min: LONGUEUR_MINIMALE }));

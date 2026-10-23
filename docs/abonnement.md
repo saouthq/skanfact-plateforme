@@ -611,6 +611,22 @@ cabinet s'applique ». Le détail par délégation, À VÉRIFIER aux entretiens 
   un dossier que son client rejoint en cours d'année ne se rembourse pas (décidé : il ne compte plus, sans avoir) ; le
   client qui « reprend » un dossier tenu (le chemin `0155` existe ; ce lot le compte, il ne le crée pas).
 
+**C23. La recette de l'abonnement à l'écran** (1.121.0 ; `docs/revue-abonnement.md`, « La recette à l'écran ») :
+- **Le récapitulatif d'un geste qui engage** (choisir une offre, ouvrir un module, ne pas renouveler) s'ouvre dans une
+  fenêtre au-dessus de l'onglet (`dialog` natif : le reste inerte, Échap ou un clic à côté la referment, le curseur
+  revient au bouton qui l'a ouverte). Ouvert dans la carte de l'offre, il poussait sa liste et laissait un trou dans la
+  carte voisine. Il redit, en lignes : l'abonnement HT, la remise s'il y en a, **le total à régler, TVA et timbre
+  compris** (le même calcul que la carte, C21 ; absent si l'entreprise SkanFact n'est pas désignée), puis ce qui suit.
+  Le module : son prix et ce que la prochaine facture rattrape (du … au …, N jours sur M), ou rien à rattraper.
+- **L'essai dont la facture attend** dit ce qui vient : « Ensuite : Essentiel, au mois, dès le … Ta facture t'attend
+  juste en dessous : réglée d'ici là, rien ne s'arrête » (il répétait ce que l'essai permet).
+- **Le cabinet** : quand l'état porte « Régler ma facture », la ligne de la facture n'a plus son propre bouton vert (deux
+  verts côte à côte). En lecture seule, « Nouveau dossier client » refuse en le disant et offre « Ouvrir mon
+  abonnement » (il n'offrait que « Compris »).
+- **L'entrée** : chaque case porte le nom de son libellé, seul (`htmlFor` et `aria-label`) : le libellé contient la
+  bulle « i », un bouton, auquel le navigateur le reliait ; un lecteur d'écran disait « champ de texte », un clic sur le
+  libellé ne posait pas le curseur. Le message d'un geste se lit sous la barre des étapes, plus dessus.
+
 ## Revu à la souris (14/10/2026, C17 : les remises)
 
 Sur l'essai de l'outil humain, la base passée en `0106`, dans la console (Amira, direction). Une seconde société pour

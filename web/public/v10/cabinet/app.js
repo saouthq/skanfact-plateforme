@@ -9861,8 +9861,14 @@
     // (plateforme, 1.87.5) Le refus avant la saisie : seul un associé crée un dossier (vu en recette le 21/10/2026).
     const peut = api.creationDossier ? await api.creationDossier().catch(() => null) : null;
     if (peut && !peut.ok) {
+      // (plateforme, abonnement du cabinet) Un refus qui se lève ailleurs offre le bouton qui y mène : « Règle-la dans
+      // Réglages » avec un seul « Compris » laissait chercher le panneau (recette du 23/10/2026).
       modal(`<h2>Ajouter un client</h2><p><b>${esc(peut.motif)}</b> ${esc(peut.geste)}</p>
-        <div class="modal-actions"><button class="btn btn-primary" data-close>Compris</button></div>`);
+        <div class="modal-actions">${peut.vers ? `<button class="btn" data-close>Plus tard</button><button class="btn btn-primary" id="nd-vers">${esc(peut.bouton)}</button>`
+          : '<button class="btn btn-primary" data-close>Compris</button>'}</div>`, (layer, close) => {
+        const v = $('#nd-vers', layer);
+        if (v) v.onclick = () => { close(); versReglages(peut.vers); };
+      });
       return;
     }
     const empty = { packs: [] };

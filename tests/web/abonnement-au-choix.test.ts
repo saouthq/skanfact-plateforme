@@ -106,13 +106,16 @@ describe('l\'abonnement au choix, à la souris', () => {
     expect(ttc).toHaveLength(2);
     expect(ttc[0]).toMatch(/^TVA et timbre compris : .* par an, ou 47,410 DT par mois\.$/);
     await cliquer(p.locator('[data-choisir="essentiel:mensuel"]'));
-    const boite = p.locator('[data-offre="essentiel"] .abo-confirmer');
+    const boite = p.locator('#abo-dialogue');
     expect(net(await boite.innerText())).toContain('Ta facture est faite tout de suite : elle arrive ici, dans « Tes factures »');
+    expect(net(await boite.locator('.abo-recap-total').innerText())).toBe('Total à régler TVA et timbre fiscal compris 47,410 DT par mois');
     await cliquer(p.getByRole('button', { name: 'Je choisis Essentiel, au mois', exact: true }));
     // Sans recharger : la facture est là, à payer, et le choix s'est effacé.
     const facture = p.locator('#abo-factures .abo-factures li').first();
     await expect.poll(() => facture.innerText().then(net).catch(() => ''), { timeout: 20_000 }).toContain('47,410');
     expect(await p.locator('#abo-payer.abo-choisi').count()).toBe(0);
+    // (1.121.0) L'état dit ce qui vient ensuite, et où est la facture : il répétait « Ce que tu crées pendant l'essai… ».
+    expect(net(await p.locator('#abo-etat p').first().innerText())).toContain(`Ensuite : Essentiel, au mois, dès le ${jourEnFrancais(plusJours(jour, 7))}. Ta facture t'attend juste en dessous : réglée d'ici là, rien ne s'arrête.`);
     const piece = (await admin.query('select au_choix from plateforme.facture_abonnement where entreprise = $1', [ent])).rows;
     expect(piece).toEqual([{ au_choix: true }]);
     await p.screenshot({ path: path.join(PHOTOS, 'abonnement-au-choix-facture.png'), fullPage: true });
@@ -133,10 +136,13 @@ describe('l\'abonnement au choix, à la souris', () => {
     expect(await arreter.getAttribute('class')).not.toMatch(/\bbtn-primary\b/);
     await cliquer(arreter);
     // Ce qui se passera, avant le geste ; « Garder mon abonnement » referme sans rien faire.
-    const arret = p.locator('#abo-arret');
-    expect(net(await arret.innerText())).toContain(`Ton abonnement ira jusqu'au ${jourEnFrancais(fin)}, puis l'entreprise passera en lecture seule.`);
+    const arret = p.locator('#abo-dialogue');
+    expect(net(await arret.locator('h3').innerText())).toBe('Ne pas renouveler ton abonnement ?');
+    expect(net(await arret.innerText())).toContain(`Ton abonnement va jusqu'au ${jourEnFrancais(fin)}, puis l'entreprise passe en lecture seule.`);
     await cliquer(arret.getByRole('button', { name: 'Garder mon abonnement', exact: true }));
     expect(await arret.isVisible()).toBe(false);
+    // Fermée, la fenêtre rend le curseur au bouton qui l'a ouverte.
+    expect(await arreter.evaluate((b) => b === document.activeElement)).toBe(true);
     await p.waitForLoadState('networkidle');
     expect(await resilie()).toBeNull();
     await cliquer(arreter);
@@ -152,9 +158,9 @@ describe('l\'abonnement au choix, à la souris', () => {
     expect(await resilie()).toBeNull();
     // Ouvrir la paie : 15 HT au mois, 21 jours sur 31 restent, 10,161 HT rattrapés sur la prochaine facture.
     await cliquer(p.getByRole('button', { name: 'Ouvrir la paie maintenant…', exact: true }));
-    const confirmer = p.locator('[data-offre="essentiel"] .abo-confirmer');
-    await expect.poll(() => confirmer.innerText().then(net).catch(() => ''), { timeout: 15_000 })
-      .toContain(`Ta prochaine facture rattrape 10,161 DT HT : du ${jourEnFrancais(jour)} au ${jourEnFrancais(fin)}, 21 jours sur 31`);
+    const confirmer = p.locator('#abo-dialogue');
+    await expect.poll(() => confirmer.locator('.abo-recap-total').innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toBe(`Rattrapé sur ta prochaine facture du ${jourEnFrancais(jour)} au ${jourEnFrancais(fin)}, 21 jours sur 31 10,161 DT HT`);
     await p.screenshot({ path: path.join(PHOTOS, 'abonnement-au-choix-module.png'), fullPage: true });
     await cliquer(confirmer.getByRole('button', { name: 'Ouvrir la paie', exact: true }));
     await expect.poll(async () => (await admin.query('select modules from plateforme.abonnement where entreprise = $1', [ent])).rows[0].modules, { timeout: 15_000 }).toEqual(['paie']);

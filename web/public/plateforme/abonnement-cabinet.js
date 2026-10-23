@@ -147,11 +147,13 @@
   }
 
   // « Tes factures » : celles que l'entreprise SkanFact a émises pour l'abonnement du cabinet, la plus récente d'abord.
-  /** @param {Lu} a */
-  function factures(a) {
+  // (1.121.0) Quand l'état porte « Régler ma facture », c'est lui le bouton vert de l'écran : celui de la ligne se fait
+  // discret (deux verts côte à côte, recette du 23/10/2026).
+  /** @param {Lu} a @param {boolean} [enTete] */
+  function factures(a, enTete = false) {
     if (!a.factures || !a.factures.pieces.length) return '';
     const pieces = a.factures.pieces;
-    const verte = pieces.filter((p) => p.payable).pop();
+    const verte = enTete ? undefined : pieces.filter((p) => p.payable).pop();
     const lignes = pieces.map((p, i) => {
       const doit = !!p.statut && DOIT.includes(p.statut);
       const periode = p.periode ? `du ${jour(p.periode.debut)} au ${jour(p.periode.fin)} · ${pl(Number(p.periode.dossiers), 'dossier payant', 'dossiers payants')}${Number(p.periode.rattrapes) ? `, ${pl(Number(p.periode.rattrapes), 'rattrapage')}` : ''}` : '';
@@ -286,14 +288,15 @@
     const c = etatEnClair(a);
     bandeau(a.etat);
     const aFaire = a.etat.etat === 'a_payer' || a.etat.etat === 'lecture_seule';
-    const fa = factures(a);
+    const enTete = !!(aFaire && a.factures && a.factures.pieces.some((p) => p.payable));
+    const fa = factures(a, enTete);
     el.innerHTML = `<div class="abo abc">
       <section class="abo-tete ${c.ton}" id="abo-etat">
         <div class="abo-tete-txt">
           <span class="abo-pastille">${esc(c.pastille)}</span>
           <h3>${esc(c.titre)}</h3>
           <p>${esc(c.texte)}</p>
-          ${aFaire && a.factures && a.factures.pieces.some((p) => p.payable) ? '<button type="button" class="btn btn-primary abo-tete-btn" id="abc-regler">Régler ma facture</button>' : ''}
+          ${enTete ? '<button type="button" class="btn btn-primary abo-tete-btn" id="abc-regler">Régler ma facture</button>' : ''}
         </div>
       </section>
       ${aFaire ? fa : ''}

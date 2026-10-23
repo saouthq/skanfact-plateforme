@@ -77,17 +77,29 @@ describe('choisir son offre, à la souris', () => {
     expect((await boutons.allInnerTexts()).map(net)).toEqual(['Choisir Essentiel à l\'année', 'ou au mois', 'Choisir Complet à l\'année', 'ou au mois']);
     expect((await p.locator('#abonnement-panel .abo-annee').allInnerTexts()).map(net)).toEqual(['À l\'année, deux mois offerts.', 'À l\'année, deux mois offerts.']);
     // Rien ne part au premier clic : ce que le choix fera, puis « Annuler » ou la confirmation, seul bouton vert.
+    // (1.121.0) Le récapitulatif s'ouvre au-dessus de l'onglet : rien ne bouge dans les cartes (ouvert dans la carte, il
+    // poussait sa liste et laissait un trou dans l'autre), et il redit le total à régler, TVA et timbre compris.
+    const liste = () => p.locator('[data-offre="essentiel"] .abo-inclus').evaluate((e) => Math.round(e.getBoundingClientRect().top - (e.closest('[data-offre]')?.getBoundingClientRect().top ?? 0)));
+    const avant = await liste();
     await cliquer(p.locator('[data-choisir="complet:annuel"]'));
-    const boite = p.locator('[data-offre="complet"] .abo-confirmer');
+    const boite = p.locator('#abo-dialogue');
     expect(await boite.isVisible()).toBe(true);
-    expect(net(await boite.innerText())).toContain('Complet, à l\'année : 690 DT HT par an.');
+    expect(await boite.getAttribute('aria-labelledby')).toBe('abo-dialogue-titre');
+    // Une vraie fenêtre : au-dessus de tout, le reste de l'onglet inerte tant qu'elle est ouverte (Échap la referme).
+    expect(await boite.evaluate((d) => d.matches(':modal'))).toBe(true);
+    expect(net(await boite.locator('h3').innerText())).toBe('Complet, à l\'année');
+    // Le total TTC ne se dit que si l'entreprise SkanFact est désignée (ici, selon les fichiers passés avant) : il se vérifie
+    // dans abonnement-au-choix.test.ts.
+    expect(net(await boite.locator('.abo-recap').innerText())).toMatch(/^Abonnement Complet 690 DT HT par an( Total à régler TVA et timbre fiscal compris 822,100 DT par an)?$/);
+    expect(await liste()).toBe(avant);
     expect(await p.locator('#abonnement-panel .btn-primary:visible').evaluateAll((l) => l.map((b) => b.textContent?.trim()))).toEqual(['Je choisis Complet, à l\'année']);
     await cliquer(boite.getByRole('button', { name: 'Annuler', exact: true }));
     expect(await boite.isVisible()).toBe(false);
     // Ouvert puis annulé, le choix n'est jamais parti (relu après que l'écran a tout envoyé).
     await p.waitForLoadState('networkidle');
     expect((await admin.query('select count(*)::int n from plateforme.offre_choisie where entreprise = $1', [ent])).rows[0].n).toBe(0);
-    expect(await tete.getAttribute('class')).toMatch(/\bbtn-primary\b/);
+    // Le vert revient au bouton du haut quand la fenêtre a fini de se fermer (son événement suit le clic d'un instant).
+    await expect.poll(() => tete.getAttribute('class'), { timeout: 5_000 }).toMatch(/\bbtn-primary\b/);
     await cliquer(p.locator('[data-choisir="complet:annuel"]'));
     await cliquer(p.getByRole('button', { name: 'Je choisis Complet, à l\'année', exact: true }));
     // L'onglet dit le choix, le jour et qui, juste sous l'état ; la facture arrivera ici, et un e-mail le dira.

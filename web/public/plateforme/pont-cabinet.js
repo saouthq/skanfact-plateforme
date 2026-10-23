@@ -2145,7 +2145,8 @@
         try { a = A ? await appel('GET', `/cabinets/${cabinetId}/abonnement`) : null; } catch { a = null; }
         if (a && a.etat && a.etat.etat === 'lecture_seule') {
           return { ok: false, motif: 'La facture de l\'abonnement du cabinet attend son paiement : un dossier tenu de plus attend qu\'elle soit réglée.',
-            geste: 'Règle-la dans Réglages, « Ton abonnement » : tout se rouvre aussitôt. Tes dossiers se lisent et s\'exportent toujours.' };
+            geste: 'Règle-la dans Réglages, « Ton abonnement » : tout se rouvre aussitôt. Tes dossiers se lisent et s\'exportent toujours.',
+            vers: 'pan-licence', bouton: 'Ouvrir mon abonnement' };
         }
         return { ok: true, avertissement: a && A ? A.avertissement(a.prochainDossier, a.regles) : '' };
       }

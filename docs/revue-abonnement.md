@@ -137,6 +137,28 @@ manque, c'est comment il s'applique) :
   abonnement » dans les Réglages du Cabinet, payé en ligne ; l'annonce avant le quatrième dossier ; sans paiement, seuls
   les dossiers payants en lecture seule ; les règles dans les Réglages de la console, l'abonnement sur la fiche d'un
   cabinet, les refus dans « À décider ». `docs/abonnement.md` C22. Reste : les rappels par e-mail avant l'échéance.
+- **La recette à l'écran (1.121.0)** : ci-dessous ; `docs/abonnement.md` C23.
+
+## La recette à l'écran (23/10/2026)
+
+Refait à la souris sur l'outil humain, une capture à chaque geste, à l'ordinateur (1440×900) et au téléphone (390×844) :
+l'entreprise (inscription, essai, choix de l'offre, facture faite d'elle-même, paiement en ligne simulé, ouvrir la paie,
+ne pas renouveler puis reprendre) et le cabinet (trois dossiers gratuits, le quatrième annoncé puis facturé, payé en
+ligne, la lecture seule). Corrigé dans la 1.121.0 :
+- le récapitulatif ouvert dans la carte poussait sa liste et creusait la carte voisine, sans redire le total TTC : il
+  s'ouvre en fenêtre et dit le total à régler ;
+- l'essai dont la facture attend répétait ce que l'essai permet : il dit ce qui vient ensuite et où est la facture ;
+- deux boutons verts pour la même facture du cabinet ; le refus de créer un dossier en lecture seule sans chemin vers
+  l'abonnement ;
+- les cases de l'entrée sans nom (le libellé relié à sa bulle « i ») ; le message d'un geste posé sur les étapes.
+
+Ce que la recette laisse à décider (pas des défauts du code) :
+- un module ouvert en cours de période se paie sur la **prochaine** facture (le rattrapage), pas tout de suite : à dire
+  aux pilotes, et à garder si les entretiens ne disent pas autre chose (À VÉRIFIER) ;
+- passer d'Essentiel à Complet ne vaut qu'à la période suivante ; un changement au milieu d'une période (avec un avoir)
+  ne se fait pas (C21) ;
+- la prochaine facture se dit en HT seulement dans l'état ; le TTC se lit dans la carte et dans le récapitulatif ;
+- au téléphone, la recherche des dossiers du Cabinet reste étroite à côté de ses boutons (une finition, pas un blocage).
 
 ## Sources
 

@@ -17825,7 +17825,7 @@ prouver 'le « i » d'"'"'aide du Cabinet dans l'"'"'ordre de la touche Tab' 'we
   'class="i" data-info="${esc(key)}"' \
   'la session ouvre le cabinet ; ses dossiers sont le portefeuille du serveur ; le livre d'"'"'un client est celui du serveur'
 prouver 'le message de l'"'"'entrée posé en bas, sur le bouton d'"'"'à côté' 'web/src/entree.css' \
-  '#toast { top: calc(env(safe-area-inset-top, 0px) + 16px); bottom: auto; transform: translateX(-50%) translateY(-6px); }' \
+  '#toast { top: calc(env(safe-area-inset-top, 0px) + 84px); bottom: auto; transform: translateX(-50%) translateY(-6px); }' \
   '' \
   'au clavier, le compte se crée case après case ; le message se lit en haut ; la ville ouvre l'"'"'adresse'
 prouver 'la ville donnée à la création que la fiche ne reprend pas' 'serveur/v10/dossier.ts' \
@@ -19596,9 +19596,7 @@ prouver 'abo 118 : l'\''essai prolongé qui dit un total faux' $AJ118 \
   "          const sur = regles.essai && !suite.prolonge ?" "          const sur = regles.essai ?" \
   "$W118S"
 prouver 'abo 118 : le choix parti au premier clic' $AJ118 \
-  "\${dit}</button></div>\`;
-        boite.hidden = false;" "\${dit}</button></div>\`;
-        boite.hidden = false; void o.appel('POST', '/abonnement/choisir', { offre, periodicite });" \
+  "        const ok = /** @type {HTMLButtonElement} */ (d.querySelector('[data-confirmer]'));" "        const ok = /** @type {HTMLButtonElement} */ (d.querySelector('[data-confirmer]')); void o.appel('POST', '/abonnement/choisir', { offre, periodicite });" \
   "$W118H"
 prouver 'abo 118 : deux verts pendant la confirmation' $AJ118 \
   "        if (tete) tete.classList.remove('btn-primary');" "" \
@@ -19607,7 +19605,7 @@ prouver 'abo 118 : les mois offerts mal comptés' $AJ118 \
   "economie = m * 12n - a;" "economie = m * 11n - a;" \
   "$W118H"
 prouver 'abo 118 : « Annuler » qui ne referme pas' $AJ118 \
-  "        /** @type {HTMLElement} */ (boite.querySelector('[data-annuler]')).onclick = () => { fermer(); b.focus(); };" "" \
+  "    /** @type {HTMLElement} */ (f.querySelector('[data-annuler]')).onclick = () => f.close();" "" \
   "$W118H"
 
 # ── 1.119.0 : l'abonnement après sa revue, lot 2 (la facture au choix émise seule, le prix TTC, « Ne pas renouveler »,
@@ -19712,7 +19710,7 @@ prouver 'abo 119 : « Ne pas renouveler » en bouton principal' $AJ119 \
   "'<button type=\"button\" class=\"btn btn-sm abo-tete-btn abo-tete-discret\" id=\"abo-arreter\">" "'<button type=\"button\" class=\"btn btn-primary abo-tete-btn\" id=\"abo-arreter\">" \
   "$W119S"
 prouver 'abo 119 : « Garder mon abonnement » qui ne referme pas' $AJ119 \
-  "(boite.querySelector('[data-garder]')).onclick = () => { boite.hidden = true; boite.innerHTML = ''; arreter.disabled = false; arreter.focus(); };" "(boite.querySelector('[data-garder]')).onclick = () => { arreter.focus(); };" \
+  "<button type=\"button\" class=\"btn btn-primary\" data-annuler>Garder mon abonnement</button>" "<button type=\"button\" hidden data-annuler></button><button type=\"button\" class=\"btn btn-primary\">Garder mon abonnement</button>" \
   "$W119S"
 prouver 'abo 119 : la reprise qui ne se propose pas' $AJ119 \
   "id=\"abo-reprendre\">Reprendre mon abonnement</button>'" "id=\"abo-reprendre\" hidden>Reprendre mon abonnement</button>'" \
@@ -19721,7 +19719,7 @@ prouver 'abo 119 : un choix d'\''offre proposé pendant qu'\''il ne se renouvell
   "&& !suspendue && !resilie;" "&& !suspendue;" \
   "$W119S"
 prouver 'abo 119 : la confirmation qui ne dit pas le rattrapage' $AJ119 \
-  "Ta prochaine facture rattrape \${esc(montant(String(ap.rattrapageHt), true))} HT" "Ta prochaine facture rattrape \${esc(montant(String(ap.prixHt), true))} HT" \
+  "\${esc(montant(String(ap.rattrapageHt), true))} HT</dd>" "\${esc(montant(String(ap.prixHt), true))} HT</dd>" \
   "$W119S"
 
 # ── 1.119.0 : le jour du retour d'une maintenance qui passe minuit (rouge GitHub du 22/10/2026) ──
@@ -19829,6 +19827,45 @@ prouver 'abo 120 : le code d'\''une nouveauté qui déborde du journal au télé
 prouver 'abo 120 : le retour du paiement qui n'\''ouvre pas « Ton abonnement »' web/public/v10/cabinet/app.js \
   "    if (api.ouvertureAbonnement && api.ouvertureAbonnement()) {" "    if (false) {" \
   "$W120"
+
+# ── 1.121.0 : la recette de l'abonnement à l'écran (testeur et UI/UX, 23/10/2026 ; docs/revue-abonnement.md) ──
+AJ121=web/public/plateforme/abonnement.js
+T121N="Nadia choisit Essentiel au mois : le prix TTC se lit avant, et sa facture arrive d'elle-même dans « Tes factures »"
+T121H="Hela choisit son offre dans sa carte, confirme, et lit son choix ; la console le voit dans « À décider »"
+T121J="créer son compte : la jauge dit pendant la frappe ce qui manque, « Afficher » montre le mot de passe"
+T121E="créer son compte : « Vérifie ton e-mail » tient au rechargement ; une adresse mal tapée se corrige, et le code part à la bonne"
+W121="Walid : en lecture seule, « Nouveau dossier client » refuse en le disant et mène à « Ton abonnement » d'un bouton"
+prouver 'abo 121 : le récapitulatif qui tait le total à régler' $AJ121 \
+  "        const ttc = infos.netDe(offre, periodicite);" "        const ttc = undefined;" \
+  "$T121N"
+prouver 'abo 121 : l'\''essai qui ne dit pas ce qui vient ensuite' $AJ121 \
+  "\${suite.aFaire === 'payer' && suite.periode" "\${false && suite.periode" \
+  "$T121N"
+prouver 'abo 121 : le récapitulatif ouvert dans la page, pas en fenêtre' $AJ121 \
+  "    if (!f.open) f.showModal();" "    if (!f.open) f.show();" \
+  "$T121H"
+prouver 'abo 121 : le récapitulatif refermé qui ne rend pas le vert au bouton du haut' $AJ121 \
+  "          fermee: () => { fermer(); b.focus(); }," "          fermee: () => { b.focus(); }," \
+  "$T121H"
+prouver 'abo 121 : deux boutons verts pour la même facture du cabinet' web/public/plateforme/abonnement-cabinet.js \
+  "    const verte = enTete ? undefined : pieces.filter((p) => p.payable).pop();" "    const verte = pieces.filter((p) => p.payable).pop();" \
+  "$W120"
+prouver 'abo 121 : le refus de créer un dossier, sans chemin vers l'\''abonnement' web/public/plateforme/pont-cabinet.js \
+  ",
+            vers: 'pan-licence', bouton: 'Ouvrir mon abonnement' };" " };" \
+  "$W121"
+prouver 'abo 121 : le bouton du refus qui ne mène nulle part' web/public/v10/cabinet/app.js \
+  "        if (v) v.onclick = () => { close(); versReglages(peut.vers); };" "        if (v) v.onclick = () => { close(); };" \
+  "$W121"
+prouver 'abo 121 : le libellé relié à sa bulle « i », pas à sa case' web/src/composants/Champ.tsx \
+  "    <label htmlFor={pour} className=" "    <label className=" \
+  "$T121J"
+prouver 'abo 121 : la case nommée avec l'\''explication de sa bulle' web/src/composants/Champ.tsx \
+  "      <input ref={f.ref} id={id} aria-label={cadre.libelle} type=" "      <input ref={f.ref} id={id} type=" \
+  "$T121J"
+prouver 'abo 121 : le message de l'\''entrée posé sur les étapes' web/src/entree.css \
+  "#toast { top: calc(env(safe-area-inset-top, 0px) + 84px);" "#toast { top: calc(env(safe-area-inset-top, 0px) + 16px);" \
+  "$T121E"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

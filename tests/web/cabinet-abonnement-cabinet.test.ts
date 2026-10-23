@@ -126,7 +126,7 @@ describe('l\'abonnement du cabinet, à la souris', () => {
     await expect.poll(() => p.locator('#lic-banner').innerText().then(net).catch(() => ''), { timeout: 15_000 })
       .toBe(`Facture de l'abonnement à régler avant le ${jourEnFrancais(echeance)}`);
     // Le vert de l'écran : régler la facture (un seul).
-    expect((await panneau.locator('.btn-primary').allInnerTexts()).map(net)).toEqual(['Régler ma facture', 'Payer 72,400 DT en ligne']);
+    expect((await panneau.locator('.btn-primary').allInnerTexts()).map(net)).toEqual(['Régler ma facture']);
     await p.screenshot({ path: path.join(PHOTOS, 'abonnement-cabinet-2-facture.png'), fullPage: true });
 
     // ── Payée chez Konnect, sur le portefeuille de SkanFact ; le retour ramène au Cabinet, sur son abonnement ───────────
@@ -185,4 +185,39 @@ describe('l\'abonnement du cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);
+
+  // Recette du 23/10/2026 : la création refusée faute de paiement disait où aller (« Réglages, Ton abonnement ») mais
+  // n'offrait que « Compris » ; Walid devait chercher le panneau lui-même. Le refus mène maintenant à l'abonnement, d'un bouton.
+  it('Walid : en lecture seule, « Nouveau dossier client » refuse en le disant et mène à « Ton abonnement » d\'un bouton', async () => {
+    const walid = await personne('Walid');
+    await api('POST', '/moi/code', walid.jeton, { methode: 'application' });
+    const cabinet = String((await api('POST', '/cabinets', walid.jeton, { nom: 'Cabinet Gharbi' })).corps.id);
+    for (const nom of ['Menuiserie Ezzahra', 'Quincaillerie Ariana', 'Café Le Port', 'Imprimerie Nabeul']) {
+      expect((await api('POST', `/cabinets/${cabinet}/dossiers`, walid.jeton, { raisonSociale: nom })).statut).toBe(201);
+    }
+    await expect.poll(async () => Number((await admin.query('select count(*) n from plateforme.facture_cabinet where cabinet = $1', [cabinet])).rows[0].n), { timeout: 30_000 }).toBe(1);
+    // L'échéance passée, la grâce comprise : les dossiers payants passent en lecture seule.
+    await admin.query('update plateforme.facture_cabinet set echeance = echeance - 60 where cabinet = $1', [cabinet]);
+    const erreurs: string[] = [];
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cx.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, walid.jeton);
+    const p = await cx.newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossiers`);
+    await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    await cliquer(p.locator('#new-d'));
+    const fenetre = p.locator('#modal-root .modal').last();
+    await expect.poll(() => fenetre.innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('un dossier tenu de plus attend qu\'elle soit réglée');
+    expect(await fenetre.getByRole('button', { name: 'Compris', exact: true }).count()).toBe(0);
+    await p.screenshot({ path: path.join(PHOTOS, 'abonnement-cabinet-4-lecture-seule.png') });
+    await cliquer(fenetre.getByRole('button', { name: 'Ouvrir mon abonnement', exact: true }));
+    await expect.poll(() => p.locator('#lic-panel #abo-etat h3').innerText().then(net).catch(() => ''), { timeout: 15_000 })
+      .toMatch(/^Tes dossiers payants sont en lecture seule depuis le /);
+    expect(new URL(p.url()).hash).toBe('#/reglages');
+    expect(await p.locator('#modal-root .modal').count()).toBe(0);
+    expect((await p.locator('#lic-panel .btn-primary').allInnerTexts()).map(net)).toEqual(['Régler ma facture']);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
 });

@@ -2,7 +2,7 @@
 // champ refusé se MONTRE comme dans la v10 (`refus()` de app.js) : il prend le focus et se marque en
 // rouge (`champ-faute`), pendant que le message dit pourquoi en bas de l'écran ; le rouge s'efface
 // dès qu'on le touche — le laisser serait accuser quelqu'un qui a déjà corrigé.
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { titre } from '../langue.ts';
 import { Libelle } from './Info.tsx';
 
@@ -25,9 +25,13 @@ function useFaute<T extends HTMLElement>(faute: boolean, n: number | undefined) 
 
 type Commun = { libelle: string; aide?: string | undefined; faute?: boolean; n?: number | undefined; refus?: string | undefined; obligatoire?: boolean; classe?: string };
 
-function Cadre({ libelle, aide, rouge, obligatoire, classe, children }: Commun & { rouge: boolean; children: ReactNode }) {
+// (1.121.0) Le libellé porte la bulle « i », un bouton : sans `htmlFor`, le navigateur relie le libellé à ce bouton (le
+// premier élément actif qu'il contient), et la saisie restait sans nom (un lecteur d'écran disait « champ de texte »,
+// un clic sur le libellé ne posait pas le curseur). Son nom est le libellé seul, sans « Explication : … » de la bulle.
+// Recette de l'abonnement, 23/10/2026.
+function Cadre({ libelle, aide, rouge, obligatoire, classe, pour, children }: Commun & { rouge: boolean; pour: string; children: ReactNode }) {
   return (
-    <label className={['field', classe, obligatoire ? 'obligatoire' : '', rouge ? 'champ-faute' : ''].filter(Boolean).join(' ')}>
+    <label htmlFor={pour} className={['field', classe, obligatoire ? 'obligatoire' : '', rouge ? 'champ-faute' : ''].filter(Boolean).join(' ')}>
       <Libelle texte={libelle} aide={aide} />
       {children}
     </label>
@@ -46,12 +50,13 @@ type PropsChamp = Commun & {
 
 export function Champ({ valeur, changer, type = 'text', autoComplete, inputMode, placeholder, propositions, nom, premier = false, revelable = false, dessous, maxLength, faute = false, n, refus, ...cadre }: PropsChamp) {
   const f = useFaute<HTMLInputElement>(faute, n);
+  const id = useId();
   const [vu, setVu] = useState(false);
   useEffect(() => { if (premier) f.ref.current?.focus(); }, [premier, f.ref]);
   const liste = propositions?.length ? `${nom ?? cadre.libelle}-propositions`.replace(/\s+/g, '-') : undefined;
   const champ = (
-    <Cadre {...cadre} rouge={f.rouge}>
-      <input ref={f.ref} type={revelable && vu ? 'text' : type} value={valeur} onChange={(e) => { f.effacer(); changer(e.target.value); }}
+    <Cadre {...cadre} rouge={f.rouge} pour={id}>
+      <input ref={f.ref} id={id} aria-label={cadre.libelle} type={revelable && vu ? 'text' : type} value={valeur} onChange={(e) => { f.effacer(); changer(e.target.value); }}
         aria-invalid={f.rouge || undefined} {...(nom ? { name: nom } : {})} {...(placeholder ? { placeholder } : {})} {...(maxLength ? { maxLength } : {})}
         {...(autoComplete ? { autoComplete } : {})} {...(inputMode ? { inputMode } : {})} {...(liste ? { list: liste } : {})} />
       {liste ? <datalist id={liste}>{propositions?.map((p) => <option key={p} value={p} />)}</datalist> : null}
@@ -81,9 +86,10 @@ type PropsChoix = Commun & { valeur: string; changer: (v: string) => void; optio
 
 export function Choix({ valeur, changer, options, faute = false, n, ...cadre }: PropsChoix) {
   const f = useFaute<HTMLSelectElement>(faute, n);
+  const id = useId();
   return (
-    <Cadre {...cadre} rouge={f.rouge}>
-      <select ref={f.ref} value={valeur} onChange={(e) => { f.effacer(); changer(e.target.value); }} aria-invalid={f.rouge || undefined}>
+    <Cadre {...cadre} rouge={f.rouge} pour={id}>
+      <select ref={f.ref} id={id} aria-label={cadre.libelle} value={valeur} onChange={(e) => { f.effacer(); changer(e.target.value); }} aria-invalid={f.rouge || undefined}>
         {options.map((o) => <option key={o.valeur} value={o.valeur} {...(o.donnee ? { 'data-donnee': true } : {})}>{o.texte}</option>)}
       </select>
     </Cadre>

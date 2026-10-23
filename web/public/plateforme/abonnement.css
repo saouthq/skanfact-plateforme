@@ -89,6 +89,22 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-confirmer[hidden] { display: none; }
 .abo-confirmer p { margin: 0; }
 .abo-confirmer-gestes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+/* (1.121.0) Le récapitulatif d'un geste qui engage : une fenêtre au-dessus de l'onglet, rien ne bouge dessous. */
+.abo-dialogue { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 48px); overflow: auto; border: 0; border-radius: 18px; padding: 26px 26px 22px; background: var(--panel); color: var(--text); box-shadow: 0 28px 72px rgba(4, 28, 24, .32); }
+.abo-dialogue::backdrop { background: rgba(4, 24, 21, .48); backdrop-filter: blur(2px); }
+.abo-dialogue h3 { margin: 0 0 16px; font-size: 20px; line-height: 1.25; color: var(--abo-titre, var(--text)); }
+.abo-recap { margin: 0 0 18px; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.abo-recap > div { display: flex; justify-content: space-between; align-items: baseline; gap: 16px; padding: 13px 16px; font-size: 14px; }
+.abo-recap > div + div { border-top: 1px solid var(--border); }
+.abo-recap dt, .abo-recap dd { margin: 0; }
+.abo-recap dd { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
+.abo-recap-total { background: var(--primary-soft); }
+.abo-recap-total dt, .abo-recap-total dd { font-weight: 700; }
+.abo-recap-total dt span { display: block; margin-top: 2px; font-weight: 400; font-size: 12.5px; color: var(--muted); }
+.abo-suite { margin: 0 0 20px; padding: 0; list-style: none; display: grid; gap: 9px; font-size: 13.5px; line-height: 1.55; color: var(--text); }
+.abo-suite li { position: relative; padding-left: 20px; }
+.abo-suite li::before { content: ''; position: absolute; left: 3px; top: .6em; width: 7px; height: 7px; border-radius: 50%; background: var(--primary); }
+.abo-dialogue .abo-refus { margin: 0 0 12px; }
 .abo-note { margin: 0; font-size: 13.5px; color: var(--muted); }
 .abo-note a { font-weight: 650; color: var(--primary); }
 /* Un prix à venir (0103) : sous celui d'aujourd'hui, posé sur la couleur douce de la marque, pour qu'on le voie sans qu'il
@@ -213,6 +229,8 @@ iframe.abo-piece { width: 100%; height: 75vh; border: 1px solid var(--border); b
   .abo-piece-gestes .btn { min-height: 44px; }
   /* Au téléphone, les boutons d'une offre et de sa confirmation prennent toute la largeur, à 44 px. */
   .abo-offre-boutons .btn, .abo-confirmer-gestes .btn { flex: 1 1 auto; min-height: 44px; }
+  .abo-dialogue { padding: 22px 18px 18px; }
+  .abo-recap > div { flex-wrap: wrap; }
   .abo-tete-btn { align-self: stretch; min-height: 44px; text-align: center; }
   /* La barre du haut du téléphone reste à l'écran : la facture s'ouvre sous elle, « ← Ton abonnement » en vue. */
   .abo-vue-piece { scroll-margin-top: 76px; }
