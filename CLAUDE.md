@@ -276,8 +276,14 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
 - **Deux branches** (décidé avec Skander le 22/10/2026 ; `docs/mise-en-ligne.md`, L). On travaille et on envoie sur
   **`dev`** (`git push origin dev`) ; **`main`** ne reçoit qu'une version de `dev` que GitHub a vérifiée en entier (la
   vérification de l'envoi ET toutes les preuves de la nuit, ou lancées sur elle) : `bash tests/promouvoir.sh` la fait
-  avancer, jamais à la main, jamais en la réécrivant. Une nuit rouge sur `dev` se répare avant tout passage. Pas de PR
-  sans demande.
+  avancer, jamais à la main, jamais en la réécrivant. Une nuit rouge sur `dev` se répare avant tout passage. Pas
+  d'autre PR sans demande.
+- **La revue de Codex, chaque semaine** (Skander, 23/10/2026 ; ni branche par fonction ni PR par envoi). Claude ouvre
+  une PR « Revue de la semaine » de `dev` vers `main`, jamais fusionnée : elle se ferme d'elle-même quand `main`
+  rattrape `dev` ; sinon Claude la ferme et ouvre la suivante. Skander y écrit `@codex review`. Sur « lis la revue » :
+  lire le résumé ET les remarques posées sur les lignes (outils GitHub de la session ; `gh` n'y est pas), corriger ce
+  qui est juste sur `dev` par le chemin habituel (tests, preuves, envoi), et répondre dans la PR à chaque remarque
+  écartée, avec sa raison. Une revue de tout le dépôt se lance dans Codex (tâche sur `dev`) : Skander colle le rapport.
 - Messages de commit en français, terminés par les lignes `Co-Authored-By` et `Claude-Session`
   fournies par la session. Aucun identifiant de modèle dans ce qui est envoyé.
 - **Chaque envoi relève le numéro de version** (`version` de `package.json`, « 1.4.2 » ; décidé par Skander le
