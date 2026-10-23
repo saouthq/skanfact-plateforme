@@ -249,6 +249,9 @@ describe('l\'assistant de démarrage, à la souris', () => {
     const routes = await p.locator('#nav a[data-route]').evaluateAll((as) => as.map((a) => (a as HTMLElement).dataset.route ?? ''));
     expect(routes).toEqual(expect.arrayContaining(['caisse', 'achats', 'autres', 'compta']));
     for (const x of ['paie', 'stock', 'immos']) expect(routes).not.toContain(x);
+    // L'assistant enregistre en arrière-plan : « C'est prêt. » s'affiche avant que le serveur ait répondu (rouge GitHub
+    // du 23/10/2026, machine lente) ; la fiche se lit une fois écrite.
+    await expect.poll(async () => (await fiche(jeton, ent))?.contenu?.setupDone, { timeout: 15_000 }).toBe(true);
     const co = (await fiche(jeton, ent))?.contenu ?? {};
     expect(co).toMatchObject({ setupDone: true, activity: 'informatique', taxRegime: 'reel', defaultVatRate: 19, stampFee: 1,
       modules: ['ventes', 'fichiers', 'compta', 'achats', 'pieces', 'caisse'], tagline: 'Cybersécurité · Infrastructure · Services informatiques' });
