@@ -352,3 +352,8 @@ d'un client (Support, Nos échanges) l'ont désormais aussi.
 (1.141.0) Une page déjà close par un bandeau qui dit pourquoi (un appareil retiré dont la remise n'a pas passé, une
 entreprise qui n'est plus ouverte) ne reçoit plus, par-dessus, la page « SkanFact n'a pas pu ouvrir… » : son « Réessayer »
 suffit (rouge de GitHub sur la 1.138.0, `tests/web/quarantaine.test.ts` ; preuve « ux2 141 »).
+
+**1.142.0 (23/10/2026)** — deux vieilles preuves de la visite guidée ne tombaient plus : depuis « une seule proposition
+par ouverture » (1.129) et l'Accueil d'une entreprise qui travaille (1.139), le défaut qu'elles réintroduisaient était
+tu par une autre garde. La preuve « reposée à chaque redessin » le réintroduit en entier (reprise forcée), et la lecture
+pour le support vérifie aussi que l'Accueil du dossier n'invite pas à sa visite.

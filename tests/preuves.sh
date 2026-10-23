@@ -18078,7 +18078,7 @@ prouver 'l'"'"'invitation du client montrée sur un dossier qui n'"'"'est plus t
 # ── La recette alpha du 20/10/2026 (1.79.0 ; docs/recette.md) ──
 prouver 'l'"'"'invitation d'"'"'une visite reposée à chaque redessin' 'web/public/v10/app.js' \
   'if (!pageCachee(name) && (guideNeuf || appelOuvert)) appelGuide(name, !guideNeuf);' \
-  'if (!pageCachee(name)) appelGuide(name);' \
+  'if (!pageCachee(name)) appelGuide(name, true);' \
   'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'"'"'invitation ne revient pas, la date se remplace'
 prouver 'une facture d'"'"'achat réglée supprimée d'"'"'un clic' 'web/public/v10/app.js' \
   'if ((p.payments || []).length) { toast(' \
