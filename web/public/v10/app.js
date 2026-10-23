@@ -5876,18 +5876,22 @@
     modal(`<h2>${client ? 'Modifier le client' : 'Nouveau client'}</h2>
       <form id="cf" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Nom / Raison sociale', 'cl.name')}<input type="text" name="name" value="${h(c.name)}" required></label>
-        ${field(lbl('Personne à contacter', 'cl.contact'), 'contact', c.contact || '', 'text', 'placeholder="Mme Leïla Mansour, directrice"')}
         ${field(lbl('Matricule fiscal / CIN', 'co.matricule'), 'matricule', c.matricule)}
+        ${field(lbl('Téléphone', 'cl.phone'), 'phone', c.phone)}
+        <label class="field span-2">${lbl('Adresse', 'cl.address')}<textarea name="address">${h(c.address)}</textarea></label>
+        ${/* (plateforme) 1.132.0 — un client neuf, créé depuis une pièce, n'a besoin que de son nom, de son matricule, de son
+              téléphone et de son adresse ; le reste attend derrière « Plus de détails » (revue du mois d'un client, point 15). */''}
+        ${client ? '' : '<details class="span-2 plus-details" id="cf-plus"><summary>Plus de détails <span class="muted small">— contact, retenue, timbre, encours, e-mail, langue, devise, notes</span></summary><div class="grid-2 mt">'}
+        ${field(lbl('Personne à contacter', 'cl.contact'), 'contact', c.contact || '', 'text', 'placeholder="Mme Leïla Mansour, directrice"')}
         <label class="field">${lbl('Retenue à la source appliquée par ce client', 'ed.withholding')}${withholdingSelect('withholdingRate', c.withholdingRate, { vide: `Par défaut (${pct(company().defaultWithholdingRate || 0)} %)` })}</label>
         <label class="check"><input type="checkbox" name="stampExempt" ${c.stampExempt ? 'checked' : ''}> Exonéré de timbre fiscal ${info('client.stampExempt')}</label>
         <label class="field">${lbl(`Encours autorisé (${h(company().currency)})`, 'cl.encours')}<input type="number" name="creditLimit" value="${h(c.creditLimit || '')}" step="0.001" min="0" class="num" placeholder="Sans plafond"${!estResponsable() ? ' disabled title="L\'encours autorisé se règle par le propriétaire ou un administrateur."' : ''}></label>
-        ${field(lbl('Téléphone', 'cl.phone'), 'phone', c.phone)}
         <label class="field">${lbl('Catégorie de prix', 'cl.categorie')}<input type="text" name="categorieTarif" value="${h(c.categorieTarif || '')}" list="cl-categories" placeholder="Revendeur, Chantier…"><datalist id="cl-categories">${Array.from(new Set([...(data.clients || []).map(x => x.categorieTarif), ...(data.priceLists || []).map(x => x.categorie)].map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr')).map(x => `<option value="${h(x)}">`).join('')}</datalist></label>
         ${field(lbl('Email', 'cl.email'), 'email', c.email, 'email')}
         <label class="field">${lbl('Langue des documents', 'cl.lang')}<select name="lang"><option value="" ${!c.lang ? 'selected' : ''}>Par défaut</option><option value="fr" ${c.lang === 'fr' ? 'selected' : ''}>Français</option><option value="en" ${c.lang === 'en' ? 'selected' : ''}>English</option></select></label>
         <label class="field">${lbl('Devise', 'cl.currency')}<select name="currency"><option value="" ${!c.currency ? 'selected' : ''}>Par défaut (${h(company().currency)})</option>${C.CURRENCIES.map(x => `<option value="${x}" ${c.currency === x ? 'selected' : ''}>${h(C.libelleDevise(x))}</option>`).join('')}</select></label>
-        <label class="field span-2">${lbl('Adresse', 'cl.address')}<textarea name="address">${h(c.address)}</textarea></label>
         <label class="field span-2">${lbl('Notes internes', 'cl.notesSaisie')}<textarea name="notes">${h(c.notes || '')}</textarea></label>
+        ${client ? '' : '</div></details>'}
       </form>
       <div class="modal-actions">
         ${client ? '<button class="btn btn-danger" id="del-client" style="margin-inline-end:auto">Supprimer ce client</button>' : ''}
@@ -9233,17 +9237,20 @@
     modal(`<h2>${supplier ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}</h2>
       <form id="sf" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Nom / Raison sociale', 'sup.name')}<input type="text" name="name" value="${h(s.name)}" required></label>
-        ${field(lbl('Personne à contacter', 'cl.contact'), 'contact', s.contact || '', 'text', 'placeholder="M. Sami Gharbi, commercial"')}
         ${field(lbl('Matricule fiscal', 'co.matricule'), 'matricule', s.matricule || '')}
         ${field(lbl('Téléphone', 'sup.phone'), 'phone', s.phone || '')}
+        <label class="field span-2">${lbl('Adresse', 'sup.address')}<textarea name="address">${h(s.address || '')}</textarea></label>
+        ${/* (plateforme) 1.132.0 — de même pour un fournisseur neuf (revue du mois d'un client, point 15). */''}
+        ${supplier ? '' : '<details class="span-2 plus-details" id="sf-plus"><summary>Plus de détails <span class="muted small">— contact, e-mail, délai, retenue, banque, RIB, notes</span></summary><div class="grid-2 mt">'}
+        ${field(lbl('Personne à contacter', 'cl.contact'), 'contact', s.contact || '', 'text', 'placeholder="M. Sami Gharbi, commercial"')}
         ${field(lbl('Email', 'sup.email'), 'email', s.email || '', 'email')}
         ${field(lbl('Délai de paiement accordé (jours)', 'sup.terms'), 'paymentTermsDays', s.paymentTermsDays == null ? '' : s.paymentTermsDays, 'number', 'min="0" class="num" placeholder="30"')}
         <label class="field">${lbl('Retenue à la source à opérer', 'sup.withholding')}${withholdingSelect('withholdingRate', s.withholdingRate, { vide: 'Aucune', sansZero: true })}</label>
         ${champsAttestationRS(s, 'fournisseur')}
         ${field(lbl('Banque', 'pay.bank'), 'bank', s.bank || '')}
         ${ribField('RIB du fournisseur', s.rib)}
-        <label class="field span-2">${lbl('Adresse', 'sup.address')}<textarea name="address">${h(s.address || '')}</textarea></label>
         <label class="field span-2">${lbl('Notes internes', 'sup.notes')}<textarea name="notes">${h(s.notes || '')}</textarea></label>
+        ${supplier ? '' : '</div></details>'}
       </form>
       <div class="modal-actions">
         ${supplier ? '<button class="btn btn-danger" id="del-sup" style="margin-inline-end:auto">Supprimer ce fournisseur</button>' : ''}

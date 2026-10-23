@@ -108,6 +108,8 @@ describe('la recette alpha, à la souris', () => {
     await p.locator('[data-combo=supplierId] .combo-add').click();
     const enregistrer = p.locator('#modal-root .modal').last().getByRole('button', { name: 'Enregistrer', exact: true });
     await enregistrer.waitFor({ timeout: 10_000 });
+    // (1.132.0) Un fournisseur neuf ouvre court : la fenêtre devient longue quand on déplie « Plus de détails ».
+    await p.locator('#sf-plus > summary').click();
     expect(await p.locator('#modal-root .modal').last().evaluate((m) => m.scrollHeight > m.clientHeight)).toBe(true);
     expect(await enregistrer.evaluate((b) => {
       const r = b.getBoundingClientRect();

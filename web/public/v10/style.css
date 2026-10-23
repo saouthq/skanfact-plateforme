@@ -167,6 +167,8 @@ nav a.active svg { opacity: 1; }
    itinéraire, un panneau qui dit à quoi sert la page et porte les vrais boutons. */
 .vide-utile { max-width: 720px; }
 .vide-utile h2 { margin-bottom: 6px; }
+/* (plateforme) 1.132.0 — les champs d'une fiche neuve qui attendent : un pli, ouvert d'un clic. */
+.plus-details > summary { cursor: pointer; font-weight: 600; color: var(--primary); padding: 4px 0; }
 /* (plateforme) 1.126.0 — trois boutons ou un téléphone : la rangée passe à la ligne, rien ne dépasse du cadre. */
 .vide-utile .inline { flex-wrap: wrap; }
 .vide-utile p { line-height: 1.6; color: var(--muted); }

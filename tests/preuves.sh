@@ -20120,6 +20120,12 @@ prouver 'mois 131 : la validation qui finit encore sur une fenêtre à fermer' w
 prouver 'mois 131 : « prochaine étape » avec des écritures encore au brouillard' web/public/v10/cabinet/app.js \
   "mois.has(String(e.date || '').slice(0, 7))).length;" "mois.has(String(e.date || '').slice(0, 7)) && false).length;" \
   'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
+prouver 'mois 132 : le client neuf qui ouvre ses douze cases' web/public/v10/app.js \
+  "<details class=\"span-2 plus-details\" id=\"cf-plus\">" "<details open class=\"span-2 plus-details\" id=\"cf-plus\">" \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'\''il attend, ce qui reste des premiers pas, les envois'
+prouver 'mois 132 : le fournisseur neuf qui ouvre toutes ses cases' web/public/v10/app.js \
+  "<details class=\"span-2 plus-details\" id=\"sf-plus\">" "<details open class=\"span-2 plus-details\" id=\"sf-plus\">" \
+  'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'\''invitation ne revient pas, la date se remplace'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

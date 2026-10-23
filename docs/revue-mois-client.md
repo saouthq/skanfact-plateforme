@@ -164,5 +164,8 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
     « 2 écritures validées sous les n° 3 à 4. Prochaine étape : la déclaration, dans « Déclarer et clôturer ». », ou ce
     qui reste au brouillard des mois validés, tous journaux confondus (« 1 autre reste au brouillard d'octobre 2026 »).
     Un refus garde sa fenêtre, à lire ligne à ligne.
+  - **15** (1.132.0) : un client ou un fournisseur neuf (depuis une pièce ou sa liste) s'écrit en quatre cases : le
+    nom, le matricule, le téléphone et l'adresse ; le reste se plie sous « Plus de détails » (contact, retenue, timbre,
+    encours, e-mail, langue, devise, notes ; pour un fournisseur, délai, banque, RIB). Modifier une fiche montre tout.
 
 Les captures : `m01` à `m48` de la recette (scratchpad de la session, non versées).

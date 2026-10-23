@@ -896,4 +896,6 @@ export const ADAPTATIONS = [
   ...lireFichier('envoyer-par-email.txt'),
   // ── La validation d'un lot finit sur un message bref et l'étape suivante (1.131.0) ──
   ...lireFichier('valider-sans-fenetre.txt'),
+  // ── Une fiche neuve en quatre cases, le reste derrière « Plus de détails » (1.132.0) ──
+  ...lireFichier('fiche-courte.txt'),
 ];
