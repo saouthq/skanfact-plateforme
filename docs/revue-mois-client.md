@@ -148,6 +148,11 @@ qu'octobre n'est pas fini ; la recherche Ctrl K, déjà là dans l'entreprise.
     garde le vert quand un mois manque), et « Voir le livre-journal ». Le résumé du serveur (`/compta/resume`) compte
     désormais les ventes et les achats (une pièce une fois, sans ses règlements) et les achats sans justificatif : les
     deux cartes, chez le client et au cabinet, disent les mêmes chiffres (vu à l'écran).
+  - **11** (1.128.0) : dans « Comptabilité › Cabinet », tant qu'aucune question n'est arrivée, le panneau « Ton cabinet
+    comptable » vient d'abord ; la carte vide des questions ne paraît qu'avec un cabinet. Le vert suit le chemin qu'on
+    prend : le curseur dans l'adresse (venu de « Inviter mon comptable ») ou une adresse tapée, « Inviter mon
+    comptable » ; le code, « Confier mon dossier ». Au Cabinet, « Comment un client arrive jusqu'ici » nomme le chemin
+    réel : « dans Comptabilité › Cabinet (ou Paramètres › Envois) ».
 - **Lot 3 (P3, 14–18)**, avec la passe visuelle UX 3 du carnet.
 
 Les captures : `m01` à `m48` de la recette (scratchpad de la session, non versées).

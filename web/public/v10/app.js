@@ -18152,8 +18152,9 @@
       // La plateforme (brique 44 bis) : plus de paquet — les livres sont au serveur, le cabinet les lit
       // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
       if (bridge.dessinerMandat) {
-        $('#c-body').innerHTML = `${panneauQuestions()}
-          <div class="panel" id="p-cabinet-mandat"><h2>Ton cabinet comptable</h2><div id="cab-pair"></div></div>`;
+        const mandatPanneau = '<div class="panel" id="p-cabinet-mandat"><h2>Ton cabinet comptable</h2><div id="cab-pair"></div></div>';
+        $('#c-body').innerHTML = (data.questionsCabinet || []).length ? `${panneauQuestions()}${mandatPanneau}`
+          : `${mandatPanneau}${messagerieVue && messagerieVue.cabinet ? panneauQuestions() : ''}`;
         // (plateforme) 1.94.0 — venu du premier pas « Inviter mon comptable » : le curseur sur son adresse, et la page la montre.
         // L'adresse se dessine après la réponse du serveur (l'invitation en cours) : on l'attend trois secondes au plus.
         void bridge.dessinerMandat($('#cab-pair'));

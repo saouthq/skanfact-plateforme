@@ -1,0 +1,16 @@
+L'invitation d'abord (1.128.0 ; docs/revue-mois-client.md, point 11). Format : voir sans-paquets.mjs.
+
+La recette du 23/10/2026 : Sarra, sans cabinet, ouvre « Comptabilité › Cabinet » depuis « Tes premiers pas » ; la carte
+vide « Les questions de ton comptable » (« Aucune question reçue ») passait avant le panneau qui la fait venir, celui
+où l'on confie son dossier ou invite son comptable. Tant qu'aucune question n'est arrivée, l'invitation vient d'abord ;
+la carte des questions suit, et seulement quand un cabinet tient le dossier.
+
+== app.js | sans question reçue, le panneau du cabinet vient d'abord, et la carte vide des questions seulement avec un cabinet
+-- avant
+        $('#c-body').innerHTML = `${panneauQuestions()}
+          <div class="panel" id="p-cabinet-mandat"><h2>Ton cabinet comptable</h2><div id="cab-pair"></div></div>`;
+-- après
+        const mandatPanneau = '<div class="panel" id="p-cabinet-mandat"><h2>Ton cabinet comptable</h2><div id="cab-pair"></div></div>';
+        $('#c-body').innerHTML = (data.questionsCabinet || []).length ? `${panneauQuestions()}${mandatPanneau}`
+          : `${mandatPanneau}${messagerieVue && messagerieVue.cabinet ? panneauQuestions() : ''}`;
+-- fin

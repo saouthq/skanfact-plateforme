@@ -1107,7 +1107,9 @@
   /** @param {boolean} [reglages] */
   function commentUnClientArrive(reglages) {
     // (1.77.0) Ou il t'invite par e-mail, avant même que tu aies SkanFact : son lien te fait créer ton cabinet.
-    const corps = `<p class="small">Un client sur SkanFact te confie son dossier lui-même : dans <strong>Paramètres → Envois → Ton cabinet comptable</strong>,
+    // (1.128.0) Le chemin qu'il prend vraiment : « Comptabilité › Cabinet » (le premier pas « Inviter mon comptable » y
+    // mène) ; Paramètres › Envois en est l'autre entrée (revue du mois d'un client, point 11).
+    const corps = `<p class="small">Un client sur SkanFact te confie son dossier lui-même : dans <strong>Comptabilité › Cabinet</strong> (ou Paramètres › Envois),
       il tape le code de ton cabinet, ou il t'invite par e-mail. Tu acceptes ici, sur la page Dossiers ; ses livres sont alors ceux du serveur, à jour en direct.
       Un client qui n'est pas sur SkanFact : « Nouveau client… », et tu tiens ses livres toi-même.</p>
       <div class="mt"><div class="muted small">Le code de ton cabinet</div>

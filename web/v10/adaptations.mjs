@@ -888,4 +888,6 @@ export const ADAPTATIONS = [
   ...lireFichier('achats-confies.txt'),
   // ── « Ce mois-ci » dans le Suivi d'un dossier, au Cabinet : les pièces, le brouillard, le geste (1.127.0) ──
   ...lireFichier('ce-mois-cabinet.txt'),
+  // ── L'invitation d'abord : sans question reçue, le panneau du cabinet passe avant leur carte vide (1.128.0) ──
+  ...lireFichier('invitation-d-abord.txt'),
 ];

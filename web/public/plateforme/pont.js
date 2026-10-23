@@ -978,6 +978,14 @@
       <p class="small" role="alert"></p>
       <button type="button" class="btn" id="mandat-inviter-envoyer">Inviter mon comptable</button>`;
     const b = /** @type {HTMLElement} */ (zone.querySelector('#mandat-inviter-envoyer'));
+    // (1.128.0) Le vert suit le chemin qu'on prend : le curseur dans l'adresse (venu du premier pas « Inviter mon
+    // comptable »), ou une adresse tapée, et c'est « Inviter mon comptable » ; le code, et c'est « Confier mon dossier »
+    // (revue du mois d'un client, point 11 : le curseur attendait dans l'e-mail, le vert était sur le code).
+    const email = /** @type {HTMLElement} */ (zone.querySelector('#mandat-email')), code = panneau.querySelector('#mandat-code');
+    /** @param {boolean} inviterVert */
+    const suivre = (inviterVert) => { b.classList.toggle('btn-primary', inviterVert); panneau.querySelector('#mandat-confier')?.classList.toggle('btn-primary', !inviterVert); };
+    for (const ev of ['focus', 'input']) { email.addEventListener(ev, () => suivre(true)); code?.addEventListener(ev, () => suivre(false)); }
+    if (document.activeElement === email) suivre(true);
     b.onclick = () => agir(async () => {
       const champ = /** @type {HTMLInputElement} */ (zone.querySelector('#mandat-email'));
       const email = String(champ.value).trim();

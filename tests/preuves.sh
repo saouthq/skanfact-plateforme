@@ -20089,6 +20089,18 @@ prouver 'mois 127 : la carte du mois sans son vert' web/public/v10/cabinet/app.j
 prouver 'mois 127 : « Valider » qui mène au livre-journal' web/public/v10/cabinet/app.js \
   "if (v) v.onclick = () => ouvrir(true);" "if (v) v.onclick = () => ouvrir(false);" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 128 : la carte vide des questions avant l'\''invitation' web/public/v10/app.js \
+  ": \`\${mandatPanneau}\${messagerieVue && messagerieVue.cabinet ? panneauQuestions() : ''}\`;" ": \`\${panneauQuestions()}\${mandatPanneau}\`;" \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'mois 128 : le vert sur le code quand le curseur est dans l'\''adresse' web/public/plateforme/pont.js \
+  "for (const ev of ['focus', 'input']) { email.addEventListener(ev, () => suivre(true)); code?.addEventListener(ev, () => suivre(false)); }" "for (const ev of ['input']) { code?.addEventListener(ev, () => suivre(false)); }" \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'mois 128 : le vert qui ne revient pas au code tapé' web/public/plateforme/pont.js \
+  "code?.addEventListener(ev, () => suivre(false));" "void code;" \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'mois 128 : le cabinet qui nomme un chemin que le client ne prend pas' web/public/plateforme/pont-cabinet.js \
+  "dans <strong>Comptabilité › Cabinet</strong> (ou Paramètres › Envois)," "dans <strong>Paramètres → Envois → Ton cabinet comptable</strong>," \
+  'le client confie son dossier par le code que le Cabinet affiche ; l'\''associé accepte sur sa page Dossiers ; le client arrête le mandat après confirmation'
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

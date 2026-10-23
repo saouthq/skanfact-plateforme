@@ -56,6 +56,14 @@ describe('inviter son comptable par e-mail, à la souris', () => {
     for (let i = 0; i < 3 && await e.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await e.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     await e.locator('#view').getByRole('button', { name: 'Inviter mon comptable', exact: true }).first().click();
     await expect.poll(() => e.evaluate(() => document.activeElement?.id), { timeout: 15_000 }).toBe('mandat-email');
+    // (1.128.0) Point 11 de la revue du mois d'un client : le panneau du cabinet d'abord (pas la carte vide des questions),
+    // et le seul vert là où est le curseur, « Inviter mon comptable » ; le code tapé, il passe à « Confier mon dossier ».
+    const verts = () => e.locator('#view .btn-primary').filter({ visible: true }).allInnerTexts();
+    expect(await e.locator('#c-body > .panel').first().getAttribute('id')).toBe('p-cabinet-mandat');
+    expect(await e.locator('#p-questions').count()).toBe(0);
+    await expect.poll(verts, { timeout: 10_000 }).toEqual(['Inviter mon comptable']);
+    await e.locator('#mandat-code').fill('ABC123');
+    expect(await verts()).toEqual(['Confier mon dossier']);
     await e.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
     await e.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await e.getByRole('tab', { name: 'Envois', exact: true }).click();

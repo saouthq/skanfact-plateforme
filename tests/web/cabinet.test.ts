@@ -204,6 +204,8 @@ describe('le Cabinet, à la souris', () => {
     await c.locator('#code-cabinet').waitFor({ timeout: 15_000 });
     const code = (await c.locator('#code-cabinet').innerText()).trim();
     expect(code).toBe(String(((await api('GET', '/cabinets', associe)).corps.cabinets as { id: string; code: string }[]).find((x) => x.id === cabinet)?.code));
+    // (1.128.0) Le chemin que le client prend vraiment, celui où le mène son premier pas « Inviter mon comptable ».
+    expect(await c.locator('.panel', { has: c.locator('#code-cabinet') }).innerText()).toContain('dans Comptabilité › Cabinet (ou Paramètres › Envois), il tape le code de ton cabinet');
     await c.waitForTimeout(1500);
     await c.screenshot({ path: path.join(PHOTOS, 'cabinet-8-code.png') });
 
