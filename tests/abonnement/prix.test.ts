@@ -119,7 +119,9 @@ describe('un nouveau prix, préparé dans la console', () => {
     const ent = String((await appeler('POST', '/entreprises', client.jeton, { raisonSociale: 'Épicerie Prévenue' })).corps.id);
     const abo = (await appeler('GET', `/entreprises/${ent}/abonnement`, client.jeton)).corps;
     expect(abo.aVenir).toEqual([{ quoi: 'essentiel', periodicite: 'annuel', aPartirDu: plusTot, montantHt: '420.000' }]);
-    expect(abo.prix).toContainEqual({ offre: 'essentiel', periodicite: 'annuel', montantHt: '390.000' });
+    // Le prix du jour, hors taxes (le TTC, `net`, dépend de l'entreprise SkanFact désignée : il n'est pas lu ici).
+    expect((abo.prix as { offre: string; periodicite: string; montantHt: string }[]).map(({ offre, periodicite, montantHt }) => ({ offre, periodicite, montantHt })))
+      .toContainEqual({ offre: 'essentiel', periodicite: 'annuel', montantHt: '390.000' });
     // Retiré avant sa date : la grille d'aujourd'hui reste, le client ne le lit plus, le journal garde le prix retiré.
     expect((await retirer({ quoi: 'essentiel', periodicite: 'annuel', aPartirDu: plusTot, motif: 'erreur de saisie' })).statut).toBe(200);
     expect((await reglages()).grille.find((l) => l.offre === 'essentiel')?.aVenir).toEqual([]);
