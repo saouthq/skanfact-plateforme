@@ -32,6 +32,14 @@ declarerTextes({
   'abonnement.relance.apres.grace_1': 'Après cette date, tout marche encore un jour. Ensuite, l\'entreprise passe en lecture seule : tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée.',
   'abonnement.relance.apres.sans_grace': 'Dès le lendemain, l\'entreprise passe en lecture seule : tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée.',
   'abonnement.relance.bouton': 'Ouvrir SkanFact',
+  // Les e-mails d'une facture de l'abonnement (1.118.0 ; 0170) : émise, puis payée. Ce qui part chez le relais, compté et
+  // décidé comme les relances : l'adresse, un objet, une date, l'adresse de l'application. Ni le montant, ni le numéro,
+  // ni le nom de l'entreprise.
+  'abonnement.facture.courriel.objet.emise': 'Ta facture d\'abonnement SkanFact est prête',
+  'abonnement.facture.courriel.texte.emise': 'Bonjour,\n\nLa facture de l\'abonnement à SkanFact d\'une de tes entreprises est prête. Tu la lis et tu la règles dans SkanFact : Paramètres, puis Ton abonnement. Elle est à régler au plus tard le {date}.\n\n{lien}',
+  'abonnement.facture.courriel.objet.payee': 'Ton paiement à SkanFact est bien reçu',
+  'abonnement.facture.courriel.texte.payee': 'Bonjour,\n\nLe paiement de l\'abonnement à SkanFact d\'une de tes entreprises est bien reçu : merci. L\'abonnement est payé jusqu\'au {date}. Ta facture, marquée payée, t\'attend dans SkanFact : Paramètres, puis Ton abonnement.\n\n{lien}',
+  'abonnement.facture.courriel.bouton': 'Voir mon abonnement',
   // Les gestes de SkanFact sur un abonnement (serveur/abonnement/gestes.ts : l'outil de l'exploitation et la console).
   'abonnement.geste.sans_ligne': 'cette entreprise n\'a pas d\'abonnement (une restauration dans une autre base) : ouvre-lui d\'abord un essai (« prolonger »)',
   'abonnement.geste.jours': 'un essai se prolonge d\'un nombre entier de jours, de 1 à 365',

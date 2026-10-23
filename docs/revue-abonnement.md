@@ -120,6 +120,13 @@ manque, c'est comment il s'applique) :
   les factures du cabinet dans la console (« À décider », la fiche du cabinet), les rappels par e-mail.
 - Le prix de 60 DT par dossier attend encore la confirmation des entretiens (`07`, question 2).
 
+## Ce qui est fait
+
+- **Lot 1 (1.118.0)** : le bandeau de l'accueil et les gestes de création retirés en lecture seule ; le bouton de l'état
+  et un bouton par offre, confirmé avant de partir ; les phrases exactes (suspendue, « aussitôt », « À régler », la
+  grâce sur sa durée, l'essai prolongé, le rappel déjà parti) ; les e-mails « facture prête » et « paiement reçu » ; la
+  prochaine facture et son montant ; « deux mois offerts » ; ce qui peut s'ajouter replié. `docs/abonnement.md` C20.
+
 ## Sources
 
 Les captures et les textes de chaque état (dans le dossier de travail de la session, non versés) ; le code :

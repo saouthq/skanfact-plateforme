@@ -513,7 +513,11 @@ vaut pour tout le dépôt.*
   - **L'offre choisie dans l'application** (1.84.0 ; `docs/abonnement.md` C19) : `plateforme.offre_choisie`
     (`base/migrations/0158_offre_choisie.sql`), `POST /entreprises/:e/abonnement/choisir` (`serveur/abonnement/routes.ts`),
     les choix de « Ton abonnement » (`brancherChoix`, `web/public/plateforme/abonnement.js`), la ligne `offre_choisie`
-    d'« À décider » (`serveur/console/decider.ts`).
+    d'« À décider » (`serveur/console/decider.ts`). (1.118.0, après la revue du 22/10/2026, `docs/revue-abonnement.md`,
+    `docs/abonnement.md` C20 ; `0170`) Le bandeau de l'accueil (`bandeau`, `web/v10/abonnement-revue.txt`, `aFaire` de
+    `/abonnement/etat`), un bouton par offre confirmé sous lui, la prochaine facture (`plateforme.ma_prochaine_facture`,
+    `aRenouveler`), les rappels déjà partis (`plateforme.mes_rappels`), les e-mails « facture prête » et « paiement reçu »
+    (`serveur/abonnement/courriels.ts`, `plateforme.factures_a_annoncer`, avec le postier).
   - **L'abonnement de bout en bout** (1.83.0 ; `docs/recette.md`) : la première abonnée d'un groupe est celle qui a payé
     (`plateforme.remise_de`, `base/migrations/0157_la_premiere_abonnee.sql`) ; « à facturer » dans « À décider »
     (`A_FACTURER_JOURS`, `serveur/console/decider.ts`, les factures qui attendent par `argentADecider`,

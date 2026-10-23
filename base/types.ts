@@ -745,6 +745,8 @@ export interface BaseDeDonnees {
     remise_taux: Generated<number>;
     remise_ht: Generated<bigint>;
     mois_offert: Generated<boolean>;
+    annoncee_le: Date | null;
+    recu_le: Date | null;
   };
   'plateforme.geste_console': {
     id: Generated<string>;

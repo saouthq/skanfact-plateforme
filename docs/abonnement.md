@@ -501,6 +501,38 @@ tenait — « T'abonner » demandait d'écrire à contact@skanfact.tn).
   par qui et quand ; il tient lieu de « à facturer ». « Préparer sa facture… » s'ouvre sur cette offre ; préparée, la
   ligne s'éteint des deux côtés. Le geste est tracé (`socle.abonnement.payer`, `choix`).
 
+**C20. Après la revue de l'abonnement, lot 1** (1.118.0 ; `0170` ; `docs/revue-abonnement.md` ; Skander, « go 1 et 2 »,
+22/10/2026 ; décidé par délégation dans le détail) :
+- **L'accueil le dit** (`web/v10/abonnement-revue.txt`, `bandeau` de `abonnement.js`) : quand la pastille de la barre
+  attire ou alerte (l'essai dans sa dernière semaine, la grâce, la lecture seule, une échéance payée à quinze jours),
+  un bandeau en haut de l'accueil dit l'état, la date et ce qui attend, avec un seul bouton : « Choisir mon offre »,
+  « Régler ma facture », « Renouveler », « Voir mon abonnement » (la facture se prépare), « Écrire à SkanFact » pour
+  une entreprise suspendue ; à qui ne règle pas l'abonnement, « Qui le règle ? ». En grâce et en lecture seule, c'est le
+  bouton principal de l'écran : « + Nouvelle facture » n'est plus vert, les premiers pas se taisent ; en lecture seule,
+  l'en-tête ne propose plus de créer. Ce qui attend (`aFaire` de `/abonnement/etat` : « payer », « attendre ») ne se lit
+  que pour qui gère l'abonnement, et seulement quand l'échéance est proche.
+- **« Ton abonnement »** : l'état propose l'étape suivante (« Choisir mon offre », qui mène aux offres ; « Écrire à
+  SkanFact » pour une suspension) ; chaque carte a ses boutons (« Choisir Essentiel à l'année », « ou au mois » ;
+  « Renouveler » et « Passer à … » pendant un abonnement payé), et le choix se confirme sous eux (le prix, la remise,
+  quand la période commence ; « Annuler ») : rien ne part au premier clic ; les quatre cases et « Je choisis cette
+  offre » n'existent plus. « Tu as choisi … » vient juste sous l'état. Sous les prix : « À l'année, deux mois offerts »,
+  calculé sur les prix du jour (des mois entiers, sinon l'économie en dinars ; rien si l'année ne coûte pas moins).
+  « Ce qui peut s'ajouter à l'offre » est replié, ouvert quand l'entreprise dépasse son offre.
+- **Les phrases exactes** : ce qui rouvre se dit tel que ça se passe (« Choisis ton offre : ta facture arrive ici, et
+  dès qu'elle est réglée, tout se rouvre », ou « Règle ta facture, juste en dessous »), jamais « abonne-toi : tout se
+  rouvre aussitôt » ; une entreprise suspendue lit « écris-nous », jamais « abonne-toi » ; « À régler » seulement quand
+  une facture attend son paiement (sinon « Essai terminé » ou « Abonnement échu ») ; la grâce se dit sur sa durée
+  (« Encore 5 jours de grâce, sur 7 ») ; l'essai prolongé dit les jours qui restent (« 19 jours restants »), jamais un
+  total faux ; le rappel déjà parti se dit avec son jour, et le prochain qui partira (`plateforme.mes_rappels`).
+- **La prochaine facture** d'un abonnement payé qui se renouvelle : son montant hors taxes, par la règle de la facture
+  et de la console (`aRenouveler`, `htDeLaPeriode`, `plateforme.ma_prochaine_facture`), sa période et sa remise.
+- **Deux e-mails par facture** (`serveur/abonnement/courriels.ts`, le postier, chaque minute) : émise, « Ta facture
+  d'abonnement SkanFact est prête » (son échéance) ; payée, « Ton paiement à SkanFact est bien reçu » (le jour jusqu'où
+  l'abonnement est payé). À qui gère l'abonnement, une fois par facture et par nature ; un brouillon ne s'annonce pas ;
+  payée avant d'être annoncée, seul le reçu part ; un envoi raté se retente ; les factures d'avant 0170 ne s'annoncent
+  pas. Ce qui part chez le relais, compté et décidé comme les rappels : l'adresse, un objet, une date, l'adresse de
+  l'application ; ni le montant, ni le numéro, ni le nom de l'entreprise.
+
 ## Revu à la souris (14/10/2026, C17 : les remises)
 
 Sur l'essai de l'outil humain, la base passée en `0106`, dans la console (Amira, direction). Une seconde société pour

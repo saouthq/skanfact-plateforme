@@ -816,6 +816,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'Un choix d\'offre ne se modifie ni ne s\'efface : un nouveau choix le remplace.', cle: 'base.offre_choisie.immuable', fr: 'un choix d\'offre ne se modifie ni ne s\'efface : un nouveau choix le remplace' },
   { base: 'Seuls la propriétaire et l\'administratrice de l\'entreprise choisissent son offre.', cle: 'base.offre_choisie.qui', fr: 'seuls la propriétaire et l\'administratrice de l\'entreprise choisissent son offre' },
   { base: 'Offre inconnue.', cle: 'base.offre_choisie.inconnue', fr: 'cette offre n\'existe pas : choisis Essentiel ou Complet, à l\'année ou au mois' },
+  // Les e-mails d'une facture de l'abonnement (0170, docs/abonnement.md C20).
+  { base: 'seul le serveur note un e-mail de facture parti', cle: 'base.abonnement.annonce_serveur', fr: 'seul le serveur note un e-mail de facture parti' },
+  { base: 'nature inconnue', cle: 'base.abonnement.annonce_nature', fr: 'cet e-mail de facture n\'existe pas : une facture s\'annonce émise ou payée' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

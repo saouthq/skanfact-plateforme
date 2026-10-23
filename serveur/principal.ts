@@ -84,6 +84,7 @@ import { declarerGestesSupport } from './support/gestes.ts';
 import { routesSauvegardes } from './sauvegardes.ts';
 import { routesSupport } from './support/routes.ts';
 import { relancerLesAbonnements } from './abonnement/relances.ts';
+import { annoncerLesFactures } from './abonnement/courriels.ts';
 import { routesAbonnement } from './abonnement/routes.ts';
 import { routesConsole } from './console/routes.ts';
 import { FRAIS_MS } from './console/instantane.ts';
@@ -335,13 +336,14 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
 
   // Les alertes par e-mail de la messagerie (lot messagerie) et du support (docs/support.md) : chaque minute, qui a un
   // message ou une réponse à lire depuis cinq minutes, et (1.116.0) les relances des pièces demandées restées sans
-  // réponse à leur date ; un seul tour à la fois, et rien sans relais d'e-mails.
+  // réponse à leur date, et (1.118.0) les e-mails des factures de l'abonnement, émises puis payées ; un seul tour à la
+  // fois, et rien sans relais d'e-mails.
   let alertes: Promise<unknown> = Promise.resolve();
   let enAlertes = false;
   const postier = setInterval(() => {
     if (enAlertes || !ctx.courriel) return;
     enAlertes = true;
-    alertes = suivreTour(pool, 'postier', async () => ({ alertes: await prevenirParCourriel(ctx) + await relancerLesDemandes(ctx) + await prevenirDesReponses(ctx) }))
+    alertes = suivreTour(pool, 'postier', async () => ({ alertes: await prevenirParCourriel(ctx) + await relancerLesDemandes(ctx) + await prevenirDesReponses(ctx) + await annoncerLesFactures(ctx) }))
       .catch((e: unknown) => { noterPanne('tâche prevenirParCourriel', e); }).finally(() => { enAlertes = false; });
   }, c.alertesMs);
 

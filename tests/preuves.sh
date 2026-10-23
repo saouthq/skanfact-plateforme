@@ -5579,7 +5579,7 @@ prouver "la mise en place de l'entreprise proposée à un membre qui ne la tient
 " "" \
   "$MR"
 prouver "« + Nouvelle facture » sur l'accueil de qui ne peut pas écrire une pièce" web/public/v10/app.js \
-  "\${peutEcrireDossier('documents') ? \`<button class=\"btn\" id=\"new-devis\">" "\${true ? \`<button class=\"btn\" id=\"new-devis\">" \
+  "\${peutEcrireDossier('documents') && !(licence.locked && bridge.dessinerAbonnement) ? \`<button class=\"btn\" id=\"new-devis\">" "\${!(licence.locked && bridge.dessinerAbonnement) ? \`<button class=\"btn\" id=\"new-devis\">" \
   "$MR"
 prouver "« À faire » qui mène à une page que le rôle ne montre pas" web/public/v10/app.js \
   "todoMeneACache(x.id) ? '' :" "false ? '' :" \
@@ -12434,7 +12434,7 @@ prouver 'les avoirs de SkanFact oubliés dans ce que doit l'"'"'abonné' base/mi
                     where a.entreprise = p.entreprise and a.corrige = p.id and a.statut = '"'"'emise'"'"'),' '        '"'"'avoirs'"'"', '"'"'[]'"'"'::jsonb,' \
   "$MF3"
 prouver 'une facture due rangée sous les offres' web/public/plateforme/abonnement.js \
-  '    const aFaire = !!fa && fa.pieces.some((p) => !!p.statut && DOIT.includes(p.statut));' '    const aFaire = false;' \
+  '    const aFaire = !!a.factures && a.factures.pieces.some((p) => !!p.statut && DOIT.includes(p.statut));' '    const aFaire = false;' \
   "$MFW"
 prouver 'le retour qui ne ramène pas à l'"'"'abonnement' web/public/espace/retour.js \
   '  const deLAbonnement = /^[0-9a-f-]{36}$/.test(abonnement);' '  const deLAbonnement = false;' \
@@ -12685,7 +12685,7 @@ prouver "l'aperçu d'un prix qui pousse le motif en arrivant" web/console/src/co
   '.c-rg-prix-zone { min-height: 124px; }' '.c-rg-prix-zone { min-height: 0; }' \
   "$PXW"
 prouver 'les cartes des offres qui ne partagent plus leurs lignes' web/public/plateforme/abonnement.css \
-  '  display: grid; grid-row: span 5; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;' '  display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; border-radius: 20px;' \
+  '  display: grid; grid-row: span 7; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;' '  display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; border-radius: 20px;' \
   "$PXW"
 prouver 'un écart de moitié ou plus dit comme un écart ordinaire' web/console/src/ecrans/Reglages.tsx \
   '  const fort = (apercu?.ecart?.dixiemes ?? 0) >= 500;' '  const fort = false;' \
@@ -18304,17 +18304,17 @@ prouver '« à facturer » en plus de l'"'"'offre choisie' 'serveur/console/deci
   '|| partent.has(e.id) || choisies.has(e.id) ||' \
   '|| partent.has(e.id) ||' \
   'un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule'
-prouver '« Je choisis cette offre » allumé avant qu'"'"'on coche' 'web/public/plateforme/abonnement.js' \
-  'id="abo-choisir" disabled>' \
-  'id="abo-choisir">' \
-  'Hela coche une offre, la choisit, et lit son choix ; la console le voit dans « À décider »'
+prouver 'la confirmation qui ne dit pas l'"'"'offre choisie' 'web/public/plateforme/abonnement.js' \
+  'data-confirmer>Je choisis ${esc(nom)}, ${dit}</button>' \
+  'data-confirmer>Je choisis cette offre</button>' \
+  'Hela choisit son offre dans sa carte, confirme, et lit son choix ; la console le voit dans « À décider »'
 prouver 'le jour d'"'"'un choix lu en UTC, pas à Tunis' 'web/public/plateforme/abonnement.js' \
   '${esc(jourDeTunis(String(a.choix.le)))}' \
   '${esc(jour(String(a.choix.le).slice(0, 10)))}' \
-  'Hela coche une offre, la choisit, et lit son choix ; la console le voit dans « À décider »'
-prouver '« Je choisis cette offre » en bouton principal d'"'"'un abonnement payé' 'web/public/plateforme/abonnement.js' \
-  'class="btn${a.etat.etat === '"'"'actif'"'"' ? '"'"''"'"' : '"'"' btn-primary'"'"'}" id="abo-choisir"' \
-  'class="btn btn-primary" id="abo-choisir"' \
+  'Hela choisit son offre dans sa carte, confirme, et lit son choix ; la console le voit dans « À décider »'
+prouver 'les boutons des offres en bouton principal d'"'"'un abonnement payé' 'web/public/plateforme/abonnement.js' \
+  '<button type="button" class="btn${i ? '"'"' abo-ou'"'"' : '"'"''"'"'}" data-choisir=' \
+  '<button type="button" class="btn btn-primary${i ? '"'"' abo-ou'"'"' : '"'"''"'"'}" data-choisir=' \
   'Walid voit la facture de son abonnement, la paie en ligne, et revient sur son abonnement payé'
 
 # 1.85.0 — la page de retour d'un paiement, dans la DA : le pied « État lu auprès du prestataire » ne vient qu'avec un
@@ -18341,10 +18341,9 @@ prouver 'une phrase de l'"'"'offre choisie absente du catalogue' textes/base.ts 
   'chaque phrase de la base est au catalogue, et chaque phrase du catalogue de la base est encore dans la base'
 
 # 1.86.1 — « Choisir mon offre suivante… » : les choix prennent la place de l'annonce, pas une seconde carte de même titre.
-prouver 'deux cartes « Renouveler ou changer d'"'"'offre » à l'"'"'écran' web/public/plateforme/abonnement.js \
-  "      if (annonce instanceof HTMLElement && !annonce.classList.contains('abo-choisi')) annonce.hidden = true;
-      else re.disabled = true;" "      re.disabled = true;" \
-  "$MFW"
+prouver '« Changer de choix » qui ne rouvre pas les offres' web/public/plateforme/abonnement.js \
+  "      offres.classList.remove('abo-replie'); re.disabled = true;" "      re.disabled = true;" \
+  'Hela choisit son offre dans sa carte, confirme, et lit son choix ; la console le voit dans « À décider »'
 
 # 1.87.0 — la console au téléphone : un client par carte ; « Ctrl K » sans clavier ; « par an » ne compte que ce qui se
 # renouvelle, et le dit (un abonnement résilié n'y est pas, l'écran Abonnements le compte actif).
@@ -19479,6 +19478,123 @@ prouver 'un client cherché en majuscules, introuvable' $MJ \
 prouver 'la pastille des messages sur un client sans rien à traiter' web/public/v10/cabinet/app.js \
   "      if (!d || d.etat !== 'a_traiter') return;" "      if (!d) return;" \
   "$MW115"
+
+# ── 1.118.0 : l'abonnement après sa revue, lot 1 (le bandeau de l'accueil, un bouton par offre, les phrases exactes, les
+# e-mails d'une facture, la prochaine facture ; docs/revue-abonnement.md) ──
+AR118=base/migrations/0170_abonnement_revue.sql
+AC118=serveur/abonnement/courriels.ts
+AJ118=web/public/plateforme/abonnement.js
+T118E="émise, elle s'annonce une fois ; payée, le reçu part une fois ; rien de la facture dans l'e-mail"
+T118P="une facture payée avant d'avoir été annoncée n'envoie que le reçu ; un autre rôle n'en reçoit rien"
+T118A="l'état dit la facture à régler, puis le choix qui attend sa facture, à qui gère l'abonnement seulement"
+T118N="payé, « Ton abonnement » dit ce que dira la prochaine facture, et les rappels déjà partis"
+T118X="le rappel déjà parti se dit avec son jour, et le prochain qui partira ; sans rappel parti, celui qui partira"
+T118R="ce qui rouvre : choisir, régler, ou attendre la facture ; une entreprise suspendue nous écrit"
+T118B="le bandeau de l'accueil : rien pendant un essai qui court ; son bouton selon ce qui attend et qui lit"
+W118L="en lecture seule, l'accueil le dit en haut avec un seul bouton, et ne propose plus de créer ; il mène aux offres"
+W118G="en grâce, le bouton du bandeau est le seul vert : « + Nouvelle facture » ne l'est plus, les premiers pas se taisent ; la grâce se dit sur sa durée"
+W118C="à un commercial, le bandeau dit qui règle l'abonnement ; à l'essai qui court, l'accueil ne dit rien"
+W118S="suspendue, l'entreprise est invitée à nous écrire, jamais à s'abonner ; prolongé, l'essai ne dit pas un total faux"
+W118H="Hela choisit son offre dans sa carte, confirme, et lit son choix ; la console le voit dans « À décider »"
+prouver 'abo 118 : une facture annoncée à chaque tour' $AR118 \
+  "     where f.annoncee_le is null and f.payee_le is null" "     where f.payee_le is null" \
+  "$T118E"
+prouver 'abo 118 : un brouillon annoncé' $AR118 \
+  "      join ventes.piece p on p.entreprise = f.editeur and p.ref_v10 = f.piece_v10 and p.type = 'facture' and p.statut = 'emise'
+     where f.annoncee_le is null" "      left join ventes.piece p on false
+     where f.annoncee_le is null" \
+  "$T118E"
+prouver 'abo 118 : le reçu à chaque tour' $AR118 \
+  "     where f.payee_le is not null and f.recu_le is null" "     where f.payee_le is not null" \
+  "$T118E"
+prouver 'abo 118 : un e-mail raté noté comme parti' $AC118 \
+  "      console.error(\`un e-mail de facture d'abonnement n'est pas parti : \${String(x)}\`);
+      continue;" "      console.error(\`un e-mail de facture d'abonnement n'est pas parti : \${String(x)}\`);" \
+  "$T118E"
+prouver 'abo 118 : l'\''annonce d'\''une facture déjà payée' $AR118 \
+  "     where f.annoncee_le is null and f.payee_le is null" "     where f.annoncee_le is null" \
+  "$T118P"
+prouver 'abo 118 : un commercial prévenu de la facture' $AR118 \
+  "                           and m.roles && array['proprietaire', 'administrateur']::text[]))" "                           and m.roles && array['proprietaire', 'administrateur', 'commercial']::text[]))" \
+  "$T118P"
+prouver 'abo 118 : les factures lues pour un commercial' serveur/abonnement/routes.ts \
+  "      if (proche && qui && (await peut(tx, qui, params.entreprise ?? '', 'socle.abonnement.voir')).ok) {" "      if (proche) {" \
+  "$T118A"
+prouver 'abo 118 : ce qui attend lu loin de l'\''échéance' serveur/abonnement/routes.ts \
+  "      const proche = etat.etat === 'en_retard' ||" "      const proche = true ||" \
+  "$T118A"
+prouver 'abo 118 : la prochaine facture d'\''un abonnement résilié' serveur/console/renouvellements.ts \
+  "  const attendu = s.etat === 'actif' ? (s.resilie ? null : false)" "  const attendu = s.etat === 'actif' ? false" \
+  "$T118N"
+prouver 'abo 118 : les rappels partis jamais dits' $AR118 \
+  "            from plateforme.relance_abonnement r where r.entreprise = p_entreprise and r.echeance = p_echeance);" "            from plateforme.relance_abonnement r where false);" \
+  "$T118N"
+prouver 'abo 118 : un rappel annoncé alors qu'\''il est parti' $AJ118 \
+  "    if (dernier) return \` Un rappel t'a été envoyé" "    if (false) return \` Un rappel t'a été envoyé" \
+  "$T118X"
+prouver 'abo 118 : le prochain rappel qui est déjà passé' $AJ118 \
+  "    const prochain = relances.filter((n) => n < j)" "    const prochain = relances.filter((n) => n > 0)" \
+  "$T118X"
+prouver 'abo 118 : la lecture seule qui promet « aussitôt »' $AJ118 \
+  "    return ' Choisis ton offre : ta facture arrive ici, et dès qu\\'elle est réglée, tout se rouvre, tel que tu l\\'as laissé.';" "    return ' Pour créer de nouveau, abonne-toi : tout se rouvre aussitôt, tel que tu l\\'as laissé.';" \
+  "$T118R"
+prouver 'abo 118 : la suspendue invitée à s'\''abonner' $AJ118 \
+  "    if (e.raison === 'suspendu') {" "    if (false) {" \
+  "$T118R"
+prouver 'abo 118 : le bandeau qui propose de choisir à qui ne règle pas' $AJ118 \
+  "    const bouton = !gere ? 'Qui le règle ?' : suspendue" "    const bouton = suspendue" \
+  "$T118B"
+prouver 'abo 118 : le bandeau pendant un essai qui court' $AJ118 \
+  "    if (!e || !p.show || p.ton === 'calme') return null;" "    if (!e || !p.show) return null;" \
+  "$T118B"
+prouver 'abo 118 : l'\''accueil muet en lecture seule' web/public/v10/app.js \
+  "      \${bandeauAbonnementAccueil()}
+      \${bandeauAccordsAccueil()}" "      \${bandeauAccordsAccueil()}" \
+  "$W118L"
+prouver 'abo 118 : créer proposé en lecture seule' web/public/v10/app.js \
+  "\${peutEcrireDossier('documents') && !(licence.locked && bridge.dessinerAbonnement) ?" "\${peutEcrireDossier('documents') ?" \
+  "$W118L"
+prouver 'abo 118 : deux verts en grâce' web/public/v10/app.js \
+  "\${pasEnCours || aboPrincipal ? '' : 'btn-primary'}" "\${pasEnCours ? '' : 'btn-primary'}" \
+  "$W118G"
+prouver 'abo 118 : les premiers pas pendant la grâce' web/public/v10/app.js \
+  "    const pas = aboPrincipal ? '' : premiersPas();" "    const pas = premiersPas();" \
+  "$W118G"
+prouver 'abo 118 : la grâce sans sa durée' $AJ118 \
+  "\`Encore \${pl(j, 'jour')} de grâce, sur \${grace}\`" "\`\${pl(j, 'jour')} de grâce\`" \
+  "$W118G"
+prouver 'abo 118 : « À régler » sans facture' $AJ118 \
+  "pastille: suite.aFaire === 'payer' ? 'À régler' : e.apresEssai ? 'Essai terminé' : 'Abonnement échu'," "pastille: 'À régler'," \
+  "$W118G"
+prouver 'abo 118 : le bouton du bandeau qui ne mène nulle part' web/public/v10/app.js \
+  "      allerAbonnement();
+    };
+    if (\$('#new-devis'))" "    };
+    if (\$('#new-devis'))" \
+  "$W118L"
+prouver 'abo 118 : le commercial à qui on ne dit pas qui règle' web/public/v10/app.js \
+  "    const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
+    if (!b) return '';" "    const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(true) : null;
+    if (!b) return '';" \
+  "$W118C"
+prouver 'abo 118 : la suspendue sans l'\''adresse où écrire' $AJ118 \
+  "    const boutonTete = suspendue ? \`<a class=\"btn abo-tete-btn\" href=\"mailto:contact@skanfact.tn?subject=\${sujet}\">Écrire à SkanFact</a>\`" "    const boutonTete = suspendue ? ''" \
+  "$W118S"
+prouver 'abo 118 : l'\''essai prolongé qui dit un total faux' $AJ118 \
+  "          const sur = regles.essai && !suite.prolonge ?" "          const sur = regles.essai ?" \
+  "$W118S"
+prouver 'abo 118 : le choix parti au premier clic' $AJ118 \
+  "        boite.hidden = false;" "        boite.hidden = false; void o.appel('POST', '/abonnement/choisir', { offre, periodicite });" \
+  "$W118H"
+prouver 'abo 118 : deux verts pendant la confirmation' $AJ118 \
+  "        if (tete) tete.classList.remove('btn-primary');" "" \
+  "$W118H"
+prouver 'abo 118 : les mois offerts mal comptés' $AJ118 \
+  "economie = m * 12n - a;" "economie = m * 11n - a;" \
+  "$W118H"
+prouver 'abo 118 : « Annuler » qui ne referme pas' $AJ118 \
+  "        /** @type {HTMLElement} */ (boite.querySelector('[data-annuler]')).onclick = () => { fermer(); b.focus(); };" "" \
+  "$W118H"
 
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les

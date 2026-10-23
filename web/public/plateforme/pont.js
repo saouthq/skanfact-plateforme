@@ -1004,6 +1004,8 @@
     },
     poserMessage,
     pastilleAbonnement: () => /** @type {any} */ (window).SkanAbonnement.pastille(abonnement),
+    // Le bandeau de l'accueil (1.118.0) : ce que l'abonnement attend, et son bouton ; `gere` : la personne le règle.
+    bandeauAbonnement: (/** @type {boolean} */ gere) => /** @type {any} */ (window).SkanAbonnement.bandeau(abonnement, gere),
     dessinerQuarantaine,
     dessinerPaiement,
     dessinerServices,

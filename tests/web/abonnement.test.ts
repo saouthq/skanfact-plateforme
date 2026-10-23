@@ -90,9 +90,9 @@ describe('l\'abonnement, à la souris', () => {
     expect(await p.locator('#set-tabs [data-tab="abonnement"]').getAttribute('class')).toMatch(/\bactive\b/);
     expect(await p.locator('#abonnement-panel .abo-offre h4').allInnerTexts()).toEqual(['Essentiel', 'Complet']);
     expect((await p.locator('#abonnement-panel .abo-prix b').allInnerTexts()).map(net)).toEqual(['390', '690']);
-    // S'abonner se fait ici (1.84.0, C19) : les quatre choix et « Je choisis cette offre », plus un e-mail.
-    expect(await p.locator('#abo-choix .abo-choix-un').count()).toBe(4);
-    expect(await p.getByRole('button', { name: 'Je choisis cette offre', exact: true }).count()).toBe(1);
+    // S'abonner se fait ici (1.84.0, C19 ; 1.118.0 : un bouton par offre et par durée, et l'étape suivante dans l'état).
+    expect(await p.locator('#abonnement-panel [data-choisir]').count()).toBe(4);
+    expect(await p.getByRole('button', { name: 'Choisir mon offre', exact: true }).count()).toBe(1);
     // Les règles telles qu'elles valent pour elle (0104), jamais écrites dans l'écran : la durée de SON essai (trente jours
     // à sa création), les rappels du jour, la grâce de son échéance.
     expect(net(await p.locator('#abonnement-panel .abo-jauge-txt').innerText())).toBe('5 jours sur 30');

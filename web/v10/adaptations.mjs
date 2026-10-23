@@ -876,4 +876,6 @@ export const ADAPTATIONS = [
   ...lireFichier('cabinet-saisie-hors-ligne.txt'),
   // ── « Enregistrer » attend la lecture d'une pièce jointe (1.113.0) ──
   ...lireFichier('lecture-attente.txt'),
+  // ── L'abonnement après sa revue : le bandeau de l'accueil (1.118.0) ──
+  ...lireFichier('abonnement-revue.txt'),
 ];

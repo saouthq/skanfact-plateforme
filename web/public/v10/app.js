@@ -3257,14 +3257,16 @@
     // UN seul vert (U-11) : tant que « Tes premiers pas » porte l'étape suivante en vert (« + Créer un
     // client »), « + Nouvelle facture » ne l'est pas — deux verts disaient deux « prochaines étapes »,
     // dont une impossible sans client. Le panneau fini, l'en-tête reprend son vert.
-    const pas = premiersPas();
+    const aboPrincipal = abonnementPrincipal();
+    const pas = aboPrincipal ? '' : premiersPas();
     const pasEnCours = /btn-primary/.test(pas);
     $('#view').innerHTML = `
       <div class="page-head"><h1>Accueil</h1>
         <div class="actions">
-          ${peutEcrireDossier('documents') ? `<button class="btn" id="new-devis">+ Nouveau devis</button>
-          <button class="btn ${pasEnCours ? '' : 'btn-primary'}" id="new-facture">+ Nouvelle facture</button>` : ''}
+          ${peutEcrireDossier('documents') && !(licence.locked && bridge.dessinerAbonnement) ? `<button class="btn" id="new-devis">+ Nouveau devis</button>
+          <button class="btn ${pasEnCours || aboPrincipal ? '' : 'btn-primary'}" id="new-facture">+ Nouvelle facture</button>` : ''}
         </div></div>
+      ${bandeauAbonnementAccueil()}
       ${bandeauAccordsAccueil()}
       ${pas}
       ${todoPanel()}
@@ -3303,6 +3305,11 @@
         <div class="inline mt"><button class="btn btn-primary" id="start-devis">+ Créer ton premier devis</button>
           <button class="btn btn-ghost" id="start-demo">Voir un exemple rempli</button></div>
       </div>`}`;
+    if ($('#abo-accueil-go')) $('#abo-accueil-go').onclick = () => {
+      const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
+      if (b && b.ecrire) { location.href = 'mailto:contact@skanfact.tn?subject=' + encodeURIComponent('Mon abonnement SkanFact'); return; }
+      allerAbonnement();
+    };
     if ($('#new-devis')) $('#new-devis').onclick = () => navigate('#/doc/new/devis');
     if ($('#new-facture')) $('#new-facture').onclick = () => navigate('#/doc/new/facture');
     // Sur une installation neuve, « Aucun document » ne proposait rien (audit) : on montre le chemin.
@@ -7103,6 +7110,19 @@
       ? `<b>${h(decidee.decideur)} a accordé</b> ta ${quoi} : tu peux ${cmd ? 'l\'envoyer' : 'l\'émettre'}.`
       : `<b>${h(decidee.decideur)} a refusé</b> ta ${quoi}${decidee.motif ? ` : « ${h(decidee.motif)} »` : ''}. Elle reste en brouillon.`}</span>
       <span class="lock-go"><button class="btn btn-sm" id="accords-ouvrir" data-lien="${h(lienAccord(decidee))}">${cmd ? 'Ouvrir la commande' : 'Ouvrir la facture'}</button></span></div>`;
+  }
+  // (plateforme, abonnement) Le bandeau de l'abonnement, en haut de l'accueil (1.118.0) : ce qui attend, et un bouton.
+  function bandeauAbonnementAccueil() {
+    const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
+    if (!b) return '';
+    return `<div class="banner ${b.ton === 'alerte' ? 'danger' : ''} abo-accueil" id="abo-accueil" role="status">
+        <span class="abo-accueil-txt"><b>${h(b.titre)}.</b> ${h(b.texte)}</span>
+        <span class="lock-go"><button type="button" class="btn${b.principal ? ' btn-primary' : ''}" id="abo-accueil-go">${h(b.bouton)}</button></span></div>`;
+  }
+  // Le bouton du bandeau est-il le bouton principal de l'accueil (la grâce, la lecture seule) ?
+  function abonnementPrincipal() {
+    const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
+    return !!(b && b.principal);
   }
   function bandeauAccordsAccueil() {
     if (!accordsEnLigne()) return '';

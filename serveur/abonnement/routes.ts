@@ -21,7 +21,8 @@ import { nettoyerClient, nettoyerSociete, vueDePiece, type PieceLue } from '../v
 import { echeanceDe, estJour, etatAbonnement, graceDe, joursEntre, relancesDu, type Etat, type Faits } from './etat.ts';
 import { faitsDe } from './condition.ts';
 import { ceQueLOffreCompte, modulesFermes, modulesFermesPourMoi } from './offre.ts';
-import { periodeDeLaFacture } from './factures.ts';
+import { htDeLaPeriode, lireLignesEnPlus, periodeDeLaFacture } from './factures.ts';
+import { aRenouveler } from '../console/renouvellements.ts';
 import { lireRemise } from './remise.ts';
 import './textes.ts';
 
@@ -63,13 +64,24 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
 
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/abonnement/etat', geste: 'socle.accueil.voir',
-    traiter: async ({ params }, tx) => {
+    traiter: async ({ params, qui }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const jour = aujourdhuiATunis();
       const f = await faitsDe(tx, params.entreprise ?? '');
       const etat: Etat = f ? etatAbonnement(f, jour) : { etat: 'hors', raison: 'inconnu' };
+      // `aFaire` (1.118.0 ; le bandeau de l'accueil) : quand une échéance approche ou est passée, ce qui attend qui gère
+      // l'abonnement — une facture à régler (« payer »), ou un choix dont la facture se prépare (« attendre »). Rien pour
+      // un autre rôle (la base ne lui rend ni factures ni choix), ni quand l'échéance est loin.
+      const proche = etat.etat === 'en_retard' || etat.etat === 'lecture_seule' || (etat.etat === 'essai' && etat.jours <= 7) || (etat.etat === 'actif' && etat.jours <= 15);
+      let aFaire: 'payer' | 'attendre' | null = null;
+      // Seul qui gère l'abonnement le lit (la base refuse les factures à tout autre rôle : on ne lui demande pas).
+      if (proche && qui && (await peut(tx, qui, params.entreprise ?? '', 'socle.abonnement.voir')).ok) {
+        const lu = (await tx.query('select plateforme.mes_factures_abonnement($1) v', [params.entreprise ?? ''])).rows[0].v as MesFactures | null;
+        const doit = (lu?.pieces ?? []).some((p) => { const v = vueDePiece(p, lu?.paiement === true, jour); return v.statut === 'a_payer' || v.statut === 'en_retard' || v.statut === 'partielle'; });
+        aFaire = doit ? 'payer' : lireChoix((await tx.query('select plateforme.mon_offre_choisie($1) c', [params.entreprise ?? ''])).rows[0]?.c) ? 'attendre' : null;
+      }
       // Les modules que l'offre ne contient pas, pour la personne qui lit (14c) : l'écran les retient AVANT le geste.
-      return { corps: { aujourdhui: jour, ...etat, fermes: await modulesFermesPourMoi(tx, params.entreprise ?? '', jour) } };
+      return { corps: { aujourdhui: jour, ...etat, aFaire, fermes: await modulesFermesPourMoi(tx, params.entreprise ?? '', jour) } };
     },
   });
 
@@ -113,7 +125,21 @@ export function routesAbonnement(ctx: Contexte): Route<never>[] {
       // disent).
       const choix = lireChoix((await tx.query('select plateforme.mon_offre_choisie($1) c', [ent])).rows[0]?.c);
       const peutChoisir = (await peut(tx, qui, ent, 'socle.abonnement.payer')).ok;
+      // `prochaine` (1.118.0, 0170) : ce que dira la prochaine facture d'un abonnement qui se renouvelle, par la règle de
+      // la facture et de la console (aRenouveler, htDeLaPeriode) ; rien quand un prix manque (rien ne s'invente).
+      const r = f ? aRenouveler({ id: ent, etat, faits: f }, jour) : null;
+      const brutProchaine = r ? (await tx.query('select plateforme.ma_prochaine_facture($1, $2, $3, $4::date, $5::date) v', [ent, r.offre, r.periodicite, jour, r.debut])).rows[0]?.v as
+        { prixHt?: unknown; enPlus?: unknown; remise?: unknown } | null : null;
+      const prixProchaine = typeof brutProchaine?.prixHt === 'string' && /^\d+$/.test(brutProchaine.prixHt) ? BigInt(brutProchaine.prixHt) : null;
+      const remiseProchaine = r ? lireRemise(brutProchaine?.remise) : null;
+      const prochaineFacture = r && prixProchaine !== null ? { debut: r.debut, offre: r.offre, periodicite: r.periodicite,
+        montantHt: versTexte(htDeLaPeriode(prixProchaine, lireLignesEnPlus(brutProchaine?.enPlus), remiseProchaine), 3), remise: remiseProchaine?.taux ?? null } : null;
+      // `rappels` (1.118.0, 0170) : les rappels déjà partis pour l'échéance qui vient, avec leur jour.
+      const echeance = f ? echeanceDe(f) : null;
+      const rappels = echeance ? ((await tx.query('select plateforme.mes_rappels($1, $2::date) v', [ent, echeance])).rows[0]?.v as { rang: string; le: string }[] ?? [])
+        .map((x) => ({ rang: x.rang, le: aujourdhuiATunis(new Date(x.le)) })) : [];
       return { corps: { aujourdhui: jour, etat, prix, options, aVenir, historique, factures, enLigne: lu.paiement === true, modules: f?.modules ?? [], choix, peutChoisir,
+        prochaine: prochaineFacture, rappels,
         compte: await ceQueLOffreCompte(tx, ent, jour), regles: reglesPourMoi(f, historique, jour), contenu, fermes: modulesFermes(f, jour),
         remise: remise ? { nature: remise.nature, taux: remise.taux, groupe: remise.groupe, cabinet: remise.cabinet, jusquAu: remise.jusquAu } : null } };
     },

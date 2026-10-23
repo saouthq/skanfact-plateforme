@@ -1,0 +1,73 @@
+L'abonnement après sa revue, lot 1 (1.118.0 ; docs/revue-abonnement.md, P1 1). Format : voir sans-paquets.mjs.
+
+En grâce ou en lecture seule, l'accueil ne disait rien : une petite pastille orange en bas du menu était le seul signe, et
+l'accueil d'une entreprise fermée proposait encore « + Nouveau devis », « + Nouvelle facture » et les premiers pas. Le
+bandeau de l'abonnement se pose en haut de l'accueil quand la pastille attire ou alerte (la même fonction, qui dit les mêmes
+faits : plateforme/abonnement.js, `bandeau`), avec un seul bouton : choisir son offre, régler sa facture, renouveler, ou
+nous écrire pour une entreprise suspendue ; à qui ne gère pas l'abonnement, « Qui le règle ? ». En grâce et en lecture
+seule, son bouton est le bouton principal de l'écran : « + Nouvelle facture » n'est plus vert, et les premiers pas (ceux de
+l'essai) se taisent ; en lecture seule, les boutons de création disparaissent de l'en-tête.
+
+== app.js | le bandeau de l'abonnement de l'accueil se déclare avec celui des accords
+-- avant
+  function bandeauAccordsAccueil() {
+-- après
+  // (plateforme, abonnement) Le bandeau de l'abonnement, en haut de l'accueil (1.118.0) : ce qui attend, et un bouton.
+  function bandeauAbonnementAccueil() {
+    const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
+    if (!b) return '';
+    return `<div class="banner ${b.ton === 'alerte' ? 'danger' : ''} abo-accueil" id="abo-accueil" role="status">
+        <span class="abo-accueil-txt"><b>${h(b.titre)}.</b> ${h(b.texte)}</span>
+        <span class="lock-go"><button type="button" class="btn${b.principal ? ' btn-primary' : ''}" id="abo-accueil-go">${h(b.bouton)}</button></span></div>`;
+  }
+  // Le bouton du bandeau est-il le bouton principal de l'accueil (la grâce, la lecture seule) ?
+  function abonnementPrincipal() {
+    const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
+    return !!(b && b.principal);
+  }
+  function bandeauAccordsAccueil() {
+-- fin
+
+== app.js | après l'essai, les premiers pas se taisent : le bouton de l'abonnement est l'étape suivante
+-- avant
+    const pas = premiersPas();
+    const pasEnCours = /btn-primary/.test(pas);
+-- après
+    const aboPrincipal = abonnementPrincipal();
+    const pas = aboPrincipal ? '' : premiersPas();
+    const pasEnCours = /btn-primary/.test(pas);
+-- fin
+
+== app.js | l'en-tête de l'accueil ne propose plus de créer en lecture seule, et cède son vert au bandeau en grâce
+-- avant
+          ${peutEcrireDossier('documents') ? `<button class="btn" id="new-devis">+ Nouveau devis</button>
+          <button class="btn ${pasEnCours ? '' : 'btn-primary'}" id="new-facture">+ Nouvelle facture</button>` : ''}
+        </div></div>
+      ${bandeauAccordsAccueil()}
+-- après
+          ${peutEcrireDossier('documents') && !(licence.locked && bridge.dessinerAbonnement) ? `<button class="btn" id="new-devis">+ Nouveau devis</button>
+          <button class="btn ${pasEnCours || aboPrincipal ? '' : 'btn-primary'}" id="new-facture">+ Nouvelle facture</button>` : ''}
+        </div></div>
+      ${bandeauAbonnementAccueil()}
+      ${bandeauAccordsAccueil()}
+-- fin
+
+== app.js | le bouton du bandeau mène à l'abonnement (ou dit qui le règle) ; pour une entreprise suspendue, il ouvre l'e-mail
+-- avant
+    if ($('#new-devis')) $('#new-devis').onclick = () => navigate('#/doc/new/devis');
+-- après
+    if ($('#abo-accueil-go')) $('#abo-accueil-go').onclick = () => {
+      const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
+      if (b && b.ecrire) { location.href = 'mailto:contact@skanfact.tn?subject=' + encodeURIComponent('Mon abonnement SkanFact'); return; }
+      allerAbonnement();
+    };
+    if ($('#new-devis')) $('#new-devis').onclick = () => navigate('#/doc/new/devis');
+-- fin
+
+== visites.js | le bouton du bandeau de l'abonnement, expliqué
+-- avant
+  b('#abo-voir', "Ouvre l'abonnement de l'entreprise : pourquoi la création attend, et comment la rouvrir.");
+-- après
+  b('#abo-voir', "Ouvre l'abonnement de l'entreprise : pourquoi la création attend, et comment la rouvrir.");
+  b('#abo-accueil-go', "Ouvre l'abonnement de l'entreprise, là où se choisit l'offre et se règle la facture. C'est le propriétaire, ou un administrateur, qui le règle ; aux autres, ce bouton dit qui s'en occupe.");
+-- fin

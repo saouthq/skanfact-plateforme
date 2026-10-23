@@ -31,6 +31,9 @@
 }
 .abo-tete.attire .abo-pastille { background: rgba(245, 185, 113, .14); color: #f5c58a; border-color: rgba(245, 185, 113, .35); }
 .abo-tete.alerte .abo-pastille { background: rgba(255, 140, 128, .14); color: #ffab9f; border-color: rgba(255, 140, 128, .38); }
+/* Le bouton de l'état (1.118.0) : l'étape suivante, sous la phrase qui la dit. */
+.abo-tete-btn { margin-top: 6px; }
+.abo-tete .abo-prochaine { color: #e8f3f1; font-weight: 600; }
 .abo-jauge { flex: 0 1 240px; min-width: 180px; display: flex; flex-direction: column; gap: 8px; }
 .abo-jauge-txt { font-size: 14px; font-weight: 600; color: #fff; font-variant-numeric: tabular-nums; }
 .abo-barre { height: 8px; border-radius: 4px; background: rgba(255, 255, 255, .12); overflow: hidden; }
@@ -52,10 +55,10 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
    qu'elle comprend commence à la même hauteur. Une colonne au téléphone : chaque carte garde ses lignes. */
 .abo-offres { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
 .abo-offre {
-  display: grid; grid-row: span 5; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;
+  display: grid; grid-row: span 7; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;
   background: var(--panel); border: 1px solid var(--border); box-shadow: var(--shadow);
 }
-.abo-offres.avec-avenir .abo-offre { grid-row: span 6; }
+.abo-offres.avec-avenir .abo-offre { grid-row: span 8; }
 .abo-offre-corps { display: flex; flex-direction: column; gap: 10px; }
 .abo-offre.courante { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary), var(--shadow); }
 .abo-offre-tete { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
@@ -66,6 +69,22 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-prix b { font-family: var(--abo-titre); font-weight: 650; font-size: 38px; line-height: 1; letter-spacing: -0.03em; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .abo-prix span { font-size: 14px; font-weight: 600; color: var(--muted); }
 .abo-mois { font-size: 13.5px; color: var(--muted); }
+/* L'année contre douze mois (1.118.0) : ce qu'on gagne à l'année, sous les deux prix. */
+.abo-annee { font-size: 13.5px; font-weight: 650; color: var(--primary); }
+.abo-annee:empty { display: none; }
+/* Les boutons de la carte (1.118.0), sous le prix : à l'année, puis au mois ; et, sous eux, ce que le choix fera, avec
+   « Annuler » et la confirmation (rien ne part au premier clic). Repliés tant qu'un choix attend sa facture. */
+.abo-offre-gestes { display: flex; flex-direction: column; gap: 10px; }
+.abo-offre-gestes:empty { display: none; }
+.abo-offre-boutons { display: flex; flex-wrap: wrap; gap: 8px; }
+.abo-offre-boutons [aria-pressed="true"] { border-color: var(--primary); box-shadow: inset 0 0 0 1px var(--primary); }
+.abo-offres.abo-replie .abo-offre-gestes { display: none; }
+.abo-confirmer { display: flex; flex-direction: column; gap: 8px; padding: 14px 16px; border-radius: 14px; background: var(--primary-soft); font-size: 13.5px; line-height: 1.5; color: var(--text); }
+.abo-confirmer[hidden] { display: none; }
+.abo-confirmer p { margin: 0; }
+.abo-confirmer-gestes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.abo-note { margin: 0; font-size: 13.5px; color: var(--muted); }
+.abo-note a { font-weight: 650; color: var(--primary); }
 /* Un prix à venir (0103) : sous celui d'aujourd'hui, posé sur la couleur douce de la marque, pour qu'on le voie sans qu'il
    crie. */
 .abo-avenir-bloc { display: flex; flex-direction: column; gap: 6px; }
@@ -84,7 +103,12 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 /* ── Au-delà de l'offre (14c) : ce que chaque ligne compte à gauche, son prix à droite, à la même place d'une ligne à
    l'autre ── */
 .abo-plus { display: flex; flex-direction: column; gap: 10px; padding: 18px 22px; border-radius: 16px; border: 1px solid var(--border); background: var(--panel); }
-.abo-plus-tete { display: flex; flex-direction: column; gap: 4px; }
+/* Replié par défaut (1.118.0 : ces lignes ne concernent pas tout le monde) ; ouvert quand l'entreprise dépasse son offre. */
+.abo-plus-tete { display: flex; flex-direction: column; gap: 4px; cursor: pointer; list-style: none; position: relative; padding-inline-end: 28px; }
+.abo-plus-tete::-webkit-details-marker { display: none; }
+.abo-plus-tete::after { content: ''; position: absolute; inset-inline-end: 4px; top: 6px; width: 9px; height: 9px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(45deg); transition: transform .15s; }
+.abo-plus[open] > .abo-plus-tete::after { transform: rotate(-135deg); top: 10px; }
+.abo-plus:not([open]) { gap: 0; }
 .abo-plus-tete h4 { font-family: var(--abo-titre); font-weight: 650; font-size: 16px; color: var(--text); }
 .abo-plus-tete p { font-size: 13px; line-height: 1.5; color: var(--muted); }
 .abo-plus-liste { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 28px; }
@@ -106,13 +130,6 @@ body.dark .abo-tete { box-shadow: inset 0 0 0 1px rgba(127, 224, 211, .12); }
 .abo-payer-txt { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .abo-payer-txt h4 { font-family: var(--abo-titre); font-weight: 650; font-size: 17px; color: var(--text); }
 .abo-payer-txt p { font-size: 14px; line-height: 1.55; color: var(--text); }
-.abo-choix-liste { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; border: 0; padding: 0; margin: 4px 0; }
-.abo-choix-un { display: flex; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: 14px; background: var(--surface, #fff); border: 1px solid var(--border); cursor: pointer; }
-.abo-choix-un:has(input:checked) { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary) inset; }
-.abo-choix-un input { margin-top: 3px; accent-color: var(--primary); }
-.abo-choix-un > span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; }
-.abo-choix-un > span > span { color: var(--muted); font-variant-numeric: tabular-nums; }
-@media (max-width: 640px) { .abo-choix-liste { grid-template-columns: 1fr; } }
 .abo-payer-txt a { font-weight: 650; color: var(--primary); text-decoration: underline; text-underline-offset: 3px; overflow-wrap: anywhere; }
 
 /* ── À l'échéance : trois étapes, dans l'ordre où elles arrivent ── */
@@ -188,9 +205,21 @@ iframe.abo-piece { width: 100%; height: 75vh; border: 1px solid var(--border); b
   .abo-payer { flex-direction: column; gap: 12px; padding: 18px; }
   .abo-payer-txt { width: 100%; }
   .abo-piece-gestes .btn { min-height: 44px; }
+  /* Au téléphone, les boutons d'une offre et de sa confirmation prennent toute la largeur, à 44 px. */
+  .abo-offre-boutons .btn, .abo-confirmer-gestes .btn { flex: 1 1 auto; min-height: 44px; }
+  .abo-tete-btn { align-self: stretch; min-height: 44px; text-align: center; }
   /* La barre du haut du téléphone reste à l'écran : la facture s'ouvre sous elle, « ← Ton abonnement » en vue. */
   .abo-vue-piece { scroll-margin-top: 76px; }
 }
 
 /* La caisse fermée, en lecture seule : la phrase qui le dit, avant qu'on tape le fond de caisse. */
 .ct-abo { margin: 4px 0 14px; padding: 12px 14px; border-radius: 14px; background: var(--danger-soft); border: 1px solid var(--danger); text-align: start; }
+
+/* Le bandeau de l'abonnement, en haut de l'accueil (1.118.0) : ce qui attend, en une phrase, et un seul bouton. */
+.banner.abo-accueil { align-items: center; flex-wrap: wrap; font-weight: 500; line-height: 1.5; }
+.abo-accueil-txt { flex: 1 1 420px; min-width: 0; }
+.abo-accueil-txt b { font-weight: 700; }
+.banner.abo-accueil .lock-go { flex: none; }
+@media (max-width: 720px) {
+  .banner.abo-accueil .lock-go, .banner.abo-accueil .lock-go .btn { flex: 1 1 auto; width: 100%; min-height: 44px; }
+}
