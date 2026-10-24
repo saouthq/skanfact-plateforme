@@ -474,6 +474,69 @@ geste demande son motif et entre au journal avec le numéro de l'incident.
   chacune : contenir, dire, réparer, écrire) disent quand chacune a servi pour la dernière fois ; trois portent un
   « à décider » ou un « à vérifier » (le site de secours, l'INPDP).
 
+**C24 bis. L'application fermée aux clients : « Maintenance en cours »** (demandé par Skander le 22/10/2026 : « la
+partie gestion (maintenance en cours) » ; 1.107.0, base 0164, `serveur/fermeture.ts`). Pendant un geste risqué (une
+migration lourde, une reprise de données), annoncer ne suffisait pas : les clients continuaient d'écrire. Dans
+`#/service/incidents`, la direction et la technique peuvent **fermer l'application aux clients** :
+- **maintenant** (« Fermer l'application maintenant… », une urgence) : ce que les clients liront, l'heure où elle se
+  rouvre (douze heures au plus) et le motif ; une « Maintenance urgente » qui commence à la seconde naît,
+  et la page d'état l'annonce comme les autres ;
+- **pendant une maintenance annoncée** : la case de la fenêtre « annoncer », ou « fermer l'application pendant… » sur
+  une maintenance à venir ou en cours ;
+- **rouvrir** à tout moment (« Rouvrir l'application… ») : la maintenance finit à la seconde ; à sa fin prévue, elle se
+  rouvre seule.
+
+Fermée, un **bandeau** tient la tête de l'écran (jusqu'à quand, ce que lisent les clients) et « Rouvrir » y est le seul
+bouton principal. Le serveur répond alors à chaque client un **503** (« Maintenance en cours : SkanFact revient vers
+14 h 30, et rien n'a été fait. … », avec `Retry-After`), et à qui ouvre l'application une page « Maintenance en
+cours » qui se recharge seule chaque minute. **Restent ouverts** : la console (ses pages et son API), la documentation
+de l'API (la veille la demande chaque minute) et les fichiers des écrans (ils ne lisent rien). Le serveur relit la
+fermeture au plus toutes les cinq secondes ; les gestes de la console l'oublient tout de suite. Une base illisible
+laisse l'application ouverte (une panne de lecture ne met personne dehors). Chaque geste demande son motif et entre au
+journal (« application fermée aux clients », « application rouverte aux clients »). Quand le programme lui-même ne
+répond pas (il redémarre pendant une mise à jour), c'est le frontal qui dit « Maintenance en cours »
+(`docs/mise-en-ligne.md`, M).
+
+**C24 ter. Le carnet de crise et les messages prêts** (demandé par Skander le 22/10/2026 : « se préparer à la gestion de
+crise » ; 1.109.0, `web/console/src/carnet.ts`, cadrage 06 § 9). Le jour où SkanFact tombe, la console peut tomber avec
+lui ; ce qu'on fait se lit alors sur un papier ou sur le téléphone.
+- **Le carnet** : « Télécharger le carnet de crise » (en tête des fiches réflexes, `#/service/incidents`) écrit un seul
+  fichier HTML, sans rien à charger, qui s'imprime une fiche par page (18 pages en A4) : les cinq premières minutes, la
+  gravité, ce qu'on s'est promis (06 § 4.1), qui appeler, où est quoi (dont la commande de l'accès d'urgence, C59), les
+  dix fiches avec leurs messages prêts, et l'après. Il est écrit avec les textes de la console : une fiche changée
+  change le carnet suivant (« un carnet plus ancien que la dernière fiche changée se réimprime »). **Il ne porte aucune
+  donnée** : « qui appeler » a des cases vides, à remplir à la main sur le papier, jamais dans le dépôt (il est public).
+  `node scripts/carnet-de-crise.ts [fichier]` écrit le même hors de la console.
+- **Les messages prêts** : chaque fiche porte ce que dit la page d'état et l'e-mail aux entreprises touchées, écrits à
+  froid ; une fiche dont la crise ne se dit pas sur la page (un accès volé, une pièce changée : on prévient la personne)
+  ou ne touche pas les clients (une sauvegarde) n'en a pas. Ils se lisent dans la fiche et se **copient d'un geste**
+  (l'e-mail avec son objet) ; ils ne partent jamais d'eux-mêmes.
+- **Entre crochets, ce qui se remplit au moment** (« [heure] », « [le partenaire] »). Ouvrir un incident sur une fiche
+  et cocher « le dire tout de suite » pose son message dans le champ ; changer de fiche le change tant qu'on n'y a pas
+  touché. **Un passage entre crochets ne part jamais sur la page d'état** : la fenêtre le refuse en le citant, et le
+  serveur aussi (à l'ouverture, en point public, en maintenance annoncée).
+- (1.114.0) **« Où est quoi »** cite aussi la page de secours (`etat.skanfact.tn`, `docs/mise-en-ligne.md` I quater) :
+  quand la console est tombée avec le serveur, le mot aux clients s'écrit là, avec la clé de secours du pli scellé.
+
+**C24 quater. Les exercices de crise** (demandé par Skander le 22/10/2026 : « se préparer à la gestion de crise » ;
+1.113.0, base 0166, `serveur/console/incidents.ts`, `web/console/src/ecrans/Incidents.tsx`). Un incident qu'on n'a
+jamais joué se joue mal le jour où il arrive : on le joue avant, à blanc. Direction et technique, sous les fiches
+réflexes de `#/service/incidents`.
+- **Faire un exercice…** : une fiche (d'abord une que le lancement attend encore) et qui joue (les prénoms, qui tient le
+  chrono). Le chrono part en tête de l'écran ; il **vit dans l'onglet** (il survit à une page rechargée) et rien n'en
+  part au serveur avant le compte rendu. Il ne touche à rien : ni la page d'état, ni un client, ni un incident.
+- **Les quatre temps de la fiche** (contenir, dire, réparer, écrire) se cochent dans l'ordre, d'un seul bouton « Fait »
+  à la fois ; chacun garde sa minute. « Lire la fiche » l'ouvre à côté ; « Abandonner… » demande, et ne note rien.
+- **Le compte rendu** : ce qui a marché, ce qui a coincé, ce qu'on change, et le verdict. **« Réussi » demande les
+  quatre temps faits** ; un exercice qui coince se note « à refaire » (c'est ce qu'on veut savoir). La base tient la
+  règle elle-même : commencé il y a moins de douze heures, des temps à la minute entre le début et la fin, dans l'ordre ;
+  chaque exercice a sa ligne au journal (`service.exercice_crise`). Un exercice resté ouvert plus de douze heures dans
+  l'onglet n'est pas rouvert (il serait refusé).
+- **Ce qu'on en lit** : chaque fiche dit « exercée le … » ou « à refaire depuis le … » ; la liste de l'année (400 jours)
+  se relit, temps par temps ; le compteur dit combien de fiches sont **réussies depuis un an** et lesquelles manquent.
+  C'est la condition de J5 (`docs/cadrage/09-feuille-de-route.md`) ; la répétition générale en demande trois avant les
+  pilotes (`docs/repetition-generale.md` 4.9).
+
 **C25. Les travaux et les envois du service** (10 § 2.8 ; base 0090). `#/service/travaux`, la direction et la technique.
 Ce que le serveur fait seul, et ce qu'il envoie aux partenaires : quatre chiffres (ce qui attend son dépôt à la TTN, ce
 qui est parti aujourd'hui chez tous les partenaires comptés, ce qui reste à regarder, le dernier tour du facteur) ; une

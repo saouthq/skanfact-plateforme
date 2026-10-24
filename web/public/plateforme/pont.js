@@ -87,6 +87,12 @@
     const w = /** @type {any} */ (window);
     if (w.SkanLecture) w.SkanLecture.fermer(motif);
   }
+  // (1.134.0) Le réseau manque : sans réseau du tout, les mots du bandeau « Hors ligne » (« le serveur ne répond pas » faisait
+  // chercher une panne chez SkanFact) ; un geste dit qu'il n'a rien fait (UX 2).
+  /** @param {string} methode */
+  const motifReseau = (methode) => (typeof navigator !== 'undefined' && navigator.onLine === false
+    ? (methode === 'GET' ? 'Pas de réseau pour lire cette page : réessaie quand la connexion revient.' : 'Pas de réseau : rien n\'a été fait. Refais ce geste quand la connexion revient.')
+    : 'Le serveur ne répond pas : vérifie ta connexion, puis réessaie.');
   /** @param {string} methode @param {string} chemin */
   async function appelLecture(methode, chemin) {
     if (methode !== 'GET' || !/^\/dossier-v10(\?|$)/.test(chemin)) throw Object.assign(new Error(EN_LECTURE), { statut: 403, bouton: null, champ: null, lecture: true });
@@ -131,7 +137,7 @@
     } catch (e) {
       // Le réseau manque (brique 72) : le bandeau le dit, et la copie du poste prend le relais.
       poste.horsLigne();
-      const x = new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e });
+      const x = new Error(motifReseau(methode), { cause: e });
       /** @type {any} */ (x).horsLigne = true;
       throw x;
     }
@@ -829,7 +835,7 @@
   /** @param {string} iso */
   const jourATunis = (iso) => new Date(iso).toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', year: 'numeric' });
   /** @type {[string, string, string][]} */
-  const PERIMETRES = [['comptabilite', 'La comptabilité', 'ses écritures, la validation des mois, la balance'],
+  const PERIMETRES = [['comptabilite', 'La comptabilité', 'ses écritures, la validation des mois, la balance, et les justificatifs joints à tes achats'], // (1.135.0) le justificatif s'ouvre au Cabinet
     ['declarations', 'Les déclarations', 'TVA, retenues à la source'],
     ['saisie_achats', 'La saisie des achats', 'tes factures d\'achat, s\'il les saisit pour toi'],
     ['paie', 'La paie', 'le salaire de chacun : décochée tant que tu ne la confies pas']];
@@ -919,7 +925,7 @@
     try { inv = (await appel('GET', '/mandat/invitation')).invitation; } catch { /* sans réponse : le formulaire seul */ }
     const secours = lienDeSecours
       ? `<label class="field mt">Le lien, à lui envoyer si l'e-mail n'arrive pas<input type="text" id="mandat-lien" readonly value="${esc(lienDeSecours)}"></label>
-         <button type="button" class="btn btn-sm" id="mandat-lien-copier">Copier le lien</button>
+         <button type="button" class="btn btn-sm btn-primary" id="mandat-lien-copier">Copier le lien</button>
          <p class="small" role="status" id="mandat-lien-copie"></p>` : '';
     lienDeSecours = null;
     /** @param {unknown} x */
@@ -948,6 +954,9 @@
       // paie », confiée, se montrait décochée (parcours du 21/10/2026). « Envoyer un nouveau lien » part avec ce qu'elles
       // disent alors.
       const confie = Array.isArray(inv.perimetre) ? inv.perimetre.map(String) : null;
+      // (1.123.0) Un seul vert, l'étape suivante : l'invitation partie, « Confier mon dossier » (le chemin du code, pas
+      // pris) cède le vert à « Copier le lien » (revue du mois d'un client, 23/10/2026 : les deux étaient verts).
+      panneau.querySelector('#mandat-confier')?.classList.remove('btn-primary');
       if (confie) for (const c of panneau.querySelectorAll('[data-perimetre]')) /** @type {HTMLInputElement} */ (c).checked = confie.includes(String(/** @type {HTMLElement} */ (c).dataset.perimetre));
       zone.innerHTML = `<h3>Il n'est pas encore sur SkanFact</h3>
         <p id="mandat-invite" tabindex="-1">Tu as invité <strong>${esc(inv.email)}</strong>${confie && confie.length ? ` pour ${esc(lesPerimetres(confie))}` : ''} : son lien vaut jusqu'au ${esc(jourATunis(inv.expire))}. ${esc(ETAT_DE_L_EMAIL[inv.courriel] || '')}</p>
@@ -975,6 +984,14 @@
       <p class="small" role="alert"></p>
       <button type="button" class="btn" id="mandat-inviter-envoyer">Inviter mon comptable</button>`;
     const b = /** @type {HTMLElement} */ (zone.querySelector('#mandat-inviter-envoyer'));
+    // (1.128.0) Le vert suit le chemin qu'on prend : le curseur dans l'adresse (venu du premier pas « Inviter mon
+    // comptable »), ou une adresse tapée, et c'est « Inviter mon comptable » ; le code, et c'est « Confier mon dossier »
+    // (revue du mois d'un client, point 11 : le curseur attendait dans l'e-mail, le vert était sur le code).
+    const email = /** @type {HTMLElement} */ (zone.querySelector('#mandat-email')), code = panneau.querySelector('#mandat-code');
+    /** @param {boolean} inviterVert */
+    const suivre = (inviterVert) => { b.classList.toggle('btn-primary', inviterVert); panneau.querySelector('#mandat-confier')?.classList.toggle('btn-primary', !inviterVert); };
+    for (const ev of ['focus', 'input']) { email.addEventListener(ev, () => suivre(true)); code?.addEventListener(ev, () => suivre(false)); }
+    if (document.activeElement === email) suivre(true);
     b.onclick = () => agir(async () => {
       const champ = /** @type {HTMLInputElement} */ (zone.querySelector('#mandat-email'));
       const email = String(champ.value).trim();
@@ -1004,6 +1021,8 @@
     },
     poserMessage,
     pastilleAbonnement: () => /** @type {any} */ (window).SkanAbonnement.pastille(abonnement),
+    // Le bandeau de l'accueil (1.118.0) : ce que l'abonnement attend, et son bouton ; `gere` : la personne le règle.
+    bandeauAbonnement: (/** @type {boolean} */ gere) => /** @type {any} */ (window).SkanAbonnement.bandeau(abonnement, gere),
     dessinerQuarantaine,
     dessinerPaiement,
     dessinerServices,
@@ -1013,6 +1032,19 @@
       attente: () => appel('GET', '/messages/attente'),
       dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, { ...o, appel, cote: 'entreprise' }),
       rangerAchat: (/** @type {string} */ message, /** @type {string} */ achat, /** @type {string} */ libelle) => appel('POST', `/messages/${encodeURIComponent(message)}/achat`, { achat, libelle }),
+      // (1.124.0) Ce que le cabinet a fait d'une période dans les livres (carte « Ce mois-ci ») ; qui ne lit pas les livres : null.
+      resume: async (/** @type {string} */ du, /** @type {string} */ au) => {
+        try { return await appel('GET', `/compta/resume?du=${encodeURIComponent(du)}&au=${encodeURIComponent(au)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
+      },
+      // (1.133.0) L'écriture de vente d'une pièce émise (son numéro) : la page de lecture de la facture dit ce qu'en a fait
+      // le comptable. Le jour de sa validation se lit à Tunis. Qui ne lit pas les livres, ou une pièce pas encore au journal : null.
+      ecriturePiece: async (/** @type {string} */ numero) => {
+        /** @type {any} */
+        let r;
+        try { r = await appel('GET', `/compta/ecritures?journal=VT&piece=${encodeURIComponent(numero)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
+        const x = (r.ecritures || []).find((/** @type {any} */ e) => e.origine && e.origine.type === 'vente');
+        return x ? { statut: x.statut, numero: x.numero, valideeLe: x.valideeLe ? new Date(x.valideeLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }) : null } : null;
+      },
       envoyerFichier: (/** @type {File} */ f, /** @type {string} */ texte, /** @type {any} */ piece) =>
         /** @type {any} */ (window).SkanMessagerie.envoyerFichier(appel, 'entreprise', f, texte, piece),
     },
@@ -1061,6 +1093,8 @@
       // (docs/leger.md, S2) : l'état de l'abonnement (la v10 le lit juste avant de dessiner) et les remises des appareils
       // retirés ; les questions du cabinet partent avec le dossier (`relire`). Demandées l'une après l'autre, elles
       // coûtaient trois allers-retours, presque une seconde sur une connexion lente.
+      // (1.136.0) Tant que le serveur n'a pas répondu, la page dit qu'elle s'ouvre (poste.js, « L'ouverture »).
+      poste.ouverture('ton entreprise');
       avancerAbonnement();
       const remisesLues = lireRemises();
       const attente = await poste.lireAttente(ent).catch(() => null);
@@ -1074,11 +1108,18 @@
         // La page reçoit ce dossier : elle a chacun de ses objets (brique 112).
         adopter();
         await chargerRemises(remisesLues);
+        poste.finOuverture();
         return { data, corruptFile: null };
       } catch (e) {
         if (/** @type {any} */ (e).statut === 404) return await plusOuverte();
-        if (!/** @type {any} */ (e).horsLigne) throw e;
+        // (1.136.0) Un refus du serveur à l'ouverture laissait l'écran blanc pour toujours (l'erreur ne remontait à
+        // personne) : la page le dit, avec « Réessayer ».
+        if (!/** @type {any} */ (e).horsLigne) {
+          poste.echecOuverture('ton entreprise', e);
+          return await new Promise(() => { /* rien ne s'ouvre : « Réessayer » recharge */ });
+        }
         const copie = avecTicketsEnAttente(await lireLaCopie());
+        poste.finOuverture();
         if (fileTickets.length) annoncerAttente();
         if (!attente) return { data: copie, corruptFile: null };
         // Ce qui a été enregistré sans réseau se montre, et attend toujours.
@@ -1564,7 +1605,7 @@
       r = await fetch(`/v1${chemin}`, { method: methode, headers: entetes, cache: 'no-store', ...(corps === undefined ? {} : { body: JSON.stringify(corps) }) });
     } catch (e) {
       poste.horsLigne();
-      const x = new Error('Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e });
+      const x = new Error(motifReseau(methode), { cause: e });
       /** @type {any} */ (x).horsLigne = true;
       throw x;
     }
@@ -1697,7 +1738,9 @@
     return abonnement;
   }
   /** @param {HTMLElement} el */
-  function dessinerAbonnement(el) { return /** @type {any} */ (window).SkanAbonnement.dessiner(el, { appel }); }
+  // (1.122.0) `plus.ecrire` : écrire au support dans SkanFact (une entreprise suspendue), que l'écran de la v10 fournit.
+  /** @param {HTMLElement} el @param {{ ecrire?: (() => unknown) | null }} [plus] */
+  function dessinerAbonnement(el, plus = {}) { return /** @type {any} */ (window).SkanAbonnement.dessiner(el, { appel, ecrire: plus.ecrire || null }); }
   // ── Le message de SkanFact à ses clients (0093 ; message.js, docs/console.md C28) : relu avec la licence de la v10 (au
   // chargement, chaque heure, au retour au premier plan), posé en haut de la page ouverte, puis de chaque page que le
   // routeur dessine. Sans réponse du serveur, le dernier connu reste.

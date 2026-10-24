@@ -90,7 +90,7 @@ describe('le client tenu rejoint son dossier, à la souris', () => {
     await e.waitForURL(new RegExp(`/v10/\\?e=${ent}`), { timeout: 20_000 });
     await e.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await expect.poll(() => e.locator('body').innerText(), { timeout: 15_000 }).toContain('Boulangerie Zitouna');
-    await expect.poll(() => e.locator('body').innerText(), { timeout: 15_000 }).toMatch(/Essai — \d+\sjours/);
+    await expect.poll(() => e.locator('body').innerText(), { timeout: 15_000 }).toMatch(/Essai : \d+\sjours/);
     await e.screenshot({ path: path.join(PHOTOS, 'rejoindre-dossier-3-client.png') });
     const jeton = await e.evaluate(() => sessionStorage.getItem('skanfact.jeton') ?? localStorage.getItem('skanfact.jeton'));
     expect(((await api('GET', `/entreprises/${ent}/mandat`, String(jeton))).corps.mandat as { statut: string }).statut).toBe('actif');

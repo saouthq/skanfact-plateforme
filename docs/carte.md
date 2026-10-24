@@ -36,6 +36,8 @@ vaut pour tout le dépôt.*
   efface tout ; le propriétaire décide. Un test hors ligne coupe le réseau en ARRÊTANT le serveur : le
   service des écrans passe à côté de la coupure que le navigateur simule (ou on le bloque dans le
   contexte du navigateur, `serviceWorkers: 'block'`, quand le parcours n'a pas à rouvrir sans réseau).
+  (1.136.0) L'ouverture qui tarde le dit (« Ouverture de ton entreprise… », plus de dix secondes : « plus long que
+  d'habitude ») ; refusée par le serveur, elle le dit, avec « Réessayer » et la page d'état (`poste.js`, « L'ouverture »).
 - **La lecture d'une facture d'achat en photo ou en PDF** (brique 84, `docs/achats.md`) : sur NOS serveurs
   (Tesseract, Poppler : `serveur/achats/lecteur.ts`, une file de deux lectures), le fichier jamais gardé ;
   une proposition que la v10 fait relire, chaque champ avec la ligne où il a été lu, le total recompté
@@ -445,7 +447,20 @@ vaut pour tout le dépôt.*
     y être recopiées ; une pièce demandée se reçoit quand le client l'envoie ; une photo ou un PDF (10 Mo, reconnus à
     leurs octets) se range dans les achats. L'alerte par e-mail ne porte RIEN du message (ni nom, ni identifiant),
     part une fois cinq minutes après, à une adresse vérifiée (`postier.ts`, `SKANFACT_ALERTES_MS`). Pas de « en train
-    d'écrire » : la page relit toutes les 30 secondes, page visible.
+    d'écrire » : la page relit toutes les 30 secondes, page visible. (1.115.0, après la revue UI/UX du 22/10/2026,
+    `docs/revue-messagerie.md` ; `0167`) « Mon comptable » dans le pied fixe du menu ; la boîte du cabinet en deux
+    colonnes, la conversation à droite, ↑/↓ ; le fil à la hauteur de l'écran ; « Envoyer la pièce » en fenêtre (photo
+    vue, ou pièce déjà saisie) ; au téléphone, un bouton de bulle à côté de « Menu » (`telephone.js`, 7). (1.116.0,
+    `0168`) La pièce demandée a une date « pour le » et se relance par e-mail, sans rien de la demande (le jour venu,
+    puis chaque semaine, trois au plus : `messagerie.relances_dues`, `relancerLesDemandes` dans `postier.ts`) ;
+    plusieurs pièces en une demande, la même à plusieurs clients ; « Ouvrir » et « Saisir cette pièce » chez le cabinet
+    (adaptation de `web/v10/messagerie.txt`). (1.117.0, `0169`) Les modèles du cabinet (`messagerie.modele`, hors de
+    l'export), chercher dans un fil (`/messages/recherche`, `messagerie.plier`) et un client dans la boîte, la pastille
+    des messages sur la liste des dossiers du Cabinet. (1.123.0 à 1.135.0 ; `docs/revue-mois-client.md`,
+    `web/v10/mois-client.txt`, `web/v10/achats-confies.txt`, `web/v10/ce-mois-cabinet.txt`, `web/v10/invitation-d-abord.txt`, `web/v10/visites-une-fois.txt`, `web/v10/envoyer-par-email.txt`, `web/v10/valider-sans-fenetre.txt`, `web/v10/fiche-courte.txt`, `web/v10/lecture-piece.txt`) La photo jointe à l'achat que la demande cite ; la date de la pièce dans l'« À faire »
+    (`pourLe`) ; « Ce mois-ci » dans « Mon comptable » (`GET /compta/resume`) ; au Cabinet, le oui ou non du
+    justificatif d'un achat (`compta.achats_justifies`, `0173`), « Demander le justificatif » depuis la ligne, la
+    validation qui le dit ; la page Achats qui, les achats confiés au cabinet (`achatsConfies`), envoie d'abord la photo ; « Ce mois-ci » dans le Suivi d'un dossier au Cabinet, avec son geste ; l'invitation du comptable d'abord, son vert là où est le curseur ; une proposition de visite par ouverture, et « Ne plus me proposer de visites » ; « Envoyer par e-mail… » quand un cabinet lit déjà tout ; la validation d'un lot qui finit sur l'étape suivante ; une fiche neuve en quatre cases ; une facture émise qui se lit (son résumé, et son écriture au journal des ventes : `GET /compta/ecritures?piece=`) ; (1.135.0, `0174`, `web/v10/justificatif-cabinet.txt`, `web/v10/declaration-mois-avant.txt`) au Cabinet, le justificatif d'une écriture qui s'ouvre (`GET /compta/ecritures/:e/justificatifs`), et le mois d'avant le livre qui se déclare à sa date. (1.136.0 à 1.139.0) L'ouverture qui tarde ou que le serveur refuse le dit (`poste.js`) ; au Cabinet, les lectures refusées disent « Réessayer » (`web/v10/etats-cabinet.txt`) ; l'Accueil d'une entreprise qui facture déjà, dans l'ordre du travail (`web/v10/accueil-au-travail.txt`).
   - **Les e-mails du serveur sont habillés** (12/10/2026, maquette validée par Skander ; `serveur/courriel.ts`,
     `serveur/courriel.html`) : la version HTML dit EXACTEMENT le texte (qui part aussi), le code en grand, le lien en
     bouton qui nomme son geste (`…_bouton` au catalogue : un e-mail neuf qui porte un lien en déclare un, un test le
@@ -504,7 +519,23 @@ vaut pour tout le dépôt.*
   - **L'offre choisie dans l'application** (1.84.0 ; `docs/abonnement.md` C19) : `plateforme.offre_choisie`
     (`base/migrations/0158_offre_choisie.sql`), `POST /entreprises/:e/abonnement/choisir` (`serveur/abonnement/routes.ts`),
     les choix de « Ton abonnement » (`brancherChoix`, `web/public/plateforme/abonnement.js`), la ligne `offre_choisie`
-    d'« À décider » (`serveur/console/decider.ts`).
+    d'« À décider » (`serveur/console/decider.ts`). (1.118.0, après la revue du 22/10/2026, `docs/revue-abonnement.md`,
+    `docs/abonnement.md` C20 ; `0170`) Le bandeau de l'accueil (`bandeau`, `web/v10/abonnement-revue.txt`, `aFaire` de
+    `/abonnement/etat`), un bouton par offre confirmé sous lui, la prochaine facture (`plateforme.ma_prochaine_facture`,
+    `aRenouveler`), les rappels déjà partis (`plateforme.mes_rappels`), les e-mails « facture prête » et « paiement reçu »
+    (`serveur/abonnement/courriels.ts`, `plateforme.factures_a_annoncer`, avec le postier). (1.119.0, `docs/abonnement.md`
+    C21 ; `0171`) La facture au choix (`serveur/abonnement/facturier.ts` : `facturerLesChoix`, `facturerBientot`,
+    `plateforme.choix_a_facturer`, `noter_facture_au_choix`, `choix_refuse`), le prix TTC (`netDUneOffre`,
+    `serveur/abonnement/factures.ts`), « Ne pas renouveler » (`POST /abonnement/renouvellement`,
+    `plateforme.mon_renouvellement`), un module ouvert tout de suite (`POST /abonnement/module`,
+    `plateforme.mon_module_ouvrir`), et dans l'écran `brancherRenouvellement`, `brancherModules`.
+  - **L'abonnement des cabinets** (1.120.0 ; `docs/abonnement.md` C22 ; `base/migrations/0172_abonnement_cabinet.sql`) :
+    les règles datées (`plateforme.regle_cabinet`), les dossiers comptés (`plateforme.dossiers_du_cabinet`), l'état
+    (`plateforme.etat_cabinet`), le calcul de la facture (`plateforme.calcul_facture_cabinet`), la facture émise seule
+    (`serveur/abonnement/cabinet.ts`), la lecture seule des payants (`serveur/abonnement/condition.ts`), « Ton
+    abonnement » du Cabinet (`web/public/plateforme/abonnement-cabinet.js`, `web/v10/abonnement-cabinet.txt`, le pont
+    `licenceStatus`, `dessinerAbonnementCabinet`, `creationDossier`), et la console (`Reglages.tsx`, « L'abonnement des
+    cabinets » ; `Cabinet.tsx`, « Son abonnement » ; la ligne `facture_cabinet` d'« À décider »).
   - **L'abonnement de bout en bout** (1.83.0 ; `docs/recette.md`) : la première abonnée d'un groupe est celle qui a payé
     (`plateforme.remise_de`, `base/migrations/0157_la_premiere_abonnee.sql`) ; « à facturer » dans « À décider »
     (`A_FACTURER_JOURS`, `serveur/console/decider.ts`, les factures qui attendent par `argentADecider`,
@@ -533,7 +564,8 @@ vaut pour tout le dépôt.*
     l'exige pour tout geste neuf) : la porte ferme ce qui crée de la valeur ou engage (émettre, ouvrir la caisse, lire
     une facture d'achat), jamais une lecture, un export ni ce que la loi demande pour l'existant. **L'écran retient la
     création AVANT le geste**, à l'ouverture de l'éditeur ou de la caisse (`licenceBlock` de la v10 nourri par l'état) :
-    un refus pris à « Enregistrer » jette la saisie. Les relances (15 j, 7 j, la veille, la lecture seule ; une fois par
+    un refus pris à « Enregistrer » jette la saisie ; l'état vide d'une liste dont la création attend mène à
+    l'abonnement, et un « + Nouveau… » de tête n'y est plus vert (1.134.0, `web/v10/lecture-seule-listes.txt`). Les relances (15 j, 7 j, la veille, la lecture seule ; une fois par
     échéance) ne disent pas le nom de l'entreprise. Les gestes de SkanFact (`exploitation/abonnement.sh`, et la console
     depuis Console 1, une seule règle : `serveur/abonnement/gestes.ts`) exigent un motif et laissent un événement qu'on
     ne modifie ni n'efface ; l'entreprise ne voit jamais le motif. Le paiement en ligne est venu en 14b ; ce qui
@@ -817,6 +849,13 @@ vaut pour tout le dépôt.*
     pièces tenu à jour, des index, la fiche qui ne lit que la sienne) ; `serveur/console/instantane.ts` (le calcul de la
     liste partagé par l'équipe, une minute) ; le banc `banc/console/mesurer.ts` (`npm run banc:console` : 5 000 entreprises,
     cinq personnes, 95 % sous 300 ms).
+  - **La charge des clients** (1.110.0 ; VISION § 6) : le banc `banc/clients/mesurer.ts` (`npm run banc:clients` :
+    500 utilisateurs au travail sur 60 entreprises de cinq ans, le programme en deux exemplaires) ; base
+    `0165_equilibree_sans_detour.sql` (le contrôle d'équilibre des écritures sans la sécurité par ligne).
+  - **Le plancher des navigateurs** (1.112.0 ; VISION § 4.1) : `commun/navigateurs.ts` (Chrome et Edge 111, Firefox 121,
+    Safari et iOS 16.4), visé par `web/vite.config.ts` ; `tests/web/navigateurs.test.ts` relit tout ce qui est servi (la
+    syntaxe ES2022, les fonctions plus jeunes, les feuilles de style). Le plus petit téléphone (320 points) :
+    `tests/web/telephone-commercant.test.ts`. Les vrais appareils : `docs/repetition-generale.md`, 5 bis.
   - **Le contenu des pièces relu contre son empreinte** (1.53.0 ; `docs/console.md` C66) : base `0142_relire_contenus.sql`
     (l'état du contenu de chaque chaîne, les pièces rendues au serveur seul, la relecture demandée, ce que la console et la
     veille en lisent) ; `serveur/service/contenus.ts` (la relecture : chaque heure après les liens, et celle qu'on demande),
@@ -852,6 +891,21 @@ vaut pour tout le dépôt.*
   (`exploitation/suivre.ts`, toutes les deux minutes) et installe la plus récente version que GitHub a vérifiée en
   vert ; un réglage du serveur passe par une tâche d'entretien (`exploitation/taches/NNNN-nom.sh`, une fois chacune).
   Son état se lit à `https://app.skanfact.tn/etat.json` (serveur d'essai seulement ; `/etat`, la page publique, partout).
+  (1.106.0) **Deux branches, deux serveurs** (`docs/mise-en-ligne.md`, L) : le travail arrive sur `dev`
+  (`dev.skanfact.tn`) ; `main` (`app.skanfact.tn`) ne reçoit qu'une version de `dev` passée par toutes les preuves
+  (`tests/promouvoir.sh`).
+  (1.107.0) **« Maintenance en cours »** (`docs/mise-en-ligne.md`, M ; `docs/console.md`, C24 bis) : le frontal la
+  sert quand le programme ne répond pas (`exploitation/maintenance.html`, tâche 0012) ; la console ferme
+  l'application aux clients pendant un geste risqué, et la rouvre (base 0164, `serveur/fermeture.ts`).
+  (1.108.0) **Les pages à part dans la DA** (`commun/page-a-part.ts`, `docs/mise-en-ligne.md`, M bis) : les deux
+  maintenances, la page d'état et le mot « sans JavaScript », d'un seul habit ; `node scripts/pages-a-part.ts` les écrit.
+  (1.109.0) **Le carnet de crise** (`web/console/src/carnet.ts`, `docs/console.md` C24 ter) : un fichier hors ligne, écrit
+  avec les textes de la console ; `node scripts/carnet-de-crise.ts` l'écrit hors de la console.
+  (1.114.0) **La page d'état de secours** (`exploitation/guet-second/secours.ts`, `docs/mise-en-ligne.md` I quater) :
+  `etat.skanfact.tn`, chez Cloudflare, dans le Worker du second guet ; elle répond quand SkanFact ne répond plus, et
+  porte le mot de l'équipe (écrit avec la clé de secours).
+  (1.113.0) **Les exercices de crise** (base 0166, `docs/console.md` C24 quater) : une fiche jouée à blanc, chronométrée,
+  close par son compte rendu ; le lancement (J5) veut les dix réussies dans l'année.
   **Deux sortes de serveurs** (`installer.sh <adresse> essai|pilotes`, B bis) : l'essai (données inventées) et les
   pilotes (vraies données : relais d'e-mails exigé, aucun état détaillé public, **jamais l'accès de Claude**).
   **Claude a la main dessus** (Skander, 05/10/2026) :

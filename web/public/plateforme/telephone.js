@@ -31,6 +31,10 @@
 //    TVA, la destination, la TVA déductible) partaient avec lui (vu en recette le 21/10/2026). Elles se rangent au-dessus
 //    des lignes, une seule fois et non sur chaque ligne, chacune avec ce qu'elle explique : les mêmes bulles, qui
 //    s'ouvrent au doigt (`.aide-colonnes`, telephone.css). À l'ordinateur, l'en-tête les porte : rien ne s'ajoute.
+// 7. Les messages, à côté de « Menu » (1.115.0). Au téléphone, « Mon comptable » (l'entreprise) et « Messages » (le
+//    Cabinet) vivaient dans le menu replié : la pastille d'un message du cabinet ne se voyait qu'en ouvrant le menu
+//    (revue de la messagerie du 22/10/2026). Un bouton à côté de « Menu » mène au même endroit et porte la même pastille,
+//    recopiés de l'entrée du menu (son adresse, son nom, si elle paraît) : il ne décide rien par lui-même.
 (function () {
   'use strict';
   function poserMenu() {
@@ -49,6 +53,36 @@
     // Une page choisie ferme le menu (le lien change l'adresse).
     window.addEventListener('hashchange', () => basculer(false));
     tete.appendChild(b);
+    poserMessages(barre, tete, b);
+  }
+
+  // ── Les messages, à côté de « Menu » ──
+  /** @param {Element} barre @param {Element} tete @param {HTMLElement} menu */
+  function poserMessages(barre, tete, menu) {
+    const a = document.createElement('a');
+    a.className = 'btn btn-sm menu-tel msg-tel';
+    a.hidden = true;
+    a.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="msg-tel-pastille" hidden></span>';
+    const pastille = /** @type {HTMLElement} */ (a.querySelector('.msg-tel-pastille'));
+    tete.insertBefore(a, menu);
+    let prevue = 0;
+    const recopier = () => {
+      prevue = 0;
+      const source = /** @type {HTMLAnchorElement | null} */ (barre.querySelector('#foot-comptable, nav a[data-route="messages"]'));
+      const compte = /** @type {HTMLElement | null} */ (source && source.querySelector('.nav-count'));
+      const n = compte && !compte.hidden ? (compte.textContent || '').trim() : '';
+      const nom = source ? [...source.childNodes].filter((x) => x.nodeType === 3).map((x) => x.textContent).join('').trim() : '';
+      poser(a, 'hidden', source && !source.hidden ? '' : 'hidden');
+      if (!source) return;
+      poser(a, 'href', source.getAttribute('href') || '');
+      poser(a, 'aria-label', n ? `${nom} (${n})` : nom);
+      poser(a, 'aria-current', source.classList.contains('active') ? 'page' : '');
+      if (pastille.textContent !== n) pastille.textContent = n;
+      if (pastille.hidden !== !n) pastille.hidden = !n;
+    };
+    new MutationObserver(() => { if (!prevue) prevue = requestAnimationFrame(recopier); })
+      .observe(barre, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class', 'href'] });
+    recopier();
   }
 
   // ── Les listes en cartes ──
@@ -67,6 +101,10 @@
   // Une case qui ne porte qu'une case à cocher (choisir la ligne) ne nomme pas la ligne.
   /** @param {HTMLTableCellElement} td */
   const choix = (td) => !(td.textContent || '').trim() && td.querySelectorAll('input[type=checkbox]').length === 1 && td.querySelectorAll('input, select, button, a').length === 1;
+  // (1.143.0) Une date seule ne nomme pas la ligne non plus : la carte d'un achat se titrait « 23/10/2026 », la pièce et
+  // le fournisseur venaient dessous (UX 3). La ligne prend le nom de la case suivante, la date reste une case.
+  /** @param {HTMLTableCellElement} td */
+  const dateSeule = (td) => /^\d{2}\/\d{2}\/\d{4}$/.test((td.textContent || '').trim()) && !td.querySelector('input, select, button, a');
   /** @param {HTMLTableElement} table */
   function enCartes(table) {
     const tete = table.tHead && table.tHead.rows[table.tHead.rows.length - 1];
@@ -82,10 +120,12 @@
           const titre = td.colSpan === 1 ? titres[col] || '' : '';
           col += td.colSpan;
           const vide = !(td.textContent || '').trim() && !td.querySelector('input, select, button, a, img, svg, canvas');
-          const nomme = !vide && !nommee && !choix(td) && !td.classList.contains('row-actions');
+          const nomme = !vide && !nommee && !choix(td) && !dateSeule(td) && !td.classList.contains('row-actions');
           if (nomme) nommee = true;
           poser(td, 'data-tel', vide ? 'vide' : nomme ? 'titre' : '');
           poser(td, 'data-label', nomme ? '' : titre);
+          // (1.143.0) Le client ou le fournisseur se lit juste sous les montants : « Type : Facture » passait avant lui (UX 3).
+          poser(td, 'data-tel-tiers', !nomme && !vide && /^(client|fournisseur|tiers)$/i.test(titre) ? 'oui' : '');
         }
       }
     }

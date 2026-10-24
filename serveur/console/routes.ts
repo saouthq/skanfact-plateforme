@@ -27,7 +27,7 @@ import { EXERCICE_TROP_VIEUX_J, HORS_MACHINE_EN_RETARD_MIN, HORS_MACHINE_GRAVE_M
 import { connecterConsole, renvoyerCodeConsole, validerCodeConsole } from './connexion.ts';
 import { lireDiffusions, portee, PUBLICS } from './diffusion.ts';
 import { lireEffets, periodes } from './impact.ts';
-import { aDecider, CATEGORIES, inscriteCetteSemaine, lireChoisies, lireEntreprises, lireVeille, tableau, type Entreprise, type Veille } from './decider.ts';
+import { aDecider, CATEGORIES, inscriteCetteSemaine, lireCabinetsRefuses, lireChoisies, lireEntreprises, lireVeille, tableau, type Entreprise, type Veille } from './decider.ts';
 import { cabinetsDe, chercherCabinets, ficheCabinet, ligneCabinet, lireCabinets } from './cabinets.ts';
 import { renouvellementsDe } from './renouvellements.ts';
 import { prevoir } from './previsions.ts';
@@ -61,10 +61,11 @@ import { argentADecider, couts, encaisse, encaisseDuMois, lirePaiements, moisAva
 import { dansLeFiltre, etatTtn, FILTRES, ligne, lireNosFactures, resume as resumeDesFactures, type Filtre } from './nosfactures.ts';
 import { joursDuCertificat, lireClesDeCommande, lireSecurite, rangerARegarder, REGLES as REGLES_DE_CONNEXION } from './securite.ts';
 import { historique, lireEtatSuiveur, lireVersionsDeLaBase, prochaine, systemeDe, taches, titreDeTache, versionDAvant, type EtatSuiveur } from './versions.ts';
-import { fichesServies, FICHES, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
+import { exercicesDuLancement, fichesServies, FICHES, lireExercices, lireIncidents, lirePageEtat, maintenances, ouverts, passes, refIncident, suites, type PageEtat } from './incidents.ts';
+import { oublierLaFermeture } from '../fermeture.ts';
 import { budgets, comparable, exemplaires, laBase, periodeDAvant, routes as lesRoutes, SORTES_DESSINEES } from './performances.ts';
 import {
-  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, lireContenuOffres, lireRemises, CODES_REMISE, QUOI_CONTENU, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
+  ecartDePrix, essaisEnCours, grille, grilleAjouts, lireAjouts, lirePrixPrepares, lireReglages, lireReglesAbonnement, CODES_REGLE, lireContenuOffres, lireRemises, CODES_REMISE, CODES_CABINET, CABINET_EN_ARGENT, lireReglesCabinet, QUOI_CONTENU, preparesPar, QUOI_PRIX, registre, sujetDesReglages, type QuoiPrix,
 } from './reglages.ts';
 import { lireFormats, registreDesFormats } from './formats.ts';
 import { etatDesNouveautes, listeDesNouveautes, NOUVEAUTES } from '../nouveautes.ts';
@@ -334,7 +335,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const argent = paiements ? { ...argentADecider(paiements, liste, jour,
         lireContestations(await lireJson(transaction(tx), 'select plateforme.console_contestations($1) v', [instant]))),
         sorties: lireSorties(await lireJson(transaction(tx), 'select plateforme.console_sorties($1::date) v', [jour])),
-        choisies: lireChoisies(await lireJson(transaction(tx), 'select plateforme.console_offres_choisies() v')) } : null;
+        choisies: lireChoisies(await lireJson(transaction(tx), 'select plateforme.console_offres_choisies() v')),
+        cabinets: lireCabinetsRefuses(await lireJson(transaction(tx), 'select plateforme.console_factures_cabinet_refusees() v')) } : null;
       // La tuile « Inscriptions » compte les lignes de la liste qu'elle ouvre, par la fonction de la liste (C3 ; 0114).
       const inscriptions = base ? selectionClients(base.valeur, jour, { nouvelles: '1' }).dansVue.length : 0;
       const { revenusDuMois, ...pourLeSupport } = tableau(liste, veille, jour, demandes, instant, revenus, inscriptions);
@@ -502,7 +504,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const argent = role === 'direction'
         ? { ...argentADecider(lirePaiements(await lireJson(transaction(tx), 'select plateforme.console_paiements($1::date) v', [`${jour.slice(0, 7)}-01`])), liste, jour, contestations),
             sorties: sortie && !sortie.close ? [{ ...sortie, entreprise: { id, nom: String(fiche.raisonSociale ?? '') } }] : [],
-            choisies: lireChoisies(await lireJson(transaction(tx), 'select plateforme.console_offres_choisies() v')) } : null;
+            choisies: lireChoisies(await lireJson(transaction(tx), 'select plateforme.console_offres_choisies() v')),
+        cabinets: lireCabinetsRefuses(await lireJson(transaction(tx), 'select plateforme.console_factures_cabinet_refusees() v')) } : null;
       const attend = aDecider(liste, { etat: 'absente' }, jour, role, support.ouvertes, maintenant(), argent);
       const instant = maintenant();
       // Ses factures d'abonnement (docs/abonnement.md B2–B4), et l'entreprise SkanFact où elles naissent.
@@ -732,7 +735,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
   });
   ajouter({
     methode: 'GET', chemin: '/console/cabinets/:id', geste: 'console.clients.voir',
-    traiter: async ({ params }, tx) => {
+    traiter: async ({ params, qui }, tx) => {
       const id = params.id ?? '';
       if (!uuid.safeParse(id).success) throw new Introuvable();
       const t = transaction(tx);
@@ -740,7 +743,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       if (!cabinet) throw new Introuvable();
       const jour = aujourdhuiATunis();
       const entreprises = await lesEntreprises(t, jour);
-      return { corps: { aujourdhui: jour, ...ficheCabinet(cabinet, entreprises) } };
+      // Son abonnement (0172) : la direction et le support le lisent ; la technique, non (aucune donnée de client).
+      const role = roleDe(qui);
+      const abonnement = role === 'direction' || role === 'support'
+        ? await lireJson(t, 'select plateforme.console_abonnement_cabinet($1, $2::date) v', [id, jour]) : null;
+      return { corps: { aujourdhui: jour, ...ficheCabinet(cabinet, entreprises), abonnement } };
     },
   });
 
@@ -1422,18 +1429,22 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const depuis = debut30 < debutAn ? debut30 : debutAn;
       const v = lireVeilleDeLaBase(await lireJson(x, 'select plateforme.console_service_veille($1) v', [`${depuis}T00:00:00+01:00`]));
       const lu = lireIncidents(await lireJson(x, 'select plateforme.console_service_incidents($1) v', [t.toISOString()]));
+      const fermees = new Set((await lireJson<unknown[]>(x, 'select plateforme.console_fermetures($1) v', [`${debut30}T00:00:00+01:00`])).map(String));
       const veille = await lireLaVeille(fichierVeille, t);
       const mesure = (a: string) => v.jours.filter((j) => j.jour >= a).reduce((m, j) => ({ mesurees: m.mesurees + j.mesurees, bas: m.bas + j.bas }), { mesurees: 0, bas: 0 });
       const deVeille30 = { ...v, jours: v.jours.filter((j) => j.jour >= debut30), alertes: v.alertes };
       const s = suites(lu, jour);
+      const exercices = lireExercices(await lireJson(x, 'select plateforme.console_exercices_crise($1) v', [t.toISOString()]));
       return {
         corps: {
           maintenant: t.toISOString(), aujourdhui: jour, veille, alertesEnCours: alertesOuvertes(deVeille30.alertes), briques: briques(deVeille30, jour, t, veille.etat === 'ok'),
           ouverts: ouverts(lu), suites: s.aTenir, suitesEnRetard: s.enRetard, suitesFaites: s.faites,
           page: await pageEtatDe(), disponibilite30: disponibilite(deVeille30).taux,
-          maintenances: maintenances(lu, misesEnLigne(v).filter((m) => m.le >= `${debut30}T00:00:00`), v.coupures, t),
+          maintenances: maintenances(lu, misesEnLigne(v).filter((m) => m.le >= `${debut30}T00:00:00`), v.coupures, t, fermees),
           passes: { trente: passes(lu, `${debut30}T00:00:00+01:00`, mesure(debut30)), annee: passes(lu, `${debutAn}T00:00:00+01:00`, mesure(debutAn)), annee_n: Number(jour.slice(0, 4)) },
           fiches: fichesServies(lu), exercice: v.exercice, equipe: lu.equipe, fichesConnues: FICHES,
+          // 0166 (C24 quater) : les exercices de crise, et ce qu'il en manque pour le lancement.
+          exercices, lancement: exercicesDuLancement(exercices, t),
         },
       };
     },
@@ -1468,8 +1479,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
           aRegarder: lu.aRegarder.map(({ motif: m, ...r }) => ({ ...r, attente: attenteDe({ ...r, motif: m }), motifCle: m?.cle ?? null,
             motifTexte: m && roleDe(qui) === 'direction' ? texteDuMotif(m) : null })),
           nuit: v.nuits.at(-1) ?? null, exercice: v.exercice, version: v.dernier?.version ?? null,
-          // La TTN est branchée par son adresse (le contexte porte toujours son coffre) ; le relais d'e-mails, par sa présence.
-          branches: { ttn: Boolean(ctx.ttn?.adresse), courriel: Boolean(ctx.courriel) },
+          // La TTN est branchée par son adresse (le contexte porte toujours son coffre) ; le relais d'e-mails, par sa présence ;
+          // DigiGo, les SMS et le paiement en ligne, comme partout ailleurs (recette du 22/10/2026 : « Bon » sur des partenaires
+          // qu'aucun réglage ne branchait, quand la TTN disait « pas branché »).
+          branches: { ttn: Boolean(ctx.ttn?.adresse), courriel: Boolean(ctx.courriel), signature: Boolean(ctx.efacture?.digigo),
+            sms: ctx.sms.disponible !== false, paiements: Boolean(ctx.paiement) },
         },
       };
     },
@@ -1703,7 +1717,11 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     },
   });
   const gravite = z.enum(['mineur', 'majeur', 'critique']);
-  const sansBalise = (min: number, max: number) => z.string().trim().min(min).max(max).refine((x) => !/[<>]/.test(x), 'console.sans_balise');
+  // (1.109.0) Les messages prêts des fiches portent des passages entre crochets (« [heure] ») : la page d'état publique n'en
+  // montre jamais un qu'on aurait oublié de remplir.
+  const aRemplir = (x: string) => /\[[^\]]*\]/.test(x);
+  const sansBalise = (min: number, max: number) => z.string().trim().min(min).max(max).refine((x) => !/[<>]/.test(x), 'console.sans_balise')
+    .refine((x) => !aRemplir(x), 'console.a_remplir');
   const lireUuid = (x: string | undefined) => { if (!x || !uuid.safeParse(x).success) throw new Introuvable(); return x; };
   ajouter({
     methode: 'POST', chemin: '/console/service/incidents', geste: 'console.service.gerer',
@@ -1714,9 +1732,23 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       return { statut: 201, corps: { id: r.id, ref: refIncident(r.annee, r.numero) } };
     },
   });
+  // Un exercice de crise fini (0166 ; C24 quater) : il finit quand on le note, la base dit s'il tient (ses temps dans l'ordre,
+  // entre son début et sa fin ; réussi seulement si ses quatre temps ont été faits). Il ne touche à rien d'autre.
+  const texteExercice = z.string().trim().min(3).max(2000);
+  ajouter({
+    methode: 'POST', chemin: '/console/service/exercices', geste: 'console.service.gerer',
+    corps: z.object({ fiche: z.enum(FICHES), debut: z.string().datetime({ offset: true }), temps: z.array(z.number().int().min(0).nullable()).length(4),
+      participants: z.string().trim().min(3).max(300), marche: texteExercice, coince: texteExercice, change: texteExercice, reussi: z.boolean() }),
+    traiter: async ({ corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_noter_exercice($1, $2, $3, $4, $5, $6, $7, $8, $9) v',
+        [corps.fiche, corps.debut, JSON.stringify(corps.temps), corps.participants, corps.marche, corps.coince, corps.change, corps.reussi, maintenant()]);
+      return { statut: 201, corps: { id } };
+    },
+  });
   ajouter({
     methode: 'POST', chemin: '/console/service/incidents/:incident/points', geste: 'console.service.gerer',
-    corps: z.object({ texte: z.string().trim().min(3).max(1000), public: z.boolean(), gravite: gravite.nullable() }),
+    corps: z.object({ texte: z.string().trim().min(3).max(1000), public: z.boolean(), gravite: gravite.nullable() })
+      .refine((c) => !(c.public && aRemplir(c.texte)), { message: 'console.a_remplir', path: ['texte'] }),
     traiter: async ({ params, corps }, tx) => {
       await transaction(tx).query('select plateforme.console_point_incident($1, $2, $3, $4, $5)', [lireUuid(params.incident), corps.texte, corps.public, corps.gravite, maintenant()]);
       return { statut: 201, corps: { ok: true } };
@@ -1761,11 +1793,43 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
   });
   ajouter({
     methode: 'POST', chemin: '/console/service/maintenances', geste: 'console.service.gerer',
-    corps: z.object({ titre: sansBalise(3, 200), texte: sansBalise(3, 500), debut: z.string().datetime({ offset: true }), fin: z.string().datetime({ offset: true }), motif: motifGeste }),
+    corps: z.object({ titre: sansBalise(3, 200), texte: sansBalise(3, 500), debut: z.string().datetime({ offset: true }), fin: z.string().datetime({ offset: true }), motif: motifGeste,
+      // (1.107.0) L'application fermée aux clients pendant le créneau (base 0164).
+      fermee: z.boolean().optional() }),
     traiter: async ({ corps }, tx) => {
       const id = await lireJson<string>(transaction(tx), 'select plateforme.console_annoncer_maintenance($1, $2, $3, $4, $5, $6) v',
         [corps.titre, corps.texte, corps.debut, corps.fin, corps.motif, maintenant()]);
+      if (corps.fermee) await transaction(tx).query('select plateforme.console_fermer_pendant($1, $2, $3)', [id, corps.motif, maintenant()]);
       return { statut: 201, corps: { id } };
+    },
+  });
+  // (1.107.0 ; base 0164, docs/console.md C24 bis) Fermer l'application aux clients : pendant une maintenance annoncée, ou
+  // maintenant (une urgence) ; et la rouvrir. Le serveur l'apprend à la requête suivante (serveur/fermeture.ts).
+  ajouter({
+    methode: 'POST', chemin: '/console/service/maintenances/:maintenance/fermer', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_fermer_pendant($1, $2, $3)', [lireUuid(params.maintenance), corps.motif, maintenant()]);
+      oublierLaFermeture();
+      return { corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/fermer-maintenant', geste: 'console.service.gerer',
+    corps: z.object({ texte: sansBalise(3, 500), fin: z.string().datetime({ offset: true }), motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const id = await lireJson<string>(transaction(tx), 'select plateforme.console_fermer_maintenant($1, $2, $3, $4) v', [corps.texte, corps.fin, corps.motif, maintenant()]);
+      oublierLaFermeture();
+      return { statut: 201, corps: { id } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/service/maintenances/:maintenance/rouvrir', geste: 'console.service.gerer',
+    corps: z.object({ motif: motifGeste }),
+    traiter: async ({ params, corps }, tx) => {
+      await transaction(tx).query('select plateforme.console_rouvrir($1, $2, $3)', [lireUuid(params.maintenance), corps.motif, maintenant()]);
+      oublierLaFermeture();
+      return { corps: { ok: true } };
     },
   });
   ajouter({
@@ -1797,6 +1861,8 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
       const contenu = lireContenuOffres(await lireJson(x, 'select plateforme.console_contenu_offres($1::date) v', [jour]));
       // Les remises (0106) : celle du groupe et celle du cabinet, ce qui est préparé, et combien de sociétés sont en groupe.
       const remises = lireRemises(await lireJson(x, 'select plateforme.console_remises($1::date) v', [jour]));
+      // L'abonnement des cabinets (0172) : ses règles du jour, ce qui est préparé, et combien de cabinets sont abonnés.
+      const cabinets = lireReglesCabinet(await lireJson(x, 'select plateforme.console_regles_cabinet($1::date) v', [jour]));
       // Les formats officiels : le registre du code, ce que la plateforme en a fait (0094), et si ce serveur a l'adresse
       // de la TTN et de DigiGo (sans elle, les pièces attendent).
       const formats = registreDesFormats(lireFormats(await lireJson(x, 'select plateforme.console_formats() v')), { teif: versionTeif() },
@@ -1816,6 +1882,7 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
           regles,
           contenu,
           remises,
+          cabinets,
           registre: registre(r.regles, jour),
           // Chaque message avec son public et sa diffusion (0139, C63) ; et ce que chaque public atteint aujourd'hui.
           ...(() => {
@@ -1962,6 +2029,33 @@ export function routesConsole(ctx: Contexte, options: { veille?: string | null; 
     traiter: async ({ corps }, tx) => {
       const instant = maintenant();
       await transaction(tx).query('select plateforme.console_retirer_remise($1, $2::date, $3, $4, $5::date)',
+        [corps.code, corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { corps: { ok: true } };
+    },
+  });
+  // Une règle de l'abonnement des cabinets (0172) : préparée comme un prix, avec le préavis, puis retirée avant sa date
+  // si besoin. Un montant se tape en dinars ; un nombre de dossiers ou de jours, en entier.
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/cabinet', geste: 'console.reglages.gerer',
+    corps: z.object({ code: z.enum(CODES_CABINET), valeur: z.string().max(40), aPartirDu: jourIso, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      const argent = CABINET_EN_ARGENT.includes(corps.code);
+      const v = corps.valeur.replace(/\s/g, '');
+      const valeur = argent ? prixTape(v) : /^\d{1,4}$/.test(v) ? BigInt(v) : null;
+      if (valeur === null || (argent && valeur <= 0n)) return refusDuChamp('valeur', argent ? 'console.reglages.prix_illisible' : 'console.reglages.nombre_illisible');
+      if (!jourExiste(corps.aPartirDu)) return refusDuChamp('aPartirDu', 'console.reglages.jour_illisible');
+      await transaction(tx).query('select plateforme.console_preparer_regle_cabinet($1, $2::bigint, $3::date, $4, $5, $6::date)',
+        [corps.code, valeur.toString(), corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
+      return { statut: 201, corps: { ok: true } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/console/reglages/cabinet/retirer', geste: 'console.reglages.gerer',
+    corps: z.object({ code: z.enum(CODES_CABINET), aPartirDu: jourIso, motif: motifGeste }),
+    traiter: async ({ corps }, tx) => {
+      const instant = maintenant();
+      await transaction(tx).query('select plateforme.console_retirer_regle_cabinet($1, $2::date, $3, $4, $5::date)',
         [corps.code, corps.aPartirDu, corps.motif, instant, aujourdhuiATunis(instant)]);
       return { corps: { ok: true } };
     },

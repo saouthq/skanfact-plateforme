@@ -1,0 +1,54 @@
+Au Cabinet, le justificatif que le client a joint à son achat s'ouvre depuis l'écriture (1.135.0 ;
+docs/revue-mois-client.md, point 13 ; décidé par délégation le 23/10/2026). Format : voir sans-paquets.mjs.
+
+La recette du 23/10/2026 : Hatem lit « 📎 joint par le client à son achat, dans SkanFact » sur l'écriture GMS-26-4471, et
+rien ne s'ouvre ; la photo n'est que dans le fil des messages. Un comptable valide une écriture en regardant sa pièce :
+le cabinet qui tient la comptabilité du client ouvre, en lecture, les justificatifs joints à l'achat d'où naît
+l'écriture (le serveur, compta.justificatifs_ecriture, 0174), et rien d'autre de ses pièces jointes.
+
+== cabinet/app.js | le justificatif du client s'ouvre en ligne : un dans un onglet, plusieurs nommés dans une fenêtre
+-- avant
+  // Les gestes d'ouverture d'une pièce : un par justificatif du client (trois au plus, le paquet
+  // montre le reste). Rangés par la table d'actions de l'écriture ET par celle d'une ligne de paquet.
+-- après
+  // (plateforme) 1.135.0 — en ligne, le justificatif que le client a joint à son achat : un s'ouvre dans un onglet,
+  // plusieurs se nomment dans une fenêtre (revue du mois d'un client, point 13).
+  async function ouvrirJustifEnLigne(dossier, e) {
+    let l;
+    try { l = await api.justificatifsEcriture(dossier.id, e.id); } catch (x) { toast(plainError(x), 'error'); return; }
+    if (!l.length) { toast(`Le justificatif n'est plus joint à l'achat de ${dossier.name} : il a pu le retirer.`, 'error'); return; }
+    const ouvrir = f => api.ouvrirJustificatif(dossier.id, e.id, f.fichier).catch(x => toast(plainError(x), 'error'));
+    if (l.length === 1) { await ouvrir(l[0]); return; }
+    modal(`<h2>Les justificatifs du client</h2>
+      <p class="small">${esc(dossier.name)} a joint ${l.length} fichiers à l'achat ${esc(e.piece || e.libelle || '')}.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">${l.map((f, i) => `<button class="btn" data-jc="${i}">${esc(f.nom)}</button>`).join('')}</div>
+      <div class="modal-actions"><button class="btn" id="jc-fermer">Fermer</button></div>`,
+    (layer, close) => {
+      $('#jc-fermer', layer).onclick = () => close();
+      $$('[data-jc]', layer).forEach(b => { b.onclick = () => { void ouvrir(l[Number(b.dataset.jc)]); }; });
+    });
+  }
+  // Les gestes d'ouverture d'une pièce : un par justificatif du client (trois au plus, le paquet
+  // montre le reste). Rangés par la table d'actions de l'écriture ET par celle d'une ligne de paquet.
+-- fin
+
+== cabinet/app.js | le menu d'une écriture d'achat justifiée offre de l'ouvrir
+-- avant
+    a.push(...actionsJustifsClient(e));
+    // (plateforme) 1.125.0 — l'achat du client n'a pas de justificatif : le réclamer d'ici, la pièce citée d'avance, dans
+-- après
+    a.push(...actionsJustifsClient(e));
+    // (plateforme) 1.135.0 — l'achat du client porte un justificatif : il s'ouvre d'ici (il n'était que dans le fil).
+    if (e.justifClient === true && !e.attente && api.justificatifsEcriture) {
+      a.push({ icon: 'ouvrir', label: 'Ouvrir le justificatif du client', court: 'Justificatif',
+        hint: `Joint par ${dossier.name} à son achat, dans SkanFact`, run: () => ouvrirJustifEnLigne(dossier, e) });
+    }
+    // (plateforme) 1.125.0 — l'achat du client n'a pas de justificatif : le réclamer d'ici, la pièce citée d'avance, dans
+-- fin
+
+== cabinet/app.js | le 📎 dit où l'ouvrir
+-- avant
+    if (ec && ec.justifClient === true) noms.push('joint par le client à son achat, dans SkanFact');
+-- après
+    if (ec && ec.justifClient === true) noms.push('joint par le client à son achat, dans SkanFact (il s\'ouvre depuis le menu de la ligne)');
+-- fin

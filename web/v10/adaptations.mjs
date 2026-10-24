@@ -874,4 +874,41 @@ export const ADAPTATIONS = [
   ...lireFichier('cabinet-hors-ligne.txt'),
   // ── La saisie au brouillard du Cabinet sans réseau (1.105.0) ──
   ...lireFichier('cabinet-saisie-hors-ligne.txt'),
+  // ── « Enregistrer » attend la lecture d'une pièce jointe (1.113.0) ──
+  ...lireFichier('lecture-attente.txt'),
+  // ── L'abonnement après sa revue : le bandeau de l'accueil (1.118.0) ──
+  ...lireFichier('abonnement-revue.txt'),
+  // ── L'abonnement du cabinet : « Ton abonnement » dans ses Réglages, la pastille, l'avertissement (lot 3, 1.120.0) ──
+  ...lireFichier('abonnement-cabinet.txt'),
+  // ── L'abonnement dans tous ses états, revu à la souris : pastille, bandeau, support, listes en lecture seule (1.122.0) ──
+  ...lireFichier('abonnement-etats.txt'),
+  // ── Le mois d'un client vu des deux côtés, lot 1 : le bandeau honnête du cabinet, un seul vert (1.123.0) ──
+  ...lireFichier('mois-client.txt'),
+  // ── Les achats confiés au cabinet : la page Achats le dit, son bouton principal envoie la photo (1.126.0) ──
+  ...lireFichier('achats-confies.txt'),
+  // ── « Ce mois-ci » dans le Suivi d'un dossier, au Cabinet : les pièces, le brouillard, le geste (1.127.0) ──
+  ...lireFichier('ce-mois-cabinet.txt'),
+  // ── L'invitation d'abord : sans question reçue, le panneau du cabinet passe avant leur carte vide (1.128.0) ──
+  ...lireFichier('invitation-d-abord.txt'),
+  // ── Une proposition de visite par ouverture, et « Ne plus me proposer de visites » d'un geste (1.129.0) ──
+  ...lireFichier('visites-une-fois.txt'),
+  // ── « Envoyer par e-mail… » quand un cabinet lit déjà les livres (1.130.0) ──
+  ...lireFichier('envoyer-par-email.txt'),
+  // ── La validation d'un lot finit sur un message bref et l'étape suivante (1.131.0) ──
+  ...lireFichier('valider-sans-fenetre.txt'),
+  // ── Une fiche neuve en quatre cases, le reste derrière « Plus de détails » (1.132.0) ──
+  ...lireFichier('fiche-courte.txt'),
+  ...lireFichier('lecture-piece.txt'),
+  ...lireFichier('lecture-seule-listes.txt'),
+  ...lireFichier('justificatif-cabinet.txt'),
+  ...lireFichier('declaration-mois-avant.txt'),
+  ...lireFichier('etats-cabinet.txt'),
+  ...lireFichier('accueil-au-travail.txt'),
+  ...lireFichier('suivi-seul.txt'),
+  ...lireFichier('listes-quotidien.txt'),
+  ...lireFichier('visites-une-fois-cabinet.txt'),
+  ...lireFichier('retard-un-ton.txt'),
+  ...lireFichier('accueil-zeros.txt'),
+  ...lireFichier('ligne-lue.txt'),
+  ...lireFichier('emise-calme.txt'),
 ];

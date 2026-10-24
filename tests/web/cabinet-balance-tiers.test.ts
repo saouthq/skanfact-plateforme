@@ -76,7 +76,7 @@ describe('la balance auxiliaire du Cabinet nomme les clients, à la souris', () 
     expect((await api('POST', `/entreprises/${ent}/dossier-v10/emettre-avoir`, client, { document: avoir2, client: fiche2, revision: null, rang: 2, netAPayer: '119.000' })).statut).toBe(200);
 
     const erreurs: string[] = [];
-    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, leila);
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/journal/${annee}`);

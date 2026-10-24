@@ -93,7 +93,7 @@ describe('le Cabinet sans réseau, à la souris', () => {
     ] })).statut).toBe(200);
 
     // « Mon ordinateur », l'application installée (le navigateur promet de garder : 04 § 4).
-    const c = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const c = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await c.addInitScript(() => { if (navigator.storage) Object.assign(navigator.storage, { persist: async () => true, persisted: async () => true }); });
     await c.addInitScript((j) => {
       if (!location.protocol.startsWith('http') || localStorage.getItem('test.pose')) return;
@@ -114,6 +114,12 @@ describe('le Cabinet sans réseau, à la souris', () => {
     expect((await lePoste(p, cabinet))?.lisible).toBe(false);
     expect(await p.evaluate(() => localStorage.getItem('skanfact.hors_ligne'))).toBe(`c:${cabinet}`);
     expect(await p.locator('#poste-bandeau:visible').count()).toBe(0);
+
+    // (1.131.0) L'onglet Paie d'un dossier dont le mandat ne confie pas la paie : ouvert une fois avec le réseau, il
+    // s'ouvre de même sans lui, sans « pas encore lu » (depuis la 1.124.0, rien n'y demande la paie au serveur).
+    await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/paie/${annee}`);
+    await expect.poll(() => p.locator('#view').innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/Les bulletins d/);
+    await plusTard(p);
 
     // ── Le réseau coupé : le livre du client se consulte, le bandeau le dit ───────────────────────
     await couper(c);
@@ -136,6 +142,10 @@ describe('le Cabinet sans réseau, à la souris', () => {
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(p);
     await expect.poll(() => p.locator('#c-livres').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/1 écriture de l'exercice attend au brouillard/);
+    // L'onglet Paie s'ouvre sans réseau, comme avec lui.
+    await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/paie/${annee}`);
+    await expect.poll(() => p.locator('#view').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/Les bulletins d/);
+    expect(await p.locator('#view').innerText()).not.toMatch(/pas encore lu/);
     // Une page jamais lue sur ce poste (la conversation avec le client) le dit, avec ce qui la débloque.
     await p.evaluate((h) => { location.hash = h; }, `#/messages/${ent}`);
     await expect.poll(() => p.locator('#view').innerText(), { timeout: 15_000 }).toMatch(/Hors ligne, et ce poste n'a pas encore lu cette page : ouvre-la une fois avec le réseau pour la consulter ensuite sans lui\./);

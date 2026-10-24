@@ -152,7 +152,13 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
     expect(await cf.locator('button.i:not([tabindex="-1"])').count()).toBe(0);
     await cf.locator('[name=name]').focus();
     await p.keyboard.press('Tab');
-    expect(await p.evaluate(() => document.activeElement?.getAttribute('name'))).toBe('contact');
+    // (1.132.0) Le champ qui suit le nom d'un client neuf est son matricule (le reste derrière « Plus de détails »).
+    expect(await p.evaluate(() => document.activeElement?.getAttribute('name'))).toBe('matricule');
+    // Point 15 de la revue du mois d'un client : un client neuf s'écrit en quatre cases, le reste plié.
+    const visibles = () => cf.locator('input, textarea, select').filter({ visible: true }).evaluateAll((els) => els.map((e) => e.getAttribute('name')));
+    expect(await visibles()).toEqual(['name', 'matricule', 'phone', 'address']);
+    await cf.locator('#cf-plus > summary').click();
+    expect(await visibles()).toContain('contact');
     await p.keyboard.press('Escape');
     if (await p.getByRole('button', { name: 'Abandonner la saisie' }).count()) await p.getByRole('button', { name: 'Abandonner la saisie' }).click();
 

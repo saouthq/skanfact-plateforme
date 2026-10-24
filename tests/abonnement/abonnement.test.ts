@@ -104,7 +104,7 @@ describe('qui lit quoi', () => {
   it('l\'état, pour tous ceux qui y travaillent', async () => {
     const r = await appeler('GET', `/entreprises/${E.ent}/abonnement/etat`, commercial.jeton);
     expect(r.statut).toBe(200);
-    expect(r.corps).toEqual({ aujourdhui, etat: 'essai', jusquAu: plusJours(aujourdhui, 30), jours: 30, fermes: [] });
+    expect(r.corps).toEqual({ aujourdhui, etat: 'essai', jusquAu: plusJours(aujourdhui, 30), jours: 30, aFaire: null, fermes: [] });
   });
 
   it('le détail (les prix, l\'histoire), pour qui gère l\'abonnement ; jamais le motif d\'un geste de SkanFact', async () => {
@@ -113,8 +113,10 @@ describe('qui lit quoi', () => {
     const r = await appeler('GET', `/entreprises/${E.ent}/abonnement`, E.proprio.jeton);
     expect(r.statut).toBe(200);
     expect(r.corps.etat).toMatchObject({ etat: 'essai', jusquAu: plusJours(aujourdhui, 40), jours: 40 });
-    // Les prix du jour, hors taxes, en texte décimal (0082 : 390 / 39 / 690 / 69 dinars).
-    expect(r.corps.prix).toEqual(expect.arrayContaining([
+    // Les prix du jour, hors taxes, en texte décimal (0082 : 390 / 39 / 690 / 69 dinars). Le TTC (`net`, 1.119.0) ne se lit
+    // que quand l'entreprise SkanFact est désignée (tests/abonnement/facture-au-choix.test.ts) : il n'est pas lu ici.
+    const prixHt = (r.corps.prix as { offre: string; periodicite: string; montantHt: string }[]).map(({ offre, periodicite, montantHt }) => ({ offre, periodicite, montantHt }));
+    expect(prixHt).toEqual(expect.arrayContaining([
       { offre: 'essentiel', periodicite: 'annuel', montantHt: '390.000' }, { offre: 'essentiel', periodicite: 'mensuel', montantHt: '39.000' },
       { offre: 'complet', periodicite: 'annuel', montantHt: '690.000' }, { offre: 'complet', periodicite: 'mensuel', montantHt: '69.000' },
     ]));
@@ -146,7 +148,7 @@ describe('la lecture seule', () => {
 
   it('l\'état le dit, avec le jour', async () => {
     const r = await appeler('GET', `/entreprises/${E.ent}/abonnement/etat`, E.proprio.jeton);
-    expect(r.corps).toEqual({ aujourdhui, etat: 'lecture_seule', depuis: plusJours(aujourdhui, -2), raison: 'essai_termine', fermes: [] });
+    expect(r.corps).toEqual({ aujourdhui, etat: 'lecture_seule', depuis: plusJours(aujourdhui, -2), raison: 'essai_termine', aFaire: null, fermes: [] });
   });
 
   it('émettre une facture est refusé : pourquoi, depuis quand, et le geste qui rouvre', async () => {

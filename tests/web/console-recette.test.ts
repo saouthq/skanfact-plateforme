@@ -121,6 +121,22 @@ describe('la recette de la console, tenue par l\'écran', () => {
     await fermer(p);
   }, 90_000);
 
+  it('une adresse illisible se refuse avant le motif vide : les champs se refusent dans leur ordre', async () => {
+    // Recette du 22/10/2026 : « 999.1.2.3 » se refusait d'abord pour son motif, puis, motif écrit, pour l'adresse.
+    const p = await ouvrir('#/service/securite');
+    await cliquer(p.getByRole('button', { name: 'Bloquer une adresse…', exact: true }));
+    const f = p.getByRole('dialog');
+    await expect.poll(() => actif(p)).toEqual({ tag: 'INPUT', valeur: '' });
+    await p.keyboard.type('999.1.2.3');
+    await p.keyboard.press('Enter');
+    await expect.poll(() => f.locator('.c-alerte-danger').innerText().then(net).catch(() => ''))
+      .toBe('Ce n\'est pas une adresse internet : quatre nombres séparés par des points (IPv4), ou une adresse IPv6.');
+    // Le champ montré est l'adresse : le curseur y revient, sur ce qui a été tapé (le rouge, lui, s'efface en retapant).
+    expect(await actif(p)).toEqual({ tag: 'INPUT', valeur: '999.1.2.3' });
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
   it('Sécurité : un code faux isolé se compte sans demander de regard ; trois de suite, la tuile et la liste le disent', async () => {
     await admin.query(`insert into socle.defi_connexion (utilisateur, methode, cree_le, expire_le, erreurs) values ($1, 'application', now(), now() + interval '5 minutes', 1)`, [moi]);
     const tuile = (p: Page) => p.locator('.c-sv-tuile').filter({ hasText: /^Codes faux/i });
@@ -212,6 +228,9 @@ describe('la recette de la console, tenue par l\'écran', () => {
   // Les tableaux de six ou sept colonnes défilaient de côté sur 600 à 1 000 points (1.87.3) : la grille des prix, les membres
   // de l'équipe, les règles de la veille. Seuls restent des tableaux la matrice des droits et les routes du serveur.
   it('au téléphone, Réglages, Équipe et Alertes : une ligne par carte, chaque case nommée, aucun tableau qui défile de côté', async () => {
+    // « À régler dans l'équipe » porte ici une invitation qui attend, posée par le test : sans elle, la liste dépendait de
+    // l'équipe laissée par les autres fichiers (une direction seule, ou non), et restait vide selon leur ordre.
+    const inv = (await api('POST', '/console/equipe/invitations', jD, { email: `attend-recette-${Date.now()}@exemple.tn`, role: 'support', motif: 'une invitation qui attend' })).corps;
     const p = await ouvrir('#/reglages', 390);
     const qui = (sel: string) => p.locator(sel).first().locator('td[data-libelle]').evaluateAll((l) => l.map((e) => getComputedStyle(e, '::before').content));
     // Ce qui défile de côté, hors des deux tableaux qu'on garde.
@@ -238,6 +257,7 @@ describe('la recette de la console, tenue par l\'écran', () => {
     expect(await deCote()).toEqual([]);
     expect(erreurs).toEqual([]);
     await fermer(p);
+    await api('POST', `/console/equipe/invitations/${String(inv.id)}/annuler`, jD, { motif: 'fin de l\'essai au téléphone' });
   }, 60_000);
   // Au clavier, la fiche d'un client était à quinze tabulations de sa recherche (1.87.10) : une seule organisation
   // trouvée, « Entrée » l'ouvre ; deux, la liste reste.

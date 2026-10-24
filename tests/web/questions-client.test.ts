@@ -157,6 +157,8 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     await p.locator('#exp-comptable').waitFor({ timeout: 20_000 });
     await expect.poll(() => p.locator('#exp-cabinet-lit').count(), { timeout: 20_000 }).toBe(1);
     expect(await p.locator('#exp-comptable').getAttribute('class')).not.toContain('btn-primary');
+    // (1.130.0) Point 17 de la revue du mois d'un client : il envoie par e-mail, à quelqu'un d'autre ; son nom le dit.
+    expect((await p.locator('#exp-comptable').innerText()).trim()).toBe('Envoyer par e-mail…');
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

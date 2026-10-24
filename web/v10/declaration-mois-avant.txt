@@ -1,0 +1,18 @@
+Au Cabinet, le mois d'avant le livre se déclare quand même : l'écran le dit, avec sa date limite (1.135.0 ;
+docs/revue-mois-client.md, point 10 ; décidé par délégation le 23/10/2026). Format : voir sans-paquets.mjs.
+
+La recette du 23/10/2026 : l'accueil de Sarra annonce « Déclaration mensuelle d'employeur et de TVA le 28/10/2026 »
+(celle de septembre : l'obligation court, que le mois soit dans SkanFact ou non), et le Cabinet disait « Rien avant
+dans ce livre : ce sera sa première déclaration », qui fait croire que septembre n'a rien à déposer. Les deux écrans
+disent maintenant la même chose : septembre se déclare, au plus tard à sa date, avec ce que le client tenait avant
+SkanFact ; la première déclaration tirée de ce livre est celle du mois en cours. (Une déclaration « néant » pour un
+mois sans activité : À VÉRIFIER avec un comptable ; l'écran n'en dit rien.)
+
+== cabinet/app.js | le mois d'avant le livre se déclare quand même, à sa date
+-- avant
+            : ` <span id="dc-premier-mois">Rien avant dans ce livre : ce sera sa première déclaration.</span>`}</div></div>` : ''}
+-- après
+            // (plateforme) 1.135.0 — le mois d'avant le livre se déclare quand même (l'accueil du client l'annonce) :
+            // l'écran dit sa date limite, et que la première tirée de ce livre est celle du mois en cours.
+            : ` <span id="dc-premier-mois">${esc(K.monthLabel(precedent).replace(/^./, c => c.toUpperCase()))} n'est pas dans ce livre : sa déclaration, à déposer au plus tard le ${esc(fmtJour(K.dateLimiteDeclaration(S, precedent, 'tva', dossier)))}, se fait avec ce que le client tenait avant SkanFact. La première tirée de ce livre sera celle ${esc(K.de(K.monthLabel(d.periode)))}.</span>`}</div></div>` : ''}
+-- fin

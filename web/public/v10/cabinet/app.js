@@ -1135,6 +1135,11 @@
     // jour, pas depuis le dernier »).
     $('#lic-banner').onclick = () => versReglages('pan-licence');
     chargerLicence();
+    // (plateforme, abonnement du cabinet) Sans « hashchange » : un second rendu remettrait la page en haut, loin du panneau.
+    if (api.ouvertureAbonnement && api.ouvertureAbonnement()) {
+      reglagesTab = REG_PANNEAUX['pan-licence'].onglet; reglagesFocus = 'pan-licence';
+      history.replaceState(null, '', '#/reglages');
+    }
     // La visite guidée (10.14.0) : le moteur apprend à naviguer et à expliquer dans le Cabinet.
     installerVisites();
     if (!location.hash) location.hash = '#/dossiers';
@@ -1606,11 +1611,39 @@
   // (plateforme, lot messagerie) Les messages des clients : la boîte de tous les clients (« À traiter », « Attend le
   // client », « Tout »), puis la conversation d'un client (plateforme/messagerie.js ; maquette validée le 09/10/2026).
   let messagerieOuverte = null;
+  let demandePreparee = null; // (1.125.0) une demande de pièce préparée depuis une ligne du livre
   let pastilleMessagesLue = false;
   function majPastilleMessages(n) { const p = $('#nav-messages'); if (p) { p.hidden = !n; p.textContent = n ? String(n) : ''; } }
+  // (1.117.0) La même lecture donne aussi l'état de chaque client : la liste des dossiers montre, sur la ligne d'un client
+  // « À traiter », la pastille de ses messages (revue du 22/10/2026, point 11 : elle n'était que dans le menu). Un client
+  // a la pastille sur sa ligne exactement quand il compte dans celle du menu (les mêmes lignes du serveur).
+  let etatsMessages = new Map();
+  function majPastillesDossiers(racine) {
+    $$('tr[data-id]', racine || document).forEach(tr => {
+      const cellule = tr.querySelector('.dl-cell');
+      if (!cellule) return;
+      const avant = cellule.querySelector('.dl-msg');
+      if (avant) avant.remove();
+      const d = etatsMessages.get(tr.dataset.id);
+      if (!d || d.etat !== 'a_traiter') return;
+      const dit = d.nonLus ? (d.nonLus > 1 ? d.nonLus + ' nouveaux messages de ce client' : 'Un nouveau message de ce client') : 'Ce client t\'a répondu';
+      const a = document.createElement('a');
+      a.className = 'dl-msg';
+      a.href = '#/messages/' + encodeURIComponent(tr.dataset.id);
+      a.title = dit + ' : ouvrir la conversation';
+      a.setAttribute('aria-label', dit + ' : ouvrir la conversation');
+      a.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>' + (d.nonLus ? '<span>' + d.nonLus + '</span>' : '');
+      cellule.appendChild(a);
+    });
+  }
   async function rafraichirPastilleMessages() {
     if (!api.messagerie || document.visibilityState !== 'visible') return;
-    try { majPastilleMessages((await api.messagerie.compteurs()).aTraiter); } catch (_) { /* la pastille attend la relecture suivante */ }
+    try {
+      const b = await api.messagerie.lireBoite();
+      etatsMessages = new Map(b.dossiers.map(d => [d.entreprise, d]));
+      majPastilleMessages(b.compteurs.aTraiter);
+      majPastillesDossiers();
+    } catch (_) { /* les pastilles attendent la relecture suivante */ }
   }
   if (api.messagerie) {
     setInterval(rafraichirPastilleMessages, 60 * 1000);
@@ -1622,22 +1655,53 @@
     view.innerHTML = '<div id="msg-racine"></div>';
     const racine = $('#msg-racine');
     const revision = id => { location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/revision'; };
+    // (1.116.0) Une pièce citée par le client s'ouvre dans ses livres : son numéro cherché au livre-journal, brouillard
+    // compris (le Cabinet ne voit pas la facture elle-même, mais ses écritures). Un devis n'en a pas ; une pièce sans
+    // numéro non plus : on le dit.
+    const ouvrirPiece = (id, genre, _piece, libelle) => {
+      const numero = String(libelle || '').split(' · ')[0].trim();
+      if (genre === 'devis') { toast('Un devis n\'entre pas dans les livres : il n\'a pas d\'écriture à ouvrir.'); return true; }
+      if (!numero || /^(brouillon|sans numéro)$/i.test(numero)) { toast('Cette pièce n\'a pas encore de numéro : elle n\'est pas encore dans les livres.'); return true; }
+      changerDeDossierCompta(id);
+      Object.assign(livresState, { brouillard: true, q: numero, journal: '', page: 1, onglet: 'journal' });
+      location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/journal';
+      return true;
+    };
+    // (1.116.0) « Saisir cette pièce » : la photo s'ouvre dans un autre onglet (le fil l'ouvre), la saisie du client à
+    // l'année du message. Le justificatif ne s'y joint pas seul (le Cabinet en ligne ne joint pas encore de fichier à une
+    // écriture) : la photo reste dans le fil, à sa date.
+    const saisirPiece = (id, m) => {
+      changerDeDossierCompta(id);
+      location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/saisie/' + String(m.ecritLe).slice(0, 4);
+      toast('La photo s\'ouvre dans un autre onglet : saisis la pièce ici, en face d\'elle. Elle reste dans votre fil.');
+    };
     if (!ent) {
+      // (1.115.0) La conversation du client choisi s'ouvre à droite de la liste (le pont la fabrique) ; « Ouvrir en grand »,
+      // et une ligne touchée au téléphone, mènent à sa page.
       messagerieOuverte = api.messagerie.boite(racine, {
         ouvrir: (id, demander) => { location.hash = '#/messages/' + encodeURIComponent(id) + (demander ? '/demande' : ''); },
+        toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
         revision,
+        ouvrirPiece,
+        saisirPiece,
         surCompteurs: c => majPastilleMessages(c.aTraiter),
       });
       return;
     }
     const id = decodeURIComponent(ent);
     const d = (S.dossiers || []).find(x => x.id === id);
+    // (1.125.0) Une demande préparée depuis une ligne du livre : sa pièce est déjà écrite (une seule fois).
+    const prete = demandePreparee && demandePreparee.id === id && geste === 'demande' ? demandePreparee.texte : '';
+    demandePreparee = null;
     messagerieOuverte = api.messagerie.conversation(racine, id, {
       nom: d ? d.name : 'Ce client',
       demander: geste === 'demande',
+      ...(prete ? { demandeTexte: prete } : {}),
       toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
       retour: { texte: 'Les messages de tes clients', aller: () => { location.hash = '#/messages'; } },
       revision: () => revision(id),
+      ouvrirPiece: (genre, piece, libelle) => ouvrirPiece(id, genre, piece, libelle),
+      saisirPiece: m => saisirPiece(id, m),
       surAttente: () => { void rafraichirPastilleMessages(); },
     });
   }
@@ -1862,6 +1926,11 @@
     if (!todo.length) {
       const p = K.portfolio(S);
       if (!p.surSkanfact) return '';
+      // (plateforme) 1.123.0 — rien en retard ne veut pas dire rien à valider : le mois en cours d'un client peut avoir
+      // des écritures au brouillard (sa ligne dit « à valider ») ; la phrase dit les deux (revue du mois d'un client).
+      const enCours = (S.dossiers || []).filter(d => !d.archived && !d.manual).map(d => K.dossierRow(d))
+        .filter(r => r.level === 'ok' && r.lastMonth && !r.lastDefinitive).length;
+      if (enCours) return `<div class="todo-ok">Rien en retard${p.surSkanfact > 1 ? ` chez tes ${p.surSkanfact} clients sur SkanFact` : ''}. ${enCours > 1 ? `${enCours} clients ont` : p.surSkanfact > 1 ? '1 client a' : 'Ton client a'} des écritures du mois en cours à valider.</div>`;
       return p.surSkanfact > 1
         // (plateforme) 1.76.0 — « chez ton dossier » ne se disait pas (recette du 20/10/2026).
         ? `<div class="todo-ok">Tout est à jour : tes ${p.surSkanfact} clients sur SkanFact n'ont aucun mois passé vide ni à valider.</div>`
@@ -2091,7 +2160,7 @@
           <div class="actions">
             <button class="btn" id="demo-on">Voir un exemple (${nbExemple()} clients fictifs)</button>
             <button class="btn" id="imp">Importer un paquet…</button>
-            <button class="btn btn-primary" id="new-d">Ajouter mes clients…</button>
+            <button class="btn${/btn-primary/.test(inboxBanner()) ? '' : ' btn-primary'}" id="new-d">Ajouter mes clients…</button>
           </div></div>
         ${/* 10.14.0 — la ligne calme de la clé de secours doublait l'étape « Enregistrer ta clé de secours »
               de « Tes premiers pas », dix pixels plus bas, avec le même bouton. Sur cet écran, le panneau est le
@@ -2158,7 +2227,7 @@
         ${col.provisoires ? '<th class="r nw">À valider</th>' : ''}${col.signale ? '<th class="r nw">Signalés</th>' : ''}
         ${col.relance ? sortHead('Relancé le', 'relance', 'r.history') : ''}${sortHead('Mis à jour', 'recu')}<th></th></tr></thead>
         <tbody>${shown.map(r => `<tr class="clickable" data-id="${esc(r.id)}">
-          <td class="dl-client"><div class="dl-cell"><span class="dot-lvl ${r.level === 'ok' ? '' : esc(r.level)}" title="${esc(NIVEAUX[r.level] || '')}"></span><span class="dl-nom" title="${esc(r.name)}">${esc(r.name)}</span>${r.archived ? ' <span class="badge">archivé</span>' : ''}</div></td>
+          <td class="dl-client"><div class="dl-cell"><span class="dot-lvl ${r.level === 'ok' ? (r.lastMonth && !r.lastDefinitive ? 'warn' : '') : esc(r.level)}" title="${esc(NIVEAUX[r.level === 'ok' && r.lastMonth && !r.lastDefinitive ? 'warn' : r.level] || '')}"></span><span class="dl-nom" title="${esc(r.name)}">${esc(r.name)}</span>${r.archived ? ' <span class="badge">archivé</span>' : ''}</div></td>
           ${/* « hors SkanFact » vit dans « Dernier mois », pas à côté du nom (H-1, trouvé en testant
                 comme un humain) : dans la cellule du nom, il le coupait — « Garage Ben… » — alors
                 que la ligne avait de la place partout ailleurs. Ici, il remplace un tiret qui ne
@@ -2218,11 +2287,14 @@
     if (ct) ct.onclick = () => { prefs.set('colTout', true); render(); };
     const cv = $('#col-vides');
     if (cv) cv.onclick = () => { prefs.set('colTout', false); render(); };
+    majPastillesDossiers(view);
     $$('tr[data-id]', view).forEach(tr => {
       tr.onclick = e => {
         // Le menu d'actions vit DANS la ligne : sans cette garde, l'ouvrir ouvrirait aussi la fiche
         // (règle 7.28.0 — un menu ne vole pas le clic de sa ligne, et la ligne ne vole pas le sien).
         if (e.target.closest('.row-actions')) return;
+        // (plateforme, 1.117.0) La pastille des messages mène à la conversation, pas à la fiche.
+        if (e.target.closest('.dl-msg')) return;
         location.hash = '#/dossier/' + encodeURIComponent(tr.dataset.id);
       };
     });
@@ -2328,6 +2400,61 @@
   // Chaque mois porte son geste : saisir celui qui n'a rien, ouvrir la déclaration des autres.
   const MOT_TENU = { saisi: 'à saisir', revise: 'saisi', declare: 'révisé', fini: 'déclaré' };
   const CASE_TENU = { saisi: 'manquant', revise: 'provisoire', declare: 'provisoire', fini: 'complet' };
+  // (plateforme) 1.127.0 — le mois en cours d'un client sur SkanFact, lu dans ses livres : les pièces arrivées (ventes,
+  // achats, achats sans justificatif), ce qui attend au brouillard, la dernière validation ; et le geste, valider les
+  // écritures du mois (revue du mois d'un client, point 9). Même résumé que la carte du client dans « Mon comptable ».
+  async function dessinerCeMois(dossier, vert) {
+    const mois = K.today().slice(0, 7), nom = K.monthLabel(mois);
+    let r = null, refus = null;
+    try { r = await api.ceMois(dossier.id, mois + '-01', K.today()); } catch (x) { refus = x; }
+    // La page a pu changer pendant la lecture : la zone doit être celle de CE dossier.
+    const zone = document.getElementById('d-ce-mois');
+    if (!zone || zone.dataset.id !== dossier.id) return;
+    // (1.137.0) Une lecture refusée par le serveur (ou sans réseau) le dit, avec « Réessayer » : la carte disparaissait
+    // sans rien dire (UX 2). Un mandat qui ne confie pas les livres (null) la retire, comme avant.
+    if (refus) {
+      zone.innerHTML = `<h2>Ce mois-ci · ${esc(nom)}</h2>
+        <p class="small" data-ce-mois-refus>Ce mois-ci n'a pas pu se lire. ${esc(plainError(refus))}</p>
+        <div class="inline mt"><button type="button" class="btn btn-sm" data-ce-mois-relire>Réessayer</button></div>`;
+      zone.querySelector('[data-ce-mois-relire]').onclick = () => {
+        zone.innerHTML = `<h2>Ce mois-ci · ${esc(nom)}</h2><span class="muted small">Lecture de ses livres…</span>`;
+        dessinerCeMois(dossier, vert);
+      };
+      return;
+    }
+    if (!r) { zone.remove(); return; }
+    const fr = d => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+    const le = r.valideeLe ? ` (dernière validation le ${fr(r.valideeLe)})` : '';
+    const pieces = !r.ventes && !r.achats ? 'Aucune vente ni aucun achat dans ses livres ce mois-ci.'
+      : `${r.ventes ? pl(r.ventes, 'vente') : 'Aucune vente'} · ${r.achats ? pl(r.achats, 'achat') : 'aucun achat'}${r.sansJustificatif ? `, dont ${r.sansJustificatif} sans justificatif` : ''}, dans ses livres.`;
+    const etat = !r.validees && !r.brouillard ? ''
+      : !r.validees ? `${pl(r.brouillard, 'écriture attend', 'écritures attendent')} au brouillard : rien n'est encore validé.`
+        : !r.brouillard ? `Tout le mois est validé : ${pl(r.validees, 'écriture')}${le}.`
+          : `${pl(r.brouillard, 'écriture attend', 'écritures attendent')} au brouillard ; ${pl(r.validees, 'écriture validée', 'écritures validées')}${le}.`;
+    // Un seul vert par écran : celui-ci, sauf quand « Relancer », en haut, l'est déjà (un mois manque).
+    zone.innerHTML = `<h2>Ce mois-ci · ${esc(nom)}</h2>
+      <p class="small" data-ce-mois-pieces>${esc(pieces)}</p>${etat ? `<p class="small" data-ce-mois-etat>${esc(etat)}</p>` : ''}
+      ${r.validees || r.brouillard ? `<div class="inline mt">${r.brouillard ? `<button type="button" class="btn btn-sm${vert ? ' btn-primary' : ''}" data-ce-mois-valider>Valider les écritures ${esc(K.de(nom))}</button>` : ''}
+        <button type="button" class="btn btn-sm" data-ce-mois-journal>Voir le livre-journal ${esc(K.de(nom))}</button>${r.sansJustificatif && api.messagerie ? `
+        <button type="button" class="btn btn-sm" data-ce-mois-justif>${r.sansJustificatif > 1 ? 'Demander les justificatifs' : 'Demander le justificatif'}</button>` : ''}</div>` : ''}`;
+    const ouvrir = aValider => {
+      changerDeDossierCompta(dossier.id);
+      livresState.annee = mois.slice(0, 4);
+      if (!aValider) { livresState.mode = 'mois'; livresState.mois = mois; }
+      location.hash = '#/dossier/' + encodeURIComponent(dossier.id) + '/comptabilite/' + (aValider ? 'saisie' : 'journal') + '/' + mois.slice(0, 4);
+    };
+    const v = zone.querySelector('[data-ce-mois-valider]'), j = zone.querySelector('[data-ce-mois-journal]');
+    if (v) v.onclick = () => ouvrir(true);
+    if (j) j.onclick = () => ouvrir(false);
+    // (plateforme) 1.139.0 — « dont 1 sans justificatif » se réclame d'ici, la demande écrite d'avance dans le fil du
+    // client, comme depuis la ligne de l'achat (UX 3 : la carte disait le manque sans offrir le geste).
+    const dj = zone.querySelector('[data-ce-mois-justif]');
+    if (dj) dj.onclick = () => {
+      const n = r.sansJustificatif;
+      demandePreparee = { id: dossier.id, texte: n > 1 ? `Les justificatifs de tes ${n} achats ${K.de(nom)} enregistrés sans pièce dans SkanFact` : `Le justificatif de ton achat ${K.de(nom)} enregistré sans pièce dans SkanFact` };
+      location.hash = '#/messages/' + encodeURIComponent(dossier.id) + '/demande';
+    };
+  }
   async function dessinerMoisTenus(dossier) {
     let index = null;
     try { index = await api.livreIndex(dossier.id); } catch (_) { index = null; }
@@ -2496,6 +2623,8 @@
       </div>
 
       <section data-onglet="suivi" ${onglet === 'suivi' ? '' : 'hidden'}>
+      ${!dossier.manual && api.ceMois ? `<div class="panel" id="d-ce-mois" data-id="${esc(dossier.id)}"><h2>Ce mois-ci · ${esc(K.monthLabel(K.today().slice(0, 7)))}</h2>
+        <span class="muted small">Lecture de ses livres…</span></div>` : ''}
       <div class="panel"><h2>Les mois de ce client ${dossier.manual ? info('p.moisTenus') : info('p.definitif')}</h2>
         ${/* Les DOUZE mois de chaque année, pas seulement ceux attendus. L'écran en montrait six
               sous une étiquette « 2026 », sans dire pourquoi : on ne savait pas si la mission
@@ -2683,6 +2812,7 @@
       };
     });
     if (dossier.manual) dessinerMoisTenus(dossier);
+    else if (api.ceMois && document.getElementById('d-ce-mois')) dessinerCeMois(dossier, !row.missingCount);
     // Le menu d'un paquet dit « Voir ses écritures » ou « Créer le livre » : il le demande à
     // l'INDEX de CE dossier, lu sans déchiffrer (9.1.0). Il jugeait sur le livre gardé en mémoire —
     // absent après un redémarrage (« Créer le livre » sur un livre qui existe), ou celui d'un AUTRE
@@ -3308,7 +3438,7 @@
       `<p><b>${quoi}</b>${e.libelle ? ' — ' + esc(e.libelle) : ''}</p>
        <p class="small muted">Elle prendra son numéro dans le livre-journal et <b>ne pourra plus être modifiée</b> :
        on corrige une écriture validée en la contre-passant, jamais en la réécrivant. C'est ce qui fait qu'un
-       livre relu dans deux ans dit la vérité de ce qui a été fait.</p>`, 'Valider');
+       livre relu dans deux ans dit la vérité de ce qui a été fait.</p>${e.justifClient === false ? `<p class="small" id="ecr-sans-justif"><b>Cet achat du client n'a pas de justificatif.</b> Tu peux valider quand même, ou le lui demander d'abord (le menu de la ligne, « Demander le justificatif »).</p>` : ''}`, 'Valider');
     if (!ok) return;
     try {
       const r = await api.valider(dossier.id, livresState.annee, e.id);
@@ -3510,7 +3640,17 @@
     s.dossierVu = dossier;
     if (!el) return;
     if (!s.data) { el.innerHTML = '<div class="empty">Lecture des paquets…</div>'; return; }
-    if (s.data.erreur) { el.innerHTML = `<div class="warn-box">${esc(s.data.erreur)}</div>`; return; }
+    // (plateforme) 1.138.0 — la lecture refusée offre « Réessayer » : il fallait recharger toute la page (UX 2).
+    if (s.data.erreur) {
+      el.innerHTML = `<div class="warn-box" id="lv-refus"><b>La comptabilité n'a pas pu se lire.</b> ${esc(s.data.erreur)}
+        <div class="inline mt"><button type="button" class="btn btn-sm" id="lv-relire-tout">Réessayer</button></div></div>`;
+      $('#lv-relire-tout', el).onclick = () => {
+        s.data = null;
+        el.innerHTML = '<div class="empty">Lecture des paquets…</div>';
+        chargerLivres(dossier).then(() => { if ($('#c-livres')) drawLivres(document, dossier); });
+      };
+      return;
+    }
     // Le livre se lit encore : on ne décide de rien. Sans cette garde, un sous-onglet venu de
     // l'adresse (« banque ») serait jugé indisponible le temps de la lecture et remplacé pour de bon
     // par le livre-journal.
@@ -3783,7 +3923,11 @@
     const noms = [];
     if (pieceJointe) noms.push(`${String(pieceJointe).split(/[\\/]/).pop()} (joint au cabinet)`);
     justifsDuClient(e).forEach(j => noms.push(`${j.nom} (joint par le client)`));
-    if (!noms.length) return '';
+    // (plateforme) 1.125.0 — en ligne, le serveur dit seulement si l'achat du client porte un justificatif (oui ou non,
+    // jamais le fichier) : le 📎 le dit, et une ligne d'achat sans lui le montre (revue du mois d'un client, point 7).
+    const ec = e && e.justifClient !== undefined ? e : (e && e.ecritureId && livresState.livre ? ecritureDuLivre(livresState.livre, e.ecritureId) : null);
+    if (ec && ec.justifClient === true) noms.push('joint par le client à son achat, dans SkanFact (il s\'ouvre depuis le menu de la ligne)');
+    if (!noms.length) return ec && ec.justifClient === false ? ' <span class="badge b-part" title="L\'achat du client n\'a pas encore de justificatif : demande-le-lui depuis le menu de la ligne.">sans justificatif</span>' : '';
     const dit = `${pl(noms.length, 'justificatif')} : ${noms.join(', ')}`;
     return ` <span class="att-mark" role="img" aria-label="${esc(dit)}" title="${esc(dit)}">📎</span>`;
   }
@@ -3810,6 +3954,23 @@
       if (!password) return;
       try { await ouvrir(password); } catch (e2) { toast(plainError(e2), 'error'); }
     }
+  }
+  // (plateforme) 1.135.0 — en ligne, le justificatif que le client a joint à son achat : un s'ouvre dans un onglet,
+  // plusieurs se nomment dans une fenêtre (revue du mois d'un client, point 13).
+  async function ouvrirJustifEnLigne(dossier, e) {
+    let l;
+    try { l = await api.justificatifsEcriture(dossier.id, e.id); } catch (x) { toast(plainError(x), 'error'); return; }
+    if (!l.length) { toast(`Le justificatif n'est plus joint à l'achat de ${dossier.name} : il a pu le retirer.`, 'error'); return; }
+    const ouvrir = f => api.ouvrirJustificatif(dossier.id, e.id, f.fichier).catch(x => toast(plainError(x), 'error'));
+    if (l.length === 1) { await ouvrir(l[0]); return; }
+    modal(`<h2>Les justificatifs du client</h2>
+      <p class="small">${esc(dossier.name)} a joint ${l.length} fichiers à l'achat ${esc(e.piece || e.libelle || '')}.</p>
+      <div style="display:flex;flex-direction:column;gap:8px;align-items:flex-start">${l.map((f, i) => `<button class="btn" data-jc="${i}">${esc(f.nom)}</button>`).join('')}</div>
+      <div class="modal-actions"><button class="btn" id="jc-fermer">Fermer</button></div>`,
+    (layer, close) => {
+      $('#jc-fermer', layer).onclick = () => close();
+      $$('[data-jc]', layer).forEach(b => { b.onclick = () => { void ouvrir(l[Number(b.dataset.jc)]); }; });
+    });
   }
   // Les gestes d'ouverture d'une pièce : un par justificatif du client (trois au plus, le paquet
   // montre le reste). Rangés par la table d'actions de l'écriture ET par celle d'une ligne de paquet.
@@ -4278,7 +4439,9 @@
           !precedent.startsWith(String(s.annee) + '-') ? ''
             : ((s.livre && s.livre.ecritures) || []).some(e => String(e.date || '').slice(0, 7) <= precedent)
             ? ` <button type="button" class="${cls('mois')}" data-dc-mois="${esc(precedent)}">Déclarer ${esc(K.monthLabel(precedent))}</button>`
-            : ` <span id="dc-premier-mois">Rien avant dans ce livre : ce sera sa première déclaration.</span>`}</div></div>` : ''}
+            // (plateforme) 1.135.0 — le mois d'avant le livre se déclare quand même (l'accueil du client l'annonce) :
+            // l'écran dit sa date limite, et que la première tirée de ce livre est celle du mois en cours.
+            : ` <span id="dc-premier-mois">${esc(K.monthLabel(precedent).replace(/^./, c => c.toUpperCase()))} n'est pas dans ce livre : sa déclaration, à déposer au plus tard le ${esc(fmtJour(K.dateLimiteDeclaration(S, precedent, 'tva', dossier)))}, se fait avec ce que le client tenait avant SkanFact. La première tirée de ce livre sera celle ${esc(K.de(K.monthLabel(d.periode)))}.</span>`}</div></div>` : ''}
       ${motif ? `<p class="small muted dc-motif">${esc(motif)}</p>` : ''}
       <div class="dc-etapes">
         <button class="${cls('preparer')}" id="dc-preparer">${posee ? fait(true) + 'Préparée — recalculer' : 'Préparer la déclaration'}</button>${fleche}
@@ -8983,10 +9146,14 @@
     // L'accord suit le nombre (10.12.0, vu au test humain) : « Chacune… Celles qui… » sous « Valider
     // 1 écriture » se lisait comme un modèle de phrase qu'on n'a pas fini de remplir.
     const une = cibles.length === 1;
+    // (plateforme) 1.125.0 — un achat du client sans justificatif se dit avant de valider (revue du mois d'un client,
+    // point 8) : on peut valider quand même, ou le demander d'abord depuis la ligne.
+    const sansJustif = cibles.filter(e => e.justifClient === false);
+    const avert = sansJustif.length ? `<p class="small" id="lot-sans-justif"><b>${sansJustif.length > 1 ? `${sansJustif.length} achats du client n'ont pas de justificatif` : 'Un achat du client n\'a pas de justificatif'}</b> : ${sansJustif.slice(0, 5).map(e => esc(e.piece || e.libelle || '—')).join(', ')}${sansJustif.length > 5 ? '…' : ''}. Tu peux valider quand même, ou le lui demander d'abord (le menu de la ligne, « Demander le justificatif »).</p>` : '';
     const ok = await confirmDialog(`Valider ${pl(cibles.length, 'écriture')} ${quoi} ?`,
-      une
+      (une
         ? '<p>Elle prend son numéro et ne se modifiera plus : une validée se contre-passe.</p><p>Si elle ne tombe pas juste, elle ne sera pas validée, et te sera nommée.</p>'
-        : '<p>Chacune prend son numéro et ne se modifiera plus : une validée se contre-passe.</p><p>Celles qui ne tombent pas juste ne seront pas validées, et te seront nommées.</p>',
+        : '<p>Chacune prend son numéro et ne se modifiera plus : une validée se contre-passe.</p><p>Celles qui ne tombent pas juste ne seront pas validées, et te seront nommées.</p>') + avert,
       'Valider');
     if (!ok) return;
     try {
@@ -9006,7 +9173,16 @@
         lignes.push(`${pl(r.refusees.length, 'écriture n\'est pas entrée', 'écritures ne sont pas entrées')} — ${plus ? 'elles restent' : 'elle reste'} en brouillard :`);
         r.refusees.slice(0, 10).forEach(x => lignes.push(`  • ${x.journal} ${x.piece || '(sans pièce)'} du ${fmtJour(x.date)} : ${x.motif}`));
       }
-      await infoDialog('Validation', lignes.join('\n'));
+      if (r.refusees.length) await infoDialog('Validation', lignes.join('\n'));
+      else {
+        // (plateforme) 1.131.0 — tout est entré : ce qui reste au brouillard des mois validés, tous journaux confondus, ou
+        // l'étape suivante (revue du mois d'un client, point 18 : la validation finissait sur une fenêtre à fermer).
+        const mois = new Set(cibles.map(e => String(e.date || '').slice(0, 7)));
+        const reste = (s.livre.ecritures || []).filter(e => e.statut === 'brouillard' && mois.has(String(e.date || '').slice(0, 7))).length;
+        const deQuand = mois.size === 1 ? KC.deMois(moisLabelCourt([...mois][0])) : 'de ces mois';
+        toast(`${lignes[0]} ${reste ? `${pl(reste, 'autre reste', 'autres restent')} au brouillard ${deQuand}.`
+          : `Prochaine étape : la déclaration, dans « Déclarer et clôturer ».`}`);
+      }
       drawLivres(root, dossier);
       majAValider(dossier);
     } catch (e) { await infoDialog('Validation impossible', plainError(e)); }
@@ -9305,6 +9481,18 @@
     if (e.attente) Object.assign(a[a.length - 1], { hint: 'Une fois partie au serveur, au retour du réseau', off: true,
       run: () => infoDialog('Elle attend le réseau', 'Cette écriture est gardée sur ce poste : son justificatif se joint une fois qu\'elle est partie au serveur, au retour du réseau.') });
     a.push(...actionsJustifsClient(e));
+    // (plateforme) 1.135.0 — l'achat du client porte un justificatif : il s'ouvre d'ici (il n'était que dans le fil).
+    if (e.justifClient === true && !e.attente && api.justificatifsEcriture) {
+      a.push({ icon: 'ouvrir', label: 'Ouvrir le justificatif du client', court: 'Justificatif',
+        hint: `Joint par ${dossier.name} à son achat, dans SkanFact`, run: () => ouvrirJustifEnLigne(dossier, e) });
+    }
+    // (plateforme) 1.125.0 — l'achat du client n'a pas de justificatif : le réclamer d'ici, la pièce citée d'avance, dans
+    // le fil du client (revue du mois d'un client, point 7 : il fallait passer par les Messages et retaper le numéro).
+    if (e.justifClient === false && !dossier.manual && api.messagerie) {
+      a.push({ icon: 'texte', label: `Demander le justificatif à ${dossier.name}`, court: 'Demander le justificatif',
+        hint: 'Une demande de pièce dans vos messages, la pièce citée d\'avance',
+        run: () => { demandePreparee = { id: dossier.id, texte: `Le justificatif de l'achat ${e.piece || e.libelle || ''} du ${fmtJour(e.date)}${((e.lignes || []).find(l => l.tiers) || {}).tiers ? ` (${(e.lignes.find(l => l.tiers) || {}).tiers})` : ''}`.replace(/\s+/g, ' ') }; location.hash = '#/messages/' + encodeURIComponent(dossier.id) + '/demande'; } });
+    }
     if (e.pieceJointe) {
       a.push({ icon: 'ouvrir', label: 'Ouvrir le justificatif', hint: esc(e.pieceJointe),
         run: async () => { try { ditOuverture(await api.ouvrirJustificatif(dossier.id, e.pieceJointe), String(e.pieceJointe).split(/[\\/]/).pop()); } catch (x) { await infoDialog('Justificatif introuvable', plainError(x)); } } });
@@ -9799,8 +9987,14 @@
     // (plateforme, 1.87.5) Le refus avant la saisie : seul un associé crée un dossier (vu en recette le 21/10/2026).
     const peut = api.creationDossier ? await api.creationDossier().catch(() => null) : null;
     if (peut && !peut.ok) {
+      // (plateforme, abonnement du cabinet) Un refus qui se lève ailleurs offre le bouton qui y mène : « Règle-la dans
+      // Réglages » avec un seul « Compris » laissait chercher le panneau (recette du 23/10/2026).
       modal(`<h2>Ajouter un client</h2><p><b>${esc(peut.motif)}</b> ${esc(peut.geste)}</p>
-        <div class="modal-actions"><button class="btn btn-primary" data-close>Compris</button></div>`);
+        <div class="modal-actions">${peut.vers ? `<button class="btn" data-close>Plus tard</button><button class="btn btn-primary" id="nd-vers">${esc(peut.bouton)}</button>`
+          : '<button class="btn btn-primary" data-close>Compris</button>'}</div>`, (layer, close) => {
+        const v = $('#nd-vers', layer);
+        if (v) v.onclick = () => { close(); versReglages(peut.vers); };
+      });
       return;
     }
     const empty = { packs: [] };
@@ -9809,6 +10003,8 @@
       `<h2>Nouveau dossier client</h2>
        <p class="muted small">Ajoute un client même s'il n'utilise pas encore SkanFact ${info('d.manual')} : il compte dans ton portefeuille,
        et rien ne lui est réclamé tant qu'il n'a pas commencé.</p>
+       ${peut && peut.avertissement ? `<p class="info-box small" id="nd-abonnement"><b>Ce dossier se paie.</b> ${esc(peut.avertissement)}</p>` : ''}
+       ${peut && peut.gratuit ? `<p class="small muted" id="nd-gratuit">${esc(peut.gratuit)}</p>` : ''}
        <p class="small nd-plusieurs">Plusieurs clients d'un coup ? <button type="button" class="btn btn-sm" id="nd-coller">Coller une liste de clients…</button></p>
        ${dossierFields(empty)}
        <div class="modal-actions"><button class="btn" id="no">Annuler</button><button class="btn btn-primary" id="ok">Créer le dossier</button></div>`,
@@ -10211,8 +10407,11 @@
         const r = await api.production({});
         prodState = { ...prodState, lignes: r.lignes || [], etapes: r.etapes || [], collaborateurs: r.collaborateurs || [] };
       } catch (e) {
+        // (plateforme) 1.138.0 — la lecture refusée offre « Réessayer » (UX 2).
         view.innerHTML = `<div class="page-head"><h1>Production</h1></div>
-          <div class="panel"><div class="warn-box">${esc(plainError(e))}</div></div>`;
+          <div class="panel"><div class="warn-box" id="pr-refus"><b>La production n'a pas pu se lire.</b> ${esc(plainError(e))}
+          <div class="inline mt"><button type="button" class="btn btn-sm" id="pr-relire">Réessayer</button></div></div></div>`;
+        $('#pr-relire', view).onclick = () => drawProduction(view);
         return;
       }
       // La page a pu changer pendant l'attente : on ne redessine que si on y est encore (7.6.0).
@@ -10365,6 +10564,15 @@
     const prochaines = liste.filter(e => !e.passee);
     const passees = liste.filter(e => e.passee).reverse();
 
+    if (!liste.length && questionsAttenteRefus) {
+      view.innerHTML = `<div class="page-head"><h1>Échéances</h1></div>
+        <div class="panel" id="ech-refus"><h2>Le calendrier n'a pas pu se lire</h2>
+          <p>${esc(plainError(questionsAttenteRefus))}</p>
+          <p class="small muted">Rien n'est perdu : les livres de tes clients sont intacts. Le calendrier se remplit dès que la lecture réussit.</p>
+          <div class="modal-actions"><button class="btn btn-primary" id="ech-relire">Réessayer</button></div></div>`;
+      $('#ech-relire', view).onclick = () => { chargerQuestionsAttente(false).then(() => drawEcheances(view)); };
+      return;
+    }
     if (!liste.length) { drawEcheancesVides(view); return; }
 
     // Deux répétitions que la capture montre et qu'aucun test ne voit. (1) Le `detail` explique la
@@ -10657,7 +10865,8 @@
   // pas d'appel, donc pas de panneau qui apparaît une seconde après le reste.
   function panneauDroits(dossier) {
     const liste = (S.collaborateurs || []).filter(c => c.actif);
-    if (!liste.length) return '';
+    // (plateforme) 1.139.0 — seul au cabinet, il n'y a personne à qui confier le dossier (UX 3).
+    if (liste.length < 2) return '';
     const droits = dossier.droits || {};
     const confies = liste.filter(c => droits[c.id]);
     return `<div class="panel" id="d-droits"><h2>Qui travaille sur ce dossier ${info('eq.droits')}</h2>
@@ -10846,6 +11055,13 @@
   }
 
   async function dessinerLicence(view, dejaLu) {
+    // (plateforme, abonnement du cabinet) Le panneau dit l'abonnement que le serveur déduit, et la pastille du haut avec.
+    if (api.dessinerAbonnementCabinet) {
+      const boite = $('#lic-panel', view);
+      if (boite) await api.dessinerAbonnementCabinet(boite);
+      await chargerLicence();
+      return;
+    }
     if (!dejaLu) {
       await chargerLicence();
       // La page a pu changer pendant l'attente : on redemande l'élément APRÈS, jamais avant
@@ -11420,7 +11636,9 @@
     'pan-cabinet': { onglet: 'cabinet', titre: 'Ton cabinet', mots: 'cabinet nom email telephone jour relance tva cnss depot echeance' },
     'pan-appairage': { onglet: 'cabinet', titre: 'Le code de ton cabinet', mots: 'code cabinet client confier dossier mandat accepter' },
     'pan-equipe': { onglet: 'cabinet', titre: 'L\'équipe', mots: 'equipe collaborateur collaborateurs qui saisit valide supervision role droits personne poste partage plusieurs assistant stagiaire chef mission' },
-    'pan-licence': { onglet: 'cabinet', titre: 'Licence', mots: 'licence cle payer prix dossiers hors skanfact quota gratuit acheter abonnement facture' },
+    'pan-licence': api.dessinerAbonnementCabinet
+      ? { onglet: 'cabinet', titre: 'Ton abonnement', mots: 'abonnement licence payer prix dossiers tenus gratuits payants plafond facture echeance lecture seule anniversaire prorata' }
+      : { onglet: 'cabinet', titre: 'Licence', mots: 'licence cle payer prix dossiers hors skanfact quota gratuit acheter abonnement facture' },
     'pan-saisie': { onglet: 'compta', titre: 'La grille de saisie', mots: 'saisie clavier touches raccourci solder recopier dupliquer journal date kilometre grille brouillard validation' },
     'pan-guides': { onglet: 'compta', titre: 'Guides d\'écritures', mots: 'guide modele ecriture type loyer salaire achat tva honoraires steg prerempli abonnement recurrent' },
     'pan-comptes': { onglet: 'compta', titre: 'Correspondance des comptes', mots: 'correspondance compte plan client cabinet traduire import export numero prefixe' },
@@ -11445,9 +11663,17 @@
   let reglagesTab = 'cabinet';
   let reglagesFocus = '';
   let reglagesRefus = null;
+  // (plateforme, abonnement du cabinet) Au démarrage, les Réglages se redessinent quand une relecture arrive après le
+  // premier dessin (la boîte de réception, la clé de secours, les questions). Le second dessin ne savait plus quel
+  // panneau amener, et remettait la page en haut : au retour d'un paiement, loin de « Ton abonnement », sur une machine
+  // lente. Le panneau demandé reste demandé jusqu'à ce qu'il soit à l'écran ; un redessin sur place, sans panneau à
+  // amener, garde le lecteur où il était.
+  let reglagesAAmener = '';
 
   function drawReglages(view) {
     const c = S.cabinet || {};
+    const defileur = view.closest('main') || document.scrollingElement;
+    const lieu = view.querySelector('#set-corps') && !reglagesFocus && !reglagesAAmener ? { haut: defileur.scrollTop, page: window.scrollY } : null;
     if (!REG_TABS.some(t => t[0] === reglagesTab)) reglagesTab = 'cabinet';
     view.innerHTML = `
       <div class="page-head"><h1>Réglages</h1>
@@ -11503,7 +11729,7 @@
         <div id="eq-panel"><p class="muted small">Chargement…</p></div>
       </div>
 
-      ${panneauReg('pan-licence', info('lic.cab'))}
+      ${panneauReg('pan-licence', info(api.dessinerAbonnementCabinet ? 'abo.cab' : 'lic.cab'))}
         <div id="lic-panel"><p class="muted small">Chargement…</p></div>
       </div>
 
@@ -11681,8 +11907,9 @@
     // « Chargement… » au premier dessin et grandissent ensuite : le défilement posé tout de suite
     // visait une page plus courte, et la pastille de licence ouvrait « Le fichier à remettre »,
     // le panneau Licence 50 px sous le bas de l'écran. Trouvé à la souris.
-    const vise = reglagesFocus;
+    const vise = reglagesFocus || reglagesAAmener;
     reglagesFocus = '';
+    reglagesAAmener = vise;
     const aRefuser = reglagesRefus;
     reglagesRefus = null;
     const sup = $('#s-support'); if (sup) sup.onclick = supportDialog;
@@ -11712,7 +11939,15 @@
     const corps = $('#set-corps', view);
     if (corps) { corps.addEventListener('input', e => sale(e.target)); corps.addEventListener('change', e => sale(e.target)); }
     Promise.allSettled([dessinerEquipe(view), dessinerLicence(view)]).then(() => {
-      if (vise && location.hash.startsWith('#/reglages')) reg.montrer(vise);
+      // (plateforme, abonnement du cabinet) Le panneau est amené : la consigne s'éteint ; un redessin sur place remet le
+      // lecteur où il était, une fois les panneaux remplis.
+      if (reglagesAAmener === vise) reglagesAAmener = '';
+      if (lieu) { defileur.scrollTop = lieu.haut; window.scrollTo(0, lieu.page); }
+      if (vise && location.hash.startsWith('#/reglages')) {
+        // (plateforme, abonnement du cabinet) Le panneau est plus haut que l'écran : il arrive par son haut, sans glisser.
+        const haut = vise === 'pan-licence' && api.dessinerAbonnementCabinet ? document.getElementById(vise) : null;
+        if (haut) { haut.scrollIntoView({ block: 'start' }); haut.classList.add('flash'); setTimeout(() => haut.classList.remove('flash'), 1600); } else reg.montrer(vise);
+      }
       if (aRefuser && location.hash.startsWith('#/reglages')) refus(aRefuser.sel, aRefuser.message);
     });
     bindRecoveryBanner(view);
@@ -12017,13 +12252,21 @@
   const tenusConnus = () => Object.fromEntries(questionsAttente.filter(q => q.tenu).map(q => [q.dossierId, q.tenu]));
   // Les mois dont la déclaration est notée déposée dans le livre de chaque client (10.14.1).
   const declaresConnus = () => Object.fromEntries(questionsAttente.filter(q => (q.declares || []).length).map(q => [q.dossierId, q.declares]));
+  // (plateforme) 1.138.0 — la lecture refusée se retient : les Échéances disaient « Aucune échéance à suivre » d'une
+  // lecture qui avait échoué (UX 2). Ce qu'on savait avant reste, plutôt qu'une liste vide.
+  let questionsAttenteRefus = null;
   function chargerQuestionsAttente(redessiner) {
     if (!api.questionsEnAttente) return Promise.resolve();
     const avant = JSON.stringify(questionsAttente);
     return api.questionsEnAttente().then(r => {
+      questionsAttenteRefus = null;
       questionsAttente = Array.isArray(r) ? r : [];
       if (redessiner && JSON.stringify(questionsAttente) !== avant && !$('#modal-root').children.length && !$('#palette-root')) render();
-    }).catch(() => { questionsAttente = []; });
+    }).catch(x => {
+      const deja = questionsAttenteRefus;
+      questionsAttenteRefus = x;
+      if (redessiner && !deja && location.hash.startsWith('#/echeances') && !$('#modal-root').children.length && !$('#palette-root')) render();
+    });
   }
 
   async function doRestore(entry) {
@@ -12572,6 +12815,8 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
   // de l'écran reste le seul (U-11).
   const VISITE_PROPOSEE_MAX = 3;
   let appelEnAttente = '';
+  // (plateforme) 1.144.0 — une seule proposition par ouverture du Cabinet, comme l'entreprise depuis la 1.129.0 (UX 3).
+  let visiteProposeeIci = false;
   function fermerAppelGuide() {
     const a = document.getElementById('guide-appel');
     if (a) { if (typeof a._fermer === 'function') a._fermer(); else a.remove(); }
@@ -12582,6 +12827,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     const p = visitePage(cle);
     const et = visitesEtat();
     if (!p || visiteManque(p) || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[cle] || 0) >= VISITE_PROPOSEE_MAX)) return;
+    if (visiteProposeeIci && !reprise) return;
     // Une page vide qui porte « Tes premiers pas » est déjà une invitation.
     if ($('#view .premiers-pas')) return;
     const bouton = $('#guide-moi');
@@ -12589,6 +12835,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     if (!bouton) { appelEnAttente = cle; return; }
     fermerAppelGuide();
     if (!reprise) visitesPoser(e => { e.vues[cle] = (e.vues[cle] || 0) + 1; });
+    visiteProposeeIci = true;
     const coul = CV.couleurDe(p);
     const el = document.createElement('div');
     el.className = 'guide-appel' + (coul ? ' th-' + coul : '');
@@ -12601,7 +12848,8 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       <p class="ga-txt">${esc(p.resume || '')} Je te montre à quoi il sert et ce que fait chaque bouton, en ${esc(p.duree || 'une minute')}.</p>
       <div class="ga-actions"><button type="button" class="btn btn-sm ga-go" id="ga-go">${ICONE_LECTURE}Faire la visite</button>
         <button type="button" class="btn btn-ghost btn-sm" id="ga-non" title="Ne plus me proposer la visite de cet écran">Plus tard</button></div>
-      <p class="ga-note">Tu la retrouves dans « Guide-moi », avec tout ce qu'on peut faire ici.</p>`;
+      <p class="ga-note">Tu la retrouves dans « Guide-moi », avec tout ce qu'on peut faire ici.
+        <button type="button" class="ga-jamais" id="ga-jamais">Ne plus me proposer de visites</button></p>`;
     document.body.appendChild(el);
     typographie(el);
     const scroller = $('#view');
@@ -12642,6 +12890,11 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     if (scroller) scroller.addEventListener('scroll', defile);
     window.addEventListener('scroll', defile, { passive: true });
     $('#ga-go', el).onclick = () => { fermer(); lancerVisite(p); };
+    $('#ga-jamais', el).onclick = () => {
+      visitesPoser(e => { e.proposer = false; });
+      fermer();
+      toast('Plus de proposition de visite. Les visites restent dans « Guide-moi » ; la case de « Me guider » les rallume.');
+    };
     $('#ga-non', el).onclick = () => {
       visitesPoser(e => { e.vues[cle] = VISITE_PROPOSEE_MAX; }); fermer();
       if (retour && retour !== document.body && document.body.contains(retour)) retour.focus();

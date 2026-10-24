@@ -56,7 +56,7 @@ describe('les incidents du service, à la souris', () => {
     return String(c.corps.jeton);
   };
   const ouvrir = async (jeton: string, largeur = 1440) => {
-    const cx = await navigateur.newContext({ viewport: { width: largeur, height: largeur < 600 ? 844 : 900 }, locale: 'fr-FR' });
+    const cx = await navigateur.newContext({ viewport: { width: largeur, height: largeur < 600 ? 844 : 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript((j) => { sessionStorage.setItem('skanfact.console.jeton', j); }, jeton);
     const p = await cx.newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
@@ -66,7 +66,7 @@ describe('les incidents du service, à la souris', () => {
   };
   // Un écran de l'instrument : à une largeur, un thème et une langue ; lu quand toutes ses fiches réflexes sont là.
   const ouvrirEcran = async (e: EcranConsole, o: { largeur: number; theme?: 'clair' | 'sombre'; factice?: boolean }) => {
-    const cx = await navigateur.newContext({ viewport: { width: o.largeur, height: o.largeur < 600 ? 844 : 900 }, locale: 'fr-FR' });
+    const cx = await navigateur.newContext({ viewport: { width: o.largeur, height: o.largeur < 600 ? 844 : 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript(([j, t]) => {
       sessionStorage.setItem('skanfact.console.jeton', j);
       if (t) localStorage.setItem('skanfact.console.theme', t);
@@ -88,7 +88,7 @@ describe('les incidents du service, à la souris', () => {
     // viderait aussi les demandes des autres essais.
     await admin.query('update plateforme.demande_support set incident = null where incident is not null');
     await admin.query('delete from plateforme.service_suite; delete from plateforme.service_incident_point; delete from plateforme.service_incident');
-    await admin.query('truncate plateforme.service_maintenance');
+    await admin.query('truncate plateforme.service_fermeture, plateforme.service_maintenance');
     fs.writeFileSync(veille, JSON.stringify({ problemes: {} }));
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_VEILLE_FICHIER: veille }), port: 0, web: dossier, livreurMs: 60_000 });
@@ -182,7 +182,23 @@ describe('les incidents du service, à la souris', () => {
       { nom: 'incident-fiche', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-fiche').first().locator('button').last()); await fen(p); } },
       { nom: 'incident-repousser', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-suites-liste > li').first().locator('.c-in-suite-gestes button').first()); await fen(p); } },
       { nom: 'incident-lire', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-table tbody tr').last().locator('button')); await fen(p); } },
-      { nom: 'incident-annoncer', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-maintenances .c-al-section-tete button')); await fen(p); } },
+      { nom: 'incident-annoncer', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-maint-gestes button:not(.c-btn-danger)')); await fen(p); } },
+      { nom: 'incident-fermer-maintenant', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-maint-gestes .c-btn-danger')); await fen(p); } },
+      // 1.113.0 : l'exercice de crise, de sa fenêtre à son compte rendu, son chrono en tête de l'écran.
+      { nom: 'exercice-commencer', hash: H, geste: async (p) => { await cliquer(p.locator('.c-in-exercices .c-al-section-tete button')); await fen(p); } },
+      { nom: 'exercice-en-cours', hash: H, geste: async (p) => {
+        await cliquer(p.locator('.c-in-exercices .c-al-section-tete button')); await fen(p);
+        await p.locator('[role="dialog"] input').first().fill('Amira et Karim');
+        await cliquer(p.locator('[role="dialog"] .c-btn-principal'));
+        await cliquer(p.locator('.c-in-ex-en .c-in-ex-suivant button'));
+        await p.locator('.c-in-ex-en .c-in-ex-fait').waitFor();
+      } },
+      { nom: 'exercice-compte-rendu', hash: H, geste: async (p) => {
+        await cliquer(p.locator('.c-in-exercices .c-al-section-tete button')); await fen(p);
+        await p.locator('[role="dialog"] input').first().fill('Amira et Karim');
+        await cliquer(p.locator('[role="dialog"] .c-btn-principal'));
+        await cliquer(p.locator('.c-in-ex-en-pied .c-btn').last()); await fen(p);
+      } },
     ];
     const { faux, vus } = await mesurerLaConsole({ ecrans: ECRANS, ouvrir: ouvrirEcran, photos: path.join(RACINE, 'dist/photos') });
     expect(faux).toEqual([]);
@@ -272,6 +288,223 @@ describe('les incidents du service, à la souris', () => {
     expect(erreurs).toEqual([]);
     await fermer(p);
   }, 60_000);
+
+  // 1.109.0 : les messages prêts d'une fiche, et le carnet de crise.
+  it('une fiche porte ses messages prêts, copiés d\'un geste ; « ouvrir » pose celui de la page d\'état, et le refuse tant que ses crochets ne sont pas remplis', async () => {
+    const p = await ouvrir(jD);
+    await p.context().grantPermissions(['clipboard-read', 'clipboard-write'], { origin: serveur.adresse });
+    const carte = (nom: string) => p.locator('.c-in-fiche').filter({ has: p.getByRole('heading', { name: nom, exact: true }) });
+    await cliquer(carte('Un partenaire ne répond plus').getByRole('button', { name: 'Lire la fiche · 4 temps' }));
+    const f = fenetre(p);
+    expect(net(await f.locator('[data-pret="public"]').innerText())).toMatch(/^\[Le partenaire\] ne répond plus depuis \[heure\]/);
+    await cliquer(f.getByRole('button', { name: 'Copier l\'e-mail, objet compris' }));
+    await expect.poll(() => p.evaluate(() => navigator.clipboard.readText()))
+      .toMatch(/^Objet\u202f: \[Le partenaire\] ne répond plus\u202f: tes envois attendent\n\nBonjour,\n\nDepuis \[heure\]/);
+    await p.keyboard.press('Escape');
+    // La sauvegarde ne touche pas les clients : rien à copier.
+    await cliquer(carte('Une sauvegarde manque ou est en retard').getByRole('button', { name: 'Lire la fiche · 4 temps' }));
+    expect(await f.getByRole('button', { name: /^Copier/ }).count()).toBe(0);
+    expect(net(await f.locator('.c-in-prets').innerText())).toContain('Rien sur la page d\'état');
+    await p.keyboard.press('Escape');
+
+    // Ouvrir sur la fiche (le lien des autres écrans) : la case cochée pose son message ; changer de fiche le change, tant
+    // qu'on n'y a pas touché ; envoyé avec ses crochets, il se refuse en citant ce qui reste à remplir.
+    await p.goto(`${serveur.adresse}/console/#/service/incidents?ouvrir=partenaire`);
+    await p.reload();
+    await f.getByRole('heading', { name: 'Ouvrir un incident' }).waitFor();
+    await cliquer(f.getByRole('checkbox', { name: /Le dire tout de suite/ }));
+    const pub = f.getByLabel('Ce que la page d\'état dira', { exact: true });
+    expect(await pub.inputValue()).toMatch(/^\[Le partenaire\] ne répond plus depuis \[heure\]/);
+    await f.getByLabel('La fiche réflexe', { exact: true }).selectOption('service');
+    expect(net(await pub.inputValue())).toBe('SkanFact ne répond plus pour l\'instant ; nous y travaillons. Rien de ce qui est enregistré n\'est perdu. Prochain point dans trente minutes.');
+    await pub.fill('Konnect ne répond plus depuis [heure].');
+    await f.getByLabel('La fiche réflexe', { exact: true }).selectOption('partenaire');
+    expect(await pub.inputValue()).toBe('Konnect ne répond plus depuis [heure].');
+    await f.getByLabel('Motif', { exact: true }).fill('trois appels');
+    await cliquer(f.getByRole('button', { name: 'Ouvrir l\'incident' }));
+    await expect.poll(async () => net(await f.locator('.c-alerte-danger').innerText())).toContain('« [heure] »');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
+  it('le carnet de crise se télécharge : les fiches du serveur, rien à charger', async () => {
+    const p = await ouvrir(jD);
+    const [t] = await Promise.all([p.waitForEvent('download'), cliquer(p.getByRole('button', { name: 'Télécharger le carnet de crise' }))]);
+    const jour = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Africa/Tunis' }).format(new Date());
+    expect(t.suggestedFilename()).toBe(`carnet-de-crise-${jour}.html`);
+    const html = fs.readFileSync(await t.path(), 'utf8');
+    expect([...html.matchAll(/<article class="fiche" id="fiche-([a-z]+)">/g)].map((m) => m[1])).toEqual([...FICHES]);
+    expect(html).not.toMatch(/<script|src=|url\(|https?:/i);
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
+  // 1.107.0 (C24 bis). Les réponses du serveur sont jouées ici : les autres fichiers d'essais partagent la base, à l'heure
+  // du jour, et une vraie fermeture leur répondrait « Maintenance en cours ». Le serveur est essayé à part
+  // (tests/console/console.test.ts), à une heure où personne d'autre ne vit.
+  it('fermer l\'application maintenant : la fenêtre dit ce qui va se passer ; fermée, un bandeau dont « Rouvrir » est le seul bouton principal', async () => {
+    const p = await ouvrir(jD);
+    let ferme: { texte: string; fin: string } | null = null;
+    const envoye: { chemin: string; corps: Record<string, unknown> }[] = [];
+    await p.route('**/v1/console/service/incidents', async (r) => {
+      const rep = await r.fetch();
+      const j = await rep.json() as { maintenances: unknown[]; maintenant: string };
+      if (ferme) j.maintenances.unshift({ sorte: 'annoncee', le: j.maintenant, id: '01900000-0000-7000-8000-000000000164', titre: 'Maintenance urgente', texte: ferme.texte, debut: j.maintenant, fin: ferme.fin, par: 'Amira Essai', etat: 'en_cours', fermee: true });
+      await r.fulfill({ response: rep, json: j });
+    });
+    await p.route(/\/v1\/console\/service\/(fermer-maintenant|maintenances\/[^/]+\/rouvrir)$/, async (r) => {
+      const corps = r.request().postDataJSON() as Record<string, unknown>;
+      envoye.push({ chemin: new URL(r.request().url()).pathname, corps });
+      if (envoye.at(-1)?.chemin.endsWith('/fermer-maintenant')) { ferme = { texte: String(corps.texte), fin: String(corps.fin) }; await r.fulfill({ status: 201, json: { id: '01900000-0000-7000-8000-000000000164' } }); }
+      else { ferme = null; await r.fulfill({ json: { ok: true } }); }
+    });
+    await cliquer(p.locator('.c-in-maintenances').getByRole('button', { name: 'Fermer l\'application maintenant…' }));
+    const f = fenetre(p);
+    expect(net(await f.locator('.c-al-ce-qui-va').innerText())).toMatch(/Maintenance en cours.*la console reste ouverte.*se rouvre seule/s);
+    // Rien d'écrit : refusé sur ce que les clients liront, et rien ne part.
+    await cliquer(f.getByRole('button', { name: 'Fermer l\'application', exact: true }));
+    await expect.poll(() => f.locator('.c-alerte-danger').innerText().then(net)).toMatch(/de trois à cinq cents caractères/);
+    expect(envoye).toEqual([]);
+    const zones = f.locator('textarea');
+    await zones.nth(0).fill('La base change de disque.');
+    await zones.nth(1).fill('le disque se remplit');
+    await cliquer(f.getByRole('button', { name: 'Fermer l\'application', exact: true }));
+    expect(await toast(p)).toMatch(/^Application fermée aux clients/);
+    expect(envoye.map((x) => x.chemin)).toEqual(['/v1/console/service/fermer-maintenant']);
+    const fin = Date.parse(String(envoye[0]?.corps.fin));
+    expect(fin - Date.now()).toBeGreaterThan(55 * 60_000);
+    expect(fin - Date.now()).toBeLessThanOrEqual(12 * 3_600_000);
+    // Fermée : le bandeau en tête, ce que lisent les clients, et un seul bouton principal, « Rouvrir ».
+    await expect.poll(() => p.locator('.c-in-fermee').count()).toBe(1);
+    expect(net(await p.locator('.c-in-fermee').innerText())).toMatch(/L'application est fermée aux clients.*La base change de disque\./s);
+    expect(await p.locator('main .c-btn-principal').count()).toBe(1);
+    expect(net(await p.locator('main .c-btn-principal').innerText())).toBe('Rouvrir l\'application…');
+    expect(await p.locator('.c-in-maintenances').getByRole('button', { name: 'Fermer l\'application maintenant…' }).count()).toBe(0);
+    expect(net(await p.locator('.c-in-maint-liste').innerText())).toContain('l\'application est fermée · Rouvrir l\'application…');
+    await cliquer(p.locator('main .c-btn-principal'));
+    await f.locator('textarea').fill('le disque est changé');
+    await cliquer(f.getByRole('button', { name: 'Rouvrir l\'application', exact: true }));
+    await expect.poll(() => toast(p)).toMatch(/^Application rouverte/);
+    expect(envoye.at(-1)).toEqual({ chemin: '/v1/console/service/maintenances/01900000-0000-7000-8000-000000000164/rouvrir', corps: { motif: 'le disque est changé' } });
+    await expect.poll(() => p.locator('.c-in-fermee').count()).toBe(0);
+    expect(net(await p.locator('main .c-btn-principal').innerText())).not.toBe('Rouvrir l\'application…');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
+  it('annoncer une maintenance qui fermera l\'application : la case part avec l\'annonce', async () => {
+    const p = await ouvrir(jD);
+    let corps: Record<string, unknown> | null = null;
+    await p.route('**/v1/console/service/maintenances', async (r) => { corps = r.request().postDataJSON() as Record<string, unknown>; await r.fulfill({ status: 201, json: { id: '01900000-0000-7000-8000-000000000165' } }); });
+    await cliquer(p.locator('.c-in-maintenances').getByRole('button', { name: 'Annoncer…' }));
+    const f = fenetre(p);
+    await f.locator('input[type="text"]').first().fill('Le disque agrandi');
+    const zones = f.locator('textarea');
+    await zones.nth(0).fill('Rien ne s\'écrit pendant une heure.');
+    await cliquer(f.getByText('fermer l\'application aux clients pendant le créneau', { exact: false }));
+    await zones.nth(1).fill('prévu avec l\'hébergeur');
+    await cliquer(f.getByRole('button', { name: 'Annoncer', exact: true }));
+    expect(await toast(p)).toMatch(/l'application sera fermée pendant/);
+    expect(corps).toMatchObject({ titre: 'Le disque agrandi', fermee: true });
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 60_000);
+
+  // 1.113.0 (0166 ; C24 quater) : les exercices de crise.
+  it('un exercice se joue temps par temps, survit à la page rechargée ; « réussi » attend les quatre temps ; noté, il se relit et compte', async () => {
+    const p = await ouvrir(jD);
+    await cliquer(p.getByRole('button', { name: 'Faire un exercice…' }));
+    let f = fenetre(p);
+    await f.getByLabel('La fiche jouée').selectOption('site');
+    // Personne pour jouer : refusé, le champ montré.
+    await cliquer(f.getByRole('button', { name: 'Commencer l\'exercice' }));
+    await expect.poll(() => f.getByRole('alert').innerText()).toMatch(/Dis qui joue/);
+    expect(await p.evaluate(() => document.activeElement?.tagName)).toBe('INPUT');
+    await f.getByLabel('Qui joue').fill('Amira et Karim, chrono : Amira');
+    await cliquer(f.getByRole('button', { name: 'Commencer l\'exercice' }));
+    // Le chrono part en tête de l'écran, à la vue : l'exercice commence d'un bouton du bas (recette du 22/10/2026).
+    const en = p.locator('.c-in-ex-en');
+    await expect.poll(() => en.count()).toBe(1);
+    expect(net(await en.locator('h2').innerText())).toBe('Exercice en cours : le site principal est perdu');
+    // Le chrono se lit à l'écran (le cadre peut dépasser vers le bas ; jamais le chrono hors de la vue).
+    await expect.poll(() => en.locator('.c-in-ex-chrono').evaluate((e) => {
+      const r = e.getBoundingClientRect();
+      return r.top >= -1 && r.bottom <= innerHeight + 1 ? 'à la vue' : `hors de la vue : haut ${Math.round(r.top)}, bas ${Math.round(r.bottom)}, écran ${innerHeight}, défilé ${Math.round(scrollY)}`;
+    })).toBe('à la vue');
+    // Un seul « Fait » à la fois : celui du temps suivant ; pendant l'exercice, on n'en commence pas un second.
+    expect(await en.getByRole('button', { name: 'Fait', exact: true }).count()).toBe(1);
+    expect(await p.getByRole('button', { name: 'Faire un exercice…' }).count()).toBe(0);
+    await cliquer(en.getByRole('button', { name: 'Fait', exact: true }));
+    await expect.poll(() => en.locator('.c-in-ex-fait').count()).toBe(1);
+    // Rechargée, la page retrouve l'exercice et le temps coché.
+    await p.reload();
+    await expect.poll(() => p.locator('.c-in-ex-en .c-in-ex-fait').count(), { timeout: 20_000 }).toBe(1);
+    await cliquer(p.locator('.c-in-ex-en').getByRole('button', { name: 'Fait', exact: true }));
+    await cliquer(p.locator('.c-in-ex-en').getByRole('button', { name: 'Terminer et écrire le compte rendu…' }));
+    f = fenetre(p);
+    await f.getByLabel('Ce qui a marché').fill('La fiche se lit vite.');
+    await f.getByLabel('Ce qui a coincé').fill('Personne ne savait où était la copie du site.');
+    await f.getByLabel('Ce qu\'on change').fill('Noter l\'adresse de la copie au carnet.');
+    // Deux temps sur quatre : le verdict proposé est « à refaire » ; « réussi » se refuse et dit ce qui manque.
+    expect(await f.getByRole('button', { name: 'À refaire' }).getAttribute('aria-pressed')).toBe('true');
+    await cliquer(f.getByRole('button', { name: 'Réussi' }));
+    await cliquer(f.getByRole('button', { name: 'Noter l\'exercice' }));
+    await expect.poll(() => f.getByRole('alert').innerText()).toMatch(/il en manque 2/);
+    await cliquer(f.getByRole('button', { name: 'À refaire' }));
+    await cliquer(f.getByRole('button', { name: 'Noter l\'exercice' }));
+    expect(await toast(p)).toBe('Exercice noté, à refaire.');
+    // Noté : le bandeau s'en va, l'onglet l'oublie, la fiche le dit, la liste le porte.
+    await expect.poll(() => p.locator('.c-in-ex-en').count()).toBe(0);
+    expect(await p.evaluate(() => sessionStorage.getItem('skanfact.console.exercice'))).toBeNull();
+    const carte = p.locator('.c-in-fiche').filter({ hasText: 'Le site principal est perdu' });
+    await expect.poll(async () => net(await carte.locator('.c-in-fiche-pied .c-sous').innerText())).toMatch(/^À refaire depuis le /);
+    const ligne = p.locator('.c-in-table-ex tbody tr').filter({ hasText: 'Le site principal est perdu' }).first();
+    expect(net(await ligne.innerText())).toContain('À refaire');
+    await cliquer(ligne.getByRole('button', { name: 'Lire' }));
+    f = fenetre(p);
+    expect(net(await f.innerText())).toMatch(/Joué aujourd'hui, \d\d:\d\d · \d+ min · Amira et Karim, chrono : Amira\./);
+    expect((await f.locator('.c-in-temps > li p').allInnerTexts()).map(net)).toEqual([expect.stringMatching(/^Fait à \d+ min$/), expect.stringMatching(/^Fait à \d+ min$/), 'Pas fait', 'Pas fait']);
+    expect(net(await f.locator('.c-in-ex-cr').innerText())).toContain('Personne ne savait où était la copie du site.');
+    expect(erreurs).toEqual([]);
+    await fermer(p);
+  }, 90_000);
+
+  it('quatre temps faits : « réussi » est proposé, et la fiche compte pour le lancement ; un exercice de plus de douze heures n\'est pas rouvert', async () => {
+    const p = await ouvrir(jD);
+    await cliquer(p.getByRole('button', { name: 'Faire un exercice…' }));
+    let f = fenetre(p);
+    await f.getByLabel('La fiche jouée').selectOption('acces');
+    await f.getByLabel('Qui joue').fill('Walid, seul au poste');
+    await cliquer(f.getByRole('button', { name: 'Commencer l\'exercice' }));
+    const en = p.locator('.c-in-ex-en');
+    for (let k = 1; k <= 4; k++) {
+      await cliquer(en.getByRole('button', { name: 'Fait', exact: true }));
+      await expect.poll(() => en.locator('.c-in-ex-fait').count()).toBe(k);
+    }
+    await cliquer(en.getByRole('button', { name: 'Terminer et écrire le compte rendu…' }));
+    f = fenetre(p);
+    expect(await f.getByRole('button', { name: 'Réussi' }).getAttribute('aria-pressed')).toBe('true');
+    await f.getByLabel('Ce qui a marché').fill('Les sessions se coupent d\'un geste.');
+    await f.getByLabel('Ce qui a coincé').fill('Rien de bloquant.');
+    await f.getByLabel('Ce qu\'on change').fill('Rien pour cette fiche.');
+    await cliquer(f.getByRole('button', { name: 'Noter l\'exercice' }));
+    expect(await toast(p)).toBe('Exercice noté : il compte pour le lancement.');
+    // Les données se relisent après le toast : on attend la fiche, puis le compteur (la même lecture).
+    await expect.poll(async () => net(await p.locator('.c-in-fiche').filter({ hasText: 'Un accès suspect, un compte volé' }).locator('.c-in-fiche-pied .c-sous').innerText())).toMatch(/^Exercée le /);
+    expect(net(await p.locator('.c-in-ex-compte').innerText())).not.toMatch(/Un accès suspect/);
+    await fermer(p);
+    // Un exercice laissé ouvert dans l'onglet depuis treize heures ne se noterait plus : la page ne le rouvre pas.
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript(([j, e]) => { sessionStorage.setItem('skanfact.console.jeton', j); sessionStorage.setItem('skanfact.console.exercice', e); },
+      [jD, JSON.stringify({ fiche: 'base', debut: new Date(Date.now() - 13 * 3_600_000).toISOString(), participants: 'Hier soir', temps: [3, null, null, null] })] as const);
+    const q = await cx.newPage();
+    await q.goto(`${serveur.adresse}/console/#/service/incidents`);
+    await expect.poll(() => q.locator('.c-in-fiche').count(), { timeout: 20_000 }).toBe(FICHES.length);
+    expect(await q.locator('.c-in-ex-en').count()).toBe(0);
+    expect(await q.getByRole('button', { name: 'Faire un exercice…' }).count()).toBe(1);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 90_000);
 
   it('au téléphone : rien ne déborde, et chaque cible se touche du doigt', async () => {
     const p = await ouvrir(jD, 390);

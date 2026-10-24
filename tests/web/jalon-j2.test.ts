@@ -250,11 +250,23 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await (await selecteur).setFiles(PHOTO);
     const lu = nadia.locator('#modal-root .modal').last();
     await expect.poll(() => lu.locator('h2').first().innerText(), { timeout: 30_000 }).toBe('Ce que SkanFact a lu');
+    // La photo se joint à l'achat par le réseau ; sur un réseau lent, « Enregistrer » cliqué pendant l'envoi enregistrait
+    // l'achat sans sa photo, puis l'envoi fini rouvrait une « Nouvelle facture d'achat » non enregistrée (1.113.0, trouvé
+    // sous la charge des essais). L'envoi est ralenti ici, pour que le clic tombe toujours pendant lui.
+    await nadia.route('**/pieces-jointes', async (r) => { await new Promise((ok) => setTimeout(ok, 2000)); await r.continue(); });
     await lu.getByRole('button', { name: 'Utiliser ces informations', exact: true }).click();
     await expect.poll(() => nadia.locator('#modal-root .modal').count()).toBe(0);
     await nadia.locator('#save').click();
+    await nadia.unroute('**/pieces-jointes');
     await expect.poll(async () => ((await api('GET', `/entreprises/${m.ent}/achats`, m.jeton)).corps.lignes as { numero: string; netAPayer: string }[] | undefined)?.map((l) => [l.numero, l.netAPayer]),
       { timeout: 15_000 }).toEqual([['FV-2026-0412', '332.222']]);
+    // L'écran, lui aussi, a fini d'enregistrer (1.112.0 : le serveur avait l'achat, l'écran pas encore, et partir vers la
+    // Trésorerie ouvrait, à juste titre, « Modifications non enregistrées »).
+    await expect.poll(() => titre(nadia), { timeout: 15_000 }).not.toMatch(/Modifications non enregistrées/);
+    // L'écran est celui de l'achat enregistré, et la photo y est jointe.
+    expect(await titre(nadia)).toMatch(/FV-2026-0412/);
+    await expect.poll(async () => ((await objets()).find((o) => o.collection === 'purchases' && o.contenu.number === 'FV-2026-0412')?.contenu.attachments as unknown[] | undefined)?.length ?? 0,
+      { timeout: 15_000 }).toBe(1);
     await nadia.screenshot({ path: path.join(PHOTOS, 'j2-4-achat-lu.png') });
 
     await noter('B2');

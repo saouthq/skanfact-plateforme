@@ -43,7 +43,7 @@ type Donnees = {
   tours: Tour[]; partenaires: { nom: Partenaire; jours: Jour[]; heures: Heure[] }[]; sansTrace: string[]; ttn: { enFile: number; medianeS: number | null };
   pauses: Pause[]; pausables: Pausable[]; dureesPause: number[]; enPanne: { n: number; depuis: string | null; heures: number };
   aRegarder: ARegarder[]; nuit: Nuit | null; exercice: { jour: string; restauration: Resultat } | null; version: string | null;
-  branches: { ttn: boolean; courriel: boolean };
+  branches: { ttn: boolean; courriel: boolean; signature: boolean; sms: boolean; paiements: boolean };
 };
 
 // La sorte d'un envoi à regarder, et le partenaire dont il vient.
@@ -102,8 +102,9 @@ function Barres({ barres, nom, heures }: { barres: readonly Barre[]; nom: string
 
 type Vue = 'jours' | 'heures';
 function Partenaires({ d, filtrer, geste }: { d: Donnees; filtrer: (p: Partenaire) => void; geste: (g: GestePause) => void }) {
-  // Un partenaire qui ne part que par un relais absent (les relances sans e-mail) se dit débranché, pas « 0 ».
-  const branche = (p: Partenaire) => (p === 'relances' ? d.branches.courriel : p === 'ttn' ? d.branches.ttn : true);
+  // Un partenaire qu'aucun réglage ne branche sur ce serveur (la TTN sans adresse, DigiGo, le relais d'e-mails, les SMS, le
+  // paiement en ligne) se dit débranché, pas « 0 · Bon » ; les relances partent par le relais d'e-mails.
+  const branche = (p: Partenaire) => d.branches[p === 'relances' ? 'courriel' : p];
   const [vue, setVue] = useState<Vue>('jours');
   return (
     <section className="c-tr-partenaires" aria-labelledby="tr-partenaires">

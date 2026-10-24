@@ -62,6 +62,32 @@ export function lireIncidents(brut: unknown): IncidentsLus {
   };
 }
 
+// ── Les exercices de crise (0166 ; docs/console.md C24 quater) ─────────────────────────────────────────────────────
+// Une fiche jouée à blanc, chronométrée : la minute où chacun de ses quatre temps a été fait, puis son compte rendu.
+export type ExerciceLu = {
+  id: string; fiche: Fiche; debut: string; fin: string; temps: (number | null)[]; participants: string;
+  marche: string; coince: string; change: string; reussi: boolean; par: string;
+};
+export function lireExercices(brut: unknown): ExerciceLu[] {
+  return tableau(brut).flatMap((e) => {
+    const debut = date(e.debut), fin = date(e.fin), t = Array.isArray(e.temps) ? e.temps as unknown[] : [];
+    if (!debut || !fin || !estFiche(e.fiche)) return [];
+    return [{
+      id: String(e.id), fiche: e.fiche, debut, fin, temps: [0, 1, 2, 3].map((k) => { const m = t[k]; return typeof m === 'number' && Number.isInteger(m) && m >= 0 ? m : null; }),
+      participants: String(e.participants ?? ''), marche: String(e.marche ?? ''), coince: String(e.coince ?? ''), change: String(e.change ?? ''),
+      reussi: e.reussi === true, par: String(e.par ?? ''),
+    }];
+  });
+}
+// Le lancement (docs/cadrage/09-feuille-de-route.md, J5) veut chaque fiche RÉUSSIE au moins une fois dans les douze derniers
+// mois : celles qui le sont, celles qui manquent, dans l'ordre des fiches. Un exercice à refaire ne compte pas.
+export const EXERCICE_VAUT_JOURS = 365;
+export function exercicesDuLancement(ex: ExerciceLu[], maintenant: Date) {
+  const depuis = maintenant.getTime() - EXERCICE_VAUT_JOURS * 86_400_000;
+  const reussies = new Set(ex.filter((e) => e.reussi && Date.parse(e.fin) >= depuis).map((e) => e.fiche));
+  return { reussies: FICHES.filter((f) => reussies.has(f)), manquent: FICHES.filter((f) => !reussies.has(f)), total: FICHES.length };
+}
+
 // ── Les incidents ouverts ───────────────────────────────────────────────────────────────────────────────────────────
 // Le plus grave d'abord, puis le plus ancien : c'est celui qu'on traite.
 export function ouverts(lu: IncidentsLus): IncidentLu[] {
@@ -124,7 +150,7 @@ export function passes(lu: IncidentsLus, depuis: string, mesure: Mesure) {
 // coupure, lue dans les minutes que la veille a relevées sans réponse autour d'elle (dix minutes de part et d'autre).
 export type EtatMaintenance = 'a_venir' | 'en_cours' | 'faite' | 'annulee';
 export type LigneMaintenance =
-  | { sorte: 'annoncee'; le: string; id: string; titre: string; texte: string; debut: string; fin: string; par: string; etat: EtatMaintenance }
+  | { sorte: 'annoncee'; le: string; id: string; titre: string; texte: string; debut: string; fin: string; par: string; etat: EtatMaintenance; fermee: boolean }
   | { sorte: 'version'; le: string; version: string; retour: boolean; coupure: number };
 export const AUTOUR_VERSION_MIN = 10;
 export function maintenances(
@@ -132,11 +158,14 @@ export function maintenances(
   versions: readonly { version: string; le: string; retour: boolean }[],
   coupures: readonly { debut: string; fin: string; minutes: number }[],
   maintenant: Date,
+  // (1.107.0, base 0164) Les maintenances qui ferment l'application aux clients.
+  fermees: ReadonlySet<string> = new Set(),
 ): LigneMaintenance[] {
   const t = maintenant.getTime();
   const annoncees: LigneMaintenance[] = lu.maintenances.map((m) => ({
     sorte: 'annoncee', le: m.debut, id: m.id, titre: m.titre, texte: m.texte, debut: m.debut, fin: m.fin, par: m.par,
     etat: m.annuleeLe ? 'annulee' : Date.parse(m.debut) > t ? 'a_venir' : Date.parse(m.fin) > t ? 'en_cours' : 'faite',
+    fermee: fermees.has(m.id),
   }));
   const autour = AUTOUR_VERSION_MIN * 60_000;
   const vues: LigneMaintenance[] = versions.map((v) => {

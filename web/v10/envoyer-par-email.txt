@@ -1,0 +1,27 @@
+« Envoyer au comptable… » s'appelle « Envoyer par e-mail… » quand un cabinet lit les livres (1.130.0 ;
+docs/revue-mois-client.md, point 17). Format : voir sans-paquets.mjs.
+
+La recette du 23/10/2026 : dans Comptabilité › Ventes, Sarra lisait « Envoyer au comptable… » juste au-dessus de « Ton
+cabinet lit ces ventes en direct : il n'y a rien à lui envoyer ». Le bouton envoie par e-mail, à quelqu'un d'autre :
+avec un cabinet relié, son nom et le titre de sa fenêtre le disent.
+
+== app.js | avec un cabinet relié, le bouton dit ce qu'il fait : un envoi par e-mail
+-- avant
+<button class="btn${messagerieVue && messagerieVue.cabinet ? '' : ' btn-primary'}" id="exp-comptable">Envoyer au comptable…</button>
+-- après
+<button class="btn${messagerieVue && messagerieVue.cabinet ? '' : ' btn-primary'}" id="exp-comptable">${messagerieVue && messagerieVue.cabinet ? 'Envoyer par e-mail…' : 'Envoyer au comptable…'}</button>
+-- fin
+
+== app.js | la fenêtre d'envoi aussi, avec un cabinet relié
+-- avant
+        modal(`<h2>Envoyer la comptabilité au comptable</h2>
+-- après
+        modal(`<h2>${messagerieVue && messagerieVue.cabinet ? 'Envoyer la comptabilité par e-mail' : 'Envoyer la comptabilité au comptable'}</h2>
+-- fin
+
+== app.js | le champ de l'adresse ne dit plus « du comptable » quand c'est quelqu'un d'autre
+-- avant
+            ${field(lbl('Email du comptable', 'compta.comptableEmail'), 'to', company().accountantEmail || '', 'email', 'placeholder="comptable@cabinet.tn"')}
+-- après
+            ${field(lbl(messagerieVue && messagerieVue.cabinet ? 'Son adresse e-mail' : 'Email du comptable', 'compta.comptableEmail'), 'to', company().accountantEmail || '', 'email', 'placeholder="comptable@cabinet.tn"')}
+-- fin

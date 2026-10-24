@@ -41,7 +41,7 @@ type LigneAbo = { essai_jusqu_au: string; paye_jusqu_au: string | null; offre: O
 // `derniereIci` (0114) : son dernier geste dans CETTE entreprise ; `derniereConnexion`, sa dernière connexion, où que ce soit.
 type Membre = { nom: string; email: string; roles: string[]; depuis: string; derniereConnexion: string | null; derniereIci?: string | null };
 type CabinetDe = { id: string; nom: string; place: Place; mandat: { statut: 'propose' | 'actif'; debut: string } | null };
-type Evenement = { id: string; le: string; nature: string; par: 'systeme' | 'exploitation'; motif: string | null; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null; qui: { nom: string; role: Role } | null };
+type Evenement = { id: string; le: string; nature: string; par: 'systeme' | 'exploitation' | 'abonne'; motif: string | null; avant: Record<string, unknown> | null; apres: Record<string, unknown> | null; qui: { nom: string; role: Role } | null };
 type Donnees = {
   aujourdhui: string; id: string; raisonSociale: string; matricule: string | null; formeJuridique: string | null; active: boolean; devise: string; creeLe: string;
   organisation: { id: string; type: string; nom: string }; tenuePar: string | null; faits: Faits; ligne: LigneAbo | null; etat: Etat; gestes: Geste[];
@@ -1253,6 +1253,7 @@ export function Fiche({ id, onglet: ongletDemande }: { id: string; onglet: strin
                     {e.motif ? <span className="c-motif" data-donnee>{'« '}{e.motif}{' »'}</span> : null}
                     <span className="c-qui">
                       {e.par === 'systeme' ? titre(e.nature === 'paye' ? 'console.ecran.fiche.par_facture' : 'console.ecran.fiche.par_systeme')
+                        : e.par === 'abonne' ? titre('console.ecran.fiche.par_abonne')
                         : e.qui ? <><span data-donnee>{e.qui.nom}</span> · {dire(`console.ecran.role.${e.qui.role}`)}</> : titre('console.ecran.fiche.par_outil')}
                     </span>
                   </div>

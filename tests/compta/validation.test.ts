@@ -191,4 +191,84 @@ describe('la validation des livres', () => {
     expect(ok.statut, JSON.stringify(ok.corps)).toBe(200);
     expect(ok.corps.validees).toBe(1);
   });
+
+  // (1.124.0) La carte « Ce mois-ci » de « Mon comptable » : ce que le cabinet a validé du mois, ce qui attend au
+  // brouillard, et le jour de la dernière validation (jour de Tunis).
+  it('le résumé d\'un mois : validées, au brouillard, le jour de la dernière validation ; rien hors du mois ; la lecture le lit', async () => {
+    const e = await essai();
+    await e.envoyer('suppliers', 's1', { id: 's1', name: 'Papeterie du Lac' });
+    await e.envoyer('purchases', 'a1', achat(1000));
+    const resume = async (du: string, au: string, jeton = e.jeton) => appeler('GET', `/entreprises/${e.ent}/compta/resume?du=${du}&au=${au}`, jeton);
+    expect((await resume('2026-08-01', '2026-08-31')).corps).toEqual({ validees: 0, brouillard: 2, valideeLe: null, ventes: 0, achats: 1, sansJustificatif: 1 });
+    await e.valider('2026-08-05');
+    const aujourdhui = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Tunis' }).format(new Date());
+    expect((await resume('2026-08-01', '2026-08-31')).corps).toEqual({ validees: 1, brouillard: 1, valideeLe: aujourdhui, ventes: 0, achats: 1, sansJustificatif: 1 });
+    // Les bornes comptent : le 10 août seul (le règlement), et juillet, vide.
+    expect((await resume('2026-08-10', '2026-08-10')).corps).toEqual({ validees: 0, brouillard: 1, valideeLe: null, ventes: 0, achats: 0, sansJustificatif: 0 });
+    expect((await resume('2026-07-01', '2026-07-31')).corps).toEqual({ validees: 0, brouillard: 0, valideeLe: null, ventes: 0, achats: 0, sansJustificatif: 0 });
+    const lecture = await e.inviter('lecture');
+    expect((await resume('2026-08-01', '2026-08-31', lecture.jeton)).corps).toMatchObject({ validees: 1, brouillard: 1 });
+    expect((await resume('2026-08-01', '2026-02-30')).statut).toBe(400);
+  });
+
+  // (1.125.0) L'écriture née d'un achat dit si l'achat porte un justificatif : oui ou non, rien d'autre ; la base ne le
+  // dit qu'à qui lit les livres de l'entreprise (points 7 et 8 de la revue du mois d'un client).
+  it('une écriture d\'achat dit si l\'achat a un justificatif, oui ou non ; la base ne le dit qu\'à qui lit les livres', async () => {
+    const e = await essai();
+    await e.envoyer('suppliers', 's1', { id: 's1', name: 'Papeterie du Lac' });
+    await e.envoyer('purchases', 'a1', achat(1000));
+    const lire = async () => ((await appeler('GET', `/entreprises/${e.ent}/compta/ecritures`, e.jeton)).corps.ecritures as { journal: string; justificatif: boolean | null }[])
+      .map((x) => `${x.journal} ${x.justificatif}`);
+    // L'achat sans pièce jointe : non ; son règlement (une écriture qui n'est pas un achat) : on ne dit rien.
+    expect(await lire()).toEqual(['AC false', 'CA null']);
+    // Une liste de pièces jointes vide : toujours non.
+    await e.envoyer('purchases', 'a1', achat(1000, { attachments: [] }));
+    expect(await lire()).toEqual(['AC false', 'CA null']);
+    const r = await e.envoyer('purchases', 'a1', achat(1000, { attachments: [{ name: 'facture-papier.pdf', file: 'f1', size: 1200, date: '2026-08-03' }] }));
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    expect(await lire()).toEqual(['AC true', 'CA null']);
+    const tout = JSON.stringify((await appeler('GET', `/entreprises/${e.ent}/compta/ecritures`, e.jeton)).corps);
+    expect(tout).not.toContain('facture-papier');
+    // Une personne d'une autre entreprise, en appelant la base elle-même : rien.
+    const autre = await personne('autre');
+    const pieces = (await admin.query(`select origine from compta.ecriture where entreprise = $1 and origine_type = 'achat'`, [e.ent])).rows.map((x) => x.origine as string);
+    expect(pieces.length).toBe(1);
+    const vu = await enTantQue(pool, autre.utilisateur, (tx) => tx.query('select * from compta.achats_justifies($1, $2::uuid[])', [e.ent, pieces]));
+    expect(vu.rows).toEqual([]);
+    const moi = await enTantQue(pool, e.utilisateur, (tx) => tx.query('select justifie from compta.achats_justifies($1, $2::uuid[])', [e.ent, pieces]));
+    expect(moi.rows).toEqual([{ justifie: true }]);
+  });
+
+  // (1.135.0) Le justificatif lui-même, pour qui lit les livres : ceux de la pièce d'où naît l'écriture, rien d'autre ; la
+  // base le redit (0174). Le cabinet sous mandat passe par la même porte (tests/web/mois-client.test.ts).
+  it('les justificatifs d\'une écriture : ceux de son achat, octet pour octet ; ni un autre fichier, ni un règlement, ni une autre personne', async () => {
+    const e = await essai();
+    await e.envoyer('suppliers', 's1', { id: 's1', name: 'Papeterie du Lac' });
+    const deposer = async (nom: string, octets: Buffer) => String((await admin.query(
+      `insert into socle.piece_jointe (entreprise, nom, type, taille, contenu, empreinte, depose_par) values ($1, $2, 'application/pdf', $3, $4, repeat('a', 64), $5) returning id`,
+      [e.ent, nom, octets.length, octets, e.utilisateur])).rows[0].id);
+    const pdf = Buffer.from('%PDF-1.4 facture papier 12,600');
+    const joint = await deposer('facture-papier.pdf', pdf);
+    const ailleurs = await deposer('devis-signe.pdf', Buffer.from('%PDF-1.4 un autre fichier'));
+    const r = await e.envoyer('purchases', 'a1', achat(1000, { attachments: [{ name: 'facture-papier.pdf', file: joint, size: pdf.length, date: '2026-08-03' }] }));
+    expect(r.statut, JSON.stringify(r.corps)).toBe(200);
+    const ecritures = (await appeler('GET', `/entreprises/${e.ent}/compta/ecritures`, e.jeton)).corps.ecritures as { id: string; journal: string }[];
+    const ac = ecritures.find((x) => x.journal === 'AC')?.id ?? '';
+    const ca = ecritures.find((x) => x.journal === 'CA')?.id ?? '';
+    const liste = async (ecriture: string, jeton = e.jeton) => appeler('GET', `/entreprises/${e.ent}/compta/ecritures/${ecriture}/justificatifs`, jeton);
+    expect((await liste(ac)).corps.justificatifs).toEqual([{ fichier: joint, nom: 'facture-papier.pdf', type: 'application/pdf', taille: pdf.length }]);
+    expect((await liste(ca)).corps.justificatifs).toEqual([]);
+    const lu = await appeler('GET', `/entreprises/${e.ent}/compta/ecritures/${ac}/justificatifs/${joint}`, e.jeton);
+    expect(lu.statut).toBe(200);
+    expect(Buffer.from(String(lu.corps.contenu), 'base64').equals(pdf)).toBe(true);
+    expect(lu.corps).toMatchObject({ nom: 'facture-papier.pdf', type: 'application/pdf' });
+    // Un fichier de l'entreprise qui n'est pas joint à cette pièce, par cette écriture : introuvable.
+    expect((await appeler('GET', `/entreprises/${e.ent}/compta/ecritures/${ac}/justificatifs/${ailleurs}`, e.jeton)).statut).toBe(404);
+    expect((await appeler('GET', `/entreprises/${e.ent}/compta/ecritures/${ca}/justificatifs/${joint}`, e.jeton)).statut).toBe(404);
+    // Une autre personne : la porte ne connaît pas l'entreprise, et la base, appelée elle-même, ne rend rien.
+    const autre = await personne('autre');
+    expect((await liste(ac, autre.jeton)).statut).toBe(404);
+    expect((await enTantQue(pool, autre.utilisateur, (tx) => tx.query('select * from compta.justificatifs_ecriture($1, $2)', [e.ent, ac]))).rows).toEqual([]);
+    expect((await enTantQue(pool, autre.utilisateur, (tx) => tx.query('select * from compta.justificatif_ecriture($1, $2, $3)', [e.ent, ac, joint]))).rows).toEqual([]);
+  });
 });

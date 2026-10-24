@@ -191,7 +191,9 @@ export type Ligne =
   | { sorte: 'a_emettre'; ouvre: 'facture'; entreprise: { id: string; nom: string }; debut: string; fin: string; prepareLe: string; jours: number; ecran: string }
   // Un abonnement payé qui finit bientôt sans facture pour la période suivante (1.83.0) : la préparer.
   // Une offre choisie dans l'application (1.84.0, 0158), dont la facture n'est pas encore préparée.
-  | { sorte: 'offre_choisie'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; le: string; par: string | null }
+  | { sorte: 'offre_choisie'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; le: string; par: string | null; refus: string | null }
+  // La facture d'une période de cabinet que le serveur n'a pas pu faire seul (lot 3, 0172) : son motif.
+  | { sorte: 'facture_cabinet'; ouvre: 'cabinet'; cabinet: { id: string; nom: string }; debut: string; le: string; motif: string }
   | { sorte: 'a_facturer'; ouvre: 'fiche'; entreprise: { id: string; nom: string }; jusquAu: string; jours: number; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel' }
   | { sorte: 'trop_percu'; ouvre: 'paiements'; entreprise: { id: string; nom: string }; numero: string | null; trop: string; devise: string; annulee: boolean; ecran: string }
   // 0129 : une facture contestée qui attend sa régularisation depuis une semaine.
@@ -208,6 +210,18 @@ export type Ligne =
   | { sorte: 'envois_en_panne'; ouvre: 'service'; n: number; depuis: string; heures: number };
 // Ce que Travaux sait de ce qui ne part pas (0145), pour qui tient le service.
 export type TravauxADecider = { pauses: readonly Pause[]; enPanne: { n: number; depuis: string | null; heures: number } };
+// Les périodes de cabinet refusées (0172, plateforme.console_factures_cabinet_refusees), lues prudemment : une ligne
+// illisible se tait.
+export function lireCabinetsRefuses(brut: unknown): NonNullable<Argent['cabinets']>[number][] {
+  if (!Array.isArray(brut)) return [];
+  return brut.flatMap((x: Record<string, unknown>) => {
+    const c = (x.cabinet ?? {}) as Record<string, unknown>;
+    const debut = typeof x.debut === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(x.debut) ? x.debut : null;
+    return typeof c.id === 'string' && typeof c.nom === 'string' && debut && typeof x.le === 'string' && typeof x.motif === 'string'
+      ? [{ cabinet: { id: c.id, nom: c.nom }, debut, le: x.le, motif: x.motif }] : [];
+  });
+}
+
 // Les offres choisies dans l'application (0158, plateforme.console_offres_choisies), lues prudemment : une ligne illisible
 // ne vient pas.
 export function lireChoisies(brut: unknown): NonNullable<Argent['choisies']>[number][] {
@@ -216,7 +230,9 @@ export function lireChoisies(brut: unknown): NonNullable<Argent['choisies']>[num
     const e = (x?.entreprise ?? {}) as Record<string, unknown>;
     if (typeof e.id !== 'string' || typeof e.nom !== 'string' || typeof x.le !== 'string') return [];
     if ((x.offre !== 'essentiel' && x.offre !== 'complet') || (x.periodicite !== 'annuel' && x.periodicite !== 'mensuel')) return [];
-    return [{ entreprise: { id: e.id, nom: e.nom }, offre: x.offre, periodicite: x.periodicite, le: x.le, par: typeof x.par === 'string' ? x.par : null }];
+    // `refus` (1.119.0, 0171) : pourquoi sa facture ne s'est pas faite seule.
+    return [{ entreprise: { id: e.id, nom: e.nom }, offre: x.offre, periodicite: x.periodicite, le: x.le, par: typeof x.par === 'string' ? x.par : null,
+      refus: typeof x.refus === 'string' && x.refus ? x.refus : null }];
   });
 }
 
@@ -228,7 +244,9 @@ export function lireChoisies(brut: unknown): NonNullable<Argent['choisies']>[num
 export type Argent = { defaites: readonly Defaite[]; aEmettre: readonly AEmettre[]; trop: readonly Trop[]; contestees?: readonly Contestation[]; sorties?: readonly Sortie[];
   facturees?: readonly { entreprise: string; debut: string }[];
   // `choisies` (1.84.0) : les offres choisies dans l'application qui attendent leur facture.
-  choisies?: readonly { entreprise: { id: string; nom: string }; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; le: string; par: string | null }[] };
+  choisies?: readonly { entreprise: { id: string; nom: string }; offre: 'essentiel' | 'complet'; periodicite: 'annuel' | 'mensuel'; le: string; par: string | null; refus?: string | null }[];
+  // `cabinets` (lot 3, 0172) : les périodes de cabinet qui ne se sont pas facturées seules, et pourquoi.
+  cabinets?: readonly { cabinet: { id: string; nom: string }; debut: string; le: string; motif: string }[] };
 // Une facture préparée attend d'être émise : au-delà de deux jours, elle demande un geste (l'émettre, ou la supprimer).
 export const A_EMETTRE_JOURS = 2;
 // Un abonnement payé se facture avant sa fin (1.83.0, recette du 20/10/2026) : trente jours avant pour une année (la
@@ -314,8 +332,9 @@ export function aDecider(liste: Entreprise[], veille: Veille, jour: string, role
     for (const c of argent.choisies ?? []) {
       if (!ici.has(c.entreprise.id) || partent.has(c.entreprise.id)) continue;
       choisies.add(c.entreprise.id);
-      lignes.push([2.4, Date.parse(c.le), { sorte: 'offre_choisie', ouvre: 'fiche', entreprise: c.entreprise, offre: c.offre, periodicite: c.periodicite, le: c.le, par: c.par }]);
+      lignes.push([2.4, Date.parse(c.le), { sorte: 'offre_choisie', ouvre: 'fiche', entreprise: c.entreprise, offre: c.offre, periodicite: c.periodicite, le: c.le, par: c.par, refus: c.refus ?? null }]);
     }
+    for (const c of argent.cabinets ?? []) lignes.push([2.45, Date.parse(c.le), { sorte: 'facture_cabinet', ouvre: 'cabinet', cabinet: c.cabinet, debut: c.debut, le: c.le, motif: c.motif }]);
     for (const e of liste) {
       const s = e.etat;
       if (s.etat !== 'actif' || s.resilie || partent.has(e.id) || choisies.has(e.id) || s.jours < 0 || s.jours > A_FACTURER_JOURS[s.periodicite]) continue;

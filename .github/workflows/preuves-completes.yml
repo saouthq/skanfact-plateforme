@@ -1,6 +1,12 @@
 # TOUTES les preuves par réintroduction (décidé par Skander le 05/10/2026) : chaque nuit à 1 h 30 à Tunis, et sur
 # demande avant un passage en production. Chaque envoi ne rejoue que les preuves de son changement (verifier.yml).
 # Une nuit rouge se répare d'abord, le matin, avant tout autre travail.
+#
+# (1.106.0 ; docs/mise-en-ligne.md, L) La nuit vérifie la branche `dev`, où le travail arrive : une version ne passe
+# sur `main` (le serveur stable) qu'après avoir passé toutes les preuves (tests/promouvoir.sh). Une tâche planifiée
+# tourne toujours sur la branche par défaut et y attache son verdict : la nuit relance donc ces preuves sur `dev` (un
+# lancement « à la demande », que le jeton de la vérification a le droit de faire), et leur verdict s'attache à la
+# version de `dev` qu'elles ont vérifiée.
 name: Toutes les preuves
 
 on:
@@ -12,9 +18,22 @@ permissions:
   contents: read
 
 jobs:
+  # La nuit : relancer ces preuves sur `dev`.
+  la-nuit-sur-dev:
+    name: La nuit, sur dev
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-24.04
+    permissions:
+      actions: write
+    steps:
+      - run: gh workflow run preuves-completes.yml --repo "$GITHUB_REPOSITORY" --ref dev
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   # Quatorze groupes sur quatorze machines côte à côte (une preuve sur quatorze chacune).
   preuves:
     name: Toutes les preuves (groupe ${{ matrix.groupe }}/14)
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false

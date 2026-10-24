@@ -1,0 +1,90 @@
+« Ce mois-ci » dans le Suivi d'un dossier, au Cabinet (1.127.0 ; docs/revue-mois-client.md, point 9). Format : voir
+sans-paquets.mjs.
+
+La recette du 23/10/2026 : l'onglet « Suivi » d'un dossier montrait le calendrier (le mois en cours, gris, « en cours »),
+les relances, qui travaille dessus ; rien du mois qu'on vit. Hatem devait ouvrir la Comptabilité pour savoir que
+Boulangerie El Amal avait une vente et un achat au brouillard. La carte dit maintenant, comme celle du client dans « Mon
+comptable », les pièces du mois arrivées dans ses livres (ventes, achats, achats sans justificatif), ce qui attend au
+brouillard et la dernière validation, avec le geste : valider les écritures du mois. (1.137.0) Une lecture refusée par le
+serveur le dit dans la carte, avec « Réessayer ». (1.139.0) Un achat sans justificatif se réclame depuis la carte.
+
+== cabinet/app.js | le Suivi d'un dossier sur SkanFact ouvre sur « Ce mois-ci »
+-- avant
+      <section data-onglet="suivi" ${onglet === 'suivi' ? '' : 'hidden'}>
+      <div class="panel"><h2>Les mois de ce client ${dossier.manual ? info('p.moisTenus') : info('p.definitif')}</h2>
+-- après
+      <section data-onglet="suivi" ${onglet === 'suivi' ? '' : 'hidden'}>
+      ${!dossier.manual && api.ceMois ? `<div class="panel" id="d-ce-mois" data-id="${esc(dossier.id)}"><h2>Ce mois-ci · ${esc(K.monthLabel(K.today().slice(0, 7)))}</h2>
+        <span class="muted small">Lecture de ses livres…</span></div>` : ''}
+      <div class="panel"><h2>Les mois de ce client ${dossier.manual ? info('p.moisTenus') : info('p.definitif')}</h2>
+-- fin
+
+== cabinet/app.js | la carte « Ce mois-ci » se remplit après le dessin, avec son geste
+-- avant
+  async function dessinerMoisTenus(dossier) {
+-- après
+  // (plateforme) 1.127.0 — le mois en cours d'un client sur SkanFact, lu dans ses livres : les pièces arrivées (ventes,
+  // achats, achats sans justificatif), ce qui attend au brouillard, la dernière validation ; et le geste, valider les
+  // écritures du mois (revue du mois d'un client, point 9). Même résumé que la carte du client dans « Mon comptable ».
+  async function dessinerCeMois(dossier, vert) {
+    const mois = K.today().slice(0, 7), nom = K.monthLabel(mois);
+    let r = null, refus = null;
+    try { r = await api.ceMois(dossier.id, mois + '-01', K.today()); } catch (x) { refus = x; }
+    // La page a pu changer pendant la lecture : la zone doit être celle de CE dossier.
+    const zone = document.getElementById('d-ce-mois');
+    if (!zone || zone.dataset.id !== dossier.id) return;
+    // (1.137.0) Une lecture refusée par le serveur (ou sans réseau) le dit, avec « Réessayer » : la carte disparaissait
+    // sans rien dire (UX 2). Un mandat qui ne confie pas les livres (null) la retire, comme avant.
+    if (refus) {
+      zone.innerHTML = `<h2>Ce mois-ci · ${esc(nom)}</h2>
+        <p class="small" data-ce-mois-refus>Ce mois-ci n'a pas pu se lire. ${esc(plainError(refus))}</p>
+        <div class="inline mt"><button type="button" class="btn btn-sm" data-ce-mois-relire>Réessayer</button></div>`;
+      zone.querySelector('[data-ce-mois-relire]').onclick = () => {
+        zone.innerHTML = `<h2>Ce mois-ci · ${esc(nom)}</h2><span class="muted small">Lecture de ses livres…</span>`;
+        dessinerCeMois(dossier, vert);
+      };
+      return;
+    }
+    if (!r) { zone.remove(); return; }
+    const fr = d => `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
+    const le = r.valideeLe ? ` (dernière validation le ${fr(r.valideeLe)})` : '';
+    const pieces = !r.ventes && !r.achats ? 'Aucune vente ni aucun achat dans ses livres ce mois-ci.'
+      : `${r.ventes ? pl(r.ventes, 'vente') : 'Aucune vente'} · ${r.achats ? pl(r.achats, 'achat') : 'aucun achat'}${r.sansJustificatif ? `, dont ${r.sansJustificatif} sans justificatif` : ''}, dans ses livres.`;
+    const etat = !r.validees && !r.brouillard ? ''
+      : !r.validees ? `${pl(r.brouillard, 'écriture attend', 'écritures attendent')} au brouillard : rien n'est encore validé.`
+        : !r.brouillard ? `Tout le mois est validé : ${pl(r.validees, 'écriture')}${le}.`
+          : `${pl(r.brouillard, 'écriture attend', 'écritures attendent')} au brouillard ; ${pl(r.validees, 'écriture validée', 'écritures validées')}${le}.`;
+    // Un seul vert par écran : celui-ci, sauf quand « Relancer », en haut, l'est déjà (un mois manque).
+    zone.innerHTML = `<h2>Ce mois-ci · ${esc(nom)}</h2>
+      <p class="small" data-ce-mois-pieces>${esc(pieces)}</p>${etat ? `<p class="small" data-ce-mois-etat>${esc(etat)}</p>` : ''}
+      ${r.validees || r.brouillard ? `<div class="inline mt">${r.brouillard ? `<button type="button" class="btn btn-sm${vert ? ' btn-primary' : ''}" data-ce-mois-valider>Valider les écritures ${esc(K.de(nom))}</button>` : ''}
+        <button type="button" class="btn btn-sm" data-ce-mois-journal>Voir le livre-journal ${esc(K.de(nom))}</button>${r.sansJustificatif && api.messagerie ? `
+        <button type="button" class="btn btn-sm" data-ce-mois-justif>${r.sansJustificatif > 1 ? 'Demander les justificatifs' : 'Demander le justificatif'}</button>` : ''}</div>` : ''}`;
+    const ouvrir = aValider => {
+      changerDeDossierCompta(dossier.id);
+      livresState.annee = mois.slice(0, 4);
+      if (!aValider) { livresState.mode = 'mois'; livresState.mois = mois; }
+      location.hash = '#/dossier/' + encodeURIComponent(dossier.id) + '/comptabilite/' + (aValider ? 'saisie' : 'journal') + '/' + mois.slice(0, 4);
+    };
+    const v = zone.querySelector('[data-ce-mois-valider]'), j = zone.querySelector('[data-ce-mois-journal]');
+    if (v) v.onclick = () => ouvrir(true);
+    if (j) j.onclick = () => ouvrir(false);
+    // (plateforme) 1.139.0 — « dont 1 sans justificatif » se réclame d'ici, la demande écrite d'avance dans le fil du
+    // client, comme depuis la ligne de l'achat (UX 3 : la carte disait le manque sans offrir le geste).
+    const dj = zone.querySelector('[data-ce-mois-justif]');
+    if (dj) dj.onclick = () => {
+      const n = r.sansJustificatif;
+      demandePreparee = { id: dossier.id, texte: n > 1 ? `Les justificatifs de tes ${n} achats ${K.de(nom)} enregistrés sans pièce dans SkanFact` : `Le justificatif de ton achat ${K.de(nom)} enregistré sans pièce dans SkanFact` };
+      location.hash = '#/messages/' + encodeURIComponent(dossier.id) + '/demande';
+    };
+  }
+  async function dessinerMoisTenus(dossier) {
+-- fin
+
+== cabinet/app.js | le Suivi lit « Ce mois-ci » d'un dossier sur SkanFact
+-- avant
+    if (dossier.manual) dessinerMoisTenus(dossier);
+-- après
+    if (dossier.manual) dessinerMoisTenus(dossier);
+    else if (api.ceMois && document.getElementById('d-ce-mois')) dessinerCeMois(dossier, !row.missingCount);
+-- fin

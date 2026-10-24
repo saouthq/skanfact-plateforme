@@ -2062,8 +2062,7 @@
     stats: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
     compta: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/>',
     modules: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/>',
-    licences: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l2 2M14 9l2 2"/>',
-    comptable: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/>'
+    licences: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l2 2M14 9l2 2"/>'
   };
   const icone = id => `<svg viewBox="0 0 24 24">${ICONES[id] || ICONES.modules}</svg>`;
   // Le cadenas d'un module fermé par l'offre (7.33.0), à côté du titre dans la barre.
@@ -2071,28 +2070,33 @@
 
   // Les compteurs de la barre : ils vivaient en dur dans index.html (<span id="nav-relances">…).
   // Maintenant qu'on dessine, on les pose en même temps que le lien.
-  const NAV_COMPTEURS = { relances: 'nav-relances', contrats: 'nav-contrats', achats: 'nav-achats', tresorerie: 'nav-treso', paie: 'nav-paie', stock: 'nav-stock', immos: 'nav-immos', licences: 'nav-licences', comptable: 'nav-comptable' };
+  const NAV_COMPTEURS = { relances: 'nav-relances', contrats: 'nav-contrats', achats: 'nav-achats', tresorerie: 'nav-treso', paie: 'nav-paie', stock: 'nav-stock', immos: 'nav-immos', licences: 'nav-licences' };
   const NAV_INFO = ['contrats', 'immos'];          // compteur bleu « pour information », pas une alerte
   // (plateforme, lot messagerie) Ce qui attend dans le fil du cabinet, lu au serveur (null : pas encore lu, ou pas pour
   // ce rôle) ; et la photo d'un message en route vers un achat.
   let messagerieVue = null;
   let rangementDuMessage = null;
-  // L'entrée « Mon comptable » : quand un cabinet tient le dossier, ou l'a tenu (ses échanges se relisent). UNE règle,
-  // pour la barre et pour savoir s'il faut la redessiner.
+  // L'entrée « Mon comptable » : quand un cabinet tient le dossier, ou l'a tenu (ses échanges se relisent). UNE règle.
+  // (1.115.0) Elle vit dans le pied de la barre, qui ne défile jamais (index.html) : en bas du menu, elle était hors de
+  // l'écran à l'ouverture (revue du 22/10/2026).
   const avecMessagerie = a => !!(a && (a.cabinet || a.anciens));
   function majMessagerie(a) {
     const avant = avecMessagerie(messagerieVue), vueAvant = messagerieVue;
     messagerieVue = a;
     // (plateforme) 1.102.0 — l'Accueil compte ce que le cabinet attend (« À faire ») : il se redessine quand ce compte
     // change, jamais sous une fenêtre ni pendant une saisie.
-    const cleAttente = x => (x ? `${x.questions || 0}:${x.demandes || 0}` : '');
-    if (cleAttente(vueAvant) !== cleAttente(a) && /^(#\/dashboard)?$/.test(location.hash) && !$('#modal-root .modal')
+    const cleAttente = x => (x ? `${x.questions || 0}:${x.demandes || 0}:${x.enRetard || 0}:${x.pourLe || ''}` : '');
+    // (1.123.0) L'Accueil, c'est aussi « #/ » : on demande au routeur (revue du mois d'un client, 23/10/2026).
+    if (cleAttente(vueAvant) !== cleAttente(a) && routeOf(location.hash) === 'dashboard' && !$('#modal-root .modal')
+      && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
+    // (plateforme) 1.126.0 — la page Achats dit si le cabinet en tient la saisie : elle se redessine quand on l'apprend.
+    if (!!(vueAvant && vueAvant.achatsConfies) !== !!(a && a.achatsConfies) && routeOf(location.hash) === 'achats' && !$('#modal-root .modal')
       && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
     if (avant !== avecMessagerie(a)) {
       // (plateforme) 1.94.0 — la Comptabilité dit si un cabinet lit ses ventes : elle se redessine quand on l'apprend.
       if (/^#\/compta/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
-      drawNav();
-      $$('nav a, .sidebar-foot a').forEach(x => x.classList.toggle('active', x.dataset.route === navActif));
+      const lien = $('#foot-comptable');
+      if (lien) lien.hidden = !avecMessagerie(a);
     }
     updateNavCounts();
   }
@@ -2312,9 +2316,6 @@
     // La page de l'ÉDITEUR de SkanFact : elle n'existe que sur le poste où vit la clé privée de
     // signature. Elle n'est pas un module (elle ne se coche pas, elle ne dépend pas du dossier).
     if (licence.editeur) pages.push({ ...C.pageById('licences'), famille: 'Éditeur' });
-    // (plateforme, lot messagerie) « Mon comptable » : quand un cabinet tient le dossier (ou l'a tenu : ses échanges se
-    // relisent), pour qui lui écrit (le serveur le dit en lisant ce qui attend). Seule en bas de la barre, comme la maquette.
-    if (avecMessagerie(messagerieVue)) pages.push({ ...C.pageById('comptable'), famille: '' });
     // Groupé par FAMILLE, pas par module : huit intertitres coûteraient 250 px de barre, et on aurait
     // remplacé un débordement par un autre.
     const familles = [];
@@ -2860,6 +2861,9 @@
     bindDateFields(view);            // champs date posés par la page qui vient d'être dessinée
     bindWithholdingFields(view);     // « Autre taux… » des retenues à la source, même principe
     bindRibFields(view);             // la clé d'un RIB, vérifiée pendant la frappe (10.12.0)
+    // (plateforme) 1.134.0 — en lecture seule, un « + Nouveau… » en tête de liste n'est plus le vert de la page : l'étape
+    // suivante est l'abonnement (le bandeau et l'état vide y mènent), pas une création que la fenêtre refuse.
+    if (aboBloque(true)) $$('.page-head .btn-primary', view).forEach(b => { if (/^\+/.test(b.textContent.trim())) b.classList.remove('btn-primary'); });
     // Une route ASYNCHRONE pose son écran après ce bloc : les Paramètres attendent `dataPath()`
     // avant d'écrire leur HTML, donc les deux branchements ci-dessus travaillaient sur la page
     // qu'on venait de quitter — un champ date ou un taux libre y restait inerte, sans une erreur
@@ -3026,7 +3030,10 @@
   // dans chaque étape ». Il vit DANS le panneau des premiers pas, pas dans une fenêtre : une fenêtre
   // posée à la fin de l'assistant se fermerait d'un Échap sans avoir été lue, et bloquerait l'écran
   // qu'elle présente. Il se tait quand la découverte est faite, ou quand on a dit « Non merci ».
-  const accueilVisible = () => { const et = visitesEtat(); return !et.faites.decouvrir && !et.accueilVu; };
+  // (plateforme) 1.139.0 — le métier a commencé : une facture ou un avoir émis. La porte de la bienvenue se retire, et
+  // l'Accueil se lit dans l'ordre du travail (UX 3).
+  const metierCommence = () => (data.documents || []).some(d => (d.type === 'facture' || d.type === 'avoir') && d.status && d.status !== 'brouillon');
+  const accueilVisible = () => { const et = visitesEtat(); return !et.faites.decouvrir && !et.accueilVu && !metierCommence(); };
   // (plateforme, brique 111) Ce qu'un membre de l'équipe trouve sur l'accueil à la place de la mise en place de
   // l'entreprise (le travail du propriétaire et des administrateurs) : les pages que son rôle lui ouvre, celles du
   // menu (déjà filtré par le rôle, brique 101). Le premier bouton est vert quand l'en-tête n'en a pas.
@@ -3092,10 +3099,10 @@
         <button type="button" class="btn btn-ghost btn-sm" id="pp-plus-tard" title="Les deux restent dans « Me guider », en bas du menu">Non merci, je découvre seul</button>
       </section>` : ''}<div class="panel premiers-pas pp2">
       <div class="pp-tete"><div class="pp-tete-txt"><h2>Tes premiers pas</h2>
-        <p>Dans l'ordre où ils servent. Ce panneau disparaît tout seul une fois parcouru, et se retrouve dans l'Aide.</p></div>
+        <p>${metierCommence() ? `Ta gestion tourne déjà. ${p.total - p.faits > 1 ? `Restent ${p.total - p.faits} gestes` : 'Reste un geste'}, quand tu veux ; ce panneau disparaît une fois tout fait.` : 'Dans l\'ordre où ils servent. Ce panneau disparaît tout seul une fois parcouru, et se retrouve dans l\'Aide.'}</p></div>
         <div class="pp-jauge"><span class="pp-compte">${p.faits} sur ${p.total} faits</span>
           <div class="pp-barre" role="progressbar" aria-label="Tes premiers pas" aria-valuemin="0" aria-valuemax="${p.total}" aria-valuenow="${p.faits}"><i style="width:${Math.round(p.faits / Math.max(p.total, 1) * 100)}%"></i></div></div></div>
-      <ol class="pp-list">${p.etapes.map(e => {
+      <ol class="pp-list">${p.etapes.filter(e => !(e.fait && metierCommence())).map(e => {
         // La découverte a déjà sa grande porte juste au-dessus tant que l'accueil est là : un second
         // bouton pour le même geste, dix lignes plus bas, ferait douter que ce soit le même.
         const a = e.action === 'decouverte' && accueil ? null : PAS_ACTIONS[e.action];
@@ -3260,16 +3267,18 @@
     // UN seul vert (U-11) : tant que « Tes premiers pas » porte l'étape suivante en vert (« + Créer un
     // client »), « + Nouvelle facture » ne l'est pas — deux verts disaient deux « prochaines étapes »,
     // dont une impossible sans client. Le panneau fini, l'en-tête reprend son vert.
-    const pas = premiersPas();
+    const aboPrincipal = abonnementPrincipal();
+    const pas = aboPrincipal ? '' : premiersPas();
     const pasEnCours = /btn-primary/.test(pas);
     $('#view').innerHTML = `
       <div class="page-head"><h1>Accueil</h1>
         <div class="actions">
-          ${peutEcrireDossier('documents') ? `<button class="btn" id="new-devis">+ Nouveau devis</button>
-          <button class="btn ${pasEnCours ? '' : 'btn-primary'}" id="new-facture">+ Nouvelle facture</button>` : ''}
+          ${peutEcrireDossier('documents') && !(licence.locked && bridge.dessinerAbonnement) ? `<button class="btn" id="new-devis">+ Nouveau devis</button>
+          <button class="btn ${pasEnCours || aboPrincipal ? '' : 'btn-primary'}" id="new-facture">+ Nouvelle facture</button>` : ''}
         </div></div>
+      ${bandeauAbonnementAccueil()}
       ${bandeauAccordsAccueil()}
-      ${pas}
+      ${duGrain && metierCommence() ? '' : pas}
       ${todoPanel()}
       ${!duGrain ? '' : `
       <!-- Les quatre chiffres menaient nulle part (7.15.0). « Reste à encaisser : 8 400 DT,
@@ -3279,9 +3288,10 @@
       <div class="stats">
         <div class="stat" data-stat="ca-mois" role="button" tabindex="0" title="Voir le journal des ventes du mois"><div class="lbl">CA du mois (HT) ${info('dash.caMonth')}</div><div class="val">${C.money(sumHT(ofMonth), cur)}</div><div class="sub">${C.money(sumTTC(ofMonth), cur)} TTC, avoirs déduits</div></div>
         <div class="stat" data-stat="ca-annee" role="button" tabindex="0" title="Voir les statistiques de l'année"><div class="lbl">CA de l'année (HT) ${info('dash.caYear')}</div><div class="val">${C.money(sumHT(ofYear), cur)}</div><div class="sub">${year} · ${C.money(sumTTC(ofYear), cur)} TTC</div></div>
-        <div class="stat" data-stat="encaisser" role="button" tabindex="0" title="${open.length > 1 ? `Voir les ${pl(open.length, 'facture')} qui restent à encaisser` : open.length ? 'Voir la facture qui reste à encaisser' : 'Aucune facture ne reste à encaisser'}"><div class="lbl">Reste à encaisser ${info('dash.open')}</div><div class="val">${C.money(openAmount, cur)}</div><div class="sub">${pl(open.length, 'facture')}, ${late.length} en retard</div></div>
-        <div class="stat" data-stat="devis" role="button" tabindex="0" title="Voir les devis envoyés sans réponse"><div class="lbl">Devis en attente ${info('dash.quotes')}</div><div class="val">${C.money(sumQ(pendingQuotes), cur)}</div><div class="sub">${pendingQuotes.length} devis ${pendingQuotes.length > 1 ? 'envoyés' : 'envoyé'}${expiredQuotes.length ? ` · <a href="#/devis" class="warn-link" id="go-expired">${expiredQuotes.length} ${expiredQuotes.length > 1 ? 'expirés' : 'expiré'}</a>` : ''}</div></div>
+        <div class="stat" data-stat="encaisser" role="button" tabindex="0" title="${open.length > 1 ? `Voir les ${pl(open.length, 'facture')} qui restent à encaisser` : open.length ? 'Voir la facture qui reste à encaisser' : 'Aucune facture ne reste à encaisser'}"><div class="lbl">Reste à encaisser ${info('dash.open')}</div><div class="val">${C.money(openAmount, cur)}</div><div class="sub">${open.length ? `${pl(open.length, 'facture')}, ${late.length ? `${late.length} en retard` : 'aucune en retard'}` : 'rien à encaisser'}</div></div>
+        <div class="stat" data-stat="devis" role="button" tabindex="0" title="Voir les devis envoyés sans réponse"><div class="lbl">Devis en attente ${info('dash.quotes')}</div><div class="val">${C.money(sumQ(pendingQuotes), cur)}</div><div class="sub">${pendingQuotes.length ? `${pendingQuotes.length} devis ${pendingQuotes.length > 1 ? 'envoyés' : 'envoyé'}` : 'aucun devis en attente de réponse'}${expiredQuotes.length ? ` · <a href="#/devis" class="warn-link" id="go-expired">${expiredQuotes.length} ${expiredQuotes.length > 1 ? 'expirés' : 'expiré'}</a>` : ''}</div></div>
       </div>
+      ${metierCommence() ? pas : ''}
       <div class="dash-grid">
         <div class="panel"><h2>Activité des 12 derniers mois ${info('dash.chart')}</h2>
           ${duGraphique ? `${barChart(series)}
@@ -3306,6 +3316,15 @@
         <div class="inline mt"><button class="btn btn-primary" id="start-devis">+ Créer ton premier devis</button>
           <button class="btn btn-ghost" id="start-demo">Voir un exemple rempli</button></div>
       </div>`}`;
+    if ($('#abo-accueil-go')) $('#abo-accueil-go').onclick = () => {
+      const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
+      if (b && b.ecrire) {
+        if (bridge.support) { void ecrireAuSupport('question'); return; }
+        location.href = 'mailto:contact@skanfact.tn?subject=' + encodeURIComponent('Mon abonnement SkanFact'); return;
+      }
+      if (b && b.vers && window.SkanAbonnement) window.SkanAbonnement.aAmener = b.vers;
+      allerAbonnement();
+    };
     if ($('#new-devis')) $('#new-devis').onclick = () => navigate('#/doc/new/devis');
     if ($('#new-facture')) $('#new-facture').onclick = () => navigate('#/doc/new/facture');
     // Sur une installation neuve, « Aucun document » ne proposait rien (audit) : on montre le chemin.
@@ -3464,7 +3483,23 @@
   // montage : il demande de retenir une phrase, de naviguer ailleurs, et de retrouver le bon
   // bouton. Celui-ci dit à quoi sert la chose, puis donne les vrais boutons.
   //   titre, phrases[], boutons[[id, label, primaire?]]
+  // (plateforme) 1.134.0 — en lecture seule, l'état vide d'une liste dont la création attend l'abonnement le dit, et son
+  // bouton principal y mène (UX 2 : les factures et les devis le faisaient depuis la 1.122.0 ; les autres listes gardaient
+  // « + Saisir ma première… » en vert, qui menait au refus). Les boutons de création restent, en second : leur fenêtre
+  // explique. Les identifiants sont ceux des états vides dont le geste passe par `licenceBlock`.
+  const CREATION_RETENUE = new Set(['rec-first', 'rel-vers-new', 'vide-fournisseur', 'vide-import-f', 'cf-vide-new', 'vide-achat',
+    'vide-dep', 'vide-new', 'vide-depuis', 'proj-first', 'immo-premier', 'immo-vers-achats']);
+  const phraseRetenue = () => `<b>${h(licence.label)}.</b> ${h(licence.detail || '')} La création reprend dès que l'abonnement est réglé.`;
+  const boutonRetenue = () => `<button class="btn btn-primary" id="vide-voir-abo">${abonnementVisible() ? 'Voir l\'abonnement' : 'Qui le règle ?'}</button>`;
+  document.addEventListener('click', e => { if (e.target && e.target.closest && e.target.closest('#vide-voir-abo')) allerAbonnement(); });
   function etatVide(titre, phrases, boutons) {
+    const retenue = aboBloque(true) && (boutons || []).some(([id]) => CREATION_RETENUE.has(id));
+    if (retenue) {
+      return `<div class="panel vide-utile"><h2>${h(titre)}</h2>
+      ${[...(phrases || []), phraseRetenue()].map(p => `<p class="small">${p}</p>`).join('')}
+      <div class="inline mt">${boutonRetenue()}${boutons.map(([id, label]) => `<button class="btn" id="${h(id)}">${h(label)}</button>`).join('')}</div>
+    </div>`;
+    }
     return `<div class="panel vide-utile"><h2>${h(titre)}</h2>
       ${(phrases || []).map(p => `<p class="small">${p}</p>`).join('')}
       ${(boutons || []).length ? `<div class="inline mt">${boutons.map(([id, label, p]) =>
@@ -3869,7 +3904,7 @@
     const FILTRES_REGROUPES = isQ ? {} : { 'émis': 'Toutes les pièces émises', 'à encaisser': 'À encaisser' };
     $('#view').innerHTML = `
       <div class="page-head"><h1>${isQ ? 'Devis' : 'Factures'}</h1>${!isQ && bridge.dessinerASigner && company().efacture === true ? '<span id="sg-a-signer" style="margin-right:auto"></span>' : ''}
-        <div class="actions">${isQ || !data.documents.some(d => d.type === 'facture' && d.status !== 'brouillon' && d.number) ? '' : '<button class="btn" id="new-avoir">+ Avoir</button>'}<button class="btn ${mine.length ? 'btn-primary' : ''}" id="new">+ ${isQ ? 'Nouveau devis' : 'Nouvelle facture'}</button></div></div>
+        <div class="actions">${isQ || !data.documents.some(d => d.type === 'facture' && d.status !== 'brouillon' && d.number) ? '' : '<button class="btn" id="new-avoir">+ Avoir</button>'}${aboBloque(true) ? `<button class="btn ${mine.length ? 'btn-primary' : ''}" id="list-abo">Voir l'abonnement</button>` : `<button class="btn ${mine.length ? 'btn-primary' : ''}" id="new">+ ${isQ ? 'Nouveau devis' : 'Nouvelle facture'}</button>`}</div></div>
       ${filtersBar(`
         <input type="text" id="q" placeholder="Rechercher : n°, client, objet…" value="${h(s.q)}">
         ${isQ ? '' : `<select id="kind"><option value="">Factures et avoirs</option><option value="facture" ${s.kind === 'facture' ? 'selected' : ''}>Factures</option><option value="avoir" ${s.kind === 'avoir' ? 'selected' : ''}>Avoirs</option></select>`}
@@ -3880,16 +3915,20 @@
         `, mine.length, !!(s.q || s.st || s.kind || s.year))}
       ${mine.length ? '<div id="list-wrap"></div>' : etatVide(
         isQ ? 'Proposer un prix, avant de travailler' : 'Réclamer l\'argent du travail fait',
-        isQ
+        (isQ
           ? ['Un devis annonce un prix ferme à ton client. Il n\'engage rien tant qu\'il n\'est pas accepté — et une fois accepté, il devient une facture <b>en un clic</b>, sans rien ressaisir.',
              'Tu n\'as pas besoin de créer le client d\'abord : tu le crées depuis le devis.']
           : ['Une facture est la pièce officielle : elle prend son numéro au moment où tu l\'émets, et n\'est plus modifiable ensuite. Pour corriger après coup, on fait un avoir.',
-             'SkanFact suit ensuite toute seule ce qu\'on te doit, et te la remonte dans « Relances » dès qu\'elle dépasse son échéance.'],
-        [['vide-new', isQ ? '+ Créer mon premier devis' : '+ Créer ma première facture', true],
-         ['vide-demo', 'Voir un exemple rempli']])}`;
+             'SkanFact suit ensuite toute seule ce qu\'on te doit, et te la remonte dans « Relances » dès qu\'elle dépasse son échéance.'])
+          .concat(aboBloque(true) ? [`<b>${h(licence.label)}.</b> ${h(licence.detail || '')} La création reprend dès que l'abonnement est réglé.`] : []),
+        aboBloque(true) ? [['vide-abo', 'Voir l\'abonnement', true]]
+          : [['vide-new', isQ ? '+ Créer mon premier devis' : '+ Créer ma première facture', true],
+             ['vide-demo', 'Voir un exemple rempli']])}`;
     if ($('#vide-new')) $('#vide-new').onclick = () => navigate('#/doc/new/' + type);
     if ($('#vide-demo')) $('#vide-demo').onclick = loadDemo;
-    $('#new').onclick = () => navigate('#/doc/new/' + type);
+    if ($('#vide-abo')) $('#vide-abo').onclick = () => allerAbonnement();
+    if ($('#list-abo')) $('#list-abo').onclick = () => allerAbonnement();
+    if ($('#new')) $('#new').onclick = () => navigate('#/doc/new/' + type);
     if ($('#new-avoir')) $('#new-avoir').onclick = () => navigate('#/doc/new/avoir');
     if ($('#sg-a-signer')) void bridge.dessinerASigner($('#sg-a-signer'), modal, () => render(true));
     if ($('#q')) $('#q').oninput = e => { s.q = e.target.value.toLowerCase(); s.page = 1; draw(); };
@@ -4004,6 +4043,37 @@
     // Pourquoi elle ne se rouvre plus, et si ses avoirs l'annulent EN ENTIER (10.12.0) : le bandeau,
     // sa bulle et son bouton principal lisent la même réponse.
     const verrou = C.motifVerrou(bal);
+    // (plateforme) 1.133.0 — une facture ou un avoir émis se LIT (revue du mois d'un client, point 14) : la page restait le
+    // formulaire de saisie, douze cases grisées à déchiffrer. Le résumé dit le client, les dates, ce qui est dû et reçu, et
+    // ce que le comptable en a fait ; seule l'affaire (qui ne s'imprime pas) reste à choisir, comme avant.
+    const lecture = locked && (isInv || isAv) && !isNew;
+    const resumeLecture = () => {
+      const t = (bal && bal.totals) || C.computeTotals(stored || doc, company());
+      const fi = isAv && doc.creditOf ? docById(doc.creditOf) : null;
+      const retard = bal && !bal.annulee && bal.remaining > 0.0005 && doc.dueDate && doc.dueDate < C.today() ? C.daysBetween(doc.dueDate, C.today()) : 0;
+      const ligne = (k, v) => `<div class="lp-ligne"><dt>${k}</dt><dd>${v}</dd></div>`;
+      const conditions = [
+        Number(doc.discountRate) ? `remise ${pct(doc.discountRate)} %` : '',
+        t.withholding ? `retenue à la source ${C.money(t.withholding, cur)}` : '',
+        t.stamp ? `timbre fiscal ${C.money(t.stamp, cur)}` : '',
+        cur !== company().currency && doc.exchangeRate ? `1 ${h(cur)} = ${h(pct(doc.exchangeRate))} ${h(company().currency)}` : ''].filter(Boolean);
+      const recu = bal ? C.round3(bal.paid + bal.credited) : 0;
+      const situation = !bal ? '' : bal.annulee ? 'Annulée : plus rien n\'est dû.'
+        : bal.remaining < -0.0005 ? `Payée en trop : ${C.money(-bal.remaining, cur)} à rendre au client.`
+        : bal.remaining <= 0.0005 ? 'Réglée : plus rien n\'est dû.'
+        : recu ? `Payée en partie : ${C.money(recu, cur)} sur ${C.money(t.netToPay, cur)}, reste <b>${C.money(bal.remaining, cur)}</b>.`
+        : `Rien de reçu : reste <b>${C.money(bal.remaining, cur)}</b>.`;
+      return `<dl class="lecture-piece" id="lecture-piece">
+        ${ligne('Client', doc.clientId ? `<a href="#/client/${h(doc.clientId)}">${h(clientName(doc.clientId))}</a>` : '—')}
+        ${fi ? ligne('Facture corrigée', `<a href="#/doc/${h(fi.id)}">${h(fi.number)}</a>${doc.creditReason ? ` · ${h(doc.creditReason)}` : ''}`) : ''}
+        ${ligne('Date', `${C.fmtDate(doc.date)}${isInv && doc.dueDate ? ` · échéance le ${C.fmtDate(doc.dueDate)}${retard ? ` <span class="lp-retard">en retard de ${pl(retard, 'jour')}</span>` : ''}` : ''}`)}
+        ${doc.subject ? ligne('Objet', h(doc.subject)) : ''}
+        ${doc.reference ? ligne('Référence', h(doc.reference)) : ''}
+        ${ligne(isAv ? 'Montant' : 'Net à payer', `<span class="lp-montant">${C.money(t.netToPay, cur)}</span>${conditions.length ? ` <span class="small muted">· ${conditions.join(' · ')}</span>` : ''}`)}
+        ${bal ? ligne('Situation', `${statusBadge(stored)} <span id="lp-situation">${situation}</span>`) : ''}
+        <div class="lp-ligne" id="lp-compta" hidden><dt>Comptabilité</dt><dd></dd></div>
+      </dl>`;
+    };
     // Le timbre fiscal est fixé EN DINARS (7.0.1) : sur une facture en euros il vaut 1 DT converti,
     // soit 0,29 € au taux 3,4. L'étiquette à côté de la case annonçait le réglage brut — donc
     // « 1,00 € » sur une pièce où le total, lui, comptait 0,29 €. Et une pièce émise garde son
@@ -4234,9 +4304,9 @@
         </span></div>`}
       ${bandeauAbonnement(isNew)}
       ${bandeauQuestions(doc.number)}
-      <div class="editor" data-devise="${h(cur)}">
+      <div class="editor${lecture ? ' lecture' : ''}" data-devise="${h(cur)}">
         <div>
-          <div class="panel"><h2>Informations</h2>
+          <div class="panel"><h2>${lecture ? 'La pièce' : 'Informations'}</h2>${lecture ? resumeLecture() : ''}
             <form id="f-head" class="grid-3">
               <!-- Le lien vers la fiche vit dans la LIGNE DU LIBELLÉ (10.12.0). Posé sous le champ,
                    il apparaissait au choix du client et poussait tout le formulaire de 45 px : le
@@ -4252,7 +4322,7 @@
               ${C.depotsDe(data).length > 1 && (isInv || isDelivery || isAv) && doc.fromDocType !== 'livraison' ? `<label class="field">${lbl('Dépôt', 'dep.piece')}<select name="depotId" ${ro}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (doc.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
               <label class="field span-2">${lbl('Objet', 'ed.subject')}<input type="text" name="subject" value="${h(doc.subject)}" placeholder="${h(exempleObjet())}" ${ro}></label>
               ${field(lbl('Référence (optionnel)', 'ed.reference'), 'reference', doc.reference || '', 'text', ro)}
-              <div class="field">${lbl('Affaire (optionnel)', 'ed.project')}
+              <div class="field" id="ed-affaire">${lbl('Affaire (optionnel)', 'ed.project')}
                 ${/* Jamais en lecture seule, même émise : l'affaire ne s'imprime pas et ne change aucun
                     montant (voir `poserAffaire`). */''}
                 ${combo({ name: 'projectId', value: doc.projectId || '', items: projectItems(doc.clientId), placeholder: '— Aucune affaire —', search: 'Rechercher une affaire…', add: '+ Nouvelle affaire' })}
@@ -4335,6 +4405,20 @@
     $('#pv-hide').onclick = () => apercuPleinEcran();
     $('#pv-big').onclick = () => apercuPleinEcran();
     applyPreview();
+    // (plateforme) 1.133.0 — ce que le comptable a fait de la pièce : son écriture de vente, lue au serveur. Sans réponse
+    // (qui ne lit pas les livres, une pièce pas encore au journal, pas de réseau), la ligne ne s'affiche pas.
+    if (lecture && doc.number && doc.status !== 'annulée' && bridge.messagerie && bridge.messagerie.ecriturePiece) {
+      const numero = doc.number;
+      bridge.messagerie.ecriturePiece(numero).then(x => {
+        const el = $('#lp-compta');
+        if (!x || !el || doc.number !== numero) return;
+        const cab = !!(messagerieVue && messagerieVue.cabinet);
+        el.querySelector('dd').innerHTML = x.statut === 'validee'
+          ? `Validée${cab ? ' par ton cabinet' : ''} le ${C.fmtDate(x.valideeLe)}${x.numero ? `, écriture n° ${h(String(x.numero))}` : ''}.`
+          : `Au journal des ventes, au brouillard : ${cab ? 'ton cabinet ne l\'a pas encore validée' : 'pas encore validée'}.`;
+        el.hidden = false;
+      }).catch(() => {});
+    }
 
     // --- modifications non enregistrées : marqueur visible + garde-fou à la navigation
     let dirty = false;
@@ -4404,7 +4488,7 @@
       // une unité saisie une fois reste proposée.
       const extraUnits = C.usedUnits(data, doc.lines.map(l => l.unit));
       linesBody.innerHTML = doc.lines.map((l, i) => `<tr data-i="${i}">
-        <td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation" ${ro}>
+        <td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation" ${ro}>${figee ? `<div class="ligne-lue">${h(l.label)}</div>` : ''}
             ${openDesc.has(i)
               ? `<textarea data-k="description" placeholder="Description : ce que comprend la prestation" ${ro}>${h(l.description || '')}</textarea>`
               : (figee ? '' : `<button type="button" class="link-add" tabindex="-1" data-desc="${i}">+ description</button>`)}${lotChoix(l, i)}</td>
@@ -5860,18 +5944,22 @@
     modal(`<h2>${client ? 'Modifier le client' : 'Nouveau client'}</h2>
       <form id="cf" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Nom / Raison sociale', 'cl.name')}<input type="text" name="name" value="${h(c.name)}" required></label>
-        ${field(lbl('Personne à contacter', 'cl.contact'), 'contact', c.contact || '', 'text', 'placeholder="Mme Leïla Mansour, directrice"')}
         ${field(lbl('Matricule fiscal / CIN', 'co.matricule'), 'matricule', c.matricule)}
+        ${field(lbl('Téléphone', 'cl.phone'), 'phone', c.phone)}
+        <label class="field span-2">${lbl('Adresse', 'cl.address')}<textarea name="address">${h(c.address)}</textarea></label>
+        ${/* (plateforme) 1.132.0 — un client neuf, créé depuis une pièce, n'a besoin que de son nom, de son matricule, de son
+              téléphone et de son adresse ; le reste attend derrière « Plus de détails » (revue du mois d'un client, point 15). */''}
+        ${client ? '' : '<details class="span-2 plus-details" id="cf-plus"><summary>Plus de détails <span class="muted small">— contact, retenue, timbre, encours, e-mail, langue, devise, notes</span></summary><div class="grid-2 mt">'}
+        ${field(lbl('Personne à contacter', 'cl.contact'), 'contact', c.contact || '', 'text', 'placeholder="Mme Leïla Mansour, directrice"')}
         <label class="field">${lbl('Retenue à la source appliquée par ce client', 'ed.withholding')}${withholdingSelect('withholdingRate', c.withholdingRate, { vide: `Par défaut (${pct(company().defaultWithholdingRate || 0)} %)` })}</label>
         <label class="check"><input type="checkbox" name="stampExempt" ${c.stampExempt ? 'checked' : ''}> Exonéré de timbre fiscal ${info('client.stampExempt')}</label>
         <label class="field">${lbl(`Encours autorisé (${h(company().currency)})`, 'cl.encours')}<input type="number" name="creditLimit" value="${h(c.creditLimit || '')}" step="0.001" min="0" class="num" placeholder="Sans plafond"${!estResponsable() ? ' disabled title="L\'encours autorisé se règle par le propriétaire ou un administrateur."' : ''}></label>
-        ${field(lbl('Téléphone', 'cl.phone'), 'phone', c.phone)}
         <label class="field">${lbl('Catégorie de prix', 'cl.categorie')}<input type="text" name="categorieTarif" value="${h(c.categorieTarif || '')}" list="cl-categories" placeholder="Revendeur, Chantier…"><datalist id="cl-categories">${Array.from(new Set([...(data.clients || []).map(x => x.categorieTarif), ...(data.priceLists || []).map(x => x.categorie)].map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr')).map(x => `<option value="${h(x)}">`).join('')}</datalist></label>
         ${field(lbl('Email', 'cl.email'), 'email', c.email, 'email')}
         <label class="field">${lbl('Langue des documents', 'cl.lang')}<select name="lang"><option value="" ${!c.lang ? 'selected' : ''}>Par défaut</option><option value="fr" ${c.lang === 'fr' ? 'selected' : ''}>Français</option><option value="en" ${c.lang === 'en' ? 'selected' : ''}>English</option></select></label>
         <label class="field">${lbl('Devise', 'cl.currency')}<select name="currency"><option value="" ${!c.currency ? 'selected' : ''}>Par défaut (${h(company().currency)})</option>${C.CURRENCIES.map(x => `<option value="${x}" ${c.currency === x ? 'selected' : ''}>${h(C.libelleDevise(x))}</option>`).join('')}</select></label>
-        <label class="field span-2">${lbl('Adresse', 'cl.address')}<textarea name="address">${h(c.address)}</textarea></label>
         <label class="field span-2">${lbl('Notes internes', 'cl.notesSaisie')}<textarea name="notes">${h(c.notes || '')}</textarea></label>
+        ${client ? '' : '</div></details>'}
       </form>
       <div class="modal-actions">
         ${client ? '<button class="btn btn-danger" id="del-client" style="margin-inline-end:auto">Supprimer ce client</button>' : ''}
@@ -7106,6 +7194,19 @@
       ? `<b>${h(decidee.decideur)} a accordé</b> ta ${quoi} : tu peux ${cmd ? 'l\'envoyer' : 'l\'émettre'}.`
       : `<b>${h(decidee.decideur)} a refusé</b> ta ${quoi}${decidee.motif ? ` : « ${h(decidee.motif)} »` : ''}. Elle reste en brouillon.`}</span>
       <span class="lock-go"><button class="btn btn-sm" id="accords-ouvrir" data-lien="${h(lienAccord(decidee))}">${cmd ? 'Ouvrir la commande' : 'Ouvrir la facture'}</button></span></div>`;
+  }
+  // (plateforme, abonnement) Le bandeau de l'abonnement, en haut de l'accueil (1.118.0) : ce qui attend, et un bouton.
+  function bandeauAbonnementAccueil() {
+    const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
+    if (!b) return '';
+    return `<div class="banner ${b.ton === 'alerte' ? 'danger' : ''} abo-accueil" id="abo-accueil" role="status">
+        <span class="abo-accueil-txt"><b>${h(b.titre)}.</b> ${h(b.texte)}</span>
+        <span class="lock-go"><button type="button" class="btn${b.principal ? ' btn-primary' : ''}" id="abo-accueil-go">${h(b.bouton)}</button></span></div>`;
+  }
+  // Le bouton du bandeau est-il le bouton principal de l'accueil (la grâce, la lecture seule) ?
+  function abonnementPrincipal() {
+    const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
+    return !!(b && b.principal);
   }
   function bandeauAccordsAccueil() {
     if (!accordsEnLigne()) return '';
@@ -8580,8 +8681,11 @@
     // pastille et que l'encart « En attente de toi » (`bridge.messagerie.attente`).
     const mv = messagerieVue || {};
     const attendu = [mv.demandes ? pl(mv.demandes, 'pièce') : '', mv.questions ? pl(mv.questions, 'réponse') : ''].filter(Boolean);
-    if (attendu.length && !pageCachee('comptable')) items = [{ id: 'cabinet-attend', level: 'warn', label: `Ton cabinet attend ${attendu.join(' et ')}`,
-      detail: 'Réponds-lui dans « Mon comptable », avec le fichier qu\'il attend.' }, ...items];
+    // (1.123.0) La date « pour le » la plus proche, ou le retard, se dit dans la ligne (revue du mois d'un client).
+    const quand = mv.enRetard ? `${mv.enRetard > 1 ? `${mv.enRetard} pièces sont en retard` : 'Une pièce est en retard'} : ton cabinet l'attendait déjà. `
+      : mv.demandes && mv.pourLe ? `${mv.demandes > 1 ? 'La première est attendue' : 'Elle est attendue'} pour le ${C.fmtDate(mv.pourLe)}. ` : '';
+    if (attendu.length && !pageCachee('comptable')) items = [{ id: 'cabinet-attend', level: mv.enRetard ? 'danger' : 'warn', label: `Ton cabinet attend ${attendu.join(' et ')}`,
+      detail: `${quand}Réponds-lui dans « Mon comptable », avec le fichier qu'il attend.` }, ...items];
     // Rien à faire et rien du tout ne sont pas la même chose. « Aucun retard, aucun contrat en
     // attente » sur une entreprise qui n'a jamais rien facturé, c'est féliciter quelqu'un pour un
     // travail qu'il n'a pas commencé. Dans ce cas la place revient aux premiers pas.
@@ -9197,21 +9301,26 @@
   }
 
   function supplierForm(supplier, done, preset) {
+    // (plateforme) 1.134.0 — le refus arrive à l'ouverture : à « Enregistrer », la saisie était faite pour rien.
+    if (!supplier && licenceBlock('Créer un fournisseur', 'achats')) { return; }
     const s = supplier || C.fournisseurVierge(preset);
     modal(`<h2>${supplier ? 'Modifier le fournisseur' : 'Nouveau fournisseur'}</h2>
       <form id="sf" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Nom / Raison sociale', 'sup.name')}<input type="text" name="name" value="${h(s.name)}" required></label>
-        ${field(lbl('Personne à contacter', 'cl.contact'), 'contact', s.contact || '', 'text', 'placeholder="M. Sami Gharbi, commercial"')}
         ${field(lbl('Matricule fiscal', 'co.matricule'), 'matricule', s.matricule || '')}
         ${field(lbl('Téléphone', 'sup.phone'), 'phone', s.phone || '')}
+        <label class="field span-2">${lbl('Adresse', 'sup.address')}<textarea name="address">${h(s.address || '')}</textarea></label>
+        ${/* (plateforme) 1.132.0 — de même pour un fournisseur neuf (revue du mois d'un client, point 15). */''}
+        ${supplier ? '' : '<details class="span-2 plus-details" id="sf-plus"><summary>Plus de détails <span class="muted small">— contact, e-mail, délai, retenue, banque, RIB, notes</span></summary><div class="grid-2 mt">'}
+        ${field(lbl('Personne à contacter', 'cl.contact'), 'contact', s.contact || '', 'text', 'placeholder="M. Sami Gharbi, commercial"')}
         ${field(lbl('Email', 'sup.email'), 'email', s.email || '', 'email')}
         ${field(lbl('Délai de paiement accordé (jours)', 'sup.terms'), 'paymentTermsDays', s.paymentTermsDays == null ? '' : s.paymentTermsDays, 'number', 'min="0" class="num" placeholder="30"')}
         <label class="field">${lbl('Retenue à la source à opérer', 'sup.withholding')}${withholdingSelect('withholdingRate', s.withholdingRate, { vide: 'Aucune', sansZero: true })}</label>
         ${champsAttestationRS(s, 'fournisseur')}
         ${field(lbl('Banque', 'pay.bank'), 'bank', s.bank || '')}
         ${ribField('RIB du fournisseur', s.rib)}
-        <label class="field span-2">${lbl('Adresse', 'sup.address')}<textarea name="address">${h(s.address || '')}</textarea></label>
         <label class="field span-2">${lbl('Notes internes', 'sup.notes')}<textarea name="notes">${h(s.notes || '')}</textarea></label>
+        ${supplier ? '' : '</div></details>'}
       </form>
       <div class="modal-actions">
         ${supplier ? '<button class="btn btn-danger" id="del-sup" style="margin-inline-end:auto">Supprimer ce fournisseur</button>' : ''}
@@ -9967,9 +10076,15 @@
       bindPager($('#list-wrap'), s, () => draw(), '#list-wrap');
     });
     const videAchats = !data.purchases.length && !(s.q || s.st || s.kind || s.cat || s.year || s.du);
+    // (plateforme) 1.126.0 — le mandat confie la saisie des achats au cabinet : ce qu'on attend de l'entreprise, c'est la
+    // photo de chaque facture. Le bouton principal l'envoie dans le fil du cabinet ; saisir soi-même reste possible
+    // (revue du mois d'un client, point 6).
+    const confies = !!(messagerieVue && messagerieVue.cabinet && messagerieVue.achatsConfies && bridge.messagerie && bridge.messagerie.envoyerFichier);
     $('#view').innerHTML = `
       <div class="page-head"><h1>Achats et dépenses</h1>
-        <div class="actions"><button class="btn" id="new-dep">+ Dépense</button><button class="btn ${videAchats ? '' : 'btn-primary'}" id="new">+ Facture d'achat</button></div></div>
+        <div class="actions"><button class="btn" id="new-dep">+ Dépense</button><button class="btn ${videAchats || confies ? '' : 'btn-primary'}" id="new">+ Facture d'achat</button>${confies ? `<button class="btn btn-primary" id="photo-cab">Envoyer une photo à mon comptable</button>
+          <input type="file" id="photo-cab-f" hidden multiple accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf">` : ''}</div></div>
+      ${confies && !videAchats ? '<p class="small muted mb" id="achats-confies">Tu as confié la saisie de tes achats à ton cabinet : envoie-lui la photo de chaque facture, il la saisit. Tu peux aussi en saisir une toi-même.</p>' : ''}
       ${payablesPanel()}
       ${filtersBar(`
         <input type="text" id="q" placeholder="Rechercher : n°, fournisseur, objet…" value="${h(s.q)}">
@@ -9980,7 +10095,11 @@
         ${info('list.filters')}
         <span class="f-note" id="f-note" hidden></span>
       `, data.purchases.length, !!(s.q || s.st || s.kind || s.cat || s.year || s.du))}
-      ${videAchats ? etatVide('Ce que tu dépenses, et la TVA que tu récupères',
+      ${videAchats && confies ? etatVide('Ton cabinet saisit tes achats',
+        ['Tu as confié la saisie de tes achats à ton cabinet : envoie-lui la photo ou le PDF de chaque facture fournisseur, il la saisit pour toi. C\'est ce qui permet de récupérer la TVA que tu as payée.',
+         'La photo part dans « Mon comptable », où tu retrouves vos échanges. Tu peux aussi saisir une facture toi-même.'],
+        [['vide-photo', 'Envoyer une photo à mon comptable', true], ['vide-achat', 'Saisir moi-même'], ['vide-dep', '+ Noter une dépense']])
+      : videAchats ? etatVide('Ce que tu dépenses, et la TVA que tu récupères',
         ['Saisis ici tes factures fournisseurs et tes dépenses : c\'est ce qui permet de récupérer la TVA que tu as payée, et de connaître ta marge réelle.',
          'Commence par joindre la photo ou le PDF de la facture : la saisie se fait en la regardant.'],
         [['vide-achat', '+ Saisir ma première facture d\'achat', true], ['vide-dep', '+ Noter une dépense']]) : '<div id="list-wrap"></div>'}`;
@@ -9988,6 +10107,28 @@
     $('#new-dep').onclick = () => navigate('#/achat/new/-/depense');
     if ($('#vide-achat')) $('#vide-achat').onclick = () => navigate('#/achat/new');
     if ($('#vide-dep')) $('#vide-dep').onclick = () => navigate('#/achat/new/-/depense');
+    if (confies) {
+      // Le sélecteur s'ouvre dans le geste même (un navigateur refuse de l'ouvrir plus tard) ; chaque fichier part seul,
+      // avec un mot que le cabinet lit dans son fil. Trop lourd, il est refusé avant de partir, et les autres partent.
+      const choisir = () => $('#photo-cab-f').click();
+      $('#photo-cab').onclick = choisir;
+      if ($('#vide-photo')) $('#vide-photo').onclick = choisir;
+      $('#photo-cab-f').onchange = async e => {
+        const fichiers = Array.from(e.target.files || []);
+        e.target.value = '';
+        if (!fichiers.length) return;
+        const bouton = $('#photo-cab');
+        if (bouton) bouton.disabled = true;
+        const partis = [], refuses = [];
+        for (const f of fichiers) {
+          try { await bridge.messagerie.envoyerFichier(f, `Une facture d'achat à saisir : ${f.name}`, null); partis.push(f.name); }
+          catch (err) { refuses.push(`${f.name} : ${err && err.message ? err.message : String(err)}`); }
+        }
+        if (bouton) bouton.disabled = false;
+        if (partis.length) toast(`${partis.length > 1 ? `${partis.length} factures envoyées` : `${partis[0]} envoyée`} à ton comptable : ${partis.length > 1 ? 'il les saisit' : 'il la saisit'}. Tu ${partis.length > 1 ? 'les' : 'la'} retrouves dans « Mon comptable ».`);
+        if (refuses.length) toast(`Pas envoyé${refuses.length > 1 ? 's' : ''} : ${refuses.join(' ; ')}`, true);
+      };
+    }
     if ($('#q')) $('#q').oninput = e => { s.q = e.target.value.toLowerCase(); s.page = 1; draw(); };
     if ($('#st')) $('#st').onchange = e => { s.st = e.target.value; s.page = 1; draw(); };
     if ($('#kind')) $('#kind').onchange = e => { s.kind = e.target.value; s.page = 1; draw(); };
@@ -10006,6 +10147,13 @@
     const soon = due.filter(x => !x.late && x.dueDate && C.daysBetween(C.today(), x.dueDate) <= 7);
     const total = due.reduce((s, x) => s + x.remaining, 0);
     const open = prefs.get('payablesOpen', true);
+    // (plateforme) 1.143.0 — chaque pièce est à payer : la liste en dessous montre déjà ces lignes, le bloc n'en garde
+    // que la somme (UX 3).
+    if (due.length <= 8 && due.length === (data.purchases || []).length) {
+      return `<div class="panel todo" id="payables" data-payables-resume style="padding-block:14px">
+      <p style="margin:0"><b>${C.money(total, cur)} à payer</b> sur ${pl(due.length, 'pièce')}${late.length ? ` · <span class="warn-text">${pl(late.length, 'pièce')} en retard</span>` : ''}${soon.length ? ` · ${soon.length} à régler sous 7 jours` : ''}. ${info('buy.payables')}
+        <span class="small muted">Chaque pièce de la liste se règle de son menu « Actions ».</span></p></div>`;
+    }
     return `<div class="panel todo" id="payables">
       <h2 class="collapse-h" id="pay-h" role="button" tabindex="0" aria-expanded="${open}">
         <span class="chev">${open ? '▾' : '▸'}</span>À payer ${info('buy.payables')}<span class="count">${due.length}</span></h2>
@@ -10833,6 +10981,9 @@
       // (plateforme, lot achats) L'échéance que la pièce ne dit pas se calcule comme pour un achat neuf : la date plus le délai
       // du fournisseur (souvent celui qu'on vient de créer depuis la lecture). Elle restait vide.
       if (!p.dueDate && p.date && p.kind !== 'depense' && p.kind !== 'avoir') p.dueDate = C.addDays(p.date, delaiAchat(p.supplierId));
+      // (plateforme, 1.113.0) Pendant l'envoi de la pièce lue, « Enregistrer » attend : enregistré avant, l'achat partait sans
+      // sa photo, et le dessin qui suit le rouvrait en « Nouvelle facture d'achat » (lecture-attente.txt).
+      for (const b of [$('#save'), $('#b-save-bas')]) if (b) b.disabled = true;
       const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);
       achatReprise = { hash: location.hash, p, isNew };
       render(true);
@@ -11218,6 +11369,8 @@
     .map(p => ({ v: p.id, label: p.name, sub: [clientName(p.clientId), p.status].filter(Boolean).join(' · '), text: `${p.name} ${clientName(p.clientId)}` })));
 
   function projectForm(proj, done, preset) {
+    // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
+    if (!proj && licenceBlock('Créer une affaire', 'pilotage')) return;
     const p = proj || Object.assign({ id: C.uid(), name: '', clientId: '', status: 'en cours', startDate: C.today(), endDate: '', notes: '' }, preset || {});
     modal(`<h2>${proj ? 'Modifier l\'affaire' : 'Nouvelle affaire'}</h2>
       <p class="small muted">Une affaire relie des ventes et des achats. C'est le seul endroit où la marge est <b>exacte</b> : on ne devine plus le coût, on l'a payé.</p>
@@ -12329,7 +12482,8 @@
       ${data.employees.length ? '' : `<div class="panel"><h2>Aucun salarié</h2>
         <p class="small">Ce module calcule les bulletins de paie à partir de barèmes que <b>tu règles toi-même</b> : CNSS, impôt sur le revenu, contribution de solidarité. Les valeurs livrées sont celles couramment appliquées en Tunisie, mais elles changent à chaque loi de finances — <em>fais valider les premiers bulletins par ton comptable avant de les remettre.</em></p>
         <p class="small muted">Commence par créer la fiche d'un salarié, avec son brut mensuel.</p>
-        <button class="btn btn-primary mt" id="emp-first">+ Créer mon premier salarié</button></div>`}
+        ${aboBloque(true) ? `<p class="small">${phraseRetenue()}</p><div class="inline mt">${boutonRetenue()}<button class="btn" id="emp-first">+ Créer mon premier salarié</button></div>`
+          : '<button class="btn btn-primary mt" id="emp-first">+ Créer mon premier salarié</button>'}</div>`}
       <div class="tabs" id="p-tabs" role="tablist" aria-label="La paie" ${data.employees.length ? '' : 'hidden'}>${PAIE_TABS.map(([id, label]) =>
         `<button role="tab" data-tab="${id}" class="${id === s.tab ? 'active' : ''}">${label}</button>`).join('')}</div>
       <div id="p-body"></div>`;
@@ -15877,6 +16031,8 @@
   const libelleCompteDepuisFiche = (avecBanque, sans) => { const m = modeleCompte(); return m && m.bank ? `${avecBanque} « ${h(m.bank)} »` : sans; };
 
   function accountForm(acc, done, modele, opts) {
+    // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
+    if (!acc && licenceBlock('Créer un compte de trésorerie', 'pilotage')) return;
     const a = acc || { id: C.uid(), name: '', kind: 'banque', bank: '', rib: '', opening: 0, openingDate: C.today(), isDefault: !data.accounts.length, statementBalance: '', notes: '', ...(modele || {}) };
     // Un compte né de la fiche société n'attend plus qu'UNE chose : son solde. Le curseur y va, la
     // valeur proposée (0) sélectionnée — la première frappe la remplace (9.4.5).
@@ -15941,6 +16097,8 @@
   }
 
   function movementForm(mv, done) {
+    // (plateforme) 1.134.0 — le refus arrive à l'ouverture, avant la saisie.
+    if (!mv && licenceBlock('Créer un mouvement de trésorerie', 'pilotage')) return;
     const m = mv || { id: C.uid(), date: C.today(), kind: 'autre-sortie', amount: 0, accountId: (data.accounts.find(a => a.isDefault) || data.accounts[0] || {}).id || '', label: '', reference: '', method: 'virement' };
     // Les justificatifs d'un mouvement libre (10.14.1, S-04) : la quittance d'un loyer payé sans
     // facture, l'avis d'imposition, le relevé qui prouve des frais bancaires. Un mouvement sans facture
@@ -16073,7 +16231,8 @@
           Pour y répondre, SkanFact a besoin de savoir ce que tu as aujourd'hui. Crée ton compte bancaire et saisis son solde actuel — il reprendra ensuite tout seul tes encaissements et tes règlements.</p>
           ${m ? `<p class="small" id="tre-depuis-fiche">Ta fiche société porte déjà ${quoi} : le compte naît avec. Il ne te reste que son solde d'aujourd'hui.</p>` : ''}
           <p class="small muted">Rien à ressaisir : les paiements clients et les règlements fournisseurs déjà enregistrés remontent automatiquement.</p>
-          <button class="btn btn-primary" id="first-acc">+ ${libelleCompteDepuisFiche('Créer le compte', 'Créer mon premier compte')}</button></div>`;
+          ${aboBloque(true) ? `<p class="small">${phraseRetenue()}</p><div class="inline mt">${boutonRetenue()}<button class="btn" id="first-acc">+ ${libelleCompteDepuisFiche('Créer le compte', 'Créer mon premier compte')}</button></div>`
+            : `<button class="btn btn-primary" id="first-acc">+ ${libelleCompteDepuisFiche('Créer le compte', 'Créer mon premier compte')}</button>`}</div>`;
       $('#first-acc').onclick = () => accountForm(null, () => render(), modeleCompte());
       return;
     }
@@ -16416,8 +16575,10 @@
   // par Skander le 09/10/2026). La page fournit ce que le fil ne sait pas : les pièces du dossier (« Parler d'une pièce »),
   // les ouvrir, répondre à une question de la révision (le chemin de `repondreA`), ranger une photo dans les achats.
   let conversationOuverte = null;
+  let ceMoisLu = null;
   routes.comptable = () => {
     if (conversationOuverte) { conversationOuverte.arreter(); conversationOuverte = null; }
+    ceMoisLu = null; // une visite neuve relit ce que le cabinet a fait ; les redessins de la même visite gardent leur lecture
     const view = $('#view');
     if (!bridge.messagerie) {
       view.innerHTML = '<div class="page-head"><h1>Mon comptable</h1></div><div class="panel"><p class="small muted">La messagerie avec ton cabinet se tient en ligne, au serveur.</p></div>';
@@ -16458,6 +16619,52 @@
         updateNavCounts();
       },
       rangerAchat: m => { rangementDuMessage = { message: m.id, fichier: m, lu: false }; navigate('#/achat/new'); },
+      // (1.123.0) La demande cite le numéro d'un achat déjà saisi (un seul) : la photo s'y joint, et le fil dit où elle
+      // est rangée (« Ranger dans mes achats » ouvrait un achat neuf, un doublon : revue du mois d'un client, 23/10/2026).
+      achatCite: texte => {
+        const net = x => String(x || '').toLowerCase().replace(/\s+/g, '');
+        const t = net(texte);
+        const vus = data.purchases.filter(p => net(p.number).length >= 3 && t.includes(net(p.number)));
+        return vus.length === 1 ? { id: vus[0].id, libelle: achat(vus[0]) } : null;
+      },
+      joindreAchat: async (m, id) => {
+        const p = purchaseById(id);
+        if (!p) throw new Error('Cet achat n\'est plus dans ton dossier : range la photo comme un autre achat.');
+        const fiche = await bridge.attachPath(p.id, bridge.ocrDepuisFichier(m).path);
+        p.attachments = (p.attachments || []).concat([fiche]);
+        await save(true);
+        await bridge.messagerie.rangerAchat(m.id, p.id, achat(p));
+        return achat(p);
+      },
+      // (1.124.0) « Ce mois-ci » : les ventes et les achats du mois (les mêmes règles que l'accueil et le contrôle de
+      // clôture : facture ou avoir émis, achat sans pièce jointe), et ce que le cabinet en a fait dans les livres, relu à
+      // chaque visite de la page (revue du mois d'un client, 23/10/2026, point 4).
+      ceMois: () => {
+        const mois = C.today().slice(0, 7);
+        const du = mois + '-01', au = C.today();
+        const pl = (n, un, plur) => `${n} ${n > 1 ? plur || un + 's' : un}`;
+        const ventes = data.documents.filter(d => (d.type === 'facture' || d.type === 'avoir') && d.status !== 'brouillon' && d.status !== 'annulée' && (d.date || '').startsWith(mois)).length;
+        const achats = (data.purchases || []).filter(p => (p.date || '').startsWith(mois));
+        const sansPiece = achats.filter(p => C.sansJustificatif(p)).length;
+        const pieces = !ventes && !achats.length ? 'Aucune vente ni aucun achat enregistré ce mois-ci.'
+          : `${ventes ? pl(ventes, 'vente') : 'Aucune vente'} · ${achats.length ? pl(achats.length, 'achat') : 'aucun achat'}${sansPiece ? `, dont ${sansPiece} sans justificatif` : ''}.`;
+        if (!ceMoisLu || ceMoisLu.du !== du) {
+          ceMoisLu = { du, r: bridge.messagerie.resume ? bridge.messagerie.resume(du, au) : Promise.resolve(null) };
+        }
+        const cabinet = ceMoisLu.r.then(r => {
+          if (!r) return null;
+          const le = r.valideeLe ? ` (dernière validation le ${C.fmtDate(r.valideeLe)})` : '';
+          if (!r.validees && !r.brouillard) return 'Rien encore dans tes livres pour ce mois.';
+          if (!r.validees) return `Ton cabinet n'a encore rien validé : ${pl(r.brouillard, 'écriture attend', 'écritures attendent')} au brouillard.`;
+          if (!r.brouillard) return `Ton cabinet a validé tout le mois : ${pl(r.validees, 'écriture')}${le}.`;
+          return `Ton cabinet a validé ${pl(r.validees, 'écriture')}${le} ; ${pl(r.brouillard, 'autre attend', 'autres attendent')} au brouillard.`;
+        });
+        const nom = new Date(du + 'T00:00:00Z').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+        return {
+          titre: `Ce mois-ci · ${nom}`, lignes: [pieces], cabinet,
+          action: sansPiece ? { libelle: sansPiece > 1 ? 'Voir les achats sans justificatif' : 'Voir l\'achat sans justificatif', faire: () => CHECK_ACTIONS.justificatifs.run({ du, au }) } : null,
+        };
+      },
       voirMandat: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
       inviter: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
       surAttente: a => majMessagerie({ ...(messagerieVue || {}), ...a }),
@@ -16961,7 +17168,7 @@
           <p class="small muted mt">Timbres fiscaux : ${C.money(sum.timbre, cur)} · TTC facturé : ${C.money(sum.ttc, cur)} · Retenues à la source subies sur les encaissements de la période : ${C.money(rsSubies, cur)}${Math.abs(sum.rs - rsSubies) > 0.0005 ? ` (les factures de la période en portent ${C.money(sum.rs, cur)} : un client la retient en payant)` : ''}. <em>À VÉRIFIER avec le comptable</em> avant déclaration.</p>
         </div>
         <div class="panel"><h2>Journal des ventes — ${h(periodLabel())} ${info('compta.journal')}</h2>
-          <div class="inline mb"><button class="btn" id="exp-journal">Exporter en CSV</button><button class="btn" id="exp-pdfs">Exporter tous les PDF de la période</button><button class="btn${messagerieVue && messagerieVue.cabinet ? '' : ' btn-primary'}" id="exp-comptable">Envoyer au comptable…</button>${info('compta.comptable')}</div>
+          <div class="inline mb"><button class="btn" id="exp-journal">Exporter en CSV</button><button class="btn" id="exp-pdfs">Exporter tous les PDF de la période</button><button class="btn${messagerieVue && messagerieVue.cabinet ? '' : ' btn-primary'}" id="exp-comptable">${messagerieVue && messagerieVue.cabinet ? 'Envoyer par e-mail…' : 'Envoyer au comptable…'}</button>${info('compta.comptable')}</div>
           ${messagerieVue && messagerieVue.cabinet ? '<p class="small muted mb" id="exp-cabinet-lit">Ton cabinet lit ces ventes en direct : il n\'y a rien à lui envoyer. Ce bouton sert à les envoyer à quelqu\'un d\'autre, par e-mail.</p>' : ''}
           ${rows.length ? `<div class="scroll-x" id="j-wrap"><table class="list compact sortable"><thead>${sortHead(journalCols, comptaState.journal.sort)}</thead><tbody>
             ${jPage.rows.map(r => `<tr class="clickable" data-id="${r.id}">${journalCols.map(c => `<td class="${c.r ? 'r nw' : ''}">${c.get(r)}</td>`).join('')}</tr>`).join('')}
@@ -17010,10 +17217,10 @@
         if (!await messagerie()) return;
         const tpl = { ...C.DEFAULT_EMAIL_TEMPLATES.comptable, ...((company().emailTemplates || {}).comptable || {}) };
         const vars = { objet: periodLabel(), numero: rows.length, montant: C.money(sum.ht, cur), societe: company().name, client: company().accountantName || '' };
-        modal(`<h2>Envoyer la comptabilité au comptable</h2>
+        modal(`<h2>${messagerieVue && messagerieVue.cabinet ? 'Envoyer la comptabilité par e-mail' : 'Envoyer la comptabilité au comptable'}</h2>
           <p class="small muted">${pl(rows.length, 'document')} · ${C.money(sum.ht, cur)} HT · TVA ${C.money(sum.tva, cur)} — ${h(periodLabel())}</p>
           <form id="cpf" class="grid-2">
-            ${field(lbl('Email du comptable', 'compta.comptableEmail'), 'to', company().accountantEmail || '', 'email', 'placeholder="comptable@cabinet.tn"')}
+            ${field(lbl(messagerieVue && messagerieVue.cabinet ? 'Son adresse e-mail' : 'Email du comptable', 'compta.comptableEmail'), 'to', company().accountantEmail || '', 'email', 'placeholder="comptable@cabinet.tn"')}
             <label class="check" style="align-self:end"><input type="checkbox" name="remember" checked> Retenir cette adresse</label>
             <label class="field span-2">${lbl('Objet', 'mail.objet')}<input type="text" name="subject" value="${h(C.fillTemplate(tpl.subject, vars))}"></label>
             <label class="field span-2">${lbl('Message', 'mail.message')}<textarea name="body" rows="8">${h(C.fillTemplate(tpl.body, vars).replace(/(^|\D)1 documents\b/, (m, avant) => `${avant}1 document`))}</textarea></label>
@@ -18037,8 +18244,9 @@
       // La plateforme (brique 44 bis) : plus de paquet — les livres sont au serveur, le cabinet les lit
       // en direct. L'onglet porte les questions du comptable, et dit à qui le dossier est confié.
       if (bridge.dessinerMandat) {
-        $('#c-body').innerHTML = `${panneauQuestions()}
-          <div class="panel" id="p-cabinet-mandat"><h2>Ton cabinet comptable</h2><div id="cab-pair"></div></div>`;
+        const mandatPanneau = '<div class="panel" id="p-cabinet-mandat"><h2>Ton cabinet comptable</h2><div id="cab-pair"></div></div>';
+        $('#c-body').innerHTML = (data.questionsCabinet || []).length ? `${panneauQuestions()}${mandatPanneau}`
+          : `${mandatPanneau}${messagerieVue && messagerieVue.cabinet ? panneauQuestions() : ''}`;
         // (plateforme) 1.94.0 — venu du premier pas « Inviter mon comptable » : le curseur sur son adresse, et la page la montre.
         // L'adresse se dessine après la réponse du serveur (l'invitation en cours) : on l'attend trois secondes au plus.
         void bridge.dessinerMandat($('#cab-pair'));
@@ -19143,7 +19351,7 @@
     if (bridge.dessinerCompte && $('#compte-panel')) void bridge.dessinerCompte($('#compte-panel'), { modal, toast });
     if (bridge.dessinerEquipe && $('#equipe-panel')) void bridge.dessinerEquipe($('#equipe-panel'), { modal, toast, confirmDialog, nom: company().name });
     if (bridge.accesSupport && $('#acces-panel')) bridge.accesSupport.dessiner($('#acces-panel'), { toast: (t, erreur) => toast(t, erreur), nomDePage: p => PAGE_LABELS[p] || p });
-    if (bridge.dessinerAbonnement && $('#abonnement-panel')) void bridge.dessinerAbonnement($('#abonnement-panel'));
+    if (bridge.dessinerAbonnement && $('#abonnement-panel')) void bridge.dessinerAbonnement($('#abonnement-panel'), { ecrire: bridge.support ? () => ecrireAuSupport('question') : null });
     if (bridge.dessinerAppareils && $('#appareils-panel')) void bridge.dessinerAppareils($('#appareils-panel'));
     if (bridge.dessinerExport && $('#export-panel')) bridge.dessinerExport($('#export-panel'));
     if (bridge.dessinerSauvegardes && $('#mes-sauvegardes-panel')) void bridge.dessinerSauvegardes($('#mes-sauvegardes-panel'), { modal, toast });
@@ -19922,6 +20130,9 @@
   // (U-11). Elle porte la couleur du domaine de la page, comme la visite qu'elle propose.
   const VISITE_PROPOSEE_MAX = 3;
   let appelEnAttente = '';
+  // (plateforme) 1.129.0 — une seule proposition par ouverture de l'application : trois en cinq minutes, c'était du bruit
+  // (revue du mois d'un client, point 16). Les pages suivantes se taisent jusqu'à la prochaine ouverture.
+  let visiteProposeeIci = false;
   function fermerAppelGuide() {
     const a = document.getElementById('guide-appel');
     if (a) { if (typeof a._fermer === 'function') a._fermer(); else a.remove(); }
@@ -19935,6 +20146,7 @@
     const p = visitePage(route);
     const et = visitesEtat();
     if (!p || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[route] || 0) >= VISITE_PROPOSEE_MAX)) return;
+    if (visiteProposeeIci && !reprise) return;
     // Deux invitations l'une sous l'autre se contredisent (7.18.0) : quand l'accueil propose déjà
     // « Nouveau sur SkanFact ? », la visite de la page se tait — et ne compte pas cette ouverture.
     // (plateforme, lot onboarding) Les premiers pas sont l'invitation de l'accueil : la bulle de la visite de la page s'y
@@ -19945,6 +20157,7 @@
     if (!bouton) { appelEnAttente = route; return; }
     fermerAppelGuide();
     if (!reprise) visitesPoser(e => { e.vues[route] = (e.vues[route] || 0) + 1; });
+    visiteProposeeIci = true;
     const coul = SkanVisites.couleurDe(p);
     const el = document.createElement('div');
     el.className = 'guide-appel' + (coul ? ' th-' + coul : '');
@@ -19957,7 +20170,8 @@
       <p class="ga-txt">${h(p.resume || '')} Je te montre à quoi elle sert et ce que fait chaque bouton, en ${h(p.duree || 'une minute')}.</p>
       <div class="ga-actions"><button type="button" class="btn btn-sm ga-go" id="ga-go">${ICONE_LECTURE}Faire la visite</button>
         <button type="button" class="btn btn-ghost btn-sm" id="ga-non" title="Ne plus me proposer la visite de cette page">Plus tard</button></div>
-      <p class="ga-note">Tu la retrouves dans « Guide-moi », avec tout ce qu'on peut faire ici.</p>`;
+      <p class="ga-note">Tu la retrouves dans « Guide-moi », avec tout ce qu'on peut faire ici.
+        <button type="button" class="ga-jamais" id="ga-jamais">Ne plus me proposer de visites</button></p>`;
     document.body.appendChild(el);
     const scroller = $('#view');
     const depart = scroller ? scroller.scrollTop : 0;
@@ -20002,6 +20216,11 @@
     window.addEventListener('scroll', defile, { passive: true });
     $('#ga-go', el).onclick = () => { fermer(); lancerVisite(p); };
     $('#ga-non', el).onclick = () => { visitesPoser(e => { e.vues[route] = VISITE_PROPOSEE_MAX; }); fermer(); };
+    $('#ga-jamais', el).onclick = () => {
+      visitesPoser(e => { e.proposer = false; });
+      fermer();
+      toast('Plus de proposition de visite. Les visites restent dans « Guide-moi » ; la case de « Me guider » les rallume.');
+    };
   }
   const ICONE_GUIDE = '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg>';
   const ICONE_LECTURE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M10.2 8.6l5 3.4-5 3.4z"/></svg>';
@@ -20829,6 +21048,7 @@
     const p = bridge.pastilleAbonnement ? bridge.pastilleAbonnement() : C.pastilleLicence(licence);
     el.hidden = !p.show;
     el.classList.toggle('warn', p.ton === 'alerte' || p.ton === 'attire');
+    el.classList.toggle('alerte', p.ton === 'alerte');
     el.classList.toggle('calme', p.ton === 'calme');
     if (p.show) el.textContent = p.texte;
   }

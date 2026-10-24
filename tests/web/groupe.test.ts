@@ -60,7 +60,7 @@ describe('le tableau de bord du groupe, à la souris', () => {
     const erreurs: string[] = [];
     const ouvrir = async (largeur: number): Promise<Page> => {
       const doigt = largeur < 760;
-      const cx = await navigateur.newContext({ viewport: { width: largeur, height: 900 }, locale: 'fr-FR', isMobile: doigt, hasTouch: doigt });
+      const cx = await navigateur.newContext({ viewport: { width: largeur, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', isMobile: doigt, hasTouch: doigt });
       await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
       const p = await cx.newPage();
       p.on('pageerror', (e) => erreurs.push(e.message));

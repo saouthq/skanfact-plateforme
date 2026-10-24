@@ -65,7 +65,7 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     frais('m1', '7.125')]);
 
     const erreurs: string[] = [];
-    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, leila);
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/journal/${annee}`);
@@ -171,7 +171,8 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     expect(await aValider.innerText()).toMatch(/^\s*· 1 mois à valider$/);
     await p.locator('button').filter({ hasText: /^Valider (les \d+ pièces|la seule pièce) de BQ$/ }).first().click();
     await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Valider', exact: true }).click();
-    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Fermer', exact: true }).click();
+    // (1.131.0) Tout entré : un message bref, plus de fenêtre à fermer.
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toMatch(/validées? sous/);
     await expect.poll(() => aValider.isVisible(), { timeout: 15_000 }).toBe(false);
     expect(erreurs).toEqual([]);
   }, 180_000);

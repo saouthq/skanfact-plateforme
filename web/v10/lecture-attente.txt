@@ -1,0 +1,16 @@
+Enregistrer pendant qu'une lecture se joint (1.113.0 ; trouvé par le jalon J2, rouge sous la charge des essais).
+
+« Utiliser ces informations » remplit l'achat, puis joint la photo (un envoi au serveur), puis redessine la page. Sur un
+réseau lent, « Enregistrer », cliqué pendant l'envoi, enregistrait l'achat sans sa photo et menait à sa page ; l'envoi
+fini redessinait alors par-dessus une « Nouvelle facture d'achat » non enregistrée : un second clic faisait un doublon.
+« Enregistrer » attend donc la fin de la lecture (le bouton se rallume au dessin suivant).
+
+== app.js | « Enregistrer » attend que la lecture soit jointe et la page redessinée
+-- avant
+      const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);
+-- après
+      // (plateforme, 1.113.0) Pendant l'envoi de la pièce lue, « Enregistrer » attend : enregistré avant, l'achat partait sans
+      // sa photo, et le dessin qui suit le rouvrait en « Nouvelle facture d'achat » (lecture-attente.txt).
+      for (const b of [$('#save'), $('#b-save-bas')]) if (b) b.disabled = true;
+      const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);
+-- fin

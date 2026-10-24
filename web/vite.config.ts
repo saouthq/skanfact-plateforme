@@ -9,6 +9,7 @@
 import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import { build, defineConfig, type Plugin } from 'vite';
+import { PLANCHER } from '../commun/navigateurs.ts';
 import { allegerLesEcrans } from './alleger.ts';
 
 // La console se construit À PART, dans console/ (ses fichiers sous /console/assets) : construite avec l'entrée, les deux
@@ -22,7 +23,7 @@ function laConsole(): Plugin {
       if (!sortie.dir) return;
       await build({
         configFile: false, root: path.join(import.meta.dirname, 'console'), base: '/console/', logLevel: 'error', plugins: [react()],
-        build: { outDir: path.join(sortie.dir, 'console'), emptyOutDir: true },
+        build: { outDir: path.join(sortie.dir, 'console'), emptyOutDir: true, target: PLANCHER },
       });
     },
   };
@@ -36,7 +37,8 @@ export default defineConfig({
     apply: 'build',
     writeBundle(sortie) { if (sortie.dir) allegerLesEcrans(sortie.dir); },
   }, laConsole()],
-  build: { outDir: '../dist/web', emptyOutDir: true },
+  // Le plancher des navigateurs (commun/navigateurs.ts) : Firefox 121 et non le 114 du défaut de Vite (« :has() »).
+  build: { outDir: '../dist/web', emptyOutDir: true, target: PLANCHER },
   // En développement, l'API tourne à côté (npm run serveur).
   server: { proxy: { '/v1': 'http://127.0.0.1:8080' } },
 });

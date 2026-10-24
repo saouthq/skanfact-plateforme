@@ -19,6 +19,9 @@
 /* Ce qui ne se montre qu'au téléphone (« WhatsApp » à côté d'« Email » sur une pièce : lot téléphone, 06/10/2026). */
 .tel-seul { display: none; }
 
+/* (1.149.0) La désignation d'une pièce figée, en texte : elle ne se montre qu'au téléphone, où le champ éteint coupait
+   ce qui dépasse (UX 3). */
+.ligne-lue { display: none; }
 @media (max-width: 760px) {
   #app { flex-direction: column; height: auto; min-height: 100%; }
   .sidebar { width: 100%; padding: 8px 12px; border-inline-end: none; border-block-end: 1px solid var(--border); position: sticky; top: 0; z-index: 60; }
@@ -28,6 +31,14 @@
   /* Au Cabinet, « Menu » est posé dans la marque même (pas de `.brand-wrap`) : poussé au bout de la ligne, comme à
      l'entreprise, au lieu de flotter au milieu juste après le nom du cabinet (vu à 390 px le 21/10/2026). */
   .sidebar > .brand > .menu-tel { margin-inline-start: auto; }
+  /* (1.115.0) Les messages à côté de « Menu » (telephone.js, 7) : une bulle et sa pastille, 44 px au doigt. */
+  .sidebar > .brand > .msg-tel + .menu-tel { margin-inline-start: 6px; }
+  .msg-tel { position: relative; width: 44px; min-height: 44px; padding: 0; justify-content: center; align-items: center; }
+  .msg-tel[aria-current="page"] { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+  .msg-tel-pastille {
+    position: absolute; top: -6px; inset-inline-end: -6px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
+    display: inline-flex; align-items: center; justify-content: center; background: #c2410c; color: #fff; font-size: 11px; font-weight: 700;
+  }
   .sidebar > .nav-search, .sidebar > nav, .sidebar > .sidebar-foot { display: none; }
   .sidebar.menu-ouvert > .nav-search, .sidebar.menu-ouvert > .sidebar-foot { display: flex; }
   .sidebar.menu-ouvert > nav { display: flex; max-height: 60vh; overflow-y: auto; }
@@ -47,6 +58,14 @@
   .span-2 { grid-column: auto; }
   .editor .preview { position: static; height: auto; min-height: 420px; }
   .filters > * { flex: 1 1 100%; }
+  /* (1.148.0) Les cases à cocher, le compte et les petits gestes d'une barre de filtres se rangent côte à côte, à leur
+     taille : aux Dossiers du Cabinet, deux cases, « 1 sur 1 » et « Exporter en CSV » prenaient chacun une rangée, et la
+     liste n'arrivait qu'en bas de l'écran (UX 3). */
+  .filters > :is(label.inline, span.muted.small, .btn-sm) { flex: 0 1 auto; }
+  .filters > span.grow { display: none; }
+  .filters > label + span.small { align-self: center; padding-block-end: 0; }
+  td:has(> .ligne-lue) > input[data-k="label"] { display: none; }
+  td > .ligne-lue { display: block; padding: 6px 0; font-weight: 600; overflow-wrap: anywhere; }
   /* Un tableau de trois colonnes ou moins tient, ou défile dans son cadre ; une liste plus large devient des cartes
      (plus bas, « Les listes en cartes »). */
   table.list:not([data-cartes]) { display: block; overflow-x: auto; }
@@ -158,13 +177,34 @@
   table.list[data-cartes] > tbody > tr, table.list[data-cartes] > tfoot > tr { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 14px;
     padding: 14px 16px; background: var(--panel); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow); }
   table.list[data-cartes] > tfoot > tr { background: var(--bg); box-shadow: none; }
+  /* (1.140.0) Une seule ligne : la carte des totaux répétait ses chiffres (« 1 client », 2 documents, 444,000 DT). */
+  table.list[data-cartes]:has(> tbody > tr:only-child) > tfoot { display: none; }
   table.list[data-cartes] > * > tr > td, table.list[data-cartes] > tbody > tr > th { display: block; min-width: 0; padding: 0; border: 0; background: none; text-align: start; font-size: 14px; }
   table.list[data-cartes] > * > tr > td[data-label]::before { content: attr(data-label); display: block; margin-bottom: 3px; font-size: 10.5px; font-weight: 700; letter-spacing: .6px;
     text-transform: uppercase; color: var(--muted); }
   table.list[data-cartes] > * > tr > [data-tel="titre"], table.list[data-cartes] > * > tr > td[colspan] { grid-column: 1 / -1; font-size: 15px; }
   table.list[data-cartes] > * > tr > [data-tel="vide"] { display: none; }
+  /* (1.139.0) Les montants d'abord : une carte de facture rangeait le net à payer et le reste dû en dernier, sous le pli,
+     après le type, le client, la date et le statut. Les colonnes de chiffres (alignées à droite, `.r`) remontent juste
+     sous ce qui nomme la ligne, en gras ; le reste suit dans son ordre (UX 3). */
+  table.list[data-cartes] > tbody > tr > td.r:not([data-tel="titre"]) { order: 1; font-weight: 650; font-variant-numeric: tabular-nums; }
+  table.list[data-cartes] > tbody > tr > td[data-tel-tiers="oui"] { order: 2; }
+  /* (1.143.0) Au doigt, le survol reste collé à la dernière carte touchée : son « Actions » s'allumait seul. Toutes les
+     cartes le montrent allumé, au même style (UX 3). */
+  table.list[data-cartes] > tbody > tr > td.row-actions .row-menu-btn:not(.btn) { opacity: 1; background: var(--ink-soft); color: var(--text); }
+  table.list[data-cartes] > tbody > tr > td:not(.r):not([data-tel="titre"]):not(.row-actions):not([data-tel-tiers="oui"]) { order: 3; }
+  /* (1.139.0) La liste des dossiers du Cabinet : au bureau, la case du client tient sa largeur par `max-width: 0` (le
+     nom long se coupe d'une ellipse) ; en carte, elle s'écrasait à zéro et le nom du client disparaissait (UX 3). */
+  table.list[data-cartes].dl-table > * > tr > td.dl-client { max-width: none; width: auto; min-width: 0; }
+  /* (1.139.0) La rangée de chiffres du Cabinet en deux colonnes : « 444,000 DT de … », « 1 client s… » se coupaient.
+     Au téléphone, le libellé et la ligne du dessous reviennent à la ligne ; le chiffre, lui, reste entier. */
+  .stats.rangee .pf-l { flex-wrap: wrap; row-gap: 0; }
+  .stats.rangee .lbl, .stats.rangee .sub { white-space: normal; overflow: visible; }
   table.list[data-cartes] > * > tr > td.row-actions { position: absolute; top: 8px; inset-inline-end: 8px; width: auto; }
-  table.list[data-cartes] > * > tr:has(> td.row-actions:not([data-tel="vide"])) > [data-tel="titre"] { min-height: 44px; padding-inline-end: 118px; display: flex; flex-direction: column; justify-content: center; }
+  table.list[data-cartes] > * > tr:has(> td.row-actions:not([data-tel="vide"])) > [data-tel="titre"] { min-height: 44px; padding-inline-end: 118px; display: flex; flex-wrap: wrap; align-items: center; align-content: center; column-gap: 6px; }
+  /* (1.145.0) Le titre d'une carte se lit sur une ligne avec ses marques (le trombone d'un justificatif passait seul à la
+     ligne) ; ce qui l'explique en dessous (l'objet, une note) garde sa ligne (UX 3). */
+  table.list[data-cartes] > * > tr:has(> td.row-actions:not([data-tel="vide"])) > [data-tel="titre"] > :is(div, p, br) { flex-basis: 100%; }
   table.list[data-cartes] tr.clickable:hover td { background: none; }
   table.list[data-cartes] tr.total-row td { background: none; }
 
@@ -193,9 +233,18 @@
   .page-head .actions > .btn { justify-content: center; }
   /* L'étape suivante (le bouton principal) passe en tête, sur toute la largeur, sous le pouce. */
   .page-head .actions > :is(.btn-primary, .colle-bouton:has(> .btn-primary)) { order: -1; flex-basis: 100%; }
+  /* (1.145.0) Dans l'éditeur d'une pièce, « Enregistrer le brouillon » vient juste sous « Émettre » : c'est l'autre geste
+     de la page ; il passait en troisième rangée, derrière l'aperçu et le PDF (UX 3). */
+  .page-head .actions:has(> #save:not(.btn-primary)) > * { order: 2; }
+  .page-head .actions:has(> #save:not(.btn-primary)) > #save { order: 1; flex: 1 1 calc(100% - 64px); }
+  .page-head .actions:has(> #save:not(.btn-primary)) > .i { order: 1; align-self: center; }
+  .page-head .actions:has(> #save:not(.btn-primary)) > :is(.btn-primary, .colle-bouton:has(> .btn-primary)) { order: 0; }
   /* « ▾ » (les autres façons de facturer) reste collé à son bouton, à sa taille ; l'aperçu perd son trait de séparation. */
   .colle-bouton > .more { flex: 0 0 auto; }
   .page-head .actions > .pv-cmd { border: 0; padding: 0; margin: 0; }
+  /* La recherche des Paramètres demandait 320 points pour elle seule : sur un téléphone de 320 (le plus étroit), elle
+     sortait de l'écran, « Guide-moi » avec elle (navigateurs et appareils, 22/10/2026). Elle prend la rangée. */
+  .set-search, .set-search input[type=search] { min-width: 0; flex: 1 1 100%; width: 100%; max-width: none; }
   /* Sous les filtres d'une liste, la bulle se range à côté de la case qui la précède, au lieu d'une ligne à elle. */
   .filters > :has(+ button.i) { flex-basis: calc(100% - 56px); }
   .filters > button.i { flex: 0 0 44px; margin: 0; }

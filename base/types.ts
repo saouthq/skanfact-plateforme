@@ -402,6 +402,17 @@ export interface BaseDeDonnees {
     achat_libelle: string | null;
     repond_a: string | null;
     ecrit_le: Generated<Date>;
+    demande_pour: string | null;
+    relances: Generated<number>;
+    relance_le: Date | null;
+  };
+  'messagerie.modele': {
+    id: Generated<string>;
+    cabinet: string;
+    titre: string;
+    texte: string;
+    modifie_par: string | null;
+    modifie_le: Generated<Date>;
   };
   'paie.bulletin': {
     id: Generated<string>;
@@ -490,6 +501,12 @@ export interface BaseDeDonnees {
     a_venir_periodicite: string | null;
     a_venir_retraits: Generated<string[]>;
   };
+  'plateforme.abonnement_cabinet': {
+    cabinet: string;
+    depuis: string;
+    paye_jusqu_au: string | null;
+    cree_le: Generated<Date>;
+  };
   'plateforme.acces_support': {
     id: Generated<string>;
     entreprise: string;
@@ -539,6 +556,11 @@ export interface BaseDeDonnees {
     entreprise: string;
     close_le: Date;
     close_par: string;
+    motif: string;
+  };
+  'plateforme.choix_refuse': {
+    choix: string;
+    le: Generated<Date>;
     motif: string;
   };
   'plateforme.contenu_offre': {
@@ -702,6 +724,19 @@ export interface BaseDeDonnees {
     le: Date;
     par: string;
   };
+  'plateforme.exercice_crise': {
+    id: Generated<string>;
+    fiche: string;
+    debut: Date;
+    fin: Date;
+    temps: ColumnType<Json, string, string>;
+    participants: string;
+    marche: string;
+    coince: string;
+    change: string;
+    reussi: boolean;
+    par: string;
+  };
   'plateforme.facture_abonnement': {
     id: Generated<string>;
     entreprise: string;
@@ -721,6 +756,34 @@ export interface BaseDeDonnees {
     remise_taux: Generated<number>;
     remise_ht: Generated<bigint>;
     mois_offert: Generated<boolean>;
+    annoncee_le: Date | null;
+    recu_le: Date | null;
+    au_choix: Generated<boolean>;
+  };
+  'plateforme.facture_cabinet': {
+    id: Generated<string>;
+    cabinet: string;
+    editeur: string;
+    piece_v10: string;
+    client_v10: string;
+    debut: string;
+    fin: string;
+    echeance: string;
+    dossiers: string[];
+    rattrapes: Generated<string[]>;
+    montant_ht: bigint;
+    prepare_le: Generated<Date>;
+    prepare_par: string | null;
+    payee_le: Date | null;
+    annoncee_le: Date | null;
+    recu_le: Date | null;
+  };
+  'plateforme.facture_cabinet_refus': {
+    cabinet: string;
+    debut: string;
+    le: Generated<Date>;
+    vide: Generated<boolean>;
+    motif: string;
   };
   'plateforme.geste_console': {
     id: Generated<string>;
@@ -894,6 +957,15 @@ export interface BaseDeDonnees {
     qui: string | null;
     le: Generated<Date>;
   };
+  'plateforme.regle_cabinet': {
+    id: Generated<string>;
+    code: string;
+    valeur: bigint;
+    a_partir_du: string;
+    motif: string;
+    pose_par: string | null;
+    pose_le: Generated<Date>;
+  };
   'plateforme.regle_remise': {
     id: Generated<string>;
     code: string;
@@ -1029,6 +1101,13 @@ export interface BaseDeDonnees {
     courriel: boolean | null;
     sms: boolean | null;
     demande: string | null;
+  };
+  'plateforme.service_fermeture': {
+    maintenance: string;
+    posee_le: Date;
+    posee_par: string;
+    rouverte_le: Date | null;
+    rouverte_par: string | null;
   };
   'plateforme.service_heure': {
     heure: Date;

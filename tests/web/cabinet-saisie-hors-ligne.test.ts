@@ -90,7 +90,7 @@ describe('la saisie du Cabinet sans réseau, à la souris', () => {
     ] })).statut).toBe(200);
 
     // « Mon ordinateur », l'application installée (le navigateur promet de garder : 04 § 4).
-    const c = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const c = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await c.addInitScript(() => { if (navigator.storage) Object.assign(navigator.storage, { persist: async () => true, persisted: async () => true }); });
     await c.addInitScript((j) => {
       if (!location.protocol.startsWith('http') || localStorage.getItem('test.pose')) return;
@@ -210,6 +210,9 @@ describe('la saisie du Cabinet sans réseau, à la souris', () => {
     await (await actions('OD-HL1')).filter({ hasText: 'Valider cette écriture' }).click();
     await fenetre.getByRole('button', { name: 'Valider', exact: true }).click();
     await expect.poll(async () => (await livres(ent, leila)).find((e) => e.piece === 'OD-HL1')?.statut, { timeout: 10_000 }).toBe('validee');
+    // L'écran a fini (le livre relu, le numéro dit) avant qu'on coupe le serveur : la base dit « validée » dès le premier
+    // appel, et couper entre les deux laissait « Validation refusée » sur le bouton (rouge sur GitHub, 23/10/2026).
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 10_000 }).toMatch(/^Validée sous le n° /);
 
     // ── Refusée au retour : la période validée entre-temps. Cette fois, seul le serveur tombe (le réseau du poste reste) :
     //    le navigateur ne dira pas qu'il revient, le poste réessaie seul toutes les 30 secondes. ─────────────────────
@@ -251,7 +254,7 @@ describe('la saisie du Cabinet sans réseau, à la souris', () => {
       { collection: 'movements', cle: 'm1', rang: 0, revision: null,
         contenu: { id: 'm1', date: aujourdhui, kind: 'banque', amount: { '~n': '7.125' }, accountId: 'k-banque', method: 'virement', label: 'Frais de tenue de compte' } },
     ] })).statut).toBe(200);
-    const c = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const c = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await c.addInitScript((oui) => { if (navigator.storage) Object.assign(navigator.storage, { persist: async () => oui, persisted: async () => oui }); }, persistant);
     await c.addInitScript((j) => {
       if (!location.protocol.startsWith('http') || localStorage.getItem('test.pose')) return;

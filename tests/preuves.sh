@@ -1867,10 +1867,10 @@ prouver "l'assistant de saisie qui valide, à la porte" serveur/compta/gestes.ts
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui' } }," "  { code: 'compta.ecritures.valider', module: 'compta', ecrit: true, auCabinet: 'comptabilite',
     roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', supervision: 'oui', revision: 'oui', saisie: 'oui' } }," \
   "$CM"
-prouver "un dossier tenu créé par un collaborateur" $M33 \
+prouver "un dossier tenu créé par un collaborateur" base/migrations/0172_abonnement_cabinet.sql \
   "  if not socle.suis_associe(p_cabinet) then perform socle.refus('seul un associé du cabinet crée un dossier'); end if;" "" \
   "$CT"
-prouver "un dossier tenu sans tout son périmètre" $M33 \
+prouver "un dossier tenu sans tout son périmètre" base/migrations/0172_abonnement_cabinet.sql \
   "array['comptabilite', 'declarations', 'saisie_achats', 'paie'], 'actif');" "array['comptabilite'], 'actif');" \
   "$CT"
 prouver "un matricule mal formé qui fait tomber le serveur" serveur/cabinet/routes.ts \
@@ -1922,7 +1922,7 @@ prouver "« Tes premiers pas » qui réclame encore l'appairage et la clé de se
   "const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie'];" "const ETAPES_ABSENTES = [];" \
   "$W2"
 prouver "les réglages de la boîte de réception et des sauvegardes sur l'ordinateur" $PC \
-  "const PANNEAUX_ABSENTS = ['pan-licence', 'pan-inbox', 'pan-backup', 'pan-maj', 'pan-exemple', 'pan-comptes'];" "const PANNEAUX_ABSENTS = ['pan-licence', 'pan-maj'];" \
+  "const PANNEAUX_ABSENTS = ['pan-inbox', 'pan-backup', 'pan-maj', 'pan-exemple', 'pan-comptes'];" "const PANNEAUX_ABSENTS = ['pan-maj'];" \
   "$W2"
 prouver "« Verrouiller » qui laisse la session ouverte" $PC \
   "      try { await fetch('/v1/deconnexion', { method: 'POST', headers: { authorization: \`Bearer \${jeton}\` } }); } catch { /* la session se ferme de toute façon ici */ }" "" \
@@ -3337,7 +3337,7 @@ prouver "retirer un dossier qui ne fait rien" $PC \
   '      await appel('"'"'POST'"'"', `/cabinets/${cabinetId}/mandats/${d.mandat}/arreter`);' "" \
   "$RD2"
 prouver "le mandat d'un dossier oublié par l'écran" $PC \
-  "manual: !!d.tenu, mandat: d.mandat });" "manual: !!d.tenu, mandat: '' });" \
+  "manual: !!d.tenu, mandat: d.mandat, perimetre: d.perimetre });" "manual: !!d.tenu, mandat: '', perimetre: d.perimetre });" \
   "$RD2"
 prouver "le bouton qui dit encore Supprimer" web/public/v10/cabinet/app.js \
   'id="del">Retirer du portefeuille…' 'id="del">Supprimer…' \
@@ -3361,7 +3361,7 @@ prouver "un dossier renommé hors du portefeuille" $M33 \
 prouver "un matricule déjà pris, renommé sans un mot" $M33 \
   "  perform socle.exiger_matricule_libre(p_matricule, p_entreprise);" "" \
   "$NT1"
-prouver "un matricule déjà pris, créé sans un mot" $M33 \
+prouver "un matricule déjà pris, créé sans un mot" base/migrations/0172_abonnement_cabinet.sql \
   "  perform socle.exiger_matricule_libre(p_matricule, null);" "" \
   "$NT1"
 prouver "son propre matricule compté comme déjà pris" $M33 \
@@ -3533,9 +3533,7 @@ prouver "la raison d'un écran vide recouverte par « Hors ligne depuis… »" w
 " "" \
   "$HL2"
 prouver "hors ligne, la copie du poste jamais ouverte" $PONT \
-  "        if (!/** @type {any} */ (e).horsLigne) throw e;
-        const copie = avecTicketsEnAttente(await lireLaCopie());" "        throw e;
-        const copie = avecTicketsEnAttente(await lireLaCopie());" \
+  "        if (!/** @type {any} */ (e).horsLigne) {" "        if (true) {" \
   "$HL1"
 prouver "la copie jamais écrite après une lecture" $PONT \
   "    questionsLues = data.questionsCabinet;
@@ -5579,7 +5577,7 @@ prouver "la mise en place de l'entreprise proposée à un membre qui ne la tient
 " "" \
   "$MR"
 prouver "« + Nouvelle facture » sur l'accueil de qui ne peut pas écrire une pièce" web/public/v10/app.js \
-  "\${peutEcrireDossier('documents') ? \`<button class=\"btn\" id=\"new-devis\">" "\${true ? \`<button class=\"btn\" id=\"new-devis\">" \
+  "\${peutEcrireDossier('documents') && !(licence.locked && bridge.dessinerAbonnement) ? \`<button class=\"btn\" id=\"new-devis\">" "\${!(licence.locked && bridge.dessinerAbonnement) ? \`<button class=\"btn\" id=\"new-devis\">" \
   "$MR"
 prouver "« À faire » qui mène à une page que le rôle ne montre pas" web/public/v10/app.js \
   "todoMeneACache(x.id) ? '' :" "false ? '' :" \
@@ -8063,8 +8061,10 @@ prouver "« Me guider » qui propose en ligne les visites sans objet" web/public
 prouver "« Guide-moi » d'une nouvelle facture sans « Faire une facture »" web/public/v10/visites.js \
   "      surLaPage: cle => cle !== 'doc' || /^#\\/doc\\/new\\/facture/.test(hash())," "      surLaPage: () => false," \
   "$EXW"
-prouver "l'étape des pièces jointes du devis qui attend un panneau absent" web/public/v10/visites.js \
-  "        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes', facultatif: true," "        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes'," \
+# (1.107.0) Depuis la 1.89.0, les pièces jointes existent en ligne : le défaut vise un panneau qui, lui, n'y est pas (les
+# mises à jour de l'application de bureau).
+prouver "une étape du devis qui attend un panneau absent en ligne" web/public/v10/visites.js \
+  "        { cible: '#p-pj', cote: 'dessus', titre: 'Les pièces jointes', facultatif: true," "        { cible: '#p-maj', cote: 'dessus', titre: 'Les pièces jointes'," \
   "$VEL"
 prouver "la découverte qui attend le panneau des mises à jour" web/public/v10/visites.js \
   "        { page: '#/parametres', cible: '#app-version', cote: 'droite', titre: 'Les mises à jour'," "        { page: '#/parametres', cible: '#p-maj', cote: 'droite', titre: 'Les mises à jour'," \
@@ -9298,6 +9298,7 @@ prouver "un refus de la préparation offert à réessayer" $EXP \
 # ── Lot messagerie (09/10/2026 ; docs/messagerie.md ; base/migrations/0078_messagerie.sql, serveur/messagerie/,
 # web/public/plateforme/messagerie.js ; tests/messagerie/messagerie.test.ts, tests/web/messagerie.test.ts) ──
 MG=base/migrations/0078_messagerie.sql
+# (1.115.0, puis 1.116.0) `messagerie.ecrire` est redéfinie par 0167, puis 0168_messagerie_relances.sql : ses preuves y retirent la règle.
 MR=serveur/messagerie/routes.ts
 MJ=web/public/plateforme/messagerie.js
 MSG1="ils s'écrivent ; chacun voit ce qui l'attend, « lu » se dit à l'autre ; ni la voisine, ni un autre rôle, ni un collaborateur sans le dossier"
@@ -9322,15 +9323,15 @@ prouver "le fil lu d'un membre du cabinet à qui le dossier n'est pas confié" $
 prouver "« Toi » sous le message d'un collègue" $MR \
   "            moi: m.de_moi," "            moi: m.cote === cote.data," \
   "$MSG1"
-prouver "le client qui demande une pièce" $MG \
+prouver "le client qui demande une pièce" base/migrations/0168_messagerie_relances.sql \
   "  if v_demande is not null and p_cote <> 'cabinet' then perform socle.refus('seul le cabinet demande une pièce'); end if;" "" \
   "$MSG2"
-prouver "la pièce demandée envoyée, jamais reçue" $MG \
+prouver "la pièce demandée envoyée, jamais reçue" base/migrations/0168_messagerie_relances.sql \
   "    update messagerie.message set demande_recue_le = clock_timestamp(), demande_recue_par = socle.moi()
      where id = v_repond and entreprise = p_entreprise and cabinet = v_cabinet and demande is not null and demande_recue_le is null;
     if not found then perform socle.refus('cette pièce demandée n''attend plus rien'); end if;" "" \
   "$MSG2"
-prouver "un fichier joint à deux messages" $MG \
+prouver "un fichier joint à deux messages" base/migrations/0168_messagerie_relances.sql \
   "    if exists (select 1 from messagerie.message m where m.fichier = v_fichier) then perform socle.refus('ce fichier est déjà joint à un message'); end if;" "" \
   "$MSG2"
 prouver "un fichier pas encore joint, lu de l'autre côté" $MG \
@@ -9356,7 +9357,7 @@ prouver "le fil d'un ancien cabinet écrit par l'entreprise" $MG \
   "  if v is null then perform socle.refus('aucun cabinet ne tient ce dossier : la messagerie s''ouvre avec le mandat'); end if;" "  if v is null then select f.cabinet into v from messagerie.fil f where f.entreprise = p_entreprise limit 1; end if;" \
   "$MSG5"
 prouver "l'alerte qui nomme l'entreprise dans son lien" serveur/messagerie/postier.ts \
-  "{ lien: \`\${courriel.adresse()}/\` }" "{ lien: \`\${courriel.adresse()}/v10/?e=\${p.entreprise}\` }" \
+  "'messagerie.alerte.entreprise', { lien: \`\${courriel.adresse()}/\` }" "'messagerie.alerte.entreprise', { lien: \`\${courriel.adresse()}/v10/?e=\${p.entreprise}\` }" \
   "$MSG6"
 prouver "l'alerte envoyée à une adresse que personne n'a vérifiée" $MG \
   "    join socle.utilisateur u on u.id = p.utilisateur and u.adresse_verifiee_le is not null" "    join socle.utilisateur u on u.id = p.utilisateur" \
@@ -9382,10 +9383,10 @@ prouver "la boîte qui s'ouvre sur « Rien à traiter » quand le client est att
   "      if (!filtre) filtre = c.aTraiter ? 'a_traiter' : c.attendClient ? 'attend_client' : 'tout';" "      if (!filtre) filtre = 'a_traiter';" \
   "$MSGW"
 prouver "« Demander une pièce » qui n'ouvre pas le champ de la pièce" $MJ \
-  "      if (demande) setTimeout(() => demandeTxt.focus(), 0);" "" \
+  "montrerDemande(); if (demande) demandeTxt.focus(); else texte.focus(); };" "montrerDemande(); };" \
   "$MSGW"
 prouver "un message vide parti au serveur" $MJ \
-  "        if (!t && !fichier && !d) {" "        if (false) {" \
+  "        if (!t && !fichier && !d && !piece) {" "        if (false) {" \
   "$MSGW"
 prouver "« Mon comptable » dans le menu sans cabinet" web/public/v10/app.js \
   "  const avecMessagerie = a => !!(a && (a.cabinet || a.anciens));" "  const avecMessagerie = a => !!a;" \
@@ -9394,7 +9395,7 @@ prouver "la pastille de « Mon comptable » sans les pièces demandées" web/pub
   "const n = (a.nonLus || 0) + (a.questions || 0) + (a.demandes || 0);" "const n = (a.nonLus || 0) + (a.questions || 0);" \
   "$MSGW"
 prouver "la pastille des Messages qui compte tous les clients" web/public/v10/cabinet/app.js \
-  "majPastilleMessages((await api.messagerie.compteurs()).aTraiter)" "majPastilleMessages((await api.messagerie.compteurs()).tout)" \
+  "majPastilleMessages(b.compteurs.aTraiter);" "majPastilleMessages(b.compteurs.tout);" \
   "$MSGW"
 
 # ── Les e-mails habillés (12/10/2026 ; serveur/courriel.ts, courriel.html) ──
@@ -9628,8 +9629,8 @@ prouver "la dépense sans fournisseur refusée" web/public/v10/app.js \
 prouver "une fiche « Dépenses diverses » de plus à chaque dépense" web/public/v10/app.js \
   "let s = data.suppliers.find(x => x.divers || x.name === NOM_DIVERS);" "let s = null;" \
   "$KN4"
-prouver "l'étape des notes qui parle des pièces jointes, absentes en ligne" web/public/v10/visites.js \
-  "texte: 'Un texte libre <b>imprimé</b> sur le devis : délai" "eclairer: '#p-pj', texte: 'Un texte libre <b>imprimé</b> sur le devis : délai" \
+prouver "l'étape des notes qui éclaire un panneau absent en ligne" web/public/v10/visites.js \
+  "texte: 'Un texte libre <b>imprimé</b> sur le devis : délai" "eclairer: '#p-maj', texte: 'Un texte libre <b>imprimé</b> sur le devis : délai" \
   "$KNV1"
 prouver "une étape par case dans l'en-tête du devis" web/public/v10/visites.js \
   "{ cible: '#f-head', liste: '.datefield .d-txt, input[name=\"reference\"], [data-combo=\"projectId\"] .combo-btn, select[name=\"lang\"], select[name=\"currency\"], select[name=\"status\"]" "{ cible: 'input[name=\"reference\"]', titre: 'Référence' }, { cible: '#f-head', liste: '.datefield .d-txt, input[name=\"reference\"], [data-combo=\"projectId\"] .combo-btn, select[name=\"lang\"], select[name=\"currency\"], select[name=\"status\"]" \
@@ -9812,7 +9813,7 @@ prouver "la page publique qui montre une panne pas encore confirmée" exploitati
   '.filter(([c, e]) => confirme(c, e.vus))' '.filter(() => true)' \
   "$VE12"
 prouver "le nom du serveur posé tel quel dans la page publique" exploitation/veille.ts \
-  '<p class="sous">${echapper(serveur)}</p>' '<p class="sous">${serveur}</p>' \
+  'chapo: `${echapper(serveur)} — ce que' 'chapo: `${serveur} — ce que' \
   "$VE13"
 VW1="un fichier de réglages se lit comme systemd le lit : la valeur jusqu'au bout de la ligne, espaces comprises"
 VW2="la place des disques, chacun compté une fois"
@@ -9833,7 +9834,7 @@ prouver "l'essai des alertes réussi sans rien envoyer" exploitation/veiller.ts 
   'return p.courriel !== false && p.sms !== false && (p.courriel === true || p.sms === true);' 'return p.courriel !== false && p.sms !== false;' \
   "$VW4"
 prouver "la page d'état jamais écrite" exploitation/veiller.ts \
-  "    ecrire(path.join(ETAT, 'public', 'etat.html'), pageEtat(SERVEUR, r, garde(aNoter), annonce));" "" \
+  "    ecrire(path.join(ETAT, 'public', 'etat.html'), pageEtat(SERVEUR, r, garde(aNoter), annonce, adresseDeSecours(R.SKANFACT_PAGE_SECOURS)));" "" \
   "$VW5"
 prouver "la veille qui oublie d'une minute à l'autre" exploitation/veiller.ts \
   '  const avant = lire<Veille>(fichier, { problemes: {} });' '  const avant: Veille = { problemes: {} };' \
@@ -12431,10 +12432,10 @@ prouver 'les avoirs de SkanFact oubliés dans ce que doit l'"'"'abonné' base/mi
                     where a.entreprise = p.entreprise and a.corrige = p.id and a.statut = '"'"'emise'"'"'),' '        '"'"'avoirs'"'"', '"'"'[]'"'"'::jsonb,' \
   "$MF3"
 prouver 'une facture due rangée sous les offres' web/public/plateforme/abonnement.js \
-  '    const aFaire = !!fa && fa.pieces.some((p) => !!p.statut && DOIT.includes(p.statut));' '    const aFaire = false;' \
+  '    const aFaire = !!a.factures && a.factures.pieces.some((p) => !!p.statut && DOIT.includes(p.statut));' '    const aFaire = false;' \
   "$MFW"
 prouver 'le retour qui ne ramène pas à l'"'"'abonnement' web/public/espace/retour.js \
-  '  const deLAbonnement = /^[0-9a-f-]{36}$/.test(abonnement);' '  const deLAbonnement = false;' \
+  '  const deLAbonnement = /^(c:)?[0-9a-f-]{36}$/.test(abonnement);' '  const deLAbonnement = false;' \
   "$MFW"
 prouver 'l'"'"'abonnement qui ne s'"'"'ouvre pas au retour d'"'"'un paiement' web/public/v10/app.js \
   '    if (bridge.ouvertureDemandee && bridge.ouvertureDemandee() === '"'"'abonnement'"'"') allerAbonnement();
@@ -12682,7 +12683,7 @@ prouver "l'aperçu d'un prix qui pousse le motif en arrivant" web/console/src/co
   '.c-rg-prix-zone { min-height: 124px; }' '.c-rg-prix-zone { min-height: 0; }' \
   "$PXW"
 prouver 'les cartes des offres qui ne partagent plus leurs lignes' web/public/plateforme/abonnement.css \
-  '  display: grid; grid-row: span 5; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;' '  display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; border-radius: 20px;' \
+  '  display: grid; grid-row: span 8; grid-template-rows: subgrid; row-gap: 10px; align-content: start; padding: 22px 24px; border-radius: 20px;' '  display: flex; flex-direction: column; gap: 10px; padding: 22px 24px; border-radius: 20px;' \
   "$PXW"
 prouver 'un écart de moitié ou plus dit comme un écart ordinaire' web/console/src/ecrans/Reglages.tsx \
   '  const fort = (apercu?.ecart?.dixiemes ?? 0) >= 500;' '  const fort = false;' \
@@ -12893,18 +12894,7 @@ prouver 'un module proposé dans l'"'"'état qu'"'"'il a déjà' web/console/src
 
 CTTEL='au téléphone : aucun onglet ne déborde'
 prouver 'ce que chaque offre comprend en tableau au téléphone, Complet caché à droite' web/console/src/console.css \
-  '  /* Ce que chaque offre comprend (0105) : une fiche par ligne, puis ce qu'"'"'Essentiel et Complet en comprennent, chacun
-     avec son nom ; aucune colonne ne se cache à droite. */
-  .c-rg-contenu-carte .c-defile { overflow: visible; }
-  .c-rg-contenu { min-width: 0; }
-  .c-rg-contenu thead { display: none; }
-  .c-rg-contenu, .c-rg-contenu tbody, .c-rg-contenu tr, .c-rg-contenu td { display: block; }
-  .c-rg-contenu tr { padding: 14px 0; border-bottom: 1px solid var(--c-trait); display: grid; gap: 6px; }
-  .c-rg-contenu tr:last-child { border-bottom: 0; }
-  .c-rg-contenu td, .c-rg-contenu td.c-droite { padding: 0; border: 0; min-width: 0 !important; text-align: start; }
-  .c-rg-contenu td[data-libelle]::before { content: attr(data-libelle) '"'"' : '"'"'; color: var(--c-gris); font-size: 12.5px; font-family: var(--c-texte); }
-  .c-rg-contenu .c-rg-avenir-droite { margin-inline-start: 0; }
-' '' \
+  $'@media (max-width: 860px) {\n  .c-defile:has(> .c-rg-grille)' $'@media (max-width: 1px) {\n  .c-defile:has(> .c-rg-grille)' \
   "$CTTEL"
 
 # Les remises (0106 ; docs/abonnement.md C17) : celle du groupe et celle du cabinet, jamais additionnées.
@@ -14537,8 +14527,8 @@ prouver 'le ticket jamais fermé' 'exploitation/guetter.ts' \
   '' \
   'le retour dit l'"'"'heure et ferme le ticket ; une autre adresse n'"'"'est pas touchée'
 prouver 'la page d'"'"'état sans son heure' 'exploitation/veille.ts' \
-  '<p class="pied" data-verifie="${echapper(e.le)}">' \
-  '<p class="pied">' \
+  '<p class="pa-essai" data-verifie="${echapper(e.le)}">' \
+  '<p class="pa-essai">' \
   'la page d'"'"'état que la veille écrit porte l'"'"'heure que le guet lit (l'"'"'une ne change pas sans l'"'"'autre)'
 prouver 'le guet muet jamais dit' 'exploitation/veille.ts' \
   '  if (!Number.isFinite(age) || age > GUET_MUET_MIN * 60_000) {' \
@@ -17833,7 +17823,7 @@ prouver 'le « i » d'"'"'aide du Cabinet dans l'"'"'ordre de la touche Tab' 'we
   'class="i" data-info="${esc(key)}"' \
   'la session ouvre le cabinet ; ses dossiers sont le portefeuille du serveur ; le livre d'"'"'un client est celui du serveur'
 prouver 'le message de l'"'"'entrée posé en bas, sur le bouton d'"'"'à côté' 'web/src/entree.css' \
-  '#toast { top: calc(env(safe-area-inset-top, 0px) + 16px); bottom: auto; transform: translateX(-50%) translateY(-6px); }' \
+  '#toast { top: calc(env(safe-area-inset-top, 0px) + 84px); bottom: auto; transform: translateX(-50%) translateY(-6px); }' \
   '' \
   'au clavier, le compte se crée case après case ; le message se lit en haut ; la ville ouvre l'"'"'adresse'
 prouver 'la ville donnée à la création que la fiche ne reprend pas' 'serveur/v10/dossier.ts' \
@@ -17896,9 +17886,10 @@ prouver 'la page Dossiers qui ne se relit pas au retour' 'web/public/v10/cabinet
   'if (route !== routeLue && route === '"'"'dossiers'"'"' && routeLue) relirePortefeuille();' \
   'void 0;' \
   'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
-prouver '« chez ton dossier » pour dire que tout est à jour' 'web/public/v10/cabinet/app.js' \
-  'Tout est à jour : ton client sur SkanFact n'"'"'a aucun mois passé vide ni à valider.' \
-  'Tout est à jour : chez ton dossier sur SkanFact, aucun mois passé n'"'"'est vide ni à valider.' \
+# (1.123.0) Ce client a des écritures du mois en cours au brouillard : la phrase qui se lit est celle de « rien en retard ».
+prouver '« ton dossier » pour dire que rien n'"'"'est en retard' 'web/public/v10/cabinet/app.js' \
+  ": 'Ton client a'} des écritures du mois en cours" \
+  ": 'Ton dossier a'} des écritures du mois en cours" \
   'Dossiers relu au retour, le client dit « à jour », ses coordonnées et son brouillard visibles, les mots justes'
 prouver '« l'"'"'attente démarre à la première écriture » sous un mois écrit' 'web/public/v10/cabinet/app.js' \
   ': (dossier.packs || []).length ? `<span' \
@@ -18087,7 +18078,7 @@ prouver 'l'"'"'invitation du client montrée sur un dossier qui n'"'"'est plus t
 # ── La recette alpha du 20/10/2026 (1.79.0 ; docs/recette.md) ──
 prouver 'l'"'"'invitation d'"'"'une visite reposée à chaque redessin' 'web/public/v10/app.js' \
   'if (!pageCachee(name) && (guideNeuf || appelOuvert)) appelGuide(name, !guideNeuf);' \
-  'if (!pageCachee(name)) appelGuide(name);' \
+  'if (!pageCachee(name)) appelGuide(name, true);' \
   'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'"'"'invitation ne revient pas, la date se remplace'
 prouver 'une facture d'"'"'achat réglée supprimée d'"'"'un clic' 'web/public/v10/app.js' \
   'if ((p.payments || []).length) { toast(' \
@@ -18290,12 +18281,12 @@ prouver 'un mensuel « à facturer » dès trente jours' 'serveur/console/decide
   's.jours > A_FACTURER_JOURS[s.periodicite]' \
   's.jours > 30' \
   'un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule'
-prouver 'un choix d'"'"'offre qui reste en attente après sa facture' 'base/migrations/0158_offre_choisie.sql' \
+prouver 'un choix d'"'"'offre qui reste en attente après sa facture' 'base/migrations/0171_abonnement_au_choix.sql' \
   '   where c.entreprise = p_entreprise
      and not exists (select 1 from plateforme.facture_abonnement f where f.entreprise = c.entreprise and f.prepare_le >= c.le)' \
   '   where c.entreprise = p_entreprise' \
   'la propriétaire choisit ; la console la voit dans « À décider » et prépare la facture sur elle ; préparée, le choix s'"'"'éteint'
-prouver 'la console qui voit encore un choix déjà facturé' 'base/migrations/0158_offre_choisie.sql' \
+prouver 'la console qui voit encore un choix déjà facturé' 'base/migrations/0171_abonnement_au_choix.sql' \
   '     where not exists (select 1 from plateforme.facture_abonnement f where f.entreprise = c.entreprise and f.prepare_le >= c.le)) x);' \
   '     where true) x);' \
   'la propriétaire choisit ; la console la voit dans « À décider » et prépare la facture sur elle ; préparée, le choix s'"'"'éteint'
@@ -18312,17 +18303,17 @@ prouver '« à facturer » en plus de l'"'"'offre choisie' 'serveur/console/deci
   '|| partent.has(e.id) || choisies.has(e.id) ||' \
   '|| partent.has(e.id) ||' \
   'un abonnement payé qui finit dans trente jours (dix pour un mois) sans facture pour la période suivante ; la direction seule'
-prouver '« Je choisis cette offre » allumé avant qu'"'"'on coche' 'web/public/plateforme/abonnement.js' \
-  'id="abo-choisir" disabled>' \
-  'id="abo-choisir">' \
-  'Hela coche une offre, la choisit, et lit son choix ; la console le voit dans « À décider »'
+prouver 'la confirmation qui ne dit pas l'"'"'offre choisie' 'web/public/plateforme/abonnement.js' \
+  'data-confirmer>${renouvelle ? '"'"'Renouveler'"'"' : `Je choisis ${esc(nom)}, ${dit}`}</button>' \
+  'data-confirmer>${renouvelle ? '"'"'Renouveler'"'"' : '"'"'Je choisis cette offre'"'"'}</button>' \
+  'Hela choisit son offre dans sa carte, confirme, et lit son choix ; la console le voit dans « À décider »'
 prouver 'le jour d'"'"'un choix lu en UTC, pas à Tunis' 'web/public/plateforme/abonnement.js' \
   '${esc(jourDeTunis(String(a.choix.le)))}' \
   '${esc(jour(String(a.choix.le).slice(0, 10)))}' \
-  'Hela coche une offre, la choisit, et lit son choix ; la console le voit dans « À décider »'
-prouver '« Je choisis cette offre » en bouton principal d'"'"'un abonnement payé' 'web/public/plateforme/abonnement.js' \
-  'class="btn${a.etat.etat === '"'"'actif'"'"' ? '"'"''"'"' : '"'"' btn-primary'"'"'}" id="abo-choisir"' \
-  'class="btn btn-primary" id="abo-choisir"' \
+  'Hela choisit son offre dans sa carte, confirme, et lit son choix ; la console le voit dans « À décider »'
+prouver 'les boutons des offres en bouton principal d'"'"'un abonnement payé' 'web/public/plateforme/abonnement.js' \
+  '<button type="button" class="btn${i ? '"'"' abo-ou'"'"' : '"'"''"'"'}" data-choisir=' \
+  '<button type="button" class="btn btn-primary${i ? '"'"' abo-ou'"'"' : '"'"''"'"'}" data-choisir=' \
   'Walid voit la facture de son abonnement, la paie en ligne, et revient sur son abonnement payé'
 
 # 1.85.0 — la page de retour d'un paiement, dans la DA : le pied « État lu auprès du prestataire » ne vient qu'avec un
@@ -18349,10 +18340,9 @@ prouver 'une phrase de l'"'"'offre choisie absente du catalogue' textes/base.ts 
   'chaque phrase de la base est au catalogue, et chaque phrase du catalogue de la base est encore dans la base'
 
 # 1.86.1 — « Choisir mon offre suivante… » : les choix prennent la place de l'annonce, pas une seconde carte de même titre.
-prouver 'deux cartes « Renouveler ou changer d'"'"'offre » à l'"'"'écran' web/public/plateforme/abonnement.js \
-  "      if (annonce instanceof HTMLElement && !annonce.classList.contains('abo-choisi')) annonce.hidden = true;
-      else re.disabled = true;" "      re.disabled = true;" \
-  "$MFW"
+prouver '« Changer de choix » qui ne rouvre pas les offres' web/public/plateforme/abonnement.js \
+  "      offres.classList.remove('abo-replie'); re.disabled = true;" "      re.disabled = true;" \
+  'Hela choisit son offre dans sa carte, confirme, et lit son choix ; la console le voit dans « À décider »'
 
 # 1.87.0 — la console au téléphone : un client par carte ; « Ctrl K » sans clavier ; « par an » ne compte que ce qui se
 # renouvelle, et le dit (un abonnement résilié n'y est pas, l'écran Abonnements le compte actif).
@@ -18691,8 +18681,8 @@ prouver 'le Cabinet qui ouvre une fenêtre d'\''envoi quand rien ne partirait' w
 prouver 'le .zip des PDF qui ne dit pas que ses noms sont en UTF-8' web/public/plateforme/pont.js \
   $'[8, 0x0800, 2], [10, 0, 2]' $'[8, 0, 2], [10, 0, 2]' \
   '« Exporter tous les PDF de la période » : un .zip des PDF du serveur'
-prouver 'la carte d'\''une pièce dont la ligne suivante commence par « · »' web/public/plateforme/messagerie.js \
-  $'<span><b>${esc(GENRES[m.piece.genre] || \'Pièce\')}</b> ·</span><span>${esc(m.piece.libelle)}</span>' $'<b>${esc(GENRES[m.piece.genre] || \'Pièce\')}</b> · ${esc(m.piece.libelle)}' \
+prouver 'la carte d'\''une pièce dont le numéro se coupe de son genre (« Achat · » seul au bout de la ligne)' web/public/plateforme/messagerie.js \
+  $'<b>${esc(GENRES[m.piece.genre] || \'Pièce\')}</b><span>${esc(m.piece.libelle)}</span>' $'<b>${esc(GENRES[m.piece.genre] || \'Pièce\')}</b> · ${esc(m.piece.libelle)}' \
   'Amine et son comptable s'\''écrivent : la pastille'
 prouver '« Ranger dans mes achats » proposé sous un fichier envoyé avec un devis' web/public/plateforme/messagerie.js \
   $' && !(m.piece && m.piece.genre !== \'achat\')' $'' \
@@ -18755,7 +18745,7 @@ prouver 'la légende des signes sous une grille sans mois' web/public/v10/cabine
   $'${colonnes.length ? `<div class="prod-leg' $'${true ? `<div class="prod-leg' \
   'sans aucun mois fini'
 prouver '« C'\''est traité » offert à un client qui n'\''est plus à traiter' web/public/plateforme/messagerie.js \
-  $'<div class="msg-encart">${f && f.aTraiter ? `<b>Rien à faire ?</b>' $'<div class="msg-encart">${true ? `<b>Rien à faire ?</b>' \
+  $'${f && f.aTraiter ? \'<button type="button" class="btn btn-sm" data-msg-traite title=' $'${true ? \'<button type="button" class="btn btn-sm" data-msg-traite title=' \
   'Amine et son comptable s'\''écrivent'
 prouver 'le fil du cabinet qui ne dit pas si le client est à traiter' serveur/messagerie/routes.ts \
   $"aTraiter: cote.data === 'cabinet' && (await etatsDesDossiers(tx, cabinet, entreprise))[0]?.etat === 'a_traiter'," $"aTraiter: cote.data === 'cabinet'," \
@@ -18859,8 +18849,8 @@ prouver 'l'\''Accueil muet sur la pièce que le cabinet attend' 'web/public/v10/
   '    if (false) items = [{ id: '\''cabinet-attend'\'',' \
   'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
 prouver '« À faire » qui ne suit pas ce que le cabinet attend sans recharger' 'web/public/v10/app.js' \
-  '    if (cleAttente(vueAvant) !== cleAttente(a) && /^(#\/dashboard)?$/.test(location.hash)' \
-  '    if (false && /^(#\/dashboard)?$/.test(location.hash)' \
+  '    if (cleAttente(vueAvant) !== cleAttente(a) && routeOf(location.hash)' \
+  '    if (false && routeOf(location.hash)' \
   'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
 prouver '« Répondre » qui ne mène pas au fil du cabinet' 'web/public/v10/app.js' \
   '    '\''cabinet-attend'\'': { label: '\''Répondre'\'', run: vers('\''#/comptable'\'') },' \
@@ -18880,10 +18870,11 @@ prouver 'le Cabinet qui ne garde pas ce qu'\''il lit' 'web/public/plateforme/pon
   '    else if (poste) poste.garderLecture(cabinetId, chemin, lu)' \
   '    else if (false) poste.garderLecture(cabinetId, chemin, lu)' \
   'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
-prouver 'la paie hors du mandat qui ferme le livre sans réseau' 'web/public/plateforme/pont-cabinet.js' \
-  '    if (r.status === 403 && methode === '\''GET'\'' && poste) poste.garderLecture(' \
-  '    if (false) poste.garderLecture(' \
-  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+# (1.131.0) Retirée : « la paie hors du mandat qui ferme le livre sans réseau » (1.104.0). Depuis la 1.124.0, le Cabinet
+# ne demande plus la paie d'un mandat qui ne la confie pas (revue du mois d'un client, point 12) : le refus (403) que la
+# preuve effaçait n'arrive plus dans ce parcours, et rien ne pouvait tomber (rouge sur GitHub, 1.125.0). Le refus gardé
+# reste dans le code pour un mandat dont l'étendue n'est pas connue ; le parcours vérifie que l'onglet Paie s'ouvre sans
+# réseau (tests/web/cabinet-hors-ligne.test.ts).
 prouver 'les dossiers confiés jamais emportés' 'web/public/plateforme/pont-cabinet.js' \
   '      setTimeout(() => { void emporter(); }, 4000);' \
   '' \
@@ -19032,6 +19023,1277 @@ prouver 'le serveur revenu sans que le navigateur le dise, attendu en vain' 'web
   '' \
   'sans réseau, la saisie au brouillard se garde, chiffrée, et se dit ; au retour, elle part une fois ; refusée, elle garde sa raison'
 
+# ── 1.106.0 : la branche que suit un serveur (docs/mise-en-ligne.md, L) ──
+prouver 'un serveur des pilotes qui suit dev' 'exploitation/installer.sh' \
+  '[ "$SORTE" = essai ] || [ "$BRANCHE" = main ] || { echo "Un serveur des pilotes suit main' \
+  'false && { echo "Un serveur des pilotes suit main' \
+  'le serveur de développement suit dev ; un serveur des pilotes ne suit que main ; un nom bizarre est refusé'
+prouver 'un nom de branche bizarre accepté' 'exploitation/installer.sh' \
+  '[[ "$BRANCHE" =~ ^[a-z0-9][a-z0-9._-]*$ ]] || { echo' \
+  'true || { echo' \
+  'le serveur de développement suit dev ; un serveur des pilotes ne suit que main ; un nom bizarre est refusé'
+
+# ── 1.107.0 : l'application fermée aux clients pendant une maintenance (docs/console.md, C24 bis) ──
+prouver 'l'\''API des clients ouverte pendant la fermeture' 'serveur/fermeture.ts' \
+  '  if (chemin === '\''/v1'\'' || chemin.startsWith('\''/v1/'\'')) return false;' \
+  '  if (chemin === '\''/v1'\'' || chemin.startsWith('\''/v1/'\'')) return true;' \
+  'l'\''application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main'
+prouver 'la console fermée avec les clients' 'serveur/fermeture.ts' \
+  '  if (chemin === '\''/v1/console'\'' || chemin.startsWith('\''/v1/console/'\'') || chemin === '\''/v1/documentation'\'') return true;' \
+  '  if (chemin === '\''/v1/documentation'\'') return true;' \
+  'l'\''application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main'
+prouver 'rouvrir sans rendre la main (la fermeture gardée)' 'serveur/console/routes.ts' \
+  '      await transaction(tx).query('\''select plateforme.console_rouvrir($1, $2, $3)'\'', [lireUuid(params.maintenance), corps.motif, maintenant()]);
+      oublierLaFermeture();' \
+  '      await transaction(tx).query('\''select plateforme.console_rouvrir($1, $2, $3)'\'', [lireUuid(params.maintenance), corps.motif, maintenant()]);' \
+  'l'\''application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main'
+prouver 'rouvrir sans marquer la fermeture rouverte' 'base/migrations/0164_application_fermee.sql' \
+  '  update plateforme.service_fermeture set rouverte_le = p_maintenant, rouverte_par = socle.moi() where maintenance = p_maintenance;
+' \
+  '' \
+  'l'\''application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main'
+prouver 'une maintenance annoncée qui ferme avant son créneau' 'base/migrations/0164_application_fermee.sql' \
+  'f.rouverte_le is null and m.debut <= p_maintenant and m.fin' \
+  'f.rouverte_le is null and m.fin' \
+  'l'\''application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main'
+prouver 'la case « fermer l'\''application » d'\''une annonce oubliée' 'serveur/console/routes.ts' \
+  '      if (corps.fermee) await transaction(tx).query('\''select plateforme.console_fermer_pendant($1, $2, $3)'\'', [id, corps.motif, maintenant()]);
+' \
+  '' \
+  'l'\''application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main'
+
+prouver 'la page de maintenance oubliée sur l'\''adresse du serveur' 'exploitation/frontal.sh' \
+  'CADDY
+  maintenance
+  echo "}"
+  if [ -n "$CONSOLE" ]; then' \
+  'CADDY
+  echo "}"
+  if [ -n "$CONSOLE" ]; then' \
+  'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
+prouver 'la page de maintenance jamais copiée' 'exploitation/frontal.sh' \
+  'install -m 0644 "$(dirname "$0")/maintenance.html" "$ETAT/public/maintenance.html"
+' \
+  '' \
+  'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
+prouver 'seul le 502 mène à la page de maintenance' 'exploitation/frontal.sh' \
+  'in [502, 503, 504]' \
+  'in [502]' \
+  'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
+prouver 'l'\''API qui reçoit la page de maintenance au lieu de son 503' 'exploitation/frontal.sh' \
+  '			handle /v1/* {
+' \
+  '			handle /v2/* {
+' \
+  'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
+
+prouver 'le bandeau « l'\''application est fermée » absent' 'web/console/src/ecrans/Incidents.tsx' \
+  '{(() => { const f = fermeture(d); return f ? <Fermee m={f} d={d} faire={setGeste} /> : null; })()}' \
+  '{null}' \
+  'fermer l'\''application maintenant : la fenêtre dit ce qui va se passer ; fermée, un bandeau dont « Rouvrir » est le seul bouton principal'
+prouver 'deux boutons principaux quand l'\''application est fermée' 'web/console/src/ecrans/Incidents.tsx' \
+  'ton={fermee ? '\''secondaire'\'' : '\''principal'\''}' \
+  'ton="principal"' \
+  'fermer l'\''application maintenant : la fenêtre dit ce qui va se passer ; fermée, un bandeau dont « Rouvrir » est le seul bouton principal'
+prouver 'fermer maintenant sans ce que les clients liront' 'web/console/src/ecrans/Incidents.tsx' \
+  '    if (texte.trim().length < 3 || /[<>]/.test(texte)) { e.refuser(phrase(`${I}.annoncer.texte_court`), '\''texte'\''); return; }
+    const b = duChamp(fin);' \
+  '    const b = duChamp(fin);' \
+  'fermer l'\''application maintenant : la fenêtre dit ce qui va se passer ; fermée, un bandeau dont « Rouvrir » est le seul bouton principal'
+prouver 'la case « fermer l'\''application » d'\''une annonce qui ne part pas' 'web/console/src/ecrans/Incidents.tsx' \
+  'motif: motif.trim(), fermee }' \
+  'motif: motif.trim() }' \
+  'annoncer une maintenance qui fermera l'\''application : la case part avec l'\''annonce'
+
+# ── 1.108.0 : les pages à part dans la DA (commun/page-a-part.ts) ──
+prouver 'la page du frontal restée à son ancien habit' 'commun/page-a-part.ts' \
+  'en général en moins d\'\''une minute.' \
+  'en général moins d\'\''une minute.' \
+  'les fichiers écrits par scripts/pages-a-part.ts sont à jour : la page du frontal, le mot « sans JavaScript » de l'\''application et de la console'
+prouver 'le mot « sans JavaScript » absent de la console' 'web/console/index.html' \
+  '<section class="sans-js">' \
+  '<section class="sans-jss">' \
+  'les fichiers écrits par scripts/pages-a-part.ts sont à jour : la page du frontal, le mot « sans JavaScript » de l'\''application et de la console'
+prouver 'le texte de l'\''équipe affiché sans échappement' 'commun/page-a-part.ts' \
+  'data-texte>${echapper(texteDeLEquipe)}' \
+  'data-texte>${texteDeLEquipe}' \
+  'la fermeture : l'\''heure du retour, le texte de l'\''équipe échappé, aucun script, les polices des écrans, rechargée chaque minute'
+prouver 'les polices des pages à part jamais copiées au frontal' 'exploitation/frontal.sh' \
+  'install -m 0644 "$(dirname "$0")"/../web/public/plateforme/polices/*.woff2 "$ETAT/public/etat-polices/"
+' \
+  '' \
+  'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
+prouver 'l'\''adresse de la console sans les polices des pages à part' 'exploitation/frontal.sh' \
+  '    polices
+    cat <<CADDY
+' \
+  '    cat <<CADDY
+' \
+  'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
+prouver 'la page d'\''état qui cherche ses polices chez le programme' 'exploitation/veille.ts' \
+  '    polices: '\''/etat-polices/'\'',' \
+  '    polices: '\''/plateforme/polices/'\'',' \
+  'la page d'\''état : l'\''état d'\''un mot dans la vitrine, les polices du frontal (le frontal la sert seul)'
+
+# ── 1.109.0 : le carnet de crise et les messages prêts (web/console/src/carnet.ts) ──
+prouver 'un message de la page d'\''état ouvert avec ses crochets' 'serveur/console/routes.ts' \
+  '.refine((x) => !aRemplir(x), '\''console.a_remplir'\'');' \
+  '.refine((x) => x === x, '\''console.a_remplir'\'');' \
+  'ouvrir : un numéro par année, sans trou ; la page d'\''état dit le message public, le plus grave d'\''abord'
+prouver 'un point public envoyé avec ses crochets' 'serveur/console/routes.ts' \
+  '.refine((c) => !(c.public && aRemplir(c.texte)),' \
+  '.refine((c) => !(c.public && c.texte === ""),' \
+  'un point public avec un passage entre crochets ne part pas sur la page d'\''état'
+prouver 'le message prêt jamais posé dans « ouvrir »' 'web/console/src/ecrans/Incidents.tsx' \
+  'const cocher = (oui: boolean) => { if (oui && !pub) setPub(pret(fiche)); setPublier(oui); };' \
+  'const cocher = (oui: boolean) => { setPublier(oui); };' \
+  'une fiche porte ses messages prêts, copiés d'\''un geste ; « ouvrir » pose celui de la page d'\''état, et le refuse tant que ses crochets ne sont pas remplis'
+prouver 'un texte écrit à la main remplacé en changeant de fiche' 'web/console/src/ecrans/Incidents.tsx' \
+  'const choisirFiche = (f: string) => { if (pub === pret(fiche)) setPub(pret(f)); setFiche(f); };' \
+  'const choisirFiche = (f: string) => { setPub(pret(f)); setFiche(f); };' \
+  'une fiche porte ses messages prêts, copiés d'\''un geste ; « ouvrir » pose celui de la page d'\''état, et le refuse tant que ses crochets ne sont pas remplis'
+prouver 'les crochets laissés au serveur, sans dire lesquels' 'web/console/src/ecrans/Incidents.tsx' \
+  '    if (trou) { e.refuser(phrase(`${I}.a_remplir`, { passage: trou }), '\''public'\''); return; }
+' \
+  '' \
+  'une fiche porte ses messages prêts, copiés d'\''un geste ; « ouvrir » pose celui de la page d'\''état, et le refuse tant que ses crochets ne sont pas remplis'
+prouver 'l'\''e-mail copié sans son objet' 'web/console/src/ecrans/Incidents.tsx' \
+  'copier(`${titre(`${I}.fiche.objet`)}\u202f: ${m.courriel?.objet ?? '\'''\''}\n\n${m.courriel?.corps ?? '\'''\''}`)' \
+  'copier(`${m.courriel?.corps ?? '\'''\''}`)' \
+  'une fiche porte ses messages prêts, copiés d'\''un geste ; « ouvrir » pose celui de la page d'\''état, et le refuse tant que ses crochets ne sont pas remplis'
+prouver 'le carnet qui cite sans échapper' 'web/console/src/carnet.ts' \
+  'const e = echapper;' \
+  'const e = (s: string) => s;' \
+  'chaque fiche du serveur, une par page, ses quatre temps et ses messages prêts, échappés'
+prouver 'le carnet qui oublie une fiche' 'web/console/src/carnet.ts' \
+  '${fiches.map((f, n) => fiche(f, n + 1, fiches.length)).join' \
+  '${fiches.slice(1).map((f, n) => fiche(f, n + 1, fiches.length)).join' \
+  'chaque fiche du serveur, une par page, ses quatre temps et ses messages prêts, échappés'
+prouver 'le carnet téléchargé sans les fiches du serveur' 'web/console/src/ecrans/Incidents.tsx' \
+  'carnetDeCrise({ fiches: d.fichesConnues, jour: d.aujourdhui })' \
+  'carnetDeCrise({ fiches: d.fichesConnues.slice(0, 9), jour: d.aujourdhui })' \
+  'le carnet de crise se télécharge : les fiches du serveur, rien à charger'
+prouver 'la page fermée qui écrit sa phrase en dur' 'serveur/fermeture.ts' \
+  '    vitrineBas: d('\''vitrine'\''),' \
+  '    vitrineBas: '\''Gestion, caisse, paie et comptabilité.'\'',' \
+  'aucune phrase n'\''est écrite en dur dans le code du serveur'
+
+# ── 1.110.0 : le banc des clients (banc/clients) et le contrôle d'équilibre sans détour (0165) ──
+prouver 'le contrôle d'\''équilibre repassé par la sécurité par ligne' 'base/migrations/0165_equilibree_sans_detour.sql' \
+  'alter function compta.equilibree() security definer set search_path = pg_catalog, compta;' \
+  'select 1;' \
+  'le contrôle d'\''équilibre des écritures, qui tourne à chaque ligne, ne repasse pas par la sécurité par ligne'
+
+# ── 1.111.0 : la recette de la console (Réglages, Versions, Sécurité, Données personnelles, Travaux) ──
+prouver 'la pastille des messages muette pour un lecteur d'\''écran' 'web/console/src/ecrans/Reglages.tsx' \
+  '<span className="c-cache">{dire(`${K}.onglet.affiche`)}</span>' \
+  '' \
+  'écrire, remplacer, retirer : le bandeau du client suit'
+prouver 'le suiveur muet qui ne dit pas depuis quand' 'web/console/src/ecrans/Versions.tsx' \
+  'phrase(`${V}.k.suiveur_arrete`, { silence: minutes(silence / 60_000) })' \
+  'phrase(`${V}.k.suiveur_arrete`, { silence: dire(`${V}.k.six_minutes`) })' \
+  'un suiveur muet depuis des jours le dit en jours'
+prouver 'les consignes lues un autre jour, dites à la seule heure' 'web/console/src/ecrans/Versions.tsx' \
+  '{ heure: lues ? aQuelleHeure(lues, d.aujourdhui) : '\'''\'' }' \
+  '{ heure: lues ? `à ${heureDe(lues)}` : '\'''\'' }' \
+  'ses consignes lues disent leur jour'
+prouver 'l'\''adresse illisible refusée après le motif' 'web/console/src/ecrans/Securite.tsx' \
+  '    if (!adresseLisible(ip.trim())) { fauter('\''adresse'\'', phrase(`${S}.ad.f.adresse_illisible`)); return; }' \
+  '    if (!adresseLisible(ip.trim()) && motif.trim().length >= 3) { fauter('\''adresse'\'', phrase(`${S}.ad.f.adresse_illisible`)); return; }' \
+  'une adresse illisible se refuse avant le motif vide'
+prouver 'la signature sans DigiGo dite « Bon »' 'web/console/src/ecrans/Travaux.tsx' \
+  '  const branche = (p: Partenaire) => d.branches[p === '\''relances'\'' ? '\''courriel'\'' : p];' \
+  '  const branche = (p: Partenaire) => (p === '\''relances'\'' ? d.branches.courriel : p === '\''ttn'\'' ? d.branches.ttn : true);' \
+  'une TTN sans adresse est « pas branchée », jamais « bonne »'
+
+# ── 1.112.0 : navigateurs et appareils (le plancher, le plus petit téléphone) ──
+prouver 'une fonction plus jeune que le plancher dans un écran' 'web/public/plateforme/telephone.js' \
+  '(function () {' \
+  '(function () { Object.groupBy([], () => 0);' \
+  'chaque script se lit en ES2022'
+prouver 'une syntaxe plus jeune que le plancher dans un écran' 'web/public/plateforme/telephone.js' \
+  '(function () {' \
+  '(function () { const v = /[a&&b]/v;' \
+  'chaque script se lit en ES2022'
+prouver 'des règles emboîtées dans une feuille servie' 'web/public/plateforme/telephone.css' \
+  '.menu-tel { display: none; }' \
+  '.menu-tel { display: none; & .x { color: red; } }' \
+  'aucune feuille de style n'\''emboîte ses règles'
+prouver 'l'\''entrée construite sans le plancher' 'web/vite.config.ts' \
+  '  build: { outDir: '\''../dist/web'\'', emptyOutDir: true, target: PLANCHER },' \
+  '  build: { outDir: '\''../dist/web'\'', emptyOutDir: true },' \
+  'la construction vise le plancher déclaré'
+prouver 'la recherche des Paramètres qui sort d'\''un téléphone de 320' 'web/public/plateforme/telephone.css' \
+  '  .set-search, .set-search input[type=search] { min-width: 0; flex: 1 1 100%; width: 100%; max-width: none; }' \
+  '' \
+  'au plus étroit (320 points, au doigt)'
+
+# ── 1.113.0 : les exercices de crise (0166 ; C24 quater) ──
+prouver 'des temps d'\''exercice dans le désordre, acceptés par la base' 'base/migrations/0166_exercices_crise.sql' \
+  "    if (v_t #>> '{}')::int < v_avant then perform socle.refus" \
+  "    if false then perform socle.refus" \
+  'la base refuse ce qui ne s'\''est pas joué ainsi'
+prouver 'un exercice dit réussi sans ses quatre temps' 'base/migrations/0166_exercices_crise.sql' \
+  "  if p_reussi and v_faits < 4 then perform socle.refus" \
+  "  if false then perform socle.refus" \
+  'la base refuse ce qui ne s'\''est pas joué ainsi'
+prouver 'un exercice à refaire compté pour le lancement' 'serveur/console/incidents.ts' \
+  '  const reussies = new Set(ex.filter((e) => e.reussi && Date.parse(e.fin) >= depuis)' \
+  '  const reussies = new Set(ex.filter((e) => Date.parse(e.fin) >= depuis)' \
+  'une fiche réussie depuis un an compte'
+prouver 'un exercice de la veille rouvert pour être refusé' 'web/console/src/ecrans/Incidents.tsx' \
+  '    return x && frais && typeof x.fiche' \
+  '    return x && typeof x.fiche' \
+  'un exercice de plus de douze heures'
+prouver 'Enregistrer cliqué pendant que la photo lue se joint' 'web/public/v10/app.js' \
+  "      for (const b of [\$('#save'), \$('#b-save-bas')]) if (b) b.disabled = true;" \
+  '' \
+  'acheter, la banque, la déclaration du mois'
+prouver 'le chrono d'\''un exercice qui part hors de la vue' 'web/console/src/ecrans/Incidents.tsx' \
+  '    const f = requestAnimationFrame(() => { cadre.current?.focus({ preventScroll: true }); cadre.current?.scrollIntoView({ block: '\''start'\'' }); });' \
+  '    const f = 0;' \
+  'un exercice se joue temps par temps'
+
+# ── 1.114.0 : la page d'état de secours (mise en ligne, I quater) ──
+prouver 'une panne qui oublie quand elle a commencé' 'exploitation/guet-second/secours.ts' \
+  '  const depuis = repond ? null : avant && !avant.repond && avant.adresse === r.adresse && avant.depuis ? avant.depuis : r.le;' \
+  '  const depuis = repond ? null : r.le;' \
+  'la panne garde l'\''heure où elle a commencé'
+prouver 'un vieux regard qui passe pour l'\''état de SkanFact' 'exploitation/guet-second/secours.ts' \
+  '  if (age > REGARD_PERIME_MIN) {' \
+  '  if (false) {' \
+  'un regard trop vieux ne dit plus l'\''état'
+prouver 'un message prêt publié avec ses crochets' 'exploitation/guet-second/secours.ts' \
+  '  if (crochet) return' \
+  '  if (false) return' \
+  'un mot vide, trop long, ou avec un passage entre crochets'
+prouver 'la clé de secours essayée sans fin' 'exploitation/guet-second/secours.ts' \
+  '  if (echecs >= ESSAIS_PAR_HEURE) return' \
+  '  if (false) return' \
+  'la bonne clé publie et revient à la page'
+prouver 'une clé de secours trop courte qui ouvre' 'exploitation/guet-second/secours.ts' \
+  '  if (!posee || posee.length < CLE_MIN) return false;' \
+  '  if (!posee) return false;' \
+  'la clé se compare entière'
+prouver 'la page d'\''état qui cite n'\''importe quelle adresse de secours' 'exploitation/veille.ts' \
+  "export const adresseDeSecours = (x: string | undefined) => (/^https:\/\/[a-z0-9.-]+\$/.test(x ?? '') ? (x as string) : null);" \
+  "export const adresseDeSecours = (x: string | undefined) => x ?? null;" \
+  'la page de secours se cite une fois posée'
+
+# ── 1.115.0 : la messagerie après sa revue (docs/revue-messagerie.md, lot 1) ──
+MR115=base/migrations/0167_messagerie_revue.sql
+MW115="(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi"
+prouver 'une pièce du dossier envoyée seule, refusée par la base' $MR115 \
+  'or demande is not null or piece_genre is not null);' 'or demande is not null);' \
+  "$MSG2"
+prouver 'la pièce demandée qui ne se répond qu'\''avec un fichier' base/migrations/0168_messagerie_relances.sql \
+  "or (v_fichier is null and v_genre is null) then perform socle.refus('on répond à une pièce demandée en l''envoyant')" "or v_fichier is null then perform socle.refus('on répond à une pièce demandée en l''envoyant')" \
+  "$MSG2"
+prouver 'la question signée « Ton cabinet » avant le premier message' $MR115 \
+  '       or (messagerie.cote_entreprise(p_entreprise) and exists (select 1 from socle.mandat d where d.entreprise = p_entreprise and d.cabinet = p_cabinet)))' '       or false)' \
+  "$MSG4"
+prouver 'les noms des questions lus par la voisine' $MR115 \
+  '     and (exists (select 1 from messagerie.mes_fils() f where f.entreprise = p_entreprise and f.cabinet = p_cabinet)' '     and (true' \
+  "$MSG4"
+prouver 'la liste de la boîte qui ne se relit pas après un geste' $MJ \
+  '        surAttente: () => { clearTimeout(relecture); relecture = setTimeout(() => { void lire(); }, 250); },' '        surAttente: () => undefined,' \
+  "$MW115"
+prouver 'le client traité qui disparaît sous le curseur' $MJ \
+  "        : ds.filter((d) => filtre === 'tout' || d.etat === filtre || d.entreprise === choisi);" "        : ds.filter((d) => filtre === 'tout' || d.etat === filtre);" \
+  "$MW115"
+prouver 'la pastille de non-lus répétée en « À traiter »' $MJ \
+  "          \${x.nonLus && x.etat === 'a_traiter' ? '' : \`<span" "          \${false ? '' : \`<span" \
+  "$MW115"
+prouver 'les flèches du clavier qui ne passent pas au client suivant' $MJ \
+  "          const vers = e.key === 'ArrowDown' ? lignes[i + 1] : e.key === 'ArrowUp' ? lignes[i - 1] : null;" "          const vers = null;" \
+  "$MW115"
+prouver 'la boîte plus haute que l'\''écran' web/public/plateforme/messagerie.css \
+  'grid-template-rows: minmax(0, 1fr); gap: 20px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; min-height: 0; height: 100%; }' 'gap: 20px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; height: 100%; }' \
+  "$MW115"
+prouver 'la pièce du dossier choisie, mais pas envoyée' $MJ \
+  "            await o.appel('POST', '/messages', { cote: o.cote, texte, piece: dejaLa, repondA: m.id });" "            await o.appel('POST', '/messages', { cote: o.cote, texte, piece: null, repondA: m.id });" \
+  "$MW115"
+prouver 'la pièce demandée qui part dès le fichier choisi' $MJ \
+  "          choisi = f; apercu = String(f.type).startsWith('image/') ? URL.createObjectURL(f) : null; refus.textContent = '';
+          dessinerFichier();" "          choisi = f; apercu = String(f.type).startsWith('image/') ? URL.createObjectURL(f) : null; refus.textContent = '';
+          dessinerFichier(); form.requestSubmit();" \
+  "$MSGW"
+prouver 'la question répondue sans étiquette' $MJ \
+  "          : q.reponse ? '<span class=\"msg-q-etat ok\">Répondue</span>' : '';" "          : '';" \
+  "$MSGW"
+prouver '« Mon comptable » qui ne paraît pas dans le pied du menu' web/public/v10/app.js \
+  '      if (lien) lien.hidden = !avecMessagerie(a);' '      if (lien) lien.hidden = true;' \
+  "$MSGW"
+prouver 'au téléphone, « Envoyer » sous l'\''écran' web/public/plateforme/messagerie.css \
+  '  .msg-corps > .msg-zone { flex-basis: 100%; height: calc(100dvh - var(--msg-haut-tel, 172px)); min-height: 360px; }' '  .msg-corps > .msg-zone { flex-basis: 100%; height: auto; }' \
+  "$MSGW"
+prouver 'au téléphone, les messages cachés dans le menu replié' web/public/plateforme/telephone.js \
+  '    poserMessages(barre, tete, b);' '' \
+  "$MSGW"
+
+# ── 1.116.0 : la messagerie après sa revue, lot 2 (pièces demandées datées et relancées, demandes groupées, le cabinet
+# agit sur ce qu'il reçoit ; docs/revue-messagerie.md) ──
+MR116=base/migrations/0168_messagerie_relances.sql
+T116A="la date « pour le » : aujourd'hui ou plus tard, avec une pièce demandée ; passée sans réponse, la demande est en retard des deux côtés et dans la boîte"
+T116B="plusieurs pièces d'un coup : un message chacune, le mot sur la première, la même date ; toutes ou aucune"
+T116C="la relance : à sa date si rien n'est venu, puis chaque semaine, trois au plus ; rien de la demande dans l'e-mail ; une demande reçue, sans date ou décochée ne se relance pas"
+prouver 'une pièce demandée pour hier' $MR116 \
+  "  if v_pour < (clock_timestamp() at time zone 'Africa/Tunis')::date then
+    perform socle.refus('une pièce se demande pour aujourd''hui ou plus tard');
+  end if;" "" \
+  "$T116A"
+prouver 'une date « pour le » sans pièce demandée' $MR116 \
+  "  if v_pour is not null and v_demande is null then perform socle.refus('une date « pour le » va avec une pièce demandée'); end if;" "" \
+  "$T116A"
+prouver 'un 30 février pris pour une date' $MR \
+  '.refine((x) => !Number.isNaN(Date.parse(`${x}T00:00:00Z`)) && new Date(`${x}T00:00:00Z`).toISOString().startsWith(x), {' '.refine((x) => x.length > 0, {' \
+  "$T116A"
+prouver 'une pièce reçue toujours en retard' $MR \
+  "          coalesce(m.demande_recue_le is null and m.demande_pour < " "          coalesce(m.demande_pour < " \
+  "$T116A"
+prouver 'en retard avant sa date (ce qui attend)' $MR \
+  "and m.demande_recue_le is null and m.demande_pour < (now() at time zone 'Africa/Tunis')::date) en_retard" "and m.demande_recue_le is null) en_retard" \
+  "$T116A"
+prouver 'en retard avant sa date (la boîte)' $MR \
+  "and m.demande_pour < (now() at time zone 'Africa/Tunis')::date group by m.entreprise" "group by m.entreprise" \
+  "$T116A"
+prouver 'le mot répété sous chaque pièce demandée' $MR \
+  "          texte: i === 0 ? corps.texte : ''," "          texte: corps.texte," \
+  "$T116B"
+prouver 'une pièce et une liste de pièces à la fois' $MR \
+  "      if (corps.demandes && corps.demande) return champInvalide('demande', t('messagerie.champ.demandes'));" "" \
+  "$T116B"
+prouver 'une relance chaque minute' $MR116 \
+  "(m.relance_le is null or m.relance_le <= p_maintenant - interval '7 days')" "true" \
+  "$T116C"
+prouver 'des relances sans fin' $MR116 \
+  "       and m.relances < 3 and " "       and " \
+  "$T116C"
+prouver 'une relance avant sa date' $MR116 \
+  "       and m.demande_pour <= (p_maintenant at time zone 'Africa/Tunis')::date" "" \
+  "$T116C"
+prouver 'une pièce reçue relancée quand même' $MR116 \
+  "     where m.demande is not null and m.demande_recue_le is null and m.demande_pour is not null" "     where m.demande is not null and m.demande_pour is not null" \
+  "$T116C"
+prouver 'une relance à qui a décoché « Me prévenir par e-mail »' $MR116 \
+  "   where socle.moi() is null and coalesce(al.active, true)" "   where socle.moi() is null" \
+  "$T116C"
+prouver 'une relance d'\''un cabinet qui ne tient plus le dossier' $MR116 \
+  "d.cabinet = m.cabinet and d.statut = 'actif'
+                     and d.debut <= (p_maintenant at time zone 'Africa/Tunis')::date
+                     and (d.fin is null or d.fin >= (p_maintenant at time zone 'Africa/Tunis')::date))" "d.cabinet = m.cabinet)" \
+  "$T116C"
+prouver 'le cabinet qui note lui-même une relance partie' $MR116 \
+  "  if socle.moi() is not null then perform socle.refus('seul le serveur note une relance partie'); end if;" "" \
+  "$T116C"
+prouver 'la relance qui nomme l'\''entreprise dans son lien' serveur/messagerie/postier.ts \
+  "t('messagerie.relance.texte', { lien: \`\${courriel.adresse()}/\` })" "t('messagerie.relance.texte', { lien: \`\${courriel.adresse()}/v10/?e=\${p.entreprise}\` })" \
+  "$T116C"
+prouver 'une relance repartie à chaque tour' serveur/messagerie/postier.ts \
+  "    for (const d of demandes) relancees.add(d.message);" "" \
+  "$T116C"
+prouver 'la date « pour le » écrite mais pas envoyée' $MJ \
+  "          const pour = demande && pourChamp.value ? pourChamp.value : null;" "          const pour = null;" \
+  "$MSGW"
+prouver 'la demande sans date proposée' $MJ \
+  "      pourChamp.min = jourCle(Date.now());
+      pourChamp.value = dansSeptJours();" "      pourChamp.min = jourCle(Date.now());" \
+  "$MSGW"
+prouver 'la date « pour le » qui ne se voit pas sur la carte' $MJ \
+  "        const pour = m.demande.pour && !recue ? " "        const pour = false ? " \
+  "$MSGW"
+prouver 'l'\''aperçu de la photo vide (entreprise)' web/public/v10/index.html \
+  "img-src 'self' data: blob:;" "img-src 'self' data:;" \
+  "$MSGW"
+prouver 'la photo du client vide (cabinet)' web/public/v10/cabinet/index.html \
+  "img-src 'self' data: blob:;" "img-src 'self' data:;" \
+  "$MSGW"
+prouver '« Saisir cette pièce » absent' $MJ \
+  ": !entreprise && m.cote === 'entreprise' && !m.achat && o.saisirPiece && actif ?" ": false ?" \
+  "$MSGW"
+prouver '« Saisir cette pièce » qui ne mène pas à la saisie' web/public/v10/cabinet/app.js \
+  "      location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/saisie/' + String(m.ecritLe).slice(0, 4);" "" \
+  "$MSGW"
+prouver 'la demande groupée sans client' $MJ \
+  "        if (!clients.length) { refus.textContent = 'Coche au moins un client.'; return; }" "" \
+  "$MW115"
+prouver 'la demande groupée sans sa date' $MJ \
+  "pour: pourChamp.value || null," "pour: null," \
+  "$MW115"
+prouver 'la demande groupée absente de la conversation ouverte' $MJ \
+  "        if (ouverte) void ouverte.c.relire();
+        if (o.toast)" "        if (o.toast)" \
+  "$MW115"
+prouver 'la pièce citée ouverte sans son numéro cherché' web/public/v10/cabinet/app.js \
+  "      Object.assign(livresState, { brouillard: true, q: numero, journal: '', page: 1, onglet: 'journal' });" "      Object.assign(livresState, { onglet: 'journal' });" \
+  "$MW115"
+
+# ── 1.117.0 : la messagerie après sa revue, lot 3 (les modèles du cabinet, chercher, la pastille des dossiers ;
+# docs/revue-messagerie.md) ──
+MR117=base/migrations/0169_messagerie_modeles.sql
+T117M="les modèles du cabinet : toute l'équipe les lit et les pose ; un titre, un texte, pas deux fois le même titre, cinquante au plus ; un autre cabinet n'y touche pas"
+T117R="chercher dans un fil : les mots, sans majuscules ni accents, dans le texte, la pièce demandée, la pièce citée ou le fichier ; pour qui lit le fil seulement"
+prouver 'les modèles d'\''un cabinet lus par un autre' $MR117 \
+  "  using (cabinet in (select socle.mes_organisations()))" "  using (true)" \
+  "$T117M"
+prouver 'un modèle posé chez un autre cabinet' $MR117 \
+  "  if socle.moi() is null or not exists (select 1 from socle.mes_organisations() o join socle.organisation g on g.id = o" "  if false and not exists (select 1 from socle.mes_organisations() o join socle.organisation g on g.id = o" \
+  "$T117M"
+prouver 'un modèle retiré par un autre cabinet' $MR117 \
+  "  if socle.moi() is null or not exists (select 1 from socle.mes_organisations() o where o = p_cabinet) then" "  if false then" \
+  "$T117M"
+prouver 'deux modèles au même titre, en d'\''autres majuscules' $MR117 \
+  "lower(m.titre) = lower(v_titre)" "m.titre = v_titre" \
+  "$T117M"
+prouver 'un modèle de trop' $MR117 \
+  "where m.cabinet = p_cabinet) >= 50 then" "where m.cabinet = p_cabinet) >= 500 then" \
+  "$T117M"
+prouver 'un modèle sans titre, refusé sans le dire' $MR117 \
+  "  if length(v_titre) = 0 then perform socle.refus('un modèle a un titre'); end if;" "" \
+  "$T117M"
+prouver 'la recherche qui tient aux accents' $MR117 \
+  "translate(lower(coalesce(p, '')), 'àâäáãåçéèêëíìîïñóòôöõúùûüýÿœæ', 'aaaaaaceeeeiiiinooooouuuuyyoa')" "lower(coalesce(p, ''))" \
+  "$T117R"
+prouver 'un « % » cherché comme n'\''importe quoi' $MR \
+  "replace(replace(replace(messagerie.plier(\$3), '\\\\', '\\\\\\\\'), '%', '\\\\%'), '_', '\\\\_')" "messagerie.plier(\$3)" \
+  "$T117R"
+prouver 'le modèle posé sans le nom du client' $MJ \
+  ".replace(/\\{client\\}/g, client || '{client}');" ";" \
+  "$MW115"
+prouver 'le modèle posé sans le mois' $MJ \
+  "texte.replace(/\\{mois\\}/g, moisPasse())" "texte" \
+  "$MW115"
+prouver 'un modèle commencé jeté sans le dire' $MJ \
+  "      if (!force && rempli() && !insiste) {" "      if (false) {" \
+  "$MW115"
+prouver 'le message trouvé qui ne se montre pas' $MJ \
+  "        ligne.classList.add('msg-eclaire');" "" \
+  "$MW115"
+prouver 'les messages trouvés sous le fil' $MJ \
+  "        fil.hidden = html !== null;" "" \
+  "$MW115"
+prouver 'un client cherché en majuscules, introuvable' $MJ \
+  "ds.filter((d) => plier(d.nom).includes(plier(cherche)))" "ds.filter((d) => d.nom.includes(cherche))" \
+  "$MW115"
+prouver 'la pastille des messages sur un client sans rien à traiter' web/public/v10/cabinet/app.js \
+  "      if (!d || d.etat !== 'a_traiter') return;" "      if (!d) return;" \
+  "$MW115"
+
+# ── 1.118.0 : l'abonnement après sa revue, lot 1 (le bandeau de l'accueil, un bouton par offre, les phrases exactes, les
+# e-mails d'une facture, la prochaine facture ; docs/revue-abonnement.md) ──
+AR118=base/migrations/0170_abonnement_revue.sql
+AC118=serveur/abonnement/courriels.ts
+AJ118=web/public/plateforme/abonnement.js
+T118E="émise, elle s'annonce une fois ; payée, le reçu part une fois ; rien de la facture dans l'e-mail"
+T118P="une facture payée avant d'avoir été annoncée n'envoie que le reçu ; un autre rôle n'en reçoit rien"
+T118A="l'état dit la facture à régler, puis le choix qui attend sa facture, à qui gère l'abonnement seulement"
+T118N="payé, « Ton abonnement » dit ce que dira la prochaine facture, et les rappels déjà partis"
+T118X="le rappel déjà parti se dit avec son jour, et le prochain qui partira ; sans rappel parti, celui qui partira"
+T118R="ce qui rouvre : choisir, régler, ou attendre la facture ; une entreprise suspendue nous écrit"
+T118B="le bandeau de l'accueil : rien pendant un essai qui court ; son bouton selon ce qui attend et qui lit"
+W118L="en lecture seule, l'accueil le dit en haut avec un seul bouton, et ne propose plus de créer ; il mène aux offres"
+W118G="en grâce, le bouton du bandeau est le seul vert : « + Nouvelle facture » ne l'est plus, les premiers pas se taisent ; la grâce se dit sur sa durée"
+W118C="à un commercial, le bandeau dit qui règle l'abonnement ; à l'essai qui court, l'accueil ne dit rien"
+W118S="suspendue, l'entreprise est invitée à nous écrire, jamais à s'abonner ; prolongé, l'essai ne dit pas un total faux"
+W118H="Hela choisit son offre dans sa carte, confirme, et lit son choix ; la console le voit dans « À décider »"
+prouver 'abo 118 : une facture annoncée à chaque tour' base/migrations/0172_abonnement_cabinet.sql \
+  "      from plateforme.facture_abonnement f
+      join ventes.piece p on p.entreprise = f.editeur and p.ref_v10 = f.piece_v10 and p.type = 'facture' and p.statut = 'emise'
+     where f.annoncee_le is null and f.payee_le is null" "      from plateforme.facture_abonnement f
+      join ventes.piece p on p.entreprise = f.editeur and p.ref_v10 = f.piece_v10 and p.type = 'facture' and p.statut = 'emise'
+     where f.payee_le is null" \
+  "$T118E"
+prouver 'abo 118 : un brouillon annoncé' base/migrations/0172_abonnement_cabinet.sql \
+  "      from plateforme.facture_abonnement f
+      join ventes.piece p on p.entreprise = f.editeur and p.ref_v10 = f.piece_v10 and p.type = 'facture' and p.statut = 'emise'
+     where f.annoncee_le is null" "      from plateforme.facture_abonnement f
+      left join ventes.piece p on false
+     where f.annoncee_le is null" \
+  "$T118E"
+prouver 'abo 118 : le reçu à chaque tour' base/migrations/0172_abonnement_cabinet.sql \
+  "      from plateforme.facture_abonnement f join plateforme.abonnement a on a.entreprise = f.entreprise
+     where f.payee_le is not null and f.recu_le is null" "      from plateforme.facture_abonnement f join plateforme.abonnement a on a.entreprise = f.entreprise
+     where f.payee_le is not null" \
+  "$T118E"
+prouver 'abo 118 : un e-mail raté noté comme parti' $AC118 \
+  "      console.error(\`un e-mail de facture d'abonnement n'est pas parti : \${String(x)}\`);
+      continue;" "      console.error(\`un e-mail de facture d'abonnement n'est pas parti : \${String(x)}\`);" \
+  "$T118E"
+prouver 'abo 118 : l'\''annonce d'\''une facture déjà payée' base/migrations/0172_abonnement_cabinet.sql \
+  "      from plateforme.facture_abonnement f
+      join ventes.piece p on p.entreprise = f.editeur and p.ref_v10 = f.piece_v10 and p.type = 'facture' and p.statut = 'emise'
+     where f.annoncee_le is null and f.payee_le is null" "      from plateforme.facture_abonnement f
+      join ventes.piece p on p.entreprise = f.editeur and p.ref_v10 = f.piece_v10 and p.type = 'facture' and p.statut = 'emise'
+     where f.annoncee_le is null" \
+  "$T118P"
+prouver 'abo 118 : un commercial prévenu de la facture' base/migrations/0172_abonnement_cabinet.sql \
+  "m.entreprise = d.entreprise and m.actif and m.roles && array['proprietaire', 'administrateur']::text[])" "m.entreprise = d.entreprise and m.actif and m.roles && array['proprietaire', 'administrateur', 'commercial']::text[])" \
+  "$T118P"
+prouver 'abo 118 : les factures lues pour un commercial' serveur/abonnement/routes.ts \
+  "      if (proche && qui && (await peut(tx, qui, params.entreprise ?? '', 'socle.abonnement.voir')).ok) {" "      if (proche) {" \
+  "$T118A"
+prouver 'abo 118 : ce qui attend lu loin de l'\''échéance' serveur/abonnement/routes.ts \
+  "      const proche = etat.etat === 'en_retard' ||" "      const proche = true ||" \
+  "$T118A"
+prouver 'abo 118 : la prochaine facture d'\''un abonnement résilié' serveur/console/renouvellements.ts \
+  "  const attendu = s.etat === 'actif' ? (s.resilie ? null : false)" "  const attendu = s.etat === 'actif' ? false" \
+  "$T118N"
+prouver 'abo 118 : les rappels partis jamais dits' $AR118 \
+  "            from plateforme.relance_abonnement r where r.entreprise = p_entreprise and r.echeance = p_echeance);" "            from plateforme.relance_abonnement r where false);" \
+  "$T118N"
+prouver 'abo 118 : un rappel annoncé alors qu'\''il est parti' $AJ118 \
+  "    if (dernier) return \` Un rappel t'a été envoyé" "    if (false) return \` Un rappel t'a été envoyé" \
+  "$T118X"
+prouver 'abo 118 : le prochain rappel qui est déjà passé' $AJ118 \
+  "    const prochain = relances.filter((n) => n < j)" "    const prochain = relances.filter((n) => n > 0)" \
+  "$T118X"
+prouver 'abo 118 : la lecture seule qui promet « aussitôt »' $AJ118 \
+  "    return ' Choisis ton offre : ta facture arrive ici, et dès qu\\'elle est réglée, tout se rouvre, tel que tu l\\'as laissé.';" "    return ' Pour créer de nouveau, abonne-toi : tout se rouvre aussitôt, tel que tu l\\'as laissé.';" \
+  "$T118R"
+prouver 'abo 118 : la suspendue invitée à s'\''abonner' $AJ118 \
+  "    if (e.raison === 'suspendu') {" "    if (false) {" \
+  "$T118R"
+prouver 'abo 118 : le bandeau qui propose de choisir à qui ne règle pas' $AJ118 \
+  "    const bouton = !gere ? 'Qui le règle ?' : suspendue" "    const bouton = suspendue" \
+  "$T118B"
+prouver 'abo 118 : le bandeau pendant un essai qui court' $AJ118 \
+  "    if (!e || !p.show || p.ton === 'calme') return null;" "    if (!e || !p.show) return null;" \
+  "$T118B"
+prouver 'abo 118 : l'\''accueil muet en lecture seule' web/public/v10/app.js \
+  "      \${bandeauAbonnementAccueil()}
+      \${bandeauAccordsAccueil()}" "      \${bandeauAccordsAccueil()}" \
+  "$W118L"
+prouver 'abo 118 : créer proposé en lecture seule' web/public/v10/app.js \
+  "\${peutEcrireDossier('documents') && !(licence.locked && bridge.dessinerAbonnement) ?" "\${peutEcrireDossier('documents') ?" \
+  "$W118L"
+prouver 'abo 118 : deux verts en grâce' web/public/v10/app.js \
+  "\${pasEnCours || aboPrincipal ? '' : 'btn-primary'}" "\${pasEnCours ? '' : 'btn-primary'}" \
+  "$W118G"
+prouver 'abo 118 : les premiers pas pendant la grâce' web/public/v10/app.js \
+  "    const pas = aboPrincipal ? '' : premiersPas();" "    const pas = premiersPas();" \
+  "$W118G"
+prouver 'abo 118 : la grâce sans sa durée' $AJ118 \
+  "\`Encore \${pl(j, 'jour')} de grâce, sur \${grace}\`" "\`\${pl(j, 'jour')} de grâce\`" \
+  "$W118G"
+prouver 'abo 118 : « À régler » sans facture' $AJ118 \
+  "pastille: suite.aFaire === 'payer' ? 'À régler' : e.apresEssai ? 'Essai terminé' : 'Non renouvelé'," "pastille: 'À régler'," \
+  "$W118G"
+prouver 'abo 118 : le bouton du bandeau qui ne mène nulle part' web/public/v10/app.js \
+  "      allerAbonnement();
+    };
+    if (\$('#new-devis'))" "    };
+    if (\$('#new-devis'))" \
+  "$W118L"
+prouver 'abo 118 : le commercial à qui on ne dit pas qui règle' web/public/v10/app.js \
+  "    const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
+    if (!b) return '';" "    const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(true) : null;
+    if (!b) return '';" \
+  "$W118C"
+prouver 'abo 118 : la suspendue sans l'\''adresse où écrire' $AJ118 \
+  "    const boutonTete = suspendue ? (o.ecrire ? '<button type=\"button\" class=\"btn abo-tete-btn\" id=\"abo-ecrire\">Écrire au support</button>'" "    const boutonTete = suspendue ? (o.ecrire ? ''" \
+  "$W118S"
+prouver 'abo 118 : l'\''essai prolongé qui dit un total faux' $AJ118 \
+  "          const sur = regles.essai && !suite.prolonge ?" "          const sur = regles.essai ?" \
+  "$W118S"
+prouver 'abo 118 : le choix parti au premier clic' $AJ118 \
+  "        const ok = /** @type {HTMLButtonElement} */ (d.querySelector('[data-confirmer]'));" "        const ok = /** @type {HTMLButtonElement} */ (d.querySelector('[data-confirmer]')); void o.appel('POST', '/abonnement/choisir', { offre, periodicite });" \
+  "$W118H"
+prouver 'abo 118 : deux verts pendant la confirmation' $AJ118 \
+  "        if (tete) tete.classList.remove('btn-primary');" "" \
+  "$W118H"
+prouver 'abo 118 : les mois offerts mal comptés' $AJ118 \
+  "economie = m * 12n - a;" "economie = m * 11n - a;" \
+  "$W118H"
+prouver 'abo 118 : « Annuler » qui ne referme pas' $AJ118 \
+  "    /** @type {HTMLElement} */ (f.querySelector('[data-annuler]')).onclick = () => f.close();" "" \
+  "$W118H"
+
+# ── 1.119.0 : l'abonnement après sa revue, lot 2 (la facture au choix émise seule, le prix TTC, « Ne pas renouveler »,
+# un module ouvert tout de suite ; docs/revue-abonnement.md) ──
+AM119=base/migrations/0171_abonnement_au_choix.sql
+AF119=serveur/abonnement/facturier.ts
+AR119=serveur/abonnement/routes.ts
+AJ119=web/public/plateforme/abonnement.js
+T119E="l'abonnée choisit son offre : sa facture s'émet seule, à payer en ligne, au nom de SkanFact ; un second tour n'en fait pas deux"
+T119R="un choix qui ne se facture pas garde son motif : la console le lit dans « À décider », l'abonnée l'apprend, et il attend le lendemain"
+T119C="ni pour un abonnement offert, ni pour un dossier qui ne se renouvelle plus : la console garde ces cas"
+T119N="« Ne pas renouveler » puis le reprendre, pendant la période payée ; l'histoire dit que c'est le client ; un commercial ne le fait pas"
+T119F="ne pas renouveler est refusé quand la facture de la période suivante attend son paiement : le refus dit quoi faire"
+T119M="un module ouvert tout de suite : l'aperçu dit le rattrapage, et la prochaine facture le compte au même millime"
+T119T="chaque offre dit son prix TTC, par le moteur de la facture (TVA et timbre de l'entreprise SkanFact)"
+W119N="Nadia choisit Essentiel au mois : le prix TTC se lit avant, et sa facture arrive d'elle-même dans « Tes factures »"
+W119S="Sami ne renouvelle pas, se ravise et reprend ; puis il ouvre la paie, et la confirmation dit le rattrapage"
+prouver 'abo 119 : la facture au choix laissée en brouillon' $AF119 \
+  "  const r = await emettreDepuisV10(tx, facture.editeur, utilisateur, { document: piece.contenu, client: client ?? null, revision: Number(piece.revision), rang: null, netAPayer: null });
+  return String(r.numero);" "  return facture.cle;" \
+  "$T119E"
+prouver 'abo 119 : le choix qui n'\''appelle pas sa facture' $AR119 \
+  "      facturerBientot(ctx, ent);" "" \
+  "$T119E"
+prouver 'abo 119 : la facture au choix notée comme celle de la console' $AM119 \
+  "            case when v_taux > 0 then v_remise->>'nature' end, v_taux, v_remise_ht, p_mois_offert, true)" "            case when v_taux > 0 then v_remise->>'nature' end, v_taux, v_remise_ht, p_mois_offert, false)" \
+  "$T119E"
+prouver 'abo 119 : un refus qui ne se note pas' $AF119 \
+  "      await enTantQue(ctx.pool, null, async (tx) => { await tx.query('select plateforme.choix_refus_noter(\$1, \$2)', [a.choix, motif]); });" "" \
+  "$T119R"
+prouver 'abo 119 : un choix refusé retenté à chaque minute' $AM119 \
+  "     and not exists (select 1 from plateforme.choix_refuse r where r.choix = c.id and r.le > now() - interval '1 day')" "" \
+  "$T119R"
+prouver 'abo 119 : le refus que la console ne lit pas' $AM119 \
+  "             'refus', (select r.motif from plateforme.choix_refuse r where r.choix = c.id)) v" "             'refus', null) v" \
+  "$T119R"
+prouver 'abo 119 : le refus perdu en lisant la console' serveur/console/decider.ts \
+  "      refus: typeof x.refus === 'string' && x.refus ? x.refus : null }];" "      refus: null }];" \
+  "$T119R"
+prouver 'abo 119 : le refus perdu dans « À décider »' serveur/console/decider.ts \
+  "le: c.le, par: c.par, refus: c.refus ?? null }]);" "le: c.le, par: c.par, refus: null }]);" \
+  "$T119R"
+prouver 'abo 119 : l'\''abonnée qui ne sait pas que SkanFact prend la main' $AM119 \
+  "           'refuse', exists (select 1 from plateforme.choix_refuse r where r.choix = c.id))" "           'refuse', false)" \
+  "$T119R"
+prouver 'abo 119 : un abonnement offert facturé seul' $AM119 \
+  "     and not a.offert and a.suspendu_le is null
+" "" \
+  "$T119C"
+prouver 'abo 119 : un dossier qui ne se renouvelle plus facturé seul' $AM119 \
+  "     and not (a.resilie_le is not null and a.paye_jusqu_au is not null and a.paye_jusqu_au >= (now() at time zone 'Africa/Tunis')::date)
+" "" \
+  "$T119C"
+prouver 'abo 119 : ne pas renouveler ce qui ne se renouvelle déjà plus' $AM119 \
+  "    if v_a.resilie_le is not null then perform socle.refus('cet abonnement ne se renouvelle déjà plus'); end if;" "" \
+  "$T119N"
+prouver 'abo 119 : l'\''histoire qui ne dit pas que c'\''est le client' $AM119 \
+  "case when p_renouveler then 'resiliation_annulee' else 'resilie' end, 'abonne'," "case when p_renouveler then 'resiliation_annulee' else 'resilie' end, 'exploitation'," \
+  "$T119N"
+prouver 'abo 119 : reprendre qui ne reprend pas' $AM119 \
+  "    update plateforme.abonnement set resilie_le = null, modifie_le = now() where entreprise = p_entreprise returning * into v_a;" "    select * into v_a from plateforme.abonnement a where a.entreprise = p_entreprise;" \
+  "$T119N"
+prouver 'abo 119 : ne pas renouveler pendant que la facture suivante attend' $AM119 \
+  "      perform socle.refus('la facture de ta période suivante attend déjà son paiement : pour ne pas renouveler, écris-nous à contact@skanfact.tn, et nous l''annulerons');" "      null;" \
+  "$T119F"
+prouver 'abo 119 : le rattrapage compté depuis le début de la période' $AM119 \
+  "else v_a.paye_jusqu_au - greatest(p_jour, v_debut) + 1 end;" "else v_a.paye_jusqu_au - v_debut + 1 end;" \
+  "$T119M"
+T119H="sans le paiement de sa période dans l'histoire, rien à rattraper, et la facture compte pareil ; la facture suivante déjà faite, le module attend"
+prouver 'abo 119 : un rattrapage annoncé que la facture ne fera pas' $AM119 \
+  "  v_jours := case when v_debut is null then 0 else v_a.paye_jusqu_au - greatest(p_jour, v_debut) + 1 end;
+  v_sur := case when v_debut is null then 0 else v_a.paye_jusqu_au - v_debut + 1 end;" "  v_jours := v_a.paye_jusqu_au - p_jour + 1;
+  v_sur := v_a.paye_jusqu_au - coalesce(v_debut, p_jour) + 1;" \
+  "$T119H"
+prouver 'abo 119 : un module ouvert quand la facture suivante est déjà faite' $AM119 \
+  "    perform socle.refus('la facture de ta période suivante est déjà faite : pour ouvrir ce module maintenant, écris-nous à contact@skanfact.tn');" "    null;" \
+  "$T119H"
+prouver 'abo 119 : l'\''aperçu qui ouvre le module' $AM119 \
+  "  if p_apercu then
+    return" "  if false then
+    return" \
+  "$T119M"
+prouver 'abo 119 : un module acheté deux fois' $AM119 \
+  "  if p_module = any(v_a.modules) then perform socle.refus('ce module est déjà acheté pour ton abonnement'); end if;" "" \
+  "$T119M"
+prouver 'abo 119 : le module ouvert au nom de SkanFact' $AM119 \
+  "    values (p_entreprise, 'module_ouvert', 'abonne', 'dans l''application'," "    values (p_entreprise, 'module_ouvert', 'exploitation', 'dans l''application'," \
+  "$T119M"
+prouver 'abo 119 : le TTC qui dit le HT' $AR119 \
+  "? { net: netDUneOffre(societe, p.offre, p.periodicite, BigInt(p.montantHt), jour).net } : {})" "? { net: netDUneOffre(societe, p.offre, p.periodicite, BigInt(p.montantHt), jour).ht } : {})" \
+  "$T119T"
+prouver 'abo 119 : le TTC qui ne se lit pas' $AJ119 \
+  "        <p class=\"abo-ttc\">\${esc(ttcDe(k))}</p>" "        <p class=\"abo-ttc\"></p>" \
+  "$W119N"
+prouver 'abo 119 : la confirmation qui promet la console quand la facture se fait seule' $AJ119 \
+  "\${infos.auto ? 'Ta facture est faite tout de suite" "\${false ? 'Ta facture est faite tout de suite" \
+  "$W119N"
+prouver 'abo 119 : la facture qu'\''il faut recharger pour voir' $AJ119 \
+  "        setTimeout(() => { if (el.isConnected && el.querySelector('#abo-payer.abo-choisi')) void dessiner(el, o); }, 3000);" "" \
+  "$W119N"
+prouver 'abo 119 : « Ne pas renouveler » en bouton principal' $AJ119 \
+  "<button type=\"button\" class=\"btn btn-sm\" id=\"abo-arreter\">" "<button type=\"button\" class=\"btn btn-primary btn-sm\" id=\"abo-arreter\">" \
+  "$W119S"
+prouver 'abo 119 : « Garder mon abonnement » qui ne referme pas' $AJ119 \
+  "<button type=\"button\" class=\"btn btn-primary\" data-annuler>Garder mon abonnement</button>" "<button type=\"button\" hidden data-annuler></button><button type=\"button\" class=\"btn btn-primary\">Garder mon abonnement</button>" \
+  "$W119S"
+prouver 'abo 119 : la reprise qui ne se propose pas' $AJ119 \
+  "id=\"abo-reprendre\">Reprendre mon abonnement</button>'" "id=\"abo-reprendre\" hidden>Reprendre mon abonnement</button>'" \
+  "$W119S"
+prouver 'abo 119 : un choix d'\''offre proposé pendant qu'\''il ne se renouvelle pas' $AJ119 \
+  "&& !suspendue && !resilie;" "&& !suspendue;" \
+  "$W119S"
+prouver 'abo 119 : la confirmation qui ne dit pas le rattrapage' $AJ119 \
+  "\${esc(montant(String(ap.rattrapageHt), true))} HT</dd>" "\${esc(montant(String(ap.prixHt), true))} HT</dd>" \
+  "$W119S"
+
+# ── 1.119.0 : le jour du retour d'une maintenance qui passe minuit (rouge GitHub du 22/10/2026) ──
+TFIN="le jour même, l'heure seule ; passé minuit à Tunis, le jour et l'heure"
+prouver 'la fin d'\''une maintenance après minuit sans son jour' serveur/fermeture.ts \
+  "  return jour(f) === jour(maintenant) ? heure : \`\${jour(f)} à \${heure}\`;" "  return heure;" \
+  "$TFIN"
+prouver 'le jour du retour compté en UTC' serveur/fermeture.ts \
+  "  const jour = (d: Date) => d.toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis'," "  const jour = (d: Date) => d.toLocaleDateString('fr-FR', { timeZone: 'UTC'," \
+  "$TFIN"
+
+# ── 1.120.0 : l'abonnement des cabinets, lot 3 (trois dossiers tenus gratuits, 60 DT HT par dossier au-delà, plafond,
+# une facture par an, rattrapage au prorata, lecture seule des seuls payants ; docs/abonnement.md C22) ──
+AM120=base/migrations/0172_abonnement_cabinet.sql
+AC120=serveur/abonnement/cabinet.ts
+T120A="trois dossiers tenus gratuits ; le quatrième fixe l'anniversaire, et sa facture s'émet seule ; payée en ligne, elle paie l'année"
+T120R="un dossier ajouté en cours d'année se rattrape au prorata de ses jours sur la facture suivante"
+T120P="le plafond limite la facture : une seule ligne, au plafond annuel"
+T120L="sans paiement après l'échéance et la grâce : les payants en lecture seule, les gratuits ouverts, la création fermée ; payé, tout se rouvre"
+T120J="un dossier que son client rejoint ne compte plus ; seul un associé lit l'abonnement"
+T120C="la console : les règles des cabinets se préparent et se retirent, la fiche dit l'abonnement, « À décider » la facture qui ne s'est pas faite"
+W120="Nadia : trois dossiers gratuits, le quatrième annoncé puis facturé, payé en ligne, et le retour sur son abonnement"
+prouver 'abo 120 : le troisième dossier déjà payant' $AM120 \
+  "d.rang > coalesce(plateforme.regle_cabinet_du_jour('gratuits'" "d.rang >= coalesce(plateforme.regle_cabinet_du_jour('gratuits'" \
+  "$T120A"
+prouver 'abo 120 : l'\''abonnement qui ne commence pas au premier dossier payant' $AM120 \
+  "    insert into plateforme.abonnement_cabinet (cabinet, depuis) values (p_cabinet, v_jour);" "    null;" \
+  "$T120A"
+prouver 'abo 120 : la facture du cabinet laissée en brouillon' $AC120 \
+  "  const r = await emettreDepuisV10(tx, editeur, utilisateur, { document: ecrite.contenu, client, revision: Number(ecrite.revision), rang: null, netAPayer: null });
+  return String(r.numero);" "  return cle;" \
+  "$T120A"
+prouver 'abo 120 : le dossier créé qui n'\''appelle pas sa facture' serveur/cabinet/routes.ts \
+  "      facturerCabinetBientot(ctx, params.cabinet ?? '');" "" \
+  "$T120A"
+prouver 'abo 120 : la facture payée qui ne paie pas l'\''année' serveur/v10/dossier.ts \
+  "  if (paiements.length && cle.startsWith('cabinet-')) await tx.query('select plateforme.cabinet_paye_par_facture(\$1, \$2)', [entreprise, cle]);" "" \
+  "$T120A"
+prouver 'abo 120 : la facture du cabinet annoncée à personne' $AM120 \
+  "where m.organisation = d.cabinet and m.actif and 'supervision' = any(m.roles)) end)" "where m.organisation = d.cabinet and m.actif and 'proprietaire' = any(m.roles)) end)" \
+  "$T120A"
+prouver 'abo 120 : le rattrapage oublié' $AM120 \
+  "      v_ratt_ht := v_ratt_ht + v_m;" "      v_ratt_ht := v_ratt_ht;" \
+  "$T120R"
+prouver 'abo 120 : le rattrapage compté sur toute l'\''année' $AM120 \
+  "      v_jours := v_prev_fin - greatest(d.cree, v_prev_debut, v_a.depuis) + 1;" "      v_jours := v_sur;" \
+  "$T120R"
+prouver 'abo 120 : le plafond oublié' $AM120 \
+  "    'totalHt', (case when v_plafond is not null and v_brut > v_plafond then v_plafond else v_brut end)::text," "    'totalHt', v_brut::text," \
+  "$T120P"
+prouver 'abo 120 : la lecture seule qui ne ferme rien' serveur/abonnement/condition.ts \
+  "  const depuis = (await tx.query('select plateforme.dossier_tenu_bloque_depuis(\$1, \$2::date) d', [entreprise, jour])).rows[0]?.d as string | null | undefined;" "  const depuis = null as string | null | undefined;" \
+  "$T120L"
+prouver 'abo 120 : la messagerie fermée avec le dossier' serveur/abonnement/condition.ts \
+  "new Set(['messagerie.ecrire', 'support.ecrire', 'socle.sauvegardes.demander']);" "new Set(['support.ecrire', 'socle.sauvegardes.demander']);" \
+  "$T120L"
+prouver 'abo 120 : la création ouverte en lecture seule' $AM120 \
+  "  if plateforme.etat_cabinet(p_cabinet, v_jour) ->> 'etat' = 'lecture_seule' then" "  if false then" \
+  "$T120L"
+prouver 'abo 120 : un collaborateur qui lit l'\''abonnement' $AM120 \
+  "  if socle.moi() is null or socle.ma_cle() is not null or not socle.suis_associe(p_cabinet) then" "  if socle.moi() is null or socle.ma_cle() is not null then" \
+  "$T120J"
+prouver 'abo 120 : une règle des cabinets hors du journal' $AM120 \
+  "'reglages.regle_cabinet', btrim(p_motif)," "'reglages.regle_cabinet', 'sans motif'," \
+  "$T120C"
+prouver 'abo 120 : la règle tapée en dinars lue en millimes' serveur/console/routes.ts \
+  "      const valeur = argent ? prixTape(v) : /^\\d{1,4}\$/.test(v) ? BigInt(v) : null;" "      const valeur = /^\\d{1,9}\$/.test(v) ? BigInt(v) : prixTape(v);" \
+  "$T120C"
+prouver 'abo 120 : la facture refusée que « À décider » tait' serveur/console/decider.ts \
+  "    for (const c of argent.cabinets ?? []) lignes.push(" "    for (const c of [] as typeof argent.cabinets & []) lignes.push(" \
+  "$T120C"
+prouver 'abo 120 : la fiche du cabinet sans son abonnement' serveur/console/routes.ts \
+  "        ? await lireJson(t, 'select plateforme.console_abonnement_cabinet(\$1, \$2::date) v', [id, jour]) : null;" "        ? null : null;" \
+  "$T120C"
+prouver 'abo 120 : le quatrième dossier qui ne s'\''annonce pas' web/public/plateforme/pont-cabinet.js \
+  "        return { ok: true, avertissement: a && A ? A.avertissement(a.prochainDossier, a.regles) : ''," "        return { ok: true, avertissement: ''," \
+  "$W120"
+prouver 'abo 120 : la pastille qui ne suit pas le panneau' web/public/plateforme/abonnement-cabinet.js \
+  "    bandeau(a.etat);
+" "" \
+  "$W120"
+prouver 'abo 120 : le retour du paiement vers l'\''entreprise' web/public/espace/retour.js \
+  "  const duCabinet = abonnement.startsWith('c:');" "  const duCabinet = false;" \
+  "$W120"
+prouver 'abo 120 : « Ton abonnement » amené par son milieu' web/public/v10/cabinet/app.js \
+  "        if (haut) { haut.scrollIntoView({ block: 'start' });" "        if (haut) { haut.scrollIntoView({ block: 'center', behavior: 'smooth' });" \
+  "$W120"
+prouver 'abo 120 : le second dessin des Réglages qui oublie le panneau demandé' web/public/v10/cabinet/app.js \
+  "    const vise = reglagesFocus || reglagesAAmener;" "    const vise = reglagesFocus;" \
+  "$W120"
+prouver 'abo 120 : un redessin sur place qui perd la place du lecteur' web/public/v10/cabinet/app.js \
+  "    const lieu = view.querySelector('#set-corps') && !reglagesFocus && !reglagesAAmener ? { haut: defileur.scrollTop, page: window.scrollY } : null;" "    const lieu = null;" \
+  "$W120"
+prouver 'abo 120 : la place du lecteur rendue avant que les panneaux soient remplis' web/public/v10/cabinet/app.js \
+  "      if (lieu) { defileur.scrollTop = lieu.haut; window.scrollTo(0, lieu.page); }
+" "" \
+  "$W120"
+prouver 'abo 120 : le panneau ramené de force à chaque redessin' web/public/v10/cabinet/app.js \
+  "      if (reglagesAAmener === vise) reglagesAAmener = '';
+" "" \
+  "$W120"
+prouver 'abo 120 : le code d'\''une nouveauté qui déborde du journal au téléphone' web/console/src/console.css \
+  ".c-jr-change, .c-jr-sur { overflow-wrap: anywhere; }" "" \
+  "en clair et en sombre, à l'ordinateur et au téléphone : l'instrument ne trouve rien ; en langue factice, tout vient du catalogue"
+prouver 'abo 120 : le retour du paiement qui n'\''ouvre pas « Ton abonnement »' web/public/v10/cabinet/app.js \
+  "    if (api.ouvertureAbonnement && api.ouvertureAbonnement()) {" "    if (false) {" \
+  "$W120"
+
+# ── 1.121.0 : la recette de l'abonnement à l'écran (testeur et UI/UX, 23/10/2026 ; docs/revue-abonnement.md) ──
+AJ121=web/public/plateforme/abonnement.js
+T121N="Nadia choisit Essentiel au mois : le prix TTC se lit avant, et sa facture arrive d'elle-même dans « Tes factures »"
+T121H="Hela choisit son offre dans sa carte, confirme, et lit son choix ; la console le voit dans « À décider »"
+T121J="créer son compte : la jauge dit pendant la frappe ce qui manque, « Afficher » montre le mot de passe"
+T121E="créer son compte : « Vérifie ton e-mail » tient au rechargement ; une adresse mal tapée se corrige, et le code part à la bonne"
+W121="Walid : en lecture seule, « Nouveau dossier client » refuse en le disant et mène à « Ton abonnement » d'un bouton"
+prouver 'abo 121 : le récapitulatif qui tait le total à régler' $AJ121 \
+  "        const ttc = infos.netDe(offre, periodicite);" "        const ttc = undefined;" \
+  "$T121N"
+prouver 'abo 121 : l'\''essai qui ne dit pas ce qui vient ensuite' $AJ121 \
+  "\${suite.aFaire === 'payer' && suite.periode" "\${false && suite.periode" \
+  "$T121N"
+prouver 'abo 121 : le récapitulatif ouvert dans la page, pas en fenêtre' $AJ121 \
+  "    if (!f.open) f.showModal();" "    if (!f.open) f.show();" \
+  "$T121H"
+prouver 'abo 121 : le récapitulatif refermé qui ne rend pas le vert au bouton du haut' $AJ121 \
+  "          fermee: () => { fermer(); b.focus(); }," "          fermee: () => { b.focus(); }," \
+  "$T121H"
+prouver 'abo 121 : deux boutons verts pour la même facture du cabinet' web/public/plateforme/abonnement-cabinet.js \
+  "    const verte = enTete ? undefined : pieces.filter((p) => p.payable).pop();" "    const verte = pieces.filter((p) => p.payable).pop();" \
+  "$W120"
+prouver 'abo 121 : le refus de créer un dossier, sans chemin vers l'\''abonnement' web/public/plateforme/pont-cabinet.js \
+  ",
+            vers: 'pan-licence', bouton: 'Ouvrir mon abonnement' };" " };" \
+  "$W121"
+prouver 'abo 121 : le bouton du refus qui ne mène nulle part' web/public/v10/cabinet/app.js \
+  "        if (v) v.onclick = () => { close(); versReglages(peut.vers); };" "        if (v) v.onclick = () => { close(); };" \
+  "$W121"
+prouver 'abo 121 : le libellé relié à sa bulle « i », pas à sa case' web/src/composants/Champ.tsx \
+  "    <label htmlFor={pour} className=" "    <label className=" \
+  "$T121J"
+prouver 'abo 121 : la case nommée avec l'\''explication de sa bulle' web/src/composants/Champ.tsx \
+  "      <input ref={f.ref} id={id} aria-label={cadre.libelle} type=" "      <input ref={f.ref} id={id} type=" \
+  "$T121J"
+prouver 'abo 121 : le message de l'\''entrée posé sur les étapes' web/src/entree.css \
+  "#toast { top: calc(env(safe-area-inset-top, 0px) + 84px);" "#toast { top: calc(env(safe-area-inset-top, 0px) + 16px);" \
+  "$T121E"
+
+# ── 1.122.0 : l'abonnement dans tous ses états, revu à la souris (quinze entreprises, le cabinet ; docs/revue-abonnement.md
+# « Tous les états ») ──
+AJ122=web/public/plateforme/abonnement.js
+T122R="Rania, à neuf jours de son échéance : l'accueil dit l'échéance, l'état propose de renouveler, et sa facture arrive"
+T122L="Lina, cinq jours avant la fin de l'essai : « Choisir mon offre » de l'accueil mène aux offres, d'un clic"
+T122Y="au téléphone, la carte d'Essentiel avec la paie ne déborde pas, et la prochaine facture dit ce qu'elle compte"
+T122N="Nadia choisit Essentiel au mois : le prix TTC se lit avant, et sa facture arrive d'elle-même dans « Tes factures »"
+T122S="Sami ne renouvelle pas, se ravise et reprend ; puis il ouvre la paie, et la confirmation dit le rattrapage"
+T122E="l'essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'arrive au serveur"
+T122U="suspendue, l'entreprise est invitée à nous écrire, jamais à s'abonner ; prolongé, l'essai ne dit pas un total faux"
+T122P="la pastille tient sur une ligne, rouge quand l'état l'est ; le bouton du bandeau dit où il mène"
+T122H="une entreprise sans échéance dit ce qu'elle est ; payé, l'état montre la facture du renouvellement qui attend"
+T122C="Hédi : le premier dossier tenu dit qu'il est gratuit, avant la saisie"
+W122="Nadia : trois dossiers gratuits, le quatrième annoncé puis facturé, payé en ligne, et le retour sur son abonnement"
+prouver 'abo 122 : la pastille de l'\''échéance sur trois lignes' $AJ122 \
+  "texte: e.resilie ? \`S'arrête le \${jour(e.jusquAu)}\` : \`Échéance le \${jour(e.jusquAu)}\` };" "texte: e.resilie ? \`Abonnement résilié — il s'arrête le \${jour(e.jusquAu)}\` : \`\${nomOffre(e.offre)} jusqu'au \${jour(e.jusquAu)} — pense à le renouveler\` };" \
+  "$T122R"
+prouver 'abo 122 : le dernier jour de l'\''essai qui ne passe pas au rouge' $AJ122 \
+  "return j <= 0 ? { show: true, ton: 'alerte', texte: 'Essai : dernier jour' }" "return j <= 0 ? { show: true, ton: 'attire', texte: 'Essai : dernier jour' }" \
+  "$T122P"
+prouver 'abo 122 : la pastille orange à côté d'\''un bandeau rouge' web/public/v10/app.js \
+  "    el.classList.toggle('alerte', p.ton === 'alerte');
+" "" \
+  "$T122E"
+prouver 'abo 122 : « Choisir mon offre » du bandeau qui ouvre le haut de l'\''onglet' $AJ122 \
+  "      vers: bouton === 'Choisir mon offre' ? 'offres' : null };" "      vers: null };" \
+  "$T122L"
+prouver 'abo 122 : l'\''endroit demandé par le bandeau oublié au dessin' $AJ122 \
+  "    if (vers) {" "    if (false) {" \
+  "$T122L"
+prouver 'abo 122 : le bandeau de l'\''entreprise suspendue qui ouvre un e-mail' web/public/v10/app.js \
+  "        if (bridge.support) { void ecrireAuSupport('question'); return; }
+" "" \
+  "$T122U"
+prouver 'abo 122 : l'\''onglet de l'\''entreprise suspendue qui ouvre un e-mail' $AJ122 \
+  "    const boutonTete = suspendue ? (o.ecrire ?" "    const boutonTete = suspendue ? (false ?" \
+  "$T122U"
+prouver 'abo 122 : l'\''échéance proche sans « Renouveler maintenant »' $AJ122 \
+  "          : renouveler ? \`<button type=\"button\" class=\"btn btn-primary abo-tete-btn\" id=\"abo-renouveler\"" "          : false ? \`<button type=\"button\" class=\"btn btn-primary abo-tete-btn\" id=\"abo-renouveler\"" \
+  "$T122R"
+prouver 'abo 122 : « Renouveler » ce qui se renouvelle déjà' $AJ122 \
+  "        .filter(([p]) => !(courante && p === a.etat.periodicite))
+" "" \
+  "$T122R"
+prouver 'abo 122 : le renouvellement confirmé comme un choix d'\''offre' $AJ122 \
+  "          titre: renouvelle ? \`Renouveler \${esc(nom)}, \${dit}\` : \`\${esc(nom)}, \${dit}\`," "          titre: \`\${esc(nom)}, \${dit}\`," \
+  "$T122R"
+prouver 'abo 122 : la prochaine facture sans son total TTC' $AJ122 \
+  "\${netDeLaProchaine ? \`, soit" "\${false ? \`, soit" \
+  "$T122R"
+prouver 'abo 122 : la prochaine facture qui tait le module acheté' $AJ122 \
+  "\${modulesEnPlus.length ? \`, avec" "\${false ? \`, avec" \
+  "$T122Y"
+prouver 'abo 122 : la carte qui déborde au téléphone' web/public/plateforme/abonnement.css \
+  "  .abo-offre-boutons .btn { white-space: normal; text-align: center; line-height: 1.3; }" "" \
+  "$T122Y"
+prouver 'abo 122 : l'\''offre choisie qu'\''aucune carte ne montre' $AJ122 \
+  ": choisie ? '<span class=\"abo-badge\">Ton choix</span>' : ''}" ": ''}" \
+  "$T122N"
+prouver 'abo 122 : l'\''abonnement qui s'\''arrêtera, au vert du calme' $AJ122 \
+  "      return { ton: j <= 15 || e.resilie ? 'attire' : 'calme'," "      return { ton: j <= 15 ? 'attire' : 'calme'," \
+  "$T122S"
+prouver 'abo 122 : « Ne pas renouveler » seul bouton de l'\''état' $AJ122 \
+  "          : renouveler ? \`<button" "          : a.etat.etat === 'actif' && a.peutChoisir && !aFaire ? '<button type=\"button\" class=\"btn btn-sm abo-tete-btn\" id=\"abo-arreter\">Ne pas renouveler…</button>' : renouveler ? \`<button" \
+  "$T122S"
+prouver 'abo 122 : « Rien ne s'\''arrête ici » pour un abonnement offert' $AJ122 \
+  "offert: 'Abonnement offert par SkanFact' })" "offert: 'Rien ne s\\'arrête ici' })" \
+  "$T122H"
+prouver 'abo 122 : l'\''abonnement « échu »' $AJ122 \
+  ": \`L'abonnement n'est plus payé depuis le" ": \`L'abonnement est échu depuis le" \
+  "$T122P"
+prouver 'abo 122 : l'\''échéance annoncée comme une fin' $AJ122 \
+  ": \`Ton abonnement arrive à échéance le \${jour(e.jusquAu)}\`;" ": \`Ton abonnement se termine le \${jour(e.jusquAu)}\`;" \
+  "$T122R"
+prouver 'abo 122 : l'\''état qui annonce un rappel quand la facture du renouvellement attend' $AJ122 \
+  "          : suite.aFaire === 'payer' ? \`Encore \${pl(j, 'jour')}. Ta facture du renouvellement" "          : false ? \`Encore \${pl(j, 'jour')}. Ta facture du renouvellement" \
+  "$T122H"
+prouver 'abo 122 : la liste en lecture seule qui propose de créer' web/public/v10/app.js \
+  "\${aboBloque(true) ? \`<button class=\"btn \${mine.length ? 'btn-primary' : ''}\" id=\"list-abo\">" "\${false ? \`<button class=\"btn \${mine.length ? 'btn-primary' : ''}\" id=\"list-abo\">" \
+  "$T122E"
+prouver 'abo 122 : l'\''état vide en lecture seule qui pousse à créer' web/public/v10/app.js \
+  "        aboBloque(true) ? [['vide-abo', 'Voir l\\'abonnement', true]]" "        false ? [['vide-abo', 'Voir l\\'abonnement', true]]" \
+  "$T122E"
+prouver 'abo 122 : l'\''état vide qui ne dit pas pourquoi la création attend' web/public/v10/app.js \
+  "          .concat(aboBloque(true) ? [" "          .concat(false ? [" \
+  "$T122E"
+prouver 'abo 122 : le premier dossier tenu qui ne dit pas qu'\''il est gratuit' web/public/v10/cabinet/app.js \
+  "       \${peut && peut.gratuit ?" "       \${false ?" \
+  "$T122C"
+prouver 'abo 122 : la pastille du cabinet sur trois lignes' web/public/plateforme/abonnement-cabinet.js \
+  "texte: \`Facture à régler avant le \${jour(e.echeance)}\` };" "texte: \`Facture de l'abonnement à régler avant le \${jour(e.echeance)}\` };" \
+  "$W122"
+
+# ── 1.123.0 : le mois d'un client vu des deux côtés, lot 1 (docs/revue-mois-client.md, points 1 à 5) ──
+prouver 'mois 123 : la date « pour le » que le serveur tait' serveur/messagerie/routes.ts \
+  "pourLe: r.pour_le, aLire" "pourLe: null, aLire" \
+  'la date « pour le » : aujourd'\''hui ou plus tard, avec une pièce demandée ; passée sans réponse, la demande est en retard des deux côtés et dans la boîte'
+prouver 'mois 123 : l'\''Accueil « #/ » que l'\''« À faire » ne redessine pas' web/public/v10/app.js \
+  "routeOf(location.hash) === 'dashboard' && !\$('#modal-root .modal')" "/^(#\\/dashboard)?\$/.test(location.hash) && !\$('#modal-root .modal')" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : l'\''« À faire » qui tait la date de la pièce attendue' web/public/v10/app.js \
+  "detail: \`\${quand}Réponds-lui" "detail: \`Réponds-lui" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : la date de la première de plusieurs pièces attendues' web/public/v10/app.js \
+  "\${mv.demandes > 1 ? 'La première est attendue' : 'Elle est attendue'}" "Elle est attendue" \
+  'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'mois 123 : la photo qui ne retrouve pas l'\''achat que la demande cite' web/public/plateforme/messagerie.js \
+  "const cite = demandeLiee && o.achatCite" "const cite = false && o.achatCite" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : la photo rangée que le cabinet ne peut pas suivre jusqu'\''à l'\''écriture' web/public/plateforme/messagerie.js \
+  "m.achat && o.ouvrirPiece && /\\s·\\s/.test(m.achat.libelle) ?" "false ?" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : « Confier mon dossier » qui reste vert après l'\''invitation' web/public/plateforme/pont.js \
+  "      panneau.querySelector('#mandat-confier')?.classList.remove('btn-primary');
+" "" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : « Copier le lien » qui n'\''est pas l'\''étape suivante' web/public/plateforme/pont.js \
+  "class=\"btn btn-sm btn-primary\" id=\"mandat-lien-copier\"" "class=\"btn btn-sm\" id=\"mandat-lien-copier\"" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : « tout est à jour » à côté d'\''une ligne à valider' web/public/v10/cabinet/app.js \
+  "      if (enCours) return" "      if (false) return" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : le point vert d'\''une ligne à valider' web/public/v10/cabinet/app.js \
+  "(r.lastMonth && !r.lastDefinitive ? 'warn' : '')" "''" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 123 : « Ajouter mes clients » vert pendant qu'\''une entreprise attend « Accepter »' web/public/v10/cabinet/app.js \
+  "class=\"btn\${/btn-primary/.test(inboxBanner()) ? '' : ' btn-primary'}\" id=\"new-d\"" "class=\"btn btn-primary\" id=\"new-d\"" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+
+# ── 1.124.0 : « Ce mois-ci » dans « Mon comptable » (docs/revue-mois-client.md, point 4) ──
+prouver 'mois 124 : le résumé qui compte le brouillard comme validé' serveur/compta/routes.ts \
+  "select count(*) filter (where statut = 'validee') validees," "select count(*) validees," \
+  'le résumé d'\''un mois : validées, au brouillard, le jour de la dernière validation ; rien hors du mois ; la lecture le lit'
+prouver 'mois 124 : le résumé qui déborde avant le début du mois' serveur/compta/routes.ts \
+  "and (\${p.du}::date is null or date_ecriture >= \${p.du}::date)" "and (true)" \
+  'le résumé d'\''un mois : validées, au brouillard, le jour de la dernière validation ; rien hors du mois ; la lecture le lit'
+prouver 'mois 124 : « Mon comptable » sans la carte « Ce mois-ci »' web/public/plateforme/messagerie.js \
+  "const carteMois = mois ?" "const carteMois = false ?" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 124 : l'\''achat sans justificatif que la carte tait' web/public/v10/app.js \
+  "const sansPiece = achats.filter(p => C.sansJustificatif(p)).length;" "const sansPiece = 0;" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 124 : la carte qui ne mène pas aux achats sans justificatif' web/public/v10/app.js \
+  "action: sansPiece ? {" "action: false ? {" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 124 : « tout le mois » validé qui ne se dit pas' web/public/v10/app.js \
+  "if (!r.brouillard) return \`Ton cabinet a validé tout le mois" "if (false) return \`Ton cabinet a validé tout le mois" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 124 : une visite neuve qui garde la lecture d'\''avant la validation' web/public/v10/app.js \
+  "    ceMoisLu = null; // une visite neuve" "    void 0; // une visite neuve" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+prouver 'mois 124 : la paie demandée à chaque ouverture d'\''un dossier qui ne la confie pas' web/public/plateforme/pont-cabinet.js \
+  "const sansPaie = !!d.perimetre" "const sansPaie = false && !!d.perimetre" \
+  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+
+# ── 1.125.0 : le cabinet sait si l'achat du client a son justificatif, oui ou non (docs/revue-mois-client.md, 7, 8, 13) ──
+prouver 'mois 125 : l'\''écriture d'\''achat qui ne dit pas son justificatif' serveur/compta/routes.ts \
+  "justificatif: e.origine_type === 'achat' ? justifies.get(e.origine) ?? null : null," "justificatif: null," \
+  'une écriture d'\''achat dit si l'\''achat a un justificatif, oui ou non ; la base ne le dit qu'\''à qui lit les livres'
+prouver 'mois 125 : le oui ou non dit à qui ne lit pas les livres' base/migrations/0173_achats_justifies.sql \
+  "
+     and p_entreprise in (select compta.mes_entreprises())" "" \
+  'une écriture d'\''achat dit si l'\''achat a un justificatif, oui ou non ; la base ne le dit qu'\''à qui lit les livres'
+prouver 'mois 125 : un justificatif compté sur une liste vide' base/migrations/0173_achats_justifies.sql \
+  "jsonb_array_length(d.contenu -> 'attachments') > 0 end, false)" "jsonb_array_length(d.contenu -> 'attachments') >= 0 end, false)" \
+  'une écriture d'\''achat dit si l'\''achat a un justificatif, oui ou non ; la base ne le dit qu'\''à qui lit les livres'
+prouver 'mois 125 : le Cabinet qui oublie ce que dit le serveur' web/public/plateforme/pont-cabinet.js \
+  "justifClient: typeof e.justificatif === 'boolean' ? e.justificatif : null," "justifClient: null," \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 125 : le 📎 qui tait le justificatif du client' web/public/v10/cabinet/app.js \
+  "if (ec && ec.justifClient === true) noms.push(" "if (false) noms.push(" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 125 : la ligne d'\''achat qui ne dit pas « sans justificatif »' web/public/v10/cabinet/app.js \
+  "if (!noms.length) return ec && ec.justifClient === false ?" "if (!noms.length) return false ?" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 125 : « Demander le justificatif » absent du menu de la ligne' web/public/v10/cabinet/app.js \
+  "if (e.justifClient === false && !dossier.manual && api.messagerie) {" "if (false) {" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 125 : la demande qui ne porte pas la pièce écrite d'\''avance' web/public/plateforme/messagerie.js \
+  "if (demande && o.demandeTexte && !demandeTxt.value) demandeTxt.value = o.demandeTexte;" "" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 125 : valider une écriture d'\''achat sans justificatif sans le dire' web/public/v10/cabinet/app.js \
+  "\${e.justifClient === false ? \`<p class=\"small\" id=\"ecr-sans-justif\">" "\${false ? \`<p class=\"small\" id=\"ecr-sans-justif\">" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 125 : valider un lot qui tait les achats sans justificatif' web/public/v10/cabinet/app.js \
+  "const sansJustif = cibles.filter(e => e.justifClient === false);" "const sansJustif = [];" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+
+prouver 'mois 126 : des achats dits confiés quand le mandat ne les confie pas' serveur/messagerie/routes.ts \
+  "const achatsConfies = !!m && (m.perimetre ?? []).includes('saisie_achats');" "const achatsConfies = !!m;" \
+  'ils s'\''écrivent ; chacun voit ce qui l'\''attend, « lu » se dit à l'\''autre ; ni la voisine, ni un autre rôle, ni un collaborateur sans le dossier'
+prouver 'mois 126 : la page Achats qui ne regarde pas le périmètre du mandat' web/public/v10/app.js \
+  "messagerieVue.cabinet && messagerieVue.achatsConfies && bridge.messagerie" "messagerieVue.cabinet && bridge.messagerie" \
+  'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
+prouver 'mois 126 : deux verts en haut de la page Achats confiés' web/public/v10/app.js \
+  "<button class=\"btn \${videAchats || confies ? '' : 'btn-primary'}\" id=\"new\">" "<button class=\"btn \${videAchats ? '' : 'btn-primary'}\" id=\"new\">" \
+  'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
+prouver 'mois 126 : la photo qui part sans dire qu'\''elle est une facture à saisir' web/public/v10/app.js \
+  "bridge.messagerie.envoyerFichier(f, \`Une facture d'achat à saisir : \${f.name}\`, null)" "bridge.messagerie.envoyerFichier(f, f.name, null)" \
+  'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
+prouver 'mois 126 : la page Achats qui ne se redessine pas quand on apprend que les achats sont confiés' web/public/v10/app.js \
+  "if (!!(vueAvant && vueAvant.achatsConfies) !== !!(a && a.achatsConfies) && routeOf(location.hash) === 'achats'" "if (false && routeOf(location.hash) === 'achats'" \
+  'Sarra a confié ses achats : la page le dit, la photo part chez Hatem, et plus rien quand le mandat ne les confie plus'
+prouver 'mois 127 : les encaissements comptés comme des ventes' serveur/compta/routes.ts \
+  "count(distinct origine) filter (where origine_type = 'vente') ventes" "count(*) ventes" \
+  'le résumé d'\''un mois : les ventes (facture, avoir) et les achats, sans leurs règlements, et les achats sans justificatif'
+prouver 'mois 127 : les règlements comptés comme des achats' serveur/compta/routes.ts \
+  "filter (where origine_type = 'achat'), '{}') achats" "filter (where origine_type in ('achat', 'reglement_fournisseur')), '{}') achats" \
+  'le résumé d'\''un mois : les ventes (facture, avoir) et les achats, sans leurs règlements, et les achats sans justificatif'
+prouver 'mois 127 : un achat justifié compté sans justificatif' serveur/compta/routes.ts \
+  ".filter((x) => !x.justifie).length" ".length" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 127 : le Suivi qui ne lit pas le mois' web/public/v10/cabinet/app.js \
+  "else if (api.ceMois && document.getElementById('d-ce-mois')) dessinerCeMois(dossier, !row.missingCount);" "else if (false) dessinerCeMois(dossier, !row.missingCount);" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 127 : la carte du mois sans son vert' web/public/v10/cabinet/app.js \
+  "\${vert ? ' btn-primary' : ''}\" data-ce-mois-valider>" "\" data-ce-mois-valider>" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 127 : « Valider » qui mène au livre-journal' web/public/v10/cabinet/app.js \
+  "if (v) v.onclick = () => ouvrir(true);" "if (v) v.onclick = () => ouvrir(false);" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 128 : la carte vide des questions avant l'\''invitation' web/public/v10/app.js \
+  ": \`\${mandatPanneau}\${messagerieVue && messagerieVue.cabinet ? panneauQuestions() : ''}\`;" ": \`\${panneauQuestions()}\${mandatPanneau}\`;" \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'mois 128 : le vert sur le code quand le curseur est dans l'\''adresse' web/public/plateforme/pont.js \
+  "for (const ev of ['focus', 'input']) { email.addEventListener(ev, () => suivre(true)); code?.addEventListener(ev, () => suivre(false)); }" "for (const ev of ['input']) { code?.addEventListener(ev, () => suivre(false)); }" \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'mois 128 : le vert qui ne revient pas au code tapé' web/public/plateforme/pont.js \
+  "code?.addEventListener(ev, () => suivre(false));" "void code;" \
+  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+prouver 'mois 128 : le cabinet qui nomme un chemin que le client ne prend pas' web/public/plateforme/pont-cabinet.js \
+  "dans <strong>Comptabilité › Cabinet</strong> (ou Paramètres › Envois)," "dans <strong>Paramètres → Envois → Ton cabinet comptable</strong>," \
+  'le client confie son dossier par le code que le Cabinet affiche ; l'\''associé accepte sur sa page Dossiers ; le client arrête le mandat après confirmation'
+prouver 'mois 129 : une proposition à chaque page neuve de la même ouverture' web/public/v10/app.js \
+  "if (visiteProposeeIci && !reprise) return;" "if (false) return;" \
+  'la première page neuve propose sa visite, la suivante se tait ; rouverte, elle propose ; « Ne plus me proposer » les éteint'
+prouver 'mois 129 : la proposition posée qui ne se compte pas' web/public/v10/app.js \
+  "visiteProposeeIci = true;" "visiteProposeeIci = false;" \
+  'la première page neuve propose sa visite, la suivante se tait ; rouverte, elle propose ; « Ne plus me proposer » les éteint'
+prouver 'mois 129 : « Ne plus me proposer » qui n'\''éteint rien' web/public/v10/app.js \
+  "visitesPoser(e => { e.proposer = false; });" "visitesPoser(e => { e.proposer = true; });" \
+  'la première page neuve propose sa visite, la suivante se tait ; rouverte, elle propose ; « Ne plus me proposer » les éteint'
+prouver 'mois 130 : « Envoyer au comptable… » sous « ton cabinet lit tout en direct »' web/public/v10/app.js \
+  "\${messagerieVue && messagerieVue.cabinet ? 'Envoyer par e-mail…' : 'Envoyer au comptable…'}</button>" "Envoyer au comptable…</button>" \
+  'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet et en face de la pièce ; la réponse est au serveur'
+prouver 'mois 131 : la validation qui finit encore sur une fenêtre à fermer' web/public/v10/cabinet/app.js \
+  "if (r.refusees.length) await infoDialog('Validation', lignes.join('\\n'));" "await infoDialog('Validation', lignes.join('\\n')); if (r.refusees.length) void 0;" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 131 : « prochaine étape » avec des écritures encore au brouillard' web/public/v10/cabinet/app.js \
+  "mois.has(String(e.date || '').slice(0, 7))).length;" "mois.has(String(e.date || '').slice(0, 7)) && false).length;" \
+  'la Paie, le brouillard et le menu disent le jour ; le lot ne valide que la pièce du jour'
+prouver 'mois 132 : le client neuf qui ouvre ses douze cases' web/public/v10/app.js \
+  "<details class=\"span-2 plus-details\" id=\"cf-plus\">" "<details open class=\"span-2 plus-details\" id=\"cf-plus\">" \
+  'le seul client pris par la pièce neuve, le paiement qui dit ce qu'\''il attend, ce qui reste des premiers pas, les envois'
+prouver 'mois 132 : le fournisseur neuf qui ouvre toutes ses cases' web/public/v10/app.js \
+  "<details class=\"span-2 plus-details\" id=\"sf-plus\">" "<details open class=\"span-2 plus-details\" id=\"sf-plus\">" \
+  'la caisse ne pousse pas ses tuiles, un achat réglé ne se supprime pas, la fenêtre garde son bouton, l'\''invitation ne revient pas, la date se remplace'
+prouver 'mois 133 : les écritures d'\''une pièce qui ne regardent pas son numéro' serveur/compta/routes.ts \
+  ".\$if(query.piece !== undefined, (q) => q.where('piece', '=', query.piece ?? ''))" ".\$if(query.piece === '§', (q) => q)" \
+  'les écritures d'\''une pièce, par son numéro : la vente et son encaissement, rien de l'\''avoir ni d'\''une autre pièce'
+prouver 'mois 133 : la pièce émise restée un formulaire grisé' web/public/v10/app.js \
+  "const lecture = locked && (isInv || isAv) && !isNew;" "const lecture = false;" \
+  'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
+prouver 'mois 133 : le reçu compté sans les paiements' web/public/v10/app.js \
+  "const recu = bal ? C.round3(bal.paid + bal.credited) : 0;" "const recu = bal ? C.round3(bal.credited) : 0;" \
+  'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
+prouver 'mois 133 : les cases grisées encore là sous le résumé' web/public/v10/style.css \
+  ".editor.lecture #f-head > :not(#ed-affaire) { display: none; }" ".editor.lecture #f-head > :not(#ed-affaire) { }" \
+  'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
+prouver 'mois 133 : une écriture validée dite au brouillard' web/public/v10/app.js \
+  "x.statut === 'validee'" "x.statut === 'valide'" \
+  'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
+
+prouver 'ux2 134 : l'\''état vide d'\''une liste en lecture seule qui garde son vert de création' web/public/v10/app.js \
+  "const retenue = aboBloque(true) && (boutons || []).some(([id]) => CREATION_RETENUE.has(id));" "const retenue = false;" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+prouver 'ux2 134 : la paie sans salarié, en lecture seule, qui garde son vert' web/public/v10/app.js \
+  "\${aboBloque(true) ? \`<p class=\"small\">\${phraseRetenue()}</p><div class=\"inline mt\">\${boutonRetenue()}<button class=\"btn\" id=\"emp-first\">" "\${false ? \`<p class=\"small\">\${phraseRetenue()}</p><div class=\"inline mt\">\${boutonRetenue()}<button class=\"btn\" id=\"emp-first\">" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+prouver 'ux2 134 : la trésorerie sans compte, en lecture seule, qui garde son vert' web/public/v10/app.js \
+  "\${aboBloque(true) ? \`<p class=\"small\">\${phraseRetenue()}</p><div class=\"inline mt\">\${boutonRetenue()}<button class=\"btn\" id=\"first-acc\">" "\${false ? \`<p class=\"small\">\${phraseRetenue()}</p><div class=\"inline mt\">\${boutonRetenue()}<button class=\"btn\" id=\"first-acc\">" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+prouver 'ux2 134 : le « + Nouveau… » de tête qui reste vert en lecture seule' web/public/v10/app.js \
+  "if (aboBloque(true)) \$\$('.page-head .btn-primary', view)" "if (false) \$\$('.page-head .btn-primary', view)" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+prouver 'ux2 134 : le fournisseur neuf qui ne refuse qu'\''à « Enregistrer »' web/public/v10/app.js \
+  "if (!supplier && licenceBlock('Créer un fournisseur', 'achats')) { return; }" "" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+prouver 'ux2 134 : « Voir l'\''abonnement » de l'\''état vide qui ne mène nulle part' web/public/v10/app.js \
+  "e.target.closest('#vide-voir-abo')) allerAbonnement();" "e.target.closest('#vide-voir-abo')) void 0;" \
+  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
+prouver 'ux2 134 : la messagerie hors ligne qui dit « le serveur ne répond pas »' web/public/plateforme/messagerie.js \
+  "const sansReseau = (x) => typeof navigator !== 'undefined' && navigator.onLine === false && !(x && /** @type {any} */ (x).jamaisLue);" "const sansReseau = (x) => false && !!x;" \
+  'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'ux2 134 : la messagerie qui attend trente secondes le retour du réseau' web/public/plateforme/messagerie.js \
+  "    window.addEventListener('online', auRetour);" "" \
+  'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'ux2 134 : le Cabinet sans réseau qui dit « le serveur ne répond pas »' web/public/plateforme/pont-cabinet.js \
+  "navigator.onLine === false ? 'Pas de réseau pour lire cette page : réessaie quand la connexion revient.'" "false ? 'Pas de réseau pour lire cette page : réessaie quand la connexion revient.'" \
+  'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'ux2 134 : la boîte du cabinet qui attend trente secondes le retour du réseau' web/public/plateforme/messagerie.js \
+  "    window.addEventListener('online', auReseau);" "" \
+  'Amine et son comptable s'\''écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'ux2 134 : la page jamais lue du Cabinet qui perd son motif sans réseau' web/public/plateforme/pont-cabinet.js \
+  "jamaisLue: methode === 'GET' && !!poste && poste.garde() });" "jamaisLue: false });" \
+  'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
+prouver 'mois 135 : les justificatifs d'\''une écriture lus par n'\''importe qui' base/migrations/0174_justificatifs_ecriture.sql \
+  "   where p_entreprise in (select compta.mes_entreprises())" "   where true" \
+  'les justificatifs d'\''une écriture : ceux de son achat, octet pour octet ; ni un autre fichier, ni un règlement, ni une autre personne'
+prouver 'mois 135 : un fichier de l'\''entreprise rendu par une écriture qui ne le porte pas' base/migrations/0174_justificatifs_ecriture.sql \
+  "     and p_fichier in (select l.fichier from compta.justificatifs_ecriture(p_entreprise, p_ecriture) l)" "" \
+  'les justificatifs d'\''une écriture : ceux de son achat, octet pour octet ; ni un autre fichier, ni un règlement, ni une autre personne'
+prouver 'mois 135 : le justificatif du client qui ne s'\''ouvre pas depuis la ligne' web/public/v10/cabinet/app.js \
+  "if (e.justifClient === true && !e.attente && api.justificatifsEcriture) {" "if (false && api.justificatifsEcriture) {" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 135 : l'\''onglet du justificatif qui reste vide' web/public/plateforme/pont-cabinet.js \
+  "if (onglet) /** @type {any} */ (window).SkanMessagerie.montrerFichier(onglet, adresse, f.nom, f.type);" "void adresse;" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'mois 135 : le mois d'\''avant le livre dit sans déclaration' web/public/v10/cabinet/app.js \
+  "n'est pas dans ce livre : sa déclaration, à déposer au plus tard le \${esc(fmtJour(K.dateLimiteDeclaration(S, precedent, 'tva', dossier)))}, se fait" "n'est pas dans ce livre : rien à déposer avant lui, se fait" \
+  'un dossier commencé ce mois-ci : pas de « Déclarer le mois d'\''avant », pas d'\''alerte 4367 avant la fin du mois'
+prouver 'ux2 136 : l'\''entreprise qui s'\''ouvre sur un écran muet' web/public/plateforme/pont.js \
+  "      poste.ouverture('ton entreprise');" "" \
+  'l'\''entreprise : lente, elle dit qu'\''elle s'\''ouvre ; refusée, elle le dit, et « Réessayer » l'\''ouvre'
+prouver 'ux2 136 : l'\''entreprise refusée à l'\''ouverture qui reste blanche' web/public/plateforme/pont.js \
+  "poste.echecOuverture('ton entreprise', e);" "throw e;" \
+  'l'\''entreprise : lente, elle dit qu'\''elle s'\''ouvre ; refusée, elle le dit, et « Réessayer » l'\''ouvre'
+prouver 'ux2 136 : l'\''ouverture longue qui ne dit pas qu'\''elle tarde' web/public/plateforme/poste.js \
+  ", 10_000)," ", 1e9)," \
+  'l'\''entreprise : lente, elle dit qu'\''elle s'\''ouvre ; refusée, elle le dit, et « Réessayer » l'\''ouvre'
+prouver 'ux2 136 : le Cabinet qui s'\''ouvre sur une page blanche' web/public/plateforme/pont-cabinet.js \
+  "    if (poste) poste.ouverture('ton cabinet');" "" \
+  'le Cabinet : lent, il dit qu'\''il s'\''ouvre ; refusé, il le dit, et « Réessayer » l'\''ouvre'
+prouver 'ux2 136 : le Cabinet refusé à l'\''ouverture qui reste blanc' web/public/plateforme/pont-cabinet.js \
+  "poste.echecOuverture('ton cabinet', e);" "throw e;" \
+  'le Cabinet : lent, il dit qu'\''il s'\''ouvre ; refusé, il le dit, et « Réessayer » l'\''ouvre'
+prouver 'ux2 137 : « Ce mois-ci » refusé qui disparaît sans rien dire' web/public/v10/cabinet/app.js \
+  "    if (refus) {" "    if (refus) { zone.remove(); return; } if (false) {" \
+  'le Suivi d'\''un dossier : « Ce mois-ci » refusé par le serveur le dit, et « Réessayer » le relit'
+prouver 'ux2 137 : le « Réessayer » de « Ce mois-ci » qui ne relit rien' web/public/v10/cabinet/app.js \
+  "        dessinerCeMois(dossier, vert);" "        void vert;" \
+  'le Suivi d'\''un dossier : « Ce mois-ci » refusé par le serveur le dit, et « Réessayer » le relit'
+prouver 'ux2 138 : la Comptabilité refusée dont « Réessayer » ne relit rien' web/public/v10/cabinet/app.js \
+  "        chargerLivres(dossier).then(() => { if (\$('#c-livres')) drawLivres(document, dossier); });" "        void dossier;" \
+  'au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit'
+prouver 'ux2 138 : la Production refusée qui ne dit pas ce qui manque' web/public/v10/cabinet/app.js \
+  "<b>La production n'a pas pu se lire.</b> " "" \
+  'au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit'
+prouver 'ux2 138 : les Échéances qui disent « aucune échéance » d'\''une lecture refusée' web/public/v10/cabinet/app.js \
+  "    if (!liste.length && questionsAttenteRefus) {" "    if (false) {" \
+  'au Cabinet, la Comptabilité, la Production et les Échéances refusées le disent, et « Réessayer » les relit'
+prouver 'ux3 139 : la bienvenue qui reste devant une entreprise qui facture déjà' web/public/v10/app.js \
+  " && !et.accueilVu && !metierCommence(); };" " && !et.accueilVu; };" \
+  'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
+prouver 'ux3 139 : les premiers pas faits qui restent listés une fois le métier commencé' web/public/v10/app.js \
+  "p.etapes.filter(e => !(e.fait && metierCommence())).map(e => {" "p.etapes.map(e => {" \
+  'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
+prouver 'ux3 139 : les premiers pas qui passent devant l'\''À faire et les chiffres' web/public/v10/app.js \
+  "      \${duGrain && metierCommence() ? '' : pas}" "      \${pas}" \
+  'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
+prouver 'ux3 139 : le cabinet seul à qui l'\''on propose de se confier ses dossiers' web/public/v10/cabinet/app.js \
+  "    if (liste.length < 2) return '';" "    if (!liste.length) return '';" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'ux3 139 : « dont 1 sans justificatif » sans le geste qui le réclame' web/public/v10/cabinet/app.js \
+  "    if (dj) dj.onclick = () => {" "    if (dj) dj.remove(); if (false) {" \
+  'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
+prouver 'ux3 139 : le nom du client écrasé à zéro sur la carte d'\''un dossier au téléphone' web/public/plateforme/telephone.css \
+  "  table.list[data-cartes].dl-table > * > tr > td.dl-client { max-width: none; width: auto; min-width: 0; }" "" \
+  'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'\''ordinateur le disent'
+prouver 'ux3 139 : les libellés de la rangée de chiffres coupés au téléphone' web/public/plateforme/telephone.css \
+  "  .stats.rangee .lbl, .stats.rangee .sub { white-space: normal; overflow: visible; }" "" \
+  'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'\''ordinateur le disent'
+prouver 'ux3 139 : les montants sous le pli dans une carte de facture au téléphone' web/public/plateforme/telephone.css \
+  "  table.list[data-cartes] > tbody > tr > td:not(.r):not([data-tel=\"titre\"]):not(.row-actions):not([data-tel-tiers=\"oui\"]) { order: 3; }" "" \
+  'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'\''ordinateur, un tableau'
+prouver 'ux3 140 : la carte des totaux qui répète une liste d'\''une seule ligne au téléphone' web/public/plateforme/telephone.css \
+  "  table.list[data-cartes]:has(> tbody > tr:only-child) > tfoot { display: none; }" "" \
+  'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
+prouver 'ux3 140 : chaque pièce demandée avec son « Envoyer la pièce… » en vert' web/public/plateforme/messagerie.js \
+  "class=\"btn btn-sm\${m.id === plusAncienneAttendue() ? ' btn-primary' : ''}\" data-msg-envoyer-piece" "class=\"btn btn-sm btn-primary\" data-msg-envoyer-piece" \
+  '(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi'
+prouver 'ux2 141 : la page d’échec posée par-dessus le bandeau qui dit pourquoi' web/public/plateforme/poste.js \
+  "    if (close) { return; }" "" \
+  'le portable retiré remet ce qu'\''il avait fait hors ligne ; accepté, ce qui a changé depuis est mis de côté et dit'
+
+prouver 'ux3 143 : le bloc « À payer » qui répète une liste où tout est à payer' web/public/v10/app.js \
+  "    if (due.length <= 8 && due.length === (data.purchases || []).length) {" "    if (false) {" \
+  'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
+prouver 'ux3 143 : une carte du téléphone titrée par sa date' web/public/plateforme/telephone.js \
+  "!choix(td) && !dateSeule(td) && " "!choix(td) && " \
+  'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
+prouver 'ux3 143 : le client sous le type de la pièce au téléphone' web/public/plateforme/telephone.css \
+  '  table.list[data-cartes] > tbody > tr > td[data-tel-tiers="oui"] { order: 2; }' '  table.list[data-cartes] > tbody > tr > td[data-tel-tiers="oui"] { order: 4; }' \
+  'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'"'"'ordinateur, un tableau'
+prouver 'ux3 143 : « Actions » allumé sur la seule carte touchée' web/public/plateforme/telephone.css \
+  '  table.list[data-cartes] > tbody > tr > td.row-actions .row-menu-btn:not(.btn) { opacity: 1; background: var(--ink-soft); color: var(--text); }' '' \
+  'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'"'"'ordinateur, un tableau'
+prouver 'ux3 144 : le Cabinet qui propose une visite sur chaque écran neuf de la même ouverture' web/public/v10/cabinet/app.js \
+  '    if (visiteProposeeIci && !reprise) return;' '' \
+  'au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d'"'"'un geste'
+prouver 'ux3 144 : « Ne plus me proposer de visites » du Cabinet qui n'"'"'éteint rien' web/public/v10/cabinet/app.js \
+  '      visitesPoser(e => { e.proposer = false; });' '' \
+  'au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d'"'"'un geste'
+prouver 'ux3 145 : « Enregistrer le brouillon » relégué derrière l'"'"'aperçu au téléphone' web/public/plateforme/telephone.css \
+  '  .page-head .actions:has(> #save:not(.btn-primary)) > * { order: 2; }' '' \
+  'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
+prouver 'ux3 146 : une facture de vente en retard dite en orange, un achat en retard en rouge' web/public/v10/style.css \
+  '.badge.retard { background: var(--danger-soft); color: var(--danger); }' '.badge.retard { background: var(--warning-soft); color: var(--warning); }' \
+  'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu'
+prouver 'ux3 146 : une échéance passée du Cabinet dite en orange' web/public/v10/cabinet/cabinet.css \
+  '.dc-echeance.retard > span:first-child { color: var(--danger); }' '.dc-echeance.retard > span:first-child { color: var(--warning); }' \
+  'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu'
+prouver 'ux3 147 : « 0 en retard » sous « Reste à encaisser »' web/public/v10/app.js \
+  "\${late.length ? \`\${late.length} en retard\` : 'aucune en retard'}" "\${late.length} en retard" \
+  'avant la première facture, la bienvenue en tête ; une facture émise, l'"'"'À faire et les chiffres d'"'"'abord, puis ce qui reste'
+prouver 'ux3 147 : « 0 devis envoyé » sous « Devis en attente »' web/public/v10/app.js \
+  " : 'aucun devis en attente de réponse'}" " : '0 devis envoyé'}" \
+  'avant la première facture, la bienvenue en tête ; une facture émise, l'"'"'À faire et les chiffres d'"'"'abord, puis ce qui reste'
+prouver 'ux3 148 : les filtres du téléphone, une rangée chacun' web/public/plateforme/telephone.css \
+  '  .filters > :is(label.inline, span.muted.small, .btn-sm) { flex: 0 1 auto; }' '' \
+  'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'"'"'ordinateur le disent'
+prouver 'ux3 149 : la désignation d'"'"'une pièce émise coupée au téléphone' web/public/plateforme/telephone.css \
+  '  td:has(> .ligne-lue) > input[data-k="label"] { display: none; }' '' \
+  'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'"'"'ordinateur, un tableau'
+prouver 'ux3 150 : l'"'"'explication d'"'"'une pièce émise en gras bleu' web/public/v10/style.css \
+  '.lock-banner .tel-detail { font-weight: 400; color: var(--text-soft, var(--muted)); }' '' \
+  'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

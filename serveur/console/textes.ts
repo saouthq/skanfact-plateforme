@@ -65,6 +65,8 @@ declarerTextes({
   'console.remise.motif_court': 'une remise demande son motif, trois caractères au moins : il entre dans la piste d\'audit de l\'entreprise',
   'console.remise.motif_illisible': 'le motif tient sur une ligne, trois cents caractères au plus',
   'console.sans_balise': 'ce texte part sur la page d\'état publique : sans les signes < ni >',
+  // (1.109.0) Un message prêt d'une fiche (ses passages entre crochets) envoyé sans être rempli.
+  'console.a_remplir': 'un passage entre crochets reste à remplir : la page d\'état publique ne montre que des phrases finies',
   'console.motif_requis': 'un geste de la console demande son motif, trois caractères au moins : il reste dans son histoire',
   // Les versions du service (docs/console.md C27).
   'console.versions.hors_depot': 'le suiveur n\'installe qu\'une des trente dernières versions du dépôt : celle-ci n\'en est plus',
@@ -88,6 +90,7 @@ declarerTextes({
   'console.donnees.raison': 'la raison de la décision, en trois caractères au moins : elle se répond à la personne',
   // Préparer un prix (docs/abonnement.md C14) : chaque refus nomme sa case.
   'console.reglages.prix_illisible': 'le prix s\'écrit en dinars hors taxes, avec trois décimales au plus : « 420 » ou « 420,500 »',
+  'console.reglages.nombre_illisible': 'le nombre s\'écrit en chiffres, sans virgule : « 3 » ou « 15 »',
   'console.reglages.nouveaute_inconnue': 'la version en service ne porte pas cette nouveauté : elle n\'existe que dans une version à venir, ou elle est devenue la règle pour tous',
   'console.reglages.jour_illisible': 'ce jour n\'existe pas au calendrier : choisis-en un dans le calendrier',
   // Les coûts du mois (docs/console.md C30) : chaque refus nomme sa case.

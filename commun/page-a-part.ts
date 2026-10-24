@@ -1,0 +1,215 @@
+// Les pages « à part » de SkanFact (1.108.0 ; demandé par Skander le 22/10/2026 : « une vraie UI belle dans notre DA »
+// pour les pages qu'on ne voit pas d'habitude). Celles qui vivent hors de l'application : « Maintenance en cours » quand
+// l'équipe ferme l'application (serveur/fermeture.ts), « Maintenance en cours » quand le programme redémarre (le frontal,
+// exploitation/maintenance.html, écrit par scripts/pages-a-part.ts), et la page d'état publique (exploitation/veille.ts).
+//
+// Un seul habit pour toutes, celui de l'entrée (web/src/entree.css) : la vitrine vert nuit quadrillée à gauche, la
+// pastille « S », Bricolage Grotesque pour les titres, Instrument Sans pour le texte, IBM Plex Mono pour les heures ; à
+// droite, la carte claire (sombre si le système l'est). Tout est dans la page (aucune feuille à charger : le programme
+// peut être arrêté quand elle s'affiche), sauf les polices, servies par celui qui sert la page ; sans elles, celles du
+// système prennent le relais.
+
+export type Ton = 'vert' | 'orange' | 'rouge' | 'gris' | 'bleu';
+export type PageAPart = {
+  onglet: string;              // le titre de l'onglet du navigateur
+  polices: string | null;      // l'adresse du dossier des polices (« /plateforme/polices/ ») ; null : celles du système
+  rafraichir?: number;         // la page se recharge seule (en secondes)
+  pastille: { texte: string; ton: Ton; anime?: boolean };
+  titre: string;               // le grand titre de la vitrine (HTML échappé)
+  chapo: string;               // sous le titre (HTML échappé)
+  corps: string;               // la carte de droite (HTML échappé)
+  pied?: string;               // sous la carte (HTML échappé)
+  vitrineBas?: string;         // au bas de la vitrine (HTML échappé)
+  script?: string;             // un script de la page (le frontal seulement : le programme n'en permet aucun)
+  style?: string;              // des règles de plus, propres à la page (le formulaire de la page de secours)
+};
+
+export const echapper = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+
+// Les dessins, au trait (ceux de l'application) : rien à charger.
+const TRAIT = 'fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+export const DESSINS = {
+  bouclier: `<svg viewBox="0 0 24 24" ${TRAIT}><path d="M12 3l7 3v5c0 4.5-3 8.2-7 10-4-1.8-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/></svg>`,
+  refaire: `<svg viewBox="0 0 24 24" ${TRAIT}><path d="M4 12a8 8 0 0 1 13.7-5.6L20 9"/><path d="M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-13.7 5.6L4 15"/><path d="M4 20v-5h5"/></svg>`,
+  horloge: `<svg viewBox="0 0 24 24" ${TRAIT}><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>`,
+  cle: `<svg viewBox="0 0 24 24" ${TRAIT}><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/></svg>`,
+  fleche: `<svg viewBox="0 0 24 24" ${TRAIT}><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>`,
+  signal: `<svg viewBox="0 0 24 24" ${TRAIT}><path d="M3 12h4l3-8 4 16 3-8h4"/></svg>`,
+} as const;
+
+// Une assurance de la carte : un dessin, ce qu'elle dit, et sa raison.
+export const assurance = (dessin: keyof typeof DESSINS, titre: string, texte: string) =>
+  `<li><span class="pa-icone">${DESSINS[dessin]}</span><span><b>${echapper(titre)}</b><span>${echapper(texte)}</span></span></li>`;
+
+// Les morceaux de la carte (1.109.0 : la page de la fermeture, serveur/fermeture.ts, les assemble ; le code du serveur
+// n'écrit ni phrase ni balise en dur). Les textes passés sont du HTML échappé, sauf `texteDeLEquipe` et `x`, échappés ici.
+export const chiffres = (x: string) => `<span data-chiffres>${echapper(x)}</span>`;
+export const encartHeure = (etiquette: string, heure: string, note: string) =>
+  `<div class="pa-heure"><span class="pa-etiquette">${etiquette}</span><strong data-chiffres>${echapper(heure)}</strong><small>${note}</small></div>`;
+export const encartMessage = (etiquette: string, texteDeLEquipe: string) =>
+  `<div class="pa-heure"><span class="pa-etiquette">${etiquette}</span><blockquote class="pa-message" data-texte>${echapper(texteDeLEquipe)}</blockquote></div>`;
+export const assurances = (lignes: string[]) => `<ul class="pa-assurances">\n${lignes.join('\n')}\n</ul>`;
+export const basDeCarte = (essai: string, lien: { href: string; texte: string }) =>
+  `<hr class="pa-trait">\n<div class="pa-bas"><p class="pa-essai">${essai}</p><a class="pa-lien" href="${lien.href}">${lien.texte} ${DESSINS.fleche}</a></div>`;
+
+function polices(dossier: string) {
+  return `@font-face{font-family:'Bricolage Grotesque Variable';font-style:normal;font-display:swap;font-weight:200 800;src:url(${dossier}bricolage-grotesque-latin-wght-normal.woff2) format('woff2-variations')}
+@font-face{font-family:'Instrument Sans Variable';font-style:normal;font-display:swap;font-weight:400 700;src:url(${dossier}instrument-sans-latin-wght-normal.woff2) format('woff2-variations')}
+@font-face{font-family:'IBM Plex Mono';font-style:normal;font-display:swap;font-weight:500;src:url(${dossier}ibm-plex-mono-latin-500-normal.woff2) format('woff2')}
+`;
+}
+
+// Les couleurs de l'entrée (web/src/entree.css), en clair puis en sombre ; la vitrine reste nuit dans les deux.
+const STYLE = `:root{color-scheme:light dark;
+--fond:#f6f8f7;--papier:#fff;--encre:#13211f;--gris:#56655f;--trait:#dce4e1;--lien:#0b7a70;--doux:#e3f4f1;--doux-texte:#0b5f57;
+--nuit:#0b2724;--nuit-texte:#e8f3f1;--nuit-gris:#a9c6c1;--nuit-trait:#3e6862;--menthe:#7fe0d3;
+--vert:#1f9d6b;--orange:#d9822b;--rouge:#d64545;--bleu:#3b74c4;--gris-point:#a7b5b1;
+--titre:'Bricolage Grotesque Variable','Segoe UI',system-ui,sans-serif;--texte:'Instrument Sans Variable','Segoe UI',system-ui,sans-serif;
+--chiffres:'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace}
+@media (prefers-color-scheme:dark){:root{--fond:#0e1716;--papier:#142220;--encre:#e6efed;--gris:#a3b6b1;--trait:#263a37;--lien:#7fe0d3;--doux:rgba(127,224,211,.12);--doux-texte:#b5f0e8}}
+*,*::before,*::after{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{background:var(--fond);color:var(--encre);font:16px/1.55 var(--texte);-webkit-font-smoothing:antialiased}
+h1,h2{font-family:var(--titre);font-weight:600;letter-spacing:-.02em;margin:0;text-wrap:balance}
+p{margin:0}
+a{color:var(--lien)}
+[data-chiffres]{font-family:var(--chiffres);font-variant-numeric:tabular-nums;letter-spacing:0}
+.pa-double{display:flex;flex-wrap:wrap;min-height:100vh;min-height:100dvh}
+.pa-nuit{flex:1 1 460px;padding:44px 56px;display:flex;flex-direction:column;gap:36px;background-color:var(--nuit);
+background-image:repeating-linear-gradient(0deg,rgba(127,224,211,.06) 0 1px,transparent 1px 32px);color:var(--nuit-texte)}
+.pa-marque{display:inline-flex;align-items:center;gap:12px;font-family:var(--titre);font-weight:600;font-size:21px;letter-spacing:-.01em;color:#fff}
+.pa-logo{width:36px;height:36px;flex:none;border-radius:10px;background:#0f9d8f;color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--titre);font-weight:700;font-size:20px}
+.pa-nuit-milieu{flex:1 1 auto;display:flex;flex-direction:column;justify-content:center;gap:20px;max-width:500px}
+.pa-pastille{align-self:flex-start;display:inline-flex;align-items:center;gap:9px;padding:6px 14px 6px 12px;border-radius:999px;
+background:rgba(127,224,211,.1);border:1px solid rgba(127,224,211,.22);color:var(--menthe);font-size:13px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.pa-pastille i{width:9px;height:9px;border-radius:50%;background:currentColor;flex:none}
+.pa-pastille.pa-orange{color:#f6b26b;background:rgba(246,178,107,.1);border-color:rgba(246,178,107,.25)}
+.pa-pastille.pa-rouge{color:#f28b82;background:rgba(242,139,130,.1);border-color:rgba(242,139,130,.28)}
+.pa-pastille.pa-vert{color:#7fe0b0;background:rgba(127,224,176,.1);border-color:rgba(127,224,176,.25)}
+.pa-pastille.pa-gris{color:var(--nuit-gris);background:rgba(169,198,193,.08);border-color:rgba(169,198,193,.2)}
+.pa-pastille.pa-anime i{animation:pa-pouls 1.8s ease-in-out infinite}
+@keyframes pa-pouls{0%,100%{box-shadow:0 0 0 0 currentColor;opacity:1}50%{box-shadow:0 0 0 6px transparent;opacity:.55}}
+.pa-nuit h1{font-size:46px;line-height:1.06;color:#fff}
+.pa-nuit h1 [data-chiffres]{font-family:var(--titre);font-variant-numeric:tabular-nums;color:var(--menthe);white-space:nowrap}
+.pa-chapo{font-size:18px;line-height:1.55;color:var(--nuit-gris);max-width:460px}
+.pa-nuit-bas{font-size:13px;color:var(--nuit-gris);display:flex;flex-wrap:wrap;gap:6px 18px}
+.pa-cote{flex:1 1 480px;min-width:0;padding:44px 56px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:18px}
+.pa-carte{width:100%;max-width:470px;background:var(--papier);border:1px solid var(--trait);border-radius:18px;padding:30px 30px 26px;
+box-shadow:0 1px 2px rgba(19,33,31,.04),0 18px 40px -18px rgba(19,33,31,.18);display:flex;flex-direction:column;gap:22px}
+.pa-etiquette{font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--gris)}
+.pa-heure{display:flex;flex-direction:column;gap:4px}
+.pa-heure strong{font-family:var(--titre);font-variant-numeric:tabular-nums;font-weight:600;font-size:42px;line-height:1.1;letter-spacing:-.02em;color:var(--encre)}
+.pa-heure small{font-size:14px;color:var(--gris)}
+.pa-message{margin:0;padding:14px 16px;border-radius:12px;background:var(--doux);color:var(--doux-texte);font-size:15.5px;line-height:1.5;overflow-wrap:anywhere;border-inline-start:3px solid var(--lien)}
+.pa-assurances{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.pa-assurances li{display:flex;gap:14px;align-items:flex-start}
+.pa-assurances li>span:last-child{display:flex;flex-direction:column;gap:1px}
+.pa-assurances b{font-size:15px;font-weight:600}
+.pa-assurances li>span:last-child>span{font-size:14px;color:var(--gris)}
+.pa-icone{width:36px;height:36px;flex:none;border-radius:10px;background:var(--doux);color:var(--lien);display:flex;align-items:center;justify-content:center}
+.pa-icone svg{width:19px;height:19px}
+.pa-trait{height:1px;background:var(--trait);border:0;margin:0}
+.pa-lien{display:inline-flex;align-items:center;gap:8px;font-weight:600;font-size:15px;text-decoration:none}
+.pa-lien:hover{text-decoration:underline}
+.pa-lien svg{width:17px;height:17px}
+.pa-bas{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:10px 18px}
+.pa-essai{font-size:14px;color:var(--gris)}
+.pa-pied{width:100%;max-width:470px;font-size:13px;color:var(--gris);text-align:center}
+.pa-etat{display:flex;align-items:center;gap:14px;padding:4px 0 2px}
+.pa-etat .point{width:14px;height:14px}
+.pa-etat strong{font-family:var(--titre);font-weight:600;font-size:24px;letter-spacing:-.01em}
+.pa-lignes{list-style:none;margin:0;padding:0;border:1px solid var(--trait);border-radius:14px;overflow:hidden}
+.pa-lignes li{display:grid;grid-template-columns:auto 8.5em minmax(0,1fr);gap:12px;align-items:center;padding:13px 16px;border-top:1px solid var(--trait)}
+.pa-lignes li:first-child{border-top:0}
+.pa-lignes li b{font-weight:600;font-size:15px}
+.pa-lignes li span:last-child{color:var(--gris);font-size:14.5px}
+.point{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+.point.vert{background:var(--vert);box-shadow:0 0 0 4px rgba(31,157,107,.14)}.point.orange{background:var(--orange);box-shadow:0 0 0 4px rgba(217,130,43,.15)}
+.point.rouge{background:var(--rouge);box-shadow:0 0 0 4px rgba(214,69,69,.15)}.point.gris{background:var(--gris-point)}
+.pa-annonces{display:flex;flex-direction:column;gap:12px}
+.pa-nuit h1 .point{width:16px;height:16px;vertical-align:.12em;margin-inline-end:4px}
+.annonce{padding:14px 16px;border-radius:12px;border:1px solid var(--trait);border-inline-start:4px solid var(--bleu);display:flex;flex-direction:column;gap:4px}
+.annonce.a-orange{border-inline-start-color:var(--orange)}.annonce.a-rouge{border-inline-start-color:var(--rouge)}.annonce.a-bleu{border-inline-start-color:var(--bleu)}
+.annonce b{font-size:15px}.annonce p{font-size:15px;overflow-wrap:anywhere}.annonce small{font-size:13px;color:var(--gris)}
+@media (max-width:860px){
+.pa-nuit{flex-basis:100%;padding:24px 20px 30px;gap:22px}
+.pa-nuit-milieu{gap:14px}
+.pa-nuit h1{font-size:31px;line-height:1.12}
+.pa-chapo{font-size:16px}
+.pa-cote{flex-basis:100%;padding:22px 16px 34px;justify-content:flex-start}
+.pa-carte{padding:22px 20px 20px;border-radius:16px}
+.pa-heure strong{font-size:32px}
+.pa-lignes li{grid-template-columns:auto minmax(0,1fr)}.pa-lignes li span:last-child{grid-column:2}
+}
+@media (prefers-reduced-motion:reduce){.pa-pastille.pa-anime i{animation:none}}
+`;
+
+export function pageAPart(p: PageAPart): string {
+  const pastille = `<span class="pa-pastille pa-${p.pastille.ton}${p.pastille.anime ? ' pa-anime' : ''}"><i></i>${echapper(p.pastille.texte)}</span>`;
+  return `<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+${p.rafraichir ? `<meta http-equiv="refresh" content="${p.rafraichir}">` : ''}<meta name="robots" content="noindex"><meta name="theme-color" content="#0b2724">
+<title>${echapper(p.onglet)}</title>
+<style>
+${p.polices ? polices(p.polices) : ''}${STYLE}${p.style ?? ''}</style></head>
+<body><div class="pa-double">
+<aside class="pa-nuit">
+<div class="pa-marque"><span class="pa-logo" aria-hidden="true">S</span>SkanFact</div>
+<div class="pa-nuit-milieu">${pastille}<h1>${p.titre}</h1><p class="pa-chapo">${p.chapo}</p></div>
+${p.vitrineBas ? `<p class="pa-nuit-bas">${p.vitrineBas}</p>` : ''}
+</aside>
+<main class="pa-cote">
+<section class="pa-carte">${p.corps}</section>
+${p.pied ? `<p class="pa-pied">${p.pied}</p>` : ''}
+</main>
+</div>${p.script ? `\n<script>${p.script}</script>` : ''}
+</body></html>
+`;
+}
+
+// « Maintenance en cours » quand le programme redémarre (une mise à jour) : le frontal la sert, le programme arrêté.
+// Écrite dans exploitation/maintenance.html par scripts/pages-a-part.ts (un test vérifie qu'elle est à jour). Les
+// polices viennent du frontal lui-même (/etat-polices/, exploitation/frontal.sh).
+export function pageRedemarrage(): string {
+  return pageAPart({
+    onglet: 'Maintenance en cours — SkanFact',
+    polices: '/etat-polices/',
+    rafraichir: 15,
+    pastille: { texte: 'Maintenance en cours', ton: 'bleu', anime: true },
+    titre: 'SkanFact revient dans un instant.',
+    chapo: 'Une mise à jour s\'installe : le service redémarre, en général en moins d\'une minute.',
+    corps: `<div class="pa-heure"><span class="pa-etiquette">Retour prévu</span><strong data-chiffres>&lt; 1 min</strong><small>Le temps que la nouvelle version démarre.</small></div>
+<ul class="pa-assurances">
+${assurance('bouclier', 'Tes données sont en sécurité', 'Rien ne se perd pendant une mise à jour.')}
+${assurance('refaire', 'Ce que tu envoyais n\'est pas parti', 'Rien n\'a été enregistré à moitié : refais-le au retour.')}
+${assurance('horloge', 'Cette page revient seule', 'Elle réessaie toute seule, sans que tu aies rien à faire.')}
+</ul>
+<hr class="pa-trait">
+<div class="pa-bas"><p class="pa-essai" aria-live="polite">Nouvel essai dans <b data-chiffres id="pa-compte">15</b> s</p><a class="pa-lien" href="/etat">Page d'état ${DESSINS.fleche}</a></div>`,
+    vitrineBas: 'Gestion, caisse, paie et comptabilité, avec ton cabinet comptable.',
+    script: 'var n=15,c=document.getElementById("pa-compte");setInterval(function(){n=Math.max(0,n-1);if(c)c.textContent=String(n);if(n===0)location.reload();},1000);',
+  });
+}
+
+// L'application et la console sans JavaScript (le navigateur l'a coupé) : une page blanche jusqu'ici. Un mot dans le même
+// habit, posé par scripts/pages-a-part.ts entre ses deux marques dans web/index.html et web/console/index.html (un test
+// vérifie qu'il y est, à jour). La politique des écrans admet les styles écrits dans la page, et les polices des écrans.
+export const MARQUES_SANS_JAVASCRIPT = ['<!-- sans-javascript (commun/page-a-part.ts) -->', '<!-- /sans-javascript -->'] as const;
+export function sansJavascript(): string {
+  return `${MARQUES_SANS_JAVASCRIPT[0]}
+    <noscript>
+      <style>
+        @font-face{font-family:'Bricolage Grotesque Variable';font-display:swap;font-weight:200 800;src:url(/plateforme/polices/bricolage-grotesque-latin-wght-normal.woff2) format('woff2-variations')}
+        @font-face{font-family:'Instrument Sans Variable';font-display:swap;font-weight:400 700;src:url(/plateforme/polices/instrument-sans-latin-wght-normal.woff2) format('woff2-variations')}
+        .sans-js{position:fixed;inset:0;z-index:99;display:flex;align-items:center;justify-content:center;padding:24px 16px;box-sizing:border-box;overflow:auto;
+          background:#0b2724 repeating-linear-gradient(0deg,rgba(127,224,211,.06) 0 1px,transparent 1px 32px);color:#e8f3f1;font:16px/1.55 'Instrument Sans Variable','Segoe UI',system-ui,sans-serif}
+        .sans-js div{max-width:460px;display:flex;flex-direction:column;align-items:flex-start;gap:18px}
+        .sans-js span{width:44px;height:44px;border-radius:12px;background:#0f9d8f;color:#fff;display:flex;align-items:center;justify-content:center;font:700 24px 'Bricolage Grotesque Variable','Segoe UI',system-ui,sans-serif}
+        .sans-js h1{margin:0;font:600 34px/1.1 'Bricolage Grotesque Variable','Segoe UI',system-ui,sans-serif;letter-spacing:-.02em;color:#fff}
+        .sans-js p{margin:0;color:#a9c6c1;font-size:17px}
+      </style>
+      <section class="sans-js"><div><span aria-hidden="true">S</span><h1>SkanFact a besoin de JavaScript.</h1>
+        <p>Ton navigateur l'a désactivé pour ce site. Réactive-le dans ses réglages, puis recharge la page : rien n'est perdu, tes données t'attendent.</p></div></section>
+    </noscript>
+    ${MARQUES_SANS_JAVASCRIPT[1]}`;
+}

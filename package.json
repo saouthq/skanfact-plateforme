@@ -1,6 +1,6 @@
 {
   "name": "skanfact-plateforme",
-  "version": "1.105.1",
+  "version": "1.150.0",
   "private": true,
   "type": "module",
   "description": "SkanFact, la plateforme : gestion commerciale, caisse, paie et comptabilité pour les entreprises tunisiennes et leur cabinet comptable.",
@@ -28,6 +28,7 @@
     "reprendre-v10": "node web/v10/reprendre.mjs",
     "banc:lecture": "node banc/lecture/mesurer.ts",
     "banc:console": "node banc/console/mesurer.ts",
+    "banc:clients": "node banc/clients/mesurer.ts",
     "bureau": "electron bureau/coque/principal.ts"
   },
   "devDependencies": {
@@ -39,6 +40,7 @@
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@vitejs/plugin-react": "6.1.1",
+    "acorn": "8.18.0",
     "electron": "44.5.1",
     "eslint": "10.11.0",
     "globals": "17.12.0",

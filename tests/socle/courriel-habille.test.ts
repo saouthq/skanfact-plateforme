@@ -14,7 +14,7 @@ const RACINE = path.join(import.meta.dirname, '../..');
 const CONTACT = 'https://skanfact.tn/contact.html';
 const LIEN = 'https://app.exemple.tn/?reinitialiser=Abc_123-x';
 
-// Les huit e-mails du serveur, tels que les envois les rendent (les valeurs sont des exemples).
+// Les neuf e-mails du serveur, tels que les envois les rendent (les valeurs sont des exemples).
 const VALEURS = { code: '482915', minutes: 30, lien: LIEN, adresse: 'https://app.exemple.tn', aide: CONTACT };
 const ENVOIS: { cle: string; bouton?: string }[] = [
   { cle: 'connexion.oubli_texte', bouton: 'connexion.oubli_bouton' },
@@ -25,6 +25,7 @@ const ENVOIS: { cle: string; bouton?: string }[] = [
   { cle: 'compte.adresse_changee_texte', bouton: 'compte.adresse_changee_bouton' },
   { cle: 'messagerie.alerte.entreprise', bouton: 'messagerie.alerte.bouton' },
   { cle: 'messagerie.alerte.cabinet', bouton: 'messagerie.alerte.bouton' },
+  { cle: 'messagerie.relance.texte', bouton: 'messagerie.relance.bouton' },
 ];
 const courriel = (e: (typeof ENVOIS)[number]): Courriel => ({
   a: 'karim@exemple.tn', objet: 'Objet', texte: rendre(t(e.cle, VALEURS), 'fr'),

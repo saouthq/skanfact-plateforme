@@ -128,13 +128,16 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
       return {
         carte: { left: r.left, right: r.right, top: r.top, bottom: r.bottom },
         titre: cases.find((x) => x.role === 'titre')?.texte,
-        montants: cases.filter((x) => /Net à payer|Reste/.test(x.titre)).map((x) => ({ titre: x.titre, texte: x.texte, left: x.r.left, right: x.r.right })),
+        montants: cases.filter((x) => /Net à payer|Reste/.test(x.titre)).map((x) => ({ titre: x.titre, texte: x.texte, left: x.r.left, right: x.r.right, top: x.r.top })),
+        // (1.139.0) Les montants d'abord : rien d'autre que le titre n'est au-dessus d'eux.
+        dessus: cases.filter((x) => x.role !== 'titre' && x.texte && x.texte !== 'Actions' && !/Net à payer|Reste/.test(x.titre)).map((x) => x.r.top),
         actions: actions && { left: actions.left, right: actions.right, top: actions.top, bottom: actions.bottom },
       };
     }));
     expect(cartes.map((x) => x.titre)).toEqual(['FAC-2026-002', 'FAC-2026-001']);
     for (const x of cartes) {
       expect(x.montants.map((m) => m.titre)).toEqual(['"Net à payer"', '"Reste"']);
+      expect(Math.min(...x.dessus)).toBeGreaterThan(Math.max(...x.montants.map((m) => m.top)));
       for (const m of x.montants) { expect(m.left).toBeGreaterThanOrEqual(x.carte.left); expect(m.right).toBeLessThanOrEqual(Math.min(x.carte.right, 390) + 0.5); }
       // « Actions » dans sa carte, en haut à droite.
       const a = x.actions;
@@ -144,6 +147,14 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
       expect(a.top).toBeGreaterThanOrEqual(x.carte.top);
     }
     expect(cartes[0]?.montants.map((m) => m.texte)).toEqual(['714,000 DT', '714,000 DT']);
+    // (1.143.0) Le client juste sous les montants, avant le type de la pièce.
+    // L'ordre de lecture : la rangée, puis la gauche.
+    const sous = await p.locator('table.list > tbody > tr').first().evaluate((tr) => ['Client', 'Type'].map((t) => { const r = tr.querySelector(`td[data-label="${t}"]`)?.getBoundingClientRect(); return r ? Math.round(r.top) * 10_000 + Math.round(r.left) : -1; }));
+    expect(sous[0]).toBeGreaterThan(0);
+    expect(sous[0]).toBeLessThan(sous[1] ?? 0);
+    // (1.143.0) Le doigt laisse la carte touchée « survolée » : son « Actions » ne s'allume pas seul.
+    await p.locator('table.list > tbody > tr').nth(1).locator('td[data-label="Date"]').hover();
+    expect(new Set(await p.locator('table.list > tbody > tr td.row-actions .row-menu-btn').evaluateAll((bs) => bs.map((b) => getComputedStyle(b).backgroundColor))).size).toBe(1);
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await p.screenshot({ path: path.join(PHOTOS, 'telephone-factures-cartes.png'), fullPage: true });
     // Les titres qui trient restent : « Client » trie, et la liste redessinée garde ses titres.
@@ -155,6 +166,12 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     // Une carte se touche : la facture s'ouvre.
     await p.locator('table.list > tbody > tr').first().locator('[data-tel=titre]').click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/doc/f1');
+    // (1.149.0) La facture émise : sa désignation se lit en entier, en texte (le champ éteint coupait ce qui dépassait).
+    const lue = p.locator('table.lines-edit .ligne-lue').first();
+    await lue.waitFor({ timeout: 15_000 });
+    expect(net(await lue.innerText())).toBe('Ciment gris 50 kg — livraison sur chantier');
+    expect(await lue.evaluate((e) => e.scrollWidth <= e.clientWidth + 1 && e.getBoundingClientRect().right <= 390)).toBe(true);
+    expect(await p.locator('table.lines-edit input[data-k="label"]').first().isVisible()).toBe(false);
     // L'accueil : « Documents récents », aussi en cartes, et sa phrase sans redite.
     await aller(p, '#/dashboard', /./);
     expect(net(await p.locator('#view h2', { hasText: 'Documents récents' }).innerText())).toBe('Documents récents — tes 2 pièces');
@@ -175,6 +192,8 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     const { cx, p, erreurs } = await ouvrir(c, '#/clients', TELEPHONE);
     await p.getByRole('button', { name: '+ Nouveau client' }).click();
     await p.locator('#modal-root #cf').waitFor();
+    // (1.132.0) Un client neuf ouvre court : « Plus de détails » déplié, la fenêtre dépasse l'écran du téléphone.
+    await p.locator('#cf-plus > summary').click();
     // À l'ouverture comme au milieu de la fenêtre : « Enregistrer » dans l'écran, sans rien faire défiler. La fenêtre doit
     // être plus haute que l'écran et défiler vraiment : sinon le bouton se verrait sans être collé en bas, et le test ne
     // prouverait rien (preuve restée verte sur GitHub, 21/10/2026).
@@ -382,6 +401,51 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     expect(await o.p.locator('#nav-search-k').innerText()).toBe('Ctrl K');
     await o.cx.close();
   }, 180_000);
+
+  // Navigateurs et appareils (1.112.0, 22/10/2026) : à 360 points tout tenait ; à 320, le plus petit téléphone encore en
+  // service, la recherche des Paramètres demandait 320 points pour elle seule et sortait de l'écran, « Guide-moi » avec elle.
+  it('au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté', async () => {
+    const c = await commercante({ pieces: true, factures: 2 });
+    const { cx, p, erreurs } = await ouvrir(c, '#/dashboard', { largeur: 320, hauteur: 640, doigt: true });
+    const deCote: string[] = [];
+    let unSeul = false;
+    for (const r of ['dashboard', 'factures', 'devis', 'clients', 'catalogue', 'stock', 'achats', 'fournisseurs', 'caisse', 'tresorerie',
+      'compta', 'paie', 'parametres', 'relances', 'doc/new/facture']) {
+      await p.goto(`${serveur.adresse}/v10/?e=${c.ent}#/${r}`);
+      await p.reload();
+      await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+      await plusTard(p);
+      const large = await p.evaluate(() => document.scrollingElement?.scrollWidth ?? 0);
+      if (large > 320) deCote.push(`${r} : ${large} points`);
+      // (1.140.0) Une liste d'une seule ligne ne répète pas ses chiffres dans une carte des totaux.
+      deCote.push(...(await p.evaluate((route) => [...document.querySelectorAll('table.list[data-cartes]')].filter((tb) => tb.querySelectorAll(':scope > tbody > tr').length === 1
+        && [...tb.querySelectorAll(':scope > tfoot > tr')].some((tr) => (tr as HTMLElement).offsetHeight > 0)).map(() => `${route} : une seule ligne, et sa carte des totaux`), r)));
+      // (1.143.0) Une date seule ne titre pas une carte ; « Actions » a le même air sur chaque carte (le doigt laissait la
+      // dernière carte touchée allumée).
+      deCote.push(...(await p.evaluate((route) => [...document.querySelectorAll('table.list[data-cartes] > tbody > tr > [data-tel="titre"]')]
+        .filter((td) => /^\d{2}\/\d{2}\/\d{4}$/.test((td.textContent ?? '').trim())).map((td) => `${route} : une carte titrée « ${(td.textContent ?? '').trim()} »`), r)));
+      deCote.push(...(await p.evaluate((route) => [...document.querySelectorAll('table.list[data-cartes]')].filter((tb) => new Set([...tb.querySelectorAll(':scope > tbody > tr > td.row-actions .row-menu-btn:not(.btn)')]
+        .map((b) => getComputedStyle(b).backgroundColor)).size > 1).map(() => `${route} : des « Actions » de deux styles`), r)));
+      if (r === 'achats') {
+        // (1.143.0) La seule pièce de la liste est à payer : le bloc « À payer » n'en répète pas la ligne, il en dit la somme.
+        expect(await p.locator('#payables[data-payables-resume]').innerText()).toMatch(/à payer sur 1 pièce/);
+        expect(await p.locator('#payables table').count()).toBe(0);
+        expect(await p.locator('table.list > tbody > tr [data-tel=titre]').allInnerTexts()).toEqual([expect.stringContaining('CB-2026-0457')]);
+      }
+      if (r === 'doc/new/facture') {
+        // (1.145.0) « Enregistrer le brouillon » juste sous « Émettre », avant l'aperçu, le PDF et le reste de l'en-tête.
+        const haut = await p.locator('#view .page-head .actions > :is(.btn, .more, .pv-cmd)').evaluateAll((bs) => bs.map((b) => ({ id: b.id, prim: b.classList.contains('btn-primary'), top: Math.round(b.getBoundingClientRect().top) })).sort((x, y) => x.top - y.top));
+        expect(haut[0]?.prim).toBe(true);
+        expect(haut[1]?.id).toBe('save');
+        expect(haut.slice(2).every((b) => b.top > (haut[1]?.top ?? 0))).toBe(true);
+      }
+      if (r === 'fournisseurs') unSeul = await p.evaluate(() => [...document.querySelectorAll('table.list[data-cartes]')].some((tb) => tb.querySelectorAll(':scope > tbody > tr').length === 1 && tb.querySelector(':scope > tfoot')));
+    }
+    expect(deCote).toEqual([]);
+    expect(unSeul).toBe(true);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
 
   it('la caisse sur la tablette (1 180 × 820) et sur un écran de 1 024 × 768 : rien n\'est tranché, le comptage tient', async () => {
     const c = await commercante({ pieces: true, caisse: true });

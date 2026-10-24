@@ -297,6 +297,14 @@ function LesAdresses({ a, aujourdhui, faire }: { a: Adresses | undefined; aujour
   );
 }
 
+// Une adresse qui a la forme d'une adresse : quatre nombres de 0 à 255 (IPv4), ou des groupes hexadécimaux séparés par des
+// deux-points (IPv6). La base, elle, la lit en entier ; ceci ne fait que refuser tôt ce qui n'en est clairement pas une.
+function adresseLisible(a: string): boolean {
+  const v4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(a);
+  if (v4) return v4.slice(1).every((n) => Number(n) <= 255);
+  return a.includes(':') && /^[0-9a-f:.]+$/i.test(a);
+}
+
 function FenetreBloquer({ adresse, durees, fermer, fait }: { adresse: string | null; durees: number[]; fermer: () => void; fait: () => void }) {
   const api = useApi();
   const { moi } = useConsole();
@@ -309,6 +317,9 @@ function FenetreBloquer({ adresse, durees, fermer, fait }: { adresse: string | n
   const fauter = (champ: 'adresse' | 'motif', texte: string) => { setRefus(texte); setFaute((f) => ({ champ, n: (f?.n ?? 0) + 1 })); };
   const envoyer = () => {
     if (ip.trim().length < 2) { fauter('adresse', phrase(`${S}.ad.f.adresse_vide`)); return; }
+    // Les champs se refusent dans leur ordre : une adresse illisible avant le motif, sans attendre le serveur (recette du
+    // 22/10/2026 : « 999.1.2.3 » passait le premier essai, refusé pour son motif seul). Le serveur relit l'adresse en entier.
+    if (!adresseLisible(ip.trim())) { fauter('adresse', phrase(`${S}.ad.f.adresse_illisible`)); return; }
     if (motif.trim().length < 3) { fauter('motif', phrase('console.ecran.geste.motif_court')); return; }
     void (async () => {
       setOccupe(true);

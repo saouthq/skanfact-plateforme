@@ -3,6 +3,17 @@
 import { declarerTextes } from '../../textes/index.ts';
 
 declarerTextes({
+  // L'abonnement des cabinets (1.120.0 ; 0172 ; docs/abonnement.md C22).
+  'abonnement.cabinet.lecture_seule': 'ce dossier est en lecture seule depuis le {depuis} : la facture de l\'abonnement de ton cabinet attend son paiement. Tout se lit, s\'imprime et s\'exporte. Un associé la règle dans les Réglages du Cabinet (Mon cabinet, Ton abonnement), et tout se rouvre',
+  'abonnement.cabinet.sans_prix': 'le prix d\'un dossier tenu n\'est pas réglé pour cette période : la console doit le poser',
+  'abonnement.cabinet.rien_a_facturer': 'rien à facturer : plus aucun dossier tenu payant ni rattrapage',
+  'abonnement.cabinet.facture.objet': 'Abonnement cabinet SkanFact du {du} au {au}',
+  'abonnement.cabinet.facture.dossiers': 'Dossiers tenus au-delà des {gratuits} gratuits',
+  'abonnement.cabinet.facture.periode': 'Du {du} au {au}, par dossier',
+  'abonnement.cabinet.facture.rattrapage': 'Rattrapage d\'un dossier tenu ajouté en cours d\'année',
+  'abonnement.cabinet.facture.rattrapage_detail': 'Du {du} au {au} : {jours} jours sur {sur}',
+  'abonnement.cabinet.facture.plafond': 'Abonnement cabinet, plafond annuel',
+  'abonnement.cabinet.facture.plafond_detail': 'Du {du} au {au} : {dossiers} dossiers tenus payants et {rattrapes} rattrapages, au plafond annuel',
   // Le refus d'un geste en lecture seule : ce qui est refusé, pourquoi, et ce qui rouvre (règle du projet).
   'abonnement.lecture_seule.essai_termine': 'cette entreprise est en lecture seule depuis le {depuis} : son essai est terminé. Tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée. Le propriétaire ou un administrateur la rouvre en choisissant une offre (Paramètres, Ton abonnement)',
   'abonnement.lecture_seule.non_renouvele': 'cette entreprise est en lecture seule depuis le {depuis} : son abonnement n\'a pas été renouvelé. Tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée. Le propriétaire ou un administrateur la rouvre en renouvelant l\'abonnement (Paramètres, Ton abonnement)',
@@ -32,6 +43,14 @@ declarerTextes({
   'abonnement.relance.apres.grace_1': 'Après cette date, tout marche encore un jour. Ensuite, l\'entreprise passe en lecture seule : tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée.',
   'abonnement.relance.apres.sans_grace': 'Dès le lendemain, l\'entreprise passe en lecture seule : tout se lit, s\'imprime et s\'exporte, mais rien de nouveau ne se crée.',
   'abonnement.relance.bouton': 'Ouvrir SkanFact',
+  // Les e-mails d'une facture de l'abonnement (1.118.0 ; 0170) : émise, puis payée. Ce qui part chez le relais, compté et
+  // décidé comme les relances : l'adresse, un objet, une date, l'adresse de l'application. Ni le montant, ni le numéro,
+  // ni le nom de l'entreprise.
+  'abonnement.facture.courriel.objet.emise': 'Ta facture d\'abonnement SkanFact est prête',
+  'abonnement.facture.courriel.texte.emise': 'Bonjour,\n\nLa facture de l\'abonnement à SkanFact d\'une de tes entreprises est prête. Tu la lis et tu la règles dans SkanFact : Paramètres, puis Ton abonnement. Elle est à régler au plus tard le {date}.\n\n{lien}',
+  'abonnement.facture.courriel.objet.payee': 'Ton paiement à SkanFact est bien reçu',
+  'abonnement.facture.courriel.texte.payee': 'Bonjour,\n\nLe paiement de l\'abonnement à SkanFact d\'une de tes entreprises est bien reçu : merci. L\'abonnement est payé jusqu\'au {date}. Ta facture, marquée payée, t\'attend dans SkanFact : Paramètres, puis Ton abonnement.\n\n{lien}',
+  'abonnement.facture.courriel.bouton': 'Voir mon abonnement',
   // Les gestes de SkanFact sur un abonnement (serveur/abonnement/gestes.ts : l'outil de l'exploitation et la console).
   'abonnement.geste.sans_ligne': 'cette entreprise n\'a pas d\'abonnement (une restauration dans une autre base) : ouvre-lui d\'abord un essai (« prolonger »)',
   'abonnement.geste.jours': 'un essai se prolonge d\'un nombre entier de jours, de 1 à 365',

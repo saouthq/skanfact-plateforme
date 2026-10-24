@@ -12,6 +12,7 @@ import { panneDe, refusDe, useApi, useConsole, useLecture } from '../contexte.ts
 import { entier, minutes, pourCent } from '../nombres.ts';
 import { heureDe, jourDe, jourMois, quand } from '../temps.ts';
 import { Alerte, Avatar, Bouton, Champ, Choix, Dialogue, Icone, maj, Puce, toast, Vide, Zone } from '../ui.tsx';
+import { carnetDeCrise, FICHES_A_DECIDER, messagesDe, passageARemplir, TEMPS } from '../carnet.ts';
 import { EnteteService, useRelireTantQueRegarde, type AlertesEnCours, type Brique, type Veille } from './Service.tsx';
 
 const K = 'console.ecran.service';
@@ -33,7 +34,7 @@ type PageEtat = {
   annonce: { incident: { gravite: Gravite; texte: string; le: string } | null; maintenance: { titre: string; texte: string; debut: string; fin: string } | null };
 };
 type Maintenance =
-  | { sorte: 'annoncee'; le: string; id: string; titre: string; texte: string; debut: string; fin: string; par: string; etat: 'a_venir' | 'en_cours' | 'faite' | 'annulee' }
+  | { sorte: 'annoncee'; le: string; id: string; titre: string; texte: string; debut: string; fin: string; par: string; etat: 'a_venir' | 'en_cours' | 'faite' | 'annulee'; fermee: boolean }
   | { sorte: 'version'; le: string; version: string; retour: boolean; coupure: number };
 type Passe = {
   id: string; ref: string; titre: string; gravite: Gravite; ouvertLe: string; minutes: number; effet: string; cause: string; change: string;
@@ -49,7 +50,29 @@ type Donnees = {
   fiches: Record<string, { le: string; ref: string } | null>; fichesConnues: string[];
   exercice: { jour: string; restauration: { le: string; ok: boolean } } | null;
   equipe: { id: string; nom: string }[];
+  // 0166 (C24 quater) : les exercices de crise de l'année, et les fiches que le lancement attend encore.
+  exercices: Exercice[]; lancement: { reussies: string[]; manquent: string[]; total: number };
 };
+type Exercice = {
+  id: string; fiche: string; debut: string; fin: string; temps: (number | null)[]; participants: string;
+  marche: string; coince: string; change: string; reussi: boolean; par: string;
+};
+// L'exercice qu'on joue : il vit dans l'onglet (sessionStorage), et survit à une page rechargée ; rien n'en part au serveur
+// avant son compte rendu.
+type EnCours = { fiche: string; debut: string; participants: string; temps: (number | null)[] };
+const CLE_EXERCICE = 'skanfact.console.exercice';
+function lireEnCours(): EnCours | null {
+  try {
+    const x = JSON.parse(sessionStorage.getItem(CLE_EXERCICE) ?? 'null') as EnCours | null;
+    // Commencé il y a plus de douze heures, il ne se note plus (0166) : on ne le rouvre pas pour qu'il soit refusé.
+    const frais = x && typeof x.debut === 'string' && Date.now() - Date.parse(x.debut) < 12 * 3_600_000;
+    return x && frais && typeof x.fiche === 'string' && Array.isArray(x.temps) && x.temps.length === 4 ? x : null;
+  } catch { return null; }
+}
+function ecrireEnCours(e: EnCours | null) {
+  try { if (e) sessionStorage.setItem(CLE_EXERCICE, JSON.stringify(e)); else sessionStorage.removeItem(CLE_EXERCICE); } catch { /* l'onglet refuse : l'exercice vit en mémoire */ }
+}
+const minutesDepuis = (debut: string, maintenant = Date.now()) => Math.max(0, Math.floor((maintenant - Date.parse(debut)) / 60_000));
 
 // ── Les mots ────────────────────────────────────────────────────────────────────────────────────────────────────────
 const nomGravite = (g: Gravite) => dire(`${I}.gravite.${g}`);
@@ -63,11 +86,9 @@ const enChamp = (iso: string) => new Intl.DateTimeFormat('sv-SE', { timeZone: 'A
 const duChamp = (v: string) => (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(v) ? `${v}:00+01:00` : null);
 // « aujourd'hui, 16:26 », « le 02/10/2026, 21:14 » : le jour et l'heure, une fois.
 const jourHeure = (iso: string, aujourdhui: string) => quand(iso, aujourdhui);
-const FICHES_A_DECIDER: Record<string, 'a_decider' | 'a_verifier'> = { site: 'a_decider', fuite: 'a_verifier', rancon: 'a_verifier', empreinte: 'a_verifier' };
 // Un incident ouvert depuis un autre écran sur sa fiche (« #/service/incidents?ouvrir=empreinte », l'écran Sécurité, 0142) :
 // la gravité que la fiche dit (« critique »).
 const GRAVITE_DE_FICHE: Record<string, Gravite> = { empreinte: 'critique' };
-const TEMPS = ['contenir', 'dire', 'reparer', 'ecrire'] as const;
 
 // ── Les gestes ──────────────────────────────────────────────────────────────────────────────────────────────────────
 type Geste =
@@ -81,11 +102,22 @@ type Geste =
   | { sorte: 'repousser'; s: SuiteATenir }
   | { sorte: 'annoncer' }
   | { sorte: 'annuler'; m: Extract<Maintenance, { sorte: 'annoncee' }> }
+  // 1.107.0 (base 0164, C24 bis) : l'application fermée aux clients pendant une maintenance, ou maintenant ; rouverte.
+  | { sorte: 'fermer_maintenant' }
+  | { sorte: 'fermer'; m: Extract<Maintenance, { sorte: 'annoncee' }> }
+  | { sorte: 'rouvrir'; m: Extract<Maintenance, { sorte: 'annoncee' }> }
   | { sorte: 'lire'; p: Passe }
-  | { sorte: 'fiche'; f: string };
+  | { sorte: 'fiche'; f: string }
+  // 0166 : commencer un exercice, l'abandonner, écrire son compte rendu ; relire celui d'un exercice joué.
+  | { sorte: 'exercice' }
+  | { sorte: 'abandonner' }
+  | { sorte: 'compte_rendu'; en: EnCours }
+  | { sorte: 'lire_exercice'; e: Exercice };
 
 // ── L'incident ouvert, ou l'absence d'incident ──────────────────────────────────────────────────────────────────────
 function AucunIncident({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
+  // L'application fermée : rouvrir est l'étape suivante (un seul bouton principal).
+  const fermee = fermeture(d) !== null;
   const grave = d.alertesEnCours.graves > 0;
   return (
     <section className="c-carte c-in-aucun" aria-labelledby="in-aucun">
@@ -94,7 +126,7 @@ function AucunIncident({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) 
         <h2 id="in-aucun">{titre(`${I}.aucun.titre`)}</h2>
         <p className="c-carte-sous">{phrase(`${I}.aucun.${grave ? 'avec_alerte' : 'sans_alerte'}`)}</p>
       </div>
-      <Bouton ton="principal" icone="plus" onClick={() => faire({ sorte: 'ouvrir' })}>{titre(`${I}.ouvrir`)}</Bouton>
+      <Bouton ton={fermee ? 'secondaire' : 'principal'} icone="plus" onClick={() => faire({ sorte: 'ouvrir' })}>{titre(`${I}.ouvrir`)}</Bouton>
     </section>
   );
 }
@@ -275,9 +307,29 @@ function PageDEtat({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
   );
 }
 
+// ── L'application fermée aux clients (1.107.0, C24 bis) ─────────────────────────────────────────────────────────────
+type Annoncee = Extract<Maintenance, { sorte: 'annoncee' }>;
+const fermeture = (d: Donnees): Annoncee | null =>
+  d.maintenances.find((m): m is Annoncee => m.sorte === 'annoncee' && m.fermee && m.etat === 'en_cours') ?? null;
+function Fermee({ m, d, faire }: { m: Annoncee; d: Donnees; faire: (g: Geste) => void }) {
+  return (
+    <section className="c-carte c-in-fermee" aria-labelledby="in-fermee">
+      <span className="c-in-fermee-icone" aria-hidden="true"><Icone nom="cadenas" /></span>
+      <div>
+        <h2 id="in-fermee">{titre(`${I}.fermee.titre`)}</h2>
+        <p>{phrase(`${I}.fermee.jusqua`, { fin: quand(m.fin, d.aujourdhui) })}</p>
+        <blockquote className="c-in-fermee-texte" data-donnee>{m.texte}</blockquote>
+        <p className="c-carte-sous">{phrase(`${I}.fermee.reste`)}</p>
+      </div>
+      <Bouton ton="principal" onClick={() => faire({ sorte: 'rouvrir', m })}>{titre(`${I}.rouvrir.ouvrir`)}</Bouton>
+    </section>
+  );
+}
+
 // ── Les maintenances ────────────────────────────────────────────────────────────────────────────────────────────────
 function Maintenances({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
   const montrees = d.maintenances.slice(0, 6);
+  const fermee = fermeture(d);
   return (
     <section className="c-carte c-in-maintenances" aria-labelledby="in-maint">
       <div className="c-al-section-tete">
@@ -285,7 +337,10 @@ function Maintenances({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
           <h2 id="in-maint">{titre(`${I}.maint.titre`)}</h2>
           <p className="c-carte-sous">{phrase(`${I}.maint.sous`)}</p>
         </div>
-        <Bouton onClick={() => faire({ sorte: 'annoncer' })}>{titre(`${I}.annoncer.ouvrir`)}</Bouton>
+        <div className="c-in-maint-gestes">
+          <Bouton onClick={() => faire({ sorte: 'annoncer' })}>{titre(`${I}.annoncer.ouvrir`)}</Bouton>
+          {fermee ? null : <Bouton ton="danger" icone="cadenas" onClick={() => faire({ sorte: 'fermer_maintenant' })}>{titre(`${I}.fermer_maintenant.ouvrir`)}</Bouton>}
+        </div>
       </div>
       {montrees.length === 0 ? <Vide icone="calendrier">{phrase(`${I}.maint.vide`)}</Vide> : (
         <ul className="c-in-maint-liste">
@@ -301,7 +356,10 @@ function Maintenances({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
                       <p className="c-sous" data-donnee>{m.texte}</p>
                       <p className={`c-in-maint-etat c-in-maint-${m.etat}`}>
                         {maj(dire(`${I}.maint.etat.${m.etat}`, { quand: quand(m.debut, d.aujourdhui), nom: m.par }))}
+                        {m.fermee && m.etat !== 'annulee' ? <> · <span className="c-in-maint-ferme">{dire(`${I}.maint.ferme_${m.etat}`)}</span></> : null}
                         {m.etat === 'a_venir' ? <> · <button type="button" className="c-in-lien" onClick={() => faire({ sorte: 'annuler', m })}>{titre(`${I}.annuler.ouvrir`)}</button></> : null}
+                        {!m.fermee && (m.etat === 'a_venir' || m.etat === 'en_cours') && !fermee ? <> · <button type="button" className="c-in-lien" onClick={() => faire({ sorte: 'fermer', m })}>{titre(`${I}.fermer.ouvrir`)}</button></> : null}
+                        {m.fermee && m.etat === 'en_cours' ? <> · <button type="button" className="c-in-lien" onClick={() => faire({ sorte: 'rouvrir', m })}>{titre(`${I}.rouvrir.ouvrir`)}</button></> : null}
                       </p>
                     </>
                   ) : (
@@ -409,13 +467,23 @@ function Regles() {
 function Fiches({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
   return (
     <section className="c-in-fiches" aria-labelledby="in-fiches" id="in-fiches">
-      <h2 id="in-fiches">{titre(`${I}.fiches.titre`)}</h2>
-      <p className="c-carte-sous">{phrase(`${I}.fiches.sous`)}</p>
+      <div className="c-in-fiches-tete">
+        <div>
+          <h2 id="in-fiches">{titre(`${I}.fiches.titre`)}</h2>
+          <p className="c-carte-sous">{phrase(`${I}.fiches.sous`)}</p>
+        </div>
+        <div className="c-in-carnet">
+          <Bouton icone="telecharger" onClick={() => telechargerCarnet(d)}>{titre(`${I}.fiches.carnet`)}</Bouton>
+          <span className="c-sous">{phrase(`${I}.fiches.carnet_aide`)}</span>
+        </div>
+      </div>
       <div className="c-in-fiches-grille">
         {d.fichesConnues.map((f) => {
           const servie = d.fiches[f] ?? null;
           const badge = FICHES_A_DECIDER[f];
-          const exercee = f === 'base' && d.exercice ? d.exercice : null;
+          // Le dernier exercice joué sur la fiche (0166), ou, pour la base, l'exercice de restauration de la nuit.
+          const joue = d.exercices.find((e) => e.fiche === f) ?? null;
+          const exercee = joue ? { jour: jourDe(joue.fin) } : f === 'base' && d.exercice ? d.exercice : null;
           return (
             <article key={f} className="c-carte c-in-fiche">
               <div className="c-in-fiche-tete"><h3>{maj(dire(`${I}.fiche.${f}.nom`))}</h3>{badge ? <span className="c-in-badge">{dire(`${I}.${badge}`)}</span> : null}</div>
@@ -425,7 +493,8 @@ function Fiches({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
                 <button type="button" className="c-in-lien" onClick={() => faire({ sorte: 'fiche', f })}>{titre(`${I}.fiches.lire`)}</button>
                 <span className="c-sous" {...(servie ? { title: servie.ref } : {})}>
                   {servie ? maj(dire(`${I}.fiches.servie`, { jour: jourMois(jourDe(servie.le)) }))
-                    : exercee ? maj(dire(`${I}.fiches.exercee`, { jour: jourMois(exercee.jour) })) : maj(dire(`${I}.fiches.jamais`))}
+                    : joue && !joue.reussi ? maj(dire(`${I}.fiches.a_refaire`, { jour: jourMois(jourDe(joue.fin)) }))
+                      : exercee ? maj(dire(`${I}.fiches.exercee`, { jour: jourMois(exercee.jour) })) : maj(dire(`${I}.fiches.jamais`))}
                 </span>
               </div>
             </article>
@@ -433,6 +502,214 @@ function Fiches({ d, faire }: { d: Donnees; faire: (g: Geste) => void }) {
         })}
       </div>
     </section>
+  );
+}
+
+// Le carnet de crise (carnet.ts), écrit ici avec les fiches que le serveur connaît, et téléchargé : il se garde hors ligne.
+function telechargerCarnet(d: Donnees) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([carnetDeCrise({ fiches: d.fichesConnues, jour: d.aujourdhui })], { type: 'text/html;charset=utf-8' }));
+  a.download = `${dire('console.ecran.service.carnet.fichier')}-${d.aujourdhui}.html`;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 10_000);
+  toast(phrase(`${I}.fiches.carnet_fait`));
+}
+
+// ── Les exercices de crise (0166 ; docs/console.md C24 quater) ─────────────────────────────────────────────────────
+// Une fiche jouée à blanc, chronométrée, temps par temps ; son compte rendu ; ce qu'il en manque pour le lancement (J5 :
+// chaque fiche réussie dans l'année).
+function Exercices({ d, faire, enCours }: { d: Donnees; faire: (g: Geste) => void; enCours: boolean }) {
+  const { reussies, manquent, total } = d.lancement;
+  return (
+    <section className="c-carte c-liste-carte c-in-exercices" aria-labelledby="in-exercices">
+      <div className="c-al-section-tete">
+        <div>
+          <h2 id="in-exercices">{titre(`${I}.ex.titre`)}</h2>
+          <p className="c-carte-sous">{phrase(`${I}.ex.sous`)}</p>
+        </div>
+        {enCours ? null : <Bouton icone="plus" onClick={() => faire({ sorte: 'exercice' })}>{titre(`${I}.ex.faire`)}</Bouton>}
+      </div>
+      <p className={`c-in-ex-compte${manquent.length ? '' : ' c-in-ex-compte-ok'}`}>
+        <b>{manquent.length ? maj(selon(reussies.length, `${I}.ex.compte`, { total })) : maj(dire(`${I}.ex.toutes`, { total }))}</b>
+        {manquent.length ? <span className="c-sous">{phrase(`${I}.ex.manquent`, { liste: manquent.map((f) => dire(`${I}.fiche.${f}.nom`)).join(', ') })}</span> : null}
+      </p>
+      {d.exercices.length === 0 ? <Vide icone="info">{phrase(`${I}.ex.vide`)}</Vide> : (
+        <div className="c-defile">
+          <table className="c-table c-in-table c-in-table-ex">
+            <thead>
+              <tr>
+                <th scope="col">{titre(`${I}.ex.col.le`)}</th>
+                <th scope="col">{titre(`${I}.ex.col.fiche`)}</th>
+                <th scope="col" className="c-droite">{titre(`${I}.ex.col.duree`)}</th>
+                <th scope="col">{titre(`${I}.ex.col.temps`)}</th>
+                <th scope="col">{titre(`${I}.ex.col.verdict`)}</th>
+                <th scope="col">{titre(`${I}.ex.col.par`)}</th>
+                <th scope="col"><span className="c-cache">{titre(`${I}.ex.lire`)}</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {d.exercices.map((e) => (
+                <tr key={e.id}>
+                  <td className="c-al-nw" data-libelle={titre(`${I}.ex.col.le`)}>{maj(jourHeure(e.debut, d.aujourdhui))}</td>
+                  <td data-libelle={titre(`${I}.ex.col.fiche`)}><b>{maj(dire(`${I}.fiche.${e.fiche}.nom`))}</b></td>
+                  <td className="c-droite c-al-nw c-num" data-libelle={titre(`${I}.ex.col.duree`)}>{minutes(minutesDepuis(e.debut, Date.parse(e.fin)))}</td>
+                  <td data-libelle={titre(`${I}.ex.col.temps`)}>
+                    <span className="c-in-ex-temps">
+                      {TEMPS.map((t, k) => {
+                        const m = e.temps[k] ?? null;
+                        const dit = m === null ? dire(`${I}.ex.pas_fait`) : dire(`${I}.ex.minute`, { n: m });
+                        return <span key={t} title={dire(`${I}.ex.temps_titre`, { temps: dire(`${I}.temps.${t}`), quand: dit })}>{dit}</span>;
+                      })}
+                    </span>
+                  </td>
+                  <td data-libelle={titre(`${I}.ex.col.verdict`)}><Puce ton={e.reussi ? 'actif' : 'en_retard'}>{maj(dire(e.reussi ? `${I}.ex.reussi` : `${I}.ex.a_refaire`))}</Puce></td>
+                  <td data-libelle={titre(`${I}.ex.col.par`)}><span data-donnee>{e.par}</span></td>
+                  <td className="c-droite"><Bouton petit onClick={() => faire({ sorte: 'lire_exercice', e })}>{titre(`${I}.ex.lire`)}</Bouton></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+// L'exercice qu'on joue, en tête de l'écran : le chrono, les quatre temps à cocher dans l'ordre, la fiche à relire.
+function ExerciceEnCours({ en, poser, faire }: { en: EnCours; poser: (e: EnCours | null) => void; faire: (g: Geste) => void }) {
+  const [maintenant, setMaintenant] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setMaintenant(Date.now()), 1000); return () => clearInterval(t); }, []);
+  // L'exercice commence d'un bouton en bas de l'écran : on remonte jusqu'à son chrono (recette du 22/10/2026 : il tournait
+  // hors de vue, et rien ne disait qu'il était parti).
+  const cadre = useRef<HTMLElement>(null);
+  // Après le dessin, et après la fenêtre qui se ferme (elle rend le curseur à son bouton, en bas : vu sous la charge des
+  // essais, le chrono restait hors de vue).
+  useEffect(() => {
+    const f = requestAnimationFrame(() => { cadre.current?.focus({ preventScroll: true }); cadre.current?.scrollIntoView({ block: 'start' }); });
+    return () => cancelAnimationFrame(f);
+  }, []);
+  const ecoule = Math.max(0, Math.floor((maintenant - Date.parse(en.debut)) / 1000));
+  const suivant = en.temps.findIndex((m) => m === null);
+  const cocher = (k: number) => poser({ ...en, temps: en.temps.map((m, i) => (i === k ? minutesDepuis(en.debut) : m)) });
+  return (
+    <section className="c-carte c-in-ex-en" aria-labelledby="in-ex-en" ref={cadre} tabIndex={-1}>
+      <div className="c-in-ex-en-tete">
+        <div>
+          <h2 id="in-ex-en">{titre(`${I}.ex.en.titre`, { fiche: dire(`${I}.fiche.${en.fiche}.nom`) })}</h2>
+          <p className="c-carte-sous">{phrase(`${I}.ex.en.sous`, { heure: heureDe(en.debut), participants: en.participants })}</p>
+        </div>
+        <p className="c-in-ex-chrono" role="timer" aria-label={dire(`${I}.ex.en.chrono_libelle`)}>
+          {dire(`${I}.ex.en.chrono`, { m: Math.floor(ecoule / 60), s: String(ecoule % 60).padStart(2, '0') })}
+        </p>
+      </div>
+      <ol className="c-in-ex-etapes">
+        {TEMPS.map((t, k) => {
+          const m = en.temps[k] ?? null;
+          return (
+            <li key={t} className={m !== null ? 'c-in-ex-fait' : k === suivant ? 'c-in-ex-suivant' : ''}>
+              <b>{maj(dire(`${I}.temps.${t}`))}</b>
+              <span className="c-sous">{phrase(`${I}.fiche.${en.fiche}.${t}`)}</span>
+              {m !== null ? <span className="c-in-ex-quand">{dire(`${I}.ex.en.fait_a`, { n: m })}</span>
+                : k === suivant ? <Bouton petit ton="principal" onClick={() => cocher(k)}>{titre(`${I}.ex.en.fait`)}</Bouton>
+                  : <span className="c-sous">{phrase(`${I}.ex.en.attend`)}</span>}
+            </li>
+          );
+        })}
+      </ol>
+      <div className="c-in-ex-en-pied">
+        <Bouton petit onClick={() => faire({ sorte: 'fiche', f: en.fiche })}>{titre(`${I}.ex.en.lire`)}</Bouton>
+        <Bouton petit onClick={() => faire({ sorte: 'abandonner' })}>{titre(`${I}.ex.en.abandonner`)}</Bouton>
+        <Bouton ton={suivant === -1 ? 'principal' : 'secondaire'} onClick={() => faire({ sorte: 'compte_rendu', en })}>{titre(`${I}.ex.en.terminer`)}</Bouton>
+      </div>
+    </section>
+  );
+}
+
+function FenetreExercice({ d, fermer, commencer }: { d: Donnees; fermer: () => void; commencer: (e: EnCours) => void }) {
+  const e = useEnvoi(fermer);
+  // D'abord une fiche que le lancement attend encore.
+  const [fiche, setFiche] = useState(d.lancement.manquent[0] ?? d.fichesConnues[0] ?? '');
+  const [qui, setQui] = useState('');
+  const envoyer = () => {
+    if (qui.trim().length < 3) { e.refuser(phrase(`${I}.ex.f.participants_court`), 'participants'); return; }
+    commencer({ fiche, debut: new Date().toISOString(), participants: qui.trim(), temps: [null, null, null, null] });
+  };
+  return (
+    <Dialogue titre={titre(`${I}.ex.f.titre`)} sous={phrase(`${I}.ex.f.sous`)} fermer={fermer}
+      pied={<Pied fermer={fermer} occupe={false} envoyer={envoyer} bouton={titre(`${I}.ex.f.bouton`)} />}>
+      <Choix libelle={titre(`${I}.ex.f.fiche`)} aide={phrase(`${I}.ex.f.fiche_aide`)} valeur={fiche} changer={setFiche}
+        options={d.fichesConnues.map((f) => ({ valeur: f, texte: maj(dire(`${I}.fiche.${f}.nom`)) }))} />
+      <Champ libelle={titre(`${I}.ex.f.participants`)} aide={phrase(`${I}.ex.f.participants_aide`)} valeur={qui} changer={setQui} faute={e.faute('participants')} n={e.n} premier />
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre(`${K}.al.geste.ce_qui_va`)}</span>
+        <ul><li>{phrase(`${I}.ex.f.p1`)}</li><li>{phrase(`${I}.ex.f.p2`)}</li><li>{phrase(`${I}.ex.f.p3`)}</li></ul>
+      </div>
+      {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+function FenetreAbandonner({ fermer, abandonner }: { fermer: () => void; abandonner: () => void }) {
+  return (
+    <Dialogue titre={titre(`${I}.ex.ab.titre`)} fermer={fermer}
+      pied={<Pied fermer={fermer} occupe={false} envoyer={abandonner} bouton={titre(`${I}.ex.ab.bouton`)} sortie={titre(`${I}.ex.ab.garder`)} />}>
+      <div className="c-al-ce-qui-va"><ul><li>{phrase(`${I}.ex.ab.p1`)}</li><li>{phrase(`${I}.ex.ab.p2`)}</li></ul></div>
+    </Dialogue>
+  );
+}
+
+function FenetreCompteRendu({ en, fermer, fait }: { en: EnCours; fermer: () => void; fait: () => void }) {
+  const [reussi, setReussi] = useState(en.temps.every((m) => m !== null));
+  const e = useEnvoi(fait);
+  const [marche, setMarche] = useState('');
+  const [coince, setCoince] = useState('');
+  const [change, setChange] = useState('');
+  const manque = en.temps.filter((m) => m === null).length;
+  const envoyer = () => {
+    for (const [v, nom] of [[marche, 'marche'], [coince, 'coince'], [change, 'change']] as const) {
+      if (v.trim().length < 3) { e.refuser(phrase(`${I}.ex.cr.court`), nom); return; }
+    }
+    if (reussi && manque) { e.refuser(phrase(`${I}.ex.cr.reussi_pas`, { n: manque }), 'verdict'); return; }
+    e.envoyer('/console/service/exercices', { fiche: en.fiche, debut: en.debut, temps: en.temps, participants: en.participants,
+      marche: marche.trim(), coince: coince.trim(), change: change.trim(), reussi }, phrase(reussi ? `${I}.ex.cr.fait` : `${I}.ex.cr.fait_refaire`));
+  };
+  return (
+    <Dialogue titre={titre(`${I}.ex.cr.titre`)} sous={phrase(`${I}.ex.cr.sous`, { fiche: maj(dire(`${I}.fiche.${en.fiche}.nom`)), duree: minutes(minutesDepuis(en.debut)) })}
+      fermer={fermer} occupe={e.occupe} pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(`${I}.ex.cr.bouton`)} />}>
+      <Zone libelle={titre(`${I}.ex.cr.marche`)} valeur={marche} changer={setMarche} faute={e.faute('marche')} n={e.n} premier max={2000} />
+      <Zone libelle={titre(`${I}.ex.cr.coince`)} valeur={coince} changer={setCoince} faute={e.faute('coince')} n={e.n} max={2000} />
+      <Zone libelle={titre(`${I}.ex.cr.change`)} aide={phrase(`${I}.ex.cr.change_aide`)} valeur={change} changer={setChange} faute={e.faute('change')} n={e.n} max={2000} />
+      <div className="c-champ">
+        <span className="c-champ-libelle" id="in-ex-verdict">{titre(`${I}.ex.cr.verdict`)}</span>
+        <div className="c-pilules c-in-pilules" role="group" aria-labelledby="in-ex-verdict">
+          <button type="button" className="c-pilule" aria-pressed={reussi} onClick={() => setReussi(true)}>{maj(dire(`${I}.ex.reussi`))}</button>
+          <button type="button" className="c-pilule" aria-pressed={!reussi} onClick={() => setReussi(false)}>{maj(dire(`${I}.ex.a_refaire`))}</button>
+        </div>
+        {manque ? <span className="c-champ-aide">{phrase(`${I}.ex.cr.reussi_pas`, { n: manque })}</span> : null}
+      </div>
+      <Qui />
+      {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+function FenetreLireExercice({ x, d, fermer }: { x: Exercice; d: Donnees; fermer: () => void }) {
+  return (
+    <Dialogue titre={maj(dire(`${I}.fiche.${x.fiche}.nom`))} fermer={fermer} pied={<Bouton onClick={fermer}>{titre('console.ecran.fermer')}</Bouton>}
+      sous={phrase(`${I}.ex.lu.sous`, { jour: jourHeure(x.debut, d.aujourdhui), duree: minutes(minutesDepuis(x.debut, Date.parse(x.fin))), participants: x.participants })}>
+      <p><Puce ton={x.reussi ? 'actif' : 'en_retard'}>{maj(dire(x.reussi ? `${I}.ex.reussi` : `${I}.ex.a_refaire`))}</Puce></p>
+      <ol className="c-in-temps">
+        {TEMPS.map((t, k) => {
+          const m = x.temps[k] ?? null;
+          return <li key={t}><b>{dire(`${I}.temps.${t}`)}</b><p>{maj(m === null ? dire(`${I}.ex.lu.pas_fait`) : dire(`${I}.ex.en.fait_a`, { n: m }))}</p></li>;
+        })}
+      </ol>
+      <div className="c-in-ex-cr">
+        <p><b>{titre(`${I}.ex.cr.marche`)}</b><span data-donnee>{x.marche}</span></p>
+        <p><b>{titre(`${I}.ex.cr.coince`)}</b><span data-donnee>{x.coince}</span></p>
+        <p><b>{titre(`${I}.ex.cr.change`)}</b><span data-donnee>{x.change}</span></p>
+      </div>
+    </Dialogue>
   );
 }
 
@@ -482,9 +759,16 @@ function FenetreOuvrir({ d, pre, fermer, fait }: { d: Donnees; pre?: string | un
   const [publier, setPublier] = useState(false);
   const [pub, setPub] = useState('');
   const [motif, setMotif] = useState('');
+  // Le message prêt de la fiche se pose dans le champ de la page d'état tant qu'on ne l'a pas changé : changer de fiche
+  // change de message, un texte écrit à la main reste.
+  const pret = (f: string) => (f ? messagesDe(f).public ?? '' : '');
+  const choisirFiche = (f: string) => { if (pub === pret(fiche)) setPub(pret(f)); setFiche(f); };
+  const cocher = (oui: boolean) => { if (oui && !pub) setPub(pret(fiche)); setPublier(oui); };
   const envoyer = () => {
     if (t.trim().length < 3) { e.refuser(phrase(`${I}.ouvrir_f.titre_court`), 'titre'); return; }
     if (publier && pub.trim().length < 3) { e.refuser(phrase(`${I}.ouvrir_f.public_court`), 'public'); return; }
+    const trou = publier ? passageARemplir(pub) : null;
+    if (trou) { e.refuser(phrase(`${I}.a_remplir`, { passage: trou }), 'public'); return; }
     if (motifCourt(motif)) { e.refuser(phrase('console.ecran.geste.motif_court'), 'motif'); return; }
     e.envoyer('/console/service/incidents', { titre: t.trim(), gravite: g, fiche: fiche || null, public: publier ? pub.trim() : null, motif: motif.trim() },
       phrase(`${I}.ouvrir_f.fait`));
@@ -502,13 +786,13 @@ function FenetreOuvrir({ d, pre, fermer, fait }: { d: Donnees; pre?: string | un
         </div>
         <span className="c-champ-aide">{phrase(`${I}.regles.${g}.quand`)}</span>
       </div>
-      <Choix libelle={titre(`${I}.ouvrir_f.fiche`)} aide={phrase(`${I}.ouvrir_f.fiche_aide`)} valeur={fiche} changer={setFiche}
+      <Choix libelle={titre(`${I}.ouvrir_f.fiche`)} aide={phrase(`${I}.ouvrir_f.fiche_aide`)} valeur={fiche} changer={choisirFiche}
         options={[{ valeur: '', texte: maj(dire(`${I}.ouvrir_f.aucune_fiche`)) }, ...d.fichesConnues.map((f) => ({ valeur: f, texte: maj(dire(`${I}.fiche.${f}.nom`)) }))]} />
       <label className="c-in-case">
-        <input type="checkbox" checked={publier} onChange={(x) => setPublier(x.target.checked)} />
+        <input type="checkbox" checked={publier} onChange={(x) => cocher(x.target.checked)} />
         <span>{phrase(`${I}.ouvrir_f.publier`)}</span>
       </label>
-      {publier ? <Zone libelle={titre(`${I}.ouvrir_f.public`)} aide={phrase(`${I}.ouvrir_f.public_aide`)} valeur={pub} changer={setPub} faute={e.faute('public')} n={e.n} /> : null}
+      {publier ? <Zone libelle={titre(`${I}.ouvrir_f.public`)} aide={phrase(pub && pub === pret(fiche) ? `${I}.ouvrir_f.public_pret` : `${I}.ouvrir_f.public_aide`)} valeur={pub} changer={setPub} faute={e.faute('public')} n={e.n} /> : null}
       {/* Arrivé rempli sur sa fiche (l'écran Sécurité) : il ne reste que le motif, le curseur y est. */}
       <Zone libelle={titre('console.ecran.geste.motif')} aide={phrase(`${I}.ouvrir_f.motif_aide`)} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} premier={!!pre} />
       <Qui />
@@ -526,6 +810,8 @@ function FenetrePoint({ i, publicDemande, fermer, fait }: { i: Incident; publicD
   const envoyer = () => {
     if (texte.trim().length < 3) { e.refuser(phrase(`${I}.point.court`), 'texte'); return; }
     if (pub && /[<>]/.test(texte)) { e.refuser(phrase(`${I}.point.balise`), 'texte'); return; }
+    const trou = pub ? passageARemplir(texte) : null;
+    if (trou) { e.refuser(phrase(`${I}.a_remplir`, { passage: trou }), 'texte'); return; }
     e.envoyer(`/console/service/incidents/${i.id}/points`, { texte: texte.trim(), public: pub, gravite: monte || null },
       phrase(pub ? `${I}.point.fait_public` : `${I}.point.fait`));
   };
@@ -708,6 +994,7 @@ function FenetreAnnoncer({ d, fermer, fait }: { d: Donnees; fermer: () => void; 
   const [debut, setDebut] = useState(demain);
   const [fin, setFin] = useState(enChamp(new Date(Date.parse(`${d.aujourdhui}T02:00:00Z`) + 86_400_000).toISOString()));
   const [motif, setMotif] = useState('');
+  const [fermee, setFermee] = useState(false);
   const envoyer = () => {
     if (t.trim().length < 3 || /[<>]/.test(t)) { e.refuser(phrase(`${I}.annoncer.titre_court`), 'titre'); return; }
     if (texte.trim().length < 3 || /[<>]/.test(texte)) { e.refuser(phrase(`${I}.annoncer.texte_court`), 'texte'); return; }
@@ -715,7 +1002,7 @@ function FenetreAnnoncer({ d, fermer, fait }: { d: Donnees; fermer: () => void; 
     if (!a || Date.parse(a) <= Date.parse(d.maintenant)) { e.refuser(phrase(`${I}.annoncer.debut_futur`), 'debut'); return; }
     if (!b || Date.parse(b) <= Date.parse(a) || Date.parse(b) - Date.parse(a) > 12 * 3_600_000) { e.refuser(phrase(`${I}.annoncer.douze`), 'fin'); return; }
     if (motifCourt(motif)) { e.refuser(phrase('console.ecran.geste.motif_court'), 'motif'); return; }
-    e.envoyer('/console/service/maintenances', { titre: t.trim(), texte: texte.trim(), debut: a, fin: b, motif: motif.trim() }, phrase(`${I}.annoncer.fait`));
+    e.envoyer('/console/service/maintenances', { titre: t.trim(), texte: texte.trim(), debut: a, fin: b, motif: motif.trim(), fermee }, phrase(`${I}.annoncer.${fermee ? 'fait_fermee' : 'fait'}`));
   };
   return (
     <Dialogue titre={titre(`${I}.annoncer.titre`)} sous={phrase(`${I}.annoncer.sous`)} fermer={fermer} occupe={e.occupe}
@@ -726,6 +1013,39 @@ function FenetreAnnoncer({ d, fermer, fait }: { d: Donnees; fermer: () => void; 
         <Champ libelle={titre(`${I}.annoncer.debut`)} type="datetime-local" valeur={debut} changer={setDebut} faute={e.faute('debut')} n={e.n} />
         <Champ libelle={titre(`${I}.annoncer.fin`)} type="datetime-local" valeur={fin} changer={setFin} faute={e.faute('fin')} n={e.n} />
       </div>
+      <label className="c-in-case">
+        <input type="checkbox" checked={fermee} onChange={(x) => setFermee(x.target.checked)} />
+        <span>{phrase(`${I}.annoncer.fermee`)}</span>
+      </label>
+      <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
+      <Qui />
+      {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
+    </Dialogue>
+  );
+}
+
+// Fermer l'application maintenant : ce que les clients liront, jusqu'à quand (douze heures au plus), et le motif.
+function FenetreFermerMaintenant({ d, fermer, fait }: { d: Donnees; fermer: () => void; fait: () => void }) {
+  const e = useEnvoi(fait);
+  const [texte, setTexte] = useState('');
+  const [fin, setFin] = useState(enChamp(new Date(Math.ceil((Date.parse(d.maintenant) + 3_600_000) / 900_000) * 900_000).toISOString()));
+  const [motif, setMotif] = useState('');
+  const envoyer = () => {
+    if (texte.trim().length < 3 || /[<>]/.test(texte)) { e.refuser(phrase(`${I}.annoncer.texte_court`), 'texte'); return; }
+    const b = duChamp(fin);
+    if (!b || Date.parse(b) <= Date.parse(d.maintenant) || Date.parse(b) - Date.parse(d.maintenant) > 12 * 3_600_000) { e.refuser(phrase(`${I}.fermer_maintenant.douze`), 'fin'); return; }
+    if (motifCourt(motif)) { e.refuser(phrase('console.ecran.geste.motif_court'), 'motif'); return; }
+    e.envoyer('/console/service/fermer-maintenant', { texte: texte.trim(), fin: b, motif: motif.trim() }, phrase(`${I}.fermer_maintenant.fait`));
+  };
+  return (
+    <Dialogue titre={titre(`${I}.fermer_maintenant.titre`)} sous={phrase(`${I}.fermer_maintenant.sous`)} fermer={fermer} occupe={e.occupe}
+      pied={<Pied fermer={fermer} occupe={e.occupe} envoyer={envoyer} bouton={titre(`${I}.fermer_maintenant.bouton`)} sortie={titre(`${I}.fermer_maintenant.garder`)} />}>
+      <div className="c-al-ce-qui-va">
+        <span className="c-champ-libelle">{titre(`${K}.al.geste.ce_qui_va`)}</span>
+        <ul>{(['p1', 'p2', 'p3'] as const).map((k) => <li key={k}>{phrase(`${I}.fermer_maintenant.${k}`)}</li>)}</ul>
+      </div>
+      <Zone libelle={titre(`${I}.fermer_maintenant.texte`)} aide={phrase(`${I}.fermer_maintenant.texte_aide`)} valeur={texte} changer={setTexte} faute={e.faute('texte')} n={e.n} />
+      <Champ libelle={titre(`${I}.fermer_maintenant.fin`)} aide={phrase(`${I}.fermer_maintenant.fin_aide`)} type="datetime-local" valeur={fin} changer={setFin} faute={e.faute('fin')} n={e.n} />
       <Zone libelle={titre('console.ecran.geste.motif')} valeur={motif} changer={setMotif} faute={e.faute('motif')} n={e.n} />
       <Qui />
       {e.refus ? <Alerte ton="danger">{e.refus}</Alerte> : null}
@@ -771,17 +1091,66 @@ function FenetreFiche({ f, fermer }: { f: string; fermer: () => void }) {
         ))}
       </ol>
       {FICHES_A_DECIDER[f] ? <Alerte ton="attention"><span>{phrase(`${I}.fiches.${FICHES_A_DECIDER[f]}_dit`)}</span></Alerte> : null}
+      <MessagesPrets f={f} />
     </Dialogue>
   );
 }
 
-function Fenetre({ g, d, fermer, fait, changer }: { g: Geste; d: Donnees; fermer: () => void; fait: () => void; changer: (g: Geste) => void }) {
+// Les messages prêts d'une fiche : copiés d'un geste, à remplir là où ils partent. Jamais envoyés d'ici : chaque phrase se
+// relit (elle doit être vraie) et ce qui est entre crochets ne se sait qu'au moment.
+function MessagesPrets({ f }: { f: string }) {
+  const m = messagesDe(f);
+  const copier = (texte: string) => {
+    if (!navigator.clipboard) { toast(phrase(`${I}.fiche.copie_ratee`), true); return; }
+    navigator.clipboard.writeText(texte).then(() => toast(phrase(`${I}.fiche.copie`)), () => toast(phrase(`${I}.fiche.copie_ratee`), true));
+  };
+  return (
+    <div className="c-in-prets">
+      <div className="c-in-pret">
+        <div className="c-in-pret-tete">
+          <span className="c-champ-libelle">{titre(`${I}.fiche.public_titre`)}</span>
+          {m.public ? <Bouton petit icone="copier" etiquette={titre(`${I}.fiche.copier_public`)} onClick={() => copier(m.public ?? '')}>{titre(`${I}.fiche.copier`)}</Bouton> : null}
+        </div>
+        {m.public ? <blockquote className="c-in-pret-texte" data-pret="public">{m.public}</blockquote> : <p className="c-sous">{phrase(`${I}.fiche.public_rien`)}</p>}
+      </div>
+      <div className="c-in-pret">
+        <div className="c-in-pret-tete">
+          <span className="c-champ-libelle">{titre(`${I}.fiche.courriel_titre`)}</span>
+          {m.courriel ? <Bouton petit icone="copier" etiquette={titre(`${I}.fiche.copier_courriel`)}
+            onClick={() => copier(`${titre(`${I}.fiche.objet`)}\u202f: ${m.courriel?.objet ?? ''}\n\n${m.courriel?.corps ?? ''}`)}>{titre(`${I}.fiche.copier`)}</Bouton> : null}
+        </div>
+        {m.courriel ? (
+          <div className="c-in-pret-courriel" data-pret="courriel">
+            <p><b>{titre(`${I}.fiche.objet`)}{'\u202f:'}</b> {m.courriel.objet}</p>
+            <p className="c-in-pret-corps">{m.courriel.corps}</p>
+          </div>
+        ) : <p className="c-sous">{phrase(`${I}.fiche.courriel_rien`)}</p>}
+      </div>
+      {m.public || m.courriel ? <p className="c-sous">{phrase(`${I}.fiche.crochets`)}</p> : null}
+    </div>
+  );
+}
+
+function Fenetre({ g, d, fermer, fait, changer, poser }: {
+  g: Geste; d: Donnees; fermer: () => void; fait: () => void; changer: (g: Geste) => void; poser: (e: EnCours | null) => void;
+}) {
   switch (g.sorte) {
+    case 'exercice': return <FenetreExercice d={d} fermer={fermer} commencer={(e) => { poser(e); fermer(); }} />;
+    case 'abandonner': return <FenetreAbandonner fermer={fermer} abandonner={() => { poser(null); fermer(); toast(phrase(`${I}.ex.ab.fait`)); }} />;
+    case 'compte_rendu': return <FenetreCompteRendu en={g.en} fermer={fermer} fait={() => { poser(null); fait(); }} />;
+    case 'lire_exercice': return <FenetreLireExercice x={g.e} d={d} fermer={fermer} />;
     case 'ouvrir': return <FenetreOuvrir d={d} pre={g.fiche} fermer={fermer} fait={fait} />;
     case 'point': return <FenetrePoint i={g.i} publicDemande={g.public} fermer={fermer} fait={fait} />;
     case 'clore': return <FenetreClore i={g.i} d={d} fermer={fermer} fait={fait} />;
     case 'repousser': return <FenetreRepousser s={g.s} d={d} fermer={fermer} fait={fait} />;
     case 'annoncer': return <FenetreAnnoncer d={d} fermer={fermer} fait={fait} />;
+    case 'fermer_maintenant': return <FenetreFermerMaintenant d={d} fermer={fermer} fait={fait} />;
+    case 'fermer':
+      return <FenetreMotif titreF={titre(`${I}.fermer.titre`)} sous={maj(g.m.titre)} points={[phrase(`${I}.fermer.p1`, { debut: quand(g.m.debut, d.aujourdhui), fin: quand(g.m.fin, d.aujourdhui) }), phrase(`${I}.fermer.p2`), phrase(`${I}.fermer.p3`)]}
+        chemin={`/console/service/maintenances/${g.m.id}/fermer`} corps={{}} dit={phrase(`${I}.fermer.fait`)} bouton={titre(`${I}.fermer.bouton`)} fermer={fermer} fait={fait} />;
+    case 'rouvrir':
+      return <FenetreMotif titreF={titre(`${I}.rouvrir.titre`)} sous={maj(g.m.titre)} points={[phrase(`${I}.rouvrir.p1`), phrase(`${I}.rouvrir.p2`)]}
+        chemin={`/console/service/maintenances/${g.m.id}/rouvrir`} corps={{}} dit={phrase(`${I}.rouvrir.fait`)} bouton={titre(`${I}.rouvrir.bouton`)} sortie={titre(`${I}.rouvrir.garder`)} fermer={fermer} fait={fait} />;
     case 'lire': return <FenetreLire p={g.p} d={d} fermer={fermer} faire={changer} />;
     case 'prevenir': return <FenetrePrevenir cible={g.cible} fermer={fermer} fait={fait} />;
     case 'fiche': return <FenetreFiche f={g.f} fermer={fermer} />;
@@ -802,6 +1171,8 @@ export function Incidents({ ouvrir = null }: { ouvrir?: string | null }) {
   const [l, relire] = useLecture<Donnees>('/console/service/incidents', 'service-incidents');
   useRelireTantQueRegarde(relire);
   const [geste, setGeste] = useState<Geste | null>(null);
+  const [enCours, setEnCours] = useState<EnCours | null>(lireEnCours);
+  const poser = (e: EnCours | null) => { ecrireEnCours(e); setEnCours(e); };
   const d = l.etat === 'lu' ? l.donnees : null;
   // Arrivé pour ouvrir un incident sur une fiche (l'écran Sécurité, 0142) : la fenêtre s'ouvre une fois, remplie, et
   // l'adresse s'en défait (revenir sur la page ne la rouvre pas).
@@ -820,6 +1191,8 @@ export function Incidents({ ouvrir = null }: { ouvrir?: string | null }) {
       {l.etat === 'lecture' ? <p className="c-attente">{titre('console.ecran.lecture')}</p> : null}
       {d ? (
         <>
+          {enCours ? <ExerciceEnCours en={enCours} poser={poser} faire={setGeste} /> : null}
+          {(() => { const f = fermeture(d); return f ? <Fermee m={f} d={d} faire={setGeste} /> : null; })()}
           {d.ouverts.length ? (
             <div className="c-in-ouverts">
               <div className="c-in-ouverts-tete">
@@ -837,9 +1210,10 @@ export function Incidents({ ouvrir = null }: { ouvrir?: string | null }) {
           <Passes d={d} faire={setGeste} />
           <Regles />
           <Fiches d={d} faire={setGeste} />
+          <Exercices d={d} faire={setGeste} enCours={!!enCours} />
         </>
       ) : null}
-      {geste && d ? <Fenetre g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} changer={setGeste} /> : null}
+      {geste && d ? <Fenetre g={geste} d={d} fermer={() => setGeste(null)} fait={() => { setGeste(null); relire(); }} changer={setGeste} poser={poser} /> : null}
     </>
   );
 }

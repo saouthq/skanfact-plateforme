@@ -76,8 +76,10 @@ describe('les abonnements d\'un dossier, à la souris', () => {
     const toast = () => p.locator('#toast').innerText();
     const fenetre = p.locator('#modal-root .modal').last();
     const ouvrir = async (bouton: string, dedans: string) => expect.poll(async () => {
-      if (!await p.locator(dedans).isVisible()) await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
-      return p.locator(dedans).isVisible();
+      // On ne reclique que si la fenêtre n'existe pas encore (1.117.1) : sur une machine lente, un second clic partait avant
+      // qu'elle ne s'affiche, et deux fenêtres s'ouvraient (rouge GitHub de la 1.118.0, Node 24).
+      if (!await p.locator(dedans).count()) await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
+      return p.locator(dedans).first().isVisible();
     }, { timeout: 30_000 }).toBe(true);
 
     // ── Un abonnement : le loyer du local, 850,500 DT le 5 de chaque mois ─────────────────────────

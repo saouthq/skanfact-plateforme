@@ -8,6 +8,7 @@
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest, type FastifyServerOptions } from 'fastify';
 import { z, type ZodType } from 'zod';
 import { langueDe, motif, rendre, rendreTout, t, type Langue } from '../textes/index.ts';
+import { brancherFermeture } from './fermeture.ts';
 import { enTantQue, type Transaction } from './base.ts';
 import { champDuRefus, noterPanne, texteDuRefus } from './erreurs.ts';
 import { cleValable } from './cles.ts';
@@ -156,6 +157,8 @@ export function creerApp(ctx: Contexte, routes: Route<never>[], options: { limit
   // perdrait ses derniers chiffres chez celui qui le lit. L'argent, lui, sort toujours en texte
   // décimal (versTexte), jamais en unités brutes.
   app.setReplySerializer((corps) => JSON.stringify(corps, (_cle, v: unknown) => (typeof v === 'bigint' ? v.toString() : v)));
+  // (1.107.0) L'application fermée aux clients pendant une maintenance (serveur/fermeture.ts) : la console reste ouverte.
+  brancherFermeture(app, ctx);
 
   // Une réponse de l'API ne se garde dans aucun cache (brique 113 bis) : ni le navigateur ni un intermédiaire ne doit
   // la resservir (un dossier d'hier montré pour celui d'aujourd'hui), ni la laisser sur le disque (des données

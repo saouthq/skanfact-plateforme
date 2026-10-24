@@ -104,6 +104,17 @@ describe('le menu selon le rôle, à la souris', () => {
     // Et elle ne propose pas la visite d'une page qu'il ne voit pas.
     await k.waitForTimeout(1500);
     expect(await k.getByText('Première fois sur cette page ?').count()).toBe(0);
+    // (1.134.0) Depuis la 1.129.0 la visite ne se propose qu'une fois par ouverture : l'accueil l'a déjà prise ici, et la
+    // règle ne se mesure qu'avec la page cachée ouverte la PREMIÈRE (sans « Plus tard », qui fermerait la proposition).
+    const cxCachee = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    await cxCachee.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, karim.jeton);
+    const kc = await cxCachee.newPage();
+    kc.on('pageerror', (e) => erreurs.push(e.message));
+    await kc.goto(`${serveur.adresse}/v10/?e=${ent}#/paie`);
+    await expect.poll(() => kc.locator('#page-interdite').count(), { timeout: 20_000 }).toBe(1);
+    await kc.waitForTimeout(1500);
+    expect(await kc.getByText('Première fois sur cette page ?').count()).toBe(0);
+    await cxCachee.close();
     await k.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'menu-role-1-commercial.png') });
     await k.locator('#pi-accueil').click();
     await expect.poll(() => titre(k), { timeout: 10_000 }).toBe('Accueil');

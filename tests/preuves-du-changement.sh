@@ -9,7 +9,7 @@
 set -u
 ICI="$(cd "$(dirname "$0")/.." && pwd)"
 SORTIE="${1:?le fichier où écrire les noms}"
-BASE="${BASE:-origin/main}"
+BASE="${BASE:-origin/dev}"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
 git -C "$ICI" show "$BASE:tests/preuves.sh" > "$tmp/base.sh" 2>/dev/null \

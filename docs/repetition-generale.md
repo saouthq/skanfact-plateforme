@@ -18,6 +18,7 @@ la machine de la répétition, l'accès de Claude n'existe pas non plus, `docs/m
 | 1.3 | C | Lire l'état de la machine dans la console (Service › Versions) | Le suiveur attend **toutes les preuves** (« toutes ») ; aucune version sans elles ne s'installe |
 | 1.4 | S | Ouvrir `https://<adresse>/etat.json` depuis un navigateur | **Refusé** : l'état détaillé ne se lit que dans la console |
 | 1.5 | S | La console à son adresse (J) | L'entrée de la console s'ouvre ; l'application des clients, à côté, aussi |
+| 1.6 | C | **La charge** (1.110.0) : `npm run banc:clients 500 60 60` sur cette machine, avant toute donnée réelle (une base à part, détruite ensuite) | Tous les seuils tiennent (VISION § 6) ; sinon la machine se change avant les pilotes, pas les seuils |
 
 ## 2. Les copies
 
@@ -37,6 +38,7 @@ la machine de la répétition, l'accès de Claude n'existe pas non plus, `docs/m
 | 3.2 | S | La variable `SKANFACT_GUET` sur GitHub, avec cette adresse (I bis) | Le guet de GitHub passe toutes les dix minutes ; la veille ne dit plus « ce serveur n'est pas guetté » |
 | 3.3 | S | Le second guet (I ter) : le Worker de Cloudflare, sa variable et son jeton | Un passage toutes les dix minutes dans le journal du Worker |
 | 3.4 | S | Couper la machine du réseau vingt minutes (le pare-feu de l'hébergeur) | **Deux** tickets s'ouvrent sur GitHub (« Le guet extérieur : … », « Le second guet : … ») et partent par e-mail ; au retour, les deux se ferment seuls |
+| 3.4 bis | S | **La page de secours** (I quater, 1.114.0) : le magasin, la clé, `npx wrangler deploy` ; puis couper la machine du réseau vingt minutes (avec 3.4) | `etat.skanfact.tn` dit « SkanFact ne répond pas depuis … » ; un mot écrit sur `/ecrire` s'y lit ; au retour, « SkanFact répond », et le mot se retire |
 | 3.5 | S | Remplir le disque à 90 % (un fichier, puis l'effacer) | L'alerte du disque, puis son retour |
 
 ## 4. La console
@@ -51,6 +53,7 @@ la machine de la répétition, l'accès de Claude n'existe pas non plus, `docs/m
 | 4.6 | S | Bloquer une adresse internet une heure, puis la débloquer (C67) | L'entrée refuse cette adresse et dit jusqu'à quand ; une autre passe |
 | 4.7 | — | Le lendemain : Sécurité › Les chaînes d'empreintes | Tout relu, contenu compris, **aucune rupture** |
 | 4.8 | S | Les secrets et leur échéance (C53) : chacun noté, avec où il vit | Aucun « en retard » ; le plus proche dans « À décider » trente jours avant |
+| 4.9 | S | **Trois exercices de crise** (C24 quater, 1.113.0) : « le service ne répond plus », « une sauvegarde manque ou est en retard », « un accès suspect, un compte volé », chacun joué à blanc avec le chrono, temps par temps | Chacun noté « réussi » (sinon rejoué après ce qu'on change) ; le compteur en dit trois sur dix ; les dix avant le lancement (J5) |
 
 ## 5. Les partenaires
 
@@ -59,6 +62,20 @@ la machine de la répétition, l'accès de Claude n'existe pas non plus, `docs/m
 | 5.1 | S | L'accès d'essai d'El Fatoora (démarche en cours) : une facture d'essai signée et déposée | Acceptée, sa référence et son code QR gardés (`docs/facture-electronique.md`) |
 | 5.2 | S | Un paiement d'essai par Konnect (son bac à sable) | Encaissé, la facture payée, le reçu envoyé |
 | 5.3 | S | Le code de connexion par SMS (WinSMS) | Reçu en moins d'une minute ; Service › Travaux le compte |
+
+## 5 bis. Les appareils
+
+Ce que la machine des essais ne peut pas voir (1.112.0) : elle n'a que Chromium. Le code envoyé au navigateur est tenu
+au plancher (Chrome et Edge 111, Firefox 121, Safari et iOS 16.4 : `commun/navigateurs.ts`, `tests/web/navigateurs.test.ts`)
+et chaque écran du quotidien tient à 320 points au doigt (`tests/web/telephone-commercant.test.ts`) ; le rendu lui-même
+se regarde sur de vrais appareils.
+
+| | Qui | Le geste | Ce qu'on doit voir |
+|---|---|---|---|
+| 5b.1 | S | Un iPhone (Safari) : se connecter, faire une facture, l'émettre, l'envoyer par WhatsApp ; ajouter SkanFact à l'écran d'accueil | Tout se touche du doigt ; rien ne glisse de côté ; l'icône ouvre l'application seule, sans la barre de Safari |
+| 5b.2 | S | Un téléphone Android d'entrée de gamme (Chrome) : la même facture, puis la caisse, sans réseau dix minutes | Le ticket se fait sans réseau et part seul au retour ; le clavier ne cache pas le bouton « Enregistrer » |
+| 5b.3 | S | Firefox et Safari sur un ordinateur : la console, la fiche d'un client, un geste avec son motif | Même écran qu'avec Chrome ; aucune règle de mise en page qui manque (les cartes, les pastilles) |
+| 5b.4 | S | La tablette du comptoir (la caisse, au doigt, en paysage et en portrait) | Le comptage tient au-dessus de « Fermer la caisse et faire le Z » |
 
 ## 6. Signer la répétition
 

@@ -116,9 +116,11 @@ describe('une écriture datée après aujourd\'hui le dit avant le geste, à la 
     await lots.last().click();
     await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Valider 2 écritures d\'octobre 2026 ?');
     await fenetre.getByRole('button', { name: 'Valider', exact: true }).click();
-    await expect.poll(() => p.locator('#modal-root .modal').last().innerText()).toMatch(/2 écritures validées sous les n° \d+ à \d+\./);
-    expect(await p.locator('#modal-root .modal').last().innerText()).not.toMatch(/pas entrée/);
-    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Fermer', exact: true }).click();
+    // (1.131.0) Tout est entré : un message bref, ce qui reste au brouillard du mois (la pièce de paie, pas avant son
+    // jour), et aucune fenêtre à fermer (revue du mois d'un client, point 18).
+    await expect.poll(async () => (await p.locator('#toast').innerText().catch(() => '')).replace(/\s+/g, ' ').trim(), { timeout: 15_000 })
+      .toMatch(/^2 écritures validées sous les n° \d+ à \d+\. 1 autre reste au brouillard d'octobre 2026\.$/);
+    expect(await p.locator('#modal-root .modal').count()).toBe(0);
     // Il ne reste que la pièce de paie : pas de lot, pas de phrase de lot sans bouton, mais son jour.
     await expect.poll(() => p.locator('tr.br-ligne').count()).toBe(1);
     expect(await p.locator('.sa-lot').count()).toBe(0);
@@ -132,6 +134,9 @@ describe('une écriture datée après aujourd\'hui le dit avant le geste, à la 
     expect(await p.locator('#pa-valider').getAttribute('class')).toMatch(/\bbtn-primary\b/);
     await p.locator('#pa-valider').click();
     await expect.poll(() => p.evaluate(() => location.hash), { timeout: 15_000 }).toMatch(/comptabilite\/saisie\//);
+    // Mené AU brouillard : il s'éclaire une seconde et demie (« c'est ici »). Sur une page courte, le brouillard se voit
+    // aussi sans le geste : seul cet éclair distingue « mené au brouillard » de « le haut de la grille » (1.107.0).
+    await expect.poll(() => p.locator('#sa-brouillard.flash').count(), { timeout: 5_000, interval: 50 }).toBe(1);
     // Amené à l'écran (le haut du brouillard visible), pas forcément en haut : sur une page courte, la fin du défilement
     // l'arrête plus bas (sur GitHub, d'autres polices : « moins d'une demi-fenêtre » tombait sans défaut).
     await expect.poll(() => p.evaluate(() => { const r = document.querySelector('#sa-brouillard')?.getBoundingClientRect(); return !!r && r.top >= 0 && r.top < innerHeight - 80; }), { timeout: 10_000 }).toBe(true);

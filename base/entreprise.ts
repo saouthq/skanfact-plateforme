@@ -112,6 +112,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'socle.piece_jointe': { classe: 'entreprise' },
   // L'alerte par e-mail est un réglage de chaque personne (cochée par défaut) : restaurée, l'entreprise la rend cochée.
   'messagerie.alerte': { classe: 'hors', raison: 'un réglage de chaque personne, coché par défaut' },
+  // 1.117.0 — les modèles de messages du cabinet (0169) : les phrases du cabinet, pour tous ses clients.
+  'messagerie.modele': { classe: 'hors', raison: 'les modèles de messages appartiennent au cabinet, pas à un client' },
   // La révision d'un dossier (0028) : le dossier de travail du CABINET ; elle ne part pas avec l'entreprise.
   'cabinet.revision': { classe: 'hors', raison: 'le dossier de révision appartient au cabinet qui révise' },
   // Le dossier v10 de l'entreprise (0011) : ce que son interface tient, objet par objet.
@@ -177,6 +179,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.demande_effacement': { classe: 'hors', raison: 'une demande d\'effacement reçue par SkanFact, sa décision et sa preuve (0144) : un registre de l\'équipe SkanFact' },
   'plateforme.relecture_demandee': { classe: 'hors', raison: 'une relecture des chaînes demandée depuis la console (0142) : un geste de l\'équipe SkanFact, pas une donnée de l\'entreprise' },
   'plateforme.service_maintenance': { classe: 'hors', raison: 'les maintenances annoncées sur la page d\'état : l\'histoire de la plateforme' },
+  'plateforme.service_fermeture': { classe: 'hors', raison: 'l\'application fermée aux clients pendant une maintenance (0164) : l\'histoire de la plateforme' },
+  'plateforme.exercice_crise': { classe: 'hors', raison: 'les exercices de crise de l\'équipe (0166), joués à blanc : rien d\'un client' },
   // Les réglages (0093, docs/console.md C28) : la relecture d'une règle commune par un comptable, et le message affiché en
   // haut de l'application de tous les clients. Communs à la plateforme, à aucune entreprise.
   'plateforme.relecture_regle': { classe: 'hors', raison: 'la relecture d\'une règle commune par un comptable : le registre de la plateforme, commun à toutes les entreprises' },
@@ -191,6 +195,11 @@ export const CLASSEMENT: Record<string, Classe> = {
   'plateforme.editeur': { classe: 'hors', raison: 'l\'entreprise de SkanFact où naissent nos factures : un réglage de la plateforme, commun à toutes' },
   'plateforme.facture_abonnement': { classe: 'hors', raison: 'le lien entre une facture de SkanFact et l\'abonnement qu\'elle paie : la relation avec SkanFact, comme l\'abonnement ; la pièce elle-même est dans le dossier de SkanFact' },
   'plateforme.offre_choisie': { classe: 'hors', raison: 'l\'offre choisie dans « Ton abonnement » (0158) : la relation avec SkanFact, comme l\'abonnement ; une remise ne fait jamais revenir un ancien choix' },
+  'plateforme.regle_cabinet': { classe: 'hors', raison: 'les règles de l\'abonnement des cabinets (0172) : un réglage de la plateforme, commun à tous' },
+  'plateforme.abonnement_cabinet': { classe: 'hors', raison: 'l\'abonnement d\'un cabinet (0172) : la relation du cabinet avec SkanFact, pas une entreprise' },
+  'plateforme.facture_cabinet': { classe: 'hors', raison: 'le lien entre une facture de SkanFact et l\'abonnement d\'un cabinet (0172) ; la pièce elle-même est dans le dossier de SkanFact' },
+  'plateforme.facture_cabinet_refus': { classe: 'hors', raison: 'pourquoi une facture de cabinet ne s\'est pas faite seule (0172) : la relation du cabinet avec SkanFact' },
+  'plateforme.choix_refuse': { classe: 'hors', raison: 'pourquoi un choix d\'offre ne s\'est pas facturé seul (0171) : la relation avec SkanFact, comme le choix lui-même' },
   'socle.dossier_v10_retire': { classe: 'hors', raison: 'les traces de retrait servent la relecture des postes ; après une restauration, un poste relit tout' },
   // Ce qu'un appareil retiré a remis (0044) : à l'entreprise, décidé ou non.
   'socle.quarantaine': { classe: 'entreprise' },

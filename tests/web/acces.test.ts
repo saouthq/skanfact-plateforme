@@ -172,6 +172,9 @@ describe('l\'accès du support au dossier, à la souris, des deux côtés', () =
     lecture.on('pageerror', (e) => erreurs.push(e.message));
     await expect.poll(() => lecture.locator('.lec-bandeau').count(), { timeout: 20_000 }).toBe(1);
     expect(lecture.url()).toContain(`support=${acces}`);
+    // L'Accueil du dossier non plus n'invite pas à sa visite (la page est celle du client, pas de qui la lit).
+    await lecture.waitForTimeout(800);
+    expect(await lecture.locator('#guide-appel').count()).toBe(0);
     // Le nom que la console montre (lu avec le dossier) : la fiche société de ce dossier est vide.
     expect(net(await lecture.locator('.lec-bandeau').innerText())).toMatch(/Lecture pour le support : le dossier de Studio Lina Acces Accordé jusqu'à (demain, )?\d\d:\d\d \(il reste 1 h 5\d\)\. Rien de ce que tu fais ici ne s'enregistre/);
     // Les clients du dossier se lisent.

@@ -306,3 +306,60 @@ envoie à l'ouverture ; un navigateur qui ne promet pas de garder, qui refuse et
 
 **Reste à faire** : la remise en quarantaine des écritures d'un appareil retiré ; les autres gestes du Cabinet sans
 réseau (la banque, la paie, les déclarations) restent en ligne, et le disent.
+
+## 1.134.0 : les mots d'une page sans réseau (UX 2, fait le 23/10/2026)
+
+Sous le bandeau « Hors ligne depuis… », une page qui demande le serveur disait « Le serveur ne répond pas : vérifie ta
+connexion, puis réessaie. », ce qui fait chercher une panne chez SkanFact. Quand le poste n'a pas de réseau du tout
+(`navigator.onLine` faux), la lecture dit « Pas de réseau pour lire cette page : réessaie quand la connexion revient. » et
+un geste « Pas de réseau : rien n'a été fait. Refais ce geste quand la connexion revient. » (`pont.js`, `pont-cabinet.js`) ;
+un serveur qui ne répond pas, le réseau présent, garde l'ancienne phrase. La messagerie et la boîte du cabinet gardent
+leur titre, le disent (« Pas de réseau : la messagerie attend la connexion. ») et se relisent dès le retour du réseau
+(`docs/messagerie.md`). Tenu par `tests/web/messagerie.test.ts`, preuves « ux2 134 ».
+
+## 1.136.0 : l'ouverture qui tarde, ou que le serveur refuse (UX 2, fait le 23/10/2026)
+
+La recette du 23/10/2026, le serveur ralenti puis mis en erreur par le navigateur : pendant une ouverture lente, le
+Cabinet restait **tout blanc**, et l'entreprise montrait une barre sans menu ni contenu ; rien ne disait que ça venait.
+Une erreur du serveur à l'ouverture (une 500 sur le dossier ou le portefeuille) laissait la page blanche **pour toujours**
+(l'erreur ne remontait à personne). Désormais (`poste.js`, « L'ouverture », appelée par `pont.js` et `pont-cabinet.js`) :
+
+- au-delà de 400 ms (une ouverture rapide ne clignote pas), la page dit « Ouverture de ton entreprise… » (ou « de ton
+  cabinet ») ; au-delà de 10 secondes : « C'est plus long que d'habitude : la connexion est peut-être lente. Rien n'est
+  perdu ; la page s'ouvre dès que le serveur répond. » La réponse venue, le message s'en va ;
+- refusée par le serveur, la page dit « SkanFact n'a pas pu ouvrir ton entreprise. », la raison du serveur, que rien
+  n'est perdu, et offre « Réessayer » (qui recharge) et « Voir la page d'état » (`/etat`) ;
+- sans réseau, rien ne change : la copie du poste s'ouvre, ou le bandeau dit pourquoi (`sansCopie`, qui retire le
+  message d'ouverture).
+
+Vu à l'écran (ordinateur et téléphone). Tenu par `tests/web/ouverture.test.ts` (les réponses retenues, puis refusées, par
+le navigateur), cinq preuves « ux2 136 ».
+
+(1.137.0) Après l'ouverture : au Cabinet, la carte « Ce mois-ci » du Suivi d'un dossier disparaissait sans rien dire
+quand le serveur refusait de la lire. Elle dit « Ce mois-ci n'a pas pu se lire. », la raison, et « Réessayer », qui la
+relit ; un mandat qui ne confie pas les livres la retire, comme avant (`web/v10/ce-mois-cabinet.txt`). Tenu par
+`tests/web/ouverture.test.ts`, deux preuves « ux2 137 ».
+
+(1.138.0) La passe sur tout le Cabinet, chaque lecture du serveur mise en erreur après l'ouverture : la Comptabilité d'un
+dossier et la Production disaient l'erreur sans bouton (il fallait recharger la page) ; elles disent « La comptabilité
+(ou la production) n'a pas pu se lire. », la raison, et « Réessayer ». Les Échéances disaient « Aucune échéance à suivre
+pour l'instant » d'une lecture qui avait échoué : elles disent « Le calendrier n'a pas pu se lire », que rien n'est
+perdu, et « Réessayer » (`web/v10/etats-cabinet.txt`). L'entreprise, elle, tient : ses données sont là dès l'ouverture,
+et « Mon comptable » disait déjà l'erreur avec « Réessayer ». Tenu par `tests/web/ouverture.test.ts`, trois preuves
+« ux2 138 ». Dans la console, chaque écran disait déjà la panne avec « Réessayer » ; les deux listes des personnes
+d'un client (Support, Nos échanges) l'ont désormais aussi.
+
+(1.141.0) Une page déjà close par un bandeau qui dit pourquoi (un appareil retiré dont la remise n'a pas passé, une
+entreprise qui n'est plus ouverte) ne reçoit plus, par-dessus, la page « SkanFact n'a pas pu ouvrir… » : son « Réessayer »
+suffit (rouge de GitHub sur la 1.138.0, `tests/web/quarantaine.test.ts` ; preuve « ux2 141 »).
+
+**1.142.0 (23/10/2026)** — deux vieilles preuves de la visite guidée ne tombaient plus : depuis « une seule proposition
+par ouverture » (1.129) et l'Accueil d'une entreprise qui travaille (1.139), le défaut qu'elles réintroduisaient était
+tu par une autre garde. La preuve « reposée à chaque redessin » le réintroduit en entier (reprise forcée), et la lecture
+pour le support vérifie aussi que l'Accueil du dossier n'invite pas à sa visite.
+
+**1.144.0 (24/10/2026)** — la saisie du Cabinet sans réseau tombait sur GitHub vers 23 h 30 UTC : ses données étaient
+datées au jour de Tunis (déjà le 24), son navigateur d'essai tournait en UTC (encore le 23), et l'écriture de banque du
+jour paraissait dans le futur. L'application lit le jour de qui travaille, ce qui est juste à Tunis ; c'est le test qui
+mentait. Les sept parcours qui datent leurs données au jour de Tunis ouvrent maintenant leur navigateur à Tunis.
+Reproduit avec un navigateur réglé sur un autre jour, puis vert.

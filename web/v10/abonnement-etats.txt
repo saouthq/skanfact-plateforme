@@ -1,0 +1,98 @@
+L'abonnement dans tous ses états, revu à la souris (1.122.0 ; docs/revue-abonnement.md, « Tous les états »). Format : voir
+sans-paquets.mjs.
+
+La recette du 23/10/2026 a repris chaque état de l'abonnement à l'écran (quinze entreprises, de l'essai à la suspension).
+Ici, ce qui touche les écrans de la v10 : la pastille rouge quand l'état est rouge (elle restait orange à côté d'un bandeau
+rouge), le bouton du bandeau qui mène à l'endroit qu'il nomme (« Choisir mon offre » ouvrait le haut de l'onglet, où le
+même bouton attendait un second clic), l'entreprise suspendue qui écrit au support dans SkanFact (le lien d'e-mail ne
+faisait rien sur un poste sans logiciel de courrier), et les listes des factures et des devis qui ne proposent plus de
+créer en lecture seule (le bouton vert « + Créer ma première facture » menait à une pièce qui ne pourrait pas s'enregistrer).
+
+== app.js | la pastille de l'abonnement prend le rouge de l'état quand il est rouge
+-- avant
+    el.classList.toggle('warn', p.ton === 'alerte' || p.ton === 'attire');
+    el.classList.toggle('calme', p.ton === 'calme');
+    if (p.show) el.textContent = p.texte;
+  }
+
+  // ---------- l'éditeur de SkanFact (7.33.0) ----------
+-- après
+    el.classList.toggle('warn', p.ton === 'alerte' || p.ton === 'attire');
+    el.classList.toggle('alerte', p.ton === 'alerte');
+    el.classList.toggle('calme', p.ton === 'calme');
+    if (p.show) el.textContent = p.texte;
+  }
+
+  // ---------- l'éditeur de SkanFact (7.33.0) ----------
+-- fin
+
+== app.js | le bouton du bandeau mène où il le dit ; suspendue, l'entreprise écrit au support dans SkanFact
+-- avant
+      if (b && b.ecrire) { location.href = 'mailto:contact@skanfact.tn?subject=' + encodeURIComponent('Mon abonnement SkanFact'); return; }
+      allerAbonnement();
+    };
+-- après
+      if (b && b.ecrire) {
+        if (bridge.support) { void ecrireAuSupport('question'); return; }
+        location.href = 'mailto:contact@skanfact.tn?subject=' + encodeURIComponent('Mon abonnement SkanFact'); return;
+      }
+      if (b && b.vers && window.SkanAbonnement) window.SkanAbonnement.aAmener = b.vers;
+      allerAbonnement();
+    };
+-- fin
+
+== app.js | l'onglet de l'abonnement reçoit de quoi écrire au support
+-- avant
+    if (bridge.dessinerAbonnement && $('#abonnement-panel')) void bridge.dessinerAbonnement($('#abonnement-panel'));
+-- après
+    if (bridge.dessinerAbonnement && $('#abonnement-panel')) void bridge.dessinerAbonnement($('#abonnement-panel'), { ecrire: bridge.support ? () => ecrireAuSupport('question') : null });
+-- fin
+
+== app.js | en lecture seule, les listes des factures et des devis ne proposent plus de créer
+-- avant
+        <div class="actions">${isQ || !data.documents.some(d => d.type === 'facture' && d.status !== 'brouillon' && d.number) ? '' : '<button class="btn" id="new-avoir">+ Avoir</button>'}<button class="btn ${mine.length ? 'btn-primary' : ''}" id="new">+ ${isQ ? 'Nouveau devis' : 'Nouvelle facture'}</button></div></div>
+-- après
+        <div class="actions">${isQ || !data.documents.some(d => d.type === 'facture' && d.status !== 'brouillon' && d.number) ? '' : '<button class="btn" id="new-avoir">+ Avoir</button>'}${aboBloque(true) ? `<button class="btn ${mine.length ? 'btn-primary' : ''}" id="list-abo">Voir l'abonnement</button>` : `<button class="btn ${mine.length ? 'btn-primary' : ''}" id="new">+ ${isQ ? 'Nouveau devis' : 'Nouvelle facture'}</button>`}</div></div>
+-- fin
+
+== app.js | l'état vide d'une liste en lecture seule dit pourquoi la création attend
+-- avant
+        isQ
+          ? ['Un devis annonce un prix ferme à ton client. Il n\'engage rien tant qu\'il n\'est pas accepté — et une fois accepté, il devient une facture <b>en un clic</b>, sans rien ressaisir.',
+             'Tu n\'as pas besoin de créer le client d\'abord : tu le crées depuis le devis.']
+          : ['Une facture est la pièce officielle : elle prend son numéro au moment où tu l\'émets, et n\'est plus modifiable ensuite. Pour corriger après coup, on fait un avoir.',
+             'SkanFact suit ensuite toute seule ce qu\'on te doit, et te la remonte dans « Relances » dès qu\'elle dépasse son échéance.'],
+-- après
+        (isQ
+          ? ['Un devis annonce un prix ferme à ton client. Il n\'engage rien tant qu\'il n\'est pas accepté — et une fois accepté, il devient une facture <b>en un clic</b>, sans rien ressaisir.',
+             'Tu n\'as pas besoin de créer le client d\'abord : tu le crées depuis le devis.']
+          : ['Une facture est la pièce officielle : elle prend son numéro au moment où tu l\'émets, et n\'est plus modifiable ensuite. Pour corriger après coup, on fait un avoir.',
+             'SkanFact suit ensuite toute seule ce qu\'on te doit, et te la remonte dans « Relances » dès qu\'elle dépasse son échéance.'])
+          .concat(aboBloque(true) ? [`<b>${h(licence.label)}.</b> ${h(licence.detail || '')} La création reprend dès que l'abonnement est réglé.`] : []),
+-- fin
+
+== app.js | l'état vide d'une liste en lecture seule mène à l'abonnement
+-- avant
+        [['vide-new', isQ ? '+ Créer mon premier devis' : '+ Créer ma première facture', true],
+         ['vide-demo', 'Voir un exemple rempli']])}`;
+    if ($('#vide-new')) $('#vide-new').onclick = () => navigate('#/doc/new/' + type);
+    if ($('#vide-demo')) $('#vide-demo').onclick = loadDemo;
+    $('#new').onclick = () => navigate('#/doc/new/' + type);
+-- après
+        aboBloque(true) ? [['vide-abo', 'Voir l\'abonnement', true]]
+          : [['vide-new', isQ ? '+ Créer mon premier devis' : '+ Créer ma première facture', true],
+             ['vide-demo', 'Voir un exemple rempli']])}`;
+    if ($('#vide-new')) $('#vide-new').onclick = () => navigate('#/doc/new/' + type);
+    if ($('#vide-demo')) $('#vide-demo').onclick = loadDemo;
+    if ($('#vide-abo')) $('#vide-abo').onclick = () => allerAbonnement();
+    if ($('#list-abo')) $('#list-abo').onclick = () => allerAbonnement();
+    if ($('#new')) $('#new').onclick = () => navigate('#/doc/new/' + type);
+-- fin
+
+== cabinet/app.js | un dossier gratuit le dit avant la saisie, comme celui qui se paie
+-- avant
+       ${peut && peut.avertissement ? `<p class="info-box small" id="nd-abonnement"><b>Ce dossier se paie.</b> ${esc(peut.avertissement)}</p>` : ''}
+-- après
+       ${peut && peut.avertissement ? `<p class="info-box small" id="nd-abonnement"><b>Ce dossier se paie.</b> ${esc(peut.avertissement)}</p>` : ''}
+       ${peut && peut.gratuit ? `<p class="small muted" id="nd-gratuit">${esc(peut.gratuit)}</p>` : ''}
+-- fin

@@ -27,6 +27,7 @@ import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { Collecte, envoyerMesures } from '../../serveur/service/collecte.ts';
 import { noterTour } from '../../serveur/service/tours.ts';
 import { versionTeif } from '../../serveur/v10/teif.ts';
+import { oublierLaFermeture } from '../../serveur/fermeture.ts';
 
 const MDP = 'Un-bon-mot-de-passe';
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
@@ -567,8 +568,10 @@ describe('les cabinets', () => {
 
     const f = await appeler('GET', `/console/cabinets/${cabinet}`, jS);
     expect(f.statut).toBe(200);
-    // La liste fermée (10 § 4) : son nom, ses collaborateurs, ses dossiers et leurs comptes ; rien d'autre.
-    expect(Object.keys(f.corps).sort()).toEqual(['aujourdhui', 'collaborateurs', 'comptes', 'creeLe', 'dossiers', 'id', 'nom']);
+    // La liste fermée (10 § 4) : son nom, ses collaborateurs, ses dossiers et leurs comptes, son abonnement (0172 : ce
+    // qu'il paie, compté, jamais le nom d'un dossier) ; rien d'autre.
+    expect(Object.keys(f.corps).sort()).toEqual(['abonnement', 'aujourdhui', 'collaborateurs', 'comptes', 'creeLe', 'dossiers', 'id', 'nom']);
+    expect(Object.keys(f.corps.abonnement as object).sort()).toEqual(['depuis', 'etat', 'factures', 'payants', 'payeJusquAu', 'prochaine', 'refus', 'tenus']);
     expect(Object.keys((f.corps.collaborateurs as object[])[0] ?? {}).sort()).toEqual(['depuis', 'derniereConnexion', 'email', 'nom', 'roles']);
     expect(f.corps.comptes).toEqual(ligne?.comptes);
     const dossiers = f.corps.dossiers as { place: string; mandat: { statut: string } | null; entreprise: { id: string; raisonSociale: string; etat: unknown } }[];
@@ -990,15 +993,15 @@ describe('les incidents du service et la page d\'état (0089, docs/console.md C2
     // viderait aussi les demandes des autres essais.
     await admin.query('update plateforme.demande_support set incident = null where incident is not null');
     await admin.query('delete from plateforme.service_suite; delete from plateforme.service_incident_point; delete from plateforme.service_incident');
-    await admin.query('truncate plateforme.service_maintenance');
+    await admin.query('truncate plateforme.service_fermeture, plateforme.service_maintenance');
   });
   // Les gestes de CE fichier : l'écran (tests/web/console-incidents.test.ts) écrit les siens, en même temps.
-  const gestes = async () => (await admin.query("select geste, motif, apres from plateforme.geste_console where (geste like 'service.incident%' or geste like 'service.suite%' or geste like 'service.maintenance%') and qui = any($1) order by le, id",
+  const gestes = async () => (await admin.query("select geste, motif, apres from plateforme.geste_console where (geste like 'service.incident%' or geste like 'service.suite%' or geste like 'service.maintenance%' or geste like 'service.application%') and qui = any($1) order by le, id",
     [[direction.id, technique.id]])).rows;
   const annonce = async () => ((await enTantQue(pool, null, (tx) => tx.query('select plateforme.veille_lire($1, 15) v', [horloge]))).rows[0].v as { annonce: Record<string, unknown> }).annonce;
   const lire = async (j = jT) => (await appeler('GET', '/console/service/incidents', j)).corps as {
     ouverts: { id: string; ref: string; gravite: string; public: string | null; points: { texte: string }[] }[]; suites: { id: string; titre: string; retard: number }[];
-    suitesFaites: number; page: unknown; passes: { trente: { n: number; lignes: { ref: string; minutes: number }[] } }; maintenances: { sorte: string; etat?: string; id?: string }[];
+    suitesFaites: number; page: unknown; passes: { trente: { n: number; lignes: { ref: string; minutes: number }[] } }; maintenances: { sorte: string; etat?: string; id?: string; fermee?: boolean; fin?: string }[];
     fiches: Record<string, { ref: string } | null>; equipe: { id: string; nom: string }[];
   };
   let id = '';
@@ -1008,6 +1011,10 @@ describe('les incidents du service et la page d\'état (0089, docs/console.md C2
     expect((await appeler('POST', '/console/service/incidents', jT, { titre: 'x', gravite: 'majeur', fiche: null, public: null, motif: 'la veille crie' })).statut).toBe(400);
     expect((await appeler('POST', '/console/service/incidents', jT, { titre: 'Un titre', gravite: 'majeur', fiche: 'inventee', public: null, motif: 'la veille crie' })).statut).toBe(400);
     expect((await appeler('POST', '/console/service/incidents', jT, { titre: 'Un titre', gravite: 'majeur', fiche: null, public: '<script>', motif: 'la veille crie' })).statut).toBe(400);
+    // 1.109.0 : le message prêt d'une fiche, ses crochets pas remplis, ne part jamais sur la page d'état.
+    const trou = await appeler('POST', '/console/service/incidents', jT, { titre: 'Un titre', gravite: 'majeur', fiche: 'service', public: 'SkanFact ne répond plus depuis [heure].', motif: 'la veille crie' });
+    expect(trou).toMatchObject({ statut: 400, corps: { champ: 'public' } });
+    expect(String(trou.corps.raison)).toMatch(/entre crochets reste à remplir/);
     const a = await appeler('POST', '/console/service/incidents', jT, { titre: 'Les e-mails de connexion arrivent en retard', gravite: 'mineur', fiche: 'partenaire', public: 'Les e-mails de connexion arrivent avec du retard.', motif: 'trois appels' });
     expect(a.statut).toBe(201);
     // Un numéro par incident et par année, sans trou : le suivant est le suivant (l'écran ouvre les siens dans la même base).
@@ -1025,6 +1032,13 @@ describe('les incidents du service et la page d\'état (0089, docs/console.md C2
     l = await lire();
     expect(l.ouverts[0]?.public).toBe('SkanFact ne répond plus ; nous y travaillons.');
     expect(l.fiches.service).toMatchObject({ ref: suivant });
+  });
+
+  // 1.109.0 : un point public porte les mêmes règles que l'ouverture.
+  it('un point public avec un passage entre crochets ne part pas sur la page d\'état', async () => {
+    const trou = await appeler('POST', `/console/service/incidents/${id}/points`, jT, { texte: 'SkanFact revient vers [heure].', public: true, gravite: null });
+    expect(trou).toMatchObject({ statut: 400, corps: { champ: 'texte' } });
+    expect(String(trou.corps.raison)).toMatch(/entre crochets reste à remplir/);
   });
 
   it('une gravité monte, elle ne descend pas ; retirer le message rend la page à la veille ; le journal garde le numéro', async () => {
@@ -1089,6 +1103,81 @@ describe('les incidents du service et la page d\'état (0089, docs/console.md C2
     expect(l.maintenances.filter((x) => x.sorte === 'annoncee').map((x) => x.etat)).toEqual(['a_venir', 'annulee']);
   });
 
+  it('l\'application fermée aux clients pendant une maintenance (0164, C24 bis) : la console reste ouverte, rouvrir rend la main', async () => {
+    // Deux jours plus tôt : les autres fichiers d'essais partagent la base et vivent à l'heure du jour ; une fermeture à
+    // leur heure leur répondrait « Maintenance en cours ».
+    const avant = horloge;
+    horloge = new Date(horloge.getTime() - 2 * 86_400_000);
+    const client = await personne('client-ferme');
+    // Des sessions de la console à cette heure-là : celles des autres essais restent à l'heure du jour.
+    const tT = (await entrer(technique)).jeton, tS = (await entrer(support)).jeton;
+    oublierLaFermeture();
+    try {
+      const dans = (h: number) => new Date(horloge.getTime() + h * 3_600_000).toISOString();
+      const urgence = { texte: 'La base change de disque.', fin: dans(1), motif: 'le disque se remplit' };
+      // Le support ne ferme pas l'application ; douze heures au plus.
+      expect((await appeler('POST', '/console/service/fermer-maintenant', tS, urgence)).statut).toBe(403);
+      expect(String((await appeler('POST', '/console/service/fermer-maintenant', tT, { ...urgence, fin: dans(13) })).corps.motif)).toMatch(/douze heures/);
+      expect((await appeler('GET', '/moi', client.jeton)).statut).toBe(200);
+      const f = await appeler('POST', '/console/service/fermer-maintenant', tT, urgence);
+      expect(f.statut).toBe(201);
+      const idF = String(f.corps.id);
+      // Le client : 503, ce qui se passe, l'heure de la fin, et rien de fait ; la page de l'application, la même chose.
+      const r = await app.inject({ method: 'GET', url: `${VERSION}/moi`, headers: { authorization: `Bearer ${client.jeton}` } });
+      expect(r.statusCode).toBe(503);
+      expect(Number(r.headers['retry-after'])).toBeGreaterThanOrEqual(3_000);
+      // L'heure seule le jour même ; une fin qui passe minuit à Tunis (l'essai lancé entre 23 h et minuit) dit son jour.
+      const memeJour = aujourdhuiATunis(horloge) === aujourdhuiATunis(new Date(urgence.fin));
+      expect(String(r.json().motif)).toMatch(memeJour
+        ? /^Maintenance en cours : SkanFact revient vers \d+ h \d\d, et rien n'a été fait\. La base change de disque\.$/
+        : new RegExp(`^Maintenance en cours : SkanFact revient vers ${aujourdhuiATunis(new Date(urgence.fin)).split('-').reverse().join('/')} à \\d+ h \\d\\d, et rien n'a été fait\\. La base change de disque\\.$`));
+      const ecrire = await app.inject({ method: 'POST', url: `${VERSION}/inscription`, payload: { email: `ferme${++n}@exemple.tn`, nom: 'Ferme', motDePasse: MDP } });
+      expect(ecrire.statusCode).toBe(503);
+      expect(Number((await admin.query('select count(*) n from socle.utilisateur where email = $1', [`ferme${n}@exemple.tn`])).rows[0].n)).toBe(0);
+      const page = await app.inject({ method: 'GET', url: '/' });
+      expect(page.statusCode).toBe(503);
+      expect(page.headers['content-type']).toMatch(/text\/html/);
+      expect(page.body).toContain('Maintenance en cours');
+      expect(page.body).toContain('La base change de disque.');
+      // Ce qui reste ouvert : la console, la documentation de l'API (la veille), les fichiers des écrans.
+      const l = await lire(tT);
+      expect(l.maintenances.find((x) => x.id === idF)).toMatchObject({ etat: 'en_cours', fermee: true });
+      expect((await app.inject({ method: 'GET', url: `${VERSION}/documentation` })).statusCode).not.toBe(503);
+      expect((await app.inject({ method: 'GET', url: '/plateforme/poste.js' })).statusCode).not.toBe(503);
+      // La page d'état la dit ; on ne ferme pas deux fois.
+      expect((await annonce()).maintenance).toMatchObject({ titre: 'Maintenance urgente' });
+      expect(String((await appeler('POST', '/console/service/fermer-maintenant', tT, urgence)).corps.motif)).toMatch(/déjà fermée/);
+      expect(String((await appeler('POST', `/console/service/maintenances/${idF}/fermer`, tT, { motif: 'encore' })).corps.motif)).toMatch(/déjà fermée/);
+      // Rouvrir : le client a la main tout de suite, la maintenance est finie.
+      expect((await appeler('POST', `/console/service/maintenances/${idF}/rouvrir`, tS, { motif: 'c\'est fini' })).statut).toBe(403);
+      expect((await appeler('POST', `/console/service/maintenances/${idF}/rouvrir`, tT, { motif: 'c\'est fini' })).statut).toBe(200);
+      expect((await appeler('GET', '/moi', client.jeton)).statut).toBe(200);
+      expect(String((await appeler('POST', `/console/service/maintenances/${idF}/rouvrir`, tT, { motif: 'encore' })).corps.motif)).toMatch(/pas fermée/);
+      expect((await lire(tT)).maintenances.find((x) => x.id === idF)).toMatchObject({ fermee: true });
+
+      // Une maintenance annoncée qui fermera : rien n'est fermé avant son créneau ; pendant, oui ; après, plus rien.
+      const prevue = await appeler('POST', '/console/service/maintenances', tT, { titre: 'Le disque agrandi', texte: 'Rien ne s\'écrit pendant une heure.', debut: dans(2), fin: dans(3), motif: 'prévu avec l\'hébergeur', fermee: true });
+      expect(prevue.statut).toBe(201);
+      oublierLaFermeture();
+      expect((await appeler('GET', '/moi', client.jeton)).statut).toBe(200);
+      horloge = new Date(horloge.getTime() + 2.5 * 3_600_000);
+      oublierLaFermeture();
+      expect((await appeler('GET', '/moi', client.jeton)).statut).toBe(503);
+      horloge = new Date(horloge.getTime() + 3_600_000);
+      oublierLaFermeture();
+      expect((await appeler('GET', '/moi', client.jeton)).statut).toBe(200);
+
+      // Le journal : chaque geste avec son motif.
+      const j = (await gestes()).filter((g) => g.geste === 'service.application_fermee' || g.geste === 'service.application_rouverte');
+      expect(j.map((g) => [g.geste, g.motif])).toEqual([
+        ['service.application_fermee', 'le disque se remplit'], ['service.application_rouverte', 'c\'est fini'], ['service.application_fermee', 'prévu avec l\'hébergeur'],
+      ]);
+    } finally {
+      horloge = avant;
+      oublierLaFermeture();
+    }
+  });
+
   it('la page d\'état : ce que la veille a écrit à côté d\'elle ; rien tant qu\'elle n\'a rien écrit', async () => {
     const f = path.join(path.dirname(veille), 'page-etat.json');
     fs.rmSync(f, { force: true });
@@ -1121,7 +1210,7 @@ describe('les travaux et les envois du service (0090, docs/console.md C25)', () 
     await admin.query('commit');
   }
   type Lu = { aRegarder: { cle: string; entreprise: { id: string; nom: string } | null; statut: string; attente: string; motifCle: string | null; motifTexte: string | null }[];
-    tours: { nom: string; etat: string; tour: { echec: string | null } | null }[]; branches: { ttn: boolean; courriel: boolean }; sansTrace: string[] };
+    tours: { nom: string; etat: string; tour: { echec: string | null } | null }[]; branches: { ttn: boolean; courriel: boolean; signature: boolean; sms: boolean; paiements: boolean }; sansTrace: string[] };
   const lire = async (j: string) => (await appeler('GET', '/console/service/travaux', j)).corps as Lu;
 
   it('ce qui reste à regarder : une clé courte prise à la FIN de l\'identifiant, qui attend quoi ; le nom et le motif pour la direction seule', async () => {
@@ -1164,7 +1253,7 @@ describe('les travaux et les envois du service (0090, docs/console.md C25)', () 
     expect(d.tours.find((x) => x.nom === 'paiements')).toMatchObject({ etat: 'echec', tour: { echec: 'ECONNREFUSED' } });
     const brut = (await admin.query("select compte from plateforme.service_tour where nom = 'contrats'")).rows[0].compte;
     expect(brut).toEqual({ emises: 2 });
-    expect(d.branches).toEqual({ ttn: false, courriel: false });
+    expect(d.branches).toMatchObject({ ttn: false, courriel: false, signature: false });
     // Le serveur porte toujours le coffre de la TTN, même sans son adresse : ce n'est pas un accès.
     const sansAdresse: Contexte = { ...ctx, ttn: { adresse: null, coffre: Buffer.alloc(32) } };
     const autre = creerApp(sansAdresse, routesConsole(sansAdresse, { veille }));

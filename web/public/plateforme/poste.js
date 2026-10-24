@@ -293,10 +293,68 @@
       const o = document.getElementById('poste-oui'); if (o) o.onclick = () => fin(true);
     });
   }
+  // ── L'ouverture (1.136.0 ; UX 2, docs/hors-ligne.md) ─────────────────────────────────────────────
+  // Tant que le serveur n'a pas rendu ce que la page attend pour son premier dessin, l'écran restait blanc (le Cabinet), ou
+  // une barre sans menu (l'entreprise) : rien ne disait que ça venait. Au-delà de 400 ms (une ouverture rapide ne clignote
+  // pas), la page le dit ; au-delà de 10 secondes, que c'est plus long que d'habitude. Un refus du serveur à l'ouverture
+  // (une erreur de notre côté) laissait l'écran blanc pour toujours : il le dit, avec « Réessayer » et la page d'état.
+  style.textContent += ` #poste-ouverture { position: fixed; inset: var(--poste-bandeau-h, 0px) 0 0 0; z-index: 9998; display: grid;
+    place-items: center; padding: 16px; background: var(--bg, #f5f7fa); color: var(--text, #1b2430); font: 15px/1.5 system-ui, sans-serif; }
+    #poste-ouverture > div { max-width: 34em; text-align: center; display: grid; gap: 10px; justify-items: center; }
+    #poste-ouverture p { margin: 0; } #poste-ouverture .po-petit { font-size: 13px; color: var(--muted, #7b8794); }
+    #poste-ouverture .po-roue { width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--line, #d6dde5);
+      border-top-color: var(--primary, #0f9d8f); animation: po-tourne .9s linear infinite; }
+    @keyframes po-tourne { to { transform: rotate(360deg); } }
+    @media (prefers-reduced-motion: reduce) { #poste-ouverture .po-roue { animation-duration: 3s; } }
+    #poste-ouverture .po-gestes { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+    #poste-ouverture button, #poste-ouverture a { font: inherit; font-size: 14px; padding: 7px 14px; border-radius: 8px; cursor: pointer;
+      border: 1px solid var(--line, #d6dde5); background: transparent; color: inherit; text-decoration: none; }
+    #poste-ouverture button { background: var(--primary, #0f9d8f); border-color: var(--primary, #0f9d8f); color: #fff; }`;
+  /** @type {HTMLElement | null} */ let ouvertureEl = null;
+  /** @type {ReturnType<typeof setTimeout>[]} */ let ouvertureMinuteurs = [];
+  /** @param {string} html @param {boolean} [alerte] */
+  function poserOuverture(html, alerte = false) {
+    if (!ouvertureEl) {
+      ouvertureEl = document.createElement('div');
+      ouvertureEl.id = 'poste-ouverture';
+      (document.body || document.documentElement).appendChild(ouvertureEl);
+    }
+    ouvertureEl.setAttribute('role', alerte ? 'alert' : 'status');
+    ouvertureEl.innerHTML = `<div>${html}</div>`;
+  }
+  function finOuverture() {
+    ouvertureMinuteurs.forEach((m) => clearTimeout(m));
+    ouvertureMinuteurs = [];
+    if (ouvertureEl) { ouvertureEl.remove(); ouvertureEl = null; }
+  }
+  /** @param {string} quoi « ton entreprise », « ton cabinet » */
+  function ouverture(quoi) {
+    finOuverture();
+    const titre = `<div class="po-roue" aria-hidden="true"></div><p><strong>Ouverture de ${esc(quoi)}…</strong></p>`;
+    ouvertureMinuteurs = [
+      setTimeout(() => poserOuverture(titre), 400),
+      setTimeout(() => poserOuverture(`${titre}<p class="po-petit" id="po-lent">C'est plus long que d'habitude : la connexion est peut-être lente. Rien n'est perdu ; la page s'ouvre dès que le serveur répond.</p>`), 10_000),
+    ];
+  }
+  /** @param {string} quoi @param {unknown} e l'erreur du serveur (son message, quand il en a un) */
+  function echecOuverture(quoi, e) {
+    finOuverture();
+    // La page est déjà close par un bandeau qui dit pourquoi (un appareil retiré, une entreprise qui n'est plus
+    // ouverte) : son « Réessayer » suffit ; en ajouter un second, plein écran, cachait la raison (vu sur GitHub, 1.136.0).
+    if (close) { return; }
+    const motif = e instanceof Error && e.message ? e.message : 'Le serveur a rencontré une erreur.';
+    poserOuverture(`<p><strong>SkanFact n'a pas pu ouvrir ${esc(quoi)}.</strong></p><p id="po-motif">${esc(motif)}</p>
+      <p class="po-petit">Rien n'est perdu : ce qui était enregistré l'est toujours. Si ça dure, la page d'état dit si SkanFact a un souci en ce moment.</p>
+      <div class="po-gestes"><button type="button" id="po-reessayer">Réessayer</button><a href="/etat" target="_blank" rel="noopener">Voir la page d'état</a></div>`, true);
+    const b = document.getElementById('po-reessayer');
+    if (b) b.onclick = () => location.reload();
+  }
+
   // Ce qui clôt la page (brique 76), et le bouton qui continue, vers l'entrée. (1.100.0) `autre` : un second geste, avant
   // « Continuer » (« Me connecter avec un autre compte », quand la page est ouverte dans le navigateur d'un autre compte).
   /** @param {string} texte @param {{ libelle: string, geste: () => void }} [autre] */
   function conclure(texte, autre) {
+    finOuverture();
     close = true;
     poser(`<span><strong>${esc(texte)}</strong></span>${autre ? `<button type="button" id="poste-autre">${esc(autre.libelle)}</button>` : ''}<button type="button" id="poste-continuer">Continuer</button>`);
     const b = document.getElementById('poste-continuer');
@@ -307,6 +365,7 @@
   // Hors ligne, sans rien à montrer : la raison, et le bouton qui réessaie.
   /** @param {string} motif */
   function sansCopie(motif) {
+    finOuverture();
     close = true;
     poser(`<span><strong>${motif.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`)}</strong></span><button type="button" id="poste-reessayer">Réessayer</button>`);
     const b = document.getElementById('poste-reessayer');
@@ -326,7 +385,7 @@
 
   /** @type {any} */ (window).SkanPoste = {
     garde, ecrireCopie, lireCopie, garderLecture, relireLecture, ecrireAttente, lireAttente, effacerAttente, effacer, effacerEntreprise, conclure,
-    horsLigne, enLigne, sansCopie, attente, envoye, envoyeEcritures, demander, annoncer, limite, limiteCaisse,
+    horsLigne, enLigne, sansCopie, attente, envoye, envoyeEcritures, demander, annoncer, limite, limiteCaisse, ouverture, finOuverture, echecOuverture,
     /** @param {() => void} f */ auRetour: (f) => { quandRevenu = f; },
     pourLeCabinet: () => { cabinet = true; },
   };

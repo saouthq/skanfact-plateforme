@@ -22,7 +22,8 @@ export type ARenouveler = { entreprise: string; offre: Offre; periodicite: Perio
 // choisie (un essai), pour une résiliation, une suspension (une décision de SkanFact), ce qui n'a pas d'échéance. L'offre : celle choisie pour la
 // prochaine échéance (0111) quand elle vaut au premier jour de la période, sinon l'offre payée. La période : celle de
 // la facture (periodeDeLaFacture).
-export function aRenouveler(e: Entreprise, jour: string): ARenouveler | null {
+// L'onglet « Ton abonnement » la lit aussi (1.118.0 : « Prochaine facture ») : la même règle des deux côtés.
+export function aRenouveler(e: Pick<Entreprise, 'id' | 'etat' | 'faits'>, jour: string): ARenouveler | null {
   const s = e.etat, f = e.faits;
   const attendu = s.etat === 'actif' ? (s.resilie ? null : false)
     : s.etat === 'en_retard' || (s.etat === 'lecture_seule' && s.raison === 'non_renouvele') ? true : null;

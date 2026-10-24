@@ -65,9 +65,11 @@ describe('une liste de clients collée, à la souris', () => {
     await p.waitForTimeout(800);
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     const toast = () => p.locator('#toast').innerText();
+    // (1.117.0) On ne reclique que si la fenêtre n'existe pas encore : sur une machine lente, un second clic partait avant
+    // qu'elle ne s'affiche, et deux fenêtres s'ouvraient (rouge GitHub de la 1.117.0, Node 24).
     const ouvrir = async (bouton: string, dedans: string) => expect.poll(async () => {
-      if (!await p.locator(dedans).isVisible()) await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
-      return p.locator(dedans).isVisible();
+      if (!await p.locator(dedans).count()) await p.locator(bouton).first().click({ timeout: 2_000 }).catch(() => {});
+      return p.locator(dedans).first().isVisible();
     }, { timeout: 30_000 }).toBe(true);
 
     await ouvrir('#new-d', '#nd-coller');
@@ -121,8 +123,10 @@ describe('une liste de clients collée, à la souris', () => {
     const toast = () => p.locator('#toast').innerText();
     const marquee = () => p.locator('#f-mat').getAttribute('aria-invalid');
     await expect.poll(async () => {
-      if (!await p.locator('#f-mat').isVisible()) await p.locator('#new-d').first().click({ timeout: 2_000 }).catch(() => {});
-      return p.locator('#f-mat').isVisible();
+      // On ne reclique que si la fenêtre n'existe pas encore (1.117.1) : sur une machine lente, un second clic partait avant
+      // qu'elle ne s'affiche, et deux fenêtres s'ouvraient (rouge GitHub de la 1.118.0, Node 24).
+      if (!await p.locator('#f-mat').count()) await p.locator('#new-d').first().click({ timeout: 2_000 }).catch(() => {});
+      return p.locator('#f-mat').first().isVisible();
     }, { timeout: 30_000 }).toBe(true);
     const creer = () => p.locator('#modal-root .modal').last().locator('#ok').click();
     await p.locator('#f-name').fill('Épicerie du Port');
@@ -144,8 +148,10 @@ describe('une liste de clients collée, à la souris', () => {
 
     // ── Dans une liste collée : la ligne refusée est nommée, avec ce qui est déjà entré ────────────────────────────────
     await expect.poll(async () => {
-      if (!await p.locator('#nd-coller').isVisible()) await p.locator('#new-d').first().click({ timeout: 2_000 }).catch(() => {});
-      return p.locator('#nd-coller').isVisible();
+      // On ne reclique que si la fenêtre n'existe pas encore (1.117.1) : sur une machine lente, un second clic partait avant
+      // qu'elle ne s'affiche, et deux fenêtres s'ouvraient (rouge GitHub de la 1.118.0, Node 24).
+      if (!await p.locator('#nd-coller').count()) await p.locator('#new-d').first().click({ timeout: 2_000 }).catch(() => {});
+      return p.locator('#nd-coller').first().isVisible();
     }, { timeout: 30_000 }).toBe(true);
     await p.locator('#nd-coller').click();
     await p.locator('#cl-liste').fill('Café Bleu\nÉpicerie du Port ; 2236067E/A/M/000\nLibrairie Clairefontaine');

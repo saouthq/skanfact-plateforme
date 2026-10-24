@@ -33,14 +33,79 @@ attend, et leur réponse à sa date. L'entreprise y répond sur place (le même 
 **M4. Une pièce, une photo, une pièce demandée.** Un message peut :
 - **parler d'une pièce** (« Parler d'une pièce » : une facture, un avoir, un devis ou un achat du dossier ; le message
   garde son libellé du moment, « Ouvrir » la retrouve) ;
-- **demander une pièce** (le cabinet) : la demande attend jusqu'à ce que le client l'envoie (« Envoyer la pièce… »,
-  une photo ou un PDF, qui y répond), ou que le cabinet la dise « Reçue autrement » ;
+- **demander une pièce** (le cabinet) : la demande attend jusqu'à ce que le client l'envoie, ou que le cabinet la dise
+  « Reçue autrement ». (1.115.0) « Envoyer la pièce… » ouvre une fenêtre : **une photo ou un PDF** (vu avant de partir,
+  « Changer », « Annuler »), **ou la pièce déjà dans le dossier** (une facture, un avoir, un devis ou un achat, à
+  chercher, avec sa date), et un mot facultatif ; rien ne part avant « Envoyer à mon cabinet » ;
 - **porter une photo (JPEG, PNG, WebP) ou un PDF**, 10 Mo au plus, reconnu à ses premiers octets par le serveur (jamais à
   son nom), gardé sur nos serveurs avec l'entreprise, joint à un seul message ; déposé mais pas encore joint, seul celui
   qui l'a déposé le lit ;
 - **être rangé dans les achats** : « Ranger dans mes achats… » ouvre un nouvel achat et y fait lire la photo par le
   serveur (la lecture de la brique 84 ; sans elle, l'achat se saisit à la main) ; enregistré, le message dit où la
-  pièce est rangée (« rangée dans tes achats (STEG, 85,400 DT) »).
+  pièce est rangée (« rangée dans tes achats (STEG, 85,400 DT) »). (1.123.0) Quand la photo répond à une demande qui cite
+  le numéro d'**un** achat déjà saisi (sans espaces ni majuscules, trois caractères au moins), le fil propose d'abord
+  « Joindre à l'achat GMS-26-4471 · … » : la photo s'ajoute aux pièces jointes de cet achat (aucun achat neuf, aucun
+  doublon), et « C'est un autre achat… » garde le chemin du nouvel achat. Chez le cabinet, une photo rangée offre « Voir
+  l'écriture » (le livre-journal cherché sur son numéro) au lieu de « Saisir cette pièce » (`docs/revue-mois-client.md`).
+
+**M4 bis. Une pièce demandée a une date, et se relance** (1.116.0 ; décidé par délégation après la revue du 22/10/2026,
+`docs/revue-messagerie.md` point 6). La demande porte une date « pour le » (facultative ; l'écran propose dans sept
+jours, jamais avant aujourd'hui, jour de Tunis). Passée sans réponse, elle est **en retard** des deux côtés : la carte
+le dit (« En retard », en rouge), l'encart aussi (« (dont 1 en retard) »), et la boîte du cabinet a une pastille
+« N en retard » sur la ligne du client (`attente` et la boîte comptent avec les mêmes lignes ; depuis la 1.123.0,
+`attente` donne aussi `pourLe`, la date la plus proche des pièces encore attendues, que l'« À faire » de l'accueil dit :
+« Elle est attendue pour le … », ou le retard, en rouge ; depuis la 1.126.0, `achatsConfies` : le mandat actif confie
+la saisie des achats, et la page Achats de l'entreprise propose d'abord d'envoyer la photo). Restée sans réponse à sa
+date, elle **se relance par e-mail** ce jour-là, puis une fois par semaine, **trois relances au plus** ; une demande sans
+date ne se relance jamais (le cabinet garde la main), une demande reçue non plus, ni un dossier dont le mandat s'est
+arrêté, ni une personne qui a décoché « Me prévenir par e-mail » pour ce fil. L'e-mail suit la règle de M5 : ni la
+pièce, ni l'entreprise, ni le cabinet, un objet et un texte fixes (« Ton cabinet attend une pièce dans SkanFact ») ;
+une personne reçoit un seul e-mail par tour, quel que soit le nombre de demandes. Le cabinet voit sous la carte
+« Relancée 2 fois par e-mail, la dernière le … » ; le client ne voit que la date (la relance est un e-mail, pas un
+reproche dans le fil). Le serveur seul note une relance partie (`messagerie.relance_partie`).
+
+**M4 ter. Plusieurs pièces, plusieurs clients** (1.116.0). « Demander une pièce » prend une liste (« + Une autre
+pièce », dix au plus) : un message par pièce, le mot sur la première, la même date, **toutes ou aucune** (une seule
+transaction). La boîte du cabinet a « Demander à plusieurs clients… » : les mêmes pièces, la même date et le même mot,
+envoyés à chaque client coché, chacun dans son fil (jamais un fil commun : un client ne voit pas les autres) ; un client
+qui refuse (mandat arrêté entre-temps) est nommé, les autres partent et leur case se décoche.
+
+**M4 quater. Le cabinet agit sur ce qu'il reçoit** (1.116.0). Une pièce citée par le client (« Achat F-8841 ») a
+« Ouvrir » chez le cabinet aussi : les livres du client, au livre-journal, son numéro cherché, brouillard compris (le
+Cabinet ne voit pas la facture elle-même, mais ses écritures ; un devis n'en a pas, une pièce sans numéro non plus : on
+le dit). Une photo ou un PDF du client a « Saisir cette pièce » : la photo s'ouvre dans un autre onglet, la saisie du
+client à l'année du message en face. Le justificatif ne s'y joint pas seul (le Cabinet en ligne ne joint pas encore de
+fichier à une écriture) : la photo reste dans le fil, à sa date.
+
+**M4 quinquies. Les modèles de messages du cabinet** (1.117.0 ; décidé par délégation, revue du 22/10/2026, point 9).
+Le cabinet garde ses phrases (un titre de 80 caractères, un texte de 4 000), partagées par toute son équipe, cinquante au
+plus, deux jamais sous le même titre (majuscules comprises). « Modèles » (sous le champ, chez le cabinet) ouvre la
+fenêtre : en prendre un le pose dans le champ, là où est le curseur, où il se relit et se change avant de partir ; en
+ajouter, le changer, le retirer (après « Oui, le retirer »). Deux mots se remplacent au moment de le prendre :
+**{client}** (le nom du client) et **{mois}** (le mois qui vient de finir, jour de Tunis). Dans « Demander à plusieurs
+clients… », {client} devient le nom de chacun. Vide, la fenêtre propose trois exemples. Les modèles appartiennent au
+cabinet (`messagerie.modele`, 0169) : ils ne partent pas avec l'export d'une entreprise. La base garde les règles
+(`messagerie.modele_poser`, `messagerie.modele_retirer`) ; un autre cabinet ne les lit ni ne les touche.
+
+**M4 sexies. Chercher** (1.117.0, point 10). Dans un fil, « Chercher » (des deux côtés) : les messages dont le texte, la
+pièce demandée, la pièce citée ou le nom du fichier contiennent les mots, sans tenir compte des majuscules ni des
+accents (`messagerie.plier`), trente au plus, du plus récent ; un message choisi se montre dans le fil, éclairé (les
+pages plus anciennes se lisent jusqu'à lui). Les questions de la révision ne sont pas cherchées (elles vivent dans les
+livres). Dans la boîte du cabinet, « Chercher un client » : par son nom, parmi tous les clients, quel que soit le filtre.
+
+**M4 septies. La pastille sur la liste des dossiers** (1.117.0, point 11). Dans le Cabinet, la ligne d'un client « À
+traiter » porte la pastille de ses messages (le nombre de non-lus, ou la bulle seule s'il a répondu à une question) ;
+elle mène à sa conversation. Une ligne a la pastille exactement quand le client compte dans celle du menu « Messages »
+(la même lecture du serveur).
+
+**M4 octies. « Ce mois-ci » dans « Mon comptable »** (1.124.0 ; `docs/revue-mois-client.md`, point 4). Côté
+entreprise, sous « En attente de toi », une carte dit le mois en cours : les ventes (factures et avoirs émis) et les
+achats, dont ceux sans justificatif (les mêmes règles que l'accueil et le contrôle de clôture), avec le bouton vers ces
+achats-là ; et ce que le cabinet en a fait dans les livres : combien d'écritures il a validées, le jour de la dernière
+validation, combien attendent encore au brouillard (`GET /entreprises/:e/compta/resume?du&au`, geste
+`compta.livres.voir` ; un rôle qui ne lit pas les livres ne voit pas cette ligne). La lecture du serveur se fait à chaque
+visite de la page ; la phrase garde sa place pendant qu'elle se lit. La prochaine déclaration n'y est pas encore (point
+10, À VÉRIFIER avec un comptable).
 
 **M5. L'alerte par e-mail, sans contenu** (décidé par Skander le 09/10/2026 ; détails par délégation). Chaque minute,
 le serveur cherche qui a, **depuis plus de cinq minutes**, quelque chose à lire dans un fil (un message de l'autre côté,
@@ -66,21 +131,47 @@ dans les pièces demandées plutôt que dans les non-lus) ; l'autre côté voit 
 range du côté de qui l'a écrit, signé « Toi » pour ses propres messages et du nom de l'auteur sinon (un collègue du
 cabinet, un administrateur de l'entreprise).
 
+**M7 bis. Les noms de qui pose et de qui répond aux questions** (1.115.0). Une question se signe du nom de la personne
+qui l'a posée, comme un message (elle se disait posée par « Ton cabinet » à côté d'un message signé « Sonia Ben
+Youssef ») ; sa réponse, du nom de qui a répondu. Les noms seuls (jamais l'adresse), lus par
+`messagerie.noms_des_questions` pour un fil qu'on lit, ou côté entreprise pour son cabinet (une question peut arriver
+avant le premier message). Une question répondue le dit : « Répondue ».
+
 **M8. Ce qui part vers le serveur, compté** (règle du projet). Un message : son texte, la pièce dont il parle (genre,
-identifiant, libellé), la pièce demandée, le fichier déposé, la demande à laquelle il répond. Un fichier : son nom et ses
-octets. Rien d'autre. Ce qui part chez le relais d'e-mails : l'adresse de la personne, l'objet et le texte fixes.
+identifiant, libellé), la pièce demandée et sa date « pour le », le fichier déposé, la demande à laquelle il répond. Un fichier : son nom et ses
+octets. Rien d'autre. Ce qui part chez le relais d'e-mails (l'alerte comme la relance) : l'adresse de la personne, l'objet et le texte
+fixes.
 
 ## Les écrans
 
-- **Entreprise — « Mon comptable »** : une entrée en bas du menu, qui paraît quand un cabinet tient le dossier (ou l'a
-  tenu), avec sa pastille (non lus + questions sans réponse + pièces demandées). Le haut : le cabinet, « tient ta
-  comptabilité depuis le … ». Le fil par jour ; à côté, « En attente de toi », « Ce que voit ton cabinet » (et le
-  mandat), « Me prévenir par e-mail ». Écrire : « Joindre une photo ou un PDF », « Parler d'une pièce », « Envoyer »
-  (Entrée envoie, Maj+Entrée va à la ligne ; au téléphone, le bouton).
-- **Cabinet — « Messages »** : la boîte, filtres « À traiter (n) », « Attend le client (n) », « Tout (n) » ; une ligne
-  par client en ligne (pas les dossiers tenus seul au cabinet) ; le client choisi à côté, avec « Ouvrir la
-  conversation », « Demander une pièce », « Question sur une pièce ». La conversation : « Demander une pièce », « Reçue
-  autrement », « C'est traité », « Me prévenir par e-mail ».
+- **Entreprise — « Mon comptable »** : (1.115.0) une entrée **dans le pied du menu**, qui ne défile jamais (avec
+  « Tous les modules », « Paramètres », « Aide »), qui paraît quand un cabinet tient le dossier (ou l'a tenu), avec sa
+  pastille (non lus + questions sans réponse + pièces demandées). Le haut : le cabinet, « tient ta comptabilité depuis
+  le … ». Le fil par jour, **à la hauteur de l'écran**, la zone d'écriture en bas ; à côté, « En attente de toi »
+  (« Répondre » y mène et éclaire la carte), « Ce que voit ton cabinet » (et le mandat), « Me prévenir par e-mail ».
+  Écrire : « Joindre une photo ou un PDF », « Parler d'une pièce », « Envoyer » (Entrée envoie, Maj+Entrée va à la
+  ligne ; au téléphone, le bouton). Ce qui est joint se range sous les boutons (« Envoyer » ne bouge pas). Sous ses
+  messages : « Envoyé », puis « Lue ».
+- **Cabinet — « Messages »** : (1.115.0) la boîte, filtres « À traiter (n) », « Attend le client (n) », « Tout (n) » ;
+  **la liste à gauche, la conversation entière du client choisi à droite** (comme Karbon, Front et toute messagerie :
+  il fallait un aperçu, puis « Ouvrir la conversation », sur une autre page) ; ↑ et ↓ passent d'un client à l'autre ;
+  un client traité ou qui a reçu une réponse reste dans la liste tant qu'on le lit ; la pastille des non-lus suffit (pas
+  d'étiquette « À traiter » en plus). Au-dessus du fil, un bandeau : ce qui attend le client, « Marquer comme traité »,
+  « Question sur une pièce (révision) », « Me prévenir par e-mail ». « Ouvrir en grand » mène à la page du client
+  (`#/messages/<entreprise>`), qui a « Demander une pièce », « Reçue autrement », « Marquer comme traité ».
+  (1.116.0) « Demander une pièce » ouvre, au-dessus du champ (rien ne pousse les boutons), la liste des pièces et
+  « Pour le » ; en haut de la boîte, « Demander à plusieurs clients… » ; sur une ligne, la pastille d'état et, en
+  dessous, « N en retard ». Sous une pièce citée, « Ouvrir » ; sous une photo du client, « Saisir cette pièce ».
+  (1.117.0) « Modèles » sous le champ ; « Chercher » en haut de la conversation ; « Chercher un client » en haut de la
+  liste ; au téléphone, « Modèles » et « Chercher » en icône seule, les gestes en mots courts dès que la zone est étroite.
+- **Au téléphone** (1.115.0) : un bouton de bulle à côté de « Menu », avec la même pastille, mène à « Mon comptable »
+  ou aux « Messages » (dans le menu replié, la pastille ne se voyait pas) ; le fil et la zone d'écriture tiennent dans
+  l'écran, « Envoyer » sous le pouce, les gestes en mots courts (« Joindre », « Une pièce », « Demander ») ; une ligne
+  de la boîte ouvre la conversation sur sa page.
+- **Sans réseau** (1.134.0) : « Mon comptable » garde son titre et dit « Pas de réseau : la messagerie attend la
+  connexion. Elle s'ouvre toute seule dès que le réseau revient. » (la boîte du cabinet, la même phrase) ; elle se relit
+  au retour du réseau (l'événement `online`), sans attendre la relecture des trente secondes. Une autre panne garde son
+  motif et « Réessayer ».
 
 ## À VÉRIFIER
 

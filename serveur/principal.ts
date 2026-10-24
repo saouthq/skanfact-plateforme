@@ -78,12 +78,15 @@ import { routesCompta } from './compta/routes.ts';
 import { declarerGestesPaie } from './paie/gestes.ts';
 import { routesPaie } from './paie/routes.ts';
 import { declarerGestesMessagerie } from './messagerie/gestes.ts';
-import { prevenirParCourriel } from './messagerie/postier.ts';
+import { prevenirParCourriel, relancerLesDemandes } from './messagerie/postier.ts';
 import { prevenirDesReponses } from './support/postier.ts';
 import { declarerGestesSupport } from './support/gestes.ts';
 import { routesSauvegardes } from './sauvegardes.ts';
 import { routesSupport } from './support/routes.ts';
 import { relancerLesAbonnements } from './abonnement/relances.ts';
+import { annoncerLesFactures } from './abonnement/courriels.ts';
+import { facturerLesChoix } from './abonnement/facturier.ts';
+import { facturerLesCabinets, routesAbonnementCabinet } from './abonnement/cabinet.ts';
 import { routesAbonnement } from './abonnement/routes.ts';
 import { routesConsole } from './console/routes.ts';
 import { FRAIS_MS } from './console/instantane.ts';
@@ -106,6 +109,9 @@ export type Configuration = {
   sms: 'aucun' | { fournisseur: 'winsms'; cle: string; expediteur: string | null; adresse: string }; livreurMs: number; web: string; adresse: string | null; adresseConsole: string | null; konnect: string; coffre: Buffer; verificationMs: number;
   digigo: { base: string; cle: string } | null;
   ttn: string | null; ttnMs: number; contratsMs: number; alertesMs: number; relancesMs: number; mesuresMs: number;
+  // La facture au choix (1.119.0 ; serveur/abonnement/facturier.ts) : branchée en production, ou par
+  // SKANFACT_FACTURE_AU_CHOIX=1 ; son tour, chaque minute (SKANFACT_FACTURIER_MS).
+  factureAuChoix: boolean; facturierMs: number;
   lectures: number;
   // Le PDF fait par le serveur (docs/pdf.md) : combien à la fois, et le Chromium (celui de Playwright si aucun).
   impressions: number; navigateur: string | null;
@@ -197,6 +203,8 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     ttn, ttnMs: Number(env.SKANFACT_TTN_MS ?? 60_000), contratsMs: Number(env.SKANFACT_CONTRATS_MS ?? 3_600_000),
     alertesMs: Number(env.SKANFACT_ALERTES_MS ?? 60_000),
     relancesMs: Number(env.SKANFACT_RELANCES_MS ?? 3_600_000),
+    factureAuChoix: (env.SKANFACT_FACTURE_AU_CHOIX ?? (environnement === 'production' ? '1' : '0')) === '1',
+    facturierMs: Number(env.SKANFACT_FACTURIER_MS ?? 60_000),
     mesuresMs: Number(env.SKANFACT_MESURES_MS ?? 60_000),
     lectures, impressions, navigateur: env.SKANFACT_NAVIGATEUR || null, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
     courriel: smtp && de ? { smtp, de } : null,
@@ -263,7 +271,7 @@ export function routesDuServeur(ctx: Contexte, options: { veille: string | null;
   declarerGestesMessagerie();
   declarerGestesSupport();
   return [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx),
-    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPiecesJointes(), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesSauvegardes(ctx), ...routesAbonnement(ctx), ...routesConsole(ctx, options),
+    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPiecesJointes(), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesSauvegardes(ctx), ...routesAbonnement(ctx), ...routesAbonnementCabinet(ctx), ...routesConsole(ctx, options),
     ...routesMessageClients(ctx.maintenant), ...routesNouveautes(ctx), ...routesPdf(ctx)];
 }
 
@@ -273,7 +281,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   let publique = c.adresse ?? '';
   // Le fournisseur de SMS (un essai en donne un autre, qui garde ce qu'il reçoit) ; sans lui, aucun SMS ne part.
   const sms = dependances.sms ?? (c.sms === 'aucun' ? smsAucun : smsWinsms({ cle: c.sms.cle, expediteur: c.sms.expediteur, adresse: c.sms.adresse }));
-  const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
+  const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms, factureAuChoix: c.factureAuChoix, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
     ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
     lecteur: await lecteurDuServeur({ simultanees: c.lectures }), imprimeur: imprimeurDuServeur({ simultanees: c.impressions, navigateur: c.navigateur }), partenaires: { liste: c.partenaires, cle: c.coffre },
     // Les nouveautés que ce serveur porte : celles du code (serveur/nouveautes.ts), sauf dans un essai.
@@ -334,15 +342,27 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const contrats = setInterval(tourDesContrats, c.contratsMs);
 
   // Les alertes par e-mail de la messagerie (lot messagerie) et du support (docs/support.md) : chaque minute, qui a un
-  // message ou une réponse à lire depuis cinq minutes ; un seul tour à la fois, et rien sans relais d'e-mails.
+  // message ou une réponse à lire depuis cinq minutes, et (1.116.0) les relances des pièces demandées restées sans
+  // réponse à leur date, et (1.118.0) les e-mails des factures de l'abonnement, émises puis payées ; un seul tour à la
+  // fois, et rien sans relais d'e-mails.
   let alertes: Promise<unknown> = Promise.resolve();
   let enAlertes = false;
   const postier = setInterval(() => {
     if (enAlertes || !ctx.courriel) return;
     enAlertes = true;
-    alertes = suivreTour(pool, 'postier', async () => ({ alertes: await prevenirParCourriel(ctx) + await prevenirDesReponses(ctx) }))
+    alertes = suivreTour(pool, 'postier', async () => ({ alertes: await prevenirParCourriel(ctx) + await relancerLesDemandes(ctx) + await prevenirDesReponses(ctx) + await annoncerLesFactures(ctx) }))
       .catch((e: unknown) => { noterPanne('tâche prevenirParCourriel', e); }).finally(() => { enAlertes = false; });
   }, c.alertesMs);
+
+  // Les factures au choix (1.119.0) et celles des cabinets (1.120.0) : chaque minute, les choix d'offre qui attendent
+  // leur facture, puis les périodes de cabinet à facturer ; un seul tour à la fois, là où la facture au choix est branchée.
+  let factures: Promise<unknown> = Promise.resolve();
+  let enFactures = false;
+  const facturier = setInterval(() => {
+    if (enFactures || !ctx.factureAuChoix) return;
+    enFactures = true;
+    factures = suivreTour(pool, 'facturier', async () => ({ choix: await facturerLesChoix(ctx), cabinets: await facturerLesCabinets(ctx) })).catch((e: unknown) => { noterPanne('tâche facturerLesChoix', e); }).finally(() => { enFactures = false; });
+  }, c.facturierMs);
 
   // Les relances de l'abonnement (docs/abonnement.md) : au démarrage, puis chaque heure, les échéances proches ; un seul
   // tour à la fois, et rien sans relais d'e-mails.
@@ -424,6 +444,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       clearInterval(contrats);
       clearInterval(postier);
       clearInterval(relanceur);
+      clearInterval(facturier);
       clearInterval(basculeur);
       clearInterval(mesureur);
       clearInterval(gardien);
@@ -435,6 +456,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
       await tournee;
       await echeancier;
       await alertes;
+      await factures;
       await relances;
       await bascules;
       await relecture;

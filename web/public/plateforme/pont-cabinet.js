@@ -76,7 +76,10 @@
       if (poste) poste.horsLigne();
       throw Object.assign(new Error(methode !== 'GET' ? 'Hors ligne : rien n\'a été fait. Ce geste demande le réseau ; sans lui, le Cabinet se consulte, et seule la saisie au brouillard se garde sur ce poste.'
         : poste && poste.garde() ? 'Hors ligne, et ce poste n\'a pas encore lu cette page : ouvre-la une fois avec le réseau pour la consulter ensuite sans lui.'
-          : 'Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e }), { horsLigne: true });
+          // (1.134.0) Sans réseau du tout, les mots du bandeau « Hors ligne » : « le serveur ne répond pas » faisait chercher
+          // une panne chez SkanFact (UX 2, la Production hors ligne).
+          : typeof navigator !== 'undefined' && navigator.onLine === false ? 'Pas de réseau pour lire cette page : réessaie quand la connexion revient.'
+          : 'Le serveur ne répond pas : vérifie ta connexion, puis réessaie.', { cause: e }), { horsLigne: true, jamaisLue: methode === 'GET' && !!poste && poste.garde() });
     }
     sansReseau = false;
     if (poste) poste.enLigne();
@@ -199,14 +202,22 @@
   setInterval(() => { if (navigator.onLine && attentes && attentes.some((x) => !x.refus)) void envoyer(); }, 30_000);
 
   // L'ouverture : le cabinet, ou, sans réseau ni copie, la raison (et « Réessayer »).
+  // (1.136.0) Tant que le serveur n'a pas répondu, la page dit qu'elle s'ouvre (l'écran restait blanc) ; un refus du serveur
+  // le dit, avec « Réessayer » (poste.js, « L'ouverture »), au lieu d'une page blanche pour toujours.
   async function ouvrirLeCabinet() {
+    if (poste) poste.ouverture('ton cabinet');
     try {
       const etat = await construireEtat();
+      if (poste) poste.finOuverture();
       setTimeout(() => { void emporter(); }, 4000);
       void envoyer();
       return etat;
     } catch (e) {
-      if (!(poste && e && /** @type {any} */ (e).horsLigne)) throw e;
+      if (!poste) throw e;
+      if (!(e && /** @type {any} */ (e).horsLigne)) {
+        poste.echecOuverture('ton cabinet', e);
+        return await new Promise(() => { /* rien ne s'ouvre : « Réessayer » recharge */ });
+      }
       poste.sansCopie(poste.garde()
         ? 'Hors ligne, et ce poste n\'a pas encore de copie de ce cabinet : ouvre-le une fois avec le réseau pour pouvoir le consulter ensuite sans lui.'
         : 'Hors ligne : sur l\'ordinateur d\'un autre, rien n\'est gardé sur le poste. Reviens quand le réseau sera là.');
@@ -248,7 +259,7 @@
   let gestesFaits = 0;
 
   // ── L'état du cabinet : le cabinet, son portefeuille, la personne qui travaille ────────────
-  /** @type {Map<string, { id: string, name: string, matricule: string, manual: boolean, mandat: string }>} */
+  /** @type {Map<string, { id: string, name: string, matricule: string, manual: boolean, mandat: string, perimetre?: string[] }>} */
   const dossiers = new Map();
   // Les réglages du cabinet (0023) : les banques et les mots retenus, et leur révision.
   /** @type {{ contenu: Record<string, any>, revision: number | null }} */
@@ -292,7 +303,7 @@
     proposes = (porte.dossiers || []).filter((/** @type {any} */ d) => d.statut === 'propose');
     dossiers.clear();
     const liste = (porte.dossiers || []).filter((/** @type {any} */ d) => d.statut === 'actif').map((/** @type {any} */ d) => {
-      dossiers.set(d.entreprise, { id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu, mandat: d.mandat });
+      dossiers.set(d.entreprise, { id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu, mandat: d.mandat, perimetre: d.perimetre });
       // Un dossier tenu est le « dossier créé à la main » de la v10 : un client hors SkanFact.
       const fiche = fiches.get(d.entreprise);
       /** @type {any} */ const lue = fiche ? depuisFiche(fiche.contenu) : {};
@@ -511,7 +522,9 @@
       revisions.set(e.id, e.revision);
       livre.ecritures.push({
         id: e.id, numero: e.chaine ?? null, date: e.date, journal: e.journal, piece: e.piece || '', libelle: e.libelle,
-        source: source(e), mois: String(e.date).slice(0, 7), docId: e.origine.id, pieceJointe: null, ...(e.attente ? { attente: true, refus: e.refus } : {}),
+        source: source(e), mois: String(e.date).slice(0, 7), docId: e.origine.id, pieceJointe: null,
+        // (1.125.0) L'achat du client porte-t-il un justificatif ? oui, non, ou null (inconnu : pas un achat).
+        justifClient: typeof e.justificatif === 'boolean' ? e.justificatif : null, ...(e.attente ? { attente: true, refus: e.refus } : {}),
         statut: e.statut === 'validee' ? (e.contrepassee ? 'contrepassee' : 'validee') : 'brouillard',
         auteur: '', creeLe: 0, valideeLe: e.valideeLe ? Date.parse(e.valideeLe) : null,
         contrepasseDe: e.origine.type === 'contre_passation' ? e.origine.id : null,
@@ -1039,7 +1052,8 @@
   // L'exemple à six clients fictifs n'est pas en ligne ; la correspondance des comptes traduisait
   // les comptes d'un paquet importé : il n'y a plus d'import, et le client et son cabinet tiennent
   // les mêmes livres.
-  const PANNEAUX_ABSENTS = ['pan-licence', 'pan-inbox', 'pan-backup', 'pan-maj', 'pan-exemple', 'pan-comptes'];
+  // Le panneau « Licence » revient sous le nom « Ton abonnement » (lot 3 de l'abonnement, 23/10/2026 ; abonnement-cabinet.js).
+  const PANNEAUX_ABSENTS = ['pan-inbox', 'pan-backup', 'pan-maj', 'pan-exemple', 'pan-comptes'];
   // Les étapes de « Tes premiers pas » sans objet : la découverte sur l'exemple, l'appairage, la clé
   // de secours, la copie sur un disque. « Tenir un premier livre » revient avec la saisie (38 bis).
   const ETAPES_ABSENTES = ['decouverte', 'appairage', 'cle', 'copie'];
@@ -1104,7 +1118,9 @@
   /** @param {boolean} [reglages] */
   function commentUnClientArrive(reglages) {
     // (1.77.0) Ou il t'invite par e-mail, avant même que tu aies SkanFact : son lien te fait créer ton cabinet.
-    const corps = `<p class="small">Un client sur SkanFact te confie son dossier lui-même : dans <strong>Paramètres → Envois → Ton cabinet comptable</strong>,
+    // (1.128.0) Le chemin qu'il prend vraiment : « Comptabilité › Cabinet » (le premier pas « Inviter mon comptable » y
+    // mène) ; Paramètres › Envois en est l'autre entrée (revue du mois d'un client, point 11).
+    const corps = `<p class="small">Un client sur SkanFact te confie son dossier lui-même : dans <strong>Comptabilité › Cabinet</strong> (ou Paramètres › Envois),
       il tape le code de ton cabinet, ou il t'invite par e-mail. Tu acceptes ici, sur la page Dossiers ; ses livres sont alors ceux du serveur, à jour en direct.
       Un client qui n'est pas sur SkanFact : « Nouveau client… », et tu tiens ses livres toi-même.</p>
       <div class="mt"><div class="muted small">Le code de ton cabinet</div>
@@ -1211,6 +1227,20 @@
     }, b);
   }
 
+  // La conversation du cabinet avec un client (plateforme/messagerie.js) : ses chemins passent par l'entreprise.
+  // (1.117.0) Les modèles de messages du cabinet (0169) : lus et posés par toute son équipe.
+  const modelesDuCabinet = {
+    lire: async () => (await appel('GET', `/cabinets/${cabinetId}/messages/modeles`)).modeles,
+    poser: (/** @type {string | null} */ id, /** @type {string} */ titre, /** @type {string} */ texte) => (id
+      ? appel('PUT', `/cabinets/${cabinetId}/messages/modeles/${encodeURIComponent(id)}`, { titre, texte })
+      : appel('POST', `/cabinets/${cabinetId}/messages/modeles`, { titre, texte })),
+    retirer: (/** @type {string} */ id) => appel('DELETE', `/cabinets/${cabinetId}/messages/modeles/${encodeURIComponent(id)}`),
+  };
+  /** @param {HTMLElement} el @param {string} entreprise @param {any} o */
+  const conversationAvec = (el, entreprise, o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, {
+    ...o, cote: 'cabinet', modeles: modelesDuCabinet,
+    appel: (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b),
+  });
   /** @type {Record<string, any>} */
   const pont = {
     commentUnClientArrive,
@@ -1227,12 +1257,15 @@
     dessinerAppareils: (/** @type {HTMLElement} */ el) => /** @type {any} */ (window).SkanCompte.appareils(el, { appel }),
     // Les messages des clients (lot messagerie ; plateforme/messagerie.js) : la boîte de tous les clients, la
     // conversation d'un client, et le compte de ceux « À traiter » (la pastille du menu).
+    // (1.115.0) La boîte ouvre la conversation du client choisi à droite de sa liste : la même, fabriquée ici.
     messagerie: {
-      boite: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.boite(el, { ...o, appel, cabinet: cabinetId, nomCabinet: nomDuCabinet }),
-      conversation: (/** @type {HTMLElement} */ el, /** @type {string} */ entreprise, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, {
-        ...o, cote: 'cabinet', appel: (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b),
+      boite: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.boite(el, {
+        ...o, appel, cabinet: cabinetId, nomCabinet: nomDuCabinet, conversation: conversationAvec, modeles: modelesDuCabinet,
       }),
+      conversation: conversationAvec,
       compteurs: async () => (await appel('GET', `/cabinets/${cabinetId}/messages`)).compteurs,
+      // (1.117.0) La boîte entière : la pastille du menu, et celle de chaque ligne de la liste des dossiers.
+      lireBoite: () => appel('GET', `/cabinets/${cabinetId}/messages`),
     },
     // Pas de clé de secours en ligne (C4) : le Cabinet ne la réclame jamais (adaptation de chargerRecovery).
     sansCleDeSecours: true,
@@ -1254,6 +1287,25 @@
 
     // Le livre d'un dossier.
     livreIndex: async (/** @type {string} */ id) => ({ format: 1, exercices: (await moisEtExercices(id)).exercices }),
+    // (1.127.0) « Ce mois-ci » dans le Suivi d'un dossier : les pièces du mois arrivées dans ses livres, ce qui attend au
+    // brouillard, la dernière validation (le résumé que lit aussi le client). Sans le droit : null, la carte se tait.
+    ceMois: async (/** @type {string} */ id, /** @type {string} */ du, /** @type {string} */ au) => {
+      try { return await appel('GET', `/entreprises/${id}/compta/resume?du=${encodeURIComponent(du)}&au=${encodeURIComponent(au)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
+    },
+    // (1.135.0) Les justificatifs que le client a joints à la pièce d'une écriture (son achat ou sa vente) : la liste, et un
+    // fichier ouvert dans un onglet (revue du mois d'un client, point 13 ; 0174). L'onglet s'ouvre avant l'appel : après,
+    // le navigateur le bloquerait.
+    justificatifsEcriture: async (/** @type {string} */ id, /** @type {string} */ ecriture) =>
+      /** @type {{ fichier: string, nom: string, type: string, taille: number }[]} */ ((await appel('GET', `/entreprises/${id}/compta/ecritures/${encodeURIComponent(ecriture)}/justificatifs`)).justificatifs || []),
+    ouvrirJustificatif: async (/** @type {string} */ id, /** @type {string} */ ecriture, /** @type {string} */ fichier) => {
+      const onglet = window.open('', '_blank');
+      try {
+        const f = await appel('GET', `/entreprises/${id}/compta/ecritures/${encodeURIComponent(ecriture)}/justificatifs/${encodeURIComponent(fichier)}`);
+        const adresse = URL.createObjectURL(new Blob([Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0))], { type: f.type }));
+        if (onglet) /** @type {any} */ (window).SkanMessagerie.montrerFichier(onglet, adresse, f.nom, f.type);
+        setTimeout(() => URL.revokeObjectURL(adresse), 60_000);
+      } catch (e) { if (onglet) onglet.close(); throw e; }
+    },
     livres: async (/** @type {string} */ id) => {
       const d = dossiers.get(id);
       const m = await moisEtExercices(id);
@@ -1262,10 +1314,14 @@
     // Une année sans écriture et sans exercice ouvert n'a pas encore de livre : l'écran propose de le
     // commencer (son exercice, sa balance d'ouverture).
     livre: async (/** @type {string} */ id, /** @type {string} */ annee) => {
-      const d = dossiers.get(id) || { id, name: '', matricule: '' };
+      const d = dossiers.get(id) || { id, name: '', matricule: '', manual: false, mandat: '' };
       // 1.63.0 — avec la paie du dossier (ses salariés, ses bulletins) ; un mandat qui ne comprend pas la paie ne ferme
       // pas le livre : l'onglet Paie reste vide, et le serveur dit pourquoi au premier geste.
-      const paie = paieDe(id).catch((/** @type {any} */ e) => { if (e && e.statut === 403) { paieLue.delete(id); return []; } throw e; });
+      // (1.124.0) Ce mandat-là, on le sait d'avance : la paie n'est pas demandée (un refus du serveur à chaque ouverture du
+      // dossier, revue du mois d'un client, point 12). Un dossier tenu, ou un mandat dont on ne connaît pas l'étendue, la lit.
+      const sansPaie = !!d.perimetre && !d.manual && Array.isArray(d.perimetre) && !d.perimetre.includes('paie');
+      const paie = sansPaie ? Promise.resolve(paieLue.delete(id))
+        : paieDe(id).catch((/** @type {any} */ e) => { if (e && e.statut === 403) { paieLue.delete(id); return []; } throw e; });
       const [ecritures] = await Promise.all([ecrituresDe(id, `${annee}-01-01`, `${annee}-12-31`), exercicesDe(id), paie]);
       if (!ecritures.length && !exerciceDe(id, annee)) return { dossier: d, livre: null };
       return { dossier: d, livre: await livreDe(id, annee, ecritures) };
@@ -2119,9 +2175,41 @@
     creationDossier: async () => {
       const etat = await construireEtat();
       const associes = equipeLue.membres.filter((/** @type {any} */ m) => (m.roles || []).includes('supervision'));
-      if (associes.some((/** @type {any} */ m) => m.utilisateur === etat.moi)) return { ok: true };
+      if (associes.some((/** @type {any} */ m) => m.utilisateur === etat.moi)) {
+        // (lot 3 de l'abonnement) Le dossier qui dépasse les gratuits le dit avant la saisie : ce qu'il coûtera ; et quand la
+        // facture attend son paiement au-delà de la grâce, la création se refuse ici, avec le chemin pour la rouvrir.
+        /** @type {any} */ const A = /** @type {any} */ (window).SkanAbonnementCabinet;
+        /** @type {any} */ let a;
+        try { a = A ? await appel('GET', `/cabinets/${cabinetId}/abonnement`) : null; } catch { a = null; }
+        if (a && a.etat && a.etat.etat === 'lecture_seule') {
+          return { ok: false, motif: 'La facture de l\'abonnement du cabinet attend son paiement : un dossier tenu de plus attend qu\'elle soit réglée.',
+            geste: 'Règle-la dans Réglages, « Ton abonnement » : tout se rouvre aussitôt. Tes dossiers se lisent et s\'exportent toujours.',
+            vers: 'pan-licence', bouton: 'Ouvrir mon abonnement' };
+        }
+        return { ok: true, avertissement: a && A ? A.avertissement(a.prochainDossier, a.regles) : '', gratuit: a && A && A.gratuit ? A.gratuit(a.prochainDossier, a.regles) : '' };
+      }
       return { ok: false, motif: 'Seul un associé du cabinet crée un dossier.',
         geste: `${associes.map((/** @type {any} */ m) => m.nom).join(', ')} ${associes.length > 1 ? 'peuvent' : 'peut'} ajouter ce client.` };
+    },
+    // L'abonnement du cabinet (lot 3, 0172 ; docs/abonnement.md C22) : la pastille du haut (`#lic-banner`), le panneau
+    // « Ton abonnement » des Réglages, et le retour d'un paiement en ligne. Seul un associé le lit (la base refuse aux
+    // autres) : pour eux, la pastille se tait, et le panneau dit qui s'en occupe.
+    licenceStatus: async () => {
+      /** @type {any} */ const A = /** @type {any} */ (window).SkanAbonnementCabinet;
+      if (!A) return { pastille: { show: false } };
+      try { return { pastille: A.pastille((await appel('GET', `/cabinets/${cabinetId}/abonnement`)).etat) }; } catch { return { pastille: { show: false } }; }
+    },
+    dessinerAbonnementCabinet: async (/** @type {HTMLElement} */ el) => {
+      /** @type {any} */ const A = /** @type {any} */ (window).SkanAbonnementCabinet;
+      if (A) await A.dessiner(el, { appel, cabinet: cabinetId });
+    },
+    ouvertureAbonnement: () => {
+      try {
+        const v = sessionStorage.getItem('skanfact.abonnement.retour');
+        if (v !== `c:${cabinetId}`) return false;
+        sessionStorage.removeItem('skanfact.abonnement.retour');
+        return true;
+      } catch { return false; }
     },
     // Un dossier créé à la main est un dossier TENU (0019) ; ses notes vont dans sa fiche (0020).
     newDossier: async (/** @type {Record<string, unknown>} */ f) => {

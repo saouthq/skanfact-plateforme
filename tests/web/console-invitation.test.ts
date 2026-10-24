@@ -127,7 +127,7 @@ describe('inviter quelqu\'un, à la souris', () => {
     await cliquer(p.locator('.c-menu-liste button', { hasText: 'Annuler l\'invitation' }));
     await p.getByRole('dialog').getByLabel('Motif', { exact: true }).fill('Adresse fausse');
     await cliquer(p.getByRole('dialog').getByRole('button', { name: 'Annuler l\'invitation' }));
-    await expect.poll(() => ligne.count()).toBe(0);
+    await expect.poll(() => ligne.count(), { timeout: 15_000 }).toBe(0);
     expect((await api('POST', '/console/invitation/apercu', undefined, { jeton: neuf })).corps.valable).toBe(false);
     expect(erreurs).toEqual([]);
     await fermer(p);

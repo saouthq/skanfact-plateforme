@@ -157,7 +157,8 @@ propriétaire de l'abonné ; une seule fiche par abonné, reprise ensuite, donc 
 reste), puis la facture en **brouillon**. Une facture par abonné et par début de période (son identifiant le dit : deux
 clics n'en font jamais deux).
 
-**B3. L'émission reste dans l'application de SkanFact.** La console montre le brouillon « à émettre » et l'ouvre dans
+**B3. L'émission reste dans l'application de SkanFact.** (Sauf, depuis 1.119.0, la facture d'un choix fait dans « Ton
+abonnement » : elle s'émet seule, C21 ; sa signature et son envoi à la TTN restent à une personne.) La console montre le brouillon « à émettre » et l'ouvre dans
 `app.skanfact.tn`, dans un autre onglet (on s'y connecte avec son propre compte, celui de la propriétaire) : Skander la
 relit, l'émet, la signe, l'envoie, comme n'importe quelle facture (C4 : la console ne refait pas l'émission). La console
 suit ensuite son état : à émettre, à payer (le reste), payée en partie, en retard, payée, annulée ; et la fiche se relit
@@ -500,6 +501,160 @@ tenait — « T'abonner » demandait d'écrire à contact@skanfact.tn).
 - **La console** (la direction) le lit dans « À décider » et « Ce qui attend » : « … a choisi Complet, à l'année »,
   par qui et quand ; il tient lieu de « à facturer ». « Préparer sa facture… » s'ouvre sur cette offre ; préparée, la
   ligne s'éteint des deux côtés. Le geste est tracé (`socle.abonnement.payer`, `choix`).
+
+**C20. Après la revue de l'abonnement, lot 1** (1.118.0 ; `0170` ; `docs/revue-abonnement.md` ; Skander, « go 1 et 2 »,
+22/10/2026 ; décidé par délégation dans le détail) :
+- **L'accueil le dit** (`web/v10/abonnement-revue.txt`, `bandeau` de `abonnement.js`) : quand la pastille de la barre
+  attire ou alerte (l'essai dans sa dernière semaine, la grâce, la lecture seule, une échéance payée à quinze jours),
+  un bandeau en haut de l'accueil dit l'état, la date et ce qui attend, avec un seul bouton : « Choisir mon offre »,
+  « Régler ma facture », « Renouveler », « Voir mon abonnement » (la facture se prépare), « Écrire à SkanFact » pour
+  une entreprise suspendue ; à qui ne règle pas l'abonnement, « Qui le règle ? ». En grâce et en lecture seule, c'est le
+  bouton principal de l'écran : « + Nouvelle facture » n'est plus vert, les premiers pas se taisent ; en lecture seule,
+  l'en-tête ne propose plus de créer. Ce qui attend (`aFaire` de `/abonnement/etat` : « payer », « attendre ») ne se lit
+  que pour qui gère l'abonnement, et seulement quand l'échéance est proche.
+- **« Ton abonnement »** : l'état propose l'étape suivante (« Choisir mon offre », qui mène aux offres ; « Écrire à
+  SkanFact » pour une suspension) ; chaque carte a ses boutons (« Choisir Essentiel à l'année », « ou au mois » ;
+  « Renouveler » et « Passer à … » pendant un abonnement payé), et le choix se confirme sous eux (le prix, la remise,
+  quand la période commence ; « Annuler ») : rien ne part au premier clic ; les quatre cases et « Je choisis cette
+  offre » n'existent plus. « Tu as choisi … » vient juste sous l'état. Sous les prix : « À l'année, deux mois offerts »,
+  calculé sur les prix du jour (des mois entiers, sinon l'économie en dinars ; rien si l'année ne coûte pas moins).
+  « Ce qui peut s'ajouter à l'offre » est replié, ouvert quand l'entreprise dépasse son offre.
+- **Les phrases exactes** : ce qui rouvre se dit tel que ça se passe (« Choisis ton offre : ta facture arrive ici, et
+  dès qu'elle est réglée, tout se rouvre », ou « Règle ta facture, juste en dessous »), jamais « abonne-toi : tout se
+  rouvre aussitôt » ; une entreprise suspendue lit « écris-nous », jamais « abonne-toi » ; « À régler » seulement quand
+  une facture attend son paiement (sinon « Essai terminé » ou « Abonnement échu ») ; la grâce se dit sur sa durée
+  (« Encore 5 jours de grâce, sur 7 ») ; l'essai prolongé dit les jours qui restent (« 19 jours restants »), jamais un
+  total faux ; le rappel déjà parti se dit avec son jour, et le prochain qui partira (`plateforme.mes_rappels`).
+- **La prochaine facture** d'un abonnement payé qui se renouvelle : son montant hors taxes, par la règle de la facture
+  et de la console (`aRenouveler`, `htDeLaPeriode`, `plateforme.ma_prochaine_facture`), sa période et sa remise.
+- **Deux e-mails par facture** (`serveur/abonnement/courriels.ts`, le postier, chaque minute) : émise, « Ta facture
+  d'abonnement SkanFact est prête » (son échéance) ; payée, « Ton paiement à SkanFact est bien reçu » (le jour jusqu'où
+  l'abonnement est payé). À qui gère l'abonnement, une fois par facture et par nature ; un brouillon ne s'annonce pas ;
+  payée avant d'être annoncée, seul le reçu part ; un envoi raté se retente ; les factures d'avant 0170 ne s'annoncent
+  pas. Ce qui part chez le relais, compté et décidé comme les rappels : l'adresse, un objet, une date, l'adresse de
+  l'application ; ni le montant, ni le numéro, ni le nom de l'entreprise.
+
+**C21. Après la revue de l'abonnement, lot 2** (1.119.0 ; `0171` ; `docs/revue-abonnement.md` ; Skander, « go 1 et 2 »,
+22/10/2026, sur trois points : la facture préparée et émise d'elle-même au choix de l'offre, la console prévenue et
+gardant les cas à part ; le prix TTC à côté du HT ; « Ne pas renouveler » et « Passer à Complet » faits par le client
+lui-même. Décidé par délégation dans le détail) :
+- **La facture au choix** (`serveur/abonnement/facturier.ts`) : quand qui gère l'abonnement choisit son offre, sa
+  facture se prépare ET s'émet dans la minute (le tour part juste après le choix, et chaque minute pour les autres),
+  au nom de la propriétaire de l'entreprise SkanFact, comme une facture périodique émise seule. Préparée par la même
+  fonction que la console (`preparerFacture`), notée par la jumelle de `console_noter_facture` qui revérifie les mêmes
+  chiffres (`plateforme.noter_facture_au_choix`, la facture marquée `au_choix`), émise par le serveur (le numéro de la
+  série, les montants scellés), tout dans une transaction. Sa signature et son envoi à la TTN restent à une personne.
+  L'e-mail « facture prête » (C20) part comme pour toute facture émise. « Ton abonnement » se relit seul jusqu'à ce
+  qu'elle soit là.
+- **Les cas à part restent à la console** : ni l'entreprise SkanFact elle-même, ni un exemple, ni un dossier tenu par un
+  cabinet, ni un abonnement offert ou suspendu, ni une période payée qui ne se renouvelle pas. Un choix qui ne se facture
+  pas (pas de prix, une pièce de cette période déjà dans l'application de SkanFact, le timbre non renseigné…) garde son
+  motif (`plateforme.choix_refuse`) : la console le lit sur la ligne « a choisi » d'« À décider » (« … mais sa
+  facture ne s'est pas faite seule : » et le motif), où sa facture se prépare à la main comme avant ; l'abonnée lit que SkanFact prépare sa facture ; il se
+  retente le lendemain. Branchée en production (`SKANFACT_FACTURE_AU_CHOIX`, `1` par défaut en production, `0`
+  ailleurs).
+- **Le prix TTC** de chaque offre, sous le prix HT (« TVA et timbre compris : 465,100 DT par an, ou 47,410 DT par
+  mois ») : calculé au serveur par le moteur de la facture, avec la fiche de l'entreprise SkanFact (sa TVA, son timbre ;
+  la fiche ne sort pas : seuls les montants partent), avant la remise et ce qui s'ajoute. Rien quand l'entreprise
+  SkanFact n'est pas désignée.
+- **« Ne pas renouveler… »** (`plateforme.mon_renouvellement`) : pendant une période payée qui court, un bouton discret
+  sous l'état ; la confirmation dit ce qui se passera (« Ton abonnement ira jusqu'au …, puis l'entreprise passera en
+  lecture seule ») avant le geste, « Garder mon abonnement » referme sans rien faire. Fait, l'état dit « Il ne se
+  renouvelle pas » et propose « Reprendre mon abonnement », d'un clic, jusqu'à la fin de la période ; pas de choix
+  d'offre ni de module entre-temps. Refusé quand la facture de la période suivante attend déjà son paiement (« écris-nous
+  à contact@skanfact.tn, et nous l'annulerons »), et pour un abonnement offert ou suspendu. L'histoire le dit, par
+  « le client » (`par = 'abonne'`).
+- **« Passer à Complet »** : pour la période suivante, c'est un choix d'offre (sur la carte de Complet), facturé d'avance
+  comme tout choix. Tout de suite, c'est un module : « Ouvrir la paie maintenant… », « Ouvrir la comptabilité complète
+  maintenant… » sur la carte de son offre (`plateforme.mon_module_ouvrir`) ; la confirmation dit, lu au serveur, ce que
+  la prochaine facture rattrapera (« 10,161 DT HT : du … au …, 21 jours sur 31, au prix de la paie ») par la règle de
+  `rattrapage_modules` (0113), le geste « ouvrir un module » de la console fait par le client. Sans le paiement de la
+  période dans l'histoire, cette règle ne rattrape rien : la confirmation le dit (« Rien à rattraper pour les jours qui
+  restent »). La facture de la période suivante déjà faite (un choix facturé d'avance), le module attend : elle ne le
+  compterait pas (« écris-nous à contact@skanfact.tn »). Recette du 23/10/2026 : l'aperçu annonçait 15 DT pour « 11
+  jours sur 11 » quand la facture n'aurait rien rattrapé. Changer d'offre au milieu
+  d'une période (Essentiel → Complet avec un avoir au prorata) ne se fait pas : la console ne le sait pas non plus.
+
+**C22. L'abonnement des cabinets, lot 3** (1.120.0 ; `0172` ; `docs/revue-abonnement.md` ; décision de Skander du
+23/10/2026, « oui d'accord go », écrite au cadrage : `docs/cadrage/07-offres-et-prix.md`, « Comment l'abonnement du
+cabinet s'applique ». Le détail par délégation, À VÉRIFIER aux entretiens des cabinets) :
+- **Ce qui se compte** (`plateforme.dossiers_du_cabinet`) : les dossiers tenus du cabinet (ceux qu'il a créés et que leur
+  client n'a pas rejoints), actifs, dans l'ordre de leur création ; un dossier archivé dans la fiche du cabinet ne compte
+  pas. Les trois premiers sont gratuits, pour toujours ; les suivants se paient. Un client abonné à SkanFact qui a donné
+  son mandat ne compte jamais. Les règles sont datées dans `plateforme.regle_cabinet` (`prix_dossier` 60 DT HT par an,
+  `gratuits` 3, `plafond` 1 990 DT HT par an, `delai` 15 jours pour régler) et se préparent dans la console, avec le
+  préavis d'un nouveau prix (Réglages, « L'abonnement des cabinets ») ; une règle inconnue ne facture rien.
+- **L'anniversaire** : l'abonnement du cabinet (`plateforme.abonnement_cabinet`) commence le jour où son premier dossier
+  payant est créé ; la facture de chaque année part ce jour-là (le tour du facturier, et juste après la création d'un
+  dossier tenu : `serveur/abonnement/cabinet.ts`, `facturerLesCabinets`). Elle compte les dossiers payants de ce jour
+  au prix du jour, plus un **rattrapage** pour chaque dossier payant arrivé pendant l'année d'avant et absent de la
+  facture d'avant : le prix de l'année d'avant, au prorata de ses jours (`(prix × jours × 2 + jours de l'année) / (2 ×
+  jours de l'année)`, l'arrondi des modules, 0113). Le **plafond** la limite : une seule ligne, « Abonnement cabinet,
+  plafond annuel ». La pièce compte les dossiers, elle ne les nomme pas. Préparée et émise par la propriétaire de
+  l'entreprise SkanFact comme une facture au choix (C21), revérifiée par la base (`plateforme.noter_facture_cabinet`
+  refait le même calcul), dans une transaction ; un dossier créé pendant ce temps attend (le même verrou). Une période
+  qui ne se facture pas garde son motif (`plateforme.facture_cabinet_refus`) : « À décider » le dit, le serveur réessaie
+  le lendemain.
+- **Payer** : « Ton abonnement », dans les Réglages du Cabinet (le panneau qui était « Licence »), pour un associé
+  seulement ; « Payer en ligne » par le prestataire de l'entreprise SkanFact, la page de retour ramène au Cabinet, sur ce
+  panneau. Payée, l'abonnement court jusqu'à la veille de l'anniversaire suivant (`plateforme.cabinet_paye_par_facture`).
+  Les e-mails « facture prête » et « paiement reçu » partent aux associés (C20).
+- **Avant le dossier qui se paie** : « Nouveau dossier client » le dit avant la saisie (« Ce sera ton 4e dossier tenu :
+  … il se paie 60 DT HT par an »), sans rien bloquer.
+- **Sans paiement** : après l'échéance et la grâce de l'abonnement (0104), **seuls les dossiers payants** passent en
+  lecture seule (`plateforme.dossier_tenu_bloque_depuis`, une condition de la porte : `serveur/abonnement/condition.ts`) ;
+  tout s'y lit, s'imprime et s'exporte, la messagerie, le support et les sauvegardes restent ouverts ; les dossiers
+  gratuits restent ouverts ; créer un dossier tenu de plus se refuse, en le disant. Payée, tout se rouvre.
+- **La console** : la fiche d'un cabinet dit son abonnement (l'état, payants sur tenus, la prochaine facture, ses
+  factures et leur reste) ; « À décider » la période qui ne s'est pas facturée seule.
+- **Pas encore** : les rappels par e-mail avant l'échéance (les e-mails « facture prête » et « paiement reçu » partent) ;
+  un dossier que son client rejoint en cours d'année ne se rembourse pas (décidé : il ne compte plus, sans avoir) ; le
+  client qui « reprend » un dossier tenu (le chemin `0155` existe ; ce lot le compte, il ne le crée pas).
+
+**C23. La recette de l'abonnement à l'écran** (1.121.0 ; `docs/revue-abonnement.md`, « La recette à l'écran ») :
+- **Le récapitulatif d'un geste qui engage** (choisir une offre, ouvrir un module, ne pas renouveler) s'ouvre dans une
+  fenêtre au-dessus de l'onglet (`dialog` natif : le reste inerte, Échap ou un clic à côté la referment, le curseur
+  revient au bouton qui l'a ouverte). Ouvert dans la carte de l'offre, il poussait sa liste et laissait un trou dans la
+  carte voisine. Il redit, en lignes : l'abonnement HT, la remise s'il y en a, **le total à régler, TVA et timbre
+  compris** (le même calcul que la carte, C21 ; absent si l'entreprise SkanFact n'est pas désignée), puis ce qui suit.
+  Le module : son prix et ce que la prochaine facture rattrape (du … au …, N jours sur M), ou rien à rattraper.
+- **L'essai dont la facture attend** dit ce qui vient : « Ensuite : Essentiel, au mois, dès le … Ta facture t'attend
+  juste en dessous : réglée d'ici là, rien ne s'arrête » (il répétait ce que l'essai permet).
+- **Le cabinet** : quand l'état porte « Régler ma facture », la ligne de la facture n'a plus son propre bouton vert (deux
+  verts côte à côte). En lecture seule, « Nouveau dossier client » refuse en le disant et offre « Ouvrir mon
+  abonnement » (il n'offrait que « Compris »).
+- **L'entrée** : chaque case porte le nom de son libellé, seul (`htmlFor` et `aria-label`) : le libellé contient la
+  bulle « i », un bouton, auquel le navigateur le reliait ; un lecteur d'écran disait « champ de texte », un clic sur le
+  libellé ne posait pas le curseur. Le message d'un geste se lit sous la barre des étapes, plus dessus.
+
+**C24. L'abonnement dans tous ses états, revu à la souris** (1.122.0 ; `web/v10/abonnement-etats.txt` ;
+`docs/revue-abonnement.md`, « Tous les états ») :
+- **La pastille du menu** tient sur une ligne (« Essai : encore 5 jours », « Échéance le 01/11/2026 », « Lecture seule le
+  28/10/2026 », « Lecture seule ») et prend le rouge quand l'état l'est : la grâce, la lecture seule, le dernier jour de
+  l'essai. Celle du Cabinet aussi (« Facture à régler avant le … », « Dossiers payants en lecture seule »).
+- **Le bandeau de l'accueil** : une échéance n'est pas une fin (« Ton abonnement arrive à échéance le … ») ; « Choisir mon
+  offre » mène aux offres de l'onglet (il ouvrait le haut, où le même bouton attendait) ; une entreprise suspendue écrit
+  au support dans SkanFact (le lien d'e-mail ne faisait rien sans logiciel de courrier), dans l'onglet comme sur l'accueil.
+- **L'état de l'onglet** : à quinze jours de l'échéance, « Renouveler maintenant » (la même offre, par le même
+  récapitulatif, « Renouveler Essentiel, au mois ») ; renouvelé, l'état montre la facture qui attend. « Ne pas
+  renouveler » quitte l'état pour le bas de l'onglet, discret, avec ce qu'il fait. Un abonnement qui ne se renouvelle pas
+  prend l'ambre ; « échu » devient « n'est plus payé depuis le … » ; un abonnement offert, une entreprise d'essai, un
+  dossier tenu disent ce qu'ils sont (« Rien ne s'arrête ici » ne disait rien).
+- **La prochaine facture** dit ce qu'elle compte (« avec la paie », quand la carte dit 390 et la facture 540) et, quand
+  l'offre seule la fait (sans module ni remise), son total TVA et timbre compris.
+- **Les cartes** : la carte de son offre ne propose plus de « Renouveler » ce qui se renouvelle déjà ; elle propose l'autre
+  durée (« Passer à l'année »). L'offre choisie dont la facture attend porte « Ton choix ». Au téléphone, un long libellé
+  passe à la ligne : il élargissait la carte au-delà de son bord.
+- **En lecture seule**, les listes des factures et des devis ne proposent plus de créer : « Voir l'abonnement », et l'état
+  vide dit pourquoi la création attend.
+- **(1.134.0, UX 2) Les autres listes en lecture seule** : les achats, les fournisseurs, les commandes, les proformas, les
+  contrats, les affaires, les biens, la trésorerie et la paie gardaient « + Saisir ma première… » en vert, qui menait au
+  refus. Leur état vide dit la phrase de l'abonnement, et son seul vert est « Voir l'abonnement » (« Qui le règle ? » pour
+  qui ne le règle pas) ; les boutons de création restent, en second, et leur fenêtre explique. En tête d'une liste, un
+  « + Nouveau… » n'est plus le vert (une fiche de client ou un article se créent encore : leur bouton reste, sans le vert).
+  Un fournisseur, une affaire, un compte ou un mouvement de trésorerie neufs refusent à l'ouverture, plus après la saisie.
+  Ce que la lecture seule ferme ne change pas (A3 ; `web/v10/lecture-seule-listes.txt`).
+- **Le Cabinet** : les trois premiers dossiers tenus disent, avant la saisie, qu'ils ne coûtent rien.
 
 ## Revu à la souris (14/10/2026, C17 : les remises)
 

@@ -45,10 +45,10 @@ joindre soi-même ; « 1 document ».
 == app.js | le cabinet connu après le premier dessin : la Comptabilité se redessine (son bouton, sa phrase)
 -- avant
     if (avant !== avecMessagerie(a)) {
-      drawNav();
+      const lien = $('#foot-comptable');
 -- après
     if (avant !== avecMessagerie(a)) {
       // (plateforme) 1.94.0 — la Comptabilité dit si un cabinet lit ses ventes : elle se redessine quand on l'apprend.
       if (/^#\/compta/.test(location.hash) && !$('#modal-root .modal') && !(document.activeElement && document.activeElement.matches('input, textarea, select'))) render();
-      drawNav();
+      const lien = $('#foot-comptable');
 -- fin

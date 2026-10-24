@@ -82,6 +82,9 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
         .$if(p.du !== null, (q) => q.where('date_ecriture', '>=', p.du ?? ''))
         .$if(p.au !== null, (q) => q.where('date_ecriture', '<=', p.au ?? ''))
         .$if(query.journal !== undefined, (q) => q.where('journal', '=', query.journal ?? ''))
+        // (1.133.0) `piece` : les écritures d'une pièce (son numéro), la page de lecture d'une facture émise dit ce qu'en a
+        // fait le comptable (revue du mois d'un client, point 14).
+        .$if(query.piece !== undefined, (q) => q.where('piece', '=', query.piece ?? ''))
         .$if(apres !== null, (q) => q.where(sql<boolean>`(date_ecriture, id) > (${apres?.[0] ?? ''}::date, ${apres?.[1] ?? ''}::uuid)`))
         .orderBy('date_ecriture').orderBy('id').limit(n).execute();
       const lignes = ecritures.length
@@ -104,10 +107,19 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
       const noms = new Map(idsTiers.length
         ? (await db.selectFrom('socle.tiers').select(['id', 'raison_sociale']).where('entreprise', '=', entreprise).where('id', 'in', idsTiers).execute()).map((x) => [x.id, x.raison_sociale])
         : []);
+      // (1.125.0) L'écriture née d'un achat dit si cet achat porte un justificatif chez le client : oui ou non, sans le
+      // fichier ni son nom (le cabinet ne lit ni les achats ni les pièces jointes : compta.achats_justifies, 0173). Le Cabinet propose ainsi de le réclamer, et
+      // la validation prévient (revue du mois d'un client, points 7 et 8). Inconnu (l'achat introuvable) : null.
+      const achats = ecritures.filter((e) => e.origine_type === 'achat').map((e) => e.origine);
+      const justifies = new Map(achats.length
+        ? ((await tx.query('select piece, justifie from compta.achats_justifies($1, $2::uuid[])', [entreprise, achats])).rows as { piece: string; justifie: boolean }[])
+          .map((x) => [x.piece, x.justifie])
+        : []);
       const dernier = ecritures.at(-1);
       return {
         corps: {
           ecritures: ecritures.map((e) => ({
+            justificatif: e.origine_type === 'achat' ? justifies.get(e.origine) ?? null : null,
             id: e.id, journal: e.journal, date: e.date_ecriture, piece: e.piece, libelle: e.libelle, statut: e.statut, numero: e.numero,
             // Son rang dans la chaîne des livres (validée) : l'ordre unique de validation, tous journaux confondus.
             chaine: e.chaine_rang === null ? null : Number(e.chaine_rang),
@@ -123,6 +135,59 @@ export function routesCompta(ctx: Contexte): Route<never>[] {
           suite: ecritures.length === n && dernier ? versCurseur(dernier.date_ecriture, dernier.id) : null,
         },
       };
+    },
+  });
+
+  // (1.135.0) Les justificatifs que le client a joints à la pièce d'où naît une écriture (son achat ou sa vente), pour qui lit
+  // ses livres : la liste, puis un fichier (revue du mois d'un client, point 13 ; 0174, qui le redit dans la base).
+  const introuvable = { statut: 404 as const, corps: { motif: motif('commun.introuvable') } };
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/compta/ecritures/:ecriture/justificatifs', geste: 'compta.livres.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      if (!uuid.safeParse(params.ecriture).success) return introuvable;
+      const l = (await tx.query('select fichier, nom, type, taille from compta.justificatifs_ecriture($1, $2)', [params.entreprise ?? '', params.ecriture])).rows as
+        { fichier: string; nom: string; type: string; taille: number }[];
+      return { corps: { justificatifs: l } };
+    },
+  });
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/compta/ecritures/:ecriture/justificatifs/:fichier', geste: 'compta.livres.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      if (!uuid.safeParse(params.ecriture).success || !uuid.safeParse(params.fichier).success) return introuvable;
+      const f = (await tx.query('select nom, type, contenu from compta.justificatif_ecriture($1, $2, $3)', [params.entreprise ?? '', params.ecriture, params.fichier])).rows[0] as
+        { nom: string; type: string; contenu: Buffer } | undefined;
+      if (!f) return introuvable;
+      return { corps: { nom: f.nom, type: f.type, taille: f.contenu.length, contenu: f.contenu.toString('base64') } };
+    },
+  });
+
+  // (1.124.0) Le résumé d'une période pour le client : combien d'écritures son cabinet a validées, combien attendent au
+  // brouillard, et le jour de la dernière validation. La carte « Ce mois-ci » de « Mon comptable » le dit (revue du mois
+  // d'un client, 23/10/2026, point 4 : le client ne voyait rien de ce que faisait son comptable).
+  ajouter({
+    methode: 'GET', chemin: '/entreprises/:entreprise/compta/resume', geste: 'compta.livres.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      const p = periode(query);
+      if ('statut' in p) return p;
+      // (1.127.0) Et les pièces arrivées dans les livres : les ventes et les achats du client (une pièce, une fois), et
+      // combien d'achats n'ont pas de justificatif (oui ou non, compta.achats_justifies, 0173). Le Suivi d'un dossier au
+      // Cabinet le dit dans sa carte « Ce mois-ci » (revue du mois d'un client, point 9).
+      const r = (await sql<{ validees: string; brouillard: string; validee_le: string | null; ventes: string; achats: string[] }>`
+        select count(*) filter (where statut = 'validee') validees, count(*) filter (where statut = 'brouillard') brouillard,
+          to_char(max(validee_le) at time zone 'Africa/Tunis', 'YYYY-MM-DD') validee_le,
+          count(distinct origine) filter (where origine_type = 'vente') ventes,
+          coalesce(array_agg(distinct origine::text) filter (where origine_type = 'achat'), '{}') achats
+        from compta.ecriture where entreprise = ${params.entreprise ?? ''}
+          and (${p.du}::date is null or date_ecriture >= ${p.du}::date) and (${p.au}::date is null or date_ecriture <= ${p.au}::date)`
+        .execute(requetes(tx))).rows[0];
+      const achats = r?.achats ?? [];
+      const sansJustificatif = achats.length
+        ? ((await tx.query('select justifie from compta.achats_justifies($1, $2::uuid[])', [params.entreprise ?? '', achats])).rows as { justifie: boolean }[]).filter((x) => !x.justifie).length
+        : 0;
+      return { corps: { validees: Number(r?.validees ?? 0), brouillard: Number(r?.brouillard ?? 0), valideeLe: r?.validee_le ?? null, ventes: Number(r?.ventes ?? 0), achats: achats.length, sansJustificatif } };
     },
   });
 

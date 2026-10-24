@@ -195,7 +195,7 @@
     if (e.etat === 'essai') return { ...base, state: 'essai', daysLeft: e.jours, label: 'Essai gratuit', detail: `L'essai court jusqu'au ${jour(e.jusquAu)}, tout ouvert.` };
     if (e.etat === 'actif') return { ...base, state: 'active', daysLeft: e.jours, label: `${nomOffre(e.offre)} jusqu'au ${jour(e.jusquAu)}`, detail: e.resilie ? 'Résilié : il s\'arrête à cette date.' : '' };
     if (e.etat === 'en_retard') {
-      return { ...base, state: e.apresEssai ? 'finessai' : 'retard', daysLeft: e.jours, label: e.apresEssai ? 'Ton essai est terminé' : 'Ton abonnement est échu',
+      return { ...base, state: e.apresEssai ? 'finessai' : 'retard', daysLeft: e.jours, label: e.apresEssai ? 'Ton essai est terminé' : 'Ton abonnement n\'est plus payé',
         detail: `Tout marche encore jusqu'au ${jour(e.lectureSeuleLe ? plusJours(e.lectureSeuleLe, -1) : '')} ; ensuite, la lecture seule.` };
     }
     return { ...base, state: e.raison === 'essai_termine' ? 'finessai' : 'expiree', locked: true, label: `Lecture seule depuis le ${jour(e.depuis)}`, detail: pourquoi(e) };
@@ -220,60 +220,116 @@
   };
 
   // La pastille de la barre : rien quand il n'y a rien à dire (pas d'échéance, ou une échéance lointaine payée).
+  // (1.122.0) Une ligne courte, au pied du menu : « Essentiel jusqu'au 01/11/2026 — pense à le renouveler » y tenait sur
+  // trois lignes (recette du 23/10/2026). Le détail est dans le bandeau de l'accueil et dans l'onglet, où elle mène. Le
+  // dernier jour de l'essai prend le rouge, comme la grâce : c'est le jour où il faut agir.
   /** @param {Etat | null} e @returns {{ show: boolean, ton: string, texte: string }} */
   function pastille(e) {
     const rien = { show: false, ton: '', texte: '' };
     if (!e || e.etat === 'hors') return rien;
     const j = Number(e.jours);
     if (e.etat === 'essai') {
-      if (j > 7) return { show: true, ton: 'calme', texte: `Essai — ${pl(j, 'jour')}` };
-      return { show: true, ton: 'attire', texte: j <= 0 ? 'Essai — dernier jour' : `Essai — ${pl(j, 'jour')} avant la fin` };
+      if (j > 7) return { show: true, ton: 'calme', texte: `Essai : ${pl(j, 'jour')}` };
+      return j <= 0 ? { show: true, ton: 'alerte', texte: 'Essai : dernier jour' } : { show: true, ton: 'attire', texte: `Essai : encore ${pl(j, 'jour')}` };
     }
     if (e.etat === 'actif') {
       if (j > 15) return rien;
-      return { show: true, ton: 'attire', texte: e.resilie ? `Abonnement résilié — il s'arrête le ${jour(e.jusquAu)}` : `${nomOffre(e.offre)} jusqu'au ${jour(e.jusquAu)} — pense à le renouveler` };
+      return { show: true, ton: 'attire', texte: e.resilie ? `S'arrête le ${jour(e.jusquAu)}` : `Échéance le ${jour(e.jusquAu)}` };
     }
-    if (e.etat === 'en_retard') return { show: true, ton: 'alerte', texte: `${e.apresEssai ? 'Essai terminé' : 'Abonnement échu'} — lecture seule le ${jour(e.lectureSeuleLe)}` };
-    return { show: true, ton: 'alerte', texte: 'Lecture seule — voir l\'abonnement' };
+    if (e.etat === 'en_retard') return { show: true, ton: 'alerte', texte: `Lecture seule le ${jour(e.lectureSeuleLe)}` };
+    return { show: true, ton: 'alerte', texte: 'Lecture seule' };
   }
 
   // L'état en tête de l'onglet : une pastille, un titre, ce qu'il veut dire, et la jauge des jours quand ils comptent.
-  // `regles` : la durée de son essai et ses relances (0104), quand on les connaît.
-  /** @param {Etat} e @param {{ essai?: number | null, relances?: number[] }} [regles] @returns {{ ton: string, pastille: string, titre: string, texte: string, jauge: { texte: string, part: number } | null }} */
-  function etatEnClair(e, regles = {}) {
+  // `regles` : la durée de son essai et ses relances (0104), quand on les connaît. `suite` (1.118.0 ; la revue du
+  // 22/10/2026) : ce qui attend (une facture à régler, un choix dont la facture se prépare), si l'essai a été prolongé
+  // (sa durée n'est plus celle de la règle), et les rappels déjà partis pour l'échéance qui vient.
+  /** @typedef {{ aFaire?: 'payer' | 'attendre' | null, prolonge?: boolean, rappels?: { rang: string, le: string }[], periode?: { debut: string, offre: string, periodicite: string } | null }} Suite */
+  /** @param {Etat} e @param {{ essai?: number | null, relances?: number[] }} [regles] @param {Suite} [suite] @returns {{ ton: string, pastille: string, titre: string, texte: string, jauge: { texte: string, part: number } | null }} */
+  function etatEnClair(e, regles = {}, suite = {}) {
     if (e.etat === 'hors') {
-      return { ton: 'calme', pastille: 'Sans échéance', titre: 'Rien ne s\'arrête ici', jauge: null, texte: ({ bac_a_sable: 'C\'est une entreprise d\'essai : elle ne s\'arrête jamais, et rien n\'y est facturé.',
-        tenu_par_cabinet: 'Ton cabinet tient ce dossier : c\'est lui qui le paie.', offert: 'SkanFact t\'offre cet abonnement : il ne s\'arrête pas.',
+      // (1.122.0) Le titre dit ce que c'est (« Rien ne s'arrête ici » ne disait rien, recette du 23/10/2026).
+      return { ton: 'calme', pastille: ({ bac_a_sable: 'Entreprise d\'essai', tenu_par_cabinet: 'Tenue par ton cabinet', offert: 'Offert' })[e.raison || ''] || 'Sans échéance',
+        titre: ({ bac_a_sable: 'Une entreprise pour essayer', tenu_par_cabinet: 'Ton cabinet tient ce dossier', offert: 'Abonnement offert par SkanFact' })[e.raison || ''] || 'Pas d\'abonnement ici',
+        jauge: null, texte: ({ bac_a_sable: 'C\'est une entreprise d\'essai : elle ne s\'arrête jamais, et rien n\'y est facturé.',
+        tenu_par_cabinet: 'C\'est lui qui le paie : rien ne s\'arrête ici, et rien ne t\'est facturé.', offert: 'SkanFact t\'offre cet abonnement, sans échéance : rien ne s\'arrête, et rien ne t\'est facturé.',
         inconnu: 'Cette entreprise n\'a pas encore d\'abonnement : rien ne s\'y ferme.' })[e.raison || ''] || '' };
     }
     if (e.etat === 'essai') {
       const j = Number(e.jours);
-      return { ton: j <= 7 ? 'attire' : 'calme', pastille: 'Essai gratuit', titre: j <= 0 ? 'Dernier jour de ton essai' : `Encore ${pl(j, 'jour')} d'essai`,
-        texte: `Jusqu'au ${jour(e.jusquAu)}, tout est ouvert, sans carte. Ce que tu crées pendant l'essai reste quand tu t'abonnes : rien à ressaisir.`,
+      return { ton: j <= 0 ? 'alerte' : j <= 7 ? 'attire' : 'calme', pastille: 'Essai gratuit', titre: j <= 0 ? 'Dernier jour de ton essai' : `Encore ${pl(j, 'jour')} d'essai`,
+        // (1.121.0) L'offre choisie, l'état le dit (recette du 23/10/2026) : il répétait « Ce que tu crées… » comme si rien
+        // n'était fait, la facture en attente plus bas.
+        texte: `Jusqu'au ${jour(e.jusquAu)}, tout est ouvert, sans carte. ${suite.aFaire === 'payer' && suite.periode
+          ? `Ensuite : ${nomOffre(suite.periode.offre)}, ${suite.periode.periodicite === 'mensuel' ? 'au mois' : 'à l\'année'}, dès le ${jour(suite.periode.debut)}. Ta facture t'attend juste en dessous : réglée d'ici là, rien ne s'arrête.`
+          : suite.aFaire === 'attendre' ? 'Ta facture se prépare sur l\'offre que tu as choisie : un e-mail te prévient quand elle est prête.'
+            : 'Ce que tu crées pendant l\'essai reste quand tu t\'abonnes : rien à ressaisir.'}`,
         // La part de l'essai qui reste : sur sa durée (celle de sa création), ou plus s'il a été prolongé ; sans elle, la
         // jauge ne dit que les jours qui restent.
+        // Prolongé, l'essai ne dure plus « 30 jours » : la jauge dit les jours qui restent, sans un total faux (« 19 jours
+        // sur 30 » d'un essai de 44 jours, revue du 22/10/2026).
         jauge: (() => {
-          const sur = regles.essai ? Math.max(regles.essai, j) : null;
-          return { texte: j <= 0 ? 'Dernier jour' : sur ? `${pl(j, 'jour')} sur ${sur}` : pl(j, 'jour'), part: sur ? Math.max(0, Math.min(1, j / sur)) : 1 };
+          const sur = regles.essai && !suite.prolonge ? Math.max(regles.essai, j) : null;
+          const part = sur ? Math.max(0, Math.min(1, j / sur)) : regles.essai ? Math.max(0, Math.min(1, j / Math.max(regles.essai, j))) : 1;
+          return { texte: j <= 0 ? 'Dernier jour' : sur ? `${pl(j, 'jour')} sur ${sur}` : `${pl(j, 'jour')} ${j > 1 ? 'restants' : 'restant'}`, part };
         })() };
     }
     if (e.etat === 'actif') {
       const j = Number(e.jours);
-      return { ton: j <= 15 ? 'attire' : 'calme', pastille: e.resilie ? 'Résilié' : `${nomOffre(e.offre)} · ${e.periodicite === 'mensuel' ? 'au mois' : 'à l\'année'}`,
+      // (1.122.0) Un abonnement qui ne se renouvelle pas s'arrêtera : l'ambre, jamais le vert du calme.
+      return { ton: j <= 15 || e.resilie ? 'attire' : 'calme', pastille: e.resilie ? 'Ne se renouvelle pas' : `${nomOffre(e.offre)} · ${e.periodicite === 'mensuel' ? 'au mois' : 'à l\'année'}`,
         titre: `Payé jusqu'au ${jour(e.jusquAu)}`, jauge: null,
-        texte: e.resilie ? 'Tu as résilié : l\'abonnement s\'arrête à cette date, puis l\'entreprise passe en lecture seule.'
-          : j <= 0 ? 'C\'est le dernier jour de la période payée.'
-            : `Encore ${pl(j, 'jour')}.${regles.relances && regles.relances.length ? ` Un rappel part par e-mail ${relancesEnMots(regles.relances.slice(0, 1))}.` : ''}` };
+        texte: e.resilie ? `${nomOffre(e.offre)}, ${e.periodicite === 'mensuel' ? 'au mois' : 'à l\'année'}. L'abonnement s'arrête à cette date, puis l'entreprise passe en lecture seule. Tu peux le reprendre d'un clic jusque-là.`
+          // (1.122.0) Renouvelé, sa facture attend : l'état la montre plutôt qu'un rappel qui ne sert plus.
+          : suite.aFaire === 'payer' ? `Encore ${pl(j, 'jour')}. Ta facture du renouvellement t'attend juste en dessous : réglée d'ici le ${jour(e.jusquAu)}, rien ne s'arrête.`
+            : j <= 0 ? 'C\'est le dernier jour de la période payée.'
+              : `Encore ${pl(j, 'jour')}.${rappelEnClair(j, regles.relances || [], suite.rappels || [])}` };
     }
     if (e.etat === 'en_retard') {
       const j = Number(e.jours);
-      return { ton: 'alerte', pastille: 'À régler', titre: e.apresEssai ? `L'essai est terminé depuis le ${jour(plusJours(String(e.echeance), 1))}` : `L'abonnement est échu depuis le ${jour(plusJours(String(e.echeance), 1))}`,
-        texte: `Tout marche encore jusqu'au ${jour(plusJours(String(e.lectureSeuleLe), -1))}. Le ${jour(e.lectureSeuleLe)}, l'entreprise passe en lecture seule : tout se lit, s'imprime et s'exporte, mais rien de nouveau ne se crée.`,
-        // La grâce de cette échéance : du lendemain de l'échéance à la veille de la lecture seule.
-        jauge: { texte: `${pl(j, 'jour')} de grâce`, part: Math.max(0, Math.min(1, j / Math.max(1, joursEntre(String(e.echeance), String(e.lectureSeuleLe)) - 1))) } };
+      // La grâce de cette échéance : du lendemain de l'échéance à la veille de la lecture seule.
+      const grace = Math.max(1, joursEntre(String(e.echeance), String(e.lectureSeuleLe)) - 1);
+      // « À régler » quand une facture attend son paiement ; sinon il n'y a rien à régler : il faut d'abord choisir.
+      // (1.122.0) « échu » est un mot de juriste : l'état dit ce qui se passe (recette du 23/10/2026).
+      return { ton: 'alerte', pastille: suite.aFaire === 'payer' ? 'À régler' : e.apresEssai ? 'Essai terminé' : 'Non renouvelé',
+        titre: e.apresEssai ? `L'essai est terminé depuis le ${jour(plusJours(String(e.echeance), 1))}` : `L'abonnement n'est plus payé depuis le ${jour(plusJours(String(e.echeance), 1))}`,
+        texte: `Tout marche encore jusqu'au ${jour(plusJours(String(e.lectureSeuleLe), -1))}. Le ${jour(e.lectureSeuleLe)}, l'entreprise passe en lecture seule : tout se lit, s'imprime et s'exporte, mais rien de nouveau ne se crée.${pourRouvrir(suite, true)}`,
+        jauge: { texte: `Encore ${pl(j, 'jour')} de grâce, sur ${grace}`, part: Math.max(0, Math.min(1, j / grace)) } };
+    }
+    // Suspendue par SkanFact, s'abonner ne la rouvre pas : il faut nous écrire (revue du 22/10/2026).
+    if (e.raison === 'suspendu') {
+      return { ton: 'alerte', pastille: 'Suspendu', titre: `En lecture seule depuis le ${jour(e.depuis)}`, jauge: null,
+        texte: 'SkanFact a suspendu l\'abonnement. Tout se lit, s\'imprime et s\'exporte ; tes données restent à toi. Pour rouvrir l\'entreprise, écris-nous à contact@skanfact.tn.' };
     }
     return { ton: 'alerte', pastille: 'Lecture seule', titre: `En lecture seule depuis le ${jour(e.depuis)}`, jauge: null,
-      texte: `${pourquoi(e)} Tout se lit, s'imprime et s'exporte ; tes données restent à toi. Pour créer de nouveau, abonne-toi : tout se rouvre aussitôt, tel que tu l'as laissé.` };
+      texte: `${pourquoi(e)} Tout se lit, s'imprime et s'exporte ; tes données restent à toi.${pourRouvrir(suite, false)}` };
+  }
+
+  // Ce qui rouvre, dit tel que ça se passe : choisir son offre, régler sa facture, puis tout se rouvre (« abonne-toi :
+  // tout se rouvre aussitôt » n'était pas vrai, revue du 22/10/2026). `grace` : rien n'est encore fermé.
+  /** @param {Suite} suite @param {boolean} grace */
+  function pourRouvrir(suite, grace) {
+    if (grace) {
+      if (suite.aFaire === 'payer') return ' Règle ta facture, juste en dessous, avant cette date : rien ne se fermera.';
+      if (suite.aFaire === 'attendre') return ' Ta facture se prépare sur l\'offre que tu as choisie : un e-mail te prévient quand elle est prête. Réglée avant cette date, rien ne se ferme.';
+      return ' Choisis ton offre : ta facture arrive ici, et réglée avant cette date, rien ne se ferme.';
+    }
+    if (suite.aFaire === 'payer') return ' Règle ta facture, juste en dessous : dès que le paiement est confirmé, tout se rouvre, tel que tu l\'as laissé.';
+    if (suite.aFaire === 'attendre') return ' Ta facture se prépare sur l\'offre que tu as choisie : un e-mail te prévient quand elle est prête. Dès qu\'elle est réglée, tout se rouvre.';
+    return ' Choisis ton offre : ta facture arrive ici, et dès qu\'elle est réglée, tout se rouvre, tel que tu l\'as laissé.';
+  }
+
+  // Le rappel de l'échéance qui vient, tel qu'il est : déjà parti (avec son jour), ou celui qui partira — jamais
+  // « un rappel part 15 jours avant » quand il est parti il y a cinq jours (revue du 22/10/2026). `j` : les jours qui
+  // restent ; `relances` : les jours de la règle (0104) ; `partis` : ceux déjà envoyés (0170).
+  /** @param {number} j @param {number[]} relances @param {{ rang: string, le: string }[]} partis */
+  function rappelEnClair(j, relances, partis) {
+    const avant = partis.filter((p) => p.rang !== 'lecture_seule').map((p) => p.le).sort();
+    const dernier = avant[avant.length - 1];
+    const prochain = relances.filter((n) => n < j).sort((a, b) => b - a)[0];
+    const suivant = prochain === undefined ? '' : prochain === 1 ? 'la veille de l\'échéance' : `${pl(prochain, 'jour')} avant l'échéance`;
+    if (dernier) return ` Un rappel t'a été envoyé par e-mail le ${jour(dernier)}${suivant ? ` ; le prochain partira ${suivant}` : ''}.`;
+    return suivant ? ` Un rappel partira par e-mail ${suivant}.` : '';
   }
 
   // Quand commence la période qu'on paie : la même règle que le serveur (prochainePeriode, serveur/abonnement/etat.ts).
@@ -282,7 +338,7 @@
     if (e.etat === 'essai') return 'L\'abonnement commence à la fin de ton essai : les jours d\'essai qui restent ne se perdent pas.';
     if (e.etat === 'actif') return 'La nouvelle période prend la suite de celle qui est payée : aucun jour ne se perd.';
     if (e.etat === 'en_retard') return `Réglé avant le ${jour(e.lectureSeuleLe)}, l'abonnement prend la suite de l'échéance, sans interruption.`;
-    return 'L\'abonnement commence le jour du paiement, et tout se rouvre aussitôt.';
+    return 'L\'abonnement commence le jour du paiement : tout se rouvre dès qu\'il est confirmé.';
   }
 
   const NATURES = /** @type {Record<string, string>} */ ({
@@ -304,7 +360,7 @@
   }
 
   /**
-   * @typedef {{ appel: (methode: string, chemin: string, corps?: unknown) => Promise<any> }} Outils
+   * @typedef {{ appel: (methode: string, chemin: string, corps?: unknown) => Promise<any>, ecrire?: (() => unknown) | null }} Outils
    * @typedef {{ type: 'facture' | 'avoir', numero: string, date: string, echeance: string | null, devise: string, net: string,
    *   paye: string | null, credite: string | null, reste: string | null, statut: string | null, payable: boolean, document: any,
    *   periode: { debut: string, fin: string, offre: string, periodicite: string } | null }} PieceAbo
@@ -438,42 +494,190 @@
       <span>Elle porte sur tout le hors taxes de la facture, l'offre et ce qui s'ajoute. Les prix ci-dessous sont ceux d'avant la remise.</span></div>`;
   }
 
-  // Le choix d'une offre (1.84.0) : le bouton s'allume quand un choix est coché ; envoyé, l'onglet se redessine et dit ce
-  // qui a été choisi. Un refus se dit sous les choix, avec sa raison.
-  /** @param {HTMLElement} el @param {Outils} o */
-  function brancherChoix(el, o) {
-    const form = /** @type {HTMLElement | null} */ (el.querySelector('#abo-choix'));
+  // L'année contre douze mois (revue du 22/10/2026 : « deux mois offerts », que l'écran ne disait pas). Calculé sur les
+  // prix du jour, en millimes : des mois entiers offerts se disent en mois, sinon l'économie se dit en dinars ; rien quand
+  // l'année ne coûte pas moins.
+  /** @param {string | undefined} an @param {string | undefined} mois */
+  function aLAnnee(an, mois) {
+    const enMillimes = (/** @type {string} */ t) => { const [e = '0', d = ''] = String(t).split('.'); return BigInt(e) * 1000n + BigInt((d + '000').slice(0, 3)); };
+    if (!an || !mois) return '';
+    const a = enMillimes(an), m = enMillimes(mois), economie = m * 12n - a;
+    if (m <= 0n || economie <= 0n) return '';
+    if (economie % m === 0n) { const n = Number(economie / m); return `À l'année, ${n === 1 ? 'un mois offert' : `${enMots(n)} mois offerts`}.`; }
+    const t = `${economie / 1000n}.${String(economie % 1000n).padStart(3, '0')}`;
+    return `À l'année, ${montant(t)} d'économie sur douze mois.`;
+  }
+
+  // Le choix d'une offre (1.84.0 ; 1.118.0 : un bouton par offre et par durée, dans sa carte). Le bouton ouvre le
+  // récapitulatif (1.121.0 : le prix, la remise, le total à régler, ce qui se passe ensuite) avec « Annuler » et la
+  // confirmation : rien ne part au premier clic. Envoyé, l'onglet se redessine et dit ce qui a été choisi. Un refus se dit
+  // dans le récapitulatif.
+  /** @typedef {{ prixDe: (offre: string, periodicite: string) => string | undefined, netDe: (offre: string, periodicite: string) => string | undefined, remise: Remise | null, etat: Etat, enLigne: boolean, auto: boolean }} InfosChoix */
+  /** @param {HTMLElement} el @param {Outils} o @param {InfosChoix} infos */
+  function brancherChoix(el, o, infos) {
+    const offres = /** @type {HTMLElement | null} */ (el.querySelector('.abo-offres'));
+    const tete = /** @type {HTMLElement | null} */ (el.querySelector('#abo-aller-offres'));
+    if (tete && offres) tete.onclick = () => {
+      /** @type {HTMLElement} */ (el.querySelector('#abo-offres')).scrollIntoView({ block: 'start', behavior: 'smooth' });
+      /** @type {HTMLElement | null} */ (offres.querySelector('[data-choisir]'))?.focus({ preventScroll: true });
+    };
     const re = /** @type {HTMLButtonElement | null} */ (el.querySelector('#abo-rechoisir'));
-    // Ouvert depuis l'annonce d'un abonnement payé, le formulaire PREND SA PLACE : sinon deux cartes de même titre se
-    // suivaient, la première avec un bouton éteint qui ne servait plus (vu au téléphone le 21/10/2026). « Tu as choisi… »
-    // reste : il dit le choix qu'on s'apprête à changer.
-    if (re && form) re.onclick = () => {
-      const annonce = re.closest('#abo-payer');
-      if (annonce instanceof HTMLElement && !annonce.classList.contains('abo-choisi')) annonce.hidden = true;
-      else re.disabled = true;
-      form.hidden = false; form.scrollIntoView({ block: 'nearest' });
+    if (re && offres) re.onclick = () => {
+      offres.classList.remove('abo-replie'); re.disabled = true;
+      /** @type {HTMLElement} */ (el.querySelector('#abo-offres')).scrollIntoView({ block: 'start', behavior: 'smooth' });
     };
-    const b = /** @type {HTMLButtonElement | null} */ (el.querySelector('#abo-choisir'));
-    if (!form || !b) return;
-    const refus = /** @type {HTMLElement} */ (form.querySelector('.abo-refus'));
-    const coche = () => /** @type {HTMLInputElement | null} */ (form.querySelector('input[name="abo-choix"]:checked'));
-    form.querySelectorAll('input[name="abo-choix"]').forEach((i) => { /** @type {HTMLInputElement} */ (i).onchange = () => { b.disabled = !coche(); }; });
-    b.onclick = async () => {
-      const c = coche();
-      if (!c) return;
-      const [offre, periodicite] = c.value.split(':');
-      b.disabled = true; refus.hidden = true;
-      try { await o.appel('POST', '/abonnement/choisir', { offre, periodicite }); } catch (x) {
-        refus.textContent = x instanceof Error ? x.message : String(x); refus.hidden = false; b.disabled = false; return;
+    // Une seule confirmation ouverte à la fois ; pendant qu'elle l'est, son bouton est le seul vert de l'onglet.
+    const fermer = () => {
+      el.querySelectorAll('[data-choisir]').forEach((b) => b.removeAttribute('aria-pressed'));
+      if (tete) tete.classList.add('btn-primary');
+    };
+    el.querySelectorAll('[data-choisir]').forEach((x) => {
+      const b = /** @type {HTMLButtonElement} */ (x);
+      b.onclick = () => {
+        const [offre = '', periodicite = ''] = String(b.dataset.choisir).split(':');
+        const ht = infos.prixDe(offre, periodicite);
+        if (!ht) return;
+        fermer();
+        b.setAttribute('aria-pressed', 'true');
+        if (tete) tete.classList.remove('btn-primary');
+        const nom = (OFFRES[offre] || { nom: offre }).nom, dit = periodicite === 'annuel' ? 'à l\'année' : 'au mois';
+        const par = periodicite === 'annuel' ? 'par an' : 'par mois';
+        const actif = infos.etat.etat === 'actif';
+        const ttc = infos.netDe(offre, periodicite);
+        // (1.122.0) Le renouvellement de l'état (« Renouveler maintenant ») se dit comme tel, dans le même récapitulatif.
+        const renouvelle = b.dataset.verbe === 'renouveler';
+        const d = dialogue(el, {
+          titre: renouvelle ? `Renouveler ${esc(nom)}, ${dit}` : `${esc(nom)}, ${dit}`,
+          corps: `<dl class="abo-recap">
+              <div><dt>Abonnement ${esc(nom)}</dt><dd>${esc(montant(ht))} HT ${par}</dd></div>
+              ${infos.remise ? `<div><dt>Remise de ${esc(String(infos.remise.taux))} %</dt><dd>déduite sur la facture</dd></div>` : ''}
+              ${ttc ? `<div class="abo-recap-total"><dt>Total à régler${infos.remise ? ', avant la remise' : ''}<span>TVA et timbre fiscal compris</span></dt><dd>${esc(montant(ttc, true))} ${par}</dd></div>` : ''}
+            </dl>
+            <ul class="abo-suite">
+              <li>${actif ? 'Pour la période qui suit celle qui est payée. ' : ''}${infos.auto ? 'Ta facture est faite tout de suite : elle arrive ici, dans « Tes factures », et un e-mail te la confirme.' : 'SkanFact prépare ta facture sur ce choix : elle arrive ici, dans « Tes factures », et un e-mail te prévient quand elle est prête.'}</li>
+              <li>Rien n'est payé avant que tu la règles${infos.enLigne ? ', en ligne ou par virement' : ', par virement ou par chèque'}.</li>
+              <li>${esc(quandCommence(infos.etat))}</li>
+            </ul>`,
+          gestes: `<button type="button" class="btn" data-annuler>Annuler</button><button type="button" class="btn btn-primary" data-confirmer>${renouvelle ? 'Renouveler' : `Je choisis ${esc(nom)}, ${dit}`}</button>`,
+          fermee: () => { fermer(); b.focus(); },
+        });
+        const refus = /** @type {HTMLElement} */ (d.querySelector('.abo-refus'));
+        const ok = /** @type {HTMLButtonElement} */ (d.querySelector('[data-confirmer]'));
+        ok.onclick = async () => {
+          ok.disabled = true; refus.hidden = true;
+          try { await o.appel('POST', '/abonnement/choisir', { offre, periodicite }); } catch (e) {
+            refus.textContent = e instanceof Error ? e.message : String(e); refus.hidden = false; ok.disabled = false; return;
+          }
+          d.close();
+          await dessiner(el, o);
+          /** @type {HTMLElement | null} */ (el.querySelector('#abo-payer'))?.scrollIntoView({ block: 'nearest' });
+        };
+      };
+    });
+  }
+
+  // (1.121.0) Le récapitulatif d'un geste qui engage (choisir une offre, ouvrir un module), dans une fenêtre au-dessus de
+  // l'onglet. Ouvert dans la carte de l'offre (recette du 23/10/2026), il poussait sa liste vers le bas et laissait un
+  // trou dans la carte voisine ; le total à régler, TVA et timbre compris, n'y était pas redit. « Annuler », Échap ou un
+  // clic à côté la referment sans rien faire.
+  /** @param {HTMLElement} el @param {{ titre: string, corps: string, gestes: string, fermee: () => void }} d */
+  function dialogue(el, d) {
+    let dlg = /** @type {HTMLDialogElement | null} */ (el.querySelector('#abo-dialogue'));
+    if (!dlg) { dlg = document.createElement('dialog'); dlg.id = 'abo-dialogue'; dlg.className = 'abo-dialogue'; el.appendChild(dlg); }
+    const f = dlg;
+    f.setAttribute('aria-labelledby', 'abo-dialogue-titre');
+    f.innerHTML = `<h3 id="abo-dialogue-titre">${d.titre}</h3>${d.corps}<p class="small abo-refus" role="alert" hidden></p>
+      <div class="abo-confirmer-gestes">${d.gestes}</div>`;
+    f.onclose = () => d.fermee();
+    f.onclick = (e) => { if (e.target === f) f.close(); };
+    /** @type {HTMLElement} */ (f.querySelector('[data-annuler]')).onclick = () => f.close();
+    if (!f.open) f.showModal();
+    return f;
+  }
+
+  // « Ne pas renouveler » (1.119.0 ; 0171) : ce qui se passera, avant le geste ; « Garder mon abonnement »
+  // referme sans rien faire. « Reprendre mon abonnement » : d'un clic, tant que la période court.
+  /** @param {HTMLElement} el @param {Outils} o @param {Etat} etat */
+  function brancherRenouvellement(el, o, etat) {
+    /** @param {boolean} renouveler @param {HTMLButtonElement} b @param {HTMLElement | null} refus */
+    const poser = async (renouveler, b, refus) => {
+      b.disabled = true; if (refus) refus.hidden = true;
+      try { await o.appel('POST', '/abonnement/renouvellement', { renouveler }); } catch (e) {
+        if (refus) { refus.textContent = e instanceof Error ? e.message : String(e); refus.hidden = false; }
+        b.disabled = false; return;
       }
+      const ouverte = /** @type {HTMLDialogElement | null} */ (el.querySelector('#abo-dialogue'));
+      if (ouverte && ouverte.open) ouverte.close();
       await dessiner(el, o);
-      /** @type {HTMLElement | null} */ (el.querySelector('#abo-payer'))?.scrollIntoView({ block: 'nearest' });
     };
+    const reprendre = /** @type {HTMLButtonElement | null} */ (el.querySelector('#abo-reprendre'));
+    if (reprendre) reprendre.onclick = () => { void poser(true, reprendre, null); };
+    const arreter = /** @type {HTMLButtonElement | null} */ (el.querySelector('#abo-arreter'));
+    if (!arreter) return;
+    // (1.121.0) Dans la même fenêtre que les autres gestes qui engagent : ouverte dans la page, elle poussait les offres.
+    arreter.onclick = () => {
+      const d = dialogue(el, {
+        titre: 'Ne pas renouveler ton abonnement ?',
+        corps: `<ul class="abo-suite">
+            <li>Ton abonnement va jusqu'au <b>${esc(jour(etat.jusquAu))}</b>, puis l'entreprise passe en lecture seule.</li>
+            <li>Tout se lira, s'imprimera et s'exportera ; rien de nouveau ne se créera.</li>
+            <li>Tu pourras le reprendre d'un clic jusqu'à cette date.</li>
+          </ul>`,
+        gestes: '<button type="button" class="btn" data-arreter>Ne pas renouveler</button><button type="button" class="btn btn-primary" data-annuler>Garder mon abonnement</button>',
+        fermee: () => arreter.focus(),
+      });
+      const ok = /** @type {HTMLButtonElement} */ (d.querySelector('[data-arreter]'));
+      // Posé, la fenêtre se referme et l'onglet se redessine ; refusé, elle reste ouverte et dit pourquoi.
+      ok.onclick = () => { void poser(false, ok, /** @type {HTMLElement} */ (d.querySelector('.abo-refus'))); };
+    };
+  }
+
+  // Ouvrir la paie ou la comptabilité complète tout de suite (1.119.0 ; 0171) : la confirmation dit ce que la prochaine
+  // facture rattrapera, lu au serveur (rien n'est compté ici), puis le geste.
+  /** @param {HTMLElement} el @param {Outils} o */
+  function brancherModules(el, o) {
+    el.querySelectorAll('[data-module]').forEach((x) => {
+      const b = /** @type {HTMLButtonElement} */ (x);
+      b.onclick = async () => {
+        const module = String(b.dataset.module);
+        /** @type {any} */
+        let ap;
+        try { ap = await o.appel('POST', '/abonnement/module', { module, apercu: true }); } catch (e) {
+          dialogue(el, { titre: 'Impossible pour l\'instant', corps: `<p class="abo-refus" role="alert">${esc(e instanceof Error ? e.message : e)}</p>`,
+            gestes: '<button type="button" class="btn" data-annuler>Fermer</button>', fermee: () => b.focus() });
+          return;
+        }
+        const nom = MODULES[module] || module;
+        const par = ap.periodicite === 'annuel' ? 'par an' : 'par mois';
+        const d = dialogue(el, {
+          titre: `${esc(majuscule(nom))} s'ouvre aujourd'hui`,
+          corps: `<dl class="abo-recap">
+              <div><dt>Prix de ${esc(nom)}</dt><dd>${esc(montant(String(ap.prixHt), true))} HT ${par}</dd></div>
+              ${Number(ap.jours) > 0 ? `<div class="abo-recap-total"><dt>Rattrapé sur ta prochaine facture<span>du ${esc(jour(ap.du))} au ${esc(jour(ap.au))}, ${esc(pl(Number(ap.jours), 'jour'))} sur ${esc(String(ap.sur))}</span></dt><dd>${esc(montant(String(ap.rattrapageHt), true))} HT</dd></div>` : ''}
+            </dl>
+            <ul class="abo-suite"><li>${Number(ap.jours) > 0
+              ? 'Ensuite, chaque facture la compte, tant que tu la gardes.'
+              : 'Rien à rattraper pour les jours qui restent : ta prochaine facture la compte, puis chaque période, tant que tu la gardes.'}</li></ul>`,
+          gestes: `<button type="button" class="btn" data-annuler>Annuler</button><button type="button" class="btn btn-primary" data-ouvrir>Ouvrir ${esc(nom)}</button>`,
+          fermee: () => b.focus(),
+        });
+        const ok = /** @type {HTMLButtonElement} */ (d.querySelector('[data-ouvrir]'));
+        const refus = /** @type {HTMLElement} */ (d.querySelector('.abo-refus'));
+        ok.onclick = async () => {
+          ok.disabled = true; refus.hidden = true;
+          try { await o.appel('POST', '/abonnement/module', { module }); } catch (e) {
+            refus.textContent = e instanceof Error ? e.message : String(e); refus.hidden = false; ok.disabled = false; return;
+          }
+          d.close();
+          await dessiner(el, o);
+        };
+      };
+    });
   }
 
   /** @param {HTMLElement} el @param {Outils} o */
   async function dessiner(el, o) {
-    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string }[], options?: { option: string, periodicite: string, montantHt: string }[], aVenir?: { quoi: string, periodicite: string, aPartirDu: string, montantHt: string }[], compte?: { offre: string, comptes: Record<string, number>, inclus: Record<string, number | null> } | null, historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[], regles?: { essai?: number | null, grace?: number | null, relances?: number[] }, contenu?: { duJour?: Contenus, aVenir?: { offre: string, quoi: string, nombre: number, aPartirDu: string }[] }, fermes?: string[], remise?: Remise | null, choix?: { offre: string, periodicite: string, le: string, par: string | null } | null, peutChoisir?: boolean }} */
+    /** @type {{ aujourdhui: string, etat: Etat, prix: { offre: string, periodicite: string, montantHt: string, net?: string | null }[], options?: { option: string, periodicite: string, montantHt: string }[], aVenir?: { quoi: string, periodicite: string, aPartirDu: string, montantHt: string }[], compte?: { offre: string, comptes: Record<string, number>, inclus: Record<string, number | null> } | null, historique: { le: string, nature: string, apres: any }[], factures: FacturesAbo | null, enLigne?: boolean, modules?: string[], regles?: { essai?: number | null, grace?: number | null, relances?: number[] }, contenu?: { duJour?: Contenus, aVenir?: { offre: string, quoi: string, nombre: number, aPartirDu: string }[] }, fermes?: string[], remise?: Remise | null, choix?: { offre: string, periodicite: string, le: string, par: string | null, refuse?: boolean } | null, peutChoisir?: boolean, auto?: boolean, prochaine?: { debut: string, offre: string, periodicite: string, montantHt: string, remise: number | null } | null, rappels?: { rang: string, le: string }[] }} */
     let a;
     try { a = await o.appel('GET', '/abonnement'); } catch (x) {
       el.innerHTML = `<p class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</p><button type="button" class="btn btn-sm" id="abo-relire">Réessayer</button>`;
@@ -481,7 +685,17 @@
       return;
     }
     const regles = a.regles || {};
-    const c = etatEnClair(a.etat, regles);
+    // Une facture qui doit encore passe juste sous l'état : c'est ce qu'il y a à faire (calculé ici, avant l'état, qui le dit).
+    const aFaire = !!a.factures && a.factures.pieces.some((p) => !!p.statut && DOIT.includes(p.statut));
+    const aRegler = a.factures ? a.factures.pieces.find((p) => !!p.statut && DOIT.includes(p.statut) && !!p.periode) : undefined;
+    const c = etatEnClair(a.etat, regles, { aFaire: aFaire ? 'payer' : a.choix ? 'attendre' : null,
+      prolonge: a.historique.some((v) => v.nature === 'essai_prolonge'), rappels: a.rappels || [], periode: aRegler ? aRegler.periode : null });
+    // Choisir son offre ici (1.84.0, 0158 ; 1.118.0 : un bouton par offre) : qui peut payer l'abonnement, quand aucune
+    // facture n'attend son paiement, et pour une entreprise qui a un abonnement que SkanFact n'a pas suspendu.
+    const suspendue = a.etat.etat === 'lecture_seule' && a.etat.raison === 'suspendu';
+    const resilie = a.etat.etat === 'actif' && !!a.etat.resilie;
+    // Résilié pendant sa période payée, l'abonnement se reprend d'abord (1.119.0) : un choix n'y aurait pas de facture.
+    const peutChoisirIci = !!a.peutChoisir && !aFaire && a.etat.etat !== 'hors' && !suspendue && !resilie;
     /** @param {string} offre @param {string} periodicite */
     const prixDe = (offre, periodicite) => (a.prix.find((p) => p.offre === offre && p.periodicite === periodicite) || {}).montantHt;
     // Ce que chaque offre comprend aujourd'hui, et ce qui changera (0105).
@@ -496,21 +710,48 @@
     // Chaque carte a les mêmes lignes, dans le même ordre, même vides : la grille les aligne d'une carte à l'autre
     // (abonnement.css). Quand une offre annonce un changement, l'autre dit à la même place que rien ne change pour elle.
     const avecAnnonces = ['essentiel', 'complet'].some((k) => annonces(k).length > 0);
+    // Ce que la facture d'une offre coûtera, TVA et timbre compris (1.119.0) : calculé au serveur par le moteur de
+    // l'entreprise SkanFact ; rien quand il ne le sait pas.
+    /** @param {string} k */
+    const ttcDe = (k) => {
+      const net = (/** @type {string} */ p) => (a.prix.find((x) => x.offre === k && x.periodicite === p) || {}).net;
+      const an = net('annuel'), mois = net('mensuel');
+      if (!an && !mois) return '';
+      return `TVA et timbre compris : ${[an ? `${montant(an, true)} par an` : '', mois ? `${an ? 'ou ' : ''}${montant(mois, true)} par mois` : ''].filter(Boolean).join(', ')}.`;
+    };
     const offres = ['essentiel', 'complet'].map((k) => {
       const o = OFFRES[k];
       if (!o) return '';
       const an = prixDe(k, 'annuel'), mois = prixDe(k, 'mensuel');
       const mm = avecMillimes(an, mois);
       const courante = a.etat.etat === 'actif' && a.etat.offre === k;
+      // (1.122.0) L'offre choisie dont la facture attend (ou se prépare) se reconnaît dans sa carte (recette du 23/10/2026).
+      const choisie = !courante && ((a.choix && a.choix.offre === k) || (aRegler && aRegler.periode && aRegler.periode.offre === k));
       const aVenir = annonces(k);
       const pas = courante ? ceQuiNEstPasDansLOffre(k, contenus, a.modules, a.fermes) : '';
-      return `<article class="abo-offre${courante ? ' courante' : ''}" data-offre="${k}">
-        <header class="abo-offre-tete"><h4>${esc(o.nom)}</h4>${courante ? '<span class="abo-badge">Ton offre</span>' : ''}</header>
+      // Les boutons de la carte : à l'année d'abord (ce qui coûte le moins), au mois ensuite. Pendant un abonnement payé,
+      // le choix vaut pour la période suivante. (1.122.0) La carte de son offre ne propose plus de « Renouveler » ce qui se
+      // renouvelle déjà (« Renouveler à l'année » d'un abonnement à l'année payé 150 jours encore, recette du 23/10/2026) :
+      // elle propose l'autre durée ; le renouvellement est dans l'état, quand son échéance approche.
+      const verbe = a.etat.etat === 'actif' ? (courante ? 'Passer' : `Passer à ${o.nom}`) : `Choisir ${o.nom}`;
+      const gestes = peutChoisirIci ? [['annuel', an, 'à l\'année'], ['mensuel', mois, 'au mois']].filter((x) => !!x[1])
+        .filter(([p]) => !(courante && p === a.etat.periodicite))
+        .map(([p, , dit], i) => `<button type="button" class="btn${i ? ' abo-ou' : ''}" data-choisir="${k}:${p}">${i ? `ou ${esc(String(dit))}` : `${esc(verbe)} ${esc(String(dit))}`}</button>`).join('') : '';
+      // Ouvrir tout de suite ce que son offre ne contient pas (1.119.0 ; 0171) : sur la carte de son offre, pendant une
+      // période payée qui court et se renouvelle.
+      const ouvrir = courante && !resilie && !aFaire && a.peutChoisir ? (a.fermes || []).filter((m) => m === 'paie' || m === 'compta')
+        .map((m) => `<button type="button" class="btn btn-sm" data-module="${m}">Ouvrir ${esc(MODULES[m])} maintenant…</button>`).join('') : '';
+      const boutons = gestes + ouvrir;
+      return `<article class="abo-offre${courante || choisie ? ' courante' : ''}" data-offre="${k}">
+        <header class="abo-offre-tete"><h4>${esc(o.nom)}</h4>${courante ? '<span class="abo-badge">Ton offre</span>' : choisie ? '<span class="abo-badge">Ton choix</span>' : ''}</header>
         <p class="abo-pour">${esc(o.pour)}</p>
         <p class="abo-prix">${an ? `<b>${esc(montant(an, mm).replace(/\u00a0DT$/, ''))}</b><span>DT HT par an</span>` : ''}</p>
         <p class="abo-mois">${mois ? `ou ${esc(montant(mois, mm))} HT par mois` : ''}</p>
+        <p class="abo-annee">${esc(aLAnnee(an, mois))}</p>
+        <p class="abo-ttc">${esc(ttcDe(k))}</p>
         ${avecAnnonces ? `<div class="abo-avenir-bloc">${aVenir.length ? aVenir.map((t) => `<p class="abo-avenir">${esc(t)}</p>`).join('')
           : '<p class="abo-avenir-rien">Aucun changement annoncé.</p>'}</div>` : ''}
+        <div class="abo-offre-gestes">${boutons ? `<div class="abo-offre-boutons">${boutons}</div>` : ''}</div>
         <div class="abo-offre-corps"><ul class="abo-inclus">${inclusDe(k, contenus[/** @type {'essentiel' | 'complet'} */ (k)] || {}).map((i) => `<li>${ICONE_COCHE}<span>${esc(i)}</span></li>`).join('')}</ul>
         ${pas ? `<p class="abo-pas">${esc(pas)}</p>` : ''}</div>
       </article>`;
@@ -547,67 +788,76 @@
     /** @type {FacturesAbo | null} */
     const fa = a.factures ? { entreprise: core().migrateData({ company: decoder(a.factures.entreprise) }).company, client: decoder(a.factures.client),
       pieces: a.factures.pieces.map((p) => ({ ...p, document: decoder(p.document) })) } : null;
-    // Une facture qui doit encore passe juste sous l'état : c'est ce qu'il y a à faire. Sinon, elles se lisent plus bas.
-    const aFaire = !!fa && fa.pieces.some((p) => !!p.statut && DOIT.includes(p.statut));
     const factures = fa ? sesFactures(fa) : '';
-    // Choisir son offre ici (1.84.0, 0158) : quatre choix et leur prix ; « Je choisis cette offre » le dit à SkanFact, qui
-    // prépare la facture sur lui. Rien n'est payé ni changé tant que la facture n'est pas réglée. Une facture qui attend
-    // son paiement passe d'abord : pour changer d'offre ensuite, on écrit.
-    const titreChoix = a.etat.etat === 'actif' ? 'Renouveler ou changer d\'offre' : 'T\'abonner';
     const contact = `<a href="mailto:contact@skanfact.tn?subject=${sujet}">contact@skanfact.tn</a>`;
-    const choixPossibles = ['essentiel', 'complet'].flatMap((k) => ['annuel', 'mensuel'].map((p) => ({ k, p, ht: prixDe(k, p) }))).filter((x) => !!x.ht);
-    const choisir = aFaire ? `<section class="abo-payer" id="abo-payer">
-        <span class="abo-payer-ico">${ICONE_MAIL}</span>
-        <div class="abo-payer-txt"><h4>${esc(titreChoix)}</h4><p>Ta facture attend son paiement, juste au-dessus. Pour changer d'offre ensuite, écris-nous à ${contact}.</p></div>
-      </section>` : a.choix ? `<section class="abo-payer abo-choisi" id="abo-payer">
+    // « Tu as choisi… » (1.84.0) : l'état de son choix, juste sous l'état, tant que sa facture se prépare ; « Changer de
+    // choix » rouvre les boutons des offres.
+    const choisi = a.choix ? `<section class="abo-payer abo-choisi" id="abo-payer">
         <span class="abo-payer-ico">${ICONE_MAIL}</span>
         <div class="abo-payer-txt">
           <h4>Tu as choisi ${esc((OFFRES[a.choix.offre] || { nom: a.choix.offre }).nom)}, ${a.choix.periodicite === 'annuel' ? 'à l\'année' : 'au mois'}</h4>
-          <p>Le ${esc(jourDeTunis(String(a.choix.le)))}${a.choix.par ? `, par ${esc(a.choix.par)}` : ''}. SkanFact prépare ta facture sur ce choix : elle arrive ici, dans « Tes factures ». ${a.enLigne ? 'Tu la règles en ligne, ou par virement ou par chèque.' : 'Tu la règles par virement ou par chèque.'} ${esc(quandCommence(a.etat))}</p>
-          ${a.peutChoisir ? '<p><button type="button" class="btn btn-sm" id="abo-rechoisir">Changer de choix</button></p>' : ''}
-        </div>
-      </section>` : a.etat.etat === 'actif' && a.peutChoisir ? `<section class="abo-payer" id="abo-payer">
-        <span class="abo-payer-ico">${ICONE_MAIL}</span>
-        <div class="abo-payer-txt"><h4>${esc(titreChoix)}</h4><p>Ton abonnement court jusqu'au ${esc(jour(a.etat.jusquAu))}. Pour la période suivante, choisis ton offre ici : SkanFact prépare ta facture sur elle. ${esc(quandCommence(a.etat))}</p>
-          <p><button type="button" class="btn btn-sm" id="abo-rechoisir">Choisir mon offre suivante…</button></p></div>
-      </section>` : '';
-    // Pendant un abonnement payé, choisir n'est pas l'étape suivante : les choix se replient, et leur bouton n'est pas le
-    // bouton principal de l'onglet.
-    const replie = !!a.choix || a.etat.etat === 'actif';
-    const formulaire = !aFaire && choixPossibles.length ? `<section class="abo-payer abo-choix" id="abo-choix"${replie ? ' hidden' : ''}>
-        <span class="abo-payer-ico">${ICONE_MAIL}</span>
-        <div class="abo-payer-txt">
-          <h4>${esc(titreChoix)}</h4>
-          ${a.peutChoisir ? `<fieldset class="abo-choix-liste" aria-label="Ton offre">
-            ${choixPossibles.map((x) => `<label class="abo-choix-un"><input type="radio" name="abo-choix" value="${x.k}:${x.p}"><span><b>${esc((OFFRES[x.k] || { nom: x.k }).nom)}, ${x.p === 'annuel' ? 'à l\'année' : 'au mois'}</b><span>${esc(montant(String(x.ht)))} HT ${x.p === 'annuel' ? 'par an' : 'par mois'}</span></span></label>`).join('')}
-          </fieldset>
-          <p>${a.remise ? `La remise (−${a.remise.taux} %) se déduit sur la facture. ` : ''}SkanFact prépare ta facture sur ce choix : elle arrive ici, dans « Tes factures ». Rien n'est payé avant que tu la règles. ${esc(quandCommence(a.etat))}</p>
-          <p class="small abo-refus" role="alert" hidden></p>
-          <p><button type="button" class="btn${a.etat.etat === 'actif' ? '' : ' btn-primary'}" id="abo-choisir" disabled>Je choisis cette offre</button></p>`
-          : `<p>Ton offre se choisit par la propriétaire ou l'administratrice de l'entreprise. Une question ? ${contact}.</p>`}
+          <p>Le ${esc(jourDeTunis(String(a.choix.le)))}${a.choix.par ? `, par ${esc(a.choix.par)}` : ''}. ${a.auto && !a.choix.refuse
+            ? 'Ta facture se prépare : elle arrive ici, dans « Tes factures », dans un instant.'
+            : 'SkanFact prépare ta facture sur ce choix : elle arrive ici, dans « Tes factures », et un e-mail te prévient quand elle est prête.'} ${a.enLigne ? 'Tu la règles en ligne, ou par virement ou par chèque.' : 'Tu la règles par virement ou par chèque.'} ${esc(quandCommence(a.etat))}</p>
+          ${peutChoisirIci ? '<p><button type="button" class="btn btn-sm" id="abo-rechoisir">Changer de choix</button></p>' : ''}
         </div>
       </section>` : '';
+    // Sous les offres, ce qui empêche de choisir : une facture qui attend son paiement, ou un rôle qui ne choisit pas.
+    const pasDeChoix = a.etat.etat === 'hors' || suspendue ? ''
+      : aFaire && a.peutChoisir ? `<p class="abo-note">Ta facture attend son paiement, juste au-dessus : règle-la d'abord. Pour changer d'offre ensuite, écris-nous à ${contact}.</p>`
+        : !a.peutChoisir ? `<p class="abo-note">Ton offre se choisit par la propriétaire ou l'administratrice de l'entreprise. Une question ? ${contact}.</p>` : '';
+    // Le bouton de l'état (revue du 22/10/2026 : l'état ne proposait rien, le choix était tout en bas) : choisir son offre
+    // quand c'est l'étape suivante (il mène aux offres) ; nous écrire pour une entreprise suspendue. Rien pendant un
+    // abonnement payé, ni quand une facture attend (elle est juste dessous, avec son bouton).
+    // (1.122.0) Suspendue : écrire au support dans SkanFact (le lien d'e-mail ne faisait rien sur un poste sans logiciel de
+    // courrier, recette du 23/10/2026). Payé, à l'approche de l'échéance (quinze jours, comme la pastille) : renouveler
+    // tout de suite, la même offre, par le même récapitulatif que les cartes. « Ne pas renouveler » quitte l'état pour le
+    // bas de l'onglet, discret, comme chez les grands éditeurs : il était le seul bouton d'un abonnement payé.
+    const renouveler = a.etat.etat === 'actif' && !resilie && peutChoisirIci && !a.choix && Number(a.etat.jours) <= 15 && !!prixDe(String(a.etat.offre), String(a.etat.periodicite));
+    const boutonTete = suspendue ? (o.ecrire ? '<button type="button" class="btn abo-tete-btn" id="abo-ecrire">Écrire au support</button>'
+      : `<a class="btn abo-tete-btn" href="mailto:contact@skanfact.tn?subject=${sujet}">Écrire à SkanFact</a>`)
+      : peutChoisirIci && !a.choix && a.etat.etat !== 'actif' ? '<button type="button" class="btn btn-primary abo-tete-btn" id="abo-aller-offres">Choisir mon offre</button>'
+        // « Ne pas renouveler » et le reprendre (1.119.0 ; 0171) : qui gère l'abonnement, pendant une période payée.
+        : resilie && a.peutChoisir ? '<button type="button" class="btn btn-primary abo-tete-btn" id="abo-reprendre">Reprendre mon abonnement</button>'
+          : renouveler ? `<button type="button" class="btn btn-primary abo-tete-btn" id="abo-renouveler" data-choisir="${esc(String(a.etat.offre))}:${esc(String(a.etat.periodicite))}" data-verbe="renouveler">Renouveler maintenant</button>` : '';
+    const arret = a.etat.etat === 'actif' && !resilie && a.peutChoisir && !aFaire ? `<div class="abo-section abo-arret-bas" id="abo-arret-bas">
+        <div class="abo-section-tete"><h3>Ne pas renouveler</h3><p>L'abonnement va au bout de la période payée, jusqu'au ${esc(jour(a.etat.jusquAu))}, puis l'entreprise passe en lecture seule. Tes données restent à toi, et tu peux le reprendre d'un clic jusque-là.</p></div>
+        <p><button type="button" class="btn btn-sm" id="abo-arreter">Ne pas renouveler…</button></p>
+      </div>` : '';
+    // La prochaine facture d'un abonnement payé qui se renouvelle (1.118.0) : son montant, par la règle de la facture,
+    // et sa période. Elle arrive ici, et un e-mail le dit.
+    const p = a.prochaine;
+    // (1.122.0) Ce qu'elle compte, en entier (« 540 DT HT … (Essentiel à l'année) » quand la carte dit 390 : la paie, en
+    // plus, ne se disait pas), et TVA et timbre compris quand l'offre seule la fait (sans module ni remise : le même calcul
+    // que la carte). Recette du 23/10/2026.
+    const modulesEnPlus = (a.modules || []).filter((m) => m === 'paie' || m === 'compta');
+    const netDeLaProchaine = p && !modulesEnPlus.length && !p.remise ? (a.prix.find((x) => x.offre === p.offre && x.periodicite === p.periodicite) || {}).net : null;
+    const prochaine = p && a.etat.etat === 'actif' && !a.etat.resilie && !aFaire && !a.choix
+      ? `Prochaine facture : ${montant(p.montantHt, true)} HT${netDeLaProchaine ? `, soit ${montant(netDeLaProchaine, true)} TVA et timbre compris` : ''}, pour la période qui commence le ${jour(p.debut)} (${nomOffre(p.offre)} ${p.periodicite === 'annuel' ? 'à l\'année' : 'au mois'}${modulesEnPlus.length ? `, avec ${enListe(modulesEnPlus)}` : ''}${p.remise ? `, remise de ${p.remise} % déduite` : ''}). Elle arrivera ici, et un e-mail te préviendra.` : '';
     el.innerHTML = `<div class="abo">
       <section class="abo-tete ${c.ton}" id="abo-etat">
         <div class="abo-tete-txt">
           <span class="abo-pastille">${esc(c.pastille)}</span>
           <h3>${esc(c.titre)}</h3>
           <p>${esc(c.texte)}</p>
+          ${prochaine ? `<p class="abo-prochaine" id="abo-prochaine">${esc(prochaine)}</p>` : ''}
+          ${boutonTete}
         </div>
         ${c.jauge ? `<div class="abo-jauge"><span class="abo-jauge-txt">${esc(c.jauge.texte)}</span><span class="abo-barre" aria-hidden="true"><i style="width:${Math.round(c.jauge.part * 100)}%"></i></span></div>` : ''}
       </section>
+      ${choisi}
       ${aFaire ? factures : ''}
-      ${a.etat.etat === 'hors' ? '' : `<div class="abo-section">
+      ${a.etat.etat === 'hors' ? '' : `<div class="abo-section" id="abo-offres">
         <div class="abo-section-tete"><h3>Les offres</h3><p>Un prix par entreprise, jamais par utilisateur. Hors taxes : la TVA s'ajoute.${(a.aVenir || []).length || changements.length ? ' Un changement annoncé vaut pour les périodes qui commencent à sa date : celle qui court garde son prix et ce qu\'elle comprend.' : ''}</p></div>
         ${a.remise ? remiseEnClair(a.remise) : ''}
-        <div class="abo-offres${avecAnnonces ? ' avec-avenir' : ''}">${offres}</div>
-        ${enPlus ? `<div class="abo-plus" id="abo-plus">
-          <div class="abo-plus-tete"><h4>Au-delà de ce que l'offre comprend</h4>
-            <p>Compté le jour où ta facture se prépare, pour la période qu'elle paie. Un salarié compte tant qu'il n'est pas sorti ; ton équipe, elle, n'a pas de limite.</p></div>
+        <div class="abo-offres${avecAnnonces ? ' avec-avenir' : ''}${a.choix ? ' abo-replie' : ''}">${offres}</div>
+        ${pasDeChoix}
+        ${enPlus ? `<details class="abo-plus" id="abo-plus"${/class="abo-plus-auj en-plus"/.test(enPlus) ? ' open' : ''}>
+          <summary class="abo-plus-tete"><h4>Ce qui peut s'ajouter à l'offre</h4>
+            <p>Une caisse, un établissement ou un salarié de plus, un module acheté seul : compté le jour où ta facture se prépare, pour la période qu'elle paie. Ton équipe, elle, n'a pas de limite.</p></summary>
           <ul class="abo-plus-liste">${enPlus}</ul>
-        </div>` : ''}
+        </details>` : ''}
       </div>
-      ${choisir}${formulaire}
       <div class="abo-section">
         <div class="abo-section-tete"><h3>À l'échéance</h3><p>Tes données restent à toi : tu peux tout télécharger à tout moment (Données et sécurité).</p></div>
         <ol class="abo-etapes">
@@ -620,8 +870,29 @@
       </div>`}
       ${fa && !aFaire ? factures : ''}
       ${histoire ? `<div class="abo-section"><div class="abo-section-tete"><h3>L'histoire de l'abonnement</h3></div><ul class="abo-histoire">${histoire}</ul></div>` : ''}
+      ${arret}
     </div>`;
-    brancherChoix(el, o);
+    brancherChoix(el, o, { prixDe, netDe: (/** @type {string} */ k, /** @type {string} */ p) => (a.prix.find((x) => x.offre === k && x.periodicite === p) || {}).net || undefined, remise: a.remise || null, etat: a.etat, enLigne: !!a.enLigne, auto: !!a.auto });
+    brancherRenouvellement(el, o, a.etat);
+    brancherModules(el, o);
+    const ecrire = /** @type {HTMLElement | null} */ (el.querySelector('#abo-ecrire'));
+    if (ecrire && o.ecrire) ecrire.onclick = () => { if (o.ecrire) void o.ecrire(); };
+    // (1.122.0) Le bouton du bandeau de l'accueil qui nomme un endroit (« Choisir mon offre ») y mène : l'onglet s'ouvrait
+    // en haut, où le même bouton attendait un second clic (recette du 23/10/2026).
+    const vers = w.SkanAbonnement && w.SkanAbonnement.aAmener;
+    if (vers) {
+      w.SkanAbonnement.aAmener = '';
+      const cible = /** @type {HTMLElement | null} */ (el.querySelector(`#abo-${vers}`));
+      if (cible) { cible.scrollIntoView({ block: 'start' }); /** @type {HTMLElement | null} */ (cible.querySelector('[data-choisir]'))?.focus({ preventScroll: true }); }
+    }
+    // Le choix se facture seul (1.119.0) : l'onglet se relit jusqu'à ce que sa facture soit là (une minute au plus).
+    if (a.auto && a.choix && !a.choix.refuse) {
+      const essais = Number(el.dataset.attenteFacture || 0);
+      if (essais < 20) {
+        el.dataset.attenteFacture = String(essais + 1);
+        setTimeout(() => { if (el.isConnected && el.querySelector('#abo-payer.abo-choisi')) void dessiner(el, o); }, 3000);
+      }
+    } else delete el.dataset.attenteFacture;
     if (!fa) return;
     const refus = /** @type {HTMLElement} */ (el.querySelector('#abo-factures .abo-refus'));
     el.querySelectorAll('#abo-factures [data-voir]').forEach((b) => {
@@ -633,5 +904,44 @@
     });
   }
 
-  w.SkanAbonnement = { licence, pastille, dessiner, etatEnClair, montant, OFFRES };
+  // Le bandeau de l'accueil (1.118.0 ; revue du 22/10/2026 : en grâce ou en lecture seule, l'accueil ne disait rien,
+  // seule une pastille en bas du menu le montrait). Il parle quand la pastille de la barre attire ou alerte (la même
+  // fonction : les deux disent la même chose), avec un seul bouton — choisir son offre, régler sa facture, renouveler,
+  // nous écrire pour une entreprise suspendue ; à qui ne gère pas l'abonnement, « Qui le règle ? ». `principal` : le
+  // bouton est l'étape suivante de l'écran (la grâce et la lecture seule). `gere` : la personne règle l'abonnement.
+  /** @param {(Etat & { aFaire?: 'payer' | 'attendre' | null }) | null} e @param {boolean} gere
+   *  @returns {{ ton: string, titre: string, texte: string, bouton: string, principal: boolean, ecrire: boolean, vers: string | null } | null} */
+  function bandeau(e, gere) {
+    const p = pastille(e);
+    if (!e || !p.show || p.ton === 'calme') return null;
+    const suspendue = e.etat === 'lecture_seule' && e.raison === 'suspendu';
+    const aFaire = e.aFaire || null;
+    const facture = aFaire === 'payer' ? ' Ta facture t\'attend dans « Ton abonnement ».'
+      : aFaire === 'attendre' ? ' Ta facture se prépare sur l\'offre choisie : un e-mail te prévient quand elle est prête.' : '';
+    let titre, texte;
+    if (e.etat === 'essai') {
+      titre = Number(e.jours) <= 0 ? 'Ton essai se termine aujourd\'hui' : `Ton essai se termine le ${jour(e.jusquAu)}`;
+      texte = `${facture || ' Choisis ton offre pour continuer sans interruption.'} Tout ce que tu as créé reste.`;
+    } else if (e.etat === 'actif') {
+      // (1.122.0) Une échéance n'est pas une fin (« se termine » laissait croire à une résiliation, recette du 23/10/2026).
+      titre = e.resilie ? `Ton abonnement s'arrête le ${jour(e.jusquAu)}` : `Ton abonnement arrive à échéance le ${jour(e.jusquAu)}`;
+      texte = e.resilie ? ' Il ne se renouvelle pas : ensuite, l\'entreprise passe en lecture seule. Tes données restent à toi.'
+        : facture || ' Renouvelle-le dès maintenant : ta facture arrive dans « Ton abonnement », et réglée d\'ici là, rien ne s\'arrête.';
+    } else if (e.etat === 'en_retard') {
+      titre = e.apresEssai ? 'Ton essai est terminé' : 'Ton abonnement n\'est plus payé';
+      texte = ` Tout marche encore jusqu'au ${jour(plusJours(String(e.lectureSeuleLe), -1))} ; le ${jour(e.lectureSeuleLe)}, l'entreprise passe en lecture seule.${facture || ' Choisis ton offre avant cette date.'}`;
+    } else {
+      titre = `Lecture seule depuis le ${jour(e.depuis)}`;
+      texte = suspendue ? ' SkanFact a suspendu l\'abonnement : écris-nous pour rouvrir l\'entreprise. Tout se lit, s\'imprime et s\'exporte.'
+        : ` ${pourquoi(e)} Tout se lit, s'imprime et s'exporte, mais rien de nouveau ne se crée.${facture || ' Choisis ton offre : dès que sa facture est réglée, tout se rouvre.'}`;
+    }
+    if (!gere) texte += ' C\'est le propriétaire de l\'entreprise, ou un administrateur, qui règle l\'abonnement.';
+    const bouton = !gere ? 'Qui le règle ?' : suspendue ? 'Écrire à SkanFact' : aFaire === 'payer' ? 'Régler ma facture'
+      : aFaire === 'attendre' || (e.etat === 'actif' && e.resilie) ? 'Voir mon abonnement' : e.etat === 'actif' ? 'Renouveler' : 'Choisir mon offre';
+    return { ton: p.ton, titre, texte: texte.trim(), bouton, principal: e.etat === 'en_retard' || e.etat === 'lecture_seule', ecrire: gere && suspendue,
+      vers: bouton === 'Choisir mon offre' ? 'offres' : null };
+  }
+
+  // `aAmener` : l'endroit de l'onglet qu'un bouton d'ailleurs a demandé (« offres »), lu au prochain dessin.
+  w.SkanAbonnement = { licence, pastille, bandeau, dessiner, etatEnClair, montant, OFFRES, aAmener: '' };
 })();

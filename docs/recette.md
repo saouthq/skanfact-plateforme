@@ -1074,3 +1074,55 @@ Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT d
     produits ») tombent en 706 (prestations de services), le compte de ventes par défaut du moteur ; des marchandises
     iraient en 707. Le compte se règle par dossier ; la question est le défaut : 707 pour une activité de commerce, ou
     une ventilation par article (produit ou service).
+12. **À faire (demandé par Skander le 22/10/2026)** : la revue UI et UX de la messagerie entre l'entreprise et son
+    cabinet (`docs/messagerie.md`), en développeur designer : comment les deux se parlent (messages, questions du
+    comptable, pièces demandées, relances, réponses avec fichier), si c'est pratique et ergonomique des deux côtés, à
+    la souris, au clavier et au téléphone, et comparé à ce que font les autres (Hesabi, Pennylane, Tiime, Dext,
+    Karbon, les messageries des cabinets). Le but : que ce soit parfait. Un rapport d'abord, avec captures, puis les
+    corrections. *Fait : `docs/revue-messagerie.md`, trois lots (1.115.0 à 1.117.0).*
+13. **À faire (demandé par Skander le 23/10/2026 : « note tout dans le backlog car ça doit être fait »)** : rendre
+    l'expérience meilleure dans les parcours, et une interface qui donne envie de travailler dessus. Dans cet ordre :
+    - **UX 1 — le mois d'un client vu des deux côtés** : `docs/revue-mois-client.md` (18 points, trois lots). Lot 1 :
+      la pièce reçue qui retrouve l'achat déjà saisi, la demande du comptable dans l'« À faire », le bandeau « tout est à
+      jour » honnête, la carte « Ce mois-ci » de « Mon comptable », un seul vert (*fait en 1.123.0 et 1.124.0*). Lot 2 : les achats confiés, réclamer le
+      justificatif depuis le brouillard, la validation qui prévient, le « Suivi » du mois, l'invitation, l'appel de paie
+      refusé. Lot 3 : la facture émise en page de lecture, la création rapide d'un client, les visites proposées, les
+      noms de boutons, la fin de la validation.
+    - **UX 2 — les états de chaque écran** (vide, chargement, erreur, lecture seule, hors ligne), dans les trois
+      applications ; d'abord la lecture seule des autres listes (achats, clients, stock…), comme les factures et les devis
+      en 1.122.0 (*fait en 1.134.0 : `docs/abonnement.md` C24 ; et la messagerie sans réseau, `docs/messagerie.md`*) ;
+      l'ouverture qui tarde ou que le serveur refuse, dans l'entreprise et au Cabinet (*fait en 1.136.0 : `docs/hors-ligne.md`*).
+    - **UX 3 — une interface qui donne envie** : une seule façon de dire un état (calme, attire, alerte) dans
+      l'entreprise, le Cabinet et la console, un catalogue des pièces de l'écran tenu par des tests, puis une passe
+      visuelle sur les écrans du quotidien (accueil, listes, pièces, téléphone), dans la DA. *Commencé en 1.139.0 :
+      l'Accueil d'une entreprise qui facture déjà se lit dans l'ordre du travail (l'« À faire », les chiffres, puis
+      seulement les premiers pas qui restent ; la bienvenue se retire, `web/v10/accueil-au-travail.txt`) ; au Cabinet,
+      « dont 1 sans justificatif » se réclame depuis la carte du mois, et un cabinet d'une seule personne ne se voit
+      plus proposer de confier ses dossiers (`web/v10/suivi-seul.txt`) ; au téléphone, les montants d'une carte remontent sous son
+      titre, et le nom du client se lit sur la carte d'un dossier (`telephone.css`). En 1.140.0 : un seul « Envoyer la
+      pièce… » vert dans « Mon comptable » (la plus ancienne demande), et plus de carte des totaux pour une liste d'une
+      seule ligne au téléphone. En 1.143.0 : le bloc « À payer » des Achats ne répète plus une liste où tout est à payer (il en
+      dit la somme, `web/v10/listes-quotidien.txt`) ; au téléphone, une date ne titre plus une carte (la pièce la nomme), le
+      client ou le fournisseur se lit juste sous les montants, et « Actions » a le même air sur chaque carte. En 1.144.0 : au Cabinet aussi, une seule proposition de visite par
+      ouverture, et « Ne plus me proposer de visites » sur la proposition même (`web/v10/visites-une-fois-cabinet.txt`). En 1.145.0, au téléphone : « Enregistrer le brouillon »
+      juste sous « Émettre » dans l'éditeur d'une pièce, et le trombone d'un justificatif sur la ligne du titre de sa carte. En 1.146.0, les tons : « en retard » en
+      rouge partout (une vente, un achat, une échéance du Cabinet), « partielle » en orange, « émise » et « à payer » en bleu ;
+      le catalogue des tons est tenu par `tests/web/tons.test.ts` (`web/v10/retard-un-ton.txt`). En 1.147.0, les chiffres de
+      l'Accueil qui valent zéro le disent en mots (« aucune en retard », « aucun devis en attente de réponse »). En 1.148.0, au téléphone, les cases, le compte
+      et les petits gestes d'une barre de filtres se rangent côte à côte (les Dossiers du Cabinet), et le résumé « À payer »
+      se lit d'une phrase. En 1.149.0, la désignation d'une pièce émise se lit en entier au téléphone
+      (`web/v10/ligne-lue.txt`). En 1.150.0, le bandeau d'une pièce émise se dit d'un ton calme : le constat en gras,
+      l'explication en texte courant (`web/v10/emise-calme.txt`).*
+    - **Reste de l'UX 3** : une liste vide (Devis, Factures) offre deux fois le même geste (« + Nouveau devis » en haut,
+      « + Créer mon premier devis » dans la carte) ; le bouton du haut est cliqué par une dizaine de parcours, à reprendre
+      avec eux.
+    - **Ensuite** : la recherche Ctrl K aussi au Cabinet et à la console ; la barre du bas au téléphone pour les écrans du
+      quotidien ; la photo d'un ticket qui file dans les achats et chez le comptable d'un geste ; les rappels par e-mail du
+      cabinet au rythme choisi par le client ; ce que le cabinet a le droit de faire, dit en clair, avec une seule liste
+      « à accepter » ; la demande qui revient chaque mois (attend l'avis des pilotes).
+    - **À décider par Skander** : compter quelques gestes sur notre serveur pour savoir où les gens bloquent (une donnée
+      de plus : la liste se fait d'abord) ; et regarder travailler les comptables pilotes, le levier le plus fort.
+14. **À VÉRIFIER** (vu le 23/10/2026) : une entreprise créée en octobre lit dans son « À faire » « Déclaration mensuelle
+    d'employeur et de TVA le 28/10/2026 », quand les Échéances de son cabinet disent qu'elle n'a encore rien à déclarer
+    (aucun mois terminé avec des écritures). Deux écrans, deux réponses : laquelle est juste (une déclaration « néant »
+    est-elle due pour septembre ?) se demande aux comptables pilotes, puis les deux disent la même chose.

@@ -434,6 +434,8 @@ body.dark .ent-secours { background: var(--e-nuit-2); }
 body.dark .ent-etapes-courtes .num { background: var(--e-menthe); color: var(--e-nuit); }
 
 /* Le message d'un geste (« ton compte est créé ») se lit en haut des écrans d'entrée : en bas, il recouvrait le bouton
-   d'à côté, « Je suis un cabinet comptable » de la porte (recette du 20/10/2026). Rien ne se clique sous lui ici. */
-#toast { top: calc(env(safe-area-inset-top, 0px) + 16px); bottom: auto; transform: translateX(-50%) translateY(-6px); }
+   d'à côté, « Je suis un cabinet comptable » de la porte (recette du 20/10/2026). Rien ne se clique sous lui ici.
+   (1.121.0) Sous la barre du haut, pas dessus : posé à 16 px, il cachait les étapes (« Ton compte ✓ ») juste quand il
+   annonçait la première faite (recette de l'abonnement, 23/10/2026). */
+#toast { top: calc(env(safe-area-inset-top, 0px) + 84px); bottom: auto; transform: translateX(-50%) translateY(-6px); }
 #toast.show { transform: translateX(-50%) translateY(0); }

@@ -104,6 +104,14 @@ dans une coque, avec un **agent local** réservé à ce qu'un navigateur ne sait
 de signature, l'imprimante thermique, le tiroir-caisse. Un seul code à écrire et à tester ; le web
 n'est jamais en retard sur le bureau.
 
+**Les navigateurs** (22/10/2026, par délégation) : SkanFact se lit sur **Chrome et Edge 111, Firefox 121, Safari et iOS
+16.4** et plus récents, soit tout navigateur à jour depuis le début de 2024 ; un iPhone 8 ou plus récent y est (iOS 16),
+un iPhone 7 non (iOS 15 au plus). Firefox est à 121 parce que nos feuilles de style lisent `:has()`. Le plancher est écrit
+une fois (`commun/navigateurs.ts`) : la construction le vise, et un test relit tout ce qui est servi contre lui (la syntaxe,
+les fonctions, les feuilles de style). Chaque écran du quotidien tient à **320 points** de large, au doigt. À VÉRIFIER
+avant le lancement : les parts réelles des navigateurs et des iPhone anciens chez nos clients tunisiens (si l'iPhone 7
+pèse, le plancher descend, au prix d'une construction qui réécrit la v10).
+
 ### 4.2 La base de données : partagée, isolée, et découpable
 
 Trois façons de ranger les clients dans PostgreSQL :
@@ -256,6 +264,20 @@ mesure qui dépasse change le plan, pas le seuil.
 | Balance consolidée d'un cabinet de 60 dossiers | < 5 s |
 | Rattrapage après une journée de coupure (un magasin) | < 1 min |
 | Envoi d'une facture à la TTN | en file, résultat visible en moins d'une minute quand la TTN répond |
+| Relire ce qui a changé (poste synchronisé), enregistrer une saisie | < 300 ms côté serveur (95 %) — ajouté le 22/10/2026, par délégation |
+| Ouvrir l'application sur un poste qui n'a encore rien (le dossier entier) | < 2 s côté serveur (95 %) — ajouté le 22/10/2026 |
+| Émettre une facture (numéroter, calculer, sceller, écrire en comptabilité) | < 500 ms côté serveur (95 %) — ajouté le 22/10/2026 |
+
+**Mesuré le 22/10/2026** (`npm run banc:clients`, `banc/clients/mesurer.ts`, 1.110.0) : 60 entreprises de cinq ans
+d'historique (l'exemple de la v10, versé par la vraie route), **500 utilisateurs au travail en même temps** (près de six
+gestes par minute chacun, au hasard : relire, enregistrer, encaisser, émettre, consulter les livres, rouvrir), le
+programme en deux exemplaires, sur la machine de développement (4 processeurs). Le ticket de caisse dépassait (252 ms) :
+son contrôle d'équilibre comptable repassait par la sécurité par ligne à chaque ligne (0165). Corrigé, **tous les budgets
+tiennent** : ticket 185 ms, facture 129 ms, enregistrer 44 ms, relire 30 ms, livres 51 ms, ouvrir 113 ms (95 %). À
+750 utilisateurs, le ticket repasse au-dessus (251 ms) : **la limite de cette machine est entre 500 et 750 utilisateurs
+actifs à la fois**. C'est alors la base qui sature (sa sécurité par ligne, recalculée à chaque requête), pas le
+programme : la prochaine marge viendra de là (les déclencheurs du dossier, revus un par un) ou d'une machine plus forte.
+Le banc se rejoue sur le vrai serveur avant les pilotes (répétition générale, 1.6 ; **À VÉRIFIER** : ses chiffres à lui).
 
 **Estimation de volume à valider par un test de charge** : une PME fait de l'ordre de quelques milliers
 de pièces par an et quelques dizaines de milliers de lignes d'écriture ; un commerce avec caisse, des

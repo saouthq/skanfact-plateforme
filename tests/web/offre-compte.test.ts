@@ -161,6 +161,8 @@ describe('ce que l\'offre compte, à la souris', () => {
     await cliquer(p.locator('#set-tabs [data-tab="abonnement"]'));
     await expect.poll(() => p.locator('.abo-offre.courante .abo-pas').innerText().then(net).catch(() => ''), { timeout: 15_000 })
       .toBe('La paie est achetée en plus d\'Essentiel. La comptabilité complète est dans Complet : ce qui existe se lit, mais rien de nouveau ne s\'y crée.');
+    // Au-delà de son offre (onze salariés pour dix), ce qui peut s'ajouter est ouvert : c'est sur sa prochaine facture.
+    expect(await p.locator('#abo-plus').evaluate((d) => (d as HTMLDetailsElement).open)).toBe(true);
     const plus = p.locator('#abo-plus li');
     expect((await plus.evaluateAll((e) => e.map((x) => (x as HTMLElement).dataset.option)))).toEqual(['caisse', 'etablissement', 'salarie', 'module_paie', 'module_compta']);
     expect(net(await p.locator('#abo-plus li[data-option="salarie"]').innerText())).toBe('Un salarié de plus dans la paie La paie en comprend dix sur Essentiel, vingt sur Complet. Aujourd\'hui : 11 salariés, 1 de plus que ton offre. 12,000 DT HT par an ou 1,200 DT HT par mois');
@@ -208,10 +210,14 @@ describe('ce que l\'offre compte, à la souris', () => {
     // « Ton abonnement » : ce qui est pris aujourd'hui, et rien sur les utilisateurs.
     await cliquer(p.locator('#set-tabs [data-tab="abonnement"]'));
     const auj = (option: string) => p.locator(`#abo-plus li[data-option="${option}"] .abo-plus-auj`).innerText().then(net).catch(() => '');
+    // Rien au-delà de l'offre : ce qui peut s'ajouter est replié (1.118.0, la revue du 22/10/2026), et s'ouvre d'un clic.
+    await p.locator('#abo-plus').waitFor({ timeout: 15_000 });
+    expect(await p.locator('#abo-plus').evaluate((d) => (d as HTMLDetailsElement).open)).toBe(false);
+    await cliquer(p.locator('#abo-plus > summary'));
     await expect.poll(() => auj('caisse'), { timeout: 15_000 }).toBe('Aujourd\'hui : 0 caisse sur 1 comprise.');
     expect(await p.locator('#abo-plus li[data-option="utilisateur"]').count()).toBe(0);
     expect(await p.locator('#abo-plus li[data-option="salarie"] .abo-plus-auj').count()).toBe(0);
-    expect(net(await p.locator('#abo-plus .abo-plus-tete p').innerText())).toContain('ton équipe, elle, n\'a pas de limite');
+    expect(net(await p.locator('#abo-plus .abo-plus-tete p').innerText())).toContain('Ton équipe, elle, n\'a pas de limite');
     expect(net(await p.locator('.abo-offre[data-offre="essentiel"]').innerText())).toContain('Des utilisateurs sans limite, un établissement');
     await cx.close();
     expect(erreurs).toEqual([]);

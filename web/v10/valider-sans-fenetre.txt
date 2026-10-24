@@ -1,0 +1,27 @@
+La validation d'un lot finit sur un message bref et l'étape suivante, pas sur une fenêtre à fermer (1.131.0 ;
+docs/revue-mois-client.md, point 18). Format : voir sans-paquets.mjs.
+
+La recette du 23/10/2026 : Hatem valide les deux pièces d'octobre ; une fenêtre « Validation » s'ouvre, qu'il faut
+fermer, pour dire « 2 écritures validées sous les n° 1 à 2. », et rien de ce qui vient ensuite. Quand tout est entré, un
+message bref le dit, avec ce qui reste au brouillard ou l'étape suivante ; la fenêtre reste pour un refus, qu'il faut
+lire ligne à ligne.
+
+== cabinet/app.js | tout est entré : un message bref et l'étape suivante ; la fenêtre reste pour les refus
+-- avant
+      await infoDialog('Validation', lignes.join('\n'));
+      drawLivres(root, dossier);
+      majAValider(dossier);
+-- après
+      if (r.refusees.length) await infoDialog('Validation', lignes.join('\n'));
+      else {
+        // (plateforme) 1.131.0 — tout est entré : ce qui reste au brouillard des mois validés, tous journaux confondus, ou
+        // l'étape suivante (revue du mois d'un client, point 18 : la validation finissait sur une fenêtre à fermer).
+        const mois = new Set(cibles.map(e => String(e.date || '').slice(0, 7)));
+        const reste = (s.livre.ecritures || []).filter(e => e.statut === 'brouillard' && mois.has(String(e.date || '').slice(0, 7))).length;
+        const deQuand = mois.size === 1 ? KC.deMois(moisLabelCourt([...mois][0])) : 'de ces mois';
+        toast(`${lignes[0]} ${reste ? `${pl(reste, 'autre reste', 'autres restent')} au brouillard ${deQuand}.`
+          : `Prochaine étape : la déclaration, dans « Déclarer et clôturer ».`}`);
+      }
+      drawLivres(root, dossier);
+      majAValider(dossier);
+-- fin

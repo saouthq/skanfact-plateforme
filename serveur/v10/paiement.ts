@@ -70,6 +70,16 @@ export function demanderPaiementAbonnement(ctx: Contexte, utilisateur: string, e
   });
 }
 
+// « Payer en ligne » depuis l'abonnement d'un cabinet (1.120.0 ; docs/abonnement.md C22) : la facture que l'entreprise
+// SkanFact a émise pour `cabinet`, payée par un associé (la base le vérifie, en son nom).
+export function demanderPaiementCabinet(ctx: Contexte, utilisateur: string, cabinet: string, numero: string): Promise<Demandee | null> {
+  const enSonNom = <T>(sql: string, valeurs: unknown[]) => enTantQue(ctx.pool, utilisateur, async (tx) => (await tx.query(sql, valeurs)).rows[0]?.v as T | null);
+  return ouvrirPaiement(ctx, numero, {
+    aPayer: () => enSonNom<APayer>('select plateforme.ma_facture_cabinet_a_payer($1, $2) v', [cabinet, numero]),
+    noter: (reste, retour, maintenant) => enSonNom<Demande>('select plateforme.mon_paiement_cabinet_demander($1, $2, $3, $4, $5) v', [cabinet, numero, reste.toString(), retour, maintenant]),
+  });
+}
+
 async function ouvrirPaiement(ctx: Contexte, numero: string, source: Source): Promise<Demandee | null> {
   const r = reglage(ctx);
   const maintenant = maintenantDe(ctx);

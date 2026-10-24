@@ -1,5 +1,5 @@
 #!/bin/bash
-# Le verdict de GitHub sur un envoi (par défaut : origin/main, le dernier envoyé) : chaque vérification
+# Le verdict de GitHub sur un envoi (par défaut : origin/dev, le dernier envoyé) : chaque vérification
 # et, pour celles qui échouent, ce qu'elles disent (le test qui tombe, la preuve non prouvée). Le dépôt
 # est public : aucune clé n'est nécessaire.
 #
@@ -7,7 +7,7 @@
 # Code de sortie : 0 tout est vert ; 1 quelque chose est rouge ; 3 pas encore fini.
 set -u
 ICI="$(cd "$(dirname "$0")/.." && pwd)"
-sha="$(git -C "$ICI" rev-parse "${1:-origin/main}")" || exit 2
+sha="$(git -C "$ICI" rev-parse "${1:-origin/dev}")" || exit 2
 python3 - "$sha" <<'EOF'
 import json, subprocess, sys
 sha = sys.argv[1]

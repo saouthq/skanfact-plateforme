@@ -286,4 +286,14 @@ describe('les garde-fous des fonctions de la base', () => {
       join pg_namespace n on n.oid = p.pronamespace join pg_roles o on o.oid = p.proowner where n.nspname = 'socle' and p.prosecdef`);
     expect(r.rows.every((x) => x.passe)).toBe(true);
   });
+
+  // 0165 (le banc des clients) : le contrôle d'équilibre tourne à la validation pour CHAQUE ligne d'écriture ; passé par
+  // la sécurité par ligne de la personne, il coûtait 1 à 2 ms par lecture et mettait le ticket de caisse hors budget.
+  it('le contrôle d\'équilibre des écritures, qui tourne à chaque ligne, ne repasse pas par la sécurité par ligne', async () => {
+    const f = (await admin.query(`select p.prosecdef, p.proconfig, p.proacl::text acl, o.rolsuper or o.rolbypassrls passe from pg_proc p
+      join pg_roles o on o.oid = p.proowner where p.oid = 'compta.equilibree()'::regprocedure`)).rows[0];
+    expect(f).toMatchObject({ prosecdef: true, passe: true });
+    expect((f.proconfig ?? []).some((c: string) => c.startsWith('search_path='))).toBe(true);
+    expect(f.acl === null || /(^|[{,])=X/.test(f.acl)).toBe(false);
+  });
 });

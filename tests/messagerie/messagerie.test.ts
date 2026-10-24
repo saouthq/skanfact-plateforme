@@ -24,7 +24,7 @@ import { routesCompta } from '../../serveur/compta/routes.ts';
 import { habiller, type Courriel } from '../../serveur/courriel.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
 import { declarerGestesMessagerie } from '../../serveur/messagerie/gestes.ts';
-import { prevenirParCourriel } from '../../serveur/messagerie/postier.ts';
+import { prevenirParCourriel, relancerLesDemandes } from '../../serveur/messagerie/postier.ts';
 import { routesMessagerie } from '../../serveur/messagerie/routes.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
 import { routesSocle } from '../../serveur/routes/socle.ts';
@@ -41,14 +41,15 @@ let app: FastifyInstance;
 // Ce que les réponses portent (ce que ces tests en lisent) : une forme pour toutes, chacune n'en a qu'une partie.
 type Message = {
   id: string; texte: string; auteur: string; moi: boolean; cote: string; lu: boolean; piece: unknown; repondA: string | null;
-  demande: { texte: string; recueLe: string | null } | null; fichier: unknown; achat: unknown;
+  demande: { texte: string; recueLe: string | null; pour?: string | null; enRetard?: boolean; relances?: number; relanceLe?: string | null } | null; fichier: unknown; achat: unknown;
 };
-type Dossier = { nom: string; etat: string; nonLus: number; attentes: number; dernier: unknown };
+type Dossier = { nom: string; etat: string; nonLus: number; attentes: number; retards?: number; dernier: unknown };
 type Corps = {
-  id: string; motif: string; jeton: string; code: string; mandat: string; contenu: string; envoyees: number;
+  id: string; ids?: string[]; champ?: string; motif: string; jeton: string; code: string; mandat: string; contenu: string; envoyees: number;
   messages: Message[]; questions: { piece: string; montant: string; statut: string; poseePar: string | null; repondueePar: string | null }[]; suite: string | null; anciens: unknown[];
-  attente: { nonLus: number; questions: number; demandes: number; aLire: boolean }; fil: { actif: boolean; alerte: boolean };
+  attente: { nonLus: number; questions: number; demandes: number; enRetard?: number; aLire: boolean }; fil: { actif: boolean; alerte: boolean };
   dossiers: Dossier[]; compteurs: Record<'aTraiter' | 'attendClient' | 'tout', number>;
+  modeles: { id: string; titre: string; texte: string }[]; trouves: unknown[];
 };
 type Reponse = { statut: number; corps: Corps };
 async function appeler(methode: 'GET' | 'POST' | 'PUT' | 'DELETE', url: string, jeton?: string, corps?: unknown): Promise<Reponse> {
@@ -112,7 +113,7 @@ describe('le fil entre l\'entreprise et son cabinet', () => {
     const vu = await fil(ent, cab.associe, 'cabinet');
     expect(vu.statut, JSON.stringify(vu.corps)).toBe(200);
     expect(vu.corps.messages.map((m) => [m.texte, m.auteur, m.moi, m.cote])).toEqual([['Bonjour, voici ma question.', 'Leïla Mansour', false, 'entreprise']]);
-    expect(vu.corps.attente).toEqual({ nonLus: 1, questions: 0, demandes: 0, aLire: true });
+    expect(vu.corps.attente).toEqual({ nonLus: 1, questions: 0, demandes: 0, enRetard: 0, pourLe: null, aLire: true });
     // Écrire, c'est avoir lu ce qui précède : le client a lu le fil jusqu'à son message.
     expect(vu.corps.fil).toMatchObject({ cabinet: cab.id, cabinetNom: 'Cabinet Ennour', actif: true, luParLautre: expect.any(String), alerte: true });
     // Pas encore lu par le cabinet : le client ne voit pas « Lue ».
@@ -127,7 +128,11 @@ describe('le fil entre l\'entreprise et son cabinet', () => {
       ['Je regarde.', 'cabinet', false, 'revision'], ['Bonjour, voici ma question.', 'entreprise', false, 'Leïla Mansour'],
     ]);
     expect((await fil(ent, collaborateur, 'cabinet')).corps.messages[0]?.moi).toBe(true);
-    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toEqual({ cabinet: cab.id, nonLus: 1, questions: 0, demandes: 0, aLire: true, anciens: 0 });
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toEqual({ cabinet: cab.id, nonLus: 1, questions: 0, demandes: 0, enRetard: 0, pourLe: null, aLire: true, anciens: 0, achatsConfies: true });
+    // (1.126.0) Le mandat ne confie plus la saisie des achats : l'attente le dit (la page Achats ne propose plus la photo).
+    expect((await appeler('PUT', `/entreprises/${ent}/mandat/perimetre`, client.jeton, { perimetre: ['comptabilite', 'declarations'] })).statut).toBe(200);
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ achatsConfies: false });
+    expect((await appeler('PUT', `/entreprises/${ent}/mandat/perimetre`, client.jeton, { perimetre: ['comptabilite', 'declarations', 'saisie_achats'] })).statut).toBe(200);
 
     // Personne d'autre : un membre du cabinet sans ce dossier (la porte ne le lui connaît pas), la voisine, un commercial
     // de l'entreprise.
@@ -165,7 +170,9 @@ describe('le fil entre l\'entreprise et son cabinet', () => {
     expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ nonLus: 0, demandes: 1, aLire: true });
     // Le client ne demande pas de pièce ; il ne répond à une demande qu'en envoyant la pièce.
     expect((await ecrire(ent, client, 'entreprise', { demande: 'Ton RIB' })).corps.motif).toBe('Seul le cabinet demande une pièce.');
-    expect((await ecrire(ent, client, 'entreprise', { texte: 'La voilà', repondA: d.corps.id })).corps.motif).toBe('On répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF.');
+    expect((await ecrire(ent, client, 'entreprise', { texte: 'La voilà', repondA: d.corps.id })).corps.motif).toBe('On répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF, ou choisis la pièce de ton dossier.');
+    // Le cabinet ne répond pas à sa propre demande, même avec une pièce.
+    expect((await ecrire(ent, cab.associe, 'cabinet', { piece: { genre: 'achat', id: 'a9', libelle: 'STEG' }, repondA: d.corps.id })).corps.motif).toBe('On répond à une pièce demandée en l\'envoyant : joins la photo ou le PDF, ou choisis la pièce de ton dossier.');
 
     // Le fichier : reconnu à ses octets (un texte nommé .png ne passe pas), 10 Mo au plus.
     const faux = await appeler('POST', `/entreprises/${ent}/messages/fichiers`, client.jeton, { cote: 'entreprise', nom: 'facture.png', contenu: Buffer.from('ceci n\'est pas une image').toString('base64') });
@@ -202,6 +209,18 @@ describe('le fil entre l\'entreprise et son cabinet', () => {
     expect((await appeler('POST', `/entreprises/${ent}/messages/${d2.corps.id}/recue`, client.jeton)).statut).toBe(403);
     expect((await appeler('POST', `/entreprises/${ent}/messages/${d2.corps.id}/recue`, cab.associe.jeton)).statut).toBe(200);
     expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 0 });
+
+    // (1.115.0) Répondre avec la pièce DÉJÀ dans le dossier (la facture STEG était saisie dans les achats : il fallait
+    // renvoyer un fichier), sans un mot : la demande est reçue, le message ne porte que la pièce.
+    const d3 = await ecrire(ent, cab.associe, 'cabinet', { demande: 'La facture Ooredoo de septembre' });
+    const parPiece = await ecrire(ent, client, 'entreprise', { piece: { genre: 'achat', id: 'a7', libelle: 'F-120 · Ooredoo · 59,000 DT' }, repondA: d3.corps.id });
+    expect(parPiece.statut, JSON.stringify(parPiece.corps)).toBe(201);
+    const vu3 = (await fil(ent, cab.associe, 'cabinet')).corps.messages;
+    expect(vu3.find((m) => m.id === d3.corps.id)?.demande?.recueLe).toEqual(expect.any(String));
+    expect(vu3.find((m) => m.id === parPiece.corps.id)).toMatchObject({ texte: '', piece: { genre: 'achat', id: 'a7', libelle: 'F-120 · Ooredoo · 59,000 DT' }, fichier: null, repondA: d3.corps.id });
+    // Une pièce seule, hors de toute demande, part aussi (« Parler d'une pièce » sans un mot).
+    expect((await ecrire(ent, client, 'entreprise', { piece: { genre: 'facture', id: 'f1', libelle: 'FAC-2026-001' } })).statut).toBe(201);
+    expect((await ecrire(ent, client, 'entreprise', {})).corps.motif).toMatch(/^Un message vide n'apprend rien/);
   });
 
   it('cinquante messages à la fois, du plus récent ; la suite donne les plus anciens, sans en perdre ni en doubler', async () => {
@@ -247,12 +266,19 @@ describe('la boîte du cabinet', () => {
     // Le fil de C montre la question, et le client y répond : C passe à traiter.
     const filC = (await fil(c.ent, c.p, 'entreprise')).corps;
     expect(filC.questions.map((x) => [x.piece, x.montant, x.statut])).toEqual([['FF-12', '1200.500', 'envoyee']]);
-    expect(filC.attente).toEqual({ nonLus: 0, questions: 1, demandes: 0, aLire: false });
-    // Qui l'a posée : l'associé la lit comme la sienne ; chez le client, ni son nom ni son adresse ne passent.
-    expect(filC.questions[0]?.poseePar).toBeNull();
+    expect(filC.attente).toEqual({ nonLus: 0, questions: 1, demandes: 0, enRetard: 0, pourLe: null, aLire: false });
+    // Qui l'a posée : l'associé la lit comme la sienne ; (1.115.0) chez le client, son nom, comme sous ses messages (la
+    // question se disait posée par « Ton cabinet » à côté d'un message signé de son nom) ; son adresse, jamais.
+    expect(filC.questions[0]?.poseePar).toBe('associe');
+    expect(JSON.stringify(filC)).not.toContain(cab.associe.email);
     expect((await fil(c.ent, cab.associe, 'cabinet')).corps.questions[0]?.poseePar).toBe('moi');
     expect((await appeler('POST', `/entreprises/${c.ent}/compta/questions/${q.corps.id}/repondre`, c.p.jeton, { texte: 'Elle est jointe à l\'achat FF-12.' })).statut).toBe(200);
     expect((await fil(c.ent, c.p, 'entreprise')).corps.questions[0]?.repondueePar).toBe('moi');
+    expect((await fil(c.ent, cab.associe, 'cabinet')).corps.questions[0]?.repondueePar).toBe('Leïla Mansour');
+    // Les noms ne se lisent que d'un fil qu'on lit : la cliente d'à côté n'en tire rien, même en appelant la base.
+    const voisine = await personne('voisine');
+    expect((await enTantQue(pool, voisine.utilisateur, (tx) => tx.query('select * from messagerie.noms_des_questions($1, $2)', [c.ent, cab.id]))).rows).toEqual([]);
+    expect((await enTantQue(pool, c.p.utilisateur, (tx) => tx.query('select pose_nom from messagerie.noms_des_questions($1, $2)', [c.ent, cab.id]))).rows).toEqual([{ pose_nom: 'associe' }]);
     // Le cabinet a du neuf à lire : la réponse du client.
     expect((await fil(c.ent, cab.associe, 'cabinet')).corps.attente).toMatchObject({ nonLus: 1, aLire: true });
     // A : le cabinet répond (écrire, c'est avoir lu), rien à faire ; B : le client envoie la pièce, à traiter ; puis le
@@ -356,5 +382,174 @@ describe('l\'alerte par e-mail', () => {
     // Seul le serveur note une alerte partie.
     await expect(enTantQue(pool, client.utilisateur, (tx) => tx.query('select messagerie.alerte_partie($1, $2, $3, now())', [client.utilisateur, ent, cab.id])))
       .rejects.toThrow('seul le serveur note une alerte partie');
+  });
+});
+
+describe('(1.116.0) les pièces demandées : une date, des relances, plusieurs à la fois', () => {
+  const jour = (decalage: number) => new Date(Date.now() + decalage * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Africa/Tunis' });
+  it('la date « pour le » : aujourd\'hui ou plus tard, avec une pièce demandée ; passée sans réponse, la demande est en retard des deux côtés et dans la boîte', async () => {
+    const cab = await cabinet();
+    const { p: client, ent } = await cab.client('Garage Ennasr');
+    expect((await ecrire(ent, cab.associe, 'cabinet', { demande: 'Le relevé de septembre', pour: jour(-1) })).corps.motif).toBe('Une pièce se demande pour aujourd\'hui ou plus tard : choisis une autre date.');
+    expect((await ecrire(ent, cab.associe, 'cabinet', { texte: 'Bonjour', pour: jour(3) })).corps.motif).toBe('Une date « pour le » va avec une pièce demandée : nomme la pièce, ou retire la date.');
+    const mauvaise = await ecrire(ent, cab.associe, 'cabinet', { demande: 'Le relevé de septembre', pour: '2026-02-30' });
+    expect([mauvaise.statut, mauvaise.corps.champ]).toEqual([400, 'pour']);
+    const d = await ecrire(ent, cab.associe, 'cabinet', { demande: 'Le relevé de septembre', pour: jour(3) });
+    expect(d.statut, JSON.stringify(d.corps)).toBe(201);
+    let vu = (await fil(ent, client, 'entreprise')).corps.messages.find((m) => m.id === d.corps.id);
+    expect(vu?.demande).toMatchObject({ pour: jour(3), enRetard: false, relances: 0, relanceLe: null });
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 1, enRetard: 0, pourLe: jour(3) });
+    // (1.123.0) `pourLe` : la date la plus proche des pièces encore attendues (l'« À faire » de l'accueil la dit) ; une
+    // seconde demande, plus lointaine, ne la déplace pas, et une pièce reçue ne compte plus.
+    const d2 = await ecrire(ent, cab.associe, 'cabinet', { demande: 'La facture Ooredoo de septembre', pour: jour(6) });
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 2, pourLe: jour(3) });
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${d2.corps.id}/recue`, cab.associe.jeton)).statut).toBe(200);
+    const retards = async () => (await appeler('GET', `/cabinets/${cab.id}/messages`, cab.associe.jeton)).corps.dossiers.find((x) => x.nom === 'Garage Ennasr')?.retards;
+    expect(await retards()).toBe(0);
+    // La date passe (la base est ramenée trois jours plus tôt) : en retard, partout, avec le même compte.
+    await admin.query('update messagerie.message set demande_pour = $2 where id = $1', [d.corps.id, jour(-2)]);
+    vu = (await fil(ent, client, 'entreprise')).corps.messages.find((m) => m.id === d.corps.id);
+    expect(vu?.demande?.enRetard).toBe(true);
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 1, enRetard: 1, pourLe: jour(-2) });
+    expect((await fil(ent, cab.associe, 'cabinet')).corps.attente).toMatchObject({ demandes: 1, enRetard: 1 });
+    expect(await retards()).toBe(1);
+    // Reçue : plus en retard.
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${d.corps.id}/recue`, cab.associe.jeton)).statut).toBe(200);
+    vu = (await fil(ent, client, 'entreprise')).corps.messages.find((m) => m.id === d.corps.id);
+    expect(vu?.demande?.enRetard).toBe(false);
+    expect((await appeler('GET', `/entreprises/${ent}/messages/attente`, client.jeton)).corps).toMatchObject({ demandes: 0, enRetard: 0, pourLe: null });
+    expect(await retards()).toBe(0);
+  });
+
+  it('plusieurs pièces d\'un coup : un message chacune, le mot sur la première, la même date ; toutes ou aucune', async () => {
+    const cab = await cabinet();
+    const { p: client, ent } = await cab.client('Clinique du Lac');
+    const r = await ecrire(ent, cab.associe, 'cabinet', { texte: 'Pour la TVA de septembre :', demandes: ['Le relevé BIAT', 'La facture STEG', 'La facture Ooredoo'], pour: jour(7) });
+    expect(r.statut, JSON.stringify(r.corps)).toBe(201);
+    const ids = r.corps.ids ?? [];
+    expect(ids).toHaveLength(3);
+    const lus = (await fil(ent, client, 'entreprise')).corps.messages.filter((m) => ids.includes(m.id)).sort((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id));
+    expect(lus.map((m) => [m.texte, m.demande?.texte, m.demande?.pour])).toEqual([
+      ['Pour la TVA de septembre :', 'Le relevé BIAT', jour(7)], ['', 'La facture STEG', jour(7)], ['', 'La facture Ooredoo', jour(7)],
+    ]);
+    // Une pièce de trop (301 caractères) : aucune ne part.
+    const avant = (await fil(ent, client, 'entreprise')).corps.messages.length;
+    expect((await ecrire(ent, cab.associe, 'cabinet', { demandes: ['Le relevé BIAT d\'octobre', 'x'.repeat(301)] })).statut).toBe(400);
+    expect((await ecrire(ent, cab.associe, 'cabinet', { demande: 'A', demandes: ['B'] })).corps.champ).toBe('demande');
+    expect((await ecrire(ent, client, 'entreprise', { demandes: ['Ton RIB', 'Ta carte'] })).corps.motif).toBe('Seul le cabinet demande une pièce.');
+    expect((await fil(ent, client, 'entreprise')).corps.messages.length).toBe(avant);
+  });
+
+  it('la relance : à sa date si rien n\'est venu, puis chaque semaine, trois au plus ; rien de la demande dans l\'e-mail ; une demande reçue, sans date ou décochée ne se relance pas', async () => {
+    const cab = await cabinet(true);
+    const { p: client, ent } = await cab.client('Boucherie El Kef');
+    const pour = (p: Personne) => envoyes.filter((c) => c.a === p.email && c.objet === 'Ton cabinet attend une pièce dans SkanFact');
+    const d = await ecrire(ent, cab.associe, 'cabinet', { demande: 'La facture secrète de la chambre froide', pour: jour(2) });
+    const sansDate = await ecrire(ent, cab.associe, 'cabinet', { demande: 'Le contrat de location' });
+    expect([d.statut, sansDate.statut]).toEqual([201, 201]);
+    // Avant sa date : rien.
+    await relancerLesDemandes(ctxPostier);
+    expect(pour(client)).toEqual([]);
+    // Sa date venue : une relance, une seule même relue deux fois ; notée sur la demande ; la demande sans date, jamais.
+    const t0 = new Date(Date.now() + 2 * 86_400_000 + 60_000);
+    expect(await relancerLesDemandes(ctxPostier, t0)).toBe(1);
+    await relancerLesDemandes(ctxPostier, t0);
+    expect(pour(client)).toHaveLength(1);
+    const e = pour(client)[0];
+    for (const secret of ['chambre froide', 'secrète', 'Boucherie', 'Ennour', ent, cab.id]) expect(`${e?.objet}\n${e?.texte}\n${e ? habiller(e) : ''}`).not.toContain(secret);
+    expect(e?.texte).toContain('https://app.exemple.tn/');
+    expect(e?.bouton).toBe('Voir la demande dans SkanFact');
+    const lu = (await fil(ent, cab.associe, 'cabinet')).corps.messages;
+    expect(lu.find((m) => m.id === d.corps.id)?.demande).toMatchObject({ relances: 1, relanceLe: expect.any(String) });
+    expect(lu.find((m) => m.id === sansDate.corps.id)?.demande).toMatchObject({ relances: 0 });
+    // Six jours après : rien ; sept jours : la deuxième ; puis la troisième, et plus jamais.
+    await relancerLesDemandes(ctxPostier, new Date(t0.getTime() + 6 * 86_400_000));
+    expect(pour(client)).toHaveLength(1);
+    await relancerLesDemandes(ctxPostier, new Date(t0.getTime() + 7 * 86_400_000 + 60_000));
+    expect(pour(client)).toHaveLength(2);
+    await relancerLesDemandes(ctxPostier, new Date(t0.getTime() + 14 * 86_400_000 + 120_000));
+    await relancerLesDemandes(ctxPostier, new Date(t0.getTime() + 21 * 86_400_000 + 180_000));
+    await relancerLesDemandes(ctxPostier, new Date(t0.getTime() + 60 * 86_400_000));
+    expect(pour(client)).toHaveLength(3);
+    // Le cabinet ne note pas une relance lui-même.
+    await expect(enTantQue(pool, cab.associe.utilisateur, (tx) => tx.query('select messagerie.relance_partie($1, now())', [d.corps.id]))).rejects.toThrow(/seul le serveur note une relance partie/);
+    // Une autre demande : reçue avant sa date, elle ne se relance pas ; décochée (« Me prévenir par e-mail »), non plus.
+    const d2 = await ecrire(ent, cab.associe, 'cabinet', { demande: 'Le relevé d\'octobre', pour: jour(1) });
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${d2.corps.id}/recue`, cab.associe.jeton)).statut).toBe(200);
+    await relancerLesDemandes(ctxPostier, new Date(Date.now() + 2 * 86_400_000));
+    expect(pour(client)).toHaveLength(3);
+    const d3 = await ecrire(ent, cab.associe, 'cabinet', { demande: 'Le relevé de novembre', pour: jour(1) });
+    expect((await appeler('PUT', `/entreprises/${ent}/messages/alerte`, client.jeton, { cote: 'entreprise', active: false })).statut).toBe(200);
+    expect(await relancerLesDemandes(ctxPostier, new Date(Date.now() + 2 * 86_400_000))).toBe(0);
+    expect(pour(client)).toHaveLength(3);
+    expect((await fil(ent, cab.associe, 'cabinet')).corps.messages.find((m) => m.id === d3.corps.id)?.demande).toMatchObject({ relances: 0 });
+    // Le dossier repris par son client (le mandat s'arrête) : l'ancien cabinet n'y relance plus rien.
+    const { p: parti, ent: e2 } = await cab.client('Garage Sfax');
+    expect((await ecrire(e2, cab.associe, 'cabinet', { demande: 'Le relevé de décembre', pour: jour(1) })).statut).toBe(201);
+    expect((await appeler('DELETE', `/entreprises/${e2}/mandat`, parti.jeton)).statut).toBe(200);
+    await relancerLesDemandes(ctxPostier, new Date(Date.now() + 2 * 86_400_000));
+    expect(pour(parti)).toEqual([]);
+  });
+});
+
+describe('(1.117.0) les modèles de messages et la recherche', () => {
+  it('les modèles du cabinet : toute l\'équipe les lit et les pose ; un titre, un texte, pas deux fois le même titre, cinquante au plus ; un autre cabinet n\'y touche pas', async () => {
+    const cab = await cabinet();
+    const chemin = `/cabinets/${cab.id}/messages/modeles`;
+    const collegue = await cab.membre('revision', null);
+    const motifDe = async (r: Promise<{ corps: { motif?: string } }>) => (await r).corps.motif;
+    expect(await motifDe(appeler('POST', chemin, cab.associe.jeton, { titre: '  ', texte: 'Bonjour' }))).toBe('Un modèle a un titre : par exemple « Pièces du mois ».');
+    expect(await motifDe(appeler('POST', chemin, cab.associe.jeton, { titre: 'Pièces du mois', texte: ' ' }))).toBe('Un modèle a un texte : la phrase que tu écris souvent.');
+    expect(await motifDe(appeler('POST', chemin, cab.associe.jeton, { titre: 'x'.repeat(81), texte: 'Bonjour' }))).toBe('Le titre d\'un modèle tient en 80 caractères.');
+    const a = await appeler('POST', chemin, cab.associe.jeton, { titre: ' Pièces du mois ', texte: 'Bonjour {client}, il me manque les pièces de {mois}.' });
+    expect(a.statut, JSON.stringify(a.corps)).toBe(201);
+    // Le même titre, en d'autres majuscules : refusé.
+    expect(await motifDe(appeler('POST', chemin, collegue.jeton, { titre: 'PIÈCES DU MOIS', texte: 'Autre' }))).toBe('Un modèle de ton cabinet porte déjà ce titre : choisis-en un autre.');
+    // Un collègue le lit et le change ; la liste suit l'ordre des titres.
+    expect((await appeler('POST', chemin, collegue.jeton, { titre: 'Déclaration déposée', texte: 'Ta déclaration de {mois} est déposée.' })).statut).toBe(201);
+    expect((await appeler('PUT', `${chemin}/${String(a.corps.id)}`, collegue.jeton, { titre: 'Pièces du mois', texte: 'Bonjour {client}, il me manque des pièces de {mois}.' })).statut).toBe(200);
+    const lus = (await appeler('GET', chemin, cab.associe.jeton)).corps.modeles as { titre: string; texte: string }[];
+    expect(lus.map((m) => [m.titre, m.texte])).toEqual([['Déclaration déposée', 'Ta déclaration de {mois} est déposée.'], ['Pièces du mois', 'Bonjour {client}, il me manque des pièces de {mois}.']]);
+    // Un autre cabinet ne les lit pas, ne les change pas, ne les retire pas, et n'en pose pas chez lui.
+    const autre = await personne('autre-cabinet');
+    expect((await appeler('POST', '/cabinets', autre.jeton, { nom: 'Cabinet Jaziri' })).statut).toBe(201);
+    expect((await appeler('GET', chemin, autre.jeton)).corps.modeles).toEqual([]);
+    expect(await motifDe(appeler('PUT', `${chemin}/${String(a.corps.id)}`, autre.jeton, { titre: 'Volé', texte: 'Volé' }))).toBe('Ce cabinet n\'est pas le tien.');
+    expect(await motifDe(appeler('DELETE', `${chemin}/${String(a.corps.id)}`, autre.jeton))).toBe('Ce cabinet n\'est pas le tien.');
+    expect(await motifDe(appeler('POST', chemin, autre.jeton, { titre: 'Intrus', texte: 'Intrus' }))).toBe('Ce cabinet n\'est pas le tien.');
+    // Son client non plus (une entreprise n'est pas un cabinet).
+    const { p: client } = await cab.client('Pharmacie Lac');
+    expect(await motifDe(appeler('POST', chemin, client.jeton, { titre: 'Intrus', texte: 'Intrus' }))).toBe('Ce cabinet n\'est pas le tien.');
+    // Retiré : il n'est plus là, pour personne.
+    expect((await appeler('DELETE', `${chemin}/${String(a.corps.id)}`, cab.associe.jeton)).statut).toBe(200);
+    expect(await motifDe(appeler('DELETE', `${chemin}/${String(a.corps.id)}`, cab.associe.jeton))).toBe('Ce modèle n\'est plus là : un collègue l\'a retiré.');
+    // Cinquante au plus.
+    for (let i = (await appeler('GET', chemin, cab.associe.jeton)).corps.modeles.length; i < 50; i++) {
+      expect((await appeler('POST', chemin, cab.associe.jeton, { titre: `Modèle ${i}`, texte: 'Texte' })).statut).toBe(201);
+    }
+    expect(await motifDe(appeler('POST', chemin, cab.associe.jeton, { titre: 'Le cinquante et unième', texte: 'Texte' }))).toBe('Un cabinet garde cinquante modèles au plus : retire ceux qui ne servent plus.');
+  });
+
+  it('chercher dans un fil : les mots, sans majuscules ni accents, dans le texte, la pièce demandée, la pièce citée ou le fichier ; pour qui lit le fil seulement', async () => {
+    const cab = await cabinet();
+    const { p: client, ent } = await cab.client('Garage Menzah');
+    await ecrire(ent, cab.associe, 'cabinet', { demande: 'La facture STEG d\'août' });
+    await ecrire(ent, client, 'entreprise', { texte: 'Je l\'ai reçue hier, je l\'envoie.' });
+    await ecrire(ent, client, 'entreprise', { texte: 'Voici la facture', piece: { genre: 'achat', id: 'a1', libelle: 'F-8841 · Steg · 101,626 DT' } });
+    await ecrire(ent, cab.associe, 'cabinet', { texte: 'Merci, 100 % reçu.' });
+    const chercher = async (q: string, qui = client, cote = 'entreprise') =>
+      (await appeler('GET', `/entreprises/${ent}/messages/recherche?cote=${cote}&q=${encodeURIComponent(q)}`, qui.jeton));
+    const textes = async (q: string, qui = client, cote = 'entreprise') =>
+      ((await chercher(q, qui, cote)).corps.trouves as { texte: string; demande: string | null }[]).map((m) => m.demande ?? m.texte);
+    expect(await textes('steg')).toEqual(['Voici la facture', 'La facture STEG d\'août']);
+    expect(await textes('RECUE')).toEqual(['Je l\'ai reçue hier, je l\'envoie.']);
+    expect(await textes('reçu', cab.associe, 'cabinet')).toEqual(['Merci, 100 % reçu.', 'Je l\'ai reçue hier, je l\'envoie.']);
+    // « % » se cherche comme un caractère, pas comme « n'importe quoi » (« % reçu » ne trouve pas « l'ai reçue »).
+    expect(await textes('% reçu')).toEqual(['Merci, 100 % reçu.']);
+    expect(await textes('rien de tel')).toEqual([]);
+    expect((await chercher('s')).corps.champ).toBe('q');
+    // Une voisine ne cherche rien dans ce fil.
+    const voisine = await personne('voisine-recherche');
+    expect((await chercher('steg', voisine)).statut).toBe(404);
   });
 });

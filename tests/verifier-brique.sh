@@ -10,9 +10,9 @@
 set -u
 ICI="$(cd "$(dirname "$0")/.." && pwd)"
 : "${PG_ADMIN:?PG_ADMIN manque (adresse d'un compte d'administration PostgreSQL)}"
-BASE="${BASE:-origin/main}"
+BASE="${BASE:-origin/dev}"
 cd "$ICI" || exit 2
-git rev-parse --verify -q "$BASE^{commit}" >/dev/null || { echo "BASE=$BASE introuvable (git fetch origin main ?)" >&2; exit 2; }
+git rev-parse --verify -q "$BASE^{commit}" >/dev/null || { echo "BASE=$BASE introuvable (git fetch origin dev ?)" >&2; exit 2; }
 etape() { echo; echo "── $1"; }
 
 etape "Types"; npm run -s types || exit 1
@@ -40,7 +40,9 @@ choisis="$(
     # base/entreprise.ts), et son test n'importe aucune migration. Un écran de la console : l'instrument de rendu la
     # parcourt en entier, au doigt et à la souris. Les deux sont tombés sur GitHub pour la Console 3 (six tables du
     # service non rangées, des filtres de 32 points au téléphone) : ce tri ne les donnait pas.
-    if [[ "$f" =~ ^base/migrations/.*\.sql$ ]]; then echo tests/socle/export-entreprise.test.ts; continue; fi
+    # (1.114.1) Et le catalogue des textes : chaque refus de la base y a sa phrase (les cinq refus des exercices de crise
+    # ne sont tombés que sur GitHub).
+    if [[ "$f" =~ ^base/migrations/.*\.sql$ ]]; then echo tests/socle/export-entreprise.test.ts; echo tests/socle/textes.test.ts; continue; fi
     if [[ "$f" =~ ^web/console/src/ ]]; then echo tests/web/console.test.ts; continue; fi
     # Un écran repris de la v10, ou ses adaptations : chaque fichier repris garde l'empreinte notée à la reprise. Des
     # retouches faites à la main dans web/public/v10 sont passées ici cinq envois de suite (1.87.3 à 1.87.7) et ne sont

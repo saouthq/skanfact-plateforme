@@ -1,0 +1,15 @@
+« Cette pièce est émise » se dit d'un ton calme (1.150.0 ; UX 3, une seule façon de dire un état : calme, attire,
+alerte ; docs/recette.md § 13). Format : voir sans-paquets.mjs.
+
+La recette du 24/10/2026 : en tête d'une facture émise, le bandeau « Cette pièce est émise : elle ne se modifie plus… »
+écrivait ses deux lignes d'explication en gras bleu, plus fort que les chiffres de la pièce, pour un fait calme. Le
+constat garde son gras ; l'explication se lit à côté, en texte courant.
+
+== style.css | l'explication du bandeau d'une pièce émise en texte courant
+-- avant
+.lock-banner b { font-weight: 800; }
+-- après
+.lock-banner b { font-weight: 800; }
+/* (plateforme) 1.150.0 — un fait calme : le constat en gras, l'explication en texte courant (UX 3). */
+.lock-banner .tel-detail { font-weight: 400; color: var(--text-soft, var(--muted)); }
+-- fin

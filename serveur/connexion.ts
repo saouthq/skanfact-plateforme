@@ -56,6 +56,9 @@ export type Contexte = {
   // e-mail ne part.
   // `console` : où mène le lien d'une invitation dans l'équipe SkanFact (0119).
   courriel?: { envoi: EnvoiCourriel; adresse: () => string; console?: () => string };
+  // La facture au choix (1.119.0 ; serveur/abonnement/facturier.ts) : le choix d'une offre se facture et s'émet seul,
+  // dans la minute. Absent : la console la prépare, comme avant.
+  factureAuChoix?: boolean;
   // Les nouveautés que ce serveur porte (0120 ; serveur/nouveautes.ts) : celles du code, sauf dans un essai qui lui en
   // donne d'autres.
   nouveautes?: readonly Nouveaute[];

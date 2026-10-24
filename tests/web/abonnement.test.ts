@@ -79,7 +79,7 @@ describe('l\'abonnement, à la souris', () => {
     // ── L'essai finit dans cinq jours : la barre le dit en orange, « Me guider » aussi ─────────────────────────────────
     await finEssai(ent, plusJours(aujourdhui, 5));
     const p = await ouvrir(nadia.jeton, ent, '#/guide');
-    await expect.poll(() => pastille(p), { timeout: 15_000 }).toBe('Essai — 5 jours avant la fin');
+    await expect.poll(() => pastille(p), { timeout: 15_000 }).toBe('Essai : encore 5 jours');
     expect(await p.locator('#lic-banner').getAttribute('class')).toMatch(/\bwarn\b/);
     await expect.poll(() => p.locator('#g-essai-t').innerText().then(net), { timeout: 10_000 }).toBe('Ton essai : encore 5 jours');
     expect(await p.locator('#g-licence').innerText()).toBe('Voir l\'abonnement');
@@ -90,9 +90,9 @@ describe('l\'abonnement, à la souris', () => {
     expect(await p.locator('#set-tabs [data-tab="abonnement"]').getAttribute('class')).toMatch(/\bactive\b/);
     expect(await p.locator('#abonnement-panel .abo-offre h4').allInnerTexts()).toEqual(['Essentiel', 'Complet']);
     expect((await p.locator('#abonnement-panel .abo-prix b').allInnerTexts()).map(net)).toEqual(['390', '690']);
-    // S'abonner se fait ici (1.84.0, C19) : les quatre choix et « Je choisis cette offre », plus un e-mail.
-    expect(await p.locator('#abo-choix .abo-choix-un').count()).toBe(4);
-    expect(await p.getByRole('button', { name: 'Je choisis cette offre', exact: true }).count()).toBe(1);
+    // S'abonner se fait ici (1.84.0, C19 ; 1.118.0 : un bouton par offre et par durée, et l'étape suivante dans l'état).
+    expect(await p.locator('#abonnement-panel [data-choisir]').count()).toBe(4);
+    expect(await p.getByRole('button', { name: 'Choisir mon offre', exact: true }).count()).toBe(1);
     // Les règles telles qu'elles valent pour elle (0104), jamais écrites dans l'écran : la durée de SON essai (trente jours
     // à sa création), les rappels du jour, la grâce de son échéance.
     expect(net(await p.locator('#abonnement-panel .abo-jauge-txt').innerText())).toBe('5 jours sur 30');
@@ -106,10 +106,54 @@ describe('l\'abonnement, à la souris', () => {
     const depuis = jourEnFrancais(plusJours(aujourdhui, -2));
     await p.reload();
     await plusTard(p);
-    await expect.poll(() => pastille(p), { timeout: 15_000 }).toBe('Lecture seule — voir l\'abonnement');
+    await expect.poll(() => pastille(p), { timeout: 15_000 }).toBe('Lecture seule');
     await p.locator('#set-tabs [data-tab="abonnement"]').click();
     await expect.poll(() => p.locator('#abonnement-panel .abo-tete h3').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe(`En lecture seule depuis le ${depuis}`);
     await p.screenshot({ animations: 'disabled', fullPage: true, path: path.join(PHOTOS, 'abonnement-2-lecture-seule.png') });
+    // (1.122.0) La pastille prend le rouge de l'état (elle restait orange à côté du bandeau rouge, recette du 23/10/2026).
+    expect(await p.locator('#lic-banner').getAttribute('class')).toMatch(/\balerte\b/);
+
+    // (1.122.0) Les listes ne proposent plus de créer : le bouton vert « + Créer ma première facture » menait à une pièce
+    // qui ne pourrait pas s'enregistrer. L'état vide dit pourquoi, et mène à l'abonnement, seul bouton vert.
+    for (const [route, titre] of [['#/factures', 'Factures'], ['#/devis', 'Devis']] as const) {
+      await p.evaluate((r) => { location.hash = r; }, route);
+      await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toBe(titre);
+      expect(await p.locator('#new, #vide-new').count()).toBe(0);
+      expect(net(await p.locator('#view .vide-utile').innerText())).toContain(`Lecture seule depuis le ${depuis}. L'essai est terminé. La création reprend dès que l'abonnement est réglé.`);
+      expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['vide-abo']);
+    }
+    await p.locator('#vide-abo').click();
+    await expect.poll(() => p.locator('#abonnement-panel .abo-tete h3').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe(`En lecture seule depuis le ${depuis}`);
+
+    // (1.134.0) Les autres listes dont la création attend l'abonnement aussi (UX 2) : l'état vide dit pourquoi, son seul vert
+    // mène à l'abonnement, et ses boutons de création restent, en second ; en tête, « + Nouveau… » n'est plus vert.
+    for (const [route, creer] of [['#/achats', 'vide-achat'], ['#/fournisseurs', 'vide-fournisseur'], ['#/commandesf', 'cf-vide-new'],
+      ['#/marges', 'proj-first'], ['#/immos', 'immo-premier'], ['#/tresorerie', 'first-acc'], ['#/paie', 'emp-first']] as const) {
+      await p.evaluate((r) => { location.hash = r; }, route);
+      await p.locator(`#view #${creer}`).waitFor({ timeout: 15_000 });
+      expect(net(await p.locator('#view').innerText()), route).toContain(`Lecture seule depuis le ${depuis}. L'essai est terminé. La création reprend dès que l'abonnement est réglé.`);
+      expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id)), route).toEqual(['vide-voir-abo']);
+    }
+    // Un fournisseur neuf refuse à l'ouverture, avant la saisie (le refus venait à « Enregistrer »).
+    await p.evaluate(() => { location.hash = '#/fournisseurs'; });
+    await p.locator('#view #new').click({ timeout: 15_000 });
+    await expect.poll(() => p.locator('#modal-root .modal').last().locator('h2').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe(`Lecture seule depuis le ${depuis}`);
+    expect(await p.locator('#modal-root #sf').count()).toBe(0);
+    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Voir l\'abonnement', exact: true }).click();
+    await expect.poll(() => p.locator('#abonnement-panel .abo-tete h3').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe(`En lecture seule depuis le ${depuis}`);
+    await p.evaluate(() => { location.hash = '#/achats'; });
+    await p.locator('#view #vide-voir-abo').click({ timeout: 15_000 });
+    await expect.poll(() => p.locator('#abonnement-panel .abo-tete h3').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe(`En lecture seule depuis le ${depuis}`);
+    // Une liste qui a des lignes : son « + Nouveau client » reste (une fiche se crée encore), mais n'est plus le vert.
+    await api('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton);
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, nadia.jeton, { changements: [
+      { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Hôtel du Lac' } }] })).statut).toBe(200);
+    await p.reload();
+    await plusTard(p);
+    await p.evaluate(() => { location.hash = '#/clients'; });
+    await p.locator('#view tr').filter({ hasText: 'Hôtel du Lac' }).first().waitFor({ timeout: 15_000 });
+    expect(net(await p.locator('#view .page-head #new').innerText())).toBe('+ Nouveau client');
+    expect(await p.locator('#view .btn-primary:visible').count()).toBe(0);
 
     // Une nouvelle pièce le dit à l'ouverture, avant qu'on tape quoi que ce soit.
     await p.evaluate(() => { location.hash = '#/doc/new/devis'; });
@@ -150,7 +194,7 @@ describe('l\'abonnement, à la souris', () => {
     await tel.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, nadia.jeton);
     const t = await tel.newPage();
     await t.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
-    await expect.poll(() => pastille(t), { timeout: 20_000 }).toBe('Lecture seule — voir l\'abonnement');
+    await expect.poll(() => pastille(t), { timeout: 20_000 }).toBe('Lecture seule');
     const boite = await t.locator('#lic-banner').boundingBox();
     expect(boite && boite.y < 160 && boite.width > 300).toBe(true);
     expect(await t.locator('.sidebar-foot a[data-route="modules"]').isVisible()).toBe(false);
@@ -158,7 +202,7 @@ describe('l\'abonnement, à la souris', () => {
 
     // ── Un commercial : la lecture seule, pas l'onglet ; la pastille lui dit qui règle ─────────────────────────────────
     const k = await ouvrir(karim.jeton, ent, '#/parametres');
-    await expect.poll(() => pastille(k), { timeout: 15_000 }).toBe('Lecture seule — voir l\'abonnement');
+    await expect.poll(() => pastille(k), { timeout: 15_000 }).toBe('Lecture seule');
     expect(await k.locator('#set-tabs [data-tab="abonnement"]').count()).toBe(0);
     await k.locator('#lic-banner').click();
     const qui = k.locator('#modal-root .modal').last();
