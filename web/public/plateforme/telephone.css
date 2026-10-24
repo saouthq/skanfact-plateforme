@@ -55,6 +55,12 @@
   .span-2 { grid-column: auto; }
   .editor .preview { position: static; height: auto; min-height: 420px; }
   .filters > * { flex: 1 1 100%; }
+  /* (1.148.0) Les cases à cocher, le compte et les petits gestes d'une barre de filtres se rangent côte à côte, à leur
+     taille : aux Dossiers du Cabinet, deux cases, « 1 sur 1 » et « Exporter en CSV » prenaient chacun une rangée, et la
+     liste n'arrivait qu'en bas de l'écran (UX 3). */
+  .filters > :is(label.inline, span.muted.small, .btn-sm) { flex: 0 1 auto; }
+  .filters > span.grow { display: none; }
+  .filters > label + span.small { align-self: center; padding-block-end: 0; }
   /* Un tableau de trois colonnes ou moins tient, ou défile dans son cadre ; une liste plus large devient des cartes
      (plus bas, « Les listes en cartes »). */
   table.list:not([data-cartes]) { display: block; overflow-x: auto; }

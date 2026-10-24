@@ -15,8 +15,8 @@ ce qui tombe sous sept jours ; chaque pièce se règle de son menu « Actions »
     // (plateforme) 1.143.0 — chaque pièce est à payer : la liste en dessous montre déjà ces lignes, le bloc n'en garde
     // que la somme (UX 3).
     if (due.length <= 8 && due.length === (data.purchases || []).length) {
-      return `<div class="panel todo" id="payables" data-payables-resume>
-      <p style="margin:0"><b>${C.money(total, cur)} à payer</b> sur ${pl(due.length, 'pièce')} ${info('buy.payables')}${late.length ? ` · <span class="warn-text">${pl(late.length, 'pièce')} en retard</span>` : ''}${soon.length ? ` · ${soon.length} à régler sous 7 jours` : ''}.
+      return `<div class="panel todo" id="payables" data-payables-resume style="padding-block:14px">
+      <p style="margin:0"><b>${C.money(total, cur)} à payer</b> sur ${pl(due.length, 'pièce')}${late.length ? ` · <span class="warn-text">${pl(late.length, 'pièce')} en retard</span>` : ''}${soon.length ? ` · ${soon.length} à régler sous 7 jours` : ''}. ${info('buy.payables')}
         <span class="small muted">Chaque pièce de la liste se règle de son menu « Actions ».</span></p></div>`;
     }
     return `<div class="panel todo" id="payables">

@@ -20285,6 +20285,9 @@ prouver 'ux3 147 : « 0 en retard » sous « Reste à encaisser »' web/public/v
 prouver 'ux3 147 : « 0 devis envoyé » sous « Devis en attente »' web/public/v10/app.js \
   " : 'aucun devis en attente de réponse'}" " : '0 devis envoyé'}" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'"'"'À faire et les chiffres d'"'"'abord, puis ce qui reste'
+prouver 'ux3 148 : les filtres du téléphone, une rangée chacun' web/public/plateforme/telephone.css \
+  '  .filters > :is(label.inline, span.muted.small, .btn-sm) { flex: 0 1 auto; }' '' \
+  'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'"'"'ordinateur le disent'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

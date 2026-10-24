@@ -1108,7 +1108,9 @@ Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT d
       juste sous « Émettre » dans l'éditeur d'une pièce, et le trombone d'un justificatif sur la ligne du titre de sa carte. En 1.146.0, les tons : « en retard » en
       rouge partout (une vente, un achat, une échéance du Cabinet), « partielle » en orange, « émise » et « à payer » en bleu ;
       le catalogue des tons est tenu par `tests/web/tons.test.ts` (`web/v10/retard-un-ton.txt`). En 1.147.0, les chiffres de
-      l'Accueil qui valent zéro le disent en mots (« aucune en retard », « aucun devis en attente de réponse »).*
+      l'Accueil qui valent zéro le disent en mots (« aucune en retard », « aucun devis en attente de réponse »). En 1.148.0, au téléphone, les cases, le compte
+      et les petits gestes d'une barre de filtres se rangent côte à côte (les Dossiers du Cabinet), et le résumé « À payer »
+      se lit d'une phrase.*
     - **Reste de l'UX 3** : une liste vide (Devis, Factures) offre deux fois le même geste (« + Nouveau devis » en haut,
       « + Créer mon premier devis » dans la carte) ; le bouton du haut est cliqué par une dizaine de parcours, à reprendre
       avec eux.

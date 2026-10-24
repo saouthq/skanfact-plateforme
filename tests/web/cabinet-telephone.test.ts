@@ -111,6 +111,10 @@ describe('le Cabinet au téléphone', () => {
           if (doigt) {
             const coupes = await page.locator('.stats.rangee .lbl, .stats.rangee .sub').evaluateAll((x) => x.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
             if (coupes.length) faux.push(`${nom} : chiffre au libellé coupé (${coupes.join(', ')})`);
+            // (1.148.0) Les filtres tiennent côte à côte : les deux cases sur une rangée, l'export à sa taille.
+            const f = await page.evaluate(() => ['#arch', '#onlysf', '#csv'].map((q) => { const e = document.querySelector(q); const r = (e?.closest('label') ?? e)?.getBoundingClientRect(); return r ? { top: Math.round(r.top + r.height / 2), w: r.width } : null; }));
+            if (!f[0] || !f[1] || Math.abs(f[0].top - f[1].top) > 4) faux.push(`${nom} : « Archivés » et « Sur SkanFact seulement » sur deux rangées`);
+            if (!f[2] || f[2].w > largeur * 0.6) faux.push(`${nom} : « Exporter en CSV » en pleine largeur`);
           }
         }
         const avis = await page.locator('#bandeau-ordinateur').count();
