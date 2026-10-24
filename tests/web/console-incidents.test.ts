@@ -56,7 +56,7 @@ describe('les incidents du service, à la souris', () => {
     return String(c.corps.jeton);
   };
   const ouvrir = async (jeton: string, largeur = 1440) => {
-    const cx = await navigateur.newContext({ viewport: { width: largeur, height: largeur < 600 ? 844 : 900 }, locale: 'fr-FR' });
+    const cx = await navigateur.newContext({ viewport: { width: largeur, height: largeur < 600 ? 844 : 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript((j) => { sessionStorage.setItem('skanfact.console.jeton', j); }, jeton);
     const p = await cx.newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
@@ -66,7 +66,7 @@ describe('les incidents du service, à la souris', () => {
   };
   // Un écran de l'instrument : à une largeur, un thème et une langue ; lu quand toutes ses fiches réflexes sont là.
   const ouvrirEcran = async (e: EcranConsole, o: { largeur: number; theme?: 'clair' | 'sombre'; factice?: boolean }) => {
-    const cx = await navigateur.newContext({ viewport: { width: o.largeur, height: o.largeur < 600 ? 844 : 900 }, locale: 'fr-FR' });
+    const cx = await navigateur.newContext({ viewport: { width: o.largeur, height: o.largeur < 600 ? 844 : 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript(([j, t]) => {
       sessionStorage.setItem('skanfact.console.jeton', j);
       if (t) localStorage.setItem('skanfact.console.theme', t);
@@ -494,7 +494,7 @@ describe('les incidents du service, à la souris', () => {
     expect(net(await p.locator('.c-in-ex-compte').innerText())).not.toMatch(/Un accès suspect/);
     await fermer(p);
     // Un exercice laissé ouvert dans l'onglet depuis treize heures ne se noterait plus : la page ne le rouvre pas.
-    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript(([j, e]) => { sessionStorage.setItem('skanfact.console.jeton', j); sessionStorage.setItem('skanfact.console.exercice', e); },
       [jD, JSON.stringify({ fiche: 'base', debut: new Date(Date.now() - 13 * 3_600_000).toISOString(), participants: 'Hier soir', temps: [3, null, null, null] })] as const);
     const q = await cx.newPage();

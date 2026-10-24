@@ -65,7 +65,7 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     frais('m1', '7.125')]);
 
     const erreurs: string[] = [];
-    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, leila);
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/comptabilite/journal/${annee}`);

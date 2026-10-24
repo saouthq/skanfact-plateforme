@@ -20264,6 +20264,12 @@ prouver 'ux3 143 : le client sous le type de la pièce au téléphone' web/publi
 prouver 'ux3 143 : « Actions » allumé sur la seule carte touchée' web/public/plateforme/telephone.css \
   '  table.list[data-cartes] > tbody > tr > td.row-actions .row-menu-btn:not(.btn) { opacity: 1; background: var(--ink-soft); color: var(--text); }' '' \
   'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'"'"'ordinateur, un tableau'
+prouver 'ux3 144 : le Cabinet qui propose une visite sur chaque écran neuf de la même ouverture' web/public/v10/cabinet/app.js \
+  '    if (visiteProposeeIci && !reprise) return;' '' \
+  'au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d'"'"'un geste'
+prouver 'ux3 144 : « Ne plus me proposer de visites » du Cabinet qui n'"'"'éteint rien' web/public/v10/cabinet/app.js \
+  '      visitesPoser(e => { e.proposer = false; });' '' \
+  'au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d'"'"'un geste'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

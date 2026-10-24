@@ -1,0 +1,59 @@
+Au Cabinet aussi, une proposition de visite par ouverture, et « Ne plus me proposer de visites » d'un geste (1.144.0 ;
+UX 3 ; la règle de l'entreprise, web/v10/visites-une-fois.txt, 1.129.0). Format : voir sans-paquets.mjs.
+
+La recette du 23/10/2026 : au Cabinet, « Première fois sur cet écran ? » se posait sur la Production, puis sur les
+Échéances, puis sur chaque écran neuf de la même ouverture ; l'entreprise n'en propose plus qu'une depuis la 1.129.0.
+Une règle apprise d'un côté se vérifie de l'autre.
+
+== cabinet/app.js | une proposition de visite par ouverture du Cabinet au plus
+-- avant
+  const VISITE_PROPOSEE_MAX = 3;
+  let appelEnAttente = '';
+  function fermerAppelGuide() {
+-- après
+  const VISITE_PROPOSEE_MAX = 3;
+  let appelEnAttente = '';
+  // (plateforme) 1.144.0 — une seule proposition par ouverture du Cabinet, comme l'entreprise depuis la 1.129.0 (UX 3).
+  let visiteProposeeIci = false;
+  function fermerAppelGuide() {
+-- fin
+
+== cabinet/app.js | la proposition ne revient pas dans la même ouverture
+-- avant
+    if (!p || visiteManque(p) || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[cle] || 0) >= VISITE_PROPOSEE_MAX)) return;
+-- après
+    if (!p || visiteManque(p) || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[cle] || 0) >= VISITE_PROPOSEE_MAX)) return;
+    if (visiteProposeeIci && !reprise) return;
+-- fin
+
+== cabinet/app.js | la proposition se compte quand elle se pose
+-- avant
+    if (!reprise) visitesPoser(e => { e.vues[cle] = (e.vues[cle] || 0) + 1; });
+    const coul = CV.couleurDe(p);
+-- après
+    if (!reprise) visitesPoser(e => { e.vues[cle] = (e.vues[cle] || 0) + 1; });
+    visiteProposeeIci = true;
+    const coul = CV.couleurDe(p);
+-- fin
+
+== cabinet/app.js | « Ne plus me proposer de visites » sur la proposition même
+-- avant
+      <p class="ga-note">Tu la retrouves dans « Guide-moi », avec tout ce qu'on peut faire ici.</p>`;
+-- après
+      <p class="ga-note">Tu la retrouves dans « Guide-moi », avec tout ce qu'on peut faire ici.
+        <button type="button" class="ga-jamais" id="ga-jamais">Ne plus me proposer de visites</button></p>`;
+-- fin
+
+== cabinet/app.js | « Ne plus me proposer de visites » éteint les propositions, et le dit
+-- avant
+    $('#ga-non', el).onclick = () => {
+      visitesPoser(e => { e.vues[cle] = VISITE_PROPOSEE_MAX; }); fermer();
+-- après
+    $('#ga-jamais', el).onclick = () => {
+      visitesPoser(e => { e.proposer = false; });
+      fermer();
+      toast('Plus de proposition de visite. Les visites restent dans « Guide-moi » ; la case de « Me guider » les rallume.');
+    };
+    $('#ga-non', el).onclick = () => {
+      visitesPoser(e => { e.vues[cle] = VISITE_PROPOSEE_MAX; }); fermer();
+-- fin

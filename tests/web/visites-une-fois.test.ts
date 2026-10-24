@@ -94,4 +94,46 @@ describe('les propositions de visite, une par ouverture', () => {
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);
+
+  // (1.144.0) Le Cabinet suit la même règle : la Production propose sa visite, les Échéances se taisent ; rouvert, il
+  // propose de nouveau, et « Ne plus me proposer de visites » les éteint.
+  it('au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d\'un geste', async () => {
+    const email = `hela-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Hela Jaziri', motDePasse: 'Un-bon-mot-de-passe' });
+    const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).jeton);
+    await api('POST', '/moi/code', jeton, { methode: 'application' });
+    const cab = String((await api('POST', '/cabinets', jeton, { nom: 'Cabinet Jaziri' })).id);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    const appel = p.locator('#guide-appel');
+    const aller = (route: string) => p.evaluate((r) => { location.hash = r; }, route);
+    const titre = async (t: string) => { await p.locator('#view h1').filter({ hasText: t }).first().waitFor({ timeout: 20_000 }); };
+    const seTait = async () => { await p.waitForTimeout(2_500); return appel.count(); };
+
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab}#/production`);
+    await titre('Production');
+    await appel.waitFor({ timeout: 15_000 });
+    expect(net(await appel.locator('#ga-t').innerText())).toBe('Première fois sur cet écran ?');
+    await p.mouse.click(700, 600);
+    await expect.poll(() => appel.count(), { timeout: 5_000 }).toBe(0);
+    await aller('#/echeances');
+    await titre('Échéances');
+    expect(await seTait()).toBe(0);
+
+    await p.reload();
+    await titre('Échéances');
+    await appel.waitFor({ timeout: 15_000 });
+    await appel.getByRole('button', { name: 'Ne plus me proposer de visites', exact: true }).click();
+    await expect.poll(() => appel.count(), { timeout: 5_000 }).toBe(0);
+    expect(net(await p.locator('#toast').innerText())).toBe('Plus de proposition de visite. Les visites restent dans « Guide-moi » ; la case de « Me guider » les rallume.');
+    await aller('#/ecritures');
+    await p.reload();
+    await titre('Écritures');
+    expect(await seTait()).toBe(0);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 240_000);
 });

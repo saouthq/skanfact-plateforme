@@ -357,3 +357,9 @@ suffit (rouge de GitHub sur la 1.138.0, `tests/web/quarantaine.test.ts` ; preuve
 par ouverture » (1.129) et l'Accueil d'une entreprise qui travaille (1.139), le défaut qu'elles réintroduisaient était
 tu par une autre garde. La preuve « reposée à chaque redessin » le réintroduit en entier (reprise forcée), et la lecture
 pour le support vérifie aussi que l'Accueil du dossier n'invite pas à sa visite.
+
+**1.144.0 (24/10/2026)** — la saisie du Cabinet sans réseau tombait sur GitHub vers 23 h 30 UTC : ses données étaient
+datées au jour de Tunis (déjà le 24), son navigateur d'essai tournait en UTC (encore le 23), et l'écriture de banque du
+jour paraissait dans le futur. L'application lit le jour de qui travaille, ce qui est juste à Tunis ; c'est le test qui
+mentait. Les sept parcours qui datent leurs données au jour de Tunis ouvrent maintenant leur navigateur à Tunis.
+Reproduit avec un navigateur réglé sur un autre jour, puis vert.

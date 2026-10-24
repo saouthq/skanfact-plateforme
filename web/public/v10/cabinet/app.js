@@ -12815,6 +12815,8 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
   // de l'écran reste le seul (U-11).
   const VISITE_PROPOSEE_MAX = 3;
   let appelEnAttente = '';
+  // (plateforme) 1.144.0 — une seule proposition par ouverture du Cabinet, comme l'entreprise depuis la 1.129.0 (UX 3).
+  let visiteProposeeIci = false;
   function fermerAppelGuide() {
     const a = document.getElementById('guide-appel');
     if (a) { if (typeof a._fermer === 'function') a._fermer(); else a.remove(); }
@@ -12825,6 +12827,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     const p = visitePage(cle);
     const et = visitesEtat();
     if (!p || visiteManque(p) || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[cle] || 0) >= VISITE_PROPOSEE_MAX)) return;
+    if (visiteProposeeIci && !reprise) return;
     // Une page vide qui porte « Tes premiers pas » est déjà une invitation.
     if ($('#view .premiers-pas')) return;
     const bouton = $('#guide-moi');
@@ -12832,6 +12835,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     if (!bouton) { appelEnAttente = cle; return; }
     fermerAppelGuide();
     if (!reprise) visitesPoser(e => { e.vues[cle] = (e.vues[cle] || 0) + 1; });
+    visiteProposeeIci = true;
     const coul = CV.couleurDe(p);
     const el = document.createElement('div');
     el.className = 'guide-appel' + (coul ? ' th-' + coul : '');
@@ -12844,7 +12848,8 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       <p class="ga-txt">${esc(p.resume || '')} Je te montre à quoi il sert et ce que fait chaque bouton, en ${esc(p.duree || 'une minute')}.</p>
       <div class="ga-actions"><button type="button" class="btn btn-sm ga-go" id="ga-go">${ICONE_LECTURE}Faire la visite</button>
         <button type="button" class="btn btn-ghost btn-sm" id="ga-non" title="Ne plus me proposer la visite de cet écran">Plus tard</button></div>
-      <p class="ga-note">Tu la retrouves dans « Guide-moi », avec tout ce qu'on peut faire ici.</p>`;
+      <p class="ga-note">Tu la retrouves dans « Guide-moi », avec tout ce qu'on peut faire ici.
+        <button type="button" class="ga-jamais" id="ga-jamais">Ne plus me proposer de visites</button></p>`;
     document.body.appendChild(el);
     typographie(el);
     const scroller = $('#view');
@@ -12885,6 +12890,11 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     if (scroller) scroller.addEventListener('scroll', defile);
     window.addEventListener('scroll', defile, { passive: true });
     $('#ga-go', el).onclick = () => { fermer(); lancerVisite(p); };
+    $('#ga-jamais', el).onclick = () => {
+      visitesPoser(e => { e.proposer = false; });
+      fermer();
+      toast('Plus de proposition de visite. Les visites restent dans « Guide-moi » ; la case de « Me guider » les rallume.');
+    };
     $('#ga-non', el).onclick = () => {
       visitesPoser(e => { e.vues[cle] = VISITE_PROPOSEE_MAX; }); fermer();
       if (retour && retour !== document.body && document.body.contains(retour)) retour.focus();

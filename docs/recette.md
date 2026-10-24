@@ -1103,10 +1103,15 @@ Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT d
       pièce… » vert dans « Mon comptable » (la plus ancienne demande), et plus de carte des totaux pour une liste d'une
       seule ligne au téléphone. En 1.143.0 : le bloc « À payer » des Achats ne répète plus une liste où tout est à payer (il en
       dit la somme, `web/v10/listes-quotidien.txt`) ; au téléphone, une date ne titre plus une carte (la pièce la nomme), le
-      client ou le fournisseur se lit juste sous les montants, et « Actions » a le même air sur chaque carte.*
+      client ou le fournisseur se lit juste sous les montants, et « Actions » a le même air sur chaque carte. En 1.144.0 : au Cabinet aussi, une seule proposition de visite par
+      ouverture, et « Ne plus me proposer de visites » sur la proposition même (`web/v10/visites-une-fois-cabinet.txt`).*
     - **Ensuite** : la recherche Ctrl K aussi au Cabinet et à la console ; la barre du bas au téléphone pour les écrans du
       quotidien ; la photo d'un ticket qui file dans les achats et chez le comptable d'un geste ; les rappels par e-mail du
       cabinet au rythme choisi par le client ; ce que le cabinet a le droit de faire, dit en clair, avec une seule liste
       « à accepter » ; la demande qui revient chaque mois (attend l'avis des pilotes).
     - **À décider par Skander** : compter quelques gestes sur notre serveur pour savoir où les gens bloquent (une donnée
       de plus : la liste se fait d'abord) ; et regarder travailler les comptables pilotes, le levier le plus fort.
+14. **À VÉRIFIER** (vu le 23/10/2026) : une entreprise créée en octobre lit dans son « À faire » « Déclaration mensuelle
+    d'employeur et de TVA le 28/10/2026 », quand les Échéances de son cabinet disent qu'elle n'a encore rien à déclarer
+    (aucun mois terminé avec des écritures). Deux écrans, deux réponses : laquelle est juste (une déclaration « néant »
+    est-elle due pour septembre ?) se demande aux comptables pilotes, puis les deux disent la même chose.

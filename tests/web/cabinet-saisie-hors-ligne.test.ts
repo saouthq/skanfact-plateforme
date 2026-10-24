@@ -90,7 +90,7 @@ describe('la saisie du Cabinet sans réseau, à la souris', () => {
     ] })).statut).toBe(200);
 
     // « Mon ordinateur », l'application installée (le navigateur promet de garder : 04 § 4).
-    const c = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const c = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await c.addInitScript(() => { if (navigator.storage) Object.assign(navigator.storage, { persist: async () => true, persisted: async () => true }); });
     await c.addInitScript((j) => {
       if (!location.protocol.startsWith('http') || localStorage.getItem('test.pose')) return;
@@ -254,7 +254,7 @@ describe('la saisie du Cabinet sans réseau, à la souris', () => {
       { collection: 'movements', cle: 'm1', rang: 0, revision: null,
         contenu: { id: 'm1', date: aujourdhui, kind: 'banque', amount: { '~n': '7.125' }, accountId: 'k-banque', method: 'virement', label: 'Frais de tenue de compte' } },
     ] })).statut).toBe(200);
-    const c = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' });
+    const c = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await c.addInitScript((oui) => { if (navigator.storage) Object.assign(navigator.storage, { persist: async () => oui, persisted: async () => oui }); }, persistant);
     await c.addInitScript((j) => {
       if (!location.protocol.startsWith('http') || localStorage.getItem('test.pose')) return;
