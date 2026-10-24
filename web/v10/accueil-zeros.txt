@@ -1,0 +1,20 @@
+Les chiffres de l'Accueil qui valent zéro le disent en mots (1.147.0 ; UX 3, docs/recette.md § 13). Format : voir
+sans-paquets.mjs.
+
+La recette du 24/10/2026 : sous « Reste à encaisser », « 2 factures, 0 en retard » ; sous « Devis en attente »,
+« 0 devis envoyé » — un compte de rien, qu'il faut relire pour comprendre que tout va bien. Zéro se dit : « aucune en
+retard », « aucun devis en attente de réponse », « rien à encaisser ».
+
+== app.js | « Reste à encaisser » dit zéro en mots
+-- avant
+<div class="sub">${pl(open.length, 'facture')}, ${late.length} en retard</div></div>
+-- après
+<div class="sub">${open.length ? `${pl(open.length, 'facture')}, ${late.length ? `${late.length} en retard` : 'aucune en retard'}` : 'rien à encaisser'}</div></div>
+-- fin
+
+== app.js | « Devis en attente » dit zéro en mots
+-- avant
+<div class="sub">${pendingQuotes.length} devis ${pendingQuotes.length > 1 ? 'envoyés' : 'envoyé'}
+-- après
+<div class="sub">${pendingQuotes.length ? `${pendingQuotes.length} devis ${pendingQuotes.length > 1 ? 'envoyés' : 'envoyé'}` : 'aucun devis en attente de réponse'}
+-- fin

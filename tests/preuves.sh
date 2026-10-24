@@ -20279,6 +20279,12 @@ prouver 'ux3 146 : une facture de vente en retard dite en orange, un achat en re
 prouver 'ux3 146 : une échéance passée du Cabinet dite en orange' web/public/v10/cabinet/cabinet.css \
   '.dc-echeance.retard > span:first-child { color: var(--danger); }' '.dc-echeance.retard > span:first-child { color: var(--warning); }' \
   'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu'
+prouver 'ux3 147 : « 0 en retard » sous « Reste à encaisser »' web/public/v10/app.js \
+  "\${late.length ? \`\${late.length} en retard\` : 'aucune en retard'}" "\${late.length} en retard" \
+  'avant la première facture, la bienvenue en tête ; une facture émise, l'"'"'À faire et les chiffres d'"'"'abord, puis ce qui reste'
+prouver 'ux3 147 : « 0 devis envoyé » sous « Devis en attente »' web/public/v10/app.js \
+  " : 'aucun devis en attente de réponse'}" " : '0 devis envoyé'}" \
+  'avant la première facture, la bienvenue en tête ; une facture émise, l'"'"'À faire et les chiffres d'"'"'abord, puis ce qui reste'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

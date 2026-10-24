@@ -95,6 +95,9 @@ describe('l\'Accueil d\'une entreprise qui travaille déjà', () => {
     expect(m).not.toBeNull();
     const [faits, total] = [Number(m?.[1]), Number(m?.[2])];
     expect(await p.locator('.premiers-pas li').count()).toBe(total - faits);
+    // (1.147.0) Les chiffres qui valent zéro le disent en mots, pas « 0 en retard » ni « 0 devis envoyé ».
+    expect((await p.locator('[data-stat=encaisser] .sub').innerText()).replace(/\s+/g, ' ').trim()).toBe('1 facture, aucune en retard');
+    expect((await p.locator('[data-stat=devis] .sub').innerText()).replace(/\s+/g, ' ').trim()).toBe('aucun devis en attente de réponse');
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 120_000);

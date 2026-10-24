@@ -908,4 +908,5 @@ export const ADAPTATIONS = [
   ...lireFichier('listes-quotidien.txt'),
   ...lireFichier('visites-une-fois-cabinet.txt'),
   ...lireFichier('retard-un-ton.txt'),
+  ...lireFichier('accueil-zeros.txt'),
 ];
