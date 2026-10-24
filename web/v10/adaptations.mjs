@@ -910,4 +910,5 @@ export const ADAPTATIONS = [
   ...lireFichier('retard-un-ton.txt'),
   ...lireFichier('accueil-zeros.txt'),
   ...lireFichier('ligne-lue.txt'),
+  ...lireFichier('emise-calme.txt'),
 ];

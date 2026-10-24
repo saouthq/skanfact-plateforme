@@ -1111,7 +1111,8 @@ Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT d
       l'Accueil qui valent zéro le disent en mots (« aucune en retard », « aucun devis en attente de réponse »). En 1.148.0, au téléphone, les cases, le compte
       et les petits gestes d'une barre de filtres se rangent côte à côte (les Dossiers du Cabinet), et le résumé « À payer »
       se lit d'une phrase. En 1.149.0, la désignation d'une pièce émise se lit en entier au téléphone
-      (`web/v10/ligne-lue.txt`).*
+      (`web/v10/ligne-lue.txt`). En 1.150.0, le bandeau d'une pièce émise se dit d'un ton calme : le constat en gras,
+      l'explication en texte courant (`web/v10/emise-calme.txt`).*
     - **Reste de l'UX 3** : une liste vide (Devis, Factures) offre deux fois le même geste (« + Nouveau devis » en haut,
       « + Créer mon premier devis » dans la carte) ; le bouton du haut est cliqué par une dizaine de parcours, à reprendre
       avec eux.

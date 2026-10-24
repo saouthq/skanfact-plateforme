@@ -76,6 +76,17 @@ describe('les tons d\'un état, un seul par état', () => {
     expect(e.ventePartielle).toBe(e.achatPartiel);
     expect(e.venteEmise).toBe(e.achatDu);
     expect(new Set([e.venteRetard, e.ventePartielle, e.venteEmise]).size).toBe(3);
+    // (1.150.0) Un fait calme (la pièce est émise) : le constat en gras, l'explication en texte courant.
+    const poids = await p.evaluate(() => {
+      const d = document.createElement('div');
+      d.innerHTML = '<div class="banner info lock-banner"><span><b>Cette pièce est émise.</b> <span class="tel-detail">La règle.</span></span></div>';
+      document.body.appendChild(d);
+      const r = [getComputedStyle(d.querySelector('b') as Element).fontWeight, getComputedStyle(d.querySelector('.tel-detail') as Element).fontWeight];
+      d.remove();
+      return r.map(Number);
+    });
+    expect(poids[0]).toBeGreaterThanOrEqual(700);
+    expect(poids[1]).toBeLessThanOrEqual(400);
 
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab}#/echeances`);
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });

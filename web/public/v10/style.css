@@ -282,6 +282,8 @@ body.dark .beta-tag { background: #35255a; color: #cdb0f5; border-color: #4c3878
    rien, sans message et sans erreur, et on en concluait que l'application était cassée. */
 .lock-banner { align-items: center; line-height: 1.5; font-weight: 500; }
 .lock-banner b { font-weight: 800; }
+/* (plateforme) 1.150.0 — un fait calme : le constat en gras, l'explication en texte courant (UX 3). */
+.lock-banner .tel-detail { font-weight: 400; color: var(--text-soft, var(--muted)); }
 .lock-banner .lock-go { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
 .lock-banner .lock-go .small { color: var(--muted); cursor: help; }
 /* Le fond blanc n'est là que pour le bouton NEUTRE : sur un bandeau teinté, un `.btn` gris paraît
