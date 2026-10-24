@@ -20273,6 +20273,12 @@ prouver 'ux3 144 : « Ne plus me proposer de visites » du Cabinet qui n'"'"'ét
 prouver 'ux3 145 : « Enregistrer le brouillon » relégué derrière l'"'"'aperçu au téléphone' web/public/plateforme/telephone.css \
   '  .page-head .actions:has(> #save:not(.btn-primary)) > * { order: 2; }' '' \
   'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
+prouver 'ux3 146 : une facture de vente en retard dite en orange, un achat en retard en rouge' web/public/v10/style.css \
+  '.badge.retard { background: var(--danger-soft); color: var(--danger); }' '.badge.retard { background: var(--warning-soft); color: var(--warning); }' \
+  'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu'
+prouver 'ux3 146 : une échéance passée du Cabinet dite en orange' web/public/v10/cabinet/cabinet.css \
+  '.dc-echeance.retard > span:first-child { color: var(--danger); }' '.dc-echeance.retard > span:first-child { color: var(--warning); }' \
+  'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

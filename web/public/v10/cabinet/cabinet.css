@@ -129,7 +129,8 @@
 /* 10.14.1 (D1) — la date limite et le portail, au-dessus des étapes ; un montant qui se COPIE est un
    bouton (bordure au repos, 9.4.2), en chiffres de même chasse pour que la colonne reste droite. */
 .dc-echeance { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-block: 0 10px; }
-.dc-echeance.retard > span:first-child { color: var(--warning); }
+/* (plateforme) 1.146.0 — une échéance passée est une alerte, en rouge, comme partout ailleurs (UX 3). */
+.dc-echeance.retard > span:first-child { color: var(--danger); }
 .dc-copie-regle { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin-block: 0 10px; }
 .dc-copie-regle select { inline-size: auto; }
 .btn.dc-copie { font-variant-numeric: tabular-nums; gap: 6px; }

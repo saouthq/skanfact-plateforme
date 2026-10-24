@@ -1,0 +1,25 @@
+« En retard » se dit d'une seule couleur, partout (1.146.0 ; UX 3, une seule façon de dire un état : calme, attire,
+alerte ; docs/recette.md § 13). Format : voir sans-paquets.mjs.
+
+La recette du 24/10/2026 : une facture d'achat en retard était rouge, une facture de vente en retard orange ; au Cabinet,
+une échéance passée orange, quand la messagerie (une pièce demandée en retard) et l'abonnement (une facture en retard)
+la disaient en rouge. Le même état, deux couleurs. La règle : ce qui est en retard est une alerte, en rouge ; ce qui est
+commencé et pas fini (« partielle ») attire l'œil, en orange ; ce qui attend son heure (émise, à payer) est calme, en bleu.
+
+== style.css | une facture de vente en retard se dit en rouge, comme un achat en retard
+-- avant
+.badge.retard, .badge.partielle { background: var(--warning-soft); color: var(--warning); }
+-- après
+/* (plateforme) 1.146.0 — « en retard » est une alerte, en rouge partout (un achat en retard l'était déjà) ; « partielle »
+   attire l'œil, en orange (UX 3). */
+.badge.partielle { background: var(--warning-soft); color: var(--warning); }
+.badge.retard { background: var(--danger-soft); color: var(--danger); }
+-- fin
+
+== cabinet/cabinet.css | une échéance passée se dit en rouge, comme une pièce demandée en retard
+-- avant
+.dc-echeance.retard > span:first-child { color: var(--warning); }
+-- après
+/* (plateforme) 1.146.0 — une échéance passée est une alerte, en rouge, comme partout ailleurs (UX 3). */
+.dc-echeance.retard > span:first-child { color: var(--danger); }
+-- fin

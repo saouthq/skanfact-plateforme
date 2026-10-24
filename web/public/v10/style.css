@@ -612,7 +612,10 @@ td:not(.row-actions):not(.line-tools) .btn + .btn { margin-inline-start: 6px; }
 .badge.envoyé, .badge.envoyée { background: var(--info-soft); color: var(--info); }
 .badge.accepté, .badge.payée { background: var(--success-soft); color: var(--success); }
 .badge.refusé, .badge.annulée { background: var(--danger-soft); color: var(--danger); }
-.badge.retard, .badge.partielle { background: var(--warning-soft); color: var(--warning); }
+/* (plateforme) 1.146.0 — « en retard » est une alerte, en rouge partout (un achat en retard l'était déjà) ; « partielle »
+   attire l'œil, en orange (UX 3). */
+.badge.partielle { background: var(--warning-soft); color: var(--warning); }
+.badge.retard { background: var(--danger-soft); color: var(--danger); }
 .badge.émis { background: var(--info-soft); color: var(--info); }
 .status-cell { display: flex; align-items: center; gap: 8px; min-height: 40px; }
 .lock-note { margin-top: 4px; }
