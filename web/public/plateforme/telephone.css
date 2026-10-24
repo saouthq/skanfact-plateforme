@@ -190,7 +190,10 @@
   .stats.rangee .pf-l { flex-wrap: wrap; row-gap: 0; }
   .stats.rangee .lbl, .stats.rangee .sub { white-space: normal; overflow: visible; }
   table.list[data-cartes] > * > tr > td.row-actions { position: absolute; top: 8px; inset-inline-end: 8px; width: auto; }
-  table.list[data-cartes] > * > tr:has(> td.row-actions:not([data-tel="vide"])) > [data-tel="titre"] { min-height: 44px; padding-inline-end: 118px; display: flex; flex-direction: column; justify-content: center; }
+  table.list[data-cartes] > * > tr:has(> td.row-actions:not([data-tel="vide"])) > [data-tel="titre"] { min-height: 44px; padding-inline-end: 118px; display: flex; flex-wrap: wrap; align-items: center; align-content: center; column-gap: 6px; }
+  /* (1.145.0) Le titre d'une carte se lit sur une ligne avec ses marques (le trombone d'un justificatif passait seul à la
+     ligne) ; ce qui l'explique en dessous (l'objet, une note) garde sa ligne (UX 3). */
+  table.list[data-cartes] > * > tr:has(> td.row-actions:not([data-tel="vide"])) > [data-tel="titre"] > :is(div, p, br) { flex-basis: 100%; }
   table.list[data-cartes] tr.clickable:hover td { background: none; }
   table.list[data-cartes] tr.total-row td { background: none; }
 
@@ -219,6 +222,12 @@
   .page-head .actions > .btn { justify-content: center; }
   /* L'étape suivante (le bouton principal) passe en tête, sur toute la largeur, sous le pouce. */
   .page-head .actions > :is(.btn-primary, .colle-bouton:has(> .btn-primary)) { order: -1; flex-basis: 100%; }
+  /* (1.145.0) Dans l'éditeur d'une pièce, « Enregistrer le brouillon » vient juste sous « Émettre » : c'est l'autre geste
+     de la page ; il passait en troisième rangée, derrière l'aperçu et le PDF (UX 3). */
+  .page-head .actions:has(> #save:not(.btn-primary)) > * { order: 2; }
+  .page-head .actions:has(> #save:not(.btn-primary)) > #save { order: 1; flex: 1 1 calc(100% - 64px); }
+  .page-head .actions:has(> #save:not(.btn-primary)) > .i { order: 1; align-self: center; }
+  .page-head .actions:has(> #save:not(.btn-primary)) > :is(.btn-primary, .colle-bouton:has(> .btn-primary)) { order: 0; }
   /* « ▾ » (les autres façons de facturer) reste collé à son bouton, à sa taille ; l'aperçu perd son trait de séparation. */
   .colle-bouton > .more { flex: 0 0 auto; }
   .page-head .actions > .pv-cmd { border: 0; padding: 0; margin: 0; }

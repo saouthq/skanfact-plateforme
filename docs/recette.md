@@ -1104,7 +1104,11 @@ Hatem, le serveur de recette arrêté pour de vrai, saisit une OD de 35,500 DT d
       seule ligne au téléphone. En 1.143.0 : le bloc « À payer » des Achats ne répète plus une liste où tout est à payer (il en
       dit la somme, `web/v10/listes-quotidien.txt`) ; au téléphone, une date ne titre plus une carte (la pièce la nomme), le
       client ou le fournisseur se lit juste sous les montants, et « Actions » a le même air sur chaque carte. En 1.144.0 : au Cabinet aussi, une seule proposition de visite par
-      ouverture, et « Ne plus me proposer de visites » sur la proposition même (`web/v10/visites-une-fois-cabinet.txt`).*
+      ouverture, et « Ne plus me proposer de visites » sur la proposition même (`web/v10/visites-une-fois-cabinet.txt`). En 1.145.0, au téléphone : « Enregistrer le brouillon »
+      juste sous « Émettre » dans l'éditeur d'une pièce, et le trombone d'un justificatif sur la ligne du titre de sa carte.*
+    - **Reste de l'UX 3** : une liste vide (Devis, Factures) offre deux fois le même geste (« + Nouveau devis » en haut,
+      « + Créer mon premier devis » dans la carte) ; le bouton du haut est cliqué par une dizaine de parcours, à reprendre
+      avec eux.
     - **Ensuite** : la recherche Ctrl K aussi au Cabinet et à la console ; la barre du bas au téléphone pour les écrans du
       quotidien ; la photo d'un ticket qui file dans les achats et chez le comptable d'un geste ; les rappels par e-mail du
       cabinet au rythme choisi par le client ; ce que le cabinet a le droit de faire, dit en clair, avec une seule liste

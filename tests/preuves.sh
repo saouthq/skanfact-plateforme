@@ -20270,6 +20270,9 @@ prouver 'ux3 144 : le Cabinet qui propose une visite sur chaque écran neuf de l
 prouver 'ux3 144 : « Ne plus me proposer de visites » du Cabinet qui n'"'"'éteint rien' web/public/v10/cabinet/app.js \
   '      visitesPoser(e => { e.proposer = false; });' '' \
   'au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d'"'"'un geste'
+prouver 'ux3 145 : « Enregistrer le brouillon » relégué derrière l'"'"'aperçu au téléphone' web/public/plateforme/telephone.css \
+  '  .page-head .actions:has(> #save:not(.btn-primary)) > * { order: 2; }' '' \
+  'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

@@ -426,6 +426,13 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
         expect(await p.locator('#payables table').count()).toBe(0);
         expect(await p.locator('table.list > tbody > tr [data-tel=titre]').allInnerTexts()).toEqual([expect.stringContaining('CB-2026-0457')]);
       }
+      if (r === 'doc/new/facture') {
+        // (1.145.0) « Enregistrer le brouillon » juste sous « Émettre », avant l'aperçu, le PDF et le reste de l'en-tête.
+        const haut = await p.locator('#view .page-head .actions > :is(.btn, .more, .pv-cmd)').evaluateAll((bs) => bs.map((b) => ({ id: b.id, prim: b.classList.contains('btn-primary'), top: Math.round(b.getBoundingClientRect().top) })).sort((x, y) => x.top - y.top));
+        expect(haut[0]?.prim).toBe(true);
+        expect(haut[1]?.id).toBe('save');
+        expect(haut.slice(2).every((b) => b.top > (haut[1]?.top ?? 0))).toBe(true);
+      }
       if (r === 'fournisseurs') unSeul = await p.evaluate(() => [...document.querySelectorAll('table.list[data-cartes]')].some((tb) => tb.querySelectorAll(':scope > tbody > tr').length === 1 && tb.querySelector(':scope > tfoot')));
     }
     expect(deCote).toEqual([]);
