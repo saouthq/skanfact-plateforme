@@ -4488,7 +4488,7 @@
       // une unité saisie une fois reste proposée.
       const extraUnits = C.usedUnits(data, doc.lines.map(l => l.unit));
       linesBody.innerHTML = doc.lines.map((l, i) => `<tr data-i="${i}">
-        <td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation" ${ro}>
+        <td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation" ${ro}>${figee ? `<div class="ligne-lue">${h(l.label)}</div>` : ''}
             ${openDesc.has(i)
               ? `<textarea data-k="description" placeholder="Description : ce que comprend la prestation" ${ro}>${h(l.description || '')}</textarea>`
               : (figee ? '' : `<button type="button" class="link-add" tabindex="-1" data-desc="${i}">+ description</button>`)}${lotChoix(l, i)}</td>

@@ -19,6 +19,9 @@
 /* Ce qui ne se montre qu'au téléphone (« WhatsApp » à côté d'« Email » sur une pièce : lot téléphone, 06/10/2026). */
 .tel-seul { display: none; }
 
+/* (1.149.0) La désignation d'une pièce figée, en texte : elle ne se montre qu'au téléphone, où le champ éteint coupait
+   ce qui dépasse (UX 3). */
+.ligne-lue { display: none; }
 @media (max-width: 760px) {
   #app { flex-direction: column; height: auto; min-height: 100%; }
   .sidebar { width: 100%; padding: 8px 12px; border-inline-end: none; border-block-end: 1px solid var(--border); position: sticky; top: 0; z-index: 60; }
@@ -61,6 +64,8 @@
   .filters > :is(label.inline, span.muted.small, .btn-sm) { flex: 0 1 auto; }
   .filters > span.grow { display: none; }
   .filters > label + span.small { align-self: center; padding-block-end: 0; }
+  td:has(> .ligne-lue) > input[data-k="label"] { display: none; }
+  td > .ligne-lue { display: block; padding: 6px 0; font-weight: 600; overflow-wrap: anywhere; }
   /* Un tableau de trois colonnes ou moins tient, ou défile dans son cadre ; une liste plus large devient des cartes
      (plus bas, « Les listes en cartes »). */
   table.list:not([data-cartes]) { display: block; overflow-x: auto; }

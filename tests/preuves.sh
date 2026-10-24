@@ -20288,6 +20288,9 @@ prouver 'ux3 147 : « 0 devis envoyé » sous « Devis en attente »' web/public
 prouver 'ux3 148 : les filtres du téléphone, une rangée chacun' web/public/plateforme/telephone.css \
   '  .filters > :is(label.inline, span.muted.small, .btn-sm) { flex: 0 1 auto; }' '' \
   'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'"'"'ordinateur le disent'
+prouver 'ux3 149 : la désignation d'"'"'une pièce émise coupée au téléphone' web/public/plateforme/telephone.css \
+  '  td:has(> .ligne-lue) > input[data-k="label"] { display: none; }' '' \
+  'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'"'"'ordinateur, un tableau'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

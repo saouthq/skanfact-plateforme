@@ -166,6 +166,12 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     // Une carte se touche : la facture s'ouvre.
     await p.locator('table.list > tbody > tr').first().locator('[data-tel=titre]').click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/doc/f1');
+    // (1.149.0) La facture émise : sa désignation se lit en entier, en texte (le champ éteint coupait ce qui dépassait).
+    const lue = p.locator('table.lines-edit .ligne-lue').first();
+    await lue.waitFor({ timeout: 15_000 });
+    expect(net(await lue.innerText())).toBe('Ciment gris 50 kg — livraison sur chantier');
+    expect(await lue.evaluate((e) => e.scrollWidth <= e.clientWidth + 1 && e.getBoundingClientRect().right <= 390)).toBe(true);
+    expect(await p.locator('table.lines-edit input[data-k="label"]').first().isVisible()).toBe(false);
     // L'accueil : « Documents récents », aussi en cartes, et sa phrase sans redite.
     await aller(p, '#/dashboard', /./);
     expect(net(await p.locator('#view h2', { hasText: 'Documents récents' }).innerText())).toBe('Documents récents — tes 2 pièces');

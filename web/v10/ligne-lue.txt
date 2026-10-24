@@ -1,0 +1,16 @@
+La désignation d'une pièce émise se lit en entier au téléphone (1.149.0 ; UX 3, docs/recette.md § 13). Format : voir
+sans-paquets.mjs.
+
+La recette du 24/10/2026 : la facture FAC-2026-002 ouverte au téléphone montrait « Pain de mie tranché (livraison
+hebdoma » : sur une pièce émise, la désignation reste un champ de saisie éteint, qui ne passe pas à la ligne et coupe ce
+qui dépasse. La pièce figée porte aussi sa désignation en texte ; au téléphone, c'est elle qui se lit (telephone.css), le
+champ éteint reste là pour l'ordinateur.
+
+== app.js | la désignation d'une pièce figée se lit aussi en texte
+-- avant
+        <td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation" ${ro}>
+            ${openDesc.has(i)
+-- après
+        <td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation" ${ro}>${figee ? `<div class="ligne-lue">${h(l.label)}</div>` : ''}
+            ${openDesc.has(i)
+-- fin
