@@ -143,6 +143,8 @@ outils précis est fait dans le document 12.
   l'année.
 - La **lecture de documents** (`14` § 2.3) lit des fichiers venus de l'extérieur : elle tourne **à
   part** du programme, sans accès à la base, et ne rend que du texte et des champs proposés.
+  *24/10/2026 (Skander) : « Lire avec l'IA » appelle l'API de Claude ; l'appel part de ce même
+  service à part, avec l'image seule, et sa clé vit dans les secrets du serveur, jamais dans le dépôt.*
 
 ---
 

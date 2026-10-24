@@ -320,6 +320,12 @@ fiscaliste **avant** de publier les prix TTC sur le site.
   l'étranger, avec l'accord de l'utilisateur. **Elle ne passe pas à la plateforme telle quelle.**
   Décidé le 28/09/2026 (`14` § 2.3) : la lecture se fait **sur nos serveurs en Tunisie** ; aucune
   image ne sort ;
+- **24/10/2026, décision de Skander** : « Lire avec l'IA » passe par **l'API de Claude** (Anthropic,
+  hors de Tunisie). C'est un **flux vers l'étranger** : l'image de la pièce d'achat (qui porte le nom,
+  le matricule et l'adresse du fournisseur), rien d'autre ; demandé avant chaque envoi, facultatif.
+  Il faut **l'autorisation de transfert de l'INPDP** (art. 52) avant la première pièce réelle d'un
+  client ; sans elle, la lecture reste sur nos serveurs. **À VÉRIFIER** : ce qu'Anthropic garde des
+  images, combien de temps, et ce qu'il en fait ;
 - **les flux ajoutés par le `14`** (§ 4 de ce document-là, qui les liste un par un) : Konnect pour
   les factures des clients (le montant et la référence, vers le compte de l'entreprise) ; WhatsApp
   **par lien**, qui ne passe pas par nous ; puis, dans les vagues : les **SMS** de relance, de
@@ -465,6 +471,8 @@ rendez-vous en règle beaucoup. Chaque réponse s'écrit **dans le document d'or
 7. Le **Startup Act** : la société qui porte SkanFact, son éligibilité (§ 4.8).
 8. Les flux vers l'étranger des intégrations : WhatsApp automatique, Shopify, assistants d'IA
    (§ 4.3, `14` § 4).
+9. **La lecture par IA des factures d'achat par l'API de Claude** (décidée le 24/10/2026, § 4.3) :
+   l'autorisation de transfert à demander, et ce que dit le contrat de traitement à nos clients.
 
 **Le fiscaliste** (ou le comptable, s'il tranche)
 1. La TVA sur notre abonnement (`07`, § 4.2).

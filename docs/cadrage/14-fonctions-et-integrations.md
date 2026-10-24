@@ -70,7 +70,7 @@ Chaque fonction d'une vague a **sa forme posée dès maintenant** dans le modèl
 | Paie : CDI, CDD, CIVP, Karama, saisonniers ; CNSS, IRPP, TFP (Pro) | Oui, plus le fichier CNSS au format DS 2012 et la déclaration d'employeur | Lancement | `05` § 3.6 |
 | Stock : code-barres, mouvements automatiques, alertes, export Excel (Starter) | Oui, plus dépôts, transferts, lots, numéros de série, coût moyen, **recettes et kits** ; **dans Essentiel** | Lancement | `02`, Stock ; `07` |
 | Caisse web, ticket 80 mm, plusieurs moyens de paiement, WhatsApp (Starter) | Oui, **hors ligne**, certifiée dès l'homologation ; **une caisse dans Essentiel** ; le **mode restaurant** en vague 1 (§ 3.1) | Lancement | `02`, Caisse |
-| Import « IA » : tableur, PDF, image, XML (Pro) | Tableur avec les colonnes reconnues ; facture TEIF lue **exactement** ; **photo et PDF lus sur nos serveurs en Tunisie** (§ 2.3) | Lancement | § 2.3 |
+| Import « IA » : tableur, PDF, image, XML (Pro) | Tableur avec les colonnes reconnues ; facture TEIF lue **exactement** ; **photo et PDF lus par l'IA (API de Claude, facultative, depuis le 24/10/2026) ou sur nos serveurs en Tunisie** (§ 2.3) | Lancement | § 2.3 |
 | Chiffrage d'un devis (Pro) | Le calculateur de prix de la v10 (coefficient, marge, marque, TTC visé), dans toutes les offres | Lancement | `02`, Ventes |
 | Portail du cabinet : tous les clients, bascule dans un dossier, calendrier fiscal, TEJ en masse, **honoraires** (Cabinet, 2 490 DT) | Tout, **gratuit** pour les dossiers abonnés ; plus les **lettres de mission**, la **facturation des honoraires** et les **dépôts groupés** (§ 2.4) | Lancement | `02`, Cabinet ; `07` |
 | **Portail client** : le client consulte ses factures (Starter) | L'**espace client**, avec le **paiement en ligne** (§ 2.1 et 2.2) | Lancement | § 2.1 |
@@ -147,6 +147,22 @@ moteur de lecture libre (choisi au `12` § 3). Aucune image ne sort.
   l'accord** de leurs propriétaires (`12` § 10).
 - **L'intelligence artificielle qui écrit** (un assistant) n'est pas au lancement. Elle ne viendra
   qu'hébergée en Tunisie, ou avec l'autorisation de l'INPDP (`05` § 4.3).
+- **Décision de Skander, 24/10/2026 : la lecture par IA, au lancement, par l'API de Claude**
+  (Anthropic). Elle remplace, pour ce seul geste, « aucune image ne sort » ci-dessus. Les règles :
+  - elle est **facultative** : « Lire avec l'IA » est une entrée à côté de l'e-facture, de la saisie
+    à la main et de « confier au cabinet » ; une pièce saisie à la main peut être relue avec l'IA
+    depuis le menu ⋯, jamais d'elle-même ;
+  - **une question avant chaque envoi** : ce qui part (l'image de la pièce, ni les clients ni les
+    chiffres de l'entreprise) et où (hors de Tunisie) ; « Non : la joindre et saisir à la main »
+    est toujours proposé ;
+  - **les mêmes garde-fous** : SkanFact montre ce que l'IA a compris case par case, d'où vient
+    chaque case (lue, reconnue, proposée), les doutes se tranchent d'un clic, le total est recompté
+    au millime (deux chemins, un chiffre), et rien ne s'enregistre sans la personne ;
+  - **sans l'IA** : la lecture sur nos serveurs (Tesseract, brique 84) reste, et c'est elle qui sert
+    si l'autorisation de l'INPDP n'est pas obtenue ou si l'entreprise coupe l'IA dans ses réglages ;
+  - **à faire avant la première pièce réelle** : l'autorisation de transfert de l'INPDP (`05`
+    § 4.3) ; **À VÉRIFIER** : la conservation des images chez Anthropic et leur usage, le coût par
+    lecture (`09` § 4), et le seuil de 9 sur 10 mesuré aussi pour l'IA sur le même lot.
 
 ### 2.4 Le cabinet : lettres de mission, honoraires, dépôts groupés
 

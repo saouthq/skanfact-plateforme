@@ -77,7 +77,7 @@ skanfact-plateforme/
 | **Mots de passe** : empreinte **Argon2id** ; la liste des mots de passe volés est **téléchargée et gardée chez nous** | `03` § 6 : rien ne sort, même pas un début d'empreinte | — |
 | **Code sur le téléphone** : SMS (fournisseur tunisien) ou application d'authentification (TOTP) | `03` § 6 | — |
 | **E-mails** : un serveur d'envoi **en Tunisie**, par la file de travaux | `05` § 4.3 | **À VÉRIFIER** : fournisseur, délivrabilité |
-| **Lecture de documents** : un moteur de lecture libre (**PaddleOCR** ou **Tesseract**, qui lisent tous deux le français et l'arabe), sur **nos** serveurs, dans la file de travaux | `14` § 2.3 : aucune image ne sort de Tunisie | Le seuil du § 10 non atteint : on garde le TEIF et le tableur, et on n'annonce pas la lecture de photo |
+| **Lecture de documents** : **l'API de Claude** (Anthropic) pour « Lire avec l'IA », facultative (Skander, 24/10/2026) ; et un moteur de lecture libre (**PaddleOCR** ou **Tesseract**) sur **nos** serveurs, dans la file de travaux, pour qui ne veut pas de l'IA | `14` § 2.3 : l'IA est un flux vers l'étranger, demandé à chaque fois et autorisé par l'INPDP ; sans elle, aucune image ne sort de Tunisie | Le seuil du § 10 non atteint : on garde le TEIF et le tableur, et on n'annonce pas la lecture de photo |
 | **API publique** : documentation générée depuis les schémas Zod ; avis d'événement **signés**, renvoyés par la file de travaux ; limites d'appels par clé | `14` § 2.5 | — |
 | **Paiement en ligne** : l'API de Konnect (créer un paiement, puis **relire** son état chez Konnect) | `14` § 2.2 ; déjà fait pour nos abonnements dans la v10 (10.9.0) | **À VÉRIFIER** : un compte marchand par entreprise |
 
@@ -188,6 +188,8 @@ de côté. Chaque test se prouve en réintroduisant son défaut.
    84) : Tesseract 5 (français) et Poppler sont branchés pour construire la lecture, et le banc qui
    mesure le seuil est prêt (`npm run banc:lecture`, le lot hors du dépôt) : 6 sur 6 sur nos pièces
    d'essai inventées ; la mesure sur le vrai lot, et PaddleOCR sur ce même lot, restent à faire.*
+   *24/10/2026 (Skander) : « Lire avec l'IA » passe par l'API de Claude ; elle se mesure sur le même
+   lot et contre le même seuil. **À VÉRIFIER** : conservation des images chez Anthropic, coût par lecture.*
 8. **Un nom saisi en arabe** s'imprime-t-il juste dans les PDF de Chromium (police Noto) ?
 9. **L'API de Konnect** pour le compte marchand de chaque entreprise (`14` § 2.2).
 
