@@ -553,3 +553,70 @@ describe('(1.117.0) les modèles de messages et la recherche', () => {
     expect((await chercher('steg', voisine)).statut).toBe(404);
   });
 });
+
+// (1.152.0) « Pièces reçues » du Cabinet (0175) : les fichiers que les clients envoient arrivent dans une seule boîte, tous
+// dossiers confondus ; le cabinet les classe, et peut défaire. Un collaborateur ne voit que les dossiers qu'on lui confie.
+describe('les pièces reçues du cabinet', () => {
+  type Piece = { id: string; entreprise: string; de: string; texte: string; fichier: { nom: string; type: string }; demande: string | null; classeeLe: string | null; classeePar: string | null };
+  const boite = async (cabId: string, p: Personne, classees = false) => {
+    const r = await appeler('GET', `/cabinets/${cabId}/pieces${classees ? '?classees=1' : ''}`, p.jeton);
+    return { statut: r.statut, ...(r.corps as unknown as { aClasser: number; plus: boolean; pieces: Piece[] }) };
+  };
+  const envoyer = async (ent: string, client: Personne, nom: string, corps: Record<string, unknown> = {}) => {
+    const depot = await appeler('POST', `/entreprises/${ent}/messages/fichiers`, client.jeton, { cote: 'entreprise', nom, contenu: PNG });
+    return ecrire(ent, client, 'entreprise', { texte: '', fichier: depot.corps.id, ...corps });
+  };
+
+  it('le fichier d\'un client arrive à classer, avec la pièce qu\'il répond ; classé, il quitte la boîte, et se déclasse ; personne d\'autre ne le classe', async () => {
+    const cab = await cabinet();
+    const { p: client, ent, mandat } = await cab.client('Boulangerie El Amal');
+    const { p: client2, ent: ent2 } = await cab.client('Café Dar Zitouna');
+    const collaborateur = await cab.membre('revision', mandat);
+    expect((await boite(cab.id, cab.associe)).pieces).toEqual([]);
+
+    const d = await ecrire(ent, cab.associe, 'cabinet', { texte: 'Il me manque une pièce.', demande: 'La facture STEG d\'octobre' });
+    const p1 = await envoyer(ent, client, 'steg-octobre.png', { repondA: d.corps.id });
+    expect(p1.statut, JSON.stringify(p1.corps)).toBe(201);
+    const p2 = await envoyer(ent2, client2, 'ticket-agil.png', { texte: 'Le carburant de lundi' });
+    // Ce que le cabinet écrit lui-même n'est pas une pièce reçue, même avec un fichier.
+    const depotCab = await appeler('POST', `/entreprises/${ent}/messages/fichiers`, cab.associe.jeton, { cote: 'cabinet', nom: 'modele.png', contenu: PNG });
+    const deCab = await ecrire(ent, cab.associe, 'cabinet', { texte: '', fichier: depotCab.corps.id });
+    expect(deCab.statut).toBe(201);
+
+    // L'associé voit les deux, la plus récente d'abord ; la pièce dit ce qu'elle répond, qui l'a envoyée.
+    const vu = await boite(cab.id, cab.associe);
+    expect(vu.statut).toBe(200);
+    expect(vu.aClasser).toBe(2);
+    expect(vu.pieces.map((x) => [x.entreprise, x.fichier.nom, x.texte, x.demande, x.de])).toEqual([
+      [ent2, 'ticket-agil.png', 'Le carburant de lundi', null, 'Leïla Mansour'],
+      [ent, 'steg-octobre.png', '', 'La facture STEG d\'octobre', 'Leïla Mansour'],
+    ]);
+    // Le collaborateur ne voit que le dossier qu'on lui confie : la boîte et son compte.
+    const sienne = await boite(cab.id, collaborateur);
+    expect([sienne.aClasser, sienne.pieces.map((x) => x.entreprise)]).toEqual([1, [ent]]);
+
+    // Classer : la pièce passe dans « classées », signée de qui l'a classée ; la boîte se vide d'autant.
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${p1.corps.id}/classee`, collaborateur.jeton, { classee: true })).statut).toBe(200);
+    expect((await boite(cab.id, cab.associe)).pieces.map((x) => x.id)).toEqual([p2.corps.id]);
+    const classees = await boite(cab.id, cab.associe, true);
+    expect(classees.aClasser).toBe(1);
+    expect(classees.pieces.map((x) => [x.id, x.classeePar, typeof x.classeeLe])).toEqual([[p1.corps.id, collaborateur.utilisateur, 'string']]);
+    // Deux fois : refusé en le disant. Le client, la voisine, un message du cabinet : jamais.
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${p1.corps.id}/classee`, cab.associe.jeton, { classee: true })).corps.motif)
+      .toBe('Cette pièce n\'est pas à classer : elle l\'est déjà, ou ce n\'est pas un fichier envoyé par le client.');
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${deCab.corps.id}/classee`, cab.associe.jeton, { classee: true })).corps.motif)
+      .toBe('Cette pièce n\'est pas à classer : elle l\'est déjà, ou ce n\'est pas un fichier envoyé par le client.');
+    expect((await appeler('POST', `/entreprises/${ent2}/messages/${p2.corps.id}/classee`, client2.jeton, { classee: true })).statut).toBe(403);
+    expect((await appeler('POST', `/entreprises/${ent2}/messages/${p2.corps.id}/classee`, collaborateur.jeton, { classee: true })).statut).toBe(404);
+    const voisine = await personne('voisine-pieces');
+    expect((await boite(cab.id, voisine)).statut).toBe(404);
+    // Défaire : elle revient à classer ; défaire deux fois, refusé.
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${p1.corps.id}/classee`, cab.associe.jeton, { classee: false })).statut).toBe(200);
+    expect((await boite(cab.id, cab.associe)).aClasser).toBe(2);
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${p1.corps.id}/classee`, cab.associe.jeton, { classee: false })).corps.motif)
+      .toBe('Cette pièce n\'est pas classée : rien à défaire.');
+    // La base le redit, sans la route : un membre sans le dossier ne classe rien.
+    await expect(enTantQue(pool, client2.utilisateur, (tx) => tx.query('select messagerie.classer_piece($1, $2, true)', [ent2, p2.corps.id])))
+      .rejects.toThrow('ce dossier n\'est pas tenu par ton cabinet');
+  });
+});

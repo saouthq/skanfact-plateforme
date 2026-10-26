@@ -106,20 +106,22 @@ describe('la production du cabinet, à la souris', () => {
 
     // ── Un mois saisi ailleurs : « à saisir » se relit en revenant sur la page ────────────────────
     await saisir(associe, garage, '2026-01-20', 'OD-3');
-    await p.locator('.sidebar nav a[data-route="dossiers"]').click();
+    // (1.152.0) « Le cabinet › Tous les dossiers » : le portefeuille s'ouvre du volet de la barre.
+    await p.locator('#nav .nav-volet[data-famille="Le cabinet"]').click();
+    await p.locator('.sb-panneau a[data-route="dossiers"]').click();
     await p.locator('#view h1').first().waitFor();
-    await p.locator('.sidebar nav a[data-route="production"]').click();
+    await p.locator('#nav a[data-route="production"]').click();
     await expect.poll(() => p.locator('#view .warn-box, #view .ok-box').first().innerText()).toBe(aSaisir - 1 > 0 ? `${aSaisir - 1} mois attendent leur saisie.` : 'Aucun mois n\'attend de saisie.');
     expect(await caseDu('Garage du Port', 'janvier 2026').getAttribute('class')).toMatch(/prod-revise/);
 
     // ── Le même index nourrit les Échéances : le dossier tenu y entre, avec ses mois à saisir ─────────
-    await p.locator('.sidebar nav a[data-route="echeances"]').click();
+    await p.locator('#nav a[data-route="echeances"]').click();
     await expect.poll(() => p.locator('#view').innerText()).toMatch(/à saisir au cabinet/);
     expect(await p.locator('#view').innerText()).toMatch(/Garage du Port/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-production-echeances.png') });
 
     // ── La ligne ouvre la comptabilité du client ────────────────────────────────────────────────
-    await p.locator('.sidebar nav a[data-route="production"]').click();
+    await p.locator('#nav a[data-route="production"]').click();
     await expect.poll(() => ligne('Garage du Port').count()).toBe(1);
     await ligne('Garage du Port').locator('td').first().click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/dossier/${garage}/comptabilite`);

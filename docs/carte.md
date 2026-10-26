@@ -893,7 +893,11 @@ vaut pour tout le dépôt.*
   menus, barre repliée, raccourcis, visite, rail de la tablette, onglets et « Plus » du téléphone), en Inter. Règles
   apprises : **une page n'a qu'un lien dans la barre** (une page épinglée n'est, dans son volet, qu'un bouton qui y mène)
   — l'accueil d'un rôle et les lecteurs d'écran lisent la liste des liens ; **ce qui s'ouvre de la barre se pose sur la
-  page** (sa liste défile et s'efface aux bords : un volet ou une bulle y serait coupé).
+  page** (sa liste défile et s'efface aux bords : un volet ou une bulle y serait coupé). Lot 1 b (1.152.0), la barre du
+  Cabinet : la même coquille (`barre.js` lit `app: 'cabinet'` dans `__barreInfos`), `drawNav` du Cabinet
+  (`v10/cabinet/app.js` : « Mon cabinet », le dossier ouvert et son changement, les pages Priorités et Pièces reçues),
+  `plateforme/barre-cabinet.css` ; les pièces reçues au serveur (0175 : `messagerie.classer_piece`, `GET
+  /cabinets/:cabinet/pieces`).
 - **La mise en ligne** (briques 142-143, `docs/mise-en-ligne.md`, 05/10/2026) : le serveur d'essai est un VPS OVH en
   France (données inventées seulement), à `app.skanfact.tn`. **Personne ne s'y connecte** : il suit `main` tout seul
   (`exploitation/suivre.ts`, toutes les deux minutes) et installe la plus récente version que GitHub a vérifiée en

@@ -16,6 +16,10 @@
 // 6. Le téléphone : le haut (l'entreprise, la cloche), les pastilles, les onglets du bas (l'accueil, deux pages du métier
 //    ou choisies, « + », « Plus »), la feuille « Créer », la page « Plus » et « Mes onglets ».
 // Rien ici ne décide d'un chiffre : chaque compte est recopié de la barre (son lien, son nombre, son ton).
+//
+// Le Cabinet (1.152.0, lot 1 b) a la même coquille : `__barreInfos` y dit `app: 'cabinet'`, sa page d'arrivée
+// (`accueil` : les Priorités) et la route de ses réglages ; sa liste (« Mon cabinet », le dossier ouvert) est dessinée par
+// son `drawNav` (v10/cabinet/app.js), qui ouvre aussi le changement de dossier par `SkanBarre.ouvrirPop`.
 (function () {
   'use strict';
   const w = /** @type {any} */ (window);
@@ -50,6 +54,7 @@
     retour: '<path d="m15 6-6 6 6 6"/>',
     horloge: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     onglets: '<rect x="3" y="15" width="18" height="6" rx="2"/><path d="M7 18h.01M12 18h.01M17 18h.01M5 4h14M5 9h14"/>',
+    dossier: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
   };
   /** @param {keyof typeof IC} n @param {number} [t] @param {number} [ep] */
   const ic = (n, t = 19, ep = 1.8) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${ep}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[n]}</svg>`;
@@ -71,12 +76,15 @@
   const enCaisse = () => document.body.classList.contains('mode-caisse');
   const infos = () => (typeof w.__barreInfos === 'function' ? w.__barreInfos() : { metier: '', role: 'proprietaire', responsable: true, lectureSeule: false, cabinet: null, version: '' });
   const role = () => infos().role;
+  // Le Cabinet : sa page d'arrivée (les Priorités), ses réglages, ses mots.
+  const auCabinet = () => infos().app === 'cabinet';
+  const accueil = () => String(infos().accueil || 'dashboard');
   /** @param {string} hash */
   const aller = (hash) => { if (typeof w.__naviguer === 'function') w.__naviguer(hash); else location.hash = hash; };
   // La route ouverte, telle que la barre la marque (`a.active`), sinon lue dans l'adresse.
   const routeOuverte = () => {
     const a = /** @type {HTMLElement | null} */ (document.querySelector('#nav a.active, #barre .pied-bas a.active'));
-    return a ? a.dataset.route || '' : (location.hash.replace(/^#\/?/, '').split('/')[0] || 'dashboard');
+    return a ? a.dataset.route || '' : (location.hash.replace(/^#\/?/, '').split('/')[0] || accueil());
   };
   const PETITS_MOTS = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'et', 'd', 'l', 'sarl', 'suarl', 'sa', 'sas']);
   /** @param {string} nom */
@@ -103,7 +111,7 @@
   /** @param {boolean} [rendre] */
   function fermer(rendre) {
     if (ouverte) { ouverte.remove(); ouverte = null; }
-    document.querySelectorAll('#barre [aria-expanded="true"], .sb [aria-expanded="true"]').forEach((b) => { if (b.id !== 'brand-btn') b.setAttribute('aria-expanded', 'false'); });
+    document.querySelectorAll('#barre [aria-expanded="true"], .sb [aria-expanded="true"]').forEach((b) => { if (b.id !== 'brand-btn' || !$('dos-menu')) b.setAttribute('aria-expanded', 'false'); });
     const voile = document.querySelector('.sb-feuille-voile'); if (voile) voile.remove();
     voletOuvert = '';
     if (rendre && ouvreur && ouvreur.isConnected) ouvreur.focus({ preventScroll: true });
@@ -175,7 +183,7 @@
     const { c, refus } = contenuCreer();
     const lignes = c.actions.map((/** @type {any} */ a, /** @type {number} */ k) => `<button type="button" role="menuitem" data-action="${k}" data-touche="${esc(a.touche)}">`
       + `<span class="tuile-ic">${a.icone}</span><span class="lib"><b>${esc(a.titre)}</b><span class="d">${esc(a.sous)}</span></span><kbd>${esc(a.touche)}</kbd></button>`).join('');
-    const el = ouvrir('sb-pop sb-creer', `<span class="menu-titre">Créer</span>${refus || lignes || '<p class="note">Ton rôle ne te donne rien à créer ici.</p>'}`, bouton, 'Créer', c.bloque ? 'dialog' : 'menu');
+    const el = ouvrir('sb-pop sb-creer', `<span class="menu-titre">${esc(c.titre || 'Créer')}</span>${refus || lignes || '<p class="note">Ton rôle ne te donne rien à créer ici.</p>'}`, bouton, 'Créer', c.bloque ? 'dialog' : 'menu');
     const r = bouton.getBoundingClientRect();
     if (tablette()) { el.style.left = `${Math.round(r.right + 12)}px`; el.style.top = `${Math.round(r.top)}px`; }
     else { el.style.left = `${Math.round(document.body.classList.contains('barre-repliee') ? r.right + 10 : r.left)}px`; el.style.top = `${Math.round(document.body.classList.contains('barre-repliee') ? r.top : r.bottom + 6)}px`; }
@@ -227,7 +235,7 @@
 
   // ── 3. La tête et le pied ──
   function suivreLEntreprise() {
-    const nom = $('brand-company');
+    const nom = $('brand-company') || $('brand-cab');
     const pastille = document.querySelector('#barre .brand-mark');
     if (!nom || !pastille) return;
     const poser = () => {
@@ -242,13 +250,13 @@
   /** @type {{ nom: string, email: string, role: string } | null} */ let personne = null;
   async function lirePersonne() {
     const b = $('b-moi');
-    const pont = w.skanfact;
+    const pont = w.skanfact || w.cabinet;
     if (!b || !pont || typeof pont.profil !== 'function') return;
     /** @type {any} */ let p;
     try { p = await pont.profil(); } catch { return; }
     if (!p || !p.nom) return;
     const roles = (w.SkanEquipe && w.SkanEquipe.ROLES) || {};
-    const r = (p.roles || []).map((/** @type {string} */ x) => (roles[x] || [x])[0]).join(', ');
+    const r = p.roleTexte != null ? String(p.roleTexte) : (p.roles || []).map((/** @type {string} */ x) => (roles[x] || [x])[0]).join(', ');
     personne = { nom: p.nom, email: p.email || '', role: r };
     /** @type {HTMLElement} */ (b.querySelector('.avatar')).textContent = initiales(p.nom);
     /** @type {HTMLElement} */ (b.querySelector('.moi-nom b')).textContent = p.nom;
@@ -262,11 +270,11 @@
     if (ouverte && ouvreur === bouton) { fermer(true); return; }
     const i = infos();
     const p = personne || { nom: '', email: '', role: '' };
-    const abo = w.skanfact && typeof w.skanfact.pastilleAbonnement === 'function' ? w.skanfact.pastilleAbonnement() : null;
+    const abo = pastilleAbo();
     const html = `<span class="menu-titre">${esc([p.email, p.role].filter(Boolean).join(' · ') || 'Mon compte')}</span>`
       + (typeof w.__allerParametres === 'function' ? `<button type="button" role="menuitem" data-moi="compte"><span class="ic">${ic('profil', 18)}</span><span class="lib">Mon profil et ma sécurité</span></button>` : '')
-      + (i.responsable ? `<button type="button" role="menuitem" data-moi="equipe"><span class="ic">${ic('equipe', 18)}</span><span class="lib">Mon équipe<small>Inviter, les rôles, le support</small></span></button>`
-        + `<button type="button" role="menuitem" data-moi="abonnement"><span class="ic">${ic('carte', 18)}</span><span class="lib">Ton abonnement<small>${esc(abo && abo.show ? abo.texte : 'Rien à régler pour l\'instant')}</small></span></button>` : '')
+      + (i.responsable ? `<button type="button" role="menuitem" data-moi="equipe"><span class="ic">${ic('equipe', 18)}</span><span class="lib">Mon équipe<small>${auCabinet() ? 'Inviter, les rôles, les dossiers confiés' : 'Inviter, les rôles, le support'}</small></span></button>`
+        + `<button type="button" role="menuitem" data-moi="abonnement"><span class="ic">${ic('carte', 18)}</span><span class="lib">${auCabinet() ? 'Abonnement du cabinet' : 'Ton abonnement'}<small>${esc(abo && abo.show ? abo.texte : 'Rien à régler pour l\'instant')}</small></span></button>` : '')
       + `<button type="button" role="menuitem" data-moi="raccourcis"><span class="ic">${ic('clavier', 18)}</span><span class="lib">Raccourcis clavier</span><kbd>?</kbd></button>`
       + `<button type="button" role="menuitem" data-moi="visite"><span class="ic">${ic('boussole', 18)}</span><span class="lib">Découvrir la barre<small>Trois étapes, une minute</small></span></button>`
       + `<div class="trait"></div><button type="button" role="menuitem" class="danger" data-moi="sortir"><span class="ic">${ic('sortir', 18)}</span><span class="lib">Se déconnecter</span></button>`
@@ -286,10 +294,18 @@
       else if (quoi === 'abonnement') w.__allerAbonnement();
       else if (quoi === 'raccourcis') ouvrirRaccourcis();
       else if (quoi === 'visite') lancerVisite(1);
-      else if (quoi === 'sortir' && w.skanfact && w.skanfact.deconnecter) w.skanfact.deconnecter();
+      else if (quoi === 'sortir') seDeconnecter();
     });
     premierFocus();
   }
+  // Se déconnecter : le geste de l'application (le Cabinet demande d'abord, s'il reste des écritures sans réseau).
+  const seDeconnecter = () => { if (typeof w.__seDeconnecter === 'function') w.__seDeconnecter(); else if (w.skanfact && w.skanfact.deconnecter) w.skanfact.deconnecter(); };
+  // Ce que l'abonnement dit (la pastille du pied) : le pont de l'entreprise le sait ; au Cabinet, on le lit au pied.
+  const pastilleAbo = () => {
+    if (w.skanfact && typeof w.skanfact.pastilleAbonnement === 'function') return w.skanfact.pastilleAbonnement();
+    const t = ($('lic-banner')?.hidden ? '' : ($('lic-banner')?.querySelector('.abo-t')?.textContent || '')).trim();
+    return { show: !!t, texte: t };
+  };
   const version = () => { const v = $('app-version'); return ((v && v.textContent) || infos().version || '').replace(/^v/, '').trim(); };
 
   // La puce « Hors ligne · N en attente » : l'état du poste (plateforme/poste.js).
@@ -371,6 +387,8 @@
       if (c && c.ton === 'alerte') { const phrase = c.tip.split(' · ').slice(1).join(' · '); l.push({ cle: `${id}-${phrase}`, ic: id === 'factures' ? 'factures' : 'achats', ton: 'alerte', html: `<b>${esc(nom)}</b> : ${esc(phrase)}`, sous: 'Ce qui est en retard', faire: () => aller(`#/${id}`) }); }
     }
     if (poste.hors && poste.attente) l.push({ cle: `hors-${poste.attente}`, ic: 'nuage', ton: 'attire', html: `<b>Hors ligne</b> : ${poste.attente} ${poste.attente > 1 ? 'changements attendent' : 'changement attend'} le réseau`, sous: 'Ils partiront seuls à son retour', faire: () => {} });
+    // Ce que l'application ajoute (le Cabinet : les pièces reçues, les clients qui attendent une réponse).
+    if (typeof w.__nouvelles === 'function') for (const x of w.__nouvelles() || []) l.push({ ...x, ic: /** @type {keyof typeof IC} */ (x.ic in IC ? x.ic : 'bulle') });
     if (majPrete) l.push({ cle: 'maj', ic: 'rafraichir', ton: '', html: 'Une nouvelle version de <b>SkanFact</b> est prête', sous: 'Recharger la page l\'installe', faire: () => location.reload() });
     return l;
   }
@@ -426,11 +444,13 @@
     const voile = document.createElement('div');
     voile.className = 'sb sb-voile';
     const mac = /Mac|iPhone|iPad/.test(navigator.platform || '');
+    const cab = auCabinet();
     voile.innerHTML = `<div class="sb-raccourcis" role="dialog" aria-modal="true" aria-label="Raccourcis clavier" tabindex="-1"><h3>Raccourcis clavier</h3><dl>
-      <dt><kbd>N</kbd></dt><dd>Créer (la liste de ton métier)</dd>
-      <dt><kbd>${mac ? '⌘' : 'Ctrl'}</kbd><kbd>K</kbd></dt><dd>Rechercher une page, un client, une pièce</dd>
-      <dt><kbd>G</kbd><kbd>A</kbd></dt><dd>Aller à l'accueil</dd>
-      <dt><kbd>G</kbd><kbd>F</kbd></dt><dd>Aller aux factures</dd>
+      <dt><kbd>N</kbd></dt><dd>${cab ? 'Créer (dans le dossier ouvert)' : 'Créer (la liste de ton métier)'}</dd>
+      <dt><kbd>${mac ? '⌘' : 'Ctrl'}</kbd><kbd>K</kbd></dt><dd>${cab ? 'Rechercher un dossier, une écriture, un écran' : 'Rechercher une page, un client, une pièce'}</dd>
+      <dt><kbd>G</kbd><kbd>A</kbd></dt><dd>${cab ? 'Aller aux priorités' : 'Aller à l\'accueil'}</dd>
+      <dt><kbd>G</kbd><kbd>${cab ? 'D' : 'F'}</kbd></dt><dd>${cab ? 'Aller à tous les dossiers' : 'Aller aux factures'}</dd>
+      ${cab ? `<dt><kbd>${mac ? '⌘' : 'Ctrl'}</kbd><kbd>1</kbd>…<kbd>9</kbd></dt><dd>Ouvrir un de tes dossiers (les favoris d'abord) ; <kbd>Alt</kbd> + chiffre aussi</dd>` : ''}
       <dt><kbd>[</kbd></dt><dd>Replier ou déplier la barre</dd>
       <dt><kbd>Tab</kbd></dt><dd>Passer d'un élément au suivant, dans l'ordre de lecture</dd>
       <dt><kbd>Échap</kbd></dt><dd>Fermer ce qui est ouvert ; en caisse, revenir à la barre</dd>
@@ -452,9 +472,14 @@
     if (!n || telephone() || tablette()) { etape = 0; return; }
     const i = infos();
     const reste = !!document.getElementById('nav-reste');
-    const titreJour = i.role === 'caissier' ? 'Ma caisse' : 'Au quotidien';
-    const cibles = { 1: 'zone-creer', 2: 'nav-1', 3: reste ? 'nav-reste' : 'nav-1' };
-    const etapes = {
+    const cab = auCabinet();
+    const titreJour = cab ? 'Mon cabinet' : i.role === 'caissier' ? 'Ma caisse' : 'Au quotidien';
+    const cibles = { 1: 'zone-creer', 2: 'nav-1', 3: cab ? 'nav-dossier' : reste ? 'nav-reste' : 'nav-1' };
+    const etapes = cab ? {
+      1: ['Tout commence ici', '<b>Créer</b> écrit dans le dossier ouvert : une écriture, un relevé, une pièce demandée au client <kbd>N</kbd>. Juste dessous, la recherche trouve un dossier ou un écran <kbd>Ctrl</kbd> <kbd>K</kbd>.', 'Mon cabinet'],
+      2: ['Mon cabinet', 'Ce qui revient chaque jour au cabinet, tous dossiers confondus. Le chiffre dit combien attend : <b>ambre</b> à voir, <b>rouge</b> urgent.', 'Le dossier ouvert'],
+      3: ['Le dossier ouvert', 'Le travail se fait dans un dossier à la fois, sa couleur toujours visible. Clique sur son nom pour changer de dossier ; une écriture commencée t\'attend en revenant. <b>Découvrir la barre</b>, dans ton menu en bas, relance cette visite.', ''],
+    } : {
       1: ['Tout commence ici', i.role === 'lecture' ? 'Ton rôle est en <b>lecture</b> : tu vois tout, tu ne changes rien. La recherche, juste dessous, trouve n\'importe quelle page <kbd>Ctrl</kbd> <kbd>K</kbd>.'
         : `<b>${i.role === 'caissier' ? 'Vente au comptoir' : 'Créer'}</b> propose les pièces de ton métier <kbd>${i.role === 'caissier' ? 'V' : 'N'}</kbd>. Juste dessous, la recherche trouve une page, un client ou une pièce <kbd>Ctrl</kbd> <kbd>K</kbd>.`, titreJour],
       2: [titreJour, 'Les pages de chaque jour, choisies selon ton métier. Le chiffre dit combien attend : <b>ambre</b> à voir, <b>rouge</b> en retard.', reste ? 'Ton menu se range' : 'C\'est tout'],
@@ -474,7 +499,7 @@
     el.style.top = `${Math.max(8, Math.round(r.top - 14))}px`;
     el.style.left = `${Math.round(r.right + 20)}px`;
     el.innerHTML = `<span class="vb-pointe" aria-hidden="true"></span>
-      <div class="vb-haut"><div class="vb-tete"><span class="vb-ico">${ic('boussole', 19, 1.9)}</span><span class="vb-ou"><span class="vb-sur">Découvrir la barre · ${n} sur 3</span><span class="vb-lieu">Ta barre</span></span>
+      <div class="vb-haut"><div class="vb-tete"><span class="vb-ico">${ic('boussole', 19, 1.9)}</span><span class="vb-ou"><span class="vb-sur">Découvrir la barre · ${n} sur 3</span><span class="vb-lieu">${cab ? 'La barre du Cabinet' : 'Ta barre'}</span></span>
         <button type="button" class="vb-fermer" data-visite="fin" title="Fermer la visite (Échap)" aria-label="Fermer la visite">${ic('fermer', 15, 2.1)}</button></div>
         <div class="vb-progres" aria-hidden="true">${jauge}</div></div>
       <div class="vb-corps"><h3>${esc(titre)}</h3><p class="vb-texte">${texte}</p>${prochain ? `<div class="vb-prochain">Ensuite : <b>${esc(prochain)}</b></div>` : ''}</div>
@@ -518,14 +543,15 @@
     if (!rail) return;
     const i = infos();
     const route = routeOuverte();
-    const nomE = ($('brand-company')?.textContent || '').trim();
+    const nomE = (($('brand-company') || $('brand-cab'))?.textContent || '').trim();
     const avatar = $('b-moi')?.querySelector('.avatar')?.textContent || '';
     const ferme = !!i.lectureSeule;
     const jour = pagesDuJour().slice(0, 5);
-    const html = `<button type="button" class="marque-s" data-rail="marque" title="${esc(nomE)}" aria-label="${esc(`${nomE} : changer d'entreprise`)}">${esc(initiales(nomE))}</button>`
+    const html = `<button type="button" class="marque-s${auCabinet() ? ' cab' : ''}" data-rail="marque" title="${esc(nomE)}" aria-label="${esc(`${nomE} : ${auCabinet() ? 'le menu du cabinet' : 'changer d\'entreprise'}`)}">${esc(initiales(nomE))}</button>`
       + (i.role === 'lecture' ? '' : `<button type="button" class="fab${ferme ? ' ferme' : ''}" data-rail="creer" aria-haspopup="menu" aria-label="${ferme ? 'Créer : fermé en lecture seule' : i.role === 'caissier' ? 'Vente au comptoir' : 'Créer'}">${ferme ? ic('cadenas', 20, 2) : ic(i.role === 'caissier' ? 'caisse' : 'croix', 22, 2.4)}</button>`)
-      + (i.role === 'caissier' ? '' : `<a class="rail-l" href="#/dashboard"${route === 'dashboard' ? ' aria-current="page"' : ''}><span class="ic-boite">${ic('accueil', 21)}</span>Accueil</a>`)
+      + (i.role === 'caissier' || auCabinet() ? '' : `<a class="rail-l" href="#/dashboard"${route === 'dashboard' ? ' aria-current="page"' : ''}><span class="ic-boite">${ic('accueil', 21)}</span>Accueil</a>`)
       + jour.map((a) => { const n = nomDuLien(a); const svg = a.querySelector('.ic')?.innerHTML || ''; return `<a class="rail-l" href="${esc(a.getAttribute('href'))}"${a.dataset.route === route ? ' aria-current="page"' : ''} title="${esc(a.dataset.tip || n)}"><span class="ic-boite">${svg}${nb(compteDuLien(a))}</span>${esc(n.length > 11 ? `${n.slice(0, 10)}…` : n)}</a>`; }).join('')
+      + (auCabinet() && $('b-dossier') ? `<button type="button" class="rail-l rail-dossier" data-rail="dossier" aria-label="${esc(`Dossier ouvert : ${$('b-dossier')?.dataset.nom || ''}. Changer de dossier`)}"><span class="ic-boite">${$('b-dossier')?.querySelector('.marque-s')?.outerHTML || ic('dossier', 21)}</span>Dossier</button>` : '')
       + `<button type="button" class="rail-l" data-rail="plus" aria-label="Plus : toute la barre"><span class="ic-boite">${ic('plus', 21)}</span>Plus</button>`
       + `<div class="bas"><button type="button" class="rail-l" data-rail="cloche" style="width:auto" aria-label="Nouvelles"><span class="ic-boite">${ic('cloche', 21)}<span class="nb alerte" hidden></span></span></button><button type="button" class="avatar" data-rail="moi" aria-label="Mon compte">${esc(avatar)}</button></div>`;
     if (rail.dataset.html !== html) { rail.innerHTML = html; rail.dataset.html = html; }
@@ -549,7 +575,7 @@
     const centre = i.role === 'lecture'
       ? `<button type="button" class="sb-plus-central ferme" aria-label="Lecture : rien à créer" title="Lecture : tu vois tout, tu ne changes rien">${ic('oeil', 22, 2)}</button>`
       : `<button type="button" class="sb-plus-central${ferme ? ' ferme' : ''}" data-tel="creer" aria-haspopup="dialog" aria-expanded="${creerOuvert}" aria-label="${ferme ? 'Créer : fermé en lecture seule' : i.role === 'caissier' ? 'Vente au comptoir' : 'Créer'}">${ferme && !creerOuvert ? ic('cadenas', 22, 2) : ic(i.role === 'caissier' ? 'caisse' : 'croix', i.role === 'caissier' ? 23 : 26, 2.4)}</button>`;
-    const html = (i.role === 'caissier' ? onglet('caisse') : `<a class="sb-onglet" href="#/dashboard"${!ecranTel && route === 'dashboard' ? ' aria-current="page"' : ''}><span class="ic-boite">${ic('accueil', 23)}</span><span class="nom">Accueil</span></a>`)
+    const html = (i.role === 'caissier' ? onglet('caisse') : auCabinet() ? onglet(accueil()) : `<a class="sb-onglet" href="#/dashboard"${!ecranTel && route === 'dashboard' ? ' aria-current="page"' : ''}><span class="ic-boite">${ic('accueil', 23)}</span><span class="nom">Accueil</span></a>`)
       + (ids[0] && !(i.role === 'caissier' && ids[0] === 'caisse') ? onglet(ids[0]) : '<span></span>')
       + centre
       + (ids[1] ? onglet(ids[1]) : '<span></span>')
@@ -597,7 +623,7 @@
   // Les pages vues récemment (gardées sur l'appareil), pour « Plus ».
   function noterRecent() {
     const id = routeOuverte();
-    if (!id || ['dashboard', 'parametres', 'aide', 'guide'].includes(id)) return;
+    if (!id || [accueil(), 'dashboard', 'parametres', 'reglages', 'aide', 'guide'].includes(id)) return;
     const l = /** @type {string[]} */ (lire('recents', []) || []).filter((x) => x !== id);
     l.unshift(id);
     ecrire('recents', l.slice(0, 6));
@@ -638,30 +664,30 @@
     }).join('');
     const fc = /** @type {HTMLAnchorElement | null} */ (document.querySelector('#nav #foot-comptable:not([hidden])'));
     const inviter = $('b-inviter-comptable');
-    const abo = w.skanfact && typeof w.skanfact.pastilleAbonnement === 'function' ? w.skanfact.pastilleAbonnement() : null;
+    const abo = pastilleAbo();
     const p = personne || { nom: '', role: '' };
     const sup = $('nav-support');
-    return `<h4>Plus</h4><button type="button" class="champ-cherche" data-plus="chercher">${ic('recherche', 18)}Rechercher une page, un client…</button>`
+    return `<h4>Plus</h4><button type="button" class="champ-cherche" data-plus="chercher">${ic('recherche', 18)}${auCabinet() ? 'Rechercher un dossier, un écran…' : 'Rechercher une page, un client…'}</button>`
       + (recents.length ? `<div class="plus-section"><span class="plus-titre">Récents</span><div class="recents">${recents.map((id) => { const d = dessinDe(id); return `<a href="#/${esc(id)}">${d.icone}${esc(d.titre)}</a>`; }).join('')}</div></div>` : '')
       + familles
       + `<div class="plus-section"><span class="plus-titre">Mon compte</span><div class="liste-tel">`
       + (fc ? `<a href="#/comptable">${ligne(`<span class="ic">${ic('comptable', 19)}</span><span class="lib">Mon comptable</span>`, compteDuLien(fc))}</a>` : '')
       + (inviter ? `<button type="button" data-plus="inviter">${ligne(`<span class="ic">${ic('equipe', 19)}</span><span class="lib">Inviter mon comptable</span>`, null)}</button>` : '')
-      + (i.responsable ? `<button type="button" data-plus="abonnement">${ligne(`<span class="ic">${ic('carte', 19)}</span><span class="lib">Ton abonnement</span><span class="d">${esc(abo && abo.show ? abo.texte : 'À jour')}</span>`, null)}</button>`
+      + (i.responsable ? `<button type="button" data-plus="abonnement">${ligne(`<span class="ic">${ic('carte', 19)}</span><span class="lib">${auCabinet() ? 'Abonnement du cabinet' : 'Ton abonnement'}</span><span class="d">${esc(abo && abo.show ? abo.texte : 'À jour')}</span>`, null)}</button>`
         + `<button type="button" data-plus="equipe">${ligne(`<span class="ic">${ic('equipe', 19)}</span><span class="lib">Mon équipe</span>`, null)}</button>` : '')
       + (role() === 'caissier' && typeof w.__caissePoste === 'function' && w.__caissePoste() ? `<button type="button" data-plus="caissier">${ligne(`<span class="ic">${ic('changer', 19)}</span><span class="lib">Changer de caissier</span><span class="d">code à 4 chiffres</span>`, null)}</button>` : '')
       + `<button type="button" data-plus="onglets">${ligne(`<span class="ic">${ic('onglets', 19)}</span><span class="lib">Mes onglets</span>`, null)}</button>`
       + `<button type="button" data-plus="compte">${ligne(`<span class="ic">${ic('profil', 19)}</span><span class="lib">${esc(p.nom || 'Mon profil')}</span><span class="d">${esc(p.role)}</span>`, null)}</button>`
       + `<button type="button" class="danger" data-plus="sortir"><span class="ic">${ic('sortir', 19)}</span><span class="lib">Se déconnecter</span></button></div></div>`
-      + `<div class="plus-pied">${i.responsable ? `<a href="#/parametres">${ic('reglages', 18)}Paramètres</a>` : ''}<a href="#/guide">${ic('boussole', 18)}Me guider</a><a href="#/aide">${ic('aide', 18)}Aide${sup && !sup.hidden ? '<span class="pt" aria-label="une réponse du support"></span>' : ''}</a></div>`
+      + `<div class="plus-pied">${i.responsable ? `<a href="#/${esc(i.reglages || 'parametres')}">${ic('reglages', 18)}${auCabinet() ? 'Réglages' : 'Paramètres'}</a>` : ''}<a href="#/guide">${ic('boussole', 18)}Me guider</a><a href="#/aide">${ic('aide', 18)}Aide${sup && !sup.hidden ? '<span class="pt" aria-label="une réponse du support"></span>' : ''}</a></div>`
       + `<p class="version">SkanFact ${esc(version() ? `v${version()}` : '')}</p>`;
   }
   function pageOnglets() {
     const ids = typeof w.__ongletsTel === 'function' ? w.__ongletsTel() : [];
     const cands = typeof w.__candidatsOnglets === 'function' ? w.__candidatsOnglets() : [];
     const t = ids.map((/** @type {string} */ id) => dessinDe(id));
-    return `<h4>Mes onglets</h4><p class="sous">Choisis les deux onglets à côté du « + ». Accueil, « + » et Plus restent à leur place.</p>
-      <div class="cases-onglets"><span class="fixe">${ic('accueil', 18)}Accueil</span><span class="choisi">${t[0] ? `${t[0].icone}${esc(t[0].titre)}` : '—'}</span><span class="fixe">${ic('croix', 18)}Créer</span><span class="choisi">${t[1] ? `${t[1].icone}${esc(t[1].titre)}` : '—'}</span><span class="fixe">${ic('plus', 18)}Plus</span></div>
+    return `<h4>Mes onglets</h4><p class="sous">Choisis les deux onglets à côté du « + ». ${auCabinet() ? esc(dessinDe(accueil()).titre) : 'Accueil'}, « + » et Plus restent à leur place.</p>
+      <div class="cases-onglets"><span class="fixe">${auCabinet() ? `${dessinDe(accueil()).icone}${esc(dessinDe(accueil()).titre)}` : `${ic('accueil', 18)}Accueil`}</span><span class="choisi">${t[0] ? `${t[0].icone}${esc(t[0].titre)}` : '—'}</span><span class="fixe">${ic('croix', 18)}Créer</span><span class="choisi">${t[1] ? `${t[1].icone}${esc(t[1].titre)}` : '—'}</span><span class="fixe">${ic('plus', 18)}Plus</span></div>
       <div class="liste-choix">${cands.map((/** @type {any} */ c) => `<button type="button" data-onglet="${esc(c.id)}" aria-pressed="${ids.includes(c.id)}">${c.icone}${esc(c.titre)}${ids.includes(c.id) ? `<small>${ids.indexOf(c.id) + 1}</small>` : ''}</button>`).join('')}</div>
       <p class="note-verif">${ic('aide', 14, 2)} Touche un onglet pour le mettre à la place du plus ancien. Il se garde sur ce téléphone.</p>`;
   }
@@ -681,7 +707,7 @@
     else if (quoi === 'equipe') w.__allerParametres('equipe');
     else if (quoi === 'compte') w.__allerParametres('compte');
     else if (quoi === 'caissier') w.__changerCaissier();
-    else if (quoi === 'sortir' && w.skanfact && w.skanfact.deconnecter) w.skanfact.deconnecter();
+    else if (quoi === 'sortir') seDeconnecter();
   }
 
   // ── Après chaque dessin de la barre, et chaque compte ──
@@ -736,7 +762,16 @@
       document.querySelectorAll('#nav a.lien, #barre .pied-bas a').forEach((a) => { if (a.classList.contains('active')) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current'); });
     });
   }
-  w.SkanBarre = { apresDessin, apresCompte, lancerVisite };
+  // Ce que l'application ouvre elle-même depuis sa barre (le Cabinet : le changement de dossier, le menu du cabinet) :
+  // une fenêtre posée sur la page, une seule à la fois, que l'Échap, un clic ailleurs et les flèches connaissent.
+  /** @param {string} classe @param {string} html @param {HTMLElement | null} bouton @param {string} nom @param {string} [roleAria] */
+  function ouvrirPop(classe, html, bouton, nom, roleAria) {
+    if (ouverte && bouton && ouvreur === bouton) { fermer(true); return null; }
+    const el = ouvrir(`sb-pop ${classe}`, html, bouton, nom, roleAria);
+    premierFocus();
+    return el;
+  }
+  w.SkanBarre = { apresDessin, apresCompte, lancerVisite, ouvrirPop, fermer: () => fermer(true), telephone, tablette };
 
   // ── Les gestes communs ──
   document.addEventListener('click', (e) => {
@@ -747,7 +782,7 @@
     const r = /** @type {HTMLElement | null} */ (t.closest('.sb-rail [data-rail]'));
     if (r) {
       const q = r.dataset.rail;
-      if (q === 'plus' || q === 'marque') { fermer(); ouvrirTiroir(); if (q === 'marque') $('brand-btn')?.click(); }
+      if (q === 'plus' || q === 'marque' || q === 'dossier') { fermer(); ouvrirTiroir(); if (q === 'marque') $('brand-btn')?.click(); if (q === 'dossier') $('b-dossier')?.click(); }
       else if (q === 'creer') ouvrirCreer(r);
       else if (q === 'cloche') ouvrirNouvelles(r);
       else if (q === 'moi') ouvrirMoi(r);
@@ -792,8 +827,9 @@
     const k = e.key;
     if (suite === 'g') {
       suite = '';
-      if (k === 'a' || k === 'A') { e.preventDefault(); aller('#/dashboard'); return; }
-      if (k === 'f' || k === 'F') { e.preventDefault(); aller('#/factures'); return; }
+      if (k === 'a' || k === 'A') { e.preventDefault(); aller(`#/${accueil()}`); return; }
+      if (!auCabinet() && (k === 'f' || k === 'F')) { e.preventDefault(); aller('#/factures'); return; }
+      if (auCabinet() && (k === 'd' || k === 'D')) { e.preventDefault(); aller('#/dossiers'); return; }
     }
     if (k === 'g' || k === 'G') { suite = 'g'; setTimeout(() => { suite = ''; }, 1200); return; }
     if (k === '?') { e.preventDefault(); ouvrirRaccourcis(); return; }

@@ -188,7 +188,8 @@ describe('la saisie du Cabinet sans réseau, à la souris', () => {
     await expect.poll(async () => net(await bandeau.innerText())).toMatch(/Une écriture attend le réseau/);
 
     // Se déconnecter le dit : elle serait perdue. On reste.
-    await p.locator('#se-deconnecter').click();
+    await p.locator('#b-moi').click();
+    await p.locator('.sb-moi').getByRole('menuitem', { name: 'Se déconnecter' }).click();
     await expect.poll(async () => net(await fenetre.locator('#deco-attente').innerText().catch(() => ''))).toBe('Une écriture saisie sans réseau n\'est pas encore partie au serveur : elle serait perdue. Attends le retour du réseau : elle partira seule.');
     expect(await fenetre.getByRole('button', { name: 'Me déconnecter et la perdre', exact: true }).count()).toBe(1);
     await fenetre.getByRole('button', { name: 'Annuler', exact: true }).click();

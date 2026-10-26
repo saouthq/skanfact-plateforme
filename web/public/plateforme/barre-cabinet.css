@@ -1,0 +1,155 @@
+/* La barre du Cabinet (maquette « Barre v3 », lot 1 b, appliquée le 26/10/2026 ; docs/maquettes-appliquees.md) : ce qui
+   s'ajoute à la coquille commune (barre.css) — la marque ardoise du cabinet, « Les miens / Tous », le dossier ouvert et
+   sa couleur, le changement de dossier (recherche, favoris, Ctrl + chiffre), le menu du cabinet — et ses deux pages
+   nouvelles : les Priorités (la page d'arrivée) et les Pièces reçues. Les mesures et les couleurs sont celles de la
+   maquette ; les couleurs sont celles de barre.css (`--sb-*`, sur `body`, et `body.dark`). */
+
+/* La marque du cabinet : ardoise, ses initiales */
+#barre .marque-s.cab, .sb-rail .marque-s.cab, .marque-s.cab { background: linear-gradient(145deg, #334155, #1b2430); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .18), 0 1px 2px rgba(27, 36, 48, .35); }
+#barre .brand-mark.cab { display: grid; }
+
+/* « Les miens / Tous » dans le titre de « Mon cabinet » */
+.portee { display: inline-flex; gap: 1px; padding: 2px; border-radius: 7px; background: var(--sb-survol); margin-left: auto; }
+.portee button { border: 0; background: transparent; font: 600 11px/1.45 var(--sb-police); color: var(--sb-gris-2); padding: 2px 7px; border-radius: 5px; cursor: pointer; }
+.portee button[aria-pressed="true"] { background: var(--sb-papier); color: var(--sb-encre); box-shadow: 0 1px 2px rgba(20, 40, 60, .1); }
+.portee.seul { font-size: 11px; font-weight: 600; color: var(--sb-gris-2); padding: 2px 8px; }
+body.barre-repliee #barre .portee { display: none; }
+
+/* Relié ou tenu */
+.type-d { display: inline-block; font-size: 10px; font-weight: 700; padding: 0 5px; border-radius: 4px; line-height: 15px; vertical-align: 1px; letter-spacing: .02em; }
+.type-d.relie { background: var(--sb-doux); color: var(--sb-doux-texte); }
+.type-d.tenu { background: var(--sb-survol); color: var(--sb-gris); border: 1px solid var(--sb-trait-fort); }
+
+/* Le dossier ouvert : sa carte (le changement de dossier), sa couleur sur le bord, ses entrées */
+#barre .nav-dossier { gap: 1px; padding: 6px; margin: 0 -4px; border-radius: 13px; background: color-mix(in srgb, var(--d1, #1fb8a8) 7%, transparent); box-shadow: inset 3px 0 0 var(--d1, #1fb8a8); }
+#barre .nav-dossier .dossier { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 9px; margin-bottom: 4px; border-radius: 11px; border: 1px solid var(--sb-trait); background: var(--sb-papier); cursor: pointer; text-align: left; color: var(--sb-encre); box-shadow: 0 1px 2px rgba(20, 40, 60, .04); }
+#barre .nav-dossier .dossier:hover, #barre .nav-dossier .dossier[aria-expanded="true"] { border-color: var(--sb-trait-fort); }
+#barre .nav-dossier .dossier .marque-s { width: 28px; height: 28px; font-size: 11px; border-radius: 8px; }
+#barre .nav-dossier .dossier .marque-s.vide { background: var(--sb-survol); color: var(--sb-gris-2); box-shadow: none; }
+#barre .nav-dossier .dossier .lib { flex: 1; min-width: 0; display: grid; line-height: 1.35; }
+#barre .nav-dossier .dossier small { font-size: 11.5px; color: var(--sb-gris-2); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#barre .nav-dossier .dossier b { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#barre .nav-dossier .dossier small.clos { display: flex; align-items: center; gap: 4px; }
+#barre .nav-dossier .dossier .chev { display: flex; color: var(--sb-gris-2); }
+#barre .nav-dossier .lien .compte { font-size: 11px; padding: 0 7px; }
+body.barre-repliee #barre .nav-dossier { padding: 4px 0; margin: 0; box-shadow: none; background: transparent; }
+body.barre-repliee #barre .nav-dossier .dossier { width: 40px; padding: 5px; justify-content: center; align-self: center; }
+body.barre-repliee #barre .nav-dossier .dossier .lib, body.barre-repliee #barre .nav-dossier .dossier .chev { display: none; }
+
+/* Le changement de dossier */
+.sb-pop.pop-dossier { width: 360px; max-height: calc(100vh - 20px); overflow-y: auto; }
+.pop-dossier .chercher-d { display: flex; align-items: center; gap: 9px; margin: 4px 2px 6px; height: 34px; padding: 0 10px; border: 1px solid var(--sb-trait); border-radius: 9px; background: var(--sb-papier); color: var(--sb-gris-2); }
+.pop-dossier .chercher-d:focus-within { border-color: var(--sb-sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-sarcelle) 18%, transparent); }
+.pop-dossier .chercher-d input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; font: 400 13.5px var(--sb-police); color: var(--sb-encre); padding: 0; height: auto; box-shadow: none; }
+.pop-dossier .ligne-d { display: flex; align-items: center; border-radius: 9px; }
+.pop-dossier .ligne-d[hidden] { display: none; }
+.pop-dossier .ligne-d:hover { background: var(--sb-survol); }
+.pop-dossier .ligne-d > button:first-child { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; padding: 8px; border: 0; border-radius: 9px; background: transparent; text-align: left; cursor: pointer; color: var(--sb-encre); }
+.pop-dossier .ligne-d > button:first-child:focus-visible { background: var(--sb-survol); }
+.pop-dossier .ligne-d .lib { flex: 1; min-width: 0; font-size: 13.5px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pop-dossier .ligne-d small { display: block; font-size: 12px; color: var(--sb-gris-2); overflow: hidden; text-overflow: ellipsis; }
+.pop-dossier .etat { flex: none; font-size: 11.5px; font-weight: 600; padding: 1px 7px; border-radius: 6px; }
+.pop-dossier .etat.attire { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+.pop-dossier .etat.alerte { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+.pop-dossier .k-d { margin-left: 0; font-size: 10.5px; padding: 1px 5px; flex: none; }
+.pop-dossier .etoile { width: 28px; height: 28px; flex: none; margin-right: 4px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: var(--sb-trait-fort); display: grid; place-items: center; cursor: pointer; }
+.pop-dossier .etoile:hover { color: var(--sb-gris); background: var(--sb-papier); }
+.pop-dossier .etoile.on { color: #e8a317; }
+.pop-dossier .etoile.on svg { fill: currentColor; }
+.pop-dossier .pied-d { font-weight: 500; }
+.pop-dossier .tous-d { display: flex; align-items: center; gap: 10px; padding: 8px; border-radius: 9px; color: var(--sb-sarcelle-texte); font-weight: 600; text-decoration: none; }
+.pop-dossier .tous-d:hover { background: var(--sb-survol); }
+.pop-dossier .note[hidden] { display: none; }
+
+/* Le menu du cabinet : son code, ce qui regarde tout le cabinet */
+.sb-pop.sb-cabinet { width: 300px; }
+.sb-cabinet .code-cab { display: flex; align-items: center; gap: 10px; margin: 2px 4px 6px; padding: 10px 12px; border-radius: 10px; background: var(--sb-doux); }
+.sb-cabinet .code-cab > span { flex: 1; display: grid; }
+.sb-cabinet .code-cab small { font-size: 11.5px; color: var(--sb-doux-texte); }
+.sb-cabinet .code-cab b { font-size: 17px; letter-spacing: .08em; font-variant-numeric: tabular-nums; color: var(--sb-encre); }
+.sb-cabinet .code-cab .sb-geste { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; align-self: center; }
+.sb-panneau button.pl-l { width: 100%; text-align: left; cursor: pointer; font: inherit; }
+
+/* La tablette : le dossier ouvert a sa place dans le rail */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .sb-rail .rail-dossier .marque-s { width: 30px; height: 30px; font-size: 11px; border-radius: 8px; color: #fff; display: grid; place-items: center; font-weight: 700; }
+}
+
+/* ── Les pages du Cabinet : Priorités et Pièces reçues ── */
+.cab-page { display: flex; flex-direction: column; gap: 18px; max-width: 1100px; font-family: var(--sb-police); color: var(--sb-encre); }
+.ctx-cab { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 13px; color: var(--sb-gris); }
+.ctx-cab b { color: var(--sb-encre); font-weight: 600; }
+.ctx-cab .ctx-ic { display: flex; color: var(--sb-gris-2); }
+.ctx-cab .portee { margin-left: 0; }
+.ctx-cab .marque-s, .cab-page .marque-s { width: 30px; height: 30px; flex: none; border-radius: 9px; color: #fff; display: grid; place-items: center; font-weight: 700; font-size: 11px; background: linear-gradient(145deg, #1fb8a8, #0c877b); }
+.cab-page .marque-s.cab { background: linear-gradient(145deg, #334155, #1b2430); }
+.ctx-cab.ctx-d .marque-s { width: 24px; height: 24px; font-size: 10px; border-radius: 7px; }
+.ctx-cab .ctx-sep { width: 1px; height: 14px; background: var(--sb-trait-fort); }
+.ctx-cab .ctx-clos { display: inline-flex; align-items: center; gap: 4px; padding: 1px 8px; border-radius: 99px; background: var(--sb-survol); font-weight: 600; font-size: 12px; }
+.cab-bonjour .date { font-size: 13px; color: var(--sb-gris-2); font-weight: 500; }
+.cab-bonjour .date::first-letter { text-transform: uppercase; }
+.cab-bonjour .bonjour { margin: 2px 0 0; font-weight: 700; font-size: 28px; letter-spacing: -.025em; line-height: 1.2; }
+.cab-bonjour .sous-bonjour { margin: 4px 0 0; color: var(--sb-gris); font-size: 14px; }
+.groupe-cab { margin: 4px 0 -6px; font-size: 12px; font-weight: 700; color: var(--sb-gris-2); letter-spacing: .02em; }
+.carte-cab { background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 14px; box-shadow: var(--sb-ombre); }
+.carte-cab.afaire { padding: 2px 18px; }
+.cab-page .afaire-ligne { display: flex; align-items: center; gap: 14px; padding: 14px 0; border-bottom: 1px solid var(--sb-trait); }
+.cab-page .afaire-ligne:last-child { border-bottom: 0; }
+.cab-page .afaire-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cab-page .afaire-txt b { font-size: 14.5px; font-weight: 600; }
+.cab-page .afaire-txt span { font-size: 13px; color: var(--sb-gris); }
+.cab-page .num-etape { width: 26px; height: 26px; flex: none; border-radius: 99px; background: var(--sb-doux); color: var(--sb-doux-texte); display: grid; place-items: center; font-weight: 700; font-size: 13px; }
+.cab-page .etat { flex: none; font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+.cab-page .etat.attire { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+.cab-page .etat.alerte { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+.cab-page .etat.ok { background: var(--sb-doux); color: var(--sb-doux-texte); }
+.cab-page .ajour { display: flex; align-items: center; gap: 14px; padding: 18px; border-radius: 14px; background: var(--sb-doux); color: var(--sb-doux-texte); }
+.cab-page .ajour .txt { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.cab-page .ajour .txt b { font-size: 14px; color: var(--sb-encre); }
+.cab-page .ajour .txt span { font-size: 13px; color: var(--sb-gris); }
+.chiffres-cab { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.chiffres-cab .chiffre { padding: 18px; display: flex; flex-direction: column; gap: 6px; text-align: left; font: inherit; color: var(--sb-encre); cursor: pointer; }
+.chiffres-cab .chiffre:hover { border-color: var(--sb-trait-fort); }
+.chiffres-cab .chiffre .n { font-size: 13px; color: var(--sb-gris); font-weight: 500; }
+.chiffres-cab .chiffre .v { font-weight: 650; font-size: 24px; letter-spacing: -.025em; font-variant-numeric: tabular-nums; }
+.chiffres-cab .chiffre .v small { font-size: 14px; font-weight: 500; color: var(--sb-gris-2); letter-spacing: 0; }
+.chiffres-cab .chiffre .s { font-size: 12.5px; color: var(--sb-gris-2); }
+.onglets-cab { display: flex; gap: 2px; border-bottom: 1px solid var(--sb-trait); }
+.onglets-cab button { display: flex; align-items: center; gap: 6px; padding: 9px 12px; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; background: transparent; font: 500 13.5px var(--sb-police); color: var(--sb-gris); cursor: pointer; }
+.onglets-cab button[aria-selected="true"] { color: var(--sb-encre); font-weight: 600; border-bottom-color: var(--sb-sarcelle); }
+.onglets-cab .compte { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; font-size: 11.5px; font-weight: 600; display: grid; place-items: center; background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+.tableau-pr { padding: 0; overflow: hidden; border-radius: 14px; }
+.pr-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.pr-table th { text-align: left; font-size: 12px; font-weight: 600; color: var(--sb-gris-2); padding: 10px 16px; border-bottom: 1px solid var(--sb-trait); background: transparent; }
+.pr-table td { padding: 12px 16px; border-bottom: 1px solid var(--sb-trait); vertical-align: middle; }
+.pr-table tr:last-child td { border-bottom: 0; }
+.pr-table .cell-d { display: inline-flex; align-items: center; gap: 10px; }
+.pr-table .deux { display: grid; gap: 1px; }
+.pr-table .deux b { font-weight: 600; word-break: break-word; }
+.pr-table .deux small { font-size: 12px; color: var(--sb-gris-2); }
+.pr-table .gestes-pr { text-align: right; white-space: nowrap; }
+.pr-table .gestes-pr .btn { margin-left: 6px; display: inline-flex; align-items: center; gap: 5px; }
+.vide-pr b { font-size: 15px; }
+
+@media (max-width: 760px) {
+  .cab-bonjour .bonjour { font-size: 24px; }
+  .chiffres-cab { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .chiffres-cab .chiffre:first-child { display: none; }
+  /* Au téléphone, une ligne par chose qui attend : la marque, ce qui attend, le geste (le ton est dit par le titre du
+     groupe, « Urgent » ou « À voir »). Le contexte (Mon cabinet · …) est celui du haut de la barre. */
+  .cab-page > .ctx-cab { display: none; }
+  .carte-cab.afaire { padding: 2px 14px; }
+  .cab-page .afaire-ligne { gap: 12px; padding: 12px 0; }
+  .cab-page .afaire-ligne .etat { display: none; }
+  .cab-page .afaire-txt b { font-size: 14px; }
+  .cab-page .afaire-txt span { font-size: 12.5px; }
+  .cab-page .afaire-ligne .btn { flex: none; min-height: 44px; max-width: 112px; white-space: normal; line-height: 1.2; text-align: center; }
+  .pr-table thead { display: none; }
+  .pr-table tr { display: grid; gap: 8px; padding: 12px 14px; border-bottom: 1px solid var(--sb-trait); }
+  .pr-table td { display: block; padding: 0; border: 0; }
+  .pr-table .gestes-pr { text-align: left; white-space: normal; display: flex; flex-wrap: wrap; gap: 6px; }
+  .pr-table .gestes-pr .btn { margin: 0; min-height: 44px; }
+  .sb-pop.pop-dossier { left: 12px !important; right: 12px; width: auto; top: 64px !important; }
+}
+.cab-page .gestes-etape { display: flex; align-items: center; gap: 8px; flex: none; }
+.cab-page .code-inline { font-weight: 700; letter-spacing: .08em; font-variant-numeric: tabular-nums; padding: 4px 10px; border-radius: 8px; background: var(--sb-doux); color: var(--sb-encre); }

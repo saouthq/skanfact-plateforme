@@ -33,7 +33,7 @@ perdu » — ce que fait l'écran de la v10 et où il le retrouve — et « Ce q
 - **Par lots**, chacun vérifié à la souris, en clair, en sombre, au téléphone et à la tablette, avec ses tests et leurs
   preuves :
   0. ranger les maquettes ici (fait le 26/10/2026) ;
-  1. **la coquille** (1.151.0, ci-dessous), puis la barre du Cabinet (lot 1 b) ;
+  1. **la coquille** (1.151.0, ci-dessous), puis **la barre du Cabinet** (lot 1 b, 1.152.0) ;
   2. les composants de la charte (statuts, bouton principal et sa phrase, menu « ⋯ » unique, toast de 6 s avec
      « Annuler », bandeaux, en-tête, « Brouillon ») ;
   3. la liste des factures ;
@@ -71,7 +71,34 @@ Test : `tests/web/barre.test.ts` ; preuves « barre 1 » à « barre 25 ».
 - au téléphone, la cloche et les pastilles se touchent sur 44 points (la règle des cibles au doigt), leur dessin garde
   la mesure de la maquette.
 
-## Lot 1 b : la barre du Cabinet
+## Lot 1 b : la barre du Cabinet (1.152.0)
 
-À venir, dans le même lot : la barre à deux niveaux de la maquette (« Mon cabinet », le dossier ouvert), les pages qui
-manquent (Priorités, Pièces reçues, Avancement), le changement de dossier (favoris, Ctrl 1 à 9, la saisie gardée).
+La même coquille que l'entreprise (`plateforme/barre.js`, généralisé : `__barreInfos` y dit `app: 'cabinet'`, sa page
+d'arrivée et ses réglages), avec ce qui est au Cabinet seul : `drawNav` et les pages nouvelles dans
+`web/public/v10/cabinet/app.js`, le style dans `plateforme/barre-cabinet.css`, la boîte des pièces reçues au serveur
+(migration 0175, `GET /cabinets/:cabinet/pieces`, `POST …/messages/:message/classee`). Tests :
+`tests/web/barre-cabinet.test.ts`, `tests/messagerie/messagerie.test.ts` (« les pièces reçues du cabinet ») ; preuves
+« barre cabinet 1 » à « barre cabinet 14 ».
+
+| Ce qui se voit | Comment |
+|---|---|
+| La tête : l'ardoise du cabinet et ses initiales, son nom, « Cabinet · N dossiers » ; la cloche | Le menu du cabinet : son code à donner aux clients (« Copier »), tous les dossiers, la production, l'équipe et les dossiers confiés, les modèles de messages, l'abonnement du cabinet, les réglages (l'équipe, l'abonnement et les réglages du cabinet : l'associé). La cloche : les priorités urgentes, les pièces reçues, les clients qui attendent une réponse, les échéances de la semaine |
+| « Créer » (touche N) | Dans le dossier ouvert : Écriture (E ; « au brouillard » pour l'assistant de saisie), Importer un relevé (R), Demander une pièce (D, un dossier relié), Nouveau dossier (O, l'associé) |
+| « Mon cabinet » | Priorités (la page d'arrivée), Pièces reçues, Échéances, Avancement (la production), Messages ; chacun son chiffre, le même que sa page. « Les miens / Tous » pour l'associé (les dossiers qu'on lui confie, ou tout le cabinet ; gardé sur l'appareil). On range en glissant. « Le cabinet » ouvre son volet à côté de la barre : tous les dossiers (le portefeuille), les relances, l'export des écritures, l'équipe, les modèles de messages, les réglages |
+| Le dossier ouvert | Le dernier où l'on est entré (sinon celui qui attend le plus) : sa couleur sur le bord, relié ou tenu, son dernier mois écrit (validé, ou au brouillard). Ses entrées : Écritures (les mois à valider), Pièces du dossier (celles à classer), Banque, Déclarations (pas pour l'assistant de saisie), puis « Tout le dossier » (banque et lettrage, paie, les livres, révision, bilan et clôture, la fiche du client) |
+| Changer de dossier | Un clic sur sa carte : chercher (Entrée ouvre le premier), les favoris en haut (l'étoile), puis les dossiers qui attendent d'abord, chacun avec Ctrl 1 à 9 (Alt + chiffre aussi). On garde l'écran où l'on est (la banque d'un dossier ouvre la banque de l'autre). Une écriture commencée et pas enregistrée : la question avant de partir (« Rester » ou « Passer à … ») ; elle attend dans son dossier |
+| Priorités | « Bonjour », puis « Urgent » et « À voir » : ce que la liste « À faire » du Cabinet savait déjà (mois sans écriture, à valider, questions sans réponse, échéance proche, jour de relance, tes premiers pas), une ligne par dossier, et ce qui est neuf : les clients qui ont écrit, les pièces reçues à classer. Chaque ligne a son geste, qui mène là où l'on agit. Trois chiffres : dossiers à jour, pièces à classer, échéances des sept jours |
+| Pièces reçues | Les photos et PDF que les clients envoient dans leur conversation, tous dossiers confondus (ou ceux d'un dossier : « Pièces du dossier »), avec ce que le client en dit (la pièce demandée à laquelle elle répond, l'achat où il l'a rangée, son mot). Voir, Saisir (la saisie du dossier), Classer (« Annuler » la remet) ; « Classées » dit qui et quand |
+| À la tablette, au téléphone | Le rail a la marque du cabinet, « + », les pages de « Mon cabinet » et le dossier ouvert. Au téléphone : Priorités, Messages, « + », Échéances, Plus (« Le cabinet », « Tout le dossier », « Mon compte ») |
+
+**Ce qui s'écarte de la maquette, et pourquoi** :
+- les pièces reçues n'ont pas encore la proposition de compte « sûr à 92 % » : la lecture des pièces n'est branchée que
+  côté entreprise (« Lire avec l'IA », derrière son interrupteur) ; ici, on voit la pièce et on la saisit ;
+- « Banque » ne dit pas encore « 88 % rapprochée » : ce chiffre demande de lire le livre du dossier à chaque dessin de
+  la barre ; il viendra avec la page Banque ;
+- « Créer » ne se ferme pas en lecture seule au Cabinet : seuls les dossiers payants le sont, et le serveur refuse
+  l'écriture d'un dossier fermé en disant pourquoi ;
+- le carnet du dossier (« septembre clos ») dit le dernier mois écrit, validé ou au brouillard : la v10 ne clôt pas un
+  mois, elle valide ses écritures ;
+- dans un onglet du navigateur, Ctrl + chiffre peut rester au navigateur (ses onglets) : Alt + chiffre fait la même
+  chose ; dans l'application installée, Ctrl + chiffre marche.

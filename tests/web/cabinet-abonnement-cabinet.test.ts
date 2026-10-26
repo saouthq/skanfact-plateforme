@@ -123,8 +123,10 @@ describe('l\'abonnement du cabinet, à la souris', () => {
     await expect.poll(() => facture.innerText().then(net).catch(() => ''), { timeout: 30_000 }).toContain('72,400 DT');
     const echeance = plusJours(jour, 15);
     expect(net(await panneau.locator('#abo-etat h3').innerText())).toBe(`Ta facture est à régler avant le ${jourEnFrancais(echeance)}`);
-    await expect.poll(() => p.locator('#lic-banner').innerText().then(net).catch(() => ''), { timeout: 15_000 })
+    // (1.152.0, maquette « Barre v3 ») La pastille du pied : ce qui est à faire, puis de quoi il s'agit.
+    await expect.poll(() => p.locator('#lic-banner .abo-t').innerText().then(net).catch(() => ''), { timeout: 15_000 })
       .toBe(`Facture à régler avant le ${jourEnFrancais(echeance)}`);
+    expect(net(await p.locator('#lic-banner small').innerText())).toBe('Abonnement du cabinet');
     // Le vert de l'écran : régler la facture (un seul).
     expect((await panneau.locator('.btn-primary').allInnerTexts()).map(net)).toEqual(['Régler ma facture']);
     await p.screenshot({ path: path.join(PHOTOS, 'abonnement-cabinet-2-facture.png'), fullPage: true });

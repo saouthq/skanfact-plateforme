@@ -1515,5 +1515,6 @@
     const depot = await appel('POST', '/messages/fichiers', { cote, nom: f.name, contenu: await enBase64(f) });
     await appel('POST', '/messages', { cote, texte, piece, demande: null, fichier: depot.id });
   }
-  w.SkanMessagerie = { conversation, boite, envoyerFichier, montrerFichier };
+  // (1.152.0) Le Cabinet ouvre aussi un fichier depuis « Pièces reçues », et ses modèles depuis la barre.
+  w.SkanMessagerie = { conversation, boite, envoyerFichier, montrerFichier, ouvrirFichier, fenetreModeles };
 })();

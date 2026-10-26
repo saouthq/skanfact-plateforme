@@ -405,6 +405,8 @@ export interface BaseDeDonnees {
     demande_pour: string | null;
     relances: Generated<number>;
     relance_le: Date | null;
+    classee_le: Date | null;
+    classee_par: string | null;
   };
   'messagerie.modele': {
     id: Generated<string>;

@@ -1267,6 +1267,28 @@
       // (1.117.0) La boîte entière : la pastille du menu, et celle de chaque ligne de la liste des dossiers.
       lireBoite: () => appel('GET', `/cabinets/${cabinetId}/messages`),
     },
+    // (1.152.0) « Pièces reçues » (0175) : les fichiers que les clients ont envoyés, tous dossiers confondus ; les classer,
+    // défaire, et ouvrir le fichier (celui du fil, tel qu'il est arrivé).
+    pieces: {
+      lire: (/** @type {boolean} */ classees) => appel('GET', `/cabinets/${cabinetId}/pieces${classees ? '?classees=1' : ''}`),
+      classer: (/** @type {string} */ entreprise, /** @type {string} */ message, /** @type {boolean} */ classee) =>
+        appel('POST', `/entreprises/${encodeURIComponent(entreprise)}/messages/${encodeURIComponent(message)}/classee`, { classee }),
+      ouvrir: (/** @type {string} */ entreprise, /** @type {string} */ fichier) => /** @type {any} */ (window).SkanMessagerie.ouvrirFichier(
+        (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b), fichier),
+    },
+    // (1.152.0) Les modèles de messages du cabinet, ouverts depuis la barre (« Le cabinet »).
+    modeles: () => /** @type {any} */ (window).SkanMessagerie.fenetreModeles({ modeles: modelesDuCabinet }),
+    // (1.152.0) Le code du cabinet, que le menu de la barre copie (le même que Réglages › Le code de ton cabinet).
+    codeCabinet: () => code,
+    // (1.152.0) La personne connectée, pour le pied de la barre : son nom, son adresse, son rôle au cabinet.
+    profil: async () => {
+      const m = await appel('GET', '/moi');
+      // La barre le demande dès son dessin : l'équipe n'est peut-être pas encore lue.
+      const membres = equipeLue.membres.length ? equipeLue.membres : ((await appel('GET', `/cabinets/${cabinetId}/equipe`)).membres || []);
+      const membre = membres.find((/** @type {any} */ x) => x.utilisateur === m.id);
+      const NOMS = /** @type {Record<string, string>} */ ({ supervision: 'Associé', revision: 'Collaborateur', saisie: 'Assistant de saisie', paie: 'Paie' });
+      return { nom: m.nom, email: m.email, roleTexte: membre ? (membre.roles || []).map((/** @type {string} */ r) => NOMS[r] || r).join(', ') : '' };
+    },
     // Pas de clé de secours en ligne (C4) : le Cabinet ne la réclame jamais (adaptation de chargerRecovery).
     sansCleDeSecours: true,
     // L'ouverture : la session de la plateforme ouvre le cabinet (adaptation de boot()).

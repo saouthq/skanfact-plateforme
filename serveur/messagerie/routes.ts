@@ -411,6 +411,54 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // ── (1.152.0) Les pièces reçues du cabinet (0175) ──────────────────────────────────────────────────────────────────
+  // Les fichiers que les clients ont envoyés au cabinet, tous dossiers confondus, les plus récents d'abord : à classer,
+  // ou classés (`?classees=1`). La règle du fil (mes_fils) dit quels dossiers se lisent : un collaborateur ne voit que
+  // ceux qu'on lui confie. Deux cents au plus : la boîte d'un cabinet se vide en classant. `aClasser` compte la même
+  // boîte, avec la même règle.
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/pieces', geste: 'compte.cabinets.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      // Qui n'est pas du cabinet n'apprend même pas qu'il existe.
+      if (!(await tx.query('select exists (select 1 from socle.mes_organisations() o where o = $1) v', [params.cabinet])).rows[0].v) return introuvable;
+      const aClasser = query.classees !== '1';
+      const lignes = (await tx.query(`select m.id, m.entreprise, m.auteur_nom, m.texte, m.achat_libelle, m.ecrit_le, m.classee_le,
+          m.classee_par, fi.id fichier, fi.nom fichier_nom, fi.type fichier_type, length(fi.contenu) fichier_taille, d.demande
+        from messagerie.message m
+        join messagerie.fichier fi on fi.id = m.fichier
+        left join messagerie.message d on d.id = m.repond_a
+       where m.cabinet = $1 and m.cote = 'entreprise' and (m.classee_le is null) = $2
+       order by coalesce(m.classee_le, m.ecrit_le) desc, m.id desc limit 201`, [params.cabinet, aClasser])).rows as
+        { id: string; entreprise: string; auteur_nom: string; texte: string; achat_libelle: string | null; ecrit_le: Date; classee_le: Date | null;
+          classee_par: string | null; fichier: string; fichier_nom: string; fichier_type: string; fichier_taille: number; demande: string | null }[];
+      const compte = Number((await tx.query(`select count(*) n from messagerie.message m
+        where m.cabinet = $1 and m.cote = 'entreprise' and m.fichier is not null and m.classee_le is null`, [params.cabinet])).rows[0].n);
+      return {
+        corps: {
+          aClasser: compte,
+          plus: lignes.length > 200,
+          pieces: lignes.slice(0, 200).map((l) => ({
+            id: l.id, entreprise: l.entreprise, de: l.auteur_nom, texte: l.texte, recueLe: l.ecrit_le.toISOString(),
+            fichier: { id: l.fichier, nom: l.fichier_nom, type: l.fichier_type, taille: Number(l.fichier_taille) },
+            demande: l.demande, achat: l.achat_libelle, classeeLe: l.classee_le ? l.classee_le.toISOString() : null, classeePar: l.classee_par,
+          })),
+        },
+      };
+    },
+  });
+  // Classer une pièce reçue, ou défaire (`classee: false`) : la base refait le contrôle (0175).
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/messages/:message/classee', geste: 'messagerie.ecrire',
+    corps: z.object({ classee: z.boolean() }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      if (!uuid.safeParse(params.message).success) return introuvable;
+      await tx.query('select messagerie.classer_piece($1, $2, $3)', [params.entreprise ?? '', params.message, corps.classee]);
+      return { corps: { classee: corps.classee } };
+    },
+  });
+
   // ── (1.117.0) Chercher dans un fil (revue du 22/10/2026, point 10 : « STEG ») ──────────────────────────────────────
   // Les messages du fil dont le texte, la pièce demandée, la pièce citée ou le nom du fichier contiennent les mots
   // cherchés, sans tenir compte des majuscules ni des accents ; trente au plus, du plus récent. La même porte que le fil

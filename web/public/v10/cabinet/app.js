@@ -1142,8 +1142,9 @@
     }
     // La visite guidée (10.14.0) : le moteur apprend à naviguer et à expliquer dans le Cabinet.
     installerVisites();
-    if (!location.hash) location.hash = '#/dossiers';
+    if (!location.hash) location.hash = '#/priorites';
     render();
+    relirePieces();
     refreshBackupInfo();
     refreshInbox(true);
     // L'état de la clé de secours arrive par une promesse : sans ce redessin, le bandeau et la ligne
@@ -1613,7 +1614,11 @@
   let messagerieOuverte = null;
   let demandePreparee = null; // (1.125.0) une demande de pièce préparée depuis une ligne du livre
   let pastilleMessagesLue = false;
-  function majPastilleMessages(n) { const p = $('#nav-messages'); if (p) { p.hidden = !n; p.textContent = n ? String(n) : ''; } }
+  function majPastilleMessages(n) {
+    comptesBarre.messages = n || 0;
+    const p = $('#nav-messages'); if (p) { p.hidden = !n; p.textContent = n ? String(n) : ''; }
+    if (window.SkanBarre) window.SkanBarre.apresCompte();
+  }
   // (1.117.0) La même lecture donne aussi l'état de chaque client : la liste des dossiers montre, sur la ligne d'un client
   // « À traiter », la pastille de ses messages (revue du 22/10/2026, point 11 : elle n'était que dans le menu). Un client
   // a la pastille sur sa ligne exactement quand il compte dans celle du menu (les mêmes lignes du serveur).
@@ -1643,11 +1648,22 @@
       etatsMessages = new Map(b.dossiers.map(d => [d.entreprise, d]));
       majPastilleMessages(b.compteurs.aTraiter);
       majPastillesDossiers();
+      redessinerPrioritesSiOuvertes();
     } catch (_) { /* les pastilles attendent la relecture suivante */ }
   }
   if (api.messagerie) {
     setInterval(rafraichirPastilleMessages, 60 * 1000);
     document.addEventListener('visibilitychange', () => { void rafraichirPastilleMessages(); });
+  }
+  // (1.152.0) Les pièces reçues se relisent aussi d'elles-mêmes (toutes les deux minutes, et au retour sur la fenêtre).
+  if (api.pieces) {
+    setInterval(() => { if (document.visibilityState === 'visible') void relirePieces(); }, 2 * 60 * 1000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') void relirePieces(); });
+  }
+  // La barre et les Priorités suivent ce qui vient d'être lu ; une fenêtre ouverte ne se redessine pas sous les doigts.
+  function redessinerPrioritesSiOuvertes() {
+    drawNav();
+    if (/^#\/priorites/.test(location.hash) && !$('#modal-root').children.length && !$('#palette-root')) drawPriorites($('#view'));
   }
   function drawMessages(view, ent, geste) {
     if (messagerieOuverte) { messagerieOuverte.arreter(); messagerieOuverte = null; }
@@ -1725,8 +1741,9 @@
     derniereCleGuide = cleGuide;
     if (guideNeuf) appelEnAttente = '';
     surveillerGuideMoi();
-    $$('.sidebar nav a').forEach(a => a.classList.toggle('active', a.dataset.route === route));
-    $('#brand-cab').textContent = S.cabinet.name || 'Cabinet';
+    // (1.152.0) Le dossier où l'on entre devient le dossier ouvert de la barre.
+    if (route === 'dossier' && arg && (S.dossiers || []).some(d => d.id === decodeURIComponent(arg))) prefs.set('dossierOuvert', decodeURIComponent(arg));
+    drawNav();
     updateBanner();
     // La pastille compte EXACTEMENT les lignes de la page Relances. Deux chiffres pour la même chose
     // faisaient douter de tout le reste.
@@ -1757,6 +1774,8 @@
     if (!pastilleMessagesLue) { pastilleMessagesLue = true; void rafraichirPastilleMessages(); }
     const view = $('#view');
     if (route === 'dossier') drawDossier(view, arg, hash.split('/')[2], hash.split('/')[3], hash.split('/')[4]);
+    else if (route === 'priorites') drawPriorites(view);
+    else if (route === 'pieces') drawPieces(view, arg);
     else if (route === 'production') drawProduction(view);
     else if (route === 'ecritures') drawEcritures(view);
     else if (route === 'echeances') drawEcheances(view);
@@ -1778,6 +1797,516 @@
     // La première fois sur un écran, sa visite se propose — accrochée à « Guide-moi » (10.14.1). (plateforme) 1.79.0 —
     // en entrant seulement ; ouverte pendant un redessin, elle se repose sans compter une ouverture de plus.
     if (guideNeuf || appelOuvert) appelGuide(!guideNeuf);
+  }
+
+  // ---------- La barre (maquette « Barre v3 », lot 1 b, 26/10/2026 ; docs/maquettes-appliquees.md) ----------
+  //
+  // Le Cabinet à deux niveaux : « Mon cabinet » regarde tous les dossiers (les priorités, les pièces reçues, les
+  // échéances, l'avancement, les messages), et le travail se fait dans UN dossier ouvert, sa couleur toujours visible,
+  // qu'on change d'un clic (une recherche, des favoris, Ctrl + chiffre) sans jamais perdre une écriture commencée. Les
+  // pages qui manquaient à la maquette sont ici : les Priorités (la page d'arrivée) et les Pièces reçues (0175).
+  // L'interaction commune (Créer, la cloche, la personne, la barre repliée, la tablette, le téléphone) est celle de
+  // l'entreprise : plateforme/barre.js, qui lit ce que ce fichier lui dit par `__barreInfos`, `__creer` et la suite.
+  const IC_BARRE = {
+    priorites: '<path d="M4 21V4M4 4h11l-1.5 3.5L15 11H4"/>',
+    pieces: '<path d="M4 13V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v7"/><path d="M4 13h4l1.5 3h5L16 13h4v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/>',
+    echeances: '<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>',
+    production: '<path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="6"/><rect x="12" y="8" width="3" height="10"/><rect x="17" y="5" width="3" height="13"/>',
+    messages: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 13h5"/>',
+    dossiers: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>',
+    relances: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+    ecritures: '<path d="M4 5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M14 3v5h5"/><path d="M8 13h8M8 17h5"/>',
+    banque: '<path d="M3 10h18M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18M12 3l9 5H3z"/>',
+    declaration: '<path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h6M9 16h4"/>',
+    equipe: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.3 3.2-5 6.5-5s5.9 1.7 6.5 5M16 4.5a3.5 3.5 0 0 1 0 7M18 15c2 .5 3.2 2.2 3.5 5"/>',
+    modele: '<path d="M4 4h16v12H8l-4 4z"/><path d="M8 8h8M8 12h5"/>',
+    reglages: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/>',
+    carte: '<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19"/>',
+    lettrage: '<path d="M7 7h10M7 12h10M7 17h6"/><path d="m16 16 2 2 4-4"/>',
+    paie: '<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9v.01M18 15v.01"/>',
+    bilan: '<path d="M12 3v18M5 7h14M7 7l-3 7a3 3 0 0 0 6 0zM17 7l-3 7a3 3 0 0 0 6 0z"/>',
+    fiche: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2.5"/><path d="M5.5 16c.5-2 1.8-3 3.5-3s3 1 3.5 3M14 9h4M14 13h4"/>',
+    livres: '<path d="M4 4h6a2 2 0 0 1 2 2v14a2 2 0 0 0-2-2H4zM20 4h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z"/>',
+    revision: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5M8 11l2 2 4-4"/>',
+    plus: '<circle cx="5.5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="18.5" cy="12" r="1.3"/>',
+    importer: '<path d="M12 3v12M7 10l5 5 5-5M5 21h14"/>',
+    nouveau: '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M12 11v6M9 14h6"/>',
+    cadenas: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    chevron: '<path d="m9 6 6 6-6 6"/>',
+    haut: '<path d="m7 15 5 5 5-5M7 9l5-5 5 5"/>',
+    etoile: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
+    coche: '<path d="M20 6 9 17l-5-5"/>',
+    copier: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>',
+    oeil: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  };
+  const icB = (n, t = 19, ep = 1.8) => `<svg width="${t}" height="${t}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${ep}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC_BARRE[n] || ''}</svg>`;
+  // La couleur d'un dossier : la même à chaque ouverture, tirée de son identifiant (huit teintes de la maquette).
+  const COULEURS_DOSSIER = [['#1fb8a8', '#0c877b'], ['#6d7cf2', '#4553c9'], ['#f0a24a', '#c2700f'], ['#e77fa8', '#b8487a'],
+    ['#4cb8e6', '#1d84b5'], ['#a78bfa', '#7c5ad6'], ['#7cc47f', '#3f8f45'], ['#94a3b8', '#64748b']];
+  const couleurDe = id => { let n = 0; for (const c of String(id)) n = (n * 31 + c.charCodeAt(0)) >>> 0; return COULEURS_DOSSIER[n % COULEURS_DOSSIER.length]; };
+  const PETITS_MOTS = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'et', 'd', 'l', 'sarl', 'suarl', 'sa', 'sas', 'cabinet']);
+  const initialesDe = nom => (String(nom || '').normalize('NFC').split(/[\s'’\-.&]+/).filter(m => m && !PETITS_MOTS.has(m.toLowerCase()))
+    .slice(0, 2).map(m => m[0]).join('') || 'SF').toUpperCase();
+  const marqueD = (d, cl = '') => { const c = couleurDe(d.id); return `<span class="marque-s ${cl}" style="background:linear-gradient(145deg, ${c[0]}, ${c[1]})" aria-hidden="true">${esc(initialesDe(d.name))}</span>`; };
+  const typeD = d => `<span class="type-d ${d.manual ? 'tenu' : 'relie'}" title="${d.manual ? 'Le cabinet tient ce dossier : le client n\'est pas sur SkanFact' : 'Le client est sur SkanFact : ses pièces arrivent seules'}">${d.manual ? 'Tenu' : 'Relié'}</span>`;
+
+  // Le rôle au cabinet (supervision : associé ; validation : collaborateur ; saisie : assistant de saisie).
+  const monRole = () => (((S && S.collaborateurs) || []).find(c => c.id === S.moi) || {}).role || 'supervision';
+  const estAssocie = () => monRole() === 'supervision';
+  // « Les miens » ou « Tous » (l'associé seul choisit ; les autres voient les dossiers qu'on leur confie).
+  const portee = () => (estAssocie() ? prefs.get('portee', 'tous') : 'miens');
+  const dossiersActifs = () => ((S && S.dossiers) || []).filter(d => !d.archived);
+  function mesDossiers() {
+    const tous = dossiersActifs();
+    if (!estAssocie() || portee() === 'tous') return tous;
+    return tous.filter(d => d.droits && d.droits[S.moi]);
+  }
+  // Le dossier ouvert : le dernier où l'on a travaillé, sinon celui qui attend le plus.
+  function dossierOuvert() {
+    const tous = dossiersActifs();
+    const id = prefs.get('dossierOuvert', '');
+    const premier = K.dossierList(S, null, { sort: 'urgence' })[0];
+    return tous.find(d => d.id === id) || (premier && tous.find(d => d.id === premier.id)) || null;
+  }
+  // La ligne du dossier ouvert : son dernier mois écrit, et s'il est validé.
+  function etatDuDossier(d) {
+    const r = K.dossierRow(d, null, Number((S.settings || {}).relanceDay) || 0);
+    if (!r.lastMonth) return { texte: d.manual ? 'aucun mois saisi' : 'aucun mois écrit', clos: false, r };
+    return { texte: `${K.monthLabel(r.lastMonth).split(' ')[0]} ${r.lastDefinitive ? 'validé' : 'au brouillard'}`, clos: r.lastDefinitive, r };
+  }
+
+  // Ce que la barre compte : chaque nombre sort de la même fonction que la page qui le montre (règle 6.8.1).
+  const comptesBarre = { messages: 0, pieces: 0, piecesParDossier: new Map(), piecesLues: false };
+  function prioritesDuJour() {
+    const ids = new Set(mesDossiers().map(d => d.id));
+    const todo = K.cabinetTodo({ ...S, dossiers: (S.dossiers || []).filter(d => ids.has(d.id)) }, null,
+      { cleSecours: null, licence: licCab, questions: questionsAttente, employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() });
+    const urgent = [], avoir = [];
+    const nomDe = id => ((S.dossiers || []).find(d => d.id === id) || {}).name || '';
+    for (const t of todo) {
+      const ton = t.level === 'danger' ? 'alerte' : 'attire';
+      const dest = ton === 'alerte' ? urgent : avoir;
+      const parDossier = { manquants: 1, provisoires: 1, questions: 1, pieces: 1 }[t.id] && (t.rows || []).length;
+      if (!parDossier) { dest.push({ cle: t.id, dossier: null, quoi: t.label, sous: t.detail, ton, geste: (TODO_ACTIONS[t.id] || {}).texte || 'Voir', faire: () => (TODO_ACTIONS[t.id] || { run: () => {} }).run() }); continue; }
+      for (const r of t.rows) {
+        const d = (S.dossiers || []).find(x => x.id === r.id);
+        if (!d) continue;
+        if (t.id === 'manquants') dest.push({ cle: `m-${d.id}`, dossier: d, quoi: `${pl(r.missingCount, 'mois', 'mois')} sans écriture`, sous: K.missingLabel(r.missingMonths), ton,
+          geste: d.manual ? 'Saisir' : 'Demander', faire: () => { location.hash = d.manual ? `#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie` : `#/messages/${encodeURIComponent(d.id)}/demande`; } });
+        else if (t.id === 'provisoires') dest.push({ cle: `p-${d.id}`, dossier: d, quoi: `${pl(r.provisionalCount, 'mois', 'mois')} à valider`, sous: 'des écritures encore au brouillard', ton,
+          geste: 'Valider', faire: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie`; } });
+        else if (t.id === 'questions') dest.push({ cle: `q-${d.id}`, dossier: d, quoi: 'Questions sans réponse', sous: 'envoyées deux fois au client', ton,
+          geste: 'Voir', faire: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite/revision`; } });
+        else dest.push({ cle: `j-${d.id}`, dossier: d, quoi: 'Pièces manquantes signalées', sous: nomDe(d.id), ton, geste: 'Voir', faire: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}`; } });
+      }
+    }
+    // Tes premiers pas (10.14.0), tant que le cabinet démarre : l'étape suivante, guidée.
+    const pas = lignePremiersPas();
+    if (pas) avoir.push({ cle: 'premiers-pas', dossier: null, quoi: pas.label, sous: pas.detail, ton: 'attire', geste: 'Me guider pas à pas', faire: () => lancerPasSuivant() });
+    // Ce qui attend sans être en retard : les clients qui ont écrit, les pièces reçues à classer.
+    for (const d of mesDossiers()) {
+      const m = etatsMessages.get(d.id);
+      if (m && m.etat === 'a_traiter') avoir.push({ cle: `msg-${d.id}`, dossier: d, quoi: m.nonLus ? pl(m.nonLus, 'message du client', 'messages du client') : 'Le client t\'a répondu',
+        sous: 'dans sa conversation', ton: 'attire', geste: 'Répondre', faire: () => { location.hash = `#/messages/${encodeURIComponent(d.id)}`; } });
+      const n = comptesBarre.piecesParDossier.get(d.id) || 0;
+      if (n) avoir.push({ cle: `pr-${d.id}`, dossier: d, quoi: `${pl(n, 'pièce reçue', 'pièces reçues')} à classer`, sous: 'envoyées par le client', ton: 'attire',
+        geste: 'Classer', faire: () => { location.hash = `#/pieces/${encodeURIComponent(d.id)}`; } });
+    }
+    return { urgent, avoir };
+  }
+  function echeancesDeLaSemaine() {
+    const ids = new Set(mesDossiers().map(d => d.name));
+    return K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() })
+      .filter(e => !e.passee && e.jours <= 7 && [...e.manquants, ...e.aSaisir, ...e.provisoires].some(n => ids.has(n)));
+  }
+
+  // Les pièces reçues (0175) : lues à l'ouverture, au retour sur la fenêtre et après chaque geste.
+  let piecesLues = { aClasser: 0, pieces: [], plus: false };
+  async function relirePieces() {
+    if (!api.pieces) return;
+    try {
+      piecesLues = await api.pieces.lire(false);
+      comptesBarre.pieces = piecesLues.aClasser;
+      comptesBarre.piecesParDossier = new Map();
+      for (const p of piecesLues.pieces) comptesBarre.piecesParDossier.set(p.entreprise, (comptesBarre.piecesParDossier.get(p.entreprise) || 0) + 1);
+      comptesBarre.piecesLues = true;
+      redessinerPrioritesSiOuvertes();
+      if (/^#\/pieces/.test(location.hash) && !$('#modal-root').children.length) drawPieces($('#view'), location.hash.split('/')[2]);
+    } catch { /* sans réseau : la barre garde ce qu'elle savait */ }
+  }
+
+  // La liste de la barre : « Mon cabinet », puis le dossier ouvert. Une page n'y a qu'UN lien ; la page ouverte porte
+  // `active` (barre.js en fait `aria-current`).
+  const ORDRE_CAB = ['priorites', 'pieces', 'echeances', 'production', 'messages'];
+  const NOMS_CAB = { priorites: 'Priorités', pieces: 'Pièces reçues', echeances: 'Échéances', production: 'Avancement', messages: 'Messages',
+    dossiers: 'Tous les dossiers', relances: 'Relances', ecritures: 'Export des écritures' };
+  const BULLES_CAB = { priorites: 'Ce qui presse dans tes dossiers, le plus urgent d\'abord', pieces: 'Les photos et PDF déposés par tes clients, à classer',
+    echeances: 'Les déclarations de tes dossiers, par date', production: 'Ce qui avance, dossier par dossier', messages: 'Les conversations avec tes clients' };
+  function drawNav() {
+    const nav = $('#nav');
+    if (!nav || !S) return;
+    const hash = location.hash.replace(/^#\//, '') || 'priorites';
+    const [route, arg, sous] = hash.split('/');
+    const D = dossierOuvert();
+    const role = monRole();
+    const pri = prioritesDuJour();
+    const semaine = echeancesDeLaSemaine();
+    const compte = (id, n, ton, titre) => `<span class="nav-count compte${ton ? ' ' + ton : ''}" id="${id}"${n ? '' : ' hidden'}${titre ? ` title="${esc(titre)}"` : ''}>${n || ''}</span>`;
+    const ordre = (prefs.get('navOrdreCab', null) || ORDRE_CAB).filter(x => ORDRE_CAB.includes(x));
+    for (const x of ORDRE_CAB) if (!ordre.includes(x)) ordre.push(x);
+    const actif = id => (id === 'pieces' ? route === 'pieces' && !arg : route === id);
+    const lienCab = id => {
+      const n = id === 'priorites' ? pri.urgent.length : id === 'pieces' ? comptesBarre.pieces : id === 'echeances' ? semaine.length : id === 'messages' ? comptesBarre.messages : 0;
+      const ton = id === 'priorites' || id === 'echeances' ? 'alerte' : '';
+      const tip = id === 'priorites' ? `${n} urgente${n > 1 ? 's' : ''}` : id === 'pieces' ? `${n} à classer` : id === 'echeances' ? `${n} cette semaine` : id === 'messages' ? `${n} à traiter` : '';
+      return `<a href="#/${id}" data-route="${id}" class="lien${actif(id) ? ' active' : ''}" draggable="true" data-nom="${id}" data-tip="${esc(NOMS_CAB[id] + (n ? ` · ${tip}` : ''))}" title="${esc(BULLES_CAB[id])}">`
+        + `<span class="ic">${icB(id)}</span>${esc(NOMS_CAB[id])}${compte(id === 'messages' ? 'nav-messages' : `nav-${id}`, n, ton, n ? tip : '')}`
+        + `<span class="prise" title="Glisse pour ranger"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></svg></span><span class="point"></span></a>`;
+    };
+    const ligneVolet = (ic, titre, sousT, attrs) => `<div class="ligne"><${attrs.href ? 'a' : 'button type="button"'} class="pl-l"${attrs.href ? ` href="${attrs.href}"` : ''}${attrs.route ? ` data-route="${attrs.route}"` : ''}${attrs.action ? ` data-cab-action="${attrs.action}"` : ''}><span class="tuile-ic">${icB(ic)}</span><span class="pl-t"><b>${esc(titre)}</b><span class="d">${esc(sousT)}</span></span>${attrs.compte || ''}</${attrs.href ? 'a' : 'button'}></div>`;
+    const nRel = K.relanceRows(S).length;
+    const voletCabinet = `<div class="nav-fam" data-famille="Le cabinet"><button type="button" class="lien nav-volet" data-famille="Le cabinet" aria-expanded="false" data-tip="Le cabinet · tous les dossiers, relances, équipe, réglages"><span class="ic">${icB('production')}</span>Le cabinet<span class="nav-count compte ng-count"${nRel ? '' : ' hidden'}>${nRel || ''}</span><span class="chev">${icB('chevron', 15, 2.2)}</span><span class="point"></span></button>`
+      + `<div class="panneau volet" role="dialog" aria-label="Le cabinet" hidden><h3>Le cabinet</h3><p class="sous">Tous les dossiers, les relances, l'équipe, les réglages</p><div class="panneau-liste">`
+      + ligneVolet('dossiers', 'Tous les dossiers', 'Le portefeuille, ses chiffres, ses filtres', { href: '#/dossiers', route: 'dossiers' })
+      + ligneVolet('relances', 'Relances', 'Les clients à qui des mois manquent', { href: '#/relances', route: 'relances', compte: `<span class="nav-count compte" id="nav-relances"${nRel ? '' : ' hidden'}>${nRel || ''}</span>` })
+      + ligneVolet('ecritures', 'Export des écritures', 'Le mois de tous tes clients, en un fichier', { href: '#/ecritures', route: 'ecritures' })
+      + (estAssocie() ? ligneVolet('equipe', 'Équipe', 'Qui tient quel dossier', { action: 'equipe' }) : '')
+      + (api.modeles ? ligneVolet('modele', 'Modèles de messages', 'Les demandes de pièces prêtes', { action: 'modeles' }) : '')
+      + ligneVolet('reglages', 'Réglages', estAssocie() ? 'Le cabinet, son abonnement' : 'Ton compte, l\'affichage', { href: '#/reglages', route: 'reglages' })
+      + '</div></div></div>';
+    let html = `<div class="nav nav-quotidien" id="nav-1"><p class="groupe-titre">Mon cabinet${estAssocie()
+      ? `<span class="portee" role="group" aria-label="Quels dossiers"><button type="button" data-portee="miens" aria-pressed="${portee() === 'miens'}">Les miens</button><button type="button" data-portee="tous" aria-pressed="${portee() === 'tous'}">Tous</button></span>`
+      : '<span class="portee seul">Mes dossiers</span>'}</p>${ordre.map(lienCab).join('')}${voletCabinet}</div>`;
+    html += '<div class="sep"></div>';
+    if (!D) {
+      html += `<div class="nav nav-dossier vide-d" id="nav-dossier"><div class="dossier" style="cursor:default"><span class="marque-s vide" aria-hidden="true">${icB('dossiers', 15, 2)}</span><span class="lib"><small>Dossier ouvert</small><b>Pas encore de dossier</b><small>Il s'ouvre ici dès le premier</small></span></div></div>`;
+    } else {
+      const e = etatDuDossier(D);
+      const c = couleurDe(D.id);
+      const base = `#/dossier/${encodeURIComponent(D.id)}`;
+      const dansCeDossier = route === 'dossier' && decodeURIComponent(arg || '') === D.id;
+      const ici = (o, s2) => dansCeDossier && (sous || 'suivi') === o && (!s2 || (hash.split('/')[3] || '') === s2);
+      const n = comptesBarre.piecesParDossier.get(D.id) || 0;
+      const lienD = (id, ic, nom, href, on, meta, ton) => `<a href="${href}" data-route="${id}" class="lien${on ? ' active' : ''}" data-tip="${esc(nom + (meta ? ` · ${meta}` : ''))}"><span class="ic">${icB(ic)}</span>${esc(nom)}${meta ? `<span class="nav-count compte ${ton || 'calme'}">${esc(meta)}</span>` : ''}<span class="point"></span></a>`;
+      const r = e.r;
+      const aValider = r.provisionalCount;
+      const volet = `<div class="nav-fam" data-famille="Tout le dossier"><button type="button" class="lien nav-volet" data-famille="Tout le dossier" aria-expanded="false" data-tip="Tout le dossier · banque, paie, bilan, fiche"><span class="ic">${icB('plus')}</span>Tout le dossier<span class="chev">${icB('chevron', 15, 2.2)}</span><span class="point"></span></button>`
+        + `<div class="panneau volet" role="dialog" aria-label="Tout le dossier" hidden><h3>${esc(D.name)}</h3><p class="sous">Tout le dossier : ses livres, sa paie, sa clôture, sa fiche</p><div class="panneau-liste">`
+        + ligneVolet('lettrage', 'Banque et lettrage', 'Relevés, rapprochement, lettrage', { href: `${base}/comptabilite/lettrage` })
+        + ligneVolet('paie', 'Paie du dossier', 'Bulletins, CNSS', { href: `${base}/comptabilite/paie` })
+        + ligneVolet('livres', 'Les livres', 'Journal, grand livre, balance', { href: `${base}/comptabilite/journal` })
+        + (role !== 'saisie' ? ligneVolet('revision', 'Révision', 'Les comptes revus, les questions au client', { href: `${base}/comptabilite/revision` }) : '')
+        + (role !== 'saisie' ? ligneVolet('bilan', 'Bilan et clôture', 'Fin d\'exercice, liasse', { href: `${base}/comptabilite/exercice` }) : '')
+        + ligneVolet('fiche', 'Fiche du client', 'Mandat, contacts, qui tient le dossier', { href: base })
+        + '</div></div></div>';
+      html += `<div class="nav nav-dossier" id="nav-dossier" style="--d1:${c[0]}">`
+        + `<button type="button" class="dossier" id="b-dossier" data-nom="${esc(D.name)}" aria-haspopup="menu" aria-expanded="false" data-tip="Dossier ouvert · ${esc(D.name)} · Ctrl 1 à 9 pour tes dossiers">${marqueD(D)}<span class="lib"><small>Dossier ouvert · ${typeD(D)}</small><b>${esc(D.name)}</b><small class="clos">${e.clos ? icB('cadenas', 11, 2.4) + ' ' : ''}${esc(e.texte)}</small></span><span class="chev">${icB('haut', 15, 2)}</span></button>`
+        + lienD('d-saisie', 'ecritures', 'Écritures', `${base}/comptabilite/saisie`, ici('comptabilite', 'saisie'), aValider ? `${aValider} mois à valider` : '', 'calme')
+        + lienD('d-pieces', 'pieces', 'Pièces du dossier', `#/pieces/${encodeURIComponent(D.id)}`, route === 'pieces' && decodeURIComponent(arg || '') === D.id, n ? `${n} à classer` : '', 'attire')
+        + lienD('d-banque', 'banque', 'Banque', `${base}/comptabilite/banque`, ici('comptabilite', 'banque'), '', '')
+        + (role !== 'saisie' ? lienD('d-declaration', 'declaration', 'Déclarations', `${base}/comptabilite/declaration`, ici('comptabilite', 'declaration'), '', '') : '')
+        + volet + '</div>';
+    }
+    nav.innerHTML = html;
+    // La tête : le nom du cabinet, combien de dossiers, et ses initiales.
+    const nb = dossiersActifs().length;
+    $('#brand-cab').textContent = S.cabinet.name || 'Cabinet';
+    const sousTete = $('#brand-cab-sous');
+    if (sousTete) sousTete.textContent = nb ? `Cabinet · ${pl(nb, 'dossier')}${estAssocie() ? '' : nb > 1 ? ' confiés' : ' confié'}` : 'Cabinet · aucun dossier encore';
+    if (window.SkanBarre) window.SkanBarre.apresDessin();
+  }
+
+  // Ce que la coquille lit (plateforme/barre.js).
+  window.__barreInfos = () => ({ app: 'cabinet', accueil: 'priorites', reglages: 'reglages', metier: '', role: S ? `cabinet-${monRole()}` : 'cabinet',
+    responsable: !!S && estAssocie(), lectureSeule: false, cabinet: null, version: (upd.app && upd.app.version) || '' });
+  window.__naviguer = hash => { location.hash = hash; };
+  window.__allerParametres = tab => versReglages(tab === 'equipe' ? 'pan-equipe' : 'pan-compte');
+  window.__allerAbonnement = () => versReglages('pan-licence');
+  window.__seDeconnecter = () => seDeconnecter();
+  window.__rangerQuotidien = noms => { prefs.set('navOrdreCab', noms.filter(x => ORDRE_CAB.includes(x))); drawNav(); };
+  window.__pageBarre = id => ({ id, titre: NOMS_CAB[id] || id, icone: icB(IC_BARRE[id] ? id : 'dossiers') });
+  window.__ongletsTel = () => { const o = prefs.get('ongletsTel', null); return Array.isArray(o) && o.length === 2 ? o : ['messages', 'echeances']; };
+  window.__candidatsOnglets = () => ['messages', 'echeances', 'pieces', 'production', 'dossiers', 'relances'].map(id => window.__pageBarre(id));
+  window.__choisirOngletTel = id => { const [a, b] = window.__ongletsTel(); if (id === a || id === b) return; prefs.set('ongletsTel', [b, id]); if (window.SkanBarre) window.SkanBarre.apresCompte(); };
+  // « Créer » écrit dans le dossier ouvert : une écriture, un relevé, une pièce demandée au client (un dossier relié) ;
+  // l'associé ajoute un dossier. L'assistant de saisie écrit au brouillard, qu'un collaborateur valide.
+  window.__creer = () => {
+    if (!S) return { actions: [], bloque: null };
+    const D = dossierOuvert();
+    const role = monRole();
+    const base = D ? `#/dossier/${encodeURIComponent(D.id)}/comptabilite` : '';
+    const a = [];
+    if (D) {
+      a.push({ titre: role === 'saisie' ? 'Écriture au brouillard' : 'Écriture', sous: role === 'saisie' ? 'Un collaborateur la valide' : `Dans ${D.name}`, touche: 'E', icone: icB('ecritures'), faire: () => { location.hash = `${base}/saisie`; } });
+      a.push({ titre: 'Importer un relevé', sous: 'Banque : un fichier ou un tableur', touche: 'R', icone: icB('importer'), faire: () => { location.hash = `${base}/banque`; } });
+      if (!D.manual && role !== 'saisie' && api.messagerie) a.push({ titre: 'Demander une pièce', sous: 'Le client la reçoit dans SkanFact', touche: 'D', icone: icB('messages'), faire: () => { location.hash = `#/messages/${encodeURIComponent(D.id)}/demande`; } });
+    }
+    if (estAssocie()) a.push({ titre: 'Nouveau dossier', sous: 'Un client, avec ou sans SkanFact', touche: 'O', icone: icB('nouveau'), faire: () => newDossierForm() });
+    return { titre: D ? `Créer · ${D.name}` : 'Créer', actions: a, bloque: null };
+  };
+  // La cloche : ce qui attend, au même endroit (les pastilles de la barre restent).
+  window.__nouvelles = () => {
+    if (!S) return [];
+    const l = [];
+    const pri = prioritesDuJour();
+    for (const x of pri.urgent.slice(0, 4)) l.push({ cle: `cab-u-${x.cle}-${x.quoi}`, ic: 'cloche', ton: 'alerte', html: x.dossier ? `<b>${esc(x.dossier.name)}</b> : ${esc(x.quoi)}` : `<b>${esc(x.quoi)}</b>`, sous: 'Priorités · urgent', faire: () => x.faire() });
+    if (comptesBarre.pieces) l.push({ cle: `cab-pieces-${comptesBarre.pieces}`, ic: 'bulle', ton: 'attire', html: `<b>${pl(comptesBarre.pieces, 'pièce reçue', 'pièces reçues')}</b> à classer`, sous: 'Pièces reçues', faire: () => { location.hash = '#/pieces'; } });
+    if (comptesBarre.messages) l.push({ cle: `cab-msg-${comptesBarre.messages}`, ic: 'comptable', ton: 'attire', html: `<b>${pl(comptesBarre.messages, 'client attend', 'clients attendent')}</b> une réponse`, sous: 'Messages', faire: () => { location.hash = '#/messages'; } });
+    for (const e of echeancesDeLaSemaine().slice(0, 2)) l.push({ cle: `cab-ech-${e.id}-${e.date}`, ic: 'horloge', ton: 'attire', html: `<b>${esc(e.label)}</b> à déposer dans ${pl(e.jours, 'jour')}`, sous: 'Échéances', faire: () => { location.hash = '#/echeances'; } });
+    return l;
+  };
+
+  // Le menu du cabinet (sa marque) : le code à donner aux clients, et ce qui regarde le cabinet entier.
+  function ouvrirMenuCabinet(b) {
+    if (!window.SkanBarre) return;
+    const code = api.codeCabinet ? api.codeCabinet() : '';
+    const btn = (action, ic, titre, sousT) => `<button type="button" role="menuitem" data-cab-action="${action}"><span class="ic">${icB(ic, 18)}</span><span class="lib">${esc(titre)}${sousT ? `<small>${esc(sousT)}</small>` : ''}</span></button>`;
+    const abo = $('#lic-banner') && !$('#lic-banner').hidden ? ($('#lic-banner .abo-t') || $('#lic-banner')).textContent.trim() : 'Rien à régler pour l\'instant';
+    const el = window.SkanBarre.ouvrirPop('sb-cabinet', `<span class="menu-titre">${esc(S.cabinet.name || 'Cabinet')}</span>`
+      + (code ? `<div class="code-cab"><span><small>Ton code cabinet, à donner à tes clients</small><b>${esc(code)}</b></span><button type="button" class="sb-geste" data-cab-action="copier">${icB('copier', 14, 2)} Copier</button></div>` : '')
+      + btn('dossiers', 'dossiers', 'Tous les dossiers', pl(dossiersActifs().length, 'dossier'))
+      + btn('production', 'production', 'Production', 'Ce qui avance, dossier par dossier')
+      + (estAssocie() ? btn('equipe', 'equipe', 'Équipe et dossiers confiés', pl(((S.collaborateurs || []).filter(c => c.actif)).length, 'personne')) : '')
+      + (api.modeles ? btn('modeles', 'modele', 'Modèles de messages', 'Les demandes de pièces prêtes') : '')
+      + (estAssocie() ? '<div class="trait"></div>' + btn('abonnement', 'carte', 'Abonnement du cabinet', abo) + btn('reglages', 'reglages', 'Réglages du cabinet', '') : btn('reglages', 'reglages', 'Réglages', '')),
+    b, 'Le cabinet');
+    if (!el) return;
+    const r = b.getBoundingClientRect();
+    el.style.left = `${Math.round(window.SkanBarre.tablette() ? r.right + 12 : r.left)}px`;
+    el.style.top = `${Math.round(window.SkanBarre.tablette() ? r.top : r.bottom + 6)}px`;
+  }
+  // Ce que font les boutons du menu du cabinet et des volets.
+  async function actionCabinet(a, bouton) {
+    if (a === 'copier') {
+      try { await navigator.clipboard.writeText(api.codeCabinet()); bouton.innerHTML = `${icB('coche', 14, 2.4)} Copié`; } catch { /* le code reste lisible */ }
+      return;
+    }
+    if (window.SkanBarre) window.SkanBarre.fermer();
+    if (a === 'dossiers') location.hash = '#/dossiers';
+    else if (a === 'production') location.hash = '#/production';
+    else if (a === 'equipe') versReglages('pan-equipe');
+    else if (a === 'modeles') api.modeles();
+    else if (a === 'abonnement') versReglages('pan-licence');
+    else if (a === 'reglages') location.hash = '#/reglages';
+  }
+
+  // Changer de dossier : la recherche, les favoris (l'étoile), Ctrl + chiffre. Une écriture commencée et pas enregistrée
+  // reste en attente dans son dossier (`saisieState.enAttente`) : on le dit avant de partir, rien ne se perd.
+  function listeDesDossiers() {
+    const fav = prefs.get('favorisDossiers', []);
+    const urgence = K.dossierList({ ...S, dossiers: mesDossiers() }, null, { sort: 'urgence' }).map(r => mesDossiers().find(d => d.id === r.id)).filter(Boolean);
+    return { favoris: urgence.filter(d => fav.includes(d.id)), autres: urgence.filter(d => !fav.includes(d.id)) };
+  }
+  function ouvrirChoixDossier(b) {
+    if (!window.SkanBarre) return;
+    const { favoris, autres } = listeDesDossiers();
+    const D = dossierOuvert();
+    const fav = prefs.get('favorisDossiers', []);
+    let n = 0;
+    const ligne = d => {
+      const r = K.dossierRow(d, null, Number((S.settings || {}).relanceDay) || 0);
+      const etat = r.level === 'danger' ? '<span class="etat alerte">en retard</span>' : r.level === 'warn' ? '<span class="etat attire">à valider</span>' : '';
+      const k = ++n;
+      const surSa = r.missingCount ? `${pl(r.missingCount, 'mois', 'mois')} sans écriture` : r.provisionalCount ? `${pl(r.provisionalCount, 'mois', 'mois')} à valider` : r.lastMonth ? `${K.monthLabel(r.lastMonth)}${r.lastDefinitive ? ' validé' : ''}` : 'rien d\'écrit encore';
+      return `<div class="ligne-d" data-nom-d="${esc(K.sansAccents ? K.sansAccents(d.name) : d.name.toLowerCase())}"><button type="button" role="menuitem" data-aller-dossier="${esc(d.id)}">${marqueD(d)}<span class="lib">${esc(d.name)}<small>${typeD(d)} · ${esc(surSa)}</small></span>`
+        + `${D && d.id === D.id ? `<span class="coche">${icB('coche', 17, 2.2)}</span>` : etat}${k <= 9 ? `<kbd class="k-d">Ctrl ${k}</kbd>` : ''}</button>`
+        + `<button type="button" class="etoile${fav.includes(d.id) ? ' on' : ''}" data-etoile="${esc(d.id)}" aria-pressed="${fav.includes(d.id)}" aria-label="${fav.includes(d.id) ? 'Retirer des favoris' : 'Épingler en favori'} : ${esc(d.name)}" title="${fav.includes(d.id) ? 'Retirer des favoris' : 'Épingler en favori'}">${icB('etoile', 15, 2)}</button></div>`;
+    };
+    const html = `<label class="champ-barre chercher-d">${icB('dossiers', 15, 2)}<input type="search" placeholder="Chercher un dossier…" aria-label="Chercher un dossier" data-chercher-d></label>`
+      + (favoris.length ? `<span class="menu-titre">Favoris</span>${favoris.map(ligne).join('')}` : '')
+      + `<span class="menu-titre">${estAssocie() && portee() === 'tous' ? 'Tous les dossiers · ceux qui attendent d\'abord' : 'Tes dossiers · ceux qui attendent d\'abord'}</span>${autres.map(ligne).join('')}`
+      + (favoris.length + autres.length ? '' : '<p class="note">Aucun dossier encore : « Créer », puis « Nouveau dossier ».</p>')
+      + '<p class="note rien-d" hidden>Aucun dossier ne porte ce nom.</p>'
+      + `<div class="trait"></div><span class="menu-titre pied-d">Ctrl + chiffre ouvre un dossier · l'étoile le garde en haut</span><a href="#/dossiers" class="tous-d">${icB('dossiers', 16)}<span class="lib">Voir tous les dossiers</span></a>`;
+    const el = window.SkanBarre.ouvrirPop('pop-dossier', html, b, 'Changer de dossier');
+    if (!el) return;
+    const r = b.getBoundingClientRect();
+    const barre = $('#barre').getBoundingClientRect();
+    el.style.left = `${Math.round(window.SkanBarre.telephone() ? 12 : (window.SkanBarre.tablette() ? barre.right : barre.right) + 12)}px`;
+    el.style.top = `${Math.round(Math.max(10, Math.min(r.top - 8, window.innerHeight - el.offsetHeight - 10)))}px`;
+    const champ = $('[data-chercher-d]', el);
+    champ.focus();
+    champ.addEventListener('input', () => {
+      const q = (K.sansAccents ? K.sansAccents(champ.value) : champ.value.toLowerCase()).trim();
+      let vus = 0;
+      $$('.ligne-d', el).forEach(x => { const ok = !q || x.dataset.nomD.includes(q); x.hidden = !ok; if (ok) vus++; });
+      $('.rien-d', el).hidden = vus > 0;
+    });
+    champ.addEventListener('keydown', e => {
+      if (e.key === 'Enter') { const p = $$('.ligne-d', el).find(x => !x.hidden); if (p) { e.preventDefault(); $('[data-aller-dossier]', p).click(); } }
+    });
+  }
+  async function changerDeDossier(id) {
+    const D = dossierOuvert();
+    if (window.SkanBarre) window.SkanBarre.fermer();
+    if (D && D.id === id && /^#\/dossier\//.test(location.hash)) return;
+    const cible = (S.dossiers || []).find(d => d.id === id);
+    if (!cible) return;
+    if (D && D.id !== id && saleDe(D.id)) {
+      const ok = await confirmDialog(`Ton écriture dans ${D.name} n'est pas enregistrée`,
+        `<p>Elle reste en attente dans ${esc(D.name)}, sur ce poste : tu la retrouveras en revenant, telle que tu l'as laissée. Fermer la page, elle, la perdrait.</p>`,
+        `Passer à ${cible.name}`, false, 'Rester');
+      if (!ok) return;
+      toast(`L'écriture commencée t'attend dans ${D.name}.`);
+    }
+    prefs.set('dossierOuvert', id);
+    // Dans un dossier, on garde l'écran (sa saisie, sa banque…) ; ailleurs, on ouvre la fiche du dossier.
+    const m = /^#\/dossier\/[^/]+(\/.*)?$/.exec(location.hash);
+    location.hash = `#/dossier/${encodeURIComponent(id)}${m && m[1] ? m[1].split('/').slice(0, 4).join('/') : ''}`;
+  }
+  document.addEventListener('click', e => {
+    const t = e.target;
+    if (!t || !t.closest) return;
+    if (t.closest('#b-dossier')) { e.preventDefault(); ouvrirChoixDossier(t.closest('#b-dossier')); return; }
+    if (t.closest('#brand-btn') && $('#barre')) { e.preventDefault(); ouvrirMenuCabinet(t.closest('#brand-btn')); return; }
+    const p = t.closest('#nav [data-portee]');
+    if (p) { e.preventDefault(); prefs.set('portee', p.dataset.portee); render(); return; }
+    const a = t.closest('.sb [data-cab-action]');
+    if (a) { e.preventDefault(); actionCabinet(a.dataset.cabAction, a); return; }
+    const etoile = t.closest('.pop-dossier [data-etoile]');
+    if (etoile) {
+      e.preventDefault();
+      const id = etoile.dataset.etoile; const fav = prefs.get('favorisDossiers', []);
+      prefs.set('favorisDossiers', fav.includes(id) ? fav.filter(x => x !== id) : [id, ...fav].slice(0, 9));
+      const b = $('#b-dossier'); if (window.SkanBarre) window.SkanBarre.fermer(); if (b) ouvrirChoixDossier(b);
+      const meme = $(`.pop-dossier [data-etoile="${CSS.escape(id)}"]`); if (meme) meme.focus();
+      return;
+    }
+    const aller = t.closest('.pop-dossier [data-aller-dossier]');
+    if (aller) { e.preventDefault(); changerDeDossier(aller.dataset.allerDossier); }
+  });
+  // Ctrl (ou Alt) + 1 à 9 : un de tes dossiers, dans l'ordre du choix (les favoris d'abord). Jamais dans un champ.
+  document.addEventListener('keydown', e => {
+    if (!S || !(e.ctrlKey || e.altKey) || e.metaKey || e.shiftKey || !/^[1-9]$/.test(e.key)) return;
+    if (e.target && e.target.closest && e.target.closest('input, textarea, select, [contenteditable="true"]')) return;
+    const { favoris, autres } = listeDesDossiers();
+    const d = [...favoris, ...autres][Number(e.key) - 1];
+    if (!d) return;
+    e.preventDefault();
+    changerDeDossier(d.id);
+  });
+
+  // ---------- Priorités : la page d'arrivée du Cabinet ----------
+  function ctxCabinet() {
+    const n = mesDossiers().length;
+    const qui = !n ? (estAssocie() && portee() === 'miens' ? 'aucun dossier ne t\'est confié' : 'aucun dossier encore')
+      : estAssocie() && portee() === 'tous' ? `${n > 1 ? 'les ' : ''}${pl(n, 'dossier')} du cabinet` : estAssocie() ? `${n > 1 ? 'les ' : ''}${pl(n, 'dossier')} que tu tiens` : `${n > 1 ? 'tes ' : ''}${pl(n, 'dossier')} confié${n > 1 ? 's' : ''}`;
+    return `<div class="ctx-cab"><span class="ctx-ic">${icB('production', 16, 2)}</span><span><b>Mon cabinet</b> · ${qui}</span>${estAssocie()
+      ? `<span class="portee" role="group" aria-label="Quels dossiers"><button type="button" data-portee-page="miens" aria-pressed="${portee() === 'miens'}">Les miens</button><button type="button" data-portee-page="tous" aria-pressed="${portee() === 'tous'}">Tous</button></span>` : ''}</div>`;
+  }
+  const marqueCab = () => `<span class="marque-s cab" aria-hidden="true">${esc(initialesDe(S.cabinet.name))}</span>`;
+  function lignePriorite(x, i, groupe) {
+    return `<div class="afaire-ligne">${x.dossier ? marqueD(x.dossier) : marqueCab()}<span class="afaire-txt"><b>${esc(x.quoi)}</b><span>${x.dossier ? `${esc(x.dossier.name)} · ` : ''}${esc(x.sous || '')}</span></span>`
+      + `<span class="etat ${x.ton}">${x.ton === 'alerte' ? 'urgent' : 'à voir'}</span><button type="button" class="btn btn-sm" data-priorite="${groupe}:${i}">${esc(x.geste)}</button></div>`;
+  }
+  function drawPriorites(view) {
+    const pri = prioritesDuJour();
+    const semaine = echeancesDeLaSemaine();
+    const p = K.portfolio({ ...S, dossiers: mesDossiers() });
+    const prenom = String(S.moiNom || '').trim().split(/\s+/)[0];
+    const jour = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const bloc = (titre, l, groupe) => (l.length ? `<p class="groupe-cab">${titre} · ${l.length}</p><div class="carte-cab afaire">${l.map((x, i) => lignePriorite(x, i, groupe)).join('')}</div>` : '');
+    const prochaine = K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() }).find(e => !e.passee);
+    const ajour = !pri.urgent.length && !pri.avoir.length
+      ? `<div class="ajour">${icB('coche', 22, 2.4)}<span class="txt"><b>Rien d'urgent ni à voir aujourd'hui</b><span>${prochaine ? `Prochaine échéance : ${esc(prochaine.label)}, le ${esc(fmtJourCourt(prochaine.date))}.` : 'Aucune échéance à venir dans le calendrier.'}</span></span></div>` : '';
+    const vide = !dossiersActifs().length;
+    view.innerHTML = `<div class="cab-page" id="page-priorites">${ctxCabinet()}
+      <div class="cab-bonjour"><span class="date">${esc(jour)}</span><h1 class="bonjour">${vide ? `Bienvenue au cabinet${prenom ? `, ${esc(prenom)}` : ''}` : prenom ? `Bonjour ${esc(prenom)}` : 'Bonjour'}</h1>
+        <p class="sous-bonjour">${vide ? 'Ton portefeuille est vide. Pour le remplir :' : 'Ce qui attend dans tes dossiers, le plus pressé d\'abord.'}</p></div>
+      ${inboxBanner()}
+      ${vide ? etapesCabinetNeuf() : bloc('Urgent', pri.urgent, 'u') + bloc('À voir', pri.avoir, 'v') + ajour}
+      ${vide ? '' : `<div class="chiffres-cab">
+        <button type="button" class="carte-cab chiffre" data-chiffre="production"><span class="n">Dossiers à jour</span><span class="v">${p.aJour}<small> sur ${p.surSkanfact}</small></span><span class="s">sur SkanFact, rien de manquant ni à valider</span></button>
+        <button type="button" class="carte-cab chiffre" data-chiffre="pieces"><span class="n">Pièces à classer</span><span class="v">${comptesBarre.piecesLues ? comptesBarre.pieces : '—'}</span><span class="s">${comptesBarre.piecesLues ? 'envoyées par tes clients' : 'pas encore lues'}</span></button>
+        <button type="button" class="carte-cab chiffre" data-chiffre="echeances"><span class="n">Échéances</span><span class="v">${semaine.length}</span><span class="s">à préparer dans les 7 jours</span></button></div>`}
+    </div>`;
+    $$('[data-priorite]', view).forEach(b => {
+      b.onclick = () => { const [g, i] = b.dataset.priorite.split(':'); const x = (g === 'u' ? pri.urgent : pri.avoir)[Number(i)]; if (x) x.faire(); };
+    });
+    $$('[data-chiffre]', view).forEach(b => { b.onclick = () => { location.hash = `#/${b.dataset.chiffre}`; }; });
+    const cp = $('[data-copier-code-cab]', view);
+    if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(api.codeCabinet()); cp.textContent = 'Copié'; } catch { /* le code reste lisible */ } };
+    const nd = $('#pri-nouveau', view); if (nd) nd.onclick = () => newDossierForm();
+    const eq = $('#pri-equipe', view); if (eq) eq.onclick = () => versReglages('pan-equipe');
+    $$('[data-portee-page]', view).forEach(b => { b.onclick = () => { prefs.set('portee', b.dataset.porteePage); render(); }; });
+  }
+  // Le cabinet neuf (maquette « Barre v3 ») : comment son portefeuille se remplit, dans l'ordre où l'on s'y prend.
+  function etapesCabinetNeuf() {
+    const code = api.codeCabinet ? api.codeCabinet() : '';
+    const etapes = [
+      ...(code ? [['Donne ton code cabinet à tes clients', 'Ils le tapent dans « Mon comptable » : leur dossier arrive ici, avec leurs pièces en direct.',
+        `<span class="code-inline">${esc(code)}</span><button type="button" class="btn btn-sm" data-copier-code-cab>Copier</button>`]] : []),
+      ...(estAssocie() ? [['Crée un dossier que tu tiens', 'Pour un client qui n\'est pas sur SkanFact : tu fais sa comptabilité, tu pourras l\'inviter plus tard.',
+        '<button type="button" class="btn btn-primary btn-sm" id="pri-nouveau">Créer un dossier</button>']] : []),
+      ['Reprends un dossier existant', 'Dans la comptabilité d\'un dossier, « Importer une balance ou un FEC » reprend les écritures et les tiers de ton ancien logiciel.', ''],
+      ...(estAssocie() ? [['Invite ton équipe', 'Chacun avec son rôle : collaborateur, assistant de saisie, paie.', '<button type="button" class="btn btn-sm" id="pri-equipe">Inviter</button>']] : []),
+    ];
+    return `<div class="carte-cab afaire cab-neuf">${etapes.map(([t, d, g], i) => `<div class="afaire-ligne"><span class="num-etape">${i + 1}</span><span class="afaire-txt"><b>${esc(t)}</b><span>${esc(d)}</span></span>${g ? `<span class="gestes-etape">${g}</span>` : ''}</div>`).join('')}</div>`;
+  }
+  const fmtJourCourt = iso => { const [a, m, j] = String(iso).split('-'); return a && m && j ? `${j}/${m}/${a}` : String(iso); };
+
+  // ---------- Pièces reçues (0175) ----------
+  const pieceState = { onglet: 'aclasser', classees: null };
+  function drawPieces(view, idDossier) {
+    const d = idDossier ? (S.dossiers || []).find(x => x.id === decodeURIComponent(idDossier)) : null;
+    const nomDe = id => ((S.dossiers || []).find(x => x.id === id) || {}).name || 'Dossier retiré';
+    const moi = new Set(mesDossiers().map(x => x.id));
+    const garder = l => l.filter(p => (d ? p.entreprise === d.id : moi.has(p.entreprise)));
+    const classees = pieceState.onglet === 'classees';
+    const source = classees ? (pieceState.classees || { pieces: [] }) : piecesLues;
+    const l = garder(source.pieces || []);
+    const aClasser = garder(piecesLues.pieces || []).length;
+    const quand = iso => new Date(iso).toLocaleString('fr-FR', { timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ', ');
+    const qui = id => (((S.collaborateurs || []).find(c => c.id === id) || {}).nom) || 'le cabinet';
+    const lignes = l.map(p => {
+      const dd = (S.dossiers || []).find(x => x.id === p.entreprise) || { id: p.entreprise, name: nomDe(p.entreprise) };
+      const ce = p.demande ? `Répond à ta demande : ${p.demande}` : p.achat ? `Le client l'a rangée dans ses achats : ${p.achat}` : p.texte ? `« ${p.texte} »` : 'Envoyée sans un mot';
+      return `<tr data-piece="${esc(p.id)}"><td><span class="cell-d">${marqueD(dd)}<span class="deux"><b>${esc(p.fichier.nom)}</b><small>${esc(dd.name)} · ${esc(p.de)} · ${esc(quand(p.recueLe))}</small></span></span></td>`
+        + `<td><span class="deux"><span>${esc(ce)}</span><small>${classees ? `Classée le ${esc(quand(p.classeeLe))} par ${esc(qui(p.classeePar))}` : esc(p.fichier.type === 'application/pdf' ? 'PDF' : 'Photo')}</small></span></td>`
+        + `<td class="gestes-pr"><button type="button" class="btn btn-sm" data-voir="${esc(p.id)}">${icB('oeil', 14, 2)} Voir</button>`
+        + (classees ? `<button type="button" class="btn btn-sm" data-declasser="${esc(p.id)}">Remettre à classer</button>`
+          : `<button type="button" class="btn btn-sm" data-saisir="${esc(p.entreprise)}">Saisir</button><button type="button" class="btn btn-sm btn-primary" data-classer="${esc(p.id)}">${icB('coche', 14, 2.4)} Classer</button>`)
+        + '</td></tr>';
+    }).join('');
+    const nbD = new Set(garder(piecesLues.pieces || []).map(p => p.entreprise)).size;
+    view.innerHTML = `<div class="cab-page" id="page-pieces">${d ? ctxDossierCab(d) : ctxCabinet()}
+      <div class="page-head"><div><h1>${d ? 'Pièces du dossier' : 'Pièces reçues'}</h1>
+        <p class="muted">${aClasser ? `${pl(aClasser, 'pièce')} à classer${d ? '' : `, de ${pl(nbD, 'dossier')}`} · ouvre-la, saisis-la, puis classe-la : la boîte se vide.` : 'Rien à classer : les photos et PDF que tes clients déposent dans leur conversation arrivent ici.'}</p></div></div>
+      <div class="onglets-cab" role="tablist"><button type="button" role="tab" aria-selected="${!classees}" data-onglet-pr="aclasser">À classer${aClasser ? `<span class="compte attire">${aClasser}</span>` : ''}</button><button type="button" role="tab" aria-selected="${classees}" data-onglet-pr="classees">Classées</button></div>
+      ${!comptesBarre.piecesLues && !classees ? '<div class="panel"><p class="muted">Lecture des pièces reçues…</p></div>'
+    : l.length ? `<div class="panel tableau-pr"><table class="table pr-table"><thead><tr><th>Pièce</th><th>Ce que le client en dit</th><th></th></tr></thead><tbody>${lignes}</tbody></table></div>
+      ${(classees ? (pieceState.classees || {}).plus : piecesLues.plus) ? '<p class="muted small">Les deux cents plus récentes : classe-les pour voir les suivantes.</p>' : ''}`
+      : `<div class="panel vide-pr"><b>${classees ? 'Aucune pièce classée' : 'Rien à classer'}</b><p class="muted">${classees ? 'Les pièces que ton équipe classe se retrouvent ici, avec qui et quand.' : d && d.manual ? 'Ce dossier est tenu par le cabinet : son client n\'est pas sur SkanFact et n\'envoie rien par ici.' : 'Les photos et PDF que tes clients envoient dans leur conversation arrivent ici, tous dossiers confondus.'}</p></div>`}
+    </div>`;
+    $$('[data-onglet-pr]', view).forEach(b => {
+      b.onclick = async () => {
+        pieceState.onglet = b.dataset.ongletPr;
+        if (pieceState.onglet === 'classees' && !pieceState.classees) { try { pieceState.classees = await api.pieces.lire(true); } catch (x) { toast(plainError(x), 'error'); } }
+        drawPieces(view, idDossier);
+      };
+    });
+    const pieceDe = id => l.find(p => p.id === id);
+    $$('[data-voir]', view).forEach(b => { b.onclick = () => { const p = pieceDe(b.dataset.voir); if (p) api.pieces.ouvrir(p.entreprise, p.fichier.id).catch(x => toast(plainError(x), 'error')); }; });
+    $$('[data-saisir]', view).forEach(b => { b.onclick = () => { prefs.set('dossierOuvert', b.dataset.saisir); location.hash = `#/dossier/${encodeURIComponent(b.dataset.saisir)}/comptabilite/saisie`; }; });
+    const geste = async (b, id, classee) => {
+      const p = pieceDe(id); if (!p) return;
+      b.disabled = true;
+      try {
+        await api.pieces.classer(p.entreprise, p.id, classee);
+        pieceState.classees = null;
+        await relirePieces();
+        drawPieces(view, idDossier);
+        if (classee) toastUndo(`« ${p.fichier.nom} » est classée.`, async () => { await api.pieces.classer(p.entreprise, p.id, false); await relirePieces(); if (/^#\/pieces/.test(location.hash)) drawPieces($('#view'), idDossier); });
+        else toast(`« ${p.fichier.nom} » est de nouveau à classer.`);
+      } catch (x) { b.disabled = false; toast(plainError(x), 'error'); }
+    };
+    $$('[data-classer]', view).forEach(b => { b.onclick = () => geste(b, b.dataset.classer, true); });
+    $$('[data-declasser]', view).forEach(b => { b.onclick = () => geste(b, b.dataset.declasser, false); });
+    $$('[data-portee-page]', view).forEach(b => { b.onclick = () => { prefs.set('portee', b.dataset.porteePage); render(); }; });
+  }
+  function ctxDossierCab(d) {
+    const e = etatDuDossier(d);
+    return `<div class="ctx-cab ctx-d" style="--d1:${couleurDe(d.id)[0]}">${marqueD(d)}<span><b>${esc(d.name)}</b> ${typeD(d)}</span><span class="ctx-sep"></span><span class="ctx-clos">${e.clos ? icB('cadenas', 12, 2.4) + ' ' : ''}${esc(e.texte)}</span></div>`;
   }
 
   // ---------- le bandeau de l'exemple ----------
@@ -10851,6 +11380,8 @@
     const el = $('#lic-banner');
     if (!el) return;
     const p = (licCab && licCab.pastille) || { show: false };
+    // (1.152.0) La pastille de la barre du Cabinet, dessinée comme celle de l'abonnement (deux lignes, son ton).
+    if (window.SkanAbonnementCabinet && window.SkanAbonnementCabinet.peindre) { window.SkanAbonnementCabinet.peindre(el, p); return; }
     el.hidden = !p.show;
     el.classList.toggle('warn', p.ton === 'alerte' || p.ton === 'attire');
     el.classList.toggle('calme', p.ton === 'calme');

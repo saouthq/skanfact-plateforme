@@ -57,7 +57,7 @@ describe('le Cabinet, à la souris', () => {
     const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
     p.on('pageerror', (e) => erreurs.push(e.message + ' ' + (e.stack ?? '').split('\n').slice(0, 3).join(' / ')));
     await p.addInitScript((j) => { sessionStorage.setItem('skanfact.jeton', j); }, jeton);
-    await p.goto(cabinet ? `${serveur.adresse}/v10/cabinet/?c=${cabinet}` : serveur.adresse);
+    await p.goto(cabinet ? `${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossiers` : serveur.adresse);
     return p;
   };
 
@@ -85,6 +85,9 @@ describe('le Cabinet, à la souris', () => {
     // c'est son cabinet qui s'ouvre.
     const p = await ouvrir(associe, null, erreurs);
     await p.waitForURL(new RegExp(`/v10/cabinet/\\?c=${cabinet}`), { timeout: 15_000 });
+    // (1.152.0) Le Cabinet s'ouvre sur ses Priorités ; « Le cabinet › Tous les dossiers » mène au portefeuille.
+    await p.locator('#page-priorites').waitFor({ timeout: 15_000 });
+    await p.evaluate(() => { location.hash = '#/dossiers'; });
     // Pas d'écran de verrouillage : la liste des dossiers, avec les deux clients.
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-1-dossiers.png') });
@@ -164,6 +167,10 @@ describe('le Cabinet, à la souris', () => {
     await p.getByRole('button', { name: 'Vérifier et continuer', exact: true }).click();
     await p.waitForURL(/\/v10\/cabinet\/\?c=[0-9a-f-]{36}/, { timeout: 15_000 });
     const cabinet = new URL(p.url()).searchParams.get('c');
+    // (1.152.0) Les Priorités d'un cabinet neuf disent comment remplir le portefeuille ; « Tes premiers pas » sont sur Dossiers.
+    await p.locator('#page-priorites').waitFor({ timeout: 15_000 });
+    expect(await p.locator('#page-priorites .cab-neuf').innerText()).toMatch(/Donne ton code cabinet à tes clients/);
+    await p.evaluate(() => { location.hash = '#/dossiers'; });
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     expect(await p.locator('#brand-cab').innerText()).toContain('Cabinet Ferchichi & Associés');
     expect(((await api('GET', '/cabinets', jeton)).corps.cabinets as { id: string }[]).map((c) => c.id)).toEqual([cabinet]);

@@ -167,10 +167,10 @@ describe('le Cabinet au téléphone', () => {
       const guides = await panneau.locator('.pp-guide').evaluateAll((l) => l.map((b) => b.getAttribute('aria-label') ?? b.textContent?.trim()));
       expect(guides.length).toBeGreaterThan(1);
       expect(new Set(guides).size).toBe(guides.length);
-      // « Menu » au bout de la barre du haut, comme à l'entreprise : pas au milieu, juste après le nom du cabinet (1.87.2).
-      // (1.116.0) Reconnu à ce qu'il est, un bouton nommé « Menu » : le raccourci des messages (1.115.0) porte la même classe.
-      const menu = await page.locator('.sidebar').getByRole('button', { name: 'Menu', exact: true }).boundingBox();
-      expect(390 - ((menu?.x ?? 0) + (menu?.width ?? 0))).toBeLessThan(24);
+      // (1.152.0, maquette « Barre v3 ») Plus de « Menu » : la cloche au bout de la barre du haut, les onglets en bas.
+      const cloche = await page.locator('#b-cloche').boundingBox();
+      expect(390 - ((cloche?.x ?? 0) + (cloche?.width ?? 0))).toBeLessThan(24);
+      expect(await page.locator('.sb-onglets .sb-onglet .nom').allInnerTexts()).toEqual(['Priorités', 'Messages', 'Échéances', 'Plus']);
       expect(erreurs).toEqual([]);
     } finally {
       await contexte.close();

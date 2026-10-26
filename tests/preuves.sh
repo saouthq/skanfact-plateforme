@@ -18876,8 +18876,8 @@ prouver 'le bandeau du Cabinet qui promet de garder tout ce qu'\''on enregistre'
   '      : false ? l || '\''Ta saisie au brouillard se garde sur ce poste et partira seule au retour du réseau ; le reste demande le réseau.'\''' \
   'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
 prouver 'se déconnecter du Cabinet, introuvable' 'web/public/v10/cabinet/index.html' \
-  '<button type="button" class="foot-link" id="se-deconnecter">' \
   '<button type="button" class="foot-link" id="se-deconnecter" hidden>' \
+  '<button type="button" class="foot-link" id="se-deconnecter-retire" hidden>' \
   'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
 
 prouver 'le bandeau hors ligne qui recouvre le haut du Cabinet' 'web/public/plateforme/cabinet.css' \
@@ -20357,12 +20357,60 @@ prouver 'barre 23 : la visite de la barre ne montre rien' web/public/plateforme/
   '    cible.classList.add('"'"'sb-cible-visite'"'"');' '' \
   'au bureau : les deux groupes, un lien par page'
 prouver 'barre 24 : G puis F ne mène nulle part' web/public/plateforme/barre.js \
-  '      if (k === '"'"'f'"'"' || k === '"'"'F'"'"') { e.preventDefault(); aller('"'"'#/factures'"'"'); return; }' '' \
+  '      if (!auCabinet() && (k === '"'"'f'"'"' || k === '"'"'F'"'"')) { e.preventDefault(); aller('"'"'#/factures'"'"'); return; }' '' \
   'repliée et au clavier'
 prouver 'barre 25 : « Envoyer » sous les onglets du téléphone' web/public/plateforme/barre.css \
   '  body.avec-barre .msg-corps > .msg-zone { height: calc(100dvh - var(--msg-haut-tel, 172px) - (var(--sb-haut-tel, 62px) - 62px) - 84px); }
 ' '' \
   'la pastille, la question répondue sur place'
+prouver 'barre cabinet 1 : le Cabinet s'"'"'ouvre sur le portefeuille, pas sur ses priorités' web/public/v10/cabinet/app.js \
+  'if (!location.hash) location.hash = '"'"'#/priorites'"'"';' 'if (!location.hash) location.hash = '"'"'#/dossiers'"'"';' \
+  'au bureau : la tête et son menu'
+prouver 'barre cabinet 2 : le menu du cabinet sans son code' web/public/v10/cabinet/app.js \
+  '(code ? `<div class="code-cab">' '(false ? `<div class="code-cab">' \
+  'au bureau : la tête et son menu'
+prouver 'barre cabinet 3 : le chiffre des pièces reçues ne suit pas la boîte' web/public/v10/cabinet/app.js \
+  'comptesBarre.pieces = piecesLues.aClasser;' 'comptesBarre.pieces = 0;' \
+  'les pièces reçues : classer vide la boîte'
+prouver 'barre cabinet 4 : changer de dossier ramène à sa fiche' web/public/v10/cabinet/app.js \
+  '${m && m[1] ? m[1].split('"'"'/'"'"').slice(0, 4).join('"'"'/'"'"') : '"'"''"'"'}' '' \
+  'au bureau : la tête et son menu'
+prouver 'barre cabinet 5 : la recherche des dossiers ne filtre rien' web/public/v10/cabinet/app.js \
+  'const ok = !q || x.dataset.nomD.includes(q);' 'const ok = true;' \
+  'au bureau : la tête et son menu'
+prouver 'barre cabinet 6 : l'"'"'étoile ne garde pas le favori' web/public/v10/cabinet/app.js \
+  'prefs.set('"'"'favorisDossiers'"'"', fav.includes(id) ? fav.filter(x => x !== id) : [id, ...fav].slice(0, 9));' '' \
+  'au bureau : la tête et son menu'
+prouver 'barre cabinet 7 : Ctrl + chiffre n'"'"'ouvre aucun dossier' web/public/v10/cabinet/app.js \
+  '    if (!d) return;
+    e.preventDefault();
+    changerDeDossier(d.id);' '    if (d) return;
+    e.preventDefault();
+    changerDeDossier(d.id);' \
+  'au bureau : la tête et son menu'
+prouver 'barre cabinet 8 : Créer propose une pièce demandée à un dossier tenu' web/public/v10/cabinet/app.js \
+  'if (!D.manual && role !== '"'"'saisie'"'"' && api.messagerie)' 'if (role !== '"'"'saisie'"'"' && api.messagerie)' \
+  'au bureau : la tête et son menu'
+prouver 'barre cabinet 9 : classer ne vide pas la boîte' web/public/v10/cabinet/app.js \
+  '        pieceState.classees = null;
+        await relirePieces();' '        pieceState.classees = null;' \
+  'les pièces reçues : classer vide la boîte'
+prouver 'barre cabinet 10 : une écriture commencée se laisse sans un mot' web/public/v10/cabinet/app.js \
+  'if (D && D.id !== id && saleDe(D.id)) {' 'if (false) {' \
+  'les pièces reçues : classer vide la boîte'
+prouver 'barre cabinet 11 : la base classe deux fois la même pièce' base/migrations/0175_pieces_recues.sql \
+  '     and (classee_le is null) = p_classee;' '     ;' \
+  'le fichier d'"'"'un client arrive à classer'
+prouver 'barre cabinet 12 : la boîte montre ce que le cabinet envoie lui-même' serveur/messagerie/routes.ts \
+  'where m.cabinet = $1 and m.cote = '"'"'entreprise'"'"' and (m.classee_le is null) = $2' 'where m.cabinet = $1 and (m.classee_le is null) = $2' \
+  'le fichier d'"'"'un client arrive à classer'
+prouver 'barre cabinet 13 : qui n'"'"'est pas du cabinet lit sa boîte' serveur/messagerie/routes.ts \
+  '      if (!(await tx.query('"'"'select exists (select 1 from socle.mes_organisations() o where o = $1) v'"'"', [params.cabinet])).rows[0].v) return introuvable;
+' '' \
+  'le fichier d'"'"'un client arrive à classer'
+prouver 'barre cabinet 14 : au téléphone, le Cabinet a l'"'"'accueil de l'"'"'entreprise' web/public/plateforme/barre.js \
+  'auCabinet() ? onglet(accueil()) :' 'false ? onglet(accueil()) :' \
+  'au téléphone : Priorités, Messages'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

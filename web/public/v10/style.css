@@ -1536,9 +1536,10 @@ table.list.pt-grille input.pt-hs { width: 64px; height: 30px; padding: 2px 8px; 
    d'heures supplémentaires. Des cases d'un pixel plus étroites et des marges serrées la font tenir ; au-delà (trois
    majorations, un mois de trente et un jours), elle défile, le nom du salarié restant en place. */
 .pt-cabinet table.list.pt-grille th, .pt-cabinet table.list.pt-grille td { padding-inline: 5px; }
-.pt-cabinet table.list.pt-grille th.pt-j { min-width: 22px; padding-inline: 1px; }
+/* (1.152.0) La barre de la maquette « Barre v3 » a 42 pixels de plus : une case d'un pixel de moins par jour. */
+.pt-cabinet table.list.pt-grille th.pt-j { min-width: 21px; padding-inline: 1px; }
 .pt-cabinet table.list.pt-grille td.pt-td { padding-inline: 1px; }
-.pt-cabinet .pt-c { width: 20px; }
+.pt-cabinet .pt-c { width: 19px; }
 .pt-cabinet table.list.pt-grille input.pt-hs { width: 56px; }
 /* (plateforme) 1.59.0 — vu à l'écran : la fenêtre passait de 580 à 860 pixels à la première ligne de prime (la règle des
    tableaux de lignes), et « + Prime » fuyait sous le curseur. Les deux fenêtres qui portent des primes sont larges d'emblée ;

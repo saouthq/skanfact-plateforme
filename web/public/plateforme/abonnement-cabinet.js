@@ -61,13 +61,25 @@
   /** @param {Etat} e */
   function bandeau(e) {
     const el = document.getElementById('lic-banner');
-    if (!el) return;
-    const p = pastille(e);
+    if (el) peindre(el, pastille(e));
+  }
+  // (1.152.0, maquette « Barre v3 ») La pastille au pied de la barre : deux lignes, un dessin, son ton ; le texte court
+  // est dans `.abo-t` (la cloche, le menu de la personne et le téléphone le relisent).
+  /** @param {HTMLElement} el @param {{ show: boolean, ton: string, texte: string }} p */
+  function peindre(el, p) {
     el.hidden = !p.show;
     el.classList.toggle('warn', p.ton === 'alerte' || p.ton === 'attire');
     el.classList.toggle('alerte', p.ton === 'alerte');
+    el.classList.toggle('attire', p.ton === 'attire');
     el.classList.toggle('calme', p.ton === 'calme');
-    if (p.show) el.textContent = p.texte;
+    if (!p.show) return;
+    const lecture = /lecture seule/i.test(p.texte);
+    const dessin = lecture ? '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>' : '<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19"/>';
+    el.innerHTML = `<span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${dessin}</svg></span>`
+      + `<span class="lib"><span class="abo-t">${esc(p.texte)}</span><small>${lecture ? 'Règle la facture du cabinet' : 'Abonnement du cabinet'}</small></span>`
+      + '<span class="chev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>';
+    el.dataset.tip = p.texte;
+    if (w.SkanBarre) w.SkanBarre.apresCompte();
   }
 
   // L'état en tête du panneau : une pastille, un titre, ce qu'il veut dire.
@@ -353,5 +365,5 @@
     return `Ce sera ton ${d.rang === 1 ? '1er' : `${d.rang}e`} dossier tenu sur ${r.gratuits} gratuits : il ne coûte rien.`;
   }
 
-  w.SkanAbonnementCabinet = { dessiner, pastille, avertissement, gratuit, etatEnClair };
+  w.SkanAbonnementCabinet = { dessiner, pastille, peindre, avertissement, gratuit, etatEnClair };
 })();

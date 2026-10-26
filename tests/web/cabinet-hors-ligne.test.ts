@@ -158,7 +158,9 @@ describe('le Cabinet sans réseau, à la souris', () => {
     await p.waitForURL(/\/v10\/cabinet\/\?c=/, { timeout: 20_000 });
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(p);
-    await expect.poll(() => p.locator('#view').innerText(), { timeout: 15_000 }).toMatch(/Droguerie du Port/);
+    // (1.152.0) Il se rouvre sur ses Priorités ; le dossier ouvert de la barre est celui du client, lu sur le poste.
+    await p.locator('#page-priorites').waitFor({ timeout: 15_000 });
+    await expect.poll(() => p.locator('#b-dossier').innerText(), { timeout: 15_000 }).toMatch(/Droguerie du Port/);
     await expect.poll(() => p.locator('#poste-bandeau').innerText()).toMatch(/^Hors ligne depuis/);
 
     // ── Le réseau revenu : « Recharger » relit le serveur ─────────────────────────────────────────
@@ -168,12 +170,14 @@ describe('le Cabinet sans réseau, à la souris', () => {
     await p.getByRole('button', { name: 'Recharger', exact: true }).click();
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(p);
-    await expect.poll(() => p.locator('#view').innerText(), { timeout: 15_000 }).toMatch(/Droguerie du Port/);
+    await expect.poll(() => p.locator('#b-dossier').innerText(), { timeout: 15_000 }).toMatch(/Droguerie du Port/);
     expect(await p.locator('#poste-bandeau:visible').count()).toBe(0);
 
     // ── Se déconnecter, au pied de la barre (le seul chemin était « Verrouiller maintenant », au fond des Réglages) :
     //    la fenêtre dit ce qui s'efface, et ce que le poste gardait s'efface ────────────────────────────────────
-    await p.locator('.sidebar-foot').getByRole('button', { name: 'Se déconnecter', exact: true }).click();
+    // (1.152.0) Dans le menu de la personne, au pied de la barre.
+    await p.locator('#b-moi').click();
+    await p.locator('.sb-moi').getByRole('menuitem', { name: 'Se déconnecter' }).click();
     const fenetre = p.locator('#modal-root .modal').last();
     await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Te déconnecter ?');
     expect(await fenetre.innerText()).toContain('ce qu\'il gardait pour consulter tes dossiers sans réseau s\'efface');

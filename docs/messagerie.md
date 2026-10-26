@@ -87,6 +87,12 @@ clients… », {client} devient le nom de chacun. Vide, la fenêtre propose troi
 cabinet (`messagerie.modele`, 0169) : ils ne partent pas avec l'export d'une entreprise. La base garde les règles
 (`messagerie.modele_poser`, `messagerie.modele_retirer`) ; un autre cabinet ne les lit ni ne les touche.
 
+**M4 septies. Les pièces reçues du cabinet** (1.152.0, maquette « Barre v3 », lot 1 b ; 0175). Les photos et PDF que
+les clients envoient dans leur fil arrivent aussi dans une boîte du cabinet, tous dossiers confondus (`GET
+/cabinets/:cabinet/pieces`, la règle du fil : un collaborateur n'y voit que ses dossiers ; deux cents au plus, les plus
+récentes d'abord). Le cabinet les **classe** (`messagerie.classer_piece`) : qui et quand, et ça se défait ; le fichier,
+le message et les livres ne bougent pas. Ce que le cabinet envoie lui-même n'est jamais une pièce reçue.
+
 **M4 sexies. Chercher** (1.117.0, point 10). Dans un fil, « Chercher » (des deux côtés) : les messages dont le texte, la
 pièce demandée, la pièce citée ou le nom du fichier contiennent les mots, sans tenir compte des majuscules ni des
 accents (`messagerie.plier`), trente au plus, du plus récent ; un message choisi se montre dans le fil, éclairé (les

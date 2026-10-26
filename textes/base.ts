@@ -365,6 +365,9 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'un achat se nomme par son identifiant et son libellé', cle: 'base.messagerie.achat', fr: 'un achat se nomme par son identifiant et son libellé' },
   { base: 'ce message n\'a pas de fichier à ranger', cle: 'base.messagerie.rien_a_ranger', fr: 'ce message n\'a pas de fichier à ranger' },
   { base: 'seul le serveur note une alerte partie', cle: 'base.messagerie.alerte_serveur', fr: 'seul le serveur note une alerte partie' },
+  // (1.152.0, 0175) Les pièces reçues du Cabinet : classer un fichier envoyé par le client.
+  { base: 'cette pièce n\'est pas à classer', cle: 'base.messagerie.pas_a_classer', fr: 'cette pièce n\'est pas à classer : elle l\'est déjà, ou ce n\'est pas un fichier envoyé par le client' },
+  { base: 'cette pièce n\'est pas classée', cle: 'base.messagerie.pas_classee', fr: 'cette pièce n\'est pas classée : rien à défaire' },
   // (1.117.0) Les modèles de messages du cabinet (0169).
   { base: 'ce cabinet n\'est pas le tien', cle: 'base.messagerie.modele_cabinet', fr: 'ce cabinet n\'est pas le tien' },
   { base: 'un modèle a un titre', cle: 'base.messagerie.modele_titre', fr: 'un modèle a un titre : par exemple « Pièces du mois »' },
