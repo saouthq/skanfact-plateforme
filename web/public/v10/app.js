@@ -2851,6 +2851,8 @@
 
   function bandeauDemo(route) {
     if (!data || !C.estDemo(data)) return;
+    // Une facture émise de l'exemple a déjà son bandeau « Entreprise d'essai » (maquette facture, état « essai »).
+    if ($('#ed-bandeau-emise')) return;
     const { court, html } = htmlBandeauDemo(route);
     const el = document.createElement('div');
     el.className = 'banner demo-banner' + (court ? ' court' : '');
@@ -5090,7 +5092,8 @@
       }
       return !stored || doc.status === 'brouillon'
         ? `<span class="badge ${charte && aboBloque(isNew) ? 'retard' : 'brouillon'} ed-pill">${charte && aboBloque(isNew) ? 'Lecture seule · abonnement' : charte && isInv && !isNew && etatAccord() ? h(etatAccord()) : charte && clos ? `Brouillon · ${h(C.closedPeriodLabel(data, stored.date).replace(/ \d{4}$/, ''))} clôturé` : charte && isInv && doc.recurringId ? 'Brouillon · préparé par le contrat' : 'Brouillon · numéro à l\'émission'}</span>`
-        : charte && LF_STATUTS[effStatus(stored)] ? `<span class="badge ${h(effStatus(stored))} ed-pill">${h(LF_STATUTS[effStatus(stored)])}</span>`
+        // (maquette « Entreprise d'essai ») La pastille d'une facture émise de l'exemple le dit.
+        : charte && LF_STATUTS[effStatus(stored)] ? `<span class="badge ${h(effStatus(stored))} ed-pill">${h(LF_STATUTS[effStatus(stored)])}${effStatus(stored) === 'envoyée' && C.estDemo(data) ? ' · entreprise d\'essai' : ''}</span>`
         : statusBadge(stored).replace('class="badge ', 'class="badge ed-pill ');
     };
     const menuPlus = () => (avecPlus || charte ? `<div class="more">${charte
@@ -5150,10 +5153,7 @@
         </div>
         <div class="actions">
           ${figee ? '' : `<button type="button" class="btn ico" id="ed-annuler" title="Annuler la dernière modification (Ctrl Z)" aria-label="Annuler la dernière modification" disabled>${lfIc('defaire', 17)}</button>`}
-          <div class="pv-cmd">
-            <button class="btn" id="pv-toggle" aria-pressed="false">${lfIc('oeil', 16)}<span class="pv-lib">Aperçu</span></button>
-            <button class="btn" id="pv-big" title="Voir le document en grand (${TOUCHES_APERCU})">Agrandir</button>
-          </div>
+          <button class="btn" id="ed-grand" title="La pièce en grand, telle que le client la recevra (${TOUCHES_APERCU})">${lfIc('oeil', 16)}Aperçu</button>
           ${avecPlus ? '<button class="btn tel-seul" id="wa-tel" title="Envoyer par WhatsApp">WhatsApp</button>' : ''}
           <button class="btn" id="pdf">${lfIc('envoi', 16)}PDF</button>
           ${menuPlus()}
@@ -5163,13 +5163,14 @@
       if (isQ) return gesteDevis();
       const t = (bal && bal.totals) || C.computeTotals(doc, company());
       const net = `<div class="ed-net-tel"><span>${isAv ? 'Montant de l\'avoir' : 'Net à payer'}</span><b id="ed-net-tel">${C.money(t.netToPay, cur)}</b></div>`;
-      const tous = '<p class="ed-phrase small">Tous les gestes de la pièce : ⋯ en haut à droite.</p>';
+      // (1.155.1) La maquette ne le redit pas : le ⋯ est en haut, à sa place, sur chaque pièce.
+      const tous = '';
       // (maquette « lecture seule · abonnement ») La création attend le renouvellement : c'est lui, l'étape suivante.
       if (!figee && aboBloque(isNew)) {
         return `<div class="panel ed-geste" id="ed-geste">${net}
           <button class="btn btn-primary btn-grand" id="abo-renouveler">${lfIc('carte', 17)}${abonnementVisible() ? 'Renouveler l\'abonnement' : 'Qui règle l\'abonnement ?'}</button>
           <p class="ed-phrase">Le renouvellement rouvre la création tout de suite. Tes factures émises restent toutes ouvertes : paiements, signature, envoi.</p>
-          <div class="ed-deux"><button class="btn" id="ed-grand" title="Voir le document en grand (${TOUCHES_APERCU})">${lfIc('oeil', 16)}En grand</button></div>
+          
         </div>`;
       }
       // (maquette « accord à demander » / « accord à décider ») Une remise au-delà de celle permise sans accord, ou un
@@ -5179,14 +5180,14 @@
         return `<div class="panel ed-geste" id="ed-geste">${net}
           <button class="btn btn-primary btn-grand" data-accord-accorder="${h(acc.id)}">${lfIc('coche', 17, 2.4)}${acc.geste === 'remise' ? 'Accorder la remise' : 'Accorder l\'émission'}</button>
           <p class="ed-phrase">${h(acc.demandeur)} émettra dès que tu as accordé. Refuser lui dit pourquoi : il le lira.</p>
-          <div class="ed-deux"><button class="btn" data-accord-refuser="${h(acc.id)}">Refuser…</button><button class="btn" id="ed-grand" title="Voir le document en grand (${TOUCHES_APERCU})">${lfIc('oeil', 16)}En grand</button></div>
+          <div class="ed-deux"><button class="btn" data-accord-refuser="${h(acc.id)}">Refuser…</button></div>
         </div>`;
       }
       if (acc && acc.mienne) {
         return `<div class="panel ed-geste" id="ed-geste">${net}
           <button class="btn btn-grand" id="issue" disabled>${lfIc('cadenas', 17)}Accord demandé</button>
           <p class="ed-phrase">Le propriétaire ou un administrateur a reçu ta demande. Tant qu'il n'a pas répondu, ${laPiece()} reste un brouillon.</p>
-          <div class="ed-deux"><button class="btn" id="save">Garder le brouillon</button><button class="btn" id="ed-grand" title="Voir le document en grand (${TOUCHES_APERCU})">${lfIc('oeil', 16)}En grand</button></div>
+          <div class="ed-deux"><button class="btn" id="save">Garder le brouillon</button></div>
         </div>`;
       }
       const seuilR = Number(company().remiseAccordAuDela) || 0;
@@ -5197,14 +5198,14 @@
         return `<div class="panel ed-geste" id="ed-geste">${net}
           <button class="btn${aboBloque(isNew) ? '' : ' btn-primary'} btn-grand" id="issue">${lfIc('envoi', 17)}Demander l'accord</button>
           <p class="ed-phrase">Remise de ${pct(effR.taux)} % : au-delà de ${pct(seuilR)} %, le propriétaire ou un administrateur reçoit la demande avec la ligne en cause. Tant qu'il n'a pas répondu, ${laPiece()} reste un brouillon.</p>
-          <div class="ed-deux"><button class="btn" id="save">Garder le brouillon</button><button class="btn" id="ed-grand" title="Voir le document en grand (${TOUCHES_APERCU})">${lfIc('oeil', 16)}En grand</button></div>
+          <div class="ed-deux"><button class="btn" id="save">Garder le brouillon</button></div>
         </div>`;
       }
       if (!figee) {
         return `<div class="panel ed-geste" id="ed-geste">${net}
           <button class="btn${aboBloque(isNew) ? '' : ' btn-primary'} btn-grand" id="issue">${lfIc('coche', 17, 2.4)}${isInv ? 'Émettre ' + laPiece() : 'Émettre l\'avoir'}</button> ${info('ed.issue')}
           <p class="ed-phrase" id="ed-phrase-geste">${isInv ? `Le serveur donne le numéro ; ${laPiece()} ne se modifie plus, elle se corrige par un avoir.` : 'L\'avoir prend son numéro et part à El Fatoora.'}</p>
-          <div class="ed-deux"><button class="btn" id="save">Garder le brouillon</button><button class="btn" id="ed-grand" title="Voir le document en grand (${TOUCHES_APERCU})">${lfIc('oeil', 16)}En grand</button></div>
+          <div class="ed-deux"><button class="btn" id="save">Garder le brouillon</button></div>
         </div>`;
       }
       // (maquette « mois clôturé ») Un brouillon d'un mois clôturé ne s'émet plus : on le refait à la date du jour.
@@ -5212,7 +5213,7 @@
         return `<div class="panel ed-geste" id="ed-geste">${net}
           <button class="btn btn-primary btn-grand" id="clos-dup">${lfIc('copier', 17)}Refaire à la date d'aujourd'hui</button>
           <p class="ed-phrase">Le brouillon est recopié à la date du jour, ses lignes et son client compris ; celui-ci reste tel quel.</p>
-          <div class="ed-deux"><button class="btn" id="ed-grand" title="Voir le document en grand (${TOUCHES_APERCU})">${lfIc('oeil', 16)}En grand</button></div>
+          
         </div>`;
       }
       const fi = locked && isAv && doc.creditOf ? docById(doc.creditOf) : null;
@@ -5269,11 +5270,11 @@
       const sauver = figee ? '' : isNew
         ? `<button class="btn${aboBloque(isNew) ? '' : ' btn-primary'} btn-grand" id="save">${lfIc('coche', 17, 2.4)}Enregistrer le devis</button>`
         : '<button class="btn" id="save" hidden>Enregistrer les modifications</button>';
-      const grand = `<button class="btn" id="ed-grand" title="Voir le document en grand (${TOUCHES_APERCU})">${lfIc('oeil', 16)}En grand</button>`;
+      const grand = '';
       const st = stored ? effStatus(stored) : 'brouillon';
       if (isNew) return `<div class="panel ed-geste" id="ed-geste">${net}${sauver}
         <p class="ed-phrase">Il prend son numéro (${h(peekNumber('devis', doc.date))}) en s'enregistrant ; il reste modifiable tant que le client n'a pas répondu.</p>
-        <div class="ed-deux">${grand}</div></div>`;
+        </div>`;
       if (envoiSuivant) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="email">${lfIc('envoi', 17)}Envoyer le devis</button>
         <p class="ed-phrase">Par e-mail, avec le PDF et le lien pour le lire : il passe « envoyé », et les relances le suivent.</p>${sauver}
         <div class="ed-deux">${facturerMenu}${grand}</div></div>`;
@@ -5290,7 +5291,7 @@
         : st === 'expiré' ? 'Sa validité est passée : prolonge-la, ou refais-le à la date du jour.'
         : '';
       return `<div class="panel ed-geste ed-geste-devis" id="ed-geste">${net}${facturerMenu ? `<div class="ed-facturer">${facturerMenu}</div>` : ''}
-        ${phrase ? `<p class="ed-phrase">${phrase}</p>` : ''}${sauver}<div class="ed-deux">${grand}</div></div>`;
+        ${phrase ? `<p class="ed-phrase">${phrase}</p>` : ''}${sauver}</div>`;
     };
     // La frise d'un devis envoyé : créé, envoyé, la réponse du client, facturé.
     const avecFriseDevis = isQ && !isNew && !!doc.number && !!stored && stored.status !== 'brouillon';
@@ -5382,7 +5383,6 @@
               <div class="ed-ajout" id="ed-ajout-z">${lfIc('loupe', 16)}<input type="text" id="ed-ajout" placeholder="Ajouter un article, une désignation ou un code-barres" autocomplete="off" spellcheck="false" aria-label="Ajouter un article, une désignation ou un code-barres (Ctrl L)" aria-haspopup="listbox" aria-expanded="false"><kbd>Ctrl L</kbd></div>
               ${doc.export ? '' : `<span class="ed-seg" role="group" aria-label="Prix saisis"><button type="button" data-prix="ht" aria-pressed="true" class="on">HT</button><button type="button" data-prix="ttc" aria-pressed="false">TTC</button></span>`}
               ${isAv ? '' : `<button type="button" class="btn" id="ed-modele" data-pop aria-haspopup="dialog" aria-expanded="false">${lfIc('copier', 16)}Modèle</button>`}
-              <button type="button" class="btn" id="ed-texte" data-pop aria-haspopup="dialog" aria-expanded="false">Texte prêt</button>
               ${isAv ? '' : '<button type="button" class="btn" id="calc-prix">Calculer les prix…</button>'}
             </div>`}
             <div class="lignes-cadre"><table class="lines-edit lignes-doc ed-grille${figee ? ' fige' : ''}"><thead><tr><th class="c-prise" aria-hidden="true"></th><th>Désignation</th><th class="r">Qté</th><th>Unité ${info('ed.unit')}</th><th class="r" id="th-pu">${sansTva ? 'P.U.' : 'P.U. HT'}</th><th class="r">Remise</th>${sansTva ? '' : `<th>TVA ${info('ed.vat')}</th>`}${fabrique ? '<th class="c-fodec">FODEC</th>' : ''}<th class="r">${sansTva ? 'Total' : 'Total HT'}</th><th aria-hidden="true"></th></tr></thead>
@@ -5393,8 +5393,8 @@
           </div>`;
     const apercuHtml = `<div class="preview${charte ? ' panel ed-apercu' : ''}">
           <div class="pv-head"><span class="k-label">${charte ? 'Aperçu · tel que le client le recevra' : 'Aperçu'} ${info('ed.preview')}</span><span class="pv-pages" id="pv-pages"></span>
-            <button class="btn btn-ghost btn-sm" id="pv-hide">Agrandir</button></div>
-          <iframe id="preview" title="Aperçu du document"></iframe>
+            ${charte ? '' : '<button class="btn btn-ghost btn-sm" id="pv-hide">Agrandir</button>'}</div>
+          <iframe id="preview" title="Aperçu du document"></iframe>${charte ? '<button type="button" class="pv-ouvrir" id="pv-ouvrir" title="Voir en grand" aria-label="Voir l\'aperçu en grand"></button>' : ''}
         </div>`;
     const hautPiece = `
       ${!locked && isInv && !isNew ? bandeauAccord(doc) : ''}
@@ -5545,13 +5545,17 @@
       // la faisait passer sur deux rangées à 1440 px. Il n'y revient que quand la colonne est masquée.
       const g = $('#pv-big'); if (g) g.hidden = !previewHidden;
     };
-    $('#pv-toggle').onclick = () => {
+    // (1.155.1, demande de Skander) La pièce charte n'a qu'UN aperçu : « Aperçu » en haut l'ouvre en grand, la petite image de
+    // la colonne aussi. Le bouton qui masquait la colonne et « En grand » faisaient double emploi : la colonne reste.
+    if (charte) previewHidden = false;
+    if ($('#pv-toggle')) $('#pv-toggle').onclick = () => {
       previewHidden = !previewHidden;
       try { localStorage.setItem('skanfact.preview', previewHidden ? '0' : '1'); } catch (_) {}
       applyPreview(); if (!previewHidden) drawPreview();
     };
-    $('#pv-hide').onclick = () => apercuPleinEcran();
-    $('#pv-big').onclick = () => apercuPleinEcran();
+    if ($('#pv-hide')) $('#pv-hide').onclick = () => apercuPleinEcran();
+    if ($('#pv-big')) $('#pv-big').onclick = () => apercuPleinEcran();
+    if ($('#pv-ouvrir')) $('#pv-ouvrir').onclick = () => apercuPleinEcran();
     applyPreview();
     // (plateforme) 1.133.0 — ce que le comptable a fait de la pièce : son écriture de vente, lue au serveur. Sans réponse
     // (qui ne lit pas les livres, une pièce pas encore au journal, pas de réseau), la ligne ne s'affiche pas.
@@ -5849,18 +5853,18 @@
           const suivi = it && it.tracked && (it.parLot || it.serials || hasSerials);
           return [
             l.kind === 'titre' ? null : (openDesc.has(i) || l.description
-              ? { icon: 'texte', label: 'Retirer la description', run: () => { l.description = ''; openDesc.delete(i); touch(); dessinerLignesCharte(); } }
-              : { icon: 'texte', label: 'Ajouter une description', run: () => { openDesc.add(i); dessinerLignesCharte(); const t = $(`tr[data-i="${i}"] textarea`, linesBody); if (t) t.focus(); } }),
+              ? { icon: 'modifier', label: 'Retirer la description', run: () => { l.description = ''; openDesc.delete(i); touch(); dessinerLignesCharte(); } }
+              : { icon: 'modifier', label: 'Ajouter une description', run: () => { openDesc.add(i); dessinerLignesCharte(); const t = $(`tr[data-i="${i}"] textarea`, linesBody); if (t) t.focus(); } }),
             { icon: 'copier', label: 'Dupliquer', note: 'Ctrl D', run: () => dupliquerLigneC(i) },
-            i > 0 ? { icon: 'extraire', label: 'Monter', note: 'Alt ↑', run: () => deplacerLigneC(i, i - 1) } : null,
-            i < n - 1 ? { icon: 'restaurer', label: 'Descendre', note: 'Alt ↓', run: () => deplacerLigneC(i, i + 1) } : null,
+            i > 0 ? { icon: 'haut', label: 'Monter', note: 'Alt ↑', run: () => deplacerLigneC(i, i - 1) } : null,
+            i < n - 1 ? { icon: 'deplier', label: 'Descendre', note: 'Alt ↓', run: () => deplacerLigneC(i, i + 1) } : null,
+            suivi ? { icon: 'catalogue', label: 'Lot ou numéros de série…', run: () => { const sel = $(`tr[data-i="${i}"] select[data-k=lot]`, linesBody); if (sel) sel.focus(); else if ($('#serials')) $('#serials').click(); } } : null,
+            it ? { icon: 'article', label: 'Voir l\'article', run: () => navigate('#/article/' + it.id) } : null,
             { icon: 'texte', label: 'Insérer un titre au-dessus', run: () => insererTitreC(i) },
-            suivi ? { icon: 'stock', label: 'Lot ou numéros de série…', run: () => { const sel = $(`tr[data-i="${i}"] select[data-k=lot]`, linesBody); if (sel) sel.focus(); else if ($('#serials')) $('#serials').click(); } } : null,
-            it ? { icon: 'ouvrir', label: 'Voir l\'article', run: () => navigate('#/article/' + it.id) } : null,
             { sep: true },
-            { icon: 'supprimer', label: l.kind === 'titre' ? 'Supprimer le titre' : 'Supprimer la ligne', note: 'Suppr', danger: true, run: () => retirerLigneC(i) },
+            { icon: 'annuler', label: l.kind === 'titre' ? 'Supprimer le titre' : 'Supprimer la ligne', note: 'Suppr', danger: true, run: () => retirerLigneC(i) },
           ];
-        });
+        }, null, 'ligne-menu');
         // Entrée sur la dernière ligne : une ligne de plus, le curseur dans sa désignation.
         $$('tr:last-child :is(input, select)', linesBody).forEach(el => el.addEventListener('keydown', e => {
           if (e.key !== 'Enter' || e.isComposing || e.defaultPrevented || e.ctrlKey || e.metaKey) return;
@@ -6743,12 +6747,12 @@
             <div class="ed-net"><span class="k">${isAv ? 'Montant de l\'avoir' : 'Net à payer'}</span><span class="v"><b>${nu(0)}</b> <small>${h(({ EUR: '€', USD: '$', GBP: '£' })[C.normCurrency(cur)] || cur)}</small></span><span class="s">le montant en lettres est écrit sur ${isAv ? 'l\'avoir' : laPiece()}</span></div>`;
         } else $('#totals').innerHTML = `<table class="ed-tot">
           <tr><td>Total HT</td><td>${nu(t.totalHT)}</td></tr>
-          ${t.discount ? `<tr><td>Remise ${pct(t.discountRate)} %</td><td>${nu(-t.discount)}</td></tr><tr><td>Net HT</td><td>${nu(t.netHT)}</td></tr>` : ''}
+          ${t.discount ? `<tr><td>Remise ${pct(t.discountRate)} %</td><td>−${nu(t.discount)}</td></tr><tr><td>Net HT</td><td>${nu(t.netHT)}</td></tr>` : ''}
           ${t.fodec ? `<tr><td>FODEC ${pct(Number(doc.fodecRate) || 0)} % <small class="muted">(À VÉRIFIER)</small></td><td>${nu(t.fodec)}</td></tr>` : ''}
           ${lignesTva}
           ${doc.export ? `<tr><td>Timbre fiscal · exonéré à l'export</td><td>—</td></tr>` : t.stamp ? `<tr><td>Timbre fiscal</td><td>${nu(t.stamp)}</td></tr>` : ''}
           <tr class="trait"><td>Total TTC</td><td>${nu(t.totalTTC)}</td></tr>
-          ${t.withholding ? `<tr class="retenue"><td>Retenue à la source ${pct(t.withholdingRate)} %</td><td>${nu(-t.withholding)}</td></tr>` : ''}
+          ${t.withholding ? `<tr class="retenue"><td>Retenue à la source ${pct(t.withholdingRate)} %</td><td>−${nu(t.withholding)}</td></tr>` : ''}
         </table>
         ${isQ ? `<div class="ed-net"><span class="k">Total du devis TTC</span><span class="v"><b>${nu(t.totalTTC)}</b> <small>${h(cur)}</small></span><span class="s">${doc.dueDate ? `valable jusqu'au ${C.fmtDate(doc.dueDate)}` : 'sans date de validité'}</span></div>${(() => {
           // Ce que le client paiera quand le devis deviendra une facture : le timbre et la retenue de sa fiche s'y ajoutent.
@@ -7916,7 +7920,7 @@
         (pop, fermer) => {
           const dessiner = q => {
             const l = (data.snippets || []).filter(x => !q || sansAccents(`${x.name} ${x.text || ''}`).includes(sansAccents(q)));
-            $('#pop-txt-l', pop).innerHTML = l.length ? l.map(x => choix('data-sn', x.id, h(x.name), h((x.text || '').slice(0, 110)), false)).join('') : '<p class="pop-vide">Aucun texte prêt : ils se créent dans Paramètres → Textes.</p>';
+            $('#pop-txt-l', pop).innerHTML = l.length ? l.map(x => `<button type="button" class="pop-o col" data-sn="${h(x.id)}"><b>${h(x.name)}</b><small>${h((x.text || '').slice(0, 110))}</small></button>`).join('') : '<p class="pop-vide">Aucun texte prêt : ils se créent dans Paramètres → Textes.</p>';
             $$('[data-sn]', pop).forEach(x => x.onclick = () => {
               const sn = data.snippets.find(y => y.id === x.dataset.sn); if (!sn) return;
               fermer();
@@ -7928,7 +7932,7 @@
           dessiner('');
           $('#pop-txt-q', pop).oninput = ev => dessiner(ev.target.value.trim());
           $('#pop-txt-q', pop).focus();
-        }, { label: 'Textes prêts' });
+        }, { label: 'Textes prêts', classe: 'pop-txt' });
       if ($('#ed-texte')) $('#ed-texte').onclick = texteBulle;
       if ($('#ed-texte2')) $('#ed-texte2').onclick = texteBulle;
       // ── Annuler / rétablir (Ctrl Z, Ctrl Maj Z, le bouton ↶) : chaque modification de la pièce se défait ─────────
@@ -8006,8 +8010,13 @@
         const f = $('#ed-frise'); if (!f || $('#ed-bandeau-emise')) return;
         f.insertAdjacentHTML('beforebegin', `<div class="bandeau ${ton}" id="ed-bandeau-emise" role="${ton === 'rouge' ? 'alert' : 'status'}">${lfIc(ic, 18)}<span class="txt"><b>${h(titre)}</b><span>${h(texte)}</span></span>${lib ? `<button type="button" class="btn btn-sm">${h(lib)}</button>` : ''}</div>`);
         const b = $('#ed-bandeau-emise .btn'); if (b && geste) b.onclick = geste;
+        // (1.155.1, Skander : « deux bandeaux ») Comme la maquette, UN bandeau en tête d'une facture émise : celui-ci
+        // remplace « Émise : elle ne se modifie plus » (l'avoir reste dans ⋯) et, dans l'exemple, celui du haut de page
+        // (il porte lui-même « Créer ma vraie entreprise »).
+        $$('#view .lock-banner:not([id]), #view > .demo-banner').forEach(x => x.remove());
       };
-      if (avecFrise && C.estDemo(data)) bandeauEmise('gris', 'info', 'Entreprise d\'essai : cette facture ne part jamais à El Fatoora', 'Elle se signe pour que tu voies le geste, mais rien n\'est déposé à la TTN : l\'essai sert à apprendre. Ta vraie entreprise, elle, enverra chaque facture signée.', 'Créer ma vraie entreprise', () => { const o = $('#demo-out'); if (o) o.click(); });
+      if (avecFrise && C.estDemo(data)) bandeauEmise('gris', 'info', 'Entreprise d\'essai : cette facture ne part jamais à El Fatoora', 'Elle se signe pour que tu voies le geste, mais rien n\'est déposé à la TTN : l\'essai sert à apprendre. Ta vraie entreprise, elle, enverra chaque facture signée.', 'Créer ma vraie entreprise', demoSortie);
+
       if (avecFrise && bridge.etatsTtnDe) bridge.etatsTtnDe([doc.id]).then(r => {
         const f = $('#ed-frise'); const e = r && r[doc.id];
         ttnConnu = e || null;

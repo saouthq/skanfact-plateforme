@@ -112,7 +112,7 @@ describe('la facture de la maquette, à la souris, au clavier et au téléphone'
     expect(net(await p.locator('#ed-puces [data-etq=rs]').innerText())).toMatch(/^Retenue 1,5\s?% · du client$/);
     expect(await p.locator('#ed-puces [data-etq=rs]').getAttribute('class')).toContain('chg');
     const totaux = () => p.locator('#totals .ed-tot tr').evaluateAll((trs) => trs.map((tr) => (tr as HTMLElement).innerText.replace(/\s+/g, ' ').trim()));
-    expect(await totaux()).toEqual(['Total HT 376,900', 'TVA 7 % sur 135,900 9,513', 'TVA 19 % sur 241,000 45,790', 'Timbre fiscal 1,000', 'Total TTC 433,203', 'Retenue à la source 1,5 % − 6,483']);
+    expect(await totaux()).toEqual(['Total HT 376,900', 'TVA 7 % sur 135,900 9,513', 'TVA 19 % sur 241,000 45,790', 'Timbre fiscal 1,000', 'Total TTC 433,203', 'Retenue à la source 1,5 % −6,483']);
     expect(net(await p.locator('#totals .ed-net').innerText())).toBe('Net à payer 426,720 DT le montant en lettres est écrit sur la facture');
     // Avant d'émettre : le client a son matricule, chaque ligne a sa TVA.
     expect(await p.locator('#ed-avant li').evaluateAll((l) => l.slice(1).map((x) => `${x.className} ${(x as HTMLElement).innerText.trim()}`))).toEqual(['ok Le client a son matricule', 'ok Chaque ligne a sa TVA']);
@@ -120,10 +120,10 @@ describe('la facture de la maquette, à la souris, au clavier et au téléphone'
 
     // 3. La remise de toute la pièce, au pied des lignes : les totaux la disent tout de suite, le formulaire la garde.
     await p.locator('#ed-remise').fill('10');
-    await expect.poll(totaux).toContain('Remise 10 % − 37,690');
+    await expect.poll(totaux).toContain('Remise 10 % −37,690');
     expect(await p.locator('#f-head input[name=discountRate]').inputValue()).toBe('10');
     await p.locator('#ed-remise').fill('0');
-    await expect.poll(totaux).not.toContain('Remise 10 % − 37,690');
+    await expect.poll(totaux).not.toContain('Remise 10 % −37,690');
 
     // 4. Les gestes d'une ligne sont dans son ⋯ : dupliquer, retirer ; Entrée sur la dernière ligne en ajoute une.
     const rangees = () => p.locator('#lines tr').count();

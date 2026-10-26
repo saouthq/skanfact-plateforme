@@ -107,3 +107,13 @@ body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var
   html.compact body:not(.mode-caisse) #view { zoom: .9; }
   html.compact body:not(.mode-caisse) #view table.list td, html.compact body:not(.mode-caisse) #view table.list th { padding-block: 7px; }
 }
+/* Les gestes d'une ligne de pièce (maquette facture, « Gestes de la ligne ») : 250 px, libellés en 400, raccourcis en
+   touches de clavier, « Supprimer la ligne » en rouge sous un trait. */
+.row-menu.ligne-menu { min-width: 250px; max-width: 250px; }
+.row-menu.ligne-menu button { padding: 8px 9px; align-items: center; }
+.row-menu.ligne-menu .rm-l { font-weight: 400; }
+.row-menu.ligne-menu .rm-i { margin-top: 0; }
+.row-menu.ligne-menu .rm-fin { padding-top: 0; }
+.row-menu.ligne-menu .rm-note { font-size: 10.5px; font-weight: 600; color: var(--sb-gris); padding: 0 5px; border-radius: 4px; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); opacity: .85; }
+.row-menu.ligne-menu button.danger .rm-note { color: var(--sb-rouge-texte); }
+.row-menu.ligne-menu button, .row-menu.ligne-menu button:has(.rm-fin) { grid-template-columns: 16px 1fr auto; }

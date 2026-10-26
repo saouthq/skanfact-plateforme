@@ -250,7 +250,7 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await expect.poll(() => p.locator('#modal-root h2').allInnerTexts()).toEqual(['Envoyer Facture FAC-2026-001 par WhatsApp']);
     await p.getByRole('button', { name: 'Annuler', exact: true }).click();
     // « Aperçu » ouvre la pièce en grand (1.87.12) : il masquait l'aperçu du bas de page, sans que rien ne bouge.
-    await p.locator('#pv-toggle').click();
+    await p.locator('#ed-grand').click();
     await expect.poll(() => p.locator('#pv-full').count()).toBe(1);
     expect(await p.locator('.editor').evaluate((e) => e.classList.contains('no-preview'))).toBe(false);
     await p.keyboard.press('Escape');

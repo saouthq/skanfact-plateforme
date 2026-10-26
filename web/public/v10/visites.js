@@ -296,6 +296,7 @@
   b('#msg-autre', "Tes messages s'ouvriront dans ta messagerie par défaut ; le PDF s'affiche à côté, pour que tu le glisses dedans.");
   b('#pdf', "Enregistre le document en PDF sur ton ordinateur.");
   b('#pv-toggle', "Montre ou cache l'aperçu, à droite.");
+  b('#ed-grand', "Ouvre la pièce en grand, telle que ton client la recevra ; un clic sur la petite image de droite fait de même.");
   b('#pv-hide', "Ouvre le document en grand, pour le relire comme ton client le recevra.");
   b('#pay', "Note un règlement de ton client (virement, chèque, espèces) : le statut de la facture suit tout seul.", { route: 'doc' });
   b('#pay2', "Note un règlement de ton client.", { route: 'doc' });
@@ -1234,7 +1235,7 @@
           texte: 'Le bon de commande du client, une photo du chantier, le devis signé scanné : « + Joindre un fichier… » les range avec ce devis. Le fichier est <b>copié</b> à côté de tes données, et la pièce porte un 📎 dans les listes. Rien ne s\'imprime sur le devis.' },
         { cible: '#notes', cote: 'dessus', titre: 'Les notes',
           texte: 'Un texte libre <b>imprimé</b> sur le devis : délai d\'intervention, matériel non compris, conditions particulières. Les phrases que tu réutilises s\'enregistrent en « textes prédéfinis » dans le Catalogue, pour les insérer en un clic.' },
-        { cible: ['#view .preview', '#pv-toggle'], cote: 'gauche', titre: 'L\'aperçu', texte: 'À droite, le document <b>tel que ton client le recevra</b>, mis à jour à chaque frappe. Le repère « 1 page » dit combien de feuilles il fera une fois imprimé, et « Agrandir » l\'ouvre en grand pour le relire avant de l\'envoyer.' },
+        { cible: ['#view .preview', '#ed-grand', '#pv-toggle'], cote: 'gauche', titre: 'L\'aperçu', texte: 'À droite, le document <b>tel que ton client le recevra</b>, mis à jour à chaque frappe. Le repère « 1 page » dit combien de feuilles il fera une fois imprimé, et « Aperçu », en haut (ou un clic sur l\'image), l\'ouvre en grand pour le relire avant de l\'envoyer.' },
         { cible: '#save', cote: 'dessous', faire: 'clic',
           titre: 'Enregistrer', texte: 'Le devis reçoit son numéro. Tu pourras encore le modifier tant qu\'il n\'est pas accepté.',
           action: 'Clique sur <b>« Enregistrer »</b>.', fait: () => /^#\/doc\/(?!new)/.test(hash()), essai: { clic: true } }
@@ -1299,8 +1300,8 @@
           texte: 'Hors taxe, TVA, timbre, total, et le <b>net à payer</b> (la retenue déduite) : tout suit ce que tu tapes, ligne par ligne. Rien à calculer.' },
         { cible: '#notes', cote: 'dessus', titre: 'Les notes',
           texte: 'Un texte libre <b>imprimé</b> sur la facture : conditions de paiement, RIB à rappeler, remerciement. Les phrases que tu réutilises s\'enregistrent en « textes prédéfinis » dans le Catalogue.' },
-        { cible: ['#view .preview', '#pv-toggle'], cote: 'gauche', titre: 'L\'aperçu',
-          texte: 'À droite, la facture <b>telle que ton client la recevra</b>, mise à jour à chaque frappe. Le repère « 1 page » dit combien de feuilles elle fera une fois imprimée, et « Agrandir » l\'ouvre en grand pour la relire.' },
+        { cible: ['#view .preview', '#ed-grand', '#pv-toggle'], cote: 'gauche', titre: 'L\'aperçu',
+          texte: 'À droite, la facture <b>telle que ton client la recevra</b>, mise à jour à chaque frappe. Le repère « 1 page » dit combien de feuilles elle fera une fois imprimée, et « Aperçu », en haut (ou un clic sur l\'image), l\'ouvre en grand pour la relire.' },
         { cible: '#save', cote: 'dessous', faire: 'clic',
           titre: 'Garder le brouillon', texte: 'La facture est gardée, sans numéro : tu peux encore tout y changer. « Émettre la facture », juste au-dessus, lui donnera son numéro définitif — ce n\'est pas le geste de cette visite.',
           action: 'Clique sur <b>« Garder le brouillon »</b>.', fait: () => /^#\/doc\/(?!new)/.test(hash()), essai: { clic: true } }

@@ -6,11 +6,11 @@
 /* ── l'en-tête : le chemin, le titre et son statut, « enregistré », puis Aperçu, PDF et ⋯ ── */
 .ed-tete { align-items: flex-start; margin-bottom: 18px; gap: 16px; }
 .ed-tete .ed-titre { display: grid; gap: 4px; min-width: 0; }
-.ed-chemin { font-size: 12.5px; color: var(--sb-gris-2); display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+.ed-chemin { font-size: 13px; color: var(--sb-gris-2); display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
 #view .ed-tete .ed-chemin a { color: inherit; text-decoration: none; font-weight: 400; }
 .ed-chemin a:hover { color: var(--sb-encre); text-decoration: underline; }
 .ed-h1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
-.ed-h1 h1 { margin: 0; font-size: 26px; letter-spacing: -.02em; }
+.ed-h1 h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.025em; }
 .ed-pill { font-size: 12px; }
 .ed-enreg { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--sb-gris-2); }
 .ed-enreg svg { color: var(--sb-sarcelle); }
@@ -51,8 +51,8 @@
 .ed-cl-tete { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .ed-cl-tete .av { width: 44px; height: 44px; border-radius: 12px; flex: none; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px; }
 .ed-cl-nom { display: grid; gap: 2px; min-width: 0; flex: 1; }
-.ed-cl-nom b { font-size: 16.5px; color: var(--sb-encre); }
-.ed-cl-nom span { font-size: 13px; color: var(--sb-gris-2); overflow-wrap: anywhere; }
+.ed-cl-nom b { font-size: 16px; font-weight: 700; letter-spacing: -.01em; color: var(--sb-encre); }
+.ed-cl-nom span { font-size: 12.5px; color: var(--sb-gris-2); overflow-wrap: anywhere; }
 .ed-cl-gestes { display: flex; gap: 6px; flex: none; }
 .ed-cl-puces { display: flex; flex-wrap: wrap; gap: 8px; }
 .ed-chip { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 5px 10px; border-radius: 8px; font-size: 12.5px; color: var(--sb-gris); background: var(--sb-papier-2); border: 1px solid var(--sb-trait); }
@@ -82,6 +82,12 @@
 .ed-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .ed-options:not(:has(> :not([hidden]))) { display: none; }
 
+/* Les champs et les titres de section au gabarit de la maquette : l'étiquette 12 px grise, la valeur 14 px en 500
+   (la v10 la mettait en 600, hérité de l'étiquette), le titre d'une carte 14,5 px. */
+.editor.charte .field { color: var(--sb-gris-2); }
+.editor.charte .field :is(input, select) { font-weight: 500; color: var(--sb-encre); }
+.editor.charte .panel > h2 { font-size: 14.5px; font-weight: 700; letter-spacing: -.01em; }
+
 /* les lignes */
 .ed-lignes { padding: 18px 20px; }
 .ed-lignes > h2 { display: flex; align-items: center; gap: 6px; }
@@ -92,13 +98,13 @@
 .ed-lignes table.lines-edit th { text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: 600; color: var(--sb-gris-2); }
 .ed-lignes table.lignes-doc tbody tr + tr { border-top-color: var(--sb-trait); }
 .ed-lignes table.lignes-doc tbody tr { padding-block: 8px; }
-.ed-lignes table.lines-edit input[data-k=label] { border-color: transparent; background: transparent; font-weight: 600; font-size: 14.5px; padding-inline: 4px; }
+.ed-lignes table.lines-edit input[data-k=label] { border-color: transparent; background: transparent; font-weight: 600; font-size: 14px; padding-inline: 4px; }
 .ed-lignes table.lines-edit textarea[data-k=description] { border-color: transparent; background: transparent; color: var(--sb-gris); font-size: 13px; padding-inline: 4px; margin-top: 0; }
 .ed-lignes table.lines-edit :is(input[data-k=label], textarea):hover { border-color: var(--sb-trait); }
 .ed-lignes table.lines-edit :is(input[data-k=label], textarea):focus { border-color: var(--sb-sarcelle); background: var(--sb-papier); }
 .ed-lignes table.lines-edit td:not(:first-child) :is(input, select) { background: var(--sb-papier-2); border-color: transparent; border-radius: 8px; height: 38px; }
 .ed-lignes table.lines-edit td:not(:first-child) :is(input, select):focus { border-color: var(--sb-sarcelle); background: var(--sb-papier); }
-.ed-lignes table.lines-edit .total { font-size: 15px; font-weight: 700; color: var(--sb-encre); padding-top: 14px; }
+.ed-lignes table.lines-edit .total { font-size: 14px; font-weight: 700; color: var(--sb-encre); padding-top: 14px; }
 .ed-lignes .link-add { font-size: 12px; }
 .ligne-reperes { font-size: 12px; color: var(--sb-gris-2); padding: 2px 4px 0; display: flex; flex-wrap: wrap; gap: 4px 10px; }
 .ligne-reperes:empty { display: none; }
@@ -122,23 +128,23 @@
 
 /* les totaux, le geste, avant d'émettre, l'aperçu */
 .ed-totaux .totals-box { display: block; margin: 0; }
-.ed-totaux .totals-box table.ed-tot { width: 100%; border-collapse: collapse; font-size: 14px; background: none; border-radius: 0; padding: 0; }
+.ed-totaux .totals-box table.ed-tot { width: 100%; border-collapse: collapse; font-size: 13.5px; background: none; border-radius: 0; padding: 0; }
 .ed-totaux .totals-box table.ed-tot td { padding: 5px 0; color: var(--sb-gris); text-align: start; }
 .ed-totaux .totals-box table.ed-tot td:last-child { text-align: end; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--sb-encre); white-space: nowrap; }
-.ed-totaux .totals-box .ed-tot tr.sous td { font-size: 13.5px; }
-.ed-totaux .totals-box .ed-tot tr.sous td:first-child { padding-inline-start: 12px; }
-.ed-totaux .totals-box .ed-tot tr.sous td:last-child { font-weight: 500; }
+.ed-totaux .totals-box .ed-tot tr.sous td { font-size: 12.5px; }
+.ed-totaux .totals-box .ed-tot tr.sous td:first-child { padding-inline-start: 10px; }
+.ed-totaux .totals-box .ed-tot tr.sous td:last-child { font-weight: 600; }
 .ed-totaux .totals-box .ed-tot tr.trait td { border-top: 1px solid var(--sb-trait); padding-top: 12px; }
 .ed-totaux .totals-box .ed-tot tr.retenue td:last-child { color: var(--sb-rouge-texte); }
 .ed-net { display: grid; gap: 2px; margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: var(--sb-doux); }
-.ed-net .k { font-size: 13px; font-weight: 600; color: var(--sb-doux-texte); }
-.ed-net .v b { font-size: 30px; font-weight: 700; letter-spacing: -.02em; color: var(--sb-encre); font-variant-numeric: tabular-nums; }
-.ed-net .v small { font-size: 14px; font-weight: 600; color: var(--sb-gris-2); }
-.ed-net .s { font-size: 12.5px; color: var(--sb-gris-2); }
+.ed-net .k { font-size: 12.5px; font-weight: 600; color: var(--sb-doux-texte); }
+.ed-net .v b { font-size: 28px; font-weight: 700; letter-spacing: -.03em; color: var(--sb-encre); font-variant-numeric: tabular-nums; }
+.ed-net .v small { font-size: 14px; font-weight: 600; color: var(--sb-gris); }
+.ed-net .s { font-size: 11.5px; color: var(--sb-gris); }
 .ed-totaux .totals-box > .small { margin-top: 10px; }
 
 .ed-geste { display: grid; gap: 10px; }
-.ed-geste .btn-grand { width: 100%; height: 46px; justify-content: center; display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; border-radius: 10px; }
+.ed-geste .btn-grand { width: 100%; height: 44px; justify-content: center; display: inline-flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 600; border-radius: 10px; }
 .ed-geste .btn-grand + .i { display: none; }
 .ed-phrase { margin: 0; font-size: 13px; color: var(--sb-gris); line-height: 1.45; }
 .ed-phrase.small { font-size: 12.5px; color: var(--sb-gris-2); }
@@ -161,6 +167,11 @@
 .editor.charte .ed-apercu .pv-pages { white-space: nowrap; }
 .editor.charte .ed-apercu .pv-head .k-label { font-size: 12.5px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--sb-gris); }
 .editor.charte .ed-apercu iframe { height: 460px; flex: none; border-radius: 8px; box-shadow: none; }
+/* La petite image se clique (maquette : « Voir en grand ») : un voile transparent sur l'iframe, qui sinon garde le clic. */
+.editor.charte .preview.ed-apercu { position: relative; }
+.editor.charte .ed-apercu .pv-ouvrir { position: absolute; left: 14px; right: 14px; bottom: 14px; height: 460px; border: 0; border-radius: 8px; background: transparent; cursor: zoom-in; }
+.editor.charte .ed-apercu .pv-ouvrir:hover { background: color-mix(in srgb, var(--sb-sarcelle) 6%, transparent); }
+.ed-deux:has(> :only-child) { grid-template-columns: 1fr; }
 .editor.charte.no-preview .ed-apercu { display: none; }
 
 /* une pièce émise se lit : le résumé, les paiements en quatre cases */
@@ -359,6 +370,10 @@
 .ed-pop .pop-o { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px 10px; border: 1px solid transparent; border-radius: 9px; background: none; font: inherit; color: inherit; text-align: start; cursor: pointer; }
 .ed-pop .pop-o > span { flex: 1; min-width: 0; }
 .ed-pop .pop-o small { display: block; font-size: 12px; color: var(--sb-gris-2); }
+.ed-pop.pop-txt { width: 440px; }
+.ed-pop .pop-o.col { display: grid; gap: 2px; height: auto; font-size: 13px; }
+.ed-pop .pop-o.col b { font-weight: 600; color: var(--sb-encre); }
+.ed-pop .pop-o.col small { line-height: 1.4; }
 .ed-pop .pop-o:hover { background: var(--sb-survol); }
 .ed-pop .pop-o.on { background: var(--sb-doux); color: var(--sb-doux-texte); font-weight: 600; }
 .ed-pop .pop-o svg { flex: none; color: var(--sb-sarcelle-texte); }
@@ -852,3 +867,15 @@
 }
 /* La barre d'ajout et « Pour qui ? » portent leur anneau sur leur cadre : la case ne double pas l'anneau. */
 .editor.charte :is(#ed-ajout, #ed-pq-q):focus-visible { outline: none; }
+
+/* (1.155.1) L'en-tête de la pièce, comme la maquette (« .haut ») : une bande sur toute la largeur, séparée du corps par
+   un trait, qui reste en haut quand la page défile (le titre, « Aperçu », PDF et ⋯ restent sous la main). */
+@media (min-width: 761px) {
+  /* Le corps de la pièce a les marges de la maquette (24 px), et l'en-tête colle au bord haut : rien ne défile au-dessus. */
+  main#view:has(> .ed-tete) { padding-top: 0; padding-inline: 24px; }
+  #view:has(> .ed-tete) > :not(.ed-tete):first-child { margin-top: 20px; }
+  /* La colonne de droite (totaux, Émettre) reste à côté des lignes quand on défile, comme la maquette (« .droite ») ;
+     plus haute que l'écran, elle défile en elle-même. */
+  .editor.charte > .ed-droite { position: sticky; top: 96px; max-height: calc(100vh - 110px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 2px; margin: -2px; }
+  #view > .ed-tete { position: sticky; top: 0; z-index: 20; margin: 0 -24px 18px; padding: 14px 24px; background: color-mix(in srgb, var(--sb-papier-2) 92%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-bottom: 1px solid var(--sb-trait); }
+}

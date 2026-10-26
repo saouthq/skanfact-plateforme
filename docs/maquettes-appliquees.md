@@ -188,6 +188,16 @@ jusqu'à leur lot. Tests : `tests/web/facture-charte.test.ts`, `tests/web/teleph
 - un avoir neuf (depuis « Créer ») propose « Facture concernée » sous « Pour qui ? » : choisir la facture choisit le client ;
 - l'affichage compact ne vaut qu'à la souris : une tablette ou un écran qu'on touche, et la caisse, gardent la taille du doigt.
 
+**Revu en 1.155.1 (Skander, 26/10/2026 : « encore des écarts », « des doublons »)** :
+
+- un seul « Aperçu » : en haut, il ouvre la pièce en grand ; « En grand » et « Agrandir » sont partis, la petite image de droite s'ouvre au clic ;
+- un seul « Texte prêt », dans la carte des notes (là où il écrit) ;
+- une facture émise n'a qu'un bandeau en tête, comme la maquette : celui de l'entreprise d'essai ou du refus d'El Fatoora remplace « Émise : elle ne se modifie plus » et le bandeau d'exemple du haut ; la pastille dit « Émise · entreprise d'essai » ;
+- l'en-tête de la pièce est une bande collée en haut (trait dessous) ; la colonne des totaux et d'« Émettre » reste à côté des lignes quand on défile ; le corps a les marges de la maquette (24 px) ;
+- les tailles de la maquette : titre 26 px, chemin 13 px, nom du client 16 px, valeurs des champs en 500, titres des cartes 14,5 px, désignation et total d'une ligne 14 px, totaux 13,5 px, lignes de TVA 12,5 px, net à payer 28 px ; « −33,464 » sans espace ;
+- le menu d'une ligne : l'ordre, les icônes et le gabarit de la maquette (« Insérer un titre au-dessus » gardé juste avant « Supprimer la ligne », parce que c'est le seul chemin vers les titres) ; « Textes prêts » : le nom puis le texte, l'un sous l'autre ;
+- « Tous les gestes de la pièce : ⋯ en haut à droite » n'est plus redit dans la colonne.
+
 | Ce qui se voit | Comment |
 |---|---|
 | La remise par ligne | Une colonne « Remise » (en %) : retirée du montant arrondi de la ligne, avant la remise de toute la pièce (`moteur/piece.ts`). Gardée au serveur (0176, `ventes.ligne.taux_remise`) ; scellée seulement quand elle existe, les pièces d'avant gardent leur empreinte. La ligne dit « avant remise … » |

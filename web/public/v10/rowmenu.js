@@ -53,6 +53,11 @@
     extraire: '<path d="M12 15V4"/><path d="M8 8l4-4 4 4"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/>',
     loupe: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
     restaurer: '<path d="M3 12a9 9 0 1 0 2.6-6.4"/><path d="M3 3v6h6"/>',
+    haut: '<path d="m7 15 5 5 5-5M7 9l5-5 5 5"/>',
+    deplier: '<path d="m10 7 5 5-5 5"/>',
+    catalogue: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+    article: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+    annuler: '<path d="M9 14 4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-2"/>',
     supprimer: '<path d="M4 7h16"/><path d="M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/><path d="M6 7l1 13h10l1-13"/>'
   };
   // Une action sans icône garde quand même sa colonne : sans le vide, les libellés du menu ne
@@ -102,7 +107,8 @@
   // qui a posé sa table le dit (`data-menus`) ; celle du dessus passe son chemin sur ses boutons.
   // C'est la troisième fois que deux tables se mangent (9.4.8, 10.2.0) : la règle vit ici, une fois.
   // `titreDe(id)` (facultatif, 1.153.0) : le titre du menu de cette ligne (voir `ouvrir`).
-  function brancherMenus(racine, actionsDe, titreDe) {
+  // `classe` : une famille de menus qui a son gabarit (les gestes d'une ligne de pièce, 1.155.1).
+  function brancherMenus(racine, actionsDe, titreDe, classe) {
     const r = racine || document;
     if (r.setAttribute) r.setAttribute('data-menus', '');
     $$('[data-rowmenu]', r).forEach(b => {
@@ -130,7 +136,7 @@
         b.onclick = e => { e.stopPropagation(); a.run(); };
         return;
       }
-      b.onclick = e => { e.stopPropagation(); ouvrir(b, actions, titreDe ? { titre: titreDe(b.dataset.rowmenu) || '' } : undefined); };
+      b.onclick = e => { e.stopPropagation(); ouvrir(b, actions, titreDe || classe ? { titre: titreDe ? titreDe(b.dataset.rowmenu) || '' : '', classe } : undefined); };
     });
   }
 
