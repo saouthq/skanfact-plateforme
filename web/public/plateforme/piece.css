@@ -983,3 +983,25 @@
 .lc .lc-vide { margin: 0; font-size: 13px; color: var(--sb-gris-2); }
 @media (max-width: 560px) { .lc .lc-choix { grid-template-columns: 1fr; } .lc .lc-l { flex-wrap: wrap; } }
 .lc .lc-dire.conseil { color: var(--sb-gris); }
+
+/* (1.155.10, lot 6 : l'achat) Les options de l'achat dessinées comme les étiquettes de la maquette (`.etq`) : « Devise
+   Dinar », « Retenue opérée 1,5 % · de sa fiche », « Timbre et frais 1,000 DT ». Les vrais champs restent là (le
+   formulaire, les refus qui montrent le champ) : ils prennent la largeur de leur valeur, sans flèche ni cadre. */
+.buy-editor .ed-puces { gap: 8px; }
+.buy-editor .ed-puces .puce-champ, .buy-editor .ed-puces .puce-plus { min-height: 30px; height: 30px; padding: 0 10px; border-radius: 99px; font-size: 12.5px; border-color: var(--sb-trait); }
+.buy-editor .ed-puces .puce-champ:hover { border-color: var(--sb-trait-fort); color: var(--sb-encre); }
+.buy-editor .ed-puces .puce-champ select, .buy-editor .ed-puces .puce-champ input[type=number] { field-sizing: content; height: 28px; font-size: 12.5px; background: none !important; padding: 0; min-width: 0; }
+.buy-editor .ed-puces .puce-champ input[type=number] { width: auto; min-width: 3ch; border-bottom: 0; -moz-appearance: textfield; }
+.buy-editor .ed-puces .puce-champ input[type=number]::-webkit-inner-spin-button, .buy-editor .ed-puces .puce-champ input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.buy-editor .ed-puces .puce-champ .unite { font-weight: 600; color: var(--sb-encre); }
+.buy-editor .ed-puces .puce-champ.on .unite { color: var(--sb-doux-texte); }
+.buy-editor .ac-on-grille { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.buy-editor .ac-on-grille textarea { min-height: 44px; resize: vertical; }
+@media (max-width: 760px) { .buy-editor .ac-on-grille { grid-template-columns: 1fr; } }
+/* La destination d'une ligne d'achat en pastille (« Stock », « Charge »), comme la maquette. */
+.buy-editor .buy-lines select[data-k=destination] { field-sizing: content; height: 26px; min-height: 0; padding: 0 10px; border-radius: 99px; border: 0; background: var(--sb-survol); color: var(--sb-encre); font-size: 12.5px; font-weight: 600; appearance: none; -webkit-appearance: none; background-image: none; cursor: pointer; }
+.buy-editor .buy-lines tr:has(select[data-k=destination] option[value=stock]:checked) select[data-k=destination] { background: var(--sb-doux); color: var(--sb-doux-texte); }
+/* La barre d'ajout des lignes de l'achat : la recherche du catalogue prend la place, « + Ligne libre » à côté. */
+.buy-editor .ed-lignes .catalog-pick > #b-cat { flex: 1 1 320px; min-width: 0; }
+.buy-editor .ed-lignes .catalog-pick > #b-cat .combo, .buy-editor .ed-lignes .catalog-pick > #b-cat .combo-btn { width: 100%; }
+.buy-editor .ed-lignes .catalog-pick > #b-lignes-hint { flex-basis: 100%; }

@@ -13426,7 +13426,7 @@
       const pj = (stored.attachments || []).length;
       const regle = solde && solde.remaining <= 0.0005;
       return friseHtml([
-        { t: 'Saisie', fait: true, d: `le ${C.fmtDate(p.date)}` },
+        { t: 'Saisie', fait: true, d: lfJm(p.date) },
         { t: 'Justificatif', fait: pj > 0, d: pj ? pl(pj, 'fichier joint', 'fichiers joints') : 'à joindre', g: pj || bridge.piecesJointes === false ? '' : '<button type="button" class="btn btn-sm" data-frise="attach-top">Joindre</button>' },
         { t: 'Réglée', fait: !!regle, d: regle ? 'plus rien n\'est dû' : `reste ${C.money(solde ? solde.remaining : 0, cur)}${p.dueDate ? ` · échéance ${lfJm(p.dueDate)}` : ''}`, g: !regle && solde && solde.remaining > 0.0005 ? '<button type="button" class="btn btn-sm" data-frise="pay">Régler</button>' : '' },
       ]);
@@ -13441,10 +13441,10 @@
         <div class="ed-titre">
           <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/achats" class="ed-retour">Achats et dépenses</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${isNew ? h(motsDePiece(p.kind).titre) : h(p.number || 'sans numéro')}</span></div>
           <div class="ed-h1"><h1>${titreAchat}</h1>${pillAchat()}<span class="ed-enreg" id="ed-enreg"${isNew || clos ? ' hidden' : ''}>${lfIc('coche', 14, 2.6)}enregistrée</span><span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
-          ${isNew ? '' : `<div class="small muted">${h(supplierName(p.supplierId))} · ${C.fmtDate(p.date)}${String(stored.number || '').trim() ? '' : ` · <span title="${h('Sa référence dans les écritures et chez ton comptable')}">réf. ${h(C.referenceAchat(stored, data))}</span>`}</div>`}
+          ${isNew || String(stored.number || '').trim() ? '' : `<div class="small muted"><span title="${h('Sa référence dans les écritures et chez ton comptable')}">réf. ${h(C.referenceAchat(stored, data))}</span></div>`}
         </div>
         <div class="actions">
-          ${bridge.piecesJointes === false ? '' : `<span class="colle-bouton"><button class="btn" id="attach-top">${lfIc('epingle', 16)}Joindre un justificatif…</button>${info('ed.attachments')}</span>`}
+          ${bridge.piecesJointes === false ? '' : `<button class="btn" id="attach-top" title="Joindre la photo ou le PDF de la pièce">${lfIc('oeil', 16)}Justificatif</button>`}
           ${isNew ? '' : `<div class="more"><button class="btn ico" id="more-btn" aria-label="Autres actions" title="Autres actions">${lfIc('plus', 18)}</button><div class="more-list" id="more-list" hidden>
             <button id="dup">Dupliquer</button>
             ${clos ? '' : '<button id="del" class="danger">Supprimer</button>'}
@@ -13484,10 +13484,10 @@
                 ${combo({ name: 'achatLie', value: p.achatLie || '', items: lieItems(p.supplierId), placeholder: phLie, search: 'Rechercher : n°, objet…', ro: clos })}
               </div>
               <div class="ed-puces" role="group" aria-label="Options de la pièce">
-                <label class="puce-champ"><span>Nature</span><select name="kind">${C.PURCHASE_KINDS.map(([v, l]) => `<option value="${v}" ${p.kind === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-                <label class="puce-champ"><span>Devise</span><select name="currency">${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(C.libelleDevise(c))}</option>`).join('')}</select></label>
+                <label class="puce-champ"${isNew ? '' : ' hidden'}><span>Nature</span><select name="kind">${C.PURCHASE_KINDS.map(([v, l]) => `<option value="${v}" ${p.kind === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+                <label class="puce-champ"><span>Devise</span><select name="currency" title="La devise de la pièce, telle que le fournisseur l'a écrite">${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(({ DT: 'Dinar', TND: 'Dinar', EUR: 'Euro', USD: 'Dollar', GBP: 'Livre sterling' })[C.normCurrency(c)] || C.libelleDevise(c))}</option>`).join('')}</select></label>
                 <label class="puce-champ${Number(p.withholdingRate) ? ' on' : ''}" id="ac-puce-rs"><span>Retenue opérée</span>${withholdingSelect('withholdingRate', p.withholdingRate)}<span class="suffixe" id="ac-rs-fiche"></span></label>
-                <label class="puce-champ"><span>Timbre et frais (<span data-unite-devise>${h(cur)}</span>)</span><input type="number" name="fees" value="${h(p.fees || 0)}" step="0.001" min="0" class="num"></label>
+                <label class="puce-champ"><span>Timbre et frais</span><input type="number" name="fees" value="${h(p.fees || 0)}" step="0.001" min="0" class="num" aria-label="Timbre et frais"><span class="unite" data-unite-devise>${h(cur)}</span></label>
                 ${C.depotsDe(data).length > 1 ? `<label class="puce-champ"><span>Dépôt</span><select name="depotId" ${clos ? 'disabled' : ''}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (p.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
                 ${clos ? '' : `<button type="button" class="puce-plus" data-montrer="ac-affaire"${p.projectId ? ' hidden' : ''}>${lfIc('croix', 13, 2.4)}Affaire</button>`}
                 <label class="puce-champ obligatoire" id="b-rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="b-rate-lbl">1 ${h(cur)} = ? ${h(company().currency)}</span><input type="number" name="exchangeRate" value="${h(p.exchangeRate || '')}" step="0.0001" min="0" class="num" placeholder="ex. 3,4">${info('buy.rate')}</label>
@@ -13497,7 +13497,6 @@
                   ${combo({ name: 'projectId', value: p.projectId || '', items: projectItems(''), placeholder: '— Aucune affaire —', search: 'Rechercher une affaire…', add: clos ? null : '+ Nouvelle affaire', ro: clos })}
                 </div>
               </div>
-              <label class="field">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(p.subject || '')}" placeholder="${h(inviteObjet(p.kind))}"></label>
             </form>
           </div>
           <div class="panel ed-lignes"><h2>Lignes ${info('buy.lines')}<span class="ed-compte" id="ac-compte"></span></h2>
@@ -13514,16 +13513,19 @@
             <div id="b-stock-hint" hidden></div>
           </div>
           ${isNew ? '' : `<div class="panel"><h2>Règlements ${info('buy.payments')}</h2><div id="b-pay"></div></div>`}
-          <div class="panel" id="p-pj"><h2>Pièces jointes ${info('ed.attachments')}</h2><div id="attachments"></div></div>
-          <div class="panel"><h2>Notes internes</h2>
-            <textarea id="b-notes" placeholder="Ce qu'il faut se rappeler sur cet achat : seule ton équipe le lit">${h(p.notes || '')}</textarea>
+          <div class="panel ac-objet-notes"><h2>Objet et notes internes</h2>
+            <div class="ac-on-grille">
+              <label class="field">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" id="b-subject" value="${h(p.subject || '')}" placeholder="${h(inviteObjet(p.kind))}"${clos ? ' disabled' : ''}></label>
+              <label class="field">${lbl('Notes internes')}<textarea id="b-notes" placeholder="Ce qu'il faut se rappeler sur cet achat : seule ton équipe le lit">${h(p.notes || '')}</textarea></label>
+            </div>
           </div>
           ${clos ? '' : '<div class="save-bar" id="b-save-bar" hidden><span>Modifications non enregistrées</span><button class="btn btn-primary" id="b-save-bas">Enregistrer</button></div>'}
         </div>
         <aside class="ed-droite">
           <div class="panel ed-totaux"><div class="totals-box" id="b-totals"></div></div>
           ${gesteAchat()}
-          ${clos ? '' : '<div class="panel ed-avant" id="ac-avant"></div>'}
+          ${clos || !isNew ? '' : '<div class="panel ed-avant" id="ac-avant"></div>'}
+          <div class="panel ac-justif" id="p-pj"><h2>Justificatif ${info('ed.attachments')}</h2><div id="attachments"></div></div>
         </aside>
       </div>`;
 
@@ -13846,7 +13848,7 @@
         if (lf) lf.hidden = !lie;
         if (p.kind === 'avoir' && p.dueDate) { p.dueDate = ''; dueAuto = ''; poserDateField(head, 'dueDate', ''); }
         montrerEcheance();
-        const objet = $('[name=subject]', head);
+        const objet = $('#b-subject');
         if (objet) objet.placeholder = inviteObjet(p.kind);
         if (!lie && p.achatLie) { p.achatLie = ''; lieCombo.setValue(''); }
         if (supCombo && supCombo.setItems) supCombo.setItems(supplierItems());
@@ -13923,6 +13925,8 @@
       }, 'text', { info: 'buy.category' })
     });
     $('#b-notes').oninput = e => { p.notes = e.target.value; touch(); };
+    // (1.155.10) L'objet vit dans la carte « Objet et notes internes », hors de l'en-tête (`formValues(head)` ne le lit plus).
+    $('#b-subject').oninput = e => { p.subject = e.target.value; touch(); };
     // (1.157.0) La carte du fournisseur, « Changer » et « Fiche » ; « Saisir à la main » ; les puces qui montrent un champ ;
     // la frise passe ses gestes aux boutons de la pièce.
     function majFournisseur() {

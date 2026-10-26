@@ -182,7 +182,8 @@ describe('le lot achats, à l\'écran', () => {
     expect(await p.locator('#guide-appel').getAttribute('class')).toContain('ga-coin');
     expect(await p.locator('#guide-moi').getAttribute('class')).toContain('guide-moi-signale');
     const invite = await p.locator('#guide-appel').boundingBox();
-    const champ = await p.locator('[data-combo=supplierId]').boundingBox();
+    // (1.157.0) Le fournisseur venu des réceptions se montre en carte : le premier champ est la carte, ou le choix.
+    const champ = await p.locator('#ac-sup:visible, [data-combo=supplierId]:visible').first().boundingBox();
     expect(invite && champ && (invite.x > champ.x + champ.width || invite.y > champ.y + champ.height || invite.x + invite.width < champ.x || invite.y + invite.height < champ.y)).toBe(true);
     // Dans le coin bas droit de l'écran.
     expect(invite && invite.x + invite.width > 1366 - 40 && invite.y + invite.height > 768 - 40).toBe(true);
@@ -205,13 +206,14 @@ describe('le lot achats, à l\'écran', () => {
     await p.locator('#modal-root #ok').click();
     await expect.poll(async () => net(await p.locator('[data-combo=category] .combo-val').innerText())).toBe('Emballages');
     await p.locator('#view input[name=number]').fill('GMT-2026-0412');
-    // « Enregistrer » suit la saisie en bas de la page, quand celui du haut n'est plus à l'écran.
-    expect(await p.locator('#b-save-bar').isVisible()).toBe(false);
+    // « Enregistrer » reste sous la main en bas de la page : la colonne de droite suit le défilement (1.155.1, la
+    // maquette), et la barre du bas, qui ne sert que si le bouton quitte l'écran, ne double pas le geste.
     await p.locator('#b-notes').scrollIntoViewIfNeeded();
     await p.locator('#view').evaluate((v) => { v.scrollTop = v.scrollHeight; });
-    await expect.poll(() => p.locator('#b-save-bar').isVisible(), { timeout: 5_000 }).toBe(true);
+    await expect.poll(() => p.locator('#save').evaluate((b) => { const r = b.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; }), { timeout: 5_000 }).toBe(true);
+    expect(await p.locator('#b-save-bar').isVisible()).toBe(false);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'achats-lot-2-enregistrer-en-bas.png') });
-    await p.locator('#b-save-bas').click();
+    await p.locator('#save').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture d'achat GMT-2026-0412/);
 
     // 5. Le règlement d'août : la retenue se reverse avec « la déclaration d'août », et l'attestation s'établit sur TEJ.
@@ -229,7 +231,7 @@ describe('le lot achats, à l\'écran', () => {
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Nouvelle facture d'achat/);
     await p.locator('#b-head select[name=kind]').selectOption('avoir');
     await expect.poll(() => p.locator('#b-head input[name=dueDate]').evaluate((x) => (x.closest('.field') as HTMLElement).hidden)).toBe(true);
-    expect(await p.locator('#b-head input[name=subject]').getAttribute('placeholder')).toBe('Ce que l\'avoir corrige : retour, remise, erreur de prix…');
+    expect(await p.locator('#view input[name=subject]').getAttribute('placeholder')).toBe('Ce que l\'avoir corrige : retour, remise, erreur de prix…');
     await choisir(p, '[data-combo=supplierId]', 'Moulins');
     // « 118 » propose d'abord FA-2026/118 : un numéro tapé en entier passe devant celui qui le contient (FA-2026/1187).
     await p.locator('[data-combo=achatLie] .combo-btn').click();
@@ -237,12 +239,12 @@ describe('le lot achats, à l\'écran', () => {
     expect(net(await p.locator('[data-combo=achatLie] .combo-list [role=option]').first().innerText())).toMatch(/^FA-2026\/118(?!7)/);
     await p.locator('[data-combo=achatLie] .combo-q').fill('GMT-2026-0412');
     await p.locator('[data-combo=achatLie] .combo-list [role=option]').first().click();
-    await expect.poll(() => p.locator('#b-head input[name=subject]').inputValue(), { timeout: 5_000 }).toBe('Avoir sur GMT-2026-0412');
+    await expect.poll(() => p.locator('#view input[name=subject]').inputValue(), { timeout: 5_000 }).toBe('Avoir sur GMT-2026-0412');
     expect(net(await p.locator('[data-combo=category] .combo-val').innerText())).toBe('Emballages');
     // Les lignes de la facture, dans l'ordre de ses réceptions : les sacs d'abord, la farine ensuite.
     expect(await p.locator('#b-lines input[data-k=label]').evaluateAll((xs) => xs.map((x) => (x as HTMLInputElement).value))).toEqual(['Sacs kraft 2 kg', 'Farine T55, sac 25 kg']);
-    // On le quitte sans l'enregistrer : la question le nomme.
-    await p.locator('#back').click();
+    // On le quitte sans l'enregistrer (par le chemin, en tête : il n'y a plus de bouton « retour ») : la question le nomme.
+    await p.locator('.ed-chemin .ed-retour').click();
     await expect.poll(async () => net(await p.locator('#modal-root').innerText()), { timeout: 5_000 }).toContain('Tu as modifié cet avoir sans enregistrer.');
     await p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).click();
 
@@ -257,7 +259,7 @@ describe('le lot achats, à l\'écran', () => {
     await p.locator('#modal-root #ok').click();
     await expect.poll(() => p.locator('#b-head input[name=dueDate]').inputValue(), { timeout: 10_000 }).toBe('2026-10-27');
 
-    await p.locator('#back').click();
+    await p.locator('.ed-chemin .ed-retour').click();
     if (await p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).count()) await p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).click();
 
     // 8. Les pièces jointes en ligne (1.89.0) : la liste des achats propose de filtrer « Sans justificatif » ; la visite

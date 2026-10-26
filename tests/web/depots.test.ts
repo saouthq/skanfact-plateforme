@@ -163,16 +163,18 @@ describe('le stock par dépôt et les transferts, à la souris', () => {
     await p.evaluate(() => { location.hash = '#/article/ciment'; });
     await expect.poll(parDepot, { timeout: 10_000 }).toBe('Par dépôt i : Dépôt principal 20 sacs · Magasin de Sfax 30 sacs');
 
+    // (1.155.0) Sur la facture, le dépôt se change par son étiquette (la maquette) ; le champ reste dans `#f-head`.
+    const choisirDepot = async (nom: string) => { await p.locator('[data-etq=depot]').click(); await p.locator('.ed-pop [data-dp]').filter({ hasText: nom }).first().click(); };
     // 2. La facture part du principal par défaut : il n'en a que 20, les autres en ont. Depuis Sfax, rien à dire.
     await p.evaluate(() => { location.hash = '#/doc/f1'; });
-    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture/);
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^(Nouvelle facture|Facture)/);
     await plusTard(p);
     expect(await p.locator('#f-head select[name=depotId]').inputValue()).toBe('principal');
     await p.locator('#issue').click();
     await expect.poll(avertissement, { timeout: 10_000 }).toContain('Stock insuffisant sur « Ciment gris 50 kg » dans Dépôt principal : il en reste 20 sacs et cette pièce en sort 25. Les autres dépôts en ont assez (50 en tout) : choisis le bon dépôt, ou transfère d\'abord (page de l\'article → « Transférer… »).');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'depots-2-avertissement.png') });
     await p.locator('#modal-root [data-close]').first().click();
-    await p.locator('#f-head select[name=depotId]').selectOption({ label: 'Magasin de Sfax' });
+    await choisirDepot('Magasin de Sfax');
     await p.locator('#issue').click();
     await expect.poll(() => p.locator('#modal-root #ok').count(), { timeout: 10_000 }).toBe(1);
     expect(await avertissement()).not.toContain('Stock insuffisant');
@@ -185,16 +187,27 @@ describe('le stock par dépôt et les transferts, à la souris', () => {
     await p.evaluate(() => { location.hash = '#/doc/f1'; });
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^FAC-/);
     await plusTard(p);
-    if (!await p.locator('#credit').isVisible()) await p.locator('#more-btn').click();
-    await p.locator('#credit').click();
+    // (1.155.0) Une fenêtre ouverte juste après l'émission (la signature) se referme ; « Créer un avoir » est dans le ⋯.
+    await p.waitForTimeout(900);
+    for (let i = 0; i < 3 && await p.locator('#modal-root .modal-bg').count(); i++) { await p.keyboard.press('Escape'); await p.waitForTimeout(200); }
+    await p.locator('#more-btn').click();
+    await p.getByRole('menuitem', { name: /^Créer un avoir/ }).click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Nouvel avoir/);
-    expect(await p.locator('#f-head select[name=depotId] option:checked').innerText()).toBe('Magasin de Sfax');
-    // Le dépôt changé à la main, la facture choisie de nouveau le remet à celui de la facture.
-    await p.locator('#f-head select[name=depotId]').selectOption({ label: 'Dépôt principal' });
+    expect(await p.locator('#f-head select[name=depotId] option:checked').textContent()).toBe('Magasin de Sfax');
+    // Le dépôt se change à la main, par son étiquette.
+    await choisirDepot('Dépôt principal');
+    expect(await p.locator('#f-head select[name=depotId]').inputValue()).toBe('principal');
+    // (1.155.0) Un avoir né de sa facture la garde (la maquette ne la rechoisit pas) : la règle « la facture choisie
+    // donne son dépôt » se vérifie sur un avoir neuf, dont on choisit la facture.
+    await p.evaluate(() => { location.hash = '#/doc/new/avoir'; });
+    const quitter = p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true });
+    await quitter.click({ timeout: 3_000 }).catch(() => undefined);
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Nouvel avoir/);
+    await plusTard(p);
     await p.locator('[data-combo=creditOf] .combo-btn').click();
     await p.locator('[data-combo=creditOf] .combo-q').fill('FAC');
     await p.locator('[data-combo=creditOf] .combo-list [role=option]').first().click();
-    expect(await p.locator('#f-head select[name=depotId] option:checked').innerText()).toBe('Magasin de Sfax');
+    expect(await p.locator('#f-head select[name=depotId] option:checked').textContent()).toBe('Magasin de Sfax');
     expect(erreurs).toEqual([]);
     await cn.close();
   }, 120_000);

@@ -396,13 +396,16 @@ describe('le parcours, à la souris', () => {
     // Plus de « Marquer annulée… » : une facture émise se corrige par un avoir.
     expect(await p.getByRole('button', { name: /Marquer annulée/ }).count()).toBe(0);
 
+    // (1.155.0) La signature cochée à l'émission s'ouvre seule, 0,4 s après : on la referme d'abord.
+    await p.waitForTimeout(900);
+    for (let i = 0; i < 3 && await p.locator('#modal-root .modal-bg').count(); i++) { await p.keyboard.press('Escape'); await p.waitForTimeout(200); }
     // Un paiement : un montant plus précis que le dinar se refuse sur son champ ; 300,000 s'enregistre.
     await p.locator('#pay').click();
     await p.locator('#pf2 input[name=amount]').fill('300.1234');
-    await p.locator('#modal-root').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await p.locator('#modal-root').getByRole('button', { name: /^Enregistrer( ·|$)/ }).click();
     await expect.poll(() => p.locator('#toast').innerText()).toContain('Un montant en DT se compte à 3 décimales au plus.');
     await p.locator('#pf2 input[name=amount]').fill('300');
-    await p.locator('#modal-root').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    await p.locator('#modal-root').getByRole('button', { name: /^Enregistrer( ·|$)/ }).click();
     const reglements = async () => (await admin.query('select montant from ventes.reglement where entreprise = $1', [qui.essai])).rows.map((r) => r.montant);
     await expect.poll(reglements).toEqual([300000n]);
 
@@ -414,7 +417,7 @@ describe('le parcours, à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'avoir-editeur.png') });
     await p.locator('#issue').click();
     await p.locator('#modal-root #ok').click();
-    await pageV10(p, /Avoir AVO-2026-001/);
+    await pageV10(p, /AVO-2026-001/);
     const avoir = (await admin.query(`select a.numero_texte, a.net_a_payer, f.numero_texte facture from ventes.piece a join ventes.piece f on f.id = a.corrige where a.entreprise = $1 and a.type = 'avoir'`, [qui.essai])).rows;
     expect(avoir).toEqual([{ numero_texte: 'AVO-2026-001', net_a_payer: 536095n, facture: 'FAC-2026-001' }]);
     await p.screenshot({ path: path.join(PHOTOS, 'avoir-emis.png') });
@@ -859,7 +862,8 @@ describe('le parcours, à la souris', () => {
       expect(nombre(await journal.locator(`tr[data-jp-total] td[data-col=${col}]`).innerText()), col).toBe(await somme(cle));
     }
     // À l'ordinateur, les dix-sept colonnes se lisent sans faire défiler.
-    expect(await p.locator('.modal').evaluate((e) => Math.round(e.getBoundingClientRect().width))).toBeGreaterThan(1300);
+    // (Sa largeur dessinée, à l'échelle de l'écran : 90 % à l'ordinateur, 1.155.7.)
+    expect(await p.locator('.modal').evaluate((e) => Math.round(e.getBoundingClientRect().width / ((e as HTMLElement & { currentCSSZoom?: number }).currentCSSZoom || 1)))).toBeGreaterThan(1300);
     expect(await journal.locator('xpath=..').evaluate((e) => e.scrollWidth <= e.clientWidth)).toBe(true);
     // Sur toute machine : les en-têtes des chiffres passent à la ligne, la largeur du tableau est celle de ses chiffres (la
     // nuit du 20/10/2026, sur la machine de GitHub, aux polices plus étroites, des en-têtes qui ne se coupaient pas
