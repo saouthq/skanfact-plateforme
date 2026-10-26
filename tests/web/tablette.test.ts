@@ -1,4 +1,5 @@
-// La tablette debout (1.87.16 ; recette du 21/10/2026). À 820 px, le menu de gauche reste, et une liste plus large que
+// La tablette debout (1.87.16 ; recette du 21/10/2026). À 768 px (820 jusqu'à la 1.154.0 : la barre en rail de la
+// 1.151.0 y laisse assez de place, le test ne voyait plus rien), le menu de gauche reste, et une liste plus large que
 // la place restante faisait défiler toute la page de côté, titre et boutons compris ; la rangée d'export de la
 // Comptabilité poussait « Envoyer au comptable… » hors de l'écran. Un seul client suffit : les colonnes de la liste
 // des Clients dépassaient déjà.
@@ -39,7 +40,7 @@ describe('la tablette debout', () => {
   // Ce que la zone centrale défile de côté (0 : rien), et le bord droit d'un élément par rapport au sien.
   const deCote = (p: Page) => p.evaluate(() => { const v = document.querySelector('#view') as HTMLElement; return v.scrollWidth - v.clientWidth; });
 
-  it('à 820 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté', async () => {
+  it('à 768 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté', async () => {
     const email = `nadia-tab-${Date.now()}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
     const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).corps.jeton);
@@ -52,7 +53,7 @@ describe('la tablette debout', () => {
       { collection: 'clients', cle: 'c1', rang: 0, revision: null, contenu: { id: 'c1', name: 'Société des Transports du Sahel', address: 'Route de Monastir, Sousse' } },
     ] })).statut).toBe(200);
 
-    const cx = await navigateur.newContext({ viewport: { width: 820, height: 1180 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    const cx = await navigateur.newContext({ viewport: { width: 768, height: 1024 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, nadia);
     const p = await cx.newPage();
     const erreurs: string[] = [];

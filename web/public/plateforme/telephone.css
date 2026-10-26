@@ -27,15 +27,6 @@
   .sidebar .brand-wrap { padding-bottom: 0; display: flex; align-items: center; gap: 8px; }
   .sidebar .brand { flex: 1 1 auto; min-width: 0; min-height: 44px; }
   .sidebar > .nav-search, .sidebar > nav, .sidebar > .sidebar-foot { display: none; }
-  .sidebar.menu-ouvert > .nav-search, .sidebar.menu-ouvert > .sidebar-foot { display: flex; }
-  .sidebar.menu-ouvert > nav { display: flex; max-height: 60vh; overflow-y: auto; }
-  .sidebar.menu-ouvert > .nav-search { margin-block: 8px; }
-  /* La pastille de l'abonnement qui alerte (lecture seule, fin d'essai proche) se voit menu fermé, sous la barre du haut :
-     au téléphone, elle vivait dans le pied du menu replié, et une entreprise en lecture seule ne le lisait qu'au refus de
-     sa nouvelle facture (vu en recette le 21/10/2026, 1.87.9). */
-  .sidebar:not(.menu-ouvert) > .sidebar-foot:has(> #lic-banner.warn:not([hidden])) { display: flex; margin-top: 6px; padding: 0; border: 0; }
-  .sidebar:not(.menu-ouvert) > .sidebar-foot > :not(#lic-banner) { display: none; }
-  .sidebar:not(.menu-ouvert) > .sidebar-foot > #lic-banner { width: 100%; justify-content: center; }
   main { --main-haut: 16px; padding: var(--main-haut) 14px 40px; overflow-y: visible; }
 
   .page-head { flex-direction: column; align-items: stretch; }
@@ -278,11 +269,6 @@
   .lock-banner > span:first-child:has(> .tel-detail) { display: flex; align-items: flex-start; gap: 8px; }
   .lock-banner > span:first-child:has(> .tel-detail) > b { flex: 1 1 auto; }
   .tel-seul { display: inline-flex; }
-}
-
-/* Au doigt : un raccourci de clavier ne se montre pas (« Ctrl K » dans la recherche du menu). */
-@media (pointer: coarse), (max-width: 760px) {
-  #nav-search-k { display: none; }
 }
 
 /* Partout : une bulle « i » part avec son bouton (une barre qui passe à la ligne ne laisse plus une bulle seule), et la

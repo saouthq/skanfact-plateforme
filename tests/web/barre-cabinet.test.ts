@@ -166,8 +166,16 @@ describe('la barre du Cabinet, à la souris', () => {
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await p.keyboard.press('n');
     await expect.poll(() => p.locator('.sb-creer [data-touche]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.touche)), { timeout: 10_000 }).toEqual(['E', 'R', 'D', 'O']);
-    await p.keyboard.press('d');
-    await expect.poll(() => p.url()).toContain(`#/messages/${cafe.ent}/demande`);
+    // Sur une machine lente, la page de la banque finit de se dessiner après l'ouverture du volet et le referme : D
+    // n'arrive alors à rien (GitHub, 1.152.1 et 1.153.0). On rouvre le volet s'il s'est refermé, puis D.
+    await expect.poll(async () => {
+      if (!p.url().includes('#/messages/')) {
+        if (!(await p.locator('.sb-creer').isVisible())) await p.keyboard.press('n');
+        await p.locator('.sb-creer [data-touche="D"]').waitFor({ timeout: 3_000 }).catch(() => {});
+        await p.keyboard.press('d');
+      }
+      return p.url();
+    }, { timeout: 20_000 }).toContain(`#/messages/${cafe.ent}/demande`);
     await p.screenshot({ path: path.join(PHOTOS, 'barre-cabinet-2.png') });
     expect(erreurs).toEqual([]);
   });

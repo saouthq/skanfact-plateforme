@@ -8436,9 +8436,6 @@ prouver "les lignes d'un achat et d'une photo relue cachées à droite au télé
 prouver "« Je facturais déjà » qui sort de sa fenêtre" web/public/plateforme/telephone.css \
   "  .modal .btn { white-space: normal; text-align: start; }" "" \
   "$TL5"
-prouver "« Ctrl K » montré au doigt" web/public/plateforme/telephone.css \
-  "  #nav-search-k { display: none; }" "" \
-  "$TL5"
 prouver "« les 1 dernières pièces sur 1 »" web/public/v10/app.js \
   "'ta seule pièce'" "'les 1 dernières pièces sur 1'" \
   "$TL5"
@@ -17977,10 +17974,10 @@ prouver 'le navigateur qui retient le nom comme identifiant' 'web/src/ecrans/Ins
   'type="email" autoComplete="email" inputMode="email" {...g.sur('"'"'email'"'"')}' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 prouver 'la proposition d'"'"'un client sous les premiers pas d'"'"'un cabinet neuf' 'web/public/v10/cabinet/app.js' \
-  '        ${inboxBanner()}
-        ${premiersPasPanel(true)}' \
-  '        ${premiersPasPanel(true)}
-        ${inboxBanner()}' \
+  '      ${inboxBanner()}
+      ${vide ? etapesCabinetNeuf() : bloc('"'"'Urgent'"'"', pri.urgent, '"'"'u'"'"') + bloc('"'"'À voir'"'"', pri.avoir, '"'"'v'"'"') + ajour}' \
+  '      ${vide ? etapesCabinetNeuf() : bloc('"'"'Urgent'"'"', pri.urgent, '"'"'u'"'"') + bloc('"'"'À voir'"'"', pri.avoir, '"'"'v'"'"') + ajour}
+      ${inboxBanner()}' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 
 # 1.78.0 : le client tenu rejoint son dossier (base 0155, routes, entrée, panneau du dossier tenu).
@@ -18403,9 +18400,6 @@ prouver 'l'\''invitation du Cabinet qui reste posée pendant le défilement du t
   "    window.addEventListener('scroll', defile, { passive: true });" '' \
   'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'\''ordinateur le disent'
 
-prouver 'la lecture seule cachée dans le menu replié du téléphone' web/public/plateforme/telephone.css \
-  '  .sidebar:not(.menu-ouvert) > .sidebar-foot:has(> #lic-banner.warn:not([hidden])) { display: flex; margin-top: 6px; padding: 0; border: 0; }' '' \
-  'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
 prouver 'la seule fiche trouvée à quinze tabulations de sa recherche' web/console/src/ecrans/Clients.tsx \
   " onKeyDown={(e) => { if (e.key === 'Enter') void entree(); }}" '' \
@@ -18433,10 +18427,10 @@ prouver 'la monnaie à rendre coupée au téléphone (« 16,70… »)' web/publi
 
 prouver 'à la tablette debout, une liste large qui fait défiler toute la page de côté' web/public/plateforme/telephone.css \
   '  #view .panel:has(> table), #view #list-wrap { overflow-x: auto; }' '  #view .panel:has(> table), #view #list-wrap { }' \
-  'à 820 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté'
+  'à 768 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté'
 prouver 'à la tablette debout, « Envoyer au comptable… » poussé hors de l'\''écran' web/public/plateforme/telephone.css \
   '  #view .inline { flex-wrap: wrap; }' '  #view .inline { }' \
-  'à 820 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté'
+  'à 768 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté'
 
 prouver 'au téléphone, l'\''en-tête des lignes d'\''achat qui pose « Qté » trois rangs au-dessus du 3' web/public/plateforme/telephone.css \
   '    table.buy-lines:has(> #b-lines) > thead, table.buy-lines:has(> #orf-lines) > thead { display: none; }' '    table.buy-lines:has(> #b-lines) > thead, table.buy-lines:has(> #orf-lines) > thead { }' \
