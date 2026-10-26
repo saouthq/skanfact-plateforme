@@ -219,7 +219,7 @@
   body:not(.avec-barre) .ed-geste, body.sans-onglets .ed-geste { bottom: env(safe-area-inset-bottom, 0px); }
   .ed-geste .ed-net-tel { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--sb-gris); }
   .ed-geste .ed-net-tel b { font-size: 24px; color: var(--sb-encre); font-variant-numeric: tabular-nums; }
-  .ed-geste .ed-phrase, .ed-geste .ed-deux .btn:last-child { display: none; }
+  .ed-geste .ed-phrase, .ed-geste #ed-grand, .ed-geste .btn-grand + .i { display: none; }
   .ed-geste .ed-deux { grid-template-columns: minmax(0, 1fr); }
   .ed-geste .btn-grand { height: 48px; }
   #view:has(.ed-geste) { padding-bottom: 190px; }
@@ -235,3 +235,31 @@
   #view .ed-tete .actions .btn { height: 44px; padding-inline: 12px; }
   #view .ed-tete .actions .btn.ico { width: 44px; }
 }
+
+/* ── Le devis (1.156.0, lot 5) : sa frise en quatre étapes, ses envois, ce que paiera le client ── */
+.ed-frise.quatre ol { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ed-frise .ed-fr-geste { display: flex; gap: 6px; flex-wrap: wrap; }
+.ed-envois { padding: 12px 20px; }
+.ed-envois .lecture-piece { margin: 0; }
+.ed-envois .lp-ligne { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px; padding: 4px 0; }
+.ed-envois dt { color: var(--sb-gris-2); }
+.ed-envois dd { margin: 0; color: var(--sb-encre); }
+.ed-si-facture { margin-top: 12px; padding: 12px 14px; border: 1px dashed var(--sb-trait-fort); border-radius: 12px; display: grid; gap: 6px; }
+.ed-si-facture .k { font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--sb-gris-2); }
+.ed-si-facture table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.ed-si-facture td { padding: 3px 0; color: var(--sb-gris); }
+.ed-si-facture td:last-child { text-align: end; font-weight: 600; color: var(--sb-encre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ed-si-facture tr.trait td { border-top: 1px solid var(--sb-trait); padding-top: 8px; font-size: 14px; color: var(--sb-encre); }
+.ed-geste .ed-facturer, .ed-geste .ed-facturer > .colle-bouton { display: flex; gap: 6px; align-items: center; }
+.ed-geste .ed-facturer .btn-primary { flex: 1; height: 46px; justify-content: center; font-size: 15px; }
+.ed-geste .ed-deux > .more { display: flex; }
+.ed-geste .ed-deux > .more > .btn { flex: 1; justify-content: center; height: 40px; }
+.ed-geste .ed-deux > :only-child { grid-column: 1 / -1; }
+.ed-geste > #save:not(.btn-grand) { width: 100%; justify-content: center; height: 40px; }
+.badge.facturé { background: var(--sb-doux); color: var(--sb-doux-texte); }
+@media (max-width: 760px) {
+  .ed-frise.quatre ol { grid-template-columns: minmax(0, 1fr); }
+}
+.ed-totaux .totals-box .ed-si-facture table { background: none; border-radius: 0; padding: 0; }
+.ed-totaux .totals-box .ed-si-facture td { padding: 3px 0; text-align: start; color: var(--sb-gris); }
+.ed-totaux .totals-box .ed-si-facture td:last-child { text-align: end; color: var(--sb-encre); font-weight: 600; }
