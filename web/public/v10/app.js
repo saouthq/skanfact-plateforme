@@ -4173,8 +4173,8 @@
   // La pastille d'un client : ses initiales, sur une teinte qui le suit d'une page à l'autre (tirée de son identifiant).
   const LF_TEINTES = [['#e77fa8', '#b8487a'], ['#f0a24a', '#c2700f'], ['#1fb8a8', '#0c877b'], ['#6d7cf2', '#4553c9'], ['#5fa8e8', '#2f6fb0'], ['#9bbf4f', '#5d8a1f'], ['#c58cf0', '#8a4fc2'], ['#f08a7a', '#c24f3e']];
   const LF_MOTS_VIDES = new Set(['de', 'du', 'des', 'la', 'le', 'les', 'el', 'et', 'l', 'd', 'sarl', 'suarl', 'sa', 'ste', 'société', 'societe']);
-  function pastilleClient(id) {
-    const nom = clientName(id) || '?';
+  function pastilleClient(id, nomDonne) {
+    const nom = nomDonne || clientName(id) || '?';
     const mots = nom.replace(/['’]/g, ' ').split(/\s+/).filter(m => m && !LF_MOTS_VIDES.has(m.toLowerCase()));
     const ini = ((mots[0] || nom)[0] + (mots[1] ? mots[1][0] : '')).toUpperCase();
     let x = 0; for (const c of String(id || nom)) x = (x * 31 + c.charCodeAt(0)) >>> 0;
@@ -11518,22 +11518,83 @@
       text: `${x.name} ${x.contact || ''} ${x.matricule || ''} ${x.email || ''}`
     }));
 
+    // (plateforme) 1.157.0 — l'achat tel que la maquette (docs/maquettes/achat.html, lot 6) : le chemin et le statut en
+    // tête, « Comment arrive cette pièce ? » pour une pièce neuve, le fournisseur en carte, les options en puces, et à droite
+    // les totaux, LE geste suivant et ce qui se vérifie avant d'enregistrer ; une pièce rangée dit où elle en est (la frise).
+    // Les champs gardent leur nom et leur formulaire (`#b-head`), les gestes leur identifiant.
+    const solde = stored ? C.purchaseBalance(stored, company(), data) : null;
+    const pillAchat = () => {
+      if (!stored) return '<span class="badge brouillon ed-pill">Brouillon</span>';
+      if (!solde) return '';
+      if (solde.remaining < -0.0005) return '<span class="badge partielle ed-pill">À se faire rembourser</span>';
+      if (solde.remaining <= 0.0005) return '<span class="badge payée ed-pill">Réglée</span>';
+      const retard = p.dueDate && p.dueDate < C.today();
+      return `<span class="badge ${retard ? 'retard' : 'envoyée'} ed-pill">${retard ? `En retard · échéance ${lfJm(p.dueDate)}` : `À payer${p.dueDate ? ` · échéance ${lfJm(p.dueDate)}` : ''}`}</span>`;
+    };
+    const titreAchat = isNew ? `<span id="b-titre">${h(motsDePiece(p.kind).titre)}</span>` : `${natureLabel(p.kind)} ${h(p.number || 'sans numéro')}`;
+    const choixArrivee = isNew && !clos ? `<div class="panel ac-arrivee" id="ac-arrivee"><div class="ac-ar-tete"><h2>Comment arrive cette pièce ?</h2><span class="small muted">le plus rapide d'abord</span></div>
+        <div class="ac-choix-grille">
+          <span class="colle-bouton"><button type="button" class="btn ac-choix" id="teif-lire"><span class="ac-ic">${lfIc('envoi', 18)}</span><span class="ac-t"><b>Lire une e-facture <em class="ac-tag">le plus sûr</em></b><span>Le fichier XML d'El Fatoora : tout se remplit, au millime</span></span></button>${info('buy.teif')}</span>
+          <span class="colle-bouton"><button type="button" class="btn ac-choix" id="photo" hidden><span class="ac-ic">${lfIc('oeil', 18)}</span><span class="ac-t"><b>Lire une photo <em class="ac-tag gris">facultatif</em></b><span>La photo ou le PDF : SkanFact remplit, tu vérifies chaque case</span></span></button>${info('ocr.photo')}</span>
+          <button type="button" class="btn ac-choix" id="ac-main"><span class="ac-ic">${lfIc('reglages', 18)}</span><span class="ac-t"><b>Saisir à la main</b><span>Fournisseur, numéro, lignes : comme sur la facture</span></span></button>
+          ${bridge.messagerie ? `<a class="btn ac-choix" href="#/comptable" id="ac-cabinet"><span class="ac-ic">${lfIc('cloche', 18)}</span><span class="ac-t"><b>Confier au cabinet</b><span>Tu envoies la photo à ton comptable, il la saisit</span></span></a>` : ''}
+        </div></div>` : '';
+    const supplierCarte = () => {
+      const sup = supplierById(p.supplierId);
+      if (!sup) return '';
+      const s = C.supplierSummary(data, company(), sup.id);
+      const base = company().currency;
+      const ville = String(sup.address || '').split(/\n/).map(x => x.trim()).filter(Boolean).pop() || '';
+      const qui = [sup.matricule ? `MF ${h(sup.matricule)}` : 'sans matricule', h(ville.replace(/^\d{4}\s+/, '')), h(sup.email || '')].filter(Boolean).join(' · ');
+      const autres = (data.purchases || []).filter(x => x.supplierId === sup.id && x.id !== p.id && !C.PURCHASE_LIES.includes(x.kind) && C.purchaseBalance(x, company(), data).remaining > 0.0005);
+      const enRetard = autres.filter(x => x.dueDate && x.dueDate < C.today()).length;
+      const puces = [
+        autres.length ? `<span class="ed-chip${enRetard ? ' ambre' : ''}">${pl(autres.length, 'autre facture', 'autres factures')} à payer · ${enRetard ? `${enRetard} en retard` : 'rien en retard'}</span>` : '<span class="ed-chip">rien d\'autre à lui payer</span>',
+        sup.paymentTermsDays !== '' && sup.paymentTermsDays != null ? `<span class="ed-chip">paie à ${pl(Number(sup.paymentTermsDays) || 0, 'jour')}</span>` : '',
+        s.count ? `<span class="ed-chip">${pl(s.count, 'pièce')} de lui · ${C.money(s.ht, base)} HT</span>` : '',
+      ].filter(Boolean).join('');
+      return `<div class="ed-cl-tete">${pastilleClient(sup.id, sup.name)}<div class="ed-cl-nom"><b>${h(sup.name)}</b><span>${qui}</span></div>
+        <div class="ed-cl-gestes">${clos ? '' : '<button type="button" class="btn btn-sm" id="sup-changer">Changer</button>'}<button type="button" class="btn btn-sm" id="sup-fiche">Fiche</button></div></div>
+        <div class="ed-cl-puces">${puces}</div>`;
+    };
+    const gesteAchat = () => {
+      const t = C.purchaseTotals(p, company());
+      const net = `<div class="ed-net-tel"><span>${p.kind === 'avoir' ? 'Montant de l\'avoir' : 'Net à payer'}</span><b id="ed-net-tel">${C.money(t.netToPay, cur)}</b></div>`;
+      const sauver = clos ? '' : isNew
+        ? `<button class="btn${aboBloque(isNew) ? '' : ' btn-primary'} btn-grand" id="save">${lfIc('coche', 17, 2.4)}Enregistrer ${p.kind === 'depense' ? 'la dépense' : p.kind === 'avoir' ? 'l\'avoir' : p.kind === 'acompte' ? 'l\'acompte' : 'l\'achat'} <kbd>Ctrl S</kbd></button>`
+        : '<button class="btn" id="save" hidden>Enregistrer les modifications</button>';
+      if (isNew) return `<div class="panel ed-geste" id="ed-geste">${net}${sauver}<p class="ed-phrase">La TVA récupérable, le stock et la charge se mettent à jour ; ton cabinet la verra dans les écritures du mois.</p></div>`;
+      if (solde && solde.remaining > 0.0005) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="pay">${lfIc('carte', 17)}Enregistrer un règlement</button>
+        <p class="ed-phrase">Tu paies ${C.money(solde.remaining, cur)}${t.withholding ? ` et tu retiens ${C.money(t.withholding, cur)}` : ''}${p.dueDate ? ` · échéance le ${lfJm(p.dueDate)}` : ''}. Un règlement partiel se note aussi.</p>${sauver}</div>`;
+      if (solde && solde.remaining < -0.0005) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="recu">Remboursement reçu…</button>
+        <p class="ed-phrase">Le fournisseur te doit ${C.money(-solde.remaining, cur)}.</p>${sauver}</div>`;
+      return `<div class="panel ed-geste ed-geste-calme" id="ed-geste">${net}<p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>Réglée : plus rien n'est dû.</span></p>${sauver}</div>`;
+    };
+    const avecFriseAchat = !isNew && !!stored && !C.PURCHASE_LIES.includes(p.kind);
+    const friseAchat = () => {
+      const pj = (stored.attachments || []).length;
+      const regle = solde && solde.remaining <= 0.0005;
+      return friseHtml([
+        { t: 'Saisie', fait: true, d: `le ${C.fmtDate(p.date)}` },
+        { t: 'Justificatif', fait: pj > 0, d: pj ? pl(pj, 'fichier joint', 'fichiers joints') : 'à joindre', g: pj || bridge.piecesJointes === false ? '' : '<button type="button" class="btn btn-sm" data-frise="attach-top">Joindre</button>' },
+        { t: 'Réglée', fait: !!regle, d: regle ? 'plus rien n\'est dû' : `reste ${C.money(solde ? solde.remaining : 0, cur)}${p.dueDate ? ` · échéance ${lfJm(p.dueDate)}` : ''}`, g: !regle && solde && solde.remaining > 0.0005 ? '<button type="button" class="btn btn-sm" data-frise="pay">Régler</button>' : '' },
+      ]);
+    };
+    const friseHtml = etapes => `<div class="panel ed-frise trois" id="ed-frise"><ol>${etapes.map((x, i) => `<li class="${x.fait ? 'fait' : ''}">
+          <span class="rond" aria-hidden="true">${x.fait ? lfIc('coche', 13, 3) : i + 1}</span>
+          <span class="ed-fr-txt"><b>${x.t}</b><span>${x.d}</span></span>${x.g ? `<span class="ed-fr-geste">${x.g}</span>` : ''}
+          <span class="vh">${x.fait ? ' : fait' : ' : pas encore'}</span></li>`).join('')}</ol></div>`;
+
     $('#view').innerHTML = `
-      <div class="page-head">
-        <div><h1>${isNew ? `<span id="b-titre">${h(motsDePiece(p.kind).titre)}</span>` : `${natureLabel(p.kind)} ${h(p.number || 'sans numéro')}`}
-          <span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></h1>
-          ${isNew ? '' : `<div class="small muted">${h(supplierName(p.supplierId))} · ${C.fmtDate(p.date)}${String(stored.number || '').trim() ? '' : ` · <span title="${h('Sa référence dans les écritures et chez ton comptable')}">réf. ${h(C.referenceAchat(stored, data))}</span>`}</div>`}</div>
+      <div class="page-head ed-tete">
+        <div class="ed-titre">
+          <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/achats" class="ed-retour">Achats et dépenses</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${isNew ? h(motsDePiece(p.kind).titre) : h(p.number || 'sans numéro')}</span></div>
+          <div class="ed-h1"><h1>${titreAchat}</h1>${pillAchat()}<span class="ed-enreg" id="ed-enreg"${isNew || clos ? ' hidden' : ''}>${lfIc('coche', 14, 2.6)}enregistrée</span><span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
+          ${isNew ? '' : `<div class="small muted">${h(supplierName(p.supplierId))} · ${C.fmtDate(p.date)}${String(stored.number || '').trim() ? '' : ` · <span title="${h('Sa référence dans les écritures et chez ton comptable')}">réf. ${h(C.referenceAchat(stored, data))}</span>`}</div>`}
+        </div>
         <div class="actions">
-          ${backButton('#/achats')}
-          ${!isNew && C.purchaseBalance(stored, company(), data).remaining > 0.0005 ? '<button class="btn btn-primary" id="pay">Enregistrer un règlement</button>' : ''}
-          ${!isNew && C.purchaseBalance(stored, company(), data).remaining < -0.0005 ? '<button class="btn btn-primary" id="recu">Remboursement reçu…</button>' : ''}
-          ${/* (plateforme, lot achats) Sans pièces jointes en ligne, le bouton refusait toujours : il se cache. */''}
-          ${bridge.piecesJointes === false ? '' : `<span class="colle-bouton"><button class="btn" id="attach-top">Joindre un justificatif…</button>${info('ed.attachments')}</span>`}
-          ${/* Une pièce déjà saisie ne se relit pas par-dessus : la lecture la remplacerait. */''}
-          ${clos || !isNew ? '' : `<span class="colle-bouton"><button class="btn" id="teif-lire">Lire une e-facture…</button>${info('buy.teif')}</span>`}
-          <span class="colle-bouton"><button class="btn" id="photo" hidden>Lire une photo…</button>${info('ocr.photo')}</span>
-          ${clos ? '' : `<button class="btn ${isNew && !aboBloque(isNew) ? 'btn-primary' : ''}" id="save">Enregistrer</button>`}
-          ${isNew ? '' : `<div class="more"><button class="btn" id="more-btn">Plus ▾</button><div class="more-list" id="more-list" hidden>
+          ${bridge.piecesJointes === false ? '' : `<span class="colle-bouton"><button class="btn" id="attach-top">${lfIc('epingle', 16)}Joindre un justificatif…</button>${info('ed.attachments')}</span>`}
+          ${isNew ? '' : `<div class="more"><button class="btn ico" id="more-btn" aria-label="Autres actions" title="Autres actions">${lfIc('plus', 18)}</button><div class="more-list" id="more-list" hidden>
             <button id="dup">Dupliquer</button>
             ${clos ? '' : '<button id="del" class="danger">Supprimer</button>'}
           </div></div>`}
@@ -11549,70 +11610,76 @@
         </span></div>`}
       ${bandeauAbonnement(isNew)}
       ${bandeauQuestions(p.number)}
-      ${Array.isArray(p.receptions) && p.receptions.length ? `<div class="banner info mb" id="b-receptions"><span>Saisie depuis ${p.receptions.length > 1 ? 'les réceptions' : 'la réception'} ${p.receptions.map(x => `<a href="#/reception/${h(x.id)}">${h(x.number || 'sans numéro')}</a>`).join(', ')} : ${phraseReceptionsAchat(p.receptions)}. ${info('cf.facture')}</span></div>` : ''}
-      <div class="buy-editor" data-devise="${h(cur)}">
-        <div>
-          <div class="panel"><h2>La pièce du fournisseur ${info('buy.head')}</h2>
-            <form id="b-head" class="grid-3">
-              <div class="field">${lbl('Fournisseur', 'buy.supplier')}
+      ${avecFriseAchat ? friseAchat() : ''}
+      ${choixArrivee}
+      <div class="buy-editor editor charte" data-devise="${h(cur)}">
+        <div class="ed-gauche">
+          <div class="panel ed-entete">
+            <form id="b-head" class="ed-form">
+              <div class="ed-client" id="ac-sup" ${supplierById(p.supplierId) ? '' : 'hidden'}>${supplierCarte()}</div>
+              <div class="field ed-choix-client" id="ac-choix-sup" ${supplierById(p.supplierId) ? 'hidden' : ''}>${lbl('Fournisseur', 'buy.supplier')}
                 ${combo({ name: 'supplierId', value: p.supplierId, items: supplierItems(), placeholder: '— Choisir un fournisseur —', search: 'Rechercher : nom, contact, MF…', add: clos ? null : '+ Nouveau fournisseur', ro: clos })}
               </div>
-              ${field(lbl(`<span id="b-num-lbl">${h(motsDePiece(p.kind).numero)}</span>`, 'buy.number'), 'number', p.number || '', 'text', `placeholder="${h(motsDePiece(p.kind).invite)}"`)}
-              <label class="field">${lbl('Nature', 'buy.kind')}<select name="kind">${C.PURCHASE_KINDS.map(([v, l]) => `<option value="${v}" ${p.kind === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+              <div class="ac-ligne4">
+                ${field(lbl(`<span id="b-num-lbl">${h(motsDePiece(p.kind).numero)}</span>`, 'buy.number'), 'number', p.number || '', 'text', `placeholder="${h(motsDePiece(p.kind).invite)}"`)}
+                ${dateFieldHtml(lbl('Date de la pièce', 'buy.date'), 'date', p.date, { ro: clos })}
+                ${dateFieldHtml(lbl('Échéance de paiement', 'buy.due'), 'dueDate', p.dueDate || '', { quick: true, ro: clos })}
+                <div class="field">${lbl('Catégorie de charge', 'buy.category')}
+                  ${combo({ name: 'category', value: p.category || '', items: cats.map(c => ({ v: c, label: c })), placeholder: '— Choisir une catégorie —', search: 'Rechercher une catégorie…', add: clos ? null : '+ Nouvelle catégorie', ro: clos })}
+                </div>
+              </div>
               <div class="field" id="b-lie-field" ${C.PURCHASE_LIES.includes(p.kind) ? '' : 'hidden'}>${lbl('Facture concernée', 'buy.lie')}
                 ${combo({ name: 'achatLie', value: p.achatLie || '', items: lieItems(p.supplierId), placeholder: phLie, search: 'Rechercher : n°, objet…', ro: clos })}
               </div>
-              ${dateFieldHtml(lbl('Date de la pièce', 'buy.date'), 'date', p.date, { ro: clos })}
-              ${dateFieldHtml(lbl('Échéance de paiement', 'buy.due'), 'dueDate', p.dueDate || '', { quick: true, ro: clos })}
-              ${C.depotsDe(data).length > 1 ? `<label class="field">${lbl('Dépôt', 'dep.achat')}<select name="depotId" ${clos ? 'disabled' : ''}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (p.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
-              <div class="field">${lbl('Catégorie de charge', 'buy.category')}
-                ${combo({ name: 'category', value: p.category || '', items: cats.map(c => ({ v: c, label: c })), placeholder: '— Choisir une catégorie —', search: 'Rechercher une catégorie…', add: clos ? null : '+ Nouvelle catégorie', ro: clos })}
+              <div class="ed-puces" role="group" aria-label="Options de la pièce">
+                <label class="puce-champ"><span>Nature</span><select name="kind">${C.PURCHASE_KINDS.map(([v, l]) => `<option value="${v}" ${p.kind === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+                <label class="puce-champ"><span>Devise</span><select name="currency">${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(C.libelleDevise(c))}</option>`).join('')}</select></label>
+                <label class="puce-champ${Number(p.withholdingRate) ? ' on' : ''}" id="ac-puce-rs"><span>Retenue opérée</span>${withholdingSelect('withholdingRate', p.withholdingRate)}<span class="suffixe" id="ac-rs-fiche"></span></label>
+                <label class="puce-champ"><span>Timbre et frais (<span data-unite-devise>${h(cur)}</span>)</span><input type="number" name="fees" value="${h(p.fees || 0)}" step="0.001" min="0" class="num"></label>
+                ${C.depotsDe(data).length > 1 ? `<label class="puce-champ"><span>Dépôt</span><select name="depotId" ${clos ? 'disabled' : ''}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (p.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
+                ${clos ? '' : `<button type="button" class="puce-plus" data-montrer="ac-affaire"${p.projectId ? ' hidden' : ''}>${lfIc('croix', 13, 2.4)}Affaire</button>`}
+                <label class="puce-champ obligatoire" id="b-rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="b-rate-lbl">1 ${h(cur)} = ? ${h(company().currency)}</span><input type="number" name="exchangeRate" value="${h(p.exchangeRate || '')}" step="0.0001" min="0" class="num" placeholder="ex. 3,4">${info('buy.rate')}</label>
               </div>
-              <label class="field span-2">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(p.subject || '')}" placeholder="${h(inviteObjet(p.kind))}"></label>
-              <div class="field">${lbl('Affaire (optionnel)', 'buy.project')}
-                ${combo({ name: 'projectId', value: p.projectId || '', items: projectItems(''), placeholder: '— Aucune affaire —', search: 'Rechercher une affaire…', add: clos ? null : '+ Nouvelle affaire', ro: clos })}
+              <div class="ed-options ac-options">
+                <div class="field" id="ac-affaire"${p.projectId ? '' : ' hidden'}>${lbl('Affaire (optionnel)', 'buy.project')}
+                  ${combo({ name: 'projectId', value: p.projectId || '', items: projectItems(''), placeholder: '— Aucune affaire —', search: 'Rechercher une affaire…', add: clos ? null : '+ Nouvelle affaire', ro: clos })}
+                </div>
               </div>
-              <label class="field">${lbl('Retenue à la source opérée', 'buy.withholding')}${withholdingSelect('withholdingRate', p.withholdingRate)}</label>
-              ${field(lbl(`<span>Timbre et frais (<span data-unite-devise>${h(cur)}</span>)</span>`, 'buy.fees'), 'fees', p.fees || 0, 'number', 'step="0.001" min="0" class="num"')}
-              <label class="field">${lbl('Devise de la facture', 'buy.currency')}<select name="currency">${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(C.libelleDevise(c))}</option>`).join('')}</select></label>
-              <label class="field obligatoire" id="b-rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="fl"><span class="b-rate-lbl">1 ${h(cur)} = ? ${h(company().currency)}</span> ${info('buy.rate')}</span><input type="number" name="exchangeRate" value="${h(p.exchangeRate || '')}" step="0.0001" min="0" class="num" placeholder="ex. 3,4"></label>
+              <label class="field">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(p.subject || '')}" placeholder="${h(inviteObjet(p.kind))}"></label>
             </form>
           </div>
-          <div class="panel"><h2>Lignes ${info('buy.lines')}</h2>
-            ${clos ? '' : `<div class="catalog-pick"><div id="b-cat">${combo({ items: [], placeholder: 'Ajouter depuis le catalogue…', search: 'Rechercher dans le catalogue…' })}</div>
-              <button class="btn btn-sm" id="add-line">+ Ligne</button>
+          <div class="panel ed-lignes"><h2>Lignes ${info('buy.lines')}<span class="ed-compte" id="ac-compte"></span></h2>
+            ${clos ? '' : `<div class="catalog-pick"><div id="b-cat">${combo({ items: [], placeholder: 'Ajouter un article du catalogue, au coût d\'achat…', search: 'Rechercher dans le catalogue…' })}</div>
+              <button class="btn btn-sm" id="add-line">+ Ligne libre</button>
               <span class="small muted" id="b-lignes-hint">${h(motsDePiece(p.kind).lignes)}</span></div>`}
-            ${/* (plateforme, lot débutant) Une dépense ne demandait qu'un « P.U. HT » : le débutant y tapait les 85,400 DT payés à la
-                 STEG, et SkanFact affichait 101,626 DT à payer et 16,226 DT de TVA à récupérer qui n'existaient pas. */''}${isDep && !clos ? `<div class="inline mt" id="b-ttc-zone"><label class="field" style="max-width:240px">Montant payé (TTC)<input type="number" id="b-ttc" class="num" step="0.001" min="0" placeholder="ce que dit le ticket"></label>
+            ${isDep && !clos ? `<div class="inline mt" id="b-ttc-zone"><label class="field" style="max-width:240px">Montant payé (TTC)<input type="number" id="b-ttc" class="num" step="0.001" min="0" placeholder="ce que dit le ticket"></label>
               <span class="small muted" id="b-ttc-note">Pour une dépense d'une seule ligne : SkanFact calcule le hors taxes et la TVA d'après le taux choisi.</span></div>` : ''}
             ${!clos && horsRegime() ? `<div class="banner info mt" id="b-regle"><span id="b-regle-txt">${h(phraseRegle())}</span><button class="btn btn-sm" id="b-regle-ok">${C.assujettiTVA(company()) ? 'Récupérer sa TVA' : 'Ne plus récupérer sa TVA'}</button></div>` : ''}
             <table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r" style="width:62px">Qté</th><th class="r" style="width:92px">P.U. HT</th><th style="width:76px">TVA</th>
               <th style="width:150px">Destination ${info('buy.destination')}</th><th class="nw" style="width:96px">Déduct. ${info('buy.deductible')}</th><th class="r" style="width:118px">Total HT</th><th></th></tr></thead>
               <tbody id="b-lines"></tbody></table>
-            <div class="totals-box" id="b-totals"></div>
             <div id="b-ecarts" class="mt"></div>
             <div id="b-stock-hint" hidden></div>
           </div>
           ${isNew ? '' : `<div class="panel"><h2>Règlements ${info('buy.payments')}</h2><div id="b-pay"></div></div>`}
-          <!-- Le justificatif se joint AVANT toute saisie (8.5.1) : une pièce neuve a déjà son
-               identifiant, donc son dossier de pièces jointes. Exiger d'enregistrer d'abord — et donc
-               de choisir un fournisseur et d'écrire une ligne — pour pouvoir accrocher la photo qu'on
-               a sous les yeux, c'est le contraire de l'ordre dans lequel on travaille. -->
           <div class="panel" id="p-pj"><h2>Pièces jointes ${info('ed.attachments')}</h2><div id="attachments"></div></div>
           <div class="panel"><h2>Notes internes</h2>
-            <textarea id="b-notes" placeholder="Ce qu'il faut se rappeler sur cet achat">${h(p.notes || '')}</textarea>
+            <textarea id="b-notes" placeholder="Ce qu'il faut se rappeler sur cet achat : seule ton équipe le lit">${h(p.notes || '')}</textarea>
           </div>
-          ${/* (plateforme, lot achats) La saisie finit en bas (lignes, totaux) et « Enregistrer » n'était qu'en haut : la barre
-               des Paramètres suit la saisie quand une modification attend et que le bouton du haut n'est plus à l'écran. */''}
           ${clos ? '' : '<div class="save-bar" id="b-save-bar" hidden><span>Modifications non enregistrées</span><button class="btn btn-primary" id="b-save-bas">Enregistrer</button></div>'}
         </div>
+        <aside class="ed-droite">
+          <div class="panel ed-totaux"><div class="totals-box" id="b-totals"></div></div>
+          ${gesteAchat()}
+          ${clos ? '' : '<div class="panel ed-avant" id="ac-avant"></div>'}
+        </aside>
       </div>`;
 
     // --- garde-fou
     let dirty = false;
     // (plateforme, lot achats) La barre « Enregistrer » du bas suit la saisie (`majBarre`, branchée plus bas).
     let majBarre = () => {};
-    const touch = () => { if (dirty) return; dirty = true; const el = $('#dirty-dot'); if (el) el.hidden = false; majBarre(); enregistrerDevientPrincipal(); reportDirty(); };
+    const touch = () => { if (dirty) return; dirty = true; const el = $('#dirty-dot'); if (el) el.hidden = false; const ok = $('#ed-enreg'); if (ok) ok.hidden = true; majBarre(); enregistrerDevientPrincipal(); reportDirty(); };
     const untouch = () => { dirty = false; const el = $('#dirty-dot'); if (el) el.hidden = true; majBarre(); reportDirty(); };
     setGuard({ dirty: () => dirty, get what() { return p.kind === 'depense' ? 'cette dépense' : p.kind === 'avoir' ? 'cet avoir' : p.kind === 'acompte' ? 'cet acompte' : 'cette facture d\'achat'; },
       save: async () => { if (!validate() || !await doublonOk()) return false; const ok = persist(); if (ok) untouch(); return ok; },
@@ -11646,7 +11713,7 @@
     };
     function drawLines() {
       body.innerHTML = p.lines.map((l, i) => `<tr data-i="${i}">
-        <td><input type="text" data-k="label" value="${h(l.label || '')}" placeholder="Désignation">${lotSaisie(l)}</td>
+        <td><input type="text" data-k="label" value="${h(l.label || '')}" placeholder="Désignation">${lotSaisie(l)}<div class="ligne-reperes"><span class="ok" data-stk="${i}"></span></div></td>
         <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01"></td>
         <td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="0.001"></td>
         <td><select data-k="vatRate">${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
@@ -11770,12 +11837,43 @@
         ${t.fees ? `<tr><td>Timbre et frais</td><td>${C.money(t.fees, cur)}</td></tr>` : ''}
         ${t.withholding ? `<tr><td>Total TTC</td><td>${C.money(t.totalTTC, cur)}</td></tr><tr><td>Retenue opérée ${pct(t.withholdingRate)}%</td><td>${C.money(-t.withholding, cur)}</td></tr>` : ''}
         ${noteRs ? `<tr><td colspan="2" class="small ${noteRs.ton === 'warn' ? 'warn-text' : 'muted'}" id="b-exo"><div class="note-totaux">${h(noteRs.texte)}</div></td></tr>` : ''}
-        <tr class="grand"><td>${p.kind === 'avoir' ? 'Montant de l\'avoir' : p.kind === 'acompte' ? 'Montant de l\'acompte' : 'Net à payer'}</td><td>${C.money(t.netToPay, cur)}</td></tr>
+        <tr class="grand ac-grand"><td colspan="2"><div class="ed-net"><span class="k">${p.kind === 'avoir' ? 'Montant de l\'avoir' : p.kind === 'acompte' ? 'Montant de l\'acompte' : 'Net à payer au fournisseur'}</span><span class="v"><b>${C.money(t.netToPay, null, C.decimalsFor(cur))}</b> <small>${h(cur)}</small></span>${t.withholding ? `<span class="s">tu reverses ${C.money(t.withholding, cur)} de retenue au fisc</span>` : ''}</div></td></tr>
         ${p.kind === 'avoir' ? `<tr><td colspan="2" class="small muted">${p.achatLie ? 'Ce montant vient EN MOINS de la facture ' + h((purchaseById(p.achatLie) || {}).number || 'rattachée') + '.' : avoirRendu ? 'Le fournisseur te l\'a remboursé : il n\'y a plus rien à déduire d\'une facture.' : 'Ce montant vient EN MOINS — rattache-le à une facture pour qu\'il la diminue, ou note son remboursement.'}</td></tr>` : ''}
         ${p.kind === 'acompte' ? `<tr><td colspan="2" class="small muted">Une avance, pas une charge : elle se soldera${p.achatLie ? ' sur la facture ' + h((purchaseById(p.achatLie) || {}).number || 'rattachée') : ' le jour où tu la rattacheras à sa facture'}.</td></tr>` : ''}
         ${cur !== company().currency ? `<tr><td class="small muted">soit, en comptabilité ${C.missingRate(p, company()) ? '<span class="warn-text">(taux manquant)</span>' : `<span class="muted">(1 ${h(cur)} = ${pct(t.rate)} ${h(company().currency)})</span>`}</td><td class="small">${C.money(t.base.netToPay, company().currency)}</td></tr>` : ''}
         ${dest.length ? `<tr><td colspan="2" class="small muted" style="padding-top:8px">${dest.map(([k, lab]) => `${lab} ${C.money(C.round3(t.byDestination[k] + (nd[k] || 0)), cur)}${(nd[k] || 0) > 0.0005 ? `, dont ${C.money(nd[k], cur)} de TVA non récupérable` : ''}`).join(' · ')}</td></tr>` : ''}
       </table>`;
+      // (1.157.0) La maquette de l'achat : le net sous le pouce au téléphone, la retenue « de sa fiche », le nombre de lignes,
+      // le stock que chaque ligne fait bouger, et ce qui se vérifie avant d'enregistrer.
+      const nt = $('#ed-net-tel'); if (nt) nt.textContent = C.money(t.netToPay, cur);
+      const supR = supplierById(p.supplierId);
+      const rsFiche = $('#ac-rs-fiche');
+      if (rsFiche) {
+        rsFiche.textContent = supR && Number(p.withholdingRate) > 0 && Number(p.withholdingRate) === Number(C.tauxRetenueFournisseur(supR, p.date)) ? '· de sa fiche' : '';
+        rsFiche.closest('.puce-champ').classList.toggle('on', Number(p.withholdingRate) > 0);
+      }
+      const cpt = $('#ac-compte'); if (cpt) { const nl = p.lines.filter(l => String(l.label || '').trim()).length; cpt.textContent = nl ? pl(nl, 'ligne') : 'aucune ligne'; }
+      $$('[data-stk]', body).forEach(el => {
+        const l = p.lines[Number(el.dataset.stk)]; const it = l && l.destination === 'stock' && !l.recue ? C.itemOfLine(l, data) : null;
+        if (!it || !it.tracked) { el.textContent = ''; return; }
+        const avant = C.stockOf(data, it.id).qty - (isNew ? 0 : ((stored.lines || []).filter(x => C.itemOfLine(x, data) === it && x.destination === 'stock' && !x.recue).reduce((s2, x) => s2 + (Number(x.qty) || 0), 0)));
+        el.textContent = `en stock : ${pct(avant)} → ${pct(C.round3(avant + (Number(l.qty) || 0)))}`;
+      });
+      const avant = $('#ac-avant');
+      if (avant) {
+        const pj = (p.attachments || []).length;
+        const dejaSaisi = String(p.number || '').trim() && p.supplierId ? data.purchases.find(x => x.id !== p.id && x.supplierId === p.supplierId && String(x.number || '').trim().toLowerCase() === String(p.number).trim().toLowerCase()) : null;
+        const sansTva = p.lines.filter(l => String(l.label || '').trim() && !l.destination).length;
+        const pts = [
+          [!!(supR && String(supR.matricule || '').trim()), !supR ? (p.kind === 'depense' ? 'Sans fournisseur : une dépense peut s\'en passer' : 'Le fournisseur est à choisir') : String(supR.matricule || '').trim() ? 'Le fournisseur a son matricule' : 'Le fournisseur n\'a pas de matricule', supR && !String(supR.matricule || '').trim() ? '<button type="button" class="lien" data-avant="fiche">Sa fiche</button>' : ''],
+          [pj > 0, pj ? `Justificatif joint : ${h((p.attachments[0] || {}).name || 'fichier')}${pj > 1 ? ` (+${pj - 1})` : ''}` : 'Aucun justificatif : joins la photo ou le PDF de la pièce', !pj && bridge.piecesJointes !== false ? '<button type="button" class="lien" data-avant="joindre">Joindre</button>' : ''],
+          [!dejaSaisi, dejaSaisi ? `Ce numéro est déjà saisi : ${h(C.fmtDate(dejaSaisi.date))}, ${C.money(C.purchaseTotals(dejaSaisi, company()).netToPay, dejaSaisi.currency || company().currency)}` : 'Ce numéro n\'est pas déjà saisi', dejaSaisi ? `<a class="lien" href="#/achat/${h(dejaSaisi.id)}">Voir</a>` : ''],
+          [!sansTva, 'Chaque ligne a sa TVA et sa destination', ''],
+        ];
+        avant.innerHTML = `<h3>Avant d'enregistrer</h3><ul>${pts.map(([ok, txt, g]) => `<li class="${ok ? 'ok' : 'alerte'}">${lfIc(ok ? 'coche' : 'alerte', 15, 2.4)}<span>${txt}</span>${g}</li>`).join('')}</ul>`;
+        const f = $('[data-avant=fiche]', avant); if (f) f.onclick = () => { const x = supplierById(p.supplierId); if (x) supplierForm(x, () => { supCombo.setItems(supplierItems()); majFournisseur(); refresh(); }); };
+        const j = $('[data-avant=joindre]', avant); if (j) j.onclick = () => { const b = $('#attach-top'); if (b) b.click(); };
+      }
       // Une ligne « stock » dont le libellé ne retrouve aucun article suivi n'entrera dans aucun stock :
       // sans ce rappel, l'entrée disparaît en silence et le stock finit par passer en négatif.
       // On juge la ligne SAISIE (`p.lines[i]`), qui porte `itemId` : une ligne rattachée à l'article
@@ -11926,6 +12024,7 @@
       }
       if (e && e.target && e.target.name === 'supplierId' && p.supplierId !== appliedSupplier) {
         appliedSupplier = p.supplierId;
+        majFournisseur();
         // La liste des factures à rattacher suit le fournisseur : proposer celles d'un autre serait
         // proposer une imputation impossible (même règle que l'affaire qui suit le client, 3.4.0).
         lieCombo.setItems(lieItems(p.supplierId));
@@ -11972,6 +12071,21 @@
       }, 'text', { info: 'buy.category' })
     });
     $('#b-notes').oninput = e => { p.notes = e.target.value; touch(); };
+    // (1.157.0) La carte du fournisseur, « Changer » et « Fiche » ; « Saisir à la main » ; les puces qui montrent un champ ;
+    // la frise passe ses gestes aux boutons de la pièce.
+    function majFournisseur() {
+      const carte = $('#ac-sup', head), choix = $('#ac-choix-sup', head);
+      if (!carte || !choix) return;
+      const sup = supplierById(p.supplierId);
+      carte.hidden = !sup; choix.hidden = !!sup;
+      carte.innerHTML = sup ? supplierCarte() : '';
+      const ch = $('#sup-changer', carte); if (ch) ch.onclick = () => { choix.hidden = false; const b = $('.combo-btn', choix); if (b) b.click(); };
+      const fi = $('#sup-fiche', carte); if (fi) fi.onclick = () => supplierForm(sup, () => { supCombo.setItems(supplierItems()); majFournisseur(); refresh(); });
+    }
+    majFournisseur();
+    if ($('#ac-main')) $('#ac-main').onclick = () => { const a = $('#ac-arrivee'); if (a) a.hidden = true; const b = $('[data-combo=supplierId] .combo-btn', head); if (b) b.focus(); };
+    $$('[data-montrer]', head).forEach(b => b.onclick = () => { const z = $('#' + b.dataset.montrer, head); if (!z) return; z.hidden = false; b.hidden = true; const f = $('.combo-btn, input:not([type=hidden])', z); if (f) f.focus(); });
+    $$('#ed-frise [data-frise]').forEach(b => b.onclick = () => { const x = $('#' + b.dataset.frise); if (x) x.click(); });
     if ($('#b-save-bas')) $('#b-save-bas').onclick = () => { const b = $('#save'); if (b) b.click(); };
     // La barre ne paraît que si une modification attend ET que « Enregistrer », en haut, n'est plus à l'écran : un seul
     // bouton principal en vue (U-11).
@@ -12072,7 +12186,7 @@
       const fichier = { name: r.nom, path: r.chemin || '' };
       ocrReviewForm(l.lecture, fichier, values => appliquerLecture(values, fichier, 'facture électronique'), { source: 'teif', remarques: l.remarques });
     };
-    $('#photo').onclick = async () => {
+    if ($('#photo')) $('#photo').onclick = async () => {
       let file;
       try { file = await bridge.ocrPick(); } catch (e) { return toast(e.message || 'Fichier illisible', true); }
       if (!file) return;

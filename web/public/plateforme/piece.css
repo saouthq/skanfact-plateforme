@@ -263,3 +263,48 @@
 .ed-totaux .totals-box .ed-si-facture table { background: none; border-radius: 0; padding: 0; }
 .ed-totaux .totals-box .ed-si-facture td { padding: 3px 0; text-align: start; color: var(--sb-gris); }
 .ed-totaux .totals-box .ed-si-facture td:last-child { text-align: end; color: var(--sb-encre); font-weight: 600; }
+
+/* ── L'achat (1.157.0, lot 6) : « Comment arrive cette pièce ? », le fournisseur en carte, la frise en trois étapes ── */
+.buy-editor.charte > div { max-width: none; }
+.ed-frise.trois ol { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.ac-ligne4 { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.6fr); gap: 12px; align-items: end; }
+.ac-arrivee { padding: 18px 20px; margin-bottom: 16px; }
+.ac-ar-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.ac-ar-tete h2 { margin: 0; font-size: 15px; }
+.ac-choix-grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ac-choix-grille > .colle-bouton { display: flex; align-items: stretch; gap: 0; }
+.ac-choix-grille > .colle-bouton > .i { align-self: flex-start; margin: 10px 0 0 -30px; }
+.ac-choix { display: flex !important; align-items: flex-start; gap: 12px; width: 100%; height: auto !important; min-height: 78px; padding: 14px 16px !important; text-align: start; white-space: normal; border-radius: 12px; background: var(--sb-papier); text-decoration: none; color: var(--sb-encre); }
+.ac-choix:hover { border-color: var(--sb-sarcelle); }
+.ac-ic { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--sb-doux); color: var(--sb-doux-texte); }
+.ac-t { display: grid; gap: 3px; min-width: 0; }
+.ac-t b { font-size: 14.5px; display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.ac-t > span { font-size: 13px; color: var(--sb-gris); font-weight: 400; }
+.ac-tag { font-style: normal; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--sb-doux); color: var(--sb-doux-texte); }
+.ac-tag.gris { background: var(--sb-papier-2); color: var(--sb-gris); border: 1px solid var(--sb-trait); }
+.ed-geste .btn-grand kbd { font: 600 11px/1 var(--sb-police, inherit); padding: 3px 6px; border-radius: 5px; margin-inline-start: 6px; background: color-mix(in srgb, #fff 18%, transparent); border: 1px solid color-mix(in srgb, #fff 35%, transparent); color: #fff; }
+#b-totals.totals-box table { width: 100%; border-collapse: collapse; font-size: 14px; background: none; border-radius: 0; padding: 0; }
+#b-totals.totals-box table td { padding: 5px 0; color: var(--sb-gris); text-align: start; }
+#b-totals.totals-box table td:last-child { text-align: end; color: var(--sb-encre); font-weight: 600; font-variant-numeric: tabular-nums; }
+#b-totals.totals-box table tr.ac-grand td { padding: 0; }
+#b-totals .ed-net { margin-top: 12px; }
+.ed-lignes table.buy-lines td :is(input, select):not([type=checkbox]) { background: var(--sb-papier-2); border-color: transparent; border-radius: 8px; }
+.ed-lignes table.buy-lines td:first-child input[data-k=label] { background: transparent; font-weight: 600; font-size: 14.5px; }
+.ed-lignes table.buy-lines td:first-child input[data-k=label]:hover { border-color: var(--sb-trait); }
+.ed-lignes table.buy-lines td :is(input, select):focus { border-color: var(--sb-sarcelle); background: var(--sb-papier); }
+@media (max-width: 1120px) {
+  .ac-ligne4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ac-choix-grille { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 760px) {
+  .ed-frise.trois ol { grid-template-columns: minmax(0, 1fr); }
+  .ac-ligne4 { grid-template-columns: minmax(0, 1fr); }
+}
+#b-totals.totals-box table tr.ac-grand td { text-align: start; }
+.ed-lignes table.buy-lines th:nth-child(2) { width: 56px !important; }
+.ed-lignes table.buy-lines th:nth-child(3) { width: 92px !important; }
+.ed-lignes table.buy-lines th:nth-child(4) { width: 70px !important; }
+.ed-lignes table.buy-lines th:nth-child(5) { width: 112px !important; }
+.ed-lignes table.buy-lines th:nth-child(6) { width: 56px !important; }
+.ed-lignes table.buy-lines th:nth-child(7) { width: 100px !important; }
+.ed-lignes table.buy-lines td.line-tools { white-space: nowrap; }
