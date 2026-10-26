@@ -93,7 +93,7 @@ describe('le lot facture, à l\'écran', () => {
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(`${e.message} @ ${p.url()}`));
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/factures`);
-    await p.getByRole('button', { name: '+ Nouvelle facture' }).first().click({ timeout: 20_000 });
+    await p.getByRole('button', { name: /^\+? ?Nouvelle facture$/ }).first().click({ timeout: 20_000 });
     await p.locator('#view h1').filter({ hasText: 'Nouvelle facture' }).waitFor({ timeout: 15_000 });
     await plusTard(p);
 
@@ -226,7 +226,7 @@ describe('le lot facture, à l\'écran', () => {
     await client.close();
 
     // 8. Un refus du serveur à l'émission : une fenêtre qui reste, avec la raison et ce qui n'a pas été fait.
-    await p.getByRole('button', { name: '+ Nouvelle facture' }).first().click();
+    await p.getByRole('button', { name: /^\+? ?Nouvelle facture$/ }).first().click();
     await p.locator('#view h1').filter({ hasText: 'Nouvelle facture' }).waitFor({ timeout: 15_000 });
     await p.locator('[data-combo=clientId] .combo-btn').click();
     await p.locator('[data-combo=clientId] .combo-q').fill('Hôtel');

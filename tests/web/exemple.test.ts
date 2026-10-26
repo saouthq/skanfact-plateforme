@@ -150,7 +150,7 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     await p.locator('#brand-btn').click();
 
     // 4. « Guide-moi » sur une nouvelle facture propose « Faire une facture », qui mène jusqu'au brouillon.
-    await p.getByRole('button', { name: '+ Nouvelle facture' }).first().click();
+    await p.getByRole('button', { name: /^\+? ?Nouvelle facture$/ }).first().click();
     await p.locator('#view h1').filter({ hasText: 'Nouvelle facture' }).waitFor({ timeout: 15_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     await p.getByRole('button', { name: 'Guide-moi', exact: true }).click();

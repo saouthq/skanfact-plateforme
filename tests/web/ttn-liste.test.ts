@@ -146,7 +146,7 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
     expect(net(await etatDe('f1').innerText())).toBe('El Fatoora : à signer');
     expect(net(await etatDe('f3').innerText())).toBe('El Fatoora : à signer');
     // Retenue : pourquoi, au survol.
-    expect(await etatDe('f2').locator('span').getAttribute('title')).toBe('Le compte El Fatoora de l\'entreprise n\'est pas posé : branche-le dans Paramètres → Documents, et la pièce partira.');
+    expect(await etatDe('f2').locator('[title]').getAttribute('title')).toBe('Le compte El Fatoora de l\'entreprise n\'est pas posé : branche-le dans Paramètres → Documents, et la pièce partira.');
     // Un seul appel, pour les trois pièces de la page.
     expect(demandes).toHaveLength(1);
     expect(new URL(demandes[0] ?? '').searchParams.get('cles')?.split(',').sort()).toEqual(['f1', 'f2', 'f3']);
@@ -180,12 +180,13 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
     await plusTard(nadia);
     await nadia.locator('#q').fill('FAC');
     await expect.poll(async () => net(await etatDe('f2').innerText().catch(() => '')), { timeout: 20_000 }).toBe('El Fatoora : acceptée');
-    expect(await etatDe('f2').locator('span').getAttribute('title')).toBe(`Référence de la TTN : ${reference}`);
+    expect(await etatDe('f2').locator('[title]').getAttribute('title')).toBe(`Référence de la TTN : ${reference}`);
     expect(net(await etatDe('f3').innerText())).toBe('El Fatoora : refusée');
-    // Ce qui demande d'agir se voit : refusée (ou retenue) en couleur d'alerte ; le reste, discret.
-    expect(await etatDe('f3').locator('span').getAttribute('class')).toBe('small warn-text');
-    expect(await etatDe('f2').locator('span').getAttribute('class')).toBe('small muted');
-    expect(await etatDe('f3').locator('span').getAttribute('title')).toBe('La TTN a refusé la pièce au dépôt : « Signature du fournisseur invalide ».');
+    // Ce qui demande d'agir se voit : refusée (ou retenue) en pastille d'alerte ; acceptée, une coche discrète (1.154.0,
+    // la colonne « El Fatoora » de la maquette).
+    expect(await etatDe('f3').locator('[title]').getAttribute('class')).toBe('tt-p alerte');
+    expect(await etatDe('f2').locator('[title]').getAttribute('class')).toBe('tt-i ok');
+    expect(await etatDe('f3').locator('[title]').getAttribute('title')).toBe('La TTN a refusé la pièce au dépôt : « Signature du fournisseur invalide ».');
     expect(net(await etatDe('f1').innerText())).toBe('El Fatoora : à signer');
     await nadia.screenshot({ path: path.join(PHOTOS, 'ttn-liste-2.png') });
 
@@ -194,7 +195,7 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
       await nadia.evaluate(() => { location.hash = '#/factures'; });
       await expect.poll(() => nadia.locator('tr[data-id="f1"]').count(), { timeout: 10_000 }).toBe(1);
     };
-    await nadia.locator('tr[data-id="f1"] td').first().click();
+    await nadia.locator('tr[data-id="f1"] td.cn').click();
     await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Facture FAC-2026-001/);
     await nadia.locator('#more-btn').click();
     await nadia.getByRole('button', { name: 'Signer (DigiGo)…', exact: true }).click();
@@ -209,7 +210,7 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
     await versLaListe();
     await expect.poll(async () => net(await etatDe('f1').innerText()), { timeout: 10_000 }).toMatch(/^El Fatoora : (en route|déposée, en attente)$/);
     // Renvoyée depuis sa fenêtre, FAC-2026-003 n'est plus « refusée » dans la liste.
-    await nadia.locator('tr[data-id="f3"] td').first().click();
+    await nadia.locator('tr[data-id="f3"] td.cn').click();
     await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Facture FAC-2026-003/);
     await nadia.locator('#more-btn').click();
     await nadia.getByRole('button', { name: 'Fichier pour El Fatoora (TEIF)…', exact: true }).click();
@@ -257,11 +258,11 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
     lacher();
     const bouton = nadia.getByRole('button', { name: 'Signer les 3 pièces en attente…', exact: true });
     await expect.poll(() => bouton.count(), { timeout: 10_000 }).toBe(1);
-    // Il paraît juste à côté du titre ; ni le titre ni le bouton principal n'ont bougé.
+    // (1.154.0) Il paraît dans la tuile « À signer pour El Fatoora », avec le nombre et les numéros ; ni le titre, ni le
+    // bouton principal, ni le tableau n'ont bougé (la tuile gardait sa place).
     expect(await ou()).toEqual(avant);
-    const ecart = await nadia.evaluate(() => (document.getElementById('sg-lot')?.getBoundingClientRect().left ?? 0) - (document.querySelector('#view h1')?.getBoundingClientRect().right ?? 0));
-    expect(ecart).toBeGreaterThan(0);
-    expect(ecart).toBeLessThan(40);
+    expect(await nadia.locator('#lf-tuiles #lf-signer #sg-lot').count()).toBe(1);
+    expect(net(await nadia.locator('#lf-signer').innerText())).toBe('À signer pour El Fatoora 3 pièces FAC-2026-001 · FAC-2026-002 · FAC-2026-003 Signer les 3 pièces en attente…');
     await nadia.screenshot({ path: path.join(PHOTOS, 'ttn-lot-1.png') });
     await bouton.click();
     const fenetre = nadia.locator('#modal-root .modal').last();

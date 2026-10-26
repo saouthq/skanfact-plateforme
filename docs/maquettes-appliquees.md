@@ -128,3 +128,29 @@ menu d'une pièce (Envoyer · Légal · Suite · La pièce · Corriger) et le bo
 phrase sous chaque bouton principal avec chaque pièce ; « Payée en partie » au lieu de « partiellement payée » avec la
 liste (le libellé sert aussi aux exports).
 
+
+## Lot 3 : la liste des factures (1.154.0)
+
+`listeFactures` (`web/public/v10/app.js`) remplace, pour les factures, la liste commune aux devis (`listView`, que le devis
+garde jusqu'à son lot) ; le style vit dans `web/public/plateforme/liste.css` ; le point de contact donne la tuile « À
+signer » (`dessinerASigner`), les états El Fatoora en colonne (`poserEtat`, `data-forme="colonne"`) et ceux des pièces dues
+(`etatsTtnDe`, une demande partagée avec la liste). Tests : `tests/web/liste-factures.test.ts`, `tests/web/ttn-liste.test.ts`,
+`tests/web/telephone-commercant.test.ts` ; preuves « liste 1 » à « liste 16 ».
+
+| Ce qui se voit | Comment |
+|---|---|
+| L'en-tête | « Accueil › Factures », le titre, « Ce qu'on te doit, ce qui est payé, ce qui part à El Fatoora » ; « Nouvel avoir » (pas pour un commercial) et « Nouvelle facture N F », le seul bouton plein |
+| Les tuiles, des filtres | « À encaisser » sur toutes les années : la barre à échoir / bloqués par un refus d'El Fatoora / en retard, et ce qui est en devise compté au taux de la facture. « En retard » et l'âge des retards (1 à 30, 31 à 60, plus de 60 jours). « À signer pour El Fatoora » : le nombre, les numéros (la plus ancienne d'abord) et « Signer les N pièces… » (un refus du serveur le dit sans compter ; une entreprise non soumise n'a pas la tuile). « Brouillons » : le nombre, ce qu'ils valent, ceux « à redater » (mois clôturé, ou daté avant la dernière facture émise de son année). Une tuile choisie s'entoure ; recliquée, la liste revient |
+| Les filtres | La recherche (« / ») lit le numéro, le client, l'objet, le montant (« 674,77 ») et le nom des pièces jointes, sans les accents ; Tout / Factures / Avoirs ; le statut avec son nombre ; l'année (choisie d'office au-delà de 25 pièces). Chaque filtre posé est une puce qui se retire, « Tout effacer » ; « N sur M pièces » à droite. Rien ne correspond : « Chercher dans toutes les années » et « Tout revoir » |
+| Le tableau | Rangé par mois, brouillons d'abord (chaque mois dit combien de pièces et ce qu'elles valent, sur toute la sélection) ; trié par une colonne, il ne se range plus. Une case pour choisir ; le numéro, « Avoir », le trombone et son nombre ; la pastille du client et l'objet ; l'échéance (« dans 6 j », « 45 j de retard » en rouge, « payée le », « par AVO-… », « sur FAC-… ») ; le statut (« Payée en partie », « Payée en trop ») ; El Fatoora (une coche quand c'est accepté, des mots sinon) ; le net, et sa conversion pour une pièce en devise ; le reste, ou « … à son crédit ». Au survol, « Enregistrer un paiement » ; le menu ⋯ |
+| Le menu ⋯ | Il nomme la pièce et son client, puis : Ouvrir, Enregistrer un paiement ; Envoyer (e-mail, WhatsApp, Relancer une facture en retard) ; Légal (Signer par DigiGo, un refus d'El Fatoora) ; La pièce (PDF, Dupliquer) ; Corriger (Créer un avoir). Un brouillon : Ouvrir, PDF, Supprimer le brouillon (la même question que l'éditeur) |
+| Le pied | « Total de la sélection » : les pièces émises, leur HT, les brouillons à part ; le net et le reste ; puis les pages |
+| Plusieurs pièces | La barre sombre en bas : combien, ce qui reste dû ; « Télécharger les PDF », « Relancer », « Signer », chacun avec le nombre de pièces qu'il touche ; « Ne plus rien choisir » (Échap) |
+| Le clavier | « / » cherche, ↑ ↓ passent d'une pièce à l'autre, Entrée l'ouvre, X la choisit, Échap ne choisit plus rien ; N puis F, la barre |
+| La première fois | « Réclamer l'argent du travail fait », ses deux boutons, et les étapes (écrire, émettre, signer, encaisser) |
+| Au téléphone | La recherche, la synthèse « À encaisser », deux puces (À encaisser, En retard) et « Filtres » qui ouvre une feuille (type, statut, année, « Voir N pièces ») ; chaque pièce en carte ; « ‹ Accueil » ; la facture se crée par le « + » |
+
+**Ce qui s'écarte de la maquette, et pourquoi** :
+- « Relancer » sur plusieurs pièces mène à la page Relances : chaque relance y garde son niveau et son message ;
+- à la tablette, le tableau défile dans son cadre (la colonne des gestes reste collée au bord) ;
+- l'aperçu à droite d'une pièce (la maquette v3) viendra avec le lot de la facture, qui en fait le contenu.

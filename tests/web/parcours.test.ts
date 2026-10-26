@@ -146,7 +146,7 @@ describe('le parcours, à la souris', () => {
     // Une facture, dans l'éditeur de la v10 : le client se crée depuis l'éditeur, et revient choisi.
     await p.locator('#nav a[data-route="factures"]').click();
     await pageV10(p, /Factures/);
-    await p.getByRole('button', { name: '+ Nouvelle facture' }).click();
+    await p.getByRole('button', { name: /^\+? ?Nouvelle facture$/ }).click();
     await pageV10(p, /Nouvelle facture/);
     await plusTard(p);
     await p.locator('[data-combo=clientId] .combo-btn').click();
@@ -371,7 +371,7 @@ describe('le parcours, à la souris', () => {
     const qui = await inscrite('Rania Kefi');
     const p = await qui.ouvrir(qui.essai, '#/factures');
     // La facture : 2 × 450,500 à 19 %, timbre 1,000 → 1 073,190 DT.
-    await p.getByRole('button', { name: '+ Nouvelle facture' }).click();
+    await p.getByRole('button', { name: /^\+? ?Nouvelle facture$/ }).click();
     await pageV10(p, /Nouvelle facture/);
     await plusTard(p);
     await p.locator('[data-combo=clientId] .combo-btn').click();

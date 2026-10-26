@@ -626,6 +626,20 @@ l'ordre de 5 à 7 € par mois), l'enregistrement `A` `dev` chez Cloudflare vers
 `console`), puis cette ligne dans la console du VPS. Un seul VPS pour les deux a été écarté : une version de travail qui
 consomme trop ralentirait la version stable.
 
+**L4. La copie de `dev` sur la même machine (décidé avec Skander le 26/10/2026, 1.154.0)** : « un lien branché sur
+dev », sans rien installer chez lui ; Skander choisit la même machine (0 € de plus) plutôt que le second VPS de L3, tant
+que les deux ne portent que des données inventées (avant les pilotes, on repasse à deux machines). Skander a posé
+l'enregistrement `A` `dev` vers l'adresse de `app` (nuage gris) ; la tâche d'entretien 0014
+(`exploitation/taches/0014-copie-de-dev.sh`) fait le reste, sans rien toucher de la copie de `main` : le dépôt sur `dev`
+(`/opt/skanfact-dev`), sa base (`skanfact_dev`) et son compte, ses réglages (`/etc/skanfact/dev.env`, l'e-mail et le
+navigateur des PDF repris de la copie de `main`), son programme (`skanfact-dev`, port 8082), son suiveur
+(`skanfact-dev-suivre`, toutes les deux minutes, sans attendre GitHub) et son bloc du frontal (`SKANFACT_DEV_ADRESSE`).
+Le suiveur prend ses noms dans son environnement (`SKANFACT_NOM_BASE`, `SKANFACT_SERVICE`, `SKANFACT_PORT_SERVEUR`,
+`SKANFACT_COMPTE_BASE`) et la copie de `dev` ne joue pas les tâches d'entretien (`SKANFACT_TACHES=non`) : elles règlent
+la machine, une fois, par la copie de `main`. L'état de son suiveur : `https://dev.skanfact.tn/etat.json`. La tâche
+arrive par `main` (comme toutes les tâches) : `dev.skanfact.tn` existe à partir du passage qui la porte ; ensuite, il
+suit chaque envoi sur `dev`. Test : `tests/exploitation/copie-de-dev.test.ts` ; preuves « copie de dev 1 » à « 5 ».
+
 ## M. « Maintenance en cours » (demandé par Skander le 22/10/2026, 1.107.0)
 
 Deux cas, deux réponses :

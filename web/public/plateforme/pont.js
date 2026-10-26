@@ -1079,10 +1079,12 @@
     teifDuServeur,
     dessinerSignataire,
     signerPiece,
+    signerPieces,
     dessinerASigner,
     dessinerTtn,
     ttnDansLaFenetre,
     etatsTtn: remplirEtats,
+    etatsTtnDe,
     // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
     quarantaine: () => remises.length,
     loadData: async () => {
@@ -2353,20 +2355,36 @@
     });
   }
 
-  // « Signer les N pièces en attente… », à côté du titre de la liste des factures (brique 140) : il paraît
-  // quand des pièces émises attendent leur signature, et seulement pour qui a le droit de signer. Il se pose
-  // dans une place gardée à côté du titre : rien d'autre ne bouge quand il paraît.
+  // « Signer les N pièces en attente… » (brique 140) : il paraît quand des pièces émises attendent leur signature, et
+  // seulement pour qui a le droit de signer. (1.154.0, la liste des factures de la maquette) Il vit dans la tuile
+  // « À signer pour El Fatoora », avec le nombre et les numéros (la plus ancienne d'abord) : la tuile garde sa place
+  // dès le premier dessin, rien d'autre ne bouge quand il paraît. Un refus du serveur (un commercial) le dit sans
+  // compter ; sans réseau, la tuile le dit aussi. Rend ce qu'il a lu (la liste s'en sert pour ses menus), ou null.
   /** @param {HTMLElement} el @param {any} modal @param {() => void} redessiner */
   async function dessinerASigner(el, modal, redessiner) {
     /** @type {any} */ let lu;
-    try { lu = await appel('GET', '/efacture/a-signer'); } catch { return; }
-    if (!lu.total || !el.isConnected) return;
+    const tuile = /** @type {HTMLElement | null} */ (el.closest('.tuile'));
+    const titre = tuile && tuile.querySelector('.tu-t-texte');
+    try { lu = await appel('GET', '/efacture/a-signer'); } catch (x) {
+      if (el.isConnected) el.innerHTML = /** @type {any} */ (x).statut === 403
+        ? '<b class="tu-m">—</b><span class="tu-s">la signature revient au propriétaire ou à l\'administrateur</span>'
+        : '<b class="tu-m">—</b><span class="tu-s ambre">ce qui attend sa signature se lira avec le réseau</span>';
+      return null;
+    }
+    if (!el.isConnected) return lu;
+    if (!lu.total) { el.innerHTML = '<b class="tu-m">0</b><span class="tu-s">rien n\'attend sa signature</span>'; return lu; }
     // Une demande de signature en prend 100 au plus : le bouton dit ce qu'il signera vraiment.
     const n = lu.pieces.length;
-    el.innerHTML = `<button type="button" class="btn btn-sm" id="sg-lot">${lu.total > n ? `Signer les ${n} premières pièces en attente (sur ${lu.total})…`
+    const nums = lu.pieces.map((/** @type {any} */ p) => p.numero);
+    if (tuile) tuile.classList.add('attire');
+    if (titre) titre.textContent = 'À signer pour El Fatoora';
+    el.innerHTML = `<b class="tu-m">${lu.total} <small>${lu.total > 1 ? 'pièces' : 'pièce'}</small></b>
+      <span class="tu-s" title="${esc(nums.join(', '))}">${esc(nums.slice(0, 4).join(' · '))}${nums.length > 4 ? ' …' : ''}</span>
+      <button type="button" class="btn btn-sm lf-ambre" id="sg-lot">${lu.total > n ? `Signer les ${n} premières pièces en attente (sur ${lu.total})…`
       : lu.total > 1 ? `Signer les ${lu.total} pièces en attente…` : 'Signer la pièce en attente…'}</button>`;
     /** @type {HTMLElement} */ (el.querySelector('#sg-lot')).onclick = () =>
       signerPieces(lu.pieces.map((/** @type {any} */ p) => ({ id: p.cle, number: p.numero })), modal, null, redessiner);
+    return lu;
   }
 
   // ── L'envoi à la TTN (brique 82 ; docs/facture-electronique.md) ──────────────────────────────────
@@ -2485,39 +2503,66 @@
   };
   /** @type {Map<string, { e: any, le: number }>} */
   const etatsConnus = new Map();
-  /** @type {Set<string>} */
-  const etatsDemandes = new Set();
+  // (1.154.0) Dans la colonne « El Fatoora » de la liste des factures (`data-forme="colonne"`), la maquette : une coche
+  // discrète quand la TTN a accepté, des mots en pastille sinon, ambre quand un geste est attendu (à signer), rouge quand
+  // la pièce est bloquée (retenue, refusée). « El Fatoora : » reste lu par un lecteur d'écran.
+  /** @type {Record<string, string>} */
+  const TONS_TTN = { a_signer: 'attire', retenue: 'alerte', refusee: 'alerte' };
   /** @param {HTMLElement} el @param {any} e */
   const poserEtat = (el, e) => {
     el.dataset.rempli = '1';
     const m = e && MOTS_TTN[e.etat];
     if (!m) return;
     const titre = e.reference ? `Référence de la TTN : ${e.reference}` : e.motif ? phrase(e.motif) : 'Le détail : « Fichier pour El Fatoora », dans le menu de la pièce.';
+    if (el.dataset.forme === 'colonne') {
+      el.innerHTML = e.etat === 'acceptee'
+        ? `<span class="tt-i ok" title="${esc(titre)}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg><span class="vh">El Fatoora : ${m[0]}</span></span>`
+        : `<span class="tt-p ${TONS_TTN[e.etat] || ''}" title="${esc(titre)}"><span class="vh">El Fatoora : </span>${m[0]}</span>`;
+      return;
+    }
     el.innerHTML = `<span class="small ${m[1] ? 'warn-text' : 'muted'}" title="${esc(titre)}">El Fatoora : ${m[0]}</span>`;
   };
+  // Les états de pièces nommées, sans place à remplir (1.154.0) : la tuile « À encaisser » compte ce qu'un refus d'El
+  // Fatoora bloque, sur toutes les années. Le même cache que les places de la liste, un appel par lot de 100.
+  /** @param {string[]} ids @returns {Promise<Record<string, any>>} */
+  async function etatsTtnDe(ids) {
+    await demanderEtats(ids);
+    /** @type {Record<string, any>} */ const r = {};
+    for (const id of ids) { const c = etatsConnus.get(id); if (c) r[id] = c.e; }
+    return r;
+  }
+
   let etatsPrevus = false;
+  // Les demandes en vol, par pièce (1.154.0) : la liste et la tuile « À encaisser » demandent souvent les mêmes pièces au
+  // même instant ; la seconde attend la première au lieu de refaire l'appel.
+  /** @type {Map<string, Promise<void>>} */
+  const etatsEnVol = new Map();
+  /** @param {string[]} ids */
+  function demanderEtats(ids) {
+    const manquent = ids.filter((id) => { const c = etatsConnus.get(id); return !(c && Date.now() - c.le < 20_000) && !etatsEnVol.has(id); });
+    for (let i = 0; i < manquent.length; i += 100) {
+      const lot = manquent.slice(i, i + 100);
+      const enVol = (async () => {
+        try {
+          const r = await appel('GET', `/efacture/etats?cles=${lot.map(encodeURIComponent).join(',')}`);
+          for (const id of lot) etatsConnus.set(id, { e: r.etats[id] || null, le: Date.now() });
+        } catch { /* sans réseau, la place reste vide : la liste se redessinera */ } finally { lot.forEach((id) => etatsEnVol.delete(id)); }
+      })();
+      lot.forEach((id) => etatsEnVol.set(id, enVol));
+    }
+    return Promise.all([...new Set(ids.map((id) => etatsEnVol.get(id)).filter(Boolean))]);
+  }
   async function remplirEtats() {
     etatsPrevus = false;
     const places = /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.ttn-etat:not([data-rempli])')]);
-    const manquent = new Set();
     for (const el of places) {
-      const id = String(el.dataset.ttn);
-      const c = etatsConnus.get(id);
+      const c = etatsConnus.get(String(el.dataset.ttn));
       if (c && Date.now() - c.le < 20_000) poserEtat(el, c.e);
-      else if (!etatsDemandes.has(id)) manquent.add(id);
     }
-    const ids = [...manquent];
-    for (let i = 0; i < ids.length; i += 100) {
-      const lot = ids.slice(i, i + 100);
-      lot.forEach((id) => etatsDemandes.add(id));
-      try {
-        const r = await appel('GET', `/efacture/etats?cles=${lot.map(encodeURIComponent).join(',')}`);
-        for (const id of lot) etatsConnus.set(id, { e: r.etats[id] || null, le: Date.now() });
-      } catch { /* sans réseau, la place reste vide : la liste se redessinera */ } finally { lot.forEach((id) => etatsDemandes.delete(id)); }
-      for (const el of /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.ttn-etat:not([data-rempli])')])) {
-        const c = etatsConnus.get(String(el.dataset.ttn));
-        if (c) poserEtat(el, c.e);
-      }
+    await demanderEtats(places.filter((el) => !el.dataset.rempli).map((el) => String(el.dataset.ttn)));
+    for (const el of /** @type {HTMLElement[]} */ ([...document.querySelectorAll('.ttn-etat:not([data-rempli])')])) {
+      const c = etatsConnus.get(String(el.dataset.ttn));
+      if (c) poserEtat(el, c.e);
     }
   }
   new MutationObserver(() => { if (!etatsPrevus && document.querySelector('.ttn-etat:not([data-rempli])')) { etatsPrevus = true; setTimeout(() => void remplirEtats(), 0); } })

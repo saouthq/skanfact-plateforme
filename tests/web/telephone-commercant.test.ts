@@ -121,7 +121,8 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     const { cx, p, erreurs } = await ouvrir(c, '#/factures', TELEPHONE);
     await p.locator('table.list tbody tr').first().waitFor();
     // Chaque carte : le numéro qui la nomme, puis « Net à payer » et « Reste » sous leur titre, dans l'écran.
-    const cartes = await p.locator('table.list > tbody > tr').evaluateAll((trs) => trs.map((tr) => {
+    // (1.154.0) Les repères de mois de la liste des factures (`tr.mois`) ne sont pas des cartes.
+    const cartes = await p.locator('table.list > tbody > tr:not(.mois)').evaluateAll((trs) => trs.map((tr) => {
       const r = tr.getBoundingClientRect();
       const cases = [...tr.children].map((td) => ({ titre: getComputedStyle(td, '::before').content, texte: (td.textContent ?? '').replace(/\s+/g, ' ').trim(), r: td.getBoundingClientRect(), role: td.getAttribute('data-tel') }));
       const actions = tr.querySelector('.row-menu-btn')?.getBoundingClientRect();
@@ -147,24 +148,24 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
       expect(a.top).toBeGreaterThanOrEqual(x.carte.top);
     }
     expect(cartes[0]?.montants.map((m) => m.texte)).toEqual(['714,000 DT', '714,000 DT']);
-    // (1.143.0) Le client juste sous les montants, avant le type de la pièce.
-    // L'ordre de lecture : la rangée, puis la gauche.
-    const sous = await p.locator('table.list > tbody > tr').first().evaluate((tr) => ['Client', 'Type'].map((t) => { const r = tr.querySelector(`td[data-label="${t}"]`)?.getBoundingClientRect(); return r ? Math.round(r.top) * 10_000 + Math.round(r.left) : -1; }));
+    // (1.143.0) Le client juste sous les montants, avant la date de la pièce (1.154.0 : « Client et objet », la colonne
+    // « Type » a laissé la place à l'étiquette « Avoir »). L'ordre de lecture : la rangée, puis la gauche.
+    const sous = await p.locator('table.list > tbody > tr:not(.mois)').first().evaluate((tr) => ['Client et objet', 'Date'].map((t) => { const r = tr.querySelector(`td[data-label="${t}"]`)?.getBoundingClientRect(); return r ? Math.round(r.top) * 10_000 + Math.round(r.left) : -1; }));
     expect(sous[0]).toBeGreaterThan(0);
     expect(sous[0]).toBeLessThan(sous[1] ?? 0);
     // (1.143.0) Le doigt laisse la carte touchée « survolée » : son « Actions » ne s'allume pas seul.
-    await p.locator('table.list > tbody > tr').nth(1).locator('td[data-label="Date"]').hover();
+    await p.locator('table.list > tbody > tr:not(.mois)').nth(1).locator('td[data-label="Date"]').hover();
     expect(new Set(await p.locator('table.list > tbody > tr td.row-actions .row-menu-btn').evaluateAll((bs) => bs.map((b) => getComputedStyle(b).backgroundColor))).size).toBe(1);
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     await p.screenshot({ path: path.join(PHOTOS, 'telephone-factures-cartes.png'), fullPage: true });
     // Les titres qui trient restent : « Client » trie, et la liste redessinée garde ses titres.
     await p.locator('table.list th.sortable-h[data-sort=client]').click();
-    await expect.poll(() => p.locator('table.list > tbody > tr [data-tel=titre]').allInnerTexts()).toEqual(['FAC-2026-002', 'FAC-2026-001']);
+    await expect.poll(() => p.locator('table.list > tbody > tr:not(.mois) [data-tel=titre]').allInnerTexts()).toEqual(['FAC-2026-002', 'FAC-2026-001']);
     await p.locator('table.list th.sortable-h[data-sort=client]').click();
-    await expect.poll(() => p.locator('table.list > tbody > tr [data-tel=titre]').allInnerTexts()).toEqual(['FAC-2026-001', 'FAC-2026-002']);
-    expect(await p.locator('table.list > tbody > tr:first-child td[data-label="Net à payer"]').innerText()).toMatch(/357,000/);
+    await expect.poll(() => p.locator('table.list > tbody > tr:not(.mois) [data-tel=titre]').allInnerTexts()).toEqual(['FAC-2026-001', 'FAC-2026-002']);
+    expect(await p.locator('table.list > tbody > tr:not(.mois)').first().locator('td[data-label="Net à payer"]').innerText()).toMatch(/357,000/);
     // Une carte se touche : la facture s'ouvre.
-    await p.locator('table.list > tbody > tr').first().locator('[data-tel=titre]').click();
+    await p.locator('table.list > tbody > tr:not(.mois)').first().locator('[data-tel=titre]').click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/doc/f1');
     // (1.149.0) La facture émise : sa désignation se lit en entier, en texte (le champ éteint coupait ce qui dépassait).
     const lue = p.locator('table.lines-edit .ligne-lue').first();
@@ -271,8 +272,9 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     expect(Math.abs(fleche.top - bouton.top)).toBeLessThanOrEqual(6);
     expect(bulleDevis.left).toBeGreaterThan(bouton.left);
 
-    // Sous les filtres d'une liste, la bulle est à côté de la case qui la précède, pas seule sur une ligne.
-    await aller(p, '#/factures', /^Factures/);
+    // Sous les filtres d'une liste, la bulle est à côté de la case qui la précède, pas seule sur une ligne. (1.154.0 : la
+    // liste des factures range ses filtres dans sa feuille, au téléphone ; celle des devis garde les siens.)
+    await aller(p, '#/devis', /^Devis/);
     const filtre = await p.locator('#view .filters button.i').evaluate((b) => { const v = (b.previousElementSibling ?? b).getBoundingClientRect(); const r = b.getBoundingClientRect(); return { case: (v.top + v.bottom) / 2, bulle: (r.top + r.bottom) / 2 }; });
     expect(Math.abs(filtre.case - filtre.bulle)).toBeLessThanOrEqual(6);
 

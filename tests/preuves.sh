@@ -5781,7 +5781,7 @@ prouver "l'écran qui n'apprend pas qui a fait les pièces" web/public/plateform
   "    autrui = r.autrui || {};" "" \
   "$BAW"
 prouver "« Supprimer » qui pose la question sur le brouillon d'un autre" web/public/v10/app.js \
-  "      if (auteurAutre('documents', doc.id) !== null) { toast(refusAuteur(auteurAutre('documents', doc.id), doc.number || 'Ce brouillon'), true); return; }" "" \
+  "    if (auteurAutre('documents', doc.id) !== null) { toast(refusAuteur(auteurAutre('documents', doc.id), doc.number || 'Ce brouillon'), true); return; }" "" \
   "$BAW"
 
 # ── Léger sur une connexion lente (brique 118, 01/10/2026 ; docs/leger.md) ──
@@ -6960,20 +6960,17 @@ prouver "le compte limité aux pièces proposées" serveur/v10/routes.ts \
 prouver "un code demandé par pièce" web/public/plateforme/pont.js \
   "{ pieces: docs.map((x) => x.id) }" "{ pieces: [doc.id] }" \
   "$SW"
-prouver "le bouton loin du titre" web/public/v10/app.js \
-  "<span id=\"sg-a-signer\" style=\"margin-right:auto\"></span>" "<span id=\"sg-a-signer\"></span>" \
-  "$SW"
-prouver "le bouton sur la liste des devis" web/public/v10/app.js \
-  "\${!isQ && bridge.dessinerASigner && company().efacture === true ?" "\${bridge.dessinerASigner && company().efacture === true ?" \
+prouver "le bouton hors de sa tuile" web/public/v10/app.js \
+  "<div class=\"tu-corps\" id=\"sg-a-signer\">" "<div class=\"tu-corps\" id=\"sg-a-signer-x\">" \
   "$SW"
 prouver "le bouton dans une entreprise non soumise" web/public/v10/app.js \
-  "\${!isQ && bridge.dessinerASigner && company().efacture === true ?" "\${!isQ && bridge.dessinerASigner ?" \
+  "  const lfAvecTtn = () => !!bridge.etatsTtn && company().efacture === true;" "  const lfAvecTtn = () => !!bridge.etatsTtn;" \
   "$SW"
 prouver "le bouton jamais posé" web/public/v10/app.js \
-  "    if (\$('#sg-a-signer')) void bridge.dessinerASigner(" "    if (false) void bridge.dessinerASigner(" \
+  "      if (\$('#sg-a-signer')) void bridge.dessinerASigner(" "      if (false) void bridge.dessinerASigner(" \
   "$SW"
 prouver "le refus d'un commercial casse la page" web/public/plateforme/pont.js \
-  "    try { lu = await appel('GET', '/efacture/a-signer'); } catch { return; }" "    lu = await appel('GET', '/efacture/a-signer');" \
+  "    try { lu = await appel('GET', '/efacture/a-signer'); } catch (x) {" "    lu = await appel('GET', '/efacture/a-signer'); {" \
   "$SW"
 prouver "signées, la liste garde son bouton" web/public/plateforme/pont.js \
   "          apres();
@@ -7015,9 +7012,9 @@ prouver "la ligne grandit quand l'état arrive" web/public/plateforme/pont.js \
   ".ttn-etat { display: block; min-height: 1.4em; }" ".ttn-etat { display: block; }" \
   "$EW"
 prouver "un appel par ligne" web/public/plateforme/pont.js \
-  "    for (let i = 0; i < ids.length; i += 100) {
-      const lot = ids.slice(i, i + 100);" "    for (let i = 0; i < ids.length; i += 1) {
-      const lot = ids.slice(i, i + 1);" \
+  "    for (let i = 0; i < manquent.length; i += 100) {
+      const lot = manquent.slice(i, i + 100);" "    for (let i = 0; i < manquent.length; i += 1) {
+      const lot = manquent.slice(i, i + 1);" \
   "$EW"
 prouver "chaque frappe redemande les états" web/public/plateforme/pont.js \
   "if (c && Date.now() - c.le < 20_000) poserEtat(el, c.e);" "if (false) poserEtat(el, c.e);" \
@@ -7029,7 +7026,7 @@ prouver "la raison d'une pièce retenue tue" web/public/plateforme/pont.js \
   ": e.motif ? phrase(e.motif) :" ":" \
   "$EW"
 prouver "une pièce refusée sans couleur d'alerte" web/public/plateforme/pont.js \
-  "<span class=\"small \${m[1] ? 'warn-text' : 'muted'}\"" "<span class=\"small muted\"" \
+  "  const TONS_TTN = { a_signer: 'attire', retenue: 'alerte', refusee: 'alerte' };" "  const TONS_TTN = { a_signer: 'attire', retenue: 'alerte' };" \
   "$EW"
 prouver "signée depuis sa fenêtre, la liste la dit encore à signer" web/public/plateforme/pont.js \
   "      const fini = (r, deja) => {
@@ -8146,7 +8143,7 @@ prouver '« une retenue subie de août »' web/public/v10/app.js \
   'c'\''est une retenue subie ${/^[aeiou]/i.test(' 'c'\''est une retenue subie ${/^$/i.test(' \
   "$FDW"
 prouver 'le menu qui promet un PDF joint au message' web/public/v10/app.js \
-  'hint: !bridge.ajouterLien ? '\''Le PDF est joint au message'\'' :' 'hint: true ? '\''Le PDF est joint au message'\'' :' \
+  'email: !bridge.ajouterLien ? '\''Le PDF est joint au message'\'' :' 'email: true ? '\''Le PDF est joint au message'\'' :' \
   "$FDW"
 prouver '« Ouvrir » qui propose de modifier une pièce émise' web/public/v10/app.js \
   'hint: !emiseIci ? '\''Voir la pièce et la modifier'\'' :' 'hint: true ? '\''Voir la pièce et la modifier'\'' :' \
@@ -19100,10 +19097,12 @@ prouver 'les polices des pages à part jamais copiées au frontal' 'exploitation
   '' \
   'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
 prouver 'l'\''adresse de la console sans les polices des pages à part' 'exploitation/frontal.sh' \
-  '    polices
-    cat <<CADDY
+  '	redir / /console/
+CADDY
+    polices
 ' \
-  '    cat <<CADDY
+  '	redir / /console/
+CADDY
 ' \
   'le programme ne répond pas (une mise à jour) : « Maintenance en cours » sur chaque adresse, l'\''API reçoit un 503 qui le dit'
 prouver 'la page d'\''état qui cherche ses polices chez le programme' 'exploitation/veille.ts' \
@@ -20424,6 +20423,75 @@ prouver 'charte 8 : le Cabinet sans la charte' web/public/v10/cabinet/index.html
 prouver 'charte 9 : une pièce annulée dite en rouge, comme ce qui coûte' web/public/plateforme/charte.css \
   '.badge.refusé, .badge.annulée, .badge.brouillon {' '.badge.refusé, .badge.brouillon {' \
   'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu, annulée calme'
+prouver 'liste 1 : un retard de dix jours compté parmi les vieux' web/public/v10/app.js \
+  '['"'"'1 à 30 j'"'"', d => age(d) <= 30]' '['"'"'1 à 30 j'"'"', d => age(d) < 10]' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 2 : un brouillon daté avant la dernière facture, émissible tel quel' web/public/v10/app.js \
+  'if (last && d.date && last.date > d.date) return' 'if (false) return' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 3 : les brouillons noyés parmi les pièces émises' web/public/v10/app.js \
+  'const lfParDefaut = (a, b) => ((a.number ? 1 : 0) - (b.number ? 1 : 0)) || ' 'const lfParDefaut = (a, b) => ' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 4 : le retard dit sans sa couleur' web/public/v10/app.js \
+  '<small class="${j < 0 ? '"'"'rouge'"'"' : j <= 7 ? '"'"'ambre'"'"' : '"'"''"'"'}">' '<small class="${j <= 7 ? '"'"'ambre'"'"' : '"'"''"'"'}">' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 5 : un client qui a trop versé, dit « Payée » sans plus' web/public/v10/app.js \
+  'if (st === '"'"'payée'"'"' && lfReste(d) < -0.0005) return' 'if (false) return' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 6 : le trop-perçu tu' web/public/v10/app.js \
+  ': r < -0.0005 ? `<span class="trop"' ': false ? `<span class="trop"' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 7 : une tuile qui ne se défait pas' web/public/v10/app.js \
+  '      const on = s.st === st && !s.year && !s.q;
+      Object.assign(s, on ?' '      const on = false;
+      Object.assign(s, on ?' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 8 : un montant tapé qui ne trouve rien' web/public/v10/app.js \
+  '|| (parMontant && [C.money(' '|| (false && [C.money(' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 9 : la pièce trouvée par son montant, sans le dire' web/public/v10/app.js \
+  'const parMontant = s.q && /^' 'const parMontant = false && /^' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 10 : les gestes du menu en vrac' web/public/v10/app.js \
+  'const groupe = (titre, l) => (l.length ? [{ titre }, ...l] : []);' 'const groupe = (titre, l) => (l.length ? [...l] : []);' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 11 : une facture en retard sans « Relancer » dans son menu' web/public/v10/app.js \
+  '    if (st === '"'"'retard'"'"') {
+      const j = C.daysBetween(d.dueDate, C.today());' '    if (false) {
+      const j = C.daysBetween(d.dueDate, C.today());' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 12 : « Relancer » qui compte aussi ce qui n'"'"'est pas en retard' web/public/v10/app.js \
+  'const enRetard = l.filter(d => lfStatut(d) === '"'"'retard'"'"');' 'const enRetard = l;' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 13 : Échap qui garde les pièces choisies' web/public/v10/app.js \
+  'if (e.key === '"'"'Escape'"'"' && s.sel && s.sel.size) {' 'if (false) {' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 14 : Entrée qui n'"'"'ouvre pas la pièce montrée' web/public/v10/app.js \
+  'if (e.key === '"'"'Enter'"'"' && tr) {' 'if (false) {' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 15 : le menu d'"'"'une facture qui ne la nomme pas' web/public/v10/app.js \
+  'return [d.number || '"'"'Brouillon'"'"', d.clientId ? clientName(d.clientId) : '"'"''"'"'].filter(Boolean).join('"'"' · '"'"');' 'return '"'"''"'"';' \
+  'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
+prouver 'liste 16 : la tuile et la liste demandent chacune les mêmes états' web/public/plateforme/pont.js \
+  ' && !etatsEnVol.has(id);' ';' \
+  'chaque facture émise dit où en est son fichier El Fatoora, en un appel pour la page, sans rien pousser'
+prouver 'copie de dev 1 : un serveur aux vraies données qui sert la copie de dev' exploitation/frontal.sh \
+  'if [ -n "$ESSAI" ] && grep -q '"'"'^SKANFACT_DEV_ADRESSE='"'"' "$REGLAGES"; then' 'if grep -q '"'"'^SKANFACT_DEV_ADRESSE='"'"' "$REGLAGES"; then' \
+  'un serveur aux vraies données ne sert jamais de copie de dev ; une adresse illisible n'"'"'écrit rien'
+prouver 'copie de dev 2 : dev.<domaine> qui mène au programme de main' exploitation/frontal.sh \
+  '		reverse_proxy 127.0.0.1:8082' '		reverse_proxy 127.0.0.1:8080' \
+  'sur un serveur d'"'"'essai : dev.<domaine>, son programme sur 8082 et l'"'"'état de son suiveur ; app ne change pas'
+prouver 'copie de dev 3 : la tâche posée sans l'"'"'enregistrement DNS' exploitation/taches/0014-copie-de-dev.sh \
+  'if [ -z "$LA" ] || [ "$LA" != "$ICI" ]; then' 'if false; then' \
+  'l'"'"'enregistrement DNS mène à cette machine : la tâche irait plus loin ; sinon elle dit pourquoi, sans rien écrire'
+prouver 'copie de dev 4 : la copie de dev posée sur un serveur aux vraies données' exploitation/taches/0014-copie-de-dev.sh \
+  'grep -qx '"'"'SKANFACT_ENVIRONNEMENT=test'"'"' "$REGLAGES" \
+  || { echo "Serveur aux vraies données' 'true \
+  || { echo "Serveur aux vraies données' \
+  'un serveur aux vraies données, ou qui n'"'"'est pas app.<domaine>, n'"'"'est pas touché'
+prouver 'copie de dev 5 : le suiveur de dev qui bloque celui de main' exploitation/suivre.sh \
+  '"/run/$(basename "$MAISON")-suivre.verrou"' '/run/skanfact-suivre.verrou' \
+  'sa maison et son verrou : celui de main ne change pas, celui de dev est à part'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

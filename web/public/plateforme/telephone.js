@@ -72,7 +72,7 @@
           poser(td, 'data-tel', vide ? 'vide' : nomme ? 'titre' : '');
           poser(td, 'data-label', nomme ? '' : titre);
           // (1.143.0) Le client ou le fournisseur se lit juste sous les montants : « Type : Facture » passait avant lui (UX 3).
-          poser(td, 'data-tel-tiers', !nomme && !vide && /^(client|fournisseur|tiers)$/i.test(titre) ? 'oui' : '');
+          poser(td, 'data-tel-tiers', !nomme && !vide && /^(client|fournisseur|tiers)( et objet)?$/i.test(titre) ? 'oui' : '');
         }
       }
     }
