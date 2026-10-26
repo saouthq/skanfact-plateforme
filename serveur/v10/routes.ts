@@ -28,6 +28,7 @@ import { routesBoutique } from './boutique.ts';
 import { poserCompte, renvoyer } from './envoi.ts';
 import { demanderPaiement, verifierPaiement } from './paiement.ts';
 import { demanderSignature, signerAvecLeCode } from './signature.ts';
+import { routesPresence } from './presence.ts';
 
 // Une clé v10 : l'identifiant qu'elle a donné à l'objet, ou le nom d'un champ du dossier.
 const cle = z.string().min(1).max(200);
@@ -40,6 +41,7 @@ const changement = z.object({ collection, cle, rang: z.number().int().min(0).nul
 export function routesV10(ctx: Contexte): Route<never>[] {
   const routes: Route<never>[] = [];
   const ajouter = <C>(r: Route<C>) => { routes.push(r as unknown as Route<never>); };
+  routes.push(...routesPresence());
 
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/dossier-v10', geste: 'socle.dossier.voir',

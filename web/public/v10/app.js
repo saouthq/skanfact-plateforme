@@ -5162,6 +5162,7 @@
           ${doc.recurringId && !charte ? `<div class="small muted">Générée par un contrat récurrent — <a href="#/contrat/${h(doc.recurringId)}">voir le contrat</a></div>` : ''}
         </div>
         <div class="actions">
+          <span class="presence" id="ed-presence" hidden></span>
           ${figee ? '' : `<button type="button" class="btn ico" id="ed-annuler" title="Annuler la dernière modification (Ctrl Z)" aria-label="Annuler la dernière modification" disabled>${lfIc('defaire', 17)}</button>`}
           <button class="btn" id="ed-grand" title="La pièce en grand, telle que le client la recevra (${TOUCHES_APERCU})">${lfIc('oeil', 16)}Aperçu</button>
           ${avecPlus ? '<button class="btn tel-seul" id="wa-tel" title="Envoyer par WhatsApp">WhatsApp</button>' : ''}
@@ -5640,7 +5641,7 @@
     }
     const enregTimer = setInterval(() => { if (!document.contains(head)) clearInterval(enregTimer); else majEnreg(); }, 30000);
     function touch() {
-      if (!figee) { noterModif(); programmerGarde(); }
+      if (!figee) { noterModif(); programmerGarde(); const neuf = Date.now() - presenceEcrit > 60_000; presenceEcrit = Date.now(); if (neuf && presenceSuivi) void presenceSuivi.tic(); }
       if (dirty || figee) return;
       dirty = true;
       const el = $('#dirty-dot'); if (el) el.hidden = false;
@@ -7525,7 +7526,7 @@
       a.push({ icon: 'texte', label: 'Raccourcis clavier', hint: 'tout se fait sans souris', run: () => ouvrirRaccourcis() });
       if (isQ && $('#more-list')) {
         // Le devis garde ses autres gestes (transformer, envoyer…), tels que sa liste les propose.
-        $$('#more-list > button, #more-list .ml-ligne > button').filter(b => !['dup', 'as-template', 'del', 'serials'].includes(b.id)).forEach(b => a.push({ icon: b.id === 'email' ? 'email' : b.id === 'wa' ? 'message' : b.dataset.conv ? 'facture' : 'ouvrir', label: b.textContent.trim().replace(/…$/, '…'), run: () => b.click() }));
+        $$('#more-list > button:not(.i), #more-list .ml-ligne > button:not(.i)').filter(b => !['dup', 'as-template', 'del', 'serials'].includes(b.id) && b.textContent.trim().length > 1 && !b.hidden).forEach(b => a.push({ icon: b.id === 'email' ? 'email' : b.id === 'wa' ? 'message' : b.dataset.conv ? 'facture' : 'ouvrir', label: b.textContent.trim().replace(/…$/, '…'), run: () => b.click() }));
       }
       if (emise && isInv && !annulee) {
         a.push({ titre: 'Corriger' });
@@ -7647,6 +7648,8 @@
         head.oninput({ target: champ });
       };
       if ($('#ed-grand')) $('#ed-grand').onclick = () => apercuPleinEcran();
+      // Qui d'autre a cette pièce ouverte (maquette « Karim l'ouvre aussi », Skander le 26/10/2026).
+      if (bridge.presence && doc.id) suivrePresence(doc.id, () => !figee && Date.now() - presenceEcrit < 60_000, figee);
       // ── (1.155.0) Les étiquettes de la pièce : chacune dit sa valeur, son clic ouvre la bulle qui la change ─────────
       const base = company().currency;
       const mettre = (nom, valeur) => {
@@ -11646,6 +11649,50 @@
     const p = SETTINGS_PANNEAUX[id] || { titre: id, mots: '' };
     return `<div class="panel${p.classe ? ' ' + p.classe : ''}" id="${id}" data-mots="${h(p.mots)}"><h2>${h(p.titre)}${extra ? ' ' + extra : ''}</h2>`;
   };
+
+  // ---------- la présence sur une pièce ----------
+  // (Skander, 26/10/2026 : « oui je la veux ») Toutes les 20 s tant qu'une pièce est ouverte, l'écran dit au serveur
+  // laquelle et si l'on y écrit (une modification dans la minute) ; la pastille de l'en-tête dit qui d'autre y est.
+  // Ce que le serveur en garde : rien en base, 45 s en mémoire. On quitte la pièce : il l'oublie aussitôt.
+  let presenceEcrit = 0, presenceSuivi = null;
+  function arreterPresence() {
+    if (!presenceSuivi) return;
+    clearInterval(presenceSuivi.timer);
+    const piece = presenceSuivi.piece;
+    presenceSuivi = null;
+    if (bridge.presence) void bridge.presence(piece, false, true);
+  }
+  function suivrePresence(piece, ecrit, lecture) {
+    if (presenceSuivi && presenceSuivi.piece === piece) { Object.assign(presenceSuivi, { ecrit, lecture }); void presenceSuivi.tic(); return; }
+    arreterPresence();
+    const s = { piece, ecrit, lecture, timer: 0, autres: [] };
+    const prenom = n => String(n || 'Quelqu\'un').trim().split(/\s+/)[0];
+    s.dessiner = () => {
+      const el = $('#ed-presence'); if (!el) return;
+      const a = s.autres[0];
+      el.hidden = !a; if (!a) return;
+      const n = s.autres.length - 1, ecriventAussi = s.autres.some(x => x.ecrit);
+      const qui = n ? `${prenom(a.nom)} et ${n === 1 ? 'une autre personne' : n + ' autres'}` : prenom(a.nom);
+      const verbe = ecriventAussi ? (n ? 'écrivent aussi' : 'écrit aussi') : (n ? 'regardent aussi' : 'regarde aussi');
+      const suite = s.lecture ? 'lecture' : ecriventAussi ? 'en même temps que toi' : 'personne d\'autre n\'écrit';
+      const min = Math.max(0, Math.round((Date.now() - Date.parse(a.depuis)) / 60_000));
+      el.title = `${a.nom || 'Quelqu\'un'} a ouvert cette pièce ${min < 1 ? 'à l\'instant' : `il y a ${min} minute${min > 1 ? 's' : ''}`}${n ? ` ; ${s.autres.slice(1).map(x => x.nom).join(', ')} aussi` : ''}.`;
+      el.classList.toggle('ecrit', ecriventAussi);
+      el.innerHTML = `<span class="pres-av" aria-hidden="true">${h(prenom(a.nom).slice(0, 1).toUpperCase())}</span>${h(qui)} ${verbe} · <b>${suite}</b>`;
+    };
+    s.tic = async () => {
+      if (document.hidden) return;
+      const autres = await bridge.presence(piece, !!s.ecrit(), false);
+      if (presenceSuivi !== s || !autres) return;
+      s.autres = autres;
+      s.dessiner();
+    };
+    s.timer = setInterval(() => { void s.tic(); }, 20_000);
+    presenceSuivi = s;
+    void s.tic();
+  }
+  window.addEventListener('hashchange', () => { if (presenceSuivi && !location.hash.startsWith('#/doc/' + presenceSuivi.piece)) arreterPresence(); });
+  window.addEventListener('pagehide', () => arreterPresence());
 
   // ---------- palette de recherche (Cmd/Ctrl+K) ----------
   //

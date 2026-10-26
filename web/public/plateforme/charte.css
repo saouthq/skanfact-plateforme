@@ -101,10 +101,16 @@ body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var
 .page-head h1 { font-size: 26px; font-weight: 700; letter-spacing: -.025em; line-height: 1.2; color: var(--sb-encre); }
 .page-head h1 .badge { vertical-align: middle; margin-inline-start: 6px; }
 .page-head .sous, .page-head .page-sub { margin: 2px 0 0; font-size: 13.5px; color: var(--sb-gris); }
-/* (1.155.0, maquette de la barre) L'affichage compact : la page à 90 %, des rangées plus serrées ; la barre garde sa
-   taille (elle se lit d'un coup d'œil). Jamais au téléphone ni à la caisse : l'écran y est déjà à la mesure du doigt. */
+/* (1.155.0, maquette de la barre) L'affichage compact : la page à 90 %, des rangées plus serrées ; la barre et ses
+   menus aussi (1.155.5). Jamais au téléphone ni à la caisse : l'écran y est déjà à la mesure du doigt. */
 @media (min-width: 761px) {
   html.compact body:not(.mode-caisse) #view { zoom: .9; }
+  /* (Skander, 26/10/2026) La barre et ses menus aussi, à 90 % : la barre se réduit dans la page ; ses menus, posés
+     sur la page par leur coin, se réduisent depuis ce coin (le haut, ou le bas pour ceux qui s'ouvrent vers le haut). */
+  html.compact body:not(.mode-caisse) aside.sidebar.barre { zoom: .9; }
+  html.compact body:not(.mode-caisse) .sb:not(.sb-voile):not(.sb-onglets):not(.sb-bulle) { transform: scale(.9); transform-origin: top left; }
+  html.compact body:not(.mode-caisse) .sb[style*="bottom"]:not(.sb-voile) { transform-origin: bottom left; }
+  html.compact body:not(.mode-caisse) .sb-voile > * { zoom: .9; }
   html.compact body:not(.mode-caisse) #view table.list td, html.compact body:not(.mode-caisse) #view table.list th { padding-block: 7px; }
 }
 /* Les gestes d'une ligne de pièce (maquette facture, « Gestes de la ligne ») : 250 px, libellés en 400, raccourcis en
@@ -117,3 +123,11 @@ body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var
 .row-menu.ligne-menu .rm-note { font-size: 10.5px; font-weight: 600; color: var(--sb-gris); padding: 0 5px; border-radius: 4px; border: 1px solid color-mix(in srgb, currentColor 30%, transparent); opacity: .85; }
 .row-menu.ligne-menu button.danger .rm-note { color: var(--sb-rouge-texte); }
 .row-menu.ligne-menu button, .row-menu.ligne-menu button:has(.rm-fin) { grid-template-columns: 16px 1fr auto; }
+/* Le menu de tous les gestes d'une pièce : serré, pour tenir sur un écran d'ordinateur portable (Skander, 26/10/2026). */
+.row-menu { scrollbar-width: thin; overscroll-behavior: contain; }
+:is(.row-menu.gestes-menu, .row-menu:has(.rm-titre)) button { padding: 5px 9px; }
+:is(.row-menu.gestes-menu, .row-menu:has(.rm-titre)) .rm-l { font-size: 13px; }
+:is(.row-menu.gestes-menu, .row-menu:has(.rm-titre)) .rm-h { font-size: 11.5px; line-height: 1.3; }
+:is(.row-menu.gestes-menu, .row-menu:has(.rm-titre)) .rm-titre { padding-top: 5px; }
+.row-menu .rm-tete { position: sticky; top: -6px; z-index: 1; background: var(--sb-papier); margin-top: -6px; padding-top: 12px; }
+.row-menu .rm-tete { position: sticky; top: -6px; z-index: 1; background: var(--sb-papier); margin-top: -6px; padding-top: 12px; }

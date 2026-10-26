@@ -925,3 +925,14 @@
 /* La pièce émise (lecture) : ses champs sont éteints et collés à droite ; le chiffre lisible prend leur place exacte. */
 .editor.lecture #lines td:has(> .num-vue:not(:empty)) > input:disabled { color: transparent; -webkit-text-fill-color: transparent; }
 .editor.lecture #lines td > .num-vue { padding: 0; color: var(--sb-encre); font-weight: inherit; }
+
+/* Qui d'autre a la pièce ouverte (maquette « Karim l'ouvre aussi ») */
+.ed-tete .presence { display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 11px 0 4px; border-radius: 99px; background: color-mix(in srgb, #6d7cf2 12%, var(--sb-papier)); color: #3d4bb8; font-size: 12.5px; white-space: nowrap; }
+.ed-tete .presence[hidden] { display: none; }
+.ed-tete .presence b { font-weight: 600; }
+.ed-tete .presence .pres-av { width: 24px; height: 24px; border-radius: 99px; display: grid; place-items: center; background: #6d7cf2; color: #fff; font-size: 11px; font-weight: 700; }
+.ed-tete .presence.ecrit { background: color-mix(in srgb, var(--sb-ambre, #d97706) 14%, var(--sb-papier)); color: var(--sb-ambre-texte, #92400e); }
+.ed-tete .presence.ecrit .pres-av { background: var(--sb-ambre, #d97706); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ed-tete .presence:not(.ecrit) { color: #b9c2ff; } }
+:root[data-theme="dark"] .ed-tete .presence:not(.ecrit) { color: #b9c2ff; }
+@media (max-width: 760px) { .ed-tete .presence { display: none; } }

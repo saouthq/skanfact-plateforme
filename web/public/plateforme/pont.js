@@ -1055,6 +1055,11 @@
     // Le support de SkanFact (Support S1 ; plateforme/support.js ; serveur/support) : écrire une demande, ce qui attend
     // (la pastille de l'Aide et le bandeau), et la page de ses demandes. Ce qui part avec une demande, compté et décidé :
     // le sujet, le texte, la version de l'application et le NOM de la page où était la personne ; rien de son dossier.
+    // La présence sur une pièce (Skander, 26/10/2026) : pendant qu'une pièce est ouverte, l'écran dit son identifiant et
+    // si l'on y écrit ; le serveur rend les autres personnes de l'entreprise sur la même pièce (gardé en mémoire 45 s).
+    presence: LECTURE ? null : async (/** @type {string} */ piece, /** @type {boolean} */ ecrit, /** @type {boolean} */ quitte) => {
+      try { return (/** @type {any} */ (await appel('GET', `/presence?piece=${encodeURIComponent(piece)}${ecrit ? '&ecrit=1' : ''}${quitte ? '&quitte=1' : ''}`))).autres || []; } catch { return null; }
+    },
     support: LECTURE ? null : {
       attente: () => appel('GET', '/support/attente'),
       ecrire: (/** @type {{ sujet: string, texte: string, version: string | null, page: string | null }} */ c) =>

@@ -197,7 +197,17 @@
     if (couche) m.style.zIndex = String((Number(getComputedStyle(couche).zIndex) || 400) + 1);
     // On mesure APRÈS avoir posé le menu : sa hauteur dépend de ce qu'il contient, et une ligne du
     // bas de l'écran doit le voir s'ouvrir vers le haut plutôt que hors de la fenêtre.
-    const pos = placerMenu(bouton.getBoundingClientRect(), m.offsetHeight, m.offsetWidth, window.innerWidth, window.innerHeight);
+    const rb = bouton.getBoundingClientRect(), vh = window.innerHeight;
+    const pos = placerMenu(rb, m.offsetHeight, m.offsetWidth, window.innerWidth, vh);
+    // Un menu plus haut que la place qu'il trouve (les gestes d'un devis, sur un écran bas) se pose du côté qui a le plus
+    // de place et y DÉFILE : rien ne passe sous le bord de la fenêtre, hors de portée, et il ne recouvre jamais le bouton
+    // qui l'a ouvert (Skander, 26/10/2026).
+    if (pos.top + m.offsetHeight > vh - 8 || (pos.top < rb.top && pos.top + m.offsetHeight > rb.top - 6)) {
+      const dessous = vh - 8 - (rb.bottom + 6), dessus = rb.top - 6 - 8;
+      m.style.overflowY = 'auto';
+      m.style.maxHeight = Math.max(160, Math.max(dessous, dessus)) + 'px';
+      pos.top = dessous >= dessus ? rb.bottom + 6 : Math.max(8, rb.top - 6 - m.offsetHeight);
+    }
     m.style.top = pos.top + 'px';
     m.style.left = pos.left + 'px';
     bouton.setAttribute('aria-expanded', 'true');
