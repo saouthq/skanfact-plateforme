@@ -118,13 +118,21 @@
     return (m && m[1]) || (e && e.code) || '';
   };
 
+  // (plateforme) 1.153.0 — le toast de la charte (docs/maquettes/charte.html), le même qu'à l'entreprise : en bas, sombre,
+  // une coche (ou un signe d'alerte pour un refus) et sa barre de temps ; le temps de lire, 6 à 8 secondes.
+  const TOAST_IC = {
+    ok: '<svg class="toast-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>',
+    ko: '<svg class="toast-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>',
+    annuler: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
+  };
   let toastTimer = null;
   function toast(msg, kind) {
     const t = $('#toast');
-    t.textContent = msg;
+    const duree = Math.min(8000, Math.max(6000, String(msg).length * 60));
+    t.innerHTML = `${kind === 'error' ? TOAST_IC.ko : TOAST_IC.ok}<span class="toast-txt">${esc(msg)}</span><span class="temps" style="--toast-duree:${duree}ms"></span>`;
     t.className = 'show' + (kind === 'error' ? ' error' : '');
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { t.className = ''; }, kind === 'error' ? 5200 : 2800);
+    toastTimer = setTimeout(() => { t.className = ''; }, duree);
   }
 
   // Ce qui se RÉPARE laisse un « Annuler » sous la main (règle 7.12.0). L'app entreprise l'a depuis
@@ -139,13 +147,18 @@
     t.textContent = '';
     const txt = document.createElement('span');
     txt.textContent = msg;
+    txt.className = 'toast-txt';
     const b = document.createElement('button');
-    b.type = 'button'; b.className = 'toast-undo'; b.textContent = 'Annuler';
+    b.type = 'button'; b.className = 'toast-undo'; b.innerHTML = `${TOAST_IC.annuler} Annuler`;
     b.onclick = () => { clearTimeout(toastTimer); t.className = ''; annuler(); };
-    t.append(txt, b);
+    const temps = document.createElement('span');
+    temps.className = 'temps'; temps.style.setProperty('--toast-duree', '6000ms');
+    t.insertAdjacentHTML('afterbegin', TOAST_IC.ok);
+    t.append(txt, b, temps);
     t.className = 'show avec-bouton';
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { t.className = ''; t.textContent = ''; }, 8000);
+    // 6 secondes, la barre de temps sous les yeux (la charte, 1.153.0 ; 8 s avant).
+    toastTimer = setTimeout(() => { t.className = ''; t.textContent = ''; }, 6000);
   }
 
   // Un « ✓ enregistré » posé À CÔTÉ du bouton, plutôt qu'un message passager au bas de l'écran qui

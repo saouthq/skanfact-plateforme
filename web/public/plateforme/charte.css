@@ -1,0 +1,103 @@
+/* La charte des maquettes (docs/maquettes/charte.html, lot 2 de docs/maquettes-appliquees.md, 26/10/2026).
+   « Une seule façon de faire » : les statuts, les boutons, le bouton principal et sa phrase, le menu ⋯, le toast, les
+   bandeaux et l'en-tête d'une page, les mêmes à l'entreprise et au Cabinet. Mesures et couleurs recopiées de la
+   maquette en ligne ; les jetons sont ceux de la barre (plateforme/barre.css, `--sb-*`, clair et sombre). Chargée après
+   style.css et barre.css par les deux applications : elle remplace leur dessin, pas leurs gestes. */
+
+body {
+  --ch-bleu-doux: color-mix(in srgb, #4d7cf2 16%, var(--sb-papier)); --ch-bleu-texte: #3559c7;
+  --ch-bleu-bandeau: color-mix(in srgb, #4d7cf2 9%, var(--sb-papier)); --ch-bleu-trait: color-mix(in srgb, #4d7cf2 22%, transparent);
+}
+body.dark { --ch-bleu-doux: color-mix(in srgb, #4d7cf2 24%, var(--sb-papier)); --ch-bleu-texte: #9db7ff; --ch-bleu-bandeau: color-mix(in srgb, #4d7cf2 14%, var(--sb-papier)); }
+
+/* ── Les statuts : cinq couleurs, chacune un sens ──
+   Bleu : la pièce est chez l'autre, on l'attend (émise, envoyée, à payer). Vert : c'est fini, et c'est bien (payée,
+   acceptée). Ambre : un geste t'attend, sans urgence d'argent (payée en partie, expiré). Rouge : ça coûte maintenant
+   (en retard). Gris : calme, rien à faire ou plus rien à faire (brouillon, annulée, refusé). */
+.badge { display: inline-block; font-size: 12px; font-weight: 600; line-height: 1.45; padding: 3px 9px; border-radius: 99px; background: var(--sb-survol); color: var(--sb-gris); white-space: nowrap; letter-spacing: 0; }
+.badge.envoyé, .badge.envoyée, .badge.émis, .badge.b-due { background: var(--ch-bleu-doux); color: var(--ch-bleu-texte); }
+.badge.accepté, .badge.payée, .badge.b-paid { background: var(--sb-doux); color: var(--sb-doux-texte); }
+.badge.partielle, .badge.b-part, .badge.expiré { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+.badge.retard, .badge.b-late { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+.badge.refusé, .badge.annulée, .badge.brouillon { background: var(--sb-survol); color: var(--sb-gris); }
+
+/* ── Les boutons ──
+   Blancs à bordure fine au repos ; le principal, sarcelle, est le seul plein. 36 px de haut, 13,5 px, gras. */
+.btn { font-family: var(--sb-police); font-size: 13.5px; font-weight: 600; min-height: 36px; padding: 7px 14px; border-radius: 10px;
+  border: 1px solid var(--sb-trait); background: var(--sb-papier); color: var(--sb-encre); line-height: 1.3; justify-content: center; }
+.btn:hover { background: var(--sb-papier); border-color: var(--sb-trait-fort); }
+.btn-primary { background: var(--sb-sarcelle); border-color: transparent; color: #fff; box-shadow: 0 1px 2px rgba(12, 135, 123, .3); }
+.btn-primary:hover { background: var(--sb-sarcelle-f); border-color: transparent; }
+body.dark .btn-primary, body.dark .btn-primary:hover { color: #fff; }
+.btn-danger, .btn-danger:hover { background: var(--sb-papier); color: var(--sb-rouge-texte); border-color: var(--sb-trait); }
+.btn-danger:hover { border-color: color-mix(in srgb, var(--sb-rouge) 45%, var(--sb-trait)); }
+.btn-ghost { background: transparent; border-color: var(--sb-trait); }
+.btn-ghost:hover { background: var(--sb-survol); }
+.btn-sm { min-height: 28px; padding: 4px 10px; font-size: 12.5px; border-radius: 8px; }
+.btn kbd { font-family: var(--sb-police); font-size: 10.5px; font-weight: 600; padding: 0 5px; margin: 0; border-radius: 4px; background: none;
+  border: 1px solid color-mix(in srgb, currentColor 30%, transparent); opacity: .85; }
+/* Au doigt (téléphone, tablette tactile), un bouton garde ses 44 px (telephone.css) : la charte ne le rapetisse pas. */
+@media (max-width: 760px), (pointer: coarse) { .btn, .btn-sm { min-height: 44px; } }
+/* La phrase sous le bouton principal : ce qui se passe quand on clique. */
+.av-geste { font-size: 12px; color: var(--sb-gris-2); margin: 4px 0 0; line-height: 1.4; }
+
+/* ── Le menu ⋯ : le même partout ──
+   Un titre (la pièce), puis des groupes nommés ; chaque geste dit ce qu'il fait en une petite phrase. */
+.row-menu { border: 0; border-radius: 14px; box-shadow: var(--sb-ombre-pop); padding: 6px; min-width: 240px; max-width: 320px; background: var(--sb-papier); gap: 0; }
+.row-menu .rm-tete { font-size: 12px; font-weight: 600; color: var(--sb-gris-2); padding: 6px 9px 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row-menu .rm-titre { font-size: 11px; font-weight: 600; color: var(--sb-gris-2); padding: 6px 9px 2px; text-transform: uppercase; letter-spacing: .05em; }
+.row-menu hr { border-top-color: var(--sb-trait); margin: 4px 0; width: 100%; }
+.row-menu button { grid-template-columns: 16px 1fr; gap: 0 10px; padding: 7px 9px; border-radius: 8px; color: var(--sb-encre); }
+.row-menu button:hover, .row-menu button:focus-visible { background: var(--sb-survol); }
+.row-menu .rm-i { width: 16px; height: 16px; margin-top: 2px; color: var(--sb-gris-2); }
+.row-menu button:hover .rm-i, .row-menu button:focus-visible .rm-i { color: var(--sb-gris-2); }
+.row-menu .rm-l { font-size: 13.5px; font-weight: 600; }
+.row-menu .rm-h { font-size: 12px; color: var(--sb-gris-2); line-height: 1.35; }
+.row-menu button.danger .rm-l, .row-menu button.danger .rm-i { color: var(--sb-rouge-texte); }
+.row-menu button.attire .rm-h { color: var(--sb-ambre-texte); font-weight: 600; }
+
+/* ── Le toast : en bas, sombre, avec sa barre de temps ──
+   « Annuler » seulement quand le geste se défait. La barre dit combien de temps il reste pour le faire. */
+#toast { background: var(--sb-encre); color: var(--sb-papier); font-family: var(--sb-police); font-size: 13.5px; font-weight: 500; padding: 10px 16px; border-radius: 12px;
+  box-shadow: 0 14px 34px -10px rgba(0, 0, 0, .45); overflow: hidden; display: flex; align-items: center; gap: 10px; max-width: min(560px, calc(100vw - 32px)); }
+#toast.error { background: var(--sb-rouge-texte); color: #fff; }
+#toast.avec-bouton { gap: 14px; padding-inline-end: 10px; }
+#toast .toast-ic { flex: none; width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+#toast .toast-txt { min-width: 0; }
+.toast-undo, body.dark .toast-undo { border: 0; border-radius: 8px; padding: 6px 11px; background: color-mix(in srgb, var(--sb-papier) 16%, transparent); color: var(--sb-papier);
+  font: inherit; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; gap: 6px; align-items: center; flex: none; }
+.toast-undo:hover, body.dark .toast-undo:hover { background: color-mix(in srgb, var(--sb-papier) 26%, transparent); }
+.toast-undo svg { width: 15px; height: 15px; stroke: currentColor; fill: none; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+#toast .temps { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: var(--sb-sarcelle); transform-origin: left; animation: ch-temps-toast var(--toast-duree, 6s) linear forwards; }
+#toast.error .temps { background: rgba(255, 255, 255, .55); }
+@keyframes ch-temps-toast { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+@media (prefers-reduced-motion: reduce) { #toast .temps { animation: none; } }
+
+/* ── Les bandeaux : en haut de la page ──
+   Rouge : ça bloque. Ambre : un geste attend (le bandeau par défaut). Bleu : à savoir. Gris : rien à faire. Le titre
+   (en gras) dit le fait, la phrase dit quoi faire, le bouton le fait. Une icône à gauche, de la couleur du ton. */
+.banner { gap: 12px; padding: 12px 14px; border-radius: 12px; font-size: 13.5px; font-weight: 400; line-height: 1.45; color: var(--sb-encre);
+  background: var(--sb-ambre-doux); border: 1px solid color-mix(in srgb, var(--sb-ambre) 30%, transparent); --ban-ton: var(--sb-ambre-texte); }
+.banner strong, .banner b { font-weight: 700; color: var(--sb-encre); }
+.banner.info { background: var(--ch-bleu-bandeau); border-color: var(--ch-bleu-trait); color: var(--sb-encre); --ban-ton: var(--ch-bleu-texte); }
+.banner.danger { background: var(--sb-rouge-doux); border-color: color-mix(in srgb, var(--sb-rouge) 28%, transparent); color: var(--sb-encre); --ban-ton: var(--sb-rouge-texte); }
+.banner.gris { background: var(--sb-survol); border-color: transparent; --ban-ton: var(--sb-gris); }
+.banner:not(.demo-banner):not(:has(> svg, > .db-ico, > .ban-ic))::before { content: ""; flex: none; width: 18px; height: 18px; background: var(--ban-ton);
+  -webkit-mask: var(--ban-ico) center / contain no-repeat; mask: var(--ban-ico) center / contain no-repeat;
+  --ban-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 8v4.5M12 16h.01'/%3E%3C/svg%3E"); }
+.banner.info:not(.demo-banner)::before { --ban-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5M12 8h.01'/%3E%3C/svg%3E"); }
+.banner.danger:not(.demo-banner)::before { --ban-ico: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z'/%3E%3Cpath d='M12 9v4M12 17h.01'/%3E%3C/svg%3E"); }
+/* L'icône ajoute un élément : le texte part à gauche, juste après elle, et le premier bouton se range au bout (avant, un
+   `space-between` entre le texte et le bouton suffisait ; avec l'icône, il poussait un texte seul au bout de la ligne). */
+.banner { justify-content: flex-start; }
+.banner.warn { background: var(--sb-ambre-doux); }
+.banner > span:not(.db-ico):not(.lock-go):first-of-type { flex: 1 1 auto; min-width: 0; }
+.banner > button:first-of-type, .banner > a.btn:first-of-type, .banner > .lock-go { margin-inline-start: auto; }
+.banner .btn:not(.btn-primary):not(.btn-danger), body.dark .banner .btn:not(.btn-primary):not(.btn-danger),
+body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var(--sb-papier); color: var(--sb-encre); border-color: var(--sb-trait); }
+
+/* ── L'en-tête d'une page ──
+   Le titre à 26 px, gras, à côté de son statut ; une phrase dessous pour une liste. */
+.page-head h1 { font-size: 26px; font-weight: 700; letter-spacing: -.025em; line-height: 1.2; color: var(--sb-encre); }
+.page-head h1 .badge { vertical-align: middle; margin-inline-start: 6px; }
+.page-head .sous, .page-head .page-sub { margin: 2px 0 0; font-size: 13.5px; color: var(--sb-gris); }

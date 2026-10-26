@@ -18197,8 +18197,8 @@ prouver 'la liste d'"'"'un choix coupée par une petite fenêtre' 'web/public/v1
   '' \
   '« Partir d'"'"'une pièce existante » ne propose pas un ticket, et sa liste s'"'"'ouvre en entier dans la fenêtre'
 prouver 'le refus de deux phrases qui disparaît avant sa lecture' 'web/public/v10/app.js' \
-  "setTimeout(() => t.className = '', Math.min(8000, Math.max(4000, String(msg).length * 60)));" \
-  "setTimeout(() => t.className = '', 2600);" \
+  "    const duree = Math.min(8000, Math.max(6000, String(msg).length * 60));" \
+  "    const duree = 2600;" \
   'un avoir négatif ne s'"'"'émet pas : le refus vient avant la fenêtre d'"'"'émission'
 
 # ── La recette alpha, suite (1.82.0 ; docs/recette.md) ──
@@ -20246,12 +20246,12 @@ prouver 'ux3 144 : « Ne plus me proposer de visites » du Cabinet qui n'"'"'ét
 prouver 'ux3 145 : « Enregistrer le brouillon » relégué derrière l'"'"'aperçu au téléphone' web/public/plateforme/telephone.css \
   '  .page-head .actions:has(> #save:not(.btn-primary)) > * { order: 2; }' '' \
   'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
-prouver 'ux3 146 : une facture de vente en retard dite en orange, un achat en retard en rouge' web/public/v10/style.css \
-  '.badge.retard { background: var(--danger-soft); color: var(--danger); }' '.badge.retard { background: var(--warning-soft); color: var(--warning); }' \
-  'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu'
+prouver 'ux3 146 : une facture de vente en retard dite en orange, un achat en retard en rouge' web/public/plateforme/charte.css \
+  '.badge.retard, .badge.b-late { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }' '.badge.retard { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); } .badge.b-late { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }' \
+  'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu, annulée calme'
 prouver 'ux3 146 : une échéance passée du Cabinet dite en orange' web/public/v10/cabinet/cabinet.css \
-  '.dc-echeance.retard > span:first-child { color: var(--danger); }' '.dc-echeance.retard > span:first-child { color: var(--warning); }' \
-  'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu'
+  '.dc-echeance.retard > span:first-child { color: var(--sb-rouge-texte, var(--danger)); }' '.dc-echeance.retard > span:first-child { color: var(--warning); }' \
+  'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu, annulée calme'
 prouver 'ux3 147 : « 0 en retard » sous « Reste à encaisser »' web/public/v10/app.js \
   "\${late.length ? \`\${late.length} en retard\` : 'aucune en retard'}" "\${late.length} en retard" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'"'"'À faire et les chiffres d'"'"'abord, puis ce qui reste'
@@ -20264,9 +20264,9 @@ prouver 'ux3 148 : les filtres du téléphone, une rangée chacun' web/public/pl
 prouver 'ux3 149 : la désignation d'"'"'une pièce émise coupée au téléphone' web/public/plateforme/telephone.css \
   '  td:has(> .ligne-lue) > input[data-k="label"] { display: none; }' '' \
   'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'"'"'ordinateur, un tableau'
-prouver 'ux3 150 : l'"'"'explication d'"'"'une pièce émise en gras bleu' web/public/v10/style.css \
-  '.lock-banner .tel-detail { font-weight: 400; color: var(--text-soft, var(--muted)); }' '' \
-  'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu'
+prouver 'ux3 150 : l'"'"'explication d'"'"'une pièce émise en gras bleu' web/public/plateforme/charte.css \
+  'font-size: 13.5px; font-weight: 400; line-height: 1.45; color: var(--sb-encre);' 'font-size: 13.5px; font-weight: 600; line-height: 1.45; color: var(--sb-encre);' \
+  'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu, annulée calme'
 # ── La barre de la maquette « Barre v3 » (1.151.0 ; drawNav, plateforme/barre.js et barre.css ; tests/web/barre.test.ts) ──
 prouver 'barre 1 : une page épinglée a un second lien dans son volet' web/public/v10/app.js \
   '      if (dedans) return `<div class="ligne"><button' '      if (false) return `<div class="ligne"><button' \
@@ -20396,6 +20396,34 @@ prouver 'barre cabinet 13 : qui n'"'"'est pas du cabinet lit sa boîte' serveur/
 prouver 'barre cabinet 14 : au téléphone, le Cabinet a l'"'"'accueil de l'"'"'entreprise' web/public/plateforme/barre.js \
   'auCabinet() ? onglet(accueil()) :' 'false ? onglet(accueil()) :' \
   'au téléphone : Priorités, Messages'
+prouver 'charte 1 : le menu ⋯ sans le titre de ce qu'"'"'il touche' web/public/v10/rowmenu.js \
+  '    m.innerHTML = (o.titre ? `<div class="rm-tete" role="presentation">${h(o.titre)}</div>` : '"'"''"'"') + actions.map(entree).join('"'"''"'"');' '    m.innerHTML = actions.map(entree).join('"'"''"'"');' \
+  'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
+prouver 'charte 2 : le menu d'"'"'une pièce qui ne la nomme pas' web/public/v10/app.js \
+  '      return [d.number || (C.TITLES[d.type] || '"'"'Pièce'"'"') + '"'"' · Brouillon'"'"', d.clientId ? clientName(d.clientId) : '"'"''"'"'].filter(Boolean).join('"'"' · '"'"');' '      return '"'"''"'"';' \
+  'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
+prouver 'charte 3 : « Annuler » encore 8 secondes, sa barre trompeuse' web/public/v10/app.js \
+  '<span class="temps" style="--toast-duree:6000ms"></span>`;' '<span class="temps" style="--toast-duree:8000ms"></span>`;' \
+  'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
+prouver 'charte 4 : le toast qui n'"'"'est pas sombre' web/public/plateforme/charte.css \
+  '#toast { background: var(--sb-encre); color: var(--sb-papier);' '#toast { background: var(--sb-gris-2); color: var(--sb-papier);' \
+  'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
+prouver 'charte 5 : un bandeau sans l'"'"'icône de son ton' web/public/plateforme/charte.css \
+  '::before { content: ""; flex: none; width: 18px; height: 18px;' '::before { content: none; flex: none; width: 18px; height: 18px;' \
+  'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
+prouver 'charte 6 : le texte d'"'"'un bandeau poussé au bout de la ligne' web/public/plateforme/charte.css \
+  '.banner { justify-content: flex-start; }' '.banner { }' \
+  'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
+prouver 'charte 7 : un bouton ordinaire gris plein' web/public/plateforme/charte.css \
+  'border: 1px solid var(--sb-trait); background: var(--sb-papier); color: var(--sb-encre); line-height: 1.3;' 'border: 1px solid transparent; background: var(--ink-soft); color: var(--sb-encre); line-height: 1.3;' \
+  'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
+prouver 'charte 8 : le Cabinet sans la charte' web/public/v10/cabinet/index.html \
+  '  <link rel="stylesheet" href="../../plateforme/charte.css">
+' '' \
+  'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
+prouver 'charte 9 : une pièce annulée dite en rouge, comme ce qui coûte' web/public/plateforme/charte.css \
+  '.badge.refusé, .badge.annulée, .badge.brouillon {' '.badge.refusé, .badge.brouillon {' \
+  'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu, annulée calme'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

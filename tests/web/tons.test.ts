@@ -2,7 +2,9 @@
 // pages (l'entreprise et le Cabinet chargent les mêmes feuilles) :
 //   - alerte (rouge) : ce qui est en retard — une facture de vente, un achat, une échéance du Cabinet ;
 //   - attire (orange) : ce qui est commencé et pas fini — une facture ou un achat payé en partie ;
-//   - calme (bleu) : ce qui attend son heure — une pièce émise, un achat à payer.
+//   - bleu : ce qui attend son heure chez l'autre — une pièce émise, un achat à payer ;
+//   - calme (gris, la charte des maquettes, 1.153.0) : rien à faire, ou plus rien — un brouillon, une pièce annulée
+//     (annulée était rouge depuis la 1.146.0 : la charte la range avec ce qui est fini, pas avec ce qui coûte).
 // Le même état se dit d'une seule couleur, d'un écran à l'autre.
 
 import fs from 'node:fs';
@@ -55,9 +57,10 @@ describe('les tons d\'un état, un seul par état', () => {
     venteEmise: '<span class="badge émis" data-ton>émis</span>',
     achatDu: '<span class="badge b-due" data-ton>à payer</span>',
     annulee: '<span class="badge annulée" data-ton>annulée</span>',
+    brouillon: '<span class="badge brouillon" data-ton>brouillon</span>',
   };
 
-  it('à l\'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu', async () => {
+  it('à l\'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu, annulée calme', async () => {
     const email = `rim-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Rim Gharbi', motDePasse: 'Un-bon-mot-de-passe' });
     const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).jeton);
@@ -72,10 +75,11 @@ describe('les tons d\'un état, un seul par état', () => {
     expect(new URL(p.url()).pathname).toBe('/v10/');
     const e = await tons(p, PASTILLES);
     expect(e.venteRetard).toBe(e.achatRetard);
-    expect(e.venteRetard).toBe(e.annulee);
+    expect(e.annulee).toBe(e.brouillon);
+    expect(e.annulee).not.toBe(e.venteRetard);
     expect(e.ventePartielle).toBe(e.achatPartiel);
     expect(e.venteEmise).toBe(e.achatDu);
-    expect(new Set([e.venteRetard, e.ventePartielle, e.venteEmise]).size).toBe(3);
+    expect(new Set([e.venteRetard, e.ventePartielle, e.venteEmise, e.brouillon]).size).toBe(4);
     // (1.150.0) Un fait calme (la pièce est émise) : le constat en gras, l'explication en texte courant.
     const poids = await p.evaluate(() => {
       const d = document.createElement('div');

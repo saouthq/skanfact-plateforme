@@ -950,12 +950,21 @@
   window.addEventListener('resize', closeInfoPop);
 
   // ---------- UI helpers ----------
+  // (plateforme) 1.153.0 — le toast de la charte (docs/maquettes/charte.html) : en bas, sombre, une coche (ou un signe
+  // d'alerte pour un refus), et sa barre de temps qui dit combien il reste à lire.
+  const TOAST_IC = {
+    ok: '<svg class="toast-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.2 4.2L19 7"/></svg>',
+    ko: '<svg class="toast-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v4.5M12 16h.01"/></svg>',
+    annuler: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg>',
+  };
   function toast(msg, isError) {
     const t = $('#toast');
-    t.textContent = msg; t.className = 'show' + (isError ? ' error' : '');
     // (plateforme) 1.81.0 — 2,6 s pour tout message : un refus de deux phrases disparaissait avant la fin de sa lecture.
-    // Le temps de le lire (environ 60 ms par caractère), jamais moins de 4 s ni plus de 8 s.
-    clearTimeout(t._timer); t._timer = setTimeout(() => t.className = '', Math.min(8000, Math.max(4000, String(msg).length * 60)));
+    // Le temps de le lire (environ 60 ms par caractère), jamais moins de 6 s (la charte, 1.153.0) ni plus de 8 s.
+    const duree = Math.min(8000, Math.max(6000, String(msg).length * 60));
+    t.innerHTML = `${isError ? TOAST_IC.ko : TOAST_IC.ok}<span class="toast-txt">${h(msg)}</span><span class="temps" style="--toast-duree:${duree}ms"></span>`;
+    t.className = 'show' + (isError ? ' error' : '');
+    clearTimeout(t._timer); t._timer = setTimeout(() => t.className = '', duree);
   }
 
   // Le droit à l'erreur (7.12.0).
@@ -967,17 +976,17 @@
   // retire la mention existe, mais sur un AUTRE panneau, et seulement si on retrouve le bon
   // trimestre — donc, vu d'ici, l'action était sans retour.
   //
-  // Le bandeau dure trois fois plus longtemps qu'un message ordinaire : comprendre qu'on vient de se
-  // tromper prend quelques secondes. Et il rétablit les clics (`#toast` est en `pointer-events: none`
+  // Le bandeau dure 6 secondes, sa barre de temps sous les yeux (la charte, 1.153.0 ; 8 s avant) : comprendre qu'on vient
+  // de se tromper prend quelques secondes. Et il rétablit les clics (`#toast` est en `pointer-events: none`
   // le reste du temps, sans quoi le bouton serait parfaitement visible et parfaitement inerte).
   function toastUndo(msg, undo) {
     const t = $('#toast');
     const fermer = () => { clearTimeout(t._timer); t.className = ''; t.textContent = ''; };
-    t.innerHTML = `<span>${h(msg)}</span><button class="toast-undo" id="toast-undo">Annuler</button>`;
+    t.innerHTML = `${TOAST_IC.ok}<span class="toast-txt">${h(msg)}</span><button type="button" class="toast-undo" id="toast-undo">${TOAST_IC.annuler} Annuler</button><span class="temps" style="--toast-duree:6000ms"></span>`;
     t.className = 'show avec-bouton';
     $('#toast-undo').onclick = () => { fermer(); undo(); };
     clearTimeout(t._timer);
-    t._timer = setTimeout(fermer, 8000);
+    t._timer = setTimeout(fermer, 6000);
   }
 
   // Fenêtre modale. Échap ferme, Entrée valide le bouton principal (sauf dans un textarea).
@@ -3991,6 +4000,10 @@
           { icon: 'oui', label: 'Le client a accepté', hint: 'Et facturer dans la foulée, si tu veux', run: () => repondreAccepte(id) },
           { icon: 'non', label: 'Le client a refusé', hint: 'Le devis ne compte plus parmi ceux qui attendent', run: () => repondreRefuse(id) });
       return a;
+    }, id => {
+      // (1.153.0, la charte) Le titre du menu : la pièce qu'on touche, son numéro et son client.
+      const d = docById(id); if (!d) return '';
+      return [d.number || (C.TITLES[d.type] || 'Pièce') + ' · Brouillon', d.clientId ? clientName(d.clientId) : ''].filter(Boolean).join(' · ');
     });
     if (redraw) bindSort(document, redraw);
     if (redraw && state) bindPager(document, state, () => redraw(), anchor);

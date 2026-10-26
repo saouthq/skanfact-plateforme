@@ -102,3 +102,29 @@ d'arrivée et ses réglages), avec ce qui est au Cabinet seul : `drawNav` et les
   mois, elle valide ses écritures ;
 - dans un onglet du navigateur, Ctrl + chiffre peut rester au navigateur (ses onglets) : Alt + chiffre fait la même
   chose ; dans l'application installée, Ctrl + chiffre marche.
+
+## Lot 2 : les composants de la charte (1.153.0)
+
+La charte (`docs/maquettes/charte.html`, la même que la maquette en ligne) dit « une seule façon de faire ». Elle vit dans
+`web/public/plateforme/charte.css`, chargée après `style.css` par les deux applications (l'entreprise et le Cabinet) : elle
+change le dessin des composants, pas leurs gestes. Tests : `tests/web/charte.test.ts`, `tests/web/tons.test.ts` ; preuves
+« charte 1 » à « charte 9 ».
+
+| Ce qui se voit | Comment |
+|---|---|
+| Les statuts | Cinq couleurs, chacune un sens : bleu, la pièce est chez l'autre (émise, envoyée, à payer) ; vert, c'est fini et c'est bien (payée, accepté) ; ambre, un geste t'attend (payée en partie, expiré) ; rouge, ça coûte maintenant (en retard) ; gris, rien à faire (brouillon, annulée, refusé). En pilule de 12 px |
+| Les boutons | Blancs à bordure fine au repos, 36 px, 13,5 px gras ; le principal, sarcelle, est le seul plein. `.av-geste` : la phrase sous le bouton principal |
+| Le menu ⋯ | Le même partout (`rowmenu.js`) : un titre en haut qui nomme ce qu'on touche (`opts.titre` ; « DEV-2026-007 · Hôtel du Lac » sur les pièces), des groupes nommés en petites capitales, chaque geste avec sa phrase |
+| Le toast | En bas, sombre (clair en thème sombre), une coche ou un signe d'alerte, une barre de temps ; 6 secondes au moins (le temps de lire, jusqu'à 8). « Annuler » seulement quand le geste se défait, 6 secondes (8 avant) |
+| Les bandeaux | Ambre (un geste attend, par défaut), bleu (`info`, à savoir), rouge (`danger`, ça bloque), gris (`gris`, rien à faire). L'icône du ton à gauche ; le titre en gras dit le fait ; le texte part juste après l'icône, le premier bouton se range au bout |
+| L'en-tête d'une page | Le titre à 26 px, gras, son statut à côté ; une phrase dessous (`.sous`) |
+
+**Ce qui change de règle** : une pièce **annulée** (et un devis refusé) se dit en gris calme, comme un brouillon : elle était
+rouge depuis la 1.146.0. La charte réserve le rouge à ce qui coûte maintenant (en retard, refusée par El Fatoora).
+
+**Ce qui vient avec les lots suivants** (la charte le demande, l'écran qui le porte le fera) : le chemin « Accueil ›
+Factures › FAC-… » et l'ordre des gestes de l'en-tête (↶, Aperçu, PDF, ⋯) avec la facture et le devis ; les groupes du
+menu d'une pièce (Envoyer · Légal · Suite · La pièce · Corriger) et le bouton ⋯ des lignes avec la liste des factures ; la
+phrase sous chaque bouton principal avec chaque pièce ; « Payée en partie » au lieu de « partiellement payée » avec la
+liste (le libellé sert aussi aux exports).
+

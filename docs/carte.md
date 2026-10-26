@@ -895,7 +895,9 @@ vaut pour tout le dépôt.*
   Cabinet : la même coquille (`barre.js` lit `app: 'cabinet'` dans `__barreInfos`), `drawNav` du Cabinet
   (`v10/cabinet/app.js` : « Mon cabinet », le dossier ouvert et son changement, les pages Priorités et Pièces reçues),
   `plateforme/barre-cabinet.css` ; les pièces reçues au serveur (0175 : `messagerie.classer_piece`, `GET
-  /cabinets/:cabinet/pieces`).
+  /cabinets/:cabinet/pieces`). Lot 2 (1.153.0), la charte : `plateforme/charte.css` (statuts, boutons, menu ⋯, toast,
+  bandeaux, en-tête), chargée après `style.css` par les deux applications ; le menu prend un titre (`rowmenu.js`,
+  `opts.titre`) ; le toast sa barre de temps (`toast`, `toastUndo` des deux `app.js`).
 - **La mise en ligne** (briques 142-143, `docs/mise-en-ligne.md`, 05/10/2026) : le serveur d'essai est un VPS OVH en
   France (données inventées seulement), à `app.skanfact.tn`. **Personne ne s'y connecte** : il suit `main` tout seul
   (`exploitation/suivre.ts`, toutes les deux minutes) et installe la plus récente version que GitHub a vérifiée en

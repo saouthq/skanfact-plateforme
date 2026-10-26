@@ -100,7 +100,8 @@
   // dessins, le journal s'ouvrait avec ou sans ses actions — sans une erreur nulle part. Une racine
   // qui a posé sa table le dit (`data-menus`) ; celle du dessus passe son chemin sur ses boutons.
   // C'est la troisième fois que deux tables se mangent (9.4.8, 10.2.0) : la règle vit ici, une fois.
-  function brancherMenus(racine, actionsDe) {
+  // `titreDe(id)` (facultatif, 1.153.0) : le titre du menu de cette ligne (voir `ouvrir`).
+  function brancherMenus(racine, actionsDe, titreDe) {
     const r = racine || document;
     if (r.setAttribute) r.setAttribute('data-menus', '');
     $$('[data-rowmenu]', r).forEach(b => {
@@ -128,7 +129,7 @@
         b.onclick = e => { e.stopPropagation(); a.run(); };
         return;
       }
-      b.onclick = e => { e.stopPropagation(); ouvrir(b, actions); };
+      b.onclick = e => { e.stopPropagation(); ouvrir(b, actions, titreDe ? { titre: titreDe(b.dataset.rowmenu) || '' } : undefined); };
     });
   }
 
@@ -163,6 +164,8 @@
 
   // `opts.classe` : une classe de plus sur le menu (`guide-menu` : plus large, et il défile quand la
   // liste dépasse l'écran). `opts.label` : ce que lit un lecteur d'écran en entrant dans le menu.
+  // `opts.titre` (1.153.0, la charte) : la ligne grise du haut qui nomme ce qu'on touche (« FAC-2026-028 · Clinique
+  // Les Jasmins ») ; elle sert aussi de nom au menu quand `label` manque.
   function ouvrir(bouton, actions, opts) {
     const o = opts || {};
     // Un second clic sur le MÊME bouton REFERME. Sans ce test, le garde-fou `mousedown` global
@@ -175,10 +178,10 @@
     const m = document.createElement('div');
     m.className = 'row-menu' + (o.classe ? ' ' + o.classe : '');
     m.setAttribute('role', 'menu');
-    if (o.label) m.setAttribute('aria-label', o.label);
+    if (o.label || o.titre) m.setAttribute('aria-label', o.label || o.titre);
     // `cle` (facultatif) nomme l'action pour qui doit la DÉSIGNER sans lire son libellé — une visite
     // guidée qui dit « Clique sur « Relancer par email » » éclaire CETTE entrée, pas la troisième du menu.
-    m.innerHTML = actions.map(entree).join('');
+    m.innerHTML = (o.titre ? `<div class="rm-tete" role="presentation">${h(o.titre)}</div>` : '') + actions.map(entree).join('');
     document.body.appendChild(m);
     // Un menu ouvert DANS une fenêtre passe au-dessus d'elle (10.14.1, S-04) : à sa couche 70, il
     // naissait SOUS la fenêtre (400 et plus) — ouvert, invisible, et le clic suivant tombait dessus.
