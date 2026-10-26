@@ -168,7 +168,9 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await nadia.waitForURL(/#\/doc\/(?!new)/, { timeout: 10_000 });
     await expect.poll(() => titre(nadia)).toMatch(/^Devis DEV-\d{4}-001/);
     await nadia.waitForTimeout(300);
-    await nadia.locator('select[name=status]').selectOption('accepté');
+    // (1.155.0) Le statut se change par son étiquette, comme la maquette.
+    await nadia.locator('[data-etq=statut]').click();
+    await nadia.locator('.ed-pop [data-st="accepté"]').click();
     await nadia.locator('#save').click();
     await expect.poll(async () => (await objets()).find((o) => o.collection === 'documents' && o.contenu.type === 'devis')?.contenu.status, { timeout: 10_000 }).toBe('accepté');
     await nadia.getByRole('button', { name: 'Facturer ce devis', exact: true }).click();
@@ -185,12 +187,14 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
 
     await noter('A4');
     // 4. Signée avec le code reçu par le signataire.
-    await nadia.locator('#more-btn').click();
-    await nadia.getByRole('button', { name: 'Signer (DigiGo)…', exact: true }).click();
+    // (maquette « fenêtre d'émission ») La signature cochée « juste après l'émission » s'ouvre seule ; sinon, la frise.
     const fen = nadia.locator('#modal-root .modal').last();
-    await fen.getByRole('button', { name: 'Envoyer le code au signataire', exact: true }).click();
-    await expect.poll(async () => net(await fen.locator('#sg-etape p:not([role=alert])').innerText().catch(() => '')), { timeout: 10_000 })
-      .toBe('Un code est parti sur le téléphone de Nadia Ben Salah. Tape-le ici :');
+    const envoyerCode = fen.getByRole('button', { name: 'Envoyer le code au signataire', exact: true });
+    await expect.poll(() => envoyerCode.isVisible(), { timeout: 3_000 }).toBe(true).catch(async () => { await nadia.locator('#ed-frise [data-frise="signer"]').click(); });
+    await envoyerCode.click();
+    // (maquette « Signer par DigiGo ») Les trois temps : le code est parti chez le signataire, on le tape, la pièce part.
+    await expect.poll(async () => net(await fen.locator('#sg-etape .sg-etapes li.fait b').innerText().catch(() => '')), { timeout: 10_000 })
+      .toBe('Code envoyé à Nadia Ben Salah');
     await fen.getByLabel('Code reçu par le signataire').fill(String(digigo.codeDe('09876543')));
     await fen.getByRole('button', { name: 'Signer', exact: true }).click();
     await expect.poll(async () => net(await fen.locator('#sg-fait').innerText()), { timeout: 10_000 }).toMatch(/^La pièce FAC-\d{4}-001 est signée par Nadia Ben Salah/);
@@ -211,7 +215,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await nadia.locator('#more-btn').click();
     await nadia.getByRole('menuitem', { name: /^Lien pour le client/ }).or(nadia.getByRole('button', { name: 'Lien pour le client…', exact: true })).first().click();
     const lc = nadia.locator('#modal-root .modal').last();
-    await lc.getByRole('button', { name: 'Créer le lien de cette pièce', exact: true }).click();
+    await lc.getByRole('button', { name: 'Créer le lien', exact: true }).click();
     const lien = await lc.locator('#lc-adresse').inputValue();
     expect(lien).toMatch(/\/espace\/#[A-Za-z0-9_-]{32}$/);
     // Le lien copié, Nadia ferme la fenêtre.

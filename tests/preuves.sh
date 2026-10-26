@@ -3942,10 +3942,10 @@ prouver "retirer un lien qui ne le retire pas" serveur/ventes/routes.ts \
   "update ventes.lien set revoque_le = \$3, revoque_par = socle.moi()" "update ventes.lien set vu_le = \$3, revoque_par = revoque_par" \
   "$EC1"
 prouver "la fenêtre qui sème un lien à chaque ouverture" web/public/plateforme/pont.js \
-  "      \$r('#lc-compte').onclick = () => { void creer(true); };
-" "      \$r('#lc-compte').onclick = () => { void creer(true); };
-      void creer(false);
-" \
+  "      \$r('#lc-creer').onclick = () => { void creer(); };
+      void liste();" "      \$r('#lc-creer').onclick = () => { void creer(); };
+      void creer();
+      void liste();" \
   "$EC3"
 prouver "« Vu le … » jamais dit à l'entreprise" web/public/plateforme/pont.js \
   ": l.vuLe ? " ": false ? " \

@@ -951,3 +951,35 @@
 .editor.charte .ed-recu ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
 .editor.charte .ed-recu li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--sb-gris); line-height: 1.45; }
 .editor.charte .ed-recu li svg { flex: none; margin-top: 2px; color: var(--sb-sarcelle); }
+
+/* (1.155.9) « Lien pour le client » dans la charte : deux cartes pour choisir, le lien prêt dans la sienne, les liens
+   déjà donnés avec leur état en pastille. */
+.modal:has(.lc) { width: 600px; }
+.lc h2 { margin-bottom: 6px; }
+.lc .lc-sous { margin: 0 0 16px; font-size: 13.5px; color: var(--sb-gris); line-height: 1.5; }
+.lc .lc-choix { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.lc .lc-carte { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--sb-trait); background: var(--sb-papier); color: var(--sb-encre); text-align: left; cursor: pointer; font: inherit; }
+.lc .lc-carte b { font-size: 14px; font-weight: 600; }
+.lc .lc-carte span { font-size: 12.5px; color: var(--sb-gris-2); }
+.lc .lc-carte:hover { border-color: color-mix(in srgb, var(--sb-sarcelle) 40%, var(--sb-trait)); }
+.lc .lc-carte.on { border-color: var(--sb-sarcelle); background: var(--sb-doux); box-shadow: 0 0 0 1px var(--sb-sarcelle) inset; }
+.lc .lc-carte.on span { color: var(--sb-doux-texte); }
+.lc .lc-lien { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+.lc .lc-note { font-size: 12.5px; color: var(--sb-gris-2); }
+.lc .lc-pret { width: 100%; padding: 12px 14px; border-radius: 12px; background: var(--sb-papier-2); display: grid; gap: 8px; }
+.lc .lc-l-titre { font-size: 12.5px; font-weight: 600; color: var(--sb-gris); }
+.lc .lc-champ { display: flex; gap: 8px; }
+.lc .lc-champ input { flex: 1; min-width: 0; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12.5px; background: var(--sb-papier); }
+.lc .lc-voir { font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); text-decoration: none; justify-self: start; }
+.lc .lc-voir:hover { text-decoration: underline; }
+.lc .lc-dire { margin: 6px 0 0; font-size: 13px; color: var(--sb-rouge-texte); }
+.lc .lc-titre { margin: 18px 0 8px; font-size: 13px; font-weight: 600; color: var(--sb-gris); }
+.lc .lc-liste { display: grid; gap: 6px; }
+.lc .lc-l { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--sb-trait); }
+.lc .lc-l.retire { opacity: .65; }
+.lc .lc-l-t { flex: 1; min-width: 0; display: grid; }
+.lc .lc-l-t b { font-size: 13.5px; font-weight: 600; }
+.lc .lc-l-t small { font-size: 12px; color: var(--sb-gris-2); }
+.lc .lc-vide { margin: 0; font-size: 13px; color: var(--sb-gris-2); }
+@media (max-width: 560px) { .lc .lc-choix { grid-template-columns: 1fr; } .lc .lc-l { flex-wrap: wrap; } }
+.lc .lc-dire.conseil { color: var(--sb-gris); }

@@ -100,13 +100,13 @@ describe('l\'espace client, à la souris', () => {
     await nadia.getByRole('menuitem', { name: /^Lien pour le client/ }).or(nadia.getByRole('button', { name: 'Lien pour le client…', exact: true })).first().click();
     const fenetre = nadia.locator('#modal-root .modal').last();
     // Ouvrir la fenêtre ne crée rien : il faut le demander.
-    await expect.poll(() => fenetre.locator('#lc-liste').innerText()).toBe('Aucun.');
-    await fenetre.getByRole('button', { name: 'Créer le lien de cette pièce', exact: true }).click();
+    await expect.poll(() => fenetre.locator('#lc-liste').innerText()).toBe('Aucun lien donné pour l\'instant.');
+    await fenetre.getByRole('button', { name: 'Créer le lien', exact: true }).click();
     const adresse = fenetre.locator('#lc-adresse');
     await adresse.waitFor({ timeout: 15_000 });
     const lienPiece = await adresse.inputValue();
     expect(lienPiece).toMatch(new RegExp(`^${serveur.adresse.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}/espace/#[A-Za-z0-9_-]{32}$`));
-    await expect.poll(() => fenetre.locator('#lc-liste').innerText()).toMatch(/Cette pièce, donné le \d\d\/\d\d\/\d{4} à \d+ h \d\d par Nadia\s*Pas encore ouvert/);
+    await expect.poll(() => fenetre.locator('#lc-liste').innerText()).toMatch(/FAC-\d{4}-001\s*donné le \d\d\/\d\d\/\d{4} à \d+ h \d\d par Nadia\s*pas encore ouvert/);
     await nadia.screenshot({ path: path.join(PHOTOS, 'espace-1-lien.png') });
     // Ce que la v10 de Nadia imprime, avec TOUTE sa fiche (le même gabarit) : le texte de référence.
     const imprime = await nadia.evaluate(() => {
@@ -136,7 +136,7 @@ describe('l\'espace client, à la souris', () => {
     expect(await client.locator('#efacture').count()).toBe(0);
     // « Imprimer ou enregistrer en PDF » : la pièce mise en page comme la v10 la met pour son PDF, et
     // l'impression demandée (le navigateur ne la refuse pas).
-    await client.getByRole('button', { name: 'Imprimer ou enregistrer en PDF', exact: true }).click();
+    await client.getByRole('button', { name: 'Enregistrer en PDF', exact: true }).click();
     await expect.poll(() => client.evaluate(() => (document.querySelector('iframe.impression') as HTMLIFrameElement | null)?.contentDocument?.querySelectorAll('.page').length ?? 0), { timeout: 10_000 }).toBe(1);
     await client.waitForTimeout(500);
 
@@ -145,24 +145,28 @@ describe('l\'espace client, à la souris', () => {
     await nadia.locator('#more-btn').click();
     await nadia.getByRole('menuitem', { name: /^Lien pour le client/ }).or(nadia.getByRole('button', { name: 'Lien pour le client…', exact: true })).first().click();
     await expect.poll(() => nadia.locator('#modal-root .modal').last().locator('#lc-liste').innerText(), { timeout: 15_000 })
-      .toMatch(/^Cette pièce, donné le .* par Nadia\s*Vu le \d\d\/\d\d\/\d{4} à \d+ h \d\d\s*Retirer$/);
+      .toMatch(/^FAC-\d{4}-001\s*donné le .* par Nadia\s*vu le \d\d\/\d\d\/\d{4} à \d+ h \d\d\s*Retirer$/);
     await nadia.screenshot({ path: path.join(PHOTOS, 'espace-3-vu.png') });
 
     // Le lien de son compte : ce qu'il doit, et ses pièces.
     const f2 = nadia.locator('#modal-root .modal').last();
-    await f2.getByRole('button', { name: 'Plutôt le lien de son compte (toutes ses pièces, et ce qu\'il doit)', exact: true }).click();
+    await f2.getByRole('radio', { name: /^Tout son compte/ }).click();
+    await f2.getByRole('button', { name: 'Créer le lien', exact: true }).click();
     await expect.poll(() => f2.locator('#lc-lien').innerText()).toContain('Le lien de son compte');
     const lienCompte = await f2.locator('#lc-adresse').inputValue();
     expect(lienCompte).not.toBe(lienPiece);
     await client.goto(lienCompte);
     await client.reload();
-    await expect.poll(() => client.locator('.carte.du').innerText(), { timeout: 15_000 }).toMatch(/^Tu dois\s+337,095\sDT$/);
+    await expect.poll(() => client.locator('.carte.du').innerText(), { timeout: 15_000 }).toMatch(/^Tu dois\s+337,095\sDT\s+1 facture à payer/);
     // Chaque pièce, la plus récente d'abord ; ce que la facture a déjà reçu se lit sous elle.
-    expect(net(await client.locator('table.pieces tbody').innerText())).toBe(net(`Avoir AVO-2026-001 10/10/2026 — 536,095 DT — Voir
-      Facture FAC-2026-001 Payée en partie Payé : 200,000 DT · Avoirs : 536,095 DT 01/10/2026 31/10/2026 1 073,190 DT 337,095 DT Voir`));
+    // (1.155.x, l'espace dans la maquette) Numéro, date, échéance, montant, état ; la pièce ouverte le dit.
+    expect(net(await client.locator('table.pieces tbody').innerText())).toBe(net(`Avoir AVO-2026-001 10/10/2026 — 536,095 DT Voir
+      FAC-2026-001 Payé : 200,000 DT · Avoirs : 536,095 DT 01/10/2026 éch. 31/10/2026 1 073,190 DT Payée en partie Ouverte`));
     await client.screenshot({ path: path.join(PHOTOS, 'espace-4-releve.png') });
-    await client.locator('table.pieces tr').filter({ hasText: 'FAC-2026-001' }).getByRole('button', { name: 'Voir', exact: true }).click();
-    await client.getByRole('button', { name: '← Toutes tes pièces', exact: true }).waitFor({ timeout: 10_000 });
+    // Ouvrir une autre pièce : elle devient « Ouverte », et la facture redevient « Voir ».
+    await client.locator('table.pieces tr').filter({ hasText: 'AVO-2026-001' }).getByRole('button', { name: 'Voir', exact: true }).click();
+    await expect.poll(() => client.locator('table.pieces tr').filter({ hasText: 'AVO-2026-001' }).getByRole('button').innerText(), { timeout: 10_000 }).toBe('Ouverte');
+    expect(await client.locator('table.pieces tr').filter({ hasText: 'FAC-2026-001' }).getByRole('button').innerText()).toBe('Voir');
     // Sur un téléphone : rien ne déborde, et chaque chiffre dit ce qu'il est (plus de titres de colonnes).
     const tel = await navigateur.newContext({ viewport: { width: 390, height: 844 }, locale: 'fr-FR', isMobile: true, hasTouch: true });
     const t = await tel.newPage();
@@ -170,8 +174,8 @@ describe('l\'espace client, à la souris', () => {
     await t.locator('table.pieces').waitFor({ timeout: 15_000 });
     expect(await t.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
     expect(net(await t.locator('table.pieces tbody').innerText()))
-      .toBe(net(`Avoir AVO-2026-001 Date : 10/10/2026 Échéance : — Montant : 536,095 DT Reste à payer : — Voir
-        Facture FAC-2026-001 Payée en partie Payé : 200,000 DT · Avoirs : 536,095 DT Date : 01/10/2026 Échéance : 31/10/2026 Montant : 1 073,190 DT Reste à payer : 337,095 DT Voir`));
+      .toBe(net(`Avoir AVO-2026-001 Date : 10/10/2026 Échéance : — Montant : 536,095 DT Voir
+        FAC-2026-001 Payé : 200,000 DT · Avoirs : 536,095 DT Date : 01/10/2026 Échéance : 31/10/2026 Montant : 1 073,190 DT Payée en partie Ouverte`));
     await t.screenshot({ path: path.join(PHOTOS, 'espace-5-telephone.png') });
     // Ce qui est dû se lit en premier : son montant est le plus grand texte de la page, au-dessus du nom de l'entreprise
     // (1.86.0, l'espace dans la DA).
@@ -183,9 +187,11 @@ describe('l\'espace client, à la souris', () => {
     expect(tailles.du).toBeGreaterThan(tailles.autres);
 
     // « Retirer » le lien de la facture : il ne s'ouvre plus, et la page le dit.
-    const ligne = f2.locator('#lc-liste tr').filter({ hasText: 'Cette pièce' });
+    const ligne = f2.locator('#lc-liste .lc-l').filter({ hasText: /FAC-\d{4}-001/ });
+    // « Retirer » demande une seconde fois : le client qui a ce lien ne pourra plus l'ouvrir.
     await ligne.getByRole('button', { name: 'Retirer', exact: true }).click();
-    await expect.poll(() => ligne.innerText()).toMatch(/Retiré le/);
+    await ligne.getByRole('button', { name: 'Oui, le retirer', exact: true }).click();
+    await expect.poll(() => ligne.innerText()).toMatch(/retiré le/);
     await client.goto(lienPiece);
     await client.reload();
     await expect.poll(async () => net(await client.locator('.refus').innerText()), { timeout: 15_000 })
