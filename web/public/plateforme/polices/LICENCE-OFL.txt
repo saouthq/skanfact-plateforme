@@ -2,6 +2,8 @@ Les trois polices de l'entrée, servies aussi aux pages de la v10 (l'assistant d
 copies à l'identique des paquets npm @fontsource-variable/bricolage-grotesque, @fontsource-variable/instrument-sans et
 @fontsource/ibm-plex-mono (version 5.3.0 ; tests/web/assistant.test.ts vérifie qu'elles le restent).
 
+inter-latin-wght-normal.woff2, inter-latin-ext-wght-normal.woff2 : Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter)
+  (copies du paquet npm @fontsource-variable/inter 5.2.8 ; la police de l'application depuis le 26/10/2026, celle des maquettes)
 bricolage-grotesque-latin-wght-normal.woff2 : Copyright 2022 The Bricolage Grotesque Project Authors (https://github.com/ateliertriay/bricolage)
 instrument-sans-latin-wght-normal.woff2 : Copyright 2022 The Instrument Sans Project Authors (https://github.com/Instrument/instrument-sans)
 ibm-plex-mono-latin-500-normal.woff2 : Copyright 2017 IBM Corp. All rights reserved.

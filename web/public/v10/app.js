@@ -2039,30 +2039,36 @@
   // Les icônes vivaient dans index.html à côté de leur lien. Maintenant que les liens sont dessinés
   // à partir de core.PAGES, elles vivent ici : une page = un dessin, et rien à retrouver dans deux
   // fichiers quand on ajoute un module.
+  // Les dessins de la maquette « Barre v3 » (26/10/2026) : un trait de 1,8, les mêmes partout (barre, volets, téléphone).
   const ICONES = {
-    dashboard: '<path d="M3 12l9-8 9 8"/><path d="M5 10v10h14V10"/>',
-    devis: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h6"/>',
-    factures: '<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
-    relances: '<path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
-    autres: '<path d="M9 3h8l4 4v12a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 3v5h4"/><path d="M5 7v13a2 2 0 0 0 2 2h9"/>',
-    contrats: '<path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/>',
-    achats: '<path d="M6 6h15l-1.5 9h-12z"/><path d="M6 6L5 3H2"/><circle cx="9" cy="20" r="1.5"/><circle cx="18" cy="20" r="1.5"/>',
-    fournisseurs: '<path d="M3 9l2-5h14l2 5"/><path d="M4 9h16v11H4z"/><path d="M9 20v-6h6v6"/>',
-    commandesf: '<path d="M3 7h13v10H3z"/><path d="M16 10h3l2 3v4h-5"/><circle cx="7" cy="18" r="1.5"/><circle cx="17.5" cy="18" r="1.5"/>',
-    clients: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
-    catalogue: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16"/>',
-    listesprix: '<path d="M20 12l-8 8-9-9V3h8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
-    caisse: '<path d="M4 10h16l-1 10H5z"/><path d="M8 10V6h8v4"/><path d="M8 14h2M12 14h2M16 14h0M8 17h8"/>',
-    tresorerie: '<rect x="2" y="6" width="20" height="13" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="15" r="1.5"/>',
-    marges: '<path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/><path d="M3 21h18"/>',
-    paie: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c0-3.3 3-5.5 6.5-5.5s6.5 2.2 6.5 5.5"/><path d="M17 4h5v6h-5z"/><path d="M18.5 6.5h2"/>',
-    stock: '<path d="M3 8l9-4 9 4v8l-9 4-9-4z"/><path d="M3 8l9 4 9-4"/><path d="M12 12v8"/>',
+    dashboard: '<path d="M3.5 10.5 12 3.5l8.5 7V20a1 1 0 0 1-1 1h-5v-6h-5v6h-5a1 1 0 0 1-1-1z"/>',
+    caisse: '<rect x="3" y="9" width="18" height="11" rx="2"/><path d="M7 9V5h10v4M7 14h4M15 14h2"/>',
+    factures: '<path d="M6 3h9l4 4v14l-2.5-1.5L14 21l-2.5-1.5L9 21l-2.5-1.5L4 21V5a2 2 0 0 1 2-2z"/><path d="M8 9h7M8 13h7"/>',
+    devis: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 14l2 2 4-4"/>',
+    achats: '<circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2.5 3.5h3l2.4 11.5h11l2-8H6.3"/>',
+    stock: '<path d="M12 2.8 21 7.5v9L12 21.2 3 16.5v-9z"/><path d="M3.3 7.6 12 12.2l8.7-4.6M12 12.2v9"/>',
+    clients: '<circle cx="12" cy="8" r="4"/><path d="M4 21c.8-4 4-6 8-6s7.2 2 8 6"/>',
+    paie: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M7 15h3"/>',
+    relances: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a2 2 0 0 0 3.4 0"/>',
+    comptable: '<path d="M20 15a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 12.5h5"/>',
+    catalogue: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/>',
+    listesprix: '<path d="M4 7h10M4 12h16M4 17h7"/><circle cx="18" cy="7" r="2"/>',
+    autres: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h4"/>',
+    contrats: '<path d="M20 11a8 8 0 0 0-14.6-4.5M4 4v3h3M4 13a8 8 0 0 0 14.6 4.5M20 20v-3h-3"/>',
+    fournisseurs: '<path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-7h6v7"/>',
+    commandesf: '<path d="M8 4h11l-1.5 9H9.5z"/><path d="M8 4 7 2H4M9.5 13 8 17h11"/>',
+    immos: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h4"/>',
+    tresorerie: '<rect x="2.5" y="6" width="19" height="13" rx="2.5"/><path d="M16 12.5h2M2.5 10h19"/>',
+    marges: '<path d="M4 18 10 12l4 4 6-8"/><path d="M15 8h5v5"/>',
+    stats: '<path d="M4 20V14M9.5 20V8M15 20v-4M20.5 20V4"/>',
+    compta: '<path d="M5 3h11l3 3v15H5z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
     garanties: '<path d="M12 3l7 3v6c0 4.5-3 7.7-7 9-4-1.3-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>',
-    immos: '<path d="M3 21h18"/><path d="M5 21V8l7-5 7 5v13"/><path d="M10 21v-6h4v6"/>',
-    stats: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
-    compta: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h8M8 11h8M8 15h5"/>',
-    modules: '<rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><path d="M17.5 14v7M14 17.5h7"/>',
-    licences: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l2 2M14 9l2 2"/>'
+    modules: '<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="3" width="8" height="8" rx="2"/><rect x="3" y="13" width="8" height="8" rx="2"/><path d="M17 13v8M13 17h8"/>',
+    photo: '<path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13.5" r="3.5"/>',
+    depense: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18M15.5 15h2"/>',
+    article: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+    pointage: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/>',
+    licences: '<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9"/><path d="M17 6l2 2M14 9l2 2"/>',
   };
   const icone = id => `<svg viewBox="0 0 24 24">${ICONES[id] || ICONES.modules}</svg>`;
   // Le cadenas d'un module fermé par l'offre (7.33.0), à côté du titre dans la barre.
@@ -2070,7 +2076,7 @@
 
   // Les compteurs de la barre : ils vivaient en dur dans index.html (<span id="nav-relances">…).
   // Maintenant qu'on dessine, on les pose en même temps que le lien.
-  const NAV_COMPTEURS = { relances: 'nav-relances', contrats: 'nav-contrats', achats: 'nav-achats', tresorerie: 'nav-treso', paie: 'nav-paie', stock: 'nav-stock', immos: 'nav-immos', licences: 'nav-licences' };
+  const NAV_COMPTEURS = { factures: 'nav-factures', devis: 'nav-devis', caisse: 'nav-caisse', relances: 'nav-relances', contrats: 'nav-contrats', achats: 'nav-achats', tresorerie: 'nav-treso', paie: 'nav-paie', stock: 'nav-stock', immos: 'nav-immos', licences: 'nav-licences' };
   const NAV_INFO = ['contrats', 'immos'];          // compteur bleu « pour information », pas une alerte
   // (plateforme, lot messagerie) Ce qui attend dans le fil du cabinet, lu au serveur (null : pas encore lu, ou pas pour
   // ce rôle) ; et la photo d'un message en route vers un achat.
@@ -2147,17 +2153,23 @@
     // Pour le dossier ouvert on connaît la vraie société : on l'affiche plutôt que l'étiquette du
     // dossier, qui peut être restée générique sur une installation ancienne.
     const nomOuvert = d => ((data && data.company && data.company.name) || '').trim() || d.name;
-    m.innerHTML = `<div class="dm-titre">Entreprise ouverte</div>
+    // (maquette « Barre v3 ») « Tes entreprises » : la sienne cochée, les autres avec ce qui les distingue, puis ajouter
+    // une entreprise et ses réglages (la personne qui la gouverne). Se déconnecter vit dans le menu de la personne.
+    const init = n => (String(n || '').normalize('NFC').split(/[\s'’\-.]+/).filter(x => x && !['de', 'du', 'des', 'la', 'le', 'les', 'et', 'd', 'l', 'sarl', 'suarl', 'sa', 'sas'].includes(x.toLowerCase())).slice(0, 2).map(x => x[0]).join('') || 'SF').toUpperCase();
+    const COCHE = '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.5 4.5 4.5L19 7.5"/></svg>';
+    const ic = d => `<span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg></span>`;
+    const responsable = !bridge.droitsDossier || !!(bridge.droitsDossier() || {}).responsable;
+    const act = (C.ACTIVITIES || []).find(a => a.id === (company().activity || '').trim());
+    m.innerHTML = `<span class="menu-titre">Tes entreprises</span>
       ${(r.dossiers || []).filter(d => d.id === r.current).map(d => `<button type="button" class="on" data-dos="${h(d.id)}" title="${h(nomOuvert(d))}">
-        <span class="dm-mark">✓</span><span class="dm-nom">${h(nomOuvert(d))}</span>${d.shared ? '<span class="dm-tag">partagé</span>' : ''}</button>`).join('')}
-      ${autres.length ? `<div class="dm-titre">Basculer vers</div>
-        ${autres.map(d => `<button type="button" data-dos="${h(d.id)}" title="${h(d.name)}">
-          <span class="dm-mark"></span><span class="dm-nom">${h(d.name)}</span>${d.shared ? '<span class="dm-tag">partagé</span>' : ''}</button>`).join('')}` : ''}
-      <hr>
-      ${bridge.groupe && (r.dossiers || []).filter(d => !d.essai).length > 1 ? '<button type="button" id="dm-groupe" title="Les chiffres de tes sociétés, côte à côte"><span class="dm-mark">Σ</span><span class="dm-nom">Le groupe</span></button>' : ''}
-      <button type="button" id="dm-new" title="Créer un second dossier, pour une autre entreprise"><span class="dm-mark">+</span><span class="dm-nom">Nouvelle entreprise…</span></button>
-      <button type="button" id="dm-sortir" title="Fermer ta session sur cet appareil"><span class="dm-mark">⏻</span><span class="dm-nom">Se déconnecter</span></button>
-      ${(bridge.panneauxAbsents || []).includes('p-dossiers') ? '' : '<button type="button" id="dm-manage" title="Renommer, retirer de la liste, voir où vivent les fichiers"><span class="dm-mark">⚙</span><span class="dm-nom">Gérer les dossiers…</span></button>'}`;
+        <span class="marque-s">${h(init(nomOuvert(d)))}</span><span class="lib">${h(nomOuvert(d))}<small>${h(act ? act.label + ' · ouverte' : 'ouverte')}</small></span><span class="coche">${COCHE}</span></button>`).join('')}
+      ${autres.map(d => `<button type="button" data-dos="${h(d.id)}" title="${h(d.name)}">
+        <span class="marque-s autre">${h(init(d.name))}</span><span class="lib">${h(d.name)}<small>${d.essai ? 'Pour essayer sans risque' : d.shared ? 'Partagée' : 'Une autre entreprise'}</small></span></button>`).join('')}
+      <div class="trait"></div>
+      ${bridge.groupe && (r.dossiers || []).filter(d => !d.essai).length > 1 ? `<button type="button" id="dm-groupe" title="Les chiffres de tes sociétés, côte à côte">${ic('<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>')}<span class="lib">Le groupe<small>Tes sociétés, côte à côte</small></span></button>` : ''}
+      <button type="button" id="dm-new" title="Créer une autre entreprise, séparée de celle-ci">${ic('<path d="M12 5v14M5 12h14"/>')}<span class="lib">Ajouter une entreprise</span></button>
+      ${responsable ? `<button type="button" id="dm-reglages">${ic('<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9 7 7M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/>')}<span class="lib">Réglages de cette entreprise</span></button>` : ''}
+      ${(bridge.panneauxAbsents || []).includes('p-dossiers') ? '' : '<button type="button" id="dm-manage" title="Renommer, retirer de la liste, voir où vivent les fichiers"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><span class="lib">Gérer les dossiers…</span></button>'}`;
     m.hidden = false;
     bouton.setAttribute('aria-expanded', 'true');
     $$('[data-dos]', m).forEach(b => b.onclick = async () => {
@@ -2175,7 +2187,7 @@
     if ($('#dm-share', m)) $('#dm-share', m).onclick = () => { fermerDossiers(); partagerDossier(); };
     // Le geste inverse se nomme comme il s'appelle DANS CE MENU — et seulement s'il y est : un dossier
     // déjà partagé n'y propose pas « Partager cette entreprise ». Lu AVANT de fermer : fermer vide le menu.
-    $('#dm-sortir', m).onclick = () => { fermerDossiers(); bridge.deconnecter(); };
+    if ($('#dm-reglages', m)) $('#dm-reglages', m).onclick = () => { fermerDossiers(); allerParametres('societe'); };
     if ($('#dm-join', m)) $('#dm-join', m).onclick = () => {
       const partageable = !!$('#dm-share', m);
       fermerDossiers();
@@ -2311,64 +2323,209 @@
         <div class="inline mt"><button class="btn btn-primary" id="pi-accueil">Revenir à l'accueil</button></div></div>`;
     $('#pi-accueil').onclick = () => navigate('#/dashboard');
   }
+  // ---------- La barre (maquette « Barre v3 », 26/10/2026 ; docs/maquettes-appliquees.md) ----------
+  // « Au quotidien » : l'accueil, puis les pages de chaque jour — celles du MÉTIER au début (la boulangerie : caisse,
+  // factures, achats, stock ; le menuisier : devis, factures, achats, clients…), puis celles que la personne épingle ou
+  // range en glissant (gardé sur cet appareil). « Tout le reste » : une ligne par famille, qui ouvre son volet à côté
+  // (plateforme/barre.js). Le rôle retire ce qui n'est pas à lui (pageCachee) : le caissier n'a que sa caisse, le
+  // commercial la vente. Une page n'a qu'UN lien dans la barre (l'accueil d'un rôle, les lecteurs d'écran, les tests
+  // lisent la liste des liens) ; épinglée, elle n'est plus dans son volet qu'un bouton qui y mène.
+  const METIER_DE = { commerce: 'commerce', automobile: 'commerce', restauration: 'restauration', batiment: 'batiment', artisanat: 'batiment',
+    architecture: 'batiment', sante: 'sante', beaute: 'sante' };
+  const METIERS = {
+    commerce: { quotidien: ['caisse', 'factures', 'achats', 'stock'], onglets: ['caisse', 'achats'], creer: ['vente', 'facture', 'photo', 'article'] },
+    restauration: { quotidien: ['caisse', 'achats', 'stock', 'paie'], onglets: ['caisse', 'achats'], creer: ['ticket', 'photo', 'depense', 'pointage'] },
+    batiment: { quotidien: ['devis', 'factures', 'achats', 'clients'], onglets: ['devis', 'factures'], creer: ['devis', 'facture', 'photo', 'client'] },
+    services: { quotidien: ['factures', 'devis', 'clients', 'relances'], onglets: ['factures', 'clients'], creer: ['facture', 'devis', 'depense', 'client'] },
+    sante: { quotidien: ['caisse', 'clients', 'factures', 'achats'], onglets: ['caisse', 'clients'], creer: ['encaissement', 'facture', 'depense', 'client'] },
+  };
+  // Une page du métier que l'entreprise n'a pas (son module est éteint) laisse sa place à la suivante de cette liste.
+  const QUOTIDIEN_REPLI = ['factures', 'devis', 'clients', 'relances', 'achats', 'stock', 'caisse', 'paie'];
+  const metier = () => METIER_DE[(company().activity || '').trim()] || 'services';
+  const ICONE_EPINGLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 15v6"/></svg>';
+  const ICONE_PRISE = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></svg>';
+  const ICONE_CHEVRON = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
+  const ICONES_FAMILLES = {
+    Vendre: '<path d="M4 7h16l-1.5 12a2 2 0 0 1-2 1.8h-9a2 2 0 0 1-2-1.8z"/><path d="M9 7V5.5a3 3 0 0 1 6 0V7"/>',
+    Acheter: '<path d="M3 7h13v10H3zM16 10h3.5l1.5 3v4h-5"/><circle cx="7" cy="18" r="1.6"/><circle cx="17.5" cy="18" r="1.6"/>',
+    Piloter: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  };
+  // Le rôle, lu dans les droits du dossier (serveur/v10/droits.ts) : ce qu'il ouvre décide de la barre.
+  function roleBarre() {
+    const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
+    if (!d) return 'proprietaire';
+    if (d.caisse && d.cachees.includes('documents')) return 'caissier';
+    if (d.ecrivables && !d.ecrivables.length) return 'lecture';
+    if (!d.responsable && d.cachees.includes('purchases') && !d.cachees.includes('documents')) return 'commercial';
+    return d.responsable ? 'proprietaire' : 'membre';
+  }
+  window.__roleBarre = roleBarre;
+  const cleMenu = () => `${roleBarre()}-${metier()}`;
+  function navQuotidien(pages) {
+    const role = roleBarre();
+    const ids = pages.map(p => p.id);
+    const debut = role === 'commercial' ? ['devis', 'factures', 'clients', 'relances'] : role === 'caissier' ? ['caisse', 'clients'] : METIERS[metier()].quotidien;
+    let liste = debut.filter(x => ids.includes(x));
+    for (const x of QUOTIDIEN_REPLI) { if (liste.length >= Math.min(4, debut.length)) break; if (ids.includes(x) && !liste.includes(x)) liste.push(x); }
+    const epingles = prefs.get('navEpingles', {}) || {};
+    const retires = prefs.get('navRetires', {}) || {};
+    liste = liste.concat((epingles[cleMenu()] || []).filter(x => ids.includes(x) && !liste.includes(x)))
+      .filter(x => !(retires[cleMenu()] || []).includes(x));
+    const ordre = (prefs.get('navOrdre', {}) || {})[cleMenu()];
+    if (Array.isArray(ordre)) liste.sort((a, b) => (ordre.indexOf(a) + 1 || 99) - (ordre.indexOf(b) + 1 || 99));
+    return liste;
+  }
+  // Épingler (depuis un volet) ou retirer ; ranger (glisser dans « Au quotidien ») : barre.js les appelle.
+  window.__epinglerPage = (id) => {
+    const dedans = navQuotidien(C.navPages(data).filter(p => !pageCachee(p.id))).includes(id);
+    const epingles = prefs.get('navEpingles', {}) || {}; const retires = prefs.get('navRetires', {}) || {}; const k = cleMenu();
+    epingles[k] = (epingles[k] || []).filter(x => x !== id); retires[k] = (retires[k] || []).filter(x => x !== id);
+    if (dedans) retires[k].push(id); else epingles[k].push(id);
+    prefs.set('navEpingles', epingles); prefs.set('navRetires', retires);
+    redessinerBarre();
+  };
+  window.__rangerQuotidien = (ordre) => {
+    const o = prefs.get('navOrdre', {}) || {}; o[cleMenu()] = ordre.filter(x => typeof x === 'string'); prefs.set('navOrdre', o);
+    redessinerBarre();
+  };
+  // Les deux onglets du téléphone, à côté du « + » : ceux du métier, ou ceux que la personne a choisis.
+  window.__ongletsTel = () => {
+    if (!data) return [];
+    const pages = C.navPages(data).filter(p => !pageCachee(p.id)).map(p => p.id);
+    const choix = (prefs.get('navOnglets', {}) || {})[cleMenu()];
+    const role = roleBarre();
+    const debut = role === 'commercial' ? ['devis', 'clients'] : role === 'caissier' ? ['caisse', 'clients'] : METIERS[metier()].onglets;
+    const l = (Array.isArray(choix) ? choix : debut).filter(x => pages.includes(x));
+    for (const x of navQuotidien(C.navPages(data).filter(p => !pageCachee(p.id)))) { if (l.length >= 2) break; if (!l.includes(x)) l.push(x); }
+    return l.slice(0, 2);
+  };
+  window.__choisirOngletTel = (id) => {
+    const o = prefs.get('navOnglets', {}) || {}; const [a, b] = window.__ongletsTel();
+    if (id === a || id === b) return; o[cleMenu()] = [b, id].filter(Boolean); prefs.set('navOnglets', o);
+    redessinerBarre();
+  };
+  window.__candidatsOnglets = () => !data ? [] : ['caisse', 'factures', 'devis', 'achats', 'stock', 'clients', 'paie', 'relances']
+    .filter(x => C.navPages(data).some(p => p.id === x && !pageCachee(x))).map(x => ({ id: x, titre: (C.pageById(x) || {}).titre || x, icone: icone(x) }));
+  // L'icône et le nom d'une page, pour la barre du bas et le « Plus » du téléphone (barre.js).
+  window.__pageBarre = (id) => ({ id, titre: (C.pageById(id) || {}).titre || id, icone: icone(id) });
+
   function drawNav() {
     const pages = C.navPages(data).filter(p => !pageCachee(p.id));
-    // La page de l'ÉDITEUR de SkanFact : elle n'existe que sur le poste où vit la clé privée de
-    // signature. Elle n'est pas un module (elle ne se coche pas, elle ne dépend pas du dossier).
     if (licence.editeur) pages.push({ ...C.pageById('licences'), famille: 'Éditeur' });
-    // Groupé par FAMILLE, pas par module : huit intertitres coûteraient 250 px de barre, et on aurait
-    // remplacé un débordement par un autre.
-    const familles = [];
-    pages.forEach(p => {
-      const f = p.famille || '';
-      const g = familles.find(x => x.nom === f && x === familles[familles.length - 1]);
-      if (g) g.pages.push(p); else familles.push({ nom: f, pages: [p] });
-    });
-    const etat = prefs.get('navFamilles', null) || {};
-    const famActive = (pages.find(p => p.id === navActif) || {}).famille;
-    if (repliIci && repliIci.page !== navActif) repliIci = null;
-    const ouvrir = f => C.familleNavOuverte(f, etat, famActive, repliIci && repliIci.famille);
-    const lien = p => {
+    const role = roleBarre();
+    const quotidien = navQuotidien(pages);
+    const reglable = role !== 'caissier';
+    const lien = (p, dansQuotidien) => {
       const cid = NAV_COMPTEURS[p.id];
-      // « Immobilisations », « Marges », « Trésorerie » : trois mots de gestion qu'un créateur
-      // d'entreprise n'a jamais employés, et rien ne disait ce qu'il y avait derrière. La phrase
-      // existait déjà dans MODULES (`quoi`) : elle sert d'infobulle.
-      // La phrase de la PAGE d'abord, celle du module en repli : trois pages d'un même module
-      // partageaient au survol exactement la même phrase, donc l'infobulle affirmait trois fois que
-      // Trésorerie, Marges et Statistiques font la même chose.
-      const m = p.module ? C.moduleById(p.module) : null;
-      // Un module fermé par l'offre reste dans la barre — on ne masque jamais ce qui existe — mais
-      // il porte un cadenas et l'infobulle le dit, avant même le premier clic.
       const ferme = pageReservee(p);
+      const m = p.module ? C.moduleById(p.module) : null;
       const texte = p.quoi || (m && m.quoi) || '';
       const bulle = (texte + (ferme ? ' — dans l\'offre Complet : ici, tu peux lire, pas créer.' : '')).trim();
-      const quoi = bulle ? ` title="${h(bulle)}"` : '';
-      return `<a href="#/${p.id}" data-route="${p.id}"${quoi}${p.famille ? '' : ' class="solo"'}>${icone(p.id)}${h(p.titre)}${ferme ? CADENAS : ''}`
-        + (cid ? `<span class="nav-count${NAV_INFO.includes(p.id) ? ' info' : ''}" id="${cid}" hidden></span>` : '')
-        + '</a>';
+      return `<a href="#/${p.id}" data-route="${p.id}" class="lien"${dansQuotidien && reglable ? ` draggable="true" data-nom="${p.id}"` : ''} data-tip="${h(p.titre)}"${bulle ? ` title="${h(bulle)}"` : ''}>`
+        + `<span class="ic">${icone(p.id)}</span>${h(p.titre)}${ferme ? CADENAS : ''}`
+        + (cid ? `<span class="nav-count compte${NAV_INFO.includes(p.id) ? ' info' : ''}" id="${cid}" hidden></span>` : '')
+        + (dansQuotidien && reglable ? `<span class="prise" title="Glisse pour ranger">${ICONE_PRISE}</span>` : '')
+        + '<span class="point"></span></a>';
     };
-    let html = '';
-    familles.forEach(g => {
-      if (!g.nom) { html += g.pages.map(lien).join(''); return; }
-      // Une famille d'une seule entrée garde son intertitre, sans rien à replier.
-      if (g.pages.length < 2) { html += `<div class="nav-group" data-famille="${h(g.nom)}">${h(g.nom)}</div>${g.pages.map(lien).join('')}`; return; }
-      const ouverte = ouvrir(g.nom);
-      // L'infobulle d'une famille repliée nomme ce qu'elle contient : sans elle, « Piloter » ne dit
-      // pas qu'on y trouve la paie.
-      const contenu = g.pages.map(p => p.titre).join(', ');
-      html += `<div class="nav-fam${ouverte ? '' : ' repliee'}" data-famille="${h(g.nom)}">`
-        + `<button type="button" class="nav-group" data-famille="${h(g.nom)}" aria-expanded="${ouverte}" title="${h((ouverte ? 'Replier : ' : 'Ouvrir : ') + contenu)}">`
-        + `${CHEVRON_FAMILLE}<span class="ng-nom">${h(g.nom)}</span><span class="nav-count ng-count" hidden></span></button>`
-        + `<div class="nav-fam-liens"${ouverte ? '' : ' hidden'}>${g.pages.map(lien).join('')}</div></div>`;
+    const pageDe = id => pages.find(p => p.id === id);
+    const accueil = role === 'caissier' ? '' : pages.filter(p => !p.famille).map(p => lien(p, false)).join('');
+    const titreQ = role === 'caissier' ? 'Ma caisse' : 'Au quotidien';
+    let html = `<div class="nav nav-quotidien" id="nav-1"><p class="groupe-titre">${titreQ}${reglable ? '<span class="regler" title="Glisse les entrées pour les ranger ; épingle une page depuis « Tout le reste »">Ranger</span>' : ''}</p>`
+      + accueil + quotidien.map(id => lien(pageDe(id), true)).join('') + '</div>';
+    // « Tout le reste » : les familles, sauf pour le caissier (sa caisse, et rien d'autre).
+    const familles = [];
+    if (role !== 'caissier') pages.filter(p => p.famille).forEach(p => {
+      const g = familles.find(x => x.nom === p.famille);
+      if (g) g.pages.push(p); else familles.push({ nom: p.famille, pages: [p] });
     });
-    // « Tous les modules » vivait ici, en dernier : donc la première entrée à passer sous la coupe,
-    // et mesurée hors champ dès 1366×768. C'est la porte de ce qui n'est pas affiché — elle est
-    // maintenant dans le pied de la barre (index.html), qui ne défile jamais.
+    const phrase = p => { const m = p.module ? C.moduleById(p.module) : null; return p.quoi || (m && m.quoi) || ''; };
+    const ligneDuVolet = p => {
+      const dedans = quotidien.includes(p.id);
+      const epingle = `<button type="button" class="epingler" data-epingle="${p.id}" aria-pressed="${dedans}" title="${dedans ? 'Retirer de « Au quotidien »' : 'Épingler dans « Au quotidien »'}" aria-label="${h((dedans ? 'Retirer de « Au quotidien » : ' : 'Épingler dans « Au quotidien » : ') + p.titre)}">${dedans ? ICONE_COCHE : ICONE_EPINGLE}</button>`;
+      // Une page que l'offre ferme porte son cadenas dans son volet aussi (ici, on lit ; la création attend l'offre).
+      const corps = `<span class="tuile-ic">${icone(p.id)}</span><span class="pl-t"><b>${h(p.titre)}${pageReservee(p) ? ' ' + CADENAS : ''}</b><span class="d">${h(dedans ? 'Dans « Au quotidien »' : phrase(p))}</span></span>`;
+      if (dedans) return `<div class="ligne"><button type="button" class="pl-l" data-aller="${p.id}">${corps}</button>${epingle}</div>`;
+      const cid = NAV_COMPTEURS[p.id];
+      return `<div class="ligne"><a href="#/${p.id}" data-route="${p.id}" class="pl-l">${corps}${cid ? `<span class="nav-count compte" id="${cid}" hidden></span>` : ''}</a>${epingle}</div>`;
+    };
+    if (familles.length) {
+      html += '<div class="sep"></div><div class="nav nav-reste" id="nav-reste"><p class="groupe-titre">Tout le reste</p>';
+      familles.forEach(g => {
+        const cle = g.nom.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        const autres = g.pages.filter(p => !quotidien.includes(p.id));
+        const resume = (autres.length ? autres : g.pages).slice(0, 3).map((p, i) => i ? p.titre.toLowerCase() : p.titre).join(', ') + ((autres.length ? autres : g.pages).length > 3 ? '…' : '');
+        html += `<div class="nav-fam" data-famille="${h(g.nom)}">`
+          + `<button type="button" class="lien nav-volet" data-famille="${h(g.nom)}" aria-expanded="false" aria-controls="volet-${h(cle)}" data-tip="${h(g.nom + ' · ' + resume.replace('…', ''))}">`
+          + `<span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONES_FAMILLES[g.nom] || ICONES.modules}</svg></span>${h(g.nom)}<span class="nav-count compte ng-count" hidden></span><span class="chev">${ICONE_CHEVRON}</span><span class="point"></span></button>`
+          + `<div class="panneau volet" id="volet-${h(cle)}" role="dialog" aria-label="${h(g.nom)}" hidden>`
+          + `<h3>${h(g.nom)}</h3><p class="sous">${h(resume.replace('…', ''))}</p><div class="panneau-liste">${g.pages.map(ligneDuVolet).join('')}</div>`
+          + `<div class="panneau-pied"><span>${ICONE_EPINGLE} épingle une page pour l'avoir « Au quotidien »</span></div></div></div>`;
+      });
+      html += '</div>';
+    }
     const nav = $('#nav');
+    // « Mon comptable » (ou « Inviter mon comptable ») au bout des pages du jour, « Ajouter un module » au bout du reste :
+    // les nœuds de la page (index.html), gardés d'un dessin à l'autre avec leur compteur.
+    const comptable = $('#foot-comptable');
+    const modules = $('#foot-modules');
     nav.innerHTML = html;
+    const q = $('.nav-quotidien', nav);
+    if (comptable && role !== 'caissier') {
+      q.appendChild(comptable);
+      if (comptable.hidden && role === 'proprietaire') {
+        q.insertAdjacentHTML('beforeend', `<a href="#/compta" class="lien inviter" id="b-inviter-comptable" data-tip="Inviter mon comptable"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c.7-3.6 3.4-5.5 7-5.5s6.3 1.9 7 5.5M19 8v6M16 11h6"/></svg></span>Inviter mon comptable<span class="point"></span></a>`);
+        $('#b-inviter-comptable').onclick = (e) => { e.preventDefault(); comptaState.tab = 'cabinet'; comptaState.versInvitation = true; navigate('#/compta'); };
+      }
+    }
+    if (modules) { const r = $('#nav-reste', nav); if (r && role === 'proprietaire') r.appendChild(modules); else $('.sidebar-foot').appendChild(modules); modules.hidden = !(r && role === 'proprietaire'); }
     resumerFamilles();
     ajusterNav();
+    if (window.SkanBarre) window.SkanBarre.apresDessin();
   }
+  // Ce que la coquille lit et fait (plateforme/barre.js) : le métier dit sous le nom, le rôle, ce qui attend du cabinet,
+  // et les portes vers l'abonnement, le comptable, une page.
+  window.__barreInfos = () => {
+    if (!data) return { metier: '', role: 'proprietaire', responsable: true, lectureSeule: false, cabinet: null, version: '' };
+    const act = (C.ACTIVITIES || []).find(a => a.id === (company().activity || '').trim());
+    const d = bridge.droitsDossier ? bridge.droitsDossier() : null;
+    return { metier: act ? act.label : '', role: roleBarre(), responsable: !d || !!d.responsable, lectureSeule: aboBloque(true),
+      cabinet: messagerieVue || null, version: (upd.app && upd.app.version) || '' };
+  };
+  window.__allerAbonnement = () => allerAbonnement();
+  window.__inviterComptable = () => { comptaState.tab = 'cabinet'; comptaState.versInvitation = true; navigate('#/compta'); };
+  window.__naviguer = (hash) => navigate(hash);
+  // « Changer de caissier » (brique 123) depuis la barre : seulement là où il marche, le poste de la caisse.
+  window.__caissePoste = () => !!(caisseEtat && caisseEtat.posteDeCaisse);
+  window.__changerCaissier = () => changerDeCaissier();
+  // Ce que « Créer » propose (plateforme/barre.js) : les pièces du métier, que le rôle peut faire. Une entreprise en
+  // lecture seule (abonnement) ne crée rien : « Créer » porte un cadenas et dit comment rouvrir, avant le geste.
+  window.__creer = () => {
+    if (!data) return { role: roleBarre(), bloque: null, actions: [] };
+    const vues = new Set(C.navPages(data).filter(p => !pageCachee(p.id)).map(p => p.id));
+    const role = roleBarre();
+    const avecCabinet = !!(messagerieVue && messagerieVue.cabinet);
+    const met = metier();
+    const photo = () => { navigate('#/achat/new'); setTimeout(() => { const b = $('#photo'); if (b && !b.hidden) b.click(); }, 400); };
+    const A = {
+      vente: ['caisse', 'Vente au comptoir', 'Ouvre la caisse', 'V', () => navigate('#/caisse')],
+      ticket: ['caisse', 'Ticket', 'Ouvre la caisse', 'T', () => navigate('#/caisse')],
+      encaissement: ['caisse', 'Encaissement', 'Une prestation, un produit', 'E', () => navigate('#/caisse')],
+      facture: ['factures', C.estLiberal(company()) ? 'Note d\'honoraires' : 'Facture', met === 'sante' ? 'Pour un client ou une mutuelle' : 'Pour un client', 'F', () => navigate('#/doc/new/facture')],
+      devis: ['devis', 'Devis', 'Il devient facture d’un clic', 'D', () => navigate('#/doc/new/devis')],
+      photo: ['achats', 'Photo d’un achat', avecCabinet ? 'Ton comptable la saisit' : 'SkanFact la lit, tu vérifies', 'P', photo],
+      depense: ['achats', 'Dépense', met === 'restauration' ? 'Marché, gaz, réparation' : met === 'sante' ? 'Produits, matériel' : 'Logiciel, déplacement', met === 'services' ? 'E' : 'D', () => navigate('#/achat/new/-/depense')],
+      article: ['catalogue', 'Article', 'Au catalogue, avec son prix', 'A', () => catalogForm(null, () => render(), { titre: 'Nouvel article' })],
+      client: ['clients', 'Client', met === 'batiment' ? 'Nom, matricule, chantier' : 'Nom, matricule, contact', 'C', () => clientForm(null, () => render())],
+      pointage: ['paie', 'Pointage', 'Les heures du jour', 'H', vers('#/paie', () => { paieState.tab = 'pointage'; })],
+    };
+    const cles = role === 'commercial' ? ['devis', 'facture', 'client'] : role === 'caissier' ? ['vente'] : role === 'lecture' ? [] : METIERS[met].creer;
+    const actions = cles.map(k => A[k]).filter(a => vues.has(a[0]));
+    return {
+      role,
+      bloque: aboBloque(true) ? { texte: `${licence.label}. ${licence.detail || ''}`.trim(), bouton: abonnementVisible() ? 'Régler ma facture' : '', aller: () => allerAbonnement() } : null,
+      actions: actions.map(([page, titre, sous, touche, faire]) => ({ page, titre, sous, touche, faire, icone: icone(titre.startsWith('Photo') ? 'photo' : titre === 'Dépense' ? 'depense' : titre === 'Article' ? 'article' : titre === 'Pointage' ? 'pointage' : page) })),
+    };
+  };
   // Ouvrir ou replier une famille : le geste de l'utilisateur, et le seul qui replie.
   function basculerFamille(famille) {
     const bloc = $$('#nav .nav-fam').find(x => x.dataset.famille === famille);
@@ -2396,19 +2553,21 @@
   // factures fournisseurs en retard disparaîtraient avec la famille « Acheter ». Une alerte l'emporte
   // sur une information (orange avant bleu), et « ! » (un trou de trésorerie) se dit tel quel.
   function resumerFamilles() {
+    // (maquette « Barre v3 ») La ligne d'une famille porte le compte de ce qui attend dans son volet (les pages épinglées
+    // le portent dans « Au quotidien ») ; une alerte l'emporte sur une information.
     $$('#nav .nav-fam').forEach(bloc => {
       const pastille = $('.ng-count', bloc);
       if (!pastille) return;
-      const repliee = bloc.classList.contains('repliee');
-      const alertes = $$('.nav-fam-liens .nav-count:not([hidden]):not(.info)', bloc);
-      const infos = $$('.nav-fam-liens .nav-count.info:not([hidden])', bloc);
+      const alertes = $$('.volet .nav-count:not([hidden]):not(.info)', bloc);
+      const infos = $$('.volet .nav-count.info:not([hidden])', bloc);
       const somme = l => l.reduce((n, c) => n + (Number(c.textContent) || 0), 0);
       const liste = alertes.length ? alertes : infos;
       const n = somme(liste);
       const texte = n ? String(n) : (liste.length ? '!' : '');
-      pastille.hidden = !repliee || !texte;
+      pastille.hidden = !texte;
       pastille.textContent = texte;
       pastille.classList.toggle('info', !alertes.length && !!infos.length);
+      pastille.classList.toggle('attire', !!alertes.length);
     });
   }
   // Délégation : la barre est redessinée à chaque page, les boutons avec elle.
@@ -8744,12 +8903,43 @@
   }
   function updateNavCounts() {
     if (!data) return;
+    // (maquette « Barre v3 ») Un chiffre, pas une phrase : combien attend, ambre si ça attire, rouge si c'est en
+    // retard, un point vert pour la caisse ouverte. La phrase se lit au survol (`data-tip`) et sur l'accueil.
+    const ton = (el, t, phrase) => {
+      if (!el) return;
+      el.classList.remove('attire', 'alerte', 'calme'); if (t) el.classList.add(t);
+      const a = el.closest('a, button'); if (a) a.dataset.tip = (a.dataset.tip || '').split(' · ')[0] + (phrase && !el.hidden ? ' · ' + phrase : '');
+    };
+    const fac = $('#nav-factures');
+    if (fac) {
+      const t = C.today();
+      const dues = (data.documents || []).filter(d => d.type === 'facture' && d.status !== 'brouillon' && d.status !== 'annulée')
+        .filter(d => C.invoiceBalance(d, data, company()).remaining > 0.0005);
+      const retard = dues.filter(d => d.dueDate && d.dueDate < t).length;
+      fac.hidden = !dues.length; fac.textContent = dues.length > 99 ? '99+' : dues.length;
+      ton(fac, retard ? 'alerte' : 'attire', retard ? `${dues.length} à encaisser, ${retard} en retard` : `${dues.length} à encaisser`);
+    }
+    const dev = $('#nav-devis');
+    if (dev) {
+      const n = (data.documents || []).filter(d => d.type === 'devis' && d.status === 'envoyé').length;
+      dev.hidden = !n; dev.textContent = n > 99 ? '99+' : n; ton(dev, 'attire', `${n} sans réponse`);
+    }
+    const cs = $('#nav-caisse');
+    if (cs) {
+      const ouverte = !!(caisseEtat && caisseEtat.session);
+      cs.hidden = !ouverte; cs.textContent = ''; cs.classList.toggle('pt-ok', ouverte); cs.classList.toggle('compte', !ouverte);
+      const a = cs.closest('a'); if (a) a.dataset.tip = 'Caisse' + (ouverte ? ' · ouverte' : '');
+    }
     const rel = $('#nav-relances');
-    if (rel) { const n = C.overdueInvoices(data, company()).filter(x => !x.snoozed).length; rel.hidden = !n; rel.textContent = n; }
+    if (rel) { const n = C.overdueInvoices(data, company()).filter(x => !x.snoozed).length; rel.hidden = !n; rel.textContent = n > 99 ? '99+' : n; ton(rel, 'attire', `${n} à faire`); }
     const ct = $('#nav-contrats');
     if (ct) { const n = C.dueRecurrences(data).length; ct.hidden = !n; ct.textContent = n; }
     const ach = $('#nav-achats');
-    if (ach) { const n = C.payablesList(data, company(), C.today()).filter(x => x.late > 0).length; ach.hidden = !n; ach.textContent = n; }
+    if (ach) {
+      const l = C.payablesList(data, company(), C.today()); const late = l.filter(x => x.late > 0).length;
+      ach.hidden = !l.length; ach.textContent = l.length > 99 ? '99+' : l.length;
+      ton(ach, late ? 'alerte' : 'attire', late ? `${l.length} à payer, ${late} en retard` : `${l.length} à payer`);
+    }
     const lic = $('#nav-licences');
     if (lic) { const n = C.licencesExpirant(data, C.today()).length; lic.hidden = !n; lic.textContent = n; }
     const tr = $('#nav-treso');
@@ -8757,7 +8947,7 @@
       // Le compteur ne s'allume que pour un trou prévu : une alerte permanente n'alerte plus personne.
       const hole = data.accounts.length ? C.cashForecast(data, company(), 30, C.today()).shortfall : null;
       tr.hidden = !hole; tr.textContent = '!';
-      tr.className = 'nav-count' + (hole ? '' : '');
+      tr.className = 'nav-count compte alerte';
     }
     const im = $('#nav-immos');
     // Une pastille rouge qui compte des tâches à côté d'un cadenas dit deux choses contraires :
@@ -8778,12 +8968,13 @@
       pay.hidden = !n; pay.textContent = n;
     }
     const stk = $('#nav-stock');
-    if (stk) { const n = C.stockAlerts(data).length + C.serialGaps(data).length; stk.hidden = !n; stk.textContent = n; }
+    if (stk) { const n = C.stockAlerts(data).length + C.serialGaps(data).length; stk.hidden = !n; stk.textContent = n > 99 ? '99+' : n; ton(stk, 'attire', `${n} bas`); }
     // (plateforme, lot messagerie) Ce qui attend dans le fil du cabinet : ses messages non lus, ses questions sans réponse,
     // ses pièces demandées — le compte que l'encart « En attente de toi » détaille (serveur/messagerie/routes.ts, `attente`).
     const msg = $('#nav-comptable');
-    if (msg) { const a = messagerieVue || {}; const n = (a.nonLus || 0) + (a.questions || 0) + (a.demandes || 0); msg.hidden = !n; msg.textContent = n; }
+    if (msg) { const a = messagerieVue || {}; const n = (a.nonLus || 0) + (a.questions || 0) + (a.demandes || 0); msg.hidden = !n; msg.textContent = n > 99 ? '99+' : n; ton(msg, 'attire', `${n} en attente`); }
     resumerFamilles();              // une famille repliée porte le compte de ce qui attend dedans
+    if (window.SkanBarre) window.SkanBarre.apresCompte();
     montrerEntreeActive();          // un compteur qui paraît peut faire passer une entrée sur deux lignes
   }
 
@@ -21046,11 +21237,28 @@
     const el = $('#lic-banner');
     if (!el) return;
     const p = bridge.pastilleAbonnement ? bridge.pastilleAbonnement() : C.pastilleLicence(licence);
-    el.hidden = !p.show;
+    // (maquette « Barre v3 ») L'abonnement parle quand il faut : rien quand tout est payé ; calme pendant l'essai, ambre
+    // à l'approche, rouge le dernier jour ou en retard. C'est l'affaire de qui le règle : les autres ne voient que la
+    // lecture seule, qui les touche.
+    const responsable = !bridge.droitsDossier || !!(bridge.droitsDossier() || {}).responsable;
+    const lecture = /^Lecture seule$/.test(p.texte || '');
+    const montre = p.show && (responsable || lecture);
+    el.hidden = !montre;
     el.classList.toggle('warn', p.ton === 'alerte' || p.ton === 'attire');
     el.classList.toggle('alerte', p.ton === 'alerte');
+    el.classList.toggle('attire', p.ton === 'attire');
     el.classList.toggle('calme', p.ton === 'calme');
-    if (p.show) el.textContent = p.texte;
+    if (!montre) return;
+    const t = p.texte || '';
+    const sous = lecture ? (responsable ? 'Règle ta facture pour créer' : 'La propriétaire règle la facture')
+      : /^Lecture seule le/.test(t) ? 'Facture non réglée' : /^Échéance/.test(t) ? 'Ta facture t\'attend' : /^S'arrête/.test(t) ? 'Tu peux encore continuer'
+        : /dernier jour/.test(t) ? 'Choisis ton offre aujourd\'hui' : p.ton === 'attire' ? 'Choisis ton offre' : 'Tout est ouvert, sans carte';
+    const dessin = /Lecture seule/.test(t) ? '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>'
+      : /^(Échéance|S'arrête)/.test(t) ? '<rect x="2.5" y="5" width="19" height="14" rx="2"/><path d="M2.5 10h19"/>' : '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>';
+    el.innerHTML = `<span class="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${dessin}</svg></span>`
+      + `<span class="lib"><span class="abo-t">${h(t)}</span><small>${h(sous)}</small></span><span class="chev"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg></span>`;
+    el.dataset.tip = t;
+    if (window.SkanBarre) window.SkanBarre.apresCompte();
   }
 
   // ---------- l'éditeur de SkanFact (7.33.0) ----------

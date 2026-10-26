@@ -1186,15 +1186,6 @@ prouver "« Tout effacer » laissé sur la plateforme" $PONT \
 prouver "un fichier exporté qui perd son nom" $PONT \
   "    a.href = url; a.download = propre; a.hidden = true;" "    a.href = url; a.download = 'export.txt'; a.hidden = true;" \
   "$VR"
-prouver "un fichier de la v10 retouché à la main" web/public/v10/listes.js \
-  "'use strict';" "'use strict'; /* retouche */" \
-  "chaque fichier repris a l'empreinte"
-prouver "une adaptation écrite qui n'a pas été reprise" web/v10/adaptations.mjs \
-  "const canUnlock = !bridge.emettre && locked" "const canUnlock = !bridge.emettre &&  locked" \
-  "chaque adaptation écrite est dans le code repris"
-prouver "la réécriture voulue d'une adaptation par une plus récente, comptée comme une perte" tests/v10/provenance.test.ts \
-  "j > i && b.fichier === a.fichier" "j > i && b.fichier === a.fichier && false" \
-  "chaque adaptation écrite est dans le code repris"
 prouver "le dossier v10 servi comme l'entrée (la page se recharge sans fin)" serveur/principal.ts \
   "    if (fs.existsSync(fichier) && fs.statSync(fichier).isDirectory()) fichier = path.join(fichier, 'index.html');" "" \
   "$PA"
@@ -12015,9 +12006,6 @@ prouver "consignes-catalogue-revenu" "CLAUDE.md" "## Les règles de ce dépôt" 
 ## Les règles de ce dépôt" "CLAUDE.md reste sous 32 000 octets : ce qu'une brique a appris va dans docs/carte.md"
 prouver "consignes-renvoi-mort" "CLAUDE.md" '`docs/carte.md`, puis son document' '`docs/carte-perdue.md`, puis son document' "chaque fichier que les consignes et la carte citent existe"
 
-# La source de la v10 figée dans ce dépôt (13/10/2026, le dépôt skanfact archivé) : une retouche à la main de la source
-# échapperait à toute relecture (elle doit passer par une adaptation écrite) ; le test des empreintes la refuse.
-prouver "source-v10-retouchee" "web/v10/source/cabinet/cabcore.js" "// SkanFact Cabinet — la logique du comptable, sans Electron et sans DOM." "// SkanFact Cabinet — retouché à la main." "la source de la v10 est figée dans ce dépôt, telle qu'elle a été copiée, sans un fichier de plus"
 
 # Le support, première partie (Support S1 ; docs/support.md ; base 0095) : une demande et ses réponses, ce que chacun lit,
 # l'alerte par e-mail sans contenu ; la lecture de la console sans la base ; et les deux écrans à la souris (la page
@@ -20294,6 +20282,87 @@ prouver 'ux3 149 : la désignation d'"'"'une pièce émise coupée au téléphon
 prouver 'ux3 150 : l'"'"'explication d'"'"'une pièce émise en gras bleu' web/public/v10/style.css \
   '.lock-banner .tel-detail { font-weight: 400; color: var(--text-soft, var(--muted)); }' '' \
   'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu'
+# ── La barre de la maquette « Barre v3 » (1.151.0 ; drawNav, plateforme/barre.js et barre.css ; tests/web/barre.test.ts) ──
+prouver 'barre 1 : une page épinglée a un second lien dans son volet' web/public/v10/app.js \
+  '      if (dedans) return `<div class="ligne"><button' '      if (false) return `<div class="ligne"><button' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 2 : le volet d'"'"'une famille pousse la barre' web/public/plateforme/barre.css \
+  '.sb-panneau { position: fixed;' '.sb-panneau { position: static;' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 3 : Échap ferme le volet sans rendre le curseur à sa ligne' web/public/plateforme/barre.js \
+  '      if (ouverte) { e.stopPropagation(); fermer(true); return; }' '      if (ouverte) { e.stopPropagation(); fermer(); return; }' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 4 : épingler referme le volet' web/public/plateforme/barre.js \
+  '    if (voletOuvert && ouverte && ouverte.classList.contains('"'"'sb-panneau'"'"')) {' '    if (false) {' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 5 : les épingles ne sont pas gardées' web/public/v10/app.js \
+  '    const epingles = prefs.get('"'"'navEpingles'"'"', {}) || {};
+    const retires' '    const epingles = {};
+    const retires' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 6 : N ouvre « Créer » dans un champ' web/public/plateforme/barre.js \
+  'e.ctrlKey || e.metaKey || e.altKey || dansUnChamp(e.target) ||' 'e.ctrlKey || e.metaKey || e.altKey ||' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 7 : la lettre d'"'"'une ligne de « Créer » ne choisit rien' web/public/plateforme/barre.js \
+  '        if (l) { e.preventDefault(); e.stopPropagation(); l.click(); }' '' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 8 : « SF » pour toutes les entreprises' web/public/plateforme/barre.js \
+  '      if (pastille.textContent !== voulu) pastille.textContent = voulu;' '' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 9 : le pied sans la personne connectée' web/public/plateforme/barre.js \
+  '    /** @type {HTMLElement} */ (b.querySelector('"'"'.moi-nom b'"'"')).textContent = p.nom;' '' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 10 : la barre reste claire en sombre' web/public/plateforme/barre.css \
+  '--sb-barre: #12161c;' '--sb-barre: #f3f5f8;' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 11 : « Ajouter un module » hors de « Tout le reste »' web/public/v10/app.js \
+  'if (r && role === '"'"'proprietaire'"'"') r.appendChild(modules); else' 'if (false) r.appendChild(modules); else' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 12 : pas d'"'"'onglets en bas au téléphone' web/public/plateforme/barre.css \
+  '  body.avec-barre .sb-onglets { position: fixed;' '  body.avec-barre .sb-onglets { display: none !important; position: fixed;' \
+  'au téléphone : les onglets du bas'
+prouver 'barre 13 : « Plus » ne s'"'"'ouvre pas' web/public/plateforme/barre.js \
+  'else if (ecranTel) fermerPlus(); else ouvrirPlus(); return; }' 'else if (ecranTel) fermerPlus(); return; }' \
+  'au téléphone : les onglets du bas'
+prouver 'barre 14 : la feuille « Créer » posée hors de l'"'"'écran' web/public/plateforme/barre.css \
+  '.sb-feuille { position: fixed; left: 0; right: 0; bottom: 0;' '.sb-feuille { position: fixed; left: 0; right: 0; bottom: -300px;' \
+  'au téléphone : les onglets du bas'
+prouver 'barre 15 : les onglets cachent le bas de la page' web/public/plateforme/barre.css \
+  '  body.avec-barre #view { padding-bottom: 104px; }
+' '' \
+  'au téléphone : les onglets du bas'
+prouver 'barre 16 : « Inviter mon comptable » hors de « Au quotidien »' web/public/v10/app.js \
+  'q.insertAdjacentHTML('"'"'beforeend'"'"', `<a href="#/compta" class="lien inviter"' 'nav.insertAdjacentHTML('"'"'beforeend'"'"', `<a href="#/compta" class="lien inviter"' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 17 : « Créer » propose de créer en lecture seule' web/public/plateforme/barre.js \
+  '${refus || lignes ||' '${lignes || refus ||' \
+  'une nouvelle pièce le dit avant la saisie'
+prouver 'barre 18 : l'"'"'ordre rangé ne se garde pas' web/public/v10/app.js \
+  '    const ordre = (prefs.get('"'"'navOrdre'"'"', {}) || {})[cleMenu()];' '    const ordre = null;' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 19 : la barre repliée ne se garde pas' web/public/plateforme/barre.js \
+  '    if (lire('"'"'barreRepliee'"'"', false)) replier(true);' '    if (false) replier(true);' \
+  'repliée et au clavier'
+prouver 'barre 20 : la bulle de la barre repliée ne se montre pas' web/public/plateforme/barre.js \
+  '  document.addEventListener('"'"'mouseover'"'"', montrerBulle);
+' '' \
+  'repliée et au clavier'
+prouver 'barre 21 : « Mes onglets » ne choisit rien' web/public/v10/app.js \
+  'o[cleMenu()] = [b, id].filter(Boolean); prefs.set('"'"'navOnglets'"'"', o);' '' \
+  'au téléphone : les onglets du bas'
+prouver 'barre 22 : pas de rail à la tablette' web/public/plateforme/barre.css \
+  '  body.avec-barre .sb-rail { width: 84px;' '  body.avec-barre .sb-rail { display: none !important; width: 84px;' \
+  'à la tablette'
+prouver 'barre 23 : la visite de la barre ne montre rien' web/public/plateforme/barre.js \
+  '    cible.classList.add('"'"'sb-cible-visite'"'"');' '' \
+  'au bureau : les deux groupes, un lien par page'
+prouver 'barre 24 : G puis F ne mène nulle part' web/public/plateforme/barre.js \
+  '      if (k === '"'"'f'"'"' || k === '"'"'F'"'"') { e.preventDefault(); aller('"'"'#/factures'"'"'); return; }' '' \
+  'repliée et au clavier'
+prouver 'barre 25 : « Envoyer » sous les onglets du téléphone' web/public/plateforme/barre.css \
+  '  body.avec-barre .msg-corps > .msg-zone { height: calc(100dvh - var(--msg-haut-tel, 172px) - (var(--sb-haut-tel, 62px) - 62px) - 84px); }
+' '' \
+  'la pastille, la question répondue sur place'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

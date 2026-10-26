@@ -194,7 +194,7 @@ describe('l\'abonnement au choix, à la souris', () => {
       .toContain(`Ton abonnement arrive à échéance le ${jourEnFrancais(fin)}. Renouvelle-le dès maintenant`);
     await plusTard(p);
     // La pastille du pied du menu tient sur une ligne : le détail est dans le bandeau.
-    expect(net(await p.locator('#lic-banner').innerText())).toBe(`Échéance le ${jourEnFrancais(fin)}`);
+    expect(net(await p.locator('#lic-banner .abo-t').innerText())).toBe(`Échéance le ${jourEnFrancais(fin)}`);
     await cliquer(p.locator('#abo-accueil-go'));
     const renouveler = p.locator('#abo-etat #abo-renouveler');
     await expect.poll(() => renouveler.isVisible().catch(() => false), { timeout: 15_000 }).toBe(true);
@@ -229,7 +229,7 @@ describe('l\'abonnement au choix, à la souris', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
     await expect.poll(() => p.locator('#abo-accueil-go').innerText().then(net).catch(() => ''), { timeout: 20_000 }).toBe('Choisir mon offre');
     await plusTard(p);
-    expect(net(await p.locator('#lic-banner').innerText())).toBe('Essai : encore 5 jours');
+    expect(net(await p.locator('#lic-banner .abo-t').innerText())).toBe('Essai : encore 5 jours');
     await cliquer(p.locator('#abo-accueil-go'));
     // Les offres en haut de l'écran : le même bouton n'attend pas un second clic en haut de l'onglet.
     const haut = () => p.locator('#abo-offres').evaluate((el) => Math.round(el.getBoundingClientRect().top)).catch(() => 9999);

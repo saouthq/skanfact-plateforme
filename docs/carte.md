@@ -886,6 +886,14 @@ vaut pour tout le dépôt.*
   (05/10/2026, `docs/exemple.md` : une fois, jamais si elle a déjà ses propres pièces) ; depuis `0011`, ses factures suivent la série
   « FAC » de la v10 (l'écran de la v10 annonce ce préfixe). À respecter plus tard : jamais facturée
   par l'abonnement, jamais transmise à la TTN, « ESSAI » sur chaque document.
+- **Les maquettes appliquées** (depuis 1.151.0, `docs/maquettes-appliquees.md` ; les maquettes dans `docs/maquettes/`) :
+  par lots, le code des écrans (`web/public/v10`) modifié directement, au résultat de la maquette en ligne. Lot 1, la
+  coquille de la maquette « Barre v3 » : `drawNav` (app.js) dessine « Au quotidien » (les pages du MÉTIER, rangées en
+  glissant) et « Tout le reste » ; `web/public/plateforme/barre.js` et `barre.css` font le reste (Créer, volets, cloche,
+  menus, barre repliée, raccourcis, visite, rail de la tablette, onglets et « Plus » du téléphone), en Inter. Règles
+  apprises : **une page n'a qu'un lien dans la barre** (une page épinglée n'est, dans son volet, qu'un bouton qui y mène)
+  — l'accueil d'un rôle et les lecteurs d'écran lisent la liste des liens ; **ce qui s'ouvre de la barre se pose sur la
+  page** (sa liste défile et s'efface aux bords : un volet ou une bulle y serait coupé).
 - **La mise en ligne** (briques 142-143, `docs/mise-en-ligne.md`, 05/10/2026) : le serveur d'essai est un VPS OVH en
   France (données inventées seulement), à `app.skanfact.tn`. **Personne ne s'y connecte** : il suit `main` tout seul
   (`exploitation/suivre.ts`, toutes les deux minutes) et installe la plus récente version que GitHub a vérifiée en

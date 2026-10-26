@@ -186,13 +186,16 @@ describe('l\'application sans réseau, à la souris', () => {
     await couper(c);
     // Le compte lu il y a moins de deux secondes se resert (pont.js, `lireMoi`) : le menu n'irait pas au réseau, et son
     // chemin sans réseau ne serait pas joué (vu le 09/10/2026 : la preuve « le menu fermé sans réseau » restait verte).
-    // On laisse passer ce délai, et on vérifie que le menu a bien demandé le compte, sans réseau.
+    // On laisse passer ce délai, et on vérifie que le menu des entreprises a bien demandé le compte, sans réseau.
     await p.waitForTimeout(2_100);
     const demandesSansReseau: string[] = [];
     p.on('requestfailed', (r) => { if (new URL(r.url()).pathname === '/v1/moi') demandesSansReseau.push(r.url()); });
+    // Le menu des entreprises (la marque, en haut de la barre) demande le compte ; « Se déconnecter » est dans le menu de
+    // la personne, au pied de la barre (maquette « Barre v3 »).
     await p.locator('#brand-btn').click();
-    await p.getByRole('button', { name: 'Se déconnecter' }).click();
-    expect(demandesSansReseau.length).toBeGreaterThan(0);
+    await expect.poll(() => demandesSansReseau.length, { timeout: 10_000 }).toBeGreaterThan(0);
+    await p.locator('#b-moi').click();
+    await p.getByRole('menuitem', { name: 'Se déconnecter' }).click();
     await p.waitForURL((u) => !u.pathname.startsWith('/v10'), { timeout: 20_000 });
     await expect.poll(() => lePoste(p, ent), { timeout: 15_000 }).toBe(null);
     expect(await p.evaluate(() => [localStorage.getItem('skanfact.jeton'), sessionStorage.getItem('skanfact.jeton'), localStorage.getItem('skanfact.hors_ligne')])).toEqual([null, null, null]);

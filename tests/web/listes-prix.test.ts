@@ -99,7 +99,7 @@ describe('les listes de prix, à la souris', () => {
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'listes-prix-1-liste.png') });
     await p.locator('#save').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Revendeurs/);
-    expect(net(await p.locator('nav a.active').innerText())).toBe('Listes de prix');
+    expect(await p.locator('nav a.active').getAttribute('data-route')).toBe('listesprix');
 
     // 2. La facture du revendeur : le ciment à 19,500 ; celle du particulier : 21.
     await ouvrir('#/doc/f1', /^Facture/);

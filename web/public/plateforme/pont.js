@@ -1348,6 +1348,13 @@
     joinDossier: async () => ({ ok: false, error: PARTAGE }),
     renameDevice: pasEncore('Nommer cet appareil'),
     deconnecter: () => sortirDuCompte(),
+    // (la barre des maquettes, plateforme/barre.js) La personne connectée, au pied de la barre : son nom, son adresse et
+    // ses rôles dans l'entreprise ouverte.
+    profil: async () => {
+      /** @type {any} */ const moi = await lireMoi();
+      const ici = (moi.entreprises || []).find((/** @type {any} */ e) => e.id === ent);
+      return { nom: String(moi.nom || ''), email: String(moi.email || ''), roles: ici ? ici.roles : [] };
+    },
 
     // ── Les fichiers : ce que le navigateur sait faire ────────────────────────────────────────
     // Enregistrer = télécharger : le fichier arrive dans « Téléchargements », sous son nom.

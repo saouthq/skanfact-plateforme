@@ -241,10 +241,15 @@
       : cabinet ? l || 'Ta saisie au brouillard se garde sur ce poste et partira seule au retour du réseau ; le reste demande le réseau.'
         : l || 'Ce que tu enregistres se garde sur ce poste, et partira seul au retour du réseau.';
     poser(`<span><strong>Hors ligne depuis ${heure(horsLigneDepuis)}.</strong> ${vu} ${suite}</span>`);
+    signaler();
   }
+  // La barre (plateforme/barre.js) dit l'état du poste dans sa puce « Hors ligne · N en attente » : un événement, et
+  // l'état à la demande. Rien d'autre ne change.
+  const etat = () => ({ hors: horsLigneDepuis !== null && !close, attente: attend ? enAttente : 0 });
+  const signaler = () => window.dispatchEvent(new CustomEvent('skanposte', { detail: etat() }));
   // Le nombre de changements gardés sur le poste, que le bandeau dit tant que le réseau manque.
   /** @param {number} n */
-  function attente(n) { attend = n > 0 || !cabinet; enAttente = n; if (horsLigneDepuis !== null) horsLigne(); }
+  function attente(n) { attend = n > 0 || !cabinet; enAttente = n; if (horsLigneDepuis !== null) horsLigne(); else signaler(); }
   // Le réseau est revenu : ce qui attendait part (le point de contact s'en charge, `auRetour`). Si
   // l'écran montre la copie du poste, un bouton recharge ce que le serveur a.
   /** @type {(() => void) | null} */ let quandRevenu = null;
@@ -256,6 +261,7 @@
     if (serveur) try { localStorage.setItem(CONTACT, String(Date.now())); } catch { /* sans mémoire : pas de limite de durée */ }
     if (horsLigneDepuis === null || close) return;
     horsLigneDepuis = null;
+    signaler();
     if (quandRevenu) quandRevenu();
     if (attend) { poser(`<span>Le réseau est revenu : ${cabinet ? (enAttente === 1 ? 'ton écriture part' : 'tes écritures partent') : enAttente === 1 ? 'ton changement part' : 'tes changements partent'}…</span>`, true); return; }
     if (!copieLue) { cacher(); return; }
@@ -388,5 +394,6 @@
     horsLigne, enLigne, sansCopie, attente, envoye, envoyeEcritures, demander, annoncer, limite, limiteCaisse, ouverture, finOuverture, echecOuverture,
     /** @param {() => void} f */ auRetour: (f) => { quandRevenu = f; },
     pourLeCabinet: () => { cabinet = true; },
+    etat,
   };
 })();

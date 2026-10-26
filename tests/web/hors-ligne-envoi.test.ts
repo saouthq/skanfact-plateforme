@@ -244,8 +244,8 @@ describe('enregistrer sans réseau, à la souris', () => {
     await pret(p, ent);
     await couper(c);
     await nouveauClient(p, 'Quincaillerie Nour');
-    await p.locator('#brand-btn').click();
-    await p.getByRole('button', { name: 'Se déconnecter' }).click();
+    await p.locator('#b-moi').click();
+    await p.getByRole('menuitem', { name: 'Se déconnecter' }).click();
     await expect.poll(() => p.locator('#poste-bandeau').innerText(), { timeout: 10_000 })
       .toMatch(/^Des changements faits hors ligne ne sont pas encore partis : te déconnecter maintenant les efface de ce poste\./);
     await p.screenshot({ path: path.join(PHOTOS, 'hors-ligne-envoi-5-deconnexion.png') });

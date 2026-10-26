@@ -144,7 +144,7 @@ describe('le parcours, à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'parcours-1-accueil.png') });
 
     // Une facture, dans l'éditeur de la v10 : le client se crée depuis l'éditeur, et revient choisi.
-    await p.getByRole('link', { name: 'Factures', exact: true }).click();
+    await p.locator('#nav a[data-route="factures"]').click();
     await pageV10(p, /Factures/);
     await p.getByRole('button', { name: '+ Nouvelle facture' }).click();
     await pageV10(p, /Nouvelle facture/);
@@ -175,7 +175,7 @@ describe('le parcours, à la souris', () => {
     await p.reload();
     await pageV10(p, /Facture FAC-2026-001/);
     await plusTard(p);
-    await p.getByRole('link', { name: 'Factures', exact: true }).click();
+    await p.locator('#nav a[data-route="factures"]').click();
     await pageV10(p, /Factures/);
     await plusTard(p);
     await expect.poll(() => p.locator('#view').innerText()).toMatch(/FAC-2026-001[\s\S]*Boulangerie Ennour/);
@@ -240,9 +240,9 @@ describe('le parcours, à la souris', () => {
     expect(await carte.locator('#cpt-restants').innerText()).toBe('10 codes de secours');
     expect(await fenetre.getByRole('button', { name: 'Vérifier et activer' }).count()).toBe(0);
 
-    // Se déconnecter par le menu du haut de la v10.
-    await p.locator('#brand-btn').click();
-    await p.getByRole('button', { name: 'Se déconnecter' }).click();
+    // Se déconnecter par le menu de la personne, au pied de la barre.
+    await p.locator('#b-moi').click();
+    await p.getByRole('menuitem', { name: 'Se déconnecter' }).click();
     await ecran(p, 'ecran.connexion.titre');
     expect(erreurs).toEqual([]);
 
@@ -276,9 +276,9 @@ describe('le parcours, à la souris', () => {
     await q.waitForURL(new RegExp(`/v10/\\?e=${ent}`), { timeout: 15_000 });
     await q.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await plusTard(q);
-    // Sur le téléphone, le menu s'ouvre par son bouton.
-    await q.getByRole('button', { name: 'Menu', exact: true }).click();
-    await q.getByRole('link', { name: 'Factures', exact: true }).click();
+    // Sur le téléphone, toutes les pages sont dans « Plus », l'onglet du bas (maquette « Barre v3 »).
+    await q.locator('.sb-onglets [data-tel="plus"]').click();
+    await q.locator('.sb-plus a[href="#/factures"]').click();
     await pageV10(q, /Factures/);
     await expect.poll(() => q.locator('#view').innerText()).toContain('FAC-2026-001');
     await q.screenshot({ path: path.join(PHOTOS, 'parcours-5-telephone.png') });
@@ -466,7 +466,9 @@ describe('le parcours, à la souris', () => {
     await expect.poll(async () => (await admin.query('select montant from achats.reglement where entreprise = $1', [qui.essai])).rows.map((r) => r.montant)).toEqual([300000n]);
 
     // L'avoir, depuis la liste : « Saisir un avoir sur cette pièce » le rattache tout seul.
-    await p.locator('#nav a[href="#/achats"], a[href="#/achats"]').first().click();
+    // (maquette « Barre v3 ») Les achats, dans le volet « Acheter » (« Au quotidien » porte les pages du métier).
+    await p.locator('#nav .nav-volet[data-famille="Acheter"]').click();
+    await p.locator('.sb-panneau a[href="#/achats"]').click();
     await pageV10(p, /Achats/);
     await p.locator('tr', { hasText: 'FA-2026-0412' }).getByRole('button', { name: /Actions/ }).click();
     await p.getByText('Saisir un avoir sur cette pièce', { exact: true }).click();
@@ -495,7 +497,9 @@ describe('le parcours, à la souris', () => {
     expect(ecran.statut).toBe('partiel');
 
     // La facture ne se supprime pas tant que l'avoir y est rattaché : l'écran le dit avant de demander.
-    await p.locator('#nav a[href="#/achats"], a[href="#/achats"]').first().click();
+    // (maquette « Barre v3 ») Les achats, dans le volet « Acheter » (« Au quotidien » porte les pages du métier).
+    await p.locator('#nav .nav-volet[data-famille="Acheter"]').click();
+    await p.locator('.sb-panneau a[href="#/achats"]').click();
     await pageV10(p, /Achats/);
     await p.locator('tr', { hasText: 'FA-2026-0412' }).first().click();
     await pageV10(p, /FA-2026-0412/);

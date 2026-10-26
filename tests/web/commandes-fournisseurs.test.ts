@@ -114,7 +114,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Commande BCF-\d{4}-001/);
     const numero = (await titre(p)).replace(/^Commande /, '').replace(/ .*$/, '');
     // Le menu allume « Commandes fournisseurs » ; les quantités restent des quantités (pas « 100.000 »).
-    expect(net(await p.locator('nav a.active').innerText())).toBe('Commandes fournisseurs');
+    expect(await p.locator('nav a.active').getAttribute('data-route')).toBe('commandesf');
     expect([await ligne(0, 'qty').inputValue(), await ligne(1, 'qty').inputValue()]).toEqual(['100', '2.5']);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'commandes-fournisseurs-1-commande.png') });
 

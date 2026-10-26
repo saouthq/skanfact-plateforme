@@ -22,12 +22,11 @@ qu'une règle qui vaut pour TOUT le dépôt, en une ou deux lignes.*
   millime de la v10) ; le Cabinet complet, sans paquets ; la caisse (tactile, sans réseau) ; le hors-ligne et le
   téléphone ; l'entrée, l'équipe, la messagerie, l'abonnement ; la console de l'équipe SkanFact. **Avant de toucher un
   domaine : sa ligne dans `docs/carte.md`, puis son document.**
-- **L'application web EST le code de la v10** (Skander, 28/09/2026) : sa source, figée dans `web/v10/source`
-  (`ORIGINE.json` : beta@35bfb8c et l'empreinte de chaque fichier), copiée TELLE QUELLE dans `web/public/v10` par
-  `npm run reprendre-v10` ; une retouche n'existe
-  que dans une adaptation (`web/v10/<sujet>.txt`, chargée par `web/v10/adaptations.mjs`, avec sa raison ;
-  `tests/v10/provenance.test.ts` refuse toute retouche à la main). Le pont (`web/public/plateforme/pont.js`) remplace ce
-  que la v10 demandait à l'ordinateur. Les écrans écrits pour la plateforme (l'entrée, la console) sont en React.
+- **L'application web EST notre code** (repris de la v10 le 28/09/2026, `web/public/v10` ; le Cabinet dans `cabinet/`) :
+  **depuis le 26/10/2026 il se modifie directement** (Skander : « la vraie version à jour est dans skanfact-plateforme ») ;
+  les fiches de retouche d'avant (`web/v10/`) ne sont plus qu'une archive, à ne plus rejouer. Le pont
+  (`web/public/plateforme/pont.js`) remplace ce que la v10 demandait à l'ordinateur ; la coquille (barre, menus) vit dans
+  `web/public/plateforme/barre.js`. Les écrans écrits pour la plateforme (l'entrée, la console) sont en React.
 - **Les serveurs** (`docs/mise-en-ligne.md`, B et L) : chacun suit sa branche tout seul. `app.skanfact.tn` (données
   inventées) suit **`main`**, les versions validées ; `dev.skanfact.tn` (données inventées) suit **`dev`**, le travail du
   jour, dès qu'il est envoyé ; personne ne s'y connecte, sauf Claude
@@ -49,8 +48,6 @@ qu'une règle qui vaut pour TOUT le dépôt, en une ou deux lignes.*
 - **Une partie du dossier v10** (une nouvelle liste) : sa règle de droits (`serveur/v10/droits.ts`, sinon seuls P et A
   la voient) ; **une page** de la v10 : ses parties dans `PARTIES_DES_PAGES` ; **une lecture du dossier par un
   cabinet** : la liste de `0035`.
-- **Une adaptation de la v10** : elle ne s'ancre jamais au milieu du texte posé par une autre ; puis
-  `npm run reprendre-v10`.
 - **Une demande que la page fait à l'ouverture**, sans dépendre du dossier : dans l'attente commune de `pont.js`
   (`tests/v10/pont-ouverture.test.ts`), jamais après une réponse dont elle ne dépend pas.
 - **Un e-mail** : ses phrases au catalogue (jamais dans `serveur/courriel.html`), un `…_bouton` s'il porte un lien,
@@ -305,7 +302,6 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
 | `npm run migrer` | Applique les migrations sur la base de `PG_ADMIN` |
 | `npm run entreprise -- exporter <id> <fichier>` / `restaurer <fichier>` | Exporte une entreprise, ou la restaure là où elle n'est pas (`PG_ADMIN`) |
 | `npm run types:base` | Réécrit `base/types.ts` à partir des migrations (base jetable sur `PG_ADMIN`) |
-| `npm run reprendre-v10` | Recopie l'interface v10 (sa source figée, `web/v10/source`) dans `web/public/v10` et y applique `web/v10/adaptations.mjs` |
 
 Les tests demandent aussi xmllint, Tesseract (avec le français) et Poppler (la facture électronique, la
 lecture des factures d'achat, brique 84) : `apt-get install -y libxml2-utils tesseract-ocr tesseract-ocr-fra

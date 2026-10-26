@@ -390,9 +390,11 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await expect.poll(() => p.locator('#view h1').first().innerText(), { timeout: 15_000 }).toMatch(/^Facture FAC-2026-001/);
     await aller(p, '#/dashboard', /./);
     expect(net(await p.locator('#view h2', { hasText: 'Documents récents' }).innerText())).toBe('Documents récents — ta seule pièce');
-    // Au doigt, la recherche du menu ne montre pas de raccourci de clavier.
-    await p.getByRole('button', { name: 'Menu', exact: true }).click();
-    expect(await p.locator('#nav-search').isVisible()).toBe(true);
+    // Au doigt, la recherche (en tête de « Plus », maquette « Barre v3 ») ne montre pas de raccourci de clavier.
+    await p.locator('.sb-onglets [data-tel="plus"]').click();
+    const chercher = p.locator('.sb-plus [data-plus="chercher"]');
+    expect(await chercher.isVisible()).toBe(true);
+    expect(await chercher.locator('kbd').count()).toBe(0);
     expect(await p.locator('#nav-search-k').isVisible()).toBe(false);
     expect(erreurs).toEqual([]);
     await cx.close();

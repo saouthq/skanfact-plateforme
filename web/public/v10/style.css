@@ -1952,7 +1952,10 @@ kbd { font: inherit; font-size: 12px; font-family: -apple-system, system-ui, san
 
 /* ---------- petits écrans (1280 px : MacBook 13" en fenêtre) ---------- */
 @media (max-width: 1340px) {
-  .editor { grid-template-columns: 1fr 350px; }
+  /* (1.151.0) La barre de la maquette « Barre v3 » a 42 px de plus que celle de la v10 : à 1280 px, l'aperçu de 350 px
+     faisait déborder la page de 13 px (tests/web/debutant-2.test.ts). La saisie peut se resserrer (minmax), l'aperçu
+     aussi. */
+  .editor { grid-template-columns: minmax(0, 1fr) 320px; }
   .dash-grid { grid-template-columns: 1fr; }
   .help-grid { grid-template-columns: 220px 1fr; }
   /* Les listes à huit colonnes débordaient de quelques dizaines de pixels et forçaient un

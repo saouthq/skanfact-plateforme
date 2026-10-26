@@ -38,6 +38,9 @@
 (function () {
   'use strict';
   function poserMenu() {
+    // (1.151.0) La barre de la maquette « Barre v3 » (plateforme/barre.js) porte elle-même la navigation du téléphone :
+    // ses onglets du bas et « Plus ». Le bouton « Menu » et son raccourci des messages ne restent qu'au Cabinet.
+    if (document.getElementById('barre')) return;
     const barre = document.querySelector('.sidebar');
     // L'en-tête de la barre : celui de l'entreprise (`.brand-wrap`), ou la marque du Cabinet (brique 110).
     const tete = document.querySelector('.sidebar .brand-wrap') || document.querySelector('.sidebar > .brand');

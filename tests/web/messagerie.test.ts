@@ -92,8 +92,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await sans.p.waitForTimeout(500);
     await sans.p.evaluate(() => { location.hash = '#/clients'; });
     await sans.p.locator('#view h1').filter({ hasText: 'Clients' }).waitFor({ timeout: 15_000 });
-    expect(await sans.p.locator('nav a[data-route="comptable"]').count()).toBe(0);
-    expect(await sans.p.locator('.sidebar-foot a[data-route="comptable"]').isVisible()).toBe(false);
+    expect(await sans.p.locator('#foot-comptable').isVisible()).toBe(false);
     await sans.p.context().close();
 
     const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, amine, { codeCabinet: cab.code })).corps.mandat);
@@ -127,10 +126,11 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await a.p.goto(`${serveur.adresse}/v10/?e=${ent}`);
     await a.p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(a.p);
-    // (1.115.0) Dans le pied du menu, à l'écran dès l'ouverture : en bas du menu, il fallait le faire défiler.
-    const entree = a.p.locator('.sidebar-foot a[data-route="comptable"]');
+    // (1.115.0) À l'écran dès l'ouverture : en bas du menu, il fallait le faire défiler. (1.151.0) Avec les pages du jour,
+    // dans « Au quotidien » (la barre des maquettes), une seule fois.
+    const entree = a.p.locator('#nav .nav-quotidien a[data-route="comptable"]');
     await expect.poll(async () => net(await entree.innerText().catch(() => '')), { timeout: 15_000 }).toBe('Mon comptable 2');
-    expect(await a.p.locator('nav a[data-route="comptable"]').count()).toBe(0);
+    expect(await a.p.locator('a[data-route="comptable"]').count()).toBe(1);
     expect(await entree.evaluate((e) => { const r = e.getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight; })).toBe(true);
     // (1.102.0) L'Accueil le dit dans « À faire », du même compte que la pastille (la pastille, au bas d'un menu à faire
     // défiler, en était le seul signe : parcours du 21/10/2026) ; il se relit sans recharger quand ce compte change.
@@ -305,11 +305,16 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await plusTard(t.p);
     expect(await deborde(t.p)).toBe(0);
     // (1.115.0) « Envoyer » dans l'écran, sans défiler (il fallait descendre sous toute la conversation pour écrire), et
-    // les messages à côté de « Menu » (dans le menu replié, leur pastille ne se voyait pas).
-    expect(await t.p.getByRole('button', { name: 'Envoyer', exact: true }).evaluate((e) => e.getBoundingClientRect().bottom <= innerHeight)).toBe(true);
-    const raccourci = t.p.locator('.sidebar .msg-tel');
-    expect(await raccourci.isVisible()).toBe(true);
-    expect([await raccourci.getAttribute('href'), await raccourci.getAttribute('aria-label'), await raccourci.getAttribute('aria-current')]).toEqual(['#/comptable', 'Mon comptable', 'page']);
+    // au-dessus des onglets du bas (maquette « Barre v3 »).
+    expect(await t.p.getByRole('button', { name: 'Envoyer', exact: true }).evaluate((e) => e.getBoundingClientRect().bottom <= innerHeight - 84)).toBe(true);
+    // (maquette « Barre v3 ») Ce qui attend du cabinet se compte sur la cloche du haut, et « Mon comptable » est dans
+    // « Plus » (les onglets du bas).
+    const cloche = t.p.locator('#b-cloche');
+    expect(await cloche.isVisible()).toBe(true);
+    expect(await cloche.getAttribute('aria-label')).toMatch(/^Nouvelles/);
+    await t.p.locator('.sb-onglets [data-tel="plus"]').click();
+    expect(await t.p.locator('.sb-plus a[href="#/comptable"]').innerText().then((x) => x.replace(/\s+/g, ' ').trim())).toMatch(/^Mon comptable/);
+    await t.p.locator('.sb-onglets [data-tel="plus"]').click();
     const tc = await page(sonia, 390, 844);
     await tc.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages`);
     await tc.p.locator('.msg-boite h1').waitFor({ timeout: 20_000 });
@@ -445,7 +450,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await a.p.goto(`${serveur.adresse}/v10/?e=${amine.e}`);
     await a.p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(a.p);
-    await a.p.locator('.sidebar-foot a[data-route="comptable"]').click({ timeout: 15_000 });
+    await a.p.locator('#nav a[data-route="comptable"]').click({ timeout: 15_000 });
     await a.p.locator('.msg-page h1').waitFor({ timeout: 20_000 });
     // (1.140.0) Un seul vert : plusieurs pièces attendent, seule la plus ancienne porte « Envoyer la pièce… » en vert.
     const envois = a.p.locator('[data-msg-envoyer-piece]');

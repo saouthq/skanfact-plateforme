@@ -65,7 +65,8 @@ describe('l\'abonnement, à la souris', () => {
     await plusTard(p);
     return p;
   };
-  const pastille = (p: Page) => p.locator('#lic-banner').innerText().then(net).catch(() => '');
+  // (maquette « Barre v3 ») La pastille dit son état sur une ligne, et dessous ce qu'il faut faire : on lit l'état.
+  const pastille = (p: Page) => p.locator('#lic-banner .abo-t').innerText().then(net).catch(() => '');
   const aujourdhui = aujourdhuiATunis();
   const finEssai = (ent: string, jour: string) => admin.query('update plateforme.abonnement set essai_jusqu_au = $2 where entreprise = $1', [ent, jour]);
 
@@ -155,6 +156,18 @@ describe('l\'abonnement, à la souris', () => {
     expect(net(await p.locator('#view .page-head #new').innerText())).toBe('+ Nouveau client');
     expect(await p.locator('#view .btn-primary:visible').count()).toBe(0);
 
+    // (maquette « Barre v3 ») « Créer » porte un cadenas, et le dit avant le geste : fermé, pourquoi, et la porte de
+    // l'abonnement ; aucune pièce n'y est proposée.
+    expect(await p.locator('#b-creer').getAttribute('class')).toMatch(/\bferme\b/);
+    await p.locator('#b-creer').click();
+    const creer = p.locator('.sb-creer');
+    await expect.poll(() => creer.locator('.sb-refus').innerText().then(net).catch(() => ''), { timeout: 10_000 })
+      .toContain(`Créer est fermé pour l'instant Lecture seule depuis le ${depuis}`);
+    expect(await creer.locator('[data-action]').count()).toBe(0);
+    expect(await creer.locator('[data-creer-abo]').innerText()).toBe('Régler ma facture');
+    expect(await p.evaluate(() => location.hash)).toBe('#/clients');
+    await p.keyboard.press('Escape');
+    await expect.poll(() => creer.count(), { timeout: 5_000 }).toBe(0);
     // Une nouvelle pièce le dit à l'ouverture, avant qu'on tape quoi que ce soit.
     await p.evaluate(() => { location.hash = '#/doc/new/devis'; });
     await expect.poll(() => p.locator('#abo-banner').innerText().then(net).catch(() => ''), { timeout: 15_000 })
@@ -194,10 +207,13 @@ describe('l\'abonnement, à la souris', () => {
     await tel.addInitScript((x) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', x); }, nadia.jeton);
     const t = await tel.newPage();
     await t.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
-    await expect.poll(() => pastille(t), { timeout: 20_000 }).toBe('Lecture seule');
-    const boite = await t.locator('#lic-banner').boundingBox();
-    expect(boite && boite.y < 160 && boite.width > 300).toBe(true);
-    expect(await t.locator('.sidebar-foot a[data-route="modules"]').isVisible()).toBe(false);
+    // (maquette « Barre v3 ») Au téléphone, elle est une des pastilles sous le haut, et mène au même endroit.
+    const puce = t.locator('#barre .sb-pastilles [data-puce="abo"]');
+    await expect.poll(() => puce.innerText().then(net).catch(() => ''), { timeout: 20_000 }).toBe('Lecture seule');
+    await expect.poll(() => puce.isVisible(), { timeout: 10_000 }).toBe(true);
+    const boite = await puce.boundingBox();
+    expect(boite && boite.y < 160).toBe(true);
+    expect(await t.locator('a[data-route="modules"]').isVisible()).toBe(false);
     await tel.close();
 
     // ── Un commercial : la lecture seule, pas l'onglet ; la pastille lui dit qui règle ─────────────────────────────────
