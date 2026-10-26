@@ -876,6 +876,6 @@
   #view:has(> .ed-tete) > :not(.ed-tete):first-child { margin-top: 20px; }
   /* La colonne de droite (totaux, Émettre) reste à côté des lignes quand on défile, comme la maquette (« .droite ») ;
      plus haute que l'écran, elle défile en elle-même. */
-  .editor.charte > .ed-droite { position: sticky; top: 96px; max-height: calc(100vh - 110px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 2px; margin: -2px; }
+  .editor.charte > .ed-droite { position: sticky; top: calc(var(--bande-h, 82px) + 14px); max-height: calc(100vh - var(--bande-h, 82px) - 28px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 2px; margin: -2px; }
   #view > .ed-tete { position: sticky; top: 0; z-index: 20; margin: 0 -24px 18px; padding: 14px 24px; background: color-mix(in srgb, var(--sb-papier-2) 92%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-bottom: 1px solid var(--sb-trait); }
 }

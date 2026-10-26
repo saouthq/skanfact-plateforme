@@ -197,6 +197,7 @@ jusqu'à leur lot. Tests : `tests/web/facture-charte.test.ts`, `tests/web/teleph
 - les tailles de la maquette : titre 26 px, chemin 13 px, nom du client 16 px, valeurs des champs en 500, titres des cartes 14,5 px, désignation et total d'une ligne 14 px, totaux 13,5 px, lignes de TVA 12,5 px, net à payer 28 px ; « −33,464 » sans espace ;
 - le menu d'une ligne : l'ordre, les icônes et le gabarit de la maquette (« Insérer un titre au-dessus » gardé juste avant « Supprimer la ligne », parce que c'est le seul chemin vers les titres) ; « Textes prêts » : le nom puis le texte, l'un sous l'autre ;
 - « Tous les gestes de la pièce : ⋯ en haut à droite » n'est plus redit dans la colonne.
+- (1.155.2) la liste des factures a la même bande d'en-tête que la pièce (chemin gris, trait dessous, collée en haut) ; « Guide-moi » reste sur chaque page (Skander, 26/10/2026), la boussole du pied de la barre mène à « Me guider ».
 
 | Ce qui se voit | Comment |
 |---|---|

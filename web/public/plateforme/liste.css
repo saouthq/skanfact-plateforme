@@ -8,9 +8,9 @@
 /* ── l'en-tête : le chemin, le titre, la phrase, les gestes ── */
 .lf-tete { align-items: flex-end; margin-bottom: 16px; }
 .lf-tete .titre { display: grid; gap: 1px; min-width: 0; }
-.lf-tete .chemin { font-size: 12.5px; color: var(--sb-gris-2); display: flex; gap: 6px; align-items: center; }
-.lf-tete .chemin a { color: inherit; text-decoration: none; }
-.lf-tete .chemin a:hover { color: var(--sb-encre); text-decoration: underline; }
+.lf-tete .chemin { font-size: 13px; color: var(--sb-gris-2); display: flex; gap: 6px; align-items: center; }
+#view .lf-tete .chemin a { color: inherit; text-decoration: none; font-weight: 400; }
+#view .lf-tete .chemin a:hover { color: var(--sb-encre); text-decoration: underline; }
 .lf-tete .chemin svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .lf-tete .sous { margin: 2px 0 0; font-size: 13.5px; color: var(--sb-gris); }
 .lf-tete .actions .btn { display: inline-flex; align-items: center; gap: 7px; }
@@ -219,4 +219,13 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
   .lf .btn.ico.enc, .lf .enc-v { display: none; }
   .lf .lf-tab { background: none; border: 0; box-shadow: none; overflow: visible; }
   .panel.premiere { padding: 22px; }
+}
+
+/* (1.155.2) L'en-tête de la liste, comme celui de la pièce et de la maquette (« .haut ») : une bande sur toute la
+   largeur, un trait dessous, collée en haut quand la liste défile ; le corps a les marges de la maquette (24 px). */
+@media (min-width: 761px) {
+  main#view:has(> .lf-tete) { padding-top: 0; padding-inline: 24px; }
+  #view:has(> .lf-tete) > :not(.lf-tete):first-child { margin-top: 20px; }
+  #view:has(> .lf-tete) table.list thead th { top: var(--bande-h, 96px); }
+  #view > .lf-tete { position: sticky; top: 0; z-index: 20; margin: 0 -24px 18px; padding: 14px 24px; background: color-mix(in srgb, var(--sb-papier-2) 92%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-bottom: 1px solid var(--sb-trait); }
 }

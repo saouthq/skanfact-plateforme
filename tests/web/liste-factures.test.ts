@@ -150,7 +150,7 @@ describe('la liste des factures, à la souris et au clavier', () => {
     await p.keyboard.press('ArrowDown');
     expect(await p.locator('#list-wrap tr.kb').getAttribute('data-id')).toBe('f3');
     await p.keyboard.press('Enter');
-    await expect.poll(() => p.locator('#view h1').first().innerText()).toMatch(new RegExp(`^Facture ${n3}`));
+    await expect.poll(() => p.locator('#view h1').first().innerText()).toMatch(new RegExp(`^${n3}`));
     expect([n1, n2].every(Boolean)).toBe(true);
     expect(erreurs).toEqual([]);
     await cx.close();

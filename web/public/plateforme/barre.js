@@ -918,5 +918,21 @@
     hautTel();
     apresCompte();
   }
+  // (1.155.2) La bande d'en-tête d'une liste ou d'une pièce colle en haut (liste.css, piece.css) : sa hauteur, posée dans
+  // `--bande-h`, place juste dessous ce qui colle aussi (les titres des colonnes, la colonne des totaux).
+  function suivreBande() {
+    const view = document.getElementById('view');
+    if (!view || typeof ResizeObserver === 'undefined') return;
+    /** @type {HTMLElement | null} */ let suivie = null;
+    const ro = new ResizeObserver(() => { if (suivie) view.style.setProperty('--bande-h', suivie.offsetHeight + 'px'); });
+    new MutationObserver(() => {
+      const b = /** @type {HTMLElement | null} */ (view.querySelector(':scope > .lf-tete, :scope > .ed-tete'));
+      if (b === suivie) return;
+      if (suivie) ro.unobserve(suivie);
+      suivie = b;
+      if (b) ro.observe(b); else view.style.removeProperty('--bande-h');
+    }).observe(view, { childList: true });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', suivreBande); else suivreBande();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer); else demarrer();
 })();
