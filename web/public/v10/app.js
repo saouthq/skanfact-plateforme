@@ -10652,7 +10652,7 @@
   // ---------- contrats récurrents ----------
   function recurrenceFromInvoice(doc) {
     const day = Number(doc.date.slice(8, 10)) || 1;
-    return { id: C.uid(), clientId: doc.clientId, subject: (doc.subject || '').replace(/\s+—.*$/, '') + ' — {mois}', reference: '', lines: deepCopy(doc.lines || []).filter(l => !l.noDiscount),
+    return { id: C.uid(), clientId: doc.clientId, subject: (b => b ? b + ' — {mois}' : '')((doc.subject || '').replace(/\s+—.*$/, '').trim()), reference: '', lines: deepCopy(doc.lines || []).filter(l => !l.noDiscount),
       discountRate: doc.discountRate || 0, withholdingRate: doc.withholdingRate || 0, notes: doc.notes || '', every: 'month', day, nextDate: C.addMonths(doc.date, 1, day), active: true, createdAt: Date.now(),
       lang: doc.lang || 'fr', currency: doc.currency || company().currency, exchangeRate: doc.exchangeRate || '' };
   }
@@ -10693,7 +10693,7 @@
         <label class="check span-3"><input type="checkbox" name="active" ${r.active !== false ? 'checked' : ''}> <span>Contrat actif (les factures sont proposées à la date prévue) ${info('contrat.actif')}</span></label>
         ${bridge.droitsDossier ? `<label class="check span-3"><input type="checkbox" name="emettreSeul" ${r.emettreSeul ? 'checked' : ''} ${bridge.droitsDossier().responsable ? '' : 'disabled'}> <span>Émise seule : SkanFact émet chaque facture à sa date, avec son numéro, sans brouillon à relire${bridge.droitsDossier().responsable ? '' : ' (choix du propriétaire ou d\'un administrateur)'} ${info('contrat.seul')}</span></label>` : ''}
       </form>
-      <table class="mini" data-devise="${h(cur)}"><thead><tr><th>Désignation</th><th class="r" style="width:58px">Qté</th><th style="width:104px">Unité ${info('ed.unit')}</th><th class="r" style="width:96px">P.U. HT <span id="rl-cur">(${h(cur)})</span></th><th style="width:88px">TVA</th><th></th></tr></thead><tbody id="rl"></tbody></table>
+      <table class="mini" data-devise="${h(cur)}"><thead><tr><th>Désignation</th><th class="r" style="width:76px">Qté</th><th style="width:112px">Unité ${info('ed.unit')}</th><th class="r" style="width:128px">P.U. HT <span id="rl-cur">(${h(cur)})</span></th><th style="width:88px">TVA</th><th style="width:44px"></th></tr></thead><tbody id="rl"></tbody></table>
       <div class="inline mt"><button type="button" class="btn btn-sm" id="rl-add">+ Ligne</button><span class="small muted" id="rl-total"></span></div>
       <div class="modal-actions">
         ${isNew ? '' : '<button class="btn btn-danger" id="del-rec" style="margin-inline-end:auto">Supprimer</button>'}
@@ -10745,7 +10745,7 @@
         r.lines.forEach((l, i) => { if (l.description) openRl.add(i); });
         const drawL = () => {
           const extraUnits = C.usedUnits(data, r.lines.map(l => l.unit));
-          body.innerHTML = r.lines.map((l, i) => `<tr data-i="${i}"><td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation">
+          body.innerHTML = r.lines.map((l, i) => l.kind === 'titre' ? `<tr data-i="${i}" class="rl-titre"><td colspan="5"><input type="text" data-k="label" value="${h(l.label)}" placeholder="Titre de la section" aria-label="Titre de la section"></td><td><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}" aria-label="Retirer le titre">✕</button></td></tr>` : `<tr data-i="${i}"><td><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation">
               ${openRl.has(i) ? `<textarea data-k="description" rows="2" placeholder="Description reprise sur chaque facture">${h(l.description || '')}</textarea>` : `<button type="button" class="link-add" tabindex="-1" data-rdesc="${i}">+ description</button>`}</td>
             <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01"></td><td><select data-k="unit">${unitOptions(l.unit, extraUnits)}</select></td><td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="0.001"></td><td><select data-k="vatRate">${C.VAT_RATES.map(v => `<option value="${v}" ${Number(l.vatRate) === v ? 'selected' : ''}>${v}%</option>`).join('')}</select></td><td><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}">✕</button></td></tr>`).join('');
           $$('[data-k]', body).forEach(el => {

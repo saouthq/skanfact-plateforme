@@ -27,6 +27,7 @@
   // dessinée autrement se lit comme un corps étranger. Elles ACCOMPAGNENT le libellé, elles ne le
   // remplacent jamais : c'est le pictogramme SEUL qui avait rendu les anciennes rangées illisibles.
   const ICO = {
+    etoile: '<path d="m12 3 2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1-4.4-4.3 6.1-.9z"/>',
     ouvrir: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5"/><path d="M10 13h6M10 17h4"/>',
     pdf: '<path d="M12 3v11"/><path d="M8 10l4 4 4-4"/><path d="M4 19h16"/>',
     email: '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M3 7l9 6 9-6"/>',

@@ -114,7 +114,7 @@ body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var
   /* Sous le zoom, « 100vh » vaut 90 % de l'écran : ce qui doit toucher le bas de l'écran divise par l'échelle (la barre
      s'arrêtait à 810 px sur 900, 26/10/2026). */
   html.echelle body.avec-barre:not(.mode-caisse) #barre.sidebar { height: calc((100dvh - var(--poste-bandeau-h, 0px)) / var(--echelle, .9)); }
-  html.echelle body:not(.mode-caisse) #view .editor .preview { height: calc(100vh / var(--echelle, .9) - 96px); }
+  html.echelle body:not(.mode-caisse) #view .editor:not(.charte) .preview { height: calc(100vh / var(--echelle, .9) - 96px); }
   html.echelle body:not(.mode-caisse) #view .editor.charte > .ed-droite { max-height: calc(100vh / var(--echelle, .9) - var(--bande-h, 82px) - 28px); }
   html.echelle body:not(.mode-caisse) #view .msg-corps > .msg-zone { height: calc(100dvh / var(--echelle, .9) - var(--msg-haut, 210px)); }
   /* Ce qui s'ouvre par-dessus la page suit la même échelle : la fenêtre, le toast, le menu ⋯, les bulles d'une pièce et
@@ -143,3 +143,27 @@ body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var
 :is(.row-menu.gestes-menu, .row-menu:has(.rm-titre)) .rm-titre { padding-top: 5px; }
 .row-menu .rm-tete { position: sticky; top: -6px; z-index: 1; background: var(--sb-papier); margin-top: -6px; padding-top: 12px; }
 .row-menu .rm-tete { position: sticky; top: -6px; z-index: 1; background: var(--sb-papier); margin-top: -6px; padding-top: 12px; }
+
+/* ── Les champs des fenêtres : un seul dessin (Skander, 27/10/2026 : « les champs doivent être tous pareils, ça porte à
+   confusion ») ── le montant, la date, le compte, la référence, une liste : même hauteur, même cadre, même fond, même
+   police. Le montant garde son unité (« DT ») au bout du champ, à la même taille que les autres. */
+#modal-root .modal :is(input:where(:not([type=checkbox]):not([type=radio]):not([type=file]):not([type=range]):not([type=color]):not([type=hidden])), select, textarea) {
+  min-height: 40px; padding: 8px 12px; border: 1px solid var(--sb-trait-fort); border-radius: 10px; background-color: var(--sb-papier);
+  font: inherit; font-size: 14px; font-weight: 500; color: var(--sb-encre); box-shadow: none;
+}
+#modal-root .modal textarea { min-height: 72px; line-height: 1.5; }
+#modal-root .modal :is(input, select, textarea):hover:not(:disabled) { border-color: var(--sb-gris-2); }
+#modal-root .modal :is(input, select, textarea):focus { border-color: var(--sb-sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-sarcelle) 15%, transparent); outline: none; }
+#modal-root .modal .field { gap: 6px; font-size: 12.5px; font-weight: 600; color: var(--sb-gris); }
+#modal-root .modal .pf-m { height: 40px; padding: 0 12px; border-color: var(--sb-trait-fort); }
+#modal-root .modal .pf-m input { min-height: 0; height: 100%; border: 0; padding: 0; font-size: 14px; font-weight: 600; box-shadow: none; background: none; }
+#modal-root .modal .pf-m > span { font-size: 13px; }
+#modal-root .modal .datefield .d-txt { padding-inline-end: 38px; }
+/* Les lignes d'une fenêtre (contrat récurrent, modèle) : la table respire comme celle de la pièce. */
+#modal-root .modal table.mini { border-collapse: separate; border-spacing: 0 6px; margin-top: 6px; }
+#modal-root .modal table.mini th { padding: 0 6px 2px; font-size: 11.5px; font-weight: 600; letter-spacing: .03em; color: var(--sb-gris-2); }
+#modal-root .modal table.mini td { padding: 0 3px; vertical-align: top; border: 0; }
+#modal-root .modal table.mini td :is(input, select) { width: 100%; }
+#modal-root .modal table.mini td textarea { width: 100%; margin-top: 6px; min-height: 56px; font-size: 13px; }
+#modal-root .modal table.mini .link-add { margin-top: 4px; }
+#modal-root .modal table.mini tr.rl-titre input { background: var(--sb-fond); font-weight: 600; }

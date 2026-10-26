@@ -468,7 +468,9 @@
 /* Notes et pièces jointes, côte à côte */
 .ed-deux-b { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
 .ed-deux-b > .panel { margin: 0; padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
-.ed-deux-b h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; }
+.ed-deux-b h2 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 15px; min-height: 30px; }
+.ed-deux-b #attachments { display: grid; gap: 10px; }
+.ed-deux-b #attachments .pj-carte + .ed-zone { padding-block: 10px; }
 .ed-deux-b h2 small { margin-inline-start: auto; font-size: 12px; font-weight: 500; color: var(--sb-gris-2); }
 .ed-deux-b h2 .btn { margin-inline-start: auto; }
 .ed-notes textarea { min-height: 76px; border-radius: 10px; font-size: 13.5px; }

@@ -146,7 +146,7 @@ body.avec-barre #barre.sidebar { height: calc(100dvh - var(--poste-bandeau-h, 0p
 
 /* Le pied */
 #barre .pied-bas { display: flex; flex-direction: column; gap: 8px; margin-top: auto; padding: 0; border: 0; }
-#barre .abo { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--sb-trait); background: var(--sb-papier); color: var(--sb-encre); font-size: 13px; font-weight: 600; cursor: pointer; text-align: left; box-shadow: 0 1px 2px rgba(20, 40, 60, .04); line-height: 1.35; margin: 0; }
+#barre .abo { display: flex; flex-direction: row; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--sb-trait); background: var(--sb-papier); color: var(--sb-encre); font-size: 13px; font-weight: 600; cursor: pointer; text-align: left; box-shadow: 0 1px 2px rgba(20, 40, 60, .04); line-height: 1.35; margin: 0; }
 #barre .abo[hidden] { display: none; }
 #barre .abo .ic { display: flex; color: var(--sb-gris-2); }
 #barre .abo .ic svg { width: 17px; height: 17px; stroke-width: 2; }
