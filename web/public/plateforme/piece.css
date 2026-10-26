@@ -879,3 +879,49 @@
   .editor.charte > .ed-droite { position: sticky; top: calc(var(--bande-h, 82px) + 14px); max-height: calc(100vh - var(--bande-h, 82px) - 28px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 2px; margin: -2px; }
   #view > .ed-tete { position: sticky; top: 0; z-index: 20; margin: 0 -24px 18px; padding: 14px 24px; background: color-mix(in srgb, var(--sb-papier-2) 92%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-bottom: 1px solid var(--sb-trait); }
 }
+
+/* Les chiffres d'une ligne se lisent comme sur la pièce (« 1 200,000 », « 10 % ») ; au clic, le champ montre sa valeur à corriger. */
+.ed-lignes table.ed-grille td:has(> .num-vue) { position: relative; }
+.ed-lignes table.ed-grille .num-vue { position: absolute; inset: 0 0 auto 0; height: 36px; display: flex; align-items: center; justify-content: flex-end; padding: 0 9px; pointer-events: none; font-size: 13.5px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; color: var(--sb-encre); }
+.ed-lignes table.ed-grille td:has(> .num-vue:not(:empty)) > input:not(:focus) { color: transparent; -webkit-text-fill-color: transparent; }
+.ed-lignes table.ed-grille td:has(> input:focus) > .num-vue { display: none; }
+.ed-lignes table.ed-grille td:has(> input.ed-rl.on) > .num-vue { color: var(--sb-doux-texte); font-weight: 650; }
+.ed-lignes table.ed-grille td:has(> input:disabled:not([readonly])) > .num-vue { color: var(--sb-gris-2); }
+
+/* L'historique de la pièce : un panneau à droite, la pièce reste lisible à côté (maquette « Historique ») */
+.panneau-h { position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 100vw); z-index: 60; background: var(--sb-papier); border-left: 1px solid var(--sb-trait); box-shadow: -12px 0 32px rgba(15, 23, 42, .12); padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; outline: none; }
+.panneau-h .ph-t { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.panneau-h h3 { margin: 0; font-size: 15px; font-weight: 700; }
+.panneau-h .ph-l { display: grid; gap: 4px; }
+.panneau-h .h-l { display: grid; grid-template-columns: 14px 1fr; gap: 10px; font-size: 13.5px; position: relative; padding-bottom: 8px; }
+.panneau-h .h-l::before { content: ""; position: absolute; left: 5px; top: 16px; bottom: -6px; width: 2px; background: var(--sb-trait); }
+.panneau-h .h-l:last-child::before { display: none; }
+.panneau-h .h-l > span:last-child { display: grid; gap: 1px; }
+.panneau-h .h-l small { color: var(--sb-gris-2); font-size: 11.5px; }
+.panneau-h .h-l b a { color: inherit; }
+.panneau-h .h-l span span { color: var(--sb-gris); font-size: 12.5px; }
+.panneau-h .h-pt { width: 12px; height: 12px; border-radius: 99px; background: var(--sb-sarcelle); margin-top: 3px; }
+.panneau-h .note-v { margin: 0; font-size: 12.5px; color: var(--sb-gris-2); display: flex; gap: 6px; align-items: flex-start; }
+
+/* L'aperçu en grand : une fenêtre au milieu, la pièce telle que le client la recevra (maquette « Aperçu en grand ») */
+#pv-full { display: grid; place-items: center; padding: 3vh 16px; background: color-mix(in srgb, #0f172a 45%, transparent); backdrop-filter: blur(2px); }
+#pv-full .pv-fen { width: min(900px, 100%); height: 100%; display: flex; flex-direction: column; overflow: hidden; border-radius: 16px; background: var(--sb-papier-2); box-shadow: 0 24px 60px rgba(15, 23, 42, .28); }
+#pv-full .pv-full-bar { gap: 12px; padding: 10px 14px; background: var(--sb-papier); border-bottom: 1px solid var(--sb-trait); font-size: 13px; color: var(--sb-gris); flex-wrap: nowrap; }
+#pv-full .pv-titre { flex: 1; min-width: 0; color: var(--sb-encre); font-size: 13.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#pv-full .pv-zoom { margin: 0; gap: 6px; }
+#pv-full .pv-zoom .btn { min-width: 26px; height: 26px; padding: 0 6px; border-radius: 7px; }
+#pv-full .pv-zoom #pv-zoom-val { min-width: 42px; color: var(--sb-gris); }
+#pv-full .pv-zoom .pv-ajuster.on { color: var(--sb-sarcelle-texte); border-color: color-mix(in srgb, var(--sb-sarcelle) 40%, var(--sb-trait)); }
+#pv-full .pv-pages { white-space: nowrap; }
+#pv-full .pv-full-bar .btn { height: 30px; gap: 6px; white-space: nowrap; }
+#pv-full .pv-full-bar kbd { font-size: 10.5px; padding: 0 4px; border: 1px solid var(--sb-trait); border-radius: 4px; color: var(--sb-gris-2); background: var(--sb-papier-2); }
+#pv-full .pv-full-body { padding: 14px; }
+#pv-full .pv-full-body iframe { border-radius: 10px; background: var(--sb-papier-2); }
+@media (max-width: 760px) {
+  #pv-full { padding: 0; }
+  #pv-full .pv-fen { border-radius: 0; }
+  #pv-full .pv-titre, #pv-full .pv-full-bar kbd { display: none; }
+}
+/* La pièce émise (lecture) : ses champs sont éteints et collés à droite ; le chiffre lisible prend leur place exacte. */
+.editor.lecture #lines td:has(> .num-vue:not(:empty)) > input:disabled { color: transparent; -webkit-text-fill-color: transparent; }
+.editor.lecture #lines td > .num-vue { padding: 0; color: var(--sb-encre); font-weight: inherit; }

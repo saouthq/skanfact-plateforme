@@ -4255,6 +4255,7 @@
   // qu'on choisit à plusieurs, le clavier, et au téléphone deux puces et une feuille de filtres. Les devis gardent
   // `listView` jusqu'à leur lot.
   const LF_IC = {
+    piece: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
     recherche: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     bas: '<path d="m6 9 6 6 6-6"/>',
     croix: '<path d="M12 5v14M5 12h14"/>',
@@ -4796,7 +4797,13 @@
       // (maquette « pièce introuvable ») Un lien vers une pièce qui n'est plus là : la page le dit, et ramène à la liste.
       if (!doc) {
         $('#view').innerHTML = `<div class="page-head ed-tete"><div class="ed-titre"><div class="chemin ed-chemin"><a href="#/dashboard">Accueil</a><span class="sep">›</span><a href="#/factures">Factures</a></div></div></div>
-          <div class="introuvable">${lfIc('etiquette', 34)}<h2>Cette pièce n'est plus là</h2><p>Un brouillon supprimé, ou un lien qui ne mène plus nulle part. Une facture émise, elle, ne se supprime jamais : elle est dans la liste.</p><div class="rang"><button type="button" class="btn btn-primary" id="intr-retour">Revenir aux factures</button></div></div>`;
+          <div class="introuvable">${lfIc('piece', 34)}<h2>Cette pièce n'est plus là</h2><p>${(() => {
+            // La pierre tombale garde le nom et l'heure de la suppression : la page les dit (pas l'auteur, qu'elle ne garde pas).
+            const t = (data.deleted || []).find(x => x.id === parts[0]);
+            if (!t || !t.at) return 'Un brouillon supprimé, ou un lien qui ne mène plus nulle part.';
+            const q = new Date(t.at);
+            return `${t.label ? `Le brouillon « ${h(t.label)} »` : 'Ce brouillon'} a été supprimé le ${lfJm(t.at.slice(0, 10))} à ${q.getHours()} h ${String(q.getMinutes()).padStart(2, '0')}.`;
+          })()} Une facture émise, elle, ne se supprime jamais : elle est dans la liste.</p><div class="rang"><button type="button" class="btn btn-primary" id="intr-retour">Revenir aux factures</button></div></div>`;
         $('#intr-retour').onclick = () => navigate('#/factures');
         return;
       }
@@ -5577,11 +5584,12 @@
           const td = x.lignes.reduce((t, l) => t + (Number(l.debit) || 0), 0), tc = x.lignes.reduce((t, l) => t + (Number(l.credit) || 0), 0);
           modal(`<h2>L'écriture de ${h(numero)}</h2>
             <p class="small muted">Journal des ventes · ${x.date ? C.fmtDate(String(x.date).slice(0, 10)) : ''} · ${x.statut === 'validee' ? `validée${x.numero ? `, n° ${h(String(x.numero))}` : ''}` : 'au brouillard'}</p>
-            <table class="list compact ecr"><thead><tr><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>
-              ${x.lignes.map(l => `<tr><td class="mono">${h(l.compte)}</td><td>${h(l.libelle || '')}</td><td class="r">${Number(l.debit) ? nu(l.debit) : ''}</td><td class="r">${Number(l.credit) ? nu(l.credit) : ''}</td></tr>`).join('')}
-              <tr class="ecr-tot"><td></td><td><b>Total</b></td><td class="r"><b>${nu(td)}</b></td><td class="r"><b>${nu(tc)}</b></td></tr></tbody></table>
+            <table class="list compact ecr"><thead><tr><th>Journal</th><th>Date</th><th>Compte</th><th>Libellé</th><th class="r">Débit</th><th class="r">Crédit</th></tr></thead><tbody>
+              ${x.lignes.map(l => `<tr><td>VT</td><td>${x.date ? lfJm(String(x.date).slice(0, 10)) : ''}</td><td class="mono"><b>${h(l.compte)}</b></td><td>${h(l.libelle || '')}</td><td class="r">${Number(l.debit) ? nu(l.debit) : ''}</td><td class="r">${Number(l.credit) ? nu(l.credit) : ''}</td></tr>`).join('')}
+              <tr class="ecr-tot"><td colspan="3"></td><td><b>Total · ${Math.abs(td - tc) < 0.0005 ? 'équilibrée' : 'déséquilibrée'}</b></td><td class="r"><b>${nu(td)}</b></td><td class="r"><b>${nu(tc)}</b></td></tr></tbody></table>
             <p class="note-v">${lfIc('info', 13)}${x.statut === 'validee' ? 'Validée, elle ne se modifie plus : une correction passe par une contre-passation.' : 'Au brouillard, ton cabinet la relit et la valide ; ensuite elle ne se modifie plus.'} Les comptes suivent le plan comptable des entreprises, À VÉRIFIER avec ton comptable.</p>
-            <div class="modal-actions"><button class="btn btn-primary" data-close>Fermer</button></div>`);
+            <div class="modal-actions">${cab ? `<button class="btn" data-close id="ecr-ecrire">${lfIc('envoi', 15)}Écrire à ton comptable</button>` : ''}<button class="btn btn-primary" data-close>Fermer</button></div>`);
+          const ecrire = $('#ecr-ecrire'); if (ecrire) ecrire.addEventListener('click', () => navigate('#/comptable'));
         };
       }).catch(() => {});
     }
@@ -5748,6 +5756,14 @@
     // La ligne vide d'une pièce neuve (celle du modèle de départ) se retire au premier dessin seulement : une ligne libre
     // posée ensuite par « Entrée » dans la barre d'ajout est vide aussi, et disparaissait aussitôt.
     let ligneDeDepartVue = false;
+    function vueNum(el) {
+      const s = el.nextElementSibling;
+      if (!s || !s.classList.contains('num-vue')) return;
+      const v = el.value.trim();
+      if (v === '' || el.validity.badInput || !Number.isFinite(Number(v))) { s.textContent = ''; return; }
+      const n = Number(v), fr = d => n.toLocaleString('fr-FR', { maximumFractionDigits: d }).replace(/\s/g, '\u00a0');
+      s.textContent = el.dataset.k === 'qty' ? fr(3) : el.dataset.k === 'discount' ? `${fr(2)}\u00a0%` : C.money(n, null, C.decimalsFor(cur));
+    }
     function dessinerLignesCharte() {
       if (!ligneDeDepartVue && isNew && !figee && doc.lines.length === 1 && ligneVide(doc.lines[0])) doc.lines = [];
       ligneDeDepartVue = true;
@@ -5763,6 +5779,8 @@
       const th = $('#th-pu'); if (th) th.textContent = saisieTtc ? 'P.U. TTC' : sansTva ? 'P.U.' : 'P.U. HT';
       const tvaOpts = l => C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r} %</option>`).join('');
       const menuBtn = i => figee ? '' : `<button type="button" class="row-menu-btn btn ico" data-rowmenu="${i}" aria-haspopup="menu" aria-expanded="false" aria-label="Gestes de la ligne ${i + 1}">${lfIc('plus', 16)}</button>`;
+      // Le chiffre se lit comme sur la pièce (« 1 200,000 », « 10 % ») ; le champ garde sa valeur brute, qu'on retrouve au clic.
+      const vueVide = '<span class="num-vue" aria-hidden="true"></span>';
       const prise = figee ? '' : `<span class="ed-prise" draggable="true" title="Glisser pour ranger la ligne" aria-hidden="true">${lfIc('prise', 16)}</span>`;
       linesBody.innerHTML = doc.lines.map((l, i) => l.kind === 'titre' ? `<tr data-i="${i}" class="ed-titre-l">
           <td class="c-prise">${prise}</td>
@@ -5773,14 +5791,15 @@
           <td class="c-des"><input type="text" data-k="label" value="${h(l.label)}" placeholder="Désignation" aria-label="Désignation de la ligne ${i + 1}" ${ro}>${figee ? `<div class="ligne-lue">${h(l.label)}</div>` : ''}
             ${openDesc.has(i) || l.description ? `<textarea data-k="description" rows="1" placeholder="Description : ce que comprend la ligne" aria-label="Description de la ligne ${i + 1}" ${ro}>${h(l.description || '')}</textarea>` : ''}${lotChoix(l, i)}
             ${figee ? '' : `<div class="ligne-reperes" data-reperes="${i}">${reperesCharte(l, ventes, i)}</div>`}</td>
-          <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01" aria-label="Quantité" ${ro}></td>
+          <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01" aria-label="Quantité" ${ro}>${vueVide}</td>
           <td><select data-k="unit" aria-label="Unité" ${ro}>${unitOptions(l.unit, extraUnits)}</select></td>
-          <td class="c-pu"><input type="number" class="num" data-k="${saisieTtc ? 'puTtc' : 'unitPrice'}" value="${puAffiche(l)}" step="0.001" aria-label="${saisieTtc ? 'Prix unitaire TTC' : 'Prix unitaire HT'}" ${ro}>${saisieTtc ? `<small class="ed-ht-garde" data-htg="${i}">HT ${C.money(l.unitPrice, null, C.decimalsFor(cur))} · gardé au millime</small>` : ''}</td>
-          <td><input type="number" class="num ed-rl${Number(l.discount) > 0 ? ' on' : ''}" data-k="discount" value="${Number(l.discount) > 0 ? l.discount : ''}" placeholder="—" min="0" max="100" step="0.5" aria-label="Remise de la ligne, en %" ${ro || (l.noDiscount ? 'disabled' : '')}></td>
+          <td class="c-pu"><input type="number" class="num" data-k="${saisieTtc ? 'puTtc' : 'unitPrice'}" value="${puAffiche(l)}" step="0.001" aria-label="${saisieTtc ? 'Prix unitaire TTC' : 'Prix unitaire HT'}" ${ro}>${vueVide}${saisieTtc ? `<small class="ed-ht-garde" data-htg="${i}">HT ${C.money(l.unitPrice, null, C.decimalsFor(cur))} · gardé au millime</small>` : ''}</td>
+          <td><input type="number" class="num ed-rl${Number(l.discount) > 0 ? ' on' : ''}" data-k="discount" value="${Number(l.discount) > 0 ? l.discount : ''}" placeholder="—" min="0" max="100" step="0.5" aria-label="Remise de la ligne, en %" ${ro || (l.noDiscount ? 'disabled' : '')}>${vueVide}</td>
           ${sansTva ? '' : `<td><select data-k="vatRate" aria-label="Taux de TVA" ${ro || (doc.export ? 'disabled title="Vente à l\'exportation : sans TVA."' : '')}>${tvaOpts(l)}</select></td>`}
           ${fabrique ? `<td class="c-fodec"><input type="checkbox" class="chk" data-fodec="${i}" ${l.fodec === true ? 'checked' : ''} aria-label="FODEC sur la ligne ${i + 1}" ${ro}></td>` : ''}
           <td class="total" data-total="${i}"></td>
           <td class="line-tools">${menuBtn(i)}</td></tr>`).join('');
+      $$('input.num', linesBody).forEach(vueNum);
       $$('[data-fodec]', linesBody).forEach(el => el.onchange = () => {
         const l = doc.lines[Number(el.dataset.fodec)]; if (!l) return;
         if (el.checked) l.fodec = true; else delete l.fodec;
@@ -5792,6 +5811,7 @@
         el.oninput = () => {
           const i = Number(el.closest('tr').dataset.i);
           const l = doc.lines[i]; if (!l) return;
+          if (el.classList.contains('num')) vueNum(el);
           if (el.type === 'number') {
             const videCh = el.value.trim() === '' || el.validity.badInput;
             if (el.dataset.k === 'discount') {
@@ -5817,7 +5837,7 @@
               if (pu !== null && pu !== '' && Number(pu) !== Number(l.unitPrice) && Number(auto(ancienneQte)) === Number(l.unitPrice)) {
                 l.unitPrice = pu;
                 const champ = el.closest('tr').querySelector('input[data-k=unitPrice], input[data-k=puTtc]');
-                if (champ) champ.value = puAffiche(l);
+                if (champ) { champ.value = puAffiche(l); vueNum(champ); }
               }
             }
             if (el.dataset.k === 'qty') { const rp = $(`[data-reperes="${i}"]`, linesBody); if (rp) rp.innerHTML = reperesCharte(l, ventes, i); }
@@ -6403,8 +6423,8 @@
             <span class="ed-cl-nom"><b>Client de passage</b><span>sans fiche : ni encours, ni relance, ni historique</span></span>
             ${figee ? '' : '<span class="ed-cl-gestes"><button type="button" class="btn btn-sm" id="cl-passage-fiche">En faire un client</button><button type="button" class="btn btn-sm" id="cl-changer">Changer</button></span>'}</div>
           <div class="ed-passage">
-            <label class="field"><span>Nom sur la facture <small>facultatif · ex. M. Karim Ayari</small></span><input type="text" data-passage="nom" value="${h(doc.passage.nom || '')}" autocomplete="off" ${ro}></label>
-            <label class="field"><span>Matricule ou CIN <small>s'il en a un</small></span><input type="text" data-passage="matricule" value="${h(doc.passage.matricule || '')}" autocomplete="off" ${ro}></label>
+            <label class="field"><span>Nom sur la facture</span><input type="text" data-passage="nom" value="${h(doc.passage.nom || '')}" placeholder="facultatif · ex. M. Karim Ayari" autocomplete="off" ${ro}></label>
+            <label class="field"><span>Matricule ou CIN</span><input type="text" data-passage="matricule" value="${h(doc.passage.matricule || '')}" placeholder="s'il en a un" autocomplete="off" ${ro}></label>
           </div>`;
         $$('[data-passage]', carte).forEach(x => x.oninput = e => { e.stopPropagation(); doc.passage[x.dataset.passage] = x.value; touch(); schedulePreview(); dessinerAvant(); });
         $$('[data-passage]', carte).forEach(x => x.onchange = e => e.stopPropagation());
@@ -6501,7 +6521,8 @@
     function dessinerPleinEcran() {
       const f = $('#pv-full-frame'); if (!f) return;
       const z = pvZoom || pvAjuste();
-      const val = $('#pv-zoom-val'); if (val) val.textContent = pvZoom ? Math.round(z * 100) + ' %' : 'Ajusté (' + Math.round(z * 100) + ' %)';
+      const val = $('#pv-zoom-val'); if (val) val.textContent = Math.round(z * 100) + ' %';
+      const aj = $('#pv-fit'); if (aj) aj.classList.toggle('on', !pvZoom);
       f.onload = () => {
         try {
           const { pages, compact } = mettreEnPage(f.contentDocument);
@@ -6526,19 +6547,19 @@
       if ($('#pv-full')) return fermerPleinEcran();
       const el = document.createElement('div');
       el.id = 'pv-full';
-      el.innerHTML = `<div class="pv-full-bar">
-          <span class="k-label">${h(doc.number || title)}</span>
-          <span class="pv-pages" id="pv-full-pages"></span>
+      el.innerHTML = `<div class="pv-fen" role="dialog" aria-modal="true" aria-label="Aperçu en grand"><div class="pv-full-bar">
+          <b class="pv-titre">Aperçu · tel que le client le recevra</b>
           <div class="pv-zoom">
-            <button class="btn btn-sm" id="pv-zoom-out" title="Réduire">−</button>
+            <button class="btn btn-sm" id="pv-zoom-out" title="Réduire" aria-label="Réduire">−</button>
             <span id="pv-zoom-val" class="small muted"></span>
-            <button class="btn btn-sm" id="pv-zoom-in" title="Agrandir">+</button>
-            <button class="btn btn-sm" id="pv-fit">Ajuster</button>
+            <button class="btn btn-sm" id="pv-zoom-in" title="Agrandir" aria-label="Agrandir">+</button>
+            <button class="btn btn-sm pv-ajuster" id="pv-fit" title="La page entière dans la fenêtre">Ajuster</button>
           </div>
-          <button class="btn btn-sm" id="pv-full-pdf">Exporter en PDF</button>
-          <button class="btn btn-sm btn-primary" id="pv-full-close">Fermer</button>
+          <span class="pv-pages" id="pv-full-pages"></span>
+          <button class="btn btn-sm" id="pv-full-pdf" title="Exporter en PDF">${lfIc('exporter', 14)}PDF</button>
+          <button class="btn btn-sm" id="pv-full-close">Fermer <kbd>Échap</kbd></button>
         </div>
-        <div class="pv-full-body"><iframe id="pv-full-frame" title="Aperçu du document en grand"></iframe></div>`;
+        <div class="pv-full-body"><iframe id="pv-full-frame" title="Aperçu du document en grand"></iframe></div></div>`;
       document.body.appendChild(el);
       // On monte au premier palier strictement au-dessus, on descend au premier strictement en
       // dessous : le zoom actuel peut être une valeur « ajustée » quelconque (0,91), pas un palier.
@@ -6789,7 +6810,15 @@
           const horsLigne = navigator.onLine === false;
           em.classList.toggle('off', manque.length > 0 || horsLigne);
           if (manque.length) em.setAttribute('aria-describedby', 'ed-phrase-geste'); else em.removeAttribute('aria-describedby');
-          ph.textContent = horsLigne ? 'Pas de réseau : l\'émission attend la connexion.' : manque.length ? `Il manque ${manque.join(' et ')}.` : isInv ? `Le serveur donne le numéro ; ${laPiece()} ne se modifie plus, elle se corrige par un avoir.` : 'L\'avoir prend son numéro et part à El Fatoora.';
+          // (maquette « refus avant émission », « taux manquant ») Ce que le serveur refuserait se dit sous le geste et sur la pastille.
+          const bloque = (cur !== company().currency && !(Number(doc.exchangeRate) > 0)) ? 'le taux de change manque'
+            : doc.dueDate && doc.date && doc.dueDate < doc.date ? `l'échéance tombe avant la date` : '';
+          const pill = $('#view .ed-pill');
+          if (pill && /^Brouillon · (numéro à l'émission|pas émise)$/.test(pill.textContent)) {
+            pill.textContent = bloque ? 'Brouillon · pas émise' : 'Brouillon · numéro à l\'émission';
+            pill.classList.toggle('retard', !!bloque); pill.classList.toggle('brouillon', !bloque);
+          }
+          ph.textContent = horsLigne ? 'Pas de réseau : l\'émission attend la connexion.' : manque.length ? `Il manque ${manque.join(' et ')}.` : bloque ? `Rien ne s'émet tant que ${bloque}.` : isInv ? `Le serveur donne le numéro ; ${laPiece()} ne se modifie plus, elle se corrige par un avoir.` : 'L\'avoir prend son numéro et part à El Fatoora.';
         }
         dessinerAvant();
         dessinerBandeaux();
@@ -7429,21 +7458,34 @@
     const relancerPiece = d => { const it = C.overdueInvoices(data, company()).find(x => x.doc.id === d.id); sendReminder(it || { doc: d, level: 1, daysLate: 0 }, 'email'); };
     // L'historique de la pièce (maquette « Historique ») : qui a fait quoi, du plus récent au plus ancien.
     function ouvrirHistorique() {
+      // Un panneau posé à droite, la pièce reste visible à côté (maquette « Historique »).
       const ev = C.documentHistory(docById(doc.id) || doc, data, company()).slice().reverse();
-      modal(`<h2>Historique de la pièce</h2>
-        ${ev.length ? `<ol class="ed-histo">${ev.map(e => `<li class="k-${h(e.kind)}"><span class="hq">${e.date ? lfJm(e.date) : ''}</span><span class="ht"><b>${e.id ? `<a href="#/doc/${h(e.id)}">${h(e.label)}</a>` : e.contractId ? `<a href="#/contrat/${h(e.contractId)}">${h(e.label)}</a>` : h(e.label)}</b>${e.detail ? `<small>${h(e.detail)}</small>` : ''}</span></li>`).join('')}</ol>` : '<p class="small muted">Rien encore : la pièce vient de naître.</p>'}
-        <p class="small muted">${locked ? 'Le journal est scellé : chaque geste est chaîné au précédent, rien ne s\'efface ni ne se réécrit.' : 'Un brouillon garde ses gestes ; à l\'émission, le serveur scelle la pièce et son numéro.'}</p>
-        <div class="modal-actions"><button class="btn btn-primary" data-close>Fermer</button></div>`);
+      const vieux = $('#ed-histo-p'); if (vieux) vieux.remove();
+      const p = document.createElement('aside');
+      p.id = 'ed-histo-p'; p.className = 'panneau-h'; p.setAttribute('role', 'dialog'); p.setAttribute('aria-label', 'Historique de la pièce'); p.tabIndex = -1;
+      p.innerHTML = `<div class="ph-t"><h3>Historique de la pièce</h3><button type="button" class="btn" data-ferme>Fermer</button></div>
+        ${ev.length ? `<div class="ph-l">${ev.map(e => `<div class="h-l k-${h(e.kind)}"><span class="h-pt"></span><span><small>${e.date ? lfJm(e.date) : ''}</small><b>${e.id ? `<a href="#/doc/${h(e.id)}">${h(e.label)}</a>` : e.contractId ? `<a href="#/contrat/${h(e.contractId)}">${h(e.label)}</a>` : h(e.label)}</b>${e.detail ? `<span>${h(e.detail)}</span>` : ''}</span></div>`).join('')}</div>` : '<p class="small muted">Rien encore : la pièce vient de naître.</p>'}
+        <p class="note-v">${lfIc('cadenas', 13)}<span>${locked ? 'Le journal est scellé : chaque geste est chaîné au précédent, rien ne s\'efface ni ne se réécrit.' : 'Un brouillon garde ses gestes ; à l\'émission, le serveur scelle la pièce et son numéro.'}</span></p>`;
+      const fermer = () => { p.remove(); document.removeEventListener('keydown', echap, true); window.removeEventListener('hashchange', fermer); };
+      const echap = e => { if (e.key === 'Escape') { e.stopPropagation(); fermer(); } };
+      p.querySelector('[data-ferme]').onclick = fermer;
+      $$('a', p).forEach(a => a.addEventListener('click', fermer));
+      document.addEventListener('keydown', echap, true);
+      window.addEventListener('hashchange', fermer);
+      document.body.appendChild(p);
+      p.focus();
     }
     // Les raccourcis de la pièce (maquette « Raccourcis »).
     function ouvrirRaccourcis() {
       const r = [['Ctrl L', 'Ajouter un article'], ['↵ en fin de ligne', 'Nouvelle ligne'], ['Ctrl D', 'Dupliquer la ligne'], ['Alt ↑ / Alt ↓', 'Monter, descendre la ligne'],
         ['Ctrl ↵', isQ ? 'Enregistrer' : 'Émettre (la fenêtre s\'ouvre)'], ['Ctrl P', 'Aperçu en grand'], ['Ctrl Z', 'Annuler la dernière modification'], ['Ctrl Maj Z', 'La rétablir'], ['Échap', 'Fermer ce qui est ouvert']];
-      modal(`<h2>Raccourcis de la pièce</h2>
+      modal(`<h2>Raccourcis ${isInv ? 'de la facture' : isAv ? 'de l\'avoir' : 'de la pièce'}</h2>
         <dl class="ed-raccourcis">${r.map(([k, v]) => `<div><dt>${k.split(' / ').map(x => x.split(' ').map(t => /^(Ctrl|Alt|Maj|Échap|↵|↑|↓|[A-Z])$/.test(t) ? `<kbd>${h(t)}</kbd>` : h(t)).join(' ')).join(' / ')}</dt><dd>${h(v)}</dd></div>`).join('')}</dl>
         <p class="small muted">Aucun raccourci ne part pendant que tu tapes dans un champ, sauf ↵ et Tab. Dans une case, Ctrl Z annule la frappe ; ailleurs, la dernière modification de la pièce.</p>
         <div class="modal-actions"><button class="btn btn-primary" data-close>Fermer</button></div>`);
     }
+    // « ? » sur la pièce ouvre ses raccourcis à elle (la barre ouvre les siens ailleurs).
+    window.__raccourcisPiece = ouvrirRaccourcis;
     function ouvrirGestes(bouton) {
       const st = stored || doc;
       const emise = locked && (isInv || isAv);

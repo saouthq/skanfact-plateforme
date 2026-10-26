@@ -853,7 +853,12 @@
       if (auCabinet() && (k === 'd' || k === 'D')) { e.preventDefault(); aller('#/dossiers'); return; }
     }
     if (k === 'g' || k === 'G') { suite = 'g'; setTimeout(() => { suite = ''; }, 1200); return; }
-    if (k === '?') { e.preventDefault(); ouvrirRaccourcis(); return; }
+    if (k === '?') {
+      e.preventDefault();
+      const piece = /** @type {any} */ (window).__raccourcisPiece;
+      if (typeof piece === 'function' && document.querySelector('#view #ed-grand')) piece(); else ouvrirRaccourcis();
+      return;
+    }
     if (k === '[' && !telephone() && !tablette()) { e.preventDefault(); replier(); return; }
     const b = $('b-creer');
     const caissier = role() === 'caissier';

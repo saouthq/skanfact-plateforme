@@ -198,6 +198,12 @@ jusqu'à leur lot. Tests : `tests/web/facture-charte.test.ts`, `tests/web/teleph
 - le menu d'une ligne : l'ordre, les icônes et le gabarit de la maquette (« Insérer un titre au-dessus » gardé juste avant « Supprimer la ligne », parce que c'est le seul chemin vers les titres) ; « Textes prêts » : le nom puis le texte, l'un sous l'autre ;
 - « Tous les gestes de la pièce : ⋯ en haut à droite » n'est plus redit dans la colonne.
 - (1.155.2) la liste des factures a la même bande d'en-tête que la pièce (chemin gris, trait dessous, collée en haut) ; « Guide-moi » reste sur chaque page (Skander, 26/10/2026), la boussole du pied de la barre mène à « Me guider ».
+- (1.155.3, la revue état par état : chaque « État », « Ouvrir » et « Essayer » de la maquette photographié à côté de l'application) : les chiffres d'une ligne s'écrivent comme sur la pièce (« 1 200,000 », « 10 % », la valeur brute revient au clic) ; l'historique s'ouvre en panneau à droite ; « Aperçu » en grand est une fenêtre au milieu (« Aperçu · tel que le client le recevra », le zoom, PDF, « Fermer Échap ») ; « ? » sur la facture ouvre ses raccourcis ; une échéance avant la date ou un taux de change manquant mettent la pastille à « Brouillon · pas émise » et le disent sous « Émettre » ; « L'écriture » a ses colonnes Journal et Date et « Écrire à ton comptable » ; « Cette pièce n'est plus là » dit quand le brouillon a été supprimé ; le client de passage a ses exemples dans les champs.
+
+**Ce qui reste écarté de la maquette, et pourquoi** (revue 1.155.3) :
+- « Karim l'ouvre aussi » (la présence en direct) : il faudrait dire au serveur qui ouvre quelle pièce ; c'est une donnée de plus qui part vers le serveur, elle attend la décision de Skander. Deux personnes qui écrivent en même temps restent signalées après coup (« Garder la mienne » / « Prendre la sienne ») ;
+- « L'écriture » montre l'écriture de vente seule, sans celles des paiements (le serveur ne les rend pas encore avec elle) ;
+- « Cette pièce n'est plus là » ne nomme pas qui a supprimé le brouillon (la trace de suppression ne garde que le nom et l'heure).
 
 | Ce qui se voit | Comment |
 |---|---|

@@ -87,7 +87,7 @@ describe('le prix par quantité, à la souris', () => {
 
     // 2. La facture : la quantité choisit le palier ; 150 sacs à 19, soit 2 850 HT.
     await p.evaluate(() => { location.hash = '#/doc/f1'; });
-    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture/);
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^(Nouvelle facture|Facture)/);
     await plusTard(p);
     const qte = p.locator('#lines tr[data-i="0"] input[data-k=qty]');
     const prix = p.locator('#lines tr[data-i="0"] input[data-k=unitPrice]');
