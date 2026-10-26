@@ -15,7 +15,6 @@
    comptoir (14 § 2.6), plus large que 760 points ; elle garde la mise en page de l'ordinateur, mais tout s'y
    touche du doigt. La taille du doigt suit donc l'écran tactile (`pointer: coarse`), pas la largeur. */
 
-.menu-tel { display: none; }
 /* Ce qui ne se montre qu'au téléphone (« WhatsApp » à côté d'« Email » sur une pièce : lot téléphone, 06/10/2026). */
 .tel-seul { display: none; }
 
@@ -27,18 +26,6 @@
   .sidebar { width: 100%; padding: 8px 12px; border-inline-end: none; border-block-end: 1px solid var(--border); position: sticky; top: 0; z-index: 60; }
   .sidebar .brand-wrap { padding-bottom: 0; display: flex; align-items: center; gap: 8px; }
   .sidebar .brand { flex: 1 1 auto; min-width: 0; min-height: 44px; }
-  .menu-tel { display: inline-flex; }
-  /* Au Cabinet, « Menu » est posé dans la marque même (pas de `.brand-wrap`) : poussé au bout de la ligne, comme à
-     l'entreprise, au lieu de flotter au milieu juste après le nom du cabinet (vu à 390 px le 21/10/2026). */
-  .sidebar > .brand > .menu-tel { margin-inline-start: auto; }
-  /* (1.115.0) Les messages à côté de « Menu » (telephone.js, 7) : une bulle et sa pastille, 44 px au doigt. */
-  .sidebar > .brand > .msg-tel + .menu-tel { margin-inline-start: 6px; }
-  .msg-tel { position: relative; width: 44px; min-height: 44px; padding: 0; justify-content: center; align-items: center; }
-  .msg-tel[aria-current="page"] { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
-  .msg-tel-pastille {
-    position: absolute; top: -6px; inset-inline-end: -6px; min-width: 20px; height: 20px; padding: 0 5px; box-sizing: border-box; border-radius: 999px;
-    display: inline-flex; align-items: center; justify-content: center; background: #c2410c; color: #fff; font-size: 11px; font-weight: 700;
-  }
   .sidebar > .nav-search, .sidebar > nav, .sidebar > .sidebar-foot { display: none; }
   .sidebar.menu-ouvert > .nav-search, .sidebar.menu-ouvert > .sidebar-foot { display: flex; }
   .sidebar.menu-ouvert > nav { display: flex; max-height: 60vh; overflow-y: auto; }

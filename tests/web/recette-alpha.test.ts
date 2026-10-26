@@ -199,7 +199,9 @@ describe('la recette alpha, à la souris', () => {
         status: 'brouillon', lines: [{ label: 'Location', description: '', qty: 1, unit: '', unitPrice: { '~n': '850.5' }, vatRate: 19 }], discountRate: 0, applyStamp: false,
         withholdingRate: 0, currency: 'DT', exchangeRate: '', payments: [], stampFee: 0 } },
     ] })).statut).toBe(200);
-    const cx = await navigateur.newContext({ viewport: { width: 1100, height: 800 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    // 1101 px : le bureau le plus étroit, la barre entière (à 1100 px et moins, la barre devient un rail : la place suffit
+    // et le numéro ne se coupait plus, même sans sa règle — la preuve restait verte depuis la 1.151.0).
+    const cx = await navigateur.newContext({ viewport: { width: 1101, height: 800 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
     const p = await cx.newPage();
     const erreurs: string[] = [];

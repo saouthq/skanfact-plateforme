@@ -211,8 +211,8 @@ describe('l\'abonnement, à la souris', () => {
     const puce = t.locator('#barre .sb-pastilles [data-puce="abo"]');
     await expect.poll(() => puce.innerText().then(net).catch(() => ''), { timeout: 20_000 }).toBe('Lecture seule');
     await expect.poll(() => puce.isVisible(), { timeout: 10_000 }).toBe(true);
-    const boite = await puce.boundingBox();
-    expect(boite && boite.y < 160).toBe(true);
+    // La pastille se redessine quand la barre se relit : on attend sa place au lieu de la lire une fois.
+    await expect.poll(() => puce.boundingBox().then((b) => b !== null && b.y < 160).catch(() => false), { timeout: 10_000 }).toBe(true);
     expect(await t.locator('a[data-route="modules"]').isVisible()).toBe(false);
     await tel.close();
 

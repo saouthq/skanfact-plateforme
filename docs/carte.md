@@ -70,7 +70,7 @@ vaut pour tout le dépôt.*
   plus `depots` ; chaque mouvement porte le `depotId` de sa pièce (réception, facture, BL, avoir, achat : le champ
   « Dépôt » n'apparaît qu'à partir de deux dépôts) ; `stockImpact` lit le dépôt de la pièce ; un transfert = deux ajustements sans coût (`transfertId`),
   supprimés ensemble. Une seule adaptation par texte : une adaptation ne s'ancre jamais au milieu du texte
-  posé par une autre (le test de provenance le refuse) ; elle s'ancre avant son début.
+  posé par une autre ; elle s'ancre avant son début (règle d'avant la 1.151.0).
 - **Les kits** (brique 96, `docs/kits.md`, `web/v10/kits.txt`) : un article non suivi qui porte `composants`
   ([{ itemId, qty }], des articles suivis) ; `lignesDeStock` déplie la ligne d'un kit en ses composants (pour
   `stockImpact`), `stockMovements` sort chaque composant ; `kitsPossibles`, `coutDuKit`.
@@ -120,12 +120,10 @@ vaut pour tout le dépôt.*
   (`ConfigurationFausse`, `console.*`) sont hors du catalogue.
 - **L'application web EST le code de la v10** (Skander, 28/09/2026 : « récupérer le même code et
   l'adapter », `VISION-ARCHITECTURE.md` § 4.8). Les fichiers de
-  `src/renderer` (branche `beta`, figés depuis le 13/10/2026 dans `web/v10/source`) sont copiés TELS QUELS dans
-  `web/public/v10` par `npm run reprendre-v10` ; seules les retouches écrites dans
-  `web/v10/adaptations.mjs` (chacune avec sa raison) y sont appliquées, et
-  `tests/v10/provenance.test.ts` refuse toute retouche à la main. La copie s'est faite une fois ;
-  la plateforme est désormais la seule maison des écrans (une correction urgente de la v10 en
-  entretien se reporte à la main, par une nouvelle reprise ou une adaptation). Aucun lien vivant
+  `src/renderer` (branche `beta`, figés depuis le 13/10/2026 dans `web/v10/source`) ont été copiés dans
+  `web/public/v10`, avec les retouches de `web/v10/adaptations.mjs`. Depuis la 1.151.0 (26/10/2026), ce code
+  est le nôtre et se modifie directement : la reprise et le test de provenance sont retirés
+  (`web/v10/LISEZMOI.md`) ; une correction urgente de la v10 en entretien se reporte à la main. Aucun lien vivant
   avec le dépôt `skanfact`. **À la construction**, nos scripts et nos styles (`v10`, `plateforme`, `espace`) perdent leurs
   commentaires et rien d'autre, chaque ligne à sa place (`web/alleger.ts`, 05/10/2026, `docs/leger.md` L6 : la
   première ouverture dépassait son seuil) ; un test relit l'arbre de syntaxe de chaque écran construit contre le

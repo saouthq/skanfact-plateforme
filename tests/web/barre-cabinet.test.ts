@@ -161,9 +161,11 @@ describe('la barre du Cabinet, à la souris', () => {
     await p.locator('#view').click({ position: { x: 5, y: 5 } });
     await p.keyboard.press('Control+1');
     await expect.poll(() => p.url()).toContain(`#/dossier/${cafe.ent}/comptabilite/banque`);
-    // Dans « Créer », un dossier relié propose aussi de demander une pièce, et D l'ouvre.
+    // Dans « Créer », un dossier relié propose aussi de demander une pièce, et D l'ouvre. La page de la banque se dessine
+    // d'abord (sinon N arrive pendant son dessin), et le volet s'ouvre après la touche : on l'attend, on ne le lit pas une fois.
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await p.keyboard.press('n');
-    expect(await p.locator('.sb-creer [data-touche]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.touche))).toEqual(['E', 'R', 'D', 'O']);
+    await expect.poll(() => p.locator('.sb-creer [data-touche]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.touche)), { timeout: 10_000 }).toEqual(['E', 'R', 'D', 'O']);
     await p.keyboard.press('d');
     await expect.poll(() => p.url()).toContain(`#/messages/${cafe.ent}/demande`);
     await p.screenshot({ path: path.join(PHOTOS, 'barre-cabinet-2.png') });

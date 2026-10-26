@@ -130,12 +130,13 @@ describe('inviter son comptable par e-mail, à la souris', () => {
     await c.locator('label.field').filter({ hasText: 'Le code que montre l\'application' }).locator('input').fill(codeTotp(depuisBase32(cle), Date.now()));
     await c.getByRole('button', { name: 'Vérifier et continuer', exact: true }).click();
     await c.waitForURL(/\/v10\/cabinet\/\?c=[0-9a-f-]{36}/, { timeout: 15_000 });
-    // Le Cabinet s'ouvre : la proposition du client en tête, avant les premiers pas, avec la paie qu'il a cochée.
+    // Le Cabinet s'ouvre (sur ses Priorités depuis la 1.152.0) : la proposition du client en tête, avant les premiers pas
+    // d'un cabinet neuf (`.cab-neuf`), avec la paie qu'il a cochée.
     const bandeau = c.locator('.banner').filter({ hasText: 'Imprimerie Ferjani' });
     await bandeau.waitFor({ timeout: 15_000 });
     expect(await bandeau.innerText()).toContain('la comptabilité, les déclarations, la saisie des achats et la paie');
     expect(await c.locator('#view').evaluate((v) => {
-      const b = v.querySelector('.banner'), pp = v.querySelector('.premiers-pas, #premiers-pas, .panel');
+      const b = v.querySelector('.banner'), pp = v.querySelector('.cab-neuf, .premiers-pas, #premiers-pas, .panel');
       return !!b && !!pp && !!(b.compareDocumentPosition(pp) & Node.DOCUMENT_POSITION_FOLLOWING);
     })).toBe(true);
     await c.waitForTimeout(1000);

@@ -1147,9 +1147,6 @@ prouver "les lignes d'une facture plus larges que le téléphone (la grille de l
 prouver "les listes et les onglets de la v10 laissés à la taille de la souris" $TEL \
   "  .combo-btn, .tabs button, .somm-chip, .row-menu-btn, .pp-guide, .collapse-h { min-height: 44px; }" "" \
   "$RV"
-prouver "le téléphone sans menu" web/public/plateforme/telephone.js \
-  "    tete.appendChild(b);" "" \
-  "$PA"
 # Depuis le lot onboarding (0076), le code n'est exigé que du comptable d'un cabinet : la porte d'une entreprise ne le
 # demande plus ; ce sont les pages de l'entreprise et du cabinet qui renvoient à l'écran du code qui manque.
 prouver "une entreprise ouverte sans le code du téléphone que son rôle exige" $PONT \
@@ -3562,11 +3559,6 @@ prouver "la case « poste de quelqu'un d'autre » sans effet" web/src/ecrans/Con
 prouver "la case « poste de quelqu'un d'autre » oubliée au code" web/src/ecrans/Code.tsx \
   "session.ouvrir(r.corps.jeton, !defi.posteDUnAutre);" "session.ouvrir(r.corps.jeton, true);" \
   "$HL3"
-prouver "le menu fermé sans réseau (plus de « Se déconnecter »)" $PONT \
-  "        if (!/** @type {any} */ (e).horsLigne) throw e;
-        // Sans réseau : l'entreprise ouverte seulement" "        throw e;
-        // Sans réseau : l'entreprise ouverte seulement" \
-  "$HL1"
 prouver "les écrans jamais gardés pour le hors-ligne" web/public/sw.js \
   "        await c.put(cle, r.clone());
 " "" \
@@ -18353,10 +18345,6 @@ prouver 'le journal en tableau qui coupe le geste au bord du téléphone' web/co
   .c-defile:has(> .c-table-journal) { overflow: visible; }' \
   "$CTEL"
 
-# 1.87.2 — au Cabinet, « Menu » au bout de la barre du haut au téléphone.
-prouver '« Menu » du Cabinet qui flotte au milieu de la barre' web/public/plateforme/telephone.css \
-  '  .sidebar > .brand > .menu-tel { margin-inline-start: auto; }' '' \
-  'le Cabinet qui commence, au téléphone : « Tes premiers pas » ne déborde pas, et chaque étape garde son texte en entier'
 
 prouver '« Première fois sur cette page ? » qui reste sur l'\''éditeur pendant le défilement du téléphone' web/public/v10/app.js \
   "    window.addEventListener('scroll', defile, { passive: true });" '' \
@@ -18431,7 +18419,7 @@ prouver 'la recherche de l'\''accueil qui ouvre la liste pour un seul nom' web/c
   'Clients au clavier : Ctrl K, le nom, « Entrée » ouvre la seule fiche trouvée, depuis Clients comme depuis l'\''accueil'
 
 prouver '« Aperçu » qui masque l'\''aperçu du bas de page au téléphone' web/public/plateforme/telephone.js \
-  '  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); suivreLesLignes(); }' '  function demarrer() { poserMenu(); suivre(); void apercuEnGrand; suivreLesLignes(); }' \
+  '  function demarrer() { suivre(); apercuEnGrand(); suivreLesLignes(); }' '  function demarrer() { suivre(); void apercuEnGrand; suivreLesLignes(); }' \
   'une pièce au téléphone : l'\''étape suivante en tête, « WhatsApp » à côté d'\''« Email », chaque bulle avec son bouton ; le bandeau d'\''une pièce émise tient'
 
 prouver 'un matricule mal formé enregistré sans un mot par la fiche société' web/public/v10/app.js \
@@ -18461,7 +18449,7 @@ prouver 'au téléphone, la quantité d'\''une ligne d'\''achat sans son titre' 
   'les lignes d'\''un achat et d'\''une photo relue au téléphone : la désignation, puis prix, TVA et total dans l'\''écran'
 
 prouver 'au clavier, les cases d'\''une ligne qu'\''un lecteur d'\''écran ne nomme pas' web/public/plateforme/telephone.js \
-  '  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); suivreLesLignes(); }' '  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); }' \
+  '  function demarrer() { suivre(); apercuEnGrand(); suivreLesLignes(); }' '  function demarrer() { suivre(); apercuEnGrand(); }' \
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 
 prouver 'au clavier, les listes de filtre d'\''une page sans nom (l'\''année, le mois)' web/public/plateforme/telephone.js \
@@ -19204,8 +19192,8 @@ prouver 'une syntaxe plus jeune que le plancher dans un écran' 'web/public/plat
   '(function () { const v = /[a&&b]/v;' \
   'chaque script se lit en ES2022'
 prouver 'des règles emboîtées dans une feuille servie' 'web/public/plateforme/telephone.css' \
-  '.menu-tel { display: none; }' \
-  '.menu-tel { display: none; & .x { color: red; } }' \
+  '.tel-seul { display: none; }' \
+  '.tel-seul { display: none; & .x { color: red; } }' \
   'aucune feuille de style n'\''emboîte ses règles'
 prouver 'l'\''entrée construite sans le plancher' 'web/vite.config.ts' \
   '  build: { outDir: '\''../dist/web'\'', emptyOutDir: true, target: PLANCHER },' \
@@ -19314,9 +19302,6 @@ prouver '« Mon comptable » qui ne paraît pas dans le pied du menu' web/public
   "$MSGW"
 prouver 'au téléphone, « Envoyer » sous l'\''écran' web/public/plateforme/messagerie.css \
   '  .msg-corps > .msg-zone { flex-basis: 100%; height: calc(100dvh - var(--msg-haut-tel, 172px)); min-height: 360px; }' '  .msg-corps > .msg-zone { flex-basis: 100%; height: auto; }' \
-  "$MSGW"
-prouver 'au téléphone, les messages cachés dans le menu replié' web/public/plateforme/telephone.js \
-  '    poserMessages(barre, tete, b);' '' \
   "$MSGW"
 
 # ── 1.116.0 : la messagerie après sa revue, lot 2 (pièces demandées datées et relancées, demandes groupées, le cabinet

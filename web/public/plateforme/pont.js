@@ -1322,8 +1322,7 @@
           return { dossiers: [{ id: ent, name: nom, shared: false, dir: 'Session de caisse' }], current: ent, device: { name: '' }, retires: [] };
         }
         if (!/** @type {any} */ (e).horsLigne) throw e;
-        // Sans réseau : l'entreprise ouverte seulement (les autres se listent en ligne) ; le menu garde
-        // « Se déconnecter », qui efface la copie du poste même sans réseau.
+        // Sans réseau : l'entreprise ouverte seulement (les autres se listent en ligne), pour les Paramètres.
         const nom = String((((/** @type {any} */ (window).__data) || {}).company || {}).name || '');
         return { dossiers: [{ id: ent, name: nom, shared: false, dir: 'Copie de ce poste' }], current: ent, device: { name: '' }, retires: [] };
       }

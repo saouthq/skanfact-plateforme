@@ -1,9 +1,8 @@
 // @ts-check
 // Le téléphone, pour l'interface v10 (voir telephone.css). Ce fichier AJOUTE ; il ne touche à rien de ce que fait la v10.
 //
-// 1. Le bouton « Menu ». La v10, application de bureau, n'en avait pas besoin : sa barre latérale est toujours là. Sur
-//    un téléphone, la barre devient une barre du haut ; ce bouton ouvre et ferme le menu, qui se referme dès qu'on
-//    choisit une page.
+// 1. (Retiré en 1.152.0.) Le bouton « Menu » et, en 7, le raccourci des messages : la barre de la maquette « Barre v3 »
+//    (plateforme/barre.js) porte la navigation du téléphone à l'entreprise et au Cabinet (ses onglets du bas, « Plus »).
 // 2. Les listes en cartes (lot téléphone, 06/10/2026). Une liste de la v10 est un tableau de six à huit colonnes : au
 //    téléphone, le statut, le montant et le reste dû étaient coupés à droite, et il fallait deviner qu'on fait glisser
 //    le tableau (vu sur le serveur d'essai, dans la liste des factures). Chaque ligne y devient une carte
@@ -31,63 +30,8 @@
 //    TVA, la destination, la TVA déductible) partaient avec lui (vu en recette le 21/10/2026). Elles se rangent au-dessus
 //    des lignes, une seule fois et non sur chaque ligne, chacune avec ce qu'elle explique : les mêmes bulles, qui
 //    s'ouvrent au doigt (`.aide-colonnes`, telephone.css). À l'ordinateur, l'en-tête les porte : rien ne s'ajoute.
-// 7. Les messages, à côté de « Menu » (1.115.0). Au téléphone, « Mon comptable » (l'entreprise) et « Messages » (le
-//    Cabinet) vivaient dans le menu replié : la pastille d'un message du cabinet ne se voyait qu'en ouvrant le menu
-//    (revue de la messagerie du 22/10/2026). Un bouton à côté de « Menu » mène au même endroit et porte la même pastille,
-//    recopiés de l'entrée du menu (son adresse, son nom, si elle paraît) : il ne décide rien par lui-même.
 (function () {
   'use strict';
-  function poserMenu() {
-    // (1.151.0) La barre de la maquette « Barre v3 » (plateforme/barre.js) porte elle-même la navigation du téléphone :
-    // ses onglets du bas et « Plus ». Le bouton « Menu » et son raccourci des messages ne restent qu'au Cabinet.
-    if (document.getElementById('barre')) return;
-    const barre = document.querySelector('.sidebar');
-    // L'en-tête de la barre : celui de l'entreprise (`.brand-wrap`), ou la marque du Cabinet (brique 110).
-    const tete = document.querySelector('.sidebar .brand-wrap') || document.querySelector('.sidebar > .brand');
-    if (!barre || !tete || tete.querySelector('.menu-tel')) return;
-    const b = document.createElement('button');
-    b.type = 'button';
-    b.className = 'btn btn-sm menu-tel';
-    b.textContent = 'Menu';
-    b.setAttribute('aria-expanded', 'false');
-    b.setAttribute('aria-controls', 'nav');
-    const basculer = (/** @type {boolean} */ ouvert) => { barre.classList.toggle('menu-ouvert', ouvert); b.setAttribute('aria-expanded', String(ouvert)); };
-    b.addEventListener('click', () => basculer(!barre.classList.contains('menu-ouvert')));
-    // Une page choisie ferme le menu (le lien change l'adresse).
-    window.addEventListener('hashchange', () => basculer(false));
-    tete.appendChild(b);
-    poserMessages(barre, tete, b);
-  }
-
-  // ── Les messages, à côté de « Menu » ──
-  /** @param {Element} barre @param {Element} tete @param {HTMLElement} menu */
-  function poserMessages(barre, tete, menu) {
-    const a = document.createElement('a');
-    a.className = 'btn btn-sm menu-tel msg-tel';
-    a.hidden = true;
-    a.innerHTML = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg><span class="msg-tel-pastille" hidden></span>';
-    const pastille = /** @type {HTMLElement} */ (a.querySelector('.msg-tel-pastille'));
-    tete.insertBefore(a, menu);
-    let prevue = 0;
-    const recopier = () => {
-      prevue = 0;
-      const source = /** @type {HTMLAnchorElement | null} */ (barre.querySelector('#foot-comptable, nav a[data-route="messages"]'));
-      const compte = /** @type {HTMLElement | null} */ (source && source.querySelector('.nav-count'));
-      const n = compte && !compte.hidden ? (compte.textContent || '').trim() : '';
-      const nom = source ? [...source.childNodes].filter((x) => x.nodeType === 3).map((x) => x.textContent).join('').trim() : '';
-      poser(a, 'hidden', source && !source.hidden ? '' : 'hidden');
-      if (!source) return;
-      poser(a, 'href', source.getAttribute('href') || '');
-      poser(a, 'aria-label', n ? `${nom} (${n})` : nom);
-      poser(a, 'aria-current', source.classList.contains('active') ? 'page' : '');
-      if (pastille.textContent !== n) pastille.textContent = n;
-      if (pastille.hidden !== !n) pastille.hidden = !n;
-    };
-    new MutationObserver(() => { if (!prevue) prevue = requestAnimationFrame(recopier); })
-      .observe(barre, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['hidden', 'class', 'href'] });
-    recopier();
-  }
-
   // ── Les listes en cartes ──
   const TELEPHONE = window.matchMedia('(max-width: 760px)');
   /** @param {Element} el @param {string} nom @param {string} valeur */
@@ -251,6 +195,6 @@
     nommer();
   }
 
-  function demarrer() { poserMenu(); suivre(); apercuEnGrand(); suivreLesLignes(); }
+  function demarrer() { suivre(); apercuEnGrand(); suivreLesLignes(); }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer); else demarrer();
 })();
