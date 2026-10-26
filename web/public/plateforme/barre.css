@@ -273,6 +273,8 @@ body.barre-repliee .sb-panneau { left: 90px; }
 .sb-panneau .tuile-ic svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; opacity: 1; }
 .sb-panneau b { display: block; font-size: 14px; font-weight: 600; }
 .sb-panneau span.d { display: block; font-size: 12.5px; color: var(--sb-gris-2); }
+/* Une phrase par page, sur une ligne (maquette) : la phrase entière se lit au survol. */
+.sb-panneau .pl-t span.d { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sb-panneau .nav-lock { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; opacity: .55; }
 .sb-panneau .compte { min-width: 20px; height: 20px; padding: 0 6px; border-radius: 99px; font-size: 11.5px; font-weight: 600; display: grid; place-items: center; background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
 .sb-panneau .compte[hidden] { display: none; }
@@ -456,3 +458,20 @@ body.mode-caisse .sb-rail, body.mode-caisse .sb-onglets { display: none !importa
   .sb-panneau { left: 12px !important; right: 12px; width: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .sb, .sb *, #barre, #barre * { transition: none !important; animation: none !important; } }
+
+/* La recherche (Ctrl K) au dessin de la maquette : la loupe et Échap dans le champ, des groupes titrés, une icône par ligne. */
+#palette-root .palette.pal-v3 { width: 600px; border-radius: 14px; border: 1px solid var(--sb-trait); background: var(--sb-papier); box-shadow: 0 24px 60px rgba(15, 23, 42, .22); }
+.palette.pal-v3 .pal-champ { display: flex; align-items: center; gap: 10px; padding: 0 14px; border-bottom: 1px solid var(--sb-trait); color: var(--sb-gris-2); }
+.palette.pal-v3 .pal-champ input { flex: 1; min-width: 0; border: 0; padding: 15px 0; font-size: 15px; background: transparent; color: var(--sb-encre); }
+.palette.pal-v3 kbd { font: 600 11px/1 inherit; padding: 3px 6px; border: 1px solid var(--sb-trait); border-radius: 5px; background: var(--sb-papier-2); color: var(--sb-gris); }
+.palette.pal-v3 .results { padding: 6px 8px 8px; max-height: 56vh; }
+.palette.pal-v3 .menu-titre { display: block; padding: 10px 8px 4px; font-size: 11.5px; font-weight: 600; color: var(--sb-gris-2); }
+.palette.pal-v3 .res { gap: 10px; padding: 8px; border-radius: 9px; font-size: 13.5px; }
+.palette.pal-v3 .res.sel, .palette.pal-v3 .res:hover { background: var(--sb-survol); }
+.palette.pal-v3 .res .ic { display: grid; place-items: center; width: 22px; color: var(--sb-gris); flex: none; }
+.palette.pal-v3 .res .main { color: var(--sb-encre); }
+.palette.pal-v3 .res .sub { color: var(--sb-gris-2); font-size: 12.5px; margin-inline-start: 8px; }
+.palette.pal-v3 .res .amt { color: var(--sb-gris-2); font-size: 12.5px; white-space: nowrap; }
+.palette.pal-v3 .hint { display: flex; align-items: center; gap: 5px; padding: 8px 14px; font-size: 12px; color: var(--sb-gris-2); border-top: 1px solid var(--sb-trait); background: var(--sb-papier-2); }
+.palette.pal-v3 .pal-vide { display: grid; gap: 4px; padding: 22px 16px; text-align: center; font-size: 13px; color: var(--sb-gris); }
+.palette.pal-v3 .pal-vide b { color: var(--sb-encre); font-size: 14px; }

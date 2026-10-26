@@ -2557,7 +2557,7 @@
       const dedans = quotidien.includes(p.id);
       const epingle = `<button type="button" class="epingler" data-epingle="${p.id}" aria-pressed="${dedans}" title="${dedans ? 'Retirer de « Au quotidien »' : 'Épingler dans « Au quotidien »'}" aria-label="${h((dedans ? 'Retirer de « Au quotidien » : ' : 'Épingler dans « Au quotidien » : ') + p.titre)}">${dedans ? ICONE_COCHE : ICONE_EPINGLE}</button>`;
       // Une page que l'offre ferme porte son cadenas dans son volet aussi (ici, on lit ; la création attend l'offre).
-      const corps = `<span class="tuile-ic">${icone(p.id)}</span><span class="pl-t"><b>${h(p.titre)}${pageReservee(p) ? ' ' + CADENAS : ''}</b><span class="d">${h(dedans ? 'Dans « Au quotidien »' : phrase(p))}</span></span>`;
+      const corps = `<span class="tuile-ic">${icone(p.id)}</span><span class="pl-t"><b>${h(p.titre)}${pageReservee(p) ? ' ' + CADENAS : ''}</b><span class="d" title="${h(dedans ? '' : phrase(p))}">${h(dedans ? 'Dans « Au quotidien »' : phrase(p))}</span></span>`;
       if (dedans) return `<div class="ligne"><button type="button" class="pl-l" data-aller="${p.id}">${corps}</button>${epingle}</div>`;
       const cid = NAV_COMPTEURS[p.id];
       return `<div class="ligne"><a href="#/${p.id}" data-route="${p.id}" class="pl-l">${corps}${cid ? `<span class="nav-count compte" id="${cid}" hidden></span>` : ''}</a>${epingle}</div>`;
@@ -4255,6 +4255,9 @@
   // qu'on choisit à plusieurs, le clavier, et au téléphone deux puces et une feuille de filtres. Les devis gardent
   // `listView` jusqu'à leur lot.
   const LF_IC = {
+    personne: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    pages: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M9 9v11"/>',
+    guide: '<circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
     piece: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
     recherche: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     bas: '<path d="m6 9 6 6 6-6"/>',
@@ -11724,7 +11727,8 @@
     closeMenus();
     fermerAppelGuide();
     root.hidden = false;
-    root.innerHTML = `<div class="palette"><input type="text" id="pal-q" placeholder="Rechercher une pièce, un client, un fournisseur, un fichier joint, une action…" autocomplete="off" spellcheck="false"><div class="results" id="pal-res"></div><div class="hint">↑ ↓ pour naviguer · Entrée pour ouvrir · Échap pour fermer</div></div>`;
+    // (maquette barre V3 « la recherche ») Le champ et sa loupe, les résultats rangés par groupe, l'aide du clavier au pied.
+    root.innerHTML = `<div class="palette pal-v3" role="dialog" aria-label="Rechercher"><div class="pal-champ">${lfIc('recherche', 18)}<input type="text" id="pal-q" placeholder="Rechercher une pièce, un client, un fournisseur, un fichier joint, une action…" autocomplete="off" spellcheck="false" aria-label="Rechercher"><kbd>Échap</kbd></div><div class="results" id="pal-res"></div><div class="hint"><kbd>↑</kbd><kbd>↓</kbd> choisir · <kbd>↵</kbd> ouvrir · <kbd>Échap</kbd> fermer</div></div>`;
     const cur = company().currency;
     const actions = [
       ['Nouveau devis', () => navigate('#/doc/new/devis')], ['Nouvelle facture', () => navigate('#/doc/new/facture')], ['Nouvel avoir', () => navigate('#/doc/new/avoir')],
@@ -11827,7 +11831,12 @@
     // de la première année avant celles du mois. Ventes et achats mêlés : ce sont toutes des pièces.
     const recentes = docs.concat(achats).sort((a, b) => b.ts - a.ts);
     const all = [...actions, ...reglagesDePalette(), ...recentes, ...clients, ...fournisseurs, ...items, ...justifs];
-    const HINT = $('#palette-root .hint').textContent;
+    const HINT = $('#palette-root .hint').innerHTML;
+    const GROUPES = ['Pages', 'Clients et pièces', 'Actions', 'Me guider', 'Aide'];
+    const groupeDe = x => x.kind === 'Me guider' || x.kind === 'Aide' ? x.kind
+      : x.kind === 'Action' ? (/^(Nouve|Importer|Revoir|Ta facture|Entrée|Mouvement|Émettre)/.test(x.main) ? 'Actions' : 'Pages') : 'Clients et pièces';
+    const iconeDe = x => ({ 'Me guider': 'guide', Aide: 'aide', Actions: 'ajout', Pages: 'pages' })[groupeDe(x)]
+      || (/^(Client|Fournisseur)$/.test(x.kind) ? 'personne' : x.kind === 'Prestation' ? 'etiquette' : 'piece');
     let sel = 0, shown = [];
     const input = $('#pal-q'), res = $('#pal-res');
     const draw = dansUnLot(() => {
@@ -11849,11 +11858,17 @@
       // Un extrait se DIT (9.4.7) : douze lignes sur deux cents, sans un mot, se lisent comme tout
       // ce que l'application connaît.
       const total = q ? trouves.length + guides.length + aides.length : 0;
-      $('#palette-root .hint').textContent = total > shown.length
-        ? `${shown.length} résultats sur ${total} — ajoute un mot pour préciser · Entrée pour ouvrir · Échap pour fermer`
-        : HINT;
+      // Rangés par groupe (l'ordre de la maquette), dans leur ordre à l'intérieur de chaque groupe.
+      shown = shown.map((x, i) => [x, i]).sort((a, b) => GROUPES.indexOf(groupeDe(a[0])) - GROUPES.indexOf(groupeDe(b[0])) || a[1] - b[1]).map(([x]) => x);
+      const pied = $('#palette-root .hint');
+      if (total > shown.length) pied.textContent = `${shown.length} résultats sur ${total} — ajoute un mot pour préciser · Entrée pour ouvrir · Échap pour fermer`;
+      else pied.innerHTML = HINT;
       sel = Math.min(sel, Math.max(0, shown.length - 1));
-      res.innerHTML = shown.length ? shown.map((x, i) => `<div class="res ${i === sel ? 'sel' : ''}" data-i="${i}"><span class="kind">${h(x.kind)}</span><span class="main">${h(x.main)}${x.sub ? `<span class="sub">${h(x.sub)}</span>` : ''}</span>${x.amt ? `<span class="amt">${h(x.amt)}</span>` : ''}</div>`).join('') : `<div class="res"><span class="main muted">Aucun résultat</span></div>`;
+      res.innerHTML = shown.length ? shown.map((x, i) => {
+        const g = groupeDe(x), titre = i === 0 || groupeDe(shown[i - 1]) !== g ? `<span class="menu-titre">${h(g)}</span>` : '';
+        const d = [g === 'Clients et pièces' ? x.kind : '', x.amt].filter(Boolean).join(' · ');
+        return `${titre}<div class="res ${i === sel ? 'sel' : ''}" data-i="${i}"><span class="ic">${lfIc(iconeDe(x), 17)}</span><span class="main">${h(x.main)}${x.sub ? `<span class="sub">${h(x.sub)}</span>` : ''}</span>${d ? `<span class="amt">${h(d)}</span>` : ''}${i === sel ? '<kbd>↵</kbd>' : ''}</div>`;
+      }).join('') : `<div class="pal-vide"><b>Rien ne s'appelle « ${h(input.value.trim())} »</b><span>Ni page, ni client, ni pièce. Vérifie l'orthographe, ou cherche par numéro (FAC-2026-142) ou par matricule.</span></div>`;
       $$('.res[data-i]', res).forEach(el => el.onclick = () => { closePalette(); shown[Number(el.dataset.i)].run(); });
     });
     input.oninput = () => { sel = 0; draw(); };
