@@ -936,3 +936,18 @@
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ed-tete .presence:not(.ecrit) { color: #b9c2ff; } }
 :root[data-theme="dark"] .ed-tete .presence:not(.ecrit) { color: #b9c2ff; }
 @media (max-width: 760px) { .ed-tete .presence { display: none; } }
+
+/* (1.155.8) « Le client a accepté ? » (maquette du devis) : le récapitulatif sur fond doux, la date, comment il a répondu. */
+.modal .ed-recap { margin: 4px 0 14px; padding: 12px 14px; border-radius: 12px; background: var(--sb-papier-2); display: grid; gap: 8px; }
+.modal .ed-recap > div { display: grid; grid-template-columns: 130px 1fr; gap: 12px; align-items: baseline; }
+.modal .ed-recap dt { color: var(--sb-gris-2); font-size: 13.5px; }
+.modal .ed-recap dd { margin: 0; font-size: 14px; }
+.modal .ed-recap input[type=date] { width: auto; }
+.modal .ed-recap-choix { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.modal .ed-recap dd.ed-recap-choix { margin: 0; }
+.modal .ed-recap-choix .btn.on { background: var(--sb-doux); color: var(--sb-doux-texte); border-color: color-mix(in srgb, var(--sb-sarcelle) 55%, transparent); }
+@media (max-width: 560px) { .modal .ed-recap > div { grid-template-columns: 1fr; gap: 2px; } }
+.editor.charte .ed-recu h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; }
+.editor.charte .ed-recu ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; }
+.editor.charte .ed-recu li { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: var(--sb-gris); line-height: 1.45; }
+.editor.charte .ed-recu li svg { flex: none; margin-top: 2px; color: var(--sb-sarcelle); }

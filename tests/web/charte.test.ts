@@ -62,6 +62,9 @@ describe('la charte des maquettes, à la souris', () => {
 
     const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, cle);
+    // Les mesures de la charte sont celles de la maquette, à 100 % : l'affichage à 90 % de l'ordinateur (`html.echelle`,
+    // 1.155.6) arrondit les traits au pixel de l'écran (1,111 px). L'échelle elle-même se vérifie dans tests/web/barre.test.ts.
+    await cx.addInitScript(() => { new MutationObserver(() => { const r = document.documentElement; if (r?.classList.contains('echelle')) r.classList.remove('echelle'); }).observe(document, { subtree: true, attributes: true, attributeFilter: ['class'] }); });
     const p = await cx.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));

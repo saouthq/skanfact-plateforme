@@ -5297,7 +5297,7 @@
         <div class="ed-deux"><div class="more"><button class="btn" id="bill-btn">Facturer ▾</button><div class="more-list" id="bill-list" hidden>${ligneMenu('<button id="convert">Facturer ce devis</button>', 'ed.convert')}${autresChemins}</div></div><button class="btn" id="refuser">Le client a refusé</button></div></div>`;
       if (devisFacturable) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="convert">${lfIc('carte', 17)}Facturer ce devis</button> ${info('ed.convert')}
         <p class="ed-phrase">Accepté. La facture arrive en brouillon, avec les lignes du devis ; tu l'émets quand tu veux.</p>${sauver}
-        <div class="ed-deux"><button class="btn" id="deposit">Facture d'acompte…</button>${grand}</div></div>`;
+        <div class="ed-deux"><button class="btn" id="deposit">Facture d'acompte…</button>${convertibles.length ? '<button class="btn" id="ed-transformer" aria-haspopup="menu" aria-expanded="false">Transformer ▾</button>' : grand}</div></div>`;
       const phrase = dejaFacture.length ? `Facturé : ${dejaFacture.map(f => h(f.number || 'brouillon')).join(', ')}.`
         : soldable ? 'Un acompte est facturé : le solde reste à facturer.'
         : brouillonsAcompte.length ? 'Un acompte attend en brouillon : émets-le.'
@@ -5308,6 +5308,7 @@
         ${phrase ? `<p class="ed-phrase">${phrase}</p>` : ''}${sauver}</div>`;
     };
     // La frise d'un devis envoyé : créé, envoyé, la réponse du client, facturé.
+    const COMMENT_REPONSE = { telephone: 'au téléphone', email: 'par e-mail', signe: 'devis signé reçu' };
     const avecFriseDevis = isQ && !isNew && !!doc.number && !!stored && stored.status !== 'brouillon';
     const friseDevis = () => {
       const envois = (stored.emails || []).filter(x => !/^relance/.test(x.kind || ''));
@@ -5317,20 +5318,42 @@
       const repondu = st === 'accepté' || st === 'refusé' || factures.length > 0 || issuedDeposits.length > 0;
       const jours = doc.dueDate ? C.daysBetween(C.today(), doc.dueDate) : null;
       const attend = devisFacturable && st !== 'accepté';
+      // (1.155.8) La réponse notée (`reponseDevis`) dit quand et comment ; un devis plus ancien garde la phrase d'avant.
+      const rep = stored.reponse && stored.reponse.statut === st ? stored.reponse : null;
       return friseHtml([
-        { t: 'Créé', fait: true, d: `le ${C.fmtDate(doc.date)}` },
-        { t: 'Envoyé', fait: true, d: premier ? `le ${C.fmtDate(premier.date)} · ${premier.canal === 'whatsapp' ? 'WhatsApp' : 'e-mail'}` : 'marqué envoyé' },
+        { t: 'Créé', fait: true, d: lfJm(doc.date) },
+        { t: 'Envoyé', fait: true, d: premier ? `${lfJm(premier.date)} · ${premier.canal === 'whatsapp' ? 'WhatsApp' : 'e-mail'}` : 'marqué envoyé' },
         { t: st === 'refusé' ? 'Refusé' : repondu ? 'Accepté' : 'Réponse', fait: repondu && st !== 'refusé', alerte: st === 'refusé',
-          d: st === 'refusé' ? 'le client a dit non' : repondu ? 'le client a dit oui' : st === 'expiré' ? 'validité passée' : `en attente${jours != null && jours >= 0 ? ` · valable ${pl(jours, 'jour')}` : ''}`,
+          d: rep ? `${lfJm(rep.le)}${rep.comment && COMMENT_REPONSE[rep.comment] ? ` · ${COMMENT_REPONSE[rep.comment]}` : ''}${st === 'refusé' && rep.motif ? ` · ${h(rep.motif)}` : ''}`
+            : st === 'refusé' ? 'le client a dit non' : repondu ? 'le client a dit oui' : st === 'expiré' ? 'validité passée' : `en attente${jours != null && jours >= 0 ? ` · valable ${pl(jours, 'jour')}` : ''}`,
           g: attend ? '<button type="button" class="btn btn-sm" data-frise="accepter">Accepté</button><button type="button" class="btn btn-sm" data-frise="refuser">Refusé</button>' : '' },
-        { t: 'Facturé', fait: factures.length > 0, d: factures.length ? factures.map(f => h(f.number || 'en brouillon')).join(', ') : issuedDeposits.length ? `acompte ${issuedDeposits.map(f => h(f.number)).join(', ')}` : st === 'accepté' ? 'à faire' : 'quand il aura dit oui',
+        { t: 'Facturé', fait: factures.length > 0, d: factures.length ? factures.map(f => h(f.number || 'en brouillon')).join(', ') : issuedDeposits.length ? `acompte ${issuedDeposits.map(f => h(f.number)).join(', ')}` : st === 'accepté' ? 'à faire' : st === 'refusé' ? 'rien à facturer' : 'quand il aura dit oui',
           g: st === 'accepté' && devisFacturable ? '<button type="button" class="btn btn-sm" data-frise="convert">Facturer</button>' : '' },
       ]);
     };
     const envoisDevis = () => {
       const envois = isQ && stored ? (stored.emails || []).filter(x => !/^relance/.test(x.kind || '')) : [];
       if (!envois.length) return '';
-      return `<div class="panel ed-envois"><dl class="lecture-piece"><div class="lp-ligne"><dt>Envois</dt><dd>${envois.map(x => `${x.canal === 'whatsapp' ? 'WhatsApp' : 'E-mail'}${x.to ? ` à ${h(x.to)}` : ''} · ${C.fmtDate(x.date)}`).join('<br>')}</dd></div></dl></div>`;
+      const st = effStatus(stored);
+      const rep = stored.reponse && stored.reponse.statut === st ? stored.reponse : null;
+      const reponse = rep ? `<br>Réponse : ${st === 'refusé' ? 'refusé' : 'accepté'}${rep.comment && COMMENT_REPONSE[rep.comment] ? ` ${COMMENT_REPONSE[rep.comment]}` : ''} le ${lfJm(rep.le)}${rep.par ? `, noté par ${h(rep.par)}` : ''}${rep.motif ? ` · « ${h(rep.motif)} »` : ''}` : '';
+      return `<div class="panel ed-envois"><dl class="lecture-piece"><div class="lp-ligne"><dt>Envois</dt><dd>${envois.map(x => `${x.canal === 'whatsapp' ? 'WhatsApp' : 'E-mail'}${x.to ? ` à ${h(x.to)}` : ''} · ${C.fmtDate(x.date)}`).join('<br>')}${reponse}</dd></div></dl></div>`;
+    };
+    // (1.155.8) « Ce que le client a reçu », tant qu'il n'a pas répondu (maquette du devis) : ce qui est parti, jusqu'à
+    // quand le devis vaut, et ce que la facture ajoutera. Rien sur la version lue : SkanFact ne la suit pas.
+    const recuDevis = () => {
+      if (!stored || !devisFacturable || ['accepté', 'refusé'].includes(effStatus(stored))) return '';
+      const envois = (stored.emails || []).filter(x => !/^relance/.test(x.kind || ''));
+      const dernier = envois[envois.length - 1];
+      if (!dernier) return '';
+      const tf = C.computeTotals(invoiceFromQuote(doc, doc.lines, doc.discountRate), company());
+      const manque = [tf.stamp ? 'timbre' : '', tf.withholding ? 'retenue' : ''].filter(Boolean);
+      const l = [
+        dernier.canal === 'whatsapp' ? `Le devis par WhatsApp, le ${lfJm(dernier.date)}` : `Le PDF et le lien pour le lire, le ${lfJm(dernier.date)}`,
+        doc.dueDate ? `Valable jusqu'au ${C.fmtDate(doc.dueDate)}` : '',
+        manque.length ? `Sans ${manque.join(' ni ')} : ${manque.length > 1 ? 'ils viendront' : 'il viendra'} sur la facture` : '',
+      ].filter(Boolean);
+      return `<div class="panel ed-recu"><h3>Ce que le client a reçu</h3><ul>${l.map(x => `<li>${lfIc('coche', 14, 2.4)}<span>${x}</span></li>`).join('')}</ul></div>`;
     };
 
     // L'en-tête de la maquette : le client en carte (dessinée par `majFicheClient`), la date, l'échéance et l'objet sur une
@@ -5537,6 +5560,7 @@
         ${charte ? `<aside class="ed-droite">
           <div class="panel ed-totaux"><div class="totals-box" id="totals"></div></div>
           ${gesteCharte()}
+          ${isQ ? recuDevis() : ''}
           ${(figee && !(clos && !stored.number)) || (isQ && doc.status !== 'brouillon') || (charte && aboBloque(isNew)) ? '' : '<div class="panel ed-avant" id="ed-avant"></div>'}
           ${apercuHtml}
         </aside>` : apercuHtml}
@@ -7297,19 +7321,75 @@
     // elle ne protégeait que ce bouton-ci, et le menu de la liste passait à côté.
     if ($('#convert')) $('#convert').onclick = () => facturerDevis(doc);
     // (1.156.0) La réponse du client, notée d'un geste : « accepté » (et la facture dans la foulée, au choix), ou « refusé ».
-    if ($('#accepter')) $('#accepter').onclick = async () => {
-      if (dirty && !persist()) return;
-      const c = await choiceDialog('Le client a accepté ce devis ?', `${doc.number} passe « accepté ». « Accepter et facturer » prépare aussi la facture en brouillon, avec les lignes du devis : tu l'émets quand tu veux.`, 'Accepter et facturer', 'Accepter seulement');
-      if (!c) return;
-      const st = docById(doc.id); if (!st) return;
-      st.status = 'accepté'; save(true);
-      if (c === 'a') facturerDevis(st); else { toast(`${st.number} accepté`); render(); }
+    // (1.155.8) « Le client a accepté ? » et « … a refusé ? » tels que la maquette du devis : ce qui est accepté, quand,
+    // comment (au téléphone, par e-mail, devis signé reçu) ; un refus garde son pourquoi. La réponse reste sur le devis
+    // (`reponse`) : la frise et les envois la redisent.
+    const noterReponse = async (st, statut, quoi) => {
+      const p = bridge.profil ? await bridge.profil().catch(() => null) : null;
+      st.status = statut;
+      st.reponse = { statut, le: quoi.le || C.today(), ...(quoi.comment ? { comment: quoi.comment } : {}), ...(quoi.motif ? { motif: quoi.motif } : {}), ...(p && p.nom ? { par: p.nom.trim().split(/\s+/)[0] } : {}) };
+      save(true);
     };
-    if ($('#refuser')) $('#refuser').onclick = async () => {
+    const recapDevis = () => {
+      const t = C.computeTotals(doc, company());
+      const tf = C.computeTotals(invoiceFromQuote(doc, doc.lines, doc.discountRate), company());
+      const cl = clientById(doc.clientId) || {};
+      return { t, tf, cl, ligne: `${h(doc.number)}${cl.name ? ` · ${h(cl.name)}` : ''}` };
+    };
+    if ($('#accepter')) $('#accepter').onclick = () => {
       if (dirty && !persist()) return;
-      if (!await confirmDialog(`Noter que le client a refusé ${doc.number} ? Il ne sera plus relancé.`, 'Le client a refusé', false)) return;
-      const st = docById(doc.id); if (!st) return;
-      st.status = 'refusé'; save(true); toast(`${st.number} refusé`); render();
+      const { t, tf, ligne } = recapDevis();
+      const facture = Math.abs(tf.netToPay - t.totalTTC) > 0.0005 ? ` · la facture fera ${C.money(tf.netToPay, cur)} à payer` : '';
+      modal(`<h2>Le client a accepté ?</h2>
+        <dl class="ed-recap">
+          <div><dt>Devis</dt><dd><b>${ligne}</b></dd></div>
+          <div><dt>Total</dt><dd><b>${C.money(t.totalTTC, cur)} TTC</b>${facture}</dd></div>
+          <div><dt><label for="rep-le">Accepté le</label></dt><dd><input type="date" id="rep-le" value="${C.today()}" max="${C.today()}"${doc.date ? ` min="${h(doc.date)}"` : ''}></dd></div>
+          <div><dt>Comment</dt><dd class="ed-recap-choix" role="group" aria-label="Comment le client a répondu">${Object.entries(COMMENT_REPONSE).map(([k, l], i) => `<button type="button" class="btn btn-sm${i ? '' : ' on'}" data-comment="${k}" aria-pressed="${i ? 'false' : 'true'}">${l[0].toUpperCase() + l.slice(1)}</button>`).join('')}</dd></div>
+        </dl>
+        <p class="small muted">Le devis passe « accepté ». Tu peux facturer tout de suite, ou plus tard : le bouton t'attend sur le devis et dans la liste.</p>
+        <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn" id="rep-seul">Accepter seulement</button><button class="btn btn-primary" id="rep-facturer">${lfIc('facture', 15)}Accepter et facturer</button></div>`,
+        (root, close) => {
+          let comment = Object.keys(COMMENT_REPONSE)[0];
+          $$('[data-comment]', root).forEach(b => b.onclick = () => { comment = b.dataset.comment; $$('[data-comment]', root).forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); }); });
+          const fin = async factur => {
+            const le = $('#rep-le', root).value;
+            if (!le || le > C.today()) { toast('La date de l\'acceptation ne peut pas être dans le futur.', true); $('#rep-le', root).focus(); return; }
+            const st = docById(doc.id); if (!st) return;
+            close();
+            await noterReponse(st, 'accepté', { le, comment });
+            if (factur) facturerDevis(st); else { toast(`${st.number} accepté`); render(); }
+          };
+          $('#rep-seul', root).onclick = () => fin(false);
+          $('#rep-facturer', root).onclick = () => fin(true);
+          $('#rep-facturer', root).focus();
+        });
+    };
+    if ($('#refuser')) $('#refuser').onclick = () => {
+      if (dirty && !persist()) return;
+      const { t, ligne } = recapDevis();
+      modal(`<h2>Le client a refusé ce devis ?</h2>
+        <p class="small muted">${ligne} · ${C.money(t.totalTTC, cur)} TTC. Il sortira de tes relances et de ce qui attend ; il compte dans ton taux d'acceptation. Tu pourras revenir dessus.</p>
+        <label class="field">${lbl('Pourquoi (facultatif)')}<input type="text" id="rep-motif" maxlength="120" placeholder="ex. « trop cher », « parti chez un autre », « reporté à janvier »"></label>
+        <div class="ed-recap-choix">${['Trop cher', 'Un concurrent', 'Reporté', 'Plus besoin'].map(m => `<button type="button" class="btn btn-sm" data-motif="${m}">${m}</button>`).join('')}</div>
+        <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-danger" id="rep-refus">Le client a refusé</button></div>`,
+        (root, close) => {
+          const m = $('#rep-motif', root);
+          $$('[data-motif]', root).forEach(b => b.onclick = () => { m.value = b.dataset.motif; m.focus(); });
+          $('#rep-refus', root).onclick = async () => {
+            const st = docById(doc.id); if (!st) return;
+            close();
+            await noterReponse(st, 'refusé', { motif: m.value.trim() });
+            toast(`${st.number} refusé`); render();
+          };
+          m.focus();
+        });
+    };
+    if ($('#ed-transformer')) $('#ed-transformer').onclick = e => {
+      const AIDE_CONV = { proforma: 'pour un paiement d\'avance ou une banque', commande: 'ce que le client commande', livraison: 'ce qui part chez le client', contrat: 'à faire signer' };
+      const ICONE_CONV = { proforma: 'facture', commande: 'panier', livraison: 'stock', contrat: 'contrat' };
+      RowMenu.ouvrir(e.currentTarget, convertibles.map(t => ({ icon: ICONE_CONV[t] || 'facture', label: C.TITLES[t] || C.CONVERSION_LABELS[t], hint: AIDE_CONV[t] || '', run: () => { if (dirty && !persist()) return; transformerPiece(docById(doc.id) || doc, t); } })),
+        { titre: 'Transformer en… · chaque pièce arrive en brouillon', label: 'Transformer le devis' });
     };
     if ($('#voir-facture')) $('#voir-facture').onclick = () => navigate('#/doc/' + dejaFacture[0].id);
     if ($('#voir-acompte')) $('#voir-acompte').onclick = () => navigate('#/doc/' + brouillonsAcompte[0].id);
