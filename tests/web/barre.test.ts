@@ -76,7 +76,10 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     return p;
   };
 
-  const barreDroite = (p: Page) => p.locator('#barre').evaluate((b) => Math.round(b.getBoundingClientRect().right));
+  // Au bureau, SkanFact s'affiche à 90 % (`html.echelle`, charte.css) : la barre garde ses mesures de la maquette (266 px,
+  // 68 px repliée), dessinées à l'échelle. `barreDroite` rend la mesure de la maquette ; `bordBarre` le bord dessiné.
+  const bordBarre = (p: Page) => p.locator('#barre').evaluate((b) => b.getBoundingClientRect().right);
+  const barreDroite = (p: Page) => p.locator('#barre').evaluate((b) => Math.round(b.getBoundingClientRect().right / ((b as HTMLElement & { currentCSSZoom?: number }).currentCSSZoom || 1)));
 
   it('au bureau : les deux groupes, un lien par page, le volet à côté, l\'épingle, ranger, « Créer », la cloche, le pied', async () => {
     const p = await ouvrir(1440, 900);
@@ -98,6 +101,9 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     await expect.poll(() => p.locator('#b-moi').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('NG Nadia Gharbi Propriétaire');
     expect(await p.locator('#barre .pied-liens a').evaluateAll((as) => as.map((a) => a.getAttribute('aria-label')))).toEqual(['Paramètres', 'Me guider', 'Aide']);
     expect(await barreDroite(p)).toBe(266);
+    expect(Math.round(await bordBarre(p))).toBe(Math.round(266 * 0.9));
+    // La barre descend jusqu'en bas de l'écran malgré l'échelle (elle s'arrêtait à 810 px sur 900, 26/10/2026).
+    expect(await p.locator('#barre').evaluate((b) => Math.round(b.getBoundingClientRect().bottom))).toBe(900);
     await p.screenshot({ path: path.join(PHOTOS, 'barre-bureau.png') });
 
     // Le volet d'une famille s'ouvre à côté de la barre, par-dessus la page : rien ne bouge dans la barre.
@@ -106,9 +112,14 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     await p.locator('#nav .nav-volet[data-famille="Acheter"]').click();
     const volet = p.locator('.sb-panneau');
     await expect.poll(() => volet.isVisible(), { timeout: 5_000 }).toBe(true);
-    await expect.poll(() => volet.evaluate((v) => Math.round(v.getBoundingClientRect().left)), { timeout: 5_000 }).toBe(266 + 22);
+    const bord = await bordBarre(p);
+    await expect.poll(() => volet.evaluate((v) => Math.round(v.getBoundingClientRect().left)), { timeout: 5_000 }).toBe(Math.round(bord + 22));
     const boite = await volet.boundingBox();
-    expect(boite && boite.x >= 266 + 20 && boite.y >= 0 && boite.y + boite.height <= 900).toBe(true);
+    expect(boite && boite.x >= bord + 20 && boite.y >= 0 && boite.y + boite.height <= 900).toBe(true);
+    // Il s'ouvre à hauteur de la famille qui l'ouvre, pas tout en haut (Skander, 26/10/2026) : son haut est à quelques
+    // pixels du bouton, sauf s'il a dû remonter pour tenir dans la fenêtre (son bas touche alors le bas, à 10 px près).
+    const fam = await p.locator('#nav .nav-volet[data-famille="Acheter"]').boundingBox();
+    expect(boite && fam && (Math.abs(boite.y - (fam.y - 14)) <= 2 || Math.abs(boite.y + boite.height - 890) <= 2)).toBe(true);
     expect(await volet.locator('h3').innerText()).toBe('Acheter');
     expect(await piloter.boundingBox()).toEqual(avant);
     expect(await p.locator('#nav .nav-volet[data-famille="Acheter"]').getAttribute('aria-expanded')).toBe('true');
@@ -218,7 +229,7 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     const bulle = p.locator('.sb-bulle');
     await expect.poll(() => bulle.isVisible(), { timeout: 5_000 }).toBe(true);
     expect(await bulle.innerText()).toMatch(/^Factures/);
-    expect((await bulle.boundingBox())?.x ?? 0).toBeGreaterThan(68);
+    expect((await bulle.boundingBox())?.x ?? 0).toBeGreaterThan(await bordBarre(p));
     await p.screenshot({ path: path.join(PHOTOS, 'barre-repliee.png') });
     await p.reload();
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });

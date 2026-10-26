@@ -108,9 +108,20 @@ body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var
    réduisent depuis ce coin (le haut, ou le bas pour ceux qui s'ouvrent vers le haut). */
 @media (min-width: 761px) {
   html.echelle body:not(.mode-caisse) :is(#view, aside.sidebar.barre) { zoom: var(--echelle, .9); }
-  html.echelle body:not(.mode-caisse) .sb:not(.sb-voile):not(.sb-onglets):not(.sb-bulle) { transform: scale(var(--echelle, .9)); transform-origin: top left; }
+  html.echelle body:not(.mode-caisse) .sb:not(.sb-voile):not(.sb-onglets):not(.sb-bulle):not(.sb-rail) { transform: scale(var(--echelle, .9)); transform-origin: top left; }
   html.echelle body:not(.mode-caisse) .sb[style*="bottom"]:not(.sb-voile) { transform-origin: bottom left; }
   html.echelle body:not(.mode-caisse) .sb-voile > * { zoom: var(--echelle, .9); }
+  /* Sous le zoom, « 100vh » vaut 90 % de l'écran : ce qui doit toucher le bas de l'écran divise par l'échelle (la barre
+     s'arrêtait à 810 px sur 900, 26/10/2026). */
+  html.echelle body.avec-barre:not(.mode-caisse) #barre.sidebar { height: calc((100dvh - var(--poste-bandeau-h, 0px)) / var(--echelle, .9)); }
+  html.echelle body:not(.mode-caisse) #view .editor .preview { height: calc(100vh / var(--echelle, .9) - 96px); }
+  html.echelle body:not(.mode-caisse) #view .editor.charte > .ed-droite { max-height: calc(100vh / var(--echelle, .9) - var(--bande-h, 82px) - 28px); }
+  html.echelle body:not(.mode-caisse) #view .msg-corps > .msg-zone { height: calc(100dvh / var(--echelle, .9) - var(--msg-haut, 210px)); }
+  /* Ce qui s'ouvre par-dessus la page suit la même échelle : la fenêtre, le toast, le menu ⋯, les bulles d'une pièce et
+     la bulle « i » (ils restaient à 100 % sur une page à 90 %, 26/10/2026). Les menus posés en px rétrécissent vers leur
+     bouton (`transform-origin` posé par rowmenu.js et app.js) ; la fenêtre et le toast, centrés, par `zoom`. */
+  html.echelle body:not(.mode-caisse) :is(.modal-bg > .modal, #toast) { zoom: var(--echelle, .9); }
+  html.echelle body:not(.mode-caisse) :is(.row-menu, .ed-pop, #info-pop) { transform: scale(var(--echelle, .9)); }
   html.echelle.compact { --echelle: .8; }
   html.echelle.compact body:not(.mode-caisse) #view table.list :is(td, th) { padding-block: 7px; }
 }

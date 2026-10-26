@@ -210,6 +210,8 @@
     }
     m.style.top = pos.top + 'px';
     m.style.left = pos.left + 'px';
+    // À 90 % (`html.echelle`, charte.css), le menu rétrécit vers le bouton qui l'a ouvert.
+    m.style.transformOrigin = `${pos.left + m.offsetWidth / 2 < rb.left + rb.width / 2 ? 'right' : 'left'} ${pos.top < rb.top ? 'bottom' : 'top'}`;
     bouton.setAttribute('aria-expanded', 'true');
     const scroller = bouton.closest('main');
     // La position de départ du défilement. Un menu ancré sur une ligne se ferme quand la page

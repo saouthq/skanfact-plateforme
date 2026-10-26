@@ -963,6 +963,8 @@
     let top = r.bottom + 8;
     if (top + hh > window.innerHeight - 8) top = Math.max(8, r.top - hh - 8);
     pop.style.left = left + 'px'; pop.style.top = top + 'px';
+    // À 90 % (`html.echelle`, charte.css), la bulle rétrécit vers le « i » qui l'a ouverte.
+    pop.style.transformOrigin = `center ${top < r.top ? 'bottom' : 'top'}`;
     $('.ip-close', pop).onclick = closeInfoPop;
   }
   document.addEventListener('click', e => {
@@ -1689,6 +1691,7 @@
       const pos = RowMenu.placerMenu(r, pop.offsetHeight, pop.offsetWidth, window.innerWidth, window.innerHeight);
       pop.style.top = (o.recouvre ? Math.max(8, r.top - 6) : pos.top) + 'px';
       pop.style.left = (o.largeur === 'ancre' ? Math.max(8, Math.min(r.left - 10, window.innerWidth - pop.offsetWidth - 8)) : pos.left) + 'px';
+      pop.style.transformOrigin = `${pos.left + pop.offsetWidth / 2 < r.left + r.width / 2 ? 'right' : 'left'} ${!o.recouvre && pos.top < r.top ? 'bottom' : 'top'}`;
     };
     const touche = e => { if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fermer(); if (ancre.focus) ancre.focus(); } };
     function fermer() {
@@ -7735,16 +7738,21 @@
               ${depots.map(d => choix('data-dp', d.id, h(d.nom), suivis.length ? suivis.slice(0, 2).map(it => `« ${h(it.label)} » : ${pct((C.stockParDepot(data, it.id).find(x => x.depotId === d.id) || { qty: 0 }).qty)} en stock`).join(' · ') : '', d.id === (doc.depotId || C.DEPOT_PRINCIPAL))).join('')}`,
             (pop, fermer) => $$('[data-dp]', pop).forEach(x => x.onclick = () => { mettre('depotId', x.dataset.dp); fermer(); }), { label: 'Dépôt du stock' });
         }
-        if (k === 'affaire' || k === 'ref') {
+        // Une étiquette, une bulle : « Affaire » range la pièce, « Référence » s'imprime (la bulle commune répétait l'une
+        // dans l'autre, Skander le 26/10/2026).
+        if (k === 'ref') {
+          return ouvrirBulle(b, `<div class="pop-t">Référence du client</div>
+              <label class="pop-champ"><input type="text" id="pop-ref" aria-label="Référence du client" value="${h(doc.reference || '')}" placeholder="ex. bon de commande BC-2026-118" ${ro}></label>
+              <p class="pop-n">Elle s'imprime sur ${isQ ? 'le devis' : isAv ? 'l\'avoir' : 'la facture'}.</p>`,
+            (pop) => { const r = $('#pop-ref', pop); r.oninput = () => mettre('reference', r.value); r.focus(); }, { label: 'Référence du client' });
+        }
+        if (k === 'affaire') {
           const affaires = projectItems(doc.clientId).filter(x => !x.vide);
           return ouvrirBulle(b, `<div class="pop-t">Affaire</div>
               <label class="pop-q">${lfIc('loupe', 15)}<input type="search" id="pop-aff-q" placeholder="Rechercher une affaire…" autocomplete="off"></label>
               <div id="pop-aff-l" class="pop-liste"></div>
               <button type="button" class="pop-plus" id="pop-aff-nv">${lfIc('ajout', 14, 2.4)}Nouvelle affaire</button>
-              <p class="pop-n">L'affaire ne s'imprime pas : elle range la pièce pour suivre ce que l'affaire rapporte.</p>
-              <div class="pop-sep"></div>
-              <label class="pop-champ"><span>${isQ ? 'Référence du client' : 'Référence du client'}</span><input type="text" id="pop-ref" value="${h(doc.reference || '')}" placeholder="ex. bon de commande BC-2026-118" ${ro}></label>
-              <p class="pop-n">La référence, elle, s'imprime sur ${isQ ? 'le devis' : isAv ? 'l\'avoir' : 'la facture'}.</p>`,
+              <p class="pop-n">L'affaire ne s'imprime pas : elle range la pièce pour suivre ce que l'affaire rapporte.</p>`,
             (pop, fermer) => {
               const dessiner = q => {
                 const l = affaires.filter(x => !q || sansAccents(x.text || x.label).includes(sansAccents(q))).slice(0, 6);
@@ -7755,9 +7763,8 @@
               dessiner('');
               $('#pop-aff-q', pop).oninput = e => dessiner(e.target.value.trim());
               $('#pop-aff-nv', pop).onclick = () => { fermer(); projectForm(null, p => { projectCombo.setItems(projectItems(doc.clientId)); projectCombo.setValue(p.id); poserAffaire(p.id); majEtiquettes(); }, { name: $('#pop-aff-q', pop).value.trim(), clientId: doc.clientId || '', startDate: doc.date || C.today() }); };
-              const r = $('#pop-ref', pop); r.oninput = () => mettre('reference', r.value);
-              (k === 'ref' ? r : $('#pop-aff-q', pop)).focus();
-            }, { label: 'Affaire et référence' });
+              $('#pop-aff-q', pop).focus();
+            }, { label: 'Affaire' });
         }
         return null;
       }

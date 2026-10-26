@@ -213,7 +213,14 @@
     el.querySelectorAll('[hidden]').forEach((x) => { if (!x.classList.contains('nav-count')) x.removeAttribute('hidden'); });
     voletOuvert = famille;
     const barre = $('barre');
-    if (barre && !telephone()) el.style.left = `${Math.round(barre.getBoundingClientRect().right + 22)}px`;
+    if (barre && !telephone()) {
+      el.style.left = `${Math.round(barre.getBoundingClientRect().right + 22)}px`;
+      // Le volet s'ouvre à hauteur de la famille qui l'ouvre, pas tout en haut de l'écran (Skander, 26/10/2026) ; il
+      // remonte juste ce qu'il faut pour rester entier dans la fenêtre. La hauteur mesurée est celle dessinée (90 %).
+      const r = bouton.getBoundingClientRect();
+      const haut = el.getBoundingClientRect().height;
+      el.style.top = `${Math.round(Math.max(10, Math.min(r.top - 14, window.innerHeight - 10 - haut)))}px`;
+    }
     el.addEventListener('click', (e) => {
       const t = /** @type {Element} */ (e.target);
       const epingle = /** @type {HTMLElement | null} */ (t.closest('[data-epingle]'));

@@ -158,7 +158,7 @@ body.avec-barre #barre.sidebar { height: calc(100dvh - var(--poste-bandeau-h, 0p
 #barre .abo.alerte { background: var(--sb-rouge-doux); border-color: transparent; color: var(--sb-rouge-texte); }
 #barre .abo.alerte .ic, #barre .abo.alerte small { color: var(--sb-rouge-texte); }
 #barre .abo .chev { display: flex; opacity: .6; }
-#barre .maj { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 10px; border: 0; background: var(--sb-doux); color: var(--sb-doux-texte); font-size: 13px; font-weight: 600; cursor: pointer; text-align: left; }
+#barre .maj { display: flex; flex-direction: row; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border-radius: 10px; border: 0; background: var(--sb-doux); color: var(--sb-doux-texte); font-size: 13px; font-weight: 600; cursor: pointer; text-align: left; }
 #barre .maj[hidden] { display: none; }
 #barre .maj .ic { display: flex; }
 #barre .maj .ic svg { width: 17px; height: 17px; stroke-width: 2; }
