@@ -96,7 +96,7 @@ describe('le lien d\'écran d\'une console partenaire', () => {
     await p.goto(`${serveur.adresse}${lien[0]?.ecran}`);
     await seConnecter(p, nadia);
     await p.waitForURL(`${serveur.adresse}/v10/?e=${menuiserie}#/doc/f-lien`, { timeout: 15_000 });
-    await expect.poll(async () => (await p.locator('#view h1').first().innerText().catch(() => '')).trim(), { timeout: 15_000 }).toBe('Facture FAC-2026-001');
+    await expect.poll(async () => (await p.locator('#view h1').first().innerText().catch(() => '')).trim(), { timeout: 15_000 }).toBe('FAC-2026-001');
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'lien-ecran-facture.png') });
     // La fois suivante, l'accueil ouvre la menuiserie, sur son accueil : le lien ne sert qu'une fois.
     await p.goto(serveur.adresse);

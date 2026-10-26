@@ -140,7 +140,7 @@
   // Ce qui EMPÊCHE de fabriquer le fichier (bloquants), et ce qui mérite d'être relu sans bloquer
   // (remarques). Chaque bloquant nomme la case qui le règle (`cible`), pour que l'écran y mène.
   function controleTeif(doc, client, company) {
-    const d = doc || {}, co = company || {}, cl = client || null;
+    const d = doc || {}, co = company || {}, cl = client || (d.passage ? { name: d.passage.nom || 'Client de passage', matricule: d.passage.matricule || '' } : null);
     const bloquants = [], remarques = [];
     const bloque = (cible, message) => bloquants.push({ cible, message });
     if (!['facture', 'avoir'].includes(d.type)) bloque('piece', 'Seules une facture et un avoir partent vers El Fatoora : un devis ou un bon ne sont pas des factures.');
@@ -180,7 +180,7 @@
     const o = opts || {};
     const ctl = controleTeif(doc, client, company);
     if (!ctl.ok) return { ok: false, xml: '', nom: '', bloquants: ctl.bloquants, remarques: ctl.remarques };
-    const d = doc, co = company, cl = client;
+    const d = doc, co = company, cl = client || (doc && doc.passage ? { name: doc.passage.nom || 'Client de passage', matricule: doc.passage.matricule || '' } : null);
     const cur = d.currency || co.currency || 'DT';
     const iso = deviseIso(cur);
     const t = C.computeTotals(d, co);
@@ -240,6 +240,8 @@
     if (String(d.subject || '').trim()) textes.push(el('FreeTextDetail', { subjectCode: 'I-41' }, [el('FreeTexts', {}, couper(d.subject, 500))]));
     const coTva = C.regimePourPiece(d, co);
     if (!C.assujettiTVA(coTva) && t.totalVAT === 0 && C.mentionTVA(coTva, 'fr')) textes.push(el('FreeTextDetail', { subjectCode: 'I-48' }, [el('FreeTexts', {}, couper(C.mentionTVA(coTva, 'fr'), 500))]));
+    // (1.155.0) La vente à l'exportation porte sa mention (code de la TVA, art. 18), comme la facture imprimée.
+    if (d.export === true) textes.push(el('FreeTextDetail', { subjectCode: 'I-48' }, [el('FreeTexts', {}, 'Vente à l\'exportation')]));
     if (d.type === 'avoir' && String(d.creditReason || '').trim()) textes.push(el('FreeTextDetail', { subjectCode: 'I-48' }, [el('FreeTexts', {}, couper('Motif : ' + d.creditReason, 500))]));
 
     // Les lignes. Le montant de chaque ligne (I-171) est son HT APRÈS la remise globale, pour que
@@ -253,23 +255,37 @@
     if (Math.abs(ecart) > 0) {
       let i = -1;
       t.lines.forEach((l, k) => { if (!l.noDiscount) i = k; });
-      if (i < 0) i = nets.length - 1;
+      if (i < 0) t.lines.forEach((l, k) => { if (!l.titre) i = k; });
       if (i >= 0) nets[i] = rd(nets[i] + ecart);
     }
+    // (1.155.0) Une ligne de titre ne compte pour rien et ne part pas dans le fichier ; les lignes gardent un numéro
+    // qui se suit. Une ligne qui a sa propre remise dit la remise ENTIÈRE qu'elle porte (la sienne, puis la globale) sur
+    // son montant avant remise : le schéma n'en accepte qu'une par ligne, et le montant net (I-171) reste exact.
+    let rang = 0;
     const lignes = t.lines.map((l, k) => {
-      const libelle = [l.label, l.description].map(s => String(s || '').trim()).filter(Boolean).join(' — ') || `Ligne ${k + 1}`;
+      if (l.titre) return null;
+      rang += 1;
+      const libelle = [l.label, l.description].map(s => String(s || '').trim()).filter(Boolean).join(' — ') || `Ligne ${rang}`;
+      const propre = Number(l.discount) || 0;
+      const alc = propre > 0 && l.brut > 0
+        ? el('LinAlc', {}, [
+          el('Alc', { allowanceCode: 'I-151' }, [el('SpecialServices', { lang: 'fr' }, 'Remise')]),
+          el('Pcd', {}, [el('Percentage', {}, tauxTeif(Math.round((l.brut - nets[k]) / l.brut * 100000) / 1000)), el('PercentageBasis', {}, montantTeif(l.brut, cur))])])
+        : disc > 0 && !l.noDiscount ? el('LinAlc', {}, [
+          el('Alc', { allowanceCode: 'I-151' }, [el('SpecialServices', { lang: 'fr' }, 'Remise')]),
+          el('Pcd', {}, [el('Percentage', {}, tauxTeif(disc)), el('PercentageBasis', {}, montantTeif(l.ht, cur))])]) : null;
       return el('Lin', {}, [
-        el('ItemIdentifier', {}, String(k + 1)),
+        el('ItemIdentifier', {}, String(rang)),
         el('LinImd', { lang: 'fr' }, [el('ItemCode', {}, couper(l.itemCode || l.itemId || String(k + 1), 35)), el('ItemDescription', {}, couper(libelle, 500))]),
         el('LinQty', {}, [el('Quantity', { measurementUnit: uniteTeif(l.unit) }, quantiteTeif(l.qty))]),
         el('LinTax', {}, [el('TaxTypeName', { code: 'I-1602' }, 'TVA'), el('TaxDetails', {}, [el('TaxRate', {}, tauxTeif(l.vatRate))])]),
-        disc > 0 && !l.noDiscount ? el('LinAlc', {}, [
-          el('Alc', { allowanceCode: 'I-151' }, [el('SpecialServices', { lang: 'fr' }, 'Remise')]),
-          el('Pcd', {}, [el('Percentage', {}, tauxTeif(disc)), el('PercentageBasis', {}, montantTeif(l.ht, cur))])]) : null,
+        // (1.155.0) La ligne qui porte la FODEC le dit (code I-1603, À VÉRIFIER dans le guide TEIF de la TTN).
+        l.fodec === true && t.fodec > 0 ? el('LinTax', {}, [el('TaxTypeName', { code: 'I-1603' }, 'FODEC'), el('TaxDetails', {}, [el('TaxRate', {}, tauxTeif(Number(d.fodecRate) || 0))])]) : null,
+        alc,
         el('LinMoa', {}, [
           el('MoaDetails', {}, [moa('I-183', l.unitPrice)]),
           el('MoaDetails', {}, [moa('I-171', nets[k])])])]);
-    });
+    }).filter(Boolean);
 
     // Les totaux de la facture. Le TTC porte le montant en toutes lettres, comme le PDF.
     const totaux = [
@@ -287,6 +303,15 @@
     if (t.stamp > 0) taxes.push(el('InvoiceTaxDetails', {}, [
       el('Tax', {}, [el('TaxTypeName', { code: 'I-1601' }, 'Droit de timbre'), el('TaxDetails', {}, [el('TaxRate', {}, '0')])]),
       el('AmountDetails', {}, [moa('I-178', t.stamp)])]));
+    // (1.155.0) La FODEC (code I-1603, À VÉRIFIER) : sa base (le net HT des lignes qui la portent) et son montant ; le TTC
+    // reste le HT plus les taxes.
+    if (t.fodec > 0) {
+      const baseFodec = rd(t.lines.reduce((s, l, k) => s + (l.fodec === true ? nets[k] : 0), 0));
+      taxes.push(el('InvoiceTaxDetails', {}, [
+        el('Tax', {}, [el('TaxTypeName', { code: 'I-1603' }, 'FODEC'), el('TaxDetails', {}, [el('TaxRate', {}, tauxTeif(Number(d.fodecRate) || 0))])]),
+        el('AmountDetails', {}, [moa('I-177', baseFodec)]),
+        el('AmountDetails', {}, [moa('I-178', t.fodec)])]));
+    }
     Object.keys(t.vatByRate).sort((a, b) => Number(b) - Number(a)).forEach(r => {
       const v = t.vatByRate[r];
       taxes.push(el('InvoiceTaxDetails', {}, [

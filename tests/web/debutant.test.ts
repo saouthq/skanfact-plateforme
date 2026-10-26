@@ -169,16 +169,18 @@ describe('le lot débutant (1), à la souris', () => {
     const { jeton, ent } = await personne(false);
     const { p, erreurs, fermer } = await ouvrir(jeton, ent, '#/achat/new/-/depense');
     expect(net(await p.locator('#b-lignes-hint').innerText())).toBe('Tape ce que tu as payé dans « Montant payé (TTC) » et choisis son taux de TVA : SkanFact en déduit le hors taxes.');
+    // (1.155.0) Une pièce neuve n'a pas de ligne : Entrée dans la barre d'ajout en pose une, libre.
+    if (!(await p.locator('[data-k=label]').count()) && await p.locator('#ed-ajout').count()) await p.locator('#ed-ajout').press('Enter');
     await p.locator('input[data-k=label]').first().fill('Facture STEG électricité septembre');
     await p.locator('#b-ttc').fill('85.4');
     // 85,400 payés à 19 % : 71,765 hors taxes, 13,635 de TVA — le total retombe sur ce qui a été payé.
     await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('71.765');
-    expect(net(await p.locator('#b-totals').innerText())).toContain('Net à payer 85,400 DT');
+    expect(net(await p.locator('#b-totals').innerText())).toContain('Net à payer au fournisseur 85,400 DT');
     expect(net(await p.locator('#b-ttc-note').innerText())).toBe('Hors taxes : 71,765 DT ; TVA à 19 % : 13,635 DT.');
     // Le taux change : le hors taxes se recalcule, le total reste ce qui a été payé.
     await p.locator('select[data-k=vatRate]').first().selectOption('7');
     await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('79.813');
-    expect(net(await p.locator('#b-totals').innerText())).toContain('Net à payer 85,400 DT');
+    expect(net(await p.locator('#b-totals').innerText())).toContain('Net à payer au fournisseur 85,400 DT');
     await p.screenshot({ path: path.join(PHOTOS, 'debutant-4-depense.png') });
     // Un hors taxes tapé à la main reprend la main : le montant payé s'efface.
     await p.locator('input[data-k=unitPrice]').first().fill('50');
@@ -217,7 +219,7 @@ describe('le lot débutant (1), à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'debutant-5-avoir.png') });
     await rembourser.click();
     const fenetre = p.locator('#modal-root .modal').last();
-    await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Rembourser le client');
+    await expect.poll(() => fenetre.locator('h2').innerText()).toMatch(/^Rembourser le client( · FAC-\d{4}-\d{3})?$/);
     await fenetre.getByRole('button', { name: 'Enregistrer le remboursement', exact: true }).click();
     await expect.poll(async () => net(await p.locator('#toast').innerText())).toBe('Remboursement enregistré : 536,095 DT rendus au client');
     // Rendu : la facture redevient simplement réglée, l'avoir n'a plus rien à rendre.

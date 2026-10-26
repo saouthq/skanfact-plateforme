@@ -120,7 +120,7 @@ describe('les kits, à la souris', () => {
     await expect.poll(() => p.locator('#modal-root #ok').count(), { timeout: 10_000 }).toBe(1);
     expect(net(await p.locator('#modal-root').innerText())).not.toContain('Stock insuffisant');
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^Facture FAC-\d{4}-001/);
+    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^FAC-\d{4}-001/);
     await p.evaluate(() => { location.hash = '#/article/ciment'; });
     await expect.poll(async () => net(await p.locator('#view').innerText()), { timeout: 10_000 }).toMatch(/EN STOCK 28 sacs/);
     expect(net(await p.locator('#view').innerText())).toMatch(/Vente kit « Pack chape 10 m² » FAC-\d{4}-001 [-−]12/);

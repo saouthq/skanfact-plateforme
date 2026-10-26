@@ -2925,7 +2925,8 @@
     rsSubie: '4358',           // Retenue à la source SUBIE — une créance, jamais une dette
     rsOperee: '4352',          // Retenue à la source OPÉRÉE sur un fournisseur — une dette
     irpp: '4321',              // IRPP retenu sur les salaires
-    cnss: '4531'               // CNSS — trimestrielle, rappelée ici pour mémoire
+    cnss: '4531',              // CNSS — trimestrielle, rappelée ici pour mémoire
+    fodec: '4369'              // (1.155.0) FODEC collectée sur les produits fabriqués (À VÉRIFIER, comme dans DEFAULT_ACCOUNTS)
   };
 
   // Les cases dont la RÈGLE n'est pas connue, et ce qu'on répond à leur place. Elles existent dans
@@ -3084,6 +3085,8 @@
     const rsOp = retenuDuMois(livre, compteDuRole(livre, 'rsOperee'), du, au, horsMois);
     const rsSub = retenuDuMois(livre, compteDuRole(livre, 'rsSubie'), du, au, horsMois, 'creance');
     const irpp = retenuDuMois(livre, compteDuRole(livre, 'irpp'), du, au, horsMois);
+    // (1.155.0) La FODEC collectée du mois : ce que son compte a reçu. Seul un fabricant en a ; à zéro, la case se tait.
+    const fodec = retenuDuMois(livre, compteDuRole(livre, 'fodec'), du, au, horsMois);
 
     // Le détail par TAUX ne s'invente pas : il demande un sous-compte de TVA collectée par taux.
     // Quand le plan n'en a qu'un, on le DIT au lieu de rendre un tableau à une ligne qui laisserait
@@ -3100,6 +3103,9 @@
       netAPayer: caseDe(Math.max(0, net), []),
       creditAReporter: caseDe(Math.max(0, -net), []),
       timbre: caseDe(timbre.v, timbre.e),
+      // La FODEC n'entre pas dans le total à décaisser de l'écriture du mois : elle se verse depuis son propre compte, comme
+      // la TFP. Sa ligne du formulaire, son taux et son versement sont À VÉRIFIER avec le comptable.
+      fodec: { ...caseDe(fodec.v, fodec.e), horsTotal: 'Non compris dans le total à décaisser — À VÉRIFIER avec le comptable : la ligne du formulaire et le versement de la FODEC.' },
       retenuesOperees: caseDe(rsOp.v, rsOp.e),
       // Une somme qu'on RÉCUPÈRE, jamais qu'on paie : rangée après le total, sans ce mot, elle se
       // lisait comme une ligne oubliée du total (T-16).
@@ -3282,6 +3288,13 @@
     R('tva').lignes = tva;
     R('timbre').lignes = [ligne({ cle: 'timbre', libelle: 'Droit de timbre sur les factures', montant: m('timbre'), source: 'timbre' })];
     R('tcl').lignes = [ligne({ cle: 'tcl', libelle: 'Taxe sur les établissements (TCL)', motif: MOTIF_TCL })];
+    // (1.155.0) La FODEC, pour un fabricant seulement : la rubrique n'existe que quand le mois en a collecté.
+    const avecFodec = m('fodec') > 0;
+    if (avecFodec) {
+      rubriques.splice(rubriques.findIndex(r => r.id === 'timbre'), 0, { id: 'fodec', titre: 'FODEC', ar: '', lignes: [
+        ligne({ cle: 'fodec', libelle: 'FODEC sur les ventes de produits fabriqués', montant: m('fodec'), source: 'fodec',
+          note: 'La ligne du formulaire et le taux sont À VÉRIFIER avec le comptable.' })] });
+    }
 
     // Le récapitulatif : une ligne par taxe, comme la dernière page du formulaire. Ce qui ne se
     // sait pas n'entre pas dans le total, et le total le DIT (un total se lit comme la somme de
@@ -3292,6 +3305,7 @@
       { cle: 'tfp', libelle: 'Taxe de formation professionnelle', montant: m('tfp') },
       { cle: 'foprolos', libelle: 'FOPROLOS', montant: m('foprolos') },
       { cle: 'tva', libelle: 'TVA', montant: m('netAPayer') },
+      ...(avecFodec ? [{ cle: 'fodec', libelle: 'FODEC', montant: m('fodec') }] : []),
       { cle: 'timbre', libelle: 'Droit de timbre', montant: m('timbre') },
       { cle: 'tcl', libelle: 'Taxes des collectivités locales', montant: null }
     ];
@@ -3455,7 +3469,7 @@
     netAPayer: 'TVA nette à payer', creditAReporter: 'Crédit à reporter', timbre: 'Droit de timbre',
     retenuesOperees: 'Retenues à la source opérées', retenuesSubies: 'Retenues subies — à récupérer, pas à payer',
     irpp: 'IRPP retenu sur salaires', aDecaisser: 'Total à décaisser (TVA nette + timbre + retenues opérées)',
-    tfp: 'TFP', foprolos: 'FOPROLOS', tcl: 'TCL', acomptes: 'Acomptes provisionnels'
+    tfp: 'TFP', foprolos: 'FOPROLOS', tcl: 'TCL', acomptes: 'Acomptes provisionnels', fodec: 'FODEC'
   };
   function ecartDeclaration(posee, decl) {
     if (!posee || !posee.cases || !decl || !decl.cases) return [];

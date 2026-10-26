@@ -18,6 +18,13 @@ export type LignePiece = {
   tauxTva: bigint;          // à six décimales (19 % = 190 000)
   // La remise globale ne porte pas sur cette ligne (la déduction d'un acompte déjà facturé).
   sansRemise?: boolean;
+  // (1.155.0, maquette de la facture) La remise de la ligne, à six décimales (10 % = 100 000) : elle se retire du
+  // montant de la ligne, arrondi, AVANT la remise globale. Absente ou nulle : la ligne d'avant, au millime près.
+  tauxRemise?: bigint;
+  // (1.155.0, maquette de la facture) La ligne porte la FODEC : un produit que l'entreprise fabrique. Son montant est le
+  // taux de la pièce (`tauxFodec`) sur la base remisée de la ligne ; il entre dans la base de la TVA. À VÉRIFIER avec
+  // un comptable : l'assiette (le HT après remise) et l'entrée dans la base de la TVA.
+  fodec?: boolean;
 };
 
 export type Piece = {
@@ -36,18 +43,28 @@ export type Piece = {
   // Au comptoir, le prix d'étiquette fait foi (lot caisse 3, 06/10/2026) : une pièce « prix TTC » (un ticket de caisse,
   // et l'avoir de son retour) se calcule TTC d'abord. Sinon 2 × 1,200 DT faisaient 2,399 DT (le HT gardé au millime).
   prixTtc?: boolean;
+  // (1.155.0) Le seuil de la retenue à la source, en MILLIMES, lu à la date de la pièce (règle `retenue.seuil`) : une
+  // pièce dont le TTC hors timbre, en dinars, reste sous ce seuil ne porte pas de retenue (elle naîtra au paiement si
+  // le client en règle plusieurs pour ce montant). Absent ou nul : pas de seuil, la règle qui ne fait rien.
+  seuilRetenue?: bigint;
+  // (1.155.0) Le taux de la FODEC, à six décimales (1 % = 10 000), lu à la date de la pièce (règle `fodec.taux`). Absent
+  // ou nul : aucune FODEC, la règle qui ne fait rien. Une pièce « prix TTC » (le comptoir) n'en porte jamais.
+  tauxFodec?: bigint;
 };
 
-export type LigneCalculee = LignePiece & { ht: bigint; tva: bigint; ttc: bigint };
+// `brut` : le montant de la ligne avant sa propre remise (le HT, ou le TTC d'une pièce « prix TTC »).
+export type LigneCalculee = LignePiece & { brut: bigint; ht: bigint; tva: bigint; ttc: bigint };
 
 export type TotauxPiece = {
   lignes: LigneCalculee[];
   totalHT: bigint;
   remise: bigint;
   netHT: bigint;
-  // Par taux (clé : le taux à six décimales) : la base remisée et la TVA.
-  tvaParTaux: Map<bigint, { base: bigint; tva: bigint }>;
+  // Par taux (clé : le taux à six décimales) : la base remisée et la TVA ; `fodec`, la part de la base qui est de la FODEC
+  // (1.155.0), seulement quand ce taux en porte.
+  tvaParTaux: Map<bigint, { base: bigint; tva: bigint; fodec?: bigint }>;
   totalTVA: bigint;
+  fodec: bigint;            // (1.155.0) dans la devise de la pièce ; zéro sans ligne qui la porte
   timbre: bigint;           // dans la devise de la pièce
   timbreBase: bigint;       // en millimes : ce qui se déclare (10.14.0)
   totalTTC: bigint;
@@ -71,9 +88,10 @@ export function calculerPiece(p: Piece): TotauxPiece {
   const s = echelle(p.devise);
   // HT d'une ligne : quantité (÷ 1 000) × prix (÷ 1 000 000), dans l'unité de la devise.
   const lignes: LigneCalculee[] = p.lignes.map((l) => {
-    const ht = diviserArrondi(l.quantite * l.prixUnitaire * s, MILLE * MILLION);
+    const brut = diviserArrondi(l.quantite * l.prixUnitaire * s, MILLE * MILLION);
+    const ht = brut - auTaux(brut, l.tauxRemise ?? 0n);
     const tva = auTaux(ht, l.tauxTva);
-    return { ...l, ht, tva, ttc: ht + tva };
+    return { ...l, brut, ht, tva, ttc: ht + tva };
   });
   const totalHT = lignes.reduce((t, l) => t + l.ht, 0n);
   const remisable = lignes.filter((l) => !l.sansRemise).reduce((t, l) => t + l.ht, 0n);
@@ -82,16 +100,22 @@ export function calculerPiece(p: Piece): TotauxPiece {
 
   // La remise se répartit sur les lignes remisables au prorata ; la TVA se calcule par taux sur la
   // base remisée. Comme la v10, le total de TVA d'un taux s'arrondit à chaque ligne ajoutée.
-  const tvaParTaux = new Map<bigint, { base: bigint; tva: bigint }>();
+  // La FODEC d'une ligne (1.155.0) : le taux sur sa base remisée, arrondi à la ligne, ajouté à la base de son taux de TVA.
+  const tvaParTaux = new Map<bigint, { base: bigint; tva: bigint; fodec?: bigint }>();
+  let fodec = 0n;
   for (const l of lignes) {
-    const base = l.sansRemise || remisable <= 0n ? l.ht : diviserArrondi(l.ht * (remisable - remise), remisable);
+    const remisee = l.sansRemise || remisable <= 0n ? l.ht : diviserArrondi(l.ht * (remisable - remise), remisable);
+    const f = l.fodec ? auTaux(remisee, p.tauxFodec ?? 0n) : 0n;
+    fodec += f;
+    const base = remisee + f;
     const t = tvaParTaux.get(l.tauxTva) ?? { base: 0n, tva: 0n };
     t.base += base;
     t.tva = diviserArrondi(t.tva * MILLION + base * l.tauxTva, MILLION);
+    if (f) t.fodec = (t.fodec ?? 0n) + f;
     tvaParTaux.set(l.tauxTva, t);
   }
   const totalTVA = [...tvaParTaux.values()].reduce((t, v) => t + v.tva, 0n);
-  return finir(p, s, { lignes, totalHT, remise, netHT, tvaParTaux, totalTVA });
+  return finir(p, s, { lignes, totalHT, remise, netHT, tvaParTaux, totalTVA, fodec });
 }
 
 // La pièce « prix TTC » (porté de `computeTotals`, core.js, la même règle) : le TTC d'une ligne est la quantité × le prix
@@ -102,9 +126,10 @@ function calculerPieceTtc(p: Piece): TotauxPiece {
   const s = echelle(p.devise);
   const lignes: LigneCalculee[] = p.lignes.map((l) => {
     const unitaireTtc = diviserArrondi(l.prixUnitaire * s * (MILLION + l.tauxTva), MILLION * MILLION);
-    const ttc = diviserArrondi(l.quantite * unitaireTtc, MILLE);
+    const brut = diviserArrondi(l.quantite * unitaireTtc, MILLE);
+    const ttc = brut - auTaux(brut, l.tauxRemise ?? 0n);
     const tva = diviserArrondi(ttc * l.tauxTva, MILLION + l.tauxTva);
-    return { ...l, ht: ttc - tva, tva, ttc };
+    return { ...l, brut, ht: ttc - tva, tva, ttc };
   });
   // Le HT avant remise s'extrait par taux, comme le net : ligne à ligne, l'arrondi inventait une remise d'un millime sur
   // un ticket sans remise.
@@ -126,21 +151,25 @@ function calculerPieceTtc(p: Piece): TotauxPiece {
   }
   const totalTVA = [...tvaParTaux.values()].reduce((t, v) => t + v.tva, 0n);
   const netHT = [...tvaParTaux.values()].reduce((t, v) => t + v.base, 0n);
-  return finir(p, s, { lignes, totalHT, remise: totalHT - netHT, netHT, tvaParTaux, totalTVA });
+  return finir(p, s, { lignes, totalHT, remise: totalHT - netHT, netHT, tvaParTaux, totalTVA, fodec: 0n });
 }
 
-type Corps = Pick<TotauxPiece, 'lignes' | 'totalHT' | 'remise' | 'netHT' | 'tvaParTaux' | 'totalTVA'>;
+type Corps = Pick<TotauxPiece, 'lignes' | 'totalHT' | 'remise' | 'netHT' | 'tvaParTaux' | 'totalTVA' | 'fodec'>;
 function finir(p: Piece, s: bigint, c: Corps): TotauxPiece {
-  const { netHT, totalTVA } = c;
+  const { netHT, totalTVA, fodec } = c;
   // Le timbre est en dinars : sur une pièce en devise, il se convertit au cours de la pièce.
   const applique = timbreApplique(p);
   const timbre = !applique ? 0n
     : p.cours ? diviserArrondi(p.timbre * MILLION * s, MILLE * p.cours)
     : diviserArrondi(p.timbre * s, MILLE);
-  const totalTTC = netHT + totalTVA + timbre;
-  // La retenue porte sur le TTC hors timbre (À VÉRIFIER avec un comptable, comme dans la v10).
+  const totalTTC = netHT + fodec + totalTVA + timbre;
+  // La retenue porte sur le TTC hors timbre, FODEC comprise (À VÉRIFIER avec un comptable, comme dans la v10).
   const tauxRetenue = RETENUE_POSSIBLE.includes(p.type) ? (p.tauxRetenue ?? 0n) : 0n;
-  const retenue = auTaux(netHT + totalTVA, tauxRetenue);
+  // Le seuil se compare en millimes : le TTC hors timbre d'une pièce en devise, converti au cours de la pièce.
+  const horsTimbre = netHT + fodec + totalTVA;
+  const enMillimes = p.cours ? diviserArrondi(horsTimbre * p.cours * MILLE, s * MILLION) : diviserArrondi(horsTimbre * MILLE, s);
+  const sousLeSeuil = (p.seuilRetenue ?? 0n) > 0n && enMillimes < (p.seuilRetenue ?? 0n);
+  const retenue = sousLeSeuil ? 0n : auTaux(horsTimbre, tauxRetenue);
   return {
     ...c, timbre,
     timbreBase: applique ? p.timbre : 0n,

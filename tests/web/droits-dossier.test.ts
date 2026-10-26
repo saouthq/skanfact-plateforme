@@ -81,9 +81,13 @@ describe('les droits dans le dossier, à la souris', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/new/facture`);
     await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^Nouvelle facture|^Facture/);
     await plusTard(p);
-    await p.locator('[data-combo=clientId] .combo-btn').click();
-    await p.locator('[data-combo=clientId] .combo-q').fill('Ennasr');
-    await p.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
+    // (1.155.0) « Pour qui ? » : on tape, on prend le premier client proposé (le seul client d'un dossier est déjà pris).
+    await p.locator('#ed-pq-q:visible, #ed-client:visible').first().waitFor({ timeout: 20_000 });
+    if (await p.locator('#ed-pq-q').isVisible()) {
+      await p.locator('#ed-pq-q').fill('Ennasr');
+      await p.locator('#ed-pq-liste [role=option][data-cl]').first().click();
+    }
+    if (!(await p.locator('[data-k=label]').count())) await p.locator('#ed-ajout').press('Enter');
     await p.locator('#lines input[data-k=label], [data-k=label]').first().fill('Ciment gris 50 kg');
     await p.locator('[data-k=qty]').first().fill('10');
     await p.locator('[data-k=unitPrice]').first().fill('21');
@@ -96,7 +100,7 @@ describe('les droits dans le dossier, à la souris', () => {
     await p.locator('#issue').click();
     await expect.poll(() => p.locator('#modal-root #ok').count(), { timeout: 10_000 }).toBe(1);
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^Facture FAC-\d{4}-001/);
+    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^FAC-\d{4}-001/);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'droits-1-facture-du-commercial.png') });
 
     // 2. La paie ne lui montre rien.

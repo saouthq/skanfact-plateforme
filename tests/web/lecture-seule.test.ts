@@ -98,7 +98,7 @@ describe('les pages en lecture seule, à la souris', () => {
     const s = await ouvrir(samia.jeton, '#/factures');
     await expect.poll(() => bandeau(s), { timeout: 10_000 }).toBe('Lecture seule. Ton rôle te laisse lire les pièces de vente, pas les modifier : un geste qui les changerait sera refusé, en le disant.');
     await s.evaluate(() => { location.hash = '#/doc/f0'; });
-    await expect.poll(() => titre(s), { timeout: 10_000 }).toMatch(/^Facture FAC-\d{4}-001/);
+    await expect.poll(() => titre(s), { timeout: 10_000 }).toMatch(/^FAC-\d{4}-001/);
     await plusTard(s);
     expect(await bandeau(s)).toMatch(/^Lecture seule\./);
     await s.locator('#pay').click();
@@ -118,6 +118,8 @@ describe('les pages en lecture seule, à la souris', () => {
     await s.evaluate(() => { location.hash = '#/doc/new/facture'; });
     await expect.poll(() => titre(s), { timeout: 10_000 }).toMatch(/^Nouvelle facture|^Facture/);
     await plusTard(s);
+    // (1.155.0) Une pièce neuve n'a pas de ligne : Entrée dans la barre d'ajout en pose une, libre.
+    if (!(await s.locator('[data-k=label]').count()) && await s.locator('#ed-ajout').count()) await s.locator('#ed-ajout').press('Enter');
     await s.locator('[data-k=label]').first().fill('Ciment gris 50 kg');
     await s.locator('#save').click();
     await expect.poll(() => toast(s), { timeout: 10_000 }).toBe('Ton rôle te laisse lire les pièces de vente, pas les modifier : rien n\'a été enregistré. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.');

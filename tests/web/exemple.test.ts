@@ -159,8 +159,9 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     await menu.getByText('Faire une facture', { exact: true }).click();
     await expect.poll(() => titreBulle(p)).toBe('Choisis le client');
     // Le client n'existe pas encore : il se crée depuis la liste, sans quitter la facture.
-    await p.locator('[data-combo=clientId] .combo-btn').click();
-    await p.getByRole('button', { name: '+ Nouveau client' }).click();
+    // (1.155.0) « Pour qui ? » : « Nouveau client » sous la recherche.
+    await p.locator('#ed-pq-q').click();
+    await p.locator('#ed-pq-nv').click();
     await p.locator('#cf input[name=name]').fill('Société Hammami Bâtiment');
     await p.locator('#modal-root').getByRole('button', { name: 'Enregistrer', exact: true }).click();
     await expect.poll(() => p.locator('[data-combo=clientId] .combo-val').innerText()).toContain('Société Hammami Bâtiment');

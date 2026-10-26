@@ -40,7 +40,9 @@
     /** @type {HTMLElement} */ (el.querySelector('.sk-message-plus-tard')).onclick = () => {
       cacher(m.id);
       suivi?.cache(m.id);
-      el.style.minHeight = `${el.getBoundingClientRect().height}px`;
+      // La hauteur de mise en page (le style calculé, au centième), pas celle de l'écran : dans l'affichage compact (zoom de la page), la
+      // hauteur mesurée à l'écran, reposée en style, rétrécissait encore la place et la page remontait sous le curseur.
+      el.style.minHeight = getComputedStyle(el).height;
       el.classList.add('sk-message-cache');
       el.innerHTML = '<span class="sk-message-texte">Message caché sur cet appareil : un nouveau message reparaîtra.</span>';
     };

@@ -173,7 +173,7 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`);
     await p.getByRole('button', { name: 'Émettre la facture', exact: true }).click({ timeout: 20_000 });
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toBe('Facture FAC-2026-001');
+    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toBe('FAC-2026-001');
     await p.locator('#pay').click();
     const montant = p.locator('#pf2 [name=amount]');
     await montant.click();

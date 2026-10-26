@@ -1,94 +1,135 @@
-/* L'espace client (brique 77), dans la DA de l'application (1.86.0) : les mêmes polices, la même nuit verte et la même
-   menthe que la page de retour d'un paiement (retour.css), pour que payer et revenir se lisent comme une seule histoire.
-   Sobre, lisible sur un téléphone comme sur un ordinateur ; clair et sombre. Ce qui est dû se lit en premier, en grand. */
+/* L'espace client (brique 77), tel que la maquette « ce que voit le client » (docs/maquettes/facture.html, 1.155.0) :
+   la police et les couleurs de l'application (Inter, sarcelle sur blanc, gris bleutés), une page en deux colonnes. À
+   gauche ce que le client doit, ses pièces et la pièce ouverte sur son papier ; à droite le reste à payer et le geste.
+   Lisible sur un téléphone (une colonne) comme sur un ordinateur ; clair et sombre. */
 @font-face {
-  font-family: 'Bricolage Grotesque Variable'; font-style: normal; font-display: swap; font-weight: 200 800;
-  src: url(/plateforme/polices/bricolage-grotesque-latin-wght-normal.woff2) format('woff2-variations');
+  font-family: 'Inter'; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url(/plateforme/polices/inter-latin-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 @font-face {
-  font-family: 'Instrument Sans Variable'; font-style: normal; font-display: swap; font-weight: 400 700;
-  src: url(/plateforme/polices/instrument-sans-latin-wght-normal.woff2) format('woff2-variations');
+  font-family: 'Inter'; font-style: normal; font-display: swap; font-weight: 100 900;
+  src: url(/plateforme/polices/inter-latin-ext-wght-normal.woff2) format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
 }
 :root {
-  --titre: 'Bricolage Grotesque Variable', 'Bricolage Grotesque', system-ui, sans-serif;
-  --police: 'Instrument Sans Variable', 'Instrument Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --fond: #eef3f2; --carte: #fff; --texte: #13201e; --doux: #5a6b68; --trait: #e1e9e7; --tete: #f4f8f7;
-  --nuit: #0b2724; --menthe: #7fe0d3; --brume: #a9c6c1;
-  --accent: #0f766e; --accent-fort: #0b5f58; --retard: #b42318; --retard-fond: #fdecea;
+  --police: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+  --fond: #f3f5f8; --carte: #fff; --texte: #1b2430; --doux: #5b6675; --doux-2: #6b7685; --trait: #e6eaf0; --trait-fort: #d3d9e2;
+  --accent: #0f9d8f; --accent-fort: #0c877b; --accent-doux: #e6f5f3; --accent-texte: #0b6b62;
+  --ambre-doux: #fdf1df; --ambre-texte: #9a5b00; --retard: #c0392b; --retard-fond: #fdecea; --bleu-doux: #eaf0fe; --bleu-texte: #3559c7;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --fond: #08110f; --carte: #101d1b; --texte: #e6efed; --doux: #9fb3af; --trait: #1f302d; --tete: #0c1816;
-    --accent: #2bb3a3; --accent-fort: #39c7b6; --retard: #ffab9f; --retard-fond: rgba(255, 171, 159, .12); color-scheme: dark; }
+  :root { --fond: #12161c; --carte: #1a2029; --texte: #e6eaf0; --doux: #a3adbb; --doux-2: #7d8898; --trait: #2a3340; --trait-fort: #3b4656;
+    --accent: #1fb8a8; --accent-fort: #26cbba; --accent-doux: #14302e; --accent-texte: #7fe0d3;
+    --ambre-doux: #3a2c14; --ambre-texte: #f3c26b; --retard: #ffab9f; --retard-fond: rgba(255, 171, 159, .12); --bleu-doux: #1c2742; --bleu-texte: #9db7ff; color-scheme: dark; }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--fond); color: var(--texte); font: 15px/1.55 var(--police); -webkit-font-smoothing: antialiased; }
-main { max-width: 960px; margin: 0 auto; padding: 32px 16px 48px; }
-.attente, .refus { background: var(--carte); border: 1px solid var(--trait); border-radius: 18px; padding: 22px 24px; }
+body { margin: 0; background: var(--fond); color: var(--texte); font: 14.5px/1.5 var(--police); font-feature-settings: 'cv11', 'ss01'; -webkit-font-smoothing: antialiased; }
+main { max-width: 1240px; margin: 0 auto; padding: 0 0 40px; }
+.attente, .refus { background: var(--carte); border: 1px solid var(--trait); border-radius: 14px; padding: 22px 24px; margin: 32px 16px; }
 .attente { color: var(--doux); }
-.refus strong { display: block; margin-bottom: 6px; font-family: var(--titre); font-size: 20px; font-weight: 600; letter-spacing: -0.01em; }
+.refus strong { display: block; margin-bottom: 6px; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
 
-/* L'entreprise qui t'écrit : son logo, son nom. */
-header.societe { display: flex; gap: 16px; align-items: center; margin-bottom: 22px; }
-header.societe img { max-height: 56px; max-width: 160px; object-fit: contain; }
-header.societe h1 { font-family: var(--titre); font-size: 26px; font-weight: 600; line-height: 1.15; letter-spacing: -0.02em; margin: 0; text-wrap: balance; }
-header.societe p { margin: 4px 0 0; color: var(--doux); }
+/* Qui écrit : sa pastille (ou son logo), son nom, l'espace de qui ; à droite, ce qu'est ce lien. */
+header.societe { display: flex; gap: 12px; align-items: center; padding: 14px 24px; background: var(--carte); border-bottom: 1px solid var(--trait); margin-bottom: 20px; }
+header.societe img { max-height: 40px; max-width: 140px; object-fit: contain; }
+header.societe .pastille { width: 36px; height: 36px; flex: none; border-radius: 10px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 13px; background: linear-gradient(145deg, #16b3a3, #0c877b); }
+header.societe h1 { font-size: 16px; font-weight: 700; line-height: 1.25; margin: 0; letter-spacing: -0.01em; }
+header.societe p { margin: 1px 0 0; color: var(--doux); font-size: 13px; }
+header.societe .lien-dit { margin-left: auto; color: var(--doux-2); font-size: 12.5px; text-align: right; }
 
-.carte { background: var(--carte); border: 1px solid var(--trait); border-radius: 18px; padding: 18px 22px; margin-bottom: 16px; }
+.grille { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; padding: 0 24px; }
+.gauche, .droite { display: grid; gap: 16px; min-width: 0; align-content: start; }
+.carte { background: var(--carte); border: 1px solid var(--trait); border-radius: 14px; padding: 18px 20px; }
+.carte-t { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.carte-t h2 { font-size: 15px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+.carte-t small { color: var(--doux-2); font-size: 12.5px; }
 
-/* Ce qui est dû : la nuit verte, le montant en grand ; « Rien à payer » en menthe. */
-.carte.du { display: flex; flex-wrap: wrap; gap: 4px 20px; align-items: baseline; padding: 22px 24px; border: 0; color: #e8f3f1;
-  background-color: var(--nuit); background-image: repeating-linear-gradient(0deg, rgba(127, 224, 211, .06) 0 1px, transparent 1px 32px); }
-/* Pas de majuscules imposées : ce que le client lit (et copie) est le texte tel qu'il est écrit. */
-.du > span { font-size: 14px; font-weight: 600; color: var(--brume); flex-basis: 100%; }
-.du strong { font-family: var(--titre); font-size: 34px; font-weight: 650; line-height: 1.1; letter-spacing: -0.03em; color: #fff; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.du strong:only-of-type:first-child { color: var(--menthe); font-size: 28px; }
-.du strong:first-child + span { flex-basis: auto; font-size: 15px; font-weight: 500; }
-.du .aide { flex-basis: 100%; margin: 6px 0 0; color: var(--brume); font-size: 14px; }
+/* Ce qui est dû : la tuile sarcelle douce, le montant en grand. Pas de majuscules imposées. */
+.carte.du { display: flex; flex-wrap: wrap; gap: 2px 16px; align-items: baseline; background: var(--accent-doux); border-color: transparent; }
+.du > span { flex-basis: 100%; font-size: 13px; font-weight: 600; color: var(--accent-texte); }
+.du strong { font-size: 30px; font-weight: 700; line-height: 1.15; letter-spacing: -0.025em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.du .aide { flex-basis: 100%; margin: 4px 0 0; color: var(--doux); font-size: 13px; }
+.du.rien strong { font-size: 22px; color: var(--accent-texte); }
+.du.rien strong + span { flex-basis: auto; color: var(--doux); font-weight: 500; font-size: 14px; }
 
-/* La liste des pièces. */
-table.pieces { width: 100%; border-collapse: collapse; }
-table.pieces th { text-align: left; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--doux); font-weight: 600; padding: 8px 6px; border-bottom: 1px solid var(--trait); }
-table.pieces td { padding: 12px 6px; border-bottom: 1px dashed var(--trait); vertical-align: top; }
-table.pieces td strong { font-weight: 650; }
-table.pieces th.m { text-align: right; }
-table.pieces td.m { text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+/* La liste des pièces : une ligne par pièce, la pièce ouverte sur fond sarcelle doux. */
+table.pieces { width: 100%; border-collapse: separate; border-spacing: 0; }
+table.pieces td { padding: 12px 6px; border-bottom: 1px solid var(--trait); vertical-align: middle; font-variant-numeric: tabular-nums; }
+table.pieces td:first-child { padding-left: 4px; white-space: nowrap; }
+table.pieces td strong { font-weight: 700; letter-spacing: .02em; }
+table.pieces td.m { text-align: right; white-space: nowrap; font-weight: 600; }
+table.pieces td.s { width: 1%; white-space: nowrap; padding-left: 10px; }
+table.pieces td.g { width: 1%; text-align: right; }
 table.pieces tr:last-child td { border-bottom: 0; }
+table.pieces tr.ouverte td { background: var(--accent-doux); }
+table.pieces tr.ouverte td:first-child { border-radius: 8px 0 0 8px; }
+table.pieces tr.ouverte td:last-child { border-radius: 0 8px 8px 0; }
 .etiquette { display: none; }
-.statut { font-size: 13px; color: var(--doux); }
-.statut.en_retard { color: var(--retard); font-weight: 600; }
-.statut.accepte { color: var(--accent); font-weight: 600; }
-h2.titre-devis { font-family: var(--titre); font-size: 18px; font-weight: 600; letter-spacing: -0.01em; margin: 28px 0 10px; }
-.recu { font-size: 13px; color: var(--doux); }
+.statut { display: inline-flex; align-items: center; height: 24px; padding: 0 10px; border-radius: 999px; font-size: 12.5px; font-weight: 600; background: var(--fond); color: var(--doux); }
+.statut.a-payer, .statut.partielle { background: var(--ambre-doux); color: var(--ambre-texte); }
+.statut.retard { background: var(--retard-fond); color: var(--retard); }
+.statut.payee, .statut.devis-accepte { background: var(--accent-doux); color: var(--accent-texte); }
+.statut.devis-en_attente { background: var(--bleu-doux); color: var(--bleu-texte); }
+.recu { font-size: 12.5px; color: var(--doux); font-weight: 400; letter-spacing: 0; }
+.plus-anciennes { margin-top: 10px; }
+
+/* La pièce ouverte, sur son papier blanc même en sombre : c'est le document que l'entreprise a émis. */
+.papier { display: flex; justify-content: center; }
+iframe.piece { width: 100%; max-width: 860px; min-height: 70vh; border: 0; border-radius: 4px; background: #fff; box-shadow: 0 1px 2px rgba(27, 36, 48, .08), 0 8px 24px -12px rgba(27, 36, 48, .25); }
+
+/* À droite : le reste à payer et LE geste. */
+.reste-carte { display: grid; gap: 10px; }
+.reste-carte .k { color: var(--doux); font-size: 13px; }
+.reste-carte .reste-mt { font-size: 28px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.aide { margin: 0; color: var(--doux); font-size: 13px; }
+.gestes-carte { display: grid; gap: 10px; }
+.gestes-carte .note { margin: 0 0 2px; padding-left: 12px; position: relative; color: var(--doux); font-size: 13px; }
+.gestes-carte .note::before { content: ''; position: absolute; left: 2px; top: 8px; width: 4px; height: 4px; border-radius: 50%; background: var(--doux-2); }
 
 /* Les boutons : un seul principal, la couleur de l'application. */
-button, .bouton { font: inherit; font-weight: 550; border-radius: 12px; border: 1px solid var(--trait); background: var(--carte); color: var(--texte);
-  min-height: 40px; padding: 8px 16px; cursor: pointer; transition: background .15s, border-color .15s; }
-button:hover { border-color: var(--doux); }
-button:focus-visible, a.bouton:focus-visible { outline: 3px solid var(--menthe); outline-offset: 2px; }
-button.principal { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 650; }
-button.principal:hover { background: var(--accent-fort); border-color: var(--accent-fort); }
-.barre { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
-.barre .reste { color: var(--doux); font-variant-numeric: tabular-nums; }
-.barre .reste strong { color: var(--texte); }
-.barre .gestes { display: flex; flex-wrap: wrap; gap: 8px; }
-.refus-paiement { background: var(--retard-fond); color: var(--retard); border-radius: 12px; padding: 12px 16px; margin: 0 0 14px; }
-button:disabled { opacity: .6; cursor: progress; }
-/* La pièce elle-même reste sur papier blanc, même en sombre : c'est le document que l'entreprise a émis. */
-iframe.piece { width: 100%; border: 1px solid var(--trait); border-radius: 14px; background: #fff; height: 75vh; }
-footer { color: var(--doux); font-size: 13px; margin-top: 24px; }
+button { font: inherit; font-weight: 600; font-size: 14px; border-radius: 10px; border: 1px solid var(--trait-fort); background: var(--carte); color: var(--texte);
+  min-height: 36px; padding: 6px 14px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; transition: background-color .12s, border-color .12s; }
+button:hover:not(:disabled) { border-color: var(--doux-2); }
+button:focus-visible { outline: 3px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 2px; }
+button.principal { background: var(--accent); border-color: var(--accent); color: #fff; min-height: 44px; font-size: 15px; }
+button.principal:hover:not(:disabled) { background: var(--accent-fort); border-color: var(--accent-fort); }
+button[aria-current="true"] { border-color: var(--accent); color: var(--accent-texte); }
+button:disabled { opacity: .6; cursor: default; }
+.gestes-carte button, .reste-carte button { width: 100%; justify-content: flex-start; }
+.reste-carte button.principal { justify-content: center; }
+.refus-paiement { background: var(--retard-fond); color: var(--retard); border-radius: 10px; padding: 10px 14px; margin: 0; font-size: 13.5px; }
+footer { color: var(--doux-2); font-size: 12.5px; margin: 24px 24px 0; }
 
-/* Sur un téléphone : la liste en cartes, une pièce par carte. */
-@media (max-width: 640px) {
-  main { padding-top: 24px; }
-  header.societe h1 { font-size: 22px; }
-  .du strong { font-size: 28px; }
-  table.pieces thead { display: none; }
-  table.pieces, table.pieces tbody, table.pieces tr, table.pieces td { display: block; width: 100%; }
-  table.pieces tr { border-bottom: 1px dashed var(--trait); padding: 10px 0; }
-  table.pieces tr:last-child { border-bottom: 0; }
-  table.pieces td { border: 0; padding: 2px 0; }
-  table.pieces td.m { text-align: left; }
-  .etiquette { display: inline; color: var(--doux); }
-  .barre .gestes, .barre .gestes button { width: 100%; }
+/* Sur un téléphone et une tablette étroite : une colonne ; le geste juste sous ce qui est dû. */
+@media (max-width: 900px) {
+  .grille { display: flex; flex-direction: column; gap: 14px; padding: 0 16px; }
+  .gauche, .droite { display: contents; }
+  .carte.du { order: 1; }
+  .droite > .reste-carte { order: 2; }
+  .liste { order: 3; }
+  .papier { order: 4; }
+  .droite > .gestes-carte { order: 5; }
+  header.societe { padding: 12px 16px; flex-wrap: wrap; }
+  header.societe .lien-dit { margin-left: 0; text-align: left; flex-basis: 100%; }
+  footer { margin: 20px 16px 0; }
 }
+@media (max-width: 640px) {
+  .du strong { font-size: 26px; }
+  table.pieces, table.pieces tbody, table.pieces tr, table.pieces td { display: block; width: 100%; }
+  table.pieces tr { border-bottom: 1px solid var(--trait); padding: 10px 4px; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; }
+  table.pieces tr:last-child { border-bottom: 0; }
+  table.pieces td { border: 0; padding: 0; width: auto; }
+  table.pieces td.m { text-align: left; }
+  table.pieces td.s, table.pieces td.g { text-align: right; }
+  table.pieces tr.ouverte { background: var(--accent-doux); border-radius: 8px; }
+  table.pieces tr.ouverte td { background: none; }
+  .etiquette { display: inline; color: var(--doux); font-weight: 400; }
+  iframe.piece { min-height: 60vh; }
+}
+button.lien { display: inline; min-height: 0; padding: 0; border: 0; background: none; color: var(--accent-texte); font-weight: 600; font-size: inherit; text-decoration: underline; }
+.gestes-carte button:disabled { text-align: left; }
+@media (max-width: 900px) { .devis-l { order: 6; } }
+@media (max-width: 900px) { .grille { align-items: stretch; } }
+@media (max-width: 640px) { .court { display: none; } }

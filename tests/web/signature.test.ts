@@ -96,7 +96,7 @@ describe('la signature DigiGo, à la souris', () => {
     nadia.on('pageerror', (e) => erreurs.push(e.message));
     const ouvrirFacture = async () => {
       await nadia.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`);
-      await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Facture FAC-2026-001/);
+      await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^FAC-2026-001/);
       await plusTard(nadia);
       await nadia.locator('#more-btn').click();
       await nadia.getByRole('button', { name: 'Signer (DigiGo)…', exact: true }).click();

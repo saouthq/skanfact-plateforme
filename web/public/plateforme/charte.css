@@ -101,3 +101,9 @@ body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var
 .page-head h1 { font-size: 26px; font-weight: 700; letter-spacing: -.025em; line-height: 1.2; color: var(--sb-encre); }
 .page-head h1 .badge { vertical-align: middle; margin-inline-start: 6px; }
 .page-head .sous, .page-head .page-sub { margin: 2px 0 0; font-size: 13.5px; color: var(--sb-gris); }
+/* (1.155.0, maquette de la barre) L'affichage compact : la page à 90 %, des rangées plus serrées ; la barre garde sa
+   taille (elle se lit d'un coup d'œil). Jamais au téléphone ni à la caisse : l'écran y est déjà à la mesure du doigt. */
+@media (min-width: 761px) {
+  html.compact body:not(.mode-caisse) #view { zoom: .9; }
+  html.compact body:not(.mode-caisse) #view table.list td, html.compact body:not(.mode-caisse) #view table.list th { padding-block: 7px; }
+}

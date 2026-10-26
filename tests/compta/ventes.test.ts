@@ -14,7 +14,7 @@ import { ecrireFamilleDeVente } from '../../serveur/compta/ventes.ts';
 import { REGLEMENTS_VENTES, tenirReglements } from '../../serveur/reglements.ts';
 import { lirePaiements } from '../../serveur/v10/lecture.ts';
 import { creerBrouillon, emettre, type BrouillonSaisi } from '../../serveur/ventes/pieces.ts';
-import { demo, entier, exiger, v10, type Societe } from '../moteur/v10.ts';
+import { demo, ecranDeLaPlateforme, entier, exiger, v10, type Societe } from '../moteur/v10.ts';
 
 type LigneV10 = { label?: string; qty?: number; unitPrice?: number; vatRate?: number; noDiscount?: boolean };
 type PaiementV10 = { id: string; date: string; amount: number; method?: string; accountId?: string; exchangeRate?: number };
@@ -111,7 +111,10 @@ const enLigne = (date: string, journal: string, compte: string, debit: bigint, c
 
 describe('les écritures des ventes, tenues par le serveur, contre la v10', () => {
   it('le plan comptable par défaut est celui de la v10, rôle pour rôle', () => {
-    expect({ ...PLAN_PAR_DEFAUT }).toEqual(core.DEFAULT_ACCOUNTS);
+    // La FODEC (1.155.0) est un rôle né sur la plateforme, que la v10 figée n'a pas : celui de l'écran de la plateforme.
+    const { fodec, ...communs } = PLAN_PAR_DEFAUT;
+    expect(communs).toEqual(core.DEFAULT_ACCOUNTS);
+    expect(fodec).toBe((ecranDeLaPlateforme('core.js') as { DEFAULT_ACCOUNTS: Record<string, string> }).DEFAULT_ACCOUNTS.fodec);
   });
 
   it('chaque facture, chaque avoir et chaque encaissement de l\'exemple s\'écrit au serveur comme la v10 l\'écrit : journal, date, compte, millime, ordre', async () => {

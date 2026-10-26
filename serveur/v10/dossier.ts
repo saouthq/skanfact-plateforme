@@ -52,7 +52,7 @@ export class Conflit extends Perimee {
 // de livraison qu'une facture regroupe (brique 86) s'impriment sur elle et décident que le stock ne
 // sort pas une seconde fois : ils sont scellés avec elle.
 const PIECES_LEGALES = ['facture', 'avoir'];
-const SCELLE = ['type', 'number', 'date', 'clientId', 'currency', 'exchangeRate', 'lines', 'discountRate', 'withholdingRate', 'applyStamp', 'bonsLivraison', 'stampFee', 'creditOf', 'creditReason', 'prixTtc'];
+const SCELLE = ['type', 'number', 'date', 'clientId', 'currency', 'exchangeRate', 'lines', 'discountRate', 'withholdingRate', 'applyStamp', 'bonsLivraison', 'stampFee', 'creditOf', 'creditReason', 'prixTtc', 'export', 'seuilRetenue', 'passage', 'fodecRate'];
 // Le statut d'une pièce émise, tel que la v10 l'écrit (STATUSES de core.js).
 const STATUT_EMISE: Record<string, string> = { facture: 'envoyée', avoir: 'émis' };
 const emise = (d: Json | null) => !!d && typeof d.number === 'string' && d.number !== '' && d.status !== 'brouillon';
@@ -292,7 +292,7 @@ async function verifierAuteurs(tx: Transaction, entreprise: string, utilisateur:
 // ── Émettre une facture ou un avoir du dossier ──────────────────────────────────────────────────
 // La série de la v10 de chaque pièce (« FAC-2026-001 », « AVO-2026-001 ») : core.js, PREFIXES.
 const SERIE_V10: Record<string, string> = { facture: 'FAC', avoir: 'AVO' };
-type LigneV10 = { label?: unknown; description?: unknown; qty?: unknown; unitPrice?: unknown; vatRate?: unknown; noDiscount?: unknown };
+type LigneV10 = { label?: unknown; description?: unknown; qty?: unknown; unitPrice?: unknown; vatRate?: unknown; noDiscount?: unknown; discount?: unknown; kind?: unknown; fodec?: unknown };
 // Un nombre de la v10 à `dec` décimales au plus : lu exactement, jamais arrondi en silence (un nombre
 // qui en a trop est refusé par le calcul, sur la pièce).
 const decimal = (v: unknown, dec: number) => { const t = nombreEnTexte(v); depuisTexte(t, dec); return t; };
@@ -320,7 +320,10 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   // Un ticket sans client se vend « au comptoir » : une fiche à part, la même pour tous les passants. Le retour d'un tel
   // ticket (brique 124) aussi.
   const retour = options.retour === true && type === 'avoir';
-  const comptoir = (ticket || retour) && !doc.clientId;
+  // (1.155.0, maquette de la facture) Le client de passage : une facture sans fiche, pour un particulier qui paie sur
+  // place. Elle se range sur la même fiche « au comptoir » ; le nom et l'identifiant tapés restent sur la pièce (scellés).
+  const passage = type === 'facture' && !ticket && !doc.clientId && estObjet(doc.passage);
+  const comptoir = (ticket || retour || passage) && !doc.clientId;
   const client: Json | null = comptoir ? { id: '__comptoir', name: rendre(t('caisse.comptoir'), 'fr') } : demande.client;
   if (!client || typeof client.id !== 'string' || (!comptoir && client.id !== doc.clientId)) throw new Refus('v10.client_manquant');
   // La facture électronique (brique 80) : la fiche de l'entreprise dit si elle y est soumise. Soumise, une
@@ -328,7 +331,8 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
   // dit AVANT le numéro (un numéro pris ne se reprend pas).
   const societe = commeLaV10((await db.selectFrom('socle.dossier_v10').select('contenu')
     .where('entreprise', '=', entreprise).where('collection', '=', '_racine').where('cle', '=', 'company').executeTakeFirst())?.contenu ?? {}) as Json;
-  if (societe.efacture === true && !doc.ticket && !retour) {
+  // Les ventes aux particuliers restent hors d'El Fatoora selon plusieurs guides (À VÉRIFIER avec TTN) : le passage aussi.
+  if (societe.efacture === true && !doc.ticket && !retour && !passage) {
     const manques = manquesAvantNumero(commeLaV10(doc) as Json, commeLaV10(client) as Json, societe);
     if (manques.length) throw new Refus('efacture.manques', { valeurs: { manques: manques.map((m) => m.message).join(' ') } });
   }
@@ -374,15 +378,21 @@ export async function emettreDepuisV10(tx: Transaction, entreprise: string, util
     type, tiers, datePiece: String(doc.date ?? ''), ...(doc.dueDate ? { echeance: String(doc.dueDate) } : {}), ...(corrige ? { corrige } : {}),
     ...(dev === 'TND' ? {} : { devise: dev, cours: decimal(doc.exchangeRate, DECIMALES.cours) }),
     tauxRemise: decimal(doc.discountRate ?? 0, DECIMALES.taux), tauxRetenue: decimal(doc.withholdingRate ?? 0, DECIMALES.taux),
-    ...(doc.applyStamp === undefined ? {} : { appliquerTimbre: doc.applyStamp !== false }),
+    // (1.155.0) Une vente à l'exportation ne paie pas le timbre : le serveur le retire comme l'écran (core.js).
+    ...(doc.export === true ? { appliquerTimbre: false } : doc.applyStamp === undefined ? {} : { appliquerTimbre: doc.applyStamp !== false }),
     // Le prix d'étiquette fait foi (lot caisse 3) : le ticket et l'avoir de son retour se calculent TTC d'abord ;
     // une facture, jamais (le drapeau qu'un écran y mettrait ne change rien).
     ...((ticket || retour) && doc.prixTtc === true ? { prixTtc: true } : {}),
     ...(doc.subject ? { objet: String(doc.subject) } : {}), ...(doc.notes ? { notes: String(doc.notes).slice(0, 4000) } : {}),
-    lignes: (Array.isArray(doc.lines) ? doc.lines as LigneV10[] : []).map((l) => ({
+    // Une ligne de titre (1.155.0) ne compte pour rien : elle ne passe pas au serveur (le PDF et l'écran la gardent).
+    lignes: (Array.isArray(doc.lines) ? doc.lines as LigneV10[] : []).filter((l) => l.kind !== 'titre').map((l) => ({
       designation: String(l.label ?? '').trim() || '—', ...(l.description ? { description: String(l.description) } : {}),
       quantite: decimal(l.qty ?? 0, DECIMALES.quantite), prixUnitaire: decimal(l.unitPrice ?? 0, DECIMALES.prix), tauxTva: decimal(l.vatRate ?? 0, DECIMALES.taux),
       ...(l.noDiscount ? { sansRemise: true } : {}),
+      // Une remise à virgule arrive en texte exact ({ "~n": "7.5" }) : on la lit comme les autres nombres, jamais par Number().
+      ...(Number(nombreEnTexte(l.discount)) ? { tauxRemise: decimal(l.discount, DECIMALES.taux) } : {}),
+      // La FODEC de la ligne (1.155.0) : un drapeau ; son taux, le serveur le lit à la date de la pièce.
+      ...(l.fodec === true ? { fodec: true } : {}),
     })),
   };
   const piece = await creerBrouillon(tx, utilisateur, entreprise, b);

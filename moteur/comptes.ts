@@ -11,6 +11,8 @@ export const PLAN_PAR_DEFAUT = {
   tvaCollectee: '4367',
   tvaDeductible: '4366',
   timbre: '4368',
+  // (1.155.0) La FODEC collectée sur les produits fabriqués : À VÉRIFIER avec le comptable (le compte exact du plan).
+  fodec: '4369',
   rsSubie: '4358',
   rsOperee: '4352',
   achatsStock: '607',

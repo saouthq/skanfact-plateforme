@@ -130,3 +130,92 @@ describe('le calcul d\'une pièce (computeTotals)', () => {
     expect([r.totalTTC, r.retenue]).toEqual([1_190_000n, 17_850n]);
   });
 });
+
+describe('1.155.0 : la remise d\'une ligne et le seuil de la retenue (maquette de la facture)', () => {
+  const remisee = (qte: string, prix: string, tva: string, remise: string): LignePiece => ({ ...ligne(qte, prix, tva), tauxRemise: taux(remise) });
+
+  it('la remise d\'une ligne se retire de son montant arrondi, avant la TVA et avant la remise de toute la pièce', () => {
+    // 3 × 33,333 = 99,999 ; 7,5 % de remise = 7,500 (7,499925 arrondi) ; HT 92,499 ; TVA 19 % = 17,575.
+    const r = calculerPiece(piece({ lignes: [remisee('3', '33.333', '19', '7.5'), ligne('1', '10', '7')] }));
+    expect(r.lignes.map((l) => [l.brut, l.ht, l.tva])).toEqual([[99_999n, 92_499n, 17_575n], [10_000n, 10_000n, 700n]]);
+    expect(r.totalHT).toBe(102_499n);
+    // La remise globale porte sur le HT déjà remisé de la ligne : 10 % de 102,499 = 10,250.
+    expect(calculerPiece(piece({ tauxRemise: taux('10'), lignes: [remisee('3', '33.333', '19', '7.5'), ligne('1', '10', '7')] })).remise).toBe(10_250n);
+  });
+
+  it('une ligne sans remise (celles d\'avant) garde son montant au millime', () => {
+    const avant = calculerPiece(piece({ lignes: [ligne('3', '33.333', '19')] }));
+    const zero = calculerPiece(piece({ lignes: [remisee('3', '33.333', '19', '0')] }));
+    expect([avant.totalHT, avant.totalTVA, avant.netAPayer]).toEqual([zero.totalHT, zero.totalTVA, zero.netAPayer]);
+    expect(avant.lignes[0]?.ht).toBe(99_999n);
+  });
+
+  it('une pièce « prix TTC » retire la remise de la ligne de son TTC', () => {
+    // 2 × 1,200 TTC = 2,400 ; 12,5 % = 0,300 ; TTC 2,100 dont TVA 19 % = 0,335.
+    const r = calculerPiece(piece({ prixTtc: true, appliquerTimbre: false, lignes: [remisee('2', '1.008403', '19', '12.5')] }));
+    expect(r.lignes.map((l) => [l.brut, l.ttc, l.tva])).toEqual([[2_400n, 2_100n, 335n]]);
+  });
+
+  it('sous le seuil, une facture ne porte pas de retenue ; au seuil, elle la porte ; sans seuil connu, rien ne change', () => {
+    const SEUIL = 1_000_000n; // 1 000 DT TTC, en millimes (une règle d'essai)
+    // 840,335 HT + 159,664 de TVA = 999,999 DT, un millime sous le seuil ; 840,336 + 159,664 = 1 000,000 DT.
+    const sous = piece({ tauxRetenue: taux('1.5'), seuilRetenue: SEUIL, lignes: [ligne('1', '840.335', '19')] });
+    const au = piece({ tauxRetenue: taux('1.5'), seuilRetenue: SEUIL, lignes: [ligne('1', '840.336', '19')] });
+    expect(calculerPiece(sous).retenue).toBe(0n);
+    expect(calculerPiece(au).retenue).toBe(15_000n);
+    expect(calculerPiece({ ...sous, seuilRetenue: 0n }).retenue).toBe(15_000n);
+    expect(calculerPiece(piece({ tauxRetenue: taux('1.5'), lignes: [ligne('1', '840.335', '19')] })).retenue).toBe(15_000n);
+  });
+
+  it('le seuil se compare en dinars : une facture en euros se convertit au cours de la pièce', () => {
+    // 300,00 € HT + 19 % = 357,00 € ; au cours de 3,4 DT, 1 213,800 DT : au-dessus du seuil ; au cours de 2,5, 892,500 DT : dessous.
+    const eur = (cours: string) => piece({ devise: EUR, cours: depuisTexte(cours, 6), appliquerTimbre: false, tauxRetenue: taux('1.5'), seuilRetenue: 1_000_000n, lignes: [ligne('1', '300', '19')] });
+    expect(calculerPiece(eur('3.4')).retenue).toBe(536n);
+    expect(calculerPiece(eur('2.5')).retenue).toBe(0n);
+  });
+});
+
+describe('1.155.0 : la FODEC (maquette de la facture, « FODEC »)', () => {
+  const FODEC = taux('1'); // 1 %, une règle d'essai (la vraie se lit à la date de la pièce : `fodec.taux`)
+  const fabrique = (qte: string, prix: string, tva: string): LignePiece => ({ ...ligne(qte, prix, tva), fodec: true });
+  // Un produit fabriqué (1 234,567 HT) et une prestation (100 HT), TVA 19 % sur les deux, retenue 1,5 %.
+  const p = (extra: Partial<Piece> = {}) => piece({ tauxFodec: FODEC, tauxRetenue: taux('1.5'), lignes: [fabrique('1', '1234.567', '19'), ligne('1', '100', '19')], ...extra });
+
+  it('la FODEC d\'une ligne est le taux sur sa base remisée, arrondie à la ligne, dans la base de la TVA', () => {
+    const r = calculerPiece(p());
+    // 1 % de 1 234,567 = 12,34567 → 12,346 ; base TVA 19 % = 1 234,567 + 12,346 + 100 = 1 346,913 ; TVA = 255,913.
+    expect(r.fodec).toBe(12_346n);
+    expect(r.tvaParTaux.get(taux('19'))).toEqual({ base: 1_346_913n, tva: 255_913n, fodec: 12_346n });
+    expect(r.netHT).toBe(1_334_567n);
+    // TTC = 1 334,567 + 12,346 + 255,913 + 1 (timbre) ; la retenue porte sur le TTC hors timbre, FODEC comprise.
+    expect(r.totalTTC).toBe(1_603_826n);
+    expect(r.retenue).toBe(24_042n);
+  });
+
+  it('la remise de toute la pièce réduit la base de la FODEC', () => {
+    // 10 % de 1 334,567 = 133,457 ; la ligne fabriquée, remisée au prorata, vaut 1 111,110 : sa FODEC 11,111.
+    const r = calculerPiece(p({ tauxRemise: taux('10') }));
+    expect(r.remise).toBe(133_457n);
+    expect(r.fodec).toBe(11_111n);
+  });
+
+  it('sans taux connu, ou sur une ligne qui ne la porte pas, ou au comptoir, la FODEC vaut zéro', () => {
+    expect(calculerPiece(p({ tauxFodec: 0n })).fodec).toBe(0n);
+    expect(calculerPiece(piece({ tauxFodec: FODEC, lignes: [ligne('1', '1234.567', '19')] })).fodec).toBe(0n);
+    expect(calculerPiece(p({ prixTtc: true, appliquerTimbre: false })).fodec).toBe(0n);
+    // Sans FODEC, la pièce est celle d'avant au millime, et son détail par taux ne porte pas de clé « fodec ».
+    const sans = calculerPiece(p({ tauxFodec: 0n }));
+    expect(sans.tvaParTaux.get(taux('19'))).toEqual({ base: 1_334_567n, tva: 253_568n });
+  });
+
+  it('deux chemins, un chiffre : l\'écran (core.js) calcule la même FODEC, le même TTC et le même net', async () => {
+    const { ecranDeLaPlateforme } = await import('./v10.ts');
+    const core = ecranDeLaPlateforme('core.js') as { computeTotals: (d: unknown, c: unknown) => { fodec: number; totalTTC: number; netToPay: number; vatByRate: Record<string, { base: number; vat: number; fodec?: number }> } };
+    const doc = { type: 'facture', currency: 'DT', stampFee: 1, withholdingRate: 1.5, fodecRate: 1, discountRate: 10,
+      lines: [{ qty: 1, unitPrice: 1234.567, vatRate: 19, fodec: true }, { qty: 1, unitPrice: 100, vatRate: 19 }] };
+    const e = core.computeTotals(doc, { currency: 'DT', stampFee: 1 });
+    const s = calculerPiece(p({ tauxRemise: taux('10') }));
+    expect([e.fodec, e.totalTTC, e.netToPay].map((x) => Math.round(x * 1000))).toEqual([s.fodec, s.totalTTC, s.netAPayer].map(Number));
+    expect(Math.round((e.vatByRate['19']?.fodec ?? 0) * 1000)).toBe(Number(s.fodec));
+  });
+});

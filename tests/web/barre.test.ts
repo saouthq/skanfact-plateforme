@@ -186,7 +186,7 @@ describe('la barre des maquettes, à la souris et au clavier', () => {
     const moi = p.locator('.sb-moi');
     await expect.poll(() => moi.isVisible(), { timeout: 5_000 }).toBe(true);
     expect(await moi.locator('button .lib').evaluateAll((xs) => xs.map((x) => (x.firstChild?.textContent ?? '').trim())))
-      .toEqual(['Mon profil et ma sécurité', 'Mon équipe', 'Ton abonnement', 'Raccourcis clavier', 'Découvrir la barre', 'Se déconnecter']);
+      .toEqual(['Mon profil et ma sécurité', 'Mon équipe', 'Ton abonnement', 'Raccourcis clavier', 'Découvrir la barre', 'Affichage compact', 'Se déconnecter']);
     await moi.getByRole('menuitem', { name: /Découvrir la barre/ }).click();
     // La visite de la barre : trois étapes, sur ses trois zones.
     const visite = p.locator('.sb-visite');

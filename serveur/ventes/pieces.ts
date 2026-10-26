@@ -26,6 +26,10 @@ import './textes.ts';
 export type LigneSaisie = {
   designation: string; description?: string | undefined;
   quantite: string; prixUnitaire: string; tauxTva: string; sansRemise?: boolean | undefined;
+  // (1.155.0) La remise de la ligne, en pourcentage (« 10 »), comme `tauxRemise` de la pièce.
+  tauxRemise?: string | undefined;
+  // (1.155.0) La ligne porte la FODEC (un produit que l'entreprise fabrique) ; le taux est la règle `fodec.taux`.
+  fodec?: boolean | undefined;
 };
 export type BrouillonSaisi = {
   type: TypePiece; tiers: string; datePiece: string; echeance?: string | undefined;
@@ -42,13 +46,13 @@ export const DECIMALES = { quantite: 3, prix: 6, taux: 4, cours: 6 } as const;
 
 // ── Ce qu'on lit dans la base ───────────────────────────────────────────────────────────────────
 export type LignePieceLue = Pick<Selectable<BaseDeDonnees['ventes.ligne']>,
-  'rang' | 'designation' | 'description' | 'quantite' | 'prix_unitaire' | 'taux_tva' | 'sans_remise' | 'ht' | 'tva' | 'ttc'>;
+  'rang' | 'designation' | 'description' | 'quantite' | 'prix_unitaire' | 'taux_tva' | 'sans_remise' | 'taux_remise' | 'fodec' | 'ht' | 'tva' | 'ttc'>;
 export type PieceLue = {
   id: string; entreprise: string; type: TypePiece; statut: string; tiers: string; date_piece: string; echeance: string | null;
   corrige: string | null; prix_ttc: boolean;
   devise: string; cours: bigint | null; taux_remise: bigint; taux_retenue: bigint; appliquer_timbre: boolean | null;
   objet: string | null; notes: string | null; serie: string | null; numero_texte: string | null; revision: number;
-  totaux: Record<string, bigint> | null; tva_par_taux: Record<string, { base: string; tva: string }> | null;
+  totaux: Record<string, bigint> | null; tva_par_taux: Record<string, { base: string; tva: string; fodec?: string }> | null;
   copie: unknown; empreinte: string | null;
 };
 
@@ -56,7 +60,7 @@ const MONTANTS = ['total_ht', 'remise', 'net_ht', 'total_tva', 'timbre', 'timbre
 
 async function lireLignes(tx: Transaction, piece: string): Promise<LignePieceLue[]> {
   return requetes(tx).selectFrom('ventes.ligne')
-    .select(['rang', 'designation', 'description', 'quantite', 'prix_unitaire', 'taux_tva', 'sans_remise', 'ht', 'tva', 'ttc'])
+    .select(['rang', 'designation', 'description', 'quantite', 'prix_unitaire', 'taux_tva', 'sans_remise', 'taux_remise', 'fodec', 'ht', 'tva', 'ttc'])
     .where('piece', '=', piece).orderBy('rang').execute();
 }
 
@@ -80,6 +84,8 @@ export function pieceDeLaLigne(r: Selectable<BaseDeDonnees['ventes.piece']>): Pi
       if (v === null) throw new Error(`facture émise sans ${m} : ${id}`);
       totaux[m] = v;
     }
+    // La FODEC (1.155.0), seulement quand la pièce en porte : les pièces d'avant se relisent comme on les a scellées.
+    if (r.fodec) totaux.fodec = r.fodec;
   }
   return {
     id: r.id, entreprise: r.entreprise, type: r.type as TypePiece, statut: r.statut, tiers: r.tiers, date_piece: r.date_piece, echeance: r.echeance,
@@ -114,6 +120,8 @@ async function ecrireLignes(tx: Transaction, entreprise: string, piece: string, 
     piece, entreprise, rang: i + 1, designation: l.designation, description: l.description ?? null,
     quantite: depuisTexte(l.quantite, DECIMALES.quantite), prix_unitaire: depuisTexte(l.prixUnitaire, DECIMALES.prix),
     taux_tva: depuisTexte(l.tauxTva, DECIMALES.taux), sans_remise: l.sansRemise ?? false,
+    taux_remise: l.tauxRemise === undefined ? 0n : depuisTexte(l.tauxRemise, DECIMALES.taux),
+    fodec: l.fodec === true,
   }))).execute();
 }
 
@@ -149,7 +157,7 @@ export async function supprimerBrouillon(tx: Transaction, entreprise: string, id
 
 // ── Le calcul ───────────────────────────────────────────────────────────────────────────────────
 // `timbreManquant` : le timbre s'applique à cette pièce mais aucune règle ne le dit à sa date.
-type Calcul = { devise: Devise; totaux: TotauxPiece; timbre: RegleLue | null; timbreManquant: boolean };
+type Calcul = { devise: Devise; totaux: TotauxPiece; timbre: RegleLue | null; timbreManquant: boolean; fodec: RegleLue | null };
 
 // Le calcul d'un brouillon, avec les règles valables à SA date (01 R11). Le timbre inconnu à cette
 // date se dit « non renseigné » : il n'est jamais inventé (R12).
@@ -160,15 +168,27 @@ async function calculer(tx: Transaction, p: PieceLue, lignes: LignePieceLue[]): 
     ...(p.appliquer_timbre === null ? {} : { appliquerTimbre: p.appliquer_timbre }),
     ...(p.prix_ttc ? { prixTtc: true } : {}),
     timbre: 0n,
-    lignes: lignes.map((l) => ({ quantite: l.quantite, prixUnitaire: l.prix_unitaire, tauxTva: l.taux_tva, ...(l.sans_remise ? { sansRemise: true } : {}) })),
+    lignes: lignes.map((l) => ({ quantite: l.quantite, prixUnitaire: l.prix_unitaire, tauxTva: l.taux_tva, ...(l.sans_remise ? { sansRemise: true } : {}),
+      ...(l.taux_remise ? { tauxRemise: l.taux_remise } : {}), ...(l.fodec ? { fodec: true } : {}) })),
   };
   const applique = timbreApplique(piece);
   const timbre = applique ? await regle(tx, p.entreprise, 'timbre.facture', p.date_piece) : null;
   if (timbre) piece.timbre = BigInt(timbre.valeur as string | number);
-  return { devise, totaux: calculerPiece(piece), timbre, timbreManquant: applique && !timbre };
+  // (1.155.0) Le seuil de la retenue, à la date de la pièce ; inconnu, il n'y a pas de seuil (la règle qui ne fait rien).
+  if (piece.tauxRetenue) {
+    const seuil = await regle(tx, p.entreprise, 'retenue.seuil', p.date_piece);
+    if (seuil) piece.seuilRetenue = BigInt(seuil.valeur as string | number);
+  }
+  // (1.155.0) Le taux de la FODEC, à la date de la pièce, quand une ligne la porte ; inconnu, la FODEC vaut zéro (la règle
+  // qui ne fait rien : jamais un taux inventé). Une pièce « prix TTC » n'en porte pas (moteur/piece.ts).
+  const fodec = !p.prix_ttc && lignes.some((l) => l.fodec) ? await regle(tx, p.entreprise, 'fodec.taux', p.date_piece) : null;
+  if (fodec) piece.tauxFodec = BigInt(fodec.valeur as string | number);
+  return { devise, totaux: calculerPiece(piece), timbre, timbreManquant: applique && !timbre, fodec };
 }
 
-const tvaParTauxJson = (t: TotauxPiece) => Object.fromEntries([...t.tvaParTaux.entries()].map(([taux, v]) => [taux.toString(), { base: v.base.toString(), tva: v.tva.toString() }]));
+// La part de FODEC d'un taux (1.155.0), seulement quand il en porte : le JSON des pièces d'avant ne change pas.
+const tvaParTauxJson = (t: TotauxPiece) => Object.fromEntries([...t.tvaParTaux.entries()].map(([taux, v]) => [taux.toString(),
+  { base: v.base.toString(), tva: v.tva.toString(), ...(v.fodec ? { fodec: v.fodec.toString() } : {}) }]));
 
 // Ce que la chaîne scelle : la pièce telle qu'émise, avec ses lignes et sa copie figée. La MÊME
 // fonction sert à l'émission et au contrôle (relire), pour que les deux chemins donnent un chiffre.
@@ -180,6 +200,9 @@ export function contenuScelle(p: PieceLue, lignes: LignePieceLue[]) {
     lignes: lignes.map((l) => ({
       rang: l.rang, designation: l.designation, description: l.description, quantite: l.quantite, prixUnitaire: l.prix_unitaire,
       tauxTva: l.taux_tva, sansRemise: l.sans_remise, ht: l.ht, tva: l.tva, ttc: l.ttc,
+      // La remise de la ligne (1.155.0), quand elle existe : l'empreinte des lignes d'avant ne change pas.
+      ...(l.taux_remise ? { tauxRemise: l.taux_remise } : {}),
+      ...(l.fodec ? { fodec: true } : {}),
     })),
     totaux: p.totaux, tvaParTaux: p.tva_par_taux, copie: p.copie,
     // La facture qu'un avoir corrige, scellée avec lui. Pour un avoir seulement : l'empreinte des
@@ -225,7 +248,7 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   // déduit plus que la ligne corrigée — AUGMENTAIT la dette du client sous le nom d'un avoir ; une facture négative est un
   // avoir mal nommé. Un avoir nul ne corrige rien. Hors timbre : le dinar du timbre masquait une petite facture négative.
   // Contrôlé avant le numéro : rien n'est pris.
-  const horsTimbre = t.netHT + t.totalTVA;
+  const horsTimbre = t.netHT + t.fodec + t.totalTVA;
   if (horsTimbre < 0n || (p.type === 'avoir' && horsTimbre === 0n)) {
     throw new Refus(p.type === 'avoir' ? 'ventes.avoir_negatif' : 'ventes.facture_negative', { valeurs: { montant: versTexte(horsTimbre, calcul.devise.decimales) } });
   }
@@ -252,7 +275,9 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   const copie = {
     societe: { raisonSociale: societe.raison_sociale, matriculeFiscal: societe.matricule_fiscal },
     client: { raisonSociale: client.raison_sociale, identifiant: client.identifiant, typeIdentifiant: client.type_identifiant, adresse: client.adresse, pays: client.pays },
-    regles: { timbre: calcul.timbre ? { regle: calcul.timbre.regle, valeur: calcul.timbre.valeur, origine: calcul.timbre.origine } : null },
+    regles: { timbre: calcul.timbre ? { regle: calcul.timbre.regle, valeur: calcul.timbre.valeur, origine: calcul.timbre.origine } : null,
+      // La règle de la FODEC qui a servi (1.155.0), seulement quand la pièce en porte.
+      ...(t.fodec && calcul.fodec ? { fodec: { regle: calcul.fodec.regle, valeur: calcul.fodec.valeur, origine: calcul.fodec.origine } } : {}) },
   };
   for (const [i, l] of t.lignes.entries()) {
     await db.updateTable('ventes.ligne').set({ ht: l.ht, tva: l.tva, ttc: l.ttc }).where('piece', '=', id).where('rang', '=', i + 1).execute();
@@ -262,6 +287,7 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
     totaux: {
       total_ht: t.totalHT, remise: t.remise, net_ht: t.netHT, total_tva: t.totalTVA, timbre: t.timbre, timbre_base: t.timbreBase,
       total_ttc: t.totalTTC, retenue: t.retenue, net_a_payer: t.netAPayer,
+      ...(t.fodec ? { fodec: t.fodec } : {}),
     },
     tva_par_taux: tvaParTauxJson(t), copie,
   };
@@ -270,7 +296,7 @@ export async function emettre(tx: Transaction, utilisateur: string, entreprise: 
   await db.updateTable('ventes.piece').set({
     statut: 'emise', serie, numero: BigInt(numero.numero), numero_texte: numero.texte,
     total_ht: t.totalHT, remise: t.remise, net_ht: t.netHT, total_tva: t.totalTVA, timbre: t.timbre, timbre_base: t.timbreBase,
-    total_ttc: t.totalTTC, retenue: t.retenue, net_a_payer: t.netAPayer,
+    total_ttc: t.totalTTC, retenue: t.retenue, net_a_payer: t.netAPayer, fodec: t.fodec ? t.fodec : null,
     tva_par_taux: JSON.stringify(emise.tva_par_taux), copie: JSON.stringify(copie), chaine_rang: BigInt(maillon.rang), empreinte: maillon.empreinte,
     emise_le: sql<Date>`now()`, emise_par: utilisateur, modifie_le: sql<Date>`now()`,
   }).where('id', '=', id).where('entreprise', '=', entreprise).execute();
@@ -314,6 +340,7 @@ export async function lirePiece(tx: Transaction, entreprise: string, id: string)
     totaux = {
       total_ht: m(t.totalHT), remise: m(t.remise), net_ht: m(t.netHT), total_tva: m(t.totalTVA), timbre: m(t.timbre),
       timbre_base: versTexte(t.timbreBase, 3), total_ttc: m(t.totalTTC), retenue: m(t.retenue), net_a_payer: m(t.netAPayer),
+      ...(t.fodec ? { fodec: m(t.fodec) } : {}),
     };
     tvaParTaux = [...t.tvaParTaux.entries()].map(([taux, v]) => ({ taux: versTexte(taux, DECIMALES.taux), base: m(v.base), tva: m(v.tva) }));
     lignesSortie = lignes.map((l, i) => ({ ...l, ht: t.lignes[i]?.ht ?? null, tva: t.lignes[i]?.tva ?? null, ttc: t.lignes[i]?.ttc ?? null }));
@@ -336,6 +363,7 @@ export async function lirePiece(tx: Transaction, entreprise: string, id: string)
       rang: l.rang, designation: l.designation, description: l.description,
       quantite: versTexte(l.quantite, DECIMALES.quantite), prixUnitaire: versTexte(l.prix_unitaire, DECIMALES.prix),
       tauxTva: versTexte(l.taux_tva, DECIMALES.taux), sansRemise: l.sans_remise, ht: m(l.ht), tva: m(l.tva), ttc: m(l.ttc),
+      ...(l.fodec ? { fodec: true } : {}),
     })),
     totaux, tvaParTaux,
     ...(timbreNonRenseigne ? { avertissement: motif('ventes.avertissement_timbre') } : {}),

@@ -140,7 +140,7 @@ describe('l\'envoi à la TTN, à la souris', () => {
     nadia.on('pageerror', (e) => erreurs.push(e.message));
     const fichierElFatoora = async () => {
       await nadia.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`);
-      await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Facture FAC-2026-001/);
+      await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^FAC-2026-001/);
       await plusTard(nadia);
       await nadia.locator('#more-btn').click();
       const telechargement = nadia.waitForEvent('download');
@@ -207,7 +207,7 @@ describe('l\'envoi à la TTN, à la souris', () => {
     // Acceptée pendant que la page était ouverte : la fenêtre dit de recharger pour voir la pièce imprimée à jour.
     expect(net(await f.fenetre.locator('#ttn-recharger').innerText())).toBe('La pièce imprimée porte désormais sa référence et son code QR : recharge la page pour les voir. Recharger');
     await f.fenetre.getByRole('button', { name: 'Recharger', exact: true }).click();
-    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Facture FAC-2026-001/);
+    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^FAC-2026-001/);
     await plusTard(nadia);
     const apercu = await cadreDe(nadia, '#preview');
     await expect.poll(async () => net(await apercu.locator('.info.ttn .terms').innerText().catch(() => '')), { timeout: 10_000 })

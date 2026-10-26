@@ -51,6 +51,7 @@ body { font-family: var(--sb-police); font-feature-settings: 'cv11', 'ss01'; }
   transition: width .22s ease; font-size: 15px; line-height: 1.45; -webkit-font-smoothing: antialiased; height: 100vh; height: 100dvh;
 }
 /* Le bandeau du poste (sans réseau, poste.js) pousse la page de sa hauteur : la barre en retire autant, rien ne déborde. */
+body.avec-barre { box-sizing: border-box; padding-top: var(--poste-bandeau-h, 0px); }
 body.avec-barre #barre.sidebar { height: calc(100dvh - var(--poste-bandeau-h, 0px)); }
 #barre button { font: inherit; color: inherit; }
 #barre svg { flex: none; }
@@ -326,7 +327,7 @@ body.barre-repliee .sb-panneau { left: 90px; }
 .sb-rail, .sb-onglets, .sb-pastilles { display: none; }
 body.mode-caisse .sb-rail, body.mode-caisse .sb-onglets { display: none !important; }
 @media (min-width: 761px) and (max-width: 1100px) {
-  body.avec-barre #barre.sidebar { position: fixed; left: 0; top: 0; bottom: 0; z-index: 92; box-shadow: var(--sb-ombre-pop); transform: translateX(-110%); transition: transform .2s ease; width: 266px; }
+  body.avec-barre #barre.sidebar { position: fixed; left: 0; top: var(--poste-bandeau-h, 0px); bottom: 0; z-index: 92; box-shadow: var(--sb-ombre-pop); transform: translateX(-110%); transition: transform .2s ease; width: 266px; }
   body.avec-barre.tiroir-ouvert #barre.sidebar { transform: none; }
   body.avec-barre #barre .replier { display: none; }
   body.avec-barre .sb-rail { width: 84px; flex: none; background: var(--sb-barre); border-inline-end: 1px solid var(--sb-trait); display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 14px 0; overflow-y: auto; height: 100vh; height: 100dvh; font-family: var(--sb-police); scrollbar-width: none; }

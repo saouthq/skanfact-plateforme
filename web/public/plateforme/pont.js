@@ -466,6 +466,10 @@
   // du serveur gardée, l'autre mise de côté et dite). Rien ne se double : un objet enregistré ne
   // diffère plus de ce que le serveur a.
   let attenteGardee = false;
+  // Le seuil de la retenue à la source, en dinars (1.155.0 ; lu au chargement, voir `loadData`).
+  let seuilRetenue = 0;
+  // Le taux de la FODEC, en % (1.155.0 ; règle `fodec.taux`, en millionièmes, lue au chargement comme le seuil).
+  let tauxFodec = 0;
   let attenteN = 0;
   // Ce que la personne a fait : les pièces et les fiches (les réglages du dossier ne se comptent pas).
   /** @param {{ collection: string }[]} changements */
@@ -1043,7 +1047,7 @@
         let r;
         try { r = await appel('GET', `/compta/ecritures?journal=VT&piece=${encodeURIComponent(numero)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
         const x = (r.ecritures || []).find((/** @type {any} */ e) => e.origine && e.origine.type === 'vente');
-        return x ? { statut: x.statut, numero: x.numero, valideeLe: x.valideeLe ? new Date(x.valideeLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }) : null } : null;
+        return x ? { statut: x.statut, numero: x.numero, date: x.date, libelle: x.libelle, lignes: (x.lignes || []).map((/** @type {any} */ l) => ({ compte: l.compte, libelle: l.libelle, debit: l.debit, credit: l.credit })), valideeLe: x.valideeLe ? new Date(x.valideeLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }) : null } : null;
       },
       envoyerFichier: (/** @type {File} */ f, /** @type {string} */ texte, /** @type {any} */ piece) =>
         /** @type {any} */ (window).SkanMessagerie.envoyerFichier(appel, 'entreprise', f, texte, piece),
@@ -1087,6 +1091,8 @@
     etatsTtnDe,
     // Des remises attendent-elles une décision ? (le panneau ne paraît que dans ce cas)
     quarantaine: () => remises.length,
+    seuilRetenue: () => seuilRetenue,
+    tauxFodec: () => tauxFodec,
     loadData: async () => {
       // Le code QR de la TTN sur la pièce imprimée (brique 83) : le moteur est là, on le branche.
       const qr = /** @type {any} */ (window).SkanQr;
@@ -1098,6 +1104,17 @@
       // (1.136.0) Tant que le serveur n'a pas répondu, la page dit qu'elle s'ouvre (poste.js, « L'ouverture »).
       poste.ouverture('ton entreprise');
       avancerAbonnement();
+      // (1.155.0) Le seuil de la retenue à la source, lu à la règle du jour (`retenue.seuil`, en millimes) : l'écran le
+      // pose sur chaque brouillon de facture (core.js, computeTotals), comme le serveur le lit à la date de la pièce.
+      // Sans réponse (hors ligne, règle inconnue) : pas de seuil, la règle qui ne fait rien.
+      void appel('GET', `/regles/retenue.seuil?date=${new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' })}`).then((r) => {
+        seuilRetenue = r && r.valeur != null && /^\d+$/.test(String(r.valeur)) ? Number(r.valeur) / 1000 : 0;
+      }).catch(() => { /* hors ligne : on garde le seuil déjà connu */ });
+      // (1.155.0) Le taux de la FODEC, de la même façon : l'écran le pose sur un brouillon dont une ligne la porte. Inconnu,
+      // la FODEC vaut zéro (le serveur fait de même) : jamais un taux inventé.
+      void appel('GET', `/regles/fodec.taux?date=${new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' })}`).then((r) => {
+        tauxFodec = r && r.valeur != null && /^\d+$/.test(String(r.valeur)) ? Number(r.valeur) / 10000 : 0;
+      }).catch(() => { /* hors ligne : on garde le taux déjà connu */ });
       const remisesLues = lireRemises();
       const attente = await poste.lireAttente(ent).catch(() => null);
       await lireFileTickets();
@@ -1131,7 +1148,11 @@
         return { data: attente.contenu.data, corruptFile: null };
       }
     },
-    saveData: (/** @type {Record<string, unknown>} */ data) => (LECTURE ? Promise.reject(Object.assign(new Error(EN_LECTURE), { statut: 403 })) : enregistrer(data)),
+    // (1.155.0) `apresFusion` : la v10 renvoie le dossier qu'elle vient de fusionner avec la version relue au serveur (le
+    // second argument de `resolveConflict`). Elle a désormais chaque objet de cette version : sans l'adopter, l'objet
+    // fusionné repartait avec la révision d'avant le conflit, et le serveur le refusait encore (vu le 26/10/2026 : deux
+    // postes sur le même brouillon, « le dossier partagé bouge en permanence » à chaque fusion).
+    saveData: (/** @type {Record<string, unknown>} */ data, /** @type {boolean} */ apresFusion) => (LECTURE ? Promise.reject(Object.assign(new Error(EN_LECTURE), { statut: 403 })) : (apresFusion && adopter(), enregistrer(data))),
     // La lecture pour le support : l'accès, sa fin (lue avec le dossier), et le nom de la page (plateforme/lecture.js).
     lecture: LECTURE ? { acces: accesLu, entreprise: ent, fin: () => lectureFin, nom: () => lectureNom, page: pageLue, noter: noterLaPage,
       poser: (/** @type {HTMLElement} */ view) => /** @type {any} */ (window).SkanLecture.poser(view) } : null,
@@ -1393,9 +1414,9 @@
     },
     // Le message s'ouvre dans la messagerie de l'appareil (un lien « mailto ») ; un navigateur ne sait
     // pas y joindre un fichier.
-    composeMail: async (/** @type {{ to?: string, subject?: string, body?: string }} */ o) => {
+    composeMail: async (/** @type {{ to?: string, cc?: string, subject?: string, body?: string }} */ o) => {
       const a = document.createElement('a');
-      a.href = `mailto:${encodeURIComponent((o && o.to) || '')}?subject=${encodeURIComponent((o && o.subject) || '')}&body=${encodeURIComponent((o && o.body) || '')}`;
+      a.href = `mailto:${encodeURIComponent((o && o.to) || '')}?subject=${encodeURIComponent((o && o.subject) || '')}${o && o.cc ? `&cc=${encodeURIComponent(o.cc)}` : ''}&body=${encodeURIComponent((o && o.body) || '')}`;
       a.hidden = true;
       document.body.appendChild(a); a.click(); a.remove();
       return { state: 'mailto' };
@@ -1417,8 +1438,10 @@
     // ── Ce qui n'est pas encore sur le serveur : un refus qui le dit, jamais une panne ─────────
     // ── Les pièces jointes (lot Fonctions 3 ; docs/pieces-jointes.md) : gardées dix ans par le serveur ──────
     // La pièce garde la fiche (name, file, size, date), comme dans la v10 ; `file` est l'identifiant du fichier.
-    addAttachments: async () => {
-      const choisis = await choisirFichiers('image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf');
+    // (maquette facture) Les fichiers glissés sur la zone arrivent déjà choisis : on ne rouvre pas le sélecteur.
+    addAttachments: async (/** @type {unknown} */ _id, /** @type {File[] | undefined} */ glisses) => {
+      const choisis = glisses && glisses.length ? glisses.filter(f => /^(image\/(jpeg|png|webp)|application\/pdf)$/.test(f.type)) : await choisirFichiers('image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf');
+      if (glisses && glisses.length && !choisis.length) throw new Error('Une pièce jointe est une photo (JPEG, PNG, WebP) ou un PDF.');
       /** @type {unknown[]} */ const fiches = [];
       for (const f of choisis) fiches.push(await deposerPiece(f));
       return fiches;
@@ -2136,7 +2159,8 @@
           const r = await appel('POST', '/espace/liens', compte ? { client: doc.clientId } : { client: doc.clientId, piece: doc.id });
           const adresse = `${location.origin}${r.adresse}`;
           $r('#lc-lien').innerHTML = `<label class="field">${compte ? 'Le lien de son compte' : 'Le lien de cette pièce'}<input type="text" readonly id="lc-adresse" value="${esc(adresse)}"></label>
-            <button type="button" class="btn btn-primary btn-sm" id="lc-copier">Copier le lien</button>`;
+            <button type="button" class="btn btn-primary btn-sm" id="lc-copier">Copier le lien</button>
+            <a class="btn btn-sm" id="lc-voir" href="${esc(adresse)}" target="_blank" rel="noopener noreferrer">Voir ce que voit le client</a>`;
           $r('#lc-copier').onclick = async () => {
             try { await navigator.clipboard.writeText(adresse); dire('Copié : colle-le dans ton message au client.'); } catch { /** @type {HTMLInputElement} */ ($r('#lc-adresse')).select(); dire('Sélectionné : copie-le (Ctrl+C).'); }
           };
@@ -2303,8 +2327,12 @@
       };
       /** @param {string} demande @param {string | null} titulaire */
       const saisir = (demande, titulaire) => {
-        etape.innerHTML = `<p>Un code est parti sur le téléphone de ${titulaire ? `<strong>${esc(titulaire)}</strong>` : 'ton signataire'}. Tape-le ici :</p>
-          <label class="field">Code reçu par le signataire<input id="sg-code" inputmode="numeric" autocomplete="one-time-code" maxlength="8"></label>
+        // (maquette « Signer par DigiGo ») Les trois temps du geste : le code est parti, on le tape, la pièce part seule.
+        etape.innerHTML = `<ol class="sg-etapes">
+            <li class="fait"><span class="n" aria-hidden="true">✓</span><span><b>Code envoyé à ${titulaire ? esc(titulaire) : 'ton signataire'}</b><small>la personne désignée pour signer · par SMS · il vaut quelques minutes</small></span></li>
+            <li class="cours"><span class="n" aria-hidden="true">2</span><span><b>Tape le code reçu</b><input id="sg-code" class="sg-code" inputmode="numeric" autocomplete="one-time-code" maxlength="8" aria-label="Code reçu par le signataire"><small>Un code faux : il reste des essais. Trois faux : rien n'est signé, on en redemande un.</small></span></li>
+            <li><span class="n" aria-hidden="true">3</span><span><b>${une ? 'Elle part' : 'Elles partent'} d'${une ? 'elle' : 'elles'}-même${une ? '' : 's'} à El Fatoora</b><small>la frise dira « en route », puis « acceptée »</small></span></li>
+          </ol>
           <p class="small" role="alert"></p>
           <div class="inline mt"><button type="button" class="btn btn-primary" id="sg-signer">Signer</button></div>`;
         const champ = /** @type {HTMLInputElement} */ ($r('#sg-code'));

@@ -209,7 +209,7 @@ describe('la recette alpha, à la souris', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`);
     await p.getByRole('button', { name: 'Émettre la facture', exact: true }).click({ timeout: 20_000 });
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^Facture FAC-\d{4}-\d{3}$/);
+    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^FAC-\d{4}-\d{3}$/);
     const numero = (await p.locator('#view h1').first().innerText()).replace('Facture ', '');
     await p.evaluate(() => { location.hash = '#/relances'; });
     const ligne = p.locator('#r-wrap tbody tr').filter({ hasText: numero });
@@ -220,8 +220,9 @@ describe('la recette alpha, à la souris', () => {
     expect(await ligne.locator('.row-menu-btn').count()).toBe(1);
     await ligne.getByRole('button', { name: 'Relancer', exact: true }).click();
     const fenetre = p.locator('#modal-root .modal').last();
-    await expect.poll(() => fenetre.locator('h2').innerText()).toBe(`Relance — ${numero}`);
-    expect(await fenetre.locator('input').first().inputValue()).toBe('compta@lac.exemple.tn');
+    // (1.155.0, maquette « Relancer ») La fenêtre nomme le client ; l'adresse est dans le bouton de l'e-mail.
+    await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Relancer Hôtel du Lac');
+    expect(await fenetre.locator('[data-canal=email]').innerText()).toContain('compta@lac.exemple.tn');
     // Un règlement partiel depuis la ligne : la facture reste en retard, et l'accueil le dit comme les Relances.
     await p.keyboard.press('Escape');
     await ligne.locator('.row-menu-btn').click();
@@ -266,7 +267,7 @@ describe('la recette alpha, à la souris', () => {
     await p.getByRole('checkbox', { name: /Timbre fiscal/ }).uncheck({ timeout: 15_000 });
     await p.getByRole('button', { name: 'Émettre la facture', exact: true }).click({ timeout: 15_000 });
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^Facture FAC-\d{4}-\d{3}$/);
+    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^FAC-\d{4}-\d{3}$/);
     await p.evaluate(() => { location.hash = '#/devis'; });
     const ligne = p.locator('#view tbody tr').filter({ hasText: 'DEV-2026-041' });
     await expect.poll(() => ligne.innerText().then(net), { timeout: 15_000 }).toMatch(/accepté facturé/);
@@ -350,7 +351,7 @@ describe('la recette alpha, à la souris', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`);
     await p.getByRole('button', { name: 'Émettre la facture', exact: true }).click({ timeout: 20_000 });
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^Facture FAC-\d{4}-\d{3}$/);
+    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^FAC-\d{4}-\d{3}$/);
     await p.getByRole('button', { name: 'Corriger par un avoir…', exact: true }).click();
     const prix = p.locator('#lines [data-k=unitPrice]').first();
     await prix.waitFor({ timeout: 15_000 });

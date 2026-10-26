@@ -117,7 +117,7 @@ describe('la facture électronique, à la souris', () => {
     await expect.poll(() => nadia.locator('#modal-root .modal').count()).toBe(0);
     await nadia.locator('#issue').click();
     await nadia.locator('#modal-root #ok').click();
-    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Facture FAC-2026-001/);
+    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^FAC-2026-001/);
 
     // La Menuiserie déménage APRÈS l'émission : le fichier reste celui de la facture émise.
     const duServeur = (await api('GET', `/entreprises/${ent}/dossier-v10/f1/teif`, jeton)).corps as { nom: string; xml: string };
@@ -129,7 +129,7 @@ describe('la facture électronique, à la souris', () => {
     if (!client) throw new Error('client absent');
     await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: 'clients', cle: client.cle, rang: client.rang, revision: client.revision, contenu: { ...client.contenu, address: '7 avenue Habib Bourguiba, Sfax' } }] });
     await nadia.reload();
-    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Facture FAC-2026-001/);
+    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^FAC-2026-001/);
     await plusTard(nadia);
     // « Fichier pour El Fatoora » : le fichier du serveur, tel quel, dans les Téléchargements.
     await nadia.locator('#more-btn').click();

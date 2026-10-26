@@ -175,9 +175,35 @@ jusqu'à leur lot. Tests : `tests/web/facture-charte.test.ts`, `tests/web/teleph
 | Au téléphone | « ‹ Factures », la frise en colonne, et le geste dans une barre au bas de l'écran (au-dessus des onglets) avec le net à payer |
 
 **Ce qui s'écarte de la maquette, et pourquoi** :
-- le titre garde « Facture FAC-… » et « Facture (brouillon) » (la maquette : « FAC-… », « Nouvelle facture ») : d'autres
-  écrans et la recherche le lisent ainsi ;
-- la saisie hors taxes / toutes taxes et la remise par ligne ne sont pas dans l'application : elles viendront avec leur
-  propre lot (le calcul, la pièce imprimée et le fichier TEIF en dépendent) ;
-- « Annuler » (↶) en tête et le glisser-déposer des lignes : « Monter » et « Descendre » sont dans le ⋯ de la ligne ;
-- la douchette ne tape pas encore dans la barre d'ajout.
+- le glisser-déposer des lignes : « Monter » et « Descendre » sont dans le ⋯ de la ligne ;
+- la FODEC de la déclaration mensuelle (côté Cabinet) est lue sur son compte (4369) et rangée dans sa rubrique et dans
+  le récapitulatif, mais seulement quand le mois en a collecté ; sa ligne du formulaire, son taux et son compte restent
+  À VÉRIFIER avec un comptable ;
+- la relance d'une facture ne dit pas « vue le … » ni « la prochaine partira seule le … » : SkanFact ne sait pas encore si
+  le client a ouvert le message, et aucune relance ne part sans qu'on l'envoie (le message s'ouvre dans la messagerie).
+  Elle dit la date d'envoi, combien de relances sont parties et quand.
+
+**Ajouté au lot 4 (1.155.0), en plus du dessin** :
+
+- un avoir neuf (depuis « Créer ») propose « Facture concernée » sous « Pour qui ? » : choisir la facture choisit le client ;
+- l'affichage compact ne vaut qu'à la souris : une tablette ou un écran qu'on touche, et la caisse, gardent la taille du doigt.
+
+| Ce qui se voit | Comment |
+|---|---|
+| La remise par ligne | Une colonne « Remise » (en %) : retirée du montant arrondi de la ligne, avant la remise de toute la pièce (`moteur/piece.ts`). Gardée au serveur (0176, `ventes.ligne.taux_remise`) ; scellée seulement quand elle existe, les pièces d'avant gardent leur empreinte. La ligne dit « avant remise … » |
+| Le seuil de la retenue | Sous un seuil (la règle `retenue.seuil`, À VÉRIFIER : 1 000 DT TTC), la retenue ne s'applique pas ; la facture le dit (« sous le seuil »). Seuil inconnu à la date de la pièce : pas de seuil (la règle qui ne fait rien) |
+| Le client de passage | « Pour qui ? » propose « Client de passage » : un nom et un matricule facultatifs, sans fiche. Le serveur l'émet sur le tiers du comptoir (comme un ticket) ; la pièce imprimée, le fichier TEIF et les listes le nomment |
+| Les états d'un brouillon | Au plus deux bandeaux (taux manquant, échéance avant la date, encours dépassé, stock qui manque, pièce récurrente, export, acompte, solde, bons, honoraires, hors ligne) ; « Avant d'émettre » dit chaque point (vente à perte, date qui casse la numérotation, TVA non applicable…) ; le bouton d'émission dit « Il manque … » |
+| La facture émise | La frise dit « Payée en partie », « Annulée » (par ses avoirs), « … à son crédit » ; une entreprise d'essai : « jamais : entreprise d'essai » et « Créer ma vraie entreprise » ; un refus d'El Fatoora se dit en rouge avec son motif |
+| L'avoir | « Sur FAC-… », le motif en puces (Prestation non faite, Remise accordée, Retour de marchandise, Erreur de prix, Annulation totale, « Autre motif… ») et ce qui se passe après |
+| Les fenêtres | Le paiement (le montant en grand, « Tout le reste » ou « Une partie… », la retenue gardée par le client, ce qui reste) ; l'envoi (E-mail, WhatsApp, le lien seul ; les adresses de la fiche, une autre, une copie pour soi ; « pas encore signée ») et la relance (le canal avec l'adresse, le modèle parmi les trois niveaux, le message prêt à retoucher, « Joindre le lien », ce qui est parti jusqu'ici) ; la signature en trois étapes ; l'écriture comptable d'une pièce ; la coupure pendant l'émission (le serveur est réinterrogé avant tout nouvel essai) ; une pièce qui n'est plus là ; un enregistrement qui échoue se dit sur la page et se réessaie |
+| La FODEC | Réglages › Régime : « Je fabrique ce que je vends ». Une colonne FODEC (une case par ligne), cochée d'office pour un article « Produit fabriqué » ; l'étiquette « FODEC 1 % · réglage » ; un bandeau qui l'explique tant qu'aucune ligne ne la porte ; la ligne « FODEC 1 % » des totaux et du PDF. Le taux est une règle datée (`fodec.taux`, base/regles-communes.json, À VÉRIFIER), jamais un chiffre écrit dans le code. Le moteur la calcule sur la base remisée de la ligne et l'ajoute à la base de la TVA ; la retenue la comprend ; le serveur la lit à la date de la pièce, la scelle (0177) seulement quand elle existe ; l'écriture la porte au 4369 (À VÉRIFIER) ; le fichier TEIF la déclare (code I-1603, À VÉRIFIER). Tests : `tests/moteur/piece.test.ts`, `ecritures.test.ts`, `tests/ventes/facture.test.ts` ; preuves « facture 17 » à « facture 23 » |
+| Deux personnes écrivent | La pièce ouverte qui change sur un autre poste : un bandeau ambre dit quoi et propose « Garder la mienne » ou « Prendre la sienne » ; la fenêtre de fusion ne s'ouvre plus pour elle seule |
+| Clôture, accord, annulée, abonnement | Un brouillon d'un mois clôturé : « Refaire à la date d'aujourd'hui ». Une remise ou un encours au-delà du permis : « Demander l'accord », « Accord demandé », « Accorder la remise ». Une facture soldée par un avoir total : « Annulée le … par l'avoir total AVO-… » et « Dupliquer en brouillon ». L'abonnement en lecture seule : « Lecture seule · abonnement », la saisie reprend au renouvellement. La vue d'un commercial : son nom, sans « Signer » ni « Corriger par un avoir » |
+| Numéros de série | Sous une ligne d'un article suivi par numéro : « Numéros de série · k choisis sur n », les numéros, « Choisir les N qui manquent… » ; « Avant d'émettre » le rappelle |
+| Juste après l'émission | La fenêtre d'émission propose de signer, d'envoyer par e-mail, d'enregistrer un paiement ; le geste suit seul |
+| Le chargement | Une pièce ouverte par son adresse se dessine en squelette (sans le voile plein écran) ; au-delà de 3 s : « La connexion est lente : la pièce arrive. » |
+| Paiement en devise | La date et le taux côte à côte ; « Reçu en dinars : … » et la perte ou le gain de change (655 / 755) |
+| Ce que voit le client | L'espace client refait : ce qu'il doit, ses pièces des 12 derniers mois, la pièce sur son papier, ses devis, « Reste à payer » et le paiement en ligne, le PDF, le fichier El Fatoora après signature ; une colonne au téléphone |
+| Au téléphone | Une rangée par ligne (désignation, total, « 2 heures × 150,000 ») ; on la touche : un panneau monte (quantité −/+, prix, remise Aucune/5/10/Autre, TVA, total, Supprimer/Valider) ; « Ajouter une ligne » ouvre la recherche (articles, ligne libre) ; « Scanner » lit un code-barres avec l'appareil photo (un article de plus à chaque lecture, la quantité monte au second passage) |
+| L'affichage compact | Menu « Moi » › « Affichage compact » : la page à 90 %. Sans choix enregistré, il s'applique d'office sur un écran d'ordinateur de moins de 1 600 px (demande de Skander, 26/10/2026 : à 1 440 px la désignation n'avait plus la place) |

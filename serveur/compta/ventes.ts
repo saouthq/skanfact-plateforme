@@ -16,8 +16,8 @@ const tauxEnTexte = (taux: bigint) => versTexte(taux, 4).replace(/\.?0+$/, '');
 
 // Les totaux scellés d'une pièce émise : ce que son écriture reprend.
 function totauxScelles(p: PieceLue) {
-  const tvaParTaux = new Map<bigint, { base: bigint; tva: bigint }>();
-  for (const [taux, v] of Object.entries(p.tva_par_taux ?? {})) tvaParTaux.set(BigInt(taux), { base: BigInt(v.base), tva: BigInt(v.tva) });
+  const tvaParTaux = new Map<bigint, { base: bigint; tva: bigint; fodec?: bigint }>();
+  for (const [taux, v] of Object.entries(p.tva_par_taux ?? {})) tvaParTaux.set(BigInt(taux), { base: BigInt(v.base), tva: BigInt(v.tva), ...(v.fodec ? { fodec: BigInt(v.fodec) } : {}) });
   return { tvaParTaux, timbreBase: p.totaux?.timbre_base ?? 0n, totalTTC: p.totaux?.total_ttc ?? 0n };
 }
 
@@ -34,6 +34,7 @@ function lignesDeVente(lignes: LigneEcriture[], l: { entree: string; numero: str
     if (x.nature === 'ventes') texte = libelle('compta.libelle.ventes', { libelle: l.entree, taux: tauxEnTexte(x.tauxTva ?? 0n) });
     else if (x.nature === 'tva') texte = libelle('compta.libelle.tva', { taux: tauxEnTexte(x.tauxTva ?? 0n), numero: l.numero });
     else if (x.nature === 'timbre') texte = libelle('compta.libelle.timbre', { numero: l.numero });
+    else if (x.nature === 'fodec') texte = libelle('compta.libelle.fodec', { numero: l.numero });
     else if (x.nature === 'change') texte = libelle('compta.libelle.change', { numero: l.numero });
     else if (x.nature === 'retenue' || (x.nature === 'client' && apresRetenue)) texte = l.regularisation;
     apresRetenue = x.nature === 'retenue';
@@ -60,7 +61,7 @@ export async function ecrituresDeLaFamille(tx: Transaction, entreprise: string, 
   const enDevise = (p: PieceLue) => ({ devise: deviseDe(p.devise), cours: p.cours ?? undefined });
   const client = compteClient(plan, f.tiers);
   const comptesVente = {
-    clients: client, ventes: plan.plan.ventes, tvaCollectee: plan.plan.tvaCollectee, timbre: plan.plan.timbre,
+    clients: client, ventes: plan.plan.ventes, tvaCollectee: plan.plan.tvaCollectee, timbre: plan.plan.timbre, fodec: plan.plan.fodec,
     gainsChange: plan.plan.gainsChange, pertesChange: plan.plan.pertesChange, retenueSubie: plan.plan.rsSubie,
   };
   const numeroF = f.numero_texte ?? '';

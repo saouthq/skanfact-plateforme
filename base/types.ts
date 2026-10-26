@@ -1790,9 +1790,11 @@ export interface BaseDeDonnees {
     prix_unitaire: bigint;
     taux_tva: bigint;
     sans_remise: Generated<boolean>;
+    taux_remise: Generated<bigint>;
     ht: bigint | null;
     tva: bigint | null;
     ttc: bigint | null;
+    fodec: Generated<boolean>;
   };
   'ventes.paiement_en_ligne': {
     id: Generated<string>;
@@ -1838,6 +1840,7 @@ export interface BaseDeDonnees {
     total_ttc: bigint | null;
     retenue: bigint | null;
     net_a_payer: bigint | null;
+    fodec: bigint | null;
     tva_par_taux: ColumnType<Json | null, string | null, string | null>;
     copie: ColumnType<Json | null, string | null, string | null>;
     chaine_rang: bigint | null;

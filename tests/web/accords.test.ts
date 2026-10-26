@@ -119,9 +119,14 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await k.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/new/facture`);
     await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^Nouvelle facture|^Facture/);
     await plusTard(k);
-    await k.locator('[data-combo=clientId] .combo-btn').click();
-    await k.locator('[data-combo=clientId] .combo-q').fill('Ennasr');
-    await k.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
+    // (1.155.0) « Pour qui ? » : on tape, on prend le premier client proposé (le seul client d'un dossier est déjà pris).
+    await k.locator('#ed-pq-q:visible, #ed-client:visible').first().waitFor({ timeout: 20_000 });
+    if (await k.locator('#ed-pq-q').isVisible()) {
+      await k.locator('#ed-pq-q').fill('Ennasr');
+      await k.locator('#ed-pq-liste [role=option][data-cl]').first().click();
+    }
+    // (1.155.0) Une pièce neuve n'a pas de ligne : Entrée dans la barre d'ajout en pose une, libre.
+    if (!(await k.locator('[data-k=label]').count()) && await k.locator('#ed-ajout').count()) await k.locator('#ed-ajout').press('Enter');
     await k.locator('[data-k=label]').first().fill('Ciment gris 50 kg');
     await k.locator('[data-k=qty]').first().fill('12');
     await k.locator('[data-k=unitPrice]').first().fill('25');
@@ -192,7 +197,7 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await k.locator('#accords-ouvrir').click();
     await expect.poll(() => bandeau(k), { timeout: 10_000 }).toMatch(/^Accordé par Nadia le .*, pour 357,000 DT : la facture peut être émise\./);
     expect(await emettre()).toContain('Nadia l\'a accordé : tu peux l\'émettre.');
-    await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^Facture FAC-\d{4}-002/);
+    await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^FAC-\d{4}-002/);
     await k.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accords-6-emise.png') });
     const emise = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { cle: string; contenu: Record<string, unknown> }[]).find((o) => o.cle === pieceId)?.contenu;
     expect(emise?.accordEncours).toMatchObject({ demandePar: 'Karim', accordePar: 'Nadia' });
@@ -229,9 +234,14 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await k.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/new/facture`);
     await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^Nouvelle facture|^Facture/);
     await plusTard(k);
-    await k.locator('[data-combo=clientId] .combo-btn').click();
-    await k.locator('[data-combo=clientId] .combo-q').fill('Walima');
-    await k.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
+    // (1.155.0) « Pour qui ? » : on tape, on prend le premier client proposé (le seul client d'un dossier est déjà pris).
+    await k.locator('#ed-pq-q:visible, #ed-client:visible').first().waitFor({ timeout: 20_000 });
+    if (await k.locator('#ed-pq-q').isVisible()) {
+      await k.locator('#ed-pq-q').fill('Walima');
+      await k.locator('#ed-pq-liste [role=option][data-cl]').first().click();
+    }
+    // (1.155.0) Une pièce neuve n'a pas de ligne : Entrée dans la barre d'ajout en pose une, libre.
+    if (!(await k.locator('[data-k=label]').count()) && await k.locator('#ed-ajout').count()) await k.locator('#ed-ajout').press('Enter');
     await k.locator('[data-k=label]').first().fill('Ciment gris 50 kg');
     await k.locator('[data-k=qty]').first().fill('12');
     await k.locator('[data-k=unitPrice]').first().fill('25');
@@ -268,7 +278,7 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await expect.poll(() => bandeau(k), { timeout: 20_000 }).toMatch(/^Remise accordée par Nadia/);
     await plusTard(k);
     expect(await emettre()).toContain('Nadia a accordé cette remise de 15 % : tu peux l\'émettre.');
-    await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^Facture FAC-\d{4}-002/);
+    await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^FAC-\d{4}-002/);
     await k.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accords-8-remise-emise.png') });
     const emise = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { cle: string; contenu: Record<string, unknown> }[]).find((o) => o.cle === pieceId)?.contenu;
     expect(emise?.accordRemise).toMatchObject({ demandePar: 'Karim', accordePar: 'Nadia', taux: 15 });
@@ -280,9 +290,12 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await k.reload();
     await expect.poll(() => titre(k), { timeout: 20_000 }).toMatch(/^Nouvelle facture|^Facture/);
     await plusTard(k);
-    await k.locator('[data-combo=clientId] .combo-btn').click();
-    await k.locator('[data-combo=clientId] .combo-q').fill('Walima');
-    await k.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
+    // (1.155.0) « Pour qui ? » : on tape, on prend le premier client proposé (le seul client d'un dossier est déjà pris).
+    await k.locator('#ed-pq-q:visible, #ed-client:visible').first().waitFor({ timeout: 20_000 });
+    if (await k.locator('#ed-pq-q').isVisible()) {
+      await k.locator('#ed-pq-q').fill('Walima');
+      await k.locator('#ed-pq-liste [role=option][data-cl]').first().click();
+    }
     await k.locator('#cat-pick .combo-btn').click();
     await k.locator('#cat-pick .combo-q').fill('Ciment');
     await cliquer(k.locator('#cat-pick .combo-list [role=option]').first(), '#cat-pick', 15_000, async () => `${await recitObjet(admin, ent, 'catalog', 'ciment')} ; le serveur envoie à Karim ${

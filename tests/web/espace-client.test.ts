@@ -97,7 +97,7 @@ describe('l\'espace client, à la souris', () => {
     await nadia.waitForTimeout(600);
     await plusTard(nadia);
     await nadia.locator('#more-btn').click();
-    await nadia.getByRole('button', { name: 'Lien pour le client…', exact: true }).click();
+    await nadia.getByRole('menuitem', { name: /^Lien pour le client/ }).or(nadia.getByRole('button', { name: 'Lien pour le client…', exact: true })).first().click();
     const fenetre = nadia.locator('#modal-root .modal').last();
     // Ouvrir la fenêtre ne crée rien : il faut le demander.
     await expect.poll(() => fenetre.locator('#lc-liste').innerText()).toBe('Aucun.');
@@ -125,7 +125,7 @@ describe('l\'espace client, à la souris', () => {
     await client.goto(lienPiece);
     // Ce qu'il en doit encore, ce qu'il a déjà payé et l'avoir qui la corrige (lot facture, 05/10/2026 ;
     // docs/facture-details.md) : 337,095 + 200,000 + 536,095 = 1 073,190, la facture.
-    await expect.poll(() => client.locator('.barre .reste').innerText(), { timeout: 15_000 })
+    await expect.poll(() => client.locator('.reste-carte').evaluate((c) => { const t = (s: string) => (c.querySelector(s) as HTMLElement | null)?.innerText.trim() ?? ''; return [`${t('.k')} : ${t('.reste-mt')}`, t('.recu')].filter(Boolean).join(' · '); }), { timeout: 15_000 })
       .toMatch(/^Reste à payer : 337,095\sDT\s·\sPayé : 200,000\sDT\s·\sAvoirs : 536,095\sDT$/);
     const cadre = client.frameLocator('iframe.piece');
     await expect.poll(() => cadre.locator('body').innerText(), { timeout: 15_000 }).toContain('FAC-2026-001');
@@ -143,7 +143,7 @@ describe('l\'espace client, à la souris', () => {
     // Nadia rouvre la fenêtre : le lien a été vu.
     await fenetre.getByRole('button', { name: 'Fermer', exact: true }).click();
     await nadia.locator('#more-btn').click();
-    await nadia.getByRole('button', { name: 'Lien pour le client…', exact: true }).click();
+    await nadia.getByRole('menuitem', { name: /^Lien pour le client/ }).or(nadia.getByRole('button', { name: 'Lien pour le client…', exact: true })).first().click();
     await expect.poll(() => nadia.locator('#modal-root .modal').last().locator('#lc-liste').innerText(), { timeout: 15_000 })
       .toMatch(/^Cette pièce, donné le .* par Nadia\s*Vu le \d\d\/\d\d\/\d{4} à \d+ h \d\d\s*Retirer$/);
     await nadia.screenshot({ path: path.join(PHOTOS, 'espace-3-vu.png') });

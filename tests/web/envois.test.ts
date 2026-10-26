@@ -59,7 +59,8 @@ describe('les envois, à la souris', () => {
   const envoi = async (p: Page, nom: RegExp) => {
     const direct = p.locator('#doc-actions, #view').getByRole('button', { name: nom }).first();
     if (!(await direct.isVisible().catch(() => false))) await p.locator('#more-btn').click();
-    await p.getByRole('button', { name: nom }).first().click();
+    // (1.155.0) Le menu « ⋯ » d'une facture émise range ses gestes en entrées de menu (« Par e-mail », « Par WhatsApp »).
+    await p.getByRole('menuitem', { name: nom }).or(p.getByRole('button', { name: nom })).first().click();
     return p.locator('#modal-root .modal').last();
   };
 
@@ -119,19 +120,16 @@ describe('les envois, à la souris', () => {
 
     // L'e-mail : aucune question « Mail ou une autre messagerie » ; la case du lien, cochée ; « Veuillez
     // trouver ci-joint » devient « Voici » (rien n'est joint), et décocher rend la phrase.
-    const fenetre = await envoi(nadia, /^(Email|Envoyer par email…)$/);
+    const fenetre = await envoi(nadia, /^(Email$|Envoyer par email…$|Par e-mail)/);
     expect(await nadia.locator('#msg-choix').count()).toBe(0);
-    const caseLien = fenetre.getByLabel(/Ajouter le lien de la pièce/);
-    expect(await caseLien.isChecked()).toBe(true);
+    // (1.155.0, maquette « Envoyer la facture ») Le lien part toujours avec une facture émise : il se dit en puce, à côté
+    // du PDF ; « Veuillez trouver ci-joint » devient « Voici » (rien n'est joint).
+    expect(net(await fenetre.locator('.env-pj').innerText())).toContain('lien de la pièce');
     const message = fenetre.locator('textarea[name=body]');
     expect(await message.inputValue()).toMatch(/^Bonjour,\n\nVoici notre facture FAC-2026-001, d'un montant net à payer de 1\s073,190\sDT/);
-    expect(net(await fenetre.locator('#mf-envoi').innerText())).toBe('Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Un navigateur ne joint pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes, et ce qu\'il en doit. Modèles d\'email : Paramètres → Envois.');
-    await caseLien.uncheck();
-    expect(await message.inputValue()).toMatch(/^Bonjour,\n\nVeuillez trouver ci-joint notre facture FAC-2026-001/);
-    await caseLien.check();
-    expect(await message.inputValue()).toMatch(/^Bonjour,\n\nVoici notre facture/);
+    expect(net(await fenetre.locator('#mf-envoi').innerText())).toBe('Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Le lien de la pièce s\'ajoute avant la formule de politesse.');
     await nadia.screenshot({ path: path.join(PHOTOS, 'envois-1-email.png') });
-    await fenetre.getByRole('button', { name: 'Ouvrir dans la messagerie', exact: true }).click();
+    await fenetre.locator('#ok').click();
     await expect.poll(async () => (await ouverts(nadia)).length, { timeout: 15_000 }).toBe(1);
     const mail = new URL((await ouverts(nadia))[0] ?? '');
     expect(decodeURIComponent(mail.pathname)).toBe(String(menuiserie.contenu.email ?? ''));
@@ -155,14 +153,14 @@ describe('les envois, à la souris', () => {
     const client = await cc.newPage();
     await client.goto(lienMail ?? '');
     await expect.poll(() => client.frameLocator('iframe.piece').locator('body').innerText(), { timeout: 15_000 }).toContain('FAC-2026-001');
-    await expect.poll(() => client.locator('.barre .reste').innerText()).toMatch(/^Reste à payer : 1\s073,190\sDT$/);
+    await expect.poll(() => client.locator('.reste-carte').evaluate((c) => { const t = (s: string) => (c.querySelector(s) as HTMLElement | null)?.innerText.trim() ?? ''; return [`${t('.k')} : ${t('.reste-mt')}`, t('.recu')].filter(Boolean).join(' · '); })).toMatch(/^Reste à payer : 1\s073,190\sDT$/);
 
     // Nadia branche le paiement en ligne (posé à la main : la clé n'est pas l'objet de ce parcours). Son
     // WhatsApp : la conversation s'ouvre (pendant le geste, puis reçoit son adresse) sur un message qui
     // porte un AUTRE lien de la pièce, pour la voir ET la régler.
     await admin.query(`insert into ventes.prestataire (entreprise, prestataire, portefeuille, cle_scellee, cle_fin, compte_v10, pose_le, pose_par)
       select $1, 'konnect', 'portefeuille-essai', 'v1.a.b.c', 'b3f2', 'konnect', now(), m.utilisateur from socle.membre m where m.entreprise = $1 limit 1`, [ent]);
-    const wa = await envoi(nadia, /^Envoyer par WhatsApp…$/);
+    const wa = await envoi(nadia, /^(Envoyer par WhatsApp…$|Par WhatsApp)/);
     expect(await wa.getByLabel(/Ajouter le lien de la pièce/).isChecked()).toBe(true);
     const tel = wa.locator('[name=tel]');
     if (!(await tel.inputValue())) await tel.fill('98 123 456');
@@ -180,7 +178,7 @@ describe('les envois, à la souris', () => {
 
     // « Lien pour le client… » dit par où chaque lien est parti.
     await nadia.locator('#more-btn').click();
-    await nadia.getByRole('button', { name: 'Lien pour le client…', exact: true }).click();
+    await nadia.getByRole('menuitem', { name: /^Lien pour le client/ }).or(nadia.getByRole('button', { name: 'Lien pour le client…', exact: true })).first().click();
     await expect.poll(() => nadia.locator('#modal-root .modal').last().locator('#lc-liste').innerText(), { timeout: 15_000 })
       .toMatch(/^Cette pièce, envoyé par WhatsApp le .* par Nadia\s*Pas encore ouvert\s*Retirer\s*Cette pièce, envoyé par e-mail le .* par Nadia\s*Vu le .*\s*Retirer$/);
     await nadia.screenshot({ path: path.join(PHOTOS, 'envois-3-liens.png') });
@@ -192,13 +190,13 @@ describe('les envois, à la souris', () => {
     await nadia.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/d1`);
     await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Devis/);
     await plusTard(nadia);
-    const devis = await envoi(nadia, /^(Email|Envoyer par email…)$/);
+    const devis = await envoi(nadia, /^(Email$|Envoyer par email…$|Par e-mail)/);
     expect(await devis.getByLabel(/Ajouter le lien de la pièce/).isChecked()).toBe(true);
     expect(await devis.locator('textarea[name=body]').inputValue()).toMatch(/^Bonjour,\n\nVoici notre devis DEV-2026-001/);
     expect(net(await devis.locator('#mf-envoi').innerText())).toBe('Le message s\'ouvre dans ta messagerie : tu le relis et tu cliques sur Envoyer. Un navigateur ne joint pas de fichier : le lien de la pièce s\'ajoute avant la formule de politesse, et ton client y voit la pièce telle que tu l\'imprimes. Modèles d\'email : Paramètres → Envois.');
     await nadia.screenshot({ path: path.join(PHOTOS, 'envois-4-devis.png') });
     await devis.getByRole('button', { name: 'Annuler', exact: true }).click();
-    const waDevis = await envoi(nadia, /^(WhatsApp|Envoyer par WhatsApp…)$/);
+    const waDevis = await envoi(nadia, /^(WhatsApp$|Envoyer par WhatsApp…$|Par WhatsApp)/);
     expect(await waDevis.getByLabel(/Ajouter le lien de la pièce/).isChecked()).toBe(true);
     await waDevis.getByRole('button', { name: 'Ouvrir WhatsApp', exact: true }).click();
     await expect.poll(async () => (await ouverts(nadia)).length, { timeout: 15_000 }).toBe(5);
@@ -218,7 +216,7 @@ describe('les envois, à la souris', () => {
     await expect.poll(() => clientDevis.frameLocator('iframe.piece').locator('body').innerText(), { timeout: 15_000 }).toContain('DEV-2026-001');
     // Ses conditions, comme Nadia les imprime : celles de sa fiche, ou à défaut celles que la v10 y met.
     expect(net(await clientDevis.frameLocator('iframe.piece').locator('body').innerText())).toContain('Pour accepter ce devis, retournez-le daté et signé avec la mention « Bon pour accord ».');
-    await expect.poll(() => clientDevis.locator('.barre .reste').innerText()).toMatch(/^En attente de ta réponse · valable jusqu'au 31\/12\/2099 · 1\s072,190\sDT$/);
+    await expect.poll(() => clientDevis.locator('.reste-carte').evaluate((c) => { const t = (s: string) => (c.querySelector(s) as HTMLElement | null)?.innerText.trim() ?? ''; return [`${t('.k')} : ${t('.reste-mt')}`, t('.recu')].filter(Boolean).join(' · '); })).toMatch(/^En attente de ta réponse · valable jusqu'au 31\/12\/2099 · 1\s072,190\sDT$/);
     expect(await clientDevis.locator('#payer').count()).toBe(0);
     await clientDevis.screenshot({ path: path.join(PHOTOS, 'envois-5-devis-client.png') });
     // Le lien de son compte : ses devis à part de ses factures ; « Tu dois » ne compte que la facture.
@@ -231,12 +229,12 @@ describe('les envois, à la souris', () => {
     await expect.poll(() => compte.frameLocator('iframe.piece').locator('body').innerText(), { timeout: 15_000 }).toContain('DEV-2026-001');
     // « Lien pour le client… » sur le devis envoyé : le lien de son compte, et celui du devis, parti par WhatsApp.
     await nadia.locator('#more-btn').click();
-    await nadia.getByRole('button', { name: 'Lien pour le client…', exact: true }).click();
+    await nadia.getByRole('menuitem', { name: /^Lien pour le client/ }).or(nadia.getByRole('button', { name: 'Lien pour le client…', exact: true })).first().click();
     await expect.poll(() => nadia.locator('#modal-root .modal').last().locator('#lc-liste').innerText(), { timeout: 15_000 })
       .toMatch(/^Son compte, donné le .* par Nadia\s*Vu le .*\s*Retirer\s*Cette pièce, envoyé par WhatsApp le .* par Nadia\s*Vu le .*\s*Retirer$/);
     await nadia.locator('#modal-root .modal').last().getByRole('button', { name: 'Fermer', exact: true }).click();
     // Sans le lien (la case décochée) : WhatsApp s'ouvre pendant le geste, sans lien, sur le message du modèle.
-    const sansLien = await envoi(nadia, /^(WhatsApp|Envoyer par WhatsApp…)$/);
+    const sansLien = await envoi(nadia, /^(WhatsApp$|Envoyer par WhatsApp…$|Par WhatsApp)/);
     await sansLien.getByLabel(/Ajouter le lien de la pièce/).uncheck();
     await sansLien.getByRole('button', { name: 'Ouvrir WhatsApp', exact: true }).click();
     await expect.poll(async () => (await ouverts(nadia)).slice(5), { timeout: 15_000 }).toEqual(['fenêtre:', expect.stringMatching(/^https:\/\/wa\.me\/216\d{8}\?text=Bonjour/)]);

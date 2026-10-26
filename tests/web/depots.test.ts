@@ -177,13 +177,13 @@ describe('le stock par dépôt et les transferts, à la souris', () => {
     await expect.poll(() => p.locator('#modal-root #ok').count(), { timeout: 10_000 }).toBe(1);
     expect(await avertissement()).not.toContain('Stock insuffisant');
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^Facture FAC-\d{4}-001/);
+    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^FAC-\d{4}-001/);
     await p.evaluate(() => { location.hash = '#/article/ciment'; });
     await expect.poll(parDepot, { timeout: 10_000 }).toBe('Par dépôt i : Dépôt principal 20 sacs · Magasin de Sfax 5 sacs');
 
     // 3. L'avoir de cette facture rentre la marchandise à Sfax, d'où elle était sortie.
     await p.evaluate(() => { location.hash = '#/doc/f1'; });
-    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture FAC-/);
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^FAC-/);
     await plusTard(p);
     if (!await p.locator('#credit').isVisible()) await p.locator('#more-btn').click();
     await p.locator('#credit').click();

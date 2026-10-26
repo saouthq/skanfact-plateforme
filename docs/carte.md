@@ -901,7 +901,13 @@ vaut pour tout le dépôt.*
   Lot 3 (1.154.0), la liste des factures : `listeFactures` et `actionsFacture` (`v10/app.js`), `plateforme/liste.css` ;
   la tuile « À signer » et les états El Fatoora en colonne viennent du point de contact (`dessinerASigner`, `poserEtat`,
   `etatsTtnDe`). Lot 4 (1.155.0), la facture : `routes.doc` (`charte`, `teteCharte`, `champsCharte`, `gesteCharte`,
-  `friseCharte`, `dessinerAvant`), `plateforme/piece.css`.
+  `friseCharte`, `dessinerAvant`, `dessinerBandeaux`, `bandeauEmise`, `choisirPassage`, `prixCalculCharte`,
+  `coupureEmission`), `plateforme/piece.css` ; la FODEC (0177, `ventes.ligne.fodec`, `ventes.piece.fodec`, règle
+  `fodec.taux`, `moteur/piece.ts` `tauxFodec`, compte `fodec` du plan, TEIF I-1603) ; au téléphone `dessinerLignesTel`,
+  `feuilleLigne`, `feuilleAjoutTel`, `scannerCode` ; l'affichage compact par défaut sous 1 600 px (`barre.js`) ;
+  la remise par ligne (0176, `ventes.ligne.taux_remise`, `moteur/piece.ts`),
+  le seuil de la retenue (règle `retenue.seuil`) et le client de passage (`doc.passage`, le tiers du comptoir au serveur,
+  `serveur/v10/dossier.ts`).
 - **La mise en ligne** (briques 142-143, `docs/mise-en-ligne.md`, 05/10/2026) : le serveur d'essai est un VPS OVH en
   France (données inventées seulement), à `app.skanfact.tn`. **Personne ne s'y connecte** : il suit `main` tout seul
   (`exploitation/suivre.ts`, toutes les deux minutes) et installe la plus récente version que GitHub a vérifiée en

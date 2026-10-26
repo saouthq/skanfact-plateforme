@@ -40,10 +40,15 @@
   /** @param {any} p */
   const titre = (p) => `${C.titreDePiece(p.document, vue.entreprise)} ${p.numero}`;
 
+  // (1.155.0, maquette « ce que voit le client » de docs/maquettes/facture.html) Une seule page : en haut, qui écrit et
+  // ce qu'est ce lien ; à gauche, ce que le client doit, ses pièces des douze derniers mois et la pièce ouverte, telle
+  // que l'entreprise l'imprime ; à droite, le reste à payer et LE geste (payer en ligne), puis le PDF et le fichier
+  // El Fatoora.
+  const initiales = (/** @type {string} */ n) => String(n || '').trim().split(/\s+/).filter((m) => !/^(de|du|des|la|le|les|et|d'|l')$/i.test(m)).slice(0, 2).map((m) => m[0]).join('').toUpperCase() || '·';
   function entete() {
     const e = vue.entreprise;
-    return `<header class="societe">${e.logo ? `<img src="${esc(e.logo)}" alt="">` : ''}<div><h1>${esc(e.name)}</h1>
-      <p>Espace de ${esc(vue.client.name || 'ton compte')}</p></div></header>`;
+    return `<header class="societe">${e.logo ? `<img src="${esc(e.logo)}" alt="">` : `<span class="pastille" aria-hidden="true">${esc(initiales(e.name))}</span>`}<div><h1>${esc(e.name)}</h1>
+      <p>Espace de ${esc(vue.client.name || 'ton compte')}</p></div><span class="lien-dit">Lien personnel · aucun mot de passe · tout est en lecture</span></header>`;
   }
 
   // Sur un téléphone, la liste passe en cartes : chaque chiffre y dit ce qu'il est (sur un écran large,
@@ -57,30 +62,120 @@
     Number(p.credite) > 0 ? `Avoirs : ${esc(montant(p.credite, p.devise))}` : '',
   ].filter(Boolean).join(' · ');
 
-  // Le relevé : ce que le client doit, puis chacune de ses pièces émises.
-  function releve() {
+  // La pièce ouverte : { genre: 'piece' | 'devis', i }. Par défaut, la plus ancienne qui doit encore (celle à régler
+  // d'abord), sinon la plus récente.
+  /** @type {{ genre: 'piece' | 'devis', i: number } | null} */ let ouverte = null;
+  let toutVoir = false;
+  const ilYaUnAn = (() => { const d = new Date(); d.setFullYear(d.getFullYear() - 1); return d.toISOString().slice(0, 10); })();
+  const recente = (/** @type {any} */ p) => !p.date || p.date >= ilYaUnAn;
+  function parDefaut() {
+    const dues = vue.pieces.map((/** @type {any} */ p, /** @type {number} */ i) => [p, i]).filter((/** @type {any[]} */ [p]) => Number(p.reste) > 0);
+    if (dues.length) return { genre: /** @type {'piece'} */ ('piece'), i: dues[dues.length - 1][1] };
+    if (vue.pieces.length) return { genre: /** @type {'piece'} */ ('piece'), i: 0 };
+    if (vue.devis.length) return { genre: /** @type {'devis'} */ ('devis'), i: 0 };
+    return null;
+  }
+  const PASTILLES = { a_payer: 'a-payer', en_retard: 'retard', partielle: 'partielle', payee: 'payee', annulee: 'annulee' };
+
+  function releve() { dessiner(); }
+  /** @param {any} _p */
+  function piece(_p) { ouverte = { genre: 'piece', i: vue.pieces.indexOf(_p) }; dessiner(); }
+  /** @param {any} _d */
+  function devis(_d) { ouverte = { genre: 'devis', i: vue.devis.indexOf(_d) }; dessiner(); }
+
+  function dessiner() {
+    if (!ouverte) ouverte = parDefaut();
     const du = vue.totaux.filter((/** @type {any} */ t) => Number(t.du) > 0);
-    racine.innerHTML = `${entete()}
-      <section class="carte du">${du.length ? `<span>Tu dois</span> ${du.map((/** @type {any} */ t) => `<strong>${esc(montant(t.du, t.devise))}</strong>`).join(' ')}` : '<strong>Rien à payer</strong><span>Merci !</span>'}
-        ${vue.pieces.some((/** @type {any} */ p) => p.payable) ? '<p class="aide">Pour payer en ligne, ouvre la facture (« Voir »).</p>' : ''}</section>
-      <section class="carte">${vue.pieces.length ? `<table class="pieces"><thead><tr><th>Pièce</th><th>Date</th><th>Échéance</th><th class="m">Montant</th><th class="m">Reste à payer</th><th></th></tr></thead><tbody>
-        ${vue.pieces.map((/** @type {any} */ p, /** @type {number} */ i) => `<tr><td><strong>${esc(titre(p))}</strong>${p.statut ? `<div class="statut ${esc(p.statut)}">${esc(/** @type {any} */ (STATUTS)[p.statut] || '')}</div>` : ''}${recu(p) ? `<div class="recu">${recu(p)}</div>` : ''}</td>
-          <td>${etiquette('Date')}${esc(C.fmtDate(p.date))}</td><td>${etiquette('Échéance')}${p.echeance ? esc(C.fmtDate(p.echeance)) : '—'}</td>
-          <td class="m">${etiquette('Montant')}${esc(montant(p.net, p.devise))}</td><td class="m">${etiquette('Reste à payer')}${p.reste === null ? '—' : esc(montant(p.reste, p.devise))}</td>
-          <td><button type="button" data-voir="${i}">Voir</button></td></tr>`).join('')}</tbody></table>` : '<p>Aucune pièce émise pour le moment.</p>'}</section>
-      ${vue.devis.length ? `<h2 class="titre-devis">Tes devis</h2><section class="carte"><table class="pieces"><thead><tr><th>Devis</th><th>Date</th><th>Valable jusqu'au</th><th class="m">Montant</th><th></th></tr></thead><tbody>
-        ${vue.devis.map((/** @type {any} */ d, /** @type {number} */ i) => `<tr><td><strong>${esc(titre(d))}</strong><div class="statut ${esc(d.statut)}">${esc(/** @type {any} */ (ETATS_DEVIS)[d.statut] || '')}</div></td>
-          <td>${etiquette('Date')}${d.date ? esc(C.fmtDate(d.date)) : '—'}</td><td>${etiquette('Valable jusqu\'au')}${d.validite ? esc(C.fmtDate(d.validite)) : '—'}</td>
+    const dues = vue.pieces.filter((/** @type {any} */ p) => Number(p.reste) > 0);
+    const prochaine = dues.map((/** @type {any} */ p) => p.echeance).filter(Boolean).sort()[0];
+    const seule = vue.lien === 'piece';
+    const montrees = vue.pieces.map((/** @type {any} */ p, /** @type {number} */ i) => [p, i]).filter((/** @type {any[]} */ [p, i]) => seule || toutVoir || recente(p) || Number(p.reste) > 0 || (ouverte && ouverte.genre === 'piece' && ouverte.i === i));
+    const cachees = vue.pieces.length - montrees.length;
+    const sel = ouverte && ouverte.genre === 'piece' ? vue.pieces[ouverte.i] : null;
+    const selDevis = ouverte && ouverte.genre === 'devis' ? vue.devis[ouverte.i] : null;
+    const ligne = (/** @type {any} */ p, /** @type {number} */ i) => {
+      const ouv = sel === p;
+      return `<tr class="${ouv ? 'ouverte' : ''}"><td><strong>${p.type === 'avoir' ? 'Avoir ' : ''}${esc(p.numero)}</strong>${recu(p) ? `<div class="recu">${recu(p)}</div>` : ''}</td>
+        <td>${etiquette('Date')}${esc(C.fmtDate(p.date))}</td><td>${etiquette('Échéance')}${p.echeance ? `<span class="court">éch. </span>${esc(C.fmtDate(p.echeance))}` : '—'}</td>
+        <td class="m">${etiquette('Montant')}${esc(montant(p.net, p.devise))}</td>
+        <td class="s">${p.statut ? `<span class="statut ${esc(/** @type {any} */ (PASTILLES)[p.statut] || p.statut)}">${esc(/** @type {any} */ (STATUTS)[p.statut] || '')}</span>` : ''}</td>
+        <td class="g"><button type="button" data-voir="${i}"${ouv ? ' aria-current="true"' : ''}>${ouv ? 'Ouverte' : 'Voir'}</button></td></tr>`;
+    };
+    const tuile = du.length
+      ? `<section class="carte du"><span>Tu dois</span> ${du.map((/** @type {any} */ t) => `<strong>${esc(montant(t.du, t.devise))}</strong>`).join(' ')}
+          <p class="aide">${dues.length ? `${dues.length > 1 ? `${dues.length} factures` : '1 facture'} à payer${prochaine ? ` · échéance le ${esc(C.fmtDate(prochaine))}` : ''}` : ''}</p></section>`
+      : '<section class="carte du rien"><strong>Rien à payer</strong><span>Merci !</span></section>';
+    const liste = `<section class="carte liste"><div class="carte-t"><h2>${seule ? 'Ta pièce' : 'Tes pièces'}</h2>${seule ? '' : `<small>${toutVoir ? 'toutes' : 'les 12 derniers mois'}</small>`}</div>
+        ${vue.pieces.length ? `<table class="pieces"><tbody>${montrees.map((/** @type {any[]} */ [p, i]) => ligne(p, i)).join('')}</tbody></table>` : '<p>Aucune pièce émise pour le moment.</p>'}
+        ${cachees > 0 ? `<button type="button" class="plus-anciennes" id="plus-anciennes">Voir ${cachees > 1 ? `les ${cachees} plus anciennes` : 'la plus ancienne'}</button>` : ''}</section>`;
+    const devisVus = vue.devis.filter((/** @type {any} */ d) => toutVoir || recente(d) || d === selDevis || d.statut === 'en_attente').length;
+    const tesDevis = vue.devis.length ? `<section class="carte liste devis-l"><div class="carte-t"><h2>Tes devis</h2>${devisVus < vue.devis.length ? `<small>les 12 derniers mois · <button type="button" class="lien" id="devis-tous">voir les ${vue.devis.length - devisVus} autres</button></small>` : ''}</div><table class="pieces devis"><tbody>
+        ${vue.devis.map((/** @type {any} */ d, /** @type {number} */ i) => [d, i]).filter((/** @type {any[]} */ [d]) => toutVoir || recente(d) || d === selDevis || d.statut === 'en_attente').map((/** @type {any[]} */ [d, i]) => `<tr class="${selDevis === d ? 'ouverte' : ''}"><td><strong>${esc(d.numero)}</strong></td>
+          <td>${etiquette('Date')}${d.date ? esc(C.fmtDate(d.date)) : '—'}</td><td>${etiquette('Valable jusqu\'au')}${d.validite ? `<span class="court">jusqu'au </span>${esc(C.fmtDate(d.validite))}` : '—'}</td>
           <td class="m">${etiquette('Montant')}${esc(montantDevis(d))}</td>
-          <td><button type="button" data-devis="${i}">Voir</button></td></tr>`).join('')}</tbody></table></section>` : ''}
+          <td class="s"><span class="statut devis-${esc(d.statut)}">${esc(/** @type {any} */ (ETATS_DEVIS)[d.statut] || '')}</span></td>
+          <td class="g"><button type="button" data-devis="${i}">${selDevis === d ? 'Ouvert' : 'Voir'}</button></td></tr>`).join('')}</tbody></table></section>` : '';
+    // La colonne de droite : ce qui reste à payer sur la pièce ouverte, et le geste.
+    let droite = '';
+    if (sel) {
+      const doc = sel.document, t = C.computeTotals(doc, vue.entreprise);
+      const doit = Number(sel.reste) > 0;
+      droite = `<section class="carte reste-carte"><span class="k">${sel.reste === null ? (sel.type === 'avoir' ? 'Avoir' : 'Montant') : 'Reste à payer'}</span>
+          <strong class="reste-mt">${esc(sel.reste === null ? montant(sel.net, sel.devise) : montant(sel.reste, sel.devise))}</strong>
+          ${sel.payable ? `<button type="button" class="principal" id="payer">${carte}Payer ${esc(montant(sel.reste, sel.devise))} en ligne</button>
+            <p class="aide">Par carte bancaire, chez le prestataire de paiement de ${esc(vue.entreprise.name)}. Tu reviens ici une fois payé.</p>`
+          : `<p class="aide">${doit ? `Pour la régler, ${esc(vue.entreprise.name)} t'indique comment sur la facture (virement, chèque…).` : sel.type === 'avoir' ? 'Il diminue ce que tu dois.' : 'Rien à payer sur cette pièce.'}</p>`}
+          ${recu(sel) ? `<p class="recu">${recu(sel)}</p>` : ''}</section>
+        <section class="carte gestes-carte">${Number(t.withholding) > 0 && doit ? `<p class="note">La retenue à la source (${esc(C.money(t.withholding, devise(sel.devise)))}) est déjà déduite : tu paies le net. Ton attestation de retenue se remet à ${esc(vue.entreprise.name)}.</p>` : ''}
+          <button type="button" id="imprimer">${fleche}Enregistrer en PDF</button>
+          ${doc.ttn ? `<button type="button" id="efacture" title="La facture validée par la TTN (El Fatoora) : c'est elle qui fait foi.">${fleche}Fichier El Fatoora (XML)</button>` : sel.type === 'facture' ? `<button type="button" disabled title="Le fichier vient quand la facture est signée et acceptée par El Fatoora.">${fleche}Fichier El Fatoora (après signature)</button>` : ''}
+          <p class="refus-paiement" role="alert" hidden></p></section>`;
+    } else if (selDevis) {
+      const d = selDevis;
+      const etat = d.statut === 'en_attente' ? `${ETATS_DEVIS.en_attente}${d.validite ? ` · valable jusqu'au ${esc(C.fmtDate(d.validite))}` : ''}`
+        : d.statut === 'expire' && d.validite ? `Expiré le ${esc(C.fmtDate(d.validite))}` : esc(/** @type {any} */ (ETATS_DEVIS)[d.statut] || '');
+      droite = `<section class="carte reste-carte"><span class="k">Devis ${esc(d.numero)}</span><strong class="reste-mt">${esc(montantDevis(d))}</strong><p class="aide">${etat}. Pour l'accepter, le devis dit comment (ses conditions) : rien ne change d'ici.</p></section>
+        <section class="carte gestes-carte"><button type="button" id="imprimer">${fleche}Enregistrer en PDF</button></section>`;
+    }
+    const titreOuverte = sel ? titre(sel) : selDevis ? titre(selDevis) : '';
+    racine.innerHTML = `${entete()}
+      <div class="grille">
+        <div class="gauche">${seule ? '' : tuile}${liste}
+          ${sel || selDevis ? `<div class="papier"><iframe class="piece" sandbox="allow-same-origin" title="${esc(titreOuverte)}"></iframe></div>` : ''}${tesDevis}</div>
+        ${droite ? `<aside class="droite">${droite}</aside>` : ''}
+      </div>
       <footer>Cette page montre les pièces que ${esc(vue.entreprise.name)} t'a émises${vue.devis.length ? ', et ses devis' : ''}. Pour une question, écris-lui directement.</footer>`;
     racine.querySelectorAll('[data-voir]').forEach((b) => {
-      /** @type {HTMLElement} */ (b).onclick = () => piece(vue.pieces[Number(/** @type {HTMLElement} */ (b).dataset.voir)], true);
+      /** @type {HTMLElement} */ (b).onclick = () => { ouverte = { genre: 'piece', i: Number(/** @type {HTMLElement} */ (b).dataset.voir) }; dessiner(); voirLaPiece(); };
     });
     racine.querySelectorAll('[data-devis]').forEach((b) => {
-      /** @type {HTMLElement} */ (b).onclick = () => devis(vue.devis[Number(/** @type {HTMLElement} */ (b).dataset.devis)], true);
+      /** @type {HTMLElement} */ (b).onclick = () => { ouverte = { genre: 'devis', i: Number(/** @type {HTMLElement} */ (b).dataset.devis) }; dessiner(); voirLaPiece(); };
     });
+    const dt = document.getElementById('devis-tous');
+    if (dt) dt.onclick = () => { toutVoir = true; dessiner(); };
+    const pa = document.getElementById('plus-anciennes');
+    if (pa) pa.onclick = () => { toutVoir = true; dessiner(); };
+    const bp = /** @type {HTMLButtonElement | null} */ (document.getElementById('payer'));
+    if (bp && sel) bp.onclick = () => { void payer(sel, bp); };
+    const be = /** @type {HTMLButtonElement | null} */ (document.getElementById('efacture'));
+    if (be && sel) be.onclick = () => { void telechargerEfacture(sel, be); };
+    const ouvert = sel || selDevis;
+    const tampon = sel ? (sel.statut === 'payee' ? 'Payée' : sel.statut === 'annulee' ? 'Annulée' : undefined) : undefined;
+    const bi = document.getElementById('imprimer');
+    if (bi && ouvert) bi.onclick = () => imprimer(ouvert.document, tampon);
+    const cadre = /** @type {HTMLIFrameElement | null} */ (racine.querySelector('iframe.piece'));
+    if (cadre && ouvert) {
+      const zoom = Math.max(0.3, Math.min(1, Math.floor((cadre.clientWidth - 2) / 794 * 100) / 100));
+      cadre.onload = () => { try { const h = cadre.contentDocument?.documentElement.scrollHeight; if (h) cadre.style.height = `${h + 4}px`; } catch { /* la hauteur par défaut reste */ } };
+      cadre.srcdoc = C.documentHtml(ouvert.document, vue.client, vue.entreprise, { preview: true, stampText: tampon, zoom });
+    }
   }
+  // Sur un téléphone, la pièce choisie est plus bas : on y descend.
+  function voirLaPiece() {
+    if (window.matchMedia('(max-width: 900px)').matches) racine.querySelector('.papier')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  const carte = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/></svg>';
+  const fleche = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 15V4M7 9l5-5 5 5M5 20h14"/></svg>';
 
   // « Payer en ligne » (brique 78 ; docs/paiement-en-ligne.md) : le serveur ouvre le paiement chez le
   // prestataire de l'entreprise, pour le reste à payer ; le client y paie, puis revient sur la page de
@@ -135,33 +230,6 @@
     a.click();
   }
 
-  // Une pièce, comme l'entreprise l'imprime ; « Payer en ligne » si elle doit encore et que l'entreprise
-  // l'accepte (c'est alors l'étape suivante : le bouton principal), « Imprimer ou enregistrer en PDF ».
-  // Sous le reste à payer, ce que la facture a déjà reçu (lot facture, 05/10/2026) : « Reste à payer 109,578 DT » sous une
-  // facture imprimée à 327,586 DT ne se comprenait pas sans le paiement et l'avoir qui l'expliquent.
-  /** @param {any} p @param {boolean} retour */
-  function piece(p, retour) {
-    const tampon = p.statut === 'payee' ? 'Payée' : p.statut === 'annulee' ? 'Annulée' : undefined;
-    racine.innerHTML = `${entete()}
-      <div class="barre">${retour ? '<button type="button" id="retour">← Toutes tes pièces</button>' : ''}
-        <span class="reste">${p.reste === null ? '' : Number(p.reste) > 0 ? `Reste à payer : <strong>${esc(montant(p.reste, p.devise))}</strong>` : 'Rien à payer sur cette pièce'}${recu(p) ? `<span class="recu"> · ${recu(p)}</span>` : ''}</span>
-        <span class="gestes">${p.payable ? `<button type="button" class="principal" id="payer">Payer ${esc(montant(p.reste, p.devise))} en ligne</button>` : ''}
-          <button type="button" ${p.payable ? '' : 'class="principal" '}id="imprimer">Imprimer ou enregistrer en PDF</button>
-          ${p.document.ttn ? '<button type="button" id="efacture" title="La facture validée par la TTN (El Fatoora) : c\'est elle qui fait foi.">Facture électronique (XML)</button>' : ''}</span></div>
-      <p class="refus-paiement" role="alert" hidden></p>
-      <iframe class="piece" sandbox="allow-same-origin" title="${esc(titre(p))}"></iframe>`;
-    const bp = /** @type {HTMLButtonElement | null} */ (document.getElementById('payer'));
-    if (bp) bp.onclick = () => { void payer(p, bp); };
-    const be = /** @type {HTMLButtonElement | null} */ (document.getElementById('efacture'));
-    if (be) be.onclick = () => { void telechargerEfacture(p, be); };
-    const cadre = /** @type {HTMLIFrameElement} */ (racine.querySelector('iframe.piece'));
-    const zoom = Math.max(0.3, Math.min(1, Math.floor((cadre.clientWidth - 2) / 794 * 100) / 100));
-    cadre.srcdoc = C.documentHtml(p.document, vue.client, vue.entreprise, { preview: true, stampText: tampon, zoom });
-    const r = document.getElementById('retour');
-    if (r) r.onclick = releve;
-    /** @type {HTMLElement} */ (document.getElementById('imprimer')).onclick = () => imprimer(p.document, tampon);
-  }
-
   // « Imprimer ou enregistrer en PDF » : une page à part, mise en page comme la v10 le fait pour son PDF
   // (resserrée, puis en vraies pages). La pièce n'exécute rien (« sandbox ») : elle s'affiche, et s'imprime
   // (« allow-modals »).
@@ -185,25 +253,6 @@
   /** @param {any} d */
   const montantDevis = (d) => C.money(C.computeTotals(d.document, vue.entreprise).totalTTC, d.document.currency || vue.entreprise.currency);
 
-  // Un devis, comme l'entreprise l'imprime : son état, puis « Imprimer ou enregistrer en PDF ». Pour l'accepter,
-  // le devis dit comment (ses conditions) : rien ne change d'ici.
-  /** @param {any} d @param {boolean} retour */
-  function devis(d, retour) {
-    const etat = d.statut === 'en_attente' ? `${ETATS_DEVIS.en_attente}${d.validite ? ` · valable jusqu'au ${esc(C.fmtDate(d.validite))}` : ''}`
-      : d.statut === 'expire' && d.validite ? `Expiré le ${esc(C.fmtDate(d.validite))}` : esc(/** @type {any} */ (ETATS_DEVIS)[d.statut] || '');
-    racine.innerHTML = `${entete()}
-      <div class="barre">${retour ? '<button type="button" id="retour">← Toutes tes pièces</button>' : ''}
-        <span class="reste">${etat} · <strong>${esc(montantDevis(d))}</strong></span>
-        <span class="gestes"><button type="button" class="principal" id="imprimer">Imprimer ou enregistrer en PDF</button></span></div>
-      <iframe class="piece" sandbox="allow-same-origin" title="${esc(titre(d))}"></iframe>`;
-    const cadre = /** @type {HTMLIFrameElement} */ (racine.querySelector('iframe.piece'));
-    const zoom = Math.max(0.3, Math.min(1, Math.floor((cadre.clientWidth - 2) / 794 * 100) / 100));
-    cadre.srcdoc = C.documentHtml(d.document, vue.client, vue.entreprise, { preview: true, zoom });
-    const r = document.getElementById('retour');
-    if (r) r.onclick = releve;
-    /** @type {HTMLElement} */ (document.getElementById('imprimer')).onclick = () => imprimer(d.document, undefined);
-  }
-
   async function ouvrir() {
     if (!jeton) { refus('Ce lien est incomplet.', ' Ouvre-le tel qu\'il t\'a été envoyé, en entier.'); return; }
     let r;
@@ -221,8 +270,8 @@
       pieces: lu.pieces.map((/** @type {any} */ p) => ({ ...p, document: decoder(p.document) })),
       devis: (lu.devis || []).map((/** @type {any} */ d) => ({ ...d, document: decoder(d.document) })) };
     document.title = `${vue.entreprise.name} — espace client`;
-    if (vue.lien === 'piece' && vue.pieces[0]) piece(vue.pieces[0], false);
-    else if (vue.lien === 'piece' && vue.devis[0]) devis(vue.devis[0], false);
+    if (vue.lien === 'piece' && vue.pieces[0]) piece(vue.pieces[0]);
+    else if (vue.lien === 'piece' && vue.devis[0]) devis(vue.devis[0]);
     // Le lien d'un devis encore en brouillon (l'envoi n'est pas allé jusqu'au bout) : il le dit, sans rien montrer.
     else if (vue.lien === 'piece') refus('Cette pièce n\'est pas encore envoyée.', ` Demande-la à ${vue.entreprise.name || 'l\'entreprise qui t\'a envoyé ce lien'}.`);
     else releve();

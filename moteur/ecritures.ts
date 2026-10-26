@@ -6,6 +6,7 @@
 //   C ventes         la base remisée de chaque taux
 //   C TVA collectée  la TVA de chaque taux
 //   C timbre         le timbre, tel que la loi le fixe en dinars (10.14.1)
+//   C FODEC          la FODEC des produits fabriqués, quand la pièce en porte (1.155.0 ; compte À VÉRIFIER)
 //   C/D change       l'écart de conversion d'une pièce en devise
 // Un AVOIR s'écrit à l'envers (chaque montant change de colonne). Rattaché à sa facture, il crédite
 // le client au cours de la FACTURE (le client doit ce qu'il doit dans la devise de sa facture) :
@@ -28,8 +29,9 @@ import type { TotauxPiece } from './piece.ts';
 export type ComptesVente = {
   clients: string; ventes: string; tvaCollectee: string; timbre: string; gainsChange: string; pertesChange: string;
   retenueSubie?: string;   // pour la régularisation de retenue d'un avoir
+  fodec?: string;          // (1.155.0) pour une pièce qui porte la FODEC
 };
-export type NatureLigne = 'client' | 'ventes' | 'tva' | 'timbre' | 'change' | 'tresorerie' | 'retenue' | 'fournisseur' | 'achat' | 'frais' | 'avance';
+export type NatureLigne = 'client' | 'ventes' | 'tva' | 'timbre' | 'fodec' | 'change' | 'tresorerie' | 'retenue' | 'fournisseur' | 'achat' | 'frais' | 'avance';
 export type LigneEcriture = { compte: string; nature: NatureLigne; debit: bigint; credit: bigint; tauxTva?: bigint };
 export type Ecriture = { journal: 'VT'; lignes: LigneEcriture[] };
 
@@ -68,12 +70,16 @@ export function ecritureDeVente(
   const signe = piece.type === 'avoir' ? -1n : 1n;
   const conv = (m: bigint) => versLaBase(m * signe, piece.devise, piece.cours, base);
   const taux = [...t.tvaParTaux.keys()].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0));
-  const bases = new Map(taux.map((r) => [r, conv(t.tvaParTaux.get(r)?.base ?? 0n)]));
+  // La FODEC est DANS la base de la TVA de son taux (moteur/piece.ts) : elle en sort pour aller à son compte ; le chiffre
+  // d'affaires reste le net HT.
+  const bases = new Map(taux.map((r) => [r, conv((t.tvaParTaux.get(r)?.base ?? 0n) - (t.tvaParTaux.get(r)?.fodec ?? 0n))]));
   const tvas = new Map(taux.map((r) => [r, conv(t.tvaParTaux.get(r)?.tva ?? 0n)]));
   const timbre = t.timbreBase * signe;
+  const fodec = taux.reduce((a, r) => a + conv(t.tvaParTaux.get(r)?.fodec ?? 0n), 0n);
+  if (fodec !== 0n && !comptes.fodec) throw new Error('une pièce qui porte la FODEC a besoin du compte de la FODEC');
   const ttc = conv(t.totalTTC);
   const somme = (m: Map<bigint, bigint>) => [...m.values()].reduce((a, b) => a + b, 0n);
-  const ecart = ttc - somme(bases) - somme(tvas) - timbre;
+  const ecart = ttc - somme(bases) - somme(tvas) - timbre - fodec;
   let ecartConversion = 0n;
   if (ecart !== 0n) {
     if (piece.devise.code === base.code) {
@@ -118,6 +124,7 @@ export function ecritureDeVente(
     poser(comptes.tvaCollectee, 'tva', tvas.get(r) ?? 0n, 'credit', r);
   }
   poser(comptes.timbre, 'timbre', timbre, 'credit');
+  if (fodec !== 0n && comptes.fodec) poser(comptes.fodec, 'fodec', fodec, 'credit');
   // L'écart de conversion : ce que le client doit en plus (> 0) est un gain, en moins une perte.
   if (ecartConversion > 0n) poser(comptes.gainsChange, 'change', ecartConversion, 'credit');
   else if (ecartConversion < 0n) poser(comptes.pertesChange, 'change', -ecartConversion, 'debit');

@@ -174,7 +174,7 @@ describe('une commande livrée en deux fois, et ses bons facturés en une factur
     // 5. Émise par le serveur, au net de l'écran : 7 786,875 HT, TVA 19 % 1 479,506, timbre 1 : 9 267,381.
     await p.locator('#issue').click();
     await p.locator('#modal-root #ok').click();
-    await expect.poll(async () => net(await p.locator('#view h1').first().innerText()), { timeout: 20_000 }).toMatch(/^Facture FAC-2026-001/);
+    await expect.poll(async () => net(await p.locator('#view h1').first().innerText()), { timeout: 20_000 }).toMatch(/^FAC-2026-001/);
     expect((await admin.query(`select numero_texte, net_a_payer from ventes.piece where entreprise = $1 and type = 'facture'`, [ent])).rows)
       .toEqual([{ numero_texte: 'FAC-2026-001', net_a_payer: 9267381n }]);
     const facture = (await admin.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'documents' and contenu->>'type' = 'facture'`, [ent])).rows[0].contenu as { bonsLivraison: { number: string }[] };

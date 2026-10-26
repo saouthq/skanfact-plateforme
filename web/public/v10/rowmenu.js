@@ -73,7 +73,8 @@
   // `.guide-moi` : le bouton « Guide-moi » de l'en-tête de chaque page (10.14.1, S-03) ouvre ce même
   // menu — c'est un interrupteur comme `.row-menu-btn`. `.guide-appel` : l'invitation « Première fois
   // sur cette page ? » accrochée à ce bouton ; cliquer dedans ne doit pas la refermer.
-  const SURFACES = '.combo, .datefield, .row-menu, .row-menu-btn, .sugg-host, .lm-pop, .guide-moi, .guide-appel';
+  // `.ed-pop` et `[data-pop]` (1.155.0) : une bulle de la pièce (étiquettes, barre d'ajout, « Modèle ») et son bouton.
+  const SURFACES = '.combo, .datefield, .row-menu, .row-menu-btn, .sugg-host, .lm-pop, .guide-moi, .guide-appel, .ed-pop, [data-pop]';
 
   // L'application hôte prête son registre d'overlay : c'est lui qui garantit qu'un calendrier, une
   // liste déroulante et un menu ne restent jamais ouverts en même temps. L'app du cabinet n'a pas

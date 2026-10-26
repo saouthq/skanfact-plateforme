@@ -150,9 +150,14 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     // 3. Un devis, puis « Facturer ce devis » ; la facture émise.
     await aller('#/doc/new/devis');
     await expect.poll(() => titre(nadia), { timeout: 10_000 }).toMatch(/^Nouveau devis/);
-    await nadia.locator('[data-combo=clientId] .combo-btn').click();
-    await nadia.locator('[data-combo=clientId] .combo-q').fill('Amel');
-    await nadia.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
+    // (1.155.0) « Pour qui ? » : on tape, on prend le premier client proposé (le seul client d'un dossier est déjà pris).
+    await nadia.locator('#ed-pq-q:visible, #ed-client:visible').first().waitFor({ timeout: 20_000 });
+    if (await nadia.locator('#ed-pq-q').isVisible()) {
+      await nadia.locator('#ed-pq-q').fill('Amel');
+      await nadia.locator('#ed-pq-liste [role=option][data-cl]').first().click();
+    }
+    // (1.155.0) Une pièce neuve n'a pas de ligne : Entrée dans la barre d'ajout en pose une, libre.
+    if (!(await nadia.locator('[data-k=label]').count()) && await nadia.locator('#ed-ajout').count()) await nadia.locator('#ed-ajout').press('Enter');
     await nadia.locator('[data-k=label]').first().fill('Table en chêne massif');
     await nadia.locator('[data-k=qty]').first().fill('2');
     await nadia.locator('[data-k=unitPrice]').first().fill('450.5');
@@ -172,7 +177,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await nadia.locator('#issue').click();
     await expect.poll(() => nadia.locator('#modal-root #ok').count(), { timeout: 10_000 }).toBe(1);
     await nadia.locator('#modal-root #ok').click();
-    await expect.poll(() => titre(nadia), { timeout: 20_000 }).toMatch(/^Facture FAC-\d{4}-001/);
+    await expect.poll(() => titre(nadia), { timeout: 20_000 }).toMatch(/^FAC-\d{4}-001/);
     m.facture = decodeURIComponent(nadia.url().split('#/doc/')[1] ?? '');
     const f = (await objets()).find((o) => o.cle === m.facture)?.contenu;
     expect([f?.number, f?.status]).toEqual([expect.stringMatching(/^FAC-\d{4}-001$/), 'envoyée']);
@@ -201,10 +206,10 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await noter('A6');
     // 6. Le lien de son espace donné au client ; il paie la facture en ligne.
     await nadia.reload();
-    await expect.poll(() => titre(nadia), { timeout: 20_000 }).toMatch(/^Facture FAC-\d{4}-001/);
+    await expect.poll(() => titre(nadia), { timeout: 20_000 }).toMatch(/^FAC-\d{4}-001/);
     await plusTard(nadia);
     await nadia.locator('#more-btn').click();
-    await nadia.getByRole('button', { name: 'Lien pour le client…', exact: true }).click();
+    await nadia.getByRole('menuitem', { name: /^Lien pour le client/ }).or(nadia.getByRole('button', { name: 'Lien pour le client…', exact: true })).first().click();
     const lc = nadia.locator('#modal-root .modal').last();
     await lc.getByRole('button', { name: 'Créer le lien de cette pièce', exact: true }).click();
     const lien = await lc.locator('#lc-adresse').inputValue();
@@ -346,7 +351,7 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     await expect.poll(() => titre(tel), { timeout: 20_000 }).toMatch(/^Factures/);
     await plusTard(tel);
     await tel.locator('#view a', { hasText: /^FAC-\d{4}-001$/ }).first().click().catch(async () => { await tel.evaluate((x) => { location.hash = x; }, `#/doc/${m.facture}`); });
-    await expect.poll(() => titre(tel), { timeout: 10_000 }).toMatch(/^Facture FAC-\d{4}-001/);
+    await expect.poll(() => titre(tel), { timeout: 10_000 }).toMatch(/^FAC-\d{4}-001/);
     await plusTard(tel);
     expect(await tel.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     expect(net(await tel.locator('#view').innerText())).toMatch(/Paiement en ligne/);

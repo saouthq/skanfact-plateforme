@@ -38,6 +38,7 @@ declarerTextes({
   'compta.libelle.ventes': '{libelle} (HT {taux} %)',
   'compta.libelle.tva': 'TVA {taux} % — {numero}',
   'compta.libelle.timbre': 'Timbre fiscal {numero}',
+  'compta.libelle.fodec': 'FODEC {numero}',
   'compta.libelle.change': 'Écart de change {numero}',
   'compta.libelle.regularisation': 'Régularisation de la retenue {facture} (avoir {numero})',
   'compta.libelle.reglement': 'Règlement {numero} — {client}',

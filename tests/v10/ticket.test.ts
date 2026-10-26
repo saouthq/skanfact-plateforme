@@ -7,7 +7,9 @@
 //   - un passant achète « au comptoir » ; un ticket ne passe pas par la route des factures ;
 //   - un ticket n'a pas de fichier de facture électronique ;
 //   - au comptoir, le prix d'étiquette fait foi (lot caisse 3) : un ticket « prix TTC » se calcule TTC d'abord
-//     (2 × 1,200 = 2,400, jamais 2,399), l'avoir de son retour aussi ; un ticket d'avant et une facture, non.
+//     (2 × 1,200 = 2,400, jamais 2,399), l'avoir de son retour aussi ; un ticket d'avant et une facture, non ;
+//   - (1.155.0) une facture au « client de passage » (sans fiche) se range au comptoir, son nom scellé avec elle ; une
+//     facture sans client ni passage reste refusée ; la remise d'une ligne se calcule et se garde au serveur.
 
 import path from 'node:path';
 import type { FastifyInstance } from 'fastify';
@@ -183,5 +185,34 @@ describe('le ticket de caisse encaissé en ligne', () => {
       { ref: 't1', prix_ttc: true, ht: '2017', tva: '383', ttc: '2400', net: '2400' },
       { ref: 't2', prix_ttc: false, ht: '2016', tva: '383', ttc: '2399', net: '2399' },
     ]);
+  });
+
+  it('1.155.0 : le client de passage a sa facture (au comptoir, son nom scellé) ; la remise d\'une ligne se garde au serveur', async () => {
+    const nadia = await personne('Nadia');
+    const ent = String((await appeler('POST', '/entreprises', nadia.jeton, { raisonSociale: 'Quincaillerie Ben Youssef' })).corps.id);
+    await appeler('POST', '/moi/code', nadia.jeton, { methode: 'application' });
+    await appeler('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton);
+    // 3 × 12,345 = 37,035 ; 7,5 % de remise = 2,778 (2,777625 arrondi) ; HT 34,257 ; TVA 19 % = 6,509 ; net 40,766.
+    const lignes = [{ itemId: '', label: 'Vis inox, la boîte', unit: '', qty: 3, unitPrice: { '~n': '12.345' }, vatRate: 19, discount: { '~n': '7.5' } }];
+    const facture = (id: string, plus: Record<string, unknown>) => ({ ...ticket(id, [], '0', { ticket: undefined, ...plus }), lines: lignes, payments: [] });
+    const emettre = (doc: Record<string, unknown>, rang: number, net: string) =>
+      appeler('POST', `/entreprises/${ent}/dossier-v10/emettre`, nadia.jeton, { document: doc, client: null, revision: null, rang, netAPayer: net });
+
+    // Ni fiche ni passage : refusée, rien n'est numéroté.
+    const sans = await emettre(facture('f0', {}), 0, '40.766');
+    expect(sans.statut, JSON.stringify(sans.corps)).not.toBe(200);
+    expect(JSON.stringify(sans.corps)).not.toContain('FAC-');
+    // Un montant d'écran qui oublie la remise de la ligne (44,072) est refusé : le serveur calcule.
+    const oubli = await emettre(facture('f1', { passage: { nom: 'Mme Zribi', matricule: '' } }), 1, '44.072');
+    expect(oubli.statut, JSON.stringify(oubli.corps)).toBe(403);
+    const f1 = await emettre(facture('f1', { passage: { nom: 'Mme Zribi', matricule: '' } }), 1, '40.766');
+    expect(f1.statut, JSON.stringify(f1.corps)).toBe(200);
+    expect(f1.corps.numero).toBe(`FAC-${annee}-001`);
+
+    const r = await enTantQue(pool, nadia.id, async (tx) => (await tx.query(`select t.ref_v10 tiers, p.net_a_payer::text net, l.taux_remise::text remise, l.ht::text ht, l.tva::text tva
+      from ventes.piece p join socle.tiers t on t.id = p.tiers join ventes.ligne l on l.piece = p.id where p.entreprise = $1 and p.ref_v10 = 'f1'`, [ent])).rows);
+    expect(r).toEqual([{ tiers: '__comptoir', net: '40766', remise: '75000', ht: '34257', tva: '6509' }]);
+    const objets = (await appeler('GET', `/entreprises/${ent}/dossier-v10`, nadia.jeton)).corps.objets as Objet[];
+    expect(objets.find((o) => o.cle === 'f1')?.contenu).toMatchObject({ number: `FAC-${annee}-001`, clientId: '', passage: { nom: 'Mme Zribi' } });
   });
 });

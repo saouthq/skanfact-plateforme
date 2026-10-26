@@ -254,6 +254,8 @@ describe('le lot débutant (2), à la souris', () => {
     };
     // Enregistrée, la dépense quitte la page de création pour sa propre page.
     const ticket = async (libelle: string, montant: string) => {
+      // (1.155.0) Une pièce neuve n'a pas de ligne : Entrée dans la barre d'ajout en pose une, libre.
+      if (!(await p.locator('[data-k=label]').count()) && await p.locator('#ed-ajout').count()) await p.locator('#ed-ajout').press('Enter');
       await p.locator('input[data-k=label]').first().fill(libelle);
       await p.locator('#b-ttc').fill(montant);
       await p.locator('#save').click();
@@ -275,6 +277,8 @@ describe('le lot débutant (2), à la souris', () => {
     // Une facture d'achat sans fournisseur est toujours refusée : la facture vient de quelqu'un.
     await nouvelle('#/achat/new/-/facture', 'Nouvelle facture d\'achat');
     expect(net(await p.locator('[data-combo=supplierId] .combo-val').innerText())).toBe('— Choisir un fournisseur —');
+    // (1.155.0) Une pièce neuve n'a pas de ligne : Entrée dans la barre d'ajout en pose une, libre.
+    if (!(await p.locator('[data-k=label]').count()) && await p.locator('#ed-ajout').count()) await p.locator('#ed-ajout').press('Enter');
     await p.locator('input[data-k=label]').first().fill('Facture sans fournisseur');
     await p.locator('#save').click();
     await expect.poll(async () => net(await p.locator('#toast').innerText())).toBe('Choisis un fournisseur.');

@@ -523,7 +523,7 @@ prouver "le timbre en dinars ajouté tel quel à une pièce en euros" $MP \
   "    : p.cours ? diviserArrondi(p.timbre * MILLION * s, MILLE * p.cours)" "    : false ? 0n" \
   "une pièce en euros se calcule au centime"
 prouver "la retenue calculée sur le timbre aussi" $MP \
-  "  const retenue = auTaux(netHT + totalTVA, tauxRetenue);" "  const retenue = auTaux(netHT + totalTVA + timbre, tauxRetenue);" \
+  "  const retenue = sousLeSeuil ? 0n : auTaux(netHT + totalTVA, tauxRetenue);" "  const retenue = sousLeSeuil ? 0n : auTaux(netHT + totalTVA + timbre, tauxRetenue);" \
   "la retenue à la source porte sur le TTC hors timbre"
 prouver "une retenue sur un devis" $MP \
   "RETENUE_POSSIBLE.includes(p.type) ? (p.tauxRetenue ?? 0n) : 0n" "(p.tauxRetenue ?? 0n)" \
@@ -537,7 +537,7 @@ prouver "le timbre déclaré dans la devise de la pièce" $MP \
 # Les prix de l'exemple de cinq ans ne demandent jamais d'arrondir une ligne : c'est le tirage qui
 # voit ce défaut-là (une preuve restée verte sur l'exemple, le 28/09/2026).
 prouver "une ligne tronquée au lieu d'être arrondie (vue par le banc)" $MP \
-  "    const ht = diviserArrondi(l.quantite * l.prixUnitaire * s, MILLE * MILLION);" "    const ht = (l.quantite * l.prixUnitaire * s) / (MILLE * MILLION);" \
+  "    const brut = diviserArrondi(l.quantite * l.prixUnitaire * s, MILLE * MILLION);" "    const brut = (l.quantite * l.prixUnitaire * s) / (MILLE * MILLION);" \
   "20 000 pièces tirées au hasard"
 prouver "le timbre d'office sur un avoir (vu par l'exemple de cinq ans)" $MP \
   "|| ((p.type === 'avoir' || p.type === 'proforma') && p.appliquerTimbre === true);" "|| p.type === 'avoir' || (p.type === 'proforma' && p.appliquerTimbre === true);" \
@@ -1267,7 +1267,7 @@ prouver "un avoir émis par la route de la facture (celle du commercial)" $DV \
   "  if (!cle || doc.type !== type) throw new Refus('ventes.seule_facture');" "  if (!cle) throw new Refus('ventes.seule_facture');" \
   "$AV"
 prouver "un avoir émis qui change de facture" $DV \
-  "'stampFee', 'creditOf', 'creditReason', 'prixTtc'];" "'stampFee', 'creditReason', 'prixTtc'];" \
+  "'stampFee', 'creditOf', 'creditReason', 'prixTtc', 'export'" "'stampFee', 'creditReason', 'prixTtc', 'export'" \
   "$AV"
 prouver "la facture corrigée hors du scellé de l'avoir" serveur/ventes/pieces.ts \
   "    ...(p.type === 'avoir' ? { corrige: p.corrige } : {})," "" \
@@ -4216,10 +4216,10 @@ prouver "le fichier El Fatoora jamais écrit à l'émission" serveur/v10/dossier
   "    if (f.ok) {" "    if (false) {" \
   "$EF1"
 prouver "une entreprise soumise qui émet une pièce au fichier refusé" serveur/v10/dossier.ts \
-  "  if (societe.efacture === true && !doc.ticket && !retour) {" "  if (false) {" \
+  "  if (societe.efacture === true && !doc.ticket && !retour && !passage) {" "  if (false) {" \
   "$EF2"
 prouver "une entreprise non soumise empêchée d'émettre" serveur/v10/dossier.ts \
-  "  if (societe.efacture === true && !doc.ticket && !retour) {" "  if (!doc.ticket && !retour) {" \
+  "  if (societe.efacture === true && !doc.ticket && !retour && !passage) {" "  if (!doc.ticket && !retour && !passage) {" \
   "$EF3"
 prouver "un fichier El Fatoora aux montants faux gardé" serveur/v10/teif.ts \
   "    if (fichier !== serveur) return { code, fichier: fichier ?? '—', serveur };
@@ -5124,7 +5124,7 @@ prouver "la pièce de vente sans choix de dépôt" web/public/v10/app.js \
   "\${C.depotsDe(data).length > 1 && (isInv || isDelivery || isAv) && doc.fromDocType !== 'livraison' ?" "\${false ?" \
   "$DPW2"
 prouver "l'achat sans choix de dépôt" web/public/v10/app.js \
-  "\${C.depotsDe(data).length > 1 ? \`<label class=\"field\">\${lbl('Dépôt', 'dep.achat')}" "\${false ? \`<label class=\"field\">\${lbl('Dépôt', 'dep.achat')}" \
+  "\${C.depotsDe(data).length > 1 ? \`<label class=\"puce-champ\"><span>Dépôt</span><select name=\"depotId\" \${clos" "\${false ? \`<label class=\"puce-champ\"><span>Dépôt</span><select name=\"depotId\" \${clos" \
   "$DPW2"
 prouver "l'avoir tiré d'une facture qui oublie son dépôt" web/public/v10/app.js \
   "      depotId: inv.depotId || ''          //" "      depotId: ''          //" \
@@ -5689,7 +5689,7 @@ prouver "un ticket encaissé sans son paiement" serveur/v10/routes.ts \
   "      const avecPaiement = { ...r.contenu, payments: paiements," "      const avecPaiement = { ...r.contenu, payments: []," \
   "$TK"
 prouver "un passant vendu sans le client du comptoir" serveur/v10/dossier.ts \
-  "  const comptoir = (ticket || retour) && !doc.clientId;" "  const comptoir = retour && !doc.clientId;" \
+  "  const comptoir = (ticket || retour || passage) && !doc.clientId;" "  const comptoir = (retour || passage) && !doc.clientId;" \
   "$TK"
 prouver "la caisse qui refuse encore d'encaisser en ligne" web/public/v10/app.js \
   "      if (bridge.encaisser) {" "      if (bridge.emettre) { toast('La caisse n\\'est pas encore dans la version en ligne de SkanFact : rien n\\'a été vendu.', true); return; }
@@ -6115,7 +6115,7 @@ prouver "le Z qui oublie l'argent rendu dans le tiroir" serveur/caisse/routes.ts
   "  const especes = (parMode.especes ?? 0n) - (rendu.especes ?? 0n);" "  const especes = parMode.especes ?? 0n;" \
   "$CT"
 prouver "le retour d'un ticket au comptoir, sans client, refusé" serveur/v10/dossier.ts \
-  "  const comptoir = (ticket || retour) && !doc.clientId;" "  const comptoir = ticket && !doc.clientId;" \
+  "  const comptoir = (ticket || retour || passage) && !doc.clientId;" "  const comptoir = (ticket || passage) && !doc.clientId;" \
   "$CT"
 prouver "le caissier qui ne voit pas les retours faits sur ses tickets" serveur/v10/droits.ts \
   "      and contenu ->> 'creditOf' in (select cle from tickets)\`" "      and false\`" \
@@ -18369,7 +18369,7 @@ prouver '« Enregistrer » d'\''un devis neuf en vert en lecture seule' web/publ
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
 prouver '« Enregistrer » d'\''un achat neuf en vert en lecture seule' web/public/v10/app.js \
-  "\${isNew && !aboBloque(isNew) ? 'btn-primary' : ''}\" id=\"save\">Enregistrer</button>" "\${isNew ? 'btn-primary' : ''}\" id=\"save\">Enregistrer</button>" \
+  "? \`<button class=\"btn\${aboBloque(isNew) ? '' : ' btn-primary'} btn-grand\" id=\"save\">\${lfIc('coche', 17, 2.4)}Enregistrer \${p.kind" "? \`<button class=\"btn\${false ? '' : ' btn-primary'} btn-grand\" id=\"save\">\${lfIc('coche', 17, 2.4)}Enregistrer \${p.kind" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
 prouver 'trois « Me guider » du même nom dans les premiers pas du Cabinet' web/public/v10/cabinet/app.js \
@@ -20103,7 +20103,7 @@ prouver 'mois 133 : les cases grisées encore là sous le résumé' web/public/v
   ".editor.lecture #f-head > :not(#ed-affaire) { display: none; }" ".editor.lecture #f-head > :not(#ed-affaire) { }" \
   'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
 prouver 'mois 133 : une écriture validée dite au brouillard' web/public/v10/app.js \
-  "x.statut === 'validee'" "x.statut === 'valide'" \
+  "el.querySelector('dd').innerHTML = (x.statut === 'validee'" "el.querySelector('dd').innerHTML = (x.statut === 'valide'" \
   'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
 
 prouver 'ux2 134 : l'\''état vide d'\''une liste en lecture seule qui garde son vert de création' web/public/v10/app.js \
@@ -20393,7 +20393,7 @@ prouver 'charte 1 : le menu ⋯ sans le titre de ce qu'"'"'il touche' web/public
   '    m.innerHTML = (o.titre ? `<div class="rm-tete" role="presentation">${h(o.titre)}</div>` : '"'"''"'"') + actions.map(entree).join('"'"''"'"');' '    m.innerHTML = actions.map(entree).join('"'"''"'"');' \
   'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
 prouver 'charte 2 : le menu d'"'"'une pièce qui ne la nomme pas' web/public/v10/app.js \
-  '      return [d.number || (C.TITLES[d.type] || '"'"'Pièce'"'"') + '"'"' · Brouillon'"'"', d.clientId ? clientName(d.clientId) : '"'"''"'"'].filter(Boolean).join('"'"' · '"'"');' '      return '"'"''"'"';' \
+  '      return [d.number || (C.TITLES[d.type] || '"'"'Pièce'"'"') + '"'"' · Brouillon'"'"', d.clientId || d.passage ? nomClientPiece(d) : '"'"''"'"'].filter(Boolean).join('"'"' · '"'"');' '      return '"'"''"'"';' \
   'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'
 prouver 'charte 3 : « Annuler » encore 8 secondes, sa barre trompeuse' web/public/v10/app.js \
   '<span class="temps" style="--toast-duree:6000ms"></span>`;' '<span class="temps" style="--toast-duree:8000ms"></span>`;' \
@@ -20464,7 +20464,7 @@ prouver 'liste 14 : Entrée qui n'"'"'ouvre pas la pièce montrée' web/public/v
   'if (e.key === '"'"'Enter'"'"' && tr) {' 'if (false) {' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
 prouver 'liste 15 : le menu d'"'"'une facture qui ne la nomme pas' web/public/v10/app.js \
-  'return [d.number || '"'"'Brouillon'"'"', d.clientId ? clientName(d.clientId) : '"'"''"'"'].filter(Boolean).join('"'"' · '"'"');' 'return '"'"''"'"';' \
+  'return [d.number || '"'"'Brouillon'"'"', d.clientId || d.passage ? nomClientPiece(d) : '"'"''"'"'].filter(Boolean).join('"'"' · '"'"');' 'return '"'"''"'"';' \
   'les tuiles comptent comme la liste, l'"'"'échéance et le trop-perçu se disent, on cherche un montant, on choisit, au clavier'
 prouver 'liste 16 : la tuile et la liste demandent chacune les mêmes états' web/public/plateforme/pont.js \
   ' && !etatsEnVol.has(id);' ';' \
@@ -20487,7 +20487,7 @@ prouver 'copie de dev 5 : le suiveur de dev qui bloque celui de main' exploitati
   '"/run/$(basename "$MAISON")-suivre.verrou"' '/run/skanfact-suivre.verrou' \
   'sa maison et son verrou : celui de main ne change pas, celui de dev est à part'
 prouver 'facture 1 : l'"'"'e-mail absent du ⋯ d'"'"'une facture' web/public/v10/app.js \
-  '${emailDansPlus || (charte && !isNew) ? `<button id="email">' '${emailDansPlus ? `<button id="email">' \
+  '${emailDansPlus || ((isInv || isAv) && !isNew) ? `<button id="email">' '${emailDansPlus ? `<button id="email">' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
 prouver 'facture 2 : la retenue du client qui ne le dit pas' web/public/v10/app.js \
   'rs.textContent = duClient ? '"'"'· du client'"'"' : '"'"''"'"';' 'rs.textContent = '"'"''"'"';' \
@@ -20523,6 +20523,52 @@ prouver 'facture 10 : au téléphone, le geste qui défile avec la pièce' web/p
 prouver 'facture 11 : la carte du client sans sa dernière facture' web/public/v10/app.js \
   '        derniere ? `<span class="ed-chip">dernière' '        false ? `<span class="ed-chip">dernière' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver 'facture 12 : la remise d'"'"'une ligne oubliée' moteur/piece.ts \
+  '    const ht = brut - auTaux(brut, l.tauxRemise ?? 0n);' '    const ht = brut;' \
+  'la remise d'"'"'une ligne se retire de son montant arrondi, avant la TVA et avant la remise de toute la pièce'
+prouver 'facture 13 : une retenue sur une facture sous le seuil' moteur/piece.ts \
+  '  const sousLeSeuil = (p.seuilRetenue ?? 0n) > 0n && enMillimes < (p.seuilRetenue ?? 0n);' '  const sousLeSeuil = false;' \
+  'sous le seuil, une facture ne porte pas de retenue'
+prouver 'facture 14 : le seuil comparé à des euros comme à des dinars' moteur/piece.ts \
+  '  const enMillimes = p.cours ? diviserArrondi(horsTimbre * p.cours * MILLE, s * MILLION) : diviserArrondi(horsTimbre * MILLE, s);' '  const enMillimes = diviserArrondi(horsTimbre * MILLE, s);' \
+  'le seuil se compare en dinars'
+prouver 'facture 15 : la remise à virgule d'"'"'une ligne perdue au serveur' serveur/v10/dossier.ts \
+  '...(Number(nombreEnTexte(l.discount)) ? { tauxRemise:' '...(Number(l.discount) ? { tauxRemise:' \
+  'le client de passage a sa facture'
+prouver 'facture 16 : le client de passage refusé au serveur' serveur/v10/dossier.ts \
+  "  const passage = type === 'facture' && !ticket && !doc.clientId && estObjet(doc.passage);" '  const passage = false;' \
+  'le client de passage a sa facture'
+# La FODEC (1.155.0, maquette de la facture) : le moteur, l'écran, l'écriture et le serveur.
+prouver 'facture 17 : la FODEC hors de la base de la TVA' moteur/piece.ts \
+  '    const base = remisee + f;' '    const base = remisee;' \
+  'la FODEC d'"'"'une ligne est le taux sur sa base remisée'
+prouver 'facture 18 : la FODEC sur le hors taxe avant la remise de la pièce' moteur/piece.ts \
+  '    const f = l.fodec ? auTaux(remisee, p.tauxFodec ?? 0n) : 0n;' '    const f = l.fodec ? auTaux(l.ht, p.tauxFodec ?? 0n) : 0n;' \
+  'la remise de toute la pièce réduit la base de la FODEC'
+prouver 'facture 19 : la retenue calculée sans la FODEC' moteur/piece.ts \
+  '  const horsTimbre = netHT + fodec + totalTVA;' '  const horsTimbre = netHT + totalTVA;' \
+  'la FODEC d'"'"'une ligne est le taux sur sa base remisée'
+prouver 'facture 20 : l'"'"'écran oublie la FODEC dans le TTC' web/public/v10/core.js \
+  '    const totalTTC = rd(netHT + fodec + totalVAT + stamp);' '    const totalTTC = rd(netHT + totalVAT + stamp);' \
+  'deux chemins, un chiffre : l'"'"'écran (core.js) calcule la même FODEC'
+prouver 'facture 21 : la FODEC comptée en chiffre d'"'"'affaires' moteur/ecritures.ts \
+  'conv((t.tvaParTaux.get(r)?.base ?? 0n) - (t.tvaParTaux.get(r)?.fodec ?? 0n))' 'conv(t.tvaParTaux.get(r)?.base ?? 0n)' \
+  'la FODEC va à son compte'
+prouver 'facture 22 : le serveur ne lit pas le taux de la FODEC' serveur/ventes/pieces.ts \
+  '  if (fodec) piece.tauxFodec = BigInt(fodec.valeur as string | number);' '' \
+  'le serveur lit le taux à la date de la pièce, scelle la FODEC'
+prouver 'facture 23 : la FODEC des lignes perdue en base' serveur/ventes/pieces.ts \
+  '    fodec: l.fodec === true,' '    fodec: false,' \
+  'le serveur lit le taux à la date de la pièce, scelle la FODEC'
+prouver 'facture 24 : la déclaration du mois oublie la FODEC' web/public/v10/compta.js \
+  "    const fodec = retenuDuMois(livre, compteDuRole(livre, 'fodec'), du, au, horsMois);" "    const fodec = { v: 0, e: [] };" \
+  'lue sur son compte, rangée dans sa rubrique et dans le récapitulatif'
+prouver 'facture 25 : la FODEC hors du récapitulatif du formulaire' web/public/v10/compta.js \
+  "      ...(avecFodec ? [{ cle: 'fodec', libelle: 'FODEC', montant: m('fodec') }] : [])," "" \
+  'lue sur son compte, rangée dans sa rubrique et dans le récapitulatif'
+prouver 'facture 26 : la FODEC dans un mois qui n'"'"'en a pas' web/public/v10/compta.js \
+  "    const avecFodec = m('fodec') > 0;" "    const avecFodec = m('fodec') != null;" \
+  'un mois sans FODEC : ni rubrique ni ligne au récapitulatif'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

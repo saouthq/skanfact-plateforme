@@ -50,6 +50,10 @@ const taux = decimal(DECIMALES.taux).refine((v) => {
 const ligne = z.object({
   designation: z.string().trim().min(1).max(500), description: z.string().max(4000).optional(),
   quantite: decimal(DECIMALES.quantite), prixUnitaire: decimal(DECIMALES.prix), tauxTva: taux, sansRemise: z.boolean().optional(),
+  // La remise de la ligne (1.155.0), en pourcentage.
+  tauxRemise: taux.optional(),
+  // La ligne porte la FODEC (1.155.0) : son taux est la règle `fodec.taux` à la date de la pièce.
+  fodec: z.boolean().optional(),
 });
 const brouillon = z.object({
   type: z.enum(TYPES_PIECE),

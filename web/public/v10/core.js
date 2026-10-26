@@ -674,7 +674,8 @@
     const seuil = seuilRetenue(company);
     if (!(seuil > 0) || !doc || doc.type !== 'facture' || missingRate(doc, company)) return null;
     const t = computeTotals(doc, company);
-    if (!(t.withholdingRate > 0)) return null;
+    // (1.155.0) Sous le seuil de la règle `retenue.seuil`, le calcul retire déjà la retenue : rien à demander.
+    if (!(t.withholdingRate > 0) || t.sousLeSeuil) return null;
     const ttcBase = toBase(doc, t.totalTTC, company);
     return ttcBase < seuil ? { seuil, ttc: t.totalTTC, ttcBase, taux: t.withholdingRate } : null;
   }
@@ -1503,6 +1504,20 @@
 
   // ---------- calculs ----------
 
+  // (1.155.0) Une ligne de titre : elle nomme une section de la pièce et porte son sous-total, sans rien compter.
+  const estTitre = l => !!l && l.kind === 'titre';
+  // Le sous-total HT de chaque section : les lignes qui suivent un titre, jusqu'au titre suivant. Clé : l'index du
+  // titre dans `doc.lines`. Les montants sont ceux de `computeTotals` (la remise de la ligne déduite, pas la globale).
+  function sousTotauxDeSections(doc, company) {
+    const t = computeTotals(doc, company);
+    const out = {};
+    let titre = -1;
+    t.lines.forEach((l, i) => {
+      if (l.titre) { titre = i; out[i] = 0; return; }
+      if (titre >= 0) out[titre] = round3(out[titre] + l.ht);
+    });
+    return out;
+  }
   function computeTotals(doc, company) {
     // 10.14.1 — une pièce se calcule aux décimales de SA devise : au millime pour le dinar, au
     // centime pour l'euro ou le dollar. Calculée au millime, une facture en euros imprimait
@@ -1515,23 +1530,31 @@
     // la remise porte sur le TTC ; par taux, la TVA s'extrait du TTC et le HT en est la différence. La même règle que le
     // serveur (calculerPieceTtc). À VÉRIFIER avec un comptable : la TVA d'un ticket extraite du TTC.
     const prixTtc = doc.prixTtc === true;
+    // (1.155.0, maquette de la facture) Une ligne de TITRE (`kind: 'titre'`) range les lignes en sections : elle ne
+    // compte pour rien (elle reste dans `lines`, à zéro, pour que l'index d'une ligne soit le même partout) ; son
+    // sous-total se lit avec `sousTotauxDeSections`. La remise d'une ligne (`discount`, en %) se retire de son montant
+    // arrondi (`brut`) avant la remise globale, comme le serveur (moteur/piece.ts).
     const lines = (doc.lines || []).map(l => {
+      if (estTitre(l)) return { ...l, titre: true, qty: 0, unitPrice: 0, vatRate: 0, brut: 0, ht: 0, vat: 0, ttc: 0, noDiscount: true };
       const qty = Number(l.qty) || 0;
       const unit = Number(l.unitPrice) || 0;
       const rate = Number(l.vatRate) || 0;
+      const rl = Number(l.discount) || 0;
       if (prixTtc) {
-        const ttc = rd(qty * rd(unit * (1 + rate / 100)));
+        const brut = rd(qty * rd(unit * (1 + rate / 100)));
+        const ttc = rd(brut - rd(brut * rl / 100));
         const vat = rd(ttc * rate / (100 + rate));
-        return { ...l, qty, unitPrice: unit, vatRate: rate, ht: rd(ttc - vat), vat, ttc, noDiscount: !!l.noDiscount };
+        return { ...l, qty, unitPrice: unit, vatRate: rate, brut, ht: rd(ttc - vat), vat, ttc, noDiscount: !!l.noDiscount };
       }
-      const ht = rd(qty * unit);
+      const brut = rd(qty * unit);
+      const ht = rd(brut - rd(brut * rl / 100));
       const vat = rd(ht * rate / 100);
-      return { ...l, qty, unitPrice: unit, vatRate: rate, ht, vat, ttc: rd(ht + vat), noDiscount: !!l.noDiscount };
+      return { ...l, qty, unitPrice: unit, vatRate: rate, brut, ht, vat, ttc: rd(ht + vat), noDiscount: !!l.noDiscount };
     });
     // Une pièce « prix TTC » : le HT avant remise s'extrait par taux, comme le net (ligne à ligne, l'arrondi inventait une
     // remise d'un millime sur un ticket sans remise, vu sur l'écran du client le 06/10/2026).
     const brutParTaux = {};
-    if (prixTtc) lines.forEach(l => { brutParTaux[l.vatRate] = rd((brutParTaux[l.vatRate] || 0) + l.ttc); });
+    if (prixTtc) lines.forEach(l => { if (!l.titre) brutParTaux[l.vatRate] = rd((brutParTaux[l.vatRate] || 0) + l.ttc); });
     const totalHT = prixTtc ? rd(Object.keys(brutParTaux).reduce((s, k) => s + brutParTaux[k] - rd(brutParTaux[k] * Number(k) / (100 + Number(k))), 0))
       : rd(lines.reduce((s, l) => s + l.ht, 0));
     const discountRate = Number(doc.discountRate) || 0;
@@ -1541,20 +1564,31 @@
     // TVA par taux, appliquée après remise globale (remise répartie proportionnellement)
     const factor = discountable > 0 ? (discountable - remiseCalculee) / discountable : 1;
     const vatByRate = {};
+    let fodec = 0;
     if (prixTtc) {
       const ttcParTaux = {};
       // Une seule division (comme le serveur) : un facteur en virgule flottante perdait un millime sur des millions.
-      lines.forEach(l => { ttcParTaux[l.vatRate] = rd((ttcParTaux[l.vatRate] || 0) + rd(l.noDiscount || discountable <= 0 ? l.ttc : l.ttc * (discountable - remiseCalculee) / discountable)); });
+      lines.forEach(l => { if (l.titre) return; ttcParTaux[l.vatRate] = rd((ttcParTaux[l.vatRate] || 0) + rd(l.noDiscount || discountable <= 0 ? l.ttc : l.ttc * (discountable - remiseCalculee) / discountable)); });
       Object.keys(ttcParTaux).forEach(k => {
         const rate = Number(k), vat = rd(ttcParTaux[k] * rate / (100 + rate));
         vatByRate[k] = { base: rd(ttcParTaux[k] - vat), vat };
       });
     } else {
+      // (1.155.0) La FODEC d'une ligne qui la porte (`fodec`) : le taux de la pièce (`fodecRate`, en %, lu à la règle
+      // `fodec.taux` du serveur et gelé à l'émission) sur sa base remisée, arrondi à la ligne, ajouté à la base de son
+      // taux de TVA. La même règle que le serveur (moteur/piece.ts). Une pièce « prix TTC » n'en porte jamais.
+      // À VÉRIFIER avec un comptable : l'assiette et l'entrée dans la base de la TVA.
+      const tauxFodec = Number(doc.fodecRate) || 0;
       lines.forEach(l => {
-        const base = rd(l.noDiscount ? l.ht : l.ht * factor);
+        if (l.titre) return;
+        const remisee = rd(l.noDiscount ? l.ht : l.ht * factor);
+        const f = l.fodec === true && tauxFodec ? rd(remisee * tauxFodec / 100) : 0;
+        if (f) fodec = rd(fodec + f);
+        const base = rd(remisee + f);
         vatByRate[l.vatRate] = vatByRate[l.vatRate] || { base: 0, vat: 0 };
         vatByRate[l.vatRate].base = rd(vatByRate[l.vatRate].base + base);
         vatByRate[l.vatRate].vat = rd(vatByRate[l.vatRate].vat + base * l.vatRate / 100);
+        if (f) vatByRate[l.vatRate].fodec = rd((vatByRate[l.vatRate].fodec || 0) + f);
       });
     }
     const netHT = prixTtc ? rd(Object.values(vatByRate).reduce((s, v) => s + v.base, 0)) : rd(totalHT - remiseCalculee);
@@ -1563,8 +1597,10 @@
     // Timbre : d'office sur la facture, jamais sur un devis ou un bon. Sur l'avoir et la proforma il se
     // demande explicitement — une proforma n'est pas une facture, elle ne déclenche pas le droit de timbre.
     // À VÉRIFIER avec le comptable.
-    const stampApplies = (doc.type === 'facture' && doc.applyStamp !== false)
-      || ((doc.type === 'avoir' || doc.type === 'proforma') && doc.applyStamp === true);
+    // (1.155.0) Une vente à l'exportation (`export`) ne paie pas le timbre (note commune du ministère ; À VÉRIFIER pour
+    // une prestation de services rendue à l'étranger).
+    const stampApplies = !doc.export && ((doc.type === 'facture' && doc.applyStamp !== false)
+      || ((doc.type === 'avoir' || doc.type === 'proforma') && doc.applyStamp === true));
     // Le timbre est un montant en DINARS fixé par l'État — pas un nombre sans unité. Sur une facture
     // en euros, l'ajouter tel quel ajoutait « 1 euro », soit 3,4 fois le timbre dû. Il se convertit
     // dans la devise du document, comme n'importe quel montant.
@@ -1579,16 +1615,25 @@
     const timbreDu = doc.stampFee === undefined || doc.stampFee === null || doc.stampFee === ''
       ? (company.stampFee || 0) : Number(doc.stampFee) || 0;
     const stamp = stampApplies ? rd(timbreDu / rateOf(doc, company)) : 0;
-    const totalTTC = rd(netHT + totalVAT + stamp);
+    const totalTTC = rd(netHT + fodec + totalVAT + stamp);
     // Retenue à la source (factures / avoirs) : calculée sur le TTC hors timbre. À VÉRIFIER avec le comptable.
     // La retenue à la source ne se pratique que sur ce qui est réellement payé : facture, avoir, proforma.
     const withholdingRate = ['facture', 'avoir', 'proforma'].includes(doc.type) ? (Number(doc.withholdingRate) || 0) : 0;
-    const withholding = rd((netHT + totalVAT) * withholdingRate / 100);
+    // (1.155.0) Sous le seuil (en dinars, lu au serveur : la règle `retenue.seuil`), une pièce
+    // ne porte pas de retenue : elle naîtra au paiement si le client en règle plusieurs pour ce montant. Comparé en
+    // dinars, au millime, comme le serveur. Sans seuil connu, rien ne change.
+    // Le seuil est gardé SUR la pièce (`seuilRetenue`, posé par l'écran au brouillon, scellé à l'émission) : une loi qui
+    // le change ne réécrit pas une facture déjà faite. Une pièce d'avant n'en a pas : celui de l'entreprise, sinon aucun.
+    const seuil = doc.seuilRetenue != null && doc.seuilRetenue !== '' ? Number(doc.seuilRetenue) || 0 : Number((company || {}).seuilRetenue) || 0;
+    // La retenue et son seuil portent sur le TTC hors timbre, FODEC comprise (comme le serveur).
+    const horsTimbre = rd(netHT + fodec + totalVAT);
+    const sousLeSeuil = seuil > 0 && round3(horsTimbre * rateOf(doc, company)) < seuil;
+    const withholding = sousLeSeuil ? 0 : rd(horsTimbre * withholdingRate / 100);
     const netToPay = rd(totalTTC - withholding);
     // Le timbre en DINARS, tel que la loi le fixe : c'est lui qui se déclare et qui va au 4368. Converti
     // aller-retour par la devise (1 / 3,35 = 0,30 € ; 0,30 × 3,35 = 1,005), il était déclaré 1,002 DT.
     const stampBase = stampApplies ? round3(timbreDu) : 0;
-    return { lines, totalHT, discountRate, discount, netHT, vatByRate, totalVAT, stamp, stampBase, totalTTC, withholdingRate, withholding, netToPay };
+    return { lines, totalHT, discountRate, discount, netHT, vatByRate, totalVAT, fodec, stamp, stampBase, totalTTC, withholdingRate, withholding, netToPay, sousLeSeuil };
   }
 
   // ---------- le lot de calcul (10.14.0, saturation) ----------
@@ -1855,7 +1900,9 @@
       const status = d.type === 'facture' ? effectiveStatus(d, data, company, period.today) : d.status;
       const bal = d.type === 'facture' ? invoiceBalance(d, data, company) : null;
       const vatByRate = {};
-      VAT_RATES.forEach(r => { const v = t.vatByRate[r]; vatByRate[r] = { base: round3((v ? v.base : 0) * sign), vat: round3((v ? v.vat : 0) * sign) }; });
+      // (1.155.0) La FODEC est dans la base de la TVA de son taux : elle en sort, le chiffre d'affaires reste le net HT.
+      VAT_RATES.forEach(r => { const v = t.vatByRate[r]; vatByRate[r] = { base: round3((v ? v.base - (v.fodec || 0) : 0) * sign), vat: round3((v ? v.vat : 0) * sign) }; });
+      const fodec = round3(Object.values(t.vatByRate).reduce((a, v) => a + round3((v.fodec || 0) * sign), 0));
       // 10.14.1 — le timbre se déclare en dinars, tel que la loi le fixe : reconverti depuis la
       // devise, il valait 1,002 DT sur une facture en euros à 3,35 (0,299 € × 3,35). Et la pièce se
       // referme au millime : ttc = bases + TVA + timbre + écart de conversion.
@@ -1871,7 +1918,7 @@
       const ttc = round3(t.totalTTC * sign);
       const tva = round3(VAT_RATES.reduce((a, r) => a + vatByRate[r].vat, 0));
       const somme = round3(VAT_RATES.reduce((a, r) => a + vatByRate[r].base, 0));
-      const ecart = round3(ttc - somme - tva - timbre);
+      const ecart = round3(ttc - somme - tva - timbre - fodec);
       let ecartConversion = 0;
       if (ecart && rate === 1) {
         const r0 = VAT_RATES.reduce((m, r) => Math.abs(vatByRate[r].base) > Math.abs(vatByRate[m].base) ? r : m, VAT_RATES[0]);
@@ -1879,7 +1926,7 @@
       } else ecartConversion = ecart;
       return {
         id: d.id, date: d.date, number: d.number, type: d.type, typeLabel: estTicket(d) ? 'Ticket' : TITLES[d.type], client: clientName(d.clientId) || (estTicket(d) ? CLIENT_COMPTOIR : ''), clientId: d.clientId || '', subject: d.subject || '',
-        ht: round3(VAT_RATES.reduce((a, r) => a + vatByRate[r].base, 0)), vatByRate, tva, timbre, ttc, ecartConversion,
+        ht: round3(VAT_RATES.reduce((a, r) => a + vatByRate[r].base, 0)), vatByRate, tva, timbre, fodec, ttc, ecartConversion,
         rs: round3(t.withholding * sign), net: round3(t.netToPay * sign), status, statusLabel: statusLabel(status),
         paid: bal ? round3(bal.paid * rate) : 0, remaining: bal ? round3(bal.remaining * rate) : 0, currency: d.currency || company.currency, rate,
         withholdingCertificate: !!d.withholdingCertificate, creditOfNumber: d.creditOfNumber || ''
@@ -6676,6 +6723,7 @@
     tvaCollectee: '4367',        // TVA collectée
     tvaDeductible: '4366',       // TVA déductible
     timbre: '4368',              // Timbre fiscal encaissé pour le compte de l'État
+    fodec: '4369',               // (1.155.0) FODEC collectée sur les produits fabriqués — À VÉRIFIER (le compte exact)
     rsSubie: '4358',             // Retenue à la source subie par l'entreprise (créance sur l'État)
     rsOperee: '4352',            // Retenue à la source opérée sur un fournisseur (dette envers l'État)
     achatsStock: '607',          // Achats de marchandises destinées à la revente
@@ -6722,7 +6770,7 @@
   };
   const ACCOUNT_LABELS = {
     clients: 'Clients', fournisseurs: 'Fournisseurs', ventes: 'Ventes',
-    tvaCollectee: 'TVA collectée', tvaDeductible: 'TVA déductible', timbre: 'Timbre fiscal',
+    tvaCollectee: 'TVA collectée', tvaDeductible: 'TVA déductible', timbre: 'Timbre fiscal', fodec: 'FODEC collectée',
     rsSubie: 'Retenue à la source subie', rsOperee: 'Retenue à la source opérée',
     achatsStock: 'Achats de marchandises', charges: 'Charges', immobilisations: 'Immobilisations',
     fraisAccessoires: 'Frais accessoires d\'achat', avancesFournisseurs: 'Avances et acomptes versés',
@@ -6934,6 +6982,7 @@
           if (v && v.vat) e.credit(acc.tvaCollectee, `TVA ${rate} % — ${r.number}`, v.vat, { vatRate: rate });
         });
         if (r.timbre) e.credit(acc.timbre, `Timbre fiscal ${r.number}`, r.timbre);
+        if (r.fodec) e.credit(acc.fodec, `FODEC ${r.number}`, r.fodec);
         ecrireEcartDeChange(e, r.ecartConversion || 0, `Écart de conversion ${r.number}`);
         out.push(...e.done());
       });
@@ -9977,7 +10026,7 @@
     fr: {
       devis: 'Devis', facture: 'Facture', avoir: 'Avoir', issuedF: 'Émise le', issued: 'Émis le', dueBy: 'À régler avant le', payOnReceipt: 'À régler à réception', validUntil: 'Valable jusqu\'au',
       deposit: 'Acompte', depositOf: '% du devis', depositAmountOf: 'TTC du devis', balance: 'Solde', balanceOf: 'du devis', afterQuote: 'Suite au devis', reference: 'Référence', cancels: 'Annule / rectifie',
-      billedTo: 'Facturé à', preparedFor: 'Préparé pour', client: 'Client', subject: 'Objet', designation: 'Désignation', qty: 'Qté', unitPrice: 'Prix unit. HT', vat: 'TVA', lineTotal: 'Total HT',
+      billedTo: 'Facturé à', preparedFor: 'Préparé pour', client: 'Client', subject: 'Objet', designation: 'Désignation', qty: 'Qté', unitPrice: 'Prix unit. HT', vat: 'TVA', lineTotal: 'Total HT', lineDiscount: 'Remise', exportMention: 'Vente à l\'exportation : exonérée de TVA (art. 18 du code de la TVA), sans droit de timbre.',
       payment: 'Règlement', bank: 'Banque', rib: 'RIB', motif: 'Motif', creditText: (n, nom) => `Cet avoir vient en déduction de ${nom || 'la facture'} ${n}`, creditFreeText: 'Cet avoir n\'est rattaché à aucune facture : il est à valoir sur une prochaine facture, ou remboursé', conditions: 'Conditions', validText: d => `Devis valable jusqu'au ${d}.`,
       subtotal: 'Total HT', discount: 'Remise', netHT: 'Net HT', on: 'sur', stamp: 'Timbre fiscal', totalTTC: 'Total TTC', withholding: 'Retenue à la source', exoRS: (n, d) => `Exonéré de la retenue à la source${n ? ` — attestation n°\u00a0${n}` : ''}, valable jusqu'au ${d}.`, netToPay: 'Net à payer', creditAmount: 'Montant de l\'avoir',
       wordsInvoice: 'Arrêtée la présente facture à la somme de', wordsFees: 'Arrêtée la présente note d\'honoraires à la somme de', wordsCredit: 'Arrêté le présent avoir à la somme de', wordsQuote: 'Arrêté le présent devis à la somme de', wordsDoc: 'Arrêté le présent document à la somme de',
@@ -9998,7 +10047,7 @@
     en: {
       devis: 'Quote', facture: 'Invoice', avoir: 'Credit note', issuedF: 'Issued on', issued: 'Issued on', dueBy: 'Due by', payOnReceipt: 'Payable on receipt', validUntil: 'Valid until',
       deposit: 'Deposit', depositOf: '% of quote', depositAmountOf: 'incl. VAT, of quote', balance: 'Balance', balanceOf: 'of quote', afterQuote: 'Following quote', reference: 'Reference', cancels: 'Cancels / corrects',
-      billedTo: 'Billed to', preparedFor: 'Prepared for', client: 'Client', subject: 'Subject', designation: 'Description', qty: 'Qty', unitPrice: 'Unit price', vat: 'VAT', lineTotal: 'Total excl. VAT',
+      billedTo: 'Billed to', preparedFor: 'Prepared for', client: 'Client', subject: 'Subject', designation: 'Description', qty: 'Qty', unitPrice: 'Unit price', vat: 'VAT', lineTotal: 'Total excl. VAT', lineDiscount: 'Disc.', exportMention: 'Export sale: exempt from VAT (art. 18 of the Tunisian VAT code), no stamp duty.',
       payment: 'Payment', bank: 'Bank', rib: 'Account (RIB)', motif: 'Reference', creditText: (n, nom) => `This credit note is deducted from ${nom || 'invoice'} ${n}`, creditFreeText: 'This credit note is not attached to any invoice: it may be applied to a future invoice, or refunded', conditions: 'Terms', validText: d => `This quote is valid until ${d}.`,
       subtotal: 'Subtotal excl. VAT', discount: 'Discount', netHT: 'Net excl. VAT', on: 'on', stamp: 'Stamp duty', totalTTC: 'Total incl. VAT', withholding: 'Withholding tax', exoRS: (n, d) => `Exempt from withholding tax${n ? ` — certificate no.\u00a0${n}` : ''}, valid until ${d}.`, netToPay: 'Amount due', creditAmount: 'Credit amount',
       wordsInvoice: 'Total amount in words:', wordsFees: 'Total amount in words:', wordsCredit: 'Total amount in words:', wordsQuote: 'Total amount in words:', wordsDoc: 'Total amount in words:',
@@ -10019,6 +10068,8 @@
   };
 
   function documentHtml(doc, client, company, opts) {
+    // Le client de passage (une facture sans fiche) : le nom et l'identifiant tapés sur la pièce.
+    if (!client && doc && doc.passage) client = { name: doc.passage.nom || 'Client de passage', matricule: doc.passage.matricule || '' };
     opts = opts || {};
     const t = computeTotals(doc, company);
     const lang = (doc.lang || company.defaultLang) === 'en' ? 'en' : 'fr';
@@ -10068,7 +10119,16 @@
     const [r, g, b] = [0, 2, 4].map(i => parseInt(hex.slice(i, i + 2), 16));
     const tint = (a) => `rgba(${r}, ${g}, ${b}, ${a})`;
 
-    const linesHtml = t.lines.map((l) => `
+    // (1.155.0) Une colonne « Remise » quand une ligne a la sienne ; une ligne de titre ouvre une section et porte son
+    // sous-total HT (maquette de la facture, « Lignes de titre et sous-totaux par section »).
+    const remiseLigne = !noPrices && t.lines.some(l => !l.titre && Number(l.discount) > 0);
+    const sousTotaux = t.lines.some(l => l.titre) ? sousTotauxDeSections(doc, company) : {};
+    const nbCols = 2 + (noPrices ? 0 : 2 + (showVat ? 1 : 0) + (remiseLigne ? 1 : 0));
+    const linesHtml = t.lines.map((l, i) => l.titre ? `
+      <tr class="titre">
+        <td colspan="${nbCols - (noPrices ? 0 : 1)}"><div class="lbl">${escapeHtml(l.label)}</div></td>
+        ${noPrices ? '' : `<td class="r num strong">${fmt(sousTotaux[i] || 0)}</td>`}
+      </tr>` : `
       <tr>
         <td>
           <div class="lbl">${escapeHtml(l.label)}</div>
@@ -10076,6 +10136,7 @@
         </td>
         <td class="r num">${escapeHtml(String(l.qty).replace('.', lang === 'en' ? '.' : ','))}${l.unit ? `<span class="unit"> ${escapeHtml(l.unit)}</span>` : ''}</td>
         ${noPrices ? '' : `<td class="r num">${fmt(l.unitPrice)}</td>
+        ${remiseLigne ? `<td class="r num dim">${Number(l.discount) > 0 ? pct(Number(l.discount)) + '%' : '—'}</td>` : ''}
         ${showVat ? `<td class="r num dim">${l.vatRate}%</td>` : ''}
         <td class="r num strong">${fmt(l.ht)}</td>`}
       </tr>`).join('');
@@ -10133,7 +10194,9 @@
     // Sans TVA, la mention légale prend la PLACE de la ligne de TVA, là où le lecteur la cherche.
     // Une facture sans TVA et sans mention n'est pas une facture allégée, c'est une facture
     // incomplète — et c'est le client, ou son comptable, qui la refuse.
-    const vatRows = !showVat
+    // (1.155.0) Une vente à l'exportation dit sa mention à la place de la TVA (À VÉRIFIER : le libellé exact).
+    const vatRows = doc.export === true ? `<tr><td colspan="2" class="dim">${escapeHtml(L.exportMention)}</td></tr>`
+      : !showVat
       ? (mentionSansTva ? `<tr><td colspan="2" class="dim">${escapeHtml(mentionSansTva)}</td></tr>` : '')
       : multiVat ? Object.keys(t.vatByRate).sort((a, b) => a - b).map(rate =>
       `<tr><td>${L.vat} ${rate}% <span class="dim">${L.on} ${fmt(t.vatByRate[rate].base)}</span></td><td class="r num">${fmt(t.vatByRate[rate].vat)}</td></tr>`).join('')
@@ -10207,6 +10270,8 @@
   table.lines tbody td { padding: 2mm 3mm; border-bottom: .2mm solid #eceff3; vertical-align: top; }
   table.lines tbody tr:last-child td { border-bottom: none; }
   table.lines .lbl { font-weight: 600; }
+  table.lines tr.titre td { background: ${tint(0.07)}; padding-top: 5px; padding-bottom: 5px; }
+  table.lines tr.titre .lbl { font-weight: 700; text-transform: uppercase; letter-spacing: .04em; font-size: 8.5pt; }
   table.lines .desc { font-size: 8.8pt; color: #6b7684; margin-top: .6mm; line-height: 1.4; }
   table.lines .unit { color: #9aa3ae; font-size: 8.5pt; }
 
@@ -10347,6 +10412,7 @@
         <th>${L.designation}</th>
         <th class="r" style="width:16mm">${L.qty}</th>
         ${noPrices ? '' : `<th class="r" style="width:26mm">${L.unitPrice}</th>
+        ${remiseLigne ? `<th class="r" style="width:14mm">${L.lineDiscount}</th>` : ''}
         ${showVat ? `<th class="r" style="width:12mm">${L.vat}</th>` : ''}<th class="r" style="width:28mm">${L.lineTotal}</th>`}
       </tr></thead>
       <tbody>${linesHtml}</tbody>
@@ -10386,6 +10452,7 @@
         <table class="totals">
           <tr><td>${L.subtotal}</td><td class="r num">${fmt(t.totalHT)}</td></tr>
           ${t.discount ? `<tr><td>${L.discount} ${pct(t.discountRate)}%</td><td class="r num">− ${fmt(t.discount)}</td></tr><tr><td>${L.netHT}</td><td class="r num">${fmt(t.netHT)}</td></tr>` : ''}
+          ${t.fodec ? `<tr><td>FODEC ${pct(Number(doc.fodecRate) || 0)}%</td><td class="r num">${fmt(t.fodec)}</td></tr>` : ''}
           ${vatRows}
           ${t.stamp ? `<tr><td>${L.stamp}</td><td class="r num">${fmt(t.stamp)}</td></tr>` : ''}
           ${t.withholding ? `<tr class="sub"><td>${L.totalTTC}</td><td class="r num">${fmt(t.totalTTC)}</td></tr><tr><td>${L.withholding} ${pct(t.withholdingRate)}%</td><td class="r num">− ${fmt(t.withholding)}</td></tr>` : ''}
@@ -11615,6 +11682,7 @@
     estRemboursementAchat, avoirRembourse, aRattacherAchat, nextNumber, isLocked, isIssued, computeTotals, creditsFor, invoiceBalance, estRemboursement, titreQuestion, gesteQuestion, dateDernierReglement, motifVerrou, delaisContradictoires, effectiveStatus,
     depositLines, depositLinesMontant, acompteDit, settlementLines, salesJournal, vatSummary, paymentsJournal, toCsv, migrateData,
     PERIODS, MONTHS_FR, MONTHS_SHORT, monthLabel, deLibelle, addMonths, nextRecurrenceDate, dueRecurrences, catchUpRecurrence, fillTemplate, buildRecurringInvoice,
+    estTitre, sousTotauxDeSections,
     reminderLevel, REMINDER_LABELS, daysBetween, overdueInvoices, facturesAVenir, todoList, companyGaps, matriculeBienForme, matriculeLisible, verifRib, documentHistory, DEFAULT_EMAIL_TEMPLATES, DEFAULT_EMAIL_TEMPLATES_EN, emailFor, numeroWhatsApp, lienWhatsApp,
     CURRENCIES, DEVISES_NOMS, libelleDevise, TYPES_NUMEROTES, etatNumerotation, poserNumerotation, premiereNumerotation, normCurrency, DEPOT_PRINCIPAL, depotsDe, nomDepot, stockParDepot, transfertStock, decimalsFor, listesPrixApplicables, prixArticlePour, arrondiDevise, prixDuCatalogue, prixCataloguePourQuantite, lirePaliers, paliersEnTexte, toBase, rateOf, missingRate, monthKeys, monthlySeries, topClients, quoteStats, avgPaymentDelay, clientSummary, I18N,
     EXTRA_TYPES, SALES_TYPES, CONVERSIONS, CONVERSION_LABELS, convertDoc, retenueDuClient, derivedDocs, chaineDePieces, DEFAULT_CLAUSES, CLAUSE_LABELS,

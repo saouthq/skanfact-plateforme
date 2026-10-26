@@ -196,7 +196,7 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
       await expect.poll(() => nadia.locator('tr[data-id="f1"]').count(), { timeout: 10_000 }).toBe(1);
     };
     await nadia.locator('tr[data-id="f1"] td.cn').click();
-    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Facture FAC-2026-001/);
+    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^FAC-2026-001/);
     await nadia.locator('#more-btn').click();
     await nadia.getByRole('button', { name: 'Signer (DigiGo)…', exact: true }).click();
     const fenetre = nadia.locator('#modal-root .modal').last();
@@ -211,7 +211,7 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
     await expect.poll(async () => net(await etatDe('f1').innerText()), { timeout: 10_000 }).toMatch(/^El Fatoora : (en route|déposée, en attente)$/);
     // Renvoyée depuis sa fenêtre, FAC-2026-003 n'est plus « refusée » dans la liste.
     await nadia.locator('tr[data-id="f3"] td.cn').click();
-    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Facture FAC-2026-003/);
+    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^FAC-2026-003/);
     await nadia.locator('#more-btn').click();
     await nadia.getByRole('button', { name: 'Fichier pour El Fatoora (TEIF)…', exact: true }).click();
     const pret = nadia.locator('#modal-root .modal').last();

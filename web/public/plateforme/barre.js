@@ -247,6 +247,22 @@
     poser();
     new MutationObserver(poser).observe(nom, { childList: true, characterData: true, subtree: true });
   }
+  // (1.155.0, maquette de la barre « affichage compact ») Plus de contenu à l'écran : la page passe à 90 % et les rangées
+  // se resserrent, sans que rien change de place. Le choix reste sur cet appareil (c'est l'écran qui décide, pas le compte).
+  const compact = () => document.documentElement.classList.contains('compact');
+  /** @param {boolean} oui */
+  function poserCompact(oui) {
+    document.documentElement.classList.toggle('compact', oui);
+    try { localStorage.setItem('skanfact.compact', oui ? '1' : '0'); } catch { /* le choix vaut pour cette fois */ }
+  }
+  // (1.155.0, demande de Skander, 26/10/2026) Sans choix enregistré, un écran d'ordinateur de moins de 1 600 px de large
+  // s'ouvre en compact : à 1 440 px, la désignation d'une ligne de facture n'avait plus la place de se lire. Un grand
+  // écran garde la taille normale ; le téléphone a sa propre mise en page. Le choix du menu « Moi » l'emporte toujours.
+  let choixCompact = null;
+  try { choixCompact = localStorage.getItem('skanfact.compact'); } catch { /* rien */ }
+  // Une tablette ou un écran qu'on touche n'y passe pas : ses cibles doivent garder la mesure du doigt.
+  const souris = !window.matchMedia || window.matchMedia('(pointer: fine)').matches;
+  if (choixCompact === '1' || (choixCompact === null && souris && window.innerWidth > 760 && window.innerWidth < 1600)) document.documentElement.classList.add('compact');
   /** @type {{ nom: string, email: string, role: string } | null} */ let personne = null;
   async function lirePersonne() {
     const b = $('b-moi');
@@ -277,6 +293,7 @@
         + `<button type="button" role="menuitem" data-moi="abonnement"><span class="ic">${ic('carte', 18)}</span><span class="lib">${auCabinet() ? 'Abonnement du cabinet' : 'Ton abonnement'}<small>${esc(abo && abo.show ? abo.texte : 'Rien à régler pour l\'instant')}</small></span></button>` : '')
       + `<button type="button" role="menuitem" data-moi="raccourcis"><span class="ic">${ic('clavier', 18)}</span><span class="lib">Raccourcis clavier</span><kbd>?</kbd></button>`
       + `<button type="button" role="menuitem" data-moi="visite"><span class="ic">${ic('boussole', 18)}</span><span class="lib">Découvrir la barre<small>Trois étapes, une minute</small></span></button>`
+      + `<button type="button" role="menuitemcheckbox" aria-checked="${compact() ? 'true' : 'false'}" data-moi="compact"><span class="ic">${ic('onglets', 18)}</span><span class="lib">Affichage compact<small>${compact() ? 'Activé : plus de contenu à l\'écran' : 'Plus de contenu à l\'écran, rien ne change de place'}</small></span></button>`
       + `<div class="trait"></div><button type="button" role="menuitem" class="danger" data-moi="sortir"><span class="ic">${ic('sortir', 18)}</span><span class="lib">Se déconnecter</span></button>`
       + `<span class="menu-titre" style="font-weight:500">SkanFact ${esc(version() ? `v${version()}` : '')} · ${majPrete ? 'mise à jour prête' : 'à jour'}</span>`;
     const el = ouvrir('sb-pop sb-moi', html, bouton, 'Mon compte');
@@ -295,6 +312,7 @@
       else if (quoi === 'raccourcis') ouvrirRaccourcis();
       else if (quoi === 'visite') lancerVisite(1);
       else if (quoi === 'sortir') seDeconnecter();
+      else if (quoi === 'compact') poserCompact(!compact());
     });
     premierFocus();
   }
@@ -309,14 +327,17 @@
   const version = () => { const v = $('app-version'); return ((v && v.textContent) || infos().version || '').replace(/^v/, '').trim(); };
 
   // La puce « Hors ligne · N en attente » : l'état du poste (plateforme/poste.js).
-  /** @type {{ hors: boolean, attente: number }} */ let poste = { hors: false, attente: 0 };
+  /** @type {{ hors: boolean, attente: number, texte?: string, garde?: boolean }} */ let poste = { hors: false, attente: 0 };
   function poserHors() {
     const el = $('b-hors');
     if (!el) return;
     el.hidden = !poste.hors;
     const n = poste.attente;
-    el.dataset.tip = n ? `Hors ligne · ${n} ${n > 1 ? 'changements attendent' : 'changement attend'}` : 'Hors ligne · ce que tu fais se garde sur ce poste';
-    el.innerHTML = `<span class="ic">${ic('nuage', 16)}</span><span class="lib"><b>Hors ligne</b>${n ? ` · ${n} en attente` : ' · gardé ici'}</span>`;
+    // (1.155.0) La phrase entière du poste (depuis quand, ce qu'on voit, ce qui se garde) : la puce remplace le bandeau.
+    const garde = poste.garde !== false;
+    el.dataset.tip = poste.texte || (n ? `Hors ligne · ${n} ${n > 1 ? 'changements attendent' : 'changement attend'}` : garde ? 'Hors ligne · ce que tu fais se garde sur ce poste' : 'Hors ligne · rien ne se garde sur ce poste');
+    el.setAttribute('aria-label', el.dataset.tip);
+    el.innerHTML = `<span class="ic">${ic('nuage', 16)}</span><span class="lib"><b>Hors ligne</b>${n ? ` · ${n} en attente` : garde ? ' · gardé ici' : ' · consultation'}</span>`;
     poserPastilles();
   }
 

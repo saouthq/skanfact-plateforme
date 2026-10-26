@@ -96,7 +96,7 @@ describe('l\'encours autorisé d\'un client, à la souris', () => {
 
     // 3. Nadia décide d'émettre quand même : le serveur émet ; la page du client dit « dépassé ».
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^Facture FAC-\d{4}-001/);
+    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^FAC-\d{4}-001/);
     await p.evaluate(() => { location.hash = '#/client/c1'; });
     await expect.poll(async () => net(await p.locator('#cl-encours').innerText().catch(() => '')), { timeout: 10_000 })
       .toBe('Encours i : 1 157,680 DT sur 1 000,000 DT autorisés, dont 799,680 DT livrés à facturer : dépassé de 157,680 DT.');

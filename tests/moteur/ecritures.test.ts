@@ -122,3 +122,22 @@ describe('l\'écriture d\'un avoir de vente', () => {
     expect(change).toBeGreaterThan(100);
   });
 });
+
+describe('1.155.0 : la FODEC au journal des ventes', () => {
+  it('la FODEC va à son compte ; le chiffre d\'affaires reste le net HT ; l\'écriture s\'équilibre', () => {
+    const p = { type: 'facture' as const, devise: TND, timbre: 1_000n, tauxFodec: 10_000n,
+      // Le produit fabriqué est la PETITE base (123,456 à 7 %) : la FODEC laissée dans sa base serait « rattrapée » sur la
+      // plus grosse (celle à 19 %), et le chiffre d'affaires d'un taux serait faux même si le total tombait juste.
+      lignes: [{ quantite: 1_000n, prixUnitaire: 1_234_567_000n, tauxTva: 190_000n }, { quantite: 1_000n, prixUnitaire: 123_456_000n, tauxTva: 70_000n, fodec: true }] };
+    const t = calculerPiece(p);
+    const { lignes } = ecritureDeVente(t, p, TND, { ...COMPTES, fodec: '4369' });
+    expect(somme(lignes, 'fodec', 'credit')).toBe(1_235n);
+    expect(lignes.filter((l) => l.nature === 'ventes').map((l) => [l.tauxTva, l.credit])).toEqual([[70_000n, 123_456n], [190_000n, 1_234_567n]]);
+    expect(lignes.find((l) => l.nature === 'fodec')?.compte).toBe('4369');
+    expect(somme(lignes, 'ventes', 'credit')).toBe(t.netHT);
+    expect(somme(lignes, 'client', 'debit')).toBe(t.totalTTC);
+    expect(lignes.reduce((a, l) => a + l.debit - l.credit, 0n)).toBe(0n);
+    // Sans le compte de la FODEC, l'écriture ne s'invente pas un compte : elle s'arrête.
+    expect(() => ecritureDeVente(t, p, TND, COMPTES)).toThrow(/compte de la FODEC/);
+  });
+});

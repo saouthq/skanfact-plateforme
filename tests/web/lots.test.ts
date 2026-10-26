@@ -106,7 +106,7 @@ describe('les lots, à la souris', () => {
     await expect.poll(() => p.locator('#modal-root #ok').count(), { timeout: 10_000 }).toBe(1);
     expect(await avertissement()).not.toMatch(/lot/);
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^Facture FAC-\d{4}-001/);
+    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^FAC-\d{4}-001/);
     await p.evaluate(() => { location.hash = '#/article/yaourt'; });
     await expect.poll(parLot, { timeout: 10_000 }).toBe(`Par lot i : L-0901 8 pots (périme le ${fr(dans5)}) · L-0910 50 pots (périme le ${fr(dans20)})`);
     const historique = net(await p.locator('#view').innerText());

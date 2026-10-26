@@ -4,5 +4,17 @@
     "valeur": 1000,
     "debut": "2023-01-01",
     "source": "Droit de timbre sur les factures : 1 dinar (1 000 millimes) par facture, loi de finances pour 2023. À VÉRIFIER avec un comptable : le texte, l'article et la date d'effet."
+  },
+  {
+    "code": "retenue.seuil",
+    "valeur": 1000000,
+    "debut": "2023-01-01",
+    "source": "Seuil de la retenue à la source sur les factures : 1 000 dinars TTC (1 000 000 millimes) ; une facture plus petite n'en porte pas, sauf si le client en règle plusieurs pour ce montant (notes communes du ministère, seuil inchangé en 2025 et 2026 selon la presse). À VÉRIFIER avec un comptable : le texte et la date d'effet."
+  },
+  {
+    "code": "fodec.taux",
+    "valeur": 10000,
+    "debut": "2023-01-01",
+    "source": "FODEC (Fonds de développement de la compétitivité industrielle) : 1 % (10 000 millionièmes) du chiffre d'affaires hors TVA des produits que l'entreprise fabrique, dû par les industriels. À VÉRIFIER avec un comptable : le texte, l'assiette (HT après remise), l'entrée dans la base de la TVA et la date d'effet."
   }
 ]

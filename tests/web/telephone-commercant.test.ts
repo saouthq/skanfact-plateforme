@@ -168,7 +168,8 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await p.locator('table.list > tbody > tr:not(.mois)').first().locator('[data-tel=titre]').click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/doc/f1');
     // (1.149.0) La facture émise : sa désignation se lit en entier, en texte (le champ éteint coupait ce qui dépassait).
-    const lue = p.locator('table.lines-edit .ligne-lue').first();
+    // (1.155.0) Au téléphone, une ligne est une carte (#ed-tel-l) : sa désignation en tête, en entier.
+    const lue = p.locator('#ed-tel-l .t-l > b').first();
     await lue.waitFor({ timeout: 15_000 });
     expect(net(await lue.innerText())).toBe('Ciment gris 50 kg — livraison sur chantier');
     expect(await lue.evaluate((e) => e.scrollWidth <= e.clientWidth + 1 && e.getBoundingClientRect().right <= 390)).toBe(true);
@@ -215,16 +216,17 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await expect.poll(() => p.locator('table.list > tbody > tr [data-tel=titre]').allInnerTexts()).toContain('Café Bleu');
 
     // « Plus ▾ » d'une facture émise : une feuille au bas de l'écran, sur toute sa largeur ; ses gestes y sont.
-    await aller(p, '#/doc/f1', /^Facture FAC-2026-001/);
+    await aller(p, '#/doc/f1', /^FAC-2026-001/);
     await p.getByRole('button', { name: 'Autres actions' }).click();
-    const l = await rect(p, '#more-list');
+    // (1.155.0) « ⋯ » d'une pièce ouvre le menu de tous ses gestes (.gestes-menu).
+    const l = await rect(p, '.gestes-menu');
     expect(l.left).toBeGreaterThanOrEqual(0);
     expect(l.right).toBeLessThanOrEqual(390);
     expect(l.width).toBeGreaterThanOrEqual(360);
     expect(l.bottom).toBeGreaterThanOrEqual(844 - 24);
     expect(l.bottom).toBeLessThanOrEqual(844);
     await p.screenshot({ path: path.join(PHOTOS, 'telephone-plus.png') });
-    await p.locator('#more-list #wa').click();
+    await p.getByRole('menuitem', { name: /^Par WhatsApp/ }).click();
     await expect.poll(() => p.locator('#modal-root h2').allInnerTexts()).toEqual(['Envoyer Facture FAC-2026-001 par WhatsApp']);
     expect(erreurs).toEqual([]);
     await cx.close();
@@ -253,14 +255,13 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     expect(await p.locator('.editor').evaluate((e) => e.classList.contains('no-preview'))).toBe(false);
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('#pv-full').count()).toBe(0);
-    // Le bandeau : la phrase, sa bulle, « Corriger par un avoir… » ; le pourquoi est dans la bulle.
+    // Le bandeau : la phrase et « Corriger par un avoir… » ; le pourquoi se tait au téléphone (maquette 1.155.0 : pas de bulle).
     const bandeau = await rect(p, '#view .lock-banner');
     expect(bandeau.height).toBeLessThanOrEqual(170);
     expect(await p.locator('#view .lock-banner').getByText('Un numéro ne désigne jamais deux contenus', { exact: false }).isVisible()).toBe(false);
     expect(await p.locator('#view .lock-banner #lock-credit').isVisible()).toBe(true);
     const phrase = await rect(p, '#view .lock-banner b');
-    const bulle = await rect(p, '#view .lock-banner [data-info="ed.locked"]');
-    expect(Math.abs(bulle.top - phrase.top)).toBeLessThanOrEqual(14);
+    expect(phrase.right).toBeLessThanOrEqual(390);
     await p.screenshot({ path: path.join(PHOTOS, 'telephone-facture-emise.png') });
 
     // Le devis : « Facturer ce devis », sa bulle et son « ▾ » sur la même rangée, en tête.
@@ -376,10 +377,15 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
   it('la première émission au téléphone : « Je facturais déjà » tient dans sa fenêtre ; « Ctrl K » ne se montre qu\'à l\'ordinateur ; « ta seule pièce »', async () => {
     const c = await commercante();
     const { cx, p, erreurs } = await ouvrir(c, '#/doc/new/facture', TELEPHONE);
-    await p.locator('.combo-btn').first().click();
-    await p.locator('.combo-pop').getByText('Hôtel Les Pins', { exact: true }).click();
-    await p.locator('.lines-edit input').first().fill('Nuitée chambre double');
-    await p.locator('.lines-edit input[type=number]').nth(1).fill('145.5');
+    // (1.155.0) « Pour qui ? », puis la ligne au doigt : « Ajouter une ligne », une ligne libre, son prix dans sa feuille.
+    await p.locator('#ed-pq-q').fill('Pins');
+    await p.locator('#ed-pq-liste [role=option][data-cl]').first().click();
+    await p.locator('#ed-tel-ajout').click();
+    await p.locator('.t-feuille input[type=search]').fill('Nuitée chambre double');
+    await p.locator('.t-feuille [data-tf-libre]').click();
+    await p.locator('.t-feuille [data-tf=unitPrice]').fill('145,5');
+    await p.locator('.t-feuille [data-tf=unitPrice]').dispatchEvent('change');
+    await p.locator('.t-feuille [data-tf-ok]').click();
     await p.locator('#issue').click();
     await p.locator('#modal-root #num-suite').waitFor();
     const fenetre = await rect(p, '#modal-root .modal');
@@ -389,7 +395,7 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     expect(await p.locator('#modal-root #num-suite').evaluate((b) => b.scrollWidth <= b.clientWidth + 1)).toBe(true);
     await p.screenshot({ path: path.join(PHOTOS, 'telephone-emission.png') });
     await p.getByRole('button', { name: /^Émettre/ }).last().click();
-    await expect.poll(() => p.locator('#view h1').first().innerText(), { timeout: 15_000 }).toMatch(/^Facture FAC-2026-001/);
+    await expect.poll(() => p.locator('#view h1').first().innerText(), { timeout: 15_000 }).toMatch(/^FAC-2026-001/);
     await aller(p, '#/dashboard', /./);
     expect(net(await p.locator('#view h2', { hasText: 'Documents récents' }).innerText())).toBe('Documents récents — ta seule pièce');
     // Au doigt, la recherche (en tête de « Plus », maquette « Barre v3 ») ne montre pas de raccourci de clavier.

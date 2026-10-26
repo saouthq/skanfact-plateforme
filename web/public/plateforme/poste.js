@@ -181,18 +181,20 @@
   const style = document.createElement('style');
   style.textContent = `#poste-bandeau { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; display: flex; gap: 12px; align-items: center;
     justify-content: center; flex-wrap: wrap; padding: 6px 16px; font: 13px/1.4 system-ui, sans-serif; background: #fff4e0; color: #5b3a00;
-    border-bottom: 1px solid #f0c77a; } #poste-bandeau[hidden] { display: none; } #poste-bandeau.revenu { background: #e6f5f3; color: #0b5f57; border-color: #9fd9d1; }
+    border-bottom: 1px solid #f0c77a; } #poste-bandeau[hidden] { display: none; }
+    #poste-bandeau.discret { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; } #poste-bandeau.revenu { background: #e6f5f3; color: #0b5f57; border-color: #9fd9d1; }
     #poste-bandeau button { font: inherit; padding: 2px 10px; border-radius: 6px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; }`;
   document.head.appendChild(style);
   /** @type {HTMLElement | null} */ let bandeau = null;
   // Sa hauteur, pour les pages qui tiennent tout l'écran (la caisse tactile, caisse.css) : elles se poussent dessous, et
   // leur barre du haut reste à portée du doigt (vu au test de la caisse sans réseau, 05/10/2026).
-  const hauteur = () => document.documentElement.style.setProperty('--poste-bandeau-h', `${bandeau && !bandeau.hidden ? bandeau.offsetHeight : 0}px`);
+  const hauteur = () => document.documentElement.style.setProperty('--poste-bandeau-h', `${bandeau && !bandeau.hidden && !bandeau.classList.contains('discret') ? bandeau.offsetHeight : 0}px`);
   const heure = (/** @type {number} */ t) => { const d = new Date(t); return `${d.getHours()} h ${String(d.getMinutes()).padStart(2, '0')}`; };
   const jour = (/** @type {number} */ t) => { const d = new Date(t); return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`; };
   const esc = (/** @type {string} */ x) => x.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   /** @param {string} html @param {boolean} [revenu] */
-  function poser(html, revenu = false) {
+  // `discret` (1.155.0) : la barre montre l'état ; le bandeau ne se voit plus, il reste lu par un lecteur d'écran.
+  function poser(html, revenu = false, discret = false) {
     if (!bandeau) {
       bandeau = document.createElement('div');
       bandeau.id = 'poste-bandeau';
@@ -200,7 +202,7 @@
       (document.body || document.documentElement).appendChild(bandeau);
       if (typeof ResizeObserver !== 'undefined') new ResizeObserver(hauteur).observe(bandeau);
     }
-    bandeau.className = revenu ? 'revenu' : '';
+    bandeau.className = `${revenu ? 'revenu' : ''}${discret ? ' discret' : ''}`.trim();
     bandeau.innerHTML = html;
     bandeau.hidden = false;
     hauteur();
@@ -240,12 +242,18 @@
       : attend ? `${attendent(enAttente)}${l ? ` ${l}` : ''}`
       : cabinet ? l || 'Ta saisie au brouillard se garde sur ce poste et partira seule au retour du réseau ; le reste demande le réseau.'
         : l || 'Ce que tu enregistres se garde sur ce poste, et partira seul au retour du réseau.';
-    poser(`<span><strong>Hors ligne depuis ${heure(horsLigneDepuis)}.</strong> ${vu} ${suite}</span>`);
+    texteHors = `Hors ligne depuis ${heure(horsLigneDepuis)}. ${vu} ${suite}`;
+    // (1.155.0, maquettes) Avec la barre, l'état se lit dans sa puce « Hors ligne » (la phrase entière en bulle) et chaque
+    // page dit ce qu'il change pour elle (« Pas de réseau : l'émission attend la connexion ») : plus de second bandeau en
+    // haut de l'écran. Sans la barre (la caisse, une page à part), le bandeau reste.
+    poser(`<span><strong>Hors ligne depuis ${heure(horsLigneDepuis)}.</strong> ${vu} ${suite}</span>`, false, barreVisible());
     signaler();
   }
+  const barreVisible = () => !!document.body && document.body.classList.contains('avec-barre') && !document.body.classList.contains('mode-caisse');
   // La barre (plateforme/barre.js) dit l'état du poste dans sa puce « Hors ligne · N en attente » : un événement, et
   // l'état à la demande. Rien d'autre ne change.
-  const etat = () => ({ hors: horsLigneDepuis !== null && !close, attente: attend ? enAttente : 0 });
+  /** @type {string} */ let texteHors = '';
+  const etat = () => ({ hors: horsLigneDepuis !== null && !close, attente: attend ? enAttente : 0, texte: horsLigneDepuis !== null && !close ? texteHors : '', garde: garde() });
   const signaler = () => window.dispatchEvent(new CustomEvent('skanposte', { detail: etat() }));
   // Le nombre de changements gardés sur le poste, que le bandeau dit tant que le réseau manque.
   /** @param {number} n */
@@ -336,6 +344,12 @@
   /** @param {string} quoi « ton entreprise », « ton cabinet » */
   function ouverture(quoi) {
     finOuverture();
+    // (1.155.0, maquette « chargement ») Une pièce ouverte par son adresse se dessine déjà en squelette, qui dit lui-même
+    // quand la connexion est lente : le voile plein écran le cacherait.
+    if (document.querySelector('#view .sq-page')) return;
+    // (1.155.0, maquette « chargement ») Une pièce ouverte par son adresse se dessine déjà en squelette, qui dit lui-même
+    // quand la connexion est lente : le voile plein écran le cacherait.
+    if (document.querySelector('#view .sq-page')) return;
     const titre = `<div class="po-roue" aria-hidden="true"></div><p><strong>Ouverture de ${esc(quoi)}…</strong></p>`;
     ouvertureMinuteurs = [
       setTimeout(() => poserOuverture(titre), 400),

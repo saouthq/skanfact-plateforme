@@ -98,10 +98,14 @@ describe('le lot facture, à l\'écran', () => {
     await plusTard(p);
 
     // 1. Le brouillon : le client, l'objet, une ligne, la retenue de 1 % choisie dans la liste.
-    await p.locator('[data-combo=clientId] .combo-btn').click();
-    await p.locator('[data-combo=clientId] .combo-q').fill('Hôtel');
-    await p.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
+    // (1.155.0) « Pour qui ? » : on tape, on prend le premier client proposé (le seul client d'un dossier est déjà pris).
+    await p.locator('#ed-pq-q:visible, #ed-client:visible').first().waitFor({ timeout: 20_000 });
+    if (await p.locator('#ed-pq-q').isVisible()) {
+      await p.locator('#ed-pq-q').fill('Hôtel');
+      await p.locator('#ed-pq-liste [role=option][data-cl]').first().click();
+    }
     await p.locator('input[name="subject"]').fill('Pièces montées, octobre 2026');
+    if (!(await p.locator('[data-k=label]').count())) await p.locator('#ed-ajout').press('Enter');
     await p.locator('#lines tr:first-child input[data-k="label"]').fill('Pièce montée, 60 choux');
     await p.locator('#lines tr:first-child input[data-k="qty"]').fill('2');
     await p.locator('#lines tr:first-child input[data-k="unitPrice"]').fill('96.5');
@@ -167,7 +171,7 @@ describe('le lot facture, à l\'écran', () => {
     // 4. Émise : son matricule (sous sa forme lisible, en tête et au pied) et son RIB s'impriment ; la retenue est partie
     // en nombre.
     await p.locator('#modal-root #ok').click();
-    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toBe('Facture FAC-2026-001');
+    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toBe('FAC-2026-001');
     await expect.poll(() => apercu.locator('.brand').innerText().then(net).catch(() => '')).toBe('Pâtisserie Les Délices de Sfax MF 1357913B/A/M/000');
     expect(net(await apercu.locator('.footer').innerText())).toContain('Matricule fiscal 1357913B/A/M/000');
     expect(net(await apercu.locator('.after').innerText())).toContain('08100012345678901269');
@@ -222,15 +226,18 @@ describe('le lot facture, à l\'écran', () => {
     const lien = await api('POST', `/entreprises/${ent}/espace/liens`, jeton, { client: 'c1', piece: String(f1?.cle) });
     const client = await cx.newPage();
     await client.goto(`${serveur.adresse}${String(lien.corps.adresse)}`);
-    await expect.poll(() => client.locator('.barre .reste').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('Reste à payer : 128,373 DT · Payé : 100,000 DT');
+    await expect.poll(() => client.locator('.reste-carte').evaluate((c) => { const t = (s: string) => (c.querySelector(s) as HTMLElement | null)?.innerText.trim() ?? ''; return [`${t('.k')} : ${t('.reste-mt')}`, t('.recu')].filter(Boolean).join(' · '); }).then(net).catch(() => ''), { timeout: 15_000 }).toBe('Reste à payer : 128,373 DT · Payé : 100,000 DT');
     await client.close();
 
     // 8. Un refus du serveur à l'émission : une fenêtre qui reste, avec la raison et ce qui n'a pas été fait.
     await p.getByRole('button', { name: /^\+? ?Nouvelle facture$/ }).first().click();
     await p.locator('#view h1').filter({ hasText: 'Nouvelle facture' }).waitFor({ timeout: 15_000 });
-    await p.locator('[data-combo=clientId] .combo-btn').click();
-    await p.locator('[data-combo=clientId] .combo-q').fill('Hôtel');
-    await p.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
+    // (1.155.0) « Pour qui ? » : on tape, on prend le premier client proposé (le seul client d'un dossier est déjà pris).
+    await p.locator('#ed-pq-q:visible, #ed-client:visible').first().waitFor({ timeout: 20_000 });
+    if (await p.locator('#ed-pq-q').isVisible()) {
+      await p.locator('#ed-pq-q').fill('Hôtel');
+      await p.locator('#ed-pq-liste [role=option][data-cl]').first().click();
+    }
     await p.locator('#lines tr:first-child input[data-k="label"]').fill('Croissants pur beurre');
     await p.locator('#lines tr:first-child input[data-k="qty"]').fill('120');
     await p.locator('#lines tr:first-child input[data-k="unitPrice"]').fill('0.85');
@@ -347,6 +354,8 @@ describe('le lot facture, à l\'écran', () => {
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     await p.evaluate(() => { location.hash = '#/doc/new/facture'; });
+    // (1.155.0) Une facture neuve n'a pas de ligne : Entrée dans la barre d'ajout en pose une.
+    await p.locator('#ed-ajout').press('Enter', { timeout: 20_000 });
     await p.locator('#lines tr [data-k=qty]').first().waitFor({ timeout: 20_000 });
     // (1.94.0) Une pièce neuve pose le curseur sur le choix du client : Entrée ouvre la liste, sans traverser le menu.
     await expect.poll(() => p.evaluate(() => document.activeElement?.closest('[data-combo]')?.getAttribute('data-combo'))).toBe('clientId');

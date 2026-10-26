@@ -149,12 +149,15 @@ describe('le parcours, à la souris', () => {
     await p.getByRole('button', { name: /^\+? ?Nouvelle facture$/ }).click();
     await pageV10(p, /Nouvelle facture/);
     await plusTard(p);
-    await p.locator('[data-combo=clientId] .combo-btn').click();
-    await p.getByRole('button', { name: '+ Nouveau client' }).click();
+    // (1.155.0) « Pour qui ? » : « Nouveau client » sous la recherche.
+    await p.locator('#ed-pq-q').click();
+    await p.locator('#ed-pq-nv').click();
     await p.locator('#cf input[name=name]').fill('Boulangerie Ennour');
     await p.locator('#cf input[name=matricule]').fill('1234567B');
     await p.locator('#modal-root').getByRole('button', { name: 'Enregistrer', exact: true }).click();
     await expect.poll(() => p.locator('[data-combo=clientId] .combo-val').innerText()).toContain('Boulangerie Ennour');
+    // (1.155.0) Une pièce neuve n'a pas de ligne : Entrée dans la barre d'ajout en pose une, libre.
+    if (!(await p.locator('[data-k=label]').count()) && await p.locator('#ed-ajout').count()) await p.locator('#ed-ajout').press('Enter');
     await p.locator('#lines input[data-k=label]').first().fill('Pain de campagne');
     await p.locator('#lines input[data-k=qty]').first().fill('3');
     await p.locator('#lines input[data-k=unitPrice]').first().fill('2.125');
@@ -165,7 +168,7 @@ describe('le parcours, à la souris', () => {
     // Émettre : la v10 demande d'abord ; le serveur numérote dans la série de l'entreprise.
     await p.locator('#issue').click();
     await p.locator('#modal-root #ok').click();
-    await pageV10(p, /Facture FAC-2026-001/);
+    await pageV10(p, /FAC-2026-001/);
     const piece = (await admin.query(`select numero_texte, statut, net_a_payer::text net from ventes.piece where entreprise = $1`, [ent])).rows;
     expect(piece).toEqual([{ numero_texte: 'FAC-2026-001', statut: 'emise', net: '8586' }]);
     await p.screenshot({ path: path.join(PHOTOS, 'parcours-3-emise.png') });
@@ -173,7 +176,7 @@ describe('le parcours, à la souris', () => {
     // Recharger : la facture émise est toujours là, avec son numéro, dans la liste des factures.
     await p.waitForTimeout(600);
     await p.reload();
-    await pageV10(p, /Facture FAC-2026-001/);
+    await pageV10(p, /FAC-2026-001/);
     await plusTard(p);
     await p.locator('#nav a[data-route="factures"]').click();
     await pageV10(p, /Factures/);
@@ -374,16 +377,21 @@ describe('le parcours, à la souris', () => {
     await p.getByRole('button', { name: /^\+? ?Nouvelle facture$/ }).click();
     await pageV10(p, /Nouvelle facture/);
     await plusTard(p);
-    await p.locator('[data-combo=clientId] .combo-btn').click();
-    await p.locator('[data-combo=clientId] .combo-q').fill('Menuiserie');
-    await p.locator('[data-combo=clientId] .combo-list [role=option]').first().click();
+    // (1.155.0) « Pour qui ? » : on tape, on prend le premier client proposé (le seul client d'un dossier est déjà pris).
+    await p.locator('#ed-pq-q:visible, #ed-client:visible').first().waitFor({ timeout: 20_000 });
+    if (await p.locator('#ed-pq-q').isVisible()) {
+      await p.locator('#ed-pq-q').fill('Menuiserie');
+      await p.locator('#ed-pq-liste [role=option][data-cl]').first().click();
+    }
+    // (1.155.0) Une pièce neuve n'a pas de ligne : Entrée dans la barre d'ajout en pose une, libre.
+    if (!(await p.locator('[data-k=label]').count()) && await p.locator('#ed-ajout').count()) await p.locator('#ed-ajout').press('Enter');
     await p.locator('#lines input[data-k=label]').first().fill('Table en chêne massif');
     await p.locator('#lines input[data-k=qty]').first().fill('2');
     await p.locator('#lines input[data-k=unitPrice]').first().fill('450.5');
     await expect.poll(async () => (await p.locator('#totals').innerText()).replace(/\s+/g, ' ')).toMatch(/1 073,190/);
     await p.locator('#issue').click();
     await p.locator('#modal-root #ok').click();
-    await pageV10(p, /Facture FAC-2026-001/);
+    await pageV10(p, /FAC-2026-001/);
     await plusTard(p);
     // Plus de « Marquer annulée… » : une facture émise se corrige par un avoir.
     expect(await p.getByRole('button', { name: /Marquer annulée/ }).count()).toBe(0);

@@ -276,15 +276,22 @@ export const essaisEnCours = (entreprises: Entreprise[]) => entreprises.filter((
 // ── Le registre ──────────────────────────────────────────────────────────────────────────────────────────────────────
 // Une règle, telle qu'on la lit : son nom et sa valeur dans son unité, quand on la connaît. Une règle d'un code qu'on ne
 // connaît pas se montre par son code et sa valeur brute, jamais avec une unité devinée.
-type Connue = { unite: 'millimes' };
+type Connue = { unite: 'millimes' | 'taux' };
 export const REGLES_CONNUES: Readonly<Record<string, Connue>> = {
   // Le timbre d'une facture : des millimes de dinar (serveur/ventes/pieces.ts le lit tel quel dans le total).
   'timbre.facture': { unite: 'millimes' },
+  // Le seuil de la retenue à la source (1.155.0) : des millimes aussi (le moteur le compare au TTC hors timbre en dinars).
+  'retenue.seuil': { unite: 'millimes' },
+  // Le taux de la FODEC (1.155.0) : en millionièmes (1 % = 10 000), comme les taux du moteur (moteur/piece.ts).
+  'fodec.taux': { unite: 'taux' },
 };
 export function valeurDeRegle(code: string, valeur: unknown): { connue: boolean; texte: string } {
   const c = REGLES_CONNUES[code];
   if (c?.unite === 'millimes' && (typeof valeur === 'number' || typeof valeur === 'string') && /^\d+$/.test(String(valeur))) {
     return { connue: true, texte: versTexte(BigInt(valeur), 3) };
+  }
+  if (c?.unite === 'taux' && (typeof valeur === 'number' || typeof valeur === 'string') && /^\d+$/.test(String(valeur))) {
+    return { connue: true, texte: `${versTexte(BigInt(valeur), 4).replace(/\.?0+$/, '')} %` };
   }
   return { connue: false, texte: JSON.stringify(valeur) };
 }

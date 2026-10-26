@@ -238,3 +238,27 @@ describe('le journal de la série, relu dans la base', () => {
     expect(await controle()).toEqual({ ok: false, rang: 2, motif: t('journal.piece_modifiee') });
   });
 });
+
+describe('1.155.0 : la FODEC, du brouillon à l\'émission (maquette de la facture)', () => {
+  it('le serveur lit le taux à la date de la pièce, scelle la FODEC et la relit ; sans FODEC, la pièce reste celle d\'avant', async () => {
+    const e = await entreprise();
+    // Le taux de la FODEC, une règle de l'entreprise d'essai (la vraie est commune : base/regles-communes.json).
+    expect(await appeler('POST', `/entreprises/${e.ent}/regles`, e.proprio.jeton, { code: 'fodec.taux', valeur: 10000, debut: '2026-01-01', motif: 'Essai' })).toMatchObject({ statut: 201 });
+    const corps = { type: 'facture', tiers: e.client, datePiece: '2026-10-01',
+      lignes: [{ designation: 'Armoire fabriquée', quantite: '1', prixUnitaire: '1234.567', tauxTva: '19', fodec: true }, { designation: 'Pose', quantite: '1', prixUnitaire: '100', tauxTva: '19' }] };
+    const id = await brouillon(e, corps);
+    expect((await appeler('GET', `/entreprises/${e.ent}/ventes/${id}`, e.proprio.jeton)).corps).toMatchObject({ totaux: { fodec: '12.346', total_ttc: '1603.826' } });
+    expect(await appeler('POST', `/entreprises/${e.ent}/ventes/${id}/emettre`, e.proprio.jeton)).toMatchObject({ statut: 200 });
+    const emise = (await appeler('GET', `/entreprises/${e.ent}/ventes/${id}`, e.proprio.jeton)).corps as { totaux: Record<string, string>; lignes: { fodec?: boolean }[]; copie: { regles: { fodec?: unknown } } };
+    expect(emise.totaux).toMatchObject({ net_ht: '1334.567', fodec: '12.346', total_tva: '255.913', total_ttc: '1603.826' });
+    expect(emise.lignes.map((l) => l.fodec === true)).toEqual([true, false]);
+    expect(emise.copie.regles.fodec).toBeTruthy();
+    // La facture sans FODEC de la même entreprise : ni montant ni clé « fodec ».
+    const sans = await brouillon(e);
+    await appeler('POST', `/entreprises/${e.ent}/ventes/${sans}/emettre`, e.proprio.jeton);
+    expect(Object.keys((await appeler('GET', `/entreprises/${e.ent}/ventes/${sans}`, e.proprio.jeton)).corps.totaux as object)).not.toContain('fodec');
+    // La chaîne se relit : ce qu'on a scellé (la FODEC comprise) est ce que la base rend.
+    const relire = (tx: pg.PoolClient) => (o: { id: string }) => relirePourChaine(tx, e.ent, o.id);
+    expect(await enTantQue(pool, e.proprio.id, (tx) => controler(tx, e.ent, `serie:${e.serie}`, relire(tx)))).toEqual({ ok: true });
+  });
+});

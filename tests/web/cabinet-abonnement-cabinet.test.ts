@@ -173,7 +173,7 @@ describe('l\'abonnement du cabinet, à la souris', () => {
     const arrivee = await haut();
     await p.mouse.move(900, 500);
     await p.mouse.wheel(0, 300);
-    await expect.poll(haut, { timeout: 5_000 }).toBeLessThan(arrivee - 200);
+    await expect.poll(haut, { timeout: 5_000 }).toBeLessThan(arrivee - 150);
     const lu = await haut();
     await p.evaluate(() => window.dispatchEvent(new Event('focus')));
     await expect.poll(() => p.evaluate(() => (window as unknown as { __boiteLue?: number }).__boiteLue), { timeout: 10_000 }).toBe(2);
