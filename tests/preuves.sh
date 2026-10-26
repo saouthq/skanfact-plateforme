@@ -8372,7 +8372,7 @@ prouver '« Compléter ma fiche » qui se ferme sur un matricule refusé' web/pu
 # ── Le lot téléphone (06/10/2026 ; le parcours d'un commerçant au téléphone, la caisse sur la tablette ; docs/telephone.md) ──
 TL1='les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'\''ordinateur, un tableau'
 TL2='une fenêtre longue garde ses boutons au bas de l'\''écran ; « Plus ▾ » s'\''ouvre au bas de l'\''écran, sur toute sa largeur'
-TL3='une pièce au téléphone : l'\''étape suivante en tête, « WhatsApp » à côté d'\''« Email », chaque bulle avec son bouton ; le bandeau d'\''une pièce émise tient'
+TL3='une pièce au téléphone : l'\''étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'\''une pièce émise tient'
 TL4='les lignes d'\''un achat et d'\''une photo relue au téléphone : la désignation, puis prix, TVA et total dans l'\''écran'
 TL5='la première émission au téléphone : « Je facturais déjà » tient dans sa fenêtre ; « Ctrl K » ne se montre qu'\''à l'\''ordinateur ; « ta seule pièce »'
 TL6='la caisse sur la tablette (1 180 × 820) et sur un écran de 1 024 × 768 : rien n'\''est tranché, le comptage tient'
@@ -8402,7 +8402,7 @@ prouver "l'étape suivante perdue au milieu de la barre" web/public/plateforme/t
   "{ order: -1; flex-basis: 100%; }" "{ }" \
   "$TL3"
 prouver "« WhatsApp » caché dans « Plus » au téléphone" web/public/v10/app.js \
-  "\${avecPlus ? '<button class=\"btn tel-seul\" id=\"wa-tel\">WhatsApp</button>' : ''}" "" \
+  "\${avecPlus ? '<button class=\"btn tel-seul\" id=\"wa-tel\" title=\"Envoyer par WhatsApp\">WhatsApp</button>' : ''}" "" \
   "$TL3"
 prouver "le « WhatsApp » du téléphone qui ne se montre pas" web/public/plateforme/telephone.css \
   "  .tel-seul { display: inline-flex; }" "" \
@@ -18411,7 +18411,7 @@ prouver 'la recherche de l'\''accueil qui ouvre la liste pour un seul nom' web/c
 
 prouver '« Aperçu » qui masque l'\''aperçu du bas de page au téléphone' web/public/plateforme/telephone.js \
   '  function demarrer() { suivre(); apercuEnGrand(); suivreLesLignes(); }' '  function demarrer() { suivre(); void apercuEnGrand; suivreLesLignes(); }' \
-  'une pièce au téléphone : l'\''étape suivante en tête, « WhatsApp » à côté d'\''« Email », chaque bulle avec son bouton ; le bandeau d'\''une pièce émise tient'
+  'une pièce au téléphone : l'\''étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'\''une pièce émise tient'
 
 prouver 'un matricule mal formé enregistré sans un mot par la fiche société' web/public/v10/app.js \
   "      if (mfEl && String(v.matricule || '').trim() && !C.matriculeBienForme(v.matricule)) {" '      if (false) {' \
@@ -20486,6 +20486,43 @@ prouver 'copie de dev 4 : la copie de dev posée sur un serveur aux vraies donn�
 prouver 'copie de dev 5 : le suiveur de dev qui bloque celui de main' exploitation/suivre.sh \
   '"/run/$(basename "$MAISON")-suivre.verrou"' '/run/skanfact-suivre.verrou' \
   'sa maison et son verrou : celui de main ne change pas, celui de dev est à part'
+prouver 'facture 1 : l'"'"'e-mail absent du ⋯ d'"'"'une facture' web/public/v10/app.js \
+  '${emailDansPlus || (charte && !isNew) ? `<button id="email">' '${emailDansPlus ? `<button id="email">' \
+  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver 'facture 2 : la retenue du client qui ne le dit pas' web/public/v10/app.js \
+  'rs.textContent = duClient ? '"'"'· du client'"'"' : '"'"''"'"';' 'rs.textContent = '"'"''"'"';' \
+  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver 'facture 3 : la remise du pied des lignes qui ne change rien' web/public/v10/app.js \
+  '        head.oninput({ target: champ });
+' '' \
+  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver 'facture 4 : un client sans matricule tenu pour bon' web/public/v10/app.js \
+  '[!!(cl && String(cl.matricule || '"'"''"'"').trim()),' '[true,' \
+  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver 'facture 5 : la TVA par taux sans sa base' web/public/v10/app.js \
+  ' sur ${nu(t.vatByRate[r].base)}</td>' '</td>' \
+  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver 'facture 6 : Entrée sur la dernière ligne sans ligne de plus' web/public/v10/app.js \
+  '          doc.lines.push(C.newLine(company())); touch(); drawLines();
+          const lab' '          const lab' \
+  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver 'facture 7 : « Dupliquer la ligne » qui ne duplique rien' web/public/v10/app.js \
+  'run: () => dupliquerLigne(i) },' 'run: () => {} },' \
+  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver 'facture 8 : une facture payée en partie dite payée' web/public/v10/app.js \
+  '      const paye = b && b.remaining <= 0.0005;' '      const paye = !!b;' \
+  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver 'facture 9 : une facture émise due sans « Enregistrer un paiement »' web/public/v10/app.js \
+  '      if (locked && isInv && doc.status !== '"'"'annulée'"'"' && bal && bal.remaining > 0.0005) {
+        const recu' '      if (false) {
+        const recu' \
+  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver 'facture 10 : au téléphone, le geste qui défile avec la pièce' web/public/plateforme/piece.css \
+  '  .ed-geste { position: fixed; left: 0;' '  .ed-geste { left: 0;' \
+  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+prouver 'facture 11 : la carte du client sans sa dernière facture' web/public/v10/app.js \
+  '        derniere ? `<span class="ed-chip">dernière' '        false ? `<span class="ed-chip">dernière' \
+  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

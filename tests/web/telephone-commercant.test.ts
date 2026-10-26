@@ -5,7 +5,7 @@
 //     reste dû dans l'écran, sans faire glisser un tableau ; « Actions » dans sa carte ; les titres trient encore ;
 //   - une fenêtre longue (un nouveau client) garde « Enregistrer » au bas de l'écran pendant qu'on la parcourt ;
 //   - « Plus ▾ » s'ouvre au bas de l'écran, sur toute sa largeur (accroché à son bouton, il sortait par la gauche) ;
-//   - sur une pièce : l'étape suivante en tête, sur toute la largeur ; « WhatsApp » à côté d'« Email », qui envoie ;
+//   - sur une pièce : l'étape suivante au bas de l'écran (1.155.0), sur toute la largeur ; « WhatsApp » en tête, qui envoie ;
 //   - une bulle « i » reste avec son bouton ou sa case, et celle d'un bouton caché se cache avec lui ;
 //   - les lignes d'un achat et d'une photo relue se rangent comme celles d'une facture : prix, TVA et total visibles ;
 //   - une pièce émise : le bandeau tient en quelques lignes ; la première émission : « Je facturais déjà » tient ;
@@ -230,18 +230,18 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await cx.close();
   }, 180_000);
 
-  it('une pièce au téléphone : l\'étape suivante en tête, « WhatsApp » à côté d\'« Email », chaque bulle avec son bouton ; le bandeau d\'une pièce émise tient', async () => {
+  it('une pièce au téléphone : l\'étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d\'une pièce émise tient', async () => {
     const c = await commercante({ pieces: true, factures: 1 });
     const { cx, p, erreurs } = await ouvrir(c, '#/doc/f1', TELEPHONE);
-    // La barre : le premier bouton (en haut à gauche) est l'étape suivante, sur toute la largeur.
-    const barre = await rect(p, '#view .page-head .actions');
-    const premier = await p.locator('#view .page-head .actions').evaluate((a) => {
-      const vus = [...a.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().width > 0 && !b.closest('.more-list'));
-      vus.sort((x, y) => x.getBoundingClientRect().top - y.getBoundingClientRect().top || x.getBoundingClientRect().left - y.getBoundingClientRect().left);
-      return { texte: (vus[0]?.textContent ?? '').trim(), largeur: vus[0]?.getBoundingClientRect().width ?? 0 };
-    });
-    expect(premier.texte).toBe('Enregistrer un paiement');
-    expect(premier.largeur).toBeGreaterThanOrEqual(barre.width * 0.9);
+    // (1.155.0, maquette de la facture) L'étape suivante est au bas de l'écran, sur toute sa largeur, au-dessus des onglets,
+    // avec le net à payer ; l'en-tête ne la répète pas.
+    const paiement = await rect(p, '#ed-geste #pay');
+    expect(paiement.width).toBeGreaterThanOrEqual(TELEPHONE.largeur * 0.85);
+    expect(paiement.bottom).toBeLessThanOrEqual(TELEPHONE.hauteur - 84);
+    expect(paiement.top).toBeGreaterThan(TELEPHONE.hauteur / 2);
+    expect(await p.locator('#ed-geste #pay').innerText()).toBe('Enregistrer un paiement');
+    expect(await p.locator('#ed-geste .ed-net-tel').innerText()).toMatch(/^Net à payer\s+\d/);
+    expect(await p.locator('#view .page-head .btn-primary').count()).toBe(0);
     // « WhatsApp » se voit, et envoie.
     expect(await p.locator('#wa-tel').isVisible()).toBe(true);
     await p.locator('#wa-tel').click();
@@ -256,7 +256,7 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     // Le bandeau : la phrase, sa bulle, « Corriger par un avoir… » ; le pourquoi est dans la bulle.
     const bandeau = await rect(p, '#view .lock-banner');
     expect(bandeau.height).toBeLessThanOrEqual(170);
-    expect(await p.locator('#view .lock-banner').getByText('C\'est la règle qui rend une', { exact: false }).isVisible()).toBe(false);
+    expect(await p.locator('#view .lock-banner').getByText('Un numéro ne désigne jamais deux contenus', { exact: false }).isVisible()).toBe(false);
     expect(await p.locator('#view .lock-banner #lock-credit').isVisible()).toBe(true);
     const phrase = await rect(p, '#view .lock-banner b');
     const bulle = await rect(p, '#view .lock-banner [data-info="ed.locked"]');
@@ -292,7 +292,7 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     // À l'ordinateur : « WhatsApp » reste dans « Plus », le bandeau dit son pourquoi.
     const o = await ouvrir(c, '#/doc/f1', ORDINATEUR);
     expect(await o.p.locator('#wa-tel').isVisible()).toBe(false);
-    expect(await o.p.locator('#view .lock-banner').getByText('C\'est la règle qui rend une', { exact: false }).isVisible()).toBe(true);
+    expect(await o.p.locator('#view .lock-banner').getByText('Un numéro ne désigne jamais deux contenus', { exact: false }).isVisible()).toBe(true);
     await o.cx.close();
   }, 180_000);
 
@@ -437,11 +437,14 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
         expect(await p.locator('table.list > tbody > tr [data-tel=titre]').allInnerTexts()).toEqual([expect.stringContaining('CB-2026-0457')]);
       }
       if (r === 'doc/new/facture') {
-        // (1.145.0) « Enregistrer le brouillon » juste sous « Émettre », avant l'aperçu, le PDF et le reste de l'en-tête.
-        const haut = await p.locator('#view .page-head .actions > :is(.btn, .more, .pv-cmd)').evaluateAll((bs) => bs.map((b) => ({ id: b.id, prim: b.classList.contains('btn-primary'), top: Math.round(b.getBoundingClientRect().top) })).sort((x, y) => x.top - y.top));
-        expect(haut[0]?.prim).toBe(true);
-        expect(haut[1]?.id).toBe('save');
-        expect(haut.slice(2).every((b) => b.top > (haut[1]?.top ?? 0))).toBe(true);
+        // (1.145.0, 1.155.0) « Émettre » puis « Garder le brouillon » juste dessous, dans la barre du bas, au-dessus des
+        // onglets : le geste suivant reste sous le pouce pendant qu'on remplit la pièce.
+        const geste = await p.locator('#ed-geste').evaluate((g) => [...g.querySelectorAll('button')].filter((b) => b.getBoundingClientRect().width > 0)
+          .map((b) => ({ id: b.id, prim: b.classList.contains('btn-primary'), top: Math.round(b.getBoundingClientRect().top), bas: Math.round(b.getBoundingClientRect().bottom) })));
+        expect(geste.map((b) => b.id)).toEqual(['issue', 'save']);
+        expect(geste[0]?.prim).toBe(true);
+        expect((geste[1]?.top ?? 0) > (geste[0]?.top ?? 0)).toBe(true);
+        expect(geste[1]?.bas ?? 999).toBeLessThanOrEqual(TELEPHONE.hauteur - 84);
       }
       if (r === 'fournisseurs') unSeul = await p.evaluate(() => [...document.querySelectorAll('table.list[data-cartes]')].some((tb) => tb.querySelectorAll(':scope > tbody > tr').length === 1 && tb.querySelector(':scope > tfoot')));
     }

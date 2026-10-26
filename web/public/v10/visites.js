@@ -1253,9 +1253,9 @@
       resume: 'Du client à l\'aperçu : les lignes, les prix, la TVA, la retenue, le timbre, et le brouillon enregistré, prêt à émettre.',
       mots: ['facture', 'facturer', 'faire une facture', 'nouvelle facture', 'premiere facture'],
       suite: ['emettre', 'envoyer'],
-      // Une facture de plus dans tes pièces : sans « Enregistrer le brouillon », elle n'existe nulle part.
+      // Une facture de plus dans tes pièces : sans « Garder le brouillon », elle n'existe nulle part.
       mesure: () => nbType('facture'), preuve: n0 => nbType('facture') > n0,
-      echec: 'La facture n\'a pas été enregistrée : sans « Enregistrer le brouillon », elle n\'existe nulle part.',
+      echec: 'La facture n\'a pas été enregistrée : sans « Garder le brouillon », elle n\'existe nulle part.',
       bravo: 'Ta facture est prête',
       conclusion: 'Elle est enregistrée en brouillon : tu peux encore tout y changer. Quand elle est juste, <b>« Émettre la facture »</b> lui donne son numéro définitif — la visite « Émettre une facture » te montre ce geste.',
       etapes: [
@@ -1280,7 +1280,7 @@
         }),
         { cible: '#view select[name="withholdingRate"]', cote: 'dessous', titre: 'La retenue à la source',
           texte: 'Certains clients — les sociétés, l\'État — gardent une part de ta facture et la versent au fisc à ta place : tu ne reçois que le net, et ils te remettent une attestation. Si ce client le fait, choisis son taux ; sinon, « Aucune ». <b>À VÉRIFIER</b> avec ton comptable.' },
-        { cible: '#view label.check:has(input[name="applyStamp"])', cote: 'dessous', titre: 'Le timbre fiscal',
+        { cible: '#view label:has(> input[name="applyStamp"])', cote: 'dessous', titre: 'Le timbre fiscal',
           texte: 'Chaque facture porte un timbre fiscal, ajouté au total et compté à part dans ta déclaration. Un client exonéré (exportateur, secteur public…) le voit retiré d\'office. <b>À VÉRIFIER</b> avec ton comptable.' },
         { cible: ['#cat-pick .combo-btn', '#add-line'], cote: 'dessus', titre: 'Ajouter une ligne', eclairer: '#lines tr:first-child input[data-k="label"]',
           texte: '« Ajouter depuis le catalogue » reprend une prestation ou un article déjà décrit, avec son prix. « + Ligne vide » en crée une à la main. Tu peux aussi taper directement dans la désignation (la case éclairée plus bas) : SkanFact te propose ce qui ressemble dans ton catalogue.' },
@@ -1302,8 +1302,8 @@
         { cible: ['#view .preview', '#pv-toggle'], cote: 'gauche', titre: 'L\'aperçu',
           texte: 'À droite, la facture <b>telle que ton client la recevra</b>, mise à jour à chaque frappe. Le repère « 1 page » dit combien de feuilles elle fera une fois imprimée, et « Agrandir » l\'ouvre en grand pour la relire.' },
         { cible: '#save', cote: 'dessous', faire: 'clic',
-          titre: 'Enregistrer le brouillon', texte: 'La facture est gardée, sans numéro : tu peux encore tout y changer. « Émettre la facture », juste à côté, lui donnera son numéro définitif — ce n\'est pas le geste de cette visite.',
-          action: 'Clique sur <b>« Enregistrer le brouillon »</b>.', fait: () => /^#\/doc\/(?!new)/.test(hash()), essai: { clic: true } }
+          titre: 'Garder le brouillon', texte: 'La facture est gardée, sans numéro : tu peux encore tout y changer. « Émettre la facture », juste au-dessus, lui donnera son numéro définitif — ce n\'est pas le geste de cette visite.',
+          action: 'Clique sur <b>« Garder le brouillon »</b>.', fait: () => /^#\/doc\/(?!new)/.test(hash()), essai: { clic: true } }
       ]
     });
 

@@ -154,3 +154,30 @@ signer » (`dessinerASigner`), les états El Fatoora en colonne (`poserEtat`, `d
 - « Relancer » sur plusieurs pièces mène à la page Relances : chaque relance y garde son niveau et son message ;
 - à la tablette, le tableau défile dans son cadre (la colonne des gestes reste collée au bord) ;
 - l'aperçu à droite d'une pièce (la maquette v3) viendra avec le lot de la facture, qui en fait le contenu.
+
+## Lot 4 : la facture (1.155.0)
+
+La page d'une facture et d'un avoir (`routes.doc`, `web/public/v10/app.js`, `charte = isInv || isAv`) ; le style vit dans
+`web/public/plateforme/piece.css`. Les champs gardent leur nom et leur formulaire (`#f-head`, que `formValues` lit), les
+gestes leur identifiant (`#issue`, `#save`, `#pay`, `#pdf`, `#more-btn`…) : les devis et les autres pièces gardent leur page
+jusqu'à leur lot. Tests : `tests/web/facture-charte.test.ts`, `tests/web/telephone-commercant.test.ts` ; preuves « facture
+1 » à « facture 11 ».
+
+| Ce qui se voit | Comment |
+|---|---|
+| L'en-tête | « Accueil › Factures › FAC-… », le titre et son statut (« Brouillon · numéro à l'émission »), « ✓ enregistré » (qui se tait tant qu'une modification attend) ; Aperçu, PDF, et ⋯ qui porte tous les autres gestes, l'e-mail en tête |
+| Le client | Une carte : sa pastille, son matricule, sa ville, son e-mail ; ce qu'il doit (ou ce qu'il a à son crédit), son délai de paiement constaté, sa dernière facture et « la refaire » ; « Changer » rouvre la liste, « Fiche » corrige sa fiche sur place |
+| La pièce | Date, échéance et objet sur une rangée ; puis des puces : la langue, la devise, la retenue (« · du client » quand c'est celle de sa fiche), le timbre, le dépôt, « + Affaire », « + Référence », le taux d'une devise |
+| Les lignes | Leur nombre ; le catalogue, les modèles, « + Ligne vide », « Calculer les prix… » ; sous la désignation, le dernier prix fait à ce client, le stock, la marge de la ligne ; ⋯ au bout de chaque ligne (monter, descendre, dupliquer, retirer) ; Entrée sur la dernière ligne en ajoute une ; au pied, la remise de toute la pièce |
+| À droite | Les totaux : la TVA par taux et sur quelle base, le timbre, le total TTC, la retenue en rouge, le net à payer en grand (« le montant en lettres est écrit sur la facture »). Puis LE geste : « Émettre la facture » et sa phrase, « Garder le brouillon », « En grand » ; une facture émise et due : « Enregistrer un paiement ». « Avant d'émettre » : la fiche de l'entreprise, le matricule du client, la TVA des lignes. L'aperçu, tel que le client le recevra |
+| La facture émise | Le bandeau court (« Émise : elle ne se modifie plus. ») et « Corriger par un avoir… » ; la frise Émise, Signée (« Signer »), El Fatoora (lue au serveur), Envoyée (« Envoyer »), Payée ; le résumé (client, date, net, situation, envois, comptabilité) ; les paiements en quatre cases (net à payer, avoirs, reçu, reste) |
+| En dessous de 1 120 px | Une colonne : les totaux et le geste suivent les lignes ; une facture émise met son geste juste sous son résumé |
+| Au téléphone | « ‹ Factures », la frise en colonne, et le geste dans une barre au bas de l'écran (au-dessus des onglets) avec le net à payer |
+
+**Ce qui s'écarte de la maquette, et pourquoi** :
+- le titre garde « Facture FAC-… » et « Facture (brouillon) » (la maquette : « FAC-… », « Nouvelle facture ») : d'autres
+  écrans et la recherche le lisent ainsi ;
+- la saisie hors taxes / toutes taxes et la remise par ligne ne sont pas dans l'application : elles viendront avec leur
+  propre lot (le calcul, la pièce imprimée et le fichier TEIF en dépendent) ;
+- « Annuler » (↶) en tête et le glisser-déposer des lignes : « Monter » et « Descendre » sont dans le ⋯ de la ligne ;
+- la douchette ne tape pas encore dans la barre d'ajout.

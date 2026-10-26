@@ -900,7 +900,8 @@ vaut pour tout le dépôt.*
   `opts.titre`) ; le toast sa barre de temps (`toast`, `toastUndo` des deux `app.js`).
   Lot 3 (1.154.0), la liste des factures : `listeFactures` et `actionsFacture` (`v10/app.js`), `plateforme/liste.css` ;
   la tuile « À signer » et les états El Fatoora en colonne viennent du point de contact (`dessinerASigner`, `poserEtat`,
-  `etatsTtnDe`).
+  `etatsTtnDe`). Lot 4 (1.155.0), la facture : `routes.doc` (`charte`, `teteCharte`, `champsCharte`, `gesteCharte`,
+  `friseCharte`, `dessinerAvant`), `plateforme/piece.css`.
 - **La mise en ligne** (briques 142-143, `docs/mise-en-ligne.md`, 05/10/2026) : le serveur d'essai est un VPS OVH en
   France (données inventées seulement), à `app.skanfact.tn`. **Personne ne s'y connecte** : il suit `main` tout seul
   (`exploitation/suivre.ts`, toutes les deux minutes) et installe la plus récente version que GitHub a vérifiée en

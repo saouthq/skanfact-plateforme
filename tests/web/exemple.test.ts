@@ -180,7 +180,7 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
       if (vus.at(-1) === t) continue;
       vus.push(t);
       if (gestes[t]) await gestes[t]();
-      if (t === 'Enregistrer le brouillon') { await p.locator('#save').click(); continue; }
+      if (t === 'Garder le brouillon') { await p.locator('#save').click(); continue; }
       await bulle(p).locator('[data-v=suiv]').first().click();
     }
     expect(await titreBulle(p)).toBe('Ta facture est prête');

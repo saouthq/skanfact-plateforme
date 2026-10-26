@@ -1,0 +1,237 @@
+/* La facture et l'avoir (1.155.0) : la maquette « La facture, de la création au paiement » (docs/maquettes/facture.html),
+   lot 4 de docs/maquettes-appliquees.md. Tout est rangé sous `.ed-tete` (l'en-tête de la pièce), `.ed-frise` et
+   `.editor.charte` : le devis et les autres pièces gardent leur page avant leur lot. Les couleurs viennent des jetons de
+   la charte (`--sb-*`, barre.css). */
+
+/* ── l'en-tête : le chemin, le titre et son statut, « enregistré », puis Aperçu, PDF et ⋯ ── */
+.ed-tete { align-items: flex-start; margin-bottom: 18px; gap: 16px; }
+.ed-tete .ed-titre { display: grid; gap: 4px; min-width: 0; }
+.ed-chemin { font-size: 12.5px; color: var(--sb-gris-2); display: flex; gap: 7px; align-items: center; flex-wrap: wrap; }
+#view .ed-tete .ed-chemin a { color: inherit; text-decoration: none; font-weight: 400; }
+.ed-chemin a:hover { color: var(--sb-encre); text-decoration: underline; }
+.ed-h1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-width: 0; }
+.ed-h1 h1 { margin: 0; font-size: 26px; letter-spacing: -.02em; }
+.ed-pill { font-size: 12px; }
+.ed-enreg { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; color: var(--sb-gris-2); }
+.ed-enreg svg { color: var(--sb-sarcelle); }
+.ed-tete .dirty-dot { position: static; margin: 0; }
+.ed-tete .actions { gap: 8px; align-items: center; padding-top: 6px; }
+.ed-tete .actions .btn { display: inline-flex; align-items: center; gap: 7px; height: 40px; padding-inline: 14px; }
+.ed-tete .actions .btn.ico { width: 40px; padding: 0; justify-content: center; }
+.ed-tete .pv-cmd { border: 0; padding: 0; margin: 0; gap: 8px; }
+.ed-tete .pv-cmd .btn.on { background: var(--sb-papier); color: var(--sb-encre); border-color: var(--sb-trait-fort); }
+
+/* ── la frise d'une facture émise : où elle en est ── */
+.ed-frise { padding: 18px 20px 16px; }
+.ed-frise ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.ed-frise li { position: relative; display: grid; gap: 10px; align-content: start; }
+.ed-frise li:not(:last-child)::after { content: ''; position: absolute; top: 12px; left: 32px; right: -4px; height: 2px; background: var(--sb-trait); border-radius: 2px; }
+.ed-frise li.fait:not(:last-child)::after { background: var(--sb-sarcelle); }
+.ed-frise .rond { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 11.5px; font-weight: 700; color: var(--sb-gris-2); border: 1.5px dashed var(--sb-trait-fort); background: var(--sb-papier); }
+.ed-frise li.fait .rond { background: var(--sb-sarcelle); border: 0; color: #fff; }
+.ed-frise li.alerte .rond { border: 1.5px solid var(--sb-rouge); color: var(--sb-rouge-texte); }
+.ed-frise .ed-fr-txt { display: grid; gap: 3px; }
+.ed-frise .ed-fr-txt b { font-size: 14px; color: var(--sb-encre); }
+.ed-frise .ed-fr-txt span { font-size: 12.5px; color: var(--sb-gris-2); overflow-wrap: anywhere; }
+.ed-frise li.alerte .ed-fr-txt span { color: var(--sb-rouge-texte); }
+.ed-frise .ed-fr-geste .btn { height: 32px; }
+
+/* ── la page : à gauche la saisie, à droite les totaux et le geste ── */
+.editor.charte, .editor.charte.no-preview { grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; }
+.editor.charte .ed-gauche { display: grid; gap: 16px; min-width: 0; align-content: start; }
+.editor.charte .ed-gauche > .panel { margin: 0; }
+.editor.charte .panel { border-radius: 14px; }
+.ed-droite { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.ed-droite > .panel { margin: 0; padding: 16px 18px; }
+
+/* l'en-tête de la pièce : le client en carte, la rangée date / échéance / objet, les puces */
+.ed-entete { padding: 18px 20px; }
+.ed-form { display: grid; gap: 14px; }
+.ed-client { display: grid; gap: 10px; }
+.ed-cl-tete { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.ed-cl-tete .av { width: 44px; height: 44px; border-radius: 12px; flex: none; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px; }
+.ed-cl-nom { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.ed-cl-nom b { font-size: 16.5px; color: var(--sb-encre); }
+.ed-cl-nom span { font-size: 13px; color: var(--sb-gris-2); overflow-wrap: anywhere; }
+.ed-cl-gestes { display: flex; gap: 6px; flex: none; }
+.ed-cl-puces { display: flex; flex-wrap: wrap; gap: 8px; }
+.ed-chip { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 5px 10px; border-radius: 8px; font-size: 12.5px; color: var(--sb-gris); background: var(--sb-papier-2); border: 1px solid var(--sb-trait); }
+.ed-chip b { color: var(--sb-encre); font-weight: 600; }
+.ed-chip.ambre { background: var(--sb-ambre-doux); border-color: transparent; color: var(--sb-ambre-texte); }
+.ed-chip.ambre b { color: inherit; }
+.ed-chip .lien, .ed-avant .lien { background: none; border: 0; padding: 0; font: inherit; color: var(--sb-sarcelle-texte); text-decoration: underline; cursor: pointer; }
+.ed-ligne3 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr); gap: 12px; align-items: end; }
+.ed-ligne3.sans-echeance { grid-template-columns: minmax(0, 1fr) minmax(0, 3fr); }
+.ed-ligne-avoir { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; }
+.ed-form .field { margin: 0; }
+.ed-puces { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.puce-champ { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 0 11px; border: 1px solid var(--sb-trait-fort); border-radius: 9px; font-size: 13px; color: var(--sb-gris); background: var(--sb-papier); cursor: pointer; }
+.puce-champ > span:first-child, .puce-champ .rate-lbl { white-space: nowrap; }
+.puce-champ select, .puce-champ input[type=number] { border: 0; background: transparent; padding: 0; margin: 0; width: auto; min-height: 0; height: 30px; font: inherit; font-weight: 600; color: var(--sb-encre); box-shadow: none; appearance: none; -webkit-appearance: none; background-image: none; cursor: pointer; }
+.puce-champ input[type=number] { width: 72px; cursor: text; border-bottom: 1px dashed var(--sb-trait-fort); }
+.puce-champ select:focus, .puce-champ input:focus { outline: none; }
+.puce-champ:focus-within { border-color: var(--sb-sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-sarcelle) 16%, transparent); }
+.puce-champ.on { background: var(--sb-doux); border-color: color-mix(in srgb, var(--sb-sarcelle) 45%, transparent); color: var(--sb-doux-texte); }
+.puce-champ.on select, .puce-champ .suffixe { color: var(--sb-doux-texte); }
+.puce-champ .suffixe:empty { display: none; }
+.puce-case input { accent-color: var(--sb-sarcelle); margin: 0; width: 15px; height: 15px; }
+.puce-case b { color: var(--sb-encre); }
+.puce-champ:has(select:disabled, input:disabled) { cursor: default; opacity: .85; }
+.puce-plus { display: inline-flex; align-items: center; gap: 5px; min-height: 34px; padding: 0 11px; border: 1px dashed var(--sb-trait-fort); border-radius: 9px; background: transparent; font: inherit; font-size: 13px; color: var(--sb-gris-2); cursor: pointer; }
+.puce-plus:hover { color: var(--sb-encre); border-color: var(--sb-gris-2); }
+.ed-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.ed-options:not(:has(> :not([hidden]))) { display: none; }
+
+/* les lignes */
+.ed-lignes { padding: 18px 20px; }
+.ed-lignes > h2 { display: flex; align-items: center; gap: 6px; }
+.ed-compte { margin-inline-start: auto; font-size: 12.5px; font-weight: 500; color: var(--sb-gris-2); }
+.ed-lignes .catalog-pick { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.ed-lignes #cat-pick { flex: 1 1 260px; min-width: 0; }
+.ed-lignes #tpl-pick { flex: 0 1 200px; }
+.ed-lignes table.lines-edit th { text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: 600; color: var(--sb-gris-2); }
+.ed-lignes table.lignes-doc tbody tr + tr { border-top-color: var(--sb-trait); }
+.ed-lignes table.lignes-doc tbody tr { padding-block: 8px; }
+.ed-lignes table.lines-edit input[data-k=label] { border-color: transparent; background: transparent; font-weight: 600; font-size: 14.5px; padding-inline: 4px; }
+.ed-lignes table.lines-edit textarea[data-k=description] { border-color: transparent; background: transparent; color: var(--sb-gris); font-size: 13px; padding-inline: 4px; margin-top: 0; }
+.ed-lignes table.lines-edit :is(input[data-k=label], textarea):hover { border-color: var(--sb-trait); }
+.ed-lignes table.lines-edit :is(input[data-k=label], textarea):focus { border-color: var(--sb-sarcelle); background: var(--sb-papier); }
+.ed-lignes table.lines-edit td:not(:first-child) :is(input, select) { background: var(--sb-papier-2); border-color: transparent; border-radius: 8px; height: 38px; }
+.ed-lignes table.lines-edit td:not(:first-child) :is(input, select):focus { border-color: var(--sb-sarcelle); background: var(--sb-papier); }
+.ed-lignes table.lines-edit .total { font-size: 15px; font-weight: 700; color: var(--sb-encre); padding-top: 14px; }
+.ed-lignes .link-add { font-size: 12px; }
+.ligne-reperes { font-size: 12px; color: var(--sb-gris-2); padding: 2px 4px 0; display: flex; flex-wrap: wrap; gap: 4px 10px; }
+.ligne-reperes:empty { display: none; }
+.ligne-reperes .ok { color: var(--sb-sarcelle-texte); }
+.ligne-reperes .alerte, .ligne-marge.alerte { color: var(--sb-rouge-texte); }
+.ligne-marge:empty { display: none; }
+.ed-lignes td.line-tools { display: flex; justify-content: flex-end; padding-top: 6px; }
+.ed-lignes td.line-tools .row-menu-btn.ico { width: 32px; height: 32px; padding: 0; display: grid; place-items: center; border-color: transparent; background: transparent; color: var(--sb-gris-2); }
+.ed-lignes td.line-tools .row-menu-btn.ico:hover { background: var(--sb-survol); color: var(--sb-encre); }
+@container (min-width: 600px) {
+  .ed-lignes table.lignes-doc tr {
+    grid-template-columns: minmax(0, 1fr) 56px 88px 100px 68px 104px 34px;
+    grid-template-areas: "lab qte unite pu tva total outils";
+  }
+}
+.ed-pied-lignes { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--sb-trait); }
+.ed-pied-lignes p { margin: 0; flex: 1 1 300px; font-size: 12.5px; }
+.ed-remise { display: inline-flex; align-items: center; gap: 10px; font-size: 13px; color: var(--sb-gris); }
+.ed-remise-ch { display: inline-flex; align-items: center; gap: 4px; }
+.ed-remise input { width: 72px; height: 36px; background: var(--sb-papier-2); border-color: transparent; border-radius: 8px; text-align: end; }
+
+/* les totaux, le geste, avant d'émettre, l'aperçu */
+.ed-totaux .totals-box { display: block; margin: 0; }
+.ed-totaux .totals-box table.ed-tot { width: 100%; border-collapse: collapse; font-size: 14px; background: none; border-radius: 0; padding: 0; }
+.ed-totaux .totals-box table.ed-tot td { padding: 5px 0; color: var(--sb-gris); text-align: start; }
+.ed-totaux .totals-box table.ed-tot td:last-child { text-align: end; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--sb-encre); white-space: nowrap; }
+.ed-totaux .totals-box .ed-tot tr.sous td { font-size: 13.5px; }
+.ed-totaux .totals-box .ed-tot tr.sous td:first-child { padding-inline-start: 12px; }
+.ed-totaux .totals-box .ed-tot tr.sous td:last-child { font-weight: 500; }
+.ed-totaux .totals-box .ed-tot tr.trait td { border-top: 1px solid var(--sb-trait); padding-top: 12px; }
+.ed-totaux .totals-box .ed-tot tr.retenue td:last-child { color: var(--sb-rouge-texte); }
+.ed-net { display: grid; gap: 2px; margin-top: 14px; padding: 14px 16px; border-radius: 12px; background: var(--sb-doux); }
+.ed-net .k { font-size: 13px; font-weight: 600; color: var(--sb-doux-texte); }
+.ed-net .v b { font-size: 30px; font-weight: 700; letter-spacing: -.02em; color: var(--sb-encre); font-variant-numeric: tabular-nums; }
+.ed-net .v small { font-size: 14px; font-weight: 600; color: var(--sb-gris-2); }
+.ed-net .s { font-size: 12.5px; color: var(--sb-gris-2); }
+.ed-totaux .totals-box > .small { margin-top: 10px; }
+
+.ed-geste { display: grid; gap: 10px; }
+.ed-geste .btn-grand { width: 100%; height: 46px; justify-content: center; display: inline-flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 600; border-radius: 10px; }
+.ed-geste .btn-grand + .i { display: none; }
+.ed-phrase { margin: 0; font-size: 13px; color: var(--sb-gris); line-height: 1.45; }
+.ed-phrase.small { font-size: 12.5px; color: var(--sb-gris-2); }
+.ed-etat { display: flex; align-items: flex-start; gap: 8px; color: var(--sb-doux-texte); font-weight: 600; }
+.ed-etat svg { flex: none; margin-top: 1px; }
+.ed-deux { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ed-deux .btn { justify-content: center; display: inline-flex; align-items: center; gap: 7px; height: 40px; }
+.ed-net-tel { display: none; }
+
+.ed-avant h3 { margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--sb-encre); }
+.ed-avant ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.ed-avant li { display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; color: var(--sb-gris); }
+.ed-avant li svg { flex: none; margin-top: 2px; color: var(--sb-sarcelle); }
+.ed-avant li.alerte { color: var(--sb-encre); }
+.ed-avant li.alerte svg { color: var(--sb-ambre); }
+.ed-avant li .lien { margin-inline-start: auto; flex: none; }
+
+.editor.charte .preview.ed-apercu { position: static; height: auto; padding: 12px 14px 14px; display: grid; gap: 8px; }
+.editor.charte .ed-apercu .pv-head { gap: 8px; }
+.editor.charte .ed-apercu .pv-pages { white-space: nowrap; }
+.editor.charte .ed-apercu .pv-head .k-label { font-size: 12.5px; font-weight: 600; text-transform: none; letter-spacing: 0; color: var(--sb-gris); }
+.editor.charte .ed-apercu iframe { height: 460px; flex: none; border-radius: 8px; box-shadow: none; }
+.editor.charte.no-preview .ed-apercu { display: none; }
+
+/* une pièce émise se lit : le résumé, les paiements en quatre cases */
+.editor.charte .lecture-piece { margin: 0; display: grid; }
+.editor.charte .lecture-piece .lp-ligne { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px; padding: 6px 0; border: 0; }
+.editor.charte .lecture-piece dt { color: var(--sb-gris-2); font-weight: 500; }
+.editor.charte .lecture-piece dd { margin: 0; color: var(--sb-encre); }
+.editor.charte .lecture-piece a { color: var(--sb-sarcelle-texte); font-weight: 600; }
+.editor.charte.lecture #f-head { border-top: 1px dashed var(--sb-trait); }
+.editor.charte.lecture #f-head > :not(.ed-options), .editor.charte.lecture .ed-options > :not(#ed-affaire) { display: none; }
+.editor.charte.lecture #f-head > #ed-options { display: grid; padding-top: 12px; }
+.editor.charte td:has(> .ligne-lue) > input[data-k=label] { display: none; }
+.editor.charte td > .ligne-lue { display: block; padding: 6px 4px; font-weight: 600; font-size: 14.5px; color: var(--sb-encre); overflow-wrap: anywhere; }
+.editor.charte #pay-panel .pay-grid { gap: 10px; }
+.editor.charte #pay-panel .pay-grid > div { background: var(--sb-papier-2); border-radius: 10px; padding: 12px 14px; }
+.editor.charte #pay-panel .pay-grid .k-label { font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--sb-gris-2); font-weight: 600; }
+.editor.charte #pay-panel .pay-grid .v.due { color: var(--sb-ambre-texte); }
+
+/* ── en dessous de 1 120 px : une colonne, le geste d'abord ── */
+/* Les deux colonnes se fondent en une : les totaux et le geste suivent les lignes (la pièce émise : le geste juste sous
+   son résumé), l'aperçu ferme la marche. */
+@media (max-width: 1120px) {
+  .editor.charte, .editor.charte.no-preview { grid-template-columns: minmax(0, 1fr); }
+  .editor.charte > .ed-gauche, .editor.charte > .ed-droite { display: contents; }
+  .editor.charte > .ed-gauche > *, .editor.charte > .ed-droite > * { order: 10; }
+  .editor.charte .ed-entete { order: 1; }
+  .editor.charte .ed-lignes { order: 2; }
+  .editor.charte .ed-totaux { order: 3; }
+  .editor.charte .ed-geste { order: 4; }
+  .editor.charte .ed-avant { order: 5; }
+  .editor.charte.lecture .ed-geste { order: 2; }
+  .editor.charte.lecture .ed-totaux { order: 3; }
+  .editor.charte.lecture #pay-panel { order: 4; }
+  .editor.charte.lecture .ed-lignes { order: 5; }
+  .editor.charte .ed-apercu { order: 20; }
+  .ed-frise ol { grid-template-columns: repeat(5, minmax(120px, 1fr)); overflow-x: auto; }
+}
+
+/* ── au téléphone : « ‹ Factures », la frise en colonne, le geste dans une barre au bas ── */
+@media (max-width: 760px) {
+  .ed-tete { flex-direction: column; gap: 10px; }
+  .ed-chemin > a:first-child, .ed-chemin > .sep, .ed-chemin > [aria-current] { display: none; }
+  .ed-chemin .ed-retour { display: inline-flex; align-items: center; min-height: 44px; font-size: 14px; }
+  .ed-chemin .ed-retour::before { content: '‹'; font-size: 20px; line-height: 1; margin-inline-end: 6px; }
+  .ed-h1 h1 { font-size: 22px; }
+  .ed-h1 .ed-pill { margin-inline-start: auto; }
+  .ed-enreg { display: none; }
+  .ed-frise ol { grid-template-columns: minmax(0, 1fr); gap: 14px; overflow: visible; }
+  .ed-frise li { grid-template-columns: 24px minmax(0, 1fr) auto; align-items: center; column-gap: 12px; }
+  .ed-frise li:not(:last-child)::after { top: 30px; bottom: -12px; left: 11px; right: auto; width: 2px; height: auto; }
+  .ed-ligne3, .ed-ligne-avoir, .ed-options { grid-template-columns: minmax(0, 1fr); }
+  .ed-cl-tete { flex-wrap: wrap; }
+  .ed-droite { grid-template-columns: minmax(0, 1fr); }
+  .ed-pied-lignes p { display: none; }
+  .ed-geste { position: fixed; left: 0; right: 0; bottom: calc(84px + env(safe-area-inset-bottom, 0px)); z-index: 70; margin: 0; border-radius: 16px 16px 0 0; padding: 12px 16px; gap: 8px; box-shadow: 0 -8px 24px rgba(20, 40, 60, .12); }
+  body:not(.avec-barre) .ed-geste, body.sans-onglets .ed-geste { bottom: env(safe-area-inset-bottom, 0px); }
+  .ed-geste .ed-net-tel { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; font-size: 14px; color: var(--sb-gris); }
+  .ed-geste .ed-net-tel b { font-size: 24px; color: var(--sb-encre); font-variant-numeric: tabular-nums; }
+  .ed-geste .ed-phrase, .ed-geste .ed-deux .btn:last-child { display: none; }
+  .ed-geste .ed-deux { grid-template-columns: minmax(0, 1fr); }
+  .ed-geste .btn-grand { height: 48px; }
+  #view:has(.ed-geste) { padding-bottom: 190px; }
+}
+@media (max-width: 760px) {
+  .ed-cl-gestes { order: 3; width: 100%; }
+  .ed-cl-gestes .btn { flex: 1; min-height: 44px; justify-content: center; }
+}
+/* Au téléphone, l'en-tête garde une rangée : Aperçu, WhatsApp, PDF et ⋯, sans étirer (le geste vit au bas de l'écran). */
+@media (max-width: 760px) {
+  #view .ed-tete .actions { display: flex; flex-wrap: wrap; gap: 8px; padding-top: 0; }
+  #view .ed-tete .actions > :is(.btn, .more, .pv-cmd) { flex: 0 0 auto; }
+  #view .ed-tete .actions .btn { height: 44px; padding-inline: 12px; }
+  #view .ed-tete .actions .btn.ico { width: 44px; }
+}
