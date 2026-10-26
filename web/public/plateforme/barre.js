@@ -247,22 +247,19 @@
     poser();
     new MutationObserver(poser).observe(nom, { childList: true, characterData: true, subtree: true });
   }
-  // (1.155.0, maquette de la barre « affichage compact ») Plus de contenu à l'écran : la page passe à 90 % et les rangées
-  // se resserrent, sans que rien change de place. Le choix reste sur cet appareil (c'est l'écran qui décide, pas le compte).
+  // (1.155.6, Skander le 26/10/2026) À l'ordinateur, SkanFact s'affiche à 90 % (`echelle`) ; « Affichage compact » (le
+  // menu « Moi ») descend à 80 %. Une tablette ou un écran qu'on touche garde sa taille : ses cibles gardent la mesure du
+  // doigt. Le choix reste sur cet appareil (c'est l'écran qui décide, pas le compte) ; l'ancien choix (le 90 % d'avant,
+  // devenu la taille normale) ne compte plus : la clé a changé.
   const compact = () => document.documentElement.classList.contains('compact');
   /** @param {boolean} oui */
   function poserCompact(oui) {
     document.documentElement.classList.toggle('compact', oui);
-    try { localStorage.setItem('skanfact.compact', oui ? '1' : '0'); } catch { /* le choix vaut pour cette fois */ }
+    try { localStorage.setItem('skanfact.tres-compact', oui ? '1' : '0'); } catch { /* le choix vaut pour cette fois */ }
   }
-  // (1.155.0, demande de Skander, 26/10/2026) Sans choix enregistré, un écran d'ordinateur de moins de 1 600 px de large
-  // s'ouvre en compact : à 1 440 px, la désignation d'une ligne de facture n'avait plus la place de se lire. Un grand
-  // écran garde la taille normale ; le téléphone a sa propre mise en page. Le choix du menu « Moi » l'emporte toujours.
-  let choixCompact = null;
-  try { choixCompact = localStorage.getItem('skanfact.compact'); } catch { /* rien */ }
-  // Une tablette ou un écran qu'on touche n'y passe pas : ses cibles doivent garder la mesure du doigt.
   const souris = !window.matchMedia || window.matchMedia('(pointer: fine)').matches;
-  if (choixCompact === '1' || (choixCompact === null && souris && window.innerWidth > 760 && window.innerWidth < 1600)) document.documentElement.classList.add('compact');
+  if (souris) document.documentElement.classList.add('echelle');
+  try { if (souris && localStorage.getItem('skanfact.tres-compact') === '1') document.documentElement.classList.add('compact'); } catch { /* rien */ }
   /** @type {{ nom: string, email: string, role: string } | null} */ let personne = null;
   async function lirePersonne() {
     const b = $('b-moi');

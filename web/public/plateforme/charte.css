@@ -101,17 +101,18 @@ body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var
 .page-head h1 { font-size: 26px; font-weight: 700; letter-spacing: -.025em; line-height: 1.2; color: var(--sb-encre); }
 .page-head h1 .badge { vertical-align: middle; margin-inline-start: 6px; }
 .page-head .sous, .page-head .page-sub { margin: 2px 0 0; font-size: 13.5px; color: var(--sb-gris); }
-/* (1.155.0, maquette de la barre) L'affichage compact : la page à 90 %, des rangées plus serrées ; la barre et ses
-   menus aussi (1.155.5). Jamais au téléphone ni à la caisse : l'écran y est déjà à la mesure du doigt. */
+/* (1.155.6, Skander le 26/10/2026 : « le mode compact doit devenir la taille de SkanFact par défaut ») À l'ordinateur
+   (une souris, plus de 760 px), SkanFact s'affiche à 90 % : la page, la barre et leurs menus (`html.echelle`). L'affichage
+   compact du menu « Moi » descend à 80 % et resserre les rangées (`html.compact`). Jamais au téléphone, sur un écran qu'on
+   touche ni à la caisse : l'écran y garde la mesure du doigt. Les menus de la barre, posés sur la page par leur coin, se
+   réduisent depuis ce coin (le haut, ou le bas pour ceux qui s'ouvrent vers le haut). */
 @media (min-width: 761px) {
-  html.compact body:not(.mode-caisse) #view { zoom: .9; }
-  /* (Skander, 26/10/2026) La barre et ses menus aussi, à 90 % : la barre se réduit dans la page ; ses menus, posés
-     sur la page par leur coin, se réduisent depuis ce coin (le haut, ou le bas pour ceux qui s'ouvrent vers le haut). */
-  html.compact body:not(.mode-caisse) aside.sidebar.barre { zoom: .9; }
-  html.compact body:not(.mode-caisse) .sb:not(.sb-voile):not(.sb-onglets):not(.sb-bulle) { transform: scale(.9); transform-origin: top left; }
-  html.compact body:not(.mode-caisse) .sb[style*="bottom"]:not(.sb-voile) { transform-origin: bottom left; }
-  html.compact body:not(.mode-caisse) .sb-voile > * { zoom: .9; }
-  html.compact body:not(.mode-caisse) #view table.list td, html.compact body:not(.mode-caisse) #view table.list th { padding-block: 7px; }
+  html.echelle body:not(.mode-caisse) :is(#view, aside.sidebar.barre) { zoom: var(--echelle, .9); }
+  html.echelle body:not(.mode-caisse) .sb:not(.sb-voile):not(.sb-onglets):not(.sb-bulle) { transform: scale(var(--echelle, .9)); transform-origin: top left; }
+  html.echelle body:not(.mode-caisse) .sb[style*="bottom"]:not(.sb-voile) { transform-origin: bottom left; }
+  html.echelle body:not(.mode-caisse) .sb-voile > * { zoom: var(--echelle, .9); }
+  html.echelle.compact { --echelle: .8; }
+  html.echelle.compact body:not(.mode-caisse) #view table.list :is(td, th) { padding-block: 7px; }
 }
 /* Les gestes d'une ligne de pièce (maquette facture, « Gestes de la ligne ») : 250 px, libellés en 400, raccourcis en
    touches de clavier, « Supprimer la ligne » en rouge sous un trait. */
