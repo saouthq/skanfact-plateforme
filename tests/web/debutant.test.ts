@@ -176,7 +176,11 @@ describe('le lot débutant (1), à la souris', () => {
     // 85,400 payés à 19 % : 71,765 hors taxes, 13,635 de TVA — le total retombe sur ce qui a été payé.
     await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('71.765');
     expect(net(await p.locator('#b-totals').innerText())).toContain('Payé 85,400 DT');
-    expect(net(await p.locator('#b-ttc-note').innerText())).toBe('Hors taxes : 71,765 DT ; TVA à 19 % : 13,635 DT.');
+    expect(net(await p.locator('#b-ttc-note').innerText())).toBe('SkanFact en déduit le hors taxes (71,765) et la TVA à 19 % (13,635), au millime : tape ce qui est écrit sur le ticket.');
+    // (27/10/2026, maquette achat « Dépense ») Sans fournisseur, la carte « Dépenses diverses » ; un ticket se paie sur le moment.
+    expect(net(await p.locator('#ac-sup').innerText())).toContain('Dépenses diverses sans fournisseur : un ticket, un reçu');
+    expect(await p.locator('#ac-dep-paye').inputValue()).toBe('especes');
+    expect(await p.locator('[name=dueDate]').locator('xpath=ancestor::div[contains(@class,"field")][1]').isHidden()).toBe(true);
     // Le taux change : le hors taxes se recalcule, le total reste ce qui a été payé.
     await p.locator('select[data-k=vatRate]').first().selectOption('7');
     await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('79.813');
@@ -185,6 +189,19 @@ describe('le lot débutant (1), à la souris', () => {
     // Un hors taxes tapé à la main reprend la main : le montant payé s'efface.
     await p.locator('input[data-k=unitPrice]').first().fill('50');
     expect(await p.locator('#b-ttc').inputValue()).toBe('');
+    // Enregistrée « à la caisse, le jour même » : elle est réglée, pour ce que dit le ticket, à sa date, en espèces.
+    await p.locator('#b-ttc').fill('85.4');
+    await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('79.813');
+    await p.locator('#save').click();
+    await expect.poll(() => p.locator('#ac-dep-paye-lu').count(), { timeout: 10_000 }).toBe(1);
+    expect(net(await p.locator('#ac-dep-paye-lu').innerText())).toMatch(/^le \d\d\/\d\d · à la caisse$/);
+    const lire = async () => (await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as Objet[];
+    await expect.poll(async () => (await lire()).some((o) => o.collection === 'purchases' && o.contenu.kind === 'depense'), { timeout: 15_000 }).toBe(true);
+    const lus = await lire();
+    const dep = lus.find((o) => o.collection === 'purchases' && o.contenu.kind === 'depense');
+    const reglements = (dep?.contenu.payments ?? []) as { date: string; amount: unknown; method: string }[];
+    expect(reglements.map((r) => [r.date, Number(typeof r.amount === 'object' && r.amount ? (r.amount as { '~n': string })['~n'] : r.amount), r.method])).toEqual([[dep?.contenu.date, 85.4, 'especes']]);
+    expect(lus.find((o) => o.collection === 'suppliers' && o.cle === dep?.contenu.supplierId)?.contenu.name).toBe('Dépenses diverses');
     expect(erreurs).toEqual([]);
     await fermer();
   }, 120_000);

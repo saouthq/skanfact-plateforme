@@ -154,8 +154,8 @@ describe('les compléments dessinés le 27/10/2026, à la souris', () => {
     expect(net(await ligneLue(p, 'Total').innerText())).toMatch(/recompté 643,000 = total du fichier 643,000 TTC, au millime HT 600,000 · TVA 7 % 42,000 · timbre 1,000$/);
     expect(net(await ligneLue(p, 'Signature').innerText())).toMatch(/signature électronique présente · réf\. TTN TTN-2026-10-004812/);
     expect(await page.locator('.bandeau').count()).toBe(0);
-    // Sur la plateforme, le XML ne se joint pas : la page le dit, au lieu de promettre qu'il se joint.
-    expect(net(await page.locator('.ed-avant').innerText())).toMatch(/Sa référence TTN se garde dans les notes de l'achat Garde le fichier XML : SkanFact ne le joint pas encore à l'achat$/);
+    // (27/10/2026, maquette achat « Justificatif joint : …xml ») Sur la plateforme aussi, le XML se joint à l'achat.
+    expect(net(await page.locator('.ed-avant').innerText())).toMatch(/Lu sur ton appareil, sans aucun service de lecture Chaque montant recompté au millime Il se joint à l'achat quand tu remplis la pièce, gardé dix ans Sa référence TTN se garde dans les notes de l'achat$/);
     await p.screenshot({ path: path.join(PHOTOS, 'complements-1-efacture.png'), fullPage: true });
     // La catégorie : la liste s'ouvre sous sa case, dans la page.
     await ligneLue(p, 'Catégorie').locator('.combo-btn').click();
@@ -194,12 +194,27 @@ describe('les compléments dessinés le 27/10/2026, à la souris', () => {
     });
     await page.getByRole('button', { name: /^Remplir la pièce/ }).click();
     await expect.poll(() => p.locator('#ac-lecture').count(), { timeout: 10_000 }).toBe(0);
-    // Le toast dit d'où vient la pièce et le geste qui suit ; le XML, qui ne se joint pas ici, ne s'annonce pas joint.
-    await expect.poll(() => p.locator('#toast .toast-txt').innerText().then(net), { timeout: 10_000 }).toBe('Pièce remplie depuis la facture électronique : vérifie, puis « Enregistrer l\'achat ».');
+    // Le toast dit d'où vient la pièce, qu'elle est jointe, et le geste qui suit.
+    await expect.poll(() => p.locator('#toast .toast-txt').innerText().then(net), { timeout: 10_000 }).toBe('Pièce remplie depuis la facture électronique, jointe à l\'achat : vérifie, puis « Enregistrer l\'achat ».');
     expect(await p.evaluate(() => (window as unknown as { __erreurs: string[] }).__erreurs)).toEqual([]);
+    // La pièce le dit (bandeau et pilule de la maquette), et son justificatif est le fichier lui-même, montré comme sa feuille.
+    expect(await p.locator('#view .ed-pill').innerText()).toBe('Lue depuis El Fatoora');
+    expect(net(await p.locator('#ac-lu-ia').innerText())).toBe('Lue depuis le fichier El Fatoora du fournisseur : chaque montant vient du fichier signé Fournisseur, numéro, dates, lignes et TVA sont repris tels quels ; le fichier est joint comme justificatif. Choisis la destination de chaque ligne (stock, charge, immobilisation) : le fichier ne la connaît pas.');
+    await expect.poll(() => p.locator('#p-pj .ac-pj-feuille').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toMatch(/^Fichier El Fatoora · signé Clinique Les Jasmins Tunis Facture FAC-2026-027 · 23\/10\/2026 Formation sensibilisation cybersécurité · 4 × 150,000 600,000 Total TTC 643,000 chaque montant recompté au millime$/i);
+    expect(net(await p.locator('#ac-avant').innerText())).toContain('Justificatif joint : TEIF_FAC-2026-027.xml');
     expect(await p.locator('#b-head input[name=number]').inputValue()).toBe('FAC-2026-027');
     expect(net(await p.locator('#view').innerText())).toContain('Sous-traitance');
     expect(await p.locator('#b-notes').inputValue()).toBe('Référence TTN : TTN-2026-10-004812');
+    await p.screenshot({ path: path.join(PHOTOS, 'complements-1b-efacture-remplie.png'), fullPage: true });
+    // Enregistrée : le fichier est au serveur, tel quel, sous son type XML.
+    await p.locator('#save').click();
+    await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; contenu: Record<string, unknown> }[])
+      .filter((o) => o.collection === 'purchases').flatMap((o) => (o.contenu.attachments ?? []) as { name: string; file: string }[]).map((a) => a.name), { timeout: 15_000 }).toEqual(['TEIF_FAC-2026-027.xml']);
+    const jointe = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; contenu: Record<string, unknown> }[])
+      .filter((o) => o.collection === 'purchases').flatMap((o) => (o.contenu.attachments ?? []) as { file: string }[])[0];
+    const f = await api('GET', `/entreprises/${ent}/pieces-jointes/${jointe?.file}`, jeton);
+    expect(f.corps.type).toBe('application/xml');
+    expect(Buffer.from(String(f.corps.contenu), 'base64').toString('utf8')).toContain('<RefTtnVal>TTN-2026-10-004812</RefTtnVal>');
     expect(erreurs).toEqual([]);
     await fermer();
   }, 120_000);

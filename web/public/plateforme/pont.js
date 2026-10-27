@@ -265,6 +265,8 @@
   // Les pièces qu'un autre a faites (brique 117) : « collection/clé » → le nom de son auteur ('' si inconnu).
   /** @type {Record<string, string>} */
   let autrui = {};
+  // (27/10/2026) Le prénom de qui a saisi chaque achat, lu avec le dossier (la frise de la pièce le dit).
+  /** @type {Record<string, string>} */ let saisiPar = {};
   // La page reçoit ces données-là (une ouverture, une copie) : elle a désormais chaque objet de `vu`.
   const adopter = () => { base = new Map([...vu].map(([k, v]) => [k, v.revision])); };
 
@@ -409,6 +411,7 @@
     const [r, questions] = await Promise.all([appel('GET', `/dossier-v10${depuis}`), questionsDuCabinet()]);
     poserDroits(r.droits);
     autrui = r.autrui || {};
+    saisiPar = r.saisiPar || {};
     /** @type {any[]} */
     let objets = r.objets;
     if (r.partiel && copie) {
@@ -1430,6 +1433,14 @@
 
     // La session de caisse (brique 116) : son état, l'ouvrir avec le fond de caisse, la fermer en comptant le tiroir.
     // L'auteur d'une pièce faite par un autre (brique 117), sinon null : l'écran refuse de la supprimer avant le geste.
+    saisiPar: (/** @type {string} */ id) => saisiPar[id] || '',
+    // (27/10/2026) Le brouillon d'un achat neuf, gardé sur cet appareil quand il le garde (« mon ordinateur », `garde()`).
+    brouillonAchat: {
+      garde: () => !!poste.garde(),
+      garder: (/** @type {unknown} */ contenu) => poste.garderBrouillon(ent, contenu).catch(() => {}),
+      relire: () => poste.relireBrouillon(ent).catch(() => null),
+      effacer: () => poste.effacerBrouillon(ent).catch(() => {}),
+    },
     auteurAutre: (/** @type {string} */ collection, /** @type {string} */ id) => (`${collection}/${id}` in autrui ? autrui[`${collection}/${id}`] ?? '' : null),
     caisse: async () => { const r = await appel('GET', '/caisse'); retenirNumerotation(r.numerotation); return r; },
     // Sans réseau, ce poste tient-il la caisse ? Le prochain numéro qu'il donnera, ou null (brique 120).
@@ -1569,7 +1580,9 @@
       // une facture électronique, telle quelle.
       const octets = new Uint8Array(await f.arrayBuffer());
       const lu = xml ? /** @type {any} */ (window).SkanCompta.lireFichierTexte(octets, f.name, {}) : await /** @type {any} */ (window).SkanTableur.lire(octets, f.name);
-      return Object.assign({ nom: f.name, taille: f.size }, xml ? { chemin: null } : {}, lu);
+      // (27/10/2026, maquette achat « Justificatif joint : …xml ») La facture électronique lue se garde : elle se joint ensuite
+      // à l'achat comme son justificatif (attachPath), telle quelle.
+      return Object.assign({ nom: f.name, taille: f.size }, xml ? { chemin: garderALire(f) } : {}, lu);
     },
     pickLogo: async () => {
       const f = await choisirFichier('.png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml');
@@ -1708,7 +1721,7 @@
     },
     texteGlisse: async (/** @type {File} */ f) => {
       if (f.size > 5 * 1024 * 1024) return { ok: false, nom: f.name, motif: `« ${f.name} » fait ${Math.round(f.size / 1048576)} Mo : une facture électronique en fait quelques dizaines de Ko. Ce n'est probablement pas le bon fichier.` };
-      return Object.assign({ nom: f.name, taille: f.size, chemin: null }, /** @type {any} */ (window).SkanCompta.lireFichierTexte(new Uint8Array(await f.arrayBuffer()), f.name, {}));
+      return Object.assign({ nom: f.name, taille: f.size, chemin: garderALire(f) }, /** @type {any} */ (window).SkanCompta.lireFichierTexte(new Uint8Array(await f.arrayBuffer()), f.name, {}));
     },
     // (lot messagerie) La photo ou le PDF d'un message, à lire comme un fichier choisi (« Ranger dans mes achats »).
     ocrDepuisFichier: (/** @type {{ nom: string, type: string, contenu: string }} */ f) => {
@@ -2971,6 +2984,12 @@
   const PARTAGE = 'Sur la plateforme, une entreprise n\'est plus un fichier à poser dans un dossier partagé : elle vit sur le serveur, et chacun l\'ouvre avec son propre compte. Pour travailler à plusieurs, invite tes collaborateurs dans Paramètres → L\'équipe.';
   // ── Les pièces jointes : déposer, lire, enregistrer ──────────────────────────────────────────
   const PIECE_MAX = 10 * 1048576;
+  /** Un fichier choisi, gardé le temps de la page pour se joindre après sa lecture. @param {File} f */
+  function garderALire(f) {
+    const chemin = `lecture:${++lecturesChoisies}`;
+    fichiersALire.set(chemin, f);
+    return chemin;
+  }
   /** @param {File} f */
   async function deposerPiece(f) {
     if (f.size > PIECE_MAX) throw new Error(`Le fichier « ${f.name} » pèse ${(f.size / 1048576).toFixed(1).replace('.', ',')} Mo : une pièce jointe pèse 10 Mo au plus. Une photo moins lourde, ou un PDF compressé, passera.`);
@@ -3029,9 +3048,11 @@
     if (!/^[0-9a-f-]{36}$/.test(String(fichier))) throw new Error('Cette pièce jointe vient de l\'application de bureau : son fichier est resté sur l\'ordinateur où elle a été jointe.');
     const f = await appel('GET', `/pieces-jointes/${fichier}`);
     const octets = Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0));
-    const adresse = URL.createObjectURL(new Blob([octets], { type: String(f.type) }));
+    // (27/10/2026) Le XML d'une facture électronique s'ouvre en texte brut : jamais interprété par le navigateur.
+    const type = String(f.type) === 'application/xml' ? 'text/plain;charset=utf-8' : String(f.type);
+    const adresse = URL.createObjectURL(new Blob([octets], { type }));
     setTimeout(() => URL.revokeObjectURL(adresse), 120_000);
-    return { adresse, nom: String(f.nom), type: String(f.type) };
+    return { adresse, nom: String(f.nom), type };
   }
   /** @param {string} adresse @param {string} nom */
   function enregistrerSous(adresse, nom) {

@@ -216,11 +216,11 @@ describe('le lot achats, à l\'écran', () => {
     await p.locator('#save').click();
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^GMT-2026-0412/);
 
-    // 5. Le règlement d'août : la retenue se reverse avec « la déclaration d'août », et l'attestation s'établit sur TEJ.
+    // 5. Le règlement d'août : la retenue se reverse avec « la déclaration d'août », et l'attestation s'établit sur TEJ (maquette : la retenue en titre).
     await p.locator('#pay').click();
     await p.locator('#spf .datefield .d-txt').first().fill('15/08/2026');
     await p.locator('#spf .datefield .d-txt').first().press('Tab');
-    await expect.poll(async () => net(await p.locator('#spf-rs').innerText())).toMatch(/de retenue à la source : tu la reverses à l'État avec la déclaration d'août 2026, et tu en remets l'attestation au fournisseur ; elle s'établit sur TEJ, la plateforme du ministère des Finances\. À VÉRIFIER avec ton comptable\./);
+    await expect.poll(async () => net(await p.locator('#spf-rs').innerText())).toMatch(/^Ce règlement retient [\d\s\u202f,]+ DT \([\d,]+ %\) : tu les reverses avec la déclaration d'août 2026 Le fournisseur reçoit [\d\s\u202f,]+ DT ; la facture est soldée avec la retenue\. L'attestation à lui remettre se prépare d'elle-même \(elle s'établit sur TEJ, la plateforme du ministère des Finances\)\. Le taux et l'assiette : À VÉRIFIER avec ton comptable\./);
     // On ne l'enregistre pas : la fenêtre garde la date tapée, et demande avant de la jeter.
     await p.locator('#modal-root').getByRole('button', { name: 'Annuler', exact: true }).click();
     await p.getByRole('button', { name: 'Abandonner la saisie', exact: true }).click();

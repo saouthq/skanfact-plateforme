@@ -81,12 +81,36 @@ describe('les pièces jointes du dossier', () => {
     const ent = await entreprise(nadia, 'Transports Ben Youssef');
     const faux = await deposer(ent, nadia, 'facture.pdf', Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'));
     expect(faux.statut).toBe(415);
-    expect(String(faux.corps.motif)).toContain('« facture.pdf » n\'est ni une photo (JPEG, PNG, WebP) ni un PDF');
+    expect(String(faux.corps.motif)).toContain('« facture.pdf » n\'est ni une photo (JPEG, PNG, WebP), ni un PDF, ni une facture électronique (XML)');
     const lourd = Buffer.concat([pdf('lourd'), Buffer.alloc(LIMITE_PIECE + 1 - pdf('lourd').length, 0x20)]);
     const trop = await deposer(ent, nadia, 'Scan.pdf', lourd);
     expect(trop.statut).toBe(413);
     expect(String(trop.corps.motif)).toContain('« Scan.pdf » pèse 10,0 Mo');
     expect((await admin.query('select count(*)::int n from socle.piece_jointe where entreprise = $1', [ent])).rows[0].n).toBe(0);
+  });
+
+  // (27/10/2026, maquette achat « Justificatif joint : …xml ») La facture électronique reçue garde son fichier : un XML dont
+  // l'élément principal est TEIF ; rien d'autre (un SVG, du XHTML, un script, une autre racine) ne se joint sous ce nom.
+  it('le XML d\'une facture électronique (TEIF) se joint ; un autre XML, un SVG ou un script, non', async () => {
+    const nadia = await personne('nadia');
+    const ent = await entreprise(nadia, 'Transports Ben Youssef');
+    const teif = Buffer.from('\ufeff<?xml version="1.0" encoding="UTF-8"?>\n<!-- reçue d\'El Fatoora -->\n<TEIF version="1.8.8" controlingAgency="TTN"><InvoiceHeader/></TEIF>\n', 'utf8');
+    const r = await deposer(ent, nadia, 'FA-IT-2026-0412.xml', teif);
+    expect(r.statut, JSON.stringify(r.corps)).toBe(201);
+    expect(r.corps).toMatchObject({ name: 'FA-IT-2026-0412.xml', type: 'application/xml', size: teif.length });
+    const lu = await appeler('GET', `/entreprises/${ent}/pieces-jointes/${String(r.corps.file)}`, nadia);
+    expect(Buffer.from(String(lu.corps.contenu), 'base64').equals(teif)).toBe(true);
+    for (const [nom, texte] of ([
+      ['dessin.xml', '<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>'],
+      ['autre.xml', '<?xml version="1.0"?><Facture><Total>12</Total></Facture>'],
+      ['piege.xml', '<?xml version="1.0"?><TEIF><a:script xmlns:a="http://www.w3.org/1999/xhtml">alert(1)</a:script></TEIF>'],
+      ['entite.xml', '<?xml version="1.0"?><!DOCTYPE TEIF [<!ENTITY x "y">]><TEIF>&x;</TEIF>'],
+      ['sans-entete.xml', '<TEIF version="1.8.8"></TEIF>'],
+    ] as const)) {
+      const refus = await deposer(ent, nadia, nom, Buffer.from(texte, 'utf8'));
+      expect(refus.statut, nom).toBe(415);
+    }
+    expect((await admin.query('select count(*)::int n from socle.piece_jointe where entreprise = $1', [ent])).rows[0].n).toBe(1);
   });
 
   it('ni la voisine ni le cabinet qui tient l\'entreprise ne le lisent ; le cabinet n\'en dépose pas', async () => {

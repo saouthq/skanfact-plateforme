@@ -1,5 +1,6 @@
 // Les pièces jointes du dossier (lot Fonctions 3 ; docs/pieces-jointes.md ; base 0160). La v10 les copiait à côté de son
-// fichier de données ; ici, la base de l'entreprise les garde dix ans. Une photo ou un PDF, reconnu à ses premiers
+// fichier de données ; ici, la base de l'entreprise les garde dix ans. Une photo, un PDF ou le XML d'une facture
+// électronique (0178), reconnu à ses premiers
 // octets (jamais à son nom), dix mégaoctets au plus, en base 64 dans le corps comme les fichiers de la messagerie. La
 // pièce du dossier garde sa fiche (nom, identifiant, taille, date) : ces routes ne gardent que le fichier. Les gestes
 // sont ceux du dossier : un cabinet ne les a pas (il ne voit pas les pièces, 0035), et la base le redit (0160).
@@ -8,14 +9,14 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { Route } from '../app.ts';
 import { motif } from '../../textes/index.ts';
-import { sorteDe } from '../achats/sorte.ts';
+import { sorteJointeDe } from '../achats/sorte.ts';
 import './textes.ts';
 
 const uuid = z.string().uuid();
 export const LIMITE_PIECE = 10 * 1_048_576;
 // En base 64, un tiers de plus : accepté jusqu'à 16 Mo, pour qu'un fichier un peu trop lourd reçoive sa phrase.
 const LIMITE_CORPS = 16 * 1_048_576;
-const TYPE_DE = { jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf' } as const;
+const TYPE_DE = { jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', pdf: 'application/pdf', xml: 'application/xml' } as const;
 const introuvable = { statut: 404 as const, corps: { motif: motif('commun.introuvable') } };
 const jour = (d: Date) => d.toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
 
@@ -33,7 +34,7 @@ export function routesPiecesJointes(): Route<never>[] {
       if (fichier.length > LIMITE_PIECE) {
         return { statut: 413, corps: { motif: motif('pieces_jointes.trop_lourd', { nom: corps.nom, taille: (fichier.length / 1_048_576).toFixed(1).replace('.', ','), limite: LIMITE_PIECE / 1_048_576 }), bouton: null } };
       }
-      const sorte = sorteDe(fichier);
+      const sorte = sorteJointeDe(fichier);
       if (!sorte) return { statut: 415, corps: { motif: motif('pieces_jointes.format', { nom: corps.nom }), bouton: null } };
       const r = (await tx.query(`insert into socle.piece_jointe (entreprise, nom, type, taille, contenu, empreinte, depose_par)
           values ($1, $2, $3, $4, $5, $6, $7) returning id, depose_le, conserver_jusqu_au::text conserver`,

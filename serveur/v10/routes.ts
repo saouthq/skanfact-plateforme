@@ -15,7 +15,7 @@ import { aujourdhuiATunis } from '../reglements.ts';
 import { tracer } from '../trace.ts';
 import { accordRemiseDeLaPiece, commandeDuServeur, depassementDuServeur, estResponsable, remiseDuServeur } from './accords.ts';
 import { refuserSiLectureSeule } from '../abonnement/condition.ts';
-import { avecSesTickets, filtrer, mesRoles } from './droits.ts';
+import { avecSesTickets, filtrer, mesRoles, permet, regleDe } from './droits.ts';
 import { appliquer, Conflit, emettreDepuisV10, lireDepuis, lireDossier, marqueDeLecture, PARTIES_A_AUTEUR, type Changement } from './dossier.ts';
 import { verserExemple } from './exemple.ts';
 import { nombreEnTexte } from './lecture.ts';
@@ -62,15 +62,19 @@ export function routesV10(ctx: Contexte): Route<never>[] {
       const autrui = responsable ? {} : Object.fromEntries((await tx.query(`select d.collection || '/' || d.cle k, coalesce(u.nom, '') nom from socle.dossier_v10 d
           left join socle.utilisateur u on u.id = d.cree_par
          where d.entreprise = $1 and d.collection = any($2) and d.cree_par is distinct from $3`, [ent, PARTIES_A_AUTEUR, qui.utilisateur])).rows.map((r) => [r.k, r.nom]));
+      // (27/10/2026, maquette achat « Saisie · par Sarra ») Qui a saisi chaque achat : le prénom de son auteur, pour la frise
+      // de la pièce. Rien que le prénom, et seulement pour les achats que la personne lit déjà.
+      const saisiPar = !permet(roles, regleDe('purchases', '').voir, false) ? {} : Object.fromEntries((await tx.query(`select d.cle, split_part(coalesce(u.nom, ''), ' ', 1) prenom from socle.dossier_v10 d
+          join socle.utilisateur u on u.id = d.cree_par where d.entreprise = $1 and d.collection = 'purchases'`, [ent])).rows.map((r) => [r.cle, r.prenom]));
       const depuis = query.depuis ?? '';
       if (/^\d{1,20}$/.test(depuis) && query.profil === profil && BigInt(depuis) <= BigInt(marque)) {
         const d = await lireDepuis(tx, ent, depuis, avenir);
         const f = filtrer(roles, d.objets);
-        return { corps: { ...f, objets: await avecSesTickets(tx, ent, qui.utilisateur, roles, d.objets, f.objets), retires: filtrer(roles, d.retires).objets, partiel: true, marque, profil, autrui } };
+        return { corps: { ...f, objets: await avecSesTickets(tx, ent, qui.utilisateur, roles, d.objets, f.objets), retires: filtrer(roles, d.retires).objets, partiel: true, marque, profil, autrui, saisiPar } };
       }
       const tous = await lireDossier(tx, ent, qui.utilisateur);
       const f = filtrer(roles, tous);
-      return { corps: { ...f, objets: await avecSesTickets(tx, ent, qui.utilisateur, roles, tous, f.objets), marque, profil, autrui } };
+      return { corps: { ...f, objets: await avecSesTickets(tx, ent, qui.utilisateur, roles, tous, f.objets), marque, profil, autrui, saisiPar } };
     },
   });
 

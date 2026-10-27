@@ -443,3 +443,53 @@ et le poids, les droits) ; `tests/web/lecture-ia.test.ts` (« Créer » d'un cli
 réglage et revient « facultatif » une fois rallumée) ; les parcours J2 et téléphone lisent la facture d'essai de la
 quincaillerie par l'IA jouée (`tests/donnees/lecture/ia-quincaillerie.ts`). Preuves : les cinq de la route (début du bloc
 « Brique 84 »), « ia 1 », « ia 2 », « ia 8 » retournées, et « ia 26 » à « ia 31 ».
+
+## La revue des écarts de la maquette (1.161.0, 27/10/2026)
+
+Skander : « vérifie que tu n'as rien oublié de la maquette achat, fais une revue sur les écarts ». Les 21 états de
+`docs/maquettes/achat.html`, ses fenêtres « Ouvrir » et son tableau « Rien de perdu » ont été posés à côté de l'écran,
+texte et capture. Ce qui manquait, et ce qui est fait :
+
+| Écart | Ce que fait l'écran maintenant |
+|---|---|
+| La carte du fournisseur | « paie à réception » (plus « paie à 0 jour ») ; « exonéré de retenue jusqu'au … (attestation n° …) » ; « factures électroniques : oui (El Fatoora) » quand une de ses pièces est arrivée avec son fichier XML (ce qu'on sait, jamais supposé) ; la retenue dit « aucune · exonéré » |
+| L'échéance | « Échéance », et dans la case « à réception » ou « · de sa fiche » |
+| La dépense | « Référence du ticket » (facultatif) ; « Payée » à la place de l'échéance : **à la caisse, le jour même** (par défaut), par carte, ou pas encore ; sans fournisseur, la carte « Dépenses diverses · sans fournisseur : un ticket, un reçu » ; la phrase du montant payé de la maquette |
+| La devise | une seule puce : « Devise Euro · 1 € = … DT » |
+| Les règlements | le compte de chaque règlement, « + … retenus » sous le montant, « Enregistrer un règlement » dans le titre, le menu « ⋯ » de la ligne, l'attestation qui se coche et **s'imprime** d'ici |
+| La fenêtre d'un règlement | la retenue en titre (« Ce règlement retient … (1,5 %) : tu les reverses avec la déclaration de … »), puis ce que le fournisseur reçoit |
+| L'avoir | « Remboursement » : montant de l'avoir, déduit d'une facture, remboursé, à récupérer ; le conseil « il vient en moins » ne se montre plus que sur un avoir neuf |
+| La frise | « Saisie · 24/10 · par Sarra » (le prénom de l'auteur, lu au serveur pour les seuls achats que la personne lit) ; le justificatif dit ce qu'il est (le fichier signé, le PDF, la photo) ; la dépense dit ce qu'elle a payé ; « attend le ticket » |
+| La facture électronique | **le fichier XML se joint à l'achat**, gardé dix ans (base `0178`) ; la pièce remplie le dit (pilule « Lue depuis El Fatoora », bandeau de la maquette) ; le justificatif se montre comme la feuille qu'il décrit, relue du fichier lui-même |
+| La réception | « Voir la réception » à côté de la phrase « Saisie depuis la réception … » |
+| La demande du cabinet | le bandeau « Aucun justificatif » dit « Hatem, de ton cabinet, te l'a demandé le 22/10 dans votre fil » quand une demande non reçue cite le numéro ou la référence de la pièce |
+| ↶ Annuler | le bouton de la maquette et Ctrl Z (Ctrl Maj Z ou Ctrl Y pour rétablir), jamais pendant qu'on tape dans une case ; « Rétablir » dans le toast ; les justificatifs et les règlements ne se défont pas ainsi (ils ont leurs gestes) |
+| Brouillon gardé à chaque frappe | voir ci-dessous |
+
+**Trois décisions (27/10/2026, en appliquant la maquette validée par Skander).**
+
+1. **Une dépense neuve s'enregistre réglée.** Un ticket se paie sur le moment : « à la caisse, le jour même » (espèces) par
+   défaut, « par carte », ou « pas encore : à régler plus tard ». Le règlement porte la date et le montant de la dépense, dans
+   sa devise ; il se voit, se corrige et se supprime dans « Règlements » comme tout autre. Avant, une dépense neuve restait
+   « à payer » et demandait un second geste.
+2. **Le XML d'une facture électronique est un justificatif.** Une pièce jointe peut être une photo, un PDF ou ce fichier. Le
+   serveur ne prend qu'un vrai fichier El Fatoora : un en-tête XML, l'élément principal `TEIF`, et rien qu'un navigateur
+   exécuterait (ni script, ni SVG, ni XHTML, ni entité) ; il s'ouvre en texte brut.
+3. **Le brouillon d'un achat neuf vit sur l'appareil, pas parmi les achats.** Un achat enregistré compte (TVA, stock,
+   écritures) : un brouillon ne peut pas s'y ranger comme celui d'une facture. Sur « mon ordinateur » (la session gardée), il
+   se garde chiffré, comme la copie hors ligne, 1,5 s après la dernière frappe ; l'onglet fermé, la pièce neuve propose
+   « Reprendre » ou « Le jeter » (une semaine au plus). Il s'efface quand l'achat s'enregistre ou se jette, à la
+   déconnexion, et avec l'entreprise. Sur l'ordinateur d'un autre, rien ne se garde, et « brouillon gardé » ne se dit pas.
+
+**Écarts assumés.** « paie à 30 jours fin de mois » : la fiche d'un fournisseur ne connaît pas « fin de mois », la puce dit
+« paie à 30 jours ». « Reçue · papier » : rien ne dit qu'un PDF est le scan d'un papier, la frise dit « PDF ». « Signature
+électronique vérifiée · TTN » : SkanFact voit qu'un fichier est signé, il ne vérifie pas la signature, il ne le dit donc pas
+(la feuille dit « chaque montant recompté au millime »). « Ce qu'on te doit de la fiche d'InfoTech » : la fiche d'un
+fournisseur n'a pas cette rubrique, la phrase dit « … te le doit ». « elle le verra » (Amel) : SkanFact ne devine pas le
+genre d'une personne, la phrase garde « ton cabinet le verra ».
+
+**Ce qui le prouve.** `tests/web/achat-ecarts.test.ts` (la carte du fournisseur, les règlements, le remboursement, la frise,
+la demande du cabinet ; ↶ et « Rétablir », Ctrl Z ; le brouillon repris sur « mon ordinateur »), `tests/web/debutant.test.ts`
+(la dépense payée à la caisse, vue au serveur), `tests/web/complements.test.ts` (le XML joint, vu au serveur sous son type),
+`tests/socle/pieces-jointes.test.ts` (un TEIF se joint ; un SVG, un autre XML, un script, une entité, non),
+`tests/web/achats-lot.test.ts` (la retenue en titre de la fenêtre du règlement) ; leurs preuves dans `tests/preuves.sh`.

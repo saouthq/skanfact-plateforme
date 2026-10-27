@@ -7636,19 +7636,12 @@ prouver "« Guide-moi » qui reste allumé quand l'invitation s'en va" web/publi
   "      bouton.classList.remove('guide-moi-signale');
 " "" \
   "$ACW1"
-prouver "« la déclaration de août »" web/public/v10/app.js \
-  "avec la déclaration \${C.deLibelle(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1] + ' ' + d0.slice(0, 4))}, et tu" "avec la déclaration de \${C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]} \${d0.slice(0, 4)}, et tu" \
+prouver '« la déclaration de août »' web/public/v10/app.js \
+  'tu les reverses avec la déclaration ${C.deLibelle(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1] + '"'"' '"'"' + d0.slice(0, 4))}</b>' 'tu les reverses avec la déclaration de ${C.MONTHS_FR[Number(d0.slice(5, 7)) - 1]} ${d0.slice(0, 4)}</b>' \
   "$ACW1"
-prouver "l'attestation de retenue sans dire où elle s'établit" web/public/v10/app.js \
-  "au fournisseur ; elle s'établit sur TEJ, la plateforme du ministère des Finances. <em>À VÉRIFIER avec ton comptable.</em>" "au fournisseur." \
+prouver 'l'"'"'attestation de retenue sans dire où elle s'"'"'établit' web/public/v10/app.js \
+  ' (elle s'"'"'établit sur TEJ, la plateforme du ministère des Finances)' '' \
   "$ACW1"
-# (1.94.0) Quatre preuves retirées : « Joindre un justificatif » proposé en ligne, le filtre « Sans justificatif », la
-# clôture qui réclame des justificatifs, la page de clôture qui le dit. Elles gardaient le cas d'un écran sans pièces
-# jointes ; depuis la 1.89.0 le serveur les garde (bridge.piecesJointes vaut toujours true) : réintroduire leur défaut ne
-# change plus rien, elles ne pouvaient plus tomber (rouge de GitHub sur 1.93.0). Le bouton présent en ligne, sa visite
-# et son étape sont tenus plus bas (« le bouton du justificatif encore absent en ligne »).
-# (1.105.0) « le bouton du justificatif absent, branché quand même » retirée, pour la même raison : le bouton existe toujours
-# en ligne depuis la 1.89.0, la garde ne se joue plus.
 prouver "le bouton du justificatif encore absent en ligne" web/public/plateforme/pont.js \
   "    piecesJointes: true," "    piecesJointes: false," \
   "dans « Saisir une facture d'achat », l'étape du justificatif vise un bouton qui existe en ligne (1.89.0)"
@@ -7659,8 +7652,8 @@ prouver "l'objet d'un avoir qui invite à dire ce qu'on a acheté" web/public/v1
   "        if (objet) objet.placeholder = inviteObjet(p.kind);
 " "" \
   "$ACW1"
-prouver "l'échéance d'un avoir" web/public/v10/app.js \
-  "      if (bloc) bloc.hidden = C.PURCHASE_LIES.includes(p.kind);" "      if (bloc) bloc.hidden = false;" \
+prouver 'l'"'"'échéance d'"'"'un avoir' web/public/v10/app.js \
+  '      if (bloc) bloc.hidden = C.PURCHASE_LIES.includes(p.kind) || p.kind === '"'"'depense'"'"';' '      if (bloc) bloc.hidden = p.kind === '"'"'depense'"'"';' \
   "$ACW1"
 prouver "l'avoir rattaché depuis la liste qui ne reprend rien" web/public/v10/app.js \
   "        if (vise && isNew && p.kind === 'avoir' && !(p.lines || []).some(" "        if (false && vise && isNew && p.kind === 'avoir' && !(p.lines || []).some(" \
@@ -18356,7 +18349,7 @@ prouver 'une pièce jointe gardée moins de dix ans' base/migrations/0160_pieces
   $'conserver_jusqu_au date not null default ((now() at time zone \'Africa/Tunis\')::date + interval \'10 years\')::date,' $'conserver_jusqu_au date not null default ((now() at time zone \'Africa/Tunis\')::date + interval \'5 years\')::date,' \
   'un PDF revient octet pour octet, avec sa fiche et son empreinte, gardé dix ans'
 prouver 'une pièce jointe reconnue à son nom (un SVG appelé .pdf accepté)' serveur/v10/pieces-jointes.ts \
-  $'      const sorte = sorteDe(fichier);\n' $'      const sorte = sorteDe(fichier) ?? (/\\.pdf$/i.test(corps.nom) ? \'pdf\' : null);\n' \
+  $'      const sorte = sorteJointeDe(fichier);\n' $'      const sorte = sorteJointeDe(fichier) ?? (/\\.pdf$/i.test(corps.nom) ? \'pdf\' : null);\n' \
   'ni photo ni PDF (aux octets, pas au nom), ou plus de 10 Mo : refusé, rien de gardé'
 prouver 'une pièce jointe de plus de 10 Mo acceptée' serveur/v10/pieces-jointes.ts \
   $'if (fichier.length > LIMITE_PIECE) {' $'if (fichier.length > LIMITE_PIECE * 2) {' \
@@ -20536,11 +20529,11 @@ prouver 'compléments 2 : le bouton de retour qui ne ramène nulle part' web/pub
 prouver 'compléments 3 : la facture électronique relue dans la fenêtre d'"'"'avant' web/public/v10/app.js \
   "      teifComprise(l.lecture, fichier, l.remarques || []);" "      ocrReviewForm(l.lecture, fichier, values => appliquerLecture(values, fichier, 'facture électronique'), { source: 'teif', remarques: l.remarques });" \
   'la facture électronique reçue : une page, la catégorie sous sa case'
-prouver 'compléments 4 : le XML qui se joint sans chemin, et l'"'"'erreur qui suit' web/public/v10/app.js \
-  "      const jointe = bridge.piecesJointes === false || !file.path ? false : await joindreFichier(file);" "      const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);" \
+prouver 'compléments 4 : le XML lu qui ne se joint pas à l'"'"'achat' web/public/plateforme/pont.js \
+  '      return Object.assign({ nom: f.name, taille: f.size, chemin: garderALire(f) },' '      return Object.assign({ nom: f.name, taille: f.size, chemin: null },' \
   'la facture électronique reçue : une page, la catégorie sous sa case'
-prouver 'compléments 5 : la page promet que le fichier se joint' web/public/v10/app.js \
-  "              \${file.path ? '' : \`<li>\${lfIc('info', 15, 2)}<span>Garde le fichier XML : SkanFact ne le joint pas encore à l'achat</span></li>\`}</ul></div>" "              <li class=\"ok\"><span>Il se joint à l'achat quand tu remplis la pièce</span></li></ul></div>" \
+prouver 'compléments 5 : la page qui ne dit pas que le fichier se garde' web/public/v10/app.js \
+  '${bridge.lectureSurLeServeur ? '"'"', gardé dix ans'"'"' : '"'"''"'"'}' '' \
   'la facture électronique reçue : une page, la catégorie sous sa case'
 prouver 'compléments 6 : le fournisseur créé sans ce que dit le fichier' web/public/v10/app.js \
   "            { address: four.adresse || '', phone: four.telephone || '', email: four.email || '' })) });" "            {})) });" \
@@ -20578,6 +20571,108 @@ prouver 'compléments 16 : la catégorie choisie perdue à la vérification' web
 prouver 'compléments 17 : le refus d'"'"'un fichier sans le bouton qui débloque' web/public/v10/app.js \
   "      if (!l.ok) return refusTeif(" "      if (!l.ok) return infoDialog(" \
   'la facture électronique adressée à une autre société, pas signée'
+# ── La revue des écarts de la maquette de l'achat (1.161.0 ; docs/achats.md ; tests/web/achat-ecarts.test.ts) ──
+prouver 'écarts 1 : « paie à 0 jour »' web/public/v10/app.js \
+  '${Number(sup.paymentTermsDays) > 0 ? `paie à ${pl(Number(sup.paymentTermsDays), '"'"'jour'"'"')}` : '"'"'paie à réception'"'"'}' 'paie à ${pl(Number(sup.paymentTermsDays) || 0, '"'"'jour'"'"')}' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 2 : l'"'"'exonération du fournisseur tue sur sa carte' web/public/v10/app.js \
+  '        exo ? `<span class="ed-chip ok" id="ac-sup-exo">' '        false ? `<span class="ed-chip ok" id="ac-sup-exo">' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 3 : les factures électroniques supposées de tout fournisseur' web/public/v10/app.js \
+  '        efacture ? '"'"'<span class="ed-chip">' '        true ? '"'"'<span class="ed-chip">' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 4 : la retenue qui ne dit pas « exonéré »' web/public/v10/app.js \
+  'noteRs && noteRs.ton === '"'"'ok'"'"' ? '"'"'· exonéré'"'"' : ' '' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 5 : l'"'"'échéance qui ne dit pas « à réception »' web/public/v10/app.js \
+  'p.dueDate === p.date ? '"'"'à réception'"'"' : ' '' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 6 : la frise sans qui a saisi la pièce' web/public/v10/app.js \
+  'par ? `par ${h(par)}` : '"'"''"'"'' ''"'"''"'"'' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 7 : le prénom de l'"'"'auteur jamais lu du serveur' web/public/plateforme/pont.js \
+  '    saisiPar = r.saisiPar || {};
+' '' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 8 : le règlement sans son compte' web/public/v10/app.js \
+  '<td>${h(accountLabel(x.accountId))}</td>' '' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 9 : le règlement sans ce qu'"'"'il a retenu' web/public/v10/app.js \
+  '${partRs(x) > 0 ? `+ ${C.money(partRs(x), null, C.decimalsFor(cur))} retenus` : ' '${partRs(x) > 0 ? '"'"''"'"' : ' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 10 : l'"'"'attestation qui ne s'"'"'imprime pas d'"'"'ici' web/public/v10/app.js \
+  '      if ($('"'"'#rs-imprimer'"'"')) $('"'"'#rs-imprimer'"'"').onclick = e => { e.preventDefault(); attestationRetenue(s2); };
+' '' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 11 : l'"'"'avoir sans son bloc « Remboursement »' web/public/v10/app.js \
+  '<h2>${av ? '"'"'Remboursement'"'"' : '"'"'Règlements'"'"'}' '<h2>${'"'"'Règlements'"'"'}' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 12 : le conseil d'"'"'un avoir neuf sur un avoir rangé' web/public/v10/app.js \
+  '        if (!isNew) { el.hidden = true; el.innerHTML = '"'"''"'"'; return; }
+' '' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 13 : la demande du cabinet que le bandeau tait' web/public/v10/app.js \
+  '        t.textContent = `${prenom ?' '        if (0) t.textContent = `${prenom ?' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 14 : la devise et son taux en deux puces' web/public/v10/app.js \
+  '<span class="b-rate-lbl">· 1 ${h(symb(cur))} =</span>' '<span class="b-rate-lbl">Taux · 1 ${h(cur)} =</span>' \
+  'la carte du fournisseur, les règlements, le remboursement, la frise et la demande du cabinet'
+prouver 'écarts 15 : ↶ qui ne fait rien' web/public/v10/app.js \
+  '    if ($('"'"'#ac-annuler'"'"')) $('"'"'#ac-annuler'"'"').onclick = annulerAchat;
+' '' \
+  'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
+prouver 'écarts 16 : « Rétablir » qui empile la pièce d'"'"'avant l'"'"'annulation' web/public/v10/app.js \
+  '      annulAchat.pile.push(JSON.stringify(annulAchat.piece()));' '      annulAchat.pile.push(JSON.stringify(p));' \
+  'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
+prouver 'écarts 17 : une liste qui se pose compte pour une modification' web/public/v10/app.js \
+  '      if (!etatTimer && JSON.stringify(p) === dernierEtat) return;
+' '' \
+  'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
+prouver 'écarts 18 : Ctrl Z sans effet sur l'"'"'achat' web/public/v10/app.js \
+  'if (mod && !clos && !champTape(e.target) && (k === '"'"'z'"'"' || k === '"'"'y'"'"'))' 'if (false)' \
+  'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
+prouver 'écarts 19 : le brouillon d'"'"'un achat neuf jamais gardé' web/public/v10/app.js \
+  '        brouillonA.garder({ p: deepCopy(p), payeeDep, le: Date.now() });
+' '' \
+  'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
+prouver 'écarts 20 : le brouillon gardé qui ne se reprend pas' web/public/v10/app.js \
+  '      $('"'"'#ac-reprendre-ok'"'"', el).onclick = () => { achatReprise =' '      $('"'"'#ac-reprendre-ok'"'"', el).onclick = () => { if (1) return; achatReprise =' \
+  'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
+prouver 'écarts 21 : le brouillon qui survit à l'"'"'enregistrement' web/public/v10/app.js \
+  '      save(true); untouch(); oublierBrouillon();' '      save(true); untouch();' \
+  'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
+prouver 'écarts 22 : « Reprendre » caché sous « Comment arrive cette pièce ? »' web/public/plateforme/piece.css \
+  ':not(#ac-arrivee):not(#ac-reprendre)' ':not(#ac-arrivee)' \
+  'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
+prouver 'écarts 23 : la dépense neuve qui reste à payer' web/public/v10/app.js \
+  '      if (duJour > 0.0005) {' '      if (false) {' \
+  'Dépense : elle se saisit par ce qu'
+prouver 'écarts 24 : la dépense sans fournisseur sans sa carte « Dépenses diverses »' web/public/v10/app.js \
+  '      if (!sup) return p.kind === '"'"'depense'"'"' && !clos ? diversCarte() : '"'"''"'"';' '      if (!sup) return '"'"''"'"';' \
+  'Dépense : elle se saisit par ce qu'
+prouver 'écarts 25 : la retenue sans ce que reçoit le fournisseur' web/public/v10/app.js \
+  '<span>Le fournisseur reçoit ${C.money(verse, cur)} ; ' '<span>' \
+  'Nadia commande, reçoit en deux fois, saisit et règle la facture'
+prouver 'écarts 26 : la pièce lue d'"'"'El Fatoora sans son bandeau' web/public/v10/app.js \
+  '${luParIA ? (luParIA.teif ? bandeauLuTeif(luParIA) : bandeauLuParIA(luParIA)) : '"'"''"'"'}' '${luParIA && !luParIA.teif ? bandeauLuParIA(luParIA) : '"'"''"'"'}' \
+  'la facture électronique reçue : une page, la catégorie sous sa case'
+prouver 'écarts 27 : le XML joint montré comme une icône' web/public/v10/app.js \
+  'if (/xml/i.test(r.type) && window.SkanTeif && r.blob) {' 'if (false) {' \
+  'la facture électronique reçue : une page, la catégorie sous sa case'
+prouver 'écarts 28 : le XML d'"'"'une facture électronique refusé comme justificatif' serveur/v10/pieces-jointes.ts \
+  '      const sorte = sorteJointeDe(fichier);' '      const sorte = sorteDe(fichier);' \
+  'le XML d'"'"'une facture électronique (TEIF) se joint'
+prouver 'écarts 29 : n'"'"'importe quel XML accepté' serveur/achats/sorte.ts \
+  '  if (!/^<TEIF[\s>/]/.test(apres)) return null;
+' '' \
+  'le XML d'"'"'une facture électronique (TEIF) se joint'
+prouver 'écarts 30 : un TEIF qui porte un script accepté' serveur/achats/sorte.ts \
+  '  if (/<\s*script\b|<!DOCTYPE|<!ENTITY|http:\/\/www\.w3\.org\/(2000\/svg|1999\/xhtml)/i.test(texte)) return null;
+' '' \
+  'le XML d'"'"'une facture électronique (TEIF) se joint'
+prouver 'écarts 31 : la base qui refuse le XML' base/migrations/0178_justificatif_xml.sql \
+  ''"'"'application/pdf'"'"', '"'"'application/xml'"'"'));' ''"'"'application/pdf'"'"'));' \
+  'le XML d'"'"'une facture électronique (TEIF) se joint'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

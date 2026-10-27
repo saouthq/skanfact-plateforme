@@ -13312,6 +13312,9 @@
   // enregistrée — ou d'une pièce neuve et vide — et jetait ce qu'on venait de lire et de joindre.
   // Consommé une fois, et seulement pour la page qui l'a posé.
   let achatReprise = null;
+  // (27/10/2026, maquette achat « ↶ Annuler la dernière modification ») Les modifications d'un achat, pour Ctrl Z : gardées le
+  // temps de la pièce (la page se redessine en annulant, la pile reste).
+  let annulAchat = null;
   // Le crochet de démonstration de la lecture OCR : un seul abonnement, qui délègue à la page
   // d'achat ouverte (voir routes.achat).
   let ocrDemoHandler = null;
@@ -13493,8 +13496,10 @@
             part = C.retenueDesReglements(essai, company(), data).parts.__essai || 0;
           }
           const note = avecExo ? C.noteExonerationRS(supRs, d0, p.withholdingRate) : null;
+          // (27/10/2026, maquette achat « Enregistrer un règlement ») La retenue en titre, ce que le fournisseur reçoit dessous.
+          const verse = C.round3(Number(v.amount) || 0), solde2 = verse >= reste - 0.0005;
           $('#spf-rs', root).innerHTML = (part > 0.0005
-            ? `Ce règlement retient <b>${C.money(part, cur)}</b> de retenue à la source : tu la reverses à l'État avec la déclaration ${C.deLibelle(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1] + ' ' + d0.slice(0, 4))}, et tu en remets l'attestation au fournisseur ; elle s'établit sur TEJ, la plateforme du ministère des Finances. <em>À VÉRIFIER avec ton comptable.</em>`
+            ? `<div class="bandeau gris">${lfIc('aide', 16, 2)}<span class="txt"><b>Ce règlement retient ${C.money(part, cur)} (${pct(p.withholdingRate)} %) : tu les reverses avec la déclaration ${C.deLibelle(C.MONTHS_FR[Number(d0.slice(5, 7)) - 1] + ' ' + d0.slice(0, 4))}</b><span>Le fournisseur reçoit ${C.money(verse, cur)} ; ${solde2 ? 'la facture est soldée avec la retenue' : `il restera ${C.money(C.round3(reste - verse), cur)} à régler`}. L'attestation à lui remettre se prépare d'elle-même (elle s'établit sur TEJ, la plateforme du ministère des Finances). Le taux et l'assiette : À VÉRIFIER avec ton comptable.</span></span></div>`
             : '') + (note ? ` <span class="${note.ton === 'warn' ? 'warn-text' : 'muted'}">${h(note.texte)}</span>` : '');
         };
         $('#spf', root).addEventListener('input', annoncer);
@@ -13604,9 +13609,10 @@
   }
   routes.achat = (parts) => {
     if (parts[0] === 'envoyee') { pageEnvoiCabinet(); return; }
-    let p, isNew = false, repris = false, luParIA = null;
+    let p, isNew = false, repris = false, luParIA = null, payeeInit = 'especes', parAnnuler = false, repriseSale = false;
     if (achatReprise && achatReprise.hash === location.hash) {
-      p = achatReprise.p; isNew = achatReprise.isNew; repris = true; luParIA = achatReprise.lecture || null; achatReprise = null;
+      p = achatReprise.p; isNew = achatReprise.isNew; repris = true; luParIA = achatReprise.lecture || null; payeeInit = achatReprise.payeeDep != null ? achatReprise.payeeDep : 'especes';
+      parAnnuler = !!achatReprise.parAnnuler; repriseSale = !!achatReprise.sale; achatReprise = null;
     } else if (parts[0] === 'new') {
       const sup = parts[1] && parts[1] !== '-' ? parts[1] : '';
       p = newPurchase(parts[2] || (parts[1] === 'depense' ? 'depense' : 'facture'), supplierById(sup) ? sup : '');
@@ -13660,7 +13666,7 @@
       : kind === 'acompte'
         ? { titre: 'Nouvel acompte versé', numero: 'Référence de l\'acompte', invite: 'Facture d\'acompte, reçu, virement…', lignes: 'Saisis au moins le total hors taxes et son taux de TVA : c\'est ce qui permet de récupérer la TVA de l\'acompte.' }
         : kind === 'depense'
-          ? { titre: 'Nouvelle dépense', numero: 'Référence du justificatif', invite: 'Ticket, reçu…', lignes: 'Tape ce que tu as payé dans « Montant payé (TTC) » et choisis son taux de TVA : SkanFact en déduit le hors taxes.' }
+          ? { titre: 'Nouvelle dépense', numero: 'Référence du ticket', invite: 'facultatif', lignes: 'Tape ce que tu as payé dans « Montant payé (TTC) » et choisis son taux de TVA : SkanFact en déduit le hors taxes.' }
           : { titre: 'Nouvelle facture d\'achat', numero: 'Numéro de la facture', invite: 'Celui écrit sur la facture du fournisseur', lignes: 'Saisis au moins le total hors taxes et son taux de TVA : c\'est ce qui permet de récupérer la TVA.' };
     // Au forfait ou exonéré, la TVA d'un achat ne se récupère pas (10.14.0) : la phrase qui promettait
     // de la récupérer se lisait au-dessus d'une case « Déduct. » éteinte.
@@ -13697,7 +13703,11 @@
     // l'étranger est libellée en euros ou en dollars : l'écran la montre telle que le fournisseur
     // l'a écrite, et tout ce qui agrège passe par `t.base`.
     let cur = p.currency || company().currency;
+    // Le signe de la devise dans la puce du taux (« 1 € = 3,398 DT »), comme la fenêtre de la facture.
+    const symb = c => ({ EUR: '€', USD: '$', GBP: '£' })[C.normCurrency(c)] || c;
     const stored = isNew ? null : purchaseById(p.id);
+    // Le brouillon d'un achat neuf se garde sur « mon ordinateur » seulement (la session gardée sur l'appareil).
+    const brouillonPossible = isNew && !!bridge.brouillonAchat && bridge.brouillonAchat.garde();
     // Un achat daté d'un mois CLÔTURÉ se lit, se règle et reçoit son justificatif ; il ne se modifie
     // plus — et il le dit AVANT qu'on tape (10.14.0). L'éditeur de vente le fait depuis cette
     // version ; celui d'achat s'ouvrait modifiable, et « Enregistrer » répondait par la fenêtre de
@@ -13724,6 +13734,7 @@
     const pillAchat = () => {
       // (1.160.0, maquette « Lue par l'IA · à vérifier ») Une pièce neuve remplie par l'IA le dit, en ambre tant qu'une case
       // reste à comparer avec la photo.
+      if (!stored && luParIA && luParIA.teif) return '<span class="badge envoyée ed-pill">Lue depuis El Fatoora</span>';
       if (!stored && luParIA) return luParIA.reste && luParIA.reste.length ? '<span class="badge partielle ed-pill">Lue par l\'IA · à vérifier</span>' : '<span class="badge envoyée ed-pill">Lue par l\'IA</span>';
       if (!stored) return '<span class="badge brouillon ed-pill">Brouillon</span>';
       if (!solde) return '';
@@ -13753,9 +13764,24 @@
           ${bridge.messagerie && bridge.messagerie.envoyerFichier && messagerieVue && messagerieVue.cabinet ? `<button type="button" class="btn ac-choix" id="ac-cabinet"${dis}><span class="ac-ic">${lfIc('comptable', 20)}</span><span class="ac-t"><b>Confier au cabinet</b><span>Tu envoies la photo à ton comptable, il la saisit</span></span></button><input type="file" id="ac-cabinet-f" hidden multiple accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf">`
           : bridge.messagerie ? `<a class="btn ac-choix" href="#/comptable" id="ac-cabinet"><span class="ac-ic">${lfIc('comptable', 20)}</span><span class="ac-t"><b>Confier au cabinet</b><span>Tu envoies la photo à ton comptable, il la saisit</span></span></a>` : ''}
         </div>${bloqueChoix ? '' : `<button type="button" class="ac-zone" id="ac-zone">${lfIc('depot', 20)}<span>Ou glisse ici le fichier de la facture : un XML El Fatoora se lit tout seul ; pour une photo ou un PDF, SkanFact te demande si tu veux la lecture par l'IA</span></button>`}</div>` : '';
+    // (27/10/2026, maquette achat « Dépense ») Un ticket se paie sur le moment : une dépense NEUVE s'enregistre réglée, à la
+    // caisse ou par carte, à sa date (« pas encore » la laisse à régler). Rangée, le champ lit son dernier règlement.
+    let payeeDep = payeeInit;
+    const payeeLue = () => {
+      const r = ((stored && stored.payments) || []).slice().sort((a, b) => String(a.date || '').localeCompare(String(b.date || ''))).pop();
+      return r ? `le ${lfJm(r.date)} · ${r.method === 'especes' ? 'à la caisse' : methodLabel(r.method).toLowerCase()}` : 'pas encore : à régler';
+    };
+    // (27/10/2026, maquette achat « Dépense ») Une dépense sans fournisseur se range sous « Dépenses diverses » : la carte le
+    // dit d'avance, au lieu d'une liste vide à choisir.
+    const diversCarte = () => `<div class="ed-cl-tete"><span class="av ac-divers" aria-hidden="true">—</span><div class="ed-cl-nom"><b>${h(NOM_DIVERS)}</b><span>sans fournisseur : un ticket, un reçu</span></div>
+        <div class="ed-cl-gestes">${clos ? '' : '<button type="button" class="btn btn-sm" id="sup-changer">Changer</button>'}</div></div>
+        <div class="ed-cl-puces"><span class="ed-chip">la fiche qui range les tickets sans fournisseur</span></div>`;
     const supplierCarte = () => {
       const sup = supplierById(p.supplierId);
-      if (!sup) return '';
+      if (!sup) return p.kind === 'depense' && !clos ? diversCarte() : '';
+      const exo = C.exonerationRS(sup, p.date || C.today());
+      // Un fournisseur dont une pièce est déjà arrivée par El Fatoora (son fichier joint) : ce qu'on sait, pas ce qu'on suppose.
+      const efacture = (data.purchases || []).some(x => x.supplierId === sup.id && (x.attachments || []).some(a => /\.xml$/i.test(a.name || a.file || '')));
       const s = C.supplierSummary(data, company(), sup.id);
       const base = company().currency;
       const ville = String(sup.address || '').split(/\n/).map(x => x.trim()).filter(Boolean).pop() || '';
@@ -13769,7 +13795,9 @@
       const doitTout = ceRetard ? C.round3(enBase(p, solde.remaining) + autres.reduce((a, x) => a + enBase(x, C.purchaseBalance(x, company(), data).remaining), 0)) : 0;
       const puces = [
         ceRetard ? `<span class="ed-chip rouge">tu lui dois ${C.money(doitTout, base)} · dont ${C.money(solde.remaining, cur)} en retard de ${pl(Math.round((Date.parse(C.today()) - Date.parse(p.dueDate)) / 86400000), 'jour')}</span>` : autres.length ? `<span class="ed-chip${enRetard ? ' rouge' : ''}">${pl(autres.length, 'autre facture', 'autres factures')} à payer · ${enRetard ? `${enRetard} en retard` : 'rien en retard'}</span>` : solde && solde.remaining > 0.0005 ? '<span class="ed-chip">rien d\'autre à lui payer</span>' : '<span class="ed-chip ok">ne lui dois rien</span>',
-        sup.paymentTermsDays !== '' && sup.paymentTermsDays != null ? `<span class="ed-chip">paie à ${pl(Number(sup.paymentTermsDays) || 0, 'jour')}</span>` : '',
+        sup.paymentTermsDays !== '' && sup.paymentTermsDays != null ? `<span class="ed-chip">${Number(sup.paymentTermsDays) > 0 ? `paie à ${pl(Number(sup.paymentTermsDays), 'jour')}` : 'paie à réception'}</span>` : '',
+        exo ? `<span class="ed-chip ok" id="ac-sup-exo">exonéré de retenue jusqu'au ${C.fmtDate(exo.au)}${exo.numero ? ` (attestation n° ${h(exo.numero)})` : ''}</span>` : '',
+        efacture ? '<span class="ed-chip">factures électroniques : oui (El Fatoora)</span>' : '',
         s.count && isNew ? `<span class="ed-chip">${pl(s.count, 'pièce')} de lui · ${C.money(s.ht, base)} HT</span>` : '',
       ].filter(Boolean).join('');
       return `<div class="ed-cl-tete">${pastilleClient(sup.id, sup.name)}<div class="ed-cl-nom"><b>${h(sup.name)}</b><span>${qui}</span></div>
@@ -13851,6 +13879,9 @@
     const bandeauLuParIA = lu => (lu.reste.length
       ? `<div class="bandeau ambre" id="ac-lu-ia" role="status">${lfIc('photo', 18, 2)}<span class="txt"><b>Lue par l'IA : ${pl(lu.reste.length, 'case')} à vérifier</b><span>La lecture n'est pas sûre ${h(lu.reste.length > 1 ? `${lu.reste.slice(0, -1).join(', ')} et ${lu.reste[lu.reste.length - 1]}` : lu.reste[0])}. ${lu.reste.length > 1 ? 'Elles sont marquées' : 'Elle est marquée'} en ambre ; compare avec ${lu.pdf ? 'le PDF' : 'la photo'} avant d'enregistrer.</span></span></div>`
       : `<div class="bandeau info" id="ac-lu-ia" role="status">${lfIc('eclat', 18, 2)}<span class="txt"><b>Lue par l'IA${lu.tranches ? ', et tout a été vérifié' : ''}</b><span>${lu.tranches ? 'Les cases douteuses ont été tranchées à la lecture' : 'Aucune case douteuse à la lecture'}${lu.juste ? ' ; les totaux tombent juste au millime.' : ' ; vérifie les totaux sur la photo jointe.'}</span></span></div>`);
+    // (27/10/2026, maquette achat « E-facture ») La pièce remplie depuis le fichier El Fatoora : d'où viennent les montants, et
+    // ce que le fichier ne dit pas (la destination de chaque ligne).
+    const bandeauLuTeif = lu => `<div class="bandeau info" id="ac-lu-ia" role="status">${lfIc('nuage', 18, 2)}<span class="txt"><b>Lue depuis le fichier El Fatoora du fournisseur : chaque montant vient du fichier${lu.signe ? ' signé' : ''}</b><span>Fournisseur, numéro, dates, lignes et TVA sont repris tels quels${(p.attachments || []).some(a => /\.xml$/i.test(a.name || '')) ? ' ; le fichier est joint comme justificatif' : ''}. Choisis la destination de chaque ligne (stock, charge, immobilisation) : le fichier ne la connaît pas.</span></span></div>`;
     const retardRange = () => !isNew && !!stored && !!solde && p.kind !== 'avoir' && solde.remaining > 0.0005 && !!p.dueDate && p.dueDate < C.today();
     const bandeauRange = () => {
       const band = (ton, ic, titre, txt, geste, id, idTxt) => `<div class="bandeau ${ton}" id="${id}" role="status">${lfIc(ic, 18)}<span class="txt"${idTxt ? ` id="${idTxt}"` : ''}><b>${h(titre)}</b><span>${h(txt)}</span></span>${geste || ''}</div>`;
@@ -13896,12 +13927,16 @@
         ? { t: 'Remboursé', afaire: true, d: 'attendu', g: '<button type="button" class="btn btn-sm" data-frise="recu">Rembourser</button>' }
         : dernierReglement ? { t: 'Remboursé', fait: true, d: `${lfJm(dernierReglement.date)} · ${methodLabel(dernierReglement.method).toLowerCase()}` }
           : { t: 'Déduit', fait: true, d: L ? `de ${h(L.number || 'sa facture')}` : 'plus rien à récupérer' };
+      // (27/10/2026, maquette achat) Qui l'a saisie (« par Sarra »), ce qu'est son justificatif (le fichier signé, le PDF, la
+      // photo), et pour une dépense, ce qu'elle a payé (son objet).
+      const par = bridge.saisiPar ? bridge.saisiPar(stored.id) : '';
+      const quelJustif = pj > 1 ? pl(pj, 'fichier joint', 'fichiers joints') : venue === 'par El Fatoora' ? 'le fichier signé' : venue === 'PDF' ? `le PDF${av ? ' de l\'avoir' : ''}` : 'la photo';
       return friseHtml([
-        { t: av ? 'Reçu' : p.kind === 'depense' ? 'Faite' : 'Reçue', fait: true, d: [lfJm(p.date), venue].filter(Boolean).join(' · ') },
-        { t: av ? 'Saisi' : 'Saisie', fait: true, d: saisieLe || (av ? 'enregistré' : 'enregistrée') },
-        { t: 'Justificatif', fait: pj > 0, ko: !pj, d: pj ? (venue === 'par El Fatoora' ? 'le fichier signé' : pl(pj, 'fichier joint', 'fichiers joints')) : 'manque', g: pj || bridge.piecesJointes === false ? '' : '<button type="button" class="btn btn-sm" data-frise="attach-top">Joindre</button>' },
+        { t: av ? 'Reçu' : p.kind === 'depense' ? 'Faite' : 'Reçue', fait: true, d: [lfJm(p.date), p.kind === 'depense' && String(p.subject || '').trim() ? h(p.subject) : venue].filter(Boolean).join(' · ') },
+        { t: av ? 'Saisi' : 'Saisie', fait: true, d: [saisieLe || (av ? 'enregistré' : 'enregistrée'), par ? `par ${h(par)}` : ''].filter(Boolean).join(' · ') },
+        { t: 'Justificatif', fait: pj > 0, ko: !pj, d: pj ? quelJustif : 'manque', g: pj || bridge.piecesJointes === false ? '' : '<button type="button" class="btn btn-sm" data-frise="attach-top">Joindre</button>' },
         av ? quatrieme : { t: 'Réglée', fait: !!regle, ko: !!enRetard, afaire: !regle && !enRetard, d: regle ? (dernierReglement ? `${lfJm(dernierReglement.date)} · ${methodLabel(dernierReglement.method).toLowerCase()}` : 'plus rien n\'est dû') : enRetard ? `échue le ${lfJm(p.dueDate)}` : p.dueDate ? `échéance ${lfJm(p.dueDate)}` : `reste ${C.money(solde ? solde.remaining : 0, cur)}`, g: !regle && solde && solde.remaining > 0.0005 ? '<button type="button" class="btn btn-sm" data-frise="pay">Régler</button>' : '' },
-        ...(avecCabinet ? [{ t: 'Au cabinet', fait: false, d: `<span id="ed-fr-cabinet">${av ? 'quand il le verra' : !pj ? 'attend le justificatif' : 'quand il la validera'}</span>`, id: 'ed-fr-cab' }] : []),
+        ...(avecCabinet ? [{ t: 'Au cabinet', fait: false, d: `<span id="ed-fr-cabinet">${av ? 'quand il le verra' : !pj ? (p.kind === 'depense' ? 'attend le ticket' : 'attend le justificatif') : 'quand il la validera'}</span>`, id: 'ed-fr-cab' }] : []),
       ]);
     };
     const friseHtml = etapes => `<div class="panel ed-frise${etapes.length === 3 ? ' trois' : etapes.length === 4 ? ' quatre' : ''}" id="ed-frise"><ol>${etapes.map((x, i) => `<li class="${x.fait ? 'fait' : x.ko ? 'alerte' : x.afaire ? 'afaire' : ''}"${x.id ? ` id="${x.id}"` : ''}>
@@ -13913,10 +13948,11 @@
       <div class="page-head ed-tete">
         ${retourListe('#/achats', 'achats')}<div class="ed-titre">
           <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/achats" class="ed-retour">Achats et dépenses</a><span class="sep" aria-hidden="true">›</span><span aria-current="page"${isNew ? ' id="b-chemin"' : ''}>${isNew ? h(motsDePiece(p.kind).titre) : titreAchat}</span></div>
-          <div class="ed-h1"><h1>${titreAchat}</h1>${pillAchat()}<span class="ed-enreg" id="ed-enreg"${isNew || clos ? ' hidden' : ''}>${lfIc('coche', 14, 2.6)}enregistrée</span><span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
+          <div class="ed-h1"><h1>${titreAchat}</h1>${pillAchat()}<span class="ed-enreg" id="ed-enreg"${isNew || clos ? ' hidden' : ''}>${lfIc('coche', 14, 2.6)}enregistrée</span>${brouillonPossible ? `<span class="ed-enreg ac-garde" id="ac-garde"${repris ? '' : ' hidden'} title="Gardé sur cet appareil : si l'onglet se ferme, la pièce se reprend. Elle ne compte qu'une fois enregistrée.">${lfIc('nuage', 14, 2)}brouillon gardé à chaque frappe</span>` : ''}<span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
           ${isNew || String(stored.number || '').trim() ? '' : `<div class="small muted"><span title="${h('Sa référence dans les écritures et chez ton comptable')}">réf. ${h(C.referenceAchat(stored, data))}</span></div>`}
         </div>
         <div class="actions">
+          ${clos ? '' : `<button type="button" class="btn ico" id="ac-annuler" title="Annuler la dernière modification (Ctrl Z)" aria-label="Annuler la dernière modification"${attendChoix ? ' hidden' : ''} disabled>${lfIc('defaire', 17)}</button>`}
           ${bridge.piecesJointes === false ? '' : `<button class="btn" id="attach-top" title="Joindre la photo ou le PDF de la pièce"${attendChoix ? ' hidden' : ''}>${lfIc('oeil', 16)}Justificatif</button>`}
           <div class="more"${attendChoix ? ' hidden' : ''}><button class="btn ico" id="more-btn" aria-label="Tous les gestes de la pièce" title="Tous les gestes de la pièce">${lfIc('plus', 18)}</button><div class="more-list" id="more-list" hidden>
             ${isNew ? '' : `<button id="dup">Dupliquer</button>
@@ -13937,7 +13973,7 @@
       <div class="buy-editor editor charte${attendChoix ? ' attend-choix' : ''}" data-devise="${h(cur)}">
         <div class="ed-gauche">
           ${choixArrivee}
-          ${luParIA ? bandeauLuParIA(luParIA) : ''}
+          ${luParIA ? (luParIA.teif ? bandeauLuTeif(luParIA) : bandeauLuParIA(luParIA)) : ''}
           ${bandeauRange()}
           ${avecFriseAchat ? friseAchat() : ''}
           <div class="bandeau info" id="ac-lie-bandeau" hidden></div>
@@ -13950,7 +13986,8 @@
               <div class="ac-ligne4">
                 ${field(lbl(`<span id="b-num-lbl">${h(motsDePiece(p.kind).numero)}</span>`, 'buy.number'), 'number', p.number || '', 'text', `placeholder="${h(motsDePiece(p.kind).invite)}"`)}
                 ${dateFieldHtml(lbl('Date de la pièce', 'buy.date'), 'date', p.date, { ro: clos })}
-                ${dateFieldHtml(lbl('Échéance de paiement', 'buy.due'), 'dueDate', p.dueDate || '', { quick: true, ro: clos })}
+                <div class="field ac-ech">${lbl('Échéance', 'buy.due')}${dateInput('dueDate', p.dueDate || '', { quick: true, ro: clos })}<small class="ac-ech-note" id="ac-ech-note" aria-live="polite"></small></div>
+                <div class="field" id="ac-dep-paye-f"${isDep ? '' : ' hidden'}>${lbl('Payée', 'buy.depPaye')}${stored ? `<span class="ac-dep-paye-lu" id="ac-dep-paye-lu">${h(payeeLue())}</span>` : `<select id="ac-dep-paye"${clos ? ' disabled' : ''}>${[['especes', 'à la caisse, le jour même'], ['carte', 'par carte, le jour même'], ['', 'pas encore : à régler plus tard']].map(([v, l]) => `<option value="${v}"${v === payeeDep ? ' selected' : ''}>${l}</option>`).join('')}</select>`}</div>
                 <div class="field" id="b-lie-field" ${C.PURCHASE_LIES.includes(p.kind) ? '' : 'hidden'}>${lbl('Facture concernée', 'buy.lie')}
                 ${combo({ name: 'achatLie', value: p.achatLie || '', items: lieItems(p.supplierId), placeholder: phLie, search: 'Rechercher : n°, objet…', ro: clos })}
                 </div>
@@ -13960,12 +13997,12 @@
               </div>
               <div class="ed-puces" role="group" aria-label="Options de la pièce">
                 <label class="puce-champ" hidden><span>Nature</span><select name="kind">${C.PURCHASE_KINDS.map(([v, l]) => `<option value="${v}" ${p.kind === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
-                <label class="puce-champ${cur === company().currency ? '' : ' on'}" id="ac-puce-dev"><span>Devise</span><select name="currency" title="La devise de la pièce, telle que le fournisseur l'a écrite">${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(({ DT: 'Dinar', TND: 'Dinar', EUR: 'Euro', USD: 'Dollar', GBP: 'Livre sterling' })[C.normCurrency(c)] || C.libelleDevise(c))}</option>`).join('')}</select></label>
+                <div class="puce-champ${cur === company().currency ? '' : ' on'}" id="ac-puce-dev" role="group" aria-label="Devise de la pièce"><label class="ac-dev-l"><span>Devise</span><select name="currency" title="La devise de la pièce, telle que le fournisseur l'a écrite">${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(({ DT: 'Dinar', TND: 'Dinar', EUR: 'Euro', USD: 'Dollar', GBP: 'Livre sterling' })[C.normCurrency(c)] || C.libelleDevise(c))}</option>`).join('')}</select></label><span class="ac-taux" id="b-rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="b-rate-lbl">· 1 ${h(symb(cur))} =</span><input type="number" name="exchangeRate" value="${h(p.exchangeRate || '')}" step="0.0001" min="0" class="num" placeholder="?" aria-label="Taux de change : combien de ${h(company().currency)} pour 1 ${h(cur)}"><span class="unite">${h(company().currency)}</span>${info('buy.rate')}</span></div>
                 <label class="puce-champ${Number(p.withholdingRate) ? ' on' : ''}" id="ac-puce-rs"><span>Retenue opérée</span>${withholdingSelect('withholdingRate', p.withholdingRate)}<span class="suffixe" id="ac-rs-fiche"></span></label>
                 <label class="puce-champ"><span>Timbre et frais</span><input type="number" name="fees" value="${Number(p.fees) ? h(p.fees) : ''}" placeholder="aucun" step="0.001" min="0" class="num" aria-label="Timbre et frais"><span class="unite" data-unite-devise>${h(cur)}</span></label>
                 ${C.depotsDe(data).length > 1 ? `<label class="puce-champ"><span>Dépôt</span><select name="depotId" ${clos ? 'disabled' : ''}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (p.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
                 ${clos ? '' : `<button type="button" class="puce-plus" data-montrer="ac-affaire"${p.projectId ? ' hidden' : ''}>${lfIc('croix', 13, 2.4)}Affaire</button>`}
-                <label class="puce-champ obligatoire" id="b-rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="b-rate-lbl">Taux · 1 ${h(cur)} =</span><input type="number" name="exchangeRate" value="${h(p.exchangeRate || '')}" step="0.0001" min="0" class="num" placeholder="?" aria-label="Taux de change : combien de ${h(company().currency)} pour 1 ${h(cur)}"><span class="unite">${h(company().currency)}</span>${info('buy.rate')}</label>
+
               </div>
               <div class="ed-options ac-options">
                 <div class="field" id="ac-affaire"${p.projectId ? '' : ' hidden'}>${lbl('Affaire (optionnel)', 'buy.project')}
@@ -13978,17 +14015,17 @@
             ${clos || !isNew ? '' : `<div class="catalog-pick"><div id="b-cat" class="ac-ajout">${lfIc('loupe', 16)}${combo({ items: [], placeholder: 'Ajouter un article du catalogue, au coût d\'achat', search: 'Rechercher dans le catalogue…' })}<kbd>Ctrl L</kbd></div>
               <button class="btn btn-sm" id="add-line">+ Ligne libre</button>
               <span class="small muted" id="b-lignes-hint">${h(motsDePiece(p.kind).lignes)}</span></div>`}
-            ${isDep && !clos && isNew ? `<div class="inline mt" id="b-ttc-zone"><label class="field" style="max-width:240px">Montant payé (TTC)<input type="number" id="b-ttc" class="num" step="0.001" min="0" placeholder="ce que dit le ticket"></label>
-              <span class="small muted" id="b-ttc-note">Pour une dépense d'une seule ligne : SkanFact calcule le hors taxes et la TVA d'après le taux choisi.</span></div>` : ''}
+            ${isDep && !clos && isNew ? `<div class="inline mt" id="b-ttc-zone"><label class="field" style="max-width:240px">Montant payé (TTC)<span class="ac-ttc-m"><input type="number" id="b-ttc" class="num" step="0.001" min="0" placeholder="ce que dit le ticket"><span class="unite">${h(cur)}</span></span></label>
+              <span class="small muted" id="b-ttc-note">SkanFact en déduit le hors taxes et la TVA, au millime : tape ce qui est écrit sur le ticket.</span></div>` : ''}
             <table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r" style="width:62px">Qté</th><th class="r" style="width:92px">P.U. HT</th><th style="width:76px">TVA</th>
               <th style="width:150px">Destination ${info('buy.destination')}</th><th class="nw" style="width:96px">Déduct. ${info('buy.deductible')}</th><th class="r" style="width:118px">Total HT</th><th></th></tr></thead>
               <tbody id="b-lines"></tbody></table>
             <div id="b-ecarts" class="mt"></div>
             <div id="b-stock-hint" hidden></div>
-            ${Array.isArray(p.receptions) && p.receptions.length ? `<p class="note-v ac-recep" id="b-receptions">${lfIc('info', 14, 2)}<span>Saisie depuis ${p.receptions.length > 1 ? 'les réceptions' : 'la réception'} ${p.receptions.map(x => `<a href="#/reception/${h(x.id)}">${h(x.number || 'sans numéro')}</a>`).join(', ')} : ${phraseReceptionsAchat(p.receptions)}. ${info('cf.facture')}</span></p>` : ''}
+            ${Array.isArray(p.receptions) && p.receptions.length ? `<p class="note-v ac-recep" id="b-receptions">${lfIc('info', 14, 2)}<span>Saisie depuis ${p.receptions.length > 1 ? 'les réceptions' : 'la réception'} ${p.receptions.map(x => `<a href="#/reception/${h(x.id)}">${h(x.number || 'sans numéro')}</a>`).join(', ')} : ${phraseReceptionsAchat(p.receptions)}. ${info('cf.facture')}</span>${p.receptions.length === 1 ? `<a class="btn btn-sm" href="#/reception/${h(p.receptions[0].id)}">Voir la réception</a>` : ''}</p>` : ''}
             <p class="note-v" id="b-dest" hidden></p>
           </div>
-          ${isNew ? '' : `<div class="panel"><h2>Règlements ${info('buy.payments')}</h2><div id="b-pay"></div></div>`}
+          ${isNew ? '' : '<div class="panel ac-reglements" id="b-pay-panel"><div id="b-pay"></div></div>'}
           <div class="panel ac-objet-notes"><h2>Objet et notes internes</h2>
             <div class="ac-on-grille">
               <label class="field">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" id="b-subject" value="${h(p.subject || '')}" placeholder="${h(inviteObjet(p.kind))}"${clos ? ' disabled' : ''}></label>
@@ -14010,13 +14047,43 @@
     let dirty = false;
     // (plateforme, lot achats) La barre « Enregistrer » du bas suit la saisie (`majBarre`, branchée plus bas).
     let majBarre = () => {};
-    const touch = () => { if (dirty) return; dirty = true; const el = $('#dirty-dot'); if (el) el.hidden = false; const ok = $('#ed-enreg'); if (ok) ok.hidden = true; majBarre(); enregistrerDevientPrincipal(); reportDirty(); };
+    // (27/10/2026, maquette achat « brouillon gardé à chaque frappe ») Un achat neuf se garde sur cet appareil 1,5 s après la
+    // dernière frappe, dès qu'il a un fournisseur, une ligne ou un fichier : un onglet fermé ne perd rien. Il ne s'enregistre
+    // pas pour autant (un achat enregistré compte) ; la pièce se rouvre avec « Reprendre ».
+    const brouillonA = brouillonPossible ? bridge.brouillonAchat : null;
+    let brouillonTimer = null;
+    const aDuContenu = () => !!p.supplierId || (p.lines || []).some(l => String(l.label || '').trim() || Number(l.unitPrice)) || (p.attachments || []).length > 0;
+    const garderPlusTard = () => {
+      if (!brouillonA) return;
+      clearTimeout(brouillonTimer);
+      brouillonTimer = setTimeout(() => {
+        if (!document.contains(head) || !aDuContenu()) return;
+        brouillonA.garder({ p: deepCopy(p), payeeDep, le: Date.now() });
+        const g = $('#ac-garde'); if (g) g.hidden = false;
+      }, 1500);
+    };
+    const oublierBrouillon = () => { if (brouillonA) { clearTimeout(brouillonTimer); brouillonA.effacer(); } };
+    if (!parAnnuler || !annulAchat || annulAchat.id !== p.id) annulAchat = { id: p.id, pile: [], retablir: [] };
+    // La pièce de la page affichée : « Rétablir », dans le toast, vient de la page d'avant (elle s'est redessinée).
+    annulAchat.piece = () => p;
+    let dernierEtat = JSON.stringify(p), etatTimer = null;
+    const majAnnuler = () => { const b = $('#ac-annuler'); if (b) b.disabled = !annulAchat.pile.length; };
+    const noterModif = () => {
+      if (clos) return;
+      // Un « change » qui ne change rien (une liste qui se pose en se dessinant) n'est pas une modification à défaire.
+      if (!etatTimer && JSON.stringify(p) === dernierEtat) return;
+      if (!etatTimer) { annulAchat.pile.push(dernierEtat); if (annulAchat.pile.length > 60) annulAchat.pile.shift(); annulAchat.retablir.length = 0; majAnnuler(); }
+      clearTimeout(etatTimer);
+      etatTimer = setTimeout(() => { etatTimer = null; dernierEtat = JSON.stringify(p); }, 700);
+    };
+    const touchSansNoter = () => { garderPlusTard(); if (dirty) return; dirty = true; const el = $('#dirty-dot'); if (el) el.hidden = false; const ok = $('#ed-enreg'); if (ok) ok.hidden = true; majBarre(); enregistrerDevientPrincipal(); reportDirty(); };
+    const touch = () => { noterModif(); garderPlusTard(); if (dirty) return; dirty = true; const el = $('#dirty-dot'); if (el) el.hidden = false; const ok = $('#ed-enreg'); if (ok) ok.hidden = true; majBarre(); enregistrerDevientPrincipal(); reportDirty(); };
     const untouch = () => { dirty = false; const el = $('#dirty-dot'); if (el) el.hidden = true; majBarre(); reportDirty(); };
     setGuard({ dirty: () => dirty, get what() { return p.kind === 'depense' ? 'cette dépense' : p.kind === 'avoir' ? 'cet avoir' : p.kind === 'acompte' ? 'cet acompte' : 'cette facture d\'achat'; },
       save: async () => { if (!validate() || !await doublonOk()) return false; const ok = persist(); if (ok) { creerFichesProposees(); untouch(); } return ok; },
       // Quitter une pièce NEUVE sans l'enregistrer : les fichiers déjà copiés pour elle n'appartiennent
       // à personne, on les retire. L'original de l'utilisateur, lui, ne bouge jamais.
-      discard: () => { if (isNew) (p.attachments || []).forEach(a => { try { bridge.removeAttachment(p.id, a.file); } catch (_) {} }); } });
+      discard: () => { if (isNew) { oublierBrouillon(); (p.attachments || []).forEach(a => { try { bridge.removeAttachment(p.id, a.file); } catch (_) {} }); } } });
 
     // --- lignes
     const body = $('#b-lines');
@@ -14119,14 +14186,14 @@
       for (const d of [0, -1, 1, -2, 2, -3, 3]) { const x = C.round3(base + d / 1000); if (C.round3(total(x)) === voulu) { ht = x; break; } }
       Object.assign(l, { qty: 1, unitPrice: Math.max(0, ht) });
       const obtenu = C.round3(total(l.unitPrice));
-      note.textContent = obtenu === voulu ? `Hors taxes : ${C.money(l.unitPrice, cur)} ; TVA à ${taux} % : ${C.money(C.round3(obtenu - l.unitPrice - frais), cur)}.`
+      note.textContent = obtenu === voulu ? `SkanFact en déduit le hors taxes (${C.money(l.unitPrice)}) et la TVA à ${taux} % (${C.money(C.round3(obtenu - l.unitPrice - frais))}), au millime : tape ce qui est écrit sur le ticket.`
         : `Avec ${taux} % de TVA, le total tombe sur ${C.money(obtenu, cur)}, au millime près : vérifie le taux sur ton ticket.`;
       touch(); drawLines();
     };
     if ($('#b-ttc')) $('#b-ttc').addEventListener('input', appliquerTtc);
     body.addEventListener('change', e => { if (e.target.matches('select[data-k=vatRate]')) appliquerTtc(); });
     // Un hors taxes tapé à la main reprend la main : le montant payé s'efface (il ne dirait plus vrai).
-    body.addEventListener('input', e => { if (e.target.matches('input[data-k=unitPrice]') && $('#b-ttc')) { $('#b-ttc').value = ''; $('#b-ttc-note').textContent = 'Pour une dépense d\'une seule ligne : SkanFact calcule le hors taxes et la TVA d\'après le taux choisi.'; } });
+    body.addEventListener('input', e => { if (e.target.matches('input[data-k=unitPrice]') && $('#b-ttc')) { $('#b-ttc').value = ''; $('#b-ttc-note').textContent = 'SkanFact en déduit le hors taxes et la TVA, au millime : tape ce qui est écrit sur le ticket.'; } });
     // Appliquer le régime du jour à une pièce saisie sous un autre : la phrase reste à sa place (elle
     // dit ce qui vient de changer) — une ligne qui disparaît sous le clic ferait remonter la page.
     if ($('#b-regle-ok')) $('#b-regle-ok').onclick = () => {
@@ -14180,6 +14247,8 @@
         txt = `${reprend ? 'Il reprend les lignes de la facture, leur TVA et leur destination. ' : ''}${t.deductibleVAT > 0.0005 ? `Il retire ${C.money(t.deductibleVAT, cur)} de TVA de celle que tu récupères${stock ? ', et ce qu\'il reprend ressort du stock' : ''}. ` : ''}${reste <= 0.0005 ? 'La facture est déjà réglée : le fournisseur te doit ce montant.' : 'Il vient en moins de ce que tu lui dois sur cette facture.'}`;
         geste = '<button type="button" class="btn btn-sm" id="ac-voir-lie">Voir la facture</button>';
       } else if (p.kind === 'avoir') {
+        // (27/10/2026, maquette achat) Le conseil ne sert qu'à la saisie : rangé, l'avoir a son bandeau (ce qu'on te doit).
+        if (!isNew) { el.hidden = true; el.innerHTML = ''; return; }
         titre = 'Un avoir du fournisseur : il vient en moins';
         txt = 'Choisis la facture qu\'il corrige dans « Facture concernée » : il en reprend les lignes et diminue ce que tu lui dois. Sans facture, il reste à te faire rembourser.';
       } else {
@@ -14316,7 +14385,7 @@
         // seuil écrit ici : sans réglage, rien ne se dit).
         const seuilRs = C.seuilRetenue(company());
         const sousSeuil = supR && !(Number(p.withholdingRate) > 0) && Number(C.tauxRetenueFournisseur(supR, p.date)) > 0 && seuilRs > 0 && cur === company().currency && t.totalTTC < seuilRs;
-        rsFiche.textContent = supR && Number(p.withholdingRate) > 0 && Number(p.withholdingRate) === Number(C.tauxRetenueFournisseur(supR, p.date)) ? '· de sa fiche' : sousSeuil ? `· sous ${C.money(seuilRs, company().currency)} TTC` : '';
+        rsFiche.textContent = supR && Number(p.withholdingRate) > 0 && Number(p.withholdingRate) === Number(C.tauxRetenueFournisseur(supR, p.date)) ? '· de sa fiche' : noteRs && noteRs.ton === 'ok' ? '· exonéré' : sousSeuil ? `· sous ${C.money(seuilRs, company().currency)} TTC` : '';
         rsFiche.closest('.puce-champ').classList.toggle('on', Number(p.withholdingRate) > 0);
       }
       const cpt = $('#ac-compte'); if (cpt) { const nl = p.lines.filter(l => String(l.label || '').trim()).length; cpt.textContent = nl ? pl(nl, 'ligne') : 'aucune ligne'; }
@@ -14333,7 +14402,7 @@
         const dejaSaisi = C.achatDoublon(data, p);
         const sansTva = p.lines.filter(l => String(l.label || '').trim() && !l.destination).length;
         const pts = [
-          [!!(supR && String(supR.matricule || '').trim()), !supR ? (p.kind === 'depense' ? 'Sans fournisseur : une dépense peut s\'en passer' : 'Le fournisseur est à choisir') : String(supR.matricule || '').trim() ? 'Le fournisseur a son matricule' : 'Le fournisseur n\'a pas de matricule', supR && !String(supR.matricule || '').trim() ? '<button type="button" class="lien" data-avant="fiche">Sa fiche</button>' : ''],
+          [!!(supR && String(supR.matricule || '').trim()) || (!supR && p.kind === 'depense'), !supR ? (p.kind === 'depense' ? `Sans fournisseur : rangée sous « ${h(NOM_DIVERS)} »` : 'Le fournisseur est à choisir') : String(supR.matricule || '').trim() ? 'Le fournisseur a son matricule' : 'Le fournisseur n\'a pas de matricule', supR && !String(supR.matricule || '').trim() ? '<button type="button" class="lien" data-avant="fiche">Sa fiche</button>' : ''],
           [pj > 0, pj ? `Justificatif joint : ${h((p.attachments[0] || {}).name || 'fichier')}${pj > 1 ? ` (+${pj - 1})` : ''}` : 'Aucun justificatif : joins la photo ou le PDF de la pièce', !pj && bridge.piecesJointes !== false ? '<button type="button" class="lien" data-avant="joindre">Joindre</button>' : ''],
           [!dejaSaisi, dejaSaisi ? `${h(p.number)} est déjà saisie, du ${lfJm(dejaSaisi.date)}` : 'Ce numéro n\'est pas déjà saisi', dejaSaisi ? `<a class="lien" href="#/achat/${h(dejaSaisi.id)}">Voir</a>` : '', 'aide'],
           [!sansTva, 'Chaque ligne a sa TVA et sa destination', ''],
@@ -14432,13 +14501,24 @@
     // L'échéance que l'application a posée — la date plus le délai du fournisseur (10.14.1, le jumeau
     // de l'éditeur de document) : elle suit la date et le fournisseur tant qu'on n'y a pas touché.
     let dueAuto = echeanceAuto(p.date, p.dueDate, delaiAchat(p.supplierId));
+    // (27/10/2026, maquette achat) Ce que vaut l'échéance, dit dans son champ : « à réception » le jour même, « · de sa
+    // fiche » quand elle tombe au délai de la fiche du fournisseur.
+    const noteEcheance = () => {
+      const n = $('#ac-ech-note', head); if (!n) return;
+      const sup = supplierById(p.supplierId);
+      const aSonDelai = sup && sup.paymentTermsDays !== '' && sup.paymentTermsDays != null && Number(sup.paymentTermsDays) > 0;
+      n.textContent = !p.dueDate || !p.date ? '' : p.dueDate === p.date ? 'à réception' : aSonDelai && p.dueDate === C.addDays(p.date, delaiAchat(p.supplierId)) ? '· de sa fiche' : '';
+    };
     // (plateforme, lot achats) Un avoir n'a pas d'échéance de paiement : le champ se cache pour lui (l'achat neuf la laissait
     // déjà vide).
     const montrerEcheance = () => {
       const champ = $('[name=dueDate]', head);
       const bloc = champ && champ.closest('.field');
-      if (bloc) bloc.hidden = C.PURCHASE_LIES.includes(p.kind);
+      if (bloc) bloc.hidden = C.PURCHASE_LIES.includes(p.kind) || p.kind === 'depense';
+      const paye = $('#ac-dep-paye-f', head); if (paye) paye.hidden = p.kind !== 'depense';
+      noteEcheance();
     };
+    if ($('#ac-dep-paye', head)) $('#ac-dep-paye', head).onchange = e => { e.stopPropagation(); payeeDep = e.target.value; touch(); };
     // (1.155.13) Comme la maquette : « Facture concernée » prend la place de l'échéance ; un avoir ou un acompte n'en a pas.
     if (isNew && C.PURCHASE_LIES.includes(p.kind) && p.dueDate) { p.dueDate = ''; dueAuto = ''; poserDateField(head, 'dueDate', ''); }
     montrerEcheance();
@@ -14447,6 +14527,7 @@
       p.fees = Number(p.fees) || 0;
       p.withholdingRate = Number(p.withholdingRate) || 0;
       touch();
+      noteEcheance();
       const neufDue = e && e.target && e.target.name === 'date' ? echeanceSuivie(p.date, p.dueDate, dueAuto, delaiAchat(p.supplierId)) : '';
       if (neufDue) {
         const avant = p.dueDate;
@@ -14463,7 +14544,8 @@
         cur = p.currency || company().currency;
         poserDevise(head, cur);
         const rf = $('#b-rate-field', head);
-        if (rf) { rf.hidden = cur === company().currency; $('.b-rate-lbl', rf).textContent = `Taux · 1 ${cur} =`; }
+        if (rf) { rf.hidden = cur === company().currency; $('.b-rate-lbl', rf).textContent = `· 1 ${symb(cur)} =`; }
+        const pd = $('#ac-puce-dev', head); if (pd) pd.classList.toggle('on', cur !== company().currency);
         drawLines();
       }
       // La nature décide du rattachement (10.2.0) : seuls un avoir et un acompte en ont un, et
@@ -14479,9 +14561,10 @@
         const lf = $('#b-lie-field', head);
         const lie = C.PURCHASE_LIES.includes(p.kind);
         if (lf) lf.hidden = !lie;
-        if (lie && p.dueDate) { p.dueDate = ''; dueAuto = ''; poserDateField(head, 'dueDate', ''); }
+        if ((lie || p.kind === 'depense') && p.dueDate) { p.dueDate = ''; dueAuto = ''; poserDateField(head, 'dueDate', ''); }
         majBandeauLie();
         montrerEcheance();
+        majFournisseur();
         const objet = $('#b-subject');
         if (objet) objet.placeholder = inviteObjet(p.kind);
         if (!lie && p.achatLie) { p.achatLie = ''; lieCombo.setValue(''); }
@@ -14563,13 +14646,16 @@
     $('#b-subject').oninput = e => { p.subject = e.target.value; touch(); };
     // (1.157.0) La carte du fournisseur, « Changer » et « Fiche » ; « Saisir à la main » ; les puces qui montrent un champ ;
     // la frise passe ses gestes aux boutons de la pièce.
+    let choixOuvert = false;
     function majFournisseur() {
       const carte = $('#ac-sup', head), choix = $('#ac-choix-sup', head);
       if (!carte || !choix) return;
       const sup = supplierById(p.supplierId);
-      carte.hidden = !sup; choix.hidden = !!sup;
-      carte.innerHTML = sup ? supplierCarte() : '';
-      const ch = $('#sup-changer', carte); if (ch) ch.onclick = () => { choix.hidden = false; const b = $('.combo-btn', choix); if (b) b.click(); };
+      // Une dépense sans fournisseur montre la carte « Dépenses diverses » ; « Changer » ouvre la liste.
+      const divers = !sup && p.kind === 'depense' && !clos && !choixOuvert;
+      carte.hidden = !sup && !divers; choix.hidden = !!sup || divers;
+      carte.innerHTML = sup || divers ? supplierCarte() : '';
+      const ch = $('#sup-changer', carte); if (ch) ch.onclick = () => { if (divers) { choixOuvert = true; carte.hidden = true; } choix.hidden = false; const b = $('.combo-btn', choix); if (b) b.click(); };
       const fi = $('#sup-fiche', carte); if (fi) fi.onclick = () => supplierForm(sup, () => { supCombo.setItems(supplierItems()); majFournisseur(); refresh(); });
     }
     majFournisseur();
@@ -14580,8 +14666,74 @@
         else sp.textContent = 'vue, pas encore validée';
       }, () => {});
     }
+    // ↶ (Ctrl Z) et Ctrl Maj Z : la pièce revient comme avant la dernière modification ; la page se redessine avec elle.
+    // Les justificatifs et les règlements ne s'annulent pas ainsi (ils ont leurs gestes, et leur « Annuler ») : la pièce
+    // remise garde ceux d'aujourd'hui.
+    const remettreAchat = json => {
+      const o = JSON.parse(json), ici = annulAchat.piece();
+      o.attachments = deepCopy(ici.attachments || []);
+      if (!isNew) o.payments = deepCopy((purchaseById(ici.id) || ici).payments || []);
+      achatReprise = { hash: location.hash, p: o, isNew, payeeDep, parAnnuler: true, sale: true, ...(luParIA ? { lecture: luParIA } : {}) };
+      render(true);
+    };
+    const annulerAchat = () => {
+      if (etatTimer) { clearTimeout(etatTimer); etatTimer = null; dernierEtat = JSON.stringify(p); const pl0 = annulAchat.pile; if (pl0.length && pl0[pl0.length - 1] === dernierEtat) pl0.pop(); }
+      if (!annulAchat.pile.length) { toast('Rien à annuler : la pièce est comme à son ouverture.'); return; }
+      annulAchat.retablir.push(JSON.stringify(annulAchat.piece()));
+      remettreAchat(annulAchat.pile.pop());
+      toastUndo('Annulé : la pièce revient comme avant la dernière modification', retablirAchat, 'Rétablir');
+    };
+    function retablirAchat() {
+      if (!annulAchat || !annulAchat.retablir.length) return;
+      annulAchat.pile.push(JSON.stringify(annulAchat.piece()));
+      remettreAchat(annulAchat.retablir.pop());
+      toast('Rétabli.');
+    }
+    if ($('#ac-annuler')) $('#ac-annuler').onclick = annulerAchat;
+    majAnnuler();
+    const champTape = el => el && (el.matches('input:not([type=checkbox]):not([type=radio]), textarea, select') || el.isContentEditable);
+    const toucheCat = onEditorKey;
+    onEditorKey = e => {
+      if (!document.contains(head)) return false;
+      const k = e.key.toLowerCase(), mod = e.ctrlKey || e.metaKey;
+      if (mod && !clos && !champTape(e.target) && (k === 'z' || k === 'y')) { e.preventDefault(); if (k === 'y' || e.shiftKey) retablirAchat(); else annulerAchat(); return true; }
+      return toucheCat ? toucheCat(e) : false;
+    };
+    // Redessinée par « Annuler », la pièce garde ses modifications à enregistrer.
+    if (repriseSale) { dirty = false; const d0 = dernierEtat; touchSansNoter(); dernierEtat = d0; }
+    // (27/10/2026, maquette achat « brouillon gardé à chaque frappe ») Un achat commencé sur cet appareil et jamais
+    // enregistré (l'onglet s'est fermé) : la pièce neuve propose de le reprendre, ou de le jeter.
+    if (brouillonA && !repris) brouillonA.relire().then(b => {
+      const d = b && b.contenu && b.contenu.p;
+      const g = $('#view .buy-editor .ed-gauche');
+      if (!d || !g || !document.contains(head) || dirty || Date.now() - (b.le || 0) > 7 * 86400000) return;
+      const quand = new Date(b.le);
+      const sup = supplierById(d.supplierId);
+      const nl = (d.lines || []).filter(l => String(l.label || '').trim()).length;
+      const el = document.createElement('div');
+      el.className = 'bandeau info'; el.id = 'ac-reprendre'; el.setAttribute('role', 'status');
+      el.innerHTML = `${lfIc('nuage', 18, 2)}<span class="txt"><b>${h(motsDeNature(d.kind || 'facture').titre.replace(/^Nouvel(le)? /, '').replace(/^./, c => c.toUpperCase()))} commencé${d.kind === 'depense' || d.kind === 'facture' || !d.kind ? 'e' : ''} le ${lfJm(quand.toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }))} à ${quand.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Tunis' }).replace(':', ' h ')}, pas encore enregistré${d.kind === 'depense' || d.kind === 'facture' || !d.kind ? 'e' : ''}</b><span>${h([sup ? sup.name : (d.kind === 'depense' ? NOM_DIVERS : 'sans fournisseur'), d.number || '', nl ? pl(nl, 'ligne') : '', (d.attachments || []).length ? pl(d.attachments.length, 'justificatif') : ''].filter(Boolean).join(' · '))} : gardé sur cet appareil.</span></span><button type="button" class="btn btn-primary btn-sm" id="ac-reprendre-ok">Reprendre</button><button type="button" class="btn btn-sm" id="ac-reprendre-non">Le jeter</button>`;
+      g.prepend(el);
+      $('#ac-reprendre-ok', el).onclick = () => { achatReprise = { hash: location.hash, p: d, isNew: true, payeeDep: b.contenu.payeeDep }; render(true); };
+      $('#ac-reprendre-non', el).onclick = () => {
+        (d.attachments || []).forEach(a => { try { bridge.removeAttachment(d.id, a.file); } catch (_) {} });
+        brouillonA.effacer(); el.remove(); toast('Brouillon jeté : rien n\'avait été enregistré');
+      };
+    });
+    // (27/10/2026, maquette achat « Sans justificatif ») Le cabinet a demandé cette pièce dans le fil (une demande qui cite son
+    // numéro ou sa référence, pas encore reçue) : le bandeau le dit, avec qui et quand. Lu dans le fil, rien n'est écrit.
+    if ($('#ac-band-justif') && stored && bridge.messagerie && bridge.messagerie.fil && avecCabinet) {
+      const net0 = x => String(x || '').toLowerCase().replace(/\s+/g, '');
+      const cles = [stored.number, C.referenceAchat(stored, data)].map(net0).filter(x => x.length >= 3);
+      bridge.messagerie.fil().then(r => {
+        const d = ((r && r.messages) || []).filter(m => m.cote === 'cabinet' && m.demande && !m.demande.recueLe && cles.some(k => net0(m.demande.texte).includes(k))).pop();
+        const t = d && $('#ac-band-justif .txt > span:last-child'); if (!t) return;
+        const prenom = String(d.auteur || '').trim().split(/\s+/)[0];
+        t.textContent = `${prenom ? `${prenom}, de ton cabinet,` : 'Ton cabinet'} te l'a demandé le ${lfJm(new Date(d.ecritLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }))} dans votre fil. ${t.textContent}`;
+      }, () => {});
+    }
     // Le choix fait, le formulaire paraît et la question s'en va.
-    const sortirDuChoix = () => { attendChoix = false; const a = $('#ac-arrivee'); if (a) a.remove(); const z = $('#view .ac-attend'); if (z) z.remove(); const e = $('#view .buy-editor'); if (e) e.classList.remove('attend-choix'); const j = $('#attach-top'); if (j) j.hidden = false; const m = $('#view .ed-tete .more'); if (m) m.hidden = false; };
+    const sortirDuChoix = () => { attendChoix = false; const a = $('#ac-arrivee'); if (a) a.remove(); const z = $('#view .ac-attend'); if (z) z.remove(); const e = $('#view .buy-editor'); if (e) e.classList.remove('attend-choix'); const j = $('#attach-top'); if (j) j.hidden = false; const m = $('#view .ed-tete .more'); if (m) m.hidden = false; const u = $('#ac-annuler'); if (u) u.hidden = false; };
     if ($('#ac-main')) $('#ac-main').onclick = () => { sortirDuChoix(); const b = $('[data-combo=supplierId] .combo-btn', head); if (b) b.focus(); };
     if ($('#ac-cabinet-f')) {
       $('button#ac-cabinet').onclick = () => $('#ac-cabinet-f').click();
@@ -14690,8 +14842,8 @@
       // (plateforme, 1.113.0) Pendant l'envoi de la pièce lue, « Enregistrer » attend : enregistré avant, l'achat partait sans
       // sa photo, et le dessin qui suit le rouvrait en « Nouvelle facture d'achat » (lecture-attente.txt).
       for (const b of [$('#save'), $('#b-save-bas')]) if (b) b.disabled = true;
-      // (27/10/2026) Un fichier sans chemin (la facture électronique, sur la plateforme) ne se joint pas : l'essayer finissait sur
-      // « Le fichier lu n'est plus là ».
+      // (27/10/2026) Un fichier sans chemin ne se joint pas : l'essayer finissait sur « Le fichier lu n'est plus là ». La
+      // facture électronique, sur la plateforme, garde le sien (maquette : « Justificatif joint : …xml »).
       const jointe = bridge.piecesJointes === false || !file.path ? false : await joindreFichier(file);
       achatReprise = { hash: location.hash, p, isNew, ...(lu ? { lecture: lu } : {}) };
       render(true);
@@ -15222,12 +15374,10 @@
             <div class="panel ac-tf-fich"><div class="f-l"><span class="f-ic">XML</span><span><b>${h(file.name)}</b><small>${fileSize(file.size || 0)} · ${avoir ? 'avoir' : 'facture'} électronique</small></span></div>
               ${read.signe ? `<div class="sig ok">${lfIc('coche', 15, 2.4)}<span><b>Signature présente</b>${tete.refTtn ? `<small>réf. TTN ${h(tete.refTtn)}</small>` : ''}</span></div>` : `<div class="sig non">${lfIc('cadenas', 15, 2)}<span><b>Pas encore signée par la TTN</b><small>garde aussi la facture signée qu'El Fatoora t'enverra</small></span></div>`}</div>
             <div class="panel ed-avant"><h3>Où a été lu le fichier</h3><ul>
-              <li class="ok">${lfIc('coche', 15, 2.4)}<span>Sur ton appareil : il n'est parti nulle part</span></li>
+              <li class="ok">${lfIc('coche', 15, 2.4)}<span>Lu sur ton appareil, sans aucun service de lecture</span></li>
               <li class="ok">${lfIc('coche', 15, 2.4)}<span>Chaque montant recompté au millime</span></li>
-              ${file.path ? `<li class="ok">${lfIc('coche', 15, 2.4)}<span>Il se joint à l'achat quand tu remplis la pièce</span></li>`
-                // Sur la plateforme, une pièce jointe est une photo ou un PDF (serveur/v10/pieces-jointes.ts) : le XML ne s'y joint pas.
-                : tete.refTtn ? `<li class="ok">${lfIc('coche', 15, 2.4)}<span>Sa référence TTN se garde dans les notes de l'achat</span></li>` : ''}
-              ${file.path ? '' : `<li>${lfIc('info', 15, 2)}<span>Garde le fichier XML : SkanFact ne le joint pas encore à l'achat</span></li>`}</ul></div>
+              ${/* (27/10/2026, maquette achat) Sur la plateforme aussi, le XML se joint à l'achat (base 0178). */''}${file.path ? `<li class="ok">${lfIc('coche', 15, 2.4)}<span>Il se joint à l'achat quand tu remplis la pièce${bridge.lectureSurLeServeur ? ', gardé dix ans' : ''}</span></li>` : `<li>${lfIc('info', 15, 2)}<span>Garde le fichier XML : il ne se joint pas d'ici</span></li>`}
+              ${tete.refTtn ? `<li class="ok">${lfIc('coche', 15, 2.4)}<span>Sa référence TTN se garde dans les notes de l'achat</span></li>` : ''}</ul></div>
             <div class="panel ac-lec-autres"><button type="button" class="btn btn-sm" id="tf-detail">Vérifier case par case</button>${$('#teif-lire') ? '<button type="button" class="btn btn-sm" id="tf-autre">Choisir un autre fichier</button>' : ''}</div>
           </aside></div>`;
         const cree = $('#lec-creer', z);
@@ -15244,9 +15394,9 @@
         const valeurs = () => ({ head: { supplierId: tete.supplierId, number: tete.number || '', date: tete.date || C.today(), dueDate: tete.dueDate || '',
           subject: tete.subject || '', category: cat || '', fees: Number(tete.fees) || 0, kind: tete.kind, achatLie: lie ? lie.id : '',
           ...(etrangere ? { currency: tete.currency } : {}), ...(tete.refTtn ? { notes: `Référence TTN : ${tete.refTtn}` } : {}) }, lines: lignes });
-        $('#tf-remplir', z).onclick = () => { fermerLecture(); appliquerLecture({ ...valeurs(), reste: doutes }, file, 'facture électronique'); };
+        $('#tf-remplir', z).onclick = () => { fermerLecture(); appliquerLecture({ ...valeurs(), reste: doutes }, file, 'facture électronique', { teif: true, signe: !!read.signe, reste: [] }); };
         // (27/10/2026, revue des fenêtres) La vérification s'ouvre PAR-DESSUS la page : « Annuler » y revient, rien n'est perdu.
-        $('#tf-detail', z).onclick = () => ocrReviewForm(read, file, values => { fermerLecture(); appliquerLecture(values, file, 'facture électronique'); }, { source: 'teif', remarques, categorie: cat });
+        $('#tf-detail', z).onclick = () => ocrReviewForm(read, file, values => { fermerLecture(); appliquerLecture(values, file, 'facture électronique', { teif: true, signe: !!read.signe, reste: [] }); }, { source: 'teif', remarques, categorie: cat });
         if ($('#tf-autre', z)) $('#tf-autre', z).onclick = () => { fermerLecture(); const b = $('#teif-lire'); if (b) b.click(); };
         const m = $('#tf-main'); if (m) m.onclick = () => { fermerLecture(); sortirDuChoix(); };
       };
@@ -15275,30 +15425,31 @@
       const rsOp2 = C.retenueDesReglements(s2, company(), data);
       // La part de retenue de chaque règlement, sur sa ligne — le jumeau de la facture de vente.
       const partRs = x => { const i = (s2.payments || []).indexOf(x); const v = rsOp2.parts[x.id || '#' + i] || 0; return Math.abs(v) > 0.0005 ? v : 0; };
-      el.innerHTML = `
-        <div class="pay-grid">
-          <div><div class="k-label">${s2.kind === 'avoir' ? 'Montant de l\'avoir' : 'Net à payer'}</div><div class="v">${C.money(t.netToPay, cur)}</div></div>
-          ${s2.kind === 'avoir' ? '' : `<div><div class="k-label">Retenue</div><div class="v">${C.money(t.withholding || 0, cur)}</div></div>`}
-          <div><div class="k-label">${s2.kind === 'avoir' ? 'Remboursé' : 'Réglé'}</div><div class="v">${C.money(b.paid, cur)}</div>${b.impute ? `<div class="small muted">+ ${C.money(b.impute, cur)} ${b.liees.length > 1 ? 'imputés' : 'imputé'} (${b.liees.map(x => h(x.number || (x.kind === 'acompte' ? 'acompte' : 'avoir'))).join(', ')})</div>` : ''}</div>
-          ${b.remaining < -0.0005
-            ? `<div><div class="k-label">À récupérer</div><div class="v">${C.money(-b.remaining, cur)}</div><div class="small muted">${s2.kind === 'avoir' ? 'tant qu\'il n\'est ni déduit d\'une facture, ni remboursé' : 'payé en trop'}</div></div>`
-            : s2.kind === 'avoir'
-              // Un avoir ne DOIT rien : ce qu'on lit en face est ce qu'il reste à récupérer, et d'où
-              // il est parti — déduit d'une facture ou rendu par le fournisseur (10.14.0).
-              ? `<div><div class="k-label">À récupérer</div><div class="v ok">${C.money(0, cur)}</div><div class="small muted">${s2.achatLie ? 'déduit de la facture rattachée' : b.paid > 0.0005 ? 'remboursé par le fournisseur' : ''}</div></div>`
-              : `<div class="${b.remaining > 0.0005 ? (s2.dueDate && s2.dueDate < C.today() ? 'pg-alerte' : 'pg-attire') : ''}"><div class="k-label">Reste dû</div><div class="v ${b.remaining > 0.0005 ? 'due' : 'ok'}">${C.money(Math.max(0, b.remaining), cur)}</div></div>`}
+      // (27/10/2026, maquette achat « Règlements » et « Avoir à se faire rembourser ») Le titre porte son geste (régler, ou
+      // enregistrer le remboursement reçu) ; quatre tuiles ; chaque règlement avec son compte et ce qu'il a retenu, et ses
+      // gestes sous « ⋯ » ; l'attestation de retenue se coche et s'imprime d'ici. Un avoir dit d'où vient ce qu'il vaut :
+      // déduit d'une facture, remboursé, ou encore à récupérer.
+      const av = s2.kind === 'avoir';
+      const sup2 = supplierById(s2.supplierId);
+      const deduit = av && s2.achatLie ? C.round3(t.netToPay - b.paid) : 0;
+      const tuile = (k, v, ton) => `<div${ton ? ` class="${ton}"` : ''}><div class="k-label">${k}</div><div class="v">${C.money(v, null, C.decimalsFor(cur))}</div></div>`;
+      const geste = b.remaining > 0.0005 ? `<button class="btn btn-sm" id="pay2">${lfIc('ajout', 13, 2.4)}Enregistrer un règlement</button>`
+        : b.remaining < -0.0005 ? `<button class="btn btn-sm" id="recu2">${lfIc('ajout', 13, 2.4)}Enregistrer le remboursement reçu</button>` : '';
+      const menuR = id => `<td class="actions row-actions"><button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Gestes du règlement">${lfIc('plus', 16)}</button></td>`;
+      el.innerHTML = `<div class="ac-bloc-t"><h2>${av ? 'Remboursement' : 'Règlements'} ${info('buy.payments')}</h2>${geste}</div>
+        <div class="pay-grid quatre">
+          ${av ? tuile('Montant de l\'avoir', t.netToPay) + tuile('Déduit d\'une facture', deduit) + tuile('Remboursé', b.paid) + tuile('À récupérer', Math.max(0, -b.remaining), b.remaining < -0.0005 ? 'pg-attire' : '')
+            : tuile('Net à payer', t.netToPay) + tuile('Retenue', t.withholding || 0) + `<div><div class="k-label">Réglé</div><div class="v">${C.money(b.paid, null, C.decimalsFor(cur))}</div>${b.impute ? `<div class="small muted">+ ${C.money(b.impute, cur)} ${b.liees.length > 1 ? 'imputés' : 'imputé'} (${b.liees.map(x => h(x.number || (x.kind === 'acompte' ? 'acompte' : 'avoir'))).join(', ')})</div>` : ''}</div>`
+              + (b.remaining < -0.0005 ? tuile('À récupérer', -b.remaining, 'pg-attire') : tuile('Reste dû', Math.max(0, b.remaining), b.remaining > 0.0005 ? (s2.dueDate && s2.dueDate < C.today() ? 'pg-alerte' : 'pg-attire') : ''))}
         </div>
-        ${rows.length ? `<table class="list compact"><thead><tr><th>Date</th><th>Mode</th><th>Référence</th><th class="r">Montant</th><th></th></tr></thead><tbody>
-          ${rows.map(x => `<tr><td>${C.fmtDate(x.date)}</td><td>${h(methodLabel(x.method))}</td><td>${C.estRemboursementAchat(s2, x) ? '<span class="badge">remboursement reçu</span> ' : ''}${h(x.reference || '')}${x.note ? `<div class="small muted">${h(x.note)}</div>` : ''}</td><td class="r">${C.money(Math.abs(Number(x.amount) || 0), cur)}${reglementEnDinars(s2, x)}${partRs(x) ? `<div class="small muted">${partRs(x) > 0 ? `+ ${C.money(partRs(x), cur)} retenus pour l'État` : `retenue défaite : ${C.money(-partRs(x), cur)}`}</div>` : ''}</td>${rowMenuCell(x.id)}</tr>`).join('')}
-        </tbody></table>` : `<p class="small muted ac-rien">${lfIc('horloge', 14, 2)}<span>Rien de réglé.</span></p>`}
-        <div class="inline mt">
-          ${b.remaining > 0.0005 ? `<button class="btn ${$('#pay') ? '' : 'btn-primary'}" id="pay2">+ Enregistrer un règlement</button>` : ''}
-          ${b.remaining < -0.0005 ? `<button class="btn ${$('#recu') ? '' : 'btn-primary'}" id="recu2">+ Enregistrer le remboursement reçu</button>` : ''}
-          ${/* La retenue s'opère au règlement (10.14.0) : l'attestation porte ce que les règlements ont
-               retenu, et ne se remet pas pour une pièce encore impayée. */''}${t.withholding ? (rsOp2.operee > 0.0005 || s2.withholdingCertificate
-            ? `<label class="check"><input type="checkbox" id="rs-cert2" ${s2.withholdingCertificate ? 'checked' : ''}> Attestation de retenue remise au fournisseur (${C.money(rsOp2.operee, cur)}${rsOp2.operee < rsOp2.due - 0.0005 ? ` retenus sur ${C.money(rsOp2.due, cur)}` : ''}) ${info('buy.certificate')}</label>`
-            : `<span class="small muted">La retenue (${C.money(rsOp2.due, cur)}) s'opérera quand tu paieras : tu remettras alors l'attestation au fournisseur. ${info('buy.certificate')}</span>`) : ''}
-        </div>`;
+        ${rows.length ? `<table class="list compact ac-paie-t"><thead><tr><th>Date</th><th>Mode</th><th>Compte</th><th>Référence</th><th class="r">Montant</th><th></th></tr></thead><tbody>
+          ${rows.map(x => `<tr><td>${C.fmtDate(x.date)}</td><td>${h(methodLabel(x.method))}</td><td>${h(accountLabel(x.accountId))}</td><td>${C.estRemboursementAchat(s2, x) ? '<span class="badge">remboursement reçu</span> ' : ''}${h(x.reference || '') || (C.estRemboursementAchat(s2, x) ? '' : '—')}${x.note ? `<div class="small muted">${h(x.note)}</div>` : ''}</td><td class="r"><b>${C.money(Math.abs(Number(x.amount) || 0), null, C.decimalsFor(cur))}</b>${reglementEnDinars(s2, x)}${partRs(x) ? `<div class="small muted">${partRs(x) > 0 ? `+ ${C.money(partRs(x), null, C.decimalsFor(cur))} retenus` : `retenue défaite : ${C.money(-partRs(x), cur)}`}</div>` : ''}</td>${menuR(x.id)}</tr>`).join('')}
+        </tbody></table>` : `<p class="note-v ac-rien">${lfIc('horloge', 14, 2)}<span>${av ? (b.remaining < -0.0005 ? `Tant qu'il n'est ni déduit d'une facture, ni remboursé, ${h(sup2 ? sup2.name : 'le fournisseur')} te le doit.` : s2.achatLie ? 'Il est déduit de la facture rattachée : plus rien à récupérer.' : 'Plus rien à récupérer.')
+          : `Rien de réglé.${t.withholding ? ` La retenue (${C.money(rsOp2.due, cur)}) s'opérera quand tu paieras : tu remettras alors l'attestation au fournisseur. ${info('buy.certificate')}` : ''}`}</span></p>`}
+        ${rows.length && av && b.remaining < -0.0005 ? `<p class="note-v">${lfIc('horloge', 14, 2)}<span>Le reste (${C.money(-b.remaining, cur)}) n'est ni déduit d'une facture, ni remboursé : ${h(sup2 ? sup2.name : 'le fournisseur')} te le doit encore.</span></p>` : ''}
+        ${/* La retenue s'opère au règlement (10.14.0) : l'attestation porte ce que les règlements ont
+             retenu, et ne se remet pas pour une pièce encore impayée. */''}${t.withholding && (rsOp2.operee > 0.0005 || s2.withholdingCertificate)
+          ? `<label class="check ac-attest"><input type="checkbox" id="rs-cert2" ${s2.withholdingCertificate ? 'checked' : ''}> Attestation de retenue remise au fournisseur (${C.money(rsOp2.operee, cur)} retenus${rsOp2.operee < rsOp2.due - 0.0005 ? ` sur ${C.money(rsOp2.due, cur)}` : ''}) · <button type="button" class="lien" id="rs-imprimer">l'imprimer</button> ${info('buy.certificate')}</label>` : ''}`;
       // Un « ✕ » muet supprimait le règlement : le geste le plus destructif de la ligne était le seul
       // sans nom (7.29.0). Un menu, avec la modification que la ligne n'avait pas (10.12.0).
       bindRowMenus(el, id => {
@@ -15320,6 +15471,7 @@
       if ($('#pay2')) $('#pay2').onclick = () => supplierPaymentForm(s2, () => render());
       if ($('#recu2')) $('#recu2').onclick = () => supplierPaymentForm(s2, () => render(), null, true);
       if ($('#rs-cert2')) $('#rs-cert2').onchange = e => { s2.withholdingCertificate = e.target.checked; save(true); };
+      if ($('#rs-imprimer')) $('#rs-imprimer').onclick = e => { e.preventDefault(); attestationRetenue(s2); };
     }
 
     // --- pièces jointes (même mécanisme que sur un document de vente)
@@ -15338,7 +15490,7 @@
       // d'avant, à trois colonnes dans une colonne étroite, coupait son bouton.
       const enCartes = !!bridge.apercuPiece;
       const zonesLues = luParIA && Array.isArray(luParIA.zones) ? luParIA.zones : [];
-      const cartes = () => `<div class="ac-pjs">${list.map(a => `<div class="ac-pj"><button type="button" class="ac-pj-vue" data-open="${h(a.file)}" data-apercu="${h(a.file)}" title="Ouvrir « ${h(a.name || a.file)} »">${lfIc(/\.pdf$/i.test(a.name || '') ? 'pages' : 'photo', 26, 1.6)}</button>
+      const cartes = () => `<div class="ac-pjs">${list.map(a => `<div class="ac-pj"><button type="button" class="ac-pj-vue" data-open="${h(a.file)}" data-apercu="${h(a.file)}" title="Ouvrir « ${h(a.name || a.file)} »">${lfIc(/\.pdf$/i.test(a.name || '') ? 'pages' : /\.xml$/i.test(a.name || '') ? 'nuage' : 'photo', 26, 1.6)}</button>
         <div class="ac-pj-l"><span class="ac-pj-n"><b>${h(a.name || a.file)}</b><small>${fileSize(a.size)} · joint le ${C.fmtDate(a.date)}</small></span>${RowMenu.bouton(a.file, 'Actions')}</div></div>`).join('')}</div>`;
       el.innerHTML = list.length ? `${enCartes ? cartes() : tableauJustificatifs(list)}
         <div class="inline mt"><button class="btn btn-sm" id="add-att">+ Joindre un autre fichier…</button>
@@ -15363,6 +15515,21 @@
         const zs = luParIA && a.name === luParIA.photo ? zonesLues : [];
         if (/pdf/i.test(r.type) && bridge.apercuPdf) {
           bridge.apercuPdf(r.blob, 600).then(im => { if (im && b.isConnected) { b.classList.add('vue'); b.innerHTML = `<span class="ac-pj-img"><img src="${im.adresse}" alt=""></span>${im.pages > 1 ? `<span class="ac-pdf-pages">page 1 sur ${im.pages}</span>` : ''}`; } });
+          return;
+        }
+        // (27/10/2026, maquette achat « Fichier El Fatoora ») Le XML joint se montre comme la feuille qu'il décrit, relue du
+        // fichier lui-même (jamais de la saisie, qui a pu changer depuis) : le fournisseur, le numéro, les lignes, le total.
+        if (/xml/i.test(r.type) && window.SkanTeif && r.blob) {
+          r.blob.text().then(t => {
+            const l = window.SkanTeif.lireTeif(t, company()); if (!l.ok || !b.isConnected) return;
+            const x = l.lecture, cu = x.currency || company().currency, mt = v => C.money(v, null, C.decimalsFor(cu));
+            const ville = String((x.fournisseur && x.fournisseur.adresse) || '').split(/\n|,/).map(y => y.replace(/\b\d{4}\b/g, '').trim()).filter(Boolean).pop() || '';
+            b.classList.add('vue', 'xml');
+            b.innerHTML = `<span class="ac-pj-feuille"><span class="q">Fichier El Fatoora${x.signe ? ' · signé' : ''}</span><span class="fh"><span><b>${h(x.supplier || '')}</b>${ville ? `<small>${h(ville)}</small>` : ''}</span><span class="ft">${x.kind === 'avoir' ? 'Avoir' : 'Facture'}</span></span>
+              <span class="fn">${h(x.number || '')}${x.date ? ` · ${C.fmtDate(x.date)}` : ''}</span>
+              ${(x.lines || []).slice(0, 5).map(y => `<span class="fl"><span>${h(y.label || '')} · ${pct(y.qty)} × ${mt(y.unitPrice)}</span><b>${mt(C.round3((Number(y.qty) || 0) * (Number(y.unitPrice) || 0)))}</b></span>`).join('')}${(x.lines || []).length > 5 ? `<span class="fl muted">+ ${pl(x.lines.length - 5, 'autre ligne', 'autres lignes')}</span>` : ''}
+              ${x.totalTTC != null ? `<span class="ftot"><span>Total TTC</span><b>${mt(x.totalTTC)}</b></span>` : ''}<small class="fpied">${lfIc('coche', 12, 2.6)}chaque montant recompté au millime</small></span>`;
+          }, () => {});
           return;
         }
         if (/^image\//.test(r.type)) { b.classList.add('vue'); b.innerHTML = `<span class="ac-lec-zones ac-pj-img"><img src="${r.adresse}" alt="">${zs.map(z => `<span class="ac-lec-repere" style="left:${z.zone[0] / 10}%;top:${z.zone[1] / 10}%;width:${z.zone[2] / 10}%;height:${z.zone[3] / 10}%"><i>${z.n}</i></span>`).join('')}</span>`; }
@@ -15441,11 +15608,20 @@
       if (!p.supplierId && p.kind === 'depense') p.supplierId = fournisseurDivers().id;
       const idx = data.purchases.findIndex(x => x.id === p.id);
       const clean = deepCopy(p);
+      // (27/10/2026, maquette achat « Dépense ») Une dépense neuve « payée à la caisse » ou « par carte » s'enregistre réglée, à
+      // sa date et au millime, dans sa devise (au taux de la pièce) : le règlement se voit, se corrige et se supprime ensuite
+      // dans « Règlements » comme tout autre.
+      const duJour = idx < 0 && p.kind === 'depense' && payeeDep ? C.purchaseTotals(clean, company()).netToPay : 0;
+      if (duJour > 0.0005) {
+        const r = { id: C.uid(), date: clean.date, amount: duJour, method: payeeDep, accountId: '', reference: String(clean.number || '').trim(), note: 'payée le jour même' };
+        if ((clean.currency || company().currency) !== company().currency) r.exchangeRate = Number(clean.exchangeRate) || 0;
+        clean.payments = (clean.payments || []).concat([r]);
+      }
       if (idx >= 0) data.purchases[idx] = clean; else data.purchases.push(clean);
       // Un avoir ou un acompte rattaché suit la règle de TVA de sa pièce (10.14.0) — sauf dans un mois
       // clôturé, qui ne bouge plus.
       data.purchases.forEach(x => { if (x.achatLie === p.id && !C.isClosedDate(data, x.date)) x.tvaRecuperable = C.tvaRecuperable(p, company()); });
-      save(true); untouch();
+      save(true); untouch(); oublierBrouillon();
       return true;
     }
     bindBack('#/achats');
@@ -15483,7 +15659,7 @@
         a.push({ icon: 'annuler', label: 'Jeter le brouillon', hint: 'rien n\'a été enregistré', danger: true, run: async () => {
           if (dirty && !await confirmDialog('Jeter ce brouillon ?\nCe que tu as saisi ne sera pas enregistré.', 'Jeter le brouillon', true)) return;
           (p.attachments || []).forEach(x => { try { bridge.removeAttachment(p.id, x.file); } catch (_) {} });
-          untouch(); clearGuard(); navigate('#/achats'); toast('Brouillon jeté : rien n\'a été enregistré');
+          oublierBrouillon(); untouch(); clearGuard(); navigate('#/achats'); toast('Brouillon jeté : rien n\'a été enregistré');
         } });
         // (1.155.13) La nature d'une pièce neuve se change ici, comme la maquette (« avoir et acompte depuis le menu ⋯ ») :
         // la liste « Nature » ne prend plus de place parmi les étiquettes.

@@ -8,7 +8,7 @@
 Dans la v10 d'un navigateur, « Joindre un fichier » répondait « pas encore dans la version en ligne ». Maintenant, sur
 un devis, une facture, un bon, un achat ou un mouvement de banque :
 
-- **Joindre** : une photo (JPEG, PNG, WebP) ou un PDF, 10 Mo au plus, plusieurs d'un coup. La photo d'une facture d'achat que le serveur vient de lire se joint d'elle-même à l'achat.
+- **Joindre** : une photo (JPEG, PNG, WebP) ou un PDF, 10 Mo au plus, plusieurs d'un coup. La photo d'une facture d'achat que le serveur vient de lire se joint d'elle-même à l'achat. (1.161.0, base `0178`) Le fichier XML d'une facture électronique reçue se joint aussi à l'achat qu'il a rempli : le serveur ne prend qu'un vrai fichier El Fatoora (en-tête XML, élément principal `TEIF`, ni script, ni SVG, ni XHTML, ni entité), et l'écran l'ouvre en texte brut.
 - **Ouvrir** (le nom du fichier) : un nouvel onglet. **Télécharger le fichier** (le menu de sa ligne) : une copie sur
   l'appareil (« Montrer dans l'Explorateur » n'a pas de sens dans un navigateur).
 - **Retirer** : la question dit ce qui se passe avant le geste. Un fichier que tu as joint il y a moins de 24 heures

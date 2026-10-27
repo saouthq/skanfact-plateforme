@@ -119,7 +119,7 @@ describe('les pièces jointes d\'un devis, à la souris', () => {
   it('un fichier qui n\'est ni une photo ni un PDF se refuse, et dit pourquoi', async () => {
     const { cx, p, erreurs } = await devisOuvert(serveur.adresse);
     await joindre(p, [{ name: 'Contrat.pdf', mimeType: 'application/pdf', buffer: Buffer.from('PK\u0003\u0004 un document Word renommé') }]);
-    await expect.poll(() => p.locator('#toast').innerText().catch(() => ''), { timeout: 15_000 }).toContain('« Contrat.pdf » n\'est ni une photo (JPEG, PNG, WebP) ni un PDF');
+    await expect.poll(() => p.locator('#toast').innerText().catch(() => ''), { timeout: 15_000 }).toContain('« Contrat.pdf » n\'est ni une photo (JPEG, PNG, WebP), ni un PDF, ni une facture électronique (XML)');
     expect(await p.locator('#attachments .pj-carte').count()).toBe(0);
     expect(await p.locator('#attachments #add-att').isVisible()).toBe(true);
     await cx.close();

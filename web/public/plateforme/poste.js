@@ -107,6 +107,16 @@
   }
   /** @param {string} cabinet @param {string} chemin */
   const relireLecture = async (cabinet, chemin) => (garde() ? relire('copies', `c:${cabinet}:${chemin}`) : null);
+  // (27/10/2026, maquette achat « brouillon gardé à chaque frappe ») Un achat commencé, pas encore enregistré : gardé sur
+  // « mon ordinateur », chiffré comme la copie, pour le reprendre si l'onglet se ferme. Un achat enregistré compte (TVA,
+  // stock, écritures) : un brouillon ne peut donc pas vivre parmi les achats ; il vit ici, et jamais pendant une lecture
+  // pour le support. Effacé avec l'entreprise, à la déconnexion, et quand l'achat s'enregistre ou se jette.
+  /** @param {string} ent @param {unknown} contenu */
+  async function garderBrouillon(ent, contenu) { if (garde() && !enLecture) await garder('copies', `b:achat:${ent}`, contenu); }
+  /** @param {string} ent */
+  const relireBrouillon = async (ent) => (garde() && !enLecture ? relire('copies', `b:achat:${ent}`) : null);
+  /** @param {string} ent */
+  async function effacerBrouillon(ent) { if (!enLecture) await faire('copies', 'readwrite', (s) => s.delete(`b:achat:${ent}`)); }
   // Ce qui a été enregistré sans réseau (brique 73) : l'état du dossier que l'écran a enregistré, qui
   // part par rapport à la copie (ses révisions disent au serveur ce que le poste avait vu).
   /** @param {string} id @param {unknown} contenu */
@@ -135,6 +145,7 @@
   async function effacerEntreprise(id) {
     if (enLecture) return;
     await faire('copies', 'readwrite', (s) => s.delete(id));
+    await faire('copies', 'readwrite', (s) => s.delete(`b:achat:${id}`));
     await faire('attentes', 'readwrite', (s) => s.delete(id));
     try { if (localStorage.getItem(DERNIERE) === id) localStorage.removeItem(DERNIERE); } catch { /* rien à retirer */ }
   }
@@ -404,7 +415,7 @@
   window.addEventListener('online', () => enLigne(false));
 
   /** @type {any} */ (window).SkanPoste = {
-    garde, ecrireCopie, lireCopie, garderLecture, relireLecture, ecrireAttente, lireAttente, effacerAttente, effacer, effacerEntreprise, conclure,
+    garde, ecrireCopie, lireCopie, garderLecture, relireLecture, garderBrouillon, relireBrouillon, effacerBrouillon, ecrireAttente, lireAttente, effacerAttente, effacer, effacerEntreprise, conclure,
     horsLigne, enLigne, sansCopie, attente, envoye, envoyeEcritures, demander, annoncer, limite, limiteCaisse, ouverture, finOuverture, echecOuverture,
     /** @param {() => void} f */ auRetour: (f) => { quandRevenu = f; },
     pourLeCabinet: () => { cabinet = true; },

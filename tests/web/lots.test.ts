@@ -95,7 +95,8 @@ describe('les lots, à la souris', () => {
 
     // 3. La facture : sans lot, l'émission le dit et conseille le plus ancien ; le lot choisi, elle sort de lui.
     await p.evaluate(() => { location.hash = '#/doc/f1'; });
-    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture/);
+    // (1.155.0, maquette de la facture) Un brouillon s'appelle « Nouvelle facture » jusqu'à son numéro.
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Nouvelle facture/);
     await plusTard(p);
     await p.locator('#issue').click();
     await expect.poll(avertissement, { timeout: 10_000 }).toContain(`La ligne « Yaourt nature 125 g » ne dit pas de quel lot elle sort : le plus ancien est le lot L-0901, qui périme le ${fr(dans5)}. Choisis-le sous la ligne, sinon elle sortira « sans lot ».`);
