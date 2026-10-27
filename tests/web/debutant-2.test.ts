@@ -234,6 +234,8 @@ describe('le lot débutant (2), à la souris', () => {
 
     // Une ligne déjà tapée : choisir la facture ne l'écrase pas.
     const autre = await ouvrir(jeton, ent, '#/doc/new/avoir');
+    // (1.155.0) Une pièce neuve n'a pas de ligne : Entrée dans la barre d'ajout vide en pose une, libre.
+    if (!(await autre.p.locator('#lines input[data-k=label]').count()) && await autre.p.locator('#ed-ajout').count()) await autre.p.locator('#ed-ajout').press('Enter');
     await autre.p.locator('#lines input[data-k=label]').first().fill('Geste commercial');
     await autre.p.locator('[data-combo=creditOf] .combo-btn').click();
     await autre.p.locator('[data-combo=creditOf] .combo-it').filter({ hasText: numero }).first().click();
@@ -276,6 +278,8 @@ describe('le lot débutant (2), à la souris', () => {
 
     // Une facture d'achat sans fournisseur est toujours refusée : la facture vient de quelqu'un.
     await nouvelle('#/achat/new/-/facture', 'Nouvelle facture d\'achat');
+    // (1.155.12) Une facture d'achat neuve ne montre que « Comment arrive cette pièce ? » : on choisit de la saisir à la main.
+    await p.locator('#ac-main').click();
     expect(net(await p.locator('[data-combo=supplierId] .combo-val').innerText())).toBe('— Choisir un fournisseur —');
     // (1.155.0) Une pièce neuve n'a pas de ligne : Entrée dans la barre d'ajout en pose une, libre.
     if (!(await p.locator('[data-k=label]').count()) && await p.locator('#ed-ajout').count()) await p.locator('#ed-ajout').press('Enter');

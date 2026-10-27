@@ -175,12 +175,12 @@ describe('le lot débutant (1), à la souris', () => {
     await p.locator('#b-ttc').fill('85.4');
     // 85,400 payés à 19 % : 71,765 hors taxes, 13,635 de TVA — le total retombe sur ce qui a été payé.
     await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('71.765');
-    expect(net(await p.locator('#b-totals').innerText())).toContain('Net à payer au fournisseur 85,400 DT');
+    expect(net(await p.locator('#b-totals').innerText())).toContain('Payé 85,400 DT');
     expect(net(await p.locator('#b-ttc-note').innerText())).toBe('Hors taxes : 71,765 DT ; TVA à 19 % : 13,635 DT.');
     // Le taux change : le hors taxes se recalcule, le total reste ce qui a été payé.
     await p.locator('select[data-k=vatRate]').first().selectOption('7');
     await expect.poll(() => p.locator('input[data-k=unitPrice]').first().inputValue()).toBe('79.813');
-    expect(net(await p.locator('#b-totals').innerText())).toContain('Net à payer au fournisseur 85,400 DT');
+    expect(net(await p.locator('#b-totals').innerText())).toContain('Payé 85,400 DT');
     await p.screenshot({ path: path.join(PHOTOS, 'debutant-4-depense.png') });
     // Un hors taxes tapé à la main reprend la main : le montant payé s'efface.
     await p.locator('input[data-k=unitPrice]').first().fill('50');

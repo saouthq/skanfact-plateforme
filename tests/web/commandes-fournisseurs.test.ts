@@ -173,12 +173,15 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     const lignesAchat = await p.locator('#b-lines tr').evaluateAll((trs) => trs.map((tr) => [
       (tr.querySelector('[data-k=label]') as HTMLInputElement | null)?.value ?? '', (tr.querySelector('[data-k=qty]') as HTMLInputElement | null)?.value ?? '']).filter((x) => x[0]));
     expect(lignesAchat).toEqual([['Ciment gris 50 kg', '100'], ['Fer à béton 12 mm', '2.5'], ['Transport', '1']]);
-    // Chaque ligne reçue le dit (« reçue par une réception ») ; sa copie (⧉) n'a été reçue par aucune réception.
+    // Chaque ligne reçue le dit (« reçue par une réception ») ; sa copie n'a été reçue par aucune réception.
     expect(await p.locator('#b-lines [data-recue]').allInnerTexts()).toEqual(['reçue par une réception', 'reçue par une réception', 'reçue par une réception']);
-    await p.locator('#b-lines [data-dup="0"]').click();
+    // (1.155.12, maquette achat) Les gestes d'une ligne sont sous son « ⋯ ».
+    await p.locator('#b-lines tr[data-i="0"] .row-menu-btn').click();
+    await p.getByRole('menuitem').filter({ hasText: 'Dupliquer la ligne' }).click();
     await expect.poll(() => p.locator('#b-lines tr[data-i]').count()).toBe(4);
     expect(await p.locator('#b-lines tr[data-i="1"] [data-recue]').count()).toBe(0);
-    await p.locator('#b-lines [data-rm="1"]').click();
+    await p.locator('#b-lines tr[data-i="1"] .row-menu-btn').click();
+    await p.getByRole('menuitem').filter({ hasText: 'Supprimer la ligne' }).click();
     await expect.poll(() => p.locator('#b-lines tr[data-i]').count()).toBe(3);
     expect(await p.locator('#b-lines [data-recue]').count()).toBe(3);
     // Un écart avec les réceptions se dit pendant la saisie, sous les lignes : 105 sacs facturés pour 100
@@ -212,7 +215,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/F-8841/);
     await p.locator('#more-btn').click();
     await p.locator('#dup').click();
-    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/sans numéro/);
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture d'achat du \d\d\/\d\d$/); // (1.155.12) sans numéro, une pièce s'appelle par sa date
     expect(await p.locator('#b-receptions').count()).toBe(0);
     expect(await stockDe(p, 'ciment')).toMatch(/EN STOCK 200 sacs/);
     await p.evaluate(() => { location.hash = '#/commandesf'; });

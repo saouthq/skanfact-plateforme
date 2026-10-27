@@ -279,7 +279,17 @@
 .buy-editor.charte > div { max-width: none; }
 .ed-frise.trois ol { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .ac-ligne4 { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1.6fr); gap: 12px; align-items: end; }
-.ac-arrivee { padding: 18px 20px; margin-bottom: 16px; }
+.ac-arrivee { padding: 18px 20px; margin-bottom: 16px; display: grid; gap: 12px; }
+.ac-arrivee .ac-ar-tete { margin-bottom: 0; }
+.ac-choix { justify-content: flex-start !important; }
+.ac-choix:disabled { opacity: .55; cursor: not-allowed; }
+.ac-zone { display: flex; align-items: center; gap: 12px; width: 100%; padding: 14px 16px; border: 1.5px dashed var(--sb-trait-fort); border-radius: 12px; background: none; font: inherit; font-size: 13px; color: var(--sb-gris); text-align: start; cursor: pointer; }
+.ac-zone svg { flex: none; color: var(--sb-gris-2); }
+.ac-zone:hover, .ac-zone.sur { border-color: var(--sb-sarcelle); background: var(--sb-doux); color: var(--sb-doux-texte); }
+/* Rien n'est choisi : seule la question, et sa phrase à droite (maquette achat « Neuve »). */
+.buy-editor.attend-choix .ed-gauche > :not(#ac-arrivee), .buy-editor.attend-choix .ed-droite > :not(.ac-attend) { display: none !important; }
+.ac-attend { padding: 14px 16px; }
+.ac-attend .ed-phrase { margin: 0; }
 .ac-ar-tete { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .ac-ar-tete h2 { margin: 0; font-size: 15px; }
 .ac-choix-grille { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
@@ -1007,3 +1017,29 @@
 .buy-editor .ed-lignes .catalog-pick > #b-cat { flex: 1 1 320px; min-width: 0; }
 .buy-editor .ed-lignes .catalog-pick > #b-cat .combo, .buy-editor .ed-lignes .catalog-pick > #b-cat .combo-btn { width: 100%; }
 .buy-editor .ed-lignes .catalog-pick > #b-lignes-hint { flex-basis: 100%; }
+
+/* (1.155.12) L'achat rangé, tel que la maquette : la frise à quatre ou cinq étapes, les puces du fournisseur, le reste dû qui
+   attire ou alerte, la note sous les lignes, et le justificatif absent. */
+.ed-frise.quatre ol { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.ed-frise li.afaire .rond { border: 1.5px solid var(--sb-sarcelle); color: var(--sb-sarcelle-texte); }
+.ed-chip.ok { background: var(--sb-doux); color: var(--sb-doux-texte); border-color: transparent; }
+.ed-chip.rouge { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); border-color: transparent; }
+.buy-editor .pay-grid > .pg-attire { background: var(--sb-ambre-doux); }
+.buy-editor .pay-grid > .pg-attire .v { color: var(--sb-ambre-texte); }
+.buy-editor .pay-grid > .pg-alerte { background: var(--sb-rouge-doux); }
+.buy-editor .pay-grid > .pg-alerte .v { color: var(--sb-rouge-texte); }
+.buy-editor .ac-rien { display: flex; align-items: center; gap: 8px; margin: 12px 0 0; }
+.buy-editor .note-v { display: flex; align-items: flex-start; gap: 8px; margin: 12px 0 0; padding: 10px 12px; border-radius: 10px; background: var(--sb-papier-2); font-size: 13px; color: var(--sb-gris); }
+.buy-editor .note-v[hidden] { display: none; }
+.buy-editor .note-v svg { flex: none; margin-top: 2px; color: var(--sb-gris-2); }
+.buy-editor .note-v b { color: var(--sb-encre); }
+.buy-editor .note-v.ac-recep { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+.buy-editor .note-v.ac-recep svg { color: var(--sb-ambre-texte); }
+.buy-editor #b-totals tr.ac-sous td { padding-block: 0 4px; font-size: 12.5px; padding-inline-start: 10px; }
+.buy-editor #b-totals tr.ac-sous td:last-child { color: var(--sb-sarcelle-texte); }
+.ac-vide-j { display: grid; justify-items: center; gap: 6px; width: 100%; padding: 22px 16px; border: 1.5px dashed var(--sb-trait-fort); border-radius: 12px; background: none; font: inherit; color: var(--sb-gris); text-align: center; cursor: pointer; }
+.ac-vide-j svg { color: var(--sb-gris-2); }
+.ac-vide-j b { color: var(--sb-encre); font-size: 14px; }
+.ac-vide-j span { font-size: 12.5px; }
+.ac-vide-j:hover, .ac-vide-j.sur { border-color: var(--sb-sarcelle); background: var(--sb-doux); }
+.buy-editor .line-tools .row-menu-btn { width: 30px; height: 30px; }

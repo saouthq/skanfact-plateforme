@@ -1049,6 +1049,15 @@
         const x = (r.ecritures || []).find((/** @type {any} */ e) => e.origine && e.origine.type === 'vente');
         return x ? { statut: x.statut, numero: x.numero, date: x.date, libelle: x.libelle, lignes: (x.lignes || []).map((/** @type {any} */ l) => ({ compte: l.compte, libelle: l.libelle, debit: l.debit, credit: l.credit })), valideeLe: x.valideeLe ? new Date(x.valideeLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }) : null } : null;
       },
+      // (1.155.12) L'écriture née d'un achat (son numéro et son identifiant) : la frise de l'achat dit ce qu'en a fait le
+      // cabinet. Une lecture, rien n'est envoyé ; qui ne lit pas les livres, ou un achat pas encore au journal : null.
+      ecritureAchat: async (/** @type {string} */ id, /** @type {string} */ numero) => {
+        /** @type {any} */
+        let r;
+        try { r = await appel('GET', `/compta/ecritures?journal=AC&piece=${encodeURIComponent(numero)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }
+        const x = (r.ecritures || []).find((/** @type {any} */ e) => e.origine && e.origine.type === 'achat' && e.origine.id === id);
+        return x ? { statut: x.statut, valideeLe: x.valideeLe ? new Date(x.valideeLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }) : null } : null;
+      },
       envoyerFichier: (/** @type {File} */ f, /** @type {string} */ texte, /** @type {any} */ piece) =>
         /** @type {any} */ (window).SkanMessagerie.envoyerFichier(appel, 'entreprise', f, texte, piece),
     },
@@ -1512,6 +1521,18 @@
       });
       const r = await appel('POST', '/achats/lecture', { nom: f.name, contenu });
       return Object.assign({}, r.lecture, { remarques: r.remarques || [], ou: r.ou || {}, moteur: r.moteur });
+    },
+    // (1.155.12) Un fichier glissé sur « Comment arrive cette pièce ? », lu comme s'il avait été choisi : la photo ou le PDF
+    // (le même plafond que le sélecteur) ; la facture électronique, relue comme `openText` la relit.
+    ocrGlisse: (/** @type {File} */ f) => {
+      if (f.size > LECTURE_MAX) throw new Error(`Le fichier « ${f.name} » fait ${(f.size / 1048576).toFixed(1).replace('.', ',')} Mo : au-delà de 10 Mo, il ne se lit pas. Prends une photo moins lourde.`);
+      const chemin = `lecture:${++lecturesChoisies}`;
+      fichiersALire.set(chemin, f);
+      return { path: chemin, name: f.name, size: f.size, type: f.type };
+    },
+    texteGlisse: async (/** @type {File} */ f) => {
+      if (f.size > 5 * 1024 * 1024) return { ok: false, nom: f.name, motif: `« ${f.name} » fait ${Math.round(f.size / 1048576)} Mo : une facture électronique en fait quelques dizaines de Ko. Ce n'est probablement pas le bon fichier.` };
+      return Object.assign({ nom: f.name, chemin: null }, /** @type {any} */ (window).SkanCompta.lireFichierTexte(new Uint8Array(await f.arrayBuffer()), f.name, {}));
     },
     // (lot messagerie) La photo ou le PDF d'un message, à lire comme un fichier choisi (« Ranger dans mes achats »).
     ocrDepuisFichier: (/** @type {{ nom: string, type: string, contenu: string }} */ f) => {

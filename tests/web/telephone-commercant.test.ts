@@ -268,10 +268,12 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await aller(p, '#/doc/dv1', /^Devis DEV-2026-001/);
     const bouton = await rect(p, '#convert');
     const bulleDevis = await rect(p, '[data-info="ed.convert"]');
-    const fleche = await rect(p, '#bill-btn');
+    // (1.155.12, maquette du devis) Les autres chemins (« Facture d'acompte… », « Transformer ») passent sous le bouton.
+    const fleche = await rect(p, '#deposit');
     expect(Math.abs((bulleDevis.top + bulleDevis.bottom) / 2 - (bouton.top + bouton.bottom) / 2)).toBeLessThanOrEqual(6);
-    expect(Math.abs(fleche.top - bouton.top)).toBeLessThanOrEqual(6);
-    expect(bulleDevis.left).toBeGreaterThan(bouton.left);
+    expect(fleche.top).toBeGreaterThanOrEqual(bouton.bottom);
+    expect(fleche.right).toBeLessThanOrEqual(390.5);
+    expect(bulleDevis.right).toBeLessThanOrEqual(390.5);
 
     // Sous les filtres d'une liste, la bulle est à côté de la case qui la précède, pas seule sur une ligne. (1.154.0 : la
     // liste des factures range ses filtres dans sa feuille, au téléphone ; celle des devis garde les siens.)
@@ -317,23 +319,28 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await cx.close();
   }, 120_000);
 
-  it('(1.87.21) les lignes d\'un devis au téléphone : chaque case porte son titre juste au-dessus d\'elle', async () => {
+  // (1.155.12) Le devis de la charte, au téléphone : la ligne se pose dans sa feuille et se lit en carte (désignation, quantité
+  // × prix, total) ; le tableau du bureau ne se montre pas, ni sa phrase « Les colonnes ». Le prix tapé, puis « OK » : le
+  // second dessin de la feuille faisait planter la page (« The node to be removed is no longer a child of this node »).
+  it('les lignes d\'un devis au téléphone : une carte par ligne, dans l\'écran, et la feuille qui ne plante pas', async () => {
     const c = await commercante({});
     const { cx, p, erreurs } = await ouvrir(c, '#/doc/new/devis', TELEPHONE);
-    await p.locator('#add-line').click();
-    await p.locator('#lines tr').first().waitFor();
-    // L'en-tête rangé sur la grille du bureau posait « Qté » et « P.U. HT » loin de leurs cases : il se cache.
-    expect(await p.locator('table.lignes-doc > thead').isVisible()).toBe(false);
-    expect(await p.locator('#lines tr:first-child').evaluate((tr) => [...tr.children].slice(0, 6).map((td) => getComputedStyle(td, '::before').content)))
-      .toEqual(['"Désignation"', '"Qté"', '"Unité"', '"P.U. HT"', '"TVA"', '"Total HT"']);
-    // (1.93.0) Les bulles « i » de l'en-tête caché se rangent au-dessus des lignes, chacune avec ce qu'elle explique, et
-    // s'ouvrent au doigt ; à l'ordinateur, l'en-tête les porte, rien ne s'ajoute.
-    const aide = p.locator('table.lignes-doc').locator('xpath=preceding-sibling::p[contains(@class, "aide-colonnes")]');
-    await expect.poll(() => aide.innerText().then((t) => t.replace(/\s+/g, ' ')).catch(() => '')).toBe('Les colonnes : Unité i TVA i');
-    await aide.locator('[data-info="ed.vat"]').click();
-    await expect.poll(() => p.locator('#info-pop').innerText().catch(() => '')).toContain('La taxe que tu collectes');
-    await p.setViewportSize({ width: 1280, height: 800 });
-    await expect.poll(() => p.locator('.aide-colonnes').count()).toBe(0);
+    await p.locator('#ed-pq-q').fill('Pins');
+    await p.locator('#ed-pq-liste [role=option][data-cl]').first().click();
+    await p.locator('#ed-tel-ajout').click();
+    await p.locator('.t-feuille input[type=search]').fill('Nuitée chambre double');
+    await p.locator('.t-feuille [data-tf-libre]').click();
+    await p.locator('.t-feuille [data-tf=unitPrice]').fill('145,5');
+    await p.locator('.t-feuille [data-tf=unitPrice]').dispatchEvent('change');
+    await p.locator('.t-feuille [data-tf-ok]').click();
+    const carte = p.locator('#ed-tel-l .t-l').first();
+    await carte.waitFor();
+    expect(net(await carte.locator('b').first().innerText())).toBe('Nuitée chambre double');
+    const r = await rect(p, '#ed-tel-l .t-l');
+    expect(r.left).toBeGreaterThanOrEqual(0);
+    expect(r.right).toBeLessThanOrEqual(390.5);
+    expect(await p.locator('table.lignes-doc').isVisible()).toBe(false);
+    expect(await p.locator('.aide-colonnes').isVisible().catch(() => false)).toBe(false);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 120_000);
@@ -353,7 +360,8 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
       .toEqual(['"Désignation"', '"Qté"', '"P.U. HT"', '"TVA"', '"Destination"', '"TVA déductible"', '"Total HT"']);
     // (1.93.0) Leurs bulles « i », au-dessus des lignes, nommées par ce qu'elles expliquent (pas « Déduct. »).
     await expect.poll(() => p.locator('table.buy-lines:has(#b-lines)').locator('xpath=preceding-sibling::p[contains(@class, "aide-colonnes")]').innerText()
-      .then((t) => t.replace(/\s+/g, ' ')).catch(() => '')).toBe('Les colonnes : Destination de la ligne i TVA déductible i');
+      // (la rangée se range en flex : le texte lu n'a pas d'espaces entre ses morceaux, on les compare sans eux)
+      .then((t) => t.replace(/\s+/g, '')).catch(() => '')).toBe('Lescolonnes:DestinationdelaligneiTVAdéductiblei');
 
     // Une photo relue : ses lignes aussi, et « Utiliser ces informations » au bas de l'écran.
     await aller(p, '#/achat/new', /^Nouvelle facture d'achat/);

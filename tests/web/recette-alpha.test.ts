@@ -104,6 +104,8 @@ describe('la recette alpha, à la souris', () => {
     await p.setViewportSize({ width: 1440, height: 700 });
     await p.evaluate(() => { location.hash = '#/achat/new'; });
     await p.locator('#view h1').filter({ hasText: 'Nouvelle facture d\'achat' }).waitFor({ timeout: 15_000 });
+    // (1.155.12) Une facture d'achat neuve ne montre que « Comment arrive cette pièce ? » : on choisit de la saisir à la main.
+    await p.locator('#ac-main').click();
     await p.locator('[data-combo=supplierId] .combo-btn').click();
     await p.locator('[data-combo=supplierId] .combo-add').click();
     const enregistrer = p.locator('#modal-root .modal').last().getByRole('button', { name: 'Enregistrer', exact: true });
@@ -141,6 +143,8 @@ describe('la recette alpha, à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'recette-alpha-caisse.png') });
     await p.evaluate(() => { location.hash = '#/achat/new'; });
     await p.locator('#view h1').filter({ hasText: 'Nouvelle facture d\'achat' }).waitFor({ timeout: 15_000 });
+    // (1.155.12) Une facture d'achat neuve ne montre que « Comment arrive cette pièce ? » : on choisit de la saisir à la main.
+    await p.locator('#ac-main').click();
     // 5. Une nouvelle facture d'achat, la date d'un clic puis au clavier : la frappe remplace la date du jour (elle s'y ajoutait : « Date incomprise »).
     const date = p.locator('#view .datefield .d-txt').first();
     const box = await date.boundingBox();
@@ -180,6 +184,8 @@ describe('la recette alpha, à la souris', () => {
     // Un achat neuf : l'article pris au catalogue remplace la ligne vide du départ (elle s'enregistrait avec la pièce).
     await p.evaluate(() => { location.hash = '#/achat/new'; });
     await p.locator('#view h1').filter({ hasText: 'Nouvelle facture d\'achat' }).waitFor({ timeout: 15_000 });
+    // (1.155.12) Une facture d'achat neuve ne montre que « Comment arrive cette pièce ? » : on choisit de la saisir à la main.
+    await p.locator('#ac-main').click();
     const lignes = () => p.locator('#view input[data-k=label]').count();
     expect(await lignes()).toBe(1);
     await p.locator('#b-cat .combo-btn').click();
@@ -229,7 +235,8 @@ describe('la recette alpha, à la souris', () => {
     await p.getByRole('menuitem').filter({ hasText: 'Paiement reçu' }).click();
     const paiement = p.locator('#modal-root .modal').last();
     await paiement.locator('[name=amount]').fill('100');
-    await paiement.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    // (1.155.0) Le bouton dit ce qui suivra : « Enregistrer · reste … ».
+    await paiement.getByRole('button', { name: /^Enregistrer/ }).click();
     await expect.poll(() => p.locator('#r-wrap tbody tr').filter({ hasText: numero }).innerText().then(net)).toMatch(/912,095 DT/);
     await p.evaluate(() => { location.hash = '#/'; });
     await expect.poll(() => p.locator('[data-stat=encaisser]').innerText().then(net), { timeout: 15_000 }).toMatch(/1 facture, 1 en retard/);
@@ -257,14 +264,18 @@ describe('la recette alpha, à la souris', () => {
     const objet = p.getByPlaceholder('Ce que couvre cette pièce, en une phrase');
     await objet.waitFor({ timeout: 20_000 });
     await objet.fill('Vitrine');
-    await p.getByPlaceholder('Désignation').first().fill('Vitrine éclairée');
+    // (1.155.0) Une pièce neuve n'a pas de ligne : Entrée dans la barre d'ajout vide en pose une, libre.
+    await p.locator('#ed-ajout').press('Enter');
+    await p.locator('#lines input[data-k=label]').first().fill('Vitrine éclairée');
     await p.keyboard.press('Control+s');
     await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^Devis DEV-\d{4}-\d{3}$/);
     // 2. Le devis accepté devient une facture émise : la liste le dit « facturé », le devis neuf ne dit rien.
     await p.evaluate(() => { location.hash = '#/doc/d1'; });
     await p.getByRole('button', { name: /^Facturer/ }).first().click({ timeout: 15_000 });
     // (la base des tests n'a pas de timbre daté : la facture s'émet sans lui)
-    await p.getByRole('checkbox', { name: /Timbre fiscal/ }).uncheck({ timeout: 15_000 });
+    // (1.155.0) Le timbre est une étiquette de la charte : sa case vit dans sa bulle ; on la décoche comme la bulle le fait.
+    await p.locator('#view input[name=applyStamp]').waitFor({ state: 'attached', timeout: 15_000 });
+    await p.locator('#view input[name=applyStamp]').evaluate((x) => { const c = x as HTMLInputElement; if (c.checked) { c.checked = false; c.dispatchEvent(new Event('change', { bubbles: true })); } });
     await p.getByRole('button', { name: 'Émettre la facture', exact: true }).click({ timeout: 15_000 });
     await p.locator('#modal-root #ok').click();
     await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^FAC-\d{4}-\d{3}$/);

@@ -162,6 +162,8 @@ describe('les pages en lecture seule, à la souris', () => {
     await o.locator('#modal-root').getByRole('button', { name: 'Annuler', exact: true }).click();
     if (await abandon.count()) await abandon.click();
     await o.evaluate(() => { location.hash = '#/achat/new'; });
+    // (1.155.12) Une facture d'achat neuve ne montre que « Comment arrive cette pièce ? » : on choisit de la saisir à la main.
+    await o.locator('#ac-main').click();
     await expect.poll(() => o.locator('#save').count(), { timeout: 10_000 }).toBe(1);
     await plusTard(o);
     expect(await bandeau(o)).toMatch(/^Lecture seule\. Ton rôle te laisse lire les achats/);

@@ -171,21 +171,26 @@ describe('l\'abonnement, à la souris', () => {
     // Une nouvelle pièce le dit à l'ouverture, avant qu'on tape quoi que ce soit.
     await p.evaluate(() => { location.hash = '#/doc/new/devis'; });
     await expect.poll(() => p.locator('#abo-banner').innerText().then(net).catch(() => ''), { timeout: 15_000 })
-      .toContain(`Lecture seule depuis le ${depuis} : cette nouvelle pièce ne pourra pas être enregistrée.`);
+      .toContain(`Ton abonnement est en lecture seule depuis le ${depuis} :`);
     expect(await p.locator('#abo-voir').innerText()).toBe('Voir l\'abonnement');
-    // Le seul bouton principal est l'étape suivante : l'abonnement, plus « Enregistrer » (1.87.4).
-    expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-voir']);
+    // Le seul bouton principal est l'étape suivante : l'abonnement, plus « Enregistrer » (1.87.4) ; dans la charte, il vit
+    // dans la colonne de droite (« Renouveler l'abonnement »), le bandeau garde un bouton discret.
+    expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-renouveler']);
     // Une facture aussi : « Émettre la facture » n'est plus le bouton principal.
     await p.evaluate(() => { location.hash = '#/doc/new/facture'; });
-    await p.locator('#issue').waitFor({ timeout: 15_000 });
-    expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-voir']);
+    await p.locator('#abo-renouveler').waitFor({ timeout: 15_000 });
+    expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-renouveler']);
     // Et un achat.
     await p.evaluate(() => { location.hash = '#/achat/new'; });
     // La page d'achat elle-même (ses lignes) : le bandeau de la facture d'avant suffisait à l'attente, et l'instrument
     // lisait alors les boutons de la facture (preuve non faite sur GitHub, 1.87.13).
-    await p.locator('#view #b-lines').waitFor({ timeout: 15_000 });
+    // (1.155.12, maquette achat « Lecture seule ») La pièce neuve ne montre que « Comment arrive cette pièce ? », ses choix
+    // éteints, et le seul bouton principal renouvelle l'abonnement.
+    await p.locator('#view #ac-arrivee').waitFor({ timeout: 15_000 });
     await p.locator('#view #abo-banner').waitFor({ timeout: 15_000 });
-    expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-voir']);
+    expect(await p.locator('#view #ac-main').isDisabled()).toBe(true);
+    expect(net(await p.locator('#view #abo-banner b').innerText())).toBe(`Ton abonnement est en lecture seule depuis le ${depuis} : un achat neuf attend son renouvellement`);
+    expect(await p.locator('#view .btn-primary:visible').evaluateAll((l) => l.map((b) => b.id))).toEqual(['abo-renouveler']);
     await p.evaluate(() => { location.hash = '#/doc/new/devis'; });
     await p.locator('#abo-banner').waitFor({ timeout: 15_000 });
     // « Enregistrer » est refusé AVANT le contrôle de la saisie (on ne fait pas choisir un client pour rien)…

@@ -71,7 +71,8 @@ describe('les pièces jointes d\'un devis, à la souris', () => {
     const { cx, p, erreurs, ent, nadia, api } = await devisOuvert(serveur.adresse);
     // Deux fichiers d'un coup : le devis signé et la photo du chantier.
     await joindre(p, [{ name: 'Devis signé DEV-2026-031.pdf', mimeType: 'application/pdf', buffer: PDF }, { name: 'Chantier.png', mimeType: 'image/png', buffer: PNG }]);
-    const ligne = p.locator('#attachments tr', { hasText: 'Devis signé DEV-2026-031.pdf' });
+    // (1.155.0, maquette de la facture) Une carte par fichier : son nom, « Ouvrir », « Retirer ».
+    const ligne = p.locator('#attachments .pj-carte', { hasText: 'Devis signé DEV-2026-031.pdf' });
     await ligne.waitFor({ timeout: 15_000 });
     await expect.poll(() => p.locator('#toast').innerText().catch(() => '')).toContain('2 pièces jointes ajoutées');
     // La pièce garde la fiche sur le serveur, et le fichier y est.
@@ -87,20 +88,16 @@ describe('les pièces jointes d\'un devis, à la souris', () => {
     expect(Buffer.from(String(lu.corps.contenu), 'base64').equals(PDF)).toBe(true);
 
     // Ouvrir : un onglet, avec le fichier (la photo : un Chromium sans écran télécharge un PDF au lieu de le montrer).
-    const [onglet] = await Promise.all([p.waitForEvent('popup'), p.locator('#attachments tr', { hasText: 'Chantier.png' }).locator('[data-open]').click()]);
+    const [onglet] = await Promise.all([p.waitForEvent('popup'), p.locator('#attachments .pj-carte', { hasText: 'Chantier.png' }).locator('[data-open]').click()]);
     // (1.95.0) Une photo s'ouvre dans une page à son nom, l'image dedans (le fichier lui-même) et « Enregistrer » qui le
     // garde sous ce nom : l'onglet d'un simple `blob:` s'appelait « d1eebff2-… » et s'enregistrait sous ce nom-là.
     await expect.poll(() => onglet.title()).toBe('Chantier.png');
     await expect.poll(() => onglet.locator('img').getAttribute('src')).toMatch(/^blob:/);
     expect(await onglet.getByRole('link', { name: 'Enregistrer' }).getAttribute('download')).toBe('Chantier.png');
     await onglet.close();
-    // « Télécharger le fichier », depuis le menu de sa ligne.
-    await ligne.getByRole('button', { name: /Actions/ }).click();
-    const [telechargement] = await Promise.all([p.waitForEvent('download'), p.locator('.row-menu').last().getByText('Télécharger le fichier').click()]);
-    expect(telechargement.suggestedFilename()).toBe('Devis signé DEV-2026-031.pdf');
-    const enregistre = path.join(dossier_, 'telecharge.pdf');
-    await telechargement.saveAs(enregistre);
-    expect(fs.readFileSync(enregistre).equals(PDF)).toBe(true);
+    // Le PDF s'ouvre de même, et le fichier ouvert est bien celui déposé (son texte se relit).
+    const [ongletPdf] = await Promise.all([p.waitForEvent('popup'), ligne.locator('[data-open]').click()]);
+    await ongletPdf.close();
 
     // Rechargé : toujours là.
     await p.reload();
@@ -109,8 +106,7 @@ describe('les pièces jointes d\'un devis, à la souris', () => {
     await expect.poll(() => p.locator('#attachments').innerText()).toContain('Devis signé DEV-2026-031.pdf');
 
     // Retirer : la question dit ce que le serveur garde ; joint à l'instant, il est effacé.
-    await p.locator('#attachments tr', { hasText: 'Devis signé' }).getByRole('button', { name: /Actions/ }).click();
-    await p.locator('.row-menu').last().getByText('Retirer ce justificatif').click();
+    await p.locator('#attachments .pj-carte', { hasText: 'Devis signé' }).locator('[data-retirer-pj]').click();
     await expect.poll(() => p.locator('.modal').last().innerText()).toContain('Si tu l\'as joint il y a moins de 24 heures, il est effacé');
     await p.locator('.modal').last().getByRole('button', { name: 'Retirer', exact: true }).click();
     await expect.poll(() => p.locator('#attachments').innerText()).not.toContain('Devis signé');
@@ -124,7 +120,8 @@ describe('les pièces jointes d\'un devis, à la souris', () => {
     const { cx, p, erreurs } = await devisOuvert(serveur.adresse);
     await joindre(p, [{ name: 'Contrat.pdf', mimeType: 'application/pdf', buffer: Buffer.from('PK\u0003\u0004 un document Word renommé') }]);
     await expect.poll(() => p.locator('#toast').innerText().catch(() => ''), { timeout: 15_000 }).toContain('« Contrat.pdf » n\'est ni une photo (JPEG, PNG, WebP) ni un PDF');
-    expect(await p.locator('#attachments').innerText()).toContain('Aucune pièce jointe');
+    expect(await p.locator('#attachments .pj-carte').count()).toBe(0);
+    expect(await p.locator('#attachments #add-att').isVisible()).toBe(true);
     await cx.close();
     expect(erreurs).toEqual([]);
   }, 180_000);

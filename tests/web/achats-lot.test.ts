@@ -214,7 +214,7 @@ describe('le lot achats, à l\'écran', () => {
     expect(await p.locator('#b-save-bar').isVisible()).toBe(false);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'achats-lot-2-enregistrer-en-bas.png') });
     await p.locator('#save').click();
-    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture d'achat GMT-2026-0412/);
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^GMT-2026-0412/);
 
     // 5. Le règlement d'août : la retenue se reverse avec « la déclaration d'août », et l'attestation s'établit sur TEJ.
     await p.locator('#pay').click();
@@ -229,6 +229,8 @@ describe('le lot achats, à l\'écran', () => {
     // 6. Un avoir, rattaché depuis la liste : il reprend la facture ; sans échéance ; son objet parle d'un avoir.
     await aller(p, '#/achat/new');
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Nouvelle facture d'achat/);
+    // (1.155.12) Une facture d'achat neuve ne montre que « Comment arrive cette pièce ? » : on choisit de la saisir à la main.
+    await p.locator('#ac-main').click();
     await p.locator('#b-head select[name=kind]').selectOption('avoir');
     await expect.poll(() => p.locator('#b-head input[name=dueDate]').evaluate((x) => (x.closest('.field') as HTMLElement).hidden)).toBe(true);
     expect(await p.locator('#view input[name=subject]').getAttribute('placeholder')).toBe('Ce que l\'avoir corrige : retour, remise, erreur de prix…');
@@ -260,7 +262,8 @@ describe('le lot achats, à l\'écran', () => {
     await expect.poll(() => p.locator('#b-head input[name=dueDate]').inputValue(), { timeout: 10_000 }).toBe('2026-10-27');
 
     await p.locator('.ed-chemin .ed-retour').click();
-    if (await p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).count()) await p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).click();
+    // La question arrive après le clic : on l'attend un peu (lue tout de suite, elle n'était pas encore là).
+    await p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).click({ timeout: 5_000 }).catch(() => undefined);
 
     // 8. Les pièces jointes en ligne (1.89.0) : la liste des achats propose de filtrer « Sans justificatif » ; la visite
     // « Saisir une facture d'achat » montre d'abord le justificatif, sans se perdre.
