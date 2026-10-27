@@ -15,7 +15,6 @@
 import { createHash, randomBytes, randomInt } from 'node:crypto';
 import type pg from 'pg';
 import type { Imprimeur } from './pdf/imprimeur.ts';
-import type { Lecteur } from './achats/lecteur.ts';
 import type { LecteurIA } from './achats/lecture-ia.ts';
 import type { Adresses } from './adresses.ts';
 import type { EnvoiCourriel } from './courriel.ts';
@@ -48,10 +47,8 @@ export type Contexte = {
   // L'envoi à la TTN (brique 82) : l'adresse du service El Fatoora (null : pas branché sur ce serveur), et
   // la clé du coffre qui scelle le mot de passe El Fatoora de chaque entreprise.
   ttn?: { adresse: string | null; coffre: Buffer };
-  // La lecture des factures d'achat (brique 84) : le moteur de ce serveur (Tesseract et Poppler), et sa
-  // file ; absent ou non disponible, la lecture n'est pas branchée (et l'écran le dit).
-  lecteur?: Lecteur;
-  // La lecture par l'IA de Claude (Anthropic), hors de Tunisie : branchée si l'environnement donne sa clé (lecture-ia.ts).
+  // La lecture des factures d'achat (brique 84) par l'IA de Claude (Anthropic), hors de Tunisie : branchée si l'environnement
+  // donne sa clé (lecture-ia.ts) ; c'est la seule lecture (27/10/2026).
   lecteurIA?: LecteurIA;
   // Le PDF fait par le serveur (docs/pdf.md) : Chromium et sa file ; absent, l'écran ouvre la fenêtre d'impression.
   imprimeur?: Imprimeur;

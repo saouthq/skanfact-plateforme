@@ -4451,158 +4451,30 @@ prouver "le code du dessin des QR retouché à la main" web/public/tiers/qrcode.
   "var qrcode = function() {" "var qrcode = function() { // retouché" \
   "$QRT"
 
-# ── Brique 84 : lire une facture d'achat en photo ou en PDF, sur nos serveurs (docs/achats.md) ──
-LF2="la même, photographiée (penchée, floue)"
-LF3="un fournisseur de matériaux : les traits du tableau"
-LF4="un bureau d'études : des prestations sans quantité"
-LF5="un fournisseur étranger : des euros (deux décimales)"
-LR1="notre matricule n'est jamais pris pour celui du fournisseur, même lu le premier"
-LR2="un total qui ne tombe pas se dit, avec les deux chiffres"
-LR3="une TVA qui ne fait pas son taux sur sa base se dit"
-LR4="des lignes illisibles : une ligne par taux, depuis les bases lues"
-LR5="une ligne sans taux lisible ne reçoit aucun taux"
-LR6="les étiquettes au-dessus de leurs valeurs"
-LR7="une pièce adressée à un autre que nous se dit"
-LR8="le FODEC compte dans le total recompté"
-LR9="un texte qui n'est pas une facture : presque rien"
-LS1="une photo se lit : la proposition, où chaque champ a été lu"
-LS2="un PDF écrit par un logiciel se lit tel quel"
-LSA="l'acheteur, c'est la fiche de l'entreprise"
-LS3="ce qui n'est ni une photo ni un PDF, ou trop lourd, se refuse sans rien lire"
-LS4="un serveur sans moteur le dit ; au-delà de sa file"
+# ── Brique 84 : lire une facture d'achat en photo ou en PDF (docs/achats.md) ──
+# (27/10/2026, Skander) Seule l'IA de Claude lit les pièces : la lecture de nos serveurs (Tesseract, Poppler,
+# lecture-facture.ts, lecteur.ts) se trompait trop, elle est retirée avec ses preuves. Ce qui reste de la route se prouve
+# contre tests/achats/lecture-ia.test.ts ; la lecture par l'IA, plus bas (« ia 1 » et suivantes).
+LS3="ce qui n'est ni une photo ni un PDF, ou trop lourd, se refuse sans rien envoyer"
+LS4="un serveur sans clé ne lit rien, et le dit"
 LS5="seuls ceux qui préparent un achat lisent"
-LB2="il sait dire non : deux lectures fausses sur six"
-LV1="un taux non lu n'est pas une TVA à 0 %"
-LW1="Nadia photographie la facture : la fenêtre montre ce qui a été lu"
-LW2="un fichier qui n'est pas une facture se refuse avec la phrase du serveur"
+LWB="Nadia dit oui à l'IA, tranche le numéro flou et la quantité tachée"
 RV="les pages du quotidien de la v10, sur un téléphone et un ordinateur"
-prouver "notre matricule pris pour celui du fournisseur" serveur/achats/lecture-facture.ts \
-  "  const duFournisseur = matricules.find((m) => m.compact !== nous) ?? null;" "  const duFournisseur = matricules[0] ?? null;" \
-  "$LR1"
-prouver "un total qui ne tombe pas, dit juste" serveur/achats/lecture-facture.ts \
-  "  const juste = recompte !== null && totalLu !== null ? recompte === totalLu : null;" "  const juste = recompte !== null && totalLu !== null ? true : null;" \
-  "$LR2"
-prouver "le total de la pièce « corrigé » par le recomptage" serveur/achats/lecture-facture.ts \
-  "      totalTTC: totalLu !== null ? versTexte(totalLu, 3) : null," "      totalTTC: recompte !== null ? versTexte(recompte, 3) : totalLu !== null ? versTexte(totalLu, 3) : null," \
-  "$LR2"
-prouver "une TVA qui ne fait pas son taux, tue" serveur/achats/lecture-facture.ts \
-  "    if (ecart(attendu, x.montant) > 2n) {" "    if (false) {" \
-  "$LR3"
-prouver "un taux inventé quand la TVA ne tombe pas juste" serveur/achats/lecture-facture.ts \
-  "    if (ecart((totalHT * taux + 50n) / 100n, tvaLue) <= 2n) {" "    if (true) {" \
-  "$LR4"
-prouver "aucune ligne par taux quand le détail ne se lit pas" serveur/achats/lecture-facture.ts \
-  "  } else if (bases.length && (totalHT === null || sommeBases === null || ecart(sommeBases, totalHT) <= 2n)) {" "  } else if (false) {" \
-  "$LR4"
-prouver "un taux supposé à une ligne qui n'en imprime pas" serveur/achats/lecture-facture.ts \
-  "unSeulTaux !== null ? tauxEnTexte(unSeulTaux) : null, ht: r.total," "unSeulTaux !== null ? tauxEnTexte(unSeulTaux) : '19', ht: r.total," \
-  "$LR5"
-prouver "une répartition des taux ambiguë proposée quand même" serveur/achats/lecture-facture.ts \
-  "  const seule = trouvees.length === 1 ? trouvees[0] : undefined;" "  const seule = trouvees[0];" \
-  "$LR5"
-prouver "les taux perdus jamais retrouvés par les bases lues" serveur/achats/lecture-facture.ts \
-  "  if (rangeesJustes && bases.length > 1) repartir(rangees, bases);" "" \
-  "$LF2"
-prouver "une quantité perdue jamais retrouvée" serveur/achats/lecture-facture.ts \
-  "        for (const deduite of [false, true]) {" "        for (const deduite of [false]) {" \
-  "$LF2"
-prouver "une quantité déduite d'un nombre sans décimales" serveur/achats/lecture-facture.ts \
-  "        const unPrix = /[.,]/.test(g[iPrix]?.texte ?? '');" "        const unPrix = true;" \
-  "$LF4"
-prouver "« 1 500,000 » lu cinq cents" serveur/achats/lecture-facture.ts \
-  "  const colle = groupements(nombres).reduce((a, b) => (b.length < a.length ? b : a), nombres);" "  const colle = nombres;" \
-  "$LF4"
-prouver "une remise de 0 % prise pour une TVA à 0 %" serveur/achats/lecture-facture.ts \
-  "  const colonnes = [...entete.matchAll(" "  const colonnes = [...''.matchAll(" \
-  "$LF3"
-prouver "les traits du tableau pris pour des mots" serveur/achats/lecture-facture.ts \
-  "  const mots = texte.replace(/[|¦]+/g, ' ')" "  const mots = texte.replace(/[¦]+/g, ' ')" \
-  "$LF3"
-prouver "la fin du tableau au récapitulatif de la TVA oubliée" serveur/achats/lecture-facture.ts \
-  "|remise|base|taux|fodec|" "|remise|base|fodec|" \
-  "$LF3"
-prouver "l'en-tête du tableau sur deux lignes jamais reconnu" serveur/achats/lecture-facture.ts \
-  " && (ENTETE_COLONNES.test(l.compact) || ENTETE_COLONNES.test(lignes[i + 1]?.compact ?? '')));" " && ENTETE_COLONNES.test(l.compact));" \
-  "$LF2"
-prouver "une date de livraison prise pour la date de la pièce" serveur/achats/lecture-facture.ts \
-  "  const AUTRE = /(?:livraison|commande|devis|periode|validite|naissance)/;" "  const AUTRE = /(?:jamais)/;" \
-  "$LR6"
-prouver "les étiquettes au-dessus de leurs valeurs jamais lues" serveur/achats/lecture-facture.ts \
-  "  if (dessous && !toutes.some(" "  if (false && !toutes.some(" \
-  "$LR6"
-prouver "une pièce adressée à un autre, tue" serveur/achats/lecture-facture.ts \
-  "  if (nous && !matricules.some((m) => m.compact === nous) && autres[0]) remarques.push(" "  if (false) remarques.push(" \
-  "$LR7"
-prouver "le FODEC oublié dans le recomptage" serveur/achats/lecture-facture.ts \
-  "htCompte + tvaCompte + (fees ?? 0n) + (fodec ?? 0n) : null;" "htCompte + tvaCompte + (fees ?? 0n) : null;" \
-  "$LR8"
-prouver "une pièce presque vide, tue" serveur/achats/lecture-facture.ts \
-  "  if (!duFournisseur && totalLu === null && totalHT === null && !date) remarques.push(motif('achats.lecture.presque_rien'));" "" \
-  "$LR9"
-prouver "un montant en euros écrit au millième" serveur/achats/lecture-facture.ts \
-  "  const decimales = devise && devise !== 'TND' && f.endsWith('0') ? f.slice(0, 2) : f;" "  const decimales = f;" \
-  "$LF5"
-prouver "le fichier gardé sur le serveur après la lecture" serveur/achats/lecteur.ts \
-  "      await fs.rm(dossier, { recursive: true, force: true });" "      void dossier;" \
-  "$LS1"
-prouver "un PDF scanné jamais passé au moteur des photos" serveur/achats/lecteur.ts \
-  "if (lettres(texte) >= 40) return" "if (true) return" \
-  "$LS2"
-prouver "un PDF écrit par un logiciel lu comme une photo" serveur/achats/lecteur.ts \
-  "if (lettres(texte) >= 40) return" "if (false) return" \
-  "$LS2"
-prouver "la file du lecteur sans limite" serveur/achats/lecteur.ts \
-  "      if (actives < simultanees) actives++;" "      if (true) actives++;" \
+prouver "un serveur sans l'IA qui ne le dit pas" serveur/achats/routes.ts \
+  "      if (!ctx.lecteurIA?.disponible) return" "      if (false) return" \
   "$LS4"
-prouver "un créneau de lecture jamais rendu" serveur/achats/lecteur.ts \
-  "        if (suivant) suivant.ok(); else actives--;" "        if (suivant) suivant.ok();" \
-  "$LS4"
-prouver "un serveur sans moteur qui ne le dit pas" serveur/achats/routes.ts \
-  "      if (!lecteur?.disponible) return" "      if (false) return" \
-  "$LS4"
-prouver "ce qui n'est ni une photo ni un PDF envoyé au moteur" serveur/achats/routes.ts \
+prouver "ce qui n'est ni une photo ni un PDF envoyé à l'IA" serveur/achats/routes.ts \
   "      if (!sorte) return { statut: 415," "      if (false) return { statut: 415," \
   "$LS3"
 prouver "un fichier trop lourd lu quand même" serveur/achats/routes.ts \
   "      if (fichier.length > LIMITE_FICHIER) {" "      if (false) {" \
   "$LS3"
-prouver "le matricule de l'acheteur pas donné à la lecture" serveur/achats/routes.ts \
-  "      const p = lireFacture(lu.texte, { notreMatricule });" "      const p = lireFacture(lu.texte, {});" \
-  "$LSA"
 prouver "un commercial qui lit les factures d'achat" serveur/achats/gestes.ts \
   "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui' } }," "    roles: { proprietaire: 'oui', administrateur: 'oui', comptabilite_interne: 'oui', commercial: 'oui' } }," \
   "$LS5"
-prouver "un banc qui passe sur un lot vide" banc/lecture/mesurer.ts \
-  "seuilAtteint: lignes.length > 0 && justes * SEUIL.sur" "seuilAtteint: justes * SEUIL.sur" \
-  "$LB2"
-prouver "un banc qui ne compare pas le total" banc/lecture/mesurer.ts \
-  "      total: memeMontant(lu.total, attendu.total)," "      total: true," \
-  "$LB2"
-prouver "un taux non lu devenu une TVA à 0 %" web/public/v10/core.js \
-  "      vatRate: l.vatRate != null && l.vatRate !== '' && VAT_RATES.includes(ocrNumber(l.vatRate))" "      vatRate: VAT_RATES.includes(ocrNumber(l.vatRate))" \
-  "$LV1"
-prouver "la ligne lue jamais montrée sous les champs" web/public/v10/app.js \
-  "    const ici = (html, k) => { const s = luIci(k);" "    const ici = (html, k) => { const s = luIci(k) && '';" \
-  "$LW1"
-prouver "le recomptage du serveur jamais montré" web/public/plateforme/pont.js \
-  "{ remarques: r.remarques || [], ou: r.ou || {}, moteur: r.moteur }" "{ ou: r.ou || {}, moteur: r.moteur }" \
-  "$LW1"
 prouver "le bouton de lecture caché sur la plateforme" web/public/v10/app.js \
-  "    if (!OCR_EN_PAUSE || (bridge.lectureSurLeServeur && isNew && !clos)) bridge.ocrStatus()" "    if (!OCR_EN_PAUSE) bridge.ocrStatus()" \
-  "$LW1"
-prouver "le bouton de lecture sur un achat déjà enregistré" web/public/v10/app.js \
-  "(bridge.lectureSurLeServeur && isNew && !clos)" "(bridge.lectureSurLeServeur && !clos)" \
-  "$LW1"
-# (1.105.0) « la lecture qui essaie de joindre la photo sans pièces jointes » retirée : depuis la 1.89.0, le serveur garde
-# les pièces jointes (pont.js, `piecesJointes: true`), et la garde ne se joue plus jamais ; son défaut ne faisait plus rien
-# tomber (vu sur GitHub le 22/10/2026). Le drapeau lui-même est tenu par « le bouton du justificatif encore absent en ligne ».
-prouver "un échec de lecture qui propose de joindre un fichier que le serveur refuserait" web/public/v10/app.js \
-  "        if (bridge.piecesJointes === false || e.statut === 415) return infoDialog('La lecture de la facture a échoué', (e.message || 'Erreur inconnue.') + depuisMessage);
-" "" \
-  "$LW2"
-prouver "la ligne lue coupée sur un téléphone" web/public/v10/app.js \
-  "style=\"display:block;margin-top:3px;overflow-wrap:anywhere\"" "style=\"display:block;margin-top:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap\"" \
-  "$LW2"
+  "    const statutLecture = (!OCR_EN_PAUSE || (bridge.lectureSurLeServeur && isNew && !clos)) ? bridge.ocrStatus()" "    const statutLecture = (!OCR_EN_PAUSE) ? bridge.ocrStatus()" \
+  "$LWB"
 # Lot téléphone (06/10/2026) : les lignes de l'écran d'achat sont une grille au téléphone ; le cadre qui défile ne sert
 # plus qu'aux autres tableaux de lignes d'achat. Le défaut d'avant (la page qui déborde) revient sans l'un ni l'autre.
 prouver "les lignes d'un achat qui débordent du téléphone" web/public/plateforme/telephone.css \
@@ -20559,11 +20431,11 @@ prouver 'facture 26 : la FODEC dans un mois qui n'"'"'en a pas' web/public/v10/c
   'un mois sans FODEC : ni rubrique ni ligne au récapitulatif'
 # La lecture par l'IA de Claude (27/10/2026, serveur/achats/lecture-ia.ts).
 prouver 'ia 1 : la photo part chez l'"'"'IA sans le oui de la personne' serveur/achats/routes.ts \
-  "      const parIA = corps.ia === true && await iaPossible(" "      const parIA = await iaPossible(" \
+  "      if (corps.ia !== true) return { statut: 409," "      if (false) return { statut: 409," \
   'ne part chez l'"'"'IA que si la personne a dit oui pour ce fichier'
 prouver 'ia 2 : l'"'"'IA coupée par l'"'"'entreprise lit quand même' serveur/achats/routes.ts \
   "    return societe?.lectureIA !== false;" "    return true;" \
-  'l'"'"'entreprise qui a coupé l'"'"'IA lit sur nos serveurs, même si on la demande'
+  'l'"'"'entreprise qui a coupé l'"'"'IA ne lit rien, même si on la demande'
 prouver 'ia 3 : notre matricule pris pour celui du fournisseur' serveur/achats/lecture-ia.ts \
   "  const autres = r.matricules.filter((m) => compacterMatricule(m.valeur) !== nous);" "  const autres = r.matricules;" \
   'rend la proposition attendue par la relecture, avec le fournisseur pris à l'"'"'émetteur, jamais à nous'
@@ -20580,9 +20452,9 @@ prouver 'ia 6 : le recomptage ne départage plus la quantité' serveur/achats/le
 prouver 'ia 7 : une donnée de plus part chez Anthropic' serveur/achats/lecture-ia.ts \
   "      model: modele, max_tokens: 16_000," "      model: modele, max_tokens: 16_000, metadata: { user_id: 'entreprise' }," \
   'n'"'"'envoie que la pièce et la consigne : ni le nom ni le matricule de l'"'"'entreprise'
-prouver 'ia 8 : la panne de l'"'"'IA sans repli ni remarque' serveur/achats/routes.ts \
-  "      const remarques = repli ? [motif('achats.lecture.ia_repli'), ...p.remarques] : p.remarques;" "      const remarques = p.remarques;" \
-  'si l'"'"'IA ne répond pas, la pièce se lit sur nos serveurs, et la remarque le dit'
+prouver 'ia 8 : la panne de l'"'"'IA rendue comme une lecture réussie' serveur/achats/routes.ts \
+  "        return { statut: e instanceof IARefuse ? 422 : 503," "        return { statut: 200," \
+  'si l'"'"'IA ne répond pas ou refuse, rien n'"'"'est lu'
 prouver 'ia 9 : l'"'"'écran envoie sans poser la question' web/public/v10/app.js \
   "      if (opts.ia === undefined && await iaProposee()) {" "      if (opts.ia === undefined && await iaProposee()) { opts = { ia: true }; } if (false) {" \
   'Nadia dit oui à l'"'"'IA, tranche le numéro flou et la quantité tachée'
@@ -20600,6 +20472,60 @@ prouver 'ia 12 : une case vide de la réponse gardée comme un texte' serveur/ac
 prouver 'ia 13 : la photo lourde d'"'"'un téléphone part telle quelle (refusée par l'"'"'API au-delà de 5 Mo)' web/public/plateforme/pont.js \
   "      const envoye = opts.ia ? await allegerPourIA(f) : f;" "      const envoye = f;" \
   'la photo lourde d'"'"'un téléphone part à l'"'"'IA réduite à 2 400 points, en JPEG'
+prouver 'ia 14 : la lecture qui saute ses étapes, sans dire ce qu'"'"'elle a lu' web/public/v10/app.js \
+  "      await annulee.finir(read);" "" \
+  'Nadia dit oui à l'"'"'IA, tranche le numéro flou et la quantité tachée'
+prouver 'ia 15 : les zones douteuses absentes de la photo' web/public/v10/app.js \
+  "      const zones = enImage ? doutesIA.filter(d => Array.isArray(d.zone) && d.zone.length === 4) : [];" "      const zones = [];" \
+  'Nadia dit oui à l'"'"'IA, tranche le numéro flou et la quantité tachée'
+prouver 'ia 16 : la case douteuse qui n'"'"'est pas en ambre sur la pièce' web/public/v10/app.js \
+  "class=\"num\${estMarque(i, 'qty') ? ' lu-douteux' : ''}\" data-k=\"qty\"" "class=\"num\" data-k=\"qty\"" \
+  '« Non » joint la photo sans rien envoyer'
+prouver 'ia 17 : le bandeau qui ne dit pas les valeurs possibles' web/public/v10/app.js \
+  "} (\${d.valeurs.map(v => /date|echeance/.test(d.champ) ? enDate(v.valeur) : v.valeur).join(' ou ')} ?)\`)," "}\`)," \
+  '« Non » joint la photo sans rien envoyer'
+prouver 'ia 18 : « Avant d'"'"'enregistrer » qui oublie les cases lues à vérifier' web/public/v10/app.js \
+  "...(marquesLues.length ? [[false," "...(false ? [[false," \
+  '« Non » joint la photo sans rien envoyer'
+prouver 'ia 19 : la pièce remplie par l'"'"'IA qui se dit « Brouillon »' web/public/v10/app.js \
+  "      if (!stored && luParIA) return" "      if (false) return" \
+  '« Non » joint la photo sans rien envoyer'
+prouver 'ia 20 : le justificatif en tableau serré, sans sa photo' web/public/v10/app.js \
+  "      const enCartes = !!bridge.apercuPiece;" "      const enCartes = false;" \
+  '« Non » joint la photo sans rien envoyer'
+prouver 'ia 21 : la zone d'"'"'un doute perdue au serveur' serveur/achats/lecture-ia.ts \
+  "zone: zoneDe(d.zone) };" "zone: null };" \
+  'départage un doute sur une quantité par le recomptage'
+prouver 'ia 22 : « Justificatif » de la lecture qui n'"'"'ouvre rien' web/public/v10/app.js \
+  "if (b) b.onclick = () => photoEnGrand(file);" "if (b) b.onclick = () => {};" \
+  'Nadia dit oui à l'"'"'IA, tranche le numéro flou et la quantité tachée'
+prouver 'ia 23 : le PDF montré comme une icône, sans sa page' web/public/v10/app.js \
+  "      const pdf = f && /pdf/i.test(f.type || '') && bridge.apercuPdf;" "      const pdf = false;" \
+  'un PDF lu par l'"'"'IA se montre'
+prouver 'ia 24 : pdf.js servi sans son type (module refusé)' serveur/principal.ts \
+  "  '.mjs': 'text/javascript; charset=utf-8'," "" \
+  'un PDF lu par l'"'"'IA se montre'
+prouver 'ia 25 : un PDF appelé « la photo »' web/public/v10/app.js \
+  "    const motsLu = f => (/pdf/i.test(" "    const motsLu = f => (false && /pdf/i.test(" \
+  'un PDF lu par l'"'"'IA se montre'
+prouver 'ia 26 : le fournisseur lu qui ne se crée que depuis la liste' web/public/v10/app.js \
+  "    const creerOuChoisir = (nom, lu) => lu" "    const creerOuChoisir = (nom, lu) => false" \
+  'le fournisseur lu qui n'"'"'est pas dans la liste se crée d'"'"'un clic'
+prouver 'ia 27 : « Annuler » qui laisse la fiche créée' web/public/v10/app.js \
+  "      if (i >= 0) data.suppliers.splice(i, 1);" "" \
+  'le fournisseur lu qui n'"'"'est pas dans la liste se crée d'"'"'un clic'
+prouver 'ia 28 : la carte de l'"'"'IA coupée qui disparaît sans rien dire' web/public/v10/app.js \
+  "      if (!b || !st || !(st.hasKey || st.iaServeur)) return;" "      if (!b || !st || !st.hasKey) return;" \
+  'seule l'"'"'IA lit : coupée par l'"'"'entreprise'
+prouver 'ia 29 : la carte de l'"'"'IA coupée qui ne mène pas au réglage' web/public/v10/app.js \
+  "      if (iaCoupee) { allerParametres('donnees', 'p-ocr'); return; }" "" \
+  'seule l'"'"'IA lit : coupée par l'"'"'entreprise'
+prouver 'ia 30 : la carte de l'"'"'IA qui croit le réglage d'"'"'avant' web/public/v10/app.js \
+  "      iaCoupee = company().lectureIA === false;" "      iaCoupee = !st.hasKey;" \
+  'seule l'"'"'IA lit : coupée par l'"'"'entreprise'
+prouver 'ia 31 : le fournisseur créé d'"'"'un clic qui se dit « reconnu »' web/public/v10/app.js \
+  "            \${sup && sup.id === creeIci ? ligne(" "            \${false ? ligne(" \
+  'le fournisseur lu qui n'"'"'est pas dans la liste se crée d'"'"'un clic'
 # Les compléments dessinés le 27/10/2026 (docs/maquettes/complements.html ; tests/web/complements.test.ts).
 prouver 'compléments 1 : une facture sans bouton pour revenir à la liste' web/public/v10/app.js \
   "\${retourListe(backTo, isQ ? 'devis' : 'factures')}<div class=\"ed-titre\">" "<div class=\"ed-titre\">" \

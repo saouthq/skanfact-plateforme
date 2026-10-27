@@ -310,10 +310,9 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
 | `npm run entreprise -- exporter <id> <fichier>` / `restaurer <fichier>` | Exporte une entreprise, ou la restaure là où elle n'est pas (`PG_ADMIN`) |
 | `npm run types:base` | Réécrit `base/types.ts` à partir des migrations (base jetable sur `PG_ADMIN`) |
 
-Les tests demandent aussi xmllint, Tesseract (avec le français) et Poppler (la facture électronique, la
-lecture des factures d'achat, brique 84) : `apt-get install -y libxml2-utils tesseract-ocr tesseract-ocr-fra
-poppler-utils` s'ils manquent (GitHub les installe à chaque envoi). `npm run banc:lecture -- <lot>` mesure la
-lecture sur un lot de vraies factures, gardé HORS du dépôt (`docs/achats.md`, brique 84).
+Les tests demandent aussi xmllint et Poppler (la facture électronique, les PDF du serveur) : `apt-get install -y
+libxml2-utils poppler-utils` s'ils manquent (GitHub les installe à chaque envoi). Les factures d'achat ne se lisent
+plus que par l'IA de Claude (27/10/2026, `docs/achats.md`) : Tesseract et son banc sont retirés.
 
 Dans une session Claude : PostgreSQL 16 tourne sur `127.0.0.1:5433`, donc
 `PG_ADMIN=postgres://postgres@127.0.0.1:5433/postgres`. Le démarrage de chaque session

@@ -10,7 +10,7 @@ import type { Route } from '../app.ts';
 import type { Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
-import { sorteDe } from '../achats/lecteur.ts';
+import { sorteDe } from '../achats/sorte.ts';
 import './textes.ts';
 
 const uuid = z.string().uuid();

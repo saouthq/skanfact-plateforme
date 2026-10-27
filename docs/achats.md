@@ -127,7 +127,10 @@ son prochain changement (la plateforme n'a pas encore de données réelles).
 
 ---
 
-# Brique 84 : lire une facture d'achat en photo ou en PDF, sur nos serveurs
+# Brique 84 : lire une facture d'achat en photo ou en PDF, sur nos serveurs (retirée le 27/10/2026)
+
+> **Retirée le 27/10/2026** : seule l'IA de Claude lit les pièces (« Seule l'IA lit », plus bas). Ce qui suit est
+> l'histoire de la lecture par Tesseract, gardée pour le pourquoi ; son code, ses tests, son banc et ses preuves sont partis.
 
 *Conception du 30/09/2026 (par délégation ; cadrage `14` § 2.3, `12` § 3 et § 10 point 7, `03` § 2.3).*
 
@@ -385,10 +388,58 @@ de 5 Mo est refusée : la copie envoyée à l'IA d'une photo lourde est réduite
 (le justificatif joint reste l'original). Un échec de l'IA s'écrit dans le journal du serveur (la raison et le message
 de l'API, jamais la pièce ni la clé) : `journalctl -u skanfact-dev | grep "lecture par l'IA"`.
 
+**Le parcours de la maquette** (1.160.0, `docs/maquettes/achat.html`, états « Lecture intelligente · en cours »,
+« · à vérifier », « Lue par l'IA · pièce remplie »). Pendant la lecture : la photo (ou la première page du PDF) avec la
+raie qui la balaie, et les étapes qui se cochent, une fois la réponse reçue, avec ce qui a VRAIMENT été lu (le fournisseur
+reconnu et comment, les lignes comparées au catalogue, le total recompté) ; la page ne prétend pas savoir où en est le
+serveur avant. « Ce que SkanFact a compris » : chaque doute que l'IA sait situer porte un numéro (« zone 1 ») posé sur la
+photo (`zone`, en millièmes de l'image, vérifiée au serveur ; rien pour un PDF) ; un fournisseur inconnu se crée sur place
+(« + Créer « … » », avec son matricule) ; la catégorie se choisit dans la page ; le contrôle dit le TTC avec la bonne valeur
+(« avec 6 × « Cartouches d'encre », le total tombe juste : 647,646 ») ; « Justificatif » en haut montre la pièce en grand.
+La pièce remplie : la pastille « Lue par l'IA · à vérifier », les cases douteuses en ambre jusqu'à ce qu'on les touche, le
+bandeau qui nomme chaque doute avec ses valeurs (« 6 ou 8 ? »), « N cases lues sur la photo à vérifier » dans « Avant
+d'enregistrer », et le justificatif montré à droite (la photo, ses zones, ou la première page du PDF). Le toast compte ce que
+le bandeau compte, et nomme le fournisseur à choisir. **Écarts assumés** : la maquette dit « Tu peux quitter cet écran : la
+lecture continue, et la pièce t'attend dans tes brouillons » ; SkanFact ne garde pas encore d'achat en brouillon, la page dit
+seulement que rien n'entre avant ta décision. Le bouton « Annuler la dernière modification » (↶) de la maquette n'est pas
+encore sur l'achat.
+
 **Avant la production.** La clé ne se pose sur `app.skanfact.tn` qu'après l'autorisation de transfert de l'INPDP ;
 d'ici là, `dev.skanfact.tn` seulement, avec des pièces d'essai. **À VÉRIFIER** : ce qu'Anthropic garde des images, et
 le coût par lecture (`09` § 4).
 
 **Ce qui le prouve :** `tests/achats/lecture-ia.test.ts` (ce qui part, la forme, les refus, le recomptage, quand l'IA
 sert et quand elle ne sert pas) et `tests/web/lecture-ia.test.ts` (à la souris : la question, les doutes tranchés, le
-bandeau, le réglage coupé, la photo lourde réduite) ; 13 preuves (`tests/preuves.sh`, « ia 1 » à « ia 13 »).
+bandeau, le réglage coupé, la photo lourde réduite) ; 25 preuves (`tests/preuves.sh`, « ia 1 » à « ia 25 »).
+
+## Seule l'IA lit (1.160.0, 27/10/2026)
+
+Skander, après un essai sur `dev.skanfact.tn` : « dans la lecture de la photo on fait que lecture ia, et pas avec le
+serveur, car celle du serveur est nulle et se trompe ». La lecture sur nos serveurs (Tesseract et Poppler,
+`serveur/achats/lecteur.ts`, `serveur/achats/lecture-facture.ts`, `banc/lecture/`, ses pièces d'essai et leurs 30 preuves)
+est **retirée**. Elle servait encore de repli quand l'IA ne répondait pas : une lecture fausse qu'on croit juste coûte plus
+cher qu'une case vide.
+
+- **La route** (`POST …/achats/lecture`) ne lit que par l'IA : sans clé sur ce serveur, « la lecture par l'IA n'est pas
+  branchée » (503) ; coupée par l'entreprise, « coupée dans les paramètres… Rallume-la dans Paramètres › Lecture des
+  factures d'achat » (409) ; sans l'accord de la personne pour CE fichier, rien ne part (409). Une panne ou un refus de
+  l'IA ne se rattrape plus : rien n'est lu, la phrase le dit (503 se réessaie, 422 non). Le format et le poids se
+  contrôlent toujours avant l'envoi ; un commercial ne lit pas.
+- **L'écran** : la carte s'appelle « Lire avec l'IA » (✨, la maquette) ; coupée, elle reste et dit « coupée dans tes
+  paramètres : un clic pour la rallumer », et mène au réglage. Sans l'IA, une photo glissée se joint et la pièce se saisit
+  à la main. Un échec ouvre « La photo n'a pas pu être lue » : « Réessayer » (une panne) ou « Joindre et saisir à la main ».
+  Le réglage montre deux voies : « Lire avec l'IA de Claude » et « Saisir à la main · toujours là ».
+- **Le fournisseur lu qui n'est pas dans la liste se crée d'un clic** (Skander : « proposer créer directement si le
+  fournisseur n'y est pas, pas que dans la liste ») : « + Créer « … » » à côté de la liste, avec le nom et le matricule
+  lus ; la ligne dit ensuite « nouveau · fiche créée depuis la pièce », et le toast offre « Annuler » (la fiche s'en va tant
+  qu'aucun achat ne la porte). Dessiné d'abord : maquette achat, état « Lecture intelligente · fournisseur nouveau » ; le
+  réglage, maquette `complements.html`.
+- **Ce qui reste à Poppler** : relire dans les tests les PDF que fait le serveur (`tests/socle/pdf.test.ts`). Tesseract
+  n'est plus installé (installateur, GitHub, sessions) ; les anciennes tâches d'entretien `0002` et `0006` restent telles
+  quelles (déjà jouées sur le VPS ; le paquet peut y rester sans gêne).
+
+**Ce qui le prouve :** `tests/achats/lecture-ia.test.ts` (l'accord, la coupure, sans clé, la panne sans repli, le format
+et le poids, les droits) ; `tests/web/lecture-ia.test.ts` (« Créer » d'un clic et « Annuler », la carte coupée qui mène au
+réglage et revient « facultatif » une fois rallumée) ; les parcours J2 et téléphone lisent la facture d'essai de la
+quincaillerie par l'IA jouée (`tests/donnees/lecture/ia-quincaillerie.ts`). Preuves : les cinq de la route (début du bloc
+« Brique 84 »), « ia 1 », « ia 2 », « ia 8 » retournées, et « ia 26 » à « ia 31 ».

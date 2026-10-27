@@ -56,8 +56,8 @@ jobs:
         run: bash .github/reessayer.sh npx playwright-core install --with-deps chromium
       - name: Electron (la coque de bureau)
         run: node node_modules/electron/install.js
-      - name: xmllint, Tesseract, Poppler, Xvfb et age
-        run: bash .github/reessayer.sh sudo apt-get update -qq && bash .github/reessayer.sh sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb age
+      - name: xmllint, Poppler, Xvfb et age
+        run: bash .github/reessayer.sh sudo apt-get update -qq && bash .github/reessayer.sh sudo apt-get install -y -qq libxml2-utils poppler-utils xvfb age
       - name: Preuves (chaque test tombe quand on remet son défaut)
         run: npm run preuves
         env:

@@ -5,7 +5,8 @@
 //   - la page dit d'où vient la lecture (l'IA, hors de Tunisie, avec ton accord) et ce qui reste à trancher : le numéro
 //     flou, la quantité tachée ; le recomptage dit quelle quantité tombe juste, et refuse la mauvaise ;
 //   - tout tranché, la pièce se remplit, et le bandeau ne dit « au millime » que si les totaux tombent juste ;
-//   - l'entreprise qui coupe l'IA dans ses réglages lit sur nos serveurs, sans question.
+//   - le fournisseur lu qui n'est pas dans la liste se crée d'un clic, sans ouvrir la liste, et « Annuler » le retire ;
+//   - seule l'IA lit (27/10/2026, Skander) : l'entreprise qui la coupe ne lit rien ; la carte le dit et mène au réglage.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -37,7 +38,7 @@ const BUREAU_PLUS: ReponseIA = {
   ou: [{ champ: 'numero', texte: 'Facture n° BP-881?' }],
   doutes: [
     { champ: 'numero', ligne: null, valeurs: ['BP-8812', 'BP-8813'], raison: 'le dernier chiffre est flou' },
-    { champ: 'quantite', ligne: 2, valeurs: ['6', '8'], raison: 'quantité floue' },
+    { champ: 'quantite', ligne: 2, valeurs: ['6', '8'], raison: 'quantité floue', zone: [60, 330, 880, 40] },
   ],
 };
 
@@ -72,8 +73,8 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
   };
   const net = (t: string) => t.replace(/\s+/g, ' ').trim();
 
-  // Nadia, son atelier et Bureau Plus Sfax, déjà dans ses fournisseurs avec son matricule.
-  async function nadia(reglage: Record<string, unknown> = {}) {
+  // Nadia, son atelier et Bureau Plus Sfax, déjà dans ses fournisseurs avec son matricule (sauf `sansFournisseur`).
+  async function nadia(reglage: Record<string, unknown> = {}, sansFournisseur = false) {
     const email = `nadia-ia-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
     const premier = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Premier', type: 'navigateur' } })).corps.jeton);
@@ -86,7 +87,7 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
     await libererMatricule(inject('pgAdmin'), NOUS);
     const ok = await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
       { collection: '_racine', cle: 'company', rang: null, revision: fiche?.revision ?? null, contenu: { ...fiche?.contenu, name: 'Atelier Nadia', matricule: NOUS, ...reglage } },
-      { collection: 'suppliers', cle: 'bureau', rang: 0, revision: null, contenu: { id: 'bureau', name: 'Bureau Plus Sfax', matricule: '1390022T/A/M/000' } },
+      ...(sansFournisseur ? [] : [{ collection: 'suppliers', cle: 'bureau', rang: 0, revision: null, contenu: { id: 'bureau', name: 'Bureau Plus Sfax', matricule: '1390022T/A/M/000' } }]),
     ] });
     expect(ok.statut, JSON.stringify(ok.corps)).toBe(200);
     return { jeton, ent };
@@ -124,15 +125,28 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
     await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-1-question.png') });
     expect(envois.length).toBe(avant);
     await question(p).getByRole('button', { name: 'Lire avec l\'IA' }).click();
+    // (1.160.0, maquette « Lecture intelligente · en cours ») La réponse reçue, les étapes se cochent avec ce qui a VRAIMENT
+    // été lu, avant que « Ce que SkanFact a compris » s'ouvre.
+    const etape = (i: number, texte: string) => p.waitForFunction(([k, t]) => document.querySelector(`#ac-lecture [data-etape="${k}"].fait small`)?.textContent === t, [i, texte] as const, { timeout: 30_000, polling: 30 });
+    await etape(2, 'Bureau Plus Sfax, par son matricule');
+    await etape(3, '2 lignes, comparées à ton catalogue');
 
     await p.locator('#ac-lecture').getByText('Ce que SkanFact a compris').waitFor({ timeout: 30_000 });
+    // « Justificatif », en haut de la page : la photo en grand, pour comparer.
+    await p.locator('#lec-grand').click();
+    await expect.poll(() => p.locator('#modal-root .modal-grand img').count()).toBe(1);
+    await p.locator('#modal-root .modal-grand').getByRole('button', { name: 'Fermer' }).click();
     expect(envois.length).toBe(avant + 1);
     expect(envois.at(-1)?.equals(fs.readFileSync(PHOTO))).toBe(true);
     const page = () => p.locator('#ac-lecture').innerText().then(net);
     expect(await page()).toMatch(/Lue par l'IA de Claude \(Anthropic\), hors de Tunisie, avec ton accord/);
     expect(await page()).toMatch(/Rien d'autre n'est parti : ni tes clients, ni tes chiffres/);
     expect(await page()).toMatch(/Bureau Plus Sfax reconnu par son matricule 1390022T\/A\/M\/000/);
-    expect(await page()).toMatch(/avec 6, les lignes tombent juste : 543,400 HT/);
+    // (1.160.0, maquette) Le total que la personne compare avec la facture : le TTC, avec la bonne quantité.
+    expect(await page()).toMatch(/avec 6 × « Cartouches d'encre », le total tombe juste : 647,646 TVA ligne par ligne, timbre 1,000 à part/);
+    // La quantité floue est située sur la photo : la zone 1, numérotée sur l'image et dans la ligne.
+    expect(net(await ligneLue(p, 'Cartouches').innerText())).toMatch(/lue sur la photo · zone 1/);
+    expect(await p.locator('#ac-lecture .ac-lec-photo .ac-lec-repere').allInnerTexts()).toEqual(['1']);
     expect(net(await ligneLue(p, 'Numéro').innerText())).toMatch(/le dernier chiffre est flou : BP-8812 BP-8813 lu sur la photo : « Facture n° BP-881\? »/);
     expect(await ligneLue(p, 'Numéro').evaluate((x) => x.classList.contains('douteux'))).toBe(true);
     expect(net(await ligneLue(p, 'Cartouches').innerText())).toMatch(/quantité floue : 6 8/);
@@ -204,6 +218,38 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
     await fermer();
   }, 120_000);
 
+  // (1.160.0, demande de Skander) Un PDF se montre comme une photo : sa première page, dessinée dans le navigateur (pdf.js),
+  // pendant la lecture, sur « Ce que SkanFact a compris », en grand, et dans le justificatif de la pièce remplie ; les
+  // phrases disent « le PDF », pas « la photo ».
+  it('un PDF lu par l\'IA se montre : sa première page, à chaque étape, et les phrases disent « le PDF »', async () => {
+    const { jeton, ent } = await nadia();
+    const { p, erreurs, fermer } = await ouvrir(jeton, ent);
+    const selecteur = p.waitForEvent('filechooser');
+    await p.locator('#photo').click();
+    await (await selecteur).setFiles(path.join(RACINE, 'tests/donnees/lecture/quincaillerie.pdf'));
+    const fen = p.locator('#modal-root .modal').filter({ hasText: 'Lire ce PDF avec l\'IA ?' });
+    await fen.waitFor({ timeout: 10_000 });
+    expect(net(await fen.innerText())).toMatch(/Le PDF part chez l'IA de Claude/);
+    await p.locator('#modal-root .modal').getByRole('button', { name: /Lire avec l'IA/ }).click();
+    await p.locator('#ac-lecture').getByText('Ce que SkanFact a compris').waitFor({ timeout: 30_000 });
+    expect(net(await p.locator('.ed-tete h1').innerText())).toBe('Lecture du PDF');
+    // La première page, en image (pas une icône).
+    await expect.poll(() => p.locator('#ac-lecture .ac-lec-photo img.ac-lec-img').count(), { timeout: 20_000 }).toBe(1);
+    expect(await p.locator('#ac-lecture .ac-lec-photo img.ac-lec-img').evaluate((x) => (x as HTMLImageElement).naturalWidth)).toBeGreaterThan(400);
+    expect(net(await p.locator('#ac-lecture .ac-lec-photo .q').innerText())).toMatch(/^Le PDF · lu par l'IA/);
+    await p.locator('#lec-grand').click();
+    await expect.poll(() => p.locator('#modal-root .modal-grand .lec-grand img').count(), { timeout: 20_000 }).toBe(1);
+    expect(await p.locator('#modal-root .modal-grand').getByRole('link', { name: 'Ouvrir le PDF entier' }).count()).toBe(1);
+    await p.locator('#modal-root .modal-grand').getByRole('button', { name: 'Fermer' }).click();
+    await p.locator('#lec-remplir').click();
+    await p.locator('#ac-lu-ia').waitFor({ timeout: 15_000 });
+    expect(net(await p.locator('#toast .toast-txt').innerText())).toMatch(/^Pièce remplie depuis le PDF, joint à l'achat/);
+    await expect.poll(() => p.locator('#attachments .ac-pj-vue img').count(), { timeout: 20_000 }).toBe(1);
+    await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-7-pdf.png') });
+    expect(erreurs).toEqual([]);
+    await fermer();
+  }, 120_000);
+
   it('« Non » joint la photo sans rien envoyer ; une pièce remplie avec un doute ouvert le dit en ambre', async () => {
     const { jeton, ent } = await nadia();
     const { p, erreurs, fermer } = await ouvrir(jeton, ent);
@@ -223,44 +269,86 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
     await q.locator('#ac-lecture').getByText('Ce que SkanFact a compris').waitFor({ timeout: 30_000 });
     await q.locator('#lec-remplir').click();
     await q.locator('#ac-lu-ia').waitFor({ timeout: 15_000 });
-    expect(net(await q.locator('#ac-lu-ia').innerText())).toBe('Lue par l\'IA : 2 cases à vérifier Compare avec la photo jointe avant d\'enregistrer : le numéro de facture, la quantité de « Cartouches d\'encre ».');
+    // (1.160.0, maquette « Lue par l'IA · pièce remplie ») Le bandeau nomme chaque doute avec ses valeurs ; les deux cases
+    // restent en ambre sur la pièce ; la pastille, « Avant d'enregistrer » et le toast disent le même nombre.
+    expect(net(await q.locator('#ac-lu-ia').innerText())).toBe('Lue par l\'IA : 2 cases à vérifier La lecture n\'est pas sûre du numéro de facture (BP-8812 ou BP-8813 ?) et de la quantité de « Cartouches d\'encre » (6 ou 8 ?). Elles sont marquées en ambre ; compare avec la photo avant d\'enregistrer.');
     expect(await q.locator('#ac-lu-ia').evaluate((x) => x.classList.contains('ambre'))).toBe(true);
+    expect(net(await q.locator('.ed-tete .ed-pill').innerText())).toBe('Lue par l\'IA · à vérifier');
+    expect(net(await q.locator('#toast .toast-txt').innerText())).toBe('Pièce remplie depuis la photo, jointe à l\'achat : 2 cases à revoir, puis « Enregistrer l\'achat ».');
+    expect(await q.locator('#b-head input[name=number]').evaluate((x) => x.classList.contains('lu-douteux'))).toBe(true);
+    expect(await q.locator('#b-lines input[data-k=qty]').evaluateAll((xs) => xs.map((x) => x.classList.contains('lu-douteux')))).toEqual([false, true]);
+    await expect.poll(() => q.locator('#ac-avant').innerText().then(net)).toMatch(/2 cases lues sur la photo à vérifier/);
+    // Le justificatif se montre à droite : la photo, et la zone de la quantité floue posée dessus.
+    await expect.poll(() => q.locator('#attachments .ac-pj-vue img').count(), { timeout: 10_000 }).toBe(1);
+    expect(await q.locator('#attachments .ac-pj .ac-lec-repere').allInnerTexts()).toEqual(['1']);
+    // La quantité corrigée sur la pièce perd son ambre, et « Avant d'enregistrer » le compte.
+    await q.locator('#b-lines tr[data-i="1"] input[data-k=qty]').fill('6');
+    expect(await q.locator('#b-lines tr[data-i="1"] input[data-k=qty]').evaluate((x) => x.classList.contains('lu-douteux'))).toBe(false);
+    await expect.poll(() => q.locator('#ac-avant').innerText().then(net)).toMatch(/1 case lue sur la photo à vérifier/);
     await q.screenshot({ path: path.join(PHOTOS, 'lecture-ia-6-reste-a-verifier.png') });
     expect([...erreurs, ...deux.erreurs]).toEqual([]);
     await deux.fermer();
   }, 120_000);
 
-  it('l\'entreprise qui a coupé l\'IA lit sur nos serveurs, sans question ; le réglage le dit et la rallume', async () => {
+  it('le fournisseur lu qui n\'est pas dans la liste se crée d\'un clic, sans ouvrir la liste ; « Annuler » le retire', async () => {
+    const { jeton, ent } = await nadia({}, true);
+    const { p, erreurs, fermer } = await ouvrir(jeton, ent);
+    await choisirPhoto(p);
+    await question(p).getByRole('button', { name: 'Lire avec l\'IA' }).click();
+    await p.locator('#ac-lecture').getByText('Ce que SkanFact a compris').waitFor({ timeout: 30_000 });
+    const four = ligneLue(p, 'Fournisseur');
+    expect(net(await four.innerText())).toMatch(/« Bureau Plus Sfax » n'est pas dans tes fournisseurs : Créer « Bureau Plus Sfax » ou choisir/);
+    // « Créer » se voit tout de suite, la liste reste fermée à côté.
+    const creer = p.locator('#lec-creer');
+    expect(await creer.isVisible()).toBe(true);
+    expect(await p.locator('[data-combo=lecSup] .combo-pop').isHidden()).toBe(true);
+    await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-8-fournisseur-nouveau.png') });
+    await creer.click();
+    await expect.poll(() => p.locator('#toast .toast-txt').innerText().then(net)).toBe('Fiche « Bureau Plus Sfax » créée depuis la pièce : nom et matricule repris');
+    await expect.poll(() => four.innerText().then(net)).toMatch(/Fournisseur Bureau Plus Sfax nouveau fiche créée depuis la pièce : son nom et son matricule 1390022T\/A\/M\/000/);
+    expect(await p.locator('#lec-creer').count()).toBe(0);
+    const fiches = async () => ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; contenu: Record<string, unknown> }[])
+      .filter((o) => o.collection === 'suppliers').map((o) => [o.contenu.name, o.contenu.matricule]);
+    await expect.poll(fiches, { timeout: 15_000 }).toEqual([['Bureau Plus Sfax', '1390022T/A/M/000']]);
+    await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-9-fournisseur-cree.png') });
+    // « Annuler » : la fiche s'en va (aucun achat ne la porte), « Créer » revient.
+    await p.locator('#toast #toast-undo').click();
+    await expect.poll(() => p.locator('#lec-creer').isVisible()).toBe(true);
+    await expect.poll(fiches, { timeout: 15_000 }).toEqual([]);
+    expect(erreurs).toEqual([]);
+    await fermer();
+  }, 120_000);
+
+  it('seule l\'IA lit : coupée par l\'entreprise, rien ne part, la carte le dit et mène au réglage, qui la rallume', async () => {
     const { jeton, ent } = await nadia({ lectureIA: false });
     const { p, erreurs, fermer } = await ouvrir(jeton, ent);
     const avant = envois.length;
-    await choisirPhoto(p);
-    await p.locator('#ac-lecture').getByText('Ce que SkanFact a compris').waitFor({ timeout: 60_000 });
-    expect(await question(p).count()).toBe(0);
-    expect(envois.length).toBe(avant);
-    expect(net(await p.locator('#ac-lecture').innerText())).toMatch(/Lue sur les serveurs de SkanFact, en Tunisie/);
-
-    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
-    await expect.poll(() => p.locator('#view h1').first().innerText().catch(() => ''), { timeout: 20_000 }).not.toBe('');
-    await plusTard(p);
-    await p.locator('#set-tabs [data-tab="donnees"]').click();
+    const carte = p.locator('#photo');
+    await expect.poll(() => carte.isVisible(), { timeout: 10_000 }).toBe(true);
+    expect(net(await carte.innerText())).toBe('Lire avec l\'IA coupée Coupée dans tes paramètres : un clic pour la rallumer');
+    await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-7-carte-coupee.png') });
+    await carte.click();
     const panneau = p.locator('#ocr-panel');
-    // (27/10/2026, maquette « Lecture des achats ») Les deux voies : coupée, la photo se lit en Tunisie, et cette voie-là est marquée.
-    await expect.poll(() => panneau.innerText().then(net), { timeout: 20_000 }).toMatch(/Avec l'IA de Claude ?coupée/);
-    expect(net(await panneau.innerText())).toMatch(/Coupée pour toute l'entreprise : les photos se lisent en Tunisie, sans question\./);
-    expect(await panneau.locator('.ocr-voie.on').innerText().then(net)).toMatch(/^Sur les serveurs de SkanFact ?en Tunisie/);
+    await expect.poll(() => panneau.innerText().then(net), { timeout: 20_000 }).toMatch(/Lire avec l'IA de Claude ?coupée/);
+    expect(envois.length).toBe(avant);
+    expect(net(await panneau.innerText())).toMatch(/Coupée pour toute l'entreprise : les pièces se joignent et se saisissent à la main\./);
+    expect(net(await panneau.innerText())).not.toMatch(/serveurs de SkanFact/);
+    expect(await panneau.locator('.ocr-voie.on').innerText().then(net)).toMatch(/^Saisir à la main ?toujours là/);
     await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-7-reglage-coupe.png') });
     await panneau.getByRole('button', { name: 'Proposer l\'IA de nouveau' }).click();
     // Un réglage qui se défait d'un clic : le toast le dit, « Annuler » sous la main.
-    await expect.poll(() => p.locator('#toast .toast-txt').innerText().then(net)).toBe('L\'IA se proposera à chaque photo : elle ne lit que si tu dis oui.');
+    await expect.poll(() => p.locator('#toast .toast-txt').innerText().then(net)).toBe('L\'IA se proposera à chaque pièce : elle ne lit que si tu dis oui.');
     expect(await p.locator('#toast #toast-undo').isVisible()).toBe(true);
-    await expect.poll(() => panneau.innerText().then(net)).toMatch(/Avec l'IA de Claude ?hors de Tunisie/);
-    expect(await panneau.locator('.ocr-voie.on').innerText().then(net)).toMatch(/^Avec l'IA de Claude/);
+    await expect.poll(() => panneau.innerText().then(net)).toMatch(/Lire avec l'IA de Claude ?hors de Tunisie/);
+    expect(await panneau.locator('.ocr-voie.on').innerText().then(net)).toMatch(/^Lire avec l'IA de Claude/);
     expect(net(await panneau.innerText())).toMatch(/Ce qui part chez Anthropic, quand tu dis oui ?L'image de la pièce, et la consigne de lecture de SkanFact ?Ni tes clients, ni tes chiffres, ni le nom de ton entreprise/);
     await expect.poll(async () => {
       const o = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; cle: string; contenu: Record<string, unknown> }[]).find((x) => x.collection === '_racine' && x.cle === 'company');
       return o?.contenu.lectureIA;
     }, { timeout: 15_000 }).toBe(true);
+    // Rallumée, la carte d'un achat neuf le dit tout de suite, sans recharger la page (elle disait encore « coupée »).
+    await p.evaluate(() => { location.hash = '#/achat/new'; });
+    await expect.poll(() => p.locator('#photo').innerText().then(net), { timeout: 15_000 }).toBe('Lire avec l\'IA facultatif La photo ou le PDF : SkanFact remplit, tu vérifies chaque case');
     expect(erreurs).toEqual([]);
     await fermer();
   }, 180_000);

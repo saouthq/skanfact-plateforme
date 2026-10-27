@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import type { Route } from '../app.ts';
 import { motif } from '../../textes/index.ts';
-import { sorteDe } from '../achats/lecteur.ts';
+import { sorteDe } from '../achats/sorte.ts';
 import './textes.ts';
 
 const uuid = z.string().uuid();

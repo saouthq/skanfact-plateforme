@@ -1102,12 +1102,25 @@
 .ac-lec-etapes li.fait { background: var(--sb-papier-2); }
 .ac-lec-etapes li .pt { grid-row: span 2; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; border: 1px solid var(--sb-trait-fort); color: var(--sb-gris); }
 .ac-lec-etapes li.fait .pt { background: var(--sb-sarcelle); border-color: var(--sb-sarcelle); color: #fff; }
-.ac-lec-etapes li.cours .pt { border: 1.5px dashed var(--sb-sarcelle); color: var(--sb-sarcelle-texte); animation: ac-lec-tourne 1.6s linear infinite; }
+.ac-lec-etapes li .pt { position: relative; }
+/* (1.160.0) Le chiffre reste droit : seul l'anneau pointillé tourne (le « 2 » tournait avec lui). */
+.ac-lec-etapes li.cours .pt { border-color: transparent; color: var(--sb-sarcelle-texte); }
+.ac-lec-etapes li.cours .pt::before { content: ""; position: absolute; inset: -1px; border-radius: 50%; border: 1.5px dashed var(--sb-sarcelle); animation: ac-lec-tourne 1.6s linear infinite; }
+.ac-lec-etapes li.cours b { font-weight: 600; }
+.ac-lec-etapes li.fait { animation: ac-lec-coche .25s ease-out; }
+@keyframes ac-lec-coche { from { background: transparent; } }
+/* La photo pendant la lecture : posée sur sa carte, une raie sarcelle la balaie (maquette « ia-raie »). */
+.ac-lec-scan { position: relative; padding: 14px; }
+.ac-lec-scan .ac-lec-img { border-radius: 8px; box-shadow: 0 1px 3px rgba(17,24,33,.14); }
+.ac-lec-raie { position: absolute; left: 14px; right: 14px; top: 14px; height: 34%; pointer-events: none; border-radius: 8px 8px 0 0;
+  background: linear-gradient(180deg, transparent, color-mix(in srgb, var(--sb-sarcelle) 22%, transparent)); border-bottom: 2px solid var(--sb-sarcelle);
+  animation: ac-lec-balaye 2.4s ease-in-out infinite alternate; }
+@keyframes ac-lec-balaye { from { transform: translateY(-8%); } to { transform: translateY(185%); } }
 .ac-lec-etapes li b { font-weight: 500; font-size: 14px; }
 .ac-lec-etapes li:not(.fait):not(.cours) b { color: var(--sb-gris); }
 .ac-lec-etapes li small { font-size: 12.5px; color: var(--sb-gris); }
 @keyframes ac-lec-tourne { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .ac-lec-etapes li.cours .pt { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ac-lec-etapes li.cours .pt::before, .ac-lec-raie, .ac-lec-etapes li.fait { animation: none; } .ac-lec-raie { top: 30%; } }
 .ac-lec-pied { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
 .ac-lec-g { padding: 14px 0 6px; border-top: 1px solid var(--sb-trait); }
 .ac-lec-g:first-of-type { border-top: 0; padding-top: 4px; }
@@ -1121,6 +1134,10 @@
 .ac-lec-l.douteux .st { background: var(--sb-ambre, #e08a00); color: #fff; }
 .ac-lec-saisie { min-width: 220px; }
 .ac-lec-saisie input { height: 34px; }
+/* (27/10/2026, maquette « fournisseur nouveau ») « Créer » se voit tout de suite ; la liste reste à côté, plus discrète. */
+.ac-lec-cree { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ac-lec-cree .btn { display: inline-flex; align-items: center; gap: 6px; white-space: normal; text-align: start; }
+.ac-lec-cree .ac-lec-saisie { min-width: 150px; }
 /* (27/10/2026, maquette « Lecture intelligente · à vérifier ») Un doute de l'IA se tranche d'un clic, ses valeurs côte à côte. */
 .ac-lec-choix { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .ac-lec-choix button { font: inherit; font-size: 13px; padding: 4px 12px; border-radius: 8px; border: 1px solid var(--sb-trait-fort); background: var(--sb-papier); color: var(--sb-encre); cursor: pointer; }
@@ -1390,3 +1407,43 @@
 .modal .lec-q .gl { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; font-size: 13.5px; line-height: 1.45; color: var(--sb-encre); }
 .modal .lec-q .gl svg { margin-top: 2px; color: var(--sb-sarcelle-texte); }
 .modal .lec-q .gl.loin svg { color: var(--sb-ambre-texte); }
+
+/* (1.160.0, maquette « Lue par l'IA » : zone 1, zone 2) Où se lit chaque case douteuse sur la photo, numérotée comme dans la liste. */
+.ac-lec-zones { position: relative; line-height: 0; }
+.ac-lec-repere { position: absolute; border: 1.5px solid var(--sb-ambre); background: color-mix(in srgb, var(--sb-ambre) 16%, transparent); border-radius: 4px; pointer-events: auto; }
+.ac-lec-repere i { position: absolute; left: -10px; top: -10px; width: 19px; height: 19px; border-radius: 50%; background: var(--sb-ambre); color: #fff; font: 700 11px/19px var(--sb-police); font-style: normal; text-align: center; box-shadow: 0 0 0 2px #fff; }
+/* La photo en grand : à la taille de l'écran, défilable si elle est plus haute. */
+#modal-root .modal.modal-grand { width: min(980px, 94vw); max-width: none; }
+.lec-grand { max-height: 72vh; overflow: auto; border-radius: 10px; background: var(--sb-papier-2); display: grid; place-items: center; }
+.lec-grand img { display: block; max-width: 100%; height: auto; }
+.lec-grand iframe { width: 100%; height: 70vh; border: 0; }
+/* (1.160.0, maquette) La case que l'IA n'a pas lue avec sûreté, en ambre jusqu'à ce qu'on la touche. */
+#view .buy-editor .lu-douteux, #view .buy-editor .lu-douteux:focus { background: var(--sb-ambre-doux); border-color: var(--sb-ambre); box-shadow: 0 0 0 1px var(--sb-ambre); }
+/* (1.160.0, maquette « La photo · lue par SkanFact ») Le justificatif d'un achat : son aperçu, son nom, ses gestes. */
+.ac-pjs { display: grid; gap: 10px; }
+.ac-pj { border: 1px solid var(--sb-trait); border-radius: 10px; overflow: hidden; }
+.ac-pj-vue { position: relative; display: grid; place-items: center; width: 100%; min-height: 90px; padding: 0; border: 0; background: var(--sb-papier-2); color: var(--sb-gris); cursor: zoom-in; line-height: 0; }
+.ac-pj-vue.vue { background: transparent; }
+.ac-pj-img { display: block; width: 100%; }
+.ac-pj-vue img { display: block; width: 100%; height: auto; }
+.ac-pj-l { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-top: 1px solid var(--sb-trait); }
+.ac-pj-n { display: grid; min-width: 0; flex: 1; }
+.ac-pj-n b { font-weight: 500; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ac-pj-n small { font-size: 12px; color: var(--sb-gris); }
+/* (1.160.0, maquette achat) La barre d'ajout des lignes : une loupe à gauche, Ctrl L à droite. */
+#b-cat.ac-ajout { position: relative; flex: 1; }
+#b-cat.ac-ajout > svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--sb-gris); pointer-events: none; z-index: 1; }
+#b-cat.ac-ajout .combo-btn { padding-left: 36px; padding-right: 72px; }
+#b-cat.ac-ajout .combo-caret { display: none; }
+#b-cat.ac-ajout > kbd { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); pointer-events: none; font: 500 11px/1 var(--sb-police); color: var(--sb-gris); border: 1px solid var(--sb-trait-fort); border-radius: 5px; padding: 3px 5px; background: var(--sb-papier); }
+@media (max-width: 700px) { #b-cat.ac-ajout > kbd { display: none; } #b-cat.ac-ajout .combo-btn { padding-right: 12px; } }
+/* (1.160.0) Au téléphone, ce qui se passe d'abord : les étapes au-dessus, la photo en bandeau sous elles. */
+@media (max-width: 700px) {
+  .ac-lec-cours .ac-lec-etapes { order: -1; }
+  .ac-lec-apercu.ac-lec-scan { max-height: 220px; place-items: start center; }
+}
+/* (1.160.0) L'aperçu d'un PDF : sa première page ; s'il en a d'autres, le compte posé dessus. */
+.ac-lec-zones, .ac-pj-vue { position: relative; }
+.ac-pdf-pages { position: absolute; right: 8px; bottom: 8px; padding: 3px 8px; border-radius: 99px; background: rgba(17,24,33,.72); color: #fff; font: 500 11.5px/1.3 var(--sb-police); }
+.lec-grand-att { padding: 40px 16px; }
+.ac-lec-zones .ac-lec-doc { line-height: 1.4; }

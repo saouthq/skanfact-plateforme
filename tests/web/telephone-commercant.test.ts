@@ -22,6 +22,7 @@ import { chromium, type Browser, type Page } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
+import { iaQuincaillerie } from '../donnees/lecture/ia-quincaillerie.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const PHOTOS = path.join(RACINE, 'dist/photos');
@@ -40,7 +41,8 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
       select 'timbre.facture', '1000', '2000-01-01', 'Règle d''essai des tests' where not exists (select 1 from socle.regle_fiscale where code = 'timbre.facture')`);
     await admin.end();
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
-    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
+    // (27/10/2026) Seule l'IA lit les pièces : elle est jouée ici par un essai (aucun appel réel ne part).
+    serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 }, { ia: iaQuincaillerie });
     navigateur = await chromium.launch();
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
@@ -283,7 +285,7 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     const filtre = await p.locator('#view .filters button.i').evaluate((b) => { const v = (b.previousElementSibling ?? b).getBoundingClientRect(); const r = b.getBoundingClientRect(); return { case: (v.top + v.bottom) / 2, bulle: (r.top + r.bottom) / 2 }; });
     expect(Math.abs(filtre.case - filtre.bulle)).toBeLessThanOrEqual(6);
 
-    // L'achat : la bulle de « Lire une photo… » se cache avec lui.
+    // L'achat : la bulle de « Lire avec l'IA » se cache avec lui.
     await aller(p, '#/achat/new', /^Nouvelle facture d'achat/);
     await p.locator('#photo').evaluate((b) => { (b as HTMLButtonElement).hidden = true; });
     expect(await p.locator('[data-info="ocr.photo"]').isVisible()).toBe(false);
@@ -371,6 +373,7 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     const choix = p.waitForEvent('filechooser');
     await p.locator('#photo').click();
     await (await choix).setFiles(PHOTO_ACHAT);
+    await p.locator('#ac-ia-lire').click({ timeout: 15_000 });
     // (1.155.13) D'abord « Ce que SkanFact a compris » (la page de la maquette) ; elle tient dans l'écran du téléphone.
     await p.locator('#lec-detail').waitFor({ timeout: 90_000 });
     expect(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);

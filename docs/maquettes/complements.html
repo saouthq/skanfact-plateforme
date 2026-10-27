@@ -1131,21 +1131,21 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
     return `${KIT.barre('Paramètres')}<div class="contenu">${hautSimple('Paramètres')}<div class="param">
       <div class="onglets-p">${['Ton compte', 'Mon entreprise', 'L\'équipe', 'Documents', 'Envois', 'Données et sécurité', 'L\'application'].map((t) => `<span class="${t === 'Données et sécurité' ? 'on' : ''}">${t}</span>`).join('')}</div>
       <section class="carte bloc"><div class="bloc-t"><h3>Lecture des factures d'achat · ce qui part, et où</h3><small>${ic('aide', 14, 2)}</small></div>
-        <p style="margin:0;font-size:13.5px;color:var(--gris)">Une photo ou un PDF de facture d'achat se lit, puis SkanFact te montre ce qu'il a compris : tu vérifies chaque case avant que la pièce se remplisse.</p>
-        <div class="voies"><div class="voie${!avecIA || coupee ? ' on' : ''}"><span class="vt">${ic('cadenas', 16, 2)} Sur les serveurs de SkanFact<span class="statut ok">en Tunisie</span></span><p>Toujours là. Aucune image ne sort de Tunisie. Moins sûre sur une photo floue ou penchée.</p></div>
-          <div class="voie${avecIA && !coupee ? ' on' : ''}${!avecIA || coupee ? ' eteinte' : ''}"><span class="vt">${ic('eclat', 16, 2)} Avec l'IA de Claude<span class="statut ${!avecIA ? '' : coupee ? '' : 'attire'}">${!avecIA ? 'pas sur ce serveur' : coupee ? 'coupée' : 'hors de Tunisie'}</span></span>
-            <p>${!avecIA ? 'Ce serveur n\'a pas l\'IA : les photos se lisent toutes en Tunisie.' : 'Lit mieux les photos difficiles. Demandée à chaque photo : rien ne part sans ton « Lire avec l\'IA ».'}</p></div></div>
+        <p style="margin:0;font-size:13.5px;color:var(--gris)">Une photo ou un PDF de facture d'achat, même écrite à la main, se lit par l'IA, puis SkanFact te montre ce qu'il a compris : tu vérifies chaque case avant que la pièce se remplisse.</p>
+        <div class="voies"><div class="voie${avecIA && !coupee ? ' on' : ''}${!avecIA || coupee ? ' eteinte' : ''}"><span class="vt">${ic('eclat', 16, 2)} Lire avec l'IA de Claude<span class="statut ${!avecIA ? '' : coupee ? '' : 'attire'}">${!avecIA ? 'pas sur ce serveur' : coupee ? 'coupée' : 'hors de Tunisie'}</span></span>
+            <p>${!avecIA ? 'Ce serveur n\'a pas l\'IA : les pièces se joignent et se saisissent à la main.' : 'Demandée à chaque pièce : rien ne part sans ton « Lire avec l\'IA ».'}</p></div>
+          <div class="voie${!avecIA || coupee ? ' on' : ''}"><span class="vt">${ic('ecriture', 16, 2)} Saisir à la main<span class="statut ok">toujours là</span></span><p>La pièce se joint à l'achat, tu remplis les cases. Rien ne sort de Tunisie.</p></div></div>
         ${avecIA ? `<div class="part-l"><b style="font-size:13px">Ce qui part chez Anthropic, quand tu dis oui</b>
           <div class="gl ok">${ic('coche', 15, 2.4)}<span>L'image de la pièce, et la consigne de lecture de SkanFact</span></div>
           <div class="gl non"><span style="transform:rotate(45deg);display:grid">${ic('croix', 15, 2.4)}</span><span>Ni tes clients, ni tes chiffres, ni le nom de ton entreprise</span></div></div>
-          <div class="pied-l"><span class="aide">${coupee ? 'Coupée pour toute l\'entreprise : les photos se lisent en Tunisie, sans question.' : 'Le réglage vaut pour toute l\'entreprise.'}</span><span class="rg"><button type="button" class="btn${coupee ? ' prem' : ''}" data-etat-va="${coupee ? 'proposee' : 'coupee'}">${coupee ? 'Proposer l\'IA de nouveau' : 'Couper l\'IA'}</button></span></div>` : ''}
+          <div class="pied-l"><span class="aide">${coupee ? 'Coupée pour toute l\'entreprise : les pièces se joignent et se saisissent à la main.' : 'Le réglage vaut pour toute l\'entreprise.'}</span><span class="rg"><button type="button" class="btn${coupee ? ' prem' : ''}" data-etat-va="${coupee ? 'proposee' : 'coupee'}">${coupee ? 'Proposer l\'IA de nouveau' : 'Couper l\'IA'}</button></span></div>` : ''}
       </section></div>${toastHtml()}</div>`;
   }
   function iaTel() {
     const e = s.etat, coupee = e === 'coupee';
     return `<div class="t-haut"><span class="t-lien">${ic('retour', 15, 2.2)} Paramètres</span><b>Lecture des achats</b></div><div class="t-corps"><div class="carte t-carte"><p>Une photo de facture d'achat se lit, puis tu vérifies chaque case.</p>
-      <div class="gl ok">${ic('cadenas', 15, 2)}<span><b>En Tunisie</b>, sur les serveurs de SkanFact : toujours là</span></div>
-      ${e === 'sans-cle' ? '' : `<div class="gl ${coupee ? 'non' : 'ok'}">${ic('eclat', 15, 2)}<span><b>Avec l'IA de Claude</b>, hors de Tunisie : ${coupee ? 'coupée' : 'demandée à chaque photo'}</span></div>`}</div>
+      ${e === 'sans-cle' ? '' : `<div class="gl ${coupee ? 'non' : 'ok'}">${ic('eclat', 15, 2)}<span><b>Avec l'IA de Claude</b>, hors de Tunisie : ${coupee ? 'coupée' : 'demandée à chaque pièce'}</span></div>`}
+      <div class="gl ok">${ic('ecriture', 15, 2)}<span><b>À la main</b> : la pièce jointe, tu remplis les cases. Toujours là</span></div></div>
       ${e === 'sans-cle' ? '' : `<div class="carte t-carte"><h4>Ce qui part, quand tu dis oui</h4><p>L'image de la pièce. Ni tes clients, ni tes chiffres.</p></div>`}</div>
       ${e === 'sans-cle' ? '' : `<div class="t-bas"><button type="button" class="btn${coupee ? ' prem' : ''} t-btn">${coupee ? 'Proposer l\'IA de nouveau' : 'Couper l\'IA'}</button></div>`}`;
   }

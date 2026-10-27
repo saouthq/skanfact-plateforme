@@ -1042,7 +1042,8 @@
     // clic suivant. Trouvé dans l'app du comptable (le refus qui montrait la case puis la reprenait) ;
     // une règle apprise d'un côté se vérifie de l'autre (7.3.0).
     const avant = document.activeElement;
-    layer.innerHTML = `<div class="modal">${html}</div>`;
+    // (1.160.0) `opts.classe` : une fenêtre d'une autre taille (la photo en grand).
+    layer.innerHTML = `<div class="modal${opts && opts.classe ? ` ${opts.classe}` : ''}">${html}</div>`;
     root.appendChild(layer);
     const under = modalClose;
     const close = () => {
@@ -4382,6 +4383,7 @@
     alerte: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
     defaire: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
     ajout: '<path d="M12 5v14M5 12h14"/>',
+    eclat: '<path d="M11 3l1.9 5.1L18 10l-5.1 1.9L11 17l-1.9-5.1L4 10l5.1-1.9z"/><path d="M19 14l.9 2.1L22 17l-2.1.9L19 20l-.9-2.1L16 17l2.1-.9z"/>',
     loupe: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     etiquette: '<path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
     copier: '<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h2"/>',
@@ -12401,6 +12403,25 @@
     return r.liste;
   }
 
+  // (27/10/2026, maquette « Lecture intelligente · fournisseur nouveau ») Le fournisseur lu sur une pièce se crée d'un clic,
+  // avec ce que la pièce dit de lui : ouvrir la liste pour y trouver « Créer » était un détour. « Annuler » le retire, tant
+  // qu'aucun achat ne le porte.
+  function fournisseurDuLu(preset, done) {
+    if (enLecture('suppliers')) { toast(refusLecture('suppliers'), true); return; }
+    if (licenceBlock('Créer un fournisseur', 'achats')) return;
+    const s = C.fournisseurVierge(preset);
+    data.suppliers.push(s);
+    save(true);
+    done(s);
+    toastUndo(`Fiche « ${s.name} » créée depuis la pièce${s.matricule ? ' : nom et matricule repris' : ''}`, () => {
+      if (data.purchases.some(x => x.supplierId === s.id)) { toast(`« ${s.name} » porte déjà un achat : sa fiche reste.`, true); return; }
+      const i = data.suppliers.indexOf(s);
+      if (i >= 0) data.suppliers.splice(i, 1);
+      save(true);
+      done(null);
+    });
+  }
+
   function supplierForm(supplier, done, preset) {
     // (plateforme) 1.134.0 — le refus arrive à l'ouverture : à « Enregistrer », la saisie était faite pour rien.
     if (!supplier && licenceBlock('Créer un fournisseur', 'achats')) { return; }
@@ -13690,6 +13711,10 @@
       v: x.id, label: x.name, sub: [x.contact, x.matricule ? 'MF ' + x.matricule : ''].filter(Boolean).join(' · '),
       text: `${x.name} ${x.contact || ''} ${x.matricule || ''} ${x.email || ''}`
     }));
+    // (27/10/2026) Le fournisseur lu n'est pas dans la liste : « Créer » se voit tout de suite, la liste reste à côté.
+    const creerOuChoisir = (nom, lu) => lu
+      ? `<span class="ac-lec-cree"><button type="button" class="btn btn-primary btn-sm" id="lec-creer">${lfIc('ajout', 13, 2.4)}Créer « ${h(lu)} »</button><span class="ac-lec-saisie">${combo({ name: nom, value: '', items: supplierItems(), placeholder: 'ou choisir', search: 'Rechercher un fournisseur…', add: '+ Nouveau fournisseur' })}</span></span>`
+      : `<span class="ac-lec-saisie attire">${combo({ name: nom, value: '', items: supplierItems(), placeholder: '— Choisir —', search: 'Rechercher un fournisseur…', add: '+ Nouveau fournisseur' })}</span>`;
 
     // (plateforme) 1.157.0 — l'achat tel que la maquette (docs/maquettes/achat.html, lot 6) : le chemin et le statut en
     // tête, « Comment arrive cette pièce ? » pour une pièce neuve, le fournisseur en carte, les options en puces, et à droite
@@ -13697,6 +13722,9 @@
     // Les champs gardent leur nom et leur formulaire (`#b-head`), les gestes leur identifiant.
     const solde = stored ? C.purchaseBalance(stored, company(), data) : null;
     const pillAchat = () => {
+      // (1.160.0, maquette « Lue par l'IA · à vérifier ») Une pièce neuve remplie par l'IA le dit, en ambre tant qu'une case
+      // reste à comparer avec la photo.
+      if (!stored && luParIA) return luParIA.reste && luParIA.reste.length ? '<span class="badge partielle ed-pill">Lue par l\'IA · à vérifier</span>' : '<span class="badge envoyée ed-pill">Lue par l\'IA</span>';
       if (!stored) return '<span class="badge brouillon ed-pill">Brouillon</span>';
       if (!solde) return '';
       // (1.155.12, maquette achat) Les statuts de la maquette : à récupérer (bleu), sans justificatif (ambre, une dépense),
@@ -13720,11 +13748,11 @@
     const choixArrivee = attendChoix ? `<div class="panel ac-arrivee" id="ac-arrivee"><div class="ac-ar-tete"><h2>Comment arrive cette pièce ?</h2><span class="small muted">le plus rapide d'abord</span></div>
         <div class="ac-choix-grille">
           <span class="colle-bouton"><button type="button" class="btn ac-choix" id="teif-lire"${dis}><span class="ac-ic">${lfIc('nuage', 20)}</span><span class="ac-t"><b>Lire une e-facture <em class="ac-tag">le plus sûr</em></b><span>Le fichier XML d'El Fatoora : tout se remplit, au millime</span></span></button>${info('buy.teif')}</span>
-          <span class="colle-bouton"><button type="button" class="btn ac-choix" id="photo" hidden${dis}><span class="ac-ic">${lfIc('photo', 20)}</span><span class="ac-t"><b>Lire une photo <em class="ac-tag gris">facultatif</em></b><span>La photo ou le PDF : SkanFact remplit, tu vérifies chaque case</span></span></button>${info('ocr.photo')}</span>
+          <span class="colle-bouton"><button type="button" class="btn ac-choix" id="photo" hidden${dis}><span class="ac-ic">${lfIc('eclat', 20)}</span><span class="ac-t"><b>Lire avec l'IA <em class="ac-tag gris" id="photo-tag">facultatif</em></b><span id="photo-sous">La photo ou le PDF : SkanFact remplit, tu vérifies chaque case</span></span></button>${info('ocr.photo')}</span>
           <button type="button" class="btn ac-choix" id="ac-main"${dis}><span class="ac-ic">${lfIc('ecriture', 20)}</span><span class="ac-t"><b>Saisir à la main</b><span>Fournisseur, numéro, lignes : comme sur la facture</span></span></button>
           ${bridge.messagerie && bridge.messagerie.envoyerFichier && messagerieVue && messagerieVue.cabinet ? `<button type="button" class="btn ac-choix" id="ac-cabinet"${dis}><span class="ac-ic">${lfIc('comptable', 20)}</span><span class="ac-t"><b>Confier au cabinet</b><span>Tu envoies la photo à ton comptable, il la saisit</span></span></button><input type="file" id="ac-cabinet-f" hidden multiple accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf">`
           : bridge.messagerie ? `<a class="btn ac-choix" href="#/comptable" id="ac-cabinet"><span class="ac-ic">${lfIc('comptable', 20)}</span><span class="ac-t"><b>Confier au cabinet</b><span>Tu envoies la photo à ton comptable, il la saisit</span></span></a>` : ''}
-        </div>${bloqueChoix ? '' : `<button type="button" class="ac-zone" id="ac-zone">${lfIc('depot', 20)}<span>Ou glisse ici le fichier de la facture : un XML El Fatoora se lit tout seul ; pour une photo ou un PDF, SkanFact te demande si tu veux la lire</span></button>`}</div>` : '';
+        </div>${bloqueChoix ? '' : `<button type="button" class="ac-zone" id="ac-zone">${lfIc('depot', 20)}<span>Ou glisse ici le fichier de la facture : un XML El Fatoora se lit tout seul ; pour une photo ou un PDF, SkanFact te demande si tu veux la lecture par l'IA</span></button>`}</div>` : '';
     const supplierCarte = () => {
       const sup = supplierById(p.supplierId);
       if (!sup) return '';
@@ -13821,8 +13849,8 @@
     // (27/10/2026, maquette achat) La pièce remplie depuis la lecture de l'IA : ce qui reste à vérifier sur la photo, ou, tout
     // tranché, que tout l'a été (et que les totaux tombent juste, seulement s'ils tombent juste).
     const bandeauLuParIA = lu => (lu.reste.length
-      ? `<div class="bandeau ambre" id="ac-lu-ia" role="status">${lfIc('photo', 18, 2)}<span class="txt"><b>Lue par l'IA : ${pl(lu.reste.length, 'case')} à vérifier</b><span>Compare avec la photo jointe avant d'enregistrer : ${h(lu.reste.map(x => x.charAt(0).toLowerCase() + x.slice(1)).join(', '))}.</span></span></div>`
-      : `<div class="bandeau info" id="ac-lu-ia" role="status">${lfIc('etoile', 18, 2)}<span class="txt"><b>Lue par l'IA${lu.tranches ? ', et tout a été vérifié' : ''}</b><span>${lu.tranches ? 'Les cases douteuses ont été tranchées à la lecture' : 'Aucune case douteuse à la lecture'}${lu.juste ? ' ; les totaux tombent juste au millime.' : ' ; vérifie les totaux sur la photo jointe.'}</span></span></div>`);
+      ? `<div class="bandeau ambre" id="ac-lu-ia" role="status">${lfIc('photo', 18, 2)}<span class="txt"><b>Lue par l'IA : ${pl(lu.reste.length, 'case')} à vérifier</b><span>La lecture n'est pas sûre ${h(lu.reste.length > 1 ? `${lu.reste.slice(0, -1).join(', ')} et ${lu.reste[lu.reste.length - 1]}` : lu.reste[0])}. ${lu.reste.length > 1 ? 'Elles sont marquées' : 'Elle est marquée'} en ambre ; compare avec ${lu.pdf ? 'le PDF' : 'la photo'} avant d'enregistrer.</span></span></div>`
+      : `<div class="bandeau info" id="ac-lu-ia" role="status">${lfIc('eclat', 18, 2)}<span class="txt"><b>Lue par l'IA${lu.tranches ? ', et tout a été vérifié' : ''}</b><span>${lu.tranches ? 'Les cases douteuses ont été tranchées à la lecture' : 'Aucune case douteuse à la lecture'}${lu.juste ? ' ; les totaux tombent juste au millime.' : ' ; vérifie les totaux sur la photo jointe.'}</span></span></div>`);
     const retardRange = () => !isNew && !!stored && !!solde && p.kind !== 'avoir' && solde.remaining > 0.0005 && !!p.dueDate && p.dueDate < C.today();
     const bandeauRange = () => {
       const band = (ton, ic, titre, txt, geste, id, idTxt) => `<div class="bandeau ${ton}" id="${id}" role="status">${lfIc(ic, 18)}<span class="txt"${idTxt ? ` id="${idTxt}"` : ''}><b>${h(titre)}</b><span>${h(txt)}</span></span>${geste || ''}</div>`;
@@ -13947,7 +13975,7 @@
             </form>
           </div>
           <div class="panel ed-lignes"><h2>Lignes ${info('buy.lines')}<span class="ed-compte" id="ac-compte"></span></h2>
-            ${clos || !isNew ? '' : `<div class="catalog-pick"><div id="b-cat">${combo({ items: [], placeholder: 'Ajouter un article du catalogue, au coût d\'achat…', search: 'Rechercher dans le catalogue…' })}</div>
+            ${clos || !isNew ? '' : `<div class="catalog-pick"><div id="b-cat" class="ac-ajout">${lfIc('loupe', 16)}${combo({ items: [], placeholder: 'Ajouter un article du catalogue, au coût d\'achat', search: 'Rechercher dans le catalogue…' })}<kbd>Ctrl L</kbd></div>
               <button class="btn btn-sm" id="add-line">+ Ligne libre</button>
               <span class="small muted" id="b-lignes-hint">${h(motsDePiece(p.kind).lignes)}</span></div>`}
             ${isDep && !clos && isNew ? `<div class="inline mt" id="b-ttc-zone"><label class="field" style="max-width:240px">Montant payé (TTC)<input type="number" id="b-ttc" class="num" step="0.001" min="0" placeholder="ce que dit le ticket"></label>
@@ -13992,6 +14020,15 @@
 
     // --- lignes
     const body = $('#b-lines');
+    // (1.160.0, maquette « Lue par l'IA · à vérifier ») Les cases que l'IA n'a pas lues avec sûreté restent en ambre sur la
+    // pièce, jusqu'à ce qu'on les touche.
+    const marquesLues = luParIA && Array.isArray(luParIA.marques) ? luParIA.marques : [];
+    const estMarque = (i, k) => marquesLues.some(m => m.ligne === i && m.k === k);
+    const oterMarque = (i, k) => { const j = marquesLues.findIndex(m => m.ligne === i && m.k === k); if (j >= 0) marquesLues.splice(j, 1); };
+    for (const k of ['number', 'date', 'dueDate']) {
+      const el = marquesLues.some(m => m.k === k && m.ligne == null) && $(`#b-head [name=${k}]`);
+      if (el) { el.classList.add('lu-douteux'); el.addEventListener('input', () => { el.classList.remove('lu-douteux'); oterMarque(undefined, k); }, { once: true }); }
+    }
     // Ce que « choisir un article » pose sur une ligne EXISTANTE (9.2.1) : la même chose que le
     // sélecteur du catalogue, sauf la quantité déjà saisie. Un article suivi passe la ligne en
     // « stock » — c'est ce qu'on venait chercher.
@@ -14017,9 +14054,9 @@
     function drawLines() {
       body.innerHTML = p.lines.map((l, i) => `<tr data-i="${i}">
         <td><input type="text" data-k="label" value="${h(l.label || '')}" placeholder="Désignation">${lotSaisie(l)}<div class="ligne-reperes"><span class="ok" data-stk="${i}"></span></div></td>
-        <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01"></td>
-        <td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="0.001"></td>
-        <td><select data-k="vatRate">${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
+        <td><input type="number" class="num${estMarque(i, 'qty') ? ' lu-douteux' : ''}" data-k="qty" value="${l.qty}" step="0.01"></td>
+        <td><input type="number" class="num${estMarque(i, 'unitPrice') ? ' lu-douteux' : ''}" data-k="unitPrice" value="${l.unitPrice}" step="0.001"></td>
+        <td><select data-k="vatRate"${estMarque(i, 'vatRate') ? ' class="lu-douteux"' : ''}>${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
         <td>${p.kind === 'acompte' ? '<span class="ac-avance" title="Un acompte versé est une avance au fournisseur (compte 409, À VÉRIFIER) : ni une charge, ni du stock, ni un bien">Avance</span>' : ''}<select data-k="destination"${p.kind === 'acompte' ? ' hidden' : ''}>${C.LINE_DESTINATIONS.map(([v, lab, d]) => `<option value="${v}" ${(l.destination || 'charge') === v ? 'selected' : ''} title="${h(d)}">${lab}</option>`).join('')}</select>${l.recue ? `<div class="small muted nw" data-recue title="${h('Sa marchandise est entrée en stock par la réception : cette ligne ne l\'y fait pas entrer une seconde fois.')}">reçue par une réception</div>` : ''}</td>
         <td class="c">${C.tvaRecuperable(p, company())
           ? `<input type="checkbox" data-k="deductible" ${l.deductible !== false ? 'checked' : ''}>`
@@ -14033,6 +14070,7 @@
         el[ev] = () => {
           const i = Number(el.closest('tr').dataset.i);
           p.lines[i][el.dataset.k] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value;
+          if (el.classList.contains('lu-douteux')) { el.classList.remove('lu-douteux'); oterMarque(i, el.dataset.k); }
           touch(); refresh();
         };
       });
@@ -14103,8 +14141,13 @@
     // (« cette ligne n'entrera dans aucun stock ») sans jamais avoir offert de le choisir dans la
     // liste. On pose le même sélecteur que dans l'éditeur de document et les modèles.
     // Le PRIX repris est le coût d'achat (`unitCost`) quand il existe : ici on achète, on ne vend pas.
+    // (1.160.0, maquette achat) La barre d'ajout : une loupe, « au coût d'achat », et Ctrl L pour l'ouvrir du clavier.
+    if ($('#b-cat')) onEditorKey = e => {
+      if (!$('#b-cat') || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'l') return false;
+      e.preventDefault(); const b = $('#b-cat .combo-btn'); if (b) b.click(); return true;
+    };
     if ($('#b-cat')) bindCombo($('.combo', $('#b-cat')), {
-      reset: true, placeholder: 'Ajouter depuis le catalogue…',
+      reset: true, placeholder: 'Ajouter un article du catalogue, au coût d\'achat',
       items: data.catalog.slice().sort((a2, b2) => (a2.label || '').localeCompare(b2.label || '', 'fr'))
         .map(c => ({ v: c.id, label: c.label, sub: c.tracked ? 'suivi en stock' : (c.description || ''),
           right: coutAffiche(c) + ' HT',
@@ -14269,7 +14312,11 @@
       const supR = supplierById(p.supplierId);
       const rsFiche = $('#ac-rs-fiche');
       if (rsFiche) {
-        rsFiche.textContent = supR && Number(p.withholdingRate) > 0 && Number(p.withholdingRate) === Number(C.tauxRetenueFournisseur(supR, p.date)) ? '· de sa fiche' : '';
+        // (1.160.0, maquette « aucune · sous 1 000 DT TTC ») Un fournisseur à retenue, sous le seuil RÉGLÉ de l'entreprise (aucun
+        // seuil écrit ici : sans réglage, rien ne se dit).
+        const seuilRs = C.seuilRetenue(company());
+        const sousSeuil = supR && !(Number(p.withholdingRate) > 0) && Number(C.tauxRetenueFournisseur(supR, p.date)) > 0 && seuilRs > 0 && cur === company().currency && t.totalTTC < seuilRs;
+        rsFiche.textContent = supR && Number(p.withholdingRate) > 0 && Number(p.withholdingRate) === Number(C.tauxRetenueFournisseur(supR, p.date)) ? '· de sa fiche' : sousSeuil ? `· sous ${C.money(seuilRs, company().currency)} TTC` : '';
         rsFiche.closest('.puce-champ').classList.toggle('on', Number(p.withholdingRate) > 0);
       }
       const cpt = $('#ac-compte'); if (cpt) { const nl = p.lines.filter(l => String(l.label || '').trim()).length; cpt.textContent = nl ? pl(nl, 'ligne') : 'aucune ligne'; }
@@ -14290,6 +14337,8 @@
           [pj > 0, pj ? `Justificatif joint : ${h((p.attachments[0] || {}).name || 'fichier')}${pj > 1 ? ` (+${pj - 1})` : ''}` : 'Aucun justificatif : joins la photo ou le PDF de la pièce', !pj && bridge.piecesJointes !== false ? '<button type="button" class="lien" data-avant="joindre">Joindre</button>' : ''],
           [!dejaSaisi, dejaSaisi ? `${h(p.number)} est déjà saisie, du ${lfJm(dejaSaisi.date)}` : 'Ce numéro n\'est pas déjà saisi', dejaSaisi ? `<a class="lien" href="#/achat/${h(dejaSaisi.id)}">Voir</a>` : '', 'aide'],
           [!sansTva, 'Chaque ligne a sa TVA et sa destination', ''],
+          // (1.160.0, maquette) Ce que l'IA n'a pas lu avec sûreté, compté comme les cases en ambre de la pièce.
+          ...(marquesLues.length ? [[false, `${pl(marquesLues.length, 'case')} lue${marquesLues.length > 1 ? 's' : ''} ${luParIA && luParIA.pdf ? 'sur le PDF' : 'sur la photo'} à vérifier`, '', 'aide']] : []),
           ...(cur !== company().currency ? [[!C.missingRate(p, company()), C.missingRate(p, company()) ? `Le taux de change manque : 1 ${h(cur)} = ? ${h(company().currency)}` : `Le taux de change est saisi : 1 ${h(cur)} = ${pct(t.rate)} ${h(company().currency)}`, '']] : []),
           ...lignesAFicher().map(({ l, i }) => { const fi = ficheDe(i, l); return [!!fi.category, fi.category ? `La fiche du bien est prête : ${pl(Number(fi.years) || 0, 'an')}, dès le ${lfJm(fi.date)}` : `La famille de « ${h(l.label)} » est à choisir`, fi.category ? '' : `<button type="button" class="lien" data-avant="fiche-bien" data-i="${i}">Choisir</button>`]; }),
         ];
@@ -14605,7 +14654,17 @@
     // facture électronique).
     // (27/10/2026) Le même statut dit si l'IA de Claude se propose : ce serveur a sa clé, et l'entreprise ne l'a pas coupée.
     const statutLecture = (!OCR_EN_PAUSE || (bridge.lectureSurLeServeur && isNew && !clos)) ? bridge.ocrStatus().catch(() => null) : Promise.resolve(null);
-    statutLecture.then(st => { if (st && st.hasKey && $('#photo')) $('#photo').hidden = false; });
+    // (27/10/2026) Seule l'IA lit : coupée par l'entreprise, la carte reste et dit où la rallumer, au lieu de disparaître.
+    let iaCoupee = false;
+    statutLecture.then(st => {
+      const b = $('#photo');
+      if (!b || !st || !(st.hasKey || st.iaServeur)) return;
+      // Le réglage de l'entreprise se lit ici, pas dans la réponse du serveur gardée depuis l'ouverture de la page : couper
+      // l'IA puis revenir sur un achat neuf disait encore « facultatif » (vu à l'écran, 27/10/2026).
+      iaCoupee = company().lectureIA === false;
+      b.hidden = false;
+      if (iaCoupee && $('#photo-tag')) { $('#photo-tag').textContent = 'coupée'; $('#photo-sous').textContent = 'Coupée dans tes paramètres : un clic pour la rallumer'; }
+    });
     const iaProposee = async () => { const st = await statutLecture; return !!(bridge.lectureSurLeServeur && st && st.iaServeur && company().lectureIA !== false); };
     const joindreFichier = async (file) => {
       try { return await joindre([await bridge.attachPath(p.id, file.path)]); }
@@ -14637,8 +14696,9 @@
       achatReprise = { hash: location.hash, p, isNew, ...(lu ? { lecture: lu } : {}) };
       render(true);
       // (27/10/2026, revue des toasts) D'où vient la pièce, ce qui reste à revoir, et le geste qui suit.
-      const reste = Number(values.reste) || 0;
-      toast(`Pièce remplie depuis ${quoi === 'facture électronique' ? 'la facture électronique' : 'la photo'}${jointe ? ', jointe à l\'achat' : ''} : ${reste ? `${pl(reste, 'case')} à revoir, puis` : 'vérifie, puis'}\u00a0«\u00a0Enregistrer\u00a0l'achat\u00a0».`);
+      // Le toast compte ce que le bandeau compte (il disait « 3 cases à revoir » sous un bandeau qui en annonçait 2).
+      const reste = lu && Array.isArray(lu.reste) ? lu.reste.length : Number(values.reste) || 0;
+      toast(`Pièce remplie depuis ${quoi === 'facture électronique' ? 'la facture électronique' : motsLu(file).le}${jointe ? `, ${quoi !== 'facture électronique' && motsLu(file).pdf ? 'joint' : 'jointe'} à l'achat` : ''} : ${(() => { const sansF = !p.supplierId && p.kind !== 'depense'; const quoi2 = [reste ? `${pl(reste, 'case')} à revoir` : '', sansF ? 'le fournisseur à choisir' : ''].filter(Boolean).join(' et '); return quoi2 ? `${quoi2}, puis` : 'vérifie, puis'; })()}\u00a0«\u00a0Enregistrer\u00a0l'achat\u00a0».`);
     };
     // --- lire la facture électronique (TEIF) d'un fournisseur (H1)
     // Aucun réseau, aucune clé : le XML se lit sur le poste et chaque montant se recompte. La même
@@ -14670,7 +14730,7 @@
       teifComprise(l.lecture, fichier, l.remarques || []);
     };
     // (1.155.12) La zone de dépôt de « Comment arrive cette pièce ? » : un XML se lit comme une e-facture ; une photo ou un
-    // PDF se lit si le serveur sait lire (on le demande d'abord), sinon il se joint et la pièce se saisit à la main.
+    // PDF se lit par l'IA si elle est là (on le demande d'abord), sinon il se joint et la pièce se saisit à la main.
     const zoneChoix = $('#ac-zone');
     if (zoneChoix) {
       const deposer = async f => {
@@ -14679,24 +14739,8 @@
           if (/\.xml$/i.test(f.name) || /xml/.test(f.type)) return lireTeifDe(await bridge.texteGlisse(f));
           if (!/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(f.type)) return toast(`« ${f.name} » n'est ni une facture électronique (XML), ni une photo, ni un PDF.`, true);
           const fichier = bridge.ocrGlisse(f);
-          const lire = $('#photo') && !$('#photo').hidden;
-          if (lire && await iaProposee()) return lirePhoto(fichier);
-          // La fenêtre de la maquette (« Envoyer la photo à la lecture ») : le fichier, ce qui se passe, et trois réponses.
-          const choix = !lire ? 'main' : await new Promise(resolve => {
-            let fait = false;
-            modal(`<h2>Lire cette pièce ?</h2><div class="pj-carte"><span class="pj-ic">${/pdf/.test(f.type) ? 'PDF' : 'IMG'}</span><span class="pj-n"><b>${h(f.name)}</b><small>${fileSize(f.size)}</small></span></div>
-              <div class="lec-q"><div class="gl">${lfIc('cadenas', 15, 2)}<span>Lue sur les serveurs de SkanFact, en Tunisie : elle ne sort pas du pays.</span></div>
-                <div class="gl">${lfIc('coche', 15, 2.4)}<span>Tu vérifies chaque case avant que la pièce se remplisse.</span></div></div>
-              <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn" id="ac-z-main">Non : la joindre et saisir à la main</button><button class="btn btn-primary" id="ac-z-lire">Lire la pièce</button></div>`,
-            (root, close) => {
-              const fin = v => { fait = true; close(); resolve(v); };
-              $('[data-close]', root).onclick = () => fin(null);
-              $('#ac-z-main', root).onclick = () => fin('main');
-              $('#ac-z-lire', root).onclick = () => fin('lire');
-            }, () => { if (!fait) resolve(null); });
-          });
-          if (!choix) return;
-          if (choix === 'lire') return lirePhoto(fichier);
+          // (27/10/2026) Seule l'IA lit : elle se demande (« Lire avec l'IA ? ») ; sans elle, la pièce se joint et se saisit à la main.
+          if ($('#photo') && !$('#photo').hidden) return lirePhoto(fichier);
           sortirDuChoix();
           if (bridge.piecesJointes !== false && await joindreFichier(fichier)) toast(`« ${f.name} » jointe : saisis la pièce à la main`);
         } catch (e) { toast(plainError(e), true); }
@@ -14707,6 +14751,7 @@
       zoneChoix.ondrop = e => { e.preventDefault(); zoneChoix.classList.remove('sur'); deposer((e.dataTransfer && e.dataTransfer.files || [])[0]); };
     }
     if ($('#photo')) $('#photo').onclick = async () => {
+      if (iaCoupee) { allerParametres('donnees', 'p-ocr'); return; }
       let file;
       try { file = await bridge.ocrPick(); } catch (e) { return toast(e.message || 'Fichier illisible', true); }
       if (!file) return;
@@ -14716,7 +14761,14 @@
     const lirePhoto = async (file, opts = {}) => {
       if (licenceBlock('Lire une facture d\'achat', 'achats')) return;
       // (27/10/2026, maquette « Envoyer la photo à la lecture ») L'IA de Claude lit hors de Tunisie : la question se pose avant
-      // chaque envoi, « Non » joint la photo et la pièce se saisit à la main. Sans l'IA, la photo se lit sur nos serveurs.
+      // chaque envoi, « Non » joint la photo et la pièce se saisit à la main. (27/10/2026, Skander) Seule l'IA lit : sans elle
+      // (coupée, ou absente de ce serveur), la pièce se joint et se saisit à la main, et la phrase dit pourquoi.
+      if (bridge.lectureSurLeServeur && opts.ia === undefined && !await iaProposee()) {
+        sortirDuChoix();
+        const pourquoi = company().lectureIA === false ? 'la lecture par l\'IA est coupée dans tes paramètres' : 'ce serveur n\'a pas la lecture par l\'IA';
+        if (bridge.piecesJointes !== false && await joindreFichier(file)) toast(`« ${file.name} » jointe : ${pourquoi}, saisis la pièce à la main`);
+        return;
+      }
       if (opts.ia === undefined && await iaProposee()) {
         const choix = await demanderIA(file);
         if (!choix) return;
@@ -14727,14 +14779,13 @@
         }
         opts = { ia: true };
       }
-      // Sur la plateforme, le fichier est lu par le serveur de SkanFact, en Tunisie, comme le reste du dossier
-      // y vit déjà : la question d'avant existait pour un service à l'étranger.
+      // Hors de la plateforme (la v10 de bureau), un service de lecture à l'étranger : la question d'avant.
       if (!bridge.lectureSurLeServeur && !await confirmDialog(`Envoyer « ${file.name} » (${(file.size / 1024).toFixed(0)} Ko) au service de lecture ?\n\nL'image part sur internet. Rien d'autre n'est envoyé. Le résultat te sera proposé : tu le valides ou tu le corriges avant qu'il n'entre dans tes données.`, 'Lire la facture', false)) return;
       toast(bridge.lectureSurLeServeur ? `Lecture de « ${file.name} »…` : 'Lecture en cours…');
       let read;
       const boutonPhoto = $('#photo');
       if (boutonPhoto) boutonPhoto.disabled = true;
-      const annulee = isNew && !clos ? lectureEnCours(file, !!opts.ia) : () => false;
+      const annulee = isNew && !clos ? lectureEnCours(file, !!opts.ia) : Object.assign(() => false, { finir: async () => {} });
       try { read = await bridge.ocrRead(file.path, opts); }
       catch (e) {
         fermerLecture();
@@ -14745,10 +14796,14 @@
         // (plateforme, pièces jointes) Un fichier qui n'est ni une photo ni un PDF (415) ne se joint pas non plus : l'échec
         // se dit sans proposer de le joindre.
         if (bridge.piecesJointes === false || e.statut === 415) return infoDialog('La lecture de la facture a échoué', (e.message || 'Erreur inconnue.') + depuisMessage);
-        const retry = await confirmDialog(`La lecture a échoué.\n\n${e.message || 'Erreur inconnue.'}\n\nTu peux joindre la photo et saisir la facture à la main.`, 'Joindre la photo', false, { titre: 'La lecture de la photo a échoué' });
-        if (retry) await joindreFichier(file);
+        // (27/10/2026) Plus de lecture de repli : une panne de l'IA se réessaie (503, 504) ; un refus ne se réessaie pas.
+        const choix = await echecLecture(file, e);
+        if (choix === 'relire') lirePhoto(file, { ia: true });
+        else if (choix === 'main') { sortirDuChoix(); if (await joindreFichier(file)) toast(`« ${file.name} » jointe : saisis la pièce à la main`); }
         return;
       } finally { if (boutonPhoto) boutonPhoto.disabled = false; }
+      if (annulee()) return;
+      await annulee.finir(read);
       if (annulee()) return;
       // Ce que le serveur dit de sa lecture (le recomptage du total, ce qui manque) et où il a lu chaque
       // champ. Un taux lu que SkanFact ne propose pas se dit aussi : la ligne passe au taux d'une ligne neuve.
@@ -14759,11 +14814,29 @@
       } : undefined;
       lectureComprise(read, file, horsListe, () => ocrReviewForm(read, file, values => { fermerLecture(); appliquerLecture(values, file); }, optsRelecture));
     };
+    function echecLecture(file, e) {
+      return new Promise(resolve => {
+        let fait = false;
+        const reessai = e.statut === 503 || e.statut === 504 || e.horsLigne;
+        const pdf = /pdf/i.test(file.type || file.name || '');
+        modal(`<h2>${pdf ? 'Le PDF n\'a pas pu être lu' : 'La photo n\'a pas pu être lue'}</h2>
+          <p>${h(e.message || 'Erreur inconnue.')}</p>
+          <p class="small muted">Rien n'a été rempli. ${reessai ? 'Tu peux réessayer dans un moment, ou' : 'Tu peux'} joindre la pièce et la saisir à la main.</p>
+          <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn${reessai ? '' : ' btn-primary'}" id="lec-ko-main">Joindre et saisir à la main</button>${reessai ? `<button class="btn btn-primary" id="lec-ko-relire">${lfIc('eclat', 15, 2)}Réessayer</button>` : ''}</div>`,
+        (root, close) => {
+          const fin = v => { fait = true; close(); resolve(v); };
+          $('#lec-ko-main', root).onclick = () => fin('main');
+          $('[data-close]', root).onclick = () => fin(null);
+          if ($('#lec-ko-relire', root)) $('#lec-ko-relire', root).onclick = () => fin('relire');
+        }, () => { if (!fait) resolve(null); });
+      });
+    }
     function demanderIA(file) {
       return new Promise(resolve => {
         let fait = false;
-        modal(`<h2>Lire cette photo avec l'IA ?</h2><div class="pj-carte"><span class="pj-ic">${/pdf/i.test(file.type || file.name || '') ? 'PDF' : 'IMG'}</span><span class="pj-n"><b>${h(file.name)}</b><small>${fileSize(file.size || 0)}</small></span></div>
-          <div class="lec-q"><div class="gl loin">${lfIc('etoile', 15, 2)}<span>L'image part chez l'IA de Claude (Anthropic), <b>hors de Tunisie</b>.</span></div>
+        const M = motsLu(file);
+        modal(`<h2>Lire ${M.ce} avec l'IA ?</h2><div class="pj-carte"><span class="pj-ic">${/pdf/i.test(file.type || file.name || '') ? 'PDF' : 'IMG'}</span><span class="pj-n"><b>${h(file.name)}</b><small>${fileSize(file.size || 0)}</small></span></div>
+          <div class="lec-q"><div class="gl loin">${lfIc('etoile', 15, 2)}<span>${M.pdf ? 'Le PDF part' : 'L\'image part'} chez l'IA de Claude (Anthropic), <b>hors de Tunisie</b>.</span></div>
             <div class="gl">${lfIc('cadenas', 15, 2)}<span>Rien d'autre n'est envoyé : ni tes clients, ni tes chiffres.</span></div>
             <div class="gl">${lfIc('coche', 15, 2.4)}<span>Tu vérifies chaque case avant que la pièce se remplisse.</span></div></div>
           <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn" id="ac-ia-main">Non : la joindre et saisir à la main</button><button class="btn btn-primary" id="ac-ia-lire">${lfIc('etoile', 15, 2)}Lire avec l'IA</button></div>`,
@@ -14775,25 +14848,100 @@
         }, () => { if (!fait) resolve(null); });
       });
     }
-    // (1.155.13, maquette « Lecture intelligente ») Pendant la lecture, la page dit ce qui se passe, étape par étape ; elle
-    // ne prétend pas savoir où en est le serveur : l'étape en cours tourne tant qu'il n'a pas répondu.
+    // (1.155.13, maquette « Lecture intelligente · en cours ») Pendant la lecture, la page dit ce qui se passe, étape par
+    // étape ; elle ne prétend pas savoir où en est le serveur : l'étape en cours tourne tant qu'il n'a pas répondu. (1.160.0)
+    // Quand il répond, les étapes qui restent se cochent une à une avec ce qui a VRAIMENT été lu (le fournisseur reconnu et
+    // comment, les lignes comparées au catalogue, le total recompté), puis la page « Ce que SkanFact a compris » s'ouvre.
     const ETAPES_LECTURE = ['Photo reçue', 'Texte lu', 'Fournisseur reconnu', 'Lignes et articles', 'Contrôle au millime'];
+    // (1.160.0) Un PDF n'est pas une photo : chaque phrase de la lecture nomme ce qui a été lu.
+    const motsLu = f => (/pdf/i.test((f && (f.type || f.name)) || '')
+      ? { le: 'le PDF', Le: 'Le PDF', ce: 'ce PDF', recu: 'PDF reçu', sur: 'sur le PDF', titre: 'Lecture du PDF', parti: 'Où est parti le PDF', vu: 'Le PDF · lu par l\'IA', joint: 'Il se joint', pdf: true }
+      : { le: 'la photo', Le: 'La photo', ce: 'cette photo', recu: 'Photo reçue', sur: 'sur la photo', titre: 'Lecture de la photo', parti: 'Où est partie la photo', vu: 'La photo · lue par l\'IA', joint: 'Elle se joint', pdf: false });
     function lectureEnCours(file, ia) {
-      const z = pageLecture('Lecture en cours', 'envoyée', file);
-      if (!z) return () => {};
-      z.innerHTML = `<div class="ac-lec-cours"><div class="panel ac-lec-apercu">${apercuFichier(file)}</div>
-        <div class="panel ac-lec-etapes"><div class="ac-lec-t"><h2>${lfIc('etoile', 17)}SkanFact lit ta facture</h2><span class="small muted">quelques secondes</span></div>
-          <ol>${ETAPES_LECTURE.map((t, i) => `<li class="${i === 0 ? 'fait' : i === 1 ? 'cours' : ''}"><span class="pt">${i === 0 ? lfIc('coche', 12, 3) : i + 1}</span><b>${t}</b><small>${i === 0 ? h(`${fileSize(file.size || 0)} · ${h(file.name)}`) : i === 1 ? (ia ? 'par l\'IA de Claude (Anthropic), hors de Tunisie' : 'sur les serveurs de SkanFact, en Tunisie') : ''}</small></li>`).join('')}</ol>
+      const M = motsLu(file);
+      const z = pageLecture('Lecture en cours', 'envoyée', file, { geste: gesteEnGrand(file), titre: M.titre });
+      if (!z) { const rien = () => false; rien.finir = async () => {}; return rien; }
+      brancherEnGrand(file);
+      const pdf = /pdf/i.test(file.type || file.name || '');
+      const etape = (i, etat, sous) => `<li class="${etat}" data-etape="${i}"><span class="pt">${etat === 'fait' ? lfIc('coche', 12, 3) : i + 1}</span><b>${i === 0 ? M.recu : ETAPES_LECTURE[i]}</b><small>${sous || ''}</small></li>`;
+      const lu = ia ? 'par l\'IA de Claude (Anthropic), hors de Tunisie' : 'par le service de lecture';
+      z.innerHTML = `<div class="ac-lec-cours"><div class="panel ac-lec-apercu ac-lec-scan">${apercuFichier(file)}<span class="ac-lec-raie" aria-hidden="true"></span></div>
+        <div class="panel ac-lec-etapes"><div class="ac-lec-t"><h2>${lfIc('eclat', 17)}SkanFact lit ta ${pdf ? 'pièce' : 'facture'}</h2><span class="small muted">quelques secondes</span></div>
+          <ol>${etape(0, 'fait', h(`${fileSize(file.size || 0)} · ${pdf ? 'PDF' : 'photo'}`))}${etape(1, 'cours', lu)}${etape(2, '')}${etape(3, '')}${etape(4, '')}</ol>
           <p class="note-v">${lfIc('aide', 14, 2)}<span>La lecture prend quelques secondes ; rien n'entre dans tes données avant que tu le décides.</span></p>
           <div class="ac-lec-pied"><button type="button" class="btn" id="ac-lec-main">Saisir à la main à la place</button></div></div></div>`;
+      peindrePdfs(z);
+      // La taille de la photo en points, une fois l'image chargée : ce qui se lit sur une photo trop petite est flou.
+      const img = $('.ac-lec-img', z);
+      if (img) { const dire = () => { const sm = $('[data-etape="0"] small', z); if (sm && img.naturalWidth) sm.textContent = `${fileSize(file.size || 0)} · ${img.naturalWidth} × ${img.naturalHeight} points`; }; if (img.complete) dire(); else img.addEventListener('load', dire, { once: true }); }
       let annule = false;
       $('#ac-lec-main', z).onclick = () => { annule = true; fermerLecture(); sortirDuChoix(); };
-      return () => annule;
+      const annulee = () => annule;
+      annulee.finir = async read => {
+        if (annule || !z.isConnected) return;
+        const prep = C.ocrToPurchase(read, data);
+        const sup = supplierById(prep.head.supplierId);
+        const mfx = x => String(x || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+        const parMF = sup && read.matricule && mfx(sup.matricule) === mfx(read.matricule);
+        const n = (prep.lines || []).length;
+        const connus = (prep.lines || []).filter(l => (data.catalog || []).some(c => String(c.label || '').trim().toLowerCase() === String(l.label || '').trim().toLowerCase())).length;
+        const calcul = C.round3((prep.lines || []).reduce((a2, l) => a2 + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0));
+        const juste = prep.readHT != null && Math.abs(calcul - prep.readHT) <= 0.005;
+        const sous = [lu,
+          sup ? `${sup.name}, par son ${parMF ? 'matricule' : 'nom'}` : prep.head.supplierName ? `« ${prep.head.supplierName} » : pas encore dans tes fournisseurs` : 'aucun nom lu',
+          n ? `${pl(n, 'ligne')}, comparée${n > 1 ? 's' : ''} à ton catalogue${connus ? ` : ${connus} ${connus > 1 ? 'reconnues' : 'reconnue'}` : ''}` : 'aucune ligne lue',
+          prep.readHT == null ? 'aucun total lu pour comparer' : juste ? 'les totaux recalculés contre le total lu : juste' : 'les totaux recalculés contre le total lu : un écart à vérifier'];
+        const vite = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        for (let i = 1; i < ETAPES_LECTURE.length; i++) {
+          if (annule || !z.isConnected) return;
+          const li = $(`[data-etape="${i}"]`, z);
+          if (li) li.outerHTML = etape(i, 'fait', h(sous[i - 1]));
+          const suite = $(`[data-etape="${i + 1}"]`, z);
+          if (suite) suite.outerHTML = etape(i + 1, 'cours', '');
+          if (!vite) await new Promise(r => setTimeout(r, 260));
+        }
+        const raie = $('.ac-lec-raie', z); if (raie) raie.remove();
+        if (!vite) await new Promise(r => setTimeout(r, 220));
+      };
+      return annulee;
+    }
+    // (1.160.0, maquette « Justificatif » en haut de la lecture) La photo en grand, pour comparer case par case.
+    const gesteEnGrand = file => (file && file.path && bridge.fichierALire && bridge.fichierALire(file.path) ? `<button type="button" class="btn" id="lec-grand" data-geste-lecture title="Voir la photo en grand">${lfIc('oeil', 16)}Justificatif</button>` : '');
+    const brancherEnGrand = file => { const b = $('#lec-grand'); if (b) b.onclick = () => photoEnGrand(file); };
+    function photoEnGrand(file) {
+      const f = bridge.fichierALire(file.path);
+      if (!f) return;
+      const url = URL.createObjectURL(f);
+      const image = /^image\//.test(f.type || '');
+      const pdf = !image && /pdf/i.test(f.type || '') && bridge.apercuPdf;
+      // Un PDF : sa première page en image (un cadre PDF ne s'affiche pas sur un téléphone), et le document entier à côté.
+      modal(`<h2>${h(file.name)}</h2><div class="lec-grand">${image ? `<img src="${url}" alt="${h(file.name)}">` : pdf ? '<span class="small muted lec-grand-att">La première page se prépare…</span>' : `<iframe src="${url}" title="${h(file.name)}"></iframe>`}</div>
+        <div class="modal-actions">${pdf ? `<a class="btn" href="${url}" target="_blank" rel="noopener">Ouvrir le PDF entier</a>` : ''}<button class="btn btn-primary" data-close>Fermer</button></div>`, (root, close) => {
+        $('[data-close]', root).onclick = close;
+        if (pdf) bridge.apercuPdf(f, 1600).then(r => {
+          const z = $('.lec-grand', root); if (!z) return;
+          z.innerHTML = r ? `<img src="${r.adresse}" alt="Première page de « ${h(file.name)} »">` : '<span class="small muted lec-grand-att">Ce PDF ne se montre pas ici : ouvre-le entier.</span>';
+          if (r && r.pages > 1) z.insertAdjacentHTML('afterend', `<p class="small muted">Page 1 sur ${r.pages} : « Ouvrir le PDF entier » montre les autres.</p>`);
+        });
+      }, () => URL.revokeObjectURL(url), { classe: 'modal-grand' });
     }
     function apercuFichier(file) {
       const f = file && file.path && bridge.fichierALire ? bridge.fichierALire(file.path) : null;
       const url = f && /^image\//.test(f.type || '') ? URL.createObjectURL(f) : '';
-      return url ? `<img src="${url}" alt="${h(file.name)}" class="ac-lec-img">` : `<div class="ac-lec-doc">${lfIc(/pdf/i.test(file && file.type || '') ? 'pages' : 'photo', 28)}<b>${h(file ? file.name : '')}</b><span class="small muted">${fileSize(file && file.size || 0)}</span></div>`;
+      // (1.160.0) Un PDF se montre aussi : sa première page, dessinée en image dès qu'elle est prête (`peindrePdfs`).
+      const pdf = f && /pdf/i.test(f.type || '') && bridge.apercuPdf;
+      return url ? `<img src="${url}" alt="${h(file.name)}" class="ac-lec-img">` : `<div class="ac-lec-doc"${pdf ? ` data-pdf-lu="${h(file.path)}"` : ''}>${lfIc(/pdf/i.test(file && file.type || '') ? 'pages' : 'photo', 28)}<b>${h(file ? file.name : '')}</b><span class="small muted">${pdf ? 'la première page se prépare…' : fileSize(file && file.size || 0)}</span></div>`;
+    }
+    function peindrePdfs(racine) {
+      $$('[data-pdf-lu]', racine).forEach(el => {
+        const f = bridge.fichierALire(el.dataset.pdfLu);
+        if (!f) return;
+        bridge.apercuPdf(f, 900).then(r => {
+          if (!el.isConnected) return;
+          if (!r) { const sm = $('span', el); if (sm) sm.textContent = 'ce PDF ne se montre pas ici ; il se lit quand même'; return; }
+          el.outerHTML = `<img src="${r.adresse}" alt="Première page de « ${h(f.name || '')} »" class="ac-lec-img">${r.pages > 1 ? `<span class="ac-pdf-pages">page 1 sur ${r.pages}</span>` : ''}`;
+        });
+      });
     }
     // La page remplace le formulaire le temps de la lecture : le formulaire reste dessous, intact, et revient tel quel.
     // `o.titre` et `o.chemin` nomment la page (la facture électronique a les siens) ; `o.geste`, un bouton de l'en-tête.
@@ -14843,6 +14991,15 @@
       // quantité ou d'un prix contre le hors-taxes lu (`juste`).
       const parIA = read.moteur === 'ia';
       const doutesIA = (read.doutes || []).filter(d => d && Array.isArray(d.valeurs) && d.valeurs.length).map(d => Object.assign({}, d, { choisi: null }));
+      // (1.160.0, maquette « zone 1 », « zone 2 ») Les doutes que l'IA sait situer sur la photo portent un numéro, posé sur
+      // l'image ; la ligne dit « lu sur la photo · zone 1 ». Un PDF ne se montre pas en image : pas de zone.
+      const M = motsLu(file);
+      const enImage = !M.pdf;
+      const zones = enImage ? doutesIA.filter(d => Array.isArray(d.zone) && d.zone.length === 4) : [];
+      const zoneDe = d => { const i = zones.indexOf(d); return i >= 0 ? ` · zone ${i + 1}` : ''; };
+      let categorie = '';
+      // La fiche créée d'un clic depuis cette lecture : la ligne le dit (« nouveau »), au lieu de « reconnu ».
+      let creeIci = '';
       const CHAMPS_LIGNE = ['quantite', 'prixUnitaire', 'tauxTva', 'totalLigne'];
       // Un doute reste à revoir tant qu'il n'est pas tranché, ou, pour une ligne, tranché sur une valeur qui ne tombe pas juste.
       const aRevoir = d => d.choisi == null || (CHAMPS_LIGNE.includes(d.champ) && (d.valeurs.find(v => v.valeur === d.choisi) || {}).juste === false);
@@ -14872,8 +15029,9 @@
         const delai = sup ? delaiAchat(sup.id) : 0;
         const ech = tete.dueDate || (sup && tete.date ? C.addDays(tete.date, delai) : '');
         const derniers = sup ? (data.purchases || []).filter(x => x.supplierId === sup.id && x.category).slice(-4) : [];
-        const cat = derniers.length ? derniers[derniers.length - 1].category : '';
-        const pareil = derniers.filter(x => x.category === cat).length;
+        const propose = derniers.length ? derniers[derniers.length - 1].category : '';
+        const cat = categorie || propose;
+        const pareil = derniers.filter(x => x.category === propose).length;
         const calcul = C.round3(lignes.reduce((a, l) => a + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0));
         const ecart = prep.readHT == null ? null : C.round3(calcul - prep.readHT);
         const jumeau = tete.number && sup ? C.achatDoublon(data, { id: '', supplierId: sup.id, number: tete.number, kind: tete.kind || 'facture' }) : null;
@@ -14891,30 +15049,41 @@
         const tranchee = doutesIA.find(d => d.choisi != null && CHAMPS_LIGNE.includes(d.champ) && (d.valeurs.find(v => v.valeur === d.choisi) || {}).juste === false && bonne(d));
         const doutes = [!sup, !tete.number || ouvert(kNum), futur || ouvert(kDate), ecart != null && Math.abs(ecart) > 0.005, ...lignes.map((l, i) => (horsListe.length && read.lines && read.lines[i] && horsListe.includes(read.lines[i].vatRate)) || ouvert(doute(CHAMPS_LIGNE, i)))].filter(Boolean).length
           + doutesIA.filter(d => d.choisi == null && !['numero', 'date'].includes(d.champ) && !CHAMPS_LIGNE.includes(d.champ)).length;
-        const z = pageLecture(doutes ? `${pl(doutes, 'case')} à vérifier` : 'Vérifiée', doutes ? 'partielle' : 'payée', file);
+        const z = pageLecture(doutes ? `${pl(doutes, 'case')} à vérifier` : 'Vérifiée', doutes ? 'partielle' : 'payée', file, { geste: gesteEnGrand(file), titre: M.titre });
         if (!z) return;
+        brancherEnGrand(file);
         z.innerHTML = `<div class="buy-editor editor charte ac-lec"><div class="ed-gauche"><div class="panel ac-lec-compris">
-          <div class="ac-lec-t"><h2>${lfIc('etoile', 17)}Ce que SkanFact a compris</h2><span class="small muted">${doutes ? `${pl(doutes, 'case')} à trancher` : 'tout est vérifié'}</span></div>
+          <div class="ac-lec-t"><h2>${lfIc('eclat', 17)}Ce que SkanFact a compris</h2><span class="small muted">${doutes ? `${pl(doutes, 'case')} à trancher` : 'tout est vérifié'}</span></div>
           <div class="ac-lec-g"><b class="gt">Le fournisseur</b>
-            ${sup ? ligne(true, 'Fournisseur', `<b>${h(sup.name)}</b>`, parMF ? `reconnu par son matricule ${h(read.matricule)}${ou.matricule ? ', lu sur la pièce' : ''}` : 'reconnu par son nom')
-              : ligne(false, 'Fournisseur', tete.supplierName ? `« ${h(tete.supplierName)} » n'est pas dans tes fournisseurs :` : 'aucun nom lu :', 'à choisir ou à créer', `<span class="ac-lec-saisie">${combo({ name: 'lecSup', value: '', items: supplierItems(), placeholder: '— Choisir —', search: 'Rechercher un fournisseur…', add: tete.supplierName ? `+ Créer « ${h(tete.supplierName)} »` : '+ Nouveau fournisseur' })}</span>`)}
+            ${sup && sup.id === creeIci ? ligne(true, 'Fournisseur', `<b>${h(sup.name)}</b> <span class="badge payée">nouveau</span>`, `fiche créée depuis la pièce : son nom${sup.matricule ? ` et son matricule ${h(sup.matricule)}` : ''}`)
+              : sup ? ligne(true, 'Fournisseur', `<b>${h(sup.name)}</b>`, parMF ? `reconnu par son matricule ${h(read.matricule)}${ou.matricule ? ', lu sur la pièce' : ''}` : 'reconnu par son nom')
+              : ligne(false, 'Fournisseur', tete.supplierName ? `« ${h(tete.supplierName)} » n'est pas dans tes fournisseurs :` : 'aucun nom lu :', tete.supplierName ? (read.matricule ? `nom et matricule ${h(read.matricule)} lus sur la pièce` : 'nom lu sur la pièce, sans matricule') : 'à choisir, ou à créer', creerOuChoisir('lecSup', tete.supplierName))}
             ${sup ? ligne(true, 'Délai de paiement', `${pl(delai, 'jour')}${ech ? ` · échéance ${C.fmtDate(ech)}` : ''}`, tete.dueDate ? 'lue sur la pièce' : 'de sa fiche') : ''}
           </div>
           <div class="ac-lec-g"><b class="gt">La pièce</b>
-            ${ouvert(kNum) ? ligne(false, 'Numéro', `${h(doutesIA[kNum].raison || 'pas sûr')} :`, `lu sur la photo${ou.number ? ` : « ${h(ou.number)} »` : ''}`, choixHtml(kNum))
+            ${ouvert(kNum) ? ligne(false, 'Numéro', `${h(doutesIA[kNum].raison || 'pas sûr')} :`, `lu ${M.sur}${zoneDe(doutesIA[kNum])}${ou.number ? ` : « ${h(ou.number)} »` : ''}`, choixHtml(kNum))
               : tete.number ? ligne(true, 'Numéro', `<b>${h(tete.number)}</b>${jumeau ? '' : ''}`, ou.number ? `lu : « ${h(ou.number)} »` : 'lu sur la pièce') : ligne(false, 'Numéro', 'aucun numéro lu :', 'il est obligatoire pour déduire la TVA', '<span class="ac-lec-saisie"><input type="text" id="lec-num" placeholder="Le numéro écrit sur la facture"></span>')}
-            ${ouvert(kDate) ? ligne(false, 'Date', `${h(doutesIA[kDate].raison || 'pas sûre')} :`, 'lue sur la photo', choixHtml(kDate)) : ligne(!futur, 'Date', C.fmtDate(tete.date), futur ? 'dans le futur : vérifie-la sur la photo' : ou.date ? `lue : « ${h(ou.date)} »` : 'lue sur la pièce')}
-            ${ligne(true, 'Catégorie', cat ? h(cat) : '<span class="muted">à choisir sur la pièce</span>', cat ? `proposée : ${pareil > 1 ? `ses ${pareil} dernières factures` : 'sa dernière facture'}` : 'aucune facture de lui pour la proposer')}
+            ${ouvert(kDate) ? ligne(false, 'Date', `${h(doutesIA[kDate].raison || 'pas sûre')} :`, `lue ${M.sur}${zoneDe(doutesIA[kDate])}`, choixHtml(kDate)) : ligne(!futur, 'Date', C.fmtDate(tete.date), futur ? 'dans le futur : vérifie-la sur la photo' : ou.date ? `lue : « ${h(ou.date)} »` : 'lue sur la pièce')}
+            ${cat && !categorie ? ligne(true, 'Catégorie', h(cat), `proposée : ${pareil > 1 ? `ses ${pareil} dernières factures` : 'sa dernière facture'}`)
+              : ligne(true, 'Catégorie', '', cat ? 'choisie par toi' : sup ? 'aucune facture de lui pour la proposer : choisis-la ici, ou plus tard sur la pièce' : 'choisis-la ici, ou plus tard sur la pièce',
+                `<span class="ac-lec-saisie">${combo({ name: 'lecCat', value: categorie, items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— À choisir —', search: 'Rechercher une catégorie…' })}</span>`)}
           </div>
           <div class="ac-lec-g"><b class="gt">Les lignes</b>
             ${lignes.map((l, i) => { const hors = read.lines && read.lines[i] && horsListe.includes(read.lines[i].vatRate); const it = (data.catalog || []).find(c => c.tracked && String(c.label || '').trim().toLowerCase() === String(l.label || '').trim().toLowerCase());
               const kL = doute(CHAMPS_LIGNE, i);
-              if (kL >= 0) return ligne(false, h(l.label || 'Sans désignation'), doutesIA[kL].choisi == null ? `${h(doutesIA[kL].raison || 'pas sûr')} :` : `${pct(l.qty)} × ${nb(l.unitPrice)} = <b>${nb(C.round3(l.qty * l.unitPrice))}</b> :`, doutesIA[kL].choisi == null ? 'lue sur la photo' : 'les lignes ne tombent pas sur le total lu', choixHtml(kL));
+              if (kL >= 0) return ligne(false, h(l.label || 'Sans désignation'), doutesIA[kL].choisi == null ? `${h(doutesIA[kL].raison || 'pas sûr')} :` : `${pct(l.qty)} × ${nb(l.unitPrice)} = <b>${nb(C.round3(l.qty * l.unitPrice))}</b> :`, doutesIA[kL].choisi == null ? `lue ${M.sur}${zoneDe(doutesIA[kL])}` : 'les lignes ne tombent pas sur le total lu', choixHtml(kL));
               return ligne(!hors, h(l.label || 'Sans désignation'), `${pct(l.qty)} × ${nb(l.unitPrice)} = <b>${nb(C.round3(l.qty * l.unitPrice))}</b> · TVA ${pct(l.vatRate)} %`, hors ? `taux ${h(String(read.lines[i].vatRate))} % lu : pas un taux proposé, mis à 19 %` : it ? 'lue · en stock, comme ton article' : 'lue · en charge'); }).join('')}
           </div>
           <div class="ac-lec-g"><b class="gt">Le contrôle</b>
-            ${doutesIA.map((d, k) => d.choisi == null && NOM_DOUTE[d.champ] ? ligne(false, NOM_DOUTE[d.champ], `${h(d.raison || 'pas sûr')} :`, 'compare avec la photo', choixHtml(k)) : '').join('')}
-            ${kLigne >= 0 && prep.readHT != null && bonne(doutesIA[kLigne]) ? ligne(true, 'Total', `avec ${h(bonne(doutesIA[kLigne]))}, les lignes tombent juste : <b>${nb(prep.readHT)}</b> HT`, 'les lignes recomptées contre le total lu')
+            ${doutesIA.map((d, k) => d.choisi == null && NOM_DOUTE[d.champ] ? ligne(false, NOM_DOUTE[d.champ], `${h(d.raison || 'pas sûr')} :`, `compare avec ${M.le}${zoneDe(d)}`, choixHtml(k)) : '').join('')}
+            ${kLigne >= 0 && prep.readHT != null && bonne(doutesIA[kLigne]) ? ligne(true, 'Total', (() => {
+                // (1.160.0, maquette) Le total que la personne compare avec la facture : le TTC, avec la bonne valeur.
+                const d = doutesIA[kLigne], l = lignes[d.ligne], v = Number(String(bonne(d)).replace(',', '.'));
+                const essai = lignes.map((x, i) => i === d.ligne ? Object.assign({}, x, d.champ === 'quantite' ? { qty: v } : d.champ === 'prixUnitaire' ? { unitPrice: v } : {}) : x);
+                const ttc = C.purchaseTotals({ ...tete, withholdingRate: 0, lines: essai }, company()).totalTTC;
+                const dit = read.totalTTC != null && Math.abs(ttc - Number(read.totalTTC)) <= 0.0015;
+                return `avec ${h(bonne(d))}${l && d.champ === 'quantite' ? ` × « ${h(l.label || '')} »` : ''}, ${dit ? `le total tombe juste : <b>${nb(ttc)}</b>` : `les lignes tombent juste : <b>${nb(prep.readHT)}</b> HT`}`;
+              })(), Number(tete.fees) ? `TVA ligne par ligne, timbre ${nb(tete.fees)} à part` : 'les lignes recomptées contre le total lu')
               : tranchee && Math.abs(ecart) > 0.005 ? ligne(false, 'Total', `avec ${h(tranchee.choisi)}, les lignes font <b>${nb(calcul)}</b> HT, la pièce dit <b>${nb(prep.readHT)}</b>`, `ce n'est donc pas ${h(tranchee.choisi)} : choisis ${h(bonne(tranchee))}`)
               : prep.readHT == null ? ligne(true, 'Total', `lignes : <b>${nb(calcul)}</b> HT`, 'aucun total lu sur la pièce pour comparer')
               : Math.abs(ecart) > 0.005 ? ligne(false, 'Total', `les lignes font <b>${nb(calcul)}</b> HT, la pièce dit <b>${nb(prep.readHT)}</b>`, `écart de ${nb(ecart)} : corrige une ligne sur la pièce`)
@@ -14925,16 +15094,21 @@
           <aside class="ed-droite">
             <div class="panel ac-lec-geste"><button type="button" class="btn btn-primary btn-grand" id="lec-remplir">${lfIc('coche', 17, 2.4)}Remplir la pièce${doutes ? ` · ${doutes} à revoir` : ''}</button>
               <p class="ed-phrase">${doutes ? 'Tu peux remplir tout de suite : ce qui reste à trancher se corrige sur la pièce. ' : ''}Rien n'est enregistré avant que tu cliques sur « Enregistrer l'achat ».</p></div>
-            <div class="panel ac-lec-photo"><div class="q"><span>La photo · lue par SkanFact</span><span>${h(file.name)}</span></div>${apercuFichier(file)}</div>
-            <div class="panel ed-avant"><h3>Où est partie la photo</h3><ul>
-              <li class="ok">${lfIc('coche', 15, 2.4)}<span>${parIA ? 'Lue par l\'IA de Claude (Anthropic), hors de Tunisie, avec ton accord' : 'Lue sur les serveurs de SkanFact, en Tunisie, comme le reste de ton dossier'}</span></li>
+            <div class="panel ac-lec-photo"><div class="q"><span>${M.vu}</span><span>${h(file.name)}</span></div><div class="ac-lec-zones">${apercuFichier(file)}${zones.map((d, i) => aRevoir(d) ? `<span class="ac-lec-repere" style="left:${d.zone[0] / 10}%;top:${d.zone[1] / 10}%;width:${d.zone[2] / 10}%;height:${d.zone[3] / 10}%" title="${h(d.raison || '')}"><i>${i + 1}</i></span>` : '').join('')}</div></div>
+            <div class="panel ed-avant"><h3>${M.parti}</h3><ul>
+              <li class="ok">${lfIc('coche', 15, 2.4)}<span>${parIA ? 'Lue par l\'IA de Claude (Anthropic), hors de Tunisie, avec ton accord' : 'Lue par le service de lecture, avec ton accord'}</span></li>
               <li class="ok">${lfIc('coche', 15, 2.4)}<span>Rien d'autre n'est parti : ni tes clients, ni tes chiffres</span></li>
-              <li class="ok">${lfIc('coche', 15, 2.4)}<span>Elle se joint à l'achat quand tu remplis la pièce</span></li></ul></div>
+              <li class="ok">${lfIc('coche', 15, 2.4)}<span>${M.joint} à l'achat quand tu remplis la pièce</span></li></ul></div>
             <div class="panel ac-lec-autres"><button type="button" class="btn btn-sm" id="lec-detail">Vérifier case par case</button><button type="button" class="btn btn-sm" id="lec-relire">Relire</button><button type="button" class="btn btn-sm" id="lec-main">Saisir à la main</button>${bridge.messagerie && bridge.messagerie.envoyerFichier && messagerieVue && messagerieVue.cabinet && bridge.fichierALire && bridge.fichierALire(file.path) ? '<button type="button" class="btn btn-sm" id="lec-cabinet">Confier au cabinet</button>' : ''}</div>
           </aside></div>`;
+        peindrePdfs(z);
         const sc = $('[data-combo=lecSup]', z);
-        if (sc) bindCombo(sc, { items: supplierItems(), placeholder: '— Choisir —', onPick: v => { tete.supplierId = v; dessiner(); },
+        if (sc) bindCombo(sc, { items: supplierItems(), placeholder: tete.supplierName ? 'ou choisir' : '— Choisir —', onPick: v => { tete.supplierId = v; dessiner(); },
           onAdd: saisi => supplierForm(null, x => { tete.supplierId = x.id; dessiner(); }, { name: saisi || tete.supplierName, matricule: tete.matricule || '' }) });
+        const cree = $('#lec-creer', z);
+        if (cree) cree.onclick = () => fournisseurDuLu({ name: tete.supplierName, matricule: tete.matricule || '' }, x => { tete.supplierId = x ? x.id : ''; creeIci = x ? x.id : ''; dessiner(); });
+        const cc = $('[data-combo=lecCat]', z);
+        if (cc) bindCombo(cc, { items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— À choisir —', onPick: v => { categorie = v; dessiner(); } });
         const num = $('#lec-num', z); if (num) num.onchange = () => { tete.number = num.value.trim(); dessiner(); };
         $$('[data-doute]', z).forEach(b => b.onclick = () => { const d = doutesIA[Number(b.dataset.doute)]; if (d) { trancher(d, b.dataset.v); dessiner(); } });
         $('#lec-relire', z).onclick = () => { fermerLecture(); lirePhoto(file); };
@@ -14950,7 +15124,10 @@
           const reste = doutesIA.filter(aRevoir);
           appliquerLecture({ head: { supplierId: tete.supplierId, number: tete.number || '', date: tete.date || C.today(), dueDate: tete.dueDate || '',
             subject: tete.subject || '', category: cat || '', fees: Number(tete.fees) || 0 }, lines: lignes, reste: doutes }, file, undefined,
-          parIA ? { reste: reste.map(d => (d.champ === 'numero' ? 'Le numéro de facture' : d.champ === 'date' ? 'La date' : d.ligne != null && lignes[d.ligne] ? `${CHAMPS_LIGNE.includes(d.champ) && d.champ !== 'quantite' ? 'Le montant' : 'La quantité'} de « ${lignes[d.ligne].label} »` : NOM_DOUTE[d.champ] || 'Une case')),
+          // (1.160.0, maquette « 6 ou 8 ? ») Chaque case à revoir dit ses valeurs possibles, et se marque en ambre sur la pièce.
+          parIA ? { reste: reste.map(d => `${d.champ === 'numero' ? 'du numéro de facture' : d.champ === 'date' ? 'de la date' : d.ligne != null && lignes[d.ligne] ? `${d.champ === 'prixUnitaire' ? 'du prix' : d.champ === 'tauxTva' ? 'du taux de TVA' : d.champ === 'totalLigne' ? 'du montant' : 'de la quantité'} de « ${lignes[d.ligne].label} »` : `de la case « ${NOM_DOUTE[d.champ] || d.champ} »`} (${d.valeurs.map(v => /date|echeance/.test(d.champ) ? enDate(v.valeur) : v.valeur).join(' ou ')} ?)`),
+            zones: reste.filter(d => zones.includes(d)).map(d => ({ zone: d.zone, n: zones.indexOf(d) + 1 })), photo: file.name, pdf: M.pdf,
+            marques: reste.map(d => d.champ === 'numero' ? { k: 'number' } : d.champ === 'date' ? { k: 'date' } : d.champ === 'echeance' ? { k: 'dueDate' } : d.ligne != null ? { ligne: d.ligne, k: d.champ === 'prixUnitaire' || d.champ === 'totalLigne' ? 'unitPrice' : d.champ === 'tauxTva' ? 'vatRate' : 'qty' } : null).filter(Boolean),
             tranches: doutesIA.length - reste.length, juste: prep.readHT != null && Math.abs(ecart) <= 0.005 } : null);
         };
       };
@@ -14967,6 +15144,7 @@
       const tete = Object.assign({}, prep.head);
       const lignes = prep.lines.map(l => Object.assign({}, l));
       let categorie = '';
+      let creeDuFichier = '';
       const ailleurs = remarques.some(m => REMARQUES_TENUES[0].test(m));
       const autresRemarques = remarques.filter(m => !REMARQUES_TENUES.some(r => r.test(m)));
       const avoir = tete.kind === 'avoir';
@@ -15007,9 +15185,10 @@
         z.innerHTML = `<div class="buy-editor editor charte ac-lec ac-tf"><div class="ed-gauche">${bandeaux}<div class="panel ac-lec-compris">
           <div class="ac-lec-t"><h2>${lfIc('piece', 17)}Ce que dit le fichier El Fatoora</h2><span class="small muted">${doutes ? `${pl(doutes, 'case')} à trancher` : 'tout est vérifié'}</span></div>
           <div class="ac-lec-g"><b class="gt">Le fournisseur</b>
-            ${sup ? ligne(true, 'Fournisseur', `<b>${h(sup.name)}</b>`, read.matricule && String(sup.matricule || '').toUpperCase().replace(/[^0-9A-Z]/g, '') === String(read.matricule).toUpperCase().replace(/[^0-9A-Z]/g, '') ? `reconnu par son matricule ${h(read.matricule)}, lu dans le fichier` : 'reconnu par son nom')
+            ${sup && sup.id === creeDuFichier ? ligne(true, 'Fournisseur', `<b>${h(sup.name)}</b> <span class="badge payée">nouveau</span>`, `fiche créée depuis le fichier : ${[sup.matricule ? `matricule ${h(sup.matricule)}` : '', sup.address ? 'adresse' : '', sup.phone ? 'téléphone' : ''].filter(Boolean).join(', ')}`)
+              : sup ? ligne(true, 'Fournisseur', `<b>${h(sup.name)}</b>`, read.matricule && String(sup.matricule || '').toUpperCase().replace(/[^0-9A-Z]/g, '') === String(read.matricule).toUpperCase().replace(/[^0-9A-Z]/g, '') ? `reconnu par son matricule ${h(read.matricule)}, lu dans le fichier` : 'reconnu par son nom')
               : ligne(false, 'Fournisseur', tete.supplierName ? `« ${h(tete.supplierName)} » n'est pas dans tes fournisseurs :` : 'aucun nom dans le fichier :', [read.matricule ? `matricule ${h(read.matricule)}` : '', four.adresse || four.telephone ? `${[four.adresse ? 'adresse' : '', four.telephone ? 'téléphone' : ''].filter(Boolean).join(' et ')} repris du fichier` : ''].filter(Boolean).join(', ') || 'à choisir ou à créer',
-                `<span class="ac-lec-saisie attire">${combo({ name: 'tfSup', value: '', items: supplierItems(), placeholder: tete.supplierName ? `+ Créer « ${tete.supplierName} »` : '— Choisir —', search: 'Rechercher un fournisseur…', add: tete.supplierName ? `+ Créer « ${h(tete.supplierName)} »` : '+ Nouveau fournisseur' })}</span>`)}
+                creerOuChoisir('tfSup', tete.supplierName))}
             ${delai != null ? ligne(true, 'Délai de paiement', `${pl(delai, 'jour')}${ech ? ` · échéance ${C.fmtDate(ech)}` : ''}`, tete.dueDate ? 'lue dans le fichier' : 'de sa fiche') : ''}
           </div>
           <div class="ac-lec-g"><b class="gt">La pièce</b>
@@ -15051,8 +15230,11 @@
               ${file.path ? '' : `<li>${lfIc('info', 15, 2)}<span>Garde le fichier XML : SkanFact ne le joint pas encore à l'achat</span></li>`}</ul></div>
             <div class="panel ac-lec-autres"><button type="button" class="btn btn-sm" id="tf-detail">Vérifier case par case</button>${$('#teif-lire') ? '<button type="button" class="btn btn-sm" id="tf-autre">Choisir un autre fichier</button>' : ''}</div>
           </aside></div>`;
+        const cree = $('#lec-creer', z);
+        if (cree) cree.onclick = () => fournisseurDuLu({ name: tete.supplierName, matricule: tete.matricule || '', address: four.adresse || '', phone: four.telephone || '', email: four.email || '' },
+          x => { tete.supplierId = x ? x.id : ''; creeDuFichier = x ? x.id : ''; dessiner(); });
         const sc = $('[data-combo=tfSup]', z);
-        if (sc) bindCombo(sc, { items: supplierItems(), placeholder: tete.supplierName ? `+ Créer « ${tete.supplierName} »` : '— Choisir —', onPick: v => { tete.supplierId = v; dessiner(); },
+        if (sc) bindCombo(sc, { items: supplierItems(), placeholder: tete.supplierName ? 'ou choisir' : '— Choisir —', onPick: v => { tete.supplierId = v; dessiner(); },
           onAdd: saisi => supplierForm(null, x => { tete.supplierId = x.id; dessiner(); }, Object.assign({ name: saisi || tete.supplierName, matricule: tete.matricule || '' },
             // Le fichier porte aussi l'adresse et les contacts du fournisseur : la fiche naît complète.
             { address: four.adresse || '', phone: four.telephone || '', email: four.email || '' })) });
@@ -15151,7 +15333,14 @@
       const list = cible.attachments || [];
       // (1.155.12, maquette achat) Sans fichier : « Pas de justificatif », une zone où l'on clique ou glisse la photo ou le PDF,
       // et ce que son absence coûte. Avec : la liste, et un autre fichier se joint du même geste.
-      el.innerHTML = list.length ? `${tableauJustificatifs(list)}
+      // (1.160.0, maquette « La photo · lue par SkanFact ») Sur la plateforme, chaque justificatif se montre : son aperçu (la
+      // photo elle-même, avec les zones que l'IA n'a pas lues avec sûreté), son nom, et ses gestes sous « Actions ». Le tableau
+      // d'avant, à trois colonnes dans une colonne étroite, coupait son bouton.
+      const enCartes = !!bridge.apercuPiece;
+      const zonesLues = luParIA && Array.isArray(luParIA.zones) ? luParIA.zones : [];
+      const cartes = () => `<div class="ac-pjs">${list.map(a => `<div class="ac-pj"><button type="button" class="ac-pj-vue" data-open="${h(a.file)}" data-apercu="${h(a.file)}" title="Ouvrir « ${h(a.name || a.file)} »">${lfIc(/\.pdf$/i.test(a.name || '') ? 'pages' : 'photo', 26, 1.6)}</button>
+        <div class="ac-pj-l"><span class="ac-pj-n"><b>${h(a.name || a.file)}</b><small>${fileSize(a.size)} · joint le ${C.fmtDate(a.date)}</small></span>${RowMenu.bouton(a.file, 'Actions')}</div></div>`).join('')}</div>`;
+      el.innerHTML = list.length ? `${enCartes ? cartes() : tableauJustificatifs(list)}
         <div class="inline mt"><button class="btn btn-sm" id="add-att">+ Joindre un autre fichier…</button>
         ${isNew ? '<span class="small muted">Joint à cette pièce : il sera enregistré avec elle.</span>' : ''}</div>`
         : `<button type="button" class="ac-vide-j" id="add-att">${lfIc('photo', 26, 1.6)}<b>Pas de justificatif</b><span>Photographie la pièce, ou glisse-la ici : sans elle, ni la charge ni la TVA ne sont récupérables.</span></button>`;
@@ -15168,6 +15357,16 @@
         if (!f.length) return;
         try { await joindre(await bridge.addAttachments(p.id, f)); } catch (x) { toast(plainError(x), true); }
       };
+      if (enCartes) $$('[data-apercu]', el).forEach(b => bridge.apercuPiece(b.dataset.apercu).then(r => {
+        if (!r || !b.isConnected) return;
+        const a = list.find(x => x.file === b.dataset.apercu) || {};
+        const zs = luParIA && a.name === luParIA.photo ? zonesLues : [];
+        if (/pdf/i.test(r.type) && bridge.apercuPdf) {
+          bridge.apercuPdf(r.blob, 600).then(im => { if (im && b.isConnected) { b.classList.add('vue'); b.innerHTML = `<span class="ac-pj-img"><img src="${im.adresse}" alt=""></span>${im.pages > 1 ? `<span class="ac-pdf-pages">page 1 sur ${im.pages}</span>` : ''}`; } });
+          return;
+        }
+        if (/^image\//.test(r.type)) { b.classList.add('vue'); b.innerHTML = `<span class="ac-lec-zones ac-pj-img"><img src="${r.adresse}" alt="">${zs.map(z => `<span class="ac-lec-repere" style="left:${z.zone[0] / 10}%;top:${z.zone[1] / 10}%;width:${z.zone[2] / 10}%;height:${z.zone[3] / 10}%"><i>${z.n}</i></span>`).join('')}</span>`; }
+      }));
       brancherJustificatifs(el, p.id, list, async a => {
         if (!await retirerJustificatif(p.id, a)) return;
         p.attachments = (p.attachments || []).filter(x => x.file !== a.file);
@@ -15307,7 +15506,7 @@
       a.push({ titre: 'Justificatif' });
       a.push(pjs.length ? { icon: 'ouvrir', label: 'Voir le justificatif', hint: pjs[0].name || pjs[0].file, run: () => ouvrirJustificatif(p.id, pjs[0]) }
         : { icon: 'ouvrir', label: 'Joindre le justificatif', hint: 'photo, PDF ou fichier El Fatoora', run: () => { const b = $('#attach-top'); if (b) b.click(); } });
-      if (isNew && $('#photo') && !$('#photo').hidden && !pjs.some(x => /\.xml$/i.test(x.name || x.file))) a.push({ icon: 'loupe', label: 'Lire une photo de la pièce', hint: 'facultatif : il compare avec ce que tu as saisi', run: () => $('#photo').click() });
+      if (isNew && $('#photo') && !$('#photo').hidden && !pjs.some(x => /\.xml$/i.test(x.name || x.file))) a.push({ icon: 'loupe', label: 'Lire la pièce avec l\'IA', hint: 'facultatif : il compare avec ce que tu as saisi', run: () => $('#photo').click() });
       if (bridge.messagerie && messagerieVue && messagerieVue.cabinet) a.push({ icon: 'message', label: 'Écrire au cabinet sur cette pièce', hint: isNew ? 'après l\'enregistrement' : 'la question arrive dans votre fil', off: isNew, run: () => {
         pieceDuMessage = { genre: 'achat', id: p.id, libelle: `${p.number || p.subject || 'Sans numéro'} · ${p.supplierId ? supplierName(p.supplierId) : 'Sans fournisseur'} · ${C.money(t.netToPay, cur)}` };
         navigate('#/comptable');
@@ -24820,8 +25019,9 @@
   // Sans clé, aucune requête ne part de l'ordinateur. Le panneau le dit avant de proposer quoi que ce soit.
   async function drawOcrPanel() {
     if (!$('#ocr-panel')) return;
-    // (27/10/2026) Sur la plateforme, la photo se lit sur nos serveurs, en Tunisie ; l'IA de Claude (hors de Tunisie) se
-    // propose à chaque photo si le serveur a sa clé, et l'entreprise la coupe ici (company.lectureIA).
+    // (27/10/2026, Skander) Sur la plateforme, seule l'IA de Claude (hors de Tunisie) lit les pièces : celle de nos serveurs se
+    // trompait trop. Elle se demande à chaque pièce si le serveur a sa clé ; l'entreprise la coupe ici (company.lectureIA), et
+    // les pièces se joignent alors et se saisissent à la main.
     if (bridge.lectureSurLeServeur) {
       let st = null;
       try { st = await bridge.ocrStatus(); } catch (_) {}
@@ -24829,21 +25029,21 @@
       const coupee = company().lectureIA === false, avecIA = !!(st && st.iaServeur);
       // (27/10/2026, maquette « Lecture des achats », docs/maquettes/complements.html) Les deux voies côte à côte : celle qui
       // lit maintenant est marquée ; ce qui part chez Anthropic, et ce qui ne part jamais ; le geste au pied.
-      el.innerHTML = `<p class="small" style="margin:0">Une photo ou un PDF de facture d'achat se lit, puis SkanFact te montre ce qu'il a compris : tu vérifies chaque case avant que la pièce se remplisse.</p>
+      el.innerHTML = `<p class="small" style="margin:0">Une photo ou un PDF de facture d'achat, même écrite à la main, se lit par l'IA, puis SkanFact te montre ce qu'il a compris : tu vérifies chaque case avant que la pièce se remplisse.</p>
         <div class="ocr-voies">
-          <div class="ocr-voie${!avecIA || coupee ? ' on' : ''}"><span class="vt">${lfIc('cadenas', 16, 2)}Sur les serveurs de SkanFact<span class="badge payée">en Tunisie</span></span><p>Toujours là. Aucune image ne sort de Tunisie. Moins sûre sur une photo floue ou penchée.</p></div>
-          <div class="ocr-voie${avecIA && !coupee ? ' on' : ''}${!avecIA || coupee ? ' eteinte' : ''}"><span class="vt">${lfIc('etoile', 16, 2)}Avec l'IA de Claude<span class="badge ${avecIA && !coupee ? 'partielle' : 'brouillon'}">${!avecIA ? 'pas sur ce serveur' : coupee ? 'coupée' : 'hors de Tunisie'}</span></span>
-            <p>${!avecIA ? 'Ce serveur n\'a pas l\'IA : les photos se lisent toutes en Tunisie.' : 'Lit mieux les photos difficiles. Demandée à chaque photo : rien ne part sans ton « Lire avec l\'IA ».'}</p></div>
+          <div class="ocr-voie${avecIA && !coupee ? ' on' : ''}${!avecIA || coupee ? ' eteinte' : ''}"><span class="vt">${lfIc('eclat', 16, 2)}Lire avec l'IA de Claude<span class="badge ${avecIA && !coupee ? 'partielle' : 'brouillon'}">${!avecIA ? 'pas sur ce serveur' : coupee ? 'coupée' : 'hors de Tunisie'}</span></span>
+            <p>${!avecIA ? 'Ce serveur n\'a pas l\'IA : les pièces se joignent et se saisissent à la main.' : 'Demandée à chaque pièce : rien ne part sans ton « Lire avec l\'IA ».'}</p></div>
+          <div class="ocr-voie${!avecIA || coupee ? ' on' : ''}"><span class="vt">${lfIc('ecriture', 16, 2)}Saisir à la main<span class="badge payée">toujours là</span></span><p>La pièce se joint à l'achat, tu remplis les cases. Rien ne sort de Tunisie.</p></div>
         </div>
         ${avecIA ? `<div class="ocr-part"><b>Ce qui part chez Anthropic, quand tu dis oui</b>
           <div class="ocr-gl ok">${lfIc('coche', 15, 2.4)}<span>L'image de la pièce, et la consigne de lecture de SkanFact</span></div>
           <div class="ocr-gl non">${lfIc('croix', 15, 2.4)}<span>Ni tes clients, ni tes chiffres, ni le nom de ton entreprise</span></div></div>
-        <div class="ocr-pied"><span class="small muted">${coupee ? 'Coupée pour toute l\'entreprise : les photos se lisent en Tunisie, sans question.' : 'Le réglage vaut pour toute l\'entreprise.'}</span><button class="btn${coupee ? ' btn-primary' : ''}" id="ocr-ia">${coupee ? 'Proposer l\'IA de nouveau' : 'Couper l\'IA'}</button></div>` : ''}`;
+        <div class="ocr-pied"><span class="small muted">${coupee ? 'Coupée pour toute l\'entreprise : les pièces se joignent et se saisissent à la main.' : 'Le réglage vaut pour toute l\'entreprise.'}</span><button class="btn${coupee ? ' btn-primary' : ''}" id="ocr-ia">${coupee ? 'Proposer l\'IA de nouveau' : 'Couper l\'IA'}</button></div>` : ''}`;
       // (27/10/2026, revue des toasts) Un réglage qui se défait d'un clic offre « Annuler » sous la main.
       const poser = v => { data.company.lectureIA = v; save(true); drawOcrPanel(); };
       if ($('#ocr-ia', el)) $('#ocr-ia', el).onclick = () => {
         poser(coupee);
-        toastUndo(coupee ? 'L\'IA se proposera à chaque photo : elle ne lit que si tu dis oui.' : 'L\'IA est coupée : tes photos se liront sur les serveurs de SkanFact, en Tunisie.', () => poser(!coupee));
+        toastUndo(coupee ? 'L\'IA se proposera à chaque pièce : elle ne lit que si tu dis oui.' : 'L\'IA est coupée : tes pièces se joindront et se saisiront à la main.', () => poser(!coupee));
       };
       return;
     }

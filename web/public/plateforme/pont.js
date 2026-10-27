@@ -1635,6 +1635,21 @@
         return { ouvert: true };
       } catch (e) { w?.close(); throw e; }
     },
+    // (1.160.0, maquette « La photo · lue par SkanFact ») L'aperçu d'un justificatif, gardé le temps de la page : l'adresse
+    // d'une image (ou d'un PDF), lue une fois par fichier. null si le fichier ne se lit pas ici.
+    apercuPiece: async (/** @type {string} */ fichier) => {
+      const deja = apercus.get(fichier);
+      if (deja) return deja;
+      if (!/^[0-9a-f-]{36}$/.test(String(fichier))) return null;
+      const lu = appel('GET', `/pieces-jointes/${fichier}`).then((f) => {
+        const octets = Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0));
+        const blob = new Blob([octets], { type: String(f.type) });
+        return { adresse: URL.createObjectURL(blob), type: String(f.type), blob };
+      }, () => null);
+      apercus.set(fichier, lu);
+      return lu;
+    },
+    apercuPdf: (/** @type {Blob} */ blob, /** @type {number | undefined} */ largeur) => pdfEnImage(blob, largeur),
     // « Montrer dans le dossier » n'a pas de sens dans un navigateur : le fichier se télécharge.
     revealAttachment: async (/** @type {string} */ _id, /** @type {string} */ fichier) => {
       const { adresse, nom } = await lirePiece(fichier);
@@ -2967,6 +2982,47 @@
     });
     const r = await appel('POST', '/pieces-jointes', { nom: f.name, contenu });
     return { name: r.name, file: r.file, size: r.size, date: r.date };
+  }
+  /** @type {Map<string, Promise<{ adresse: string, type: string, blob: Blob } | null>>} */ const apercus = new Map();
+  // (1.160.0, demande de Skander : « si le document est en PDF, l'aperçu doit le montrer aussi ») La première page d'un PDF,
+  // dessinée en image ici, dans le navigateur, par pdf.js (Mozilla, Apache 2.0, tiers/pdfjs) : rien ne part. La bibliothèque
+  // (1,8 Mo) ne se charge qu'au premier PDF à montrer. Rend { adresse, largeur, hauteur, pages } (une image PNG), ou null si
+  // le fichier ne se dessine pas (abîmé, protégé par un mot de passe).
+  /** @type {Promise<any> | null} */ let pdfjs = null;
+  /** @type {WeakMap<Blob, Map<number, Promise<{ adresse: string, largeur: number, hauteur: number, pages: number } | null>>>} */ const pagesPdf = new WeakMap();
+  /** @param {Blob} blob @param {number} [largeur] */
+  function pdfEnImage(blob, largeur = 900) {
+    const parTaille = pagesPdf.get(blob) || new Map();
+    pagesPdf.set(blob, parTaille);
+    const deja = parTaille.get(largeur);
+    if (deja) return deja;
+    const p = (async () => {
+      try {
+        if (!pdfjs) {
+          const base = new URL('../tiers/pdfjs/', document.baseURI);
+          pdfjs = import(new URL('pdf.min.mjs', base).href).then((m) => { m.GlobalWorkerOptions.workerSrc = new URL('pdf.worker.min.mjs', base).href; return m; });
+          pdfjs.catch(() => { pdfjs = null; });
+        }
+        const lib = await pdfjs;
+        const chargement = lib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()), isEvalSupported: false, useSystemFonts: true });
+        const doc = await chargement.promise;
+        const page = await doc.getPage(1);
+        const un = page.getViewport({ scale: 1 });
+        const vue = page.getViewport({ scale: Math.min(3, largeur / un.width) });
+        const toile = document.createElement('canvas');
+        toile.width = Math.ceil(vue.width); toile.height = Math.ceil(vue.height);
+        const ctx = toile.getContext('2d');
+        if (!ctx) return null;
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, toile.width, toile.height);
+        await page.render({ canvasContext: ctx, canvas: toile, viewport: vue }).promise;
+        /** @type {Blob | null} */ const image = await new Promise((ok) => toile.toBlob(ok, 'image/png'));
+        const pages = doc.numPages;
+        chargement.destroy();
+        return image ? { adresse: URL.createObjectURL(image), largeur: toile.width, hauteur: toile.height, pages } : null;
+      } catch { return null; }
+    })();
+    parTaille.set(largeur, p);
+    return p;
   }
   /** @param {string} fichier */
   async function lirePiece(fichier) {

@@ -1,0 +1,2 @@
+pdf.js 6.3.289 (Mozilla, licence Apache 2.0 : LICENSE), construction « legacy » du paquet npm pdfjs-dist,
+copiée telle quelle le 27/10/2026. Sert à montrer la première page d'un PDF en aperçu (plateforme/pont.js, apercuPdf).

@@ -3,7 +3,7 @@
 # prêt à tester dès la première commande. Le 22/10/2026, la machine de la session a redémarré en plein travail :
 # PostgreSQL arrêté, chaque test tombait sur « connexion refusée ». Ce script pose ce qui manque, et seulement cela
 # (relancé, il ne refait rien) :
-#   - les outils du système des tests (PostgreSQL 16, l'écran virtuel, Tesseract en français, Poppler, xmllint, age) ;
+#   - les outils du système des tests (PostgreSQL 16, l'écran virtuel, Poppler, xmllint, age) ;
 #   - les dépendances (npm), et la coque de bureau (Electron) ;
 #   - PostgreSQL 16 sur 127.0.0.1:5433, sans mot de passe sur la machine (une base de développement, jetable) ;
 #   - PG_ADMIN pour toute la session.
@@ -14,8 +14,7 @@ cd "${CLAUDE_PROJECT_DIR:-$(dirname "$0")/../..}"
 
 # Les outils du système : un paquet par fichier qu'il pose.
 manque=()
-for p in postgresql-16:/usr/lib/postgresql/16/bin/postgres xvfb:/usr/bin/xvfb-run tesseract-ocr:/usr/bin/tesseract \
-  tesseract-ocr-fra:/usr/share/tesseract-ocr/5/tessdata/fra.traineddata poppler-utils:/usr/bin/pdftotext \
+for p in postgresql-16:/usr/lib/postgresql/16/bin/postgres xvfb:/usr/bin/xvfb-run poppler-utils:/usr/bin/pdftotext \
   libxml2-utils:/usr/bin/xmllint age:/usr/bin/age; do
   [ -e "${p#*:}" ] || manque+=("${p%%:*}")
 done

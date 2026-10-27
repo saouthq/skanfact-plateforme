@@ -33,9 +33,6 @@
 //   SKANFACT_COFFRE          la clé du coffre (32 octets en base64) qui scelle les clés confiées par les
 //                            entreprises (serveur/coffre.ts) ; exigée en production, une clé d'essai
 //                            connue de tous sinon
-//   SKANFACT_LECTURES        combien de factures d'achat se lisent à la fois sur ce serveur (2 par défaut) ;
-//                            la lecture demande Tesseract (avec le français) et Poppler, sinon elle n'est
-//                            pas branchée (et l'écran le dit)
 //   SKANFACT_VEILLE_FICHIER  ce que la veille du serveur écrit chaque minute (/var/lib/skanfact/veille.json par
 //                            défaut) : la console le lit ; absent, elle dit le service « non mesuré »
 //   SKANFACT_MESURES_MS      le rythme où le serveur range ses mesures dans la base (60 000 par défaut ;
@@ -68,7 +65,6 @@ import { routesGroupe } from './groupe.ts';
 import { routesCaisse } from './caisse/routes.ts';
 import { declarerGestesAchats } from './achats/gestes.ts';
 import { declarerGestesCaisse } from './caisse/gestes.ts';
-import { lecteurDuServeur } from './achats/lecteur.ts';
 import { appelAnthropic, creerLecteurIA, MODELE_PAR_DEFAUT, type AppelIA } from './achats/lecture-ia.ts';
 import { imprimeurDuServeur } from './pdf/imprimeur.ts';
 import { routesPdf } from './pdf/routes.ts';
@@ -113,7 +109,6 @@ export type Configuration = {
   // La facture au choix (1.119.0 ; serveur/abonnement/facturier.ts) : branchée en production, ou par
   // SKANFACT_FACTURE_AU_CHOIX=1 ; son tour, chaque minute (SKANFACT_FACTURIER_MS).
   factureAuChoix: boolean; facturierMs: number;
-  lectures: number;
   // La lecture par l'IA de Claude (24/10/2026) : la clé d'Anthropic (ANTHROPIC_API_KEY, de l'environnement, jamais du
   // dépôt) et le modèle (SKANFACT_IA_MODELE) ; null, l'IA ne se propose pas et la lecture reste sur ce serveur.
   ia: { cle: string; modele: string } | null;
@@ -179,8 +174,6 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
   if (digigo && !env.SKANFACT_DIGIGO_CLE) throw new ConfigurationFausse('SKANFACT_DIGIGO_CLE manque : la clé de SkanFact comme entité d\'intégration DigiGo');
   const ttn = env.SKANFACT_TTN ? env.SKANFACT_TTN.replace(/\/+$/, '') : null;
   if (ttn && !/^https?:\/\//.test(ttn)) throw new ConfigurationFausse(`SKANFACT_TTN « ${ttn} » n'est pas une adresse`);
-  const lectures = Number(env.SKANFACT_LECTURES ?? 2);
-  if (!Number.isInteger(lectures) || lectures < 1 || lectures > 32) throw new ConfigurationFausse(`SKANFACT_LECTURES « ${env.SKANFACT_LECTURES} » : un nombre de lectures à la fois, de 1 à 32`);
   const impressions = Number(env.SKANFACT_IMPRESSIONS ?? 2);
   if (!Number.isInteger(impressions) || impressions < 1 || impressions > 16) throw new ConfigurationFausse(`SKANFACT_IMPRESSIONS « ${env.SKANFACT_IMPRESSIONS} » : un nombre de PDF à la fois, de 1 à 16`);
   const proxy = Number(env.SKANFACT_PROXY ?? 0);
@@ -211,7 +204,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     facturierMs: Number(env.SKANFACT_FACTURIER_MS ?? 60_000),
     mesuresMs: Number(env.SKANFACT_MESURES_MS ?? 60_000),
     ia: env.ANTHROPIC_API_KEY?.trim() ? { cle: env.ANTHROPIC_API_KEY.trim(), modele: env.SKANFACT_IA_MODELE?.trim() || MODELE_PAR_DEFAUT } : null,
-    lectures, impressions, navigateur: env.SKANFACT_NAVIGATEUR || null, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
+    impressions, navigateur: env.SKANFACT_NAVIGATEUR || null, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
     courriel: smtp && de ? { smtp, de } : null,
     veille: env.SKANFACT_VEILLE_FICHIER ?? path.join(env.SKANFACT_ETAT ?? '/var/lib/skanfact', 'veille.json'),
     consoleFraisMs: Number(env.SKANFACT_CONSOLE_FRAIS_MS ?? (environnement === 'test' ? 0 : FRAIS_MS)),
@@ -227,6 +220,8 @@ export const smsAucun: Contexte['sms'] = { disponible: false, envoyer: async () 
 // jamais. Les en-têtes interdisent tout script venu d'ailleurs et l'intégration dans un autre site.
 const TYPES: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
+  // pdf.js (tiers/pdfjs, l'aperçu d'un PDF) : des modules, refusés par le navigateur sans leur type (« nosniff »).
+  '.mjs': 'text/javascript; charset=utf-8',
   '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.webmanifest': 'application/manifest+json',
   // Les polices de l'entrée, et celles que l'assistant de démarrage charge depuis plateforme/polices : déjà compressées.
   '.woff2': 'font/woff2',
@@ -288,7 +283,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const sms = dependances.sms ?? (c.sms === 'aucun' ? smsAucun : smsWinsms({ cle: c.sms.cle, expediteur: c.sms.expediteur, adresse: c.sms.adresse }));
   const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms, factureAuChoix: c.factureAuChoix, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
     ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
-    lecteur: await lecteurDuServeur({ simultanees: c.lectures }), lecteurIA: creerLecteurIA(dependances.ia ?? (c.ia ? appelAnthropic(c.ia.cle, c.ia.modele) : null)), imprimeur: imprimeurDuServeur({ simultanees: c.impressions, navigateur: c.navigateur }), partenaires: { liste: c.partenaires, cle: c.coffre },
+    lecteurIA: creerLecteurIA(dependances.ia ?? (c.ia ? appelAnthropic(c.ia.cle, c.ia.modele) : null)), imprimeur: imprimeurDuServeur({ simultanees: c.impressions, navigateur: c.navigateur }), partenaires: { liste: c.partenaires, cle: c.coffre },
     // Les nouveautés que ce serveur porte : celles du code (serveur/nouveautes.ts), sauf dans un essai.
     ...(dependances.nouveautes ? { nouveautes: dependances.nouveautes } : {}),
     // Les adresses internet de l'entrée (0143) : comptées, et fermées depuis la console.

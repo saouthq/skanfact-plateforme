@@ -5,7 +5,10 @@
 //   - la réponse de l'IA n'est crue qu'à sa forme ; un refus, une panne, une réponse hors forme ne se devinent pas ;
 //   - deux chemins, un chiffre : le total se recompte ici, et un doute sur une quantité se départage par ce recomptage ;
 //   - l'IA ne sert que si la personne a dit oui pour ce fichier, que le serveur a sa clé et que l'entreprise ne l'a
-//     pas coupée ; si elle ne répond pas, la pièce se lit sur nos serveurs et la remarque le dit.
+//     pas coupée ; c'est la seule lecture (27/10/2026, Skander : celle de nos serveurs se trompait trop) : sans elle,
+//     ou si elle ne répond pas, rien n'est lu et la phrase dit pourquoi ;
+//   - ce qui n'est ni une photo ni un PDF, ou trop lourd, se refuse sans rien envoyer ; seuls ceux qui préparent un
+//     achat lisent (03 § 2.3 : propriétaire, administrateur, comptabilité).
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -13,7 +16,6 @@ import type { FastifyInstance } from 'fastify';
 import pg from 'pg';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { declarerGestesAchats } from '../../serveur/achats/gestes.ts';
-import { lecteurDuServeur, type Lecteur } from '../../serveur/achats/lecteur.ts';
 import { appelAnthropic, CONSIGNE, creerLecteurIA, enEntier, IAIndisponible, IARefuse, propositionDeLIA, type AppelIA, type ReponseIA } from '../../serveur/achats/lecture-ia.ts';
 import { routesAchats } from '../../serveur/achats/routes.ts';
 import { creerApp, VERSION } from '../../serveur/app.ts';
@@ -41,7 +43,7 @@ const bureauPlus = (o: Partial<ReponseIA> = {}): ReponseIA => ({
   ou: [{ champ: 'numero', texte: 'Facture n° BP-881?' }, { champ: 'matricule', texte: 'MF 1390022T/A/M/000' }],
   doutes: [
     { champ: 'numero', ligne: null, valeurs: ['BP-8812', 'BP-8813'], raison: 'le dernier chiffre est flou' },
-    { champ: 'quantite', ligne: 2, valeurs: ['6', '8'], raison: 'quantité tachée' },
+    { champ: 'quantite', ligne: 2, valeurs: ['6', '8'], raison: 'quantité tachée', zone: [80, 520, 840, 60] },
   ],
   ...o,
 });
@@ -66,9 +68,15 @@ describe('la réponse de l\'IA, relue et recomptée', () => {
   it('départage un doute sur une quantité par le recomptage : avec 8 cartouches, les lignes ne tombent pas sur le hors-taxes', () => {
     const p = propositionDeLIA(bureauPlus(), { notreMatricule: NOUS });
     expect(p.doutes).toEqual([
-      { champ: 'numero', ligne: null, valeurs: [{ valeur: 'BP-8812', juste: null }, { valeur: 'BP-8813', juste: null }], raison: 'le dernier chiffre est flou' },
-      { champ: 'quantite', ligne: 1, valeurs: [{ valeur: '6', juste: true }, { valeur: '8', juste: false }], raison: 'quantité tachée' },
+      { champ: 'numero', ligne: null, valeurs: [{ valeur: 'BP-8812', juste: null }, { valeur: 'BP-8813', juste: null }], raison: 'le dernier chiffre est flou', zone: null },
+      { champ: 'quantite', ligne: 1, valeurs: [{ valeur: '6', juste: true }, { valeur: '8', juste: false }], raison: 'quantité tachée', zone: [80, 520, 840, 60] },
     ]);
+  });
+
+  it('la zone d\'un doute ne passe que si elle tient dans l\'image, en millièmes', () => {
+    const zone = (z: number[]) => propositionDeLIA(bureauPlus({ doutes: [{ champ: 'numero', ligne: null, valeurs: ['BP-8812', 'BP-8813'], raison: 'flou', zone: z }] })).doutes[0]?.zone;
+    expect(zone([100, 40, 300, 30])).toEqual([100, 40, 300, 30]);
+    expect([zone([]), zone([100, 40, 300]), zone([800, 40, 300, 30]), zone([100, 40, 0, 30]), zone([-5, 40, 300, 30]), zone([10.5, 40, 300, 30])]).toEqual([null, null, null, null, null, null]);
   });
 
   it('dit l\'écart quand le total recompté ne tombe pas sur celui de la pièce, sans rien choisir', () => {
@@ -192,10 +200,9 @@ const pool = creerPool(inject('pgApp'));
 const PHOTO = fs.readFileSync(path.join(import.meta.dirname, '../donnees/lecture/quincaillerie-photo.jpg')).toString('base64');
 type Reponse = { statut: number; corps: Record<string, unknown> };
 const apps: FastifyInstance[] = [];
-let tesseract: Lecteur;
-async function serveur(lecteur: Lecteur | undefined, appel: AppelIA | null) {
+async function serveur(appel: AppelIA | null) {
   const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(path.join(import.meta.dirname, '../donnees/mots-de-passe-voles.txt')), sms: { envoyer: async () => {} },
-    ...(lecteur ? { lecteur } : {}), lecteurIA: creerLecteurIA(appel) };
+    lecteurIA: creerLecteurIA(appel) };
   const app = creerApp(ctx, [...routesSocle(ctx), ...routesAchats(ctx), ...routesV10(ctx)]);
   await app.ready();
   apps.push(app);
@@ -204,11 +211,16 @@ async function serveur(lecteur: Lecteur | undefined, appel: AppelIA | null) {
     return { statut: r.statusCode, corps: r.json() };
   };
 }
-async function atelier(appeler: Awaited<ReturnType<typeof serveur>>, reglage: Record<string, unknown> = {}) {
-  const email = `ia-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
-  await appeler('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
+async function personne(appeler: Awaited<ReturnType<typeof serveur>>, prefixe: string) {
+  const email = `${prefixe}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
+  await appeler('POST', '/inscription', undefined, { email, nom: prefixe, motDePasse: 'Un-bon-mot-de-passe' });
   const jeton = String((await appeler('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
   await appeler('POST', '/moi/code', jeton, { methode: 'application' });
+  const utilisateur = String((await admin.query('select id from socle.utilisateur where email = $1', [email])).rows[0].id);
+  return { jeton, utilisateur };
+}
+async function atelier(appeler: Awaited<ReturnType<typeof serveur>>, reglage: Record<string, unknown> = {}) {
+  const { jeton } = await personne(appeler, 'nadia');
   const ent = String((await appeler('POST', '/entreprises', jeton, { raisonSociale: 'Atelier Nadia' })).corps.id);
   const fiche = ((await appeler('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; cle: string; contenu: Record<string, unknown>; revision: number }[])
     .find((x) => x.collection === '_racine' && x.cle === 'company');
@@ -216,8 +228,9 @@ async function atelier(appeler: Awaited<ReturnType<typeof serveur>>, reglage: Re
   await appeler('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
     { collection: '_racine', cle: 'company', rang: null, revision: fiche?.revision ?? null, contenu: { ...fiche?.contenu, matricule: NOUS, ...reglage } }] });
   return {
+    ent,
     etat: () => appeler('GET', `/entreprises/${ent}/achats/lecture`, jeton),
-    lire: (ia?: boolean) => appeler('POST', `/entreprises/${ent}/achats/lecture`, jeton, { nom: 'photo-facture.jpg', contenu: PHOTO, ...(ia === undefined ? {} : { ia }) }),
+    lire: (ia?: boolean, fichier = { nom: 'photo-facture.jpg', contenu: PHOTO }, qui = jeton) => appeler('POST', `/entreprises/${ent}/achats/lecture`, qui, { ...fichier, ...(ia === undefined ? {} : { ia }) }),
   };
 }
 
@@ -225,19 +238,19 @@ beforeAll(async () => {
   await admin.connect();
   declarerGestesAchats();
   declarerGestesVentes();
-  tesseract = await lecteurDuServeur();
 });
 afterAll(async () => { for (const a of apps) await a.close(); await admin.end(); await pool.end(); });
 
 describe('la lecture par l\'IA, sur le serveur', () => {
-  it('ne part chez l\'IA que si la personne a dit oui pour ce fichier', async () => {
+  const repond = (n = { appels: 0 }): AppelIA => async () => { n.appels++; return { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(bureauPlus()) }] }; };
+  it('ne part chez l\'IA que si la personne a dit oui pour ce fichier ; sans ce oui, rien n\'est lu', async () => {
     const envois: string[] = [];
-    const appeler = await serveur(tesseract, async ({ fichier }) => { envois.push(fichier.toString('base64')); return { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(bureauPlus()) }] }; });
+    const appeler = await serveur(async ({ fichier }) => { envois.push(fichier.toString('base64')); return { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(bureauPlus()) }] }; });
     const a = await atelier(appeler);
     expect((await a.etat()).corps).toMatchObject({ disponible: true, ia: true, iaServeur: true });
     const sans = await a.lire();
-    expect(sans.statut).toBe(200);
-    expect(sans.corps.moteur).toBe('photo');
+    expect(sans.statut).toBe(409);
+    expect(texte(sans.corps.motif)).toMatch(/^La pièce ne part chez l'IA qu'avec ton accord pour ce fichier : rien n'a été lu/);
     expect(envois).toHaveLength(0);
     const avec = await a.lire(true);
     expect(avec.statut).toBe(200);
@@ -246,38 +259,62 @@ describe('la lecture par l\'IA, sur le serveur', () => {
     expect((avec.corps.doutes as unknown[])).toHaveLength(2);
   });
 
-  it('l\'entreprise qui a coupé l\'IA lit sur nos serveurs, même si on la demande', async () => {
-    let appels = 0;
-    const appeler = await serveur(tesseract, async () => { appels++; return { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(bureauPlus()) }] }; });
-    const a = await atelier(appeler, { lectureIA: false });
-    expect((await a.etat()).corps).toMatchObject({ disponible: true, ia: false, iaServeur: true });
+  it('l\'entreprise qui a coupé l\'IA ne lit rien, même si on la demande : la phrase dit où la rallumer', async () => {
+    const n = { appels: 0 };
+    const a = await atelier(await serveur(repond(n)), { lectureIA: false });
+    expect((await a.etat()).corps).toMatchObject({ disponible: false, ia: false, iaServeur: true });
     const r = await a.lire(true);
-    expect(r.corps.moteur).toBe('photo');
-    expect(appels).toBe(0);
+    expect(r.statut).toBe(409);
+    expect(texte(r.corps.motif)).toMatch(/coupée dans les paramètres de l'entreprise : rien n'a été lu\. Rallume-la dans Paramètres › Lecture des factures d'achat/);
+    expect(n.appels).toBe(0);
   });
 
-  it('un serveur sans clé ne propose pas l\'IA', async () => {
-    const a = await atelier(await serveur(tesseract, null));
-    expect((await a.etat()).corps).toMatchObject({ disponible: true, ia: false, iaServeur: false });
-    expect((await a.lire(true)).corps.moteur).toBe('photo');
+  it('un serveur sans clé ne lit rien, et le dit', async () => {
+    const a = await atelier(await serveur(null));
+    expect((await a.etat()).corps).toMatchObject({ disponible: false, ia: false, iaServeur: false });
+    const r = await a.lire(true);
+    expect(r.statut).toBe(503);
+    expect(texte(r.corps.motif)).toMatch(/^La lecture par l'IA n'est pas branchée sur ce serveur : rien n'a été lu/);
   });
 
-  it('si l\'IA ne répond pas, la pièce se lit sur nos serveurs, et la remarque le dit ; sans eux, rien n\'est lu', async () => {
-    const enPanne: AppelIA = async () => { throw new Error('surcharge'); };
-    const r = await (await atelier(await serveur(tesseract, enPanne))).lire(true);
-    expect(r.statut).toBe(200);
-    expect(r.corps.moteur).toBe('photo');
-    expect(texte((r.corps.remarques as unknown[])[0])).toMatch(/^L'IA n'a pas pu lire la pièce : elle a été lue sur les serveurs de SkanFact/);
-    const seule = await (await atelier(await serveur(undefined, enPanne))).lire(true);
-    expect(seule.statut).toBe(503);
-    expect(texte(seule.corps.motif)).toMatch(/^L'IA n'a pas pu lire « photo-facture\.jpg »/);
-    const refus = await (await atelier(await serveur(undefined, async () => ({ stop_reason: 'refusal', content: [] })))).lire(true);
+  it('si l\'IA ne répond pas ou refuse, rien n\'est lu (aucune lecture de repli), et la phrase le dit', async () => {
+    const r = await (await atelier(await serveur(async () => { throw new Error('surcharge'); }))).lire(true);
+    expect(r.statut).toBe(503);
+    expect(texte(r.corps.motif)).toMatch(/^L'IA n'a pas pu lire « photo-facture\.jpg » : rien n'a été lu/);
+    const refus = await (await atelier(await serveur(async () => ({ stop_reason: 'refusal', content: [] })))).lire(true);
     expect(refus.statut).toBe(422);
     expect(texte(refus.corps.motif)).toMatch(/^L'IA a refusé/);
   });
 
+  it('ce qui n\'est ni une photo ni un PDF, ou trop lourd, se refuse sans rien envoyer', async () => {
+    const n = { appels: 0 };
+    const a = await atelier(await serveur(repond(n)));
+    // Le nom ne compte pas : ce sont les premiers octets du fichier qui disent ce qu'il est.
+    const faux = await a.lire(true, { nom: 'facture.jpg', contenu: Buffer.from('Facture N° 12 : 100,000 DT').toString('base64') });
+    expect(faux).toEqual({ statut: 415, corps: { motif: 'Le fichier « facture.jpg » n\'est ni une photo (JPEG, PNG, WEBP) ni un PDF : rien n\'a été lu.', bouton: null } });
+    const photo = Buffer.from(PHOTO, 'base64');
+    const lourd = Buffer.concat([photo, Buffer.alloc(11 * 1_048_576 - photo.length)]);
+    const r = await a.lire(true, { nom: 'photo-geante.jpg', contenu: lourd.toString('base64') });
+    expect(r.statut).toBe(413);
+    expect(texte(r.corps.motif)).toBe('Le fichier « photo-geante.jpg » fait 11,0 Mo : au-delà de 10 Mo, il ne se lit pas. Prends une photo moins lourde.');
+    expect(n.appels).toBe(0);
+  });
+
+  it('seuls ceux qui préparent un achat lisent : un commercial ne lit pas (03 § 2.3)', async () => {
+    const appeler = await serveur(repond());
+    const a = await atelier(appeler);
+    const karim = await personne(appeler, 'karim');
+    await admin.query('insert into socle.membre (utilisateur, entreprise, roles) values ($1, $2, \'{commercial}\')', [karim.utilisateur, a.ent]);
+    const r = await a.lire(true, undefined, karim.jeton);
+    expect(r.statut).toBe(403);
+    expect(texte(r.corps.motif)).toMatch(/lire une facture d'achat en photo ou en PDF/);
+    const samia = await personne(appeler, 'samia');
+    await admin.query('insert into socle.membre (utilisateur, entreprise, roles) values ($1, $2, \'{comptabilite_interne}\')', [samia.utilisateur, a.ent]);
+    expect((await a.lire(true, undefined, samia.jeton)).statut).toBe(200);
+  });
+
   it('ce qui n\'est pas une facture se dit, sans rien proposer', async () => {
-    const r = await (await atelier(await serveur(tesseract, async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(bureauPlus({ estUneFacture: false })) }] })))).lire(true);
+    const r = await (await atelier(await serveur(async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(bureauPlus({ estUneFacture: false })) }] })))).lire(true);
     expect(r.statut).toBe(422);
     expect(texte(r.corps.motif)).toMatch(/^L'IA ne voit pas de facture d'achat/);
   });

@@ -91,7 +91,10 @@ describe('les droits dans le dossier, à la souris', () => {
     await p.locator('#lines input[data-k=label], [data-k=label]').first().fill('Ciment gris 50 kg');
     await p.locator('[data-k=qty]').first().fill('10');
     await p.locator('[data-k=unitPrice]').first().fill('21');
-    await p.locator('input[name=applyStamp]').uncheck();
+    // (1.155.0) Le timbre se retire par sa puce : « Sans timbre » dans la bulle.
+    await p.locator('#ed-puces [data-etq=timbre]').click();
+    await p.locator('[data-tb="0"]').click();
+    await expect.poll(() => p.locator('input[name=applyStamp]').isChecked()).toBe(false);
     await p.locator('#save').click();
     await expect.poll(toast, { timeout: 10_000 }).toBe('Brouillon enregistré');
     // « Enregistré » est vrai : le brouillon est au serveur.

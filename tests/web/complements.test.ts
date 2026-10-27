@@ -149,7 +149,7 @@ describe('les compléments dessinés le 27/10/2026, à la souris', () => {
     expect(await p.locator('#view .ed-tete h1').innerText()).toBe('Facture électronique FAC-2026-027');
     expect(await p.locator('#view .ed-chemin [aria-current]').innerText()).toBe('Facture électronique reçue');
     expect(await p.locator('#view .ed-pill').innerText()).toBe('2 cases à vérifier');
-    expect(net(await ligneLue(p, 'Fournisseur').innerText())).toMatch(/« Clinique Les Jasmins » n'est pas dans tes fournisseurs : ?\+ Créer « Clinique Les Jasmins ».*matricule 1234567A\/A\/M\/000, adresse et téléphone repris du fichier$/);
+    expect(net(await ligneLue(p, 'Fournisseur').innerText())).toMatch(/« Clinique Les Jasmins » n'est pas dans tes fournisseurs : ?Créer « Clinique Les Jasmins » ou choisir.*matricule 1234567A\/A\/M\/000, adresse et téléphone repris du fichier$/);
     expect(net(await ligneLue(p, 'Adressée à').innerText())).toMatch(/ta société · 7654321C\/A\/M\/000 ton matricule, lu dans le fichier$/);
     expect(net(await ligneLue(p, 'Total').innerText())).toMatch(/recompté 643,000 = total du fichier 643,000 TTC, au millime HT 600,000 · TVA 7 % 42,000 · timbre 1,000$/);
     expect(net(await ligneLue(p, 'Signature').innerText())).toMatch(/signature électronique présente · réf\. TTN TTN-2026-10-004812/);
@@ -163,17 +163,13 @@ describe('les compléments dessinés le 27/10/2026, à la souris', () => {
     await expect.poll(() => liste.isVisible()).toBe(true);
     await liste.getByText('Sous-traitance', { exact: true }).click();
     await expect.poll(() => p.locator('#view .ed-pill').innerText()).toBe('1 case à vérifier');
-    // Le fournisseur : sa fiche naît de ce que dit le fichier.
-    await ligneLue(p, 'Fournisseur').locator('.combo-btn').click();
-    await ligneLue(p, 'Fournisseur').locator('.combo-pop').getByText('+ Créer « Clinique Les Jasmins »').click();
-    const fiche = p.locator('#modal-root .modal').filter({ hasText: 'Nouveau fournisseur' });
-    await fiche.waitFor({ timeout: 10_000 });
-    expect(await fiche.locator('[name=matricule]').inputValue()).toBe('1234567A/A/M/000');
-    expect(await fiche.locator('[name=phone]').inputValue()).toBe('71 000 111');
-    expect(await fiche.locator('[name=address]').inputValue()).toContain('12 rue des Jasmins');
-    await fiche.getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    // Le fournisseur : sa fiche naît d'un clic de ce que dit le fichier (27/10/2026 : « Créer » à côté de la liste).
+    await ligneLue(p, 'Fournisseur').locator('#lec-creer').click();
     await expect.poll(() => p.locator('#view .ed-pill').innerText(), { timeout: 10_000 }).toBe('Vérifiée');
-    expect(net(await ligneLue(p, 'Fournisseur').innerText())).toMatch(/Clinique Les Jasmins reconnu par son matricule 1234567A\/A\/M\/000, lu dans le fichier/);
+    expect(net(await ligneLue(p, 'Fournisseur').innerText())).toMatch(/Clinique Les Jasmins nouveau fiche créée depuis le fichier : matricule 1234567A\/A\/M\/000, adresse, téléphone/);
+    await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; contenu: Record<string, unknown> }[])
+      .filter((o) => o.collection === 'suppliers' && o.contenu.name === 'Clinique Les Jasmins').map((o) => [o.contenu.matricule, o.contenu.phone, String(o.contenu.address).includes('12 rue des Jasmins')]), { timeout: 15_000 })
+      .toEqual([['1234567A/A/M/000', '71 000 111', true]]);
     // « Vérifier case par case » s'ouvre PAR-DESSUS la page : la catégorie choisie y est, sa liste s'ouvre vers le haut (vers le
     // bas, elle sortait de la fenêtre et couvrait ses boutons), et « Annuler » revient à la page, intacte.
     await page.getByRole('button', { name: 'Vérifier case par case', exact: true }).click();

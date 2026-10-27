@@ -20,6 +20,7 @@ import { chromium, type Browser, type BrowserContext, type Page } from 'playwrig
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
+import { iaQuincaillerie } from '../donnees/lecture/ia-quincaillerie.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
 import { cliquer, poserMouchard, recitObjet, retirerMouchard } from '../cliquer.ts';
 import { digigoSimule } from '../digigo-simule.ts';
@@ -50,7 +51,9 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     konnect = await konnectSimule();
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test', SKANFACT_DIGIGO: digigo.base, SKANFACT_DIGIGO_CLE: digigo.cleIntegrateur,
-      SKANFACT_TTN: ttn.base, SKANFACT_TTN_MS: '250', SKANFACT_KONNECT: konnect.base }), port: 0, web: dossier, livreurMs: 60_000 });
+      SKANFACT_TTN: ttn.base, SKANFACT_TTN_MS: '250', SKANFACT_KONNECT: konnect.base }), port: 0, web: dossier, livreurMs: 60_000 },
+      // (27/10/2026) Seule l'IA lit les pièces : elle est jouée ici par un essai (aucun appel réel ne part).
+      { ia: iaQuincaillerie });
     navigateur = await chromium.launch();
     fs.mkdirSync(PHOTOS, { recursive: true });
   }, 120_000);
@@ -257,6 +260,8 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     const selecteur = nadia.waitForEvent('filechooser');
     await bouton.click();
     await (await selecteur).setFiles(PHOTO);
+    // (27/10/2026) Seule l'IA lit : elle se demande avant tout envoi.
+    await nadia.locator('#ac-ia-lire').click({ timeout: 15_000 });
     // (1.155.13) D'abord « Ce que SkanFact a compris » (la page de la maquette), puis la fenêtre case par case.
     await nadia.locator('#lec-detail').click({ timeout: 30_000 });
     const lu = nadia.locator('#modal-root .modal').last();

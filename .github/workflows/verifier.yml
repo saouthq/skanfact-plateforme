@@ -42,12 +42,12 @@ jobs:
       - name: Electron (la coque de bureau)
         run: node node_modules/electron/install.js
       # xmllint relit chaque fichier El Fatoora contre le schéma de la TTN (tests/v10/efacture.test.ts) ;
-      # sans lui, le test tombe (il ne saute jamais le schéma). Tesseract (avec le français) et Poppler
-      # lisent les factures d'achat en photo ou en PDF (brique 84, tests/achats) : les mêmes que sur le serveur. age
+      # sans lui, le test tombe (il ne saute jamais le schéma). Poppler relit les PDF que le serveur fait
+      # (tests/socle/pdf.test.ts) ; les factures d'achat ne se lisent plus que par l'IA (27/10/2026). age
       # chiffre les copies hors de la machine (tests/exploitation/archivage.test.ts, qui joue aussi l'archivage à la minute
       # sur le PostgreSQL 16 du poste).
-      - name: xmllint, Tesseract, Poppler, Xvfb et age (la facture électronique, la lecture des factures d'achat, la coque de bureau, les copies hors machine)
-        run: bash .github/reessayer.sh sudo apt-get update -qq && bash .github/reessayer.sh sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb age
+      - name: xmllint, Poppler, Xvfb et age (la facture électronique, les PDF du serveur, la coque de bureau, les copies hors machine)
+        run: bash .github/reessayer.sh sudo apt-get update -qq && bash .github/reessayer.sh sudo apt-get install -y -qq libxml2-utils poppler-utils xvfb age
       - name: Types
         run: npm run types
       - name: Lint (0 erreur, 0 avertissement)
@@ -92,10 +92,10 @@ jobs:
         run: bash .github/reessayer.sh npx playwright-core install --with-deps chromium
       - name: Electron (la coque de bureau)
         run: node node_modules/electron/install.js
-      # Sans xmllint (ou sans Tesseract et Poppler), les tests de la facture électronique (ou de la lecture
-      # des factures d'achat) tomberaient pour une autre raison que le défaut remis : la preuve ne prouverait rien.
-      - name: xmllint, Tesseract, Poppler, Xvfb et age
-        run: bash .github/reessayer.sh sudo apt-get update -qq && bash .github/reessayer.sh sudo apt-get install -y -qq libxml2-utils tesseract-ocr tesseract-ocr-fra poppler-utils xvfb age
+      # Sans xmllint (ou sans Poppler), les tests de la facture électronique (ou des PDF du serveur)
+      # tomberaient pour une autre raison que le défaut remis : la preuve ne prouverait rien.
+      - name: xmllint, Poppler, Xvfb et age
+        run: bash .github/reessayer.sh sudo apt-get update -qq && bash .github/reessayer.sh sudo apt-get install -y -qq libxml2-utils poppler-utils xvfb age
       - name: Preuves (chaque test tombe quand on remet son défaut)
         run: npm run preuves
         env:

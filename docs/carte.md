@@ -38,11 +38,11 @@ vaut pour tout le dépôt.*
   contexte du navigateur, `serviceWorkers: 'block'`, quand le parcours n'a pas à rouvrir sans réseau).
   (1.136.0) L'ouverture qui tarde le dit (« Ouverture de ton entreprise… », plus de dix secondes : « plus long que
   d'habitude ») ; refusée par le serveur, elle le dit, avec « Réessayer » et la page d'état (`poste.js`, « L'ouverture »).
-- **La lecture d'une facture d'achat en photo ou en PDF** (brique 84, `docs/achats.md`) : sur NOS serveurs
-  (Tesseract, Poppler : `serveur/achats/lecteur.ts`, une file de deux lectures), le fichier jamais gardé ;
-  une proposition que la v10 fait relire, chaque champ avec la ligne où il a été lu, le total recompté
-  (`serveur/achats/lecture-facture.ts`) ; aucun taux supposé. Le seuil (9 sur 10 sur de vraies factures)
-  reste à mesurer : la lecture de photo ne s'annonce pas avant.
+- **La lecture d'une facture d'achat en photo ou en PDF** (brique 84, `docs/achats.md`) : par l'IA de Claude
+  seulement (`serveur/achats/lecture-ia.ts`), avec l'accord de la personne pour chaque fichier, même écrite à la
+  main ; le fichier jamais gardé ; une proposition que la v10 fait relire, chaque champ avec l'endroit où il a été
+  lu, ses doutes, le total recompté. La lecture sur nos serveurs (Tesseract) est retirée le 27/10/2026 : elle se
+  trompait trop.
 - **Les commandes livrées en plusieurs fois** (brique 86, `docs/livraisons.md`) : le bon tiré d'une commande
   reprend ce qui reste (lignes rattachées : `ligneCommande`) ; UNE fonction compte ce qui est livré
   (`suiviCommande`, core.js) ; « Facturer des bons… » fait une facture de plusieurs bons, chaque ligne de

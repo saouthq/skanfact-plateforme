@@ -1,12 +1,13 @@
 // La lecture d'une facture d'achat par l'IA de Claude (Anthropic), hors de Tunisie : décision de Skander du 24/10/2026,
-// branchée le 27/10/2026 (14 § 2.3 ; 05 § 4.3 ; docs/achats.md). Facultative : l'écran la demande avant chaque envoi, et
-// sans elle la lecture reste sur nos serveurs (lecteur.ts, lecture-facture.ts).
+// branchée le 27/10/2026 (14 § 2.3 ; 05 § 4.3 ; docs/achats.md). Facultative : l'écran la demande avant chaque envoi.
+// Depuis le 27/10/2026 (Skander), c'est la SEULE lecture : celle de nos serveurs (Tesseract) se trompait trop, elle est
+// retirée ; sans l'IA, la pièce se joint et se saisit à la main.
 //
 // Ce qui part, compté : l'image (ou le PDF) de la pièce, et la consigne écrite ici (CONSIGNE). Rien d'autre : ni le nom
 // ni le matricule de l'entreprise qui lit, ni ses clients, ni ses chiffres. Notre matricule se reconnaît ICI, au retour.
 // La clé vit dans l'environnement du serveur (ANTHROPIC_API_KEY), jamais dans le dépôt ; sans clé, l'IA ne se propose pas.
 //
-// Les garde-fous de la lecture sur nos serveurs valent aussi pour l'IA : rien ne se devine (une case illisible revient
+// Les garde-fous : rien ne se devine (une case illisible revient
 // vide), chaque doute revient avec ses valeurs possibles, et le total se RECOMPTE ici depuis les montants rendus (deux
 // chemins, un chiffre) ; un doute sur une quantité se départage par ce recomptage. Le texte de la pièce est une donnée,
 // jamais une consigne : la réponse a une forme imposée (sortie structurée), relue par zod avant d'être crue.
@@ -15,9 +16,20 @@ import Anthropic from '@anthropic-ai/sdk';
 import { z } from 'zod';
 import { versTexte } from '../../moteur/argent.ts';
 import { motif, t, type Texte } from '../../textes/index.ts';
-import type { Sorte } from './lecteur.ts';
-import { compacterMatricule, type Champ, type Lecture, type LigneLue } from './lecture-facture.ts';
+import type { Sorte } from './sorte.ts';
 import './textes.ts';
+
+// La proposition, sous la forme que la fenêtre de la v10 attend (`ocrToPurchase`, core.js) : chaque champ dit où il a été
+// lu (`ou`) ; les montants en texte, au millième de l'unité de la pièce.
+export type LigneLue = { label: string | Texte; qty: string; unitPrice: string; vatRate: string | null };
+export type Lecture = {
+  supplier: string | null; matricule: string | null; number: string | null; date: string | null; dueDate: string | null;
+  subject: string | null; currency: string | null; fees: string | null; totalHT: string | null; totalTTC: string | null;
+  lines: LigneLue[];
+};
+export type Champ = 'supplier' | 'matricule' | 'number' | 'date' | 'dueDate' | 'subject' | 'fees' | 'totalHT' | 'totalTTC';
+// Un matricule se compare sans ses séparateurs ni ses accents : « 1234567 a/b/m/000 » est « 1234567ABM000 ».
+export const compacterMatricule = (m: string) => m.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().replace(/[^0-9A-Z]/g, '');
 
 // Le modèle : réglable par l'environnement (SKANFACT_IA_MODELE), pour suivre les versions sans toucher au code.
 export const MODELE_PAR_DEFAUT = 'claude-opus-5-5';
@@ -41,7 +53,8 @@ export const ReponseIA = z.object({
   totalHT: nombre, totalTVA: nombre, timbre: nombre, fodec: nombre, retenue: nombre, totalTTC: nombre, netAPayer: nombre,
   ou: z.array(z.object({ champ: z.enum(CHAMPS_OU), texte: z.string() })),
   // Le rang de la ligne d'un doute (1 pour la première) ; 0, un doute qui ne touche pas aux lignes.
-  doutes: z.array(z.object({ champ: z.enum(CHAMPS_DOUTE), ligne: z.number().int().nullable().transform((n) => (n ? n : null)), valeurs: z.array(z.string()), raison: z.string() })),
+  // `zone` : où se lit la case douteuse sur l'image, [x, y, largeur, hauteur] en millièmes ; [] si l'IA ne sait pas.
+  doutes: z.array(z.object({ champ: z.enum(CHAMPS_DOUTE), ligne: z.number().int().nullable().transform((n) => (n ? n : null)), valeurs: z.array(z.string()), raison: z.string(), zone: z.array(z.number()).optional() })),
 });
 export type ReponseIA = z.infer<typeof ReponseIA>;
 
@@ -58,7 +71,7 @@ export const SCHEMA = objet({
   lignes: { type: 'array', items: objet({ designation: { type: 'string' }, quantite: caseLue, prixUnitaire: caseLue, remise: caseLue, tauxTva: caseLue, totalHT: caseLue }) },
   totalHT: caseLue, totalTVA: caseLue, timbre: caseLue, fodec: caseLue, retenue: caseLue, totalTTC: caseLue, netAPayer: caseLue,
   ou: { type: 'array', items: objet({ champ: { type: 'string', enum: [...CHAMPS_OU] }, texte: { type: 'string' } }) },
-  doutes: { type: 'array', items: objet({ champ: { type: 'string', enum: [...CHAMPS_DOUTE] }, ligne: { type: 'integer' }, valeurs: { type: 'array', items: { type: 'string' } }, raison: { type: 'string' } }) },
+  doutes: { type: 'array', items: objet({ champ: { type: 'string', enum: [...CHAMPS_DOUTE] }, ligne: { type: 'integer' }, valeurs: { type: 'array', items: { type: 'string' } }, raison: { type: 'string' }, zone: { type: 'array', items: { type: 'integer' } } }) },
 });
 
 export const CONSIGNE = `Tu lis la facture d'achat (ou le ticket, ou l'avoir) d'une entreprise tunisienne, en photo ou en PDF, pour la saisir dans un logiciel de gestion. Une personne relira chaque case avant que rien ne s'enregistre.
@@ -67,7 +80,7 @@ La pièce peut être imprimée, ou écrite à la main (un carnet de factures à 
 
 Règles :
 - Recopie ce qui est écrit sur la pièce, sans rien deviner ni calculer : une case illisible ou absente reste vide (""). N'invente aucun taux, aucun montant, aucune ligne.
-- Quand un caractère est flou ou ambigu (un 3 qui peut être un 8, un 1 écrit à la main qui ressemble à un 7, une quantité tachée), rends la lecture la plus probable dans la case, et ajoute un doute avec les valeurs possibles (deux ou trois) et la raison, en français, en quelques mots. Pour un doute sur une ligne, "ligne" est son rang (1 pour la première) ; sinon 0.
+- Quand un caractère est flou ou ambigu (un 3 qui peut être un 8, un 1 écrit à la main qui ressemble à un 7, une quantité tachée), rends la lecture la plus probable dans la case, et ajoute un doute avec les valeurs possibles (deux ou trois) et la raison, en français, en quelques mots. Pour un doute sur une ligne, "ligne" est son rang (1 pour la première) ; sinon 0. "zone" dit où se lit la case douteuse sur l'image : [x, y, largeur, hauteur], en millièmes de la largeur et de la hauteur de l'image (de 0 à 1000, depuis le coin en haut à gauche) ; [] si tu ne sais pas la situer.
 - Les montants : en chiffres, avec un point décimal et sans séparateur de milliers ("1 234,567" s'écrit "1234.567"). Les taux en pour-cent, sans le signe ("19"). Les quantités telles qu'écrites ("20", "1.5"). Une virgule écrite à la main entre les dinars et les millimes ("12,500") est le séparateur décimal.
 - Les dates au format AAAA-MM-JJ (une date tunisienne s'écrit jour/mois/année).
 - Le matricule fiscal tunisien ressemble à 1234567A/M/000 ou 1234567/A/M/000 : rends chacun de ceux de la pièce (souvent dans le cachet du fournisseur), tel qu'écrit, en disant s'il est celui de l'émetteur (le fournisseur), du client, ou inconnu.
@@ -129,7 +142,7 @@ export function creerLecteurIA(appel: AppelIA | null): LecteurIA {
   };
 }
 
-// ── La réponse de l'IA, rendue sous la forme qu'attend la relecture de la v10 (celle de lecture-facture.ts) ─────────
+// ── La réponse de l'IA, rendue sous la forme qu'attend la relecture de la v10 (celle qu'avait la lecture de nos serveurs) ─────────
 
 // Un nombre rendu par l'IA, en entier à `decimales` chiffres après la virgule ; null s'il n'a pas la forme demandée
 // (rien ne se devine : « 12,5 » ou « 1 234.5 » se relisent, « environ 12 » non).
@@ -150,7 +163,7 @@ const sansZeros = (v: bigint, d: number) => versTexte(v, d).replace(/(\.\d*?)0+$
 const LONGUEUR_OU = 60;
 const court = (s: string) => (s.length > LONGUEUR_OU ? `${s.slice(0, LONGUEUR_OU - 1)}…` : s);
 const DATE = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])$/;
-// Un montant écrit comme à l'écran (comme dans lecture-facture.ts) : « 1 234,567 DT ».
+// Un montant écrit comme à l'écran : « 1 234,567 DT ».
 function enClair(v: bigint, devise: string | null): string {
   const [e = '0', f = '000'] = versTexte(v < 0n ? -v : v, 3).split('.');
   const decimales = devise && devise !== 'TND' && f.endsWith('0') ? f.slice(0, 2) : f;
@@ -159,7 +172,13 @@ function enClair(v: bigint, devise: string | null): string {
 
 // Un doute, tel que l'écran le tranche : ses valeurs possibles, et pour un doute qui touche aux lignes, ce que le
 // recomptage en dit (`juste` : avec cette valeur, les lignes tombent sur le hors-taxes lu ; null : rien pour le dire).
-export type Doute = { champ: (typeof CHAMPS_DOUTE)[number]; ligne: number | null; valeurs: { valeur: string; juste: boolean | null }[]; raison: string };
+// `zone` : où la case se lit sur l'image, en millièmes [x, y, largeur, hauteur], ou null (rien de sûr, ou hors de l'image).
+export type Doute = { champ: (typeof CHAMPS_DOUTE)[number]; ligne: number | null; valeurs: { valeur: string; juste: boolean | null }[]; raison: string; zone: [number, number, number, number] | null };
+const zoneDe = (z: number[] | undefined): Doute['zone'] => {
+  if (!z || z.length !== 4 || !z.every((x) => Number.isInteger(x) && x >= 0 && x <= 1000)) return null;
+  const [x = 0, y = 0, l = 0, h = 0] = z;
+  return l > 0 && h > 0 && x + l <= 1000 && y + h <= 1000 ? [x, y, l, h] : null;
+};
 export type PropositionIA = {
   lecture: Lecture; ou: Partial<Record<Champ, string>>; remarques: Texte[]; doutes: Doute[];
   controle: { recompte: bigint | null; lu: bigint | null; juste: boolean | null };
@@ -226,7 +245,7 @@ export function propositionDeLIA(r: ReponseIA, options: { notreMatricule?: strin
       if (hts.some((x) => x === null)) return null;
       return ecart(somme(hts as bigint[]), totalHT) <= BigInt(r.lignes.length);
     };
-    return { champ: d.champ, ligne: i !== null && rang(i) >= 0 ? rang(i) : null, valeurs: [...new Set(d.valeurs.map((v) => v.trim()).filter(Boolean))].map((valeur) => ({ valeur, juste: juste(valeur) })), raison: d.raison.trim() };
+    return { champ: d.champ, ligne: i !== null && rang(i) >= 0 ? rang(i) : null, valeurs: [...new Set(d.valeurs.map((v) => v.trim()).filter(Boolean))].map((valeur) => ({ valeur, juste: juste(valeur) })), raison: d.raison.trim(), zone: zoneDe(d.zone) };
   });
 
   // Deux chemins, un chiffre : le total recompté depuis les montants rendus, face au total de la pièce.
