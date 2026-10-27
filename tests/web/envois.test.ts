@@ -183,6 +183,10 @@ describe('les envois, à la souris', () => {
       .toMatch(/^FAC-\S+\s*envoyé par WhatsApp le .* par Nadia\s*pas encore ouvert\s*Retirer\s*FAC-\S+\s*envoyé par e-mail le .* par Nadia\s*vu le .*\s*Retirer$/);
     await nadia.screenshot({ path: path.join(PHOTOS, 'envois-3-liens.png') });
     await nadia.locator('#modal-root .modal').last().getByRole('button', { name: 'Fermer', exact: true }).click();
+    // (1.157.3, maquette « Facture ») La facture dit, dans « Envois » et dans sa frise, qu'il l'a ouverte par le lien.
+    await nadia.evaluate(() => { const ici = location.hash; location.hash = '#/factures'; return new Promise((r) => setTimeout(() => { location.hash = ici; r(null); }, 400)); });
+    await expect.poll(() => nadia.locator('#lp-vue').innerText().then(net).catch(() => ''), { timeout: 20_000 }).toMatch(/^· vue le \d\d\/\d\d par le lien$/);
+    expect(net(await nadia.locator('#ed-frise li[data-k=envoyee] .ed-fr-txt').innerText())).toMatch(/· vue le \d\d\/\d\d$/);
 
     // Le devis (le devis par son lien) : il part avec son lien, comme la facture ; « ci-joint » devient « Voici », et la
     // fenêtre ne promet pas « ce qu'il en doit » (un devis ne se doit pas). Encore en brouillon, son envoi le fait

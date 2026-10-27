@@ -4957,11 +4957,11 @@
         ${charte ? (() => {
           const envois = ((stored && stored.emails) || []).filter(x => !/^relance/.test(x.kind || ''));
           const d = envois[envois.length - 1];
-          return ligne('Envois', d ? `Envoyée${d.date ? ' le ' + C.fmtDate(d.date) : ''}${d.to ? ' à ' + h(d.to) : d.canal === 'whatsapp' ? ' par WhatsApp' : ''}${envois.length > 1 ? ` (${envois.length} envois)` : ''}`
+          return ligne('Envois', d ? `Envoyée${d.date ? ' le ' + C.fmtDate(d.date) : ''}${d.to ? ' à ' + h(d.to) : d.canal === 'whatsapp' ? ' par WhatsApp' : ''}${envois.length > 1 ? ` (${envois.length} envois)` : ''}<span id="lp-vue"></span>`
             : `<span class="muted">Pas encore ${isAv ? 'envoyé' : 'envoyée'}${avecFrise ? ' : « Envoyer » dans la frise, ou ⋯ en haut à droite' : ' : ⋯ en haut à droite'}</span>`);
         })() : ''}
         <div class="lp-ligne" id="lp-compta" hidden><dt>Comptabilité</dt><dd></dd></div>
-        ${charte && doc.fromQuoteId && docById(doc.fromQuoteId) ? ligne('Origine', `Suite au devis <a href="#/doc/${h(doc.fromQuoteId)}">${h(docById(doc.fromQuoteId).number || 'devis')}</a>`) : ''}
+        ${charte && doc.fromQuoteId && docById(doc.fromQuoteId) ? ligne('Origine', `Suite au devis <a href="#/doc/${h(doc.fromQuoteId)}">${h(docById(doc.fromQuoteId).number || 'devis')}</a>${(() => { const r = docById(doc.fromQuoteId).reponse; return r && r.statut === 'accepté' && r.le ? `, accepté le ${lfJm(r.le)}` : ''; })()}`) : ''}
       </dl>`;
     };
     // Le timbre fiscal est fixé EN DINARS (7.0.1) : sur une facture en euros il vaut 1 DT converti,
@@ -5327,7 +5327,8 @@
       if (locked && isInv && doc.status !== 'annulée' && bal && bal.remaining > 0.0005) {
         const recu = C.round3(bal.paid + bal.credited);
         return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="pay">${lfIc('carte', 17)}Enregistrer un paiement</button>
-          <p class="ed-phrase">${roleBarre() === 'commercial' ? 'Tu es commercial : le propriétaire signe et corrige. Toi, tu envoies la facture et tu suis son paiement.' : `${recu > 0.0005 ? `${C.money(recu, cur)} reçus, reste ${C.money(bal.remaining, cur)}` : 'Rien de reçu'}${doc.dueDate ? ` · échéance le ${lfJm(doc.dueDate)}` : ''}. Un paiement partiel se note aussi.`}</p>${tous}</div>`;
+          <p class="ed-phrase">${roleBarre() === 'commercial' ? 'Tu es commercial : le propriétaire signe et corrige. Toi, tu envoies la facture et tu suis son paiement.' : `${recu > 0.0005 ? `${C.money(recu, cur)} reçus, reste ${C.money(bal.remaining, cur)}` : 'Rien de reçu'}${doc.dueDate ? ` · échéance le ${lfJm(doc.dueDate)}` : ''}. Un paiement partiel se note aussi.`}</p>
+          <p class="ed-phrase ed-tous">Tous les gestes de la facture : ⋯ en haut à droite.</p>${tous}</div>`;
       }
       const etat = !bal ? (isAv ? `Avoir émis${doc.creditOfNumber ? ` sur ${h(doc.creditOfNumber)}` : ''} : il diminue ce que le client doit.` : '')
         : bal.annulee || doc.status === 'annulée' || (stored && effStatus(stored) === 'annulée') ? `Annulée${bal.credits.length ? ` par ${bal.credits.map(a => h(a.number)).join(', ')}` : ''} : plus rien n'est dû.`
@@ -5354,7 +5355,7 @@
         { t: 'Signée', fait: signee, d: signee ? 'DigiGo' : 'DigiGo, à faire', g: !signee && bridge.signerPiece && roleBarre() !== 'commercial' ? '<button type="button" class="btn btn-sm" data-frise="signer">Signer</button>' : '' },
         { t: 'El Fatoora', fait: e === 'acceptee', alerte: e === 'refusee' || e === 'retenue',
           d: C.estDemo(data) ? 'jamais : entreprise d\'essai' : e === 'acceptee' ? `acceptée${ttn.reference ? ` · ${h(ttn.reference)}` : ''}` : e === 'refusee' ? 'refusée : le motif est dans « Fichier pour El Fatoora »' : e === 'retenue' ? 'retenue : à reprendre' : e === 'deposee' ? 'déposée, en attente' : e === 'a_envoyer' || e === 'signee' ? 'en route' : 'partira après la signature' },
-        { t: 'Envoyée', fait: !!dernier, d: dernier ? `${dernier.date ? lfJm(dernier.date) : ''}${dernier.to ? ` · <span class="ed-fr-adr" title="${h(dernier.to)}">à ${h(dernier.to)}</span>` : dernier.canal === 'whatsapp' ? ' · par WhatsApp' : ''}` : `<span class="ed-fr-adr" title="${h(cl.email || '')}">à ${h(cl.email || 'ton client')}</span>`,
+        { t: 'Envoyée', k: 'envoyee', fait: !!dernier, d: dernier ? `${dernier.date ? lfJm(dernier.date) : ''}${dernier.to ? ` · <span class="ed-fr-adr" title="${h(dernier.to)}">à ${h(dernier.to)}</span>` : dernier.canal === 'whatsapp' ? ' · par WhatsApp' : ''}` : `<span class="ed-fr-adr" title="${h(cl.email || '')}">à ${h(cl.email || 'ton client')}</span>`,
           g: dernier ? '' : '<button type="button" class="btn btn-sm" data-frise="email">Envoyer</button>' },
         { t: annuleeF ? 'Annulée' : !paye && recu > 0.0005 ? 'Payée en partie' : 'Payée', fait: !!paye && !annuleeF, alerte: annuleeF, partiel: !paye && recu > 0.0005, d: annuleeF ? (b && b.credits.length ? `par ${b.credits.map(a => h(a.number)).join(', ')}` : 'plus rien n\'est dû') : b && b.remaining < -0.0005 ? `${C.money(-b.remaining, cur)} à son crédit` : paye ? 'plus rien n\'est dû' : recu > 0.0005 ? `${C.money(recu, null, C.decimalsFor(cur))} sur ${C.money(((b && b.totals) || C.computeTotals(doc, company())).netToPay, cur)}` : `rien de reçu${doc.dueDate ? ` · échéance ${lfJm(doc.dueDate)}` : ''}` },
       ];
@@ -8237,6 +8238,13 @@
 
       const brancherFrise = () => $$('#ed-frise [data-frise]').forEach(b => b.onclick = () => { const x = $('#' + b.dataset.frise); if (x) x.click(); });
       brancherFrise();
+      // (1.157.3, maquette « Facture · payée en partie ») La facture envoyée dit quand son client l'a ouverte par le lien.
+      if (!isQ && bridge.vuesPiece && doc.clientId && doc.number && ($('#lp-vue') || $('#ed-frise li[data-k=envoyee]'))) bridge.vuesPiece(doc).then(v => {
+        if (!v || !v.vues) return;
+        const quand = lfJm(v.vuLe.slice(0, 10));
+        const lv = $('#lp-vue'); if (lv) lv.innerHTML = ` · <b>vue le ${quand}</b> par le lien`;
+        const d = $('#ed-frise li[data-k=envoyee] .ed-fr-txt > span'); if (d && !/vue le/.test(d.textContent)) d.insertAdjacentHTML('beforeend', ` · vue le ${quand}`);
+      }, () => {});
       // L'étape « Vu » du devis : ce que le serveur a noté des ouvertures de son lien (jamais une ouverture inventée).
       if ($('#ed-frise li[data-k=vu]') && doc.clientId) bridge.vuesPiece(doc).then(v => {
         const li = $('#ed-frise li[data-k=vu]'); if (!li || !v || !v.vues) return;
