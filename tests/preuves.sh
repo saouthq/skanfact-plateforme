@@ -5559,8 +5559,8 @@ prouver "la mise en place de l'entreprise proposée à un membre qui ne la tient
 prouver "« À faire » qui mène à une page que le rôle ne montre pas" web/public/v10/app.js \
   "todoMeneACache(x.id) ? '' :" "false ? '' :" \
   "$MR"
-prouver "l'accueil de la paie sans bouton principal" web/public/v10/app.js \
-  "    const vert = !chosesAFaire().length;" "    const vert = false;" \
+prouver "l'accueil d'un rôle sans bouton principal" web/public/v10/app.js \
+  "    const premierPrincipal = !abonnementPrincipal();" "    const premierPrincipal = false;" \
   "$MR"
 
 # ── Brique 112 : deux postes sur le même dossier (web/public/plateforme/pont.js ; tests/web/enregistrement-concurrent.test.ts) ──
@@ -18359,8 +18359,8 @@ prouver '« Enregistrer » d'\''un devis neuf en vert en lecture seule' web/publ
   "'save') && !aboBloque(isNew) ? 'btn-primary'" "'save') ? 'btn-primary'" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
-prouver '« Enregistrer » d'\''un achat neuf en vert en lecture seule' web/public/v10/app.js \
-  "? \`<button class=\"btn\${aboBloque(isNew) ? '' : ' btn-primary'} btn-grand\" id=\"save\">\${libelleSauver()}" "? \`<button class=\"btn\${false ? '' : ' btn-primary'} btn-grand\" id=\"save\">\${libelleSauver()}" \
+prouver '« Saisir à la main » ouvert en lecture seule' web/public/v10/app.js \
+  "    const dis = bloqueChoix ? ' disabled title=\"Attend le renouvellement de l\\'abonnement\"' : '';" "    const dis = '';" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
 prouver 'trois « Me guider » du même nom dans les premiers pas du Cabinet' web/public/v10/cabinet/app.js \
@@ -20179,7 +20179,7 @@ prouver 'ux3 139 : les premiers pas faits qui restent listés une fois le métie
   "p.etapes.filter(e => !(e.fait && metierCommence())).map(e => {" "p.etapes.map(e => {" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
 prouver 'ux3 139 : les premiers pas qui passent devant l'\''À faire et les chiffres' web/public/v10/app.js \
-  "      \${duGrain && metierCommence() ? '' : pas}" "      \${pas}" \
+  "      \${duGrain && metierCommence() && !commercial ? '' : pas}" "      \${pas}" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'\''À faire et les chiffres d'\''abord, puis ce qui reste'
 prouver 'ux3 139 : le cabinet seul à qui l'\''on propose de se confier ses dossiers' web/public/v10/cabinet/app.js \
   "    if (liste.length < 2) return '';" "    if (!liste.length) return '';" \
