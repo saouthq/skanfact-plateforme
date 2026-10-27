@@ -1058,6 +1058,9 @@
         const x = (r.ecritures || []).find((/** @type {any} */ e) => e.origine && e.origine.type === 'achat' && e.origine.id === id);
         return x ? { statut: x.statut, valideeLe: x.valideeLe ? new Date(x.valideeLe).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }) : null } : null;
       },
+      // (1.157.1) Le fil de l'entreprise, lu tel que la messagerie le montre (la page « Photo envoyée au cabinet » y suit sa
+      // photo : vue, rangée). Une lecture, rien n'est envoyé.
+      fil: () => appel('GET', '/messages?cote=entreprise'),
       envoyerFichier: (/** @type {File} */ f, /** @type {string} */ texte, /** @type {any} */ piece) =>
         /** @type {any} */ (window).SkanMessagerie.envoyerFichier(appel, 'entreprise', f, texte, piece),
     },

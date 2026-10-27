@@ -13181,14 +13181,9 @@
         if (!fichiers.length) return;
         const bouton = $('#photo-cab');
         if (bouton) bouton.disabled = true;
-        const partis = [], refuses = [];
-        for (const f of fichiers) {
-          try { await bridge.messagerie.envoyerFichier(f, `Une facture d'achat à saisir : ${f.name}`, null); partis.push(f.name); }
-          catch (err) { refuses.push(`${f.name} : ${err && err.message ? err.message : String(err)}`); }
-        }
+        const { partis } = await envoyerAuCabinet(fichiers);
         if (bouton) bouton.disabled = false;
-        if (partis.length) toast(`${partis.length > 1 ? `${partis.length} factures envoyées` : `${partis[0]} envoyée`} à ton comptable : ${partis.length > 1 ? 'il les saisit' : 'il la saisit'}. Tu ${partis.length > 1 ? 'les' : 'la'} retrouves dans « Mon comptable ».`);
-        if (refuses.length) toast(`Pas envoyé${refuses.length > 1 ? 's' : ''} : ${refuses.join(' ; ')}`, true);
+        if (partis.length) { navigate('#/achat/envoyee'); return; }
       };
     }
     if ($('#q')) $('#q').oninput = e => { s.q = e.target.value.toLowerCase(); s.page = 1; draw(); };
@@ -13475,7 +13470,80 @@
   // Un achat n'est JAMAIS verrouillé (contrairement à une facture émise) : `locked` n'existe pas
   // dans cette route. L'y écrire lève une ReferenceError au moment de construire le gabarit, et
   // c'est TOUTE la page qui reste blanche — sans rien dans la console de l'utilisateur.
+  // (1.157.1, maquette achat « Confiée au cabinet ») Les photos envoyées au cabinet : chacune part dans le fil, avec son
+  // message ; la page qui suit les montre et les suit (vue par le cabinet, rangée dans les achats), lu dans le fil.
+  let envoiCabinet = null;
+  async function envoyerAuCabinet(fichiers) {
+    const partis = [], refuses = [];
+    for (const f of fichiers) {
+      try {
+        const r = await bridge.messagerie.envoyerFichier(f, `Une facture d'achat à saisir : ${f.name}`, null);
+        partis.push({ nom: f.name, taille: f.size, type: f.type, prise: f.lastModified || 0, message: r && r.message, le: Date.now() });
+      } catch (err) { refuses.push(`${f.name} : ${err && err.message ? err.message : String(err)}`); }
+    }
+    if (partis.length) envoiCabinet = { fichiers: partis, le: Date.now() };
+    if (refuses.length) toast(`Pas envoyé${refuses.length > 1 ? 's' : ''} : ${refuses.join(' ; ')}`, true);
+    return { partis, refuses };
+  }
+  function pageEnvoiCabinet() {
+    const e = envoiCabinet;
+    const heure = t => new Date(t).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Tunis' }).replace(':', ' h ');
+    const jour = t => new Date(t).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', timeZone: 'Africa/Tunis' });
+    const taille = n => n >= 1e6 ? `${(n / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo` : `${Math.max(1, Math.round(n / 1e3))} Ko`;
+    if (!e) {
+      $('#view').innerHTML = `<div class="page-head ed-tete"><div class="ed-titre"><div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/achats" class="ed-retour">Achats et dépenses</a></div><div class="ed-h1"><h1>Photo envoyée au cabinet</h1></div></div></div>
+        <div class="panel"><p>Cette page suit une photo juste envoyée, depuis cet écran. Ce que tu as déjà envoyé se retrouve dans « Mon comptable ».</p><div class="inline mt"><a class="btn btn-primary" href="#/comptable">Ouvrir le fil</a><a class="btn" href="#/achats">Mes achats</a></div></div>`;
+      return;
+    }
+    const f0 = e.fichiers[0];
+    const dessiner = (fil) => {
+      const m = fil && (fil.messages || []).find(x => x.id === f0.message);
+      const vu = fil && fil.fil && fil.fil.luParLautre && m && new Date(fil.fil.luParLautre) >= new Date(m.ecritLe) ? fil.fil.luParLautre : null;
+      const cab = (fil && fil.fil && fil.fil.cabinetNom) || 'ton cabinet';
+      const achat = m && m.achat;
+      const envoyeLe = m ? new Date(m.ecritLe).getTime() : f0.le;
+      const etapes = [
+        { t: 'Photo prise', fait: true, d: f0.prise ? `${jour(f0.prise)} · ${heure(f0.prise)}` : 'sur cet appareil' },
+        { t: 'Envoyée', fait: true, d: `${jour(envoyeLe)} · ${heure(envoyeLe)} · dans votre fil` },
+        { t: 'Vue par le cabinet', fait: !!vu, d: vu ? `${jour(vu)} · ${heure(vu)} · par ${h(cab)}` : 'quand il ouvre votre fil' },
+        { t: 'Saisie', fait: !!achat, d: achat ? h(achat.libelle) : 'par le cabinet' },
+        { t: 'Rangée', fait: !!achat, d: achat ? 'dans tes achats, avec la photo' : 'dans tes achats, avec la photo' },
+      ];
+      const courant = etapes.findIndex(x => !x.fait);
+      $('#view').innerHTML = `<div class="page-head ed-tete"><div class="ed-titre">
+          <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/achats" class="ed-retour">Achats et dépenses</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">Photo envoyée au cabinet</span></div>
+          <div class="ed-h1"><h1>Photo envoyée au cabinet</h1>${achat ? '<span class="badge payée ed-pill">Rangée</span>' : '<span class="badge envoyée ed-pill">Ton cabinet la saisit</span>'}</div></div></div>
+        <div class="ac-envoi">
+          <div class="ac-envoi-g">
+            <div class="bandeau info">${lfIc('comptable', 18)}<span class="txt"><b>Envoyée à ton cabinet le ${jour(envoyeLe)} à ${heure(envoyeLe)}${achat ? ' : il l\'a rangée' : ' : il saisit la facture'}</b><span>${achat ? `Elle est dans tes achats (${h(achat.libelle)}), avec la photo jointe.` : 'Tu n\'as rien d\'autre à taper. Quand il l\'aura rangée, elle apparaîtra dans tes achats, avec la photo jointe ; s\'il lui manque quelque chose, il te l\'écrira dans votre fil.'}</span></span>${achat ? `<a class="btn btn-sm" href="#/achat/${h(achat.id)}">Ouvrir l'achat</a>` : ''}</div>
+            <div class="panel ed-frise ac-env-frise" id="ac-env-frise"><ol>${etapes.map((x, i) => `<li class="${x.fait ? 'fait' : i === courant ? 'partiel' : ''}">
+              <span class="rond" aria-hidden="true">${x.fait ? lfIc('coche', 13, 3) : i + 1}</span>
+              <span class="ed-fr-txt"><b>${x.t}</b><span>${x.d}</span></span><span class="vh">${x.fait ? ' : fait' : ' : pas encore'}</span></li>`).join('')}</ol></div>
+            <div class="panel"><div class="a-bloc-t"><h2>Ce que tu as envoyé</h2><span class="small muted">votre fil avec ${h(cab)}</span></div>
+              ${e.fichiers.map(f => `<div class="ac-env-f">${lfIc('photo', 18)}<span><b>${h(f.nom)}</b><small>${/pdf/.test(f.type) ? 'PDF' : 'photo'} · ${taille(f.taille)} · « Une facture d'achat à saisir »</small></span><a class="btn btn-sm" href="#/comptable">Voir dans le fil</a></div>`).join('')}
+            </div>
+          </div>
+          <aside class="ac-envoi-d"><div class="panel"><button type="button" class="btn btn-primary btn-grand" id="env-autre">${lfIc('photo', 17)}Envoyer une autre photo</button>
+            <input type="file" id="env-autre-f" hidden multiple accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf">
+            <p class="small muted">Ton cabinet saisit la facture depuis la photo ; tu la retrouves ici, avec son justificatif, dès qu'il l'a rangée.</p></div></aside>
+        </div>`;
+      $('#env-autre').onclick = () => $('#env-autre-f').click();
+      $('#env-autre-f').onchange = async ev => {
+        const fichiers = Array.from(ev.target.files || []); ev.target.value = '';
+        if (!fichiers.length) return;
+        $('#env-autre').disabled = true;
+        const r = await envoyerAuCabinet(fichiers);
+        if (r.partis.length) render(); else if ($('#env-autre')) $('#env-autre').disabled = false;
+      };
+    };
+    dessiner(null);
+    // Le fil se relit tant que la page est là : la photo vue, puis rangée, se dit sans recharger.
+    const lire = () => bridge.messagerie && bridge.messagerie.fil ? bridge.messagerie.fil().then(r => { if (routeOf(location.hash) === 'achat' && location.hash.endsWith('/envoyee')) dessiner(r); }, () => {}) : null;
+    lire();
+    const minuteur = setInterval(() => { if (!location.hash.endsWith('/achat/envoyee')) { clearInterval(minuteur); return; } lire(); }, 20_000);
+  }
   routes.achat = (parts) => {
+    if (parts[0] === 'envoyee') { pageEnvoiCabinet(); return; }
     let p, isNew = false, repris = false;
     if (achatReprise && achatReprise.hash === location.hash) {
       p = achatReprise.p; isNew = achatReprise.isNew; repris = true; achatReprise = null;
@@ -13615,7 +13683,8 @@
           <span class="colle-bouton"><button type="button" class="btn ac-choix" id="teif-lire"${dis}><span class="ac-ic">${lfIc('nuage', 20)}</span><span class="ac-t"><b>Lire une e-facture <em class="ac-tag">le plus sûr</em></b><span>Le fichier XML d'El Fatoora : tout se remplit, au millime</span></span></button>${info('buy.teif')}</span>
           <span class="colle-bouton"><button type="button" class="btn ac-choix" id="photo" hidden${dis}><span class="ac-ic">${lfIc('photo', 20)}</span><span class="ac-t"><b>Lire une photo <em class="ac-tag gris">facultatif</em></b><span>La photo ou le PDF : SkanFact remplit, tu vérifies chaque case</span></span></button>${info('ocr.photo')}</span>
           <button type="button" class="btn ac-choix" id="ac-main"${dis}><span class="ac-ic">${lfIc('ecriture', 20)}</span><span class="ac-t"><b>Saisir à la main</b><span>Fournisseur, numéro, lignes : comme sur la facture</span></span></button>
-          ${bridge.messagerie ? `<a class="btn ac-choix" href="#/comptable" id="ac-cabinet"><span class="ac-ic">${lfIc('comptable', 20)}</span><span class="ac-t"><b>Confier au cabinet</b><span>Tu envoies la photo à ton comptable, il la saisit</span></span></a>` : ''}
+          ${bridge.messagerie && bridge.messagerie.envoyerFichier && messagerieVue && messagerieVue.cabinet ? `<button type="button" class="btn ac-choix" id="ac-cabinet"${dis}><span class="ac-ic">${lfIc('comptable', 20)}</span><span class="ac-t"><b>Confier au cabinet</b><span>Tu envoies la photo à ton comptable, il la saisit</span></span></button><input type="file" id="ac-cabinet-f" hidden multiple accept="image/jpeg,image/png,image/webp,application/pdf,.jpg,.jpeg,.png,.webp,.pdf">`
+          : bridge.messagerie ? `<a class="btn ac-choix" href="#/comptable" id="ac-cabinet"><span class="ac-ic">${lfIc('comptable', 20)}</span><span class="ac-t"><b>Confier au cabinet</b><span>Tu envoies la photo à ton comptable, il la saisit</span></span></a>` : ''}
         </div>${bloqueChoix ? '' : `<button type="button" class="ac-zone" id="ac-zone">${lfIc('depot', 20)}<span>Ou glisse ici le fichier de la facture : un XML El Fatoora se lit tout seul ; pour une photo ou un PDF, SkanFact te demande si tu veux la lire</span></button>`}</div>` : '';
     const supplierCarte = () => {
       const sup = supplierById(p.supplierId);
@@ -13820,7 +13889,7 @@
                 <label class="puce-champ" hidden><span>Nature</span><select name="kind">${C.PURCHASE_KINDS.map(([v, l]) => `<option value="${v}" ${p.kind === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
                 <label class="puce-champ${cur === company().currency ? '' : ' on'}" id="ac-puce-dev"><span>Devise</span><select name="currency" title="La devise de la pièce, telle que le fournisseur l'a écrite">${C.CURRENCIES.map(c => `<option value="${c}" ${c === cur ? 'selected' : ''}>${h(({ DT: 'Dinar', TND: 'Dinar', EUR: 'Euro', USD: 'Dollar', GBP: 'Livre sterling' })[C.normCurrency(c)] || C.libelleDevise(c))}</option>`).join('')}</select></label>
                 <label class="puce-champ${Number(p.withholdingRate) ? ' on' : ''}" id="ac-puce-rs"><span>Retenue opérée</span>${withholdingSelect('withholdingRate', p.withholdingRate)}<span class="suffixe" id="ac-rs-fiche"></span></label>
-                <label class="puce-champ"><span>Timbre et frais</span><input type="number" name="fees" value="${h(p.fees || 0)}" step="0.001" min="0" class="num" aria-label="Timbre et frais"><span class="unite" data-unite-devise>${h(cur)}</span></label>
+                <label class="puce-champ"><span>Timbre et frais</span><input type="number" name="fees" value="${Number(p.fees) ? h(p.fees) : ''}" placeholder="aucun" step="0.001" min="0" class="num" aria-label="Timbre et frais"><span class="unite" data-unite-devise>${h(cur)}</span></label>
                 ${C.depotsDe(data).length > 1 ? `<label class="puce-champ"><span>Dépôt</span><select name="depotId" ${clos ? 'disabled' : ''}>${C.depotsDe(data).map(d => `<option value="${h(d.id)}" ${d.id === (p.depotId || C.DEPOT_PRINCIPAL) ? 'selected' : ''}>${h(d.nom)}</option>`).join('')}</select></label>` : ''}
                 ${clos ? '' : `<button type="button" class="puce-plus" data-montrer="ac-affaire"${p.projectId ? ' hidden' : ''}>${lfIc('croix', 13, 2.4)}Affaire</button>`}
                 <label class="puce-champ obligatoire" id="b-rate-field" ${cur === company().currency ? 'hidden' : ''}><span class="b-rate-lbl">Taux · 1 ${h(cur)} =</span><input type="number" name="exchangeRate" value="${h(p.exchangeRate || '')}" step="0.0001" min="0" class="num" placeholder="?" aria-label="Taux de change : combien de ${h(company().currency)} pour 1 ${h(cur)}"><span class="unite">${h(company().currency)}</span>${info('buy.rate')}</label>
@@ -13906,7 +13975,7 @@
         <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01"></td>
         <td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="0.001"></td>
         <td><select data-k="vatRate">${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
-        <td><select data-k="destination">${C.LINE_DESTINATIONS.map(([v, lab, d]) => `<option value="${v}" ${(l.destination || 'charge') === v ? 'selected' : ''} title="${h(d)}">${lab}</option>`).join('')}</select>${l.recue ? `<div class="small muted nw" data-recue title="${h('Sa marchandise est entrée en stock par la réception : cette ligne ne l\'y fait pas entrer une seconde fois.')}">reçue par une réception</div>` : ''}</td>
+        <td>${p.kind === 'acompte' ? '<span class="ac-avance" title="Un acompte versé est une avance au fournisseur (compte 409, À VÉRIFIER) : ni une charge, ni du stock, ni un bien">Avance</span>' : ''}<select data-k="destination"${p.kind === 'acompte' ? ' hidden' : ''}>${C.LINE_DESTINATIONS.map(([v, lab, d]) => `<option value="${v}" ${(l.destination || 'charge') === v ? 'selected' : ''} title="${h(d)}">${lab}</option>`).join('')}</select>${l.recue ? `<div class="small muted nw" data-recue title="${h('Sa marchandise est entrée en stock par la réception : cette ligne ne l\'y fait pas entrer une seconde fois.')}">reçue par une réception</div>` : ''}</td>
         <td class="c">${C.tvaRecuperable(p, company())
           ? `<input type="checkbox" data-k="deductible" ${l.deductible !== false ? 'checked' : ''}>`
           : `<input type="checkbox" disabled title="${h(`Ton régime (${C.regimeOf(company()).court.toLowerCase()}) ne récupère pas la TVA : elle fait partie du coût.`)}">`}</td>
@@ -14420,6 +14489,16 @@
     // Le choix fait, le formulaire paraît et la question s'en va.
     const sortirDuChoix = () => { attendChoix = false; const a = $('#ac-arrivee'); if (a) a.remove(); const z = $('#view .ac-attend'); if (z) z.remove(); const e = $('#view .buy-editor'); if (e) e.classList.remove('attend-choix'); const j = $('#attach-top'); if (j) j.hidden = false; const m = $('#view .ed-tete .more'); if (m) m.hidden = false; };
     if ($('#ac-main')) $('#ac-main').onclick = () => { sortirDuChoix(); const b = $('[data-combo=supplierId] .combo-btn', head); if (b) b.focus(); };
+    if ($('#ac-cabinet-f')) {
+      $('button#ac-cabinet').onclick = () => $('#ac-cabinet-f').click();
+      $('#ac-cabinet-f').onchange = async e => {
+        const fichiers = Array.from(e.target.files || []); e.target.value = '';
+        if (!fichiers.length) return;
+        $('button#ac-cabinet').disabled = true;
+        const r = await envoyerAuCabinet(fichiers);
+        if (r.partis.length) { untouch(); navigate('#/achat/envoyee'); } else if ($('button#ac-cabinet')) $('button#ac-cabinet').disabled = false;
+      };
+    }
     $$('[data-montrer]', head).forEach(b => b.onclick = () => { const z = $('#' + b.dataset.montrer, head); if (!z) return; z.hidden = false; b.hidden = true; const f = $('.combo-btn, input:not([type=hidden])', z); if (f) f.focus(); });
     $$('#ed-frise [data-frise], #ac-band-justif [data-frise]').forEach(b => b.onclick = () => { const x = $('#' + b.dataset.frise); if (x) x.click(); });
     if ($('#b-save-bas')) $('#b-save-bas').onclick = () => { const b = $('#save'); if (b) b.click(); };

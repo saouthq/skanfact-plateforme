@@ -328,8 +328,10 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     fs.writeFileSync(fichier, Buffer.from(PNG, 'base64'));
     const [choix] = await Promise.all([s.p.waitForEvent('filechooser'), vide.getByRole('button', { name: 'Envoyer une photo à mon comptable', exact: true }).click()]);
     await choix.setFiles(fichier);
-    await expect.poll(async () => net(await s.p.locator('#toast').innerText().catch(() => '')), { timeout: 15_000 })
-      .toBe('facture-huile.png envoyée à ton comptable : il la saisit. Tu la retrouves dans « Mon comptable ».');
+    // (1.157.1, maquette achat « Confiée au cabinet ») La page qui suit la photo : envoyée, et ce qui vient ensuite.
+    await expect.poll(async () => net(await s.p.locator('#view .ed-h1').innerText().catch(() => '')), { timeout: 15_000 }).toBe('Photo envoyée au cabinet Ton cabinet la saisit');
+    expect(net(await s.p.locator('#view .ac-env-f').innerText())).toMatch(/^facture-huile\.png photo/);
+    await s.p.evaluate(() => { location.hash = '#/achats'; });
     const messages = (await api('GET', `/entreprises/${ent}/messages?cote=cabinet`, hatem)).corps.messages as { texte: string; fichier: { nom: string } | null }[];
     expect(messages.map((m) => `${m.texte} · ${m.fichier?.nom ?? '—'}`)).toContain('Une facture d\'achat à saisir : facture-huile.png · facture-huile.png');
 

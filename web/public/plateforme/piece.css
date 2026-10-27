@@ -1306,3 +1306,20 @@
   #view .todo-more.tm-tel-seul { display: inline-flex; }
 }
 @media (max-width: 700px) { #view .page-head.a-tete { flex-direction: column; align-items: stretch; text-align: start; gap: 4px; } #view .a-tete > div { align-self: stretch; } }
+
+/* (1.157.1) L'acompte : sa ligne est une avance (maquette achat « Acompte versé »). */
+.ac-avance { display: inline-block; padding: 3px 9px; border-radius: 99px; background: var(--sb-survol); color: var(--sb-gris); font-size: 12.5px; font-weight: 600; }
+
+/* (1.157.1) « Photo envoyée au cabinet » (maquette achat « Confiée au cabinet ») : à gauche le bandeau, la frise et ce qui
+   est parti ; à droite « Envoyer une autre photo ». */
+#view .ac-envoi { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 18px; align-items: start; }
+#view .ac-envoi-g, #view .ac-envoi-d { display: grid; gap: 16px; min-width: 0; }
+#view .ac-envoi .panel { margin: 0; }
+#view .ac-envoi-d .btn-grand { width: 100%; justify-content: center; }
+#view .ac-envoi-d p { margin: 10px 0 0; }
+#view .ac-env-f { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--sb-trait); border-radius: 10px; margin-top: 8px; }
+#view .ac-env-f > svg { flex: none; color: var(--sb-rouge-texte); background: var(--sb-rouge-doux); border-radius: 8px; padding: 7px; box-sizing: content-box; }
+#view .ac-env-f > span { flex: 1; min-width: 0; display: grid; gap: 2px; }
+#view .ac-env-f small { color: var(--sb-gris-2); font-size: 12.5px; }
+@media (max-width: 900px) { #view .ac-envoi { grid-template-columns: minmax(0, 1fr); } #view .ac-env-frise ol { grid-template-columns: minmax(0, 1fr); } }
+#view .ac-env-f .btn { text-decoration: none; }

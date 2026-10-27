@@ -1516,7 +1516,9 @@
     const lourd = tropLourd(f);
     if (lourd) throw new Error(lourd);
     const depot = await appel('POST', '/messages/fichiers', { cote, nom: f.name, contenu: await enBase64(f) });
-    await appel('POST', '/messages', { cote, texte, piece, demande: null, fichier: depot.id });
+    // (1.157.1) Le message parti (son identifiant) : la page « Photo envoyée au cabinet » le suit dans le fil.
+    const message = await appel('POST', '/messages', { cote, texte, piece, demande: null, fichier: depot.id });
+    return { message: message && message.id, fichier: depot };
   }
   // (1.152.0) Le Cabinet ouvre aussi un fichier depuis « Pièces reçues », et ses modèles depuis la barre.
   w.SkanMessagerie = { conversation, boite, envoyerFichier, montrerFichier, ouvrirFichier, fenetreModeles };
