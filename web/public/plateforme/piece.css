@@ -144,7 +144,7 @@
 .ed-totaux .totals-box > .small { margin-top: 10px; }
 
 .ed-geste { display: grid; gap: 10px; }
-.ed-geste .btn-grand { width: 100%; height: 44px; justify-content: center; display: inline-flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 600; border-radius: 10px; }
+.ed-geste .btn-grand { width: 100%; min-width: 0; height: auto; min-height: 44px; padding-block: 8px; white-space: normal; text-align: center; line-height: 1.25; justify-content: center; display: inline-flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 600; border-radius: 10px; }
 .ed-geste .btn-grand + .i { display: none; }
 .ed-phrase { margin: 0; font-size: 13px; color: var(--sb-gris); line-height: 1.45; }
 .ed-phrase.small { font-size: 12.5px; color: var(--sb-gris-2); }
@@ -1036,10 +1036,98 @@
 .buy-editor .note-v.ac-recep { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
 .buy-editor .note-v.ac-recep svg { color: var(--sb-ambre-texte); }
 .buy-editor #b-totals tr.ac-sous td { padding-block: 0 4px; font-size: 12.5px; padding-inline-start: 10px; }
-.buy-editor #b-totals tr.ac-sous td:last-child { color: var(--sb-sarcelle-texte); }
+.buy-editor #b-totals tr.ac-sous td { color: var(--sb-gris); }
+.buy-editor #b-totals tr.ac-sous.ok td:last-child { color: var(--sb-sarcelle-texte); }
+.buy-editor #b-totals tr.ac-sep td { border-top: 1px solid var(--sb-trait); padding-top: 9px; }
+.buy-editor #b-totals tr.ac-neg td:last-child { color: var(--sb-rouge-texte); }
 .ac-vide-j { display: grid; justify-items: center; gap: 6px; width: 100%; padding: 22px 16px; border: 1.5px dashed var(--sb-trait-fort); border-radius: 12px; background: none; font: inherit; color: var(--sb-gris); text-align: center; cursor: pointer; }
 .ac-vide-j svg { color: var(--sb-gris-2); }
 .ac-vide-j b { color: var(--sb-encre); font-size: 14px; }
 .ac-vide-j span { font-size: 12.5px; }
 .ac-vide-j:hover, .ac-vide-j.sur { border-color: var(--sb-sarcelle); background: var(--sb-doux); }
 .buy-editor .line-tools .row-menu-btn { width: 30px; height: 30px; }
+
+/* (1.155.13) L'attestation de retenue et l'historique d'un achat. */
+#modal-root .modal .ac-recap { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 18px; margin: 4px 0 14px; font-size: 14px; }
+#modal-root .modal .ac-recap dt { color: var(--sb-gris); }
+#modal-root .modal .ac-recap dd { margin: 0; }
+#modal-root .modal .ac-histo { list-style: none; margin: 4px 0 8px; padding: 0; display: grid; gap: 0; }
+#modal-root .modal .ac-histo li { display: grid; grid-template-columns: 92px 120px minmax(0, 1fr); gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--sb-trait); font-size: 13.5px; }
+#modal-root .modal .ac-histo .d { color: var(--sb-gris-2); font-variant-numeric: tabular-nums; }
+.pf-rs-boite:empty { display: none; }
+#spf-rs.pf-rs-boite { display: block; line-height: 1.5; }
+#spf-rs.pf-rs-boite:empty { display: none; }
+
+/* (1.155.13) La fiche du bien, déjà remplie (maquette achat « Immobilisation »). */
+.buy-editor #b-stock-hint .ac-fiche { margin-top: 14px; padding: 14px 16px; border: 1px solid var(--sb-sarcelle-trait, rgba(15, 118, 110, .28)); border-radius: 12px; background: var(--sb-doux); color: var(--sb-encre); }
+.buy-editor #b-stock-hint .ac-fiche.a-choisir { background: var(--sb-ambre-doux); border-color: rgba(180, 120, 20, .3); }
+.ac-fiche .ac-fi-tete { display: flex; gap: 10px; align-items: flex-start; }
+.ac-fiche .ac-fi-tete svg { flex: none; margin-top: 2px; color: var(--sb-sarcelle-texte); }
+.ac-fiche .ac-fi-tete b { display: block; font-size: 14.5px; }
+.ac-fiche .ac-fi-tete span { display: block; font-size: 13px; color: var(--sb-gris); margin-top: 2px; }
+.ac-fiche .ac-fi-grille { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 12px 0 10px; }
+.ac-fiche .ac-fi-grille > div { display: grid; align-content: start; gap: 2px; min-width: 0; }
+.ac-fiche .ac-fi-grille .k { font-size: 12px; color: var(--sb-gris); }
+.ac-fiche .ac-fi-grille .v { font-size: 14px; font-weight: 500; overflow-wrap: anywhere; }
+.ac-fiche .ac-fi-grille .v em { font-style: normal; color: var(--sb-ambre-texte); }
+.ac-fiche .ac-fi-grille small { font-size: 12px; color: var(--sb-gris); }
+.ac-fiche .ac-fi-grille > div:last-child .v { font-weight: 700; }
+.ac-fiche .ac-fi-gestes { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ac-fiche .ac-fi-gestes .btn { background: var(--sb-papier); }
+.ac-fiche .ac-fi-note { margin-inline-start: auto; font-size: 12px; color: var(--sb-gris); }
+.ac-fbf .ac-fb-duree { display: flex; align-items: center; gap: 6px; }
+.ac-fbf .ac-fb-duree input { width: 80px; }
+.ac-fbf .ac-fb-duree small { color: var(--sb-gris); font-size: 12px; }
+@media (max-width: 700px) { .ac-fiche .ac-fi-grille { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ac-fiche .ac-fi-note { margin-inline-start: 0; } }
+.ed-geste .btn-grand kbd { flex: none; white-space: nowrap; }
+
+/* (1.155.13) La lecture d'une photo, comme la maquette : pendant la lecture, puis « Ce que SkanFact a compris ». */
+.ac-lec-cours { display: grid; grid-template-columns: 300px minmax(0, 660px); gap: 44px; align-items: start; }
+.ac-lec-apercu { padding: 0; overflow: hidden; min-height: 380px; display: grid; place-items: center; }
+.ac-lec-img { display: block; width: 100%; height: auto; }
+.ac-lec-doc { display: grid; justify-items: center; gap: 6px; padding: 30px 16px; color: var(--sb-gris); text-align: center; }
+.ac-lec-doc b { color: var(--sb-encre); overflow-wrap: anywhere; }
+.ac-lec-t { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.ac-lec-t h2 { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 16px; }
+.ac-lec-etapes ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.ac-lec-etapes li { display: grid; grid-template-columns: 22px 1fr; column-gap: 12px; padding: 9px 10px; border-radius: 10px; }
+.ac-lec-etapes li.fait { background: var(--sb-papier-2); }
+.ac-lec-etapes li .pt { grid-row: span 2; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; font-weight: 700; border: 1px solid var(--sb-trait-fort); color: var(--sb-gris); }
+.ac-lec-etapes li.fait .pt { background: var(--sb-sarcelle); border-color: var(--sb-sarcelle); color: #fff; }
+.ac-lec-etapes li.cours .pt { border: 1.5px dashed var(--sb-sarcelle); color: var(--sb-sarcelle-texte); animation: ac-lec-tourne 1.6s linear infinite; }
+.ac-lec-etapes li b { font-weight: 500; font-size: 14px; }
+.ac-lec-etapes li:not(.fait):not(.cours) b { color: var(--sb-gris); }
+.ac-lec-etapes li small { font-size: 12.5px; color: var(--sb-gris); }
+@keyframes ac-lec-tourne { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ac-lec-etapes li.cours .pt { animation: none; } }
+.ac-lec-pied { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+.ac-lec-g { padding: 14px 0 6px; border-top: 1px solid var(--sb-trait); }
+.ac-lec-g:first-of-type { border-top: 0; padding-top: 4px; }
+.ac-lec-g .gt { display: block; margin-bottom: 8px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--sb-gris); }
+.ac-lec-l { display: grid; grid-template-columns: 22px minmax(120px, 210px) minmax(0, 1fr); column-gap: 14px; padding: 10px 8px; border-radius: 10px; align-items: start; }
+.ac-lec-l .st { grid-row: span 2; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--sb-doux); color: var(--sb-sarcelle-texte); font-weight: 800; font-size: 12px; }
+.ac-lec-l .n { grid-row: span 2; font-size: 14px; color: var(--sb-gris); padding-top: 1px; }
+.ac-lec-l .v { font-size: 15px; color: var(--sb-encre); display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.ac-lec-l .src { grid-column: 3; font-size: 12.5px; color: var(--sb-gris); margin-top: 2px; }
+.ac-lec-l.douteux { background: var(--sb-ambre-doux); }
+.ac-lec-l.douteux .st { background: var(--sb-ambre, #e08a00); color: #fff; }
+.ac-lec-saisie { min-width: 220px; }
+.ac-lec-saisie input { height: 34px; }
+.ac-lec-photo { padding: 12px; }
+.ac-lec-photo .q { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 13px; color: var(--sb-gris); }
+.ac-lec-photo .q span:last-child { overflow-wrap: anywhere; text-align: end; }
+.ac-lec-autres { display: flex; flex-wrap: wrap; gap: 8px; }
+@media (max-width: 900px) { .ac-lec-cours { grid-template-columns: 1fr; gap: 16px; } .ac-lec-apercu { min-height: 0; } }
+@media (max-width: 700px) { .ac-lec-l { grid-template-columns: 22px minmax(0, 1fr); } .ac-lec-l .n { grid-row: auto; } .ac-lec-l .v, .ac-lec-l .src { grid-column: 2; } }
+
+.ac-lec-geste { display: grid; gap: 10px; }
+.ac-lec-geste .btn-grand { width: 100%; min-height: 44px; height: auto; padding-block: 8px; justify-content: center; display: inline-flex; align-items: center; gap: 8px; font-size: 14.5px; font-weight: 600; border-radius: 10px; white-space: normal; }
+.ac-lec-geste .ed-phrase { margin: 0; font-size: 12.5px; color: var(--sb-gris); line-height: 1.45; }
+@media (max-width: 700px) { #ac-lecture { padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)); } }
+@media (max-width: 1120px) {
+  #ac-lecture .editor.charte .ac-lec-compris { order: 1; }
+  #ac-lecture .editor.charte .ac-lec-geste { order: 2; }
+  #ac-lecture .editor.charte .ac-lec-photo { order: 3; }
+  #ac-lecture .editor.charte .ed-avant { order: 4; }
+  #ac-lecture .editor.charte .ac-lec-autres { order: 5; }
+}

@@ -327,6 +327,7 @@
    *   demander?: boolean,
    *   demandeTexte?: string,
    *   pieces?: () => { genre: string, id: string, libelle: string, date?: string }[],
+   *   pieceDepart?: { genre: string, id: string, libelle: string } | null,
    *   ouvrirPiece?: (genre: string, id: string, libelle: string) => boolean,
    *   saisirPiece?: (message: { id: string, ecritLe: string, fichier: { id: string, nom: string, type: string } }) => void,
    *   pieceDuNumero?: (numero: string) => { genre: string, id: string } | null,
@@ -352,7 +353,8 @@
     /** @type {string | null} */ let suite = null;
     /** @type {string | null} */ let cabinetRelu = null; // un ancien cabinet relu (côté entreprise)
     /** @type {string | null} */ let texteCabinetDuMois = null; // la dernière phrase lue de ce que le cabinet a fait du mois
-    /** @type {{ genre: string, id: string, libelle: string } | null} */ let piece = null;
+    // (1.155.13) Ouverte depuis une pièce (« Écrire au cabinet sur cette pièce ») : le message en parle déjà.
+    /** @type {{ genre: string, id: string, libelle: string } | null} */ let piece = o.pieceDepart || null;
     /** @type {File | null} */ let fichier = null;
     let demande = !!o.demander && !entreprise;
     /** @type {Map<string, string>} */ const reponses = new Map();
@@ -999,6 +1001,7 @@
       const bPiece = /** @type {HTMLButtonElement | null} */ (form.querySelector('[data-msg-piece]'));
       // Ce qui part au serveur : le genre, l'identifiant et le libellé de la pièce, rien d'autre.
       if (bPiece) bPiece.onclick = () => choisirPiece((p) => { piece = { genre: p.genre, id: p.id, libelle: p.libelle }; dire(''); dessinerJoints(); texte.focus(); });
+      if (piece) dessinerJoints();
       const bDemander = /** @type {HTMLButtonElement | null} */ (form.querySelector('[data-msg-demander]'));
       if (bDemander) bDemander.onclick = () => { demande = !demande; montrerDemande(); if (demande) demandeTxt.focus(); else texte.focus(); };
       // (1.117.0) Un modèle se pose dans le champ, là où est le curseur : il se relit et se change avant de partir.

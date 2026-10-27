@@ -1524,6 +1524,8 @@
     },
     // (1.155.12) Un fichier glissé sur « Comment arrive cette pièce ? », lu comme s'il avait été choisi : la photo ou le PDF
     // (le même plafond que le sélecteur) ; la facture électronique, relue comme `openText` la relit.
+    // (1.155.13) Le fichier choisi pour la lecture, pour le montrer pendant qu'on vérifie ce qui a été lu.
+    fichierALire: (/** @type {string} */ chemin) => fichiersALire.get(chemin) || null,
     ocrGlisse: (/** @type {File} */ f) => {
       if (f.size > LECTURE_MAX) throw new Error(`Le fichier « ${f.name} » fait ${(f.size / 1048576).toFixed(1).replace('.', ',')} Mo : au-delà de 10 Mo, il ne se lit pas. Prends une photo moins lourde.`);
       const chemin = `lecture:${++lecturesChoisies}`;

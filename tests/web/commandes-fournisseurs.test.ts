@@ -214,7 +214,7 @@ describe('une commande fournisseur reçue en deux fois, et sa facture saisie dep
     await p.evaluate((id) => { location.hash = '#/achat/' + id; }, idAchat);
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/F-8841/);
     await p.locator('#more-btn').click();
-    await p.locator('#dup').click();
+    await p.getByRole('menuitem').filter({ hasText: 'Dupliquer' }).click(); // (1.155.13) le menu « ⋯ » de la maquette
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture d'achat du \d\d\/\d\d$/); // (1.155.12) sans numéro, une pièce s'appelle par sa date
     expect(await p.locator('#b-receptions').count()).toBe(0);
     expect(await stockDe(p, 'ciment')).toMatch(/EN STOCK 200 sacs/);

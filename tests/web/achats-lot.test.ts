@@ -231,7 +231,12 @@ describe('le lot achats, à l\'écran', () => {
     await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Nouvelle facture d'achat/);
     // (1.155.12) Une facture d'achat neuve ne montre que « Comment arrive cette pièce ? » : on choisit de la saisir à la main.
     await p.locator('#ac-main').click();
-    await p.locator('#b-head select[name=kind]').selectOption('avoir');
+    // (1.155.13) La nature se change dans le menu ⋯, comme la maquette ; la liste « Nature » n'est plus parmi les étiquettes.
+    expect(await p.locator('#b-head select[name=kind]').isVisible()).toBe(false);
+    await p.locator('#more-btn').click();
+    await p.getByRole('menuitem').filter({ hasText: 'En faire un avoir fournisseur' }).click();
+    await expect.poll(() => titre(p), { timeout: 5_000 }).toMatch(/^Nouvel avoir fournisseur/);
+    await expect.poll(async () => net(await p.locator('#ac-lie-bandeau').innerText())).toMatch(/^Un avoir du fournisseur : il vient en moins/);
     await expect.poll(() => p.locator('#b-head input[name=dueDate]').evaluate((x) => (x.closest('.field') as HTMLElement).hidden)).toBe(true);
     expect(await p.locator('#view input[name=subject]').getAttribute('placeholder')).toBe('Ce que l\'avoir corrige : retour, remise, erreur de prix…');
     await choisir(p, '[data-combo=supplierId]', 'Moulins');

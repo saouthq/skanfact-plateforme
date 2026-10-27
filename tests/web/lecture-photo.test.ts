@@ -96,12 +96,23 @@ describe('la lecture d\'une facture d\'achat en photo, à la souris', () => {
     await bouton.click();
     await (await selecteur).setFiles(fichier);
   }
+  // (1.155.13) La lecture ouvre d'abord la page de la maquette, « Ce que SkanFact a compris » : ce qui est lu, d'où, et ce
+  // qui reste à trancher. « Vérifier case par case » ouvre la fenêtre où chaque champ se corrige.
+  async function caseParCase(p: Page) {
+    await p.locator('#ac-lecture').getByText('Ce que SkanFact a compris').waitFor({ timeout: 30_000 });
+    const page = net(await p.locator('#ac-lecture').innerText());
+    expect(page).toMatch(/Quincaillerie Ben Salem reconnu par son (matricule|nom)/);
+    expect(page).toMatch(/recalculé 279,850 = total lu 279,850 HT, au millime/);
+    expect(page).toMatch(/Lue sur les serveurs de SkanFact, en Tunisie/);
+    await p.locator('#lec-detail').click();
+  }
 
   it('Nadia photographie la facture : la fenêtre montre ce qui a été lu, où, et le total recompté ; enregistré, l\'achat tombe au millime sur la pièce', async () => {
     const { jeton, ent } = await nadia();
     const { p, erreurs, fermer } = await ouvrir(jeton, ent, { width: 1440, height: 900 });
     await p.screenshot({ path: path.join(PHOTOS, 'lecture-1-achat-neuf.png') });
     await lire(p, PHOTO);
+    await caseParCase(p);
 
     const fenetre = p.locator('#modal-root .modal').last();
     await expect.poll(() => fenetre.locator('h2').first().innerText(), { timeout: 30_000 }).toBe('Ce que SkanFact a lu');
@@ -172,6 +183,7 @@ describe('la lecture d\'une facture d\'achat en photo, à la souris', () => {
     await refus.getByRole('button').last().click();
 
     await lire(p, PHOTO);
+    await caseParCase(p);
     const fenetre = p.locator('#modal-root .modal').last();
     await expect.poll(() => fenetre.locator('h2').first().innerText(), { timeout: 30_000 }).toBe('Ce que SkanFact a lu');
     // Rien ne dépasse de l'écran du téléphone.

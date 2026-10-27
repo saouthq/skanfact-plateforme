@@ -369,6 +369,10 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     const choix = p.waitForEvent('filechooser');
     await p.locator('#photo').click();
     await (await choix).setFiles(PHOTO_ACHAT);
+    // (1.155.13) D'abord « Ce que SkanFact a compris » (la page de la maquette) ; elle tient dans l'écran du téléphone.
+    await p.locator('#lec-detail').waitFor({ timeout: 90_000 });
+    expect(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+    await p.locator('#lec-detail').click();
     await p.locator('#modal-root h2', { hasText: 'Ce que SkanFact a lu' }).waitFor({ timeout: 90_000 });
     await p.locator('#orf-lines tr').first().waitFor();
     for (const sel of ['#orf-lines tr:first-child select', '#orf-lines tr:first-child td:nth-child(3) input', '#orf-lines tr:first-child td:nth-child(5)']) {

@@ -257,6 +257,8 @@ describe('le jalon J2, d\'un bout à l\'autre', () => {
     const selecteur = nadia.waitForEvent('filechooser');
     await bouton.click();
     await (await selecteur).setFiles(PHOTO);
+    // (1.155.13) D'abord « Ce que SkanFact a compris » (la page de la maquette), puis la fenêtre case par case.
+    await nadia.locator('#lec-detail').click({ timeout: 30_000 });
     const lu = nadia.locator('#modal-root .modal').last();
     await expect.poll(() => lu.locator('h2').first().innerText(), { timeout: 30_000 }).toBe('Ce que SkanFact a lu');
     // La photo se joint à l'achat par le réseau ; sur un réseau lent, « Enregistrer » cliqué pendant l'envoi enregistrait
