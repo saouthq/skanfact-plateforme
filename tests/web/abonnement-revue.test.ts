@@ -93,7 +93,7 @@ describe('l\'abonnement après sa revue, à la souris', () => {
     const p = await ouvrir(sonia.jeton, ent, '#/dashboard');
     await expect.poll(() => bandeau(p), { timeout: 15_000 }).toMatch(/^Ton essai est terminé\. Tout marche encore jusqu'au .+ ; le .+, l'entreprise passe en lecture seule\. Choisis ton offre avant cette date\. Choisir mon offre$/);
     expect(await principaux(p)).toEqual(['abo-accueil-go']);
-    expect(await p.locator('#new-facture').count()).toBe(1);
+    // (1.156.0, maquette « Accueil ») « Nouvelle facture » est dans « Créer » de la barre : l'accueil n'en a plus.
     expect(await p.locator('#view .pp-accueil, #view .premiers-pas').count()).toBe(0);
     await p.locator('#abo-accueil-go').click();
     await expect.poll(() => p.locator('#abonnement-panel .abo-jauge-txt').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('Encore 6 jours de grâce, sur 7');

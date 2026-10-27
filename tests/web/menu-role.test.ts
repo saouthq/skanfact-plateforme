@@ -117,11 +117,11 @@ describe('le menu selon le rôle, à la souris', () => {
     await cxCachee.close();
     await k.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'menu-role-1-commercial.png') });
     await k.locator('#pi-accueil').click();
-    await expect.poll(() => titre(k), { timeout: 10_000 }).toBe('Accueil');
+    await expect.poll(() => titre(k), { timeout: 10_000 }).toMatch(/^Bonjour/); // (1.156.0) l'accueil de la maquette
     // Son accueil (brique 111) : ses pièces, oui ; la mise en place de l'entreprise (le travail du propriétaire), non ;
     // ses pages, d'un clic. Le vert reste à « + Nouvelle facture » (un seul bouton principal).
     await expect.poll(() => k.locator('#accueil-role').count(), { timeout: 10_000 }).toBe(1);
-    expect(await k.locator('#new-facture').count()).toBe(1);
+    expect(await k.locator('#view .btn-primary').count()).toBeLessThanOrEqual(1); // (1.156.0) un seul bouton principal
     expect(net(await k.locator('#view').innerText())).not.toMatch(/Prends ta gestion en main|Tes premiers pas/);
     expect(await k.locator('#accueil-role a[href="#/factures"]').count()).toBe(1);
     expect(await k.locator('#accueil-role a.btn-primary').count()).toBe(0);
@@ -151,7 +151,9 @@ describe('le menu selon le rôle, à la souris', () => {
     expect(await l.getByRole('button', { name: 'Voir le calendrier', exact: true }).count()).toBe(0);
     expect(await l.getByRole('button', { name: 'Voir les bulletins', exact: true }).count()).toBe(1);
     await l.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'menu-role-3-accueil-paie.png') });
-    await l.locator('#accueil-role a.btn-primary', { hasText: 'Paie' }).click();
+    // (1.156.0, maquette « Accueil ») Le seul bouton principal est la première ligne d'« À faire » ; ses pages restent d'un clic.
+    expect(await l.locator('#view .btn-primary').count()).toBe(1);
+    await l.locator('#accueil-role a', { hasText: 'Paie' }).click();
     await expect.poll(() => titre(l), { timeout: 10_000 }).toBe('Paie');
 
     expect(erreurs).toEqual([]);

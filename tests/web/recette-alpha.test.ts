@@ -94,7 +94,10 @@ describe('la recette alpha, à la souris', () => {
     await p.locator('#view h1').filter({ hasText: 'GS-118' }).waitFor({ timeout: 15_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     await p.locator('#more-btn').click();
-    await p.locator('#del').click();
+    // (1.155.13) Le menu « ⋯ » de la maquette : « Supprimer » s'y lit éteint, avec sa raison ; cliqué, il le redit.
+    const supprimer = p.getByRole('menuitem').filter({ hasText: 'Supprimer' });
+    expect(net(await supprimer.innerText())).toMatch(/elle porte un règlement : retire-le d'abord/);
+    await supprimer.click();
     await expect.poll(() => p.locator('#toast').innerText().then(net)).toBe('GS-118 porte un règlement : retire-le d\'abord (« Actions » sur sa ligne, dans « Règlements »). Rien n\'a été supprimé.');
     expect(await p.locator('#modal-root .modal').count()).toBe(0);
     expect((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets).toEqual(expect.arrayContaining([expect.objectContaining({ collection: 'purchases', cle: 'a1' })]));
@@ -239,7 +242,7 @@ describe('la recette alpha, à la souris', () => {
     await paiement.getByRole('button', { name: /^Enregistrer/ }).click();
     await expect.poll(() => p.locator('#r-wrap tbody tr').filter({ hasText: numero }).innerText().then(net)).toMatch(/912,095 DT/);
     await p.evaluate(() => { location.hash = '#/'; });
-    await expect.poll(() => p.locator('[data-stat=encaisser]').innerText().then(net), { timeout: 15_000 }).toMatch(/1 facture, 1 en retard/);
+    await expect.poll(() => p.locator('[data-stat=encaisser]').innerText().then(net), { timeout: 15_000 }).toMatch(/1 facture dont .+ en retard/);
     await p.evaluate(() => { location.hash = '#/client/c1'; });
     await expect.poll(() => p.locator('#view .banner').first().innerText().then(net).catch(() => ''), { timeout: 15_000 }).toMatch(/^1 facture en retard — 912,095 DT/);
     expect(erreurs).toEqual([]);

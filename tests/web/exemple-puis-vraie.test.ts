@@ -62,7 +62,7 @@ describe('l\'exemple puis la vraie entreprise, autour du versement', () => {
     p.on('pageerror', (e) => erreurs.push(`${e.message} @ ${p.url()}`));
     return { p, erreurs };
   }
-  const accueil = async (p: Page) => { await p.locator('#view h1').filter({ hasText: 'Accueil' }).waitFor({ timeout: 20_000 }); };
+  const accueil = async (p: Page) => { await p.locator('#view h1').filter({ hasText: /^(Bonjour|Bienvenue)/ }).waitFor({ timeout: 20_000 }); };
   const plusTard = async (p: Page) => {
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click().catch(() => undefined);
   };

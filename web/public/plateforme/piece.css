@@ -1131,3 +1131,136 @@
   #ac-lecture .editor.charte .ed-avant { order: 4; }
   #ac-lecture .editor.charte .ac-lec-autres { order: 5; }
 }
+
+/* (1.156.0, lot 7) L'accueil tel que la maquette : bonjour, quatre chiffres, « À faire » rangé, graphique, colonne. */
+#view .a-tete { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+#view .a-tete h1 { margin: 2px 0; font-size: 30px; font-weight: 700; letter-spacing: -.03em; }
+#view .a-date { font-size: 13px; color: var(--sb-gris-2); font-weight: 500; }
+#view .a-date::first-letter { text-transform: uppercase; }
+#view .a-phrase { margin: 0; color: var(--sb-gris); font-size: 14.5px; }
+#view .stats.a-ch { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+#view .stats.a-ch > .stat.ch-c { display: flex; flex-direction: column; gap: 4px; padding: 16px 18px; border: 1px solid var(--sb-trait); border-radius: 14px; background: var(--sb-papier); cursor: pointer; border-left-width: 1px; }
+#view .stats.a-ch > .stat.ch-c::before { content: none; }
+#view .stats.a-ch > .stat.ch-c:hover { border-color: var(--sb-trait-fort); }
+#view .ch-c .lbl { font-size: 13px; color: var(--sb-gris); font-weight: 500; text-transform: none; letter-spacing: 0; }
+#view .ch-c .val { font-size: 25px; font-weight: 700; letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--sb-encre); }
+#view .ch-c .sub { font-size: 12.5px; color: var(--sb-gris-2); }
+#view .ch-c .x { align-self: flex-start; margin-top: 4px; padding: 2px 8px; border-radius: 99px; background: var(--sb-survol); color: var(--sb-gris); font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+#view .ch-c .x.alerte { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+#view .ch-c .x.attire { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+#view .ch-c .x a { color: inherit; text-decoration: none; }
+#view .a-deux { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+#view .a-g, #view .a-d { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+#view .a-g > .panel, #view .a-d > .panel { margin: 0; }
+#view .a-bloc-t { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 6px; }
+#view .a-bloc-t h2 { margin: 0; font-size: 15px; letter-spacing: -.01em; display: flex; align-items: center; gap: 6px; }
+#view .a-bloc-t h2 .collapse-h { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+#view .panel.todo.a-faire { padding: 16px 18px 10px; }
+#view .panel.todo.a-faire ul { list-style: none; margin: 0; padding: 0; }
+#view .panel.todo.a-faire li.af-gt { display: block; border: 0; padding: 10px 0 2px; font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: var(--sb-gris-2); }
+#view .panel.todo.a-faire li.af-gt[hidden] { display: none; }
+#view .panel.todo.a-faire li.af-gt.alerte { color: var(--sb-rouge-texte); }
+#view .panel.todo.a-faire li.af-gt.attire { color: var(--sb-ambre-texte); }
+#view .panel.todo.a-faire li:not(.af-gt) { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-top: 0; border-bottom: 1px solid var(--sb-trait); }
+#view .panel.todo.a-faire li:not(.af-gt):has(+ li.af-gt), #view .panel.todo.a-faire li:not(.af-gt):last-child { border-bottom: 0; }
+#view .panel.todo.a-faire .td-dot { width: 8px; height: 8px; border-radius: 99px; flex: none; background: var(--sb-trait-fort); box-shadow: 0 0 0 4px var(--sb-survol); }
+#view .panel.todo.a-faire .lvl-danger .td-dot { background: var(--sb-rouge); box-shadow: 0 0 0 4px var(--sb-rouge-doux); }
+#view .panel.todo.a-faire .lvl-warn .td-dot { background: var(--sb-ambre); box-shadow: 0 0 0 4px var(--sb-ambre-doux); }
+#view .panel.todo.a-faire .td-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+#view .panel.todo.a-faire .td-txt strong { font-size: 14.5px; font-weight: 600; color: var(--sb-encre); }
+#view .panel.todo.a-faire .td-txt > span { font-size: 13px; color: var(--sb-gris); }
+#view .panel.todo.a-faire li .btn { flex: none; }
+#view .panel.todo.a-faire .todo-more { display: inline-flex; align-items: center; gap: 4px; padding: 8px 0; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); background: none; border: 0; }
+#view .panel.a-ok { display: flex; gap: 14px; align-items: center; padding: 18px; background: var(--sb-papier); color: var(--sb-encre); font-weight: 400; }
+#view .panel.a-ok > svg { flex: none; color: var(--sb-doux-texte); background: var(--sb-doux); border-radius: 99px; padding: 6px; box-sizing: content-box; }
+#view .panel.a-ok > span { display: grid; gap: 2px; }
+#view .panel.a-ok small { color: var(--sb-gris); font-size: 13px; }
+#view .a-graph .legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--sb-gris); margin: 4px 0 8px; }
+#view .a-graph .legend span { display: inline-flex; gap: 6px; align-items: center; }
+#view .a-graph .legend .unite { margin-inline-start: auto; color: var(--sb-gris-2); }
+#view .a-graph .cl-fac, #view .a-graph .cl-enc { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+#view .a-graph .cl-fac { background: color-mix(in srgb, var(--sb-sarcelle) 35%, var(--sb-papier)); }
+#view .a-graph .cl-enc { background: var(--sb-sarcelle); }
+#view .a-graph svg.chart .bar-inv { fill: color-mix(in srgb, var(--sb-sarcelle) 35%, var(--sb-papier)); opacity: 1; }
+#view .a-graph svg.chart .bar-col { fill: var(--sb-sarcelle); opacity: 1; }
+#view .a-graph .kpis { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding-top: 10px; margin-top: 8px; border-top: 1px solid var(--sb-trait); }
+#view .a-top .rank { list-style: none; margin: 0; padding: 0; display: grid; }
+#view .a-top .rank li { display: block; padding: 0; border: 0; }
+#view .top-l, #view .der-l { display: grid; align-items: center; gap: 10px; width: 100%; padding: 7px 4px; border-radius: 9px; color: inherit; text-decoration: none; }
+#view .top-l:hover, #view .der-l:hover { background: var(--sb-survol); }
+#view .top-l { grid-template-columns: 30px minmax(0, 1fr) auto; }
+#view .top-l .av { width: 30px; height: 30px; font-size: 11px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-weight: 700; }
+#view .top-n { display: grid; gap: 5px; min-width: 0; }
+#view .top-n b { font-size: 13px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#view .top-n i { display: block; height: 6px; border-radius: 99px; background: var(--sb-sarcelle); }
+#view .top-l .amt { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; }
+#view .der-l { grid-template-columns: minmax(0, 1fr) auto; border-top: 1px solid var(--sb-trait); border-radius: 0; }
+#view .a-der .a-bloc-t + .der-l { border-top: 0; }
+#view .der-n { display: grid; min-width: 0; }
+#view .der-n b { font-size: 13px; }
+#view .der-n small { font-size: 12px; color: var(--sb-gris-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#view .der-m { display: grid; justify-items: end; gap: 3px; font-variant-numeric: tabular-nums; font-size: 13px; }
+#view .der-m .badge { font-size: 11px; padding: 2px 7px; }
+#view .der-g { display: flex; gap: 6px; padding-top: 8px; }
+@media (max-width: 1100px) { #view .a-deux { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 900px) { #view .stats.a-ch { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 700px) { #view .a-tete h1 { font-size: 24px; } #view .panel.todo.a-faire li:not(.af-gt) { flex-wrap: wrap; } }
+
+#view .stats.a-ch > .stat.ch-c::after { content: none; display: none; }
+#view .a-graph .kpis .kpi { background: none; padding: 0; border-radius: 0; display: grid; gap: 1px; }
+#view .a-graph .kpis .k-label { font-size: 12.5px; color: var(--sb-gris); text-transform: none; letter-spacing: 0; font-weight: 500; }
+#view .a-graph .kpis .v { font-size: 20px; letter-spacing: -.02em; margin: 0; }
+#view .a-graph .kpis .sub { font-size: 12px; color: var(--sb-gris-2); }
+#view .der-g .btn { text-decoration: none; }
+
+/* (1.156.0, maquette « Accueil » · entreprise neuve) « Tes premiers pas » en carte claire : le titre et « N sur M faits »,
+   une jauge fine, une étape par ligne, la suivante dite « À faire maintenant » avec le seul bouton principal. */
+#view .premiers-pas.pp2 { padding: 0; border-radius: 14px; background: var(--sb-papier); border: 1px solid var(--sb-trait); }
+#view .premiers-pas.pp2 .pp-tete { background: none; color: var(--sb-encre); padding: 18px 18px 8px; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 4px 16px; }
+#view .premiers-pas.pp2 .pp-tete h2 { font-family: inherit; font-size: 15px; font-weight: 700; color: var(--sb-encre); letter-spacing: -.01em; }
+#view .premiers-pas.pp2 .pp-tete p { color: var(--sb-gris); font-size: 13px; }
+#view .premiers-pas.pp2 .pp-jauge { display: contents; }
+#view .premiers-pas.pp2 .pp-compte { grid-column: 2; grid-row: 1; font-size: 12.5px; font-weight: 500; color: var(--sb-gris-2); }
+#view .premiers-pas.pp2 .pp-barre { grid-column: 1 / -1; height: 6px; margin-top: 8px; border-radius: 99px; background: var(--sb-survol); }
+#view .premiers-pas.pp2 .pp-barre i { background: var(--sb-sarcelle); border-radius: 99px; }
+#view .premiers-pas.pp2 .pp-list { padding: 0 18px 8px; }
+#view .premiers-pas.pp2 .pp-list li { padding: 14px 0; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px 14px; border-top: 1px solid var(--sb-trait); }
+#view .premiers-pas.pp2 .pp-list li:first-child { border-top: 0; }
+#view .premiers-pas.pp2 .pp-list li.encours { background: none; box-shadow: none; clip-path: none; border-radius: 0; }
+#view .premiers-pas.pp2 .pp-marque { width: 24px; height: 24px; font-size: 11.5px; font-weight: 700; border: 1.5px solid var(--sb-trait-fort); color: var(--sb-gris); background: var(--sb-papier); }
+#view .premiers-pas.pp2 .pp-list { counter-reset: ppn; }
+#view .premiers-pas.pp2 .pp-list li { counter-increment: ppn; }
+#view .premiers-pas.pp2 .pp-list li:not(.fait) .pp-marque::before { content: counter(ppn); }
+#view .premiers-pas.pp2 .pp-list li.encours .pp-marque { border-color: var(--sb-sarcelle); color: var(--sb-sarcelle-texte); }
+#view .premiers-pas.pp2 .pp-list li.fait .pp-marque { background: var(--sb-sarcelle); border-color: var(--sb-sarcelle); color: #fff; }
+#view .premiers-pas.pp2 .pp-txt strong { font-size: 14.5px; font-weight: 600; }
+#view .premiers-pas.pp2 .pp-txt .small { font-size: 13px; }
+#view .premiers-pas.pp2 > p { padding: 0 18px 14px; }
+#view .pp-badge.maintenant { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); box-shadow: none; font-weight: 600; }
+#view .pp-accueil { background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 14px; padding: 22px; gap: 16px; margin-bottom: 16px; }
+#view .pp-accueil .pp-acc-deco { display: none; }
+#view .pp-accueil .pp-acc-sur { text-transform: none; letter-spacing: 0; font-size: 12.5px; font-weight: 600; color: var(--sb-sarcelle-texte); }
+#view .pp-accueil h2 { font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+#view .pp-accueil .pp-acc-choix { grid-template-columns: 1fr 1fr; width: 100%; gap: 12px; }
+#view .pp-choix { border: 1px solid var(--sb-trait); border-radius: 14px; padding: 18px; gap: 8px; box-shadow: none; }
+#view .pp-choix.reco { border-color: color-mix(in srgb, var(--sb-sarcelle) 45%, var(--sb-trait)); background: color-mix(in srgb, var(--sb-doux) 55%, var(--sb-papier)); box-shadow: none; }
+#view .pp-choix .pp-choix-badge { text-transform: none; letter-spacing: 0; font-size: 12px; font-weight: 600; background: var(--sb-doux); color: var(--sb-doux-texte); border-radius: 99px; padding: 2px 8px; }
+#view .pp-choix .pp-choix-ico { width: 40px; height: 40px; border-radius: 11px; background: var(--sb-doux); color: var(--sb-sarcelle-texte); box-shadow: none; }
+#view .pp-choix h3 { font-size: 16px; font-weight: 700; }
+#view .pp-choix .pp-choix-meta li { background: none; padding: 0; font-weight: 500; font-size: 12.5px; color: var(--sb-gris-2); }
+#view .pp-choix .pp-choix-meta { gap: 0; }
+#view .pp-choix .pp-choix-meta li + li::before { content: "\00a0·\00a0"; }
+#view .pp-accueil #pp-plus-tard { background: none; border: 0; color: var(--sb-sarcelle-texte); font-weight: 600; padding: 0; }
+@media (max-width: 760px) { #view .pp-accueil .pp-acc-choix { grid-template-columns: minmax(0, 1fr); } }
+/* (1.156.0, maquette « Accueil » · téléphone) Bonjour, puis « À faire », puis les deux chiffres qui comptent (on te doit,
+   tu dois) ; le graphique, les meilleurs clients et les dernières pièces restent à l'ordinateur et dans leurs pages. */
+@media (max-width: 700px) {
+  #view:has(> .a-deux) { display: flex; flex-direction: column; }
+  #view:has(> .a-deux) > * { order: 1; }
+  #view:has(> .a-deux) > .demo-banner { order: -1; }
+  #view:has(> .a-deux) > .a-tete { order: 0; }
+  #view:has(> .a-deux) > .a-deux { order: 2; display: block; }
+  #view:has(> .a-deux) > .stats.a-ch { order: 3; margin-top: 16px; }
+  #view .a-deux .a-graph, #view .a-deux .a-d { display: none; }
+  #view .stats.a-ch > .stat.ch-c:nth-child(n+3) { display: none; }
+}

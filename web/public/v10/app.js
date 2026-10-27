@@ -3323,7 +3323,9 @@
     const pages = $$('nav a[data-route]').map(a => [a.dataset.route, Array.from(a.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim()])
       .filter(([r, l]) => r && r !== 'dashboard' && l);
     if (!pages.length) return '';
-    const vert = !peutEcrireDossier('documents');
+    // (1.156.0) L'accueil n'a plus « Nouvelle facture » dans son en-tête : le premier bouton est vert tant que « À faire »
+    // ne porte pas le sien (un seul bouton principal).
+    const vert = !C.todoList(data, company(), null, { copieExterne, editeur: !!licence.editeur, reserves: licence.reserves || [] }).length;
     return `<section class="panel" id="accueil-role"><h2>Ton accès à ${h(company().name || 'l\'entreprise')}</h2>
       <p class="small muted">Ton rôle t'ouvre ${pages.length > 1 ? 'ces pages' : 'cette page'}. Le propriétaire ou un administrateur met l'entreprise en place (sa fiche, ses réglages) et règle les rôles de l'équipe.</p>
       <div class="inline mt">${pages.map(([r, l], i) => `<a class="btn${vert && i === 0 ? ' btn-primary' : ''}" href="#/${h(r)}">${h(l)}</a>`).join('')}</div></section>`;
@@ -3552,52 +3554,70 @@
     const aboPrincipal = abonnementPrincipal();
     const pas = aboPrincipal ? '' : premiersPas();
     const pasEnCours = /btn-primary/.test(pas);
+    // (1.156.0, maquette « Accueil ») Bonjour, la date, et ce qui attend dit en une phrase ; quatre chiffres qui ouvrent
+    // chacun la liste qu'ils résument ; « À faire » rangé par urgence et le graphique à gauche ; les meilleurs clients et
+    // les dernières pièces à droite. « Nouvelle facture » et « Nouveau devis » passent dans « Créer » (N, puis F ou D).
+    const lateAmount = late.reduce((a, d) => a + enDinars(d, balance(d).remaining), 0);
+    const dettes = C.payablesList(data, company());
+    const doisTout = dettes.reduce((a, x) => a + x.remaining, 0);
+    const doisRetard = dettes.filter(x => x.late > 0).reduce((a, x) => a + x.remaining, 0);
+    const moisAvant = C.addMonths(C.today(), -1, 1).slice(0, 7);
+    const ofAvant = issued.filter(d => d.date && d.date.startsWith(moisAvant));
+    const nomMois = m => LF_MOIS[Number(m.slice(5, 7)) - 1];
+    const nb = x => C.money(x, null, C.decimalsFor(cur));
+    const quandItems = C.todoList(data, company(), null, { copieExterne, editeur: !!licence.editeur, reserves: licence.reserves || [] });
+    const coute = quandItems.filter(x => x.level === 'danger').length, attend = quandItems.filter(x => x.level === 'warn').length;
+    // « Bienvenue » et « est prête » tant que les premiers pas sont à l'écran ; ensuite, ce qui attend.
+    const bienvenue = !duGrain && !!pas && premiersPasVisibles() && estResponsable();
+    const phrase = bienvenue ? `${h(company().name || 'Ton entreprise')} est prête. Commence par l'un de ces chemins.`
+      : !quandItems.length ? 'Rien ne t\'attend aujourd\'hui. Tout ce qui devait partir est parti, tout ce qui est échu est payé.'
+      : [coute ? `${pl(coute, 'chose coûte', 'choses coûtent')} maintenant` : '', attend ? pl(attend, 'geste t\'attend', 'gestes t\'attendent') : ''].filter(Boolean).join(', ') + '.' || `${pl(quandItems.length, 'chose')} quand tu peux.`;
+    const jourLong = new Date(C.today() + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    const carte = (id, nom, v, sub, x, ton, titre) => `<div class="stat ch-c" data-stat="${id}" role="button" tabindex="0" title="${h(titre)}"><span class="lbl">${nom}</span><span class="val">${v}</span><span class="sub">${sub}</span>${x ? `<span class="x ${ton || ''}">${x}</span>` : ''}</div>`;
+    const derniers = recent.slice(0, 6);
+    const ligneDerniere = d => {
+      const st = d.type === 'facture' || d.type === 'avoir' ? lfEtiquette(d, lfStatut(d)) : `<span class="badge ${h(effStatus(d))}">${h(C.statusLabel(effStatus(d), d.type))}</span>`;
+      const m = d.status === 'brouillon' && !C.computeTotals(d, company()).totalTTC ? '—' : nb(C.computeTotals(d, company()).totalTTC);
+      return `<a class="der-l" href="#/doc/${h(d.id)}"><span class="der-n"><b>${h(d.number || `${({ facture: 'Facture', devis: 'Devis', avoir: 'Avoir' })[d.type] || 'Pièce'} sans numéro`)}</b><small>${h(nomClientPiece(d) || '—')} · ${lfJm(d.date)}</small></span><span class="der-m"><b>${m}</b>${st}</span></a>`;
+    };
     $('#view').innerHTML = `
-      <div class="page-head"><h1>Accueil</h1>
-        <div class="actions">
-          ${peutEcrireDossier('documents') && !(licence.locked && bridge.dessinerAbonnement) ? `<button class="btn" id="new-devis">+ Nouveau devis</button>
-          <button class="btn ${pasEnCours || aboPrincipal ? '' : 'btn-primary'}" id="new-facture">+ Nouvelle facture</button>` : ''}
-        </div></div>
+      <div class="page-head a-tete"><div><span class="a-date">${h(jourLong)}</span><h1 id="a-bonjour">${bienvenue ? 'Bienvenue' : 'Bonjour'}</h1><p class="a-phrase">${phrase}</p></div></div>
       ${bandeauAbonnementAccueil()}
       ${bandeauAccordsAccueil()}
       ${duGrain && metierCommence() ? '' : pas}
-      ${todoPanel()}
-      ${!duGrain ? '' : `
-      <!-- Les quatre chiffres menaient nulle part (7.15.0). « Reste à encaisser : 8 400 DT,
-           6 factures » est une QUESTION — lesquelles ? — et il fallait ouvrir Factures, chercher
-           un filtre, et comprendre que ni « envoyée » ni « en retard » ne donnent le compte annoncé.
-           Chaque carte ouvre maintenant exactement la liste qu'elle résume. -->
-      <div class="stats">
-        <div class="stat" data-stat="ca-mois" role="button" tabindex="0" title="Voir le journal des ventes du mois"><div class="lbl">CA du mois (HT) ${info('dash.caMonth')}</div><div class="val">${C.money(sumHT(ofMonth), cur)}</div><div class="sub">${C.money(sumTTC(ofMonth), cur)} TTC, avoirs déduits</div></div>
-        <div class="stat" data-stat="ca-annee" role="button" tabindex="0" title="Voir les statistiques de l'année"><div class="lbl">CA de l'année (HT) ${info('dash.caYear')}</div><div class="val">${C.money(sumHT(ofYear), cur)}</div><div class="sub">${year} · ${C.money(sumTTC(ofYear), cur)} TTC</div></div>
-        <div class="stat" data-stat="encaisser" role="button" tabindex="0" title="${open.length > 1 ? `Voir les ${pl(open.length, 'facture')} qui restent à encaisser` : open.length ? 'Voir la facture qui reste à encaisser' : 'Aucune facture ne reste à encaisser'}"><div class="lbl">Reste à encaisser ${info('dash.open')}</div><div class="val">${C.money(openAmount, cur)}</div><div class="sub">${open.length ? `${pl(open.length, 'facture')}, ${late.length ? `${late.length} en retard` : 'aucune en retard'}` : 'rien à encaisser'}</div></div>
-        <div class="stat" data-stat="devis" role="button" tabindex="0" title="Voir les devis envoyés sans réponse"><div class="lbl">Devis en attente ${info('dash.quotes')}</div><div class="val">${C.money(sumQ(pendingQuotes), cur)}</div><div class="sub">${pendingQuotes.length ? `${pendingQuotes.length} devis ${pendingQuotes.length > 1 ? 'envoyés' : 'envoyé'}` : 'aucun devis en attente de réponse'}${expiredQuotes.length ? ` · <a href="#/devis" class="warn-link" id="go-expired">${expiredQuotes.length} ${expiredQuotes.length > 1 ? 'expirés' : 'expiré'}</a>` : ''}</div></div>
+      ${!duGrain ? todoPanel() : `
+      <div class="stats a-ch">
+        ${carte('encaisser', 'On te doit', nb(openAmount), open.length ? `${h(cur)} · ${pl(open.length, 'facture')}` : 'rien à encaisser', open.length ? (late.length ? `dont ${nb(lateAmount)} en retard` : 'rien en retard') : '', late.length ? 'alerte' : '', open.length ? `Voir les ${pl(open.length, 'facture')} qui restent à encaisser` : 'Aucune facture ne reste à encaisser')}
+        ${carte('dois', 'Tu dois', nb(doisTout), dettes.length ? `${h(cur)} · ${pl(dettes.length, 'achat')}` : 'rien à payer', dettes.length ? (doisRetard > 0.0005 ? `dont ${nb(doisRetard)} en retard` : 'rien en retard') : '', doisRetard > 0.0005 ? 'alerte' : '', 'Voir les achats à payer')}
+        ${carte('ca-mois', `Facturé en ${nomMois(month)}`, nb(sumHT(ofMonth)), `${h(cur)} HT · ${nb(sumTTC(ofMonth))} TTC`, `${nomMois(moisAvant)} : ${nb(sumHT(ofAvant))}`, '', 'Voir le journal des ventes du mois')}
+        ${carte('devis', 'Devis en attente', nb(sumQ(pendingQuotes)), pendingQuotes.length ? `${h(cur)} TTC · ${pl(pendingQuotes.length, 'devis', 'devis')}` : 'aucun devis en attente de réponse', expiredQuotes.length ? `<a href="#/devis" id="go-expired">+ ${expiredQuotes.length} ${expiredQuotes.length > 1 ? 'expirés' : 'expiré'}, à refaire</a>` : '', expiredQuotes.length ? 'attire' : '', 'Voir les devis envoyés sans réponse')}
       </div>
       ${metierCommence() ? pas : ''}
-      <div class="dash-grid">
-        <div class="panel"><h2>Activité des 12 derniers mois ${info('dash.chart')}</h2>
-          ${duGraphique ? `${barChart(series)}
-          <div class="legend"><span><i style="background:var(--primary)"></i>Facturé HT (avoirs déduits)</span><span><i style="background:#2a6fd6;opacity:.55"></i>Encaissé</span></div>`
+      <div class="a-deux"><div class="a-g">
+        ${todoPanel()}
+        <div class="panel a-graph"><div class="a-bloc-t"><h2>Facturé et encaissé, 12 mois ${info('dash.chart')}</h2><span class="small muted">${year} : ${nb(sumHT(ofYear))} ${h(cur)} HT · ${nb(sumTTC(ofYear))} TTC, avoirs déduits</span></div>
+          ${duGraphique ? `<div class="legend"><span><i class="cl-fac"></i>Facturé HT, avoirs déduits</span><span><i class="cl-enc"></i>Encaissé</span><span class="unite">en ${h(cur === 'TND' || cur === 'DT' ? 'dinars' : cur)}</span></div>${barChart(series)}`
           : '<p class="small muted">Ce graphique se remplira tout seul : une barre verte par mois facturé, une barre bleue par mois encaissé. L\'écart entre les deux, c\'est ce qu\'on te doit.</p>'}
           <div class="kpis">
-            <div class="kpi"><div class="k-label">Devis → facture ${info('dash.conversion')}</div><div class="v">${qs.rate == null ? '—' : qs.rate + ' %'}</div><div class="sub">${qs.accepted} ${qs.accepted > 1 ? 'acceptés' : 'accepté'}, ${qs.refused} ${qs.refused > 1 ? 'refusés' : 'refusé'}, ${qs.pending} en attente</div></div>
+            <div class="kpi"><div class="k-label">Devis → facture ${info('dash.conversion')}</div><div class="v">${qs.rate == null ? '—' : qs.rate + ' %'}</div><div class="sub">${qs.accepted} ${qs.accepted > 1 ? 'acceptés' : 'accepté'}, ${qs.refused} ${qs.refused > 1 ? 'refusés' : 'refusé'}, ${qs.pending} en attente · 12 mois</div></div>
             <div class="kpi"><div class="k-label">Délai moyen de paiement ${info('dash.delay')}</div><div class="v">${delay == null ? '—' : pl(delay, 'jour')}</div><div class="sub">factures soldées, 12 derniers mois</div></div>
           </div>
         </div>
-        <div class="panel"><h2>Top clients ${year} (HT) ${info('dash.top')}</h2>
-          ${top.length ? `<ul class="rank">${top.map(x => `<li><a class="name" href="${x.clientId ? '#/client/' + h(x.clientId) : '#/caisse'}" title="${x.clientId ? 'Ouvrir la fiche de ' + h(x.name) : 'Ouvrir la caisse'}">${h(x.name)}</a><span class="bar"><i style="width:${largeurRang(x.ht, topMax)}%"></i></span><span class="amt">${C.money(x.ht, cur)}</span></li>`).join('')}</ul>` : '<p class="small muted">Aucune facture émise cette année. Ton premier devis accepté la remplira.</p>'}
+      </div><aside class="a-d">
+        <div class="panel a-top"><div class="a-bloc-t"><h2>Meilleurs clients ${year} ${info('dash.top')}</h2><span class="small muted">HT facturé</span></div>
+          ${top.length ? `<ul class="rank">${top.map(x => `<li><a class="top-l" href="${x.clientId ? '#/client/' + h(x.clientId) : '#/caisse'}" title="${x.clientId ? 'Ouvrir la fiche de ' + h(x.name) : 'Ouvrir la caisse'}">${pastilleClient(x.clientId || x.name, x.name)}<span class="top-n"><b class="name">${h(x.name)}</b><i style="width:${largeurRang(x.ht, topMax)}%"></i></span><span class="amt">${nb(x.ht)}</span></a></li>`).join('')}</ul>` : '<p class="small muted">Aucune facture émise cette année. Ton premier devis accepté la remplira.</p>'}
         </div>
-      </div>`}
-      ${!recent.length ? '' : `<div class="panel"><h2>Documents récents <span class="small muted">— ${recent.length === pieces.length ? (pieces.length === 1 ? 'ta seule pièce' : `tes ${pieces.length} pièces`) : recent.length === 1 ? `la dernière pièce sur ${pieces.length}` : `les ${recent.length} dernières pièces sur ${pieces.length}`}</span></h2>${docTable(recent, { noFoot: true })}
-        <div class="inline mt"><a class="btn btn-sm" href="#/factures">Toutes les factures</a><a class="btn btn-sm" href="#/devis">Tous les devis</a></div></div>`}
-      ${/* « Et maintenant » redisait la suite À CÔTÉ des premiers pas, et pas la même : « + Créer ton
-         premier devis » en vert sous « Remplir le catalogue » en vert. Deux panneaux qui se
-         contredisent à dix centimètres (7.18.0) ; il ne parle que quand les premiers pas se taisent. */''}${duGrain || !data.clients.length || pas ? '' : `
+        ${!derniers.length ? '' : `<div class="panel a-der"><div class="a-bloc-t"><h2>Dernières pièces</h2><span class="small muted">ventes</span></div>${derniers.map(ligneDerniere).join('')}
+          <div class="der-g"><a class="btn btn-sm" href="#/factures">Toutes les factures</a><a class="btn btn-sm" href="#/devis">Tous les devis</a></div></div>`}
+      </aside></div>`}
+      ${duGrain || !data.clients.length || pas ? '' : `
       <div class="panel"><h2>Et maintenant</h2>
         <p>Tu as ${data.clients.length} client${data.clients.length > 1 ? 's' : ''} et aucun document. La suite tient en un geste :</p>
         <div class="inline mt"><button class="btn btn-primary" id="start-devis">+ Créer ton premier devis</button>
           <button class="btn btn-ghost" id="start-demo">Voir un exemple rempli</button></div>
       </div>`}`;
+    // Le prénom de la personne connectée, lu à part (il ne vit pas dans les données de l'entreprise).
+    if (bridge.profil) bridge.profil().then(pr => { const b = $('#a-bonjour'); const prenom = String((pr && pr.nom) || '').trim().split(/\s+/)[0]; if (b && prenom) b.textContent = `${bienvenue ? 'Bienvenue' : 'Bonjour'} ${prenom}`; }, () => {});
     if ($('#abo-accueil-go')) $('#abo-accueil-go').onclick = () => {
       const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
       if (b && b.ecrire) {
@@ -3623,6 +3643,7 @@
       'ca-mois': vers('#/compta', () => { comptaState.tab = 'ventes'; comptaState.year = C.today().slice(0, 4); comptaState.month = C.today().slice(5, 7); }),
       'ca-annee': vers('#/stats'),
       encaisser: vers('#/factures', filtre('facture', 'à encaisser')),
+      dois: vers('#/achats', () => filtreAchats('à payer')),
       devis: vers('#/devis', filtre('devis', 'envoyé'))
     };
     $$('[data-stat]').forEach(c => {
@@ -11545,23 +11566,37 @@
       // annoncer « rien à faire » juste en dessous de « étape 1 sur 7 » se contredit à dix
       // centimètres d'intervalle.
       if (premiersPasVisibles() || (!data.documents.length && !data.clients.length)) return '';
-      return `<div class="todo-ok">Rien à faire aujourd'hui : aucun retard, aucun contrat en attente, aucune attestation à réclamer.</div>`;
+      return `<div class="panel todo-ok a-ok">${lfIc('coche', 22, 2.4)}<span><b>Rien à faire aujourd'hui</b><small>Aucune facture en retard, aucun devis sans réponse, aucune pièce que ton cabinet attend.</small></span></div>`;
     }
-    // Panneau repliable : une fois la liste connue, elle prend la place du tableau de bord.
-    // L'état est gardé d'une session à l'autre, et le résumé replié dit ce qui reste.
+    // (1.156.0, maquette « Accueil ») La liste se range en trois : ça coûte maintenant (rouge), un geste t'attend (ambre),
+    // quand tu peux. La plus urgente d'abord ; la première ligne porte le seul bouton principal de la page (sauf quand
+    // l'abonnement le porte). Cinq lignes, puis « Voir les autres ».
+    const NIVEAUX = [['danger', 'Ça coûte maintenant', 'alerte'], ['warn', 'Un geste t\'attend', 'attire'], ['', 'Quand tu peux', '']];
+    const niveau = x => x.level === 'danger' ? 'danger' : x.level === 'warn' ? 'warn' : '';
+    const ranges = NIVEAUX.flatMap(([n]) => items.filter(x => niveau(x) === n));
+    const premierPrincipal = !abonnementPrincipal();
+    let rang = 0;
+    const groupes = NIVEAUX.map(([n, titre, ton]) => {
+      const l = ranges.filter(x => niveau(x) === n);
+      if (!l.length) return '';
+      const lignes = l.map(x => {
+        const i = rang++;
+        const geste = todoMeneACache(x.id) ? '' : `<button class="btn${i === 0 && premierPrincipal ? ' btn-primary' : ''}" data-todo="${x.id}">${h((TODO_ACTIONS[x.id] || {}).label || 'Voir')}</button>`;
+        return `<li class="lvl-${x.level || 'info'}" ${i >= TODO_VISIBLE && !todoTout ? 'hidden' : ''}><span class="td-dot"></span>
+          <span class="td-txt"><strong>${h(x.label)}</strong><span>${h(x.detail || '')}</span></span>${geste}</li>`;
+      }).join('');
+      const debut = ranges.indexOf(l[0]);
+      return `<li class="af-gt ${ton}" role="presentation"${debut >= TODO_VISIBLE && !todoTout ? ' hidden' : ''}>${titre} · ${l.length}</li>${lignes}`;
+    }).join('');
+    // Le titre replie la liste, et elle le reste d'une session à l'autre (comme avant) ; repliée, elle dit ce qui reste.
     const open = prefs.get('todoOpen', true) !== false;
     const urgent = items.filter(x => x.level === 'danger').length;
-    const summary = `${items.length} chose${items.length > 1 ? 's' : ''} à faire${urgent ? ` · ${urgent} urgente${urgent > 1 ? 's' : ''}` : ''}`;
-    return `<div class="panel todo${open ? '' : ' collapsed'}">
-      <h2><button type="button" class="collapse-h" id="todo-toggle" aria-expanded="${open}" aria-controls="todo-list" title="${open ? 'Replier' : 'Déplier'} la liste">
-        <span class="chev">▾</span>À faire<span class="count">${items.length}</span></button> ${info('todo')}</h2>
+    const summary = `${pl(items.length, 'chose')} à faire${urgent ? ` · ${urgent} ${urgent > 1 ? 'coûtent' : 'coûte'} maintenant` : ''}`;
+    return `<div class="panel todo a-faire${open ? '' : ' collapsed'}">
+      <div class="a-bloc-t"><h2><button type="button" class="collapse-h" id="todo-toggle" aria-expanded="${open}" aria-controls="todo-list" title="${open ? 'Replier' : 'Déplier'} la liste">À faire</button> ${info('todo')}</h2><span class="small muted">${pl(items.length, 'chose')}, la plus urgente d'abord</span></div>
       <p class="todo-sum small muted" ${open ? 'hidden' : ''}>${h(summary)}</p>
-      <ul id="todo-list" ${open ? '' : 'hidden'}>${items.map((x, i) => `<li class="lvl-${x.level}" ${i >= TODO_VISIBLE && !todoTout ? 'hidden' : ''}>
-        <span class="td-dot"></span>
-        <span class="td-txt"><strong>${h(x.label)}</strong><span class="small muted">${h(x.detail || '')}</span></span>
-        ${todoMeneACache(x.id) ? '' : `<button class="btn btn-sm" data-todo="${x.id}">${h((TODO_ACTIONS[x.id] || {}).label || 'Voir')}</button>`}
-      </li>`).join('')}</ul>
-      ${items.length > TODO_VISIBLE && !todoTout ? `<button class="btn btn-sm btn-ghost todo-more" id="todo-more" ${open ? '' : 'hidden'}>Voir les ${items.length - TODO_VISIBLE} autres</button>` : ''}
+      <ul id="todo-list" ${open ? '' : 'hidden'}>${groupes}</ul>
+      ${items.length > TODO_VISIBLE && !todoTout ? `<button class="btn btn-ghost todo-more" id="todo-more" ${open ? '' : 'hidden'}>Voir les ${items.length - TODO_VISIBLE} autres ${lfIc('bas', 14, 2.2)}</button>` : ''}
       </div>`;
   }
   // Déplié pour la session en cours seulement : demain, la liste repart courte. Ce n'est pas un

@@ -337,7 +337,7 @@ describe('l\'assistant de démarrage, à la souris', () => {
     // Créée par l'API, sans la porte : l'accueil, pas l'assistant.
     const a = await ouvrir(nadia.jeton);
     expect(await assistant(a.p).count()).toBe(0);
-    expect(await a.p.locator('#view h1').first().innerText()).toBe('Accueil');
+    expect(await a.p.locator('#view h1').first().innerText()).toMatch(/^Bienvenue/); // (1.156.0) une entreprise neuve
     expect(a.erreurs).toEqual([]);
     await a.p.context().close();
 
@@ -358,7 +358,7 @@ describe('l\'assistant de démarrage, à la souris', () => {
     expect((await api('POST', '/invitations/accepter', karim.jeton, { jeton: inv })).statut).toBe(200);
     const k = await ouvrir(karim.jeton);
     expect(await assistant(k.p).count()).toBe(0);
-    expect(await k.p.locator('#view h1').first().innerText()).toBe('Accueil');
+    expect(await k.p.locator('#view h1').first().innerText()).toMatch(/^Bonjour/);
     expect(k.erreurs).toEqual([]);
     await k.p.context().close();
     const n = await ouvrir(nadia.jeton);

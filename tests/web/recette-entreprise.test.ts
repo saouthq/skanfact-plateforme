@@ -198,7 +198,8 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
       .toEqual(['Ta facture à ton image', 'Invite ton comptable']);
     // Sans bouton vert : l'en-tête reprend le sien.
     expect(await restes.locator('.btn-primary').count()).toBe(0);
-    expect(await p.locator('#new-facture').getAttribute('class')).toContain('btn-primary');
+    // (1.156.0, maquette « Accueil ») L'en-tête n'a plus « Nouvelle facture » : un seul bouton principal sur la page.
+    expect(await p.locator('#view .btn-primary').count()).toBeLessThanOrEqual(1);
     // Chaque geste mène où il dit : le comptable, à l'onglet du cabinet.
     await restes.locator('[data-pas="mandat"]').click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/compta');
@@ -207,7 +208,7 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
     await restes.locator('#pp-restes-masquer').click();
     await expect.poll(() => restes.count()).toBe(0);
     await p.reload();
-    await p.locator('#view h1').filter({ hasText: 'Accueil' }).waitFor({ timeout: 20_000 });
+    await p.locator('#view h1').filter({ hasText: /^(Bonjour|Bienvenue)/ }).waitFor({ timeout: 20_000 });
     expect(await p.locator('#pp-restes').count()).toBe(0);
 
     // ── Paramètres › Envois : l'adresse du comptable dit ce qu'elle fait, et renvoie au cabinet ───────────

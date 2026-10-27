@@ -37,8 +37,9 @@ describe('l\'Accueil d\'une entreprise qui travaille déjà', () => {
   const blocs = (p: Page) => p.evaluate(() => {
     const vus: string[] = [];
     const nom = (e: Element) => e.matches('.pp-accueil') ? 'bienvenue' : e.matches('.premiers-pas') ? 'premiers-pas'
-      : e.matches('.stats') ? 'chiffres' : e.matches('.dash-grid') ? 'graphique' : /À faire/.test(e.querySelector('h2')?.textContent ?? '') ? 'a-faire' : '';
-    for (const e of Array.from(document.querySelectorAll('#view > *'))) { const n = nom(e); if (n) vus.push(n); }
+      : e.matches('.stats') ? 'chiffres' : e.matches('.a-graph, .dash-grid') ? 'graphique' : /À faire/.test(e.querySelector('h2')?.textContent ?? '') ? 'a-faire' : '';
+    // (1.156.0, maquette « Accueil ») « À faire » et le graphique vivent dans la colonne de gauche, sous les chiffres.
+    for (const e of Array.from(document.querySelectorAll('#view > *, #view > .a-deux > .a-g > *'))) { const n = nom(e); if (n) vus.push(n); }
     return vus;
   });
 
@@ -87,7 +88,7 @@ describe('l\'Accueil d\'une entreprise qui travaille déjà', () => {
     expect(apres).not.toContain('bienvenue');
     expect(apres.indexOf('chiffres')).toBeLessThan(apres.indexOf('premiers-pas'));
     expect(apres.indexOf('premiers-pas')).toBeLessThan(apres.indexOf('graphique'));
-    if (apres.includes('a-faire')) expect(apres.indexOf('a-faire')).toBeLessThan(apres.indexOf('chiffres'));
+    if (apres.includes('a-faire')) expect(apres.indexOf('chiffres')).toBeLessThan(apres.indexOf('a-faire'));
     expect(await p.locator('.premiers-pas li.fait').count()).toBe(0);
     const tete = (await p.locator('.premiers-pas .pp-tete').innerText()).replace(/\s+/g, ' ');
     expect(tete).toMatch(/Ta gestion tourne déjà\. Reste(nt \d+ gestes| un geste), quand tu veux/);
@@ -96,7 +97,8 @@ describe('l\'Accueil d\'une entreprise qui travaille déjà', () => {
     const [faits, total] = [Number(m?.[1]), Number(m?.[2])];
     expect(await p.locator('.premiers-pas li').count()).toBe(total - faits);
     // (1.147.0) Les chiffres qui valent zéro le disent en mots, pas « 0 en retard » ni « 0 devis envoyé ».
-    expect((await p.locator('[data-stat=encaisser] .sub').innerText()).replace(/\s+/g, ' ').trim()).toBe('1 facture, aucune en retard');
+    expect((await p.locator('[data-stat=encaisser] .sub').innerText()).replace(/\s+/g, ' ').trim()).toBe('DT · 1 facture');
+    expect((await p.locator('[data-stat=encaisser] .x').innerText()).replace(/\s+/g, ' ').trim()).toBe('rien en retard');
     expect((await p.locator('[data-stat=devis] .sub').innerText()).replace(/\s+/g, ' ').trim()).toBe('aucun devis en attente de réponse');
     expect(erreurs).toEqual([]);
     await cx.close();
