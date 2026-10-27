@@ -123,8 +123,10 @@ describe('le menu selon le rôle, à la souris', () => {
     await expect.poll(() => k.locator('#accueil-role').count(), { timeout: 10_000 }).toBe(1);
     expect(await k.locator('#view .btn-primary').count()).toBeLessThanOrEqual(1); // (1.156.0) un seul bouton principal
     expect(net(await k.locator('#view').innerText())).not.toMatch(/Prends ta gestion en main|Tes premiers pas/);
-    expect(await k.locator('#accueil-role a[href="#/factures"]').count()).toBe(1);
-    expect(await k.locator('#accueil-role a.btn-primary').count()).toBe(0);
+    // (1.157.0, maquette « Accueil ») Le commercial lit ce que son accueil montre, et ce qui reste au propriétaire ; ses pages
+    // sont dans la barre. Ni ce que l'entreprise doit, ni son chiffre d'affaires.
+    expect(net(await k.locator('#accueil-role').innerText())).toMatch(/^Ton accueil de commercial : les devis, les factures, les clients Les chiffres de l'entreprise/);
+    expect(await k.locator('#view [data-stat="dois"], #view [data-stat="ca-mois"], #view .a-graph, #view .a-top').count()).toBe(0);
 
     // 2. Leila, la paie. Son navigateur vit le 10/10/2026 : la CNSS du 15/10 tombe sous quinze jours, la TVA du 28/10
     // non (le 14/10, il y en avait deux ; du 29 au 13, souvent aucune : le test changeait d'avis avec le calendrier).

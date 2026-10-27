@@ -160,7 +160,9 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
     await cf.locator('#cf-plus > summary').click();
     expect(await visibles()).toContain('contact');
     await p.keyboard.press('Escape');
-    if (await p.getByRole('button', { name: 'Abandonner la saisie' }).count()) await p.getByRole('button', { name: 'Abandonner la saisie' }).click();
+    // La question « Abandonner cette saisie ? » vient un instant après Échap : on l'attend, puis plus aucune fenêtre.
+    await p.getByRole('button', { name: 'Abandonner la saisie' }).click({ timeout: 3_000 }).catch(() => undefined);
+    await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 5_000 }).toBe(0);
 
     // ── Un paiement : ni signe moins, ni anciennes valeurs proposées ; le refus dit ce qui est attendu ──────
     const facture = { id: 'f1', type: 'facture', number: '', date: '2026-10-20', dueDate: '2026-11-19', clientId: 'c1', subject: 'Visserie', status: 'brouillon',
@@ -187,7 +189,9 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
     expect(await montant.evaluate((el) => el.closest('.field')?.classList.contains('champ-faute'))).toBe(true);
     expect(((await objets()).find((o) => o.cle === 'f1')?.contenu.payments as unknown[]).length).toBe(0);
     await p.keyboard.press('Escape');
-    if (await p.getByRole('button', { name: 'Abandonner la saisie' }).count()) await p.getByRole('button', { name: 'Abandonner la saisie' }).click();
+    // La question « Abandonner cette saisie ? » vient un instant après Échap : on l'attend, puis plus aucune fenêtre.
+    await p.getByRole('button', { name: 'Abandonner la saisie' }).click({ timeout: 3_000 }).catch(() => undefined);
+    await expect.poll(() => p.locator('#modal-root .modal').count(), { timeout: 5_000 }).toBe(0);
 
     // ── Les premiers pas du métier faits (la fiche, le client, une facture) : ce qui reste se dit encore ─────
     await p.evaluate(() => { location.hash = '#/dashboard'; });

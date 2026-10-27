@@ -191,7 +191,7 @@ describe('l\'abonnement au choix, à la souris', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
     const bandeau = p.locator('#abo-accueil');
     await expect.poll(() => bandeau.innerText().then(net).catch(() => ''), { timeout: 20_000 })
-      .toContain(`Ton abonnement arrive à échéance le ${jourEnFrancais(fin)}. Renouvelle-le dès maintenant`);
+      .toContain(`Ton abonnement arrive à échéance le ${jourEnFrancais(fin)} Renouvelle-le dès maintenant`);
     await plusTard(p);
     // La pastille du pied du menu tient sur une ligne : le détail est dans le bandeau.
     expect(net(await p.locator('#lic-banner .abo-t').innerText())).toBe(`Échéance le ${jourEnFrancais(fin)}`);

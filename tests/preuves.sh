@@ -511,7 +511,7 @@ prouver "la remise portée sur la déduction d'acompte" $MP \
   "const remisable = lignes.filter((l) => !l.sansRemise).reduce((t, l) => t + l.ht, 0n);" "const remisable = lignes.filter(() => true).reduce((t, l) => t + l.ht, 0n);" \
   "la remise globale ne porte pas sur la déduction d'un acompte"
 prouver "la TVA calculée avant la remise" $MP \
-  "    const base = l.sansRemise || remisable <= 0n ? l.ht : diviserArrondi(l.ht * (remisable - remise), remisable);" "    const base = l.ht;" \
+  "    const remisee = l.sansRemise || remisable <= 0n ? l.ht : diviserArrondi(l.ht * (remisable - remise), remisable);" "    const remisee = l.ht;" \
   "un devis n'a pas de timbre ; la remise globale réduit la base de TVA"
 prouver "la TVA d'un taux arrondie ligne par ligne (et non en cumul comme la v10)" $MP \
   "    t.tva = diviserArrondi(t.tva * MILLION + base * l.tauxTva, MILLION);" "    t.tva += auTaux(base, l.tauxTva);" \
@@ -523,7 +523,7 @@ prouver "le timbre en dinars ajouté tel quel à une pièce en euros" $MP \
   "    : p.cours ? diviserArrondi(p.timbre * MILLION * s, MILLE * p.cours)" "    : false ? 0n" \
   "une pièce en euros se calcule au centime"
 prouver "la retenue calculée sur le timbre aussi" $MP \
-  "  const retenue = sousLeSeuil ? 0n : auTaux(netHT + totalTVA, tauxRetenue);" "  const retenue = sousLeSeuil ? 0n : auTaux(netHT + totalTVA + timbre, tauxRetenue);" \
+  "  const retenue = sousLeSeuil ? 0n : auTaux(horsTimbre, tauxRetenue);" "  const retenue = sousLeSeuil ? 0n : auTaux(horsTimbre + timbre, tauxRetenue);" \
   "la retenue à la source porte sur le TTC hors timbre"
 prouver "une retenue sur un devis" $MP \
   "RETENUE_POSSIBLE.includes(p.type) ? (p.tauxRetenue ?? 0n) : 0n" "(p.tauxRetenue ?? 0n)" \
@@ -3964,19 +3964,19 @@ prouver "les nombres exacts illisibles pour le client" web/public/espace/espace.
 " "" \
   "$EC3"
 prouver "le reste à payer tu au client" web/public/espace/espace.js \
-  "Number(p.reste) > 0 ? " "false ? " \
+  "    const dues = vue.pieces.filter((/** @type {any} */ p) => Number(p.reste) > 0);" "    const dues = [];" \
   "$EC3"
 prouver "« Tu dois » qui tait ce qui est dû" web/public/espace/espace.js \
   "const du = vue.totaux.filter((/** @type {any} */ t) => Number(t.du) > 0);" "const du = vue.totaux.filter(() => false);" \
   "$EC3"
 prouver "le lien d'une pièce qui ouvre la liste" web/public/espace/espace.js \
-  "    if (vue.lien === 'piece' && vue.pieces[0]) piece(vue.pieces[0], false);" "    if (false) piece(vue.pieces[0], false);" \
+  "    if (vue.lien === 'piece' && vue.pieces[0]) piece(vue.pieces[0]);" "    if (false) piece(vue.pieces[0]);" \
   "$EC3"
 prouver "l'impression refusée par le navigateur" web/public/espace/espace.js \
   "f.setAttribute('sandbox', 'allow-same-origin allow-modals');" "f.setAttribute('sandbox', 'allow-same-origin');" \
   "$EC3"
 prouver "sur un téléphone, des chiffres sans ce qu'ils sont" web/public/espace/espace.css \
-  "  .etiquette { display: inline; color: var(--doux); }
+  "  .etiquette { display: inline; color: var(--doux); font-weight: 400; }
 " "" \
   "$EC3"
 prouver "ce qu'une facture a déjà reçu jamais envoyé au client" serveur/ventes/espace.ts \
@@ -4124,10 +4124,7 @@ prouver "arrêter le paiement en ligne sans demander" web/public/plateforme/pont
   "      if (!arreter.dataset.confirme) {" "      if (false) {" \
   "$PW"
 prouver "« Payer en ligne » absent de la facture" web/public/espace/espace.js \
-  "\${p.payable ? \`<button type=\"button\" class=\"principal\" id=\"payer\">" "\${false ? \`<button type=\"button\" class=\"principal\" id=\"payer\">" \
-  "$PW"
-prouver "« Pour payer en ligne, ouvre la facture » jamais dit" web/public/espace/espace.js \
-  "\${vue.pieces.some((/** @type {any} */ p) => p.payable) ? '<p class=\"aide\">" "\${false ? '<p class=\"aide\">" \
+  "\${sel.payable ? \`<button type=\"button\" class=\"principal\" id=\"payer\">" "\${false ? \`<button type=\"button\" class=\"principal\" id=\"payer\">" \
   "$PW"
 prouver "le lien de l'espace oublié au retour" web/public/espace/espace.js \
   "    try { sessionStorage.setItem('skanfact.espace', jeton); sessionStorage.removeItem('skanfact.abonnement.retour'); } catch { /* la page de retour proposera de la fermer */ }
@@ -5559,14 +5556,11 @@ prouver "la mise en place de l'entreprise proposée à un membre qui ne la tient
   "    if (!estResponsable()) return accueilDuRole();
 " "" \
   "$MR"
-prouver "« + Nouvelle facture » sur l'accueil de qui ne peut pas écrire une pièce" web/public/v10/app.js \
-  "\${peutEcrireDossier('documents') && !(licence.locked && bridge.dessinerAbonnement) ? \`<button class=\"btn\" id=\"new-devis\">" "\${!(licence.locked && bridge.dessinerAbonnement) ? \`<button class=\"btn\" id=\"new-devis\">" \
-  "$MR"
 prouver "« À faire » qui mène à une page que le rôle ne montre pas" web/public/v10/app.js \
   "todoMeneACache(x.id) ? '' :" "false ? '' :" \
   "$MR"
 prouver "l'accueil de la paie sans bouton principal" web/public/v10/app.js \
-  "    const vert = !peutEcrireDossier('documents');" "    const vert = false;" \
+  "    const vert = !chosesAFaire().length;" "    const vert = false;" \
   "$MR"
 
 # ── Brique 112 : deux postes sur le même dossier (web/public/plateforme/pont.js ; tests/web/enregistrement-concurrent.test.ts) ──
@@ -6912,10 +6906,10 @@ prouver "un lien retiré dit qu'il n'y a pas de fichier" serveur/ventes/routes.t
 " "" \
   "$EE"
 prouver "le bouton pour une pièce que la TTN n'a pas validée" web/public/espace/espace.js \
-  "\${p.document.ttn ? '<button type=\"button\" id=\"efacture\"" "\${true ? '<button type=\"button\" id=\"efacture\"" \
+  "\${doc.ttn ? \`<button type=\"button\" id=\"efacture\"" "\${true ? \`<button type=\"button\" id=\"efacture\"" \
   "$EV"
 prouver "le bouton de la facture électronique ne fait rien" web/public/espace/espace.js \
-  "    if (be) be.onclick = () => { void telechargerEfacture(p, be); };" "    if (be) be.onclick = () => {};" \
+  "    if (be && sel) be.onclick = () => { void telechargerEfacture(sel, be); };" "    if (be && sel) be.onclick = () => {};" \
   "$EP"
 prouver "la facture électronique téléchargée sans son nom" web/public/espace/espace.js \
   "    a.download = lu.nom;" "    a.download = '';" \
@@ -7794,7 +7788,7 @@ prouver "l'objet d'un avoir qui invite à dire ce qu'on a acheté" web/public/v1
 " "" \
   "$ACW1"
 prouver "l'échéance d'un avoir" web/public/v10/app.js \
-  "      if (bloc) bloc.hidden = p.kind === 'avoir';" "      if (bloc) bloc.hidden = false;" \
+  "      if (bloc) bloc.hidden = C.PURCHASE_LIES.includes(p.kind);" "      if (bloc) bloc.hidden = false;" \
   "$ACW1"
 prouver "l'avoir rattaché depuis la liste qui ne reprend rien" web/public/v10/app.js \
   "        if (vise && isNew && p.kind === 'avoir' && !(p.lines || []).some(" "        if (false && vise && isNew && p.kind === 'avoir' && !(p.lines || []).some(" \
@@ -8149,7 +8143,7 @@ prouver '« Ouvrir » qui propose de modifier une pièce émise' web/public/v10/
   'hint: !emiseIci ? '\''Voir la pièce et la modifier'\'' :' 'hint: true ? '\''Voir la pièce et la modifier'\'' :' \
   "$FDW"
 prouver 'l'\''espace du client sans ce qui a déjà été payé' web/public/espace/espace.js \
-  '${recu(p) ? `<span class="recu"> · ${recu(p)}</span>` : '\'''\''}' '' \
+  '${recu(p) ? `<div class="recu">${recu(p)}</div>` : '\'''\''}' '' \
   "$FDW"
 prouver 'le refus du serveur à l'\''émission dans un bandeau de trois secondes' web/public/v10/app.js \
   '          infoDialog(doc.type === '\''avoir'\'' ? '\''L\'\''avoir n\'\''est pas émis'\''' '          toast(motif, true) || void (doc.type === '\''avoir'\'' ? '\''L\'\''avoir n\'\''est pas émis'\''' \
@@ -8437,7 +8431,7 @@ prouver "« Je facturais déjà » qui sort de sa fenêtre" web/public/plateform
   "  .modal .btn { white-space: normal; text-align: start; }" "" \
   "$TL5"
 prouver "« les 1 dernières pièces sur 1 »" web/public/v10/app.js \
-  "'ta seule pièce'" "'les 1 dernières pièces sur 1'" \
+  "open.length ? \`\${h(cur)} · \${pl(open.length, 'facture')}\`" "open.length ? \`\${h(cur)} · \${open.length} factures\`" \
   "$TL5"
 prouver "la pastille de la caisse tranchée à 1 180 points" web/public/plateforme/caisse.css \
   "  .ct-puce-qui, .ct-nom small { display: none; }" "  .ct-nom small { display: none; }" \
@@ -8513,11 +8507,11 @@ prouver "le client qui lit un devis sans les conditions par défaut" web/public/
   "entreprise: C.migrateData({ company: decoder(lu.entreprise) }).company," "entreprise: decoder(lu.entreprise)," \
   "$DV3"
 prouver "le lien d'un devis qui s'ouvre sur un relevé vide" web/public/espace/espace.js \
-  "    else if (vue.lien === 'piece' && vue.devis[0]) devis(vue.devis[0], false);
+  "    else if (vue.lien === 'piece' && vue.devis[0]) devis(vue.devis[0]);
 " "" \
   "$DV3"
 prouver "le relevé du compte sans ses devis" web/public/espace/espace.js \
-  "\${vue.devis.length ? \`<h2 class=\"titre-devis\">" "\${false ? \`<h2 class=\"titre-devis\">" \
+  "    const tesDevis = vue.devis.length ? " "    const tesDevis = false ? " \
   "$DV3"
 
 # ── Le lot caisse (3) (06/10/2026) : le prix d'étiquette fait foi (K5), « Créer la caisse » sous le refus (K1), les
@@ -9561,9 +9555,6 @@ prouver "l'adresse invitée à retaper" web/src/ecrans/Inscription.tsx \
 prouver "l'arrivée par un lien qui ne dit pas qui invite" web/src/App.tsx \
   "sous={attend ?? sousInvitation('inscription')}" "sous={attend}" \
   "$EQW"
-prouver "l'accueil d'un vendeur qui défile de côté" web/public/plateforme/ecrans.css \
-  "#accueil-role .inline { flex-wrap: wrap; }" "" \
-  "$EQW"
 
 # Le lot débutant (2) (12/10/2026) : les gênants du parcours d'un commerçant qui débute, refaits à la souris sur une
 # quincaillerie (docs/debutant.md).
@@ -10268,8 +10259,8 @@ prouver 'la carte de l'"'"'essai qui mène à la licence de la v10' web/public/v
 " '' \
   "$AW1"
 prouver 'une nouvelle pièce qui ne dit la lecture seule qu'"'"'à l'"'"'enregistrement' web/public/v10/app.js \
-  '      ${bandeauAbonnement(isNew)}
-      ${bandeauQuestions(doc.number)}' '      ${bandeauQuestions(doc.number)}' \
+  "      \${bandeauAbonnement(isNew, charte, isInv ? 'une facture neuve' : isAv ? 'un avoir neuf' : '')}
+      \${bandeauQuestions(doc.number)}" "      \${bandeauQuestions(doc.number)}" \
   "$AW1"
 prouver 'une nouvelle pièce refusée après le contrôle de sa saisie' web/public/v10/app.js \
   "      if (bridge.dessinerAbonnement && !data.documents.some(d => d.id === doc.id) && licenceBlock('Créer un nouveau document')) return false;
@@ -11853,7 +11844,7 @@ prouver "« Plus tard » qui retire le bandeau" web/public/plateforme/message.js
       el.innerHTML = '<span class=\"sk-message-texte\">Message caché sur cet appareil : un nouveau message reparaîtra.</span>';" "      el.remove();" \
   "$RGW4"
 prouver "« Plus tard » qui fait remonter la page sous le curseur" web/public/plateforme/message.js \
-  '      el.style.minHeight = `${el.getBoundingClientRect().height}px`;' "" \
+  '      el.style.minHeight = getComputedStyle(el).height;' "" \
   "$RGW4"
 prouver "les deux sortes de message dans la même couleur" web/public/plateforme/message.js \
   'el.className = `banner info sk-message sk-message-${m.sorte === '"'"'maintenance'"'"' ? '"'"'maintenance'"'"' : '"'"'nouveaute'"'"'}`;' "el.className = 'banner info sk-message';" \
@@ -12291,7 +12282,7 @@ prouver 'la lecture qui invite à la visite de la page' web/public/v10/app.js \
 ' '' \
   "$SACW3"
 prouver 'la lecture qui enregistre' web/public/plateforme/pont.js \
-  '(LECTURE ? Promise.reject(Object.assign(new Error(EN_LECTURE), { statut: 403 })) : enregistrer(data))' 'enregistrer(data)' \
+  '(LECTURE ? Promise.reject(Object.assign(new Error(EN_LECTURE), { statut: 403 })) : (apresFusion && adopter(), enregistrer(data)))' '(apresFusion && adopter(), enregistrer(data))' \
   "$SACW3"
 prouver 'la lecture qui garde une copie sur le poste' web/public/plateforme/poste.js \
   'if (efface || enLecture) return false;' 'if (efface) return false;' \
@@ -18179,7 +18170,7 @@ prouver 'le serveur qui scelle un avoir négatif' 'serveur/ventes/pieces.ts' \
   "if (false) {" \
   '1.81.0 : une pièce négative ne se scelle pas — ni une facture négative, ni un avoir nul ou négatif — et aucun numéro n'"'"'est pris'
 prouver 'la petite facture négative que le dinar du timbre cache' 'serveur/ventes/pieces.ts' \
-  "const horsTimbre = t.netHT + t.totalTVA;" \
+  "const horsTimbre = t.netHT + t.fodec + t.totalTVA;" \
   "const horsTimbre = t.totalTTC;" \
   '1.81.0 : une pièce négative ne se scelle pas — ni une facture négative, ni un avoir nul ou négatif — et aucun numéro n'"'"'est pris'
 prouver 'le ticket de caisse proposé comme pièce de départ d'"'"'un bon de livraison' 'web/public/v10/app.js' \
@@ -18301,7 +18292,7 @@ prouver 'le montant absent du reçu de retour' web/public/espace/retour.js \
 
 # 1.86.0 — l'espace du client dans la DA : ce qui est dû se lit en premier, le plus grand texte de la page.
 prouver 'le montant dû noyé dans le texte de l'"'"'espace' web/public/espace/espace.css \
-  '  .du strong { font-size: 28px; }' '  .du strong { font-size: 15px; }' \
+  '  .du strong { font-size: 26px; }' '  .du strong { font-size: 15px; }' \
   "$EC3"
 
 # Le rouge de GitHub sur 1.85.0 : la table des offres choisies (0158) sans sécurité par ligne forcée, et ses trois
@@ -18369,7 +18360,7 @@ prouver '« Enregistrer » d'\''un devis neuf en vert en lecture seule' web/publ
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
 prouver '« Enregistrer » d'\''un achat neuf en vert en lecture seule' web/public/v10/app.js \
-  "? \`<button class=\"btn\${aboBloque(isNew) ? '' : ' btn-primary'} btn-grand\" id=\"save\">\${lfIc('coche', 17, 2.4)}Enregistrer \${p.kind" "? \`<button class=\"btn\${false ? '' : ' btn-primary'} btn-grand\" id=\"save\">\${lfIc('coche', 17, 2.4)}Enregistrer \${p.kind" \
+  "? \`<button class=\"btn\${aboBloque(isNew) ? '' : ' btn-primary'} btn-grand\" id=\"save\">\${libelleSauver()}" "? \`<button class=\"btn\${false ? '' : ' btn-primary'} btn-grand\" id=\"save\">\${libelleSauver()}" \
   'l'\''essai qui finit se dit ; en lecture seule, une nouvelle pièce le dit avant la saisie et rien n'\''arrive au serveur'
 
 prouver 'trois « Me guider » du même nom dans les premiers pas du Cabinet' web/public/v10/cabinet/app.js \
@@ -19529,11 +19520,8 @@ prouver 'abo 118 : l'\''accueil muet en lecture seule' web/public/v10/app.js \
   "      \${bandeauAbonnementAccueil()}
       \${bandeauAccordsAccueil()}" "      \${bandeauAccordsAccueil()}" \
   "$W118L"
-prouver 'abo 118 : créer proposé en lecture seule' web/public/v10/app.js \
-  "\${peutEcrireDossier('documents') && !(licence.locked && bridge.dessinerAbonnement) ?" "\${peutEcrireDossier('documents') ?" \
-  "$W118L"
 prouver 'abo 118 : deux verts en grâce' web/public/v10/app.js \
-  "\${pasEnCours || aboPrincipal ? '' : 'btn-primary'}" "\${pasEnCours ? '' : 'btn-primary'}" \
+  "    const premierPrincipal = !abonnementPrincipal();" "    const premierPrincipal = true;" \
   "$W118G"
 prouver 'abo 118 : les premiers pas pendant la grâce' web/public/v10/app.js \
   "    const pas = aboPrincipal ? '' : premiersPas();" "    const pas = premiersPas();" \
@@ -20246,10 +20234,10 @@ prouver 'ux3 146 : une échéance passée du Cabinet dite en orange' web/public/
   '.dc-echeance.retard > span:first-child { color: var(--sb-rouge-texte, var(--danger)); }' '.dc-echeance.retard > span:first-child { color: var(--warning); }' \
   'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu, annulée calme'
 prouver 'ux3 147 : « 0 en retard » sous « Reste à encaisser »' web/public/v10/app.js \
-  "\${late.length ? \`\${late.length} en retard\` : 'aucune en retard'}" "\${late.length} en retard" \
+  "(late.length ? \`dont \${nb(lateAmount)} en retard\` : 'rien en retard')" "(\`dont \${nb(lateAmount)} en retard\`)" \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'"'"'À faire et les chiffres d'"'"'abord, puis ce qui reste'
 prouver 'ux3 147 : « 0 devis envoyé » sous « Devis en attente »' web/public/v10/app.js \
-  " : 'aucun devis en attente de réponse'}" " : '0 devis envoyé'}" \
+  " : 'aucun devis en attente de réponse', devisX," " : '0 devis envoyé', devisX," \
   'avant la première facture, la bienvenue en tête ; une facture émise, l'"'"'À faire et les chiffres d'"'"'abord, puis ce qui reste'
 prouver 'ux3 148 : les filtres du téléphone, une rangée chacun' web/public/plateforme/telephone.css \
   '  .filters > :is(label.inline, span.muted.small, .btn-sm) { flex: 0 1 auto; }' '' \

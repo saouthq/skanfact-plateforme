@@ -920,7 +920,9 @@
       : aFaire === 'attendre' ? ' Ta facture se prépare sur l\'offre choisie : un e-mail te prévient quand elle est prête.' : '';
     let titre, texte;
     if (e.etat === 'essai') {
-      titre = Number(e.jours) <= 0 ? 'Ton essai se termine aujourd\'hui' : `Ton essai se termine le ${jour(e.jusquAu)}`;
+      // (1.157.0, maquette « Accueil ») Le compte des jours d'abord : « dans 3 jours, le 27/10 ».
+      titre = Number(e.jours) <= 0 ? 'Ton essai se termine aujourd\'hui' : Number(e.jours) === 1 ? `Ton essai se termine demain, le ${jour(e.jusquAu)}`
+        : `Ton essai se termine dans ${Number(e.jours)} jours, le ${jour(e.jusquAu)}`;
       texte = `${facture || ' Choisis ton offre pour continuer sans interruption.'} Tout ce que tu as créé reste.`;
     } else if (e.etat === 'actif') {
       // (1.122.0) Une échéance n'est pas une fin (« se termine » laissait croire à une résiliation, recette du 23/10/2026).

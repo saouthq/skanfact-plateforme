@@ -174,10 +174,12 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     expect(net(await lue.innerText())).toBe('Ciment gris 50 kg — livraison sur chantier');
     expect(await lue.evaluate((e) => e.scrollWidth <= e.clientWidth + 1 && e.getBoundingClientRect().right <= 390)).toBe(true);
     expect(await p.locator('table.lines-edit input[data-k="label"]').first().isVisible()).toBe(false);
-    // L'accueil : « Documents récents », aussi en cartes, et sa phrase sans redite.
+    // (1.156.0, maquette « Accueil ») L'accueil au téléphone : les chiffres et « À faire » ; les dernières pièces restent à
+    // l'ordinateur (elles sont dans Factures, à un doigt), et rien ne déborde.
     await aller(p, '#/dashboard', /./);
-    expect(net(await p.locator('#view h2', { hasText: 'Documents récents' }).innerText())).toBe('Documents récents — tes 2 pièces');
-    expect(await p.locator('#view h2:has-text("Documents récents") ~ table.list[data-cartes] > tbody > tr, #view h2:has-text("Documents récents") ~ * table.list[data-cartes] > tbody > tr').count()).toBe(2);
+    expect(await p.locator('[data-stat=encaisser]').isVisible()).toBe(true);
+    expect(await p.locator('#view .a-der').isVisible()).toBe(false);
+    expect(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     expect(erreurs).toEqual([]);
     await cx.close();
 
@@ -409,7 +411,8 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await p.getByRole('button', { name: /^Émettre/ }).last().click();
     await expect.poll(() => p.locator('#view h1').first().innerText(), { timeout: 15_000 }).toMatch(/^FAC-2026-001/);
     await aller(p, '#/dashboard', /./);
-    expect(net(await p.locator('#view h2', { hasText: 'Documents récents' }).innerText())).toBe('Documents récents — ta seule pièce');
+    // (1.156.0, maquette « Accueil ») Au téléphone, les chiffres d'abord : « 1 facture », pas « 1 factures ».
+    expect(net(await p.locator('[data-stat=encaisser] .sub').innerText())).toBe('DT · 1 facture');
     // Au doigt, la recherche (en tête de « Plus », maquette « Barre v3 ») ne montre pas de raccourci de clavier.
     await p.locator('.sb-onglets [data-tel="plus"]').click();
     const chercher = p.locator('.sb-plus [data-plus="chercher"]');

@@ -1033,7 +1033,10 @@
     // 400 et au-dessus : une question doit couvrir TOUT le reste, y compris l'assistant de première
     // utilisation (250) et l'écran de verrouillage (200). En dessous d'eux, ses boutons existaient
     // mais les clics atterrissaient sur l'écran du dessus — la question paraissait morte.
-    layer.style.zIndex = String(400 + root.children.length);
+    // (1.157.0) Toujours au-dessus de la plus haute : compter les fenêtres ne suffisait pas (une fenêtre qui se ferme pendant
+    // qu'une autre s'ouvre laissait la question « Abandonner cette saisie ? » à la même hauteur que la fenêtre de paiement,
+    // et dessous : son bouton ne se cliquait plus).
+    layer.style.zIndex = String(Math.max(399, ...[...root.children].map(c => Number(c.style.zIndex) || 0)) + 1);
     // 10.12.0 (H-8) — le curseur revient d'où il venait quand la fenêtre se ferme, s'il était dans
     // la fenêtre : sans ça il tombait sur la page, et le clavier ne servait plus à rien jusqu'au
     // clic suivant. Trouvé dans l'app du comptable (le refus qui montrait la case puis la reprenait) ;
@@ -3323,9 +3326,12 @@
     const pages = $$('nav a[data-route]').map(a => [a.dataset.route, Array.from(a.childNodes).filter(n => n.nodeType === 3).map(n => n.textContent).join('').trim()])
       .filter(([r, l]) => r && r !== 'dashboard' && l);
     if (!pages.length) return '';
+    if (roleBarre() === 'commercial') {
+      return `<div class="bandeau gris a-band" id="accueil-role">${lfIc('personne', 18)}<span class="txt"><b>Ton accueil de commercial : les devis, les factures, les clients</b><span>Les chiffres de l'entreprise (ce qu'elle doit, son chiffre d'affaires) restent au propriétaire et aux administrateurs.</span></span></div>`;
+    }
     // (1.156.0) L'accueil n'a plus « Nouvelle facture » dans son en-tête : le premier bouton est vert tant que « À faire »
     // ne porte pas le sien (un seul bouton principal).
-    const vert = !C.todoList(data, company(), null, { copieExterne, editeur: !!licence.editeur, reserves: licence.reserves || [] }).length;
+    const vert = !chosesAFaire().length;
     return `<section class="panel" id="accueil-role"><h2>Ton accès à ${h(company().name || 'l\'entreprise')}</h2>
       <p class="small muted">Ton rôle t'ouvre ${pages.length > 1 ? 'ces pages' : 'cette page'}. Le propriétaire ou un administrateur met l'entreprise en place (sa fiche, ses réglages) et règle les rôles de l'équipe.</p>
       <div class="inline mt">${pages.map(([r, l], i) => `<a class="btn${vert && i === 0 ? ' btn-primary' : ''}" href="#/${h(r)}">${h(l)}</a>`).join('')}</div></section>`;
@@ -3565,15 +3571,26 @@
     const ofAvant = issued.filter(d => d.date && d.date.startsWith(moisAvant));
     const nomMois = m => LF_MOIS[Number(m.slice(5, 7)) - 1];
     const nb = x => C.money(x, null, C.decimalsFor(cur));
-    const quandItems = C.todoList(data, company(), null, { copieExterne, editeur: !!licence.editeur, reserves: licence.reserves || [] });
+    const quandItems = chosesAFaire();
     const coute = quandItems.filter(x => x.level === 'danger').length, attend = quandItems.filter(x => x.level === 'warn').length;
     // « Bienvenue » et « est prête » tant que les premiers pas sont à l'écran ; ensuite, ce qui attend.
     const bienvenue = !duGrain && !!pas && premiersPasVisibles() && estResponsable();
     const phrase = bienvenue ? `${h(company().name || 'Ton entreprise')} est prête. Commence par l'un de ces chemins.`
       : !quandItems.length ? 'Rien ne t\'attend aujourd\'hui. Tout ce qui devait partir est parti, tout ce qui est échu est payé.'
       : [coute ? `${pl(coute, 'chose coûte', 'choses coûtent')} maintenant` : '', attend ? pl(attend, 'geste t\'attend', 'gestes t\'attendent') : ''].filter(Boolean).join(', ') + '.' || `${pl(quandItems.length, 'chose')} quand tu peux.`;
+    // (1.157.0) Le commercial : ses chiffres de vente, sans ce que l'entreprise doit ni son chiffre d'affaires (ils restent
+    // au propriétaire et aux administrateurs). SkanFact ne sait pas encore qui a fait chaque pièce : les chiffres sont ceux
+    // des pièces de l'entreprise, sans « mes » (une phrase que rien ne tient serait un bug).
+    const commercial = roleBarre() === 'commercial';
+    const horsLigne = navigator.onLine === false;
+    const bandeauHorsLigne = horsLigne ? `<div class="bandeau gris a-band" id="a-hors-ligne">${lfIc('nuage', 18)}<span class="txt"><b>Pas de réseau : l'accueil montre ce que ce poste a gardé</b><span>${posteGarde() ? 'Tu peux écrire un devis, une facture en brouillon, un achat. Signer, émettre et envoyer attendent le retour du réseau.' : 'Ce navigateur ne garde rien sur l\'appareil : garde la page ouverte. Signer, émettre et envoyer attendent le retour du réseau.'}</span></span></div>` : '';
+    const plusVieuxDevis = pendingQuotes.map(d => d.date).filter(Boolean).sort()[0];
+    const ilYa = j => j <= 0 ? 'aujourd\'hui' : j === 1 ? 'hier' : `il y a ${j} jours`;
+    const devisX = expiredQuotes.length ? `<a href="#/devis" id="go-expired">+ ${expiredQuotes.length} ${expiredQuotes.length > 1 ? 'expirés' : 'expiré'}, à refaire</a>`
+      : plusVieuxDevis ? `${pendingQuotes.length > 1 ? 'le plus ancien daté' : 'daté'} ${ilYa(C.daysBetween(plusVieuxDevis, C.today()))}` : '';
     const jourLong = new Date(C.today() + 'T12:00:00Z').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
     const carte = (id, nom, v, sub, x, ton, titre) => `<div class="stat ch-c" data-stat="${id}" role="button" tabindex="0" title="${h(titre)}"><span class="lbl">${nom}</span><span class="val">${v}</span><span class="sub">${sub}</span>${x ? `<span class="x ${ton || ''}">${x}</span>` : ''}</div>`;
+    const carteDevis = () => carte('devis', 'Devis en attente', nb(sumQ(pendingQuotes)), pendingQuotes.length ? `${h(cur)} TTC · ${pl(pendingQuotes.length, 'devis', 'devis')}` : 'aucun devis en attente de réponse', devisX, expiredQuotes.length ? 'attire' : '', 'Voir les devis envoyés sans réponse');
     const derniers = recent.slice(0, 6);
     const ligneDerniere = d => {
       const st = d.type === 'facture' || d.type === 'avoir' ? lfEtiquette(d, lfStatut(d)) : `<span class="badge ${h(effStatus(d))}">${h(C.statusLabel(effStatus(d), d.type))}</span>`;
@@ -3581,32 +3598,34 @@
       return `<a class="der-l" href="#/doc/${h(d.id)}"><span class="der-n"><b>${h(d.number || `${({ facture: 'Facture', devis: 'Devis', avoir: 'Avoir' })[d.type] || 'Pièce'} sans numéro`)}</b><small>${h(nomClientPiece(d) || '—')} · ${lfJm(d.date)}</small></span><span class="der-m"><b>${m}</b>${st}</span></a>`;
     };
     $('#view').innerHTML = `
-      <div class="page-head a-tete"><div><span class="a-date">${h(jourLong)}</span><h1 id="a-bonjour">${bienvenue ? 'Bienvenue' : 'Bonjour'}</h1><p class="a-phrase">${phrase}</p></div></div>
+      <div class="page-head a-tete"><div><span class="a-date">${h(jourLong)}</span><h1 id="a-bonjour">${bienvenue ? 'Bienvenue' : 'Bonjour'}</h1><p class="a-phrase">${phrase}</p></div>${horsLigne ? `<span class="a-hl">${lfIc('nuage', 14)}hors ligne · ce que ce poste a gardé</span>` : ''}</div>
+      ${bandeauHorsLigne}
       ${bandeauAbonnementAccueil()}
       ${bandeauAccordsAccueil()}
-      ${duGrain && metierCommence() ? '' : pas}
+      ${duGrain && metierCommence() && !commercial ? '' : pas}
       ${!duGrain ? todoPanel() : `
-      <div class="stats a-ch">
+      <div class="stats a-ch${commercial ? ' a-ch2' : ''}${horsLigne ? ' a-gris' : ''}">
+        ${commercial ? carteDevis() : ''}
         ${carte('encaisser', 'On te doit', nb(openAmount), open.length ? `${h(cur)} · ${pl(open.length, 'facture')}` : 'rien à encaisser', open.length ? (late.length ? `dont ${nb(lateAmount)} en retard` : 'rien en retard') : '', late.length ? 'alerte' : '', open.length ? `Voir les ${pl(open.length, 'facture')} qui restent à encaisser` : 'Aucune facture ne reste à encaisser')}
-        ${carte('dois', 'Tu dois', nb(doisTout), dettes.length ? `${h(cur)} · ${pl(dettes.length, 'achat')}` : 'rien à payer', dettes.length ? (doisRetard > 0.0005 ? `dont ${nb(doisRetard)} en retard` : 'rien en retard') : '', doisRetard > 0.0005 ? 'alerte' : '', 'Voir les achats à payer')}
-        ${carte('ca-mois', `Facturé en ${nomMois(month)}`, nb(sumHT(ofMonth)), `${h(cur)} HT · ${nb(sumTTC(ofMonth))} TTC`, `${nomMois(moisAvant)} : ${nb(sumHT(ofAvant))}`, '', 'Voir le journal des ventes du mois')}
-        ${carte('devis', 'Devis en attente', nb(sumQ(pendingQuotes)), pendingQuotes.length ? `${h(cur)} TTC · ${pl(pendingQuotes.length, 'devis', 'devis')}` : 'aucun devis en attente de réponse', expiredQuotes.length ? `<a href="#/devis" id="go-expired">+ ${expiredQuotes.length} ${expiredQuotes.length > 1 ? 'expirés' : 'expiré'}, à refaire</a>` : '', expiredQuotes.length ? 'attire' : '', 'Voir les devis envoyés sans réponse')}
+        ${commercial ? '' : carte('dois', 'Tu dois', nb(doisTout), dettes.length ? `${h(cur)} · ${pl(dettes.length, 'achat')}` : 'rien à payer', dettes.length ? (doisRetard > 0.0005 ? `dont ${nb(doisRetard)} en retard` : 'rien en retard') : '', doisRetard > 0.0005 ? 'alerte' : '', 'Voir les achats à payer')}
+        ${commercial ? '' : carte('ca-mois', `Facturé en ${nomMois(month)}`, nb(sumHT(ofMonth)), `${h(cur)} HT · ${nb(sumTTC(ofMonth))} TTC`, `${nomMois(moisAvant)} : ${nb(sumHT(ofAvant))}`, '', 'Voir le journal des ventes du mois')}
+        ${commercial ? '' : carteDevis()}
       </div>
-      ${metierCommence() ? pas : ''}
+      ${metierCommence() && !commercial ? pas : ''}
       <div class="a-deux"><div class="a-g">
         ${todoPanel()}
-        <div class="panel a-graph"><div class="a-bloc-t"><h2>Facturé et encaissé, 12 mois ${info('dash.chart')}</h2><span class="small muted">${year} : ${nb(sumHT(ofYear))} ${h(cur)} HT · ${nb(sumTTC(ofYear))} TTC, avoirs déduits</span></div>
-          ${duGraphique ? `<div class="legend"><span><i class="cl-fac"></i>Facturé HT, avoirs déduits</span><span><i class="cl-enc"></i>Encaissé</span><span class="unite">en ${h(cur === 'TND' || cur === 'DT' ? 'dinars' : cur)}</span></div>${barChart(series)}`
+        ${commercial ? '' : `<div class="panel a-graph"><div class="a-bloc-t"><h2>Facturé et encaissé, 12 mois ${info('dash.chart')}</h2><span class="small muted">${year} : ${nb(sumHT(ofYear))} ${h(cur)} HT · ${nb(sumTTC(ofYear))} TTC, avoirs déduits</span></div>
+          ${duGraphique ? `<div class="legend"><span><i class="cl-fac"></i>Facturé HT, avoirs déduits</span><span><i class="cl-enc"></i>Encaissé</span><span class="unite">en ${h(cur === 'TND' || cur === 'DT' ? 'dinars' : cur)}</span></div><div class="a-g-zone">${barChart(series, true)}<div class="bulle-g" id="a-bulle" hidden></div></div>`
           : '<p class="small muted">Ce graphique se remplira tout seul : une barre verte par mois facturé, une barre bleue par mois encaissé. L\'écart entre les deux, c\'est ce qu\'on te doit.</p>'}
           <div class="kpis">
             <div class="kpi"><div class="k-label">Devis → facture ${info('dash.conversion')}</div><div class="v">${qs.rate == null ? '—' : qs.rate + ' %'}</div><div class="sub">${qs.accepted} ${qs.accepted > 1 ? 'acceptés' : 'accepté'}, ${qs.refused} ${qs.refused > 1 ? 'refusés' : 'refusé'}, ${qs.pending} en attente · 12 mois</div></div>
             <div class="kpi"><div class="k-label">Délai moyen de paiement ${info('dash.delay')}</div><div class="v">${delay == null ? '—' : pl(delay, 'jour')}</div><div class="sub">factures soldées, 12 derniers mois</div></div>
           </div>
-        </div>
+        </div>`}
       </div><aside class="a-d">
-        <div class="panel a-top"><div class="a-bloc-t"><h2>Meilleurs clients ${year} ${info('dash.top')}</h2><span class="small muted">HT facturé</span></div>
+        ${commercial ? '' : `<div class="panel a-top"><div class="a-bloc-t"><h2>Meilleurs clients ${year} ${info('dash.top')}</h2><span class="small muted">HT facturé</span></div>
           ${top.length ? `<ul class="rank">${top.map(x => `<li><a class="top-l" href="${x.clientId ? '#/client/' + h(x.clientId) : '#/caisse'}" title="${x.clientId ? 'Ouvrir la fiche de ' + h(x.name) : 'Ouvrir la caisse'}">${pastilleClient(x.clientId || x.name, x.name)}<span class="top-n"><b class="name">${h(x.name)}</b><i style="width:${largeurRang(x.ht, topMax)}%"></i></span><span class="amt">${nb(x.ht)}</span></a></li>`).join('')}</ul>` : '<p class="small muted">Aucune facture émise cette année. Ton premier devis accepté la remplira.</p>'}
-        </div>
+        </div>`}
         ${!derniers.length ? '' : `<div class="panel a-der"><div class="a-bloc-t"><h2>Dernières pièces</h2><span class="small muted">ventes</span></div>${derniers.map(ligneDerniere).join('')}
           <div class="der-g"><a class="btn btn-sm" href="#/factures">Toutes les factures</a><a class="btn btn-sm" href="#/devis">Tous les devis</a></div></div>`}
       </aside></div>`}
@@ -3636,6 +3655,29 @@
     if ($('#start-demo')) $('#start-demo').onclick = loadDemo;
     bindPremiersPas();
     bindTodo();
+    if ($('#a-tresorerie')) $('#a-tresorerie').onclick = () => navigate('#/tresorerie');
+    // Au téléphone, la ligne entière se touche : elle fait ce que fait son bouton (caché, la flèche le remplace).
+    $$('#todo-list > li:not(.af-gt)').forEach(li => li.addEventListener('click', e => {
+      if (e.target.closest('button, a') || !matchMedia('(max-width: 700px)').matches) return;
+      const b = $('[data-todo]', li); if (b) b.click();
+    }));
+    const bulle = $('#a-bulle');
+    if (bulle) {
+      const W = 600, left = 44, slot = (W - left) / series.length;
+      const montrer = i => {
+        const x = series[i]; if (!x) { bulle.hidden = true; return; }
+        const ecart = x.invoiced - x.collected;
+        bulle.innerHTML = `<b>${h(C.monthLabel(x.month + '-01'))}</b><span><i class="cl-fac"></i>Facturé HT <b>${nb(x.invoiced)}</b></span><span><i class="cl-enc"></i>Encaissé <b>${nb(x.collected)}</b></span><small>${Math.abs(ecart) < 0.0005 ? 'autant encaissé que facturé' : ecart > 0 ? `${nb(ecart)} ${h(cur)} de plus facturé qu'encaissé ce mois` : 'plus encaissé que facturé : des factures d\'avant'}</small>`;
+        bulle.style.left = `${Math.min(88, Math.max(12, (left + i * slot + slot / 2) / W * 100))}%`;
+        bulle.hidden = false;
+        $$('.a-graph svg .mois').forEach(g => g.classList.toggle('on', Number(g.dataset.i) === i));
+      };
+      $$('.a-graph svg .mois').forEach(g => {
+        g.addEventListener('mouseenter', () => montrer(Number(g.dataset.i)));
+        g.addEventListener('click', () => montrer(Number(g.dataset.i)));
+      });
+      $('.a-graph svg.chart').addEventListener('mouseleave', () => { bulle.hidden = true; $$('.a-graph svg .mois.on').forEach(g => g.classList.remove('on')); });
+    }
     if ($('#go-expired')) $('#go-expired').onclick = e => { e.preventDefault(); TODO_ACTIONS['devis-expires'].run(); };
     // Chaque carte de chiffre ouvre la liste qu'elle résume. Le clic sur la bulle « i » n'y compte
     // pas : elle explique le chiffre, elle ne navigue pas.
@@ -3652,10 +3694,17 @@
       c.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aller(e); } };
     });
     bindDocTable();
+    // Le réseau qui part ou revient redessine l'accueil : le bandeau « Pas de réseau » suit la vérité du moment.
+    if (!routes.dashboard.ecoute) {
+      routes.dashboard.ecoute = true;
+      const suivre = () => { if (routeOf(location.hash) === 'dashboard' && !document.querySelector('#modal-root .modal-bg')) render(true); };
+      window.addEventListener('online', suivre);
+      window.addEventListener('offline', suivre);
+    }
   };
 
   // Histogramme SVG : facturé HT et encaissé par mois (sans bibliothèque)
-  function barChart(series) {
+  function barChart(series, survol) {
     const W = 600, H = 220, left = 44, bottom = 26, top = 10;
     const real = Math.max(0, ...series.map(x => Math.max(x.invoiced, x.collected)));
     const max = Math.max(1, real);
@@ -3665,6 +3714,7 @@
     const grid = [0, 0.5, 1].map(f => `<line class="grid" x1="${left}" x2="${W}" y1="${y(max * f)}" y2="${y(max * f)}"/><text class="lbl" x="${left - 6}" y="${y(max * f) + 4}" text-anchor="end">${real || !f ? short(max * f) : ''}</text>`).join('');
     const bars = series.map((x, i) => {
       const x0 = left + i * slot;
+      if (survol) return `<g class="mois" data-i="${i}"><rect class="zone-m" x="${x0}" y="${top}" width="${slot}" height="${H - bottom - top}"/><rect class="bar-inv" x="${x0 + slot * 0.12}" width="${slot * 0.36}" y="${y(x.invoiced)}" height="${H - bottom - y(x.invoiced)}" rx="2"/><rect class="bar-col" x="${x0 + slot * 0.52}" width="${slot * 0.36}" y="${y(x.collected)}" height="${H - bottom - y(x.collected)}" rx="2"/><text class="lbl" x="${x0 + slot / 2}" y="${H - 8}" text-anchor="middle">${h(x.label)}</text></g>`;
       return `<rect class="bar-inv" x="${x0 + slot * 0.12}" width="${slot * 0.36}" y="${y(x.invoiced)}" height="${H - bottom - y(x.invoiced)}" rx="2"><title>${h(C.monthLabel(x.month + '-01'))} — facturé ${C.money(x.invoiced, company().currency)}</title></rect>
         <rect class="bar-col" x="${x0 + slot * 0.52}" width="${slot * 0.36}" y="${y(x.collected)}" height="${H - bottom - y(x.collected)}" rx="2"><title>${h(C.monthLabel(x.month + '-01'))} — encaissé ${C.money(x.collected, company().currency)}</title></rect>
         <text class="lbl" x="${x0 + slot / 2}" y="${H - 8}" text-anchor="middle">${h(x.label)}</text>`;
@@ -7298,6 +7348,9 @@
           // (maquette « fenêtre d'émission ») Ce qui a été coché « juste après l'émission » s'ouvre aussitôt, dans l'ordre.
           const apres = apresEmission; apresEmission = null;
           if (apres) setTimeout(() => {
+            // (1.157.0) Une fenêtre déjà ouverte entre-temps (« Enregistrer un paiement », cliqué tout de suite) : on ne lui en
+            // pose pas une autre dessus, la signature reste dans la frise.
+            if ($('#modal-root').children.length) return;
             const ouvrirGeste = sel => { const b = $(sel); if (b) { b.click(); return true; } return false; };
             if (apres.signer && ouvrirGeste('#ed-frise [data-frise="signer"]')) return;
             if (apres.envoyer && ouvrirGeste('#email')) return;
@@ -9952,6 +10005,31 @@
         $('#ac-motif', root).focus();
       });
   }
+  // (1.157.0, maquette « Accueil ») La demande, ouverte depuis l'accueil : ce qu'il voudrait, ce qu'il peut seul, son
+  // tiers, et les trois gestes (plus tard, refuser en disant pourquoi, accorder).
+  function fenetreAccord(id, fini) {
+    const a = accordsVus && accordsVus.accords.find(x => x.id === id);
+    if (!a) return;
+    const cmd = a.geste === 'commande', remise = a.geste === 'remise';
+    const d = cmd ? (data.supplierOrders || []).find(x => x.id === a.piece) : docById(a.piece);
+    const nomTiers = (tiersAccord(a) || {}).name || '';
+    const ligne = (k, v) => `<div class="fa-l"><span>${k}</span><span>${v}</span></div>`;
+    modal(`<h2>${h(a.demandeur)} demande ton accord</h2>
+      <div class="fa-t">
+        ${ligne(cmd ? 'Commande' : 'Facture', `<b>${h((d && d.number) || 'Brouillon')}</b>${nomTiers ? ` · ${h(nomTiers)}` : ''}`)}
+        ${ligne('Ce qu\'il voudrait', remise ? `Une remise de <b>${tauxAccord(a.taux)}</b>` : cmd ? `Envoyer une commande de <b>${montantAccord(a.montant)}</b> hors taxes` : `Émettre une facture de <b>${montantAccord(a.montant)}</b>`)}
+        ${ligne('Ce qu\'il peut seul', remise ? `${tauxAccord(a.seuil)} au plus` : cmd ? `${montantAccord(a.plafond)} hors taxes au plus` : `un encours de ${montantAccord(a.plafond)} ; ce client doit déjà ${montantAccord(a.encours)}`)}
+        ${ligne('Demandée le', h(instantAccord(a.demandeLe)))}
+      </div>
+      <p class="small muted">Si tu acceptes, ${h(a.demandeur)} ${cmd ? 'envoie la commande' : 'émet la facture'} telle quelle ; si tu refuses, ${cmd ? 'elle ne part pas' : 'elle reste en brouillon'} et il lit ton mot. La demande et ta réponse restent dans les demandes d'accord.</p>
+      <div class="modal-actions"><button class="btn" data-close>Plus tard</button>${d ? `<button class="btn" id="fa-ouvrir">Ouvrir la ${cmd ? 'commande' : 'facture'}</button>` : ''}<button class="btn btn-danger" id="fa-refuser">Refuser…</button><button class="btn btn-primary" id="fa-accorder">${lfIc('coche', 16, 2.4)}Accorder${remise ? ' ' + tauxAccord(a.taux) : ''}</button></div>`,
+      (root, close) => {
+        $('[data-close]', root).onclick = close;
+        if ($('#fa-ouvrir', root)) $('#fa-ouvrir', root).onclick = () => { close(); navigate(lienAccord(a)); };
+        $('#fa-refuser', root).onclick = () => { close(); deciderAccord(a.id, 'refuser', fini); };
+        $('#fa-accorder', root).onclick = () => { $('#fa-accorder', root).disabled = true; close(); deciderAccord(a.id, 'accorder', fini); };
+      });
+  }
   function brancherDecisions(root, fini) {
     $$('[data-accord-accorder]', root).forEach(b => { b.onclick = () => { b.disabled = true; deciderAccord(b.dataset.accordAccorder, 'accorder', fini); }; });
     $$('[data-accord-refuser]', root).forEach(b => { b.onclick = () => deciderAccord(b.dataset.accordRefuser, 'refuser', fini); });
@@ -9998,25 +10076,25 @@
     const nom = a => (tiersAccord(a) || {}).name || (a.geste === 'commande' ? 'un fournisseur' : 'un client');
     if (attente.length) {
       const a = attente[0];
-      return `<div class="banner info lock-banner" id="accords-attente"><span><b>${attente.length > 1 ? `${attente.length} demandes d'accord attendent` : 'Une demande d\'accord attend'} ta décision</b> : ${h(a.demandeur)} voudrait ${a.geste === 'remise' ? `accorder une remise de ${tauxAccord(a.taux)} à ${h(nom(a))} (${tauxAccord(a.seuil)} permis sans accord)` : a.geste === 'commande' ? `envoyer à ${h(nom(a))} une commande de ${montantAccord(a.montant)} hors taxes (${montantAccord(a.plafond)} permis sans accord)` : `émettre une facture de ${montantAccord(a.montant)} pour ${h(nom(a))}, au-delà de son encours autorisé`}${attente.length > 1 ? ', et d\'autres' : ''}. ${info('doc.encoursAccord')}</span>
-        <span class="lock-go"><button class="btn btn-sm" id="accords-voir">${attente.length > 1 ? 'Voir les demandes' : 'Voir la demande'}</button></span></div>`;
+      return `<div class="bandeau info a-band" id="accords-attente">${lfIc('personne', 18)}<span class="txt"><b>${attente.length > 1 ? `${attente.length} demandes d'accord attendent` : 'Une demande d\'accord attend'} ta décision</b><span>${h(a.demandeur)} voudrait ${a.geste === 'remise' ? `accorder une remise de ${tauxAccord(a.taux)} à ${h(nom(a))} (${tauxAccord(a.seuil)} permis sans accord)` : a.geste === 'commande' ? `envoyer à ${h(nom(a))} une commande de ${montantAccord(a.montant)} hors taxes (${montantAccord(a.plafond)} permis sans accord)` : `émettre une facture de ${montantAccord(a.montant)} pour ${h(nom(a))}, au-delà de son encours autorisé`}${attente.length > 1 ? ', et d\'autres' : ''}.</span></span>
+        <span class="lock-go">${attente.length > 1 ? '' : `<button class="btn btn-sm" id="accords-decider" data-accord="${h(a.id)}">Décider</button>`}<button class="btn btn-sm" id="accords-voir">${attente.length > 1 ? 'Voir les demandes' : 'Toutes les demandes'}</button></span></div>`;
     }
     const semaine = Date.now() - 7 * 864e5;
     const decidee = l.accords.find(a => a.mienne && a.statut !== 'en_attente' && new Date(a.decideLe).getTime() > semaine && pieceEncoreBrouillon(a.piece, a.geste));
     if (!decidee) return '';
     const cmd = decidee.geste === 'commande';
     const quoi = cmd ? `commande chez ${h(nom(decidee))}` : `${decidee.geste === 'remise' ? 'remise' : 'facture'} pour ${h(nom(decidee))}`;
-    return `<div class="banner info lock-banner" id="accords-decidee"><span>${decidee.statut === 'accorde'
+    return `<div class="bandeau info a-band" id="accords-decidee">${lfIc('personne', 18)}<span class="txt"><span>${decidee.statut === 'accorde'
       ? `<b>${h(decidee.decideur)} a accordé</b> ta ${quoi} : tu peux ${cmd ? 'l\'envoyer' : 'l\'émettre'}.`
-      : `<b>${h(decidee.decideur)} a refusé</b> ta ${quoi}${decidee.motif ? ` : « ${h(decidee.motif)} »` : ''}. Elle reste en brouillon.`}</span>
+      : `<b>${h(decidee.decideur)} a refusé</b> ta ${quoi}${decidee.motif ? ` : « ${h(decidee.motif)} »` : ''}. Elle reste en brouillon.`}</span></span>
       <span class="lock-go"><button class="btn btn-sm" id="accords-ouvrir" data-lien="${h(lienAccord(decidee))}">${cmd ? 'Ouvrir la commande' : 'Ouvrir la facture'}</button></span></div>`;
   }
   // (plateforme, abonnement) Le bandeau de l'abonnement, en haut de l'accueil (1.118.0) : ce qui attend, et un bouton.
   function bandeauAbonnementAccueil() {
     const b = bridge.bandeauAbonnement ? bridge.bandeauAbonnement(abonnementVisible()) : null;
     if (!b) return '';
-    return `<div class="banner ${b.ton === 'alerte' ? 'danger' : ''} abo-accueil" id="abo-accueil" role="status">
-        <span class="abo-accueil-txt"><b>${h(b.titre)}.</b> ${h(b.texte)}</span>
+    return `<div class="bandeau ${b.ton === 'alerte' ? 'rouge' : 'ambre'} abo-accueil a-band" id="abo-accueil" role="status">${lfIc(b.ton === 'alerte' ? 'cadenas' : 'horloge', 18)}
+        <span class="txt abo-accueil-txt"><b>${h(b.titre)}</b><span>${h(b.texte)}</span></span>
         <span class="lock-go"><button type="button" class="btn${b.principal ? ' btn-primary' : ''}" id="abo-accueil-go">${h(b.bouton)}</button></span></div>`;
   }
   // Le bouton du bandeau est-il le bouton principal de l'accueil (la grâce, la lecture seule) ?
@@ -10033,6 +10111,7 @@
         el.innerHTML = contenuAccueilAccords();
         if ($('#accords-voir', el)) $('#accords-voir', el).onclick = () => navigate('#/accords');
         if ($('#accords-ouvrir', el)) $('#accords-ouvrir', el).onclick = () => navigate($('#accords-ouvrir', el).dataset.lien);
+        if ($('#accords-decider', el)) $('#accords-decider', el).onclick = () => fenetreAccord($('#accords-decider', el).dataset.accord, poser);
       };
       poser();
       lireAccords().then(poser, () => { /* sans réseau : ce qu'on avait lu reste */ });
@@ -11535,9 +11614,11 @@
   // treize lignes et occupait l'écran entier : le chiffre d'affaires, le graphique et tout le reste
   // du tableau de bord passaient sous la ligne de flottaison. Treize corvées d'un coup, ça ne se
   // hiérarchise pas — ça se subit.
-  const TODO_VISIBLE = 5;
+  const TODO_VISIBLE = 5, TODO_TEL = 3;
 
-  function todoPanel() {
+  // (1.157.0) Les choses à faire de l'accueil : la phrase du haut, le bouton vert d'un rôle et la liste les comptent avec
+  // cette même fonction (la phrase disait « 2 gestes » au-dessus d'une liste d'un seul).
+  function chosesAFaire() {
     // `reserves` : ce que l'offre ferme. Sans lui, la ligne « à immobiliser » affirmerait
     // « rien n'est déduit » à quelqu'un qui ne PEUT pas créer la fiche — et c'est faux, le cabinet
     // la crée depuis le paquet (9.7.0). On ne reproche pas ce qu'on n'a pas offert (7.20.0).
@@ -11558,6 +11639,10 @@
       : mv.demandes && mv.pourLe ? `${mv.demandes > 1 ? 'La première est attendue' : 'Elle est attendue'} pour le ${C.fmtDate(mv.pourLe)}. ` : '';
     if (attendu.length && !pageCachee('comptable')) items = [{ id: 'cabinet-attend', level: mv.enRetard ? 'danger' : 'warn', label: `Ton cabinet attend ${attendu.join(' et ')}`,
       detail: `${quand}Réponds-lui dans « Mon comptable », avec le fichier qu'il attend.` }, ...items];
+    return items;
+  }
+  function todoPanel() {
+    const items = chosesAFaire();
     // Rien à faire et rien du tout ne sont pas la même chose. « Aucun retard, aucun contrat en
     // attente » sur une entreprise qui n'a jamais rien facturé, c'est féliciter quelqu'un pour un
     // travail qu'il n'a pas commencé. Dans ce cas la place revient aux premiers pas.
@@ -11566,7 +11651,8 @@
       // annoncer « rien à faire » juste en dessous de « étape 1 sur 7 » se contredit à dix
       // centimètres d'intervalle.
       if (premiersPasVisibles() || (!data.documents.length && !data.clients.length)) return '';
-      return `<div class="panel todo-ok a-ok">${lfIc('coche', 22, 2.4)}<span><b>Rien à faire aujourd'hui</b><small>Aucune facture en retard, aucun devis sans réponse, aucune pièce que ton cabinet attend.</small></span></div>`;
+      const tre = !pageCachee('tresorerie') && (data.accounts || []).length > 0;
+      return `<div class="panel todo-ok a-ok">${lfIc('coche', 22, 2.4)}<span><b>Rien à faire aujourd'hui</b><small>Aucune facture en retard, aucun devis sans réponse, aucune pièce que ton cabinet attend.${tre ? ' Ce qui doit rentrer et sortir se lit dans la trésorerie.' : ''}</small></span>${tre ? '<button type="button" class="btn btn-sm" id="a-tresorerie">Voir la trésorerie</button>' : ''}</div>`;
     }
     // (1.156.0, maquette « Accueil ») La liste se range en trois : ça coûte maintenant (rouge), un geste t'attend (ambre),
     // quand tu peux. La plus urgente d'abord ; la première ligne porte le seul bouton principal de la page (sauf quand
@@ -11582,7 +11668,8 @@
       const lignes = l.map(x => {
         const i = rang++;
         const geste = todoMeneACache(x.id) ? '' : `<button class="btn${i === 0 && premierPrincipal ? ' btn-primary' : ''}" data-todo="${x.id}">${h((TODO_ACTIONS[x.id] || {}).label || 'Voir')}</button>`;
-        return `<li class="lvl-${x.level || 'info'}" ${i >= TODO_VISIBLE && !todoTout ? 'hidden' : ''}><span class="td-dot"></span>
+        // Au téléphone (maquette « Accueil »), trois lignes : les deux suivantes attendent « Voir les autres ».
+        return `<li class="lvl-${x.level || 'info'}${i >= TODO_TEL && !todoTout ? ' a-t-ordi' : ''}" ${i >= TODO_VISIBLE && !todoTout ? 'hidden' : ''}><span class="td-dot"></span>
           <span class="td-txt"><strong>${h(x.label)}</strong><span>${h(x.detail || '')}</span></span>${geste}</li>`;
       }).join('');
       const debut = ranges.indexOf(l[0]);
@@ -11596,7 +11683,7 @@
       <div class="a-bloc-t"><h2><button type="button" class="collapse-h" id="todo-toggle" aria-expanded="${open}" aria-controls="todo-list" title="${open ? 'Replier' : 'Déplier'} la liste">À faire</button> ${info('todo')}</h2><span class="small muted">${pl(items.length, 'chose')}, la plus urgente d'abord</span></div>
       <p class="todo-sum small muted" ${open ? 'hidden' : ''}>${h(summary)}</p>
       <ul id="todo-list" ${open ? '' : 'hidden'}>${groupes}</ul>
-      ${items.length > TODO_VISIBLE && !todoTout ? `<button class="btn btn-ghost todo-more" id="todo-more" ${open ? '' : 'hidden'}>Voir les ${items.length - TODO_VISIBLE} autres ${lfIc('bas', 14, 2.2)}</button>` : ''}
+      ${items.length > TODO_TEL && !todoTout ? `<button class="btn btn-ghost todo-more${items.length > TODO_VISIBLE ? '' : ' tm-tel-seul'}" id="todo-more" ${open ? '' : 'hidden'}>Voir les ${items.length > TODO_VISIBLE ? `<span class="tm-o">${items.length - TODO_VISIBLE}</span>` : ''}<span class="tm-t">${items.length - TODO_TEL}</span> autres ${lfIc('bas', 14, 2.2)}</button>` : ''}
       </div>`;
   }
   // Déplié pour la session en cours seulement : demain, la liste repart courte. Ce n'est pas un

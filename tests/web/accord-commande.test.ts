@@ -131,7 +131,7 @@ describe('l\'accord au-delà d\'une commande fournisseur, à la souris', () => {
     await n.reload();
     await plusTard(n);
     await expect.poll(async () => net(await n.locator('#accords-attente').innerText().catch(() => '')), { timeout: 20_000 })
-      .toContain('Une demande d\'accord attend ta décision : Ines voudrait envoyer à Béton du Nord une commande de 1 025,750 DT hors taxes (1 000,000 DT permis sans accord).');
+      .toContain('Une demande d\'accord attend ta décision Ines voudrait envoyer à Béton du Nord une commande de 1 025,750 DT hors taxes (1 000,000 DT permis sans accord).');
     await n.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accord-commande-3-accueil.png') });
     await n.locator('#accords-voir').click();
     await expect.poll(async () => net(await n.locator(`tr[data-accord]`).first().innerText().catch(() => '')), { timeout: 10_000 }).toMatch(/BCF-\d{4}-001 Béton du Nord 1 025,750 DT HT — 1 000,000 DT sans accord Ines Refuser… Accorder/);

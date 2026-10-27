@@ -130,7 +130,7 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await k.locator('[data-k=label]').first().fill('Ciment gris 50 kg');
     await k.locator('[data-k=qty]').first().fill('12');
     await k.locator('[data-k=unitPrice]').first().fill('25');
-    await k.locator('input[name=applyStamp]').uncheck();
+    await k.locator('[data-etq=timbre]').click(); await k.locator('[data-tb="0"]').click(); // (1.155.0) l'étiquette du timbre
     await k.locator('#save').click();
     await expect.poll(() => toast(k), { timeout: 10_000 }).toBe('Brouillon enregistré');
     const emettre = async () => {
@@ -156,7 +156,7 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     // (Nadia ouvre l'application : la facture de Karim, faite depuis, y est.)
     await n.evaluate((x) => { location.hash = x; }, `#/doc/${pieceId}`);
     await n.reload();
-    await expect.poll(() => titre(n), { timeout: 20_000 }).toMatch(/^Facture/);
+    await expect.poll(() => titre(n), { timeout: 20_000 }).toMatch(/^(Facture|Nouvelle facture)/); // (1.155.0) un brouillon s'intitule « Nouvelle facture »
     await plusTard(n);
     await expect.poll(() => bandeau(n), { timeout: 10_000 }).toMatch(/^Karim demande ton accord pour émettre cette facture/);
     await n.locator('#accord-banner [data-accord-refuser]').click();
@@ -177,8 +177,17 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     // 5. Nadia : son accueil le dit ; la page des demandes ; elle accorde.
     await aller(n, '#/dashboard');
     await expect.poll(async () => net(await n.locator('#accords-accueil').innerText()), { timeout: 10_000 })
-      .toMatch(/^Une demande d'accord attend ta décision : Karim voudrait émettre une facture de 357,000 DT pour Chantier Ennasr, au-delà de son encours autorisé\./);
+      .toMatch(/^Une demande d'accord attend ta décision Karim voudrait émettre une facture de 357,000 DT pour Chantier Ennasr, au-delà de son encours autorisé\./);
     await n.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accords-4-accueil-responsable.png') });
+    // (1.157.0, maquette « Accueil ») « Décider » ouvre la demande sur place : ce qu'il voudrait, ce qu'il peut seul, et
+    // « Plus tard » qui ne décide rien.
+    await n.locator('#accords-decider').click();
+    const fen = n.locator('.modal').filter({ hasText: 'Karim demande ton accord' });
+    await expect.poll(async () => net(await fen.innerText().catch(() => '')), { timeout: 10_000 })
+      .toMatch(/Ce qu'il voudrait Émettre une facture de 357,000 DT Ce qu'il peut seul un encours de .+ ; ce client doit déjà .+ Plus tard Ouvrir la facture Refuser… Accorder$/);
+    await n.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accords-4b-fenetre.png') });
+    await fen.getByRole('button', { name: 'Plus tard' }).click();
+    expect(await n.locator('#accords-decider').count()).toBe(1);
     await n.locator('#accords-voir').click();
     await expect.poll(() => titre(n), { timeout: 10_000 }).toMatch(/^Demandes d'accord/);
     const enAttente = n.locator('#view tr', { has: n.locator('[data-accord-accorder]') });
@@ -245,8 +254,8 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     await k.locator('[data-k=label]').first().fill('Ciment gris 50 kg');
     await k.locator('[data-k=qty]').first().fill('12');
     await k.locator('[data-k=unitPrice]').first().fill('25');
-    await k.locator('input[name=discountRate]').fill('15');
-    await k.locator('input[name=applyStamp]').uncheck();
+    await k.locator('#ed-remise').fill('15'); // (1.155.0) la remise sous les totaux
+    await k.locator('[data-etq=timbre]').click(); await k.locator('[data-tb="0"]').click(); // (1.155.0) l'étiquette du timbre
     await k.locator('#save').click();
     await expect.poll(() => toast(k), { timeout: 10_000 }).toBe('Brouillon enregistré');
     const emettre = async () => {
@@ -266,7 +275,7 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     // 3. Nadia ouvre la facture et accorde.
     await n.evaluate((x) => { location.hash = x; }, `#/doc/${pieceId}`);
     await n.reload();
-    await expect.poll(() => titre(n), { timeout: 20_000 }).toMatch(/^Facture/);
+    await expect.poll(() => titre(n), { timeout: 20_000 }).toMatch(/^(Facture|Nouvelle facture)/); // (1.155.0) un brouillon s'intitule « Nouvelle facture »
     await plusTard(n);
     await expect.poll(() => bandeau(n), { timeout: 10_000 }).toMatch(/^Karim demande ton accord pour émettre cette facture avec une remise de 15 % \(10 % permis sans accord\)\./);
     await n.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'accords-7-remise-demandee.png') });
@@ -296,9 +305,9 @@ describe('l\'accord d\'un responsable, à la souris', () => {
       await k.locator('#ed-pq-q').fill('Walima');
       await k.locator('#ed-pq-liste [role=option][data-cl]').first().click();
     }
-    await k.locator('#cat-pick .combo-btn').click();
-    await k.locator('#cat-pick .combo-q').fill('Ciment');
-    await cliquer(k.locator('#cat-pick .combo-list [role=option]').first(), '#cat-pick', 15_000, async () => `${await recitObjet(admin, ent, 'catalog', 'ciment')} ; le serveur envoie à Karim ${
+    // (1.155.0) L'article se prend dans la barre d'ajout de la facture.
+    await k.locator('#ed-ajout').fill('Ciment');
+    await cliquer(k.locator('[data-aj]').first(), '', 15_000, async () => `${await recitObjet(admin, ent, 'catalog', 'ciment')} ; le serveur envoie à Karim ${
       ((await api('GET', `/entreprises/${ent}/dossier-v10`, karim)).corps.objets as { collection: string }[] | undefined)?.filter((o) => o.collection === 'catalog').length ?? '?'} article(s) ; sa page : ${
       await k.evaluate(() => { const w = window as unknown as { __data?: { catalog?: unknown[] }; skanfact?: { droitsDossier?: () => unknown } }; return JSON.stringify({ catalogue: w.__data?.catalog?.length ?? null, droits: w.skanfact?.droitsDossier?.(), poste: (document.querySelector('#poste-bandeau') as HTMLElement | null)?.innerText ?? '' }); })}`);
     await expect.poll(async () => k.locator('[data-k=unitPrice]').count(), { timeout: 5_000 }).toBeGreaterThan(0);
@@ -306,7 +315,7 @@ describe('l\'accord d\'un responsable, à la souris', () => {
     const n0 = await prix.count();
     await prix.nth(n0 - 1).fill('20');
     await k.locator('[data-k=qty]').nth(n0 - 1).fill('12');
-    await k.locator('input[name=applyStamp]').uncheck();
+    await k.locator('[data-etq=timbre]').click(); await k.locator('[data-tb="0"]').click(); // (1.155.0) l'étiquette du timbre
     await k.locator('#save').click();
     await expect.poll(() => toast(k), { timeout: 10_000 }).toBe('Brouillon enregistré');
     await k.locator('#issue').click();

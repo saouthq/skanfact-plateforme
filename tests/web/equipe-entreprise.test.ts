@@ -143,7 +143,7 @@ describe('l\'équipe de l\'entreprise, à la souris', () => {
     expect((await equipe()).invitations).toEqual([]);
     // Son accueil, « Ton accès à … », tient dans l'écran : ses onze pages vont à la ligne (vu à sa première connexion,
     // l'accueil défilait de côté).
-    await y.locator('#accueil-role .btn').first().waitFor({ timeout: 20_000 });
+    await y.locator('#accueil-role').first().waitFor({ timeout: 20_000 }); // (1.157.0) le bandeau du commercial
     expect(await y.evaluate(() => { const v = document.querySelector('#view') as HTMLElement; return v.scrollWidth - v.clientWidth; })).toBeLessThanOrEqual(0);
     await y.screenshot({ path: path.join(PHOTOS, 'equipe-entreprise-3-accueil-vendeur.png') });
     // Un commercial ne gère pas l'équipe : l'onglet ne lui est pas montré.

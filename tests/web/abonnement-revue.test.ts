@@ -74,7 +74,7 @@ describe('l\'abonnement après sa revue, à la souris', () => {
     const ent = String((await api('POST', '/entreprises', nadia.jeton, { raisonSociale: 'Quincaillerie Fermée' })).corps.id);
     await finEssai(ent, plusJours(aujourdhui, -10));
     const p = await ouvrir(nadia.jeton, ent, '#/dashboard');
-    await expect.poll(() => bandeau(p), { timeout: 15_000 }).toBe(`Lecture seule depuis le ${jourEnFrancais(plusJours(aujourdhui, -2))}. L'essai est terminé. Tout se lit, s'imprime et s'exporte, mais rien de nouveau ne se crée. Choisis ton offre : dès que sa facture est réglée, tout se rouvre. Choisir mon offre`);
+    await expect.poll(() => bandeau(p), { timeout: 15_000 }).toBe(`Lecture seule depuis le ${jourEnFrancais(plusJours(aujourdhui, -2))} L'essai est terminé. Tout se lit, s'imprime et s'exporte, mais rien de nouveau ne se crée. Choisis ton offre : dès que sa facture est réglée, tout se rouvre. Choisir mon offre`);
     expect(await principaux(p)).toEqual(['abo-accueil-go']);
     expect(await p.locator('#new-devis, #new-facture').count()).toBe(0);
     expect(await p.locator('#view .pp-accueil, #view .premiers-pas').count()).toBe(0);
@@ -91,7 +91,7 @@ describe('l\'abonnement après sa revue, à la souris', () => {
     const ent = String((await api('POST', '/entreprises', sonia.jeton, { raisonSociale: 'Atelier en Grâce' })).corps.id);
     await finEssai(ent, plusJours(aujourdhui, -2));
     const p = await ouvrir(sonia.jeton, ent, '#/dashboard');
-    await expect.poll(() => bandeau(p), { timeout: 15_000 }).toMatch(/^Ton essai est terminé\. Tout marche encore jusqu'au .+ ; le .+, l'entreprise passe en lecture seule\. Choisis ton offre avant cette date\. Choisir mon offre$/);
+    await expect.poll(() => bandeau(p), { timeout: 15_000 }).toMatch(/^Ton essai est terminé Tout marche encore jusqu'au .+ ; le .+, l'entreprise passe en lecture seule\. Choisis ton offre avant cette date\. Choisir mon offre$/);
     expect(await principaux(p)).toEqual(['abo-accueil-go']);
     // (1.156.0, maquette « Accueil ») « Nouvelle facture » est dans « Créer » de la barre : l'accueil n'en a plus.
     expect(await p.locator('#view .pp-accueil, #view .premiers-pas').count()).toBe(0);
@@ -105,7 +105,7 @@ describe('l\'abonnement après sa revue, à la souris', () => {
     const t = await tel.newPage();
     await t.goto(`${serveur.adresse}/v10/?e=${ent}#/dashboard`);
     await plusTard(t);
-    await expect.poll(() => bandeau(t), { timeout: 20_000 }).toContain('Ton essai est terminé.');
+    await expect.poll(() => bandeau(t), { timeout: 20_000 }).toContain('Ton essai est terminé Tout marche encore');
     // Mesuré une fois l'accueil posé (il se redessine quand l'abonnement est relu).
     await expect.poll(async () => { const b = await t.locator('#abo-accueil-go').boundingBox(); return !!b && b.y + b.height < 844 && b.width > 300 && b.height >= 44; },
       { timeout: 15_000 }).toBe(true);
