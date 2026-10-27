@@ -72,6 +72,13 @@ body.dark .btn-primary, body.dark .btn-primary:hover { color: #fff; }
 #toast.error .temps { background: rgba(255, 255, 255, .55); }
 @keyframes ch-temps-toast { from { transform: scaleX(1); } to { transform: scaleX(0); } }
 @media (prefers-reduced-motion: reduce) { #toast .temps { animation: none; } }
+/* (27/10/2026, revue des toasts) Au téléphone : posé à left: 50 %, le toast ne prenait que la moitié de l'écran (cinq lignes
+   pour une phrase) et couvrait le bouton principal du bas (« Enregistrer l'achat »). Il prend la largeur de l'écran et se
+   pose en haut, où il ne cache aucun geste. */
+@media (max-width: 700px) {
+  #toast { left: 12px; right: 12px; bottom: auto; top: calc(env(safe-area-inset-top, 0px) + 10px); max-width: none; transform: translateY(-6px); }
+  #toast.show { transform: translateY(0); }
+}
 
 /* ── Les bandeaux : en haut de la page ──
    Rouge : ça bloque. Ambre : un geste attend (le bandeau par défaut). Bleu : à savoir. Gris : rien à faire. Le titre
@@ -167,3 +174,15 @@ body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var
 #modal-root .modal table.mini td textarea { width: 100%; margin-top: 6px; min-height: 56px; font-size: 13px; }
 #modal-root .modal table.mini .link-add { margin-top: 4px; }
 #modal-root .modal table.mini tr.rl-titre input { background: var(--sb-fond); font-weight: 600; }
+
+/* ── Les fenêtres, telles que les maquettes (`.fen` de docs/maquettes/facture.html ; revue du 27/10/2026, Skander : « est-ce
+   que les fenêtres respectent la DA des maquettes ») ── un voile net (le flou derrière faisait brouillé), l'ombre fine des
+   maquettes, le titre à la taille du leur. Le bouton que la fenêtre choisit à l'ouverture ne porte plus le gros contour
+   noir du navigateur : au clavier, un anneau sarcelle le dit. */
+.modal-bg { background: rgba(17, 24, 33, .36); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.modal-bg:not(:last-child) { background: none; }
+#modal-root .modal { border-radius: 16px; box-shadow: 0 0 0 1px rgba(27, 36, 48, .06), 0 12px 32px -8px rgba(20, 40, 60, .22), 0 4px 10px -4px rgba(20, 40, 60, .08); }
+#modal-root .modal h2 { font-size: 20px; letter-spacing: -.02em; text-wrap: balance; }
+#modal-root .modal .btn:focus:not(:focus-visible) { outline: none; }
+#modal-root .modal .btn:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: 2px; }
+body.dark .modal-bg { background: rgba(0, 0, 0, .55); }

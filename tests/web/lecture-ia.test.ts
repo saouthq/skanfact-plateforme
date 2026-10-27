@@ -164,6 +164,46 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
     await fermer();
   }, 120_000);
 
+  // L'API refuse une image de plus de 5 Mo : la photo d'un téléphone (4 000 × 3 000 points) part réduite, en JPEG.
+  it('la photo lourde d\'un téléphone part à l\'IA réduite à 2 400 points, en JPEG', async () => {
+    const { jeton, ent } = await nadia();
+    const { p, erreurs, fermer } = await ouvrir(jeton, ent);
+    const lourde = Buffer.from(await p.evaluate(async () => {
+      const t = document.createElement('canvas'); t.width = 4000; t.height = 3000;
+      const c = t.getContext('2d');
+      const img = c?.createImageData(4000, 3000);
+      if (!c || !img) return '';
+      for (let i = 0; i < img.data.length; i += 4) { const v = (i * 2654435761) >>> 24; img.data[i] = v; img.data[i + 1] = v ^ 0x5a; img.data[i + 2] = 255 - v; img.data[i + 3] = 255; }
+      c.putImageData(img, 0, 0);
+      const b = await new Promise<Blob | null>((ok) => t.toBlob(ok, 'image/png'));
+      const o = new Uint8Array(await (b ?? new Blob()).arrayBuffer());
+      let s = ''; for (let i = 0; i < o.length; i += 0x8000) s += String.fromCharCode(...o.subarray(i, i + 0x8000));
+      return btoa(s);
+    }), 'base64');
+    expect(lourde.length).toBeGreaterThan(5 * 1_048_576);
+    expect(lourde.length).toBeLessThan(10 * 1_048_576);
+    const avant = envois.length;
+    const selecteur = p.waitForEvent('filechooser');
+    await p.locator('#photo').click();
+    await (await selecteur).setFiles({ name: 'IMG_2026.png', mimeType: 'image/png', buffer: lourde });
+    await question(p).getByRole('button', { name: 'Lire avec l\'IA' }).click();
+    await p.locator('#ac-lecture').getByText('Ce que SkanFact a compris').waitFor({ timeout: 30_000 });
+    expect(envois.length).toBe(avant + 1);
+    const parti = envois.at(-1) ?? Buffer.alloc(0);
+    expect([...parti.subarray(0, 2)]).toEqual([0xff, 0xd8]);
+    expect(parti.length).toBeLessThan(5 * 1_048_576);
+    // La taille de l'image lue dans son en-tête JPEG (le segment SOF).
+    let i = 2, cotes: number[] = [];
+    while (i < parti.length - 9) {
+      const m = parti[i + 1] ?? 0, l = parti.readUInt16BE(i + 2);
+      if (m >= 0xc0 && m <= 0xc2) { cotes = [parti.readUInt16BE(i + 7), parti.readUInt16BE(i + 5)]; break; }
+      i += 2 + l;
+    }
+    expect(cotes).toEqual([2400, 1800]);
+    expect(erreurs).toEqual([]);
+    await fermer();
+  }, 120_000);
+
   it('« Non » joint la photo sans rien envoyer ; une pièce remplie avec un doute ouvert le dit en ambre', async () => {
     const { jeton, ent } = await nadia();
     const { p, erreurs, fermer } = await ouvrir(jeton, ent);
@@ -205,10 +245,18 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
     await plusTard(p);
     await p.locator('#set-tabs [data-tab="donnees"]').click();
     const panneau = p.locator('#ocr-panel');
-    await expect.poll(() => panneau.innerText().then(net), { timeout: 20_000 }).toMatch(/Lire avec l'IA ?Coupée/);
+    // (27/10/2026, maquette « Lecture des achats ») Les deux voies : coupée, la photo se lit en Tunisie, et cette voie-là est marquée.
+    await expect.poll(() => panneau.innerText().then(net), { timeout: 20_000 }).toMatch(/Avec l'IA de Claude ?coupée/);
+    expect(net(await panneau.innerText())).toMatch(/Coupée pour toute l'entreprise : les photos se lisent en Tunisie, sans question\./);
+    expect(await panneau.locator('.ocr-voie.on').innerText().then(net)).toMatch(/^Sur les serveurs de SkanFact ?en Tunisie/);
     await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-7-reglage-coupe.png') });
     await panneau.getByRole('button', { name: 'Proposer l\'IA de nouveau' }).click();
-    await expect.poll(() => panneau.innerText().then(net)).toMatch(/Lire avec l'IA ?Proposée à chaque photo/);
+    // Un réglage qui se défait d'un clic : le toast le dit, « Annuler » sous la main.
+    await expect.poll(() => p.locator('#toast .toast-txt').innerText().then(net)).toBe('L\'IA se proposera à chaque photo : elle ne lit que si tu dis oui.');
+    expect(await p.locator('#toast #toast-undo').isVisible()).toBe(true);
+    await expect.poll(() => panneau.innerText().then(net)).toMatch(/Avec l'IA de Claude ?hors de Tunisie/);
+    expect(await panneau.locator('.ocr-voie.on').innerText().then(net)).toMatch(/^Avec l'IA de Claude/);
+    expect(net(await panneau.innerText())).toMatch(/Ce qui part chez Anthropic, quand tu dis oui ?L'image de la pièce, et la consigne de lecture de SkanFact ?Ni tes clients, ni tes chiffres, ni le nom de ton entreprise/);
     await expect.poll(async () => {
       const o = ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as { collection: string; cle: string; contenu: Record<string, unknown> }[]).find((x) => x.collection === '_racine' && x.cle === 'company');
       return o?.contenu.lectureIA;

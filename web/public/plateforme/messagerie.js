@@ -338,6 +338,7 @@
    *   ceMois?: () => { titre: string, lignes: string[], action: { libelle: string, faire: () => void } | null, cabinet: Promise<string | null> | null } | null,
    *   voirMandat?: () => void,
    *   inviter?: () => void,
+   *   sansCabinet?: ((el: HTMLElement) => void) | null,
    *   revision?: () => void,
    *   surAttente?: (a: { nonLus: number, questions: number, demandes: number, enRetard?: number }) => void,
    *   integre?: boolean,
@@ -773,6 +774,10 @@
         lu = r;
         // Aucun cabinet ne tient le dossier, et aucun ne l'a tenu : rien à relire, le geste qui ouvre la messagerie.
         if (premiereFois && !r.fil && !(r.anciens || []).length) {
+          signature = 'vide';
+          // (27/10/2026, maquette « Mon comptable ») Côté entreprise, la page dessinée : ce que le comptable fait ici, et
+          // comment l'inviter (plateforme/pont.js, `dessinerSansCabinet`).
+          if (entreprise && o.sansCabinet) { o.sansCabinet(el); return; }
           el.innerHTML = `<div class="msg-page"><header class="msg-tete"><span class="msg-tete-txt"><h1>${entreprise ? 'Mon comptable' : esc(o.nom || 'Ce client')}</h1></span></header>
             <div class="msg-zone"><div class="msg-vide"><b>${entreprise ? 'Aucun cabinet ne tient ton dossier.' : 'Ce dossier n\'est plus tenu par ton cabinet.'}</b>
               <span>${entreprise ? 'La messagerie s\'ouvre quand ton comptable accepte de tenir ton dossier dans SkanFact : vous vous écrivez alors ici, en face de tes pièces.' : 'La messagerie se ferme avec le mandat.'}</span>

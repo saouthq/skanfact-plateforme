@@ -123,7 +123,7 @@ describe('les premiers pas de la plateforme, à la souris', () => {
     await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLInputElement | null)?.name ?? '')).toBe('rib');
     await accueil(p);
     await ligne(p, 'Invite ton comptable').getByRole('button', { name: 'Inviter mon comptable', exact: true }).click();
-    await p.locator('#p-cabinet-mandat').waitFor({ timeout: 15_000 });
+    await p.locator('.cpt-page #mandat-email').waitFor({ timeout: 15_000 });
 
     // Le dossier proposé à un cabinet (et le code de l'application activé par l'API : rien ne change, l'étape était
     // faite) : au retour sur l'accueil, sans recharger la page, il se coche (le serveur s'y relit, au plus toutes les cinq

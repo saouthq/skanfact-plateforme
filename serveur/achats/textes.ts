@@ -40,7 +40,7 @@ declarerTextes({
   'achats.lecture.devise': 'la pièce est en {devise} : saisis le taux de change sur l\'achat avant de l\'enregistrer',
   // La lecture par l'IA de Claude (Anthropic), hors de Tunisie (24/10/2026, branchée le 27/10/2026 : lecture-ia.ts).
   'achats.lecture.ia_sans_designation': 'ligne sans désignation lisible',
-  'achats.lecture.ia_repli': 'l\'IA n\'a pas pu lire la photo : elle a été lue sur les serveurs de SkanFact, en Tunisie. Vérifie chaque case',
+  'achats.lecture.ia_repli': 'l\'IA n\'a pas pu lire la pièce : elle a été lue sur les serveurs de SkanFact, en Tunisie, avec moins de finesse. Vérifie chaque case',
   'achats.lecture.ia_echec': 'l\'IA n\'a pas pu lire « {nom} » : rien n\'a été lu. Réessaie dans un moment, ou saisis la facture à la main',
   'achats.lecture.ia_refus': 'l\'IA a refusé de lire « {nom} » : rien n\'a été lu. Saisis la facture à la main',
   'achats.lecture.ia_pas_facture': 'l\'IA ne voit pas de facture d\'achat sur « {nom} » : vérifie que c\'est bien la pièce, nette et entière',

@@ -1007,10 +1007,152 @@
     entreeFait(/** @type {HTMLElement} */ (zone.querySelector('#mandat-email')), b);
   }
 
+  // ── « Mon comptable », sans cabinet (27/10/2026, maquette docs/maquettes/complements.html, planche « Mon comptable ») ──
+  // La page que l'on trouve avant tout cabinet : ce que le comptable fait ici, les deux chemins (il n'est pas encore sur
+  // SkanFact : son e-mail ; il y est : son code), ce qu'il ne fait jamais. Puis l'invitation qui attend, ou le dossier
+  // confié qu'il n'a pas encore accepté. Les mêmes routes que Comptabilité › Cabinet (dessinerMandat), les mêmes champs.
+  /** @type {Record<string, string>} */
+  const IC_C = {
+    piece: '<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>',
+    message: '<path d="M20 15a2 2 0 0 1-2 2H8l-4 4V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2z"/><path d="M8 9h8M8 12.5h5"/>',
+    photo: '<path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/>',
+    coche: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    croix: '<path d="M6 6l12 12M18 6 6 18"/>',
+    cadenas: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>',
+    copier: '<rect x="8" y="8" width="12" height="13" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h2"/>',
+    inviter: '<circle cx="9" cy="8" r="4"/><path d="M2 21c.7-3.6 3.4-5.5 7-5.5s6.3 1.9 7 5.5M19 8v6M16 11h6"/>',
+  };
+  /** @param {string} n @param {number} [t] @param {number} [e] */
+  const icC = (n, t = 16, e = 2) => `<svg viewBox="0 0 24 24" width="${t}" height="${t}" fill="none" stroke="currentColor" stroke-width="${e}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC_C[n] || ''}</svg>`;
+  const gardeFousComptable = () => `<div class="cpt-carte cpt-garde"><h4>Ce que ton comptable peut faire</h4>
+      ${['Lire tes pièces, tes achats et leurs justificatifs, dès que tu les enregistres', 'Tenir tes livres et préparer tes déclarations, selon ce que tu lui confies', 'T\'écrire ici, en face de la pièce dont il parle'].map((t) => `<div class="cpt-gl ok">${icC('coche', 15, 2.4)}<span>${t}</span></div>`).join('')}
+      <h4>Ce qu'il ne fait jamais</h4>
+      ${['Modifier une facture que tu as émise', 'Écrire dans ton dossier sans ton accord'].map((t) => `<div class="cpt-gl non">${icC('croix', 15, 2.4)}<span>${t}</span></div>`).join('')}
+      <p class="cpt-note">${icC('info', 14)}<span>Tu retires son accès quand tu veux, dans Comptabilité › Cabinet.</span></p></div>`;
+  /** @param {string} sous @param {string} corps */
+  const pageComptable = (sous, corps) => `<div class="cpt-page"><header class="cpt-tete"><h1>Mon comptable</h1><span>${esc(sous)}</span></header>
+      <div class="cpt"><div class="cpt-gauche">${corps}</div><aside class="cpt-droite">${gardeFousComptable()}</aside></div></div>`;
+  const heroComptable = () => `<div class="cpt-carte cpt-hero"><h3>Ton comptable travaille dans tes pièces, sans que tu lui envoies rien</h3>
+      <div class="cpt-atouts">${[['piece', 'Il voit tes pièces', 'Factures, achats, justificatifs : dès que tu les enregistres, plus de classeur à déposer.'],
+    ['message', 'Vous vous écrivez ici', 'En face de la pièce dont vous parlez. Fini les questions perdues dans WhatsApp.'],
+    ['photo', 'Tu lui confies une photo', 'Un ticket, une facture d\'achat : il la saisit pour toi et te dit où il l\'a rangée.']].map(([i = '', t, d]) => `<div class="cpt-atout"><span class="cpt-ic">${icC(i, 17, 1.9)}</span><b>${t}</b><span>${d}</span></div>`).join('')}</div></div>`;
+  /** @param {[string, string, string][]} etapes */
+  const etapesComptable = (etapes) => `<div class="cpt-carte"><ol class="cpt-etapes">${etapes.map(([c, t, d], i) => `<li class="${c}"><span class="pt">${c === 'fait' ? icC('coche', 12, 3) : i + 1}</span><b>${esc(t)}</b><small>${esc(d)}</small></li>`).join('')}</ol></div>`;
+  /** @param {HTMLElement} el @param {{ peutInviter: boolean, focus?: boolean, toast?: (t: string) => void }} o */
+  async function dessinerSansCabinet(el, o) {
+    const redessiner = () => dessinerSansCabinet(el, o);
+    /** @param {unknown} x */
+    const refus = (x) => { const a = el.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
+    /** @param {() => Promise<unknown>} geste @param {HTMLElement} b @param {string} [suite] */
+    const agir = async (geste, b, suite) => {
+      b.setAttribute('disabled', '');
+      try { await geste(); await redessiner(); if (suite) /** @type {HTMLElement | null} */ (el.querySelector(suite))?.focus(); } catch (x) { b.removeAttribute('disabled'); refus(x); }
+    };
+    let m = null, inv = null;
+    try {
+      m = (await appel('GET', '/mandat')).mandat;
+      if (!m) inv = (await appel('GET', '/mandat/invitation').catch(() => ({ invitation: null }))).invitation;
+    } catch (x) { el.innerHTML = pageComptable('Ton cabinet, dans les mêmes données que toi', `<p class="cpt-carte cpt-bloc" role="alert">${esc(x instanceof Error ? x.message : x)}</p>`); return; }
+    if (m && m.statut === 'propose') {
+      el.innerHTML = pageComptable('Ton dossier attend que ton comptable l\'accepte', `
+        <div class="bandeau info">${icC('message', 18)}<span class="txt"><b>Tu as confié ton dossier à ${esc(m.cabinet.nom)}</b><span>Il le voit une fois qu'il l'a accepté, de son côté : vous vous écrirez alors ici, en face de tes pièces.</span></span></div>
+        ${etapesComptable([['fait', 'Dossier confié', lesPerimetres(m.perimetre || []) || 'avec ce que tu as coché'], ['cours', 'Il l\'accepte', 'dans son SkanFact Cabinet'], ['', 'Vous vous écrivez ici', 'la messagerie s\'ouvre']])}
+        ${o.peutInviter ? `<div class="cpt-carte cpt-bloc"><p class="cpt-p">Tu t'es trompé de cabinet ? Retire ta proposition : il ne verra rien.</p><p class="small" role="alert"></p>
+          <div class="cpt-pied"><span></span><button type="button" class="btn btn-sm btn-danger" id="mandat-arreter">Retirer ma proposition</button></div></div>` : ''}`);
+      const b = /** @type {HTMLElement | null} */ (el.querySelector('#mandat-arreter'));
+      if (b) b.onclick = () => agir(async () => { await appel('DELETE', '/mandat'); o.toast?.(`Proposition retirée : ${m.cabinet.nom} ne verra rien de ton dossier.`); }, b);
+      return;
+    }
+    if (inv) {
+      const confie = Array.isArray(inv.perimetre) ? inv.perimetre.map(String) : [];
+      const secours = lienDeSecours;
+      lienDeSecours = null;
+      el.innerHTML = pageComptable('Invitation envoyée : elle attend ton comptable', `
+        <div class="bandeau info" id="mandat-invite" tabindex="-1">${icC('inviter', 18)}<span class="txt"><b>Tu as invité ${esc(inv.email)}</b><span>${esc(ETAT_DE_L_EMAIL[inv.courriel] || '')} Dès qu'il a créé son cabinet et accepté ton dossier, vous vous écrivez ici.</span></span></div>
+        ${etapesComptable([['fait', 'Invité', `son lien vaut jusqu'au ${jourATunis(inv.expire)}`], ['cours', 'Il crée son cabinet', 'avec le lien reçu par e-mail'], ['', 'Il accepte ton dossier', 'la messagerie s\'ouvre']])}
+        <div class="cpt-carte cpt-bloc"><div class="cpt-bloc-t"><h3>${secours ? 'Son lien, s\'il n\'a pas reçu l\'e-mail' : 'Il n\'a pas reçu l\'e-mail ?'}</h3><small>valable jusqu'au ${esc(jourATunis(inv.expire))}</small></div>
+          ${secours ? `<div class="cpt-lien"><input type="text" id="mandat-lien" readonly value="${esc(secours)}" aria-label="Son lien"><button type="button" class="btn btn-primary" id="mandat-lien-copier">${icC('copier', 15)}Copier le lien</button></div><p class="small" role="status" id="mandat-lien-copie"></p>`
+    : '<p class="cpt-p">« Envoyer un nouveau lien » le lui renvoie ; ici, s\'il ne part pas par e-mail, tu le copies pour le lui donner toi-même.</p>'}
+          ${confie.length ? `<div class="cpt-ch">Ce que tu lui confies<div class="cpt-puces">${PERIMETRES.filter(([k]) => confie.includes(k)).map(([, l]) => `<span class="cpt-puce">${esc(l)}</span>`).join('')}</div></div>` : ''}
+          <p class="small" role="alert"></p>
+          ${o.peutInviter ? `<div class="cpt-pied"><span class="cpt-aide">Un nouveau lien remplace l'ancien.</span><span class="cpt-rg"><button type="button" class="btn btn-sm${secours ? '' : ' btn-primary'}" id="mandat-reinviter">Envoyer un nouveau lien</button><button type="button" class="btn btn-sm btn-danger" id="mandat-annuler-invitation">Annuler l'invitation</button></span></div>` : ''}</div>`);
+      const copier = /** @type {HTMLElement | null} */ (el.querySelector('#mandat-lien-copier'));
+      if (copier) copier.onclick = async () => {
+        const champ = /** @type {HTMLInputElement} */ (el.querySelector('#mandat-lien'));
+        champ.select();
+        const dit = /** @type {HTMLElement} */ (el.querySelector('#mandat-lien-copie'));
+        try { await navigator.clipboard.writeText(champ.value); copier.textContent = 'Lien copié'; dit.textContent = 'Lien copié : colle-le dans ton message à ton comptable.'; } catch { copier.textContent = 'Sélectionné : Ctrl+C pour le copier'; dit.textContent = 'Le lien est sélectionné : copie-le (Ctrl+C), puis colle-le dans ton message.'; }
+      };
+      const re = /** @type {HTMLElement | null} */ (el.querySelector('#mandat-reinviter'));
+      if (re) re.onclick = () => agir(async () => {
+        const r = await appel('POST', '/mandat/invitation', { email: inv.email, perimetre: confie });
+        const lien = String(r.lien || '');
+        lienDeSecours = r.courrielEtat === 'parti' || !lien ? null : lien.startsWith('/') ? `${location.origin}${lien}` : lien;
+      }, re, '#mandat-lien-copier');
+      const an = /** @type {HTMLElement | null} */ (el.querySelector('#mandat-annuler-invitation'));
+      if (an) an.onclick = () => agir(async () => { await appel('DELETE', '/mandat/invitation'); o.toast?.(`Invitation annulée : le lien envoyé à ${inv.email} ne marche plus.`); }, an, '#mandat-email');
+      return;
+    }
+    if (!o.peutInviter) {
+      el.innerHTML = pageComptable('Ton cabinet, dans les mêmes données que toi', `${heroComptable()}
+        <div class="bandeau gris">${icC('cadenas', 18)}<span class="txt"><b>Inviter le comptable, c'est le geste du propriétaire de l'entreprise</b><span>Demande-le-lui : il le fait en une minute depuis cette page.</span></span></div>`);
+      return;
+    }
+    el.innerHTML = pageComptable('Ton cabinet, dans les mêmes données que toi', `${heroComptable()}
+      <div class="cpt-deux">
+        <div class="cpt-carte cpt-chemin"><h3><span class="num">1</span>Il n'est pas encore sur SkanFact</h3>
+          <label class="cpt-ch">Son adresse e-mail<input type="email" id="mandat-email" maxlength="200" autocomplete="off" spellcheck="false" placeholder="nom@cabinet.tn"></label>
+          <div class="cpt-ch" id="mandat-perimetre">Ce que tu lui confies${PERIMETRES.map(([k, l, d]) => `<label class="cpt-coche"><input type="checkbox" data-perimetre="${k}"${k === 'paie' ? '' : ' checked'}><span>${esc(l)}<small>${esc(d)}</small></span></label>`).join('')}</div>
+          <p class="cpt-p">SkanFact lui envoie un lien : il crée son cabinet, et ton dossier y arrive avec ce que tu as coché. Il ne le voit qu'une fois qu'il l'a accepté.</p>
+          <p class="small" role="alert" id="mandat-refus-email"></p>
+          <div><button type="button" class="btn btn-primary" id="mandat-inviter-envoyer">${icC('inviter', 15)}Inviter mon comptable</button></div></div>
+        <div class="cpt-carte cpt-chemin"><h3><span class="num">2</span>Il est déjà sur SkanFact</h3>
+          <p class="cpt-p">Il t'a donné le code de son cabinet (dans son SkanFact Cabinet : Réglages › Mon cabinet). Tape-le ici : ton dossier lui arrive avec ce que tu as coché, et il l'accepte de son côté.</p>
+          <label class="cpt-ch">Le code de son cabinet<input type="text" id="mandat-code" maxlength="10" autocomplete="off" spellcheck="false" placeholder="Le code qu'il t'a donné"></label>
+          <p class="small" role="alert" id="mandat-refus-code"></p>
+          <div><button type="button" class="btn" id="mandat-confier">Confier mon dossier</button></div>
+          <div class="cpt-ou">pas de comptable ?</div>
+          <p class="cpt-p">SkanFact suffit pour facturer, suivre tes achats et ta trésorerie. Tu l'inviteras le jour où tu voudras.</p></div></div>`);
+    const perimetre = () => [...el.querySelectorAll('[data-perimetre]')].filter((x) => /** @type {HTMLInputElement} */ (x).checked).map((x) => String(/** @type {HTMLElement} */ (x).dataset.perimetre));
+    const email = /** @type {HTMLInputElement} */ (el.querySelector('#mandat-email')), code = /** @type {HTMLInputElement} */ (el.querySelector('#mandat-code'));
+    const bInv = /** @type {HTMLElement} */ (el.querySelector('#mandat-inviter-envoyer')), bCode = /** @type {HTMLElement} */ (el.querySelector('#mandat-confier'));
+    // Un seul vert : celui du chemin qu'on prend (le curseur dans l'e-mail, ou dans le code).
+    /** @param {boolean} inviterVert */
+    const suivre = (inviterVert) => { bInv.classList.toggle('btn-primary', inviterVert); bCode.classList.toggle('btn-primary', !inviterVert); };
+    for (const ev of ['focus', 'input']) { email.addEventListener(ev, () => suivre(true)); code.addEventListener(ev, () => suivre(false)); }
+    /** @param {string} q @param {unknown} x */
+    const dire = (q, x) => { const a = el.querySelector(q); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
+    /** @param {() => Promise<unknown>} geste @param {HTMLElement} b @param {string} q @param {string} suite */
+    const faire = async (geste, b, q, suite) => {
+      b.setAttribute('disabled', '');
+      // `suite` : les gestes qui suivent, du premier voulu au dernier recours (copier le lien, sinon la phrase de l'invitation).
+      try { await geste(); await redessiner(); /** @type {HTMLElement | undefined} */ (suite.split(',').map((x) => el.querySelector(x.trim())).find(Boolean))?.focus(); } catch (x) { b.removeAttribute('disabled'); dire(q, x); }
+    };
+    bInv.onclick = () => faire(async () => {
+      const adresse = String(email.value).trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(adresse)) { email.focus(); throw new Error('Écris l\'adresse e-mail de ton comptable, par exemple nom@cabinet.tn : rien n\'a été envoyé.'); }
+      if (!perimetre().length) throw new Error('Coche au moins ce que tu lui confies : rien n\'a été envoyé.');
+      const r = await appel('POST', '/mandat/invitation', { email: adresse, perimetre: perimetre() });
+      const lien = String(r.lien || '');
+      lienDeSecours = r.courrielEtat === 'parti' || !lien ? null : lien.startsWith('/') ? `${location.origin}${lien}` : lien;
+    }, bInv, '#mandat-refus-email', '#mandat-lien-copier, #mandat-invite');
+    bCode.onclick = () => faire(async () => {
+      const codeCabinet = String(code.value).trim();
+      if (!codeCabinet) { code.focus(); throw new Error('Tape d\'abord le code de ton cabinet : rien n\'a été envoyé.'); }
+      if (!perimetre().length) throw new Error('Coche au moins ce que tu lui confies : rien n\'a été envoyé.');
+      await appel('POST', '/mandat', { codeCabinet, perimetre: perimetre() });
+    }, bCode, '#mandat-refus-code', '#mandat-arreter');
+    entreeFait(email, bInv);
+    entreeFait(code, bCode);
+    if (o.focus) email.focus();
+  }
+
   /** @type {any} */ (window).skanfact = {
     exportPdf,
     exportPdfMany,
     dessinerMandat,
+    dessinerSansCabinet,
     dessinerCompte,
     dessinerAppareils,
     dessinerEquipe,
@@ -1427,7 +1569,7 @@
       // une facture électronique, telle quelle.
       const octets = new Uint8Array(await f.arrayBuffer());
       const lu = xml ? /** @type {any} */ (window).SkanCompta.lireFichierTexte(octets, f.name, {}) : await /** @type {any} */ (window).SkanTableur.lire(octets, f.name);
-      return Object.assign({ nom: f.name }, xml ? { chemin: null } : {}, lu);
+      return Object.assign({ nom: f.name, taille: f.size }, xml ? { chemin: null } : {}, lu);
     },
     pickLogo: async () => {
       const f = await choisirFichier('.png,.jpg,.jpeg,.svg,image/png,image/jpeg,image/svg+xml');
@@ -1528,12 +1670,13 @@
     ocrRead: async (/** @type {string} */ chemin, /** @type {{ ia?: boolean }} */ opts = {}) => {
       const f = fichiersALire.get(chemin);
       if (!f) throw new Error('Le fichier choisi n\'est plus là : choisis-le de nouveau.');
-      // Gardé : une fois la facture lue, il se joint à elle (attachPath).
+      // Gardé : une fois la facture lue, il se joint à elle (attachPath), tel quel ; seule la copie lue par l'IA s'allège.
+      const envoye = opts.ia ? await allegerPourIA(f) : f;
       const contenu = await new Promise((ok, ko) => {
         const r = new FileReader();
         r.onload = () => ok(String(r.result).replace(/^data:[^,]*,/, ''));
         r.onerror = () => ko(new Error(`« ${f.name} » ne se lit pas sur cet appareil.`));
-        r.readAsDataURL(f);
+        r.readAsDataURL(envoye);
       });
       const r = await appel('POST', '/achats/lecture', { nom: f.name, contenu, ...(opts.ia ? { ia: true } : {}) });
       return Object.assign({}, r.lecture, { remarques: r.remarques || [], ou: r.ou || {}, doutes: r.doutes || [], moteur: r.moteur });
@@ -1550,7 +1693,7 @@
     },
     texteGlisse: async (/** @type {File} */ f) => {
       if (f.size > 5 * 1024 * 1024) return { ok: false, nom: f.name, motif: `« ${f.name} » fait ${Math.round(f.size / 1048576)} Mo : une facture électronique en fait quelques dizaines de Ko. Ce n'est probablement pas le bon fichier.` };
-      return Object.assign({ nom: f.name, chemin: null }, /** @type {any} */ (window).SkanCompta.lireFichierTexte(new Uint8Array(await f.arrayBuffer()), f.name, {}));
+      return Object.assign({ nom: f.name, taille: f.size, chemin: null }, /** @type {any} */ (window).SkanCompta.lireFichierTexte(new Uint8Array(await f.arrayBuffer()), f.name, {}));
     },
     // (lot messagerie) La photo ou le PDF d'un message, à lire comme un fichier choisi (« Ranger dans mes achats »).
     ocrDepuisFichier: (/** @type {{ nom: string, type: string, contenu: string }} */ f) => {
@@ -2268,6 +2411,27 @@
   /** @type {Map<string, File>} */ const fichiersALire = new Map();
   let lecturesChoisies = 0;
   const LECTURE_MAX = 10 * 1048576;
+  // (27/10/2026) L'API d'Anthropic refuse une image de plus de 5 Mo (ou de plus de 8 000 points de côté) : la photo
+  // d'un téléphone l'est souvent. La copie envoyée à l'IA se réduit à 2 400 points au plus long côté, en JPEG de bonne
+  // qualité (une facture écrite à la main y reste lisible) ; une image déjà légère et un PDF partent tels quels.
+  const IA_OCTETS = 3.5 * 1048576, IA_COTE = 2400;
+  /** @param {File} f @returns {Promise<Blob>} */
+  async function allegerPourIA(f) {
+    if (!/^image\/(jpeg|png|webp)$/.test(f.type || '') || typeof createImageBitmap !== 'function') return f;
+    let image;
+    try { image = await createImageBitmap(f, { imageOrientation: 'from-image' }); } catch { return f; }
+    const echelle = Math.min(1, IA_COTE / Math.max(image.width, image.height));
+    if (f.size <= IA_OCTETS && echelle === 1) { image.close(); return f; }
+    const toile = document.createElement('canvas');
+    toile.width = Math.round(image.width * echelle); toile.height = Math.round(image.height * echelle);
+    const ctx = toile.getContext('2d');
+    if (!ctx) { image.close(); return f; }
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, toile.width, toile.height);
+    ctx.drawImage(image, 0, 0, toile.width, toile.height);
+    image.close();
+    const reduite = await new Promise((ok) => toile.toBlob(ok, 'image/jpeg', 0.9));
+    return reduite && reduite.size < f.size ? reduite : f;
+  }
   // « Veuillez trouver ci-joint notre facture » : rien n'est joint. La phrase des modèles devient « Voici ».
   /** @param {string} texte */
   function sansPieceJointe(texte) {

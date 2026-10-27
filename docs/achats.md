@@ -371,10 +371,24 @@ juste » ; « ce n'est donc pas 8 : choisis 6 ») ; le total est recompté au mi
 remplie dit en ambre ce qui reste à comparer avec la photo, ou, tout tranché, que tout l'a été (et « au millime »
 seulement si les totaux tombent juste).
 
+**Les factures écrites à la main** (1.159.0, demande de Skander : « ça arrive en Tunisie ») : la consigne dit que la
+pièce peut être un carnet à souches, un bon rempli au stylo, des chiffres ajoutés à la main, en français ou en arabe,
+photographiée de travers ; l'écriture se lit comme l'imprimé, et un chiffre douteux revient en doute à trancher. La
+lecture sur nos serveurs (Tesseract) ne lit pas l'écriture à la main : pour ces pièces, l'IA est le seul chemin.
+
+**Les limites de l'API, tenues** (1.159.0). La sortie structurée n'admet que 16 champs « union » (un type en liste comme
+`["string", "null"]`) et 24 facultatifs par requête, sinon l'appel est refusé (erreur 400). La 1.158.0 en avait 19 :
+chaque lecture par l'IA partait en erreur et repassait sur nos serveurs, sans que rien ne l'écrive (essai de Skander
+sur `dev.skanfact.tn`, 27/10/2026). Une case absente revient donc vide (`""`), le rang d'un doute hors des lignes vaut
+0, et le serveur les range en `null` ; un test compte les unions et les facultatifs de ce qui part. Une image de plus
+de 5 Mo est refusée : la copie envoyée à l'IA d'une photo lourde est réduite à 2 400 points au plus long côté, en JPEG
+(le justificatif joint reste l'original). Un échec de l'IA s'écrit dans le journal du serveur (la raison et le message
+de l'API, jamais la pièce ni la clé) : `journalctl -u skanfact-dev | grep "lecture par l'IA"`.
+
 **Avant la production.** La clé ne se pose sur `app.skanfact.tn` qu'après l'autorisation de transfert de l'INPDP ;
 d'ici là, `dev.skanfact.tn` seulement, avec des pièces d'essai. **À VÉRIFIER** : ce qu'Anthropic garde des images, et
 le coût par lecture (`09` § 4).
 
 **Ce qui le prouve :** `tests/achats/lecture-ia.test.ts` (ce qui part, la forme, les refus, le recomptage, quand l'IA
 sert et quand elle ne sert pas) et `tests/web/lecture-ia.test.ts` (à la souris : la question, les doutes tranchés, le
-bandeau, le réglage coupé) ; 10 preuves (`tests/preuves.sh`, « ia 1 » à « ia 10 »).
+bandeau, le réglage coupé, la photo lourde réduite) ; 13 preuves (`tests/preuves.sh`, « ia 1 » à « ia 13 »).

@@ -1555,7 +1555,12 @@
       if (closeOverlay) closeOverlay();
       pop.hidden = false; btn.setAttribute('aria-expanded', 'true');
       // Dans une fenêtre modale il n'y a pas toujours la place en dessous : on ouvre vers le haut.
-      el.classList.toggle('up', window.innerHeight - btn.getBoundingClientRect().bottom < 300);
+      // (27/10/2026, revue des fenêtres) La place se mesure dans la fenêtre qui contient la liste : ouverte vers le bas,
+      // celle des catégories de « Vérifier case par case » sortait de la fenêtre et couvrait ses boutons.
+      const r = btn.getBoundingClientRect(), m = el.closest('.modal'), mr = m ? m.getBoundingClientRect() : null;
+      const dessous = (mr ? Math.min(window.innerHeight, mr.bottom) : window.innerHeight) - r.bottom;
+      const dessus = r.top - (mr ? Math.max(0, mr.top) : 0);
+      el.classList.toggle('up', dessous < 300 && dessus > dessous);
       q.value = ''; sel = Math.max(0, el._items.findIndex(x => x.v === el._value));
       draw(); q.focus(); closeOverlay = close;
     };
@@ -2144,6 +2149,18 @@
     const cible = backTarget(fallback, skip);
     return `<button class="btn btn-back" id="back" data-retour="${h(fallback || '')}" data-saut="${h(skip || '')}" title="Revenir à ${h(pageLabel(cible, true))}">← ${h(pageLabel(cible))}</button>`;
   }
+  // (27/10/2026, maquette « Compléments » : le retour à la liste) Le « ‹ » d'une pièce ramène à SA liste : celle qu'on a
+  // quittée si on en vient (son adresse, ses filtres), sinon la liste de toujours. Une modification non enregistrée pose
+  // d'abord sa question (`go`). Au téléphone, « ‹ Factures » du chemin fait le même geste (piece.css).
+  function retourListe(liste, nom) {
+    return `<button type="button" class="ed-retour-btn" data-retour-liste="${h(liste)}" aria-label="Revenir aux ${h(nom)}" title="Revenir aux ${h(nom)}">${lfIc('retour', 18, 2.2)}</button>`;
+  }
+  document.addEventListener('click', e => {
+    const b = e.target && e.target.closest ? e.target.closest('[data-retour-liste]') : null;
+    if (!b) return;
+    const liste = b.dataset.retourListe;
+    go(() => { const avant = navStack[navStack.length - 1]; if (avant && routeOf(avant) === routeOf(liste)) goBack(liste); else navigate(liste); });
+  });
   function bindBack(fallback, skip) {
     const b = $('#back');
     if (b) b.onclick = () => go(() => goBack(fallback, skip));
@@ -2598,7 +2615,7 @@
       q.appendChild(comptable);
       if (comptable.hidden && role === 'proprietaire') {
         q.insertAdjacentHTML('beforeend', `<a href="#/compta" class="lien inviter" id="b-inviter-comptable" data-tip="Inviter mon comptable"><span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="4"/><path d="M2 21c.7-3.6 3.4-5.5 7-5.5s6.3 1.9 7 5.5M19 8v6M16 11h6"/></svg></span>Inviter mon comptable<span class="point"></span></a>`);
-        $('#b-inviter-comptable').onclick = (e) => { e.preventDefault(); comptaState.tab = 'cabinet'; comptaState.versInvitation = true; navigate('#/compta'); };
+        $('#b-inviter-comptable').onclick = (e) => { e.preventDefault(); allerInviterComptable(); };
       }
     }
     if (modules) { const r = $('#nav-reste', nav); if (r && role === 'proprietaire') r.appendChild(modules); else $('.sidebar-foot').appendChild(modules); modules.hidden = !(r && role === 'proprietaire'); }
@@ -2616,7 +2633,10 @@
       cabinet: messagerieVue || null, version: (upd.app && upd.app.version) || '' };
   };
   window.__allerAbonnement = () => allerAbonnement();
-  window.__inviterComptable = () => { comptaState.tab = 'cabinet'; comptaState.versInvitation = true; navigate('#/compta'); };
+  // (27/10/2026, maquette « Mon comptable ») Inviter son comptable, c'est la page « Mon comptable » dessinée pour cela, quand
+  // la messagerie est là ; sinon l'onglet Cabinet de la Comptabilité. Le curseur se pose sur son adresse.
+  function allerInviterComptable() { comptaState.tab = 'cabinet'; comptaState.versInvitation = true; navigate(bridge.dessinerSansCabinet && bridge.messagerie ? '#/comptable' : '#/compta'); }
+  window.__inviterComptable = () => allerInviterComptable();
   window.__naviguer = (hash) => navigate(hash);
   // « Changer de caissier » (brique 123) depuis la barre : seulement là où il marche, le poste de la caisse.
   window.__caissePoste = () => !!(caisseEtat && caisseEtat.posteDeCaisse);
@@ -3276,7 +3296,7 @@
     rib: ['Ajouter mon RIB', () => allerParametres('societe', 'p-banque:rib')],
     code: ['Choisir mon code', () => allerParametres('compte', 'p-compte')],
     // (plateforme) 1.94.0 — et le curseur se pose sur l'adresse de son comptable (`versInvitation`, lu par l'onglet Cabinet).
-    mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; comptaState.versInvitation = true; navigate('#/compta'); }]
+    mandat: ['Inviter mon comptable', () => allerInviterComptable()]
   };
   // Les premiers pas, lus de la MÊME façon partout (accueil, jauge de fin de visite, « Me guider ») :
   // la copie externe vit sur le poste et la découverte sur la personne — ni l'une ni l'autre dans les
@@ -4333,6 +4353,7 @@
   // qu'on choisit à plusieurs, le clavier, et au téléphone deux puces et une feuille de filtres. Les devis gardent
   // `listView` jusqu'à leur lot.
   const LF_IC = {
+    retour: '<path d="m15 6-6 6 6 6"/>',
     horloge: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
     nuage: '<path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 10a4 4 0 0 1 0 8z"/>',
     ecriture: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
@@ -5239,7 +5260,7 @@
           ${menuPlus()}
         </div></div>`;
     const teteCharte = () => `<div class="page-head ed-tete">
-        <div class="ed-titre">
+        ${retourListe(backTo, isQ ? 'devis' : 'factures')}<div class="ed-titre">
           <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="${h(backTo)}" class="ed-retour">${isQ ? 'Devis' : 'Factures'}</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${h(doc.number || title)}</span></div>
           <div class="ed-h1"><h1>${h(title)}</h1>${pastilleStatut()}<span class="ed-enreg" id="ed-enreg"${isNew || figee ? ' hidden' : ''}>${lfIc('coche', 14, 2.6)}<span id="ed-enreg-t">enregistré</span></span><span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
           ${doc.recurringId && !charte ? `<div class="small muted">Générée par un contrat récurrent — <a href="#/contrat/${h(doc.recurringId)}">voir le contrat</a></div>` : ''}
@@ -13509,7 +13530,7 @@
     const jour = t => new Date(t).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', timeZone: 'Africa/Tunis' });
     const taille = n => n >= 1e6 ? `${(n / 1e6).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} Mo` : `${Math.max(1, Math.round(n / 1e3))} Ko`;
     if (!e) {
-      $('#view').innerHTML = `<div class="page-head ed-tete"><div class="ed-titre"><div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/achats" class="ed-retour">Achats et dépenses</a></div><div class="ed-h1"><h1>Photo envoyée au cabinet</h1></div></div></div>
+      $('#view').innerHTML = `<div class="page-head ed-tete">${retourListe('#/achats', 'achats')}<div class="ed-titre"><div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/achats" class="ed-retour">Achats et dépenses</a></div><div class="ed-h1"><h1>Photo envoyée au cabinet</h1></div></div></div>
         <div class="panel"><p>Cette page suit une photo juste envoyée, depuis cet écran. Ce que tu as déjà envoyé se retrouve dans « Mon comptable ».</p><div class="inline mt"><a class="btn btn-primary" href="#/comptable">Ouvrir le fil</a><a class="btn" href="#/achats">Mes achats</a></div></div>`;
       return;
     }
@@ -13528,7 +13549,7 @@
         { t: 'Rangée', fait: !!achat, d: achat ? 'dans tes achats, avec la photo' : 'dans tes achats, avec la photo' },
       ];
       const courant = etapes.findIndex(x => !x.fait);
-      $('#view').innerHTML = `<div class="page-head ed-tete"><div class="ed-titre">
+      $('#view').innerHTML = `<div class="page-head ed-tete">${retourListe('#/achats', 'achats')}<div class="ed-titre">
           <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/achats" class="ed-retour">Achats et dépenses</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">Photo envoyée au cabinet</span></div>
           <div class="ed-h1"><h1>Photo envoyée au cabinet</h1>${achat ? '<span class="badge payée ed-pill">Rangée</span>' : '<span class="badge envoyée ed-pill">Ton cabinet la saisit</span>'}</div></div></div>
         <div class="ac-envoi">
@@ -13862,7 +13883,7 @@
 
     $('#view').innerHTML = `
       <div class="page-head ed-tete">
-        <div class="ed-titre">
+        ${retourListe('#/achats', 'achats')}<div class="ed-titre">
           <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="#/achats" class="ed-retour">Achats et dépenses</a><span class="sep" aria-hidden="true">›</span><span aria-current="page"${isNew ? ' id="b-chemin"' : ''}>${isNew ? h(motsDePiece(p.kind).titre) : titreAchat}</span></div>
           <div class="ed-h1"><h1>${titreAchat}</h1>${pillAchat()}<span class="ed-enreg" id="ed-enreg"${isNew || clos ? ' hidden' : ''}>${lfIc('coche', 14, 2.6)}enregistrée</span><span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
           ${isNew || String(stored.number || '').trim() ? '' : `<div class="small muted"><span title="${h('Sa référence dans les écritures et chez ton comptable')}">réf. ${h(C.referenceAchat(stored, data))}</span></div>`}
@@ -14610,10 +14631,14 @@
       // (plateforme, 1.113.0) Pendant l'envoi de la pièce lue, « Enregistrer » attend : enregistré avant, l'achat partait sans
       // sa photo, et le dessin qui suit le rouvrait en « Nouvelle facture d'achat » (lecture-attente.txt).
       for (const b of [$('#save'), $('#b-save-bas')]) if (b) b.disabled = true;
-      const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);
+      // (27/10/2026) Un fichier sans chemin (la facture électronique, sur la plateforme) ne se joint pas : l'essayer finissait sur
+      // « Le fichier lu n'est plus là ».
+      const jointe = bridge.piecesJointes === false || !file.path ? false : await joindreFichier(file);
       achatReprise = { hash: location.hash, p, isNew, ...(lu ? { lecture: lu } : {}) };
       render(true);
-      toast(jointe ? `Facture pré-remplie et ${quoi || 'photo'} jointe — vérifie avant d'enregistrer` : 'Facture pré-remplie — vérifie avant d\'enregistrer');
+      // (27/10/2026, revue des toasts) D'où vient la pièce, ce qui reste à revoir, et le geste qui suit.
+      const reste = Number(values.reste) || 0;
+      toast(`Pièce remplie depuis ${quoi === 'facture électronique' ? 'la facture électronique' : 'la photo'}${jointe ? ', jointe à l\'achat' : ''} : ${reste ? `${pl(reste, 'case')} à revoir, puis` : 'vérifie, puis'}\u00a0«\u00a0Enregistrer\u00a0l'achat\u00a0».`);
     };
     // --- lire la facture électronique (TEIF) d'un fournisseur (H1)
     // Aucun réseau, aucune clé : le XML se lit sur le poste et chaque montant se recompte. La même
@@ -14627,12 +14652,22 @@
       lireTeifDe(r);
     };
     // Le fichier XML lu (choisi ou glissé) : relu au millime, puis proposé à la relecture.
+    // (27/10/2026, revue des fenêtres) Un fichier refusé dit lequel, pourquoi en mots simples, et offre les deux suites :
+    // un autre fichier, ou la saisie à la main (« Fermer » seul laissait chercher quoi faire).
+    const refusTeif = (titre, texte, vu) => modal(`<h2>${h(titre)}</h2><p>${h(texte)}</p>${vu ? `<p class="small muted">Ce que SkanFact a vu : ${h(vu)}</p>` : ''}
+      <div class="modal-actions"><button class="btn" id="tf-r-main">Saisir à la main</button>${$('#teif-lire') ? '<button class="btn btn-primary" id="tf-r-autre">Choisir un autre fichier</button>' : '<button class="btn btn-primary" data-close>Fermer</button>'}</div>`,
+    (root, close) => {
+      $('#tf-r-main', root).onclick = () => { close(); sortirDuChoix(); };
+      if ($('#tf-r-autre', root)) $('#tf-r-autre', root).onclick = () => { close(); const b = $('#teif-lire'); if (b) b.click(); };
+    });
     const lireTeifDe = r => {
-      if (!r.ok) return infoDialog('Ce fichier ne se lit pas', r.motif);
+      const nom = r.nom ? `« ${r.nom} »` : 'Ce fichier';
+      const suite = 'Choisis le fichier XML que ton fournisseur ou la plateforme El Fatoora t\'a envoyé, ou saisis la pièce à la main.';
+      if (!r.ok) return refusTeif(`${nom} ne se lit pas`, `${r.motif} ${suite}`);
       const l = window.SkanTeif.lireTeif(r.texte, company());
-      if (!l.ok) return infoDialog('Ce n\'est pas une facture électronique', l.motif + ' Choisis le fichier XML que le fournisseur ou la plateforme El Fatoora t\'a envoyé.');
-      const fichier = { name: r.nom, path: r.chemin || '' };
-      ocrReviewForm(l.lecture, fichier, values => appliquerLecture(values, fichier, 'facture électronique'), { source: 'teif', remarques: l.remarques });
+      if (!l.ok) return refusTeif(`${nom} n'est pas une facture électronique`, `SkanFact y cherche une facture El Fatoora et n'en trouve pas. ${suite}`, l.motif);
+      const fichier = { name: r.nom, path: r.chemin || '', size: r.taille != null ? r.taille : (r.texte || '').length };
+      teifComprise(l.lecture, fichier, l.remarques || []);
     };
     // (1.155.12) La zone de dépôt de « Comment arrive cette pièce ? » : un XML se lit comme une e-facture ; une photo ou un
     // PDF se lit si le serveur sait lire (on le demande d'abord), sinon il se joint et la pièce se saisit à la main.
@@ -14650,7 +14685,8 @@
           const choix = !lire ? 'main' : await new Promise(resolve => {
             let fait = false;
             modal(`<h2>Lire cette pièce ?</h2><div class="pj-carte"><span class="pj-ic">${/pdf/.test(f.type) ? 'PDF' : 'IMG'}</span><span class="pj-n"><b>${h(f.name)}</b><small>${fileSize(f.size)}</small></span></div>
-              <p>SkanFact lit la photo ou le PDF, le compare à tes fournisseurs et à tes articles, et te montre ce qu'il a compris : tu vérifies chaque case avant que la pièce se remplisse. Tu préfères la saisir toi-même ? « Non » : elle se joint, et tu saisis à la main.</p>
+              <div class="lec-q"><div class="gl">${lfIc('cadenas', 15, 2)}<span>Lue sur les serveurs de SkanFact, en Tunisie : elle ne sort pas du pays.</span></div>
+                <div class="gl">${lfIc('coche', 15, 2.4)}<span>Tu vérifies chaque case avant que la pièce se remplisse.</span></div></div>
               <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn" id="ac-z-main">Non : la joindre et saisir à la main</button><button class="btn btn-primary" id="ac-z-lire">Lire la pièce</button></div>`,
             (root, close) => {
               const fin = v => { fait = true; close(); resolve(v); };
@@ -14721,13 +14757,15 @@
         remarques: (read.remarques || []).concat(horsListe.map(r => `Le taux de TVA ${r} % lu sur la pièce n'est pas un taux que SkanFact propose : la ligne est proposée à 19 %, vérifie-la.`)),
         ou: read.ou || {}
       } : undefined;
-      lectureComprise(read, file, horsListe, () => ocrReviewForm(read, file, values => appliquerLecture(values, file), optsRelecture));
+      lectureComprise(read, file, horsListe, () => ocrReviewForm(read, file, values => { fermerLecture(); appliquerLecture(values, file); }, optsRelecture));
     };
     function demanderIA(file) {
       return new Promise(resolve => {
         let fait = false;
         modal(`<h2>Lire cette photo avec l'IA ?</h2><div class="pj-carte"><span class="pj-ic">${/pdf/i.test(file.type || file.name || '') ? 'PDF' : 'IMG'}</span><span class="pj-n"><b>${h(file.name)}</b><small>${fileSize(file.size || 0)}</small></span></div>
-          <p>L'image part chez l'IA de Claude (Anthropic), <b>hors de Tunisie</b>. Rien d'autre n'est envoyé : ni tes clients, ni tes chiffres. Tu préfères qu'elle reste ici ? « Non » : tu la joins et tu saisis à la main. SkanFact la lit, la compare à tes fournisseurs et à tes articles, et te montre ce qu'il a compris : tu vérifies avant que la pièce se remplisse.</p>
+          <div class="lec-q"><div class="gl loin">${lfIc('etoile', 15, 2)}<span>L'image part chez l'IA de Claude (Anthropic), <b>hors de Tunisie</b>.</span></div>
+            <div class="gl">${lfIc('cadenas', 15, 2)}<span>Rien d'autre n'est envoyé : ni tes clients, ni tes chiffres.</span></div>
+            <div class="gl">${lfIc('coche', 15, 2.4)}<span>Tu vérifies chaque case avant que la pièce se remplisse.</span></div></div>
           <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn" id="ac-ia-main">Non : la joindre et saisir à la main</button><button class="btn btn-primary" id="ac-ia-lire">${lfIc('etoile', 15, 2)}Lire avec l'IA</button></div>`,
         (root, close) => {
           const fin = v => { fait = true; close(); resolve(v); };
@@ -14758,7 +14796,8 @@
       return url ? `<img src="${url}" alt="${h(file.name)}" class="ac-lec-img">` : `<div class="ac-lec-doc">${lfIc(/pdf/i.test(file && file.type || '') ? 'pages' : 'photo', 28)}<b>${h(file ? file.name : '')}</b><span class="small muted">${fileSize(file && file.size || 0)}</span></div>`;
     }
     // La page remplace le formulaire le temps de la lecture : le formulaire reste dessous, intact, et revient tel quel.
-    function pageLecture(statut, ton, file) {
+    // `o.titre` et `o.chemin` nomment la page (la facture électronique a les siens) ; `o.geste`, un bouton de l'en-tête.
+    function pageLecture(statut, ton, file, o = {}) {
       const ed = $('#view .buy-editor'), tete = $('#view .ed-tete');
       if (!ed) return null;
       let z = $('#ac-lecture');
@@ -14767,10 +14806,13 @@
       if (tete) {
         tete.dataset.avantLecture = tete.dataset.avantLecture || '1';
         const h1 = $('h1', tete), ch = $('.ed-chemin [aria-current]', tete), pill = $('.ed-pill', tete);
-        if (h1) { h1.dataset.titre = h1.dataset.titre || h1.textContent; h1.textContent = 'Lecture de la photo'; }
-        if (ch) { ch.dataset.titre = ch.dataset.titre || ch.textContent; ch.textContent = 'Lecture de la photo'; }
+        if (h1) { h1.dataset.titre = h1.dataset.titre || h1.textContent; h1.textContent = o.titre || 'Lecture de la photo'; }
+        if (ch) { ch.dataset.titre = ch.dataset.titre || ch.textContent; ch.textContent = o.chemin || o.titre || 'Lecture de la photo'; }
         if (pill) { pill.dataset.classe = pill.dataset.classe || pill.className; pill.dataset.texte = pill.dataset.texte || pill.textContent; pill.className = `badge ${ton} ed-pill`; pill.textContent = statut; }
         const more = $('.more', tete); if (more) more.hidden = true;
+        const actions = $('.actions', tete);
+        $$('[data-geste-lecture]', tete).forEach(x => x.remove());
+        if (o.geste && actions) actions.insertAdjacentHTML('afterbegin', o.geste);
       }
       return z;
     }
@@ -14779,6 +14821,7 @@
       const ed = $('#view .buy-editor'); if (ed) ed.hidden = false;
       const tete = $('#view .ed-tete');
       if (tete) {
+        $$('[data-geste-lecture]', tete).forEach(x => x.remove());
         const h1 = $('h1', tete), ch = $('.ed-chemin [aria-current]', tete), pill = $('.ed-pill', tete);
         if (h1 && h1.dataset.titre) h1.textContent = h1.dataset.titre;
         if (ch && ch.dataset.titre) ch.textContent = ch.dataset.titre;
@@ -14839,7 +14882,7 @@
         const tt = C.purchaseTotals(brouillon, company());
         const futur = tete.date > C.today();
         const nb = x => C.money(x, null, C.decimalsFor(company().currency));
-        const ligne = (ok, nom, val, src, saisie) => `<div class="ac-lec-l ${ok ? 'sur' : 'douteux'}"><span class="st">${ok ? lfIc('coche', 12, 3) : '!'}</span><span class="n">${nom}</span><span class="v">${val}${saisie || ''}</span><span class="src">${src}</span></div>`;
+        const ligne = (ok, nom, val, src, saisie) => `<div class="ac-lec-l ${ok ? 'sur' : 'douteux'}"><span class="st">${ok ? lfIc('coche', 12, 3) : '!'}</span><span class="n">${nom}</span><span class="v">${val ? `<span class="vt">${val}</span>` : ''}${saisie || ''}</span><span class="src">${src}</span></div>`;
         const kNum = doute('numero'), kDate = doute('date');
         // Un doute de ligne encore ouvert : la valeur qui fait tomber les lignes juste, s'il y en a une ; une valeur choisie qui ne
         // tombe pas juste nomme celle qui tombe juste.
@@ -14880,7 +14923,7 @@
             ${sup ? ligne(true, 'Retenue', tt.withholding ? `${pct(taux)} % · ${C.money(tt.withholding, company().currency)}` : `aucune${taux ? ` · ${C.money(tt.totalTTC, company().currency)} TTC, sous le seuil` : ''}`, 'règle de la fiche du fournisseur') : ''}
           </div></div></div>
           <aside class="ed-droite">
-            <div class="panel ac-lec-geste"><button type="button" class="btn btn-primary btn-grand" id="lec-remplir">${lfIc('coche', 17, 2.4)}Remplir la pièce${doutes ? ` · ${pl(doutes, 'case')} à revoir` : ''}</button>
+            <div class="panel ac-lec-geste"><button type="button" class="btn btn-primary btn-grand" id="lec-remplir">${lfIc('coche', 17, 2.4)}Remplir la pièce${doutes ? ` · ${doutes} à revoir` : ''}</button>
               <p class="ed-phrase">${doutes ? 'Tu peux remplir tout de suite : ce qui reste à trancher se corrige sur la pièce. ' : ''}Rien n'est enregistré avant que tu cliques sur « Enregistrer l'achat ».</p></div>
             <div class="panel ac-lec-photo"><div class="q"><span>La photo · lue par SkanFact</span><span>${h(file.name)}</span></div>${apercuFichier(file)}</div>
             <div class="panel ed-avant"><h3>Où est partie la photo</h3><ul>
@@ -14900,16 +14943,130 @@
           const r = f ? await envoyerAuCabinet([f]) : { partis: [] };
           if (r.partis.length) { fermerLecture(); untouch(); navigate('#/achat/envoyee'); }
         };
-        $('#lec-detail', z).onclick = () => { fermerLecture(); detail(); };
+        $('#lec-detail', z).onclick = () => detail();
         $('#lec-main', z).onclick = () => { fermerLecture(); sortirDuChoix(); };
         $('#lec-remplir', z).onclick = () => {
           fermerLecture();
           const reste = doutesIA.filter(aRevoir);
           appliquerLecture({ head: { supplierId: tete.supplierId, number: tete.number || '', date: tete.date || C.today(), dueDate: tete.dueDate || '',
-            subject: tete.subject || '', category: cat || '', fees: Number(tete.fees) || 0 }, lines: lignes }, file, undefined,
+            subject: tete.subject || '', category: cat || '', fees: Number(tete.fees) || 0 }, lines: lignes, reste: doutes }, file, undefined,
           parIA ? { reste: reste.map(d => (d.champ === 'numero' ? 'Le numéro de facture' : d.champ === 'date' ? 'La date' : d.ligne != null && lignes[d.ligne] ? `${CHAMPS_LIGNE.includes(d.champ) && d.champ !== 'quantite' ? 'Le montant' : 'La quantité'} de « ${lignes[d.ligne].label} »` : NOM_DOUTE[d.champ] || 'Une case')),
             tranches: doutesIA.length - reste.length, juste: prep.readHT != null && Math.abs(ecart) <= 0.005 } : null);
         };
+      };
+      dessiner();
+    }
+    // (27/10/2026, maquette « Facture électronique reçue », docs/maquettes/complements.html) Le fichier El Fatoora d'un
+    // fournisseur : une page, plus une fenêtre où la liste des catégories débordait sur les lignes. Ce que dit le fichier, case
+    // par case, d'où vient chaque case, et ce qui reste à trancher (fournisseur à créer, catégorie, facture adressée à une autre
+    // société, fichier pas signé, total qui ne tombe pas juste). Le fichier se lit sur l'appareil : rien ne part. « Remplir la
+    // pièce » remplit l'achat ; rien ne s'enregistre avant « Enregistrer l'achat ».
+    const REMARQUES_TENUES = [/^Cette facture est adressée à/, /^Les lignes totalisent/, /^Hors taxes, TVA et timbre/, /^Ce fichier n'est pas signé/, /^C'est une facture d'AVOIR/, /^La facture est en /];
+    function teifComprise(read, file, remarques) {
+      const prep = C.ocrToPurchase(read, data);
+      const tete = Object.assign({}, prep.head);
+      const lignes = prep.lines.map(l => Object.assign({}, l));
+      let categorie = '';
+      const ailleurs = remarques.some(m => REMARQUES_TENUES[0].test(m));
+      const autresRemarques = remarques.filter(m => !REMARQUES_TENUES.some(r => r.test(m)));
+      const avoir = tete.kind === 'avoir';
+      const lie = avoir && tete.refFacture ? (data.purchases || []).find(x => x.kind !== 'avoir' && x.number === tete.refFacture && (!tete.supplierId || x.supplierId === tete.supplierId)) : null;
+      const curF = tete.currency || C.normCurrency(company().currency);
+      const etrangere = tete.currency && tete.currency !== C.normCurrency(company().currency);
+      const dessiner = () => {
+        const sup = supplierById(tete.supplierId);
+        const nb = x => C.money(x, null, C.decimalsFor(curF));
+        const ligne = (ok, nom, val, src, saisie) => `<div class="ac-lec-l ${ok ? 'sur' : 'douteux'}"><span class="st">${ok ? lfIc('coche', 12, 3) : '!'}</span><span class="n">${nom}</span><span class="v">${val ? `<span class="vt">${val}</span>` : ''}${saisie || ''}</span><span class="src">${src}</span></div>`;
+        const derniers = sup ? (data.purchases || []).filter(x => x.supplierId === sup.id && x.category).slice(-4) : [];
+        const propose = derniers.length ? derniers[derniers.length - 1].category : '';
+        const pareil = derniers.filter(x => x.category === propose).length;
+        const cat = categorie || propose;
+        const delai = tete.dueDate && tete.date ? C.daysBetween(tete.date, tete.dueDate) : sup ? delaiAchat(sup.id) : null;
+        const ech = tete.dueDate || (sup && tete.date ? C.addDays(tete.date, delai) : '');
+        const tt = C.purchaseTotals({ ...tete, withholdingRate: 0, lines: lignes }, company());
+        const calculHT = C.round3(lignes.reduce((a, l) => a + (Number(l.qty) || 0) * (Number(l.unitPrice) || 0), 0));
+        const ecartHT = prep.readHT == null ? 0 : C.round3(calculHT - prep.readHT);
+        const ecartTTC = read.totalTTC == null ? 0 : C.round3(tt.totalTTC - read.totalTTC);
+        const ecart = Math.abs(ecartHT) > 0.0005 || Math.abs(ecartTTC) > 0.0015;
+        const jumeau = tete.number && sup ? C.achatDoublon(data, { id: '', supplierId: sup.id, number: tete.number, kind: tete.kind || 'facture' }) : null;
+        const horsListe = i => read.lines && read.lines[i] && read.lines[i].vatRate != null && !C.VAT_RATES.includes(Number(read.lines[i].vatRate));
+        const doutes = [!sup, !cat, ailleurs, !read.signe, ecart, !tete.number, !!jumeau, etrangere, ...lignes.map((l, i) => horsListe(i))].filter(Boolean).length + autresRemarques.length;
+        const titre = `${avoir ? 'Avoir électronique' : 'Facture électronique'}${tete.number ? ' ' + tete.number : ''}`;
+        const z = pageLecture(doutes ? `${pl(doutes, 'case')} à vérifier` : 'Vérifiée', doutes ? 'partielle' : 'payée', file, {
+          titre, chemin: avoir ? 'Avoir électronique reçu' : 'Facture électronique reçue',
+          geste: '<button type="button" class="btn" id="tf-main" data-geste-lecture>Saisir à la main</button>' });
+        if (!z) return;
+        const acheteur = read.acheteur || null;
+        const nous = company().matricule || '';
+        const four = read.fournisseur || {};
+        const bandeaux = [
+          ailleurs ? `<div class="bandeau rouge">${lfIc('alerte', 18, 2)}<span class="txt"><b>Cette facture est adressée à « ${h(acheteur.nom || acheteur.identifiant)} » (${h(acheteur.identifiant)}), pas à ta société</b><span>Vérifie que c'est bien la tienne avant de la saisir : sa TVA ne se récupère que sur une facture à ton nom.</span></span></div>` : '',
+          !read.signe ? `<div class="bandeau ambre">${lfIc('cadenas', 18, 2)}<span class="txt"><b>Ce fichier n'est pas signé : ce n'est pas encore la facture validée par la TTN</b><span>Tu peux la saisir ; garde aussi celle que la plateforme El Fatoora t'enverra, signée.</span></span></div>` : '',
+          ecart ? `<div class="bandeau ambre">${lfIc('aide', 18, 2)}<span class="txt"><b>Le total recompté ne tombe pas sur celui du fichier</b><span>SkanFact ne choisit pas à ta place : compare la ligne marquée avec la facture du fournisseur.</span></span></div>` : ''
+        ].join('');
+        z.innerHTML = `<div class="buy-editor editor charte ac-lec ac-tf"><div class="ed-gauche">${bandeaux}<div class="panel ac-lec-compris">
+          <div class="ac-lec-t"><h2>${lfIc('piece', 17)}Ce que dit le fichier El Fatoora</h2><span class="small muted">${doutes ? `${pl(doutes, 'case')} à trancher` : 'tout est vérifié'}</span></div>
+          <div class="ac-lec-g"><b class="gt">Le fournisseur</b>
+            ${sup ? ligne(true, 'Fournisseur', `<b>${h(sup.name)}</b>`, read.matricule && String(sup.matricule || '').toUpperCase().replace(/[^0-9A-Z]/g, '') === String(read.matricule).toUpperCase().replace(/[^0-9A-Z]/g, '') ? `reconnu par son matricule ${h(read.matricule)}, lu dans le fichier` : 'reconnu par son nom')
+              : ligne(false, 'Fournisseur', tete.supplierName ? `« ${h(tete.supplierName)} » n'est pas dans tes fournisseurs :` : 'aucun nom dans le fichier :', [read.matricule ? `matricule ${h(read.matricule)}` : '', four.adresse || four.telephone ? `${[four.adresse ? 'adresse' : '', four.telephone ? 'téléphone' : ''].filter(Boolean).join(' et ')} repris du fichier` : ''].filter(Boolean).join(', ') || 'à choisir ou à créer',
+                `<span class="ac-lec-saisie attire">${combo({ name: 'tfSup', value: '', items: supplierItems(), placeholder: tete.supplierName ? `+ Créer « ${tete.supplierName} »` : '— Choisir —', search: 'Rechercher un fournisseur…', add: tete.supplierName ? `+ Créer « ${h(tete.supplierName)} »` : '+ Nouveau fournisseur' })}</span>`)}
+            ${delai != null ? ligne(true, 'Délai de paiement', `${pl(delai, 'jour')}${ech ? ` · échéance ${C.fmtDate(ech)}` : ''}`, tete.dueDate ? 'lue dans le fichier' : 'de sa fiche') : ''}
+          </div>
+          <div class="ac-lec-g"><b class="gt">La pièce</b>
+            ${tete.number ? ligne(!jumeau, 'Numéro', `<b>${h(tete.number)}</b>`, 'lu dans le fichier') : ligne(false, 'Numéro', 'aucun numéro dans le fichier :', 'il est obligatoire pour déduire la TVA', '<span class="ac-lec-saisie"><input type="text" id="tf-num" placeholder="Le numéro écrit sur la facture"></span>')}
+            ${ligne(true, 'Date', C.fmtDate(tete.date), read.date ? 'lue dans le fichier' : 'aucune date dans le fichier : celle du jour')}
+            ${avoir ? ligne(true, 'Nature', `facture d'avoir${tete.refFacture ? ` sur la facture <b>${h(tete.refFacture)}</b>` : ''}`, lie ? 'la facture qu\'il diminue est dans tes achats : il s\'y rattache' : tete.refFacture ? 'la facture qu\'il diminue n\'est pas dans tes achats : il s\'enregistre sans y être rattaché' : 'il diminue ce que tu dois au fournisseur') : ''}
+            ${acheteur && acheteur.identifiant ? ligne(!ailleurs, 'Adressée à', ailleurs ? `${h(acheteur.nom || '')} · ${h(acheteur.identifiant)}` : `ta société · ${h(acheteur.identifiant)}`, ailleurs ? 'pas ton matricule : vérifie qu\'elle est à toi' : nous ? 'ton matricule, lu dans le fichier' : 'ton matricule n\'est pas dans « Mon entreprise » : rien à comparer') : ''}
+            ${tete.subject ? ligne(true, 'Objet', h(tete.subject), 'lu dans le fichier') : ''}
+            ${etrangere ? ligne(false, 'Devise', `la facture est en ${h(tete.currency)}`, 'saisis le taux de change sur l\'achat avant de l\'enregistrer') : ''}
+            ${cat && !categorie ? ligne(true, 'Catégorie', h(cat), `proposée : ${pareil > 1 ? `ses ${pareil} dernières factures` : 'sa dernière facture'}`)
+              : ligne(!!cat, 'Catégorie', '', cat ? 'choisie par toi' : sup ? 'aucune facture de lui pour la proposer : la liste s\'ouvre ici, sous la case' : 'la liste s\'ouvre ici, sous la case',
+                `<span class="ac-lec-saisie">${combo({ name: 'tfCat', value: categorie, items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— À choisir —', search: 'Rechercher une catégorie…' })}</span>`)}
+          </div>
+          <div class="ac-lec-g"><b class="gt">Les lignes</b>
+            ${lignes.map((l, i) => { const it = (data.catalog || []).find(c => c.tracked && String(c.label || '').trim().toLowerCase() === String(l.label || '').trim().toLowerCase());
+              const hors = horsListe(i);
+              return ligne(!hors && !ecart, h(l.label || 'Sans désignation'), `${pct(l.qty)} × ${nb(l.unitPrice)} = <b>${nb(C.round3(l.qty * l.unitPrice))}</b> · TVA ${pct(l.vatRate)} %`,
+                hors ? `taux ${h(String(read.lines[i].vatRate))} % lu : pas un taux proposé, mis à 19 %` : ecart ? `les lignes font ${nb(calculHT)} HT, le fichier annonce ${nb(prep.readHT)} HT` : it ? 'lue · en stock, comme ton article' : 'lue · en charge'); }).join('')}
+          </div>
+          <div class="ac-lec-g"><b class="gt">Le contrôle</b>
+            ${read.totalTTC == null ? ligne(true, 'Total', `lignes : <b>${nb(tt.totalTTC)}</b> TTC`, 'aucun total dans le fichier pour comparer')
+              : ecart ? ligne(false, 'Total', `recompté <b>${nb(tt.totalTTC)}</b>, le fichier dit <b>${nb(read.totalTTC)}</b> TTC`, `écart de ${nb(Math.abs(ecartTTC || ecartHT))} : corrige la ligne marquée`)
+              : ligne(true, 'Total', `recompté <b>${nb(tt.totalTTC)}</b> = total du fichier <b>${nb(read.totalTTC)}</b> TTC, au millime`, [`HT ${nb(tt.totalHT)}`, ...Object.keys(read.vatByRate || {}).map(r => `TVA ${pct(Number(r))} % ${nb(read.vatByRate[r].vat)}`), tete.fees ? `timbre ${nb(tete.fees)}` : ''].filter(Boolean).join(' · '))}
+            ${ligne(!!read.signe, 'Signature', read.signe ? `signature électronique présente${tete.refTtn ? ` · réf. TTN ${h(tete.refTtn)}` : ''}` : 'pas de signature électronique dans le fichier', read.signe ? (tete.refTtn ? 'la référence lue dans le fichier' : 'aucune référence TTN dans le fichier') : 'pas encore validée par la TTN')}
+            ${sup && tete.number ? ligne(!jumeau, 'Déjà saisie ?', jumeau ? `oui : ${h(tete.number)} est déjà saisie, du ${C.fmtDate(jumeau.date)}` : `non : aucune ${h(tete.number)} chez ${h(sup.name)}`, 'vérifié dans tes achats') : ''}
+            ${autresRemarques.map(m => ligne(false, 'À noter', h(m), 'lu dans le fichier')).join('')}
+          </div></div></div>
+          <aside class="ed-droite">
+            <div class="panel ac-lec-geste"><button type="button" class="btn btn-primary btn-grand" id="tf-remplir">${lfIc('coche', 17, 2.4)}Remplir la pièce${doutes ? ` · ${doutes} à revoir` : ''}</button>
+              <p class="ed-phrase">${doutes ? 'Tu peux remplir tout de suite : ce qui reste à trancher se corrige sur la pièce. ' : ''}Rien n'est enregistré avant que tu cliques sur « Enregistrer l'achat ».</p></div>
+            <div class="panel ac-tf-fich"><div class="f-l"><span class="f-ic">XML</span><span><b>${h(file.name)}</b><small>${fileSize(file.size || 0)} · ${avoir ? 'avoir' : 'facture'} électronique</small></span></div>
+              ${read.signe ? `<div class="sig ok">${lfIc('coche', 15, 2.4)}<span><b>Signature présente</b>${tete.refTtn ? `<small>réf. TTN ${h(tete.refTtn)}</small>` : ''}</span></div>` : `<div class="sig non">${lfIc('cadenas', 15, 2)}<span><b>Pas encore signée par la TTN</b><small>garde aussi la facture signée qu'El Fatoora t'enverra</small></span></div>`}</div>
+            <div class="panel ed-avant"><h3>Où a été lu le fichier</h3><ul>
+              <li class="ok">${lfIc('coche', 15, 2.4)}<span>Sur ton appareil : il n'est parti nulle part</span></li>
+              <li class="ok">${lfIc('coche', 15, 2.4)}<span>Chaque montant recompté au millime</span></li>
+              ${file.path ? `<li class="ok">${lfIc('coche', 15, 2.4)}<span>Il se joint à l'achat quand tu remplis la pièce</span></li>`
+                // Sur la plateforme, une pièce jointe est une photo ou un PDF (serveur/v10/pieces-jointes.ts) : le XML ne s'y joint pas.
+                : tete.refTtn ? `<li class="ok">${lfIc('coche', 15, 2.4)}<span>Sa référence TTN se garde dans les notes de l'achat</span></li>` : ''}
+              ${file.path ? '' : `<li>${lfIc('info', 15, 2)}<span>Garde le fichier XML : SkanFact ne le joint pas encore à l'achat</span></li>`}</ul></div>
+            <div class="panel ac-lec-autres"><button type="button" class="btn btn-sm" id="tf-detail">Vérifier case par case</button>${$('#teif-lire') ? '<button type="button" class="btn btn-sm" id="tf-autre">Choisir un autre fichier</button>' : ''}</div>
+          </aside></div>`;
+        const sc = $('[data-combo=tfSup]', z);
+        if (sc) bindCombo(sc, { items: supplierItems(), placeholder: tete.supplierName ? `+ Créer « ${tete.supplierName} »` : '— Choisir —', onPick: v => { tete.supplierId = v; dessiner(); },
+          onAdd: saisi => supplierForm(null, x => { tete.supplierId = x.id; dessiner(); }, Object.assign({ name: saisi || tete.supplierName, matricule: tete.matricule || '' },
+            // Le fichier porte aussi l'adresse et les contacts du fournisseur : la fiche naît complète.
+            { address: four.adresse || '', phone: four.telephone || '', email: four.email || '' })) });
+        const cc = $('[data-combo=tfCat]', z);
+        if (cc) bindCombo(cc, { items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— À choisir —', onPick: v => { categorie = v; dessiner(); } });
+        const num = $('#tf-num', z); if (num) num.onchange = () => { tete.number = num.value.trim(); dessiner(); };
+        const valeurs = () => ({ head: { supplierId: tete.supplierId, number: tete.number || '', date: tete.date || C.today(), dueDate: tete.dueDate || '',
+          subject: tete.subject || '', category: cat || '', fees: Number(tete.fees) || 0, kind: tete.kind, achatLie: lie ? lie.id : '',
+          ...(etrangere ? { currency: tete.currency } : {}), ...(tete.refTtn ? { notes: `Référence TTN : ${tete.refTtn}` } : {}) }, lines: lignes });
+        $('#tf-remplir', z).onclick = () => { fermerLecture(); appliquerLecture({ ...valeurs(), reste: doutes }, file, 'facture électronique'); };
+        // (27/10/2026, revue des fenêtres) La vérification s'ouvre PAR-DESSUS la page : « Annuler » y revient, rien n'est perdu.
+        $('#tf-detail', z).onclick = () => ocrReviewForm(read, file, values => { fermerLecture(); appliquerLecture(values, file, 'facture électronique'); }, { source: 'teif', remarques, categorie: cat });
+        if ($('#tf-autre', z)) $('#tf-autre', z).onclick = () => { fermerLecture(); const b = $('#teif-lire'); if (b) b.click(); };
+        const m = $('#tf-main'); if (m) m.onclick = () => { fermerLecture(); sortirDuChoix(); };
       };
       dessiner();
     }
@@ -19159,7 +19316,8 @@
     // Toute la normalisation (nombres, dates, reconnaissance du fournisseur, avertissements) vit dans
     // core.js : elle est testable sans Electron, ce qui compte quand on manipule ce qu'une machine a cru lire.
     const prep = C.ocrToPurchase(read, data);
-    const head = { ...prep.head, category: '' };
+    // `o.categorie` : celle déjà choisie sur la page de lecture (elle ne se perd pas en passant à la vérification).
+    const head = { ...prep.head, category: o.categorie || '' };
     const lines = prep.lines;
 
     const computed = () => C.round3(lines.reduce((a, l) => a + l.qty * l.unitPrice, 0));
@@ -19181,7 +19339,7 @@
         ${ici(field(lbl(`Timbre et frais (${h(C.normCurrency(company().currency))})`, 'buy.fees'), 'fees', head.fees, 'number', 'step="0.001" min="0" class="num"'), 'fees')}
         ${ici(`<label class="field span-2">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(head.subject)}"></label>`, 'subject')}
         <div class="field span-2">${lbl('Catégorie de charge', 'buy.category')}
-          ${combo({ name: 'category', value: '', items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— À choisir —', search: 'Rechercher une catégorie…' })}
+          ${combo({ name: 'category', value: head.category, items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— À choisir —', search: 'Rechercher une catégorie…' })}
         </div>
       </form>
       <div class="panel"><h2>Lignes lues</h2>
@@ -20627,6 +20785,10 @@
       },
       voirMandat: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
       inviter: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
+      sansCabinet: bridge.dessinerSansCabinet ? el => {
+        const focus = !!comptaState.versInvitation; comptaState.versInvitation = false;
+        bridge.dessinerSansCabinet(el, { peutInviter: roleBarre() === 'proprietaire', focus, toast });
+      } : null,
       surAttente: a => majMessagerie({ ...(messagerieVue || {}), ...a }),
     });
   };
@@ -24664,22 +24826,24 @@
       let st = null;
       try { st = await bridge.ocrStatus(); } catch (_) {}
       const el = $('#ocr-panel'); if (!el) return;
-      const coupee = company().lectureIA === false;
-      if (!st || !st.iaServeur) {
-        el.innerHTML = `<p class="small">Une photo ou un PDF de facture d'achat se lit <b>sur les serveurs de SkanFact, en Tunisie</b>, comme le reste de ton dossier : aucune image ne sort de Tunisie. Rien n'entre dans tes données avant que tu le vérifies.</p>`;
-        return;
-      }
-      el.innerHTML = `<p class="small mb">« Lire avec l'IA » envoie l'image de la facture à l'IA de Claude (Anthropic), <b>hors de Tunisie</b>, et seulement si tu dis oui à la question posée à chaque photo. Rien d'autre ne part : ni tes clients, ni tes chiffres. Coupée, la photo se lit sur les serveurs de SkanFact, en Tunisie, sans question.</p>
-        <div class="vat-box" style="max-width:760px">
-          <div class="vat-line"><span>Lire avec l'IA</span><span class="num">${coupee ? 'Coupée' : '<span class="ok-text">Proposée à chaque photo</span>'}</span></div>
-          <div class="vat-line"><span>Ce qui part, quand tu dis oui</span><span class="num">${coupee ? '<span class="ok-text">rien</span>' : 'l\'image de la pièce, rien d\'autre'}</span></div>
+      const coupee = company().lectureIA === false, avecIA = !!(st && st.iaServeur);
+      // (27/10/2026, maquette « Lecture des achats », docs/maquettes/complements.html) Les deux voies côte à côte : celle qui
+      // lit maintenant est marquée ; ce qui part chez Anthropic, et ce qui ne part jamais ; le geste au pied.
+      el.innerHTML = `<p class="small" style="margin:0">Une photo ou un PDF de facture d'achat se lit, puis SkanFact te montre ce qu'il a compris : tu vérifies chaque case avant que la pièce se remplisse.</p>
+        <div class="ocr-voies">
+          <div class="ocr-voie${!avecIA || coupee ? ' on' : ''}"><span class="vt">${lfIc('cadenas', 16, 2)}Sur les serveurs de SkanFact<span class="badge payée">en Tunisie</span></span><p>Toujours là. Aucune image ne sort de Tunisie. Moins sûre sur une photo floue ou penchée.</p></div>
+          <div class="ocr-voie${avecIA && !coupee ? ' on' : ''}${!avecIA || coupee ? ' eteinte' : ''}"><span class="vt">${lfIc('etoile', 16, 2)}Avec l'IA de Claude<span class="badge ${avecIA && !coupee ? 'partielle' : 'brouillon'}">${!avecIA ? 'pas sur ce serveur' : coupee ? 'coupée' : 'hors de Tunisie'}</span></span>
+            <p>${!avecIA ? 'Ce serveur n\'a pas l\'IA : les photos se lisent toutes en Tunisie.' : 'Lit mieux les photos difficiles. Demandée à chaque photo : rien ne part sans ton « Lire avec l\'IA ».'}</p></div>
         </div>
-        <div class="inline mt"><button class="btn" id="ocr-ia">${coupee ? 'Proposer l\'IA de nouveau' : 'Couper l\'IA'}</button></div>`;
-      $('#ocr-ia', el).onclick = () => {
-        data.company.lectureIA = coupee;
-        save(true);
-        toast(coupee ? 'L\'IA se proposera à chaque photo : elle ne lit que si tu dis oui' : 'L\'IA est coupée : tes photos se liront sur les serveurs de SkanFact, en Tunisie');
-        drawOcrPanel();
+        ${avecIA ? `<div class="ocr-part"><b>Ce qui part chez Anthropic, quand tu dis oui</b>
+          <div class="ocr-gl ok">${lfIc('coche', 15, 2.4)}<span>L'image de la pièce, et la consigne de lecture de SkanFact</span></div>
+          <div class="ocr-gl non">${lfIc('croix', 15, 2.4)}<span>Ni tes clients, ni tes chiffres, ni le nom de ton entreprise</span></div></div>
+        <div class="ocr-pied"><span class="small muted">${coupee ? 'Coupée pour toute l\'entreprise : les photos se lisent en Tunisie, sans question.' : 'Le réglage vaut pour toute l\'entreprise.'}</span><button class="btn${coupee ? ' btn-primary' : ''}" id="ocr-ia">${coupee ? 'Proposer l\'IA de nouveau' : 'Couper l\'IA'}</button></div>` : ''}`;
+      // (27/10/2026, revue des toasts) Un réglage qui se défait d'un clic offre « Annuler » sous la main.
+      const poser = v => { data.company.lectureIA = v; save(true); drawOcrPanel(); };
+      if ($('#ocr-ia', el)) $('#ocr-ia', el).onclick = () => {
+        poser(coupee);
+        toastUndo(coupee ? 'L\'IA se proposera à chaque photo : elle ne lit que si tu dis oui.' : 'L\'IA est coupée : tes photos se liront sur les serveurs de SkanFact, en Tunisie.', () => poser(!coupee));
       };
       return;
     }

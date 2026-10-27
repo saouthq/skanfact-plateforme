@@ -134,6 +134,46 @@ describe('l\'appel à l\'IA', () => {
     expect(JSON.stringify(corps.messages)).toContain('"type":"document","source":{"type":"base64","media_type":"application/pdf"');
   });
 
+  // Les limites de la sortie structurée (platform.claude.com, « Structured outputs », lues le 27/10/2026) : au plus 16
+  // champs « union » (anyOf, ou un type en liste comme ["string", "null"]) et 24 facultatifs par requête, sinon 400.
+  // Le 27/10/2026, 19 champs « texte ou rien » : chaque lecture par l'IA partait en erreur, sans qu'on le voie.
+  it('la forme imposée à l\'IA reste dans ce que l\'API admet : au plus 16 unions, 24 facultatifs, aucune contrainte refusée', async () => {
+    let corps: { output_config?: { format?: { schema?: unknown } } } = {};
+    const faux: typeof fetch = async (_url, init) => {
+      corps = JSON.parse(String(init?.body)) as typeof corps;
+      return new Response(JSON.stringify({ id: 'm', type: 'message', role: 'assistant', model: 'essai', stop_reason: 'end_turn', stop_sequence: null, content: [{ type: 'text', text: JSON.stringify(bureauPlus()) }], usage: { input_tokens: 1, output_tokens: 1 } }), { status: 200, headers: { 'content-type': 'application/json' } });
+    };
+    await creerLecteurIA(appelAnthropic('cle', undefined, { fetch: faux })).lire(pieceJpeg, 'jpeg');
+    let unions = 0, facultatifs = 0;
+    const refuses: string[] = [];
+    const parcourir = (n: unknown): void => {
+      if (!n || typeof n !== 'object') return;
+      const o = n as Record<string, unknown>;
+      if (Array.isArray(o.type) || 'anyOf' in o) unions++;
+      if (o.properties && typeof o.properties === 'object') {
+        const exiges = new Set(Array.isArray(o.required) ? o.required : []);
+        facultatifs += Object.keys(o.properties).filter((k) => !exiges.has(k)).length;
+        Object.values(o.properties).forEach(parcourir);
+      }
+      for (const k of ['minimum', 'maximum', 'multipleOf', 'minLength', 'maxLength', 'maxItems']) if (k in o) refuses.push(k);
+      if ('additionalProperties' in o && o.additionalProperties !== false) refuses.push('additionalProperties');
+      if (Array.isArray(o.anyOf)) o.anyOf.forEach(parcourir);
+      parcourir(o.items);
+    };
+    expect(corps.output_config?.format?.schema).toBeTruthy();
+    parcourir(corps.output_config?.format?.schema);
+    expect(unions).toBeLessThanOrEqual(16);
+    expect(facultatifs).toBeLessThanOrEqual(24);
+    expect(refuses).toEqual([]);
+  });
+
+  it('une case vide de la réponse (et le rang 0 d\'un doute) se relit « rien », jamais « » ni la ligne 0', async () => {
+    const vide = { ...bureauPlus(), echeance: '', objet: ' ', devise: '', fodec: '', doutes: [{ champ: 'numero', ligne: 0, valeurs: ['BP-8812', 'BP-8813'], raison: 'flou' }] };
+    const lu = await creerLecteurIA(async () => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(vide) }] })).lire(Buffer.alloc(4), 'png');
+    expect([lu.echeance, lu.objet, lu.devise, lu.fodec, lu.doutes[0]?.ligne]).toEqual([null, null, null, null, null]);
+    expect(lu.numero).toBe('BP-8812');
+  });
+
   it('un refus, une panne, une réponse hors forme ne rendent jamais une lecture', async () => {
     const avec = (r: Awaited<ReturnType<AppelIA>> | Error) => creerLecteurIA(async () => { if (r instanceof Error) throw r; return r; }).lire(Buffer.alloc(4), 'png');
     await expect(avec({ stop_reason: 'refusal', content: [] })).rejects.toBeInstanceOf(IARefuse);
@@ -227,7 +267,7 @@ describe('la lecture par l\'IA, sur le serveur', () => {
     const r = await (await atelier(await serveur(tesseract, enPanne))).lire(true);
     expect(r.statut).toBe(200);
     expect(r.corps.moteur).toBe('photo');
-    expect(texte((r.corps.remarques as unknown[])[0])).toMatch(/^L'IA n'a pas pu lire la photo : elle a été lue sur les serveurs de SkanFact/);
+    expect(texte((r.corps.remarques as unknown[])[0])).toMatch(/^L'IA n'a pas pu lire la pièce : elle a été lue sur les serveurs de SkanFact/);
     const seule = await (await atelier(await serveur(undefined, enPanne))).lire(true);
     expect(seule.statut).toBe(503);
     expect(texte(seule.corps.motif)).toMatch(/^L'IA n'a pas pu lire « photo-facture\.jpg »/);

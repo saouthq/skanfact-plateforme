@@ -59,7 +59,11 @@ describe('inviter son comptable par e-mail, à la souris', () => {
     // (1.128.0) Point 11 de la revue du mois d'un client : le panneau du cabinet d'abord (pas la carte vide des questions),
     // et le seul vert là où est le curseur, « Inviter mon comptable » ; le code tapé, il passe à « Confier mon dossier ».
     const verts = () => e.locator('#view .btn-primary').filter({ visible: true }).allInnerTexts();
-    expect(await e.locator('#c-body > .panel').first().getAttribute('id')).toBe('p-cabinet-mandat');
+    // (27/10/2026, maquette « Mon comptable ») Le premier pas mène à la page « Mon comptable » dessinée pour l'inviter : ce que
+    // le comptable fait ici, les deux chemins côte à côte, ce qu'il ne fait jamais.
+    expect(await e.evaluate(() => location.hash)).toBe('#/comptable');
+    expect(await e.locator('.cpt-chemin h3').allTextContents()).toEqual(['1Il n\'est pas encore sur SkanFact', '2Il est déjà sur SkanFact']);
+    expect(await e.locator('.cpt-garde').innerText()).toContain('Ce qu\'il ne fait jamais');
     expect(await e.locator('#p-questions').count()).toBe(0);
     await expect.poll(verts, { timeout: 10_000 }).toEqual(['Inviter mon comptable']);
     await e.locator('#mandat-code').fill('ABC123');

@@ -9222,8 +9222,8 @@ prouver "« Choisir mon code » qui ne mène pas à Ton compte" $ASAPP \
 prouver "le compte dit protégé sans relais d'e-mails" $PPJS \
   "const code = !!(compte && (compte.codeActif || compte.courriel));" "const code = !!(compte && (compte.codeActif || true));" \
   "$PPW5"
-prouver "« Inviter mon comptable » qui ne mène pas à l'onglet du cabinet" $ASAPP \
-  "    mandat: ['Inviter mon comptable', () => { comptaState.tab = 'cabinet'; comptaState.versInvitation = true; navigate('#/compta'); }]" "    mandat: ['Inviter mon comptable', () => { comptaState.versInvitation = true; navigate('#/compta'); }]" \
+prouver "« Inviter mon comptable » qui ne mène pas à la page « Mon comptable »" $ASAPP \
+  "    mandat: ['Inviter mon comptable', () => allerInviterComptable()]" "    mandat: ['Inviter mon comptable', () => navigate('#/compta')]" \
   "$PPW1"
 prouver "« Vérifier mon adresse » qui ne mène pas à Ton compte" $ASAPP \
   "    adresse: ['Vérifier mon adresse', () => allerParametres('compte', 'p-compte')]," "    adresse: ['Vérifier mon adresse', () => allerParametres('societe')]," \
@@ -20591,6 +20591,67 @@ prouver 'ia 10 : « Avant d'"'"'enregistrer » oublie le justificatif joint' web
       // (27/10/2026) « Avant d'enregistrer » disait encore « Aucun justificatif » juste après « Justificatif joint ».
       refresh();" "      drawBuyAttachments();" \
   '« Non » joint la photo sans rien envoyer'
+prouver 'ia 11 : la forme imposée à l'"'"'IA en champs « texte ou rien » (refusée par l'"'"'API au-delà de 16)' serveur/achats/lecture-ia.ts \
+  "const caseLue = { type: 'string' };" "const caseLue = { type: ['string', 'null'] };" \
+  'la forme imposée à l'"'"'IA reste dans ce que l'"'"'API admet : au plus 16 unions, 24 facultatifs, aucune contrainte refusée'
+prouver 'ia 12 : une case vide de la réponse gardée comme un texte' serveur/achats/lecture-ia.ts \
+  "(t === null || t.trim() === '' ? null : t)" "(t === null ? null : t)" \
+  'une case vide de la réponse (et le rang 0 d'"'"'un doute) se relit « rien », jamais « » ni la ligne 0'
+prouver 'ia 13 : la photo lourde d'"'"'un téléphone part telle quelle (refusée par l'"'"'API au-delà de 5 Mo)' web/public/plateforme/pont.js \
+  "      const envoye = opts.ia ? await allegerPourIA(f) : f;" "      const envoye = f;" \
+  'la photo lourde d'"'"'un téléphone part à l'"'"'IA réduite à 2 400 points, en JPEG'
+# Les compléments dessinés le 27/10/2026 (docs/maquettes/complements.html ; tests/web/complements.test.ts).
+prouver 'compléments 1 : une facture sans bouton pour revenir à la liste' web/public/v10/app.js \
+  "\${retourListe(backTo, isQ ? 'devis' : 'factures')}<div class=\"ed-titre\">" "<div class=\"ed-titre\">" \
+  'retour à la liste : la facture, le devis et l'"'"'achat ramènent à leur liste'
+prouver 'compléments 2 : le bouton de retour qui ne ramène nulle part' web/public/v10/app.js \
+  "  go(() => { const avant = navStack[navStack.length - 1]; if (avant && routeOf(avant) === routeOf(liste)) goBack(liste); else navigate(liste); });" "  void go;" \
+  'retour à la liste : la facture, le devis et l'"'"'achat ramènent à leur liste'
+prouver 'compléments 3 : la facture électronique relue dans la fenêtre d'"'"'avant' web/public/v10/app.js \
+  "      teifComprise(l.lecture, fichier, l.remarques || []);" "      ocrReviewForm(l.lecture, fichier, values => appliquerLecture(values, fichier, 'facture électronique'), { source: 'teif', remarques: l.remarques });" \
+  'la facture électronique reçue : une page, la catégorie sous sa case'
+prouver 'compléments 4 : le XML qui se joint sans chemin, et l'"'"'erreur qui suit' web/public/v10/app.js \
+  "      const jointe = bridge.piecesJointes === false || !file.path ? false : await joindreFichier(file);" "      const jointe = bridge.piecesJointes === false ? false : await joindreFichier(file);" \
+  'la facture électronique reçue : une page, la catégorie sous sa case'
+prouver 'compléments 5 : la page promet que le fichier se joint' web/public/v10/app.js \
+  "              \${file.path ? '' : \`<li>\${lfIc('info', 15, 2)}<span>Garde le fichier XML : SkanFact ne le joint pas encore à l'achat</span></li>\`}</ul></div>" "              <li class=\"ok\"><span>Il se joint à l'achat quand tu remplis la pièce</span></li></ul></div>" \
+  'la facture électronique reçue : une page, la catégorie sous sa case'
+prouver 'compléments 6 : le fournisseur créé sans ce que dit le fichier' web/public/v10/app.js \
+  "            { address: four.adresse || '', phone: four.telephone || '', email: four.email || '' })) });" "            {})) });" \
+  'la facture électronique reçue : une page, la catégorie sous sa case'
+prouver 'compléments 7 : la référence TTN perdue en remplissant' web/public/v10/app.js \
+  "...(tete.refTtn ? { notes: \`Référence TTN : \${tete.refTtn}\` } : {}) }, lines: lignes });" "}, lines: lignes });" \
+  'la facture électronique reçue : une page, la catégorie sous sa case'
+prouver 'compléments 8 : une facture adressée ailleurs, sans bandeau' web/public/v10/app.js \
+  "          ailleurs ? \`<div class=\"bandeau rouge\">" "          false ? \`<div class=\"bandeau rouge\">" \
+  'la facture électronique adressée à une autre société, pas signée'
+prouver 'compléments 9 : l'"'"'écart du total qui ne compte pas' web/public/v10/app.js \
+  "        const ecart = Math.abs(ecartHT) > 0.0005 || Math.abs(ecartTTC) > 0.0015;" "        const ecart = false;" \
+  'la facture électronique adressée à une autre société, pas signée'
+prouver 'compléments 10 : « Mon comptable » sans cabinet, la page vide d'"'"'avant' web/public/plateforme/messagerie.js \
+  "          if (entreprise && o.sansCabinet) { o.sansCabinet(el); return; }" "" \
+  '« Mon comptable » sans cabinet : la page dessinée'
+prouver 'compléments 11 : l'"'"'invitation annulée sans un mot' web/public/plateforme/pont.js \
+  "o.toast?.(\`Invitation annulée : le lien envoyé à \${inv.email} ne marche plus.\`);" "" \
+  '« Mon comptable » sans cabinet : la page dessinée'
+prouver 'compléments 12 : le curseur sur le bandeau, pas sur « Copier le lien »' web/public/plateforme/pont.js \
+  "(suite.split(',').map((x) => el.querySelector(x.trim())).find(Boolean))?.focus();" "(el.querySelector(suite))?.focus();" \
+  '« Mon comptable » sans cabinet : la page dessinée'
+prouver 'compléments 13 : l'"'"'IA rallumée sans « Annuler »' web/public/v10/app.js \
+  "        toastUndo(coupee ? 'L\\'IA se proposera" "        toast(coupee ? 'L\\'IA se proposera" \
+  'l'"'"'entreprise qui a coupé l'"'"'IA lit sur nos serveurs, sans question'
+prouver 'compléments 14 : la liste qui sort par le bas de sa fenêtre' web/public/v10/app.js \
+  "      el.classList.toggle('up', dessous < 300 && dessus > dessous);" "      el.classList.toggle('up', window.innerHeight - r.bottom < 300);" \
+  'la facture électronique reçue : une page, la catégorie sous sa case'
+prouver 'compléments 15 : « Vérifier case par case » qui ferme la page derrière elle' web/public/v10/app.js \
+  "        \$('#tf-detail', z).onclick = () => ocrReviewForm(" "        \$('#tf-detail', z).onclick = () => fermerLecture() || ocrReviewForm(" \
+  'la facture électronique reçue : une page, la catégorie sous sa case'
+prouver 'compléments 16 : la catégorie choisie perdue à la vérification' web/public/v10/app.js \
+  "    const head = { ...prep.head, category: o.categorie || '' };" "    const head = { ...prep.head, category: '' };" \
+  'la facture électronique reçue : une page, la catégorie sous sa case'
+prouver 'compléments 17 : le refus d'"'"'un fichier sans le bouton qui débloque' web/public/v10/app.js \
+  "      if (!l.ok) return refusTeif(" "      if (!l.ok) return infoDialog(" \
+  'la facture électronique adressée à une autre société, pas signée'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

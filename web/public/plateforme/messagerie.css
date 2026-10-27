@@ -358,3 +358,80 @@
   .msg-gestes-g [data-msg-modeles] .msg-court { display: none; }
   .msg-trouves { padding: 12px 16px; }
 }
+
+/* (27/10/2026, maquette « Mon comptable », docs/maquettes/complements.html) La page avant tout cabinet : ce que le comptable
+   fait ici, les deux chemins pour l'inviter, ce qu'il ne fait jamais ; puis l'invitation qui attend (plateforme/pont.js). */
+.cpt-page { display: grid; gap: 18px; max-width: 1180px; }
+.cpt-tete h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.03em; }
+.cpt-tete span { font-size: 13px; color: var(--sb-gris); }
+.cpt { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }
+.cpt-gauche, .cpt-droite { display: grid; gap: 16px; min-width: 0; }
+.cpt-carte { background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 14px; box-shadow: var(--sb-ombre); }
+.cpt-bloc { padding: 16px 18px; display: grid; gap: 12px; margin: 0; }
+.cpt-bloc-t { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.cpt-bloc-t h3 { margin: 0; font-size: 14.5px; }
+.cpt-bloc-t small { color: var(--sb-gris-2); font-size: 12.5px; }
+.cpt-hero { padding: 22px 24px; display: grid; gap: 16px; background: linear-gradient(135deg, color-mix(in srgb, var(--sb-sarcelle) 9%, var(--sb-papier)), var(--sb-papier) 60%); }
+.cpt-hero h3 { margin: 0; font-size: 19px; letter-spacing: -.02em; max-width: 34ch; text-wrap: balance; }
+.cpt-atouts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.cpt-atout { display: grid; gap: 6px; align-content: start; padding: 12px 14px; border-radius: 12px; background: var(--sb-papier); border: 1px solid var(--sb-trait); }
+.cpt-atout .cpt-ic { width: 32px; height: 32px; border-radius: 9px; display: grid; place-items: center; background: var(--sb-doux); color: var(--sb-doux-texte); }
+.cpt-atout b { font-size: 13.5px; }
+.cpt-atout > span:last-child { font-size: 12.5px; color: var(--sb-gris); }
+.cpt-deux { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 16px; align-items: stretch; }
+.cpt-chemin { padding: 18px 20px; display: grid; gap: 12px; align-content: start; }
+.cpt-chemin h3 { margin: 0; font-size: 15px; display: flex; gap: 8px; align-items: center; }
+.cpt-chemin h3 .num { width: 22px; height: 22px; border-radius: 99px; display: grid; place-items: center; font-size: 12px; background: var(--sb-encre); color: var(--sb-papier); flex: none; }
+.cpt-p { margin: 0; font-size: 13px; color: var(--sb-gris); line-height: 1.5; }
+.cpt-ch { display: grid; gap: 6px; font-size: 12px; font-weight: 600; color: var(--sb-gris-2); }
+.cpt-ch input[type=email], .cpt-ch input[type=text] { height: 40px; font-size: 14px; font-weight: 500; }
+.cpt-coche { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; font-size: 13px; font-weight: 500; color: var(--sb-encre); align-items: start; cursor: pointer; }
+.cpt-coche input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--sb-sarcelle); }
+.cpt-coche small { display: block; color: var(--sb-gris-2); font-size: 12px; font-weight: 500; }
+.cpt-ou { display: flex; align-items: center; gap: 10px; color: var(--sb-gris-2); font-size: 12px; font-weight: 600; }
+.cpt-ou::before, .cpt-ou::after { content: ""; flex: 1; height: 1px; background: var(--sb-trait); }
+.cpt-chemin .btn, .cpt-bloc .btn { display: inline-flex; align-items: center; gap: 6px; }
+.cpt-garde { padding: 16px 18px; display: grid; gap: 10px; }
+.cpt-garde h4 { margin: 0; font-size: 13.5px; }
+.cpt-garde h4 + .cpt-gl { margin-top: -2px; }
+.cpt-gl { display: grid; grid-template-columns: 18px minmax(0, 1fr); gap: 8px; font-size: 13px; color: var(--sb-gris); }
+.cpt-gl svg { margin-top: 2px; }
+.cpt-gl.ok svg { color: var(--sb-sarcelle-texte); }
+.cpt-gl.non svg { color: var(--sb-rouge-texte); }
+.cpt-note { margin: 4px 0 0; font-size: 12.5px; color: var(--sb-gris-2); display: flex; gap: 6px; align-items: flex-start; }
+.cpt-note svg { flex: none; margin-top: 2px; }
+.cpt-etapes { list-style: none; margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: 16px 20px; }
+.cpt-etapes li { display: grid; gap: 4px; position: relative; padding: 0 12px 0 0; margin: 0; }
+.cpt-etapes li::before { content: ""; position: absolute; top: 11px; left: 30px; right: 6px; width: auto; height: 2px; border-radius: 2px; background: var(--sb-trait); }
+.cpt-etapes li:last-child::before { display: none; }
+.cpt-etapes .pt { width: 24px; height: 24px; border-radius: 99px; display: grid; place-items: center; border: 2px solid var(--sb-trait-fort); background: var(--sb-papier); font-size: 11px; font-weight: 700; position: relative; z-index: 1; color: var(--sb-gris); }
+.cpt-etapes li.fait .pt { background: var(--sb-sarcelle); border-color: var(--sb-sarcelle); color: #fff; }
+.cpt-etapes li.cours .pt { border-color: var(--sb-ambre); background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+.cpt-etapes b { font-size: 13.5px; }
+.cpt-etapes small { font-size: 12px; color: var(--sb-gris-2); }
+.cpt-lien { display: flex; gap: 8px; align-items: center; }
+.cpt-lien input { flex: 1; min-width: 0; height: 40px; font-family: ui-monospace, monospace; font-size: 12.5px; }
+.cpt-puces { display: flex; flex-wrap: wrap; gap: 6px; }
+.cpt-puce { font-size: 12px; font-weight: 600; padding: 4px 9px; border-radius: 99px; background: var(--sb-doux); color: var(--sb-doux-texte); }
+.cpt-pied { display: flex; align-items: center; gap: 12px; padding-top: 10px; border-top: 1px solid var(--sb-trait); flex-wrap: wrap; }
+.cpt-aide { font-size: 12px; color: var(--sb-gris-2); }
+.cpt-rg { margin-left: auto; display: flex; gap: 8px; flex-wrap: wrap; }
+.cpt-page [role=alert]:empty, .cpt-page [role=status]:empty { display: none; }
+.cpt-page [role=alert] { margin: 0; color: var(--sb-rouge-texte); }
+@media (max-width: 1120px) { .cpt { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {
+  /* Au téléphone, la promesse tient en trois lignes : le formulaire monte sous le pouce. */
+  .cpt-hero { padding: 16px; gap: 10px; }
+  .cpt-hero h3 { font-size: 16.5px; }
+  .cpt-atouts, .cpt-deux { grid-template-columns: 1fr; }
+  .cpt-atouts { gap: 6px; }
+  .cpt-atout { grid-template-columns: 28px minmax(0, 1fr); column-gap: 10px; align-items: center; padding: 0; border: 0; background: none; }
+  .cpt-atout .cpt-ic { width: 28px; height: 28px; }
+  .cpt-atout > span:last-child { display: none; }
+  .cpt-etapes { grid-template-columns: 1fr; gap: 10px; }
+  .cpt-etapes li { grid-template-columns: 24px minmax(0, 1fr); column-gap: 10px; }
+  .cpt-etapes li .pt { grid-row: span 2; }
+  .cpt-etapes li::before { display: none; }
+  .cpt-lien { flex-direction: column; align-items: stretch; }
+  .cpt-chemin .btn { width: 100%; justify-content: center; min-height: 44px; }
+}

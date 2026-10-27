@@ -170,6 +170,9 @@ export function routesAchats(ctx: Contexte): Route<never>[] {
       if (parIA && ctx.lecteurIA) {
         let r: ReponseIA | null = null;
         try { r = await ctx.lecteurIA.lire(fichier, sorte); } catch (e) {
+          // Pour l'exploitant (journalctl) : la raison et le message de l'API, jamais la pièce ni la clé.
+          const cause = e instanceof Error && e.cause instanceof Error ? ` : ${e.cause.message.slice(0, 300)}` : '';
+          console.error(`la lecture par l'IA n'a pas abouti (${e instanceof Error ? e.message : String(e)})${cause}`);
           if (!lecteur?.disponible) return { statut: e instanceof IARefuse ? 422 : 503, corps: { motif: motif(e instanceof IARefuse ? 'achats.lecture.ia_refus' : 'achats.lecture.ia_echec', { nom }), bouton: null } };
           repli = true;
         }

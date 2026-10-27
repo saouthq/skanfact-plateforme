@@ -229,6 +229,13 @@ dit avant le geste** (à l'ouverture d'un éditeur), jamais à « Enregistrer »
   variables de la v10. Un haut sombre reste sombre en thème sombre (un filet menthe le détache de son panneau).
   Exemples : `premiers-pas.css`, `messagerie.css`, `abonnement.css`. **Chaque écran se regarde en clair ET en sombre**,
   à la souris, avant d'être envoyé.
+- **Dessiner d'abord, critiquer avant de valider** (Skander, 27/10/2026 : « toute nouvelle écran / état doit être dessiné
+  au préalable » ; « regarde-les en senior designer avant de valider […] on part directement d'un truc satisfaisant »).
+  Un écran ou un état neuf naît dans une maquette (`docs/maquettes/`), puis le code la suit. Chaque capture se lit
+  ensuite en designer senior, composant par composant, fenêtres et toasts compris, posé à côté du dessin de la maquette
+  (même DA, même premium) : hiérarchie, alignements, retours à la ligne, un seul bouton principal, téléphone (geste à
+  portée du pouce), sombre ; les défauts se corrigent AVANT d'annoncer, et la critique
+  se dit dans le compte rendu.
 - **Une fenêtre de la console où l'on a tapé demande avant de jeter la saisie** : son bouton d'annulation porte `ferme`
   (`Bouton ferme`), qui le fait passer par la garde de `Dialogue` comme Échap et la croix. Un refus de motif reste
   jusqu'au clic suivant (docs/console.md, « Décidé par délégation »).
