@@ -668,3 +668,16 @@ quand elles s'affichent. Le redémarrage compte le prochain essai (15 secondes) 
 ## Reste à faire avant les testeurs
 
 - ~~Une fiche pour les testeurs~~ : `docs/testeurs.md` (05/10/2026).
+
+## La lecture par l'IA de Claude : la clé (27/10/2026)
+
+La clé d'Anthropic ne vit que dans l'environnement du serveur, jamais dans le dépôt. Skander la crée sur
+console.anthropic.com (« API Keys »), puis, dans la console du serveur (espace client OVH), en root :
+`curl -fsSL https://raw.githubusercontent.com/saouthq/skanfact-plateforme/main/exploitation/ia.sh | sudo bash`.
+Le script (`exploitation/ia.sh`) demande la clé sans l'afficher, l'essaie chez Anthropic (la liste des modèles : aucune
+pièce ne part), puis seulement l'écrit dans `/etc/skanfact/dev.env` (`ANTHROPIC_API_KEY`) et redémarre
+`skanfact-dev`. Par défaut, il ne règle que `dev.skanfact.tn` ; la production (`| sudo bash -s production`,
+`/etc/skanfact/serveur.env`) demande de taper INPDP : **seulement après l'autorisation de transfert de l'INPDP**. Pour
+l'éteindre : retirer la ligne et redémarrer. Le script arrive par `main` : tant que ce lot n'y est pas passé, prendre
+`dev` dans l'adresse à la place de `main`. Test : `tests/exploitation/ia.test.ts`. Le serveur dit s'il l'a
+(`iaServeur` dans `GET /v1/entreprises/:e/achats/lecture`). Détail : `docs/achats.md`.

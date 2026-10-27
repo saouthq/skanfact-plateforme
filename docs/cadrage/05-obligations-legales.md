@@ -325,7 +325,10 @@ fiscaliste **avant** de publier les prix TTC sur le site.
   le matricule et l'adresse du fournisseur), rien d'autre ; demandé avant chaque envoi, facultatif.
   Il faut **l'autorisation de transfert de l'INPDP** (art. 52) avant la première pièce réelle d'un
   client ; sans elle, la lecture reste sur nos serveurs. **À VÉRIFIER** : ce qu'Anthropic garde des
-  images, combien de temps, et ce qu'il en fait ;
+  images, combien de temps, et ce qu'il en fait 
+  *27/10/2026 : branchée (1.158.0), la clé dans l'environnement du serveur ; posée sur `dev.skanfact.tn`
+  seulement (pièces d'essai), la production attend l'autorisation de l'INPDP. Ce qui part, compté : la
+  pièce et la consigne de lecture, rien d'autre (`docs/achats.md`).* ;
 - **les flux ajoutés par le `14`** (§ 4 de ce document-là, qui les liste un par un) : Konnect pour
   les factures des clients (le montant et la référence, vers le compte de l'entreprise) ; WhatsApp
   **par lien**, qui ne passe pas par nous ; puis, dans les vagues : les **SMS** de relance, de

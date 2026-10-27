@@ -7,13 +7,14 @@ import { z } from 'zod';
 import { versTexte } from '../../moteur/argent.ts';
 import { versLaBase } from '../../moteur/ecritures.ts';
 import type { Route } from '../app.ts';
-import { requetes } from '../base.ts';
+import { requetes, type Transaction } from '../base.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
 import { objetDuDossier } from '../v10/lecture.ts';
 import { etatsDAchats } from './etat.ts';
 import { lireFacture } from './lecture-facture.ts';
 import { LecteurOccupe, LectureImpossible, LectureTropLongue, sorteDe } from './lecteur.ts';
+import { IARefuse, propositionDeLIA, type ReponseIA } from './lecture-ia.ts';
 import './textes.ts';
 
 const LIMITE_MAX = 200;
@@ -123,10 +124,21 @@ export function routesAchats(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // L'IA de Claude (24/10/2026) se propose si ce serveur a sa clé et que l'entreprise ne l'a pas coupée dans ses réglages
+  // (« Lire les photos avec l'IA », company.lectureIA de la v10) ; l'écran la demande encore avant chaque envoi.
+  const iaPossible = async (tx: Transaction | null | undefined, entreprise: string) => {
+    if (!ctx.lecteurIA?.disponible || !tx) return false;
+    const societe = await objetDuDossier(tx, entreprise, '_racine', 'company');
+    return societe?.lectureIA !== false;
+  };
+
   // Ce serveur sait-il lire ? Le bouton « Lire une photo… » ne paraît que s'il sait, et pour qui a le geste.
   ajouter({
     methode: 'GET', chemin: '/entreprises/:entreprise/achats/lecture', geste: 'achats.facture.lire',
-    traiter: async () => ({ corps: { disponible: !!ctx.lecteur?.disponible, limite: String(LIMITE_FICHIER) } }),
+    traiter: async ({ params }, tx) => {
+      const ia = await iaPossible(tx, params.entreprise ?? '');
+      return { corps: { disponible: !!ctx.lecteur?.disponible || ia, ia, iaServeur: !!ctx.lecteurIA?.disponible, limite: String(LIMITE_FICHIER) } };
+    },
   });
 
   // Lire une facture d'achat en photo ou en PDF (brique 84 ; 14 § 2.3) : le fichier est lu sur ce
@@ -134,11 +146,13 @@ export function routesAchats(ctx: Contexte): Route<never>[] {
   // chaque champ a été lu et ce que le recomptage en dit.
   ajouter({
     methode: 'POST', chemin: '/entreprises/:entreprise/achats/lecture', geste: 'achats.facture.lire', limiteCorps: LIMITE_CORPS,
-    corps: z.object({ nom: z.string().trim().min(1).max(200), contenu: z.string().min(1).max(LIMITE_CORPS) }),
+    // `ia` : la personne a dit oui à la lecture par l'IA, pour CE fichier (la question est posée avant chaque envoi).
+    corps: z.object({ nom: z.string().trim().min(1).max(200), contenu: z.string().min(1).max(LIMITE_CORPS), ia: z.boolean().optional() }),
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       const lecteur = ctx.lecteur;
-      if (!lecteur?.disponible) return { statut: 503, corps: { motif: motif('achats.lecture.indisponible'), bouton: null } };
+      const parIA = corps.ia === true && await iaPossible(tx, params.entreprise ?? '');
+      if (!parIA && !lecteur?.disponible) return { statut: 503, corps: { motif: motif('achats.lecture.indisponible'), bouton: null } };
       const nom = corps.nom;
       const fichier = /^[A-Za-z0-9+/]+={0,2}$/.test(corps.contenu) ? Buffer.from(corps.contenu, 'base64') : Buffer.alloc(0);
       if (fichier.length > LIMITE_FICHIER) {
@@ -150,6 +164,22 @@ export function routesAchats(ctx: Contexte): Route<never>[] {
       const societe = await objetDuDossier(tx, params.entreprise ?? '', '_racine', 'company');
       const entreprise = await requetes(tx).selectFrom('socle.entreprise').select('matricule_fiscal').where('id', '=', params.entreprise ?? '').executeTakeFirst();
       const notreMatricule = (typeof societe?.matricule === 'string' && societe.matricule) || entreprise?.matricule_fiscal || null;
+      // Par l'IA : la pièce part chez Anthropic, rien d'autre (lecture-ia.ts) ; notre matricule se reconnaît ici, au retour.
+      // Si l'IA ne répond pas (panne, refus, réponse hors forme), la pièce se lit sur ce serveur, et la remarque le dit.
+      let repli = false;
+      if (parIA && ctx.lecteurIA) {
+        let r: ReponseIA | null = null;
+        try { r = await ctx.lecteurIA.lire(fichier, sorte); } catch (e) {
+          if (!lecteur?.disponible) return { statut: e instanceof IARefuse ? 422 : 503, corps: { motif: motif(e instanceof IARefuse ? 'achats.lecture.ia_refus' : 'achats.lecture.ia_echec', { nom }), bouton: null } };
+          repli = true;
+        }
+        if (r) {
+          if (!r.estUneFacture) return { statut: 422, corps: { motif: motif('achats.lecture.ia_pas_facture', { nom }), bouton: null } };
+          const p = propositionDeLIA(r, { notreMatricule });
+          return { corps: { lecture: p.lecture, ou: p.ou, remarques: p.remarques, doutes: p.doutes, moteur: 'ia', pages: 1 } };
+        }
+      }
+      if (!lecteur?.disponible) return { statut: 503, corps: { motif: motif('achats.lecture.indisponible'), bouton: null } };
       let lu;
       try { lu = await lecteur.lire(fichier, sorte); } catch (e) {
         if (e instanceof LecteurOccupe) return { statut: 503, corps: { motif: motif('achats.lecture.occupe'), bouton: null } };
@@ -159,7 +189,8 @@ export function routesAchats(ctx: Contexte): Route<never>[] {
       }
       if (!/\p{L}{2,}/u.test(lu.texte)) return { statut: 422, corps: { motif: motif('achats.lecture.vide', { nom }), bouton: null } };
       const p = lireFacture(lu.texte, { notreMatricule });
-      return { corps: { lecture: p.lecture, ou: p.ou, remarques: p.remarques, moteur: lu.moteur, pages: lu.pages } };
+      const remarques = repli ? [motif('achats.lecture.ia_repli'), ...p.remarques] : p.remarques;
+      return { corps: { lecture: p.lecture, ou: p.ou, remarques, doutes: [], moteur: lu.moteur, pages: lu.pages } };
     },
   });
 

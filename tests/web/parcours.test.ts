@@ -232,7 +232,8 @@ describe('le parcours, à la souris', () => {
     // message passait sous le bord).
     await expect.poll(async () => {
       const [boite, message] = await Promise.all([fenetre.locator('.modal').boundingBox(), fenetre.getByRole('alert').boundingBox()]);
-      return !!boite && !!message && message.y >= boite.y && message.y + message.height <= boite.y + boite.height;
+      // (27/10/2026) À un pixel près : la ligne arrondie au bas de la fenêtre dépassait de 0,2 px, lisible en entier.
+      return !!boite && !!message && message.y >= boite.y && message.y + message.height <= boite.y + boite.height + 1;
     }).toBe(true);
     expect((await admin.query('select code_methode from socle.utilisateur where email = $1', [email])).rows).toEqual([{ code_methode: null }]);
     await p.screenshot({ path: path.join(PHOTOS, 'parcours-0-code-qr.png') });
@@ -447,6 +448,8 @@ describe('le parcours, à la souris', () => {
     await p.locator('#new').click();
     await pageV10(p, /Nouvelle facture/);
     await plusTard(p);
+    // (1.155.12) Une facture d'achat neuve demande d'abord comment la pièce arrive : ici, à la main.
+    await p.locator('#ac-main').click();
     await p.locator('[data-combo=supplierId] .combo-btn').click();
     await p.locator('[data-combo=supplierId] .combo-q').fill('Bureau');
     await p.locator('[data-combo=supplierId] .combo-list [role=option]').first().click();
@@ -515,8 +518,12 @@ describe('le parcours, à la souris', () => {
     await p.locator('tr', { hasText: 'FA-2026-0412' }).first().click();
     await pageV10(p, /FA-2026-0412/);
     await p.locator('#more-btn').click();
-    await p.locator('#del').click();
-    await expect.poll(() => p.locator('#toast').innerText()).toContain('Un avoir ou un acompte est rattaché à cet achat');
+    // (1.155.x, menu ⋯ de la maquette) « Supprimer » s'y lit éteint, avec la raison, avant tout geste : la pièce porte un
+    // règlement (et un avoir rattaché).
+    const supprimer = p.locator('.gestes-menu button', { hasText: 'Supprimer' });
+    await expect.poll(() => supprimer.getAttribute('class')).toMatch(/\boff\b/);
+    expect(await supprimer.innerText()).toContain('elle porte un règlement : retire-le d\'abord');
+    await supprimer.click({ force: true });
     expect(await auServeur()).toHaveLength(2);
     expect(await p.getByText('Rien n\'a été enregistré').count()).toBe(0);
     expect(qui.erreurs).toEqual([]);

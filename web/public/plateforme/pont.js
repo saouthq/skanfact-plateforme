@@ -785,7 +785,8 @@
   // résultat de recherche (reglages.js lit l'écran : un panneau caché y restait, et sa puce ne menait nulle part — vu
   // dans Données et sécurité le 05/10/2026 : « Dossiers », « Sauvegardes », « Copie externe », « Mot de passe »…).
   // « La clôture de ton comptable » attendait un fichier .skanclose : le cabinet clôt l'exercice ici même (brique 45).
-  const PANNEAUX_ABSENTS = ['p-dossiers', 'p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-ocr', 'p-danger', 'p-maj', 'p-licence', 'p-editeur', 'p-cloture-cabinet'];
+  // (27/10/2026) « Lecture des factures d'achat » revient : elle dit où la photo est lue, et coupe l'IA de Claude.
+  const PANNEAUX_ABSENTS = ['p-dossiers', 'p-sauvegardes', 'p-externe', 'p-motdepasse', 'p-danger', 'p-maj', 'p-licence', 'p-editeur', 'p-cloture-cabinet'];
   const style = document.createElement('style');
   style.textContent = `${PANNEAUX_ABSENTS.flatMap((id) => [`#${id}`, `[data-somm="${id}"]`, `[data-go="${id}"]`]).join(', ')} { display: none !important; }
     .ttn-etat { display: block; min-height: 1.4em; }`;
@@ -1511,7 +1512,8 @@
     ocrStatus: async () => {
       etatLecture ??= appel('GET', '/achats/lecture').catch((/** @type {any} */ e) => { if (e.horsLigne) etatLecture = null; return { disponible: false }; });
       const st = await etatLecture;
-      return { hasKey: !!(st && st.disponible) };
+      // (27/10/2026) `iaServeur` : ce serveur a la clé de l'IA de Claude ; l'écran la propose si l'entreprise ne l'a pas coupée.
+      return { hasKey: !!(st && st.disponible), iaServeur: !!(st && st.iaServeur) };
     },
     ocrSetKey: pasEncore('La clé d\'un service de lecture à l\'étranger'),
     ocrPick: async () => {
@@ -1522,7 +1524,8 @@
       fichiersALire.set(chemin, f);
       return { path: chemin, name: f.name, size: f.size, type: f.type };
     },
-    ocrRead: async (/** @type {string} */ chemin) => {
+    // `ia` : la personne a dit oui, pour CE fichier, à la lecture par l'IA de Claude (hors de Tunisie).
+    ocrRead: async (/** @type {string} */ chemin, /** @type {{ ia?: boolean }} */ opts = {}) => {
       const f = fichiersALire.get(chemin);
       if (!f) throw new Error('Le fichier choisi n\'est plus là : choisis-le de nouveau.');
       // Gardé : une fois la facture lue, il se joint à elle (attachPath).
@@ -1532,8 +1535,8 @@
         r.onerror = () => ko(new Error(`« ${f.name} » ne se lit pas sur cet appareil.`));
         r.readAsDataURL(f);
       });
-      const r = await appel('POST', '/achats/lecture', { nom: f.name, contenu });
-      return Object.assign({}, r.lecture, { remarques: r.remarques || [], ou: r.ou || {}, moteur: r.moteur });
+      const r = await appel('POST', '/achats/lecture', { nom: f.name, contenu, ...(opts.ia ? { ia: true } : {}) });
+      return Object.assign({}, r.lecture, { remarques: r.remarques || [], ou: r.ou || {}, doutes: r.doutes || [], moteur: r.moteur });
     },
     // (1.155.12) Un fichier glissé sur « Comment arrive cette pièce ? », lu comme s'il avait été choisi : la photo ou le PDF
     // (le même plafond que le sélecteur) ; la facture électronique, relue comme `openText` la relit.

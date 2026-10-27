@@ -340,3 +340,41 @@ de la réception).
   partie).
 - `tests/web/rendu.test.ts` : la fiche fournisseur et la fiche client, au téléphone et à l'ordinateur.
 - 47 preuves (`tests/preuves.sh`, « Le lot achats ») : chaque défaut remis fait tomber son test.
+
+## La lecture par l'IA de Claude (1.158.0, 27/10/2026)
+
+*Décidée par Skander le 24/10/2026, branchée le 27/10/2026 (`docs/cadrage/README.md`, `05` § 4.3).*
+
+**Où elle vit.** `serveur/achats/lecture-ia.ts` : l'appel à l'API d'Anthropic (la bibliothèque officielle
+`@anthropic-ai/sdk`), la consigne, la forme imposée de la réponse (sortie structurée, relue par zod), et la
+proposition rendue à la relecture de la v10 sous la même forme que la lecture sur nos serveurs. La route est la même
+(`POST /entreprises/:e/achats/lecture`), avec `ia: true` quand la personne a dit oui pour ce fichier.
+
+**Quand elle sert.** Les trois à la fois : le serveur a la clé (`ANTHROPIC_API_KEY` dans son environnement), l'entreprise
+ne l'a pas coupée (`company.lectureIA`, Paramètres › Données et sécurité › « Lecture des factures d'achat »), et la
+personne a répondu « Lire avec l'IA » à la question posée avant l'envoi. Sinon, la photo se lit sur nos serveurs
+(Tesseract), comme avant. Si l'IA ne répond pas (panne, refus, réponse hors forme), la photo se lit sur nos serveurs et
+la première remarque le dit ; sans lecteur sur le serveur, rien n'est lu et la phrase le dit.
+
+**Ce qui part, compté.** L'image ou le PDF de la pièce, la consigne (`CONSIGNE`) et la phrase « Lis cette pièce
+d'achat. ». Les clés du corps envoyé sont fixées par un test (`model`, `max_tokens`, `system`, `messages`,
+`output_config`, `fallbacks`) ; la bibliothèque ajoute ses en-têtes techniques (sa version, le système et la version de
+Node de notre serveur). Rien de l'entreprise : notre matricule se reconnaît au retour, ici.
+
+**Les réglages.** `ANTHROPIC_API_KEY` (la clé, créée sur console.anthropic.com) ; `SKANFACT_IA_MODELE` (le modèle,
+`claude-opus-5-5` par défaut). Les refus de sûreté passent au modèle de secours d'Anthropic (`fallbacks: "default"`).
+
+**Les garde-fous.** Rien ne se devine (une case illisible revient vide ; un nombre ou une date hors de la forme
+demandée est refusé) ; chaque doute revient avec ses valeurs possibles, et se tranche d'un clic sur « Ce que SkanFact a
+compris » ; une quantité ou un prix douteux se départage par le recomptage du hors-taxes (« avec 6, les lignes tombent
+juste » ; « ce n'est donc pas 8 : choisis 6 ») ; le total est recompté au millime (deux chemins, un chiffre). La pièce
+remplie dit en ambre ce qui reste à comparer avec la photo, ou, tout tranché, que tout l'a été (et « au millime »
+seulement si les totaux tombent juste).
+
+**Avant la production.** La clé ne se pose sur `app.skanfact.tn` qu'après l'autorisation de transfert de l'INPDP ;
+d'ici là, `dev.skanfact.tn` seulement, avec des pièces d'essai. **À VÉRIFIER** : ce qu'Anthropic garde des images, et
+le coût par lecture (`09` § 4).
+
+**Ce qui le prouve :** `tests/achats/lecture-ia.test.ts` (ce qui part, la forme, les refus, le recomptage, quand l'IA
+sert et quand elle ne sert pas) et `tests/web/lecture-ia.test.ts` (à la souris : la question, les doutes tranchés, le
+bandeau, le réglage coupé) ; 10 preuves (`tests/preuves.sh`, « ia 1 » à « ia 10 »).

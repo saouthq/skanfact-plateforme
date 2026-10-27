@@ -80,7 +80,7 @@ afterAll(async () => { for (const a of apps) await a.close(); await admin.end();
 describe('la lecture d\'une facture d\'achat par le serveur', () => {
   it('une photo se lit : la proposition, où chaque champ a été lu, le total recompté ; rien n\'est gardé sur le serveur', async () => {
     const a = await atelier();
-    expect((await appeler('GET', `/entreprises/${a.ent}/achats/lecture`, a.jeton)).corps).toEqual({ disponible: true, limite: String(10 * 1_048_576) });
+    expect((await appeler('GET', `/entreprises/${a.ent}/achats/lecture`, a.jeton)).corps).toEqual({ disponible: true, ia: false, iaServeur: false, limite: String(10 * 1_048_576) });
     const avant = restes();
     const r = await a.lire('facture-fournisseur.jpg', piece('quincaillerie-photo.jpg'));
     expect(r.statut, JSON.stringify(r.corps)).toBe(200);

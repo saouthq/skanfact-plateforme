@@ -1178,7 +1178,7 @@ prouver "l'exemple écrit dans la vraie entreprise" $PONT \
       return {};" \
   "ailleurs, l'exemple part vers l'écran qui le prépare, la visite dans son adresse : rien ne se crée ni ne se verse d'ici"
 prouver "« Tout effacer » laissé sur la plateforme" $PONT \
-  "'p-ocr', 'p-danger', 'p-maj'" "'p-ocr', 'p-maj'" \
+  "'p-motdepasse', 'p-danger', 'p-maj'" "'p-motdepasse', 'p-maj'" \
   "$VR"
 prouver "un fichier exporté qui perd son nom" $PONT \
   "    a.href = url; a.download = propre; a.hidden = true;" "    a.href = url; a.download = 'export.txt'; a.hidden = true;" \
@@ -20557,6 +20557,40 @@ prouver 'facture 25 : la FODEC hors du récapitulatif du formulaire' web/public/
 prouver 'facture 26 : la FODEC dans un mois qui n'"'"'en a pas' web/public/v10/compta.js \
   "    const avecFodec = m('fodec') > 0;" "    const avecFodec = m('fodec') != null;" \
   'un mois sans FODEC : ni rubrique ni ligne au récapitulatif'
+# La lecture par l'IA de Claude (27/10/2026, serveur/achats/lecture-ia.ts).
+prouver 'ia 1 : la photo part chez l'"'"'IA sans le oui de la personne' serveur/achats/routes.ts \
+  "      const parIA = corps.ia === true && await iaPossible(" "      const parIA = await iaPossible(" \
+  'ne part chez l'"'"'IA que si la personne a dit oui pour ce fichier'
+prouver 'ia 2 : l'"'"'IA coupée par l'"'"'entreprise lit quand même' serveur/achats/routes.ts \
+  "    return societe?.lectureIA !== false;" "    return true;" \
+  'l'"'"'entreprise qui a coupé l'"'"'IA lit sur nos serveurs, même si on la demande'
+prouver 'ia 3 : notre matricule pris pour celui du fournisseur' serveur/achats/lecture-ia.ts \
+  "  const autres = r.matricules.filter((m) => compacterMatricule(m.valeur) !== nous);" "  const autres = r.matricules;" \
+  'rend la proposition attendue par la relecture, avec le fournisseur pris à l'"'"'émetteur, jamais à nous'
+prouver 'ia 4 : un refus de l'"'"'IA lu comme une réponse' serveur/achats/lecture-ia.ts \
+  "      if (r.stop_reason === 'refusal') throw new IARefuse('refus');" "" \
+  'un refus, une panne, une réponse hors forme ne rendent jamais une lecture'
+prouver 'ia 5 : la réponse de l'"'"'IA crue sans sa forme' serveur/achats/lecture-ia.ts \
+  "      if (!lu.success) throw new IAIndisponible('reponse-hors-forme');
+      return lu.data;" "      return brut as ReponseIA;" \
+  'un refus, une panne, une réponse hors forme ne rendent jamais une lecture'
+prouver 'ia 6 : le recomptage ne départage plus la quantité' serveur/achats/lecture-ia.ts \
+  "      return ecart(somme(hts as bigint[]), totalHT) <= BigInt(r.lignes.length);" "      return true;" \
+  'départage un doute sur une quantité par le recomptage'
+prouver 'ia 7 : une donnée de plus part chez Anthropic' serveur/achats/lecture-ia.ts \
+  "      model: modele, max_tokens: 16_000," "      model: modele, max_tokens: 16_000, metadata: { user_id: 'entreprise' }," \
+  'n'"'"'envoie que la pièce et la consigne : ni le nom ni le matricule de l'"'"'entreprise'
+prouver 'ia 8 : la panne de l'"'"'IA sans repli ni remarque' serveur/achats/routes.ts \
+  "      const remarques = repli ? [motif('achats.lecture.ia_repli'), ...p.remarques] : p.remarques;" "      const remarques = p.remarques;" \
+  'si l'"'"'IA ne répond pas, la pièce se lit sur nos serveurs, et la remarque le dit'
+prouver 'ia 9 : l'"'"'écran envoie sans poser la question' web/public/v10/app.js \
+  "      if (opts.ia === undefined && await iaProposee()) {" "      if (opts.ia === undefined && await iaProposee()) { opts = { ia: true }; } if (false) {" \
+  'Nadia dit oui à l'"'"'IA, tranche le numéro flou et la quantité tachée'
+prouver 'ia 10 : « Avant d'"'"'enregistrer » oublie le justificatif joint' web/public/v10/app.js \
+  "      drawBuyAttachments();
+      // (27/10/2026) « Avant d'enregistrer » disait encore « Aucun justificatif » juste après « Justificatif joint ».
+      refresh();" "      drawBuyAttachments();" \
+  '« Non » joint la photo sans rien envoyer'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

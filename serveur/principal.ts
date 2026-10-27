@@ -69,6 +69,7 @@ import { routesCaisse } from './caisse/routes.ts';
 import { declarerGestesAchats } from './achats/gestes.ts';
 import { declarerGestesCaisse } from './caisse/gestes.ts';
 import { lecteurDuServeur } from './achats/lecteur.ts';
+import { appelAnthropic, creerLecteurIA, MODELE_PAR_DEFAUT, type AppelIA } from './achats/lecture-ia.ts';
 import { imprimeurDuServeur } from './pdf/imprimeur.ts';
 import { routesPdf } from './pdf/routes.ts';
 import { routesAchats } from './achats/routes.ts';
@@ -113,6 +114,9 @@ export type Configuration = {
   // SKANFACT_FACTURE_AU_CHOIX=1 ; son tour, chaque minute (SKANFACT_FACTURIER_MS).
   factureAuChoix: boolean; facturierMs: number;
   lectures: number;
+  // La lecture par l'IA de Claude (24/10/2026) : la clé d'Anthropic (ANTHROPIC_API_KEY, de l'environnement, jamais du
+  // dépôt) et le modèle (SKANFACT_IA_MODELE) ; null, l'IA ne se propose pas et la lecture reste sur ce serveur.
+  ia: { cle: string; modele: string } | null;
   // Le PDF fait par le serveur (docs/pdf.md) : combien à la fois, et le Chromium (celui de Playwright si aucun).
   impressions: number; navigateur: string | null;
   partenaires: Partenaire[];
@@ -206,6 +210,7 @@ export function lireConfiguration(env: Record<string, string | undefined>): Conf
     factureAuChoix: (env.SKANFACT_FACTURE_AU_CHOIX ?? (environnement === 'production' ? '1' : '0')) === '1',
     facturierMs: Number(env.SKANFACT_FACTURIER_MS ?? 60_000),
     mesuresMs: Number(env.SKANFACT_MESURES_MS ?? 60_000),
+    ia: env.ANTHROPIC_API_KEY?.trim() ? { cle: env.ANTHROPIC_API_KEY.trim(), modele: env.SKANFACT_IA_MODELE?.trim() || MODELE_PAR_DEFAUT } : null,
     lectures, impressions, navigateur: env.SKANFACT_NAVIGATEUR || null, partenaires, proxy, version: env.SKANFACT_VERSION ?? versionDuCode(),
     courriel: smtp && de ? { smtp, de } : null,
     veille: env.SKANFACT_VEILLE_FICHIER ?? path.join(env.SKANFACT_ETAT ?? '/var/lib/skanfact', 'veille.json'),
@@ -275,7 +280,7 @@ export function routesDuServeur(ctx: Contexte, options: { veille: string | null;
     ...routesMessageClients(ctx.maintenant), ...routesNouveautes(ctx), ...routesPdf(ctx)];
 }
 
-export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur; courriel?: EnvoiCourriel; sms?: Contexte['sms']; nouveautes?: readonly Nouveaute[] } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
+export async function demarrer(c: Configuration, dependances: { envoyer?: Envoyeur; courriel?: EnvoiCourriel; sms?: Contexte['sms']; nouveautes?: readonly Nouveaute[]; ia?: AppelIA } = {}): Promise<{ adresse: string; arreter: () => Promise<void> }> {
   const pool = creerPool(c.base);
   // L'adresse publique : réglée, sinon celle où le serveur écoute (connue une fois qu'il écoute).
   let publique = c.adresse ?? '';
@@ -283,7 +288,7 @@ export async function demarrer(c: Configuration, dependances: { envoyer?: Envoye
   const sms = dependances.sms ?? (c.sms === 'aucun' ? smsAucun : smsWinsms({ cle: c.sms.cle, expediteur: c.sms.expediteur, adresse: c.sms.adresse }));
   const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(c.listeVolee), sms, factureAuChoix: c.factureAuChoix, paiement: { konnect: c.konnect, coffre: c.coffre, adresse: () => publique },
     ...(c.digigo ? { efacture: { digigo: c.digigo.base, cleDigigo: c.digigo.cle } } : {}), ttn: { adresse: c.ttn, coffre: c.coffre },
-    lecteur: await lecteurDuServeur({ simultanees: c.lectures }), imprimeur: imprimeurDuServeur({ simultanees: c.impressions, navigateur: c.navigateur }), partenaires: { liste: c.partenaires, cle: c.coffre },
+    lecteur: await lecteurDuServeur({ simultanees: c.lectures }), lecteurIA: creerLecteurIA(dependances.ia ?? (c.ia ? appelAnthropic(c.ia.cle, c.ia.modele) : null)), imprimeur: imprimeurDuServeur({ simultanees: c.impressions, navigateur: c.navigateur }), partenaires: { liste: c.partenaires, cle: c.coffre },
     // Les nouveautés que ce serveur porte : celles du code (serveur/nouveautes.ts), sauf dans un essai.
     ...(dependances.nouveautes ? { nouveautes: dependances.nouveautes } : {}),
     // Les adresses internet de l'entrée (0143) : comptées, et fermées depuis la console.

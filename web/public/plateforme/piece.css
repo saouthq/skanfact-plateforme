@@ -41,7 +41,9 @@
 .editor.charte .ed-gauche { display: grid; gap: 16px; min-width: 0; align-content: start; }
 .editor.charte .ed-gauche > .panel { margin: 0; }
 .editor.charte .panel { border-radius: 14px; }
-.ed-droite { display: grid; gap: 14px; align-content: start; min-width: 0; }
+.ed-droite { display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; min-width: 0; }
+/* (27/10/2026) Le tableau du justificatif joint élargissait toute la colonne : les totaux sortaient de l'écran. Il défile chez lui. */
+.ed-droite #attachments { min-width: 0; overflow-x: auto; }
 .ed-droite > .panel { margin: 0; padding: 16px 18px; }
 
 /* l'en-tête de la pièce : le client en carte, la rangée date / échéance / objet, les puces */
@@ -1113,6 +1115,11 @@
 .ac-lec-l.douteux .st { background: var(--sb-ambre, #e08a00); color: #fff; }
 .ac-lec-saisie { min-width: 220px; }
 .ac-lec-saisie input { height: 34px; }
+/* (27/10/2026, maquette « Lecture intelligente · à vérifier ») Un doute de l'IA se tranche d'un clic, ses valeurs côte à côte. */
+.ac-lec-choix { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+.ac-lec-choix button { font: inherit; font-size: 13px; padding: 4px 12px; border-radius: 8px; border: 1px solid var(--sb-trait-fort); background: var(--sb-papier); color: var(--sb-encre); cursor: pointer; }
+.ac-lec-choix button:hover { border-color: var(--sb-sarcelle); }
+.ac-lec-choix button:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: 2px; }
 .ac-lec-photo { padding: 12px; }
 .ac-lec-photo .q { display: flex; justify-content: space-between; gap: 10px; margin-bottom: 8px; font-size: 13px; color: var(--sb-gris); }
 .ac-lec-photo .q span:last-child { overflow-wrap: anywhere; text-align: end; }

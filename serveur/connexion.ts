@@ -16,6 +16,7 @@ import { createHash, randomBytes, randomInt } from 'node:crypto';
 import type pg from 'pg';
 import type { Imprimeur } from './pdf/imprimeur.ts';
 import type { Lecteur } from './achats/lecteur.ts';
+import type { LecteurIA } from './achats/lecture-ia.ts';
 import type { Adresses } from './adresses.ts';
 import type { EnvoiCourriel } from './courriel.ts';
 import type { Nouveaute } from './nouveautes.ts';
@@ -50,6 +51,8 @@ export type Contexte = {
   // La lecture des factures d'achat (brique 84) : le moteur de ce serveur (Tesseract et Poppler), et sa
   // file ; absent ou non disponible, la lecture n'est pas branchée (et l'écran le dit).
   lecteur?: Lecteur;
+  // La lecture par l'IA de Claude (Anthropic), hors de Tunisie : branchée si l'environnement donne sa clé (lecture-ia.ts).
+  lecteurIA?: LecteurIA;
   // Le PDF fait par le serveur (docs/pdf.md) : Chromium et sa file ; absent, l'écran ouvre la fenêtre d'impression.
   imprimeur?: Imprimeur;
   // L'envoi des e-mails (lot entrée ; serveur/courriel.ts) et l'adresse publique où mènent ses liens ; absent, aucun
