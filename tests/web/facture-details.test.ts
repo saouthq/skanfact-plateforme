@@ -110,7 +110,10 @@ describe('le lot facture, à l\'écran', () => {
     await p.locator('#lines tr:first-child input[data-k="qty"]').fill('2');
     await p.locator('#lines tr:first-child input[data-k="unitPrice"]').fill('96.5');
     await p.locator('#lines tr:first-child input[data-k="unitPrice"]').press('Tab');
-    await p.locator('select[name=withholdingRate]').selectOption('1');
+    // (1.162.0) La retenue est une puce : sa bulle propose les taux des réglages.
+    await p.locator('#ed-puces [data-etq=rs]').click();
+    await p.locator('[data-rs="1"]').click();
+    await expect.poll(() => p.locator('select[name=withholdingRate]').inputValue()).toBe('1');
 
     // 2. L'aperçu : pas de « MF » sans matricule ; le tampon « Brouillon » ne couvre ni l'en-tête ni le client et l'objet,
     // et s'imprime comme une encre (pâle, multiplié : le texte qu'il croise reste noir).
@@ -184,13 +187,14 @@ describe('le lot facture, à l\'écran', () => {
     const date = p.locator('#pf2 .datefield .d-txt').first();
     const rs = () => p.locator('#pf-rs').innerText().then(net).catch(() => '');
     await date.fill('15/08/2026'); await date.press('Tab');
-    await expect.poll(rs).toContain('c\'est une retenue subie d\'août 2026');
+    await expect.poll(rs).toContain('retenue subie d\'août 2026');
     await date.fill('15/09/2026'); await date.press('Tab');
-    await expect.poll(rs).toContain('c\'est une retenue subie de septembre 2026');
+    await expect.poll(rs).toContain('retenue subie de septembre 2026');
     await date.fill('05/10/2026'); await date.press('Tab');
-    await expect.poll(rs).toContain('c\'est une retenue subie d\'octobre 2026');
+    await expect.poll(rs).toContain('retenue subie d\'octobre 2026');
     await p.locator('#pf2 [name=amount]').fill('100');
-    await p.locator('#modal-root').getByRole('button', { name: 'Enregistrer', exact: true }).click();
+    // (1.155.0) Le bouton dit ce qui suivra : « Enregistrer · reste … ».
+    await p.locator('#modal-root #ok').click();
     await expect.poll(async () => ((await surLeServeur()).find((o) => o.contenu.number === 'FAC-2026-001')?.contenu.payments as unknown[] | undefined)?.length ?? 0, { timeout: 10_000 }).toBe(1);
     expect(await p.getByRole('heading', { name: 'Rien n\'a été enregistré' }).count()).toBe(0);
 
@@ -198,11 +202,15 @@ describe('le lot facture, à l\'écran', () => {
     // (seule l'affaire reste à choisir), ce qui est reçu et ce qui reste, et son écriture au journal des ventes, au
     // brouillard puis validée, relue à l'ouverture.
     const resume = () => p.locator('#lecture-piece').innerText().then(net).catch(() => '');
-    await expect.poll(resume, { timeout: 10_000 }).toContain('Payée en partie : 100,000 DT sur 228,373 DT, reste 128,373 DT.');
-    expect(await resume()).toMatch(/^Client Hôtel Les Oliviers Date \d\d\/\d\d\/2026 · échéance le \d\d\/\d\d\/20\d\d Objet Pièces montées, octobre 2026 Net à payer 228,373 DT · retenue à la source 2,297 DT · timbre fiscal 1,000 DT Situation /);
+    // (1.155.0) Ce qui est reçu et ce qui reste se lit dans la phrase de l'en-tête ; le résumé dit le client, les dates
+    // et le net, avec ce qui le compose (l'objet est le titre de la pièce).
+    await expect.poll(() => p.locator('.ed-phrase').first().innerText().then(net).catch(() => ''), { timeout: 10_000 }).toContain('100,000 DT reçus, reste 128,373 DT');
+    expect(await resume()).toMatch(/^Client Hôtel Les Oliviers Date \d\d\/\d\d\/2026 · échéance le \d\d\/\d\d\/20\d\d Net à payer 228,373 DT · TTC 230,670 · retenue 2,297 · timbre 1,000 /);
     expect(await p.locator('#f-head [name=subject]').isVisible()).toBe(false);
-    expect(await p.locator('#ed-affaire').isVisible()).toBe(true);
-    await expect.poll(() => p.locator('#lp-compta').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe('Comptabilité Au journal des ventes, au brouillard : pas encore validée.');
+    // (1.162.0) La maquette ne dessine pas l'affaire d'une pièce émise : elle ne se choisit qu'au brouillon (écart écrit
+    // dans docs/maquettes-appliquees.md, à dessiner avant de revenir).
+    expect(await p.locator('#ed-affaire').isVisible()).toBe(false);
+    await expect.poll(() => p.locator('#lp-compta').innerText().then(net).catch(() => ''), { timeout: 10_000 }).toBe('Comptabilité Au journal des ventes, au brouillard : pas encore validée. · voir l\'écriture');
     const vente = ((await api('GET', `/entreprises/${ent}/compta/ecritures?journal=VT&piece=FAC-2026-001`, jeton)).corps.ecritures as { id: string }[]);
     expect(vente.length).toBe(1);
     const validee = await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, jeton, { ids: [vente[0]?.id] });
@@ -210,7 +218,7 @@ describe('le lot facture, à l\'écran', () => {
     const numero = ((await api('GET', `/entreprises/${ent}/compta/ecritures?journal=VT&piece=FAC-2026-001`, jeton)).corps.ecritures as { numero: string }[])[0]?.numero;
     const aujourdhui = new Date().toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis' });
     await p.reload();
-    await expect.poll(() => p.locator('#lp-compta').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe(`Comptabilité Validée le ${aujourdhui}, écriture n° ${numero}.`);
+    await expect.poll(() => p.locator('#lp-compta').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe(`Comptabilité Validée le ${aujourdhui}, écriture n° ${numero}. · voir l'écriture`);
 
     // 6. Le menu d'une pièce émise, dans la liste.
     await p.evaluate(() => { location.hash = '#/factures'; });
@@ -238,6 +246,7 @@ describe('le lot facture, à l\'écran', () => {
       await p.locator('#ed-pq-q').fill('Hôtel');
       await p.locator('#ed-pq-liste [role=option][data-cl]').first().click();
     }
+    if (!(await p.locator('[data-k=label]').count())) await p.locator('#ed-ajout').press('Enter');
     await p.locator('#lines tr:first-child input[data-k="label"]').fill('Croissants pur beurre');
     await p.locator('#lines tr:first-child input[data-k="qty"]').fill('120');
     await p.locator('#lines tr:first-child input[data-k="unitPrice"]').fill('0.85');
@@ -354,16 +363,15 @@ describe('le lot facture, à l\'écran', () => {
     await p.keyboard.press('Escape');
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     await p.evaluate(() => { location.hash = '#/doc/new/facture'; });
+    // (1.94.0, puis 1.155.0) Une pièce neuve pose le curseur sur le choix du client : la recherche de « Pour qui ? »,
+    // qui propose déjà ses clients, sans traverser le menu.
+    await expect.poll(() => p.evaluate(() => document.activeElement?.id), { timeout: 20_000 }).toBe('ed-pq-q');
+    await plusTard(p);
     // (1.155.0) Une facture neuve n'a pas de ligne : Entrée dans la barre d'ajout en pose une.
     await p.locator('#ed-ajout').press('Enter', { timeout: 20_000 });
     await p.locator('#lines tr [data-k=qty]').first().waitFor({ timeout: 20_000 });
-    // (1.94.0) Une pièce neuve pose le curseur sur le choix du client : Entrée ouvre la liste, sans traverser le menu.
-    await expect.poll(() => p.evaluate(() => document.activeElement?.closest('[data-combo]')?.getAttribute('data-combo'))).toBe('clientId');
-    await p.keyboard.press('Enter');
-    await expect.poll(() => p.locator('[data-combo="clientId"] .combo-pop').isVisible()).toBe(true);
-    await p.keyboard.press('Escape');
-    await plusTard(p);
-    await p.locator('#add-line').click();
+    await p.locator('#ed-ajout').press('Enter');
+    await expect.poll(() => p.locator('#lines tr [data-k=qty]').count()).toBe(2);
     // Le nom que lit un lecteur d'écran : la quantité, le prix et la TVA de la seconde ligne.
     const seconde = p.locator('#lines tr').nth(1);
     await expect.poll(() => seconde.locator('[data-k=qty]').getAttribute('aria-label')).toBe('Qté, ligne 2');

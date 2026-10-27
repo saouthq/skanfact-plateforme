@@ -20673,6 +20673,52 @@ prouver 'écarts 30 : un TEIF qui porte un script accepté' serveur/achats/sorte
 prouver 'écarts 31 : la base qui refuse le XML' base/migrations/0178_justificatif_xml.sql \
   ''"'"'application/pdf'"'"', '"'"'application/xml'"'"'));' ''"'"'application/pdf'"'"'));' \
   'le XML d'"'"'une facture électronique (TEIF) se joint'
+# ── La revue des écarts des maquettes de la facture et de la liste (1.162.0 ; docs/maquettes-appliquees.md ; tests/web/facture-ecarts.test.ts) ──
+prouver 'écarts facture 1 : les montants en dinars de la liste écrits avec « DT »' web/public/v10/app.js \
+  '<td class="r m nw cm">${lfMontant(m, cur(d))}' '<td class="r m nw cm">${C.money(m, cur(d))}' \
+  'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
+prouver 'écarts facture 2 : le net du total de la sélection sans son unité' web/public/v10/app.js \
+  '${lfMontant(net, base)} <small class="dv">${h(symboleDevise(base))}</small>' '${lfMontant(net, base)}' \
+  'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
+prouver 'écarts facture 3 : la tuile « À encaisser » qui écrit « EUR »' web/public/v10/app.js \
+  'dont ${devises.map(d => argentLu(lfReste(d), cur(d)))' 'dont ${devises.map(d => C.money(lfReste(d), cur(d)))' \
+  'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
+prouver 'écarts facture 4 : la bulle des filtres en petit « i »' web/public/v10/app.js \
+  '.replace('"'"'>i</button>'"'"', `>${lfIc('"'"'aide'"'"', 16, 2)}</button>`)' '' \
+  'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
+prouver 'écarts facture 5 : la phrase d'"'"'une facture en euros qui écrit « EUR »' web/public/v10/app.js \
+  '${argentLu(recu, cur)} reçus, reste ${argentLu(bal.remaining, cur)}' '${C.money(recu, cur)} reçus, reste ${C.money(bal.remaining, cur)}' \
+  'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
+prouver 'écarts facture 6 : l'"'"'unité d'"'"'une pièce émise dans une liste à dérouler' web/public/v10/app.js \
+  '${figee ? `<span class="unite-lue">${h(uniteLue(l))}</span>`' '${false ? `<span class="unite-lue">${h(uniteLue(l))}</span>`' \
+  'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
+prouver 'écarts facture 7 : l'"'"'unité lue en code (« j »)' web/public/v10/app.js \
+  '      return C.uniteAccordee(Number(l.qty) || 0, lib);
+    };
+    const reperesCharte' '      return u;
+    };
+    const reperesCharte' \
+  'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
+prouver 'écarts facture 8 : le timbre imprimé sur une pièce sans ligne' web/public/v10/app.js \
+  '!isQ ? { ...doc, applyStamp: false } : doc);' '!isQ ? doc : doc);' \
+  'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
+prouver 'écarts facture 9 : la carte d'"'"'un client en retard qui le tait' web/public/v10/app.js \
+  'enRetard > 0.0005 ? `<span class="ed-chip rouge">' 'false ? `<span class="ed-chip rouge">' \
+  'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
+prouver 'écarts facture 10 : « Relancer » de la carte qui ne mène nulle part' web/public/v10/app.js \
+  '      if (rl) rl.onclick = () => { relState.q = c.name || '"'"''"'"'; relState.page = 1; navigate('"'"'#/relances'"'"'); };
+' '' \
+  'la liste et la facture parlent comme leurs maquettes : montants, devises, retard du client, timbre, unité'
+prouver 'écarts facture 11 : la retenue du paiement sans son mois' web/public/v10/app.js \
+  'Elle se compte avec ce paiement, en ${subie}.' 'Elle se compte avec ce paiement.' \
+  'Samia, sans matricule ni RIB : la pièce n'"'"'imprime rien de vide, la fiche se complète avant d'"'"'émettre, et le reste suit'
+prouver 'écarts facture 12 : la quantité d'"'"'une ligne sans son numéro de ligne' web/public/v10/app.js \
+  'aria-label="Qté, ligne ${i + 1}"' 'aria-label="Quantité"' \
+  '(1.87.19) au clavier, chaque case d'"'"'une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
+prouver 'écarts facture 13 : la signature sans ses trois temps' web/public/plateforme/pont.js \
+  '            <li><span class="n" aria-hidden="true">2</span><span><b>Tape le code reçu</b><small>il vaut quelques minutes</small></span></li>
+' '' \
+  'Nadia désigne le signataire depuis le refus, puis signe la facture avec le code reçu ; le fichier signé se télécharge'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

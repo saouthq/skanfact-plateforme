@@ -114,7 +114,7 @@ describe('les kits, à la souris', () => {
 
     // 2. La facture de 4 packs s'émet : 12 sacs et 2 m³ sortent, le catalogue n'en permet plus que 9.
     await p.evaluate(() => { location.hash = '#/doc/f1'; });
-    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture/);
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toBe('Nouvelle facture');
     await plusTard(p);
     await p.locator('#issue').click();
     await expect.poll(() => p.locator('#modal-root #ok').count(), { timeout: 10_000 }).toBe(1);

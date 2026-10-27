@@ -106,7 +106,8 @@
 .ed-lignes table.lignes-doc tbody tr + tr { border-top-color: var(--sb-trait); }
 .ed-lignes table.lignes-doc tbody tr { padding-block: 8px; }
 .ed-lignes table.lines-edit input[data-k=label] { border-color: transparent; background: transparent; font-weight: 600; font-size: 14px; padding-inline: 4px; }
-.ed-lignes table.lines-edit textarea[data-k=description] { border-color: transparent; background: transparent; color: var(--sb-gris); font-size: 13px; padding-inline: 4px; margin-top: 0; }
+.ed-lignes table.lines-edit .unite-lue { display: inline-flex; align-items: center; height: 38px; padding-inline: 4px; color: var(--sb-encre); }
+.ed-lignes table.lines-edit textarea[data-k=description] { border-color: transparent; background: transparent; color: var(--sb-gris); font-size: 13px; padding-inline: 4px; margin-top: 0; field-sizing: content; min-height: 0; overflow: hidden; }
 .ed-lignes table.lines-edit :is(input[data-k=label], textarea):hover { border-color: var(--sb-trait); }
 .ed-lignes table.lines-edit :is(input[data-k=label], textarea):focus { border-color: var(--sb-sarcelle); background: var(--sb-papier); }
 .ed-lignes table.lines-edit td:not(:first-child) :is(input, select) { background: var(--sb-papier-2); border-color: transparent; border-radius: 8px; height: 38px; }
@@ -661,7 +662,8 @@
 @media (max-width: 760px) { .ed-paie .pay-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .ed-frise li.partiel .rond { border: 1.5px solid var(--sb-ambre); color: var(--sb-ambre-texte); background: var(--sb-ambre-doux); }
 .ed-frise li.partiel .ed-fr-txt span { color: var(--sb-ambre-texte); }
-.ed-paie table.ed-paie-t { border: 0; }
+.ed-paie table.ed-paie-t { border: 0; box-shadow: none; background: none; border-radius: 0; }
+.ed-paie table.ed-paie-t th { position: static; }
 .ed-paie table.ed-paie-t th { background: none; text-transform: none; letter-spacing: 0; font-size: 11.5px; font-weight: 600; color: var(--sb-gris-2); }
 .ed-paie table.ed-paie-t td { border-top: 1px solid var(--sb-trait); }
 .ed-paie table.ed-paie-t .row-menu-btn.ico { width: 30px; height: 30px; padding: 0; border-color: transparent; background: transparent; color: var(--sb-gris-2); }
@@ -708,6 +710,9 @@
 .lien-plus { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; padding: 4px 0; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; justify-self: start; }
 .env-moi small { color: var(--sb-gris-2); }
 .env-msg textarea { background: var(--sb-papier-2); border-radius: 10px; font-size: 14px; line-height: 1.5; }
+/* (1.162.0, maquette « Envoyer » et « Relancer ») Le message se lit en entier : la zone grandit avec son texte, jusqu'à la
+   moitié de l'écran ; au-delà, elle défile. */
+#modal-root .modal textarea[name=body] { field-sizing: content; min-height: 8lh; max-height: 52vh; }
 .env-pj { display: flex; flex-wrap: wrap; gap: 6px; }
 .env-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 10px; border-radius: 8px; background: var(--sb-survol); font-size: 12.5px; color: var(--sb-gris); }
 .env-chip.attire { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
@@ -743,9 +748,9 @@
 .ed-lignes table.ed-grille.fige td.c-des .ligne-lue { white-space: normal; overflow: visible; text-overflow: clip; }
 .ed-lignes table.ed-grille.fige td.c-des textarea { height: auto !important; field-sizing: content; white-space: normal; overflow: hidden; }
 .ed-ech:disabled { background: var(--sb-survol); border-color: transparent; }
-/* (maquette, brouillon) La description d'une ligne tient sur une ligne, coupée par « … », tant qu'on n'y écrit pas ; on
-   clique dedans, elle s'ouvre en entier. */
-.ed-lignes table.ed-grille:not(.fige) td.c-des textarea:not(:focus) { height: 22px !important; min-height: 0; white-space: nowrap; text-overflow: ellipsis; overflow: hidden; }
+/* (maquette, brouillon ; revu en 1.162.0) La description d'une ligne se lit en entière, sur autant de lignes qu'il lui faut :
+   une zone de texte ne sait pas écrire « … », elle coupait la phrase net au bord de la colonne. */
+.ed-lignes table.ed-grille:not(.fige) td.c-des textarea { height: auto; min-height: 0; field-sizing: content; white-space: pre-wrap; overflow: hidden; }
 /* (maquette « chargement ») Le squelette d'une pièce, le temps que le dossier arrive. */
 .sq-page { display: grid; gap: 18px; }
 .sq-tete { display: grid; gap: 10px; padding: 4px 0 8px; }
@@ -1032,6 +1037,8 @@
 .ed-frise li.afaire .rond { border: 1.5px solid var(--sb-sarcelle); color: var(--sb-sarcelle-texte); }
 .ed-chip.ok { background: var(--sb-doux); color: var(--sb-doux-texte); border-color: transparent; }
 .ed-chip.rouge { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); border-color: transparent; }
+.ed-chip.rouge b, .ed-chip.rouge .lien { color: inherit; }
+.ed-chip.rouge .lien { font-weight: 600; }
 .buy-editor .pay-grid > .pg-attire { background: var(--sb-ambre-doux); }
 .buy-editor .pay-grid > .pg-attire .v { color: var(--sb-ambre-texte); }
 .buy-editor .pay-grid > .pg-alerte { background: var(--sb-rouge-doux); }

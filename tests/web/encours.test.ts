@@ -88,7 +88,7 @@ describe('l\'encours autorisé d\'un client, à la souris', () => {
 
     // 2. La facture de 300 HT le ferait dépasser : la fenêtre d'émission le dit, avec ses chiffres.
     await p.evaluate(() => { location.hash = '#/doc/f1'; });
-    await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(/^Facture/);
+    await expect.poll(() => titre(p), { timeout: 10_000 }).toBe('Nouvelle facture');
     await p.locator('#issue').click();
     await expect.poll(async () => net(await p.locator('#modal-root .warn-box').innerText().catch(() => '')), { timeout: 10_000 })
       .toMatch(/Chantier Ennasr dépasserait son encours autorisé de 157,680 DT : il doit déjà 799,680 DT \(factures non réglées et bons livrés à facturer\), cette pièce en ajoute 358,000 DT, pour 1 000,000 DT autorisés\. Fais-le régler avant, ou émets quand même\./);

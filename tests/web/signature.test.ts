@@ -99,7 +99,7 @@ describe('la signature DigiGo, à la souris', () => {
       await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^FAC-2026-001/);
       await plusTard(nadia);
       await nadia.locator('#more-btn').click();
-      await nadia.getByRole('button', { name: 'Signer (DigiGo)…', exact: true }).click();
+      await nadia.getByRole('menuitem', { name: /^Signer par DigiGo/ }).click();
       const f = nadia.locator('#modal-root .modal').last();
       await expect.poll(() => f.locator('h2').innerText()).toBe('Signer FAC-2026-001 avec DigiGo');
       return f;
@@ -107,6 +107,9 @@ describe('la signature DigiGo, à la souris', () => {
 
     // Personne n'est désigné : le refus le dit, et son bouton mène au réglage.
     let fenetre = await ouvrirFacture();
+    // (1.162.0, maquette « Signer par DigiGo ») Les trois temps se lisent dès l'ouverture, le premier en cours.
+    await expect.poll(async () => (await fenetre.locator('#sg-etape ol.sg-etapes > li b').allInnerTexts()).map(net)).toEqual(['Envoyer le code au signataire', 'Tape le code reçu', 'Elle part d\'elle-même à El Fatoora']);
+    expect(await fenetre.locator('#sg-etape li.cours #sg-demander').count()).toBe(1);
     await fenetre.getByRole('button', { name: 'Envoyer le code au signataire', exact: true }).click();
     await expect.poll(async () => net(await fenetre.locator('[role=alert]').innerText())).toBe('Personne n\'est désigné pour signer : pose l\'identifiant DigiGo du signataire dans Paramètres → Documents.');
     await nadia.screenshot({ path: path.join(PHOTOS, 'signature-1-sans-signataire.png') });
@@ -136,7 +139,8 @@ describe('la signature DigiGo, à la souris', () => {
     // Le code part sur le téléphone de Nadia Ben Salah ; un code faux se retape.
     fenetre = await ouvrirFacture();
     await fenetre.getByRole('button', { name: 'Envoyer le code au signataire', exact: true }).click();
-    await expect.poll(async () => net(await fenetre.locator('#sg-etape p:not([role=alert])').innerText())).toBe('Un code est parti sur le téléphone de Nadia Ben Salah. Tape-le ici :');
+    // (1.155.0, maquette « Signer par DigiGo ») Le premier temps est fait : il nomme la personne qui a reçu le code.
+    await expect.poll(async () => net(await fenetre.locator('#sg-etape li.fait b').innerText())).toBe('Code envoyé à Nadia Ben Salah');
     const vrai = String(digigo.codeDe('09876543'));
     const champ = fenetre.getByLabel('Code reçu par le signataire');
     await champ.fill(vrai === '000000' ? '111111' : '000000');

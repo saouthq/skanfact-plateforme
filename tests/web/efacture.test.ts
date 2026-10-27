@@ -98,7 +98,7 @@ describe('la facture électronique, à la souris', () => {
 
     // La facture : « Émettre » dit ce qui manque AVANT la confirmation ; rien n'est émis.
     await nadia.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`);
-    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^Facture/);
+    await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toBe('Nouvelle facture');
     await plusTard(nadia);
     await nadia.locator('#issue').click();
     const fenetre = nadia.locator('#modal-root .modal').last();
@@ -134,7 +134,7 @@ describe('la facture électronique, à la souris', () => {
     // « Fichier pour El Fatoora » : le fichier du serveur, tel quel, dans les Téléchargements.
     await nadia.locator('#more-btn').click();
     const telechargement = nadia.waitForEvent('download');
-    await nadia.getByRole('button', { name: 'Fichier pour El Fatoora (TEIF)…', exact: true }).click();
+    await nadia.getByRole('menuitem', { name: /^Fichier El Fatoora \(TEIF\)/ }).or(nadia.getByRole('button', { name: 'Fichier pour El Fatoora (TEIF)…', exact: true })).first().click();
     const recu = await telechargement;
     expect(recu.suggestedFilename()).toBe(duServeur.nom);
     expect(fs.readFileSync(await recu.path(), 'utf8')).toBe(duServeur.xml);

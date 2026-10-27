@@ -149,7 +149,8 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
       expect(a.right).toBeLessThanOrEqual(x.carte.right + 0.5);
       expect(a.top).toBeGreaterThanOrEqual(x.carte.top);
     }
-    expect(cartes[0]?.montants.map((m) => m.texte)).toEqual(['714,000 DT', '714,000 DT']);
+    // (1.162.0, maquette liste) En dinars, le montant seul : son titre (« Net à payer », « Reste ») le dit.
+    expect(cartes[0]?.montants.map((m) => m.texte)).toEqual(['714,000', '714,000']);
     // (1.143.0) Le client juste sous les montants, avant la date de la pièce (1.154.0 : « Client et objet », la colonne
     // « Type » a laissé la place à l'étiquette « Avoir »). L'ordre de lecture : la rangée, puis la gauche.
     const sous = await p.locator('table.list > tbody > tr:not(.mois)').first().evaluate((tr) => ['Client et objet', 'Date'].map((t) => { const r = tr.querySelector(`td[data-label="${t}"]`)?.getBoundingClientRect(); return r ? Math.round(r.top) * 10_000 + Math.round(r.left) : -1; }));

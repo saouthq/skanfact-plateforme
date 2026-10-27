@@ -72,7 +72,7 @@ describe('la virgule d\'un prix tapé dans un navigateur réglé en anglais', ()
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`);
-    await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^Facture/);
+    await expect.poll(() => titre(p), { timeout: 20_000 }).toBe('Nouvelle facture');
     await plusTard(p);
 
     // 1. Au clavier, comme on l'écrit en Tunisie : la virgule est la décimale.

@@ -105,7 +105,7 @@ describe('la liste des factures, à la souris et au clavier', () => {
     expect(await ech.getAttribute('class')).toBe('rouge');
     expect(net(await p.locator('#list-wrap tr[data-id="b1"] td.cn').innerText())).toBe(`Brouillon à redater : sa date précède ${n3} du ${jm(aujourdhui)}`);
     expect(net(await p.locator('#list-wrap tr[data-id="f1"] td.st').innerText())).toBe('Payée en trop');
-    expect(net(await p.locator('#list-wrap tr[data-id="f1"] td').nth(-2).innerText())).toBe('62,615 DT à son crédit');
+    expect(net(await p.locator('#list-wrap tr[data-id="f1"] td').nth(-2).innerText())).toBe('62,615 à son crédit');
     await p.screenshot({ path: path.join(PHOTOS, 'liste-factures-1.png') });
 
     // 3. Une tuile est un filtre : « En retard » ne garde que f3 et f2, la puce le dit ; recliquée, tout revient.

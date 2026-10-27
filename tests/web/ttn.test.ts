@@ -144,7 +144,7 @@ describe('l\'envoi à la TTN, à la souris', () => {
       await plusTard(nadia);
       await nadia.locator('#more-btn').click();
       const telechargement = nadia.waitForEvent('download');
-      await nadia.getByRole('button', { name: 'Fichier pour El Fatoora (TEIF)…', exact: true }).click();
+      await nadia.getByRole('menuitem', { name: /^Fichier El Fatoora \(TEIF\)/ }).or(nadia.getByRole('button', { name: 'Fichier pour El Fatoora (TEIF)…', exact: true })).first().click();
       const recu = await telechargement;
       const fenetre = nadia.locator('#modal-root .modal').last();
       await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Le fichier El Fatoora est prêt');
@@ -229,7 +229,7 @@ describe('l\'envoi à la TTN, à la souris', () => {
     await espace.screenshot({ path: path.join(PHOTOS, 'ttn-6-espace.png') });
     // Le client télécharge la facture validée par la TTN, celle qui fait foi (brique 141), telle que le serveur la garde.
     // Le réseau tombe d'abord : c'est dit, et le bouton se reclique.
-    const bouton = espace.getByRole('button', { name: 'Facture électronique (XML)', exact: true });
+    const bouton = espace.getByRole('button', { name: 'Fichier El Fatoora (XML)', exact: true });
     const alerte = espace.locator('.refus-paiement');
     await espace.route('**/v1/espace/efacture', (r) => r.abort('internetdisconnected'), { times: 1 });
     await bouton.click();

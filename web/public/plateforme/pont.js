@@ -2563,7 +2563,7 @@
     const doc = /** @type {{ id: string, number: string }} */ (docs[0]);
     const une = docs.length === 1;
     modal(`<h2>${une ? `Signer ${esc(doc.number)} avec DigiGo` : `Signer ${docs.length} pièces avec DigiGo`}</h2>
-      <p class="small">${une ? 'Le fichier El Fatoora de cette pièce, écrit par SkanFact à l\'émission, est signé' : `Les fichiers El Fatoora de ${esc(docs.map((d) => d.number).join(', '))}, écrits par SkanFact à l'émission, sont signés`} par DigiGo (TunTrust) avec le certificat de ton signataire. Un code arrive sur SON téléphone : c'est lui qui te le donne${une ? '' : ', et ce seul code les signe toutes'}.</p>
+      <p class="small">${une ? 'Le fichier El Fatoora de cette pièce, écrit par SkanFact à l\'émission, est signé' : `Les fichiers El Fatoora de ${esc(docs.map((d) => d.number).join(', '))}, écrits par SkanFact à l'émission, sont signés`} par DigiGo (TunTrust) avec le certificat de ton signataire. Un code arrive sur son téléphone : c'est cette personne qui te le donne${une ? '' : ', et ce seul code les signe toutes'}.</p>
       <div id="sg-etape"></div>
       <div class="modal-actions"><button class="btn" data-close>Fermer</button></div>`, (/** @type {HTMLElement} */ root, /** @type {() => void} */ close) => {
       const $r = (/** @type {string} */ q) => /** @type {HTMLElement} */ (root.querySelector(q));
@@ -2572,8 +2572,13 @@
       /** @param {unknown} x */
       const dire = (x) => { const a = root.querySelector('[role=alert]'); if (a) a.textContent = x instanceof Error ? x.message : String(x); };
       /** @param {string} texte */
+      // (1.162.0, maquette « Signer par DigiGo ») Les trois temps se lisent dès l'ouverture : le premier en cours, avec son geste.
       const demander = (texte) => {
-        etape.innerHTML = `<p class="small" role="alert"></p><div class="inline"><button type="button" class="btn btn-primary" id="sg-demander">${texte}</button></div>`;
+        etape.innerHTML = `<ol class="sg-etapes">
+            <li class="cours"><span class="n" aria-hidden="true">1</span><span><b>Envoyer le code au signataire</b><small>la personne désignée pour signer le reçoit par SMS</small><span class="inline mt"><button type="button" class="btn btn-primary" id="sg-demander">${texte}</button></span></span></li>
+            <li><span class="n" aria-hidden="true">2</span><span><b>Tape le code reçu</b><small>il vaut quelques minutes</small></span></li>
+            <li><span class="n" aria-hidden="true">3</span><span><b>${une ? 'Elle part' : 'Elles partent'} d'${une ? 'elle' : 'elles'}-même${une ? '' : 's'} à El Fatoora</b><small>la frise dira « en route », puis « acceptée »</small></span></li>
+          </ol><p class="small" role="alert"></p>`;
         const b = $r('#sg-demander');
         b.onclick = async () => {
           b.setAttribute('disabled', '');

@@ -181,8 +181,8 @@ describe('une commande livrée en deux fois, et ses bons facturés en une factur
     expect(facture.bonsLivraison.map((b) => b.number)).toEqual([bl1, bl2]);
     // Une copie de la facture (« Dupliquer ») est une autre vente : elle ne reprend pas les bons de celle-ci.
     await p.locator('#more-btn').click();
-    await p.locator('#more-list #dup').click();
-    await expect.poll(async () => net(await p.locator('#view h1').first().innerText()), { timeout: 10_000 }).toBe('Facture (brouillon)');
+    await p.getByRole('menuitem', { name: /^Dupliquer/ }).click();
+    await expect.poll(async () => net(await p.locator('#view h1').first().innerText()), { timeout: 10_000 }).toBe('Nouvelle facture');
     const copies = async () => (await admin.query(`select contenu from socle.dossier_v10 where entreprise = $1 and collection = 'documents' and contenu->>'type' = 'facture' and coalesce(contenu->>'number', '') = ''`, [ent])).rows as { contenu: Record<string, unknown> }[];
     await expect.poll(async () => (await copies()).length, { timeout: 10_000 }).toBe(1);
     expect((await copies())[0]?.contenu.bonsLivraison).toBeUndefined();

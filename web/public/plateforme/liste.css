@@ -99,7 +99,8 @@
 .lf table.lf-table tbody tr.kb td:first-child { box-shadow: inset 3px 0 0 var(--sb-sarcelle), inset 0 1px 0 var(--sb-sarcelle), inset 0 -1px 0 var(--sb-sarcelle); }
 .lf table.lf-table td.r { text-align: right; white-space: nowrap; }
 .lf table.lf-table td.m { font-weight: 600; }
-.lf table.lf-table td small { display: block; font-size: 12px; color: var(--sb-gris-2); font-weight: 400; }
+.lf table.lf-table td small:not(.dv) { display: block; font-size: 12px; color: var(--sb-gris-2); font-weight: 400; }
+.lf table.lf-table .dv { font-size: 12px; color: var(--sb-gris-2); font-weight: 600; }
 .lf table.lf-table th.cx, .lf table.lf-table td.cx { width: 38px; padding-right: 0; }
 .lf td.cx input, .lf th.cx input { width: 16px; height: 16px; accent-color: var(--sb-sarcelle); cursor: pointer; margin: 0; }
 .lf .num { font-weight: 700; white-space: nowrap; letter-spacing: -.01em; }
@@ -228,3 +229,6 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
   #view:has(> .lf-tete) > :not(.lf-tete):first-child { margin-top: 20px; }
   #view > .lf-tete { position: sticky; top: 0; z-index: 20; margin: 0 -24px 18px; padding: 14px 24px; background: color-mix(in srgb, var(--sb-papier-2) 92%, transparent); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-bottom: 1px solid var(--sb-trait); }
 }
+/* (1.162.0, maquette liste) La bulle des filtres : le rond « ? », sans fond, comme les gestes de la barre. */
+.lf #lf-filtres button.i.i-b { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border: 0; border-radius: 99px; background: none; color: var(--sb-gris-2); font: inherit; padding: 0; }
+.lf #lf-filtres button.i.i-b:hover, .lf #lf-filtres button.i.i-b:focus-visible { background: var(--sb-survol); color: var(--sb-encre); }

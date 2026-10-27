@@ -198,7 +198,7 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
     await nadia.locator('tr[data-id="f1"] td.cn').click();
     await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^FAC-2026-001/);
     await nadia.locator('#more-btn').click();
-    await nadia.getByRole('button', { name: 'Signer (DigiGo)…', exact: true }).click();
+    await nadia.getByRole('menuitem', { name: /^Signer par DigiGo/ }).click();
     const fenetre = nadia.locator('#modal-root .modal').last();
     await fenetre.getByRole('button', { name: 'Envoyer le code au signataire', exact: true }).click();
     // (Le code se lit une fois parti : le champ paraît quand DigiGo l'a envoyé.)
@@ -213,7 +213,7 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
     await nadia.locator('tr[data-id="f3"] td.cn').click();
     await expect.poll(() => nadia.locator('#view h1').first().innerText(), { timeout: 20_000 }).toMatch(/^FAC-2026-003/);
     await nadia.locator('#more-btn').click();
-    await nadia.getByRole('button', { name: 'Fichier pour El Fatoora (TEIF)…', exact: true }).click();
+    await nadia.getByRole('menuitem', { name: /^Fichier El Fatoora \(TEIF\)/ }).or(nadia.getByRole('button', { name: 'Fichier pour El Fatoora (TEIF)…', exact: true })).first().click();
     const pret = nadia.locator('#modal-root .modal').last();
     await pret.getByRole('button', { name: 'Renvoyer à la TTN', exact: true }).click();
     await expect.poll(async () => net(await pret.locator('#ttn-piece').innerText())).toMatch(/^Elle repart à la TTN/);
@@ -267,7 +267,7 @@ describe('l\'état El Fatoora dans la liste des factures', () => {
     await bouton.click();
     const fenetre = nadia.locator('#modal-root .modal').last();
     await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Signer 3 pièces avec DigiGo');
-    expect(net(await fenetre.locator('p.small').first().innerText())).toBe('Les fichiers El Fatoora de FAC-2026-001, FAC-2026-002, FAC-2026-003, écrits par SkanFact à l\'émission, sont signés par DigiGo (TunTrust) avec le certificat de ton signataire. Un code arrive sur SON téléphone : c\'est lui qui te le donne, et ce seul code les signe toutes.');
+    expect(net(await fenetre.locator('p.small').first().innerText())).toBe('Les fichiers El Fatoora de FAC-2026-001, FAC-2026-002, FAC-2026-003, écrits par SkanFact à l\'émission, sont signés par DigiGo (TunTrust) avec le certificat de ton signataire. Un code arrive sur son téléphone : c\'est cette personne qui te le donne, et ce seul code les signe toutes.');
     await fenetre.getByRole('button', { name: 'Envoyer le code au signataire (3 pièces)', exact: true }).click();
     await fenetre.getByLabel('Code reçu par le signataire').waitFor();
     await fenetre.getByLabel('Code reçu par le signataire').fill(String(digigo.codeDe('09876543')));

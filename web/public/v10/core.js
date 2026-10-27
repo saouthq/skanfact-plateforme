@@ -9725,7 +9725,8 @@
   function documentHistory(doc, data, company) {
     const ev = [];
     const dateOf = ms => { const d = new Date(ms); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
-    if (doc.createdAt) ev.push({ date: dateOf(doc.createdAt), kind: 'cree', label: 'Brouillon créé' });
+    // `ts` : l'instant du geste quand la pièce le garde (l'écran en écrit l'heure, « 24/10 · 10 h 12 »).
+    if (doc.createdAt) ev.push({ date: dateOf(doc.createdAt), ts: doc.createdAt, kind: 'cree', label: 'Brouillon créé' });
     if (doc.fromQuoteNumber) ev.push({ date: doc.date, kind: 'devis', label: `Établi à partir du devis ${doc.fromQuoteNumber}`, id: doc.fromQuoteId });
     // Une facture née d'un contrat récurrent le disait nulle part : on retrouve le contrat d'origine,
     // et la ligne est cliquable comme celle d'un devis.
@@ -9754,7 +9755,7 @@
       ev.push({ date: doc.date, kind: 'licence', label: `Porte la licence n° ${doc.licenceId}`,
         detail: lic ? `${lic.offre === 'independant' ? 'Indépendant' : 'Entreprise'}${lic.exp ? ', jusqu\'au ' + fmtDate(lic.exp) : ', à vie'}` : 'licence introuvable dans l\'historique' });
     }
-    if (doc.number && doc.status !== 'brouillon') ev.push({ date: doc.date, kind: 'emis', label: `${TITLES[doc.type]} ${doc.number} ${doc.type === 'facture' ? 'émise' : 'émis'}` });
+    if (doc.number && doc.status !== 'brouillon') ev.push({ date: doc.date, ...(doc.issuedTs ? { ts: doc.issuedTs } : {}), kind: 'emis', label: `${TITLES[doc.type]} ${doc.number} ${doc.type === 'facture' ? 'émise' : 'émis'}` });
     // Ce qui en découle : la proforma tirée du devis, le bon de livraison tiré de la commande, etc.
     derivedDocs(doc, data).forEach(d => ev.push({
       date: d.date, kind: 'derive', id: d.id,
