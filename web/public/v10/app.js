@@ -5360,7 +5360,7 @@
       ];
       return friseHtml(etapes);
     };
-    const friseHtml = etapes => `<div class="panel ed-frise${etapes.length === 4 ? ' quatre' : ''}" id="ed-frise"><ol>${etapes.map((x, i) => `<li class="${x.fait ? 'fait' : ''}${x.alerte ? ' alerte' : ''}${x.partiel ? ' partiel' : ''}">
+    const friseHtml = etapes => `<div class="panel ed-frise${etapes.length === 4 ? ' quatre' : ''}" id="ed-frise"><ol>${etapes.map((x, i) => `<li class="${x.fait ? 'fait' : ''}${x.alerte ? ' alerte' : ''}${x.partiel ? ' partiel' : ''}"${x.k ? ` data-k="${x.k}"` : ''}>
           <span class="rond" aria-hidden="true">${x.fait ? lfIc('coche', 13, 3) : i + 1}</span>
           <span class="ed-fr-txt"><b>${x.t}</b><span>${x.d}</span></span>${x.g ? `<span class="ed-fr-geste">${x.g}</span>` : ''}
           <span class="vh">${x.fait ? ' : fait' : ' : pas encore'}</span></li>`).join('')}</ol></div>`;
@@ -5411,6 +5411,8 @@
       return friseHtml([
         { t: 'Créé', fait: true, d: lfJm(doc.date) },
         { t: 'Envoyé', fait: true, d: premier ? `${lfJm(premier.date)} · ${premier.canal === 'whatsapp' ? 'WhatsApp' : 'e-mail'}` : 'marqué envoyé' },
+        // (1.157.2, maquette « Devis ») Vu : le lien du devis ouvert par le client, lu sur le serveur (« vu le …, N fois »).
+        ...(bridge.vuesPiece ? [{ t: 'Vu', k: 'vu', fait: false, d: 'pas encore ouvert par le lien' }] : []),
         { t: st === 'refusé' ? 'Refusé' : repondu ? 'Accepté' : 'Réponse', fait: repondu && st !== 'refusé', alerte: st === 'refusé',
           d: rep ? `${lfJm(rep.le)}${rep.comment && COMMENT_REPONSE[rep.comment] ? ` · ${COMMENT_REPONSE[rep.comment]}` : ''}${st === 'refusé' && rep.motif ? ` · ${h(rep.motif)}` : ''}`
             : st === 'refusé' ? 'le client a dit non' : repondu ? 'le client a dit oui' : st === 'expiré' ? 'validité passée' : `en attente${jours != null && jours >= 0 ? ` · valable ${pl(jours, 'jour')}` : ''}`,
@@ -8235,6 +8237,14 @@
 
       const brancherFrise = () => $$('#ed-frise [data-frise]').forEach(b => b.onclick = () => { const x = $('#' + b.dataset.frise); if (x) x.click(); });
       brancherFrise();
+      // L'étape « Vu » du devis : ce que le serveur a noté des ouvertures de son lien (jamais une ouverture inventée).
+      if ($('#ed-frise li[data-k=vu]') && doc.clientId) bridge.vuesPiece(doc).then(v => {
+        const li = $('#ed-frise li[data-k=vu]'); if (!li || !v || !v.vues) return;
+        li.classList.add('fait');
+        const rond = $('.rond', li); if (rond) rond.innerHTML = lfIc('coche', 13, 3);
+        const d = $('.ed-fr-txt > span', li); if (d) d.textContent = `${lfJm(v.vuLe.slice(0, 10))} · ${v.vues > 1 ? `${v.vues} fois` : 'une fois'} par le lien`;
+        const vh = $('.vh', li); if (vh) vh.textContent = ' : fait';
+      }, () => {});
       // (maquette « émise · entreprise d'essai ») Une facture de l'exemple ne part jamais à El Fatoora : on le dit.
       const bandeauEmise = (ton, ic, titre, texte, lib, geste) => {
         const f = $('#ed-frise'); if (!f || $('#ed-bandeau-emise')) return;

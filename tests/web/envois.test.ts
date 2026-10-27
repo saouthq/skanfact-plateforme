@@ -235,6 +235,12 @@ describe('les envois, à la souris', () => {
     await expect.poll(() => nadia.locator('#modal-root .modal').last().locator('#lc-liste').innerText(), { timeout: 15_000 })
       .toMatch(/^Son compte\s*donné le .* par Nadia\s*vu le .*\s*Retirer\s*[A-Z]+-\d{4}-\d+\s*envoyé par WhatsApp le .* par Nadia\s*vu le .*\s*Retirer$/);
     await nadia.locator('#modal-root .modal').last().getByRole('button', { name: 'Fermer', exact: true }).click();
+    // (1.157.2, maquette « Devis ») La frise du devis dit qu'il a été vu par son lien : quand, et combien de fois.
+    // (Le devis se redessine en y revenant : la page relit les ouvertures de son lien.)
+    await nadia.evaluate(() => { const ici = location.hash; location.hash = '#/devis'; return new Promise((r) => setTimeout(() => { location.hash = ici; r(null); }, 400)); });
+    await expect.poll(() => nadia.locator('#ed-frise li[data-k=vu] .ed-fr-txt').innerText().then(net).catch(() => ''), { timeout: 20_000 })
+      .toMatch(/^Vu \d\d\/\d\d · (une fois|\d+ fois) par le lien$/);
+    expect(await nadia.locator('#ed-frise li[data-k=vu]').evaluate((li) => li.classList.contains('fait'))).toBe(true);
     // Sans le lien (la case décochée) : WhatsApp s'ouvre pendant le geste, sans lien, sur le message du modèle.
     const sansLien = await envoi(nadia, /^(WhatsApp$|Envoyer par WhatsApp…$|Par WhatsApp)/);
     await sansLien.getByLabel(/Ajouter le lien de la pièce/).uncheck();

@@ -1169,6 +1169,16 @@
     // second argument de `resolveConflict`). Elle a désormais chaque objet de cette version : sans l'adopter, l'objet
     // fusionné repartait avec la révision d'avant le conflit, et le serveur le refusait encore (vu le 26/10/2026 : deux
     // postes sur le même brouillon, « le dossier partagé bouge en permanence » à chaque fusion).
+    // (1.157.2) Les ouvertures du lien d'une pièce (le devis, la facture) : quand, et combien de fois, lues sur ses liens.
+    // Une lecture, rien n'est envoyé ; sans lien de la pièce : null.
+    vuesPiece: LECTURE ? null : async (/** @type {{ id: string, clientId: string }} */ doc) => {
+      const r = await appel('GET', `/espace/liens?client=${encodeURIComponent(doc.clientId)}`);
+      const siens = (r.liens || []).filter((/** @type {any} */ l) => l.piece === doc.id && l.vuLe);
+      if (!siens.length) return null;
+      const vues = siens.reduce((/** @type {number} */ a, /** @type {any} */ l) => a + (Number(l.vues) || 0), 0);
+      const vuLe = siens.map((/** @type {any} */ l) => String(l.vuLe)).sort().pop();
+      return { vues, vuLe };
+    },
     saveData: (/** @type {Record<string, unknown>} */ data, /** @type {boolean} */ apresFusion) => (LECTURE ? Promise.reject(Object.assign(new Error(EN_LECTURE), { statut: 403 })) : (apresFusion && adopter(), enregistrer(data))),
     // La lecture pour le support : l'accès, sa fin (lue avec le dossier), et le nom de la page (plateforme/lecture.js).
     lecture: LECTURE ? { acces: accesLu, entreprise: ent, fin: () => lectureFin, nom: () => lectureNom, page: pageLue, noter: noterLaPage,

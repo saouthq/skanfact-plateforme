@@ -81,14 +81,14 @@ describe('la réponse du client à un devis, à la souris', () => {
     await fen.locator('[data-comment="email"]').click();
     expect(await fen.locator('[data-comment="email"]').getAttribute('aria-pressed')).toBe('true');
     await fen.getByRole('button', { name: 'Accepter seulement' }).click();
-    await expect.poll(() => etape(p, 2), { timeout: 10_000 }).toMatch(new RegExp(`^Accepté ${jm(jour)} · par e-mail`));
+    await expect.poll(() => etape(p, 3), { timeout: 10_000 }).toMatch(new RegExp(`^Accepté ${jm(jour)} · par e-mail`));
     expect(net(await p.locator('.ed-envois').innerText())).toContain(`Réponse : accepté par e-mail le ${jm(jour)}, noté par Ines`);
     expect(await p.locator('.ed-recu').count()).toBe(0);
 
     // Elle reste sur le devis : un rechargement la redit.
     await p.waitForTimeout(1500);
     await ouvrir(p, 'q1');
-    expect(await etape(p, 2)).toMatch(new RegExp(`^Accepté ${jm(jour)} · par e-mail`));
+    expect(await etape(p, 3)).toMatch(new RegExp(`^Accepté ${jm(jour)} · par e-mail`));
 
     // Accepté : « Transformer ▾ » ouvre les pièces qui suivent, chacune en brouillon.
     await p.locator('#ed-transformer').click();
@@ -106,8 +106,8 @@ describe('la réponse du client à un devis, à la souris', () => {
     await refus.getByRole('button', { name: 'Reporté', exact: true }).click();
     expect(await refus.locator('#rep-motif').inputValue()).toBe('Reporté');
     await refus.locator('#rep-refus').click();
-    await expect.poll(() => etape(p, 2), { timeout: 10_000 }).toMatch(new RegExp(`Refusé ${jm(jour)} · Reporté`));
-    expect(await etape(p, 3)).toMatch(/rien à facturer/);
+    await expect.poll(() => etape(p, 3), { timeout: 10_000 }).toMatch(new RegExp(`Refusé ${jm(jour)} · Reporté`));
+    expect(await etape(p, 4)).toMatch(/rien à facturer/);
     expect(net(await p.locator('.ed-envois').innerText())).toContain(`Réponse : refusé le ${jm(jour)}, noté par Ines · « Reporté »`);
     expect(erreurs).toEqual([]);
     await cx.close();
