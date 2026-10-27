@@ -3949,11 +3949,52 @@
     if (r.absent) toast(`« ${nom} » ne s'ouvre pas : la copie rangée par SkanFact a peut-être été déplacée ou supprimée du disque.`, true);
     else if (r.sansProgramme) toast(`Aucun programme de cet ordinateur n'ouvre « ${nom} » : SkanFact le montre dans ${EXPLORATEUR}, ouvre-le avec le programme de ton choix.`, true);
   }
-  // Ouvrir la COPIE rangée par SkanFact.
+  // Ouvrir la COPIE rangée par SkanFact. (1.163.0, maquette achat « Justificatif en grand ») Une photo ou un PDF se montre
+  // dans la fenêtre en grand de SkanFact, celle de l'aperçu d'une facture (Skander, 27/10/2026 : « il me l'ouvre dans une
+  // autre fenêtre du navigateur ») ; un autre fichier, ou un justificatif que le serveur ne rend pas ici, s'ouvre comme avant.
   async function ouvrirJustificatif(ownerId, a) {
     try {
+      const lu = bridge.apercuPiece ? await bridge.apercuPiece(a.file) : null;
+      if (lu && /^image\/|pdf/i.test(lu.type || '')) return justificatifEnGrand(ownerId, a, lu);
       ditOuverture(await bridge.openAttachment(ownerId, a.file), a.name || a.file);
     } catch (e) { toast(plainError(e), true); }
+  }
+  function justificatifEnGrand(ownerId, a, lu, telecharger) {
+    const nom = a.name || a.file;
+    const ancien = $('#pv-full'); if (ancien) ancien.remove();
+    const el = document.createElement('div');
+    el.id = 'pv-full'; el.className = 'pj-grand';
+    const image = /^image\//.test(lu.type || '');
+    // Un PDF : ses pages dessinées ici, l'une sous l'autre (un cadre PDF ne s'affiche pas sur un téléphone, il télécharge).
+    const pdf = !image && lu.blob && bridge.apercuPdf;
+    el.innerHTML = `<div class="pv-fen" role="dialog" aria-modal="true" aria-label="${h(nom)}"><div class="pv-full-bar">
+        <b class="pv-titre" title="${h(nom)}">${h(nom)}</b>
+        <span class="pv-pages">${a.date ? `joint le ${h(C.fmtDate(a.date))}` : ''}${a.size ? `${a.date ? ' · ' : ''}${h(fileSize(a.size))}` : ''}</span>
+        <button class="btn btn-sm" id="pj-grand-tel" title="Une copie sur cet appareil">${lfIc('exporter', 14)}Télécharger</button>
+        <button class="btn btn-sm" id="pv-full-close">Fermer <kbd>Échap</kbd></button>
+      </div>
+      <div class="pv-full-body pj-grand-corps">${image ? `<img src="${lu.adresse}" alt="${h(nom)}">` : pdf ? '<div class="pj-pages"><span class="small muted">Les pages se préparent…</span></div>' : `<iframe src="${lu.adresse}" title="${h(nom)}"></iframe>`}</div>
+      <p class="pj-grand-pied small muted">Le document du fournisseur, gardé 10 ans avec la pièce.</p></div>`;
+    document.body.appendChild(el);
+    const fermer = () => { el.remove(); document.removeEventListener('keydown', touche, true); };
+    const touche = e => { if (e.key === 'Escape' && !$('#modal-root').children.length) { e.preventDefault(); e.stopPropagation(); fermer(); } };
+    document.addEventListener('keydown', touche, true);
+    $('#pv-full-close', el).onclick = fermer;
+    el.onclick = e => { if (e.target === el) fermer(); };
+    $('#pj-grand-tel', el).onclick = () => (telecharger ? telecharger() : bridge.revealAttachment(ownerId, a.file).catch(e => toast(plainError(e), true)));
+    $('#pv-full-close', el).focus();
+    if (pdf) (async () => {
+      const z = $('.pj-pages', el), MAX = 20;
+      for (let n = 1; n <= MAX; n++) {
+        const r = await bridge.apercuPdf(lu.blob, 1400, n);
+        if (!el.isConnected) return;
+        if (!r) { if (n === 1) z.innerHTML = '<span class="small muted">Ce PDF ne se montre pas ici : « Télécharger » le garde sur cet appareil.</span>'; return; }
+        if (n === 1) { z.innerHTML = ''; const pp = $('.pv-pages', el); if (pp) pp.textContent = `${pl(r.pages, 'page')}${pp.textContent ? ' · ' + pp.textContent : ''}`; }
+        z.insertAdjacentHTML('beforeend', `<img src="${r.adresse}" alt="Page ${n} sur ${r.pages} de « ${h(nom)} »">`);
+        if (n >= r.pages) return;
+        if (n === MAX) z.insertAdjacentHTML('beforeend', `<p class="small muted">Les ${MAX} premières pages : « Télécharger » garde le document entier.</p>`);
+      }
+    })();
   }
   function brancherJustificatifs(el, ownerId, list, retirer) {
     $$('[data-open]', el).forEach(x => x.onclick = e => {
@@ -3971,6 +4012,97 @@
         { icon: 'supprimer', label: 'Retirer ce justificatif', hint: 'Il quitte cette pièce ; ton fichier d\'origine ne bouge pas', danger: true, run: () => retirer(a) }
       ];
     });
+  }
+  // (1.163.0, maquette achat « Ticket joint · 2 fichiers ») LE panneau des justificatifs, sur chaque pièce qui en garde
+  // (achat, facture, devis, avoir, bon, mouvement de banque) : la liste des fichiers en tête, chacun par son nom, celui
+  // qu'on regarde en surbrillance ; son aperçu dessous (la photo, la première page du PDF, la feuille du XML) ; puis
+  // « Joindre un autre fichier », où l'on clique ou glisse. Skander (27/10/2026) : « j'ai déposé un fichier et je voulais en
+  // déposer un deuxième, sauf que c'est flou : je ne sais pas lequel a été pris, et le deuxième je ne le vois même pas » —
+  // chaque aperçu, en pleine taille l'un sous l'autre, poussait le second hors de l'écran, sans nom en vue.
+  // `o` : { ownerId, list, vide (le HTML sans fichier, qui porte `#add-att`), joindre(fichiers?), retirer(a), zones(a),
+  // ligne(a) (ce qu'une ligne ajoute : la case « joindre à l'e-mail » d'une facture), etat ({ choisi, recents }) }.
+  function panneauJustificatifs(el, o) {
+    const list = o.list || [], etat = o.etat || {};
+    const recents = etat.recents || (etat.recents = new Set());
+    if (!list.some(a => a.file === etat.choisi)) etat.choisi = list.length ? list[list.length - 1].file : null;
+    const genre = a => /\.pdf$/i.test(a.name || a.file) ? 'pdf' : /\.xml$/i.test(a.name || a.file) ? 'xml' : /\.(jpe?g|png|webp|heic|gif)$/i.test(a.name || a.file) ? 'photo' : 'fichier';
+    const icone = (g, t = 16, e = 1.8) => lfIc(g === 'xml' ? 'nuage' : g === 'photo' ? 'photo' : 'piece', t, e);
+    const quand = a => recents.has(a.file) ? 'joint à l\'instant' : `joint le ${C.fmtDate(a.date)}`;
+    const choisi = list.find(a => a.file === etat.choisi);
+    const panel = el.closest('.panel'), compte = panel && $('h2 .pjp-compte', panel);
+    if (compte) compte.textContent = list.length > 1 ? `${list.length} fichiers · gardés 10 ans` : list.length ? 'gardé 10 ans' : (o.compteVide || '');
+    const titre = o.titres && panel && $('h2 .pjp-titre', panel);
+    if (titre) titre.textContent = o.titres[list.length > 1 ? 1 : 0];
+    if (!choisi) el.innerHTML = o.vide;
+    else {
+      el.innerHTML = `<div class="pjp">
+        <div class="pjp-liste" role="listbox" aria-label="Fichiers joints">${list.map(a => `<div class="pjp-r${a === choisi ? ' on' : ''}" role="option" aria-selected="${a === choisi}" data-pj-choisir="${h(a.file)}" tabindex="0">
+          <span class="pjp-ic ${genre(a)}" aria-hidden="true">${icone(genre(a))}</span>
+          <span class="pjp-n"><b title="${h(a.name || a.file)}">${h(a.name || a.file)}</b><small>${fileSize(a.size)} · ${quand(a)}</small>${o.ligne ? o.ligne(a) : ''}</span>
+          <button type="button" class="row-menu-btn pjp-menu" data-rowmenu="${h(a.file)}" aria-haspopup="menu" aria-expanded="false" aria-label="Gestes de « ${h(a.name || a.file)} »" title="Ouvrir, télécharger ou retirer">${lfIc('plus', 16)}</button></div>`).join('')}</div>
+        <div class="ac-pj"><button type="button" class="ac-pj-vue" data-open="${h(choisi.file)}" data-apercu="${h(choisi.file)}" title="Voir « ${h(choisi.name || choisi.file)} » en grand">${icone(genre(choisi), 26, 1.6)}</button></div>
+        <button type="button" class="pjp-plus" id="add-att">${lfIc('ajout', 15, 2.2)}<b>Joindre un autre fichier</b><small>photo, PDF ou XML · ou glisse-le ici</small></button></div>`;
+      if (bridge.apercuPiece) apercuJustificatif($('.ac-pj-vue', el), choisi, o.zones ? o.zones(choisi) : []);
+      $$('[data-pj-choisir]', el).forEach(r => {
+        const prendre = () => {
+          if (etat.choisi === r.dataset.pjChoisir) return;
+          etat.choisi = r.dataset.pjChoisir; panneauJustificatifs(el, o);
+          const n = $$('[data-pj-choisir]', el).find(x => x.dataset.pjChoisir === etat.choisi); if (n) n.focus();
+        };
+        r.onclick = e => { if (!e.target.closest('button, a, input, label')) prendre(); };
+        r.onkeydown = e => {
+          if (e.target !== r) return;
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            const a = list.find(x => x.file === r.dataset.pjChoisir);
+            if (etat.choisi === r.dataset.pjChoisir && a) ouvrirJustificatif(o.ownerId, a); else prendre();
+          } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault(); const s = e.key === 'ArrowDown' ? r.nextElementSibling : r.previousElementSibling; if (s) s.focus();
+          }
+        };
+      });
+    }
+    const za = $('#add-att', el);
+    if (za) {
+      za.onclick = () => o.joindre();
+      za.ondragover = e => { e.preventDefault(); za.classList.add('sur'); };
+      za.ondragleave = () => za.classList.remove('sur');
+      za.ondrop = e => { e.preventDefault(); za.classList.remove('sur'); const f = [...(e.dataTransfer && e.dataTransfer.files || [])]; if (f.length) o.joindre(f); };
+    }
+    brancherJustificatifs(el, o.ownerId, list, o.retirer);
+  }
+  // Un fichier qui vient d'être joint devient celui qu'on regarde, et sa ligne dit « joint à l'instant ».
+  function justificatifsJoints(etat, ajoutes) {
+    if (!etat || !ajoutes || !ajoutes.length) return;
+    etat.recents = etat.recents || new Set();
+    ajoutes.forEach(a => etat.recents.add(a.file));
+    etat.choisi = ajoutes[ajoutes.length - 1].file;
+  }
+  // L'aperçu d'un justificatif dans son bouton : la photo (et les zones que l'IA n'a pas lues avec sûreté), la première
+  // page du PDF, ou la feuille que décrit un fichier El Fatoora (27/10/2026), relue du fichier lui-même, jamais de la saisie
+  // qui a pu changer depuis.
+  function apercuJustificatif(b, a, zs = []) {
+    bridge.apercuPiece(a.file).then(r => {
+      if (!r || !b.isConnected) return;
+      if (/pdf/i.test(r.type) && bridge.apercuPdf) {
+        bridge.apercuPdf(r.blob, 600).then(im => { if (im && b.isConnected) { b.classList.add('vue'); b.innerHTML = `<span class="ac-pj-img"><img src="${im.adresse}" alt=""></span>${im.pages > 1 ? `<span class="ac-pdf-pages">page 1 sur ${im.pages}</span>` : ''}`; } });
+        return;
+      }
+      if (/xml/i.test(r.type) && window.SkanTeif && r.blob) {
+        r.blob.text().then(t => {
+          const l = window.SkanTeif.lireTeif(t, company()); if (!l.ok || !b.isConnected) return;
+          const x = l.lecture, cu = x.currency || company().currency, mt = v => C.money(v, null, C.decimalsFor(cu));
+          const ville = String((x.fournisseur && x.fournisseur.adresse) || '').split(/\n|,/).map(y => y.replace(/\b\d{4}\b/g, '').trim()).filter(Boolean).pop() || '';
+          b.classList.add('vue', 'xml');
+          b.innerHTML = `<span class="ac-pj-feuille"><span class="q">Fichier El Fatoora${x.signe ? ' · signé' : ''}</span><span class="fh"><span><b>${h(x.supplier || '')}</b>${ville ? `<small>${h(ville)}</small>` : ''}</span><span class="ft">${x.kind === 'avoir' ? 'Avoir' : 'Facture'}</span></span>
+            <span class="fn">${h(x.number || '')}${x.date ? ` · ${C.fmtDate(x.date)}` : ''}</span>
+            ${(x.lines || []).slice(0, 5).map(y => `<span class="fl"><span>${h(y.label || '')} · ${pct(y.qty)} × ${mt(y.unitPrice)}</span><b>${mt(C.round3((Number(y.qty) || 0) * (Number(y.unitPrice) || 0)))}</b></span>`).join('')}${(x.lines || []).length > 5 ? `<span class="fl muted">+ ${pl(x.lines.length - 5, 'autre ligne', 'autres lignes')}</span>` : ''}
+            ${x.totalTTC != null ? `<span class="ftot"><span>Total TTC</span><b>${mt(x.totalTTC)}</b></span>` : ''}<small class="fpied">${lfIc('coche', 12, 2.6)}chaque montant recompté au millime</small></span>`;
+        }, () => {});
+        return;
+      }
+      if (/^image\//.test(r.type)) { b.classList.add('vue'); b.innerHTML = `<span class="ac-lec-zones ac-pj-img"><img src="${r.adresse}" alt="">${zs.map(z => `<span class="ac-lec-repere" style="left:${z.zone[0] / 10}%;top:${z.zone[1] / 10}%;width:${z.zone[2] / 10}%;height:${z.zone[3] / 10}%"><i>${z.n}</i></span>`).join('')}</span>`; }
+    }, () => {});
   }
   // (plateforme, pièces jointes) Retirer : le serveur efface le fichier que tu as joint il y a moins de 24 heures ; plus
   // ancien (ou joint par un autre), il en garde la copie dix ans (un justificatif se conserve) et seule la pièce l'oublie.
@@ -5680,7 +5812,7 @@
           ${charte ? `<div class="ed-deux-b">
             <div class="panel ed-notes"><h2>Notes sur ${isAv ? 'l\'avoir' : isQ ? 'le devis' : laPiece()} ${info('ed.notes')}${figee ? '' : '<button type="button" class="btn btn-sm" id="ed-texte2" data-pop aria-haspopup="dialog" aria-expanded="false">Texte prêt</button>'}</h2>
               <textarea id="notes" placeholder="Conditions, mentions particulières…" ${ro}>${h(doc.notes || '')}</textarea></div>
-            <div class="panel ed-pj" id="p-pj"><h2>Pièces jointes ${info('ed.attachments')}<small>gardées 10 ans</small></h2><div id="attachments"></div></div>
+            <div class="panel ed-pj" id="p-pj"><h2>Pièces jointes ${info('ed.attachments')}<small class="pjp-compte">gardées 10 ans</small></h2><div id="attachments"></div></div>
           </div>` : `<div class="panel" id="p-pj"><h2>Pièces jointes ${info('ed.attachments')}</h2><div id="attachments"></div></div>
           ${isNew ? '' : `<div class="panel"><h2>Historique ${info('ed.history')}</h2><div id="doc-history"></div></div>`}
           <div class="panel"><h2>Notes (affichées sur le document) ${info('ed.notes')}</h2>
@@ -7807,6 +7939,7 @@
     }
 
     // --- pièces jointes : copiées à côté du fichier de données, jamais dans le JSON
+    const etatJustifs = {};
     function drawAttachments() {
       const el = $('#attachments'); if (!el) return;
       // Pièce neuve : la liste vit dans `doc` et part avec l'enregistrement. Pièce rangée : dans la
@@ -7820,8 +7953,10 @@
         if (s2) { s2.attachments = (s2.attachments || []).filter(x => x.file !== a.file); save(true); } else touch();
         drawAttachments(); drawHistory();
       };
-      // (maquette facture) Une carte par fichier, la case « joindre à l'e-mail », et la zone où l'on glisse
-      // (les fichiers glissés passent par le même dépôt que le sélecteur).
+      // (maquette facture) La case « joindre à l'e-mail » de chaque fichier, et la zone où l'on glisse (les fichiers glissés
+      // passent par le même dépôt que le sélecteur). (1.163.0, Skander le 27/10/2026 : « on va mettre ce système partout ») Le
+      // panneau commun à toutes les pièces : la liste des fichiers par leur nom, l'aperçu de celui qu'on regarde, « Joindre un
+      // autre fichier » ; « Ouvrir », « Télécharger » et « Retirer » sous le « ⋯ » de chaque fichier.
       if (charte) {
         const joindre = async glisses => {
           try {
@@ -7829,27 +7964,18 @@
             if (!added.length) return;
             doc.attachments = (doc.attachments || []).concat(added);
             if (s2) { s2.attachments = (s2.attachments || []).concat(added); save(true); } else touch();
+            justificatifsJoints(etatJustifs, added);
             drawAttachments(); drawHistory();
-            toast(added.length > 1 ? `${added.length} pièces jointes ajoutées` : 'Pièce jointe ajoutée');
+            const n = list.length + added.length;
+            toast(`${added.length > 1 ? `${added.length} pièces jointes ajoutées` : `Pièce jointe ajoutée : ${added[0].name || 'le fichier'}`}${n > added.length ? ` · ${n} fichiers sur la pièce` : ''}`);
           } catch (e) { toast(plainError(e), true); }
         };
         const dePiece = isAv ? 'de l\'avoir' : isQ ? 'du devis' : 'de ' + laPiece();
-        el.innerHTML = `${list.map(a => `<div class="pj-carte">
-            <span class="pj-ic" aria-hidden="true">${/\.pdf$/i.test(a.name || a.file) ? 'PDF' : 'IMG'}</span>
-            <span class="pj-n"><a href="#" data-open="${h(a.file)}">${h(a.name || a.file)}</a><small>ajouté le ${C.fmtDate(a.date)} · ${fileSize(a.size)}</small>
-              <label class="pj-mail"><input type="checkbox" data-joindre="${h(a.file)}"${a.joindreMail ? ' checked' : ''}> Le joindre à l'e-mail ${h(dePiece)}</label></span>
-            <span class="pj-g"><button type="button" class="btn mini" data-ouvrir-pj="${h(a.file)}">Ouvrir</button><button type="button" class="btn mini" data-retirer-pj="${h(a.file)}">Retirer</button></span>
-          </div>`).join('')}
-          <button type="button" class="ed-zone" id="add-att">${lfIc('depot', 20)}<span>Glisse le bon de commande du client, un devis signé, une photo… <b>ou clique</b></span><small>Une photo ou un PDF, 10 Mo au plus</small></button>`;
-        const z = $('#add-att', el);
-        z.onclick = () => joindre();
-        z.ondragover = e => { e.preventDefault(); z.classList.add('sur'); };
-        z.ondragleave = () => z.classList.remove('sur');
-        z.ondrop = e => { e.preventDefault(); z.classList.remove('sur'); const f = [...(e.dataTransfer?.files || [])]; if (f.length) joindre(f); };
-        const fiche = x => list.find(y => y.file === x);
-        $$('[data-open]', el).forEach(x => x.onclick = e => { e.preventDefault(); const a = fiche(x.dataset.open); if (a) ouvrirJustificatif(doc.id, a); });
-        $$('[data-ouvrir-pj]', el).forEach(x => x.onclick = () => { const a = fiche(x.dataset.ouvrirPj); if (a) ouvrirJustificatif(doc.id, a); });
-        $$('[data-retirer-pj]', el).forEach(x => x.onclick = () => { const a = fiche(x.dataset.retirerPj); if (a) retirer(a); });
+        panneauJustificatifs(el, {
+          ownerId: doc.id, list, etat: etatJustifs, joindre, retirer, compteVide: 'gardées 10 ans',
+          vide: `<button type="button" class="ed-zone" id="add-att">${lfIc('depot', 20)}<span>Glisse le bon de commande du client, un devis signé, une photo… <b>ou clique</b></span><small>Une photo ou un PDF, 10 Mo au plus</small></button>`,
+          ligne: a => `<label class="pj-mail"><input type="checkbox" data-joindre="${h(a.file)}"${a.joindreMail ? ' checked' : ''}> Le joindre à l'e-mail ${h(dePiece)}</label>`,
+        });
         $$('[data-joindre]', el).forEach(x => x.onchange = () => {
           for (const cib of [doc, s2].filter(Boolean)) { const a = (cib.attachments || []).find(y => y.file === x.dataset.joindre); if (a) a.joindreMail = x.checked || undefined; }
           if (s2) save(true); else touch();
@@ -13931,13 +14057,13 @@
     // tranché, que tout l'a été (et que les totaux tombent juste, seulement s'ils tombent juste).
     const bandeauLuParIA = lu => (lu.reste.length
       ? `<div class="bandeau ambre" id="ac-lu-ia" role="status">${lfIc('photo', 18, 2)}<span class="txt"><b>Lue par l'IA : ${pl(lu.reste.length, 'case')} à vérifier</b><span>La lecture n'est pas sûre ${h(lu.reste.length > 1 ? `${lu.reste.slice(0, -1).join(', ')} et ${lu.reste[lu.reste.length - 1]}` : lu.reste[0])}. ${lu.reste.length > 1 ? 'Elles sont marquées' : 'Elle est marquée'} en ambre ; compare avec ${lu.pdf ? 'le PDF' : 'la photo'} avant d'enregistrer.</span></span></div>`
-      : `<div class="bandeau info" id="ac-lu-ia" role="status">${lfIc('eclat', 18, 2)}<span class="txt"><b>Lue par l'IA${lu.tranches ? ', et tout a été vérifié' : ''}</b><span>${lu.tranches ? 'Les cases douteuses ont été tranchées à la lecture' : 'Aucune case douteuse à la lecture'}${lu.juste ? ' ; les totaux tombent juste au millime.' : ' ; vérifie les totaux sur la photo jointe.'}</span></span></div>`);
+      : `<div class="bandeau info" id="ac-lu-ia" role="status">${lfIc('eclat', 18, 2)}<span class="txt"><b>Lue par l'IA${lu.tranches ? ', et tout a été vérifié' : ''}</b><span>${lu.tranches ? 'Les cases douteuses ont été tranchées à la lecture' : 'Aucune case douteuse à la lecture'}${lu.juste ? ` ; les totaux tombent juste au ${C.decimalsFor(C.normCurrency(p.currency || company().currency)) === 3 ? 'millime' : 'centime'}.` : ' ; vérifie les totaux sur la photo jointe.'}</span></span></div>`);
     // (27/10/2026, maquette achat « E-facture ») La pièce remplie depuis le fichier El Fatoora : d'où viennent les montants, et
     // ce que le fichier ne dit pas (la destination de chaque ligne).
     const bandeauLuTeif = lu => `<div class="bandeau info" id="ac-lu-ia" role="status">${lfIc('nuage', 18, 2)}<span class="txt"><b>Lue depuis le fichier El Fatoora du fournisseur : chaque montant vient du fichier${lu.signe ? ' signé' : ''}</b><span>Fournisseur, numéro, dates, lignes et TVA sont repris tels quels${(p.attachments || []).some(a => /\.xml$/i.test(a.name || '')) ? ' ; le fichier est joint comme justificatif' : ''}. Choisis la destination de chaque ligne (stock, charge, immobilisation) : le fichier ne la connaît pas.</span></span></div>`;
     const retardRange = () => !isNew && !!stored && !!solde && p.kind !== 'avoir' && solde.remaining > 0.0005 && !!p.dueDate && p.dueDate < C.today();
     const bandeauRange = () => {
-      const band = (ton, ic, titre, txt, geste, id, idTxt) => `<div class="bandeau ${ton}" id="${id}" role="status">${lfIc(ic, 18)}<span class="txt"${idTxt ? ` id="${idTxt}"` : ''}><b>${h(titre)}</b><span>${h(txt)}</span></span>${geste || ''}</div>`;
+      const band = (ton, ic, titre, txt, geste, id, idTxt) => `<div class="bandeau ${ton}" id="${id}" data-band-range role="status">${lfIc(ic, 18)}<span class="txt"${idTxt ? ` id="${idTxt}"` : ''}><b>${h(titre)}</b><span>${h(txt)}</span></span>${geste || ''}</div>`;
       if (!clos && horsRegime()) {
         const tr = C.purchaseTotals({ ...p, tvaRecuperable: true }, company());
         const tva = C.money(tr.base.deductibleVAT, company().currency);
@@ -14092,7 +14218,7 @@
           <div class="panel ed-totaux"><div class="totals-box" id="b-totals"></div></div>
           ${gesteAchat()}
           ${clos || !isNew ? '' : '<div class="panel ed-avant" id="ac-avant"></div>'}
-          <div class="panel ac-justif" id="p-pj"><h2>Justificatif ${info('ed.attachments')}</h2><div id="attachments"></div></div>
+          <div class="panel ac-justif" id="p-pj"><h2><span class="pjp-titre">Justificatif</span> ${info('ed.attachments')}<small class="pjp-compte"></small></h2><div id="attachments"></div></div>
         </aside>
       </div>`;
 
@@ -14827,6 +14953,35 @@
       ocrReviewForm(window.__ocrDemo, fichier, values => appliquerLecture(values, fichier));
     };
 
+    // (1.163.0, vu par Skander le 27/10/2026) Le panneau des justificatifs retient le fichier qu'on regarde et ceux qui viennent
+    // d'être joints, d'un dessin à l'autre.
+    const etatJustifs = {};
+    // Un justificatif joint (ou retiré) sur une pièce rangée change son statut, son bandeau, sa frise et son bouton principal :
+    // ils se redessinent aussitôt (« Sans justificatif », « manque » et « Joindre le ticket » restaient affichés à côté du
+    // ticket joint). Un bouton qui reste le même (« Enregistrer les modifications », « Enregistrer un règlement ») est gardé
+    // tel quel, avec ses gestes : seul ce qui change est neuf.
+    const regreffer = (vieux, html) => {
+      const t = document.createElement('template'); t.innerHTML = String(html || '').trim();
+      const neuf = t.content.firstElementChild;
+      if (!vieux) return neuf;
+      if (!neuf) { vieux.remove(); return null; }
+      $$('[id]', neuf).forEach(x => { const o = vieux.querySelector('#' + CSS.escape(x.id)); if (o && o.tagName === x.tagName) x.replaceWith(o); });
+      vieux.replaceWith(neuf);
+      return neuf;
+    };
+    const majEtatJustif = () => {
+      if (isNew || !stored) return;
+      const tete = $('#view .ed-tete .ed-h1');
+      const pill = tete && $('.ed-pill', tete), np = regreffer(pill, pillAchat());
+      if (!pill && np && tete) $('h1', tete).after(np);
+      const nb = regreffer($('#view [data-band-range]'), bandeauRange());
+      if (nb && !nb.isConnected) { const apres = $('#view .ed-gauche > #ed-frise') || $('#view .ed-gauche > .ed-entete'); if (apres) apres.before(nb); }
+      if (avecFriseAchat && $('#ed-frise')) regreffer($('#ed-frise'), friseAchat());
+      if ($('#ed-geste')) regreffer($('#ed-geste'), gesteAchat());
+      $$('#ed-frise [data-frise], #ac-band-justif [data-frise]').forEach(b => b.onclick = () => { const x = $('#' + b.dataset.frise); if (x) x.click(); });
+      if ($('#ac-geste-joindre')) $('#ac-geste-joindre').onclick = () => { const b = $('#attach-top'); if (b) b.click(); };
+    };
+
     // --- joindre un justificatif (photo, PDF, scan) — AVANT toute saisie (8.5.1)
     // Une pièce jointe n'a besoin que d'un identifiant, et une pièce neuve en a déjà un. Le fichier
     // est copié tout de suite ; la liste vit dans `p` et part avec l'enregistrement. Ni fournisseur,
@@ -14837,14 +14992,21 @@
       p.attachments = (p.attachments || []).concat(ajoutes);
       if (!isNew) { const s2 = purchaseById(p.id); if (s2) { s2.attachments = (s2.attachments || []).concat(ajoutes); save(true); } }
       else touch();
+      justificatifsJoints(etatJustifs, ajoutes);
       drawBuyAttachments();
+      majEtatJustif();
       // (27/10/2026) « Avant d'enregistrer » disait encore « Aucun justificatif » juste après « Justificatif joint ».
       refresh();
-      toast(ajoutes.length > 1 ? `${ajoutes.length} justificatifs joints` : 'Justificatif joint');
+      // (1.163.0, maquette « Ticket joint · 2 fichiers ») Le toast nomme ce qui a été pris, et combien la pièce en porte.
+      const n = (p.attachments || []).length;
+      toast(`${ajoutes.length > 1 ? `${ajoutes.length} justificatifs joints` : `Justificatif joint : ${ajoutes[0].name || 'le fichier'}`}${n > ajoutes.length ? ` · ${n} fichiers sur la pièce` : ''}`);
       return true;
     };
     brancherQuestions();
+    // (1.163.0, maquette achat) « Justificatif » montre celui de la pièce, en grand ; sans justificatif, il le fait joindre.
     if ($('#attach-top')) $('#attach-top').onclick = async () => {
+      const deja = (p.attachments || [])[0];
+      if (deja) return ouvrirJustificatif(p.id, deja);
       try { await joindre(await bridge.addAttachments(p.id)); }
       catch (e) { toast(plainError(e), true); }
     };
@@ -15017,7 +15179,12 @@
         remarques: (read.remarques || []).concat(horsListe.map(r => `Le taux de TVA ${r} % lu sur la pièce n'est pas un taux que SkanFact propose : la ligne est proposée à 19 %, vérifie-la.`)),
         ou: read.ou || {}
       } : undefined;
-      lectureComprise(read, file, horsListe, () => ocrReviewForm(read, file, values => { fermerLecture(); appliquerLecture(values, file); }, optsRelecture));
+      // (1.163.0) Remplie depuis « Vérifier case par case », une pièce lue par l'IA le dit comme l'autre chemin : son bandeau
+      // nomme ce qui reste à revoir (la fenêtre l'annonçait « en ambre sur la pièce », et rien ne le tenait).
+      lectureComprise(read, file, horsListe, () => ocrReviewForm(read, file, values => {
+        fermerLecture();
+        appliquerLecture(values, file, undefined, read.moteur === 'ia' ? { reste: values.aRevoir || [], zones: [], photo: file.name, pdf: /\.pdf$/i.test(file.name || ''), marques: [], tranches: 0, juste: !!values.juste } : undefined);
+      }, optsRelecture));
     };
     function echecLecture(file, e) {
       return new Promise(resolve => {
@@ -15113,22 +15280,14 @@
     // (1.160.0, maquette « Justificatif » en haut de la lecture) La photo en grand, pour comparer case par case.
     const gesteEnGrand = file => (file && file.path && bridge.fichierALire && bridge.fichierALire(file.path) ? `<button type="button" class="btn" id="lec-grand" data-geste-lecture title="Voir la photo en grand">${lfIc('oeil', 16)}Justificatif</button>` : '');
     const brancherEnGrand = file => { const b = $('#lec-grand'); if (b) b.onclick = () => photoEnGrand(file); };
+    // (1.163.0) La photo ou le PDF lu s'ouvre dans la même fenêtre en grand que tout justificatif.
     function photoEnGrand(file) {
       const f = bridge.fichierALire(file.path);
       if (!f) return;
       const url = URL.createObjectURL(f);
-      const image = /^image\//.test(f.type || '');
-      const pdf = !image && /pdf/i.test(f.type || '') && bridge.apercuPdf;
-      // Un PDF : sa première page en image (un cadre PDF ne s'affiche pas sur un téléphone), et le document entier à côté.
-      modal(`<h2>${h(file.name)}</h2><div class="lec-grand">${image ? `<img src="${url}" alt="${h(file.name)}">` : pdf ? '<span class="small muted lec-grand-att">La première page se prépare…</span>' : `<iframe src="${url}" title="${h(file.name)}"></iframe>`}</div>
-        <div class="modal-actions">${pdf ? `<a class="btn" href="${url}" target="_blank" rel="noopener">Ouvrir le PDF entier</a>` : ''}<button class="btn btn-primary" data-close>Fermer</button></div>`, (root, close) => {
-        $('[data-close]', root).onclick = close;
-        if (pdf) bridge.apercuPdf(f, 1600).then(r => {
-          const z = $('.lec-grand', root); if (!z) return;
-          z.innerHTML = r ? `<img src="${r.adresse}" alt="Première page de « ${h(file.name)} »">` : '<span class="small muted lec-grand-att">Ce PDF ne se montre pas ici : ouvre-le entier.</span>';
-          if (r && r.pages > 1) z.insertAdjacentHTML('afterend', `<p class="small muted">Page 1 sur ${r.pages} : « Ouvrir le PDF entier » montre les autres.</p>`);
-        });
-      }, () => URL.revokeObjectURL(url), { classe: 'modal-grand' });
+      justificatifEnGrand(null, { name: file.name, file: file.path, size: f.size }, { adresse: url, type: f.type || '', blob: f }, () => {
+        const x = document.createElement('a'); x.href = url; x.download = file.name || 'justificatif'; document.body.appendChild(x); x.click(); x.remove();
+      });
     }
     function apercuFichier(file) {
       const f = file && file.path && bridge.fichierALire ? bridge.fichierALire(file.path) : null;
@@ -15244,7 +15403,15 @@
         const brouillon = { ...tete, withholdingRate: taux, lines: lignes };
         const tt = C.purchaseTotals(brouillon, company());
         const futur = tete.date > C.today();
-        const nb = x => C.money(x, null, C.decimalsFor(company().currency));
+        // (1.163.0) La devise lue sur la pièce : ses montants s'écrivent dans sa devise (une facture en euros parlait au
+        // millime, en dinars), et le taux de change reste à poser sur la pièce (vu par Skander le 27/10/2026).
+        const curP = tete.currency ? C.normCurrency(tete.currency) : C.normCurrency(company().currency);
+        const enDevise = curP !== C.normCurrency(company().currency);
+        const nb = x => C.money(x, null, C.decimalsFor(curP));
+        // (1.163.0, maquette « en euros ») La pièce adressée à un autre matricule que celui de l'entreprise : le serveur l'a vu en
+        // lisant (achats.lecture.autre_acheteur), la page le dit à sa ligne, et il compte parmi les cases à revoir.
+        const autreAcheteur = (((read.remarques || []).map(m => /matricule\s+(\S+), et pas celui de ta société/i.exec(m)).find(Boolean)) || [])[1] || '';
+        const matNous = String(company().matricule || '').trim();
         const ligne = (ok, nom, val, src, saisie) => `<div class="ac-lec-l ${ok ? 'sur' : 'douteux'}"><span class="st">${ok ? lfIc('coche', 12, 3) : '!'}</span><span class="n">${nom}</span><span class="v">${val ? `<span class="vt">${val}</span>` : ''}${saisie || ''}</span><span class="src">${src}</span></div>`;
         const kNum = doute('numero'), kDate = doute('date');
         // Un doute de ligne encore ouvert : la valeur qui fait tomber les lignes juste, s'il y en a une ; une valeur choisie qui ne
@@ -15252,7 +15419,7 @@
         const kLigne = doutesIA.findIndex(d => d.choisi == null && CHAMPS_LIGNE.includes(d.champ));
         const bonne = d => (d.valeurs.find(v => v.juste === true) || {}).valeur;
         const tranchee = doutesIA.find(d => d.choisi != null && CHAMPS_LIGNE.includes(d.champ) && (d.valeurs.find(v => v.valeur === d.choisi) || {}).juste === false && bonne(d));
-        const doutes = [!sup, !tete.number || ouvert(kNum), futur || ouvert(kDate), ecart != null && Math.abs(ecart) > 0.005, ...lignes.map((l, i) => (horsListe.length && read.lines && read.lines[i] && horsListe.includes(read.lines[i].vatRate)) || ouvert(doute(CHAMPS_LIGNE, i)))].filter(Boolean).length
+        const doutes = [!sup, !tete.number || ouvert(kNum), futur || ouvert(kDate), enDevise, !!autreAcheteur, ecart != null && Math.abs(ecart) > 0.005, ...lignes.map((l, i) => (horsListe.length && read.lines && read.lines[i] && horsListe.includes(read.lines[i].vatRate)) || ouvert(doute(CHAMPS_LIGNE, i)))].filter(Boolean).length
           + doutesIA.filter(d => d.choisi == null && !['numero', 'date'].includes(d.champ) && !CHAMPS_LIGNE.includes(d.champ)).length;
         const z = pageLecture(doutes ? `${pl(doutes, 'case')} à vérifier` : 'Vérifiée', doutes ? 'partielle' : 'payée', file, { geste: gesteEnGrand(file), titre: M.titre });
         if (!z) return;
@@ -15269,6 +15436,8 @@
             ${ouvert(kNum) ? ligne(false, 'Numéro', `${h(doutesIA[kNum].raison || 'pas sûr')} :`, `lu ${M.sur}${zoneDe(doutesIA[kNum])}${ou.number ? ` : « ${h(ou.number)} »` : ''}`, choixHtml(kNum))
               : tete.number ? ligne(true, 'Numéro', `<b>${h(tete.number)}</b>${jumeau ? '' : ''}`, ou.number ? `lu : « ${h(ou.number)} »` : 'lu sur la pièce') : ligne(false, 'Numéro', 'aucun numéro lu :', 'il est obligatoire pour déduire la TVA', '<span class="ac-lec-saisie"><input type="text" id="lec-num" placeholder="Le numéro écrit sur la facture"></span>')}
             ${ouvert(kDate) ? ligne(false, 'Date', `${h(doutesIA[kDate].raison || 'pas sûre')} :`, `lue ${M.sur}${zoneDe(doutesIA[kDate])}`, choixHtml(kDate)) : ligne(!futur, 'Date', C.fmtDate(tete.date), futur ? 'dans le futur : vérifie-la sur la photo' : ou.date ? `lue : « ${h(ou.date)} »` : 'lue sur la pièce')}
+            ${autreAcheteur ? ligne(false, 'Adressée à', `au matricule ${h(autreAcheteur)}, pas à celui de ton entreprise${matNous ? ` (${h(matNous)})` : ''}`, 'vérifie qu\'elle est bien à toi : sinon, ne la saisis pas ici') : ''}
+            ${enDevise ? ligne(false, 'Devise', `la facture est en ${h(({ EUR: 'euros', USD: 'dollars', GBP: 'livres sterling' })[curP] || curP)} (${h(symboleDevise(curP))})`, 'le taux de change se saisit sur la pièce, avant de l\'enregistrer') : ''}
             ${cat && !categorie ? ligne(true, 'Catégorie', h(cat), `proposée : ${pareil > 1 ? `ses ${pareil} dernières factures` : 'sa dernière facture'}`)
               : ligne(true, 'Catégorie', '', cat ? 'choisie par toi' : sup ? 'aucune facture de lui pour la proposer : choisis-la ici, ou plus tard sur la pièce' : 'choisis-la ici, ou plus tard sur la pièce',
                 `<span class="ac-lec-saisie">${combo({ name: 'lecCat', value: categorie, items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— À choisir —', search: 'Rechercher une catégorie…' })}</span>`)}
@@ -15292,9 +15461,9 @@
               : tranchee && Math.abs(ecart) > 0.005 ? ligne(false, 'Total', `avec ${h(tranchee.choisi)}, les lignes font <b>${nb(calcul)}</b> HT, la pièce dit <b>${nb(prep.readHT)}</b>`, `ce n'est donc pas ${h(tranchee.choisi)} : choisis ${h(bonne(tranchee))}`)
               : prep.readHT == null ? ligne(true, 'Total', `lignes : <b>${nb(calcul)}</b> HT`, 'aucun total lu sur la pièce pour comparer')
               : Math.abs(ecart) > 0.005 ? ligne(false, 'Total', `les lignes font <b>${nb(calcul)}</b> HT, la pièce dit <b>${nb(prep.readHT)}</b>`, `écart de ${nb(ecart)} : corrige une ligne sur la pièce`)
-              : ligne(true, 'Total', `recalculé <b>${nb(calcul)}</b> = total lu <b>${nb(prep.readHT)}</b> HT, au millime`, 'TVA ligne par ligne, timbre à part')}
+              : ligne(true, 'Total', `recalculé <b>${nb(calcul)}</b> = total lu <b>${nb(prep.readHT)}</b> HT, au ${C.decimalsFor(curP) === 3 ? 'millime' : 'centime'}`, 'TVA ligne par ligne, timbre à part')}
             ${sup && tete.number ? ligne(!jumeau, 'Déjà saisie ?', jumeau ? `oui : ${h(tete.number)} est déjà saisie, du ${C.fmtDate(jumeau.date)}` : `non : aucune ${h(tete.number)} chez ${h(sup.name)}`, 'vérifié dans tes achats') : ''}
-            ${sup ? ligne(true, 'Retenue', tt.withholding ? `${pct(taux)} % · ${C.money(tt.withholding, company().currency)}` : `aucune${taux ? ` · ${C.money(tt.totalTTC, company().currency)} TTC, sous le seuil` : ''}`, 'règle de la fiche du fournisseur') : ''}
+            ${sup ? ligne(true, 'Retenue', tt.withholding ? `${pct(taux)} % · ${argentLu(tt.withholding, curP)}` : `aucune${taux ? ` · ${argentLu(tt.totalTTC, curP)} TTC, sous le seuil` : ''}`, 'règle de la fiche du fournisseur') : ''}
           </div></div></div>
           <aside class="ed-droite">
             <div class="panel ac-lec-geste"><button type="button" class="btn btn-primary btn-grand" id="lec-remplir">${lfIc('coche', 17, 2.4)}Remplir la pièce${doutes ? ` · ${doutes} à revoir` : ''}</button>
@@ -15328,7 +15497,7 @@
           fermerLecture();
           const reste = doutesIA.filter(aRevoir);
           appliquerLecture({ head: { supplierId: tete.supplierId, number: tete.number || '', date: tete.date || C.today(), dueDate: tete.dueDate || '',
-            subject: tete.subject || '', category: cat || '', fees: Number(tete.fees) || 0 }, lines: lignes, reste: doutes }, file, undefined,
+            subject: tete.subject || '', category: cat || '', fees: Number(tete.fees) || 0, currency: curP, exchangeRate: enDevise ? '' : 1 }, lines: lignes, reste: doutes }, file, undefined,
           // (1.160.0, maquette « 6 ou 8 ? ») Chaque case à revoir dit ses valeurs possibles, et se marque en ambre sur la pièce.
           parIA ? { reste: reste.map(d => `${d.champ === 'numero' ? 'du numéro de facture' : d.champ === 'date' ? 'de la date' : d.ligne != null && lignes[d.ligne] ? `${d.champ === 'prixUnitaire' ? 'du prix' : d.champ === 'tauxTva' ? 'du taux de TVA' : d.champ === 'totalLigne' ? 'du montant' : 'de la quantité'} de « ${lignes[d.ligne].label} »` : `de la case « ${NOM_DOUTE[d.champ] || d.champ} »`} (${d.valeurs.map(v => /date|echeance/.test(d.champ) ? enDate(v.valeur) : v.valeur).join(' ou ')} ?)`),
             zones: reste.filter(d => zones.includes(d)).map(d => ({ zone: d.zone, n: zones.indexOf(d) + 1 })), photo: file.name, pdf: M.pdf,
@@ -15537,61 +15706,22 @@
       const cible = s2 || p;
       const list = cible.attachments || [];
       // (1.155.12, maquette achat) Sans fichier : « Pas de justificatif », une zone où l'on clique ou glisse la photo ou le PDF,
-      // et ce que son absence coûte. Avec : la liste, et un autre fichier se joint du même geste.
-      // (1.160.0, maquette « La photo · lue par SkanFact ») Sur la plateforme, chaque justificatif se montre : son aperçu (la
-      // photo elle-même, avec les zones que l'IA n'a pas lues avec sûreté), son nom, et ses gestes sous « Actions ». Le tableau
-      // d'avant, à trois colonnes dans une colonne étroite, coupait son bouton.
-      const enCartes = !!bridge.apercuPiece;
+      // et ce que son absence coûte. (1.163.0, maquette « Ticket joint · 2 fichiers ») Avec : le panneau commun à toutes les
+      // pièces, la liste des fichiers par leur nom, l'aperçu de celui qu'on regarde (avec les zones que l'IA n'a pas lues avec
+      // sûreté), et « Joindre un autre fichier ».
       const zonesLues = luParIA && Array.isArray(luParIA.zones) ? luParIA.zones : [];
-      const cartes = () => `<div class="ac-pjs">${list.map(a => `<div class="ac-pj"><button type="button" class="ac-pj-vue" data-open="${h(a.file)}" data-apercu="${h(a.file)}" title="Ouvrir « ${h(a.name || a.file)} »">${lfIc(/\.pdf$/i.test(a.name || '') ? 'pages' : /\.xml$/i.test(a.name || '') ? 'nuage' : 'photo', 26, 1.6)}</button>
-        <div class="ac-pj-l"><span class="ac-pj-n"><b>${h(a.name || a.file)}</b><small>${fileSize(a.size)} · joint le ${C.fmtDate(a.date)}</small></span>${RowMenu.bouton(a.file, 'Actions')}</div></div>`).join('')}</div>`;
-      el.innerHTML = list.length ? `${enCartes ? cartes() : tableauJustificatifs(list)}
-        <div class="inline mt"><button class="btn btn-sm" id="add-att">+ Joindre un autre fichier…</button>
-        ${isNew ? '<span class="small muted">Joint à cette pièce : il sera enregistré avec elle.</span>' : ''}</div>`
-        : `<button type="button" class="ac-vide-j" id="add-att">${lfIc('photo', 26, 1.6)}<b>Pas de justificatif</b><span>Photographie la pièce, ou glisse-la ici : sans elle, ni la charge ni la TVA ne sont récupérables.</span></button>`;
-      const za = $('#add-att');
-      za.onclick = async () => {
-        try { await joindre(await bridge.addAttachments(p.id)); }
-        catch (e) { toast(plainError(e), true); }
-      };
-      za.ondragover = e => { e.preventDefault(); za.classList.add('sur'); };
-      za.ondragleave = () => za.classList.remove('sur');
-      za.ondrop = async e => {
-        e.preventDefault(); za.classList.remove('sur');
-        const f = [...(e.dataTransfer && e.dataTransfer.files || [])];
-        if (!f.length) return;
-        try { await joindre(await bridge.addAttachments(p.id, f)); } catch (x) { toast(plainError(x), true); }
-      };
-      if (enCartes) $$('[data-apercu]', el).forEach(b => bridge.apercuPiece(b.dataset.apercu).then(r => {
-        if (!r || !b.isConnected) return;
-        const a = list.find(x => x.file === b.dataset.apercu) || {};
-        const zs = luParIA && a.name === luParIA.photo ? zonesLues : [];
-        if (/pdf/i.test(r.type) && bridge.apercuPdf) {
-          bridge.apercuPdf(r.blob, 600).then(im => { if (im && b.isConnected) { b.classList.add('vue'); b.innerHTML = `<span class="ac-pj-img"><img src="${im.adresse}" alt=""></span>${im.pages > 1 ? `<span class="ac-pdf-pages">page 1 sur ${im.pages}</span>` : ''}`; } });
-          return;
-        }
-        // (27/10/2026, maquette achat « Fichier El Fatoora ») Le XML joint se montre comme la feuille qu'il décrit, relue du
-        // fichier lui-même (jamais de la saisie, qui a pu changer depuis) : le fournisseur, le numéro, les lignes, le total.
-        if (/xml/i.test(r.type) && window.SkanTeif && r.blob) {
-          r.blob.text().then(t => {
-            const l = window.SkanTeif.lireTeif(t, company()); if (!l.ok || !b.isConnected) return;
-            const x = l.lecture, cu = x.currency || company().currency, mt = v => C.money(v, null, C.decimalsFor(cu));
-            const ville = String((x.fournisseur && x.fournisseur.adresse) || '').split(/\n|,/).map(y => y.replace(/\b\d{4}\b/g, '').trim()).filter(Boolean).pop() || '';
-            b.classList.add('vue', 'xml');
-            b.innerHTML = `<span class="ac-pj-feuille"><span class="q">Fichier El Fatoora${x.signe ? ' · signé' : ''}</span><span class="fh"><span><b>${h(x.supplier || '')}</b>${ville ? `<small>${h(ville)}</small>` : ''}</span><span class="ft">${x.kind === 'avoir' ? 'Avoir' : 'Facture'}</span></span>
-              <span class="fn">${h(x.number || '')}${x.date ? ` · ${C.fmtDate(x.date)}` : ''}</span>
-              ${(x.lines || []).slice(0, 5).map(y => `<span class="fl"><span>${h(y.label || '')} · ${pct(y.qty)} × ${mt(y.unitPrice)}</span><b>${mt(C.round3((Number(y.qty) || 0) * (Number(y.unitPrice) || 0)))}</b></span>`).join('')}${(x.lines || []).length > 5 ? `<span class="fl muted">+ ${pl(x.lines.length - 5, 'autre ligne', 'autres lignes')}</span>` : ''}
-              ${x.totalTTC != null ? `<span class="ftot"><span>Total TTC</span><b>${mt(x.totalTTC)}</b></span>` : ''}<small class="fpied">${lfIc('coche', 12, 2.6)}chaque montant recompté au millime</small></span>`;
-          }, () => {});
-          return;
-        }
-        if (/^image\//.test(r.type)) { b.classList.add('vue'); b.innerHTML = `<span class="ac-lec-zones ac-pj-img"><img src="${r.adresse}" alt="">${zs.map(z => `<span class="ac-lec-repere" style="left:${z.zone[0] / 10}%;top:${z.zone[1] / 10}%;width:${z.zone[2] / 10}%;height:${z.zone[3] / 10}%"><i>${z.n}</i></span>`).join('')}</span>`; }
-      }));
-      brancherJustificatifs(el, p.id, list, async a => {
-        if (!await retirerJustificatif(p.id, a)) return;
-        p.attachments = (p.attachments || []).filter(x => x.file !== a.file);
-        if (s2) { s2.attachments = (s2.attachments || []).filter(x => x.file !== a.file); save(true); } else touch();
-        drawBuyAttachments();
+      panneauJustificatifs(el, {
+        ownerId: p.id, list, etat: etatJustifs, titres: ['Justificatif', 'Justificatifs'],
+        vide: `<button type="button" class="ac-vide-j" id="add-att">${lfIc('photo', 26, 1.6)}<b>Pas de justificatif</b><span>Photographie la pièce, ou glisse-la ici : sans elle, ni la charge ni la TVA ne sont récupérables.</span></button>`,
+        zones: a => (luParIA && a.name === luParIA.photo ? zonesLues : []),
+        joindre: async f => { try { await joindre(await bridge.addAttachments(p.id, f)); } catch (e) { toast(plainError(e), true); } },
+        retirer: async a => {
+          if (!await retirerJustificatif(p.id, a)) return;
+          p.attachments = (p.attachments || []).filter(x => x.file !== a.file);
+          if (s2) { s2.attachments = (s2.attachments || []).filter(x => x.file !== a.file); save(true); } else touch();
+          drawBuyAttachments();
+          majEtatJustif();
+        },
       });
     }
 
@@ -19753,30 +19883,44 @@
 
     const autre = head.kind === 'avoir' && head.refFacture
       ? data.purchases.find(x => x.kind !== 'avoir' && x.number === head.refFacture && (!head.supplierId || x.supplierId === head.supplierId)) : null;
-    modal(`<h2>${teif ? (head.kind === 'avoir' ? 'La facture d\'avoir électronique' : 'La facture électronique') + (head.number ? ' ' + h(head.number) : '') : 'Ce que SkanFact a lu'}</h2>
-      <p class="small muted">${teif ? `Lue dans « ${h(file.name)} », sans rien envoyer nulle part : chaque montant a été recompté.` : `Lu sur « ${h(file.name)} ».`} <b>Rien n'est encore entré dans tes données.</b> Vérifie, corrige si besoin, puis valide — l'écran d'achat s'ouvrira pré-rempli et tu pourras encore tout changer.</p>
-      ${(o.remarques || []).length ? `<ul class="teif-manques">${o.remarques.map(m => `<li><span>${h(m)}</span></li>`).join('')}</ul>` : ''}
-      <div id="ocr-warn"></div>
-      <form id="orf" class="grid-2">
-        <div class="field span-2 obligatoire">${lbl('Fournisseur', 'ocr.supplier')}
+    // (1.163.0, maquette achat « Vérifier case par case ») La pièce à gauche, chaque case à droite avec ce qui a été lu dessous,
+    // le contrôle qui se refait à chaque frappe, le geste au pied. Elle remplace la fenêtre « Ce que SkanFact a lu » : ses
+    // phrases en vrac, une liste qui sortait du cadre, des euros comptés en millimes (vu par Skander le 27/10/2026).
+    const base = C.normCurrency(company().currency);
+    const enDevise = cur !== base;
+    const millieme = C.decimalsFor(cur) === 3;
+    const fichierVu = file && file.path && bridge.fichierALire ? bridge.fichierALire(file.path) : null;
+    const urlVue = fichierVu && /^image\//.test(fichierVu.type || '') ? URL.createObjectURL(fichierVu) : '';
+    const pdfVu = fichierVu && /pdf/i.test(fichierVu.type || '') && bridge.apercuPdf;
+    const docHtml = urlVue ? `<img src="${urlVue}" alt="${h(file.name)}">` : pdfVu ? '<span class="small muted">La première page se prépare…</span>' : `<span class="vc-sans">${lfIc(teif ? 'piece' : 'photo', 28)}<b>${h(file.name)}</b><small>${teif ? 'chaque montant vient du fichier signé' : 'la pièce n\'est plus là pour la montrer'}</small></span>`;
+    modal(`<div class="vc-tete"><h2>${teif ? (head.kind === 'avoir' ? 'La facture d\'avoir électronique' : 'La facture électronique') + (head.number ? ' ' + h(head.number) : '') : 'Vérifier case par case'}</h2>
+        <span class="small muted">${h(file.name)} · ${teif ? 'lue sans rien envoyer nulle part, chaque montant recompté · ' : ''}rien n'entre dans tes données avant « Remplir la pièce »</span></div>
+      <div class="vc-corps"><div class="vc-doc" id="vc-doc">${docHtml}</div>
+      <div class="vc-form">
+      <form id="orf">
+        <section class="vc-g"><h4>Le fournisseur</h4>
+        <div class="field obligatoire">${lbl('Fournisseur', 'ocr.supplier')}
           ${combo({ name: 'supplierId', value: head.supplierId, items: data.suppliers.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(x => ({ v: x.id, label: x.name, sub: x.matricule || '', text: `${x.name} ${x.matricule || ''}` })), placeholder: '— À choisir —', search: 'Rechercher un fournisseur…', add: head.supplierName && !head.supplierId ? `+ Créer « ${h(head.supplierName)} »` : '+ Nouveau fournisseur' })}${luIci('supplier', 'matricule')}
-        </div>
-        ${ici(field(lbl('Numéro de la facture', 'buy.number'), 'number', head.number, 'text', ''), 'number')}
-        ${ici(dateFieldHtml(lbl('Date', 'buy.date'), 'date', head.date, { obligatoire: true }), 'date')}
-        ${ici(dateFieldHtml(lbl('Échéance', 'buy.due'), 'dueDate', head.dueDate, { clearable: true }), 'dueDate')}
-        ${ici(field(lbl(`Timbre et frais (${h(C.normCurrency(company().currency))})`, 'buy.fees'), 'fees', head.fees, 'number', 'step="0.001" min="0" class="num"'), 'fees')}
-        ${ici(`<label class="field span-2">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(head.subject)}"></label>`, 'subject')}
-        <div class="field span-2">${lbl('Catégorie de charge', 'buy.category')}
+        </div></section>
+        <section class="vc-g"><h4>La pièce</h4>
+        <div class="vc-2">${ici(field(lbl('Numéro de la facture', 'buy.number'), 'number', head.number, 'text', ''), 'number')}
+        ${ici(dateFieldHtml(lbl('Date', 'buy.date'), 'date', head.date, { obligatoire: true }), 'date')}</div>
+        <div class="vc-2">${ici(dateFieldHtml(lbl('Échéance', 'buy.due'), 'dueDate', head.dueDate, { clearable: true }), 'dueDate')}
+        <div class="field">${lbl('Catégorie de charge', 'buy.category')}
           ${combo({ name: 'category', value: head.category, items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— À choisir —', search: 'Rechercher une catégorie…' })}
-        </div>
+        </div></div>
+        ${enDevise ? `<label class="field vc-devise">${lbl('Devise', 'buy.currency')}<span class="vc-taux">${h(symboleDevise(cur))} · 1 ${h(symboleDevise(cur))} = <input type="number" name="exchangeRate" class="num" step="0.0001" min="0" placeholder="taux" aria-label="Taux de change : 1 ${h(cur)} en ${h(base)}"> ${h(base)}</span><span class="small muted lu-ici">lue sur la pièce · le taux du jour de la pièce, À VÉRIFIER avec ton cabinet</span></label>` : ''}
+        <div class="vc-2">${ici(field(lbl(`Timbre et frais (${h(symboleDevise(cur))})`, 'buy.fees'), 'fees', head.fees, 'number', `step="${millieme ? '0.001' : '0.01'}" min="0" class="num"`), 'fees')}
+        ${ici(`<label class="field">${lbl('Objet', 'buy.subject')}<input type="text" name="subject" value="${h(head.subject)}"></label>`, 'subject')}</div></section>
       </form>
-      <div class="panel"><h2>Lignes lues</h2>
+      <section class="vc-g"><h4>Les lignes <small>· ${h(symboleDevise(cur))}, au ${millieme ? 'millime' : 'centime'}</small></h4>
         <table class="lines-edit buy-lines"><thead><tr><th>Désignation</th><th class="r" style="width:70px">Qté</th><th class="r" style="width:100px">P.U. HT</th><th style="width:80px">TVA</th><th class="r" style="width:118px">Total HT</th><th></th></tr></thead>
           <tbody id="orf-lines"></tbody></table>
         <div class="inline mt"><button type="button" class="btn btn-sm" id="orf-add">+ Ligne</button>
-          <span class="small muted" id="orf-sum"></span></div>
-      </div>
-      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Utiliser ces informations</button></div>`,
+          <span class="small muted" id="orf-sum"></span></div></section>
+      <section class="vc-g"><h4>Le contrôle <small>· se refait à chaque frappe</small></h4><div id="ocr-warn"></div></section>
+      </div></div>
+      <div class="vc-pied"><span class="small muted" id="vc-reste"></span><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${lfIc('coche', 15, 2.4)}Remplir la pièce</button></div>`,
       (root, close) => {
         const supCombo = bindCombo($('[data-combo=supplierId]', root), {
           items: data.suppliers.map(x => ({ v: x.id, label: x.name, text: x.name })), placeholder: '— À choisir —',
@@ -19789,14 +19933,18 @@
         });
         bindCombo($('[data-combo=category]', root), { items: C.expenseCategories(data).map(c => ({ v: c, label: c })), placeholder: '— À choisir —' });
         bindDateFields(root);
+        if (pdfVu) bridge.apercuPdf(fichierVu, 900).then(r => { const z = $('#vc-doc', root); if (z) z.innerHTML = r ? `<img src="${r.adresse}" alt="Première page de « ${h(file.name)} »">${r.pages > 1 ? `<p class="small muted">Page 1 sur ${r.pages}</p>` : ''}` : '<span class="small muted">Ce PDF ne se montre pas ici.</span>'; });
 
+        // (1.163.0) Ce que le contrôle laisse à revoir en remplissant la pièce : la phrase « elles restent en ambre sur la pièce »
+        // se tient (la pièce le dit dans son bandeau « Lue par l'IA »).
+        let ctlCourant = [], justeCourant = false;
         const drawLines = () => {
           $('#orf-lines', root).innerHTML = lines.map((l, i) => `<tr data-i="${i}">
             <td><input type="text" data-k="label" value="${h(l.label)}"></td>
             <td><input type="number" class="num" data-k="qty" value="${l.qty}" step="0.01"></td>
-            <td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="0.001"></td>
+            <td><input type="number" class="num" data-k="unitPrice" value="${l.unitPrice}" step="${millieme ? '0.001' : '0.01'}"></td>
             <td><select data-k="vatRate">${C.VAT_RATES.map(r => `<option value="${r}" ${Number(l.vatRate) === r ? 'selected' : ''}>${r}%</option>`).join('')}</select></td>
-            <td class="total">${C.money(C.round3(l.qty * l.unitPrice), cur)}</td>
+            <td class="total">${argentLu(C.round3(l.qty * l.unitPrice), cur)}</td>
             <td class="line-tools"><button type="button" class="btn btn-ghost btn-sm" data-rm="${i}" title="Supprimer">✕</button></td></tr>`).join('');
           $$('[data-k]', $('#orf-lines', root)).forEach(el => el.oninput = el.onchange = () => {
             const i = Number(el.closest('tr').dataset.i);
@@ -19805,14 +19953,24 @@
           });
           $$('[data-rm]', $('#orf-lines', root)).forEach(b => b.onclick = () => { lines.splice(Number(b.dataset.rm), 1); if (!lines.length) lines.push({ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }); drawLines(); });
           const g = gapHT();
-          $('#orf-sum', root).innerHTML = `Total des lignes : <b>${C.money(computed(), cur)}</b> HT`
-            + (prep.readHT != null ? ` · total lu sur la pièce : ${C.money(prep.readHT, cur)}` : '') + luIci('totalHT');
-          $('#ocr-warn', root).innerHTML = [
-            !$('input[name=supplierId]', root).value ? 'Aucun fournisseur reconnu : choisis-le, ou crée-le depuis la liste.' : '',
-            g != null && Math.abs(g) > 0.005 ? `Les lignes lues totalisent ${C.money(computed(), cur)} alors que la pièce annonce ${C.money(prep.readHT, cur)} : un écart de ${C.money(g, cur)}. Corrige avant de valider.` : '',
-            !read.number ? 'Aucun numéro de facture lu : saisis-le, il est obligatoire pour la déduction de TVA.' : '',
-            head.kind === 'avoir' && head.refFacture && !autre ? `La facture ${head.refFacture} que cet avoir diminue n'est pas dans tes achats : l'avoir sera enregistré sans y être rattaché.` : ''
-          ].filter(Boolean).map(m => `<p class="small warn-text">${m}</p>`).join('');
+          $('#orf-sum', root).innerHTML = `Total des lignes : <b>${argentLu(computed(), cur)}</b> HT`
+            + (prep.readHT != null ? ` · total lu sur la pièce : ${argentLu(prep.readHT, cur)}` : '') + luIci('totalHT');
+          const taux = $('[name=exchangeRate]', root);
+          if (taux && taux.closest('.vc-taux')) taux.closest('.vc-taux').classList.toggle('ok', Number(taux.value) > 0);
+          const ctl = [
+            ['Le fournisseur', !!$('input[name=supplierId]', root).value, $('input[name=supplierId]', root).value ? 'choisi' : 'aucun reconnu : choisis-le, ou crée-le depuis la liste'],
+            ['Le total', g == null || Math.abs(g) <= 0.005, g == null ? `lignes : ${argentLu(computed(), cur)} HT, aucun total lu pour comparer` : Math.abs(g) <= 0.005 ? `recalculé ${argentLu(computed(), cur)} = total lu ${argentLu(prep.readHT, cur)} HT, au ${millieme ? 'millime' : 'centime'}` : `les lignes font ${argentLu(computed(), cur)}, la pièce dit ${argentLu(prep.readHT, cur)} : un écart de ${argentLu(g, cur)}`],
+            ...(!read.number ? [['Le numéro', !!($('[name=number]', root).value || '').trim(), 'obligatoire pour déduire la TVA : saisis-le']] : []),
+            ...(enDevise ? [['La devise', !!(taux && Number(taux.value) > 0), taux && Number(taux.value) > 0 ? `1 ${symboleDevise(cur)} = ${taux.value} ${base}` : `en ${cur} : le taux de change, ci-dessus, avant d'enregistrer`]] : []),
+            ...(head.kind === 'avoir' && head.refFacture && !autre ? [['La facture corrigée', false, `${head.refFacture} n'est pas dans tes achats : l'avoir sera enregistré sans y être rattaché`]] : []),
+            // Ce que le serveur a remarqué en lisant (le destinataire, la devise, le total) : redit ici, une ligne chacun.
+            // (Le total lu et la devise ont déjà leur ligne, refaite à chaque frappe.)
+            ...(o.remarques || []).filter(m => !/^La pièce est en [A-Z]{3}|^Recompt/i.test(m)).map(m => [/matricule/i.test(m) ? 'Le destinataire' : 'La lecture', /celui de la pièce|tombe juste/i.test(m), m])
+          ];
+          $('#ocr-warn', root).innerHTML = ctl.map(([n, ok, t]) => `<div class="ac-lec-l ${ok ? 'sur' : 'douteux'}"><span class="st">${ok ? lfIc('coche', 12, 3) : '!'}</span><span class="n">${h(n)}</span><span class="v"><span class="vt">${h(t)}</span></span></div>`).join('');
+          ctlCourant = ctl; justeCourant = g != null && Math.abs(g) <= 0.005;
+          const reste = ctl.filter(x => !x[1]).length;
+          $('#vc-reste', root).textContent = reste ? `${pl(reste, 'case')} à revoir : ${reste > 1 ? 'elles restent' : 'elle reste'} en ambre sur la pièce` : 'Tout est vérifié';
         };
         drawLines();
         $('#orf-add', root).onclick = () => { lines.push({ label: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19, destination: 'charge', deductible: true }); drawLines(); };
@@ -19827,9 +19985,11 @@
             ...(head.refTtn ? { notes: `Référence TTN : ${head.refTtn}` } : {})
           } : {};
           done({ head: { supplierId: v.supplierId, number: v.number || '', date: v.date || C.today(), dueDate: v.dueDate || '',
-            subject: v.subject || '', category: v.category || '', fees: Number(v.fees) || 0, ...extra }, lines });
+            subject: v.subject || '', category: v.category || '', fees: Number(v.fees) || 0, currency: cur, exchangeRate: enDevise ? (Number(v.exchangeRate) > 0 ? Number(v.exchangeRate) : '') : 1, ...extra }, lines,
+            aRevoir: ctlCourant.filter(x => !x[1]).map(x => ({ 'Le fournisseur': 'du fournisseur', 'Le total': 'du total', 'Le numéro': 'du numéro de facture', 'La devise': 'du taux de change', 'Le destinataire': 'du destinataire de la facture', 'La facture corrigée': 'de la facture corrigée' })[x[0]] || 'd\'une remarque de la lecture'),
+            juste: justeCourant });
         };
-      });
+      }, () => { if (urlVue) URL.revokeObjectURL(urlVue); }, { classe: 'modal-vc' });
   }
 
   // ---------- Numéros de série et garanties (4.1.0) ----------
@@ -20705,27 +20865,32 @@
         // L'instantané des champs APRÈS le montage et les montants complétés (modal() le fait juste
         // après ce rappel) : le garde-fou additionne les champs et les fichiers joints.
         queueMicrotask(() => { champs = suivreSaisie(root); });
+        // (1.163.0, Skander le 27/10/2026) Le panneau des justificatifs de toute pièce : les fichiers par leur nom, l'aperçu de
+        // celui qu'on regarde, « Joindre un autre fichier » (clic ou glissé).
+        const etatPj = {};
         const drawPj = () => {
           const el = $('#mv-pj', root); if (!el) return;
-          const list = m.attachments || [];
-          el.innerHTML = `${list.length ? tableauJustificatifs(list) : '<p class="small muted">Aucun justificatif. Un mouvement sans facture — un loyer, un impôt, des frais bancaires — n\'a que ce fichier pour se prouver : c\'est lui que ton comptable demandera.</p>'}
-            <div class="inline mt"><button type="button" class="btn btn-sm" id="mv-add-pj">${list.length ? '+ Joindre un autre fichier…' : '+ Joindre un justificatif…'}</button>${!mv && list.length ? '<span class="small muted">Joint à ce mouvement : il sera enregistré avec lui.</span>' : ''}</div>`;
-          $('#mv-add-pj', root).onclick = async () => {
-            try {
-              const nouveaux = (await bridge.addAttachments(m.id)).filter(Boolean);
-              if (!nouveaux.length) return;
-              m.attachments = (m.attachments || []).concat(nouveaux);
-              if (mv) save(true); else ajoutes.push(...nouveaux);
+          panneauJustificatifs(el, {
+            ownerId: m.id, list: m.attachments || [], etat: etatPj,
+            vide: `<button type="button" class="ac-vide-j" id="add-att">${lfIc('photo', 26, 1.6)}<b>Joindre un justificatif</b><span>Un mouvement sans facture — un loyer, un impôt, des frais bancaires — n'a que ce fichier pour se prouver : c'est lui que ton comptable demandera. Clique, ou glisse-le ici.</span></button>`,
+            joindre: async f => {
+              try {
+                const nouveaux = (await bridge.addAttachments(m.id, f)).filter(Boolean);
+                if (!nouveaux.length) return;
+                m.attachments = (m.attachments || []).concat(nouveaux);
+                if (mv) save(true); else ajoutes.push(...nouveaux);
+                justificatifsJoints(etatPj, nouveaux);
+                drawPj();
+                toast(nouveaux.length > 1 ? `${nouveaux.length} justificatifs joints` : `Justificatif joint : ${nouveaux[0].name || 'le fichier'}`);
+              } catch (e) { toast(plainError(e), true); }
+            },
+            retirer: async a => {
+              if (!await retirerJustificatif(m.id, a)) return;
+              m.attachments = (m.attachments || []).filter(x => x.file !== a.file);
+              const i = ajoutes.findIndex(x => x.file === a.file); if (i >= 0) ajoutes.splice(i, 1);
+              if (mv) save(true);
               drawPj();
-              toast(nouveaux.length > 1 ? `${nouveaux.length} justificatifs joints` : 'Justificatif joint');
-            } catch (e) { toast(plainError(e), true); }
-          };
-          brancherJustificatifs(el, m.id, list, async a => {
-            if (!await retirerJustificatif(m.id, a)) return;
-            m.attachments = (m.attachments || []).filter(x => x.file !== a.file);
-            const i = ajoutes.findIndex(x => x.file === a.file); if (i >= 0) ajoutes.splice(i, 1);
-            if (mv) save(true);
-            drawPj();
+            },
           });
         };
         drawPj();

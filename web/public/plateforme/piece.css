@@ -941,6 +941,14 @@
 #pv-full .pv-full-bar .btn { height: 30px; gap: 6px; white-space: nowrap; }
 #pv-full .pv-full-bar kbd { font-size: 10.5px; padding: 0 4px; border: 1px solid var(--sb-trait); border-radius: 4px; color: var(--sb-gris-2); background: var(--sb-papier-2); }
 #pv-full .pv-full-body { padding: 14px; }
+/* (1.163.0, maquette achat « Justificatif en grand ») Le justificatif dans la même fenêtre : la photo entière, le PDF dans
+   son lecteur ; le pied dit qu'il se garde. */
+#pv-full.pj-grand .pj-grand-corps { flex: 1; min-height: 0; display: grid; place-items: start center; overflow: auto; padding: 22px; }
+#pv-full.pj-grand .pj-grand-corps img { max-width: 100%; height: auto; border-radius: 6px; box-shadow: 0 6px 24px rgba(15, 23, 42, .14); background: #fff; }
+#pv-full.pj-grand .pj-pages { display: grid; gap: 14px; justify-items: center; width: 100%; }
+#pv-full.pj-grand .pj-pages img { width: 100%; max-width: 820px; }
+#pv-full.pj-grand .pj-grand-corps iframe { width: 100%; height: 100%; min-height: 60vh; border: 0; border-radius: 6px; background: #fff; }
+#pv-full.pj-grand .pj-grand-pied { margin: 0; padding: 8px 14px 12px; text-align: center; }
 #pv-full .pv-full-body iframe { border-radius: 10px; background: var(--sb-papier-2); }
 @media (max-width: 760px) {
   #pv-full { padding: 0; }
@@ -1428,6 +1436,30 @@
 #view .buy-editor .lu-douteux, #view .buy-editor .lu-douteux:focus { background: var(--sb-ambre-doux); border-color: var(--sb-ambre); box-shadow: 0 0 0 1px var(--sb-ambre); }
 /* (1.160.0, maquette « La photo · lue par SkanFact ») Le justificatif d'un achat : son aperçu, son nom, ses gestes. */
 .ac-pjs { display: grid; gap: 10px; }
+/* (1.163.0, maquette achat « Ticket joint · 2 fichiers ») Le panneau des justificatifs de toute pièce : la liste des fichiers
+   par leur nom en tête, celui qu'on regarde en surbrillance, son aperçu dessous, « Joindre un autre fichier » au pied. */
+#p-pj h2 { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+#p-pj h2 .pjp-compte { margin-inline-start: auto; font-size: 12px; font-weight: 500; color: var(--sb-gris-2); }
+#p-pj h2 .pjp-compte:empty { display: none; }
+.pjp { display: grid; gap: 10px; min-width: 0; }
+.pjp-liste { display: grid; gap: 4px; min-width: 0; }
+.pjp-r { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 7px 8px; border: 1px solid transparent; border-radius: 10px; cursor: pointer; }
+.pjp-r:hover { background: var(--sb-survol); }
+.pjp-r.on { border-color: var(--sb-sarcelle); background: var(--sb-doux); }
+.pjp-r:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: 1px; }
+.pjp-ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; flex: none; background: var(--sb-survol); color: var(--sb-gris); }
+.pjp-ic.pdf { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+.pjp-ic.xml { background: var(--sb-doux); color: var(--sb-doux-texte); }
+.pjp-r.on .pjp-ic:not(.pdf):not(.xml) { background: var(--sb-papier); }
+.pjp-n { display: grid; min-width: 0; flex: 1; }
+.pjp-n b { font-weight: 600; font-size: 13.5px; color: var(--sb-encre); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pjp-n small { font-size: 12px; color: var(--sb-gris); }
+.pjp-n .pj-mail { font-size: 12px; color: var(--sb-gris); display: flex; gap: 6px; align-items: center; margin-top: 2px; }
+.pjp-menu.row-menu-btn { flex: none; width: 30px; height: 30px; padding: 0; display: grid; place-items: center; border-radius: 8px; }
+.pjp-plus { display: grid; justify-items: center; gap: 2px; width: 100%; padding: 10px; border: 1.5px dashed var(--sb-trait-fort); border-radius: 10px; background: none; font: inherit; font-size: 13px; color: var(--sb-sarcelle-texte); cursor: pointer; }
+.pjp-plus b { font-weight: 600; }
+.pjp-plus small { font-size: 11.5px; color: var(--sb-gris-2); }
+.pjp-plus:hover, .pjp-plus.sur { border-color: var(--sb-sarcelle); background: var(--sb-doux); }
 .ac-pj { border: 1px solid var(--sb-trait); border-radius: 10px; overflow: hidden; }
 .ac-pj-vue { position: relative; display: grid; place-items: center; width: 100%; min-height: 90px; padding: 0; border: 0; background: var(--sb-papier-2); color: var(--sb-gris); cursor: zoom-in; line-height: 0; }
 .ac-pj-vue.vue { background: transparent; }
@@ -1493,3 +1525,34 @@
 .buy-editor .ac-pjs { grid-template-columns: minmax(0, 1fr); }
 .buy-editor .ac-pj { min-width: 0; }
 .buy-editor .note-v.ac-recep .btn { margin-inline-start: auto; flex: none; }
+/* (1.163.0, maquette achat « Vérifier case par case ») La pièce à gauche, les cases à droite, le geste au pied : la fenêtre
+   prend la hauteur de l'écran, seule sa colonne de cases défile (la liste d'une case s'ouvre dedans, jamais hors du cadre). */
+#modal-root .modal.modal-vc { width: min(1180px, 96vw); max-width: none; height: min(860px, 92vh); max-height: none; padding: 0; display: flex; flex-direction: column; overflow: hidden; }
+.modal-vc .vc-tete { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; padding: 14px 18px 12px; border-bottom: 1px solid var(--sb-trait); }
+.modal-vc .vc-tete h2 { margin: 0; font-size: 17px; }
+.modal-vc .vc-corps { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
+.modal-vc .vc-doc { overflow: auto; padding: 18px; background: var(--sb-papier-2); border-right: 1px solid var(--sb-trait); display: grid; align-content: start; justify-items: center; gap: 8px; }
+.modal-vc .vc-doc img { max-width: 100%; height: auto; border-radius: 6px; box-shadow: 0 6px 22px rgba(15, 23, 42, .12); background: #fff; }
+.modal-vc .vc-sans { display: grid; justify-items: center; gap: 6px; padding: 40px 12px; color: var(--sb-gris); text-align: center; }
+.modal-vc .vc-sans b { color: var(--sb-encre); overflow-wrap: anywhere; }
+.modal-vc .vc-form { overflow: auto; padding: 14px 20px 18px; display: grid; gap: 14px; align-content: start; }
+.modal-vc #orf { display: grid; gap: 14px; }
+.modal-vc .vc-g { display: grid; gap: 10px; }
+.modal-vc .vc-g + .vc-g, .modal-vc #orf + .vc-g { border-top: 1px solid var(--sb-trait); padding-top: 14px; }
+.modal-vc .vc-g h4 { margin: 0; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--sb-gris); }
+.modal-vc .vc-g h4 small { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--sb-gris-2); }
+.modal-vc .vc-2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+.modal-vc .vc-2 > * { margin: 0; min-width: 0; }
+.modal-vc .vc-taux { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 11px; border: 1px solid var(--sb-ambre, #d97706); border-radius: 9px; background: var(--sb-ambre-doux, #fff4df); }
+.modal-vc .vc-taux input { width: 110px; height: 30px; }
+/* Le taux saisi : la case quitte l'ambre, comme sa ligne du contrôle. */
+.modal-vc .vc-taux.ok { border-color: var(--sb-trait-fort); background: var(--sb-papier); }
+.modal-vc .vc-pied { display: flex; align-items: center; gap: 8px; padding: 10px 16px; border-top: 1px solid var(--sb-trait); background: var(--sb-papier); }
+.modal-vc .vc-pied #vc-reste { flex: 1; }
+.modal-vc #ocr-warn { display: grid; gap: 2px; }
+@media (max-width: 760px) {
+  #modal-root .modal.modal-vc { width: 100vw; height: 100dvh; border-radius: 0; }
+  .modal-vc .vc-corps { grid-template-columns: minmax(0, 1fr); }
+  .modal-vc .vc-doc { display: none; }
+  .modal-vc .vc-2 { grid-template-columns: minmax(0, 1fr); }
+}

@@ -368,7 +368,7 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
       // (la rangée se range en flex : le texte lu n'a pas d'espaces entre ses morceaux, on les compare sans eux)
       .then((t) => t.replace(/\s+/g, '')).catch(() => '')).toBe('Lescolonnes:DestinationdelaligneiTVAdéductiblei');
 
-    // Une photo relue : ses lignes aussi, et « Utiliser ces informations » au bas de l'écran.
+    // Une photo relue : ses lignes aussi, et « Remplir la pièce » au bas de l'écran.
     await aller(p, '#/achat/new', /^Nouvelle facture d'achat/);
     await p.locator('#photo:not([hidden])').waitFor({ timeout: 15_000 });
     const choix = p.waitForEvent('filechooser');
@@ -379,7 +379,7 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await p.locator('#lec-detail').waitFor({ timeout: 90_000 });
     expect(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
     await p.locator('#lec-detail').click();
-    await p.locator('#modal-root h2', { hasText: 'Ce que SkanFact a lu' }).waitFor({ timeout: 90_000 });
+    await p.locator('#modal-root h2', { hasText: 'Vérifier case par case' }).waitFor({ timeout: 90_000 });
     await p.locator('#orf-lines tr').first().waitFor();
     for (const sel of ['#orf-lines tr:first-child select', '#orf-lines tr:first-child td:nth-child(3) input', '#orf-lines tr:first-child td:nth-child(5)']) {
       await p.locator(sel).first().scrollIntoViewIfNeeded();

@@ -42,13 +42,26 @@ const BUREAU_PLUS: ReponseIA = {
   ],
 };
 
+// (1.163.0, vu par Skander le 27/10/2026) La facture d'Anthropic, en euros, adressée à un autre matricule que celui de
+// l'atelier : la page le dit, la devise passe sur la pièce, et le taux de change reste à saisir (il valait 1 sans rien dire).
+const ANTHROPIC: ReponseIA = {
+  estUneFacture: true, fournisseur: 'Anthropic Ireland, Limited',
+  matricules: [{ valeur: 'IE4276970QH', de: 'emetteur' }, { valeur: 'FR29983374398', de: 'client' }],
+  numero: '9BF0758D-8421007', date: '2026-10-11', echeance: '2026-10-11', objet: 'Max plan', devise: 'EUR',
+  lignes: [{ designation: 'Max plan - 20x', quantite: '1', prixUnitaire: '180.00', remise: null, tauxTva: '0', totalHT: '180.00' }],
+  totalHT: '180.00', totalTVA: '0', timbre: null, fodec: null, retenue: null, totalTTC: '180.00', netAPayer: '180.00',
+  ou: [{ champ: 'numero', texte: 'Invoice number 9BF0758D-8421007' }],
+  doutes: [],
+};
+
 describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
   let navigateur: Browser;
   let serveur: Awaited<ReturnType<typeof demarrer>>;
   const admin = new pg.Client({ connectionString: inject('pgAdmin') });
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-lecture-ia-'));
   const envois: Buffer[] = [];
-  const ia: AppelIA = async ({ fichier }) => { envois.push(fichier); return { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(BUREAU_PLUS) }] }; };
+  let reponse: ReponseIA = BUREAU_PLUS;
+  const ia: AppelIA = async ({ fichier }) => { envois.push(fichier); return { stop_reason: 'end_turn', content: [{ type: 'text', text: JSON.stringify(reponse) }] }; };
   beforeAll(async () => {
     await admin.connect();
     await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
@@ -134,8 +147,10 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
     await p.locator('#ac-lecture').getByText('Ce que SkanFact a compris').waitFor({ timeout: 30_000 });
     // « Justificatif », en haut de la page : la photo en grand, pour comparer.
     await p.locator('#lec-grand').click();
-    await expect.poll(() => p.locator('#modal-root .modal-grand img').count()).toBe(1);
-    await p.locator('#modal-root .modal-grand').getByRole('button', { name: 'Fermer' }).click();
+    // (1.163.0) Dans la fenêtre en grand de SkanFact, celle de tout justificatif.
+    await expect.poll(() => p.locator('#pv-full.pj-grand .pj-grand-corps > img').count()).toBe(1);
+    await p.locator('#pv-full').getByRole('button', { name: /^Fermer/ }).click();
+    expect(await p.locator('#pv-full').count()).toBe(0);
     expect(envois.length).toBe(avant + 1);
     expect(envois.at(-1)?.equals(fs.readFileSync(PHOTO))).toBe(true);
     const page = () => p.locator('#ac-lecture').innerText().then(net);
@@ -179,6 +194,61 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
   }, 120_000);
 
   // L'API refuse une image de plus de 5 Mo : la photo d'un téléphone (4 000 × 3 000 points) part réduite, en JPEG.
+  it('une facture en euros, adressée à un autre matricule : la page le dit, la devise passe sur la pièce, le taux reste à saisir', async () => {
+    const { jeton, ent } = await nadia({}, true);
+    reponse = ANTHROPIC;
+    try {
+      const lire = async () => {
+        const o = await ouvrir(jeton, ent);
+        await choisirPhoto(o.p);
+        await question(o.p).getByRole('button', { name: 'Lire avec l\'IA' }).click();
+        await o.p.locator('#ac-lecture').getByText('Ce que SkanFact a compris').waitFor({ timeout: 30_000 });
+        return o;
+      };
+      const { p, erreurs, fermer } = await lire();
+      const page = () => p.locator('#ac-lecture').innerText().then(net);
+      // La devise et le destinataire, chacun à sa ligne, en ambre : deux cases à revoir.
+      expect(net(await ligneLue(p, 'Devise').innerText())).toMatch(/Devise la facture est en euros \(€\) le taux de change se saisit sur la pièce, avant de l'enregistrer$/);
+      expect(await ligneLue(p, 'Devise').evaluate((x) => x.classList.contains('douteux'))).toBe(true);
+      expect(net(await ligneLue(p, 'Adressée à').innerText())).toMatch(/au matricule FR29983374398, pas à celui de ton entreprise \(7654321B\/A\/M\/000\) vérifie qu'elle est bien à toi : sinon, ne la saisis pas ici$/);
+      expect(await ligneLue(p, 'Adressée à').evaluate((x) => x.classList.contains('douteux'))).toBe(true);
+      // Les montants d'une pièce en euros se comptent au centime, pas au millime.
+      expect(await page()).toMatch(/au centime/);
+      expect(await page()).not.toMatch(/au millime/);
+      await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-10-euros.png') });
+      // Le fournisseur se crée d'un clic depuis la lecture.
+      await p.locator('#lec-creer').click();
+      await expect.poll(() => p.locator('#lec-creer').count()).toBe(0);
+      // « Vérifier case par case » : la pièce à gauche, les cases à droite ; le taux, vide, se saisit ici.
+      await p.locator('#lec-detail').click();
+      const fen = p.locator('#modal-root .modal.modal-vc');
+      await fen.waitFor({ timeout: 10_000 });
+      expect(net(await fen.locator('h2').innerText())).toBe('Vérifier case par case');
+      const taux = fen.locator('input[name=exchangeRate]');
+      expect(await taux.inputValue()).toBe('');
+      expect(net(await fen.locator('#ocr-warn').innerText())).toContain('en EUR : le taux de change, ci-dessus, avant d\'enregistrer');
+      await taux.fill('3.412');
+      await expect.poll(() => fen.locator('#ocr-warn').innerText().then(net)).toContain('1 € = 3.412 DT');
+      await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-11-euros-case-par-case.png') });
+      await fen.locator('#ok').click();
+      await p.locator('#ac-lu-ia').waitFor({ timeout: 15_000 }).catch(async (e) => { await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-euros-echec.png') }); throw e; });
+      // Ce que la fenêtre laissait « en ambre sur la pièce » s'y lit : le destinataire, seul resté à revoir.
+      expect(net(await p.locator('#ac-lu-ia').innerText())).toMatch(/^Lue par l'IA : 1 case à vérifier La lecture n'est pas sûre du destinataire de la facture\./);
+      // La pièce remplie est en euros, au taux saisi : rien ne se convertit à 1 € = 1 DT.
+      await expect.poll(() => p.evaluate(() => [(document.querySelector('[name=currency]') as HTMLSelectElement | null)?.value, (document.querySelector('[name=exchangeRate]') as HTMLInputElement | null)?.value])).toEqual(['EUR', '3.412']);
+      expect(net(await p.locator('#b-totals').innerText())).not.toContain('le taux de change manque');
+      await fermer();
+      // « Remplir la pièce » sans passer par le détail : la devise passe, le taux reste vide, et la pièce le dit.
+      const deux = await lire();
+      await deux.p.locator('#lec-remplir').click();
+      await deux.p.locator('#ac-lu-ia').waitFor({ timeout: 15_000 });
+      await expect.poll(() => deux.p.evaluate(() => [(document.querySelector('[name=currency]') as HTMLSelectElement | null)?.value, (document.querySelector('[name=exchangeRate]') as HTMLInputElement | null)?.value])).toEqual(['EUR', '']);
+      expect(net(await deux.p.locator('#b-totals').innerText())).toContain('le taux de change manque');
+      expect([...erreurs, ...deux.erreurs]).toEqual([]);
+      await deux.fermer();
+    } finally { reponse = BUREAU_PLUS; }
+  }, 180_000);
+
   it('la photo lourde d\'un téléphone part à l\'IA réduite à 2 400 points, en JPEG', async () => {
     const { jeton, ent } = await nadia();
     const { p, erreurs, fermer } = await ouvrir(jeton, ent);
@@ -237,10 +307,32 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
     await expect.poll(() => p.locator('#ac-lecture .ac-lec-photo img.ac-lec-img').count(), { timeout: 20_000 }).toBe(1);
     expect(await p.locator('#ac-lecture .ac-lec-photo img.ac-lec-img').evaluate((x) => (x as HTMLImageElement).naturalWidth)).toBeGreaterThan(400);
     expect(net(await p.locator('#ac-lecture .ac-lec-photo .q').innerText())).toMatch(/^Le PDF · lu par l'IA/);
+    // (1.163.0, vu par Skander le 27/10/2026 : « on n'arrive pas à scroller jusqu'en bas dans la colonne de droite ») Sur un
+    // écran bas, le bas de la colonne reste à l'écran, et ses derniers boutons s'atteignent en la faisant défiler.
+    await p.setViewportSize({ width: 1440, height: 520 });
+    // En haut de la page, là où la colonne n'est pas encore collée, sous un bandeau comme celui de l'entreprise d'exemple
+    // (c'est là que son bas sortait de l'écran).
+    await p.evaluate(() => {
+      const b = document.createElement('div'); b.style.height = '70px'; b.className = 'bandeau-essai-test';
+      document.querySelector('#view')?.prepend(b);
+      scrollTo(0, 0);
+    });
+    // La colonne déborde (sinon ce test ne mesurerait rien), et son bas reste à l'écran.
+    await expect.poll(() => p.evaluate(() => {
+      const c = document.querySelector('#view .editor.charte > .ed-droite');
+      return c ? [c.scrollHeight > c.clientHeight, Math.round(c.getBoundingClientRect().bottom) <= innerHeight] : [];
+    }), { timeout: 10_000 }).toEqual([true, true]);
+    await p.locator('#lec-detail').scrollIntoViewIfNeeded();
+    expect(await p.evaluate(() => { const b = document.querySelector('#lec-detail')?.getBoundingClientRect(); return !!b && b.bottom <= innerHeight && b.top >= 0; })).toBe(true);
+    await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-colonne-ecran-bas.png') });
+    await p.evaluate(() => document.querySelector('.bandeau-essai-test')?.remove());
+    await p.setViewportSize({ width: 1440, height: 900 });
     await p.locator('#lec-grand').click();
-    await expect.poll(() => p.locator('#modal-root .modal-grand .lec-grand img').count(), { timeout: 20_000 }).toBe(1);
-    expect(await p.locator('#modal-root .modal-grand').getByRole('link', { name: 'Ouvrir le PDF entier' }).count()).toBe(1);
-    await p.locator('#modal-root .modal-grand').getByRole('button', { name: 'Fermer' }).click();
+    // (1.163.0) Le PDF entier, ses pages dessinées l'une sous l'autre dans la fenêtre en grand.
+    await expect.poll(() => p.locator('#pv-full.pj-grand .pj-pages img').count(), { timeout: 20_000 }).toBeGreaterThan(0);
+    expect(net(await p.locator('#pv-full .pv-pages').innerText())).toMatch(/^\d+ pages?/);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#pv-full').count()).toBe(0);
     await p.locator('#lec-remplir').click();
     await p.locator('#ac-lu-ia').waitFor({ timeout: 15_000 });
     expect(net(await p.locator('#toast .toast-txt').innerText())).toMatch(/^Pièce remplie depuis le PDF, joint à l'achat/);

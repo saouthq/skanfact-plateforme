@@ -942,6 +942,30 @@
       if (b) ro.observe(b); else view.style.removeProperty('--bande-h');
     }).observe(view, { childList: true });
   }
+  // (1.163.0) La colonne de droite d'une pièce colle sous la bande et défile seule. Sa hauteur se comptait depuis sa place
+  // collée : tant que la page n'avait pas défilé, son bas sortait de l'écran, et quand la colonne de gauche était courte la
+  // page ne défilait pas assez pour l'y ramener (vu par Skander le 27/10/2026 : « Vérifier case par case » et « Relire »
+  // hors d'atteinte sur la lecture d'un PDF). Elle se mesure donc là où elle est : son bas reste à l'écran.
+  function caserColonnes() {
+    let attente = 0;
+    const caser = () => {
+      attente = 0;
+      document.querySelectorAll('#view .editor.charte > .ed-droite').forEach((n) => {
+        const el = /** @type {HTMLElement} */ (n);
+        if (getComputedStyle(el).position !== 'sticky') { el.style.removeProperty('max-height'); return; }
+        const r = el.getBoundingClientRect();
+        // Les mesures sont à l'échelle de l'écran ; la hauteur se pose dans celle de la page (html.echelle).
+        const echelle = r.height > 0 ? el.offsetHeight / r.height : 1;
+        el.style.maxHeight = `${Math.max(160, Math.floor((innerHeight - Math.max(r.top, 0) - 14) * echelle))}px`;
+      });
+    };
+    const bientot = () => { if (!attente) attente = requestAnimationFrame(caser); };
+    addEventListener('scroll', bientot, { passive: true });
+    addEventListener('resize', bientot);
+    const view = document.getElementById('view');
+    if (view) new MutationObserver(bientot).observe(view, { childList: true, subtree: true });
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', suivreBande); else suivreBande();
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', caserColonnes); else caserColonnes();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', demarrer); else demarrer();
 })();

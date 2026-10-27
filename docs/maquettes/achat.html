@@ -454,6 +454,18 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
 .puces { display: flex; flex-wrap: wrap; gap: 4px; }
 .puces span { font-size: 11px; padding: 2px 6px; border-radius: 6px; background: var(--survol); font-variant-numeric: tabular-nums; }
 .series .lien-b { justify-self: start; font-size: 12px; }
+.pj-panneau { display: grid; gap: 10px; }
+.pj-liste { display: grid; gap: 4px; }
+.pj-r { display: flex; align-items: center; gap: 10px; width: 100%; padding: 7px 8px; border: 1px solid transparent; border-radius: 10px; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.pj-r:hover { background: var(--survol); }
+.pj-r.on { border-color: var(--sarcelle); background: var(--doux); }
+.pj-r .pj-ic { width: 30px; height: 30px; background: var(--survol); color: var(--gris); }
+.pj-r .pj-ic.pdf { background: var(--rouge-doux); color: var(--rouge-texte); }
+.pj-r .pj-n { min-width: 0; } .pj-r .pj-n b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pj-r .plus { color: var(--gris-2); padding: 0 4px; }
+.pj-vue { padding: 0; }
+.pj-plus { display: grid; justify-items: center; gap: 2px; padding: 10px; border: 1.5px dashed var(--trait-fort); border-radius: 10px; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--sarcelle-texte); cursor: pointer; }
+.pj-plus small { font-weight: 400; color: var(--gris-2); font-size: 11.5px; }
 .pj { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 1px solid var(--trait); border-radius: 10px; margin-bottom: 8px; }
 .pj-ic { width: 34px; height: 34px; border-radius: 8px; background: var(--rouge-doux); color: var(--rouge-texte); display: grid; place-items: center; flex: none; }
 .pj-n { flex: 1; display: grid; font-size: 13px; }
@@ -480,6 +492,39 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
 .ech-b small { color: var(--gris-2); font-size: 12px; }
 .choix-q { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12.5px; color: var(--gris); padding: 8px; border-radius: 10px; background: var(--survol); }
 .fen.large { width: 680px; }
+/* (1.163.0) « Vérifier case par case » : la pièce à gauche, les cases à droite, le geste au pied. */
+.grand-ap.vc { width: min(1180px, 96%); }
+.vc-corps { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); }
+.vc-doc { overflow: auto; padding: 20px; background: var(--papier-2); border-right: 1px solid var(--trait); display: grid; align-content: start; gap: 10px; }
+.vc-feuille { transform: none !important; zoom: 1.45; }
+.vc-num.i { position: static; display: inline-grid; margin-right: 6px; vertical-align: -3px; }
+.vc-feuille .vc-num { position: static; display: inline-grid; margin-left: 5px; width: 14px; height: 14px; font-size: 9px; vertical-align: 1px; }
+.vc-z, .vc-feuille > div { position: relative; }
+.vc-num { position: absolute; right: -6px; top: -6px; width: 18px; height: 18px; border-radius: 50%; background: var(--ambre); color: #fff; font-size: 11px; font-weight: 700; display: grid; place-items: center; }
+.vc-aide { margin: 0; font-size: 12px; color: var(--gris-2); display: flex; gap: 6px; align-items: center; }
+.vc-form { overflow: auto; padding: 16px 20px; display: grid; gap: 16px; align-content: start; background: var(--papier); }
+.vc-g { display: grid; gap: 8px; }
+.vc-g + .vc-g { border-top: 1px solid var(--trait); padding-top: 14px; }
+.vc-g h4 { margin: 0; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--gris); }
+.vc-g h4 small { text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--gris-2); }
+.vc-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.vc-ch { display: grid; gap: 4px; }
+.vc-n { font-size: 12px; font-weight: 600; color: var(--gris-2); }
+.vc-in { display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 11px; border: 1px solid var(--trait-fort); border-radius: 9px; background: var(--papier); font-size: 14px; color: var(--encre); }
+.vc-in.vide { color: var(--gris-2); }
+.vc-in.r { justify-content: flex-end; font-variant-numeric: tabular-nums; }
+.vc-in .btn { margin-left: auto; }
+.vc-ch.douteux .vc-in { border-color: var(--ambre); background: var(--ambre-doux); }
+.vc-lu { font-size: 12px; color: var(--gris-2); }
+.vc-taux { display: inline-block; min-width: 64px; border-bottom: 1.5px dashed var(--ambre); text-align: right; }
+.vc-t { width: 100%; border-collapse: separate; border-spacing: 0 6px; font-size: 13px; }
+.vc-t th { text-align: left; font-size: 11.5px; font-weight: 600; color: var(--gris-2); padding: 0 4px; }
+.vc-t td { padding: 0 4px; }
+.vc-t td:nth-child(1) { width: 46%; }
+.vc-t td.r { text-align: right; font-variant-numeric: tabular-nums; }
+.vc-pied { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-top: 1px solid var(--trait); background: var(--papier); }
+.vc-pied .reste { flex: 1; font-size: 13px; color: var(--gris); }
+.champ-mini { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--trait-fort); border-radius: 8px; color: var(--gris-2); }
 .cmp .neg { color: var(--rouge-texte); }
 .clavier-l { position: absolute; z-index: 8; right: 340px; top: 120px; width: 280px; background: var(--papier); border-radius: 14px; box-shadow: var(--ombre-pop); padding: 14px; display: grid; gap: 8px; font-size: 13px; }
 .clavier-l b { display: flex; gap: 8px; align-items: center; }
@@ -900,6 +945,12 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
     sansjustif: { t: 'Dépense du 21/10', nature: 'Dépense', statut: ['Sans justificatif', 'attire'], f: 'divers', num: '', date: '21/10/2026', ech: '', cat: 'Carburant et déplacements', objet: 'Péage et parking · Tunis', lignes: [['Péage autoroute A1', 1, 'passage', 7563, 19, 'charge', true, null]], fees: 0, dep: true, pj: null, paye: [['21/10/2026', 'Espèces', 'Caisse', '']],
       bandeau: ['ambre', 'piece', 'Aucun justificatif : ni la charge ni la TVA ne sont récupérables sans lui', 'Amel, de ton cabinet, te l\'a demandé le 22/10 dans votre fil. Photographie le ticket : il se joint ici, et elle le verra.', 'Joindre le ticket'],
       ref: 'DEP-2026-0031', frise: F(['fait', 'Faite', '21/10 · péage A1'], ['fait', 'Saisie', '21/10 · par Karim'], ['ko', 'Justificatif', 'manque', 'Joindre'], ['fait', 'Réglée', 'en espèces'], ['attente', 'Au cabinet', 'attend le ticket']) },
+    // (27/10/2026, vu par Skander) La même dépense, le ticket joint, puis un second fichier : tout ce qui disait « manque »
+    // change d'un coup (statut, bandeau, frise, bouton principal), et chaque fichier joint se lit par son nom, en tête du panneau.
+    joint: { t: 'Dépense du 21/10', nature: 'Dépense', statut: ['Réglée', 'ok'], f: 'divers', num: '', date: '21/10/2026', ech: '', cat: 'Carburant et déplacements', objet: 'Péage et parking · Tunis', lignes: [['Péage autoroute A1', 1, 'passage', 7563, 19, 'charge', true, null]], fees: 0, dep: true, pj: 'ticket-peage-A1.jpg', photo: false,
+      pjs: [['ticket-peage-A1.jpg', 'photo', '384 Ko', 'joint le 27/10 à 10 h 12'], ['recu-parking.pdf', 'pdf', '52 Ko', 'joint à l\'instant']], paye: [['21/10/2026', 'Espèces', 'Caisse', '']],
+      toast: 'Justificatif joint : recu-parking.pdf · 2 fichiers sur la pièce',
+      ref: 'DEP-2026-0031', frise: F(['fait', 'Faite', '21/10 · péage A1'], ['fait', 'Saisie', '21/10 · par Karim'], ['fait', 'Justificatif', '2 fichiers · 27/10'], ['fait', 'Réglée', 'en espèces'], ['encours', 'Au cabinet', 'Amel le voit maintenant']) },
     avoir: { t: 'Nouvel avoir fournisseur', statut: ['Brouillon', ''], f: 'infotech', num: 'AV-IT-2026-0031', date: '24/10/2026', ech: '', cat: 'Achats de marchandises', objet: 'Avoir sur FA-IT-2026-0398 · switch retourné', lignes: L_AVOIR, fees: 0, neuve: true, avoir: 'FA-IT-2026-0398', pj: 'Avoir AV-IT-2026-0031.pdf',
       bandeau: ['info', 'annuler', 'Avoir sur FA-IT-2026-0398 · InfoTech Distribution', 'Il reprend la ligne de la facture, sa TVA et sa destination. Il retire 107,502 DT de TVA de celle que tu récupères, et le switch ressort du stock. La facture est déjà réglée : le fournisseur te doit ce montant.', 'Voir la facture'] },
     acompte: { t: 'Nouvel acompte versé', statut: ['Brouillon', ''], f: 'infotech', num: 'ACP-IT-2026-0118', date: '24/10/2026', ech: '', cat: 'Achats de marchandises', objet: 'Acompte sur la commande de 10 switchs', lignes: L_ACOMPTE, fees: 0, neuve: true, acompte: true, pj: 'ACP-IT-2026-0118.pdf',
@@ -912,6 +963,9 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
       frise: F(['fait', 'Reçue', '03/10 · papier'], ['fait', 'Saisie', '03/10 · par Karim'], ['fait', 'Justificatif', 'scan PDF'], ['afaire', 'Réglée', 'échéance 02/11', 'Régler'], ['attente', 'Au cabinet', 'quand il la verra']) },
     'ia-cours': { t: 'Lecture de la photo', statut: ['Lecture en cours', 'bleu'], f: null, lignes: [], ia: 'cours', pj: 'photo-facture-bureau-plus.jpg' },
     ia: { t: 'Lecture de la photo', statut: ['2 cases à vérifier', 'attire'], f: 'bureau', num: 'BP-8812', date: '23/10/2026', ech: '22/11/2026', cat: 'Fournitures de bureau', objet: 'Papier et encre', lignes: L_BUREAU, fees: 1000, ia: 'fait', pj: 'photo-facture-bureau-plus.jpg' },
+    // (1.163.0, 27/10/2026) Une facture lue en euros, adressée à un autre matricule : la devise et le destinataire se disent
+    // sur la page, les montants s'écrivent en euros, au centime (vu par Skander sur une facture d'Anthropic).
+    'ia-eur': { t: 'Lecture du PDF', statut: ['3 cases à vérifier', 'attire'], f: 'bureau', num: '9BF0758D-8421007', date: '11/10/2026', ech: '11/10/2026', cat: '', objet: 'Max plan', lignes: L_BUREAU, fees: 0, ia: 'fait', iaEur: true, pj: 'Invoice-9BF0758D-8421007.pdf' },
     // (27/10/2026) Le fournisseur lu n'est pas encore dans la liste : « Créer » se voit tout de suite, d'un clic, sans ouvrir la liste.
     'ia-four': { t: 'Lecture de la photo', statut: ['3 cases à vérifier', 'attire'], f: 'bureau', num: 'BP-8812', date: '23/10/2026', ech: '22/11/2026', cat: 'Fournitures de bureau', objet: 'Papier et encre', lignes: L_BUREAU, fees: 1000, ia: 'fait', fnouveau: true, pj: 'photo-facture-atlas.jpg' },
     confie: { t: 'Photo envoyée au cabinet', statut: ['Ton cabinet la saisit', 'bleu'], f: null, lignes: [], confie: true,
@@ -919,7 +973,7 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
     lecture: { t: 'Nouvelle facture d\'achat', statut: ['Lecture seule · abonnement', 'alerte'], f: null, lignes: [], neuve: true, lecture: true,
       bandeau: ['ambre', 'cadenas', 'Ton abonnement est en lecture seule depuis le 21/10 : un achat neuf attend son renouvellement', 'Tes achats déjà saisis restent ouverts : les lire, les régler, y joindre un justificatif, parler à ton comptable.', ''] },
   };
-  const NOMS = [['neuve', 'Neuve'], ['saisie', 'Saisie à la main'], ['teif', 'Lue depuis El Fatoora'], ['photo', 'Lue par l\'IA · pièce remplie'], ['depense', 'Dépense (ticket)'], ['immo', 'Immobilisation'], ['devise', 'En euros'], ['doublon', 'Déjà saisie ?'], ['avoir', 'Avoir fournisseur'], ['acompte', 'Acompte versé'], ['apayer', 'Enregistrée · à payer'], ['payee', 'Réglée'], ['retard', 'En retard'], ['sansjustif', 'Sans justificatif'], ['rembourse', 'Avoir à se faire rembourser'], ['regime', 'Saisie sous l\'ancien régime'], ['confie', 'Confiée au cabinet'], ['lecture', 'Abonnement en lecture seule'], ['ia-cours', 'Lecture intelligente · en cours'], ['ia', 'Lecture intelligente · à vérifier'], ['ia-four', 'Lecture intelligente · fournisseur nouveau']];
+  const NOMS = [['neuve', 'Neuve'], ['saisie', 'Saisie à la main'], ['teif', 'Lue depuis El Fatoora'], ['photo', 'Lue par l\'IA · pièce remplie'], ['depense', 'Dépense (ticket)'], ['immo', 'Immobilisation'], ['devise', 'En euros'], ['doublon', 'Déjà saisie ?'], ['avoir', 'Avoir fournisseur'], ['acompte', 'Acompte versé'], ['apayer', 'Enregistrée · à payer'], ['payee', 'Réglée'], ['retard', 'En retard'], ['sansjustif', 'Sans justificatif'], ['joint', 'Ticket joint · 2 fichiers'], ['rembourse', 'Avoir à se faire rembourser'], ['regime', 'Saisie sous l\'ancien régime'], ['confie', 'Confiée au cabinet'], ['lecture', 'Abonnement en lecture seule'], ['ia-cours', 'Lecture intelligente · en cours'], ['ia', 'Lecture intelligente · à vérifier'], ['ia-four', 'Lecture intelligente · fournisseur nouveau'], ['ia-eur', 'Lecture intelligente · en euros']];
   const D = () => ETATS[s.etat];
   const lignes = () => s.lignes || D().lignes;
   const devise = () => D().dev || 'DT';
@@ -1067,6 +1121,13 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
   function justif() {
     const d = D(); if (d.lecture || d.confie || d.neuve && !d.f) return '';
     if (!d.pj) return `<section class="carte bloc justif vide-j">${ic('photo', 26, 1.6)}<b>Pas de justificatif</b><span>Photographie le ticket, ou glisse-le ici.</span></section>`;
+    if (d.pjs) {
+      const k = s.pjSel == null ? d.pjs.length - 1 : s.pjSel, [nom, genre] = d.pjs[k];
+      return `<section class="carte bloc justif pj-panneau"><div class="bloc-t"><h3>Justificatifs</h3><small>${d.pjs.length} fichiers · gardés 10 ans</small></div>
+        <div class="pj-liste" role="listbox" aria-label="Fichiers joints">${d.pjs.map(([n, g, t, q], i) => `<button type="button" class="pj-r${i === k ? ' on' : ''}" role="option" aria-selected="${i === k}" data-pjsel="${i}"><span class="pj-ic ${g}">${ic(g === 'pdf' ? 'piece' : 'photo', 16, 1.8)}</span><span class="pj-n"><b>${esc(n)}</b><small>${t} · ${q}</small></span><span class="plus" aria-label="Gestes de ${esc(n)}">⋯</span></button>`).join('')}</div>
+        <div class="mini-ap pj-vue" data-montrer="justif"><span class="q"><span>${genre === 'pdf' ? 'PDF · 1 page' : 'Photo'}</span><span>${esc(nom)}</span></span><div class="feuille${genre === 'photo' ? ' penchee' : ''}"><div class="fh"><span><b>${k ? 'Parking Lac 2' : 'Tunisie Autoroutes'}</b><br>Tunis</span><span class="ft">${k ? 'Reçu' : 'Ticket'}</span></div><div>${k ? 'Parking · 21/10/2026 · 3 h' : 'Péage A1 · 21/10/2026 · 08:42'}</div><div class="fx"><span><b>Total TTC</b></span><b>${k ? '4,500' : fmt(totaux(d.lignes).ttc, devise())}</b></div></div></div>
+        <button type="button" class="pj-plus">${ic('ajouter', 14, 2.2)} Joindre un autre fichier<small>photo, PDF ou XML · ou glisse-le ici</small></button></section>`;
+    }
     const xml = /\.xml$/.test(d.pj);
     return `<section class="carte mini-ap justif" data-montrer="justif"><span class="q"><span>${xml ? 'Fichier El Fatoora · signé' : d.photo ? 'La photo · lue par SkanFact' : 'Justificatif'}</span><span>${esc(d.pj)}</span></span><div class="feuille${d.photo ? ' penchee' : ''}"><div class="fh"><span><b>${esc(FOUR[d.f].n)}</b><br>${esc(FOUR[d.f].ville)}</span><span class="ft">${d.avoir ? 'Avoir' : d.dep ? 'Ticket' : 'Facture'}</span></div><div>${esc(d.num || 'ticket')} · ${esc(d.date)}</div>
       ${d.lignes.slice(0, 3).map(([n, q, , pu], i) => `<div class="fl${d.photo && i === 1 ? ' marque' : ''}"><span>${esc(n)} · ${pct(q)} × ${fmt(pu, devise())}</span><b>${fmt(totaux(d.lignes).net[i].ht, devise())}</b></div>`).join('')}
@@ -1090,6 +1151,7 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
   const iaReste = () => (s.iaQ === '6' ? 0 : 1) + (s.iaN ? 0 : 1) + (D().fnouveau && !s.iaF ? 1 : 0);
   function lectureIA(T) {
     const d = D();
+    if (d.iaEur) return lectureIAEur();
     if (d.ia === 'cours') {
       const fait = 3;
       return `<div class="ia-cours"><div class="ia-anim"><div class="feuille penchee ia-scan"><div class="fh"><span><b>Bureau Plus Sfax</b><br>Sfax</span><span class="ft">Facture</span></div><div>BP-8812 · 23/10/2026</div><div class="fl"><span>Ramettes A4 · 20 × 12,500</span><b>250,000</b></div><div class="fl"><span>Cartouches d'encre · 6 × 48,900</span><b>293,400</b></div><div class="fx"><span><b>Total TTC</b></span><b>647,646</b></div><span class="ia-raie"></span></div></div>
@@ -1128,7 +1190,38 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
         <p class="av-geste">${reste ? 'Tu peux remplir tout de suite : les cases douteuses resteront en ambre sur la pièce. ' : ''}Rien n'est enregistré avant que tu cliques sur « Enregistrer l'achat ».</p></section>
         <section class="carte mini-ap justif ia-photo"><span class="q"><span>La photo · lue par l'IA</span><span>${d.pj}</span></span><div class="feuille penchee"><div class="fh"><span><b>${d.fnouveau ? 'Atlas Emballages' : 'Bureau Plus Sfax'}</b><br>${d.fnouveau ? 'Ben Arous' : 'Sfax'}</span><span class="ft">Facture</span></div><div class="${n ? '' : 'marque-t'}">BP-881? · 23/10/2026 ${n ? '' : '<i class="mk">1</i>'}</div><div class="fl"><span>Ramettes A4 · 20 × 12,500</span><b>250,000</b></div><div class="fl${q ? '' : ' marque'}"><span>Cartouches d'encre · ? × 48,900</span><b>293,400</b>${q ? '' : '<i class="mk">2</i>'}</div><div class="fx"><span><b>Total TTC</b></span><b>647,646</b></div><span class="fs">MF ${d.fnouveau ? '1567890K' : '1390022T'}/A/M/000</span></div></section>
         <section class="carte verif"><b>Où est partie la photo</b><span class="l ok">${ic('coche', 14, 2.4)}Lue par l\'IA de Claude (Anthropic), hors de Tunisie, avec ton accord</span><span class="l ok">${ic('coche', 14, 2.4)}Rien d'autre n'est parti : ni tes clients, ni tes chiffres</span><span class="l ok">${ic('coche', 14, 2.4)}Tes corrections apprennent ses factures, pour toi seul</span></section>
-        <section class="carte bloc ia-autres"><button type="button" class="btn mini" data-etat="ia-cours">${ic('rafraichir', 13, 2)} Relire</button><button type="button" class="btn mini" data-etat="saisie">Saisir à la main</button><button type="button" class="btn mini" data-etat="confie">Confier au cabinet</button></section></aside></div>`;
+        <section class="carte bloc ia-autres"><button type="button" class="btn mini" data-montrer="detail">${ic('oeil', 13, 2)} Vérifier case par case</button><button type="button" class="btn mini" data-etat="ia-cours">${ic('rafraichir', 13, 2)} Relire</button><button type="button" class="btn mini" data-etat="saisie">Saisir à la main</button><button type="button" class="btn mini" data-etat="confie">Confier au cabinet</button></section></aside></div>`;
+  }
+  function lectureIAEur() {
+    const lig = (st, nom, val, src, extra = '') => `<div class="ia-l ${st === 'av' ? 'douteux' : 'sur'}"><span class="ia-st">${st === 'av' ? '!' : ic('coche', 12, 3)}</span><span class="ia-n">${nom}</span><span class="ia-v">${val}${extra}</span><span class="ia-src">${src}</span></div>`;
+    const reste = s.iaF ? 2 : 3;
+    return `<div class="corps ia-corps"><div class="gauche">
+      <section class="carte bloc"><div class="bloc-t"><h3>${ic('eclat', 17, 1.9)} Ce que SkanFact a compris</h3><small>${reste} cases à trancher</small></div>
+        <div class="ia-g"><b class="ia-gt">Le fournisseur</b>
+          ${s.iaF ? lig('ok', 'Fournisseur', '<b>Anthropic Ireland, Limited</b> <span class="statut ok">nouveau</span>', 'fiche créée depuis la pièce : son nom et son numéro de TVA IE4276970QH')
+            : lig('av', 'Fournisseur', '« Anthropic Ireland, Limited » n\'est pas encore dans tes fournisseurs', 'nom et numéro de TVA IE4276970QH lus en haut de la facture', `<span class="ia-cree"><button type="button" class="btn prem mini" data-iaf>${ic('ajouter', 13, 2.4)} Créer « Anthropic Ireland, Limited »</button><button type="button" class="btn mini">ou choisir ${ic('bas', 12, 2.2)}</button></span>`)}
+          ${lig('ok', 'Délai de paiement', 'à réception · échéance 11/10/2026', 'lue sur la pièce : « due October 11, 2026 »')}
+        </div>
+        <div class="ia-g"><b class="ia-gt">La pièce</b>
+          ${lig('ok', 'Numéro', '<b>9BF0758D-8421007</b>', 'lu : « Invoice number 9BF0758D-8421007 »')}
+          ${lig('ok', 'Date', '11/10/2026', 'lue : « Date of issue October 11, 2026 »')}
+          ${lig('av', 'Devise', 'la facture est en euros (€)', 'le taux de change se saisit sur la pièce, avant de l\'enregistrer')}
+          ${lig('av', 'Adressée à', 'au matricule FR29983374398, pas à celui de ton entreprise (1234567X/A/M/000)', 'vérifie qu\'elle est bien à toi : sinon, ne la saisis pas ici')}
+          ${lig('ok', 'Catégorie', `<span class="champ-mini">— À choisir — ${ic('bas', 12, 2.2)}</span>`, 'aucune facture de lui pour la proposer : choisis-la ici, ou plus tard sur la pièce')}
+        </div>
+        <div class="ia-g"><b class="ia-gt">Les lignes</b>
+          ${lig('ok', 'Max plan · 20x, 11/10 au 11/11/2026', '1 × 180,00 € = <b>180,00 €</b> · TVA 0 %', 'lue · en charge')}
+        </div>
+        <div class="ia-g"><b class="ia-gt">Le contrôle</b>
+          ${lig('ok', 'Total', 'recalculé <b>180,00 €</b> = total lu <b>180,00 €</b>, au centime', 'TVA ligne par ligne')}
+          ${lig('ok', 'Déjà saisie ?', 'non : un fournisseur nouveau n\'a encore aucun achat', 'vérifié dans tes achats')}
+        </div>
+      </section></div>
+      <aside class="droite"><section class="carte actions-d"><button type="button" class="btn prem" data-etat="photo">${ic('coche', 15, 2.4)} Remplir la pièce · ${reste} cases à revoir</button>
+        <p class="av-geste">Tu peux remplir tout de suite : ce qui reste à trancher se corrige sur la pièce. Rien n'est enregistré avant que tu cliques sur « Enregistrer l'achat ».</p></section>
+        <section class="carte mini-ap justif ia-photo" data-montrer="justif"><span class="q"><span>Le PDF · lu par l'IA</span><span>${D().pj}</span></span><div class="feuille"><div class="fh"><span><b>Anthropic Ireland, Limited</b><br>Dublin</span><span class="ft">Invoice</span></div><div>9BF0758D-8421007 · 11/10/2026</div><div class="fl"><span>Max plan · 20x · 1 × 180,00</span><b>180,00</b></div><div class="fx"><span><b>Amount due</b></span><b>€180.00</b></div></div></section>
+        <section class="carte verif"><b>Où est parti le PDF</b><span class="l ok">${ic('coche', 14, 2.4)}Lu par l'IA de Claude (Anthropic), hors de Tunisie, avec ton accord</span><span class="l ok">${ic('coche', 14, 2.4)}Rien d'autre n'est parti : ni tes clients, ni tes chiffres</span><span class="l ok">${ic('coche', 14, 2.4)}Il se joint à l'achat quand tu remplis la pièce</span></section>
+        <section class="carte bloc ia-autres"><button type="button" class="btn mini" data-montrer="detail">${ic('oeil', 13, 2)} Vérifier case par case</button><button type="button" class="btn mini" data-etat="ia-cours">${ic('rafraichir', 13, 2)} Relire</button><button type="button" class="btn mini" data-etat="saisie">Saisir à la main</button><button type="button" class="btn mini" data-etat="confie">Confier au cabinet</button></section></aside></div>`;
   }
   function lectureIATel() {
     const d = D(), q = s.iaQ, n = s.iaN, reste = iaReste();
@@ -1140,7 +1233,7 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
   const toastHtml = () => (s.toast ? `<div class="toast" role="status">${ic('coche', 16, 2.4)}<span>${esc(s.toast)}</span>${s.toastAnnul ? `<button type="button" data-annuler>${ic('annuler', 15, 2.2)} Annuler</button>` : ''}<span class="temps"></span></div>` : '');
 
   // Ce qu'on ouvre depuis la page.
-  const MONTRER = [['', 'Rien'], ['gestes', 'Tous les gestes (⋯)'], ['reglement', 'Enregistrer un règlement'], ['doublon', 'Déjà saisie ?'], ['justif', 'Le justificatif en grand'], ['immo', 'La fiche du bien'], ['envoi-photo', 'Envoyer la photo à la lecture'], ['attestation', 'L\'attestation de retenue'], ['rembourse', 'Le remboursement reçu']];
+  const MONTRER = [['', 'Rien'], ['gestes', 'Tous les gestes (⋯)'], ['reglement', 'Enregistrer un règlement'], ['doublon', 'Déjà saisie ?'], ['justif', 'Le justificatif en grand'], ['detail', 'Vérifier case par case'], ['immo', 'La fiche du bien'], ['envoi-photo', 'Envoyer la photo à la lecture'], ['attestation', 'L\'attestation de retenue'], ['rembourse', 'Le remboursement reçu']];
   function couche(T) {
     const d = D(), f = d.f ? FOUR[d.f] : FOUR.infotech, m = s.montrer;
     const fen = (titre, corps, pied, cl = '') => `<div class="voile" data-fermer><div class="fen ${cl}" role="dialog" aria-modal="true" aria-label="${esc(titre)}"><h3>${titre}</h3>${corps}<div class="pied">${pied}</div></div></div>`;
@@ -1165,6 +1258,29 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
     }
     if (m === 'rembourse') return fen(`Remboursement de ${esc(d.num)}`, `<p class="regle">${esc(f.n)} · avoir de ${fmt(T.aPayer)} DT · à récupérer ${fmt(T.aPayer)} DT</p><div class="pay-g"><label class="ch">Montant reçu<span class="v grand">${fmt(T.aPayer)} <small>DT</small></span></label><label class="ch">Date du remboursement<span class="v">24/10/2026</span></label><label class="ch">Compte<span class="v">BIAT · compte courant</span></label><label class="ch">Référence<span class="v">VIR reçu, n° de chèque…</span></label></div>
         <div class="choix-t">${['Virement', 'Chèque', 'Espèces'].map((x, i) => `<button type="button" class="${i === 0 ? 'on' : ''}">${x}</button>`).join('')}</div>`, `${fermer()}<button type="button" class="btn prem" data-toast="Remboursement de ${fmt(T.aPayer)} DT enregistré : l'avoir est soldé">${ic('coche', 15, 2.4)} Enregistrer · l'avoir sera soldé</button>`);
+    // (1.163.0, 27/10/2026, demande de Skander : « cette fenêtre, refaire une maquette ») « Vérifier case par case » : la pièce
+    // à gauche, chaque case à droite, modifiable, avec ce qui a été lu dessous ; le contrôle se refait à chaque frappe. Rien
+    // n'entre dans les données avant « Remplir la pièce ». Elle remplace l'ancienne fenêtre « Ce que SkanFact a lu » (ses
+    // phrases en vrac, une liste qui sortait du cadre, des euros comptés en millimes).
+    if (m === 'detail') {
+      const eur = D().iaEur, dev = eur ? '€' : 'DT';
+      const ch = (nom, val, lu, cl = '', extra = '', k = 0) => `<div class="vc-ch ${cl}"><span class="vc-n">${k ? `<span class="vc-num i">${k}</span>` : ''}${nom}</span><span class="vc-in${val ? '' : ' vide'}">${val || '— À choisir —'}${extra}</span>${lu ? `<small class="vc-lu">${lu}</small>` : ''}</div>`;
+      const lignes = eur ? [['Max plan · 20x, 11/10 au 11/11/2026', '1', '180,00', '0 %', '180,00']] : [['Ramettes A4', '20', '12,500', '19 %', '250,000'], ['Cartouches d\'encre', s.iaQ || '6', '48,900', '19 %', fmt(Number(s.iaQ || 6) * 48900)]];
+      const controle = eur ? [['ok', 'Le total', 'recalculé 180,00 € = total lu 180,00 €, au centime'], ['av', 'La devise', 'en euros : le taux de change, ci-dessus, avant d\'enregistrer'], ['av', 'Le destinataire', 'adressée au matricule FR29983374398, pas au tien (1234567X/A/M/000) : vérifie qu\'elle est bien à toi', 3]]
+        : [['ok', 'Le total', 'recalculé 647,646 = total lu 647,646, au millime'], [s.iaN ? 'ok' : 'av', 'Le numéro', s.iaN ? 'tranché : ' + s.iaN : 'le dernier chiffre est flou : BP-8812 ou BP-8813 ?']];
+      const reste = controle.filter((c) => c[0] === 'av').length + (eur && !s.iaF ? 1 : 0);
+      return `<div class="voile" data-fermer><div class="grand-ap vc" role="dialog" aria-modal="true" aria-label="Vérifier case par case"><div class="ga-barre"><b>Vérifier case par case</b><span>${esc(D().pj)} · rien n'entre dans tes données avant « Remplir la pièce »</span><button type="button" class="btn mini" data-montrer-fermer>Fermer <kbd>Échap</kbd></button></div>
+        <div class="vc-corps"><div class="vc-doc"><div class="feuille vc-feuille"><div class="fh"><span><b>${eur ? 'Anthropic Ireland, Limited' : 'Bureau Plus Sfax'}</b>${eur && !s.iaF ? '<span class="vc-num">1</span>' : ''}<br>${eur ? 'Dublin · IE4276970QH' : 'Sfax · 1390022T/A/M/000'}</span><span class="ft">${eur ? 'Invoice' : 'Facture'}</span></div><div>${eur ? '9BF0758D-8421007 · 11/10/2026' : 'BP-881? · 23/10/2026'}${eur || s.iaN ? '' : '<span class="vc-num">1</span>'}</div><div>${eur ? 'Bill to : skander · FR29983374398<span class="vc-num">3</span>' : 'Client : Atelier Numérique Sfax'}</div>${lignes.map((l) => `<div class="fl"><span>${l[0]} · ${l[1]} × ${l[2]}</span><b>${l[4]}</b></div>`).join('')}<div class="fx"><span><b>${eur ? 'Amount due' : 'Total TTC'}</b></span><b>${eur ? '€180.00<span class="vc-num">2</span>' : '647,646'}</b></div></div><p class="vc-aide">${ic('aide', 13, 2)} Les numéros renvoient aux cases à revoir.</p></div>
+          <div class="vc-form">
+            <section class="vc-g"><h4>Le fournisseur</h4>${eur && !s.iaF ? ch('Fournisseur', '', '« Anthropic Ireland, Limited » lu en haut, pas dans tes fournisseurs', 'douteux', `<button type="button" class="btn prem mini" data-iaf>${ic('ajouter', 12, 2.4)} Créer</button>`, 1) : ch('Fournisseur', eur ? 'Anthropic Ireland, Limited' : 'Bureau Plus Sfax', eur ? 'fiche créée depuis la pièce' : 'reconnu par son matricule 1390022T')}</section>
+            <section class="vc-g"><h4>La pièce</h4><div class="vc-2">${ch('Numéro', eur ? '9BF0758D-8421007' : (s.iaN || 'BP-881?'), eur ? 'lu : « Invoice number 9BF0758D-8421007 »' : 'le dernier chiffre est flou : BP-8812 ou BP-8813 ?', eur || s.iaN ? '' : 'douteux', '', eur || s.iaN ? 0 : 1)}${ch('Date', eur ? '11/10/2026' : '23/10/2026', eur ? 'lue : « October 11, 2026 »' : 'lue sur la photo')}</div>
+              <div class="vc-2">${ch('Échéance', eur ? '11/10/2026 · à réception' : '22/11/2026 · 30 jours', eur ? 'lue : « due October 11, 2026 »' : 'de la fiche du fournisseur')}${ch('Catégorie', eur ? '' : 'Fournitures de bureau', eur ? 'aucune facture de lui pour la proposer' : 'ses 4 dernières factures')}</div>
+              ${eur ? ch('Devise', 'Euro · 1 € = <span class="vc-taux">taux</span> DT', 'lue sur la pièce : « €180.00 » · le taux du jour de la pièce, À VÉRIFIER avec ton cabinet', 'douteux', '', 2) : ''}</section>
+            <section class="vc-g"><h4>Les lignes <small>· ${dev}, ${eur ? 'au centime' : 'au millime'}</small></h4><table class="vc-t"><thead><tr><th>Désignation</th><th>Qté</th><th>P.U. HT</th><th>TVA</th><th>Total HT</th></tr></thead><tbody>${lignes.map((l) => `<tr><td><span class="vc-in">${l[0]}</span></td><td><span class="vc-in r">${l[1]}</span></td><td><span class="vc-in r">${l[2]}</span></td><td><span class="vc-in">${l[3]}</span></td><td class="r"><b>${l[4]}</b></td></tr>`).join('')}</tbody></table><button type="button" class="btn mini">${ic('ajouter', 12, 2.4)} Ligne</button></section>
+            <section class="vc-g"><h4>Le contrôle <small>· se refait à chaque frappe</small></h4>${controle.map(([st, n, t, k]) => `<div class="ia-l ${st === 'av' ? 'douteux' : 'sur'}"><span class="ia-st">${k || (st === 'av' ? '!' : ic('coche', 12, 3))}</span><span class="ia-n">${n}</span><span class="ia-v">${t}</span></div>`).join('')}</section>
+          </div></div>
+        <div class="vc-pied"><span class="reste">${reste ? `${reste} case${reste > 1 ? 's' : ''} à revoir : elles restent en ambre sur la pièce` : 'Tout est vérifié'}</span>${fermer()}<button type="button" class="btn prem" data-etat="photo">${ic('coche', 15, 2.4)} Remplir la pièce</button></div></div></div>`;
+    }
     if (m === 'doublon') return fen('Cette facture est déjà saisie', `<p class="regle">La facture n° <b>FA-IT-2026-0398</b> d'InfoTech Distribution est déjà dans tes achats : celle du 08/10/2026, de ${fmt(totaux(L_IT.slice(0, 1)).ttc)} DT TTC, réglée le 20/10.</p>
       <div class="bandeau ambre">${ic('aide', 18, 2)}<span class="txt"><b>La saisir une seconde fois compterait deux fois sa TVA et sa charge</b><span>Un fournisseur peut réutiliser un numéro d'une année sur l'autre : c'est pour ça que SkanFact demande au lieu de refuser.</span></span></div>`, `<button type="button" class="btn" data-toast="Ouverture de FA-IT-2026-0398">Voir celle déjà saisie</button>${fermer('Ne pas l\'enregistrer')}<button type="button" class="btn danger" data-toast="Enregistrée une seconde fois : à vérifier avec ton cabinet">Enregistrer quand même</button>`);
     if (m === 'immo') return fen('La fiche du bien · Ordinateur portable 14 pouces', `<div class="pay-g"><label class="ch">Famille<span class="v">Matériel informatique ${ic('bas', 13, 2)}</span></label><label class="ch">Durée<span class="v">3 ans <small>· proposée pour la famille</small></span></label><label class="ch">Mise en service<span class="v">20/10/2026</span></label><label class="ch">Valeur<span class="v">3 200,000 DT HT</span></label></div>
@@ -1200,10 +1316,10 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
     $(id).innerHTML = l.map(([v, n]) => `<button type="button" data-v="${v}" aria-pressed="${s[cle] === v}">${n}</button>`).join('');
     $(id).querySelectorAll('button').forEach((b) => { b.onclick = () => { s[cle] = b.dataset.v; if (apres) apres(); tout(); }; });
   }
-  const OU_COUCHE = { reglement: 'apayer', doublon: 'doublon', immo: 'immo', 'envoi-photo': 'neuve', attestation: 'payee', justif: 'photo', rembourse: 'rembourse' };
+  const OU_COUCHE = { reglement: 'apayer', doublon: 'doublon', immo: 'immo', 'envoi-photo': 'neuve', attestation: 'payee', justif: 'photo', rembourse: 'rembourse', detail: 'ia' };
   function tout() {
-    segment('etats', NOMS, 'etat', () => { s.lignes = null; s.toast = ''; s.sale = false; s.iaQ = null; s.iaN = null; s.iaF = false; if (s.montrer === 'gestes' && !D().f) s.montrer = ''; });
-    segment('montrer', MONTRER, 'montrer', () => { s.toast = ''; const m = s.montrer; const ok = { reglement: ['apayer', 'retard'], justif: ['photo', 'saisie', 'teif', 'apayer', 'payee', 'depense', 'immo', 'devise', 'avoir', 'doublon', 'retard'], gestes: NOMS.map((x) => x[0]).filter((x) => !['neuve', 'confie', 'lecture', 'ia-cours', 'ia'].includes(x)) }; if (OU_COUCHE[m] && !(ok[m] || [OU_COUCHE[m]]).includes(s.etat)) { s.etat = OU_COUCHE[m]; s.lignes = null; } if (m === 'gestes' && !ok.gestes.includes(s.etat)) s.etat = 'apayer'; });
+    segment('etats', NOMS, 'etat', () => { s.lignes = null; s.toast = D().toast || ''; s.pjSel = null; s.sale = false; s.iaQ = null; s.iaN = null; s.iaF = false; if (s.montrer === 'gestes' && !D().f) s.montrer = ''; });
+    segment('montrer', MONTRER, 'montrer', () => { s.toast = ''; const m = s.montrer; const ok = { detail: ['ia', 'ia-four', 'ia-eur'], reglement: ['apayer', 'retard'], justif: ['photo', 'saisie', 'teif', 'apayer', 'payee', 'depense', 'immo', 'devise', 'avoir', 'doublon', 'retard'], gestes: NOMS.map((x) => x[0]).filter((x) => !['neuve', 'confie', 'lecture', 'ia-cours', 'ia'].includes(x)) }; if (OU_COUCHE[m] && !(ok[m] || [OU_COUCHE[m]]).includes(s.etat)) { s.etat = OU_COUCHE[m]; s.lignes = null; } if (m === 'gestes' && !ok.gestes.includes(s.etat)) s.etat = 'apayer'; });
     $('i-sombre').setAttribute('aria-pressed', String(document.documentElement.dataset.theme === 'dark'));
     $('ordi').innerHTML = barre() + `<div class="contenu">${contenu()}</div>`;
     $('ecran').innerHTML = telephone();
@@ -1231,6 +1347,7 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
     o.querySelectorAll('[data-ttc]').forEach((el) => { el.onchange = () => { const voulu = Math.round(Number(el.value.replace(/\s/g, '').replace(',', '.')) * 1000); if (!Number.isFinite(voulu)) return; s.lignes = lignes().map((l) => l.slice()); const t = s.lignes[0][4]; let ht = Math.round(voulu / (1 + t / 100)); for (const dd of [0, -1, 1, -2, 2]) { const x = ht + dd; if (x + Math.round(x * t / 100) === voulu) { ht = x; break; } } s.lignes[0][1] = 1; s.lignes[0][3] = ht; tout(); }; });
     o.querySelectorAll('[data-etat]').forEach((b) => { b.onclick = () => { s.etat = b.dataset.etat; s.lignes = null; s.montrer = s.etat === 'photo' && b.classList.contains('entree') ? 'envoi-photo' : ''; s.toast = ''; tout(); }; });
     o.querySelectorAll('[data-montrer]').forEach((b) => { b.onclick = (e) => { e.preventDefault(); e.stopPropagation(); const m = b.dataset.montrer; s.montrer = s.montrer === m ? '' : m; tout(); }; });
+    o.querySelectorAll('[data-pjsel]').forEach((b) => { b.onclick = () => { s.pjSel = Number(b.dataset.pjsel); tout(); }; });
     o.querySelectorAll('[data-iaf]').forEach((b) => { b.onclick = () => { s.iaF = true; s.toast = 'Fiche « Atlas Emballages » créée depuis la pièce : nom et matricule repris'; s.toastAnnul = true; tout(); }; });
     o.querySelectorAll('[data-ia]').forEach((b) => { b.onclick = () => { if (b.dataset.ia === 'q') s.iaQ = b.dataset.v; else s.iaN = b.dataset.v; tout(); }; });
     o.querySelectorAll('[data-montrer-fermer]').forEach((b) => { b.onclick = () => { s.montrer = ''; tout(); }; });

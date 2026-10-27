@@ -225,4 +225,77 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);
+
+  // (1.163.0, vu par Skander le 27/10/2026, maquette « Ticket joint · 2 fichiers ») « j'ai déposé un fichier et je voulais en
+  // déposer un deuxième, sauf que c'est flou : je ne sais pas lequel a été pris, et le deuxième je ne le vois même pas » ; et
+  // « l'étape est restée Joindre un justificatif ».
+  it('un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient', async () => {
+    const sarra = await personne('sarra-pj', 'Sarra Mansour');
+    const ent = String((await api('POST', '/entreprises', sarra, { raisonSociale: 'Boulangerie El Amal' })).corps.id);
+    const cx = await contexte(sarra);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}`);
+    await plusTard(p);
+    await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    const auj = jour(0);
+    const pose = await api('POST', `/entreprises/${ent}/dossier-v10`, sarra, { changements: [
+      { collection: 'purchases', cle: 'd1', rang: 0, revision: null, contenu: { id: 'd1', kind: 'depense', date: auj, currency: 'DT', fees: 0, withholdingRate: 0, createdAt: Date.now(), subject: 'Péage A1',
+        payments: [{ id: 'r1', date: auj, amount: n('9'), method: 'especes' }], lines: [{ label: 'Péage autoroute A1', qty: 1, unitPrice: n('7.563'), vatRate: 19, destination: 'charge' }] } },
+    ] });
+    expect(pose.statut, JSON.stringify(pose.corps)).toBe(200);
+    await p.reload(); await plusTard(p);
+    await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
+    await p.evaluate(() => { location.hash = '#/achat/d1'; });
+    await p.locator('#ac-geste-joindre').waitFor({ timeout: 20_000 }).catch(async (e) => { await p.screenshot({ path: path.join(PHOTOS, 'achat-ecarts-justificatifs-echec.png') }); throw e; });
+    const pill = () => p.locator('.ed-tete .ed-pill').innerText().then(net);
+    const etapeJustif = () => p.locator('#ed-frise li', { hasText: 'Justificatif' }).innerText().then(net);
+    expect(await pill()).toBe('Sans justificatif');
+    expect(await p.locator('#ac-band-justif').count()).toBe(1);
+    expect(await etapeJustif()).toBe('! Justificatif manque Joindre : pas encore');
+    const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+    const choisir = async (bouton: string, fichier: { name: string; mimeType: string; buffer: Buffer }) => {
+      const [c] = await Promise.all([p.waitForEvent('filechooser'), p.locator(bouton).click()]);
+      await c.setFiles(fichier);
+    };
+    // Le bouton principal « Joindre le ticket » : tout ce qui disait « manque » change d'un coup, sans recharger.
+    await choisir('#ac-geste-joindre', { name: 'ticket-peage-A1.png', mimeType: 'image/png', buffer: PNG });
+    await expect.poll(pill, { timeout: 15_000 }).toBe('Réglée');
+    expect(await p.locator('#ac-band-justif').count()).toBe(0);
+    expect(await etapeJustif()).toBe('Justificatif la photo : fait');
+    expect(await p.locator('#ac-geste-joindre').count()).toBe(0);
+    expect(net(await p.locator('#ed-geste').innerText())).toContain('Réglée : plus rien n\'est dû.');
+    expect(net(await p.locator('#toast .toast-txt').innerText())).toBe('Justificatif joint : ticket-peage-A1.png');
+    // Un second fichier : il se nomme dans la liste, en tête du panneau, et devient celui qu'on regarde.
+    await choisir('#add-att', { name: 'recu-parking.png', mimeType: 'image/png', buffer: PNG });
+    await expect.poll(() => p.locator('#attachments .pjp-r .pjp-n b').allInnerTexts(), { timeout: 15_000 }).toEqual(['ticket-peage-A1.png', 'recu-parking.png']);
+    expect(await p.locator('#attachments .pjp-r').evaluateAll((xs) => xs.map((x) => x.getAttribute('aria-selected')))).toEqual(['false', 'true']);
+    expect(net(await p.locator('#p-pj h2').innerText())).toBe('Justificatifs i 2 fichiers · gardés 10 ans');
+    expect(net(await p.locator('#toast .toast-txt').innerText())).toBe('Justificatif joint : recu-parking.png · 2 fichiers sur la pièce');
+    expect(await etapeJustif()).toBe('Justificatif 2 fichiers joints : fait');
+    // Le panneau tient dans la colonne : la liste, puis l'aperçu, puis « Joindre un autre fichier » (rien ne se cache dessous).
+    const haut = async (sel: string) => (await p.locator(sel).boundingBox())?.y ?? -1;
+    expect(await haut('#attachments .pjp-liste')).toBeLessThan(await haut('#attachments .ac-pj'));
+    expect(await haut('#attachments .ac-pj')).toBeLessThan(await haut('#attachments #add-att'));
+    await p.locator('#p-pj').screenshot({ path: path.join(PHOTOS, 'achat-ecarts-justificatifs.png') });
+    // Le serveur porte les deux.
+    await expect.poll(async () => {
+      const o = ((await api('GET', `/entreprises/${ent}/dossier-v10`, sarra)).corps.objets as { cle: string; contenu: { attachments?: { name: string }[] } }[]).find((x) => x.cle === 'd1');
+      return (o?.contenu.attachments ?? []).map((a) => a.name);
+    }, { timeout: 15_000 }).toEqual(['ticket-peage-A1.png', 'recu-parking.png']);
+    // Retirer les deux : la pièce redit « Sans justificatif », partout.
+    for (const nom of ['recu-parking.png', 'ticket-peage-A1.png']) {
+      await p.locator('#attachments .pjp-r', { hasText: nom }).getByRole('button', { name: `Gestes de « ${nom} »` }).click();
+      await p.getByRole('menuitem', { name: /^Retirer ce justificatif/ }).click();
+      await p.locator('.modal').last().getByRole('button', { name: 'Retirer', exact: true }).click();
+      await expect.poll(() => p.locator('#attachments').innerText(), { timeout: 15_000 }).not.toContain(nom);
+    }
+    await expect.poll(pill).toBe('Sans justificatif');
+    expect(await p.locator('#ac-band-justif').count()).toBe(1);
+    expect(await etapeJustif()).toBe('! Justificatif manque Joindre : pas encore');
+    expect(await p.locator('#ac-geste-joindre').isVisible()).toBe(true);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 180_000);
 });

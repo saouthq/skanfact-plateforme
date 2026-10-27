@@ -178,9 +178,12 @@ describe('les compléments dessinés le 27/10/2026, à la souris', () => {
     expect(await p.locator('#ac-lecture').isVisible()).toBe(true);
     expect(await verif.locator('[name=category]').inputValue()).toBe('Sous-traitance');
     await verif.locator('[data-combo=category] .combo-btn').click();
-    await expect.poll(() => verif.locator('[data-combo=category]').getAttribute('class')).toContain('up');
-    const liste2 = await verif.locator('[data-combo=category] .combo-pop').boundingBox(), cadre = await verif.boundingBox();
-    expect((liste2?.y ?? Infinity) + (liste2?.height ?? 0)).toBeLessThanOrEqual((cadre?.y ?? 0) + (cadre?.height ?? 0));
+    // (1.163.0, fenêtre « Vérifier case par case » de la maquette) Elle s'ouvre vers le bas quand la place y est, vers le haut
+    // sinon : jamais par-dessus les boutons du pied, ni hors de la fenêtre.
+    await expect.poll(() => verif.locator('[data-combo=category] .combo-pop').isVisible()).toBe(true);
+    const liste2 = await verif.locator('[data-combo=category] .combo-pop').boundingBox(), cadre = await verif.boundingBox(), pied = await verif.locator('.vc-pied').boundingBox();
+    expect((liste2?.y ?? Infinity) + (liste2?.height ?? 0)).toBeLessThanOrEqual(pied?.y ?? 0);
+    expect(liste2?.y ?? -1).toBeGreaterThanOrEqual(cadre?.y ?? Infinity);
     await p.keyboard.press('Escape');
     await verif.getByRole('button', { name: 'Annuler', exact: true }).click();
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);

@@ -1662,7 +1662,7 @@
       apercus.set(fichier, lu);
       return lu;
     },
-    apercuPdf: (/** @type {Blob} */ blob, /** @type {number | undefined} */ largeur) => pdfEnImage(blob, largeur),
+    apercuPdf: (/** @type {Blob} */ blob, /** @type {number | undefined} */ largeur, /** @type {number | undefined} */ numero) => pdfEnImage(blob, largeur, numero),
     // « Montrer dans le dossier » n'a pas de sens dans un navigateur : le fichier se télécharge.
     revealAttachment: async (/** @type {string} */ _id, /** @type {string} */ fichier) => {
       const { adresse, nom } = await lirePiece(fichier);
@@ -3014,11 +3014,13 @@
   // le fichier ne se dessine pas (abîmé, protégé par un mot de passe).
   /** @type {Promise<any> | null} */ let pdfjs = null;
   /** @type {WeakMap<Blob, Map<number, Promise<{ adresse: string, largeur: number, hauteur: number, pages: number } | null>>>} */ const pagesPdf = new WeakMap();
-  /** @param {Blob} blob @param {number} [largeur] */
-  function pdfEnImage(blob, largeur = 900) {
+  // (1.163.0) Une autre page que la première, pour le justificatif en grand : `numero` (1 par défaut).
+  /** @param {Blob} blob @param {number} [largeur] @param {number} [numero] */
+  function pdfEnImage(blob, largeur = 900, numero = 1) {
     const parTaille = pagesPdf.get(blob) || new Map();
     pagesPdf.set(blob, parTaille);
-    const deja = parTaille.get(largeur);
+    const cle = largeur * 1000 + numero;
+    const deja = parTaille.get(cle);
     if (deja) return deja;
     const p = (async () => {
       try {
@@ -3030,7 +3032,8 @@
         const lib = await pdfjs;
         const chargement = lib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()), isEvalSupported: false, useSystemFonts: true });
         const doc = await chargement.promise;
-        const page = await doc.getPage(1);
+        if (numero > doc.numPages) { chargement.destroy(); return null; }
+        const page = await doc.getPage(numero);
         const un = page.getViewport({ scale: 1 });
         const vue = page.getViewport({ scale: Math.min(3, largeur / un.width) });
         const toile = document.createElement('canvas');
@@ -3045,7 +3048,7 @@
         return image ? { adresse: URL.createObjectURL(image), largeur: toile.width, hauteur: toile.height, pages } : null;
       } catch { return null; }
     })();
-    parTaille.set(largeur, p);
+    parTaille.set(cle, p);
     return p;
   }
   /** @param {string} fichier */

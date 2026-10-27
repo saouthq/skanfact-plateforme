@@ -20719,6 +20719,50 @@ prouver 'écarts facture 13 : la signature sans ses trois temps' web/public/plat
   '            <li><span class="n" aria-hidden="true">2</span><span><b>Tape le code reçu</b><small>il vaut quelques minutes</small></span></li>
 ' '' \
   'Nadia désigne le signataire depuis le refus, puis signe la facture avec le code reçu ; le fichier signé se télécharge'
+# ── Les justificatifs de toute pièce, la lecture en devise, « Vérifier case par case » (1.163.0 ; docs/maquettes-appliquees.md) ──
+prouver 'justificatifs 1 : l'"'"'achat qui dit encore « Sans justificatif » à côté du ticket joint' web/public/v10/app.js \
+  '      drawBuyAttachments();
+      majEtatJustif();
+      // (27/10/2026) « Avant d'"'"'enregistrer »' '      drawBuyAttachments();
+      // (27/10/2026) « Avant d'"'"'enregistrer »' \
+  'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
+prouver 'justificatifs 2 : le retrait du dernier fichier qui laisse « Réglée »' web/public/v10/app.js \
+  '          drawBuyAttachments();
+          majEtatJustif();
+        },' '          drawBuyAttachments();
+        },' \
+  'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
+prouver 'justificatifs 3 : le fichier joint qui ne devient pas celui qu'"'"'on regarde' web/public/v10/app.js \
+  '    etat.choisi = ajoutes[ajoutes.length - 1].file;' '' \
+  'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
+prouver 'justificatifs 4 : les fichiers sans leur liste par leur nom' web/public/v10/app.js \
+  '<div class="pjp-liste" role="listbox"' '<div class="pjp-liste" hidden role="listbox"' \
+  'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
+prouver 'justificatifs 5 : le toast qui ne dit pas quel fichier a été pris' web/public/v10/app.js \
+  '`Justificatif joint : ${ajoutes[0].name || '"'"'le fichier'"'"'}`' ''"'"'Justificatif joint'"'"'' \
+  'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
+prouver 'justificatifs 6 : le justificatif ouvert dans un autre onglet' web/public/v10/app.js \
+  '      if (lu && /^image\/|pdf/i.test(lu.type || '"'"''"'"')) return justificatifEnGrand(ownerId, a, lu);
+' '' \
+  'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
+prouver 'lecture en devise 1 : la devise lue perdue en remplissant la pièce' web/public/v10/app.js \
+  'currency: curP, exchangeRate: enDevise ? '"'"''"'"' : 1 }' 'exchangeRate: enDevise ? '"'"''"'"' : 1 }' \
+  'une facture en euros, adressée à un autre matricule : la page le dit, la devise passe sur la pièce, le taux reste à saisir'
+prouver 'lecture en devise 2 : le taux mis à 1 sans rien dire' web/public/v10/app.js \
+  'currency: curP, exchangeRate: enDevise ? '"'"''"'"' : 1 }' 'currency: curP, exchangeRate: 1 }' \
+  'une facture en euros, adressée à un autre matricule : la page le dit, la devise passe sur la pièce, le taux reste à saisir'
+prouver 'lecture en devise 3 : « au millime » pour une pièce en euros' web/public/v10/app.js \
+  'au ${C.decimalsFor(curP) === 3 ? '"'"'millime'"'"' : '"'"'centime'"'"'}' 'au millime' \
+  'une facture en euros, adressée à un autre matricule : la page le dit, la devise passe sur la pièce, le taux reste à saisir'
+prouver 'case par case : ce qui reste à revoir que la pièce ne dit pas' web/public/v10/app.js \
+  'appliquerLecture(values, file, undefined, read.moteur === '"'"'ia'"'"' ? {' 'appliquerLecture(values, file, undefined, false ? {' \
+  'une facture en euros, adressée à un autre matricule : la page le dit, la devise passe sur la pièce, le taux reste à saisir'
+prouver 'colonne de droite : son bas hors de l'"'"'écran' web/public/plateforme/barre.js \
+  'function caserColonnes() {
+    let attente = 0;' 'function caserColonnes() {
+    return;
+    let attente = 0;' \
+  'un PDF lu par l'"'"'IA se montre : sa première page, à chaque étape, et les phrases disent « le PDF »'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
