@@ -209,7 +209,7 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
     await plusTard(p);
     const bandeau = p.locator('#ac-reprendre');
     await bandeau.waitFor({ timeout: 20_000 });
-    expect(net(await bandeau.innerText())).toMatch(/^Facture d'achat commencée le \d\d\/\d\d à \d\d h \d\d, pas encore enregistrée sans fournisseur · 1 ligne : gardé sur cet appareil\. Reprendre Le jeter$/);
+    expect(net(await bandeau.innerText())).toMatch(/^Facture d'achat commencée le \d\d\/\d\d à \d\d h \d\d, pas encore enregistrée 1 ligne · 101,745 DT\. Gardée sur cet ordinateur seulement : rien ne compte dans tes achats avant « Enregistrer »\. Reprendre Le jeter$/);
     await p.screenshot({ path: path.join(PHOTOS, 'achat-ecarts-3-reprendre.png') });
     await bandeau.getByRole('button', { name: 'Reprendre', exact: true }).click();
     await expect.poll(() => p.locator('#b-lines input[data-k=label]').first().inputValue().catch(() => '')).toBe('Levure fraîche, 10 kg');

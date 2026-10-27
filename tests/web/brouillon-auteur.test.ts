@@ -73,9 +73,10 @@ describe('supprimer un brouillon : les siens, à la souris', () => {
       await expect.poll(() => pg.locator('#view h1').first().innerText().then(net), { timeout: 20_000 }).toMatch(/^Devis/);
       for (let i = 0; i < 3 && await pg.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await pg.getByRole('button', { name: 'Plus tard', exact: true }).first().click().catch(() => undefined);
     };
+    // (1.155.0) La suppression vit dans le menu « ⋯ » des gestes de la pièce (« Supprimer le brouillon »).
     const supprimer = async () => {
-      if (await p.locator('#more-btn').count()) await p.locator('#more-btn').click();
-      await p.locator('#del').click();
+      await p.locator('#more-btn').click();
+      await p.getByRole('menuitem', { name: /^Supprimer le brouillon/ }).click();
     };
 
     // Le devis de Karim : refusé avant la question, en nommant Karim ; rien ne part.

@@ -477,6 +477,13 @@
   // Ce que la personne a fait : les pièces et les fiches (les réglages du dossier ne se comptent pas).
   /** @param {{ collection: string }[]} changements */
   const compter = (changements) => changements.filter((c) => c.collection !== '_racine').length;
+  // (27/10/2026) Le brouillon d'une pièce neuve, gardé sur cet appareil quand il le garde (« mon ordinateur », `garde()`).
+  const brouillonDe = (/** @type {string} */ sorte) => ({
+    garde: () => !!poste.garde(),
+    garder: (/** @type {unknown} */ contenu) => poste.garderBrouillon(ent, contenu, sorte).catch(() => {}),
+    relire: () => poste.relireBrouillon(ent, sorte).catch(() => null),
+    effacer: () => poste.effacerBrouillon(ent, sorte).catch(() => {}),
+  });
   /** @param {unknown} e */
   const gardableHorsLigne = (e) => !!(e && /** @type {any} */ (e).horsLigne) && poste.garde() && !poste.limite();
   // Sans réseau, sur un poste qui ne peut pas garder (brique 75 : pas de stockage persistant, ou plus
@@ -1435,12 +1442,9 @@
     // L'auteur d'une pièce faite par un autre (brique 117), sinon null : l'écran refuse de la supprimer avant le geste.
     saisiPar: (/** @type {string} */ id) => saisiPar[id] || '',
     // (27/10/2026) Le brouillon d'un achat neuf, gardé sur cet appareil quand il le garde (« mon ordinateur », `garde()`).
-    brouillonAchat: {
-      garde: () => !!poste.garde(),
-      garder: (/** @type {unknown} */ contenu) => poste.garderBrouillon(ent, contenu).catch(() => {}),
-      relire: () => poste.relireBrouillon(ent).catch(() => null),
-      effacer: () => poste.effacerBrouillon(ent).catch(() => {}),
-    },
+    brouillonAchat: brouillonDe('achat'),
+    // (1.164.0) Celui de toute pièce neuve, par sa sorte : devis, facture, avoir, bons, commande au fournisseur.
+    brouillon: brouillonDe,
     auteurAutre: (/** @type {string} */ collection, /** @type {string} */ id) => (`${collection}/${id}` in autrui ? autrui[`${collection}/${id}`] ?? '' : null),
     caisse: async () => { const r = await appel('GET', '/caisse'); retenirNumerotation(r.numerotation); return r; },
     // Sans réseau, ce poste tient-il la caisse ? Le prochain numéro qu'il donnera, ou null (brique 120).

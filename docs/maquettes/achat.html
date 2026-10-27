@@ -126,6 +126,9 @@ kbd { font-family: var(--police); font-size: 10.5px; font-weight: 600; padding: 
 .bloc-t h3 { margin: 0; font-size: 14.5px; letter-spacing: -.01em; }
 .bloc-t small { color: var(--gris-2); font-size: 12.5px; }
 /* bandeaux */
+.bandeau.reprise .rep-g { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+.bandeau.reprise .rep-ok { font-weight: 600; }
+.sortir-t { position: fixed; }
 .bandeau { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; font-size: 13.5px; }
 .bandeau > svg { flex: none; }
 .bandeau .txt { flex: 1; display: grid; gap: 1px; }
@@ -925,6 +928,9 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
   const F = (a, b, c, d, e) => [a, b, c, d, e];
   const ETATS = {
     neuve: { t: 'Nouvelle facture d\'achat', statut: ['Brouillon', ''], f: null, lignes: [], neuve: true },
+    // (27/10/2026) Un achat commencé, pas encore enregistré (un achat enregistré compte : TVA, stock, écritures) : gardé
+    // sur cet ordinateur à chaque frappe, la page neuve propose de le reprendre, au-dessus de « Comment arrive cette pièce ? ».
+    reprendre: { t: 'Nouvelle facture d\'achat', statut: ['Brouillon', ''], f: null, lignes: [], neuve: true, reprise: ['Facture d\'achat d\'InfoTech commencée le 27/10 à 09 h 12, pas encore enregistrée', '2 lignes · 1 131,500 DT · la photo jointe. Gardée sur cet ordinateur seulement : rien ne compte dans tes achats avant « Enregistrer ».', 'Le jeter', 'Reprendre', 'L\'achat commencé revient, avec sa photo'] },
     saisie: { t: 'Nouvelle facture d\'achat', statut: ['Brouillon', ''], f: 'infotech', num: 'FA-IT-2026-0412', date: '22/10/2026', ech: '30/11/2026', cat: 'Achats de marchandises', objet: 'Matériel réseau · stock', lignes: L_IT, fees: 1000, neuve: true, pj: 'Facture FA-IT-2026-0412.pdf' },
     teif: { t: 'Nouvelle facture d\'achat', statut: ['Lue depuis El Fatoora', 'bleu'], f: 'infotech', num: 'FA-IT-2026-0412', date: '22/10/2026', ech: '30/11/2026', cat: 'Achats de marchandises', objet: 'Matériel réseau · stock', lignes: L_IT, fees: 1000, neuve: true, teif: true, pj: 'FA-IT-2026-0412.xml',
       bandeau: ['info', 'nuage', 'Lue depuis le fichier El Fatoora du fournisseur : chaque montant vient du fichier signé', 'Fournisseur, numéro, dates, lignes et TVA sont repris tels quels ; le fichier est joint comme justificatif. Choisis la destination de chaque ligne (stock, charge, immobilisation) : le fichier ne la connaît pas.', ''] },
@@ -973,7 +979,7 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
     lecture: { t: 'Nouvelle facture d\'achat', statut: ['Lecture seule · abonnement', 'alerte'], f: null, lignes: [], neuve: true, lecture: true,
       bandeau: ['ambre', 'cadenas', 'Ton abonnement est en lecture seule depuis le 21/10 : un achat neuf attend son renouvellement', 'Tes achats déjà saisis restent ouverts : les lire, les régler, y joindre un justificatif, parler à ton comptable.', ''] },
   };
-  const NOMS = [['neuve', 'Neuve'], ['saisie', 'Saisie à la main'], ['teif', 'Lue depuis El Fatoora'], ['photo', 'Lue par l\'IA · pièce remplie'], ['depense', 'Dépense (ticket)'], ['immo', 'Immobilisation'], ['devise', 'En euros'], ['doublon', 'Déjà saisie ?'], ['avoir', 'Avoir fournisseur'], ['acompte', 'Acompte versé'], ['apayer', 'Enregistrée · à payer'], ['payee', 'Réglée'], ['retard', 'En retard'], ['sansjustif', 'Sans justificatif'], ['joint', 'Ticket joint · 2 fichiers'], ['rembourse', 'Avoir à se faire rembourser'], ['regime', 'Saisie sous l\'ancien régime'], ['confie', 'Confiée au cabinet'], ['lecture', 'Abonnement en lecture seule'], ['ia-cours', 'Lecture intelligente · en cours'], ['ia', 'Lecture intelligente · à vérifier'], ['ia-four', 'Lecture intelligente · fournisseur nouveau'], ['ia-eur', 'Lecture intelligente · en euros']];
+  const NOMS = [['neuve', 'Neuve'], ['reprendre', 'Neuve · un achat commencé à reprendre'], ['saisie', 'Saisie à la main'], ['teif', 'Lue depuis El Fatoora'], ['photo', 'Lue par l\'IA · pièce remplie'], ['depense', 'Dépense (ticket)'], ['immo', 'Immobilisation'], ['devise', 'En euros'], ['doublon', 'Déjà saisie ?'], ['avoir', 'Avoir fournisseur'], ['acompte', 'Acompte versé'], ['apayer', 'Enregistrée · à payer'], ['payee', 'Réglée'], ['retard', 'En retard'], ['sansjustif', 'Sans justificatif'], ['joint', 'Ticket joint · 2 fichiers'], ['rembourse', 'Avoir à se faire rembourser'], ['regime', 'Saisie sous l\'ancien régime'], ['confie', 'Confiée au cabinet'], ['lecture', 'Abonnement en lecture seule'], ['ia-cours', 'Lecture intelligente · en cours'], ['ia', 'Lecture intelligente · à vérifier'], ['ia-four', 'Lecture intelligente · fournisseur nouveau'], ['ia-eur', 'Lecture intelligente · en euros']];
   const D = () => ETATS[s.etat];
   const lignes = () => s.lignes || D().lignes;
   const devise = () => D().dev || 'DT';
@@ -1136,13 +1142,16 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
 
   function contenu() {
     const d = D(), T = totaux();
+    // (27/10/2026, Skander : « le bandeau, on va le mettre dans chaque parcours où on peut sortir ») Une pièce commencée et
+    // pas finie : la page neuve propose de la reprendre (gardée sur cet ordinateur, ou déjà en brouillon sur le serveur).
+    const banRep = d.reprise ? `<div class="bandeau info reprise">${ic('nuage', 18, 2)}<span class="txt"><b>${esc(d.reprise[0])}</b><span>${esc(d.reprise[1])}</span></span><span class="rep-g"><button type="button" class="btn mini rep-ok" data-toast="${esc(d.reprise[4])}">${esc(d.reprise[3])}</button><button type="button" class="btn mini">${esc(d.reprise[2])}</button></span></div>` : '';
     const ban = s.etat === 'photo' && iaReste() < 2 ? (iaReste() ? `<div class="bandeau ambre">${ic('photo', 18, 2)}<span class="txt"><b>Lue par l\'IA : 1 case à vérifier</b><span>${s.iaQ === '6' ? 'Le numéro de facture n\'est pas sûr' : 'La quantité des cartouches n\'est pas sûre'} : elle est marquée en ambre ; compare avec la photo à droite.</span></span></div>` : `<div class="bandeau info">${ic('eclat', 18, 2)}<span class="txt"><b>Lue par l\'IA, et tout a été vérifié</b><span>Les cases douteuses ont été tranchées à la lecture ; les totaux tombent juste au millime.</span></span></div>`) : d.bandeau ? `<div class="bandeau ${d.bandeau[0]}">${ic(d.bandeau[1], 18, 2)}<span class="txt"><b>${esc(d.bandeau[2])}</b><span>${esc(d.bandeau[3])}</span></span>${d.bandeau[4] ? `<button type="button" class="btn mini" ${/règlement/.test(d.bandeau[4]) ? 'data-montrer="reglement"' : /ticket/.test(d.bandeau[4]) ? 'data-montrer="justif"' : /fiche du bien/.test(d.bandeau[4]) ? 'data-montrer="immo"' : /TVA/.test(d.bandeau[4]) ? 'data-toast="Ton régime d\'aujourd\'hui s\'applique : 103,246 DT de TVA se récupèrent. Enregistre pour le garder."' : ''}>${esc(d.bandeau[4])}</button>` : ''}</div>` : '';
     if (d.ia) return `${haut()}${lectureIA(T)}${couche(T)}${toastHtml()}`;
     if (d.confie) return `${haut()}<div class="corps"><div class="gauche"><div class="bandeau info">${ic('comptable', 18, 2)}<span class="txt"><b>Envoyée à ton cabinet le 24/10 à 11 h 02 : il saisit la facture</b><span>Tu n'as rien d'autre à taper. Quand il l'aura rangée, elle apparaîtra dans tes achats, avec la photo jointe ; s'il lui manque quelque chose, il te l'écrira dans votre fil.</span></span></div>${frise()}
       <section class="carte bloc"><div class="bloc-t"><h3>Ce que tu as envoyé</h3><small>votre fil avec Fiduciaire Ennour</small></div><div class="pj"><span class="pj-ic">${ic('photo', 18)}</span><span class="pj-n"><b>facture-garage-pneus.jpg</b><small>photo prise au téléphone · 1,2 Mo · « Pneus de la voiture de service, payés en espèces »</small></span><button type="button" class="btn mini">Voir</button></div>
       </section></div>
       <aside class="droite">${blocActions(T)}</aside></div>${couche(T)}${toastHtml()}`;
-    const gauche = `${ban}${d.frise ? frise() : ''}${blocFournisseur()}${blocLignes(T)}${blocReglements(T)}${d.f ? `<section class="carte bloc"><div class="bloc-t"><h3>Objet et notes internes</h3></div><div class="objet-n"><label class="ch">Objet<span class="v">${esc(d.objet || '')}</span></label><label class="ch">Notes internes<span class="note-z">${d.recep ? 'Appeler Mourad (InfoTech) pour le 4e point d\'accès' : '<span class="vide">Ce qu\'il faut se rappeler sur cet achat : seule ton équipe le lit</span>'}</span></label></div></section>` : ''}`;
+    const gauche = `${banRep}${ban}${d.frise ? frise() : ''}${blocFournisseur()}${blocLignes(T)}${blocReglements(T)}${d.f ? `<section class="carte bloc"><div class="bloc-t"><h3>Objet et notes internes</h3></div><div class="objet-n"><label class="ch">Objet<span class="v">${esc(d.objet || '')}</span></label><label class="ch">Notes internes<span class="note-z">${d.recep ? 'Appeler Mourad (InfoTech) pour le 4e point d\'accès' : '<span class="vide">Ce qu\'il faut se rappeler sur cet achat : seule ton équipe le lit</span>'}</span></label></div></section>` : ''}`;
     return `${haut()}<div class="corps"><div class="gauche">${gauche}</div><aside class="droite">${blocTotaux(T)}${blocActions(T)}</aside></div>${couche(T)}${toastHtml()}`;
   }
   // ---------- la lecture intelligente : ce que SkanFact a compris de la photo, avant de remplir la pièce ----------
@@ -1233,10 +1242,15 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
   const toastHtml = () => (s.toast ? `<div class="toast" role="status">${ic('coche', 16, 2.4)}<span>${esc(s.toast)}</span>${s.toastAnnul ? `<button type="button" data-annuler>${ic('annuler', 15, 2.2)} Annuler</button>` : ''}<span class="temps"></span></div>` : '');
 
   // Ce qu'on ouvre depuis la page.
-  const MONTRER = [['', 'Rien'], ['gestes', 'Tous les gestes (⋯)'], ['reglement', 'Enregistrer un règlement'], ['doublon', 'Déjà saisie ?'], ['justif', 'Le justificatif en grand'], ['detail', 'Vérifier case par case'], ['immo', 'La fiche du bien'], ['envoi-photo', 'Envoyer la photo à la lecture'], ['attestation', 'L\'attestation de retenue'], ['rembourse', 'Le remboursement reçu']];
+  const MONTRER = [['', 'Rien'], ['sortir', 'Quitter : l\'achat est gardé'], ['sortir-perdu', 'Quitter : rien ne se garde ici'], ['gestes', 'Tous les gestes (⋯)'], ['reglement', 'Enregistrer un règlement'], ['doublon', 'Déjà saisie ?'], ['justif', 'Le justificatif en grand'], ['detail', 'Vérifier case par case'], ['immo', 'La fiche du bien'], ['envoi-photo', 'Envoyer la photo à la lecture'], ['attestation', 'L\'attestation de retenue'], ['rembourse', 'Le remboursement reçu']];
   function couche(T) {
     const d = D(), f = d.f ? FOUR[d.f] : FOUR.infotech, m = s.montrer;
     const fen = (titre, corps, pied, cl = '') => `<div class="voile" data-fermer><div class="fen ${cl}" role="dialog" aria-modal="true" aria-label="${esc(titre)}"><h3>${titre}</h3>${corps}<div class="pied">${pied}</div></div></div>`;
+    if (m === 'sortir') return `<div class="toast" role="status">${ic('coche', 16, 2.4)}<span>Achat gardé sur cet ordinateur : « Nouvel achat » te proposera de le reprendre</span><button type="button" data-montrer-fermer>Rouvrir</button><span class="temps"></span></div>`;
+    if (m === 'sortir-perdu') return `<div class="voile"><div class="fen" role="alertdialog" aria-modal="true" aria-label="Quitter sans enregistrer ?"><h3>Quitter sans enregistrer ?</h3>
+      <div class="bandeau ambre">${ic('aide', 18, 2)}<span class="txt"><b>Rien ne se garde sur cet ordinateur</b><span>Tu es connecté sans « mon ordinateur » (un poste partagé, ou la fenêtre privée) : en quittant, l\'achat commencé est perdu, et sa photo avec.</span></span></div>
+      <p class="note-v">Sur ton ordinateur, la question ne se pose plus : la pièce s'y garde à chaque frappe, et « Reprendre » la rouvre.</p>
+      <div class="pied"><button type="button" class="btn" data-montrer-fermer>Quitter sans enregistrer</button><button type="button" class="btn prem" data-montrer-fermer>Enregistrer et continuer</button></div></div></div>`;
     const fermer = (t = 'Annuler') => `<button type="button" class="btn" data-montrer-fermer>${t}</button>`;
     if (m === 'gestes') {
       const at = (x) => `data-montrer="${x}"`;

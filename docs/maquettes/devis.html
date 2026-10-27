@@ -126,6 +126,9 @@ kbd { font-family: var(--police); font-size: 10.5px; font-weight: 600; padding: 
 .bloc-t h3 { margin: 0; font-size: 14.5px; letter-spacing: -.01em; }
 .bloc-t small { color: var(--gris-2); font-size: 12.5px; }
 /* bandeaux */
+.bandeau.reprise .rep-g { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; }
+.bandeau.reprise .rep-ok { font-weight: 600; }
+.sortir-t { position: fixed; }
 .bandeau { display: flex; gap: 12px; align-items: center; padding: 12px 14px; border-radius: 12px; font-size: 13.5px; }
 .bandeau > svg { flex: none; }
 .bandeau .txt { flex: 1; display: grid; gap: 1px; }
@@ -822,6 +825,9 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
   const F = (cree, envoi, vu, rep, fact) => [cree, envoi, vu, rep, fact];
   const ETATS = {
     neuf: { t: 'Nouveau devis', statut: ['Brouillon', ''], mode: 'edit', client: null, lignes: [], date: '24/10/2026', valid: '23/11/2026' },
+  // (27/10/2026) Un devis commencé, pas encore enregistré (un devis prend son numéro à l'enregistrement) : gardé sur cet
+  // ordinateur à chaque frappe, la page « Nouveau devis » propose de le reprendre.
+  reprendre: { t: 'Nouveau devis', statut: ['Brouillon', ''], client: null, lignes: [], reprise: ['Devis pour Hôtel Les Oliviers commencé le 27/10 à 10 h 40, pas encore enregistré', '3 lignes · 4 820,000 DT TTC. Gardé sur cet ordinateur seulement : il prend son numéro quand tu l\'enregistres.', 'Le jeter', 'Reprendre', 'Le devis commencé revient, tel que tu l\'avais laissé'] },
     brouillon: { t: 'Nouveau devis', statut: ['Brouillon · pas encore enregistré', ''], mode: 'edit', neuf: true, client: 'jasmins', lignes: L_RESEAU, date: '24/10/2026', valid: '23/11/2026' },
     numerote: { t: 'DEV-2026-016', statut: ['Brouillon', ''], mode: 'edit', client: 'jasmins', objet: 'Extension du réseau · bâtiment B', lignes: L_RESEAU, date: '24/10/2026', valid: '23/11/2026',
       frise: F(['fait', 'Créé', 'aujourd\'hui, 9 h 40 · par Sarra'], ['afaire', 'Envoyé', 'pas encore', 'Envoyer'], ['attente', 'Vu', 'quand il ouvrira le lien'], ['attente', 'Réponse', 'après l\'envoi'], ['attente', 'Facturé', 'quand il aura dit oui']) },
@@ -864,7 +870,7 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
   // Après « Le client a modifié sa demande » : la version envoyée et celle qu'on écrit ne sont plus les mêmes.
   ETATS.modifie = { ...ETATS.envoye, modifie: true, statut: ['Envoyé · modifié depuis', 'attire'], lignes: L_HOTEL.map((l, i) => (i === 0 ? [...l.slice(0, 2), 10, ...l.slice(3)] : l)),
     bandeau: ['ambre', 'ecriture', 'Modifié depuis l\'envoi : le client a toujours la version du 20/10', 'Tu as passé « Caméra IP extérieure » de 8 à 10. Renvoie le devis pour qu\'il voie la nouvelle version ; s\'il accepte l\'ancienne par son lien, SkanFact te le dira.', 'Renvoyer la nouvelle version'] };
-  const NOMS = [['neuf', 'Neuf'], ['brouillon', 'Brouillon'], ['numerote', 'Brouillon numéroté'], ['envoye', 'Envoyé'], ['modifie', 'Modifié après l\'envoi'], ['relance', 'Sans réponse'], ['expire', 'Expiré'], ['accepte', 'Accepté'], ['acompteb', 'Acompte en brouillon'], ['acompte', 'Acompte facturé'], ['facture', 'Facturé'], ['refuse', 'Refusé'], ['commercial', 'Vu par un commercial'], ['lecture', 'Abonnement en lecture seule'], ['hors', 'Hors ligne']];
+  const NOMS = [['neuf', 'Neuf'], ['reprendre', 'Neuf · un devis commencé à reprendre'], ['brouillon', 'Brouillon'], ['numerote', 'Brouillon numéroté'], ['envoye', 'Envoyé'], ['modifie', 'Modifié après l\'envoi'], ['relance', 'Sans réponse'], ['expire', 'Expiré'], ['accepte', 'Accepté'], ['acompteb', 'Acompte en brouillon'], ['acompte', 'Acompte facturé'], ['facture', 'Facturé'], ['refuse', 'Refusé'], ['commercial', 'Vu par un commercial'], ['lecture', 'Abonnement en lecture seule'], ['hors', 'Hors ligne']];
   const D = () => ETATS[s.etat];
   const lignes = () => s.lignes || D().lignes;
   const accord = (q, u) => (q > 1 && !/s$/.test(u) && u !== 'forfait' ? u + 's' : u);
@@ -1090,18 +1096,26 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
   function contenu() {
     const d = D(), T = totaux();
     if (s.montrer === 'client-vue') return espaceClient(T);
+    // (27/10/2026, Skander : « le bandeau, on va le mettre dans chaque parcours où on peut sortir ») Une pièce commencée et
+    // pas finie : la page neuve propose de la reprendre (gardée sur cet ordinateur, ou déjà en brouillon sur le serveur).
+    const banRep = d.reprise ? `<div class="bandeau info reprise">${ic('nuage', 18, 2)}<span class="txt"><b>${esc(d.reprise[0])}</b><span>${esc(d.reprise[1])}</span></span><span class="rep-g"><button type="button" class="btn mini rep-ok" data-toast="${esc(d.reprise[4])}">${esc(d.reprise[3])}</button><button type="button" class="btn mini">${esc(d.reprise[2])}</button></span></div>` : '';
     const ban = d.bandeau ? `<div class="bandeau ${d.bandeau[0]}">${ic(d.bandeau[1], 18, 2)}<span class="txt"><b>${esc(d.bandeau[2])}</b><span>${esc(d.bandeau[3])}</span></span>${d.bandeau[4] ? `<button type="button" class="btn mini" ${d.bandeau[4] === 'Relancer' ? 'data-montrer="relance"' : d.bandeau[4].startsWith('Renvoyer') ? 'data-montrer="envoyer"' : ''}>${esc(d.bandeau[4])}</button>` : ''}</div>` : '';
     const notes = `<div class="deux-b"><section class="carte bloc"><div class="bloc-t"><h3>Conditions sur le devis</h3>${d.fige ? '' : '<button type="button" class="btn mini">Texte prêt</button>'}</div><div class="note-z ${d.client ? 'plein' : ''}">${d.client ? 'Acompte de 30 % à la commande, solde à la livraison. Matériel garanti 12 mois.' : 'Conditions de paiement, délai de livraison, garantie…'}</div></section><section class="carte bloc"><div class="bloc-t"><h3>Pièces jointes</h3><small>jointes à l'e-mail du devis</small></div>${s.etat === 'facture' || s.etat === 'acompte' ? `<div class="pj"><span class="pj-ic">${ic('piece', 18)}</span><span class="pj-n"><b>Devis signé ${esc(d.t)}.pdf</b><small>bon pour accord renvoyé par le client · ${d.accepteLe}</small></span><button type="button" class="btn mini">Ouvrir</button></div>` : ''}<div class="zone${s.etat === 'facture' || s.etat === 'acompte' ? ' petite' : ''}">${ic('importer', 20)}<span>Glisse le devis signé, un plan, une photo… <b>ou clique</b></span></div></section></div>`;
-    const gauche = `${ban}${d.frise ? frise() : ''}${d.envois ? `<section class="carte bloc"><dl class="resume"><dt>Envois</dt><dd>${d.envois.map((e) => `<span class="envoi">${e}</span>`).join('')}</dd></dl></section>` : ''}${blocClient()}${blocPieces(T)}${blocLignes(T)}${notes}`;
+    const gauche = `${banRep}${ban}${d.frise ? frise() : ''}${d.envois ? `<section class="carte bloc"><dl class="resume"><dt>Envois</dt><dd>${d.envois.map((e) => `<span class="envoi">${e}</span>`).join('')}</dd></dl></section>` : ''}${blocClient()}${blocPieces(T)}${blocLignes(T)}${notes}`;
     return `${haut()}<div class="corps"><div class="gauche">${gauche}</div><aside class="droite">${blocTotaux(T)}${blocActions(T)}${miniApercu(T)}</aside></div>${couche(T)}${s.toast ? `<div class="toast" role="status">${ic('coche', 16, 2.4)}<span>${esc(s.toast)}</span>${s.toastAnnul ? `<button type="button" data-annuler>${ic('annuler', 15, 2.2)} Annuler</button>` : ''}<span class="temps"></span></div>` : ''}`;
   }
 
   // Ce qu'on ouvre depuis la page : chaque geste a sa couche.
-  const MONTRER = [['', 'Rien'], ['envoyer', 'Envoyer le devis'], ['whatsapp', 'Par WhatsApp'], ['marquer', 'Après le PDF'], ['accepte', 'Le client a accepté'], ['refuse', 'Le client a refusé'], ['facturer', 'Facturer ▾'], ['acompte', 'Facture d\'acompte'], ['solde', 'Facture de solde'], ['refacturer', 'Refacturer la totalité'], ['transformer', 'Transformer ▾'], ['gestes', 'Tous les gestes (⋯)'], ['relance', 'Relancer'], ['validite', 'Validité'], ['supprimer', 'Supprimer'], ['historique', 'Historique'], ['grand', 'Aperçu en grand'], ['client-vue', 'Ce que voit le client']];
+  const MONTRER = [['', 'Rien'], ['sortir', 'Quitter : le devis est gardé'], ['sortir-perdu', 'Quitter : rien ne se garde ici'], ['envoyer', 'Envoyer le devis'], ['whatsapp', 'Par WhatsApp'], ['marquer', 'Après le PDF'], ['accepte', 'Le client a accepté'], ['refuse', 'Le client a refusé'], ['facturer', 'Facturer ▾'], ['acompte', 'Facture d\'acompte'], ['solde', 'Facture de solde'], ['refacturer', 'Refacturer la totalité'], ['transformer', 'Transformer ▾'], ['gestes', 'Tous les gestes (⋯)'], ['relance', 'Relancer'], ['validite', 'Validité'], ['supprimer', 'Supprimer'], ['historique', 'Historique'], ['grand', 'Aperçu en grand'], ['client-vue', 'Ce que voit le client']];
   function couche(T) {
     const d = D(), c = d.client ? CLIENTS[d.client] : CLIENTS.hotel;
     const m = s.montrer;
     const fen = (titre, corps, pied, cl = '') => `<div class="voile" data-fermer><div class="fen ${cl}" role="dialog" aria-modal="true" aria-label="${esc(titre)}"><h3>${titre}</h3>${corps}<div class="pied">${pied}</div></div></div>`;
+    if (m === 'sortir') return `<div class="toast" role="status">${ic('coche', 16, 2.4)}<span>Devis gardé sur cet ordinateur : « Nouveau devis » te proposera de le reprendre</span><button type="button" data-montrer-fermer>Rouvrir</button><span class="temps"></span></div>`;
+    if (m === 'sortir-perdu') return `<div class="voile"><div class="fen" role="alertdialog" aria-modal="true" aria-label="Quitter sans enregistrer ?"><h3>Quitter sans enregistrer ?</h3>
+      <div class="bandeau ambre">${ic('aide', 18, 2)}<span class="txt"><b>Rien ne se garde sur cet ordinateur</b><span>Tu es connecté sans « mon ordinateur » (un poste partagé, ou la fenêtre privée) : en quittant, le devis commencé est perdu.</span></span></div>
+      <p class="note-v">Sur ton ordinateur, la question ne se pose plus : la pièce s'y garde à chaque frappe, et « Reprendre » la rouvre.</p>
+      <div class="pied"><button type="button" class="btn" data-montrer-fermer>Quitter sans enregistrer</button><button type="button" class="btn prem" data-montrer-fermer>Enregistrer et continuer</button></div></div></div>`;
     const fermer = (t = 'Annuler') => `<button type="button" class="btn" data-montrer-fermer>${t}</button>`;
     if (m === 'envoyer' || m === 'whatsapp') {
       const wa = m === 'whatsapp';

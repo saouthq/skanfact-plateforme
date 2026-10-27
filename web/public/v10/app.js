@@ -2025,8 +2025,10 @@
   // Le process principal doit savoir s'il reste du travail non enregistré : sans ça, fermer la fenêtre
   // pendant la saisie d'un devis le perdait sans un mot.
   let dirtyReported = null;
+  // (1.164.0) Une pièce neuve dont l'état exact est gardé sur cet appareil ne perd rien si l'onglet se ferme : le navigateur
+  // ne demande plus « quitter la page ? » pour elle.
   function reportDirty() {
-    const d = !!(guard && guard.dirty());
+    const d = !!(guard && guard.dirty() && !(guard.estGarde && guard.estGarde()));
     if (d === dirtyReported) return;
     dirtyReported = d;
     if (bridge.setDirty) bridge.setDirty(d);
@@ -2035,8 +2037,22 @@
   async function leaveOk() {
     if (!guard || !guard.dirty()) return true;
     const g = guard;
-    const c = await choiceDialog('Modifications non enregistrées',
-      `Tu as modifié ${g.what || 'cette page'} sans enregistrer. Que veut-on faire ?`,
+    // (1.164.0, maquettes facture, devis et achat « Quitter : le brouillon est gardé ») Une pièce neuve qui se garde sur cet
+    // appareil se quitte sans question : son état part au brouillon de l'appareil, et le toast dit où la retrouver, avec
+    // « Rouvrir ». La question ne reste que là où rien ne se garde (un poste partagé, une modification d'une pièce rangée).
+    if (g.peutGarder && g.peutGarder()) {
+      await g.avantSortie();
+      clearGuard();
+      const rouvrir = g.rouvrir;
+      setTimeout(() => toastUndo(g.gardeTexte(), () => rouvrir && rouvrir(), 'Rouvrir'), 0);
+      return true;
+    }
+    // (1.164.0, maquettes « Quitter : rien ne se garde ici ») Une pièce neuve sur un poste qui ne garde rien : la question
+    // dit pourquoi elle se pose, et ce que « quitter » perd.
+    const partage = !!(g.posteSansGarde && g.posteSansGarde());
+    const c = await choiceDialog(partage ? 'Quitter sans enregistrer ?' : 'Modifications non enregistrées',
+      partage ? `Rien ne se garde sur cet ordinateur : tu es connecté sans « mon ordinateur » (un poste partagé, ou une fenêtre privée). En quittant, ${g.what || 'la pièce'} commencé${/^(cette|la) /.test(g.what || '') ? 'e' : ''} est perdu${/^(cette|la) /.test(g.what || '') ? 'e' : ''}.`
+        : `Tu as modifié ${g.what || 'cette page'} sans enregistrer. Que veut-on faire ?`,
       'Enregistrer et continuer', 'Quitter sans enregistrer');
     if (c === null) return false;
     if (c === 'a') { const ok = await g.save(); if (ok === false) return false; }
@@ -5026,9 +5042,39 @@
     return C.retenueDuClient(clientById(clientId), company());
   }
 
+  // (1.164.0) Une pièce neuve rouverte depuis le brouillon gardé sur cet appareil (« Reprendre »).
+  let docReprise = null;
+  // Les brouillons de facture et d'avoir commencés sur cet appareil, avec l'heure : seuls eux se proposent à « Nouvelle
+  // facture » (ceux des autres, ou de l'entreprise d'exemple, n'y ont rien à faire).
+  const brouillonsCommences = {
+    cle: () => `skanfact.brouillons-commences.${new URLSearchParams(location.search).get('e') || ''}`,
+    lire() { try { return JSON.parse(localStorage.getItem(this.cle()) || '{}') || {}; } catch (_) { return {}; } },
+    noter(id) {
+      try {
+        const m = this.lire(); m[id] = Date.now();
+        Object.keys(m).forEach(k => { if (Date.now() - m[k] > 7 * 86400000) delete m[k]; });
+        localStorage.setItem(this.cle(), JSON.stringify(m));
+      } catch (_) { /* sans mémoire : rien ne se proposera */ }
+    },
+  };
+  // Le bandeau « Reprendre » de toute pièce neuve (maquettes facture, devis et achat « … commencée à reprendre ») : ce qui a été
+  // commencé, quand, ce qu'il contient, et où il est gardé ; « Reprendre » (secondaire : la page garde son bouton principal),
+  // puis le geste qui l'écarte.
+  const quandCommence = ts => { const q = new Date(ts); return `le ${lfJm(q.toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }))} à ${q.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Tunis' }).replace(':', ' h ')}`; };
+  function bandeauReprise({ id, titre, texte, ok, non, surOk, surNon }) {
+    const el = document.createElement('div');
+    el.className = 'bandeau info reprise'; el.id = id; el.setAttribute('role', 'status');
+    el.innerHTML = `${lfIc('nuage', 18, 2)}<span class="txt"><b>${h(titre)}</b><span>${h(texte)}</span></span><span class="rep-g"><button type="button" class="btn btn-sm rep-ok" id="${id}-ok">${h(ok)}</button><button type="button" class="btn btn-sm" id="${id}-non">${h(non)}</button></span>`;
+    $(`#${id}-ok`, el).onclick = surOk;
+    $(`#${id}-non`, el).onclick = () => surNon(el);
+    return el;
+  }
+
   routes.doc = (parts) => {
-    let doc, isNew = false;
-    if (parts[0] === 'new') {
+    let doc, isNew = false, reprisDoc = false;
+    if (parts[0] === 'new' && docReprise && docReprise.hash === location.hash) {
+      doc = docReprise.doc; isNew = true; reprisDoc = true; docReprise = null;
+    } else if (parts[0] === 'new') {
       const type = ['devis', 'facture', 'avoir'].concat(C.EXTRA_TYPES).includes(parts[1]) ? parts[1] : 'devis';
       doc = newDocument(type); isNew = true;
       if (type === 'avoir' && parts[2] && !['tpl', 'client', 'affaire'].includes(parts[2])) { const inv = docById(parts[2]); if (inv) { Object.assign(doc, creditDraftFrom(inv)); if (parts[3] === 'total') doc.creditReason = 'Annulation totale'; } }
@@ -5413,7 +5459,7 @@
     const teteCharte = () => `<div class="page-head ed-tete">
         ${retourListe(backTo, isQ ? 'devis' : 'factures')}<div class="ed-titre">
           <div class="chemin ed-chemin" role="navigation" aria-label="Chemin"><a href="#/dashboard">Accueil</a><span class="sep" aria-hidden="true">›</span><a href="${h(backTo)}" class="ed-retour">${isQ ? 'Devis' : 'Factures'}</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">${h(doc.number || title)}</span></div>
-          <div class="ed-h1"><h1>${h(title)}</h1>${pastilleStatut()}<span class="ed-enreg" id="ed-enreg"${isNew || figee ? ' hidden' : ''}><span id="ed-enreg-i" style="display:contents">${lfIc('coche', 14, 2.6)}</span><span id="ed-enreg-t">enregistré</span></span><span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
+          <div class="ed-h1"><h1>${h(title)}</h1>${pastilleStatut()}<span class="ed-enreg" id="ed-enreg"${isNew || figee ? ' hidden' : ''}><span id="ed-enreg-i" style="display:contents">${lfIc('coche', 14, 2.6)}</span><span id="ed-enreg-t">enregistré</span></span>${isNew && !figee && bridge.brouillon && bridge.brouillon(doc.type).garde() ? `<span class="ed-enreg ac-garde" id="ed-garde"${reprisDoc ? '' : ' hidden'} title="Gardé sur cet appareil : si l'onglet se ferme, la pièce se reprend.">${lfIc('nuage', 14, 2)}brouillon gardé à chaque frappe</span>` : ''}<span class="dirty-dot" id="dirty-dot" hidden>Modifications non enregistrées</span></div>
           ${doc.recurringId && !charte ? `<div class="small muted">Générée par un contrat récurrent — <a href="#/contrat/${h(doc.recurringId)}">voir le contrat</a></div>` : ''}
         </div>
         <div class="actions">
@@ -5929,11 +5975,37 @@
         const clean = deepCopy(doc);
         if (idx >= 0) data.documents[idx] = clean; else data.documents.push(clean);
         save(true); untouch(); gardeLe = Date.now(); majEnreg();
+        // Au serveur, elle n'a plus besoin de sa copie sur l'appareil : elle est dans la liste, en brouillon.
+        if (brouillonD) { clearTimeout(brouillonDTimer); brouillonD.effacer(); etatGardeLocal = ''; const g = $('#ed-garde'); if (g) g.hidden = true; }
+        // Commencée ici : « Nouvelle facture » la proposera tant qu'elle reste un brouillon (pas les brouillons des autres).
+        if (isNew && bridge.brouillon && bridge.brouillon(doc.type).garde()) brouillonsCommences.noter(doc.id);
       }, 1500);
     }
     const enregTimer = setInterval(() => { if (!document.contains(head)) clearInterval(enregTimer); else majEnreg(); }, 30000);
+    // (1.164.0, maquettes facture et devis « … commencée à reprendre ») Une pièce neuve se garde sur cet appareil (« mon
+    // ordinateur ») 1,5 s après la dernière frappe, dès qu'elle a un client, une ligne ou un fichier, tant qu'elle n'est pas au
+    // serveur : un devis prend son numéro à l'enregistrement, une facture s'y enregistre seule dès son client et une ligne.
+    // L'onglet fermé ne perd rien ; « Nouveau devis » (ou « Nouvelle facture ») propose de la reprendre. `var` et fonctions :
+    // `touch()` peut venir avant ces lignes pendant la mise en place de la page.
+    var brouillonD = isNew && charte && !figee && bridge.brouillon ? bridge.brouillon(doc.type) : null, brouillonDTimer = null, etatGardeLocal = '';
+    function gardeLocale() { return !!brouillonD && brouillonD.garde() && !data.documents.some(d => d.id === doc.id); }
+    function docADuContenu() { return !!doc.clientId || (doc.lines || []).some(l => String(l.label || '').trim() || Number(l.unitPrice)) || (doc.attachments || []).length > 0; }
+    async function garderDocMaintenant() {
+      if (!gardeLocale() || !docADuContenu()) return;
+      clearTimeout(brouillonDTimer);
+      const etat = JSON.stringify(doc);
+      await brouillonD.garder({ doc: deepCopy(doc), le: Date.now() });
+      etatGardeLocal = etat;
+      const g = $('#ed-garde'); if (g) g.hidden = false;
+      reportDirty();
+    }
+    function garderDocPlusTard() {
+      if (!gardeLocale()) return;
+      clearTimeout(brouillonDTimer);
+      brouillonDTimer = setTimeout(() => { if (document.contains(head)) garderDocMaintenant(); }, 1500);
+    }
     function touch() {
-      if (!figee) { noterModif(); programmerGarde(); const neuf = Date.now() - presenceEcrit > 60_000; presenceEcrit = Date.now(); if (neuf && presenceSuivi) void presenceSuivi.tic(); }
+      if (!figee) { noterModif(); programmerGarde(); garderDocPlusTard(); const neuf = Date.now() - presenceEcrit > 60_000; presenceEcrit = Date.now(); if (neuf && presenceSuivi) void presenceSuivi.tic(); }
       if (dirty || figee) return;
       dirty = true;
       const el = $('#dirty-dot'); if (el) el.hidden = false;
@@ -5953,8 +6025,48 @@
       save: () => { const ok = persist(); if (ok) untouch(); return ok; },
       // Quitter une pièce NEUVE sans l'enregistrer : les fichiers copiés pour elle n'appartiennent à
       // personne, on les retire (8.5.1). L'original de l'utilisateur ne bouge jamais.
-      discard: () => { if (isNew) (doc.attachments || []).forEach(a => { try { bridge.removeAttachment(doc.id, a.file); } catch (_) {} }); }
+      discard: () => { if (isNew) (doc.attachments || []).forEach(a => { try { bridge.removeAttachment(doc.id, a.file); } catch (_) {} }); },
+      // (1.164.0, maquettes « Quitter : le brouillon est gardé ») Gardée sur cet appareil, la pièce neuve se quitte sans
+      // question (ses fichiers restent : le brouillon les porte) ; sur un poste qui ne garde rien, la question le dit.
+      peutGarder: () => gardeLocale() && docADuContenu(),
+      estGarde: () => gardeLocale() && etatGardeLocal === JSON.stringify(doc),
+      avantSortie: () => garderDocMaintenant(),
+      gardeTexte: () => { const f = ['facture', 'proforma'].includes(doc.type); return `${C.TITLES[doc.type] || 'Pièce'} gardé${f ? 'e' : ''} sur cet ordinateur : « ${title} » te proposera de l${f ? 'a' : 'e'} reprendre`; },
+      rouvrir: () => { const cible = `#/doc/new/${doc.type}`, copie = deepCopy(doc); docReprise = { hash: cible, doc: copie }; navigate(cible); },
+      posteSansGarde: () => isNew && charte && !!bridge.brouillon && !bridge.brouillon(doc.type).garde() && docADuContenu() && !data.documents.some(d => d.id === doc.id)
     });
+    // (1.164.0, maquettes facture et devis « … commencée à reprendre ») La page neuve propose ce qui a été commencé : le
+    // brouillon gardé sur cet appareil (onglet fermé avant d'enregistrer), sinon, pour une facture ou un avoir, un brouillon
+    // déjà au serveur commencé ces deux derniers jours (« Plus tard » l'écarte jusqu'à la fin de la session).
+    if (isNew && charte && !figee && !reprisDoc) {
+      const poser = el => { const g = $('#view .ed-gauche'); if (g && document.contains(head) && !dirty && !$('#ed-reprendre')) g.prepend(el); };
+      const nomDe = d => C.TITLES[d.type] || 'Pièce', fem = d => ['facture', 'proforma'].includes(d.type) ? 'e' : '';
+      const resume = d => { const nl = (d.lines || []).filter(l => l.kind !== 'titre' && String(l.label || '').trim()).length; const t = C.computeTotals(d, company()); return [nl ? pl(nl, 'ligne') : '', t.totalTTC ? `${C.money(t.totalTTC, docCur(d))} TTC` : '', (d.attachments || []).length ? pl(d.attachments.length, 'pièce jointe', 'pièces jointes') : ''].filter(Boolean).join(' · '); };
+      const serveur = () => {
+        if (!isInv && !isAv) return;
+        let ecartes = []; try { ecartes = JSON.parse(sessionStorage.getItem('skanfact.reprise.plus-tard') || '[]'); } catch (_) { /* sans mémoire */ }
+        const ici = brouillonsCommences.lire();
+        const d = data.documents.filter(x => x.type === doc.type && x.status === 'brouillon' && !x.number && ici[x.id] && Date.now() - ici[x.id] < 2 * 86400000 && !ecartes.includes(x.id))
+          .sort((a, b) => ici[b.id] - ici[a.id])[0];
+        if (!d) return;
+        const cl = clientById(d.clientId), auj = new Date(ici[d.id]).toDateString() === new Date().toDateString();
+        poser(bandeauReprise({ id: 'ed-reprendre', titre: `${isAv ? 'Un avoir' : 'Une facture'}${cl ? ` pour ${cl.name}` : ''} t'attend en brouillon depuis ${auj ? `aujourd'hui à ${quandCommence(ici[d.id]).replace(/^le [^à]+à /, '')}` : quandCommence(ici[d.id])}`,
+          texte: `${resume(d) ? resume(d) + ', ' : ''}pas encore émis${fem(d)}. ${isAv ? 'Il est' : 'Elle est'} dans tes factures ; reprends-l${isAv ? 'e' : 'a'} pour l${isAv ? 'e' : 'a'} finir.`,
+          ok: isAv ? 'Le reprendre' : 'La reprendre', non: 'Plus tard',
+          surOk: () => navigate('#/doc/' + d.id),
+          surNon: el => { try { sessionStorage.setItem('skanfact.reprise.plus-tard', JSON.stringify(ecartes.concat(d.id))); } catch (_) { /* sans mémoire */ } el.remove(); } }));
+      };
+      if (brouillonD && brouillonD.garde()) brouillonD.relire().then(b => {
+        const d = b && b.contenu && b.contenu.doc;
+        if (!d || Date.now() - (b.contenu.le || 0) > 7 * 86400000 || data.documents.some(x => x.id === d.id)) { if (d) brouillonD.effacer(); return serveur(); }
+        const cl = clientById(d.clientId);
+        poser(bandeauReprise({ id: 'ed-reprendre', titre: `${nomDe(d)}${cl ? ` pour ${cl.name}` : ''} commencé${fem(d)} ${quandCommence(b.contenu.le)}, pas encore enregistré${fem(d)}`,
+          texte: `${resume(d) ? resume(d) + (cl ? '' : ', sans client encore') + '. ' : ''}Gardé${fem(d)} sur cet ordinateur seulement : ${d.type === 'facture' || d.type === 'avoir' ? 'rien n\'est dans tes factures tant que tu n\'as pas choisi le client.' : `${fem(d) ? 'elle prend son' : 'il prend son'} numéro quand tu l'enregistres.`}`,
+          ok: 'Reprendre', non: 'Le jeter',
+          surOk: () => { docReprise = { hash: location.hash, doc: d }; render(true); },
+          surNon: el => { (d.attachments || []).forEach(a => { try { bridge.removeAttachment(d.id, a.file); } catch (_) { /* déjà parti */ } }); brouillonD.effacer(); el.remove(); toast('Brouillon jeté : rien n\'avait été enregistré'); } }));
+      }); else serveur();
+    }
 
     // --- lignes
     const linesBody = $('#lines');
@@ -12937,11 +13049,14 @@
     toast('Facture pré-remplie depuis les réceptions : saisis son numéro et vérifie les prix avant d\'enregistrer.');
   }
 
+  // (1.164.0) Une commande au fournisseur neuve rouverte depuis son brouillon gardé sur cet appareil (« Reprendre »).
+  let cfReprise = null;
   routes.commandef = (parts) => {
     const isNew = parts[0] === 'new';
     const stored = isNew ? null : commandeFById(parts[0]);
     if (!isNew && !stored) return navigate('#/commandesf');
-    const o = stored ? deepCopy(stored) : { id: C.uid(), type: 'commandeFournisseur', number: '', status: parts[1] === 'demande' ? 'demande' : 'brouillon', date: C.today(), dueDate: '',
+    const reprisCf = !!(isNew && cfReprise && cfReprise.hash === location.hash);
+    const o = reprisCf ? cfReprise.o : stored ? deepCopy(stored) : { id: C.uid(), type: 'commandeFournisseur', number: '', status: parts[1] === 'demande' ? 'demande' : 'brouillon', date: C.today(), dueDate: '',
       supplierId: parts[1] && supplierById(parts[1]) ? parts[1] : '', reference: '', currency: company().currency, exchangeRate: '', discountRate: 0,
       lines: [{ label: '', description: '', qty: 1, unit: '', unitPrice: 0, vatRate: 19 }], notes: '', createdAt: Date.now() };
     o.type = 'commandeFournisseur';
@@ -13022,7 +13137,23 @@
       <div class="panel"><h2>Notes (imprimées sur la ${quoi})</h2><textarea id="cf-notes" placeholder="Conditions, adresse de livraison, contact sur place…">${h(o.notes || '')}</textarea></div>`;
 
     let dirty = false;
-    const touch = () => { if (dirty) return; dirty = true; $('#dirty-dot').hidden = false; enregistrerDevientPrincipal(); };
+    // (1.164.0, comme la facture et l'achat) Neuve, la commande se garde sur cet appareil (« mon ordinateur ») 1,5 s après la
+    // dernière frappe, dès qu'elle a un fournisseur ou une ligne ; « Nouvelle commande » propose de la reprendre.
+    if (reprisCf) cfReprise = null;
+    const brouillonCf = isNew && bridge.brouillon && bridge.brouillon('commandeF').garde() ? bridge.brouillon('commandeF') : null;
+    const cfADuContenu = () => !!o.supplierId || (o.lines || []).some(l => String(l.label || '').trim() || Number(l.unitPrice));
+    let cfTimer = null, cfEtatGarde = '';
+    const garderCfMaintenant = async () => {
+      if (!brouillonCf || !cfADuContenu() || commandesF().some(x => x.id === o.id)) return;
+      clearTimeout(cfTimer);
+      const etat = JSON.stringify(o);
+      await brouillonCf.garder({ o: deepCopy(o), le: Date.now() });
+      cfEtatGarde = etat; reportDirty();
+    };
+    const touch = () => {
+      if (brouillonCf) { clearTimeout(cfTimer); cfTimer = setTimeout(() => { if ($('#cf-lines')) garderCfMaintenant(); }, 1500); }
+      if (dirty) return; dirty = true; $('#dirty-dot').hidden = false; enregistrerDevientPrincipal();
+    };
     const totaux = () => {
       // (plateforme, lot achats) Une demande de prix sans prix ne montre pas un « Total TTC 0,000 » : elle part sans prix, et
       // les prix se saisissent à la réponse du fournisseur.
@@ -13119,13 +13250,35 @@
       const i = commandesF().findIndex(x => x.id === o.id);
       if (i >= 0) commandesF()[i] = deepCopy(o); else commandesF().push(deepCopy(o));
       save(true);
+      if (brouillonCf) { clearTimeout(cfTimer); brouillonCf.effacer(); cfEtatGarde = ''; }
       if (besoin) setTimeout(() => proposerAccordCommande({ ...commandeFById(o.id), status: 'envoyée' }, besoin, () => render(true)), 0);
       dirty = false;
       clearGuard(garde);
       return true;
     };
-    const garde = { dirty: () => dirty, save: enregistrer, what: 'cette commande' };
+    const garde = { dirty: () => dirty, save: enregistrer, what: 'cette commande',
+      peutGarder: () => !!brouillonCf && cfADuContenu() && !commandesF().some(x => x.id === o.id),
+      estGarde: () => !!brouillonCf && cfEtatGarde === JSON.stringify(o),
+      avantSortie: () => garderCfMaintenant(),
+      gardeTexte: () => `${o.status === 'demande' ? 'Demande de prix gardée' : 'Commande gardée'} sur cet ordinateur : la page neuve te proposera de la reprendre`,
+      rouvrir: () => { const cible = o.status === 'demande' ? '#/commandef/new/demande' : '#/commandef/new'; cfReprise = { hash: cible, o: deepCopy(o) }; navigate(cible); },
+      posteSansGarde: () => isNew && !brouillonCf && !!bridge.brouillon && cfADuContenu() };
     setGuard(garde);
+    if (reprisCf) touch();
+    // (1.164.0) La page neuve propose la commande commencée sur cet appareil et jamais enregistrée.
+    if (brouillonCf && !reprisCf) brouillonCf.relire().then(b => {
+      const d = b && b.contenu && b.contenu.o;
+      const t0 = $('#view .page-head');
+      if (!d || !t0 || dirty || !$('#cf-lines') || $('#cf-reprendre')) return;
+      if (Date.now() - (b.contenu.le || 0) > 7 * 86400000 || commandesF().some(x => x.id === d.id)) { brouillonCf.effacer(); return; }
+      const sup = supplierById(d.supplierId), dem = d.status === 'demande';
+      const nl = (d.lines || []).filter(l => String(l.label || '').trim()).length;
+      t0.after(bandeauReprise({ id: 'cf-reprendre', titre: `${dem ? 'Demande de prix' : 'Commande'}${sup ? ` à ${sup.name}` : ''} commencée ${quandCommence(b.contenu.le)}, pas encore enregistrée`,
+        texte: `${nl ? pl(nl, 'ligne') + '. ' : ''}Gardée sur cet ordinateur seulement : elle prend son numéro quand tu l'enregistres.`,
+        ok: 'Reprendre', non: 'Le jeter',
+        surOk: () => { cfReprise = { hash: location.hash, o: d }; render(true); },
+        surNon: el => { brouillonCf.effacer(); el.remove(); toast('Brouillon jeté : rien n\'avait été enregistré'); } }));
+    });
     $('#save').onclick = () => {
       const neuf = !stored;
       if (!enregistrer()) return;
@@ -14235,12 +14388,19 @@
     const garderPlusTard = () => {
       if (!brouillonA) return;
       clearTimeout(brouillonTimer);
-      brouillonTimer = setTimeout(() => {
-        if (!document.contains(head) || !aDuContenu()) return;
-        brouillonA.garder({ p: deepCopy(p), payeeDep, le: Date.now() });
-        const g = $('#ac-garde'); if (g) g.hidden = false;
-      }, 1500);
+      brouillonTimer = setTimeout(() => { if (document.contains(head)) garderAchatMaintenant(); }, 1500);
     };
+    // Son état exact, gardé : le navigateur ne demande plus « quitter la page ? », et la sortie se fait sans question.
+    let etatGardeAchat = '';
+    async function garderAchatMaintenant() {
+      if (!brouillonA || !aDuContenu()) return;
+      clearTimeout(brouillonTimer);
+      const etat = JSON.stringify(p);
+      await brouillonA.garder({ p: deepCopy(p), payeeDep, le: Date.now() });
+      etatGardeAchat = etat;
+      const g = $('#ac-garde'); if (g) g.hidden = false;
+      reportDirty();
+    }
     const oublierBrouillon = () => { if (brouillonA) { clearTimeout(brouillonTimer); brouillonA.effacer(); } };
     if (!parAnnuler || !annulAchat || annulAchat.id !== p.id) annulAchat = { id: p.id, pile: [], retablir: [] };
     // La pièce de la page affichée : « Rétablir », dans le toast, vient de la page d'avant (elle s'est redessinée).
@@ -14262,7 +14422,15 @@
       save: async () => { if (!validate() || !await doublonOk()) return false; const ok = persist(); if (ok) { creerFichesProposees(); untouch(); } return ok; },
       // Quitter une pièce NEUVE sans l'enregistrer : les fichiers déjà copiés pour elle n'appartiennent
       // à personne, on les retire. L'original de l'utilisateur, lui, ne bouge jamais.
-      discard: () => { if (isNew) { oublierBrouillon(); (p.attachments || []).forEach(a => { try { bridge.removeAttachment(p.id, a.file); } catch (_) {} }); } } });
+      discard: () => { if (isNew) { oublierBrouillon(); (p.attachments || []).forEach(a => { try { bridge.removeAttachment(p.id, a.file); } catch (_) {} }); } },
+      // (1.164.0, maquette achat « Quitter : l'achat est gardé ») Gardé sur cet appareil, l'achat neuf se quitte sans question ;
+      // sur un poste qui ne garde rien, la question dit pourquoi elle se pose.
+      peutGarder: () => !!brouillonA && isNew && aDuContenu(),
+      estGarde: () => !!brouillonA && isNew && etatGardeAchat === JSON.stringify(p),
+      avantSortie: () => garderAchatMaintenant(),
+      gardeTexte: () => `${motsDeNature(p.kind || 'facture').titre.replace(/^Nouvel(le)? /, '').replace(/^./, c => c.toUpperCase())} gardé${p.kind === 'depense' || p.kind === 'facture' || !p.kind ? 'e' : ''} sur cet ordinateur : « ${motsDePiece(p.kind).titre} » te proposera de ${p.kind === 'depense' || p.kind === 'facture' || !p.kind ? 'la' : 'le'} reprendre`,
+      rouvrir: () => { achatReprise = { hash: '#/achat/new', p: deepCopy(p), isNew: true, payeeDep }; navigate('#/achat/new'); },
+      posteSansGarde: () => isNew && !brouillonA && !!bridge.brouillonAchat && aDuContenu() });
 
     // --- lignes
     const body = $('#b-lines');
@@ -14886,18 +15054,22 @@
       const d = b && b.contenu && b.contenu.p;
       const g = $('#view .buy-editor .ed-gauche');
       if (!d || !g || !document.contains(head) || dirty || Date.now() - (b.le || 0) > 7 * 86400000) return;
-      const quand = new Date(b.le);
       const sup = supplierById(d.supplierId);
       const nl = (d.lines || []).filter(l => String(l.label || '').trim()).length;
-      const el = document.createElement('div');
-      el.className = 'bandeau info'; el.id = 'ac-reprendre'; el.setAttribute('role', 'status');
-      el.innerHTML = `${lfIc('nuage', 18, 2)}<span class="txt"><b>${h(motsDeNature(d.kind || 'facture').titre.replace(/^Nouvel(le)? /, '').replace(/^./, c => c.toUpperCase()))} commencé${d.kind === 'depense' || d.kind === 'facture' || !d.kind ? 'e' : ''} le ${lfJm(quand.toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' }))} à ${quand.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Tunis' }).replace(':', ' h ')}, pas encore enregistré${d.kind === 'depense' || d.kind === 'facture' || !d.kind ? 'e' : ''}</b><span>${h([sup ? sup.name : (d.kind === 'depense' ? NOM_DIVERS : 'sans fournisseur'), d.number || '', nl ? pl(nl, 'ligne') : '', (d.attachments || []).length ? pl(d.attachments.length, 'justificatif') : ''].filter(Boolean).join(' · '))} : gardé sur cet appareil.</span></span><button type="button" class="btn btn-primary btn-sm" id="ac-reprendre-ok">Reprendre</button><button type="button" class="btn btn-sm" id="ac-reprendre-non">Le jeter</button>`;
-      g.prepend(el);
-      $('#ac-reprendre-ok', el).onclick = () => { achatReprise = { hash: location.hash, p: d, isNew: true, payeeDep: b.contenu.payeeDep }; render(true); };
-      $('#ac-reprendre-non', el).onclick = () => {
-        (d.attachments || []).forEach(a => { try { bridge.removeAttachment(d.id, a.file); } catch (_) {} });
-        brouillonA.effacer(); el.remove(); toast('Brouillon jeté : rien n\'avait été enregistré');
-      };
+      // (1.164.0, maquette achat « Neuve · un achat commencé à reprendre ») Le bandeau commun à toutes les pièces neuves.
+      const nom = motsDeNature(d.kind || 'facture').titre.replace(/^Nouvel(le)? /, '').replace(/^./, c => c.toUpperCase());
+      const fem = d.kind === 'depense' || d.kind === 'facture' || !d.kind ? 'e' : '';
+      const t = C.purchaseTotals(d, company());
+      const pjs = (d.attachments || []).length;
+      g.prepend(bandeauReprise({ id: 'ac-reprendre',
+        titre: `${nom}${sup ? ` ${/^[aeiouhéè]/i.test(sup.name) ? 'd\'' : 'de '}${sup.name}` : ''} commencé${fem} ${quandCommence(b.le)}, pas encore enregistré${fem}`,
+        texte: `${[nl ? pl(nl, 'ligne') : '', t.netToPay ? C.money(t.netToPay, d.currency || company().currency) : '', pjs ? (pjs > 1 ? `${pjs} justificatifs joints` : 'le justificatif joint') : ''].filter(Boolean).join(' · ') || 'Presque vide'}. Gardé${fem} sur cet ordinateur seulement : rien ne compte dans tes achats avant « Enregistrer ».`,
+        ok: 'Reprendre', non: 'Le jeter',
+        surOk: () => { achatReprise = { hash: location.hash, p: d, isNew: true, payeeDep: b.contenu.payeeDep }; render(true); },
+        surNon: el => {
+          (d.attachments || []).forEach(a => { try { bridge.removeAttachment(d.id, a.file); } catch (_) {} });
+          brouillonA.effacer(); el.remove(); toast('Brouillon jeté : rien n\'avait été enregistré');
+        } }));
     });
     // (27/10/2026, maquette achat « Sans justificatif ») Le cabinet a demandé cette pièce dans le fil (une demande qui cite son
     // numéro ou sa référence, pas encore reçue) : le bandeau le dit, avec qui et quand. Lu dans le fil, rien n'est écrit.

@@ -1556,3 +1556,10 @@
   .modal-vc .vc-doc { display: none; }
   .modal-vc .vc-2 { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* (1.164.0, maquettes facture, devis et achat « … commencée à reprendre ») Le bandeau « Reprendre » : ses deux gestes à droite,
+   « Reprendre » en secondaire appuyé (la page garde son seul bouton principal) ; « brouillon gardé à chaque frappe » remplace
+   « Modifications non enregistrées » : rien n'est perdu. */
+.bandeau.reprise .rep-g { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; align-self: center; }
+.bandeau.reprise .rep-ok { font-weight: 600; }
+#ac-garde:not([hidden]) ~ .dirty-dot, #ed-garde:not([hidden]) ~ .dirty-dot { display: none; }

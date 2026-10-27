@@ -20632,11 +20632,11 @@ prouver 'écarts 18 : Ctrl Z sans effet sur l'"'"'achat' web/public/v10/app.js \
   'if (mod && !clos && !champTape(e.target) && (k === '"'"'z'"'"' || k === '"'"'y'"'"'))' 'if (false)' \
   'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
 prouver 'écarts 19 : le brouillon d'"'"'un achat neuf jamais gardé' web/public/v10/app.js \
-  '        brouillonA.garder({ p: deepCopy(p), payeeDep, le: Date.now() });
+  '      await brouillonA.garder({ p: deepCopy(p), payeeDep, le: Date.now() });
 ' '' \
   'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
 prouver 'écarts 20 : le brouillon gardé qui ne se reprend pas' web/public/v10/app.js \
-  '      $('"'"'#ac-reprendre-ok'"'"', el).onclick = () => { achatReprise =' '      $('"'"'#ac-reprendre-ok'"'"', el).onclick = () => { if (1) return; achatReprise =' \
+  '        surOk: () => { achatReprise =' '        surOk: () => { if (1) return; achatReprise =' \
   'défait la dernière modification ; un achat neuf se garde sur « mon ordinateur » et se reprend'
 prouver 'écarts 21 : le brouillon qui survit à l'"'"'enregistrement' web/public/v10/app.js \
   '      save(true); untouch(); oublierBrouillon();' '      save(true); untouch();' \
@@ -20763,6 +20763,45 @@ prouver 'colonne de droite : son bas hors de l'"'"'écran' web/public/plateforme
     return;
     let attente = 0;' \
   'un PDF lu par l'"'"'IA se montre : sa première page, à chaque étape, et les phrases disent « le PDF »'
+# ── Quitter une pièce neuve, la reprendre (1.164.0 ; décision du 27/10/2026, docs/maquettes-appliquees.md) ──
+prouver 'reprendre 1 : la question posée alors que la pièce est gardée' web/public/v10/app.js \
+  '    if (g.peutGarder && g.peutGarder()) {' '    if (false) {' \
+  'sur « mon ordinateur » : quitter ne demande rien, « Rouvrir », puis « Reprendre » ou « Le jeter » ; une facture avec client se reprend du serveur'
+prouver 'reprendre 2 : « Rouvrir » qui ne rouvre rien' web/public/v10/app.js \
+  '() => rouvrir && rouvrir()' '() => {}' \
+  'sur « mon ordinateur » : quitter ne demande rien, « Rouvrir », puis « Reprendre » ou « Le jeter » ; une facture avec client se reprend du serveur'
+prouver 'reprendre 3 : la pièce neuve qui ne propose pas de reprendre' web/public/v10/app.js \
+  '      if (brouillonD && brouillonD.garde()) brouillonD.relire().then(b => {' '      if (false) brouillonD.relire().then(b => {' \
+  'sur « mon ordinateur » : quitter ne demande rien, « Rouvrir », puis « Reprendre » ou « Le jeter » ; une facture avec client se reprend du serveur'
+prouver 'reprendre 4 : gardée, la pièce annonce encore « Modifications non enregistrées »' web/public/v10/app.js \
+  'guard.dirty() && !(guard.estGarde && guard.estGarde())' 'guard.dirty()' \
+  'sur « mon ordinateur » : quitter ne demande rien, « Rouvrir », puis « Reprendre » ou « Le jeter » ; une facture avec client se reprend du serveur'
+prouver 'reprendre 5 : la commande commencée qui ne se reprend pas' web/public/v10/app.js \
+  '    if (brouillonCf && !reprisCf) brouillonCf.relire()' '    if (false) brouillonCf.relire()' \
+  'la commande fournisseur se garde et se reprend ; sur un poste partagé, la question reste et dit pourquoi'
+# Deux gardes : l'enregistrement efface le brouillon, et le bandeau écarte une commande déjà rangée ; sans les deux, il revient.
+prouver 'reprendre 6 : la commande enregistrée qui reste à reprendre' web/public/v10/app.js \
+  "      if (brouillonCf) { clearTimeout(cfTimer); brouillonCf.effacer(); cfEtatGarde = ''; }
+|||> 7 * 86400000 || commandesF().some(x => x.id === d.id)) { brouillonCf.effacer(); return; }" '|||> 7 * 86400000) { brouillonCf.effacer(); return; }' \
+  'la commande fournisseur se garde et se reprend ; sur un poste partagé, la question reste et dit pourquoi'
+prouver 'reprendre 7 : la question du poste partagé qui ne dit pas pourquoi' web/public/v10/app.js \
+  '      partage ? `Rien ne se garde' '      false ? `Rien ne se garde' \
+  'la commande fournisseur se garde et se reprend ; sur un poste partagé, la question reste et dit pourquoi'
+prouver 'cabinet reprendre 1 : l'"'"'écriture commencée qui ne se garde pas sur le poste' web/public/v10/cabinet/app.js \
+  '    if (!apresGarde && brouillonE) { clearTimeout(gardeETimer); gardeETimer = setTimeout(garderSaisies, 1000); }' '' \
+  'gardée sur « mon ordinateur », elle se reprend après l'"'"'onglet fermé ; ailleurs, fermer l'"'"'onglet demande'
+prouver 'cabinet reprendre 2 : la saisie rouverte qui ne propose pas de reprendre' web/public/v10/cabinet/app.js \
+  ' proposerReprise(el, root, dossier); }' ' }' \
+  'gardée sur « mon ordinateur », elle se reprend après l'"'"'onglet fermé ; ailleurs, fermer l'"'"'onglet demande'
+prouver 'cabinet reprendre 3 : l'"'"'écriture reprise puis enregistrée qui reste sur le poste' web/public/v10/cabinet/app.js \
+  ' gardeesE.set(dossier.id, JSON.stringify(d));' '' \
+  'gardée sur « mon ordinateur », elle se reprend après l'"'"'onglet fermé ; ailleurs, fermer l'"'"'onglet demande'
+prouver 'cabinet reprendre 4 : le poste partagé qui ferme l'"'"'onglet sans un mot' web/public/plateforme/pont-cabinet.js \
+  'window.onbeforeunload = Array.isArray(noms) && noms.length && !gardees ?' 'window.onbeforeunload = false ?' \
+  'gardée sur « mon ordinateur », elle se reprend après l'"'"'onglet fermé ; ailleurs, fermer l'"'"'onglet demande'
+prouver 'cabinet reprendre 5 : gardée, l'"'"'onglet qui demande encore à la fermeture' web/public/plateforme/pont-cabinet.js \
+  ' && noms.length && !gardees ?' ' && noms.length ?' \
+  'gardée sur « mon ordinateur », elle se reprend après l'"'"'onglet fermé ; ailleurs, fermer l'"'"'onglet demande'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

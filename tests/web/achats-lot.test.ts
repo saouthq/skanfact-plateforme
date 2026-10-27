@@ -250,9 +250,10 @@ describe('le lot achats, à l\'écran', () => {
     expect(net(await p.locator('[data-combo=category] .combo-val').innerText())).toBe('Emballages');
     // Les lignes de la facture, dans l'ordre de ses réceptions : les sacs d'abord, la farine ensuite.
     expect(await p.locator('#b-lines input[data-k=label]').evaluateAll((xs) => xs.map((x) => (x as HTMLInputElement).value))).toEqual(['Sacs kraft 2 kg', 'Farine T55, sac 25 kg']);
-    // On le quitte sans l'enregistrer (par le chemin, en tête : il n'y a plus de bouton « retour ») : la question le nomme.
+    // On le quitte sans l'enregistrer (par le chemin, en tête : il n'y a plus de bouton « retour ») : sur ce poste, rien ne se
+    // garde (pas « mon ordinateur »), alors la question le nomme et dit pourquoi il serait perdu (1.164.0).
     await p.locator('.ed-chemin .ed-retour').click();
-    await expect.poll(async () => net(await p.locator('#modal-root').innerText()), { timeout: 5_000 }).toContain('Tu as modifié cet avoir sans enregistrer.');
+    await expect.poll(async () => net(await p.locator('#modal-root').innerText()), { timeout: 5_000 }).toContain('Rien ne se garde sur cet ordinateur : tu es connecté sans « mon ordinateur » (un poste partagé, ou une fenêtre privée). En quittant, cet avoir commencé est perdu.');
     await p.getByRole('button', { name: 'Quitter sans enregistrer', exact: true }).click();
 
     // 7. Une facture lue en photo, sans échéance écrite : elle prend le délai du fournisseur (45 jours, pas 30).

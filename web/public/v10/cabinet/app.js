@@ -4423,7 +4423,7 @@
     if (sm) sm.onclick = () => allerSousOnglet(root, dossier, 'saisie');
     // Une lecture ratée se retente par son bouton, jamais toute seule (`lectureRatee`).
     $$('[data-relire-ecran]', el).forEach(b => { b.onclick = () => { s[b.dataset.relireEcran] = null; drawLivres(root, dossier); }; });
-    if (s.onglet === 'saisie') { brancherSaisie(el, root, dossier); dessinerAbonnements(el, dossier); }
+    if (s.onglet === 'saisie') { brancherSaisie(el, root, dossier); dessinerAbonnements(el, dossier); proposerReprise(el, root, dossier); }
     else if (s.onglet === 'recherche') brancherRecherche(el, root, dossier);
     else if (s.onglet === 'banque') brancherBanque(el, root, dossier);
     else if (s.onglet === 'declaration') brancherDeclaration(el, root, dossier);
@@ -8916,12 +8916,59 @@
   // liste de l'interface précédente et demande pour une pièce qui n'existe plus (7.28.0 : un
   // drapeau se remet à jour quand l'état DISPARAÎT, pas seulement quand il se pose).
   let dernierSignal = null;
-  function signalerSaisies() {
+  function signalerSaisies(apresGarde) {
     const noms = nomsDesSaisies();
-    const cle = noms.join('|');
-    if (cle !== dernierSignal) { dernierSignal = cle; try { api.saisieEnCours(noms); } catch (_) { /* pont absent en test */ } }
+    const gardees = saisiesGardees();
+    const cle = noms.join('|') + (gardees ? '·gardées' : '');
+    if (cle !== dernierSignal) { dernierSignal = cle; try { api.saisieEnCours(noms, gardees); } catch (_) { /* pont absent en test */ } }
+    if (!apresGarde && brouillonE) { clearTimeout(gardeETimer); gardeETimer = setTimeout(garderSaisies, 1000); }
     // Le point de l'onglet se met à jour SANS redessiner : on est au milieu d'une frappe (7.17.0).
     $$('[data-sale]').forEach(x => { x.hidden = !saleDe(x.dataset.sale); });
+  }
+
+  // (1.164.0, décision du 27/10/2026, comme les pièces de l'entreprise) Sur « mon ordinateur », la pièce commencée de
+  // chaque dossier se garde aussi sur le poste, chiffrée, une seconde après la dernière frappe : elle vivait en mémoire, et
+  // un onglet fermé (ou une panne) la perdait. La saisie du dossier propose ensuite de la reprendre ; enregistrée ou
+  // vidée, elle s'efface. Sur l'ordinateur d'un autre, rien ne se garde, et fermer l'onglet demande (pont-cabinet.js).
+  const brouillonE = api.brouillonEcriture && typeof api.brouillonEcriture.garde === 'function' && api.brouillonEcriture.garde() ? api.brouillonEcriture : null;
+  const gardeesE = new Map(); // dossier → la pièce telle qu'elle est gardée (JSON)
+  let gardeETimer = null;
+  const piecesAGarder = () => {
+    const l = Object.entries(saisieState.enAttente).filter(([, x]) => pieceEnCours(x));
+    if (saisieState.dossierId && pieceEnCours(saisieState.piece)) l.push([saisieState.dossierId, saisieState.piece]);
+    return l;
+  };
+  const saisiesGardees = () => !!brouillonE && piecesAGarder().every(([id, x]) => gardeesE.get(id) === JSON.stringify(x));
+  async function garderSaisies() {
+    if (!brouillonE) return;
+    const l = piecesAGarder();
+    for (const [id, x] of l) {
+      const j = JSON.stringify(x);
+      if (gardeesE.get(id) !== j) { await brouillonE.garder(id, { p: JSON.parse(j), le: Date.now() }).catch(() => { /* la frappe suivante réessaie */ }); gardeesE.set(id, j); }
+    }
+    for (const id of [...gardeesE.keys()]) if (!l.some(([x]) => x === id)) { gardeesE.delete(id); await brouillonE.effacer(id).catch(() => { /* déjà parti */ }); }
+    signalerSaisies(true);
+  }
+  // Le bandeau commun aux pièces neuves (maquettes facture, devis, achat : « Reprendre » ou « Le jeter »).
+  const quandCommence = ts => { const q = new Date(ts); return `le ${q.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', timeZone: 'Africa/Tunis' })} à ${q.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Tunis' }).replace(':', ' h ')}`; };
+  function proposerReprise(el, root, dossier) {
+    // Ce que ce poste garde de la pièce de CETTE session (enregistrée ou vidée à l'instant) s'efface : rien à proposer.
+    if (!brouillonE || pieceEnCours(saisieState.piece) || gardeesE.has(dossier.id)) return;
+    brouillonE.relire(dossier.id).then(b => {
+      const d = b && b.contenu && b.contenu.p;
+      const tete = $('#sa-tete', el);
+      if (!d || !tete || !document.contains(tete) || saisieState.dossierId !== dossier.id || pieceEnCours(saisieState.piece) || gardeesE.has(dossier.id) || $('#sa-reprendre')) return;
+      if (Date.now() - (b.contenu.le || 0) > 7 * 86400000) { brouillonE.effacer(dossier.id).catch(() => {}); return; }
+      const nl = lignesReelles(d).length;
+      const ban = document.createElement('div');
+      ban.className = 'bandeau info reprise'; ban.id = 'sa-reprendre'; ban.setAttribute('role', 'status');
+      ban.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 10a4 4 0 0 1 0 8z"/></svg>`
+        + `<span class="txt"><b>Écriture commencée ${esc(quandCommence(b.contenu.le))}, pas encore enregistrée</b><span>${esc([d.journal, String(d.libelle || '').trim() ? `« ${String(d.libelle).trim()} »` : '', nl ? pl(nl, 'ligne') : ''].filter(Boolean).join(' · '))}. Gardée sur cet ordinateur seulement : elle n'est au brouillard qu'une fois enregistrée.</span></span>`
+        + '<span class="rep-g"><button type="button" class="btn btn-sm rep-ok" id="sa-reprendre-ok">Reprendre</button><button type="button" class="btn btn-sm" id="sa-reprendre-non">Le jeter</button></span>';
+      tete.before(ban);
+      $('#sa-reprendre-ok', ban).onclick = () => { saisieState.piece = d; gardeesE.set(dossier.id, JSON.stringify(d)); drawLivres(root, dossier); };
+      $('#sa-reprendre-non', ban).onclick = () => { brouillonE.effacer(dossier.id).catch(() => {}); ban.remove(); toast('Brouillon jeté : rien n\'avait été enregistré.'); };
+    }).catch(() => { /* rien à proposer */ });
   }
 
   // Un jour du calendrier, jamais un instant : `K.today()` rend le jour LOCAL, et la comparaison se

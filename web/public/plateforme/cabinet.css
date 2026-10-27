@@ -21,3 +21,14 @@ body { box-sizing: border-box; padding-top: var(--poste-bandeau-h, 0px); }
 /* (1.105.0) Une écriture gardée sur le poste, qui attend le réseau (docs/hors-ligne.md, H15) : sa marque se lit, dans la
    teinte d'un avertissement, droite dans une ligne de brouillard en italique (vue pâle à l'écran le 22/10/2026). */
 .badge.sa-attente { background: var(--warning-soft); color: var(--warning); font-style: normal; }
+
+/* (1.164.0, décision du 27/10/2026) Le bandeau « Reprendre » d'une écriture commencée et gardée sur ce poste : le même que
+   celui des pièces neuves de l'entreprise (plateforme/piece.css, maquettes facture, devis et achat, état « reprendre »). */
+#sa-reprendre { display: flex; gap: 12px; align-items: center; padding: 12px 14px; margin-bottom: 12px; border-radius: 12px; font-size: 13.5px;
+  background: var(--ch-bleu-bandeau); border: 1px solid var(--ch-bleu-trait); }
+#sa-reprendre > svg { flex: none; color: #4d7cf2; }
+#sa-reprendre .txt { flex: 1; display: grid; gap: 2px; min-width: 0; }
+#sa-reprendre .txt b { font-weight: 650; }
+#sa-reprendre .txt span { color: var(--sb-gris); font-size: 13px; line-height: 1.45; }
+#sa-reprendre .rep-g { display: flex; gap: 6px; margin-left: auto; flex-wrap: wrap; align-self: center; }
+#sa-reprendre .rep-ok { font-weight: 600; }

@@ -2428,7 +2428,19 @@
     // Ce que le Cabinet envoie sans attendre de réponse (le signalement d'une erreur, « une saisie
     // est en cours ») : ils ne doivent jamais échouer, sinon l'échec se signale à son tour, sans fin.
     supportErreur: async () => undefined,
-    saisieEnCours: async () => undefined,
+    // (1.164.0, décision du 27/10/2026) Une écriture commencée et pas enregistrée : gardée sur « mon ordinateur », fermer
+    // l'onglet ne demande rien (la saisie la propose au retour, « Reprendre ») ; ailleurs, rien ne se garde, et le
+    // navigateur demande avant de fermer (il fermait sans un mot : la pièce était perdue).
+    saisieEnCours: async (/** @type {string[]} */ noms, /** @type {boolean} */ gardees) => {
+      window.onbeforeunload = Array.isArray(noms) && noms.length && !gardees ? (e) => { e.preventDefault(); return ''; } : null;
+    },
+    // Le brouillon d'une écriture, un par dossier, chiffré sur le poste (plateforme/poste.js).
+    brouillonEcriture: {
+      garde: () => !!(poste && poste.garde()),
+      garder: (/** @type {string} */ dossier, /** @type {unknown} */ contenu) => (poste ? poste.garderBrouillon(`${cabinetId}.${dossier}`, contenu, 'ecriture') : Promise.resolve()),
+      relire: (/** @type {string} */ dossier) => (poste ? poste.relireBrouillon(`${cabinetId}.${dossier}`, 'ecriture') : Promise.resolve(null)),
+      effacer: (/** @type {string} */ dossier) => (poste ? poste.effacerBrouillon(`${cabinetId}.${dossier}`, 'ecriture') : Promise.resolve()),
+    },
   };
 
   // Tout le reste : les écouteurs ne font rien ; chaque geste se refuse avec sa phrase.

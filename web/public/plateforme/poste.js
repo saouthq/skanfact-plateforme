@@ -111,12 +111,17 @@
   // « mon ordinateur », chiffré comme la copie, pour le reprendre si l'onglet se ferme. Un achat enregistré compte (TVA,
   // stock, écritures) : un brouillon ne peut donc pas vivre parmi les achats ; il vit ici, et jamais pendant une lecture
   // pour le support. Effacé avec l'entreprise, à la déconnexion, et quand l'achat s'enregistre ou se jette.
-  /** @param {string} ent @param {unknown} contenu */
-  async function garderBrouillon(ent, contenu) { if (garde() && !enLecture) await garder('copies', `b:achat:${ent}`, contenu); }
-  /** @param {string} ent */
-  const relireBrouillon = async (ent) => (garde() && !enLecture ? relire('copies', `b:achat:${ent}`) : null);
-  /** @param {string} ent */
-  async function effacerBrouillon(ent) { if (!enLecture) await faire('copies', 'readwrite', (s) => s.delete(`b:achat:${ent}`)); }
+  // (1.164.0, Skander le 27/10/2026 : « on va le mettre dans chaque parcours où on peut sortir ») Toute pièce neuve a le sien,
+  // rangé par sa sorte (« achat », « devis », « facture »…) : un devis commencé ne remplace pas l'achat commencé.
+  const SORTES = ['achat', 'devis', 'facture', 'avoir', 'proforma', 'commande', 'livraison', 'contrat', 'commandeF', 'ecriture'];
+  /** @param {string} sorte */
+  const sorteSure = (sorte) => (SORTES.includes(sorte) ? sorte : 'achat');
+  /** @param {string} ent @param {unknown} contenu @param {string} [sorte] */
+  async function garderBrouillon(ent, contenu, sorte = 'achat') { if (garde() && !enLecture) await garder('copies', `b:${sorteSure(sorte)}:${ent}`, contenu); }
+  /** @param {string} ent @param {string} [sorte] */
+  const relireBrouillon = async (ent, sorte = 'achat') => (garde() && !enLecture ? relire('copies', `b:${sorteSure(sorte)}:${ent}`) : null);
+  /** @param {string} ent @param {string} [sorte] */
+  async function effacerBrouillon(ent, sorte = 'achat') { if (!enLecture) await faire('copies', 'readwrite', (s) => s.delete(`b:${sorteSure(sorte)}:${ent}`)); }
   // Ce qui a été enregistré sans réseau (brique 73) : l'état du dossier que l'écran a enregistré, qui
   // part par rapport à la copie (ses révisions disent au serveur ce que le poste avait vu).
   /** @param {string} id @param {unknown} contenu */
@@ -145,7 +150,7 @@
   async function effacerEntreprise(id) {
     if (enLecture) return;
     await faire('copies', 'readwrite', (s) => s.delete(id));
-    await faire('copies', 'readwrite', (s) => s.delete(`b:achat:${id}`));
+    for (const sorte of SORTES) await faire('copies', 'readwrite', (s) => s.delete(`b:${sorte}:${id}`));
     await faire('attentes', 'readwrite', (s) => s.delete(id));
     try { if (localStorage.getItem(DERNIERE) === id) localStorage.removeItem(DERNIERE); } catch { /* rien à retirer */ }
   }
