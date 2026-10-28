@@ -5163,6 +5163,8 @@
         : bal.remaining <= 0.0005 ? 'Réglée : plus rien n\'est dû.'
         : recu ? `Payée en partie : ${argentLu(recu, cur)} sur ${argentLu(t.netToPay, cur)}, reste <b>${argentLu(bal.remaining, cur)}</b>.`
         : `Rien de reçu : reste <b>${C.money(bal.remaining, cur)}</b>.`;
+      // (1.165.0, revue des écarts 1.162.0, maquette « Affaire d'une facture émise ») Émise, la pièce ne change plus ;
+      // l'affaire, si : elle ne s'imprime pas et ne touche ni un montant ni une écriture. Le résumé la dit, avec son lien.
       return `<dl class="lecture-piece" id="lecture-piece">
         ${ligne('Client', doc.clientId ? `<a href="#/client/${h(doc.clientId)}">${h(clientName(doc.clientId))}</a>${charte && (clientById(doc.clientId) || {}).email ? ` · ${h(clientById(doc.clientId).email)}` : ''}` : doc.passage ? `${h(nomClientPiece(doc))} <span class="muted">· client de passage</span>` : '—')}
         ${fi ? ligne('Facture corrigée', `<a href="#/doc/${h(fi.id)}">${h(fi.number)}</a>${doc.creditReason ? ` · ${h(doc.creditReason)}` : ''}`) : ''}
@@ -5179,6 +5181,7 @@
             : `<span class="muted">Pas encore ${isAv ? 'envoyé' : 'envoyée'}${avecFrise ? ' : « Envoyer » dans la frise, ou ⋯ en haut à droite' : ' : ⋯ en haut à droite'}</span>`);
         })() : ''}
         <div class="lp-ligne" id="lp-compta" hidden><dt>Comptabilité</dt><dd></dd></div>
+        ${charte ? `<div class="lp-ligne" id="lp-affaire"><dt>Affaire</dt><dd>${affaireLue()}</dd></div>` : ''}
         ${charte && doc.fromQuoteId && docById(doc.fromQuoteId) ? ligne('Origine', `Suite au devis <a href="#/doc/${h(doc.fromQuoteId)}">${h(docById(doc.fromQuoteId).number || 'devis')}</a>${(() => { const r = docById(doc.fromQuoteId).reponse; return r && r.statut === 'accepté' && r.le ? `, accepté le ${lfJm(r.le)}` : ''; })()}`) : ''}
       </dl>`;
     };
@@ -6879,12 +6882,19 @@
     if (!charte && $('#cl-edit', head)) $('#cl-edit', head).onclick = ouvrirFicheClient;
     majFicheClient();
     bindCombo($('[data-combo=creditOf]', head), { items: invoiceItems(), placeholder: '— Facture concernée —' });
+    function affaireLue() {
+      const pr = doc.projectId ? projectById(doc.projectId) : null;
+      return `<span id="lp-aff-v">${pr ? `<b>${h(pr.name)}</b>` : '<span class="muted">Aucune</span>'}</span> · <button type="button" class="lien-fl" id="lp-aff-b" data-etq="affaire" aria-haspopup="dialog" aria-expanded="false">${pr ? 'Changer' : 'Ranger dans une affaire'}</button><small class="muted"> · ne s'imprime pas</small>`;
+    }
+    // Son lien ouvre la bulle de l'étiquette « Affaire » (la même qu'au brouillon) ; posé quand les étiquettes existent.
+    let lierAffaireLue = () => {};
     // L'affaire est une étiquette de GESTION : elle ne s'imprime pas, n'entre dans aucune écriture et
     // ne change aucun montant. Sur une pièce émise, elle reste donc modifiable et s'enregistre tout
     // de suite — le champ était grisé, et une affaire créée après coup ne pouvait JAMAIS compter les
     // factures déjà émises de son chantier : sa marge restait fausse pour toujours (10.12.0).
     const poserAffaire = v => {
       doc.projectId = v || '';
+      const lpAff = $('#lp-affaire dd'); if (lpAff) { lpAff.innerHTML = affaireLue(); lierAffaireLue(); }
       if (!figee) return;          // pièce modifiable : `head.onchange` et « Enregistrer » s'en chargent
       const st = docById(doc.id); if (!st) return;
       if (v) st.projectId = v; else delete st.projectId;
@@ -8538,6 +8548,8 @@
         return false;
       };
       majEtiquettes(); majEcheance();
+      lierAffaireLue = () => { const b = $('#lp-aff-b'); if (b) b.onclick = () => ouvrirEtiquette(b); };
+      lierAffaireLue();
       const orig = head.onchange;
       head.oninput = head.onchange = e => { orig(e); majEtiquettes(); majEcheance(); };
 

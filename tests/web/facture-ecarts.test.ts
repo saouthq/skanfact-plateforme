@@ -152,4 +152,95 @@ describe('les écarts des maquettes de la facture et de la liste, à la souris',
     await expect.poll(() => p.locator('#rel-q').inputValue().catch(() => ''), { timeout: 15_000 }).toBe('Clinique Les Jasmins');
     expect(erreurs).toEqual([]);
   }, 180_000);
+
+  // (1.162.0, revue des écarts de la maquette facture) Ce que la revue a corrigé et qu'aucun test ne tenait encore : le
+  // mois clôturé (son cadenas, « Refais-la »), l'étape « Envoyée » qui dit « pas encore vue », l'heure dans l'historique,
+  // l'encours (« c'est toi qui décides ») et le stock (« dans le dépôt principal ») avec leurs icônes ; puis l'affaire
+  // d'une facture émise, qui se choisit encore (maquette « Affaire d'une facture émise »).
+  it('la facture émise et son brouillon parlent comme la maquette : mois clôturé, pas encore vue, l\'heure, encours, stock, affaire', async () => {
+    const email = `sarra-ecarts162-${Date.now()}@exemple.tn`;
+    await api('POST', '/inscription', undefined, { email, nom: 'Sarra Mansour', motDePasse: 'Un-bon-mot-de-passe' });
+    const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
+    const ent = String((await api('POST', '/entreprises-essai', jeton)).corps.id);
+    await api('POST', '/moi/code', jeton, { methode: 'application' });
+    expect((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).statut).toBe(200);
+    // La clinique, plafonnée à 500 DT d'encours ; une caméra suivie en stock, dont il ne reste rien ; une affaire en cours.
+    const client = { id: 'c-jas', name: 'Clinique Les Jasmins', email: 'compta@jasmins.tn', creditLimit: 500 };
+    const debutMois = (d: number) => `${jour(d).slice(0, 7)}-01`;
+    const facture = debutMois(-62);
+    await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [
+      { collection: 'clients', cle: client.id, rang: 20, revision: null, contenu: client },
+      { collection: 'catalog', cle: 'cam', rang: 0, revision: null, contenu: { id: 'cam', label: 'Caméra IP extérieure', unit: 'u', unitPrice: { '~n': '245.5' }, unitCost: { '~n': '180' }, vatRate: 19, tracked: true } },
+      { collection: 'projects', cle: 'aff', rang: 0, revision: null, contenu: { id: 'aff', name: 'Réseau de la clinique', clientId: client.id, status: 'en cours', startDate: facture } },
+    ] });
+    const e = await api('POST', `/entreprises/${ent}/dossier-v10/emettre`, jeton, { document: { id: 'f1', type: 'facture', number: '', status: 'brouillon', date: facture, dueDate: facture, createdAt: 10,
+      subject: 'Maintenance du réseau', discountRate: 0, withholdingRate: 0, applyStamp: false, payments: [], clientId: client.id, currency: 'DT',
+      emails: [{ date: facture, to: client.email, kind: 'facture' }],
+      lines: [{ label: 'Maintenance du réseau', description: '', qty: 12, unit: 'h', unitPrice: { '~n': '45.375' }, vatRate: 19 }] }, client, revision: null, rang: 0, netAPayer: '647.955' });
+    expect(String((e.corps.contenu as Record<string, unknown> | undefined)?.number ?? e.corps.motif)).toMatch(/^FAC-/);
+    // Le mois de la facture est clôturé (jusqu'au dernier jour du mois suivant).
+    const fin = new Date(Date.UTC(Number(facture.slice(0, 4)), Number(facture.slice(5, 7)) + 1, 0)).toISOString().slice(0, 10);
+    const cl = await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: '_racine', cle: 'closedUntil', rang: null, revision: null, contenu: fin }] });
+    expect(cl.statut).toBe(200);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    await cx.addInitScript(() => { const x = new URLSearchParams(location.search).get('e'); if (x) sessionStorage.setItem('skanfact.essai_tel_quel', x); });
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (x) => erreurs.push(x.message));
+
+    // 1. Un brouillon daté dans le mois clôturé : le cadenas, et le geste qui ne perd rien (une pièce émise, elle, est déjà
+    // verrouillée : son bandeau est celui de la pièce émise).
+    await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: 'documents', cle: 'b0', rang: 2, revision: null, contenu: { id: 'b0', type: 'facture', number: '', status: 'brouillon',
+      date: facture, dueDate: facture, createdAt: 5, subject: 'Oubli d\'août', discountRate: 0, withholdingRate: 0, applyStamp: true, payments: [], clientId: client.id, currency: 'DT',
+      lines: [{ label: 'Câble réseau', description: '', qty: 1, unit: 'u', unitPrice: { '~n': '12' }, vatRate: 19 }] } }] });
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/b0`);
+    await plusTard(p);
+    const clos = p.locator('#clos-banner');
+    await clos.waitFor({ timeout: 20_000 });
+    expect(net(await clos.innerText())).toMatch(/^\S+ est clôturé : ce brouillon daté du \d\d\/\d\d ne se modifie plus Une saisie dans un mois clôturé changerait une TVA déjà déclarée\. Refais-le à la date d'aujourd'hui : rien n'est perdu\. Voir les clôtures$/);
+    expect(await clos.locator(':scope > svg').count()).toBe(1);
+    // L'étape « Envoyée » d'une facture dont le lien a été donné : sa date, et « pas encore vue » (jamais ouvert).
+    expect((await api('POST', `/entreprises/${ent}/espace/liens`, jeton, { client: client.id, piece: 'f1' })).statut).toBe(201);
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/f1`);
+    await plusTard(p);
+    await expect.poll(() => p.locator('#ed-frise li.fait[data-k=envoyee]').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('pas encore vue');
+    // L'historique dit l'heure de l'émission.
+    await p.locator('#more-btn').click();
+    await p.getByRole('menuitem', { name: /^Historique/ }).click();
+    const histo = p.locator('#ed-histo-p');
+    await histo.waitFor();
+    expect((await histo.locator('.h-l small').allInnerTexts()).map(net).some((x) => /^\d\d\/\d\d · \d{1,2} h \d\d$/.test(x))).toBe(true);
+    await p.keyboard.press('Escape');
+
+    // 2. L'affaire d'une facture émise se choisit encore, depuis le résumé ; elle ne s'imprime pas.
+    const ligneAff = p.locator('#lecture-piece .lp-ligne', { hasText: 'Affaire' });
+    expect(net(await ligneAff.innerText())).toBe('Affaire Aucune · Ranger dans une affaire · ne s\'imprime pas');
+    await ligneAff.getByRole('button', { name: 'Ranger dans une affaire' }).click();
+    await p.locator('.pop-o', { hasText: 'Réseau de la clinique' }).click();
+    await expect.poll(async () => net(await p.locator('#toast').innerText().catch(() => ''))).toContain('compte désormais dans « Réseau de la clinique »');
+    await expect.poll(() => ligneAff.innerText().then(net)).toBe('Affaire Réseau de la clinique · Changer · ne s\'imprime pas');
+    await p.screenshot({ path: path.join(PHOTOS, 'facture-ecarts-3-affaire.png') });
+    type Objet = { collection: string; cle: string; contenu: Record<string, unknown> };
+    await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).corps.objets as Objet[]).find((o) => o.collection === 'documents' && o.cle === 'f1')?.contenu.projectId, { timeout: 10_000 }).toBe('aff');
+
+    // 3. Un brouillon pour la clinique, avec la caméra : l'encours dit qui décide, le stock nomme son dépôt.
+    const pb1 = await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: 'documents', cle: 'b1', rang: 1, revision: null, contenu: { id: 'b1', type: 'facture', number: '', status: 'brouillon',
+      date: jour(0), dueDate: jour(30), createdAt: 20, subject: 'Caméras', discountRate: 0, withholdingRate: 0, applyStamp: true, payments: [], clientId: client.id, currency: 'DT',
+      lines: [{ label: 'Caméra IP extérieure', description: '', qty: 2, unit: 'u', unitPrice: { '~n': '245.5' }, vatRate: 19, itemId: 'cam' }] } }] });
+    expect(pb1.statut).toBe(200);
+    // La page est déjà ouverte : seul le « # » change, il faut la recharger pour qu'elle lise la pièce neuve.
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/b1`);
+    await p.reload();
+    await plusTard(p);
+    const encours = p.locator('.bandeau', { hasText: 'encours autorisé' });
+    await encours.waitFor({ timeout: 20_000 });
+    expect(net(await encours.innerText())).toMatch(/ou émets quand même : c'est toi qui décides\./);
+    expect(await encours.locator(':scope > svg').count()).toBe(1);
+    const stock = p.locator('.bandeau', { hasText: 'Stock insuffisant' });
+    expect(net(await stock.locator('b').innerText())).toBe('Stock insuffisant sur « Caméra IP extérieure » dans le dépôt principal');
+    expect(await stock.locator(':scope > svg').count()).toBe(1);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 180_000);
 });

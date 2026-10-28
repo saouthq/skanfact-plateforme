@@ -20806,6 +20806,24 @@ prouver 'cabinet reprendre 4 : le poste partagé qui ferme l'"'"'onglet sans un 
 prouver 'cabinet reprendre 5 : gardée, l'"'"'onglet qui demande encore à la fermeture' web/public/plateforme/pont-cabinet.js \
   ' && noms.length && !gardees ?' ' && noms.length ?' \
   'gardée sur « mon ordinateur », elle se reprend après l'"'"'onglet fermé ; ailleurs, fermer l'"'"'onglet demande'
+# ── L'affaire d'une facture émise et les corrections de 1.162.0 enfin testées (1.165.0 ; docs/maquettes-appliquees.md) ──
+T_EMISE='la facture émise et son brouillon parlent comme la maquette : mois clôturé, pas encore vue, l'"'"'heure, encours, stock, affaire'
+prouver 'émise 1 : le brouillon d'"'"'un mois clôturé sans le geste qui ne perd rien' web/public/v10/app.js \
+  "à la date d'aujourd'hui : rien n'est perdu." "à la date d'aujourd'hui." "$T_EMISE"
+prouver 'émise 2 : un lien donné et jamais ouvert qui ne dit rien' web/public/plateforme/pont.js \
+  "if (!siens.length) return { vues: 0, vuLe: '' };" 'if (!siens.length) return null;' "$T_EMISE"
+prouver 'émise 3 : l'"'"'historique sans l'"'"'heure' web/public/v10/app.js \
+  '${e.ts && Number.isFinite(new Date(e.ts).getTime()) ? ` · ${new Date(e.ts).getHours()}' '${false ? ` · ${new Date(e.ts).getHours()}' "$T_EMISE"
+prouver 'émise 4 : l'"'"'encours dépassé sans dire qui décide' web/public/v10/app.js \
+  "'ou émets quand même : c\\'est toi qui décides.'" "'ou émets quand même.'" "$T_EMISE"
+prouver 'émise 5 : le stock qui manque sans son dépôt' web/public/v10/app.js \
+  "dans le dépôt \${dn.replace(/^d[ée]p[ôo]t\\s+/i, '')}" 'dans ${dn}' "$T_EMISE"
+prouver 'émise 6 : la facture émise qui tait son affaire' web/public/v10/app.js \
+  '${charte ? `<div class="lp-ligne" id="lp-affaire">' '${false ? `<div class="lp-ligne" id="lp-affaire">' "$T_EMISE"
+prouver 'émise 7 : « Ranger dans une affaire » qui n'"'"'ouvre rien' web/public/v10/app.js \
+  'if (b) b.onclick = () => ouvrirEtiquette(b); };' 'if (b) b.onclick = null; };' "$T_EMISE"
+prouver 'émise 8 : l'"'"'affaire choisie que la ligne ne dit pas' web/public/v10/app.js \
+  "const lpAff = \$('#lp-affaire dd'); if (lpAff) { lpAff.innerHTML = affaireLue(); lierAffaireLue(); }" '' "$T_EMISE"
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

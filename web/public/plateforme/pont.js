@@ -1326,8 +1326,12 @@
     // Une lecture, rien n'est envoyé ; sans lien de la pièce : null.
     vuesPiece: LECTURE ? null : async (/** @type {{ id: string, clientId: string }} */ doc) => {
       const r = await appel('GET', `/espace/liens?client=${encodeURIComponent(doc.clientId)}`);
-      const siens = (r.liens || []).filter((/** @type {any} */ l) => l.piece === doc.id && l.vuLe);
-      if (!siens.length) return null;
+      // (1.165.0) Un lien donné et jamais ouvert dit « pas encore vue » : seuls les liens vus étaient gardés, et l'écran
+      // ne recevait jamais « 0 vue » (la phrase de la maquette n'apparaissait jamais). Sans lien donné, rien à dire.
+      const liens = (r.liens || []).filter((/** @type {any} */ l) => l.piece === doc.id);
+      if (!liens.length) return null;
+      const siens = liens.filter((/** @type {any} */ l) => l.vuLe);
+      if (!siens.length) return { vues: 0, vuLe: '' };
       const vues = siens.reduce((/** @type {number} */ a, /** @type {any} */ l) => a + (Number(l.vues) || 0), 0);
       const vuLe = siens.map((/** @type {any} */ l) => String(l.vuLe)).sort().pop();
       return { vues, vuLe };
