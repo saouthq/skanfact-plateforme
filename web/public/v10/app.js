@@ -8101,7 +8101,9 @@
       if ($('#del')) { a.push({ sep: true }); a.push({ icon: 'supprimer', label: isNew ? 'Abandonner ce brouillon' : 'Supprimer le brouillon', hint: 'il n\'a pas de numéro : rien ne manque à la série', danger: true, run: parBouton('del') }); }
       RowMenu.ouvrir(bouton, a, { titre: doc.number || (isNew ? title : `${title}${doc.clientId ? ' · ' + ((clientById(doc.clientId) || {}).name || '') : ''}`), classe: 'gestes-menu', label: 'Tous les gestes de la pièce' });
     }
-    if ($('#more-btn') && charte) $('#more-btn').onclick = e => { e.stopPropagation(); ouvrirGestes(e.currentTarget); };
+    // (plateforme, 1.166.1) Le bouton ouvre le menu de la charte : c'est lui qui dit s'il est ouvert (la liste cachée reste
+    // cachée), et le suivi des menus « ▾ » ne le réécrit plus à « fermé » pendant qu'il est ouvert.
+    if ($('#more-btn') && charte) { const b = $('#more-btn'); b.dataset.menuCharte = '1'; b.setAttribute('aria-haspopup', 'menu'); b.setAttribute('aria-expanded', 'false'); b.removeAttribute('aria-controls'); b.onclick = e => { e.stopPropagation(); ouvrirGestes(e.currentTarget); }; }
     else if ($('#more-btn')) $('#more-btn').onclick = e => { e.stopPropagation(); const l = $('#more-list'); const open = l.hidden; closeMenus(); l.hidden = !open; };
     $$('#more-list button:not(.i)').forEach(b => b.addEventListener('click', () => { $('#more-list').hidden = true; }));
     if ($('#conv-btn')) $('#conv-btn').onclick = e => { e.stopPropagation(); const l = $('#conv-list'); const open = l.hidden; closeMenus(); l.hidden = !open; };
@@ -12575,7 +12577,7 @@
     menusSuivis = 0;
     $$('.more').forEach(m => {
       const b = m.querySelector(':scope > .btn'), l = m.querySelector(':scope > .more-list');
-      if (!b || !l) return;
+      if (!b || !l || b.dataset.menuCharte) return;
       if (!l.id) l.id = 'menu' + (++uiSeq);
       const etait = b.getAttribute('aria-expanded') === 'true', ouvert = !l.hidden;
       b.setAttribute('aria-controls', l.id);

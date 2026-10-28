@@ -204,9 +204,10 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
     expect(await restes.locator('.btn-primary').count()).toBe(0);
     // (1.156.0, maquette « Accueil ») L'en-tête n'a plus « Nouvelle facture » : un seul bouton principal sur la page.
     expect(await p.locator('#view .btn-primary').count()).toBeLessThanOrEqual(1);
-    // Chaque geste mène où il dit : le comptable, à l'onglet du cabinet.
+    // Chaque geste mène où il dit : le comptable, à « Mon comptable » (1.159.0, maquette complements.html : la page sans
+    // cabinet, qui l'invite).
     await restes.locator('[data-pas="mandat"]').click();
-    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/compta');
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/comptable');
     await p.evaluate(() => { location.hash = '#/dashboard'; });
     await restes.waitFor();
     await restes.locator('#pp-restes-masquer').click();

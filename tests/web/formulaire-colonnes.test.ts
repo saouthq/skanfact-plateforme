@@ -1,6 +1,7 @@
 // Les colonnes d'un formulaire ne s'élargissent pas pour un long nom (1.100.0, parcours du 21/10/2026). Sami fait un
 // devis pour « Entreprise Générale de Bâtiment Chaabane » : la colonne du client s'élargissait au nom entier, et les
-// deux dates voisines coupaient l'année (« 21/10/202 »). Les trois colonnes restent égales ; le nom finit par « … ».
+// deux dates voisines coupaient l'année (« 21/10/202 »). Les trois colonnes restent égales. (1.166.2, charte de la
+// facture) Le nom a sa propre carte, au-dessus des dates : il s'y lit en entier, sans déborder.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -30,7 +31,7 @@ describe('les colonnes d\'un formulaire, avec un long nom de client', () => {
     return { statut: r.status, corps: (t ? JSON.parse(t) : {}) as Record<string, unknown> };
   };
 
-  it('les deux dates d\'un devis se lisent en entier, et le nom du client finit par « … »', async () => {
+  it('les deux dates d\'un devis se lisent en entier, et le long nom du client tient dans sa carte', async () => {
     const email = `sami-${Date.now()}-${Math.random().toString(36).slice(2, 6)}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Sami', motDePasse: 'Un-bon-mot-de-passe' });
     const jeton = String((await api('POST', '/connexion', undefined, { email, motDePasse: 'Un-bon-mot-de-passe', appareil: { nom: 'Poste', type: 'navigateur' } })).corps.jeton);
@@ -49,18 +50,24 @@ describe('les colonnes d\'un formulaire, avec un long nom de client', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/d1`);
     await p.locator('#f-head .datefield .d-txt').first().waitFor({ timeout: 20_000 });
     const mesure = await p.evaluate(() => {
+      // (lot 4, maquette facture) La validité est une case « 30 jours · 20/11/2026 » qui ouvre son choix, plus un champ de date.
       const dates = [...document.querySelectorAll<HTMLInputElement>('#f-head .datefield .d-txt')];
+      const validite = document.querySelector<HTMLElement>('#f-head #ed-ech');
       const colonnes = getComputedStyle(document.querySelector('#f-head') as HTMLElement).gridTemplateColumns.split(' ').map(parseFloat);
-      const nom = document.querySelector('#f-head [data-combo="clientId"] .combo-val') as HTMLElement;
-      return { valeurs: dates.map((d) => d.value), coupees: dates.filter((d) => d.scrollWidth > d.clientWidth).length, colonnes,
-        nomCoupe: nom.scrollWidth > nom.clientWidth };
+      const nom = document.querySelector('#f-head #ed-client .ed-cl-nom b') as HTMLElement;
+      const carte = (document.querySelector('#f-head #ed-client') as HTMLElement).getBoundingClientRect();
+      return { valeurs: [...dates.map((d) => d.value), (validite?.textContent ?? '').replace(/\s+/g, ' ').trim()],
+        coupees: [...dates, ...(validite ? [validite] : [])].filter((d) => d.scrollWidth > d.clientWidth).length, colonnes,
+        nom: nom.innerText, nomDeborde: nom.scrollWidth > nom.clientWidth || nom.getBoundingClientRect().right > carte.right + 0.5 };
     });
-    expect(mesure.valeurs).toEqual(['21/10/2026', '20/11/2026']);
+    expect(mesure.valeurs[0]).toBe('21/10/2026');
+    expect(mesure.valeurs[1]).toMatch(/· 20\/11\/2026$/);
     // Trois colonnes égales (au pixel près), quel que soit le nom du client.
     expect(Math.max(...mesure.colonnes) - Math.min(...mesure.colonnes)).toBeLessThan(1);
     expect(mesure.coupees).toBe(0);
-    // Ce qui ne tient pas, c'est le nom : il finit par « … » dans sa propre colonne.
-    expect(mesure.nomCoupe).toBe(true);
+    // Le nom, lui, a la place de toute la carte : entier, et dedans.
+    expect(mesure.nom).toBe('Entreprise Générale de Bâtiment Chaabane');
+    expect(mesure.nomDeborde).toBe(false);
     await cx.close();
     expect(erreurs).toEqual([]);
   }, 120_000);

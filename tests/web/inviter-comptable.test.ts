@@ -68,6 +68,11 @@ describe('inviter son comptable par e-mail, à la souris', () => {
     await expect.poll(verts, { timeout: 10_000 }).toEqual(['Inviter mon comptable']);
     await e.locator('#mandat-code').fill('ABC123');
     expect(await verts()).toEqual(['Confier mon dossier']);
+    // Revenu dans l'adresse, le vert revient à « Inviter mon comptable » (le chemin qu'on reprend) ; puis au code.
+    await e.locator('#mandat-email').click();
+    expect(await verts()).toEqual(['Inviter mon comptable']);
+    await e.locator('#mandat-code').click();
+    expect(await verts()).toEqual(['Confier mon dossier']);
     await e.goto(`${serveur.adresse}/v10/?e=${ent}#/parametres`);
     await e.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await e.getByRole('tab', { name: 'Envois', exact: true }).click();

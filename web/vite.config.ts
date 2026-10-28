@@ -10,7 +10,7 @@ import path from 'node:path';
 import react from '@vitejs/plugin-react';
 import { build, defineConfig, type Plugin } from 'vite';
 import { PLANCHER } from '../commun/navigateurs.ts';
-import { allegerLesEcrans } from './alleger.ts';
+import { allegerLesEcrans, PRECOMPRESSER, precompresserLesEcrans } from './alleger.ts';
 
 // La console se construit À PART, dans console/ (ses fichiers sous /console/assets) : construite avec l'entrée, les deux
 // pages se partageaient un morceau de code (React), que l'entrée aurait téléchargé deux fois à sa première ouverture —
@@ -35,7 +35,12 @@ export default defineConfig({
     // Les écrans partent sans leurs commentaires (docs/leger.md, L6) : public/ est copié tel quel, puis allégé.
     name: 'skanfact-ecrans-sans-commentaires',
     apply: 'build',
-    writeBundle(sortie) { if (sortie.dir) allegerLesEcrans(sortie.dir); },
+    writeBundle(sortie) {
+      if (!sortie.dir) return;
+      allegerLesEcrans(sortie.dir);
+      // La production les compresse aussi d'avance, au plus fort (docs/leger.md, L7).
+      if (process.env[PRECOMPRESSER] === '1') precompresserLesEcrans(sortie.dir);
+    },
   }, laConsole()],
   // Le plancher des navigateurs (commun/navigateurs.ts) : Firefox 121 et non le 114 du défaut de Vite (« :has() »).
   build: { outDir: '../dist/web', emptyOutDir: true, target: PLANCHER },

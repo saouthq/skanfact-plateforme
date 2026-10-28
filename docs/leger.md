@@ -110,6 +110,30 @@ parties avec lui échouait à son tour, et son « Hors ligne depuis… » recouv
 l'écran », sur un écran vide (vu par GitHub le 13/10/2026, `tests/web/hors-ligne.test.ts`). La page close par un message
 qui l'explique (`sansCopie`, `conclure`, dans `plateforme/poste.js`) ne se fait plus recouvrir.
 
+## L7 : les écrans compressés d'avance, au plus fort (28/10/2026)
+
+Le 28/10/2026, GitHub a mesuré S1 à **1 329 Ko** pour un seuil de 1 300 (rouge depuis la 1.159 : la facture, le devis,
+l'achat et l'accueil des maquettes avaient fait grossir les écrans, 4,5 Mo → 5,6 Mo avant compression). Une mesure qui
+dépasse change le plan, pas le seuil : on prend le premier levier gardé en réserve depuis L6, brotli 11.
+
+| Fichier | brotli 9 | brotli 11 | calcul au niveau 11 |
+|---|---|---|---|
+| `v10/app.js` | 402 Ko | 368 Ko | 3,9 s |
+| `v10/core.js` | 123 Ko | 113 Ko | 1,2 s |
+| `v10/guide.js` | 97 Ko | 90 Ko | 0,7 s |
+| la page v10 entière | 1 040 Ko | 960 Ko | |
+
+Ce calcul ne se fait pas à la première demande (le premier visiteur attendrait ces secondes) : il se fait **une fois, à la
+construction de la production** (`exploitation/suivre.ts`, `SKANFACT_PRECOMPRESSER=1`). Chaque script, feuille de style
+et dessin de nos écrans reçoit à côté de lui « nom.br » (`web/alleger.ts`) ; le serveur l'envoie tel quel s'il est plus
+récent que son fichier, sinon il compresse au niveau 9 comme avant (`serveur/ecrans.ts`) ; un « nom.br » demandé seul ne
+part jamais. Les constructions des tests s'en passent (chacune coûterait ces secondes), sauf `leger.test.ts`, qui
+construit comme la production puisqu'il mesure ce qu'elle envoie.
+
+- **Mesuré** : S1 **1 249 Ko en 13,7 s** (1 328 Ko en 14,7 s avant) ; S2 inchangé (6 Ko, 1,9 s).
+- **Reste en réserve** : les visites guidées à la demande (`visite.js` et `visites.js`, environ 80 Ko). La marge est
+  de 50 Ko : la prochaine page refaite sur sa maquette se mesure avant d'être envoyée.
+
 ## Ce qui reste (et pourquoi)
 
 - **S4 sur l'ordinateur d'un autre** : sans copie gardée (la session ne vit que dans l'onglet), tout le dossier repart à

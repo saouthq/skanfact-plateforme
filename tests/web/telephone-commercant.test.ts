@@ -269,9 +269,13 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     expect(phrase.right).toBeLessThanOrEqual(390);
     await p.screenshot({ path: path.join(PHOTOS, 'telephone-facture-emise.png') });
 
-    // Le devis : « Facturer ce devis », sa bulle et son « ▾ » sur la même rangée, en tête.
+    // Le devis envoyé : « Le client a accepté… » au bas de l'écran ; « Facturer ▾ » ouvre « Facturer ce devis », sa bulle
+    // sur la même rangée, et les autres chemins dessous. (1.166.2 : le test mesurait le menu FERMÉ, où tout vaut 0.)
     await aller(p, '#/doc/dv1', /^Devis DEV-2026-001/);
+    await p.locator('#ed-geste #bill-btn').click();
+    await p.locator('#bill-list #convert').waitFor();
     const bouton = await rect(p, '#convert');
+    expect(bouton.width).toBeGreaterThan(0);
     const bulleDevis = await rect(p, '[data-info="ed.convert"]');
     // (1.155.12, maquette du devis) Les autres chemins (« Facture d'acompte… », « Transformer ») passent sous le bouton.
     const fleche = await rect(p, '#deposit');

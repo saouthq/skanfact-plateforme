@@ -47,11 +47,6 @@ describe('les listes de prix, à la souris', () => {
     }
   };
   const titre = (p: Page) => p.locator('#view h1').first().innerText().then(net);
-  const choisir = async (p: Page, conteneur: string, cherche: string) => {
-    await p.locator(`${conteneur} .combo-btn`).click();
-    await p.locator(`${conteneur} .combo-q`).fill(cherche);
-    await p.locator(`${conteneur} .combo-list [role=option]`).first().click();
-  };
   it('Nadia fait une liste de prix pour ses revendeurs, et leurs factures la suivent', async () => {
     const email = `nadia-listes-${Date.now()}@exemple.tn`;
     await api('POST', '/inscription', undefined, { email, nom: 'Nadia', motDePasse: 'Un-bon-mot-de-passe' });
@@ -78,8 +73,15 @@ describe('les listes de prix, à la souris', () => {
     const p = await cn.newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
-    const prixLigne = (i: number) => p.locator(`#lines tr[data-i="${i}"] input[data-k=unitPrice]`).inputValue();
-    const choisirArticle = async () => { await choisir(p, '#cat-pick', 'Ciment'); };
+    // Les prix des lignes du ciment, dans l'ordre (une ligne vide du brouillon peut les précéder).
+    const prixCiment = () => p.evaluate(() => [...document.querySelectorAll<HTMLTableRowElement>('#lines tr[data-i]')]
+      .filter((tr) => tr.querySelector<HTMLInputElement>('input[data-k=label]')?.value === 'Ciment gris 50 kg')
+      .map((tr) => tr.querySelector<HTMLInputElement>('input[data-k=unitPrice]')?.value ?? ''));
+    // (lot 4, maquette facture) La barre d'ajout (Ctrl L) remplace « Ajouter depuis le catalogue ».
+    const choisirArticle = async () => {
+      await p.locator('#ed-ajout').fill('Ciment');
+      await p.locator('.aj-pop [data-aj]').first().dispatchEvent('mousedown');
+    };
     const ouvrir = async (hash: string, titreAttendu: RegExp) => {
       await p.evaluate((h) => { location.hash = h; }, hash);
       await expect.poll(() => titre(p), { timeout: 10_000 }).toMatch(titreAttendu);
@@ -102,13 +104,13 @@ describe('les listes de prix, à la souris', () => {
     expect(await p.locator('nav a.active').getAttribute('data-route')).toBe('listesprix');
 
     // 2. La facture du revendeur : le ciment à 19,500 ; celle du particulier : 21.
-    await ouvrir('#/doc/f1', /^Facture/);
+    await ouvrir('#/doc/f1', /^(Nouvelle )?[Ff]acture/);
     await choisirArticle();
-    await expect.poll(() => prixLigne(0)).toMatch(/^19\.5(00)?$/);
+    await expect.poll(() => prixCiment().then((l) => l.join())).toMatch(/^19\.5(00)?$/);
     await p.locator('#save').click();
-    await ouvrir('#/doc/f2', /^Facture/);
+    await ouvrir('#/doc/f2', /^(Nouvelle )?[Ff]acture/);
     await choisirArticle();
-    await expect.poll(() => prixLigne(0)).toMatch(/^21(\.000)?$/);
+    await expect.poll(() => prixCiment().then((l) => l.join())).toMatch(/^21(\.000)?$/);
     await p.locator('#save').click();
 
     // 3. Monsieur Trabelsi devient revendeur (sa fiche) : sa nouvelle ligne prend 19,500, l'ancienne garde 21.
@@ -118,10 +120,9 @@ describe('les listes de prix, à la souris', () => {
     await p.locator('#cf input[name=categorieTarif]').fill('Revendeur');
     await p.locator('#modal-root .btn-primary').last().click();
     await expect.poll(() => p.locator('#cf').count()).toBe(0);
-    await ouvrir('#/doc/f2', /^Facture/);
+    await ouvrir('#/doc/f2', /^(Nouvelle )?[Ff]acture/);
     await choisirArticle();
-    await expect.poll(() => prixLigne(1)).toMatch(/^19\.5(00)?$/);
-    expect(await prixLigne(0)).toMatch(/^21(\.000)?$/);
+    await expect.poll(() => prixCiment().then((l) => l.join(' | '))).toMatch(/^21(\.000)? \| 19\.5(00)?$/);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'listes-prix-2-facture.png') });
     await p.locator('#save').click();
 

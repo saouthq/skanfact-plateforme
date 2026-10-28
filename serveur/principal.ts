@@ -242,7 +242,8 @@ export function servirLesEcrans(app: ReturnType<typeof creerApp>, dossier: strin
     // Un dossier sert sa propre page d'entrée (/v10/ : l'application v10) ; une adresse inconnue,
     // l'entrée de l'application.
     if (fs.existsSync(fichier) && fs.statSync(fichier).isDirectory()) fichier = path.join(fichier, 'index.html');
-    if (!fs.existsSync(fichier)) fichier = path.join(racine, 'index.html');
+    // Un « nom.br » préparé à la construction ne part que compressé, pour son fichier (serveur/ecrans.ts).
+    if (!fs.existsSync(fichier) || fichier.endsWith('.br')) fichier = path.join(racine, 'index.html');
     // Léger sur une connexion lente (brique 118 ; docs/leger.md) : un fichier demandé avec son empreinte (« ?v= ») ne
     // change jamais et se garde un an ; sans elle, il se revalide (304 s'il n'a pas changé) ; il part compressé.
     const f = ecrans.lire(fichier);

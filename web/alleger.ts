@@ -13,6 +13,7 @@
 
 import fs from 'node:fs';
 import path from 'node:path';
+import zlib from 'node:zlib';
 import { parseSync } from 'rolldown/utils';
 
 // Les dossiers allégés, sous la racine des écrans construits.
@@ -99,4 +100,26 @@ export function allegerLesEcrans(racine: string): { fichiers: number; avant: num
   };
   for (const d of DOSSIERS_ALLEGES) if (fs.existsSync(path.join(racine, d))) parcourir(path.join(racine, d));
   return bilan;
+}
+
+// Les écrans compressés d'avance (28/10/2026 ; docs/leger.md, L7). Le serveur compresse un écran à sa première demande,
+// au niveau 9 de brotli, vite fait ; le niveau 11 gagne encore environ 80 Ko sur la première ouverture, mais coûte
+// quelques secondes de calcul, qu'aucune première visite ne doit attendre. Il se fait donc une fois, à la construction
+// de la production (exploitation/suivre.ts) : chaque script, feuille de style et dessin de nos écrans reçoit à côté de
+// lui « nom.br », que le serveur envoie tel quel (serveur/ecrans.ts). Les constructions des tests s'en passent (chacune
+// coûterait ces secondes), sauf celle qui mesure ce que la production envoie (tests/web/leger.test.ts).
+export const PRECOMPRESSER = 'SKANFACT_PRECOMPRESSER';
+export function precompresserLesEcrans(racine: string) {
+  const types = /\.(m?js|css|svg|json)$/;
+  for (const dossier of [...DOSSIERS_ALLEGES, 'tiers']) {
+    const base = path.join(racine, dossier);
+    if (!fs.existsSync(base)) continue;
+    for (const nom of fs.readdirSync(base, { recursive: true }) as string[]) {
+      const fichier = path.join(base, nom);
+      if (!types.test(nom) || !fs.statSync(fichier).isFile()) continue;
+      const contenu = fs.readFileSync(fichier);
+      fs.writeFileSync(`${fichier}.br`, zlib.brotliCompressSync(contenu, { params: {
+        [zlib.constants.BROTLI_PARAM_QUALITY]: 11, [zlib.constants.BROTLI_PARAM_SIZE_HINT]: contenu.length } }));
+    }
+  }
 }

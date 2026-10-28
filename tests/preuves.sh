@@ -4902,12 +4902,12 @@ prouver "des paliers gardés dans le désordre" web/public/v10/core.js \
 prouver "un palier illisible enregistré sans un mot" web/public/v10/app.js \
   "          if (lusPaliers.erreur) return refus('#cat-paliers', lusPaliers.erreur);" "" \
   "$PQW"
-prouver "la quantité qui ne choisit pas le palier" web/public/v10/app.js \
-  "            if (el.dataset.k === 'qty' && doc.lines[i].itemId && !doc.lines[i].prixManuel) {" "            if (false) {" \
-  "$PQW"
-prouver "un prix tapé que la quantité écrase" web/public/v10/app.js \
-  "            if (el.dataset.k === 'unitPrice') doc.lines[i].prixManuel = true;" "" \
-  "$PQW"
+prouver 'la quantité qui ne choisit pas le palier' web/public/v10/app.js \
+  "            if (el.dataset.k === 'qty' && l.itemId && !l.prixManuel) {" "            if (false) {" \
+  "Nadia donne au ciment des prix dégressifs, et la ligne de sa facture les suit, jusqu'au prix qu'elle tape"
+prouver 'un prix tapé que la quantité écrase' web/public/v10/app.js \
+  "            if (el.dataset.k === 'unitPrice') { l.prixManuel = true; delete l.puTtc; }" "            if (el.dataset.k === 'unitPrice') { delete l.puTtc; }" \
+  "Nadia donne au ciment des prix dégressifs, et la ligne de sa facture les suit, jusqu'au prix qu'elle tape"
 
 # ── Brique 93 : les listes de prix, par client ou par catégorie (docs/listes-prix.md) ──
 LP1="valent pour un client à une date : celles qui le nomment, puis celles de sa catégorie, la plus récente d'abord"
@@ -4937,9 +4937,9 @@ prouver "la catégorie de prix absente de la fiche du client" web/public/v10/app
 prouver "les listes de prix absentes du menu" web/public/v10/core.js \
   "    { id: 'listesprix', titre: 'Listes de prix', module: 'fichiers', famille: 'Vendre'," "    { id: 'listesprix-absente', titre: 'Listes de prix', module: 'fichiers', famille: 'Vendre'," \
   "$LPW"
-prouver "une ancienne ligne à un prix choisi que la quantité écrase" web/public/v10/app.js \
-  " && Number(auto(ancienneQte)) === Number(doc.lines[i].unitPrice)) {" ") {" \
-  "$PQW"
+prouver 'une ancienne ligne à un prix choisi que la quantité écrase' web/public/v10/app.js \
+  " && Number(auto(ancienneQte)) === Number(l.unitPrice)) {" ") {" \
+  "Nadia donne au ciment des prix dégressifs, et la ligne de sa facture les suit, jusqu'au prix qu'elle tape"
 
 # ── Brique 94 : le stock par dépôt, et les transferts (docs/depots.md) ──
 DP1="chaque mouvement appartient au dépôt de sa pièce ; le stock se lit dépôt par dépôt"
@@ -5700,10 +5700,10 @@ prouver "la page qui installe jamais gardée pour le hors-ligne" web/public/sw.j
 LG6A="L6 : un commentaire part, rien d'autre : ni deux mots collés, ni une ligne déplacée, ni ce qui lui ressemble dans une chaîne"
 LG6B="L6 : nos écrans partent sans un commentaire, et c'est le même programme que le dépôt, ligne pour ligne"
 prouver "les écrans envoyés avec leurs commentaires" web/vite.config.ts \
-  "    writeBundle(sortie) { if (sortie.dir) allegerLesEcrans(sortie.dir); }," "    writeBundle() {}," \
+  "      allegerLesEcrans(sortie.dir);" "      void allegerLesEcrans;" \
   "$LG6B"
 prouver "la première ouverture avec les commentaires, au-delà du seuil" web/vite.config.ts \
-  "    writeBundle(sortie) { if (sortie.dir) allegerLesEcrans(sortie.dir); }," "    writeBundle() {}," \
+  "      allegerLesEcrans(sortie.dir);" "      void allegerLesEcrans;" \
   "$LG12"
 prouver "un bloc de commentaire qui déplace les lignes (et change un « return »)" web/alleger.ts \
   "morceaux.push(lignes ? '\n'.repeat(lignes) : finDeLigne ? '' : ' ');" "morceaux.push(finDeLigne ? '' : ' ');" \
@@ -6874,20 +6874,16 @@ prouver "la liste lit les pièces d'une autre entreprise de la même personne" s
 prouver "les états d'autant de pièces qu'on veut" serveur/v10/routes.ts \
   "if (cles.length > 100) return" "if (cles.length > 1000) return" \
   "$EL"
-prouver "la ligne grandit quand l'état arrive" web/public/plateforme/pont.js \
-  ".ttn-etat { display: block; min-height: 1.4em; }" ".ttn-etat { display: block; }" \
-  "$EW"
+# (1.166.2) Preuve retirée, « la ligne grandit quand l'état arrive » : dans la colonne « El Fatoora » de la liste de la charte (1.154.0), l'état tient dans la hauteur de la rangée sans place gardée : la règle ne sert plus qu'à l'ancienne liste ; le test mesure toujours la hauteur de la rangée.
 prouver "un appel par ligne" web/public/plateforme/pont.js \
   "    for (let i = 0; i < manquent.length; i += 100) {
       const lot = manquent.slice(i, i + 100);" "    for (let i = 0; i < manquent.length; i += 1) {
       const lot = manquent.slice(i, i + 1);" \
   "$EW"
-prouver "chaque frappe redemande les états" web/public/plateforme/pont.js \
-  "if (c && Date.now() - c.le < 20_000) poserEtat(el, c.e);" "if (false) poserEtat(el, c.e);" \
-  "$EW"
-prouver "la liste d'une entreprise non soumise montre l'état" web/public/v10/app.js \
-  "bridge.etatsTtn && company().efacture === true && (d.type" "bridge.etatsTtn && (d.type" \
-  "$EW"
+# (1.166.2) Preuve retirée, « chaque frappe redemande les états » : la liste des factures de la charte (1.154.0) filtre sans faire naître de nouvelle place « El Fatoora » à remplir : même sans la mémoire des états, la frappe ne redemande rien ; le test compte toujours les demandes (une seule).
+prouver 'la liste d'"'"'une entreprise non soumise montre l'"'"'état' web/public/v10/app.js \
+  "const lfAvecTtn = () => !!bridge.etatsTtn && company().efacture === true;" "const lfAvecTtn = () => !!bridge.etatsTtn;" \
+  "chaque facture émise dit où en est son fichier El Fatoora, en un appel pour la page, sans rien pousser"
 prouver "la raison d'une pièce retenue tue" web/public/plateforme/pont.js \
   ": e.motif ? phrase(e.motif) :" ":" \
   "$EW"
@@ -8005,11 +8001,13 @@ prouver 'le menu qui promet un PDF joint au message' web/public/v10/app.js \
   'email: !bridge.ajouterLien ? '\''Le PDF est joint au message'\'' :' 'email: true ? '\''Le PDF est joint au message'\'' :' \
   "$FDW"
 prouver '« Ouvrir » qui propose de modifier une pièce émise' web/public/v10/app.js \
-  'hint: !emiseIci ? '\''Voir la pièce et la modifier'\'' :' 'hint: true ? '\''Voir la pièce et la modifier'\'' :' \
-  "$FDW"
-prouver 'l'\''espace du client sans ce qui a déjà été payé' web/public/espace/espace.js \
-  '${recu(p) ? `<div class="recu">${recu(p)}</div>` : '\'''\''}' '' \
-  "$FDW"
+  "    if (!d.number) return [
+      { icon: 'ouvrir', label: 'Ouvrir', hint: 'Le reprendre et l\\'émettre'" "    if (true) return [
+      { icon: 'ouvrir', label: 'Ouvrir', hint: 'Le reprendre et l\\'émettre'" \
+  "Samia, sans matricule ni RIB : la pièce n'imprime rien de vide, la fiche se complète avant d'émettre, et le reste suit"
+prouver 'l'"'"'espace du client sans ce qui a déjà été payé' web/public/espace/espace.js \
+  "\${recu(sel) ? \`<p class=\"recu\">\${recu(sel)}</p>\` : ''}</section>" "</section>" \
+  "Samia, sans matricule ni RIB : la pièce n'imprime rien de vide, la fiche se complète avant d'émettre, et le reste suit"
 prouver 'le refus du serveur à l'\''émission dans un bandeau de trois secondes' web/public/v10/app.js \
   '          infoDialog(doc.type === '\''avoir'\'' ? '\''L\'\''avoir n\'\''est pas émis'\''' '          toast(motif, true) || void (doc.type === '\''avoir'\'' ? '\''L\'\''avoir n\'\''est pas émis'\''' \
   "$FDW"
@@ -8245,9 +8243,9 @@ prouver "les cases d'une carte sans le titre de leur colonne" web/public/platefo
 prouver "une liste redessinée qui perd ses cartes" web/public/plateforme/telephone.js \
   "prevu = requestAnimationFrame(passer); }).observe(" "prevu = 0; }).observe(" \
   "$TL1"
-prouver "« Actions » qui sort de sa carte" web/public/plateforme/telephone.css \
-  "inset-inline-end: 8px; width: auto; }" "inset-inline-end: 8px; }" \
-  "$TL1"
+prouver '« Actions » qui sort de sa carte' web/public/plateforme/telephone.css \
+  "td.row-actions { position: absolute; top: 8px; inset-inline-end: 8px; width: auto; }" "td.row-actions { position: absolute; top: 8px; inset-inline-end: -60px; width: auto; }" \
+  "les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'ordinateur, un tableau"
 # Les boutons collés au bas d'une fenêtre : la règle du téléphone ET celle de la feuille commune (d3547ac l'y a mise pour
 # toutes les tailles) ; ne retirer que la première ne change plus rien (preuve restée verte sur GitHub, 21/10/2026).
 prouver "« Enregistrer » au bout d'une fenêtre longue" "web/public/plateforme/telephone.css|||web/public/v10/style.css" \
@@ -8257,35 +8255,34 @@ prouver "« Enregistrer » au bout d'une fenêtre longue" "web/public/plateforme
 prouver "« Plus ▾ » accroché à son bouton, hors de l'écran" web/public/plateforme/telephone.css \
   ".more-list { position: fixed; inset: auto 8px" ".more-list { inset: auto 8px" \
   "$TL2"
-prouver "l'étape suivante perdue au milieu de la barre" web/public/plateforme/telephone.css \
-  "{ order: -1; flex-basis: 100%; }" "{ }" \
-  "$TL3"
+prouver 'l'"'"'étape suivante perdue au milieu de la barre' web/public/plateforme/piece.css \
+  "  .ed-geste { position: fixed; left: 0;" "  .ed-geste { left: 0;" \
+  "une pièce au téléphone : l'étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'une pièce émise tient"
 prouver "« WhatsApp » caché dans « Plus » au téléphone" web/public/v10/app.js \
   "\${avecPlus ? '<button class=\"btn tel-seul\" id=\"wa-tel\" title=\"Envoyer par WhatsApp\">WhatsApp</button>' : ''}" "" \
   "$TL3"
-prouver "le « WhatsApp » du téléphone qui ne se montre pas" web/public/plateforme/telephone.css \
-  "  .tel-seul { display: inline-flex; }" "" \
-  "$TL3"
+prouver 'le « WhatsApp » du téléphone qui ne se montre pas' web/public/plateforme/piece.css \
+  "@media (min-width: 761px) {
+  .ed-tete .actions .btn.tel-seul { display: none; }" "@media (min-width: 1px) {
+  .ed-tete .actions .btn.tel-seul { display: none; }" \
+  "une pièce au téléphone : l'étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'une pièce émise tient"
 prouver "le « WhatsApp » du téléphone qui n'envoie rien" web/public/v10/app.js \
   "    if (\$('#wa-tel')) \$('#wa-tel').onclick = envoyerPar(sendByWhatsApp, 'Envoyer par WhatsApp');
 " "" \
   "$TL3"
-prouver "le « WhatsApp » du téléphone montré à l'ordinateur" web/public/plateforme/telephone.css \
-  ".tel-seul { display: none; }" "" \
-  "$TL3"
+prouver 'le « WhatsApp » du téléphone montré à l'"'"'ordinateur' web/public/plateforme/piece.css \
+  "  .ed-tete .actions .btn.tel-seul { display: none; }
+" "" \
+  "une pièce au téléphone : l'étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'une pièce émise tient"
 prouver "la bulle d'un filtre seule sur sa ligne" web/public/plateforme/telephone.css \
   "  .filters > :has(+ button.i) { flex-basis: calc(100% - 56px); }" "" \
   "$TL3"
 prouver "la bulle d'un bouton caché qui reste" web/public/plateforme/telephone.css \
   ".colle-bouton:has(> .btn[hidden]) { display: none; }" "" \
   "$TL3"
-prouver "« Facturer ce devis » séparé de sa bulle" web/public/v10/app.js \
-  "<div class=\"colle-bouton\"><button class=\"btn btn-primary\" id=\"convert\">Facturer ce devis</button>\${info('ed.convert')}
-           <div class=\"more\"><button class=\"btn\" id=\"bill-btn\" aria-label=\"Autres façons de facturer\">▾</button>
-             <div class=\"more-list\" id=\"bill-list\" hidden>\${autresChemins}</div></div></div>\`" "<button class=\"btn btn-primary\" id=\"convert\">Facturer ce devis</button>\${info('ed.convert')}
-           <div class=\"more\"><button class=\"btn\" id=\"bill-btn\" aria-label=\"Autres façons de facturer\">▾</button>
-             <div class=\"more-list\" id=\"bill-list\" hidden>\${autresChemins}</div></div>\`" \
-  "$TL3"
+prouver '« Facturer ce devis » séparé de sa bulle' web/public/v10/app.js \
+  "const ligneMenu = (bouton, cle) => \`<div class=\"ml-ligne\">\${bouton}\${info(cle)}</div>\`;" "const ligneMenu = (bouton, cle) => \`\${bouton}\${info(cle)}\`;" \
+  "une pièce au téléphone : l'étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'une pièce émise tient"
 prouver "le bandeau d'une pièce émise sur la moitié du téléphone" web/public/plateforme/telephone.css \
   "  .lock-banner .tel-detail { display: none; }" "" \
   "$TL3"
@@ -18269,9 +18266,10 @@ prouver 'la recherche de l'\''accueil qui ouvre la liste pour un seul nom' web/c
   '    const lien = cherche ? await laSeuleFiche(api, { q: cherche }) : null;' '    const lien = cherche ? null : null;' \
   'Clients au clavier : Ctrl K, le nom, « Entrée » ouvre la seule fiche trouvée, depuis Clients comme depuis l'\''accueil'
 
-prouver '« Aperçu » qui masque l'\''aperçu du bas de page au téléphone' web/public/plateforme/telephone.js \
-  '  function demarrer() { suivre(); apercuEnGrand(); suivreLesLignes(); }' '  function demarrer() { suivre(); void apercuEnGrand; suivreLesLignes(); }' \
-  'une pièce au téléphone : l'\''étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'\''une pièce émise tient'
+prouver '« Aperçu » qui masque l'"'"'aperçu du bas de page au téléphone' web/public/v10/app.js \
+  "      if (\$('#ed-grand')) \$('#ed-grand').onclick = () => apercuPleinEcran();
+" "" \
+  "une pièce au téléphone : l'étape suivante dans la barre du bas, « WhatsApp » en tête, chaque bulle avec son bouton ; le bandeau d'une pièce émise tient"
 
 prouver 'un matricule mal formé enregistré sans un mot par la fiche société' web/public/v10/app.js \
   "      if (mfEl && String(v.matricule || '').trim() && !C.matriculeBienForme(v.matricule)) {" '      if (false) {' \
@@ -18362,18 +18360,25 @@ prouver 'une pièce jointe de plus de 10 Mo acceptée' serveur/v10/pieces-jointe
 prouver 'le panneau des pièces jointes encore caché sur la plateforme' web/public/plateforme/pont.js \
   $'\'p-editeur\', \'p-cloture-cabinet\'' $'\'p-editeur\', \'p-pj\', \'p-cloture-cabinet\'' \
   'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
-prouver '« Ouvrir » une pièce jointe qui laisse un onglet vide' web/public/plateforme/pont.js \
-  $'if (w && montrer) { montrer(w, adresse, nom, type); w.opener = null; }' $'if (w && montrer) { w.opener = null; }' \
-  'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
+prouver '« Ouvrir » une pièce jointe qui laisse un onglet vide' web/public/v10/app.js \
+  "\${image ? \`<img src=\"\${lu.adresse}\" alt=\"\${h(nom)}\">\`" "\${image ? \`<img alt=\"\${h(nom)}\">\`" \
+  "joint, ouvert, téléchargé, gardé après un rechargement, puis retiré"
 prouver '« Télécharger le fichier » qui ne télécharge rien' web/public/plateforme/pont.js \
-  $'      const { adresse, nom } = await lirePiece(fichier);\n      enregistrerSous(adresse, nom);\n' $'      await lirePiece(fichier);\n' \
-  'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
+  "      const { adresse, nom } = await lirePiece(fichier);
+      enregistrerSous(adresse, nom);
+" "      await lirePiece(fichier);
+" \
+  "joint, ouvert, téléchargé, gardé après un rechargement, puis retiré"
 prouver 'un seul fichier joint quand on en choisit deux' web/public/plateforme/pont.js \
   $'i.type = \'file\'; i.accept = accepte; i.multiple = true; i.hidden = true;' $'i.type = \'file\'; i.accept = accepte; i.hidden = true;' \
   'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
-prouver 'une pièce jointe refusée dont l'\''écran ne dit rien' web/public/v10/app.js \
-  $'          const added = await bridge.addAttachments(doc.id);\n          if (!added.length) return;' $'          const added = await bridge.addAttachments(doc.id).catch(() => []);\n          if (!added.length) return;' \
-  'un fichier qui n'\''est ni une photo ni un PDF se refuse, et dit pourquoi'
+prouver 'une pièce jointe refusée dont l'"'"'écran ne dit rien' web/public/v10/app.js \
+  "          } catch (e) { toast(plainError(e), true); }
+        };
+        const dePiece" "          } catch { /* rien */ }
+        };
+        const dePiece" \
+  "un fichier qui n'est ni une photo ni un PDF se refuse, et dit pourquoi"
 
 prouver 'les sauvegardes de l'\''entreprise lues par un commercial' base/migrations/0161_mes_sauvegardes.sql \
   $'  if socle.ma_cle() is not null or not (socle.mes_roles(p_entreprise) && array[\'proprietaire\', \'administrateur\']::text[]) then' $'  if socle.ma_cle() is not null or not (socle.mes_roles(p_entreprise) && array[\'proprietaire\', \'administrateur\', \'commercial\']::text[]) then' \
@@ -18453,9 +18458,7 @@ prouver 'le .zip des PDF qui ne dit pas son nom' web/public/v10/app.js \
   $'toast(`${files.length} PDF exportés dans ${dir.split(/[\\\\/]/).pop()}`)' $'toast(`${files.length} PDF exportés`)' \
   'Exporter tous les PDF de la période'
 
-prouver 'au clavier, « + description » entre la désignation et la quantité d'\''une ligne' web/public/v10/app.js \
-  $'class="link-add" tabindex="-1" data-desc="${i}"' $'class="link-add" data-desc="${i}"' \
-  'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
+# (1.166.2) Preuve retirée, « au clavier, « + description » entre la désignation et la quantité d'une ligne » : la ligne de la charte n'a plus de « + description » dans la rangée (il est dans son menu ⋯) : rien ne se glisse entre la désignation et la quantité ; le test tape toujours la ligne d'un trait.
 
 prouver 'le refus d'\''une entreprise pas ouverte qui ne nomme pas le compte connecté' web/public/plateforme/pont.js \
   $'ton compte${email ? ` (${email})` : \'\'} ne fait pas partie' $'ton compte ne fait pas partie' \
@@ -18479,9 +18482,10 @@ prouver 'le comptable invité, le curseur qui tombe au début de la page' web/pu
 prouver 'le lien du comptable copié sans une phrase qui le dise' web/public/plateforme/pont.js \
   $'(zone.querySelector(\'#mandat-lien-copie\'));\n        try { await navigator.clipboard.writeText(champ.value); copier.textContent = \'Lien copié\'; dit.textContent = \'Lien copié : colle-le dans ton message à ton comptable.\';|||(el.querySelector(\'#mandat-lien-copie\'));\n        try { await navigator.clipboard.writeText(champ.value); copier.textContent = \'Lien copié\'; dit.textContent = \'Lien copié : colle-le dans ton message à ton comptable.\';' $'(zone.querySelector(\'#mandat-lien-copie\'));\n        try { await navigator.clipboard.writeText(champ.value); copier.textContent = \'Lien copié\'; void dit;|||(el.querySelector(\'#mandat-lien-copie\'));\n        try { await navigator.clipboard.writeText(champ.value); copier.textContent = \'Lien copié\'; void dit;' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien'
-prouver 'le premier pas « Inviter mon comptable » qui laisse le curseur au début de la page' web/public/v10/app.js \
-  $'if (champ) { champ.scrollIntoView({ block: \'center\' }); champ.focus(); }' $'if (champ) { champ.scrollIntoView({ block: \'center\' }); }' \
-  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien'
+prouver 'le premier pas « Inviter mon comptable » qui laisse le curseur au début de la page' web/public/plateforme/pont.js \
+  "    if (o.focus) email.focus();
+" "" \
+  "le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien"
 prouver 'une pièce neuve qui laisse le curseur nulle part' web/public/v10/app.js \
   $'      if (debut) debut.focus({ preventScroll: true });' $'      void debut;' \
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
@@ -19912,15 +19916,13 @@ prouver 'mois 127 : la carte du mois sans son vert' web/public/v10/cabinet/app.j
 prouver 'mois 127 : « Valider » qui mène au livre-journal' web/public/v10/cabinet/app.js \
   "if (v) v.onclick = () => ouvrir(true);" "if (v) v.onclick = () => ouvrir(false);" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'mois 128 : la carte vide des questions avant l'\''invitation' web/public/v10/app.js \
-  ": \`\${mandatPanneau}\${messagerieVue && messagerieVue.cabinet ? panneauQuestions() : ''}\`;" ": \`\${panneauQuestions()}\${mandatPanneau}\`;" \
-  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
-prouver 'mois 128 : le vert sur le code quand le curseur est dans l'\''adresse' web/public/plateforme/pont.js \
-  "for (const ev of ['focus', 'input']) { email.addEventListener(ev, () => suivre(true)); code?.addEventListener(ev, () => suivre(false)); }" "for (const ev of ['input']) { code?.addEventListener(ev, () => suivre(false)); }" \
-  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+# (1.166.2) Preuve retirée, « mois 128 : la carte vide des questions avant l'invitation » : la page « Mon comptable » (1.159.0) n'a pas de carte des questions : l'invitation n'y passe plus par Comptabilité › Cabinet.
+prouver 'mois 128 : le vert sur le code quand le curseur est dans l'"'"'adresse' web/public/plateforme/pont.js \
+  "for (const ev of ['focus', 'input']) { email.addEventListener(ev, () => suivre(true)); code.addEventListener(ev, () => suivre(false)); }" "for (const ev of ['input']) { code.addEventListener(ev, () => suivre(false)); }" \
+  "le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée"
 prouver 'mois 128 : le vert qui ne revient pas au code tapé' web/public/plateforme/pont.js \
-  "code?.addEventListener(ev, () => suivre(false));" "void code;" \
-  'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+  "for (const ev of ['focus', 'input']) { email.addEventListener(ev, () => suivre(true)); code.addEventListener(ev, () => suivre(false)); }" "for (const ev of ['focus', 'input']) { email.addEventListener(ev, () => suivre(true)); void code; }" \
+  "le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée"
 prouver 'mois 128 : le cabinet qui nomme un chemin que le client ne prend pas' web/public/plateforme/pont-cabinet.js \
   "dans <strong>Comptabilité › Cabinet</strong> (ou Paramètres › Envois)," "dans <strong>Paramètres → Envois → Ton cabinet comptable</strong>," \
   'le client confie son dossier par le code que le Cabinet affiche ; l'\''associé accepte sur sa page Dossiers ; le client arrête le mandat après confirmation'
@@ -19955,11 +19957,11 @@ prouver 'mois 133 : la pièce émise restée un formulaire grisé' web/public/v1
   "const lecture = locked && (isInv || isAv) && !isNew;" "const lecture = false;" \
   'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
 prouver 'mois 133 : le reçu compté sans les paiements' web/public/v10/app.js \
-  "const recu = bal ? C.round3(bal.paid + bal.credited) : 0;" "const recu = bal ? C.round3(bal.credited) : 0;" \
-  'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
-prouver 'mois 133 : les cases grisées encore là sous le résumé' web/public/v10/style.css \
-  ".editor.lecture #f-head > :not(#ed-affaire) { display: none; }" ".editor.lecture #f-head > :not(#ed-affaire) { }" \
-  'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
+  "        const recu = C.round3(bal.paid + bal.credited);" "        const recu = C.round3(bal.credited);" \
+  "Samia, sans matricule ni RIB : la pièce n'imprime rien de vide, la fiche se complète avant d'émettre, et le reste suit"
+prouver 'mois 133 : les cases grisées encore là sous le résumé' 'web/public/v10/style.css|||web/public/plateforme/piece.css' \
+  ".editor.lecture #f-head > :not(#ed-affaire) { display: none; }|||.editor.charte.lecture #f-head > :not(.ed-options), .editor.charte.lecture .ed-options > :not(#ed-affaire) { display: none; }" ".editor.lecture #f-head > :not(#ed-affaire) { }|||.editor.charte.lecture #f-head > :not(.ed-options), .editor.charte.lecture .ed-options > :not(#ed-affaire) {  }" \
+  "Samia, sans matricule ni RIB : la pièce n'imprime rien de vide, la fiche se complète avant d'émettre, et le reste suit"
 prouver 'mois 133 : une écriture validée dite au brouillard' web/public/v10/app.js \
   "el.querySelector('dd').innerHTML = (x.statut === 'validee'" "el.querySelector('dd').innerHTML = (x.statut === 'valide'" \
   'Samia, sans matricule ni RIB : la pièce n'\''imprime rien de vide, la fiche se complète avant d'\''émettre, et le reste suit'
@@ -20094,9 +20096,7 @@ prouver 'ux3 144 : le Cabinet qui propose une visite sur chaque écran neuf de l
 prouver 'ux3 144 : « Ne plus me proposer de visites » du Cabinet qui n'"'"'éteint rien' web/public/v10/cabinet/app.js \
   '      visitesPoser(e => { e.proposer = false; });' '' \
   'au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d'"'"'un geste'
-prouver 'ux3 145 : « Enregistrer le brouillon » relégué derrière l'"'"'aperçu au téléphone' web/public/plateforme/telephone.css \
-  '  .page-head .actions:has(> #save:not(.btn-primary)) > * { order: 2; }' '' \
-  'au plus étroit (320 points, au doigt), aucun écran du quotidien ne fait glisser la page de côté'
+# (1.166.2) Preuve retirée, « ux3 145 : « Enregistrer le brouillon » relégué derrière l'aperçu au téléphone » : la tête de l'ancien formulaire (« Enregistrer » à la ligne, derrière « Aperçu ») ; la facture de la charte met « Garder le brouillon » sous « Émettre » par son dessin, et le test à 320 points le vérifie (['issue', 'save']).
 prouver 'ux3 146 : une facture de vente en retard dite en orange, un achat en retard en rouge' web/public/plateforme/charte.css \
   '.badge.retard, .badge.b-late { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }' '.badge.retard { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); } .badge.b-late { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }' \
   'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu, annulée calme'
@@ -20112,9 +20112,9 @@ prouver 'ux3 147 : « 0 devis envoyé » sous « Devis en attente »' web/public
 prouver 'ux3 148 : les filtres du téléphone, une rangée chacun' web/public/plateforme/telephone.css \
   '  .filters > :is(label.inline, span.muted.small, .btn-sm) { flex: 0 1 auto; }' '' \
   'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'"'"'ordinateur le disent'
-prouver 'ux3 149 : la désignation d'"'"'une pièce émise coupée au téléphone' web/public/plateforme/telephone.css \
-  '  td:has(> .ligne-lue) > input[data-k="label"] { display: none; }' '' \
-  'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'"'"'ordinateur, un tableau'
+prouver 'ux3 149 : la désignation d'"'"'une pièce émise coupée au téléphone' web/public/plateforme/piece.css \
+  ".ed-tel-l .t-l b { font-weight: 600; min-width: 0; overflow-wrap: anywhere; }" ".ed-tel-l .t-l b { font-weight: 600; white-space: nowrap; overflow: hidden; }" \
+  "les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'ordinateur, un tableau"
 prouver 'ux3 150 : l'"'"'explication d'"'"'une pièce émise en gras bleu' web/public/plateforme/charte.css \
   'font-size: 13.5px; font-weight: 400; line-height: 1.45; color: var(--sb-encre);' 'font-size: 13.5px; font-weight: 600; line-height: 1.45; color: var(--sb-encre);' \
   'à l'"'"'entreprise et au Cabinet : en retard en rouge, partielle en orange, émise et à payer en bleu, annulée calme'
@@ -20348,8 +20348,8 @@ prouver 'facture 1 : l'"'"'e-mail absent du ⋯ d'"'"'une facture' web/public/v1
   '${emailDansPlus || ((isInv || isAv) && !isNew) ? `<button id="email">' '${emailDansPlus ? `<button id="email">' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
 prouver 'facture 2 : la retenue du client qui ne le dit pas' web/public/v10/app.js \
-  'rs.textContent = duClient ? '"'"'· du client'"'"' : '"'"''"'"';' 'rs.textContent = '"'"''"'"';' \
-  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+  "rs ? \`\${pct(rs)} %\${duClient ? ' · du client' : ''}" "rs ? \`\${pct(rs)} %\${''}" \
+  "le brouillon : carte du client, puces, totaux par taux, avant d'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas"
 prouver 'facture 3 : la remise du pied des lignes qui ne change rien' web/public/v10/app.js \
   '        head.oninput({ target: champ });
 ' '' \
@@ -20361,12 +20361,12 @@ prouver 'facture 5 : la TVA par taux sans sa base' web/public/v10/app.js \
   ' sur ${nu(t.vatByRate[r].base)}</td>' '</td>' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
 prouver 'facture 6 : Entrée sur la dernière ligne sans ligne de plus' web/public/v10/app.js \
-  '          doc.lines.push(C.newLine(company())); touch(); drawLines();
-          const lab' '          const lab' \
-  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+  "          doc.lines.push(C.newLine(company())); touch(); dessinerLignesCharte();
+" "" \
+  "le brouillon : carte du client, puces, totaux par taux, avant d'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas"
 prouver 'facture 7 : « Dupliquer la ligne » qui ne duplique rien' web/public/v10/app.js \
-  'run: () => dupliquerLigne(i) },' 'run: () => {} },' \
-  'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
+  "{ icon: 'copier', label: 'Dupliquer', note: 'Ctrl D', run: () => dupliquerLigneC(i) }," "{ icon: 'copier', label: 'Dupliquer', note: 'Ctrl D', run: () => {} }," \
+  "le brouillon : carte du client, puces, totaux par taux, avant d'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas"
 prouver 'facture 8 : une facture payée en partie dite payée' web/public/v10/app.js \
   '      const paye = b && b.remaining <= 0.0005;' '      const paye = !!b;' \
   'le brouillon : carte du client, puces, totaux par taux, avant d'"'"'émettre, gestes des lignes ; émise : la frise et le paiement ; au téléphone, le geste au bas'
@@ -20858,6 +20858,25 @@ prouver 'voile des paquets 2 : une entrée de la barre glissée qui appelle les 
   "    const paquets = 'pathForFile' in api;
     const fichier = e => !!e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');" "    const paquets = true;
     const fichier = () => true;" "$T_VOILE"
+# 1.166.2 — la visite « Faire une facture » sur la facture de la charte, la compression préparée (L7), le menu « ⋯ ».
+T_FACG="Skander, sur un compte neuf : l'exemple se remplit, la découverte va au bout, puis sa vraie entreprise et sa première facture, guidée jusqu'au brouillon"
+prouver 'facture guidée 1 : la barre d’ajout passée, la désignation visée dans une ligne qui n’existe pas' web/public/v10/visites.js \
+  "si: () => !!\$('#ed-ajout'), cible: '#ed-ajout', cote: 'dessous', faire: 'valeur', titre: 'Ajouter une ligne',
+          texte: 'Tape ce que tu vends : SkanFact te propose ce qui ressemble dans ton catalogue, avec son prix. <b>Entrée</b> ajoute l\\'article choisi, ou une ligne libre avec ce que tu as tapé.',
+          action: 'Tape ce que tu factures" "si: () => false, cible: '#ed-ajout', cote: 'dessous', faire: 'valeur', titre: 'Ajouter une ligne',
+          texte: 'Tape ce que tu vends : SkanFact te propose ce qui ressemble dans ton catalogue, avec son prix. <b>Entrée</b> ajoute l\\'article choisi, ou une ligne libre avec ce que tu as tapé.',
+          action: 'Tape ce que tu factures" "$T_FACG"
+prouver 'facture guidée 2 : « Choisis le client » visé dans une case cachée, la visite saute à « Les autres cases »' web/public/v10/visites.js \
+  "{ cible: ['#ed-pourqui', '#ed-client', combo('clientId')], cote: 'droite', faire: 'valeur', bouton: 'C\\'est fait',
+          titre: 'Choisis le client', texte: 'Clique dans la liste, tape les premières lettres de son nom, et choisis-le. S\\'il n\\'existe pas encore, « + Nouveau client » en bas de la liste le crée sans quitter la facture." "{ cible: combo('clientId'), cote: 'droite', faire: 'valeur', bouton: 'C\\'est fait',
+          titre: 'Choisis le client', texte: 'Clique dans la liste, tape les premières lettres de son nom, et choisis-le. S\\'il n\\'existe pas encore, « + Nouveau client » en bas de la liste le crée sans quitter la facture." "$T_FACG"
+T_L7="L7 : un écran part en brotli préparé à la construction ; retouché depuis, il se recompresse ; « nom.br » ne se lit pas seul"
+prouver 'L7 1 : le brotli préparé à la construction laissé de côté' serveur/ecrans.ts \
+  "if (fs.statSync(pret).mtimeMs >= f.mtime) v = fs.readFileSync(pret);" "if (fs.existsSync(pret)) v = fs.readFileSync(pret);" "$T_L7"
+prouver 'L7 2 : « nom.br » servi par son nom' serveur/principal.ts \
+  "if (!fs.existsSync(fichier) || fichier.endsWith('.br')) fichier" "if (!fs.existsSync(fichier)) fichier" "$T_L7"
+prouver 'le menu « ⋯ » de la charte refermé par la surveillance des anciens menus' web/public/v10/app.js \
+  "if (!b || !l || b.dataset.menuCharte) return;" "if (!b || !l) return;" "au clavier, un menu « ▾ » d'un devis : le curseur dans la liste, les flèches, Échap rend le curseur au bouton"
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

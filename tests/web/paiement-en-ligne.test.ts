@@ -125,8 +125,8 @@ describe('le paiement en ligne, à la souris', () => {
     const erreursClient: string[] = [];
     client.on('pageerror', (e) => erreursClient.push(e.message));
     await client.goto(lien);
-    await expect.poll(async () => net(await client.locator('.carte.du').innerText()), { timeout: 15_000 }).toBe('Tu dois 873,190 DT Pour payer en ligne, ouvre la facture (« Voir »).');
-    await client.getByRole('button', { name: 'Voir', exact: true }).click();
+    await expect.poll(async () => net(await client.locator('.carte.du').innerText()), { timeout: 15_000 }).toBe('Tu dois 873,190 DT 1 facture à payer · échéance le 31/10/2026');
+    // (maquette espace client) La seule facture à payer s'ouvre d'elle-même : « Payer » est là, sans « Voir ».
     const payer = client.getByRole('button', { name: /^Payer 873,190\sDT en ligne$/ });
     await payer.waitFor({ timeout: 10_000 });
     expect(await client.locator('button.principal').allInnerTexts()).toEqual([await payer.innerText()]);
@@ -155,7 +155,7 @@ describe('le paiement en ligne, à la souris', () => {
     await coupe.close();
     await client.getByRole('link', { name: 'Revenir à ton espace', exact: true }).click();
     await expect.poll(async () => net(await client.locator('.carte.du').innerText()), { timeout: 15_000 }).toBe('Rien à payer Merci !');
-    expect(net(await client.locator('table.pieces tbody').innerText())).toBe('Facture FAC-2026-001 Payée Payé : 1 073,190 DT 01/10/2026 31/10/2026 1 073,190 DT 0,000 DT Voir');
+    expect(net(await client.locator('table.pieces tbody').innerText())).toBe('FAC-2026-001 Payé : 1 073,190 DT 01/10/2026 éch. 31/10/2026 1 073,190 DT Payée Ouverte');
     await client.screenshot({ path: path.join(PHOTOS, 'paiement-5-releve.png') });
 
     // Chez Nadia : le paiement est sur la facture, au compte « Konnect », et le panneau le dit reçu.

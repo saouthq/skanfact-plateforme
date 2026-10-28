@@ -14,7 +14,7 @@ import path from 'node:path';
 import { compresser, type Encodage } from './compression.ts';
 import { NUMERO } from './console/versions.ts';
 
-type Fichier = { mtime: number; taille: number; contenu: Buffer; empreinte: string; variantes: Map<Encodage, Buffer> };
+type Fichier = { chemin: string; mtime: number; taille: number; contenu: Buffer; empreinte: string; variantes: Map<Encodage, Buffer> };
 
 const empreinte = (b: Buffer) => createHash('sha256').update(b).digest('hex').slice(0, 16);
 
@@ -44,12 +44,12 @@ export function fichiersDesEcrans(racine: string, version = 'dev') {
     const st = fs.statSync(fichier);
     if (fichier.endsWith('.html')) {
       const contenu = Buffer.from(versionner(fichier, fs.readFileSync(fichier, 'utf8')));
-      return { mtime: st.mtimeMs, taille: st.size, contenu, empreinte: empreinte(contenu), variantes: new Map() };
+      return { chemin: fichier, mtime: st.mtimeMs, taille: st.size, contenu, empreinte: empreinte(contenu), variantes: new Map() };
     }
     const connu = memoire.get(fichier);
     if (connu && connu.mtime === st.mtimeMs && connu.taille === st.size) return connu;
     const contenu = fs.readFileSync(fichier);
-    const f = { mtime: st.mtimeMs, taille: st.size, contenu, empreinte: empreinte(contenu), variantes: new Map<Encodage, Buffer>() };
+    const f = { chemin: fichier, mtime: st.mtimeMs, taille: st.size, contenu, empreinte: empreinte(contenu), variantes: new Map<Encodage, Buffer>() };
     memoire.set(fichier, f);
     return f;
   }
@@ -79,10 +79,16 @@ export function fichiersDesEcrans(racine: string, version = 'dev') {
     return versionnee.slice(0, apres) + marque + annonces + versionnee.slice(apres);
   }
 
-  // Le contenu compressé, fait une fois (une page HTML : à chaque fois, elle est petite).
+  // Le contenu compressé, fait une fois (une page HTML : à chaque fois, elle est petite). Brotli : celui que la
+  // construction a préparé au plus fort (« nom.br », plus récent que le fichier ; docs/leger.md, L7), sinon fait ici.
   function compresse(f: Fichier, encodage: Encodage): Buffer {
     let v = f.variantes.get(encodage);
-    if (!v) { v = compresser(f.contenu, encodage, true); f.variantes.set(encodage, v); }
+    if (!v && encodage === 'br') {
+      const pret = `${f.chemin}.br`;
+      try { if (fs.statSync(pret).mtimeMs >= f.mtime) v = fs.readFileSync(pret); } catch { /* pas préparé : fait ici */ }
+    }
+    if (!v) v = compresser(f.contenu, encodage, true);
+    f.variantes.set(encodage, v);
     return v;
   }
 

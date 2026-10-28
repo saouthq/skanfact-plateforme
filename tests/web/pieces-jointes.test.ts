@@ -112,6 +112,9 @@ describe('les pièces jointes d\'un devis, à la souris', () => {
     await expect.poll(() => ligne.getAttribute('aria-selected')).toBe('true');
     await p.locator('#attachments .ac-pj-vue').click();
     await expect.poll(() => p.locator('#pv-full .pj-pages').innerText().then((t) => t.replace(/[\u202f\u00a0]/g, ' ')).catch(() => ''), { timeout: 20_000 }).toBe('Ce PDF ne se montre pas ici : « Télécharger » le garde sur cet appareil.');
+    // « Télécharger » le garde, sous son nom (1.166.2 : le test ne le touchait plus depuis la fenêtre en grand).
+    const [garde] = await Promise.all([p.waitForEvent('download'), p.locator('#pv-full #pj-grand-tel').click()]);
+    expect(garde.suggestedFilename()).toBe('Devis signé DEV-2026-031.pdf');
     await p.locator('#pv-full').getByRole('button', { name: /^Fermer/ }).click();
     expect(onglets).toBe(0);
 

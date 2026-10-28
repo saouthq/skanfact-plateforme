@@ -13,6 +13,7 @@
 // (plateforme/pont.js), et le test le vérifie demande par demande.
 
 import fs from 'node:fs';
+import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -23,7 +24,7 @@ import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
 import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 import { codeTotp, depuisBase32 } from '../../serveur/totp.ts';
-import { DOSSIERS_ALLEGES, scriptSansCommentaires, styleSansCommentaires } from '../../web/alleger.ts';
+import { DOSSIERS_ALLEGES, PRECOMPRESSER, scriptSansCommentaires, styleSansCommentaires } from '../../web/alleger.ts';
 import { lienLent } from '../lien-lent.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
@@ -49,7 +50,9 @@ describe('léger sur une connexion lente', () => {
   let serveur: Awaited<ReturnType<typeof demarrer>>;
   const dossier = fs.mkdtempSync(path.join(os.tmpdir(), 'web-leger-'));
   beforeAll(async () => {
-    await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } });
+    // Les écrans tels que la production les construit : compressés d'avance, au plus fort (docs/leger.md, L7).
+    process.env[PRECOMPRESSER] = '1';
+    try { await build({ configFile: path.join(RACINE, 'web/vite.config.ts'), logLevel: 'silent', build: { outDir: dossier, emptyOutDir: true } }); } finally { Reflect.deleteProperty(process.env, PRECOMPRESSER); }
     serveur = await demarrer({ ...lireConfiguration({ SKANFACT_BASE: inject('pgApp'), SKANFACT_ENVIRONNEMENT: 'test' }), port: 0, web: dossier, livreurMs: 60_000 });
     navigateur = await chromium.launch();
   }, 120_000);
@@ -110,6 +113,32 @@ describe('léger sur une connexion lente', () => {
     const petit = await entetes(`/v1/entreprises/${ent}/dossier-v10`, 'gzip, deflate, br', auth);
     expect(petit).toMatchObject({ statut: 200, encodage: null, cache: 'no-store' });
     expect(petit.taille).toBeLessThanOrEqual(1024);
+  });
+
+  it('L7 : un écran part en brotli préparé à la construction ; retouché depuis, il se recompresse ; « nom.br » ne se lit pas seul', async () => {
+    // Les octets tels qu'ils passent sur le fil (fetch, lui, les décompresse).
+    const brut = (chemin: string) => new Promise<{ corps: Buffer; type: string }>((ok, ko) => {
+      http.get(`${serveur.adresse}${chemin}`, { headers: { 'accept-encoding': 'br' } }, (r) => {
+        const morceaux: Buffer[] = [];
+        r.on('data', (m: Buffer) => morceaux.push(m)).on('end', () => ok({ corps: Buffer.concat(morceaux), type: String(r.headers['content-type'] ?? '') })).on('error', ko);
+      }).on('error', ko);
+    });
+    const fichier = path.join(dossier, 'v10/app.js');
+    const pret = fs.readFileSync(`${fichier}.br`);
+    expect((await brut('/v10/app.js')).corps.equals(pret)).toBe(true);
+    // Retouché après sa préparation : le « .br » est périmé, le serveur compresse le fichier du jour.
+    const avant = fs.statSync(fichier);
+    const plusTard = new Date(Date.now() + 60_000);
+    fs.utimesSync(fichier, plusTard, plusTard);
+    try {
+      expect((await brut('/v10/app.js')).corps.equals(pret)).toBe(false);
+    } finally {
+      fs.utimesSync(fichier, avant.atime, avant.mtime);
+    }
+    // Rendu à sa date : le « .br » sert de nouveau.
+    expect((await brut('/v10/app.js')).corps.equals(pret)).toBe(true);
+    // Le « .br » demandé par son nom : la page d'entrée, comme toute adresse qui n'est pas un écran.
+    expect((await brut('/v10/app.js.br')).type).toMatch(/^text\/html/);
   });
 
   it('L6 : un commentaire part, rien d\'autre : ni deux mots collés, ni une ligne déplacée, ni ce qui lui ressemble dans une chaîne', () => {

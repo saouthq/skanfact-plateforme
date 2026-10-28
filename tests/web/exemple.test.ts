@@ -103,7 +103,8 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     expect(await compter('ventes.piece', essai)).toBeGreaterThan(250);
     // Sans vraie entreprise encore, le bouton du bandeau la crée, et le dit.
     expect(net(await p.locator('#demo-out').innerText())).toBe('Créer ma vraie entreprise');
-    expect(net(await p.locator('#view').innerText())).toMatch(/À faire \d+/);
+    // (1.156.0, maquette « Accueil ») « À faire », sa bulle « i », puis le compte : « 16 choses, la plus urgente d'abord ».
+    expect(net(await p.locator('#view').innerText())).toMatch(/À faire (i )?\d+ choses?\b/);
     await p.screenshot({ path: path.join(PHOTOS, 'exemple-1-decouverte.png') });
 
     // 2. La découverte, chapitre après chapitre, jusqu'à sa fin ; aucune bulle perdue en chemin.
@@ -150,7 +151,8 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     await p.locator('#brand-btn').click();
 
     // 4. « Guide-moi » sur une nouvelle facture propose « Faire une facture », qui mène jusqu'au brouillon.
-    await p.getByRole('button', { name: /^\+? ?Nouvelle facture$/ }).first().click();
+    // (1.156.0, maquette « Accueil ») L'accueil n'a plus « Nouvelle facture » : la pièce neuve s'ouvre par « Créer » ou son adresse.
+    await p.evaluate(() => { location.hash = '#/doc/new/facture'; });
     await p.locator('#view h1').filter({ hasText: 'Nouvelle facture' }).waitFor({ timeout: 15_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     await p.getByRole('button', { name: 'Guide-moi', exact: true }).click();
@@ -167,6 +169,8 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
     await expect.poll(() => p.locator('[data-combo=clientId] .combo-val').innerText()).toContain('Société Hammami Bâtiment');
     const gestes: Record<string, () => Promise<void>> = {
       'L\'objet': () => p.locator('#view input[name="subject"]').fill('Fourniture de quincaillerie, chantier de Sousse'),
+      // La facture de la charte n'a aucune ligne avant la barre d'ajout : Entrée y crée la première.
+      'Ajouter une ligne': async () => { await p.locator('#ed-ajout').fill('Ciment'); await p.locator('#ed-ajout').press('Enter'); },
       'La désignation': () => lignes(p, 'label').fill('Ciment gris, sac 50 kg'),
       'La quantité': () => lignes(p, 'qty').fill('12'),
       'Le prix unitaire hors taxe': () => lignes(p, 'unitPrice').fill('18.75'),
@@ -185,7 +189,7 @@ describe('l\'exemple rempli et « Faire une facture », à l\'écran', () => {
       await bulle(p).locator('[data-v=suiv]').first().click();
     }
     expect(await titreBulle(p)).toBe('Ta facture est prête');
-    expect(vus).toEqual(expect.arrayContaining(['Choisis le client', 'La retenue à la source', 'Le timbre fiscal', 'La désignation', 'Le prix unitaire hors taxe', 'Les totaux', 'L\'aperçu', 'Enregistrer le brouillon']));
+    expect(vus).toEqual(expect.arrayContaining(['Choisis le client', 'La retenue à la source', 'Ajouter une ligne', 'Le timbre fiscal', 'La désignation', 'Le prix unitaire hors taxe', 'Les totaux', 'L\'aperçu', 'Garder le brouillon']));
     expect(net(await p.locator('#totals').innerText())).toMatch(/268,750/);
     const docs = ((await api('GET', `/entreprises/${vraie}/dossier-v10`, jeton)).objets as { collection: string; contenu: Record<string, unknown> }[])
       .filter((o) => o.collection === 'documents').map((o) => o.contenu);

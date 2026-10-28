@@ -869,7 +869,9 @@
     // Vu à la souris avec Nova Digital. L'étape ne paraît que si le champ est là (`si`). `champ` est
     // le conteneur du taux : #rate-field dans l'éditeur de pièce, #rf-rate dans la fenêtre d'un contrat.
     const etapeTaux = champ => ({
-      si: () => !!$(champ + ':not([hidden])'), cible: champ + ' input[name="exchangeRate"]', cote: 'dessous', faire: 'valeur',
+      // (plateforme, 1.166.1) Sur la pièce de la charte, le champ vit caché derrière l'étiquette « Devise » : l'étape ne
+      // paraît que s'il se voit, sinon elle se perdait (« Ça s'est refermé »).
+      si: () => { const e = $(champ + ':not([hidden]) input[name="exchangeRate"]'); return !!e && e.getClientRects().length > 0; }, cible: champ + ' input[name="exchangeRate"]', cote: 'dessous', faire: 'valeur',
       titre: 'Le taux de change',
       texte: 'Ce client est facturé dans une autre devise. Le taux dit combien vaut <b>une unité</b> de cette devise en dinars : c\'est lui qui convertit la pièce dans ta comptabilité et ta TVA. <b>Il est obligatoire</b> — sans lui, un euro compterait pour un dinar.',
       action: 'Tape le taux du jour (par exemple 3,4).', fait: () => Number(valeur(champ + ' input[name="exchangeRate"]')) > 0, essai: { taper: '3,4' }
@@ -1191,7 +1193,7 @@
           si: () => !/^#\/doc\/new\/devis/.test(hash()),
           titre: 'Nouveau devis', texte: 'Un devis dit à ton client ce que tu vas faire, et combien ça coûte. Il n\'engage personne tant qu\'il n\'est pas accepté.',
           action: 'Clique sur {bouton}.', fait: () => /^#\/doc\/new\/devis/.test(hash()), essai: { clic: true } },
-        { cible: combo('clientId'), cote: 'droite', faire: 'valeur', bouton: 'C\'est fait',
+        { cible: ['#ed-pourqui', '#ed-client', combo('clientId')], cote: 'droite', faire: 'valeur', bouton: 'C\'est fait',
           titre: 'Choisis le client', texte: 'Clique dans la liste, tape les premières lettres de son nom, et choisis-le. S\'il n\'existe pas encore, « + Nouveau client » en bas de la liste le crée sans quitter le devis.',
           action: 'Choisis ton client dans la liste.', fait: () => !!valeur('input[name="clientId"]'), essai: { combo: 1 } },
         // 10.14.1 — un client facturé dans une autre devise rend le taux OBLIGATOIRE (7.0.1) : sans
@@ -1212,11 +1214,16 @@
         // éclairée). Elle ne paraît que si le taux est là ET encore vide.
         Object.assign(etapeTaux('#rate-field'), {
           texte: 'Ce devis est maintenant dans une autre devise que le dinar. Le taux dit combien vaut <b>une unité</b> de cette devise en dinars : c\'est lui qui convertit la pièce dans ta comptabilité et ta TVA. <b>Il est obligatoire</b> — sans lui, « Enregistrer » refuse le devis.',
-          si: () => !!$('#rate-field:not([hidden])') && !(Number(String(valeur('#rate-field input[name="exchangeRate"]') || '').replace(',', '.')) > 0)
+          si: () => { const e = $('#rate-field:not([hidden]) input[name="exchangeRate"]'); return !!e && e.getClientRects().length > 0 && !(Number(String(e.value || '').replace(',', '.')) > 0); }
         }),
         // La case de la désignation est éclairée aussi : la bulle propose d'y taper, elle ne reste pas
         // dans l'ombre (10.14.1 — « ce dont le guide parle, je dois pouvoir cliquer dessus »).
-        { cible: ['#cat-pick .combo-btn', '#add-line'], cote: 'dessus', titre: 'Ajouter une ligne', eclairer: '#lines tr:first-child input[data-k="label"]',
+        // 1.166.2 — la facture de la charte n'a aucune ligne avant la barre d'ajout : la visite y fait
+        // ajouter la première (Entrée), sinon « La désignation » visait une case qui n'existe pas (perdue).
+        { si: () => !!$('#ed-ajout'), cible: '#ed-ajout', cote: 'dessous', faire: 'valeur', titre: 'Ajouter une ligne',
+          texte: 'Tape ce que tu vends : SkanFact te propose ce qui ressemble dans ton catalogue, avec son prix. <b>Entrée</b> ajoute l\'article choisi, ou une ligne libre avec ce que tu as tapé.',
+          action: 'Tape ce que tu vends, puis appuie sur <b>Entrée</b>.', fait: () => !!$('#lines tr:first-child input[data-k="label"]') },
+        { si: () => !$('#ed-ajout'), cible: ['#cat-pick .combo-btn', '#add-line'], cote: 'dessus', titre: 'Ajouter une ligne', eclairer: '#lines tr:first-child input[data-k="label"]',
           texte: '« Ajouter depuis le catalogue » reprend une prestation déjà décrite, avec son prix. « + Ligne vide » en crée une à la main. Tu peux aussi taper directement dans la désignation (la case éclairée plus bas) : SkanFact te propose ce qui ressemble dans ton catalogue.' },
         { cible: '#lines tr:first-child input[data-k="label"]', cote: 'dessous', faire: 'valeur',
           titre: 'La désignation', texte: 'Ce que tu vends, en quelques mots. « + description » sous la case ajoute une phrase plus longue.',
@@ -1264,7 +1271,7 @@
           si: () => !/^#\/doc\/new\/facture/.test(hash()),
           titre: 'Nouvelle facture', texte: 'Une facture réclame le paiement de ce que tu as vendu ou fait. Elle naît en brouillon : tu la relis avant de l\'émettre.',
           action: 'Clique sur {bouton}.', fait: () => /^#\/doc\/new\/facture/.test(hash()), essai: { clic: true } },
-        { cible: combo('clientId'), cote: 'droite', faire: 'valeur', bouton: 'C\'est fait',
+        { cible: ['#ed-pourqui', '#ed-client', combo('clientId')], cote: 'droite', faire: 'valeur', bouton: 'C\'est fait',
           titre: 'Choisis le client', texte: 'Clique dans la liste, tape les premières lettres de son nom, et choisis-le. S\'il n\'existe pas encore, « + Nouveau client » en bas de la liste le crée sans quitter la facture.',
           action: 'Choisis ton client dans la liste.', fait: () => !!valeur('input[name="clientId"]'), essai: { combo: 1 } },
         etapeTaux('#rate-field'),
@@ -1277,13 +1284,18 @@
           texte: 'Elles ont toutes déjà une valeur, ou sont facultatives : la date (c\'est elle qui range la facture dans le mois de ta TVA) et l\'échéance, la référence de ton client, une affaire, la langue, la devise, une remise. Change-les seulement si tu en as besoin.' },
         Object.assign(etapeTaux('#rate-field'), {
           texte: 'Cette facture est maintenant dans une autre devise que le dinar. Le taux dit combien vaut <b>une unité</b> de cette devise en dinars : c\'est lui qui convertit la facture dans ta comptabilité et ta TVA. <b>Il est obligatoire.</b>',
-          si: () => !!$('#rate-field:not([hidden])') && !(Number(String(valeur('#rate-field input[name="exchangeRate"]') || '').replace(',', '.')) > 0)
+          si: () => { const e = $('#rate-field:not([hidden]) input[name="exchangeRate"]'); return !!e && e.getClientRects().length > 0 && !(Number(String(e.value || '').replace(',', '.')) > 0); }
         }),
-        { cible: '#view select[name="withholdingRate"]', cote: 'dessous', titre: 'La retenue à la source',
+        { cible: ['#view [data-etq="rs"]', '#view select[name="withholdingRate"]'], cote: 'dessous', titre: 'La retenue à la source',
           texte: 'Certains clients — les sociétés, l\'État — gardent une part de ta facture et la versent au fisc à ta place : tu ne reçois que le net, et ils te remettent une attestation. Si ce client le fait, choisis son taux ; sinon, « Aucune ». <b>À VÉRIFIER</b> avec ton comptable.' },
-        { cible: '#view label:has(> input[name="applyStamp"])', cote: 'dessous', titre: 'Le timbre fiscal',
+        { cible: ['#view [data-etq="timbre"]', '#view label:has(> input[name="applyStamp"])'], cote: 'dessous', titre: 'Le timbre fiscal',
           texte: 'Chaque facture porte un timbre fiscal, ajouté au total et compté à part dans ta déclaration. Un client exonéré (exportateur, secteur public…) le voit retiré d\'office. <b>À VÉRIFIER</b> avec ton comptable.' },
-        { cible: ['#cat-pick .combo-btn', '#add-line'], cote: 'dessus', titre: 'Ajouter une ligne', eclairer: '#lines tr:first-child input[data-k="label"]',
+        // 1.166.2 — la facture de la charte n'a aucune ligne avant la barre d'ajout : la visite y fait
+        // ajouter la première (Entrée), sinon « La désignation » visait une case qui n'existe pas (perdue).
+        { si: () => !!$('#ed-ajout'), cible: '#ed-ajout', cote: 'dessous', faire: 'valeur', titre: 'Ajouter une ligne',
+          texte: 'Tape ce que tu vends : SkanFact te propose ce qui ressemble dans ton catalogue, avec son prix. <b>Entrée</b> ajoute l\'article choisi, ou une ligne libre avec ce que tu as tapé.',
+          action: 'Tape ce que tu factures, puis appuie sur <b>Entrée</b>.', fait: () => !!$('#lines tr:first-child input[data-k="label"]') },
+        { si: () => !$('#ed-ajout'), cible: ['#cat-pick .combo-btn', '#add-line'], cote: 'dessus', titre: 'Ajouter une ligne', eclairer: '#lines tr:first-child input[data-k="label"]',
           texte: '« Ajouter depuis le catalogue » reprend une prestation ou un article déjà décrit, avec son prix. « + Ligne vide » en crée une à la main. Tu peux aussi taper directement dans la désignation (la case éclairée plus bas) : SkanFact te propose ce qui ressemble dans ton catalogue.' },
         { cible: '#lines tr:first-child input[data-k="label"]', cote: 'dessous', faire: 'valeur',
           titre: 'La désignation', texte: 'Ce que tu factures, en quelques mots. « + description » sous la case ajoute une phrase plus longue.',
@@ -2292,7 +2304,7 @@
         { page: '#/autres/proforma', avant: onglet('#a-tabs', 'proforma'), cible: ['.vide-utile .btn-primary', '.page-head #new'], cote: 'dessous', faire: 'clic',
           titre: 'Nouvelle proforma', texte: 'Une proforma est un devis <b>ferme</b> : ton client la joint à un dossier de banque ou d\'administration pour obtenir le budget. Elle n\'est pas une facture. Les bons de commande, de livraison et les contrats à signer se font de la même façon, chacun dans son onglet.',
           action: 'Clique sur {bouton}.', fait: () => /^#\/doc\/new\/proforma/.test(hash()), essai: { clic: true } },
-        { cible: combo('clientId'), cote: 'droite', faire: 'valeur', bouton: 'C\'est fait',
+        { cible: ['#ed-pourqui', '#ed-client', combo('clientId')], cote: 'droite', faire: 'valeur', bouton: 'C\'est fait',
           titre: 'Le client', texte: 'Son nom, son adresse et son matricule s\'impriment sur la pièce : c\'est à lui qu\'elle est adressée.', action: 'Choisis le client dans la liste.', fait: () => !!valeur('input[name="clientId"]'), essai: { combo: 1 } },
         etapeTaux('#rate-field'),
         { cible: '#lines tr:first-child input[data-k="label"]', cote: 'dessous', faire: 'valeur',

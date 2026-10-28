@@ -97,15 +97,18 @@ describe('« PDF » d\'une pièce, à l\'écran', () => {
   it('au clavier, un menu « ▾ » d\'un devis : le curseur dans la liste, les flèches, Échap rend le curseur au bouton', async () => {
     const { cx, p, erreurs } = await devisOuvert(serveur.adresse);
     const bouton = p.locator('#view .more > .btn').first();
-    const liste = p.locator('#view .more > .more-list').first();
     await expect.poll(() => bouton.getAttribute('aria-expanded')).toBe('false');
-    expect(await bouton.getAttribute('aria-controls')).toBe(await liste.getAttribute('id'));
+    // Il ouvre le menu de la charte, qui naît à l'ouverture : il le dit (« aria-haspopup »), sans viser la liste cachée.
+    expect(await bouton.getAttribute('aria-haspopup')).toBe('menu');
     await bouton.focus();
     await p.keyboard.press('Enter');
     await expect.poll(() => bouton.getAttribute('aria-expanded')).toBe('true');
-    const dedans = () => p.evaluate(() => { const a = document.activeElement; const l = a?.closest('.more-list'); return l ? [...l.querySelectorAll('button:not(.i):not([disabled])')].filter((x) => x.getClientRects().length).indexOf(a as Element) : -2; });
+    // (lot 4, maquette facture) « ⋯ » ouvre le menu de la charte (rowmenu.js), fait des gestes de la liste cachée : le
+    // curseur va à sa première entrée.
+    const entrees = '.row-menu:not([hidden]) [role="menuitem"]:not([disabled])';
+    const dedans = () => p.evaluate((sel) => { const xs = [...document.querySelectorAll(sel)].filter((x) => x.getClientRects().length); return xs.indexOf(document.activeElement as Element); }, entrees);
     await expect.poll(dedans).toBe(0);
-    const n = await liste.evaluate((l) => [...l.querySelectorAll('button:not(.i):not([disabled])')].filter((x) => x.getClientRects().length).length);
+    const n = await p.evaluate((sel) => [...document.querySelectorAll(sel)].filter((x) => x.getClientRects().length).length, entrees);
     expect(n).toBeGreaterThan(1);
     await p.keyboard.press('ArrowDown');
     expect(await dedans()).toBe(1);
