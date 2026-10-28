@@ -7999,7 +7999,7 @@ prouver 'la retenue émise en texte, telle que la liste l'\''écrit' web/public/
 ' '' \
   "$FDW"
 prouver '« une retenue subie de août »' web/public/v10/app.js \
-  'c'\''est une retenue subie ${/^[aeiou]/i.test(' 'c'\''est une retenue subie ${/^$/i.test(' \
+  'retenue subie ${/^[aeiou]/i.test(moisRs)' 'retenue subie ${/^$/i.test(moisRs)' \
   "$FDW"
 prouver 'le menu qui promet un PDF joint au message' web/public/v10/app.js \
   'email: !bridge.ajouterLien ? '\''Le PDF est joint au message'\'' :' 'email: true ? '\''Le PDF est joint au message'\'' :' \
@@ -8429,7 +8429,6 @@ KDT="la pièce signée attend le compte El Fatoora ; Nadia le pose depuis la fen
 KDK="Nadia branche Konnect ; son client paie sa facture en ligne ; le paiement arrive sur la facture"
 KDP="du compte à la facture émise par le serveur, retrouvée après rechargement, puis le retour d'un autre appareil"
 KDE="la facture part avec son lien, par e-mail puis par WhatsApp ; le devis aussi ; le relevé part sans rien de joint"
-KDL="Nadia photographie la facture : la fenêtre montre ce qui a été lu, où, et le total recompté ; enregistré, l'achat tombe au millime sur la pièce"
 prouver "le mot de passe de SkanFact posé par Chrome dans celui d'El Fatoora" web/public/plateforme/pont.js \
   '<input data-champ="motDePasse" type="password" autocomplete="new-password"' '<input data-champ="motDePasse" type="password" autocomplete="off"' \
   "$KDT"
@@ -8468,7 +8467,7 @@ prouver "l'e-mail noté « envoyé » sans que personne ne le dise" web/public/v
   "$KDE"
 prouver "une ligne lue d'un article suivi qui part en charge, pas au stock" web/public/v10/app.js \
   "        if (it) Object.assign(l, { itemId: it.id, destination: 'stock' });" "        if (false) Object.assign(l, { itemId: it.id, destination: 'stock' });" \
-  "$KDL"
+  "Nadia dit oui à l'IA, tranche le numéro flou et la quantité tachée ; le recomptage refuse la mauvaise quantité, et la pièce se remplit au millime"
 prouver "le code du téléphone qu'il faut cliquer avant de taper" web/src/composants/Champ.tsx \
   "  useEffect(() => { if (premier) f.ref.current?.focus(); }, [premier, f.ref]);" "  useEffect(() => { if (premier && false) f.ref.current?.focus(); }, [premier, f.ref]);" \
   "$KDP"
@@ -17807,9 +17806,14 @@ prouver 'une adresse e-mail qui ne va pas, envoyée au serveur' 'web/public/plat
   '      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { champ.focus();' \
   '      if (false) { champ.focus();' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
+# Trois chemins posent le lien (inviter, réinviter, la fiche « Mon comptable ») : tous perdent l'adresse.
 prouver 'le lien de secours sans l'"'"'adresse du serveur' 'web/public/plateforme/pont.js' \
-  'lien.startsWith('"'"'/'"'"') ? `${location.origin}${lien}` : lien;' \
-  'lien;' \
+  'lien.startsWith('"'"'/'"'"') ? `${location.origin}${lien}` : lien;
+    };|||        lienDeSecours = r.courrielEtat === '"'"'parti'"'"' || !lien ? null : lien.startsWith('"'"'/'"'"') ? `${location.origin}${lien}` : lien;|||lien.startsWith('"'"'/'"'"') ? `${location.origin}${lien}` : lien;
+    }, bInv,' \
+  'lien;
+    };|||        lienDeSecours = r.courrielEtat === '"'"'parti'"'"' || !lien ? null : lien;|||lien;
+    }, bInv,' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien ; la proposition en tête, acceptée'
 prouver 'le comptable invité dont le cabinet ne reçoit pas le dossier' 'web/src/App.tsx' \
   '    if (!jeton || !cabinet) return;
@@ -18303,9 +18307,10 @@ prouver 'au clavier, les listes de filtre d'\''une page sans nom (l'\''année, l
   '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); bullesDesColonnes(); }' '(/** @type {HTMLTableElement} */ (t)); lierVoisins(); bullesDesColonnes(); }' \
   'au clavier, chaque case d'\''une ligne se nomme : le titre de sa colonne et le numéro de sa ligne'
 
-prouver 'au téléphone, l'\''en-tête des lignes d'\''un devis qui pose « Qté » loin de sa case' web/public/plateforme/telephone.css \
-  '  table.lignes-doc > thead { display: none; }' '  table.lignes-doc > thead { }' \
-  'les lignes d'\''un devis au téléphone : chaque case porte son titre juste au-dessus d'\''elle'
+# (1.155.0) Au téléphone, les lignes d'un devis sont des cartes : la grille (et son en-tête) n'y paraît plus.
+prouver 'au téléphone, la grille des lignes d'\''un devis qui reste au lieu des cartes' web/public/plateforme/piece.css \
+  '  .editor.charte table.ed-grille, .editor.charte .ed-pied-lignes' '  .editor.charte .ed-pied-lignes' \
+  'les lignes d'\''un devis au téléphone : une carte par ligne, dans l'\''écran, et la feuille qui ne plante pas'
 
 prouver 'au clavier, l'\''unité d'\''une prestation sans nom (son titre posé à côté)' web/public/plateforme/telephone.js \
   '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); lierVoisins(); bullesDesColonnes(); }' '(/** @type {HTMLTableElement} */ (t)); nommerFiltres(); bullesDesColonnes(); }' \
@@ -18430,13 +18435,13 @@ prouver 'l'\''ordre de virement qui dit « salaires de octobre »' web/public/v1
 
 prouver 'au téléphone, les bulles des titres de colonne d'\''une ligne perdues avec l'\''en-tête' web/public/plateforme/telephone.js \
   $'nommerFiltres(); lierVoisins(); bullesDesColonnes(); }' $'nommerFiltres(); lierVoisins(); }' \
-  'les lignes d'\''un devis au téléphone : chaque case porte son titre juste au-dessus d'\''elle'
+  'les lignes d'\''un achat et d'\''une photo relue au téléphone : la désignation, puis prix, TVA et total dans l'\''écran'
 prouver 'au téléphone, la bulle de la TVA déductible nommée par l'\''en-tête abrégé (« Déduct. »)' web/public/plateforme/telephone.js \
   $'(x.getAttribute(\'aria-label\') || \'\').replace(/^Explication : /, \'\') || titreDe' $'\'\' || titreDe' \
   'les lignes d'\''un achat et d'\''une photo relue au téléphone'
 prouver 'à l'\''ordinateur, les bulles des colonnes ajoutées au-dessus des lignes' web/public/plateforme/telephone.js \
   $'const bulles = tete && TELEPHONE.matches && sansEnTete(table)' $'const bulles = tete && sansEnTete(table)' \
-  'les lignes d'\''un devis au téléphone : chaque case porte son titre juste au-dessus d'\''elle'
+  'les lignes d'\''un achat et d'\''une photo relue au téléphone : la désignation, puis prix, TVA et total dans l'\''écran'
 
 prouver '« Exporter tous les PDF » qui ne fait rien en ligne' web/public/plateforme/pont.js \
   $'    exportPdf,\n    exportPdfMany,\n' $'    exportPdf,\n' \
@@ -18472,7 +18477,7 @@ prouver 'le comptable invité, le curseur qui tombe au début de la page' web/pu
   $'        suite?.focus();' $'        void suite;' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien'
 prouver 'le lien du comptable copié sans une phrase qui le dise' web/public/plateforme/pont.js \
-  $'copier.textContent = \'Lien copié\'; dit.textContent = \'Lien copié : colle-le dans ton message à ton comptable.\';' $'copier.textContent = \'Lien copié\'; void dit;' \
+  $'(zone.querySelector(\'#mandat-lien-copie\'));\n        try { await navigator.clipboard.writeText(champ.value); copier.textContent = \'Lien copié\'; dit.textContent = \'Lien copié : colle-le dans ton message à ton comptable.\';|||(el.querySelector(\'#mandat-lien-copie\'));\n        try { await navigator.clipboard.writeText(champ.value); copier.textContent = \'Lien copié\'; dit.textContent = \'Lien copié : colle-le dans ton message à ton comptable.\';' $'(zone.querySelector(\'#mandat-lien-copie\'));\n        try { await navigator.clipboard.writeText(champ.value); copier.textContent = \'Lien copié\'; void dit;|||(el.querySelector(\'#mandat-lien-copie\'));\n        try { await navigator.clipboard.writeText(champ.value); copier.textContent = \'Lien copié\'; void dit;' \
   'le client invite par e-mail ; le comptable crée son compte et son cabinet par le lien'
 prouver 'le premier pas « Inviter mon comptable » qui laisse le curseur au début de la page' web/public/v10/app.js \
   $'if (champ) { champ.scrollIntoView({ block: \'center\' }); champ.focus(); }' $'if (champ) { champ.scrollIntoView({ block: \'center\' }); }' \
@@ -20452,9 +20457,8 @@ prouver 'ia 9 : l'"'"'écran envoie sans poser la question' web/public/v10/app.j
   "      if (opts.ia === undefined && await iaProposee()) {" "      if (opts.ia === undefined && await iaProposee()) { opts = { ia: true }; } if (false) {" \
   'Nadia dit oui à l'"'"'IA, tranche le numéro flou et la quantité tachée'
 prouver 'ia 10 : « Avant d'"'"'enregistrer » oublie le justificatif joint' web/public/v10/app.js \
-  "      drawBuyAttachments();
-      // (27/10/2026) « Avant d'enregistrer » disait encore « Aucun justificatif » juste après « Justificatif joint ».
-      refresh();" "      drawBuyAttachments();" \
+  "      // (27/10/2026) « Avant d'enregistrer » disait encore « Aucun justificatif » juste après « Justificatif joint ».
+      refresh();" "" \
   '« Non » joint la photo sans rien envoyer'
 prouver 'ia 11 : la forme imposée à l'"'"'IA en champs « texte ou rien » (refusée par l'"'"'API au-delà de 16)' serveur/achats/lecture-ia.ts \
   "const caseLue = { type: 'string' };" "const caseLue = { type: ['string', 'null'] };" \
@@ -20483,8 +20487,8 @@ prouver 'ia 18 : « Avant d'"'"'enregistrer » qui oublie les cases lues à vér
 prouver 'ia 19 : la pièce remplie par l'"'"'IA qui se dit « Brouillon »' web/public/v10/app.js \
   "      if (!stored && luParIA) return" "      if (false) return" \
   '« Non » joint la photo sans rien envoyer'
-prouver 'ia 20 : le justificatif en tableau serré, sans sa photo' web/public/v10/app.js \
-  "      const enCartes = !!bridge.apercuPiece;" "      const enCartes = false;" \
+prouver 'ia 20 : le justificatif sans sa photo' web/public/v10/app.js \
+  "      if (bridge.apercuPiece) apercuJustificatif(" "      if (false) apercuJustificatif(" \
   '« Non » joint la photo sans rien envoyer'
 prouver 'ia 21 : la zone d'"'"'un doute perdue au serveur' serveur/achats/lecture-ia.ts \
   "zone: zoneDe(d.zone) };" "zone: null };" \
@@ -20558,7 +20562,7 @@ prouver 'compléments 12 : le curseur sur le bandeau, pas sur « Copier le lien 
   '« Mon comptable » sans cabinet : la page dessinée'
 prouver 'compléments 13 : l'"'"'IA rallumée sans « Annuler »' web/public/v10/app.js \
   "        toastUndo(coupee ? 'L\\'IA se proposera" "        toast(coupee ? 'L\\'IA se proposera" \
-  'l'"'"'entreprise qui a coupé l'"'"'IA lit sur nos serveurs, sans question'
+  'seule l'"'"'IA lit : coupée par l'"'"'entreprise, rien ne part, la carte le dit et mène au réglage, qui la rallume'
 prouver 'compléments 14 : la liste qui sort par le bas de sa fenêtre' web/public/v10/app.js \
   "      el.classList.toggle('up', dessous < 300 && dessus > dessous);" "      el.classList.toggle('up', window.innerHeight - r.bottom < 300);" \
   'la facture électronique reçue : une page, la catégorie sous sa case'

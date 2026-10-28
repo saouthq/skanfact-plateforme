@@ -128,6 +128,9 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
 
   it('Nadia dit oui à l\'IA, tranche le numéro flou et la quantité tachée ; le recomptage refuse la mauvaise quantité, et la pièce se remplit au millime', async () => {
     const { jeton, ent } = await nadia();
+    // Les ramettes sont un article suivi en stock de son catalogue : la ligne lue du même nom part au stock.
+    expect((await api('POST', `/entreprises/${ent}/dossier-v10`, jeton, { changements: [{ collection: 'catalog', cle: 'ramettes', rang: 0, revision: null,
+      contenu: { id: 'ramettes', label: 'Ramettes A4', unit: 'paquet', unitPrice: { '~n': '14' }, unitCost: { '~n': '11.5' }, vatRate: 19, tracked: true } }] })).statut).toBe(200);
     const { p, erreurs, fermer } = await ouvrir(jeton, ent);
     const avant = envois.length;
     await choisirPhoto(p);
@@ -142,7 +145,7 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
     // été lu, avant que « Ce que SkanFact a compris » s'ouvre.
     const etape = (i: number, texte: string) => p.waitForFunction(([k, t]) => document.querySelector(`#ac-lecture [data-etape="${k}"].fait small`)?.textContent === t, [i, texte] as const, { timeout: 30_000, polling: 30 });
     await etape(2, 'Bureau Plus Sfax, par son matricule');
-    await etape(3, '2 lignes, comparées à ton catalogue');
+    await etape(3, '2 lignes, comparées à ton catalogue : 1 reconnue');
 
     await p.locator('#ac-lecture').getByText('Ce que SkanFact a compris').waitFor({ timeout: 30_000 });
     // « Justificatif », en haut de la page : la photo en grand, pour comparer.
@@ -186,6 +189,8 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
     expect(net(await p.locator('#ac-lu-ia').innerText())).toBe('Lue par l\'IA, et tout a été vérifié Les cases douteuses ont été tranchées à la lecture ; les totaux tombent juste au millime.');
     expect(await p.locator('input[data-k=label]').evaluateAll((xs) => xs.map((x) => (x as HTMLInputElement).value))).toEqual(['Ramettes A4', 'Cartouches d\'encre']);
     expect(await p.locator('input[data-k=qty]').evaluateAll((xs) => xs.map((x) => (x as HTMLInputElement).value))).toEqual(['20', '6']);
+    // L'article suivi part au stock ; la cartouche, qui n'est pas au catalogue, reste en charge.
+    expect(await p.locator('#b-lines [data-k=destination]').evaluateAll((xs) => xs.map((x) => (x as HTMLSelectElement).value))).toEqual(['stock', 'charge']);
     await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-5-rempli.png') });
     // Rien n'est enregistré avant « Enregistrer l'achat ».
     expect((await admin.query('select count(*)::int n from socle.dossier_v10 where entreprise = $1 and collection = \'purchases\'', [ent])).rows[0].n).toBe(0);

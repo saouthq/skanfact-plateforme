@@ -18,6 +18,7 @@ perdu » — ce que fait l'écran de la v10 et où il le retrouve — et « Ce q
 | `devis.html` | Le devis |
 | `achat.html` | L'achat, avec la lecture par l'IA (facultative, décision du 24/10/2026) |
 | `accueil.html` | L'accueil |
+| `clients.html` | Les clients : la liste et la fiche d'un client (documents, paiements, relances, affaires et contrats, matériel), la fenêtre du client, le relevé, l'import ; validée le 28/10/2026, pas encore appliquée |
 
 ## Comment on les applique
 

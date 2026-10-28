@@ -472,6 +472,9 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
 .introuvable .rang { display: flex; gap: 8px; margin-top: 8px; }
 .pop-dev { top: 398px; left: 396px; width: 340px; }
 .pop-aff { top: 318px; left: 880px; width: 340px; }
+.resume .aff-l { position: relative; }
+.resume .aff-b { font-size: 13.5px; }
+.pop-aff.emise { top: calc(100% + 8px); left: 0; }
 .pop-dep { top: 318px; left: 700px; width: 320px; }
 .pop-mod { top: 436px; left: 700px; width: 380px; }
 .pop-txt { top: 470px; left: 266px; width: 440px; }
@@ -1030,6 +1033,14 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
     const d = D();
     return `<section class="carte frise">${d.frise.map(([k, t, sub, g], i) => `<div class="et ${k === 'fait' ? 'e-fait' : k === 'encours' ? 'e-cours' : k === 'afaire' ? 'e-afaire' : k === 'ko' ? 'e-ko' : ''}"><span class="pt">${k === 'fait' ? ic('coche', 13, 3) : k === 'ko' ? '!' : i + 1}</span><b>${esc(t)}</b><span>${esc(sub)}</span>${g && (k === 'afaire' || k === 'ko') && !(d.role === 'commercial' && g === 'Signer') ? `<button type="button" class="btn mini">${g}</button>` : ''}</div>`).join('')}</section>`;
   }
+  // (27/10/2026, revue des écarts 1.162.0) L'affaire d'une facture émise : la pièce ne change plus, l'affaire se choisit
+  // encore (elle ne s'imprime pas, ne touche ni un montant ni une écriture). La référence, imprimée, ne s'y trouve pas.
+  function popAffEmise() {
+    return `<div class="pop-etq pop-aff emise" role="dialog" aria-label="Affaire de la facture"><b>Affaire</b><div class="champ-cl" style="height:38px">${ic('recherche', 14, 2)} Rechercher une affaire…</div>
+      <button type="button" class="ech-b"><span><b>Aucune affaire</b></span><small>ne compte dans aucun chantier</small></button>
+      ${[['AFF-2026-012', 'Réseau de la clinique', 'en cours · 3 pièces'], ['AFF-2026-009', 'Audit annuel 2026', 'en cours · 1 pièce']].map(([n, t, sub], k) => `<button type="button" class="ech-b${k === 0 ? ' on' : ''}"><span><b>${n}</b> · ${t}</span><small>${sub}</small></button>`).join('')}<button type="button" class="btn lien-b">${ic('croix', 12, 2.4)} Nouvelle affaire</button>
+      <span class="d">Émise, la facture ne change plus. L'affaire, elle, se choisit encore : elle ne s'imprime pas et ne touche à aucun montant ni à l'écriture. Elle compte aussitôt dans ce que l'affaire rapporte.</span></div>`;
+  }
   function blocSuivi(T) {
     const d = D(), c = CLIENTS[d.client], dev = T.dev, sym = DEV[dev].s;
     const recu = d.paye.reduce((a, p) => a + p[4], 0), retenu = d.paye.reduce((a, p) => a + p[5], 0);
@@ -1048,7 +1059,7 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
     const compta = s.etat === 'partielle' ? 'Au journal des ventes · validée par ton cabinet le 06/10' : dev !== 'DT' ? `Au journal des ventes, en dinars au taux du ${d.date.slice(0, 5)} ; au brouillard, ton cabinet la validera` : 'Au journal des ventes, au brouillard : ton cabinet la validera';
     return `${ban}
       ${frise()}
-      <section class="carte bloc"><dl class="resume"><dt>Client</dt><dd><a href="#">${esc(c.n)}</a> · ${esc(c.mail)}</dd><dt>Date</dt><dd>${d.date} · échéance le ${d.ech}</dd><dt>Net à payer</dt><dd><b>${fmt(T.aPayer, dev)} ${sym}</b> · TTC ${fmt(T.ttc, dev)}${T.rs ? ` · retenue ${fmt(T.rs, dev)}` : ''} ${T.timbre ? ` · timbre ${fmt(T.timbre, dev)}` : dev !== 'DT' ? ` · sans timbre (export) · 1 € = ${String(d.taux).replace('.', ',')} DT` : ''}</dd><dt>Envois</dt><dd>${d.envois && d.envois.length ? d.envois.map((e) => `<span class="envoi">${e}</span>`).join('') : '<span class="muet">Pas encore envoyée : « Envoyer » dans la frise ou à droite</span>'}</dd><dt>Comptabilité</dt><dd>${compta} · <a href="#" data-voir-compta>voir l'écriture</a></dd>${s.etat === 'partielle' ? '<dt>Origine</dt><dd>Suite au devis <a href="#">DEV-2026-010</a>, accepté le 02/10</dd>' : ''}</dl></section>
+      <section class="carte bloc"><dl class="resume"><dt>Client</dt><dd><a href="#">${esc(c.n)}</a> · ${esc(c.mail)}</dd><dt>Date</dt><dd>${d.date} · échéance le ${d.ech}</dd><dt>Net à payer</dt><dd><b>${fmt(T.aPayer, dev)} ${sym}</b> · TTC ${fmt(T.ttc, dev)}${T.rs ? ` · retenue ${fmt(T.rs, dev)}` : ''} ${T.timbre ? ` · timbre ${fmt(T.timbre, dev)}` : dev !== 'DT' ? ` · sans timbre (export) · 1 € = ${String(d.taux).replace('.', ',')} DT` : ''}</dd><dt>Envois</dt><dd>${d.envois && d.envois.length ? d.envois.map((e) => `<span class="envoi">${e}</span>`).join('') : '<span class="muet">Pas encore envoyée : « Envoyer » dans la frise ou à droite</span>'}</dd><dt>Comptabilité</dt><dd>${compta} · <a href="#" data-voir-compta>voir l'écriture</a></dd><dt>Affaire</dt><dd class="aff-l">${s.montrer === 'affaire-emise' || s.etat === 'partielle' ? '<b>AFF-2026-012</b> · Réseau de la clinique' : '<span class="muet">Aucune</span>'} · <button type="button" class="btn lien-b aff-b" data-montrer-aff aria-haspopup="dialog" aria-expanded="${s.montrer === 'affaire-emise'}">${s.montrer === 'affaire-emise' || s.etat === 'partielle' ? 'Changer' : 'Ranger dans une affaire'}</button><small class="muet"> · ne s'imprime pas</small>${s.montrer === 'affaire-emise' ? popAffEmise() : ''}</dd>${s.etat === 'partielle' ? '<dt>Origine</dt><dd>Suite au devis <a href="#">DEV-2026-010</a>, accepté le 02/10</dd>' : ''}</dl></section>
       ${situation}${blocLignes(T)}`;
   }
   function gestesPiece() {
@@ -1134,7 +1145,7 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
   }
 
   // Ce qu'on ouvre depuis la page : chaque geste a sa couche, à l'endroit où on l'a demandé.
-  const MONTRER = [['', 'Rien'], ['sortir', 'Quitter : le brouillon est gardé'], ['sortir-perdu', 'Quitter : rien ne se garde ici'], ['gestes', 'Tous les gestes (⋯)'], ['article', 'Ajouter un article'], ['ligne', 'Menu d\'une ligne'], ['lots', 'Numéros de série'], ['ttc', 'Prix tapés TTC'], ['modele', 'Modèle'], ['texte', 'Texte prêt'], ['prix', 'Calculer les prix'], ['echeance', 'Choisir l\'échéance'], ['devise', 'Devise et taux'], ['affaire', 'Affaire et référence'], ['depot', 'Dépôt du stock'], ['retenue', 'Étiquette Retenue'], ['pj', 'Pièce jointe déposée'], ['annuler', 'Annuler une modification'], ['clavier', 'Clavier et focus'], ['erreur-enr', 'Enregistrement en échec'], ['coupure', 'Coupure à l\'émission'], ['conflit', 'Deux personnes écrivent'], ['chargement', 'Chargement'], ['introuvable', 'Pièce introuvable'], ['grand', 'Aperçu en grand'], ['raccourcis', 'Raccourcis'], ['envoyer', 'Envoyer la facture'], ['paiement', 'Enregistrer un paiement'], ['paie-menu', 'Menu d\'un paiement'], ['paiement-eur', 'Paiement en euros'], ['relance', 'Relancer'], ['signer', 'Signer par DigiGo'], ['historique', 'Historique'], ['compta', 'L\'écriture (comptable)'], ['client-vue', 'Ce que voit le client'], ['tel-ligne', 'Téléphone : une ligne'], ['tel-ajout', 'Téléphone : ajouter'], ['tel-scan', 'Téléphone : code-barres']];
+  const MONTRER = [['', 'Rien'], ['sortir', 'Quitter : le brouillon est gardé'], ['sortir-perdu', 'Quitter : rien ne se garde ici'], ['gestes', 'Tous les gestes (⋯)'], ['article', 'Ajouter un article'], ['ligne', 'Menu d\'une ligne'], ['lots', 'Numéros de série'], ['ttc', 'Prix tapés TTC'], ['modele', 'Modèle'], ['texte', 'Texte prêt'], ['prix', 'Calculer les prix'], ['echeance', 'Choisir l\'échéance'], ['devise', 'Devise et taux'], ['affaire', 'Affaire et référence'], ['affaire-emise', 'Affaire d\'une facture émise'], ['depot', 'Dépôt du stock'], ['retenue', 'Étiquette Retenue'], ['pj', 'Pièce jointe déposée'], ['annuler', 'Annuler une modification'], ['clavier', 'Clavier et focus'], ['erreur-enr', 'Enregistrement en échec'], ['coupure', 'Coupure à l\'émission'], ['conflit', 'Deux personnes écrivent'], ['chargement', 'Chargement'], ['introuvable', 'Pièce introuvable'], ['grand', 'Aperçu en grand'], ['raccourcis', 'Raccourcis'], ['envoyer', 'Envoyer la facture'], ['paiement', 'Enregistrer un paiement'], ['paie-menu', 'Menu d\'un paiement'], ['paiement-eur', 'Paiement en euros'], ['relance', 'Relancer'], ['signer', 'Signer par DigiGo'], ['historique', 'Historique'], ['compta', 'L\'écriture (comptable)'], ['client-vue', 'Ce que voit le client'], ['tel-ligne', 'Téléphone : une ligne'], ['tel-ajout', 'Téléphone : ajouter'], ['tel-scan', 'Téléphone : code-barres']];
   function couche(T) {
     const d = D(), c = d.client ? CLIENTS[d.client] : CLIENTS.jasmins, dev = T.dev;
     const m = s.montrer;
@@ -1427,7 +1438,7 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
     segment('montrer', MONTRER, 'montrer', () => {
       s.fenetre = false; const m = s.montrer, mode = D().mode;
       if (m === 'paiement' && s.etat === 'euro') s.montrer = 'paiement-eur';
-      if (['paiement', 'historique', 'signer', 'envoyer', 'client-vue'].includes(m) && mode !== 'suivi') s.etat = 'emise';
+      if (['paiement', 'historique', 'signer', 'envoyer', 'client-vue', 'affaire-emise'].includes(m) && mode !== 'suivi') s.etat = 'emise';
       if (m === 'client-vue' && s.etat !== 'emise') s.etat = 'emise';
       if (m === 'compta' && !['emise', 'partielle'].includes(s.etat)) s.etat = 'partielle';
       if (m === 'envoyer') s.etat = 'emise';
@@ -1478,6 +1489,7 @@ button:focus-visible, input:focus-visible, .etq:focus-visible, a:focus-visible {
     $('ordi').querySelectorAll('[data-emettre]').forEach((b) => { b.onclick = () => { s.fenetre = true; tout(); }; });
     $('ordi').querySelectorAll('[data-fermer-b]').forEach((b) => { b.onclick = () => { s.fenetre = false; tout(); }; });
     $('ordi').querySelectorAll('[data-voir-compta]').forEach((b) => { b.onclick = (e) => { e.preventDefault(); s.montrer = 'compta'; tout(); }; });
+    $('ordi').querySelectorAll('[data-montrer-aff]').forEach((b) => { b.onclick = () => { s.montrer = s.montrer === 'affaire-emise' ? '' : 'affaire-emise'; tout(); }; });
     $('ordi').querySelectorAll('[data-prix]').forEach((b) => { b.onclick = () => { s.montrer = b.dataset.prix === 'ttc' ? 'ttc' : ''; tout(); }; });
     $('ordi').querySelectorAll('[data-echeance]').forEach((b) => { b.onclick = () => { s.montrer = s.montrer === 'echeance' ? '' : 'echeance'; tout(); }; });
     $('ordi').querySelectorAll('[data-defaire]').forEach((b) => { b.onclick = () => { s.montrer = 'annuler'; tout(); }; });

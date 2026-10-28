@@ -367,6 +367,10 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await expect.poll(() => p.locator('table.buy-lines:has(#b-lines)').locator('xpath=preceding-sibling::p[contains(@class, "aide-colonnes")]').innerText()
       // (la rangée se range en flex : le texte lu n'a pas d'espaces entre ses morceaux, on les compare sans eux)
       .then((t) => t.replace(/\s+/g, '')).catch(() => '')).toBe('Lescolonnes:DestinationdelaligneiTVAdéductiblei');
+    // À l'ordinateur, l'en-tête du tableau porte ses bulles : la rangée au-dessus des lignes s'en va.
+    await p.setViewportSize({ width: 1280, height: 800 });
+    await expect.poll(() => p.locator('.aide-colonnes').count()).toBe(0);
+    await p.setViewportSize({ width: TELEPHONE.largeur, height: TELEPHONE.hauteur });
 
     // Une photo relue : ses lignes aussi, et « Remplir la pièce » au bas de l'écran.
     await aller(p, '#/achat/new', /^Nouvelle facture d'achat/);
