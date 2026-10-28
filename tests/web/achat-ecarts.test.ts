@@ -274,11 +274,26 @@ describe('les écarts de la maquette de l\'achat, à la souris', () => {
     expect(net(await p.locator('#p-pj h2').innerText())).toBe('Justificatifs i 2 fichiers · gardés 10 ans');
     expect(net(await p.locator('#toast .toast-txt').innerText())).toBe('Justificatif joint : recu-parking.png · 2 fichiers sur la pièce');
     expect(await etapeJustif()).toBe('Justificatif 2 fichiers joints : fait');
-    // Le panneau tient dans la colonne : la liste, puis l'aperçu, puis « Joindre un autre fichier » (rien ne se cache dessous).
+    // Le panneau tient dans la colonne. (28/10/2026, Skander : « ajouter une nouvelle pièce doit être en haut, afin qu'il soit
+    // visible ») « Joindre un autre fichier » en tête, puis la liste, puis l'aperçu.
     const haut = async (sel: string) => (await p.locator(sel).boundingBox())?.y ?? -1;
+    expect(await haut('#attachments #add-att')).toBeLessThan(await haut('#attachments .pjp-liste'));
     expect(await haut('#attachments .pjp-liste')).toBeLessThan(await haut('#attachments .ac-pj'));
-    expect(await haut('#attachments .ac-pj')).toBeLessThan(await haut('#attachments #add-att'));
     await p.locator('#p-pj').screenshot({ path: path.join(PHOTOS, 'achat-ecarts-justificatifs.png') });
+    // (28/10/2026, Skander : « le bouton Justificatif en haut ouvre l'aperçu en grand, mais que de la première pièce, et on ne
+    // peut pas visualiser les autres ») « Justificatif » ouvre celui qu'on regarde (le second, joint en dernier), avec les
+    // deux fichiers à côté ; ← passe au premier ; fermée, la vue laisse le panneau sur le fichier regardé en dernier.
+    await p.locator('#attach-top').click();
+    await expect.poll(() => p.locator('#pv-full .pv-titre').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('recu-parking.png');
+    expect(net(await p.locator('#pv-full .pjg-n').innerText())).toBe('2 sur 2');
+    expect((await p.locator('#pv-full .pjg-rail .pjg-rn b').allInnerTexts()).map(net)).toEqual(['ticket-peage-A1.png', 'recu-parking.png']);
+    await p.keyboard.press('ArrowLeft');
+    await expect.poll(() => p.locator('#pv-full .pv-titre').innerText().then(net).catch(() => '')).toBe('ticket-peage-A1.png');
+    expect(net(await p.locator('#pv-full .pjg-n').innerText())).toBe('1 sur 2');
+    expect(await p.locator('#pjg-prec').isDisabled()).toBe(true);
+    await p.keyboard.press('Escape');
+    await expect.poll(() => p.locator('#pv-full').count()).toBe(0);
+    expect(await p.locator('#attachments .pjp-r').evaluateAll((xs) => xs.map((x) => x.getAttribute('aria-selected')))).toEqual(['true', 'false']);
     // Le serveur porte les deux.
     await expect.poll(async () => {
       const o = ((await api('GET', `/entreprises/${ent}/dossier-v10`, sarra)).corps.objets as { cle: string; contenu: { attachments?: { name: string }[] } }[]).find((x) => x.cle === 'd1');

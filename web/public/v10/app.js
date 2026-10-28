@@ -3968,34 +3968,76 @@
   // Ouvrir la COPIE rangée par SkanFact. (1.163.0, maquette achat « Justificatif en grand ») Une photo ou un PDF se montre
   // dans la fenêtre en grand de SkanFact, celle de l'aperçu d'une facture (Skander, 27/10/2026 : « il me l'ouvre dans une
   // autre fenêtre du navigateur ») ; un autre fichier, ou un justificatif que le serveur ne rend pas ici, s'ouvre comme avant.
-  async function ouvrirJustificatif(ownerId, a) {
+  // (28/10/2026, Skander : « le bouton Justificatif ouvre l'aperçu en grand, mais que de la première pièce, et on ne peut
+  // ni voir les autres ni en ajouter ») `etat` est celui du panneau des justificatifs de la pièce : la vue en grand y lit
+  // tous les fichiers (on passe de l'un à l'autre), et « Joindre » y ajoute un fichier sans la fermer.
+  async function ouvrirJustificatif(ownerId, a, etat) {
     try {
       const lu = bridge.apercuPiece ? await bridge.apercuPiece(a.file) : null;
-      if (lu && /^image\/|pdf/i.test(lu.type || '')) return justificatifEnGrand(ownerId, a, lu);
+      if (lu && /^image\/|pdf/i.test(lu.type || '')) return justificatifEnGrand(ownerId, a, lu, null, etat);
+      // Déjà dans la vue en grand (on y passe d'un fichier à l'autre) : un fichier qui ne s'y montre pas le dit, sans la fermer.
+      if (etat && $('#pv-full.pj-grand')) return justificatifEnGrand(ownerId, a, lu || {}, null, etat);
       ditOuverture(await bridge.openAttachment(ownerId, a.file), a.name || a.file);
     } catch (e) { toast(plainError(e), true); }
   }
-  function justificatifEnGrand(ownerId, a, lu, telecharger) {
+  function justificatifEnGrand(ownerId, a, lu, telecharger, etat) {
     const nom = a.name || a.file;
-    const ancien = $('#pv-full'); if (ancien) ancien.remove();
+    const ancien = $('#pv-full'); if (ancien) { if (ancien.fermerVue) ancien.fermerVue(true); else ancien.remove(); }
     const el = document.createElement('div');
     el.id = 'pv-full'; el.className = 'pj-grand';
     const image = /^image\//.test(lu.type || '');
     // Un PDF : ses pages dessinées ici, l'une sous l'autre (un cadre PDF ne s'affiche pas sur un téléphone, il télécharge).
-    const pdf = !image && lu.blob && bridge.apercuPdf;
-    el.innerHTML = `<div class="pv-fen" role="dialog" aria-modal="true" aria-label="${h(nom)}"><div class="pv-full-bar">
+    const pdf = !image && lu.blob && bridge.apercuPdf && /pdf/i.test(lu.type || 'pdf');
+    const montrable = image || pdf || (lu.adresse && /pdf/i.test(lu.type || ''));
+    // Tous les fichiers de la pièce, dans l'ordre du panneau ; celui qu'on regarde.
+    const liste = etat && Array.isArray(etat.liste) ? etat.liste : [];
+    const ici = liste.findIndex(x => x.file === a.file);
+    const plusieurs = ici >= 0 && liste.length > 1;
+    const peutJoindre = !!(etat && typeof etat.joindre === 'function');
+    const genre = x => /\.pdf$/i.test(x.name || x.file) ? 'pdf' : /\.xml$/i.test(x.name || x.file) ? 'xml' : /\.(jpe?g|png|webp|heic|gif)$/i.test(x.name || x.file) ? 'photo' : 'fichier';
+    const icone = g => lfIc(g === 'xml' ? 'nuage' : g === 'photo' ? 'photo' : 'piece', 15, 1.8);
+    el.innerHTML = `<div class="pv-fen${plusieurs ? ' pjg-plusieurs' : ''}" role="dialog" aria-modal="true" aria-label="${h(nom)}"><div class="pv-full-bar">
+        ${plusieurs ? `<span class="pjg-nav"><button type="button" class="btn btn-sm btn-icone" id="pjg-prec" aria-label="Le fichier d'avant" title="Le fichier d'avant (←)"${ici === 0 ? ' disabled' : ''}>${lfIc('gauche', 16)}</button><span class="pjg-n">${ici + 1} sur ${liste.length}</span><button type="button" class="btn btn-sm btn-icone" id="pjg-suiv" aria-label="Le fichier d'après" title="Le fichier d'après (→)"${ici === liste.length - 1 ? ' disabled' : ''}>${lfIc('droite', 16)}</button></span>` : ''}
         <b class="pv-titre" title="${h(nom)}">${h(nom)}</b>
         <span class="pv-pages">${a.date ? `joint le ${h(C.fmtDate(a.date))}` : ''}${a.size ? `${a.date ? ' · ' : ''}${h(fileSize(a.size))}` : ''}</span>
+        ${peutJoindre ? `<button class="btn btn-sm" id="pjg-joindre" title="Une photo, un PDF ou un fichier XML : il rejoint les justificatifs de la pièce">${lfIc('ajout', 14, 2.2)}Joindre un fichier</button>` : ''}
         <button class="btn btn-sm" id="pj-grand-tel" title="Une copie sur cet appareil">${lfIc('exporter', 14)}Télécharger</button>
         <button class="btn btn-sm" id="pv-full-close">Fermer <kbd>Échap</kbd></button>
       </div>
-      <div class="pv-full-body pj-grand-corps">${image ? `<img src="${lu.adresse}" alt="${h(nom)}">` : pdf ? '<div class="pj-pages"><span class="small muted">Les pages se préparent…</span></div>' : `<iframe src="${lu.adresse}" title="${h(nom)}"></iframe>`}</div>
-      <p class="pj-grand-pied small muted">Le document du fournisseur, gardé 10 ans avec la pièce.</p></div>`;
+      <div class="pjg-milieu">${plusieurs ? `<nav class="pjg-rail" aria-label="Les fichiers de la pièce">${liste.map((x, i) => `<button type="button" class="pjg-r${i === ici ? ' on' : ''}" data-pjg="${i}"${i === ici ? ' aria-current="true"' : ''} title="${h(x.name || x.file)}"><span class="pjp-ic ${genre(x)}" aria-hidden="true">${icone(genre(x))}</span><span class="pjg-rn"><b>${h(x.name || x.file)}</b><small>${fileSize(x.size)}</small></span></button>`).join('')}</nav>` : ''}
+      <div class="pv-full-body pj-grand-corps">${image ? `<img src="${lu.adresse}" alt="${h(nom)}">` : pdf ? '<div class="pj-pages"><span class="small muted">Les pages se préparent…</span></div>' : montrable ? `<iframe src="${lu.adresse}" title="${h(nom)}"></iframe>` : `<div class="pjg-rien">${icone(genre(a))}<b>Ce fichier ne se montre pas ici</b><span>« Télécharger » en garde une copie sur cet appareil, pour l'ouvrir avec le programme de ton choix.</span></div>`}</div></div>
+      <p class="pj-grand-pied small muted">Gardé 10 ans avec la pièce${plusieurs ? ' · ← et → passent d\'un fichier à l\'autre' : ''}.</p></div>`;
     document.body.appendChild(el);
-    const fermer = () => { el.remove(); document.removeEventListener('keydown', touche, true); };
-    const touche = e => { if (e.key === 'Escape' && !$('#modal-root').children.length) { e.preventDefault(); e.stopPropagation(); fermer(); } };
+    const fermer = (remplace) => {
+      el.remove(); document.removeEventListener('keydown', touche, true);
+      // Le panneau de la pièce suit le fichier qu'on regardait en dernier.
+      if (!remplace && etat && typeof etat.redessiner === 'function') etat.redessiner();
+    };
+    el.fermerVue = fermer;
+    const aller = i => {
+      const b = liste[i]; if (!b || b.file === a.file) return;
+      etat.choisi = b.file;
+      ouvrirJustificatif(ownerId, b, etat);
+    };
+    const touche = e => {
+      if ($('#modal-root').children.length) return;
+      if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); fermer(); }
+      else if (plusieurs && (e.key === 'ArrowLeft' || e.key === 'ArrowRight') && !e.target.closest('input, textarea, select')) { e.preventDefault(); aller(ici + (e.key === 'ArrowLeft' ? -1 : 1)); }
+    };
     document.addEventListener('keydown', touche, true);
-    $('#pv-full-close', el).onclick = fermer;
+    $('#pv-full-close', el).onclick = () => fermer();
+    if (plusieurs) {
+      $('#pjg-prec', el).onclick = () => aller(ici - 1);
+      $('#pjg-suiv', el).onclick = () => aller(ici + 1);
+      $$('[data-pjg]', el).forEach(b => b.onclick = () => aller(Number(b.dataset.pjg)));
+    }
+    if (peutJoindre) $('#pjg-joindre', el).onclick = async () => {
+      const avant = new Set(liste.map(x => x.file));
+      await etat.joindre();
+      // Le fichier joint s'ouvre ici, à sa place dans la liste (le panneau, redessiné par `joindre`, tient la liste à jour).
+      const neuf = (etat.liste || []).find(x => x.file === etat.choisi && !avant.has(x.file));
+      if (neuf && el.isConnected) ouvrirJustificatif(ownerId, neuf, etat);
+    };
     el.onclick = e => { if (e.target === el) fermer(); };
     $('#pj-grand-tel', el).onclick = () => (telecharger ? telecharger() : bridge.revealAttachment(ownerId, a.file).catch(e => toast(plainError(e), true)));
     $('#pv-full-close', el).focus();
@@ -4012,16 +4054,16 @@
       }
     })();
   }
-  function brancherJustificatifs(el, ownerId, list, retirer) {
+  function brancherJustificatifs(el, ownerId, list, retirer, etat) {
     $$('[data-open]', el).forEach(x => x.onclick = e => {
       e.preventDefault();
       const a = list.find(y => y.file === x.dataset.open);
-      if (a) ouvrirJustificatif(ownerId, a);
+      if (a) ouvrirJustificatif(ownerId, a, etat);
     });
     bindRowMenus(el, file => {
       const a = list.find(x => x.file === file); if (!a) return [];
       return [
-        { icon: 'ouvrir', label: 'Ouvrir le fichier', hint: a.name || a.file, run: () => ouvrirJustificatif(ownerId, a) },
+        { icon: 'ouvrir', label: 'Ouvrir le fichier', hint: a.name || a.file, run: () => ouvrirJustificatif(ownerId, a, etat) },
         // (plateforme, pièces jointes) Un navigateur n'a pas de dossier à montrer : le fichier se télécharge.
         { icon: 'dossier', label: 'Télécharger le fichier', hint: 'Une copie sur cet appareil', run: () => bridge.revealAttachment(ownerId, a.file).catch(e => toast(plainError(e), true)) },
         { sep: true },
@@ -4037,8 +4079,17 @@
   // chaque aperçu, en pleine taille l'un sous l'autre, poussait le second hors de l'écran, sans nom en vue.
   // `o` : { ownerId, list, vide (le HTML sans fichier, qui porte `#add-att`), joindre(fichiers?), retirer(a), zones(a),
   // ligne(a) (ce qu'une ligne ajoute : la case « joindre à l'e-mail » d'une facture), etat ({ choisi, recents }) }.
+  // (28/10/2026, Skander : « on n'arrive pas à fermer l'aperçu, et il faut défiler tout en bas pour ajouter une pièce, alors
+  // qu'ajouter doit être en haut pour qu'on le voie ») « Joindre un autre fichier » passe en tête du panneau ; l'aperçu se
+  // masque (« Masquer l'aperçu », retenu sur cet appareil pour toutes les pièces) et ne dépasse plus une hauteur d'écran.
+  const PJ_APERCU = 'skanfact.justificatifs.apercu';
+  const apercuMasque = () => { try { return localStorage.getItem(PJ_APERCU) === 'masque'; } catch { return false; } };
+  const masquerApercu = oui => { try { if (oui) localStorage.setItem(PJ_APERCU, 'masque'); else localStorage.removeItem(PJ_APERCU); } catch { /* sans stockage : le choix vaut pour cette page */ } };
   function panneauJustificatifs(el, o) {
     const list = o.list || [], etat = o.etat || {};
+    // Ce que la vue en grand lit : tous les fichiers, « Joindre », et de quoi redessiner le panneau quand elle se ferme.
+    etat.liste = list; etat.joindre = o.joindre;
+    etat.redessiner = () => { if (el.isConnected) panneauJustificatifs(el, o); };
     const recents = etat.recents || (etat.recents = new Set());
     if (!list.some(a => a.file === etat.choisi)) etat.choisi = list.length ? list[list.length - 1].file : null;
     const genre = a => /\.pdf$/i.test(a.name || a.file) ? 'pdf' : /\.xml$/i.test(a.name || a.file) ? 'xml' : /\.(jpe?g|png|webp|heic|gif)$/i.test(a.name || a.file) ? 'photo' : 'fichier';
@@ -4051,14 +4102,22 @@
     if (titre) titre.textContent = o.titres[list.length > 1 ? 1 : 0];
     if (!choisi) el.innerHTML = o.vide;
     else {
+      const masque = etat.masque !== undefined ? etat.masque : apercuMasque();
       el.innerHTML = `<div class="pjp">
+        <button type="button" class="pjp-plus" id="add-att">${lfIc('ajout', 15, 2.2)}<b>Joindre un autre fichier</b><small>photo, PDF ou XML · ou glisse-le ici</small></button>
         <div class="pjp-liste" role="listbox" aria-label="Fichiers joints">${list.map(a => `<div class="pjp-r${a === choisi ? ' on' : ''}" role="option" aria-selected="${a === choisi}" data-pj-choisir="${h(a.file)}" tabindex="0">
           <span class="pjp-ic ${genre(a)}" aria-hidden="true">${icone(genre(a))}</span>
           <span class="pjp-n"><b title="${h(a.name || a.file)}">${h(a.name || a.file)}</b><small>${fileSize(a.size)} · ${quand(a)}</small>${o.ligne ? o.ligne(a) : ''}</span>
           <button type="button" class="row-menu-btn pjp-menu" data-rowmenu="${h(a.file)}" aria-haspopup="menu" aria-expanded="false" aria-label="Gestes de « ${h(a.name || a.file)} »" title="Ouvrir, télécharger ou retirer">${lfIc('plus', 16)}</button></div>`).join('')}</div>
-        <div class="ac-pj"><button type="button" class="ac-pj-vue" data-open="${h(choisi.file)}" data-apercu="${h(choisi.file)}" title="Voir « ${h(choisi.name || choisi.file)} » en grand">${icone(genre(choisi), 26, 1.6)}</button></div>
-        <button type="button" class="pjp-plus" id="add-att">${lfIc('ajout', 15, 2.2)}<b>Joindre un autre fichier</b><small>photo, PDF ou XML · ou glisse-le ici</small></button></div>`;
-      if (bridge.apercuPiece) apercuJustificatif($('.ac-pj-vue', el), choisi, o.zones ? o.zones(choisi) : []);
+        ${masque ? `<div class="pjp-av pjp-av-cache"><button type="button" class="pjp-av-b" data-pj-montrer>${lfIc('oeil', 14)}Voir l'aperçu</button><button type="button" class="pjp-av-b" data-open="${h(choisi.file)}">${lfIc('agrandir', 14)}En grand</button></div>`
+          : `<div class="ac-pj"><button type="button" class="ac-pj-vue" data-open="${h(choisi.file)}" data-apercu="${h(choisi.file)}" title="Voir « ${h(choisi.name || choisi.file)} » en grand">${icone(genre(choisi), 26, 1.6)}</button>
+          <div class="pjp-av"><button type="button" class="pjp-av-b" data-open="${h(choisi.file)}">${lfIc('agrandir', 14)}En grand</button><button type="button" class="pjp-av-b" data-pj-masquer>${lfIc('masquer', 14)}Masquer l'aperçu</button></div></div>`}</div>`;
+      if (bridge.apercuPiece && !masque) apercuJustificatif($('.ac-pj-vue', el), choisi, o.zones ? o.zones(choisi) : []);
+      $$('[data-pj-masquer], [data-pj-montrer]', el).forEach(b => b.onclick = () => {
+        etat.masque = b.hasAttribute('data-pj-masquer'); masquerApercu(etat.masque);
+        panneauJustificatifs(el, o);
+        const n = $(etat.masque ? '[data-pj-montrer]' : '[data-pj-masquer]', el); if (n) n.focus();
+      });
       $$('[data-pj-choisir]', el).forEach(r => {
         const prendre = () => {
           if (etat.choisi === r.dataset.pjChoisir) return;
@@ -4071,7 +4130,7 @@
           if (e.key === 'Enter' || e.key === ' ') {
             e.preventDefault();
             const a = list.find(x => x.file === r.dataset.pjChoisir);
-            if (etat.choisi === r.dataset.pjChoisir && a) ouvrirJustificatif(o.ownerId, a); else prendre();
+            if (etat.choisi === r.dataset.pjChoisir && a) ouvrirJustificatif(o.ownerId, a, etat); else prendre();
           } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             e.preventDefault(); const s = e.key === 'ArrowDown' ? r.nextElementSibling : r.previousElementSibling; if (s) s.focus();
           }
@@ -4085,7 +4144,7 @@
       za.ondragleave = () => za.classList.remove('sur');
       za.ondrop = e => { e.preventDefault(); za.classList.remove('sur'); const f = [...(e.dataTransfer && e.dataTransfer.files || [])]; if (f.length) o.joindre(f); };
     }
-    brancherJustificatifs(el, o.ownerId, list, o.retirer);
+    brancherJustificatifs(el, o.ownerId, list, o.retirer, etat);
   }
   // Un fichier qui vient d'être joint devient celui qu'on regarde, et sa ligne dit « joint à l'instant ».
   function justificatifsJoints(etat, ajoutes) {
@@ -4510,6 +4569,11 @@
   // qu'on choisit à plusieurs, le clavier, et au téléphone deux puces et une feuille de filtres. Les devis gardent
   // `listView` jusqu'à leur lot.
   const LF_IC = {
+    // (28/10/2026) La vue en grand des justificatifs : agrandir, masquer l'aperçu, passer d'un fichier à l'autre.
+    agrandir: '<path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/>',
+    masquer: '<path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8M9.4 5.2A9.8 9.8 0 0 1 12 5c5 0 9 4.5 10 7a12.7 12.7 0 0 1-3.2 4.3M6.3 6.3C4.2 7.6 2.7 9.6 2 12c1 2.5 5 7 10 7a9.6 9.6 0 0 0 4.4-1"/>',
+    gauche: '<path d="M15 6l-6 6 6 6"/>',
+    droite: '<path d="M9 6l6 6-6 6"/>',
     // (1.162.0, la revue des écarts de la facture) Les icônes des bandeaux et des envois, reprises de la maquette.
     changer: '<path d="M16 3l4 4-4 4M20 7H8M8 21l-4-4 4-4M4 17h12"/>',
     equipe: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.3 3.2-5 6.5-5s5.9 1.7 6.5 5M16 4.5a3.5 3.5 0 0 1 0 7M18 15c2 .5 3.2 2.2 3.5 5"/>',
@@ -15188,9 +15252,11 @@
     };
     brancherQuestions();
     // (1.163.0, maquette achat) « Justificatif » montre celui de la pièce, en grand ; sans justificatif, il le fait joindre.
+    // (28/10/2026) Celui qu'on regarde dans le panneau, avec tous les autres à côté (« ← → ») et « Joindre un fichier ».
     if ($('#attach-top')) $('#attach-top').onclick = async () => {
-      const deja = (p.attachments || [])[0];
-      if (deja) return ouvrirJustificatif(p.id, deja);
+      const pjs = p.attachments || [];
+      const deja = pjs.find(x => x.file === etatJustifs.choisi) || pjs[pjs.length - 1];
+      if (deja) return ouvrirJustificatif(p.id, deja, etatJustifs);
       try { await joindre(await bridge.addAttachments(p.id)); }
       catch (e) { toast(plainError(e), true); }
     };
@@ -16047,7 +16113,7 @@
         hint: !t.withholding ? 'pas de retenue sur cette pièce' : isNew || !rs || rs.operee <= 0.0005 ? `${C.money(t.withholding, cur)} à retenir, au règlement` : `${C.money(rs.operee, cur)} retenus, à remettre`,
         off: !t.withholding || isNew || !rs || rs.operee <= 0.0005, run: () => attestationRetenue(s2) });
       a.push({ titre: 'Justificatif' });
-      a.push(pjs.length ? { icon: 'ouvrir', label: 'Voir le justificatif', hint: pjs[0].name || pjs[0].file, run: () => ouvrirJustificatif(p.id, pjs[0]) }
+      a.push(pjs.length ? { icon: 'ouvrir', label: pjs.length > 1 ? 'Voir les justificatifs' : 'Voir le justificatif', hint: pjs.length > 1 ? `${pjs.length} fichiers, en grand` : pjs[0].name || pjs[0].file, run: () => { const b = $('#attach-top'); if (b) b.click(); } }
         : { icon: 'ouvrir', label: 'Joindre le justificatif', hint: 'photo, PDF ou fichier El Fatoora', run: () => { const b = $('#attach-top'); if (b) b.click(); } });
       if (isNew && $('#photo') && !$('#photo').hidden && !pjs.some(x => /\.xml$/i.test(x.name || x.file))) a.push({ icon: 'loupe', label: 'Lire la pièce avec l\'IA', hint: 'facultatif : il compare avec ce que tu as saisi', run: () => $('#photo').click() });
       if (bridge.messagerie && messagerieVue && messagerieVue.cabinet) a.push({ icon: 'message', label: 'Écrire au cabinet sur cette pièce', hint: isNew ? 'après l\'enregistrement' : 'la question arrive dans votre fil', off: isNew, run: () => {

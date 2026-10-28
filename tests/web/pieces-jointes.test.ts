@@ -133,6 +133,48 @@ describe('les pièces jointes d\'un devis, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 180_000);
 
+  // (28/10/2026, Skander : « on n'arrive pas à fermer l'aperçu, il faut défiler tout en bas pour ajouter une pièce » ; « en
+  // grand, on ne voit que la première, et on ne peut ni voir les autres ni en ajouter ») « Joindre » en tête du panneau ;
+  // la vue en grand passe d'un fichier à l'autre et joint sans se fermer ; l'aperçu se masque, et le reste au rechargement.
+  it('« Joindre » en tête ; en grand, tous les fichiers et « Joindre un fichier » ; l\'aperçu se masque', async () => {
+    const { cx, p, erreurs } = await devisOuvert(serveur.adresse);
+    const net = (t: string) => t.replace(/\s+/g, ' ').trim();
+    await joindre(p, [{ name: 'Devis signé DEV-2026-031.pdf', mimeType: 'application/pdf', buffer: PDF }, { name: 'Chantier.png', mimeType: 'image/png', buffer: PNG }]);
+    await p.locator('#attachments .pjp-r', { hasText: 'Chantier.png' }).waitFor({ timeout: 15_000 });
+    expect(await p.locator('#attachments .pjp > :first-child').getAttribute('id')).toBe('add-att');
+    // En grand : celui qu'on regarde, « 2 sur 2 », les deux fichiers à gauche.
+    await p.locator('#attachments .ac-pj-vue').click();
+    await expect.poll(() => p.locator('#pv-full .pv-titre').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('Chantier.png');
+    expect(net(await p.locator('#pv-full .pjg-n').innerText())).toBe('2 sur 2');
+    expect(await p.locator('#pv-full .pjg-r.on').innerText().then(net)).toContain('Chantier.png');
+    await p.locator('#pv-full .pjg-r', { hasText: 'Devis signé' }).click();
+    await expect.poll(() => p.locator('#pv-full .pv-titre').innerText().then(net).catch(() => '')).toBe('Devis signé DEV-2026-031.pdf');
+    await p.keyboard.press('ArrowRight');
+    await expect.poll(() => p.locator('#pv-full .pv-titre').innerText().then(net).catch(() => '')).toBe('Chantier.png');
+    expect(await p.locator('#pjg-suiv').isDisabled()).toBe(true);
+    // Joindre sans fermer : le fichier joint s'ouvre aussitôt, à sa place, et le panneau le compte.
+    const [choix] = await Promise.all([p.waitForEvent('filechooser'), p.locator('#pv-full').getByRole('button', { name: 'Joindre un fichier' }).click()]);
+    await choix.setFiles([{ name: 'Plan du dépôt.png', mimeType: 'image/png', buffer: PNG }]);
+    await expect.poll(() => p.locator('#pv-full .pv-titre').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toBe('Plan du dépôt.png');
+    expect(net(await p.locator('#pv-full .pjg-n').innerText())).toBe('3 sur 3');
+    expect(net(await p.locator('#p-pj h2 .pjp-compte').innerText())).toBe('3 fichiers · gardés 10 ans');
+    await p.locator('#pv-full').getByRole('button', { name: /^Fermer/ }).click();
+    await expect.poll(() => p.locator('#pv-full').count()).toBe(0);
+    // Masquer l'aperçu : il s'efface, « Voir l'aperçu » le rend ; le choix tient après un rechargement.
+    expect(await p.locator('#attachments .ac-pj-vue').count()).toBe(1);
+    await p.locator('#attachments').getByRole('button', { name: 'Masquer l\'aperçu' }).click();
+    expect(await p.locator('#attachments .ac-pj-vue').count()).toBe(0);
+    expect(await p.locator('#attachments').getByRole('button', { name: 'Voir l\'aperçu' }).isVisible()).toBe(true);
+    await p.reload();
+    await p.locator('#attachments .pjp-r').first().waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    expect(await p.locator('#attachments .ac-pj-vue').count()).toBe(0);
+    await p.locator('#attachments').getByRole('button', { name: 'Voir l\'aperçu' }).click();
+    expect(await p.locator('#attachments .ac-pj-vue').count()).toBe(1);
+    await cx.close();
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
   it('un fichier qui n\'est ni une photo ni un PDF se refuse, et dit pourquoi', async () => {
     const { cx, p, erreurs } = await devisOuvert(serveur.adresse);
     await joindre(p, [{ name: 'Contrat.pdf', mimeType: 'application/pdf', buffer: Buffer.from('PK\u0003\u0004 un document Word renommé') }]);

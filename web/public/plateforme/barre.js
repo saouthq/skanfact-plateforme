@@ -942,28 +942,48 @@
       if (b) ro.observe(b); else view.style.removeProperty('--bande-h');
     }).observe(view, { childList: true });
   }
-  // (1.163.0) La colonne de droite d'une pièce colle sous la bande et défile seule. Sa hauteur se comptait depuis sa place
-  // collée : tant que la page n'avait pas défilé, son bas sortait de l'écran, et quand la colonne de gauche était courte la
-  // page ne défilait pas assez pour l'y ramener (vu par Skander le 27/10/2026 : « Vérifier case par case » et « Relire »
-  // hors d'atteinte sur la lecture d'un PDF). Elle se mesure donc là où elle est : son bas reste à l'écran.
+  // (1.163.0) La colonne de droite d'une pièce colle sous la bande. (28/10/2026, Skander : « quand j'arrive à la fin de la
+  // page, la colonne de droite, il faut encore chercher le scroll, ça ne se fait pas naturellement avec le contenu du
+  // milieu ») Elle n'a plus de défilement à elle : plus courte que l'écran, elle colle sous la bande ; plus haute, elle
+  // défile AVEC la page jusqu'à ce que son bas arrive en bas de l'écran, et s'arrête là (un `top` négatif de position
+  // collante). Ses derniers boutons s'atteignent donc en faisant défiler la page, comme le reste.
   function caserColonnes() {
     let attente = 0;
     const caser = () => {
       attente = 0;
+      const view = document.getElementById('view');
+      if (!view) return;
+      // Ce qui défile : la page elle-même (#view) ou la fenêtre.
+      const sv = getComputedStyle(view);
+      const vr = view.getBoundingClientRect();
+      const defileSeule = /(auto|scroll)/.test(sv.overflowY) && view.scrollHeight > view.clientHeight + 1;
+      const hautEcran = defileSeule ? Math.max(vr.top, 0) : 0;
+      const basEcran = defileSeule ? Math.min(vr.bottom, innerHeight) : innerHeight;
       document.querySelectorAll('#view .editor.charte > .ed-droite').forEach((n) => {
         const el = /** @type {HTMLElement} */ (n);
-        if (getComputedStyle(el).position !== 'sticky') { el.style.removeProperty('max-height'); return; }
+        el.style.removeProperty('max-height');
+        if (getComputedStyle(el).position !== 'sticky') { el.style.removeProperty('top'); return; }
         const r = el.getBoundingClientRect();
-        // Les mesures sont à l'échelle de l'écran ; la hauteur se pose dans celle de la page (html.echelle).
+        // Les mesures sont à l'échelle de l'écran ; `top` se pose dans celle de la page (html.echelle).
         const echelle = r.height > 0 ? el.offsetHeight / r.height : 1;
-        el.style.maxHeight = `${Math.max(160, Math.floor((innerHeight - Math.max(r.top, 0) - 14) * echelle))}px`;
+        const place = (basEcran - hautEcran) * echelle;
+        const sous = (Number(getComputedStyle(el).getPropertyValue('--bande-h').trim().replace(/px$/, '')) || 82) + 14;
+        const h = el.offsetHeight;
+        el.style.top = `${Math.round(h + sous + 14 > place ? place - h - 14 : sous)}px`;
       });
     };
     const bientot = () => { if (!attente) attente = requestAnimationFrame(caser); };
-    addEventListener('scroll', bientot, { passive: true });
     addEventListener('resize', bientot);
     const view = document.getElementById('view');
-    if (view) new MutationObserver(bientot).observe(view, { childList: true, subtree: true });
+    if (view) new MutationObserver(bientot).observe(view, { childList: true, subtree: true, attributes: true, attributeFilter: ['hidden', 'class'] });
+    if (typeof ResizeObserver !== 'undefined') {
+      // La colonne change de hauteur sans que le DOM change (une image d'aperçu qui arrive) : on la remesure.
+      const ro = new ResizeObserver(bientot);
+      const suivies = new WeakSet();
+      const suivre = () => document.querySelectorAll('#view .editor.charte > .ed-droite').forEach((n) => { if (!suivies.has(n)) { suivies.add(n); ro.observe(n); } });
+      if (view) new MutationObserver(suivre).observe(view, { childList: true, subtree: true });
+      suivre();
+    }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', suivreBande); else suivreBande();
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', caserColonnes); else caserColonnes();

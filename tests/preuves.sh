@@ -20488,7 +20488,7 @@ prouver 'ia 19 : la pièce remplie par l'"'"'IA qui se dit « Brouillon »' web/
   "      if (!stored && luParIA) return" "      if (false) return" \
   '« Non » joint la photo sans rien envoyer'
 prouver 'ia 20 : le justificatif sans sa photo' web/public/v10/app.js \
-  "      if (bridge.apercuPiece) apercuJustificatif(" "      if (false) apercuJustificatif(" \
+  "      if (bridge.apercuPiece && !masque) apercuJustificatif(" "      if (false) apercuJustificatif(" \
   '« Non » joint la photo sans rien envoyer'
 prouver 'ia 21 : la zone d'"'"'un doute perdue au serveur' serveur/achats/lecture-ia.ts \
   "zone: zoneDe(d.zone) };" "zone: null };" \
@@ -20746,7 +20746,7 @@ prouver 'justificatifs 5 : le toast qui ne dit pas quel fichier a été pris' we
   '`Justificatif joint : ${ajoutes[0].name || '"'"'le fichier'"'"'}`' ''"'"'Justificatif joint'"'"'' \
   'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
 prouver 'justificatifs 6 : le justificatif ouvert dans un autre onglet' web/public/v10/app.js \
-  '      if (lu && /^image\/|pdf/i.test(lu.type || '"'"''"'"')) return justificatifEnGrand(ownerId, a, lu);
+  '      if (lu && /^image\/|pdf/i.test(lu.type || '"'"''"'"')) return justificatifEnGrand(ownerId, a, lu, null, etat);
 ' '' \
   'joint, ouvert, téléchargé, gardé après un rechargement, puis retiré'
 prouver 'lecture en devise 1 : la devise lue perdue en remplissant la pièce' web/public/v10/app.js \
@@ -20824,6 +20824,32 @@ prouver 'émise 7 : « Ranger dans une affaire » qui n'"'"'ouvre rien' web/publ
   'if (b) b.onclick = () => ouvrirEtiquette(b); };' 'if (b) b.onclick = null; };' "$T_EMISE"
 prouver 'émise 8 : l'"'"'affaire choisie que la ligne ne dit pas' web/public/v10/app.js \
   "const lpAff = \$('#lp-affaire dd'); if (lpAff) { lpAff.innerHTML = affaireLue(); lierAffaireLue(); }" '' "$T_EMISE"
+# ── Les justificatifs : tous en grand, « Joindre » en tête, l'aperçu qui se masque, la colonne qui suit la page (28/10/2026) ──
+prouver 'justificatifs en grand 1 : « Justificatif » qui n'"'"'ouvre que le premier fichier' web/public/v10/app.js \
+  'if (deja) return ouvrirJustificatif(p.id, deja, etatJustifs);' 'if (deja) return ouvrirJustificatif(p.id, pjs[0]);' \
+  'un ticket joint à une dépense rangée : statut, bandeau, frise et bouton changent aussitôt ; deux fichiers se lisent ; retirer le dernier revient'
+prouver 'justificatifs en grand 2 : en grand, sans les autres fichiers de la pièce' web/public/v10/app.js \
+  'etat.liste = list; etat.joindre = o.joindre;' 'etat.joindre = o.joindre;' \
+  '« Joindre » en tête ; en grand, tous les fichiers et « Joindre un fichier » ; l'"'"'aperçu se masque'
+prouver 'justificatifs en grand 3 : le fichier joint en grand qui ne s'"'"'y montre pas' web/public/v10/app.js \
+  'if (neuf && el.isConnected) ouvrirJustificatif(ownerId, neuf, etat);' '' \
+  '« Joindre » en tête ; en grand, tous les fichiers et « Joindre un fichier » ; l'"'"'aperçu se masque'
+prouver 'justificatifs en grand 4 : « Masquer l'"'"'aperçu » qui ne masque rien' web/public/v10/app.js \
+  'etat.masque = b.hasAttribute('"'"'data-pj-masquer'"'"'); masquerApercu(etat.masque);' 'etat.masque = false;' \
+  '« Joindre » en tête ; en grand, tous les fichiers et « Joindre un fichier » ; l'"'"'aperçu se masque'
+prouver 'justificatifs en grand 5 : l'"'"'aperçu masqué qui revient au rechargement' web/public/v10/app.js \
+  'const apercuMasque = () => { try { return localStorage.getItem(PJ_APERCU) === '"'"'masque'"'"'; } catch { return false; } };' 'const apercuMasque = () => false;' \
+  '« Joindre » en tête ; en grand, tous les fichiers et « Joindre un fichier » ; l'"'"'aperçu se masque'
+prouver 'justificatifs en grand 6 : « Joindre un autre fichier » sous l'"'"'aperçu' web/public/v10/app.js \
+  '<button type="button" class="pjp-plus" id="add-att">${lfIc('"'"'ajout'"'"', 15, 2.2)}<b>Joindre un autre fichier</b><small>photo, PDF ou XML · ou glisse-le ici</small></button>
+        <div class="pjp-liste"' '<div class="pjp-liste"' \
+  '« Joindre » en tête ; en grand, tous les fichiers et « Joindre un fichier » ; l'"'"'aperçu se masque'
+prouver 'justificatifs en grand 7 : la colonne de droite qui défile seule' web/public/plateforme/piece.css \
+  '.editor.charte > .ed-droite { position: sticky; top: calc(var(--bande-h, 82px) + 14px); align-self: start; }' '.editor.charte > .ed-droite { position: sticky; top: calc(var(--bande-h, 82px) + 14px); align-self: start; max-height: calc(100vh - 110px); overflow-y: auto; }' \
+  'un PDF lu par l'"'"'IA se montre : sa première page, à chaque étape, et les phrases disent « le PDF »'
+prouver 'la bulle « i » des filtres de la liste, trop petite au doigt' web/public/plateforme/liste.css \
+  '@media (max-width: 760px) { .lf #lf-filtres button.i.i-b { width: 44px; height: 44px; flex-basis: 44px; } }' '' \
+  'les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l'"'"'écran, et au doigt tout se touche'
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

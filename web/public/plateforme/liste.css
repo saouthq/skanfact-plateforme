@@ -232,3 +232,6 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
 /* (1.162.0, maquette liste) La bulle des filtres : le rond « ? », sans fond, comme les gestes de la barre. */
 .lf #lf-filtres button.i.i-b { width: 30px; height: 30px; flex: 0 0 30px; display: grid; place-items: center; border: 0; border-radius: 99px; background: none; color: var(--sb-gris-2); font: inherit; padding: 0; }
 .lf #lf-filtres button.i.i-b:hover, .lf #lf-filtres button.i.i-b:focus-visible { background: var(--sb-survol); color: var(--sb-encre); }
+/* Au doigt, la bulle « i » des filtres se touche comme les autres (44 points, `tests/web/rendu.test.ts`) : la règle de 30 px
+   ci-dessus, plus précise, passait devant celle du téléphone. */
+@media (max-width: 760px) { .lf #lf-filtres button.i.i-b { width: 44px; height: 44px; flex-basis: 44px; } }

@@ -122,7 +122,6 @@ body.dark .banner.info .btn:not(.btn-primary):not(.btn-danger) { background: var
      s'arrêtait à 810 px sur 900, 26/10/2026). */
   html.echelle body.avec-barre:not(.mode-caisse) #barre.sidebar { height: calc((100dvh - var(--poste-bandeau-h, 0px)) / var(--echelle, .9)); }
   html.echelle body:not(.mode-caisse) #view .editor:not(.charte) .preview { height: calc(100vh / var(--echelle, .9) - 96px); }
-  html.echelle body:not(.mode-caisse) #view .editor.charte > .ed-droite { max-height: calc(100vh / var(--echelle, .9) - var(--bande-h, 82px) - 28px); }
   html.echelle body:not(.mode-caisse) #view .msg-corps > .msg-zone { height: calc(100dvh / var(--echelle, .9) - var(--msg-haut, 210px)); }
   /* Ce qui s'ouvre par-dessus la page suit la même échelle : la fenêtre, le toast, le menu ⋯, les bulles d'une pièce et
      la bulle « i » (ils restaient à 100 % sur une page à 90 %, 26/10/2026). Les menus posés en px rétrécissent vers leur

@@ -322,11 +322,31 @@ describe('la lecture d\'une facture d\'achat par l\'IA, à la souris', () => {
       document.querySelector('#view')?.prepend(b);
       scrollTo(0, 0);
     });
-    // La colonne déborde (sinon ce test ne mesurerait rien), et son bas reste à l'écran.
+    // (28/10/2026, Skander : « arrivé en bas de la page, il faut encore chercher le scroll de la colonne de droite ») La
+    // colonne, plus haute que l'écran (sinon ce test ne mesurerait rien), n'a pas de défilement à elle : elle défile avec
+    // la page, et ses derniers boutons s'atteignent en faisant défiler la page.
     await expect.poll(() => p.evaluate(() => {
       const c = document.querySelector('#view .editor.charte > .ed-droite');
-      return c ? [c.scrollHeight > c.clientHeight, Math.round(c.getBoundingClientRect().bottom) <= innerHeight] : [];
-    }), { timeout: 10_000 }).toEqual([true, true]);
+      return c ? [c.getBoundingClientRect().height > innerHeight, c.scrollHeight <= c.clientHeight + 1, getComputedStyle(c).overflowY] : [];
+    }), { timeout: 10_000 }).toEqual([true, true, 'visible']);
+    // Quand la colonne de gauche est plus longue encore (une pièce de cent lignes), la colonne de droite défile avec la page
+    // jusqu'à son bas, et s'arrête là : à mi-page, son bas est à l'écran (barre.js, `caserColonnes`) ; sans lui, collée sous
+    // la bande, son bas restait hors de l'écran jusqu'à la fin de la page.
+    await p.evaluate(() => {
+      const g = document.createElement('div'); g.style.height = '1600px'; g.className = 'gauche-longue-test';
+      document.querySelector('#view .editor.charte > .ed-gauche')?.append(g);
+    });
+    await p.waitForTimeout(300);
+    await p.evaluate(() => {
+      const v = document.querySelector('#view') as HTMLElement;
+      v.scrollTop = (v.scrollHeight - v.clientHeight) / 2;
+      scrollTo(0, (document.documentElement.scrollHeight - innerHeight) / 2);
+    });
+    await expect.poll(() => p.evaluate(() => {
+      const c = document.querySelector('#view .editor.charte > .ed-droite')?.getBoundingClientRect();
+      return !!c && c.top < 0 && Math.round(c.bottom) <= innerHeight;
+    }), { timeout: 10_000 }).toBe(true);
+    await p.evaluate(() => document.querySelector('.gauche-longue-test')?.remove());
     await p.locator('#lec-detail').scrollIntoViewIfNeeded();
     expect(await p.evaluate(() => { const b = document.querySelector('#lec-detail')?.getBoundingClientRect(); return !!b && b.bottom <= innerHeight && b.top >= 0; })).toBe(true);
     await p.screenshot({ path: path.join(PHOTOS, 'lecture-ia-colonne-ecran-bas.png') });
