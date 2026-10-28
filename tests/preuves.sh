@@ -20850,6 +20850,14 @@ prouver 'justificatifs en grand 7 : la colonne de droite qui défile seule' web/
 prouver 'la bulle « i » des filtres de la liste, trop petite au doigt' web/public/plateforme/liste.css \
   '@media (max-width: 760px) { .lf #lf-filtres button.i.i-b { width: 44px; height: 44px; flex-basis: 44px; } }' '' \
   'les pages du quotidien de la v10, sur un téléphone et un ordinateur : aucune ne défile de côté, rien ne sort de l'"'"'écran, et au doigt tout se touche'
+# ── Le Cabinet n'appelle plus les paquets quand on glisse (1.166.1, vu par Skander le 28/10/2026) ──
+T_VOILE='au bureau : la tête et son menu, « Mon cabinet » et ses chiffres'
+prouver 'voile des paquets 1 : un fichier glissé qui appelle les paquets absents de la plateforme' web/public/v10/cabinet/app.js \
+  "const paquets = 'pathForFile' in api;" "const paquets = typeof api.pathForFile === 'function';" "$T_VOILE"
+prouver 'voile des paquets 2 : une entrée de la barre glissée qui appelle les paquets' web/public/v10/cabinet/app.js \
+  "    const paquets = 'pathForFile' in api;
+    const fichier = e => !!e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');" "    const paquets = true;
+    const fichier = () => true;" "$T_VOILE"
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).

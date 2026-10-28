@@ -89,6 +89,29 @@ describe('la barre du Cabinet, à la souris', () => {
     await p.locator('#page-priorites').waitFor({ timeout: 20_000 });
     expect(p.url()).toMatch(/#\/priorites$/);
 
+    // ── (1.166.1) Glisser n'appelle jamais les paquets : ils n'existent pas sur la plateforme (C4) ──
+    // Le geste de Skander, le 28/10 : attraper une entrée de la barre et la promener sur la page.
+    const voile = p.locator('#drop-veil');
+    const entree = p.locator('#nav .nav-quotidien > a.lien[data-route="pieces"]');
+    await entree.waitFor();
+    const pieces = await entree.boundingBox();
+    if (!pieces) throw new Error('l\'entrée « Pièces reçues » ne se voit pas');
+    await p.mouse.move(pieces.x + 30, pieces.y + pieces.height / 2);
+    await p.mouse.down();
+    for (const [x, y] of [[400, 400], [700, 520], [900, 600]] as const) { await p.mouse.move(x, y, { steps: 4 }); expect(await voile.isHidden()).toBe(true); }
+    await p.mouse.up();
+    // Un fichier glissé puis lâché sur la page : rien ne paraît, et l'application reste où elle est.
+    const lache = await p.evaluate(() => {
+      const dt = new DataTransfer();
+      dt.items.add(new File(['x'], 'avril.skanpack'));
+      const ev = (type: string) => { const e = new DragEvent(type, { dataTransfer: dt, bubbles: true, cancelable: true }); document.querySelector('#view')?.dispatchEvent(e); return e; };
+      ev('dragenter');
+      const vu = !(document.querySelector('#drop-veil') as HTMLElement).hidden;
+      return { vu, retenu: ev('drop').defaultPrevented };
+    });
+    expect(lache).toEqual({ vu: false, retenu: true });
+    expect(p.url()).toMatch(/#\/priorites$/);
+
     // ── La tête : le cabinet, ses initiales sur l'ardoise, combien de dossiers ──
     expect(await p.locator('#brand-cab').innerText()).toBe('Jlassi Conseil');
     expect(await p.locator('#barre .brand-mark').innerText()).toBe('JC');

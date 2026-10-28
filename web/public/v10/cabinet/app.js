@@ -1264,15 +1264,24 @@
 
   // ---------- glisser-déposer ----------
   // Le geste le plus naturel — attraper le .skanpack reçu par mail et le lâcher sur la fenêtre.
+  // (plateforme, 1.166.1) Le voile ne paraît que pour un FICHIER, et seulement là où les paquets existent : sur la
+  // plateforme il n'y en a plus (C4), et glisser une entrée de la barre ou un lien faisait paraître « Lâche ici les
+  // paquets reçus » sur la page (vu par Skander le 28/10). Un fichier lâché à côté d'une zone n'ouvre jamais le
+  // navigateur ailleurs que dans l'application : il est retenu, sans rien faire. Le pont de la plateforme répond une
+  // fonction à TOUT nom (pont-cabinet.js) : on demande donc s'il PORTE le geste, pas ce qu'il rend.
   function setupDrop() {
     const veil = $('#drop-veil');
+    const paquets = 'pathForFile' in api;
+    const fichier = e => !!e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
     let depth = 0;
     const show = on => { veil.hidden = !on; };
-    window.addEventListener('dragenter', e => { e.preventDefault(); depth++; show(true); });
-    window.addEventListener('dragover', e => { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; });
-    window.addEventListener('dragleave', e => { e.preventDefault(); depth = Math.max(0, depth - 1); if (!depth) show(false); });
+    window.addEventListener('dragenter', e => { if (!fichier(e)) return; e.preventDefault(); if (!paquets) return; depth++; show(true); });
+    window.addEventListener('dragover', e => { if (!fichier(e)) return; e.preventDefault(); e.dataTransfer.dropEffect = paquets ? 'copy' : 'none'; });
+    window.addEventListener('dragleave', e => { if (!fichier(e) || !paquets) return; e.preventDefault(); depth = Math.max(0, depth - 1); if (!depth) show(false); });
     window.addEventListener('drop', e => {
+      if (!fichier(e)) return;
       e.preventDefault(); depth = 0; show(false);
+      if (!paquets) return;
       const files = [...(e.dataTransfer.files || [])].map(f => api.pathForFile(f)).filter(Boolean);
       if (files.length) handleDropped(files);
     });
