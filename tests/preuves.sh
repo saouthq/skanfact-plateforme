@@ -21101,5 +21101,14 @@ prouver 'classeur 42 : une déclaration dont la TVA diffère de ses livres ne le
 prouver 'classeur 43 : recliquer la rubrique affichée referme la pièce ouverte d'\''elle-même' web/public/v10/cabinet/app.js \
   "if (ici && !resumeMois && a.dataset.clRub === clState.rub && clState.filtre === 'rub')" "if (false)" \
   'un courrier se range avec le mois où il est arrivé, puis sa réponse ; une vue ouverte se referme (lien et « précédent ») ; une pièce remplacée sort du compte'
+prouver 'classeur 44 : un collaborateur en saisie voit « Relancer Hédi » sur les mois vides' web/public/v10/cabinet/app.js \
+  "? reserve(x.geste.act) ? parReviseur(x.geste.act) : \`<button" "? false ? parReviseur(x.geste.act) : \`<button" \
+  'un collaborateur en saisie : ni export, ni ce qui parle au client ; la page dit qui le fait'
+prouver 'classeur 45 : un collaborateur en saisie voit « Exporter »' web/public/v10/cabinet/app.js \
+  '${actions && !tel && !enSaisie ?' '${actions && !tel ?' \
+  'un collaborateur en saisie : ni export, ni ce qui parle au client ; la page dit qui le fait'
+prouver 'classeur 46 : un ticket dont rien ne dit le montant a « Joindre » pour bouton principal' web/public/v10/cabinet/app.js \
+  "const jP = memeMontant(c, sel) || (sel.geste && sel.geste.act === 'joindre');" "const jP = true;" \
+  'une pièce lue dont le total est celui d'\''un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

@@ -48,6 +48,7 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     return { jeton, email };
   };
   const gerants = new Map<string, string>();
+  const mandats = new Map<string, string>();
   async function unCabinet() {
     const { jeton: associe, email: courrielAssocie } = await personne('Leïla Jlassi');
     const cab = (await api('POST', '/cabinets', associe, { nom: 'Jlassi Conseil' })).corps as { id: string; code: string };
@@ -58,6 +59,7 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
       expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, associe)).statut).toBe(200);
       expect((await api('PUT', `/cabinets/${cab.id}/fiches/${ent}`, associe, { contenu: fiche, revision: null })).statut).toBeLessThan(300);
       gerants.set(ent, j);
+      mandats.set(ent, mandat);
       return ent;
     };
     const ecrire = async (ent: string, e: Record<string, unknown>) => expect((await api('POST', `/entreprises/${ent}/compta/ecritures`, associe, e)).statut).toBe(201);
@@ -224,6 +226,10 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     const ligne = p.locator('li[data-cl-k]').filter({ hasText: 'IMG_8850' });
     await expect.poll(() => ligne.innerText().catch(() => '')).toMatch(/un achat du même montant existe déjà : FA-0919, sans justificatif/);
     expect(await ligne.innerText()).toMatch(/STEG[\s\S]*113,396/);
+    // Le ticket, dont rien ne dit le montant : le bouton principal est « Saisir » (le geste de sa ligne), pas « Joindre ».
+    await p.locator('li[data-cl-k]').filter({ hasText: 'ticket-24-10' }).click();
+    await expect.poll(() => p.locator('.cl-ap .btn-primary').innerText().catch(() => '')).toBe('Saisir un nouvel achat');
+    expect(await p.locator('.cl-ap [data-cl-ap="joindre"]').getAttribute('class')).not.toMatch(/btn-primary/);
     await ligne.click();
     await expect.poll(() => p.locator('.cl-ap').innerText().catch(() => '')).toMatch(/Un achat du même montant existe déjà[\s\S]*FA-0919/);
     expect(await p.locator('.cl-ap .cl-ap-b b .cl-ia-ic').count()).toBe(1);
@@ -359,6 +365,28 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     await expect.poll(() => jointe.innerText().catch(() => '')).toMatch(/186,420[\s\S]*saisie/);
     expect(erreurs).toEqual([]);
   }, 60_000);
+
+  it('un collaborateur en saisie : ni export, ni ce qui parle au client ; la page dit qui le fait', async () => {
+    const { associe, cab, menuiserie } = await unCabinet();
+    const rim = await personne('Rim Toumi');
+    const inv = (await api('POST', `/cabinets/${cab.id}/invitations`, associe, { email: rim.email, role: 'saisie' })).corps as { jeton: string };
+    expect((await api('POST', '/invitations/accepter', rim.jeton, { jeton: inv.jeton })).statut).toBe(200);
+    const membres = (await api('GET', `/cabinets/${cab.id}/equipe`, associe)).corps.membres as { membre: string; nom: string }[];
+    const mRim = membres.find((m) => m.nom === 'Rim Toumi')?.membre ?? '';
+    expect((await api('PUT', `/cabinets/${cab.id}/mandats/${mandats.get(menuiserie)}/affectations/${mRim}`, associe, { role: 'saisie' })).statut).toBe(200);
+    // La direction, elle, exporte et relance.
+    const a = await contexte(associe);
+    await ouvrir(a.p, cab.id, menuiserie);
+    expect(await a.p.locator('#cl-exporter').count()).toBe(1);
+    await expect.poll(() => a.p.locator('.cl-liste').innerText()).toMatch(/Relancer Hédi/);
+    const { p, erreurs } = await contexte(rim.jeton);
+    await ouvrir(p, cab.id, menuiserie);
+    // Les mois vides : Rim ne relance pas Hédi, la page dit qui le fait.
+    await expect.poll(() => p.locator('.cl-liste').innerText()).toMatch(/Leïla relance Hédi/);
+    expect(await p.locator('.cl-liste').innerText()).not.toMatch(/Relancer Hédi/);
+    expect(await p.locator('#cl-exporter').count()).toBe(0);
+    expect(erreurs).toEqual([]);
+  }, 90_000);
 
   it('un dossier tenu au cabinet : ce qui est arrivé, puis une rubrique de l\'arbre s\'ouvre au clic', async () => {
     const { associe, cab } = await unCabinet();

@@ -2294,7 +2294,9 @@
     visite({
       id: 'exporter-classeur', theme: 'portefeuille', type: 'faire', duree: '1 min', page: classeur, pages: ['dossier-classeur'],
       titre: 'Exporter pour un contrôle', resume: 'Les pièces, le FEC, l\'index.',
-      mots: ['exporter', 'controle', 'zip', 'fec', 'classeur', 'archive'], si: () => !!ctx.dossier('client'), manque: DOSSIER_MANQUE.client,
+      mots: ['exporter', 'controle', 'zip', 'fec', 'classeur', 'archive'],
+      // (1.174.4) Un collaborateur en saisie n'exporte pas un dossier (la maquette) : la visite ne lui est pas proposée.
+      si: () => { const st = ctx.state() || {}; return !!ctx.dossier('client') && ((st.collaborateurs || []).find(c => c.id === st.moi) || {}).role !== 'saisie'; }, manque: DOSSIER_MANQUE.client,
       suite: ['retrouver-piece'], bravo: 'Tu sais exporter un classeur',
       conclusion: 'Le fichier ZIP s\'écrit sur ton poste, puis se télécharge : rien ne part ailleurs.',
       etapes: [
