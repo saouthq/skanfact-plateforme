@@ -21062,5 +21062,29 @@ prouver 'fiche du dossier : l'\''en-tête garde un vert fixe au lieu de la coule
 prouver 'classeur 30 : dans un dossier tenu, une rubrique de l'\''arbre ne s'\''ouvre pas' web/public/v10/cabinet/app.js \
   "} else if (d.manual && pm.cl !== 'avenir' && clState.filtre === 'rub' && !clState.ouvrir) {" "} else if (d.manual && pm.cl !== 'avenir') {" \
   'un dossier tenu au cabinet : ce qui est arrivé, puis une rubrique'
+prouver 'classeur 31 : une vue ouverte (les courriers, une déclaration) n'\''a pas de lien pour revenir' web/public/v10/cabinet/app.js \
+  'if (retourVue) milieu = ' 'if (0) milieu = ' \
+  'un courrier se range avec le mois où il est arrivé'
+prouver 'classeur 32 : « précédent » sort du classeur au lieu de revenir à la vue d'\''avant' web/public/v10/cabinet/app.js \
+  "else if (JSON.stringify(h) !== JSON.stringify(pos)) history.pushState({ cl: pos }, '');" "" \
+  'un courrier se range avec le mois où il est arrivé'
+prouver 'classeur 33 : un courrier se range avec l'\''année seule, sans le mois où il est arrivé' web/public/v10/cabinet/app.js \
+  "rubrique === 'courrier' ? (\$('#dp-cm', layer).value || K.today().slice(0, 7)) : null," "rubrique === 'courrier' ? K.today().slice(0, 4) : null," \
+  'un courrier se range avec le mois où il est arrivé'
+prouver 'classeur 34 : une pièce remplacée reste à traiter à côté de la nouvelle' web/public/v10/cabinet/app.js \
+  'if (vieille && !vieille.classee && r && r.id)' 'if (0 && vieille && !vieille.classee && r && r.id)' \
+  'un courrier se range avec le mois où il est arrivé'
+prouver 'classeur 35 : la pièce ouverte d'\''elle-même en arrivant n'\''a ni sa ligne surlignée ni son ⋯' web/public/v10/cabinet/app.js \
+  'if (!clState.sel) { clState.sel = premierVu.k; drawClasseur(view, d); return; }' 'if (!clState.sel) clState.sel = premierVu.k;' \
+  'un courrier se range avec le mois où il est arrivé'
+prouver 'classeur 36 : le menu ⋯ d'\''une pièce n'\''a pas d'\''icônes' web/public/v10/cabinet/app.js \
+  '<span class="rm-i">${ic}</span><span class="rm-t"><span class="rm-l">${esc(l)}</span>' '<span class="rm-t"><span class="rm-l">${esc(l)}</span>' \
+  'un courrier se range avec le mois où il est arrivé'
+prouver 'classeur 37 : « Pas une pièce comptable » manque au menu d'\''une pièce' web/public/v10/cabinet/app.js \
+  "sortir.push(['rien', CD_IC.archive, " "sortir.push(['rien0', CD_IC.archive, " \
+  'un courrier se range avec le mois où il est arrivé'
+prouver 'classeur 38 : une rubrique vide du mois ne dit rien et n'\''offre aucun geste' web/public/v10/cabinet/app.js \
+  '${l.length ? liste(trie) : `<div class="cl-rub-vide">' '${l.length ? liste(trie) : `<div hidden class="x">' \
+  'un courrier se range avec le mois où il est arrivé'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

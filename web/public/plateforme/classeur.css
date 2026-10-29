@@ -594,3 +594,33 @@
 .cl-a-sous { margin-left: 8px; }
 .cl-a-s em { white-space: normal; line-height: 1.3; }
 .cl-a-m.rouge i::before { content: '!'; }
+/* Le chemin du retour : une vue ouverte (une déclaration, les courriers, ce qui manque) se referme d'ici, sans chercher. */
+.cl-retour-vue { display: inline-flex; align-self: flex-start; justify-self: start; width: max-content; align-items: center; gap: 4px; margin: 0 0 10px; padding: 4px 10px 4px 8px; border-radius: 99px; font-size: 12.5px; font-weight: 600; color: var(--sb-sarcelle); text-decoration: none; background: color-mix(in srgb, var(--sb-sarcelle) 8%, transparent); }
+.cl-retour-vue:hover { background: color-mix(in srgb, var(--sb-sarcelle) 15%, transparent); }
+.cl-retour-vue:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: 2px; }
+.cl-l-t small b.ambre { color: var(--sb-ambre-texte); font-weight: 600; }
+/* (1.174.1) Le bouton ⋯ d'une pièce se voit (Skander : « le bouton action n'est pas visible ») : bordé, sur papier, avec
+   son survol. Il prend sa place dans la grille de la ligne (2e rang, colonne du montant) au lieu de flotter par-dessus
+   le montant ; toutes les lignes gardent ce 2e rang, la ligne ouverte ne grandit donc pas. Le menu suit charte.css. */
+.cl-l { grid-template-rows: auto minmax(28px, auto); }
+.cl-mw { position: relative; right: auto; bottom: auto; grid-area: 2 / 4; justify-self: end; align-self: center; }
+.cl-mw > .btn.cl-trois { width: 28px; height: 28px; padding: 0; display: inline-grid; place-items: center; border: 1px solid var(--sb-trait); border-radius: 8px; background: var(--sb-papier); color: var(--sb-encre); box-shadow: 0 1px 2px rgba(15, 40, 36, .08); }
+.cl-mw > .btn.cl-trois:hover { border-color: var(--sb-sarcelle); color: var(--sb-sarcelle-texte); }
+.cl-mw > .btn.cl-trois[aria-expanded="true"] { border-color: var(--sb-sarcelle); background: color-mix(in srgb, var(--sb-sarcelle) 10%, var(--sb-papier)); color: var(--sb-sarcelle-texte); }
+.cl-menu { width: 320px; overflow-y: auto; overscroll-behavior: contain; }
+.cl-menu button { display: grid; grid-template-columns: 16px 1fr; gap: 0 10px; align-items: start; padding: 7px 9px; }
+.cl-menu button:disabled { opacity: .5; cursor: not-allowed; }
+.cl-menu .rm-i svg { width: 16px; height: 16px; display: block; }
+.cl-menu.haut { top: auto; bottom: calc(100% + 4px); }
+.cl-menu-n { display: flex; gap: 8px; align-items: flex-start; margin: 4px 0 0; padding: 9px 10px; border-radius: 9px; background: var(--sb-papier-2); color: var(--sb-gris); }
+.cl-menu-n svg { flex: none; width: 14px; height: 14px; margin-top: 1px; }
+.cl-menu-n b { color: var(--sb-encre); font-weight: 600; }
+/* Les gestes d'une pièce ouverte, à droite : à la suite, de gauche à droite, au lieu d'être tirés aux deux bords. */
+.cl-ap-a { justify-content: flex-start; }
+.cl-ap-a > :first-child { margin-right: 0; }
+/* Une rubrique vide du mois : ce qui y arrive, et le geste pour y déposer (au lieu d'une carte muette). */
+.cl-rub-vide { display: grid; grid-template-columns: 30px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 14px 16px; border-top: 1px solid var(--sb-trait); }
+.cl-rub-vide > span { width: 30px; height: 30px; display: grid; place-items: center; border-radius: 9px; background: var(--sb-survol); color: var(--sb-gris-2); }
+.cl-rub-vide p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--sb-gris); }
+.cl-rub-vide .btn svg { width: 14px; height: 14px; }
+.cl-rub-vide.ok > span { background: var(--sb-doux); color: var(--sb-doux-texte); }

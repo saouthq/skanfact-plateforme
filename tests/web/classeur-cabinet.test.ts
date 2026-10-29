@@ -240,6 +240,75 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 60_000);
 
+  it('un courrier se range avec le mois où il est arrivé, puis sa réponse ; une vue ouverte se referme (lien et « précédent ») ; une pièce remplacée sort du compte', async () => {
+    const { associe, cab, boulangerie } = await unCabinet();
+    const { p, erreurs } = await contexte(associe);
+    await ouvrir(p, cab.id, boulangerie);
+    const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n');
+    // Les courriers : le lien du retour ramène au mois ouvert, et « précédent » aussi.
+    await p.locator('.cl-arbre [data-cl-vue="courriers"]').click();
+    await expect.poll(() => p.locator('.cl-vide').innerText().catch(() => '')).toMatch(/Aucun courrier de l'administration en 2026/);
+    expect(await p.locator('[data-cl-retour]').innerText()).toBe('‹ Septembre 2026');
+    await p.goBack();
+    await expect.poll(() => p.locator('.cl-res-t').first().innerText()).toMatch(/^Septembre 2026/);
+    expect(p.url()).toMatch(/#\/dossier\/[^/]+\/classeur$/);
+    await p.locator('.cl-arbre [data-cl-vue="courriers"]').click();
+    await p.locator('[data-cl-retour]').click();
+    await expect.poll(() => p.locator('.cl-res-t').first().innerText()).toMatch(/^Septembre 2026/);
+    expect(await p.locator('[data-cl-retour]').count()).toBe(0);
+    // Ranger un courrier : le mois où il est arrivé, pas l'année seule ; la ligne et la colonne de droite le disent.
+    await p.locator('.cl-arbre [data-cl-vue="courriers"]').click();
+    await p.locator('#cl-ranger-cour').click();
+    await p.locator('#dp-f').setInputFiles({ name: 'cnss.pdf', mimeType: 'application/pdf', buffer: PDF });
+    await p.locator('#dp-titre').fill('CNSS · avis de mise à jour');
+    await p.locator('#dp-cm').fill('2026-07');
+    await p.locator('#dp-detail').fill('réponse attendue sous 30 jours');
+    expect(await p.locator('#dp-l').innerText()).toMatch(/Les courriers de 2026/);
+    await p.locator('.modal #ok').click();
+    const cour = p.locator('li[data-cl-k]').filter({ hasText: 'avis de mise à jour' });
+    await expect.poll(() => cour.innerText().catch(() => '')).toMatch(/reçu en juillet · réponse attendue sous 30 jours · rangé le \d\d\/\d\d\/2026 par Leïla[\s\S]*07\/2026/);
+    await cour.click();
+    await expect.poll(() => p.locator('.cl-ap').innerText().catch(() => '')).toMatch(/Courrier reçu en juillet 2026 · réponse attendue sous 30 jours · rangé par Leïla le \d\d\/\d\d à/);
+    await p.locator('[data-cl-ap="reponse"]').click();
+    expect(await p.locator('#dp-titre').inputValue()).toBe('Réponse · CNSS · avis de mise à jour');
+    await p.locator('.modal [data-close]').first().click();
+    // Une pièce déposée puis remplacée : la nouvelle est à saisir, l'ancienne passe en double d'elle et ne compte plus.
+    await p.locator('[data-cl-retour]').click();
+    await p.locator('#cl-deposer').click();
+    await p.locator('#dp-f').setInputFiles({ name: 'facture-floue.pdf', mimeType: 'application/pdf', buffer: PDF });
+    await p.locator('.modal #ok').click();
+    const floue = p.locator('li[data-cl-k^="d:"]').filter({ hasText: 'facture-floue' });
+    await expect.poll(() => floue.innerText().catch(() => '')).toMatch(/à saisir/);
+    await floue.click();
+    await p.locator('[data-cl-trois]').first().click();
+    await p.locator('[data-cl-menu="remplacer"]').click();
+    expect(await p.locator('#dp-t').innerText()).toBe('Remplacer facture-floue.pdf');
+    await p.locator('#dp-f').setInputFiles({ name: 'facture-nette.pdf', mimeType: 'application/pdf', buffer: Buffer.concat([PDF, Buffer.from('% nette\n')]) });
+    await p.locator('.modal #ok').click();
+    await expect.poll(() => p.locator('li[data-cl-k^="d:"]').filter({ hasText: 'facture-nette' }).filter({ hasNotText: 'la même que' }).innerText().catch(() => '')).toMatch(/à saisir/);
+    await expect.poll(() => floue.innerText().catch(() => '')).toMatch(/la même que facture-nette ·[\s\S]*en double/);
+    // En arrivant sur le mois, la pièce à traiter s'ouvre d'elle-même à droite : sa ligne est surlignée et porte son ⋯.
+    await p.reload();
+    await p.locator('#page-cl .cl-res').first().waitFor({ timeout: 25_000 });
+    await expect.poll(() => p.locator('li.cl-l.ici [data-cl-trois]').count()).toBe(1);
+    expect(await p.locator('li.cl-l.ici').innerText()).toMatch(/à saisir/);
+    const nette = p.locator(`li[data-cl-k="${await p.locator('li.cl-l.ici').getAttribute('data-cl-k')}"]`);
+    // Le menu ⋯ : une icône par geste (celles des autres menus), des groupes séparés, et pourquoi rien ne se supprime.
+    // « Pas une pièce comptable » sort la pièce du compte, et se défait.
+    await nette.locator('[data-cl-trois]').click();
+    const menu = p.locator('.cl-menu');
+    expect(await menu.locator('button .rm-i svg').count()).toBe(await menu.locator('button').count());
+    expect(await menu.locator('hr').count()).toBe(2);
+    expect(await menu.locator('.cl-menu-n').innerText()).toMatch(/Pas de « Supprimer » : ce qui est rangé se garde 10 ans/);
+    await menu.locator('[data-cl-menu="rien"]').click();
+    await expect.poll(() => nette.innerText().catch(() => '')).toMatch(/gardée, rien à saisir/);
+    // Une rubrique vide le dit, avec le geste pour y déposer.
+    await p.locator('.cl-a-s', { hasText: 'Paie' }).click();
+    await expect.poll(() => p.locator('.cl-rub-vide').innerText().catch(() => '')).toMatch(/Rien dans « Paie » pour septembre/);
+    expect(await p.locator('.cl-rub-vide [data-cl-dep-vide]').count()).toBe(1);
+    expect(erreurs).toEqual([]);
+  }, 60_000);
+
   it('un dossier tenu au cabinet : ce qui est arrivé, puis une rubrique de l\'arbre s\'ouvre au clic', async () => {
     const { associe, cab } = await unCabinet();
     const tenu = String((await api('POST', `/cabinets/${cab.id}/dossiers`, associe, { raisonSociale: 'Transport Mejri' })).corps.entreprise);
