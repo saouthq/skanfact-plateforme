@@ -901,7 +901,9 @@ vaut pour tout le dépôt.*
   `plateforme/echeances.css`, `api.relancerDossier`, `api.declarerHorsLivre` ; la route de production rend l'état de chaque
   déclaration), les Dossiers tels que la maquette (1.169.0 : `drawDossiersCd`, `ficheCd`, `menuLigneCd`, `popConfier`,
   `fenNoterRelance`, `plateforme/dossiers.css` ; la fiche garde `forme`, `ville`, `activite`, `fonction` ; le bandeau des
-  propositions, `bandeauMandats` du pont) et l'aperçu des PDF commun aux deux applications
+  propositions, `bandeauMandats` du pont), la fiche du dossier telle que la maquette (1.170.0 : `drawFicheFd`, `lireLivreFd`,
+  `etatMoisFd`, `popMoisFd`, `menuFicheFd`, `fenNoteFd`, `introuvableFd`, `plateforme/fiche-dossier.css` ; l'ancienne page
+  du dossier à `#/dossier/<id>/suivi`) et l'aperçu des PDF commun aux deux applications
   (`plateforme/apercu-pdf.js`). Lot 2 (1.153.0), la charte : `plateforme/charte.css` (statuts, boutons, menu ⋯, toast,
   bandeaux, en-tête), chargée après `style.css` par les deux applications ; le menu prend un titre (`rowmenu.js`,
   `opts.titre`) ; le toast sa barre de temps (`toast`, `toastUndo` des deux `app.js`).

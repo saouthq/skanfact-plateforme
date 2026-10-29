@@ -108,7 +108,7 @@ describe('l\'équipe du cabinet, à la souris', () => {
     const utilAmine = String((await equipe()).membres.find((m) => m.nom === 'Amine')?.utilisateur);
 
     // ── Un rôle posé dans la fiche du dossier le lui confie (l'état du cabinet se relit à l'ouverture) ─
-    await aller(`#/dossier/${cafe}`);
+    await aller(`#/dossier/${cafe}/suivi`);
     await p.reload();
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await expect.poll(async () => {

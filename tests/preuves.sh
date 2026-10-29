@@ -20947,5 +20947,26 @@ prouver 'dossiers 6 : au téléphone, une carte n'\''ouvre pas la fiche' web/pub
 prouver 'dossiers 7 : au téléphone, le tri absent casse la page' web/public/v10/cabinet/app.js \
   "const tri = \$('#cd-tri', view); if (tri) tri.onchange" "const tri = \$('#cd-tri', view); tri.onchange" \
   'au téléphone : des cartes'
+prouver 'fiche 1 : août et septembre sans rien reçu font deux relances' web/public/v10/cabinet/app.js \
+  'if (sansRien.length) {' 'if (false) {' \
+  'au bureau : rien reçu depuis juillet'
+prouver 'fiche 2 : la note de l'\''équipe ne s'\''enregistre pas' web/public/v10/cabinet/app.js \
+  "S = (await api.saveDossier(d.id, { note: \$('#fd-note-t', layer).value })).state;" "S = await api.saveDossier(d.id, { note: \$('#fd-note-t', layer).value });" \
+  'au bureau : rien reçu depuis juillet'
+prouver 'fiche 3 : au téléphone, la fiche se dit « pensée pour un ordinateur »' web/public/v10/cabinet/app.js \
+  "|| \$('#page-fd')) return;" ") return;" \
+  'au téléphone : rien ne déborde'
+prouver 'fiche 4 : un mois sans rien reçu liste ses points de révision' web/public/v10/cabinet/app.js \
+  'const rienArrive = rv.length && !xm.ecr && !d.manual;' 'const rienArrive = false;' \
+  'au bureau : rien reçu depuis juillet'
+prouver 'fiche 5 : sans réseau, la relance part quand même' web/public/v10/cabinet/app.js \
+  'const bloque = hors && /Relancer' 'const bloque = false && /Relancer' \
+  'au téléphone : rien ne déborde'
+prouver 'fiche 6 : un mois en retard ne dit pas depuis quand' web/public/v10/cabinet/app.js \
+  "d.archived ? '' : t ? \`en retard depuis le" "d.archived ? '' : false ? \`en retard depuis le" \
+  'au bureau : rien reçu depuis juillet'
+prouver 'fiche 7 : un client sans écriture n'\''a pas sa bienvenue' web/public/v10/cabinet/app.js \
+  'const nouveau = L && !Object.values(L.parMois).some(v => v.ecr) && !d.manual;' 'const nouveau = false;' \
+  'au bureau : rien reçu depuis juillet'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

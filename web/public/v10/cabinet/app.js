@@ -1623,7 +1623,8 @@
     if (obsOrdinateur) { obsOrdinateur.disconnect(); obsOrdinateur = null; }
     if (!ECRANS_ORDINATEUR.includes(route) || !window.matchMedia('(max-width: 760px)').matches) return;
     const poser = () => {
-      if ($('#bandeau-ordinateur')) return;
+      // (1.170.0) La fiche du dossier est faite pour le téléphone (sa maquette) : elle ne le dit pas.
+      if ($('#bandeau-ordinateur') || $('#page-fd')) return;
       const tete = $('#view .page-head');
       if (tete) tete.insertAdjacentHTML('afterend', '<div class="banner info" id="bandeau-ordinateur"><span><b>Pensé pour un ordinateur.</b> Sur un téléphone, cet écran se lit, mais ses tableaux et sa saisie y sont à l\'étroit : pour saisir, préfère un grand écran.</span></div>');
     };
@@ -3683,8 +3684,366 @@
     location.hash = '#/dossier/' + encodeURIComponent(dossier.id) + '/comptabilite/' + (etape === 'saisi' ? 'saisie' : 'declaration') + '/' + mois.slice(0, 4);
   }
 
+  // ---------- (1.170.0) la fiche du dossier, telle que la maquette (docs/maquettes/cabinet/fiche-du-dossier.html) ----------
+  // Un client sur une page : qui il est, ce qui l'attend (dans l'ordre où ça se fait), ses chiffres, la révision du dernier
+  // mois, l'année en douze cases, et sa fiche (la mission, l'équipe, le client, le contact, ce qui est partagé, la note,
+  // l'historique). Le travail lui-même se fait dans la barre, sous son nom : Écritures, Pièces du dossier, Banque,
+  // Déclarations. Le suivi détaillé d'avant reste à « #/dossier/<id>/suivi ».
+  const ficheFd = { id: '', livres: new Map(), lecture: new Map(), refus: new Map(), mois: '', menu: false };
+  const FD_IC = {
+    alerte: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17h.01"/></svg>',
+    boite: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 13h5l2 3h4l2-3h5"/><path d="M5 5h14l2 8v6H3v-6z"/></svg>',
+    question: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 0 1 5 0c0 1.7-2.5 2-2.5 4M12 17h.01"/></svg>',
+    attente: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    rev: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/></svg>',
+    note: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"/><path d="M9 12h6M9 16h4"/></svg>',
+    imprimer: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg>',
+    saisie: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z"/></svg>',
+  };
+  const cap = t => String(t || '').charAt(0).toUpperCase() + String(t || '').slice(1);
+  const MOIS_LONGS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  const moisLong = m => MOIS_LONGS[Number(m.slice(5, 7)) - 1] || '';
+  const deMois = m => (/^[aeiouo]/.test(moisLong(m)) ? 'd\'' : 'de ') + moisLong(m);
+  const moisSuivant = m => { const [a, n] = m.split('-').map(Number); return n === 12 ? `${a + 1}-01` : `${a}-${String(n + 1).padStart(2, '0')}`; };
+  const jjmm = iso => `${String(iso).slice(8, 10)}/${String(iso).slice(5, 7)}`;
+  // La date limite d'un mois (le 28 du mois suivant, À VÉRIFIER) : celle des Échéances.
+  const limiteDe = m => `${moisSuivant(m)}-28`;
+  // Les mois en retard de chaque dossier : la même lecture que la liste des Dossiers (K.echeances).
+  function retardsConnus() {
+    const retard = new Map();
+    for (const e of K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() })) {
+      if (!e.passee || e.toutDepose || !/^tva-/.test(e.id)) continue;
+      for (const nom of e.restants || []) retard.set(nom, [...(retard.get(nom) || []), e.mois[e.mois.length - 1]].sort());
+    }
+    return retard;
+  }
+  const montantDe = v => (v && typeof v === 'object' ? Number(v.montant) || 0 : Number(String(v || '0').replace(/\s/g, '').replace(',', '.')) || 0);
+  // Ce que le livre d'une année dit, mois par mois : le chiffre d'affaires HT (comptes 70), les écritures et celles au
+  // brouillard ; la banque (comptes 532) et le compte d'attente (471) en solde ; la déclaration de chaque mois.
+  function lireLivreFd(livre) {
+    const parMois = {};
+    const m0 = m => (parMois[m] = parMois[m] || { ca: 0, ecr: 0, br: 0, banque: 0 });
+    let banque = 0, attente = 0, attenteLignes = 0, derniere = '';
+    for (const e of (livre && livre.ecritures) || []) {
+      if (e.statut === 'contrepassee') continue;
+      const x = m0(String(e.date).slice(0, 7));
+      if (e.journal !== 'AN') x.ecr++;
+      if (e.statut === 'brouillard') x.br++;
+      if (String(e.date) > derniere) derniere = String(e.date);
+      for (const l of e.lignes || []) {
+        const c = String(l.compte || ''), d = Number(l.debit) || 0, k = Number(l.credit) || 0;
+        if (/^70/.test(c)) x.ca += k - d;
+        if (/^532/.test(c)) { banque += d - k; x.banque++; }
+        if (/^471/.test(c)) { attente += d - k; if (!l.lettre) attenteLignes++; }
+      }
+    }
+    const decl = {};
+    for (const d of (livre && livre.declarations) || []) if (d.periode) decl[d.periode] = { deposee: !!d.deposee, payee: !!d.payee, montant: montantDe((d.cases || {}).aDecaisser), prepareeLe: d.prepareeLe };
+    const releves = ((livre && livre.releves) || []).slice().sort((a, b) => String(a.au).localeCompare(String(b.au)));
+    const rapproche = releves.filter(r => (r.lignes || []).every(l => l.rapprochement && l.rapprochement.niveau !== 'aucun')).map(r => r.au).pop() || '';
+    const nomBanque = (releves[releves.length - 1] || {}).banque || '';
+    return { parMois, banque, attente, attenteLignes, derniere, decl, rapproche, nomBanque, releves: releves.length };
+  }
+  async function chargerLivreFd(d, annee) {
+    const cle = `${d.id}:${annee}`;
+    if (ficheFd.livres.has(cle) || ficheFd.lecture.has(cle)) return;
+    const p = api.livre(d.id, annee).then(r => { ficheFd.livres.set(cle, lireLivreFd(r && r.livre)); ficheFd.refus.delete(cle); },
+      x => { ficheFd.refus.set(cle, plainError(x)); });
+    ficheFd.lecture.set(cle, p);
+    await p;
+    ficheFd.lecture.delete(cle);
+    if (location.hash.replace(/\/$/, '') === '#/dossier/' + encodeURIComponent(d.id) && !$('#modal-root').children.length) drawFicheFd($('#view'), d);
+  }
+  // Où en est un mois, lu dans les livres et ses déclarations : [classe, mot, en retard ?].
+  function etatMoisFd(d, m, L, tard, mc) {
+    if (m >= moisSuivant(mc)) return ['avenir', 'à venir', false];
+    if (d.from && m < d.from) return ['hors', 'avant la mission', false];
+    const x = (L && L.parMois[m]) || { ecr: 0, br: 0 };
+    const decl = (L && L.decl[m]) || declarationConnue(d.id, m);
+    if (m === mc) return ['cours', 'en cours', false];
+    if (decl && decl.deposee) return ['fait', 'déposé', false];
+    const enRetard = tard.includes(m);
+    if (decl) return ['pret', 'prêt', enRetard];
+    if (x.br) return ['rev', 'à réviser', enRetard];
+    if (x.ecr) return ['pret', 'révisé', enRetard];
+    if (!L && ecrituresConnues(d.id, m)) return brouillardsConnus(d.id, m) ? ['rev', 'à réviser', enRetard] : ['pret', 'révisé', enRetard];
+    return d.manual ? ['pc', 'à saisir', enRetard] : ['manque', 'rien reçu', enRetard];
+  }
+
+  function drawFicheFd(view, d) {
+    const dir = estAssocie() && !d.archived, tel = matchMedia('(max-width: 760px)').matches, hors = navigator.onLine === false;
+    const annee = K.today().slice(0, 4), aujourdhui = K.today(), mc = aujourdhui.slice(0, 7), mp = moisPrecedent(mc);
+    const cle = `${d.id}:${annee}`;
+    if (ficheFd.id !== d.id) { ficheFd.id = d.id; ficheFd.mois = ''; ficheFd.menu = false; }
+    const L = ficheFd.livres.get(cle) || null, refus = ficheFd.refus.get(cle) || '';
+    if (!L && !refus) void chargerLivreFd(d, annee);
+    const retard = retardsConnus();
+    const tard = retard.get(d.name) || [];
+    const eq = equipeDe(d);
+    const em = etatsMessages.get(d.id) || {};
+    const q = (questionsAttente || []).find(x => x.dossierId === d.id) || {};
+    const nP = (comptesBarre.piecesParDossier && comptesBarre.piecesParDossier.get(d.id)) || 0;
+    const prenom = String(d.contact || '').split(' ')[0] || d.contact || '';
+    const x = { d, mo: moisDuDossier(d, retard), eq };
+
+    // L'année : douze mois.
+    const mois = MOIS_CD.map((_, i) => `${annee}-${String(i + 1).padStart(2, '0')}`);
+    const etats = mois.map(m => etatMoisFd(d, m, L, tard, mc));
+
+    // Ce qui attend, dans l'ordre où ça se fait. Le premier geste qu'on peut faire est le seul vert de la page.
+    const attend = [];
+    const versSaisie = `#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie`;
+    // Les mois où rien n'est arrivé du client (les retards, et le mois qui se dépose) : un seul geste, « Relancer ».
+    const sansRien = d.manual ? [] : [...tard, ...(!tard.includes(mp) && (!d.from || d.from <= mp) ? [mp] : [])].filter(m => etatMoisFd(d, m, L, tard, mc)[0] === 'manque');
+    const relanceTxt = (d.relances || []).length ? `${derniereRelanceCd(d)}.` : `${prenom || 'Le client'} n'a jamais été relancé.`;
+    const quandMp = (() => { const lim = limiteDe(mp); return lim === aujourdhui ? 'se dépose aujourd\'hui' : lim > aujourdhui ? `se dépose d'ici le ${jjmm(lim)}` : 'reste à déposer'; })();
+    if (sansRien.length) {
+      const noms = sansRien.map(moisLong), titre = `${cap(noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0])} · rien reçu`;
+      const dit = sansRien.map(m => (tard.includes(m) ? `${cap(moisLong(m))} est en retard depuis le ${jjmm(limiteDe(m))}` : `${cap(moisLong(m))} ${quandMp}`)).join(' ; ');
+      attend.push(['alerte', tard.some(m => sansRien.includes(m)) ? 'rouge' : 'ambre', titre, `${L && L.derniere ? `Aucune écriture depuis le ${jjmm(L.derniere)}. ` : 'Aucune écriture encore. '}${dit}. ${relanceTxt}`, [`Relancer ${prenom || 'le client'}…`, 'relancer']]);
+    }
+    for (const m of tard) {
+      const [cl] = etatMoisFd(d, m, L, tard, mc), br = ((L && L.parMois[m]) || {}).br || brouillardsConnus(d.id, m);
+      if (cl === 'manque') continue;
+      else if (cl === 'rev') attend.push(['alerte', 'rouge', `${cap(moisLong(m))} · en retard depuis le ${jjmm(limiteDe(m))}`, `${pl(br, 'écriture')} au brouillard à réviser, puis la déclaration.`, [`Réviser ${moisLong(m)}`, versSaisie, eq.suit && eq.suit.id !== S.moi && !dir ? `${prenomDe(eq.suit)} révise` : '']]);
+      else if (cl === 'pret') attend.push(['rev', 'rouge', `${cap(moisLong(m))} · prêt, en retard depuis le ${jjmm(limiteDe(m))}`, 'Sa déclaration se dépose sur e-jibaya, puis se marque déposée dans Échéances.', ['Voir dans Échéances', '#/echeances']]);
+    }
+    if (!tard.includes(mp) && (!d.from || d.from <= mp)) {
+      const [cl, mot] = etatMoisFd(d, mp, L, tard, mc), lim = limiteDe(mp);
+      const quand = lim === aujourdhui ? 'à déposer aujourd\'hui' : lim > aujourdhui ? `à déposer d'ici le ${jjmm(lim)}` : 'à déposer';
+      if (cl === 'rev') attend.push(['alerte', 'ambre', `${cap(moisLong(mp))} · ${quand}`, `${pl(((L && L.parMois[mp]) || {}).br || brouillardsConnus(d.id, mp), 'écriture')} au brouillard à réviser, puis la déclaration.`, [`Réviser ${moisLong(mp)}`, versSaisie]]);
+      else if (cl === 'pc') attend.push(['saisie', 'ambre', `${cap(moisLong(mp))} · ${quand}, à saisir`, 'Un dossier tenu au cabinet : ses pièces se saisissent ici.', ['Saisir ' + moisLong(mp), versSaisie]]);
+      else if (cl === 'pret' && mot === 'révisé') attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · révisé, ${quand}`, 'La déclaration se prépare d\'après ses livres, puis se dépose et se marque déposée.', ['Préparer la déclaration', `#/dossier/${encodeURIComponent(d.id)}/comptabilite/declarations`]]);
+      else if (cl === 'pret') attend.push(['rev', 'sarcelle', `${cap(moisLong(mp))} · prête, ${quand}`, 'Elle se dépose sur e-jibaya, puis se marque déposée dans Échéances.', ['Voir dans Échéances', '#/echeances']]);
+    }
+    // Un dossier tenu dont le mois passé est déposé : le mois en cours se saisit au cabinet.
+    const tenuEnCours = d.manual && etatMoisFd(d, mp, L, tard, mc)[0] === 'fait' && (!d.from || d.from <= mc);
+    if (tenuEnCours) {
+      const xc = (L && L.parMois[mc]) || { ecr: 0 }, jusque = L && L.derniere && L.derniere.slice(0, 7) === mc ? ` jusqu'au ${jjmm(L.derniere)}` : '';
+      attend.push(['saisie', 'gris', `${cap(moisLong(mc))} · se saisit au cabinet`, `${xc.ecr ? `${pl(xc.ecr, 'écriture saisie', 'écritures saisies')}${jusque}.` : 'Rien de saisi encore.'} Le mois se déclare le ${jjmm(limiteDe(mc))} (À VÉRIFIER).`, [xc.ecr ? 'Continuer la saisie' : 'Commencer la saisie', versSaisie]]);
+    }
+    if (nP) attend.push(['boite', 'ambre', `${pl(nP, 'pièce reçue', 'pièces reçues')} à classer`, 'Envoyées par le client : à saisir, ou à classer dans « Pièces reçues ».', [`Ouvrir ${nP > 1 ? `les ${nP} pièces` : 'la pièce'}`, '#/pieces']]);
+    if (em.etat === 'a_traiter') attend.push(['msg', 'ambre', em.nonLus ? `${pl(em.nonLus, 'message', 'messages')} de ${esc(prenom || d.name)}` : `${esc(prenom || d.name)} t'a répondu`, em.dernier && em.dernier.cote === 'entreprise' && em.dernier.extrait ? `« ${esc(em.dernier.extrait.slice(0, 110))}${em.dernier.extrait.length > 110 ? '…' : ''} »` : 'dans votre conversation', ['Répondre', `#/messages/${encodeURIComponent(d.id)}`]]);
+    if (q.aRelancer) attend.push(['question', 'gris', pl(q.aRelancer, 'question sans réponse', 'questions sans réponse'), 'Posées au client, envoyées deux fois.', ['Relancer la question', `#/dossier/${encodeURIComponent(d.id)}/comptabilite/revision`]]);
+    if (em.attentes) attend.push(['attente', 'gris', `Demandé à ${esc(prenom || 'ton client')} : ${pl(em.attentes, 'pièce', 'pièces')}`, em.retards ? `dont ${em.retards} en retard` : 'dans votre conversation : rien à faire avant', null]);
+
+    // Les chiffres, lus dans ses livres de l'année.
+    const ca = L ? Object.values(L.parMois).reduce((t, v) => t + v.ca, 0) : 0;
+    const paye = L ? Object.values(L.decl).filter(v => v.deposee).reduce((t, v) => t + v.montant, 0) : 0;
+    const nDecl = L ? Object.values(L.decl).filter(v => v.deposee).length : 0;
+    const tile = (lab, val, sous, ton = '') => `<div class="fd-ch-t ${ton}"><span class="fd-ch-l">${lab}</span><b>${val}</b><small>${sous}</small></div>`;
+    const dtFd = v => `${esc(dtCd(v))} <i>DT</i>`;
+    const chiffres = refus ? `<div class="panel fd-ch-err" role="status"><b>Ses livres n'ont pas pu se lire</b><span>${esc(refus)} Rien n'est perdu : la page se remplit dès que la lecture réussit.</span><button type="button" class="btn btn-sm" id="fd-relire"${hors ? ' disabled' : ''}>Réessayer</button></div>`
+      : !L ? '<div class="fd-ch fd-ch-sq" aria-busy="true"><i></i><i></i><i></i><i></i></div>'
+        : `<div class="fd-ch" role="group" aria-label="En un coup d'œil">
+          ${tile(`Chiffre d'affaires ${annee}`, dtFd(ca), `HT${L.derniere ? `, au ${jjmm(L.derniere)}` : ''} · lu dans ses ventes`)}
+          ${tile(`Payé à l'État en ${annee}`, dtFd(paye), `${pl(nDecl, 'déclaration déposée', 'déclarations déposées')} · sans la CNSS`, 'ok')}
+          ${tile(`Banque${L.nomBanque ? ` · ${esc(L.nomBanque)}` : ''}`, dtFd(L.banque), L.rapproche ? `rapprochée jusqu'au ${jjmm(L.rapproche)}` : L.releves ? 'relevés pas encore rapprochés' : 'aucun relevé importé', L.rapproche && L.rapproche >= `${mp}-28` ? 'ok' : 'ambre')}
+          ${tile('Compte d\'attente', L.attente ? dtFd(L.attente) : 'vide', L.attente ? `${pl(L.attenteLignes, 'ligne')} à expliquer` : 'rien en attente', L.attente ? 'ambre' : 'ok')}</div>`;
+
+    // La révision du dernier mois, point par point.
+    const mr = tenuEnCours ? mc : mp;
+    const xm = (L && L.parMois[mr]) || { ecr: 0, br: 0, banque: 0 }, dm = tenuEnCours ? null : (L && L.decl[mp]) || declarationConnue(d.id, mp);
+    const rv = !L || (d.from && d.from > mr) ? [] : [
+      xm.ecr ? (xm.br ? ['af', 'Écritures', `${pl(xm.ecr, 'écriture')}, dont ${xm.br} au brouillard à réviser`] : ['ok', 'Écritures', `${pl(xm.ecr, 'écriture')}, toutes validées`]) : ['att', 'Écritures', d.manual ? 'rien de saisi encore' : 'rien reçu du client'],
+      xm.banque ? ['ok', 'Banque', `${pl(xm.banque, 'mouvement')} sur la banque${L.rapproche ? ` · rapprochée jusqu'au ${jjmm(L.rapproche)}` : ''}`] : ['att', 'Banque', 'aucun mouvement de banque pour ce mois'],
+      L.attente ? ['af', 'Compte d\'attente', `${esc(dtCd(L.attente))} DT à expliquer`] : ['ok', 'Compte d\'attente', 'vide'],
+      tenuEnCours ? ['att', 'TVA', `se prépare après la fin du mois, pour le ${jjmm(limiteDe(mc))}`] : dm && dm.deposee ? ['ok', 'TVA', `déposée${dm.montant ? ` · ${esc(dtCd(montantDe(dm.montant)))} DT` : ''}`] : dm ? ['af', 'TVA', 'la déclaration est prête : à déposer'] : ['af', 'TVA', 'la déclaration reste à préparer'],
+    ];
+    const faits = rv.filter(r => r[0] === 'ok').length;
+    const icR = { ok: CD_IC.ok, af: FD_IC.alerte, att: FD_IC.attente };
+    const rienArrive = rv.length && !xm.ecr && !d.manual;
+    const revision = !rv.length ? '' : rienArrive ? `<section class="panel fd-p" aria-labelledby="fd-rv"><div class="fd-ph"><h2 id="fd-rv">La révision ${deMois(mp)}</h2></div><p class="fd-rv-rien">Rien à réviser : ${L.derniere ? `aucune écriture depuis le ${jjmm(L.derniere)}` : 'aucune écriture encore'}. Elle commence dès que ${esc(prenom || 'le client')} enregistre ses pièces.</p></section>` : `<section class="panel fd-p" aria-labelledby="fd-rv"><div class="fd-ph"><h2 id="fd-rv">${tenuEnCours ? 'La saisie' : 'La révision'} ${deMois(mr)}</h2><span class="fd-ph-n">${faits === rv.length ? `${CD_IC.ok} tout est fait` : `${faits} sur ${rv.length} faits`}</span></div>
+      <div class="fd-rv-bar" aria-hidden="true">${rv.map(r => `<i class="${r[0]}"></i>`).join('')}</div><ul class="fd-rv">${rv.map(([e, t, s]) => `<li class="${e}"><span class="fd-rv-i">${icR[e]}</span><span><b>${t}</b><small>${s}</small></span></li>`).join('')}</ul></section>`;
+
+    // Ce qui attend : la liste, ou « rien n'attend » avec ce qui le prouve.
+    let vert = false;
+    const lignesAt = attend.map(([ic, ton, t, s, g], i) => {
+      let geste = '';
+      if (g) {
+        const [lib, vers, autre] = g;
+        const bloque = hors && /Relancer|Répondre|Préparer/.test(lib) ? 'Attend le retour du réseau' : '';
+        if (autre) geste = `<span class="fd-qui">${esc(autre)}</span>`;
+        else { const p = !vert && !bloque; if (p) vert = true; geste = `<button type="button" class="btn btn-sm${p ? ' btn-primary' : ''}" data-fd-geste="${i}"${bloque ? ` disabled title="${bloque}"` : ''}>${esc(lib)}</button>`; }
+      }
+      return `<li class="fd-af ${ton}"><span class="fd-af-i">${FD_IC[ic] || (ic === 'msg' ? CD_IC.msg : FD_IC.attente)}</span><span class="fd-af-t"><b>${t}</b><small>${s}</small></span><span class="fd-af-g">${geste}</span></li>`;
+    }).join('');
+    const nouveau = L && !Object.values(L.parMois).some(v => v.ecr) && !d.manual;
+    const prochaine = (() => { const m = etats.findIndex((e, i) => mois[i] >= mp && e[0] !== 'fait'); return m >= 0 ? mois[m] : moisSuivant(mc); })();
+    const blocAttend = nouveau
+      ? `<section class="panel fd-p fd-bv" aria-labelledby="fd-bv"><div class="fd-bv-t"><span class="fd-bv-ic">${CD_IC.dossiers}</span><div><h2 id="fd-bv">Bienvenue au cabinet, ${esc(d.name)}</h2><p>${esc(prenom || 'Le client')} t'a confié son dossier. Voici ses premiers pas, dans l'ordre.</p></div></div>
+        <ul class="fd-rv fd-bv-l">
+          <li class="ok"><span class="fd-rv-i">${CD_IC.ok}</span><span><b>Dossier accepté${eq.suit ? ` et confié à ${esc(prenomDe(eq.suit))}` : ''}</b><small>${eq.val ? `${esc(prenomDe(eq.val))} valide ses déclarations` : 'il est dans ton portefeuille'}</small></span><span class="fd-af-g">${eq.suit ? '' : dir ? `<button type="button" class="btn btn-sm" data-cd-geste="confier" data-cd-d="${esc(d.id)}">Confier à…</button>` : ''}</span></li>
+          <li class="af"><span class="fd-rv-i"><i class="fd-pt"></i></span><span><b>Souhaiter la bienvenue à ${esc(prenom || d.name)}</b><small>qui suit son dossier, ce qu'il partage, ce qu'il n'a plus à envoyer</small></span><span class="fd-af-g"><a class="btn btn-sm btn-primary" href="#/messages/${encodeURIComponent(d.id)}">Écrire à ${esc(prenom || d.name)}</a></span></li>
+          <li class="af"><span class="fd-rv-i"><i class="fd-pt"></i></span><span><b>Ce qui vient d'avant</b><small>la balance d'ouverture, de son ancien comptable : un fichier FEC se lit dans sa comptabilité</small></span><span class="fd-af-g"><a class="btn btn-sm" href="#/dossier/${encodeURIComponent(d.id)}/comptabilite">Reprendre ses soldes…</a></span></li>
+          <li class="att"><span class="fd-rv-i">${FD_IC.attente}</span><span><b>Son premier mois : ${esc(moisLong(d.from || mc))}</b><small>ses ventes arrivent seules depuis SkanFact ; rien n'est réclamé avant la fin du mois</small></span><span class="fd-af-g"></span></li></ul></section>`
+      : attend.length ? `<section class="panel fd-p" aria-labelledby="fd-at"><div class="fd-ph"><h2 id="fd-at">Ce qui attend ${info('fd.attend')}</h2><span class="fd-ph-n">${pl(attend.filter(a => a[4]).length, 'geste')}, dans l'ordre</span></div><ul class="fd-afs">${lignesAt}</ul></section>`
+        : `<section class="panel fd-p fd-okp" aria-labelledby="fd-ok"><div class="fd-ok-m" aria-hidden="true"><svg viewBox="0 0 52 52"><circle cx="26" cy="26" r="23"/><path d="M15.5 27.5l7 7 14-15"/></svg></div>
+        <div class="fd-ok-c"><h2 id="fd-ok">Rien n'attend pour ${esc(d.name)}</h2><p>${dm && dm.deposee ? `${cap(moisLong(mp))} est déposé.` : `${cap(moisLong(mp))} n'attend rien du cabinet aujourd'hui.`} Aucune pièce à classer, aucun message ni aucune question n'attend.</p>
+          <ul class="fd-ok-l"><li>${CD_IC.ok}<span><b>${pl(nDecl, 'déclaration déposée', 'déclarations déposées')} en ${annee}</b>, aucune en retard</span></li><li>${FD_IC.attente}<span><b>La prochaine : ${esc(moisLong(prochaine))}, le ${jjmm(limiteDe(prochaine))}</b> (À VÉRIFIER)</span></li></ul></div></section>`;
+
+    // L'année, en cases : son état, ce qui a été payé, la barre du chiffre d'affaires.
+    const caMax = L ? Math.max(1, ...Object.values(L.parMois).map(v => v.ca)) : 1;
+    const cases = mois.map((m, i) => {
+      const [cl, lib, t] = etats[i], v = (L && L.parMois[m]) || { ca: 0, ecr: 0, br: 0 }, dc = (L && L.decl[m]) || null;
+      const sous = dc && dc.deposee && dc.montant ? `${esc(dtCd(dc.montant))} DT payés` : v.br ? `${pl(v.br, 'au brouillard', 'au brouillard')}` : v.ecr ? pl(v.ecr, 'écriture')
+        : d.archived ? '' : t ? `en retard depuis le ${jjmm(limiteDe(m))}` : m === mp && cl !== 'fait' && limiteDe(m) === aujourdhui ? 'dépôt aujourd\'hui' : cl === 'cours' && !d.manual ? 'rien reçu' : '';
+      const barre = v.ca > 0 ? `<i class="fd-m-ca" style="--w:${Math.round((v.ca / caMax) * 100)}" title="Chiffre d'affaires HT ${deMois(m)} : ${esc(dtCd(v.ca))} DT"></i>` : '';
+      return `<button type="button" class="fd-m ${cl}${t ? ' tard' : ''}${ficheFd.mois === m ? ' ici' : ''}" data-fd-mois="${m}"${['avenir', 'hors'].includes(cl) ? ' disabled' : ''} aria-label="${MOIS_LONGS[i]} : ${lib}${t ? ', en retard' : ''}"><span class="fd-m-n">${MOIS_CD[i]}</span><b>${t ? 'en retard' : lib}</b><small>${sous}</small>${barre}</button>`;
+    }).join('');
+    const legs = [['fait', 'déposé'], ['rev', 'à réviser'], ['pc', 'à saisir'], ['pret', 'prêt'], ['manque', 'rien reçu'], ['cours', 'en cours'], ['hors', 'avant la mission']].filter(([c]) => etats.some(e => e[0] === c)).map(([c, l]) => `<span><i class="${c}"></i>${l}</span>`).join('');
+    const pop = ficheFd.mois ? popMoisFd(d, ficheFd.mois, etatMoisFd(d, ficheFd.mois, L, tard, mc), L, eq, dir, hors) : '';
+    const anneeP = `<section class="panel fd-p" aria-labelledby="fd-an"><div class="fd-ph"><h2 id="fd-an">L'année ${annee} ${info('fd.mois')}</h2><span class="fd-ph-n">${d.manual ? 'lue dans le livre que tu tiens' : 'lue dans ses livres sur SkanFact · la barre : le chiffre d\'affaires du mois'}</span></div>
+      <div class="fd-ms">${cases}</div><div class="fd-leg">${legs}<span class="fd-leg-r">Date limite : le 28 du mois suivant (À VÉRIFIER)</span></div>${pop}</section>`;
+
+    // La colonne de droite.
+    const sec = (t, h) => `<section class="cd-fs fd-fs"><h3>${t}</h3>${h}</section>`;
+    const kv = (a, b) => `<span class="cd-kv"><span>${a}</span><b>${b}</b></span>`;
+    const eqL = [];
+    if (eq.suit) eqL.push([eq.suit, `${prenomDe(eq.suit)} suit le dossier`, d.manual ? 'la saisie, la révision, les déclarations' : 'la révision, les pièces, la conversation']);
+    if (eq.val) eqL.push([eq.val, `${prenomDe(eq.val)} valide`, 'les déclarations, avant le dépôt']);
+    for (const id of eq.ids) { const c = collabDe(id); if (c && c !== eq.suit && c !== eq.val) eqL.push([c, `${prenomDe(c)} ${d.droits[id] === 'saisie' ? 'saisit' : 'travaille sur le dossier'}`, d.droits[id] === 'saisie' ? 'les pièces papier et les relevés' : '']); }
+    const employeur = Object.values(employeursConnus()[d.id] || {}).some(Boolean);
+    const hist = [
+      ...(d.relances || []).filter(r => r && r.at).map(r => [new Date(Number(r.at)).toISOString().slice(0, 10), `Relance ${({ email: 'par e-mail', tel: 'au téléphone', whatsapp: 'par WhatsApp' })[r.via] || 'notée'}${(r.months || []).length ? ` : ${(r.months || []).map(moisLong).join(', ')}` : ''}`, r.note || '']),
+      ...(L ? Object.entries(L.decl).filter(([, v]) => v.deposee).map(([m, v]) => [limiteDe(m) > aujourdhui ? aujourdhui : limiteDe(m), `${cap(moisLong(m))} déposé`, v.montant ? `${dtCd(v.montant)} DT` : '']) : []),
+      ...(d.from ? [[`${d.from}-01`, 'Début de la mission', `${moisLong(d.from)} ${d.from.slice(0, 4)}`]] : []),
+    ].sort((a, b) => String(b[0]).localeCompare(String(a[0]))).slice(0, 6);
+    const cote = `<aside class="fd-cote" aria-label="La fiche">
+      ${sec('La mission', `${missionCd(d)}<div class="cd-kvs">${estAssocie() ? kv('Honoraires', honCd(d) ? `${esc(dtCd(honCd(d)))} DT HT par mois` : 'à écrire sur la fiche') : ''}${kv('Début de mission', d.from ? `${esc(moisLong(d.from))} ${d.from.slice(0, 4)} · les mois d'avant n'en font pas partie` : 'le premier mois de ses livres')}</div>`)}
+      ${sec('L\'équipe', `<div class="cd-eq">${eqL.length ? eqL.map(([c, t, s]) => `<span>${persCd(c, 30)}<span><b>${esc(t)}</b><small>${s}</small></span></span>`).join('') : '<span class="muted small">Personne ne suit encore ce dossier.</span>'}${dir ? `<span class="cd-cf-w"><button type="button" class="btn btn-sm btn-ghost" data-cd-geste="confier" data-cd-d="${esc(d.id)}">${CD_IC.confier} Confier à…</button>${dosState.confier === d.id ? popConfier([d]) : ''}</span>` : ''}</div>`)}
+      ${sec('Le client', `<div class="cd-kvs">${kv('Matricule fiscal', esc(d.matricule || '—'))}${d.forme || d.activite ? kv('Forme', esc([d.forme, d.activite].filter(Boolean).join(' · '))) : ''}${kv('TVA', `${esc(labelOf(K.TVA_PERIODS, d.tvaPeriod) || 'mensuelle')} · déclarée le 28 (À VÉRIFIER)`)}${employeur ? kv('Employeur', 'des salariés · CNSS chaque trimestre') : ''}</div>`)}
+      ${sec('Le contact', `<div class="cd-kvs">${kv('Nom', esc([d.contact, d.fonction].filter(Boolean).join(' · ') || '—'))}${kv('Téléphone', esc(d.phone || '—'))}${kv('E-mail', esc(d.email || '—'))}</div>`)}
+      ${d.manual ? sec('SkanFact', `<small class="cd-fs-n">Tenu au cabinet : tu saisis tout ici ; ${esc(prenom || 'le client')} n'a pas de compte.</small>${dir ? `<a class="btn btn-sm btn-ghost fd-inv" href="#/dossier/${encodeURIComponent(d.id)}/suivi">${CD_IC.inviter} Inviter ${esc(prenom || 'le client')} sur SkanFact…</a>` : ''}`)
+        : sec('Ce qui est partagé', `<span class="cd-pa">${[['comptabilite', 'Livres'], ['declarations', 'Déclarations'], ['saisie_achats', 'Saisie des achats'], ['paie', 'Paie']].map(([p, t]) => { const on = !d.perimetre || d.perimetre.includes(p); return `<span class="${on ? 'on' : ''}">${on ? CD_IC.ok : ''}${t}</span>`; }).join('')}</span><small class="cd-fs-n">${esc(prenom || 'Le client')} choisit ce que le cabinet tient, dans « Mon comptable ».</small>`)}
+      ${sec('La note de l\'équipe', `${d.note ? `<p class="fd-note">${esc(d.note)}</p>` : '<small class="cd-fs-n">Aucune note.</small>'}${!d.archived && (dir || eq.ids.includes(S.moi)) ? `<button type="button" class="btn-lien" id="fd-note">${FD_IC.note} ${d.note ? 'Modifier la note…' : 'Écrire une note…'}</button>` : ''}<small class="cd-fs-n">Seule l'équipe du cabinet la lit ; ${d.manual ? 'le client' : esc(prenom || 'le client')} ne la voit jamais.</small>`)}
+      ${sec('L\'historique', `${hist.length ? `<ul class="cd-hi">${hist.map(([dt, t, s]) => `<li><time>${esc(jjmm(dt))}${String(dt).slice(0, 4) !== annee ? '/' + String(dt).slice(0, 4) : ''}</time><span><b>${esc(t)}</b>${s ? `<small>${esc(s)}</small>` : ''}</span></li>`).join('')}</ul>` : '<small class="cd-fs-n">Rien encore.</small>'}<div class="fd-hi-a"><a class="btn-lien" href="#/dossier/${encodeURIComponent(d.id)}/suivi">Tout le suivi</a>${d.archived ? '' : `<button type="button" class="btn-lien" data-cd-geste="noter" data-cd-d="${esc(d.id)}">Noter une relance faite ailleurs…</button>`}</div>`)}
+    </aside>`;
+
+    // L'en-tête.
+    const phrase = [
+      sansRien.length && L && L.derniere ? `Rien reçu depuis le ${jjmm(L.derniere)}` : '',
+      tard.length ? `${cap(tard.map(moisLong).join(', '))} en retard` : '',
+      !tard.includes(mp) && etats[mois.indexOf(mp)] && etats[mois.indexOf(mp)][0] !== 'fait' && (!d.from || d.from <= mp) ? `${moisLong(mp)} ${limiteDe(mp) === aujourdhui ? 'à déposer aujourd\'hui' : limiteDe(mp) > aujourdhui ? `à déposer d'ici le ${jjmm(limiteDe(mp))}` : 'à déposer'}` : '',
+      em.nonLus ? `${pl(em.nonLus, 'non lu', 'non lus')} de ${esc(prenom || d.name)}` : '',
+      sansRien.length && !(d.relances || []).length ? 'jamais relancé' : '',
+      tenuEnCours ? `${cap(moisLong(mp))} déposé · ${moisLong(mc)} se saisit au cabinet` : '',
+    ].filter(Boolean).map((t, i) => (i ? t.charAt(0).toLowerCase() + t.slice(1) : cap(t))).join(' · ') || (nouveau ? `Arrivé au cabinet · son premier mois : ${esc(moisLong(d.from || mc))}` : `Tout est à jour · prochaine déclaration le ${jjmm(limiteDe(prochaine))} (À VÉRIFIER)`);
+    const lien = d.manual ? '<span class="cd-li tenu">tenu au cabinet</span>' : `<span class="cd-li relie">${CD_IC.lien}relié</span>`;
+    const ecrire = d.manual ? '' : `<a class="btn" href="#/messages/${encodeURIComponent(d.id)}">${CD_IC.msg} Écrire à ${esc(prenom || d.name)}${em.nonLus ? `<span class="cd-nl-t">${em.nonLus}</span>` : ''}</a>`;
+    const tete = `<div class="page-head fd-tete"><div class="fd-id">${marqueD(d, 'fd-mq')}<div><h1>${esc(d.name)} ${info('fd.page')}</h1>
+        <p class="fd-sous"><span>${esc([d.forme, d.activite, d.ville].filter(Boolean).join(' · ') || d.matricule || (d.manual ? 'tenu au cabinet' : 'sur SkanFact'))}</span>${lien}${d.from ? `<small>depuis ${esc(moisLong(d.from))} ${d.from.slice(0, 4)}</small>` : ''}${eq.suit ? `<span class="fd-eqs">${persCd(eq.suit, 20)} suivi par ${esc(prenomDe(eq.suit))}${eq.val ? ` · validé par ${esc(prenomDe(eq.val))}` : ''}</span>` : ''}</p>
+        <p class="fd-phrase">${phrase}</p></div></div>
+      <div class="actions">${tel ? '' : ecrire}<span class="fd-mw"><button type="button" class="btn btn-icone" id="fd-menu" aria-label="Les autres gestes du dossier" aria-haspopup="menu" aria-expanded="${ficheFd.menu}">${CD_IC.trois}</button>${ficheFd.menu ? menuFicheFd(d, dir, prenom) : ''}</span></div></div>`;
+    const bandHors = hors ? '<div class="bandeau gris a-band fd-band"><span class="txt"><b>Pas de réseau : ce poste montre le dossier tel qu\'il le connaît.</b><span>La fiche et les mois se lisent ; relancer, répondre et réviser attendent le retour du réseau.</span></span></div>' : '';
+    const ctx = `<div class="ctx-cab"><span class="ctx-ic">${icB('production', 16, 2)}</span><span><b>Dossier ouvert</b> · ${esc(d.name)}</span></div>`;
+
+    let corps;
+    if (d.archived) {
+      corps = `<div class="page-head fd-tete"><div class="fd-id">${marqueD(d, 'fd-mq')}<div><h1>${esc(d.name)}</h1><p class="fd-sous"><span>${esc([d.forme, d.activite, d.ville].filter(Boolean).join(' · ') || d.matricule || '')}</span><span class="cd-li tenu">archivé</span></p><p class="fd-phrase">Tout se lit, rien ne se saisit</p></div></div>
+        <div class="actions"><button type="button" class="btn" id="fd-export">${CD_IC.exporter} Exporter le dossier</button>${estAssocie() ? '<button type="button" class="btn btn-primary" data-cd-geste="archiver" data-cd-d="' + esc(d.id) + '">Désarchiver…</button>' : ''}</div></div>
+        <div class="bandeau gris a-band fd-band"><span class="txt"><b>Un dossier archivé se lit, il ne bouge plus.</b><span>Ses livres, ses déclarations, ses pièces${d.manual ? '' : ' et la conversation'} restent ici. Il n'est plus dans Priorités, Échéances ni le tableau de bord. Combien de temps le cabinet le garde : À VÉRIFIER (10 ans pour les livres).</span></span></div>
+        <div class="fd-g"><div class="fd-col">${anneeP}</div>${cote}</div>`;
+    } else corps = `${tete}${bandHors}${chiffres}<div class="fd-g"><div class="fd-col">${blocAttend}${nouveau ? '' : attend.length ? revision + anneeP : anneeP + revision}</div>${cote}</div>`;
+    view.innerHTML = `<div class="cab-page cd-page fd-page${tel ? ' fd-tel' : ''}" id="page-fd" data-id="${esc(d.id)}">${ctx}${corps}</div>`;
+
+    // ---------- les gestes ----------
+    const redessiner = () => drawFicheFd(view, d);
+    const mn = $('#fd-menu', view); if (mn) mn.onclick = e => { e.stopPropagation(); ficheFd.menu = !ficheFd.menu; redessiner(); };
+    const rl = $('#fd-relire', view); if (rl) rl.onclick = () => { ficheFd.refus.delete(cle); redessiner(); };
+    $$('[data-fd-geste]', view).forEach(b => {
+      b.onclick = () => {
+        const g = attend[Number(b.dataset.fdGeste)];
+        const vers = g && g[4] && g[4][1];
+        if (vers === 'relancer') fenRelancer(d, itemsEcheances());
+        else if (vers) location.hash = vers;
+      };
+    });
+    $$('[data-fd-mois]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); ficheFd.mois = ficheFd.mois === b.dataset.fdMois ? '' : b.dataset.fdMois; redessiner(); }; });
+    const fx = $('#fd-pop-x', view); if (fx) fx.onclick = () => { ficheFd.mois = ''; redessiner(); };
+    $$('[data-fd-vers]', view).forEach(b => { b.onclick = () => { ficheFd.mois = ''; location.hash = b.dataset.fdVers; }; });
+    const nt = $('#fd-note', view); if (nt) nt.onclick = () => fenNoteFd(d);
+    const ex = $('#fd-export', view); if (ex) ex.onclick = async () => { try { const r = await api.exportCsv(toCsv(CSV_COLS, K.dossierList(S, null, { withArchived: true }).filter(r2 => r2.id === d.id)), 'dossier-' + d.name); if (r) toast('Tableau enregistré.'); } catch (x2) { toast(plainError(x2), 'error'); } };
+    $$('[data-fd-m]', view).forEach(b => {
+      b.onclick = async () => {
+        const g = b.dataset.fdM; ficheFd.menu = false; redessiner();
+        if (g === 'modifier' || g === 'archiver') dossierForm(d);
+        if (g === 'confier') { dosState.confier = d.id; redessiner(); }
+        if (g === 'noter') fenNoterRelance(d, [...tard, ...(etatMoisFd(d, mp, L, tard, mc)[0] === 'manque' ? [mp] : [])]);
+        if (g === 'appeler') { try { await api.tel({ number: d.phone }); } catch (x2) { toast(plainError(x2), 'error'); } }
+        if (g === 'suivi') location.hash = `#/dossier/${encodeURIComponent(d.id)}/suivi`;
+        if (g === 'exporter') location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite`;
+        if (g === 'imprimer') window.print();
+      };
+    });
+    $$('[data-cd-geste]', view).forEach(b => {
+      b.onclick = e => {
+        e.stopPropagation();
+        const g = b.dataset.cdGeste;
+        if (g === 'confier') { dosState.confier = dosState.confier === d.id ? '' : d.id; redessiner(); return; }
+        if (g === 'noter') fenNoterRelance(d, [...tard]);
+        if (g === 'archiver') dossierForm(d);
+      };
+    });
+    $$('[data-cd-a]', view).forEach(b => { b.onclick = () => confierA(b.dataset.cdA, [d]); });
+  }
+  document.addEventListener('click', ev => {
+    if (!$('#page-fd') || ev.target.closest('.fd-mw, .cd-cf-w, .fd-pop, [data-fd-mois]')) return;
+    if (!ficheFd.menu && !ficheFd.mois && !dosState.confier) return;
+    ficheFd.menu = false; ficheFd.mois = ''; dosState.confier = '';
+    const d = (S.dossiers || []).find(x => x.id === $('#page-fd').dataset.id);
+    if (d) drawFicheFd($('#view'), d);
+  });
+  function menuFicheFd(d, dir, prenom) {
+    const it = (g, ic, l, h, cl = '') => `<button type="button" role="menuitem"${cl ? ` class="${cl}"` : ''} data-fd-m="${g}"><span class="rm-i">${ic}</span><span class="rm-t"><span class="rm-l">${l}</span><span class="rm-h">${h}</span></span></button>`;
+    return `<div class="row-menu fd-menu" role="menu">${dir ? it('modifier', CD_IC.modifier, 'Modifier la fiche', 'l\'identité, le contact, la mission, les honoraires') : ''}${dir ? it('confier', CD_IC.confier, 'Confier à…', 'qui suit, qui valide') : ''}
+      ${d.phone ? it('appeler', CD_IC.telephone, `Appeler ${esc(prenom || d.name)}`, esc(d.phone)) : ''}${it('noter', FD_IC.note, 'Noter une relance faite ailleurs…', 'un appel, une visite, un WhatsApp')}
+      <hr>${it('suivi', CD_IC.dossiers, 'Tout le suivi', 'les mois, les relances, les paquets, qui travaille dessus')}${it('exporter', CD_IC.exporter, 'Exporter ses livres', 'depuis sa comptabilité : FEC, journal, balance')}${it('imprimer', FD_IC.imprimer, 'Imprimer la fiche', 'une page, pour le classeur')}
+      ${dir ? `<hr>${it('archiver', CD_IC.archive, d.archived ? 'Désarchiver le dossier…' : 'Archiver le dossier…', d.archived ? 'il revient dans les listes' : 'il reste lisible ; il quitte les listes', 'danger')}` : '<p class="fd-menu-n">Confier et archiver : la direction.</p>'}</div>`;
+  }
+  // Un mois ouvert : sa frise, des pièces au paiement, et le geste qui le fait avancer.
+  function popMoisFd(d, m, [cl, lib, t], L, eq, dir, hors) {
+    const v = (L && L.parMois[m]) || { ecr: 0, br: 0 }, dc = (L && L.decl[m]) || declarationConnue(d.id, m) || null;
+    const et = (titre, s, c) => `<li class="${c}"><span class="rond">${c === 'fait' ? CD_IC.ok : ''}</span><b>${titre}</b><small>${s}</small></li>`;
+    const recu = v.ecr > 0;
+    const frise = [
+      et('Pièces', recu ? (d.manual ? 'au cabinet' : 'enregistrées dans SkanFact') : 'rien reçu', recu ? 'fait' : 'ici'),
+      et('Saisie', recu ? pl(v.ecr, 'écriture') : '—', recu ? 'fait' : ''),
+      et('Révision', v.br ? `${pl(v.br, 'écriture')} au brouillard` : recu ? 'faite' : '—', v.br ? 'ici' : recu ? 'fait' : ''),
+      et('Déclaration', dc ? (dc.montant ? `${esc(dtCd(montantDe(dc.montant)))} DT` : 'préparée') : 'à préparer', dc ? 'fait' : ''),
+      et('Dépôt', dc && dc.deposee ? 'déposée' : `au plus tard le ${jjmm(limiteDe(m))}`, dc && dc.deposee ? 'fait' : t ? 'tard' : ''),
+      et('Paiement', dc && dc.payee ? 'payée' : '—', dc && dc.payee ? 'fait' : ''),
+    ].join('');
+    const rev = v.br && !(eq.suit && eq.suit.id !== S.moi && !dir);
+    return `<div class="fd-pop" role="dialog" aria-label="${esc(cap(moisLong(m)))} ${m.slice(0, 4)}"><div class="fd-pop-t"><span><b>${esc(cap(moisLong(m)))} ${m.slice(0, 4)}</b><small>${esc(lib)}${t ? ` · en retard depuis le ${jjmm(limiteDe(m))}` : ''}</small></span><button type="button" class="tb-mc-x" id="fd-pop-x" aria-label="Fermer">${CD_IC.croix}</button></div>
+      <ol class="fd-frise">${frise}</ol>
+      ${t ? '<p class="fd-pop-n">Passé la date limite, des pénalités de retard sont possibles (À VÉRIFIER : rien n\'est calculé ici).</p>' : ''}
+      <div class="fd-pop-a"><button type="button" class="btn btn-sm" data-fd-vers="#/dossier/${encodeURIComponent(d.id)}/comptabilite/journal/${m.slice(0, 4)}">Ses écritures ${deMois(m)}</button><button type="button" class="btn btn-sm" data-fd-vers="#/echeances">Voir dans Échéances</button>${v.br ? (rev ? `<button type="button" class="btn btn-sm btn-primary" data-fd-vers="#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie/${m.slice(0, 4)}"${hors ? ' disabled title="Attend le retour du réseau"' : ''}>Réviser ${esc(moisLong(m))}</button>` : `<span class="fd-qui">${esc(prenomDe(eq.suit))} révise</span>`) : ''}</div></div>`;
+  }
+  // La note de l'équipe : la note interne de la fiche (le client ne la voit jamais).
+  function fenNoteFd(d) {
+    modal(`<h2>Une note pour l'équipe</h2><p class="muted small">${esc(d.name)} · l'équipe du cabinet la lit ; le client ne la voit jamais.</p>
+      <label class="field">La note<textarea id="fd-note-t" rows="4" maxlength="2000">${esc(d.note || '')}</textarea></label>
+      <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="ok">Enregistrer la note</button></div>`,
+    (layer, close) => {
+      $('#ok', layer).onclick = async () => {
+        $('#ok', layer).disabled = true;
+        try { S = (await api.saveDossier(d.id, { note: $('#fd-note-t', layer).value })).state; close(); render(); toast('Note enregistrée sur la fiche · l\'équipe la lit.'); }
+        catch (x) { $('#ok', layer).disabled = false; toast(plainError(x), 'error'); }
+      };
+    });
+  }
+  // Le dossier n'est plus dans le portefeuille (repris par le client, ou retiré).
+  function introuvableFd(view) {
+    view.innerHTML = `<div class="cab-page cd-page fd-page" id="page-fd-x"><div class="panel pc-vide fd-vide fd-intr"><b>Ce dossier n'est plus dans ton portefeuille</b><p class="muted">Le client l'a peut-être repris depuis « Mon comptable », ou il a été retiré. Rien n'arrive plus de lui ; ce qu'il a partagé jusque-là ne s'ouvre plus d'ici.</p><div class="pc-vide-g"><button type="button" class="btn btn-primary btn-sm" id="dz-retour">Revenir à Tous les dossiers</button></div></div></div>`;
+    $('#dz-retour', view).onclick = () => navigate('#/dossiers');
+  }
+
   function drawDossier(view, id, ongletDemande, sousOnglet, anneeDemandee) {
     const dossier = (S.dossiers || []).find(d => d.id === decodeURIComponent(id || ''));
+    // (1.170.0) « #/dossier/<id> » seul : la fiche du dossier de la maquette ; le suivi détaillé reste à « …/suivi ».
+    if (!dossier && !ongletDemande) { introuvableFd(view); return; }
+    if (dossier && !ongletDemande) { drawFicheFd(view, dossier); return; }
     // Un état vide dit sa raison ET donne le geste (7.0.0) : seul, « Ce dossier n'existe plus. » ne
     // laissait que la barre latérale — vu à la souris après « Quitter l'exemple » sur la paie du garage.
     if (!dossier) {

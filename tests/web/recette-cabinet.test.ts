@@ -103,7 +103,7 @@ describe('la recette du Cabinet, à la souris', () => {
     expect(mandat).toMatch(/^[0-9a-f-]{36}$/);
 
     // Le dossier : l'e-mail et le téléphone de la fiche du client ; ses écritures commencent ce mois-ci.
-    await p.evaluate((e) => { location.hash = `#/dossier/${e}`; }, ent);
+    await p.evaluate((e) => { location.hash = `#/dossier/${e}/suivi`; }, ent);
     await p.locator('#view h1').filter({ hasText: 'Droguerie Bou Hamed' }).waitFor({ timeout: 15_000 });
     await expect.poll(() => p.locator('#view').innerText(), { timeout: 15_000 }).toContain('droguerie@exemple.tn');
     const fiche = await p.locator('#view').innerText();

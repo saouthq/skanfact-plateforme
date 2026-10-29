@@ -67,7 +67,7 @@ describe('le nom et le matricule d\'un dossier, à la souris', () => {
     const toast = () => p.locator('#toast').innerText();
     const fiche = async (e: string) => {
       await p.goto('about:blank');
-      await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${e}`);
+      await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${e}/suivi`);
       await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
       await p.waitForTimeout(800);
       for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {

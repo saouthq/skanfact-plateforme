@@ -127,7 +127,7 @@ describe('l\'ouverture d\'une page, le serveur lent ou en erreur', () => {
     expect((await api('POST', `/cabinets/${String(cab.id)}/mandats/${mandat}/accepter`, jeton)).statut).toBe(200);
     const p = await ouvrir(jeton);
     await refuser(p, /\/compta\/resume$/);
-    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${String(cab.id)}#/dossier/${dossier}`);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${String(cab.id)}#/dossier/${dossier}/suivi`);
     const carte = p.locator('#d-ce-mois');
     await expect.poll(() => carte.locator('[data-ce-mois-refus]').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^Ce mois-ci n'a pas pu se lire\. ./);
     expect(await carte.locator('[data-ce-mois-pieces]').count()).toBe(0);

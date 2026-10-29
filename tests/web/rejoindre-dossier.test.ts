@@ -54,7 +54,7 @@ describe('le client tenu rejoint son dossier, à la souris', () => {
     const c = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
     c.on('pageerror', (x) => erreurs.push(x.message));
     await c.addInitScript((j) => { sessionStorage.setItem('skanfact.jeton', j); }, associe);
-    await c.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}`);
+    await c.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${ent}/suivi`);
     const panneau = c.locator('#d-rejoindre');
     await expect.poll(() => panneau.innerText().catch(() => ''), { timeout: 20_000 }).toContain('Ton client sur SkanFact');
     expect(await c.locator('#view').evaluate((v) => {
