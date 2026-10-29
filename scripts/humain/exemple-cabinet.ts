@@ -240,12 +240,17 @@ const papier = (nom: string, dossier: string): string => {
   // Le total : la somme des lignes, au millime (les montants s'écrivent « 1 520,000 »).
   const millimes = l.reduce((t, x) => t + Math.round(Number(String(x[1]).replace(/[^\d,]/g, '').replace(',', '.')) * 1000), 0);
   const total = /€/.test(l[0]?.[1] ?? '') ? l[0]?.[1] ?? '' : `${Math.trunc(millimes / 1000).toLocaleString('fr-FR').replace(/\u202f/g, ' ')},${String(millimes % 1000).padStart(3, '0')}`;
+  // (1.173.0) La facture STEG entière, comme la maquette : sa TVA, son total TTC, et ce que Sarra y a noté à la main (sans
+  // eux, la lecture par l'IA ne trouvait ni le total ni l'achat du même montant).
+  if (/electricite/i.test(nom)) return `${css}<div class="f" style="width:380px"><h1>${f}</h1><div class="s">${n} · client : ${dossier}</div><table>${l.map(([a, b]) => ligne(a, b)).join('')}`
+    + ligne('Total hors taxes', total) + ligne('TVA 13 %', '21,446') + '<tr class="t"><td>Total TTC</td><td>186,419 DT</td></tr></table>'
+    + '<div class="p">à payer avant le 15/10/2026 · <i>payé par chèque n° 4410 087 le 12/10 (écrit à la main)</i></div></div>';
   return `${css}<div class="f"><h1>${f}</h1><div class="s">${n} · client : ${dossier}</div><table>${l.map(([a, b]) => ligne(a, b)).join('')}`
     + `<tr class="t"><td>Total hors taxes</td><td>${total}</td></tr></table><div class="p">Payable à 30 jours · TVA selon le taux en vigueur</div></div>`;
 };
 type Feuille = { setContent: (h: string) => Promise<void>; pdf: (o: object) => Promise<Buffer>; close: () => Promise<void>;
   locator: (s: string) => { screenshot: (o: object) => Promise<Buffer> } };
-let navigateur: { newPage: () => Promise<Feuille>; close: () => Promise<void> } | null = null;
+let navigateur: { newPage: (o?: object) => Promise<Feuille>; close: () => Promise<void> } | null = null;
 try {
   const { createRequire } = await import('node:module');
   const { chromium } = createRequire(import.meta.url)('playwright-core');
@@ -254,7 +259,8 @@ try {
 } catch { navigateur = null; }
 const fichierDe = async (nom: string, dossier: string): Promise<string> => {
   if (!navigateur) return PNG;
-  const page = await navigateur.newPage();
+  // Deux fois plus de points : une photo de téléphone, que l'œil (et l'IA) lisent nettement.
+  const page = await navigateur.newPage({ deviceScaleFactor: 2 });
   await page.setContent(papier(nom, dossier));
   const octets: Buffer = /\.pdf$/i.test(nom) ? await page.pdf({ width: '580px', height: '760px', printBackground: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } })
     : await page.locator('.f').screenshot({ type: 'png' });

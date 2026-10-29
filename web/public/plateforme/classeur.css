@@ -518,3 +518,10 @@
   .cl-ia-champs li, .cl-ia-champs li.ok, .cl-ia-champs li.vide { animation: none; opacity: 1; transform: none; }
   .cl-ia-raie { top: 35%; } .cl-ia-points { display: none; }
 }
+.cl-ap-b b .cl-ia-ic { margin-right: 5px; }
+/* (1.173.0) Le double : les deux pièces dans deux cadres de même taille (la règle du panneau, plus haut, leur laissait leur
+   hauteur à chacune : l'une courte, l'autre longue). */
+.cl-ap .cl-dbl .cl-pap-z.pc-papier, .cl-ap .cl-dbl .cl-pap-z.pc-papier:not(.vide) { aspect-ratio: 3 / 4; height: auto; max-height: none; margin: 0; padding: 0;
+  display: block; overflow: hidden; background: #fff; border: 1px solid #e6e1d6; border-radius: 8px; box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 6px 16px -8px rgba(0, 0, 0, .18); }
+.cl-ap .cl-dbl .cl-pap-z.pc-papier:not(.vide) img { width: 100%; height: 100%; object-fit: cover; object-position: top; border: 0; box-shadow: none; border-radius: 0; }
+.cl-ap .cl-dbl .cl-pap-z.pc-papier.vide { display: grid; place-content: center; font-size: 11px; }

@@ -4193,6 +4193,8 @@
       if (!lu || it.etat[2] !== 'traiter') return it;
       const tnd = !lu.devise || lu.devise === 'TND';
       return { ...it, lu, titre: lu.fournisseur || it.titre, montant: tnd && lu.total ? Number(lu.total) : it.montant,
+        // Lue : la date de la facture, comme une écriture (la maquette : « 30/09 ») ; sa date d'arrivée reste dans l'historique.
+        ...(lu.date ? { date: lu.date, recue: false } : {}),
         sous: [lu.numero ? `facture n° ${lu.numero}` : '', lu.date ? `du ${jjmm(lu.date)}` : '', !tnd && lu.total ? `${lu.total} ${lu.devise}` : '', nomFichierCl(it)].filter(Boolean).join(' · '),
         em: it.em || 'lue par SkanFact : à vérifier sur la pièce' };
     };
@@ -4248,11 +4250,11 @@
       }
       const recue = jourTunisCl(p.recueLe), le = p.classeeLe ? jourTunisCl(p.classeeLe) : '';
       const par = quiCl(p.classeePar);
-      let etat, em = '', geste = null, num = '', numE = '';
+      let etat, em = '', geste = null, num = '', numE = '', deLAchat = null;
       const achat = p.achat ? String(p.achat).split(' · ')[0] : '';
       const eAchat = achat ? parPiece.get(achat) : null;
       if (!classee) {
-        if (g === 'rangee') { etat = ['ambre', 'à vérifier', 'traiter']; em = `déjà dans ses achats : ${achat || 'un achat'}, saisie par ${prenom}`; geste = { lib: 'Marquer vérifiée', act: 'verifiee' }; num = achat; numE = eAchat ? eAchat.id : ''; }
+        if (g === 'rangee') { etat = ['ambre', 'à vérifier', 'traiter']; em = `déjà dans ses achats : ${achat || 'un achat'}, saisie par ${prenom}`; geste = { lib: 'Marquer vérifiée', act: 'verifiee' }; num = achat; numE = eAchat ? eAchat.id : ''; deLAchat = eAchat; }
         else if (g === 'releve') { etat = ['ambre', 'à rapprocher', 'traiter']; em = 'le relevé n\'est pas encore dans ses livres'; geste = { lib: 'Rapprocher', act: 'rapprocher' }; }
         else if (g === 'doc') { etat = ['ambre', 'à ranger', 'traiter']; geste = { lib: 'Ranger', act: 'ranger' }; }
         else { etat = ['ambre', 'à saisir', 'traiter']; geste = { lib: 'Saisir', act: 'saisir' }; }
@@ -4263,14 +4265,17 @@
       } else if (p.raison === 'double') {
         etat = ['gris', 'en double', 'ordre']; em = `${p.double ? `la même que ${nomJumelle(p.double)} · ` : ''}classée en double par ${par} le ${jjmm(le)} : hors du compte`;
       } else if (p.raison === 'verifiee') {
-        etat = ['ok', 'vérifiée', 'ordre']; em = `vérifiée par ${par} le ${jjmm(le)}`; num = achat; numE = eAchat ? eAchat.id : '';
+        etat = ['ok', 'vérifiée', 'ordre']; em = `vérifiée par ${par} le ${jjmm(le)}`; num = achat; numE = eAchat ? eAchat.id : ''; deLAchat = eAchat;
       } else if (p.raison === 'rien') {
         etat = ['gris', 'gardée, rien à saisir', 'ordre']; em = docs.some(x => x.rubrique === 'permanent' && sansAccentsCl(x.titre).split(' ')[0] && sansAccentsCl(p.fichier.nom).includes(sansAccentsCl(x.titre).split(' ')[0])) ? 'rangée aussi dans le dossier permanent' : `gardée par ${par} le ${jjmm(le)}`;
       } else if (p.raison === 'client') {
         etat = ['ok', 'saisie par le client', 'ordre']; em = `${prenom} la saisit lui-même`;
       } else { etat = ['gris', 'classée', 'ordre']; }
-      items.push(avecLecture({ k: `p:${p.id}`, sorte: 'piece', p, classee, rub: g === 'releve' ? 'banque' : 'achats', mois: m, date: p.recueLe, recue: true, titre: p.fichier.nom,
-        sous: [p.texte ? `« ${String(p.texte).slice(0, 90)} »` : '', p.demande ? `répond à « ${p.demande} »` : ''].filter(Boolean).join(' · '), em, montant: null, etat, geste, num, numE, photo: !/pdf/.test(p.fichier.type),
+      // Déjà rangée par le client dans son achat (ou vérifiée) : la ligne dit le fournisseur et le montant de cet achat, comme
+      // la maquette (« Minoterie du Cap Bon · 1 846,200 ») ; le nom du fichier passe dessous.
+      const tiersA = deLAchat ? (((deLAchat.lignes || []).find(l => l.tiers) || {}).tiers || String(p.achat || '').split(' · ')[1] || '') : '';
+      items.push(avecLecture({ k: `p:${p.id}`, sorte: 'piece', p, classee, rub: g === 'releve' ? 'banque' : 'achats', mois: m, date: deLAchat ? deLAchat.date : p.recueLe, recue: !deLAchat, titre: tiersA || p.fichier.nom,
+        sous: [tiersA ? p.fichier.nom : '', p.texte ? `« ${String(p.texte).slice(0, 90)} »` : '', p.demande ? `répond à « ${p.demande} »` : ''].filter(Boolean).join(' · '), em, montant: deLAchat ? montantE(deLAchat) : null, etat, geste, num, numE, photo: !/pdf/.test(p.fichier.type),
         jumelle: p.double ? `${p.double.sorte === 'message' ? 'p' : 'd'}:${p.double.id}` : '' }));
     }
     // Les pièces déposées par le cabinet (« Déposer des pièces »).
@@ -4921,7 +4926,7 @@
     const menuDe = x => {
       if (clState.menu !== x.k || !aFichier(x)) return '';
       const it = [['grand', 'Ouvrir en grand', 'La pièce sur tout l\'écran'], ['telecharger', 'Télécharger', `Le fichier tel que ${x.doc ? 'il a été déposé' : `${qui} l'a envoyé`}`]];
-      if (!x.classee && x.sorte === 'piece') it.push(['joindre', 'Joindre à un achat déjà saisi', candidatsDe(x).length ? `${candidatsDe(x)[0].num || candidatsDe(x)[0].titre} attend son justificatif` : 'Les achats de l\'année sans justificatif']);
+      if (!x.classee && x.sorte === 'piece') it.push(['joindre', 'Joindre à un achat déjà saisi', candidatsDe(x).length ? `${candidatsDe(x)[0].num || candidatsDe(x)[0].titre} ${memeMontant(candidatsDe(x)[0], x) ? 'a le même montant' : 'attend son justificatif'}` : 'Les achats de l\'année sans justificatif']);
       it.push(['remplacer', 'Remplacer par une meilleure photo', 'L\'ancienne reste dans l\'historique']);
       if (x.sorte === 'piece' || (x.doc && x.doc.rubrique === 'piece')) it.push(['mois', 'Déplacer dans un autre mois', 'Si elle a été rangée au mauvais endroit']);
       if (!x.classee) it.push(['double', 'Marquer en double', x.jumelle ? `La même que ${(items.find(y => y.k === x.jumelle) || {}).titre || 'une autre pièce'} ?` : 'Elle sort du compte, sans être effacée']);
@@ -4951,6 +4956,13 @@
     // (1.173.0) Une pièce lue : l'achat du même montant passe devant tout (la maquette : « un achat du même montant existe déjà »).
     const memeMontant = (c, x) => x.montant && c.montant && Math.abs(Number(c.montant) - Number(x.montant)) < 0.0005;
     const candidatsDe = x => [...sansJustif].sort((a, b) => (memeMontant(b, x) ? 1 : 0) - (memeMontant(a, x) ? 1 : 0) || nommeDans(a, x) - nommeDans(b, x) || Math.abs(Date.parse(`${a.mois}-15`) - Date.parse(`${x.mois}-15`)) - Math.abs(Date.parse(`${b.mois}-15`) - Date.parse(`${x.mois}-15`)));
+    // (1.173.0) Une pièce lue dont le total est celui d'un achat sans justificatif : sa ligne le dit (la maquette : « un achat
+    // du même montant existe déjà : FA-0919, sans justificatif »).
+    for (const x of items) {
+      if (!x.lu || x.etat[2] !== 'traiter' || x.etat[1] === 'en double ?') continue;
+      const c = sansJustif.find(y => memeMontant(y, x));
+      if (c) x.em = `un achat du même montant existe déjà : ${c.num || c.titre}, sans justificatif`;
+    }
 
     // ---------- le milieu ----------
     let milieu = '';
@@ -5173,7 +5185,7 @@
         actions = `<button type="button" class="btn btn-sm" data-cl-ap="remplacer"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Remplacer par une autre photo</button>${p && !d.manual ? `<button type="button" class="btn btn-sm btn-primary" data-cl-ap="relancer"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Relancer ${esc(qui)}</button>` : ''}`;
         apres = `<p class="cl-ap-tip">${CL_IC.info}<span>La relance dit à ${esc(qui)} ce qui aide : <b>la facture à plat, en pleine lumière, en entier dans la photo</b>.</span></p>`;
       } else if (raison === 'double') {
-        bloc = `<div class="cl-ap-b ok"><b>Classée en double par ${esc(quiCl((p || x).classeePar))}, le ${esc(jjmm(jourTunisCl((p || x).classeeLe)))} à ${esc(heureCl((p || x).classeeLe))}</b><span>${jum ? `La même pièce que ${esc(jum.titre)}${jum.num ? ` (${esc(jum.num)})` : ''}` : 'La même pièce est déjà arrivée'} : celle-ci ne compte pas dans ${esc(moisLong(sel.mois))}.</span></div>`;
+        bloc = `<div class="cl-ap-b ok"><b>Déjà classée en double par ${esc(quiCl((p || x).classeePar))}, le ${esc(jjmm(jourTunisCl((p || x).classeeLe)))} à ${esc(heureCl((p || x).classeeLe))}</b><span>${jum ? `La même pièce que ${esc(jum.titre)}${jum.num ? ` (${esc(jum.num)})` : ''}, ${esc(jum.etat[1])}${jum.montant ? `, ${esc(dtCd(jum.montant))} DT` : ''}` : 'La même pièce est déjà arrivée'} : celle-ci ne compte pas dans ${esc(moisLong(sel.mois))}.</span></div>`;
         actions = `<button type="button" class="btn btn-sm" data-cl-ap="declasser"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Ce ne sont pas les mêmes</button>`;
         apres = `<small class="cl-ap-n">Une pièce en double sort du compte ${esc(deMois(sel.mois))} sans être effacée : elle reste dans l'historique.</small>`;
       } else if (raison) {
@@ -5203,7 +5215,9 @@
       // (1.173.0) La lecture de la pièce : ce qu'elle dit, ou le bouton qui la lit (avec l'accord du client), ou pourquoi non.
       const L = clState.lus.get(d.id) || {};
       if (!raison && !['rangee', 'releve'].includes(g) && !(x && x.rubrique !== 'piece') && sel.sorte !== 'releve') {
-        if (sel.lu) bloc = `<div class="cl-ap-b cl-ia-lu"><b>${CL_IC.ia}Lue par SkanFact : ${esc(sel.lu.fournisseur || 'le fournisseur ne se lit pas')}</b><span>${esc([sel.lu.numero ? `facture n° ${sel.lu.numero}` : '', sel.lu.date ? `du ${jjmmaaCl(sel.lu.date)}` : '', sel.lu.total ? `${sel.lu.total.replace('.', ',')} ${!sel.lu.devise || sel.lu.devise === 'TND' ? 'DT' : sel.lu.devise}` : ''].filter(Boolean).join(' · ') || 'rien d\'autre ne se lit')}. À vérifier sur la pièce avant de la saisir.</span></div>${bloc}`;
+        // L'achat du même montant le dit déjà (la maquette : un seul bloc) : la lecture ne se répète pas au-dessus.
+        if (sel.lu && cands[0] && memeMontant(cands[0], sel)) bloc = bloc.replace('<b>Un achat du même montant existe déjà</b>', `<b>${CL_IC.ia}Un achat du même montant existe déjà</b>`);
+        else if (sel.lu) bloc = `<div class="cl-ap-b cl-ia-lu"><b>${CL_IC.ia}Lue par SkanFact : ${esc(sel.lu.fournisseur || 'le fournisseur ne se lit pas')}</b><span>${esc([sel.lu.numero ? `facture n° ${sel.lu.numero}` : '', sel.lu.date ? `du ${jjmmaaCl(sel.lu.date)}` : '', sel.lu.total ? `${sel.lu.total.replace('.', ',')} ${!sel.lu.devise || sel.lu.devise === 'TND' ? 'DT' : sel.lu.devise}` : ''].filter(Boolean).join(' · ') || 'rien d\'autre ne se lit')}. À vérifier sur la pièce avant de la saisir.</span></div>${bloc}`;
         else if (L.ia) actions = `<button type="button" class="btn btn-sm cl-ia-btn${clState.lit && clState.lit.k === sel.k ? ' cl-ia-encours' : ''}" data-cl-ap="lire"${bloque || clState.lit ? ` disabled title="${esc(bloque || 'La lecture est en cours')}"` : ''}>${CL_IC.ia}${clState.lit && clState.lit.k === sel.k ? 'Lecture en cours…' : 'Lire la pièce'}</button>${actions}`;
         else if (L.coupee) apres += `<small class="cl-ap-n">${esc(cap(qui))} a coupé la lecture de ses pièces par l'IA dans ses réglages : celle-ci se lit à l'œil.</small>`;
       }
