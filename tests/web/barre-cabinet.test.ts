@@ -275,6 +275,99 @@ describe('la barre du Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
   });
 
+  it('les pièces reçues : « Saisir l\'achat » ouvre la saisie préparée, et l\'achat enregistré prend la pièce, qui sort de la boîte', async () => {
+    const { associe, cab, boulangerie } = await unCabinet();
+    const annee = new Date().getFullYear();
+    expect((await api('POST', `/entreprises/${boulangerie.ent}/compta/ecritures`, associe, { date: `${annee}-01-15`, journal: 'OD', piece: 'OD-1', libelle: 'Ouverture',
+      lignes: [{ compte: '6226', debit: '100,000' }, { compte: '4286', credit: '100,000' }] })).statut).toBe(201);
+    // Janvier est déclaré : sa TVA déposée le 20/02.
+    expect((await api('PUT', `/entreprises/${boulangerie.ent}/compta/declarations/${annee}-01`, associe, { cases: { aDecaisser: '0,000' } })).statut).toBeLessThan(300);
+    expect((await api('POST', `/entreprises/${boulangerie.ent}/compta/declarations/${annee}-01/pointer`, associe, { quoi: 'deposee', le: `${annee}-02-20` })).statut).toBeLessThan(300);
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await ouvrir(p, cab.id, '#/pieces');
+    const lignes = p.locator('#page-pieces .pc-r[data-piece]');
+    await expect.poll(() => lignes.count()).toBe(2);
+    await lignes.filter({ hasText: 'facture-farine.png' }).click();
+    await p.locator('#pc-geste').click();
+    // Le journal des achats, le nom de la pièce en libellé, et le bandeau qui dit d'où elle vient et ce qu'il faut corriger.
+    await p.locator('#sa-libelle').waitFor({ timeout: 15_000 });
+    expect(await p.locator('.sa-depuis').innerText()).toMatch(/Saisie de « facture-farine\.png » · Pièces reçues[\s\S]*elle sort des pièces à classer[\s\S]*mets celle de la facture/);
+    expect(await p.locator('#sa-journal').inputValue()).toBe('AC');
+    expect(await p.locator('#sa-libelle').inputValue()).toBe('facture-farine');
+    // Une date dans un mois déjà déclaré : la page le dit avant le geste ; revenue dans un mois ouvert, l'avertissement s'en va.
+    expect(await p.locator('#sa-decl').isHidden()).toBe(true);
+    await p.locator('#sa-date').fill(`14/01/${annee}`);
+    await p.locator('#sa-date').blur();
+    await expect.poll(() => p.locator('#sa-decl').isVisible()).toBe(true);
+    await expect.poll(() => p.locator('#sa-decl').innerText().catch(() => '')).toMatch(new RegExp(`Janvier ${annee} est déjà déclaré \\(déposée le 20/02\\)[\\s\\S]*ils ne diront plus ce qui a été déposé`));
+    await p.locator('#sa-date').fill(`14/03/${annee}`);
+    await p.locator('#sa-date').blur();
+    await expect.poll(() => p.locator('#sa-decl').isHidden()).toBe(true);
+    await p.locator('input[data-k="compte"]').nth(0).fill('601');
+    await p.locator('input[data-k="debit"]').nth(0).fill('412,300');
+    await p.locator('input[data-k="compte"]').nth(1).fill('401');
+    await p.locator('input[data-k="credit"]').nth(1).fill('412,300');
+    await p.keyboard.press('Tab');
+    await p.getByRole('button', { name: 'Enregistrer en brouillard' }).click();
+    // On revient de soi-même aux pièces reçues, sur la suivante : celle-ci n'est plus à classer.
+    await expect.poll(() => p.url()).toMatch(/#\/pieces$/);
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/« facture-farine\.png » est jointe à son écriture, au brouillard/);
+    await expect.poll(() => lignes.count()).toBe(1);
+    expect(await p.locator('#pc-voir .pc-vt b').innerText()).toBe('ticket-agil.png');
+    expect(await lignes.first().innerText()).toMatch(/ticket-agil/);
+    await p.getByRole('tab', { name: 'Classées' }).click();
+    await expect.poll(() => lignes.filter({ hasText: 'facture-farine.png' }).innerText().catch(() => '')).toMatch(/[Jj]ointe/);
+    expect(erreurs).toEqual([]);
+  }, 60_000);
+
+  it('les pièces reçues, avant de classer : l\'achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit, et se joint à l\'achat qui attend son justificatif', async () => {
+    const { associe, cab, boulangerie } = await unCabinet();
+    const annee = new Date().getFullYear();
+    const sarra = boulangerie.j;
+    const achat = (id: string, num: string, fournisseur: string, ht: string, pj: unknown[]) => [
+      { collection: 'suppliers', cle: `s-${id}`, rang: 0, revision: null, contenu: { id: `s-${id}`, name: fournisseur } },
+      { collection: 'purchases', cle: `p-${id}`, rang: 1, revision: null, contenu: { id: `p-${id}`, kind: 'facture', number: num, date: `${annee}-01-10`, supplierId: `s-${id}`,
+        currency: 'DT', category: 'Fournitures', fees: 0, withholdingRate: 0, createdAt: 1, attachments: pj,
+        lines: [{ id: `p-${id}-l`, label: 'Fournitures', qty: 1, unitPrice: { '~n': ht }, vatRate: 19, destination: 'charge' }] } }];
+    expect((await api('POST', `/entreprises/${boulangerie.ent}/dossier-v10`, sarra, { changements: [...achat('steg', 'FA-0919', 'STEG', '156.650', []), ...achat('cap', 'FA-0914', 'Minoterie du Cap Bon', '100.000', [])] })).statut).toBe(200);
+    // Sarra range une photo dans son achat FA-0914 : elle arrive « à vérifier ».
+    const f = await api('POST', `/entreprises/${boulangerie.ent}/messages/fichiers`, sarra, { cote: 'entreprise', nom: 'facture-minoterie.png', contenu: PNG });
+    const m = await api('POST', `/entreprises/${boulangerie.ent}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: f.corps.id });
+    expect((await api('POST', `/entreprises/${boulangerie.ent}/messages/${m.corps.id}/achat`, sarra, { achat: 'p-cap', libelle: 'FA-0914 · Minoterie du Cap Bon' })).statut).toBe(200);
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await ouvrir(p, cab.id, '#/pieces');
+    const lignes = p.locator('#page-pieces .pc-r[data-piece]');
+    await expect.poll(() => lignes.count()).toBe(3);
+    // « Déjà rangée par le client » : son achat, lu dans ses livres, à côté de la pièce ; on classe en connaissance de cause.
+    await lignes.filter({ hasText: 'facture-minoterie.png' }).click();
+    const vf = p.locator('#pc-voir .pc-vf');
+    await expect.poll(() => vf.innerText().catch(() => '')).toMatch(/Déjà dans les achats de Sarra[\s\S]*FA-0914 · Minoterie du Cap Bon[\s\S]*Hors taxes\s+100,000[\s\S]*TVA\s+19,000[\s\S]*Total\s+119,000/);
+    expect(await vf.innerText()).toMatch(/Compare le total au fichier : l'achat dit 119,000 DT/);
+    expect(await p.locator('#pc-geste').innerText()).toBe('C\'est juste : classer');
+    // Le ticket : il n'est pas une facture, et l'achat FA-0919 attend encore son justificatif ; « Saisir » reste le geste principal.
+    await lignes.filter({ hasText: 'ticket-agil.png' }).click();
+    const voir = p.locator('#pc-voir');
+    await expect.poll(() => voir.locator('.pc-av-j').innerText().catch(() => '')).toMatch(/Un achat de Sarra attend son justificatif\.[\s\S]*FA-0919 · STEG[\s\S]*186,414 DT/);
+    expect(await voir.innerText()).toMatch(/Un ticket de caisse n'est pas une facture/);
+    expect(await p.locator('#pc-geste').getAttribute('class')).toMatch(/btn-primary/);
+    await voir.getByRole('button', { name: 'C\'est la même : joindre à FA-0919' }).click();
+    await expect.poll(() => lignes.count()).toBe(2);
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/« ticket-agil\.png » est jointe à FA-0919/);
+    // « Déposer des pièces » : dans quel dossier (celui de la pièce ouverte), puis la fenêtre du classeur de ce dossier.
+    await p.locator('#pc-deposer').click();
+    expect(await p.locator('#pc-dep-d option:checked').innerText()).toMatch(/^Boulangerie El Amal · relié$/);
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(() => p.locator('#dp-t').innerText().catch(() => '')).toBe('Déposer des pièces dans le classeur');
+    expect(await p.locator('#modal-root').innerText()).toMatch(/Boulangerie El Amal · ce que le client t'a donné/);
+    expect(erreurs).toEqual([]);
+  }, 60_000);
+
   it('les pièces reçues, les autres états : en double (laquelle), déjà saisie (où), plusieurs d\'un coup, un achat que le client saisit lui-même, la recherche vide, sans réseau', async () => {
     const { associe, cab, boulangerie, cafe } = await unCabinet();
     // (1.168.0) Le café ne confie au cabinet que sa comptabilité et ses déclarations : il saisit ses achats lui-même.

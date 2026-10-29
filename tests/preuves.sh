@@ -21110,5 +21110,29 @@ prouver 'classeur 45 : un collaborateur en saisie voit « Exporter »' web/publi
 prouver 'classeur 46 : un ticket dont rien ne dit le montant a « Joindre » pour bouton principal' web/public/v10/cabinet/app.js \
   "const jP = memeMontant(c, sel) || (sel.geste && sel.geste.act === 'joindre');" "const jP = true;" \
   'une pièce lue dont le total est celui d'\''un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
+prouver 'pièces reçues 12 : « Saisir l'\''achat » ouvre une grille vide' web/public/v10/cabinet/app.js \
+  '      achat: () => saisirDepuisPc(),' '      achat: () => aller('\''comptabilite/saisie'\''),' \
+  'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
+prouver 'pièces reçues 13 : l'\''achat enregistré laisse dans la saisie' web/public/v10/cabinet/app.js \
+  '        if (jointe && dc.retour) {' '        if (false) {' \
+  'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
+prouver 'pièces reçues 14 : la saisie ne dit pas qu'\''un mois est déjà déclaré' web/public/v10/cabinet/app.js \
+  '      b.hidden = !(dc && dc.deposee);' '      b.hidden = true;' \
+  'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
+prouver 'pièces reçues 15 : « Classées » dit « Classée » d'\''une pièce jointe' web/public/v10/cabinet/app.js \
+  'jointe: '\''Jointe à son écriture'\'' };' '};' \
+  'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
+prouver 'pièces reçues 16 : « Vérifier » classe sans montrer l'\''achat du client' web/public/v10/cabinet/app.js \
+  '${!classees && p.genre === '\''rangee'\'' ? blocVerifPc(p, D) : '\'''\''}' '' \
+  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit, et se joint à l'\''achat qui attend son justificatif'
+prouver 'pièces reçues 17 : un ticket ne dit pas qu'\''il n'\''est pas une facture' web/public/v10/cabinet/app.js \
+  '    if (p.genre === '\''ticket'\'') blocs.push(' '    if (false) blocs.push(' \
+  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit, et se joint à l'\''achat qui attend son justificatif'
+prouver 'pièces reçues 18 : l'\''achat dont la pièce attend déjà se propose à joindre' web/public/v10/cabinet/app.js \
+  ' && !rangees.has(String(e.piece)))' ')' \
+  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit, et se joint à l'\''achat qui attend son justificatif'
+prouver 'pièces reçues 19 : pas de « Déposer des pièces » dans les pièces reçues' web/public/v10/cabinet/app.js \
+  'id="pc-deposer"' 'id="pc-deposer-x"' \
+  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit, et se joint à l'\''achat qui attend son justificatif'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

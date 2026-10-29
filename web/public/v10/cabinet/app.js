@@ -2301,9 +2301,9 @@
     attente: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
     fermer: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   };
-  const PC_GESTE = { achat: 'Saisir l\'achat', ticket: 'Saisir la dépense', rangee: 'Vérifier l\'achat', releve: 'Rapprocher dans la Banque', doc: 'Ranger dans le dossier' };
+  const PC_GESTE = { achat: 'Saisir l\'achat', ticket: 'Saisir la dépense', rangee: 'C\'est juste : classer', releve: 'Rapprocher dans la Banque', doc: 'Ranger dans le dossier' };
   const PC_COURT = { achat: 'à saisir', ticket: 'ticket', rangee: 'à vérifier', releve: 'relevé', doc: 'document' };
-  const PC_RAISON = { saisie: 'Déjà saisie', verifiee: 'Vérifiée : rangée par le client dans ses achats', rien: 'Rien à saisir : gardée dans le dossier', double: 'En double', illisible: 'Illisible : redemandée au client', banque: 'Rapprochée dans la Banque', client: 'Le client la saisit lui-même' };
+  const PC_RAISON = { saisie: 'Déjà saisie', verifiee: 'Vérifiée : rangée par le client dans ses achats', rien: 'Rien à saisir : gardée dans le dossier', double: 'En double', illisible: 'Illisible : redemandée au client', banque: 'Rapprochée dans la Banque', client: 'Le client la saisit lui-même', jointe: 'Jointe à son écriture' };
   // Un achat d'un dossier qui n'a pas confié la saisie de ses achats au cabinet : le client la saisit lui-même.
   const nonConfiee = (p, D) => (p.genre === 'achat' || p.genre === 'ticket') && Array.isArray(D.perimetre) && !D.perimetre.includes('saisie_achats');
   // Le genre d'une pièce : ce que le client en a fait, sinon ce que dit son nom ou la demande à laquelle elle répond.
@@ -2401,17 +2401,18 @@
       const photo = !/pdf/.test(p.fichier.type);
       const outils = `<div class="pc-outils"><button type="button" class="btn btn-sm btn-icone" data-pc-zoom="-1" aria-label="Plus petit"${st.zoom <= 0.5 ? ' disabled' : ''}>${PC_IC.moins}</button><span>${Math.round(st.zoom * 100)} %</span><button type="button" class="btn btn-sm btn-icone" data-pc-zoom="1" aria-label="Plus grand"${st.zoom >= 3 ? ' disabled' : ''}>${PC_IC.plus}</button>${photo ? `<button type="button" class="btn btn-sm btn-icone" id="pc-tourner" aria-label="Tourner">${PC_IC.tourne}</button>` : ''}<span class="pc-sep"></span><button type="button" class="btn btn-sm btn-icone" id="pc-grand" aria-label="En grand">${PC_IC.grand}</button><button type="button" class="btn btn-sm btn-icone" id="pc-enregistrer" aria-label="Enregistrer le fichier">${PC_IC.bas}</button></div>`;
       const papier = hors ? '<div class="pc-papier vide" id="pc-papier"><b>Le fichier s\'ouvre avec le réseau</b><span>Il est gardé sur le serveur, pas sur ce poste.</span></div>'
-        : '<div class="pc-papier vide" id="pc-papier"><span>Ouverture de la pièce…</span></div>';
+        : `<div class="pc-papier vide${!classees && p.genre === 'rangee' ? ' court' : ''}" id="pc-papier"><span>Ouverture de la pièce…</span></div>`;
       const nc = !classees && nonConfiee(p, D);
       const avNc = nc ? `<div class="pc-avert ambre pc-nc">${EC_IC.alerte}<span><b>${esc(D.name)} saisit ses achats dans SkanFact</b> : leur saisie n'est pas confiée au cabinet. Si tu la saisis aussi, elle risque d'être saisie deux fois.</span></div>` : '';
+      const avant = !classees && !nc && ['achat', 'ticket'].includes(p.genre) ? blocAvantPc(p) : null;
       const geste = nc ? 'Lui laisser la saisie' : PC_GESTE[p.genre];
       const gestes = classees ? '<div class="pc-gestes"><button type="button" class="btn" id="pc-declasser">Remettre à classer</button></div>'
-        : `${avNc}<div class="pc-gestes">${hors ? '<span class="pc-attend">Saisir et classer attendent le retour du réseau.</span>' : ''}<button type="button" class="btn btn-primary" id="pc-geste"${hors ? ' disabled' : ''}>${geste}</button>${nc ? `<button type="button" class="btn" id="pc-saisir-moi"${hors ? ' disabled' : ''}>La saisir moi-même</button>` : ''}
+        : `${avNc}<div class="pc-gestes">${hors ? '<span class="pc-attend">Saisir et classer attendent le retour du réseau.</span>' : ''}<button type="button" class="btn${avant && avant.meme ? '' : ' btn-primary'}" id="pc-geste"${hors ? ' disabled' : ''}>${geste}</button>${p.genre === 'rangee' && !nc ? `<a class="btn" href="#/dossier/${encodeURIComponent(p.entreprise)}/comptabilite/saisie">Ouvrir l'achat</a>` : ''}${nc ? `<button type="button" class="btn" id="pc-saisir-moi"${hors ? ' disabled' : ''}>La saisir moi-même</button>` : ''}
           <span class="pc-menu-w"><button type="button" class="btn" id="pc-menu" aria-haspopup="menu" aria-expanded="${st.menu}"${hors ? ' disabled' : ''}>Classer sans saisir ${PC_IC.chev}</button>${st.menu ? menuClasserPc(p) : ''}</span>
           <span class="pc-clavier"><kbd>↑</kbd><kbd>↓</kbd> pièce suivante · <kbd>Entrée</kbd> ${esc(geste.toLowerCase())}</span></div>`;
       return `<div class="pc-voir" id="pc-voir"><div class="pc-vt"><div class="pc-vt-g">${vignettePc(p)}<span><b>${esc(p.fichier.nom)}</b><small>${photo ? 'Photo' : 'PDF'} · ${esc(tailleTxt(p.fichier.taille))} · ${esc(D.name)}${pr ? ` · <span class="pc-tva">${esc(pr.long)}</span>` : ''}</small></span></div>
         <div class="pc-nav"><button type="button" class="btn btn-sm btn-icone" data-pc-pas="-1" aria-label="Pièce précédente"${i <= 1 ? ' disabled' : ''}>${PC_IC.g}</button><span>${i} sur ${visibles.length}</span><button type="button" class="btn btn-sm btn-icone" data-pc-pas="1" aria-label="Pièce suivante"${i >= visibles.length ? ' disabled' : ''}>${PC_IC.d}</button></div></div>
-        ${mot}${dl}${outils}${papier}${gestes}</div>`;
+        ${mot}${dl}${!classees && p.genre === 'rangee' ? blocVerifPc(p, D) : ''}${avant ? avant.html : ''}${outils}${papier}${gestes}</div>`;
     };
     const comptes = Object.fromEntries(FILTRES.map(f => [f[0], parDossier.filter(f[2]).length]));
     const fl = classees || !source.length ? '' : `<div class="pc-fl" role="group" aria-label="Quelles pièces">${FILTRES.filter(f => f[0] === 'tout' || comptes[f[0]] || st.filtre === f[0]).map(f => `<button type="button" data-pc-filtre="${f[0]}" aria-pressed="${st.filtre === f[0]}">${f[1]} <span>${comptes[f[0]]}</span></button>`).join('')}</div>`;
@@ -2434,7 +2435,8 @@
     const banHors = hors && comptesBarre.piecesLues ? `<div class="pr-ban gris" role="status"><b>Pas de réseau : ce poste montre ce qu'il savait${heureLue ? ` à ${heureLue}` : ''}.</b><span>Les fichiers restent sur le serveur : ils s'ouvrent, se saisissent et se classent au retour du réseau. Les pièces envoyées depuis ne sont pas encore là.</span></div>` : '';
     view.innerHTML = `<div class="cab-page${st.ouverte && sel ? ' pc-ouverte' : ''}" id="page-pieces">${d ? ctxDossierCab(d) : ctxCabinet()}
       <div class="page-head"><div><h1>${d ? 'Pièces du dossier' : 'Pièces reçues'}</h1>
-        <p class="muted">${nb ? `${pl(nb, 'pièce')} à classer${hors && heureLue ? ` à ${heureLue}, la dernière fois que ce poste a eu le réseau` : d ? '' : `, de ${pl(nbD, 'dossier')} · chacune a son geste : saisir l'achat, vérifier, rapprocher, ranger`}` : d ? 'Rien à classer : ce que ce client envoie dans votre conversation arrive ici.' : 'Rien à classer : ce que tes clients envoient dans leur conversation arrive ici.'}</p></div></div>
+        <p class="muted">${nb ? `${pl(nb, 'pièce')} à classer${hors && heureLue ? ` à ${heureLue}, la dernière fois que ce poste a eu le réseau` : d ? '' : `, de ${pl(nbD, 'dossier')} · chacune a son geste : saisir l'achat, vérifier, rapprocher, ranger`}` : d ? 'Rien à classer : ce que ce client envoie dans votre conversation arrive ici.' : 'Rien à classer : ce que tes clients envoient dans leur conversation arrive ici.'}</p></div>
+        <div class="actions"><button type="button" class="btn" id="pc-deposer"${hors ? ' disabled title="Attend le retour du réseau"' : ''}>${CL_IC.deposer} Déposer des pièces</button></div></div>
       ${banHors}
       <div class="pc-barre"><div class="onglets-cab" role="tablist"><button type="button" role="tab" aria-selected="${!classees}" data-onglet-pr="aclasser">À classer${nb ? `<span class="compte attire">${nb}</span>` : ''}</button><button type="button" role="tab" aria-selected="${classees}" data-onglet-pr="classees">Classées</button></div>
         ${fl}<div class="pc-filtres"><label class="pc-cherche">${PC_IC.loupe}<input type="search" id="pc-q" placeholder="Chercher une pièce…" aria-label="Chercher une pièce" value="${esc(st.q)}"></label>${choixDos}</div></div>
@@ -2442,6 +2444,22 @@
     </div>`;
 
     const redessiner = () => drawPieces(view, idDossier);
+    // (1.174.5) Déposer ce qui arrive par WhatsApp, e-mail ou en main propre (la maquette) : dans quel dossier, puis la fenêtre
+    // du classeur ; les pièces s'y rangent, à saisir.
+    const bDep = $('#pc-deposer', view);
+    if (bDep) bDep.onclick = () => {
+      const moisDe = () => moisPrecedent(K.today().slice(0, 7));
+      if (d) { fenDeposerCl(d, moisDe(), { depuisPieces: true }); return; }
+      const ds = mesDossiers().filter(x => !x.archived).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+      const pre = (sel && ds.find(x => x.id === sel.entreprise)) || ds.find(x => x.id === prefs.get('dossierOuvert')) || ds[0];
+      modal(`<h2>Déposer des pièces</h2><p class="muted pc-m-sous">Ce qui t'arrive par WhatsApp, par e-mail, sur papier ou sur une clé : il se range dans le classeur du dossier, à saisir.</p>
+        <label class="field"><span>Dans quel dossier ?</span><span class="sel cd-selw"><select id="pc-dep-d">${ds.map(x => `<option value="${esc(x.id)}"${pre && x.id === pre.id ? ' selected' : ''}>${esc(x.name)} · ${x.manual ? 'tenu au cabinet' : 'relié'}</option>`).join('')}</select></span></label>
+        <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="ok"${ds.length ? '' : ' disabled'}>Choisir les fichiers</button></div>`,
+      (layer, close) => {
+        $$('[data-close]', layer).forEach(b => { b.onclick = close; });
+        $('#ok', layer).onclick = () => { const choix = ds.find(x => x.id === $('#pc-dep-d', layer).value); close(); if (choix) fenDeposerCl(choix, moisDe(), { depuisPieces: true }); };
+      });
+    };
     if (!source.length && !classees && comptesBarre.piecesLues && !st.classees && !st.lisClassees && navigator.onLine !== false) {
       st.lisClassees = true;
       api.pieces.lire(true).then(r => { st.classees = r; }).catch(() => { st.classees = { pieces: [] }; })
@@ -2541,10 +2559,14 @@
       return;
     }
     const D = dossierDe(sel.entreprise);
+    const saisirDepuisPc = () => { prefs.set('dossierOuvert', sel.entreprise);
+      saisirPiece(sel.entreprise, { nature: 'achats', date: jourTunis(sel.recueLe), nom: sel.fichier.nom, depuis: { nom: sel.fichier.nom, ou: 'Pièces reçues', message: sel.id, retour: idDossier ? `#/pieces/${encodeURIComponent(sel.entreprise)}` : '#/pieces', dateArrivee: true } }); };
     const aller = chemin => { prefs.set('dossierOuvert', sel.entreprise); location.hash = `#/dossier/${encodeURIComponent(sel.entreprise)}/${chemin}`; };
     const GESTES = {
-      achat: () => aller('comptabilite/saisie'),
-      ticket: () => aller('comptabilite/saisie'),
+      // (1.174.5) La saisie s'ouvre préparée pour cette pièce, et la pièce se joint à l'écriture enregistrée (elle sort des
+      // pièces à classer). Avant, une grille vide, et la pièce restait à classer une fois l'achat saisi.
+      achat: () => saisirDepuisPc(),
+      ticket: () => saisirDepuisPc(),
       releve: () => aller('comptabilite/banque'),
       rangee: () => classer('verifiee', `« ${sel.fichier.nom} » est vérifiée et classée.`),
       doc: () => classer('rien', `« ${sel.fichier.nom} » est gardée dans le dossier de ${D.name}.`),
@@ -2552,8 +2574,22 @@
     const bGeste = $('#pc-geste', view);
     const faire = nonConfiee(sel, D) ? () => classer('client', `« ${sel.fichier.nom} » est classée : ${D.name} la saisit dans ses achats.`) : GESTES[sel.genre];
     if (bGeste) { bGeste.onclick = () => faire(); st.geste = () => { if (!bGeste.disabled) faire(); }; }
+    $$('[data-pc-joindre]', view).forEach(b => {
+      b.onclick = async () => {
+        b.disabled = true;
+        const apres = suivante();
+        try {
+          await api.pieces.joindre(sel.entreprise, sel.id, b.dataset.pcJoindre);
+          clState.livres.delete(`${sel.entreprise}:${new Date(sel.recueLe).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' }).slice(0, 4)}`);
+          st.classees = null; st.sel = apres;
+          await relirePieces();
+          if (/^#\/pieces/.test(location.hash)) redessiner();
+          toast(`« ${sel.fichier.nom} » est jointe à ${b.dataset.pcJoindreN || 'son achat'} : rien n'est saisi deux fois.`);
+        } catch (x) { b.disabled = false; toast(plainError(x), 'error'); }
+      };
+    });
     const bMoi = $('#pc-saisir-moi', view);
-    if (bMoi) bMoi.onclick = () => aller('comptabilite/saisie');
+    if (bMoi) bMoi.onclick = () => saisirDepuisPc();
     const bMenu = $('#pc-menu', view);
     if (bMenu) bMenu.onclick = e => { e.stopPropagation(); st.menu = !st.menu; st.menuDos = false; redessiner(); };
     $$('[data-pc-raison]', view).forEach(b => {
@@ -2565,6 +2601,72 @@
         classer(r, `« ${sel.fichier.nom} » est classée : ${PC_RAISON[r].toLowerCase()}.`);
       };
     });
+  }
+  // (1.174.5) « Déjà rangée par le client » : l'achat qu'il a saisi, lu dans ses livres, à côté de la pièce, avec ce qui se
+  // contrôle vraiment (la maquette « Déjà rangée par le client »). Avant, « Vérifier l'achat » classait sans rien montrer.
+  function chargerVerifPc(ent, annee) {
+    const cle = `${ent}:${annee}`;
+    const fin = () => { if (/^#\/pieces/.test(location.hash) && !$('#modal-root').children.length) drawPieces($('#view'), location.hash.split('/')[2]); };
+    if (!clState.livres.has(cle) && !clState.lecture.has(cle) && !clState.refus.has(cle)) {
+      const pr = api.livre(ent, annee).then(r => { clState.livres.set(cle, (r && r.livre) || null); }, x => { clState.refus.set(cle, plainError(x)); }).finally(() => { clState.lecture.delete(cle); fin(); });
+      clState.lecture.set(cle, pr);
+    }
+    const L = clState.lus.get(ent);
+    if (!L || (!L.lu && !L.lecture)) {
+      const e = L || { lu: false, ia: false, coupee: false, par: new Map() };
+      e.lecture = true; clState.lus.set(ent, e);
+      api.classeur.lectures(ent).then(r => { e.par = new Map((r.lectures || []).map(l => [l.message ? `p:${l.message}` : `d:${l.document}`, l])); }, () => {}).finally(() => { e.lu = true; e.lecture = false; fin(); });
+    }
+  }
+  // (1.174.5) Avant de saisir une facture ou un ticket (la maquette « Avant d'enregistrer ») : un achat que le client a déjà
+  // saisi sans justificatif, à qui cette pièce répond peut-être (« C'est la même : joindre ») ; un ticket n'est pas une
+  // facture. Le bouton principal reste « Saisir » tant que rien ne dit que c'est la même (même montant lu).
+  function blocAvantPc(p) {
+    const annee = new Date(p.recueLe).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' }).slice(0, 4);
+    chargerVerifPc(p.entreprise, annee);
+    const livre = clState.livres.get(`${p.entreprise}:${annee}`);
+    const qui = String(p.de || 'Le client').split(' ')[0];
+    const lu = ((clState.lus.get(p.entreprise) || {}).par || new Map()).get(`p:${p.id}`);
+    const totalLu = lu && lu.total ? montantDe(lu.total) : null;
+    const montantE = e => (e.lignes || []).filter(l => /^40/.test(String(l.compte))).reduce((t, l) => t + montantDe(l.credit), 0);
+    const jointes = new Set(((pieceState.classees || {}).pieces || []).map(x => x.ecriture).filter(Boolean));
+    // Un achat dont la pièce est déjà là (rangée par le client, à vérifier) n'attend rien : il ne se propose pas.
+    const rangees = new Set(((piecesLues && piecesLues.pieces) || []).filter(x => x.entreprise === p.entreprise && x.achat).map(x => String(x.achat).split(' · ')[0].trim()));
+    const cands = !livre ? [] : (livre.ecritures || []).filter(e => rubDeJournal(e.journal) === 'achats' && e.justifClient === false && !jointes.has(e.id) && !rangees.has(String(e.piece)))
+      .map(e => ({ e, m: montantE(e) })).sort((a, b) => (totalLu != null ? Math.abs(a.m - totalLu) - Math.abs(b.m - totalLu) : 0) || String(b.e.date).localeCompare(String(a.e.date)));
+    const c = cands[0], meme = c && totalLu != null && Math.abs(c.m - totalLu) < 0.0005;
+    const blocs = [];
+    const tiersE = e => ((e.lignes || []).find(l => l.tiers) || {}).tiers || String(e.libelle || '').replace(new RegExp(`^(Achat\\s+)?${String(e.piece || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[—-]?\\s*`, 'i'), '');
+    if (c) blocs.push(`<div class="pc-avert ${meme ? 'rouge' : 'ambre'} pc-av-j">${EC_IC.alerte}<span><b>${meme ? 'Peut-être déjà saisie.' : cands.length > 1 ? `${cands.length} achats de ${esc(qui)} attendent leur justificatif.` : `Un achat de ${esc(qui)} attend son justificatif.`}</b> ${esc(qui)} a saisi ${esc(c.e.piece || 'un achat')}${tiersE(c.e) ? ` · ${esc(tiersE(c.e))}` : ''} du ${esc(fmtJourCourt(c.e.date).slice(0, 5))}, ${esc(dtCd(c.m))} DT, sans pièce. Si c'est celle-ci, la joindre évite de saisir la dépense deux fois.
+      <span class="pc-av-g"><button type="button" class="btn btn-sm${meme ? ' btn-primary' : ''}" data-pc-joindre="${esc(c.e.id)}" data-pc-joindre-n="${esc(c.e.piece || '')}">C'est la même : joindre à ${esc(c.e.piece || 'cet achat')}</button></span></span></div>`);
+    if (p.genre === 'ticket') blocs.push(`<div class="pc-avert ambre">${EC_IC.alerte}<span><b>Un ticket de caisse n'est pas une facture</b> à son nom : sa TVA ne se récupère sans doute pas (À VÉRIFIER). La dépense s'enregistre au total, sans TVA.</span></div>`);
+    return { html: blocs.join(''), meme };
+  }
+  function blocVerifPc(p, D) {
+    const annee = new Date(p.recueLe).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' }).slice(0, 4);
+    chargerVerifPc(p.entreprise, annee);
+    const cle = `${p.entreprise}:${annee}`, livre = clState.livres.get(cle);
+    const num = String(p.achat || '').split(' · ')[0].trim(), qui = String(p.de || 'Le client').split(' ')[0];
+    const tete = `<div class="pc-vf-t"><b>Déjà dans les achats de ${esc(qui)}</b><span>${esc(qui)} l'a rangée ${esc(quandPc(p.recueLe, true))}, avec ce fichier.</span></div>`;
+    if (clState.refus.has(cle)) return `<div class="pc-vf">${tete}<p class="pc-vf-n">Ses livres ne se lisent pas : ${esc(clState.refus.get(cle))}. L'achat se vérifie en l'ouvrant.</p></div>`;
+    if (!livre) return `<div class="pc-vf">${tete}<p class="pc-vf-n">Lecture de ses livres…</p></div>`;
+    const e = (livre.ecritures || []).find(x => x.piece === num);
+    if (!e) return `<div class="pc-vf">${tete}<p class="pc-vf-n">L'achat ${esc(num || 'rangé')} n'est pas dans ses livres de ${esc(annee)} : ouvre ses achats pour le retrouver avant de classer.</p></div>`;
+    const som = (re, sens) => (e.lignes || []).filter(l => re.test(String(l.compte))).reduce((t, l) => t + montantDe(l[sens]), 0);
+    const ht = som(/^[26]/, 'debit'), tva = som(/^436/, 'debit'), ttc = som(/^40/, 'credit');
+    const regle = (e.lignes || []).some(l => /^40/.test(String(l.compte)) && l.lettre);
+    const lu = ((clState.lus.get(p.entreprise) || {}).par || new Map()).get(`p:${p.id}`);
+    const totalLu = lu && lu.total ? montantDe(lu.total) : null;
+    const ctl = [];
+    if (totalLu != null) ctl.push(Math.abs(totalLu - ttc) < 0.0005 ? ['ok', `Le total de l'achat est celui que SkanFact lit sur la pièce : ${dtCd(ttc)} DT`] : ['ko', `La pièce dit ${dtCd(totalLu)} DT, l'achat ${dtCd(ttc)} DT : à corriger avant de classer`]);
+    else ctl.push(['att', `Compare le total au fichier : l'achat dit ${dtCd(ttc)} DT`]);
+    if (lu && lu.numero) ctl.push(String(e.libelle || '').includes(lu.numero) || String(e.piece) === lu.numero ? ['ok', `Le numéro lu (${lu.numero}) est celui de l'achat`] : ['att', `La pièce porte le n° ${lu.numero} : vérifie qu'il est dans l'achat`]);
+    ctl.push(regle ? ['ok', 'Son règlement est rapproché dans ses livres'] : ['att', 'Pas encore réglé dans ses livres']);
+    const ic = { ok: PC_IC.coche, att: PC_IC.attente, ko: EC_IC.alerte };
+    return `<div class="pc-vf">${tete}
+      <div class="pc-vf-a"><div class="pc-vf-h"><b>${esc(num)} · ${esc(String(p.achat || '').split(' · ').slice(1).join(' · ') || e.libelle || '')}</b><span class="pc-tag ${e.statut === 'brouillard' ? 'achat' : 'rangee'}">${e.statut === 'brouillard' ? 'au brouillard' : 'validée'}</span></div>
+        <dl><div><dt>Date</dt><dd>${esc(fmtJourCourt(e.date))}</dd></div><div><dt>Hors taxes</dt><dd>${esc(dtCd(ht))}</dd></div><div><dt>TVA</dt><dd>${esc(dtCd(tva))}</dd></div><div><dt>Total</dt><dd><b>${esc(dtCd(ttc))}</b></dd></div></dl></div>
+      <ul class="pc-vf-c">${ctl.map(([t, x]) => `<li class="${t}">${ic[t]}<span>${esc(x)}</span></li>`).join('')}</ul></div>`;
   }
   function menuClasserPc(p) {
     const o = [['rien', 'Rien à saisir', 'Un contrat, une attestation : gardée dans le dossier, à sa date'],
@@ -4625,6 +4727,8 @@
           if (!opts.remplacePiece) Object.assign(clState, rubrique === 'piece' ? { mois: $('#dp-m', layer).value, vue: '', decl: '', filtre: 'rub', rub: '', ouvrir: false, sel: '', q: '' }
             : rubrique === 'courrier' ? { vue: 'courriers', sel: '', q: '' } : rubrique === 'permanent' ? { vue: 'permanent', sel: '', q: '' } : {});
           await apresGesteCl(d, { docs: true, pieces: !!(opts.remplacePiece && opts.remplacePiece.p) });
+          // (1.174.5) Déposées depuis les Pièces reçues : elles se rangent dans le classeur du dossier, qui s'ouvre sur leur mois.
+          if (opts.depuisPieces) navigate(`#/dossier/${encodeURIComponent(d.id)}/classeur`);
         } catch (x) { $('#ok', layer).disabled = false; toast(`${n ? `${pl(n, 'pièce rangée')} ; ` : ''}${plainError(x)}`, 'error'); }
       };
     });
@@ -5485,16 +5589,9 @@
         // (1.174.2) La saisie s'ouvre préparée pour cette pièce : son journal (achats, banque ou ventes), une date de son
         // mois, son nom en libellé ; enregistrée, la pièce se joint à l'écriture. Avant, une grille vide (journal des
         // ventes, date du jour), et la pièce restait « à saisir » une fois l'écriture faite.
-        const enCours = saisieState.dossierId === d.id && pieceEnCours(saisieState.piece);
-        if (!enCours) {
-          const js = (livre && livre.journaux) || [];
-          const code = (re2 => (js.find(j => re2.test(`${j.code} ${j.libelle || j.nom || ''}`)) || {}).code)(x.rub === 'banque' ? /^(BQ|BAN)|banque/i : x.rub === 'ventes' ? /^(VT|VE)|vente/i : /^(AC|HA)|achat/i) || '';
-          const auj = K.today(), fin = new Date(Date.UTC(Number(x.mois.slice(0, 4)), Number(x.mois.slice(5, 7)), 0)).toISOString().slice(0, 10);
-          saisieState.dossierId = d.id;
-          saisieState.piece = { ...pieceVide(code, auj.slice(0, 7) === x.mois ? auj : fin), libelle: String(x.titre || '').replace(/\.(pdf|jpe?g|png|webp|heic)$/i, '').slice(0, 120),
-            depuisClasseur: { nom: nomFichierCl(x), ou: `${cap(moisLong(x.mois))} ${x.mois.slice(0, 4)} › ${nomRub(x.rub)}`, ...(x.p ? { message: x.p.id } : { doc: x.doc.id }) } };
-        } else toast('Une saisie est déjà commencée pour ce dossier : elle t\'attend, la pièce ne s\'y joindra pas d\'elle-même.');
-        navigate(`#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie`);
+        const auj = K.today(), fin = new Date(Date.UTC(Number(x.mois.slice(0, 4)), Number(x.mois.slice(5, 7)), 0)).toISOString().slice(0, 10);
+        saisirPiece(d.id, { nature: x.rub === 'banque' ? 'banque' : x.rub === 'ventes' ? 'ventes' : 'achats', date: auj.slice(0, 7) === x.mois ? auj : fin, nom: x.titre,
+          depuis: { nom: nomFichierCl(x), ou: `${cap(moisLong(x.mois))} ${x.mois.slice(0, 4)} › ${nomRub(x.rub)}`, ...(x.p ? { message: x.p.id } : { doc: x.doc.id }) } });
         return;
       }
       if (act === 'relancer' && x.p) { redemanderPiece(x.p, d, async note => { try { await api.pieces.classer(d.id, x.p.id, false); await api.pieces.classer(d.id, x.p.id, true, 'illisible', note); } catch { /* déjà classée : la relance est partie */ } toast(`Relance envoyée à ${qui}.`); await apresGesteCl(d); }); return; }
@@ -11610,6 +11707,18 @@
     lignes: [ligneVide(), ligneVide()]
   });
   const ligneVide = () => ({ compte: '', libelle: '', debit: '', credit: '' });
+  // (1.174.5) La saisie ouverte pour une pièce (le classeur, les Pièces reçues) : son journal nommé par sa nature (achats,
+  // banque, ventes ; la saisie prend le code de ce livre), une date, son nom en libellé ; enregistrée, la pièce se joint à
+  // l'écriture (`depuis`). Une saisie déjà commencée pour ce dossier n'est pas écrasée.
+  function saisirPiece(dossierId, { nature, date, nom, depuis }) {
+    if (saisieState.dossierId === dossierId && pieceEnCours(saisieState.piece)) toast('Une saisie est déjà commencée pour ce dossier : elle t\'attend, la pièce ne s\'y joindra pas d\'elle-même.');
+    else {
+      if (saisieState.dossierId && saisieState.dossierId !== dossierId && pieceEnCours(saisieState.piece)) saisieState.enAttente[saisieState.dossierId] = saisieState.piece;
+      saisieState.dossierId = dossierId;
+      saisieState.piece = { ...pieceVide('', date), journalDe: nature, libelle: String(nom || '').replace(/\.(pdf|jpe?g|png|webp|heic)$/i, '').slice(0, 120), depuisClasseur: depuis };
+    }
+    navigate(`#/dossier/${encodeURIComponent(dossierId)}/comptabilite/saisie`);
+  }
 
   // Les lignes telles que le moteur les attend : les champs texte redeviennent des nombres ici, et
   // nulle part ailleurs. Une ligne entièrement vide ne compte pas — on en laisse toujours une au
@@ -11756,6 +11865,12 @@
       saisieState.piece = pieceVide(j, dateProposee(s.annee));
     }
     const p = saisieState.piece;
+    if (p.journalDe) {
+      const re = { achats: /^(AC|HA)|achat/i, banque: /^(BQ|BAN)|banque/i, ventes: /^(VT|VE)|vente/i }[p.journalDe];
+      const j = re && s.livre.journaux.find(x => re.test(`${x.code} ${x.libelle || ''}`));
+      p.journal = j ? j.code : (r.journalParDefaut || dossier.dernierJournal || (s.livre.journaux[0] || {}).code || '');
+      delete p.journalDe;
+    }
     const brouillards = (s.livre.ecritures || []).filter(e => e.statut === 'brouillard')
       .slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
     const guides = K.guidesDuDossier(S, dossier);
@@ -11767,7 +11882,7 @@
 
     // (1.174.2) Une saisie ouverte depuis le classeur dit de quelle pièce elle vient : enregistrée, la pièce s'y joint.
     const dc = p.depuisClasseur;
-    return `${dc ? `<div class="sa-depuis" role="note"><span><b>Saisie de « ${esc(dc.nom)} »</b> · ${esc(dc.ou)} : enregistrée, l'écriture la prend pour justificatif, et le classeur la compte saisie.</span><a class="btn btn-sm btn-ghost" href="#/dossier/${encodeURIComponent(dossier.id)}/classeur">Retour au classeur</a></div>` : ''}<div class="sa-tete" id="sa-tete">
+    return `${dc ? `<div class="sa-depuis" role="note"><span><b>Saisie de « ${esc(dc.nom)} »</b> · ${esc(dc.ou)} : enregistrée, l'écriture la prend pour justificatif${dc.retour ? ', et elle sort des pièces à classer' : ', et le classeur la compte saisie'}.${dc.dateArrivee ? ' La date proposée est celle de son arrivée : mets celle de la facture.' : ''}</span><a class="btn btn-sm btn-ghost" href="${dc.retour ? esc(dc.retour) : `#/dossier/${encodeURIComponent(dossier.id)}/classeur`}">${dc.retour ? 'Retour aux pièces reçues' : 'Retour au classeur'}</a></div>` : ''}<div class="sa-tete" id="sa-tete">
         <label class="field sa-j"><span class="fl">Journal ${info('sa.journal')}</span>
           <select id="sa-journal">${s.livre.journaux.map(j => `<option value="${esc(j.code)}" ${p.journal === j.code ? 'selected' : ''}>${esc(j.code)} — ${esc(j.libelle)}</option>`).join('')}</select></label>
         <label class="field sa-d"><span class="fl">Date ${info('sa.date')}</span>
@@ -11806,6 +11921,7 @@
       <div class="sa-pied">
         <div>
           <div id="sa-solde"></div>
+          <div class="bandeau ambre sa-decl" id="sa-decl" role="note" hidden></div>
           ${/* Le motif du refus se lit AVANT le bouton, jamais dessous : un avertissement sous le
                 geste arrive après la décision (règle 9.4.2). */''}
           <div class="sa-refus" id="sa-refus" hidden></div>
@@ -12097,6 +12213,15 @@
     // L'entête : chaque champ écrit dans la pièce, aucun ne redessine la grille.
     const j = $('#sa-journal', el);
     if (j) j.onchange = () => { p.journal = j.value; p.touchee = true; api.dernierJournal(dossier.id, j.value).catch(() => {}); majSolde(); };
+    // (1.174.5) Un mois dont la déclaration est déposée : l'écriture le change après coup. Dit avant le geste (la maquette
+    // « Mois déjà déclaré ») ; la règle de report est À VÉRIFIER avec un comptable.
+    const majDecl = () => {
+      const b = $('#sa-decl', el); if (!b) return;
+      const m = String(p.date || '').slice(0, 7), dc = m ? lireLivreFd(s.livre).decl[m] : null;
+      b.hidden = !(dc && dc.deposee);
+      if (dc && dc.deposee) b.innerHTML = `<span class="txt"><b>${esc(cap(moisLong(m)))} ${esc(m.slice(0, 4))} est déjà déclaré${dc.deposeeLe ? ` (déposée le ${esc(fmtJourCourt(String(dc.deposeeLe).slice(0, 10)).slice(0, 5))})` : ''}.</b><span>Cette écriture change ses livres après la déclaration : ils ne diront plus ce qui a été déposé. Une facture arrivée en retard garde sa date, et sa TVA se récupère sur une déclaration suivante (À VÉRIFIER : le délai et la façon de la reporter).</span></span>`;
+    };
+    majDecl();
     const dt = $('#sa-date', el);
     if (dt) {
       const lire = () => {
@@ -12107,6 +12232,7 @@
         if (ko) dt.setAttribute('aria-invalid', 'true'); else dt.removeAttribute('aria-invalid');
         if (iso) dt.value = dateAffichee(iso, r);
         majSolde();
+        majDecl();
       };
       dt.onblur = lire;
       // Un champ PRÉ-REMPLI se sélectionne au clic : sans ça, cliquer dedans et taper « 4/3 »
@@ -12231,13 +12357,15 @@
           : await api.saisir(dossier.id, s.annee, ecr);
         s.livre = res.livre;
         const dc = p.depuisClasseur, idE = res.id || p.id;
+        let jointe = false;
         if (dc && idE && !res.attente) {
           try {
             if (dc.message) await api.pieces.joindre(dossier.id, dc.message, idE); else await api.classeur.classer(dossier.id, dc.doc, true, 'jointe', idE);
             // Le classeur relira ses pièces, ses documents et ce livre en revenant (sinon il montre encore « à saisir »).
             clState.docs.delete(dossier.id); clState.livres.delete(`${dossier.id}:${s.annee}`); clState.just.clear();
             void Promise.all([relirePieces(), chargerClasseesCl(dossier, true)]).catch(() => {});
-            toast(`« ${dc.nom} » est jointe à son écriture : le classeur la compte saisie.`);
+            jointe = true;
+            toast(dc.retour ? `« ${dc.nom} » est jointe à son écriture : elle sort des pièces à classer.` : `« ${dc.nom} » est jointe à son écriture : le classeur la compte saisie.`);
           } catch (x) { toast(`L'écriture est enregistrée, mais « ${dc.nom} » n'a pas pu s'y joindre : ${plainError(x)}`, 'error'); }
         }
         if (puisValider) {
@@ -12251,6 +12379,12 @@
         // On enchaîne : même journal, même date, tout le reste vide. C'est ça, la saisie au
         // kilomètre — on ne revient jamais au menu entre deux pièces.
         saisieState.piece = pieceVide(p.journal, p.date);
+        // (1.174.5) Saisie depuis les Pièces reçues : on y revient, sur la pièce suivante (la maquette « Juste après »).
+        if (jointe && dc.retour) {
+          toast(`« ${dc.nom} » est jointe à son écriture, ${puisValider ? 'validée' : 'au brouillard'} : elle sort des pièces à classer.`);
+          navigate(dc.retour);
+          return;
+        }
         drawLivres(root, dossier);
         const d2 = $('#sa-piece'); if (d2) d2.focus();
         majAValider(dossier);
