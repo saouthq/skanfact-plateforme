@@ -21086,5 +21086,11 @@ prouver 'classeur 37 : « Pas une pièce comptable » manque au menu d'\''une pi
 prouver 'classeur 38 : une rubrique vide du mois ne dit rien et n'\''offre aucun geste' web/public/v10/cabinet/app.js \
   '${l.length ? liste(trie) : `<div class="cl-rub-vide">' '${l.length ? liste(trie) : `<div hidden class="x">' \
   'un courrier se range avec le mois où il est arrivé'
+prouver 'classeur 39 : « Saisir » ouvre une saisie vide, sans lien avec la pièce' web/public/v10/cabinet/app.js \
+  "        if (!enCours) {" "        if (0) {" \
+  'saisir une pièce depuis le classeur'
+prouver 'classeur 40 : la pièce saisie depuis le classeur reste « à saisir »' web/public/v10/cabinet/app.js \
+  'if (dc && idE && !res.attente) {' 'if (0) {' \
+  'saisir une pièce depuis le classeur'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

@@ -4210,7 +4210,8 @@
     const ligneJointeCl = (z, eJ, m, doc) => {
       const tiers = ((eJ.lignes || []).find(l => l.tiers) || {}).tiers || eJ.libelle || '';
       return { k: `${doc ? 'd' : 'p'}:${z.id}`, sorte: doc ? 'doc' : 'piece', [doc ? 'doc' : 'p']: z, classee: true, rub: rubDeJournal(eJ.journal) === 'ventes' ? 'ventes' : 'achats', mois: m, date: eJ.date, recue: false,
-        titre: tiers || z.fichier.nom, sous: [eJ.piece !== tiers ? eJ.libelle : '', z.fichier.nom].filter(Boolean).join(' · '),
+        // Ni le libellé ni le nom du fichier ne se répètent quand ils disent la même chose que le titre (1.174.2).
+        titre: tiers || z.fichier.nom, sous: [eJ.piece !== tiers && eJ.libelle !== tiers ? eJ.libelle : '', z.fichier.nom.replace(/\.[a-z0-9]{2,4}$/i, '') !== (tiers || '') ? z.fichier.nom : ''].filter(Boolean).join(' · '),
         em: `jointe à ${eJ.piece || 'son écriture'} le ${jjmm(jourTunisCl(z.classeeLe))} à ${heureCl(z.classeeLe)}, par ${quiCl(z.classeePar)}`, emOk: true,
         montant: montantE(eJ), etat: ['ok', 'saisie', 'ordre'], geste: null, num: eJ.piece, numE: eJ.id, photo: !/pdf/.test(z.fichier.type) };
     };
@@ -4928,7 +4929,7 @@
     // ---------- l'en-tête ----------
     const derniere = Lfd.derniere ? jjmm(Lfd.derniere) : '';
     const rienDepuis = parMois.some(x => x.etat[0] === 'manque') && !d.manual && derniere;
-    const sousTete = nouveau ? 'un classeur qui commence' : [d.from ? `${d.manual ? 'tenu au cabinet ' : ''}depuis ${moisLong(d.from)} ${d.from.slice(0, 4)}` : '', `${pl(tot.pieces, 'pièce')} en ${annee}`, rienDepuis ? `rien depuis le ${derniere}` : tot.traiter || tot.manque ? [tot.traiter ? `${tot.traiter} à traiter` : '', tot.manque ? `${tot.manque} qui manque${tot.manque > 1 ? 'nt' : ''}` : ''].filter(Boolean).join(', ') : 'tout est en ordre'].filter(Boolean).join(' · ');
+    const sousTete = nouveau ? 'un classeur qui commence' : [d.from ? `${d.manual ? 'tenu au cabinet ' : ''}depuis ${moisLong(d.from)} ${d.from.slice(0, 4)}` : '', `${pl(tot.pieces, 'pièce')} en ${annee}`, rienDepuis ? `rien depuis le ${derniere}` : tot.traiter || tot.manque ? [tot.traiter ? `${tot.traiter} à traiter` : '', tot.manque ? `${tot.manque} qui manque${tot.manque > 1 ? 'nt' : ''}` : ''].filter(Boolean).join(', ') : 'les pièces sont en ordre', tard.length ? `${tard.map(moisLong).join(' et ')} à déclarer, en retard` : ''].filter(Boolean).join(' · ');
     const recherche = `<label class="cl-ch">${CL_IC.chercher}<input type="search" id="cl-q" value="${esc(clState.q)}" placeholder="Chercher dans tout le dossier : un fournisseur, un montant, un numéro…" aria-label="Chercher dans tout le dossier" autocomplete="off"><kbd>/</kbd></label>`;
 
     // ---------- l'arbre ----------
@@ -4956,7 +4957,7 @@
     const declSous = declsAn.length ? [`${pl(nDep - nCnss, 'déposée', 'déposées')}${nCnss ? `, ${nCnss} CNSS` : ''}`, tard.length ? `${moisLong(tard[0])} en retard` : ''].filter(Boolean).join(' · ') : 'aucune encore';
     const nCour = docs.filter(x => x.rubrique === 'courrier' && String(x.periode || jourTunisCl(x.deposeLe)).startsWith(annee)).length;
     const dus = parMois.filter(x => !['avant', 'cours', 'avenir'].includes(x.cl)).length;
-    const exoLien = `<a href="#" class="cl-a-t ouv${!passe && clState.vue === 'annee' ? ' ici' : ''}" data-cl-an="${anneeC}" title="L'année d'un coup d'œil : chaque mois, ses pièces et sa déclaration">${CL_IC.exercice}<span><b>Exercice ${anneeC}</b><small>${passe ? 'en cours' : nouveau ? `en cours · depuis ${esc(moisLong(d.from || mc))}` : `${complets} mois complet${complets > 1 ? 's' : ''} sur ${dus}`}</small>${passe || nouveau || !dus ? '' : `<em class="cl-a-bar" aria-hidden="true"><i style="--p:${Math.round(complets / dus * 100)}%"></i></em>`}</span>${passe ? CL_IC.chev : ''}</a>`;
+    const exoLien = `<a href="#" class="cl-a-t ouv${!passe && clState.vue === 'annee' && !clState.q ? ' ici' : ''}" data-cl-an="${anneeC}" title="L'année d'un coup d'œil : chaque mois, ses pièces et sa déclaration">${CL_IC.exercice}<span><b>Exercice ${anneeC}</b><small>${passe ? 'en cours' : nouveau ? `en cours · depuis ${esc(moisLong(d.from || mc))}` : `${complets} mois complet${complets > 1 ? 's' : ''} sur ${dus}`}</small>${passe || nouveau || !dus ? '' : `<em class="cl-a-bar" aria-hidden="true"><i style="--p:${Math.round(complets / dus * 100)}%"></i></em>`}</span>${passe ? CL_IC.chev : ''}</a>`;
     const arbreAnnee = `<div class="cl-a-ms">${avant.length ? `<a href="#" class="cl-a-m avant" tabindex="-1" aria-disabled="true" title="La mission commence en ${esc(moisLong(d.from || ''))} : ces mois ne se rangent pas ici"><i></i><span>${cap(moisLong(avant[0].m))}${avant.length > 1 ? ` à ${moisLong(avant[avant.length - 1].m)}` : ''}</span><small>avant la mission</small></a>` : ''}${lignesMois}</div>
         <span class="cl-a-l">À part, pour ${annee}</span>
         <a href="#" class="cl-a-m dc${clState.vue === 'decls' && !clState.q ? ' ici' : ''}${tard.length ? ' tard' : ''}" data-cl-decls="1" title="Chaque déclaration de l'année, son accusé et son paiement"><i aria-hidden="true">${CL_IC.decl}</i><span>Les déclarations</span><small>${esc(declSous)}</small></a>
@@ -4981,8 +4982,9 @@
       const voir = [['grand', PC_IC.grand, 'Ouvrir en grand', 'La pièce sur tout l\'écran'], ['telecharger', PC_IC.bas, 'Télécharger', `Le fichier tel que ${x.doc ? 'il a été déposé' : `${qui} l'a envoyé`}`]];
       if (estPiece) voir.push(['historique', PC_IC.attente, 'Voir son historique', 'Reçue, rangée, jointe : qui et quand']);
       const ranger = [];
-      if (!x.classee && x.sorte === 'piece') ranger.push(['joindre', CD_IC.lien, 'Joindre à un achat déjà saisi', candidatsDe(x).length ? `${candidatsDe(x)[0].num || candidatsDe(x)[0].titre} ${memeMontant(candidatsDe(x)[0], x) ? 'a le même montant' : 'attend son justificatif'}` : 'Les achats de l\'année sans justificatif']);
-      if (cour && !/^réponse\b/i.test(x.doc.titre)) ranger.push(['reponse', CD_IC.msg, 'Ranger sa réponse', 'La réponse du cabinet, à côté du courrier']);
+      // Joindre seulement s'il y a un achat à qui la joindre (la colonne de droite le dit sinon : « aucun achat n'attend »).
+      if (!x.classee && x.sorte === 'piece' && candidatsDe(x).length) ranger.push(['joindre', CD_IC.lien, 'Joindre à un achat déjà saisi', `${candidatsDe(x)[0].num || candidatsDe(x)[0].titre} ${memeMontant(candidatsDe(x)[0], x) ? 'a le même montant' : 'attend son justificatif'}`]);
+      if (cour && !/^réponse\b/i.test(x.doc.titre) && !docs.some(y => y.rubrique === 'courrier' && y.titre === `Réponse · ${x.doc.titre}`.slice(0, 200))) ranger.push(['reponse', CD_IC.msg, 'Ranger sa réponse', 'La réponse du cabinet, à côté du courrier']);
       ranger.push(['remplacer', PC_IC.tourne, estPiece && x.photo ? 'Remplacer par une meilleure photo' : 'Remplacer le fichier', 'L\'ancien reste dans l\'historique']);
       if (estPiece) ranger.push(['mois', CL_SVG(IC_BARRE.echeances), 'Déplacer dans un autre mois', 'Si elle a été rangée au mauvais endroit']);
       const sortir = [];
@@ -5063,9 +5065,10 @@
         <p class="cl-note">Une pièce dont la date de validité est passée s'affiche « échue », ici et dans Ce qui manque. Les durées de validité sont À VÉRIFIER.</p>`;
     } else if (clState.vue === 'courriers') {
       const cour = docs.filter(x => x.rubrique === 'courrier');
+      const reponseDe = x => cour.find(y => y.titre === `Réponse · ${x.titre}`.slice(0, 200));
       const an = a => cour.filter(x => String(x.periode || jourTunisCl(x.deposeLe)).startsWith(a));
       const autres = [...new Set(cour.map(x => String(x.periode || jourTunisCl(x.deposeLe)).slice(0, 4)).filter(a => a !== annee))].sort().reverse();
-      const ligneC = x => `<li class="cl-l${clState.sel === `ds:${x.id}` ? ' ici' : ''}" data-cl-k="ds:${esc(x.id)}" tabindex="0"><span class="cl-l-i decl">${CL_IC.decl}</span><span class="cl-l-t"><b>${esc(x.titre)}</b><small>${esc([x.periode && x.periode.length > 4 ? `reçu en ${moisLong(x.periode)}` : '', x.detail, `rangé le ${jjmmaaCl(jourTunisCl(x.deposeLe))} par ${prenomCl(x.deposeNom) || 'le cabinet'}`].filter(Boolean).join(' · '))}</small></span><span class="cl-l-d">${esc(x.periode && x.periode.length > 4 ? `${x.periode.slice(5, 7)}/${x.periode.slice(0, 4)}` : '')}</span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ok">${CL_IC.ok}rangé</span></span>${troisDoc(x.id)}</li>`;
+      const ligneC = x => `<li class="cl-l${clState.sel === `ds:${x.id}` ? ' ici' : ''}" data-cl-k="ds:${esc(x.id)}" tabindex="0"><span class="cl-l-i decl">${CL_IC.decl}</span><span class="cl-l-t"><b>${esc(x.titre)}</b><small>${esc([x.periode && x.periode.length > 4 ? `reçu en ${moisLong(x.periode)}` : '', x.detail, `rangé le ${jjmmaaCl(jourTunisCl(x.deposeLe))} par ${prenomCl(x.deposeNom) || 'le cabinet'}`].filter(Boolean).join(' · '))}${(r => r ? ` · <em class="ok">répondu le ${esc(jjmm(jourTunisCl(r.deposeLe)))} par ${esc(prenomCl(r.deposeNom) || 'le cabinet')}, sa réponse rangée</em>` : '')(reponseDe(x))}</small></span><span class="cl-l-d">${esc(x.periode && x.periode.length > 4 ? `${x.periode.slice(5, 7)}/${x.periode.slice(0, 4)}` : '')}</span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ok">${CL_IC.ok}rangé</span></span>${troisDoc(x.id)}</li>`;
       milieu = `${an(annee).length ? `${resume(`Les courriers de ${annee}`, `${pl(an(annee).length, 'courrier')} de l'administration ou d'un contrôle, et la réponse du cabinet`, '', `<div class="cl-fl"><button type="button" class="btn btn-sm" id="cl-ranger-cour"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Ranger un courrier</button></div>`)}<section class="cl-sec"><h3>En ${annee}<span>${an(annee).length}</span></h3><ul class="cl-ls">${an(annee).map(ligneC).join('')}</ul></section>`
         : `<div class="panel cl-vide cl-vide-ok"><span class="cl-vide-i">${CL_IC.decl}</span><b>Aucun courrier de l'administration en ${annee}</b><p>C'est une bonne nouvelle. Ici se rangent un avis de vérification, une mise en demeure, une demande de la CNSS, et la réponse du cabinet, avec leurs dates : le jour d'un contrôle, tout est au même endroit.</p><button type="button" class="btn btn-sm btn-primary" id="cl-ranger-cour"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Ranger un courrier</button></div>`}
         ${autres.map(a => `<section class="cl-sec"><h3>En ${a}<span>${an(a).length}</span></h3><ul class="cl-ls">${an(a).map(ligneC).join('')}</ul></section>`).join('')}`;
@@ -5092,11 +5095,11 @@
       const exo = exos.find(x => String(x.annee) === annee) || {};
       milieu = `${resume(`Exercice ${annee}${exo.clos ? ' · clôturé' : ''}`,  `Un classeur ${exo.clos ? 'complet' : 'en cours'} : ${pl(tot.pieces, 'pièce')}, ${pl(dt.filter(([, v]) => v.deposee).length, 'déclaration déposée', 'déclarations déposées')}${tot.manque ? `, ${tot.manque} qui manque${tot.manque > 1 ? 'nt' : ''}` : ', rien qui manque'}.`, '')}
         <section class="cl-sec"><h3>L'exercice ${annee}<small>tout se lit et se télécharge ; ce qui s'y corrige se corrige dans ses livres</small></h3><ul class="cl-ls">
-          <li class="cl-l" data-cl-m="${annee}-01" tabindex="0"><span class="cl-l-i classeur">${CL_IC.classeur}</span><span class="cl-l-t"><b>Les 12 mois</b><small>${pl(tot.pieces, 'pièce')}${tot.traiter ? `, ${tot.traiter} à traiter` : ', toutes en ordre'}</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ${tot.traiter ? 'ambre' : 'ok'}">${tot.traiter ? '' : CL_IC.ok}${tot.traiter ? 'à traiter' : 'à jour'}</span></span></li>
-          <li class="cl-l" data-cl-decls="1" tabindex="0"><span class="cl-l-i decl">${CL_IC.decl}</span><span class="cl-l-t"><b>Les ${pl(dt.length, 'déclaration mensuelle', 'déclarations mensuelles').replace(/^\d+ /, `${dt.length} `)}</b><small>${dt.every(([, v]) => v.payee) && dt.length ? 'déposées et payées' : `${dt.filter(([, v]) => v.deposee).length} déposées`} · ${esc(dtCd(sommeD(dt)))} DT</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ok">${CL_IC.ok}${dt.every(([, v]) => v.payee) && dt.length ? 'déposées et payées' : 'déposées'}</span></span></li>
+          <li class="cl-l" data-cl-m="${annee}-01" tabindex="0"><span class="cl-l-i classeur">${CL_IC.classeur}</span><span class="cl-l-t"><b>${exo.clos ? 'Les 12 mois' : `Les ${pl(parMois.filter(x => !['avant', 'avenir'].includes(x.cl)).length, 'mois de la mission', 'mois de la mission')}`}</b><small>${pl(tot.pieces, 'pièce')}${tot.traiter ? `, ${tot.traiter} à traiter` : ', toutes en ordre'}</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ${tot.traiter ? 'ambre' : 'ok'}">${tot.traiter ? '' : CL_IC.ok}${tot.traiter ? 'à traiter' : 'à jour'}</span></span></li>
+          <li class="cl-l" data-cl-decls="1" tabindex="0"><span class="cl-l-i decl">${CL_IC.decl}</span><span class="cl-l-t"><b>Les ${pl(dt.length, 'déclaration mensuelle', 'déclarations mensuelles').replace(/^\d+ /, `${dt.length} `)}</b><small>${tard.length ? `${dt.filter(([, v]) => v.deposee).length} déposées · <b class="rouge">${esc(tard.map(moisLong).join(' et '))} en retard</b>` : dt.every(([, v]) => v.payee) && dt.length ? 'déposées et payées' : `${dt.filter(([, v]) => v.deposee).length} déposées`} · ${esc(dtCd(sommeD(dt)))} DT</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ${tard.length ? 'rouge' : 'ok'}">${tard.length ? `${pl(tard.length, 'en retard', 'en retard')}` : `${CL_IC.ok}${dt.every(([, v]) => v.payee) && dt.length ? 'déposées et payées' : 'déposées'}`}</span></span></li>
           ${dc.length ? `<li class="cl-l"><span class="cl-l-i decl">${CL_IC.decl}</span><span class="cl-l-t"><b>Les ${dc.length} déclarations CNSS</b><small>${esc(dtCd(sommeD(dc)))} DT</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><span class="cl-st ok">${CL_IC.ok}déposées</span></span></li>` : ''}
           <li class="cl-l"><span class="cl-l-i classeur">${CL_IC.classeur}</span><span class="cl-l-t"><b>La balance et le grand livre</b><small>${exo.clos ? 'arrêtés à la clôture de l\'exercice' : 'tels que ses livres les disent aujourd\'hui'}</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><a class="cl-ecr" href="#/dossier/${encodeURIComponent(d.id)}/comptabilite/balance/${annee}">ouvrir</a></span></li>
-          <li class="cl-l"><span class="cl-l-i classeur">${CL_IC.classeur}</span><span class="cl-l-t"><b>L'inventaire, la clôture et la liasse</b><small>ce que la clôture de ${annee} a arrêté</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><a class="cl-ecr" href="#/dossier/${encodeURIComponent(d.id)}/comptabilite/exercice/${annee}">ouvrir</a></span></li></ul></section>`;
+          <li class="cl-l"><span class="cl-l-i classeur">${CL_IC.classeur}</span><span class="cl-l-t"><b>L'inventaire, la clôture et la liasse</b><small>${exo.clos ? `ce que la clôture de ${annee} a arrêté` : `${annee} n'est pas encore clôturé : l'inventaire et la clôture se préparent dans l'exercice`}</small></span><span class="cl-l-d"></span><span class="cl-l-m"></span><span class="cl-l-e"><a class="cl-ecr" href="#/dossier/${encodeURIComponent(d.id)}/comptabilite/exercice/${annee}">ouvrir</a></span></li></ul></section>`;
     } else if (clState.vue === 'decls') {
       const dc = clState.decl && Lfd.decl[clState.decl];
       if (dc) {
@@ -5246,9 +5249,10 @@
         const echue = x.echeance && x.echeance < aujourdhui;
         const ou = x.rubrique === 'permanent' ? `Dossier permanent › ${(CL_CATS.find(([k]) => k === x.categorie) || ['', ''])[1]}` : x.rubrique === 'courrier' ? 'Les courriers' : `Déclaration ${deMois(x.periode)} ${String(x.periode).slice(0, 4)} › l'accusé de dépôt`;
         const quand = `rangé par ${prenomCl(x.deposeNom) || 'le cabinet'} le ${jjmm(jourTunisCl(x.deposeLe))} à ${heureCl(x.deposeLe)}`;
-        bloc = x.rubrique === 'courrier' ? `<div class="cl-ap-b ok"><b>${esc(x.titre)}</b><span>${esc([x.periode && x.periode.length > 4 ? `Courrier reçu en ${moisLong(x.periode)} ${x.periode.slice(0, 4)}` : `Courrier de ${String(x.periode || '').slice(0, 4)}`, x.detail, quand].filter(Boolean).join(' · '))}.</span></div>`
+        const rep = x.rubrique === 'courrier' && docs.find(y => y.rubrique === 'courrier' && y.titre === `Réponse · ${x.titre}`.slice(0, 200));
+        bloc = x.rubrique === 'courrier' ? `<div class="cl-ap-b ${rep || /^réponse\b/i.test(x.titre) ? 'ok' : 'ambre'}"><b>${esc(x.titre)}</b><span>${esc([x.periode && x.periode.length > 4 ? `Courrier reçu en ${moisLong(x.periode)} ${x.periode.slice(0, 4)}` : `Courrier de ${String(x.periode || '').slice(0, 4)}`, x.detail, quand].filter(Boolean).join(' · '))}. ${rep ? `Répondu : la réponse est rangée le ${esc(jjmm(jourTunisCl(rep.deposeLe)))} par ${esc(prenomCl(rep.deposeNom) || 'le cabinet')}.` : /^réponse\b/i.test(x.titre) ? '' : 'Pas encore de réponse rangée.'}</span></div>`
           : `<div class="cl-ap-b ${echue ? 'rouge' : 'ok'}"><b>${esc(x.titre)}</b><span>${esc(ou)}${x.detail ? ` · ${esc(x.detail)}` : ''}${x.echeance ? ` · ${echue ? 'échue le' : 'valable jusqu\'au'} ${esc(jjmmaaCl(x.echeance))}` : ''}.</span></div>`;
-        actions = `<button type="button" class="btn btn-sm" data-cl-ap="telecharger">Télécharger</button><button type="button" class="btn btn-sm${echue ? ' btn-primary' : ''}" data-cl-ap="remplacer"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>${echue ? 'Ranger la nouvelle' : 'Remplacer'}</button>${x.rubrique === 'courrier' && !/^réponse\b/i.test(x.titre) ? `<button type="button" class="btn btn-sm" data-cl-ap="reponse"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Ranger sa réponse</button>` : ''}`;
+        actions = `<button type="button" class="btn btn-sm" data-cl-ap="telecharger">Télécharger</button><button type="button" class="btn btn-sm${echue ? ' btn-primary' : ''}" data-cl-ap="remplacer"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>${echue ? 'Ranger la nouvelle' : 'Remplacer'}</button>${x.rubrique === 'courrier' && !/^réponse\b/i.test(x.titre) && !docs.some(y => y.rubrique === 'courrier' && y.titre === `Réponse · ${x.titre}`.slice(0, 200)) ? `<button type="button" class="btn btn-sm btn-primary" data-cl-ap="reponse"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Ranger sa réponse</button>` : ''}`;
       } else if (sel.sorte === 'releve') {
         const r = sel.rel, reste = (r.lignes || []).filter(l => !l.rapprochement || l.rapprochement.niveau === 'aucun');
         const ligneR = l => { const ok = l.rapprochement && l.rapprochement.niveau !== 'aucun'; const e2 = ok ? (livre.ecritures || []).find(y => y.id === l.rapprochement.ecritureId) : null; return `<tr class="${ok ? 'ok' : Number(l.montant) > 0 ? 'att' : 'pro'}"><td>${jjmm(l.date)}</td><td><b>${esc(l.libelle)}</b><small>${ok ? esc(e2 ? `${e2.piece || e2.libelle}` : 'rapproché') : Number(l.montant) > 0 ? 'pas encore expliqué' : 'à rapprocher'}</small></td><td>${Number(l.montant) < 0 ? '− ' : '+ '}${esc(dtCd(Math.abs(Number(l.montant))))}</td></tr>`; };
@@ -5292,7 +5296,7 @@
       } else {
         // (1.173.2) Une pièce à saisir que rien n'attend : la page le dit avant le geste (un bouton seul ne dit pas pourquoi).
         bloc = `<div class="cl-ap-b ambre"><b>À saisir</b><span>Aucun achat de ses livres n'attend son justificatif : c'est une dépense nouvelle. Saisie, elle arrive au brouillard ${esc(deMois(sel.mois))}.</span></div>`;
-        actions = `<button type="button" class="btn btn-sm btn-primary" data-cl-ap="saisir"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>${p ? 'La saisir dans Pièces du dossier' : 'La saisir dans Écritures'}</button>`;
+        actions = `<button type="button" class="btn btn-sm btn-primary" data-cl-ap="saisir"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>La saisir dans Écritures</button>`;
       }
       // (1.173.0) La lecture de la pièce : ce qu'elle dit, ou le bouton qui la lit (avec l'accord du client), ou pourquoi non.
       const L = clState.lus.get(d.id) || {};
@@ -5446,7 +5450,20 @@
       }
       if (act === 'rapprocher') { navigate(`#/dossier/${encodeURIComponent(d.id)}/comptabilite/banque`); return; }
       if (act === 'saisir' || act === 'ranger') {
-        if (x.p) { pieceState.sel = x.p.id; pieceState.onglet = 'aclasser'; navigate(`#/pieces/${encodeURIComponent(d.id)}`); } else navigate(`#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie`);
+        if (x.p && act === 'ranger') { pieceState.sel = x.p.id; pieceState.onglet = 'aclasser'; navigate(`#/pieces/${encodeURIComponent(d.id)}`); return; }
+        // (1.174.2) La saisie s'ouvre préparée pour cette pièce : son journal (achats, banque ou ventes), une date de son
+        // mois, son nom en libellé ; enregistrée, la pièce se joint à l'écriture. Avant, une grille vide (journal des
+        // ventes, date du jour), et la pièce restait « à saisir » une fois l'écriture faite.
+        const enCours = saisieState.dossierId === d.id && pieceEnCours(saisieState.piece);
+        if (!enCours) {
+          const js = (livre && livre.journaux) || [];
+          const code = (re2 => (js.find(j => re2.test(`${j.code} ${j.libelle || j.nom || ''}`)) || {}).code)(x.rub === 'banque' ? /^(BQ|BAN)|banque/i : x.rub === 'ventes' ? /^(VT|VE)|vente/i : /^(AC|HA)|achat/i) || '';
+          const auj = K.today(), fin = new Date(Date.UTC(Number(x.mois.slice(0, 4)), Number(x.mois.slice(5, 7)), 0)).toISOString().slice(0, 10);
+          saisieState.dossierId = d.id;
+          saisieState.piece = { ...pieceVide(code, auj.slice(0, 7) === x.mois ? auj : fin), libelle: String(x.titre || '').replace(/\.(pdf|jpe?g|png|webp|heic)$/i, '').slice(0, 120),
+            depuisClasseur: { nom: nomFichierCl(x), ou: `${cap(moisLong(x.mois))} ${x.mois.slice(0, 4)} › ${nomRub(x.rub)}`, ...(x.p ? { message: x.p.id } : { doc: x.doc.id }) } };
+        } else toast('Une saisie est déjà commencée pour ce dossier : elle t\'attend, la pièce ne s\'y joindra pas d\'elle-même.');
+        navigate(`#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie`);
         return;
       }
       if (act === 'relancer' && x.p) { redemanderPiece(x.p, d, async note => { try { await api.pieces.classer(d.id, x.p.id, false); await api.pieces.classer(d.id, x.p.id, true, 'illisible', note); } catch { /* déjà classée : la relance est partie */ } toast(`Relance envoyée à ${qui}.`); await apresGesteCl(d); }); return; }
@@ -11717,7 +11734,9 @@
     const pagerBrouillard = pagerBar(brouillards.length, s, 'pièce');
     const brouillardsPage = paginate(brouillards, s);
 
-    return `<div class="sa-tete" id="sa-tete">
+    // (1.174.2) Une saisie ouverte depuis le classeur dit de quelle pièce elle vient : enregistrée, la pièce s'y joint.
+    const dc = p.depuisClasseur;
+    return `${dc ? `<div class="sa-depuis" role="note"><span><b>Saisie de « ${esc(dc.nom)} »</b> · ${esc(dc.ou)} : enregistrée, l'écriture la prend pour justificatif, et le classeur la compte saisie.</span><a class="btn btn-sm btn-ghost" href="#/dossier/${encodeURIComponent(dossier.id)}/classeur">Retour au classeur</a></div>` : ''}<div class="sa-tete" id="sa-tete">
         <label class="field sa-j"><span class="fl">Journal ${info('sa.journal')}</span>
           <select id="sa-journal">${s.livre.journaux.map(j => `<option value="${esc(j.code)}" ${p.journal === j.code ? 'selected' : ''}>${esc(j.code)} — ${esc(j.libelle)}</option>`).join('')}</select></label>
         <label class="field sa-d"><span class="fl">Date ${info('sa.date')}</span>
@@ -12180,8 +12199,18 @@
           ? await api.modifierEcriture(dossier.id, s.annee, p.id, ecr)
           : await api.saisir(dossier.id, s.annee, ecr);
         s.livre = res.livre;
+        const dc = p.depuisClasseur, idE = res.id || p.id;
+        if (dc && idE && !res.attente) {
+          try {
+            if (dc.message) await api.pieces.joindre(dossier.id, dc.message, idE); else await api.classeur.classer(dossier.id, dc.doc, true, 'jointe', idE);
+            // Le classeur relira ses pièces, ses documents et ce livre en revenant (sinon il montre encore « à saisir »).
+            clState.docs.delete(dossier.id); clState.livres.delete(`${dossier.id}:${s.annee}`); clState.just.clear();
+            void Promise.all([relirePieces(), chargerClasseesCl(dossier, true)]).catch(() => {});
+            toast(`« ${dc.nom} » est jointe à son écriture : le classeur la compte saisie.`);
+          } catch (x) { toast(`L'écriture est enregistrée, mais « ${dc.nom} » n'a pas pu s'y joindre : ${plainError(x)}`, 'error'); }
+        }
         if (puisValider) {
-          const w = await api.valider(dossier.id, s.annee, res.id || p.id);
+          const w = await api.valider(dossier.id, s.annee, idE);
           s.livre = w.livre;
           toast(`Écriture validée sous le n° ${w.numero}.`);
         } else {

@@ -309,6 +309,40 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 60_000);
 
+  it('saisir une pièce depuis le classeur : la saisie s\'ouvre préparée, et la pièce enregistrée se joint à son écriture', async () => {
+    const { associe, cab, boulangerie } = await unCabinet();
+    const { p, erreurs } = await contexte(associe);
+    await ouvrir(p, cab.id, boulangerie);
+    const PDF = Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj 2 0 obj<</Type/Pages/Kids[]/Count 0>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n');
+    await p.locator('#cl-deposer').click();
+    await p.locator('#dp-f').setInputFiles({ name: 'facture-steg-sept.pdf', mimeType: 'application/pdf', buffer: PDF });
+    await p.locator('.modal #ok').click();
+    const ligne = p.locator('li[data-cl-k^="d:"]').filter({ hasText: 'facture-steg-sept' });
+    await expect.poll(() => ligne.innerText().catch(() => '')).toMatch(/à saisir/);
+    await ligne.click();
+    await p.locator('[data-cl-ap="saisir"]').click();
+    // La saisie : le journal des achats, une date de septembre, le nom de la pièce, et le bandeau qui le dit.
+    await p.locator('#sa-date').waitFor({ timeout: 15_000 });
+    expect(await p.locator('.sa-depuis').innerText()).toMatch(/Saisie de « facture-steg-sept\.pdf » · Septembre 2026 › achats/);
+    expect(await p.locator('#sa-libelle').inputValue()).toBe('facture-steg-sept');
+    expect(await p.locator('#sa-date').inputValue()).toMatch(/09\/2026|^30$/);
+    await p.locator('input[data-k="compte"]').nth(0).fill('6061');
+    await p.locator('input[data-k="debit"]').nth(0).fill('186,420');
+    await p.locator('input[data-k="compte"]').nth(1).fill('401');
+    await p.locator('input[data-k="credit"]').nth(1).fill('186,420');
+    await p.keyboard.press('Tab');
+    await p.getByRole('button', { name: 'Enregistrer en brouillard' }).click();
+    await expect.poll(() => p.locator('#sa-libelle').inputValue()).toBe('');
+    await p.locator('.sa-depuis').waitFor({ state: 'detached' });
+    // De retour au classeur, la pièce est saisie : jointe à son écriture, au montant de l'écriture.
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossier/${boulangerie}/classeur`);
+    await p.reload();
+    await p.locator('#page-cl .cl-res').first().waitFor({ timeout: 25_000 });
+    const jointe = p.locator('li[data-cl-k^="d:"]').filter({ hasText: 'jointe à son écriture' });
+    await expect.poll(() => jointe.innerText().catch(() => '')).toMatch(/186,420[\s\S]*saisie/);
+    expect(erreurs).toEqual([]);
+  }, 60_000);
+
   it('un dossier tenu au cabinet : ce qui est arrivé, puis une rubrique de l\'arbre s\'ouvre au clic', async () => {
     const { associe, cab } = await unCabinet();
     const tenu = String((await api('POST', `/cabinets/${cab.id}/dossiers`, associe, { raisonSociale: 'Transport Mejri' })).corps.entreprise);
