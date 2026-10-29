@@ -407,6 +407,8 @@ export interface BaseDeDonnees {
     relance_le: Date | null;
     classee_le: Date | null;
     classee_par: string | null;
+    classee_raison: string | null;
+    classee_note: string | null;
   };
   'messagerie.modele': {
     id: Generated<string>;

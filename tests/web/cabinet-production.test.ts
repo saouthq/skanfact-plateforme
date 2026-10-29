@@ -116,7 +116,7 @@ describe('la production du cabinet, à la souris', () => {
 
     // ── Le même index nourrit les Échéances : le dossier tenu y entre, avec ses mois à saisir ─────────
     await p.locator('#nav a[data-route="echeances"]').click();
-    await expect.poll(() => p.locator('#view').innerText()).toMatch(/à saisir au cabinet/);
+    await expect.poll(() => p.locator('#view').innerText()).toMatch(/À saisir au cabinet/);
     expect(await p.locator('#view').innerText()).toMatch(/Garage du Port/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-production-echeances.png') });
 

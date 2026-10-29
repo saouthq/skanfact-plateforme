@@ -70,12 +70,15 @@ describe('la CNSS des seuls employeurs, à la souris', () => {
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) {
       await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
     }
-    const carte = p.locator('#view .ech').filter({ hasText: new RegExp(`CNSS du ${trimestre}\\S* trimestre`) });
-    await expect.poll(() => carte.count(), { timeout: 20_000 }).toBe(1);
+    // (1.168.0) Les Échéances de la maquette : la CNSS dans la liste, ouverte à droite avec ses dossiers.
+    const item = p.locator('#page-ech .ec-i').filter({ hasText: new RegExp(`CNSS du ${trimestre}\\S* trimestre`) });
+    await expect.poll(() => item.count(), { timeout: 20_000 }).toBe(1);
+    await item.click();
+    const carte = p.locator('#page-ech .ec-det');
+    await expect.poll(() => carte.locator('h2').first().innerText()).toMatch(/CNSS/);
     const texte = await carte.innerText();
-    // Un seul client visé — l'employeur, dont le trimestre est saisi (« prêt ») — et personne par prudence.
-    expect(texte).toMatch(/sur 1 client\b/);
-    expect(texte).toMatch(/1 prêt/);
+    // Un seul client visé — l'employeur, dont le trimestre est saisi — et personne par prudence.
+    expect(await carte.locator('.ec-r').allInnerTexts()).toEqual([expect.stringMatching(/\nGarage du Port\n/)]);
     expect(texte).toMatch(/clients employeurs : leur Paie ou leurs comptes de rémunération le disent\./);
     expect(texte).not.toMatch(/prudence/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-employeurs.png') });

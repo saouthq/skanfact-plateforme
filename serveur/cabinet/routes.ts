@@ -250,8 +250,13 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           from compta.ecriture e left join socle.utilisateur u on u.id = coalesce(e.validee_par, e.saisie_par)
           where e.entreprise in (${portefeuille}) and e.date_ecriture >= $2::date and e.journal <> 'AN'
           group by e.entreprise, to_char(e.date_ecriture, 'YYYY-MM') order by 1, 2`, [params.cabinet, depuis]);
-      const declarations = await tx.query(`select entreprise, periode, deposee_le is not null deposee from compta.declaration
-          where entreprise in (${portefeuille}) and periode >= to_char($2::date, 'YYYY-MM') order by 1, 2`, [params.cabinet, depuis]);
+      // (1.168.0) Ce que les Échéances montrent ligne par ligne : préparée, déposée, payée, par qui, et ce qu'elle fait payer
+      // (la case « à décaisser », en millimes ; null si la case ne se sait pas).
+      const declarations = await tx.query(`select d.entreprise, d.periode, d.deposee_le is not null deposee, d.preparee_le, coalesce(pp.nom, '') preparee_par,
+            to_char(d.deposee_le, 'YYYY-MM-DD') deposee_le, coalesce(dp.nom, '') deposee_par, to_char(d.payee_le, 'YYYY-MM-DD') payee_le, d.cases->>'aDecaisser' montant
+          from compta.declaration d
+          left join socle.utilisateur pp on pp.id = d.preparee_par left join socle.utilisateur dp on dp.id = d.deposee_par
+          where d.entreprise in (${portefeuille}) and d.periode >= to_char($2::date, 'YYYY-MM') order by 1, 2`, [params.cabinet, depuis]);
       const revisions = await tx.query(`select entreprise, periode, contenu->>'faite' = 'true' faite from cabinet.revision
           where cabinet = $1 and entreprise in (${portefeuille}) and periode ~ '^[0-9]{4}-[0-9]{2}$' and periode >= to_char($2::date, 'YYYY-MM') order by 1, 2`, [params.cabinet, depuis]);
       // Employeur, mois par mois (brique 54, C44) : un mois dont une écriture (hors à-nouveaux ; une écriture
@@ -271,7 +276,11 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
             entreprise: x.entreprise, mois: x.mois, ecritures: Number(x.ecritures), validees: Number(x.validees), brouillards: Number(x.brouillards),
             qui: x.qui, depuis: x.depuis.toISOString(),
           })),
-          declarations: declarations.rows as { entreprise: string; periode: string; deposee: boolean }[],
+          declarations: (declarations.rows as { entreprise: string; periode: string; deposee: boolean; preparee_le: Date; preparee_par: string; deposee_le: string | null;
+            deposee_par: string; payee_le: string | null; montant: string | null }[]).map((d) => ({
+            entreprise: d.entreprise, periode: d.periode, deposee: d.deposee, prepareeLe: d.preparee_le.toISOString().slice(0, 10), preparePar: d.preparee_par,
+            deposeeLe: d.deposee_le, deposeePar: d.deposee_par, payeeLe: d.payee_le, montant: d.montant,
+          })),
           revisions: revisions.rows as { entreprise: string; periode: string; faite: boolean }[],
           exercices: exercices.rows as { entreprise: string; annee: number; du: string; au: string; clos: boolean }[],
           employeurs: employeurs.rows as { entreprise: string; mois: string; employeur: boolean }[],

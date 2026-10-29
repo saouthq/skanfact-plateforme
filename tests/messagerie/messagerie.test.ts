@@ -557,10 +557,11 @@ describe('(1.117.0) les modèles de messages et la recherche', () => {
 // (1.152.0) « Pièces reçues » du Cabinet (0175) : les fichiers que les clients envoient arrivent dans une seule boîte, tous
 // dossiers confondus ; le cabinet les classe, et peut défaire. Un collaborateur ne voit que les dossiers qu'on lui confie.
 describe('les pièces reçues du cabinet', () => {
-  type Piece = { id: string; entreprise: string; de: string; texte: string; fichier: { nom: string; type: string }; demande: string | null; classeeLe: string | null; classeePar: string | null };
+  type Piece = { id: string; entreprise: string; de: string; texte: string; fichier: { nom: string; type: string }; demande: string | null; classeeLe: string | null; classeePar: string | null;
+    raison?: string | null; note?: string | null };
   const boite = async (cabId: string, p: Personne, classees = false) => {
     const r = await appeler('GET', `/cabinets/${cabId}/pieces${classees ? '?classees=1' : ''}`, p.jeton);
-    return { statut: r.statut, ...(r.corps as unknown as { aClasser: number; plus: boolean; pieces: Piece[] }) };
+    return { statut: r.statut, ...(r.corps as unknown as { aClasser: number; plus: boolean; pieces: Piece[]; demandes: { entreprise: string; texte: string; recueLe: string | null; pour: string | null }[] }) };
   };
   const envoyer = async (ent: string, client: Personne, nom: string, corps: Record<string, unknown> = {}) => {
     const depot = await appeler('POST', `/entreprises/${ent}/messages/fichiers`, client.jeton, { cote: 'entreprise', nom, contenu: PNG });
@@ -591,9 +592,15 @@ describe('les pièces reçues du cabinet', () => {
       [ent2, 'ticket-agil.png', 'Le carburant de lundi', null, 'Leïla Mansour'],
       [ent, 'steg-octobre.png', '', 'La facture STEG d\'octobre', 'Leïla Mansour'],
     ]);
+    // (1.167.0) Les demandes du cabinet : celle reçue aujourd'hui y est encore, avec sa réception ; une demande ouverte
+    // d'un autre dossier aussi, sans réception. Le collaborateur ne voit que celles du dossier qu'on lui confie.
+    await ecrire(ent2, cab.associe, 'cabinet', { texte: '', demande: 'Le relevé de septembre', pour: '2026-11-15' });
+    const dem = (await boite(cab.id, cab.associe)).demandes;
+    expect(dem.map((x) => [x.entreprise, x.texte, typeof x.recueLe, x.pour])).toEqual([
+      [ent2, 'Le relevé de septembre', 'object', '2026-11-15'], [ent, 'La facture STEG d\'octobre', 'string', null]]);
     // Le collaborateur ne voit que le dossier qu'on lui confie : la boîte et son compte.
     const sienne = await boite(cab.id, collaborateur);
-    expect([sienne.aClasser, sienne.pieces.map((x) => x.entreprise)]).toEqual([1, [ent]]);
+    expect([sienne.aClasser, sienne.pieces.map((x) => x.entreprise), sienne.demandes.map((x) => x.entreprise)]).toEqual([1, [ent], [ent]]);
 
     // Classer : la pièce passe dans « classées », signée de qui l'a classée ; la boîte se vide d'autant.
     expect((await appeler('POST', `/entreprises/${ent}/messages/${p1.corps.id}/classee`, collaborateur.jeton, { classee: true })).statut).toBe(200);
@@ -616,7 +623,19 @@ describe('les pièces reçues du cabinet', () => {
     expect((await appeler('POST', `/entreprises/${ent}/messages/${p1.corps.id}/classee`, cab.associe.jeton, { classee: false })).corps.motif)
       .toBe('Cette pièce n\'est pas classée : rien à défaire.');
     // La base le redit, sans la route : un membre sans le dossier ne classe rien.
-    await expect(enTantQue(pool, client2.utilisateur, (tx) => tx.query('select messagerie.classer_piece($1, $2, true)', [ent2, p2.corps.id])))
+    await expect(enTantQue(pool, client2.utilisateur, (tx) => tx.query('select messagerie.classer_piece($1, $2, true, null, null)', [ent2, p2.corps.id])))
       .rejects.toThrow('ce dossier n\'est pas tenu par ton cabinet');
+
+    // (0179) La raison et la note : l'onglet « Classées » les dit ; défaire les efface ; une raison inconnue, refusée.
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${p1.corps.id}/classee`, cab.associe.jeton,
+      { classee: true, raison: 'illisible', note: '  La photo est floue : peux-tu la reprendre ?  ' })).statut).toBe(200);
+    expect((await boite(cab.id, cab.associe, true)).pieces.map((x) => [x.id, x.raison, x.note]))
+      .toEqual([[p1.corps.id, 'illisible', 'La photo est floue : peux-tu la reprendre ?']]);
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${p1.corps.id}/classee`, cab.associe.jeton, { classee: false })).statut).toBe(200);
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${p1.corps.id}/classee`, cab.associe.jeton, { classee: true, raison: 'double' })).statut).toBe(200);
+    expect((await boite(cab.id, cab.associe, true)).pieces.map((x) => [x.raison, x.note])).toEqual([['double', null]]);
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${p1.corps.id}/classee`, cab.associe.jeton, { classee: false, raison: 'rien' })).corps.motif)
+      .toBe('Une pièce qu\'on remet à classer n\'a pas de raison : retire la raison ou la note.');
+    expect((await appeler('POST', `/entreprises/${ent}/messages/${p2.corps.id}/classee`, cab.associe.jeton, { classee: true, raison: 'perdue' })).statut).toBe(400);
   });
 });

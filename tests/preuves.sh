@@ -3086,7 +3086,7 @@ prouver "le dernier geste sans la validation" $CR \
   "            max(greatest(e.cree_le, e.validee_le)) depuis" "            max(e.cree_le) depuis" \
   "$PR1"
 prouver "une déclaration préparée comptée déposée" $CR \
-  "select entreprise, periode, deposee_le is not null deposee from compta.declaration" "select entreprise, periode, true deposee from compta.declaration" \
+  "select d.entreprise, d.periode, d.deposee_le is not null deposee," "select d.entreprise, d.periode, true deposee," \
   "$PR1"
 prouver "une révision ouverte comptée arrêtée" $CR \
   "select entreprise, periode, contenu->>'faite' = 'true' faite from cabinet.revision" "select entreprise, periode, true faite from cabinet.revision" \
@@ -3100,7 +3100,7 @@ prouver "les mois d'avant la date demandée" $CR \
           group by" \
   "$PR1"
 prouver "les déclarations oubliées par le tableau" $PC \
-  "    for (const d of p.declarations || []) mois(d.entreprise, d.periode).declare = !!d.deposee;" "" \
+  "Object.assign(mois(d.entreprise, d.periode), { declare: !!d.deposee, declaration: d });" "Object.assign(mois(d.entreprise, d.periode), { declaration: d });" \
   "$WP1"
 prouver "les révisions oubliées par le tableau" $PC \
   "    for (const r of p.revisions || []) mois(r.entreprise, r.periode).revise = !!r.faite;" "" \
@@ -3115,7 +3115,7 @@ prouver "le tableau de production lu une fois pour toutes" web/public/v10/cabine
   "    if (route !== routeLue && route === 'production') prodState.lignes = null;" "" \
   "$WP1"
 prouver "le dossier tenu absent des Échéances" $PC \
-  "repondues: q.repondues, employeur, tenu: d.manual ? { exercices } : null, declares };" "repondues: q.repondues, employeur, tenu: null, declares };" \
+  "repondues: q.repondues, employeur, tenu: d.manual ? { exercices } : null, declares, mois: parMois };" "repondues: q.repondues, employeur, tenu: null, declares, mois: parMois };" \
   "$WP1"
 prouver "la légende qui parle encore de reçu" web/public/v10/cabinet/app.js \
   "    ['recu', 'manquant'], ['saisi', 'à saisir']," "    ['recu', 'pas encore reçu'], ['saisi', 'à saisir']," \
@@ -17966,8 +17966,8 @@ prouver 'le numéro d'"'"'une facture à relancer coupé en deux' 'web/public/v1
   '' \
   'aux Relances, chaque facture échue porte « Relancer » à côté d'"'"'« Actions », et son numéro ne se coupe pas ; payée en partie, elle reste en retard partout'
 prouver 'une échéance pas prête marquée déposée sans un mot' 'web/public/v10/cabinet/app.js' \
-  'if (!avant.includes(cle) && b2.dataset.pasPrets && !await confirmDialog(' \
-  'if (false && !await confirmDialog(' \
+  '      fenToute(x, () => poser(avant.concat([x.cle]), true));' \
+  '      poser(avant.concat([x.cle]), true);' \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
 prouver 'la ligne vide d'"'"'un achat neuf qui reste sous l'"'"'article du catalogue' 'web/public/v10/app.js' \
   "if (p.lines.length === 1 && !String(p.lines[0].label || '').trim() && !Number(p.lines[0].unitPrice) && !p.lines[0].itemId) p.lines = [];" \
@@ -18019,13 +18019,13 @@ prouver 'le lien « Désigner l'"'"'entreprise SkanFact » qui reste en haut des
   '« Désigner l'"'"'entreprise SkanFact » descend sur la carte « Nos factures » des Réglages (1.80.0)'
 
 # ── La recette alpha, suite (1.81.0 ; docs/recette.md) ──
-prouver 'l'"'"'échéance qui dit « 1 à valider » sans dire qui ni où aller' 'web/public/v10/cabinet/app.js' \
-  "\${e.provisoires.length ? \`<div class=\"small mt ech-qui\">" \
-  "\${false ? \`<div class=\"small mt ech-qui\">" \
+prouver 'l'"'"'échéance qui ne dit pas quel dossier est à réviser' 'web/public/v10/cabinet/app.js' \
+  "valider: ['ambre', 'À réviser']," \
+  "valider: ['ambre', '']," \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
-prouver 'le bouton « Valider ses écritures » qui n'"'"'ouvre pas la saisie' 'web/public/v10/cabinet/app.js' \
-  "b2.onclick = () => { location.hash = '#/dossier/' + encodeURIComponent(b2.dataset.validerDossier) + '/comptabilite/saisie/' + b2.dataset.annee; };" \
-  "b2.onclick = () => {};" \
+prouver 'le bouton « Réviser » qui n'"'"'ouvre pas la révision' 'web/public/v10/cabinet/app.js' \
+  "revision: id => aller(id, 'comptabilite/revision')," \
+  "revision: () => {}," \
   'Consulter se relit en revenant sur la fenêtre, Déclarer dit le même chiffre que l'"'"'en-tête, la saisie ne bouge pas'
 prouver 'l'"'"'avoir de −16,660 DT proposé à l'"'"'émission' 'web/public/v10/app.js' \
   'if (montantNonEmettable(doc)) return Promise.resolve(false);' \
@@ -20207,7 +20207,7 @@ prouver 'barre cabinet 2 : le menu du cabinet sans son code' web/public/v10/cabi
   'au bureau : la tête et son menu'
 prouver 'barre cabinet 3 : le chiffre des pièces reçues ne suit pas la boîte' web/public/v10/cabinet/app.js \
   'comptesBarre.pieces = piecesLues.aClasser;' 'comptesBarre.pieces = 0;' \
-  'les pièces reçues : classer vide la boîte'
+  'les pièces reçues : chaque pièce a son geste'
 prouver 'barre cabinet 4 : changer de dossier ramène à sa fiche' web/public/v10/cabinet/app.js \
   '${m && m[1] ? m[1].split('"'"'/'"'"').slice(0, 4).join('"'"'/'"'"') : '"'"''"'"'}' '' \
   'au bureau : la tête et son menu'
@@ -20228,13 +20228,13 @@ prouver 'barre cabinet 8 : Créer propose une pièce demandée à un dossier ten
   'if (!D.manual && role !== '"'"'saisie'"'"' && api.messagerie)' 'if (role !== '"'"'saisie'"'"' && api.messagerie)' \
   'au bureau : la tête et son menu'
 prouver 'barre cabinet 9 : classer ne vide pas la boîte' web/public/v10/cabinet/app.js \
-  '        pieceState.classees = null;
-        await relirePieces();' '        pieceState.classees = null;' \
-  'les pièces reçues : classer vide la boîte'
+  '        st.classees = null; st.sel = apres; st.menu = false;
+        await relirePieces();' '        st.classees = null; st.sel = apres; st.menu = false;' \
+  'les pièces reçues : chaque pièce a son geste'
 prouver 'barre cabinet 10 : une écriture commencée se laisse sans un mot' web/public/v10/cabinet/app.js \
   'if (D && D.id !== id && saleDe(D.id)) {' 'if (false) {' \
-  'les pièces reçues : classer vide la boîte'
-prouver 'barre cabinet 11 : la base classe deux fois la même pièce' base/migrations/0175_pieces_recues.sql \
+  'les pièces reçues : chaque pièce a son geste'
+prouver 'barre cabinet 11 : la base classe deux fois la même pièce' base/migrations/0179_pieces_raison.sql \
   '     and (classee_le is null) = p_classee;' '     ;' \
   'le fichier d'"'"'un client arrive à classer'
 prouver 'barre cabinet 12 : la boîte montre ce que le cabinet envoie lui-même' serveur/messagerie/routes.ts \
@@ -20880,5 +20880,60 @@ prouver 'le menu « ⋯ » de la charte refermé par la surveillance des anciens
 # Le bilan : TOUJOURS les deux dernières lignes (tests/verif-preuves.sh le vérifie). Une preuve écrite
 # après lui tourne, mais son échec ne ferait plus échouer le lot (défaut trouvé le 30/09/2026 : les
 # preuves des briques 66 à 70 étaient après lui).
+# (1.167.0) Les pièces reçues telles que la maquette : le genre, l'ordre, le clavier, la raison, les demandes.
+prouver 'pièces reçues 1 : un ticket se lit comme une facture' web/public/v10/cabinet/app.js \
+  "    if (/ticket|re[çc]u[-_ ]/i.test(nom)) return 'ticket';" '' \
+  'les pièces reçues : chaque pièce a son geste'
+prouver 'pièces reçues 2 : la plus récente d'"'"'abord dans un dossier' web/public/v10/cabinet/app.js \
+  'return classees ? x : x.reverse(); };' 'return x; };' \
+  'les pièces reçues : chaque pièce a son geste'
+prouver 'pièces reçues 3 : la flèche du bas ne change pas de pièce' web/public/v10/cabinet/app.js \
+  "st.pas(e.key === 'ArrowDown' ? 1 : -1);" '' \
+  'les pièces reçues : chaque pièce a son geste'
+prouver 'pièces reçues 4 : la raison ne part pas au serveur' web/public/plateforme/pont-cabinet.js \
+  '...(classee && raison ? { raison } : {}), ' '' \
+  'les pièces reçues : chaque pièce a son geste'
+prouver 'pièces reçues 5 : la base oublie la raison' base/migrations/0179_pieces_raison.sql \
+  'classee_raison = case when p_classee then p_raison end' 'classee_raison = null' \
+  'le fichier d'"'"'un client arrive à classer'
+prouver 'pièces reçues 6 : une demande reçue disparaît aussitôt' serveur/messagerie/routes.ts \
+  "m.demande_recue_le > now() - interval '3 days'" "m.demande_recue_le > now()" \
+  'le fichier d'"'"'un client arrive à classer'
+prouver 'pièces reçues 7 : l'"'"'aperçu ne montre pas la pièce' web/public/v10/cabinet/app.js \
+  '      zone.className = '"'"'pc-papier'"'"';' '      return;' \
+  'les pièces reçues : chaque pièce a son geste'
+prouver 'retard 1 : une déclaration déposée compte encore en retard' web/public/v10/cabinet/cabcore.js \
+  '      restants: dossiers.filter(d => !deposes.includes(d) && liste.some(m => attendus.get(d).get(m))).map(d => d.name),' '      restants: dossiers.map(d => d.name),' \
+  'une date passée sans dépôt compte'
+prouver 'retard 2 : une date à venir compte déjà en retard' web/public/v10/cabinet/cabcore.js \
+  'if (!e.passee || e.toutDepose) continue;' 'if (e.toutDepose) continue;' \
+  'une date passée sans dépôt compte'
+prouver 'échéances 1 : la première lecture, vide, laisse la page en squelette' web/public/v10/cabinet/app.js \
+  '((premiere && location.hash.startsWith('"'"'#/echeances'"'"')) || JSON.stringify(questionsAttente) !== avant)' '(JSON.stringify(questionsAttente) !== avant)' \
+  'des clients sans aucune écriture'
+prouver 'échéances 2 : la relance part sans ses demandes datées' web/public/plateforme/pont-cabinet.js \
+  '{ cote: '"'"'cabinet'"'"', texte, ...(demandes.length ? { demandes } : {}),' '{ cote: '"'"'cabinet'"'"', texte,' \
+  'au bureau : la déclaration en retard'
+prouver 'échéances 3 : « Marquer déposée » sans rien de prêt part sans choix' web/public/v10/cabinet/app.js \
+  'id="ok" disabled title="Choisis d'"'"'abord' 'id="ok" title="Choisis d'"'"'abord' \
+  'au bureau : la déclaration en retard'
+prouver 'pièces reçues 8 : « En double » classe sans demander laquelle' web/public/v10/cabinet/app.js \
+  "        if (r === 'double') { st.menu = false; redessiner(); fenDouble(" "        if (false) { st.menu = false; redessiner(); fenDouble(" \
+  'les pièces reçues, les autres états'
+prouver 'pièces reçues 9 : l'"'"'achat que le client saisit lui-même se propose à la saisie' web/public/v10/cabinet/app.js \
+  "&& !D.perimetre.includes('saisie_achats');" "&& false;" \
+  'les pièces reçues, les autres états'
+prouver 'pièces reçues 10 : ce que le client a confié se perd en route' web/public/v10/cabinet/cabcore.js \
+  'perimetre: Array.isArray(d.perimetre) ? d.perimetre.map(String) : null,' 'perimetre: null,' \
+  'les pièces reçues, les autres états'
+prouver 'pièces reçues 11 : le lot ne classe que la première pièce choisie' web/public/v10/cabinet/app.js \
+  'for (const p of lot) { await api.pieces.classer' 'for (const p of lot.slice(0, 1)) { await api.pieces.classer' \
+  'les pièces reçues, les autres états'
+prouver 'échéances 4 : un dossier pointé déposé ne se défait pas depuis sa ligne' web/public/v10/cabinet/app.js \
+  "      l.st === 'pointee' && x.pointee ? ['annuler-pointage'," "      false ? ['annuler-pointage'," \
+  'Consulter se relit en revenant sur la fenêtre'
+prouver 'échéances 5 : la CNSS ne dit plus qui elle compte par prudence' web/public/v10/cabinet/app.js \
+  "x.t.sorte === 'cnss' ? esc(e.detail || 'Les cotisations du trimestre des dossiers employeurs.')" "x.t.sorte === 'cnss' ? 'Les cotisations du trimestre des dossiers employeurs.'" \
+  'la carte CNSS du dernier trimestre ne vise que'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

@@ -1,13 +1,14 @@
 // La barre du Cabinet (maquette « Barre v3 », lot 1 b, 26/10/2026 ; docs/maquettes-appliquees.md), à la souris et au
 // clavier. Ce que le parcours vérifie :
 //   - la tête : le nom du cabinet, ses initiales sur l'ardoise, combien de dossiers ; son menu donne le code du cabinet ;
-//   - « Mon cabinet » : les Priorités (la page d'arrivée), les Pièces reçues, les Échéances, l'Avancement, les Messages,
+//   - « Mon cabinet » : les Priorités (la page d'arrivée), les Pièces reçues, les Échéances, le Tableau de bord, les Messages,
 //     chacun avec son chiffre, le même que la page qui le montre ; « Le cabinet » s'ouvre à côté de la barre ;
 //   - le dossier ouvert : sa carte (nom, relié ou tenu), ses entrées qui mènent à SES écrans ; entrer dans un dossier en
 //     fait le dossier ouvert ; le changer : la recherche, l'étoile (favori, gardé en haut), Ctrl + chiffre ;
 //   - une écriture commencée dans un dossier : changer de dossier le dit, « Rester » garde tout ;
 //   - « Créer » écrit dans le dossier ouvert (E, R, D ; O pour l'associé) ;
 //   - les Pièces reçues : une pièce envoyée par un client se classe (la boîte et les chiffres se vident), et se remet ;
+//     en double (laquelle), déjà saisie (où), plusieurs d'un coup, l'achat que le client saisit lui-même, sans réseau ;
 //   - au téléphone : Priorités, Messages, « + », Échéances, Plus.
 
 import fs from 'node:fs';
@@ -116,12 +117,12 @@ describe('la barre du Cabinet, à la souris', () => {
     expect(await p.locator('#brand-cab').innerText()).toBe('Jlassi Conseil');
     expect(await p.locator('#barre .brand-mark').innerText()).toBe('JC');
     expect(await p.locator('#brand-cab-sous').innerText()).toBe('Cabinet · 3 dossiers');
-    await expect.poll(() => p.locator('#b-moi .moi-nom').innerText()).toBe('Anis Gharbi\nAssocié');
+    await expect.poll(() => p.locator('#b-moi .moi-nom').innerText()).toBe('Anis Gharbi\nDirection');
     await p.locator('#brand-btn').click();
     const menu = p.locator('.sb-cabinet');
     expect(await menu.locator('.code-cab b').innerText()).toBe(cab.code);
     expect(await menu.getByRole('menuitem').allInnerTexts()).toEqual([
-      'Tous les dossiers\n3 dossiers', 'Production\nCe qui avance, dossier par dossier', 'Équipe et dossiers confiés\n1 personne',
+      'Tous les dossiers\n3 dossiers', 'Tableau de bord\nOù en est le cabinet, dossier par dossier', 'Équipe et dossiers confiés\n1 personne',
       'Modèles de messages\nLes demandes de pièces prêtes', 'Abonnement du cabinet\nRien à régler pour l\'instant', 'Réglages du cabinet']);
     await p.keyboard.press('Escape');
     expect(await menu.count()).toBe(0);
@@ -203,33 +204,53 @@ describe('la barre du Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
   });
 
-  it('les pièces reçues : classer vide la boîte et les chiffres, « Annuler » la remet ; une écriture commencée retient avant de changer de dossier', async () => {
+  it('les pièces reçues : chaque pièce a son geste, classer vide la boîte et les chiffres, « Annuler » la remet ; une écriture commencée retient avant de changer de dossier', async () => {
     const { associe, cab, boulangerie, cafe } = await unCabinet();
     const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
     await ouvrir(p, cab.id, '#/pieces');
-    const lignes = p.locator('#page-pieces tr[data-piece]');
+    // (1.167.0) La page de la maquette : les pièces du dossier dans l'ordre d'arrivée, chacune avec son genre ; la
+    // première ouverte à droite, avec ce que le client en dit, son aperçu et SON geste.
+    const lignes = p.locator('#page-pieces .pc-r[data-piece]');
     await expect.poll(() => lignes.count()).toBe(2);
-    expect(await lignes.first().innerText()).toMatch(/ticket-agil\.png\nBoulangerie El Amal · Sarra Mansour/);
-    expect(await lignes.last().innerText()).toMatch(/« La farine du 12 »/);
-    await lignes.first().getByRole('button', { name: 'Classer' }).click();
+    expect(await lignes.first().innerText()).toMatch(/^facture-farine\.png\nSarra · .+\nà saisir$/);
+    expect(await lignes.last().innerText()).toMatch(/^ticket-agil\.png\nSarra · .+\nticket$/);
+    expect(await p.locator('#page-pieces .pc-gh').innerText()).toMatch(/Boulangerie El Amal/);
+    const voir = p.locator('#pc-voir');
+    expect(await voir.locator('.pc-mot').innerText()).toMatch(/Sarra Mansour : « La farine du 12 »/);
+    expect(await voir.locator('#pc-geste').innerText()).toBe('Saisir l\'achat');
+    await expect.poll(() => voir.locator('#pc-papier img').count()).toBe(1);
+    // La flèche du bas ouvre la suivante : un ticket, son geste à lui.
+    await p.locator('#page-pieces h1').click();
+    await p.keyboard.press('ArrowDown');
+    await expect.poll(() => voir.locator('.pc-vt b').innerText()).toBe('ticket-agil.png');
+    expect(await voir.locator('#pc-geste').innerText()).toBe('Saisir la dépense');
+    // « Classer sans saisir › En double » : la boîte et les chiffres se vident ; « Annuler » la remet.
+    await voir.getByRole('button', { name: /Classer sans saisir/ }).click();
+    await voir.getByRole('menuitem', { name: /En double/ }).click();
+    await p.locator('#modal-root').getByRole('button', { name: 'Classer en double' }).click();
     await expect.poll(() => lignes.count()).toBe(1);
     await expect.poll(() => lien(p, 'Pièces reçues').locator('.compte').innerText()).toBe('1');
-    // « Annuler » remet la pièce à classer.
     await p.locator('#toast').getByRole('button', { name: 'Annuler' }).click();
     await expect.poll(() => lignes.count()).toBe(2);
     await expect.poll(() => lien(p, 'Pièces reçues').locator('.compte').innerText()).toBe('2');
-    // Les deux classées : la boîte le dit, l'onglet « Classées » dit qui et quand.
-    await lignes.first().getByRole('button', { name: 'Classer' }).click();
-    await expect.poll(() => lignes.count()).toBe(1);
-    await lignes.first().getByRole('button', { name: 'Classer' }).click();
+    // Les deux classées « Rien à saisir » : la boîte le dit, l'onglet « Classées » dit ce qui a été fait, et qui.
+    for (let i = 0; i < 2; i++) {
+      await voir.getByRole('button', { name: /Classer sans saisir/ }).click();
+      await voir.getByRole('menuitem', { name: /Rien à saisir/ }).click();
+      await expect.poll(() => lignes.count()).toBe(1 - i);
+    }
     await expect.poll(() => p.locator('#page-pieces .vide-pr b').innerText()).toBe('Rien à classer');
     expect(await lien(p, 'Pièces reçues').locator('.compte').isHidden()).toBe(true);
     await p.getByRole('tab', { name: 'Classées' }).click();
     await expect.poll(() => lignes.count()).toBe(2);
-    expect(await lignes.first().innerText()).toMatch(/Classée le \d\d\/\d\d, \d\d:\d\d par Anis Gharbi/);
+    expect(await lignes.first().innerText()).toMatch(/Rien à saisir : gardée dans le dossier · Anis Gharbi/);
+    expect(await voir.locator('.pc-mot').innerText()).toMatch(/^Rien à saisir : gardée dans le dossier · par Anis Gharbi, /);
+    // « Remettre à classer » la rend à la boîte.
+    await voir.getByRole('button', { name: 'Remettre à classer' }).click();
+    await expect.poll(() => lien(p, 'Pièces reçues').locator('.compte').innerText()).toBe('1');
 
     // ── Une écriture commencée et pas enregistrée : changer de dossier le dit avant ──
     // (Le livre du dossier a son exercice : une écriture y est déjà.)
@@ -252,6 +273,90 @@ describe('la barre du Cabinet, à la souris', () => {
     await garde.getByRole('button', { name: 'Passer à Café Dar Zitouna' }).click();
     await expect.poll(() => p.url()).toContain(`#/dossier/${cafe.ent}/comptabilite/saisie/${annee}`);
     expect(erreurs).toEqual([]);
+  });
+
+  it('les pièces reçues, les autres états : en double (laquelle), déjà saisie (où), plusieurs d\'un coup, un achat que le client saisit lui-même, la recherche vide, sans réseau', async () => {
+    const { associe, cab, boulangerie, cafe } = await unCabinet();
+    // (1.168.0) Le café ne confie au cabinet que sa comptabilité et ses déclarations : il saisit ses achats lui-même.
+    expect((await api('PUT', `/entreprises/${cafe.ent}/mandat/perimetre`, cafe.j, { perimetre: ['comptabilite', 'declarations'] })).statut).toBe(200);
+    const f = await api('POST', `/entreprises/${cafe.ent}/messages/fichiers`, cafe.j, { cote: 'entreprise', nom: 'facture-lait.png', contenu: PNG });
+    expect((await api('POST', `/entreprises/${cafe.ent}/messages`, cafe.j, { cote: 'entreprise', texte: '', fichier: f.corps.id })).statut).toBe(201);
+    const ctx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    const p = await ctx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await ouvrir(p, cab.id, '#/pieces');
+    const lignes = p.locator('#page-pieces .pc-r[data-piece]');
+    const ligne = (nom: string) => lignes.filter({ hasText: nom });
+    const voir = p.locator('#pc-voir');
+    const fen = p.locator('#modal-root');
+    await expect.poll(() => lignes.count()).toBe(3);
+    // L'achat du café : le geste principal le lui laisse, saisir soi-même reste possible, l'avertissement se lit avant.
+    await ligne('facture-lait.png').click();
+    expect(await voir.locator('.pc-nc').innerText()).toMatch(/Café Dar Zitouna saisit ses achats dans SkanFact.+saisie deux fois/);
+    expect(await voir.locator('#pc-geste').innerText()).toBe('Lui laisser la saisie');
+    expect(await voir.getByRole('button', { name: 'La saisir moi-même' }).count()).toBe(1);
+    // Un achat de la boulangerie (saisie confiée) n'a pas cet avertissement.
+    await ligne('facture-farine.png').click();
+    expect(await voir.locator('.pc-nc').count()).toBe(0);
+    // « En double » demande laquelle est l'originale : l'autre pièce du même dossier, gardée avec le classement.
+    await voir.getByRole('button', { name: /Classer sans saisir/ }).click();
+    await voir.getByRole('menuitem', { name: /En double/ }).click();
+    await expect.poll(() => fen.locator('h2').innerText()).toBe('De quelle pièce est-ce la copie ?');
+    expect(await fen.locator('[data-pc-orig]').allInnerTexts()).toEqual([expect.stringMatching(/^ticket-agil\.png\n/)]);
+    await fen.getByRole('button', { name: 'Classer en double' }).click();
+    await expect.poll(() => lignes.count()).toBe(2);
+    // « Déjà saisie » demande où, et le garde aussi.
+    await ligne('ticket-agil.png').click();
+    await voir.getByRole('button', { name: /Classer sans saisir/ }).click();
+    await voir.getByRole('menuitem', { name: /Déjà saisie/ }).click();
+    await fen.locator('#pc-ds').fill('Achat FA-0919');
+    await fen.getByRole('button', { name: 'Classer : déjà saisie' }).click();
+    await expect.poll(() => lignes.count()).toBe(1);
+    await p.getByRole('tab', { name: 'Classées' }).click();
+    await expect.poll(() => lignes.count()).toBe(2);
+    await ligne('facture-farine.png').click();
+    expect(await voir.locator('.pc-mot').innerText()).toMatch(/^En double · par Anis Gharbi, .+ · « copie de « ticket-agil\.png » »$/);
+    await ligne('ticket-agil.png').click();
+    expect(await voir.locator('.pc-mot').innerText()).toMatch(/^Déjà saisie · par Anis Gharbi, .+ · « saisie dans Achat FA-0919 »$/);
+    // Les deux remises à classer, puis choisies avec la troisième : un geste pour les trois, « Annuler » pour les trois.
+    for (const nom of ['ticket-agil.png', 'facture-farine.png']) {
+      await ligne(nom).click();
+      await voir.getByRole('button', { name: 'Remettre à classer' }).click();
+      await expect.poll(() => lignes.filter({ hasText: nom }).count()).toBe(0);
+    }
+    await p.getByRole('tab', { name: /À classer/ }).click();
+    await expect.poll(() => lignes.count()).toBe(3);
+    for (const c of await p.locator('[data-pc-choix]').all()) await c.check();
+    const lot = p.locator('.pc-lot');
+    expect(await lot.innerText()).toMatch(/^3 pièces choisies\nde 2 dossiers/);
+    await lot.getByRole('button', { name: 'Classer : rien à saisir' }).click();
+    await expect.poll(() => lignes.count()).toBe(0);
+    await expect.poll(() => p.locator('#page-pieces .vide-pr').innerText()).toMatch(/^Rien à classer\n+Aujourd'hui, 3 pièces ont été classées\./);
+    expect(await lien(p, 'Pièces reçues').locator('.compte').isHidden()).toBe(true);
+    await p.locator('#toast').getByRole('button', { name: 'Annuler' }).click();
+    await expect.poll(() => lignes.count()).toBe(3);
+    expect(await p.locator('.pc-lot').count()).toBe(0);
+    // La recherche sans résultat : elle propose de chercher dans les classées, ou d'effacer.
+    await p.locator('#pc-q').fill('loyer');
+    await expect.poll(() => p.locator('#page-pieces .vide-pr b').innerText()).toBe('Aucune pièce ne correspond à « loyer »');
+    await p.getByRole('button', { name: 'Chercher dans les classées' }).click();
+    await expect.poll(() => p.getByRole('tab', { name: 'Classées' }).getAttribute('aria-selected')).toBe('true');
+    expect(await p.locator('#pc-q').inputValue()).toBe('loyer');
+    await p.getByRole('button', { name: 'Effacer la recherche' }).click();
+    expect(await p.locator('#pc-q').inputValue()).toBe('');
+    // Sans réseau : la page dit ce qu'elle savait et à quelle heure ; saisir et classer attendent.
+    await p.getByRole('tab', { name: /À classer/ }).click();
+    await expect.poll(() => lignes.count()).toBe(3);
+    await ctx.setOffline(true);
+    await p.evaluate(() => window.dispatchEvent(new Event('offline')));
+    await ligne('facture-farine.png').click();
+    await expect.poll(() => p.locator('#page-pieces .pr-ban').innerText()).toMatch(/^Pas de réseau : ce poste montre ce qu'il savait à \d{1,2} h \d{2}\./);
+    expect(await voir.locator('#pc-geste').isDisabled()).toBe(true);
+    await ctx.setOffline(false);
+    expect(erreurs).toEqual([]);
+    void boulangerie;
   });
 
   it('au téléphone : Priorités, Messages, « + », Échéances, Plus ; le dossier ouvert dans « Plus »', async () => {

@@ -1915,8 +1915,8 @@
         if (!d) continue;
         if (t.id === 'manquants') dest.push({ cle: `m-${d.id}`, dossier: d, quoi: `${pl(r.missingCount, 'mois', 'mois')} sans écriture`, sous: K.missingLabel(r.missingMonths), ton,
           geste: d.manual ? 'Saisir' : 'Demander', faire: () => { location.hash = d.manual ? `#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie` : `#/messages/${encodeURIComponent(d.id)}/demande`; } });
-        else if (t.id === 'provisoires') dest.push({ cle: `p-${d.id}`, dossier: d, quoi: `${pl(r.provisionalCount, 'mois', 'mois')} à valider`, sous: 'des écritures encore au brouillard', ton,
-          geste: 'Valider', faire: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie`; } });
+        else if (t.id === 'provisoires') dest.push({ cle: `p-${d.id}`, dossier: d, quoi: `${pl(r.provisionalCount, 'mois', 'mois')} à réviser`, sous: 'des écritures encore au brouillard', ton,
+          geste: 'Réviser', faire: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie`; } });
         else if (t.id === 'questions') dest.push({ cle: `q-${d.id}`, dossier: d, quoi: 'Questions sans réponse', sous: 'envoyées deux fois au client', ton,
           geste: 'Voir', faire: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite/revision`; } });
         else dest.push({ cle: `j-${d.id}`, dossier: d, quoi: 'Pièces manquantes signalées', sous: nomDe(d.id), ton, geste: 'Voir', faire: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}`; } });
@@ -1936,6 +1936,12 @@
     }
     return { urgent, avoir };
   }
+  // (Maquettes de « Mon cabinet », 28/10/2026) La pastille des Échéances compte les déclarations EN RETARD de mes
+  // dossiers : la date est passée et la déclaration n'est pas déposée. La même fonction que la page (K.enRetard).
+  function declarationsEnRetard() {
+    const ids = new Set(mesDossiers().map(d => d.name));
+    return K.enRetard(K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() })).filter(x => ids.has(x.dossier));
+  }
   function echeancesDeLaSemaine() {
     const ids = new Set(mesDossiers().map(d => d.name));
     return K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() })
@@ -1944,10 +1950,12 @@
 
   // Les pièces reçues (0175) : lues à l'ouverture, au retour sur la fenêtre et après chaque geste.
   let piecesLues = { aClasser: 0, pieces: [], plus: false };
+  let piecesLuesA = null;
   async function relirePieces() {
     if (!api.pieces) return;
     try {
       piecesLues = await api.pieces.lire(false);
+      piecesLuesA = new Date();
       comptesBarre.pieces = piecesLues.aClasser;
       comptesBarre.piecesParDossier = new Map();
       for (const p of piecesLues.pieces) comptesBarre.piecesParDossier.set(p.entreprise, (comptesBarre.piecesParDossier.get(p.entreprise) || 0) + 1);
@@ -1960,10 +1968,10 @@
   // La liste de la barre : « Mon cabinet », puis le dossier ouvert. Une page n'y a qu'UN lien ; la page ouverte porte
   // `active` (barre.js en fait `aria-current`).
   const ORDRE_CAB = ['priorites', 'pieces', 'echeances', 'production', 'messages'];
-  const NOMS_CAB = { priorites: 'Priorités', pieces: 'Pièces reçues', echeances: 'Échéances', production: 'Avancement', messages: 'Messages',
+  const NOMS_CAB = { priorites: 'Priorités', pieces: 'Pièces reçues', echeances: 'Échéances', production: 'Tableau de bord', messages: 'Messages',
     dossiers: 'Tous les dossiers', relances: 'Relances', ecritures: 'Export des écritures' };
   const BULLES_CAB = { priorites: 'Ce qui presse dans tes dossiers, le plus urgent d\'abord', pieces: 'Les photos et PDF déposés par tes clients, à classer',
-    echeances: 'Les déclarations de tes dossiers, par date', production: 'Ce qui avance, dossier par dossier', messages: 'Les conversations avec tes clients' };
+    echeances: 'Les déclarations de tes dossiers, par date', production: 'Où en est le cabinet', messages: 'Les conversations avec tes clients' };
   function drawNav() {
     const nav = $('#nav');
     if (!nav || !S) return;
@@ -1972,15 +1980,15 @@
     const D = dossierOuvert();
     const role = monRole();
     const pri = prioritesDuJour();
-    const semaine = echeancesDeLaSemaine();
+    const retard = declarationsEnRetard();
     const compte = (id, n, ton, titre) => `<span class="nav-count compte${ton ? ' ' + ton : ''}" id="${id}"${n ? '' : ' hidden'}${titre ? ` title="${esc(titre)}"` : ''}>${n || ''}</span>`;
     const ordre = (prefs.get('navOrdreCab', null) || ORDRE_CAB).filter(x => ORDRE_CAB.includes(x));
     for (const x of ORDRE_CAB) if (!ordre.includes(x)) ordre.push(x);
     const actif = id => (id === 'pieces' ? route === 'pieces' && !arg : route === id);
     const lienCab = id => {
-      const n = id === 'priorites' ? pri.urgent.length : id === 'pieces' ? comptesBarre.pieces : id === 'echeances' ? semaine.length : id === 'messages' ? comptesBarre.messages : 0;
+      const n = id === 'priorites' ? pri.urgent.length : id === 'pieces' ? comptesBarre.pieces : id === 'echeances' ? retard.length : id === 'messages' ? comptesBarre.messages : 0;
       const ton = id === 'priorites' || id === 'echeances' ? 'alerte' : '';
-      const tip = id === 'priorites' ? `${n} urgente${n > 1 ? 's' : ''}` : id === 'pieces' ? `${n} à classer` : id === 'echeances' ? `${n} cette semaine` : id === 'messages' ? `${n} à traiter` : '';
+      const tip = id === 'priorites' ? `${n} urgente${n > 1 ? 's' : ''}` : id === 'pieces' ? `${n} à classer` : id === 'echeances' ? `${n} en retard` : id === 'messages' ? `${n} à traiter` : '';
       return `<a href="#/${id}" data-route="${id}" class="lien${actif(id) ? ' active' : ''}" draggable="true" data-nom="${id}" data-tip="${esc(NOMS_CAB[id] + (n ? ` · ${tip}` : ''))}" title="${esc(BULLES_CAB[id])}">`
         + `<span class="ic">${icB(id)}</span>${esc(NOMS_CAB[id])}${compte(id === 'messages' ? 'nav-messages' : `nav-${id}`, n, ton, n ? tip : '')}`
         + `<span class="prise" title="Glisse pour ranger"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></svg></span><span class="point"></span></a>`;
@@ -2023,7 +2031,7 @@
         + '</div></div></div>';
       html += `<div class="nav nav-dossier" id="nav-dossier" style="--d1:${c[0]}">`
         + `<button type="button" class="dossier" id="b-dossier" data-nom="${esc(D.name)}" aria-haspopup="menu" aria-expanded="false" data-tip="Dossier ouvert · ${esc(D.name)} · Ctrl 1 à 9 pour tes dossiers">${marqueD(D)}<span class="lib"><small>Dossier ouvert · ${typeD(D)}</small><b>${esc(D.name)}</b><small class="clos">${e.clos ? icB('cadenas', 11, 2.4) + ' ' : ''}${esc(e.texte)}</small></span><span class="chev">${icB('haut', 15, 2)}</span></button>`
-        + lienD('d-saisie', 'ecritures', 'Écritures', `${base}/comptabilite/saisie`, ici('comptabilite', 'saisie'), aValider ? `${aValider} mois à valider` : '', 'calme')
+        + lienD('d-saisie', 'ecritures', 'Écritures', `${base}/comptabilite/saisie`, ici('comptabilite', 'saisie'), aValider ? `${aValider} mois à réviser` : '', 'calme')
         + lienD('d-pieces', 'pieces', 'Pièces du dossier', `#/pieces/${encodeURIComponent(D.id)}`, route === 'pieces' && decodeURIComponent(arg || '') === D.id, n ? `${n} à classer` : '', 'attire')
         + lienD('d-banque', 'banque', 'Banque', `${base}/comptabilite/banque`, ici('comptabilite', 'banque'), '', '')
         + (role !== 'saisie' ? lienD('d-declaration', 'declaration', 'Déclarations', `${base}/comptabilite/declaration`, ici('comptabilite', 'declaration'), '', '') : '')
@@ -2087,7 +2095,7 @@
     const el = window.SkanBarre.ouvrirPop('sb-cabinet', `<span class="menu-titre">${esc(S.cabinet.name || 'Cabinet')}</span>`
       + (code ? `<div class="code-cab"><span><small>Ton code cabinet, à donner à tes clients</small><b>${esc(code)}</b></span><button type="button" class="sb-geste" data-cab-action="copier">${icB('copier', 14, 2)} Copier</button></div>` : '')
       + btn('dossiers', 'dossiers', 'Tous les dossiers', pl(dossiersActifs().length, 'dossier'))
-      + btn('production', 'production', 'Production', 'Ce qui avance, dossier par dossier')
+      + btn('production', 'production', 'Tableau de bord', 'Où en est le cabinet, dossier par dossier')
       + (estAssocie() ? btn('equipe', 'equipe', 'Équipe et dossiers confiés', pl(((S.collaborateurs || []).filter(c => c.actif)).length, 'personne')) : '')
       + (api.modeles ? btn('modeles', 'modele', 'Modèles de messages', 'Les demandes de pièces prêtes') : '')
       + (estAssocie() ? '<div class="trait"></div>' + btn('abonnement', 'carte', 'Abonnement du cabinet', abo) + btn('reglages', 'reglages', 'Réglages du cabinet', '') : btn('reglages', 'reglages', 'Réglages', '')),
@@ -2267,65 +2275,421 @@
   }
   const fmtJourCourt = iso => { const [a, m, j] = String(iso).split('-'); return a && m && j ? `${j}/${m}/${a}` : String(iso); };
 
-  // ---------- Pièces reçues (0175) ----------
-  const pieceState = { onglet: 'aclasser', classees: null };
+  // ---------- Pièces reçues (0175 ; telles que la maquette, 1.167.0) ----------
+  // docs/maquettes/cabinet/pieces-recues.html : à gauche les pièces groupées par dossier (le plus pressé d'abord), à
+  // droite la pièce ouverte, ce que le client en dit, son aperçu et SON geste ; « Classer sans saisir » pour le reste.
+  // Chaque pièce a un genre lu de ce qu'on sait d'elle (rangée par le client dans ses achats, réponse à une demande de
+  // relevé, ticket, document) : il dit le geste principal. Classer garde la raison (0179), défaire l'efface.
+  const pieceState = { onglet: 'aclasser', classees: null, filtre: 'tout', q: '', dossier: '', sel: '', zoom: 1, rot: 0, menu: false, menuDos: false, ouverte: false, replies: new Set(), ouverts: new Set(), choix: new Set() };
+  const PC_IC = {
+    chev: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+    g: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+    d: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
+    loupe: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+    moins: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg>',
+    plus: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+    tourne: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg>',
+    grand: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>',
+    bas: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>',
+    bulle: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>',
+    coche: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
+    attente: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    fermer: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  };
+  const PC_GESTE = { achat: 'Saisir l\'achat', ticket: 'Saisir la dépense', rangee: 'Vérifier l\'achat', releve: 'Rapprocher dans la Banque', doc: 'Ranger dans le dossier' };
+  const PC_COURT = { achat: 'à saisir', ticket: 'ticket', rangee: 'à vérifier', releve: 'relevé', doc: 'document' };
+  const PC_RAISON = { saisie: 'Déjà saisie', verifiee: 'Vérifiée : rangée par le client dans ses achats', rien: 'Rien à saisir : gardée dans le dossier', double: 'En double', illisible: 'Illisible : redemandée au client', banque: 'Rapprochée dans la Banque', client: 'Le client la saisit lui-même' };
+  // Un achat d'un dossier qui n'a pas confié la saisie de ses achats au cabinet : le client la saisit lui-même.
+  const nonConfiee = (p, D) => (p.genre === 'achat' || p.genre === 'ticket') && Array.isArray(D.perimetre) && !D.perimetre.includes('saisie_achats');
+  // Le genre d'une pièce : ce que le client en a fait, sinon ce que dit son nom ou la demande à laquelle elle répond.
+  function genrePiece(p) {
+    const nom = `${p.fichier.nom} ${p.demande || ''}`;
+    if (p.achat) return 'rangee';
+    if (/relev/i.test(nom)) return 'releve';
+    if (/ticket|re[çc]u[-_ ]/i.test(nom)) return 'ticket';
+    if (/contrat|bail|attestation|statut|assurance|registre|patente|kbis/i.test(nom)) return 'doc';
+    return 'achat';
+  }
+  const quandPc = (iso, long) => {
+    const d = new Date(iso);
+    const jour = x => x.toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' });
+    const heure = d.toLocaleTimeString('fr-FR', { timeZone: 'Africa/Tunis', hour: 'numeric', minute: '2-digit' }).replace(':', ' h ');
+    const auj = jour(new Date()), hier = jour(new Date(Date.now() - 86400000));
+    if (jour(d) === auj) return long ? `aujourd'hui, ${heure}` : heure;
+    if (jour(d) === hier) return `hier, ${heure}`;
+    return `${d.toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis', weekday: 'short', day: '2-digit', month: '2-digit' })}, ${heure}`;
+  };
+  const tailleTxt = n => n >= 1e6 ? `${(n / 1048576).toFixed(1).replace('.', ',')} Mo` : `${Math.max(1, Math.round(n / 1024))} Ko`;
+  const vignettePc = p => /pdf/.test(p.fichier.type) ? '<span class="pc-vi pdf" aria-hidden="true">PDF</span>' : '<span class="pc-vi photo" aria-hidden="true"><i></i></span>';
+  // Ce qui presse dans un dossier : une déclaration à déposer aujourd'hui, ou déjà en retard (les Échéances, K.echeances).
+  function presseDe(d, echeances) {
+    const l = echeances.filter(e => !e.toutDepose && (e.passee || e.jours === 0) && (e.restants || []).includes(d.name));
+    if (!l.length) return null;
+    const e = l.find(x => x.passee) || l[0];
+    // Le nom court de la déclaration (« TVA », « CNSS ») sur la ligne du dossier ; son nom entier sur la pièce ouverte.
+    const court = String(e.label || 'Déclaration').split(' ')[0];
+    return { texte: `${court} ${e.passee ? 'en retard' : 'aujourd\'hui'}`, long: `${e.label} ${e.passee ? 'en retard' : 'à déposer aujourd\'hui'}` };
+  }
   function drawPieces(view, idDossier) {
+    const st = pieceState;
     const d = idDossier ? (S.dossiers || []).find(x => x.id === decodeURIComponent(idDossier)) : null;
-    const nomDe = id => ((S.dossiers || []).find(x => x.id === id) || {}).name || 'Dossier retiré';
+    const dossierDe = id => (S.dossiers || []).find(x => x.id === id) || { id, name: 'Dossier retiré' };
     const moi = new Set(mesDossiers().map(x => x.id));
     const garder = l => l.filter(p => (d ? p.entreprise === d.id : moi.has(p.entreprise)));
-    const classees = pieceState.onglet === 'classees';
-    const source = classees ? (pieceState.classees || { pieces: [] }) : piecesLues;
-    const l = garder(source.pieces || []);
-    const aClasser = garder(piecesLues.pieces || []).length;
-    const quand = iso => new Date(iso).toLocaleString('fr-FR', { timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ', ');
-    const qui = id => (((S.collaborateurs || []).find(c => c.id === id) || {}).nom) || 'le cabinet';
-    const lignes = l.map(p => {
-      const dd = (S.dossiers || []).find(x => x.id === p.entreprise) || { id: p.entreprise, name: nomDe(p.entreprise) };
-      const ce = p.demande ? `Répond à ta demande : ${p.demande}` : p.achat ? `Le client l'a rangée dans ses achats : ${p.achat}` : p.texte ? `« ${p.texte} »` : 'Envoyée sans un mot';
-      return `<tr data-piece="${esc(p.id)}"><td><span class="cell-d">${marqueD(dd)}<span class="deux"><b>${esc(p.fichier.nom)}</b><small>${esc(dd.name)} · ${esc(p.de)} · ${esc(quand(p.recueLe))}</small></span></span></td>`
-        + `<td><span class="deux"><span>${esc(ce)}</span><small>${classees ? `Classée le ${esc(quand(p.classeeLe))} par ${esc(qui(p.classeePar))}` : esc(p.fichier.type === 'application/pdf' ? 'PDF' : 'Photo')}</small></span></td>`
-        + `<td class="gestes-pr"><button type="button" class="btn btn-sm" data-voir="${esc(p.id)}">${icB('oeil', 14, 2)} Voir</button>`
-        + (classees ? `<button type="button" class="btn btn-sm" data-declasser="${esc(p.id)}">Remettre à classer</button>`
-          : `<button type="button" class="btn btn-sm" data-saisir="${esc(p.entreprise)}">Saisir</button><button type="button" class="btn btn-sm btn-primary" data-classer="${esc(p.id)}">${icB('coche', 14, 2.4)} Classer</button>`)
-        + '</td></tr>';
-    }).join('');
-    const nbD = new Set(garder(piecesLues.pieces || []).map(p => p.entreprise)).size;
-    view.innerHTML = `<div class="cab-page" id="page-pieces">${d ? ctxDossierCab(d) : ctxCabinet()}
+    const classees = st.onglet === 'classees';
+    const aClasserTout = garder(piecesLues.pieces || []);
+    const source = garder((classees ? (st.classees || { pieces: [] }) : piecesLues).pieces || []).map(p => ({ ...p, genre: genrePiece(p) }));
+    const presse = new Map();
+    const echeances = classees || !source.length ? [] : K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() });
+    for (const p of source) if (!presse.has(p.entreprise)) presse.set(p.entreprise, classees ? null : presseDe(dossierDe(p.entreprise), echeances));
+    const FILTRES = [['tout', 'Tout', () => true], ['saisir', 'À saisir', p => p.genre === 'achat' || p.genre === 'ticket'], ['verifier', 'À vérifier', p => p.genre === 'rangee'],
+      ['releves', 'Relevés', p => p.genre === 'releve'], ['autres', 'Autres', p => p.genre === 'doc']];
+    const q = st.q.trim().toLowerCase();
+    const parDossier = st.dossier && !d ? source.filter(p => p.entreprise === st.dossier) : source;
+    const filtre = (FILTRES.find(f => f[0] === st.filtre) || FILTRES[0])[2];
+    const l = parDossier.filter(filtre).filter(p => !q || `${p.fichier.nom} ${p.de} ${p.texte} ${p.demande || ''} ${p.achat || ''} ${dossierDe(p.entreprise).name}`.toLowerCase().includes(q));
+    // Les dossiers, le plus pressé d'abord, puis celui dont la pièce est la plus récente ; leurs pièces dans l'ordre d'arrivée.
+    const groupes = [...new Set(l.map(p => p.entreprise))].sort((a, b) => (presse.get(b) ? 1 : 0) - (presse.get(a) ? 1 : 0));
+    // Dans un dossier, l'ordre d'arrivée (la plus ancienne d'abord) ; classées, la plus récemment classée d'abord.
+    const dansLeDossier = g => { const x = l.filter(p => p.entreprise === g); return classees ? x : x.reverse(); };
+    const ordonnee = groupes.flatMap(dansLeDossier);
+    const beaucoup = ordonnee.length > 15;
+    const ouvert = (g, i) => st.ouverts.has(g) || (!st.replies.has(g) && (!beaucoup || i < 2 || ordonnee.some(p => p.id === st.sel && p.entreprise === g)));
+    const visibles = groupes.flatMap((g, i) => ouvert(g, i) ? dansLeDossier(g) : []);
+    const sel = visibles.find(p => p.id === st.sel) || visibles[0] || null;
+    st.sel = sel ? sel.id : '';
+    // Une autre pièce s'ouvre à sa taille, droite.
+    if (st.sel !== st.vue) { st.vue = st.sel; st.zoom = 1; st.rot = 0; }
+    const nbD = new Set(aClasserTout.map(p => p.entreprise)).size;
+    const jourTunis = x => new Date(x).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' });
+    const classeesDuJour = garder((st.classees || { pieces: [] }).pieces || []).filter(p => p.classeeLe && jourTunis(p.classeeLe) === jourTunis(Date.now())).length;
+    const hors = navigator.onLine === false;
+    const qui = id => (((S.collaborateurs || []).find(c => c.id === id) || {}).nom) || (id === S.moi ? 'toi' : 'le cabinet');
+
+    // Les pièces choisies qui sont encore là (classées ailleurs, elles sortent du choix).
+    for (const id of st.choix) if (classees || !source.some(p => p.id === id)) st.choix.delete(id);
+    const caseChoix = p => classees ? '' : `<label class="pc-cc" title="Choisir cette pièce"><input type="checkbox" data-pc-choix="${esc(p.id)}"${st.choix.has(p.id) ? ' checked' : ''} aria-label="Choisir ${esc(p.fichier.nom)}"></label>`;
+    const ligne = p => `<div class="pc-rw${classees ? '' : ' avec-case'}${st.choix.size ? ' choix' : ''}">${caseChoix(p)}<button type="button" class="pc-r${p === sel ? ' ici' : ''}" data-piece="${esc(p.id)}">${vignettePc(p)}<span class="pc-rt"><b>${esc(p.fichier.nom)}</b><small>${classees
+      ? `${esc(PC_RAISON[p.raison] || 'Classée')} · ${esc(qui(p.classeePar))}` : `${esc(String(p.de || '').split(' ')[0])}${p.demande ? ' · ta demande' : ''} · ${esc(quandPc(p.recueLe))}`}</small></span>${classees ? '' : `<span class="pc-tag ${p.genre}">${PC_COURT[p.genre]}</span>`}</button></div>`;
+    const blocs = groupes.map((g, i) => {
+      const D = dossierDe(g);
+      const n = l.filter(p => p.entreprise === g).length;
+      const o = ouvert(g, i);
+      const pr = presse.get(g);
+      const tete = d ? '' : `<button type="button" class="pc-gh${o ? '' : ' replie'}" aria-expanded="${o}" data-groupe="${esc(g)}">${marqueD(D)}<b>${esc(D.name)}</b>${pr ? `<span class="pc-tva">${esc(pr.texte)}</span>` : ''}<span class="pc-n">${n}</span>${PC_IC.chev}</button>`;
+      return { o, html: o ? `<div class="pc-g2">${tete}${dansLeDossier(g).map(ligne).join('')}</div>` : tete };
+    }).reduce((acc, b, i, all) => {
+      if (b.o) return acc + b.html;
+      const debut = i === 0 || all[i - 1].o, fin = i === all.length - 1 || all[i + 1].o;
+      return acc + (debut ? '<div class="pc-g2 pc-replies">' : '') + b.html + (fin ? '</div>' : '');
+    }, '');
+
+    const visionneuse = p => {
+      const D = dossierDe(p.entreprise);
+      const pr = presse.get(p.entreprise);
+      const i = visibles.indexOf(p) + 1;
+      const dems = classees ? [] : ((piecesLues.demandes || []).filter(x => x.entreprise === p.entreprise));
+      const mot = classees ? `<div class="pc-mot fait">${PC_IC.coche}<span><b>${esc(PC_RAISON[p.raison] || 'Classée')}</b> · par ${esc(qui(p.classeePar))}, ${esc(quandPc(p.classeeLe, true))}${p.note ? ` · « ${esc(p.note)} »` : ''}</span></div>`
+        : p.achat ? `<div class="pc-mot fait">${PC_IC.coche}<span><b>${esc(p.de)} l'a rangée dans ses achats</b> : ${esc(p.achat)}. Rien à saisir : vérifie et classe.</span><a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Répondre</a></div>`
+        : `<div class="pc-mot">${PC_IC.bulle}<span>${p.demande ? `Répond à ta demande : <b>« ${esc(p.demande)} »</b>` : p.texte ? `<b>${esc(p.de)}</b> : « ${esc(p.texte)} »` : `<b>${esc(p.de)}</b> l'a envoyée sans un mot`} · ${esc(quandPc(p.recueLe, true))}</span><a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Répondre</a></div>`;
+      const dl = dems.length ? `<div class="pc-dl"><span>Demandes en cours :</span>${dems.slice(0, 4).map(x => `<span class="pc-dl-i${x.recueLe ? '' : ' attendue'}">${x.recueLe ? PC_IC.coche : PC_IC.attente}${esc(x.texte)}${!x.recueLe && x.pour ? ` · ${esc(fmtJourCourt(x.pour).slice(0, 5))}` : ''}</span>`).join('')}${dems.some(x => !x.recueLe) ? `<a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Relancer</a>` : ''}</div>` : '';
+      const photo = !/pdf/.test(p.fichier.type);
+      const outils = `<div class="pc-outils"><button type="button" class="btn btn-sm btn-icone" data-pc-zoom="-1" aria-label="Plus petit"${st.zoom <= 0.5 ? ' disabled' : ''}>${PC_IC.moins}</button><span>${Math.round(st.zoom * 100)} %</span><button type="button" class="btn btn-sm btn-icone" data-pc-zoom="1" aria-label="Plus grand"${st.zoom >= 3 ? ' disabled' : ''}>${PC_IC.plus}</button>${photo ? `<button type="button" class="btn btn-sm btn-icone" id="pc-tourner" aria-label="Tourner">${PC_IC.tourne}</button>` : ''}<span class="pc-sep"></span><button type="button" class="btn btn-sm btn-icone" id="pc-grand" aria-label="En grand">${PC_IC.grand}</button><button type="button" class="btn btn-sm btn-icone" id="pc-enregistrer" aria-label="Enregistrer le fichier">${PC_IC.bas}</button></div>`;
+      const papier = hors ? '<div class="pc-papier vide" id="pc-papier"><b>Le fichier s\'ouvre avec le réseau</b><span>Il est gardé sur le serveur, pas sur ce poste.</span></div>'
+        : '<div class="pc-papier vide" id="pc-papier"><span>Ouverture de la pièce…</span></div>';
+      const nc = !classees && nonConfiee(p, D);
+      const avNc = nc ? `<div class="pc-avert ambre pc-nc">${EC_IC.alerte}<span><b>${esc(D.name)} saisit ses achats dans SkanFact</b> : leur saisie n'est pas confiée au cabinet. Si tu la saisis aussi, elle risque d'être saisie deux fois.</span></div>` : '';
+      const geste = nc ? 'Lui laisser la saisie' : PC_GESTE[p.genre];
+      const gestes = classees ? '<div class="pc-gestes"><button type="button" class="btn" id="pc-declasser">Remettre à classer</button></div>'
+        : `${avNc}<div class="pc-gestes">${hors ? '<span class="pc-attend">Saisir et classer attendent le retour du réseau.</span>' : ''}<button type="button" class="btn btn-primary" id="pc-geste"${hors ? ' disabled' : ''}>${geste}</button>${nc ? `<button type="button" class="btn" id="pc-saisir-moi"${hors ? ' disabled' : ''}>La saisir moi-même</button>` : ''}
+          <span class="pc-menu-w"><button type="button" class="btn" id="pc-menu" aria-haspopup="menu" aria-expanded="${st.menu}"${hors ? ' disabled' : ''}>Classer sans saisir ${PC_IC.chev}</button>${st.menu ? menuClasserPc(p) : ''}</span>
+          <span class="pc-clavier"><kbd>↑</kbd><kbd>↓</kbd> pièce suivante · <kbd>Entrée</kbd> ${esc(geste.toLowerCase())}</span></div>`;
+      return `<div class="pc-voir" id="pc-voir"><div class="pc-vt"><div class="pc-vt-g">${vignettePc(p)}<span><b>${esc(p.fichier.nom)}</b><small>${photo ? 'Photo' : 'PDF'} · ${esc(tailleTxt(p.fichier.taille))} · ${esc(D.name)}${pr ? ` · <span class="pc-tva">${esc(pr.long)}</span>` : ''}</small></span></div>
+        <div class="pc-nav"><button type="button" class="btn btn-sm btn-icone" data-pc-pas="-1" aria-label="Pièce précédente"${i <= 1 ? ' disabled' : ''}>${PC_IC.g}</button><span>${i} sur ${visibles.length}</span><button type="button" class="btn btn-sm btn-icone" data-pc-pas="1" aria-label="Pièce suivante"${i >= visibles.length ? ' disabled' : ''}>${PC_IC.d}</button></div></div>
+        ${mot}${dl}${outils}${papier}${gestes}</div>`;
+    };
+    const comptes = Object.fromEntries(FILTRES.map(f => [f[0], parDossier.filter(f[2]).length]));
+    const fl = classees || !source.length ? '' : `<div class="pc-fl" role="group" aria-label="Quelles pièces">${FILTRES.filter(f => f[0] === 'tout' || comptes[f[0]] || st.filtre === f[0]).map(f => `<button type="button" data-pc-filtre="${f[0]}" aria-pressed="${st.filtre === f[0]}">${f[1]} <span>${comptes[f[0]]}</span></button>`).join('')}</div>`;
+    const dossiersDe = [...new Set(source.map(p => p.entreprise))].map(dossierDe).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
+    const choixDos = d ? '' : `<span class="pc-dos-w"><button type="button" class="btn btn-sm" id="pc-dossiers" aria-haspopup="menu" aria-expanded="${st.menuDos}">${st.dossier ? esc(dossierDe(st.dossier).name) : 'Tous les dossiers'} ${PC_IC.chev}</button>${st.menuDos
+      ? `<div class="row-menu pc-dos" role="menu"><button type="button" role="menuitem" class="pc-do${st.dossier ? '' : ' ici'}" data-pc-dos=""><b>Tous les dossiers</b><span>${source.length}</span></button>${dossiersDe.map(x => `<button type="button" role="menuitem" class="pc-do${st.dossier === x.id ? ' ici' : ''}" data-pc-dos="${esc(x.id)}">${marqueD(x)}<b>${esc(x.name)}</b><span>${source.filter(p => p.entreprise === x.id).length}</span></button>`).join('')}</div>` : ''}</span>`;
+    const vide = !comptesBarre.piecesLues && !classees ? '<div class="pc-grille"><div class="pc-liste"><div class="pc-g2">' + '<div class="pc-r sq"><i></i><span><i></i><i></i></span></div>'.repeat(4) + '</div></div><div class="pc-voir pc-sq"></div></div>'
+      : !source.length ? `<div class="panel vide-pr pc-vide"><b>${classees ? 'Aucune pièce classée' : 'Rien à classer'}</b><p class="muted">${classees ? 'Les pièces que ton équipe classe se retrouvent ici, avec ce qu\'elle en a fait, qui et quand.' : d && d.manual ? 'Ce dossier est tenu par le cabinet : son client n\'est pas sur SkanFact et n\'envoie rien par ici.' : `${classeesDuJour ? `Aujourd'hui, ${pl(classeesDuJour, 'pièce')} ${classeesDuJour > 1 ? 'ont été classées' : 'a été classée'}. ` : ''}Les prochaines arriveront ici dès ${d ? 'que le client les envoie dans votre conversation' : 'qu\'un client les envoie dans sa conversation'}.`}</p>${classees || (d && d.manual) ? '' : `<p class="pc-vide-g"><button type="button" class="btn btn-sm" id="pc-voir-classees">Voir les classées</button>${api.messagerie ? `<a class="btn btn-sm" href="#/messages${d ? `/${encodeURIComponent(d.id)}/demande` : ''}">${d ? 'Demander des pièces' : 'Demander des pièces à un client'}</a>` : ''}</p>`}</div>`
+      : !l.length ? `<div class="panel vide-pr pc-vide"><b>${q ? `Aucune pièce ne correspond à « ${esc(st.q)} »` : 'Aucune pièce dans ce filtre'}${st.dossier ? ` pour ${esc(dossierDe(st.dossier).name)}` : ''}</b><p class="muted">${q && !classees ? 'Elle est peut-être déjà classée.' : q ? 'Aucune pièce classée ne contient ce mot non plus : essaie le nom du fichier, ou celui du client.' : 'Les autres pièces sont dans « Tout ».'}</p><p class="pc-vide-g">${q && !classees ? '<button type="button" class="btn btn-sm" id="pc-q-classees">Chercher dans les classées</button>' : ''}<button type="button" class="btn btn-sm" id="pc-tout">${q ? 'Effacer la recherche' : 'Tout montrer'}</button></p></div>`
+      : `<div class="pc-grille"><div class="pc-liste">${blocs}${(classees ? (st.classees || {}).plus : piecesLues.plus) ? '<p class="pc-fin">Les deux cents plus récentes : classe-les pour voir les suivantes.</p>' : ''}</div>
+        <div><button type="button" class="pc-retour" id="pc-retour">${PC_IC.g} ${d ? 'Pièces du dossier' : 'Pièces reçues'}</button>${sel ? visionneuse(sel) : ''}</div></div>`;
+    const nb = aClasserTout.length;
+    // La barre des pièces choisies : un geste pour toutes (rien à saisir), ou tout désélectionner.
+    const choisies = source.filter(p => st.choix.has(p.id));
+    const dosChoix = [...new Set(choisies.map(p => p.entreprise))];
+    const barreChoix = choisies.length && !classees ? `<div class="pc-lot" role="region" aria-label="Pièces choisies"><b>${pl(choisies.length, 'pièce choisie', 'pièces choisies')}</b><span>${dosChoix.length === 1 ? esc(dossierDe(dosChoix[0]).name) : `de ${pl(dosChoix.length, 'dossier')}`}</span>
+      <span class="pc-lot-g"><button type="button" class="btn btn-sm" id="pc-lot-rien"${hors ? ' disabled' : ''}>Classer : rien à saisir</button><button type="button" class="btn btn-sm pc-lot-sans" id="pc-lot-aucun">Tout désélectionner</button></span></div>` : '';
+    // Sans réseau : ce que le poste savait, et à quelle heure.
+    const heureLue = piecesLuesA ? piecesLuesA.toLocaleTimeString('fr-FR', { timeZone: 'Africa/Tunis', hour: 'numeric', minute: '2-digit' }).replace(':', ' h ') : '';
+    const banHors = hors && comptesBarre.piecesLues ? `<div class="pr-ban gris" role="status"><b>Pas de réseau : ce poste montre ce qu'il savait${heureLue ? ` à ${heureLue}` : ''}.</b><span>Les fichiers restent sur le serveur : ils s'ouvrent, se saisissent et se classent au retour du réseau. Les pièces envoyées depuis ne sont pas encore là.</span></div>` : '';
+    view.innerHTML = `<div class="cab-page${st.ouverte && sel ? ' pc-ouverte' : ''}" id="page-pieces">${d ? ctxDossierCab(d) : ctxCabinet()}
       <div class="page-head"><div><h1>${d ? 'Pièces du dossier' : 'Pièces reçues'}</h1>
-        <p class="muted">${aClasser ? `${pl(aClasser, 'pièce')} à classer${d ? '' : `, de ${pl(nbD, 'dossier')}`} · ouvre-la, saisis-la, puis classe-la : la boîte se vide.` : 'Rien à classer : les photos et PDF que tes clients déposent dans leur conversation arrivent ici.'}</p></div></div>
-      <div class="onglets-cab" role="tablist"><button type="button" role="tab" aria-selected="${!classees}" data-onglet-pr="aclasser">À classer${aClasser ? `<span class="compte attire">${aClasser}</span>` : ''}</button><button type="button" role="tab" aria-selected="${classees}" data-onglet-pr="classees">Classées</button></div>
-      ${!comptesBarre.piecesLues && !classees ? '<div class="panel"><p class="muted">Lecture des pièces reçues…</p></div>'
-    : l.length ? `<div class="panel tableau-pr"><table class="table pr-table"><thead><tr><th>Pièce</th><th>Ce que le client en dit</th><th></th></tr></thead><tbody>${lignes}</tbody></table></div>
-      ${(classees ? (pieceState.classees || {}).plus : piecesLues.plus) ? '<p class="muted small">Les deux cents plus récentes : classe-les pour voir les suivantes.</p>' : ''}`
-      : `<div class="panel vide-pr"><b>${classees ? 'Aucune pièce classée' : 'Rien à classer'}</b><p class="muted">${classees ? 'Les pièces que ton équipe classe se retrouvent ici, avec qui et quand.' : d && d.manual ? 'Ce dossier est tenu par le cabinet : son client n\'est pas sur SkanFact et n\'envoie rien par ici.' : 'Les photos et PDF que tes clients envoient dans leur conversation arrivent ici, tous dossiers confondus.'}</p></div>`}
+        <p class="muted">${nb ? `${pl(nb, 'pièce')} à classer${hors && heureLue ? ` à ${heureLue}, la dernière fois que ce poste a eu le réseau` : d ? '' : `, de ${pl(nbD, 'dossier')} · chacune a son geste : saisir l'achat, vérifier, rapprocher, ranger`}` : d ? 'Rien à classer : ce que ce client envoie dans votre conversation arrive ici.' : 'Rien à classer : ce que tes clients envoient dans leur conversation arrive ici.'}</p></div></div>
+      ${banHors}
+      <div class="pc-barre"><div class="onglets-cab" role="tablist"><button type="button" role="tab" aria-selected="${!classees}" data-onglet-pr="aclasser">À classer${nb ? `<span class="compte attire">${nb}</span>` : ''}</button><button type="button" role="tab" aria-selected="${classees}" data-onglet-pr="classees">Classées</button></div>
+        ${fl}<div class="pc-filtres"><label class="pc-cherche">${PC_IC.loupe}<input type="search" id="pc-q" placeholder="Chercher une pièce…" aria-label="Chercher une pièce" value="${esc(st.q)}"></label>${choixDos}</div></div>
+      ${barreChoix}${vide}
     </div>`;
+
+    const redessiner = () => drawPieces(view, idDossier);
+    if (!source.length && !classees && comptesBarre.piecesLues && !st.classees && !st.lisClassees && navigator.onLine !== false) {
+      st.lisClassees = true;
+      api.pieces.lire(true).then(r => { st.classees = r; }).catch(() => { st.classees = { pieces: [] }; })
+        .finally(() => { st.lisClassees = false; if (/^#\/pieces/.test(location.hash) && !$('#modal-root').children.length) redessiner(); });
+    }
+    $$('[data-pc-choix]', view).forEach(c => { c.onchange = () => { if (c.checked) st.choix.add(c.dataset.pcChoix); else st.choix.delete(c.dataset.pcChoix); redessiner(); }; });
+    const bAucun = $('#pc-lot-aucun', view);
+    if (bAucun) bAucun.onclick = () => { st.choix.clear(); redessiner(); };
+    const bLot = $('#pc-lot-rien', view);
+    if (bLot) {
+      bLot.onclick = async () => {
+        bLot.disabled = true;
+        const lot = choisies.slice();
+        const faites = [];
+        try {
+          for (const p of lot) { await api.pieces.classer(p.entreprise, p.id, true, 'rien'); faites.push(p); }
+        } catch (x) { toast(plainError(x), 'error'); }
+        st.choix.clear(); st.classees = null;
+        await relirePieces();
+        if (/^#\/pieces/.test(location.hash)) redessiner();
+        if (!faites.length) return;
+        toastUndo(`${pl(faites.length, 'pièce classée', 'pièces classées')} : rien à saisir, gardées dans leur dossier.`, async () => {
+          try { for (const p of faites) await api.pieces.classer(p.entreprise, p.id, false); await relirePieces(); if (/^#\/pieces/.test(location.hash)) drawPieces($('#view'), idDossier); } catch (x) { toast(plainError(x), 'error'); }
+        });
+      };
+    }
+    const bVoirCl = $('#pc-voir-classees', view);
+    if (bVoirCl) bVoirCl.onclick = () => { const o = $('[data-onglet-pr="classees"]', view); if (o) o.click(); };
+    const bQCl = $('#pc-q-classees', view);
+    if (bQCl) bQCl.onclick = () => { const o = $('[data-onglet-pr="classees"]', view); if (o) o.click(); };
     $$('[data-onglet-pr]', view).forEach(b => {
       b.onclick = async () => {
-        pieceState.onglet = b.dataset.ongletPr;
-        if (pieceState.onglet === 'classees' && !pieceState.classees) { try { pieceState.classees = await api.pieces.lire(true); } catch (x) { toast(plainError(x), 'error'); } }
-        drawPieces(view, idDossier);
+        st.onglet = b.dataset.ongletPr; st.sel = ''; st.menu = false; st.ouverte = false; st.filtre = 'tout'; st.choix.clear();
+        if (st.onglet === 'classees' && !st.classees) { try { st.classees = await api.pieces.lire(true); } catch (x) { toast(plainError(x), 'error'); } }
+        redessiner();
       };
     });
-    const pieceDe = id => l.find(p => p.id === id);
-    $$('[data-voir]', view).forEach(b => { b.onclick = () => { const p = pieceDe(b.dataset.voir); if (p) api.pieces.ouvrir(p.entreprise, p.fichier.id).catch(x => toast(plainError(x), 'error')); }; });
-    $$('[data-saisir]', view).forEach(b => { b.onclick = () => { prefs.set('dossierOuvert', b.dataset.saisir); location.hash = `#/dossier/${encodeURIComponent(b.dataset.saisir)}/comptabilite/saisie`; }; });
-    const geste = async (b, id, classee) => {
-      const p = pieceDe(id); if (!p) return;
-      b.disabled = true;
-      try {
-        await api.pieces.classer(p.entreprise, p.id, classee);
-        pieceState.classees = null;
-        await relirePieces();
-        drawPieces(view, idDossier);
-        if (classee) toastUndo(`« ${p.fichier.nom} » est classée.`, async () => { await api.pieces.classer(p.entreprise, p.id, false); await relirePieces(); if (/^#\/pieces/.test(location.hash)) drawPieces($('#view'), idDossier); });
-        else toast(`« ${p.fichier.nom} » est de nouveau à classer.`);
-      } catch (x) { b.disabled = false; toast(plainError(x), 'error'); }
-    };
-    $$('[data-classer]', view).forEach(b => { b.onclick = () => geste(b, b.dataset.classer, true); });
-    $$('[data-declasser]', view).forEach(b => { b.onclick = () => geste(b, b.dataset.declasser, false); });
+    $$('[data-pc-filtre]', view).forEach(b => { b.onclick = () => { st.filtre = b.dataset.pcFiltre; st.sel = ''; redessiner(); }; });
+    const champ = $('#pc-q', view);
+    champ.oninput = () => { st.q = champ.value; st.sel = ''; redessiner(); const c = $('#pc-q', view); c.focus(); c.setSelectionRange(c.value.length, c.value.length); };
+    const bDos = $('#pc-dossiers', view);
+    if (bDos) bDos.onclick = e => { e.stopPropagation(); st.menuDos = !st.menuDos; st.menu = false; redessiner(); };
+    $$('[data-pc-dos]', view).forEach(b => { b.onclick = () => { st.dossier = b.dataset.pcDos; st.menuDos = false; st.sel = ''; redessiner(); }; });
+    const bTout = $('#pc-tout', view);
+    if (bTout) bTout.onclick = () => { st.q = ''; st.filtre = 'tout'; st.dossier = ''; redessiner(); };
+    $$('[data-groupe]', view).forEach(b => {
+      b.onclick = () => {
+        const g = b.dataset.groupe;
+        if (b.getAttribute('aria-expanded') === 'true') { st.replies.add(g); st.ouverts.delete(g); } else { st.ouverts.add(g); st.replies.delete(g); }
+        redessiner();
+      };
+    });
+    $$('[data-piece]', view).forEach(b => {
+      b.onclick = () => {
+        st.sel = b.dataset.piece; st.zoom = 1; st.rot = 0; st.menu = false; st.ouverte = true;
+        redessiner();
+        // Au téléphone, la pièce remplace la liste : elle s'ouvre en haut, son « retour » sous les yeux.
+        if (matchMedia('(max-width: 760px)').matches) { for (const e of [view, $('main'), document.scrollingElement]) if (e) e.scrollTop = 0; }
+      };
+    });
+    const retour = $('#pc-retour', view);
+    if (retour) retour.onclick = () => { st.ouverte = false; redessiner(); };
     $$('[data-portee-page]', view).forEach(b => { b.onclick = () => { prefs.set('portee', b.dataset.porteePage); render(); }; });
+    if (!sel) return;
+    const pas = n => { const i = visibles.indexOf(sel) + n; if (visibles[i]) { st.sel = visibles[i].id; st.zoom = 1; st.rot = 0; st.menu = false; redessiner(); } };
+    st.pas = pas;
+    $$('[data-pc-pas]', view).forEach(b => { b.onclick = () => pas(Number(b.dataset.pcPas)); });
+    $$('[data-pc-zoom]', view).forEach(b => { b.onclick = () => { st.zoom = Math.min(3, Math.max(0.5, Math.round((st.zoom + Number(b.dataset.pcZoom) * 0.25) * 100) / 100)); redessiner(); }; });
+    const bTourner = $('#pc-tourner', view);
+    if (bTourner) bTourner.onclick = () => { st.rot = (st.rot + 90) % 360; redessiner(); };
+    $('#pc-enregistrer', view).onclick = () => api.pieces.enregistrer(sel.entreprise, sel.fichier.id).catch(x => toast(plainError(x), 'error'));
+    $('#pc-grand', view).onclick = () => pieceEnGrand(sel);
+    // Après un geste : la boîte relue, la pièce suivante ouverte, « Annuler » pendant six secondes.
+    const suivante = () => { const i = visibles.indexOf(sel); return (visibles[i + 1] || visibles[i - 1] || {}).id || ''; };
+    const classer = async (raison, msg, note, sansAnnuler) => {
+      const apres = suivante();
+      try {
+        await api.pieces.classer(sel.entreprise, sel.id, true, raison, note);
+        st.classees = null; st.sel = apres; st.menu = false;
+        await relirePieces();
+        if (/^#\/pieces/.test(location.hash)) redessiner();
+        // Une demande partie ne se reprend pas : « Annuler » ne se propose pas, la pièce se remet à classer depuis « Classées ».
+        if (sansAnnuler) { toast(msg); return; }
+        toastUndo(msg, async () => {
+          try { await api.pieces.classer(sel.entreprise, sel.id, false); st.sel = sel.id; await relirePieces(); if (/^#\/pieces/.test(location.hash)) drawPieces($('#view'), idDossier); } catch (x) { toast(plainError(x), 'error'); }
+        });
+      } catch (x) { toast(plainError(x), 'error'); }
+    };
+    st.geste = null;
+    chargerApercu(sel, view);
+    const bDecl = $('#pc-declasser', view);
+    if (bDecl) {
+      bDecl.onclick = async () => {
+        bDecl.disabled = true;
+        try { await api.pieces.classer(sel.entreprise, sel.id, false); st.classees = await api.pieces.lire(true); await relirePieces(); redessiner(); toast(`« ${sel.fichier.nom} » est de nouveau à classer.`); } catch (x) { bDecl.disabled = false; toast(plainError(x), 'error'); }
+      };
+      return;
+    }
+    const D = dossierDe(sel.entreprise);
+    const aller = chemin => { prefs.set('dossierOuvert', sel.entreprise); location.hash = `#/dossier/${encodeURIComponent(sel.entreprise)}/${chemin}`; };
+    const GESTES = {
+      achat: () => aller('comptabilite/saisie'),
+      ticket: () => aller('comptabilite/saisie'),
+      releve: () => aller('comptabilite/banque'),
+      rangee: () => classer('verifiee', `« ${sel.fichier.nom} » est vérifiée et classée.`),
+      doc: () => classer('rien', `« ${sel.fichier.nom} » est gardée dans le dossier de ${D.name}.`),
+    };
+    const bGeste = $('#pc-geste', view);
+    const faire = nonConfiee(sel, D) ? () => classer('client', `« ${sel.fichier.nom} » est classée : ${D.name} la saisit dans ses achats.`) : GESTES[sel.genre];
+    if (bGeste) { bGeste.onclick = () => faire(); st.geste = () => { if (!bGeste.disabled) faire(); }; }
+    const bMoi = $('#pc-saisir-moi', view);
+    if (bMoi) bMoi.onclick = () => aller('comptabilite/saisie');
+    const bMenu = $('#pc-menu', view);
+    if (bMenu) bMenu.onclick = e => { e.stopPropagation(); st.menu = !st.menu; st.menuDos = false; redessiner(); };
+    $$('[data-pc-raison]', view).forEach(b => {
+      b.onclick = () => {
+        const r = b.dataset.pcRaison;
+        if (r === 'illisible') { st.menu = false; redessiner(); redemanderPiece(sel, D, note => classer('illisible', `La demande est partie à ${D.name} ; « ${sel.fichier.nom} » est classée « Illisible ».`, note, true)); return; }
+        if (r === 'double') { st.menu = false; redessiner(); fenDouble(sel, D, note => classer('double', `« ${sel.fichier.nom} » est classée en double.`, note)); return; }
+        if (r === 'saisie') { st.menu = false; redessiner(); fenDejaSaisie(sel, D, note => classer('saisie', `« ${sel.fichier.nom} » est classée : déjà saisie.`, note)); return; }
+        classer(r, `« ${sel.fichier.nom} » est classée : ${PC_RAISON[r].toLowerCase()}.`);
+      };
+    });
   }
+  function menuClasserPc(p) {
+    const o = [['rien', 'Rien à saisir', 'Un contrat, une attestation : gardée dans le dossier, à sa date'],
+      ['saisie', 'Déjà saisie', 'Elle est déjà dans ses livres : classée sans rien ajouter'],
+      ['double', 'En double', 'La même pièce est déjà arrivée'],
+      ['illisible', 'Illisible : la redemander', 'Le message est prêt, tu le relis avant qu\'il parte', `${String(p.de || 'Le client').split(' ')[0]} le reçoit dans votre conversation`]];
+    return `<div class="row-menu pc-rm" role="menu">${o.map(([r, t, d, c]) => `<button type="button" role="menuitem" data-pc-raison="${r}"><b>${t}</b><span>${d}</span>${c ? `<em>${esc(c)}</em>` : ''}</button>`).join('')}</div>`;
+  }
+  // « En double » : de quelle pièce est-ce la copie ? Les autres pièces du même dossier, celles du même nom ou de la même
+  // taille d'abord. Le choix est gardé dans la note du classement (« copie de … ») ; sans autre pièce ici, on classe quand même.
+  function fenDouble(p, D, valider) {
+    const cl = ((pieceState.classees || { pieces: [] }).pieces || []);
+    const proche = x => (x.fichier.nom === p.fichier.nom ? 2 : 0) + (x.fichier.taille === p.fichier.taille ? 1 : 0);
+    const autres = [...(piecesLues.pieces || []), ...cl].filter((x, i, t) => x.entreprise === p.entreprise && x.id !== p.id && t.findIndex(y => y.id === x.id) === i)
+      .sort((a, b) => proche(b) - proche(a) || String(b.recueLe).localeCompare(String(a.recueLe))).slice(0, 6);
+    const pourquoi = x => [x.fichier.nom === p.fichier.nom ? 'même nom' : '', x.fichier.taille === p.fichier.taille ? `même taille (${tailleTxt(x.fichier.taille)})` : ''].filter(Boolean).join(', ');
+    modal(`<h2>De quelle pièce est-ce la copie ?</h2><p class="muted pc-m-sous">${autres.length ? `Les autres pièces de ${esc(D.name)}, les plus proches d'abord.` : `Aucune autre pièce de ${esc(D.name)} n'est ici : elle se classe en double quand même.`}</p>
+      ${autres.length ? `<div class="pc-choix">${autres.map((x, i) => `<button type="button" class="pc-ch${i === 0 ? ' ici' : ''}" data-pc-orig="${esc(x.id)}"><b>${esc(x.fichier.nom)}</b><span>${esc(String(x.de || 'Le client').split(' ')[0])} · ${esc(quandPc(x.recueLe))}${x.classeeLe ? ' · classée' : ' · à classer'}</span>${pourquoi(x) ? `<span>${esc(pourquoi(x))}</span>` : ''}</button>`).join('')}</div>` : ''}
+      <p class="pc-note">Celle-ci passe dans « Classées » : en double, avec la pièce choisie. Elle n'a rien à faire.</p>
+      <div class="modal-actions"><button type="button" class="btn" id="pc-d-non">Annuler</button><button type="button" class="btn btn-primary" id="ok">Classer en double</button></div>`,
+    (layer, close) => {
+      let orig = autres[0] || null;
+      $$('[data-pc-orig]', layer).forEach(b => { b.onclick = () => { orig = autres.find(x => x.id === b.dataset.pcOrig) || null; $$('[data-pc-orig]', layer).forEach(c => c.classList.toggle('ici', c === b)); }; });
+      $('#pc-d-non', layer).onclick = close;
+      $('#ok', layer).onclick = () => { close(); valider(orig ? `copie de « ${orig.fichier.nom} »`.slice(0, 300) : undefined); };
+    });
+  }
+  // « Déjà saisie » : où ? Un mot pour la retrouver (le numéro de l'achat, l'écriture), gardé avec le classement.
+  function fenDejaSaisie(p, D, valider) {
+    modal(`<h2>Où est-elle déjà saisie ?</h2><p class="muted pc-m-sous">Dans les livres de ${esc(D.name)}. Un mot pour la retrouver plus tard : le numéro de l'achat, la date de l'écriture.</p>
+      <label class="field"><span>Saisie dans (facultatif)</span><input type="text" id="pc-ds" maxlength="200" placeholder="Achat FA-0919, écriture du 30/09"></label>
+      <p class="pc-note">Celle-ci passe dans « Classées » : déjà saisie, avec ce mot. Rien n'est ajouté à ses livres.</p>
+      <div class="modal-actions"><button type="button" class="btn" id="pc-ds-non">Annuler</button><button type="button" class="btn btn-primary" id="ok">Classer : déjà saisie</button></div>`,
+    (layer, close) => {
+      const champ = $('#pc-ds', layer);
+      champ.focus();
+      champ.onkeydown = e => { if (e.key === 'Enter') $('#ok', layer).click(); };
+      $('#pc-ds-non', layer).onclick = close;
+      $('#ok', layer).onclick = () => { const t = champ.value.trim(); close(); valider(t ? `saisie dans ${t}`.slice(0, 300) : undefined); };
+    });
+  }
+  // L'aperçu : la photo telle qu'elle est arrivée, ou la première page du PDF dessinée ici (plateforme/apercu-pdf.js).
+  async function chargerApercu(p, view) {
+    const st = pieceState;
+    const zone = $('#pc-papier', view);
+    if (!zone || navigator.onLine === false) return;
+    // 430 points à 100 %, comme la feuille de la maquette ; moins si la place manque (le téléphone).
+    const largeur = Math.round(Math.min(430, Math.max(200, zone.clientWidth - 40)) * st.zoom);
+    try {
+      const f = await api.pieces.contenu(p.entreprise, p.fichier.id);
+      let adresse = f.adresse, pages = 1;
+      if (/pdf/.test(f.type)) {
+        const img = await api.pieces.apercuPdf(f.blob, Math.max(900, largeur * 2), 1);
+        if (!img) throw new Error('pdf');
+        adresse = img.adresse; pages = img.pages;
+      } else if (!/^image\//.test(f.type)) throw new Error('type');
+      if (st.sel !== p.id || !zone.isConnected) return;
+      zone.className = 'pc-papier';
+      zone.innerHTML = `<img src="${adresse}" alt="${esc(p.fichier.nom)}" style="width:${largeur}px;transform:rotate(${st.rot}deg)">${pages > 1 ? `<span class="small muted" style="margin-top:8px">page 1 sur ${pages} · « En grand » les montre toutes</span>` : ''}`;
+    } catch {
+      if (st.sel !== p.id || !zone.isConnected) return;
+      zone.className = 'pc-papier vide';
+      zone.innerHTML = `<b>Ce fichier ne s'ouvre pas ici</b><span>Il est peut-être abîmé ou protégé. « Enregistrer le fichier » le garde tel qu'il est arrivé ; « Illisible : la redemander » prépare le message.</span>`;
+    }
+  }
+  async function pieceEnGrand(p) {
+    const f = await api.pieces.contenu(p.entreprise, p.fichier.id).catch(x => { toast(plainError(x), 'error'); return null; });
+    if (!f) return;
+    const calque = document.createElement('div');
+    calque.className = 'pc-grand';
+    calque.setAttribute('role', 'dialog'); calque.setAttribute('aria-label', p.fichier.nom);
+    calque.innerHTML = `<div class="pc-grand-t"><b>${esc(p.fichier.nom)}</b><span>${esc(((S.dossiers || []).find(x => x.id === p.entreprise) || {}).name || '')}</span><span class="pc-sep"></span><button type="button" class="btn btn-sm" id="pcg-fermer">${PC_IC.fermer} Fermer</button></div><div class="pc-grand-d" id="pcg-d"><p style="color:#fff">Ouverture…</p></div>`;
+    document.body.append(calque);
+    const fermer = () => { calque.remove(); document.removeEventListener('keydown', echap, true); };
+    const echap = e => { if (e.key === 'Escape') { e.stopPropagation(); fermer(); } };
+    document.addEventListener('keydown', echap, true);
+    $('#pcg-fermer', calque).onclick = fermer;
+    $('#pcg-fermer', calque).focus();
+    const zone = $('#pcg-d', calque);
+    if (!/pdf/.test(f.type)) { zone.innerHTML = `<img src="${f.adresse}" alt="${esc(p.fichier.nom)}" style="transform:rotate(${pieceState.rot}deg)">`; return; }
+    const premiere = await api.pieces.apercuPdf(f.blob, 1600, 1);
+    if (!premiere) { zone.innerHTML = '<p style="color:#fff">Ce PDF ne se dessine pas ici : « Enregistrer le fichier » le garde tel qu\'il est arrivé.</p>'; return; }
+    zone.innerHTML = '';
+    zone.style.gap = '16px';
+    for (let n = 1; n <= Math.min(premiere.pages, 30) && calque.isConnected; n++) {
+      const img = n === 1 ? premiere : await api.pieces.apercuPdf(f.blob, 1600, n);
+      if (img) zone.insertAdjacentHTML('beforeend', `<img src="${img.adresse}" alt="Page ${n} de ${esc(p.fichier.nom)}">`);
+    }
+  }
+  // Redemander une pièce illisible : le message prêt, relu avant qu'il parte ; il part dans la conversation du client,
+  // avec la demande (le client y répond en joignant la bonne photo, qui arrive ici). Puis la pièce se classe « illisible ».
+  function redemanderPiece(p, D, classer) {
+    const prenom = String(p.de || '').split(' ')[0];
+    const texte = `Bonjour${prenom ? ` ${prenom}` : ''}, la pièce « ${p.fichier.nom} » envoyée ${quandPc(p.recueLe, true).replace(/^aujourd'hui, /, 'aujourd\'hui à ')} est difficile à lire. Peux-tu la reprendre en photo, bien à plat et avec toute la page, et me l'envoyer ici ? Merci.`;
+    modal(`<h2>Redemander la pièce à ${esc(D.name)}</h2>
+      <p class="muted small">Le message part dans votre conversation, avec la demande « Une photo lisible de ${esc(p.fichier.nom)} ». La pièce se classe « Illisible ».</p>
+      <label class="field"><span>Le message</span><textarea class="pc-txt" id="pc-redem" maxlength="1000">${esc(texte)}</textarea></label>
+      <div class="modal-actions"><button type="button" class="btn" id="pc-redem-non">Annuler</button><button type="button" class="btn btn-primary" id="ok">Envoyer la demande</button></div>`,
+    (layer, close) => {
+      $('#pc-redem-non', layer).onclick = close;
+      $('#ok', layer).onclick = async () => {
+        const t = $('#pc-redem', layer).value.trim();
+        if (!t) { toast('Écris le message avant de l\'envoyer.', 'error'); $('#pc-redem', layer).focus(); return; }
+        $('#ok', layer).disabled = true;
+        try {
+          await api.pieces.redemander(p.entreprise, t, `Une photo lisible de ${p.fichier.nom}`.slice(0, 300));
+          close();
+          classer(t.slice(0, 300));
+        } catch (x) { $('#ok', layer).disabled = false; toast(plainError(x), 'error'); }
+      };
+    });
+  }
+  // Le clavier de la page : ↑ ↓ changent de pièce, Entrée fait le geste principal ; Échap referme un menu ouvert.
+  document.addEventListener('keydown', e => {
+    if (!/^#\/pieces/.test(location.hash) || $('#modal-root').children.length || document.querySelector('.pc-grand')) return;
+    const st = pieceState;
+    if (e.key === 'Escape' && (st.menu || st.menuDos)) { st.menu = false; st.menuDos = false; drawPieces($('#view'), location.hash.split('/')[2]); return; }
+    const cible = e.target;
+    if (cible && (cible.closest('input, textarea, select, [contenteditable]') || (e.key === 'Enter' && cible.closest('button, a')))) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if ((e.key === 'ArrowDown' || e.key === 'ArrowUp') && st.pas) { e.preventDefault(); st.pas(e.key === 'ArrowDown' ? 1 : -1); }
+    else if (e.key === 'Enter' && st.geste) { e.preventDefault(); st.geste(); }
+  });
+  document.addEventListener('click', e => {
+    const st = pieceState;
+    if (!(st.menu || st.menuDos) || !/^#\/pieces/.test(location.hash)) return;
+    if (e.target.closest('.pc-menu-w, .pc-dos-w')) return;
+    st.menu = false; st.menuDos = false;
+    drawPieces($('#view'), location.hash.split('/')[2]);
+  });
   function ctxDossierCab(d) {
     const e = etatDuDossier(d);
     return `<div class="ctx-cab ctx-d" style="--d1:${couleurDe(d.id)[0]}">${marqueD(d)}<span><b>${esc(d.name)}</b> ${typeD(d)}</span><span class="ctx-sep"></span><span class="ctx-clos">${e.clos ? icB('cadenas', 12, 2.4) + ' ' : ''}${esc(e.texte)}</span></div>`;
@@ -11157,11 +11521,94 @@
     });
   }
 
+  // ---------- Échéances (telles que la maquette, 1.168.0) ----------
+  // docs/maquettes/cabinet/echeances.html : à gauche chaque déclaration (en retard, aujourd'hui, à déposer, à venir,
+  // déposées repliées), à droite celle qu'on ouvre, dossier par dossier : où il en est, son montant, SON geste. Les
+  // états viennent de K.echeances (le même calcul que le chiffre de la barre) et de ce que le serveur sait de chaque
+  // déclaration (préparée, déposée, payée, son montant).
+  const echState = { sel: '', filtre: 'tout', deposees: false, menu: '', ouverte: false, vue: 'liste', moisCal: '', q: '', replie: true };
+  const EC_IC = {
+    coche: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>',
+    chev: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+    g: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>',
+    trois: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5.5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="18.5" cy="12" r="1.6"/></svg>',
+    attente: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    alerte: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg>',
+    liste: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>',
+    mois: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+    d: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>',
+    jours: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>',
+  };
+  // L'état d'un dossier pour une déclaration : [ton, ce qu'on lit].
+  const EC_ST = {
+    sans: ['rouge', 'Rien reçu'], saisir: ['ambre', 'À saisir au cabinet'], pieces: ['ambre', 'Pièces à classer'], valider: ['ambre', 'À réviser'],
+    prete: ['sarcelle', 'Prête à préparer'], preparee: ['sarcelle', 'Préparée, à déposer'], deposee: ['vert', 'Déposée, à payer'], payee: ['vert', 'Déposée et payée'],
+    pointee: ['vert', 'Déposée'], encours: ['gris', 'Le mois continue'],
+  };
+  const EC_ORDRE = ['sans', 'saisir', 'pieces', 'valider', 'prete', 'preparee', 'deposee', 'payee', 'pointee', 'encours'];
+  const EC_FAIT = e => ['deposee', 'payee', 'pointee'].includes(e);
+  const MOIS_COURT = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+  // Un montant en millimes, écrit en dinars (jamais un nombre à virgule).
+  const enDinars = m => { const n = BigInt(m); const neg = n < 0n; const a = neg ? -n : n; return `${neg ? '−' : ''}${(a / 1000n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')},${(a % 1000n).toString().padStart(3, '0')}`; };
+  // « Déclaration d'août » au milieu d'une phrase ; « CNSS » garde ses capitales.
+  const minuscule = t => /^[A-Z]{2}/.test(t) ? t : t.charAt(0).toLowerCase() + t.slice(1);
+  const jourMois = iso => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`;
+  function titresEcheance(e) {
+    if (e.id === 'tva-m') { const m = K.monthLabel(e.mois[0]); return { titre: `Déclaration ${K.de(m)}`, court: `Déclaration ${K.de(m.split(' ')[0])}`, moisNom: m.split(' ')[0], sorte: 'mens' }; }
+    const an = e.date.slice(0, 4) - (e.id === 'cnss' && e.date.slice(5, 7) === '01' ? 1 : 0);
+    return { titre: /\d{4}/.test(e.label) ? e.label : `${e.label} ${an}`, court: e.label.replace(/ \d{4}$/, ''), moisNom: e.label.replace(/^CNSS du /, ''), sorte: e.id === 'cnss' ? 'cnss' : 'autre' };
+  }
+  const quandEch = (e, fait) => e.jours === 0 ? 'aujourd\'hui' : e.jours > 0 ? `dans ${pl(e.jours, 'jour')}` : fait ? `il y a ${pl(-e.jours, 'jour')}` : `en retard de ${pl(-e.jours, 'jour')}`;
+  function lignesEcheance(e, piecesPar, pointee) {
+    const parNom = new Map((S.dossiers || []).map(d => [d.name, d]));
+    const vus = new Set(mesDossiers().map(d => d.id));
+    const noms = [...new Set([...(e.deposes || []), ...(e.restants || [])])];
+    return noms.map(n => parNom.get(n)).filter(d => d && vus.has(d.id)).map(d => {
+      const p = e.mois[e.mois.length - 1];
+      const decl = e.id === 'tva-m' ? declarationConnue(d.id, p) : null;
+      const nPieces = piecesPar.get(d.id) || 0;
+      let st;
+      if ((e.deposes || []).includes(d.name) || pointee) st = decl && decl.payeeLe ? 'payee' : decl && decl.deposeeLe ? 'deposee' : 'pointee';
+      else if (e.manquants.includes(d.name)) st = nPieces ? 'pieces' : d.manual ? 'saisir' : 'sans';
+      else if ((e.aSaisir || []).includes(d.name)) st = 'saisir';
+      else if (e.provisoires.includes(d.name)) st = 'valider';
+      else st = decl && decl.prepareeLe ? 'preparee' : 'prete';
+      const t = titresEcheance(e);
+      const brouillards = e.mois.reduce((s, m) => s + brouillardsConnus(d.id, m), 0);
+      const sous = {
+        sans: `rien reçu pour ${t.moisNom}`, saisir: `${t.moisNom} sans écriture : c'est au cabinet de le saisir`,
+        pieces: `${pl(nPieces, 'pièce reçue', 'pièces reçues')}, à classer`, valider: brouillards ? `${pl(brouillards, 'écriture')} de ${t.moisNom} au brouillard` : `${t.moisNom} à réviser`,
+        prete: t.sorte === 'mens' ? `${t.moisNom} révisé : la déclaration peut se préparer` : 'les mois sont révisés',
+        preparee: decl && decl.prepareeLe ? `préparée le ${jourMois(decl.prepareeLe)}${decl.preparePar ? ` par ${decl.preparePar}` : ''}` : '',
+        deposee: decl && decl.deposeeLe ? `déposée le ${jourMois(decl.deposeeLe)}${decl.deposeePar ? ` par ${decl.deposeePar}` : ''}` : '',
+        payee: decl && decl.payeeLe ? `déposée le ${jourMois(decl.deposeeLe)} et payée le ${jourMois(decl.payeeLe)}` : '',
+        pointee: 'pointée déposée dans les Échéances',
+      }[st];
+      return { d, st, sous, decl, montant: decl && decl.montant != null ? decl.montant : null };
+    }).sort((a, b) => EC_ORDRE.indexOf(a.st) - EC_ORDRE.indexOf(b.st) || a.d.name.localeCompare(b.d.name, 'fr'));
+  }
+  // Les déclarations à venir : le mois en cours n'est pas terminé, rien n'est encore réclamé.
+  function echeancesAVenir() {
+    const j = K.deadlineSettings(S);
+    const auj = K.today(), cur = auj.slice(0, 7);
+    const out = [];
+    for (const m of [cur, K.addMonth(cur, 1)]) out.push({ id: 'tva-m', avenir: true, label: `TVA ${K.de(K.monthLabel(m))}`, mois: [m], date: K.dayOf(K.addMonth(m, 1), j.tvaDay), restants: [], deposes: [], manquants: [], provisoires: [], aSaisir: [] });
+    const mm = Number(cur.slice(5, 7)), fin = `${cur.slice(0, 4)}-${String(Math.ceil(mm / 3) * 3).padStart(2, '0')}`;
+    const trim = Math.ceil(mm / 3);
+    out.push({ id: 'cnss', avenir: true, label: `CNSS du ${trim}${trim === 1 ? 'ᵉʳ' : 'ᵉ'} trimestre`, mois: [fin], date: K.dayOf(K.addMonth(fin, 1), j.cnssDay), restants: [], deposes: [], manquants: [], provisoires: [], aSaisir: [] });
+    for (const e of out) e.jours = Math.round((Date.parse(e.date + 'T00:00:00Z') - Date.parse(auj + 'T00:00:00Z')) / 86400000);
+    return out;
+  }
   function drawEcheances(view) {
+    const st = echState;
     const liste = K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() });
-    const prochaines = liste.filter(e => !e.passee);
-    const passees = liste.filter(e => e.passee).reverse();
-
+    // Chargement : rien n'est encore lu du serveur ; la page se dessine en squelette, sans rien affirmer.
+    if (!questionsAttenteLues && !questionsAttenteRefus && api.questionsEnAttente) {
+      const r = '<div class="pc-r sq"><i></i><span><i></i><i></i></span></div>';
+      view.innerHTML = `<div class="cab-page" id="page-ech">${ctxCabinet()}<div class="page-head"><div><h1>Échéances ${info('ec.dates')}</h1><p class="muted">Lecture du calendrier…</p></div></div>
+        <div class="ec-grille"><div class="ec-col"><div class="pc-g2">${r}${r}${r}</div><div class="pc-g2">${r}${r}</div></div><section class="ec-det ec-sq"><div class="pc-papier vide"><b>Lecture du calendrier…</b><span>Les déclarations de tes dossiers, la plus pressée d'abord.</span></div></section></div></div>`;
+      return;
+    }
     if (!liste.length && questionsAttenteRefus) {
       view.innerHTML = `<div class="page-head"><h1>Échéances</h1></div>
         <div class="panel" id="ech-refus"><h2>Le calendrier n'a pas pu se lire</h2>
@@ -11172,135 +11619,347 @@
       return;
     }
     if (!liste.length) { drawEcheancesVides(view); return; }
+    const piecesPar = new Map();
+    for (const p of piecesLues.pieces || []) piecesPar.set(p.entreprise, (piecesPar.get(p.entreprise) || 0) + 1);
+    // Chaque déclaration : ses lignes, ses comptes, son groupe. Une déclaration pointée ici (le pense-bête de la v10) est déposée pour tous.
+    const toutes = [...liste, ...echeancesAVenir()].map(e => {
+      const pointee = !e.avenir && K.echeanceDeposee(S, e);
+      const lignes = e.avenir ? [] : lignesEcheance(e, piecesPar, pointee);
+      const fait = lignes.filter(x => EC_FAIT(x.st)).length;
+      const groupe = e.avenir ? 'avenir' : lignes.length && fait === lignes.length ? 'depose' : e.passee ? 'retard' : e.jours === 0 ? 'jour' : 'bientot';
+      return { e, cle: e.avenir ? `avenir@${e.id}@${e.date}` : K.cleEcheance(e), lignes, fait, afaire: lignes.length - fait, groupe, pointee, t: titresEcheance(e) };
+    }).filter(x => x.e.avenir || x.lignes.length);
+    if (!toutes.length) { drawEcheancesVides(view); return; }
+    const ordreGroupe = ['jour', 'retard', 'bientot', 'avenir', 'depose'];
+    const parDate = (a, b) => (a.e.date < b.e.date ? 1 : -1);
+    const enGroupe = g => toutes.filter(x => x.groupe === g).sort(g === 'avenir' ? (a, b) => -parDate(a, b) : parDate);
+    const choisie = toutes.find(x => x.cle === st.sel) || ordreGroupe.map(g => enGroupe(g)[0]).find(Boolean);
+    st.sel = choisie.cle;
+    const nPresse = toutes.filter(x => x.groupe === 'retard' || x.groupe === 'jour' || (x.groupe === 'bientot' && x.e.jours <= 7)).length;
 
-    // Deux répétitions que la capture montre et qu'aucun test ne voit. (1) Le `detail` explique la
-    // RÈGLE, pas l'occurrence : la même phrase de 90 caractères s'affichait sous les quatre mois de
-    // TVA d'affilée. Une explication se lit une fois — on la garde sur la première carte de chaque
-    // règle. (2) Les noms des clients qui manquent sont les mêmes d'un mois sur l'autre : les
-    // réénumérer quatre fois fait croire à quatre problèmes différents. Quand la liste est
-    // identique à celle qu'on vient d'écrire, on le DIT au lieu de la recopier.
-    const vus = new Set();
-    let derniersManquants = '';
-    const carte = e => {
-      const cle = K.cleEcheance(e);
-      // Pointée ici, ou déposée client par client dans leur Déclaration (10.14.1) : le même fait.
-      const depose = K.echeanceDeposee(S, e) || !!e.toutDepose;
-      const nouveauDetail = !vus.has(e.id);
-      vus.add(e.id);
-      const sig = e.manquants.join('|');
-      const memeListe = !!sig && sig === derniersManquants;
-      derniersManquants = sig;
-      // Cinq « Marquer déposée » sur une page sont cinq boutons qu'un lecteur d'écran ne distingue
-      // pas (vu par Browser Use, 10.12.0) : le NOM porte l'échéance, le libellé visible reste court —
-      // la carte le dit déjà autour de lui.
-      const relLab = e.manquants.length > 1 ? `Relancer ces ${pl(e.manquants.length, 'client')}` : 'Relancer ce client';
-      const depLab = depose ? 'Annuler « déposée »' : 'Marquer déposée';
-      return `<div class="ech lvl-${depose ? 'ok' : e.level}${depose ? ' ech-fait' : ''}">
-      <div class="ech-date"><div class="ech-j">${esc(e.date.slice(8))}</div><div class="ech-m">${esc(K.monthLabel(e.date.slice(0, 7)).split(' ')[0])}</div></div>
-      <div class="ech-txt">
-        <div class="ech-lab">${esc(e.label)}<span class="ech-when">${depose ? 'déposée' : e.passee ? `il y a ${-e.jours} j` : e.jours === 0 ? "aujourd'hui" : `dans ${e.jours} j`}</span></div>
-        ${nouveauDetail ? `<div class="small muted">${esc(e.detail)}</div>` : ''}
-        <div class="ech-bar">
-          ${(e.deposes || []).length ? `<span class="ok-inline" title="${esc(e.deposes.join(', '))}">${e.deposes.length} déposé${e.deposes.length > 1 ? 's' : ''}</span>` : ''}
-          ${e.prets || !(e.deposes || []).length ? `<span class="ok-inline">${e.prets} prêt${e.prets > 1 ? 's' : ''}</span>` : ''}
-          ${e.provisoires.length ? `<span class="warn-inline">${e.provisoires.length} à valider</span>` : ''}
-          ${e.manquants.length ? `<span class="err-inline">${e.manquants.length} sans ${e.mois.length > 1 ? 'les mois' : 'le mois'}</span>` : ''}
-          ${(e.aSaisir || []).length ? `<span class="err-inline">${e.aSaisir.length} à saisir au cabinet</span>` : ''}
-          <span class="muted small">sur ${pl(e.clients, 'client')}</span>
-        </div>
-        ${/* 10.12.0 — un dossier TENU AU CABINET dont le mois n'a aucune écriture : on ne le relance
-              pas (il n'envoie rien), on le SAISIT. Un seul : sa saisie, directement ; plusieurs : la
-              Production, qui nomme leurs mois un par un. */''}
-        ${/* (plateforme) 1.80.0 — « 1 à valider » ne disait ni qui ni où aller : les noms, et la saisie (un seul) ou la Production. */''}
-        ${e.provisoires.length ? `<div class="small mt ech-qui">${esc(e.provisoires.slice(0, 8).join(', '))}${e.provisoires.length > 8 ? '…' : ''}
-          ${e.provisoires.length === 1 && (e.provisoiresIds || []).length === 1
-            ? `<button class="btn btn-sm" data-valider-dossier="${esc(e.provisoiresIds[0])}" data-annee="${esc(e.mois[0].slice(0, 4))}" aria-label="${esc('Valider ses écritures — ' + e.label)}">Valider ses écritures</button>`
-            : `<button class="btn btn-sm" data-vers-production="1" aria-label="${esc('Voir dans la Production — ' + e.label)}">Voir dans la Production</button>`}</div>` : ''}
-        ${(e.aSaisir || []).length ? `<div class="small mt ech-qui">${esc(e.aSaisir.slice(0, 8).join(', '))}${e.aSaisir.length > 8 ? '…' : ''}
-          ${e.aSaisir.length === 1
-            ? `<button class="btn btn-sm" data-saisir-tenu="${esc(e.aSaisirIds[0])}" aria-label="${esc('Ouvrir sa saisie — ' + e.label)}">Ouvrir sa saisie</button>`
-            : `<button class="btn btn-sm" data-vers-production="1" aria-label="${esc('Voir dans la Production — ' + e.label)}">Voir dans la Production</button>`}</div>` : ''}
-        ${e.manquants.length ? `<div class="small mt ech-qui">${memeListe
-          ? `<span class="muted">${e.manquants.length > 1 ? `Les mêmes ${pl(e.manquants.length, 'client')}` : 'Le même client'} que l'échéance du dessus.</span>`
-          : `${esc(e.manquants.slice(0, 8).join(', '))}${e.manquants.length > 8 ? '…' : ''}`}
-          ${/* Un lien souligné au milieu d'une phrase n'est pas un geste : c'est un vrai bouton, et
-                il emmène aux Relances FILTRÉES sur ces clients-là — « Les relancer » qui ouvre les
-                soixante n'a pas tenu sa promesse (règle 7.15.0). */''}
-          <button class="btn btn-sm" data-relq="${esc(cle)}" aria-label="${esc(relLab + ' — ' + e.label)}">${esc(relLab)}</button></div>` : ''}
-        ${/* Pointer une occurrence, jamais une règle (7.21.0) : la TVA d'avril cesse de réclamer,
-              celle de mai reste due. Et c'est un PENSE-BÊTE — le Cabinet ne dépose rien et ne se
-              connecte à aucune administration : c'est écrit UNE fois, en tête de la page (U-21). */''}
-        ${/* Déposée par la Déclaration de chaque client, pas pointée ici : il n'y a rien à annuler
-              sur cette page — c'est dans la Déclaration du client que le pointage se défait. */''}
-        <div class="ech-fin">${e.toutDepose && !K.echeanceDeposee(S, e)
-          ? `<span class="small muted">Notée déposée dans la Déclaration de ${e.clients > 1 ? 'chaque client' : 'ce client'}.</span>`
-          : `<button class="btn btn-sm ${depose ? '' : 'btn-ghost'}" data-depot="${esc(cle)}" data-depot-lab="${esc(e.label)}" data-pas-prets="${esc([e.provisoires.length ? pl(e.provisoires.length, 'client') + ' à valider' : '', e.manquants.length ? pl(e.manquants.length, 'client') + ' sans ' + (e.mois.length > 1 ? 'les mois' : 'le mois') : '', (e.aSaisir || []).length ? pl(e.aSaisir.length, 'client') + ' à saisir au cabinet' : ''].filter(Boolean).join(', '))}" aria-label="${esc(depLab + ' — ' + e.label)}">${esc(depLab)}</button>`}</div>
-      </div></div>`;
+    const ton = x => ({ retard: 'rouge', jour: 'rouge', bientot: x.afaire && x.e.jours <= 10 ? 'rouge' : 'gris', avenir: 'gris', depose: 'vert' }[x.groupe]);
+    const barre = (x, grand) => { const prets = grand ? x.lignes.filter(l => ['prete', 'preparee'].includes(l.st)).length : 0; const ret = x.afaire - prets;
+      return `<i class="ec-bar${grand ? ' grand' : ''}" aria-hidden="true">${x.fait ? `<b class="vert" style="--n:${x.fait}"></b>` : ''}${prets ? `<b class="sarcelle" style="--n:${prets}"></b>` : ''}${ret ? `<b class="${x.groupe === 'depose' ? 'vert' : 'rouge'}" style="--n:${ret}"></b>` : ''}</i>`; };
+    const item = x => {
+      const tout = x.groupe === 'depose';
+      const q = quandEch(x.e, tout);
+      const sous = x.groupe === 'avenir' ? q : tout ? `${q} · ${x.lignes.length === 1 ? 'déposée' : `${x.fait} sur ${x.lignes.length} déposées`}` : `${q} · ${x.afaire} sur ${x.lignes.length} à faire`;
+      return `<button type="button" class="ec-i ${ton(x)}${x === choisie ? ' ici' : ''}" data-ech="${esc(x.cle)}"><span class="ec-d"><b>${esc(x.e.date.slice(8, 10))}</b><small>${MOIS_COURT[Number(x.e.date.slice(5, 7)) - 1]}</small></span><span class="ec-it"><b>${esc(x.t.court)}</b><small>${esc(sous)}</small>${x.groupe === 'avenir' ? '' : barre(x)}</span>${tout ? `<span class="ec-ok" aria-label="tout est déposé">${EC_IC.coche}</span>` : ''}</button>`;
     };
+    const groupe = (titre, g) => {
+      const l = enGroupe(g);
+      if (!l.length) return '';
+      const replie = g === 'depose' && !st.deposees && !l.includes(choisie);
+      const montres = replie ? [] : g === 'avenir' ? l.slice(0, 3) : l;
+      return `<div class="ec-g"><p class="ec-gt ${g}">${titre}<span>${l.length}</span>${g === 'depose' ? info('ec.passees') : ''}</p>${montres.map(item).join('')}${replie ? `<button type="button" class="ec-plus" id="ec-deposees">${esc(l.slice(0, 4).map(x => x.t.court).join(', '))}${l.length > 4 ? '…' : ''} ${EC_IC.chev}</button>` : ''}</div>`;
+    };
+    const vue = `<div class="ec-vue" role="group" aria-label="Montrer"><button type="button" data-ec-vue="liste" aria-pressed="${st.vue !== 'mois'}">${EC_IC.liste} Liste</button><button type="button" data-ec-vue="mois" aria-pressed="${st.vue === 'mois'}">${EC_IC.mois} Mois</button></div>`;
+    const colonne = `<div class="ec-col">${vue}${st.vue === 'mois' ? calendrierEch(toutes, choisie, item) : `${groupe('En retard', 'retard')}${groupe('Aujourd\'hui', 'jour')}${groupe('À déposer', 'bientot')}${groupe('À venir', 'avenir')}${groupe('Déposées', 'depose')}`}</div>`;
 
-    const jours = K.deadlineSettings(S);
-    const aideMission = aideDebutDeMission(passees);
-    view.innerHTML = `
-      ${/* 10.12.0 (U-21, U-13) — ce qui vaut pour TOUTES les cartes se dit UNE fois, en tête : « Un
-            pense-bête : SkanFact ne dépose rien à ta place » se répétait sous chacune, et le rappel
-            des jours proposés vivait dans un encadré orange PERMANENT — une réserve, pas un geste
-            à faire. L'explication de la page vit dans la bulle du titre (règle 9.4.9). */''}
-      <div class="page-head"><h1>Échéances ${info('ec.dates')}</h1></div>
-      <p class="muted small mb" id="ec-regle">Des pense-bêtes : SkanFact Cabinet ne dépose rien à ta place ${info('ec.depot')} ·
-      jours proposés : TVA le ${esc(jours.tvaDay)}, CNSS le ${esc(jours.cnssDay)} du mois suivant — <strong>À VÉRIFIER</strong>,
-      ils se règlent dans <a href="#/reglages">Réglages</a>.</p>
+    // La déclaration ouverte.
+    const x = choisie, e = x.e;
+    const lecture = monRole() === 'saisie';
+    const hors = navigator.onLine === false;
+    const sansReseau = ['relancer', 'deposer', 'payer'];
+    const geste = l => {
+      const D = l.d, mois = x.t.moisNom;
+      if (lecture && ['sans', 'valider', 'prete', 'preparee', 'deposee'].includes(l.st)) return ['', 'texte', { sans: 'la tenue du dossier relance', valider: 'la tenue du dossier révise', prete: 'la tenue du dossier prépare', preparee: 'la tenue du dossier la dépose', deposee: '' }[l.st]];
+      return {
+        sans: D.manual ? ['saisie', true, 'Ouvrir sa saisie'] : ['relancer', true, 'Relancer'], saisir: ['saisie', true, 'Ouvrir sa saisie'], pieces: ['pieces', true, 'Ouvrir les pièces'],
+        valider: ['revision', true, `Réviser ${mois}`], prete: x.t.sorte === 'mens' ? ['declaration', true, 'Préparer'] : ['dossier', 'fantome', 'Ouvrir le dossier'],
+        preparee: ['deposer', true, 'Marquer déposée'], deposee: ['payer', true, 'Marquer payée'],
+        payee: x.t.sorte === 'mens' ? ['declaration', 'fantome', 'Sa déclaration'] : ['dossier', 'fantome', 'Ouvrir le dossier'], pointee: ['dossier', 'fantome', 'Ouvrir le dossier'],
+      }[l.st];
+    };
+    const filtrees = x.lignes.filter(l => st.filtre === 'tout' || (st.filtre === 'faire' ? !EC_FAIT(l.st) : EC_FAIT(l.st)));
+    const premier = filtrees.findIndex(l => geste(l)[1] === true);
+    const ligne = (l, i) => {
+      const [ton2, lib] = EC_ST[l.st];
+      const [quoi, actif, texte] = geste(l);
+      const btn = actif === 'texte' ? (texte ? `<span class="ec-qui">${esc(texte)}</span>` : '')
+        : `<button type="button" class="btn btn-sm${i === premier && !(hors && sansReseau.includes(quoi)) ? ' btn-primary' : ''}${actif === 'fantome' ? ' btn-ghost' : ''}" data-ec-geste="${quoi}" data-ec-d="${esc(l.d.id)}"${hors && sansReseau.includes(quoi) ? ' disabled title="Attend le retour du réseau"' : ''}>${esc(texte)}</button>`;
+      const suivi = suiviPar(l.d);
+      const ouvert = st.menu === l.d.id;
+      return `<div class="ec-r" data-d="${esc(l.d.id)}"><span class="ec-rd">${marqueD(l.d)}<span><b>${esc(l.d.name)}</b><small>${typeD(l.d)}${suivi ? `<span>suivi par ${esc(suivi)}</span>` : ''}</small></span></span>
+        <span class="ec-re"><span class="ec-st ${ton2}">${lib}</span>${l.sous ? `<small>${esc(l.sous)}</small>` : ''}</span>
+        <span class="ec-rm">${l.montant != null ? `<b>${enDinars(l.montant)} DT</b><small>${l.st === 'payee' ? 'payé' : EC_FAIT(l.st) || l.st === 'preparee' ? 'à payer' : 'provisoire'}</small>` : '<span class="muted">—</span>'}</span>
+        <span class="ec-rg">${btn}${lecture ? '' : `<span class="pc-menu-w"><button type="button" class="btn btn-sm btn-icone btn-ghost" data-ec-menu="${esc(l.d.id)}" aria-haspopup="menu" aria-expanded="${ouvert}" aria-label="Les autres gestes — ${esc(l.d.name)}">${EC_IC.trois}</button>${ouvert ? menuLigneEch(l, x) : ''}</span>`}</span></div>`;
+    };
+    const prets = x.lignes.filter(l => ['prete', 'preparee'].includes(l.st)).length, bloq = x.afaire - prets;
+    const resume = x.groupe === 'avenir' ? `<div class="ec-ban gris">${EC_IC.attente}<span><b>${esc(K.monthLabel(e.mois[0]).replace(/^./, c => c.toUpperCase()))} n'est pas terminé : rien n'est réclamé avant sa fin.</b> La déclaration se prépare dès que ses mois sont révisés.</span></div>`
+      : x.fait === x.lignes.length ? `<div class="ec-ban vert">${EC_IC.coche}<span><b>Tout est déposé pour ${esc(x.t.moisNom)}.</b></span></div>`
+        : `<div class="ec-som">${barre(x, true)}<span class="ec-som-l"><b>${x.fait} sur ${x.lignes.length}</b>${x.fait ? `<span><i class="ec-pt vert"></i>${pl(x.fait, 'déposée')}</span>` : ''}${prets ? `<span><i class="ec-pt sarcelle"></i>${prets} prête${prets > 1 ? 's' : ''} à déposer</span>` : ''}${bloq ? `<span><i class="ec-pt rouge"></i>${bloq} retenue${bloq > 1 ? 's' : ''} : ce qui manque est sur la ligne</span>` : ''}</span></div>`;
+    const puces = `<div class="pc-fl ec-fl" role="group" aria-label="Montrer">${[['tout', 'Tout', x.lignes.length], ['faire', 'À faire', x.afaire], ['deposees', 'Déposées', x.fait]].map(([k, t, n]) => `<button type="button" data-ec-filtre="${k}" aria-pressed="${st.filtre === k}">${t}<span>${n}</span></button>`).join('')}</div>`;
+    const filtres = x.lignes.length > 15 ? `<div class="ec-outils">${puces}<label class="pc-cherche"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="ec-q" placeholder="Chercher un dossier…" aria-label="Chercher un dossier" value="${esc(st.q)}"></label></div>`
+      : x.lignes.length < 4 ? '' : puces;
+    const tonTete = x.groupe === 'depose' ? 'vert' : x.groupe === 'avenir' || (x.groupe === 'bientot' && ton(x) === 'gris') ? 'gris' : 'rouge';
+    const contenu = x.t.sorte === 'mens' ? 'TVA, retenues à la source, TFP, FOPROLOS, droit de timbre : ce que chaque dossier doit, dans le même formulaire.' : x.t.sorte === 'cnss' ? esc(e.detail || 'Les cotisations du trimestre des dossiers employeurs.') : esc(e.detail || '');
+    const avert = x.groupe === 'retard' && x.t.sorte === 'mens' ? `<div class="ec-av"><div class="pc-avert rouge">${EC_IC.alerte}<span><b>Passé le ${jourMois(e.date)}, la ${esc(minuscule(x.t.court))} peut coûter des pénalités de retard</b> (À VÉRIFIER : leur calcul se lit dans le code des droits et procédures fiscaux ; rien n'est calculé ici). Elle se dépose dès qu'elle est prête.</span></div>${aideDebutDeMission([e])}</div>` : '';
+    // Au-delà de quinze dossiers : rangés par état, une recherche, les déposés repliés en une ligne.
+    const beaucoup = x.lignes.length > 15;
+    const q = st.q.trim().toLowerCase();
+    const cherchees = filtrees.filter(l => !q || l.d.name.toLowerCase().includes(q));
+    const TITRES = { sans: 'Rien reçu', saisir: 'À saisir au cabinet', pieces: 'Pièces à classer', valider: 'À réviser', prete: 'Prêtes à préparer', preparee: 'Préparées, à déposer', deposee: 'Déposées, à payer' };
+    let rang = 0;
+    const parEtat = () => Object.entries(TITRES).map(([k, t]) => {
+      const l = cherchees.filter(y => y.st === k);
+      if (!l.length) return '';
+      const tous = k === 'sans' && !lecture && l.length > 1 ? `<button type="button" class="pc-lien" data-ec-tous="sans">Relancer les ${l.length}</button>` : '';
+      return `<div class="ec-gr"><p class="ec-grt"><span class="ec-st ${EC_ST[k][0]}">${t}</span><span class="ec-grn">${l.length}</span>${tous}</p>${l.map(y => ligne(y, rang++)).join('')}</div>`;
+    }).join('');
+    const faits = cherchees.filter(y => ['payee', 'pointee'].includes(y.st));
+    const replieHtml = !faits.length ? '' : st.replie ? `<button type="button" class="ec-replie" id="ec-replie">${marqueD(faits[0].d, '')}<span class="ec-rp-t"><b>${pl(faits.length, 'déposée')}</b> · ${esc(faits[0].d.name)}${faits.length > 1 ? ` et ${pl(faits.length - 1, 'autre')}` : ''}</span><span class="pc-lien">Les voir</span></button>` : faits.map(y => ligne(y, -1)).join('');
+    const lignesHtml = x.groupe === 'avenir' ? lignesAVenir(e)
+      : beaucoup ? `${parEtat()}${replieHtml}${cherchees.length ? '' : `<p class="muted small" style="padding:12px 18px">Aucun dossier ne contient « ${esc(st.q)} ».</p>`}`
+        : `${filtrees.map(ligne).join('')}${filtrees.length ? '' : '<p class="muted small" style="padding:12px 18px">Aucun dossier dans ce filtre.</p>'}`;
+    const actionsTete = lecture || x.groupe === 'avenir' ? '' : `<div class="ec-dt-a"><span class="pc-menu-w"><button type="button" class="btn btn-sm btn-icone" data-ec-menu="@tete" aria-haspopup="menu" aria-expanded="${st.menu === '@tete'}" aria-label="Les gestes de la déclaration">${EC_IC.trois}</button>${st.menu === '@tete'
+      ? `<div class="row-menu ec-menu" role="menu"><button type="button" role="menuitem" id="ec-pointer"${hors ? ' disabled' : ''}><b>${x.pointee ? 'Annuler « toute déposée »' : `Marquer toute la ${esc(minuscule(x.t.court))} déposée…`}</b><span>${x.pointee ? 'Chaque dossier redevient ce qu\'il était' : 'Le pense-bête pour tous les dossiers d\'un coup'}</span></button><button type="button" role="menuitem" data-ec-geste="production"><b>Voir dans le tableau de bord</b><span>Les mois de chaque dossier, de la saisie à la déclaration</span></button></div>` : ''}</span></div>`;
+    const detail = `<section class="ec-det" aria-label="${esc(x.t.titre)}"><button type="button" class="pc-retour" id="ec-retour">${EC_IC.g} Échéances</button>
+      <div class="ec-dt"><div class="ec-dt-g"><h2>${esc(x.t.titre)}</h2><p>${x.groupe === 'depose' ? 'Date limite' : 'À déposer au plus tard le'} ${esc(new Date(e.date + 'T12:00:00Z').toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }))} <span class="ec-tag ${tonTete}">${esc(quandEch(e, x.groupe === 'depose'))}</span></p><small>${contenu}</small></div>${actionsTete}</div>
+      ${avert}${resume}${x.groupe === 'avenir' ? '' : filtres}<div class="ec-t" role="table"><div class="ec-th" role="row"><span>Dossier</span><span>Où il en est</span><span>Montant</span><span></span></div>${lignesHtml}</div>
+      <p class="ec-pied">Des pense-bêtes : SkanFact ne dépose rien à ta place et ne se connecte à aucune administration ${info('ec.depot')}. Jours proposés : le ${esc(K.deadlineSettings(S).tvaDay)} (déclaration mensuelle), le ${esc(K.deadlineSettings(S).cnssDay)} (CNSS), À VÉRIFIER${estAssocie() ? ', <a href="#/reglages" class="pc-lien">réglables dans Réglages</a>' : ''}.</p></section>`;
 
-      <div class="panel"><h2>À venir</h2>
-        ${prochaines.length ? `<div class="ech-list">${prochaines.map(carte).join('')}</div>`
-          : '<div class="empty mini">Rien dans les trois prochains mois.</div>'}</div>
+    const nD = mesDossiers().length;
+    const toutFait = !toutes.some(y => ['retard', 'jour', 'bientot'].includes(y.groupe));
+    const dernierFait = enGroupe('depose')[0];
+    const sousTitre = toutFait && dernierFait ? `Tout est déposé jusqu'à ${dernierFait.t.moisNom}.` : `${nPresse ? `${pl(nPresse, 'échéance')} en retard ou dans les 7 jours` : 'Rien en retard ni dans les 7 jours'}, pour ${pl(nD, 'dossier')}`;
+    const bandeauHors = hors ? '<div class="pr-ban gris"><b>Pas de réseau : ce poste montre ce qu\'il savait à sa dernière lecture.</b><span>Les dates et les dossiers se lisent ; « Marquer déposée » et les relances attendent le retour du réseau. Ce qu\'un collègue a déposé depuis n\'est pas encore là.</span></div>' : '';
+    view.innerHTML = `<div class="cab-page${st.ouverte ? ' ec-ouverte' : ''}" id="page-ech">${ctxCabinet()}
+      <div class="page-head"><div><h1>Échéances ${info('ec.dates')}</h1><p class="muted">${esc(sousTitre)}</p></div>
+        ${estAssocie() ? `<div class="actions"><a href="#/reglages" class="btn btn-sm">${EC_IC.jours} Les jours de dépôt</a></div>` : ''}</div>
+      ${bandeauHors}<div class="ec-grille">${colonne}${detail}</div></div>`;
 
-      ${passees.length ? `<div class="panel"><h2>Déjà passées ${info('ec.passees')}</h2>${aideMission}
-        <div class="ech-list">${passees.slice(0, 8).map(carte).join('')}</div></div>` : ''}`;
-
-    // Le pointage : on écrit, puis on propose de défaire. Au moment où l'on comprend qu'on s'est
-    // trompé de ligne, la carte a déjà changé de couleur — d'où le « Annuler » sous la main (7.12.0),
-    // et le bouton de la carte elle-même, qui reste le chemin du lendemain.
-    $$('[data-depot]', view).forEach(b2 => {
-      b2.onclick = async () => {
-        const cle = b2.dataset.depot;
-        const avant = ((S.settings || {}).depots || []).slice();
-        const apres = avant.includes(cle) ? avant.filter(x => x !== cle) : avant.concat([cle]);
-        // (plateforme) 1.80.0 — le pense-bête ne ment pas au lendemain : ce qui n'est pas prêt se lit avant le geste.
-        if (!avant.includes(cle) && b2.dataset.pasPrets && !await confirmDialog(`${b2.dataset.depotLab} n'est pas prête`,
-          `<p>Pas encore prête dans SkanFact : ${esc(b2.dataset.pasPrets)}.</p><p class="muted small">Tu l'as déposée autrement ? Marque-la déposée. Sinon, ouvre d'abord ces dossiers.</p>`,
-          'Marquer déposée quand même', false, 'Pas encore')) return;
-        const poser = async (liste, refaire) => {
-          try {
-            S = await api.saveCabinet({
-              name: (S.cabinet || {}).name || '', email: (S.cabinet || {}).email || '', phone: (S.cabinet || {}).phone || '',
-              settings: { depots: liste }
-            });
-            render();
-            if (refaire) toastUndo(liste.includes(cle) ? 'Échéance marquée déposée.' : 'Pointage annulé.', () => poser(avant, false));
-          } catch (e) { toast(plainError(e), 'error'); }
-        };
-        await poser(apres, true);
+    const redessiner = () => drawEcheances(view);
+    $$('[data-ech]', view).forEach(b => { b.onclick = () => { st.sel = b.dataset.ech; st.filtre = 'tout'; st.menu = ''; st.ouverte = true; redessiner(); if (matchMedia('(max-width: 760px)').matches) for (const el of [view, $('main'), document.scrollingElement]) if (el) el.scrollTop = 0; }; });
+    const dep = $('#ec-deposees', view); if (dep) dep.onclick = () => { st.deposees = true; redessiner(); };
+    $('#ec-retour', view).onclick = () => { st.ouverte = false; redessiner(); };
+    $$('[data-ec-filtre]', view).forEach(b => { b.onclick = () => { st.filtre = b.dataset.ecFiltre; redessiner(); }; });
+    $$('[data-ec-vue]', view).forEach(b => { b.onclick = () => { st.vue = b.dataset.ecVue; redessiner(); }; });
+    $$('[data-ec-cal]', view).forEach(b => { b.onclick = () => { st.moisCal = b.dataset.ecCal; redessiner(); }; });
+    const rp = $('#ec-replie', view); if (rp) rp.onclick = () => { st.replie = false; redessiner(); };
+    const cq = $('#ec-q', view);
+    if (cq) cq.oninput = () => { st.q = cq.value; redessiner(); const c = $('#ec-q', view); c.focus(); c.setSelectionRange(c.value.length, c.value.length); };
+    $$('[data-ec-menu]', view).forEach(b => { b.onclick = ev => { ev.stopPropagation(); st.menu = st.menu === b.dataset.ecMenu ? '' : b.dataset.ecMenu; redessiner(); }; });
+    $$('[data-portee-page]', view).forEach(b => { b.onclick = () => { prefs.set('portee', b.dataset.porteePage); render(); }; });
+    const dossierDe = id => (S.dossiers || []).find(d => d.id === id);
+    const annee = e.mois[e.mois.length - 1].slice(0, 4);
+    const aller = (id, chemin) => { prefs.set('dossierOuvert', id); location.hash = `#/dossier/${encodeURIComponent(id)}/${chemin}`; };
+    // Pointer une déclaration d'un dossier (déposée, payée), ou défaire : le serveur refait ses contrôles ; « Annuler » six secondes.
+    const pointer = async (id, quoi, defaire) => {
+      const periode = e.mois[e.mois.length - 1];
+      try {
+        await api.pointerDeclaration({ dossierId: id, annee, periode, quoi, valeur: defaire ? null : { le: K.today() } });
+        await chargerQuestionsAttente(false);
+        if (/^#\/echeances/.test(location.hash)) drawEcheances($('#view'));
+        const D = dossierDe(id);
+        if (!defaire) toastUndo(`${x.t.court} de ${D ? D.name : 'ce dossier'} : notée ${quoi === 'deposee' ? 'déposée' : 'payée'}.`, () => pointer(id, quoi, true));
+        else toast('Pointage annulé.');
+      } catch (err) { toast(plainError(err), 'error'); }
+    };
+    const GESTES = {
+      relancer: id => fenRelancer(dossierDe(id), toutes),
+      'marquer-sans-livre': id => fenPasPrete(dossierDe(id), x, () => chargerQuestionsAttente(false).then(() => { if (/^#\/echeances/.test(location.hash)) drawEcheances($('#view')); })),
+      saisie: id => aller(id, 'comptabilite/saisie'), revision: id => aller(id, 'comptabilite/revision'),
+      declaration: id => aller(id, `comptabilite/declaration/${annee}`), dossier: id => aller(id, 'fiche'),
+      pieces: id => { location.hash = `#/pieces/${encodeURIComponent(id)}`; },
+      deposer: id => fenDeposer(x.lignes.find(l => l.d.id === id), x, toutes, async (le, reference, payee) => {
+        const periode = e.mois[e.mois.length - 1];
+        try {
+          await api.pointerDeclaration({ dossierId: id, annee, periode, quoi: 'deposee', valeur: { le, reference } });
+          if (payee) await api.pointerDeclaration({ dossierId: id, annee, periode, quoi: 'payee', valeur: { le } });
+          await chargerQuestionsAttente(false);
+          if (/^#\/echeances/.test(location.hash)) drawEcheances($('#view'));
+          const D = dossierDe(id);
+          toastUndo(`${x.t.court} de ${D ? D.name : 'ce dossier'} : marquée déposée${payee ? ' et payée' : ''}.`, () => pointer(id, 'deposee', true));
+        } catch (err) { toast(plainError(err), 'error'); }
+      }),
+      payer: id => pointer(id, 'payee'),
+      'annuler-depot': id => pointer(id, 'deposee', true),
+      'annuler-pointage': () => { if (st.basculerPointage) st.basculerPointage(); },
+      ecrire: id => { location.hash = `#/messages/${encodeURIComponent(id)}`; },
+      production: () => { location.hash = '#/production'; },
+    };
+    $$('[data-ec-geste]', view).forEach(b => { b.onclick = () => { const ouvert = !!st.menu; st.menu = ''; if (ouvert) redessiner(); const f = GESTES[b.dataset.ecGeste]; if (f) f(b.dataset.ecD); }; });
+    // « Relancer les N » : les Relances avec ces dossiers-là, pas la page entière.
+    $$('[data-ec-tous]', view).forEach(b => { b.onclick = () => { relState.seulement = x.lignes.filter(l => l.st === 'sans').map(l => l.d.name); relState.pg.page = 1; relState.depuis = x.t.titre; vers('#/relances'); }; });
+    // Le pense-bête de toute une échéance (la CNSS) : comme avant, dans les réglages du cabinet.
+    const bp = $('#ec-pointer', view);
+    // (1.168.0) Le même geste depuis la ligne d'un dossier pointé : « Annuler « déposée » » défait le pense-bête entier.
+    const basculerPointage = async () => {
+      const avant = ((S.settings || {}).depots || []).slice();
+      const poser = async (l, refaire) => {
+        try {
+          S = await api.saveCabinet({ name: (S.cabinet || {}).name || '', email: (S.cabinet || {}).email || '', phone: (S.cabinet || {}).phone || '', settings: { depots: l } });
+          render();
+          if (refaire) toastUndo(l.includes(x.cle) ? `${x.t.court} : marquée déposée.` : 'Pointage annulé.', () => poser(avant, false));
+        } catch (err) { toast(plainError(err), 'error'); }
       };
-    });
-
-    // « Relancer ces N clients » : on emmène aux Relances avec la sélection POSÉE, pas la page
-    // entière. Le lien d'avant nommait un ensemble et en ouvrait un autre.
-    $$('[data-relq]', view).forEach(b2 => {
-      b2.onclick = () => {
-        const e = liste.find(x => K.cleEcheance(x) === b2.dataset.relq);
-        relState.seulement = e ? e.manquants.slice() : null; relState.pg.page = 1;
-        relState.depuis = e ? e.label : '';
-        vers('#/relances');
-      };
-    });
-    $$('[data-saisir-tenu]', view).forEach(b2 => {
-      b2.onclick = () => { location.hash = '#/dossier/' + encodeURIComponent(b2.dataset.saisirTenu) + '/comptabilite/saisie'; };
-    });
-    $$('[data-vers-production]', view).forEach(b2 => { b2.onclick = () => { location.hash = '#/production'; }; });
-    $$('[data-valider-dossier]', view).forEach(b2 => {
-      b2.onclick = () => { location.hash = '#/dossier/' + encodeURIComponent(b2.dataset.validerDossier) + '/comptabilite/saisie/' + b2.dataset.annee; };
-    });
+      st.menu = '';
+      redessiner();
+      if (x.pointee) { await poser(avant.filter(k => k !== x.cle), true); return; }
+      if (!bloq) { await poser(avant.concat([x.cle]), true); return; }
+      fenToute(x, () => poser(avant.concat([x.cle]), true));
+    };
+    if (bp) bp.onclick = basculerPointage;
+    st.basculerPointage = basculerPointage;
     brancherAideDebutDeMission(view);
+  }
+  const suiviPar = d => {
+    const droits = d.droits || {};
+    // Qui tient le dossier : le premier nommé dans ses droits (la tenue des dossiers ou la saisie), soi compris.
+    const rang = r => ({ revision: 0, saisie: 1, paie: 2, supervision: 3 }[r] ?? 4);
+    const ids = Object.keys(droits).sort((a, b) => rang(droits[a]) - rang(droits[b]));
+    const noms = ids.map(id => ((S.collaborateurs || []).find(c => c.id === id) || {}).nom).filter(Boolean);
+    return noms.length ? noms[0].split(' ')[0] : '';
+  };
+  function lignesAVenir(e) {
+    return mesDossiers().filter(d => !d.archived).map(d => {
+      const n = e.mois.reduce((s, m) => s + ecrituresConnues(d.id, m), 0);
+      return `<div class="ec-r doux"><span class="ec-rd">${marqueD(d)}<span><b>${esc(d.name)}</b><small>${typeD(d)}</small></span></span><span class="ec-re"><span class="ec-st gris">Le mois continue</span><small>${n ? `${pl(n, 'écriture')} déjà là` : 'rien pour l\'instant'}</small></span><span class="ec-rm"><span class="muted">—</span></span><span class="ec-rg"></span></div>`;
+    }).join('');
+  }
+  function menuLigneEch(l, x) {
+    const D = l.d;
+    const o = [
+      x.t.sorte === 'mens' && ['sans', 'saisir', 'pieces', 'valider', 'prete'].includes(l.st) ? ['marquer-sans-livre', 'Marquer déposée…', 'Déposée avec des pièces reçues ailleurs, ou néant'] : null,
+      x.t.sorte === 'mens' ? ['declaration', 'Ouvrir sa déclaration', 'Les cases du formulaire, à copier pour le portail'] : null,
+      ['dossier', 'Ouvrir le dossier', D.name],
+      ['production', 'Voir dans le tableau de bord', 'Ses mois, de la saisie à la déclaration'],
+      D.manual ? null : ['ecrire', 'Écrire au client', 'Un message dans votre conversation, sans demande'],
+      x.t.sorte === 'mens' && ['deposee', 'payee'].includes(l.st) ? ['annuler-depot', 'Annuler « déposée »', 'Le pense-bête se défait ; la déclaration reste préparée'] : null,
+      l.st === 'pointee' && x.pointee ? ['annuler-pointage', 'Annuler « déposée »', 'Le pense-bête de toute la déclaration se défait'] : null,
+    ].filter(Boolean);
+    return `<div class="row-menu ec-menu" role="menu">${o.map(([g, t, d]) => `<button type="button" role="menuitem" data-ec-geste="${g}" data-ec-d="${esc(D.id)}"><b>${esc(t)}</b><span>${esc(d)}</span></button>`).join('')}</div>`;
+  }
+  document.addEventListener('click', ev => {
+    if (!echState.menu || !/^#\/echeances/.test(location.hash) || ev.target.closest('.pc-menu-w')) return;
+    echState.menu = '';
+    drawEcheances($('#view'));
+  });
+
+  // La vue « Mois » : le mois en grille, un point par déclaration (rouge s'il reste à faire, vert si déposée), puis la liste des jours.
+  function calendrierEch(toutes, choisie, item) {
+    const st = echState;
+    const m = st.moisCal || K.today().slice(0, 7);
+    const [a, mm] = m.split('-').map(Number);
+    const premier = (new Date(Date.UTC(a, mm - 1, 1)).getUTCDay() + 6) % 7;
+    const nbJours = new Date(Date.UTC(a, mm, 0)).getUTCDate();
+    const duMois = toutes.filter(x => x.e.date.slice(0, 7) === m);
+    const auj = K.today();
+    let cases = '<span class="ec-cj hors"></span>'.repeat(premier);
+    for (let d = 1; d <= nbJours; d++) {
+      const jour = `${m}-${String(d).padStart(2, '0')}`;
+      const ici = duMois.filter(x => x.e.date === jour);
+      const we = [5, 6].includes((premier + d - 1) % 7);
+      cases += `<span class="ec-cj${jour === auj ? ' auj' : ''}${we ? ' we' : ''}"><b>${d}</b>${ici.length ? `<span class="ec-cpts">${ici.map(x => `<b class="ec-pt ${x.groupe === 'depose' ? 'vert' : x.groupe === 'avenir' ? 'gris' : 'rouge'}"></b>`).join('')}</span>` : ''}</span>`;
+    }
+    const jours = [...new Set(duMois.map(x => x.e.date))].sort();
+    const avant = toutes.filter(x => x.e.date.slice(0, 7) < m && x.groupe === 'retard');
+    return `<div class="ec-cal"><div class="ec-cal-t"><button type="button" class="btn btn-sm btn-icone" data-ec-cal="${K.addMonth(m, -1)}" aria-label="Mois précédent">${EC_IC.g}</button><b>${esc(K.monthLabel(m).replace(/^./, c => c.toUpperCase()))}</b><button type="button" class="btn btn-sm btn-icone" data-ec-cal="${K.addMonth(m, 1)}" aria-label="Mois suivant">${EC_IC.d}</button></div>
+      <div class="ec-cal-g">${['lun.', 'mar.', 'mer.', 'jeu.', 'ven.', 'sam.', 'dim.'].map(j => `<span class="ec-cjt">${j}</span>`).join('')}${cases}</div>
+      <div class="ec-jours">${jours.map(j => `<p class="ec-jt">${esc(new Date(j + 'T12:00:00Z').toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long', day: 'numeric' }).replace(/^./, c => c.toUpperCase()))}${j === auj ? ' · aujourd\'hui' : ''}</p>${duMois.filter(x => x.e.date === j).map(item).join('')}`).join('') || '<p class="muted small">Aucune déclaration ce mois-ci.</p>'}</div>
+      ${avant.length ? `<p class="ec-cal-p"><i class="ec-pt rouge"></i><span>Encore en retard, d'un mois d'avant : ${avant.slice(0, 3).map(x => `la <b>${esc(minuscule(x.t.court))}</b> (${jourMois(x.e.date)})`).join(', ')}.</span></p>` : ''}</div>`;
+  }
+  // Ce qu'on attend d'un dossier qui n'a rien envoyé : les mois sans pièces, des déclarations à faire.
+  function moisAttendus(D, toutes) {
+    return [...new Set(toutes.filter(x => !x.e.avenir && x.lignes.some(l => l.d.id === D.id && l.st === 'sans')).flatMap(x => x.e.id === 'tva-m' ? x.e.mois : []))].sort();
+  }
+  // Relancer : le message prêt, relu ; ce qu'on attend devient des demandes datées dans la conversation.
+  function fenRelancer(D, toutes) {
+    if (!D) return;
+    const mois = moisAttendus(D, toutes);
+    const noms = mois.map(m => K.monthLabel(m).split(' ')[0]);
+    const lesMois = noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0] || 'du mois';
+    const attendus = [`Ses ventes et ses achats ${K.de(lesMois)}, enregistrés dans SkanFact`, `Les relevés bancaires ${K.de(lesMois)}`];
+    const pour = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
+    const retard = toutes.filter(x => x.groupe === 'retard' && x.lignes.some(l => l.d.id === D.id && l.st === 'sans')).sort((a, b) => (a.t.sorte === 'mens' ? 0 : 1) - (b.t.sorte === 'mens' ? 0 : 1))[0];
+    const texte = `Bonjour, pour tenir votre comptabilité à jour, il me manque vos pièces ${K.de(lesMois)}${retard ? ` : la ${minuscule(retard.t.court)} est en retard depuis le ${jourMois(retard.e.date)}` : ''}. Il vous suffit d'enregistrer vos ventes et vos achats dans SkanFact : je les vois dans vos livres dès qu'ils y sont, sans rien avoir à m'envoyer. Seuls vos relevés bancaires sont à joindre. Bien à vous, ${(S.cabinet || {}).name || 'votre cabinet'}`;
+    modal(`<h2>Relancer ${esc(D.name)}</h2><p class="muted pc-m-sous">Relis le message, change ce que tu veux, puis choisis par où il part.</p>
+      <div class="field"><span>Ce qu'on attend</span><span class="ec-dems">${attendus.map((t, i) => `<label><input type="checkbox" data-ec-att="${i}" checked> ${esc(t)}</label>`).join('')}</span></div>
+      <label class="field"><span>Pour le</span><input type="date" id="ec-pour" value="${pour}" min="${K.today()}"></label>
+      <label class="field"><span>Le message</span><textarea class="pc-txt" id="ec-msg" rows="6" maxlength="4000">${esc(texte)}</textarea></label>
+      <div class="field"><span class="ec-lab">Par où</span><div class="pc-chips" role="group" aria-label="Par où"><button type="button" data-ec-par="fil" aria-pressed="true">Votre conversation SkanFact</button><button type="button" data-ec-par="mail" aria-pressed="false">Ma messagerie (e-mail)</button><button type="button" data-ec-par="whatsapp" aria-pressed="false">WhatsApp</button><button type="button" data-ec-par="copier" aria-pressed="false">Copier le texte</button></div></div>
+      <p class="pc-note" id="ec-par-note">Dans la conversation, chaque pièce attendue devient une demande datée, qui se coche quand elle arrive.</p>
+      <div class="modal-actions"><button type="button" class="btn" id="ec-rel-non">Annuler</button><button type="button" class="btn btn-primary" id="ok">Envoyer la relance</button></div>`,
+    (layer, close) => {
+      let par = 'fil';
+      const NOTES = { fil: 'Dans la conversation, chaque pièce attendue devient une demande datée, qui se coche quand elle arrive.', mail: 'Le message s\'ouvre tout prêt dans ta messagerie ; SkanFact ne garde pas de trace de cet envoi.', whatsapp: 'Le message s\'ouvre tout prêt dans WhatsApp ; SkanFact ne garde pas de trace de cet envoi.', copier: 'Le texte se copie ; tu le colles où tu veux.' };
+      const BOUTON = { fil: 'Envoyer la relance', mail: 'Ouvrir ma messagerie', whatsapp: 'Ouvrir WhatsApp', copier: 'Copier le texte' };
+      $$('[data-ec-par]', layer).forEach(b => { b.onclick = () => { par = b.dataset.ecPar; $$('[data-ec-par]', layer).forEach(c => c.setAttribute('aria-pressed', String(c === b))); $('#ec-par-note', layer).textContent = NOTES[par]; $('#ok', layer).textContent = BOUTON[par]; }; });
+      $('#ec-rel-non', layer).onclick = close;
+      $('#ok', layer).onclick = async () => {
+        const t = $('#ec-msg', layer).value.trim();
+        if (!t) { toast('Écris le message avant de l\'envoyer.', 'error'); $('#ec-msg', layer).focus(); return; }
+        const demandes = $$('[data-ec-att]', layer).filter(c => c.checked).map(c => attendus[Number(c.dataset.ecAtt)]);
+        if (par === 'copier') { try { await navigator.clipboard.writeText(t); toast('Texte copié.'); close(); } catch { $('#ec-msg', layer).select(); toast('Sélectionné : copie-le avec Ctrl C.'); } return; }
+        if (par === 'mail') { location.href = `mailto:?subject=${encodeURIComponent('Vos pièces à envoyer')}&body=${encodeURIComponent(t)}`; close(); return; }
+        if (par === 'whatsapp') { window.open(`https://wa.me/?text=${encodeURIComponent(t)}`, '_blank', 'noopener'); close(); return; }
+        $('#ok', layer).disabled = true;
+        try {
+          await api.relancerDossier(D.id, t, demandes, $('#ec-pour', layer).value || null);
+          close();
+          toast(`Relance partie à ${D.name}${demandes.length ? ` : ${pl(demandes.length, 'demande')} pour le ${jourMois($('#ec-pour', layer).value || K.today())}` : ''}.`);
+        } catch (x) { $('#ok', layer).disabled = false; toast(plainError(x), 'error'); }
+      };
+    });
+  }
+  // Marquer déposée une déclaration préparée : la date, le paiement, l'accusé ; ce qui reste dû avant se lit d'abord.
+  function fenDeposer(l, x, toutes, valider) {
+    if (!l) return;
+    const D = l.d;
+    const avant = toutes.find(y => y !== x && y.t.sorte === 'mens' && y.e.date < x.e.date && y.lignes.some(z => z.d.id === D.id && !EC_FAIT(z.st)));
+    modal(`<h2>La ${esc(minuscule(x.t.court))} est déposée ? ${info('ec.depot')}</h2><p class="muted pc-m-sous">${esc(D.name)} · un pense-bête : SkanFact ne dépose rien à ta place.</p>
+      <div class="pc-champs"><label class="field"><span>Déposée le</span><input type="date" id="ec-le" value="${K.today()}" max="${K.today()}"></label><label class="field"><span>Montant de la déclaration</span><b class="ec-m">${l.montant != null ? `${enDinars(l.montant)} DT` : '—'}</b></label></div>
+      <div class="field"><span class="ec-lab">Le paiement</span><div class="pc-chips" role="group" aria-label="Le paiement"><button type="button" data-ec-paye="1" aria-pressed="true">Payée le même jour</button><button type="button" data-ec-paye="0" aria-pressed="false">Pas encore</button></div></div>
+      ${avant ? `<div class="pc-avert ambre">${EC_IC.alerte}<span><b>La ${esc(minuscule(avant.t.court))} n'est pas encore déposée pour ${esc(D.name)}.</b> Un crédit de TVA d'un mois se reporte sur le suivant : vérifie le montant une fois l'autre mois révisé.</span></div>` : ''}
+      <label class="field"><span>N° de l'accusé (facultatif)</span><input type="text" id="ec-ref" maxlength="100" placeholder="recopié du portail"></label>
+      <p class="pc-note">Le paiement ne s'écrit pas dans les livres : il viendra du relevé bancaire, sinon il compterait deux fois.</p>
+      <div class="modal-actions"><button type="button" class="btn" id="ec-dep-non">Annuler</button><button type="button" class="btn btn-primary" id="ok">Marquer déposée</button></div>`,
+    (layer, close) => {
+      let paye = true;
+      $$('[data-ec-paye]', layer).forEach(b => { b.onclick = () => { paye = b.dataset.ecPaye === '1'; $$('[data-ec-paye]', layer).forEach(c => c.setAttribute('aria-pressed', String(c === b))); }; });
+      $('#ec-dep-non', layer).onclick = close;
+      $('#ok', layer).onclick = () => { const le = $('#ec-le', layer).value || K.today(); const ref = $('#ec-ref', layer).value.trim(); close(); valider(le, ref, paye); };
+    });
+  }
+  // Un dossier qui n'a rien de prêt dans SkanFact, déposé quand même : néant, ou avec des pièces reçues ailleurs.
+  function fenPasPrete(D, x, apres) {
+    if (!D) return;
+    const periode = x.e.mois[x.e.mois.length - 1];
+    modal(`<h2>${esc(D.name)} n'a rien de prêt pour ${esc(x.t.moisNom)}</h2><p class="muted pc-m-sous">La déclaration a été déposée quand même ?</p>
+      <div class="pc-choix"><button type="button" class="pc-ch" data-ec-choix="neant"><b>Néant : aucune activité en ${esc(x.t.moisNom)}</b><span>Seulement si le client te l'a confirmé. La relance s'arrête pour ${esc(x.t.moisNom)}.</span></button>
+      <button type="button" class="pc-ch" data-ec-choix="ailleurs"><b>Avec des pièces reçues hors de SkanFact</b><span>Sur papier ou par e-mail. Elles restent à saisir : le mois reste « à saisir » dans sa comptabilité.</span></button></div>
+      <div class="pc-champs"><label class="field"><span>Déposée le</span><input type="date" id="ec-le" value="${K.today()}" max="${K.today()}"></label><label class="field"><span>Montant (DT)</span><input type="text" inputmode="decimal" id="ec-montant" value="0,000"></label></div>
+      <div class="modal-actions"><button type="button" class="btn" id="ec-pp-non">Pas encore</button><button type="button" class="btn btn-primary" id="ok" disabled title="Choisis d'abord ce qui a été déposé">Marquer déposée</button></div>`,
+    (layer, close) => {
+      let choix = '';
+      $$('[data-ec-choix]', layer).forEach(b => { b.onclick = () => { choix = b.dataset.ecChoix; $$('[data-ec-choix]', layer).forEach(c => c.classList.toggle('ici', c === b)); $('#ok', layer).disabled = false; $('#ok', layer).removeAttribute('title'); if (choix === 'neant') $('#ec-montant', layer).value = '0,000'; }; });
+      $('#ec-pp-non', layer).onclick = close;
+      $('#ok', layer).onclick = async () => {
+        $('#ok', layer).disabled = true;
+        try {
+          await api.declarerHorsLivre({ dossierId: D.id, periode, le: $('#ec-le', layer).value || K.today(), montant: choix === 'neant' ? '0' : $('#ec-montant', layer).value });
+          close();
+          toast(`${x.t.court} de ${D.name} : marquée déposée${choix === 'neant' ? ' (néant)' : ''}.`);
+          apres();
+        } catch (err) { $('#ok', layer).disabled = false; toast(plainError(err), 'error'); }
+      };
+    });
+  }
+  // Toute la déclaration d'un coup : ce qui n'est pas prêt se lit avant ; le geste sûr est « Annuler ».
+  function fenToute(x, valider) {
+    const pasPrets = x.lignes.filter(l => !EC_FAIT(l.st) && !['prete', 'preparee'].includes(l.st));
+    const parEtat = k => pasPrets.filter(l => l.st === k).map(l => l.d.name);
+    const phrases = [[parEtat('sans'), 'n\'ont rien envoyé', 'n\'a rien envoyé'], [parEtat('saisir'), 'sont à saisir', 'est à saisir'], [parEtat('pieces'), 'ont des pièces à classer', 'a des pièces à classer'], [parEtat('valider'), 'sont à réviser', 'est à réviser']]
+      .filter(([l]) => l.length).map(([l, p, u]) => `${l.length > 1 ? `${l.length} ${p} (${l.join(', ')})` : `${l[0]} ${u}`}`);
+    modal(`<h2>Marquer toute la ${esc(minuscule(x.t.court))} déposée ?</h2><p class="muted pc-m-sous">Le pense-bête pour chaque dossier d'un coup.</p>
+      <div class="pc-avert ambre">${EC_IC.alerte}<span><b>Elle n'est pas prête pour ${pl(pasPrets.length, 'dossier')}</b> : ${esc(phrases.join(', '))}. Les marquer déposés ferait taire leur relance.</span></div>
+      <p class="pc-note">Si tu les as déposées quand même (pièces reçues ailleurs, ou néant), pointe-les plutôt sur leur ligne : chacune garde sa date et son paiement.</p>
+      <div class="modal-actions"><button type="button" class="btn btn-primary" id="ok">Annuler</button><button type="button" class="btn" id="ec-toute-oui">Marquer déposée quand même</button></div>`,
+    (layer, close) => {
+      $('#ok', layer).onclick = close;
+      $('#ec-toute-oui', layer).onclick = () => { close(); valider(); };
+    });
   }
 
   // ---------- écritures regroupées ----------
@@ -12852,16 +13511,26 @@
   const tenusConnus = () => Object.fromEntries(questionsAttente.filter(q => q.tenu).map(q => [q.dossierId, q.tenu]));
   // Les mois dont la déclaration est notée déposée dans le livre de chaque client (10.14.1).
   const declaresConnus = () => Object.fromEntries(questionsAttente.filter(q => (q.declares || []).length).map(q => [q.dossierId, q.declares]));
+  // (1.168.0) Ce que le serveur sait d'un mois d'un dossier : sa déclaration, ses écritures, celles au brouillard.
+  const moisConnu = (id, m) => ((questionsAttente.find(q => q.dossierId === id) || {}).mois || {})[m] || null;
+  const declarationConnue = (id, m) => (moisConnu(id, m) || {}).declaration || null;
+  const brouillardsConnus = (id, m) => Number((moisConnu(id, m) || {}).brouillards || 0);
+  const ecrituresConnues = (id, m) => Number((moisConnu(id, m) || {}).ecritures || 0);
   // (plateforme) 1.138.0 — la lecture refusée se retient : les Échéances disaient « Aucune échéance à suivre » d'une
   // lecture qui avait échoué (UX 2). Ce qu'on savait avant reste, plutôt qu'une liste vide.
   let questionsAttenteRefus = null;
+  // (1.168.0) Lu au moins une fois : avant, les Échéances se dessinent en squelette, sans rien affirmer.
+  let questionsAttenteLues = false;
   function chargerQuestionsAttente(redessiner) {
     if (!api.questionsEnAttente) return Promise.resolve();
     const avant = JSON.stringify(questionsAttente);
     return api.questionsEnAttente().then(r => {
+      // La première lecture redessine toujours, même vide : les Échéances quittent leur squelette.
+      const premiere = !questionsAttenteLues;
       questionsAttenteRefus = null;
+      questionsAttenteLues = true;
       questionsAttente = Array.isArray(r) ? r : [];
-      if (redessiner && JSON.stringify(questionsAttente) !== avant && !$('#modal-root').children.length && !$('#palette-root')) render();
+      if (redessiner && ((premiere && location.hash.startsWith('#/echeances')) || JSON.stringify(questionsAttente) !== avant) && !$('#modal-root').children.length && !$('#palette-root')) render();
     }).catch(x => {
       const deja = questionsAttenteRefus;
       questionsAttenteRefus = x;
@@ -13825,7 +14494,7 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
       { kind: 'page', main: 'Relances', go: () => { location.hash = '#/relances'; } },
       { kind: 'page', main: 'Échéances', go: () => { location.hash = '#/echeances'; } },
       { kind: 'page', main: 'Écritures — exporter un mois', text: 'export exporter regrouper cabinet', go: () => { location.hash = '#/ecritures'; } },
-      { kind: 'page', main: 'Production', text: 'tableau avancement portefeuille', go: () => { location.hash = '#/production'; } },
+      { kind: 'page', main: 'Tableau de bord', text: 'tableau de bord avancement production portefeuille', go: () => { location.hash = '#/production'; } },
       // Un réglage par PANNEAU, engendré depuis REG_PANNEAUX : taper « clé de secours » mène au
       // panneau Sécurité, pas en haut d'une page. Une liste écrite à la main se périmerait au
       // prochain découpage — c'est exactement ce qui est arrivé côté entreprise en 7.30.0.

@@ -424,37 +424,51 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       if (!(await tx.query('select exists (select 1 from socle.mes_organisations() o where o = $1) v', [params.cabinet])).rows[0].v) return introuvable;
       const aClasser = query.classees !== '1';
       const lignes = (await tx.query(`select m.id, m.entreprise, m.auteur_nom, m.texte, m.achat_libelle, m.ecrit_le, m.classee_le,
-          m.classee_par, fi.id fichier, fi.nom fichier_nom, fi.type fichier_type, length(fi.contenu) fichier_taille, d.demande
+          m.classee_par, m.classee_raison, m.classee_note, fi.id fichier, fi.nom fichier_nom, fi.type fichier_type, length(fi.contenu) fichier_taille, d.demande
         from messagerie.message m
         join messagerie.fichier fi on fi.id = m.fichier
         left join messagerie.message d on d.id = m.repond_a
        where m.cabinet = $1 and m.cote = 'entreprise' and (m.classee_le is null) = $2
        order by coalesce(m.classee_le, m.ecrit_le) desc, m.id desc limit 201`, [params.cabinet, aClasser])).rows as
         { id: string; entreprise: string; auteur_nom: string; texte: string; achat_libelle: string | null; ecrit_le: Date; classee_le: Date | null;
-          classee_par: string | null; fichier: string; fichier_nom: string; fichier_type: string; fichier_taille: number; demande: string | null }[];
+          classee_par: string | null; classee_raison: string | null; classee_note: string | null; fichier: string; fichier_nom: string; fichier_type: string; fichier_taille: number; demande: string | null }[];
       const compte = Number((await tx.query(`select count(*) n from messagerie.message m
         where m.cabinet = $1 and m.cote = 'entreprise' and m.fichier is not null and m.classee_le is null`, [params.cabinet])).rows[0].n);
+      // (1.167.0) Les demandes du cabinet encore ouvertes, et celles reçues ces trois derniers jours : la page les montre
+      // au-dessus de la pièce ouverte (« Demandes en cours »). La même règle du fil : un dossier qu'on ne lit pas n'y est pas.
+      const demandes = aClasser ? (await tx.query(`select m.id, m.entreprise, m.demande, m.demande_recue_le, m.demande_pour, m.ecrit_le
+        from messagerie.message m
+       where m.cabinet = $1 and m.cote = 'cabinet' and m.demande is not null
+         and (m.demande_recue_le is null or m.demande_recue_le > now() - interval '3 days')
+       order by m.ecrit_le desc, m.id desc limit 200`, [params.cabinet])).rows as
+        { id: string; entreprise: string; demande: string; demande_recue_le: Date | null; demande_pour: string | null; ecrit_le: Date }[] : [];
       return {
         corps: {
           aClasser: compte,
           plus: lignes.length > 200,
+          demandes: demandes.map((d) => ({ id: d.id, entreprise: d.entreprise, texte: d.demande, demandeeLe: d.ecrit_le.toISOString(),
+            recueLe: d.demande_recue_le?.toISOString() ?? null, pour: d.demande_pour })),
           pieces: lignes.slice(0, 200).map((l) => ({
             id: l.id, entreprise: l.entreprise, de: l.auteur_nom, texte: l.texte, recueLe: l.ecrit_le.toISOString(),
             fichier: { id: l.fichier, nom: l.fichier_nom, type: l.fichier_type, taille: Number(l.fichier_taille) },
             demande: l.demande, achat: l.achat_libelle, classeeLe: l.classee_le ? l.classee_le.toISOString() : null, classeePar: l.classee_par,
+            raison: l.classee_raison, note: l.classee_note,
           })),
         },
       };
     },
   });
-  // Classer une pièce reçue, ou défaire (`classee: false`) : la base refait le contrôle (0175).
+  // Classer une pièce reçue, ou défaire (`classee: false`) : la base refait le contrôle (0175). La raison et la note
+  // (0179) disent ce qu'on en a fait ; elles s'effacent quand on défait.
   ajouter({
     methode: 'POST', chemin: '/entreprises/:entreprise/messages/:message/classee', geste: 'messagerie.ecrire',
-    corps: z.object({ classee: z.boolean() }).strict(),
+    corps: z.object({ classee: z.boolean(), raison: z.enum(['saisie', 'verifiee', 'rien', 'double', 'illisible', 'banque', 'client']).optional(),
+      note: z.string().max(300).optional() }).strict(),
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
       if (!uuid.safeParse(params.message).success) return introuvable;
-      await tx.query('select messagerie.classer_piece($1, $2, $3)', [params.entreprise ?? '', params.message, corps.classee]);
+      await tx.query('select messagerie.classer_piece($1, $2, $3, $4, $5)',
+        [params.entreprise ?? '', params.message, corps.classee, corps.raison ?? null, corps.note ?? null]);
       return { corps: { classee: corps.classee } };
     },
   });

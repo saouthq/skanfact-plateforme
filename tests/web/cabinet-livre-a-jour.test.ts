@@ -3,8 +3,8 @@
 //   - en revenant sur la fenêtre, « Consulter » compte le nouveau brouillard sans recharger la page ;
 //   - en passant à « Déclarer », l'en-tête du livre et la déclaration sont lus au même moment : un seul chiffre ;
 //   - pendant une saisie, rien ne se redessine sous la main ;
-//   - (1.80.0) aux Échéances, une déclaration pas prête le dit avant d'être marquée déposée ; le client à valider y est
-//     nommé, et « Valider ses écritures » ouvre sa saisie ;
+//   - (1.80.0, 1.168.0) aux Échéances, une déclaration pas prête le dit avant d'être marquée déposée ; le client à réviser
+//     y a sa ligne, et « Réviser » ouvre sa révision ;
 //   - (1.82.0) l'en-tête du dossier dit le mois à valider, et l'efface une fois tout validé ;
 //   - (1.102.0) la Paie se relit aussi : le salarié que le client vient de déclarer paraît en revenant sur la fenêtre.
 
@@ -146,24 +146,26 @@ describe('le livre d\'un dossier se relit quand il a bougé, à la souris', () =
     const moisDernier = new Date(premierDuMois.getTime() - 5 * 86_400_000).toISOString().slice(0, 10);
     await envoyer([{ ...frais('m5', '1.5'), contenu: { ...frais('m5', '1.5').contenu, date: moisDernier } }]);
     await p.reload();
-    const depot = p.locator('[data-depot]').first();
-    await depot.waitFor({ timeout: 15_000 });
+    // (1.168.0) Les Échéances de la maquette : le dossier « à réviser » sur sa ligne, avec son geste ; marquer toute la
+    // déclaration déposée dit d'abord pour qui elle n'est pas prête.
+    const ligne = p.locator('#page-ech .ec-det .ec-r').filter({ hasText: 'Droguerie du Port' });
+    await ligne.waitFor({ timeout: 15_000 });
     for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
-    expect(await depot.innerText()).toBe('Marquer déposée');
-    // (1.80.0) Le client « à valider » est nommé sous la carte, avec le geste qui mène à sa saisie.
-    expect(await p.locator('.ech-qui').first().innerText()).toMatch(/^Droguerie du Port\s*Valider ses écritures$/);
-    await depot.click();
+    expect(await ligne.innerText()).toMatch(/À réviser/);
+    await p.getByRole('button', { name: 'Les gestes de la déclaration' }).click();
+    await p.getByRole('menuitem', { name: /Marquer toute/ }).click();
     const fenetre = p.locator('#modal-root .modal').last();
-    await expect.poll(() => fenetre.locator('h2').innerText()).toMatch(/n'est pas prête$/);
-    expect(await fenetre.innerText()).toMatch(/Pas encore prête dans SkanFact\s*:\s*1 client à valider\./);
-    await fenetre.getByRole('button', { name: 'Pas encore', exact: true }).click();
-    await p.waitForTimeout(500);
-    expect(await p.locator('[data-depot]').first().innerText()).toBe('Marquer déposée');
-    await p.locator('[data-depot]').first().click();
-    await p.locator('#modal-root .modal').last().getByRole('button', { name: 'Marquer déposée quand même', exact: true }).click();
-    await expect.poll(() => p.locator('[data-depot]').first().innerText()).toBe('Annuler « déposée »');
-    await p.locator('[data-valider-dossier]').first().click();
-    await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/dossier/${ent}/comptabilite/saisie/${moisDernier.slice(0, 4)}`);
+    await expect.poll(() => fenetre.locator('h2').innerText()).toMatch(/^Marquer toute la .+ déposée \?$/);
+    expect(await fenetre.innerText()).toMatch(/Elle n'est pas prête pour 1 dossier : Droguerie du Port est à réviser/);
+    await fenetre.getByRole('button', { name: 'Marquer déposée quand même', exact: true }).click();
+    await expect.poll(() => ligne.innerText()).toMatch(/Déposée/);
+    await ligne.getByRole('button', { name: /Les autres gestes/ }).click();
+    await p.getByRole('menuitem', { name: /Annuler « déposée »/ }).click();
+    await expect.poll(() => ligne.innerText()).toMatch(/À réviser/);
+    await ligne.getByRole('button', { name: /^Réviser / }).click();
+    // « Réviser » ouvre la révision du dossier ; la saisie, où l'on valide le brouillard, est à côté.
+    await expect.poll(() => p.evaluate(() => location.hash)).toContain(`#/dossier/${ent}/comptabilite/revision`);
+    await p.evaluate((h) => { location.hash = h; }, `#/dossier/${ent}/comptabilite/saisie/${moisDernier.slice(0, 4)}`);
 
     // 5. (1.82.0) L'en-tête du dossier dit le mois à valider ; tout validé, la phrase s'efface sans recharger la page.
     const aValider = p.locator('#d-avalider');

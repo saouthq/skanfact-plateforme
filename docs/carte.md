@@ -895,7 +895,12 @@ vaut pour tout le dépôt.*
   Cabinet : la même coquille (`barre.js` lit `app: 'cabinet'` dans `__barreInfos`), `drawNav` du Cabinet
   (`v10/cabinet/app.js` : « Mon cabinet », le dossier ouvert et son changement, les pages Priorités et Pièces reçues),
   `plateforme/barre-cabinet.css` ; les pièces reçues au serveur (0175 : `messagerie.classer_piece`, `GET
-  /cabinets/:cabinet/pieces`). Lot 2 (1.153.0), la charte : `plateforme/charte.css` (statuts, boutons, menu ⋯, toast,
+  /cabinets/:cabinet/pieces` ; 0179 : la raison du classement, les demandes en cours), leur page telle que la maquette
+  (1.167.0 : `drawPieces`, `plateforme/pieces-recues.css` ; 1.168.0 : `fenDouble`, `fenDejaSaisie`, le choix de plusieurs,
+  `nonConfiee` lu du `perimetre` du mandat), les Échéances telles que la maquette (1.168.0 : `drawEcheances`,
+  `plateforme/echeances.css`, `api.relancerDossier`, `api.declarerHorsLivre` ; la route de production rend l'état de chaque
+  déclaration) et l'aperçu des PDF commun aux deux applications
+  (`plateforme/apercu-pdf.js`). Lot 2 (1.153.0), la charte : `plateforme/charte.css` (statuts, boutons, menu ⋯, toast,
   bandeaux, en-tête), chargée après `style.css` par les deux applications ; le menu prend un titre (`rowmenu.js`,
   `opts.titre`) ; le toast sa barre de temps (`toast`, `toastUndo` des deux `app.js`).
   Lot 3 (1.154.0), la liste des factures : `listeFactures` et `actionsFacture` (`v10/app.js`), `plateforme/liste.css` ;

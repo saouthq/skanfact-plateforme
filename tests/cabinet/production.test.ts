@@ -62,7 +62,7 @@ async function personneA(email: string, nom: string) {
 }
 type Production = {
   mois: { entreprise: string; mois: string; ecritures: number; validees: number; brouillards: number; qui: string; depuis: string }[];
-  declarations: { entreprise: string; periode: string; deposee: boolean }[];
+  declarations: { entreprise: string; periode: string; deposee: boolean; prepareeLe: string; preparePar: string; deposeeLe: string | null; deposeePar: string; payeeLe: string | null; montant: string | null }[];
   revisions: { entreprise: string; periode: string; faite: boolean }[];
   exercices: { entreprise: string; annee: number; du: string; au: string; clos: boolean }[];
 };
@@ -109,7 +109,12 @@ describe('la production du portefeuille', () => {
     // Quand : le dernier geste du mois (ici, la validation de deux écritures, après la dernière saisie).
     const derniers = (await admin.query(`select max(greatest(cree_le, validee_le)) d from compta.ecriture where entreprise = $1 and to_char(date_ecriture, 'YYYY-MM') = '2026-03'`, [garage])).rows[0].d as Date;
     expect(p.mois[1]?.depuis).toBe(derniers.toISOString());
-    expect(p.declarations).toEqual([{ entreprise: garage, periode: '2026-02', deposee: false }, { entreprise: garage, periode: '2026-03', deposee: true }]);
+    // (1.168.0) Ce que les Échéances montrent de chaque déclaration : préparée par qui et quand, déposée, payée, et la case
+    // « à décaisser » (null ici : ces déclarations ne la remplissent pas).
+    const jour = expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/);
+    expect(p.declarations).toEqual([
+      { entreprise: garage, periode: '2026-02', deposee: false, prepareeLe: jour, preparePar: 'Karim Associé', deposeeLe: null, deposeePar: '', payeeLe: null, montant: null },
+      { entreprise: garage, periode: '2026-03', deposee: true, prepareeLe: jour, preparePar: 'Karim Associé', deposeeLe: '2026-04-20', deposeePar: 'Karim Associé', payeeLe: null, montant: null }]);
     expect(p.revisions).toEqual([{ entreprise: garage, periode: '2026-02', faite: false }, { entreprise: garage, periode: '2026-03', faite: true }]);
     expect(p.exercices).toEqual([{ entreprise: garage, annee: 2026, du: '2026-01-01', au: '2026-12-31', clos: false }]);
     expect(JSON.stringify(p)).not.toContain(voisin);

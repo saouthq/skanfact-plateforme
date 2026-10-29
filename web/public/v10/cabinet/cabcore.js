@@ -186,6 +186,8 @@
       // Créé à la main : le client n'utilise pas (encore) SkanFact. On ne lui réclame rien, mais il
       // compte dans le portefeuille — c'est ce qui permet au cabinet de voir ses 60 clients ici.
       manual: !!d.manual,
+      // (1.168.0) Ce que le client a confié au cabinet (plateforme) : null quand on ne le sait pas, ou dossier tenu.
+      perimetre: Array.isArray(d.perimetre) ? d.perimetre.map(String) : null,
       // Premier mois attendu de ce client. Vide = le premier mois reçu. C'est ce qui permet de dire
       // « je reprends ce dossier à partir de janvier » et d'être alerté sur les mois d'avant.
       from: /^\d{4}-\d{2}$/.test(String(d.from || '')) ? d.from : '',
@@ -1939,6 +1941,16 @@
   const echeanceDeposee = (state, e) =>
     ((((state || {}).settings || {}).depots) || []).includes(cleEcheance(e));
 
+  // (Maquettes de « Mon cabinet », 28/10/2026) Les déclarations en retard : une date passée, et un dossier dont la
+  // déclaration n'est pas notée déposée. Une ligne par dossier et par date ; la pastille des Échéances les compte.
+  function enRetard(liste) {
+    const out = [];
+    for (const e of liste || []) {
+      if (!e.passee || e.toutDepose) continue;
+      for (const n of e.restants || []) out.push({ echeance: e.id, date: e.date, label: e.label, dossier: n, jours: -e.jours });
+    }
+    return out;
+  }
   function ligneEcheance(id, label, date, mois, dossiers, todayIso, attendus, detail, deposesDans) {
     const liste = Array.isArray(mois) ? mois : [mois];
     const deposes = (deposesDans || []).filter(d => dossiers.includes(d));
@@ -1963,6 +1975,8 @@
       id, label, date, detail, mois: liste,
       clients, manquants, provisoires, aSaisir, aSaisirIds, provisoiresIds,
       deposes: deposes.map(d => d.name),
+      // Les dossiers dont la déclaration de cette date n'est pas déposée (prêts compris) : ce qui reste à faire.
+      restants: dossiers.filter(d => !deposes.includes(d) && liste.some(m => attendus.get(d).get(m))).map(d => d.name),
       // Tous les clients de la date ont leur déclaration notée déposée dans leur livre : la carte
       // l'est aussi, sans un second pointage.
       toutDepose: clients > 0 && deposes.length === clients,
@@ -2354,7 +2368,7 @@
     exemplePerime, verdictMotDePasse,
     newDossier, parseDossierLines, emailDouteux, noteRelance, portfolio, caDuPortefeuille, relanceDue, relanceRows, accuseMail,
     parseCsv, verdictOrigine, csvDangereux, toCsvLine, csvMontant, csvDate, mergeEcritures, ecrituresPlan,
-    DEFAULT_DEADLINES, deadlineSettings, echeances, dayOf,
+    DEFAULT_DEADLINES, deadlineSettings, echeances, enRetard, dayOf,
     TVA_PERIODES, migrateRegime, regimes, regimeDe, choixRegimes, regimeEnPhrase, periodeTva, deposeCnss,
     dossierMonths, debutDeMission, dossierRow, dossierList, cabinetTodo, premiersPas, relanceMail, pairingFile,
     INDEX_STABLES, nomIndex, releasePourIndex, releasePourIndexRelue, moisManquants,

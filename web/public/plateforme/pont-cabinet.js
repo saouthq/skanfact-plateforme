@@ -312,8 +312,9 @@
       const c = d.coordonnees || {};
       if (!String(lue.email || '').trim() && c.email) lue.email = c.email;
       if (!String(lue.phone || '').trim() && c.telephone) lue.phone = c.telephone;
-      return K.migrateDossier({ ...lue, id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu,
-        packs: moisVersPaquets(K, (mois.mois || []).filter((/** @type {any} */ x) => x.entreprise === d.entreprise)) });
+      // (1.168.0) Ce que le client a confié au cabinet : les Pièces reçues ne proposent pas de saisir un achat qu'il saisit lui-même.
+      return Object.assign(K.migrateDossier({ ...lue, id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu,
+        packs: moisVersPaquets(K, (mois.mois || []).filter((/** @type {any} */ x) => x.entreprise === d.entreprise)) }), { perimetre: d.tenu ? null : (d.perimetre || null) });
     });
     // L'équipe (brique 46) : chaque membre du cabinet est un collaborateur de la v10 (son rôle, son
     // adresse à la place du poste) ; les dossiers confiés sont les droits posés sur chaque dossier.
@@ -344,6 +345,7 @@
     nomDuCabinet = String(cab.nom || '');
     moiNom = String(moi.nom || '');
     etat.moi = moi.id;
+    moiId = String(moi.id || '');
     etat.moiNom = moi.nom;
     return etat;
   }
@@ -378,7 +380,7 @@
       return (x[m] = x[m] || { ecritures: 0, validees: 0, brouillards: 0, revise: false, declare: false, qui: '', depuis: null });
     };
     for (const m of p.mois || []) Object.assign(mois(m.entreprise, m.mois), { ecritures: m.ecritures, validees: m.validees, brouillards: m.brouillards, qui: m.qui, depuis: Date.parse(m.depuis) || null });
-    for (const d of p.declarations || []) mois(d.entreprise, d.periode).declare = !!d.deposee;
+    for (const d of p.declarations || []) Object.assign(mois(d.entreprise, d.periode), { declare: !!d.deposee, declaration: d });
     for (const r of p.revisions || []) mois(r.entreprise, r.periode).revise = !!r.faite;
     /** @type {Map<string, Map<number, any>>} */ const exercices = new Map();
     /** @param {string} ent @param {number} a */
@@ -1094,6 +1096,7 @@
   const membreDe = (utilisateur) => (equipeLue.membres.find((m) => m.utilisateur === utilisateur) || {}).membre;
   // Le nom de qui travaille : la v10 signe les comptes, les notes et le questionnaire de ce nom.
   let moiNom = '';
+  /** L'identifiant de la personne connectée. */ let moiId = '';
   /** @param {unknown} x */
   const esc = (x) => String(x == null ? '' : x).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
   // Un geste sur l'équipe, dit en une phrase (brique 61) : qui a fait quoi, à qui.
@@ -1241,6 +1244,7 @@
     ...o, cote: 'cabinet', modeles: modelesDuCabinet,
     appel: (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b),
   });
+  /** @type {Map<string, Promise<{ blob: Blob, type: string, nom: string, adresse: string }>>} */ const fichiersLus = new Map();
   /** @type {Record<string, any>} */
   const pont = {
     commentUnClientArrive,
@@ -1271,8 +1275,30 @@
     // défaire, et ouvrir le fichier (celui du fil, tel qu'il est arrivé).
     pieces: {
       lire: (/** @type {boolean} */ classees) => appel('GET', `/cabinets/${cabinetId}/pieces${classees ? '?classees=1' : ''}`),
-      classer: (/** @type {string} */ entreprise, /** @type {string} */ message, /** @type {boolean} */ classee) =>
-        appel('POST', `/entreprises/${encodeURIComponent(entreprise)}/messages/${encodeURIComponent(message)}/classee`, { classee }),
+      // (1.167.0, 0179) La raison du classement (saisie, vérifiée, rien, double, illisible, banque) et, pour une pièce
+      // illisible, ce qu'on a redemandé au client.
+      classer: (/** @type {string} */ entreprise, /** @type {string} */ message, /** @type {boolean} */ classee, /** @type {string | undefined} */ raison, /** @type {string | undefined} */ note) =>
+        appel('POST', `/entreprises/${encodeURIComponent(entreprise)}/messages/${encodeURIComponent(message)}/classee`,
+          { classee, ...(classee && raison ? { raison } : {}), ...(classee && note ? { note } : {}) }),
+      // (1.167.0) Le fichier lui-même, pour l'aperçu de la page (la photo telle quelle, la page d'un PDF dessinée ici par
+      // plateforme/apercu-pdf.js) : rien ne part ailleurs. Gardé le temps de la page, une fois par fichier.
+      contenu: (/** @type {string} */ entreprise, /** @type {string} */ fichier) => {
+        const deja = fichiersLus.get(fichier);
+        if (deja) return deja;
+        const p = appel('GET', `/entreprises/${encodeURIComponent(entreprise)}/messages/fichiers/${encodeURIComponent(fichier)}`).then((/** @type {any} */ f) => {
+          const blob = new Blob([Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0))], { type: f.type });
+          return { blob, type: String(f.type), nom: String(f.nom), adresse: URL.createObjectURL(blob) };
+        });
+        p.catch(() => fichiersLus.delete(fichier));
+        fichiersLus.set(fichier, p);
+        return p;
+      },
+      apercuPdf: (/** @type {Blob} */ blob, /** @type {number} */ largeur, /** @type {number} */ numero) => /** @type {any} */ (window).SkanApercuPdf.pageEnImage(blob, largeur, numero),
+      enregistrer: (/** @type {string} */ entreprise, /** @type {string} */ fichier) => /** @type {any} */ (window).SkanMessagerie.ouvrirFichier(
+        (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b), fichier, true),
+      // Redemander une pièce illisible : un message du cabinet, avec la demande, dans la conversation du client.
+      redemander: (/** @type {string} */ entreprise, /** @type {string} */ texte, /** @type {string} */ demande) =>
+        appel('POST', `/entreprises/${encodeURIComponent(entreprise)}/messages`, { cote: 'cabinet', texte, demande }),
       ouvrir: (/** @type {string} */ entreprise, /** @type {string} */ fichier) => /** @type {any} */ (window).SkanMessagerie.ouvrirFichier(
         (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b), fichier),
     },
@@ -1283,10 +1309,11 @@
     // (1.152.0) La personne connectée, pour le pied de la barre : son nom, son adresse, son rôle au cabinet.
     profil: async () => {
       const m = await appel('GET', '/moi');
-      // La barre le demande dès son dessin : l'équipe n'est peut-être pas encore lue.
+      // La barre le demande dès son dessin : l'équipe n'est peut-être pas encore lue. Les noms de rôles sont ceux des
+      // maquettes de « Mon cabinet » (28/10/2026) : la direction, la tenue des dossiers, la saisie.
       const membres = equipeLue.membres.length ? equipeLue.membres : ((await appel('GET', `/cabinets/${cabinetId}/equipe`)).membres || []);
       const membre = membres.find((/** @type {any} */ x) => x.utilisateur === m.id);
-      const NOMS = /** @type {Record<string, string>} */ ({ supervision: 'Associé', revision: 'Collaborateur', saisie: 'Assistant de saisie', paie: 'Paie' });
+      const NOMS = /** @type {Record<string, string>} */ ({ supervision: 'Direction', revision: 'Tenue des dossiers', saisie: 'Saisie', paie: 'Paie' });
       return { nom: m.nom, email: m.email, roleTexte: membre ? (membre.roles || []).map((/** @type {string} */ r) => NOMS[r] || r).join(', ') : '' };
     },
     // Pas de clé de secours en ligne (C4) : le Cabinet ne la réclame jamais (adaptation de chargerRecovery).
@@ -1693,6 +1720,16 @@
       const apres = await livreDe(o.dossierId, o.annee);
       return { ok: true, declaration: apres.declarations.find((/** @type {any} */ x) => x.periode === d.periode), livre: apres };
     },
+    // (1.168.0) Les Échéances : relancer un dossier (un message et ses demandes datées, dans sa conversation) ; une
+    // déclaration déposée sans rien de prêt dans SkanFact (néant, ou des pièces reçues ailleurs), son montant tapé.
+    relancerDossier: (/** @type {string} */ id, /** @type {string} */ texte, /** @type {string[]} */ demandes, /** @type {string | null} */ pour) =>
+      appel('POST', `/entreprises/${encodeURIComponent(id)}/messages`, { cote: 'cabinet', texte, ...(demandes.length ? { demandes } : {}), ...(pour && demandes.length ? { pour } : {}) }),
+    declarerHorsLivre: async (/** @type {any} */ o) => {
+      const montant = String(o.montant || '0').replace(/\s/g, '').replace('.', ',');
+      if (!/^\d+(,\d{1,3})?$/.test(montant)) throw new Error('Le montant s\'écrit en dinars, comme 412,500.');
+      await appel('PUT', `/entreprises/${encodeURIComponent(o.dossierId)}/compta/declarations/${o.periode}`, { cases: { aDecaisser: montant } });
+      await appel('POST', `/entreprises/${encodeURIComponent(o.dossierId)}/compta/declarations/${o.periode}/pointer`, { quoi: 'deposee', le: o.le });
+    },
     pointerDeclaration: async (/** @type {any} */ o) => {
       /** @type {any} */ const KC = /** @type {any} */ (window).SkanCompta;
       const livre = await livreDe(o.dossierId, o.annee);
@@ -2085,8 +2122,11 @@
         /** @type {any[]} */ const exercices = (index[d.id] || { exercices: [] }).exercices;
         const employeur = (index[d.id] || { employeur: {} }).employeur;
         const declares = exercices.flatMap((e) => Object.keys(e.production).filter((m) => e.production[m].declare)).sort();
-        return { dossierId: d.id, name: d.name, ouvertes: q.ouvertes, aRelancer: q.aRelancer, repondues: q.repondues, employeur, tenu: d.manual ? { exercices } : null, declares };
-      }).filter((x) => x.ouvertes || x.repondues || Object.keys(x.employeur).length || (x.tenu && x.tenu.exercices.length) || x.declares.length);
+        // (1.168.0) Ses mois, pour les Échéances : les écritures, celles au brouillard, la déclaration posée.
+        /** @type {Record<string, any>} */ const parMois = {};
+        for (const e of exercices) for (const [m, x] of Object.entries(e.production)) parMois[m] = { ecritures: x.ecritures, brouillards: x.brouillards, declaration: x.declaration || null };
+        return { dossierId: d.id, name: d.name, ouvertes: q.ouvertes, aRelancer: q.aRelancer, repondues: q.repondues, employeur, tenu: d.manual ? { exercices } : null, declares, mois: parMois };
+      }).filter((x) => x.ouvertes || x.repondues || Object.keys(x.employeur).length || (x.tenu && x.tenu.exercices.length) || x.declares.length || Object.keys(x.mois).length);
     },
 
     // ── L'exercice (brique 45) : ses contrôles, ses états et ses à-nouveaux calculés par la v10 sur le
@@ -2219,6 +2259,8 @@
     licenceStatus: async () => {
       /** @type {any} */ const A = /** @type {any} */ (window).SkanAbonnementCabinet;
       if (!A) return { pastille: { show: false } };
+      // (1.168.0) Qui n'est pas associé ne demande même pas : la base le refuserait (un 403 dans la console à chaque page).
+      if (moiId && equipeLue.membres.length && !equipeLue.membres.some((/** @type {any} */ m) => m.utilisateur === moiId && (m.roles || []).includes('supervision'))) return { pastille: { show: false } };
       try { return { pastille: A.pastille((await appel('GET', `/cabinets/${cabinetId}/abonnement`)).etat) }; } catch { return { pastille: { show: false } }; }
     },
     dessinerAbonnementCabinet: async (/** @type {HTMLElement} */ el) => {
