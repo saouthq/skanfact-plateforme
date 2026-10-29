@@ -21044,5 +21044,17 @@ prouver 'classeur 24 : le mois de son arrivée renvoie la pièce au mois d'\''av
 prouver 'classeur 25 : un achat justifié par le cabinet reste sans justificatif chez le client' web/public/v10/core.js \
   '&& !(p && p.justifCabinet); }' '; }' \
   'n'\''est plus « sans justificatif »'
+prouver 'classeur 26 : une pièce lue du même montant qu'\''un achat sans justificatif ne le dit pas' web/public/v10/cabinet/app.js \
+  'if (c) x.em = `un achat du même montant' 'if (c && 0) x.em = `un achat du même montant' \
+  'une pièce lue dont le total est celui d'\''un achat sans justificatif'
+prouver 'classeur 27 : le même fichier déposé par le cabinet n'\''est pas marqué en double' web/public/v10/cabinet/app.js \
+  'if (j && r && r.id) await api.classeur.doubler(' 'if (0 && j && r && r.id) await api.classeur.doubler(' \
+  'une pièce lue dont le total est celui d'\''un achat sans justificatif'
+prouver 'classeur 28 : après un geste, la ligne traitée file sous le curseur' web/public/v10/cabinet/app.js \
+  '(rang.has(a.k) ? rang.get(a.k) : -1) - (rang.has(b.k) ? rang.get(b.k) : -1)' '0' \
+  'une pièce lue dont le total est celui d'\''un achat sans justificatif'
+prouver 'classeur 29 : l'\''historique tait la lecture par SkanFact' web/public/v10/cabinet/app.js \
+  "if (sel.lu && sel.lu.luLe) ev.push(['SF', 'SkanFact lit la pièce'" "if (0) ev.push(['SF', 'SkanFact lit la pièce'" \
+  'une pièce lue dont le total est celui d'\''un achat sans justificatif'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

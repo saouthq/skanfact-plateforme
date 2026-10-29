@@ -12,6 +12,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import pg from 'pg';
 import { chromium, type Browser, type Page } from 'playwright-core';
 import { build } from 'vite';
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest';
@@ -48,7 +49,7 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
   };
   const gerants = new Map<string, string>();
   async function unCabinet() {
-    const { jeton: associe } = await personne('Leïla Jlassi');
+    const { jeton: associe, email: courrielAssocie } = await personne('Leïla Jlassi');
     const cab = (await api('POST', '/cabinets', associe, { nom: 'Jlassi Conseil' })).corps as { id: string; code: string };
     const client = async (nom: string, gerant: string, fiche: Record<string, unknown>) => {
       const { jeton: j } = await personne(gerant);
@@ -68,7 +69,7 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     const menuiserie = await client('Menuiserie Ben Ali', 'Hédi Ben Ali', { contact: 'Hédi', from: '2026-08' });
     await ecrire(menuiserie, { date: '2026-07-15', journal: 'OD', piece: 'OD-1', libelle: 'Honoraires',
       lignes: [{ compte: '6226', debit: '100,000' }, { compte: '401', credit: '100,000' }] });
-    return { associe, cab, boulangerie, menuiserie };
+    return { associe, courrielAssocie, cab, boulangerie, menuiserie };
   }
   async function contexte(jeton: string, tel = false) {
     const cx = await navigateur.newContext({ viewport: tel ? { width: 390, height: 844 } : { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', ...(tel ? { isMobile: true, hasTouch: true } : {}) });
@@ -170,6 +171,63 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     expect(await p.locator('li[data-cl-k]').filter({ hasText: 'facture-steg' }).count()).toBe(0);
     expect(erreurs).toEqual([]);
   });
+
+  it('une pièce lue dont le total est celui d\'un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant', async () => {
+    const { associe, courrielAssocie, cab, boulangerie } = await unCabinet();
+    const sarra = gerants.get(boulangerie) ?? '';
+    // Sarra saisit un achat STEG sans justificatif (100,350 HT à 13 % : 113,396 TTC), puis envoie la photo de la facture.
+    expect((await api('POST', `/entreprises/${boulangerie}/dossier-v10`, sarra, { changements: [
+      { collection: 'suppliers', cle: 's-steg', rang: 0, revision: null, contenu: { id: 's-steg', name: 'STEG' } },
+      { collection: 'purchases', cle: 'p-steg', rang: 1, revision: null, contenu: { id: 'p-steg', kind: 'facture', number: 'FA-0919', date: '2026-09-30', supplierId: 's-steg',
+        currency: 'DT', category: 'Énergie', fees: 0, withholdingRate: 0, createdAt: 1, attachments: [],
+        lines: [{ id: 'p-steg-l', label: 'Électricité, août et septembre', qty: 1, unitPrice: { '~n': '100.350' }, vatRate: 13, destination: 'charge' }] } },
+    ] })).statut).toBe(200);
+    const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    // Un ticket arrivé avant elle : la facture lue passe devant lui tant qu'elle est à traiter.
+    const t = await api('POST', `/entreprises/${boulangerie}/messages/fichiers`, sarra, { cote: 'entreprise', nom: 'ticket-24-10.png', contenu: PNG });
+    expect((await api('POST', `/entreprises/${boulangerie}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: t.corps.id })).statut).toBe(201);
+    const f = await api('POST', `/entreprises/${boulangerie}/messages/fichiers`, sarra, { cote: 'entreprise', nom: 'IMG_8850.jpg', contenu: PNG });
+    const m = await api('POST', `/entreprises/${boulangerie}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: f.corps.id });
+    expect(m.statut).toBe(201);
+    // La lecture, telle que le service d'IA l'aurait rendue (le test ne paie pas l'appel).
+    const admin = new pg.Client({ connectionString: inject('pgAdmin') });
+    await admin.connect();
+    try {
+      await admin.query(`insert into cabinet.lecture (cabinet, entreprise, message, fournisseur, numero, date_piece, total, devise, lu_par)
+        values ($1, $2, $3, 'STEG', '0298 4471', null, '113.396', 'TND', (select id from socle.utilisateur where lower(email) = lower($4)))`,
+      [cab.id, boulangerie, m.corps.id, courrielAssocie]);
+    } finally { await admin.end(); }
+    const { p, erreurs } = await contexte(associe);
+    await ouvrir(p, cab.id, boulangerie);
+    const ligne = p.locator('li[data-cl-k]').filter({ hasText: 'IMG_8850' });
+    await expect.poll(() => ligne.innerText().catch(() => '')).toMatch(/un achat du même montant existe déjà : FA-0919, sans justificatif/);
+    expect(await ligne.innerText()).toMatch(/STEG[\s\S]*113,396/);
+    await ligne.click();
+    await expect.poll(() => p.locator('.cl-ap').innerText().catch(() => '')).toMatch(/Un achat du même montant existe déjà[\s\S]*FA-0919/);
+    expect(await p.locator('.cl-ap .cl-ap-b b .cl-ia-ic').count()).toBe(1);
+    // Son historique dit l'achat saisi sans pièce, la lecture et ce qu'elle a repéré.
+    await p.locator('[data-cl-trois]').click();
+    await p.locator('[data-cl-menu="historique"]').click();
+    await expect.poll(() => p.locator('.cl-hist').innerText().catch(() => '')).toMatch(/saisit l'achat FA-0919[\s\S]*sans justificatif[\s\S]*SkanFact lit la pièce[\s\S]*STEG · n° 0298 4471 · 113,396 DT[\s\S]*SkanFact repère FA-0919/);
+    await p.locator('[data-cl-trois]').click();
+    await p.locator('[data-cl-menu="historique"]').click();
+    // Jointe, la ligne garde sa place (elle ne file pas sous le curseur), et le bandeau dit « Plus que ».
+    const cles = async () => p.locator('#page-cl .cl-sec li[data-cl-k]').evaluateAll((l) => l.map((x) => x.getAttribute('data-cl-k')));
+    const avant = await cles();
+    const k = await ligne.getAttribute('data-cl-k');
+    await p.locator('.cl-ap .btn-primary', { hasText: 'Joindre à FA-0919' }).click();
+    await expect.poll(() => p.locator(`li[data-cl-k="${k}"]`).innerText().catch(() => '')).toMatch(/jointe à FA-0919/);
+    expect(avant.indexOf(k)).toBeLessThan(avant.findIndex((x) => x !== k && x?.startsWith('p:')));
+    expect((await cles()).indexOf(k)).toBe(avant.indexOf(k));
+    // Le même fichier, déposé par le cabinet : « déjà là », et il se marque en double de lui.
+    await p.locator('#cl-deposer').click();
+    await p.locator('#dp-f').setInputFiles({ name: 'IMG_8850.jpg', mimeType: 'image/png', buffer: Buffer.from(PNG, 'base64') });
+    await expect.poll(() => p.locator('#dp-l').innerText()).toMatch(/déjà là \(FA-0919\) : elle sera marquée en double/);
+    await p.locator('.modal #ok').click();
+    const deposee = p.locator('li[data-cl-k^="d:"]').filter({ hasText: 'IMG_8850' });
+    await expect.poll(() => deposee.innerText().catch(() => '')).toMatch(/la même que IMG_8850\.jpg[\s\S]*en double/);
+    expect(erreurs).toEqual([]);
+  }, 60_000);
 
   it('au téléphone : les puces des mois, la carte du mois sur toute la largeur, la pièce et le retour', async () => {
     const { associe, cab, boulangerie } = await unCabinet();

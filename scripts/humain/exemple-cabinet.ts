@@ -4,17 +4,27 @@
 // qui valide quoi ; les pièces que les clients ont envoyées et leurs messages. Tout est inventé ; les comptes s'écrivent
 // dans /tmp, jamais dans le dépôt.
 //   PG_ADMIN=… node scripts/humain/exemple-cabinet.ts http://127.0.0.1:8090
+// (1.173.2) La même démo sur dev.skanfact.tn (Skander, 29/10/2026 : « une démo de données pour tester ») : DEMO_COURRIEL
+// (une adresse Gmail, de l'environnement, jamais du dépôt) remplace chaque adresse inventée par un alias de cette boîte
+// (« leila.jlassi@exemple.tn » → « boite+leila.jlassi@gmail.com ») : les invitations, les codes et les demandes du cabinet
+// arrivent chez qui teste, et aucun inconnu ne reçoit d'e-mail. DEMO_TRAVAIL : où écrire les comptes ;
+// DEMO_NAVIGATEURS : le dossier des navigateurs qui dessinent les pièces.
 import fs from 'node:fs';
 
 const adresse = process.argv[2] ?? 'http://127.0.0.1:8090';
-const TRAVAIL = '/tmp/skanfact-humain-plateforme';
+const TRAVAIL = process.env.DEMO_TRAVAIL ?? '/tmp/skanfact-humain-plateforme';
+const NAVIGATEURS = process.env.DEMO_NAVIGATEURS ?? '/opt/pw-browsers';
+const BOITE = /^([^@+\s]+)@gmail\.com$/i.exec(process.env.DEMO_COURRIEL ?? '');
+const alias = (texte: string) => !BOITE ? texte : texte.replace(/([a-z0-9._-]+)@([a-z0-9-]+)((?:\.[a-z0-9-]+)+)/gi,
+  (tout, local: string, nom: string, reste: string) => (`${nom}${reste}`.toLowerCase() === 'gmail.com' ? tout
+    : `${BOITE[1]}+${local}${nom === 'exemple' ? '' : `.${nom}`}@gmail.com`));
 const MDP = 'Un-bon-mot-de-passe';
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
 
 const api = async (methode: string, chemin: string, jeton?: string, corps?: unknown) => {
   const r = await fetch(`${adresse}/v1${chemin}`, {
     method: methode, headers: { ...(jeton ? { authorization: `Bearer ${jeton}` } : {}), ...(corps === undefined ? {} : { 'content-type': 'application/json' }) },
-    ...(corps === undefined ? {} : { body: JSON.stringify(corps) }),
+    ...(corps === undefined ? {} : { body: alias(JSON.stringify(corps)) }),
   });
   const texte = await r.text();
   const lu = (texte ? JSON.parse(texte) : {}) as Record<string, unknown>;
@@ -233,7 +243,7 @@ const papier = (nom: string, dossier: string): string => {
   if (/contrat|bail|attestation/i.test(nom)) return `${css}<div class="f"><h1>${/attestation/i.test(nom) ? 'ATTESTATION DE SITUATION' : 'CONTRAT DE LOCATION D\'UN LOCAL COMMERCIAL'}</h1><div class="s">${dossier} · page 1 sur 1</div>`
     + '<p>Le présent document est établi pour servir et valoir ce que de droit. Durée : trois ans, du 1er janvier 2027 au 31 décembre 2029.</p><p>Loyer mensuel : 1 450,000 dinars hors taxes, payable d\'avance le 5 de chaque mois.</p></div>';
   const [f, n, l] = /electricite/i.test(nom) ? ['STEG · FACTURE D\'ÉLECTRICITÉ ET DE GAZ', 'N° 0298 4471 · du 01/08 au 30/09/2026', [['Consommation électricité (3 120 kWh)', '142,318'], ['Redevances et location du compteur', '22,655']]]
-    : /farine/i.test(nom) ? ['MINOTERIE DU CAP BON', 'Facture n° MC-3391 du 03/09/2026', [['Farine boulangère T55, 40 sacs', '1 520,000'], ['Transport', '32,000']]]
+    : /farine/i.test(nom) ? ['MINOTERIE DU CAP BON', 'Facture n° F-2026-0903 du 03/09/2026', [['Farine boulangère T55, 40 sacs de 50 kg', '1 551,428']]]
     : /lait/i.test(nom) ? ['CENTRALE LAITIÈRE DU NORD', 'Facture n° CL-20981 du 02/10/2026', [['Lait demi-écrémé, 240 L', '312,000']]]
     : /hebergement/i.test(nom) ? ['OVH SAS', 'Invoice FR-41720 · 30/09/2026 · EUR', [['Hébergement serveur, 3e trimestre', '87,00 €']]]
     : ['FOURNITURES EL AMEN', 'Facture n° FA-0921 du 22/10/2026', [['Fournitures diverses', '186,420']]];
@@ -245,6 +255,10 @@ const papier = (nom: string, dossier: string): string => {
   if (/electricite/i.test(nom)) return `${css}<div class="f" style="width:380px"><h1>${f}</h1><div class="s">${n} · client : ${dossier}</div><table>${l.map(([a, b]) => ligne(a, b)).join('')}`
     + ligne('Total hors taxes', total) + ligne('TVA 13 %', '21,446') + '<tr class="t"><td>Total TTC</td><td>186,419 DT</td></tr></table>'
     + '<div class="p">à payer avant le 15/10/2026 · <i>payé par chèque n° 4410 087 le 12/10 (écrit à la main)</i></div></div>';
+  // (1.173.2) La facture de farine, celle de l'achat FA-0914 que Sarra a saisi (1 846,199 DT) : la même TVA, le même total.
+  if (/farine/i.test(nom)) return `${css}<div class="f" style="width:380px"><h1>${f}</h1><div class="s">${n} · client : ${dossier}</div><table>${l.map(([a, b]) => ligne(a, b)).join('')}`
+    + ligne('Total hors taxes', total) + ligne('TVA 19 %', '294,771') + '<tr class="t"><td>Total TTC</td><td>1 846,199 DT</td></tr></table>'
+    + '<div class="p">reçue le 03/09 · bon de livraison n° 0903-12</div></div>';
   return `${css}<div class="f"><h1>${f}</h1><div class="s">${n} · client : ${dossier}</div><table>${l.map(([a, b]) => ligne(a, b)).join('')}`
     + `<tr class="t"><td>Total hors taxes</td><td>${total}</td></tr></table><div class="p">Payable à 30 jours · TVA selon le taux en vigueur</div></div>`;
 };
@@ -254,8 +268,8 @@ let navigateur: { newPage: (o?: object) => Promise<Feuille>; close: () => Promis
 try {
   const { createRequire } = await import('node:module');
   const { chromium } = createRequire(import.meta.url)('playwright-core');
-  const chemin = fs.readdirSync('/opt/pw-browsers').find((d) => d.startsWith('chromium-'));
-  navigateur = await chromium.launch(chemin ? { executablePath: `/opt/pw-browsers/${chemin}/chrome-linux/chrome` } : {});
+  const chemin = fs.readdirSync(NAVIGATEURS).find((d) => /^chromium-\d/.test(d));
+  navigateur = await chromium.launch(chemin ? { executablePath: `${NAVIGATEURS}/${chemin}/chrome-linux/chrome` } : {});
 } catch { navigateur = null; }
 const fichierDe = async (nom: string, dossier: string): Promise<string> => {
   if (!navigateur) return PNG;
@@ -344,7 +358,8 @@ await navigateur?.close();
 
 fs.writeFileSync(`${TRAVAIL}/comptes-cabinet.txt`, [
   `cabinet : ${adresse}/v10/cabinet/?c=${cabinet}`, `mot de passe de tous : ${MDP}`,
-  'leila.jlassi@exemple.tn  direction (associée)', 'anis.gharbi@exemple.tn  tenue des dossiers', 'rim.toumi@exemple.tn  saisie', '',
-].join('\n'));
+  'leila.jlassi@exemple.tn  direction (associée)', 'anis.gharbi@exemple.tn  tenue des dossiers', 'rim.toumi@exemple.tn  saisie',
+  ...DOSSIERS.filter((x) => x.email).map((x) => `${x.email}  ${x.gerant}, ${x.nom}`), '',
+].map(alias).join('\n'));
 fs.writeFileSync(`${TRAVAIL}/cabinet.json`, JSON.stringify({ cabinet, adresse, jetons: { leila, anis: jetons['anis.gharbi@exemple.tn'], rim: jetons['rim.toumi@exemple.tn'] }, entreprise }, null, 1), { mode: 0o600 });
 console.log(fs.readFileSync(`${TRAVAIL}/comptes-cabinet.txt`, 'utf8'));

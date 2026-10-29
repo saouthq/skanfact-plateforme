@@ -429,7 +429,7 @@
 #modal-root .cl-zone.sur { border-color: var(--sb-sarcelle); background: var(--sb-doux); }
 #modal-root .cl-zone u { color: var(--sb-sarcelle); }
 #modal-root .cl-dp-l:empty { display: none; }
-#modal-root .cl-dp-ou .btn-lien { font-size: 12px; }
+#modal-root .cl-dp-ou .btn-lien { justify-self: start; font: inherit; font-size: 12px; font-weight: 600; color: var(--sb-sarcelle-texte); background: none; border: 0; padding: 0; cursor: pointer; }
 #modal-root .modal.cl-gr .cl-gr-c img { max-width: 100%; display: block; margin: 0 auto 12px; border-radius: 6px; box-shadow: 0 4px 20px rgba(0, 0, 0, .25); }
 .cl-page .cl-l-t small em.ok { color: var(--sb-doux-texte); }
 .cl-page .cl-cb input { width: 16px; height: 16px; accent-color: var(--sb-sarcelle); }
