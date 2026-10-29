@@ -393,6 +393,41 @@ describe('la barre du Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 60_000);
 
+  it('les pièces reçues, l\'aide de la page : d\'où viennent les pièces, ses quatre gestes guidés ; un fichier abîmé se redemande, il ne se saisit pas', async () => {
+    const { associe, cab, boulangerie } = await unCabinet();
+    // Un PDF coupé pendant l'envoi : son en-tête est là, le reste non.
+    const f = await api('POST', `/entreprises/${boulangerie.ent}/messages/fichiers`, boulangerie.j, { cote: 'entreprise', nom: 'facture-abimee.pdf', contenu: Buffer.from('%PDF-1.4\nabîmée pendant l\'envoi').toString('base64') });
+    expect((await api('POST', `/entreprises/${boulangerie.ent}/messages`, boulangerie.j, { cote: 'entreprise', texte: '', fichier: f.corps.id })).statut).toBe(201);
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await ouvrir(p, cab.id, '#/pieces');
+    // La bulle « i » du titre : les six chemins, et ce qui n'arrive pas ici.
+    await p.locator('#page-pieces h1 .i[data-info="pc.page"]').click();
+    await expect.poll(() => p.locator('body').innerText()).toMatch(/D'où viennent ces pièces[\s\S]*Six chemins[\s\S]*N'arrivent pas ici/);
+    await p.keyboard.press('Escape');
+    // « Guide-moi » : la visite de la page, et les quatre gestes de la maquette.
+    await p.locator('#guide-moi').click();
+    const menu = p.getByRole('menuitem');
+    for (const t of ['Visite de la page', 'Saisir une facture d\'achat reçue', 'Vérifier une photo rangée par le client', 'Déposer des pièces reçues ailleurs', 'Redemander une pièce illisible']) {
+      await expect.poll(() => menu.filter({ hasText: t }).count()).toBeGreaterThan(0);
+    }
+    await p.keyboard.press('Escape');
+    // Le fichier abîmé : la page le dit, et son geste est de le redemander (pas de le saisir).
+    await p.locator('#page-pieces .pc-r[data-piece]').filter({ hasText: 'facture-abimee.pdf' }).click();
+    await expect.poll(() => p.locator('#pc-papier').innerText().catch(() => '')).toMatch(/Ce fichier ne s'ouvre pas[\s\S]*un message prêt pour Sarra/);
+    await expect.poll(() => p.locator('#pc-geste').innerText()).toBe('Le redemander à Sarra');
+    expect(await p.locator('#pc-geste').getAttribute('class')).toMatch(/btn-primary/);
+    await p.locator('#pc-geste').click();
+    await expect.poll(() => p.locator('#modal-root').innerText().catch(() => '')).toMatch(/Redemander la pièce à Boulangerie El Amal[\s\S]*facture-abimee\.pdf/);
+    // Une pièce lisible garde son geste.
+    await p.locator('#modal-root').getByRole('button', { name: 'Annuler' }).click();
+    await p.locator('#page-pieces .pc-r[data-piece]').filter({ hasText: 'facture-farine.png' }).click();
+    await expect.poll(() => p.locator('#pc-geste').innerText()).toBe('Saisir l\'achat');
+    expect(erreurs).toEqual([]);
+  }, 60_000);
+
   it('les pièces reçues, les autres états : en double (laquelle), déjà saisie (où), plusieurs d\'un coup, un achat que le client saisit lui-même, la recherche vide, sans réseau', async () => {
     const { associe, cab, boulangerie, cafe } = await unCabinet();
     // (1.168.0) Le café ne confie au cabinet que sa comptabilité et ses déclarations : il saisit ses achats lui-même.

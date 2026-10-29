@@ -52,7 +52,7 @@
   // La couleur de la visite d'une page : celle de son domaine.
   const COULEUR_PAGE = {
     dossiers: 'vendre', relances: 'encaisser', echeances: 'declarer', ecritures: 'declarer', production: 'piloter',
-    reglages: 'piloter', aide: 'commencer', guide: 'commencer', dossier: 'vendre', 'dossier-paquets': 'encaisser', 'dossier-classeur': 'vendre', compta: 'declarer',
+    reglages: 'piloter', aide: 'commencer', guide: 'commencer', dossier: 'vendre', 'dossier-paquets': 'encaisser', 'dossier-classeur': 'vendre', pieces: 'acheter', compta: 'declarer',
     'compta-saisie': 'acheter', 'compta-banque': 'encaisser', 'compta-paie': 'equipe', 'compta-immobilisations': 'acheter',
     'compta-inventaire': 'acheter', 'compta-journal': 'declarer', 'compta-grand-livre': 'declarer', 'compta-balance': 'declarer',
     'compta-lettrage': 'encaisser', 'compta-recherche': 'piloter', 'compta-declaration': 'declarer', 'compta-revision': 'declarer',
@@ -101,6 +101,9 @@
       texte: '<p>La découverte sur l\'exemple, les gestes guidés clic par clic, et la visite de chaque écran. Ce que tu as déjà fait est coché.</p>' },
     dossier: { titre: 'La fiche d\'un dossier', resume: 'Un client : ses mois, ses relances, sa comptabilité.', dossier: 'client',
       texte: '<p>Tout ce qui concerne un client, en deux onglets : <b>Suivi</b> (ses douze mois, ses relances, ta note) et <b>Comptabilité</b> (ses livres).</p><p>En haut, qui il est, et l\'état du dossier en une phrase.</p>' },
+    // (1.174.7) Les pièces reçues (maquette « Pièces reçues ») : la visite de la page, comme les autres écrans.
+    pieces: { titre: 'Pièces reçues', resume: 'Ce que tes clients envoient, et ce que tu déposes.',
+      texte: '<p>Les pièces arrivées des clients, <b>rangées par dossier</b>, ce qui presse en tête. Une pièce s\'ouvre à droite, avec ce que le client en a dit.</p><p>Chaque pièce a <b>son geste</b> : le bouton vert dit ce qu\'elle doit devenir. <b>Saisir l\'achat</b> la met dans les achats du client, avec sa photo ; une photo qu\'il a rangée se <b>vérifie</b> ; un relevé se <b>rapproche</b>. Ce qui ne se saisit pas se classe sans saisir, avec sa raison.</p>' },
     // (1.172.0) « Tout le dossier » : le classeur du client (maquette « Classeur »).
     'dossier-classeur': { titre: 'Tout le dossier', resume: 'Le permanent, les mois, une pièce et son écriture.', dossier: 'client',
       texte: '<p>Le classeur, comme sur l\'étagère : <b>le dossier permanent</b> en haut, puis chaque mois de l\'exercice. Un mois se déplie en rubriques : ventes, achats, banque, paie, retenues, déclaration. Son point dit s\'il est complet.</p><p>Chaque pièce montre ce qu\'elle est devenue dans les livres ; ce qui manque se voit, avec son geste. Rien ne s\'efface : une pièce se classe, se remplace ou se marque.</p>' },
@@ -280,6 +283,34 @@
   b('[data-cl-ranger]', 'Range ce document dans le dossier permanent.', { nom: 'Le ranger', cle: 'cl-ranger' });
   b('[data-cl-sugg]', 'Cherche ceci à la place.', { nom: 'Essaie', cle: 'cl-sugg' });
   b('#cl-q-demander', 'Demande cette pièce au client, dans votre conversation.', { nom: 'Demander', cle: 'cl-q-demander' });
+
+  // ---------- (1.174.7) les pièces reçues ----------
+  b('#pc-geste', 'Le geste de la pièce ouverte, calculé : saisir l\'achat, vérifier l\'achat que le client a rangé, rapprocher un relevé, ranger un document. La touche Entrée le fait aussi.', { nom: 'Le geste de la pièce', cle: 'pc-geste' });
+  b('#pc-menu', 'Classe la pièce sans la saisir, avec sa raison : rien à saisir, déjà saisie, en double, illisible (redemandée au client), ou jointe à un achat qu\'il a déjà saisi.', { nom: 'Classer sans saisir', cle: 'pc-menu' });
+  b('[data-pc-raison]', 'Classe la pièce avec cette raison ; « Annuler » la remet à classer pendant quelques secondes.', { nom: 'Une raison', cle: 'pc-raison' });
+  b('[data-pc-joindre]', 'Joint la pièce à l\'achat que le client a saisi sans justificatif : elle devient sa pièce, rien n\'est saisi deux fois.', { nom: 'Joindre à l\'achat', cle: 'pc-joindre' });
+  b('#pc-deposer', 'Range dans le classeur d\'un dossier ce qu\'un client t\'a donné ailleurs : WhatsApp, e-mail, papier scanné.', { nom: 'Déposer des pièces', cle: 'pc-deposer' });
+  b('#pc-q', 'Cherche une pièce : le nom du fichier, le dossier, ce que le client en a dit.', { nom: 'Chercher', cle: 'pc-q' });
+  b('#pc-dossiers', 'Ne montre que les pièces d\'un dossier ; le chiffre dit combien chacun en a.', { nom: 'Tous les dossiers', cle: 'pc-dossiers' });
+  b('[data-pc-dos]', 'Ne montre que les pièces de ce dossier.', { nom: 'Un dossier', cle: 'pc-dos' });
+  b('[data-onglet-pr]', 'Les pièces à classer, ou celles déjà classées : ce qui en a été fait, par qui et quand.', { nom: 'À classer, Classées', cle: 'pc-onglet' });
+  b('[data-pc-filtre]', 'Ne montre que les pièces à saisir, à vérifier, les relevés ou les autres ; le chiffre dit combien.', { nom: 'Quelles pièces', cle: 'pc-filtre' });
+  b('[data-groupe]', 'Replie ou déplie les pièces de ce dossier ; ce choix est gardé.', { nom: 'Un dossier de la liste', cle: 'pc-groupe' });
+  b('[data-piece]', 'Ouvre la pièce à droite, avec ce que le client en a dit et son geste.', { nom: 'Une pièce', cle: 'pc-piece' });
+  b('[data-pc-choix]', 'Coche la pièce pour la classer avec d\'autres, d\'un seul geste.', { nom: 'Choisir', cle: 'pc-choix' });
+  b('#pc-lot-rien', 'Classe d\'un coup les pièces cochées : rien à saisir.', { nom: 'Classer les pièces cochées', cle: 'pc-lot-rien' });
+  b('#pc-lot-aucun', 'Décoche toutes les pièces.', { nom: 'Tout désélectionner', cle: 'pc-lot-aucun' });
+  b('[data-pc-pas]', 'Passe à la pièce précédente ou suivante (les flèches ↑ ↓ du clavier aussi).', { nom: 'Précédente, suivante', cle: 'pc-pas' });
+  b('[data-pc-zoom]', 'Agrandit ou rapetisse la pièce.', { nom: 'Zoom', cle: 'pc-zoom' });
+  b('#pc-tourner', 'Tourne la photo d\'un quart de tour.', { nom: 'Tourner', cle: 'pc-tourner' });
+  b('#pc-grand', 'Ouvre la pièce sur tout l\'écran.', { nom: 'En grand', cle: 'pc-grand' });
+  b('#pc-enregistrer', 'Enregistre le fichier sur ce poste, tel que le client l\'a envoyé.', { nom: 'Enregistrer le fichier', cle: 'pc-enregistrer' });
+  b('#pc-declasser', 'Remet la pièce à classer : elle revient dans « À classer ».', { nom: 'Remettre à classer', cle: 'pc-declasser' });
+  b('#pc-saisir-moi', 'Saisit quand même la pièce au cabinet, alors que le client saisit ses achats lui-même : elle risque d\'être saisie deux fois.', { nom: 'La saisir moi-même', cle: 'pc-saisir-moi' });
+  b('#pc-retour', 'Revient à la liste des pièces.', { nom: 'Revenir', cle: 'pc-retour' });
+  b('#pc-tout', 'Remontre toutes les pièces : sans filtre ni recherche.', { nom: 'Tout montrer', cle: 'pc-tout' });
+  b('#pc-q-classees', 'Cherche la même chose parmi les pièces déjà classées.', { nom: 'Chercher dans les classées', cle: 'pc-q-classees' });
+  b('#pc-voir-classees', 'Ouvre l\'onglet des pièces déjà classées.', { nom: 'Voir les classées', cle: 'pc-voir-classees' });
 
   // ---------- la fiche d'un dossier ----------
   b('#edit', 'Modifie la fiche du client : son nom, son matricule, ses coordonnées, ses honoraires.');
@@ -513,6 +544,7 @@
     dossiers: 'Ouvrir la fiche, écrire la relance, noter une relance, modifier ou archiver le client.',
     relances: 'Ouvrir la fiche, noter une relance faite ailleurs, voir l\'historique.',
     'dossier-paquets': 'Ouvrir le paquet, lire ses journaux et ses justificatifs, le montrer dans le dossier, le retirer.',
+    pieces: 'Rien à saisir, déjà saisie, en double, illisible (la redemander), joindre à un achat déjà saisi.',
     'dossier-classeur': 'Ouvrir la pièce en grand, la télécharger, la joindre à un achat, la remplacer, la marquer en double, la demander au client, voir son historique.',
     'compta-saisie': 'Modifier, valider, joindre un justificatif, supprimer un brouillard.',
     'compta-journal': 'Ouvrir la pièce, joindre un justificatif, contre-passer, extourner.',
@@ -2301,6 +2333,82 @@
       conclusion: 'Le fichier ZIP s\'écrit sur ton poste, puis se télécharge : rien ne part ailleurs.',
       etapes: [
         { page: classeur, cible: '#cl-exporter', cote: 'dessous', titre: 'Exporter', texte: 'Tout le dossier, l\'exercice, un mois ou le dossier permanent ; puis ce qu\'on y met : les pièces, le FEC, l\'index, les déclarations.' }
+      ]
+    });
+
+    // (1.174.7) Les gestes des pièces reçues (la maquette « Pièces reçues », menu « Guide-moi ») : saisir une facture
+    // reçue, vérifier une photo que le client a rangée, déposer ce qui arrive ailleurs, redemander une pièce illisible.
+    const ici = () => (typeof location !== 'undefined' && location.hash) || '#/pieces';
+    // Le chiffre d'un filtre de la page (« À saisir 6 ») ; hors de la page, on ne sait pas : la visite se propose.
+    const chipPc = k => document.querySelector(`[data-pc-filtre="${k}"]`);
+    const nPc = k => { const c = chipPc(k); return c ? Number(((c.querySelector('span') || {}).textContent || '0').replace(/\D/g, '')) || 0 : 0; };
+    const surPieces = () => !!document.querySelector('#page-pieces');
+    // Un filtre gardé d'avant (« À vérifier 0 ») cache toutes les pièces : la visite commence sur toutes.
+    const montrerToutPc = () => { if (!document.querySelector('#page-pieces [data-piece]')) { const t = chipPc('tout'); if (t) t.click(); } };
+    let piecesAvant = -1;
+    const nbPieces = () => nPc('tout');
+    visite({
+      id: 'saisir-piece-recue', theme: 'saisir', type: 'faire', duree: '2 min', page: '#/pieces', pages: ['pieces'],
+      titre: 'Saisir une facture d\'achat reçue', resume: 'Dans les achats du client, avec sa photo : elle sort des pièces à classer.',
+      mots: ['saisir', 'facture', 'achat', 'piece', 'recue', 'photo', 'client'],
+      si: () => !surPieces() || nPc('saisir') > 0, manque: { texte: 'Il faut une facture ou un ticket à saisir parmi les pièces reçues : quand un client en envoie une, elle arrive ici.' },
+      suite: ['verifier-piece-rangee', 'deposer-pieces'], bravo: 'Tu sais saisir une facture reçue',
+      conclusion: 'Enregistrée, l\'écriture attend au brouillard avec la pièce jointe, et tu reviens aux pièces reçues, sur la suivante.',
+      etapes: [
+        { page: '#/pieces', cible: '[data-pc-filtre="saisir"]', cote: 'dessous', faire: 'clic', fait: () => !!document.querySelector('[data-pc-filtre="saisir"][aria-pressed="true"]'), titre: 'Les pièces à saisir',
+          texte: 'Les factures et les tickets que tes clients t\'ont fait parvenir : chacun deviendra un achat.', action: 'Clique sur <b>« À saisir »</b>.', essai: { clic: true } },
+        { page: ici, cible: '#pc-voir', cote: 'gauche', titre: 'La pièce, et ce que le client en dit',
+          texte: 'Son mot, la demande à laquelle elle répond ; au-dessus de la pièce, ce qu\'il faut savoir avant de la saisir : un achat qui attend déjà son justificatif, un ticket, un mois déjà déclaré.' },
+        { page: ici, cible: '#pc-geste', cote: 'dessus', faire: 'clic', fait: () => /\/comptabilite\/saisie/.test(location.hash),
+          titre: 'Le geste de la pièce', texte: 'Le bouton vert dit ce qu\'elle doit devenir : un <b>achat</b>, dans le journal des achats du client, avec sa photo (pour un ticket, une dépense, au total).', action: 'Clique sur le bouton vert : <b>« Saisir l\'achat »</b>, ou <b>« Saisir la dépense »</b> pour un ticket.', essai: { clic: true } },
+        { page: ici, cible: '.sa-depuis', cote: 'dessous', titre: 'La saisie préparée',
+          texte: 'Le journal des achats, la date, le nom de la pièce sont posés ; il reste les comptes et les montants. <b>Enregistrée</b>, la pièce se joint à l\'écriture et sort des pièces à classer.' }
+      ]
+    });
+    visite({
+      id: 'verifier-piece-rangee', theme: 'saisir', type: 'faire', duree: '1 min', page: '#/pieces', pages: ['pieces'],
+      titre: 'Vérifier une photo rangée par le client', resume: 'L\'achat à côté de la photo, puis classer.',
+      mots: ['verifier', 'photo', 'rangee', 'achat', 'client', 'classer'],
+      si: () => !surPieces() || nPc('verifier') > 0, manque: { texte: 'Il faut une photo que le client a rangée lui-même dans un de ses achats : elle arrive ici « à vérifier ».' },
+      suite: ['saisir-piece-recue'], bravo: 'Tu sais vérifier une pièce rangée',
+      conclusion: 'Classée, la pièce sort des pièces à classer ; l\'onglet « Classées » dit qui l\'a vérifiée, et quand.',
+      etapes: [
+        { page: '#/pieces', cible: '[data-pc-filtre="verifier"]', cote: 'dessous', faire: 'clic', fait: () => !!document.querySelector('[data-pc-filtre="verifier"][aria-pressed="true"]'), titre: 'Les pièces à vérifier',
+          texte: 'Le client les a déjà rangées dans ses achats : rien à saisir, il reste à vérifier qu\'il ne s\'est pas trompé.', action: 'Clique sur <b>« À vérifier »</b>.', essai: { clic: true } },
+        { page: ici, cible: '#pc-voir .pc-vf', cote: 'gauche', titre: 'Son achat, à côté de la pièce',
+          texte: 'Le numéro, la date, le hors taxes, la TVA et le total de l\'achat qu\'il a saisi : compare-les à la pièce. Un écart se corrige dans ses achats avant de classer.' },
+        { page: ici, cible: '#pc-geste', cote: 'dessus', faire: 'clic', avant: () => { piecesAvant = nbPieces(); }, fait: () => piecesAvant > 0 && nbPieces() < piecesAvant, titre: 'Classer', texte: 'Si tout est juste, la pièce se classe : vérifiée.', action: 'Clique sur <b>« C\'est juste : classer »</b>.', essai: { clic: true } }
+      ]
+    });
+    visite({
+      id: 'deposer-pieces', theme: 'saisir', type: 'faire', duree: '1 min', page: '#/pieces', pages: ['pieces'],
+      titre: 'Déposer des pièces reçues ailleurs', resume: 'WhatsApp, e-mail, papier : pour n\'importe quel dossier.',
+      mots: ['deposer', 'whatsapp', 'email', 'papier', 'scan', 'piece'],
+      si: () => !!document.querySelector('#pc-deposer:not([disabled])'), manque: { texte: 'Le dépôt attend le retour du réseau.' },
+      suite: ['saisir-piece-recue'], bravo: 'Tu sais déposer des pièces',
+      conclusion: 'Déposées, elles se rangent dans le classeur du dossier, dans leur mois, et attendent d\'y être saisies.',
+      etapes: [
+        { page: '#/pieces', cible: '#pc-deposer', cote: 'dessous', faire: 'clic', fait: () => !!document.querySelector('#modal-root #pc-dep-d'), titre: 'Déposer des pièces',
+          texte: 'Ce qu\'un client t\'a envoyé par WhatsApp ou par e-mail, ou donné sur papier : tu le ranges toi-même.', action: 'Clique sur <b>« Déposer des pièces »</b>.', essai: { clic: true } },
+        { page: ici, cible: '#modal-root #pc-dep-d', cote: 'droite', titre: 'Dans quel dossier',
+          texte: 'Le dossier de la pièce ouverte est déjà choisi ; change-le si elles sont à un autre client.' },
+        { page: ici, cible: '#modal-root #ok', cote: 'dessus', faire: 'clic', fait: () => !document.querySelector('#modal-root #pc-dep-d'), titre: 'Choisir les fichiers', texte: 'La fenêtre du classeur de ce dossier s\'ouvre : tu y choisis les fichiers et leur mois.', action: 'Clique sur <b>« Choisir les fichiers »</b>.', essai: { clic: true } }
+      ]
+    });
+    visite({
+      id: 'redemander-piece', theme: 'saisir', type: 'faire', duree: '1 min', page: '#/pieces', pages: ['pieces'],
+      titre: 'Redemander une pièce illisible', resume: 'Le message est prêt, tu le relis avant qu\'il parte.',
+      mots: ['illisible', 'redemander', 'photo', 'floue', 'relancer', 'piece'],
+      si: () => !surPieces() || nPc('tout') > 0, manque: { texte: 'Il faut une pièce à classer : quand un client en envoie une, elle arrive ici.' },
+      suite: ['saisir-piece-recue'], bravo: 'Tu sais redemander une pièce',
+      conclusion: 'Envoyée, la demande part dans votre conversation ; la pièce se classe « illisible », et sa réponse arrivera ici.',
+      etapes: [
+        { page: '#/pieces', avant: montrerToutPc, cible: '#pc-menu', cote: 'dessus', faire: 'clic', fait: () => !!document.querySelector('[data-pc-raison="illisible"]'), titre: 'Classer sans saisir',
+          texte: 'Une photo floue, coupée, de travers : elle ne se saisit pas. Elle se classe avec sa raison.', action: 'Clique sur <b>« Classer sans saisir »</b>.', essai: { clic: true } },
+        { page: ici, cible: '[data-pc-raison="illisible"]', cote: 'gauche', faire: 'clic', fait: () => !!document.querySelector('#modal-root .modal'), titre: 'Illisible : la redemander',
+          texte: 'Le message au client est prêt : il dit ce qui aide, la facture à plat, en pleine lumière, en entier.', action: 'Clique sur <b>« Illisible : la redemander »</b>.', essai: { clic: true } },
+        { page: ici, cible: '#modal-root .modal', cote: 'gauche', titre: 'Tu relis avant qu\'il parte',
+          texte: 'Rien ne part sans toi : corrige le message si tu veux, puis envoie-le, ou annule.' }
       ]
     });
 

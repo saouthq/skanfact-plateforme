@@ -2415,9 +2415,10 @@
       const nc = !classees && nonConfiee(p, D);
       const avNc = nc ? `<div class="pc-avert ambre pc-nc">${EC_IC.alerte}<span><b>${esc(D.name)} saisit ses achats dans SkanFact</b> : leur saisie n'est pas confiée au cabinet. Si tu la saisis aussi, elle risque d'être saisie deux fois.</span></div>` : '';
       const avant = !classees && !nc && ['achat', 'ticket'].includes(p.genre) ? blocAvantPc(p) : null;
-      const geste = nc ? 'Lui laisser la saisie' : PC_GESTE[p.genre];
+      const casse = !classees && !nc && st.casse === p.id;
+      const geste = nc ? 'Lui laisser la saisie' : casse ? `Le redemander à ${String(p.de || 'le client').split(' ')[0]}` : PC_GESTE[p.genre];
       const gestes = classees ? `<div class="pc-gestes"><button type="button" class="btn" id="pc-declasser">Remettre à classer</button>${p.jointe ? `<a class="btn" href="#/dossier/${encodeURIComponent(p.entreprise)}/comptabilite/saisie">Ouvrir l'écriture</a>` : ''}</div>`
-        : `${avNc}<div class="pc-gestes">${hors ? '<span class="pc-attend">Saisir et classer attendent le retour du réseau.</span>' : ''}<button type="button" class="btn${avant && avant.meme ? '' : ' btn-primary'}" id="pc-geste"${hors ? ' disabled' : ''}>${geste}</button>${p.genre === 'rangee' && !nc ? `<a class="btn" href="#/dossier/${encodeURIComponent(p.entreprise)}/comptabilite/saisie">Ouvrir l'achat</a>` : ''}${nc ? `<button type="button" class="btn" id="pc-saisir-moi"${hors ? ' disabled' : ''}>La saisir moi-même</button>` : ''}
+        : `${avNc}<div class="pc-gestes">${hors ? '<span class="pc-attend">Saisir et classer attendent le retour du réseau.</span>' : ''}<button type="button" class="btn${avant && avant.meme && !casse ? '' : ' btn-primary'}" id="pc-geste"${hors ? ' disabled' : ''}>${geste}</button>${p.genre === 'rangee' && !nc ? `<a class="btn" href="#/dossier/${encodeURIComponent(p.entreprise)}/comptabilite/saisie">Ouvrir l'achat</a>` : ''}${nc ? `<button type="button" class="btn" id="pc-saisir-moi"${hors ? ' disabled' : ''}>La saisir moi-même</button>` : ''}
           <span class="pc-menu-w"><button type="button" class="btn" id="pc-menu" aria-haspopup="menu" aria-expanded="${st.menu}"${hors ? ' disabled' : ''}>Classer sans saisir ${PC_IC.chev}</button>${st.menu ? menuClasserPc(p, avant) : ''}</span>
           <span class="pc-clavier"><kbd>↑</kbd><kbd>↓</kbd> pièce suivante · <kbd>Entrée</kbd> ${esc(geste.toLowerCase())}</span></div>`;
       return `<div class="pc-voir" id="pc-voir"><div class="pc-vt"><div class="pc-vt-g">${vignettePc(p)}<span><b>${esc(p.fichier.nom)}</b><small>${photo ? 'Photo' : 'PDF'} · ${esc(tailleTxt(p.fichier.taille))} · ${esc(D.name)}${pr ? ` · <span class="pc-tva">${esc(pr.long)}</span>` : ''}</small></span></div>
@@ -2444,7 +2445,7 @@
     const heureLue = piecesLuesA ? piecesLuesA.toLocaleTimeString('fr-FR', { timeZone: 'Africa/Tunis', hour: 'numeric', minute: '2-digit' }).replace(':', ' h ') : '';
     const banHors = hors && comptesBarre.piecesLues ? `<div class="pr-ban gris" role="status"><b>Pas de réseau : ce poste montre ce qu'il savait${heureLue ? ` à ${heureLue}` : ''}.</b><span>Les fichiers restent sur le serveur : ils s'ouvrent, se saisissent et se classent au retour du réseau. Les pièces envoyées depuis ne sont pas encore là.</span></div>` : '';
     view.innerHTML = `<div class="cab-page${st.ouverte && sel ? ' pc-ouverte' : ''}" id="page-pieces">${d ? ctxDossierCab(d) : ctxCabinet()}
-      <div class="page-head"><div><h1>${d ? 'Pièces du dossier' : 'Pièces reçues'}</h1>
+      <div class="page-head"><div><h1>${d ? 'Pièces du dossier' : 'Pièces reçues'} ${info('pc.page')}</h1>
         <p class="muted">${classees ? 'Ce qui a été fait de chaque pièce, par qui et quand. Une pièce se remet à classer d\'un geste.' : nb ? `${pl(nb, 'pièce')} à classer${hors && heureLue ? ` à ${heureLue}, la dernière fois que ce poste a eu le réseau` : d ? '' : `, de ${pl(nbD, 'dossier')} · chacune a son geste : saisir l'achat, vérifier, rapprocher, ranger`}` : d ? 'Rien à classer : ce que ce client envoie dans votre conversation arrive ici.' : 'Rien à classer : ce que tes clients envoient dans leur conversation arrive ici.'}</p></div>
         <div class="actions"><button type="button" class="btn" id="pc-deposer"${hors ? ' disabled title="Attend le retour du réseau"' : ''}>${CL_IC.deposer} Déposer des pièces</button></div></div>
       ${banHors}
@@ -2582,7 +2583,8 @@
       doc: () => classer('rien', `« ${sel.fichier.nom} » est gardée dans le dossier de ${D.name}.`),
     };
     const bGeste = $('#pc-geste', view);
-    const faire = nonConfiee(sel, D) ? () => classer('client', `« ${sel.fichier.nom} » est classée : ${D.name} la saisit dans ses achats.`) : GESTES[sel.genre];
+    const faire = nonConfiee(sel, D) ? () => classer('client', `« ${sel.fichier.nom} » est classée : ${D.name} la saisit dans ses achats.`)
+      : st.casse === sel.id ? () => redemanderPiece(sel, D, note => classer('illisible', `La demande est partie à ${D.name} ; « ${sel.fichier.nom} » est classée « Illisible ».`, note, true)) : GESTES[sel.genre];
     if (bGeste) { bGeste.onclick = () => faire(); st.geste = () => { if (!bGeste.disabled) faire(); }; }
     const joindrePc = async (ecriture, num, b) => {
       if (b) b.disabled = true;
@@ -2739,8 +2741,24 @@
     if (!zone || navigator.onLine === false) return;
     // 430 points à 100 %, comme la feuille de la maquette ; moins si la place manque (le téléphone).
     const largeur = Math.round(Math.min(430, Math.max(200, zone.clientWidth - 40)) * st.zoom);
+    // (1.174.7) Un fichier ARRIVÉ qui ne se lit pas (abîmé pendant l'envoi, vide, protégé) : la maquette « Fichier abîmé »
+    // — le geste de la pièce devient « Le redemander à … » (on ne saisit pas ce qu'on ne lit pas). Un fichier qui ne s'est
+    // pas CHARGÉ (le réseau) n'est pas abîmé : il garde son geste.
+    const casser = () => {
+      if (st.sel !== p.id || !zone.isConnected) return;
+      if (st.casse !== p.id) { st.casse = p.id; drawPieces($('#view'), location.hash.split('/')[2]); return; }
+      zone.className = 'pc-papier vide';
+      zone.innerHTML = `<b>Ce fichier ne s'ouvre pas</b><span>Il s'est peut-être abîmé pendant l'envoi${p.fichier.taille ? ', ou il est protégé' : ' (0 Ko reçu)'}. Le redemander, c'est un message prêt pour ${esc(String(p.de || 'le client').split(' ')[0])} ; « Enregistrer le fichier » le garde tel qu'il est arrivé.</span>`;
+    };
+    let f;
+    try { f = await api.pieces.contenu(p.entreprise, p.fichier.id); } catch {
+      if (st.sel !== p.id || !zone.isConnected) return;
+      zone.className = 'pc-papier vide';
+      zone.innerHTML = '<b>Le fichier ne s\'est pas chargé</b><span>Il est gardé sur le serveur : il se rouvre en revenant sur la pièce.</span>';
+      return;
+    }
     try {
-      const f = await api.pieces.contenu(p.entreprise, p.fichier.id);
+      if (!p.fichier.taille) throw new Error('vide');
       let adresse = f.adresse, pages = 1;
       if (/pdf/.test(f.type)) {
         const img = await api.pieces.apercuPdf(f.blob, Math.max(900, largeur * 2), 1);
@@ -2750,11 +2768,9 @@
       if (st.sel !== p.id || !zone.isConnected) return;
       zone.className = 'pc-papier';
       zone.innerHTML = `<img src="${adresse}" alt="${esc(p.fichier.nom)}" style="width:${largeur}px;transform:rotate(${st.rot}deg)">${pages > 1 ? `<span class="small muted" style="margin-top:8px">page 1 sur ${pages} · « En grand » les montre toutes</span>` : ''}`;
-    } catch {
-      if (st.sel !== p.id || !zone.isConnected) return;
-      zone.className = 'pc-papier vide';
-      zone.innerHTML = `<b>Ce fichier ne s'ouvre pas ici</b><span>Il est peut-être abîmé ou protégé. « Enregistrer le fichier » le garde tel qu'il est arrivé ; « Illisible : la redemander » prépare le message.</span>`;
-    }
+      const im = $('img', zone);
+      if (im) im.onerror = casser;
+    } catch { casser(); }
   }
   async function pieceEnGrand(p) {
     const f = await api.pieces.contenu(p.entreprise, p.fichier.id).catch(x => { toast(plainError(x), 'error'); return null; });

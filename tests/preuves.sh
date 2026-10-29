@@ -21152,6 +21152,15 @@ prouver 'pièces reçues 24 : joindre à la main n'\''existe pas sans indice' we
 prouver 'pièces reçues 25 : la facture d'\''électricité ne trouve pas l'\''achat STEG' web/public/v10/cabinet/app.js \
   ', ...motsCl(a.tiers).flatMap(w => VEND_CL[w] || [])]' ']' \
   'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
+prouver 'pièces reçues 26 : le titre n'\''a pas sa bulle « D'\''où viennent ces pièces »' web/public/v10/cabinet/app.js \
+  "Pièces reçues'} \${info('pc.page')}</h1>" "Pièces reçues'}</h1>" \
+  'les pièces reçues, l'\''aide de la page : d'\''où viennent les pièces, ses quatre gestes guidés ; un fichier abîmé se redemande, il ne se saisit pas'
+prouver 'pièces reçues 27 : « Guide-moi » ne propose pas de saisir une facture reçue' web/public/v10/cabinet/cabvisites.js \
+  "titre: 'Saisir une facture d\\'achat reçue', resume:" "titre: 'Saisir une pièce', resume:" \
+  'les pièces reçues, l'\''aide de la page : d'\''où viennent les pièces, ses quatre gestes guidés ; un fichier abîmé se redemande, il ne se saisit pas'
+prouver 'pièces reçues 28 : un fichier abîmé garde « Saisir » pour geste' web/public/v10/cabinet/app.js \
+  "nc ? 'Lui laisser la saisie' : casse ?" "nc ? 'Lui laisser la saisie' : false ?" \
+  'les pièces reçues, l'\''aide de la page : d'\''où viennent les pièces, ses quatre gestes guidés ; un fichier abîmé se redemande, il ne se saisit pas'
 prouver 'classeur 47 : un achat que rien ne relie à la pièce lui est proposé' web/public/v10/cabinet/app.js \
   '.filter(o => o.i)
       .sort((a, b) => INDICES_CL' '.filter(o => true)
