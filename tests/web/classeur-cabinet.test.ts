@@ -210,6 +210,9 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     // Un ticket arrivé avant elle : la facture lue passe devant lui tant qu'elle est à traiter.
     const t = await api('POST', `/entreprises/${boulangerie}/messages/fichiers`, sarra, { cote: 'entreprise', nom: 'ticket-24-10.png', contenu: PNG });
     expect((await api('POST', `/entreprises/${boulangerie}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: t.corps.id })).statut).toBe(201);
+    // Une photo dont le nom dit ce que vend la STEG, sans total lu : un indice, pas une preuve.
+    const fe = await api('POST', `/entreprises/${boulangerie}/messages/fichiers`, sarra, { cote: 'entreprise', nom: 'electricite-sept.png', contenu: PNG });
+    expect((await api('POST', `/entreprises/${boulangerie}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: fe.corps.id })).statut).toBe(201);
     const f = await api('POST', `/entreprises/${boulangerie}/messages/fichiers`, sarra, { cote: 'entreprise', nom: 'IMG_8850.jpg', contenu: PNG });
     const m = await api('POST', `/entreprises/${boulangerie}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: f.corps.id });
     expect(m.statut).toBe(201);
@@ -226,9 +229,23 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     const ligne = p.locator('li[data-cl-k]').filter({ hasText: 'IMG_8850' });
     await expect.poll(() => ligne.innerText().catch(() => '')).toMatch(/un achat du même montant existe déjà : FA-0919, sans justificatif/);
     expect(await ligne.innerText()).toMatch(/STEG[\s\S]*113,396/);
-    // Le ticket, dont rien ne dit le montant : le bouton principal est « Saisir » (le geste de sa ligne), pas « Joindre ».
+    // Le ticket, que rien ne relie à FA-0919 (ni total lu, ni numéro, ni fournisseur) : l'achat STEG ne lui est pas proposé
+    // (Skander, 29/10 : « à quoi ça sert si la pièce n'a rien à voir ? ») ; joindre reste possible à la main, en second,
+    // et la fenêtre ne fait passer aucun achat pour le bon.
     await p.locator('li[data-cl-k]').filter({ hasText: 'ticket-24-10' }).click();
-    await expect.poll(() => p.locator('.cl-ap .btn-primary').innerText().catch(() => '')).toBe('Saisir un nouvel achat');
+    await expect.poll(() => p.locator('.cl-ap .btn-primary').innerText().catch(() => '')).toBe('La saisir dans Écritures');
+    expect(await p.locator('.cl-ap .cl-ap-b').first().innerText()).toMatch(/^À saisir\s+Rien ne la relie aux achats déjà saisis : ni son nom, ni son message ne nomment leur fournisseur/);
+    expect(await p.locator('.cl-ap').innerText()).not.toMatch(/FA-0919/);
+    expect(await p.locator('.cl-ap [data-cl-ap="joindre"]').count()).toBe(0);
+    await p.locator('.cl-ap [data-cl-ap="choisir"]').click();
+    await expect.poll(() => p.locator('.modal .cl-dp-l li').allInnerTexts()).toEqual([expect.stringMatching(/^FA-0919 · STEG[\s\S]*113,396 DT · sans justificatif\s+Joindre à FA-0919$/)]);
+    expect(await p.locator('.modal .btn-primary').count()).toBe(0);
+    await p.locator('.modal').getByRole('button', { name: 'Annuler' }).click();
+    // La photo « electricite » : FA-0919 se propose (la STEG vend l'électricité), mais rien ne dit encore le même total :
+    // « Saisir » reste le bouton principal, « Joindre » à côté.
+    await p.locator('li[data-cl-k]').filter({ hasText: 'electricite-sept' }).click();
+    await expect.poll(() => p.locator('.cl-ap .cl-ap-b').first().innerText().catch(() => '')).toMatch(/^Un achat STEG attend encore son justificatif[\s\S]*La pièce dit ce que l'achat a payé/);
+    expect(await p.locator('.cl-ap .btn-primary').innerText()).toBe('Saisir un nouvel achat');
     expect(await p.locator('.cl-ap [data-cl-ap="joindre"]').getAttribute('class')).not.toMatch(/btn-primary/);
     await ligne.click();
     await expect.poll(() => p.locator('.cl-ap').innerText().catch(() => '')).toMatch(/Un achat du même montant existe déjà[\s\S]*FA-0919/);

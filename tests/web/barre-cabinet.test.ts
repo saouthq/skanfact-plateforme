@@ -320,10 +320,13 @@ describe('la barre du Cabinet, à la souris', () => {
     expect(await lignes.first().innerText()).toMatch(/ticket-agil/);
     await p.getByRole('tab', { name: 'Classées' }).click();
     await expect.poll(() => lignes.filter({ hasText: 'facture-farine.png' }).innerText().catch(() => '')).toMatch(/[Jj]ointe/);
+    expect(await p.locator('#page-pieces .page-head .muted').innerText()).toMatch(/^Ce qui a été fait de chaque pièce, par qui et quand/);
+    await lignes.filter({ hasText: 'facture-farine.png' }).click();
+    await expect.poll(() => p.locator('#pc-voir a', { hasText: 'Ouvrir l\'écriture' }).count()).toBe(1);
     expect(erreurs).toEqual([]);
   }, 60_000);
 
-  it('les pièces reçues, avant de classer : l\'achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit, et se joint à l\'achat qui attend son justificatif', async () => {
+  it('les pièces reçues, avant de classer : l\'achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l\'achat qu\'un indice relie à la pièce se propose', async () => {
     const { associe, cab, boulangerie } = await unCabinet();
     const annee = new Date().getFullYear();
     const sarra = boulangerie.j;
@@ -337,28 +340,50 @@ describe('la barre du Cabinet, à la souris', () => {
     const f = await api('POST', `/entreprises/${boulangerie.ent}/messages/fichiers`, sarra, { cote: 'entreprise', nom: 'facture-minoterie.png', contenu: PNG });
     const m = await api('POST', `/entreprises/${boulangerie.ent}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: f.corps.id });
     expect((await api('POST', `/entreprises/${boulangerie.ent}/messages/${m.corps.id}/achat`, sarra, { achat: 'p-cap', libelle: 'FA-0914 · Minoterie du Cap Bon' })).statut).toBe(200);
+    // Puis une photo dont le nom dit le fournisseur de FA-0919 (l'indice qui relie la pièce à l'achat).
+    const fs = await api('POST', `/entreprises/${boulangerie.ent}/messages/fichiers`, sarra, { cote: 'entreprise', nom: 'facture-steg.png', contenu: PNG });
+    expect((await api('POST', `/entreprises/${boulangerie.ent}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: fs.corps.id })).statut).toBe(201);
+    const fe = await api('POST', `/entreprises/${boulangerie.ent}/messages/fichiers`, sarra, { cote: 'entreprise', nom: 'electricite-aout.png', contenu: PNG });
+    expect((await api('POST', `/entreprises/${boulangerie.ent}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: fe.corps.id })).statut).toBe(201);
     const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
     await ouvrir(p, cab.id, '#/pieces');
     const lignes = p.locator('#page-pieces .pc-r[data-piece]');
-    await expect.poll(() => lignes.count()).toBe(3);
+    await expect.poll(() => lignes.count()).toBe(5);
     // « Déjà rangée par le client » : son achat, lu dans ses livres, à côté de la pièce ; on classe en connaissance de cause.
     await lignes.filter({ hasText: 'facture-minoterie.png' }).click();
     const vf = p.locator('#pc-voir .pc-vf');
     await expect.poll(() => vf.innerText().catch(() => '')).toMatch(/Déjà dans les achats de Sarra[\s\S]*FA-0914 · Minoterie du Cap Bon[\s\S]*Hors taxes\s+100,000[\s\S]*TVA\s+19,000[\s\S]*Total\s+119,000/);
     expect(await vf.innerText()).toMatch(/Compare le total au fichier : l'achat dit 119,000 DT/);
     expect(await p.locator('#pc-geste').innerText()).toBe('C\'est juste : classer');
-    // Le ticket : il n'est pas une facture, et l'achat FA-0919 attend encore son justificatif ; « Saisir » reste le geste principal.
+    // Le ticket Agil : il n'est pas une facture ; rien ne le relie à FA-0919 (STEG), qui ne lui est donc pas proposé
+    // (Skander, 29/10 : « à quoi ça sert si la pièce n'a rien à voir ? »). « Saisir » reste le geste principal ; joindre
+    // reste possible à la main, depuis « Classer sans saisir », sans qu'aucun achat passe pour le bon.
     await lignes.filter({ hasText: 'ticket-agil.png' }).click();
     const voir = p.locator('#pc-voir');
-    await expect.poll(() => voir.locator('.pc-av-j').innerText().catch(() => '')).toMatch(/Un achat de Sarra attend son justificatif\.[\s\S]*FA-0919 · STEG[\s\S]*186,414 DT/);
-    expect(await voir.innerText()).toMatch(/Un ticket de caisse n'est pas une facture/);
+    await expect.poll(() => voir.innerText().catch(() => '')).toMatch(/Un ticket de caisse n'est pas une facture/);
+    expect(await voir.locator('.pc-av-j').count()).toBe(0);
+    expect(await voir.innerText()).not.toMatch(/FA-0919/);
     expect(await p.locator('#pc-geste').getAttribute('class')).toMatch(/btn-primary/);
+    await p.locator('#pc-menu').click();
+    await p.locator('[data-pc-raison="joindre"]').click();
+    const fen = p.locator('#modal-root');
+    await expect.poll(() => fen.locator('.cl-dp-l li').allInnerTexts()).toEqual([expect.stringMatching(/^FA-0919 · STEG[\s\S]*186,414 DT · sans justificatif\s+Joindre à FA-0919$/)]);
+    expect(await fen.locator('.btn-primary').count()).toBe(0);
+    await fen.getByRole('button', { name: 'Annuler' }).click();
+    // « electricite » : l'écriture ne dit que « STEG », mais la STEG vend l'électricité ; FA-0919 se propose, sans être le
+    // geste principal (un fournisseur qui revient chaque mois n'est pas une preuve).
+    await lignes.filter({ hasText: 'electricite-aout.png' }).click();
+    await expect.poll(() => voir.locator('.pc-av-j').innerText().catch(() => '')).toMatch(/FA-0919 · STEG[\s\S]*La pièce dit ce que l'achat a payé/);
+    expect(await p.locator('#pc-geste').getAttribute('class')).toMatch(/btn-primary/);
+    // La photo nommée « steg » : FA-0919 lui est proposé, et la page dit pourquoi.
+    await lignes.filter({ hasText: 'facture-steg.png' }).click();
+    await expect.poll(() => voir.locator('.pc-av-j').innerText().catch(() => '')).toMatch(/Un achat de Sarra attend son justificatif\.[\s\S]*FA-0919 · STEG[\s\S]*186,414 DT[\s\S]*Le même fournisseur que la pièce/);
     await voir.getByRole('button', { name: 'C\'est la même : joindre à FA-0919' }).click();
-    await expect.poll(() => lignes.count()).toBe(2);
-    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/« ticket-agil\.png » est jointe à FA-0919/);
+    await expect.poll(() => lignes.count()).toBe(4);
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/« facture-steg\.png » est jointe à FA-0919/);
     // « Déposer des pièces » : dans quel dossier (celui de la pièce ouverte), puis la fenêtre du classeur de ce dossier.
     await p.locator('#pc-deposer').click();
     expect(await p.locator('#pc-dep-d option:checked').innerText()).toMatch(/^Boulangerie El Amal · relié$/);
@@ -381,7 +406,7 @@ describe('la barre du Cabinet, à la souris', () => {
     await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
     await ouvrir(p, cab.id, '#/pieces');
     const lignes = p.locator('#page-pieces .pc-r[data-piece]');
-    const ligne = (nom: string) => lignes.filter({ hasText: nom });
+    const ligne = (nom: string) => lignes.filter({ has: p.locator('.pc-rt b', { hasText: nom }) });
     const voir = p.locator('#pc-voir');
     const fen = p.locator('#modal-root');
     await expect.poll(() => lignes.count()).toBe(3);
@@ -410,14 +435,14 @@ describe('la barre du Cabinet, à la souris', () => {
     await p.getByRole('tab', { name: 'Classées' }).click();
     await expect.poll(() => lignes.count()).toBe(2);
     await ligne('facture-farine.png').click();
-    expect(await voir.locator('.pc-mot').innerText()).toMatch(/^En double · par Anis Gharbi, .+ · « copie de « ticket-agil\.png » »$/);
+    expect(await voir.locator('.pc-mot').innerText()).toMatch(/^En double : la même que ticket-agil\.png · par Anis Gharbi, .+$/);
     await ligne('ticket-agil.png').click();
-    expect(await voir.locator('.pc-mot').innerText()).toMatch(/^Déjà saisie · par Anis Gharbi, .+ · « saisie dans Achat FA-0919 »$/);
+    expect(await voir.locator('.pc-mot').innerText()).toMatch(/^Déjà saisie dans Achat FA-0919 · par Anis Gharbi, .+$/);
     // Les deux remises à classer, puis choisies avec la troisième : un geste pour les trois, « Annuler » pour les trois.
     for (const nom of ['ticket-agil.png', 'facture-farine.png']) {
       await ligne(nom).click();
       await voir.getByRole('button', { name: 'Remettre à classer' }).click();
-      await expect.poll(() => lignes.filter({ hasText: nom }).count()).toBe(0);
+      await expect.poll(() => ligne(nom).count()).toBe(0);
     }
     await p.getByRole('tab', { name: /À classer/ }).click();
     await expect.poll(() => lignes.count()).toBe(3);

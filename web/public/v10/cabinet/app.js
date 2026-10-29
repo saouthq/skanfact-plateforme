@@ -2304,6 +2304,16 @@
   const PC_GESTE = { achat: 'Saisir l\'achat', ticket: 'Saisir la dépense', rangee: 'C\'est juste : classer', releve: 'Rapprocher dans la Banque', doc: 'Ranger dans le dossier' };
   const PC_COURT = { achat: 'à saisir', ticket: 'ticket', rangee: 'à vérifier', releve: 'relevé', doc: 'document' };
   const PC_RAISON = { saisie: 'Déjà saisie', verifiee: 'Vérifiée : rangée par le client dans ses achats', rien: 'Rien à saisir : gardée dans le dossier', double: 'En double', illisible: 'Illisible : redemandée au client', banque: 'Rapprochée dans la Banque', client: 'Le client la saisit lui-même', jointe: 'Jointe à son écriture' };
+  // (1.174.6) Ce qui a été fait d'une pièce classée, en clair (la maquette « Classées ») : de quelle pièce elle est la copie,
+  // à qui elle a été redemandée, où elle était déjà saisie.
+  const quoiPc = p => {
+    const n = String(p.note || ''), copie = /^copie de « (.+) »$/.exec(n);
+    const jumelle = p.double && [...((piecesLues && piecesLues.pieces) || []), ...((pieceState.classees || {}).pieces || [])].find(x => x.id === p.double.id);
+    if (p.raison === 'double') return copie ? `En double : la même que ${copie[1]}` : jumelle ? `En double : la même que ${jumelle.fichier.nom}` : 'En double';
+    if (p.raison === 'illisible') return `Illisible : redemandée à ${p.de || 'le client'}${p.classeeLe ? ` le ${new Date(p.classeeLe).toLocaleDateString('fr-FR', { timeZone: 'Africa/Tunis', day: '2-digit', month: '2-digit' })}` : ''}`;
+    if (p.raison === 'saisie' && n) return /^saisie dans /i.test(n) ? `Déjà saisie dans ${n.replace(/^saisie dans /i, '')}` : `Déjà saisie : ${n}`;
+    return PC_RAISON[p.raison] || 'Classée';
+  };
   // Un achat d'un dossier qui n'a pas confié la saisie de ses achats au cabinet : le client la saisit lui-même.
   const nonConfiee = (p, D) => (p.genre === 'achat' || p.genre === 'ticket') && Array.isArray(D.perimetre) && !D.perimetre.includes('saisie_achats');
   // Le genre d'une pièce : ce que le client en a fait, sinon ce que dit son nom ou la demande à laquelle elle répond.
@@ -2375,7 +2385,7 @@
     for (const id of st.choix) if (classees || !source.some(p => p.id === id)) st.choix.delete(id);
     const caseChoix = p => classees ? '' : `<label class="pc-cc" title="Choisir cette pièce"><input type="checkbox" data-pc-choix="${esc(p.id)}"${st.choix.has(p.id) ? ' checked' : ''} aria-label="Choisir ${esc(p.fichier.nom)}"></label>`;
     const ligne = p => `<div class="pc-rw${classees ? '' : ' avec-case'}${st.choix.size ? ' choix' : ''}">${caseChoix(p)}<button type="button" class="pc-r${p === sel ? ' ici' : ''}" data-piece="${esc(p.id)}">${vignettePc(p)}<span class="pc-rt"><b>${esc(p.fichier.nom)}</b><small>${classees
-      ? `${esc(PC_RAISON[p.raison] || 'Classée')} · ${esc(qui(p.classeePar))}` : `${esc(String(p.de || '').split(' ')[0])}${p.demande ? ' · ta demande' : ''} · ${esc(quandPc(p.recueLe))}`}</small></span>${classees ? '' : `<span class="pc-tag ${p.genre}">${PC_COURT[p.genre]}</span>`}</button></div>`;
+      ? `${esc(quoiPc(p))} · ${esc(qui(p.classeePar))}` : `${esc(String(p.de || '').split(' ')[0])}${p.demande ? ' · ta demande' : ''} · ${esc(quandPc(p.recueLe))}`}</small></span>${classees ? '' : `<span class="pc-tag ${p.genre}">${PC_COURT[p.genre]}</span>`}</button></div>`;
     const blocs = groupes.map((g, i) => {
       const D = dossierDe(g);
       const n = l.filter(p => p.entreprise === g).length;
@@ -2394,7 +2404,7 @@
       const pr = presse.get(p.entreprise);
       const i = visibles.indexOf(p) + 1;
       const dems = classees ? [] : ((piecesLues.demandes || []).filter(x => x.entreprise === p.entreprise));
-      const mot = classees ? `<div class="pc-mot fait">${PC_IC.coche}<span><b>${esc(PC_RAISON[p.raison] || 'Classée')}</b> · par ${esc(qui(p.classeePar))}, ${esc(quandPc(p.classeeLe, true))}${p.note ? ` · « ${esc(p.note)} »` : ''}</span></div>`
+      const mot = classees ? `<div class="pc-mot fait">${PC_IC.coche}<span><b>${esc(quoiPc(p))}</b> · par ${esc(qui(p.classeePar))}, ${esc(quandPc(p.classeeLe, true))}${p.note && !['double', 'saisie'].includes(p.raison) ? ` · « ${esc(p.note)} »` : ''}</span></div>`
         : p.achat ? `<div class="pc-mot fait">${PC_IC.coche}<span><b>${esc(p.de)} l'a rangée dans ses achats</b> : ${esc(p.achat)}. Rien à saisir : vérifie et classe.</span><a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Répondre</a></div>`
         : `<div class="pc-mot">${PC_IC.bulle}<span>${p.demande ? `Répond à ta demande : <b>« ${esc(p.demande)} »</b>` : p.texte ? `<b>${esc(p.de)}</b> : « ${esc(p.texte)} »` : `<b>${esc(p.de)}</b> l'a envoyée sans un mot`} · ${esc(quandPc(p.recueLe, true))}</span><a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Répondre</a></div>`;
       const dl = dems.length ? `<div class="pc-dl"><span>Demandes en cours :</span>${dems.slice(0, 4).map(x => `<span class="pc-dl-i${x.recueLe ? '' : ' attendue'}">${x.recueLe ? PC_IC.coche : PC_IC.attente}${esc(x.texte)}${!x.recueLe && x.pour ? ` · ${esc(fmtJourCourt(x.pour).slice(0, 5))}` : ''}</span>`).join('')}${dems.some(x => !x.recueLe) ? `<a href="#/messages/${encodeURIComponent(p.entreprise)}" class="pc-lien">Relancer</a>` : ''}</div>` : '';
@@ -2406,9 +2416,9 @@
       const avNc = nc ? `<div class="pc-avert ambre pc-nc">${EC_IC.alerte}<span><b>${esc(D.name)} saisit ses achats dans SkanFact</b> : leur saisie n'est pas confiée au cabinet. Si tu la saisis aussi, elle risque d'être saisie deux fois.</span></div>` : '';
       const avant = !classees && !nc && ['achat', 'ticket'].includes(p.genre) ? blocAvantPc(p) : null;
       const geste = nc ? 'Lui laisser la saisie' : PC_GESTE[p.genre];
-      const gestes = classees ? '<div class="pc-gestes"><button type="button" class="btn" id="pc-declasser">Remettre à classer</button></div>'
+      const gestes = classees ? `<div class="pc-gestes"><button type="button" class="btn" id="pc-declasser">Remettre à classer</button>${p.jointe ? `<a class="btn" href="#/dossier/${encodeURIComponent(p.entreprise)}/comptabilite/saisie">Ouvrir l'écriture</a>` : ''}</div>`
         : `${avNc}<div class="pc-gestes">${hors ? '<span class="pc-attend">Saisir et classer attendent le retour du réseau.</span>' : ''}<button type="button" class="btn${avant && avant.meme ? '' : ' btn-primary'}" id="pc-geste"${hors ? ' disabled' : ''}>${geste}</button>${p.genre === 'rangee' && !nc ? `<a class="btn" href="#/dossier/${encodeURIComponent(p.entreprise)}/comptabilite/saisie">Ouvrir l'achat</a>` : ''}${nc ? `<button type="button" class="btn" id="pc-saisir-moi"${hors ? ' disabled' : ''}>La saisir moi-même</button>` : ''}
-          <span class="pc-menu-w"><button type="button" class="btn" id="pc-menu" aria-haspopup="menu" aria-expanded="${st.menu}"${hors ? ' disabled' : ''}>Classer sans saisir ${PC_IC.chev}</button>${st.menu ? menuClasserPc(p) : ''}</span>
+          <span class="pc-menu-w"><button type="button" class="btn" id="pc-menu" aria-haspopup="menu" aria-expanded="${st.menu}"${hors ? ' disabled' : ''}>Classer sans saisir ${PC_IC.chev}</button>${st.menu ? menuClasserPc(p, avant) : ''}</span>
           <span class="pc-clavier"><kbd>↑</kbd><kbd>↓</kbd> pièce suivante · <kbd>Entrée</kbd> ${esc(geste.toLowerCase())}</span></div>`;
       return `<div class="pc-voir" id="pc-voir"><div class="pc-vt"><div class="pc-vt-g">${vignettePc(p)}<span><b>${esc(p.fichier.nom)}</b><small>${photo ? 'Photo' : 'PDF'} · ${esc(tailleTxt(p.fichier.taille))} · ${esc(D.name)}${pr ? ` · <span class="pc-tva">${esc(pr.long)}</span>` : ''}</small></span></div>
         <div class="pc-nav"><button type="button" class="btn btn-sm btn-icone" data-pc-pas="-1" aria-label="Pièce précédente"${i <= 1 ? ' disabled' : ''}>${PC_IC.g}</button><span>${i} sur ${visibles.length}</span><button type="button" class="btn btn-sm btn-icone" data-pc-pas="1" aria-label="Pièce suivante"${i >= visibles.length ? ' disabled' : ''}>${PC_IC.d}</button></div></div>
@@ -2435,7 +2445,7 @@
     const banHors = hors && comptesBarre.piecesLues ? `<div class="pr-ban gris" role="status"><b>Pas de réseau : ce poste montre ce qu'il savait${heureLue ? ` à ${heureLue}` : ''}.</b><span>Les fichiers restent sur le serveur : ils s'ouvrent, se saisissent et se classent au retour du réseau. Les pièces envoyées depuis ne sont pas encore là.</span></div>` : '';
     view.innerHTML = `<div class="cab-page${st.ouverte && sel ? ' pc-ouverte' : ''}" id="page-pieces">${d ? ctxDossierCab(d) : ctxCabinet()}
       <div class="page-head"><div><h1>${d ? 'Pièces du dossier' : 'Pièces reçues'}</h1>
-        <p class="muted">${nb ? `${pl(nb, 'pièce')} à classer${hors && heureLue ? ` à ${heureLue}, la dernière fois que ce poste a eu le réseau` : d ? '' : `, de ${pl(nbD, 'dossier')} · chacune a son geste : saisir l'achat, vérifier, rapprocher, ranger`}` : d ? 'Rien à classer : ce que ce client envoie dans votre conversation arrive ici.' : 'Rien à classer : ce que tes clients envoient dans leur conversation arrive ici.'}</p></div>
+        <p class="muted">${classees ? 'Ce qui a été fait de chaque pièce, par qui et quand. Une pièce se remet à classer d\'un geste.' : nb ? `${pl(nb, 'pièce')} à classer${hors && heureLue ? ` à ${heureLue}, la dernière fois que ce poste a eu le réseau` : d ? '' : `, de ${pl(nbD, 'dossier')} · chacune a son geste : saisir l'achat, vérifier, rapprocher, ranger`}` : d ? 'Rien à classer : ce que ce client envoie dans votre conversation arrive ici.' : 'Rien à classer : ce que tes clients envoient dans leur conversation arrive ici.'}</p></div>
         <div class="actions"><button type="button" class="btn" id="pc-deposer"${hors ? ' disabled title="Attend le retour du réseau"' : ''}>${CL_IC.deposer} Déposer des pièces</button></div></div>
       ${banHors}
       <div class="pc-barre"><div class="onglets-cab" role="tablist"><button type="button" role="tab" aria-selected="${!classees}" data-onglet-pr="aclasser">À classer${nb ? `<span class="compte attire">${nb}</span>` : ''}</button><button type="button" role="tab" aria-selected="${classees}" data-onglet-pr="classees">Classées</button></div>
@@ -2574,20 +2584,19 @@
     const bGeste = $('#pc-geste', view);
     const faire = nonConfiee(sel, D) ? () => classer('client', `« ${sel.fichier.nom} » est classée : ${D.name} la saisit dans ses achats.`) : GESTES[sel.genre];
     if (bGeste) { bGeste.onclick = () => faire(); st.geste = () => { if (!bGeste.disabled) faire(); }; }
-    $$('[data-pc-joindre]', view).forEach(b => {
-      b.onclick = async () => {
-        b.disabled = true;
-        const apres = suivante();
-        try {
-          await api.pieces.joindre(sel.entreprise, sel.id, b.dataset.pcJoindre);
-          clState.livres.delete(`${sel.entreprise}:${new Date(sel.recueLe).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' }).slice(0, 4)}`);
-          st.classees = null; st.sel = apres;
-          await relirePieces();
-          if (/^#\/pieces/.test(location.hash)) redessiner();
-          toast(`« ${sel.fichier.nom} » est jointe à ${b.dataset.pcJoindreN || 'son achat'} : rien n'est saisi deux fois.`);
-        } catch (x) { b.disabled = false; toast(plainError(x), 'error'); }
-      };
-    });
+    const joindrePc = async (ecriture, num, b) => {
+      if (b) b.disabled = true;
+      const apres = suivante();
+      try {
+        await api.pieces.joindre(sel.entreprise, sel.id, ecriture);
+        clState.livres.delete(`${sel.entreprise}:${new Date(sel.recueLe).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' }).slice(0, 4)}`);
+        st.classees = null; st.sel = apres;
+        await relirePieces();
+        if (/^#\/pieces/.test(location.hash)) redessiner();
+        toast(`« ${sel.fichier.nom} » est jointe à ${num || 'son achat'} : rien n'est saisi deux fois.`);
+      } catch (x) { if (b) b.disabled = false; toast(plainError(x), 'error'); }
+    };
+    $$('[data-pc-joindre]', view).forEach(b => { b.onclick = () => joindrePc(b.dataset.pcJoindre, b.dataset.pcJoindreN, b); });
     const bMoi = $('#pc-saisir-moi', view);
     if (bMoi) bMoi.onclick = () => saisirDepuisPc();
     const bMenu = $('#pc-menu', view);
@@ -2595,6 +2604,12 @@
     $$('[data-pc-raison]', view).forEach(b => {
       b.onclick = () => {
         const r = b.dataset.pcRaison;
+        if (r === 'joindre') {
+          st.menu = false; redessiner();
+          const av = blocAvantPc(sel);
+          fenJoindreCl(D, { titre: `« ${sel.fichier.nom} »` }, av.tous, c => joindrePc(c.e.id, c.e.piece), c => c.i);
+          return;
+        }
         if (r === 'illisible') { st.menu = false; redessiner(); redemanderPiece(sel, D, note => classer('illisible', `La demande est partie à ${D.name} ; « ${sel.fichier.nom} » est classée « Illisible ».`, note, true)); return; }
         if (r === 'double') { st.menu = false; redessiner(); fenDouble(sel, D, note => classer('double', `« ${sel.fichier.nom} » est classée en double.`, note)); return; }
         if (r === 'saisie') { st.menu = false; redessiner(); fenDejaSaisie(sel, D, note => classer('saisie', `« ${sel.fichier.nom} » est classée : déjà saisie.`, note)); return; }
@@ -2629,18 +2644,26 @@
     const lu = ((clState.lus.get(p.entreprise) || {}).par || new Map()).get(`p:${p.id}`);
     const totalLu = lu && lu.total ? montantDe(lu.total) : null;
     const montantE = e => (e.lignes || []).filter(l => /^40/.test(String(l.compte))).reduce((t, l) => t + montantDe(l.credit), 0);
-    const jointes = new Set(((pieceState.classees || {}).pieces || []).map(x => x.ecriture).filter(Boolean));
+    const jointes = new Set(((pieceState.classees || {}).pieces || []).map(x => x.jointe).filter(Boolean));
     // Un achat dont la pièce est déjà là (rangée par le client, à vérifier) n'attend rien : il ne se propose pas.
     const rangees = new Set(((piecesLues && piecesLues.pieces) || []).filter(x => x.entreprise === p.entreprise && x.achat).map(x => String(x.achat).split(' · ')[0].trim()));
-    const cands = !livre ? [] : (livre.ecritures || []).filter(e => rubDeJournal(e.journal) === 'achats' && e.justifClient === false && !jointes.has(e.id) && !rangees.has(String(e.piece)))
-      .map(e => ({ e, m: montantE(e) })).sort((a, b) => (totalLu != null ? Math.abs(a.m - totalLu) - Math.abs(b.m - totalLu) : 0) || String(b.e.date).localeCompare(String(a.e.date)));
-    const c = cands[0], meme = c && totalLu != null && Math.abs(c.m - totalLu) < 0.0005;
-    const blocs = [];
     const tiersE = e => ((e.lignes || []).find(l => l.tiers) || {}).tiers || String(e.libelle || '').replace(new RegExp(`^(Achat\\s+)?${String(e.piece || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[—-]?\\s*`, 'i'), '');
-    if (c) blocs.push(`<div class="pc-avert ${meme ? 'rouge' : 'ambre'} pc-av-j">${EC_IC.alerte}<span><b>${meme ? 'Peut-être déjà saisie.' : cands.length > 1 ? `${cands.length} achats de ${esc(qui)} attendent leur justificatif.` : `Un achat de ${esc(qui)} attend son justificatif.`}</b> ${esc(qui)} a saisi ${esc(c.e.piece || 'un achat')}${tiersE(c.e) ? ` · ${esc(tiersE(c.e))}` : ''} du ${esc(fmtJourCourt(c.e.date).slice(0, 5))}, ${esc(dtCd(c.m))} DT, sans pièce. Si c'est celle-ci, la joindre évite de saisir la dépense deux fois.
+    // (1.174.6) Ce que la pièce dit d'elle (sa lecture, son nom de fichier, son message) ; seul l'achat qu'un indice y relie se
+    // propose (Skander, 29/10/2026 : un achat sans lien proposé à une pièce sans lien ne sert à rien).
+    const dit = { total: lu && (!lu.devise || lu.devise === 'TND') ? totalLu : null, numero: lu && lu.numero, fournisseur: lu && lu.fournisseur,
+      texte: `${(p.fichier && p.fichier.nom) || ''} ${p.texte || ''}`, mois: (lu && lu.date) || new Date(p.recueLe).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' }) };
+    const tous = !livre ? [] : (livre.ecritures || []).filter(e => rubDeJournal(e.journal) === 'achats' && e.justifClient === false && !jointes.has(e.id) && !rangees.has(String(e.piece)))
+      .map(e => ({ e, m: montantE(e), num: e.piece, titre: tiersE(e) || e.libelle || e.piece || 'Achat', date: e.date, montant: montantE(e) }))
+      .map(o => ({ ...o, i: indiceAchatCl({ num: o.num, tiers: o.titre, objet: `${o.e.libelle || ''} ${(o.e.lignes || []).map(l => l.libelle || '').join(' ')}`, montant: o.m, mois: o.date }, dit) }))
+      .sort((a, b) => (INDICES_CL.indexOf(a.i) + 1 || 9) - (INDICES_CL.indexOf(b.i) + 1 || 9) || String(b.e.date).localeCompare(String(a.e.date)));
+    const cands = tous.filter(o => o.i);
+    const c = cands[0], meme = !!c && c.i === 'montant';
+    const blocs = [];
+    if (c) blocs.push(`<div class="pc-avert ${meme ? 'rouge' : 'ambre'} pc-av-j">${EC_IC.alerte}<span><b>${meme ? 'Peut-être déjà saisie.' : `Un achat de ${esc(qui)} attend son justificatif.`}</b> ${esc(qui)} a saisi ${esc(c.e.piece || 'un achat')}${c.titre && c.titre !== c.e.piece ? ` · ${esc(c.titre)}` : ''} du ${esc(fmtJourCourt(c.e.date).slice(0, 5))}, ${esc(dtCd(c.m))} DT, sans pièce. ${esc(POURQUOI_CL[c.i])} : si c'est celle-ci, la joindre évite de saisir la dépense deux fois.
       <span class="pc-av-g"><button type="button" class="btn btn-sm${meme ? ' btn-primary' : ''}" data-pc-joindre="${esc(c.e.id)}" data-pc-joindre-n="${esc(c.e.piece || '')}">C'est la même : joindre à ${esc(c.e.piece || 'cet achat')}</button></span></span></div>`);
     if (p.genre === 'ticket') blocs.push(`<div class="pc-avert ambre">${EC_IC.alerte}<span><b>Un ticket de caisse n'est pas une facture</b> à son nom : sa TVA ne se récupère sans doute pas (À VÉRIFIER). La dépense s'enregistre au total, sans TVA.</span></div>`);
-    return { html: blocs.join(''), meme };
+    // Sans indice, aucun achat ne se propose ; le comptable qui reconnaît la facture sur la photo la joint à la main.
+    return { html: blocs.join(''), meme, tous };
   }
   function blocVerifPc(p, D) {
     const annee = new Date(p.recueLe).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' }).slice(0, 4);
@@ -2668,8 +2691,9 @@
         <dl><div><dt>Date</dt><dd>${esc(fmtJourCourt(e.date))}</dd></div><div><dt>Hors taxes</dt><dd>${esc(dtCd(ht))}</dd></div><div><dt>TVA</dt><dd>${esc(dtCd(tva))}</dd></div><div><dt>Total</dt><dd><b>${esc(dtCd(ttc))}</b></dd></div></dl></div>
       <ul class="pc-vf-c">${ctl.map(([t, x]) => `<li class="${t}">${ic[t]}<span>${esc(x)}</span></li>`).join('')}</ul></div>`;
   }
-  function menuClasserPc(p) {
-    const o = [['rien', 'Rien à saisir', 'Un contrat, une attestation : gardée dans le dossier, à sa date'],
+  function menuClasserPc(p, avant) {
+    const o = [...(avant && avant.tous.length ? [['joindre', 'Joindre à un achat déjà saisi…', `${pl(avant.tous.length, 'achat attend', 'achats attendent')} un justificatif : elle devient le sien, rien n'est saisi deux fois`]] : []),
+      ['rien', 'Rien à saisir', 'Un contrat, une attestation : gardée dans le dossier, à sa date'],
       ['saisie', 'Déjà saisie', 'Elle est déjà dans ses livres : classée sans rien ajouter'],
       ['double', 'En double', 'La même pièce est déjà arrivée'],
       ['illisible', 'Illisible : la redemander', 'Le message est prêt, tu le relis avant qu\'il parte', `${String(p.de || 'Le client').split(' ')[0]} le reçoit dans votre conversation`]];
@@ -4194,6 +4218,32 @@
   const CL_CATS = [['juridique', 'Juridique'], ['fiscal', 'Fiscal et social'], ['contrats', 'Contrats'], ['banque', 'Comptable et banque'], ['cabinet', 'Le cabinet']];
   const rubDeJournal = j => ({ VT: 'ventes', AC: 'achats', BQ: 'banque', CA: 'banque', PAIE: 'paie' })[String(j || '').toUpperCase()] || 'cabinet';
   const sansAccentsCl = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+  // (1.174.6) Ce qui relie une pièce à un achat saisi sans justificatif : le même total lu, le même numéro, le fournisseur
+  // nommé (lu, dans le nom du fichier ou le message), ce qu'elle dit repris du libellé de l'achat (« électricité » pour la
+  // STEG), ou un total proche le même mois ou le suivant. Un nom de mois seul n'est pas un indice. Sans indice, rien : un
+  // achat sans lien ne se propose pas à une pièce sans lien (Skander, 29/10/2026 : « à quoi ça sert si la pièce n'a rien à
+  // voir ? ») ; il reste dans « Ce qui manque », et « Joindre à un achat… » le laisse choisir à la main.
+  // a = { num, tiers, objet, montant, mois } ; x = { total, numero, fournisseur, texte, mois }.
+  const MOTS_VIDES_CL = new Set(['sarl', 'suarl', 'ste', 'societe', 'ets', 'etablissements', 'tunisie', 'tunis', 'cie', 'les', 'des', 'and', 'facture', 'ticket', 'achat', 'img', 'jpg', 'jpeg', 'png', 'pdf', 'scan', 'photo',
+    'janvier', 'fevrier', 'mars', 'avril', 'mai', 'juin', 'juillet', 'aout', 'septembre', 'octobre', 'novembre', 'decembre', 'mois']);
+  const motsCl = t => sansAccentsCl(t).split(/[^a-z0-9]+/).filter(w => w.length > 2 && !/^\d+$/.test(w) && !MOTS_VIDES_CL.has(w));
+  // Ce que vendent les fournisseurs que tout le monde connaît : « facture-electricite » est celle de la STEG, même si
+  // l'écriture ne dit que « STEG ». Une liste courte, à compléter ; un mot qui n'y est pas ne relie rien.
+  const VEND_CL = { steg: ['electricite', 'electrique', 'gaz'], sonede: ['eau'], ooredoo: ['telephone', 'internet', 'mobile', 'adsl', 'fibre'], orange: ['telephone', 'internet', 'mobile', 'adsl', 'fibre'], telecom: ['telephone', 'internet', 'mobile', 'adsl', 'fibre'], topnet: ['internet', 'adsl', 'fibre'], globalnet: ['internet', 'adsl', 'fibre'], agil: ['carburant', 'essence', 'gasoil'], shell: ['carburant', 'essence', 'gasoil'], oilibya: ['carburant', 'essence', 'gasoil'], star: ['carburant', 'essence', 'gasoil'], totalenergies: ['carburant', 'essence', 'gasoil'] };
+  const INDICES_CL = ['montant', 'numero', 'nom', 'objet', 'proche'];
+  function indiceAchatCl(a, x) {
+    const total = x.total == null || x.total === '' ? null : Number(x.total), m = Number(a.montant) || 0;
+    if (total != null && m && Math.abs(m - total) < 0.0005) return 'montant';
+    const n = s => sansAccentsCl(s).replace(/[^a-z0-9]/g, '');
+    if (x.numero && a.num && n(x.numero) === n(a.num)) return 'numero';
+    const dits = new Set(motsCl(`${x.fournisseur || ''} ${x.texte || ''}`));
+    if (motsCl(a.tiers).some(w => dits.has(w))) return 'nom';
+    if ([...motsCl(a.objet), ...motsCl(a.tiers).flatMap(w => VEND_CL[w] || [])].some(w => dits.has(w))) return 'objet';
+    const ecart = (Date.parse(`${String(x.mois).slice(0, 7)}-15`) - Date.parse(`${String(a.mois).slice(0, 7)}-15`)) / 86_400_000;
+    if (total != null && m && ecart >= -1 && ecart <= 32 && Math.abs(m - total) <= Math.max(1, m * 0.02)) return 'proche';
+    return '';
+  }
+  const POURQUOI_CL = { montant: 'Le même total que la pièce', numero: 'Le même numéro que la pièce', nom: 'Le même fournisseur que la pièce', objet: 'La pièce dit ce que l\'achat a payé', proche: 'Un total proche de celui de la pièce, le même mois' };
   const jourTunisCl = iso => new Date(iso).toLocaleDateString('fr-CA', { timeZone: 'Africa/Tunis' });
   const moisTunisCl = iso => jourTunisCl(iso).slice(0, 7);
   const heureCl = iso => new Date(iso).toLocaleTimeString('fr-FR', { timeZone: 'Africa/Tunis', hour: 'numeric', minute: '2-digit' }).replace(':', ' h ');
@@ -4549,10 +4599,11 @@
     });
   }
 
-  // Choisir l'achat auquel joindre une pièce : les achats sans justificatif de l'année, les plus proches d'abord.
-  function fenJoindreCl(d, x, candidats, joindre) {
+  // Choisir l'achat auquel joindre une pièce : les achats sans justificatif de l'année, ceux qu'un indice relie à la pièce
+  // d'abord (et ce qui les relie) ; sans indice, aucun ne passe pour le bon (pas de bouton principal).
+  function fenJoindreCl(d, x, candidats, joindre, indice = () => '') {
     modal(`<div class="tb-rel-t"><span class="cd-ic">${CL_IC.pdf}</span><span><h2>Joindre ${esc(x.titre)} à un achat déjà saisi</h2><small>La pièce devient le justificatif de l'achat : rien n'est saisi deux fois</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
-      ${candidats.length ? `<ul class="cl-dp-l">${candidats.map((c, i) => `<li><span class="cl-l-i pdf">${CL_IC.pdf}</span><span><b>${esc(c.num || c.titre)} · ${esc(c.titre)}</b><small>${esc(jjmm(c.date))} · ${esc(dtCd(c.montant))} DT · sans justificatif</small></span><span class="cl-dp-ou"><button type="button" class="btn btn-sm${i === 0 ? ' btn-primary' : ''}" data-j="${i}">Joindre à ${esc(c.num || c.titre)}</button></span></li>`).join('')}</ul>`
+      ${candidats.length ? `<ul class="cl-dp-l">${candidats.map((c, i) => { const ind = indice(c); return `<li><span class="cl-l-i pdf">${CL_IC.pdf}</span><span><b>${esc(c.num || c.titre)} · ${esc(c.titre)}</b><small>${esc([jjmm(c.date), `${dtCd(c.montant)} DT`, 'sans justificatif', ind ? POURQUOI_CL[ind].toLowerCase() : ''].filter(Boolean).join(' · '))}</small></span><span class="cl-dp-ou"><button type="button" class="btn btn-sm${i === 0 && ind ? ' btn-primary' : ''}" data-j="${i}">Joindre à ${esc(c.num || c.titre)}</button></span></li>`; }).join('')}</ul>`
         : '<p class="muted">Aucun achat de cette année n\'attend de justificatif : la pièce se saisit comme un achat nouveau.</p>'}
       <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button></div>`,
     (layer, close) => {
@@ -5095,7 +5146,7 @@
       if (estPiece) voir.push(['historique', PC_IC.attente, 'Voir son historique', 'Reçue, rangée, jointe : qui et quand']);
       const ranger = [];
       // Joindre seulement s'il y a un achat à qui la joindre (la colonne de droite le dit sinon : « aucun achat n'attend »).
-      if (!x.classee && x.sorte === 'piece' && candidatsDe(x).length) ranger.push(['joindre', CD_IC.lien, 'Joindre à un achat déjà saisi', `${candidatsDe(x)[0].num || candidatsDe(x)[0].titre} ${memeMontant(candidatsDe(x)[0], x) ? 'a le même montant' : 'attend son justificatif'}`]);
+      if (!x.classee && x.sorte === 'piece' && sansJustif.length) { const c = candidatsDe(x)[0]; ranger.push(['joindre', CD_IC.lien, 'Joindre à un achat déjà saisi', c ? `${c.num || c.titre} : ${POURQUOI_CL[indiceDe(c, x)].toLowerCase()}` : `${pl(sansJustif.length, 'achat attend', 'achats attendent')} un justificatif : choisir lequel`]); }
       if (cour && !/^réponse\b/i.test(x.doc.titre) && !docs.some(y => y.rubrique === 'courrier' && y.titre === `Réponse · ${x.doc.titre}`.slice(0, 200))) ranger.push(['reponse', CD_IC.msg, 'Ranger sa réponse', 'La réponse du cabinet, à côté du courrier']);
       ranger.push(['remplacer', PC_IC.tourne, estPiece && x.photo ? 'Remplacer par une meilleure photo' : 'Remplacer le fichier', 'L\'ancien reste dans l\'historique']);
       if (estPiece) ranger.push(['mois', CL_SVG(IC_BARRE.echeances), 'Déplacer dans un autre mois', 'Si elle a été rangée au mauvais endroit']);
@@ -5130,11 +5181,19 @@
     };
     // Les achats sans justificatif auxquels une pièce peut se joindre : ceux de son mois et du précédent d'abord.
     const sansJustif = items.filter(x => x.sorte === 'ecr' && x.etat[1] === 'sans justificatif');
-    // Le fournisseur nommé dans le fichier ou le message passe devant ; puis le mois le plus proche.
-    const nommeDans = (c, x) => { const t = sansAccentsCl(`${x.titre} ${x.sous || ''} ${(x.p && x.p.texte) || ''}`); return sansAccentsCl(c.titre).split(/[^a-z0-9]+/).some(w => w.length > 2 && t.includes(w)) ? 0 : 1; };
     // (1.173.0) Une pièce lue : l'achat du même montant passe devant tout (la maquette : « un achat du même montant existe déjà »).
     const memeMontant = (c, x) => x.montant && c.montant && Math.abs(Number(c.montant) - Number(x.montant)) < 0.0005;
-    const candidatsDe = x => [...sansJustif].sort((a, b) => (memeMontant(b, x) ? 1 : 0) - (memeMontant(a, x) ? 1 : 0) || nommeDans(a, x) - nommeDans(b, x) || Math.abs(Date.parse(`${a.mois}-15`) - Date.parse(`${x.mois}-15`)) - Math.abs(Date.parse(`${b.mois}-15`) - Date.parse(`${x.mois}-15`)));
+    // (1.174.6) Ce que la pièce dit d'elle : sa lecture, le nom de son fichier, le message qui l'accompagnait.
+    const ditDe = x => ({ total: x.lu && (!x.lu.devise || x.lu.devise === 'TND') && x.lu.total ? x.lu.total : null, numero: x.lu && x.lu.numero, fournisseur: x.lu && x.lu.fournisseur,
+      texte: `${nomFichierCl(x)} ${(x.p && x.p.texte) || ''}`, mois: x.mois });
+    const objetE = e => `${e.libelle || ''} ${(e.lignes || []).map(l => l.libelle || '').join(' ')}`;
+    const indiceDe = (c, x) => indiceAchatCl({ num: c.num, tiers: c.titre, objet: objetE(c.e), montant: c.montant, mois: c.mois }, ditDe(x));
+    const procheMois = x => (a, b) => Math.abs(Date.parse(`${a.mois}-15`) - Date.parse(`${x.mois}-15`)) - Math.abs(Date.parse(`${b.mois}-15`) - Date.parse(`${x.mois}-15`));
+    // Les achats qu'un indice relie à la pièce, le plus sûr d'abord : seuls ceux-là se proposent.
+    const candidatsDe = x => sansJustif.map(c => ({ c, i: indiceDe(c, x) })).filter(o => o.i)
+      .sort((a, b) => INDICES_CL.indexOf(a.i) - INDICES_CL.indexOf(b.i) || procheMois(x)(a.c, b.c)).map(o => o.c);
+    // Joindre à la main (la fenêtre) : tous les achats qui attendent, ceux qu'un indice relie en tête.
+    const aJoindreDe = x => { const cs = candidatsDe(x); return [...cs, ...[...sansJustif].filter(c => !cs.includes(c)).sort(procheMois(x))]; };
     // (1.173.0) Une pièce lue dont le total est celui d'un achat sans justificatif : sa ligne le dit (la maquette : « un achat
     // du même montant existe déjà : FA-0919, sans justificatif »).
     for (const x of items) {
@@ -5418,17 +5477,22 @@
         bloc = `<div class="cl-ap-b ambre"><b>Le relevé n'est pas encore dans ses livres</b><span>Il s'importe dans Banque : chaque mouvement y trouve son écriture.</span></div>`;
         actions = enSaisie ? parReviseur('rapprocher') : `<a class="btn btn-sm btn-primary" href="#/dossier/${encodeURIComponent(d.id)}/comptabilite/banque">L'importer dans Banque</a>`;
       } else if (cands.length) {
-        const c = cands[0];
-        bloc = `<div class="cl-ap-b ambre"><b>${memeMontant(c, sel) ? 'Un achat du même montant existe déjà' : cands.length > 1 ? `${pl(cands.length, 'achat attend', 'achats attendent')} encore ${cands.length > 1 ? 'leur' : 'son'} justificatif` : `Un achat ${esc(deMois(c.mois))} attend encore son justificatif`}</b><span>${esc(c.num || '')} · ${esc(c.titre)} · ${esc(jjmm(c.date))} · ${esc(dtCd(c.montant))} DT, saisi par ${esc(qui)} <b>sans justificatif</b>. Si cette pièce est la sienne, la joindre évite de compter la dépense deux fois.</span></div>`;
-        // (1.174.4) Le bouton principal est le geste de la ligne : « Joindre » seulement quand le montant répond (un ticket de
-        // 60 DT ne se joint pas d'un clic distrait à une facture de 186 DT) ; sinon « Saisir », et joindre reste à côté.
-        const jP = memeMontant(c, sel) || (sel.geste && sel.geste.act === 'joindre');
+        // (1.174.6) Seul un achat qu'un indice relie à la pièce se propose, et la page dit lequel.
+        const c = cands[0], ind = indiceDe(c, sel);
+        const titreB = { montant: 'Un achat du même montant existe déjà', numero: 'Un achat porte le même numéro', nom: `Un achat ${c.titre} attend encore son justificatif`, objet: `Un achat ${c.titre} attend encore son justificatif`, proche: 'Un achat d\'un montant proche attend encore son justificatif' }[ind];
+        bloc = `<div class="cl-ap-b ambre"><b>${esc(titreB)}</b><span>${esc(c.num || '')} · ${esc(c.titre)} · ${esc(jjmm(c.date))} · ${esc(dtCd(c.montant))} DT, saisi par ${esc(qui)} <b>sans justificatif</b>. ${esc(POURQUOI_CL[ind])} : si c'est la même pièce, la joindre évite de compter la dépense deux fois.</span></div>`;
+        // (1.174.4) Le bouton principal est le geste de la ligne : « Joindre » seulement quand le montant (ou le numéro) répond
+        // (un ticket de 60 DT ne se joint pas d'un clic distrait à une facture de 186 DT) ; sinon « Saisir », et joindre reste à côté.
+        const jP = ind === 'montant' || ind === 'numero' || (sel.geste && sel.geste.act === 'joindre');
         actions = `<button type="button" class="btn btn-sm${jP ? '' : ' btn-primary'}" data-cl-ap="saisir">Saisir un nouvel achat</button><button type="button" class="btn btn-sm${jP ? ' btn-primary' : ''}" data-cl-ap="joindre" data-cl-c="${esc(c.k)}"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Joindre à ${esc(c.num || c.titre)}</button>`;
         apres = tableE(c.e, `L'écriture de ${esc(c.num || '')}, ${c.e.statut === 'brouillard' ? 'au brouillard' : 'validée'}`) + (reglementDe(c.e) ? `<div class="cl-ap-r"><span class="cl-ap-l">Son règlement</span><small>${esc(reglementDe(c.e))}</small></div>` : '');
       } else {
         // (1.173.2) Une pièce à saisir que rien n'attend : la page le dit avant le geste (un bouton seul ne dit pas pourquoi).
-        bloc = `<div class="cl-ap-b ambre"><b>À saisir</b><span>Aucun achat de ses livres n'attend son justificatif : c'est une dépense nouvelle. Saisie, elle arrive au brouillard ${esc(deMois(sel.mois))}.</span></div>`;
-        actions = `<button type="button" class="btn btn-sm btn-primary" data-cl-ap="saisir"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>La saisir dans Écritures</button>`;
+        // (1.174.6) Des achats attendent un justificatif, mais rien ne relie celle-ci à l'un d'eux : la page ne les lui
+        // propose pas ; joindre reste possible à la main, en second.
+        const aucun = sansJustif.length && sel.sorte === 'piece';
+        bloc = `<div class="cl-ap-b ambre"><b>À saisir</b><span>${!aucun ? 'Aucun achat de ses livres n\'attend son justificatif' : sel.lu ? 'Rien ne la relie aux achats déjà saisis (ni le total lu, ni le numéro, ni le fournisseur)' : 'Rien ne la relie aux achats déjà saisis : ni son nom, ni son message ne nomment leur fournisseur'} : c'est une dépense nouvelle. Saisie, elle arrive au brouillard ${esc(deMois(sel.mois))}.</span></div>`;
+        actions = `<button type="button" class="btn btn-sm btn-primary" data-cl-ap="saisir"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>La saisir dans Écritures</button>${aucun ? `<button type="button" class="btn btn-sm btn-ghost" data-cl-ap="choisir"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Joindre à un achat déjà saisi…</button>` : ''}`;
       }
       // (1.173.0) La lecture de la pièce : ce qu'elle dit, ou le bouton qui la lit (avec l'accord du client), ou pourquoi non.
       const L = clState.lus.get(d.id) || {};
@@ -5618,6 +5682,7 @@
       const x = sel;
       if (!x) return;
       if (act === 'joindre') { const bj = $('[data-cl-ap="joindre"]', view); const c = (bj && items.find(y => y.k === bj.dataset.clC)) || candidatsDe(x)[0]; if (c) await joindre(x, c); return; }
+      if (act === 'choisir') { fenJoindreCl(d, x, aJoindreDe(x), c => joindre(x, c), c => indiceDe(c, x)); return; }
       if (act === 'detacher' || act === 'declasser') {
         try { if (x.p) await api.pieces.classer(d.id, x.p.id, false); else await api.classeur.classer(d.id, x.doc.id, false); toast(act === 'detacher' ? 'Détachée : la pièce revient à traiter, l\'achat redevient sans justificatif.' : 'La pièce revient à traiter.'); await apresGesteCl(d, { livre: act === 'detacher', docs: !!x.doc }); } catch (err) { toast(plainError(err), 'error'); }
         return;
@@ -5650,7 +5715,7 @@
         } catch (err) { toast(plainError(err), 'error'); }
         return;
       }
-      if (act === 'joindre') { fenJoindreCl(d, sel, candidatsDe(sel), c => joindre(sel, c)); re(); return; }
+      if (act === 'joindre') { fenJoindreCl(d, sel, aJoindreDe(sel), c => joindre(sel, c), c => indiceDe(c, sel)); re(); return; }
       if (act === 'demander') { fenDemanderCl(d, { ...sel, titre: `${cap(moisLong(sel.mois))} · ${sel.titre}` }); re(); return; }
       await surSel(act); if (!['historique'].includes(act)) re();
     }; });

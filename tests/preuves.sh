@@ -21107,8 +21107,8 @@ prouver 'classeur 44 : un collaborateur en saisie voit « Relancer Hédi » sur 
 prouver 'classeur 45 : un collaborateur en saisie voit « Exporter »' web/public/v10/cabinet/app.js \
   '${actions && !tel && !enSaisie ?' '${actions && !tel ?' \
   'un collaborateur en saisie : ni export, ni ce qui parle au client ; la page dit qui le fait'
-prouver 'classeur 46 : un ticket dont rien ne dit le montant a « Joindre » pour bouton principal' web/public/v10/cabinet/app.js \
-  "const jP = memeMontant(c, sel) || (sel.geste && sel.geste.act === 'joindre');" "const jP = true;" \
+prouver 'classeur 46 : une pièce dont rien ne dit le même total a « Joindre » pour bouton principal' web/public/v10/cabinet/app.js \
+  "const jP = ind === 'montant' || ind === 'numero' || (sel.geste && sel.geste.act === 'joindre');" "const jP = true;" \
   'une pièce lue dont le total est celui d'\''un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
 prouver 'pièces reçues 12 : « Saisir l'\''achat » ouvre une grille vide' web/public/v10/cabinet/app.js \
   '      achat: () => saisirDepuisPc(),' '      achat: () => aller('\''comptabilite/saisie'\''),' \
@@ -21124,15 +21124,44 @@ prouver 'pièces reçues 15 : « Classées » dit « Classée » d'\''une pièce
   'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
 prouver 'pièces reçues 16 : « Vérifier » classe sans montrer l'\''achat du client' web/public/v10/cabinet/app.js \
   '${!classees && p.genre === '\''rangee'\'' ? blocVerifPc(p, D) : '\'''\''}' '' \
-  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit, et se joint à l'\''achat qui attend son justificatif'
+  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
 prouver 'pièces reçues 17 : un ticket ne dit pas qu'\''il n'\''est pas une facture' web/public/v10/cabinet/app.js \
   '    if (p.genre === '\''ticket'\'') blocs.push(' '    if (false) blocs.push(' \
-  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit, et se joint à l'\''achat qui attend son justificatif'
+  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
 prouver 'pièces reçues 18 : l'\''achat dont la pièce attend déjà se propose à joindre' web/public/v10/cabinet/app.js \
   ' && !rangees.has(String(e.piece)))' ')' \
-  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit, et se joint à l'\''achat qui attend son justificatif'
+  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
 prouver 'pièces reçues 19 : pas de « Déposer des pièces » dans les pièces reçues' web/public/v10/cabinet/app.js \
   'id="pc-deposer"' 'id="pc-deposer-x"' \
-  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit, et se joint à l'\''achat qui attend son justificatif'
+  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
+prouver 'pièces reçues 20 : « Classées » dit « En double » sans dire de quelle pièce' web/public/v10/cabinet/app.js \
+  'copie ? `En double : la même que ${copie[1]}`' 'false ? `En double : la même que ${copie[1]}`' \
+  'les pièces reçues, les autres états : en double (laquelle), déjà saisie (où), plusieurs d'\''un coup, un achat que le client saisit lui-même, la recherche vide, sans réseau'
+prouver 'pièces reçues 21 : une pièce jointe classée n'\''a pas « Ouvrir l'\''écriture »' web/public/v10/cabinet/app.js \
+  '${p.jointe ? `<a class="btn"' '${false ? `<a class="btn"' \
+  'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
+prouver 'pièces reçues 22 : « Classées » garde la phrase des pièces à classer' web/public/v10/cabinet/app.js \
+  '${classees ? '\''Ce qui a été fait de chaque pièce' '${false ? '\''Ce qui a été fait de chaque pièce' \
+  'les pièces reçues : « Saisir l'\''achat » ouvre la saisie préparée, et l'\''achat enregistré prend la pièce, qui sort de la boîte'
+prouver 'pièces reçues 23 : un achat que rien ne relie à la pièce lui est proposé' web/public/v10/cabinet/app.js \
+  '    const cands = tous.filter(o => o.i);' '    const cands = tous;' \
+  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
+prouver 'pièces reçues 24 : joindre à la main n'\''existe pas sans indice' web/public/v10/cabinet/app.js \
+  '...(avant && avant.tous.length ?' '...(false ?' \
+  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
+prouver 'pièces reçues 25 : la facture d'\''électricité ne trouve pas l'\''achat STEG' web/public/v10/cabinet/app.js \
+  ', ...motsCl(a.tiers).flatMap(w => VEND_CL[w] || [])]' ']' \
+  'les pièces reçues, avant de classer : l'\''achat rangé par le client se vérifie à côté de la pièce ; un ticket le dit ; seul l'\''achat qu'\''un indice relie à la pièce se propose'
+prouver 'classeur 47 : un achat que rien ne relie à la pièce lui est proposé' web/public/v10/cabinet/app.js \
+  '.filter(o => o.i)
+      .sort((a, b) => INDICES_CL' '.filter(o => true)
+      .sort((a, b) => INDICES_CL' \
+  'une pièce lue dont le total est celui d'\''un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
+prouver 'classeur 48 : sans indice, plus moyen de joindre à la main' web/public/v10/cabinet/app.js \
+  '${aucun ? `<button type="button" class="btn btn-sm btn-ghost" data-cl-ap="choisir"' '${false ? `<button type="button" class="btn btn-sm btn-ghost" data-cl-ap="choisir"' \
+  'une pièce lue dont le total est celui d'\''un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
+prouver 'classeur 49 : la fenêtre « Joindre » fait passer un achat sans indice pour le bon' web/public/v10/cabinet/app.js \
+  "i === 0 && ind ? ' btn-primary'" "i === 0 ? ' btn-primary'" \
+  'une pièce lue dont le total est celui d'\''un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

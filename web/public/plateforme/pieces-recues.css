@@ -176,3 +176,9 @@
 .pc-av-g { display: flex; gap: 8px; margin-top: 8px; }
 /* (1.174.5) Le geste reste sous les yeux quand la pièce et ses avertissements dépassent l'écran. */
 @media (min-width: 761px) { #pc-voir .pc-gestes { position: sticky; bottom: 0; z-index: 5; background: var(--sb-papier); border-top: 1px solid var(--sb-trait); border-radius: 0 0 14px 14px; } }
+/* (1.174.6) Au téléphone, le nom de la pièce ne passe plus sous les flèches ; un lien en forme de bouton n'est pas souligné. */
+.pc-vt-g { flex: 1; min-width: 0; }
+.pc-vt-g b { display: block; }
+.pc-vt-g > span:last-child { flex: 1; grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 760px) { .pc-vt { flex-wrap: wrap; } .pc-vt-g { flex-basis: 100%; } .pc-nav { margin-left: auto; } }
+#page-pieces a.btn { text-decoration: none; display: inline-flex; align-items: center; }
