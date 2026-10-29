@@ -21092,5 +21092,14 @@ prouver 'classeur 39 : « Saisir » ouvre une saisie vide, sans lien avec la pi�
 prouver 'classeur 40 : la pièce saisie depuis le classeur reste « à saisir »' web/public/v10/cabinet/app.js \
   'if (dc && idE && !res.attente) {' 'if (0) {' \
   'saisir une pièce depuis le classeur'
+prouver 'classeur 41 : un montant tapé « 1846,2 » ne trouve pas la pièce de 1 846,200' web/public/v10/cabinet/app.js \
+  'const correspond = x => vautQ(x.montant) || ' 'const correspond = x => ' \
+  'au bureau : l'\''arbre, la rubrique, la pièce et son écriture'
+prouver 'classeur 42 : une déclaration dont la TVA diffère de ses livres ne le dit pas' web/public/v10/cabinet/app.js \
+  "if (!L.length) return '';" "if (L.length) return '';" \
+  'au bureau : l'\''arbre, la rubrique, la pièce et son écriture'
+prouver 'classeur 43 : recliquer la rubrique affichée referme la pièce ouverte d'\''elle-même' web/public/v10/cabinet/app.js \
+  "if (ici && !resumeMois && a.dataset.clRub === clState.rub && clState.filtre === 'rub')" "if (false)" \
+  'un courrier se range avec le mois où il est arrivé, puis sa réponse ; une vue ouverte se referme (lien et « précédent ») ; une pièce remplacée sort du compte'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

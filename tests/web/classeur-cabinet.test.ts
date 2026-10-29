@@ -124,13 +124,24 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     await p.locator('#cl-q').fill('minoterie');
     await expect.poll(() => p.locator('.cl-res-t').first().innerText()).toMatch(/« minoterie » dans tout le dossier\s+1 pièce, sur 2026/);
     expect(await p.locator('.cl-arbre .ici').count()).toBe(0);
+    // (1.174.3) Un montant se cherche comme on le tape : sans espace, avec un point, ou son début.
+    for (const m of ['1846,2', '1 846,200', '1.846,200', '1846']) {
+      await p.locator('#cl-q').fill(m);
+      await expect.poll(() => p.locator('.cl-res-t').first().innerText()).toMatch(new RegExp(`« ${m.replace('.', '\\.')} » dans tout le dossier\\s+1 pièce`));
+    }
     await p.locator('#cl-q').fill('ooredoo');
     await expect.poll(() => p.locator('.cl-vide').innerText().catch(() => '')).toMatch(/Rien pour « ooredoo » dans tout le dossier/);
     await p.locator('#cl-q').fill('');
     await p.waitForTimeout(400);
-    // Les déclarations de l'année.
+    // Les déclarations de l'année ; celle de septembre déclare une TVA collectée que ses livres n'ont pas : l'écart se voit.
+    expect((await api('PUT', `/entreprises/${boulangerie}/compta/declarations/2026-09`, associe, { cases: { tvaCollectee: '100,000', aDecaisser: '100,000' } })).statut).toBeLessThan(300);
+    await p.reload();
+    await p.locator('#page-cl .cl-res').first().waitFor({ timeout: 25_000 });
     await p.locator('.cl-arbre [data-cl-decls]').click();
     await expect.poll(() => p.locator('.cl-res-t').first().innerText()).toMatch(/Les déclarations de 2026/);
+    expect(await p.locator('li[data-cl-decl="2026-09"]').innerText()).toMatch(/écart avec ses livres/);
+    await p.locator('li[data-cl-decl="2026-09"]').click();
+    await expect.poll(() => p.locator('#page-cl .cl-liste').innerText()).toMatch(/La TVA collectée\s+déclarée 100,000 DT · d'après les livres 0,000 DT · écart 100,000 DT/);
 
     // Des mois vides : août et septembre ensemble, août surligné dans l'arbre, ce qui manque, une seule relance.
     await ouvrir(p, cab.id, menuiserie);
@@ -292,7 +303,13 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     await p.locator('#page-cl .cl-res').first().waitFor({ timeout: 25_000 });
     await expect.poll(() => p.locator('li.cl-l.ici [data-cl-trois]').count()).toBe(1);
     expect(await p.locator('li.cl-l.ici').innerText()).toMatch(/à saisir/);
-    const nette = p.locator(`li[data-cl-k="${await p.locator('li.cl-l.ici').getAttribute('data-cl-k')}"]`);
+    // Recliquer la rubrique déjà affichée dans l'arbre ne referme pas la pièce ouverte d'elle-même.
+    const kAuto = await p.locator('li.cl-l.ici').getAttribute('data-cl-k');
+    await p.locator('.cl-a-s.ici').click();
+    await p.waitForTimeout(300);
+    expect(await p.locator('li.cl-l.ici').getAttribute('data-cl-k')).toBe(kAuto);
+    expect(await p.locator('.cl-ap').count()).toBe(1);
+    const nette =p.locator(`li[data-cl-k="${await p.locator('li.cl-l.ici').getAttribute('data-cl-k')}"]`);
     // Le menu ⋯ : une icône par geste (celles des autres menus), des groupes séparés, et pourquoi rien ne se supprime.
     // « Pas une pièce comptable » sort la pièce du compte, et se défait.
     await nette.locator('[data-cl-trois]').click();

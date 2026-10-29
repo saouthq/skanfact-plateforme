@@ -628,3 +628,4 @@
 /* (1.174.2) La saisie ouverte depuis le classeur : de quelle pièce elle vient, et le chemin du retour. */
 .sa-depuis { display: flex; gap: 12px; align-items: center; justify-content: space-between; margin: 0 0 12px; padding: 10px 14px; border-radius: 10px; background: color-mix(in srgb, var(--sb-sarcelle) 8%, var(--sb-papier)); border: 1px solid color-mix(in srgb, var(--sb-sarcelle) 25%, transparent); font-size: 13px; color: var(--sb-doux-texte); }
 .sa-depuis b { color: var(--sb-encre); }
+.cl-sec h3 small b.ambre { color: var(--sb-ambre-texte); font-weight: 600; }
