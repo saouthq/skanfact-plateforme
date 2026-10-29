@@ -90,6 +90,13 @@ describe('la fiche du dossier au Cabinet, à la souris', () => {
     expect(await p.locator('.fd-phrase').innerText()).toBe('Rien reçu depuis le 15/07 · août en retard · septembre à déposer aujourd\'hui · jamais relancé');
     expect(await p.locator('.fd-rv-rien').innerText()).toBe('Rien à réviser : aucune écriture depuis le 15/07. Elle commence dès que Hédi enregistre ses pièces.');
     expect(await p.locator('#page-fd .fd-sous').innerText()).toMatch(/^SARL · menuiserie bois · Ben Arous/);
+    // L'en-tête prend la couleur du dossier (celle de sa pastille), pas un vert fixe (Skander, 29/10/2026).
+    const couleurs = await p.evaluate(() => {
+      const tete = document.querySelector('#page-fd .fd-tete'), pastille = document.querySelector('#page-fd .fd-tete .marque-s, #page-fd .fd-tete .av');
+      return { dc: getComputedStyle(tete as Element).getPropertyValue('--dc').trim().toLowerCase(), pastille: (pastille as HTMLElement | null)?.style.background.toLowerCase() ?? '' };
+    });
+    expect(couleurs.dc).toMatch(/^#[0-9a-f]{6}$/);
+    expect(couleurs.pastille.replace(/\s/g, '')).toContain(`rgb(${[1, 3, 5].map((i) => parseInt(couleurs.dc.slice(i, i + 2), 16)).join(',')})`);
     expect(await p.locator('#page-fd').innerText()).toMatch(/350,000 DT HT par mois/);
     expect(await p.locator('#bandeau-ordinateur').count()).toBe(0);
 

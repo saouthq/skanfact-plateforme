@@ -640,6 +640,15 @@ la machine, une fois, par la copie de `main`. L'état de son suiveur : `https://
 arrive par `main` (comme toutes les tâches) : `dev.skanfact.tn` existe à partir du passage qui la porte ; ensuite, il
 suit chaque envoi sur `dev`. Test : `tests/exploitation/copie-de-dev.test.ts` ; preuves « copie de dev 1 » à « 5 ».
 
+**L5. La démo sur `dev.skanfact.tn` (Skander, 29/10/2026 : « une démo de données pour tester »)** :
+`scripts/humain/demo-dev.sh`, lancé sur la machine par l'accès de Claude, remplit `skanfact_dev` avec l'exemple du Cabinet
+(`scripts/humain/exemple-cabinet.ts` : le cabinet Jlassi Conseil, ses trois comptes, ses douze dossiers, leurs pièces et
+leurs messages). Le remplissage passe par une copie du programme lancée à part, sans relais d'e-mails ni IA : il n'envoie
+rien. Chaque adresse inventée devient un alias de la boîte Gmail donnée dans `DEMO_COURRIEL` (choix de Skander : tout
+arrive chez lui, aucun inconnu ne reçoit d'e-mail) ; les comptes n'ont pas de code d'application : à chaque appareil
+nouveau, la connexion envoie un code à l'alias. Le mot de passe de tous est celui de l'exemple. Les jetons du remplissage
+s'effacent à la fin. Chargée le 29/10/2026 sur la version 1.173.2.
+
 ## M. « Maintenance en cours » (demandé par Skander le 22/10/2026, 1.107.0)
 
 Deux cas, deux réponses :

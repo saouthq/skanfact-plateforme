@@ -21056,5 +21056,8 @@ prouver 'classeur 28 : après un geste, la ligne traitée file sous le curseur' 
 prouver 'classeur 29 : l'\''historique tait la lecture par SkanFact' web/public/v10/cabinet/app.js \
   "if (sel.lu && sel.lu.luLe) ev.push(['SF', 'SkanFact lit la pièce'" "if (0) ev.push(['SF', 'SkanFact lit la pièce'" \
   'une pièce lue dont le total est celui d'\''un achat sans justificatif'
+prouver 'fiche du dossier : l'\''en-tête garde un vert fixe au lieu de la couleur du dossier' web/public/v10/cabinet/app.js \
+  'id="page-fd" data-id="${esc(d.id)}" style="--dc:${couleurDe(d.id)[0]}"' 'id="page-fd" data-id="${esc(d.id)}"' \
+  'au bureau : rien reçu depuis juillet, un seul geste'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

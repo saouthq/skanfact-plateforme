@@ -3953,7 +3953,7 @@
         <div class="bandeau gris a-band fd-band"><span class="txt"><b>Un dossier archivé se lit, il ne bouge plus.</b><span>Ses livres, ses déclarations, ses pièces${d.manual ? '' : ' et la conversation'} restent ici. Il n'est plus dans Priorités, Échéances ni le tableau de bord. Combien de temps le cabinet le garde : À VÉRIFIER (10 ans pour les livres).</span></span></div>
         <div class="fd-g"><div class="fd-col">${anneeP}</div>${cote}</div>`;
     } else corps = `${tete}${bandHors}${chiffres}<div class="fd-g"><div class="fd-col">${blocAttend}${nouveau ? '' : attend.length ? revision + anneeP : anneeP + revision}</div>${cote}</div>`;
-    view.innerHTML = `<div class="cab-page cd-page fd-page${tel ? ' fd-tel' : ''}" id="page-fd" data-id="${esc(d.id)}">${ctx}${corps}</div>`;
+    view.innerHTML = `<div class="cab-page cd-page fd-page${tel ? ' fd-tel' : ''}" id="page-fd" data-id="${esc(d.id)}" style="--dc:${couleurDe(d.id)[0]}">${ctx}${corps}</div>`;
 
     // ---------- les gestes ----------
     const redessiner = () => drawFicheFd(view, d);
@@ -4836,7 +4836,7 @@
     const tete = (sousTxt, actions = true) => `<div class="page-head cl-tete"><div class="fd-id">${marqueD(d, 'fd-mq')}<div><h1>Tout le dossier ${info('cl.page')}</h1>
         <p class="fd-sous"><span><b>${esc(d.name)}</b></span>${lien}</p>${sousTxt ? `<p class="cl-sous">${sousTxt}</p>` : ''}</div></div>
       <div class="actions"><button type="button" class="btn${tel ? ' btn-sm' : ''}" id="cl-deposer"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>${CL_IC.deposer} ${tel ? 'Déposer' : 'Déposer des pièces'}</button>${actions && !tel ? `<button type="button" class="btn" id="cl-exporter"${livre && !hors ? '' : ` disabled title="${hors ? 'Attend le retour du réseau' : 'Le classeur se lit d\'abord'}"`}>${CL_IC.bas} Exporter</button>` : ''}</div></div>`;
-    const page = corps => { view.innerHTML = `<div class="cab-page cd-page fd-page cl-page" id="page-cl" data-id="${esc(d.id)}">${ctx}${corps}</div>`; };
+    const page = corps => { view.innerHTML = `<div class="cab-page cd-page fd-page cl-page" id="page-cl" data-id="${esc(d.id)}" style="--dc:${couleurDe(d.id)[0]}">${ctx}${corps}</div>`; };
     // Le mois ouvert ; ailleurs (le permanent, les courriers, les déclarations), le mois à déposer.
     const brancherTete = deja => { const b = $('#cl-deposer', view); if (b) b.onclick = () => fenDeposerCl(d, !clState.vue && clState.mois ? clState.mois : mp, { deja }); };
 
