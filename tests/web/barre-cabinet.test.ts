@@ -428,6 +428,46 @@ describe('la barre du Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
   }, 60_000);
 
+  it('les pièces reçues : ce que le cabinet dépose lui-même (WhatsApp, papier) s\'y classe comme le reste, sans paraître deux fois dans le classeur', async () => {
+    const { associe, cab, tenu } = await unCabinet();
+    // Anis dépose une photo reçue par WhatsApp dans le dossier tenu (la Menuiserie), à classer.
+    const d = await api('POST', `/cabinets/${cab.id}/classeur/${tenu}/documents`, associe, { rubrique: 'piece', periode: `${new Date().getFullYear()}-09`,
+      titre: 'WhatsApp Image bois', provenance: 'WhatsApp du gérant', nom: 'WhatsApp-bois.png', contenu: PNG });
+    expect(d.statut).toBe(201);
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await ouvrir(p, cab.id, '#/pieces');
+    const lignes = p.locator('#page-pieces .pc-r[data-piece]');
+    // Elle est là, avec les deux pièces de la boulangerie, et le compte les dit trois.
+    await expect.poll(() => lignes.count()).toBe(3);
+    expect(await p.locator('[data-onglet-pr="aclasser"] .compte').innerText()).toBe('3');
+    // Le classeur du dossier la montre une seule fois (il la lit parmi ses documents, pas aussi parmi les pièces reçues).
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossier/${tenu}/classeur`);
+    await p.locator('#page-cl .cl-res').first().waitFor({ timeout: 25_000 });
+    await expect.poll(() => p.locator('.cl-res-t').first().innerText()).toMatch(/^Septembre \d{4}\s+1 pièce\b/);
+    expect(await p.locator('#page-cl li[data-cl-k]').filter({ hasText: 'WhatsApp' }).count()).toBe(1);
+    await ouvrir(p, cab.id, '#/pieces');
+    await expect.poll(() => lignes.count()).toBe(3);
+    const la = lignes.filter({ hasText: 'WhatsApp-bois.png' });
+    expect(await la.innerText()).toMatch(/WhatsApp du gérant · déposée par Anis/);
+    await la.click();
+    // Ce qu'on en sait : qui l'a déposée, d'où elle vient ; pas de « Répondre » (ce n'est pas le client qui l'a envoyée).
+    await expect.poll(() => p.locator('#pc-voir .pc-mot').innerText().catch(() => '')).toMatch(/Déposée par Anis, reçue par WhatsApp du gérant[\s\S]*Dossier tenu : personne d'autre ne la voit/);
+    expect(await p.locator('#pc-voir .pc-mot a', { hasText: 'Répondre' }).count()).toBe(0);
+    // Son fichier s'ouvre (le classeur le garde) ; un dossier tenu n'a pas de conversation où la redemander.
+    await expect.poll(() => p.locator('#pc-papier img').count()).toBe(1);
+    await p.locator('#pc-menu').click();
+    expect(await p.locator('[data-pc-raison="illisible"]').count()).toBe(0);
+    // Classée « rien à saisir » : elle sort, et le classeur du dossier la dit classée, une seule fois.
+    await p.locator('[data-pc-raison="rien"]').click();
+    await expect.poll(() => lignes.count()).toBe(2);
+    const docs = (await api('GET', `/cabinets/${cab.id}/classeur/${tenu}/documents`, associe)).corps.documents as { id: string; raison: string | null }[];
+    expect(docs.find((x) => x.id === d.corps.id)?.raison).toBe('rien');
+    expect(erreurs).toEqual([]);
+  }, 60_000);
+
   it('les pièces reçues, les autres états : en double (laquelle), déjà saisie (où), plusieurs d\'un coup, un achat que le client saisit lui-même, la recherche vide, sans réseau', async () => {
     const { associe, cab, boulangerie, cafe } = await unCabinet();
     // (1.168.0) Le café ne confie au cabinet que sa comptabilité et ses déclarations : il saisit ses achats lui-même.

@@ -21161,6 +21161,25 @@ prouver 'pièces reçues 27 : « Guide-moi » ne propose pas de saisir une factu
 prouver 'pièces reçues 28 : un fichier abîmé garde « Saisir » pour geste' web/public/v10/cabinet/app.js \
   "nc ? 'Lui laisser la saisie' : casse ?" "nc ? 'Lui laisser la saisie' : false ?" \
   'les pièces reçues, l'\''aide de la page : d'\''où viennent les pièces, ses quatre gestes guidés ; un fichier abîmé se redemande, il ne se saisit pas'
+prouver 'pièces reçues 29 : les pièces déposées par le cabinet n'"'"'arrivent pas dans Pièces reçues' serveur/messagerie/routes.ts \
+  'const deposees = seul ? [] :' 'const deposees = true ? [] :' \
+  'les pièces reçues : ce que le cabinet dépose lui-même (WhatsApp, papier) s'\''y classe comme le reste, sans paraître deux fois dans le classeur'
+prouver 'pièces reçues 30 : le classeur montre deux fois une pièce déposée' web/public/v10/cabinet/app.js \
+  'filter(p => p.entreprise === d.id && !p.depot);' 'filter(p => p.entreprise === d.id);' \
+  'les pièces reçues : ce que le cabinet dépose lui-même (WhatsApp, papier) s'\''y classe comme le reste, sans paraître deux fois dans le classeur'
+prouver 'pièces reçues 31 : classer une pièce déposée passe par la conversation' web/public/plateforme/pont-cabinet.js \
+  'deposees.has(message)
+        ? appel('"'"'POST'"'"', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(entreprise)}/documents/${encodeURIComponent(message)}/classement`,
+' 'false
+        ? appel('"'"'POST'"'"', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(entreprise)}/documents/${encodeURIComponent(message)}/classement`,
+' \
+  'les pièces reçues : ce que le cabinet dépose lui-même (WhatsApp, papier) s'\''y classe comme le reste, sans paraître deux fois dans le classeur'
+prouver 'pièces reçues 32 : une pièce déposée se dit envoyée par le client' web/public/v10/cabinet/app.js \
+  '        : p.depot ? `<div class="pc-mot">' '        : false ? `<div class="pc-mot">' \
+  'les pièces reçues : ce que le cabinet dépose lui-même (WhatsApp, papier) s'\''y classe comme le reste, sans paraître deux fois dans le classeur'
+prouver 'pièces reçues 33 : une pièce déposée d'"'"'un dossier tenu se redemande à personne' web/public/v10/cabinet/app.js \
+  '...(p.depot && ((S.dossiers' '...(false && ((S.dossiers' \
+  'les pièces reçues : ce que le cabinet dépose lui-même (WhatsApp, papier) s'\''y classe comme le reste, sans paraître deux fois dans le classeur'
 prouver 'classeur 47 : un achat que rien ne relie à la pièce lui est proposé' web/public/v10/cabinet/app.js \
   '.filter(o => o.i)
       .sort((a, b) => INDICES_CL' '.filter(o => true)
@@ -21172,5 +21191,35 @@ prouver 'classeur 48 : sans indice, plus moyen de joindre à la main' web/public
 prouver 'classeur 49 : la fenêtre « Joindre » fait passer un achat sans indice pour le bon' web/public/v10/cabinet/app.js \
   "i === 0 && ind ? ' btn-primary'" "i === 0 ? ' btn-primary'" \
   'une pièce lue dont le total est celui d'\''un achat sans justificatif : sa ligne le dit, et la lecture lui donne fournisseur, date et montant'
+prouver 'échéances 20 : les personnes physiques déposent le même jour que les sociétés' web/public/v10/cabinet/cabcore.js \
+  'return dossier && personnePhysique(state, dossier) ? Number(cfg.tvaDayPP) || cfg.tvaDay : cfg.tvaDay;' 'return cfg.tvaDay;' \
+  'deux échéances pour septembre : les personnes physiques le 15/10, les autres le 28/10 ; chacune ses dossiers'
+prouver 'échéances 21 : un jour des personnes physiques aberrant reste tel quel' web/public/v10/cabinet/cabcore.js \
+  "['tvaDay', 'cnssDay', 'tvaDayPP'].forEach" "['tvaDay', 'cnssDay'].forEach" \
+  'une forme qui n'\''est pas « personne physique » ne l'\''est pas ; un réglage aberrant retombe sur le 15'
+prouver 'échéances 22 : la relance envoyée dans la conversation ne se note pas sur la fiche' web/public/v10/cabinet/app.js \
+  "await noter('autre', 'Relance envoyée dans votre conversation SkanFact');" ';' \
+  '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu'
+prouver 'échéances 23 : plus de geste « Ce dossier ne la dépose pas »' web/public/v10/cabinet/app.js \
+  "['regime', 'Ce dossier ne la dépose pas'," "false && ['regime', 'Ce dossier ne la dépose pas'," \
+  '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu'
+prouver 'échéances 24 : le bouton du portail ne mène nulle part' web/public/v10/cabinet/app.js \
+  'id="ec-portail" href="${esc(portail.url)}"' 'id="ec-portail" href="#"' \
+  '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu'
+prouver 'échéances 25 : le serveur accepte n'"'"'importe quel payeur des déclarations' serveur/cabinet/routes.ts \
+  "paieDecl: z.enum(['', 'client'])," 'paieDecl: z.string(),' \
+  '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu'
+prouver 'échéances 26 : la ligne d'"'"'une personne physique ne le dit pas' web/public/v10/cabinet/app.js \
+  'x.t.physiques ? '"'"'<span>personne physique</span>'"'"'' 'false ? '"'"'<span>personne physique</span>'"'"'' \
+  '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu'
+prouver 'revue 1 : la pastille des Échéances compte un dossier × une déclaration' web/public/v10/cabinet/app.js \
+  'return itemsEcheances().filter(x => x.groupe === '"'"'retard'"'"');' 'return K.enRetard(K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() }));' \
+  'au bureau : la déclaration en retard, relancer un client, marquer déposée sans rien de prêt, l'"'"'annuler, la vue Mois'
+prouver 'revue 2 : le dossier permanent du classeur n'"'"'est pas classé pour l'"'"'export' base/entreprise.ts \
+  "  'cabinet.document': { classe: 'hors'," "  'cabinet.document-oublie': { classe: 'hors'," \
+  'le propriétaire télécharge le fichier complet ; un commercial ne voit pas le panneau'
+prouver 'revue 3 : la CNSS ne dit plus qui elle vise' web/public/v10/cabinet/app.js \
+  "esc(e.detail || 'Les cotisations du trimestre des dossiers employeurs.'))" "'Les cotisations du trimestre des dossiers employeurs.')" \
+  'la carte CNSS du dernier trimestre ne vise que l'"'"'employeur, plus le client saisi sans salaire'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

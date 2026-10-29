@@ -183,7 +183,7 @@ describe('la déclaration du mois, à la souris', () => {
     expect((await declarations(cafe, associe))[0]?.ecriture).toBe(ecrite?.id);
 
     // ── Déposée, payée ; dé-pointer le dépôt dé-pointe le paiement ─────────────────────────────────────
-    const aujourdhui = new Date().toISOString().slice(0, 10);
+    const aujourdhui = new Date().toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
     await p.locator('#dc-deposee').click();
     await expect.poll(toast).toBe('Notée déposée — c\'est un pense-bête, pas un accusé de réception.');
     await expect.poll(async () => (await declarations(cafe, associe))[0]?.deposee.le).toBe(aujourdhui);

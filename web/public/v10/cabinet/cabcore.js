@@ -203,6 +203,8 @@
       adresse: String(d.adresse || ''), gerant: String(d.gerant || ''),
       // (plateforme) 1.169.0 — sa forme (SARL, SUARL…), sa ville, la fonction de son contact : la liste des Dossiers les montre.
       forme: String(d.forme || ''), ville: String(d.ville || ''), fonction: String(d.fonction || ''), activite: String(d.activite || ''),
+      // (plateforme) 1.175.0 — qui paie ses déclarations : « client » quand il les paie lui-même (les Échéances le disent).
+      paieDecl: d.paieDecl === 'client' ? 'client' : '',
       createdAt: d.createdAt || null,
       // L'historique des relances. Sans lui, le lundi suivant on ne sait plus qui a été relancé.
       relances: Array.isArray(d.relances) ? d.relances.map(r => ({
@@ -543,7 +545,7 @@
     // Les jours d'échéance : aucun n'est une vérité, tous sont réglables, et un réglage aberrant
     // retombe sur l'usage plutôt que de faire disparaître l'échéance du calendrier.
     const dl = { ...DEFAULT_DEADLINES, ...(s.settings.deadlines || {}) };
-    ['tvaDay', 'cnssDay'].forEach(k => {
+    ['tvaDay', 'cnssDay', 'tvaDayPP'].forEach(k => {
       const v = Number(dl[k]);
       dl[k] = v >= 1 && v <= 31 ? Math.round(v) : DEFAULT_DEADLINES[k];
     });
@@ -1701,7 +1703,9 @@
   // AUCUNE de ces dates n'est une vérité. Elles suivent l'usage tunisien, elles sont modifiables,
   // et l'écran écrit « À VÉRIFIER » — les délais dépendent de la forme juridique, du régime et de
   // la loi de finances de l'année.
-  const DEFAULT_DEADLINES = { tvaDay: 28, cnssDay: 15 };
+  // (1.175.0, maquette des Échéances) Les personnes physiques déposent leur déclaration mensuelle plus tôt que les
+  // sociétés : le 15, dit l'usage (À VÉRIFIER), réglable comme les deux autres jours.
+  const DEFAULT_DEADLINES = { tvaDay: 28, cnssDay: 15, tvaDayPP: 15 };
 
   // ---------- le calendrier par RÉGIME (F-9.6.0-12, livré en 10.0.0) ----------
   //
@@ -1779,6 +1783,16 @@
     return String((dossier && dossier.tvaPeriod) || '') || 'mensuelle';
   }
   const deposeCnss = (state, dossier) => { const r = regimeDe(state, dossier); return !r || r.cnss !== false; };
+  // (1.175.0) Une personne physique : sa forme le dit (« Personne physique » sur sa fiche), ou le nom de son régime.
+  const personnePhysique = (state, dossier) => {
+    const r = regimeDe(state, dossier);
+    return /personne\s+physique/i.test(String((dossier && dossier.forme) || '')) || !!(r && /personne\s+physique/i.test(String(r.label || '')));
+  };
+  // Le jour du mois où la TVA d'un dossier se dépose : celui des personnes physiques pour elles, sinon celui de tous.
+  const jourTva = (state, dossier) => {
+    const cfg = deadlineSettings(state);
+    return dossier && personnePhysique(state, dossier) ? Number(cfg.tvaDayPP) || cfg.tvaDay : cfg.tvaDay;
+  };
 
   const QUARTER_END = { 3: 1, 6: 2, 9: 3, 12: 4 };
 
@@ -1829,7 +1843,7 @@
       const mm = Number(m.slice(5, 7));
       m = addMonth(m, (3 - (mm % 3)) % 3);
     }
-    return dayOf(addMonth(m, 1), sorte === 'cnss' ? cfg.cnssDay : cfg.tvaDay);
+    return dayOf(addMonth(m, 1), sorte === 'cnss' ? cfg.cnssDay : jourTva(state, dossier));
   }
 
   function echeances(state, todayIso, opts) {
@@ -1871,22 +1885,39 @@
       const mois = addMonth(dernierMoisFini, -k);
       const depot = addMonth(mois, 1);
 
-      const mensuels = actifs.filter(d => periodeTva(state, d) === 'mensuelle' && concerne(d, [mois]));
+      const tousMensuels = actifs.filter(d => periodeTva(state, d) === 'mensuelle' && concerne(d, [mois]));
       // « TVA de octobre » ne s'écrit pas : quatre mois sur douze commencent par une voyelle.
       // 10.14.1 — un client dont la Déclaration de CE mois est notée déposée dans son livre est
       // DÉPOSÉ ici aussi : c'est le même pense-bête, lu au même endroit (`opts.declares`, tiré des
       // index). Sans ça, « Marquer déposée » dans la Déclaration laissait la carte réclamer ce client.
-      const deposes = mensuels.filter(d => ((opts.declares || {})[d.id] || []).includes(mois));
-      if (mensuels.length) out.push(ligneEcheance('tva-m', `TVA ${de(monthLabel(mois))}`, dayOf(depot, cfg.tvaDay), mois, mensuels, t, attendus,
-        'Déclaration mensuelle de TVA. Les clients dont tu n\'as pas le mois ne peuvent pas être déclarés.', deposes));
+      // (1.175.0) Les personnes physiques à leur jour (le 15, À VÉRIFIER) : une échéance à part, à sa date, qui le dit.
+      // Un même jour pour tous (réglé ainsi) : une seule échéance, comme avant.
+      const parJour = new Map();
+      for (const d of tousMensuels) { const j = jourTva(state, d); if (!parJour.has(j)) parJour.set(j, []); parJour.get(j).push(d); }
+      for (const [jour, mensuels] of parJour) {
+        const physiques = jour !== cfg.tvaDay;
+        const deposes = mensuels.filter(d => ((opts.declares || {})[d.id] || []).includes(mois));
+        const e = ligneEcheance('tva-m', `TVA ${de(monthLabel(mois))}${physiques ? ' · personnes physiques' : ''}`, dayOf(depot, jour), mois, mensuels, t, attendus,
+          physiques ? `Déclaration mensuelle des personnes physiques : elles déposent le ${jour} (À VÉRIFIER), d'après la forme ou le régime de leur fiche.`
+            : 'Déclaration mensuelle de TVA. Les clients dont tu n\'as pas le mois ne peuvent pas être déclarés.', deposes);
+        if (physiques) e.physiques = true;
+        out.push(e);
+      }
 
       const [, mm] = mois.split('-').map(Number);
       if (QUARTER_END[mm]) {
         const trim = QUARTER_END[mm];
         const moisTrim = [addMonth(mois, -2), addMonth(mois, -1), mois];
-        const trimestriels = actifs.filter(d => periodeTva(state, d) === 'trimestrielle' && concerne(d, moisTrim));
-        if (trimestriels.length) out.push(ligneEcheance('tva-t', `TVA du ${trim}ᵉ trimestre`, dayOf(depot, cfg.tvaDay), moisTrim, trimestriels, t, attendus,
-          'Déclaration trimestrielle de TVA. Il te faut les trois mois du trimestre.'));
+        // (1.175.0) Au jour de chacun, comme la mensuelle : la date que dit sa Déclaration (`dateLimiteDeclaration`).
+        const parJourT = new Map();
+        for (const d of actifs.filter(x => periodeTva(state, x) === 'trimestrielle' && concerne(x, moisTrim))) { const j = jourTva(state, d); if (!parJourT.has(j)) parJourT.set(j, []); parJourT.get(j).push(d); }
+        for (const [jour, trimestriels] of parJourT) {
+          const physiques = jour !== cfg.tvaDay;
+          const e = ligneEcheance('tva-t', `TVA du ${trim}ᵉ trimestre${physiques ? ' · personnes physiques' : ''}`, dayOf(depot, jour), moisTrim, trimestriels, t, attendus,
+            'Déclaration trimestrielle de TVA. Il te faut les trois mois du trimestre.');
+          if (physiques) e.physiques = true;
+          out.push(e);
+        }
         // 10.12.0 (U-21) — la CNSS ne vise que les EMPLOYEURS, d'après ce que leur livre sait
         // (`moisEmployeur`, lu dans les index). « SkanFact ne sait pas lesquels : à toi de filtrer »
         // se lisait pendant que la Paie connaissait les salariés. Un client ne sort de la liste que
@@ -2373,7 +2404,7 @@
     newDossier, parseDossierLines, emailDouteux, noteRelance, portfolio, caDuPortefeuille, relanceDue, relanceRows, accuseMail,
     parseCsv, verdictOrigine, csvDangereux, toCsvLine, csvMontant, csvDate, mergeEcritures, ecrituresPlan,
     DEFAULT_DEADLINES, deadlineSettings, echeances, enRetard, dayOf,
-    TVA_PERIODES, migrateRegime, regimes, regimeDe, choixRegimes, regimeEnPhrase, periodeTva, deposeCnss,
+    TVA_PERIODES, migrateRegime, regimes, regimeDe, choixRegimes, regimeEnPhrase, periodeTva, deposeCnss, personnePhysique, jourTva,
     dossierMonths, debutDeMission, dossierRow, dossierList, cabinetTodo, premiersPas, relanceMail, pairingFile,
     INDEX_STABLES, nomIndex, releasePourIndex, releasePourIndexRelue, moisManquants,
     // Le cabinet à plusieurs (9.9.0)

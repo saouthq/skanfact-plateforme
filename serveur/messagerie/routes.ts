@@ -436,7 +436,22 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
         { id: string; entreprise: string; auteur_nom: string; texte: string; achat_libelle: string | null; ecrit_le: Date; classee_le: Date | null;
           classee_par: string | null; classee_raison: string | null; classee_note: string | null; jointe_ecriture: string | null;
           double_de: string | null; double_de_sorte: string | null; mois_classeur: string | null; fichier: string; fichier_nom: string; fichier_type: string; fichier_taille: number; demande: string | null }[];
-      const compte = Number((await tx.query(`select count(*) n from messagerie.message m
+      // (1.174.8) Les pièces que le cabinet a déposées lui-même dans le classeur d'un dossier (WhatsApp, e-mail, papier) :
+      // elles se classent ici comme les autres (la maquette « déposée par Leïla »). Pas pour le classeur d'UN dossier, qui
+      // les lit déjà parmi ses documents. La même règle que le classeur : un dossier actif du portefeuille, que l'on voit.
+      const deposees = seul ? [] : (await tx.query(`select d.id, d.entreprise, u.nom depose_nom, d.provenance, d.depose_le, d.classee_le, d.classee_par,
+          d.classee_raison, d.jointe_ecriture, d.double_de, d.double_de_sorte, d.periode, d.nom, d.type, d.taille
+        from cabinet.document d left join socle.utilisateur u on u.id = d.depose_par
+       where d.cabinet = $1 and d.rubrique = 'piece' and d.remplace_par is null and (d.classee_le is null) = $2
+         and d.entreprise in (select p.entreprise from socle.portefeuille($1) p where p.statut = 'actif')
+       order by coalesce(d.classee_le, d.depose_le) desc, d.id desc limit $3`, [params.cabinet, aClasser, max + 1])).rows as
+        { id: string; entreprise: string; depose_nom: string | null; provenance: string | null; depose_le: Date; classee_le: Date | null; classee_par: string | null;
+          classee_raison: string | null; jointe_ecriture: string | null; double_de: string | null; double_de_sorte: string | null; periode: string | null;
+          nom: string; type: string; taille: number }[];
+      const compteDeposees = seul ? 0 : Number((await tx.query(`select count(*) n from cabinet.document d
+        where d.cabinet = $1 and d.rubrique = 'piece' and d.remplace_par is null and d.classee_le is null
+          and d.entreprise in (select p.entreprise from socle.portefeuille($1) p where p.statut = 'actif')`, [params.cabinet])).rows[0].n);
+      const compte = compteDeposees + Number((await tx.query(`select count(*) n from messagerie.message m
         where m.cabinet = $1 and m.cote = 'entreprise' and m.fichier is not null and m.classee_le is null`, [params.cabinet])).rows[0].n);
       // (1.167.0) Les demandes du cabinet encore ouvertes, et celles reçues ces trois derniers jours : la page les montre
       // au-dessus de la pièce ouverte (« Demandes en cours »). La même règle du fil : un dossier qu'on ne lit pas n'y est pas.
@@ -449,17 +464,23 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       return {
         corps: {
           aClasser: compte,
-          plus: lignes.length > max,
+          plus: lignes.length + deposees.length > max,
           demandes: demandes.map((d) => ({ id: d.id, entreprise: d.entreprise, texte: d.demande, demandeeLe: d.ecrit_le.toISOString(),
             recueLe: d.demande_recue_le?.toISOString() ?? null, pour: d.demande_pour })),
-          pieces: lignes.slice(0, max).map((l) => ({
+          pieces: [...lignes.map((l) => ({
             id: l.id, entreprise: l.entreprise, de: l.auteur_nom, texte: l.texte, recueLe: l.ecrit_le.toISOString(),
             fichier: { id: l.fichier, nom: l.fichier_nom, type: l.fichier_type, taille: Number(l.fichier_taille) },
             demande: l.demande, achat: l.achat_libelle, classeeLe: l.classee_le ? l.classee_le.toISOString() : null, classeePar: l.classee_par,
             raison: l.classee_raison, note: l.classee_note, jointe: l.jointe_ecriture,
             // (1.173.0, 0181) La jumelle d'une pièce en double, et le mois où le cabinet l'a rangée (null : celui de son arrivée).
             double: l.double_de ? { sorte: l.double_de_sorte, id: l.double_de } : null, mois: l.mois_classeur,
-          })),
+          })), ...deposees.map((d) => ({
+            id: d.id, entreprise: d.entreprise, depot: true, de: d.depose_nom ?? 'le cabinet', provenance: d.provenance, texte: '', recueLe: d.depose_le.toISOString(),
+            fichier: { id: d.id, nom: d.nom, type: d.type, taille: Number(d.taille) },
+            demande: null, achat: null, classeeLe: d.classee_le ? d.classee_le.toISOString() : null, classeePar: d.classee_par,
+            raison: d.classee_raison, note: null, jointe: d.jointe_ecriture,
+            double: d.double_de ? { sorte: d.double_de_sorte, id: d.double_de } : null, mois: d.periode,
+          }))].sort((a, b) => (b.classeeLe ?? b.recueLe).localeCompare(a.classeeLe ?? a.recueLe) || b.id.localeCompare(a.id)).slice(0, max),
         },
       };
     },

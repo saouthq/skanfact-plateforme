@@ -87,6 +87,11 @@ describe('les Échéances du Cabinet, à la souris', () => {
     const ligne = (nom: string) => det.locator('.ec-r').filter({ hasText: nom });
     await expect.poll(() => det.locator('.ec-r').count()).toBe(2);
     expect(await ligne('Librairie Ennour').getByRole('button', { name: 'Relancer' }).count()).toBe(1);
+    // (1.175.1) La pastille de la barre compte les DÉCLARATIONS en retard, comme la page : septembre et la CNSS (deux
+    // dossiers chacune) et août (la librairie) font 3, pas 5 (un dossier × une déclaration, ce qu'elle comptait).
+    const enRetard = await p.locator('#page-ech .ec-i').filter({ hasText: /en retard de/ }).count();
+    expect(enRetard).toBe(3);
+    expect(await p.locator('#nav-echeances').innerText()).toBe(String(enRetard));
 
     // Relancer : le message, les pièces attendues, une date ; il part dans la conversation, ses pièces en demandes datées.
     await ligne('Librairie Ennour').getByRole('button', { name: 'Relancer' }).click();
@@ -117,6 +122,54 @@ describe('les Échéances du Cabinet, à la souris', () => {
     // La vue Mois : octobre, le 28 marqué.
     await p.getByRole('button', { name: /Mois/ }).first().click();
     await expect.poll(() => p.locator('#page-ech').innerText()).toMatch(/octobre 2026/i);
+    expect(erreurs).toEqual([]);
+  });
+
+  it('(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche, les gestes du menu', async () => {
+    const { associe, cab, librairie } = await unCabinet();
+    // La librairie est une personne physique (sa fiche le dit) : elle dépose le 15, à part des sociétés.
+    expect((await api('PUT', `/cabinets/${cab.id}/fiches/${librairie.ent}`, associe, { contenu: { forme: 'Personne physique', contact: 'Hela Ben Salah' }, revision: null })).statut).toBe(200);
+    // Qui paie ses déclarations : « client », ou rien ; le serveur refuse le reste.
+    const fiche = async () => ((await api('GET', `/cabinets/${cab.id}/fiches`, associe)).corps.fiches as { entreprise: string; contenu: Record<string, unknown>; revision: number }[]).find((f) => f.entreprise === librairie.ent);
+    expect((await api('PUT', `/cabinets/${cab.id}/fiches/${librairie.ent}`, associe, { contenu: { ...(await fiche())?.contenu, paieDecl: 'autre' }, revision: (await fiche())?.revision })).statut).toBe(400);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.clock.setFixedTime(LE_29);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await ouvrir(p, cab.id);
+    const carte = p.locator('#page-ech .ec-i').filter({ hasText: 'personnes physiques' }).filter({ hasText: 'septembre' });
+    expect(await carte.innerText()).toMatch(/^15\s*oct\./);
+    expect(await carte.innerText()).toMatch(/en retard de 14 jours/);
+    await carte.click();
+    const det = p.locator('#page-ech .ec-det');
+    await expect.poll(() => det.locator('h2').first().innerText()).toBe('Déclaration de septembre 2026 · personnes physiques');
+    expect(await det.innerText()).toMatch(/Les personnes physiques déposent le 15 \(À VÉRIFIER\)/);
+    expect(await det.locator('.ec-r').allInnerTexts()).toEqual([expect.stringMatching(/Librairie Ennour[\s\S]*personne physique/)]);
+    // Le portail s'ouvre dans le navigateur : une adresse, rien ne part de SkanFact.
+    expect(await det.locator('#ec-portail').getAttribute('href')).toBe('https://www.jibaya.tn/');
+    expect(await det.locator('#ec-portail').getAttribute('target')).toBe('_blank');
+    // La déclaration des sociétés (le 28) n'a plus que la menuiserie.
+    await p.locator('#page-ech .ec-i').filter({ hasText: 'Déclaration de septembre' }).filter({ hasNotText: 'personnes physiques' }).click();
+    await expect.poll(() => det.locator('.ec-r').allInnerTexts()).toEqual([expect.stringMatching(/Menuiserie Ben Ali/)]);
+
+    // La relance part dans la conversation ET se note sur la fiche : la ligne dit la dernière relance.
+    await carte.click();
+    const ligne = det.locator('.ec-r').filter({ hasText: 'Librairie Ennour' });
+    expect(await ligne.innerText()).toMatch(/jamais relancé/);
+    await ligne.getByRole('button', { name: 'Relancer' }).click();
+    const fen = p.locator('#modal-root');
+    expect(await fen.getByRole('button', { name: 'Noter un appel comme relance' }).count()).toBe(1);
+    await fen.getByRole('button', { name: 'Envoyer la relance' }).click();
+    await expect.poll(() => ligne.innerText()).toMatch(/relancé le 29\/10/);
+    expect(((await fiche())?.contenu.relances as unknown[]).length).toBe(1);
+
+    // Le menu ⋯ : écrire au contact par son prénom ; « Ce dossier ne la dépose pas » ouvre sa fiche, sur la périodicité.
+    await ligne.getByRole('button', { name: /Les autres gestes/ }).click();
+    expect(await p.getByRole('menuitem', { name: /Écrire à Hela/ }).count()).toBe(1);
+    await p.getByRole('menuitem', { name: /Ce dossier ne la dépose pas/ }).click();
+    await expect.poll(() => p.evaluate(() => document.activeElement && document.activeElement.id)).toBe('f-tva');
     expect(erreurs).toEqual([]);
   });
 

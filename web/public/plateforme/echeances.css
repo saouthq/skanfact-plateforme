@@ -190,3 +190,10 @@
 
 /* (1.168.0) Au doigt : « Liste » et « Mois » font 44 points de haut, comme toute cible. */
 @media (max-width: 760px) { .ec-vue button { min-height: 44px; padding: 4px 14px; } }
+
+/* (1.175.0) Les personnes physiques, la CNSS comptée par prudence, l'accusé joint au dépôt. */
+.ec-pp { font-style: normal; font-weight: 500; color: var(--sb-gris); }
+.ec-prud { margin-bottom: 10px; }
+.ec-acc { margin: 4px 0 2px; padding: 14px; }
+.ec-acc.pris { border-style: solid; }
+.ec-acc.pris .cl-zone-i { color: var(--sb-vert, currentColor); }

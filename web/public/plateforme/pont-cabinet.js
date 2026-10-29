@@ -271,7 +271,7 @@
   const fiches = new Map();
   // Les champs de la fiche : ceux que le serveur garde (serveur/cabinet/routes.ts, FICHE).
   // (1.72.0) Et l'adresse et le gérant du client, que ses documents impriment.
-  const TEXTES_FICHE = ['email', 'phone', 'contact', 'note', 'regime', 'tvaPeriod', 'from', 'cnssEmployeur', 'cnssCode', 'adresse', 'gerant', 'forme', 'ville', 'fonction', 'activite'];
+  const TEXTES_FICHE = ['email', 'phone', 'contact', 'note', 'regime', 'tvaPeriod', 'from', 'cnssEmployeur', 'cnssCode', 'adresse', 'gerant', 'forme', 'ville', 'fonction', 'activite', 'paieDecl'];
   // Les taux de la paie propres à l'entreprise (1.66.0) : l'accident du travail, la TFP, le FOPROLOS ; et (1.69.0) les
   // heures supplémentaires du pointage : les heures d'un mois complet, trois majorations. Gardés en texte décimal, comme
   // les taux par contrat, et lus tels quels : le moteur de la v10 les compte en nombres (computePayslip, heuresSupDuMois).
@@ -1249,6 +1249,21 @@
     appel: (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b),
   });
   /** @type {Map<string, Promise<{ blob: Blob, type: string, nom: string, adresse: string }>>} */ const fichiersLus = new Map();
+  // (1.174.8) Les pièces de « Pièces reçues » que le cabinet a déposées lui-même : des documents du classeur d'un dossier.
+  /** @type {Set<string>} */ const deposees = new Set();
+  // Le contenu d'une pièce déposée, gardé le temps de la page (la même clé que `classeur.contenu`).
+  const docDuClasseur = (/** @type {string} */ dossier, /** @type {string} */ document) => {
+    const cle = `doc:${document}`;
+    const deja = fichiersLus.get(cle);
+    if (deja) return deja;
+    const p = appel('GET', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents/${encodeURIComponent(document)}`).then((/** @type {any} */ f) => {
+      const blob = new Blob([Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0))], { type: f.type });
+      return { blob, type: String(f.type), nom: String(f.nom), adresse: URL.createObjectURL(blob) };
+    });
+    p.catch(() => fichiersLus.delete(cle));
+    fichiersLus.set(cle, p);
+    return p;
+  };
   /** @type {Record<string, any>} */
   const pont = {
     commentUnClientArrive,
@@ -1278,16 +1293,22 @@
     // (1.152.0) « Pièces reçues » (0175) : les fichiers que les clients ont envoyés, tous dossiers confondus ; les classer,
     // défaire, et ouvrir le fichier (celui du fil, tel qu'il est arrivé).
     pieces: {
+      // (1.174.8) La liste porte aussi les pièces que le cabinet a déposées lui-même (`depot`) : leurs gestes vont au classeur
+      // du dossier, la page n'a pas à le savoir.
       lire: (/** @type {boolean} */ classees, /** @type {string | undefined} */ entreprise) =>
-        appel('GET', `/cabinets/${cabinetId}/pieces${classees ? `?classees=1${entreprise ? `&entreprise=${encodeURIComponent(entreprise)}` : ''}` : ''}`),
+        appel('GET', `/cabinets/${cabinetId}/pieces${classees ? `?classees=1${entreprise ? `&entreprise=${encodeURIComponent(entreprise)}` : ''}` : ''}`)
+          .then((/** @type {any} */ r) => { for (const p of (r && r.pieces) || []) if (p.depot) deposees.add(String(p.id)); return r; }),
       // (1.167.0, 0179) La raison du classement (saisie, vérifiée, rien, double, illisible, banque) et, pour une pièce
       // illisible, ce qu'on a redemandé au client.
-      classer: (/** @type {string} */ entreprise, /** @type {string} */ message, /** @type {boolean} */ classee, /** @type {string | undefined} */ raison, /** @type {string | undefined} */ note) =>
-        appel('POST', `/entreprises/${encodeURIComponent(entreprise)}/messages/${encodeURIComponent(message)}/classee`,
+      classer: (/** @type {string} */ entreprise, /** @type {string} */ message, /** @type {boolean} */ classee, /** @type {string | undefined} */ raison, /** @type {string | undefined} */ note) => deposees.has(message)
+        ? appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(entreprise)}/documents/${encodeURIComponent(message)}/classement`,
+          { classee, ...(classee && raison ? { raison: raison === 'client' ? 'rien' : raison } : {}) })
+        : appel('POST', `/entreprises/${encodeURIComponent(entreprise)}/messages/${encodeURIComponent(message)}/classee`,
           { classee, ...(classee && raison ? { raison } : {}), ...(classee && note ? { note } : {}) }),
       // (1.167.0) Le fichier lui-même, pour l'aperçu de la page (la photo telle quelle, la page d'un PDF dessinée ici par
       // plateforme/apercu-pdf.js) : rien ne part ailleurs. Gardé le temps de la page, une fois par fichier.
       contenu: (/** @type {string} */ entreprise, /** @type {string} */ fichier) => {
+        if (deposees.has(fichier)) return docDuClasseur(entreprise, fichier);
         const deja = fichiersLus.get(fichier);
         if (deja) return deja;
         const p = appel('GET', `/entreprises/${encodeURIComponent(entreprise)}/messages/fichiers/${encodeURIComponent(fichier)}`).then((/** @type {any} */ f) => {
@@ -1299,7 +1320,9 @@
         return p;
       },
       apercuPdf: (/** @type {Blob} */ blob, /** @type {number} */ largeur, /** @type {number} */ numero) => /** @type {any} */ (window).SkanApercuPdf.pageEnImage(blob, largeur, numero),
-      enregistrer: (/** @type {string} */ entreprise, /** @type {string} */ fichier) => /** @type {any} */ (window).SkanMessagerie.ouvrirFichier(
+      enregistrer: (/** @type {string} */ entreprise, /** @type {string} */ fichier) => deposees.has(fichier) ? docDuClasseur(entreprise, fichier).then((/** @type {any} */ f) => {
+        const a = document.createElement('a'); a.href = f.adresse; a.download = f.nom; document.body.appendChild(a); a.click(); a.remove();
+      }) : /** @type {any} */ (window).SkanMessagerie.ouvrirFichier(
         (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b), fichier, true),
       // Redemander une pièce illisible : un message du cabinet, avec la demande, dans la conversation du client.
       redemander: (/** @type {string} */ entreprise, /** @type {string} */ texte, /** @type {string} */ demande) =>
@@ -1308,8 +1331,9 @@
         (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b), fichier),
       // (1.172.0, 0180) Joindre une pièce reçue à une écriture de ses livres (l'achat saisi sans justificatif) ; la détacher,
       // c'est la remettre à classer (`classer(…, false)`).
-      joindre: (/** @type {string} */ entreprise, /** @type {string} */ message, /** @type {string} */ ecriture) =>
-        appel('POST', `/entreprises/${encodeURIComponent(entreprise)}/messages/${encodeURIComponent(message)}/jointe`, { ecriture }),
+      joindre: (/** @type {string} */ entreprise, /** @type {string} */ message, /** @type {string} */ ecriture) => deposees.has(message)
+        ? appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(entreprise)}/documents/${encodeURIComponent(message)}/classement`, { classee: true, raison: 'jointe', ecriture })
+        : appel('POST', `/entreprises/${encodeURIComponent(entreprise)}/messages/${encodeURIComponent(message)}/jointe`, { ecriture }),
     },
     // (1.172.0, 0180) Le classeur d'un client : les documents que le cabinet y range (le dossier permanent, les courriers,
     // l'accusé d'une déclaration, les pièces déposées), une demande datée au client, et l'export.

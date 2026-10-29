@@ -84,6 +84,11 @@ export const CLASSEMENT: Record<string, Classe> = {
   // La fiche d'un dossier au cabinet appartient au CABINET (ses notes sur son client) : elle ne part
   // pas avec l'entreprise.
   'cabinet.fiche': { classe: 'hors', raison: 'les notes du cabinet sur son client appartiennent au cabinet' },
+  // (1.175.1) Le classeur du cabinet (0180, 0181) : ses documents (le dossier permanent), qui a lu quelle pièce, ses
+  // exports. Non classés, ils faisaient échouer l'export d'une entreprise (« table non classée »).
+  'cabinet.document': { classe: 'hors', raison: 'le dossier permanent que le cabinet tient sur son client appartient au cabinet' },
+  'cabinet.lecture': { classe: 'hors', raison: 'qui au cabinet a lu quelle pièce : le suivi du cabinet' },
+  'cabinet.export': { classe: 'hors', raison: 'les exports du classeur faits par le cabinet' },
   'cabinet.reglages': { classe: 'hors', raison: 'les réglages du cabinet (banques, mots retenus) valent pour tous ses clients' },
   'compta.compteur': { classe: 'entreprise' },
   'compta.lettrage': { classe: 'entreprise' },

@@ -68,6 +68,8 @@ const FICHE = z.object({
   adresse: texte(300), gerant: texte(200),
   // (1.169.0) Ce que la liste des Dossiers montre sous chaque nom et chaque contact : sa forme, sa ville, la fonction du contact.
   forme: texte(40), ville: texte(80), fonction: texte(80), activite: texte(80),
+  // (1.175.0) Qui paie ses déclarations : « client » quand il les paie lui-même (les Échéances), vide sinon.
+  paieDecl: z.enum(['', 'client']),
   relances: z.array(RELANCE).max(50),
   // Le compte bancaire du dossier, sa banque, et l'écart de jours du rapprochement (brique 40, C21).
   banque: z.object({ compte: z.string().regex(/^(\d{1,12})?$/), banque: texte(60), jours: z.number().int().min(0).max(30).nullable() }).partial().strict(),
@@ -108,7 +110,7 @@ const REGLAGES = z.object({
   email: z.string().max(200).regex(/^([^\s@]+@[^\s@]+\.[^\s@]+)?$/, { message: 'cabinet.champ.email' }),
   phone: texte(40),
   relanceDay: z.number().int().min(1).max(28),
-  deadlines: z.object({ tvaDay: z.number().int().min(1).max(31), cnssDay: z.number().int().min(1).max(31) }).strict().nullable(),
+  deadlines: z.object({ tvaDay: z.number().int().min(1).max(31), cnssDay: z.number().int().min(1).max(31), tvaDayPP: z.number().int().min(1).max(31).optional() }).strict().nullable(),
   saisie: z.object({
     journalParDefaut: z.string().regex(/^[A-Z]{0,6}$/), dateComplete: z.boolean(), validerParLot: z.boolean(),
     touches: z.object({ ligneSuivante: texte(30), solder: texte(30), recopier: texte(30), dupliquer: texte(30), valider: texte(30) }).strict(),
