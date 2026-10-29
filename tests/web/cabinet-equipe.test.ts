@@ -121,17 +121,11 @@ describe('l\'équipe du cabinet, à la souris', () => {
     await expect.poll(async () => (await equipe()).affectations.map((x) => [x.entreprise, x.role])).toEqual([[cafe, 'revision']]);
     expect(((await api('GET', `/cabinets/${cabinet}/portefeuille`, amine)).corps.dossiers as { entreprise: string }[]).map((d) => d.entreprise)).toEqual([cafe]);
 
-    // ── Elle n'est pas associée : « Nouveau dossier » le lui dit AVANT la saisie, avec qui peut le faire (1.87.5) ─
-    // (le refus n'arrivait qu'à « Créer le dossier », après toute la fiche, dans un message qui passe)
+    // ── Elle n'est pas associée : la page des dossiers ne lui propose pas d'en ajouter (1.169.0 : la maquette ; avant, le
+    // bouton s'y trouvait et le refus venait avant la saisie, 1.87.5). Ses dossiers, eux, s'y lisent.
     await a.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossiers`);
-    await a.locator('#new-d').waitFor({ timeout: 15_000 });
-    for (let i = 0; i < 3 && await a.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await a.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
-    await a.locator('#new-d').click();
-    const refus = a.locator('#modal-root .modal').last();
-    await expect.poll(() => refus.locator('h2').innerText().catch(() => ''), { timeout: 15_000 }).toBe('Ajouter un client');
-    expect((await refus.innerText()).replace(/\s+/g, ' ')).toContain('Seul un associé du cabinet crée un dossier. associe peut ajouter ce client.');
-    expect(await refus.locator('#f-name').count()).toBe(0);
-    await refus.getByRole('button', { name: 'Compris', exact: true }).click();
+    await a.locator('#page-tb tr[data-id]').first().waitFor({ timeout: 15_000 });
+    expect(await a.locator('#new-d').count()).toBe(0);
     // L'associé, lui, ouvre la fiche.
     await aller('#/dossiers');
     await p.locator('#new-d').click();

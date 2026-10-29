@@ -485,10 +485,10 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     // de répondre), autant de lignes que le chiffre du menu ; elle mène à la conversation, pas à la fiche.
     await c.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossiers`);
     await c.p.locator(`tr[data-id="${amine.e}"]`).waitFor({ timeout: 20_000 });
-    await expect.poll(() => c.p.locator(`tr[data-id="${amine.e}"] .dl-msg`).count(), { timeout: 15_000 }).toBe(1);
-    expect(await c.p.locator(`tr[data-id="${leila.e}"] .dl-msg`).count()).toBe(0);
-    await expect.poll(async () => (await c.p.locator('#nav-messages').textContent()) ?? '').toBe(String(await c.p.locator('tr[data-id] .dl-msg').count()));
-    await c.p.locator(`tr[data-id="${amine.e}"] .dl-msg`).click();
+    await expect.poll(() => c.p.locator(`tr[data-id="${amine.e}"] .cd-nl`).count(), { timeout: 15_000 }).toBe(1);
+    expect(await c.p.locator(`tr[data-id="${leila.e}"] .cd-nl`).count()).toBe(0);
+    await expect.poll(async () => (await c.p.locator('#nav-messages').textContent()) ?? '').toBe(String(await c.p.locator('tr[data-id] .cd-nl').count()));
+    await c.p.locator(`tr[data-id="${amine.e}"] .cd-nl`).click();
     await expect.poll(() => c.p.url()).toContain(`#/messages/${amine.e}`);
     await c.p.locator('[data-msg-fil]').waitFor({ timeout: 15_000 });
 

@@ -6,8 +6,8 @@
 //   - la photo qui répond à une demande citant le numéro d'un achat déjà saisi se JOINT à cet achat (« Joindre à l'achat
 //     GMS-26-4471… ») au lieu d'ouvrir un achat neuf ; chez le cabinet, « Voir l'écriture » remplace « Saisir cette
 //     pièce » et mène au livre-journal sur ce numéro ;
-//   - la liste des dossiers du cabinet ne dit plus « tout est à jour » à côté d'une ligne « à valider » : « Rien en
-//     retard. Ton client a des écritures du mois en cours à valider. », le point de la ligne à l'orange.
+//   - la liste des dossiers du cabinet dit d'une ligne aux écritures du mois au brouillard « à réviser », le point à
+//     l'orange (1.169.0 : la liste de la maquette).
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -97,8 +97,8 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     const paieRefusee: string[] = [];
     h.p.on('response', (r) => { if (r.status() === 403 && r.url().includes('/paie/')) paieRefusee.push(r.url()); });
     await h.p.bringToFront(); await h.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossiers`);
-    await h.p.getByRole('button', { name: 'Accepter', exact: true }).waitFor({ timeout: 20_000 });
-    expect(await h.p.getByRole('button', { name: 'Accepter', exact: true }).evaluate((b) => b.classList.contains('btn-primary'))).toBe(true);
+    await h.p.getByRole('button', { name: 'Accepter le dossier', exact: true }).waitFor({ timeout: 20_000 });
+    expect(await h.p.getByRole('button', { name: 'Accepter le dossier', exact: true }).evaluate((b) => b.classList.contains('btn-primary'))).toBe(true);
     expect(await h.p.locator('#new-d').evaluate((b) => b.classList.contains('btn-primary'))).toBe(false);
     expect(await h.p.locator('#view .btn-primary:visible').count()).toBe(1);
     expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, hatem)).statut).toBe(200);
@@ -174,9 +174,9 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     // La liste des dossiers : le mois en cours a des écritures au brouillard ; la phrase et le point le disent.
     await h.p.bringToFront(); await h.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossiers`);
     await h.p.locator(`tr[data-id="${ent}"]`).waitFor({ timeout: 20_000 });
-    expect(net(await h.p.locator(`tr[data-id="${ent}"] .dl-mois`).innerText())).toMatch(/à valider$/);
-    expect(net(await h.p.locator('.todo-ok').innerText())).toBe('Rien en retard. Ton client a des écritures du mois en cours à valider.');
-    expect(await h.p.locator(`tr[data-id="${ent}"] .dot-lvl`).evaluate((d) => d.classList.contains('warn'))).toBe(true);
+    // (1.169.0, la liste de la maquette) Le mois de la ligne dit « à réviser », son point à l'orange (pas « sans pièces »).
+    await expect.poll(async () => net(await h.p.locator(`tr[data-id="${ent}"] .cd-mo-c`).innerText()), { timeout: 15_000 }).toMatch(/à réviser$/);
+    expect(await h.p.locator(`tr[data-id="${ent}"] .ms-mo`).evaluate((d) => d.classList.contains('cours'))).toBe(true);
     await plusTard(h.p);
     await h.p.screenshot({ path: path.join(PHOTOS, 'mois-client-dossiers.png') });
     expect(h.erreurs).toEqual([]);

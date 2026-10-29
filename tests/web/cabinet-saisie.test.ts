@@ -88,8 +88,13 @@ describe('la saisie du Cabinet, à la souris', () => {
     // Le portefeuille : août a une écriture au brouillard (l'achat) : le dossier est à valider,
     // son dernier mois est août.
     await aller('#/dossiers');
-    const ligne = p.locator('#view tr', { hasText: 'Menuiserie Ben Salah' }).first();
-    await expect.poll(() => ligne.innerText()).toMatch(/août 2026\s*à valider/i);
+    // (1.169.0, la liste de la maquette) La ligne nomme août (passé sa date, « en retard » ; sinon « à réviser ») ; sa
+    // fiche le dit à réviser ou en retard, jamais déposé.
+    const ligne = p.locator('#view tr[data-id]', { hasText: 'Menuiserie Ben Salah' }).first();
+    await expect.poll(() => ligne.locator('.cd-mo-c').innerText()).toMatch(/août/i);
+    await ligne.locator('td.cl').click();
+    expect(await p.locator('.cd-fiche .cd-an-s i').nth(7).getAttribute('title')).toMatch(/^août : (à réviser|en retard)$/);
+    await p.locator('#cd-fiche-x').click();
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-saisie-1-portefeuille.png') });
 
     // La grille de saisie : une OD en brouillard.

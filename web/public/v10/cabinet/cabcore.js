@@ -199,6 +199,8 @@
       // (plateforme) 1.72.0 — l'adresse et le gérant du client, que ses documents impriment (le bulletin, les documents du
       // personnel). Même règle que les champs d'ici : absents de cette liste, ils seraient jetés au prochain chargement.
       adresse: String(d.adresse || ''), gerant: String(d.gerant || ''),
+      // (plateforme) 1.169.0 — sa forme (SARL, SUARL…), sa ville, la fonction de son contact : la liste des Dossiers les montre.
+      forme: String(d.forme || ''), ville: String(d.ville || ''), fonction: String(d.fonction || ''), activite: String(d.activite || ''),
       createdAt: d.createdAt || null,
       // L'historique des relances. Sans lui, le lundi suivant on ne sait plus qui a été relancé.
       relances: Array.isArray(d.relances) ? d.relances.map(r => ({

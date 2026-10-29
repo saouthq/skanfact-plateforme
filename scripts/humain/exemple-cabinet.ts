@@ -66,8 +66,10 @@ for (const d of DOSSIERS) {
   if (d.gerant && d.email) {
     const j = await personne(d.gerant, d.email);
     const id = String((await api('POST', '/entreprises', j, { raisonSociale: d.nom })).id);
-    // Le café saisit lui-même ses achats : il ne confie au cabinet que la comptabilité et les déclarations.
-    const m = await api('POST', `/entreprises/${id}/mandat`, j, { codeCabinet: String(cab.code), ...(d.cle === 'dz' ? { perimetre: ['comptabilite', 'declarations'] } : {}) });
+    // Le café saisit lui-même ses achats : il ne confie au cabinet que la comptabilité et les déclarations ; quatre clients
+    // lui confient aussi leur paie.
+    const perimetre = d.cle === 'dz' ? ['comptabilite', 'declarations'] : ['be', 'gt', 'pe', 'ic'].includes(d.cle) ? ['comptabilite', 'declarations', 'saisie_achats', 'paie'] : null;
+    const m = await api('POST', `/entreprises/${id}/mandat`, j, { codeCabinet: String(cab.code), ...(perimetre ? { perimetre } : {}) });
     await api('POST', `/cabinets/${cabinet}/mandats/${String(m.mandat)}/accepter`, leila);
     entreprise[d.cle] = id;
     gerant[d.cle] = j;
@@ -83,6 +85,28 @@ for (const d of DOSSIERS) {
   if (d.valide && membre.Leïla) await api('PUT', `/cabinets/${cabinet}/mandats/${mandatDe(d.cle)}/affectations/${membre.Leïla}`, leila, { role: 'supervision' });
 }
 
+// La fiche de chaque dossier au cabinet : le contact, son téléphone, les honoraires par mois (HT, en millimes), comme la maquette.
+// (1.169.0) Et sa forme, sa ville, la fonction du contact.
+const FICHES: Record<string, [string, string, number, string, string, string]> = {
+  be: ['Sarra', '22 53 10 84', 450000, 'SARL', 'Tunis', 'responsable'], mb: ['Hédi', '98 41 22 07', 350000, 'SARL', 'Ben Arous', 'responsable'],
+  gt: ['Sami', '55 08 47 19', 400000, 'SUARL', 'La Marsa', 'responsable'], an: ['Karim', '58 39 70 21', 380000, 'SUARL', 'Sfax', 'responsable'],
+  dz: ['Walid', '29 77 03 52', 300000, 'SUARL', 'Tunis', 'responsable'], le: ['Amel', '50 64 18 93', 250000, 'SARL', 'Ariana', 'responsable'],
+  pe: ['Nour', '98 15 62 40', 650000, 'SARL', 'El Menzah', 'titulaire'], sp: ['Ines', '93 07 52 68', 150000, 'Personne physique', 'Tunis', 'photographe'],
+  ic: ['Mehdi', '22 90 47 15', 420000, 'SARL', 'Ben Arous', 'comptable interne'], iy: ['Yasmine', '27 41 86 09', 180000, 'Personne physique', 'Nabeul', 'responsable'],
+  sm: ['Nabil', '74 22 61 30', 900000, 'SARL', 'Sfax', 'responsable'], cj: ['Salma', '71 80 25 46', 1200000, 'SA', 'Tunis', 'responsable'],
+};
+const ACTIVITES: Record<string, string> = { be: 'boulangerie-pâtisserie', mb: 'menuiserie bois', gt: 'garage automobile', an: 'services numériques', dz: 'café',
+  le: 'librairie-papeterie', pe: 'pharmacie', sp: 'studio photo', ic: 'imprimerie', iy: 'institut de beauté', sm: 'distribution alimentaire', cj: 'clinique' };
+// La fiche peut déjà exister (le serveur dit alors sa révision) : on la reprend, sans rien écraser d'autre.
+const poserFiche = async (ent: string, contenu: Record<string, unknown>) => {
+  for (let i = 0, revision: number | null = null; i < 2; i++) {
+    const r = await fetch(`${adresse}/v1/cabinets/${cabinet}/fiches/${ent}`, { method: 'PUT', headers: { authorization: `Bearer ${leila}`, 'content-type': 'application/json' }, body: JSON.stringify({ contenu, revision }) });
+    if (r.ok) return;
+    const lu = await r.json() as { revision?: number | null };
+    if (r.status !== 409) throw new Error(`PUT fiche ${ent} : ${r.status}`);
+    revision = lu.revision ?? null;
+  }
+};
 // Les livres, mois par mois de janvier à septembre, comme les maquettes les dessinent : F déclaré et déposé, D révisé
 // et prêt à déposer, P préparé, R au brouillard (à réviser), S tenu et pas encore saisi, M rien reçu, H avant la mission.
 const LIVRES: Record<string, string> = { be: 'FFFFFFFRR', mb: 'FFFFFFFMM', gt: 'FFFFFFFFD', an: 'HHHHHFFFR', dz: 'FFFFFFFFM', le: 'FFFFFFFFM',
@@ -92,7 +116,8 @@ for (const d of DOSSIERS) {
   const ent = entreprise[d.cle] ?? '';
   const g = LIVRES[d.cle] ?? '';
   const debut = Math.max(0, g.search(/[^H]/));
-  await api('PUT', `/cabinets/${cabinet}/fiches/${ent}`, leila, { contenu: { from: mois(debut) }, revision: null });
+  const f = FICHES[d.cle];
+  await poserFiche(ent, { from: mois(debut), ...(f ? { contact: f[0], phone: f[1], ...(d.email ? { email: d.email } : {}), fees: f[2], forme: f[3], ville: f[4], fonction: f[5], activite: ACTIVITES[d.cle] ?? '' } : {}) });
   for (let i = 0; i < g.length; i++) {
     const e = g[i];
     if (!e || 'MSH'.includes(e)) continue;
@@ -178,6 +203,13 @@ await envoyer('pe', ['Releve_ATB_09-2026.pdf', 'contrat-bail-2027.pdf'], 'Le nou
 await envoyer('iy', ['IMG_0412.jpg', 'IMG_0413.jpg', 'attestation-CNSS.pdf'], '');
 await envoyer('gt', [], 'Bonjour, j\'ai annulé la facture de juillet par erreur. Que faut-il faire ?');
 await envoyer('an', ['facture-hebergement-T3.pdf'], 'Payée en euros par carte.');
+// (1.169.0) Ce que la maquette des Dossiers montre aussi : un hôtel qui propose son dossier (pas encore accepté), et un
+// dossier archivé (la fin de sa mission).
+const mounir = await personne('Mounir Ben Hassen', 'mounir@hotel-lespins.tn');
+const hotel = String((await api('POST', '/entreprises', mounir, { raisonSociale: 'Hôtel Les Pins' })).id);
+await api('POST', `/entreprises/${hotel}/mandat`, mounir, { codeCabinet: String(cab.code), perimetre: ['comptabilite', 'declarations', 'paie'] });
+const mejri = String((await api('POST', `/cabinets/${cabinet}/dossiers`, leila, { raisonSociale: 'Transport Mejri' })).entreprise);
+await poserFiche(mejri, { contact: 'Lotfi', forme: 'SARL', ville: 'Bizerte', fonction: 'gérant', archived: true });
 await navigateur?.close();
 
 fs.writeFileSync(`${TRAVAIL}/comptes-cabinet.txt`, [

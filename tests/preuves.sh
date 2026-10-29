@@ -5401,10 +5401,7 @@ prouver "le Cabinet sans la mise en page du téléphone" web/public/v10/cabinet/
   '  <link rel="stylesheet" href="../../plateforme/telephone.css">
 ' "" \
   "$CTEL"
-prouver "les compteurs du portefeuille écrasés sur une rangée au téléphone" web/public/plateforme/telephone.css \
-  "  .stats.rangee { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-" "" \
-  "$CTEL"
+# (1.169.0) Preuve retirée, « les compteurs du portefeuille écrasés sur une rangée au téléphone » : les compteurs de l'ancienne liste des dossiers ne s'affichent plus : la liste de la maquette n'a pas de rangée de chiffres au téléphone (des cartes) ; le test vérifie les cartes et la rangée des vues.
 prouver "les mois d'un dossier sur deux rangées de six au téléphone" web/public/plateforme/telephone.css \
   "  .mgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 " "" \
@@ -17317,8 +17314,8 @@ prouver 'un gérant sans limite de longueur' 'serveur/cabinet/routes.ts' \
   '  adresse: texte(300), gerant: z.string(),' \
   '(1.72.0) l'"'"'adresse et le gérant du client se gardent dans la fiche (ses documents les impriment) ; trop longs, refusés'
 prouver 'le point de contact qui n'"'"'envoie ni l'"'"'adresse ni le gérant' 'web/public/plateforme/pont-cabinet.js' \
-  ''"'"'cnssEmployeur'"'"', '"'"'cnssCode'"'"', '"'"'adresse'"'"', '"'"'gerant'"'"'];' \
-  ''"'"'cnssEmployeur'"'"', '"'"'cnssCode'"'"'];' \
+  ''"'"'cnssEmployeur'"'"', '"'"'cnssCode'"'"', '"'"'adresse'"'"', '"'"'gerant'"'"', '"'"'forme'"'"',' \
+  ''"'"'cnssEmployeur'"'"', '"'"'cnssCode'"'"', '"'"'forme'"'"',' \
   'un dossier tenu : le gérant et la civilité renseignés depuis le document, le solde proposé, les documents imprimés au nom du client'
 prouver 'la fiche du dossier qui jette le gérant au chargement' 'web/public/v10/cabinet/cabcore.js' \
   '      adresse: String(d.adresse || '"'"''"'"'), gerant: String(d.gerant || '"'"''"'"'),' \
@@ -19814,11 +19811,9 @@ prouver 'mois 123 : « Confier mon dossier » qui reste vert après l'\''invitat
 prouver 'mois 123 : « Copier le lien » qui n'\''est pas l'\''étape suivante' web/public/plateforme/pont.js \
   "class=\"btn btn-sm btn-primary\" id=\"mandat-lien-copier\"" "class=\"btn btn-sm\" id=\"mandat-lien-copier\"" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
-prouver 'mois 123 : « tout est à jour » à côté d'\''une ligne à valider' web/public/v10/cabinet/app.js \
-  "      if (enCours) return" "      if (false) return" \
-  'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
+# (1.169.0) Preuve retirée, « mois 123 : « tout est à jour » à côté d'une ligne à valider » : la phrase « Rien en retard… » de l'ancienne liste des dossiers n'existe plus : la ligne dit son mois « à réviser » (preuve « le point vert d'une ligne à valider »).
 prouver 'mois 123 : le point vert d'\''une ligne à valider' web/public/v10/cabinet/app.js \
-  "(r.lastMonth && !r.lastDefinitive ? 'warn' : '')" "''" \
+  "if (ecrC) return brC ? { cl: 'cours', mot:" "if (ecrC) return brC ? { cl: 'fait', mot:" \
   'Sarra et Hatem : un seul vert, la date dans l'\''« À faire », la photo jointe à l'\''achat déjà saisi, le bandeau honnête'
 prouver 'mois 123 : « Ajouter mes clients » vert pendant qu'\''une entreprise attend « Accepter »' web/public/v10/cabinet/app.js \
   "class=\"btn\${/btn-primary/.test(inboxBanner()) ? '' : ' btn-primary'}\" id=\"new-d\"" "class=\"btn btn-primary\" id=\"new-d\"" \
@@ -20059,12 +20054,8 @@ prouver 'ux3 139 : le cabinet seul à qui l'\''on propose de se confier ses doss
 prouver 'ux3 139 : « dont 1 sans justificatif » sans le geste qui le réclame' web/public/v10/cabinet/app.js \
   "    if (dj) dj.onclick = () => {" "    if (dj) dj.remove(); if (false) {" \
   'Hatem et les justificatifs : le 📎 du client, « sans justificatif », la demande écrite d'\''avance, la validation qui prévient'
-prouver 'ux3 139 : le nom du client écrasé à zéro sur la carte d'\''un dossier au téléphone' web/public/plateforme/telephone.css \
-  "  table.list[data-cartes].dl-table > * > tr > td.dl-client { max-width: none; width: auto; min-width: 0; }" "" \
-  'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'\''ordinateur le disent'
-prouver 'ux3 139 : les libellés de la rangée de chiffres coupés au téléphone' web/public/plateforme/telephone.css \
-  "  .stats.rangee .lbl, .stats.rangee .sub { white-space: normal; overflow: visible; }" "" \
-  'les pages du Cabinet, sur un téléphone et un ordinateur : rien ne déborde, au doigt tout se touche, et les écrans d'\''ordinateur le disent'
+# (1.169.0) Preuve retirée, « ux3 139 : le nom du client écrasé à zéro sur la carte d'un dossier au téléphone » : l'ancienne carte (table.list.dl-table) ne s'affiche plus : la liste de la maquette a ses propres cartes ; le test mesure le nom sur les cartes.
+# (1.169.0) Preuve retirée, « ux3 139 : les libellés de la rangée de chiffres coupés au téléphone » : la rangée de chiffres de l'ancienne liste des dossiers ne s'affiche plus au téléphone.
 prouver 'ux3 139 : les montants sous le pli dans une carte de facture au téléphone' web/public/plateforme/telephone.css \
   "  table.list[data-cartes] > tbody > tr > td:not(.r):not([data-tel=\"titre\"]):not(.row-actions):not([data-tel-tiers=\"oui\"]) { order: 3; }" "" \
   'les listes au téléphone : une carte par ligne, chaque case sous le titre de sa colonne ; à l'\''ordinateur, un tableau'
@@ -20935,5 +20926,26 @@ prouver 'échéances 4 : un dossier pointé déposé ne se défait pas depuis sa
 prouver 'échéances 5 : la CNSS ne dit plus qui elle compte par prudence' web/public/v10/cabinet/app.js \
   "x.t.sorte === 'cnss' ? esc(e.detail || 'Les cotisations du trimestre des dossiers employeurs.')" "x.t.sorte === 'cnss' ? 'Les cotisations du trimestre des dossiers employeurs.'" \
   'la carte CNSS du dernier trimestre ne vise que'
+prouver 'dossiers 1 : la forme du client disparaît de sa ligne' web/public/v10/cabinet/app.js \
+  "esc([d.forme, d.ville].filter(Boolean).join(' · ')" "esc([d.ville].filter(Boolean).join(' · ')" \
+  'au bureau : la liste, la proposition'
+prouver 'dossiers 2 : la fonction du contact ne se garde pas sur la fiche' web/public/v10/cabinet/cabcore.js \
+  "fonction: String(d.fonction || ''), activite:" "activite:" \
+  'au bureau : la liste, la proposition'
+prouver 'dossiers 3 : les honoraires de la colonne répètent « DT »' web/public/v10/cabinet/app.js \
+  "const dtCd = v => money(v).replace(/\\s*DT\$/, '');" "const dtCd = v => money(v);" \
+  'au bureau : la liste, la proposition'
+prouver 'dossiers 4 : une relance notée au téléphone ne dit pas comment' web/public/v10/cabinet/app.js \
+  "const via = { tel: ', au téléphone', whatsapp: ', par WhatsApp', autre: '' }[r.via] ?? '';" "const via = '';" \
+  'au bureau : la liste, la proposition'
+prouver 'dossiers 5 : la proposition d'\''un client attend un « Accepter » sans dire quoi' web/public/plateforme/pont-cabinet.js \
+  ">Accepter le dossier</button>" ">Accepter</button>" \
+  'au bureau : la liste, la proposition'
+prouver 'dossiers 6 : au téléphone, une carte n'\''ouvre pas la fiche' web/public/v10/cabinet/app.js \
+  "b.onclick = () => { st.fiche = b.dataset.cdCarte;" "b.onclick = () => { st.fiche = '';" \
+  'au téléphone : des cartes'
+prouver 'dossiers 7 : au téléphone, le tri absent casse la page' web/public/v10/cabinet/app.js \
+  "const tri = \$('#cd-tri', view); if (tri) tri.onchange" "const tri = \$('#cd-tri', view); tri.onchange" \
+  'au téléphone : des cartes'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

@@ -117,11 +117,11 @@ describe('le Cabinet, à la souris', () => {
     await p.waitForTimeout(1500);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-3-journal.png') });
 
-    // « Nouveau client… » : un dossier tenu au serveur, et ses notes dans la fiche du cabinet.
+    // « Ajouter un client… » (1.169.0 ; « Nouveau client… » avant) : un dossier tenu au serveur, et ses notes dans la fiche du cabinet.
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossiers`);
     await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
     await p.getByRole('button', { name: 'Plus tard' }).first().click().catch(() => {});
-    await p.getByRole('button', { name: 'Nouveau client…' }).first().click();
+    await p.getByRole('button', { name: 'Ajouter un client…' }).first().click();
     await p.locator('#modal-root #f-name').fill('Pâtisserie Mokhtar');
     await p.locator('#modal-root #f-mat').fill('1234567B/A/M/000');
     await p.locator('#modal-root #f-email').fill('mokhtar@exemple.tn');
@@ -231,12 +231,12 @@ describe('le Cabinet, à la souris', () => {
 
     // L'associé : le dossier confié s'annonce sur sa page Dossiers ; il accepte.
     await c.reload();
-    const bandeau = c.locator('.banner').filter({ hasText: 'Quincaillerie Zitouna' });
+    const bandeau = c.locator('.cd-prop').filter({ hasText: 'Quincaillerie Zitouna' });
     await bandeau.waitFor({ timeout: 15_000 });
     expect(await bandeau.innerText()).toContain('la comptabilité, les déclarations et la saisie des achats');
-    await bandeau.getByRole('button', { name: 'Accepter', exact: true }).click();
+    await bandeau.getByRole('button', { name: 'Accepter le dossier', exact: true }).click();
     await expect.poll(() => c.locator('#view').innerText(), { timeout: 15_000 }).toContain('Quincaillerie Zitouna');
-    await expect.poll(() => c.locator('.banner').filter({ hasText: 'Quincaillerie Zitouna' }).count()).toBe(0);
+    await expect.poll(() => c.locator('.cd-prop').filter({ hasText: 'Quincaillerie Zitouna' }).count()).toBe(0);
     await c.waitForTimeout(1500);
     await c.screenshot({ path: path.join(PHOTOS, 'cabinet-10-accepte.png') });
     expect(((await api('GET', `/entreprises/${ent}/mandat`, client)).corps.mandat as { statut: string }).statut).toBe('actif');

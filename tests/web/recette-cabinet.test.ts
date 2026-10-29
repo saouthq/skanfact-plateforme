@@ -89,15 +89,16 @@ describe('la recette du Cabinet, à la souris', () => {
     await p.evaluate(() => { location.hash = '#/messages'; });
     await p.locator('#view h1').filter({ hasText: 'Messages' }).waitFor({ timeout: 15_000 });
     await p.evaluate(() => { location.hash = '#/dossiers'; });
-    const bandeau = p.locator('.banner').filter({ hasText: 'Droguerie Bou Hamed' });
+    const bandeau = p.locator('.cd-prop').filter({ hasText: 'Droguerie Bou Hamed' });
     await bandeau.waitFor({ timeout: 15_000 });
-    await bandeau.getByRole('button', { name: 'Accepter', exact: true }).click();
-    await expect.poll(() => p.locator('.banner').filter({ hasText: 'Droguerie Bou Hamed' }).count(), { timeout: 15_000 }).toBe(0);
+    await bandeau.getByRole('button', { name: 'Accepter le dossier', exact: true }).click();
+    await expect.poll(() => p.locator('.cd-prop').filter({ hasText: 'Droguerie Bou Hamed' }).count(), { timeout: 15_000 }).toBe(0);
     expect(((await api('GET', `/entreprises/${ent}/mandat`, client)).corps.mandat as { id: string; statut: string }).statut).toBe('actif');
     // Son seul mois est le mois en cours, avec des écritures au brouillard : rien n'est en retard, la phrase parle du
     // client et dit ce qui attend (1.123.0 : « tout est à jour » s'affichait à côté d'une ligne « à valider »).
-    await expect.poll(() => p.locator('#view').innerText(), { timeout: 15_000 }).toContain('Rien en retard. Ton client a des écritures du mois en cours à valider.');
-    expect(await p.locator('#view').innerText()).not.toContain('chez ton dossier');
+    // (1.169.0, la liste de la maquette) Sa ligne dit son mois en cours « à réviser », sans retard.
+    await expect.poll(() => p.locator('#view tr[data-id]').filter({ hasText: 'Droguerie Bou Hamed' }).locator('.cd-mo-c').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/à réviser$/);
+    expect(await p.locator('#view tr[data-id]').filter({ hasText: 'Droguerie Bou Hamed' }).innerText()).not.toMatch(/en retard|sans pièces/);
     await p.screenshot({ path: path.join(PHOTOS, 'recette-cabinet-1-dossiers.png') });
     expect(mandat).toMatch(/^[0-9a-f-]{36}$/);
 

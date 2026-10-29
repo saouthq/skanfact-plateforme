@@ -141,17 +141,17 @@ describe('inviter son comptable par e-mail, à la souris', () => {
     await c.waitForURL(/\/v10\/cabinet\/\?c=[0-9a-f-]{36}/, { timeout: 15_000 });
     // Le Cabinet s'ouvre (sur ses Priorités depuis la 1.152.0) : la proposition du client en tête, avant les premiers pas
     // d'un cabinet neuf (`.cab-neuf`), avec la paie qu'il a cochée.
-    const bandeau = c.locator('.banner').filter({ hasText: 'Imprimerie Ferjani' });
+    const bandeau = c.locator('.cd-prop').filter({ hasText: 'Imprimerie Ferjani' });
     await bandeau.waitFor({ timeout: 15_000 });
     expect(await bandeau.innerText()).toContain('la comptabilité, les déclarations, la saisie des achats et la paie');
     expect(await c.locator('#view').evaluate((v) => {
-      const b = v.querySelector('.banner'), pp = v.querySelector('.cab-neuf, .premiers-pas, #premiers-pas, .panel');
+      const b = v.querySelector('.cd-prop'), pp = v.querySelector('.cab-neuf, .premiers-pas, #premiers-pas, .panel');
       return !!b && !!pp && !!(b.compareDocumentPosition(pp) & Node.DOCUMENT_POSITION_FOLLOWING);
     })).toBe(true);
     await c.waitForTimeout(1000);
     await c.screenshot({ path: path.join(PHOTOS, 'inviter-comptable-3-cabinet.png') });
-    await bandeau.getByRole('button', { name: 'Accepter', exact: true }).click();
-    await expect.poll(() => c.locator('.banner').filter({ hasText: 'Imprimerie Ferjani' }).count(), { timeout: 15_000 }).toBe(0);
+    await bandeau.getByRole('button', { name: 'Accepter le dossier', exact: true }).click();
+    await expect.poll(() => c.locator('.cd-prop').filter({ hasText: 'Imprimerie Ferjani' }).count(), { timeout: 15_000 }).toBe(0);
     await expect.poll(() => c.locator('#view').innerText(), { timeout: 15_000 }).toContain('Imprimerie Ferjani');
 
     // Le client voit qui tient ses livres ; l'invitation a servi.

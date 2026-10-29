@@ -899,7 +899,9 @@ vaut pour tout le dépôt.*
   (1.167.0 : `drawPieces`, `plateforme/pieces-recues.css` ; 1.168.0 : `fenDouble`, `fenDejaSaisie`, le choix de plusieurs,
   `nonConfiee` lu du `perimetre` du mandat), les Échéances telles que la maquette (1.168.0 : `drawEcheances`,
   `plateforme/echeances.css`, `api.relancerDossier`, `api.declarerHorsLivre` ; la route de production rend l'état de chaque
-  déclaration) et l'aperçu des PDF commun aux deux applications
+  déclaration), les Dossiers tels que la maquette (1.169.0 : `drawDossiersCd`, `ficheCd`, `menuLigneCd`, `popConfier`,
+  `fenNoterRelance`, `plateforme/dossiers.css` ; la fiche garde `forme`, `ville`, `activite`, `fonction` ; le bandeau des
+  propositions, `bandeauMandats` du pont) et l'aperçu des PDF commun aux deux applications
   (`plateforme/apercu-pdf.js`). Lot 2 (1.153.0), la charte : `plateforme/charte.css` (statuts, boutons, menu ⋯, toast,
   bandeaux, en-tête), chargée après `style.css` par les deux applications ; le menu prend un titre (`rowmenu.js`,
   `opts.titre`) ; le toast sa barre de temps (`toast`, `toastUndo` des deux `app.js`).

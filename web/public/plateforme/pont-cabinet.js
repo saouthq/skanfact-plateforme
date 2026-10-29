@@ -271,7 +271,7 @@
   const fiches = new Map();
   // Les champs de la fiche : ceux que le serveur garde (serveur/cabinet/routes.ts, FICHE).
   // (1.72.0) Et l'adresse et le gérant du client, que ses documents impriment.
-  const TEXTES_FICHE = ['email', 'phone', 'contact', 'note', 'regime', 'tvaPeriod', 'from', 'cnssEmployeur', 'cnssCode', 'adresse', 'gerant'];
+  const TEXTES_FICHE = ['email', 'phone', 'contact', 'note', 'regime', 'tvaPeriod', 'from', 'cnssEmployeur', 'cnssCode', 'adresse', 'gerant', 'forme', 'ville', 'fonction', 'activite'];
   // Les taux de la paie propres à l'entreprise (1.66.0) : l'accident du travail, la TFP, le FOPROLOS ; et (1.69.0) les
   // heures supplémentaires du pointage : les heures d'un mois complet, trois majorations. Gardés en texte décimal, comme
   // les taux par contrat, et lus tels quels : le moteur de la v10 les compte en nombres (computePayslip, heuresSupDuMois).
@@ -1132,12 +1132,16 @@
     return reglages ? corps : `<div class="panel"><h2>Comment un client arrive jusqu'ici</h2>${corps}</div>`;
   }
   function bandeauMandats() {
+    // (1.169.0) Comme la maquette des Dossiers : sa pastille, ce qu'il confie et depuis quand ; le geste en premier.
+    const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+    const initiales = (/** @type {string} */ n) => n.split(/\s+/).filter((m) => m && !/^(les?|la|l'|de|des|du|et)$/i.test(m)).slice(0, 2).map((m) => m[0]).join('').toUpperCase() || '?';
     return proposes.map((d) => {
       const p = (d.perimetre || []).map((/** @type {string} */ x) => PERIMETRES[x] || x);
-      return `<div class="banner"><span><strong>${esc(d.raisonSociale)}</strong> te confie son dossier :
-        ${esc(p.join(', ').replace(/, ([^,]*)$/, ' et $1'))}.</span>
-        <button class="btn btn-ghost btn-sm nw" data-mandat-refuser="${esc(d.mandat)}">Refuser</button>
-        <button class="btn btn-primary btn-sm nw" data-mandat-accepter="${esc(d.mandat)}">Accepter</button></div>`;
+      const debut = /^\d{4}-\d{2}/.test(String(d.debut || '')) ? `, à partir ${/^[aeiou]/.test(MOIS[Number(String(d.debut).slice(5, 7)) - 1] || '') ? 'd\'' : 'de '}${MOIS[Number(String(d.debut).slice(5, 7)) - 1]} ${String(d.debut).slice(0, 4)}` : '';
+      return `<div class="cd-prop" role="region" aria-label="${esc(d.raisonSociale)} te confie son dossier"><span class="cd-prop-m" aria-hidden="true">${esc(initiales(String(d.raisonSociale || '')))}</span>
+        <span class="cd-prop-t"><b>${esc(d.raisonSociale)} te confie son dossier</b><span>Proposé depuis SkanFact · ${esc(p.join(', ').replace(/, ([^,]*)$/, ' et $1'))}${esc(debut)}</span></span>
+        <span class="cd-prop-a"><button type="button" class="btn btn-sm" data-mandat-refuser="${esc(d.mandat)}">Refuser</button>
+        <button type="button" class="btn btn-sm btn-primary" data-mandat-accepter="${esc(d.mandat)}">Accepter le dossier</button></span></div>`;
     }).join('');
   }
   // Les boutons de ces panneaux, par délégation : l'écran les redessine à chaque rendu.
@@ -1156,7 +1160,7 @@
       location.reload();
     } catch (x) {
       b.removeAttribute('disabled');
-      const ligne = b.closest('.banner');
+      const ligne = b.closest('.banner, .cd-prop');
       if (ligne) ligne.insertAdjacentHTML('beforeend', `<span class="small" role="alert">${esc(x instanceof Error ? x.message : x)}</span>`);
     }
   });

@@ -120,7 +120,7 @@ describe('le nom et le matricule d\'un dossier, à la souris', () => {
       await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click({ timeout: 3_000 }).catch(() => undefined);
     }
     await expect.poll(async () => {
-      if (!await p.locator('#modal-root #f-name').count()) await p.getByRole('button', { name: 'Nouveau client…' }).first().click({ timeout: 2_000 }).catch(() => {});
+      if (!await p.locator('#modal-root #f-name').count()) await p.getByRole('button', { name: 'Ajouter un client…' }).first().click({ timeout: 2_000 }).catch(() => {});
       return p.locator('#modal-root #f-name').count();
     }, { timeout: 20_000 }).toBe(1);
     const nouveau = p.locator('#modal-root .modal').last();

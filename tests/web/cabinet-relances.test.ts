@@ -1,7 +1,7 @@
 // Le Cabinet sans paquets, dans les gestes (brique 38 bis ; docs/cabinet.md, C14 et C15). Un mois
 // passé sans aucune écriture se relance ; un mois dont des écritures sont au brouillard est « à
 // valider » : c'est le travail du cabinet, jamais une relance. Le parcours, à la souris :
-//   - « À faire » nomme les deux, et « Valider » ouvre la saisie du dossier sur l'exercice du mois ;
+//   - les Priorités nomment les deux, et « Réviser » ouvre la saisie du dossier ;
 //   - la page Relances ne liste que le client dont un mois est vide ; le mail demande ses pièces dans
 //     SkanFact, s'ouvre dans la messagerie, et la relance est notée dans la fiche, au serveur ;
 //   - chaque mois du Suivi s'ouvre dans les livres : son livre-journal s'il est validé, sa saisie s'il
@@ -110,20 +110,16 @@ describe('les relances et les mois à valider, à la souris', () => {
       for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     };
 
-    // « À faire » : un dossier a des mois sans écriture, un autre des écritures à valider.
-    await aller('#/dossiers');
-    // « À faire » ne montre d'abord que les deux lignes les plus urgentes : on déplie le reste.
-    if (await p.locator('#todo-plus').count()) await p.locator('#todo-plus').click();
-    const aFaire = p.locator('#todo-list');
-    await expect.poll(() => aFaire.innerText()).toMatch(/1 dossier a des mois sans écriture/);
-    expect(await aFaire.innerText()).toMatch(/1 dossier a des écritures à valider/);
-    expect(await aFaire.innerText()).toContain('Boulangerie Ennour (1 mois) — valide-les avant de déclarer.');
-    // (l'écran pose une espace fine insécable devant « : », à la française)
-    expect(await p.locator('#view .legende').innerText()).toMatch(/à valider\s: des écritures encore au brouillard/);
+    // Les Priorités (1.169.0 : « À faire » quitte la page des dossiers, qui suit la maquette) : un dossier a des mois sans
+    // écriture, un autre des écritures à réviser.
+    await aller('#/priorites');
+    const ligneP = (nom: string) => p.locator('#page-priorites .afaire-ligne').filter({ hasText: nom });
+    await expect.poll(() => ligneP('Menuiserie Ben Salah').innerText().catch(() => '')).toMatch(/2 mois sans écriture/);
+    expect(await ligneP('Boulangerie Ennour').innerText()).toMatch(/1 mois à réviser/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-relances-1-a-faire.png') });
-    // « Valider » ouvre la saisie de la boulangerie, sur l'exercice de son mois à valider.
-    await p.locator('[data-todo="provisoires"]').click();
-    await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/dossier/${boulangerie.ent}/comptabilite/saisie/${mois(-2).slice(0, 4)}`);
+    // « Réviser » ouvre la saisie de la boulangerie.
+    await ligneP('Boulangerie Ennour').getByRole('button', { name: 'Réviser', exact: true }).click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toMatch(new RegExp(`^#/dossier/${boulangerie.ent}/comptabilite/saisie`));
 
     // Les relances : la menuiserie seule (la boulangerie n'a aucun mois vide) ; ses deux mois nommés.
     await aller('#/relances');

@@ -66,6 +66,8 @@ const FICHE = z.object({
   fees: z.number().int().min(0).max(1_000_000_000_000), cnssEmployeur: texte(40), cnssCode: texte(10),
   // (1.72.0) L'adresse et le gérant du client : en tête et au bas de ses documents (le bulletin, les documents du personnel).
   adresse: texte(300), gerant: texte(200),
+  // (1.169.0) Ce que la liste des Dossiers montre sous chaque nom et chaque contact : sa forme, sa ville, la fonction du contact.
+  forme: texte(40), ville: texte(80), fonction: texte(80), activite: texte(80),
   relances: z.array(RELANCE).max(50),
   // Le compte bancaire du dossier, sa banque, et l'écart de jours du rapprochement (brique 40, C21).
   banque: z.object({ compte: z.string().regex(/^(\d{1,12})?$/), banque: texte(60), jours: z.number().int().min(0).max(30).nullable() }).partial().strict(),

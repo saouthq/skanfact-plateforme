@@ -94,27 +94,26 @@ describe('le Cabinet au téléphone', () => {
         await page.waitForTimeout(1200);
         // Au téléphone, la page entière défile : l'invitation « Première fois ? » se ferme au défilement (1.87.7), au lieu de
         // rester posée sur l'écran.
-        if (doigt && await page.locator('#guide-appel').count() && await page.evaluate(() => document.documentElement.scrollHeight > innerHeight + 300)) {
+        if (doigt && await page.locator('#guide-appel').count()) {
+          // (1.169.0) La liste des dossiers en cartes est courte : une page trop courte pour défiler s'allonge le temps du geste.
+          await page.evaluate(() => { if (document.documentElement.scrollHeight < innerHeight + 300) (document.querySelector('#view') as HTMLElement).style.paddingBottom = '700px'; });
           await page.evaluate(() => window.scrollTo(0, 300));
           await expect.poll(() => page.locator('#guide-appel').count()).toBe(0);
-          await page.evaluate(() => window.scrollTo(0, 0));
+          await page.evaluate(() => { window.scrollTo(0, 0); (document.querySelector('#view') as HTMLElement).style.paddingBottom = ''; });
           invitationsFermees++;
         }
         for (let i = 0; i < 3 && await page.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await page.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
         await page.waitForTimeout(300);
         faux.push(...(await page.evaluate(problemes, [doigt, largeur] as [boolean, number])).map((x) => `${nom} : ${x}`));
-        // (1.139.0) La liste des dossiers : le nom de chaque client se lit (au téléphone, sa case s'écrasait à zéro), et les
-        // libellés de la rangée de chiffres ne se coupent pas (« 444,000 DT de … »).
+        // (1.139.0) La liste des dossiers : le nom de chaque client se lit (au téléphone, sa case s'écrasait à zéro). (1.169.0,
+        // la liste de la maquette) Au téléphone, des cartes ; les vues tiennent sur une rangée, qui défile.
         if (pg2.nom === 'dossiers') {
-          const ecrases = await page.locator('.dl-nom').evaluateAll((x) => x.filter((e) => e.getBoundingClientRect().width < 40).map((e) => e.textContent));
+          const ecrases = await page.locator('#page-tb td.cl b, #page-tb .cd-c-h b').evaluateAll((x) => x.filter((e) => e.getBoundingClientRect().width < 40).map((e) => e.textContent));
           if (ecrases.length) faux.push(`${nom} : nom du client écrasé (${ecrases.join(', ')})`);
           if (doigt) {
-            const coupes = await page.locator('.stats.rangee .lbl, .stats.rangee .sub').evaluateAll((x) => x.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
-            if (coupes.length) faux.push(`${nom} : chiffre au libellé coupé (${coupes.join(', ')})`);
-            // (1.148.0) Les filtres tiennent côte à côte : les deux cases sur une rangée, l'export à sa taille.
-            const f = await page.evaluate(() => ['#arch', '#onlysf', '#csv'].map((q) => { const e = document.querySelector(q); const r = (e?.closest('label') ?? e)?.getBoundingClientRect(); return r ? { top: Math.round(r.top + r.height / 2), w: r.width } : null; }));
-            if (!f[0] || !f[1] || Math.abs(f[0].top - f[1].top) > 4) faux.push(`${nom} : « Archivés » et « Sur SkanFact seulement » sur deux rangées`);
-            if (!f[2] || f[2].w > largeur * 0.6) faux.push(`${nom} : « Exporter en CSV » en pleine largeur`);
+            if (!await page.locator('#page-tb [data-cd-carte]').count()) faux.push(`${nom} : pas de cartes au téléphone`);
+            const rangs = await page.locator('#page-tb [role=tab][data-cd-vue]').evaluateAll((x) => new Set(x.map((e) => Math.round(e.getBoundingClientRect().top))).size);
+            if (rangs !== 1) faux.push(`${nom} : les vues sur ${rangs} rangées`);
           }
         }
         const avis = await page.locator('#bandeau-ordinateur').count();
