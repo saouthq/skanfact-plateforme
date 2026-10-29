@@ -112,6 +112,83 @@ const poserFiche = async (ent: string, contenu: Record<string, unknown>) => {
 const LIVRES: Record<string, string> = { be: 'FFFFFFFRR', mb: 'FFFFFFFMM', gt: 'FFFFFFFFD', an: 'HHHHHFFFR', dz: 'FFFFFFFFM', le: 'FFFFFFFFM',
   pe: 'FFFFFFFFR', sp: 'FFFFFFFFF', ic: 'FFFFFFFFP', iy: 'FFFFFFFFD', sm: 'FFFFFFFFF', cj: 'FFFFFFFFS' };
 const mois = (i: number) => `2026-${String(i + 1).padStart(2, '0')}`;
+
+// (1.172.0) La boulangerie telle que le classeur de la maquette la dessine (docs/maquettes/cabinet/classeur.html) : ses
+// achats de chaque mois saisis par Sarra (avec leur justificatif, sauf l'électricité de septembre), ses ventes, sa paie,
+// sa banque au relevé BIAT (juillet rapproché, un chèque d'août sans pièce, septembre à rapprocher). Avant les livres
+// des autres mois : un mois déclaré ne reçoit plus d'écriture.
+const be = entreprise.be ?? '', sarra = gerant.be ?? '';
+{
+  await api('GET', `/entreprises/${be}/dossier-v10`, sarra);
+  const pj = await api('POST', `/entreprises/${be}/pieces-jointes`, sarra, { nom: 'facture.png', contenu: PNG });
+  const fiche = { name: pj.name, file: pj.file, size: pj.size, date: pj.date };
+  const FOURNISSEURS = [['s-min', 'Minoterie du Cap Bon'], ['s-lev', 'Levures du Sahel'], ['s-hyg', 'Hygiène Plus'], ['s-steg', 'STEG'], ['s-emb', 'Emballages du Sahel']];
+  // [clé, fournisseur, numéro, jour, libellé, quantité, prix HT unitaire, TVA, justifié]
+  const achats: [string, string, string, string, string, number, string, number, boolean][] = [];
+  for (let i = 0; i < 9; i++) {
+    const m = String(i + 1).padStart(2, '0');
+    if (i < 8) {
+      achats.push([`p-${m}1`, 's-min', `FA-${m}01`, `${mois(i)}-03`, 'Farine boulangère T55, sacs de 50 kg', 36 + i, '38.785', 19, true]);
+      achats.push([`p-${m}2`, 's-lev', `FA-${m}02`, `${mois(i)}-10`, 'Levure fraîche', 55 + i, '6.165', 7, true]);
+      achats.push([`p-${m}3`, 's-emb', `FA-${m}03`, `${mois(i)}-17`, 'Sachets et boîtes à gâteaux', 1, String(212 + i * 9) + '.400', 19, true]);
+    }
+  }
+  achats.push(['p-0908', 's-hyg', 'FA-0908', '2026-08-31', 'Produits d\'entretien du fournil', 1, '180', 19, true]);
+  achats.push(['p-0913', 's-lev', 'FA-0913', '2026-09-10', 'Levure fraîche, 60 kg', 60, '6.339', 7, true]);
+  achats.push(['p-0914', 's-min', 'FA-0914', '2026-09-03', 'Farine boulangère T55, 40 sacs de 50 kg', 40, '38.7857', 19, true]);
+  achats.push(['p-0919', 's-steg', 'FA-0919', '2026-09-30', 'Électricité et gaz, août et septembre', 1, '164.973', 13, false]);
+  await api('POST', `/entreprises/${be}/dossier-v10`, sarra, { changements: [
+    ...FOURNISSEURS.map(([id, name], rang) => ({ collection: 'suppliers', cle: id, rang, revision: null, contenu: { id, name } })),
+    ...achats.map(([id, fournisseur, number, date, label, qty, prix, vatRate, justifie], rang) => ({ collection: 'purchases', cle: id, rang, revision: null, contenu: {
+      id, kind: 'facture', number, date, supplierId: fournisseur, currency: 'DT', category: 'Matières premières', fees: 0, withholdingRate: 0, createdAt: 1,
+      attachments: justifie ? [fiche] : [], lines: [{ id: `${id}-l`, label, qty, unitPrice: { '~n': prix }, vatRate, destination: 'charge' }] } })),
+  ] });
+  // Les ventes du mois (les factures aux hôtels, la caisse), la paie, et la banque : saisies au cabinet.
+  const ecrire = (date: string, journal: string, piece: string, libelle: string, lignes: { compte: string; debit?: string; credit?: string }[]) =>
+    api('POST', `/entreprises/${be}/compta/ecritures`, leila, { date, journal, piece, libelle, lignes });
+  const dt = (millimes: number) => `${Math.trunc(millimes / 1000)},${String(millimes % 1000).padStart(3, '0')}`;
+  const fin = (i: number) => String(new Date(Date.UTC(2026, i + 1, 0)).getUTCDate());
+  for (let i = 0; i < 9; i++) {
+    const m = String(i + 1).padStart(2, '0');
+    const hotel = 2_118_000 + i * 41_000, caisse = 14_380_000 + i * 212_000, salaires = 4_286_300;
+    const tva = (x: number) => Math.round(x * 7 / 107);
+    await ecrire(`${mois(i)}-15`, 'VT', `VT-${m}15`, 'Hôtel Dar Jerba · pains et viennoiseries', [{ compte: '411', debit: dt(hotel) }, { compte: '7071', credit: dt(hotel - tva(hotel)) }, { compte: '4367', credit: dt(tva(hotel)) }]);
+    await ecrire(`${mois(i)}-28`, 'VT', `VT-${m}28`, 'Caisse du mois · ventes au comptoir', [{ compte: '541', debit: dt(caisse) }, { compte: '7071', credit: dt(caisse - tva(caisse)) }, { compte: '4367', credit: dt(tva(caisse)) }]);
+    await ecrire(`${mois(i)}-${fin(i)}`, 'PAIE', `PAIE-${m}`, 'Salaires du mois · 4 salariés', [{ compte: '640', debit: dt(salaires) }, { compte: '421', credit: dt(salaires) }]);
+    await ecrire(`${mois(i)}-${fin(i)}`, 'BQ', `BQ-${m}30`, 'VIR salaires', [{ compte: '421', debit: dt(salaires) }, { compte: '532', credit: dt(salaires) }]);
+    await ecrire(`${mois(i)}-22`, 'BQ', `BQ-${m}22`, 'Versement espèces', [{ compte: '532', debit: dt(caisse - 1_000_000) }, { compte: '541', credit: dt(caisse - 1_000_000) }]);
+  }
+  // Les mois de janvier à juillet sont tenus et validés ; août et septembre attendent au brouillard.
+  await api('POST', `/entreprises/${be}/compta/valider`, leila, { jusqua: '2026-07-31' });
+  // Les relevés BIAT : juillet rapproché, août qui porte un chèque sans pièce, septembre à rapprocher.
+  const lues = (await api('GET', `/entreprises/${be}/compta/ecritures?limite=500`, leila)).ecritures as { piece: string; lignes: { id: string; compte: string }[] }[];
+  const ligne532 = (piece: string) => lues.find((e) => e.piece === piece)?.lignes.find((l) => l.compte === '532')?.id ?? null;
+  const empreinte = (n: number) => n.toString(16).padStart(64, '0');
+  // Le solde de fin : celui du début, plus chaque mouvement (au millime, au sens de la banque).
+  const soldeApres = (debut: number, montants: string[]) => {
+    const fin = montants.reduce((t, x) => t + (x.startsWith('-') ? -1 : 1) * Math.round(Number(x.replace('-', '').replace(',', '.')) * 1000), debut);
+    return `${fin < 0 ? '-' : ''}${dt(Math.abs(fin))}`;
+  };
+  for (const [i, rapproche] of [[6, true], [7, false], [8, false]] as const) {
+    const m = String(i + 1).padStart(2, '0'), caisse = 14_380_000 + i * 212_000;
+    const lignes = [{ date: `${mois(i)}-22`, libelle: 'VERSEMENT ESPECES', reference: '', montant: dt(caisse - 1_000_000) },
+      { date: `${mois(i)}-30`, libelle: `VIR SALAIRES ${m}/2026`, reference: '', montant: `-${dt(4_286_300)}` }];
+    if (i === 7) lignes.push({ date: '2026-08-12', libelle: 'CHQ 4410 061', reference: '4410061', montant: '-640,000' });
+    if (i === 8) lignes.push({ date: '2026-09-08', libelle: 'VIR Minoterie du Cap Bon', reference: '', montant: '-1818,507' },
+      { date: '2026-09-12', libelle: 'CHQ 4410 072', reference: '4410072', montant: '-406,980' },
+      { date: '2026-09-14', libelle: 'VIR RECU REF 2609-14177', reference: '2609-14177', montant: '1250,000' },
+      { date: '2026-09-15', libelle: 'VIR RECU Hotel Dar Jerba', reference: '', montant: '2344,694' },
+      { date: '2026-09-26', libelle: 'FRAIS TENUE DE COMPTE', reference: '', montant: '-11,900' });
+    const r = await api('POST', `/entreprises/${be}/compta/releves`, leila, { annee: 2026, compte: '532', banque: 'BIAT', fichier: `Releve_BIAT_${m}-2026.pdf`,
+      empreinte: empreinte(i + 1), soldeDebut: '8412,605', soldeFin: soldeApres(8_412_605, lignes.map((l) => l.montant)), lignes });
+    if (!rapproche) continue;
+    const releves = (await api('GET', `/entreprises/${be}/compta/releves?annee=2026`, leila)).releves as { id: string; lignes: { id: string; libelle: string }[] }[];
+    const rel = releves.find((x) => x.id === r.id);
+    const poses = (rel?.lignes ?? []).map((l) => ({ ligne: l.id, ecritureLigne: ligne532(/SALAIRES/.test(l.libelle) ? `BQ-${m}30` : `BQ-${m}22`), niveau: 'certain' as const }))
+      .filter((p) => p.ecritureLigne);
+    if (poses.length) await api('POST', `/entreprises/${be}/compta/releves/${r.id}/rapprochements`, leila, { poses });
+  }
+}
 for (const d of DOSSIERS) {
   const ent = entreprise[d.cle] ?? '';
   const g = LIVRES[d.cle] ?? '';
@@ -122,10 +199,12 @@ for (const d of DOSSIERS) {
     const e = g[i];
     if (!e || 'MSH'.includes(e)) continue;
     const montant = `${300 + i * 17},${String(125 + i * 3).padStart(3, '0')}`;
-    const ecriture = String((await api('POST', `/entreprises/${ent}/compta/ecritures`, leila, { date: `${mois(i)}-18`, journal: 'OD', piece: `OD-${i + 1}`,
+    // La boulangerie a déjà ses livres de janvier à juillet, validés (plus haut) : ses honoraires y sont, et la période est close.
+    const dejaTenu = d.cle === 'be' && i < 7;
+    const ecriture = dejaTenu ? '' : String((await api('POST', `/entreprises/${ent}/compta/ecritures`, leila, { date: `${mois(i)}-18`, journal: 'OD', piece: `OD-${i + 1}`,
       libelle: 'Honoraires du mois', lignes: [{ compte: '6226', debit: montant }, { compte: '4286', credit: montant }] })).id);
     if (e === 'R') continue;
-    await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, leila, { ids: [ecriture] });
+    if (!dejaTenu) await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, leila, { ids: [ecriture] });
     await api('PUT', `/cabinets/${cabinet}/revisions/${ent}/${mois(i)}`, leila, {
       contenu: { faite: true, faiteLe: Date.parse(`${mois(i + 1)}-20T09:00:00Z`), faitePar: d.suit, comptes: [], notes: [], questionnaire: [] }, revision: null });
     if (e === 'D') continue;
@@ -187,17 +266,61 @@ const fichierDe = async (nom: string, dossier: string): Promise<string> => {
 const envoyer = async (cle: string, fichiers: string[], texte: string, repond: Record<string, string> = {}) => {
   const j = gerant[cle] ?? '';
   const id = entreprise[cle] ?? '';
+  const envoyes: Record<string, string> = {};
   for (const nom of fichiers) {
     const f = await api('POST', `/entreprises/${id}/messages/fichiers`, j, { cote: 'entreprise', nom, contenu: await fichierDe(nom, DOSSIERS.find((x) => x.cle === cle)?.nom ?? '') });
-    await api('POST', `/entreprises/${id}/messages`, j, { cote: 'entreprise', texte: '', fichier: f.id, repondA: repond[nom] ?? null });
+    envoyes[nom] = String((await api('POST', `/entreprises/${id}/messages`, j, { cote: 'entreprise', texte: '', fichier: f.id, repondA: repond[nom] ?? null })).id);
   }
   if (texte) await api('POST', `/entreprises/${id}/messages`, j, { cote: 'entreprise', texte });
+  return envoyes;
 };
 // Ce que le cabinet a demandé à la boulangerie : le relevé arrive en réponse, l'attestation est encore attendue.
 const demandes = await api('POST', `/entreprises/${entreprise.be}/messages`, leila, { cote: 'cabinet', texte: 'Bonjour Sarra, pour boucler septembre il me manque :',
   demandes: ['Le relevé BIAT de septembre', 'L\'attestation CNSS du 3e trimestre'], pour: '2026-10-31' }) as { ids: string[] };
-await envoyer('be', ['facture-electricite-septembre.jpg', 'Releve_BIAT_09-2026.pdf', 'ticket-carburant-24-09.jpg', 'facture-farine-0903.pdf'], 'Bonjour, voici les pièces de septembre. La facture d\'août de la STEG, je la cherche encore.',
-  { 'Releve_BIAT_09-2026.pdf': demandes.ids[0] ?? '' });
+const recues = await envoyer('be', ['facture-levure-0910.pdf', 'IMG_8790.jpg', 'Assurance-local-2026-attestation.pdf', 'IMG_8841.jpg', 'facture-electricite-septembre.jpg', 'Releve_BIAT_09-2026.pdf', 'ticket-carburant-24-09.jpg', 'facture-farine-0903.pdf'],
+  'Bonjour, voici les pièces de septembre. La facture d\'août de la STEG, je la cherche encore.', { 'Releve_BIAT_09-2026.pdf': demandes.ids[0] ?? '' });
+// (1.172.0) Ce que le cabinet en a déjà fait, comme la maquette du classeur : la levure saisie par Anis, la photo floue
+// marquée illisible par Rim (et redemandée), la seconde photo de la levure en double, l'attestation d'assurance gardée ;
+// Sarra a rangé la facture de farine dans son achat FA-0914.
+{
+  const anis = jetons['anis.gharbi@exemple.tn'] ?? '', rim = jetons['rim.toumi@exemple.tn'] ?? '';
+  // Rim aide Anis sur la boulangerie : elle en fait la saisie.
+  if (membre.Rim) await api('PUT', `/cabinets/${cabinet}/mandats/${mandatDe('be')}/affectations/${membre.Rim}`, leila, { role: 'saisie' });
+  const classer = (jeton: string, nom: string, raison: string, note?: string) =>
+    api('POST', `/entreprises/${be}/messages/${recues[nom]}/classee`, jeton, { classee: true, raison, ...(note ? { note } : {}) });
+  await classer(anis, 'facture-levure-0910.pdf', 'saisie');
+  await api('POST', `/entreprises/${be}/messages`, rim, { cote: 'cabinet', texte: 'Bonjour Sarra, la photo IMG_8790 ne se lit pas : peux-tu la reprendre à plat, en pleine lumière ?', demande: 'Une meilleure photo de IMG_8790' });
+  await classer(rim, 'IMG_8790.jpg', 'illisible', 'redemandée à Sarra');
+  await classer(anis, 'IMG_8841.jpg', 'double');
+  await classer(anis, 'Assurance-local-2026-attestation.pdf', 'rien');
+  await api('POST', `/entreprises/${be}/messages/${recues['facture-farine-0903.pdf']}/achat`, sarra, { achat: 'p-0914', libelle: 'FA-0914 · Minoterie du Cap Bon' });
+  // Le dossier permanent, rangé par le cabinet ; l'attestation de régularité fiscale est échue depuis le 30/09.
+  const ranger = async (o: Record<string, unknown>, nom: string) => api('POST', `/cabinets/${cabinet}/classeur/${be}/documents`, leila,
+    { nom, contenu: await fichierDe(nom, 'Boulangerie El Amal'), ...o });
+  const PERMANENT: [string, string, string, string | null, string][] = [
+    ['juridique', 'Statuts de la SARL', 'mis à jour le 14/03/2021 · 18 pages', null, 'statuts-contrat.pdf'],
+    ['juridique', 'Extrait du registre (RNE)', 'du 12/01/2026 · le gérant et ses pouvoirs', null, 'rne-attestation.pdf'],
+    ['juridique', 'PV d\'assemblée 2025', 'approbation des comptes 2025, le 25/06/2026', null, 'pv-ag-2025-contrat.pdf'],
+    ['fiscal', 'Carte d\'identification fiscale', 'régime réel, TVA déclarée chaque mois', null, 'carte-fiscale-attestation.pdf'],
+    ['fiscal', 'Attestation d\'affiliation CNSS', 'employeur, 4 salariés', null, 'affiliation-cnss-attestation.pdf'],
+    ['fiscal', 'Attestation de régularité fiscale', 'souvent demandée par les banques et les marchés', '2026-09-30', 'regularite-fiscale-attestation.pdf'],
+    ['contrats', 'Contrat de bail du local', '1 450,000 DT par mois', '2027-12-31', 'bail-local-contrat.pdf'],
+    ['contrats', 'Contrat de leasing de la camionnette', 'Tunisie Leasing · avec son échéancier', '2027-03-31', 'leasing-contrat.pdf'],
+    ['contrats', 'Assurance du local 2026', 'STAR Assurances', '2026-12-31', 'assurance-local-attestation.pdf'],
+    ['contrats', 'Contrats de travail', 'les 4 salariés · le dernier signé le 02/03/2026', null, 'contrats-travail-contrat.pdf'],
+    ['banque', 'Tableau des immobilisations', 'le four, le pétrin, les vitrines · amortissements au 31/12/2025', null, 'immobilisations-2025.pdf'],
+    ['banque', 'Le compte BIAT', 'RIB, convention, qui signe les chèques', null, 'compte-biat-attestation.pdf'],
+    ['cabinet', 'Lettre de mission 2026', 'les livres, les déclarations, la paie ; le bilan n\'en fait pas partie', null, 'lettre-mission-contrat.pdf'],
+  ];
+  for (const [categorie, titre, detail, echeance, nom] of PERMANENT) await ranger({ rubrique: 'permanent', categorie, titre, detail, echeance }, nom);
+  await ranger({ rubrique: 'courrier', periode: '2025', titre: 'CNSS · mise à jour de la liste des salariés', detail: 'répondue par Anis le 03/07/2025, sa réponse jointe' }, 'courrier-cnss-attestation.pdf');
+  await ranger({ rubrique: 'accuse', periode: '2026-07', titre: 'L\'accusé de dépôt de juillet', detail: 'Accuse_07-2026.pdf' }, 'Accuse_07-2026-attestation.pdf');
+  // Le dossier tenu de Nabil : deux photos qu'il a envoyées par WhatsApp, déposées par Leïla dans octobre.
+  for (const nom of ['Transports-Ben-Salah-1.jpg', 'Transports-Ben-Salah-2.jpg']) {
+    await api('POST', `/cabinets/${cabinet}/classeur/${entreprise.sm}/documents`, leila, { rubrique: 'piece', periode: '2026-10', titre: 'Transports Ben Salah',
+      detail: 'facture 2026/0412 du 18/09', provenance: 'WhatsApp de Nabil', nom, contenu: await fichierDe(nom, 'SARL Mansour Distribution') });
+  }
+}
 await envoyer('dz', ['facture-lait-octobre.pdf', 'IMG_2207.jpg'], '');
 await envoyer('pe', ['Releve_ATB_09-2026.pdf', 'contrat-bail-2027.pdf'], 'Le nouveau bail, pour info.');
 await envoyer('iy', ['IMG_0412.jpg', 'IMG_0413.jpg', 'attestation-CNSS.pdf'], '');

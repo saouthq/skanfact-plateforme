@@ -188,6 +188,8 @@
       manual: !!d.manual,
       // (1.168.0) Ce que le client a confié au cabinet (plateforme) : null quand on ne le sait pas, ou dossier tenu.
       perimetre: Array.isArray(d.perimetre) ? d.perimetre.map(String) : null,
+      // (1.172.0) Depuis quand le dossier est relié au cabinet (le début de son mandat, AAAA-MM) : vide pour un dossier tenu.
+      relieDepuis: /^\d{4}-(0[1-9]|1[0-2])$/.test(String(d.relieDepuis || '')) ? String(d.relieDepuis) : '',
       // Premier mois attendu de ce client. Vide = le premier mois reçu. C'est ce qui permet de dire
       // « je reprends ce dossier à partir de janvier » et d'être alerté sur les mois d'avant.
       from: /^\d{4}-\d{2}$/.test(String(d.from || '')) ? d.from : '',

@@ -71,6 +71,30 @@ export interface BaseDeDonnees {
     modifie_le: Generated<Date>;
     revision: Generated<bigint>;
   };
+  'cabinet.document': {
+    id: Generated<string>;
+    cabinet: string;
+    entreprise: string;
+    rubrique: string;
+    categorie: string | null;
+    periode: string | null;
+    titre: string;
+    detail: string | null;
+    echeance: string | null;
+    provenance: string | null;
+    nom: string;
+    type: string;
+    taille: number;
+    contenu: Buffer;
+    empreinte: string;
+    depose_par: string;
+    depose_le: Generated<Date>;
+    remplace_par: string | null;
+    classee_le: Date | null;
+    classee_par: string | null;
+    classee_raison: string | null;
+    jointe_ecriture: string | null;
+  };
   'cabinet.fiche': {
     cabinet: string;
     entreprise: string;
@@ -409,6 +433,7 @@ export interface BaseDeDonnees {
     classee_par: string | null;
     classee_raison: string | null;
     classee_note: string | null;
+    jointe_ecriture: string | null;
   };
   'messagerie.modele': {
     id: Generated<string>;

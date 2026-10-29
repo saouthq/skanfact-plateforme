@@ -71,6 +71,7 @@ import { routesPdf } from './pdf/routes.ts';
 import { routesAchats } from './achats/routes.ts';
 import { declarerGestesCompta } from './compta/gestes.ts';
 import { routesCabinet } from './cabinet/routes.ts';
+import { routesClasseur } from './cabinet/classeur.ts';
 import { routesCompta } from './compta/routes.ts';
 import { declarerGestesPaie } from './paie/gestes.ts';
 import { routesPaie } from './paie/routes.ts';
@@ -272,7 +273,7 @@ export function routesDuServeur(ctx: Contexte, options: { veille: string | null;
   declarerGestesMessagerie();
   declarerGestesSupport();
   return [...routesSocle(ctx), ...routesGroupe(ctx), ...routesVentes(ctx), ...routesCaisse(), ...routesAchats(ctx), ...routesPaie(ctx), ...routesCompta(ctx),
-    ...routesCabinet(ctx), ...routesV10(ctx), ...routesPiecesJointes(), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesSauvegardes(ctx), ...routesAbonnement(ctx), ...routesAbonnementCabinet(ctx), ...routesConsole(ctx, options),
+    ...routesCabinet(ctx), ...routesClasseur(), ...routesV10(ctx), ...routesPiecesJointes(), ...routesPartenaires(ctx), ...routesMessagerie(ctx), ...routesSupport(ctx), ...routesSauvegardes(ctx), ...routesAbonnement(ctx), ...routesAbonnementCabinet(ctx), ...routesConsole(ctx, options),
     ...routesMessageClients(ctx.maintenant), ...routesNouveautes(ctx), ...routesPdf(ctx)];
 }
 

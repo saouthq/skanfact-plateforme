@@ -9,7 +9,7 @@
 .cl-ch { display: flex; align-items: center; gap: 10px; height: 42px; padding: 0 12px; margin: 0 0 14px; border: 1px solid var(--sb-trait-fort); border-radius: 12px; background: var(--sb-papier); color: var(--sb-gris-2); }
 .cl-ch:focus-within { border-color: var(--sb-sarcelle); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-sarcelle) 18%, transparent); }
 .cl-ch svg { width: 18px; height: 18px; flex: none; }
-.cl-ch input { flex: 1; min-width: 0; border: 0; outline: 0; background: none; font: inherit; font-size: 14px; color: var(--sb-encre); }
+.cl-ch input, .cl-ch input[type="search"], .cl-ch input[type="search"]:focus { flex: 1; min-width: 0; height: auto; padding: 0; border: 0; outline: 0; box-shadow: none; background: none; font: inherit; font-size: 14px; color: var(--sb-encre); }
 .cl-ch kbd { font: 600 11px/1 inherit; padding: 4px 7px; border-radius: 6px; border: 1px solid var(--sb-trait); color: var(--sb-gris-2); background: var(--sb-papier-2); }
 .cl-g { display: grid; grid-template-columns: 232px minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
 .cl-g.sans-ap { grid-template-columns: 232px minmax(0, 1fr); }
@@ -77,7 +77,7 @@
 .cl-sec h3 span { font-size: 12px; font-weight: 600; color: var(--sb-gris); background: var(--sb-survol); padding: 1px 7px; border-radius: 99px; font-variant-numeric: tabular-nums; }
 .cl-sec h3 small { flex-basis: 100%; font-size: 12px; font-weight: 400; color: var(--sb-gris-2); }
 .cl-ls { list-style: none; margin: 0; padding: 0; }
-.cl-l { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr) 66px 96px; grid-template-areas: "i t d m" "i e e e"; gap: 4px 12px; align-items: start; padding: 10px 16px; border-top: 1px solid var(--sb-trait); }
+.cl-l { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr) 92px 96px; grid-template-areas: "i t d m" "i e e e"; gap: 4px 12px; align-items: start; padding: 10px 16px; border-top: 1px solid var(--sb-trait); }
 .cl-l:first-child { border-top: 0; }
 .cl-l:hover { background: var(--sb-survol); }
 .cl-l.ici { background: color-mix(in srgb, var(--sb-sarcelle) 7%, var(--sb-papier)); box-shadow: inset 3px 0 0 var(--sb-sarcelle); }
@@ -95,7 +95,7 @@
 .cl-l-t small { font-size: 12px; color: var(--sb-gris); line-height: 1.45; }
 .cl-l-t small em { font-style: normal; color: var(--sb-encre); }
 .cl-l.a-faire .cl-l-t small em { color: var(--sb-ambre-texte); }
-.cl-l-d { grid-area: d; font-size: 12px; color: var(--sb-gris-2); text-align: right; padding-top: 1px; font-variant-numeric: tabular-nums; }
+.cl-l-d { grid-area: d; white-space: nowrap; font-size: 12px; color: var(--sb-gris-2); text-align: right; padding-top: 1px; font-variant-numeric: tabular-nums; }
 .cl-l-m { grid-area: m; font-size: 13.5px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .cl-l-m i { font-style: normal; font-size: 11px; font-weight: 500; color: var(--sb-gris-2); }
 .cl-l-e { grid-area: e; display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; }
@@ -333,7 +333,8 @@
 .cl-dp-l .cl-l-i, .cl-exp .cl-l-i, .cl-volet .cl-l-i { grid-area: auto; }
 .cl-l.cl-attend { background: none; }
 .cl-l.cl-attend .cl-l-i.manque { border-color: color-mix(in srgb, #e0a040 60%, var(--sb-trait)); color: var(--sb-ambre-texte); }
-.cl-arbre, .cl-g > .cl-ap { max-height: var(--cl-h, 640px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+/* (1.172.0) L'arbre et la pièce suivent le défilement de la page (la maquette) : collés en haut, jamais plus hauts que l'écran. */
+.cl-arbre, .cl-g > .cl-ap { top: 16px; max-height: calc(100vh - 32px); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .cl-a-s.ici { background: var(--sb-doux); color: var(--sb-doux-texte); font-weight: 600; }
 .cl-a-s.ici span { color: var(--sb-doux-texte); }
 .cl-a-s.rouge, .cl-a-s.rouge span { color: var(--sb-rouge-texte); }
@@ -356,7 +357,7 @@
   .cl-sec h3 { padding: 11px 12px 9px; }
   .cl-res { padding: 12px; }
   .cl-ap { position: static; padding: 12px; }
-  .cl-g { grid-template-columns: minmax(0, 1fr); }
+  .cl-g, .cl-g.sans-ap { grid-template-columns: minmax(0, 1fr); }
   .cl-dp-g { grid-template-columns: minmax(0, 1fr); }
   .modal-bg.cl-gr-bg { padding: 0; }
   .cl-gr { border-radius: 0; height: 100%; }
@@ -378,9 +379,72 @@
 /* (1.171.0) Le classeur dans l'application : les puces du téléphone n'existent qu'au téléphone ; l'aperçu de la pièce. */
 .cl-tel-n, .cl-tel-m { display: none; }
 @media (max-width: 760px) { .cl-page .cl-tel-n, .cl-page .cl-tel-m { display: flex; } .cl-page .cl-arbre { display: none; } }
-.cl-pap-z { min-height: 220px; border-radius: 10px; overflow: hidden; }
+.cl-pap-z { min-height: 120px; border-radius: 10px; overflow: hidden; }
 .cl-pap-z img { display: block; }
+/* (1.172.0) La pièce elle-même, sur toute la largeur de la colonne, sans le fond gris de « Pièces reçues » (la maquette). */
+.cl-ap .cl-pap-z.pc-papier:not(.vide) { height: auto; max-height: 340px; margin: 0; padding: 0; background: none; display: block; overflow: auto; }
+.cl-ap .cl-pap-z.pc-papier:not(.vide) img { width: 100%; height: auto; border-radius: 6px; border: 1px solid #e6e1d6; box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 6px 16px -8px rgba(0, 0, 0, .18); }
+.cl-ap .cl-pap-z.pc-papier.vide { height: 180px; margin: 0; }
 .cl-page .cl-refus { display: grid; gap: 6px; padding: 16px; }
 .cl-page .cl-retour { margin-top: 10px; min-height: 44px; }
 /* (1.171.0) Au doigt, chaque puce se touche : 44 points (la règle du Cabinet au téléphone), plus que les 30 de la maquette. */
 @media (max-width: 760px) { .cl-page .cl-tel-n button, .cl-page .cl-tel-m button { min-height: 44px; min-width: 44px; } }
+
+/* (1.172.0) Les fenêtres du classeur (Demander, Déplacer, Déposer, Exporter, En grand) : celles de la maquette, comme la
+   charte de « Mon cabinet » les dessine (docs/maquettes/cabinet/classeur.html). */
+.cl-page .fd-mq { width: 46px; height: 46px; border-radius: 13px; font-size: 15px; }
+#modal-root .modal.tb-fen { width: 600px; max-width: calc(100% - 24px); display: grid; gap: 12px; padding: 22px 24px; background: var(--sb-papier); }
+#modal-root .modal.tb-fen h2 { margin: 0; }
+#modal-root .tb-mc-x { width: 28px; height: 28px; border: 0; border-radius: 8px; background: none; color: var(--sb-gris-2); cursor: pointer; display: grid; place-items: center; flex: none; }
+#modal-root .tb-mc-x:hover { background: var(--sb-survol); }
+#modal-root .tb-rel-t { display: flex; gap: 12px; align-items: center; }
+#modal-root .tb-rel-t > span { display: grid; flex: 1; min-width: 0; }
+#modal-root .tb-rel-t h2 { font-size: 18px; }
+#modal-root .tb-rel-t small { font-size: 12.5px; color: var(--sb-gris); }
+#modal-root .tb-rel-q { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+#modal-root .tb-rel-q > button { height: 32px; padding: 0 12px; border-radius: 99px; border: 1px solid var(--sb-trait); background: var(--sb-papier); font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-gris); cursor: pointer; }
+#modal-root .tb-rel-q > button[aria-pressed="true"] { border-color: var(--sb-sarcelle); background: var(--sb-doux); color: var(--sb-doux-texte); }
+#modal-root .tb-rel-q > button:disabled { opacity: .5; cursor: not-allowed; }
+#modal-root .tb-rel-h { display: flex; gap: 8px; margin: 4px 0 0; font-size: 12px; color: var(--sb-gris); line-height: 1.45; }
+#modal-root .tb-rel-h svg { width: 15px; height: 15px; flex: none; margin-top: 1px; }
+#modal-root .tb-rel-res { margin-right: auto; font-size: 13px; color: var(--sb-gris); }
+#modal-root .cd-ic { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; flex: none; background: var(--sb-doux); color: var(--sb-doux-texte); }
+#modal-root .cd-ic svg { width: 20px; height: 20px; }
+#modal-root .cd-cb { display: flex; gap: 10px; align-items: flex-start; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--sb-trait); cursor: pointer; }
+#modal-root .cd-cb.on { border-color: color-mix(in srgb, var(--sb-sarcelle) 45%, var(--sb-trait)); background: color-mix(in srgb, var(--sb-sarcelle) 5%, var(--sb-papier)); }
+#modal-root .cd-cb input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--sb-sarcelle); flex: none; }
+#modal-root .cd-cb > span { display: grid; gap: 2px; }
+#modal-root .cd-cb b { font-size: 13px; }
+#modal-root .cd-cb small { font-size: 12px; color: var(--sb-gris); line-height: 1.45; }
+#modal-root .cd-cbs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+#modal-root .cd-cbs .cd-cb { padding: 8px 10px; }
+#modal-root .cd-selw { display: flex; }
+#modal-root .cd-selw select { width: 100%; height: 40px; }
+#modal-root .cd-p, .cl-page .cd-p { width: 28px; height: 28px; display: inline-grid; place-items: center; flex: none; border-radius: 50%; background: color-mix(in srgb, var(--c) 16%, var(--sb-papier)); color: var(--c); font-size: 10.5px; font-weight: 700; letter-spacing: .02em; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 40%, transparent); }
+#modal-root .cl-zone { cursor: pointer; }
+#modal-root .cl-zone.sur { border-color: var(--sb-sarcelle); background: var(--sb-doux); }
+#modal-root .cl-zone u { color: var(--sb-sarcelle); }
+#modal-root .cl-dp-l:empty { display: none; }
+#modal-root .cl-dp-ou .btn-lien { font-size: 12px; }
+#modal-root .modal.cl-gr .cl-gr-c img { max-width: 100%; display: block; margin: 0 auto 12px; border-radius: 6px; box-shadow: 0 4px 20px rgba(0, 0, 0, .25); }
+.cl-page .cl-l-t small em.ok { color: var(--sb-doux-texte); }
+.cl-page .cl-cb input { width: 16px; height: 16px; accent-color: var(--sb-sarcelle); }
+@media (max-width: 760px) {
+  #modal-root .modal.tb-fen { width: 100%; max-width: 100%; border-radius: 20px 20px 0 0; max-height: 88%; overflow: auto; padding: 18px 16px; }
+  #modal-root .modal-actions .tb-rel-res { width: 100%; }
+  #modal-root .cd-cbs { grid-template-columns: minmax(0, 1fr); }
+  #modal-root .tb-rel-q > button, #modal-root .tb-mc-x { min-height: 44px; min-width: 44px; }
+}
+#modal-root .modal.cl-gr { width: min(640px, 100%); max-width: 100%; padding: 0; gap: 0; display: grid; }
+#modal-root .modal.cl-gr .cl-gr-c { overflow: auto; padding: 24px; max-height: calc(100vh - 140px); background: #3a3833; }
+/* Le volet « Tout le dossier » : le classeur y est nouveau (la maquette). */
+.panneau.volet .pl-neuf { margin-left: auto; align-self: center; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 700; background: color-mix(in srgb, #6d7cf2 18%, transparent); color: #4553c9; }
+#modal-root .tb-rel-t > .cd-ic { flex: none; display: grid; }
+
+/* (1.172.0) La ligne sous le nom du dossier, toujours à part (la maquette) : depuis quand, combien de pièces, ce qui attend. */
+.cl-tete .cl-sous { margin: 4px 0 0; font-size: 13px; color: var(--sb-gris-2); }
+.cl-zone .cl-zone-i { display: grid; place-items: center; color: var(--sb-sarcelle); }
+.cl-zone .cl-zone-i svg { width: 22px; height: 22px; }
+.cl-vg-p.vraie { filter: none; transform: none; padding: 0; background: #fff; overflow: hidden; position: relative; }
+.cl-vg-p.vraie img { display: block; width: 100%; height: 100%; object-fit: cover; object-position: top; }
+.cl-vg-p.vraie b { position: absolute; right: 6px; bottom: 6px; padding: 1px 6px; border-radius: 6px; background: rgba(255, 255, 255, .92); }

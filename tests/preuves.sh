@@ -19849,11 +19849,11 @@ prouver 'mois 124 : la paie demandée à chaque ouverture d'\''un dossier qui ne
 prouver 'mois 125 : l'\''écriture d'\''achat qui ne dit pas son justificatif' serveur/compta/routes.ts \
   "justificatif: e.origine_type === 'achat' ? justifies.get(e.origine) ?? null : null," "justificatif: null," \
   'une écriture d'\''achat dit si l'\''achat a un justificatif, oui ou non ; la base ne le dit qu'\''à qui lit les livres'
-prouver 'mois 125 : le oui ou non dit à qui ne lit pas les livres' base/migrations/0173_achats_justifies.sql \
+prouver 'mois 125 : le oui ou non dit à qui ne lit pas les livres' base/migrations/0180_classeur.sql \
   "
      and p_entreprise in (select compta.mes_entreprises())" "" \
   'une écriture d'\''achat dit si l'\''achat a un justificatif, oui ou non ; la base ne le dit qu'\''à qui lit les livres'
-prouver 'mois 125 : un justificatif compté sur une liste vide' base/migrations/0173_achats_justifies.sql \
+prouver 'mois 125 : un justificatif compté sur une liste vide' base/migrations/0180_classeur.sql \
   "jsonb_array_length(d.contenu -> 'attachments') > 0 end, false)" "jsonb_array_length(d.contenu -> 'attachments') >= 0 end, false)" \
   'une écriture d'\''achat dit si l'\''achat a un justificatif, oui ou non ; la base ne le dit qu'\''à qui lit les livres'
 prouver 'mois 125 : le Cabinet qui oublie ce que dit le serveur' web/public/plateforme/pont-cabinet.js \
@@ -19994,11 +19994,11 @@ prouver 'ux2 134 : la boîte du cabinet qui attend trente secondes le retour du 
 prouver 'ux2 134 : la page jamais lue du Cabinet qui perd son motif sans réseau' web/public/plateforme/pont-cabinet.js \
   "jamaisLue: methode === 'GET' && !!poste && poste.garde() });" "jamaisLue: false });" \
   'le Cabinet emporte ses dossiers, chiffrés ; sans réseau, il se consulte et se rouvre ; le réseau revenu, on recharge ; déconnecté, le poste oublie'
-prouver 'mois 135 : les justificatifs d'\''une écriture lus par n'\''importe qui' base/migrations/0174_justificatifs_ecriture.sql \
+prouver 'mois 135 : les justificatifs d'\''une écriture lus par n'\''importe qui' base/migrations/0180_classeur.sql \
   "   where p_entreprise in (select compta.mes_entreprises())" "   where true" \
   'les justificatifs d'\''une écriture : ceux de son achat, octet pour octet ; ni un autre fichier, ni un règlement, ni une autre personne'
-prouver 'mois 135 : un fichier de l'\''entreprise rendu par une écriture qui ne le porte pas' base/migrations/0174_justificatifs_ecriture.sql \
-  "     and p_fichier in (select l.fichier from compta.justificatifs_ecriture(p_entreprise, p_ecriture) l)" "" \
+prouver 'mois 135 : un fichier de l'\''entreprise rendu par une écriture qui ne le porte pas' base/migrations/0180_classeur.sql \
+  "with permis as (select l.fichier from compta.justificatifs_ecriture(p_entreprise, p_ecriture) l where l.fichier = p_fichier)" "with permis as (select p_fichier fichier)" \
   'les justificatifs d'\''une écriture : ceux de son achat, octet pour octet ; ni un autre fichier, ni un règlement, ni une autre personne'
 prouver 'mois 135 : le justificatif du client qui ne s'\''ouvre pas depuis la ligne' web/public/v10/cabinet/app.js \
   "if (e.justifClient === true && !e.attente && api.justificatifsEcriture) {" "if (false && api.justificatifsEcriture) {" \
@@ -20225,7 +20225,7 @@ prouver 'barre cabinet 9 : classer ne vide pas la boîte' web/public/v10/cabinet
 prouver 'barre cabinet 10 : une écriture commencée se laisse sans un mot' web/public/v10/cabinet/app.js \
   'if (D && D.id !== id && saleDe(D.id)) {' 'if (false) {' \
   'les pièces reçues : chaque pièce a son geste'
-prouver 'barre cabinet 11 : la base classe deux fois la même pièce' base/migrations/0179_pieces_raison.sql \
+prouver 'barre cabinet 11 : la base classe deux fois la même pièce' base/migrations/0180_classeur.sql \
   '     and (classee_le is null) = p_classee;' '     ;' \
   'le fichier d'"'"'un client arrive à classer'
 prouver 'barre cabinet 12 : la boîte montre ce que le cabinet envoie lui-même' serveur/messagerie/routes.ts \
@@ -20882,9 +20882,9 @@ prouver 'pièces reçues 3 : la flèche du bas ne change pas de pièce' web/publ
   "st.pas(e.key === 'ArrowDown' ? 1 : -1);" '' \
   'les pièces reçues : chaque pièce a son geste'
 prouver 'pièces reçues 4 : la raison ne part pas au serveur' web/public/plateforme/pont-cabinet.js \
-  '...(classee && raison ? { raison } : {}), ' '' \
+  '...(classee && raison ? { raison } : {}), ...(classee && note' '...(classee && note' \
   'les pièces reçues : chaque pièce a son geste'
-prouver 'pièces reçues 5 : la base oublie la raison' base/migrations/0179_pieces_raison.sql \
+prouver 'pièces reçues 5 : la base oublie la raison' base/migrations/0180_classeur.sql \
   'classee_raison = case when p_classee then p_raison end' 'classee_raison = null' \
   'le fichier d'"'"'un client arrive à classer'
 prouver 'pièces reçues 6 : une demande reçue disparaît aussitôt' serveur/messagerie/routes.ts \
@@ -20969,7 +20969,7 @@ prouver 'fiche 7 : un client sans écriture n'\''a pas sa bienvenue' web/public/
   'const nouveau = L && !Object.values(L.parMois).some(v => v.ecr) && !d.manual;' 'const nouveau = false;' \
   'au bureau : rien reçu depuis juillet'
 prouver 'classeur 1 : « Tout le dossier » ne mène pas au classeur' web/public/v10/cabinet/app.js \
-  "'Chaque pièce, mois par mois, et ce qui manque', { href: \`\${base}/classeur\` })" "'Chaque pièce, mois par mois, et ce qui manque', { href: \`\${base}/comptabilite/journal\` })" \
+  "'Chaque pièce, mois par mois, et ce qui manque', { href: \`\${base}/classeur\`," "'Chaque pièce, mois par mois, et ce qui manque', { href: \`\${base}/comptabilite/journal\`," \
   'au bureau : l'\''arbre, la rubrique'
 prouver 'classeur 2 : les mois d'\''avant la mission se rangent comme les autres' web/public/v10/cabinet/app.js \
   '<div class="cl-a-ms">${avant.length ? `' '<div class="cl-a-ms">${false ? `' \
@@ -20978,13 +20978,44 @@ prouver 'classeur 3 : une écriture ouverte ne montre rien à droite' web/public
   "} else if (sel && sel.sorte === 'ecr') {" "} else if (false) {" \
   'au bureau : l'\''arbre, la rubrique'
 prouver 'classeur 4 : la recherche ignore le nom du fournisseur' web/public/v10/cabinet/app.js \
-  'sansAccentsCl(`${x.titre} ${x.sous} ${x.num' 'sansAccentsCl(`${x.sous} ${x.num' \
+  'sansAccentsCl(`${x.titre} ${x.sous} ${x.em' 'sansAccentsCl(`${x.sous} ${x.em' \
   'au bureau : l'\''arbre, la rubrique'
 prouver 'classeur 5 : deux mois vides font deux relances' web/public/v10/cabinet/app.js \
-  "x.etat[1] === 'manquante' && x.premier && !hors" "x.etat[1] === 'manquante' && !hors" \
+  "&& !(x.sorte === 'trou' && x.geste.act === 'relance' && x.premier === false) ?" "?" \
   'au bureau : l'\''arbre, la rubrique'
 prouver 'classeur 6 : au téléphone, le classeur se dit « pensé pour un ordinateur »' web/public/v10/cabinet/app.js \
   "|| \$('#page-fd') || \$('#page-cl')) return;" "|| \$('#page-fd')) return;" \
   'au téléphone : les puces des mois'
+# ── 1.172.0 : le classeur refait contre sa maquette, et la pièce jointe à son achat ──
+prouver 'classeur 7 : rien ne s'\''ouvre à droite en arrivant' web/public/v10/cabinet/app.js \
+  'if (!clState.sel) clState.sel = premierVu.k;' 'if (false) clState.sel = premierVu.k;' \
+  'au bureau : l'\''arbre, la rubrique'
+prouver 'classeur 8 : l'\''exercice surligné en même temps que le mois' web/public/v10/cabinet/app.js \
+  "!passe && clState.vue === 'annee' ? ' ici'" "!passe ? ' ici'" \
+  'au bureau : l'\''arbre, la rubrique'
+prouver 'classeur 9 : « Ce qui manque » compté comme une rubrique' web/public/v10/cabinet/app.js \
+  "CL_RUBS.filter(([r]) => r !== 'manque'), i7" "CL_RUBS.filter(() => true), i7" \
+  'au bureau : l'\''arbre, la rubrique'
+prouver 'classeur 10 : « 1 factures et tickets »' web/public/v10/cabinet/app.js \
+  '[l.length > 1 ? 1 : 0];' '[1];' \
+  'au bureau : l'\''arbre, la rubrique'
+prouver 'classeur 11 : des mois vides surlignent le dernier' web/public/v10/cabinet/app.js \
+  'mIci = parMois[i].m;' 'mIci = pm.m;' \
+  'au bureau : l'\''arbre, la rubrique'
+prouver 'classeur 12 : la recherche laisse le mois surligné' web/public/v10/cabinet/app.js \
+  "const ici = !clState.vue && !clState.q && clState.filtre !== 'manque';" "const ici = !clState.vue && clState.filtre !== 'manque';" \
+  'au bureau : l'\''arbre, la rubrique'
+prouver 'classeur 13 : au téléphone, la carte du mois à demi-largeur' web/public/plateforme/classeur.css \
+  '.cl-g, .cl-g.sans-ap { grid-template-columns: minmax(0, 1fr); }' '.cl-g { grid-template-columns: minmax(0, 1fr); }' \
+  'au téléphone : les puces des mois'
+prouver 'classeur 14 : au téléphone, la pièce s'\''ouvre d'\''elle-même' web/public/v10/cabinet/app.js \
+  'if (!tel && premierVu' 'if (premierVu' \
+  'au téléphone : les puces des mois'
+prouver 'classeur 15 : les pièces classées taisent leur écriture jointe' serveur/messagerie/routes.ts \
+  'jointe: l.jointe_ecriture,' 'jointe: null,' \
+  'une pièce reçue se joint à l'\''achat'
+prouver 'classeur 16 : un achat joint reste « sans justificatif »' base/migrations/0180_classeur.sql \
+  'and (exists (select 1 from messagerie.message m where m.entreprise = p.entreprise and m.jointe_ecriture = e.id)' 'and (false' \
+  'une pièce reçue se joint à l'\''achat'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

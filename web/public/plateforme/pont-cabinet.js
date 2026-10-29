@@ -314,7 +314,7 @@
       if (!String(lue.phone || '').trim() && c.telephone) lue.phone = c.telephone;
       // (1.168.0) Ce que le client a confié au cabinet : les Pièces reçues ne proposent pas de saisir un achat qu'il saisit lui-même.
       return Object.assign(K.migrateDossier({ ...lue, id: d.entreprise, name: d.raisonSociale, matricule: d.matriculeFiscal || '', manual: !!d.tenu,
-        packs: moisVersPaquets(K, (mois.mois || []).filter((/** @type {any} */ x) => x.entreprise === d.entreprise)) }), { perimetre: d.tenu ? null : (d.perimetre || null) });
+        packs: moisVersPaquets(K, (mois.mois || []).filter((/** @type {any} */ x) => x.entreprise === d.entreprise)) }), { perimetre: d.tenu ? null : (d.perimetre || null), relieDepuis: d.tenu ? '' : String(d.debut || '').slice(0, 7) });
     });
     // L'équipe (brique 46) : chaque membre du cabinet est un collaborateur de la v10 (son rôle, son
     // adresse à la place du poste) ; les dossiers confiés sont les droits posés sur chaque dossier.
@@ -493,7 +493,7 @@
     const annees = [...new Set(mois.map((m) => m.slice(0, 4)))].sort();
     return {
       mois,
-      exercices: annees.map((a) => ({ annee: a, clos: false, ecritures: toutes.filter((e) => String(e.date).startsWith(a)).length })),
+      exercices: annees.map((a) => ({ annee: a, clos: !!(ouverts.find((x) => String(x.annee) === a) || {}).closLe, ecritures: toutes.filter((e) => String(e.date).startsWith(a)).length })),
     };
   }
   const nombre = (/** @type {string} */ v) => Number(v) || 0;
@@ -977,10 +977,10 @@
   }
 
   // Un fichier que le navigateur télécharge : la v10 l'enregistrait par sa fenêtre « Enregistrer ».
-  /** @param {string} nom @param {string} contenu */
+  /** @param {string} nom @param {string | Blob | Uint8Array} contenu */
   function telecharger(nom, contenu) {
     const propre = String(nom || 'export.txt').replace(/[\\/:*?"<>|]/g, '_');
-    const url = URL.createObjectURL(new Blob([contenu], { type: 'application/octet-stream' }));
+    const url = URL.createObjectURL(new Blob([/** @type {BlobPart} */ (contenu)], { type: 'application/octet-stream' }));
     const a = document.createElement('a');
     a.href = url; a.download = propre; a.hidden = true;
     document.body.appendChild(a); a.click(); a.remove();
@@ -1278,7 +1278,8 @@
     // (1.152.0) « Pièces reçues » (0175) : les fichiers que les clients ont envoyés, tous dossiers confondus ; les classer,
     // défaire, et ouvrir le fichier (celui du fil, tel qu'il est arrivé).
     pieces: {
-      lire: (/** @type {boolean} */ classees) => appel('GET', `/cabinets/${cabinetId}/pieces${classees ? '?classees=1' : ''}`),
+      lire: (/** @type {boolean} */ classees, /** @type {string | undefined} */ entreprise) =>
+        appel('GET', `/cabinets/${cabinetId}/pieces${classees ? `?classees=1${entreprise ? `&entreprise=${encodeURIComponent(entreprise)}` : ''}` : ''}`),
       // (1.167.0, 0179) La raison du classement (saisie, vérifiée, rien, double, illisible, banque) et, pour une pièce
       // illisible, ce qu'on a redemandé au client.
       classer: (/** @type {string} */ entreprise, /** @type {string} */ message, /** @type {boolean} */ classee, /** @type {string | undefined} */ raison, /** @type {string | undefined} */ note) =>
@@ -1305,6 +1306,66 @@
         appel('POST', `/entreprises/${encodeURIComponent(entreprise)}/messages`, { cote: 'cabinet', texte, demande }),
       ouvrir: (/** @type {string} */ entreprise, /** @type {string} */ fichier) => /** @type {any} */ (window).SkanMessagerie.ouvrirFichier(
         (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b), fichier),
+      // (1.172.0, 0180) Joindre une pièce reçue à une écriture de ses livres (l'achat saisi sans justificatif) ; la détacher,
+      // c'est la remettre à classer (`classer(…, false)`).
+      joindre: (/** @type {string} */ entreprise, /** @type {string} */ message, /** @type {string} */ ecriture) =>
+        appel('POST', `/entreprises/${encodeURIComponent(entreprise)}/messages/${encodeURIComponent(message)}/jointe`, { ecriture }),
+    },
+    // (1.172.0, 0180) Le classeur d'un client : les documents que le cabinet y range (le dossier permanent, les courriers,
+    // l'accusé d'une déclaration, les pièces déposées), une demande datée au client, et l'export.
+    classeur: {
+      documents: (/** @type {string} */ dossier) => appel('GET', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents`),
+      // Le contenu d'un document, gardé le temps de la page (comme une pièce reçue).
+      contenu: (/** @type {string} */ dossier, /** @type {string} */ document) => {
+        const cle = `doc:${document}`;
+        const deja = fichiersLus.get(cle);
+        if (deja) return deja;
+        const p = appel('GET', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents/${encodeURIComponent(document)}`).then((/** @type {any} */ f) => {
+          const blob = new Blob([Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0))], { type: f.type });
+          return { blob, type: String(f.type), nom: String(f.nom), adresse: URL.createObjectURL(blob) };
+        });
+        p.catch(() => fichiersLus.delete(cle));
+        fichiersLus.set(cle, p);
+        return p;
+      },
+      // Ranger un fichier (un File du navigateur) : il part en base 64, le serveur le reconnaît à ses premiers octets.
+      deposer: async (/** @type {string} */ dossier, /** @type {any} */ o, /** @type {File} */ fichier) => {
+        const octets = new Uint8Array(await fichier.arrayBuffer());
+        let binaire = '';
+        for (let i = 0; i < octets.length; i += 0x8000) binaire += String.fromCharCode(...octets.subarray(i, i + 0x8000));
+        return appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents`, {
+          rubrique: o.rubrique, categorie: o.categorie || null, periode: o.periode || null, titre: String(o.titre || fichier.name).slice(0, 200),
+          detail: o.detail ? String(o.detail).slice(0, 300) : null, echeance: o.echeance || null, provenance: o.provenance ? String(o.provenance).slice(0, 100) : null,
+          nom: String(fichier.name || 'piece').slice(0, 200), contenu: btoa(binaire), remplace: o.remplace || null,
+        });
+      },
+      classer: (/** @type {string} */ dossier, /** @type {string} */ document, /** @type {boolean} */ classee, /** @type {string | undefined} */ raison, /** @type {string | undefined} */ ecriture) =>
+        appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents/${encodeURIComponent(document)}/classement`,
+          { classee, ...(classee && raison ? { raison } : {}), ...(classee && ecriture ? { ecriture } : {}) }),
+      // Une demande au client, datée ou non, dans sa conversation (la messagerie, comme « Demander » partout).
+      demander: (/** @type {string} */ entreprise, /** @type {string} */ texte, /** @type {string} */ demande, /** @type {string | null} */ pour) =>
+        appel('POST', `/entreprises/${encodeURIComponent(entreprise)}/messages`, { cote: 'cabinet', texte, demande, ...(pour ? { pour } : {}) }),
+      // Plusieurs demandes d'un coup (le dossier permanent d'un client qui arrive) : un seul message, qu'il coche à mesure.
+      demanderGroupe: (/** @type {string} */ entreprise, /** @type {string} */ texte, /** @type {string[]} */ demandes) =>
+        appel('POST', `/entreprises/${encodeURIComponent(entreprise)}/messages`, { cote: 'cabinet', texte, demandes }),
+      // Le PDF d'une page HTML fait par le serveur (l'index de l'export), en octets ; null sans l'outil ou sans réseau.
+      pdf: async (/** @type {string} */ html, /** @type {string} */ nom) => {
+        try {
+          const lu = await appel('POST', '/pdf', { html, nom });
+          return Uint8Array.from(atob(String(lu.pdf)), (c) => c.charCodeAt(0));
+        } catch (e) { const x = /** @type {any} */ (e); if (x && (x.indisponible || x.horsLigne)) return null; throw e; }
+      },
+      // Le fichier d'un fil, en octets (l'export range les pièces reçues).
+      octetsPiece: async (/** @type {string} */ entreprise, /** @type {string} */ fichier) => {
+        const f = await appel('GET', `/entreprises/${encodeURIComponent(entreprise)}/messages/fichiers/${encodeURIComponent(fichier)}`);
+        return Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0));
+      },
+      enregistrer: async (/** @type {string} */ nom, /** @type {Uint8Array | Blob | string} */ contenu) => telecharger(nom, contenu),
+    },
+    // (1.172.0) Qui regarde aussi une pièce du classeur (serveur/v10/presence.ts) : l'identifiant de la pièce, et rien
+    // d'autre ; null sans réseau ou sans droit (la ligne se tait).
+    presence: async (/** @type {string} */ entreprise, /** @type {string} */ piece, /** @type {boolean} */ quitte) => {
+      try { return (await appel('GET', `/entreprises/${encodeURIComponent(entreprise)}/presence?piece=${encodeURIComponent(piece)}${quitte ? '&quitte=1' : ''}`)).autres || []; } catch { return null; }
     },
     // (1.152.0) Les modèles de messages du cabinet, ouverts depuis la barre (« Le cabinet »).
     modeles: () => /** @type {any} */ (window).SkanMessagerie.fenetreModeles({ modeles: modelesDuCabinet }),

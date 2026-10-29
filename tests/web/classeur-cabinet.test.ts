@@ -1,10 +1,13 @@
-// Le classeur du dossier au Cabinet (maquette « Classeur », docs/maquettes/cabinet/classeur.html ; 1.171.0), à la souris.
-// Ce que le parcours vérifie, le 28/10/2026 :
+// Le classeur du dossier au Cabinet (maquette « Classeur », docs/maquettes/cabinet/classeur.html ; 1.171.0, refait en 1.172.0),
+// à la souris. Ce que le parcours vérifie, le 28/10/2026 :
 //   - la barre : « Tout le dossier › Le classeur » mène au classeur ;
-//   - un client dont septembre attend : l'arbre (septembre « 1 à traiter », sa rubrique Achats), la liste de la rubrique, la pièce
-//     ouverte à droite avec son écriture au brouillard ; la recherche (ce qui se trouve, et ce qui ne se trouve pas) ;
-//   - un client dont rien n'est arrivé depuis juillet : « Août et septembre 2026 », ce qui manque, un seul « Relancer » ;
-//   - les déclarations de l'année ; au téléphone : les puces des mois, rien qui déborde, pas d'avis « pensé pour un ordinateur ».
+//   - un client dont septembre a une écriture : l'arbre (septembre et sa rubrique Achats, l'exercice NON surligné en même
+//     temps), la pièce qui s'ouvre d'elle-même à droite avec son écriture au brouillard, le pied « rubrique N sur 7 » (« Ce qui
+//     manque » n'est pas une rubrique) ; la recherche (ce qui se trouve, et ce qui ne se trouve pas) ;
+//   - un client dont rien n'est arrivé depuis juillet : « Août et septembre 2026 », août surligné dans l'arbre, ce qui manque,
+//     un seul « Relancer » ;
+//   - les déclarations de l'année ; au téléphone : les puces des mois, la carte du mois sur toute la largeur, rien qui déborde,
+//     la pièce puis « ‹ Septembre 2026 · Achats » pour revenir.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -86,22 +89,27 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     await ouvrir(p, cab.id, boulangerie);
     // La barre : « Tout le dossier » propose le classeur en premier.
     expect(await p.locator('#nav-dossier .panneau.volet a').first().getAttribute('href')).toBe(`#/dossier/${boulangerie}/classeur`);
-    // L'arbre : septembre attend, sa rubrique Achats est ouverte.
-    expect(await p.locator('.cl-a-m.ici').innerText()).toMatch(/Septembre\s+1 à traiter/);
+    // L'arbre : septembre est ouvert sur sa rubrique Achats ; l'exercice n'est pas surligné en même temps que le mois.
+    expect(await p.locator('.cl-a-m.ici').innerText()).toMatch(/^Septembre/);
+    expect(await p.locator('.cl-a-t.ici').count()).toBe(0);
     expect(await p.locator('.cl-a-m.avant').innerText()).toMatch(/Janvier à août\s+avant la mission/);
     expect(await p.locator('.cl-a-s.ici').innerText()).toMatch(/Achats\s+1/);
-    expect(await p.locator('.cl-res-t').first().innerText()).toMatch(/Septembre 2026\s+1 pièce · 0 en ordre · 1 à traiter/);
+    expect(await p.locator('.cl-res-t').first().innerText()).toMatch(/Septembre 2026\s+1 pièce/);
+    // La rubrique : une seule écriture, dite au singulier ; le pied compte sept rubriques.
+    expect(await p.locator('.cl-sec h3').first().innerText()).toMatch(/Achats\s*1\s*1 facture ou ticket : 1 en ordre/);
+    expect(await p.locator('.cl-suite').innerText()).toMatch(/rubrique 2 sur 7/);
     const ligne = p.locator('li[data-cl-k]').filter({ hasText: 'FA-0914' });
-    expect(await ligne.innerText()).toMatch(/1\s846,200[\s\S]*à vérifier/);
-    // La pièce à droite : son écriture, au brouillard, ligne par ligne.
-    await ligne.click();
+    expect(await ligne.innerText()).toMatch(/1\s846,200[\s\S]*saisie, au brouillard/);
+    // La pièce à droite s'ouvre d'elle-même (la maquette) : son écriture, au brouillard, ligne par ligne.
     const ap = p.locator('.cl-ap');
-    await expect.poll(() => ap.innerText()).toMatch(/L'écriture FA-0914, au brouillard[\s\S]*601[\s\S]*1\s551,428[\s\S]*4366[\s\S]*294,772/i);
-    expect(await ap.innerText()).toMatch(/Elle compte dans la déclaration de septembre, pas encore préparée\./);
-    expect(await ap.getByRole('link', { name: 'La vérifier dans les écritures' }).getAttribute('href')).toBe(`#/dossier/${boulangerie}/comptabilite/saisie`);
-    // La recherche : ce qui se trouve (un fournisseur), et ce qui ne se trouve pas.
+    await expect.poll(() => ap.innerText().catch(() => '')).toMatch(/L'écriture FA-0914, au brouillard[\s\S]*601[\s\S]*1\s551,428[\s\S]*4366[\s\S]*294,772/i);
+    expect(await ligne.getAttribute('class')).toMatch(/\bici\b/);
+    expect(await ap.innerText()).toMatch(/Elle compte dans la déclaration de septembre/);
+    expect(await ap.getByRole('link', { name: 'Ouvrir dans les écritures' }).getAttribute('href')).toBe(`#/dossier/${boulangerie}/comptabilite/saisie`);
+    // La recherche : ce qui se trouve (un fournisseur), et ce qui ne se trouve pas ; aucun lien de l'arbre ne reste surligné.
     await p.locator('#cl-q').fill('minoterie');
     await expect.poll(() => p.locator('.cl-res-t').first().innerText()).toMatch(/« minoterie » dans tout le dossier\s+1 pièce, sur 2026/);
+    expect(await p.locator('.cl-arbre .ici').count()).toBe(0);
     await p.locator('#cl-q').fill('ooredoo');
     await expect.poll(() => p.locator('.cl-vide').innerText().catch(() => '')).toMatch(/Rien pour « ooredoo » dans tout le dossier/);
     await p.locator('#cl-q').fill('');
@@ -110,16 +118,19 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     await p.locator('.cl-arbre [data-cl-decls]').click();
     await expect.poll(() => p.locator('.cl-res-t').first().innerText()).toMatch(/Les déclarations de 2026/);
 
-    // Des mois vides : août et septembre ensemble, ce qui manque, une seule relance.
+    // Des mois vides : août et septembre ensemble, août surligné dans l'arbre, ce qui manque, une seule relance.
     await ouvrir(p, cab.id, menuiserie);
     await expect.poll(() => p.locator('.cl-res-t').first().innerText()).toMatch(/Août et septembre 2026\s+aucune pièce · la dernière écriture de Hédi date du 15\/07/);
+    expect(await p.locator('.cl-a-m.ici').innerText()).toMatch(/^Août/);
+    expect(await p.locator('.cl-a-s').count()).toBe(0);
     expect(await p.locator('li.cl-trou').allInnerTexts()).toEqual([expect.stringMatching(/^Août 2026 · ventes, achats, relevé bancaire\nen retard depuis le 28\/09 · jamais relancé/), expect.stringMatching(/^Septembre 2026 · ventes, achats, relevé bancaire\nà déposer aujourd'hui/)]);
     expect(await p.locator('#page-cl .btn-primary').allInnerTexts()).toEqual(['Relancer Hédi…']);
-    expect(await p.locator('#page-cl .fd-sous').innerText()).toMatch(/rien depuis le 15\/07/);
+    expect(await p.locator('#page-cl button', { hasText: 'Relancer Hédi' }).count()).toBe(1);
+    expect(await p.locator('#page-cl .cl-sous').innerText()).toMatch(/rien depuis le 15\/07/);
     expect(erreurs).toEqual([]);
   });
 
-  it('au téléphone : les puces des mois, rien ne déborde, pas d\'avis « pensé pour un ordinateur »', async () => {
+  it('au téléphone : les puces des mois, la carte du mois sur toute la largeur, la pièce et le retour', async () => {
     const { associe, cab, boulangerie } = await unCabinet();
     const { p, erreurs } = await contexte(associe, true);
     await ouvrir(p, cab.id, boulangerie);
@@ -128,9 +139,14 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     expect(await p.locator('#bandeau-ordinateur').count()).toBe(0);
     expect(await p.locator('.cl-arbre').isVisible()).toBe(false);
     expect(await p.locator('.cl-tel-m [data-cl-m][aria-pressed="true"]').innerText()).toBe('sept.');
+    // La carte du mois prend toute la largeur (une règle du bureau la laissait à 232 px, 1.171.0).
+    expect(await p.evaluate(() => Math.round(document.querySelector('.cl-g > :first-child')?.getBoundingClientRect().width ?? 0))).toBeGreaterThan(330);
+    // Au téléphone, rien ne s'ouvre de soi-même : la liste d'abord.
+    expect(await p.locator('.cl-ap').count()).toBe(0);
     await p.locator('li[data-cl-k]').filter({ hasText: 'FA-0914' }).click();
     await expect.poll(() => p.locator('.cl-ap').innerText().catch(() => '')).toMatch(/L'écriture FA-0914, au brouillard/i);
-    await p.getByRole('button', { name: 'Revenir à la liste' }).click();
+    expect(await p.locator('#cl-retour').innerText()).toMatch(/Septembre 2026 · Achats/);
+    await p.locator('#cl-retour').click();
     await expect.poll(() => p.locator('li[data-cl-k]').count()).toBe(1);
     expect(erreurs).toEqual([]);
   });

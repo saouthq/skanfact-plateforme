@@ -52,7 +52,7 @@
   // La couleur de la visite d'une page : celle de son domaine.
   const COULEUR_PAGE = {
     dossiers: 'vendre', relances: 'encaisser', echeances: 'declarer', ecritures: 'declarer', production: 'piloter',
-    reglages: 'piloter', aide: 'commencer', guide: 'commencer', dossier: 'vendre', 'dossier-paquets': 'encaisser', compta: 'declarer',
+    reglages: 'piloter', aide: 'commencer', guide: 'commencer', dossier: 'vendre', 'dossier-paquets': 'encaisser', 'dossier-classeur': 'vendre', compta: 'declarer',
     'compta-saisie': 'acheter', 'compta-banque': 'encaisser', 'compta-paie': 'equipe', 'compta-immobilisations': 'acheter',
     'compta-inventaire': 'acheter', 'compta-journal': 'declarer', 'compta-grand-livre': 'declarer', 'compta-balance': 'declarer',
     'compta-lettrage': 'encaisser', 'compta-recherche': 'piloter', 'compta-declaration': 'declarer', 'compta-revision': 'declarer',
@@ -76,7 +76,7 @@
     if (r !== 'dossier') return r;
     const o = decodeURIComponent(p[2] || 'suivi');
     if (o === 'comptabilite') return p[3] ? 'compta-' + decodeURIComponent(p[3]) : 'compta';
-    return o === 'paquets' ? 'dossier-paquets' : 'dossier';
+    return o === 'paquets' ? 'dossier-paquets' : o === 'classeur' ? 'dossier-classeur' : 'dossier';
   }
 
   // ========================================================================== CE QUE CHAQUE ÉCRAN EST
@@ -101,6 +101,9 @@
       texte: '<p>La découverte sur l\'exemple, les gestes guidés clic par clic, et la visite de chaque écran. Ce que tu as déjà fait est coché.</p>' },
     dossier: { titre: 'La fiche d\'un dossier', resume: 'Un client : ses mois, ses relances, sa comptabilité.', dossier: 'client',
       texte: '<p>Tout ce qui concerne un client, en deux onglets : <b>Suivi</b> (ses douze mois, ses relances, ta note) et <b>Comptabilité</b> (ses livres).</p><p>En haut, qui il est, et l\'état du dossier en une phrase.</p>' },
+    // (1.172.0) « Tout le dossier » : le classeur du client (maquette « Classeur »).
+    'dossier-classeur': { titre: 'Tout le dossier', resume: 'Le permanent, les mois, une pièce et son écriture.', dossier: 'client',
+      texte: '<p>Le classeur, comme sur l\'étagère : <b>le dossier permanent</b> en haut, puis chaque mois de l\'exercice. Un mois se déplie en rubriques : ventes, achats, banque, paie, retenues, déclaration. Son point dit s\'il est complet.</p><p>Chaque pièce montre ce qu\'elle est devenue dans les livres ; ce qui manque se voit, avec son geste. Rien ne s\'efface : une pièce se classe, se remplace ou se marque.</p>' },
     'dossier-paquets': { titre: 'Les paquets d\'un client', resume: 'Chaque paquet reçu, vérifié pièce par pièce.', dossier: 'skanfact',
       texte: '<p>Chaque mois reçu : définitif ou provisoire, son chiffre d\'affaires, et le verdict de la vérification — <b>chaque pièce comparée à son empreinte</b>. Un paquet s\'ouvre pour lire ses journaux et ses justificatifs.</p>' },
     compta: { titre: 'La comptabilité d\'un dossier', resume: 'Le livre du client, rangé en trois groupes.', dossier: 'livre',
@@ -255,6 +258,28 @@
   b('#rec-banniere', 'Enregistre ta clé de secours : sans elle, perdre cet ordinateur rend les paquets reçus illisibles pour toujours.');
   b('[data-pas]', 'T\'emmène là où cette étape se fait.', { nom: 'Le geste d\'une étape', cle: 'pas' });
   b('[data-pas-guide]', 'Je te montre où cliquer pour cette étape, clic par clic.', { nom: 'Me guider', cle: 'pas-guide' });
+
+  // ---------- (1.172.0) le classeur d'un dossier (« Tout le dossier ») ----------
+  b('#cl-q', 'Cherche dans tout le dossier : un fournisseur, un montant, un numéro — les pièces, les écritures, les relevés et le dossier permanent, de toutes les années.', { nom: 'Chercher', cle: 'cl-q' });
+  b('#cl-deposer', 'Range dans un mois ce que le client t\'a donné en main propre, par e-mail ou par WhatsApp : chaque pièce y attend d\'être saisie.', { nom: 'Déposer des pièces', cle: 'cl-deposer' });
+  b('#cl-exporter', 'Prépare un fichier ZIP pour un contrôle, la banque ou un autre cabinet : les pièces rangées comme ici, le FEC, un index, les déclarations et leurs accusés.', { nom: 'Exporter', cle: 'cl-exporter' });
+  b('#cl-ordre', 'Montre les pièces à traiter du mois, dans l\'ordre où elles se font, chacune avec son geste.', { nom: 'Les faire dans l\'ordre', cle: 'cl-ordre' });
+  b('#cl-grand', 'Ouvre la pièce sur tout l\'écran ; ‹ et › passent à la précédente et à la suivante de la même rubrique.', { nom: 'En grand', cle: 'cl-grand' });
+  b('#cl-exp-mois', 'Exporte ce mois-ci seulement : ses pièces, son FEC, son index.', { nom: 'Exporter le mois', cle: 'cl-exp-mois' });
+  b('#cl-ranger-perm', 'Range une pièce du dossier permanent : les statuts, le registre, un contrat, une attestation et sa date de validité.', { nom: 'Ranger une pièce', cle: 'cl-ranger-perm' });
+  b('#cl-ranger-cour', 'Range un courrier de l\'administration ou d\'un contrôle, et la réponse du cabinet.', { nom: 'Ranger un courrier', cle: 'cl-ranger-cour' });
+  b('#cl-prop', 'Demande au client, en un seul message, les pièces cochées de son dossier permanent.', { nom: 'Demander les pièces', cle: 'cl-prop' });
+  b('#cl-relire', 'Relit le classeur : ses livres, puis les pièces qu\'il a envoyées.', { nom: 'Réessayer', cle: 'cl-relire' });
+  b('#cl-retour', 'Revient à la liste du mois.', { nom: 'Revenir', cle: 'cl-retour' });
+  b('[data-cl-geste]', 'Fait le geste de cette ligne : saisir, vérifier, rapprocher, relancer ou demander.', { nom: 'Le geste de la ligne', cle: 'cl-geste' });
+  b('[data-cl-ap]', 'Le geste de la pièce ouverte : la joindre à un achat déjà saisi, la marquer vérifiée, la détacher, la remplacer.', { nom: 'Le geste de la pièce', cle: 'cl-ap' });
+  b('[data-cl-trois]', 'Les gestes plus rares de cette pièce : en grand, télécharger, joindre, remplacer, en double, la demander, son historique.', { nom: 'Les gestes de la pièce', cle: 'cl-trois' });
+  b('[data-cl-f]', 'Montre le mois par rubrique, ses pièces à traiter, ou ce qui manque à l\'année.', { nom: 'Montrer', cle: 'cl-f' });
+  b('[data-cl-vg]', 'Une ligne par pièce, ou les pièces en vignettes.', { nom: 'Liste ou vignettes', cle: 'cl-vg' });
+  b('[data-cl-accuse]', 'Range l\'accusé de dépôt de cette déclaration, à côté d\'elle.', { nom: 'Joindre l\'accusé', cle: 'cl-accuse' });
+  b('[data-cl-ranger]', 'Range ce document dans le dossier permanent.', { nom: 'Le ranger', cle: 'cl-ranger' });
+  b('[data-cl-sugg]', 'Cherche ceci à la place.', { nom: 'Essaie', cle: 'cl-sugg' });
+  b('#cl-q-demander', 'Demande cette pièce au client, dans votre conversation.', { nom: 'Demander', cle: 'cl-q-demander' });
 
   // ---------- la fiche d'un dossier ----------
   b('#edit', 'Modifie la fiche du client : son nom, son matricule, ses coordonnées, ses honoraires.');
@@ -488,6 +513,7 @@
     dossiers: 'Ouvrir la fiche, écrire la relance, noter une relance, modifier ou archiver le client.',
     relances: 'Ouvrir la fiche, noter une relance faite ailleurs, voir l\'historique.',
     'dossier-paquets': 'Ouvrir le paquet, lire ses journaux et ses justificatifs, le montrer dans le dossier, le retirer.',
+    'dossier-classeur': 'Ouvrir la pièce en grand, la télécharger, la joindre à un achat, la remplacer, la marquer en double, la demander au client, voir son historique.',
     'compta-saisie': 'Modifier, valider, joindre un justificatif, supprimer un brouillard.',
     'compta-journal': 'Ouvrir la pièce, joindre un justificatif, contre-passer, extourner.',
     'compta-banque': 'Choisir ou voir l\'écriture en face, écrire l\'écriture manquante, défaire le rapprochement.',
@@ -546,7 +572,7 @@
     // Le dossier ouvert à l'écran, ou null.
     const dossierOuvert = () => { const m = /^#\/dossier\/([^/]+)/.exec((typeof location !== 'undefined' && location.hash) || ''); return m ? decodeURIComponent(m[1]) : null; };
     // Les écrans qui vivent DANS un dossier : la fiche, ses paquets, et chaque écran de comptabilité.
-    const ecranDeDossier = cle => cle === 'dossier' || cle === 'dossier-paquets' || /^compta/.test(cle);
+    const ecranDeDossier = cle => cle === 'dossier' || cle === 'dossier-paquets' || cle === 'dossier-classeur' || /^compta/.test(cle);
     const DOSSIER_MANQUE = {
       skanfact: { texte: 'Il faut un client sur SkanFact qui t\'a confié son dossier : donne-lui le code de ton cabinet (Réglages → Mon cabinet), puis accepte son dossier sur la page Dossiers.' },
       hors: { texte: 'Il faut un client que tu tiens au cabinet : ajoute-le (« Nouveau client… »), ses livres s\'ouvrent aussitôt.', visite: 'ajouter-client' },
@@ -2250,6 +2276,32 @@
       ]
     });
 
+    // (1.172.0) Les gestes du classeur (« Tout le dossier ») : retrouver une pièce, l'exporter.
+    const classeur = () => { const id = dossierOuvert() || ctx.dossier('client'); return id ? '#/dossier/' + encodeURIComponent(id) + '/classeur' : null; };
+    classeur.sorte = 'client';
+    visite({
+      id: 'retrouver-piece', theme: 'portefeuille', type: 'faire', duree: '1 min', page: classeur, pages: ['dossier-classeur'],
+      titre: 'Retrouver une pièce', resume: 'Un fournisseur, un montant, un numéro.',
+      mots: ['retrouver', 'piece', 'classeur', 'chercher', 'fournisseur'], si: () => !!ctx.dossier('client'), manque: DOSSIER_MANQUE.client,
+      suite: ['exporter-classeur'], bravo: 'Tu sais retrouver une pièce',
+      conclusion: 'La recherche lit tout le dossier, de toutes les années : les pièces, les écritures, les relevés et le dossier permanent.',
+      etapes: [
+        { page: classeur, cible: '#cl-q', cote: 'dessous', faire: 'valeur', bouton: 'Suivant', titre: 'Ce que tu cherches',
+          texte: 'Le nom d\'un fournisseur, un montant (186,420), un numéro de facture ou de pièce.', action: 'Tape ce que tu cherches.', essai: { taper: 'STEG' } },
+        { page: classeur, cible: '.cl-liste', cote: 'gauche', titre: 'Les pièces qui correspondent', texte: 'Rangées par exercice ; une pièce s\'ouvre à droite, avec son écriture.' }
+      ]
+    });
+    visite({
+      id: 'exporter-classeur', theme: 'portefeuille', type: 'faire', duree: '1 min', page: classeur, pages: ['dossier-classeur'],
+      titre: 'Exporter pour un contrôle', resume: 'Les pièces, le FEC, l\'index.',
+      mots: ['exporter', 'controle', 'zip', 'fec', 'classeur', 'archive'], si: () => !!ctx.dossier('client'), manque: DOSSIER_MANQUE.client,
+      suite: ['retrouver-piece'], bravo: 'Tu sais exporter un classeur',
+      conclusion: 'Le fichier ZIP s\'écrit sur ton poste, puis se télécharge : rien ne part ailleurs.',
+      etapes: [
+        { page: classeur, cible: '#cl-exporter', cote: 'dessous', titre: 'Exporter', texte: 'Tout le dossier, l\'exercice, un mois ou le dossier permanent ; puis ce qu\'on y met : les pièces, le FEC, l\'index, les déclarations.' }
+      ]
+    });
+
     // ======================================================================= CHAQUE ÉCRAN
     // La visite d'un écran se LIT sur l'écran (`Visite.etapesDeLaVue`) : l'en-tête, les onglets, les
     // blocs, et chaque bouton de chacun, expliqué par `expliquer`. Un écran qui gagne un bouton demain
@@ -2257,7 +2309,7 @@
     Object.keys(PAGES).forEach(k => {
       const P = PAGES[k];
       const sorte = P.dossier;
-      const suite = k === 'dossier' ? 'suivi' : k === 'dossier-paquets' ? 'paquets' : k === 'compta' ? 'comptabilite' : k.startsWith('compta-') ? 'comptabilite/' + k.slice(7) : '';
+      const suite = k === 'dossier' ? 'suivi' : k === 'dossier-paquets' ? 'paquets' : k === 'dossier-classeur' ? 'classeur' : k === 'compta' ? 'comptabilite' : k.startsWith('compta-') ? 'comptabilite/' + k.slice(7) : '';
       const ouvrir = sorte ? () => (cleDePage() === k ? location.hash : dans(sorte, suite)()) : '#/' + k;
       visite({
         id: 'page-' + k, theme: 'pages', type: 'page', route: k, duree: '2 min', titre: P.titre, resume: P.resume,

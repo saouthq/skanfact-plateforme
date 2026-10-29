@@ -10,7 +10,7 @@
   font-family: 'IBM Plex Mono'; font-style: normal; font-display: swap; font-weight: 500;
   src: url(polices/ibm-plex-mono-latin-500-normal.woff2) format('woff2');
 }
-.msg-page { display: flex; flex-direction: column; gap: 20px; max-width: 1180px; }
+.msg-page { display: flex; flex-direction: column; gap: 20px; width: 100%; max-width: 1600px; margin-inline: auto; box-sizing: border-box; }
 .msg-retour { align-self: flex-start; padding: 6px 0; border: 0; background: none; font: inherit; font-weight: 600; color: var(--primary); cursor: pointer; }
 .msg-retour:hover { text-decoration: underline; }
 .msg-tete { display: flex; align-items: center; gap: 14px; min-width: 0; }
@@ -361,7 +361,7 @@
 
 /* (27/10/2026, maquette « Mon comptable », docs/maquettes/complements.html) La page avant tout cabinet : ce que le comptable
    fait ici, les deux chemins pour l'inviter, ce qu'il ne fait jamais ; puis l'invitation qui attend (plateforme/pont.js). */
-.cpt-page { display: grid; gap: 18px; max-width: 1180px; }
+.cpt-page { display: grid; gap: 18px; width: 100%; max-width: 1600px; margin-inline: auto; box-sizing: border-box; }
 .cpt-tete h1 { margin: 0; font-size: 26px; font-weight: 700; letter-spacing: -.03em; }
 .cpt-tete span { font-size: 13px; color: var(--sb-gris); }
 .cpt { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; align-items: start; }

@@ -423,15 +423,18 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       // Qui n'est pas du cabinet n'apprend même pas qu'il existe.
       if (!(await tx.query('select exists (select 1 from socle.mes_organisations() o where o = $1) v', [params.cabinet])).rows[0].v) return introuvable;
       const aClasser = query.classees !== '1';
+      // (1.172.0) Le classeur d'un dossier lit les pièces classées de ce seul dossier, mille au plus : son année entière.
+      const seul = !aClasser && uuid.safeParse(query.entreprise).success ? String(query.entreprise) : null;
+      const max = seul ? 1000 : 200;
       const lignes = (await tx.query(`select m.id, m.entreprise, m.auteur_nom, m.texte, m.achat_libelle, m.ecrit_le, m.classee_le,
-          m.classee_par, m.classee_raison, m.classee_note, fi.id fichier, fi.nom fichier_nom, fi.type fichier_type, length(fi.contenu) fichier_taille, d.demande
+          m.classee_par, m.classee_raison, m.classee_note, m.jointe_ecriture, fi.id fichier, fi.nom fichier_nom, fi.type fichier_type, length(fi.contenu) fichier_taille, d.demande
         from messagerie.message m
         join messagerie.fichier fi on fi.id = m.fichier
         left join messagerie.message d on d.id = m.repond_a
-       where m.cabinet = $1 and m.cote = 'entreprise' and (m.classee_le is null) = $2
-       order by coalesce(m.classee_le, m.ecrit_le) desc, m.id desc limit 201`, [params.cabinet, aClasser])).rows as
+       where m.cabinet = $1 and m.cote = 'entreprise' and (m.classee_le is null) = $2 and ($3::uuid is null or m.entreprise = $3)
+       order by coalesce(m.classee_le, m.ecrit_le) desc, m.id desc limit $4`, [params.cabinet, aClasser, seul, max + 1])).rows as
         { id: string; entreprise: string; auteur_nom: string; texte: string; achat_libelle: string | null; ecrit_le: Date; classee_le: Date | null;
-          classee_par: string | null; classee_raison: string | null; classee_note: string | null; fichier: string; fichier_nom: string; fichier_type: string; fichier_taille: number; demande: string | null }[];
+          classee_par: string | null; classee_raison: string | null; classee_note: string | null; jointe_ecriture: string | null; fichier: string; fichier_nom: string; fichier_type: string; fichier_taille: number; demande: string | null }[];
       const compte = Number((await tx.query(`select count(*) n from messagerie.message m
         where m.cabinet = $1 and m.cote = 'entreprise' and m.fichier is not null and m.classee_le is null`, [params.cabinet])).rows[0].n);
       // (1.167.0) Les demandes du cabinet encore ouvertes, et celles reçues ces trois derniers jours : la page les montre
@@ -445,14 +448,14 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       return {
         corps: {
           aClasser: compte,
-          plus: lignes.length > 200,
+          plus: lignes.length > max,
           demandes: demandes.map((d) => ({ id: d.id, entreprise: d.entreprise, texte: d.demande, demandeeLe: d.ecrit_le.toISOString(),
             recueLe: d.demande_recue_le?.toISOString() ?? null, pour: d.demande_pour })),
-          pieces: lignes.slice(0, 200).map((l) => ({
+          pieces: lignes.slice(0, max).map((l) => ({
             id: l.id, entreprise: l.entreprise, de: l.auteur_nom, texte: l.texte, recueLe: l.ecrit_le.toISOString(),
             fichier: { id: l.fichier, nom: l.fichier_nom, type: l.fichier_type, taille: Number(l.fichier_taille) },
             demande: l.demande, achat: l.achat_libelle, classeeLe: l.classee_le ? l.classee_le.toISOString() : null, classeePar: l.classee_par,
-            raison: l.classee_raison, note: l.classee_note,
+            raison: l.classee_raison, note: l.classee_note, jointe: l.jointe_ecriture,
           })),
         },
       };
