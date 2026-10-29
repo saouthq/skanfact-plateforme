@@ -4082,9 +4082,11 @@
     info: CL_SVG('<circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path>'),
     trois: CL_SVG('<circle cx="5" cy="12" r="1.2"></circle><circle cx="12" cy="12" r="1.2"></circle><circle cx="19" cy="12" r="1.2"></circle>'),
     croix: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>',
+    // (1.173.0) L'IA : deux étincelles, en dégradé (classeur.css, .cl-ia-ic).
+    ia: '<span class="cl-ia-ic" aria-hidden="true"></span>',
   };
   const clState = { id: '', annee: '', mois: '', rub: '', filtre: 'rub', sel: '', q: '', plus: false, decl: '', vue: '', vg: 'liste', menu: '', hist: false, ouvrir: false,
-    livres: new Map(), lecture: new Map(), refus: new Map(), luA: new Map(), classees: null, lectureClassees: null, just: new Map(), exercices: null, docs: new Map(), presence: null };
+    livres: new Map(), lecture: new Map(), refus: new Map(), luA: new Map(), classees: null, lectureClassees: null, just: new Map(), exercices: null, docs: new Map(), presence: null, lus: new Map(), lit: null };
   const CL_RUBS = [['ventes', 'Ventes'], ['achats', 'Achats'], ['banque', 'Banque'], ['paie', 'Paie'], ['retenues', 'Retenues à la source'], ['declaration', 'Déclarations'], ['cabinet', 'Le travail du cabinet'], ['manque', 'Ce qui manque']];
   const CL_IC_RUB = { ventes: 'vente', achats: 'pdf', banque: 'banque', paie: 'paie', retenues: 'decl', cabinet: 'classeur', declaration: 'decl', manque: 'manque' };
   const CL_CATS = [['juridique', 'Juridique'], ['fiscal', 'Fiscal et social'], ['contrats', 'Contrats'], ['banque', 'Comptable et banque'], ['cabinet', 'Le cabinet']];
@@ -4135,6 +4137,20 @@
     e.lecture = false;
     redessinerCl(d);
   }
+  // (1.173.0, 0181) Les lectures des pièces (le fournisseur, le numéro, la date, le total), et si la lecture par l'IA se
+  // propose pour ce dossier (la clé du serveur, et le client ne l'a pas coupée).
+  async function chargerLecturesCl(d, force) {
+    const x = clState.lus.get(d.id);
+    if (x && !force && (x.lu || x.lecture)) return;
+    const e = x || { lu: false, ia: false, coupee: false, par: new Map() };
+    e.lecture = true; clState.lus.set(d.id, e);
+    try {
+      const r = await api.classeur.lectures(d.id);
+      Object.assign(e, { ia: !!r.ia, coupee: !!r.coupee, par: new Map((r.lectures || []).map(l => [l.message ? `p:${l.message}` : `d:${l.document}`, l])) });
+    } catch { /* sans lecture, chaque ligne dit ce qu'on sait */ }
+    e.lu = true; e.lecture = false;
+    redessinerCl(d);
+  }
   // Après un geste : relire ce qui a changé (les pièces, leur classement, les documents, le livre), puis redessiner.
   async function apresGesteCl(d, quoi = {}) {
     const annee = clState.annee || K.today().slice(0, 4);
@@ -4168,6 +4184,18 @@
     const aClasser = (piecesLues.pieces || []).filter(p => p.entreprise === d.id);
     const classees = (clState.classees || []).filter(p => p.entreprise === d.id);
     const docs = ((clState.docs.get(d.id) || {}).documents || []).filter(x => !x.remplacePar);
+    const lus = (clState.lus.get(d.id) || {}).par || new Map();
+    // Le nom d'une jumelle (une pièce en double nomme celle qu'elle répète).
+    const nomJumelle = j => !j ? '' : j.sorte === 'message' ? (([...aClasser, ...classees].find(y => y.id === j.id) || {}).fichier || {}).nom || 'une autre pièce' : (docs.find(y => y.id === j.id) || {}).titre || 'un document';
+    // Une pièce lue (par l'IA, avec l'accord du client) dit ce qu'elle est : le fournisseur, son numéro, son total.
+    const avecLecture = it => {
+      const lu = lus.get(it.k);
+      if (!lu || it.etat[2] !== 'traiter') return it;
+      const tnd = !lu.devise || lu.devise === 'TND';
+      return { ...it, lu, titre: lu.fournisseur || it.titre, montant: tnd && lu.total ? Number(lu.total) : it.montant,
+        sous: [lu.numero ? `facture n° ${lu.numero}` : '', lu.date ? `du ${jjmm(lu.date)}` : '', !tnd && lu.total ? `${lu.total} ${lu.devise}` : '', nomFichierCl(it)].filter(Boolean).join(' · '),
+        em: it.em || 'lue par SkanFact : à vérifier sur la pièce' };
+    };
     const jointes = new Map();
     for (const p of classees) if (p.raison === 'jointe' && p.jointe) jointes.set(p.jointe, p);
     for (const x of docs) if (x.raison === 'jointe' && x.jointe) jointes.set(x.jointe, { ...x, doc: true });
@@ -4207,7 +4235,8 @@
     }
     // Les pièces reçues du client.
     for (const [p, classee] of [...aClasser.map(p => [p, false]), ...classees.map(p => [p, true])]) {
-      const m = moisDePiece(p.recueLe);
+      // (1.173.0) Rangée par le cabinet dans un autre mois : elle y reste, sa date d'arrivée écrite sur sa ligne.
+      const m = p.mois || moisDePiece(p.recueLe);
       if (!m.startsWith(annee)) continue;
       const g = genrePiece(p);
       if (g === 'releve' && items.some(x => x.sorte === 'releve' && x.p === p)) continue;
@@ -4232,7 +4261,7 @@
       } else if (p.raison === 'illisible') {
         etat = ['rouge', 'illisible', 'traiter']; em = `marquée illisible par ${par}${p.note ? ` et redemandée à ${prenom}` : ''} le ${jjmm(le)}`; geste = { lib: `Relancer ${prenom}`, act: 'relancer' };
       } else if (p.raison === 'double') {
-        etat = ['gris', 'en double', 'ordre']; em = `classée en double par ${par} le ${jjmm(le)} : hors du compte`;
+        etat = ['gris', 'en double', 'ordre']; em = `${p.double ? `la même que ${nomJumelle(p.double)} · ` : ''}classée en double par ${par} le ${jjmm(le)} : hors du compte`;
       } else if (p.raison === 'verifiee') {
         etat = ['ok', 'vérifiée', 'ordre']; em = `vérifiée par ${par} le ${jjmm(le)}`; num = achat; numE = eAchat ? eAchat.id : '';
       } else if (p.raison === 'rien') {
@@ -4240,8 +4269,9 @@
       } else if (p.raison === 'client') {
         etat = ['ok', 'saisie par le client', 'ordre']; em = `${prenom} la saisit lui-même`;
       } else { etat = ['gris', 'classée', 'ordre']; }
-      items.push({ k: `p:${p.id}`, sorte: 'piece', p, classee, rub: g === 'releve' ? 'banque' : 'achats', mois: m, date: p.recueLe, recue: true, titre: p.fichier.nom,
-        sous: [p.texte ? `« ${String(p.texte).slice(0, 90)} »` : '', p.demande ? `répond à « ${p.demande} »` : ''].filter(Boolean).join(' · '), em, montant: null, etat, geste, num, numE, photo: !/pdf/.test(p.fichier.type) });
+      items.push(avecLecture({ k: `p:${p.id}`, sorte: 'piece', p, classee, rub: g === 'releve' ? 'banque' : 'achats', mois: m, date: p.recueLe, recue: true, titre: p.fichier.nom,
+        sous: [p.texte ? `« ${String(p.texte).slice(0, 90)} »` : '', p.demande ? `répond à « ${p.demande} »` : ''].filter(Boolean).join(' · '), em, montant: null, etat, geste, num, numE, photo: !/pdf/.test(p.fichier.type),
+        jumelle: p.double ? `${p.double.sorte === 'message' ? 'p' : 'd'}:${p.double.id}` : '' }));
     }
     // Les pièces déposées par le cabinet (« Déposer des pièces »).
     for (const x of docs.filter(y => y.rubrique === 'piece')) {
@@ -4252,9 +4282,22 @@
       }
       const le = jourTunisCl(x.deposeLe);
       const fait = x.raison ? ({ saisie: ['ok', 'saisie', 'ordre'], verifiee: ['ok', 'vérifiée', 'ordre'], rien: ['gris', 'gardée, rien à saisir', 'ordre'], double: ['gris', 'en double', 'ordre'], illisible: ['rouge', 'illisible', 'traiter'], banque: ['ok', 'rapprochée', 'ordre'] })[x.raison] : null;
-      items.push({ k: `d:${x.id}`, sorte: 'doc', doc: x, classee: !!x.raison, rub: /relev/i.test(`${x.titre} ${x.fichier.nom}`) ? 'banque' : 'achats', mois: x.periode, date: x.deposeLe, recue: true,
-        titre: x.titre, sous: x.detail || '', em: `déposée ${le === K.today() ? 'aujourd\'hui' : `le ${jjmm(le)}`} par ${prenomCl(x.deposeNom) || 'le cabinet'}${x.provenance ? ` (${x.provenance})` : ''}`,
-        montant: null, etat: fait || ['ambre', 'à saisir', 'traiter'], geste: fait ? null : { lib: 'Saisir', act: 'saisir' }, photo: !/pdf/.test(x.fichier.type) });
+      items.push(avecLecture({ k: `d:${x.id}`, sorte: 'doc', doc: x, classee: !!x.raison, rub: /relev/i.test(`${x.titre} ${x.fichier.nom}`) ? 'banque' : 'achats', mois: x.periode, date: x.deposeLe, recue: true,
+        titre: x.titre, sous: x.detail || '', em: `${x.double ? `la même que ${nomJumelle(x.double)} · ` : ''}déposée ${le === K.today() ? 'aujourd\'hui' : `le ${jjmm(le)}`} par ${prenomCl(x.deposeNom) || 'le cabinet'}${x.provenance ? ` (${x.provenance})` : ''}`,
+        montant: null, etat: fait || ['ambre', 'à saisir', 'traiter'], geste: fait ? null : { lib: 'Saisir', act: 'saisir' }, photo: !/pdf/.test(x.fichier.type),
+        jumelle: x.double ? `${x.double.sorte === 'message' ? 'p' : 'd'}:${x.double.id}` : '' }));
+    }
+    // (1.173.0) Une pièce à saisir qui répète une autre (le même fichier, ou la même lecture : fournisseur, numéro, total) :
+    // « en double ? », et son geste la marque en double de celle-là. Deux pièces lues pareil, c'est ce que la page dit ;
+    // le cabinet décide.
+    const memeFichier = (a, b) => { const fa = a.p ? a.p.fichier : a.doc && a.doc.fichier, fb = b.p ? b.p.fichier : b.doc && b.doc.fichier; return !!(fa && fb && fa.nom === fb.nom && fa.taille && fa.taille === fb.taille); };
+    const memeLecture = (a, b) => { const la = lus.get(a.k), lb = lus.get(b.k); return !!(la && lb && la.total && la.total === lb.total && la.fournisseur && sansAccentsCl(la.fournisseur) === sansAccentsCl(lb.fournisseur) && (la.numero || '') === (lb.numero || '')); };
+    for (const x of items) {
+      if (x.etat[2] !== 'traiter' || x.etat[1] === 'illisible' || !(x.p || x.doc) || x.sorte === 'releve') continue;
+      const j = items.find(y => y !== x && (y.p || y.doc) && y.etat[1] !== 'en double' && (memeFichier(x, y) || memeLecture(x, y)) && (y.etat[2] !== 'traiter' || String(y.date) < String(x.date)));
+      if (!j) continue;
+      Object.assign(x, { etat: ['ambre', 'en double ?', 'traiter'], jumelle: j.k, doubleProbable: memeFichier(x, j) ? 'fichier' : 'lecture',
+        em: `la même que ${j.titre}${j.num ? ` (${j.num})` : ''} ?`, geste: { lib: 'Marquer en double', act: 'double' } });
     }
     return items;
   }
@@ -4315,14 +4358,15 @@
       <label class="field">Ce que tu demandes<textarea rows="4" id="dm-texte" maxlength="1000" spellcheck="false">${esc(texte)}</textarea></label>
       ${li ? `<label class="cd-cb on"><input type="checkbox" id="dm-ligne" checked><span><b>Joindre la ligne du relevé</b><small>${esc(prenom || 'Le client')} voit la ligne du ${jjmm(li.date)}, rien d'autre de son relevé</small></span></label>` : ''}
       <div class="cl-dm-g"><span class="field">Pour quand</span><div class="tb-rel-q" role="group" aria-label="Pour quand" id="dm-pour">${dates.map((j, i) => `<button type="button" aria-pressed="${i === 0}" data-j="${j}">${j ? esc(jourCourt(j)) : 'sans date'}</button>`).join('')}</div>
-        <span class="field">Par où</span><div class="tb-rel-q" role="group" aria-label="Par où" id="dm-par"><button type="button" aria-pressed="true" data-p="conv">Conversation SkanFact</button><button type="button" aria-pressed="false" data-p="wa"${tel ? '' : ' disabled title="Aucun téléphone sur la fiche du dossier"'}>WhatsApp</button><button type="button" aria-pressed="false" data-p="mail"${mail ? '' : ' disabled title="Aucune adresse e-mail sur la fiche du dossier"'}>E-mail</button></div></div>
+        <span class="field">Par où</span><div class="tb-rel-q" role="group" aria-label="Par où" id="dm-par"><button type="button" aria-pressed="true" data-p="conv">Conversation SkanFact</button><button type="button" aria-pressed="false" data-p="wa"${tel ? '' : ' disabled title="Aucun téléphone sur la fiche du dossier"'}>WhatsApp</button><button type="button" aria-pressed="false" data-p="mail"${mail ? '' : ' disabled title="Aucune adresse e-mail sur la fiche du dossier"'}>E-mail par SkanFact</button></div></div>
       <p class="tb-rel-h" id="dm-aide">${CL_IC.info}<span>La demande se range dans ${esc(moisLong(item.mois || aujourdhui.slice(0, 7)))}, à la place du trou. Quand ${esc(prenom || 'le client')} répond, sa photo arrive dans Pièces reçues, et se range ici.</span></p>
       <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="ok">Envoyer la demande</button></div>`,
     (layer, close) => {
       $('.modal', layer).classList.add('tb-fen', 'cd-fen');
       $$('[data-close]', layer).forEach(b => { b.onclick = close; });
       const aide = { conv: `La demande se range dans ${moisLong(item.mois || aujourdhui.slice(0, 7))}, à la place du trou. Quand ${prenom || 'le client'} répond, sa photo arrive dans Pièces reçues, et se range ici.`,
-        wa: 'WhatsApp s\'ouvre avec le message prêt : tu l\'envoies de ton téléphone. La relance est notée sur la fiche du dossier.', mail: 'Ta messagerie s\'ouvre avec le message prêt. La relance est notée sur la fiche du dossier.' };
+        wa: 'WhatsApp s\'ouvre avec le message prêt : tu l\'envoies de ton téléphone. La relance est notée sur la fiche du dossier.',
+        mail: `SkanFact l'envoie par e-mail à ${mail}, avec un lien vers son espace ; la demande se range aussi dans votre conversation, à la place du trou. Ce qui part : l'adresse, le nom du cabinet, ce texte. Rien d'autre.` };
       $$('#dm-pour button', layer).forEach(b => { b.onclick = () => { pour = b.dataset.j; $$('#dm-pour button', layer).forEach(x => x.setAttribute('aria-pressed', String(x === b))); }; });
       $$('#dm-par button', layer).forEach(b => { b.onclick = () => { par = b.dataset.p; $$('#dm-par button', layer).forEach(x => x.setAttribute('aria-pressed', String(x === b))); $('#dm-aide span', layer).textContent = aide[par]; }; });
       $('#ok', layer).onclick = async () => {
@@ -4331,14 +4375,18 @@
         if (li && $('#dm-ligne', layer) && $('#dm-ligne', layer).checked && !t.includes(jjmm(li.date))) t += `\n(Relevé du ${jjmm(li.date)} : ${li.libelle}, ${dtCd(Math.abs(Number(li.montant)))} DT)`;
         $('#ok', layer).disabled = true;
         try {
-          if (par === 'conv') {
-            await api.classeur.demander(d.id, t, String(item.titre).replace(/^[^·]*·\s*/, '').slice(0, 300) || 'Une pièce', pour || null);
-            close(); toast(`Demande envoyée à ${prenom || d.name}${pour ? `, pour le ${jjmm(pour)}` : ''} : elle attend dans ${moisLong(item.mois || aujourdhui.slice(0, 7))}.`);
+          if (par === 'conv' || par === 'mail') {
+            const m = await api.classeur.demander(d.id, t, String(item.titre).replace(/^[^·]*·\s*/, '').slice(0, 300) || 'Une pièce', pour || null);
+            let parMail = '';
+            if (par === 'mail') {
+              try { await api.classeur.courriel(d.id, m.id); parMail = ` par e-mail (${mail}) et`; } catch (x2) { close(); toast(`La demande est dans votre conversation ; l'e-mail n'est pas parti : ${plainError(x2)}`, 'error'); await apresGesteCl(d); return; }
+            }
+            close(); toast(`Demande envoyée à ${prenom || d.name}${parMail} dans votre conversation${pour ? `, pour le ${jjmm(pour)}` : ''} : elle attend dans ${moisLong(item.mois || aujourdhui.slice(0, 7))}.`);
             await apresGesteCl(d);
           } else {
-            window.open(par === 'wa' ? `https://wa.me/${tel.length === 8 ? `216${tel}` : tel}?text=${encodeURIComponent(t)}` : `mailto:${encodeURIComponent(mail)}?subject=${encodeURIComponent(`Une pièce pour ton dossier`)}&body=${encodeURIComponent(t)}`, '_blank');
-            S = await api.noteRelance(d.id, item.mois ? [item.mois] : [], par === 'wa' ? 'whatsapp' : 'email', t.slice(0, 500));
-            close(); toast(`Relance notée sur la fiche de ${d.name} : ${par === 'wa' ? 'par WhatsApp' : 'par e-mail'}.`);
+            window.open(`https://wa.me/${tel.length === 8 ? `216${tel}` : tel}?text=${encodeURIComponent(t)}`, '_blank');
+            S = await api.noteRelance(d.id, item.mois ? [item.mois] : [], 'whatsapp', t.slice(0, 500));
+            close(); toast(`Relance notée sur la fiche de ${d.name} : par WhatsApp.`);
             redessinerCl(d);
           }
         } catch (x) { $('#ok', layer).disabled = false; toast(plainError(x), 'error'); }
@@ -4401,6 +4449,104 @@
     });
   }
 
+  // (1.173.0) La lecture, jouée sur la pièce : un voile, une raie qui la balaie, des repères qui s'allument là où l'IA
+  // regarde, et les quatre cases (fournisseur, numéro, date, total) qui s'éveillent l'une après l'autre, puis se
+  // remplissent de ce qui a été lu. Rien n'est inventé : les cases restent « … » tant que la réponse n'est pas là.
+  function sceneLectureCl(lit) {
+    const r = lit.r || {};
+    const champs = [['Le fournisseur', r.fournisseur], ['Le numéro', r.numero], ['La date', r.date ? jjmmaaCl(r.date) : ''], ['Le total', r.total ? `${String(r.total).replace('.', ',')} ${!r.devise || r.devise === 'TND' ? 'DT' : r.devise}` : '']];
+    const trouve = lit.etape === 'trouve';
+    return `<div class="cl-ia-scene" role="status" aria-live="polite"><span class="cl-ia-raie" aria-hidden="true"></span><span class="cl-ia-points" aria-hidden="true">${[[18, 14], [62, 11], [40, 27], [76, 34], [24, 42], [55, 50], [33, 62]].map(([x, y], i) => `<i style="--i:${i};--x:${x}%;--y:${y}%"></i>`).join('')}</span>
+      <ul class="cl-ia-champs">${champs.map(([n, v], i) => `<li style="--i:${i}"${trouve ? ` class="${v ? 'ok' : 'vide'}"` : ''}><small>${esc(n)}</small><b>${trouve ? esc(v || 'ne se lit pas') : '<span class="cl-ia-luit"></span>'}</b></li>`).join('')}</ul>
+      <p class="cl-ia-etat">${CL_IC.ia}<span>${trouve ? 'Lue : à vérifier sur la pièce' : 'SkanFact lit la pièce…'}</span></p></div>`;
+  }
+
+  // (1.173.0) Lire une pièce avec l'IA : ce qui part (le fichier seul), ce qui revient, et l'accord du client — la même
+  // règle que la lecture de ses achats (Skander, 29/10/2026). Confirmé pour CE fichier.
+  function fenLireCl(d, x) {
+    const qui = prenomCl(d.contact) || 'Le client';
+    modal(`<div class="tb-rel-t"><span class="cd-ic cl-ia-fond">${CL_IC.ia}</span><span><h2 id="lu-t">Lire ${esc(nomFichierCl(x))} avec l'IA</h2><small>${esc(d.name)} · le fournisseur, le numéro, la date et le total</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
+      <ul class="cl-dep-l"><li>${CL_IC.ok}<span><b>Ce qui part :</b> le fichier, rien d'autre, chez l'IA de Claude (Anthropic), <b>hors de Tunisie</b>. Ni le nom de ${esc(d.name)}, ni celui du cabinet.</span></li>
+        <li>${CL_IC.ok}<span><b>Ce qui revient :</b> le fournisseur, le numéro, la date et le total, gardés pour le cabinet. Rien ne se saisit sans toi : tu vérifies sur la pièce.</span></li>
+        <li>${CL_IC.ok}<span>${esc(qui)} a laissé la lecture de ses pièces ouverte dans ses réglages, et peut la couper à tout moment.</span></li></ul>
+      <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary cl-ia-btn" id="ok">${CL_IC.ia}Lire la pièce</button></div>`,
+    (layer, close) => {
+      $('.modal', layer).classList.add('tb-fen', 'cd-fen');
+      $$('[data-close]', layer).forEach(b => { b.onclick = close; });
+      $('#ok', layer).onclick = async () => {
+        // La fenêtre se ferme : la lecture se joue sur la pièce elle-même, à droite (la raie, puis chaque case trouvée).
+        close();
+        clState.lit = { k: x.k, etape: 'cours', r: null };
+        redessinerCl(d);
+        const debut = Date.now();
+        try {
+          const r = await api.classeur.lire(d.id, x.p ? 'message' : 'document', x.p ? x.p.id : x.doc.id);
+          // Assez longtemps pour se voir (une lecture instantanée ne dit pas qu'elle a lu), jamais plus que la lecture.
+          await new Promise(ok => setTimeout(ok, Math.max(0, 1600 - (Date.now() - debut))));
+          clState.lit = { k: x.k, etape: 'trouve', r };
+          redessinerCl(d);
+          await new Promise(ok => setTimeout(ok, 1500));
+          clState.lit = null;
+          toast(r.fournisseur || r.total ? `Lue : ${[r.fournisseur, r.total ? `${r.total.replace('.', ',')} ${r.devise === 'TND' || !r.devise ? 'DT' : r.devise}` : ''].filter(Boolean).join(', ')}. À vérifier sur la pièce.` : 'Lue : ni le fournisseur ni le total ne se lisent sur cette pièce.');
+          await chargerLecturesCl(d, true);
+        } catch (err) { clState.lit = null; redessinerCl(d); toast(plainError(err), 'error'); }
+      };
+    });
+  }
+
+  // (1.173.0) Marquer en double EN NOMMANT la jumelle : la pièce probable d'abord, puis les autres du mois et de ses voisins.
+  function fenDoubleCl(d, x, tous, fait) {
+    const proche = y => Math.abs(Date.parse(`${y.mois}-15`) - Date.parse(`${x.mois}-15`));
+    const cands = tous.filter(y => y !== x && (y.p || (y.doc && y.sorte !== 'trou')) && y.sorte !== 'releve' && y.etat[1] !== 'en double' && proche(y) <= 62 * 86_400_000)
+      .sort((a, b) => (a.k === x.jumelle ? -1 : b.k === x.jumelle ? 1 : 0) || proche(a) - proche(b)).slice(0, 12);
+    modal(`<div class="tb-rel-t"><span class="cd-ic">${CL_IC.pdf}</span><span><h2 id="db-t">${esc(nomFichierCl(x))} est en double de quelle pièce ?</h2><small>Elle sort du compte ${esc(deMois(x.mois))} sans être effacée ; l'autre reste</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
+      ${cands.length ? `<ul class="cl-dp-l">${cands.map((c, i) => `<li><span class="cl-l-i ${c.photo ? 'photo' : 'pdf'}">${CL_IC[c.photo ? 'photo' : 'pdf']}</span><span><b>${esc(c.titre)}</b><small>${esc([cap(moisLong(c.mois)), c.num, c.montant ? `${dtCd(c.montant)} DT` : '', c.etat[1]].filter(Boolean).join(' · '))}</small></span><span class="cl-dp-ou"><button type="button" class="btn btn-sm${i === 0 && c.k === x.jumelle ? ' btn-primary' : ''}" data-j="${i}">C'est la même</button></span></li>`).join('')}</ul>`
+        : `<p class="muted">Aucune autre pièce de ${esc(moisLong(x.mois))} ni de ses voisins.</p>`}
+      <div class="modal-actions"><button type="button" class="btn-lien" id="db-sans">Marquer en double sans la nommer</button><button type="button" class="btn" data-close>Annuler</button></div>`,
+    (layer, close) => {
+      $('.modal', layer).classList.add('tb-fen', 'cd-fen');
+      $$('[data-close]', layer).forEach(b => { b.onclick = close; });
+      $$('[data-j]', layer).forEach(b => { b.onclick = () => { close(); fait(cands[Number(b.dataset.j)]); }; });
+      $('#db-sans', layer).onclick = () => { close(); fait(null); };
+    });
+  }
+
+  // (1.173.0) Ranger une pièce dans un autre mois (rangée au mauvais endroit) : elle garde sa date d'arrivée ; rien ne
+  // s'écrit dans ses livres. Le mois choisi s'écrit toujours, même celui de son arrivée : sans lui, la règle du classeur
+  // la remettrait dans le mois d'avant, tant qu'il n'est pas déposé.
+  function fenMoisCl(d, x) {
+    const mois = [];
+    for (let m = K.today().slice(0, 7), i = 0; i < 15; i++, m = moisPrecedent(m)) if (!d.from || m >= d.from.slice(0, 7)) mois.push(m);
+    const arrivee = x.p ? moisTunisCl(x.p.recueLe) : '';
+    const rub = (CL_RUBS.find(([r]) => r === x.rub) || ['', ''])[1];
+    modal(`<div class="tb-rel-t"><span class="cd-ic">${CL_IC.classeur}</span><span><h2 id="mo-t">Déplacer ${esc(nomFichierCl(x))} dans un autre mois</h2><small>${esc(x.titre)}${x.montant ? ` · ${esc(dtCd(x.montant))} DT` : ''}${x.p ? ` · reçue le ${esc(jjmm(jourTunisCl(x.p.recueLe)))}` : ''}</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
+      <label class="field">Son mois<span class="sel cd-selw"><select id="mo-m">${mois.map(m => `<option value="${m}"${m === x.mois ? ' selected' : ''}>${esc(cap(moisLong(m)))} ${m.slice(0, 4)}${m === arrivee ? ' · le mois de son arrivée' : ''}</option>`).join('')}</select></span></label>
+      <div class="cl-dep" id="mo-avap"></div>
+      <ul class="cl-dep-l"><li>${CL_IC.ok}<span>Elle garde sa date d'arrivée${x.p ? ` (le ${esc(jjmm(jourTunisCl(x.p.recueLe)))})` : ''}, écrite sur sa ligne.</span></li><li>${CL_IC.ok}<span>Rien ne s'écrit dans ses livres : sa saisie se fait à la date de la pièce.</span></li></ul>
+      <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="ok" disabled>Déplacer</button></div>`,
+    (layer, close) => {
+      $('.modal', layer).classList.add('tb-fen', 'cd-fen');
+      $$('[data-close]', layer).forEach(b => { b.onclick = close; });
+      const maj = () => {
+        const m = $('#mo-m', layer).value;
+        $('#ok', layer).disabled = m === x.mois;
+        $('#ok', layer).textContent = m === x.mois ? 'Déplacer' : `Déplacer en ${moisLong(m)}`;
+        $('#mo-avap', layer).innerHTML = `<span><small>Aujourd'hui</small><b>${esc(cap(moisLong(x.mois)))} ${x.mois.slice(0, 4)} › ${esc(rub)}</b></span><i aria-hidden="true">→</i><span class="ok"><small>Après</small><b>${esc(cap(moisLong(m)))} ${m.slice(0, 4)} › ${esc(rub)}</b></span>`;
+      };
+      $('#mo-m', layer).onchange = maj; maj();
+      $('#ok', layer).onclick = async () => {
+        const m = $('#mo-m', layer).value;
+        $('#ok', layer).disabled = true;
+        try {
+          await api.classeur.mois(d.id, x.p ? 'message' : 'document', x.p ? x.p.id : x.doc.id, m);
+          close(); toast(`${nomFichierCl(x)} est rangée dans ${moisLong(m)}.`);
+          clState.mois = m; clState.sel = x.k;
+          await apresGesteCl(d, { docs: !!x.doc });
+        } catch (err) { $('#ok', layer).disabled = false; toast(plainError(err), 'error'); }
+      };
+    });
+  }
+
   // Déposer des pièces : ce que le client a donné en main propre, par e-mail ou par WhatsApp ; rangées dans un mois.
   function fenDeposerCl(d, moisDefaut, opts = {}) {
     const prenom = prenomCl(d.contact) || 'le client';
@@ -4427,7 +4573,7 @@
         ${rubrique === 'permanent' ? `<label class="field">La rubrique<span class="sel cd-selw"><select id="dp-c">${CL_CATS.map(([k, n]) => `<option value="${k}"${k === opts.categorie ? ' selected' : ''}>${esc(n)}</option>`).join('')}</select></span></label>` : ''}
         <label class="field">Un détail<input type="text" id="dp-detail" maxlength="300" placeholder="${rubrique === 'courrier' ? 'reçu le 02/07, répondu le 03/07' : 'du 12/01/2026 · le gérant et ses pouvoirs'}"></label>
         ${rubrique === 'permanent' ? '<label class="field">Valable jusqu\'au<input type="date" id="dp-e"></label>' : ''}</div>`}
-      <p class="tb-rel-h">${CL_IC.info}<span>${rubrique === 'piece' ? 'Les pièces se rangent dans le mois choisi, à saisir ; Achats, ou Banque pour un relevé. ' : ''}Un document rangé ne s'efface jamais ; il se classe ou se remplace. Il reste au cabinet : ${esc(prenom)} ne le lit pas ici.</span></p>
+      <p class="tb-rel-h">${CL_IC.info}<span>${rubrique === 'piece' ? 'Les pièces se rangent dans le mois choisi, à saisir ; Achats, ou Banque pour un relevé. ' : ''}${d.manual ? 'Tenu au cabinet : il reste ici.' : `${esc(prenom)} voit dans « Mon comptable » ce que son cabinet a rangé pour lui.`} Une pièce rangée ne s'efface jamais ; elle se classe ou se remplace.</span></p>
       <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="ok" disabled title="Ajoute d'abord des fichiers">Déposer</button></div>`,
     (layer, close) => {
       $('.modal', layer).classList.add('tb-fen', 'cd-fen');
@@ -4503,7 +4649,8 @@
     modal(`<div class="tb-rel-t"><span class="cd-ic">${CL_IC.bas}</span><span><h2 id="ex-t">Exporter le classeur de ${esc(d.name)}</h2><small>Pour un contrôle fiscal, la banque, un autre cabinet ou tes archives</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
       <span class="field">Quoi</span><div class="tb-rel-q" role="group" aria-label="Quoi" id="ex-q">${QUOI.map(([k, n]) => `<button type="button" aria-pressed="${k === quoi}" data-q="${k}">${esc(n)}</button>`).join('')}</div>
       <div class="cd-cbs" id="ex-c">${[['pieces', 'Les pièces, rangées comme ici', `${annee} › ${mois.slice(5, 7)} ${cap(moisLong(mois))} › Achats › la pièce`], ['fec', 'Le fichier des écritures (FEC)', 'le format qu\'un vérificateur demande (À VÉRIFIER pour la Tunisie)'], ['index', 'Un index en PDF', 'chaque pièce, son écriture, sa déclaration'], ['decl', 'Les déclarations et leurs accusés', 'le formulaire, l\'accusé, le paiement']].map(([k, b, s]) => `<label class="cd-cb on"><input type="checkbox" data-c="${k}" checked><span><b>${esc(b)}</b><small>${esc(s)}</small></span></label>`).join('')}</div>
-      <p class="tb-rel-h">${CL_IC.info}<span>Le fichier ZIP s'écrit sur ce poste, puis se télécharge : rien ne part ailleurs. Seules les écritures validées entrent dans le FEC.</span></p>
+      <div id="ex-recents"></div>
+      <p class="tb-rel-h">${CL_IC.info}<span>Le fichier ZIP s'écrit sur ce poste, se télécharge, et se garde 7 jours sur le serveur de SkanFact pour un lien ; passé 7 jours, il s'efface. Seules les écritures validées entrent dans le FEC.</span></p>
       <div class="modal-actions"><span class="tb-rel-res" id="ex-res"></span><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="ok">Préparer l'export</button></div>`,
     (layer, close) => {
       $('.modal', layer).classList.add('tb-fen', 'cd-fen');
@@ -4517,6 +4664,14 @@
       $$('#ex-q button', layer).forEach(b => { b.onclick = () => { quoi = b.dataset.q; $$('#ex-q button', layer).forEach(x => x.setAttribute('aria-pressed', String(x === b))); res(); }; });
       $$('#ex-c input', layer).forEach(c => { c.onchange = () => { prends[c.dataset.c] = c.checked; c.closest('.cd-cb').classList.toggle('on', c.checked); }; });
       res();
+      // (1.173.0) Les exports encore ouverts (7 jours) : on les reprend sans tout refaire.
+      api.classeur.exports(d.id).then(r => {
+        const l = (r && r.exports) || [];
+        const z = $('#ex-recents', layer);
+        if (!l.length || !z || !layer.isConnected) return;
+        z.innerHTML = `<span class="field">Déjà préparés, encore ouverts</span><ul class="cl-dp-l">${l.slice(0, 4).map((x, i) => `<li><span class="cl-l-i classeur">${CL_IC.classeur}</span><span><b>${esc(x.nom)}</b><small>${esc([x.quoi, tailleTxt(x.taille), `par ${prenomCl(x.creePar) || 'le cabinet'} le ${jjmm(jourTunisCl(x.creeLe))}`, `jusqu'au ${jjmm(jourTunisCl(x.expireLe))}`].join(' · '))}</small></span><span class="cl-dp-ou"><button type="button" class="btn btn-sm" data-exp="${i}">Télécharger</button></span></li>`).join('')}</ul>`;
+        $$('[data-exp]', z).forEach(b => { b.onclick = () => ouvrirExportCl(d, l[Number(b.dataset.exp)].id); });
+      }, () => null);
       $('#ok', layer).onclick = async () => {
         $('#ok', layer).disabled = true; $('#ok', layer).textContent = 'Préparation…';
         try {
@@ -4576,17 +4731,41 @@
     const nom = `${String(d.name).replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '')}_${racine}.zip`;
     return { nom, zip, taille: zip.length, pieces, fec, fichiers: fichiers.length, decl: fichiers.filter(f => f.chemin.startsWith('Déclarations/')).length, quoi: o.quoi, annee: o.annee, mois: o.mois };
   }
+  // (1.173.0) L'export prêt : il part aussi sur le serveur, gardé 7 jours, pour un lien qu'on ouvre ou qu'on transmet à
+  // une personne du cabinet ; l'export est noté dans l'historique du dossier. Sans réseau, ou trop lourd : il reste sur ce
+  // poste, et la fenêtre le dit.
   function fenExporteCl(d, r) {
-    const quand = new Date().toISOString();
-    modal(`<div class="tb-rel-t"><span class="cd-ic ok">${CL_IC.ok}</span><span><h2 id="ex2-t">L'export est prêt</h2><small>${esc(d.name)} · ${esc(r.quoi === 'tout' ? 'tout le dossier' : r.quoi === 'mois' ? `${moisLong(r.mois)} ${r.mois.slice(0, 4)}` : r.quoi === 'permanent' ? 'le dossier permanent' : `l'exercice ${r.annee}`)}</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
+    const quoiTxt = r.quoi === 'tout' ? 'tout le dossier' : r.quoi === 'mois' ? `${moisLong(r.mois)} ${r.mois.slice(0, 4)}` : r.quoi === 'permanent' ? 'le dossier permanent' : `l'exercice ${r.annee}`;
+    const jourLong = iso => new Date(iso).toLocaleDateString('fr-FR', { weekday: 'long', day: '2-digit', month: '2-digit', timeZone: 'Africa/Tunis' });
+    modal(`<div class="tb-rel-t"><span class="cd-ic ok">${CL_IC.ok}</span><span><h2 id="ex2-t">L'export est prêt</h2><small>${esc(d.name)} · ${esc(quoiTxt)}</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
       <div class="cl-exp"><span class="cl-l-i classeur">${CL_IC.classeur}</span><span><b>${esc(r.nom)}</b><small>${esc(tailleTxt(r.taille))} · ${esc([pl(r.pieces, 'pièce'), r.fec ? 'le fichier des écritures' : '', 'l\'index', r.decl ? pl(r.decl, 'fichier de déclaration', 'fichiers de déclaration') : ''].filter(Boolean).join(', '))}</small></span></div>
-      <p class="tb-rel-h">${CL_IC.info}<span>Écrit sur ce poste ${esc(`à ${heureCl(quand)}`)} : il n'est gardé nulle part ailleurs. Télécharge-le, puis remets-le à qui le demande.</span></p>
-      <div class="modal-actions"><button type="button" class="btn" data-close>Fermer</button><button type="button" class="btn btn-primary" id="ok">${CL_IC.bas} Télécharger</button></div>`,
-    (layer, close) => {
-      $('.modal', layer).classList.add('tb-fen', 'cd-fen', 'cd-fen-s');
+      <p class="tb-rel-h" id="ex2-h">${CL_IC.horloge}<span>Le lien de 7 jours se prépare…</span></p>
+      <div class="modal-actions"><button type="button" class="btn" id="ex2-lien" disabled>Copier le lien</button><button type="button" class="btn btn-primary" id="ok">${CL_IC.bas} Télécharger</button></div>`,
+    async (layer, close) => {
+      $('.modal', layer).classList.add('tb-fen', 'cd-fen');
       $$('[data-close]', layer).forEach(b => { b.onclick = close; });
       $('#ok', layer).onclick = () => { api.classeur.enregistrer(r.nom, r.zip); toast(`${r.nom} téléchargé.`); };
+      const h = $('#ex2-h span', layer);
+      try {
+        const [e, moi] = await Promise.all([api.classeur.deposerExport(d.id, r.nom, cap(quoiTxt).slice(0, 100), r.zip), api.profil().catch(() => null)]);
+        if (!layer.isConnected) return;
+        h.textContent = `Le lien vaut 7 jours, jusqu'au ${jourLong(e.expireLe)}. L'export est noté dans l'historique du dossier : ${prenomCl(moi && moi.nom) || 'toi'}, aujourd'hui à ${heureCl(new Date().toISOString())}.`;
+        const b = $('#ex2-lien', layer);
+        b.disabled = false;
+        b.onclick = async () => {
+          const lien = api.classeur.lienExport(d.id, e.id);
+          try { await navigator.clipboard.writeText(lien); toast('Lien copié : il ouvre l\'export pour une personne du cabinet, connectée, pendant 7 jours.'); } catch { toast(`Le lien : ${lien}`); }
+        };
+      } catch (err) {
+        if (!layer.isConnected) return;
+        h.textContent = `Écrit sur ce poste à ${heureCl(new Date().toISOString())} : ${plainError(err)} Il n'est gardé nulle part ailleurs ; télécharge-le, puis remets-le à qui le demande.`;
+        $('#ex2-lien', layer).title = 'Le lien se prépare avec le réseau';
+      }
     });
+  }
+  // Un lien d'export ouvert (« #/dossier/<id>/classeur/export/<export> ») : le fichier se télécharge, puis le classeur.
+  async function ouvrirExportCl(d, id) {
+    try { await api.classeur.ouvrirExport(d.id, id); toast('L\'export est téléchargé.'); } catch (err) { toast(plainError(err), 'error'); }
   }
 
   // La présence sur une pièce ouverte (serveur/v10/presence.ts) : l'identifiant de la pièce et « j'écris » (non), toutes
@@ -4627,6 +4806,7 @@
     if (!clState.classees) void chargerClasseesCl(d);
     void chargerExercicesCl(d);
     void chargerDocsCl(d);
+    void chargerLecturesCl(d);
     const D = clState.docs.get(d.id) || { documents: [], lectureSeule: null };
     const docs = (D.documents || []).filter(x => !x.remplacePar);
     const ls = D.lectureSeule;
@@ -4743,10 +4923,11 @@
       const it = [['grand', 'Ouvrir en grand', 'La pièce sur tout l\'écran'], ['telecharger', 'Télécharger', `Le fichier tel que ${x.doc ? 'il a été déposé' : `${qui} l'a envoyé`}`]];
       if (!x.classee && x.sorte === 'piece') it.push(['joindre', 'Joindre à un achat déjà saisi', candidatsDe(x).length ? `${candidatsDe(x)[0].num || candidatsDe(x)[0].titre} attend son justificatif` : 'Les achats de l\'année sans justificatif']);
       it.push(['remplacer', 'Remplacer par une meilleure photo', 'L\'ancienne reste dans l\'historique']);
-      if (!x.classee) it.push(['double', 'Marquer en double', 'Elle sort du compte, sans être effacée']);
+      if (x.sorte === 'piece' || (x.doc && x.doc.rubrique === 'piece')) it.push(['mois', 'Déplacer dans un autre mois', 'Si elle a été rangée au mauvais endroit']);
+      if (!x.classee) it.push(['double', 'Marquer en double', x.jumelle ? `La même que ${(items.find(y => y.k === x.jumelle) || {}).titre || 'une autre pièce'} ?` : 'Elle sort du compte, sans être effacée']);
       if (!d.manual) it.push(['demander', `Demander à ${qui}`, 'Un message dans votre conversation']);
       it.push(['historique', 'Voir son historique', 'Reçue, rangée, jointe : qui et quand']);
-      return `<div class="row-menu cl-menu" role="menu">${it.map(([k, l, h]) => `<button type="button" role="menuitem" data-cl-menu="${k}"${bloque && ['joindre', 'remplacer', 'double', 'demander'].includes(k) ? ` disabled title="${esc(bloque)}"` : ''}><span class="rm-t"><span class="rm-l">${esc(l)}</span><span class="rm-h">${esc(h)}</span></span></button>`).join('')}<p class="cl-menu-n">Une pièce reçue ne s'efface jamais : elle se classe, se remplace ou se marque.</p></div>`;
+      return `<div class="row-menu cl-menu" role="menu">${it.map(([k, l, h]) => `<button type="button" role="menuitem" data-cl-menu="${k}"${bloque && ['joindre', 'remplacer', 'double', 'demander', 'mois'].includes(k) ? ` disabled title="${esc(bloque)}"` : ''}><span class="rm-t"><span class="rm-l">${esc(l)}</span><span class="rm-h">${esc(h)}</span></span></button>`).join('')}<p class="cl-menu-n">Une pièce reçue ne s'efface jamais : elle se classe, se remplace ou se marque.</p></div>`;
     };
     const ligne = (x, avecGeste = false) => `<li class="cl-l${x.k === clState.sel ? ' ici' : ''}${x.etat[2] === 'traiter' ? ' a-faire' : ''}${x.sorte === 'trou' ? ' cl-trou' : ''}${x.attend ? ' cl-attend' : ''}" data-cl-k="${esc(x.k)}"${x.sorte === 'trou' ? '' : ' tabindex="0"'}>
         <span class="cl-l-i ${icone(x)}">${CL_IC[icone(x)] || ''}</span><span class="cl-l-t"><b>${esc(x.titre)}</b>${x.sous || x.em ? `<small>${esc(x.sous || '')}${x.sous && x.em ? ' · ' : ''}${x.em ? `<em${x.emOk ? ' class="ok"' : ''}>${esc(x.em)}</em>` : ''}</small>` : ''}</span>
@@ -4767,7 +4948,9 @@
     const sansJustif = items.filter(x => x.sorte === 'ecr' && x.etat[1] === 'sans justificatif');
     // Le fournisseur nommé dans le fichier ou le message passe devant ; puis le mois le plus proche.
     const nommeDans = (c, x) => { const t = sansAccentsCl(`${x.titre} ${x.sous || ''} ${(x.p && x.p.texte) || ''}`); return sansAccentsCl(c.titre).split(/[^a-z0-9]+/).some(w => w.length > 2 && t.includes(w)) ? 0 : 1; };
-    const candidatsDe = x => [...sansJustif].sort((a, b) => nommeDans(a, x) - nommeDans(b, x) || Math.abs(Date.parse(`${a.mois}-15`) - Date.parse(`${x.mois}-15`)) - Math.abs(Date.parse(`${b.mois}-15`) - Date.parse(`${x.mois}-15`)));
+    // (1.173.0) Une pièce lue : l'achat du même montant passe devant tout (la maquette : « un achat du même montant existe déjà »).
+    const memeMontant = (c, x) => x.montant && c.montant && Math.abs(Number(c.montant) - Number(x.montant)) < 0.0005;
+    const candidatsDe = x => [...sansJustif].sort((a, b) => (memeMontant(b, x) ? 1 : 0) - (memeMontant(a, x) ? 1 : 0) || nommeDans(a, x) - nommeDans(b, x) || Math.abs(Date.parse(`${a.mois}-15`) - Date.parse(`${x.mois}-15`)) - Math.abs(Date.parse(`${b.mois}-15`) - Date.parse(`${x.mois}-15`)));
 
     // ---------- le milieu ----------
     let milieu = '';
@@ -4965,6 +5148,10 @@
       const raison = p ? (sel.classee ? p.raison : '') : x.raison || '';
       const g = p ? genrePiece(p) : '';
       const eJ = p && p.jointe ? (livre.ecritures || []).find(y => y.id === p.jointe) : x && x.jointe ? (livre.ecritures || []).find(y => y.id === x.jointe) : null;
+      // (1.173.0) Une pièce en double (ou qui le semble) se montre à côté de sa jumelle (la maquette).
+      const jum = sel.jumelle ? tousItems.find(y => y.k === sel.jumelle) : null;
+      const figure = y => `<figure data-cl-fig="${esc(y.k)}"><div class="cl-pap-z pc-papier vide"><span>${hors ? 'avec le réseau' : 'Ouverture…'}</span></div><figcaption><b>${esc(nomFichierCl(y))}</b><small>${esc(y.k === sel.k ? (y.recue ? `reçue le ${jjmm(jourTunisCl(y.date))}` : jjmm(y.date)) : [y.num && y.etat[1] !== 'à saisir' ? `jointe à ${y.num}` : '', y.etat[1]].filter(Boolean)[0] || '')}</small></figcaption></figure>`;
+      const dbl = jum && (raison === 'double' || sel.etat[1] === 'en double ?') ? `<div class="cl-dbl">${figure(sel)}<span class="cl-dbl-eg" aria-hidden="true">=</span>${figure(jum)}</div>` : '';
       if (x && x.rubrique !== 'piece') {
         const echue = x.echeance && x.echeance < aujourdhui;
         const ou = x.rubrique === 'permanent' ? `Dossier permanent › ${(CL_CATS.find(([k]) => k === x.categorie) || ['', ''])[1]}` : x.rubrique === 'courrier' ? 'Les courriers' : `Déclaration ${deMois(x.periode)} ${String(x.periode).slice(0, 4)} › l'accusé de dépôt`;
@@ -4986,13 +5173,16 @@
         actions = `<button type="button" class="btn btn-sm" data-cl-ap="remplacer"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Remplacer par une autre photo</button>${p && !d.manual ? `<button type="button" class="btn btn-sm btn-primary" data-cl-ap="relancer"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Relancer ${esc(qui)}</button>` : ''}`;
         apres = `<p class="cl-ap-tip">${CL_IC.info}<span>La relance dit à ${esc(qui)} ce qui aide : <b>la facture à plat, en pleine lumière, en entier dans la photo</b>.</span></p>`;
       } else if (raison === 'double') {
-        bloc = `<div class="cl-ap-b ok"><b>Classée en double par ${esc(quiCl((p || x).classeePar))}, le ${esc(jjmm(jourTunisCl((p || x).classeeLe)))} à ${esc(heureCl((p || x).classeeLe))}</b><span>La même pièce est déjà arrivée : celle-ci ne compte pas dans ${esc(moisLong(sel.mois))}.</span></div>`;
+        bloc = `<div class="cl-ap-b ok"><b>Classée en double par ${esc(quiCl((p || x).classeePar))}, le ${esc(jjmm(jourTunisCl((p || x).classeeLe)))} à ${esc(heureCl((p || x).classeeLe))}</b><span>${jum ? `La même pièce que ${esc(jum.titre)}${jum.num ? ` (${esc(jum.num)})` : ''}` : 'La même pièce est déjà arrivée'} : celle-ci ne compte pas dans ${esc(moisLong(sel.mois))}.</span></div>`;
         actions = `<button type="button" class="btn btn-sm" data-cl-ap="declasser"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Ce ne sont pas les mêmes</button>`;
         apres = `<small class="cl-ap-n">Une pièce en double sort du compte ${esc(deMois(sel.mois))} sans être effacée : elle reste dans l'historique.</small>`;
       } else if (raison) {
         const mots = { saisie: 'Saisie', verifiee: 'Vérifiée', rien: 'Gardée, rien à saisir', banque: 'Rapprochée', client: 'Saisie par le client' };
         bloc = `<div class="cl-ap-b ok"><b>${esc(mots[raison] || 'Classée')} · par ${esc(quiCl((p || x).classeePar))} le ${esc(jjmm(jourTunisCl((p || x).classeeLe)))} à ${esc(heureCl((p || x).classeeLe))}</b><span>${raison === 'rien' ? 'Elle est gardée dans le classeur ; elle ne fait aucune écriture.' : raison === 'verifiee' ? `Elle correspond à l'achat que ${esc(qui)} a saisi.` : 'Son écriture est dans ses livres.'}</span></div>`;
         actions = `<button type="button" class="btn btn-sm btn-ghost" data-cl-ap="declasser"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>La remettre à traiter</button>`;
+      } else if (sel.etat[1] === 'en double ?' && jum) {
+        bloc = `<div class="cl-ap-b ambre"><b>Probablement la même pièce que ${esc(jum.titre)}</b><span>${sel.doubleProbable === 'fichier' ? 'Le même fichier (même nom, même taille) est déjà dans le classeur' : `Même fournisseur, même numéro, même montant${sel.montant ? ` (${esc(dtCd(sel.montant))} DT)` : ''}`} : marquée en double, elle sort du compte ${esc(deMois(sel.mois))} sans être effacée.</span></div>`;
+        actions = `<button type="button" class="btn btn-sm" data-cl-ap="saisir"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Ce ne sont pas les mêmes : la saisir</button><button type="button" class="btn btn-sm btn-primary" data-cl-ap="double"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Marquer en double</button>`;
       } else if (g === 'rangee') {
         const ach = String(p.achat || '').split(' · ')[0];
         const eA = (livre.ecritures || []).find(y => y.piece === ach);
@@ -5004,18 +5194,25 @@
         actions = `<a class="btn btn-sm btn-primary" href="#/dossier/${encodeURIComponent(d.id)}/comptabilite/banque">L'importer dans Banque</a>`;
       } else if (cands.length) {
         const c = cands[0];
-        bloc = `<div class="cl-ap-b ambre"><b>${cands.length > 1 ? `${pl(cands.length, 'achat attend', 'achats attendent')} encore ${cands.length > 1 ? 'leur' : 'son'} justificatif` : `Un achat ${esc(deMois(c.mois))} attend encore son justificatif`}</b><span>${esc(c.num || '')} · ${esc(c.titre)} · ${esc(jjmm(c.date))} · ${esc(dtCd(c.montant))} DT, saisi par ${esc(qui)} <b>sans justificatif</b>. Si cette pièce est la sienne, la joindre évite de compter la dépense deux fois.</span></div>`;
+        bloc = `<div class="cl-ap-b ambre"><b>${memeMontant(c, sel) ? 'Un achat du même montant existe déjà' : cands.length > 1 ? `${pl(cands.length, 'achat attend', 'achats attendent')} encore ${cands.length > 1 ? 'leur' : 'son'} justificatif` : `Un achat ${esc(deMois(c.mois))} attend encore son justificatif`}</b><span>${esc(c.num || '')} · ${esc(c.titre)} · ${esc(jjmm(c.date))} · ${esc(dtCd(c.montant))} DT, saisi par ${esc(qui)} <b>sans justificatif</b>. Si cette pièce est la sienne, la joindre évite de compter la dépense deux fois.</span></div>`;
         actions = `<button type="button" class="btn btn-sm" data-cl-ap="saisir">Saisir un nouvel achat</button><button type="button" class="btn btn-sm btn-primary" data-cl-ap="joindre" data-cl-c="${esc(c.k)}"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>Joindre à ${esc(c.num || c.titre)}</button>`;
         apres = tableE(c.e, `L'écriture de ${esc(c.num || '')}, ${c.e.statut === 'brouillard' ? 'au brouillard' : 'validée'}`) + (reglementDe(c.e) ? `<div class="cl-ap-r"><span class="cl-ap-l">Son règlement</span><small>${esc(reglementDe(c.e))}</small></div>` : '');
       } else {
         actions = `<button type="button" class="btn btn-sm btn-primary" data-cl-ap="saisir"${bloque ? ` disabled title="${esc(bloque)}"` : ''}>${p ? 'La saisir dans Pièces du dossier' : 'La saisir dans Écritures'}</button>`;
+      }
+      // (1.173.0) La lecture de la pièce : ce qu'elle dit, ou le bouton qui la lit (avec l'accord du client), ou pourquoi non.
+      const L = clState.lus.get(d.id) || {};
+      if (!raison && !['rangee', 'releve'].includes(g) && !(x && x.rubrique !== 'piece') && sel.sorte !== 'releve') {
+        if (sel.lu) bloc = `<div class="cl-ap-b cl-ia-lu"><b>${CL_IC.ia}Lue par SkanFact : ${esc(sel.lu.fournisseur || 'le fournisseur ne se lit pas')}</b><span>${esc([sel.lu.numero ? `facture n° ${sel.lu.numero}` : '', sel.lu.date ? `du ${jjmmaaCl(sel.lu.date)}` : '', sel.lu.total ? `${sel.lu.total.replace('.', ',')} ${!sel.lu.devise || sel.lu.devise === 'TND' ? 'DT' : sel.lu.devise}` : ''].filter(Boolean).join(' · ') || 'rien d\'autre ne se lit')}. À vérifier sur la pièce avant de la saisir.</span></div>${bloc}`;
+        else if (L.ia) actions = `<button type="button" class="btn btn-sm cl-ia-btn${clState.lit && clState.lit.k === sel.k ? ' cl-ia-encours' : ''}" data-cl-ap="lire"${bloque || clState.lit ? ` disabled title="${esc(bloque || 'La lecture est en cours')}"` : ''}>${CL_IC.ia}${clState.lit && clState.lit.k === sel.k ? 'Lecture en cours…' : 'Lire la pièce'}</button>${actions}`;
+        else if (L.coupee) apres += `<small class="cl-ap-n">${esc(cap(qui))} a coupé la lecture de ses pièces par l'IA dans ses réglages : celle-ci se lit à l'œil.</small>`;
       }
       if (p && p.texte && !bloc.includes('cl-rel')) bloc = `<div class="cl-ap-b"><b>${p.demande ? `Répond à ta demande : « ${esc(p.demande)} »` : `${esc(prenomCl(p.de))} a écrit`}</b><span>« ${esc(p.texte)} »</span></div>${bloc}`;
       // L'historique prend la place du reste (la maquette) : la pièce, puis qui en a fait quoi.
       if (clState.hist) { apres = histoireCl(sel, d, livre); bloc = ''; actions = ''; }
       ap = `<aside class="cl-ap" aria-label="La pièce">${tel ? '' : ''}<div class="cl-ap-t"><span class="cl-l-i ${sel.sorte === 'releve' ? 'banque' : sel.photo ? 'photo' : 'pdf'}">${CL_IC[sel.sorte === 'releve' ? 'banque' : sel.photo ? 'photo' : 'pdf']}</span><span><b>${esc(fic.nom)}</b><small>${/pdf/.test(fic.type) ? 'PDF' : 'photo'} · ${esc(tailleTxt(fic.taille))} · ${env}</small></span><button type="button" class="btn btn-sm btn-icone btn-ghost" id="cl-grand" aria-label="En grand"${hors ? ' disabled title="Le fichier s\'ouvre avec le réseau"' : ''}>${CL_IC.grand}</button></div>
         <p class="cl-pres" id="cl-pres" hidden></p>
-        ${sel.sorte === 'releve' ? '' : `<div class="cl-pap-z pc-papier vide${raison === 'illisible' ? ' cl-flou' : ''}" id="cl-papier"><span>${hors ? 'Le fichier s\'ouvre avec le réseau' : 'Ouverture de la pièce…'}</span></div>`}
+        ${sel.sorte === 'releve' ? '' : dbl || `<div class="cl-ia-cadre${clState.lit && clState.lit.k === sel.k ? ` lit ${clState.lit.etape}` : ''}"><div class="cl-pap-z pc-papier vide${raison === 'illisible' ? ' cl-flou' : ''}" id="cl-papier"><span>${hors ? 'Le fichier s\'ouvre avec le réseau' : 'Ouverture de la pièce…'}</span></div>${clState.lit && clState.lit.k === sel.k ? sceneLectureCl(clState.lit) : ''}</div>`}
         ${bloc}${actions ? `<div class="cl-ap-a">${actions}</div>` : ''}${apres}</aside>`;
     } else if (sel && sel.sorte === 'releve') {
       const r = sel.rel, reste = (r.lignes || []).filter(l => !l.rapprochement || l.rapprochement.niveau === 'aucun');
@@ -5098,6 +5295,21 @@
       if (!x) return;
       if (act === 'relance') { fenRelancer(d, itemsEcheances()); return; }
       if (act === 'demander') { fenDemanderCl(d, x); return; }
+      // (1.173.0) En double : de la jumelle repérée d'un geste ; sinon on la nomme dans une fenêtre.
+      if (act === 'double') {
+        const marquer = async jum => {
+          try {
+            const quoi = x.p ? 'message' : 'document', id = x.p ? x.p.id : x.doc.id;
+            if (jum) await api.classeur.doubler(d.id, quoi, id, jum.p ? 'message' : 'document', jum.p ? jum.p.id : jum.doc.id);
+            else if (x.p) await api.pieces.classer(d.id, x.p.id, true, 'double'); else await api.classeur.classer(d.id, x.doc.id, true, 'double');
+            toastUndo(`${nomFichierCl(x)} : marquée en double${jum ? ` de ${jum.titre}` : ''}, hors du compte.`, async () => { try { if (x.p) await api.pieces.classer(d.id, x.p.id, false); else await api.classeur.classer(d.id, x.doc.id, false); await apresGesteCl(d, { docs: !!x.doc }); } catch (err) { toast(plainError(err), 'error'); } });
+            await apresGesteCl(d, { docs: !!x.doc });
+          } catch (err) { toast(plainError(err), 'error'); }
+        };
+        const jum = x.jumelle ? tousItems.find(y => y.k === x.jumelle) : null;
+        if (jum && x.etat[1] === 'en double ?') await marquer(jum); else fenDoubleCl(d, x, tousItems, marquer);
+        return;
+      }
       if (act === 'rapprocher') { navigate(`#/dossier/${encodeURIComponent(d.id)}/comptabilite/banque`); return; }
       if (act === 'saisir' || act === 'ranger') {
         if (x.p) { pieceState.sel = x.p.id; pieceState.onglet = 'aclasser'; navigate(`#/pieces/${encodeURIComponent(d.id)}`); } else navigate(`#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie`);
@@ -5136,13 +5348,16 @@
       if (act === 'deplacer') { fenDeplacerCl(d, x, livre); return; }
       if (act === 'demander-j') { fenDemanderCl(d, { ...x, cible: x, titre: `${cap(moisLong(x.mois))} · le justificatif de ${x.num || x.titre}` }); return; }
       if (act === 'historique') { clState.hist = !clState.hist; re(); return; }
-      if (act === 'double') { try { if (x.p) await api.pieces.classer(d.id, x.p.id, true, 'double'); else await api.classeur.classer(d.id, x.doc.id, true, 'double'); toastUndo(`${x.titre} : marquée en double, hors du compte.`, async () => { if (x.p) await api.pieces.classer(d.id, x.p.id, false); else await api.classeur.classer(d.id, x.doc.id, false); await apresGesteCl(d, { docs: !!x.doc }); }); await apresGesteCl(d, { docs: !!x.doc }); } catch (err) { toast(plainError(err), 'error'); } return; }
+      if (act === 'double') { await faire(x, 'double'); return; }
+      if (act === 'lire') { fenLireCl(d, x); return; }
+      if (act === 'mois') { fenMoisCl(d, x); return; }
       await faire(x, act === 'saisir' ? 'saisir' : act);
     };
     $$('[data-cl-ap]', view).forEach(b => { b.onclick = () => surSel(b.dataset.clAp); });
     $$('[data-cl-menu]', view).forEach(b => { b.onclick = async e => {
       e.stopPropagation(); const act = b.dataset.clMenu; clState.menu = '';
       if (act === 'grand') { $('#cl-grand', view) && $('#cl-grand', view).click(); return; }
+      if (act === 'double') { re(); await faire(sel, 'double'); return; }
       if (act === 'joindre') { fenJoindreCl(d, sel, candidatsDe(sel), c => joindre(sel, c)); re(); return; }
       if (act === 'demander') { fenDemanderCl(d, { ...sel, titre: `${cap(moisLong(sel.mois))} · ${sel.titre}` }); re(); return; }
       await surSel(act); if (!['historique'].includes(act)) re();
@@ -5172,6 +5387,18 @@
           if (!zone.isConnected) return;
           zone.innerHTML = '<b>Ce fichier ne s\'ouvre pas ici</b><span>« En grand » l\'ouvre tel qu\'il est arrivé.</span>';
         }
+      })();
+      // Les deux pièces d'un double, côte à côte.
+      if (!hors) for (const fig of $$('[data-cl-fig]', view)) (async () => {
+        const y = tousItems.find(z => z.k === fig.dataset.clFig);
+        const zf = $('.cl-pap-z', fig);
+        try {
+          const f = await contenuCl(y);
+          let adresse = f.adresse;
+          if (/pdf/.test(f.type)) { const img = await api.pieces.apercuPdf(f.blob, 360, 1); if (!img) throw new Error('pdf'); adresse = img.adresse; } else if (!/^image\//.test(f.type)) throw new Error('type');
+          if (!fig.isConnected) return;
+          zf.classList.remove('vide'); zf.innerHTML = `<img src="${adresse}" alt="${esc(f.nom)}" style="width:100%">`;
+        } catch { if (fig.isConnected) zf.innerHTML = '<span>ne s\'ouvre pas ici</span>'; }
       })();
     } else if (clState.presence) clState.presence.arreter();
     // (1.172.0) Les vignettes montrent la pièce elle-même : la photo, ou la première page du PDF dessinée ici. Une à la
@@ -5230,7 +5457,10 @@
     if (!dossier && !ongletDemande) { introuvableFd(view); return; }
     if (dossier && !ongletDemande) { drawFicheFd(view, dossier); return; }
     // (1.171.0) « Tout le dossier › Le classeur » : chaque pièce, mois par mois, et ce qui manque.
-    if (dossier && ongletDemande === 'classeur') { drawClasseur(view, dossier); return; }
+    if (dossier && ongletDemande === 'classeur') {
+      if (sousOnglet === 'export' && anneeDemandee) { location.replace(`#/dossier/${encodeURIComponent(dossier.id)}/classeur`); void ouvrirExportCl(dossier, decodeURIComponent(anneeDemandee)); return; }
+      drawClasseur(view, dossier); return;
+    }
     // Un état vide dit sa raison ET donne le geste (7.0.0) : seul, « Ce dossier n'existe plus. » ne
     // laissait que la barre latérale — vu à la souris après « Quitter l'exemple » sur la paie du garage.
     if (!dossier) {

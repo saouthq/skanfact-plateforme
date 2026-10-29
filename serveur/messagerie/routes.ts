@@ -427,14 +427,15 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       const seul = !aClasser && uuid.safeParse(query.entreprise).success ? String(query.entreprise) : null;
       const max = seul ? 1000 : 200;
       const lignes = (await tx.query(`select m.id, m.entreprise, m.auteur_nom, m.texte, m.achat_libelle, m.ecrit_le, m.classee_le,
-          m.classee_par, m.classee_raison, m.classee_note, m.jointe_ecriture, fi.id fichier, fi.nom fichier_nom, fi.type fichier_type, length(fi.contenu) fichier_taille, d.demande
+          m.classee_par, m.classee_raison, m.classee_note, m.jointe_ecriture, m.double_de, m.double_de_sorte, m.mois_classeur, fi.id fichier, fi.nom fichier_nom, fi.type fichier_type, length(fi.contenu) fichier_taille, d.demande
         from messagerie.message m
         join messagerie.fichier fi on fi.id = m.fichier
         left join messagerie.message d on d.id = m.repond_a
        where m.cabinet = $1 and m.cote = 'entreprise' and (m.classee_le is null) = $2 and ($3::uuid is null or m.entreprise = $3)
        order by coalesce(m.classee_le, m.ecrit_le) desc, m.id desc limit $4`, [params.cabinet, aClasser, seul, max + 1])).rows as
         { id: string; entreprise: string; auteur_nom: string; texte: string; achat_libelle: string | null; ecrit_le: Date; classee_le: Date | null;
-          classee_par: string | null; classee_raison: string | null; classee_note: string | null; jointe_ecriture: string | null; fichier: string; fichier_nom: string; fichier_type: string; fichier_taille: number; demande: string | null }[];
+          classee_par: string | null; classee_raison: string | null; classee_note: string | null; jointe_ecriture: string | null;
+          double_de: string | null; double_de_sorte: string | null; mois_classeur: string | null; fichier: string; fichier_nom: string; fichier_type: string; fichier_taille: number; demande: string | null }[];
       const compte = Number((await tx.query(`select count(*) n from messagerie.message m
         where m.cabinet = $1 and m.cote = 'entreprise' and m.fichier is not null and m.classee_le is null`, [params.cabinet])).rows[0].n);
       // (1.167.0) Les demandes du cabinet encore ouvertes, et celles reçues ces trois derniers jours : la page les montre
@@ -456,6 +457,8 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
             fichier: { id: l.fichier, nom: l.fichier_nom, type: l.fichier_type, taille: Number(l.fichier_taille) },
             demande: l.demande, achat: l.achat_libelle, classeeLe: l.classee_le ? l.classee_le.toISOString() : null, classeePar: l.classee_par,
             raison: l.classee_raison, note: l.classee_note, jointe: l.jointe_ecriture,
+            // (1.173.0, 0181) La jumelle d'une pièce en double, et le mois où le cabinet l'a rangée (null : celui de son arrivée).
+            double: l.double_de ? { sorte: l.double_de_sorte, id: l.double_de } : null, mois: l.mois_classeur,
           })),
         },
       };

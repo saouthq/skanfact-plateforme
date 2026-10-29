@@ -21017,5 +21017,32 @@ prouver 'classeur 15 : les pièces classées taisent leur écriture jointe' serv
 prouver 'classeur 16 : un achat joint reste « sans justificatif »' base/migrations/0180_classeur.sql \
   'and (exists (select 1 from messagerie.message m where m.entreprise = p.entreprise and m.jointe_ecriture = e.id)' 'and (false' \
   'une pièce reçue se joint à l'\''achat'
+prouver 'classeur 17 : le cabinet lit la pièce quand le client a coupé la lecture' serveur/cabinet/classeur.ts \
+  'return (await tx.query('\''select cabinet.lecture_ia_coupee($1) c'\'', [entreprise])).rows[0]?.c === true;' 'return false;' \
+  'la lecture d'\''une pièce par l'\''IA'
+prouver 'classeur 18 : la pièce part sans la confirmation pour ce fichier' serveur/cabinet/classeur.ts \
+  'if (corps.ia !== true) return' 'if (false) return' \
+  'la lecture d'\''une pièce par l'\''IA'
+prouver 'classeur 19 : un export de plus de sept jours s'\''ouvre encore' serveur/cabinet/classeur.ts \
+  'if (x.expire_le.getTime() < Date.now()) return' 'if (false) return' \
+  'l'\''export gardé sept jours'
+prouver 'classeur 20 : l'\''export n'\''est pas noté dans l'\''historique' serveur/cabinet/classeur.ts \
+  'await tx.query('\''select socle.tracer($1, $2, $3, $4, null, $5)'\'', [entreprise, '\''cabinet.export'\''' 'void ('\''select socle.tracer($1, $2, $3, $4, null, $5)'\'', [entreprise, '\''cabinet.export'\''' \
+  'l'\''export gardé sept jours'
+prouver 'classeur 21 : sans adresse sur la fiche, la demande ne part pas à celle du client' serveur/cabinet/classeur.ts \
+  'fiche?.email?.trim() ? null :' 'true ? null :' \
+  'une demande envoyée par e-mail'
+prouver 'classeur 22 : un cabinet lit ce que le client lit de lui' base/migrations/0181_classeur_suite.sql \
+  'where d.entreprise = p_entreprise and d.remplace_par is null and messagerie.cote_entreprise(p_entreprise)' 'where d.entreprise = p_entreprise and d.remplace_par is null' \
+  'le client lit ce que son cabinet a rangé'
+prouver 'classeur 23 : la même photo envoyée deux fois ne se dit pas en double' web/public/v10/cabinet/app.js \
+  'if (!j) continue;' 'continue;' \
+  'une pièce en double se marque de sa jumelle'
+prouver 'classeur 24 : le mois de son arrivée renvoie la pièce au mois d'\''avant' web/public/v10/cabinet/app.js \
+  'x.p ? x.p.id : x.doc.id, m);' 'x.p ? x.p.id : x.doc.id, x.p && m === arrivee ? null : m);' \
+  'une pièce en double se marque de sa jumelle'
+prouver 'classeur 25 : un achat justifié par le cabinet reste sans justificatif chez le client' web/public/v10/core.js \
+  '&& !(p && p.justifCabinet); }' '; }' \
+  'n'\''est plus « sans justificatif »'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

@@ -14151,7 +14151,7 @@
       // (1.155.12, maquette achat) Les statuts de la maquette : à récupérer (bleu), sans justificatif (ambre, une dépense),
       // réglée (vert), en retard de N jours (rouge), à payer avec son échéance (bleu).
       if (solde.remaining < -0.0005) return '<span class="badge envoyée ed-pill">À récupérer</span>';
-      if (p.kind === 'depense' && !(stored.attachments || []).length) return '<span class="badge partielle ed-pill">Sans justificatif</span>';
+      if (p.kind === 'depense' && C.sansJustificatif(stored)) return '<span class="badge partielle ed-pill">Sans justificatif</span>';
       if (solde.remaining <= 0.0005) return '<span class="badge payée ed-pill">Réglée</span>';
       const retard = p.dueDate && p.dueDate < C.today();
       const jours = retard ? Math.round((Date.parse(C.today()) - Date.parse(p.dueDate)) / 86400000) : 0;
@@ -14277,7 +14277,7 @@
       if (solde && solde.remaining < -0.0005) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="recu">${lfIc('carte', 17)}Enregistrer le remboursement</button>
         <p class="ed-phrase">Le fournisseur te doit ${C.money(-solde.remaining, cur)}. Le remboursement solde l'avoir : il n'est plus « à récupérer ».</p>${sauver}</div>`;
       // (1.155.13, maquette « Sans justificatif ») Une pièce réglée sans justificatif : le geste qui reste est de le joindre.
-      if (stored && !(stored.attachments || []).length && bridge.piecesJointes !== false && !C.PURCHASE_LIES.includes(p.kind)) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="ac-geste-joindre">${lfIc('photo', 17)}${p.kind === 'depense' ? 'Joindre le ticket' : 'Joindre le justificatif'}</button>
+      if (stored && C.sansJustificatif(stored) && bridge.piecesJointes !== false && !C.PURCHASE_LIES.includes(p.kind)) return `<div class="panel ed-geste" id="ed-geste">${net}<button class="btn btn-primary btn-grand" id="ac-geste-joindre">${lfIc('photo', 17)}${p.kind === 'depense' ? 'Joindre le ticket' : 'Joindre le justificatif'}</button>
         <p class="ed-phrase">${p.kind === 'depense' ? 'Le ticket se photographie depuis le téléphone ; il se joint ici, et ton cabinet le verra.' : 'La photo ou le PDF de la pièce se joint ici, et ton cabinet le verra.'}</p>${sauver}</div>`;
       return `<div class="panel ed-geste ed-geste-calme" id="ed-geste">${net}<p class="ed-phrase ed-etat">${lfIc('coche', 16, 2.4)}<span>Réglée : plus rien n'est dû.</span></p>${sauver}</div>`;
     };
@@ -14313,7 +14313,10 @@
         const mois = clos ? C.closedPeriodLabel(data, stored.date) : '';
         return band('rouge', 'horloge', `Échue depuis le ${lfJm(p.dueDate)} : ${pl(jours, 'jour')} de retard chez ${nomSup}`, clos ? `${mois.charAt(0).toUpperCase()}${mois.slice(1)} est clôturé : la pièce ne se modifie plus, mais elle se règle. Le règlement prend la date d'aujourd'hui.` : 'Le règlement prend la date d\'aujourd\'hui ; un règlement partiel se note aussi.', '', 'ac-band-retard');
       }
-      if (!(stored.attachments || []).length && bridge.piecesJointes !== false && !C.PURCHASE_LIES.includes(p.kind)) {
+      // (1.173.0) Le cabinet a joint la pièce dans son classeur : l'achat est justifié, et la pièce se lit dans « Mon comptable ».
+      const jc = stored.justifCabinet;
+      if (jc && !(stored.attachments || []).length) return band('info', 'piece', `Justifié par ton cabinet : ${jc.nom}`, `${jc.cabinet} a joint cette pièce à l'achat${jc.le ? ` le ${lfJm(jc.le)}` : ''}, dans ton classeur. Tu la retrouves dans « Mon comptable ».`, '<button type="button" class="btn btn-sm" id="ac-voir-cabinet">Voir la pièce</button>', 'ac-band-cab');
+      if (C.sansJustificatif(stored) && bridge.piecesJointes !== false && !C.PURCHASE_LIES.includes(p.kind)) {
         const dep = p.kind === 'depense';
         return band('ambre', 'piece', 'Aucun justificatif : ni la charge ni la TVA ne sont récupérables sans lui', dep ? 'Photographie le ticket : il se joint ici, et ton cabinet le verra.' : 'Joins la photo, le PDF ou le fichier El Fatoora de la pièce : il se range ici, et ton cabinet le verra.', `<button type="button" class="btn btn-sm" data-frise="attach-top">${dep ? 'Joindre le ticket' : 'Joindre la pièce'}</button>`, 'ac-band-justif');
       }
@@ -14344,7 +14347,7 @@
       return friseHtml([
         { t: av ? 'Reçu' : p.kind === 'depense' ? 'Faite' : 'Reçue', fait: true, d: [lfJm(p.date), p.kind === 'depense' && String(p.subject || '').trim() ? h(p.subject) : venue].filter(Boolean).join(' · ') },
         { t: av ? 'Saisi' : 'Saisie', fait: true, d: [saisieLe || (av ? 'enregistré' : 'enregistrée'), par ? `par ${h(par)}` : ''].filter(Boolean).join(' · ') },
-        { t: 'Justificatif', fait: pj > 0, ko: !pj, d: pj ? quelJustif : 'manque', g: pj || bridge.piecesJointes === false ? '' : '<button type="button" class="btn btn-sm" data-frise="attach-top">Joindre</button>' },
+        { t: 'Justificatif', fait: pj > 0 || !!stored.justifCabinet, ko: !pj && !stored.justifCabinet, d: pj ? quelJustif : stored.justifCabinet ? `joint par ${stored.justifCabinet.cabinet}` : 'manque', g: pj || stored.justifCabinet || bridge.piecesJointes === false ? '' : '<button type="button" class="btn btn-sm" data-frise="attach-top">Joindre</button>' },
         av ? quatrieme : { t: 'Réglée', fait: !!regle, ko: !!enRetard, afaire: !regle && !enRetard, d: regle ? (dernierReglement ? `${lfJm(dernierReglement.date)} · ${methodLabel(dernierReglement.method).toLowerCase()}` : 'plus rien n\'est dû') : enRetard ? `échue le ${lfJm(p.dueDate)}` : p.dueDate ? `échéance ${lfJm(p.dueDate)}` : `reste ${C.money(solde ? solde.remaining : 0, cur)}`, g: !regle && solde && solde.remaining > 0.0005 ? '<button type="button" class="btn btn-sm" data-frise="pay">Régler</button>' : '' },
         ...(avecCabinet ? [{ t: 'Au cabinet', fait: false, d: `<span id="ed-fr-cabinet">${av ? 'quand il le verra' : !pj ? (p.kind === 'depense' ? 'attend le ticket' : 'attend le justificatif') : 'quand il la validera'}</span>`, id: 'ed-fr-cab' }] : []),
       ]);
@@ -16079,6 +16082,12 @@
     if ($('#pay')) $('#pay').onclick = () => supplierPaymentForm(purchaseById(p.id), () => render());
     if ($('#recu')) $('#recu').onclick = () => supplierPaymentForm(purchaseById(p.id), () => render(), null, true);
     if ($('#ac-geste-joindre')) $('#ac-geste-joindre').onclick = () => { const b = $('#attach-top'); if (b) b.click(); };
+    // (1.173.0) La pièce que le cabinet a jointe dans son classeur, en grand.
+    if ($('#ac-voir-cabinet')) $('#ac-voir-cabinet').onclick = async () => {
+      const jc = stored && stored.justifCabinet;
+      if (!jc || !bridge.messagerie) return;
+      try { const lu = await bridge.messagerie.contenuRange(jc.piece); justificatifEnGrand(null, { name: lu.nom }, lu, lu.telecharger); } catch (e) { toast(plainError(e), true); }
+    };
     // (1.155.13, maquette achat « Tous les gestes ») Le menu de la pièce, rangé comme la maquette : le brouillon, régler,
     // le justificatif, la suite (avoir, acompte), la pièce. Un geste qui ne se peut pas se lit éteint, avec sa raison.
     const ouvrirGestesAchat = bouton => {
@@ -21537,6 +21546,20 @@
   // les ouvrir, répondre à une question de la révision (le chemin de `repondreA`), ranger une photo dans les achats.
   let conversationOuverte = null;
   let ceMoisLu = null;
+  // (plateforme 1.173.0) Les achats dont le cabinet a joint la pièce dans son classeur (Skander, 29/10/2026 : « oui, tout ») :
+  // justifiés ici aussi. Un drapeau non énumérable, posé à la lecture : il ne s'écrit jamais dans le dossier.
+  function marquerJustifsCabinet(l) {
+    let change = false;
+    const par = new Map((l || []).filter(x => x.achat).map(x => [x.achat, x]));
+    for (const p of data.purchases || []) {
+      const x = par.get(p.id);
+      const v = x ? { nom: x.titre, cabinet: x.cabinet, le: (x.jointeLe || x.deposeLe || '').slice(0, 10), piece: x } : undefined;
+      if (!!p.justifCabinet !== !!v) change = true;
+      Object.defineProperty(p, 'justifCabinet', { value: v, enumerable: false, configurable: true, writable: true });
+    }
+    if (change) updateNavCounts();
+    return change;
+  }
   routes.comptable = () => {
     if (conversationOuverte) { conversationOuverte.arreter(); conversationOuverte = null; }
     ceMoisLu = null; // une visite neuve relit ce que le cabinet a fait ; les redessins de la même visite gardent leur lecture
@@ -21627,6 +21650,11 @@
           titre: `Ce mois-ci · ${nom}`, lignes: [pieces], cabinet,
           action: sansPiece ? { libelle: sansPiece > 1 ? 'Voir les achats sans justificatif' : 'Voir l\'achat sans justificatif', faire: () => CHECK_ACTIONS.justificatifs.run({ du, au }) } : null,
         };
+      },
+      // (1.173.0) Ce que le cabinet a rangé dans le classeur : la liste, et chaque pièce s'ouvre en grand.
+      range: bridge.messagerie.range ? async () => { const l = await bridge.messagerie.range(); marquerJustifsCabinet(l); return l; } : null,
+      ouvrirRange: async x => {
+        try { const lu = await bridge.messagerie.contenuRange(x); justificatifEnGrand(null, { name: lu.nom }, lu, lu.telecharger); } catch (e) { toast(plainError(e), true); }
       },
       voirMandat: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
       inviter: () => { comptaState.tab = 'cabinet'; navigate('#/compta'); },
@@ -24944,7 +24972,7 @@
       // Un achat à qui il manque son justificatif — celui que le comptable réclame d'abord, sinon le
       // plus récent. Sans achat du tout, rien : la visite dit alors ce qui manque.
       case 'achatSansJustif': {
-        const sans = (data.purchases || []).filter(p => p.kind !== 'acompte' && !(p.attachments || []).length);
+        const sans = (data.purchases || []).filter(p => p.kind !== 'acompte' && C.sansJustificatif(p));
         const reclame = (data.questionsCabinet || []).find(x => x.attendu === 'piece' && !(x.reponse && String(x.reponse.texte || '').trim()));
         const vise = reclame && sans.find(p => p.number === reclame.piece);
         // L'achat ouvert passe avant : joindre un second fichier à une pièce qui en a déjà un reste un geste juste.
@@ -27795,6 +27823,8 @@
     // changé de mois (9.4.2) : personne ne pense à l'effacer puis à le recharger, et un exemple
     // périmé raconte des retards qui n'existent pas. Ne touche rien d'autre que l'exemple.
     await rafraichirExemple();
+    // (plateforme 1.173.0) Les achats que le cabinet a justifiés dans son classeur le sont ici aussi, dès l'ouverture.
+    if (bridge.messagerie && bridge.messagerie.range) bridge.messagerie.range().then(l => { if (marquerJustifsCabinet(l) && /^#\/(achat|purchases|dashboard)/.test(location.hash)) render(true); }, () => null);
     applyTheme();
     // Toute première ouverture : la porte, puis l'assistant qui remplit l'entreprise avant d'entrer
     // dans l'application — ou la découverte d'abord, si c'est le battant choisi (10.14.0).

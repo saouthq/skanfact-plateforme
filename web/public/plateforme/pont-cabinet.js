@@ -1361,11 +1361,45 @@
         return Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0));
       },
       enregistrer: async (/** @type {string} */ nom, /** @type {Uint8Array | Blob | string} */ contenu) => telecharger(nom, contenu),
+      // (1.173.0, 0181) Classer en double EN NOMMANT la jumelle (une pièce reçue, ou un document), pour une pièce reçue
+      // (`message`) ou un document du cabinet (`document`).
+      doubler: (/** @type {string} */ dossier, /** @type {'message' | 'document'} */ quoi, /** @type {string} */ id, /** @type {'message' | 'document'} */ sorte, /** @type {string} */ jumelle) =>
+        quoi === 'message'
+          ? appel('POST', `/entreprises/${encodeURIComponent(dossier)}/messages/${encodeURIComponent(id)}/double`, { sorte, jumelle })
+          : appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents/${encodeURIComponent(id)}/double`, { sorte, jumelle }),
+      // Ranger une pièce dans un autre mois (null : celui de son arrivée, pour une pièce reçue).
+      mois: (/** @type {string} */ dossier, /** @type {'message' | 'document'} */ quoi, /** @type {string} */ id, /** @type {string | null} */ mois) =>
+        quoi === 'message'
+          ? appel('POST', `/entreprises/${encodeURIComponent(dossier)}/messages/${encodeURIComponent(id)}/mois`, { mois })
+          : appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/documents/${encodeURIComponent(id)}/mois`, { mois }),
+      // Les lectures déjà faites (le fournisseur, la date, le total d'une pièce), et si l'IA se propose ici.
+      lectures: (/** @type {string} */ dossier) => appel('GET', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/lectures`),
+      // Lire une pièce par l'IA : la personne a confirmé pour CE fichier (`ia: true`) ; le serveur vérifie l'accord du client.
+      lire: (/** @type {string} */ dossier, /** @type {'message' | 'document'} */ quoi, /** @type {string} */ id) =>
+        appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/lectures`, { [quoi]: id, ia: true }),
+      // L'export gardé sept jours sur le serveur : on l'y dépose, on en liste les liens, on en rouvre un.
+      deposerExport: async (/** @type {string} */ dossier, /** @type {string} */ nom, /** @type {string} */ quoi, /** @type {Uint8Array} */ octets) => {
+        let binaire = '';
+        for (let i = 0; i < octets.length; i += 0x8000) binaire += String.fromCharCode(...octets.subarray(i, i + 0x8000));
+        return appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/exports`, { nom, quoi, contenu: btoa(binaire) });
+      },
+      exports: (/** @type {string} */ dossier) => appel('GET', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/exports`),
+      ouvrirExport: async (/** @type {string} */ dossier, /** @type {string} */ id) => {
+        const f = await appel('GET', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/exports/${encodeURIComponent(id)}`);
+        return telecharger(String(f.nom), Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0)));
+      },
+      // Le lien d'un export, à copier : il ouvre le classeur sur cet export (une personne du cabinet, connectée).
+      lienExport: (/** @type {string} */ dossier, /** @type {string} */ id) =>
+        `${location.origin}${location.pathname}#/dossier/${encodeURIComponent(dossier)}/classeur/export/${encodeURIComponent(id)}`,
+      // La demande, aussi par e-mail à l'adresse de la fiche du dossier (Skander, 29/10/2026).
+      courriel: (/** @type {string} */ dossier, /** @type {string} */ message) =>
+        appel('POST', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(dossier)}/demandes/${encodeURIComponent(message)}/courriel`),
     },
     // (1.172.0) Qui regarde aussi une pièce du classeur (serveur/v10/presence.ts) : l'identifiant de la pièce, et rien
     // d'autre ; null sans réseau ou sans droit (la ligne se tait).
     presence: async (/** @type {string} */ entreprise, /** @type {string} */ piece, /** @type {boolean} */ quitte) => {
-      try { return (await appel('GET', `/entreprises/${encodeURIComponent(entreprise)}/presence?piece=${encodeURIComponent(piece)}${quitte ? '&quitte=1' : ''}`)).autres || []; } catch { return null; }
+      // (1.173.0) Par la route du cabinet : celle des pièces de l'entreprise refuse un cabinet.
+      try { return (await appel('GET', `/cabinets/${cabinetId}/classeur/${encodeURIComponent(entreprise)}/presence?piece=${encodeURIComponent(piece)}${quitte ? '&quitte=1' : ''}`)).autres || []; } catch { return null; }
     },
     // (1.152.0) Les modèles de messages du cabinet, ouverts depuis la barre (« Le cabinet »).
     modeles: () => /** @type {any} */ (window).SkanMessagerie.fenetreModeles({ modeles: modelesDuCabinet }),

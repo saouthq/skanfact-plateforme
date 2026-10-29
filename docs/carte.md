@@ -903,7 +903,7 @@ vaut pour tout le dépôt.*
   `fenNoterRelance`, `plateforme/dossiers.css` ; la fiche garde `forme`, `ville`, `activite`, `fonction` ; le bandeau des
   propositions, `bandeauMandats` du pont), la fiche du dossier telle que la maquette (1.170.0 : `drawFicheFd`, `lireLivreFd`,
   `etatMoisFd`, `popMoisFd`, `menuFicheFd`, `fenNoteFd`, `introuvableFd`, `plateforme/fiche-dossier.css` ; l'ancienne page
-  du dossier à `#/dossier/<id>/suivi`), le classeur du client (1.171.0, refait en 1.172.0 : `drawClasseur`, `modeleCl`, `chargerClasseur`,
+  du dossier à `#/dossier/<id>/suivi`), le classeur du client (1.171.0, refait en 1.172.0, complété en 1.173.0 : lecture `fenLireCl`/`sceneLectureCl`, double `fenDoubleCl`, mois `fenMoisCl`, export de 7 jours `fenExporteCl` ; serveur `serveur/cabinet/classeur.ts`, base 0181 ; `drawClasseur`, `modeleCl`, `chargerClasseur`,
   `trousCl`, les fenêtres `fen…Cl`, `plateforme/classeur.css`, `plateforme/zip.js` pour l'export, `#/dossier/<id>/classeur` ;
   côté serveur `serveur/cabinet/classeur.ts` et la base 0180 : pièce jointe à son écriture, documents du cabinet) et l'aperçu des PDF commun aux deux applications
   (`plateforme/apercu-pdf.js`). Lot 2 (1.153.0), la charte : `plateforme/charte.css` (statuts, boutons, menu ⋯, toast,

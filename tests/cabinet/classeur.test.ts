@@ -18,7 +18,9 @@ import { routesClasseur } from '../../serveur/cabinet/classeur.ts';
 import { routesCabinet } from '../../serveur/cabinet/routes.ts';
 import { declarerGestesCompta } from '../../serveur/compta/gestes.ts';
 import { routesCompta } from '../../serveur/compta/routes.ts';
+import type { ReponseIA } from '../../serveur/achats/lecture-ia.ts';
 import type { Contexte } from '../../serveur/connexion.ts';
+import type { Courriel } from '../../serveur/courriel.ts';
 import { declarerGestesMessagerie } from '../../serveur/messagerie/gestes.ts';
 import { routesMessagerie } from '../../serveur/messagerie/routes.ts';
 import { listeDepuisFichier } from '../../serveur/mot-de-passe.ts';
@@ -29,7 +31,17 @@ import { routesVentes } from '../../serveur/ventes/routes.ts';
 
 const admin = new pg.Client({ connectionString: inject('pgAdmin') });
 const pool = creerPool(inject('pgApp'));
+// L'IA et le relais d'e-mails, simulés : ce qui leur part se garde ici, pour le compter.
+const versIA: Buffer[] = [];
+const envoyes: Courriel[] = [];
+const LU: ReponseIA = { estUneFacture: true, fournisseur: 'STEG', matricules: [], numero: '0298 4471', date: '2026-09-30', echeance: null, objet: null, devise: 'TND',
+  lignes: [], totalHT: '1000.000', totalTVA: '190.000', timbre: null, fodec: null, retenue: null, totalTTC: '1190.000', netAPayer: '1190.000', ou: [], doutes: [] };
 const ctx: Contexte = { pool, listeVolee: listeDepuisFichier(path.join(import.meta.dirname, '../donnees/mots-de-passe-voles.txt')), sms: { envoyer: async () => {} } };
+// Les routes du classeur ont l'IA et le relais d'e-mails ; l'application des tests n'a pas de relais (l'inscription
+// demanderait alors un code par e-mail), comme tests/messagerie.
+const ctxClasseur: Contexte = { ...ctx,
+  lecteurIA: { disponible: true, lire: async (f) => { versIA.push(f); return LU; } },
+  courriel: { envoi: { envoyer: async (c) => { envoyes.push(c); } }, adresse: () => 'https://app.exemple.tn' } };
 let app: FastifyInstance;
 
 type Corps = Record<string, unknown> & { id?: string; motif?: string; jeton?: string; code?: string; mandat?: string };
@@ -74,13 +86,13 @@ async function unDossier() {
   const cab2 = (await appeler('POST', '/cabinets', autre.jeton, { nom: 'Cabinet Ennour' })).corps;
   const ecriture = String((await admin.query(`select id from compta.ecriture where entreprise = $1 and journal = 'AC'`, [ent])).rows[0].id);
   const origine = String((await admin.query(`select origine from compta.ecriture where id = $1`, [ecriture])).rows[0].origine);
-  return { client, ent, associe, cab: String(cab.id), autre, cab2: String(cab2.id), ecriture, origine };
+  return { client, ent, associe, cab: String(cab.id), mandat, autre, cab2: String(cab2.id), ecriture, origine, envoyer };
 }
 
 beforeAll(async () => {
   await admin.connect();
   declarerGestesVentes(); declarerGestesCompta(); declarerGestesMessagerie();
-  app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesCompta(ctx), ...routesV10(ctx), ...routesCabinet(ctx), ...routesMessagerie(ctx), ...routesClasseur()]);
+  app = creerApp(ctx, [...routesSocle(ctx), ...routesVentes(ctx), ...routesCompta(ctx), ...routesV10(ctx), ...routesCabinet(ctx), ...routesMessagerie(ctx), ...routesClasseur(ctxClasseur)]);
   await app.ready();
 });
 afterAll(async () => { await app.close(); await admin.end(); await pool.end(); });
@@ -153,5 +165,136 @@ describe('le classeur d\'un dossier', () => {
     expect((await enTantQue(pool, d.client.utilisateur, (tx) => tx.query('select justifie from compta.achats_justifies($1, $2::uuid[])', [d.ent, [d.origine]]))).rows).toEqual([{ justifie: false }]);
     // Un document ne s'efface pas : la base le refuse même au cabinet.
     await expect(enTantQue(pool, d.associe.utilisateur, (tx) => tx.query('delete from cabinet.document where id = $1', [id]))).rejects.toThrow();
+  });
+
+  // (1.173.0, 0181) Ce que le classeur laissait de côté.
+  const piece = async (d: Awaited<ReturnType<typeof unDossier>>, nom: string) => {
+    const depot = await appeler('POST', `/entreprises/${d.ent}/messages/fichiers`, d.client.jeton, { cote: 'entreprise', nom, contenu: PNG });
+    return String((await appeler('POST', `/entreprises/${d.ent}/messages`, d.client.jeton, { cote: 'entreprise', texte: '', fichier: depot.corps.id })).corps.id);
+  };
+  const classees = async (d: Awaited<ReturnType<typeof unDossier>>) => (await appeler('GET', `/cabinets/${d.cab}/pieces?classees=1&entreprise=${d.ent}`, d.associe.jeton)).corps.pieces as { id: string; raison: string }[];
+
+  it('une pièce en double nomme sa jumelle ; une pièce se range dans un autre mois ; défaire efface la jumelle', async () => {
+    const d = await unDossier();
+    const a = await piece(d, 'facture.png'), b = await piece(d, 'facture-encore.png');
+    // Sa jumelle : une autre pièce de CE dossier, jamais elle-même.
+    expect((await appeler('POST', `/entreprises/${d.ent}/messages/${b}/double`, d.associe.jeton, { sorte: 'message', jumelle: b })).statut).toBe(403);
+    expect((await appeler('POST', `/entreprises/${d.ent}/messages/${b}/double`, d.associe.jeton, { sorte: 'document', jumelle: a })).statut).toBe(403);
+    expect((await appeler('POST', `/entreprises/${d.ent}/messages/${b}/double`, d.associe.jeton, { sorte: 'message', jumelle: a })).statut).toBe(200);
+    expect((await admin.query('select classee_raison, double_de, double_de_sorte from messagerie.message where id = $1', [b])).rows).toEqual([{ classee_raison: 'double', double_de: a, double_de_sorte: 'message' }]);
+    expect((await classees(d)).map((x) => [x.id, x.raison])).toEqual([[b, 'double']]);
+    // Défaire : plus de jumelle.
+    expect((await appeler('POST', `/entreprises/${d.ent}/messages/${b}/classee`, d.associe.jeton, { classee: false })).statut).toBe(200);
+    expect((await admin.query('select double_de from messagerie.message where id = $1', [b])).rows).toEqual([{ double_de: null }]);
+    // Le mois choisi, puis retour au mois de l'arrivée ; ni le client ni l'autre cabinet ne rangent.
+    expect((await appeler('POST', `/entreprises/${d.ent}/messages/${a}/mois`, d.associe.jeton, { mois: '2026-08' })).statut).toBe(200);
+    expect((await admin.query('select mois_classeur from messagerie.message where id = $1', [a])).rows).toEqual([{ mois_classeur: '2026-08' }]);
+    expect((await appeler('POST', `/entreprises/${d.ent}/messages/${a}/mois`, d.associe.jeton, { mois: '2026-13' })).statut).toBe(400);
+    expect((await appeler('POST', `/entreprises/${d.ent}/messages/${a}/mois`, d.client.jeton, { mois: '2026-07' })).statut).toBe(403);
+    expect((await appeler('POST', `/entreprises/${d.ent}/messages/${a}/mois`, d.associe.jeton, { mois: null })).statut).toBe(200);
+    expect((await admin.query('select mois_classeur from messagerie.message where id = $1', [a])).rows).toEqual([{ mois_classeur: null }]);
+    // Un document déposé : en double d'une pièce reçue, puis dans un autre mois.
+    const doc = String((await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/documents`, d.associe.jeton, { rubrique: 'piece', periode: '2026-09', titre: 'Facture STEG', nom: 'steg.pdf', contenu: PDF })).corps.id);
+    expect((await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/documents/${doc}/mois`, d.associe.jeton, { mois: '2026-08' })).statut).toBe(200);
+    expect((await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/documents/${doc}/double`, d.associe.jeton, { sorte: 'document', jumelle: doc })).statut).toBe(400);
+    expect((await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/documents/${doc}/double`, d.associe.jeton, { sorte: 'message', jumelle: a })).statut).toBe(200);
+    expect((await admin.query('select periode, classee_raison, double_de from cabinet.document where id = $1', [doc])).rows).toEqual([{ periode: '2026-08', classee_raison: 'double', double_de: a }]);
+  });
+
+  it('la lecture d\'une pièce par l\'IA : avec l\'accord du client et la confirmation pour ce fichier ; gardée pour le cabinet seul', async () => {
+    const d = await unDossier();
+    const a = await piece(d, 'facture-electricite.png');
+    versIA.length = 0;
+    const lectures = async (jeton = d.associe.jeton, cab = d.cab) => appeler('GET', `/cabinets/${cab}/classeur/${d.ent}/lectures`, jeton);
+    expect((await lectures()).corps).toEqual({ ia: true, coupee: false, lectures: [] });
+    // Sans la confirmation pour ce fichier : rien ne part.
+    expect((await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/lectures`, d.associe.jeton, { message: a, ia: false })).statut).toBe(409);
+    expect(versIA.length).toBe(0);
+    const lu = await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/lectures`, d.associe.jeton, { message: a, ia: true });
+    expect(lu.statut, JSON.stringify(lu.corps)).toBe(200);
+    expect(lu.corps).toEqual({ fournisseur: 'STEG', numero: '0298 4471', date: '2026-09-30', total: '1190.000', devise: 'TND' });
+    // Le fichier lui-même est parti, rien d'autre : ce que reçoit l'IA, ce sont ses octets.
+    expect(versIA.map((x) => x.toString('base64'))).toEqual([PNG]);
+    expect((await lectures()).corps.lectures).toEqual([expect.objectContaining({ message: a, fournisseur: 'STEG', total: '1190.000' })]);
+    // L'autre cabinet ne lit ni ne lance rien.
+    expect((await lectures(d.autre.jeton, d.cab2)).statut).toBe(404);
+    expect((await appeler('POST', `/cabinets/${d.cab2}/classeur/${d.ent}/lectures`, d.autre.jeton, { message: a, ia: true })).statut).toBe(404);
+    // Le client coupe la lecture de ses photos : le cabinet ne la lance plus.
+    expect((await d.envoyer('_racine', 'company', { lectureIA: false })).statut).toBe(200);
+    expect((await lectures()).corps).toEqual(expect.objectContaining({ ia: false, coupee: true }));
+    expect((await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/lectures`, d.associe.jeton, { message: a, ia: true })).statut).toBe(409);
+    expect(versIA.length).toBe(1);
+  });
+
+  it('l\'export gardé sept jours : un lien pour le cabinet ; passé sept jours, il ne s\'ouvre plus', async () => {
+    const d = await unDossier();
+    const zip = Buffer.from('PK\u0003\u0004 un export').toString('base64');
+    const e = await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/exports`, d.associe.jeton, { nom: 'classeur-2026.zip', quoi: 'L\'exercice 2026', contenu: zip });
+    expect(e.statut, JSON.stringify(e.corps)).toBe(201);
+    const id = String(e.corps.id);
+    expect(Date.parse(String(e.corps.expireLe)) - Date.now()).toBeGreaterThan(6.9 * 86_400_000);
+    expect(((await appeler('GET', `/cabinets/${d.cab}/classeur/${d.ent}/exports`, d.associe.jeton)).corps.exports as { id: string }[]).map((x) => x.id)).toEqual([id]);
+    expect((await appeler('GET', `/cabinets/${d.cab}/classeur/${d.ent}/exports/${id}`, d.associe.jeton)).corps.contenu).toBe(zip);
+    expect((await appeler('GET', `/cabinets/${d.cab2}/classeur/${d.ent}/exports/${id}`, d.autre.jeton)).statut).toBe(404);
+    // Noté dans l'historique du dossier : qui, et ce que l'export contient.
+    expect((await admin.query(`select utilisateur, apres->>'nom' nom from socle.audit where geste = 'cabinet.export' and objet_id = $1`, [id])).rows).toEqual([{ utilisateur: d.associe.utilisateur, nom: 'classeur-2026.zip' }]);
+    // Passé sept jours : 410, il sort de la liste, et le prochain export l'efface.
+    await admin.query(`update cabinet.export set expire_le = now() - interval '1 minute' where id = $1`, [id]);
+    expect((await appeler('GET', `/cabinets/${d.cab}/classeur/${d.ent}/exports/${id}`, d.associe.jeton)).statut).toBe(410);
+    expect((await appeler('GET', `/cabinets/${d.cab}/classeur/${d.ent}/exports`, d.associe.jeton)).corps.exports).toEqual([]);
+    await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/exports`, d.associe.jeton, { nom: 'b.zip', quoi: 'septembre', contenu: zip });
+    expect((await admin.query('select count(*)::int n from cabinet.export where id = $1', [id])).rows).toEqual([{ n: 0 }]);
+  });
+
+  it('une demande envoyée par e-mail à l\'adresse de la fiche : le texte de la demande et le lien, rien d\'autre', async () => {
+    const d = await unDossier();
+    const dem = String((await appeler('POST', `/entreprises/${d.ent}/messages`, d.associe.jeton, { cote: 'cabinet', texte: 'Bonjour Sarra, il me manque la facture STEG de septembre.', demande: 'la facture STEG' })).corps.id);
+    const courriel = () => appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/demandes/${dem}/courriel`, d.associe.jeton);
+    envoyes.length = 0;
+    // Sans adresse, ni sur la fiche ni chez le client : refusé, et rien ne part.
+    expect((await courriel()).statut).toBe(409);
+    // L'adresse que le client a donnée sur sa société sert quand la fiche n'en dit rien.
+    expect((await d.envoyer('_racine', 'company', { email: 'contact@elamal.tn' })).statut).toBe(200);
+    expect((await courriel()).statut).toBe(200);
+    expect(envoyes.map((x) => x.a)).toEqual(['contact@elamal.tn']);
+    envoyes.length = 0;
+    expect((await appeler('PUT', `/cabinets/${d.cab}/fiches/${d.ent}`, d.associe.jeton, { contenu: { email: 'sarra@boulangerie.tn' }, revision: null })).statut).toBeLessThan(300);
+    expect((await courriel()).statut).toBe(200);
+    expect(envoyes.length).toBe(1);
+    const c = envoyes[0] as Courriel;
+    expect(c.a).toBe('sarra@boulangerie.tn');
+    expect(c.objet).toBe('Jlassi Conseil te demande une pièce');
+    expect(c.texte).toContain('« Bonjour Sarra, il me manque la facture STEG de septembre. »');
+    expect(c.texte).toContain('https://app.exemple.tn/');
+    // L'autre cabinet n'envoie rien au nom de celui-ci.
+    expect((await appeler('POST', `/cabinets/${d.cab2}/classeur/${d.ent}/demandes/${dem}/courriel`, d.autre.jeton)).statut).toBe(404);
+    expect(envoyes.length).toBe(1);
+  });
+
+  it('la présence sur une pièce du classeur, entre personnes du même cabinet', async () => {
+    const d = await unDossier();
+    const anis = await personne('anis');
+    const m = String((await admin.query('insert into socle.membre (utilisateur, organisation, roles) values ($1, $2, $3) returning id', [anis.utilisateur, d.cab, ['revision']])).rows[0].id);
+    expect((await appeler('PUT', `/cabinets/${d.cab}/mandats/${d.mandat}/affectations/${m}`, d.associe.jeton, { role: 'revision' })).statut).toBe(200);
+    const voir = (jeton: string, cab = d.cab) => appeler('GET', `/cabinets/${cab}/classeur/${d.ent}/presence?piece=cab-p-1`, jeton);
+    expect((await voir(d.associe.jeton)).corps.autres).toEqual([]);
+    const vu = await voir(anis.jeton);
+    expect(vu.statut, JSON.stringify(vu.corps)).toBe(200);
+    expect((vu.corps.autres as { nom: string }[]).map((x) => x.nom)).toEqual(['associe']);
+    expect((await voir(d.autre.jeton, d.cab2)).statut).toBe(404);
+  });
+
+  it('le client lit ce que son cabinet a rangé : les documents déposés, la pièce jointe à son achat ; le cabinet ne passe pas par là', async () => {
+    const d = await unDossier();
+    const a = await piece(d, 'facture-electricite.png');
+    expect((await appeler('POST', `/entreprises/${d.ent}/messages/${a}/jointe`, d.associe.jeton, { ecriture: d.ecriture })).statut).toBe(200);
+    const doc = String((await appeler('POST', `/cabinets/${d.cab}/classeur/${d.ent}/documents`, d.associe.jeton, { rubrique: 'permanent', categorie: 'juridique', titre: 'Statuts', nom: 'statuts.pdf', contenu: PDF })).corps.id);
+    const range = async (jeton = d.client.jeton) => appeler('GET', `/entreprises/${d.ent}/cabinet/range`, jeton);
+    const l = (await range()).corps.pieces as { sorte: string; id: string; titre: string; achat: string | null; cabinet: string }[];
+    expect(l.map((x) => [x.sorte, x.titre, x.achat, x.cabinet]).sort()).toEqual([['document', 'Statuts', null, 'Jlassi Conseil'], ['message', 'facture-electricite.png', 'a1', 'Jlassi Conseil']]);
+    expect((await appeler('GET', `/entreprises/${d.ent}/cabinet/range/${doc}`, d.client.jeton)).corps.contenu).toBe(PDF);
+    // Le cabinet a ses propres routes ; ici, il ne lit rien (ce n'est pas son côté), et une autre personne non plus.
+    expect(((await range(d.associe.jeton)).corps.pieces as unknown[] | undefined) ?? []).toEqual([]);
+    expect((await range(d.autre.jeton)).statut).toBeGreaterThanOrEqual(403);
   });
 });

@@ -6410,7 +6410,9 @@
   // La règle qui fait un achat « sans justificatif » : UNE fonction pour le contrôle de clôture qui
   // les compte et pour le filtre de la liste qui les montre (6.8.1 : un compteur et la liste qu'il
   // annonce se calculent avec la même fonction).
-  function sansJustificatif(p) { return !((p && p.attachments) || []).length; }
+  // (plateforme 1.173.0) Un achat dont le cabinet a joint la pièce dans son classeur (Skander, 29/10/2026 : « oui, tout ») est
+  // justifié aussi chez le client : `justifCabinet`, posé à la lecture (non énumérable : il ne s'écrit jamais dans le dossier).
+  function sansJustificatif(p) { return !((p && p.attachments) || []).length && !(p && p.justifCabinet); }
   function nomsJustificatifs(x) {
     return ((x && x.attachments) || []).map(a => (a && a.name) || '').filter(Boolean).join(' ');
   }

@@ -1189,6 +1189,19 @@
       attente: () => appel('GET', '/messages/attente'),
       dessiner: (/** @type {HTMLElement} */ el, /** @type {any} */ o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, { ...o, appel, cote: 'entreprise' }),
       rangerAchat: (/** @type {string} */ message, /** @type {string} */ achat, /** @type {string} */ libelle) => appel('POST', `/messages/${encodeURIComponent(message)}/achat`, { achat, libelle }),
+      // (1.173.0, 0181) Ce que le cabinet a rangé dans le dossier (Skander, 29/10/2026 : « oui, tout ») : les documents qu'il
+      // a déposés, et les pièces qu'il a jointes aux achats ; qui ne lit pas la messagerie : rien.
+      range: async () => {
+        try { return (await appel('GET', '/cabinet/range')).pieces || []; } catch (e) { if (/** @type {any} */ (e).statut === 403) return []; throw e; }
+      },
+      // Le contenu d'une de ces pièces : une pièce reçue est la sienne (son fichier, dans sa conversation), un document vient du cabinet.
+      contenuRange: async (/** @type {any} */ x) => {
+        const f = x.sorte === 'message' && x.fichierId
+          ? await appel('GET', `/messages/fichiers/${encodeURIComponent(x.fichierId)}`)
+          : await appel('GET', `/cabinet/range/${encodeURIComponent(x.id)}`);
+        const blob = new Blob([Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0))], { type: String(f.type) });
+        return { nom: String(f.nom), type: String(f.type), blob, adresse: URL.createObjectURL(blob), telecharger: () => telecharger(String(f.nom), blob) };
+      },
       // (1.124.0) Ce que le cabinet a fait d'une période dans les livres (carte « Ce mois-ci ») ; qui ne lit pas les livres : null.
       resume: async (/** @type {string} */ du, /** @type {string} */ au) => {
         try { return await appel('GET', `/compta/resume?du=${encodeURIComponent(du)}&au=${encodeURIComponent(au)}`); } catch (e) { if (/** @type {any} */ (e).statut === 403) return null; throw e; }

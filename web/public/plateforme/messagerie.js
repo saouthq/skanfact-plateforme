@@ -335,6 +335,8 @@
    *   rangerAchat?: (message: { id: string, nom: string, type: string, contenu: string }) => void,
    *   achatCite?: (texte: string) => { id: string, libelle: string } | null,
    *   joindreAchat?: (message: { id: string, nom: string, type: string, contenu: string }, achat: string) => Promise<string>,
+   *   range?: () => Promise<any[]>,
+   *   ouvrirRange?: (x: any) => void,
    *   ceMois?: () => { titre: string, lignes: string[], action: { libelle: string, faire: () => void } | null, cabinet: Promise<string | null> | null } | null,
    *   voirMandat?: () => void,
    *   inviter?: () => void,
@@ -731,6 +733,7 @@
           ${mois.action ? `<button type="button" class="msg-lien" data-msg-mois-aller>${esc(mois.action.libelle)}</button>` : ''}</div>` : '';
       cote.innerHTML = `${f ? `<div class="msg-encart${rien ? ' ok' : ' attend'}" data-msg-attente><b>${entreprise ? 'En attente de toi' : 'Ce qui attend le client'}</b><span>${esc(texte)}</span>${aller}</div>` : ''}
         ${carteMois}
+        ${entreprise && o.range ? '<div class="msg-encart msg-range" data-msg-range hidden></div>' : ''}
         ${entreprise ? `<div class="msg-encart"><b>Ce que voit ton cabinet</b><span>Ce fil, et ce que ton mandat lui confie, pour cette entreprise seulement. Chaque message garde sa date et son auteur, dans ton dossier.</span>
           ${o.voirMandat ? '<button type="button" class="msg-lien" data-msg-mandat>Voir le mandat</button>' : ''}</div>`
           // (1.98.0) « C'est traité » seulement quand ce client est « À traiter » : après une réponse du cabinet, il ne
@@ -747,6 +750,25 @@
       if (mois && mois.action) {
         const allerMois = cote.querySelector('[data-msg-mois-aller]');
         if (allerMois) /** @type {HTMLElement} */ (allerMois).onclick = () => { if (mois.action) mois.action.faire(); };
+      }
+      // (1.173.0) « Ce que ton cabinet a rangé » : les documents qu'il a déposés dans ton dossier, les pièces qu'il a jointes
+      // à tes achats ; chacun s'ouvre. Rien ne se montre tant que rien n'est rangé.
+      if (entreprise && o.range) {
+        const z = /** @type {HTMLElement | null} */ (cote.querySelector('[data-msg-range]'));
+        o.range().then((l) => {
+          if (!z || !z.isConnected || !l.length) return;
+          const jour = (/** @type {string} */ iso) => new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', timeZone: 'Africa/Tunis' });
+          const vus = l.slice(0, 6);
+          z.innerHTML = `<b>Ce que ton cabinet a rangé</b><span>${l.length > 1 ? `${l.length} pièces` : 'Une pièce'} dans ton dossier, par ${esc(l[0].cabinet)}.</span>
+            <ul class="msg-range-l">${vus.map((x, i) => `<li><button type="button" class="msg-lien" data-msg-range-i="${i}">${esc(x.titre)}</button><small>${esc(x.sorte === 'message'
+              ? `jointe à ton achat ${x.achat ? '' : ''}${x.ecriture || ''} le ${jour(x.jointeLe || x.deposeLe)}`
+              : `${x.rubrique === 'permanent' ? 'dossier permanent' : x.rubrique === 'courrier' ? 'un courrier' : x.rubrique === 'accuse' ? 'accusé de dépôt' : 'une pièce'}${x.ecriture ? `, jointe à ${x.ecriture}` : ''} · le ${jour(x.deposeLe)}`)}</small></li>`).join('')}</ul>
+            ${l.length > vus.length ? `<small>et ${l.length - vus.length} autre${l.length - vus.length > 1 ? 's' : ''}, dans le classeur de ton cabinet.</small>` : ''}`;
+          z.hidden = false;
+          z.querySelectorAll('[data-msg-range-i]').forEach((b) => {
+            /** @type {HTMLElement} */ (b).onclick = () => { const x = vus[Number(/** @type {HTMLElement} */ (b).dataset.msgRangeI)]; if (x && o.ouvrirRange) o.ouvrirRange(x); };
+          });
+        }).catch(() => { /* sans réseau, l'encart se tait */ });
       }
       if (mois && mois.cabinet) {
         mois.cabinet.then((t) => {

@@ -94,6 +94,20 @@ export interface BaseDeDonnees {
     classee_par: string | null;
     classee_raison: string | null;
     jointe_ecriture: string | null;
+    double_de: string | null;
+    double_de_sorte: string | null;
+  };
+  'cabinet.export': {
+    id: Generated<string>;
+    cabinet: string;
+    entreprise: string;
+    nom: string;
+    quoi: string;
+    taille: number;
+    contenu: Buffer;
+    cree_par: string;
+    cree_le: Generated<Date>;
+    expire_le: Generated<Date>;
   };
   'cabinet.fiche': {
     cabinet: string;
@@ -102,6 +116,20 @@ export interface BaseDeDonnees {
     revision: Generated<bigint>;
     modifie_par: string | null;
     modifie_le: Generated<Date>;
+  };
+  'cabinet.lecture': {
+    id: Generated<string>;
+    cabinet: string;
+    entreprise: string;
+    message: string | null;
+    document: string | null;
+    fournisseur: string | null;
+    numero: string | null;
+    date_piece: string | null;
+    total: string | null;
+    devise: string | null;
+    lu_par: string;
+    lu_le: Generated<Date>;
   };
   'cabinet.reglages': {
     cabinet: string;
@@ -434,6 +462,9 @@ export interface BaseDeDonnees {
     classee_raison: string | null;
     classee_note: string | null;
     jointe_ecriture: string | null;
+    double_de: string | null;
+    double_de_sorte: string | null;
+    mois_classeur: string | null;
   };
   'messagerie.modele': {
     id: Generated<string>;

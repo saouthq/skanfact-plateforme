@@ -46,6 +46,7 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     await api('POST', '/moi/code', jeton, { methode: 'application' });
     return { jeton, email };
   };
+  const gerants = new Map<string, string>();
   async function unCabinet() {
     const { jeton: associe } = await personne('Leïla Jlassi');
     const cab = (await api('POST', '/cabinets', associe, { nom: 'Jlassi Conseil' })).corps as { id: string; code: string };
@@ -55,6 +56,7 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
       const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, j, { codeCabinet: cab.code })).corps.mandat);
       expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, associe)).statut).toBe(200);
       expect((await api('PUT', `/cabinets/${cab.id}/fiches/${ent}`, associe, { contenu: fiche, revision: null })).statut).toBeLessThan(300);
+      gerants.set(ent, j);
       return ent;
     };
     const ecrire = async (ent: string, e: Record<string, unknown>) => expect((await api('POST', `/entreprises/${ent}/compta/ecritures`, associe, e)).statut).toBe(201);
@@ -127,6 +129,45 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     expect(await p.locator('#page-cl .btn-primary').allInnerTexts()).toEqual(['Relancer Hédi…']);
     expect(await p.locator('#page-cl button', { hasText: 'Relancer Hédi' }).count()).toBe(1);
     expect(await p.locator('#page-cl .cl-sous').innerText()).toMatch(/rien depuis le 15\/07/);
+    expect(erreurs).toEqual([]);
+  });
+
+  it('une pièce en double se marque de sa jumelle, côte à côte ; une pièce se range dans un autre mois', async () => {
+    const { associe, cab, boulangerie } = await unCabinet();
+    const sarra = gerants.get(boulangerie) ?? '';
+    // Sarra envoie deux fois la même photo (même nom, mêmes octets), puis un ticket.
+    const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    const envoyer = async (nom: string) => {
+      const f = await api('POST', `/entreprises/${boulangerie}/messages/fichiers`, sarra, { cote: 'entreprise', nom, contenu: PNG });
+      expect((await api('POST', `/entreprises/${boulangerie}/messages`, sarra, { cote: 'entreprise', texte: '', fichier: f.corps.id })).statut).toBe(201);
+    };
+    await envoyer('facture-steg.png');
+    await envoyer('facture-steg.png');
+    await envoyer('ticket-24-10.png');
+    const { p, erreurs } = await contexte(associe);
+    await ouvrir(p, cab.id, boulangerie);
+    // Arrivées en octobre, septembre pas encore déposé : elles servent septembre (la maquette), ouvert d'emblée.
+    expect(await p.locator('.cl-a-m.ici').innerText()).toMatch(/^Septembre/);
+    // La seconde photo se dit « en double ? », et son geste la marque en double de la première.
+    const dbl = p.locator('li[data-cl-k]').filter({ hasText: 'en double ?' });
+    await expect.poll(() => dbl.count()).toBe(1);
+    expect(await dbl.innerText()).toMatch(/la même que facture-steg\.png \?/);
+    await dbl.click();
+    await expect.poll(() => p.locator('.cl-ap .cl-dbl figure').count()).toBe(2);
+    expect(await p.locator('.cl-ap .btn-primary').allInnerTexts()).toEqual(['Marquer en double']);
+    await p.locator('.cl-ap .btn-primary').click();
+    await expect.poll(() => p.locator('li[data-cl-k]').filter({ hasText: 'en double' }).innerText()).toMatch(/la même que facture-steg\.png · classée en double/);
+    // Le ticket se range dans un autre mois (rangé au mauvais endroit) : il garde sa date d'arrivée, et rien ne s'écrit dans les livres.
+    await p.locator('li[data-cl-k]').filter({ hasText: 'ticket-24-10' }).click();
+    await p.locator('[data-cl-trois]').click();
+    await p.locator('[data-cl-menu="mois"]').click();
+    // Le mois de son arrivée : elle y reste, même si septembre attend encore ses pièces.
+    await p.locator('#mo-m').selectOption('2026-10');
+    expect(await p.locator('.modal #ok').innerText()).toBe('Déplacer en octobre');
+    await p.locator('.modal #ok').click();
+    await expect.poll(() => p.locator('.cl-a-m.ici').innerText()).toMatch(/^Octobre/);
+    expect(await p.locator('li[data-cl-k]').filter({ hasText: 'ticket-24-10' }).innerText()).toMatch(/reçue le \d\d\/10/);
+    expect(await p.locator('li[data-cl-k]').filter({ hasText: 'facture-steg' }).count()).toBe(0);
     expect(erreurs).toEqual([]);
   });
 

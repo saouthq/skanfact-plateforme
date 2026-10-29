@@ -291,7 +291,8 @@ const recues = await envoyer('be', ['facture-levure-0910.pdf', 'IMG_8790.jpg', '
   await classer(anis, 'facture-levure-0910.pdf', 'saisie');
   await api('POST', `/entreprises/${be}/messages`, rim, { cote: 'cabinet', texte: 'Bonjour Sarra, la photo IMG_8790 ne se lit pas : peux-tu la reprendre à plat, en pleine lumière ?', demande: 'Une meilleure photo de IMG_8790' });
   await classer(rim, 'IMG_8790.jpg', 'illisible', 'redemandée à Sarra');
-  await classer(anis, 'IMG_8841.jpg', 'double');
+  // (1.173.0) En double DE la facture de levure : le classeur les montre côte à côte.
+  await api('POST', `/entreprises/${be}/messages/${recues['IMG_8841.jpg']}/double`, anis, { sorte: 'message', jumelle: recues['facture-levure-0910.pdf'] });
   await classer(anis, 'Assurance-local-2026-attestation.pdf', 'rien');
   await api('POST', `/entreprises/${be}/messages/${recues['facture-farine-0903.pdf']}/achat`, sarra, { achat: 'p-0914', libelle: 'FA-0914 · Minoterie du Cap Bon' });
   // Le dossier permanent, rangé par le cabinet ; l'attestation de régularité fiscale est échue depuis le 30/09.
