@@ -21059,5 +21059,8 @@ prouver 'classeur 29 : l'\''historique tait la lecture par SkanFact' web/public/
 prouver 'fiche du dossier : l'\''en-tête garde un vert fixe au lieu de la couleur du dossier' web/public/v10/cabinet/app.js \
   'id="page-fd" data-id="${esc(d.id)}" style="--dc:${couleurDe(d.id)[0]}"' 'id="page-fd" data-id="${esc(d.id)}"' \
   'au bureau : rien reçu depuis juillet, un seul geste'
+prouver 'classeur 30 : dans un dossier tenu, une rubrique de l'\''arbre ne s'\''ouvre pas' web/public/v10/cabinet/app.js \
+  "} else if (d.manual && pm.cl !== 'avenir' && clState.filtre === 'rub' && !clState.ouvrir) {" "} else if (d.manual && pm.cl !== 'avenir') {" \
+  'un dossier tenu au cabinet : ce qui est arrivé, puis une rubrique'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

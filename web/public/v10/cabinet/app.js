@@ -4909,25 +4909,33 @@
     const permanent = `<a href="#" class="cl-a-t${clState.vue === 'permanent' && !clState.q ? ' ici' : ''}" data-cl-vue="permanent">${CL_IC.permanent}<span><b>Dossier permanent</b><small${nEchus ? ' class="rouge"' : ''}>${nPerm ? `${nPerm}${nEchus ? ` · ${pl(nEchus, 'échue', 'échues')}` : ''}` : 'à réunir'}</small></span></a>`;
     // Le mois ouvert : ni une autre vue, ni une recherche, ni « ce qui manque à l'année » (la maquette ne surligne alors aucun mois).
     const ici = !clState.vue && !clState.q && clState.filtre !== 'manque';
-    const sousRubs = `<div class="cl-a-sous">${rubsDuMois.map(([r, n]) => { const c = nb(r); return `<a href="#" class="cl-a-s${r === 'manque' ? ' rouge' : ''}${ici && clState.rub === r && clState.filtre === 'rub' ? ' ici' : ''}" data-cl-rub="${r}"${ici && clState.rub === r ? ' aria-current="true"' : ''}>${n}<span>${c || ''}</span></a>`; }).join('')}</div>`;
+    // (1.174.0) Les rubriques du mois ouvert : leur signe, leur compte ; une rubrique vide se grise (elle reste ouvrable),
+    // « Ce qui manque » ne rougit que s'il manque quelque chose (Skander : « rends-la agréable, c'est pas intuitif »).
+    // Le milieu résume le mois (complet, vide, ou ce qu'un dossier tenu a reçu) tant qu'on n'a pas ouvert une rubrique :
+    // l'arbre ne surligne alors aucune rubrique.
+    const resumeMois = clState.filtre === 'rub' && !clState.ouvrir && (pm.complet || (pm.etat[0] === 'manque' && !d.manual) || (d.manual && pm.cl !== 'avenir'));
+    const sousRubs = `<div class="cl-a-sous" role="group" aria-label="Les rubriques ${esc(deMois(pm.m))}">${rubsDuMois.map(([r, n]) => { const c = nb(r), plein = r === 'declaration' ? !!Lfd.decl[pm.m] : c > 0; return `<a href="#" class="cl-a-s${plein ? '' : ' vide'}${r === 'manque' && c ? ' rouge' : ''}${ici && !resumeMois && clState.rub === r && clState.filtre === 'rub' ? ' ici' : ''}" data-cl-rub="${r}"${ici && !resumeMois && clState.rub === r ? ' aria-current="true"' : ''}>${CL_IC[CL_IC_RUB[r]] || ''}<em>${n}</em><span>${c || (r === 'declaration' && plein ? CL_IC.ok : '')}</span></a>`; }).join('')}</div>`;
     const avant = parMois.filter(x => x.cl === 'avant');
     // Des mois vides à la suite se montrent en un bloc (plus bas) : l'arbre surligne le premier, sans ses rubriques vides.
     const enBloc = pm.etat[0] === 'manque' && !d.manual && clState.filtre === 'rub' && !clState.ouvrir;
     let mIci = pm.m;
     if (enBloc) { let i = parMois.indexOf(pm); while (i > 0 && parMois[i - 1].etat[0] === 'manque') i--; mIci = parMois[i].m; }
-    const lignesMois = parMois.filter(x => x.cl !== 'avant').map(x => `<a href="#" class="cl-a-m ${x.cl}${x.m === mIci && ici ? ' ici' : ''}" data-cl-m="${x.m}"><i>${x.cl === 'ok' ? CL_IC.ok : ''}</i><span>${cap(moisLong(x.m))}</span><small>${esc(x.mot)}</small></a>${x.m === pm.m && ici && x.cl !== 'ok' && !enBloc ? sousRubs : ''}`).join('');
+    const pourquoiMois = x => ({ ok: `${cap(moisLong(x.m))} est complet : ${pl(x.lp.length, 'pièce')}, toutes en ordre`, ambre: `${cap(moisLong(x.m))} attend encore : ${x.mot}`, rouge: `${cap(moisLong(x.m))} : ${x.etat[1] || x.mot}`, cours: `${cap(moisLong(x.m))} est le mois en cours : ses pièces arrivent`, avenir: `${cap(moisLong(x.m))} n'a pas commencé` })[x.cl] || '';
+    const lignesMois = parMois.filter(x => x.cl !== 'avant').map(x => `<a href="#" class="cl-a-m ${x.cl}${x.m === mIci && ici ? ' ici' : ''}" data-cl-m="${x.m}" title="${esc(pourquoiMois(x))}"${x.m === mIci && ici ? ' aria-current="true"' : ''}><i aria-hidden="true">${x.cl === 'ok' ? CL_IC.ok : ''}</i><span>${cap(moisLong(x.m))}</span><small>${esc(x.mot)}</small></a>${x.m === pm.m && ici && !enBloc ? sousRubs : ''}`).join('');
     const declsAn = Object.entries(Lfd.decl).filter(([m]) => m.startsWith(annee)).sort(([a], [b]) => a.localeCompare(b));
     const nDep = declsAn.filter(([, v]) => v.deposee).length, nCnss = declsAn.filter(([, v]) => /cnss/i.test(v.type) && v.deposee).length;
     const declSous = declsAn.length ? [`${pl(nDep - nCnss, 'déposée', 'déposées')}${nCnss ? `, ${nCnss} CNSS` : ''}`, tard.length ? `${moisLong(tard[0])} en retard` : ''].filter(Boolean).join(' · ') : 'aucune encore';
     const nCour = docs.filter(x => x.rubrique === 'courrier' && String(x.periode || jourTunisCl(x.deposeLe)).startsWith(annee)).length;
-    const exoLien = `<a href="#" class="cl-a-t ouv${!passe && clState.vue === 'annee' ? ' ici' : ''}" data-cl-an="${anneeC}">${CL_IC.exercice}<span><b>Exercice ${anneeC}</b><small>${passe ? 'en cours' : nouveau ? `en cours · depuis ${esc(moisLong(d.from || mc))}` : `${complets} mois complet${complets > 1 ? 's' : ''} sur ${parMois.filter(x => !['avant', 'cours', 'avenir'].includes(x.cl)).length}`}</small>${passe || nouveau ? '' : `<em class="cl-a-bar" aria-hidden="true"><i style="--n:${complets}"></i></em>`}</span>${CL_IC.chev}</a>`;
-    const arbreAnnee = `<div class="cl-a-ms">${avant.length ? `<a href="#" class="cl-a-m avant" tabindex="-1" aria-disabled="true"><i></i><span>${cap(moisLong(avant[0].m))}${avant.length > 1 ? ` à ${moisLong(avant[avant.length - 1].m)}` : ''}</span><small>avant la mission</small></a>` : ''}${lignesMois}
-        <a href="#" class="cl-a-m dc${clState.vue === 'decls' && !clState.q ? ' ici' : ''}" data-cl-decls="1"><i></i><span>Les déclarations</span><small>${esc(declSous)}</small></a>
-        <a href="#" class="cl-a-m dc cl-a-c${clState.vue === 'courriers' && !clState.q ? ' ici' : ''}" data-cl-vue="courriers"><i></i><span>Les courriers</span><small>de l'administration, d'un contrôle · ${nCour ? pl(nCour, 'courrier') : 'aucun'} en ${annee}</small></a></div>`;
+    const dus = parMois.filter(x => !['avant', 'cours', 'avenir'].includes(x.cl)).length;
+    const exoLien = `<a href="#" class="cl-a-t ouv${!passe && clState.vue === 'annee' ? ' ici' : ''}" data-cl-an="${anneeC}" title="L'année d'un coup d'œil : chaque mois, ses pièces et sa déclaration">${CL_IC.exercice}<span><b>Exercice ${anneeC}</b><small>${passe ? 'en cours' : nouveau ? `en cours · depuis ${esc(moisLong(d.from || mc))}` : `${complets} mois complet${complets > 1 ? 's' : ''} sur ${dus}`}</small>${passe || nouveau || !dus ? '' : `<em class="cl-a-bar" aria-hidden="true"><i style="--p:${Math.round(complets / dus * 100)}%"></i></em>`}</span>${passe ? CL_IC.chev : ''}</a>`;
+    const arbreAnnee = `<div class="cl-a-ms">${avant.length ? `<a href="#" class="cl-a-m avant" tabindex="-1" aria-disabled="true" title="La mission commence en ${esc(moisLong(d.from || ''))} : ces mois ne se rangent pas ici"><i></i><span>${cap(moisLong(avant[0].m))}${avant.length > 1 ? ` à ${moisLong(avant[avant.length - 1].m)}` : ''}</span><small>avant la mission</small></a>` : ''}${lignesMois}</div>
+        <span class="cl-a-l">À part, pour ${annee}</span>
+        <a href="#" class="cl-a-m dc${clState.vue === 'decls' && !clState.q ? ' ici' : ''}${tard.length ? ' tard' : ''}" data-cl-decls="1" title="Chaque déclaration de l'année, son accusé et son paiement"><i aria-hidden="true">${CL_IC.decl}</i><span>Les déclarations</span><small>${esc(declSous)}</small></a>
+        <a href="#" class="cl-a-m dc cl-a-c${clState.vue === 'courriers' && !clState.q ? ' ici' : ''}" data-cl-vue="courriers" title="Les courriers de l'administration, d'un contrôle, et leurs réponses"><i aria-hidden="true">${CL_IC.contrat}</i><span>Les courriers</span><small>${nCour ? pl(nCour, 'courrier') : 'aucun'} en ${annee}</small></a>`;
     const arbre = `<nav class="cl-arbre" aria-label="Le classeur">${permanent}${passe ? '' : `<div class="cl-a-g">${exoLien}${arbreAnnee}</div>`}
       ${autresAnnees.map(a => { const x = exos.find(y => String(y.annee) === a) || {}; const l = `<a href="#" class="cl-a-t${a === annee ? ' ici ouv' : ''}" data-cl-an="${a}">${CL_IC.exercice}<span><b>Exercice ${a}</b><small class="ok">${x.clos ? `${CL_IC.ok}clôturé · ` : ''}${pl(x.ecritures || 0, 'pièce')}</small></span>${CL_IC.chev}</a>`; return a === annee ? `<div class="cl-a-g">${l}${arbreAnnee}</div>` : l; }).join('')}
       ${passe ? `<div class="cl-a-g">${exoLien}</div>` : ''}
-      <p class="cl-a-n">Gardé 10 ans au moins, même si la mission s'arrête. Les originaux papier restent chez le client : une photo vaut-elle l'original ? À VÉRIFIER.</p></nav>`;
+      <p class="cl-a-n" title="Les originaux papier restent chez le client : une photo vaut-elle l'original ? À VÉRIFIER.">${CL_IC.info}<span>Gardé 10 ans au moins, même si la mission s'arrête (À VÉRIFIER).</span></p></nav>`;
     const telNav = `<div class="cl-tel-n" role="group" aria-label="Le classeur"><button type="button" aria-pressed="${clState.vue === 'permanent'}" data-cl-vue="permanent">Permanent</button>${[anneeC, ...autresAnnees.filter(a => a !== anneeC)].map(a => `<button type="button" aria-pressed="${a === annee && clState.vue !== 'permanent'}" data-cl-an="${a}">${a}</button>`).join('')}</div>
       <div class="cl-tel-m">${parMois.filter(x => x.cl !== 'avant').map(x => `<button type="button" aria-pressed="${x.m === pm.m && ici}" class="${x.cl === 'ok' ? 'ok' : x.cl === 'ambre' ? 'pb' : x.cl === 'rouge' ? 'pb rouge' : ''}" data-cl-m="${x.m}">${MOIS_CD[Number(x.m.slice(5, 7)) - 1]}</button>`).join('')}<button type="button" aria-pressed="${clState.vue === 'decls'}" data-cl-decls="1">déclarations</button></div>`;
 
@@ -5086,7 +5094,7 @@
       milieu = `${resume(`${cap(noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0])} ${annee}`, `<b class="rouge">aucune pièce</b>${derEcr ? ` · la dernière écriture de ${esc(prenom || d.name)} date du ${derEcr}` : ''}`, '')}
         <section class="cl-sec"><h3>Ce qui manque<span>${pl(trous.length, 'mois', 'mois')}</span><small>des mois vides : rien n'a été enregistré dans SkanFact</small></h3><ul class="cl-ls">${trous.map(t => ligne(t)).join('')}</ul></section>
         ${avantBloc.length && avantBloc.every(x => x.complet) ? `<p class="cl-note">${avantBloc.length > 1 ? `Les ${['', '', 'deux', 'trois', 'quatre', 'cinq', 'six', 'sept', 'huit', 'neuf', 'dix', 'onze'][avantBloc.length] || avantBloc.length} premiers mois de ${annee} sont complets` : `${cap(moisLong(avantBloc[0].m))} est complet`} : ${pl(avantBloc.reduce((t, x) => t + x.lp.length, 0), 'pièce')}, toutes en ordre.</p>` : ''}`;
-    } else if (d.manual && pm.cl !== 'avenir') {
+    } else if (d.manual && pm.cl !== 'avenir' && clState.filtre === 'rub' && !clState.ouvrir) {
       // Un dossier tenu : ce qui est arrivé au cabinet (déposé, saisi), et ce qu'on attend du client.
       const arrive = triAFaire(pm.lp);
       const aSaisir = arrive.filter(x => x.etat[2] === 'traiter');
@@ -5285,6 +5293,16 @@
     const re = () => drawClasseur(view, d);
     const choisir = (m, extra = {}) => { Object.assign(clState, { mois: m, vue: '', decl: '', sel: '', plus: false, ouvrir: false, filtre: 'rub', rub: '', menu: '', hist: false, ...extra }); re(); };
     $$('[data-cl-m]', view).forEach(a => { a.onclick = e => { e.preventDefault(); choisir(a.dataset.clM); }; });
+    // (1.174.0) L'arbre au clavier : ↑ et ↓ passent d'une ligne à l'autre (les mois d'avant la mission se sautent).
+    const nav = $('.cl-arbre', view);
+    if (nav) nav.onkeydown = e => {
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      const liens = $$('a[href="#"]:not([aria-disabled="true"])', nav), i = liens.indexOf(document.activeElement);
+      if (i < 0) return;
+      e.preventDefault();
+      const l = liens[i + (e.key === 'ArrowDown' ? 1 : -1)];
+      if (l) l.focus();
+    };
     $$('[data-cl-rub]', view).forEach(a => { a.onclick = e => { e.preventDefault(); Object.assign(clState, { rub: a.dataset.clRub, filtre: 'rub', plus: false, sel: '', vue: '', ouvrir: true, menu: '' }); re(); }; });
     $$('[data-cl-ouvrir]', view).forEach(a => { a.onclick = e => { e.preventDefault(); Object.assign(clState, { rub: a.dataset.clOuvrir, filtre: 'rub', ouvrir: true }); re(); }; });
     $$('[data-cl-aller]', view).forEach(a => { a.onclick = e => { e.preventDefault(); choisir(a.dataset.clAller, { rub: a.dataset.clArub, ouvrir: true }); }; });

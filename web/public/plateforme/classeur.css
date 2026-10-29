@@ -11,8 +11,8 @@
 .cl-ch svg { width: 18px; height: 18px; flex: none; }
 .cl-ch input, .cl-ch input[type="search"], .cl-ch input[type="search"]:focus { flex: 1; min-width: 0; height: auto; padding: 0; border: 0; outline: 0; box-shadow: none; background: none; font: inherit; font-size: 14px; color: var(--sb-encre); }
 .cl-ch kbd { font: 600 11px/1 inherit; padding: 4px 7px; border-radius: 6px; border: 1px solid var(--sb-trait); color: var(--sb-gris-2); background: var(--sb-papier-2); }
-.cl-g { display: grid; grid-template-columns: 232px minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
-.cl-g.sans-ap { grid-template-columns: 232px minmax(0, 1fr); }
+.cl-g { display: grid; grid-template-columns: 252px minmax(0, 1fr) 340px; gap: 16px; align-items: start; }
+.cl-g.sans-ap { grid-template-columns: 252px minmax(0, 1fr); }
 .cl-liste { display: grid; gap: 14px; min-width: 0; align-content: start; }
 .cl-arbre { display: grid; gap: 4px; padding: 10px; border: 1px solid var(--sb-trait); border-radius: 14px; background: var(--sb-papier); position: sticky; top: 0; }
 .cl-a-t { display: grid; grid-template-columns: 18px minmax(0, 1fr) 14px; gap: 9px; align-items: center; padding: 8px 8px; border-radius: 10px; color: var(--sb-encre); text-decoration: none; }
@@ -206,7 +206,7 @@
 .cl-a-m.ok i svg { width: 9px; height: 9px; }
 .cl-a-m { grid-template-columns: 13px minmax(0, 1fr) auto; }
 .cl-a-bar { display: block; height: 4px; margin-top: 4px; border-radius: 99px; background: var(--sb-survol); overflow: hidden; }
-.cl-a-bar i { display: block; height: 100%; width: calc(var(--n) * 10%); border-radius: 99px; background: var(--sb-sarcelle); }
+.cl-a-bar i { display: block; height: 100%; width: var(--p, 0%); border-radius: 99px; background: var(--sb-sarcelle); }
 .cl-res-p { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; margin: 0; padding: 9px 12px; border-radius: 10px; background: color-mix(in srgb, var(--sb-sarcelle) 7%, var(--sb-papier)); font-size: 13px; color: var(--sb-encre); }
 .cl-res-p > svg { width: 16px; height: 16px; color: var(--sb-sarcelle-texte); flex: none; }
 .cl-res-p > span { flex: 1; min-width: 180px; }
@@ -525,3 +525,72 @@
   display: block; overflow: hidden; background: #fff; border: 1px solid #e6e1d6; border-radius: 8px; box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 6px 16px -8px rgba(0, 0, 0, .18); }
 .cl-ap .cl-dbl .cl-pap-z.pc-papier:not(.vide) img { width: 100%; height: 100%; object-fit: cover; object-position: top; border: 0; box-shadow: none; border-radius: 0; }
 .cl-ap .cl-dbl .cl-pap-z.pc-papier.vide { display: grid; place-content: center; font-size: 11px; }
+
+/* (1.174.0) L'arbre du classeur, refait (Skander : « améliore la barre à gauche, rends-la agréable, c'est pas intuitif »).
+   Les mois se lisent comme une frise : un point d'état sur un fil, le mot de l'état dans une pastille de sa couleur ; le
+   mois ouvert déplie ses rubriques dans un panneau, avec leur signe et leur compte ; les déclarations et les courriers
+   vivent « à part ». */
+.cl-arbre { padding: 12px; gap: 6px; }
+.cl-arbre a:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: 1px; }
+.cl-a-t { grid-template-columns: 30px minmax(0, 1fr) 14px; gap: 10px; padding: 8px; }
+.cl-a-t > svg:first-child { width: 30px; height: 30px; padding: 7px; border-radius: 9px; background: var(--sb-survol); color: var(--sb-gris); box-sizing: border-box; }
+.cl-a-t.ouv > svg:first-child { background: var(--sb-doux); color: var(--sb-doux-texte); }
+.cl-a-t b { font-size: 14px; }
+.cl-a-t small { font-size: 12px; }
+.cl-a-t small.rouge { color: var(--sb-rouge-texte); font-weight: 600; }
+.cl-a-bar { height: 5px; margin-top: 6px; }
+.cl-a-ms { margin: 2px 0 2px 22px; padding-left: 0; border-left: 2px solid var(--sb-trait); gap: 2px; }
+.cl-a-m { grid-template-columns: 16px minmax(0, 1fr) auto; gap: 9px; padding: 6px 8px 6px 0; margin-left: -9px; font-size: 13.5px; border-radius: 0 9px 9px 0; }
+.cl-a-m i { width: 16px; height: 16px; margin: 0; box-sizing: border-box; border-radius: 50%; display: grid; place-items: center; background: var(--sb-papier); border: 2px solid var(--sb-trait-fort); color: #fff; font: 800 10px/1 inherit; font-style: normal; }
+.cl-a-m i svg { width: 9px; height: 9px; }
+.cl-a-m.ok i { width: 16px; height: 16px; margin: 0; background: var(--sb-sarcelle); border-color: var(--sb-sarcelle); }
+.cl-a-m.ambre i { background: #e0a040; border-color: #e0a040; }
+.cl-a-m.rouge i { background: var(--sb-rouge-texte); border-color: var(--sb-rouge-texte); }
+.cl-a-m.cours i { width: 16px; height: 16px; border: 2px solid var(--sb-sarcelle); background: conic-gradient(var(--sb-sarcelle) 0 50%, var(--sb-papier) 0); }
+.cl-a-m.avenir i { border-style: dashed; }
+.cl-a-m small { padding: 2px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 600; color: var(--sb-gris-2); }
+.cl-a-m.ok small { font-weight: 500; }
+.cl-a-m.ambre small { background: var(--sb-ambre-doux); color: var(--sb-ambre-texte); }
+.cl-a-m.rouge small { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+.cl-a-m.cours small { background: var(--sb-doux); color: var(--sb-doux-texte); }
+.cl-a-m.avenir { color: var(--sb-gris-2); }
+.cl-a-m.avant { grid-template-columns: 16px minmax(0, 1fr); row-gap: 0; color: var(--sb-gris-2); font-size: 12.5px; cursor: default; }
+.cl-a-m.avant i { width: 10px; height: 10px; margin-left: 3px; border-width: 1.5px; }
+.cl-a-m.avant small { grid-column: 2; padding: 0; font-weight: 500; font-size: 11px; background: none; }
+.cl-a-m.avant:hover { background: none; }
+.cl-a-m.ici { background: var(--sb-doux); }
+.cl-a-m.ici span { color: var(--sb-doux-texte); font-weight: 650; }
+.cl-a-m.ici i { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-sarcelle) 22%, transparent); }
+.cl-a-sous { margin: 2px 0 6px 14px; padding: 4px; gap: 1px; border-radius: 10px; background: color-mix(in srgb, var(--sb-sarcelle) 5%, var(--sb-papier)); border: 1px solid color-mix(in srgb, var(--sb-sarcelle) 14%, var(--sb-trait)); }
+.cl-a-s { display: grid; grid-template-columns: 15px minmax(0, 1fr) auto; align-items: center; gap: 8px; padding: 5px 7px; border-radius: 7px; font-size: 12.5px; color: var(--sb-encre); }
+.cl-a-s > svg { width: 15px; height: 15px; color: var(--sb-gris); }
+.cl-a-s em { font-style: normal; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-a-s span { min-width: 20px; padding: 0 6px; border-radius: 99px; font-size: 11px; font-weight: 600; text-align: center; color: var(--sb-gris); background: var(--sb-papier); border: 1px solid var(--sb-trait); line-height: 17px; }
+.cl-a-s span:empty { visibility: hidden; }
+.cl-a-s span svg { width: 9px; height: 9px; color: var(--sb-sarcelle); vertical-align: -1px; }
+.cl-a-s.vide { color: var(--sb-gris-2); }
+.cl-a-s.vide > svg { opacity: .55; }
+.cl-a-s:hover { background: var(--sb-papier); }
+.cl-a-s.ici { background: var(--sb-papier); color: var(--sb-doux-texte); box-shadow: 0 1px 2px rgba(15, 40, 36, .08), inset 0 0 0 1px color-mix(in srgb, var(--sb-sarcelle) 35%, transparent); }
+.cl-a-s.ici > svg { color: var(--sb-sarcelle); opacity: 1; }
+.cl-a-s.ici span { border-color: color-mix(in srgb, var(--sb-sarcelle) 35%, transparent); color: var(--sb-doux-texte); }
+.cl-a-s.rouge, .cl-a-s.rouge > svg { color: var(--sb-rouge-texte); }
+.cl-a-s.rouge span { background: var(--sb-rouge-doux); border-color: transparent; color: var(--sb-rouge-texte); }
+.cl-a-l { margin: 10px 8px 0; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--sb-gris-2); }
+.cl-a-m.dc { grid-template-columns: 30px minmax(0, 1fr); align-items: center; row-gap: 0; margin: 0; padding: 6px 8px; border: 0; border-radius: 9px; }
+.cl-a-m.dc i { grid-row: span 2; width: 30px; height: 30px; margin: 0; border-radius: 9px; border: 0; background: var(--sb-survol); color: var(--sb-gris); }
+.cl-a-m.dc i svg { width: 15px; height: 15px; }
+.cl-a-m.dc span { font-weight: 600; }
+.cl-a-m.dc small { grid-column: 2; padding: 0; background: none; font-weight: 500; font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cl-a-m.dc.tard small { color: var(--sb-rouge-texte); }
+.cl-a-m.dc.ici i { background: var(--sb-papier); color: var(--sb-doux-texte); }
+.cl-a-n { display: flex; gap: 6px; align-items: flex-start; margin: 8px 8px 2px; padding-top: 10px; border-top: 1px solid var(--sb-trait); font-size: 11px; }
+.cl-a-n svg { flex: none; width: 13px; height: 13px; margin-top: 1px; }
+/* Assez de place pour que les noms se lisent en entier (« Retenues à la source », « Le travail du cabinet »). */
+.cl-arbre { padding: 10px; }
+.cl-a-t { grid-template-columns: 28px minmax(0, 1fr) 14px; gap: 9px; }
+.cl-a-t > svg:first-child { width: 28px; height: 28px; padding: 6px; }
+.cl-a-ms { margin-left: 18px; }
+.cl-a-sous { margin-left: 8px; }
+.cl-a-s em { white-space: normal; line-height: 1.3; }
+.cl-a-m.rouge i::before { content: '!'; }

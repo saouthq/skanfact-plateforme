@@ -97,6 +97,17 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     expect(await p.locator('.cl-a-t.ici').count()).toBe(0);
     expect(await p.locator('.cl-a-m.avant').innerText()).toMatch(/Janvier à août\s+avant la mission/);
     expect(await p.locator('.cl-a-s.ici').innerText()).toMatch(/Achats\s+1/);
+    // (1.174.0) L'arbre : une rubrique vide se grise, « Ce qui manque » ne rougit que s'il manque ; la barre de l'exercice
+    // dit la vraie part des mois complets ; ↓ passe à la ligne suivante.
+    expect(await p.locator('.cl-a-s:not(.vide)').allInnerTexts()).toEqual(expect.arrayContaining([expect.stringMatching(/^Achats\s+1$/)]));
+    expect(await p.locator('.cl-a-s.vide', { hasText: 'Ventes' }).count()).toBe(1);
+    for (const r of await p.locator('.cl-a-s.rouge').all()) expect(await r.innerText()).toMatch(/Ce qui manque\s+\d+/);
+    const barre = await p.locator('.cl-a-bar i').getAttribute('style');
+    const [complets, dus] = (await p.locator('.cl-a-t.ouv small').innerText()).match(/(\d+) mois complets? sur (\d+)/)?.slice(1).map(Number) ?? [NaN, NaN];
+    expect(barre).toBe(`--p:${Math.round((complets ?? NaN) / (dus ?? NaN) * 100)}%`);
+    await p.locator('.cl-a-m.ici').focus();
+    await p.keyboard.press('ArrowDown');
+    expect(await p.evaluate(() => document.activeElement?.className)).toMatch(/cl-a-s/);
     expect(await p.locator('.cl-res-t').first().innerText()).toMatch(/Septembre 2026\s+1 pièce/);
     // La rubrique : une seule écriture, dite au singulier ; le pied compte sept rubriques.
     expect(await p.locator('.cl-sec h3').first().innerText()).toMatch(/Achats\s*1\s*1 facture ou ticket : 1 en ordre/);
@@ -228,6 +239,25 @@ describe('le classeur du dossier au Cabinet, à la souris', () => {
     await expect.poll(() => deposee.innerText().catch(() => '')).toMatch(/la même que IMG_8850\.jpg[\s\S]*en double/);
     expect(erreurs).toEqual([]);
   }, 60_000);
+
+  it('un dossier tenu au cabinet : ce qui est arrivé, puis une rubrique de l\'arbre s\'ouvre au clic', async () => {
+    const { associe, cab } = await unCabinet();
+    const tenu = String((await api('POST', `/cabinets/${cab.id}/dossiers`, associe, { raisonSociale: 'Transport Mejri' })).corps.entreprise);
+    const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    expect((await api('POST', `/cabinets/${cab.id}/classeur/${tenu}/documents`, associe, { rubrique: 'piece', periode: '2026-09', titre: 'Facture gasoil', nom: 'gasoil.png', contenu: PNG })).statut).toBe(201);
+    const { p, erreurs } = await contexte(associe);
+    await ouvrir(p, cab.id, tenu);
+    await expect.poll(() => p.locator('.cl-sec h3').first().innerText()).toMatch(/Ce qui est arrivé/);
+    // Le milieu résume le mois : aucune rubrique n'est surlignée.
+    expect(await p.locator('.cl-a-s.ici').count()).toBe(0);
+    await p.locator('.cl-a-s', { hasText: 'Achats' }).click();
+    await expect.poll(() => p.locator('.cl-sec h3').first().innerText()).toMatch(/^Achats/);
+    expect(await p.locator('.cl-a-s.ici').innerText()).toMatch(/Achats\s+1/);
+    // Le mois, cliqué, revient à ce qui est arrivé.
+    await p.locator('.cl-a-m.ici').click();
+    await expect.poll(() => p.locator('.cl-sec h3').first().innerText()).toMatch(/Ce qui est arrivé/);
+    expect(erreurs).toEqual([]);
+  });
 
   it('au téléphone : les puces des mois, la carte du mois sur toute la largeur, la pièce et le retour', async () => {
     const { associe, cab, boulangerie } = await unCabinet();
