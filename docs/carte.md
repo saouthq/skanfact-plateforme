@@ -903,7 +903,8 @@ vaut pour tout le dépôt.*
   `fenNoterRelance`, `plateforme/dossiers.css` ; la fiche garde `forme`, `ville`, `activite`, `fonction` ; le bandeau des
   propositions, `bandeauMandats` du pont), la fiche du dossier telle que la maquette (1.170.0 : `drawFicheFd`, `lireLivreFd`,
   `etatMoisFd`, `popMoisFd`, `menuFicheFd`, `fenNoteFd`, `introuvableFd`, `plateforme/fiche-dossier.css` ; l'ancienne page
-  du dossier à `#/dossier/<id>/suivi`) et l'aperçu des PDF commun aux deux applications
+  du dossier à `#/dossier/<id>/suivi`), le classeur du client (1.171.0 : `drawClasseur`, `modeleCl`, `chargerClasseur`,
+  `plateforme/classeur.css`, `#/dossier/<id>/classeur`) et l'aperçu des PDF commun aux deux applications
   (`plateforme/apercu-pdf.js`). Lot 2 (1.153.0), la charte : `plateforme/charte.css` (statuts, boutons, menu ⋯, toast,
   bandeaux, en-tête), chargée après `style.css` par les deux applications ; le menu prend un titre (`rowmenu.js`,
   `opts.titre`) ; le toast sa barre de temps (`toast`, `toastUndo` des deux `app.js`).

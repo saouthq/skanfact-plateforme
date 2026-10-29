@@ -74,6 +74,8 @@ describe('le Cabinet au téléphone', () => {
       { nom: 'dossier', hash: `#/dossier/${ent}/suivi`, ordinateur: true },
       // (1.170.0) La fiche du dossier est faite pour le téléphone (sa maquette) : elle ne se dit pas « pensée pour un ordinateur ».
       { nom: 'fiche', hash: `#/dossier/${ent}` },
+      // (1.171.0) Le classeur du dossier : fait pour le téléphone aussi (ses puces des mois).
+      { nom: 'classeur', hash: `#/dossier/${ent}/classeur` },
       { nom: 'balance', hash: `#/dossier/${ent}/comptabilite/balance/2026`, ordinateur: true },
     ];
     const faux: string[] = [];

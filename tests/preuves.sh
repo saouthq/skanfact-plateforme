@@ -20954,7 +20954,7 @@ prouver 'fiche 2 : la note de l'\''équipe ne s'\''enregistre pas' web/public/v1
   "S = (await api.saveDossier(d.id, { note: \$('#fd-note-t', layer).value })).state;" "S = await api.saveDossier(d.id, { note: \$('#fd-note-t', layer).value });" \
   'au bureau : rien reçu depuis juillet'
 prouver 'fiche 3 : au téléphone, la fiche se dit « pensée pour un ordinateur »' web/public/v10/cabinet/app.js \
-  "|| \$('#page-fd')) return;" ") return;" \
+  "|| \$('#page-fd') || \$('#page-cl')) return;" "|| \$('#page-cl')) return;" \
   'au téléphone : rien ne déborde'
 prouver 'fiche 4 : un mois sans rien reçu liste ses points de révision' web/public/v10/cabinet/app.js \
   'const rienArrive = rv.length && !xm.ecr && !d.manual;' 'const rienArrive = false;' \
@@ -20968,5 +20968,23 @@ prouver 'fiche 6 : un mois en retard ne dit pas depuis quand' web/public/v10/cab
 prouver 'fiche 7 : un client sans écriture n'\''a pas sa bienvenue' web/public/v10/cabinet/app.js \
   'const nouveau = L && !Object.values(L.parMois).some(v => v.ecr) && !d.manual;' 'const nouveau = false;' \
   'au bureau : rien reçu depuis juillet'
+prouver 'classeur 1 : « Tout le dossier » ne mène pas au classeur' web/public/v10/cabinet/app.js \
+  "'Chaque pièce, mois par mois, et ce qui manque', { href: \`\${base}/classeur\` })" "'Chaque pièce, mois par mois, et ce qui manque', { href: \`\${base}/comptabilite/journal\` })" \
+  'au bureau : l'\''arbre, la rubrique'
+prouver 'classeur 2 : les mois d'\''avant la mission se rangent comme les autres' web/public/v10/cabinet/app.js \
+  '<div class="cl-a-ms">${avant.length ? `' '<div class="cl-a-ms">${false ? `' \
+  'au bureau : l'\''arbre, la rubrique'
+prouver 'classeur 3 : une écriture ouverte ne montre rien à droite' web/public/v10/cabinet/app.js \
+  "} else if (sel && sel.sorte === 'ecr') {" "} else if (false) {" \
+  'au bureau : l'\''arbre, la rubrique'
+prouver 'classeur 4 : la recherche ignore le nom du fournisseur' web/public/v10/cabinet/app.js \
+  'sansAccentsCl(`${x.titre} ${x.sous} ${x.num' 'sansAccentsCl(`${x.sous} ${x.num' \
+  'au bureau : l'\''arbre, la rubrique'
+prouver 'classeur 5 : deux mois vides font deux relances' web/public/v10/cabinet/app.js \
+  "x.etat[1] === 'manquante' && x.premier && !hors" "x.etat[1] === 'manquante' && !hors" \
+  'au bureau : l'\''arbre, la rubrique'
+prouver 'classeur 6 : au téléphone, le classeur se dit « pensé pour un ordinateur »' web/public/v10/cabinet/app.js \
+  "|| \$('#page-fd') || \$('#page-cl')) return;" "|| \$('#page-fd')) return;" \
+  'au téléphone : les puces des mois'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]
