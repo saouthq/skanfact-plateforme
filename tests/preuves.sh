@@ -21470,3 +21470,9 @@ prouver 'repondre 3 : le fichier de la réponse ne part pas' web/public/platefor
 prouver 'repondre 4 : le fichier choisi est oublié' web/public/plateforme/messagerie.js \
   "fichiersQ.set(id, f);" "void f;" \
   'le client voit les questions envoyées'
+prouver 'ecrire 1 : une vente ne propose pas d'"'"'écrire au cabinet' web/public/v10/app.js \
+  "if (peutEcrireAuCabinet() && stored && (stored.number || stored.status !== 'brouillon')) a.push(" "if (false) a.push(" \
+  'le client voit les questions envoyées'
+prouver 'ecrire 2 : la conversation ne nomme pas la vente' web/public/v10/app.js \
+  "    pieceDuMessage = { genre: d.type === 'avoir' ? 'avoir'" "    void { genre: d.type === 'avoir' ? 'avoir'" \
+  'le client voit les questions envoyées'

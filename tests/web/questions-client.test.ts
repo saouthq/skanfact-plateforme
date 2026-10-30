@@ -175,6 +175,23 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     expect(await p.locator('#exp-comptable').getAttribute('class')).not.toContain('btn-primary');
     // (1.130.0) Point 17 de la revue du mois d'un client : il envoie par e-mail, à quelqu'un d'autre ; son nom le dit.
     expect((await p.locator('#exp-comptable').innerText()).trim()).toBe('Envoyer par e-mail…');
+
+    // ── (1.192.0) Écrire à son cabinet depuis une vente, comme depuis un achat : la conversation s'ouvre, la pièce nommée ──
+    await poser('clients', 'c1', { id: 'c1', name: 'Quincaillerie Ben Salah', matricule: '', address: '', email: '', phone: '', currency: 'DT' });
+    await poser('documents', 'd7', { id: 'd7', type: 'devis', number: 'D-2026-007', date: '2026-08-05', dueDate: '2026-08-05', clientId: 'c1', subject: 'Outillage', status: 'brouillon',
+      lines: [{ label: 'Perceuse', description: '', qty: 2, unit: '', unitPrice: { '~n': '450.5' }, vatRate: 19 }], discountRate: 0, applyStamp: false, withholdingRate: 0,
+      currency: 'DT', exchangeRate: '', payments: [] });
+    // Posée après l'ouverture : la page se recharge pour la connaître (la même adresse ne recharge pas).
+    await p.goto('about:blank');
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/doc/d7`);
+    await p.locator('#more-btn').waitFor({ timeout: 20_000 });
+    await expect.poll(async () => {
+      if (!await p.getByRole('menuitem').filter({ hasText: 'Écrire au cabinet sur cette pièce' }).count()) await p.locator('#more-btn').click({ timeout: 2_000 }).catch(() => {});
+      return p.getByRole('menuitem').filter({ hasText: 'Écrire au cabinet sur cette pièce' }).count();
+    }, { timeout: 20_000 }).toBe(1);
+    await p.getByRole('menuitem').filter({ hasText: 'Écrire au cabinet sur cette pièce' }).click();
+    await expect.poll(() => p.locator('.msg-joint').first().innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/^Devis · D-2026-007 · Quincaillerie Ben Salah · /);
+    expect(p.url()).toContain('#/comptable');
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

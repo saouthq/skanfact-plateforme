@@ -5029,6 +5029,7 @@
     if (e && e.etat === 'refusee') legal.push({ icon: 'texte', label: 'El Fatoora : refusée', hint: e.motif ? `${e.motif}` : 'le détail est dans la facture', danger: true, run: () => navigate('#/doc/' + d.id) });
     const piece = [{ icon: 'pdf', label: 'PDF', hint: 'tel que le client le reçoit', run: () => exportPdf(d) }];
     if (!lecture) piece.push({ icon: 'copier', label: 'Dupliquer', hint: 'un brouillon, mêmes lignes', run: () => duplicateDoc(d) });
+    if (peutEcrireAuCabinet()) piece.push({ icon: 'message', label: 'Écrire au cabinet sur cette pièce', hint: 'la question arrive dans votre fil', run: () => ecrireAuCabinetSur(d) });
     const corriger = d.type === 'facture' && st !== 'annulée' && !commercial && !lecture
       ? [{ icon: 'restaurer', label: 'Créer un avoir', hint: 'corrige tout ou partie : la facture ne se modifie plus', run: () => navigate('#/doc/new/avoir/' + d.id) }] : [];
     const groupe = (titre, l) => (l.length ? [{ titre }, ...l] : []);
@@ -8092,6 +8093,9 @@
       if ($('#serials')) a.push({ icon: 'stock', label: 'Numéros de série livrés…', hint: 'ce qui est sorti du stock', run: parBouton('serials') });
       if (!isQ || !emise) a.push({ icon: 'horloge', label: 'Historique', hint: emise ? pl(nbGestes, 'geste') : 'qui a fait quoi', run: () => ouvrirHistorique() });
       a.push({ icon: 'texte', label: 'Raccourcis clavier', hint: 'tout se fait sans souris', run: () => ouvrirRaccourcis() });
+      // (plateforme) 1.192.0 — comme l'achat (1.155.13) : on parle d'une pièce à son cabinet depuis la pièce, la conversation
+      // ouverte avec elle nommée dans le message.
+      if (peutEcrireAuCabinet() && stored && (stored.number || stored.status !== 'brouillon')) a.push({ icon: 'message', label: 'Écrire au cabinet sur cette pièce', hint: 'la question arrive dans votre fil', run: () => ecrireAuCabinetSur(stored) });
       if (isQ && $('#more-list')) {
         // Le devis garde ses autres gestes (transformer, envoyer…), tels que sa liste les propose.
         $$('#more-list > button:not(.i), #more-list .ml-ligne > button:not(.i)').filter(b => !['dup', 'as-template', 'del', 'serials'].includes(b.id) && b.textContent.trim().length > 1 && !b.hidden).forEach(b => a.push({ icon: b.id === 'email' ? 'email' : b.id === 'wa' ? 'message' : b.dataset.conv ? 'facture' : 'ouvrir', label: b.textContent.trim().replace(/…$/, '…'), run: () => b.click() }));
@@ -11878,6 +11882,16 @@
       <span class="lock-go">${qs.map(q => `<button class="btn btn-sm" data-qrep="${h(q.id)}">Répondre</button>`).join('')}</span></div>`;
   }
   const brancherQuestions = racine => $$('[data-qrep]', racine).forEach(b => b.onclick = () => repondreA(b.dataset.qrep));
+
+  // (plateforme) 1.192.0 — écrire à son cabinet sur une vente (facture, avoir, devis) : la conversation s'ouvre, la pièce
+  // nommée dans le message, comme depuis un achat. Seulement quand un cabinet tient le dossier.
+  function peutEcrireAuCabinet() { return !!(bridge.messagerie && messagerieVue && messagerieVue.cabinet); }
+  function ecrireAuCabinetSur(d) {
+    const t = C.computeTotals(d, company());
+    pieceDuMessage = { genre: d.type === 'avoir' ? 'avoir' : d.type === 'devis' ? 'devis' : 'facture', id: d.id,
+      libelle: `${d.number || 'Brouillon'} · ${nomClientPiece(d)} · ${C.money(d.type === 'devis' ? t.totalTTC : t.netToPay, docCur(d))}` };
+    navigate('#/comptable');
+  }
 
   function repondreA(id) {
     const q = (data.questionsCabinet || []).find(x => x.id === id);
