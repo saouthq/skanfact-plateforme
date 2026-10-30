@@ -20238,6 +20238,15 @@ prouver 'barre cabinet 13 : qui n'"'"'est pas du cabinet lit sa boîte' serveur/
 prouver 'barre cabinet 14 : au téléphone, le Cabinet a l'"'"'accueil de l'"'"'entreprise' web/public/plateforme/barre.js \
   'auCabinet() ? onglet(accueil()) :' 'false ? onglet(accueil()) :' \
   'au téléphone : Priorités, Messages'
+prouver 'barre cabinet 15 : une page épinglée n'"'"'entre pas dans « Mon cabinet »' web/public/v10/cabinet/app.js \
+  "const dansMonCabinet = ORDRE_CAB.concat(epingles);" "const dansMonCabinet = ORDRE_CAB.concat([]);" \
+  '(1.186.0) épingler une page'
+prouver 'barre cabinet 16 : l'"'"'épingle du volet ne retient rien' web/public/v10/cabinet/app.js \
+  "prefs.set('navEpinglesCab', e.includes(id) ? e.filter(x => x !== id) : e.concat(id));" "void e;" \
+  '(1.186.0) épingler une page'
+prouver 'barre cabinet 17 : ranger oublie la place d'"'"'une page épinglée' web/public/v10/cabinet/app.js \
+  "const dans = ORDRE_CAB.concat(epinglesCab()); prefs.set('navOrdreCab'" "const dans = ORDRE_CAB; prefs.set('navOrdreCab'" \
+  '(1.186.0) épingler une page'
 prouver 'charte 1 : le menu ⋯ sans le titre de ce qu'"'"'il touche' web/public/v10/rowmenu.js \
   '    m.innerHTML = (o.titre ? `<div class="rm-tete" role="presentation">${h(o.titre)}</div>` : '"'"''"'"') + actions.map(entree).join('"'"''"'"');' '    m.innerHTML = actions.map(entree).join('"'"''"'"');' \
   'le menu ⋯ nomme sa pièce, le toast a sa barre et défait, le bandeau porte son icône, les boutons et les statuts'

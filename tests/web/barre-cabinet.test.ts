@@ -553,6 +553,45 @@ describe('la barre du Cabinet, à la souris', () => {
     void boulangerie;
   });
 
+  it('(1.186.0) épingler une page du volet « Le cabinet » dans « Mon cabinet », la ranger, la retirer', async () => {
+    const { associe, cab } = await unCabinet();
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' })).newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await ouvrir(p, cab.id, '#/priorites');
+    const routes = () => p.locator('#nav .nav-quotidien > a.lien').evaluateAll((l) => l.map((a) => (a as HTMLElement).dataset.route));
+    expect(await routes()).toEqual(['priorites', 'pieces', 'echeances', 'production', 'messages']);
+    // Le volet dit comment faire, et chaque page qu'on peut épingler porte son épingle.
+    await p.locator('#nav .nav-volet[data-famille="Le cabinet"]').click();
+    const volet = p.locator('.sb-panneau');
+    expect(await volet.locator('.panneau-pied').innerText()).toContain('épingle une page pour l\'avoir dans « Mon cabinet »');
+    expect(await volet.locator('[data-epingle]').evaluateAll((l) => l.map((b) => (b as HTMLElement).dataset.epingle))).toEqual(['dossiers', 'relances', 'ecritures', 'reglages']);
+    await volet.locator('[data-epingle="relances"]').click();
+    await volet.locator('[data-epingle="dossiers"]').click();
+    // Le volet reste ouvert, la ligne se lit « Dans « Mon cabinet » » et sa coche la retirera.
+    const ligne = volet.locator('.ligne').filter({ hasText: 'Relances' });
+    expect(await ligne.innerText()).toMatch(/^Relances\s*Dans « Mon cabinet »$/);
+    expect(await ligne.locator('[data-epingle]').getAttribute('aria-label')).toBe('Retirer de « Mon cabinet » : Relances');
+    await p.keyboard.press('Escape');
+    expect(await routes()).toEqual(['priorites', 'pieces', 'echeances', 'production', 'messages', 'relances', 'dossiers']);
+    // Rangée en la glissant, elle garde sa place au rechargement, et mène à sa page.
+    await p.locator('#nav .nav-quotidien > a.lien[data-route="dossiers"]').dragTo(p.locator('#nav .nav-quotidien > a.lien[data-route="priorites"]'));
+    await expect.poll(routes).toEqual(['dossiers', 'priorites', 'pieces', 'echeances', 'production', 'messages', 'relances']);
+    await ouvrir(p, cab.id, '#/priorites');
+    expect(await routes()).toEqual(['dossiers', 'priorites', 'pieces', 'echeances', 'production', 'messages', 'relances']);
+    await p.locator('#nav .nav-quotidien > a.lien[data-route="relances"]').click();
+    await expect.poll(() => p.url()).toMatch(/#\/relances$/);
+    await expect.poll(() => p.locator('#nav .nav-quotidien > a.lien[data-route="relances"]').getAttribute('aria-current')).toBe('page');
+    // La coche la retire ; le volet la propose de nouveau, avec sa phrase.
+    await p.locator('#nav .nav-volet[data-famille="Le cabinet"]').click();
+    await volet.locator('[data-epingle="relances"]').click();
+    expect(await volet.locator('.ligne').filter({ hasText: 'Relances' }).innerText()).toMatch(/^Relances\s*Les clients à qui des mois manquent/);
+    await p.keyboard.press('Escape');
+    expect(await routes()).toEqual(['dossiers', 'priorites', 'pieces', 'echeances', 'production', 'messages']);
+    expect(erreurs).toEqual([]);
+  });
+
   it('au téléphone : Priorités, Messages, « + », Échéances, Plus ; le dossier ouvert dans « Plus »', async () => {
     const { associe, cab } = await unCabinet();
     const p = await (await navigateur.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'fr-FR' })).newPage();

@@ -2330,9 +2330,15 @@
   // `active` (barre.js en fait `aria-current`).
   const ORDRE_CAB = ['priorites', 'pieces', 'echeances', 'production', 'messages'];
   const NOMS_CAB = { priorites: 'Priorités', pieces: 'Pièces reçues', echeances: 'Échéances', production: 'Tableau de bord', messages: 'Messages',
-    dossiers: 'Tous les dossiers', relances: 'Relances', ecritures: 'Export des écritures' };
+    dossiers: 'Tous les dossiers', relances: 'Relances', ecritures: 'Export des écritures', reglages: 'Réglages' };
+  // Les pages du volet « Le cabinet » qu'on épingle dans « Mon cabinet », comme l'entreprise épingle dans « Au quotidien ».
+  const EPINGLABLES_CAB = ['dossiers', 'relances', 'ecritures', 'reglages'];
+  const epinglesCab = () => (prefs.get('navEpinglesCab', null) || []).filter(x => EPINGLABLES_CAB.includes(x));
+  const ICONE_EPINGLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 15v6"/></svg>';
+  const ICONE_COCHE_EP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   const BULLES_CAB = { priorites: 'Ce qui presse dans tes dossiers, le plus urgent d\'abord', pieces: 'Les photos et PDF déposés par tes clients, à classer',
-    echeances: 'Les déclarations de tes dossiers, par date', production: 'Où en est le cabinet', messages: 'Les conversations avec tes clients' };
+    echeances: 'Les déclarations de tes dossiers, par date', production: 'Où en est le cabinet', messages: 'Les conversations avec tes clients',
+    dossiers: 'Le portefeuille, ses chiffres, ses filtres', relances: 'Les clients à qui des mois manquent', ecritures: 'Le mois de tous tes clients, en un fichier', reglages: 'Le cabinet, ton compte, l\'affichage' };
   function drawNav() {
     const nav = $('#nav');
     if (!nav || !S) return;
@@ -2342,29 +2348,39 @@
     const role = monRole();
     const pri = prioritesDuJour();
     const retard = declarationsEnRetard();
+    const nRel = K.relanceRows(S).length;
     const compte = (id, n, ton, titre) => `<span class="nav-count compte${ton ? ' ' + ton : ''}" id="${id}"${n ? '' : ' hidden'}${titre ? ` title="${esc(titre)}"` : ''}>${n || ''}</span>`;
-    const ordre = (prefs.get('navOrdreCab', null) || ORDRE_CAB).filter(x => ORDRE_CAB.includes(x));
-    for (const x of ORDRE_CAB) if (!ordre.includes(x)) ordre.push(x);
+    const epingles = epinglesCab();
+    const dansMonCabinet = ORDRE_CAB.concat(epingles);
+    const ordre = (prefs.get('navOrdreCab', null) || ORDRE_CAB).filter(x => dansMonCabinet.includes(x));
+    for (const x of dansMonCabinet) if (!ordre.includes(x)) ordre.push(x);
     const actif = id => (id === 'pieces' ? route === 'pieces' && !arg : route === id);
     const lienCab = id => {
-      const n = id === 'priorites' ? pri.urgent.length : id === 'pieces' ? comptesBarre.pieces : id === 'echeances' ? retard.length : id === 'messages' ? comptesBarre.messages : 0;
+      const n = id === 'priorites' ? pri.urgent.length : id === 'pieces' ? comptesBarre.pieces : id === 'echeances' ? retard.length : id === 'messages' ? comptesBarre.messages : id === 'relances' ? nRel : 0;
       const ton = id === 'priorites' || id === 'echeances' ? 'alerte' : '';
-      const tip = id === 'priorites' ? `${n} urgente${n > 1 ? 's' : ''}` : id === 'pieces' ? `${n} à classer` : id === 'echeances' ? `${n} en retard` : id === 'messages' ? `${n} à traiter` : '';
+      const tip = id === 'priorites' ? `${n} urgente${n > 1 ? 's' : ''}` : id === 'pieces' ? `${n} à classer` : id === 'echeances' ? `${n} en retard` : id === 'messages' ? `${n} à traiter` : id === 'relances' ? `${n} à relancer` : '';
       return `<a href="#/${id}" data-route="${id}" class="lien${actif(id) ? ' active' : ''}" draggable="true" data-nom="${id}" data-tip="${esc(NOMS_CAB[id] + (n ? ` · ${tip}` : ''))}" title="${esc(BULLES_CAB[id])}">`
         + `<span class="ic">${icB(id)}</span>${esc(NOMS_CAB[id])}${compte(id === 'messages' ? 'nav-messages' : `nav-${id}`, n, ton, n ? tip : '')}`
         + `<span class="prise" title="Glisse pour ranger"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></svg></span><span class="point"></span></a>`;
     };
     const ligneVolet = (ic, titre, sousT, attrs) => `<div class="ligne"><${attrs.href ? 'a' : 'button type="button"'} class="pl-l"${attrs.href ? ` href="${attrs.href}"` : ''}${attrs.route ? ` data-route="${attrs.route}"` : ''}${attrs.action ? ` data-cab-action="${attrs.action}"` : ''}><span class="tuile-ic">${icB(ic)}</span><span class="pl-t"><b>${esc(titre)}</b><span class="d">${esc(sousT)}</span></span>${attrs.compte || ''}</${attrs.href ? 'a' : 'button'}></div>`;
-    const nRel = K.relanceRows(S).length;
+    // Une page épinglée se lit « Dans « Mon cabinet » » et mène à son entrée ; l'épingle (ou la coche) la met ou la retire.
+    const ligneEpinglable = (id, compteHtml) => {
+      const dedans = epingles.includes(id);
+      const epingle = `<button type="button" class="epingler" data-epingle="${id}" aria-pressed="${dedans}" title="${dedans ? 'Retirer de « Mon cabinet »' : 'Épingler dans « Mon cabinet »'}" aria-label="${esc((dedans ? 'Retirer de « Mon cabinet » : ' : 'Épingler dans « Mon cabinet » : ') + NOMS_CAB[id])}">${dedans ? ICONE_COCHE_EP : ICONE_EPINGLE}</button>`;
+      const corps = `<span class="tuile-ic">${icB(id)}</span><span class="pl-t"><b>${esc(NOMS_CAB[id])}</b><span class="d">${esc(dedans ? 'Dans « Mon cabinet »' : BULLES_CAB[id])}</span></span>`;
+      if (dedans) return `<div class="ligne"><button type="button" class="pl-l" data-aller="${id}">${corps}</button>${epingle}</div>`;
+      return `<div class="ligne"><a href="#/${id}" data-route="${id}" class="pl-l">${corps}${compteHtml || ''}</a>${epingle}</div>`;
+    };
     const voletCabinet = `<div class="nav-fam" data-famille="Le cabinet"><button type="button" class="lien nav-volet" data-famille="Le cabinet" aria-expanded="false" data-tip="Le cabinet · tous les dossiers, relances, équipe, réglages"><span class="ic">${icB('production')}</span>Le cabinet<span class="nav-count compte ng-count"${nRel ? '' : ' hidden'}>${nRel || ''}</span><span class="chev">${icB('chevron', 15, 2.2)}</span><span class="point"></span></button>`
       + `<div class="panneau volet" role="dialog" aria-label="Le cabinet" hidden><h3>Le cabinet</h3><p class="sous">Tous les dossiers, les relances, l'équipe, les réglages</p><div class="panneau-liste">`
-      + ligneVolet('dossiers', 'Tous les dossiers', 'Le portefeuille, ses chiffres, ses filtres', { href: '#/dossiers', route: 'dossiers' })
-      + ligneVolet('relances', 'Relances', 'Les clients à qui des mois manquent', { href: '#/relances', route: 'relances', compte: `<span class="nav-count compte" id="nav-relances"${nRel ? '' : ' hidden'}>${nRel || ''}</span>` })
-      + ligneVolet('ecritures', 'Export des écritures', 'Le mois de tous tes clients, en un fichier', { href: '#/ecritures', route: 'ecritures' })
+      + ligneEpinglable('dossiers')
+      + ligneEpinglable('relances', `<span class="nav-count compte" id="nav-relances"${nRel ? '' : ' hidden'}>${nRel || ''}</span>`)
+      + ligneEpinglable('ecritures')
       + (estAssocie() ? ligneVolet('equipe', 'Équipe', 'Qui tient quel dossier', { action: 'equipe' }) : '')
       + (api.modeles ? ligneVolet('modele', 'Modèles de messages', 'Les demandes de pièces prêtes', { action: 'modeles' }) : '')
-      + ligneVolet('reglages', 'Réglages', estAssocie() ? 'Le cabinet, son abonnement' : 'Ton compte, l\'affichage', { href: '#/reglages', route: 'reglages' })
-      + '</div></div></div>';
+      + ligneEpinglable('reglages')
+      + `</div><div class="panneau-pied"><span>${ICONE_EPINGLE} épingle une page pour l'avoir dans « Mon cabinet »</span></div></div></div>`;
     let html = `<div class="nav nav-quotidien" id="nav-1"><p class="groupe-titre">Mon cabinet${estAssocie()
       ? `<span class="portee" role="group" aria-label="Quels dossiers"><button type="button" data-portee="miens" aria-pressed="${portee() === 'miens'}">Les miens</button><button type="button" data-portee="tous" aria-pressed="${portee() === 'tous'}">Tous</button></span>`
       : '<span class="portee seul">Mes dossiers</span>'}</p>${ordre.map(lienCab).join('')}${voletCabinet}</div>`;
@@ -2415,7 +2431,13 @@
   window.__allerParametres = tab => versReglages(tab === 'equipe' ? 'pan-equipe' : 'pan-compte');
   window.__allerAbonnement = () => versReglages('pan-licence');
   window.__seDeconnecter = () => seDeconnecter();
-  window.__rangerQuotidien = noms => { prefs.set('navOrdreCab', noms.filter(x => ORDRE_CAB.includes(x))); drawNav(); };
+  window.__rangerQuotidien = noms => { const dans = ORDRE_CAB.concat(epinglesCab()); prefs.set('navOrdreCab', noms.filter(x => dans.includes(x))); drawNav(); };
+  window.__epinglerPage = id => {
+    if (!EPINGLABLES_CAB.includes(id)) return;
+    const e = epinglesCab();
+    prefs.set('navEpinglesCab', e.includes(id) ? e.filter(x => x !== id) : e.concat(id));
+    drawNav();
+  };
   window.__pageBarre = id => ({ id, titre: NOMS_CAB[id] || id, icone: icB(IC_BARRE[id] ? id : 'dossiers') });
   window.__ongletsTel = () => { const o = prefs.get('ongletsTel', null); return Array.isArray(o) && o.length === 2 ? o : ['messages', 'echeances']; };
   window.__candidatsOnglets = () => ['messages', 'echeances', 'pieces', 'production', 'dossiers', 'relances'].map(id => window.__pageBarre(id));
