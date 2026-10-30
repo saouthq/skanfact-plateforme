@@ -782,3 +782,74 @@
   .msg-tenu-panneau { padding: 20px 0; }
   .msg-tenu-apercu { display: none; }
 }
+
+/* (1.179.0, maquette « Messages », lot 4) Les états de la page. La lecture : la page a déjà sa forme, en gris qui luit. */
+@keyframes msg-luit { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+.msg-sq i, .msg-sq .r, .msg-sq-b { display: block; background: linear-gradient(90deg, var(--ink-soft) 0%, color-mix(in srgb, var(--ink-soft) 40%, var(--panel)) 50%, var(--ink-soft) 100%); background-size: 200% 100%; animation: msg-luit 1.4s linear infinite; border-radius: 7px; }
+@media (prefers-reduced-motion: reduce) { .msg-sq i, .msg-sq .r, .msg-sq-b { animation: none; } }
+.msg-sq .msg-boite-corps { min-height: 520px; }
+.msg-sq .msg-liste { display: flex; flex-direction: column; }
+.msg-sq-tete { display: block; padding: 14px; }
+.msg-sq-c { height: 36px; width: 100%; border-radius: 10px !important; }
+.msg-sq-l { display: grid; grid-template-columns: 36px 1fr; gap: 10px; padding: 14px 18px; }
+.msg-sq-l .r { width: 36px; height: 36px; border-radius: 11px; }
+.msg-sq-l > span { display: grid; gap: 7px; align-content: center; }
+.msg-sq-l > span i { height: 10px; }
+.msg-sq .msg-boite-conv { display: flex; flex-direction: column; gap: 14px; padding: 16px 20px; min-width: 0; }
+.msg-sq-ft { display: flex; align-items: center; gap: 12px; }
+.msg-sq-ft .r { width: 38px; height: 38px; border-radius: 12px; flex: none; }
+.msg-sq-ft > span { display: grid; gap: 7px; }
+.msg-sq-ft > span i { height: 11px; }
+.msg-sq-fil { flex: 1; display: flex; flex-direction: column; gap: 14px; padding-top: 10px; }
+.msg-sq-b { height: 46px; border-radius: 16px !important; }
+.msg-sq-b.d { align-self: flex-end; }
+.msg-sq-b.g { align-self: flex-start; }
+.msg-sq-champ { height: 70px; }
+.msg-sq .msg-dossier-cote { display: flex; flex-direction: column; gap: 12px; padding: 16px; border-inline-start: 1px solid var(--border); }
+.msg-sq-carte { height: 120px; border-radius: 14px !important; }
+/* Le refus : la page figée, et posé dessus ce qui s'est passé, « Réessayer maintenant », de quoi faire en attendant. */
+.msg-refus-w { position: relative; }
+.msg-fige { filter: grayscale(1); opacity: .55; }
+.msg-fige i, .msg-fige .r, .msg-fige .msg-sq-b { animation: none !important; }
+.msg-ref { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: min(480px, 92%); display: grid; justify-items: center; text-align: center; gap: 10px; padding: 28px 30px; border-radius: 20px; background: var(--panel); border: 1px solid var(--border); box-shadow: 0 24px 60px rgba(15, 23, 42, .16); box-sizing: border-box; }
+.msg-ref > svg { width: 28px; height: 28px; padding: 16px; box-sizing: content-box; border-radius: 50%; background: color-mix(in srgb, var(--danger) 12%, var(--panel)); color: var(--danger); }
+.msg-ref b { font-size: 18px; color: var(--text); text-wrap: balance; }
+.msg-ref > span { font-size: 13.5px; color: var(--muted); line-height: 1.5; }
+.msg-ref-a { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; justify-content: center; margin-top: 4px; }
+/* Hors ligne : une seule bande au-dessus de la boîte ; écrire attend le réseau. */
+.msg-hors { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; padding: 9px 14px; border-radius: 12px; background: color-mix(in srgb, var(--text) 6%, var(--panel)); font-size: 13px; color: var(--muted); }
+.msg-hors svg { width: 17px; height: 17px; flex: none; }
+.msg-hors b { color: var(--text); }
+.msg-hors-d { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; font-size: 12px; white-space: nowrap; }
+.msg-pouls { width: 8px; height: 8px; border-radius: 50%; background: var(--warning); box-shadow: 0 0 0 4px color-mix(in srgb, var(--warning) 22%, transparent); }
+.msg-ecrire.off { background: color-mix(in srgb, var(--text) 4%, var(--panel)); }
+.msg-ecrire.off textarea { cursor: not-allowed; }
+/* Traiter sans ouvrir : « Demain » et « Traité » au survol d'une ligne « À traiter » (ordinateur), en glissant (téléphone). */
+.msg-gl { position: relative; }
+.msg-gl-a { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); display: flex; gap: 4px; z-index: 2; opacity: 0; pointer-events: none; transition: opacity .12s; }
+.msg-gl-a button { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--border); background: var(--panel); font: inherit; font-size: 12px; font-weight: 600; color: var(--muted); cursor: pointer; box-shadow: 0 2px 6px rgba(15, 23, 42, .08); }
+.msg-gl-a button svg { width: 14px; height: 14px; }
+.msg-gl-a .msg-gl-t { color: var(--primary); }
+.msg-gl-a button:hover { border-color: var(--primary); }
+@media (hover: hover) and (min-width: 761px) {
+  .msg-gl:hover .msg-gl-a, .msg-gl:focus-within .msg-gl-a { opacity: 1; pointer-events: auto; }
+  /* Deux icônes au bord droit, à la place de l'heure et des pastilles : le milieu de la ligne reste « ouvrir ». */
+  .msg-gl-a { top: 14px; transform: none; }
+  .msg-gl-a button { width: 30px; padding: 0; justify-content: center; }
+  .msg-gl-a button > span { display: none; }
+  .msg-gl:hover .msg-dossier-pastilles, .msg-gl:hover .msg-quand { visibility: hidden; }
+}
+@media (max-width: 760px) {
+  .msg-gl { overflow: hidden; background: linear-gradient(90deg, var(--ink-soft) 50%, var(--primary) 50%); }
+  .msg-gl > .msg-dossier { position: relative; z-index: 3; touch-action: pan-y; transition: transform .2s ease; }
+  .msg-gl.glisse > .msg-dossier { transition: none; }
+  .msg-gl.ouvert > .msg-dossier { transform: translateX(-152px); box-shadow: 4px 0 10px rgba(15, 23, 42, .08); }
+  .msg-gl-a { right: 0; top: 0; bottom: 0; transform: none; gap: 0; opacity: 1; pointer-events: auto; }
+  .msg-gl-a button { height: 100%; border: 0; border-radius: 0; box-shadow: none; width: 76px; flex-direction: column; justify-content: center; font-size: 11.5px; }
+  .msg-gl-a .msg-gl-d { background: var(--ink-soft); color: var(--text); }
+  .msg-gl-a .msg-gl-t { background: var(--primary); color: #fff; }
+  .msg-gl-a button svg { width: 20px; height: 20px; }
+  .msg-hors-d { display: none; }
+  .msg-ref { top: 140px; transform: translateX(-50%); padding: 22px 18px; }
+  .msg-refus-w { min-height: 460px; }
+}

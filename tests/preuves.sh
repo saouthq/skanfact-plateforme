@@ -21274,5 +21274,20 @@ prouver 'messages 9 : les dossiers tenus absents de la boîte' web/public/platef
 prouver 'messages 10 : écrire à plusieurs perd le jour choisi' web/public/plateforme/messagerie.js \
   "...(mode === 'pieces' ? { pour, ...(pieces.length" "...(mode === 'pieces' ? { pour: null, ...(pieces.length" \
   '(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi'
+prouver 'messages 11 : la note pour l'"'"'équipe part dans l'"'"'export de la conversation' web/public/plateforme/messagerie.js \
+  "      lignes.sort((a, b) => (a.quand < b.quand ? -1 : a.quand > b.quand ? 1 : 0));" "      for (const n of notes) lignes.push({ quand: n.ecritLe, de: 'Note', quoi: esc(n.texte) }); lignes.sort((a, b) => (a.quand < b.quand ? -1 : a.quand > b.quand ? 1 : 0));" \
+  '(1.179.0) la lecture, le refus qui réessaie, hors ligne, « Demain » et « Traité » sur la ligne, glisser au téléphone, exporter en PDF'
+prouver 'messages 12 : hors ligne, le champ reste ouvert' web/public/plateforme/messagerie.js \
+  "const off = navigator.onLine === false;" "const off = false;" \
+  '(1.179.0) la lecture, le refus qui réessaie, hors ligne, « Demain » et « Traité » sur la ligne, glisser au téléphone, exporter en PDF'
+prouver 'messages 13 : « Réessayer maintenant » ne relit pas' web/public/plateforme/messagerie.js \
+  "if (b) b.onclick = async () => { b.disabled = true; await lire();" "if (b) b.onclick = async () => { b.disabled = true;" \
+  '(1.179.0) la lecture, le refus qui réessaie, hors ligne, « Demain » et « Traité » sur la ligne, glisser au téléphone, exporter en PDF'
+prouver 'messages 14 : la ligne glissée ne s'"'"'ouvre pas' web/public/plateforme/messagerie.js \
+  "const ouvrir = dx < -LARGEUR / 2;" "const ouvrir = false;" \
+  '(1.179.0) la lecture, le refus qui réessaie, hors ligne, « Demain » et « Traité » sur la ligne, glisser au téléphone, exporter en PDF'
+prouver 'messages 15 : « Demain » sur la ligne ne pose pas le rappel' web/public/plateforme/messagerie.js \
+  "await o.appel('PUT', chemin, { le });" "await Promise.resolve();" \
+  '(1.179.0) la lecture, le refus qui réessaie, hors ligne, « Demain » et « Traité » sur la ligne, glisser au téléphone, exporter en PDF'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

@@ -95,7 +95,7 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect(net(await p.locator('.msg-tete-etat').innerText())).toBe('À traiter Marquer comme traité E');
     // Le menu ⋯ : la question de la révision, le dossier, en grand.
     await p.getByRole('button', { name: 'Les autres gestes de cette conversation' }).click();
-    expect((await p.getByRole('menuitem').allInnerTexts()).map((x) => x.split('\n')[0])).toEqual(['Question sur une pièce…', 'Me le remontrer demain', 'Noter une promesse…', 'Confier à…', 'Ouvrir le dossier', 'Ouvrir en grand']);
+    expect((await p.getByRole('menuitem').allInnerTexts()).map((x) => x.split('\n')[0])).toEqual(['Question sur une pièce…', 'Me le remontrer demain', 'Noter une promesse…', 'Confier à…', 'Ouvrir le dossier', 'Ouvrir en grand', 'Exporter la conversation (PDF)']);
     await p.keyboard.press('Escape');
     await expect.poll(() => p.getByRole('menuitem').count()).toBe(0);
     // ── (1.177.0) La note pour l'équipe : l'onglet, le champ, « Noter », la ligne du bas ; dans le fil, la carte au cadenas ─
@@ -225,4 +225,120 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 120_000);
+
+  it('(1.179.0) la lecture, le refus qui réessaie, hors ligne, « Demain » et « Traité » sur la ligne, glisser au téléphone, exporter en PDF', async () => {
+    const sonia = await personne('Sonia Gharbi');
+    const cab = (await api('POST', '/cabinets', sonia, { nom: 'Gharbi Audit' })).corps as { id: string; code: string };
+    const hela = await personne('Hela Ben Salah');
+    const ent = String((await api('POST', '/entreprises', hela, { raisonSociale: 'Librairie Ennour' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, hela, { codeCabinet: cab.code })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, sonia)).statut).toBe(200);
+    expect((await api('PUT', `/cabinets/${cab.id}/fiches/${ent}`, sonia, { contenu: { contact: 'Hela Ben Salah' }, revision: null })).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/messages`, hela, { cote: 'entreprise', texte: 'La facture STEG de septembre, je la retrouve pas.' })).statut).toBe(201);
+    expect((await api('POST', `/cabinets/${cab.id}/notes/${ent}`, sonia, { texte: 'Note interne : relancer la STEG nous-mêmes.' })).statut).toBe(201);
+
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, sonia);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossiers`);
+    await p.locator('#view h1').first().waitFor({ timeout: 25_000 });
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    // La lecture de la boîte, retenue puis refusée (le cabinet s'ouvre d'abord : il lit aussi la boîte pour ses pastilles).
+    let mode: 'tenir' | 'refus' | 'passer' = 'tenir';
+    let lacher = () => {};
+    const tenue = new Promise<void>((ok) => { lacher = ok; });
+    await p.route(/\/v1\/cabinets\/[^/]+\/messages$/, async (r) => {
+      if (r.request().method() !== 'GET') return r.continue();
+      if (mode === 'tenir') await tenue;
+      if (mode === 'refus') return r.fulfill({ status: 500, contentType: 'application/json', body: '{"motif":"Le serveur a rencontré une erreur."}' });
+      return r.continue();
+    });
+
+    // ── La lecture : la page a déjà sa forme ─────────────────────────────────────────────────────────────────────
+    await p.evaluate(() => { location.hash = '#/messages'; });
+    await p.locator('.msg-sq-w .msg-sq .msg-sq-l').first().waitFor({ timeout: 15_000 });
+    expect(net(await p.locator('#msg-phrase').innerText())).toBe('Lecture de tes conversations…');
+    expect(await p.locator('.msg-sq .msg-boite-conv .msg-sq-b').count()).toBe(4);
+    // ── Le refus : la page figée, ce qui s'est passé, « Réessayer maintenant », de quoi faire en attendant ─────────
+    mode = 'refus'; lacher();
+    await expect.poll(async () => net(await p.locator('[data-msg-echec]').innerText().catch(() => '')), { timeout: 15_000 })
+      .toBe('Tes conversations ne se sont pas lues Le serveur ne les a pas rendues cette fois. Rien n\'est perdu : ce que tes clients ont écrit est gardé sur le serveur, et la boîte réessaie seule toutes les 30 secondes. Réessayer maintenant Ouvrir un dossier en attendant →');
+    expect(net(await p.locator('#msg-phrase').innerText())).toBe('Tes conversations ne se sont pas lues.');
+    expect(await p.locator('.msg-refus-w .msg-sq.msg-fige').count()).toBe(1);
+    mode = 'passer';
+    await p.getByRole('button', { name: 'Réessayer maintenant' }).click();
+    await p.locator('#page-msg .msg-filtres').waitFor({ timeout: 15_000 });
+    await expect.poll(async () => net(await p.locator('#msg-phrase').innerText())).toMatch(/^1 client attend une réponse du cabinet/);
+
+    // ── Hors ligne : la bande, la boîte telle qu'elle était, écrire attend ; le réseau revenu, tout se rouvre ──────
+    await p.locator('.msg-tete-integre h2').waitFor({ timeout: 15_000 });
+    await cx.setOffline(true);
+    await expect.poll(async () => net(await p.locator('[data-msg-hors]').innerText().catch(() => '')), { timeout: 10_000 })
+      .toMatch(/^Hors ligne · tes conversations telles qu'elles étaient à \d\d h \d\d ; écrire revient avec le réseau se reconnecte tout seul$/);
+    const champ = p.locator('[data-msg-texte]');
+    expect([await champ.isDisabled(), await champ.getAttribute('placeholder')]).toEqual([true, 'Écrire revient avec le réseau']);
+    expect(await p.locator('#msg-plusieurs').isDisabled()).toBe(true);
+    expect(await p.locator('[data-msg-traite]').isDisabled()).toBe(true);
+    await cx.setOffline(false);
+    await expect.poll(async () => p.locator('[data-msg-hors]').isHidden(), { timeout: 15_000 }).toBe(true);
+    expect([await champ.isDisabled(), await champ.getAttribute('placeholder')]).toEqual([false, 'Écrire à Hela…   Entrée envoie, Maj+Entrée va à la ligne']);
+    expect(await p.locator('#msg-plusieurs').isDisabled()).toBe(false);
+
+    // ── « Demain » et « Traité » au survol de la ligne ; « Annuler » remet « Demain » ─────────────────────────────
+    const ligne = p.locator('.msg-gl').filter({ hasText: 'Librairie Ennour' });
+    await ligne.hover();
+    await ligne.getByRole('button', { name: 'Demain' }).click();
+    await expect.poll(async () => net(await p.locator('#toast').innerText().catch(() => '')), { timeout: 15_000 })
+      .toMatch(/^La conversation de Librairie Ennour revient \S+ \d\d\/\d\d : d'ici là, elle quitte ton « À traiter »\. Annuler$/);
+    await expect.poll(async () => net(await p.locator('.msg-filtres').innerText())).toBe('À traiter 0 Attend le client 0 Tout 1');
+    await p.locator('#toast').getByRole('button', { name: /Annuler/ }).click();
+    await expect.poll(async () => net(await p.locator('.msg-filtres').innerText()), { timeout: 15_000 }).toBe('À traiter 1 Attend le client 0 Tout 1');
+    await ligne.hover();
+    await ligne.getByRole('button', { name: 'Traité' }).click();
+    await expect.poll(async () => net(await p.locator('.msg-filtres').innerText()), { timeout: 15_000 }).toBe('À traiter 0 Attend le client 0 Tout 1');
+
+    // ── Exporter la conversation en PDF : tout le fil, par date ; la note pour l'équipe n'y est pas ─────────────────
+    let page = '';
+    await p.route(/\/v1\/pdf$/, async (r) => {
+      const corps = r.request().postDataJSON() as { html: string; nom: string };
+      page = corps.html;
+      await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ nom: `${corps.nom}.pdf`, pages: 1, pdf: 'JVBERi0xLjQK' }) });
+    });
+    await p.getByRole('button', { name: 'Les autres gestes de cette conversation' }).click();
+    await p.getByRole('menuitem', { name: /^Exporter la conversation \(PDF\)/ }).click();
+    await expect.poll(async () => net(await p.locator('#toast').innerText().catch(() => '')), { timeout: 15_000 })
+      .toMatch(/^« Conversation Librairie Ennour \d{4}-\d\d-\d\d\.pdf » est dans tes téléchargements : 1 échange, par date\.$/);
+    expect(page).toContain('Conversation avec Librairie Ennour');
+    expect(page).toContain('La facture STEG de septembre, je la retrouve pas.');
+    expect(page).toContain('Hela Ben Salah (client)');
+    expect(page).not.toContain('relancer la STEG nous-mêmes');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+
+    // ── Au téléphone, la ligne glisse et découvre « Demain » et « Traité » ─────────────────────────────────────────
+    expect((await api('POST', `/entreprises/${ent}/messages`, hela, { cote: 'entreprise', texte: 'Je l\'ai retrouvée, je vous l\'envoie.' })).statut).toBe(201);
+    const ct = await navigateur.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    const t = await ct.newPage();
+    const erreursT: string[] = [];
+    t.on('pageerror', (e) => erreursT.push(e.message));
+    await t.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, sonia);
+    await t.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages`);
+    await t.locator('#page-msg .msg-filtres').waitFor({ timeout: 25_000 });
+    for (let i = 0; i < 3 && await t.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await t.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    const rangee = t.locator('.msg-gl').filter({ hasText: 'Librairie Ennour' });
+    expect(await rangee.getByRole('button', { name: 'Traité' }).evaluate((b) => { const r = b.getBoundingClientRect(); return document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2) === b || b.contains(document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2)); })).toBe(false);
+    await rangee.locator('.msg-dossier').evaluate((el) => {
+      const b = el.getBoundingClientRect();
+      const ev = (type: string, x: number) => el.dispatchEvent(new PointerEvent(type, { pointerType: 'touch', pointerId: 7, clientX: x, clientY: b.y + 20, bubbles: true }));
+      ev('pointerdown', b.x + 300); for (let x = 290; x >= 120; x -= 20) ev('pointermove', b.x + x); ev('pointerup', b.x + 120);
+    });
+    await expect.poll(async () => rangee.evaluate((g) => g.classList.contains('ouvert'))).toBe(true);
+    await t.waitForTimeout(300);
+    await rangee.getByRole('button', { name: 'Traité' }).click();
+    await expect.poll(async () => net(await t.locator('.msg-filtres').innerText()), { timeout: 15_000 }).toBe('À traiter 0 Attend le client 0 Tout 1');
+    expect(erreursT).toEqual([]);
+    await ct.close();
+  }, 180_000);
 });

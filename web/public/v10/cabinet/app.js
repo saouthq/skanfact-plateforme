@@ -1933,6 +1933,21 @@
       ouvrirTenu: id => { location.hash = '#/dossier/' + encodeURIComponent(id) + '/fiche'; },
       vide: () => neufMsg(),
       brancherVide: z => brancherNeufMsg(z),
+      // (1.179.0, lot 4) Les états de la page : la lecture, le refus (on travaille sur un dossier en attendant), hors ligne
+      // (écrire à plusieurs attend le réseau).
+      enAttendant: { texte: 'Ouvrir un dossier en attendant', aller: () => { location.hash = '#/dossiers'; } },
+      surEtat: etat => {
+        const ph = $('#msg-phrase', view);
+        const pls = $('#msg-plusieurs', view);
+        if (ph && etat === 'chargement') ph.textContent = 'Lecture de tes conversations…';
+        if (ph && etat === 'refus') ph.textContent = 'Tes conversations ne se sont pas lues.';
+        if (ph && etat === 'hors' && $('[data-msg-echec]', view)) ph.textContent = 'Hors ligne : tes conversations attendent le réseau.';
+        if (pls) {
+          pls.disabled = etat === 'hors';
+          pls.title = etat === 'hors' ? 'Revient avec le réseau' : '';
+          if (etat === 'refus' || etat === 'chargement') pls.hidden = true;
+        }
+      },
       // La phrase de la page et la pastille : ce qui attend ta réponse, et ce qu'on attend des clients.
       surCompteurs: (c, ds, tous) => {
         const ph = $('#msg-phrase', view);

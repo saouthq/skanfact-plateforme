@@ -357,7 +357,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await expect.poll(() => hc.p.locator('#view').innerText().then(net).catch(() => ''), { timeout: 15_000 }).toContain('Pas de réseau pour lire cette page : réessaie quand la connexion revient.');
     await hc.p.evaluate(() => { location.hash = '#/messages'; });
     await expect.poll(() => hc.p.locator('[data-msg-echec]').innerText().then(net).catch(() => ''), { timeout: 15_000 })
-      .toBe('Pas de réseau : la boîte attend la connexion. Elle s\'ouvre toute seule dès que le réseau revient. Réessayer');
+      .toBe('Hors ligne : tes conversations attendent le réseau Ce poste n\'en garde pas de copie (ce n\'est pas « mon ordinateur »). Ce que tes clients ont écrit est sur le serveur : la boîte s\'ouvre toute seule dès que le réseau revient. Réessayer maintenant Ouvrir un dossier en attendant →');
     await hc.p.context().setOffline(false);
     await hc.p.locator('#page-msg .msg-filtres').waitFor({ timeout: 8_000 });
     expect(hc.erreurs).toEqual([]);

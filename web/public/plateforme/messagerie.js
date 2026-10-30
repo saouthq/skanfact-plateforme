@@ -16,6 +16,11 @@
   const TZ = 'Africa/Tunis';
   // La messagerie arrive dans la minute (décidé le 09/10/2026) : une relecture toutes les 30 secondes, page visible.
   const RELIRE_MS = 30_000;
+  // (1.179.0, maquette « Messages », lot 4) Les dernières lectures de la page (la boîte d'un cabinet, chaque conversation
+  // ouverte) : hors ligne, elles se relisent telles qu'elles étaient, le temps de la page. En mémoire seulement : sur
+  // « mon ordinateur », la copie chiffrée du poste les garde déjà (plateforme/poste.js, docs/hors-ligne.md) ; ailleurs,
+  // rien ne s'écrit sur le poste.
+  /** @type {Map<string, any>} */ const LUES = new Map();
   const LIMITE = 10 * 1_048_576;
 
   /** @param {string} iso */
@@ -101,6 +106,9 @@
     cloche: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
     reveil: '<circle cx="12" cy="13" r="7"/><path d="M12 10v3l2 2M5 4 2 7M19 4l3 3"/>',
     equipe: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 4.5a3 3 0 0 1 0 6M21 20a6 6 0 0 0-4-5.6"/>',
+    telecharger: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
+    nuage: '<path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4.25 4.25 0 0 1-.5 8.5z"/><path d="m4 4 16 16"/>',
+    message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
   };
   /** @param {keyof typeof DESSINS} id */
   const dessin = (id) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${DESSINS[id]}</svg>`;
@@ -386,6 +394,7 @@
    *   toastAnnuler?: (texte: string, annuler: () => void) => void,
    *   enGrand?: () => void,
    *   modeles?: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
+   *   cle?: string, nomCabinet?: string, exportPdf?: (html: string, nom: string) => Promise<string | null>,
    * }} o
    */
   function conversation(el, o) {
@@ -555,6 +564,7 @@
             faire: () => { promessePop = 'menu'; promesseJour = ''; dessinerFil(); const f = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-fil]')); if (f) f.scrollTop = f.scrollHeight; } }] : []),
           ...((o.menu || []).map((/** @type {any} */ x) => ({ dessin: x.dessin || 'piece', ...x }))),
           ...(o.enGrand ? [{ texte: 'Ouvrir en grand', sous: 'la conversation seule, sur sa page', dessin: 'image', faire: o.enGrand }] : []),
+          ...(o.exportPdf ? [{ texte: 'Exporter la conversation (PDF)', sous: 'les messages, les pièces citées et les questions, par date', dessin: 'telecharger', faire: exporter }] : []),
         ];
       };
       if (!lesEntrees().length && !suivi) { btn.hidden = true; return; }
@@ -587,6 +597,66 @@
         if (premier) premier.focus();
         document.addEventListener('mousedown', dehors, true); document.addEventListener('keydown', echap, true);
       };
+    }
+
+    // ── (1.179.0, maquette « Messages », lot 4) Exporter la conversation en PDF, pour un dossier de contrôle : TOUT le fil
+    // (les pages plus anciennes sont lues d'abord), par date — les messages, les pièces citées, les fichiers envoyés, les
+    // pièces demandées et où elles en sont, les questions de la révision et leur réponse. Les notes pour l'équipe n'y sont
+    // pas : elles ne sortent pas du cabinet. Le PDF est fait par le serveur (docs/pdf.md), qui ne garde rien.
+    async function exporter() {
+      if (!lu || !o.exportPdf) return;
+      const msgs = [...(lu.messages || []), ...anciensMessages];
+      const qs = [...(lu.questions || []), ...anciennesQuestions];
+      for (let s = suite, tours = 0; s && tours < 200; tours++) {
+        const r = await o.appel('GET', chemin(s));
+        msgs.push(...r.messages); qs.push(...r.questions); s = r.suite;
+      }
+      const vus = new Set();
+      /** @type {{ quand: string, de: string, quoi: string }[]} */
+      const lignes = [];
+      const qui = (/** @type {any} */ m) => (m.cote === 'cabinet' ? `${m.auteur || 'Le cabinet'} (cabinet)` : `${m.auteur || o.nom || 'Le client'} (client)`);
+      for (const m of msgs) {
+        if (vus.has(m.id)) continue;
+        vus.add(m.id);
+        const p = [];
+        if (m.texte) p.push(esc(m.texte));
+        if (m.piece) p.push(`<i>À propos de : ${esc(GENRES[m.piece.genre] || 'Pièce')} ${esc(m.piece.libelle)}</i>`);
+        if (m.fichier) p.push(`<i>Pièce envoyée : ${esc(m.fichier.nom)} (${esc(poids(m.fichier.taille))})${m.achat ? `, rangée dans les achats (${esc(m.achat.libelle)})` : ''}</i>`);
+        if (m.demande) {
+          const d = m.demande;
+          p.push(`<i>Pièce demandée : ${esc(d.texte)}${d.pour ? `, pour le ${esc(dateCourte(d.pour))}` : ''} — ${d.recueLe ? `reçue le ${esc(dateCourte(jourCle(d.recueLe)))}` : d.enRetard ? 'en retard' : 'attendue'}${d.relances ? ` ; relancée ${d.relances} fois par e-mail` : ''}</i>`);
+        }
+        lignes.push({ quand: m.ecritLe, de: qui(m), quoi: p.join('<br>') });
+      }
+      for (const q of qs) {
+        if (vus.has(q.id)) continue;
+        vus.add(q.id);
+        const pose = q.poseePar === 'moi' ? 'Le cabinet' : q.poseePar || 'Le cabinet';
+        lignes.push({ quand: q.envoyeeLe, de: `${pose} (cabinet)`, quoi: `<b>Question de la révision${q.piece ? ` sur ${esc(q.piece)}` : ''}</b> : ${esc(q.objet || q.texte)}${q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · ${esc(montant(q.montant))}` : ''}${q.objet ? `<br>${esc(q.texte)}` : ''}<br><i>Attendu : ${esc(ATTENDUS[q.attendu] || 'une réponse')}${q.statut === 'close' ? ' — close par le cabinet' : ''}</i>` });
+        if (q.reponse && q.reponduLe) lignes.push({ quand: q.reponduLe, de: `${o.contactPrenom || o.nom || 'Le client'} (client)`, quoi: `<b>Réponse à la question</b> : ${esc(q.reponse)}` });
+      }
+      lignes.sort((a, b) => (a.quand < b.quand ? -1 : a.quand > b.quand ? 1 : 0));
+      const quand = (/** @type {string} */ iso) => `${dateCourte(jourCle(iso))} ${heure(iso)}`;
+      const maintenant = new Date().toISOString();
+      const nom = o.nom || 'Ce client';
+      const premiere = lignes[0], derniere = lignes[lignes.length - 1];
+      const periode = premiere && derniere ? `du ${dateCourte(jourCle(premiere.quand))} au ${dateCourte(jourCle(derniere.quand))}` : 'aucun échange';
+      const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(`Conversation ${nom}`)}</title><style>
+        body { font: 10.5pt/1.45 Inter, system-ui, sans-serif; color: #17202a; margin: 18mm 16mm; }
+        h1 { font-size: 16pt; margin: 0 0 4px; } .sous { color: #5b6773; margin: 0 0 14px; }
+        table { width: 100%; border-collapse: collapse; } th { text-align: left; font-size: 9pt; color: #5b6773; border-bottom: 1.5px solid #17202a; padding: 5px 6px; }
+        td { vertical-align: top; padding: 6px; border-bottom: 1px solid #dde3e8; } td.q { white-space: nowrap; width: 27mm; color: #5b6773; } td.d { width: 42mm; font-weight: 600; }
+        tr { page-break-inside: avoid; } i { color: #44515c; } .pied { margin-top: 14px; font-size: 9pt; color: #5b6773; }
+      </style></head><body>
+        <h1>Conversation avec ${esc(nom)}</h1>
+        <p class="sous">${esc(o.nomCabinet || 'Le cabinet')} · ${esc(periode)} · ${esc(pl(lignes.length, 'échange'))} · exportée le ${esc(quand(maintenant))}</p>
+        <table><thead><tr><th>Date</th><th>De</th><th>Échange</th></tr></thead><tbody>
+        ${lignes.map((l) => `<tr><td class="q">${esc(quand(l.quand))}</td><td class="d">${esc(l.de)}</td><td>${l.quoi}</td></tr>`).join('')}
+        </tbody></table>
+        <p class="pied">Heures de Tunis. Les fichiers envoyés sont nommés ici ; ils restent dans la conversation, dans SkanFact. Les notes pour l'équipe du cabinet ne sont pas dans ce document : elles ne sortent pas du cabinet.</p>
+      </body></html>`;
+      const fichier = await o.exportPdf(html, `Conversation ${nom} ${jourCle(maintenant)}`);
+      if (o.toast) o.toast(fichier ? `« ${fichier} » est dans tes téléchargements : ${pl(lignes.length, 'échange')}, par date.` : 'La fenêtre d\'impression s\'ouvre : choisis « Enregistrer en PDF ».');
     }
 
     // ── (1.117.0) Chercher dans le fil ─────────────────────────────────────────────────────────────────────────────
@@ -1113,8 +1183,19 @@
       if (enCours || fini) return;
       enCours = true;
       try {
-        const [r, sv] = await Promise.all([o.appel('GET', chemin(null)),
-          avecNotes ? /** @type {any} */ (o.suivi).lire().catch(() => null) : Promise.resolve(null)]);
+        /** @type {any} */ let r;
+        /** @type {any} */ let sv;
+        try {
+          [r, sv] = await Promise.all([o.appel('GET', chemin(null)),
+            avecNotes ? /** @type {any} */ (o.suivi).lire().catch(() => null) : Promise.resolve(null)]);
+          if (o.cle && !cabinetRelu) LUES.set(`${o.cote}:${o.cle}`, { r, sv });
+        } catch (x) {
+          // (1.179.0, lot 4) Hors ligne, une conversation déjà lue depuis l'ouverture de la page se relit telle qu'elle
+          // était (gardée en mémoire seulement, rien sur le poste) ; écrire attend le réseau.
+          const copie = !lu && sansReseau(x) && o.cle ? LUES.get(`${o.cote}:${o.cle}`) : null;
+          if (!copie) throw x;
+          ({ r, sv } = copie);
+        }
         if (sv) { notes = sv.notes || []; promesse = sv.promesse || null; rappel = sv.rappel || null; jalons = sv.jalons || []; }
         // La page a changé (la racine n'est plus à l'écran) : la conversation s'arrête là.
         if (!el.isConnected) { arreter(); return; }
@@ -1155,7 +1236,7 @@
         signature = nouvelle;
         if (o.surAttente && !cabinetRelu) o.surAttente(r.attente);
         // Lu : ce que l'autre côté a écrit, vu ici, page visible.
-        if (r.fil && r.attente && r.attente.aLire && document.visibilityState === 'visible') {
+        if (r.fil && r.attente && r.attente.aLire && document.visibilityState === 'visible' && navigator.onLine !== false) {
           await o.appel('POST', '/messages/lu', { cote: o.cote, cabinet: cabinetRelu });
           if (o.surAttente && !cabinetRelu) o.surAttente({ ...r.attente, nonLus: 0, aLire: false });
         }
@@ -1446,6 +1527,24 @@
         /** @type {HTMLElement} */ (b).onclick = () => { poserOnglet(/** @type {HTMLElement} */ (b).dataset.msgOnglet === 'note'); texte.focus(); };
       });
       if (modeNote) poserOnglet(true);
+      // (1.179.0, maquette « Messages », lot 4) Sans réseau, la conversation se lit, écrire attend : le champ le dit
+      // (« Écrire revient avec le réseau »), ses gestes se grisent ; le réseau revenu, tout se rouvre tel quel (le
+      // brouillon reste dans le champ).
+      const majReseau = () => {
+        if (!form.isConnected) { window.removeEventListener('offline', majReseau); window.removeEventListener('online', majReseau); return; }
+        const off = navigator.onLine === false;
+        if (off === form.classList.contains('off')) return;
+        form.classList.toggle('off', off);
+        texte.disabled = off;
+        envoyer.disabled = off;
+        form.querySelectorAll('[data-msg-onglet], .msg-gestes-g button, .msg-sugg button').forEach((b) => { /** @type {HTMLButtonElement} */ (b).disabled = off; });
+        el.querySelectorAll('[data-msg-traite]').forEach((b) => { /** @type {HTMLButtonElement} */ (b).disabled = off; });
+        if (off) texte.placeholder = 'Écrire revient avec le réseau';
+        else poserOnglet(modeNote);
+      };
+      window.addEventListener('offline', majReseau);
+      window.addEventListener('online', majReseau);
+      majReseau();
       form.onsubmit = async (e) => {
         e.preventDefault();
         if (envoyer.disabled) return;
@@ -1670,6 +1769,7 @@
    *   groupe?: () => ({ titre: string, geste: string, ids: string[], pieces?: string[] } | null), raison?: (entreprise: string) => string,
    *   prochaineDate?: () => string | null, tenus?: () => { id: string, nom: string, couleur?: [string, string] | null }[],
    *   panneauTenu?: (id: string) => string, brancherTenu?: (el: HTMLElement, id: string) => void, ouvrirTenu?: (id: string) => void,
+   *   surEtat?: (etat: string) => void, enAttendant?: { texte: string, aller: () => void },
    *   modeles?: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
    * }} o
    */
@@ -1711,7 +1811,33 @@
     /** @param {string} id */
     const dansPortee = (id) => (o.dansPortee ? o.dansPortee(id) : true);
     function poser() {
-      el.innerHTML = `<div class="msg-boite${aCote() ? ' msg-boite-a-cote' : ''}"><div class="msg-boite-corps" data-boite-corps></div></div>`;
+      el.innerHTML = `<div class="msg-hors" data-msg-hors role="status" hidden></div><div class="msg-boite${aCote() ? ' msg-boite-a-cote' : ''}"><div class="msg-boite-corps" data-boite-corps></div></div>`;
+      majHors();
+    }
+    // (1.179.0, maquette « Messages », lot 4) Les états de la page. Pendant la lecture, la page a déjà sa forme (la liste,
+    // la conversation, le dossier à côté, en gris qui luit) ; la lecture refusée la fige et pose dessus ce qui s'est passé,
+    // « Réessayer maintenant » (la boîte réessaie seule toutes les 30 secondes) et de quoi travailler en attendant.
+    /** @param {boolean} fige */
+    const squelette = (fige) => {
+      const l = Array.from({ length: 6 }, (_, i) => `<span class="msg-sq-l"><i class="r"></i><span><i style="width:${60 + (i * 13) % 30}%"></i><i style="width:${40 + (i * 17) % 40}%"></i></span></span>`).join('');
+      const b = [['g', 58], ['g', 42], ['d', 50], ['g', 64]].map(([c, w]) => `<span class="msg-sq-b ${c}" style="width:${w}%"></span>`).join('');
+      return `<div class="msg-boite${aCote() ? ' msg-boite-a-cote' : ''} msg-sq${fige ? ' msg-fige' : ''}" aria-hidden="true"><div class="msg-boite-corps">
+        <section class="msg-zone msg-liste"><span class="msg-sq-tete"><i class="msg-sq-c"></i></span>${l}</section>
+        ${aCote() ? `<div class="msg-boite-conv"><span class="msg-sq-ft"><i class="r"></i><span><i style="width:180px"></i><i style="width:120px"></i></span></span><span class="msg-sq-fil">${b}</span><i class="msg-sq-c msg-sq-champ"></i></div>
+        <aside class="msg-dossier-cote"><i class="msg-sq-c msg-sq-carte"></i><i class="msg-sq-c msg-sq-carte"></i></aside>` : ''}</div></div>`;
+    };
+    /** @type {string} */ let etatPage = '';
+    /** @param {string} e */
+    const direEtat = (e) => { if (e !== etatPage) { etatPage = e; if (o.surEtat) o.surEtat(e); } };
+    // Hors ligne : la boîte telle qu'elle était à sa dernière lecture, une bande le dit ; écrire attend le réseau.
+    /** @type {string | null} */ let luA = null;
+    let hors = false;
+    function majHors() {
+      const b = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-hors]'));
+      if (!b) return;
+      b.hidden = !hors;
+      b.innerHTML = hors ? `${dessin('nuage')}<span><b>Hors ligne</b> · tes conversations telles qu'elles étaient${luA ? ` à ${esc(heure(luA).replace(':', ' h '))}` : ''} ; écrire revient avec le réseau</span><span class="msg-hors-d"><i class="msg-pouls"></i>se reconnecte tout seul</span>` : '';
+      direEtat(hors ? 'hors' : 'pret');
     }
     /** @param {any[]} ds */
     const compter = (ds) => ({ aTraiter: ds.filter((d) => d.etat === 'a_traiter').length, attendClient: ds.filter((d) => d.etat === 'attend_client').length, tout: ds.length });
@@ -1817,12 +1943,16 @@
             : `<span class="msg-puce promis" title="${esc(`${x.promesse.quoi}, promis pour ${jourLong(x.promesse.pour)}`)}">${dessin('reveil')}promis ${esc(jourCourt(x.promesse.pour))}</span>`) : '',
           x.rappel ? `<span class="msg-puce tard" title="${esc(`Tu as demandé de la revoir ${jourLong(x.rappel)}`)}">${dessin('reveil')}revient ${esc(jourCourt(x.rappel))}</span>` : '',
           portee() === 'tout' && L && L.suivi ? `<span class="msg-suivi">${esc(L.suivi)}</span>` : ''].filter(Boolean).join('');
-        return `<button type="button" class="msg-dossier${x.entreprise === choisi ? ' choisi' : ''}${x.nonLus ? ' non-lu' : ''}" data-dossier="${esc(x.entreprise)}" aria-current="${x.entreprise === choisi}">
+        // (1.179.0, maquette « Messages », lot 4) Traiter sans ouvrir : une conversation « À traiter » a ses deux gestes,
+        // « Demain » (me la remontrer demain) et « Traité » ; à l'ordinateur ils paraissent au survol, au téléphone la ligne
+        // glisse vers la gauche et les découvre. Au clavier : E sur la ligne, et le menu ⋯ de la conversation.
+        const gestes = x.etat === 'a_traiter' && o.cabinet ? `<span class="msg-gl-a"><button type="button" class="msg-gl-d" tabindex="-1" data-gl-demain aria-label="Demain" title="${esc(`Me la remontrer ${jourLong(dansJours(1))}`)}">${dessin('reveil')}<span>Demain</span></button><button type="button" class="msg-gl-t" tabindex="-1" data-gl-traite aria-label="Traité" title="Marquer comme traité : elle quitte « À traiter »">${dessin('coche')}<span>Traité</span></button></span>` : '';
+        return `${gestes ? `<div class="msg-gl" data-gl="${esc(x.entreprise)}">` : ''}<button type="button" class="msg-dossier${x.entreprise === choisi ? ' choisi' : ''}${x.nonLus ? ' non-lu' : ''}" data-dossier="${esc(x.entreprise)}" aria-current="${x.entreprise === choisi}">
           <span class="msg-avatar petit${L && L.couleur ? ' carre' : ''}"${L && L.couleur ? ` style="background:linear-gradient(145deg, ${esc(L.couleur[0])}, ${esc(L.couleur[1])})"` : ''} aria-hidden="true">${esc(initiales(x.nom))}</span>
           <span class="msg-dossier-txt"><span class="msg-dossier-l1"><b>${esc(x.nom)}</b>${x.dernier ? `<span class="msg-quand">${esc(quandCourt(x.dernier.quand))}</span>` : ''}</span>
             <span class="msg-extrait">${esc(extrait(x))}</span>${puces ? `<span class="msg-dossier-l3">${puces}</span>` : ''}</span>
           <span class="msg-dossier-pastilles">${x.nonLus ? `<span class="msg-non-lus" title="${esc(pl(x.nonLus, 'nouveau message', 'nouveaux messages'))}">${x.nonLus}<span class="msg-cache"> ${x.nonLus > 1 ? 'nouveaux messages' : 'nouveau message'}</span></span>` : ''}
-          ${x.nonLus || x.etat !== 'attend_client' || (x.promesse && !x.promesse.echue) ? '' : `<span class="msg-etat-pastille ${etatDit(x.etat)[1]}">${esc(etatDit(x.etat)[0])}</span>`}</span></button>`;
+          ${x.nonLus || x.etat !== 'attend_client' || (x.promesse && !x.promesse.echue) ? '' : `<span class="msg-etat-pastille ${etatDit(x.etat)[1]}">${esc(etatDit(x.etat)[0])}</span>`}</span></button>${gestes ? `${gestes}</div>` : ''}`;
       }).join('')
         : cherche ? `<div class="msg-vide"><b>Aucun client ne s'appelle « ${esc(cherche)} ».</b><span>La recherche lit le nom de chaque client en ligne, quel que soit le filtre.</span></div>`
         : filtre === 'a_traiter' ? ''
@@ -1832,8 +1962,21 @@
       const vers = liste.querySelector('[data-vers-filtre]');
       if (vers) /** @type {HTMLElement} */ (vers).onclick = () => { filtre = String(/** @type {HTMLElement} */ (vers).dataset.versFiltre); dessiner(); };
       const lignes = /** @type {HTMLElement[]} */ ([...liste.querySelectorAll('[data-dossier]')]);
+      liste.querySelectorAll('[data-gl]').forEach((n) => {
+        const g = /** @type {HTMLElement} */ (n);
+        const id = String(g.dataset.gl);
+        /** @type {HTMLElement} */ (g.querySelector('[data-gl-demain]')).onclick = (e) => { e.stopPropagation(); g.classList.remove('ouvert'); void remontrerDemain(id); };
+        /** @type {HTMLElement} */ (g.querySelector('[data-gl-traite]')).onclick = (e) => { e.stopPropagation(); g.classList.remove('ouvert'); void marquerTraite(id); };
+        glisser(g, /** @type {HTMLElement} */ (g.querySelector('[data-dossier]')));
+      });
       lignes.forEach((b, i) => {
-        b.onclick = () => choisir(String(b.dataset.dossier));
+        b.onclick = () => {
+          // Une ligne qu'on vient de faire glisser ne s'ouvre pas ; ouverte (ses gestes découverts), un toucher la referme.
+          if (b.dataset.glBouge) return;
+          const g = b.closest('.msg-gl');
+          if (g && g.classList.contains('ouvert')) { g.classList.remove('ouvert'); return; }
+          choisir(String(b.dataset.dossier));
+        };
         // ↑ et ↓ passent d'un client à l'autre, comme dans toute messagerie ; E marque traité le client choisi.
         b.onkeydown = (e) => {
           if ((e.key === 'e' || e.key === 'E') && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); void marquerTraite(String(b.dataset.dossier)); return; }
@@ -1862,6 +2005,54 @@
         if (ouverte && ouverte.entreprise === id) await ouverte.c.relire();
         await lire();
       } catch (x) { if (o.toast) o.toast(motif(x), true); }
+    }
+    // (1.179.0) « Demain », depuis la ligne : la conversation quitte MON « À traiter » jusqu'à demain (le même rappel que
+    // « Me le remontrer demain » du menu ⋯) ; « Annuler » la remet.
+    /** @param {string} id */
+    async function remontrerDemain(id) {
+      const d = lu && lu.dossiers.find((/** @type {any} */ x) => x.entreprise === id);
+      const le = dansJours(1);
+      const chemin = `/cabinets/${encodeURIComponent(o.cabinet)}/rappels/${encodeURIComponent(id)}`;
+      const relireTout = async () => { if (ouverte && ouverte.entreprise === id) await ouverte.c.relire(); await lire(); };
+      try {
+        await o.appel('PUT', chemin, { le });
+        const dit = `La conversation de ${d ? d.nom : 'ce client'} revient ${jourLong(le)} : d'ici là, elle quitte ton « À traiter ».`;
+        if (o.toastAnnuler) o.toastAnnuler(dit, () => { void o.appel('DELETE', chemin).then(relireTout).catch((/** @type {unknown} */ x) => { if (o.toast) o.toast(motif(x), true); }); });
+        else if (o.toast) o.toast(dit);
+        await relireTout();
+      } catch (x) { if (o.toast) o.toast(motif(x), true); }
+    }
+    // Au téléphone, la ligne glisse vers la gauche (au doigt) et découvre ses deux gestes ; à moitié, elle revient.
+    /** @param {HTMLElement} g @param {HTMLElement} ligne */
+    function glisser(g, ligne) {
+      const LARGEUR = 152;
+      let x0 = 0, y0 = 0, dx = 0, actif = false, bouge = false, doigt = -1;
+      ligne.addEventListener('pointerdown', (e) => { if (e.pointerType !== 'touch') return; actif = true; bouge = false; x0 = e.clientX; y0 = e.clientY; dx = g.classList.contains('ouvert') ? -LARGEUR : 0; doigt = e.pointerId; });
+      ligne.addEventListener('pointermove', (e) => {
+        if (!actif || e.pointerId !== doigt) return;
+        const ddx = e.clientX - x0, ddy = e.clientY - y0;
+        if (!bouge) {
+          if (Math.abs(ddy) > 10 && Math.abs(ddy) > Math.abs(ddx)) { actif = false; return; }
+          if (Math.abs(ddx) < 10) return;
+          bouge = true; g.classList.add('glisse');
+        }
+        dx = Math.max(-LARGEUR, Math.min(0, (g.classList.contains('ouvert') ? -LARGEUR : 0) + ddx));
+        ligne.style.transform = `translateX(${dx}px)`;
+      });
+      const fin = () => {
+        if (!actif) return;
+        actif = false;
+        if (!bouge) return;
+        g.classList.remove('glisse');
+        ligne.style.transform = '';
+        const ouvrir = dx < -LARGEUR / 2;
+        g.parentElement?.querySelectorAll('.msg-gl.ouvert').forEach((a) => { if (a !== g) a.classList.remove('ouvert'); });
+        g.classList.toggle('ouvert', ouvrir);
+        ligne.dataset.glBouge = '1';
+        setTimeout(() => { delete ligne.dataset.glBouge; }, 0);
+      };
+      ligne.addEventListener('pointerup', fin);
+      ligne.addEventListener('pointercancel', fin);
     }
     /** @param {string} id */
     function choisir(id) {
@@ -2106,34 +2297,60 @@
     }
     async function lire() {
       if (fini) return;
+      const cle = `boite:${o.cabinet}`;
       try {
         const r = await o.appel('GET', `/cabinets/${encodeURIComponent(o.cabinet)}/messages`);
         if (fini) return;
         if (!el.isConnected) { arreter(); return; }
+        // Sans réseau, la lecture vient de la copie du poste (« mon ordinateur », plateforme/poste.js) : la bande reste, et
+        // l'heure dite est celle de la dernière lecture en ligne.
+        const sansLui = navigator.onLine === false;
+        if (!sansLui) { luA = new Date().toISOString(); LUES.set(cle, { r, luA }); }
         const s = JSON.stringify(r);
+        const etaitHors = hors;
+        hors = sansLui;
         lu = r;
-        if (s !== signature) dessiner();
+        if (s !== signature || !el.querySelector('[data-boite-corps]')) dessiner();
         signature = s;
+        if (etaitHors !== hors || etatPage !== (hors ? 'hors' : 'pret')) majHors();
       } catch (x) {
-        if (!lu) {
-          el.innerHTML = `<div class="msg-page"><div class="msg-vide" data-msg-echec>${sansReseau(x)
-            ? '<b>Pas de réseau : la boîte attend la connexion.</b><span>Elle s\'ouvre toute seule dès que le réseau revient.</span>'
-            : `<b>La boîte ne s'est pas ouverte.</b><span>${esc(motif(x))}</span>`}<button type="button" class="btn" data-relire>Réessayer</button></div></div>`;
-          const b = el.querySelector('[data-relire]');
-          if (b) /** @type {HTMLElement} */ (b).onclick = () => { void lire(); };
-        }
+        if (fini) return;
+        const reseau = navigator.onLine === false;
+        // Hors ligne : la dernière lecture de la page (celle-ci ou une boîte ouverte avant), telle qu'elle était.
+        const copie = !lu && reseau ? LUES.get(cle) : null;
+        if (copie) { lu = copie.r; luA = copie.luA; signature = JSON.stringify(lu); hors = true; dessiner(); majHors(); return; }
+        if (lu) { if (reseau && !hors) { hors = true; majHors(); } return; }
+        // Un refus du serveur qui dit pourquoi (un droit, un dossier) : réessayer n'y change rien, on le dit tel quel.
+        const statut = Number((/** @type {any} */ (x) || {}).statut || 0);
+        const dit = statut >= 400 && statut < 500;
+        el.innerHTML = `<div class="msg-refus-w">${squelette(true)}<div class="msg-ref" role="alert" data-msg-echec>${dessin(reseau ? 'nuage' : 'message')}
+          <b>${reseau ? 'Hors ligne : tes conversations attendent le réseau' : 'Tes conversations ne se sont pas lues'}</b>
+          <span>${reseau ? `${/** @type {any} */ (x).jamaisLue ? 'Ce poste ne les a pas encore lues : ouvre-les une fois avec le réseau, elles se reliront ensuite sans lui.' : 'Ce poste n\'en garde pas de copie (ce n\'est pas « mon ordinateur »).'} Ce que tes clients ont écrit est sur le serveur : la boîte s'ouvre toute seule dès que le réseau revient.`
+            : dit ? esc(motif(x)) : 'Le serveur ne les a pas rendues cette fois. Rien n\'est perdu : ce que tes clients ont écrit est gardé sur le serveur, et la boîte réessaie seule toutes les 30 secondes.'}</span>
+          <span class="msg-ref-a"><button type="button" class="btn btn-primary" data-relire>Réessayer maintenant</button>${o.enAttendant ? `<button type="button" class="msg-lien" data-msg-en-attendant>${esc(o.enAttendant.texte)} →</button>` : ''}</span></div></div>`;
+        direEtat(reseau ? 'hors' : 'refus');
+        const b = /** @type {HTMLButtonElement | null} */ (el.querySelector('[data-relire]'));
+        if (b) b.onclick = async () => { b.disabled = true; await lire(); if (b.isConnected) b.disabled = false; };
+        const ea = el.querySelector('[data-msg-en-attendant]');
+        if (ea && o.enAttendant) /** @type {HTMLElement} */ (ea).onclick = o.enAttendant.aller;
       }
     }
     // Passer du téléphone à l'ordinateur (ou l'inverse) repose la page : une colonne ou deux.
     const auChangement = () => { if (!lu || fini) return; fermer(); signature = ''; poser(); dessiner(); };
     TELEPHONE.addEventListener('change', auChangement);
+    el.innerHTML = `<div class="msg-sq-w" role="status" aria-label="Lecture de tes conversations…">${squelette(false)}</div>`;
+    direEtat('chargement');
     void lire();
     // Une conversation ouverte à côté relit la liste à chaque lecture : la boîte ne la relit seule que sans elle.
     const minuterie = setInterval(() => { if (!el.isConnected) arreter(); else if (document.visibilityState === 'visible' && !ouverte) void lire(); }, RELIRE_MS);
     // (1.134.0) Le réseau revenu, la boîte se relit tout de suite (l'échec hors ligne le promet).
-    const auReseau = () => { if (el.isConnected && !ouverte) void lire(); };
+    // (1.179.0) Le réseau revenu, la boîte se relit même une conversation ouverte (la bande « Hors ligne » s'en va) ; le
+    // réseau perdu, la bande paraît tout de suite.
+    const auReseau = () => { if (el.isConnected) void lire(); };
+    const sansLeReseau = () => { if (el.isConnected && lu && !hors) { hors = true; majHors(); } };
     window.addEventListener('online', auReseau);
-    function arreter() { fini = true; clearInterval(minuterie); clearTimeout(relecture); TELEPHONE.removeEventListener('change', auChangement); window.removeEventListener('online', auReseau); fermer(); }
+    window.addEventListener('offline', sansLeReseau);
+    function arreter() { fini = true; clearInterval(minuterie); clearTimeout(relecture); TELEPHONE.removeEventListener('change', auChangement); window.removeEventListener('online', auReseau); window.removeEventListener('offline', sansLeReseau); fermer(); }
     // (1.176.0) « Écrire à plusieurs clients… » est dans l'en-tête de la page : l'écran l'ouvre d'ici.
     return { arreter, demandeGroupee: () => { if (lu && lu.dossiers.length) ecrireAPlusieurs(); } };
   }

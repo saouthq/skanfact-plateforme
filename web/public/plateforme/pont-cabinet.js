@@ -1245,7 +1245,7 @@
   };
   /** @param {HTMLElement} el @param {string} entreprise @param {any} o */
   const conversationAvec = (el, entreprise, o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, {
-    ...o, cote: 'cabinet', modeles: modelesDuCabinet,
+    ...o, cote: 'cabinet', modeles: modelesDuCabinet, cle: entreprise, nomCabinet: nomDuCabinet, exportPdf,
     appel: (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b),
     // (1.177.0, 1.178.0) Le suivi de la conversation au cabinet (0182, 0183) : les notes pour l'équipe (le client ne les lit
     // jamais), la promesse du client, mon rappel, les déclarations déposées.
