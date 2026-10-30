@@ -3112,13 +3112,13 @@ prouver "l'année d'un dossier tenu qui ne commence pas en janvier" $PC \
   "if (!x.has(a)) x.set(a, { annee: a, du: \`\${a}-01-01\`," "if (!x.has(a)) x.set(a, { annee: a, du: \`\${a}-03-01\`," \
   "$WP1"
 prouver "le tableau de production lu une fois pour toutes" web/public/v10/cabinet/app.js \
-  "    if (route !== routeLue && route === 'production') prodState.lignes = null;" "" \
+  "    if (route !== routeLue && route === 'production') { prodState.lignes = null; prodState.erreur = ''; }" "" \
   "$WP1"
 prouver "le dossier tenu absent des Échéances" $PC \
   "repondues: q.repondues, employeur, tenu: d.manual ? { exercices } : null, declares, mois: parMois };" "repondues: q.repondues, employeur, tenu: null, declares, mois: parMois };" \
   "$WP1"
 prouver "la légende qui parle encore de reçu" web/public/v10/cabinet/app.js \
-  "    ['recu', 'manquant'], ['saisi', 'à saisir']," "    ['recu', 'pas encore reçu'], ['saisi', 'à saisir']," \
+  "recu: ['○', 'pièces manquantes']," "recu: ['○', 'pas encore reçu']," \
   "$WP1"
 prouver "la visite de la production qui parle encore de paquets" $CVI \
   "      conclusion: 'Le tableau lit les livres : un dossier apparaît dès que sa comptabilité a des écritures," "      conclusion: 'Le tableau lit les livres, pas les paquets : un dossier apparaît dès que sa comptabilité a des écritures," \
@@ -20186,8 +20186,8 @@ prouver 'barre 25 : « Envoyer » sous les onglets du téléphone' web/public/pl
   '  body.avec-barre .msg-corps > .msg-zone { height: calc(100dvh - var(--msg-haut-tel, 172px) - (var(--sb-haut-tel, 62px) - 62px) - 84px); }
 ' '' \
   'la pastille, la question répondue sur place'
-prouver 'barre cabinet 1 : le Cabinet s'"'"'ouvre sur le portefeuille, pas sur ses priorités' web/public/v10/cabinet/app.js \
-  'if (!location.hash) location.hash = '"'"'#/priorites'"'"';' 'if (!location.hash) location.hash = '"'"'#/dossiers'"'"';' \
+prouver 'barre cabinet 1 : le Cabinet s'"'"'ouvre sur le portefeuille, pas sur son tableau de bord' web/public/v10/cabinet/app.js \
+  'if (!location.hash) location.hash = '"'"'#/production'"'"';' 'if (!location.hash) location.hash = '"'"'#/dossiers'"'"';' \
   'au bureau : la tête et son menu'
 prouver 'barre cabinet 2 : le menu du cabinet sans son code' web/public/v10/cabinet/app.js \
   '(code ? `<div class="code-cab">' '(false ? `<div class="code-cab">' \
@@ -20233,7 +20233,7 @@ prouver 'barre cabinet 13 : qui n'"'"'est pas du cabinet lit sa boîte' serveur/
   'le fichier d'"'"'un client arrive à classer'
 prouver 'barre cabinet 14 : au téléphone, le Cabinet a l'"'"'accueil de l'"'"'entreprise' web/public/plateforme/barre.js \
   'auCabinet() ? onglet(accueil()) :' 'false ? onglet(accueil()) :' \
-  'au téléphone : Priorités, Messages'
+  'au téléphone : Tableau (de bord), Messages'
 prouver 'barre cabinet 15 : une page épinglée n'"'"'entre pas dans « Mon cabinet »' web/public/v10/cabinet/app.js \
   "const dansMonCabinet = ORDRE_CAB.concat(epingles);" "const dansMonCabinet = ORDRE_CAB.concat([]);" \
   '(1.186.0) épingler une page'
@@ -21482,3 +21482,37 @@ prouver 'relance 1 : la relance ne part pas de sa fenêtre' web/public/v10/cabin
 prouver 'relance 2 : « Écrire plutôt dans la conversation » ne mène nulle part' web/public/v10/cabinet/app.js \
   "const conv = \$('#ec-conv', layer);" "const conv = null;" \
   'au bureau : la déclaration en retard'
+# ── 1.194.0 : le Tableau de bord, Priorités comprises (tests/web/tableau-de-bord.test.ts et les parcours retournés) ──
+prouver 'tableau 1 : l'"'"'ancien lien des Priorités ne mène plus nulle part' web/public/v10/cabinet/app.js \
+  "    else if (route === 'priorites') location.replace('#/production');" "" \
+  'une page : À faire, la campagne du mois'
+prouver 'tableau 2 : une étape de la campagne ne filtre pas la grille' web/public/v10/cabinet/app.js \
+  "const filtre = tbState.filtre.startsWith('et:') ?" "const filtre = false ?" \
+  'une page : À faire, la campagne du mois'
+prouver 'tableau 3 : le choix d'"'"'une personne ne vaut pas pour la grille' web/public/v10/cabinet/app.js \
+  "const L = etat ? [] : lignesTb().filter(x => !tbState.qui || (x.eq.suit || {}).id === tbState.qui);" "const L = etat ? [] : lignesTb();" \
+  'une page : À faire, la campagne du mois'
+prouver 'tableau 4 : « À voir » déplié d'"'"'office' web/public/v10/cabinet/app.js \
+  'tbState.avoir || !u.length ? `<div class' 'true ? `<div class' \
+  'une page : À faire, la campagne du mois'
+prouver 'tableau 5 : le menu ⋯ trop petit pour le doigt' web/public/plateforme/tableau-de-bord.css \
+  '  #page-bord .row-menu-btn.tb-trois { width: 44px; height: 44px; }' '' \
+  'au téléphone : rien ne déborde'
+prouver 'tableau 6 : la recherche perd le curseur à chaque lettre' web/public/v10/cabinet/app.js \
+  "const n = \$('#tb-q', view); if (n) { n.focus(); n.setSelectionRange(pos, pos); }" "" \
+  'une page : À faire, la campagne du mois'
+prouver 'tableau 7 : l'"'"'invitation de visite couvre « Accepter le dossier »' web/public/v10/cabinet/app.js \
+  "if (\$('#view .premiers-pas, #view .cd-prop')) return;" "if (\$('#view .premiers-pas')) return;" \
+  'le client invite par e-mail'
+prouver 'tableau 8 : au téléphone, le tableau de bord se dit pensé pour un ordinateur' web/public/v10/cabinet/app.js \
+  "  const ECRANS_ORDINATEUR = ['dossier', 'ecritures'];" "  const ECRANS_ORDINATEUR = ['dossier', 'production', 'ecritures'];" \
+  'au téléphone : rien ne déborde'
+prouver 'tableau 9 : l'"'"'onglet du téléphone coupé (« Tableau de b… »)' web/public/v10/cabinet/app.js \
+  "...(id === 'production' ? { court: 'Tableau' } : {})," "" \
+  'au téléphone : rien ne déborde'
+prouver 'tableau 10 : une case de la grille perd son détail au survol' web/public/v10/cabinet/app.js \
+  '} — ${esc(detail)}">' '}">' \
+  "$WP1"
+prouver 'tableau 11 : une grille refusée le reste en revenant sur la page' web/public/v10/cabinet/app.js \
+  "{ prodState.lignes = null; prodState.erreur = ''; }" "prodState.lignes = null;" \
+  'au Cabinet, la Comptabilité, la Production'

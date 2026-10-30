@@ -158,8 +158,8 @@ describe('le Cabinet sans réseau, à la souris', () => {
     await p.waitForURL(/\/v10\/cabinet\/\?c=/, { timeout: 20_000 });
     await p.locator('#view h1').first().waitFor({ timeout: 20_000 });
     await plusTard(p);
-    // (1.152.0) Il se rouvre sur ses Priorités ; le dossier ouvert de la barre est celui du client, lu sur le poste.
-    await p.locator('#page-priorites').waitFor({ timeout: 15_000 });
+    // (1.152.0, 1.194.0) Il se rouvre sur son Tableau de bord ; le dossier ouvert de la barre est celui du client, lu sur le poste.
+    await p.locator('#page-bord').waitFor({ timeout: 15_000 });
     await expect.poll(() => p.locator('#b-dossier').innerText(), { timeout: 15_000 }).toMatch(/Droguerie du Port/);
     await expect.poll(() => p.locator('#poste-bandeau').innerText()).toMatch(/^Hors ligne depuis/);
 

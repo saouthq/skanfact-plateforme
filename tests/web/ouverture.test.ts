@@ -153,7 +153,9 @@ describe('l\'ouverture d\'une page, le serveur lent ou en erreur', () => {
     await expect.poll(() => p.locator('#ech-refus h2').innerText().catch(() => ''), { timeout: 15_000 }).toBe('Le calendrier n\'a pas pu se lire');
     expect(await p.getByText('Aucune échéance à suivre', { exact: false }).count()).toBe(0);
     await p.evaluate(() => { location.hash = '#/production'; });
-    await expect.poll(() => p.locator('#pr-refus').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^La production n'a pas pu se lire\. ./);
+    // (1.194.0) La Production est le Tableau de bord : « À faire maintenant » reste, la grille dit qu'elle ne s'est pas lue.
+    await expect.poll(() => p.locator('#tb-refus').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^La grille ne s'est pas lue\s+./);
+    expect(await p.locator('#tb-relire').innerText()).toBe('Réessayer');
     await p.evaluate((d) => { location.hash = `#/dossier/${d}/comptabilite`; }, dossier);
     await expect.poll(() => p.locator('#lv-refus').innerText().catch(() => ''), { timeout: 15_000 }).toMatch(/^La comptabilité n'a pas pu se lire\. ./);
     // Le serveur revenu, chaque « Réessayer » relit sans recharger la page.
@@ -163,8 +165,8 @@ describe('l\'ouverture d\'une page, le serveur lent ou en erreur', () => {
     expect(await p.locator('#lv-refus').count()).toBe(0);
     // La Production se relit d'elle-même quand on y revient ; les Échéances, par leur « Réessayer » s'il est encore là.
     await p.evaluate(() => { location.hash = '#/production'; });
-    await expect.poll(async () => { const v = await p.locator('#view').innerText().catch(() => ''); return v.startsWith('Production') && !v.includes('Lecture des dossiers'); }, { timeout: 15_000 }).toBe(true);
-    expect(await p.locator('#pr-refus').count()).toBe(0);
+    await expect.poll(async () => { const v = await p.locator('#page-bord').innerText().catch(() => ''); return v.includes('Tableau de bord') && !v.includes('Lecture des dossiers'); }, { timeout: 15_000 }).toBe(true);
+    expect(await p.locator('#tb-refus').count()).toBe(0);
     await p.evaluate(() => { location.hash = '#/echeances'; });
     await p.waitForTimeout(1000);
     if (await p.locator('#ech-relire').count()) await p.locator('#ech-relire').click();

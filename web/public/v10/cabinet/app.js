@@ -1155,7 +1155,7 @@
     }
     // La visite guidée (10.14.0) : le moteur apprend à naviguer et à expliquer dans le Cabinet.
     installerVisites();
-    if (!location.hash) location.hash = '#/priorites';
+    if (!location.hash) location.hash = '#/production';
     render();
     relirePieces();
     refreshBackupInfo();
@@ -1617,7 +1617,8 @@
   // sa liasse, sa paie), les écritures, la production. Au téléphone (sous 760 points, la largeur où telephone.css
   // prend la main), ils le disent sous leur titre. Ces écrans se dessinent souvent en deux temps (le serveur
   // répond) : l'avis se pose quand l'en-tête paraît, et se repose si l'écran se redessine.
-  const ECRANS_ORDINATEUR = ['dossier', 'production', 'ecritures'];
+  // (1.194.0) Le tableau de bord, page d'arrivée, est fait pour le téléphone (sa maquette) : il ne le dit plus.
+  const ECRANS_ORDINATEUR = ['dossier', 'ecritures'];
   let obsOrdinateur = null;
   function bandeauOrdinateur(route) {
     if (obsOrdinateur) { obsOrdinateur.disconnect(); obsOrdinateur = null; }
@@ -1695,7 +1696,7 @@
   // La barre et les Priorités suivent ce qui vient d'être lu ; une fenêtre ouverte ne se redessine pas sous les doigts.
   function redessinerPrioritesSiOuvertes() {
     drawNav();
-    if (/^#\/priorites/.test(location.hash) && !$('#modal-root').children.length && !$('#palette-root')) drawPriorites($('#view'));
+    if (/^#\/production/.test(location.hash) && !$('#modal-root').children.length && !$('#palette-root')) pageTableau($('#view'), prodState.erreur ? 'refus' : prodState.lignes ? '' : 'chargement');
   }
   // ---------- Messages (telles que la maquette « Messages » de Mon cabinet, 1.176.0) ----------
   // La boîte à trois colonnes (plateforme/messagerie.js) : la liste, la conversation, le dossier à côté. L'écran donne ce
@@ -2149,16 +2150,17 @@
     if (route !== routeLue && route === 'dossiers' && routeLue) relirePortefeuille();
     // (plateforme) Le tableau de production se relit quand on ENTRE sur sa page : lu une fois, un mois
     // saisi dans la journée y restait « à saisir » (même règle que le résumé ci-dessus).
-    if (route !== routeLue && route === 'production') prodState.lignes = null;
+    if (route !== routeLue && route === 'production') { prodState.lignes = null; prodState.erreur = ''; }
     routeLue = route;
     // (plateforme, lot messagerie) La conversation ouverte s'arrête quand on la quitte ; la pastille se lit une première fois.
     if (route !== 'messages' && messagerieOuverte) { messagerieOuverte.arreter(); messagerieOuverte = null; }
     if (!pastilleMessagesLue) { pastilleMessagesLue = true; void rafraichirPastilleMessages(); }
     const view = $('#view');
     if (route === 'dossier') drawDossier(view, arg, hash.split('/')[2], hash.split('/')[3], hash.split('/')[4]);
-    else if (route === 'priorites') drawPriorites(view);
+    // (plateforme) 1.194.0 — les Priorités vivent dans le Tableau de bord : l'ancien lien y mène.
+    else if (route === 'priorites') location.replace('#/production');
     else if (route === 'pieces') drawPieces(view, arg);
-    else if (route === 'production') drawProduction(view);
+    else if (route === 'production') drawTableau(view);
     else if (route === 'ecritures') drawEcritures(view);
     else if (route === 'echeances') drawEcheances(view);
     else if (route === 'relances') drawRelances(view);
@@ -2330,7 +2332,7 @@
 
   // La liste de la barre : « Mon cabinet », puis le dossier ouvert. Une page n'y a qu'UN lien ; la page ouverte porte
   // `active` (barre.js en fait `aria-current`).
-  const ORDRE_CAB = ['priorites', 'pieces', 'echeances', 'production', 'messages'];
+  const ORDRE_CAB = ['production', 'pieces', 'echeances', 'messages'];
   const NOMS_CAB = { priorites: 'Priorités', pieces: 'Pièces reçues', echeances: 'Échéances', production: 'Tableau de bord', messages: 'Messages',
     dossiers: 'Tous les dossiers', relances: 'Relances', ecritures: 'Export des écritures', reglages: 'Réglages' };
   // Les pages du volet « Le cabinet » qu'on épingle dans « Mon cabinet », comme l'entreprise épingle dans « Au quotidien ».
@@ -2339,12 +2341,12 @@
   const ICONE_EPINGLE = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 4h6l-1 6 3 3v2H7v-2l3-3z"/><path d="M12 15v6"/></svg>';
   const ICONE_COCHE_EP = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
   const BULLES_CAB = { priorites: 'Ce qui presse dans tes dossiers, le plus urgent d\'abord', pieces: 'Les photos et PDF déposés par tes clients, à classer',
-    echeances: 'Les déclarations de tes dossiers, par date', production: 'Où en est le cabinet', messages: 'Les conversations avec tes clients',
+    echeances: 'Les déclarations de tes dossiers, par date', production: 'Ce qui presse, puis où en est chaque dossier', messages: 'Les conversations avec tes clients',
     dossiers: 'Le portefeuille, ses chiffres, ses filtres', relances: 'Les clients à qui des mois manquent', ecritures: 'Le mois de tous tes clients, en un fichier', reglages: 'Le cabinet, ton compte, l\'affichage' };
   function drawNav() {
     const nav = $('#nav');
     if (!nav || !S) return;
-    const hash = location.hash.replace(/^#\//, '') || 'priorites';
+    const hash = location.hash.replace(/^#\//, '') || 'production';
     const [route, arg, sous] = hash.split('/');
     const D = dossierOuvert();
     const role = monRole();
@@ -2358,9 +2360,9 @@
     for (const x of dansMonCabinet) if (!ordre.includes(x)) ordre.push(x);
     const actif = id => (id === 'pieces' ? route === 'pieces' && !arg : route === id);
     const lienCab = id => {
-      const n = id === 'priorites' ? pri.urgent.length : id === 'pieces' ? comptesBarre.pieces : id === 'echeances' ? retard.length : id === 'messages' ? comptesBarre.messages : id === 'relances' ? nRel : 0;
-      const ton = id === 'priorites' || id === 'echeances' ? 'alerte' : '';
-      const tip = id === 'priorites' ? `${n} urgente${n > 1 ? 's' : ''}` : id === 'pieces' ? `${n} à classer` : id === 'echeances' ? `${n} en retard` : id === 'messages' ? `${n} à traiter` : id === 'relances' ? `${n} à relancer` : '';
+      const n = id === 'production' ? pri.urgent.length : id === 'pieces' ? comptesBarre.pieces : id === 'echeances' ? retard.length : id === 'messages' ? comptesBarre.messages : id === 'relances' ? nRel : 0;
+      const ton = id === 'production' || id === 'echeances' ? 'alerte' : '';
+      const tip = id === 'production' ? `${n} urgente${n > 1 ? 's' : ''}` : id === 'pieces' ? `${n} à classer` : id === 'echeances' ? `${n} en retard` : id === 'messages' ? `${n} à traiter` : id === 'relances' ? `${n} à relancer` : '';
       return `<a href="#/${id}" data-route="${id}" class="lien${actif(id) ? ' active' : ''}" draggable="true" data-nom="${id}" data-tip="${esc(NOMS_CAB[id] + (n ? ` · ${tip}` : ''))}" title="${esc(BULLES_CAB[id])}">`
         + `<span class="ic">${icB(id)}</span>${esc(NOMS_CAB[id])}${compte(id === 'messages' ? 'nav-messages' : `nav-${id}`, n, ton, n ? tip : '')}`
         + `<span class="prise" title="Glisse pour ranger"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.3"/><circle cx="15" cy="6" r="1.3"/><circle cx="9" cy="12" r="1.3"/><circle cx="15" cy="12" r="1.3"/><circle cx="9" cy="18" r="1.3"/><circle cx="15" cy="18" r="1.3"/></svg></span><span class="point"></span></a>`;
@@ -2427,7 +2429,7 @@
   }
 
   // Ce que la coquille lit (plateforme/barre.js).
-  window.__barreInfos = () => ({ app: 'cabinet', accueil: 'priorites', reglages: 'reglages', metier: '', role: S ? `cabinet-${monRole()}` : 'cabinet',
+  window.__barreInfos = () => ({ app: 'cabinet', accueil: 'production', reglages: 'reglages', metier: '', role: S ? `cabinet-${monRole()}` : 'cabinet',
     responsable: !!S && estAssocie(), lectureSeule: false, cabinet: null, version: (upd.app && upd.app.version) || '' });
   window.__naviguer = hash => { location.hash = hash; };
   window.__allerParametres = tab => versReglages(tab === 'equipe' ? 'pan-equipe' : 'pan-compte');
@@ -2440,9 +2442,10 @@
     prefs.set('navEpinglesCab', e.includes(id) ? e.filter(x => x !== id) : e.concat(id));
     drawNav();
   };
-  window.__pageBarre = id => ({ id, titre: NOMS_CAB[id] || id, icone: icB(IC_BARRE[id] ? id : 'dossiers') });
-  window.__ongletsTel = () => { const o = prefs.get('ongletsTel', null); return Array.isArray(o) && o.length === 2 ? o : ['messages', 'echeances']; };
-  window.__candidatsOnglets = () => ['messages', 'echeances', 'pieces', 'production', 'dossiers', 'relances'].map(id => window.__pageBarre(id));
+  // (1.194.0) Au téléphone, l'onglet du tableau de bord se lit en un mot (« Tableau de bord » s'y coupait).
+  window.__pageBarre = id => ({ id, titre: NOMS_CAB[id] || id, ...(id === 'production' ? { court: 'Tableau' } : {}), icone: icB(IC_BARRE[id] ? id : 'dossiers') });
+  window.__ongletsTel = () => { const o = prefs.get('ongletsTel', null); return Array.isArray(o) && o.length === 2 && !o.includes('production') ? o : ['messages', 'echeances']; };
+  window.__candidatsOnglets = () => ['messages', 'echeances', 'pieces', 'dossiers', 'relances'].map(id => window.__pageBarre(id));
   window.__choisirOngletTel = id => { const [a, b] = window.__ongletsTel(); if (id === a || id === b) return; prefs.set('ongletsTel', [b, id]); if (window.SkanBarre) window.SkanBarre.apresCompte(); };
   // « Créer » écrit dans le dossier ouvert : une écriture, un relevé, une pièce demandée au client (un dossier relié) ;
   // l'associé ajoute un dossier. L'assistant de saisie écrit au brouillard, qu'un collaborateur valide.
@@ -2465,7 +2468,7 @@
     if (!S) return [];
     const l = [];
     const pri = prioritesDuJour();
-    for (const x of pri.urgent.slice(0, 4)) l.push({ cle: `cab-u-${x.cle}-${x.quoi}`, ic: 'cloche', ton: 'alerte', html: x.dossier ? `<b>${esc(x.dossier.name)}</b> : ${esc(x.quoi)}` : `<b>${esc(x.quoi)}</b>`, sous: 'Priorités · urgent', faire: () => x.faire() });
+    for (const x of pri.urgent.slice(0, 4)) l.push({ cle: `cab-u-${x.cle}-${x.quoi}`, ic: 'cloche', ton: 'alerte', html: x.dossier ? `<b>${esc(x.dossier.name)}</b> : ${esc(x.quoi)}` : `<b>${esc(x.quoi)}</b>`, sous: 'Tableau de bord · urgent', faire: () => x.faire() });
     if (comptesBarre.pieces) l.push({ cle: `cab-pieces-${comptesBarre.pieces}`, ic: 'bulle', ton: 'attire', html: `<b>${pl(comptesBarre.pieces, 'pièce reçue', 'pièces reçues')}</b> à classer`, sous: 'Pièces reçues', faire: () => { location.hash = '#/pieces'; } });
     if (comptesBarre.messages) l.push({ cle: `cab-msg-${comptesBarre.messages}`, ic: 'comptable', ton: 'attire', html: `<b>${pl(comptesBarre.messages, 'client attend', 'clients attendent')}</b> une réponse`, sous: 'Messages', faire: () => { location.hash = '#/messages'; } });
     for (const e of echeancesDeLaSemaine().slice(0, 2)) l.push({ cle: `cab-ech-${e.id}-${e.date}`, ic: 'horloge', ton: 'attire', html: `<b>${esc(e.label)}</b> à déposer dans ${pl(e.jours, 'jour')}`, sous: 'Échéances', faire: () => { location.hash = '#/echeances'; } });
@@ -2602,7 +2605,7 @@
     changerDeDossier(d.id);
   });
 
-  // ---------- Priorités : la page d'arrivée du Cabinet ----------
+  // ---------- Ce qui sert au Tableau de bord, la page d'arrivée du Cabinet ----------
   function ctxCabinet(o = {}) {
     const n = mesDossiers().length;
     const qui = !n ? (estAssocie() && portee() === 'miens' ? 'aucun dossier ne t\'est confié' : 'aucun dossier encore')
@@ -2615,36 +2618,270 @@
     return `<div class="afaire-ligne">${x.dossier ? marqueD(x.dossier) : marqueCab()}<span class="afaire-txt"><b>${esc(x.quoi)}</b><span>${x.dossier ? `${esc(x.dossier.name)} · ` : ''}${esc(x.sous || '')}</span></span>`
       + `<span class="etat ${x.ton}">${x.ton === 'alerte' ? 'urgent' : 'à voir'}</span><button type="button" class="btn btn-sm" data-priorite="${groupe}:${i}">${esc(x.geste)}</button></div>`;
   }
-  function drawPriorites(view) {
-    const pri = prioritesDuJour();
-    const semaine = echeancesDeLaSemaine();
-    const p = K.portfolio({ ...S, dossiers: mesDossiers() });
-    const prenom = String(S.moiNom || '').trim().split(/\s+/)[0];
-    const jour = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
-    const bloc = (titre, l, groupe) => (l.length ? `<p class="groupe-cab">${titre} · ${l.length}</p><div class="carte-cab afaire">${l.map((x, i) => lignePriorite(x, i, groupe)).join('')}</div>` : '');
-    const prochaine = K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() }).find(e => !e.passee);
-    const ajour = !pri.urgent.length && !pri.avoir.length
-      ? `<div class="ajour">${icB('coche', 22, 2.4)}<span class="txt"><b>Rien d'urgent ni à voir aujourd'hui</b><span>${prochaine ? `Prochaine échéance : ${esc(prochaine.label)}, le ${esc(fmtJourCourt(prochaine.date))}.` : 'Aucune échéance à venir dans le calendrier.'}</span></span></div>` : '';
-    const vide = !dossiersActifs().length;
-    view.innerHTML = `<div class="cab-page" id="page-priorites">${ctxCabinet()}
-      <div class="cab-bonjour"><span class="date">${esc(jour)}</span><h1 class="bonjour">${vide ? `Bienvenue au cabinet${prenom ? `, ${esc(prenom)}` : ''}` : prenom ? `Bonjour ${esc(prenom)}` : 'Bonjour'}</h1>
-        <p class="sous-bonjour">${vide ? 'Ton portefeuille est vide. Pour le remplir :' : 'Ce qui attend dans tes dossiers, le plus pressé d\'abord.'}</p></div>
-      ${inboxBanner()}
-      ${vide ? etapesCabinetNeuf() : bloc('Urgent', pri.urgent, 'u') + bloc('À voir', pri.avoir, 'v') + ajour}
-      ${vide ? '' : `<div class="chiffres-cab">
-        <button type="button" class="carte-cab chiffre" data-chiffre="production"><span class="n">Dossiers à jour</span><span class="v">${p.aJour}<small> sur ${p.surSkanfact}</small></span><span class="s">sur SkanFact, rien de manquant ni à valider</span></button>
-        <button type="button" class="carte-cab chiffre" data-chiffre="pieces"><span class="n">Pièces à classer</span><span class="v">${comptesBarre.piecesLues ? comptesBarre.pieces : '—'}</span><span class="s">${comptesBarre.piecesLues ? 'envoyées par tes clients' : 'pas encore lues'}</span></button>
-        <button type="button" class="carte-cab chiffre" data-chiffre="echeances"><span class="n">Échéances</span><span class="v">${semaine.length}</span><span class="s">à préparer dans les 7 jours</span></button></div>`}
+  // ---------- Le tableau de bord (maquette docs/maquettes/cabinet/tableau-de-bord.html), Priorités comprises ----------
+  // (plateforme) 1.194.0 — Skander, 30/10/2026 : « on va fusionner Priorités et Tableau de bord et on va appliquer la
+  // maquette ». Une page : ce qui est à faire maintenant (les Priorités, le plus pressé d'abord), puis où en est le travail
+  // (la campagne du mois, la grille de production, la charge de chacun, les prochaines dates). Tout est LU (les livres,
+  // les déclarations pointées) : rien ne se coche ici. Le filtre d'une personne vaut pour toute la page.
+  const tbState = { qui: '', filtre: 'tous', q: '', periode: 6, tout: false, avoir: false };
+  const ETAPES_TB = [['fini', 'Déposée'], ['declare', 'Prête'], ['revise', 'À réviser'], ['saisi', 'À saisir'], ['recu', 'Sans pièces']];
+  const SIGNE_TB = { recu: ['○', 'pièces manquantes'], saisi: ['!', 'à saisir'], revise: ['◐', 'à réviser'], declare: ['◉', 'prêt à déposer'], fini: ['✓', 'déposé'], hors: ['–', 'hors mission'] };
+  const TB_IC = {
+    horloge: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
+    loupe: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
+    trois: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
+    chev: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+  };
+  // Le jour où la déclaration d'un mois est due pour un dossier (celui que dit sa Déclaration : le 28, le 15 pour une
+  // personne physique, réglages du cabinet, À VÉRIFIER) ; un mois est « en retard » quand ce jour est passé et qu'il n'est pas déposé.
+  const dueTb = (d, m) => K.dateLimiteDeclaration(S, m, 'tva', d);
+  const joursEntre = (de, a) => Math.round((Date.parse(a + 'T00:00:00Z') - Date.parse(de + 'T00:00:00Z')) / 86400000);
+  const jourSemaine = iso => new Date(iso + 'T00:00:00Z').toLocaleDateString('fr-FR', { timeZone: 'UTC', weekday: 'long' });
+  // Une seule lecture par dossier pour tous les chiffres de la page : la grille, la campagne, les puces, la charge.
+  function lignesTb() {
+    const parId = new Map((prodState.lignes || []).map(l => [l.id, l]));
+    const auj = K.today();
+    return mesDossiers().filter(d => !d.archived && parId.has(d.id)).map(d => {
+      const l = parId.get(d.id), eq = equipeDe(d);
+      const mois = new Map(l.mois.map(c => [c.mois, c]));
+      const retard = l.mois.filter(c => !['fini', 'hors'].includes(c.etape) && dueTb(d, c.mois) < auj).map(c => c.mois);
+      const n = e => l.mois.filter(c => c.etape === e).length;
+      return { d, l, eq, mois, retard, manque: n('recu'), aSaisir: n('saisi'), aReviser: n('revise'), aDeclarer: n('declare') };
+    });
+  }
+  const anneauTb = (fait, sur, t = 92) => {
+    const r = (t - 12) / 2, C = 2 * Math.PI * r, p = sur ? fait / sur : 0;
+    return `<svg class="tb-ring" width="${t}" height="${t}" viewBox="0 0 ${t} ${t}" aria-hidden="true"><circle cx="${t / 2}" cy="${t / 2}" r="${r}" class="tb-ring-f"/><circle cx="${t / 2}" cy="${t / 2}" r="${r}" class="tb-ring-v" stroke-dasharray="${(C * p).toFixed(1)} ${C.toFixed(1)}" transform="rotate(-90 ${t / 2} ${t / 2})"/></svg>`;
+  };
+  const nomsTb = l => l.map(x => x.d.name).slice(0, 2).join(', ') + (l.length > 2 ? ` et ${pl(l.length - 2, 'autre')}` : '');
+  const visagesTb = (l, max = 4) => `<span class="tb-pile-av">${l.slice(0, max).map(x => marqueD(x.d, 'tb-vis')).join('')}${l.length > max ? `<span class="marque-s tb-vis tb-av-plus">+${l.length - max}</span>` : ''}</span>`;
+  // La campagne du mois : où en est chaque dossier pour la déclaration du dernier mois fini.
+  function campagneTb(L, moisC) {
+    if (!moisC) return '';
+    const mens = L.filter(x => x.mois.has(moisC) && x.mois.get(moisC).etape !== 'hors');
+    if (!mens.length) return '';
+    const par = ETAPES_TB.map(([e, nom]) => [e, nom, mens.filter(x => x.mois.get(moisC).etape === e)]);
+    const fait = par[0][2].length, reste = mens.length - fait, auj = K.today();
+    const pp = x => K.personnePhysique(S, x.d);
+    const tous = mens.filter(x => !pp(x)), physiques = mens.filter(pp);
+    const due = tous.length ? dueTb(tous[0].d, moisC) : dueTb(mens[0].d, moisC);
+    const j = joursEntre(auj, due);
+    const restent = tous.filter(x => x.mois.get(moisC).etape !== 'fini'), prets = restent.filter(x => x.mois.get(moisC).etape === 'declare').length;
+    const ppTard = physiques.filter(x => x.mois.get(moisC).etape !== 'fini' && dueTb(x.d, moisC) < auj);
+    const cfg = K.deadlineSettings(S);
+    const quand = !reste ? 'Toutes déposées'
+      : !restent.length ? `Date limite des personnes physiques passée le ${jourMois(dueTb(physiques[0].d, moisC))}`
+        : j === 0 ? `Aujourd'hui, la date limite de ${pl(tous.length, 'dossier')}`
+          : j > 0 ? `Date limite ${jourSemaine(due)} ${jourMois(due)} · dans ${pl(j, 'jour')}`
+            : `Date limite passée le ${jourMois(due)} · ${pl(restent.length, 'dossier')} en retard`;
+    const pret = restent.length ? `${prets ? `${pl(prets, 'prête', 'prêtes')} à déposer` : 'aucune prête à déposer'} · ${restent.length - prets ? `${restent.length - prets} ${j === 0 ? `ne ${restent.length - prets > 1 ? 'le seront' : 'le sera'} pas aujourd'hui` : `pas encore ${restent.length - prets > 1 ? 'prêtes' : 'prête'}`}` : 'toutes peuvent partir'}` : '';
+    const pp15 = ppTard.length ? `${pl(ppTard.length, 'dossier')} au ${jourMois(dueTb(ppTard[0].d, moisC))} déjà en retard` : '';
+    const etape = ([e, nom, l]) => `<button type="button" class="tb-et tb-et-${e}${l.length ? '' : ' vide'}${tbState.filtre === `et:${e}` ? ' tb-et-on' : ''}" data-tb-etape="${e}" title="${esc(l.map(x => x.d.name).join(', ') || 'aucun dossier')}">
+        <span class="tb-et-t"><span class="prod-p prod-${e}">${SIGNE_TB[e][0]}</span>${nom}</span>
+        <span class="tb-et-n">${l.length}</span>
+        ${l.length ? visagesTb(l) : '<span class="tb-et-0">aucun</span>'}
+        <span class="tb-et-noms">${l.length ? esc(nomsTb(l)) : '&nbsp;'}</span>
+        ${e === 'declare' && l.some(pp) && ppTard.length ? `<span class="tb-et-rel">${esc(l.filter(pp).map(x => x.d.name).join(', '))} : en retard depuis le ${jourMois(dueTb(l.find(pp).d, moisC))}</span>` : ''}</button>`;
+    return `<div class="panel tb-hero" id="tb-campagne">
+      <div class="tb-h-g">
+        <span class="tb-h-ring">${anneauTb(fait, mens.length)}<span class="tb-h-v"><b>${fait}</b><small>sur ${mens.length}</small></span></span>
+        <span class="tb-h-txt"><span class="tb-h-sur">Campagne du mois ${info('tb.campagne')}</span><b class="tb-h-titre">Déclarations ${esc(deMois(moisC))}</b>
+          <span class="tb-h-quand${reste && j <= 0 ? ' chaud' : ''}">${TB_IC.horloge}<span>${esc(quand)}</span></span>
+          <span class="tb-h-pp">${esc([pret, pp15].filter(Boolean).join(' · '))}${pret || pp15 ? '<br>' : ''}<small>Dates limites : le ${esc(cfg.tvaDay)} et le ${esc(cfg.tvaDayPP)} (personnes physiques), À VÉRIFIER</small></span></span>
+      </div>
+      <div class="tb-h-d">${par.map(etape).join('')}</div>
     </div>`;
+  }
+  // La grille : un dossier par ligne, un mois par colonne, la barre de la période et ce qui reste par colonne.
+  function colonnesTb(L) {
+    const tous = [...new Set(L.flatMap(x => x.l.mois.map(c => c.mois)))].sort();
+    if (!tous.length) return { cols: [], titre: '' };
+    const dernier = tous[tous.length - 1];
+    if (tbState.periode === 'annee') {
+      const an = dernier.slice(0, 4);
+      const cols = Array.from({ length: 12 }, (_, i) => `${an}-${String(i + 1).padStart(2, '0')}`);
+      const avenir = cols.filter(m => m > dernier);
+      return { cols, titre: `L'année ${an}`, sous: avenir.length ? `${moisCourt(avenir[0])} à ${moisCourt(avenir[avenir.length - 1])} ne sont pas finis` : '', dernier };
+    }
+    const n = tbState.periode === 12 ? 12 : 6;
+    const cols = tous.slice(-n);
+    return { cols, titre: n === 12 ? '12 derniers mois' : '6 derniers mois', sous: cols.length > 1 ? `${moisLong(cols[0])}${cols[0].slice(0, 4) !== dernier.slice(0, 4) ? ` ${cols[0].slice(0, 4)}` : ''} à ${moisLong(dernier)} ${dernier.slice(0, 4)}` : `${pl(1, 'mois fini', 'mois finis')} : ${moisLong(dernier)} ${dernier.slice(0, 4)}`, dernier };
+  }
+  const FILTRES_TB = {
+    tous: () => true,
+    retard: x => x.retard.length > 0,
+    manque: x => !x.d.manual && x.manque > 0,
+    saisir: x => x.aSaisir > 0,
+    reviser: x => x.aReviser > 0,
+    tenus: x => !!x.d.manual,
+  };
+  function grilleTb(L, P) {
+    const tousCab = estAssocie() && portee() === 'tous' && !tbState.qui;
+    const moisC = P.dernier;
+    const filtre = tbState.filtre.startsWith('et:') ? (x => x.mois.has(moisC) && x.mois.get(moisC).etape === tbState.filtre.slice(3)) : (FILTRES_TB[tbState.filtre] || FILTRES_TB.tous);
+    const q = tbState.q.trim().toLowerCase();
+    const fl = L.filter(x => (!q || x.d.name.toLowerCase().includes(q) || String(x.d.matricule || '').toLowerCase().includes(q)) && filtre(x));
+    const tri = [...fl].sort((a, b) => (b.manque * 10 + b.aSaisir * 5 + b.aReviser) - (a.manque * 10 + a.aSaisir * 5 + a.aReviser) || a.d.name.localeCompare(b.d.name, 'fr'));
+    const montre = tbState.tout ? tri : tri.slice(0, 12);
+    const nRetard = L.reduce((t, x) => t + x.retard.length, 0);
+    const puce = (cle, t, n, ton) => `<button type="button" class="t-puce${ton ? ' ' + ton : ''}" data-tb-filtre="${cle}" aria-pressed="${tbState.filtre === cle}">${t} <b>${n}</b></button>`;
+    const nomEtape = tbState.filtre.startsWith('et:') ? (ETAPES_TB.find(([e]) => e === tbState.filtre.slice(3)) || [])[1] : '';
+    const puces = `<div class="tb-puces">${puce('tous', 'Tous', L.length)}${puce('retard', 'En retard', L.filter(FILTRES_TB.retard).length, 'alerte')}${puce('manque', 'Pièces manquantes', L.filter(FILTRES_TB.manque).length)}${puce('saisir', 'À saisir', L.filter(FILTRES_TB.saisir).length)}${puce('reviser', 'À réviser', L.filter(FILTRES_TB.reviser).length)}${L.some(FILTRES_TB.tenus) ? puce('tenus', 'Tenus', L.filter(FILTRES_TB.tenus).length) : ''}${nomEtape ? `<button type="button" class="t-puce tb-p-et" data-tb-filtre="tous" aria-pressed="true">${esc(cap(moisLong(moisC)))} : ${esc(nomEtape.toLowerCase())} <b>${fl.length}</b> <span aria-hidden="true">×</span></button>` : ''}</div>`;
+    const seg = `<div class="segment" role="group" aria-label="La période">${[[6, '6 mois'], ['annee', `L'année ${(moisC || K.today()).slice(0, 4)}`], [12, '12 mois']].map(([v, t]) => `<button type="button" data-tb-periode="${v}" aria-pressed="${tbState.periode === v}">${esc(t)}</button>`).join('')}</div>`;
+    const filtres = `<div class="filtres"><label class="cherche">${TB_IC.loupe}<input type="search" id="tb-q" placeholder="Chercher un dossier, un matricule…" aria-label="Chercher un dossier" value="${esc(tbState.q)}"></label>${seg}</div>`;
+    const tete = `<div class="a-bloc-t"><h2>Les dossiers ${info('eq.production')}</h2><span class="tb-cnt ${nRetard ? 'alerte' : 'ok'}" id="tb-retard">${nRetard ? `${pl(nRetard, 'mois', 'mois')} en retard` : 'à jour'}</span><span class="small muted tb-sous">${esc(P.titre)}${P.sous ? ` · ${esc(P.sous)}` : ''}</span></div>`;
+    const cell = (x, m) => {
+      if (m > P.dernier) return '<td class="c tb-c"><span class="prod-p prod-avenir" aria-label="pas fini"></span></td>';
+      const c = x.mois.get(m);
+      if (!c) return `<td class="c tb-c"><span class="prod-p prod-hors" aria-label="${esc(moisLong(m))} : hors mission">–</span></td>`;
+      const tard = x.retard.includes(m);
+      // Le détail du mois au survol, lu (jamais coché) : « — » et non « non » tant que rien ne le dit (9.6.0).
+      const detail = [c.recu === null ? 'tenu au cabinet' : c.recu ? 'écrit' : 'aucune écriture',
+        c.saisi ? `${pl(c.saisi, 'écriture')} dont ${c.brouillards} au brouillard` : 'rien de saisi',
+        `révisé : ${c.revise === null ? '—' : c.revise ? 'oui' : 'non'}`, `déclaré : ${c.declare === null ? '—' : c.declare ? 'oui' : 'non'}`,
+        c.qui ? `dernier geste : ${c.qui}` : ''].filter(Boolean).join(' · ');
+      return `<td class="c tb-c"><span class="prod-p prod-${esc(c.etape)}${tard ? ' tb-tard' : ''}" data-mois="${esc(m)}" aria-label="${esc(moisLong(m))} : ${esc((SIGNE_TB[c.etape] || [])[1] || '')}${tard ? ', en retard' : ''}" title="${esc(cap(moisLong(m)))} ${esc(m.slice(0, 4))} : ${esc((SIGNE_TB[c.etape] || [])[1] || '')}${tard ? `, en retard depuis le ${jourMois(dueTb(x.d, m))}` : ''} — ${esc(detail)}">${esc((SIGNE_TB[c.etape] || ['?'])[0])}</span></td>`;
+    };
+    const avance = x => {
+      const vus = P.cols.filter(m => m > P.dernier || (x.mois.has(m) && x.mois.get(m).etape !== 'hors'));
+      const dus = vus.filter(m => m <= P.dernier), f = dus.filter(m => x.mois.get(m).etape === 'fini').length;
+      const ton = m => (m > P.dernier ? 'avenir' : x.mois.get(m).etape === 'fini' ? 'fait' : x.retard.includes(m) ? 'tard' : x.mois.get(m).etape === 'declare' ? 'pret' : 'cours');
+      const tard = dus.filter(m => x.retard.includes(m)).length;
+      if (!vus.some(m => m <= P.dernier)) return '<td class="tb-av"><small class="muted">hors mission</small></td>';
+      return `<td class="tb-av"><span class="tb-seg${vus.length > 7 ? ' long' : ''}" title="${f} mois déclarés sur ${dus.length}${tard ? ` · ${tard} en retard` : ''}">${vus.map(m => `<i class="${ton(m)}"></i>`).join('')}</span><b class="tb-seg-n${tard ? ' tard' : ''}">${f}<small>/${dus.length}</small></b></td>`;
+    };
+    const ligne = x => `<tr class="clickable" data-tb-id="${esc(x.d.id)}"><td class="cl"><span class="cl-i">${marqueD(x.d)}<span><b>${esc(x.d.name)}</b><small>${x.d.manual ? 'Tenu au cabinet' : 'Sur SkanFact'}${tousCab && x.eq.suit ? ` · ${esc(prenomDe(x.eq.suit))}` : ''}</small></span></span></td>${P.cols.map(m => cell(x, m)).join('')}${avance(x)}<td class="actions row-actions tb-m"><button type="button" class="row-menu-btn tb-trois" data-rowmenu="TB:${esc(x.d.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(`Ce qu'on peut faire pour ${x.d.name}`)}" title="Ce qu'on peut faire ici">${TB_IC.trois}</button></td></tr>`;
+    const pied = `<tr class="tb-pied-l"><td><b>Déclarés</b><small>${pl(fl.length, 'dossier')}</small></td>${P.cols.map(m => {
+      if (m > P.dernier) return '<td class="c"><small class="muted">à venir</small></td>';
+      const dus = fl.filter(x => x.mois.has(m) && x.mois.get(m).etape !== 'hors'), f = dus.filter(x => x.mois.get(m).etape === 'fini').length;
+      return `<td class="c"><b class="${f < dus.length ? 'tb-pas' : ''}">${f}</b><small>sur ${dus.length}</small></td>`;
+    }).join('')}${(() => { let dus = 0, f = 0; fl.forEach(x => P.cols.forEach(m => { const c = m <= P.dernier && x.mois.get(m); if (c && c.etape !== 'hors') { dus++; if (c.etape === 'fini') f++; } })); return `<td class="r"><b>${dus ? Math.round(f / dus * 100) : 0} %</b><small>${f} sur ${dus} mois</small></td>`; })()}<td></td></tr>`;
+    const th = `<tr><th>Dossier</th>${P.cols.map(m => `<th class="c${m > P.dernier ? ' tb-th-av' : ''}">${esc(moisCourt(m))}</th>`).join('')}<th class="r">Sur la période</th><th class="cx"></th></tr>`;
+    const corps = !fl.length
+      ? (q ? `<div class="tb-vide" id="tb-vide"><b>Aucun dossier ne s'appelle « ${esc(tbState.q)} »</b><span>La recherche lit le nom et le matricule de tous les dossiers que tu suis, quel que soit le filtre.</span><button type="button" class="btn btn-sm" id="tb-q-effacer">Effacer la recherche</button></div>`
+        : `<div class="tb-vide tb-vide-ok" id="tb-vide">${icB('coche', 18, 2.4)}<b>Aucun dossier dans ce filtre</b><span>Les autres filtres sont au-dessus.</span><button type="button" class="btn btn-sm" data-tb-filtre="tous">Voir tous les dossiers</button></div>`)
+      : `<div class="lf-tab"><table class="lf-table tb-t" id="tb-grille"><thead>${th}</thead><tbody>${montre.map(ligne).join('')}</tbody><tfoot>${pied}</tfoot></table></div>${tri.length > montre.length ? `<div class="tb-pager"><span class="mu">1–${montre.length} sur ${tri.length} dossiers</span><button type="button" class="btn btn-sm" id="tb-tout">Voir les ${tri.length - montre.length} autres</button></div>` : ''}`;
+    const leg = `<div class="leg tb-leg">${['recu', 'saisi', 'revise', 'declare', 'fini', 'hors'].map(e => `<span><span class="prod-p prod-${e}">${SIGNE_TB[e][0]}</span>${SIGNE_TB[e][1]}</span>`).join('')}${P.cols.some(m => m > P.dernier) ? '<span><span class="prod-p prod-avenir"></span>à venir</span>' : ''}</div>`;
+    return `<div class="panel tb-p tb-grille" id="tb-dossiers"><div class="lf">${tete}${filtres}${puces}${corps}${leg}</div></div>`;
+  }
+  const ROLE_TB = { supervision: 'direction', validation: 'tenue des dossiers', revision: 'tenue des dossiers', saisie: 'saisie', paie: 'paie' };
+  // La charge de chacun : ce qui attend chaque personne (saisir revient à qui suit ; réviser et déposer, à qui valide).
+  function chargeTb(L) {
+    if (!estAssocie() || portee() !== 'tous') return '';
+    const equipe = equipeRangee().filter(c => c.actif !== false);
+    if (equipe.length < 2) return '';
+    const PARTS = [['aSaisir', 'à saisir', 'saisi'], ['aReviser', 'à réviser', 'revise'], ['aDeclarer', 'à déposer', 'declare']];
+    const rows = equipe.map(c => {
+      const n = PARTS.map(([k], i) => L.reduce((t, x) => t + (((i === 0 ? x.eq.suit : x.eq.val || x.eq.suit) || {}).id === c.id ? x[k] : 0), 0));
+      const attend = L.filter(x => (x.eq.suit || {}).id === c.id && !x.d.manual).reduce((t, x) => t + x.manque, 0);
+      return { c, n, tot: n.reduce((a, b) => a + b, 0), attend };
+    });
+    const max = Math.max(1, ...rows.map(r => r.tot));
+    return `<div class="panel a-top tb-charge" id="tb-charge"><div class="a-bloc-t"><h2>La charge de chacun</h2><span class="small muted">ce qui attend la personne</span></div><ul class="rank">${rows.map(r => `<li><button type="button" class="top-l${tbState.qui === r.c.id ? ' tb-on' : ''}" data-tb-qui="${esc(r.c.id)}" title="Ne voir que les dossiers de ${esc(r.c.nom)}">${persCd(r.c, 30)}<span class="top-n"><b class="name">${esc(r.c.nom)} <small class="mu">· ${esc(ROLE_TB[r.c.role] || r.c.role || '')}</small></b>${r.tot ? `<span class="tb-pile" style="width:${Math.max(4, Math.round(r.tot / max * 100))}%">${r.n.map((v, i) => (v ? `<em class="tb-cb-${PARTS[i][2]}" style="flex:${v}" title="${v} ${PARTS[i][1]}"></em>` : '')).join('')}</span>` : ''}<small class="tb-ch-s">${r.n.map((v, i) => (v ? `${v} ${PARTS[i][1]}` : '')).filter(Boolean).join(' · ') || 'rien qui attende'}${r.attend ? ` · ${pl(r.attend, 'mois attend', 'mois attendent')} le client` : ''}</small></span><span class="amt${r.tot ? '' : ' tb-zero'}">${r.tot}</span></button></li>`).join('')}</ul>
+      <p class="tb-note">Saisir revient à qui suit le dossier ; réviser et déposer, à qui valide. Un clic ne garde que les dossiers d'une personne.</p></div>`;
+  }
+  // Les prochaines dates : les échéances à venir de mes dossiers, la plus proche d'abord.
+  function prochainesTb() {
+    let l = [];
+    try { l = itemsEcheances().filter(x => ['avenir', 'bientot', 'jour'].includes(x.groupe)).sort((a, b) => (a.e.date < b.e.date ? -1 : 1)).slice(0, 3); } catch { l = []; }
+    if (!l.length) return '';
+    const auj = K.today();
+    return `<div class="panel a-der" id="tb-dates"><div class="a-bloc-t"><h2>Les prochaines dates</h2></div>${l.map(x => {
+      const j = joursEntre(auj, x.e.date);
+      const n = x.lignes.length || x.e.clients || 0;
+      return `<a class="der-l" href="#/echeances"><span class="der-n"><b>${esc(x.t ? x.t.titre || x.e.label : x.e.label)}</b><small>${esc(jourSemaine(x.e.date))} ${esc(jourMois(x.e.date))}${j > 0 ? ` · dans ${pl(j, 'jour')}` : j === 0 ? ' · aujourd\'hui' : ''} (À VÉRIFIER)</small></span><span class="der-m">${n ? `<b>${esc(pl(n, 'dossier'))}</b>` : ''}<span class="badge">${j === 0 ? 'Aujourd\'hui' : 'À venir'}</span></span></a>`;
+    }).join('')}<div class="der-g"><a class="btn btn-sm" href="#/echeances">Toutes les échéances</a></div></div>`;
+  }
+  // Ce qui est à faire maintenant : les Priorités d'hier, le plus pressé d'abord ; « À voir » se déplie.
+  function aFaireTb(pri) {
+    const garde = x => !tbState.qui || !x.dossier || (equipeDe(x.dossier).suit || {}).id === tbState.qui;
+    const u = pri.urgent.map((x, i) => [x, i]).filter(([x]) => garde(x)), v = pri.avoir.map((x, i) => [x, i]).filter(([x]) => garde(x));
+    if (!u.length && !v.length) {
+      const prochaine = K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() }).find(e => !e.passee);
+      return `<div class="ajour" id="tb-afaire">${icB('coche', 22, 2.4)}<span class="txt"><b>Rien d'urgent ni à voir aujourd'hui</b><span>${prochaine ? `Prochaine échéance : ${esc(prochaine.label)}, le ${esc(fmtJourCourt(prochaine.date))}.` : 'Aucune échéance à venir dans le calendrier.'}</span></span></div>`;
+    }
+    return `<div class="panel tb-afaire" id="tb-afaire"><div class="a-bloc-t"><h2>À faire maintenant ${info('tb.afaire')}</h2><span class="small muted">le plus pressé d'abord</span></div>
+      ${u.length ? `<p class="groupe-cab">Urgent · ${u.length}</p><div class="carte-cab afaire">${u.map(([x, i]) => lignePriorite(x, i, 'u')).join('')}</div>` : ''}
+      ${v.length ? `<button type="button" class="groupe-cab tb-avoir-b" id="tb-avoir" aria-expanded="${tbState.avoir || !u.length}">À voir · ${v.length} <span class="chev">${TB_IC.chev}</span></button>${tbState.avoir || !u.length ? `<div class="carte-cab afaire">${v.map(([x, i]) => lignePriorite(x, i, 'v')).join('')}</div>` : ''}` : ''}</div>`;
+  }
+  async function drawTableau(view) {
+    if (!prodState.lignes && !prodState.erreur) {
+      pageTableau(view, 'chargement');
+      try {
+        const r = await api.production({});
+        prodState = { ...prodState, lignes: r.lignes || [], etapes: r.etapes || [], collaborateurs: r.collaborateurs || [], erreur: '' };
+      } catch (e) { prodState = { ...prodState, erreur: plainError(e) }; }
+      if (!/^#\/production/.test(location.hash)) return;
+    }
+    pageTableau(view, prodState.erreur ? 'refus' : '');
+    typographie(view);
+  }
+  function pageTableau(view, etat) {
+    const pri = prioritesDuJour();
+    const vide = !dossiersActifs().length;
+    const L = etat ? [] : lignesTb().filter(x => !tbState.qui || (x.eq.suit || {}).id === tbState.qui);
+    const P = colonnesTb(L);
+    const jour = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    const moisC = P.dernier;
+    const fait = moisC ? L.filter(x => x.mois.has(moisC) && x.mois.get(moisC).etape === 'fini').length : 0;
+    const sur = moisC ? L.filter(x => x.mois.has(moisC) && x.mois.get(moisC).etape !== 'hors').length : 0;
+    const nRetard = L.reduce((t, x) => t + x.retard.length, 0);
+    const phrase = etat === 'chargement' ? 'Lecture des dossiers…' : vide ? 'Ton portefeuille est vide. Pour le remplir :'
+      : moisC ? `${cap(moisLong(moisC))} : ${pl(fait, 'déclaration déposée', 'déclarations déposées')} sur ${sur} · ${nRetard ? `${pl(nRetard, 'mois échu', 'mois échus')} pas encore déclaré${nRetard > 1 ? 's' : ''}` : 'aucun mois échu en retard'}.`
+        : 'Ce qui attend dans tes dossiers, le plus pressé d\'abord.';
+    const equipe = equipeRangee().filter(c => c.actif !== false);
+    const parPersonne = id => lignesTb().filter(x => (x.eq.suit || {}).id === id).length;
+    const qui = estAssocie() && portee() === 'tous' && equipe.length > 1 && !etat && !vide
+      ? `<div class="tb-qui"><div class="tb-puces" role="group" aria-label="Le travail de qui">${[['', 'Tout le cabinet'], ...equipe.map(c => [c.id, prenomDe(c)])].map(([id, t]) => `<button type="button" class="t-puce" data-tb-qui="${esc(id)}" aria-pressed="${tbState.qui === id}">${esc(t)}${id ? ` <b>${parPersonne(id)}</b>` : ''}</button>`).join('')}</div></div>` : '';
+    const corps = vide ? etapesCabinetNeuf()
+      : etat === 'chargement' ? `${aFaireTb(pri)}<div class="panel tb-hero tb-hero-sq"><div class="tb-sq"><i></i><i></i><i></i></div></div>`
+        : etat === 'refus' ? `${aFaireTb(pri)}<div class="panel tb-p"><div class="bandeau rouge" id="tb-refus">${icB('cadenas', 18, 2)}<span class="txt"><b>La grille ne s'est pas lue</b><span>${esc(prodState.erreur)}</span></span><button type="button" class="btn" id="tb-relire">Réessayer</button></div></div>`
+          : L.length && !P.cols.length ? `${aFaireTb(pri)}<div class="panel tb-p" id="tb-dossiers"><div class="tb-vide" id="tb-sans-mois"><b>Aucun mois fini à suivre pour l'instant</b><span>Un mois entre dans la grille une fois terminé. Le mois en cours se suit dans la comptabilité de chaque client : ${esc(L.slice(0, 3).map(x => x.d.name).join(', '))}${L.length > 3 ? '…' : ''}.</span><button type="button" class="btn btn-sm" id="tb-vers-dossiers">Voir mes dossiers</button></div></div>`
+          : !L.length ? `${aFaireTb(pri)}<div class="panel tb-p"><div class="tb-vide" id="tb-vide"><b>${tbState.qui ? 'Aucun dossier n\'est confié à cette personne' : 'Aucun livre n\'est encore ouvert'}</b><span>${tbState.qui ? 'Un dossier se confie dans sa fiche.' : 'La grille suit les livres de tes dossiers : ouvre la comptabilité d\'un client pour qu\'il y entre.'}</span><button type="button" class="btn btn-sm${tbState.qui ? '' : ' btn-primary'}" id="tb-vers-dossiers">${tbState.qui ? 'Tout le cabinet' : 'Voir mes dossiers'}</button></div></div>`
+            : `${aFaireTb(pri)}${campagneTb(L, moisC)}${grilleTb(L, P)}${(() => { const g = chargeTb(L), d = prochainesTb(); return g || d ? `<div class="tb-bas${g && d ? '' : ' tb-seul'}">${g}${d}</div>` : ''; })()}`;
+    view.innerHTML = `<div class="cab-page" id="page-bord">${ctxCabinet()}
+      <div class="page-head a-tete"><div><span class="a-date">${esc(jour)}</span><h1>Tableau de bord ${info('tb.page')}</h1>${phrase ? `<p class="a-phrase">${esc(phrase)}</p>` : ''}</div><div class="actions tb-act"></div></div>
+      ${inboxBanner()}${qui}${corps}</div>`;
+    // Les gestes de « À faire maintenant » (les mêmes que les Priorités).
     $$('[data-priorite]', view).forEach(b => {
       b.onclick = () => { const [g, i] = b.dataset.priorite.split(':'); const x = (g === 'u' ? pri.urgent : pri.avoir)[Number(i)]; if (x) x.faire(); };
     });
-    $$('[data-chiffre]', view).forEach(b => { b.onclick = () => { location.hash = `#/${b.dataset.chiffre}`; }; });
+    const av = $('#tb-avoir', view); if (av) av.onclick = () => { tbState.avoir = !tbState.avoir; pageTableau(view, etat); };
+    $$('[data-tb-qui]', view).forEach(b => { b.onclick = () => { tbState.qui = tbState.qui === b.dataset.tbQui ? '' : b.dataset.tbQui; tbState.tout = false; pageTableau(view, etat); }; });
+    $$('[data-tb-etape]', view).forEach(b => { b.onclick = () => { tbState.filtre = tbState.filtre === `et:${b.dataset.tbEtape}` ? 'tous' : `et:${b.dataset.tbEtape}`; tbState.tout = false; pageTableau(view, etat); const g = $('#tb-dossiers', view); if (g) g.scrollIntoView({ block: 'start', behavior: 'smooth' }); }; });
+    $$('[data-tb-filtre]', view).forEach(b => { b.onclick = () => { tbState.filtre = b.dataset.tbFiltre; tbState.tout = false; pageTableau(view, etat); }; });
+    $$('[data-tb-periode]', view).forEach(b => { b.onclick = () => { const v = b.dataset.tbPeriode; tbState.periode = v === 'annee' ? 'annee' : Number(v); pageTableau(view, etat); }; });
+    const q = $('#tb-q', view);
+    if (q) q.oninput = () => { const pos = q.selectionStart; tbState.q = q.value; tbState.tout = false; pageTableau(view, etat); const n = $('#tb-q', view); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
+    const qe = $('#tb-q-effacer', view); if (qe) qe.onclick = () => { tbState.q = ''; pageTableau(view, etat); };
+    const tt = $('#tb-tout', view); if (tt) tt.onclick = () => { tbState.tout = true; pageTableau(view, etat); };
+    const rl = $('#tb-relire', view); if (rl) rl.onclick = () => { prodState.lignes = null; prodState.erreur = ''; drawTableau(view); };
+    const vd = $('#tb-vers-dossiers', view); if (vd) vd.onclick = () => { if (tbState.qui) { tbState.qui = ''; pageTableau(view, etat); } else location.hash = '#/dossiers'; };
+    $$('#tb-grille tbody tr[data-tb-id]', view).forEach(tr => { tr.onclick = e => { if (e.target.closest('.row-actions, [data-rowmenu]')) return; location.hash = `#/dossier/${encodeURIComponent(tr.dataset.tbId)}/comptabilite`; }; });
+    RowMenu.brancherMenus(view, id => {
+      if (!id.startsWith('TB:')) return [];
+      const d = (S.dossiers || []).find(x => x.id === id.slice(3));
+      if (!d) return [];
+      const x = lignesTb().find(y => y.d.id === d.id);
+      const manque = x ? x.l.mois.filter(c => c.etape === 'recu').map(c => c.mois) : [];
+      const eq = equipeDe(d);
+      const a = [{ titre: `${d.name}${eq.suit ? ` · suivi par ${prenomDe(eq.suit)}` : ''}` },
+        { icon: 'ouvrir', label: 'Ouvrir sa comptabilité', hint: 'le livre, mois par mois', run: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite`; } },
+        { icon: 'horloge', label: 'Ses échéances', hint: x && x.retard.length ? `${x.retard.map(moisLong).join(' et ')} en retard` : 'ses déclarations, par date', run: () => { location.hash = '#/echeances'; } }];
+      if (!d.manual) {
+        a.push({ titre: 'Écrire' });
+        if (manque.length) a.push({ icon: 'email', label: 'Relancer', hint: `${manque.map(moisLong).join(', ')} sans pièces`, run: () => fenEcrire(d, { mois: manque }) });
+        a.push({ icon: 'email', label: `Écrire à ${prenomCl(d.contact) || 'son contact'}`, hint: 'dans votre conversation', run: () => { location.hash = `#/messages/${encodeURIComponent(d.id)}`; } });
+      }
+      a.push({ titre: 'Le dossier' }, { icon: 'modifier', label: 'Sa fiche', hint: 'régime, début de mission, contact', run: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}`; } });
+      return a;
+    });
     const cp = $('[data-copier-code-cab]', view);
     if (cp) cp.onclick = async () => { try { await navigator.clipboard.writeText(api.codeCabinet()); cp.textContent = 'Copié'; } catch { /* le code reste lisible */ } };
     const nd = $('#pri-nouveau', view); if (nd) nd.onclick = () => newDossierForm();
     const eq = $('#pri-equipe', view); if (eq) eq.onclick = () => versReglages('pan-equipe');
-    $$('[data-portee-page]', view).forEach(b => { b.onclick = () => { prefs.set('portee', b.dataset.porteePage); render(); }; });
+    $$('[data-portee-page]', view).forEach(b => { b.onclick = () => { prefs.set('portee', b.dataset.porteePage); tbState.qui = ''; render(); }; });
+    poserGuideMoi();
   }
   // Le cabinet neuf (maquette « Barre v3 ») : comment son portefeuille se remplit, dans l'ordre où l'on s'y prend.
   function etapesCabinetNeuf() {
@@ -3874,7 +4111,7 @@
     else corps = `<div class="panel lf-tab"><table class="lf-table cd-table">${teteTab}<tbody>${vis.map(ligne).join('')}</tbody>${pages > 1 ? '' : pied}</table>${pager}</div>`;
     const tetev = st.vue === 'manque' && !q && l.length ? `<div class="cd-rt"><span class="cd-rt-ic">${CD_IC.rel}</span><span class="cd-rt-t"><b>${pl(l.length, 'client n\'a', 'clients n\'ont')} pas envoyé tous ${l.length > 1 ? 'leurs' : 'ses'} mois</b><span>${esc(l.slice(0, 3).map(x => x.d.name).join(', ').replace(/, ([^,]*)$/, ' et $1'))}${l.length > 3 ? '…' : ''} : une relance chacun, dans sa conversation (ses mois, ce qui manque, une date). La réponse arrive dans Messages.</span></span><button type="button" class="btn btn-primary" id="cd-relancer-tous"${hors ? ' disabled title="Revient avec le réseau"' : ''}>${CD_IC.rel} Relancer le premier…</button></div>`
       : st.vue === 'tenus' && !q ? `<p class="cd-vt cd-vt-g">${CD_IC.dossiers}<span>${pl(l.length, 'dossier tenu', 'dossiers tenus')} au cabinet : tu y saisis tout. Invité sur SkanFact (depuis sa fiche), un client envoie ses pièces seul.</span></p>`
-        : st.vue === 'archives' && !q ? `<p class="cd-vt cd-vt-g">${CD_IC.archive}<span>Un dossier archivé quitte les listes, Priorités et Échéances ; il se lit et s'exporte toujours. Combien de temps le cabinet le garde : À VÉRIFIER (10 ans pour les livres).</span></p>` : '';
+        : st.vue === 'archives' && !q ? `<p class="cd-vt cd-vt-g">${CD_IC.archive}<span>Un dossier archivé quitte les listes, le Tableau de bord et les Échéances ; il se lit et s'exporte toujours. Combien de temps le cabinet le garde : À VÉRIFIER (10 ans pour les livres).</span></p>` : '';
     const choisis = l.filter(x => st.choix.has(x.d.id));
     const barreChoix = choisis.length && !tel ? `<div class="barre-choix cd-bc" role="region" aria-label="Les dossiers choisis"><span><b>${pl(choisis.length, 'dossier choisi', 'dossiers choisis')}</b> <span class="mu">· ${esc(choisis.slice(0, 3).map(x => x.d.name).join(', '))}${choisis.length > 3 ? '…' : ''}</span></span>
       <span class="bc-g">${dir ? `<span class="cd-cf-w"><button type="button" class="btn cd-cf-b" id="cd-confier" aria-expanded="${st.confier === '*'}"${hors ? ' disabled' : ''}>${CD_IC.confier}Confier à…</button>${st.confier === '*' ? popConfier(choisis.map(x => x.d)) : ''}</span>` : ''}<button type="button" class="btn" id="cd-ecrire">${CD_IC.msg}Écrire</button><button type="button" class="btn" id="cd-exporter-choix">${CD_IC.exporter}Exporter</button></span><button type="button" class="btn-lien" id="cd-aucun">Tout désélectionner</button></div>` : '';
@@ -4460,7 +4697,7 @@
     if (d.archived) {
       corps = `<div class="page-head fd-tete"><div class="fd-id">${marqueD(d, 'fd-mq')}<div><h1>${esc(d.name)}</h1><p class="fd-sous"><span>${esc([d.forme, d.activite, d.ville].filter(Boolean).join(' · ') || d.matricule || '')}</span><span class="cd-li tenu">archivé</span></p><p class="fd-phrase">Tout se lit, rien ne se saisit</p></div></div>
         <div class="actions"><button type="button" class="btn" id="fd-export">${CD_IC.exporter} Exporter le dossier</button>${estAssocie() ? '<button type="button" class="btn btn-primary" data-cd-geste="archiver" data-cd-d="' + esc(d.id) + '">Désarchiver…</button>' : ''}</div></div>
-        <div class="bandeau gris a-band fd-band"><span class="txt"><b>Un dossier archivé se lit, il ne bouge plus.</b><span>Ses livres, ses déclarations, ses pièces${d.manual ? '' : ' et la conversation'} restent ici. Il n'est plus dans Priorités, Échéances ni le tableau de bord. Combien de temps le cabinet le garde : À VÉRIFIER (10 ans pour les livres).</span></span></div>
+        <div class="bandeau gris a-band fd-band"><span class="txt"><b>Un dossier archivé se lit, il ne bouge plus.</b><span>Ses livres, ses déclarations, ses pièces${d.manual ? '' : ' et la conversation'} restent ici. Il n'est plus dans le Tableau de bord ni les Échéances. Combien de temps le cabinet le garde : À VÉRIFIER (10 ans pour les livres).</span></span></div>
         <div class="fd-g"><div class="fd-col">${anneeP}</div>${cote}</div>`;
     } else corps = `${tete}${bandHors}${debutAPreciser(d) ? `<div class="bandeau a-band fd-band fd-debut"><span class="txt"><b>Début de mission à préciser</b><span>À partir de quand tiens-tu ce dossier ? Rien ne lui est réclamé tant que ce n'est pas dit : une entreprise neuve ne doit rien d'avant, un client repris en cours d'année doit son année entière.</span></span><button type="button" class="btn btn-sm" id="fd-debut">Préciser…</button></div>` : ''}${chiffres}<div class="fd-g"><div class="fd-col">${blocAttend}${nouveau ? '' : attend.length ? revision + anneeP : anneeP + revision}</div>${cote}</div>`;
     view.innerHTML = `<div class="cab-page cd-page fd-page${tel ? ' fd-tel' : ''}" id="page-fd" data-id="${esc(d.id)}" style="--dc:${couleurDe(d.id)[0]}">${ctx}${corps}</div>`;
@@ -14434,132 +14671,6 @@
   // est fausse le jour où quelqu'un oublie de cocher.
   let prodState = { lignes: null, etapes: [], collaborateurs: [], collab: '', mois: 12, pg: { page: 1, size: 50 } };
 
-  // 10.12.0 (U-17) — une FORME par état. « Reçu » et « hors mission » portaient le même point,
-  // « à réviser » et « à déclarer » le même rond : seule la couleur les distinguait, et une couleur
-  // seule n'est pas une information (9.4.4). Et la légende de `recu` disait « reçu, rien de saisi »
-  // pour l'étape où le paquet n'est justement PAS arrivé — l'étape est celle où le mois est BLOQUÉ.
-  // Une seule table pour les cases et la légende : écrites à deux endroits, elles avaient divergé.
-  const SIGNE_PRODUCTION = { recu: '○', saisi: '!', revise: '◐', declare: '◉', fini: '✓', hors: '–' };
-  // « à saisir » et non « reçu, rien de saisi » : un dossier TENU AU CABINET n'a rien à recevoir,
-  // et son mois vide est quand même une saisie à faire (10.12.0). C'est le mot de la colonne.
-  const LEGENDE_PRODUCTION = [
-    ['recu', 'manquant'], ['saisi', 'à saisir'], ['revise', 'saisi, à réviser'],
-    ['declare', 'révisé, à déclarer'], ['fini', 'déclaré'], ['hors', 'hors mission']
-  ];
-
-  async function drawProduction(view) {
-    if (!prodState.lignes) {
-      view.innerHTML = `<div class="page-head"><h1>Production</h1></div>
-        <div class="panel"><div class="empty">Lecture des dossiers…</div></div>`;
-      try {
-        const r = await api.production({});
-        prodState = { ...prodState, lignes: r.lignes || [], etapes: r.etapes || [], collaborateurs: r.collaborateurs || [] };
-      } catch (e) {
-        // (plateforme) 1.138.0 — la lecture refusée offre « Réessayer » (UX 2).
-        view.innerHTML = `<div class="page-head"><h1>Production</h1></div>
-          <div class="panel"><div class="warn-box" id="pr-refus"><b>La production n'a pas pu se lire.</b> ${esc(plainError(e))}
-          <div class="inline mt"><button type="button" class="btn btn-sm" id="pr-relire">Réessayer</button></div></div></div>`;
-        $('#pr-relire', view).onclick = () => drawProduction(view);
-        return;
-      }
-      // La page a pu changer pendant l'attente : on ne redessine que si on y est encore (7.6.0).
-      if (!location.hash.startsWith('#/production')) return;
-    }
-    const confies = prodState.collab
-      ? new Set((S.dossiers || []).filter(d => (d.droits || {})[prodState.collab]).map(d => d.id))
-      : null;
-    const lignes = (prodState.lignes || []).filter(l => !confies || confies.has(l.id));
-    // Les N derniers mois, communs à toutes les lignes : une grille dont chaque ligne aurait ses
-    // propres colonnes ne se lit pas en colonne, et c'est en colonne qu'on repère un mois où
-    // personne n'a rien fait.
-    const tous = [...new Set(lignes.flatMap(l => l.mois.map(m => m.mois)))].sort();
-    const colonnes = tous.slice(-prodState.mois);
-    const parDossier = new Map(lignes.map(l => [l.id, new Map(l.mois.map(m => [m.mois, m]))]));
-    const retard = lignes.reduce((s, l) => s + l.aSaisir, 0);
-    // Un portefeuille de trois cents dossiers faisait une page de 10 574 px (10.14.0, saturation) :
-    // on pagine ce qu'on NOMME (9.4.5) — des dossiers —, et le compte « à saisir » porte sur tous.
-    // `pagerBar` d'abord : c'est lui qui ramène la page dans les bornes quand un filtre réduit la liste.
-    const pager = pagerBar(lignes.length, prodState.pg, 'dossier');
-    const montrees = paginate(lignes, prodState.pg);
-
-    view.innerHTML = `<div class="page-head"><h1>Production ${info('eq.production')}</h1>
-      <div class="actions">
-        ${prodState.collaborateurs.length ? `<label class="f-lab">Collaborateur
-          <select id="pr-collab" aria-label="Filtrer sur les dossiers confiés à">
-            <option value="">Tout le cabinet</option>
-            ${prodState.collaborateurs.map(c => `<option value="${esc(c.id)}" ${c.id === prodState.collab ? 'selected' : ''}>${esc(c.nom)}</option>`).join('')}
-          </select></label>` : ''}
-        <label class="f-lab">Sur <select id="pr-mois" aria-label="Combien de mois afficher">
-          ${[6, 12, 24].map(n => `<option value="${n}" ${n === prodState.mois ? 'selected' : ''}>${n} mois</option>`).join('')}
-        </select></label>
-      </div></div>
-      ${!lignes.length ? `<div class="panel"><div class="empty">${prodState.collab
-    ? 'Aucun dossier n\'est confié à cette personne.<br><span class="small">Un dossier se confie dans sa fiche, onglet Suivi, panneau « Qui travaille sur ce dossier ».</span>'
-    // « Aucun dossier dans le portefeuille » s'affichait sur un portefeuille PLEIN : le tableau
-    // de production lit les LIVRES, et tant qu'aucun n'est créé il n'a rien à montrer. Une phrase
-    // qui dit le contraire de ce que l'écran d'à côté affiche est un bug, pas une imprécision
-    // (7.3.0) — et un état vide sans geste n'apprend rien (7.0.0).
-    : (S.dossiers || []).filter(d => !d.archived).length
-      ? 'Aucun livre n\'est encore ouvert.<br><span class="small">Le tableau de production suit les <b>livres</b> de tes dossiers : ouvre la comptabilité d\'un client pour qu\'il apparaisse ici.</span><div class="inline mt"><button class="btn btn-sm btn-primary" id="pr-vers-dossiers">Voir mes dossiers</button></div>'
-      : 'Aucun dossier dans le portefeuille.<div class="inline mt"><button class="btn btn-sm btn-primary" id="pr-vers-dossiers">Ajouter un client</button></div>'}</div></div>`
-    // « reçus et pas encore saisis » comptait aussi les mois d'un dossier tenu au cabinet, qui ne
-    // reçoit rien : la phrase dit ce que la colonne compte, pour les deux sortes de dossiers.
-    : `<div class="${retard ? 'warn-box' : 'ok-box'} mb">${retard
-      ? `${pl(retard, 'mois', 'mois')} ${retard > 1 ? 'attendent' : 'attend'} leur saisie.`
-      /* (plateforme) 1.97.0 — le mois en cours n'entre jamais dans la grille : sans aucun mois fini, elle n'a pas de
-         colonne, et la phrase le dit au lieu de promettre une grille vide. */
-      : colonnes.length ? 'Aucun mois n\'attend de saisie.'
-      : 'Aucun mois fini à suivre pour l\'instant : un mois entre dans la grille une fois terminé. Le mois en cours se suit dans la comptabilité de chaque client (clique sa ligne).'}</div>
-      ${/* 10.12.0 (U-02) — des en-têtes de mois COURTS, l'année seulement quand elle change : douze
-            « juillet 2026 » sur deux lignes faisaient déborder la grille, et la dernière colonne,
-            collante, cachait juillet et août. (U-29) Le nom du client se tronque, jamais son badge :
-            coupé par les points de suspension, « exemple » devenait « exem… ». */''}
-      <div class="panel"><div class="scroll-x"><table class="list compact prod">
-        <thead><tr><th>Client</th>${colonnes.map((m, i) => `<th class="r nw" title="${esc(K.monthLabel(m))}">${esc(MOIS_COURTS[Number(m.slice(5, 7)) - 1] || m)}${
-    i === 0 || m.slice(5, 7) === '01' ? `<br><span class="muted small">${esc(m.slice(0, 4))}</span>` : ''}</th>`).join('')}<th class="r nw">À saisir</th></tr></thead>
-        <tbody>${montrees.map(l => `<tr data-id="${esc(l.id)}">
-          <td class="prod-client"><span class="prod-nom" title="${esc(l.name)}">${esc(l.name)}</span>${l.demo ? ' <span class="badge">exemple</span>' : ''}</td>
-          ${colonnes.map(m => {
-    const c = (parDossier.get(l.id) || new Map()).get(m);
-    if (!c) return '<td class="r prod-c"><span class="prod-p prod-hors" title="Hors mission : rien n\'est attendu pour ce mois">–</span></td>';
-    const t = [
-      `${K.monthLabel(m)} — ${c.recu === null ? 'tenu au cabinet' : c.recu ? 'écrit' : 'manquant : aucune écriture'}`,
-      c.saisi ? `${pl(c.saisi, 'écriture')} dont ${c.brouillards} au brouillard` : 'rien de saisi',
-      // « — » et non « non » : la révision n'a pas encore d'écrivain, et ne pas savoir
-      // n'est pas savoir que non (règle des cases fiscales, 9.6.0).
-      `révisé : ${c.revise === null ? '—' : c.revise ? 'oui' : 'non'}`,
-      `déclaré : ${c.declare === null ? '—' : c.declare ? 'oui' : 'non'}`,
-      c.qui ? `dernier geste : ${c.qui}` : ''
-    ].filter(Boolean).join(' · ');
-    return `<td class="r prod-c"><span class="prod-p prod-${esc(c.etape)}" title="${esc(t)}">${esc(SIGNE_PRODUCTION[c.etape] || '?')}</span></td>`;
-  }).join('')}
-          <td class="r nw">${l.aSaisir ? `<b class="err-inline">${l.aSaisir}</b>` : '—'}</td></tr>`).join('')}</tbody>
-      </table></div>
-      ${pager}
-      ${/* Une couleur seule n'est pas une information (9.4.4) : la légende nomme chaque étape, et
-            elle est engendrée depuis `ETAPES_PRODUCTION` — écrite à la main, elle oublierait la
-            cinquième le jour où le cabinet en ajoute une. */''}
-      ${colonnes.length ? `<div class="prod-leg small muted">${LEGENDE_PRODUCTION.map(([etape, mot]) =>
-    `<span><span class="prod-p prod-${etape}">${esc(SIGNE_PRODUCTION[etape])}</span> ${esc(mot)}</span>`).join('')}</div>
-      <p class="muted small">Clique une ligne pour ouvrir la comptabilité du client.
-      « Révisé » affiche « — » tant que le dossier de révision n'existe pas : ne pas savoir n'est pas « non ».</p>` : ''}
-      </div>`}`;
-
-    const c = $('#pr-collab', view);
-    if (c) c.onchange = () => { prodState.collab = c.value; prodState.pg.page = 1; render(); };
-    bindPager(view, () => render(), prodState.pg);
-    const pv = $('#pr-vers-dossiers', view);
-    if (pv) pv.onclick = () => { location.hash = '#/dossiers'; };
-    const m = $('#pr-mois', view);
-    if (m) m.onchange = () => { prodState.mois = Number(m.value) || 12; render(); };
-    $$('tbody tr[data-id]', view).forEach(tr => {
-      tr.onclick = () => { location.hash = `#/dossier/${tr.dataset.id}/comptabilite`; };
-    });
-    // Une route ASYNCHRONE pose son écran APRÈS la fin de `render()` : la ponctuation française
-    // serait passée sur la page « Lecture des dossiers… » et jamais sur celle-ci (piège 8.3.0).
-    typographie(view);
-  }
-
   // Les Échéances sans aucune échéance : la raison, et le geste qui les remplit.
   function drawEcheancesVides(view) {
     // « Aucun client pour l'instant » s'affichait aussi à un cabinet qui en a — un client hors
@@ -15104,7 +15215,7 @@
         const demandes = $$('[data-ec-att]', layer).filter(c => c.checked).map(c => attendus[Number(c.dataset.ecAtt)]);
         const lePour = ($('#ec-pour', layer) || {}).value || null;
         const d = location.hash;
-        const RETOURS = [[/^#\/echeances/, 'Revenir aux Échéances'], [/^#\/relances/, 'Revenir aux Relances'], [/^#\/dossiers/, 'Revenir à Tous les dossiers'], [/^#\/dossier\//, 'Revenir au dossier'], [/^#\/priorites/, 'Revenir aux Priorités']];
+        const RETOURS = [[/^#\/echeances/, 'Revenir aux Échéances'], [/^#\/relances/, 'Revenir aux Relances'], [/^#\/dossiers/, 'Revenir à Tous les dossiers'], [/^#\/dossier\//, 'Revenir au dossier'], [/^#\/production/, 'Revenir au Tableau de bord']];
         const r = RETOURS.find(([re]) => re.test(d));
         messagePrepare = { id: D.id, texte: t, demandes, pour: lePour, retour: r ? { texte: r[1], hash: d } : null,
           apresEnvoi: () => { messagePrepare = null; void noter('autre', 'Relance envoyée dans votre conversation SkanFact'); } };
@@ -17408,7 +17519,8 @@ Copie externe : ${esc((inf.external && inf.external.dir) || 'aucune')}${inf.exte
     if (!p || visiteManque(p) || !et.proposer || et.faites[p.id] || (!reprise && (et.vues[cle] || 0) >= VISITE_PROPOSEE_MAX)) return;
     if (visiteProposeeIci && !reprise) return;
     // Une page vide qui porte « Tes premiers pas » est déjà une invitation.
-    if ($('#view .premiers-pas')) return;
+    // (1.194.0) Une proposition de client qui attend (`.cd-prop`) passe avant : l'invitation couvrait son « Accepter ».
+    if ($('#view .premiers-pas, #view .cd-prop')) return;
     const bouton = $('#guide-moi');
     // Un écran asynchrone n'a pas encore son en-tête : l'invitation attend le bouton (`poserGuideMoi`).
     if (!bouton) { appelEnAttente = cle; return; }

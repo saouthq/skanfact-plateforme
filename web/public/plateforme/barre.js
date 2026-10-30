@@ -18,7 +18,7 @@
 // Rien ici ne décide d'un chiffre : chaque compte est recopié de la barre (son lien, son nombre, son ton).
 //
 // Le Cabinet (1.152.0, lot 1 b) a la même coquille : `__barreInfos` y dit `app: 'cabinet'`, sa page d'arrivée
-// (`accueil` : les Priorités) et la route de ses réglages ; sa liste (« Mon cabinet », le dossier ouvert) est dessinée par
+// (`accueil` : le Tableau de bord) et la route de ses réglages ; sa liste (« Mon cabinet », le dossier ouvert) est dessinée par
 // son `drawNav` (v10/cabinet/app.js), qui ouvre aussi le changement de dossier par `SkanBarre.ouvrirPop`.
 (function () {
   'use strict';
@@ -76,7 +76,7 @@
   const enCaisse = () => document.body.classList.contains('mode-caisse');
   const infos = () => (typeof w.__barreInfos === 'function' ? w.__barreInfos() : { metier: '', role: 'proprietaire', responsable: true, lectureSeule: false, cabinet: null, version: '' });
   const role = () => infos().role;
-  // Le Cabinet : sa page d'arrivée (les Priorités), ses réglages, ses mots.
+  // Le Cabinet : sa page d'arrivée (le Tableau de bord), ses réglages, ses mots.
   const auCabinet = () => infos().app === 'cabinet';
   const accueil = () => String(infos().accueil || 'dashboard');
   /** @param {string} hash */
@@ -473,7 +473,7 @@
     voile.innerHTML = `<div class="sb-raccourcis" role="dialog" aria-modal="true" aria-label="Raccourcis clavier" tabindex="-1"><h3>Raccourcis clavier</h3><dl>
       <dt><kbd>N</kbd></dt><dd>${cab ? 'Créer (dans le dossier ouvert)' : 'Créer (la liste de ton métier)'}</dd>
       <dt><kbd>${mac ? '⌘' : 'Ctrl'}</kbd><kbd>K</kbd></dt><dd>${cab ? 'Rechercher un dossier, une écriture, un écran' : 'Rechercher une page, un client, une pièce'}</dd>
-      <dt><kbd>G</kbd><kbd>A</kbd></dt><dd>${cab ? 'Aller aux priorités' : 'Aller à l\'accueil'}</dd>
+      <dt><kbd>G</kbd><kbd>A</kbd></dt><dd>${cab ? 'Aller au tableau de bord' : 'Aller à l\'accueil'}</dd>
       <dt><kbd>G</kbd><kbd>${cab ? 'D' : 'F'}</kbd></dt><dd>${cab ? 'Aller à tous les dossiers' : 'Aller aux factures'}</dd>
       ${cab ? `<dt><kbd>${mac ? '⌘' : 'Ctrl'}</kbd><kbd>1</kbd>…<kbd>9</kbd></dt><dd>Ouvrir un de tes dossiers (les favoris d'abord) ; <kbd>Alt</kbd> + chiffre aussi</dd>` : ''}
       <dt><kbd>[</kbd></dt><dd>Replier ou déplier la barre</dd>
@@ -595,7 +595,7 @@
     const ids = typeof w.__ongletsTel === 'function' ? w.__ongletsTel() : [];
     const creerOuvert = !!document.querySelector('.sb-feuille');
     /** @param {string} id */
-    const onglet = (id) => { const p = dessinDe(id); const c = compteDuLien(lienDe(id)); return `<a class="sb-onglet" href="#/${esc(id)}"${!ecranTel && route === id ? ' aria-current="page"' : ''}${c && c.n ? ` aria-label="${esc(`${p.titre} (${c.n})`)}"` : ''}><span class="ic-boite">${p.icone}${nb(c).replace('class="nb alerte"', 'class="nb"')}</span><span class="nom">${esc(p.titre)}</span></a>`; };
+    const onglet = (id) => { const p = dessinDe(id); const c = compteDuLien(lienDe(id)); return `<a class="sb-onglet" href="#/${esc(id)}"${!ecranTel && route === id ? ' aria-current="page"' : ''}${c && c.n ? ` aria-label="${esc(`${p.titre} (${c.n})`)}"` : ''}><span class="ic-boite">${p.icone}${nb(c).replace('class="nb alerte"', 'class="nb"')}</span><span class="nom">${esc(p.court || p.titre)}</span></a>`; };
     const ferme = !!i.lectureSeule;
     const centre = i.role === 'lecture'
       ? `<button type="button" class="sb-plus-central ferme" aria-label="Lecture : rien à créer" title="Lecture : tu vois tout, tu ne changes rien">${ic('oeil', 22, 2)}</button>`

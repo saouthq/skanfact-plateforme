@@ -1,7 +1,7 @@
 // Le Cabinet au téléphone (brique 110 ; 14 § 2.6). L'instrument de rendu de l'entreprise (tests/instrument-rendu.ts)
 // passe les pages du Cabinet, sur un vrai téléphone (390 points, au doigt) et sur un ordinateur : aucune ne défile de
 // côté, rien ne sort de l'écran, et au doigt tout se touche. Les écrans pensés pour un ordinateur (un dossier, les
-// écritures, la production) le disent sous leur titre au téléphone, et seulement là.
+// écritures ; le tableau de bord ne l'est plus depuis la 1.194.0) le disent sous leur titre au téléphone, et seulement là.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -70,7 +70,7 @@ describe('le Cabinet au téléphone', () => {
       { nom: 'echeances', hash: '#/echeances' },
       { nom: 'reglages', hash: '#/reglages' },
       { nom: 'ecritures', hash: '#/ecritures', ordinateur: true },
-      { nom: 'production', hash: '#/production', ordinateur: true },
+      { nom: 'production', hash: '#/production' },   // (1.194.0) le Tableau de bord est fait pour le téléphone
       { nom: 'dossier', hash: `#/dossier/${ent}/suivi`, ordinateur: true },
       // (1.170.0) La fiche du dossier est faite pour le téléphone (sa maquette) : elle ne se dit pas « pensée pour un ordinateur ».
       { nom: 'fiche', hash: `#/dossier/${ent}` },
@@ -88,7 +88,8 @@ describe('le Cabinet au téléphone', () => {
       const page = await contexte.newPage();
       const erreurs: string[] = [];
       page.on('pageerror', (x) => erreurs.push(x.message));
-      await page.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}`);
+      // (1.194.0) Ouvert sur sa première page : l'invitation « Première fois ? » (une par ouverture) s'y pose et s'y ferme.
+      await page.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}${PAGES[0]?.hash ?? ''}`);
       await page.locator('#view h1').first().waitFor({ timeout: 15_000 });
       for (const pg2 of PAGES) {
         await page.evaluate((h) => { location.hash = h; }, pg2.hash);
@@ -173,7 +174,7 @@ describe('le Cabinet au téléphone', () => {
       // (1.152.0, maquette « Barre v3 ») Plus de « Menu » : la cloche au bout de la barre du haut, les onglets en bas.
       const cloche = await page.locator('#b-cloche').boundingBox();
       expect(390 - ((cloche?.x ?? 0) + (cloche?.width ?? 0))).toBeLessThan(24);
-      expect(await page.locator('.sb-onglets .sb-onglet .nom').allInnerTexts()).toEqual(['Priorités', 'Messages', 'Échéances', 'Plus']);
+      expect(await page.locator('.sb-onglets .sb-onglet .nom').allInnerTexts()).toEqual(['Tableau', 'Messages', 'Échéances', 'Plus']);
       expect(erreurs).toEqual([]);
     } finally {
       await contexte.close();

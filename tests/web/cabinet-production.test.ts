@@ -1,10 +1,9 @@
-// La page Production, à la souris (brique 48 ; docs/cabinet.md, C38). L'écran est celui du Cabinet v10
-// (le tableau de production) ; ce qu'il lit, le serveur le compte pour tout le portefeuille. Ce que le
+// La grille de production, à la souris (brique 48 ; docs/cabinet.md, C38). Depuis la 1.194.0, elle vit dans le
+// Tableau de bord (Priorités comprises) ; ce qu'elle lit, le serveur le compte pour tout le portefeuille. Ce que le
 // parcours vérifie, écran ET serveur :
-//   - chaque case dit l'étape du mois : déclaré, saisi à réviser, à saisir, hors mission ; son détail se
-//     lit au survol (écritures, brouillards, révisé, déclaré, dernier geste) ;
-//   - « à saisir » compte les mois d'un dossier tenu où rien n'est écrit ; il se relit en revenant sur
-//     la page ;
+//   - chaque case dit l'étape du mois : déposé, à réviser, à saisir (en retard si sa date est passée), hors
+//     mission ; son détail se lit au survol (écritures, brouillards, révisé, déclaré, dernier geste) ;
+//   - « Sur la période » compte les mois déposés ; la grille se relit en revenant sur la page ;
 //   - le même index nourrit les Échéances : un dossier tenu y entre avec ses mois à saisir ;
 //   - la ligne ouvre la comptabilité du client ; la visite « Suivre la production » se joue.
 
@@ -78,41 +77,48 @@ describe('la production du cabinet, à la souris', () => {
       await p.waitForTimeout(800);
       for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     };
-    const ligne = (nom: string) => p.locator('#view tr[data-id]').filter({ hasText: nom });
-    const caseDu = (nom: string, mois: string) => ligne(nom).locator(`td.prod-c .prod-p[title^="${mois}"]`);
+    // (1.194.0) La grille vit dans le Tableau de bord : une ligne par dossier, une case par mois (son mois en `data-mois`).
+    const ligne = (nom: string) => p.locator('#tb-grille tr[data-tb-id]').filter({ hasText: nom });
+    const caseDu = (nom: string, mois: string) => ligne(nom).locator(`.prod-p[data-mois="${mois}"]`);
 
     // ── Chaque case dit l'étape de son mois ────────────────────────────────────────────────────
     await aller('#/production');
-    await p.locator('#pr-mois').selectOption('24');
+    await p.locator('[data-tb-periode="12"]').click();
     await expect.poll(() => ligne('Garage du Port').count()).toBe(1);
     expect(await ligne('Café des Arts').count()).toBe(1);
-    const mars26 = caseDu('Garage du Port', 'mars 2026');
+    const mars26 = caseDu('Garage du Port', '2026-03');
     expect(await mars26.getAttribute('class')).toMatch(/prod-fini/);
-    expect(await mars26.getAttribute('title')).toMatch(/^mars 2026 — tenu au cabinet · 1 écriture dont 0 au brouillard · révisé : oui · déclaré : oui · dernier geste : Karim$/);
-    const fev26 = caseDu('Garage du Port', 'février 2026');
+    expect(await mars26.getAttribute('title')).toMatch(/^Mars 2026 : déposé — tenu au cabinet · 1 écriture dont 0 au brouillard · révisé : oui · déclaré : oui · dernier geste : Karim$/);
+    const fev26 = caseDu('Garage du Port', '2026-02');
     expect(await fev26.getAttribute('class')).toMatch(/prod-revise/);
     expect(await fev26.getAttribute('title')).toMatch(/1 écriture dont 1 au brouillard · révisé : non · déclaré : non/);
-    const janv26 = caseDu('Garage du Port', 'janvier 2026');
+    const janv26 = caseDu('Garage du Port', '2026-01');
     expect(await janv26.getAttribute('class')).toMatch(/prod-saisi/);
-    expect(await janv26.getAttribute('title')).toMatch(/rien de saisi/);
+    // Échu le 28/02 (le jour des réglages du cabinet, À VÉRIFIER) et pas déposé : en retard.
+    expect(await janv26.getAttribute('title')).toMatch(/^Janvier 2026 : à saisir, en retard depuis le 28\/02 — tenu au cabinet · rien de saisi/);
     // Le café n'a aucun livre : aucun mois n'est attendu de lui.
     expect(await ligne('Café des Arts').locator('.prod-p:not(.prod-hors)').count()).toBe(0);
-    const aSaisir = dus.length - 2;
-    await expect.poll(() => p.locator('#view .warn-box').first().innerText()).toBe(`${aSaisir} mois attendent leur saisie.`);
-    expect(await ligne('Garage du Port').locator('td').last().innerText()).toBe(String(aSaisir));
-    expect(await p.locator('.prod-leg').innerText()).toMatch(/manquant/);
+    expect(await ligne('Café des Arts').locator('td.tb-av').innerText()).toBe('hors mission');
+    // « Sur la période » : un mois déposé (mars) sur les mois dus ; la puce « À saisir » compte le garage.
+    expect(await ligne('Garage du Port').locator('.tb-seg-n').innerText()).toBe(`1/${dus.length}`);
+    expect(await p.locator('[data-tb-filtre="saisir"] b').innerText()).toBe('1');
+    // En retard : chaque mois dû, pas déposé, dont le 28 du mois suivant est passé.
+    const auj = new Date().toISOString().slice(0, 10);
+    const suivant = (m: string) => { const an = Number(m.slice(0, 4)), mo = Number(m.slice(5, 7)); return mo === 12 ? `${an + 1}-01` : `${an}-${String(mo + 1).padStart(2, '0')}`; };
+    const echus = dus.filter((m) => m !== '2026-03' && `${suivant(m)}-28` < auj);
+    expect(await p.locator('#tb-retard').innerText()).toBe(echus.length ? `${echus.length} mois en retard` : 'à jour');
+    expect(await p.locator('.tb-leg').innerText()).toMatch(/pièces manquantes/);
     expect(await p.locator('#view').innerText()).not.toMatch(/paquet|reçu/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-production-1.png') });
 
-    // ── Un mois saisi ailleurs : « à saisir » se relit en revenant sur la page ────────────────────
+    // ── Un mois saisi ailleurs : la grille se relit en revenant sur la page ──────────────────────
     await saisir(associe, garage, '2026-01-20', 'OD-3');
     // (1.152.0) « Le cabinet › Tous les dossiers » : le portefeuille s'ouvre du volet de la barre.
     await p.locator('#nav .nav-volet[data-famille="Le cabinet"]').click();
     await p.locator('.sb-panneau a[data-route="dossiers"]').click();
     await p.locator('#view h1').first().waitFor();
     await p.locator('#nav a[data-route="production"]').click();
-    await expect.poll(() => p.locator('#view .warn-box, #view .ok-box').first().innerText()).toBe(aSaisir - 1 > 0 ? `${aSaisir - 1} mois attendent leur saisie.` : 'Aucun mois n\'attend de saisie.');
-    expect(await caseDu('Garage du Port', 'janvier 2026').getAttribute('class')).toMatch(/prod-revise/);
+    await expect.poll(() => caseDu('Garage du Port', '2026-01').getAttribute('class').catch(() => '')).toMatch(/prod-revise/);
 
     // ── Le même index nourrit les Échéances : le dossier tenu y entre, avec ses mois à saisir ─────────
     await p.locator('#nav a[data-route="echeances"]').click();
@@ -123,7 +129,7 @@ describe('la production du cabinet, à la souris', () => {
     // ── La ligne ouvre la comptabilité du client ────────────────────────────────────────────────
     await p.locator('#nav a[data-route="production"]').click();
     await expect.poll(() => ligne('Garage du Port').count()).toBe(1);
-    await ligne('Garage du Port').locator('td').first().click();
+    await ligne('Garage du Port').locator('td.cl').click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/dossier/${garage}/comptabilite`);
 
     // ── La visite « Suivre la production du cabinet » ───────────────────────────────────────────
@@ -136,13 +142,13 @@ describe('la production du cabinet, à la souris', () => {
     expect(await lancer.isEnabled()).toBe(true);
     await lancer.click();
     const bulle = p.locator('#visite-bulle');
-    await expect.poll(() => bulle.innerText()).toMatch(/Ce qui attend/);
+    await expect.poll(() => bulle.innerText()).toMatch(/La campagne du mois/);
     expect(await bulle.innerText()).not.toMatch(/paquet|reçu/);
     for (const titre of [/Un dossier par ligne/, /Resserrer/, /Ouvre un dossier/]) {
       await bulle.getByRole('button', { name: 'Suivant' }).click();
       await expect.poll(() => bulle.innerText()).toMatch(titre);
     }
-    await ligne('Garage du Port').locator('td').first().click();
+    await ligne('Garage du Port').locator('td.cl').click();
     await expect.poll(() => bulle.innerText()).toMatch(/Tu suis la production/);
     expect(await bulle.innerText()).toMatch(/Le tableau lit les livres\s:\sun dossier apparaît dès que sa comptabilité a des écritures/);
     expect(await bulle.innerText()).not.toMatch(/paquet|reçu/);
@@ -160,11 +166,11 @@ describe('la production du cabinet, à la souris', () => {
     const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
     await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/production`);
-    const ligne = p.locator('#view tr[data-id]').filter({ hasText: 'Mansouri Informatique' });
-    await expect.poll(() => ligne.count(), { timeout: 20_000 }).toBe(1);
-    // Les titres en capitales viennent de la feuille de style : sur une machine lente, elle arrive après la ligne.
-    await expect.poll(() => p.locator('#view thead th').allInnerTexts()).toEqual(['CLIENT', 'À SAISIR']);
-    expect(await p.locator('#view .ok-box').innerText()).toMatch(/^Aucun mois fini à suivre pour l'instant\s:\sun mois entre dans la grille une fois terminé\./);
-    expect(await p.locator('.prod-leg').count()).toBe(0);
+    // (1.194.0) Le Tableau de bord le dit à la place de la grille, et nomme le dossier dont le mois se suit ailleurs.
+    const sans = p.locator('#tb-sans-mois');
+    await expect.poll(() => sans.innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/^Aucun mois fini à suivre pour l'instant\s+Un mois entre dans la grille une fois terminé\. Le mois en cours se suit dans la comptabilité de chaque client\s:\sMansouri Informatique\./);
+    expect(await p.locator('#tb-grille').count()).toBe(0);
+    expect(await p.locator('.tb-leg').count()).toBe(0);
+    expect(await p.locator('#tb-campagne').count()).toBe(0);
   }, 120_000);
 });

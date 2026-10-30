@@ -112,8 +112,11 @@ describe('les relances et les mois à valider, à la souris', () => {
 
     // Les Priorités (1.169.0 : « À faire » quitte la page des dossiers, qui suit la maquette) : un dossier a des mois sans
     // écriture, un autre des écritures à réviser.
-    await aller('#/priorites');
-    const ligneP = (nom: string) => p.locator('#page-priorites .afaire-ligne').filter({ hasText: nom });
+    await aller('#/production');
+    // (1.194.0) « À voir » se replie derrière son nombre quand il y a de l'urgent : on le déplie.
+    await p.locator('#tb-afaire').waitFor({ timeout: 15_000 });
+    if (await p.locator('#tb-avoir[aria-expanded="false"]').count()) await p.locator('#tb-avoir').click();
+    const ligneP = (nom: string) => p.locator('#page-bord .afaire-ligne').filter({ hasText: nom });
     await expect.poll(() => ligneP('Menuiserie Ben Salah').innerText().catch(() => '')).toMatch(/2 mois sans écriture/);
     expect(await ligneP('Boulangerie Ennour').innerText()).toMatch(/1 mois à réviser/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-relances-1-a-faire.png') });

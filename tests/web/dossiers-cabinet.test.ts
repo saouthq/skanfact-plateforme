@@ -209,8 +209,11 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     await expect.poll(() => ligne.locator('.cd-mo-c').innerText()).toMatch(/^début de mission à préciser\s*Préciser…$/);
     await p.locator('[role=tab][data-cd-vue="manque"]').click();
     expect(await p.locator('#page-tb tr[data-id]').filter({ hasText: 'Hôtel Les Pins' }).count()).toBe(0);
-    await p.evaluate(() => { location.hash = '#/priorites'; });
-    const tache = p.locator('#page-priorites .afaire-ligne').filter({ hasText: 'Début de mission à préciser' });
+    await p.evaluate(() => { location.hash = '#/production'; });
+    // (1.194.0) « À voir » se replie derrière son nombre quand il y a de l'urgent : on le déplie.
+    await p.locator('#tb-afaire').waitFor({ timeout: 15_000 });
+    if (await p.locator('#tb-avoir[aria-expanded="false"]').count()) await p.locator('#tb-avoir').click();
+    const tache = p.locator('#page-bord .afaire-ligne').filter({ hasText: 'Début de mission à préciser' });
     await expect.poll(() => tache.innerText().catch(() => '')).toMatch(/Hôtel Les Pins/);
     // « Préciser… » : un autre mois (une reprise en cours d'année) ; la fiche le garde, la ligne réclame à partir de lui.
     await tache.getByRole('button', { name: 'Préciser…' }).click();
@@ -221,7 +224,7 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     await expect.poll(() => p.locator('#toast').innerText()).toMatch(/^Hôtel Les Pins : ta mission commence en juillet 2026\. Rien ne lui est réclamé avant\./);
     const fiches = (await api('GET', `/cabinets/${cab.id}/fiches`, associe)).corps.fiches as { entreprise: string; contenu: { from?: string } }[];
     expect(fiches.find((f) => f.entreprise === hotel)?.contenu.from).toBe('2026-07');
-    await expect.poll(() => p.locator('#page-priorites .afaire-ligne').filter({ hasText: 'Début de mission à préciser' }).count()).toBe(0);
+    await expect.poll(() => p.locator('#page-bord .afaire-ligne').filter({ hasText: 'Début de mission à préciser' }).count()).toBe(0);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 120_000);

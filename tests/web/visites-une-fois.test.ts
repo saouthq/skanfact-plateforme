@@ -95,7 +95,7 @@ describe('les propositions de visite, une par ouverture', () => {
     await cx.close();
   }, 240_000);
 
-  // (1.144.0) Le Cabinet suit la même règle : la Production propose sa visite, les Échéances se taisent ; rouvert, il
+  // (1.144.0) Le Cabinet suit la même règle : le Tableau de bord (la Production, 1.194.0) propose sa visite, les Échéances se taisent ; rouvert, il
   // propose de nouveau, et « Ne plus me proposer de visites » les éteint.
   it('au Cabinet aussi : une proposition par ouverture, et « Ne plus me proposer de visites » d\'un geste', async () => {
     const email = `hela-${Date.now()}-${Math.random().toString(36).slice(2, 7)}@exemple.tn`;
@@ -114,7 +114,7 @@ describe('les propositions de visite, une par ouverture', () => {
     const seTait = async () => { await p.waitForTimeout(2_500); return appel.count(); };
 
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab}#/production`);
-    await titre('Production');
+    await titre('Tableau de bord');
     await appel.waitFor({ timeout: 15_000 });
     expect(net(await appel.locator('#ga-t').innerText())).toBe('Première fois sur cet écran ?');
     await p.mouse.click(700, 600);

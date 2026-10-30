@@ -1,7 +1,7 @@
 // La barre du Cabinet (maquette « Barre v3 », lot 1 b, 26/10/2026 ; docs/maquettes-appliquees.md), à la souris et au
 // clavier. Ce que le parcours vérifie :
 //   - la tête : le nom du cabinet, ses initiales sur l'ardoise, combien de dossiers ; son menu donne le code du cabinet ;
-//   - « Mon cabinet » : les Priorités (la page d'arrivée), les Pièces reçues, les Échéances, le Tableau de bord, les Messages,
+//   - « Mon cabinet » : le Tableau de bord (la page d'arrivée, Priorités comprises depuis la 1.194.0), les Pièces reçues, les Échéances, les Messages,
 //     chacun avec son chiffre, le même que la page qui le montre ; « Le cabinet » s'ouvre à côté de la barre ;
 //   - le dossier ouvert : sa carte (nom, relié ou tenu), ses entrées qui mènent à SES écrans ; entrer dans un dossier en
 //     fait le dossier ouvert ; le changer : la recherche, l'étoile (favori, gardé en haut), Ctrl + chiffre ;
@@ -9,7 +9,7 @@
 //   - « Créer » écrit dans le dossier ouvert (E, R, D ; O pour l'associé) ;
 //   - les Pièces reçues : une pièce envoyée par un client se classe (la boîte et les chiffres se vident), et se remet ;
 //     en double (laquelle), déjà saisie (où), plusieurs d'un coup, l'achat que le client saisit lui-même, sans réseau ;
-//   - au téléphone : Priorités, Messages, « + », Échéances, Plus.
+//   - au téléphone : Tableau (de bord), Messages, « + », Échéances, Plus.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -85,10 +85,10 @@ describe('la barre du Cabinet, à la souris', () => {
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
-    // Sans adresse, le Cabinet s'ouvre sur ses Priorités.
+    // Sans adresse, le Cabinet s'ouvre sur son Tableau de bord (1.194.0 : les Priorités y vivent).
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}`);
-    await p.locator('#page-priorites').waitFor({ timeout: 20_000 });
-    expect(p.url()).toMatch(/#\/priorites$/);
+    await p.locator('#page-bord').waitFor({ timeout: 20_000 });
+    expect(p.url()).toMatch(/#\/production$/);
 
     // ── (1.166.1) Glisser n'appelle jamais les paquets : ils n'existent pas sur la plateforme (C4) ──
     // Le geste de Skander, le 28/10 : attraper une entrée de la barre et la promener sur la page.
@@ -112,7 +112,7 @@ describe('la barre du Cabinet, à la souris', () => {
       return { vu, retenu: ev('drop').defaultPrevented };
     });
     expect(lache).toEqual({ vu: false, retenu: true });
-    expect(p.url()).toMatch(/#\/priorites$/);
+    expect(p.url()).toMatch(/#\/production$/);
 
     // ── La tête : le cabinet, ses initiales sur l'ardoise, combien de dossiers ──
     expect(await p.locator('#brand-cab').innerText()).toBe('Jlassi Conseil');
@@ -128,16 +128,16 @@ describe('la barre du Cabinet, à la souris', () => {
     await p.keyboard.press('Escape');
     expect(await menu.count()).toBe(0);
 
-    // ── « Mon cabinet » : cinq pages, chacune son chiffre ; un seul lien par page ──
+    // ── « Mon cabinet » : quatre pages, chacune son chiffre ; un seul lien par page ──
     expect(await p.locator('#nav .nav-quotidien > a.lien').evaluateAll((l) => l.map((a) => (a as HTMLElement).dataset.route)))
-      .toEqual(['priorites', 'pieces', 'echeances', 'production', 'messages']);
+      .toEqual(['production', 'pieces', 'echeances', 'messages']);
     await expect.poll(() => lien(p, 'Pièces reçues').locator('.compte').innerText()).toBe('2');
     await expect.poll(() => lien(p, 'Messages').locator('.compte').innerText()).toBe('2');
-    expect(await lien(p, 'Priorités').getAttribute('aria-current')).toBe('page');
-    // Les Priorités disent ce qui attend, dossier par dossier, et le geste qui mène où agir.
-    const avoir = p.locator('#page-priorites .afaire-ligne');
+    expect(await lien(p, 'Tableau de bord').getAttribute('aria-current')).toBe('page');
+    // « À faire maintenant » dit ce qui attend, dossier par dossier, et le geste qui mène où agir (« À voir » se déplie).
+    if (await p.locator('#tb-avoir[aria-expanded="false"]').count()) await p.locator('#tb-avoir').click();
+    const avoir = p.locator('#tb-afaire .afaire-ligne');
     await expect.poll(() => avoir.locator('.afaire-txt b').allInnerTexts()).toEqual(expect.arrayContaining(['2 pièces reçues à classer', '1 message du client']));
-    expect(await p.locator('#page-priorites [data-chiffre="pieces"] .v').innerText()).toBe('2');
     await avoir.filter({ hasText: '1 message du client' }).getByRole('button', { name: 'Répondre' }).click();
     await expect.poll(() => p.url()).toContain(`#/messages/${cafe.ent}`);
     await p.goBack();
@@ -569,9 +569,9 @@ describe('la barre du Cabinet, à la souris', () => {
     const erreurs: string[] = [];
     p.on('pageerror', (e) => erreurs.push(e.message));
     await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
-    await ouvrir(p, cab.id, '#/priorites');
+    await ouvrir(p, cab.id, '#/production');
     const routes = () => p.locator('#nav .nav-quotidien > a.lien').evaluateAll((l) => l.map((a) => (a as HTMLElement).dataset.route));
-    expect(await routes()).toEqual(['priorites', 'pieces', 'echeances', 'production', 'messages']);
+    expect(await routes()).toEqual(['production', 'pieces', 'echeances', 'messages']);
     // Le volet dit comment faire, et chaque page qu'on peut épingler porte son épingle.
     await p.locator('#nav .nav-volet[data-famille="Le cabinet"]').click();
     const volet = p.locator('.sb-panneau');
@@ -584,12 +584,12 @@ describe('la barre du Cabinet, à la souris', () => {
     expect(await ligne.innerText()).toMatch(/^Relances\s*Dans « Mon cabinet »$/);
     expect(await ligne.locator('[data-epingle]').getAttribute('aria-label')).toBe('Retirer de « Mon cabinet » : Relances');
     await p.keyboard.press('Escape');
-    expect(await routes()).toEqual(['priorites', 'pieces', 'echeances', 'production', 'messages', 'relances', 'dossiers']);
+    expect(await routes()).toEqual(['production', 'pieces', 'echeances', 'messages', 'relances', 'dossiers']);
     // Rangée en la glissant, elle garde sa place au rechargement, et mène à sa page.
-    await p.locator('#nav .nav-quotidien > a.lien[data-route="dossiers"]').dragTo(p.locator('#nav .nav-quotidien > a.lien[data-route="priorites"]'));
-    await expect.poll(routes).toEqual(['dossiers', 'priorites', 'pieces', 'echeances', 'production', 'messages', 'relances']);
-    await ouvrir(p, cab.id, '#/priorites');
-    expect(await routes()).toEqual(['dossiers', 'priorites', 'pieces', 'echeances', 'production', 'messages', 'relances']);
+    await p.locator('#nav .nav-quotidien > a.lien[data-route="dossiers"]').dragTo(p.locator('#nav .nav-quotidien > a.lien[data-route="production"]'));
+    await expect.poll(routes).toEqual(['dossiers', 'production', 'pieces', 'echeances', 'messages', 'relances']);
+    await ouvrir(p, cab.id, '#/production');
+    expect(await routes()).toEqual(['dossiers', 'production', 'pieces', 'echeances', 'messages', 'relances']);
     await p.locator('#nav .nav-quotidien > a.lien[data-route="relances"]').click();
     await expect.poll(() => p.url()).toMatch(/#\/relances$/);
     await expect.poll(() => p.locator('#nav .nav-quotidien > a.lien[data-route="relances"]').getAttribute('aria-current')).toBe('page');
@@ -598,18 +598,18 @@ describe('la barre du Cabinet, à la souris', () => {
     await volet.locator('[data-epingle="relances"]').click();
     expect(await volet.locator('.ligne').filter({ hasText: 'Relances' }).innerText()).toMatch(/^Relances\s*Les clients à qui des mois manquent/);
     await p.keyboard.press('Escape');
-    expect(await routes()).toEqual(['dossiers', 'priorites', 'pieces', 'echeances', 'production', 'messages']);
+    expect(await routes()).toEqual(['dossiers', 'production', 'pieces', 'echeances', 'messages']);
     expect(erreurs).toEqual([]);
   });
 
-  it('au téléphone : Priorités, Messages, « + », Échéances, Plus ; le dossier ouvert dans « Plus »', async () => {
+  it('au téléphone : Tableau (de bord), Messages, « + », Échéances, Plus ; le dossier ouvert dans « Plus »', async () => {
     const { associe, cab } = await unCabinet();
     const p = await (await navigateur.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'fr-FR' })).newPage();
     await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
-    await ouvrir(p, cab.id, '#/priorites');
+    await ouvrir(p, cab.id, '#/production');
     const onglets = p.locator('.sb-onglets');
-    await expect.poll(() => onglets.locator('.sb-onglet .nom').allInnerTexts()).toEqual(['Priorités', 'Messages', 'Échéances', 'Plus']);
-    expect(await onglets.locator('.sb-onglet[aria-current="page"] .nom').innerText()).toBe('Priorités');
+    await expect.poll(() => onglets.locator('.sb-onglet .nom').allInnerTexts()).toEqual(['Tableau', 'Messages', 'Échéances', 'Plus']);
+    expect(await onglets.locator('.sb-onglet[aria-current="page"] .nom').innerText()).toBe('Tableau');
     // Rien de la barre du bureau ne reste, sauf le haut.
     expect(await p.locator('#barre .barre-milieu').isVisible()).toBe(false);
     expect(await p.locator('#barre .tete-barre').isVisible()).toBe(true);
