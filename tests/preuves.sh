@@ -21364,6 +21364,12 @@ prouver 'messages 37 : la relance d'\''un client relié propose l'\''e-mail d'\'
 prouver 'messages 38 : un dossier tenu au cabinet se voit proposer la messagerie SkanFact' web/public/v10/cabinet/app.js \
   "const relie = !D.manual && !!api.messagerie;" "const relie = !!api.messagerie;" \
   'au bureau : la liste, la proposition'
+prouver 'messages 39 : la promesse proposée oublie la pièce dont parle le client' web/public/plateforme/messagerie.js \
+  "value=\"\${esc(quoiPromis)}\" data-msg-pp-quoi>" "value=\"ses pièces \${esc(deMot(moisDavant()))}\" data-msg-pp-quoi>" \
+  '(1.184.0) la promesse nomme la pièce demandée'
+prouver 'messages 40 : « Choisir… » ne montre pas la date qu'\''on tape' web/public/plateforme/messagerie.css \
+  "  opacity: 1; width: auto; min-width: 116px;" "  opacity: 0; width: auto; min-width: 116px;" \
+  '(1.184.0) la promesse nomme la pièce demandée'
 prouver 'messages 29 : la pièce demandée sur deux étages' web/public/plateforme/messagerie.css \
   ".msg-frise-d li { flex-direction: row; align-items: baseline;" ".msg-frise-d li { flex-direction: column; align-items: baseline;" \
   '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'

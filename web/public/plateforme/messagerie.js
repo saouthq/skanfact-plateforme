@@ -1042,12 +1042,26 @@
       if (!promesseJour) promesseJour = choix[0] || dansJours(1);
       const autre = !choix.includes(promesseJour);
       const cite = m && m.texte ? `« ${esc(m.texte.length > 90 ? `${m.texte.slice(0, 90)}…` : m.texte)} » : ` : '';
+      // (1.184.0) Ce qu'il promet : la pièce demandée dont parle son message (« le relevé arrive lundi » → « le relevé
+      // bancaire d'octobre »), sinon la seule qui attend ; à défaut, ses pièces du mois passé. Avant, toujours « ses pièces
+      // de septembre », même quand il promettait le relevé demandé (parcours de A à Z du 30/10/2026).
+      const quoiPromis = (() => {
+        const sans = (/** @type {string} */ t) => String(t).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const VIDES = new Set(['votre', 'vous', 'pour', 'dans', 'avec', 'cette', 'mois', 'demain', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi', 'dimanche', 'promis', 'promets', 'arrive', 'envoie', 'envoyer', 'semaine', 'merci', 'bonjour']);
+        const motsDe = (/** @type {string} */ t) => sans(t).split(/[^a-z0-9]+/).filter((w) => w.length > 3 && !VIDES.has(w));
+        const dit = new Set(motsDe(m && m.texte ? m.texte : ''));
+        const attendues = [...demandes().values()].filter((x) => !x.demande.recueLe);
+        const visee = attendues.find((x) => motsDe(x.demande.texte).some((w) => dit.has(w))) || (attendues.length === 1 ? attendues[0] : null);
+        if (!visee) return `ses pièces ${deMot(moisDavant())}`;
+        const t = String(visee.demande.texte).trim();
+        return /^[A-Z]{2}/.test(t) ? t : t.charAt(0).toLowerCase() + t.slice(1);
+      })();
       return `<div class="msg-ligne msg-ligne-pop"><div class="msg-promesse-pop" role="group" aria-labelledby="msg-pp-t" data-msg-pp="${esc(m ? m.id : 'menu')}">
         <b id="msg-pp-t">Noter la promesse ${esc(deMot(qui))}</b>
         <p>${cite}la conversation passe dans « Attend le client » et revient seule si rien n'arrive.</p>
         <div class="msg-pp-jours" role="radiogroup" aria-label="Pour quel jour">${choix.map((j) => `<button type="button" role="radio" class="msg-pp-j" aria-checked="${j === promesseJour}" data-msg-pp-jour="${j}">${esc(jourCourt(j))}</button>`).join('')}
           <label class="msg-pp-j msg-pp-autre${autre ? ' choisi' : ''}"><span>${autre ? esc(jourCourt(promesseJour)) : 'Choisir…'}</span><input type="date" min="${dansJours(0)}" value="${esc(promesseJour)}" data-msg-pp-date aria-label="Un autre jour"></label></div>
-        <label class="msg-pp-quoi"><span>Ce qu'il promet</span><input type="text" maxlength="200" value="ses pièces ${esc(deMot(moisDavant()))}" data-msg-pp-quoi></label>
+        <label class="msg-pp-quoi"><span>Ce qu'il promet</span><input type="text" maxlength="200" value="${esc(quoiPromis)}" data-msg-pp-quoi></label>
         <p class="msg-refus" role="alert" data-msg-pp-refus></p>
         <span class="msg-pp-gestes"><button type="button" class="btn btn-sm" data-msg-pp-non>Annuler</button><button type="button" class="btn btn-sm btn-primary" data-msg-pp-oui>Noter pour ${esc(nomDuJour(promesseJour))}</button></span></div></div>`;
     }

@@ -493,4 +493,33 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 180_000);
+
+  it('(1.184.0) la promesse nomme la pièce demandée dont parle le client ; « Choisir… » montre la date qu\'on tape', async () => {
+    const leila = await personne('Leïla Jlassi');
+    const cab = (await api('POST', '/cabinets', leila, { nom: 'Jlassi Conseil' })).corps as { id: string; code: string };
+    const fatma = await personne('Fatma Jebali');
+    const ent = String((await api('POST', '/entreprises', fatma, { raisonSociale: 'Épicerie Essaada' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, fatma, { codeCabinet: cab.code })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, leila)).statut).toBe(200);
+    expect((await api('PUT', `/cabinets/${cab.id}/fiches/${ent}`, leila, { contenu: { contact: 'Fatma Jebali' }, revision: null })).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/messages`, leila, { cote: 'cabinet', texte: 'Il me manque :', demandes: ['La carte d\'identification fiscale', 'Le relevé bancaire d\'octobre'] })).statut).toBe(201);
+    expect((await api('POST', `/entreprises/${ent}/messages`, fatma, { cote: 'entreprise', texte: 'Le relevé arrive lundi, promis.' })).statut).toBe(201);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, leila);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages/${ent}`);
+    const pop = p.locator('[data-msg-pp]');
+    await pop.waitFor({ timeout: 25_000 });
+    // Deux pièces attendent ; son message parle du relevé : c'est lui qu'elle promet, pas « ses pièces du mois ».
+    expect(await pop.locator('[data-msg-pp-quoi]').inputValue()).toBe('le relevé bancaire d\'octobre');
+    // Le champ de date du Cabinet est un texte (sans calendrier) : invisible, il se montre au clic et la date s'y tape.
+    const date = pop.locator('[data-msg-pp-date]');
+    expect(await date.evaluate((e) => getComputedStyle(e).opacity)).toBe('0');
+    await pop.locator('.msg-pp-autre').click();
+    await expect.poll(() => date.evaluate((e) => getComputedStyle(e).opacity)).toBe('1');
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
 });
