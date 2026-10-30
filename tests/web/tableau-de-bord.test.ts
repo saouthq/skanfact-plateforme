@@ -141,8 +141,27 @@ describe('le Tableau de bord du Cabinet, à la souris', () => {
     expect(await p.locator('#tb-afaire .afaire-ligne').filter({ hasText: 'Librairie Ennour' }).count()).toBe(0);
     for (const t of await p.locator('#tb-afaire .afaire-ligne:not(:has(.marque-s.cab)) .afaire-txt').allInnerTexts()) expect(t).toMatch(/Menuiserie Ben Ali/);
     expect(await p.locator('.tb-qui [data-tb-qui]').filter({ hasText: 'Rim' }).getAttribute('aria-pressed')).toBe('true');
+    // (1.195.0) La ligne du haut suit la personne ; un filtre sans dossier dit chez qui, et le filtre qu'on retire.
+    expect(await p.locator('.ctx-cab').innerText()).toMatch(/Mon cabinet · 1 dossier confié à Rim/);
+    await p.locator('[data-tb-filtre="manque"]').click();
+    await expect.poll(() => p.locator('#tb-vide').innerText().catch(() => '')).toMatch(/^Aucune pièce manquante dans les dossiers de Rim\s+Les autres filtres, et « Tout le cabinet », sont au-dessus\.\s+Retirer le filtre « Pièces manquantes »$/);
+    await p.locator('#tb-vide [data-tb-filtre="tous"]').click();
+    await expect.poll(lignes).toEqual(['Menuiserie Ben Ali']);
     await p.locator('.tb-qui [data-tb-qui=""]').click();
     await expect.poll(async () => (await lignes()).length).toBe(3);
+
+    // (1.195.0) « Une période… » : du mois au mois, parmi les mois finis.
+    await p.locator('#tb-per').click();
+    await p.locator('#tb-per-de').selectOption(moisFini);
+    await p.locator('#tb-per-a').selectOption(moisFini);
+    await p.locator('#tb-per-ok').click();
+    await expect.poll(() => p.locator('#tb-grille thead th.c').count()).toBe(1);
+    expect(await p.locator('#tb-dossiers .tb-sous').innerText()).toMatch(/^La période choisie · /);
+    expect(await p.locator('#tb-per').getAttribute('aria-pressed')).toBe('true');
+    await p.locator('[data-tb-periode="6"]').click();
+    await expect.poll(() => p.locator('#tb-grille thead th.c').count()).toBe(2);
+    // Les prochaines dates disent combien de dossiers elles concernent (trois au plus ici).
+    for (const n of await p.locator('#tb-dates .der-m b').allInnerTexts()) expect(n).toMatch(/^[0-3] dossiers?$/);
 
     // La charge de chacun : Rim saisit la menuiserie.
     const charge = p.locator('#tb-charge');
@@ -166,6 +185,8 @@ describe('le Tableau de bord du Cabinet, à la souris', () => {
     await expect.poll(() => menu.innerText().catch(() => '')).toMatch(/Ouvrir sa comptabilité/);
     expect(await menu.innerText()).toMatch(/Écrire à Hédi/);
     expect(await menu.innerText()).toMatch(/suivi par Rim/i);
+    // (1.195.0) Confier, sans quitter le tableau de bord.
+    expect(await menu.innerText()).toMatch(/Confier à quelqu'un…\s+aujourd'hui : Rim/);
     await menu.getByRole('menuitem').filter({ hasText: 'Sa fiche' }).click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/dossier/${menuiserie.ent}`);
 
@@ -191,7 +212,10 @@ describe('le Tableau de bord du Cabinet, à la souris', () => {
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     expect(await p.locator('#bandeau-ordinateur').count()).toBe(0);
     await expect.poll(() => p.locator('.sb-onglets .sb-onglet[aria-current="page"] .nom').innerText()).toBe('Tableau');
-    // La grille, plus large que l'écran, défile dans son cadre.
+    // (1.195.0, maquette vue téléphone) Les trois derniers mois au plus, sans « Sur la période ».
+    expect(await p.locator('#tb-grille thead th.c').count()).toBeLessThanOrEqual(3);
+    expect(await p.locator('#tb-grille td.tb-av').count()).toBe(0);
+    // La grille défile dans son cadre si elle est plus large que l'écran.
     expect(await p.locator('#tb-dossiers .lf-tab').evaluate((e) => getComputedStyle(e).overflowX)).toBe('auto');
     // Au doigt, le menu ⋯ d'une ligne se touche (44 points).
     const bouton = await p.locator('#tb-grille .tb-trois').first().boundingBox();

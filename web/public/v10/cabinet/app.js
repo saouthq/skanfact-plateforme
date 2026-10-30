@@ -2608,8 +2608,8 @@
   // ---------- Ce qui sert au Tableau de bord, la page d'arrivée du Cabinet ----------
   function ctxCabinet(o = {}) {
     const n = mesDossiers().length;
-    const qui = !n ? (estAssocie() && portee() === 'miens' ? 'aucun dossier ne t\'est confié' : 'aucun dossier encore')
-      : estAssocie() && portee() === 'tous' ? `${n > 1 ? 'les ' : ''}${pl(n, 'dossier')} du cabinet` : estAssocie() ? `${n > 1 ? 'les ' : ''}${pl(n, 'dossier')} que tu tiens` : `${n > 1 ? 'tes ' : ''}${pl(n, 'dossier')} confié${n > 1 ? 's' : ''}`;
+    const qui = o.texte || (!n ? (estAssocie() && portee() === 'miens' ? 'aucun dossier ne t\'est confié' : 'aucun dossier encore')
+      : estAssocie() && portee() === 'tous' ? `${n > 1 ? 'les ' : ''}${pl(n, 'dossier')} du cabinet` : estAssocie() ? `${n > 1 ? 'les ' : ''}${pl(n, 'dossier')} que tu tiens` : `${n > 1 ? 'tes ' : ''}${pl(n, 'dossier')} confié${n > 1 ? 's' : ''}`);
     return `<div class="ctx-cab"><span class="ctx-ic">${icB('production', 16, 2)}</span><span><b>Mon cabinet</b> · ${qui}</span>${estAssocie() && !o.sansPortee
       ? `<span class="portee" role="group" aria-label="Quels dossiers"><button type="button" data-portee-page="miens" aria-pressed="${portee() === 'miens'}">Les miens</button><button type="button" data-portee-page="tous" aria-pressed="${portee() === 'tous'}">Tous</button></span>` : ''}</div>`;
   }
@@ -2623,7 +2623,7 @@
   // maquette ». Une page : ce qui est à faire maintenant (les Priorités, le plus pressé d'abord), puis où en est le travail
   // (la campagne du mois, la grille de production, la charge de chacun, les prochaines dates). Tout est LU (les livres,
   // les déclarations pointées) : rien ne se coche ici. Le filtre d'une personne vaut pour toute la page.
-  const tbState = { qui: '', filtre: 'tous', q: '', periode: 6, tout: false, avoir: false };
+  const tbState = { qui: '', filtre: 'tous', q: '', periode: 6, tout: false, avoir: false, choixP: false };
   const ETAPES_TB = [['fini', 'Déposée'], ['declare', 'Prête'], ['revise', 'À réviser'], ['saisi', 'À saisir'], ['recu', 'Sans pièces']];
   const SIGNE_TB = { recu: ['○', 'pièces manquantes'], saisi: ['!', 'à saisir'], revise: ['◐', 'à réviser'], declare: ['◉', 'prêt à déposer'], fini: ['✓', 'déposé'], hors: ['–', 'hors mission'] };
   const TB_IC = {
@@ -2631,6 +2631,7 @@
     loupe: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
     trois: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
     chev: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>',
+    cal: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
   };
   // Le jour où la déclaration d'un mois est due pour un dossier (celui que dit sa Déclaration : le 28, le 15 pour une
   // personne physique, réglages du cabinet, À VÉRIFIER) ; un mois est « en retard » quand ce jour est passé et qu'il n'est pas déposé.
@@ -2693,10 +2694,25 @@
     </div>`;
   }
   // La grille : un dossier par ligne, un mois par colonne, la barre de la période et ce qui reste par colonne.
+  // (1.195.0) Au téléphone (la maquette, vue téléphone) : les trois derniers mois, huit dossiers, sans « Sur la période ».
+  const telTb = () => !!(window.matchMedia && window.matchMedia('(max-width: 760px)').matches);
+  const moisApres = m => { const an = Number(m.slice(0, 4)), n = Number(m.slice(5, 7)); return n === 12 ? `${an + 1}-01` : `${an}-${String(n + 1).padStart(2, '0')}`; };
+  const moisEntre = (de, a) => { const l = []; for (let m = de; m <= a && l.length < 36; m = moisApres(m)) l.push(m); return l; };
+  const tousMoisTb = L => [...new Set(L.flatMap(x => x.l.mois.map(c => c.mois)))].sort();
   function colonnesTb(L) {
-    const tous = [...new Set(L.flatMap(x => x.l.mois.map(c => c.mois)))].sort();
+    const tous = tousMoisTb(L);
     if (!tous.length) return { cols: [], titre: '' };
     const dernier = tous[tous.length - 1];
+    // « Une période… » : les mois choisis, bornés aux mois finis.
+    if (tbState.periode && typeof tbState.periode === 'object') {
+      const de = tbState.periode.de < tous[0] ? tous[0] : tbState.periode.de, a = tbState.periode.a > dernier ? dernier : tbState.periode.a;
+      const cols = moisEntre(de, a);
+      return { cols, titre: 'La période choisie', sous: `${moisLong(cols[0])}${cols[0].slice(0, 4) !== a.slice(0, 4) ? ` ${cols[0].slice(0, 4)}` : ''} à ${moisLong(a)} ${a.slice(0, 4)}`, dernier: a };
+    }
+    if (telTb() && tbState.periode === 6) {
+      const cols = tous.slice(-3);
+      return { cols, titre: '', sous: `${moisCourt(cols[0])} – ${moisCourt(dernier)} ${dernier.slice(0, 4)}`, dernier };
+    }
     if (tbState.periode === 'annee') {
       const an = dernier.slice(0, 4);
       const cols = Array.from({ length: 12 }, (_, i) => `${an}-${String(i + 1).padStart(2, '0')}`);
@@ -2722,14 +2738,20 @@
     const q = tbState.q.trim().toLowerCase();
     const fl = L.filter(x => (!q || x.d.name.toLowerCase().includes(q) || String(x.d.matricule || '').toLowerCase().includes(q)) && filtre(x));
     const tri = [...fl].sort((a, b) => (b.manque * 10 + b.aSaisir * 5 + b.aReviser) - (a.manque * 10 + a.aSaisir * 5 + a.aReviser) || a.d.name.localeCompare(b.d.name, 'fr'));
-    const montre = tbState.tout ? tri : tri.slice(0, 12);
+    const tel = telTb();
+    const montre = tbState.tout ? tri : tri.slice(0, tel ? 8 : 12);
     const nRetard = L.reduce((t, x) => t + x.retard.length, 0);
     const puce = (cle, t, n, ton) => `<button type="button" class="t-puce${ton ? ' ' + ton : ''}" data-tb-filtre="${cle}" aria-pressed="${tbState.filtre === cle}">${t} <b>${n}</b></button>`;
     const nomEtape = tbState.filtre.startsWith('et:') ? (ETAPES_TB.find(([e]) => e === tbState.filtre.slice(3)) || [])[1] : '';
     const puces = `<div class="tb-puces">${puce('tous', 'Tous', L.length)}${puce('retard', 'En retard', L.filter(FILTRES_TB.retard).length, 'alerte')}${puce('manque', 'Pièces manquantes', L.filter(FILTRES_TB.manque).length)}${puce('saisir', 'À saisir', L.filter(FILTRES_TB.saisir).length)}${puce('reviser', 'À réviser', L.filter(FILTRES_TB.reviser).length)}${L.some(FILTRES_TB.tenus) ? puce('tenus', 'Tenus', L.filter(FILTRES_TB.tenus).length) : ''}${nomEtape ? `<button type="button" class="t-puce tb-p-et" data-tb-filtre="tous" aria-pressed="true">${esc(cap(moisLong(moisC)))} : ${esc(nomEtape.toLowerCase())} <b>${fl.length}</b> <span aria-hidden="true">×</span></button>` : ''}</div>`;
     const seg = `<div class="segment" role="group" aria-label="La période">${[[6, '6 mois'], ['annee', `L'année ${(moisC || K.today()).slice(0, 4)}`], [12, '12 mois']].map(([v, t]) => `<button type="button" data-tb-periode="${v}" aria-pressed="${tbState.periode === v}">${esc(t)}</button>`).join('')}</div>`;
-    const filtres = `<div class="filtres"><label class="cherche">${TB_IC.loupe}<input type="search" id="tb-q" placeholder="Chercher un dossier, un matricule…" aria-label="Chercher un dossier" value="${esc(tbState.q)}"></label>${seg}</div>`;
-    const tete = `<div class="a-bloc-t"><h2>Les dossiers ${info('eq.production')}</h2><span class="tb-cnt ${nRetard ? 'alerte' : 'ok'}" id="tb-retard">${nRetard ? `${pl(nRetard, 'mois', 'mois')} en retard` : 'à jour'}</span><span class="small muted tb-sous">${esc(P.titre)}${P.sous ? ` · ${esc(P.sous)}` : ''}</span></div>`;
+    // « Une période… » : du mois au mois, parmi les mois finis.
+    const perso = tbState.periode && typeof tbState.periode === 'object';
+    const tousM = tousMoisTb(L), optM = sel => tousM.map(m => `<option value="${m}"${m === sel ? ' selected' : ''}>${esc(cap(moisLong(m)))} ${m.slice(0, 4)}</option>`).join('');
+    const perDe = perso ? tbState.periode.de : tousM[Math.max(0, tousM.length - 6)], perA = perso ? tbState.periode.a : tousM[tousM.length - 1];
+    const per = tousM.length > 1 ? `<span class="tb-per-w"><button type="button" class="btn tb-per-b" id="tb-per" aria-expanded="${!!tbState.choixP}" aria-pressed="${perso}">${TB_IC.cal}${perso ? `${esc(moisCourt(P.cols[0]))} – ${esc(moisCourt(P.dernier))} ${esc(P.dernier.slice(0, 4))}` : 'Une période…'}</button>${tbState.choixP ? `<div class="tb-per-pop" id="tb-per-pop" role="dialog" aria-label="Choisir une période"><label>Du <select id="tb-per-de">${optM(perDe)}</select></label><label>au <select id="tb-per-a">${optM(perA)}</select></label><span class="tb-per-g"><button type="button" class="btn btn-sm btn-primary" id="tb-per-ok">Voir ces mois</button>${perso ? '<button type="button" class="btn btn-sm" id="tb-per-x">Six derniers mois</button>' : ''}</span></div>` : ''}</span>` : '';
+    const filtres = `<div class="filtres"><label class="cherche">${TB_IC.loupe}<input type="search" id="tb-q" placeholder="Chercher un dossier, un matricule…" aria-label="Chercher un dossier" value="${esc(tbState.q)}"></label>${seg}${per}</div>`;
+    const tete = `<div class="a-bloc-t"><h2>Les dossiers ${info('eq.production')}</h2><span class="tb-cnt ${nRetard ? 'alerte' : 'ok'}" id="tb-retard">${nRetard ? `${pl(nRetard, 'mois', 'mois')} en retard` : 'à jour'}</span><span class="small muted tb-sous">${esc([P.titre, P.sous].filter(Boolean).join(' · '))}</span></div>`;
     const cell = (x, m) => {
       if (m > P.dernier) return '<td class="c tb-c"><span class="prod-p prod-avenir" aria-label="pas fini"></span></td>';
       const c = x.mois.get(m);
@@ -2750,21 +2772,27 @@
       if (!vus.some(m => m <= P.dernier)) return '<td class="tb-av"><small class="muted">hors mission</small></td>';
       return `<td class="tb-av"><span class="tb-seg${vus.length > 7 ? ' long' : ''}" title="${f} mois déclarés sur ${dus.length}${tard ? ` · ${tard} en retard` : ''}">${vus.map(m => `<i class="${ton(m)}"></i>`).join('')}</span><b class="tb-seg-n${tard ? ' tard' : ''}">${f}<small>/${dus.length}</small></b></td>`;
     };
-    const ligne = x => `<tr class="clickable" data-tb-id="${esc(x.d.id)}"><td class="cl"><span class="cl-i">${marqueD(x.d)}<span><b>${esc(x.d.name)}</b><small>${x.d.manual ? 'Tenu au cabinet' : 'Sur SkanFact'}${tousCab && x.eq.suit ? ` · ${esc(prenomDe(x.eq.suit))}` : ''}</small></span></span></td>${P.cols.map(m => cell(x, m)).join('')}${avance(x)}<td class="actions row-actions tb-m"><button type="button" class="row-menu-btn tb-trois" data-rowmenu="TB:${esc(x.d.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(`Ce qu'on peut faire pour ${x.d.name}`)}" title="Ce qu'on peut faire ici">${TB_IC.trois}</button></td></tr>`;
+    const ligne = x => `<tr class="clickable" data-tb-id="${esc(x.d.id)}"><td class="cl"><span class="cl-i">${marqueD(x.d)}<span><b>${esc(x.d.name)}</b><small>${x.d.manual ? 'Tenu au cabinet' : 'Sur SkanFact'}${tousCab && x.eq.suit ? ` · ${esc(prenomDe(x.eq.suit))}` : ''}</small></span></span></td>${P.cols.map(m => cell(x, m)).join('')}${tel ? '' : avance(x)}<td class="actions row-actions tb-m"><button type="button" class="row-menu-btn tb-trois" data-rowmenu="TB:${esc(x.d.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(`Ce qu'on peut faire pour ${x.d.name}`)}" title="Ce qu'on peut faire ici">${TB_IC.trois}</button></td></tr>`;
     const pied = `<tr class="tb-pied-l"><td><b>Déclarés</b><small>${pl(fl.length, 'dossier')}</small></td>${P.cols.map(m => {
       if (m > P.dernier) return '<td class="c"><small class="muted">à venir</small></td>';
       const dus = fl.filter(x => x.mois.has(m) && x.mois.get(m).etape !== 'hors'), f = dus.filter(x => x.mois.get(m).etape === 'fini').length;
       return `<td class="c"><b class="${f < dus.length ? 'tb-pas' : ''}">${f}</b><small>sur ${dus.length}</small></td>`;
-    }).join('')}${(() => { let dus = 0, f = 0; fl.forEach(x => P.cols.forEach(m => { const c = m <= P.dernier && x.mois.get(m); if (c && c.etape !== 'hors') { dus++; if (c.etape === 'fini') f++; } })); return `<td class="r"><b>${dus ? Math.round(f / dus * 100) : 0} %</b><small>${f} sur ${dus} mois</small></td>`; })()}<td></td></tr>`;
-    const th = `<tr><th>Dossier</th>${P.cols.map(m => `<th class="c${m > P.dernier ? ' tb-th-av' : ''}">${esc(moisCourt(m))}</th>`).join('')}<th class="r">Sur la période</th><th class="cx"></th></tr>`;
+    }).join('')}${tel ? '' : (() => { let dus = 0, f = 0; fl.forEach(x => P.cols.forEach(m => { const c = m <= P.dernier && x.mois.get(m); if (c && c.etape !== 'hors') { dus++; if (c.etape === 'fini') f++; } })); return `<td class="r"><b>${dus ? Math.round(f / dus * 100) : 0} %</b><small>${f} sur ${dus} mois</small></td>`; })()}<td></td></tr>`;
+    const th = `<tr><th>Dossier</th>${P.cols.map(m => `<th class="c${m > P.dernier ? ' tb-th-av' : ''}">${esc(moisCourt(m))}</th>`).join('')}${tel ? '' : '<th class="r">Sur la période</th>'}<th class="cx"></th></tr>`;
     const corps = !fl.length
       ? (q ? `<div class="tb-vide" id="tb-vide"><b>Aucun dossier ne s'appelle « ${esc(tbState.q)} »</b><span>La recherche lit le nom et le matricule de tous les dossiers que tu suis, quel que soit le filtre.</span><button type="button" class="btn btn-sm" id="tb-q-effacer">Effacer la recherche</button></div>`
-        : `<div class="tb-vide tb-vide-ok" id="tb-vide">${icB('coche', 18, 2.4)}<b>Aucun dossier dans ce filtre</b><span>Les autres filtres sont au-dessus.</span><button type="button" class="btn btn-sm" data-tb-filtre="tous">Voir tous les dossiers</button></div>`)
+        : (() => {
+          // (1.195.0, maquette « Un filtre sans dossier ») Ce que le filtre ne trouve pas, chez qui, et le filtre qu'on retire.
+          const LIB = { retard: ['Aucun dossier en retard', 'En retard'], manque: ['Aucune pièce manquante', 'Pièces manquantes'], saisir: ['Aucun mois à saisir', 'À saisir'], reviser: ['Aucun mois à réviser', 'À réviser'], tenus: ['Aucun dossier tenu au cabinet', 'Tenus'] };
+          const [t, lib] = nomEtape ? [`Aucun dossier « ${nomEtape.toLowerCase()} » en ${moisLong(moisC)}`, `${cap(moisLong(moisC))} : ${nomEtape.toLowerCase()}`] : (LIB[tbState.filtre] || ['Aucun dossier dans ce filtre', '']);
+          const chez = tbState.qui && collabDe(tbState.qui) ? ` dans les dossiers de ${prenomDe(collabDe(tbState.qui))}` : '';
+          return `<div class="tb-vide tb-vide-ok" id="tb-vide">${icB('coche', 18, 2.4)}<b>${esc(t + chez)}</b><span>${tbState.qui ? 'Les autres filtres, et « Tout le cabinet », sont au-dessus.' : 'Les autres filtres sont au-dessus.'}</span><button type="button" class="btn btn-sm" data-tb-filtre="tous">${lib ? `Retirer le filtre « ${esc(lib)} »` : 'Voir tous les dossiers'}</button></div>`;
+        })())
       : `<div class="lf-tab"><table class="lf-table tb-t" id="tb-grille"><thead>${th}</thead><tbody>${montre.map(ligne).join('')}</tbody><tfoot>${pied}</tfoot></table></div>${tri.length > montre.length ? `<div class="tb-pager"><span class="mu">1–${montre.length} sur ${tri.length} dossiers</span><button type="button" class="btn btn-sm" id="tb-tout">Voir les ${tri.length - montre.length} autres</button></div>` : ''}`;
     const leg = `<div class="leg tb-leg">${['recu', 'saisi', 'revise', 'declare', 'fini', 'hors'].map(e => `<span><span class="prod-p prod-${e}">${SIGNE_TB[e][0]}</span>${SIGNE_TB[e][1]}</span>`).join('')}${P.cols.some(m => m > P.dernier) ? '<span><span class="prod-p prod-avenir"></span>à venir</span>' : ''}</div>`;
     return `<div class="panel tb-p tb-grille" id="tb-dossiers"><div class="lf">${tete}${filtres}${puces}${corps}${leg}</div></div>`;
   }
-  const ROLE_TB = { supervision: 'direction', validation: 'tenue des dossiers', revision: 'tenue des dossiers', saisie: 'saisie', paie: 'paie' };
+  const ROLE_TB = { supervision: 'direction du cabinet', validation: 'tenue des dossiers', revision: 'tenue des dossiers', saisie: 'saisie', paie: 'paie' };
   // La charge de chacun : ce qui attend chaque personne (saisir revient à qui suit ; réviser et déposer, à qui valide).
   function chargeTb(L) {
     if (!estAssocie() || portee() !== 'tous') return '';
@@ -2778,7 +2806,11 @@
     });
     const max = Math.max(1, ...rows.map(r => r.tot));
     return `<div class="panel a-top tb-charge" id="tb-charge"><div class="a-bloc-t"><h2>La charge de chacun</h2><span class="small muted">ce qui attend la personne</span></div><ul class="rank">${rows.map(r => `<li><button type="button" class="top-l${tbState.qui === r.c.id ? ' tb-on' : ''}" data-tb-qui="${esc(r.c.id)}" title="Ne voir que les dossiers de ${esc(r.c.nom)}">${persCd(r.c, 30)}<span class="top-n"><b class="name">${esc(r.c.nom)} <small class="mu">· ${esc(ROLE_TB[r.c.role] || r.c.role || '')}</small></b>${r.tot ? `<span class="tb-pile" style="width:${Math.max(4, Math.round(r.tot / max * 100))}%">${r.n.map((v, i) => (v ? `<em class="tb-cb-${PARTS[i][2]}" style="flex:${v}" title="${v} ${PARTS[i][1]}"></em>` : '')).join('')}</span>` : ''}<small class="tb-ch-s">${r.n.map((v, i) => (v ? `${v} ${PARTS[i][1]}` : '')).filter(Boolean).join(' · ') || 'rien qui attende'}${r.attend ? ` · ${pl(r.attend, 'mois attend', 'mois attendent')} le client` : ''}</small></span><span class="amt${r.tot ? '' : ' tb-zero'}">${r.tot}</span></button></li>`).join('')}</ul>
-      <p class="tb-note">Saisir revient à qui suit le dossier ; réviser et déposer, à qui valide. Un clic ne garde que les dossiers d'une personne.</p></div>`;
+      <p class="tb-note">Saisir revient à qui suit le dossier ; réviser et déposer, à qui valide${(() => {
+        // (1.195.0) Qui valide pour qui, quand ce n'est pas la même personne (« Leïla pour les dossiers de Rim »).
+        const paires = [...new Set(L.filter(x => x.eq.val && x.eq.suit && x.eq.val.id !== x.eq.suit.id).map(x => `${prenomDe(x.eq.val)} pour les dossiers de ${prenomDe(x.eq.suit)}`))];
+        return paires.length ? ` (${esc(paires.join(', '))})` : '';
+      })()}. Un clic ne garde que les dossiers d'une personne.</p></div>`;
   }
   // Les prochaines dates : les échéances à venir de mes dossiers, la plus proche d'abord.
   function prochainesTb() {
@@ -2788,7 +2820,9 @@
     const auj = K.today();
     return `<div class="panel a-der" id="tb-dates"><div class="a-bloc-t"><h2>Les prochaines dates</h2></div>${l.map(x => {
       const j = joursEntre(auj, x.e.date);
-      const n = x.lignes.length || x.e.clients || 0;
+      // Combien de dossiers la date concerne : ceux de la déclaration, ou ceux qu'elle concernera (une date à venir).
+      let n = x.lignes.length;
+      if (!n && x.groupe === 'avenir') n = mesDossiers().filter(concerneAVenir(x.e)).length;
       return `<a class="der-l" href="#/echeances"><span class="der-n"><b>${esc(x.t ? x.t.titre || x.e.label : x.e.label)}</b><small>${esc(jourSemaine(x.e.date))} ${esc(jourMois(x.e.date))}${j > 0 ? ` · dans ${pl(j, 'jour')}` : j === 0 ? ' · aujourd\'hui' : ''} (À VÉRIFIER)</small></span><span class="der-m">${n ? `<b>${esc(pl(n, 'dossier'))}</b>` : ''}<span class="badge">${j === 0 ? 'Aujourd\'hui' : 'À venir'}</span></span></a>`;
     }).join('')}<div class="der-g"><a class="btn btn-sm" href="#/echeances">Toutes les échéances</a></div></div>`;
   }
@@ -2816,6 +2850,18 @@
     pageTableau(view, prodState.erreur ? 'refus' : '');
     typographie(view);
   }
+  // (1.195.0, maquette « Aucun livre ouvert ») Le tableau de bord qui se remplit : les clients sont là, aucun livre n'est
+  // ouvert ; trois pas, dans l'ordre où l'on s'y prend.
+  function remplirTb() {
+    const n = dossiersActifs().length, code = api.codeCabinet ? api.codeCabinet() : '';
+    const pas = [
+      ['Ouvre le livre d\'un client', 'Choisis l\'exercice et le plan de comptes ; ses mois entrent dans la grille.', '<a class="btn btn-sm btn-primary" href="#/dossiers">Choisir un client à tenir…</a>'],
+      ['Invite un client sur SkanFact', 'Ses ventes et ses achats arrivent d\'eux-mêmes : rien à ressaisir, et la campagne sait ce qui manque.', code ? `<span class="tb-dem-code"><span class="code-inline">${esc(code)}</span><button type="button" class="btn btn-sm" data-copier-code-cab>Copier le code</button></span>` : ''],
+      ['Vérifie ses obligations', 'Régime, TVA, retenues : SkanFact en déduit ses échéances (À VÉRIFIER avec le dossier).', '<a class="btn btn-sm" href="#/dossiers">Ouvrir les fiches</a>'],
+    ];
+    return `<div class="panel tb-p tb-dem" id="tb-vide"><div class="tb-dem-t"><span class="tb-dem-ic">${icB('production', 22, 2)}</span><span><b>Ton tableau de bord se remplit avec tes dossiers</b><small>${n > 1 ? `Tes ${n} clients sont là.` : 'Ton client est là.'} Dès qu'un livre est ouvert, le tableau suit chaque mois : la campagne de déclaration et la grille des dossiers.</small></span></div>
+      <ol class="tb-dem-pas">${pas.map(([t, s, g], i) => `<li><span class="tb-dem-n">${i + 1}</span><b>${esc(t)}</b><span>${esc(s)}</span>${g}</li>`).join('')}</ol></div>`;
+  }
   function pageTableau(view, etat) {
     const pri = prioritesDuJour();
     const vide = !dossiersActifs().length;
@@ -2836,10 +2882,14 @@
     const corps = vide ? etapesCabinetNeuf()
       : etat === 'chargement' ? `${aFaireTb(pri)}<div class="panel tb-hero tb-hero-sq"><div class="tb-sq"><i></i><i></i><i></i></div></div>`
         : etat === 'refus' ? `${aFaireTb(pri)}<div class="panel tb-p"><div class="bandeau rouge" id="tb-refus">${icB('cadenas', 18, 2)}<span class="txt"><b>La grille ne s'est pas lue</b><span>${esc(prodState.erreur)}</span></span><button type="button" class="btn" id="tb-relire">Réessayer</button></div></div>`
-          : L.length && !P.cols.length ? `${aFaireTb(pri)}<div class="panel tb-p" id="tb-dossiers"><div class="tb-vide" id="tb-sans-mois"><b>Aucun mois fini à suivre pour l'instant</b><span>Un mois entre dans la grille une fois terminé. Le mois en cours se suit dans la comptabilité de chaque client : ${esc(L.slice(0, 3).map(x => x.d.name).join(', '))}${L.length > 3 ? '…' : ''}.</span><button type="button" class="btn btn-sm" id="tb-vers-dossiers">Voir mes dossiers</button></div></div>`
-          : !L.length ? `${aFaireTb(pri)}<div class="panel tb-p"><div class="tb-vide" id="tb-vide"><b>${tbState.qui ? 'Aucun dossier n\'est confié à cette personne' : 'Aucun livre n\'est encore ouvert'}</b><span>${tbState.qui ? 'Un dossier se confie dans sa fiche.' : 'La grille suit les livres de tes dossiers : ouvre la comptabilité d\'un client pour qu\'il y entre.'}</span><button type="button" class="btn btn-sm${tbState.qui ? '' : ' btn-primary'}" id="tb-vers-dossiers">${tbState.qui ? 'Tout le cabinet' : 'Voir mes dossiers'}</button></div></div>`
+          : L.length && !P.cols.length ? `${aFaireTb(pri)}<div class="panel tb-p" id="tb-dossiers"><div class="tb-vide" id="tb-sans-mois"><b>Aucun mois fini à suivre pour l'instant</b><span>${(() => { const debut = L.map(x => String(x.d.from || '').slice(0, 7)).filter(Boolean).sort()[0] || K.today().slice(0, 7); return `Le cabinet tient ces dossiers depuis ${esc(moisLong(debut))} : ${esc(moisLong(debut))} entrera dans la grille le 1er ${esc(moisLong(moisApres(debut)))}.`; })()} Un mois entre dans la grille une fois terminé. Le mois en cours se suit dans la comptabilité de chaque client : ${esc(L.slice(0, 3).map(x => x.d.name).join(', '))}${L.length > 3 ? '…' : ''}.</span><button type="button" class="btn btn-sm" id="tb-vers-dossiers">Voir mes dossiers</button></div></div>`
+          : !L.length && tbState.qui ? `${aFaireTb(pri)}<div class="panel tb-p"><div class="tb-vide" id="tb-vide"><b>Aucun dossier n'est confié à cette personne</b><span>Un dossier se confie dans sa fiche, ou d'un clic dans son menu ⋯.</span><button type="button" class="btn btn-sm" id="tb-vers-dossiers">Tout le cabinet</button></div></div>`
+          : !L.length ? `${aFaireTb(pri)}${remplirTb()}`
             : `${aFaireTb(pri)}${campagneTb(L, moisC)}${grilleTb(L, P)}${(() => { const g = chargeTb(L), d = prochainesTb(); return g || d ? `<div class="tb-bas${g && d ? '' : ' tb-seul'}">${g}${d}</div>` : ''; })()}`;
-    view.innerHTML = `<div class="cab-page" id="page-bord">${ctxCabinet()}
+    // (1.195.0) La ligne du haut suit la personne choisie (« les 5 dossiers confiés à Anis »).
+    const quiC = tbState.qui && collabDe(tbState.qui), nQui = quiC ? mesDossiers().filter(d => !d.archived && (equipeDe(d).suit || {}).id === quiC.id).length : 0;
+    const ctx = ctxCabinet(quiC ? { texte: nQui ? `${nQui > 1 ? 'les ' : ''}${pl(nQui, 'dossier')} confié${nQui > 1 ? 's' : ''} à ${prenomDe(quiC)}` : `aucun dossier confié à ${prenomDe(quiC)}` } : {});
+    view.innerHTML = `<div class="cab-page" id="page-bord">${ctx}
       <div class="page-head a-tete"><div><span class="a-date">${esc(jour)}</span><h1>Tableau de bord ${info('tb.page')}</h1>${phrase ? `<p class="a-phrase">${esc(phrase)}</p>` : ''}</div><div class="actions tb-act"></div></div>
       ${inboxBanner()}${qui}${corps}</div>`;
     // Les gestes de « À faire maintenant » (les mêmes que les Priorités).
@@ -2850,10 +2900,14 @@
     $$('[data-tb-qui]', view).forEach(b => { b.onclick = () => { tbState.qui = tbState.qui === b.dataset.tbQui ? '' : b.dataset.tbQui; tbState.tout = false; pageTableau(view, etat); }; });
     $$('[data-tb-etape]', view).forEach(b => { b.onclick = () => { tbState.filtre = tbState.filtre === `et:${b.dataset.tbEtape}` ? 'tous' : `et:${b.dataset.tbEtape}`; tbState.tout = false; pageTableau(view, etat); const g = $('#tb-dossiers', view); if (g) g.scrollIntoView({ block: 'start', behavior: 'smooth' }); }; });
     $$('[data-tb-filtre]', view).forEach(b => { b.onclick = () => { tbState.filtre = b.dataset.tbFiltre; tbState.tout = false; pageTableau(view, etat); }; });
-    $$('[data-tb-periode]', view).forEach(b => { b.onclick = () => { const v = b.dataset.tbPeriode; tbState.periode = v === 'annee' ? 'annee' : Number(v); pageTableau(view, etat); }; });
+    $$('[data-tb-periode]', view).forEach(b => { b.onclick = () => { const v = b.dataset.tbPeriode; tbState.periode = v === 'annee' ? 'annee' : Number(v); tbState.choixP = false; pageTableau(view, etat); }; });
     const q = $('#tb-q', view);
     if (q) q.oninput = () => { const pos = q.selectionStart; tbState.q = q.value; tbState.tout = false; pageTableau(view, etat); const n = $('#tb-q', view); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
     const qe = $('#tb-q-effacer', view); if (qe) qe.onclick = () => { tbState.q = ''; pageTableau(view, etat); };
+    const pb = $('#tb-per', view); if (pb) pb.onclick = () => { tbState.choixP = !tbState.choixP; pageTableau(view, etat); };
+    const pok = $('#tb-per-ok', view);
+    if (pok) pok.onclick = () => { const de = $('#tb-per-de', view).value, a = $('#tb-per-a', view).value; tbState.periode = de <= a ? { de, a } : { de: a, a: de }; tbState.choixP = false; pageTableau(view, etat); };
+    const px = $('#tb-per-x', view); if (px) px.onclick = () => { tbState.periode = 6; tbState.choixP = false; pageTableau(view, etat); };
     const tt = $('#tb-tout', view); if (tt) tt.onclick = () => { tbState.tout = true; pageTableau(view, etat); };
     const rl = $('#tb-relire', view); if (rl) rl.onclick = () => { prodState.lignes = null; prodState.erreur = ''; drawTableau(view); };
     const vd = $('#tb-vers-dossiers', view); if (vd) vd.onclick = () => { if (tbState.qui) { tbState.qui = ''; pageTableau(view, etat); } else location.hash = '#/dossiers'; };
@@ -2867,13 +2921,16 @@
       const eq = equipeDe(d);
       const a = [{ titre: `${d.name}${eq.suit ? ` · suivi par ${prenomDe(eq.suit)}` : ''}` },
         { icon: 'ouvrir', label: 'Ouvrir sa comptabilité', hint: 'le livre, mois par mois', run: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite`; } },
-        { icon: 'horloge', label: 'Ses échéances', hint: x && x.retard.length ? `${x.retard.map(moisLong).join(' et ')} en retard` : 'ses déclarations, par date', run: () => { location.hash = '#/echeances'; } }];
+        { icon: 'horloge', label: 'Ses échéances', hint: x && x.retard.length ? (x.retard.length > 2 ? `${pl(x.retard.length, 'mois', 'mois')} en retard, depuis ${moisLong(x.retard[0])}` : `${x.retard.map(moisLong).join(' et ')} en retard`) : 'ses déclarations, par date', run: () => { location.hash = '#/echeances'; } }];
       if (!d.manual) {
         a.push({ titre: 'Écrire' });
-        if (manque.length) a.push({ icon: 'email', label: 'Relancer', hint: `${manque.map(moisLong).join(', ')} sans pièces`, run: () => fenEcrire(d, { mois: manque }) });
-        a.push({ icon: 'email', label: `Écrire à ${prenomCl(d.contact) || 'son contact'}`, hint: 'dans votre conversation', run: () => { location.hash = `#/messages/${encodeURIComponent(d.id)}`; } });
+        if (manque.length) a.push({ icon: 'email', label: 'Relancer', hint: `${manque.length > 2 ? `${pl(manque.length, 'mois', 'mois')} sans pièces, depuis ${moisLong(manque[0])}` : `${manque.map(moisLong).join(' et ')} sans pièces`} · ${derniereRelanceCd(d)}`, run: () => fenEcrire(d, { mois: manque }) });
+        a.push({ icon: 'message', label: `Écrire à ${prenomCl(d.contact) || 'son contact'}`, hint: 'dans votre conversation', run: () => { location.hash = `#/messages/${encodeURIComponent(d.id)}`; } });
       }
-      a.push({ titre: 'Le dossier' }, { icon: 'modifier', label: 'Sa fiche', hint: 'régime, début de mission, contact', run: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}`; } });
+      a.push({ titre: 'Le dossier' });
+      // (1.195.0, maquette « Le menu ⋯ d'un dossier ») Confier, sans quitter le tableau de bord : la direction.
+      if (estAssocie()) a.push({ icon: 'client', label: 'Confier à quelqu\'un…', hint: eq.suit ? `aujourd'hui : ${prenomDe(eq.suit)}` : 'personne ne le suit encore', run: () => confierMsg(d.id) });
+      a.push({ icon: 'modifier', label: 'Sa fiche', hint: 'régime, début de mission, contact', run: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}`; } });
       return a;
     });
     const cp = $('[data-copier-code-cab]', view);
@@ -15073,9 +15130,14 @@
   };
   // (1.175.0) Une échéance à venir : chaque dossier qu'elle concernera (les personnes physiques pour la leur, les employeurs
   // pour la déclaration d'employeur), ce qui est déjà là, et un geste pour l'ouvrir.
+  // Les dossiers qu'une échéance à venir concernera (le Tableau de bord les compte, 1.195.0).
+  function concerneAVenir(e) {
+    const emp = e.id === 'employeur' ? new Set(e.employeurs || []) : null;
+    return d => !d.archived && (emp ? emp.has(d.id) : e.id !== 'tva-m' || (K.periodeTva(S, d) === 'mensuelle' && !!e.physiques === K.personnePhysique(S, d)));
+  }
   function lignesAVenir(e, x) {
     const emp = e.id === 'employeur' ? new Set(e.employeurs || []) : null;
-    const concerne = d => !d.archived && (emp ? emp.has(d.id) : e.id !== 'tva-m' || (K.periodeTva(S, d) === 'mensuelle' && !!e.physiques === K.personnePhysique(S, d)));
+    const concerne = concerneAVenir(e);
     const cnss = e.id === 'cnss';
     return mesDossiers().filter(concerne).map(d => {
       const n = e.mois.reduce((s, m) => s + ecrituresConnues(d.id, m), 0);

@@ -21516,3 +21516,22 @@ prouver 'tableau 10 : une case de la grille perd son détail au survol' web/publ
 prouver 'tableau 11 : une grille refusée le reste en revenant sur la page' web/public/v10/cabinet/app.js \
   "{ prodState.lignes = null; prodState.erreur = ''; }" "prodState.lignes = null;" \
   'au Cabinet, la Comptabilité, la Production'
+# ── 1.195.0 : les écarts du Tableau de bord contre sa maquette (revue du 30/10/2026) ──
+prouver 'tableau 12 : la ligne du haut ne suit pas la personne choisie' web/public/v10/cabinet/app.js \
+  "const ctx = ctxCabinet(quiC ? {" "const ctx = ctxCabinet(false ? {" \
+  'une page : À faire, la campagne du mois'
+prouver 'tableau 13 : un filtre vide ne dit pas chez qui' web/public/v10/cabinet/app.js \
+  "const chez = tbState.qui && collabDe(tbState.qui) ?" "const chez = false ?" \
+  'une page : À faire, la campagne du mois'
+prouver 'tableau 14 : le menu ⋯ d'"'"'un dossier sans « Confier à quelqu'"'"'un… »' web/public/v10/cabinet/app.js \
+  "if (estAssocie()) a.push({ icon: 'client', label: 'Confier" "if (false) a.push({ icon: 'client', label: 'Confier" \
+  'une page : À faire, la campagne du mois'
+prouver 'tableau 15 : la période choisie ne change pas la grille' web/public/v10/cabinet/app.js \
+  "if (tbState.periode && typeof tbState.periode === 'object') {" "if (false) {" \
+  'une page : À faire, la campagne du mois'
+prouver 'tableau 16 : les prochaines dates comptent n'"'"'importe quoi' web/public/v10/cabinet/app.js \
+  "n = mesDossiers().filter(concerneAVenir(x.e)).length;" "n = 1425;" \
+  'une page : À faire, la campagne du mois'
+prouver 'tableau 17 : au téléphone, la grille garde « Sur la période » et douze dossiers' web/public/v10/cabinet/app.js \
+  "    const tel = telTb();" "    const tel = false;" \
+  'au téléphone : rien ne déborde'

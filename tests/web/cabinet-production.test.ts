@@ -168,7 +168,7 @@ describe('la production du cabinet, à la souris', () => {
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/production`);
     // (1.194.0) Le Tableau de bord le dit à la place de la grille, et nomme le dossier dont le mois se suit ailleurs.
     const sans = p.locator('#tb-sans-mois');
-    await expect.poll(() => sans.innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/^Aucun mois fini à suivre pour l'instant\s+Un mois entre dans la grille une fois terminé\. Le mois en cours se suit dans la comptabilité de chaque client\s:\sMansouri Informatique\./);
+    await expect.poll(() => sans.innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/^Aucun mois fini à suivre pour l'instant\s+Le cabinet tient ces dossiers depuis \S+ : \S+ entrera dans la grille le 1er \S+\. Un mois entre dans la grille une fois terminé\. Le mois en cours se suit dans la comptabilité de chaque client\s:\sMansouri Informatique\./);
     expect(await p.locator('#tb-grille').count()).toBe(0);
     expect(await p.locator('.tb-leg').count()).toBe(0);
     expect(await p.locator('#tb-campagne').count()).toBe(0);
