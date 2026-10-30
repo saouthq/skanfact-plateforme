@@ -48,7 +48,7 @@ describe('la révision et les questions au client, à la souris', () => {
 
   type Revision = { periode: string; contenu: { faite: boolean; faitePar: string; comptes: { compte: string; revuPar: string }[];
     notes: { texte: string; levee: boolean; par: string }[]; questionnaire: { question: string; reponse: string }[] } };
-  type Question = { id: string; statut: string; compte: string; piece: string; attendu: string; texte: string; envois: string[] };
+  type Question = { id: string; statut: string; compte: string; piece: string; attendu: string; texte: string; objet: string; envois: string[] };
 
   it('la révision se tient à la souris et se garde au serveur ; une question part au client à l\'envoi, et sa réponse revient', async () => {
     const client = await personne('client');
@@ -150,47 +150,80 @@ describe('la révision et les questions au client, à la souris', () => {
     await fenetre.locator('#qq-ok').click();
     await expect.poll(async () => (await revision())?.questionnaire[0]?.reponse).toBe('Aucun litige connu au 31 décembre.');
 
-    // ── Une question depuis la ligne du 471 : elle reste au cabinet jusqu'à l'envoi ─────────────
+    // ── (1.187.0) Une question depuis la ligne du 471 : sans quitter la révision, le compte et son montant déjà là, ce qu'on
+    // attend d'une pastille, la phrase proposée ; « Garder pour l'envoi groupé » la laisse prête, sans rien envoyer ──────
     // Le 471 n'est d'aucun cycle : il est dans le volet des comptes hors cycle.
     await menu('RV:471', 'Poser une question au client', '#rv-hors');
-    await expect.poll(() => fenetre.locator('#qf-compte').inputValue()).toBe('471');
-    await fenetre.locator('#qf-piece').fill('OD-7');
-    await fenetre.locator('#qf-objet').fill('Justificatif absent');
-    await fenetre.locator('#qf-attendu').selectOption('piece');
+    await expect.poll(() => fenetre.locator('h2').innerText()).toBe('Une question à Menuiserie Ben Salah');
+    expect(await fenetre.locator('.qf-sujet b').innerText()).toMatch(/^Compte 471/);
+    expect(await fenetre.locator('[data-qf-attendu][aria-pressed="true"]').innerText()).toBe('Une pièce justificative');
+    expect(await fenetre.locator('#qf-texte').inputValue()).toMatch(/^Peux-tu m'envoyer la pièce justificative de ce montant de 1\s200,500\sDT, au compte 471/);
+    // La phrase suit la pastille tant qu'on ne l'a pas réécrite ; réécrite, elle reste.
+    await fenetre.locator('[data-qf-attendu="explication"]').click();
+    expect(await fenetre.locator('#qf-texte').inputValue()).toMatch(/^Peux-tu m'expliquer ce montant de 1\s200,500\sDT, au compte 471/);
     await fenetre.locator('#qf-texte').fill('Peux-tu m\'envoyer la facture de ce virement de 1 200,500 DT ?');
-    await fenetre.locator('#qf-ok').click();
-    await expect.poll(async () => (await questions(associe)).map((q) => [q.statut, q.compte, q.piece, q.attendu])).toEqual([['ouverte', '471', 'OD-7', 'piece']]);
+    await fenetre.locator('[data-qf-attendu="piece"]').click();
+    expect(await fenetre.locator('#qf-texte').inputValue()).toBe('Peux-tu m\'envoyer la facture de ce virement de 1 200,500 DT ?');
+    expect(await fenetre.locator('.modal-actions button').allInnerTexts()).toEqual(['Annuler', 'Garder pour l\'envoi groupé', 'Envoyer maintenant']);
+    await fenetre.locator('#qf-garder').click();
+    await expect.poll(toast, APRES_LE_SERVEUR).toBe('Gardée : 1 question prête pour Menuiserie Ben Salah. Elle partira avec ton prochain message.');
+    await expect.poll(async () => (await questions(associe)).map((q) => [q.statut, q.compte, q.attendu, q.objet.includes('471')])).toEqual([['ouverte', '471', 'piece', true]]);
     expect(await questions(client)).toEqual([]);
-    await expect.poll(() => p.locator('#view').innerText()).toMatch(/1\squestion au client n.est pas encore partie/);
+    await expect.poll(() => p.locator('#view').innerText()).toMatch(/1\squestion au client n.est pas encore partie : elle attend, prête, dans votre conversation/);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-revision-1-question.png') });
 
-    // ── L'envoyer : le client la lit ; sa réponse revient sur l'écran du cabinet ────────────────
-    await ouvrir('#rv-envoyer', '#qe-ok');
-    expect(await fenetre.innerText()).toMatch(/1\squestion partira chez le client\s:\sil la lira dans son SkanFact/);
-    await fenetre.locator('#qe-ok').click();
-    await expect.poll(toast, APRES_LE_SERVEUR).toMatch(/^1\squestion envoyée à Menuiserie Ben Salah\.$/);
+    // ── L'envoyer d'ici, d'un clic : le client la lit ; sa réponse revient sur l'écran du cabinet ────────────────────────
+    await expect.poll(() => p.locator('#rv-envoyer').innerText()).toBe('Envoyer la question prête');
+    await p.locator('#rv-envoyer').click();
+    await expect.poll(toast, APRES_LE_SERVEUR).toMatch(/^1\squestion envoyée à Menuiserie Ben Salah : sa réponse reviendra ici et dans votre conversation\.$/);
     const recue = await questions(client);
     expect(recue.map((q) => [q.statut, q.envois.length, q.texte])).toEqual([['envoyee', 1, 'Peux-tu m\'envoyer la facture de ce virement de 1 200,500 DT ?']]);
-    // (1.94.0) Une question neuve le même jour : seule elle part ; celle partie aujourd'hui ne repart pas (une relance se
-    // fait un autre jour), et la fenêtre le dit avant le geste.
+    // Plus rien de prêt : plus de bouton d'envoi.
+    await expect.poll(() => p.locator('#rv-envoyer').count()).toBe(0);
+    // (1.94.0) Une relance se fait un autre jour : partie aujourd'hui, la relancer le refuse, et le dit.
+    await p.locator(`[data-rowmenu="QU:${String(recue[0]?.id)}"]`).first().click();
+    await p.getByRole('menuitem').filter({ hasText: 'Relancer le client' }).click();
+    await expect.poll(toast).toBe('Cette question est partie aujourd\'hui : une relance se fait un autre jour, pour laisser au client le temps de répondre.');
+    expect((await questions(client)).map((q) => q.envois.length)).toEqual([1]);
+    // « Envoyer maintenant » depuis la fenêtre : elle part tout de suite.
+    await menu('RV:471', 'Poser une question au client', '#rv-hors');
+    await fenetre.locator('#qf-texte').fill('Ce virement est-il bien un acompte ?');
+    await fenetre.locator('[data-qf-attendu="confirmation"]').click();
+    await fenetre.locator('#qf-envoyer').click();
+    await expect.poll(toast, APRES_LE_SERVEUR).toMatch(/^1\squestion envoyée à Menuiserie Ben Salah/);
+    expect((await questions(client)).map((q) => [q.texte, q.attendu, q.envois.length])).toEqual([
+      ['Peux-tu m\'envoyer la facture de ce virement de 1 200,500 DT ?', 'piece', 1], ['Ce virement est-il bien un acompte ?', 'confirmation', 1]]);
+
+    // ── Gardée, une question attend dans la conversation, au-dessus du champ, et part avec le prochain message ──────────
     expect((await api('POST', `/entreprises/${ent}/compta/questions`, associe, { periode: '2026-03', objet: 'Caisse', texte: 'Le fond de caisse est-il toujours de 200 DT ?' })).statut).toBe(201);
-    await p.reload();
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/messages/${ent}`);
+    const pretes = p.locator('[data-msg-pretes]');
+    await expect.poll(() => pretes.locator('.msg-pretes-tete').innerText().catch(() => ''), { timeout: 20_000 }).toMatch(/^1\squestion prête\s+part avec ce message, même sans texte$/);
+    const envoyer = p.locator('[data-msg-envoyer]').first();
+    expect(await envoyer.innerText()).toBe('Envoyer la question');
+    // « Pas cette fois » la met de côté (elle reste prête) ; « La remettre » la reprend.
+    await pretes.getByRole('button', { name: 'Pas cette fois' }).click();
+    expect(await envoyer.innerText()).toBe('Envoyer');
+    expect(await pretes.locator('.msg-pretes-tete').innerText()).toMatch(/aucune ne part avec ce message$/);
+    await pretes.getByRole('button', { name: 'La remettre' }).click();
+    await p.locator('[data-msg-texte]').first().fill('Bonjour, encore une question sur mars.');
+    expect(await envoyer.innerText()).toBe('Envoyer + 1 question');
+    await envoyer.click();
+    await expect.poll(toast, APRES_LE_SERVEUR).toMatch(/^1\squestion envoyée à Menuiserie Ben Salah/);
+    await expect.poll(() => pretes.isHidden()).toBe(true);
+    expect((await questions(client)).map((q) => q.texte)).toContain('Le fond de caisse est-il toujours de 200 DT ?');
+    // Le fil les range dans l'ordre : le message, puis la question.
+    const fil = await p.locator('[data-msg-fil]').innerText();
+    expect(fil.indexOf('Bonjour, encore une question sur mars.')).toBeGreaterThan(-1);
+    expect(fil.indexOf('Le fond de caisse est-il toujours de 200 DT ?')).toBeGreaterThan(fil.indexOf('Bonjour, encore une question sur mars.'));
     await aller();
-    await ouvrir('#rv-envoyer', '#qe-ok');
-    expect(await fenetre.innerText()).toMatch(/1\squestion partira chez le client/);
-    expect((await fenetre.locator('#qe-detail').innerText()).split('\n')).toEqual(['1 question neuve', '1 question partie aujourd\'hui ne repart pas : une relance se fait un autre jour']);
-    await fenetre.locator('#qe-ok').click();
-    await expect.poll(toast, APRES_LE_SERVEUR).toMatch(/^1\squestion envoyée à Menuiserie Ben Salah\.$/);
-    expect((await questions(client)).map((q) => q.envois.length).sort()).toEqual([1, 1]);
-    // Plus rien de neuf : le refus le dit, sans fenêtre.
-    await p.locator('#rv-envoyer').click();
-    await expect.poll(toast).toBe('Les questions qui attendent sont parties aujourd\'hui : une relance se fait un autre jour.');
     expect((await api('POST', `/entreprises/${ent}/compta/questions/${recue[0]?.id}/repondre`, client, { texte: 'La facture est jointe à l\'achat du 9 mars.' })).statut).toBe(200);
     await p.reload();
     await expect.poll(() => p.locator('#rv-questions').innerText(), { timeout: 20_000 }).toMatch(/répondue\s+La facture est jointe à l'achat du 9 mars\./);
     // Fermée, elle se dit « close » (comme chez le client), sa réponse toujours dessous : la pastille restait « répondue »
     // (parcours du 21/10/2026).
-    await p.locator(`[data-rowmenu="QU:${String(recue[0]?.id)}"]`).filter({ hasText: 'Fermer cette question' }).click();
+    // (1.187.0) Sa ligne a deux gestes (la fermer, la voir dans la conversation) : ils sont dans son menu.
+    await menu(`QU:${String(recue[0]?.id)}`, 'Fermer cette question');
     await expect.poll(() => p.locator('#rv-questions').innerText(), { timeout: 20_000 }).toMatch(/close\s+La facture est jointe à l'achat du 9 mars\./);
 
     // ── Arrêter la révision ─────────────────────────────────────────────────────────────────────

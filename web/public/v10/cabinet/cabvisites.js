@@ -1369,7 +1369,7 @@
 
     visite({
       id: 'questions-client', theme: 'recevoir', type: 'faire', duree: '2 min',
-      sansGeste: 'Envoyer les questions écrit un fichier destiné au client : un geste qui sort du Cabinet ne se joue pas pour essayer.',
+      sansGeste: 'Envoyer une question la fait lire au client : un geste qui sort du Cabinet ne se joue pas pour essayer.',
       page: dans('skanfact', 'comptabilite/revision'),
       titre: 'Poser une question à un client',
       resume: 'Une question née sur une ligne du livre, qui s\'affiche chez lui en face de la pièce.',
@@ -1382,7 +1382,7 @@
         { page: dans('skanfact', 'comptabilite/revision'), cible: ['#c-livres .panel'], cote: 'dessus', titre: 'Sur une ligne',
           texte: 'Dans la révision, chaque compte a son menu <b>« Actions »</b> : « Poser une question » part de là, avec le compte, l\'écriture et la pièce. C\'est ce qui la fait apparaître chez le client en face de la bonne pièce.' },
         { page: dans('skanfact', 'comptabilite/revision'), cible: ['#rv-envoyer', '#rv-poser', '#c-livres .panel'], cote: 'dessous', titre: 'L\'envoi',
-          texte: 'Les questions partent dans un fichier que tu lui envoies. Une question déjà partie se <b>ferme</b>, elle ne s\'efface pas : il l\'a sous les yeux.' }
+          texte: '« Envoyer maintenant » la fait partir ; « Garder pour l\'envoi groupé » la laisse, prête, dans votre conversation, où elle part avec ton prochain message. Une question déjà partie se <b>ferme</b>, elle ne s\'efface pas : il l\'a sous les yeux.' }
       ]
     });
 
@@ -2040,7 +2040,7 @@
       si: () => !!ctx.dossier('livre'), manque: DOSSIER_MANQUE.livre,
       suite: ['questions-client', 'cloturer'],
       bravo: 'Tu sais réviser',
-      conclusion: 'Une feuille maîtresse ne lit que les validées : on ne révise pas un brouillard. Les questions posées attendent le bouton <b>Envoyer les questions au client…</b>, qui écrit le fichier à lui transmettre.',
+      conclusion: 'Une feuille maîtresse ne lit que les validées : on ne révise pas un brouillard. Une question gardée attend, prête, dans la conversation du client : elle part avec ton prochain message, ou d\'un clic sur <b>Envoyer</b>.',
       etapes: [
         // 10.14.1 — suivie au guide, la visite montrait les cycles, parlait d'arrêter AVANT d'avoir
         // revu quoi que ce soit, et ouvrait une note « que tu peux refermer sans rien écrire » :
@@ -2068,11 +2068,11 @@
           titre: 'Une question au client', texte: 'Elle part chez lui et s\'affiche <b>en face de la pièce</b> qu\'elle vise ; sa réponse te revient ici.',
           action: 'Clique sur <b>« Poser une question… »</b>.', essai: { clic: true } },
         { page: dans('livre', 'comptabilite/revision'), cible: '#modal-root #qf-texte', cote: 'droite', faire: 'valeur', bouton: 'Suivant', si: fenetreQuestion,
-          titre: 'La question', texte: 'La pièce et le compte au-dessus la placent chez le client ; la question dit ce que tu attends de lui.',
+          titre: 'La question', texte: 'Choisis d\'une pastille ce que tu attends (la pièce, une explication, une confirmation) : la phrase se propose. Le compte la place chez le client, en face de sa pièce.',
           action: 'Écris la question.', essai: { taper: 'Peux-tu m\'envoyer la facture de ce virement ?' } },
-        { page: dans('livre', 'comptabilite/revision'), cible: '#modal-root #qf-ok', cote: 'dessus', faire: 'clic', si: fenetreQuestion, fait: () => aucuneFenetre(),
-          titre: 'Poser la question', texte: 'Elle attend l\'envoi : rien ne part chez le client tant que tu n\'as pas écrit le fichier.',
-          action: 'Clique sur <b>« Poser la question »</b>.', essai: { clic: true } },
+        { page: dans('livre', 'comptabilite/revision'), cible: '#modal-root #qf-garder', cote: 'dessus', faire: 'clic', si: fenetreQuestion, fait: () => aucuneFenetre(),
+          titre: 'La garder pour l\'envoi groupé', texte: 'Elle attend, prête, dans votre conversation : rien ne part chez le client avant ton prochain message, ou ton clic sur « Envoyer ». « Envoyer maintenant », à côté, la fait partir tout de suite.',
+          action: 'Clique sur <b>« Garder pour l\'envoi groupé »</b>.', essai: { clic: true } },
         { page: dans('livre', 'comptabilite/revision'), cible: '#rv-arreter', cote: 'dessous', faire: 'clic', facultatif: true,
           titre: 'Arrêter la révision', texte: 'Quand les comptes sont revus : la période se marque révisée dans la production. Les points qui restent sont listés avant, sans bloquer, et elle se rouvre à tout moment.',
           action: 'Clique sur <b>« Arrêter la révision… »</b>.', essai: { clic: true } },

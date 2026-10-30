@@ -133,13 +133,17 @@ export function routesQuestions(ctx: Contexte): Route<never>[] {
     },
   });
 
-  // Envoyer au client les questions d'une année qui attendent leur réponse.
+  // Envoyer au client les questions d'une année qui attendent leur réponse ; ou (1.187.0) celles qu'on nomme : « Envoyer
+  // maintenant » d'une question, les questions prêtes qui partent avec un message de la conversation, une relance.
   ajouter({
     methode: 'POST', chemin: '/entreprises/:entreprise/compta/questions/envoyer', geste: 'compta.questions.envoyer',
-    corps: z.object({ annee: z.number().int().min(1900).max(2999) }).strict(),
+    corps: z.object({ annee: z.number().int().min(1900).max(2999).optional(), ids: z.array(uuid).min(1).max(50).optional() }).strict()
+      .refine((c) => (c.annee === undefined) !== (c.ids === undefined), { message: 'compta.champ.annee_ou_questions' }),
     traiter: async ({ params, corps }, tx) => {
       if (!tx) throw new Error('transaction attendue');
-      const r = (await tx.query('select compta.envoyer_questions($1, $2) n', [params.entreprise ?? '', corps.annee])).rows[0];
+      const r = (corps.ids
+        ? await tx.query('select compta.envoyer_questions_choisies($1, $2::uuid[]) n', [params.entreprise ?? '', corps.ids])
+        : await tx.query('select compta.envoyer_questions($1, $2) n', [params.entreprise ?? '', corps.annee])).rows[0];
       return { corps: { envoyees: Number(r.n) } };
     },
   });

@@ -29,6 +29,8 @@ declarerTextes({
   'compta.champ.revision': 'la révision du brouillard que tu as vue',
   'compta.champ.lettre': 'une à cinq lettres, de A à Z',
   'compta.champ.jusqua': 'le dernier jour de la période à valider (AAAA-MM-JJ)',
+  // (1.187.0) Envoyer les questions : celles d'une année, ou celles qu'on nomme ; l'une ou l'autre.
+  'compta.champ.annee_ou_questions': 'l\'année, ou les questions qui partent : l\'une ou l\'autre',
   'compta.libelle.contre_passation': 'Contre-passation de {numero}',
   'compta.champ.journal': 'un journal : VT, AC, BQ, CA, OD, PAIE ou AN',
   'compta.champ.compte': 'un numéro de compte (des chiffres)',

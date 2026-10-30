@@ -114,6 +114,20 @@
 .msg-joint button { flex: none; display: inline-flex; padding: 4px; border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; }
 .msg-joint button:hover { background: var(--panel); color: var(--text); }
 .msg-demande { display: flex; flex-direction: column; gap: 6px; font-size: 13px; font-weight: 600; }
+/* (1.187.0) Les questions de la révision gardées pour l'envoi groupé : au-dessus du champ, ce qui part avec le message. */
+.msg-pretes { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid color-mix(in srgb, var(--warning) 35%, var(--border)); border-radius: 12px; background: color-mix(in srgb, var(--warning) 6%, var(--panel)); font-size: 13px; }
+.msg-pretes-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+.msg-pretes-tete svg { flex: none; color: var(--warning); }
+.msg-pretes-tete span { color: var(--muted); }
+.msg-pretes-l { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; max-height: 132px; overflow-y: auto; }
+.msg-pretes-l li { display: flex; align-items: center; gap: 10px; padding: 4px 0 4px 26px; }
+.msg-pretes-l li + li { border-top: 1px dashed var(--border); }
+.msg-prete-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+.msg-prete-txt b, .msg-prete-txt small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.msg-prete-txt small { color: var(--muted); font-size: 12px; }
+.msg-pretes-l li.hors .msg-prete-txt { opacity: .55; text-decoration: line-through; }
+.msg-pretes-l .msg-lien { flex: none; min-height: 32px; }
+.msg-ecrire.note .msg-pretes { display: none; }
 /* (1.116.0) Plusieurs pièces, et la date « pour le ». */
 .msg-demande-liste { display: flex; flex-direction: column; gap: 6px; }
 .msg-demande-liste input {

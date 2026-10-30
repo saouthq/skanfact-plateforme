@@ -2193,6 +2193,7 @@
       /** @param {any} r */
       const refuse = (r) => { if (!r.ok) throw new Error((r.motifs || []).join(' ')); };
       // Les refus de la v10 d'abord, mot pour mot ; le serveur les refait.
+      /** @type {any} */ let cree = null;
       if (o.geste === 'modifier') {
         refuse(KC.modifierQuestion(livre, o.id, o.champs, moiNom, Date.now()));
         /** @type {Record<string, string>} */ const champs = {};
@@ -2208,16 +2209,18 @@
         const r = KC.ajouterQuestion(livre, { ...(o.question || {}), cycles: cyclesDuCabinet() }, moiNom, Date.now());
         refuse(r);
         const q = r.question;
-        await appel('POST', url, {
+        cree = await appel('POST', url, {
           periode: String(q.periode || o.annee), cycle: String(q.cycle || ''), compte: String(q.compte || ''), ecriture: q.ecritureId || null,
           piece: String(q.piece || ''), montant: signe(q.montant), objet: String(q.objet || ''), texte: String(q.texte), attendu: String(q.attendu || 'explication'),
         });
       }
-      return { ok: true, livre: await livreDe(o.dossierId, o.annee) };
+      // (1.187.0) L'identifiant de la question posée : « Envoyer maintenant » la nomme.
+      return { ok: true, livre: await livreDe(o.dossierId, o.annee), id: cree ? cree.id : undefined };
     },
     // Envoyer les questions : plus de fichier, le client les voit dans son SkanFact ; chaque envoi se compte.
     ecrireQuestions: async (/** @type {any} */ o) => {
-      const r = await appel('POST', `/entreprises/${o.dossierId}/compta/questions/envoyer`, { annee: Number(o.annee) });
+      // (1.187.0) Celles qu'on nomme (« Envoyer maintenant », les questions prêtes, une relance), ou toutes celles de l'année.
+      const r = await appel('POST', `/entreprises/${o.dossierId}/compta/questions/envoyer`, Array.isArray(o.ids) ? { ids: o.ids } : { annee: Number(o.annee) });
       return { ok: true, envoyees: r.envoyees, livre: await livreDe(o.dossierId, o.annee) };
     },
     // La méthode du cabinet : son questionnaire et ses cycles, un réglage du cabinet, comme la v10 les normalisait.

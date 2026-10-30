@@ -21399,3 +21399,24 @@ prouver 'messages 31 : l'"'"'accueil sans conversation ne propose rien' web/publ
   '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]
+prouver 'questions-prêtes 1 : la phrase proposée ne suit pas la pastille' web/public/v10/cabinet/app.js \
+  "if (txt.value === derniere && propose()) {" "if (false) {" \
+  'la révision se tient à la souris'
+prouver 'questions-prêtes 2 : « Garder pour l'"'"'envoi groupé » envoie quand même' web/public/v10/cabinet/app.js \
+  "if (g) g.onclick = () => faire(false);" "if (g) g.onclick = () => faire(true);" \
+  'la révision se tient à la souris'
+prouver 'questions-prêtes 3 : « Envoyer maintenant » garde la question' web/public/v10/cabinet/app.js \
+  "if (envoyer && r.id) {" "if (false) {" \
+  'la révision se tient à la souris'
+prouver 'questions-prêtes 4 : les questions prêtes ne partent pas avec le message' web/public/plateforme/messagerie.js \
+  "const qs = partantes().map((q) => String(q.id));" "const qs = partantes().map((q) => String(q.id)).slice(0, 0);" \
+  'la révision se tient à la souris'
+prouver 'questions-prêtes 5 : « Pas cette fois » ne met rien de côté' web/public/plateforme/messagerie.js \
+  "if (pasCetteFois.has(id)) pasCetteFois.delete(id); else pasCetteFois.add(id);" "void id;" \
+  'la révision se tient à la souris'
+prouver 'questions-prêtes 6 : une question nommée repart le jour même' base/migrations/0185_envoyer_questions_choisies.sql \
+  "or (envois[cardinality(envois)] at time zone 'Africa/Tunis')::date < (now() at time zone 'Africa/Tunis')::date);" "or (envois[cardinality(envois)] at time zone 'Africa/Tunis')::date <= (now() at time zone 'Africa/Tunis')::date);" \
+  '(1.187.0) on nomme celles qui partent'
+prouver 'questions-prêtes 7 : la conversation du cabinet ne montre pas les questions prêtes' serveur/messagerie/routes.ts \
+  "const pretes = cote.data === 'cabinet' && !avant" "const pretes = false && !avant" \
+  'chaque client à sa place'

@@ -2092,8 +2092,9 @@
       ...(prete ? { demandeTexte: prete } : {}),
       toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
       retour: prep && prep.retour ? { texte: prep.retour.texte, aller: () => { location.hash = prep.retour.hash; } } : { texte: 'Les messages de tes clients', aller: () => { location.hash = '#/messages'; } },
-      ...(prep ? { prepare: { texte: prep.texte, demandes: prep.demandes, pour: prep.pour, apresEnvoi: prep.apresEnvoi,
-        dit: `Le message est prêt${prep.demandes.length ? `, avec ${pl(prep.demandes.length, 'pièce demandée', 'pièces demandées')}` : ''} : relis-le, puis « Envoyer ».` } } : {}),
+      // (1.187.0) Venue de la révision (« relire dans la conversation »), seul le retour est préparé : rien ne s'écrit à sa place.
+      ...(prep && (prep.texte || (prep.demandes || []).length) ? { prepare: { texte: prep.texte, demandes: prep.demandes || [], pour: prep.pour, apresEnvoi: prep.apresEnvoi,
+        dit: `Le message est prêt${(prep.demandes || []).length ? `, avec ${pl(prep.demandes.length, 'pièce demandée', 'pièces demandées')}` : ''} : relis-le, puis « Envoyer ».` } } : {}),
       revision: () => revision(id),
       ouvrirPiece: (genre, piece, libelle) => ouvrirPiece(id, genre, piece, libelle),
       saisirPiece: m => saisirPiece(id, m),
@@ -9058,6 +9059,10 @@
     // 10.13.0 (U-11, test humain du pont) — une question posée et pas encore partie passe AVANT la
     // suite de la révision : le client a besoin de temps pour répondre, chaque jour compte.
     const aEnvoyer = controles.some(c => c.envoyer);
+    // (plateforme) 1.187.0 — les questions prêtes (posées, gardées pour l'envoi groupé) : elles partent d'un clic, ou avec le
+    // prochain message de la conversation. Un dossier tenu sans SkanFact n'a pas de conversation : rien ne part.
+    const nPretes = questionsPretes(s).length;
+    const relieRv = !dossier.manual && !!api.messagerie;
     // 10.14.1 (joué au guide) — une révision ARRÊTÉE avec une question pas encore partie n'avait
     // plus aucun vert : l'envoi est l'étape suivante, que la révision soit arrêtée ou non.
     const suivante = aEnvoyer ? 'envoyer' : d.faite ? '' : ouvertIncomplet ? 'signer' : prochain ? 'cycle' : horsARevoir ? 'hors' : 'arreter';
@@ -9074,7 +9079,8 @@
       <button class="btn btn-sm${suivante === 'arreter' ? ' btn-primary' : ''}" id="rv-arreter">${d.faite ? 'Rouvrir la révision' : 'Arrêter la révision…'}</button>
       <button class="btn btn-sm" id="rv-note">Note de revue…</button>
       <button class="btn btn-sm" id="rv-question">Poser une question…</button>
-      <span class="nw"><button class="btn btn-sm${suivante === 'envoyer' ? ' btn-primary' : ''}" id="rv-envoyer">Envoyer les questions au client…</button>${info('rv.envoi')}</span>
+      ${nPretes && relieRv ? `<span class="nw"><button class="btn btn-sm${suivante === 'envoyer' ? ' btn-primary' : ''}" id="rv-envoyer">${nPretes > 1 ? `Envoyer les ${nPretes} questions prêtes` : 'Envoyer la question prête'}</button>${info('rv.envoi')}</span>
+      <button type="button" class="btn-lien rv-lien" id="rv-conversation">ou ${nPretes > 1 ? 'les relire' : 'la relire'} dans la conversation</button>` : ''}
     </div>
     ${aFaire.length ? `<div class="warn-box mb">${aFaire.map(c => `<div>${esc(c.texte)}</div>`).join('')}
       <div class="small">Ils ne bloquent pas : une révision arrêtée avec des manques signalés vaut mieux qu'une révision jamais arrêtée.</div></div>` : ''}
@@ -9190,14 +9196,25 @@
           { icon: 'modifier', label: 'Écrire une note de revue', hint: 'Ce qu\'il reste à vérifier sur ce compte.',
             run: () => noteForm(root, dossier, { compte: id, cycle: c.cycle }) },
           { icon: 'email', label: 'Poser une question au client', hint: 'Elle s\'affichera chez lui, en face de la pièce.',
-            run: () => questionForm(root, dossier, { compte: id, cycle: c.cycle }) }
+            run: () => questionForm(root, dossier, { compte: id, cycle: c.cycle, libelle: c.libelle, solde: c.solde }) }
         ];
       }
       if (quoi !== 'QU') return [];
       const q = (s.revision.questions || []).find(x => x.id === id);
       if (!q) return [];
       const partie = (q.envois || []).length;
+      // (plateforme) 1.187.0 — envoyer celle-ci, la relancer (un autre jour que son dernier envoi), la retrouver dans la conversation.
+      const relieQ = !dossier.manual && !!api.messagerie;
+      const jourTunis = ms => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
+      const partieAujourdhui = partie && jourTunis(q.envois[partie - 1]) === jourTunis(Date.now());
+      const attend = q.statut !== 'close' && !q.reponse;
       return [
+        relieQ && !partie && attend ? { icon: 'email', label: 'Envoyer maintenant', hint: `Elle part chez ${dossier.name}, seule : les autres questions prêtes attendent.`, run: () => envoyerQuestions(root, dossier, [id]) } : null,
+        relieQ && partie && attend ? (partieAujourdhui
+          ? { icon: 'email', label: 'Relancer le client', hint: 'Partie aujourd\'hui : une relance se fait un autre jour.', run: () => toast('Cette question est partie aujourd\'hui : une relance se fait un autre jour, pour laisser au client le temps de répondre.', 'error') }
+          : { icon: 'email', label: 'Relancer le client', hint: `Partie ${partie > 1 ? partie + ' fois' : 'une fois'}, toujours sans réponse : elle remonte dans votre conversation.`, run: () => envoyerQuestions(root, dossier, [id], 'relance') }) : null,
+        relieQ && partie ? { icon: 'email', label: 'Voir dans la conversation', hint: 'Sa carte, et la réponse du client.', run: () => { messagePrepare = { id: dossier.id, retour: { texte: 'Revenir à la révision', hash: location.hash } }; location.hash = `#/messages/${encodeURIComponent(dossier.id)}`; } } : null,
+        relieQ && attend ? { sep: true } : null,
         q.statut === 'close'
           ? { icon: 'reprendre', label: 'Rouvrir cette question', hint: 'Elle repartira dans le prochain envoi.', run: () => geste(id, 'rouvrir') }
           : { icon: 'oui', label: 'Fermer cette question', hint: 'Elle a trouvé sa réponse ailleurs : elle ne repartira plus.', run: () => geste(id, 'fermer') },
@@ -9269,7 +9286,9 @@
     };
 
     const env = $('#rv-envoyer', el);
-    if (env) env.onclick = () => envoyerQuestions(root, dossier);
+    if (env) env.onclick = () => { env.disabled = true; envoyerQuestions(root, dossier, questionsPretes(s).map(q => q.id)); };
+    const conv = $('#rv-conversation', el);
+    if (conv) conv.onclick = () => { messagePrepare = { id: dossier.id, retour: { texte: 'Revenir à la révision', hash: location.hash } }; location.hash = `#/messages/${encodeURIComponent(dossier.id)}`; };
   }
 
   function noteForm(root, dossier, base) {
@@ -9293,71 +9312,121 @@
   // Une question naît d'une LIGNE : elle porte le compte, la pièce et l'écriture sur lesquels elle
   // est née. C'est ce qui permet à SkanFact de l'afficher EN FACE de la pièce chez le client, au
   // lieu de la ranger dans une liste que personne n'ouvre — et c'est tout l'intérêt du mécanisme.
+  //
+  // (plateforme) 1.187.0 — Skander, 30/10/2026 : « ce parcours devient obsolète, avec la messagerie on doit faire de
+  // l'ergonomie ». La fenêtre ne quitte pas la révision (on pose dix questions d'affilée) : le compte, son intitulé et son
+  // solde sont déjà là, ce qu'on attend se choisit d'une pastille, la phrase est proposée. Deux issues : « Envoyer
+  // maintenant » (elle part, avec celles qui attendaient), ou « Garder pour l'envoi groupé » (elle attend, prête, dans la
+  // conversation du client, et part avec le prochain message). Plus de fenêtre d'envoi ni de confirmation à part.
+  const questionsPretes = s => ((s.revision && s.revision.questions) || []).filter(q => q.statut === 'ouverte' && !(q.envois || []).length);
   function questionForm(root, dossier, base, id) {
     const s = livresState;
     const q = id ? (s.revision.questions || []).find(x => x.id === id) : null;
     const b = base || {};
-    modal(`<h2>${id ? 'Préciser la question' : 'Poser une question au client'}</h2>
-      <p class="small muted">Elle s'affichera chez lui <b>en face de la pièce</b> qu'elle vise dès que tu la lui
-      envoies, et sa réponse reviendra ici. Rien de ce que tu écris ici ne touche à ses chiffres.</p>
-      <div class="grid-2">
-        <label class="field">${lbl('La pièce', 'qf.piece')}<input type="text" id="qf-piece" value="${esc((q && q.piece) || b.piece || '')}" placeholder="FAC-2026-014"></label>
-        <label class="field">${lbl('Le compte', 'qf.compte')}<input type="text" id="qf-compte" value="${esc((q && q.compte) || b.compte || '')}" placeholder="471"></label>
-        <label class="field">${lbl('L\'objet', 'qf.objet')}<input type="text" id="qf-objet" value="${esc((q && q.objet) || '')}" placeholder="Justificatif absent"></label>
-        <label class="field">${lbl('Ce que tu attends', 'qf.attendu')}<select id="qf-attendu">${KC.QUESTION_ATTENDUS.map(a => `<option value="${esc(a.id)}" ${(q ? q.attendu : 'explication') === a.id ? 'selected' : ''}>${esc(a.label)}</option>`).join('')}</select></label>
-        <label class="field obligatoire span-2">${lbl('La question', 'qf.texte')}
-          <textarea id="qf-texte" rows="3" placeholder="Peux-tu m'envoyer la facture correspondant à ce virement de 1 200 DT ?">${esc((q && q.texte) || '')}</textarea></label>
-      </div>
-      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="qf-ok">${id ? 'Enregistrer' : 'Poser la question'}</button></div>`,
-    (couche, close) => { $('#qf-ok', couche).onclick = async () => {
-      const champs = {
-        piece: $('#qf-piece', couche).value.trim(), compte: $('#qf-compte', couche).value.trim(),
-        objet: $('#qf-objet', couche).value.trim(), attendu: $('#qf-attendu', couche).value,
-        texte: $('#qf-texte', couche).value.trim(), periode: (s.revision && s.revision.dossier.periode) || String(s.annee)
+    const nom = dossier.name || 'ce client';
+    const relie = !dossier.manual;
+    let attendu = (q && q.attendu) || (b.compte ? 'piece' : 'explication');
+    // « ce montant de 3 313,233 DT, au compte 6226 (Honoraires) » : la phrase dit ce que le client verra en face.
+    const quoi = () => {
+      if (!b.compte) return '';
+      const au = `au compte ${b.compte}${b.libelle ? ` (${b.libelle})` : ''}`;
+      return b.solde ? `ce montant de ${money(Math.abs(Number(b.solde)))}, ${au}` : `ce qui est passé ${au}`;
+    };
+    const PHRASES = {
+      piece: x => `Peux-tu m'envoyer la pièce justificative de ${x} ?`,
+      explication: x => `Peux-tu m'expliquer ${x} ?`,
+      confirmation: x => `Peux-tu me confirmer ${x} ?`
+    };
+    const propose = () => (quoi() ? PHRASES[attendu](quoi()) : '');
+    const pretes = questionsPretes(s).filter(x => x.id !== id);
+    const per = String((s.revision && s.revision.dossier && s.revision.dossier.periode) || s.annee);
+    const perLib = /^\d{4}-\d{2}$/.test(per) ? moisLabelCourt(per) : `exercice ${per}`;
+    const sujet = b.compte
+      ? `<div class="qf-sujet"><span class="qf-sujet-ic">${icB('ecritures', 15, 2)}</span><span><b>Compte ${esc(b.compte)}${b.libelle ? ` · ${esc(b.libelle)}` : ''}</b><small>${b.solde ? `solde ${esc(money(Number(b.solde)))} · ` : ''}${esc(perLib)}</small></span></div>`
+      : '';
+    const champsLibres = !q && !b.compte
+      ? `<details class="qf-plus"><summary>Sur quel compte, quelle pièce ? <span class="muted">(facultatif)</span></summary><div class="grid-2">
+          <label class="field">${lbl('Le compte', 'qf.compte')}<input type="text" id="qf-compte" inputmode="numeric" placeholder="471"></label>
+          <label class="field">${lbl('La pièce', 'qf.piece')}<input type="text" id="qf-piece" placeholder="FAC-2026-014"></label></div></details>`
+      : '';
+    modal(`<h2>${q ? 'Préciser la question' : `Une question à ${esc(nom)}`}</h2>
+      ${sujet}
+      <div class="field"><span class="ec-lab">Ce que tu attends</span><div class="pc-chips qf-attendu" role="radiogroup" aria-label="Ce que tu attends">${KC.QUESTION_ATTENDUS.map(a => `<button type="button" role="radio" data-qf-attendu="${esc(a.id)}" aria-checked="${a.id === attendu}" aria-pressed="${a.id === attendu}">${esc(a.label)}</button>`).join('')}</div></div>
+      <label class="field obligatoire">${lbl('La question', 'qf.texte')}
+        <textarea id="qf-texte" rows="3" placeholder="Peux-tu m'envoyer la facture correspondant à ce virement de 1 200 DT ?">${esc((q && q.texte) || propose())}</textarea></label>
+      ${champsLibres}
+      <p class="small muted qf-ou">${relie
+    ? `Elle arrive dans votre conversation, en face de la pièce qu'elle vise ; sa réponse revient ici et dans la conversation.${!q && pretes.length ? ` <b>${esc(pl(pretes.length, 'question prête attend', 'questions prêtes attendent'))} déjà</b> : « Envoyer maintenant » ${pretes.length > 1 ? 'les emporte' : 'l\'emporte'} avec celle-ci.` : ''}`
+    : 'Ce dossier n\'a pas SkanFact : la question reste dans ta révision, pour la lui poser de vive voix ou par e-mail.'}</p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button>${q
+    ? '<button class="btn btn-primary" id="qf-enregistrer">Enregistrer</button>'
+    : relie
+      ? `<button class="btn" id="qf-garder" title="Elle attend, prête, dans la conversation : elle part avec ton prochain message">Garder pour l'envoi groupé</button><button class="btn btn-primary" id="qf-envoyer" title="Ctrl+Entrée">${pretes.length ? `Envoyer les ${pretes.length + 1} maintenant` : 'Envoyer maintenant'}</button>`
+      : '<button class="btn btn-primary" id="qf-garder">Poser la question</button>'}</div>`,
+    (couche, close) => {
+      const txt = $('#qf-texte', couche);
+      let derniere = txt.value;
+      const choisir = a => {
+        attendu = a;
+        $$('[data-qf-attendu]', couche).forEach(x => { const on = x.dataset.qfAttendu === a; x.setAttribute('aria-checked', String(on)); x.setAttribute('aria-pressed', String(on)); });
+        // La phrase proposée suit la pastille tant qu'on ne l'a pas réécrite.
+        if (txt.value === derniere && propose()) { txt.value = propose(); derniere = txt.value; }
       };
-      if (!champs.texte) return refus($('#qf-texte', couche), 'Une question sans texte n\'apprend rien au client.');
-      try {
-        const r = id
-          ? await api.question({ dossierId: dossier.id, annee: s.annee, id, geste: 'modifier', champs })
-          : await api.question({ dossierId: dossier.id, annee: s.annee, question: champs });
-        s.livre = r.livre; close(); s.revisionRev = ''; chargerRevision(root, dossier);
-      } catch (e) { toast(plainError(e), 'error'); }
-    }; });
+      $$('[data-qf-attendu]', couche).forEach(x => { x.onclick = () => { choisir(x.dataset.qfAttendu); txt.focus(); }; });
+      setTimeout(() => { txt.focus(); txt.setSelectionRange(txt.value.length, txt.value.length); }, 0);
+      const boutons = () => $$('#qf-garder, #qf-envoyer, #qf-enregistrer', couche);
+      const faire = async envoyer => {
+        const texte = txt.value.trim();
+        if (!texte) return refus(txt, 'Écris la question : c\'est la phrase que ' + (relie ? nom + ' lira.' : 'tu lui poseras.'));
+        boutons().forEach(x => { x.disabled = true; });
+        try {
+          if (q) {
+            const r = await api.question({ dossierId: dossier.id, annee: s.annee, id, geste: 'modifier', champs: { texte, attendu } });
+            s.livre = r.livre; close(); s.revisionRev = ''; chargerRevision(root, dossier);
+            toast('Question précisée : ' + ((q.envois || []).length ? nom + ' lit le texte corrigé.' : 'elle partira telle quelle.'));
+            return;
+          }
+          const compte = b.compte || ($('#qf-compte', couche) ? $('#qf-compte', couche).value.trim() : '');
+          const piece = b.piece || ($('#qf-piece', couche) ? $('#qf-piece', couche).value.trim() : '');
+          const champs = {
+            piece, compte, cycle: b.cycle || '', attendu, texte, montant: b.solde || 0,
+            objet: compte ? (b.libelle ? `${compte} · ${b.libelle}` : `Compte ${compte}`) : piece,
+            periode: (s.revision && s.revision.dossier.periode) || String(s.annee)
+          };
+          const r = await api.question({ dossierId: dossier.id, annee: s.annee, question: champs });
+          s.livre = r.livre;
+          if (envoyer && r.id) {
+            const ids = [r.id].concat(pretes.map(x => x.id));
+            const e = await api.ecrireQuestions({ dossierId: dossier.id, annee: s.annee, ids });
+            if (e.livre) s.livre = e.livre;
+            toast(`${pl(e.envoyees || ids.length, 'question envoyée', 'questions envoyées')} à ${nom} : sa réponse reviendra ici et dans votre conversation.`);
+          } else if (relie) {
+            const n = pretes.length + 1;
+            toast(`Gardée : ${pl(n, 'question prête', 'questions prêtes')} pour ${nom}. Elle${n > 1 ? 's partiront' : ' partira'} avec ton prochain message.`);
+          } else toast('Question posée : elle reste dans ta révision.');
+          close(); s.revisionRev = ''; chargerRevision(root, dossier);
+        } catch (e) { boutons().forEach(x => { x.disabled = false; }); toast(plainError(e), 'error'); }
+      };
+      const g = $('#qf-garder', couche); if (g) g.onclick = () => faire(false);
+      const e = $('#qf-envoyer', couche); if (e) e.onclick = () => faire(true);
+      const en = $('#qf-enregistrer', couche); if (en) en.onclick = () => faire(false);
+      couche.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); const p = e || en || g; if (p && !p.disabled) p.click(); }
+      });
+    });
   }
 
-  // L'envoi. Même construction que le dossier de clôture (9.8.0) : un ZIP ordinaire, un manifeste
-  // qui porte l'empreinte de chaque fichier, la signature Ed25519 du cabinet, et un mot de passe
-  // facultatif. Le client doit pouvoir l'ouvrir avec le Finder même si SkanFact disparaît.
-  function envoyerQuestions(root, dossier) {
+  // (plateforme) 1.187.0 — Les questions prêtes partent d'ici d'un clic, sans fenêtre : chacune a été relue en la posant.
+  // Une question restée sans réponse se relance de sa ligne (une fois par jour au plus : le serveur le tient).
+  async function envoyerQuestions(root, dossier, ids, quoi) {
     const s = livresState;
-    const en = (s.revision && s.revision.questions || []).filter(q => q.statut !== 'close' && q.statut !== 'repondue');
-    if (!en.length) return toast('Aucune question n\'attend de réponse : il n\'y a rien à envoyer.', 'error');
-    // (plateforme) 1.94.0 — une question partie aujourd'hui (à Tunis) ne repart pas : une relance se fait un autre jour.
-    const jourDe = ms => new Date(ms).toLocaleDateString('sv-SE', { timeZone: 'Africa/Tunis' });
-    const aujourdhui = jourDe(Date.now());
-    const neuves = en.filter(q => !(q.envois || []).length).length;
-    const relances = en.filter(q => (q.envois || []).length && jourDe(q.envois[q.envois.length - 1]) < aujourdhui).length;
-    const attendent = en.length - neuves - relances;
-    if (!neuves && !relances) return toast('Les questions qui attendent sont parties aujourd\'hui : une relance se fait un autre jour.', 'error');
-    const partent = neuves + relances;
-    modal(`<h2>Envoyer les questions à ${esc(dossier.name)}</h2>
-      <p class="small">${esc(pl(partent, 'question partira', 'questions partiront'))} chez le client : il ${partent > 1 ? 'les' : 'la'} lira dans son SkanFact,
-      en face de la pièce qu'${partent > 1 ? 'elles visent' : 'elle vise'}, et y répondra. Rien de ce que tu envoies ne touche à ses chiffres.</p>
-      <ul class="small" id="qe-detail">${neuves ? `<li>${esc(pl(neuves, 'question neuve', 'questions neuves'))}</li>` : ''}${relances
-        ? `<li>${esc(pl(relances, 'relance', 'relances'))} : ${relances > 1 ? 'des questions parties un autre jour, toujours' : 'une question partie un autre jour, toujours'} sans réponse</li>` : ''}${attendent
-        ? `<li class="muted">${esc(pl(attendent, 'question partie', 'questions parties'))} aujourd'hui ${attendent > 1 ? 'ne repartent' : 'ne repart'} pas : une relance se fait un autre jour</li>` : ''}</ul>
-      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="qe-ok">Envoyer</button></div>`,
-    (couche, close) => {
-      $('#qe-ok', couche).onclick = async () => {
-        try {
-          const r = await api.ecrireQuestions({ dossierId: dossier.id, annee: s.annee });
-          close();
-          s.livre = r.livre; s.revisionRev = '';
-          chargerRevision(root, dossier);
-          toast(`${pl(r.envoyees, 'question envoyée', 'questions envoyées')} à ${dossier.name}.`);
-        } catch (e) { toast(plainError(e), 'error'); }
-      };
-    });
+    try {
+      const r = await api.ecrireQuestions({ dossierId: dossier.id, annee: s.annee, ids });
+      if (r.livre) s.livre = r.livre;
+      s.revisionRev = ''; chargerRevision(root, dossier);
+      toast(quoi === 'relance' ? `Relance envoyée à ${dossier.name} : la question remonte dans votre conversation.`
+        : `${pl(r.envoyees || ids.length, 'question envoyée', 'questions envoyées')} à ${dossier.name} : sa réponse reviendra ici et dans votre conversation.`);
+    } catch (e) { toast(plainError(e), 'error'); }
   }
 
   function motifForm(root, dossier) {

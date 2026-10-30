@@ -281,6 +281,10 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'le montant sort de ce compte : il va vers un autre', cle: 'base.compta.imputer_meme_compte', fr: 'le montant sort de ce compte : il va vers un autre' },
   { base: 'aucune question n\'attend de réponse : il n\'y aurait rien à envoyer', cle: 'base.compta.questions_rien', fr: 'aucune question n\'attend de réponse : il n\'y aurait rien à envoyer' },
   { base: 'les questions qui attendent sont parties aujourd\'hui : une relance se fait un autre jour', cle: 'base.compta.questions_aujourdhui', fr: 'les questions qui attendent sont parties aujourd\'hui : une relance se fait un autre jour' },
+  // (1.187.0) Les questions qu'on nomme : « Envoyer maintenant », les prêtes de la conversation, une relance.
+  { base: 'choisis les questions qui partent', cle: 'base.compta.questions_choisir', fr: 'choisis les questions qui partent' },
+  { base: 'cette question est partie aujourd\'hui : une relance se fait un autre jour', cle: 'base.compta.question_aujourdhui', fr: 'cette question est partie aujourd\'hui : une relance se fait un autre jour' },
+  { base: 'aucune de ces questions n\'attend de réponse : il n\'y aurait rien à envoyer', cle: 'base.compta.questions_rien_choisi', fr: 'aucune de ces questions n\'attend de réponse : il n\'y aurait rien à envoyer' },
   { base: 'seule l\'entreprise répond aux questions de son cabinet', cle: 'base.compta.question_entreprise', fr: 'seule l\'entreprise répond aux questions de son cabinet' },
   { base: 'cette question est fermée : ton cabinet n\'attend plus de réponse', cle: 'base.compta.question_fermee', fr: 'cette question est fermée : ton cabinet n\'attend plus de réponse' },
   { base: 'une réponse vide ne répond à rien', cle: 'base.compta.question_reponse_vide', fr: 'une réponse vide ne répond à rien' },

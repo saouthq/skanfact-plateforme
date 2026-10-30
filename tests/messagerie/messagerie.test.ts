@@ -255,7 +255,14 @@ describe('la boîte du cabinet', () => {
     // C : une question de la révision envoyée, sans réponse : il attend le client ; répondue, elle est à traiter.
     const q = await appeler('POST', `/entreprises/${c.ent}/compta/questions`, cab.associe.jeton, { periode: '2026-03', compte: '471', piece: 'FF-12', montant: '1200.5', objet: 'Justificatif absent', texte: 'Peux-tu m\'envoyer la facture ?', attendu: 'piece' });
     expect(q.statut, JSON.stringify(q.corps)).toBe(201);
+    // (1.187.0) Posée et pas encore partie, elle est « prête » dans la conversation du cabinet (au-dessus du champ), jamais
+    // chez le client, et n'attend pas le client.
+    const pretes = async (jeton: string, cote: string) => (((await appeler('GET', `/entreprises/${c.ent}/messages?cote=${cote}`, jeton)).corps as { pretes?: unknown[] }).pretes ?? []) as { id: string; montant: string; texte: string }[];
+    expect((await pretes(cab.associe.jeton, 'cabinet')).map((x) => [x.id, x.montant, x.texte])).toEqual([[q.corps.id, '1200.500', 'Peux-tu m\'envoyer la facture ?']]);
+    expect(await pretes(c.p.jeton, 'entreprise')).toEqual([]);
+    expect(Object.fromEntries((await boite()).dossiers.map((d) => [d.nom, d.etat]))['Clinique Amel']).toBe('rien');
     expect((await appeler('POST', `/entreprises/${c.ent}/compta/questions/envoyer`, cab.associe.jeton, { annee: 2026 })).corps.envoyees).toBe(1);
+    expect(await pretes(cab.associe.jeton, 'cabinet')).toEqual([]);
     let lu = await boite();
     expect(Object.fromEntries(lu.dossiers.map((d) => [d.nom, [d.etat, d.nonLus, d.attentes]]))).toEqual({
       'Atlas SARL': ['a_traiter', 1, 0], 'Bakery Lina': ['attend_client', 0, 1], 'Clinique Amel': ['attend_client', 0, 1],

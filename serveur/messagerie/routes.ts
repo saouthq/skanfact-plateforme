@@ -241,6 +241,14 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
         where q.entreprise = $1 and q.cabinet = $2 and cardinality(q.envois) > 0
           and ($3::timestamptz is null or q.envois[1] < $3::timestamptz) and ($4::timestamptz is null or q.envois[1] >= $4::timestamptz)
         order by q.envois[1], q.id`, [entreprise, cabinet, avant?.[0] ?? null, depuis])).rows as LigneQuestion[];
+      // (1.187.0) Côté cabinet, à la première page : les questions de la révision posées et pas encore parties (« gardées
+      // pour l'envoi groupé »). Elles attendent au-dessus de la zone d'écriture et partent avec le prochain message.
+      const pretes = cote.data === 'cabinet' && !avant
+        ? (await tx.query(`select q.id, q.objet, q.texte, q.piece, q.montant, q.attendu, q.compte, q.periode from compta.question q
+            where q.entreprise = $1 and q.cabinet = $2 and q.statut = 'ouverte' and cardinality(q.envois) = 0
+            order by q.pose_le, q.id limit 50`, [entreprise, cabinet])).rows as
+          { id: string; objet: string; texte: string; piece: string; montant: string; attendu: string; compte: string; periode: string }[]
+        : [];
 
       return {
         corps: {
@@ -276,6 +284,8 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
               sens: BigInt(q.solde) < 0n ? 'credit' : 'debit', banque: q.journal_ligne === 'BQ', faite: q.imputee_par,
             } : null,
           })),
+          pretes: pretes.map((q) => ({ id: q.id, objet: q.objet, texte: q.texte, piece: q.piece, montant: versTexte(BigInt(q.montant), 3),
+            attendu: q.attendu, compte: q.compte, periode: q.periode })),
           suite: suite ? versCurseur(page.at(-1)?.ecrit_le ?? new Date(0), page.at(-1)?.id ?? '') : null,
           attente: await attente(tx, entreprise, cabinet, cote.data),
           anciens,

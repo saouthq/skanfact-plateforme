@@ -190,6 +190,35 @@ describe('les questions au client', () => {
       'compta.questions.envoyer', 'compta.question.repondre', 'compta.question.fermer', 'compta.question.rouvrir']);
   });
 
+  it('(1.187.0) on nomme celles qui partent : « Envoyer maintenant », les prêtes de la conversation, une relance ; les mêmes règles', async () => {
+    const d = await dossier();
+    const url = `/entreprises/${d.ent}/compta/questions`;
+    const lire = async (p: Personne) => (await appeler('GET', `${url}?annee=2026`, p.jeton)).corps.questions as Question[];
+    const a = String((await appeler('POST', url, d.associe.jeton, QUESTION)).corps.id);
+    const b = String((await appeler('POST', url, d.associe.jeton, { ...QUESTION, piece: 'FF-13', texte: 'Et celle du 14 ?' })).corps.id);
+    // L'une ou l'autre, ou l'année : jamais les deux à la fois, ni une liste vide.
+    expect((await appeler('POST', `${url}/envoyer`, d.associe.jeton, { annee: 2026, ids: [a] })).statut).toBe(400);
+    expect((await appeler('POST', `${url}/envoyer`, d.associe.jeton, { ids: [] })).statut).toBe(400);
+    // Qui valide envoie (l'assistant non) ; seule celle qu'on nomme part.
+    expect((await appeler('POST', `${url}/envoyer`, d.assistant.jeton, { ids: [a] })).statut).toBe(403);
+    expect((await appeler('POST', `${url}/envoyer`, d.associe.jeton, { ids: [a] })).corps.envoyees).toBe(1);
+    expect((await lire(d.client)).map((q) => q.id)).toEqual([a]);
+    // La même, le même jour : une relance se fait un autre jour ; avec une neuve, seule la neuve part.
+    expect((await appeler('POST', `${url}/envoyer`, d.associe.jeton, { ids: [a] })).corps.motif).toBe('Cette question est partie aujourd\'hui : une relance se fait un autre jour.');
+    expect((await appeler('POST', `${url}/envoyer`, d.associe.jeton, { ids: [a, b] })).corps.envoyees).toBe(1);
+    expect((await lire(d.client)).map((q) => [q.id, q.envois.length])).toEqual([[a, 1], [b, 1]]);
+    // Partie hier (à Tunis) : la nommer la relance, elle seule.
+    await admin.query(`update compta.question set envois = array[envois[1] - interval '1 day'] where id = $1`, [a]);
+    expect((await appeler('POST', `${url}/envoyer`, d.associe.jeton, { ids: [a] })).corps.envoyees).toBe(1);
+    expect((await lire(d.client)).map((q) => [q.id, q.envois.length])).toEqual([[a, 2], [b, 1]]);
+    // Répondue, elle ne part plus ; une question inconnue ne part pas.
+    expect((await appeler('POST', `${url}/${b}/repondre`, d.client.jeton, { texte: 'Jointe.' })).statut).toBe(200);
+    expect((await appeler('POST', `${url}/envoyer`, d.associe.jeton, { ids: [b] })).corps.motif).toBe('Aucune de ces questions n\'attend de réponse : il n\'y aurait rien à envoyer.');
+    expect((await appeler('POST', `${url}/envoyer`, d.associe.jeton, { ids: ['01900000-0000-7000-8000-000000000000'] })).corps.motif).toBe('Aucune de ces questions n\'attend de réponse : il n\'y aurait rien à envoyer.');
+    // Le client n'envoie rien.
+    expect((await appeler('POST', `${url}/envoyer`, d.client.jeton, { ids: [a] })).statut).toBe(403);
+  });
+
   it('seul le cabinet pose ; une question sans texte, ou qui attend on ne sait quoi, se refuse — à la porte et dans la base', async () => {
     const d = await dossier();
     const url = `/entreprises/${d.ent}/compta/questions`;

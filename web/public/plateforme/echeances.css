@@ -206,3 +206,18 @@
 .pc-chips.ec-par button small { font-weight: 500; font-size: 11.5px; opacity: .75; overflow-wrap: anywhere; }
 .pc-chips.ec-par button:disabled { opacity: .5; cursor: not-allowed; }
 @media (max-width: 760px) { .pc-chips.ec-par { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* (1.187.0) La question de la révision : le compte qu'elle vise, ce qu'on attend en une pastille, la phrase proposée. */
+.qf-sujet { display: flex; align-items: center; gap: 10px; margin: 2px 0 14px; padding: 10px 12px; border: 1px solid var(--sb-trait); border-radius: 10px; background: var(--sb-papier-2, var(--sb-papier)); }
+.qf-sujet > span:last-child { min-width: 0; display: grid; gap: 1px; }
+.qf-sujet b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.qf-sujet small { color: var(--sb-gris-2); font-size: 12px; }
+.qf-sujet-ic { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 8px; background: var(--sb-survol, var(--sb-papier)); color: var(--sb-gris); }
+.pc-chips.qf-attendu button { min-height: 36px; }
+.qf-plus { margin: 4px 0 8px; font-size: 13px; }
+.qf-plus summary { cursor: pointer; color: var(--sb-gris); font-weight: 600; }
+.qf-plus .grid-2 { margin-top: 8px; }
+.qf-ou { margin: 6px 0 0; }
+@media (max-width: 760px) { .pc-chips.qf-attendu button { min-height: 44px; } }
+#c-livres .rv-lien, .rv-lien { border: 0; background: none; padding: 0 4px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; white-space: nowrap; }
+.rv-lien:hover { text-decoration: underline; }

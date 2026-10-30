@@ -494,6 +494,10 @@
     let promesseJour = '';
     /** @type {Set<string>} */ const promessesEcartees = new Set();
     let modeNote = false;
+    // (1.187.0) Les questions de la révision gardées pour l'envoi groupé (le serveur les lit, `pretes`) : celles mises de
+    // côté pour cette fois, et le geste qui redessine leur encart (posé par la zone d'écriture).
+    /** @type {Set<string>} */ const pasCetteFois = new Set();
+    let majPretes = () => {};
 
     /** @param {string | null} avant */
     const chemin = (avant) => {
@@ -554,6 +558,7 @@
                 </span>
               </div>
               <div class="msg-joints" data-msg-joints hidden></div>
+              ${entreprise ? '' : '<div class="msg-pretes" data-msg-pretes hidden></div>'}
               ${/* (1.177.0, maquette « Messages ») « D'après le dossier » : les réponses que le livre du client appelle (des
                  questions qui attendent, des pièces reçues, une déclaration prête…) ; un clic pose le texte, on le relit. */''}
               <div class="msg-sugg" data-msg-sugg hidden></div>
@@ -1340,7 +1345,7 @@
         if (!el.isConnected) { arreter(); return; }
         if (fini) return;
         const nouvelle = JSON.stringify([r.messages.map((/** @type {any} */ m) => [m.id, m.lu, m.achat, m.demande && m.demande.recueLe]),
-          r.questions.map((/** @type {any} */ q) => [q.id, q.statut, q.reponduLe]), r.attente, r.fil && [r.fil.alerte, r.fil.actif], notes.map((n) => n.id), promesse, rappel, jalons.length]);
+          r.questions.map((/** @type {any} */ q) => [q.id, q.statut, q.reponduLe]), r.attente, r.fil && [r.fil.alerte, r.fil.actif], notes.map((n) => n.id), promesse, rappel, jalons.length, (r.pretes || []).map((/** @type {any} */ q) => q.id)]);
         const premiereFois = !lu;
         if (premiereFois) {
           suite = r.suite;
@@ -1371,7 +1376,7 @@
         // Ce qui attend d'abord, le fil ensuite : posé au-dessus du fil (la boîte du cabinet), le bandeau le raccourcit, et
         // le fil se met en bas une fois sa hauteur connue.
         if (premiereFois) { poserLaPage(); dessinerCote(); dessinerFil(); }
-        else if (nouvelle !== signature) { dessinerCote(); dessinerFil(); }
+        else if (nouvelle !== signature) { dessinerCote(); dessinerFil(); majPretes(); }
         signature = nouvelle;
         if (o.surAttente && !cabinetRelu) o.surAttente(r.attente);
         // Lu : ce que l'autre côté a écrit, vu ici, page visible.
@@ -1596,9 +1601,43 @@
       form.addEventListener('reset', () => setTimeout(grandir, 0));
       demandeTxt.addEventListener('input', () => dire(''));
       const bEnvoyer = /** @type {HTMLElement} */ (form.querySelector('[data-msg-envoyer]'));
-      const majEnvoyer = () => bEnvoyer.classList.toggle('vide', modeNote ? !texte.value.trim() : !texte.value.trim() && !fichier && !piece && !(demande && lesDemandes().length));
+      // (1.187.0) Les questions prêtes qui partent avec ce message (toutes, sauf celles mises de côté pour cette fois).
+      const partantes = () => (entreprise || modeNote || !lu ? [] : /** @type {any[]} */ (lu.pretes || []).filter((q) => !pasCetteFois.has(q.id)));
+      const majEnvoyer = () => {
+        const autre = !!texte.value.trim() || !!fichier || !!piece || (demande && lesDemandes().length > 0);
+        const n = partantes().length;
+        bEnvoyer.classList.toggle('vide', modeNote ? !texte.value.trim() : !autre && !n);
+        const mot = form.querySelector('[data-msg-envoyer-mot]');
+        if (mot) mot.textContent = modeNote ? 'Noter' : !n ? 'Envoyer' : autre ? `Envoyer + ${pl(n, 'question')}` : n > 1 ? `Envoyer les ${n}\u00a0questions` : 'Envoyer la question';
+      };
       form.addEventListener('input', majEnvoyer);
-      majEnvoyer();
+      const zPretes = /** @type {HTMLElement | null} */ (form.querySelector('[data-msg-pretes]'));
+      majPretes = () => {
+        if (!zPretes || !form.isConnected) return;
+        /** @type {any[]} */ const l = (lu && lu.pretes) || [];
+        zPretes.hidden = !l.length || modeNote;
+        const n = partantes().length;
+        const off = navigator.onLine === false;
+        zPretes.innerHTML = l.length ? `<div class="msg-pretes-tete">${dessin('question')}<b>${esc(pl(l.length, 'question prête', 'questions prêtes'))}</b>
+            <span>${n ? `${n === l.length ? (n > 1 ? 'partent' : 'part') : `${n} ${n > 1 ? 'partent' : 'part'}`} avec ce message, même sans texte` : 'aucune ne part avec ce message'}</span></div>
+          <ul class="msg-pretes-l">${l.map((q) => {
+            const hors = pasCetteFois.has(q.id);
+            const m = q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · ${esc(montant(q.montant))}` : '';
+            return `<li class="${hors ? 'hors' : ''}"><span class="msg-prete-txt"><b>${esc(q.objet || q.texte)}${m}</b><small>${esc(q.objet ? q.texte : `Tu attends ${ATTENDUS[q.attendu] || 'une réponse'}`)}</small></span>
+              <button type="button" class="msg-lien" data-msg-prete="${esc(q.id)}" aria-pressed="${hors}"${off ? ' disabled' : ''}>${hors ? 'La remettre' : 'Pas cette fois'}</button></li>`;
+          }).join('')}</ul>` : '';
+        zPretes.querySelectorAll('[data-msg-prete]').forEach((b) => {
+          /** @type {HTMLElement} */ (b).onclick = () => {
+            const id = /** @type {HTMLElement} */ (b).dataset.msgPrete || '';
+            if (pasCetteFois.has(id)) pasCetteFois.delete(id); else pasCetteFois.add(id);
+            majPretes();
+            const meme = /** @type {HTMLElement | null} */ (zPretes.querySelector(`[data-msg-prete="${CSS.escape(id)}"]`));
+            if (meme) meme.focus();
+          };
+        });
+        majEnvoyer();
+      };
+      majPretes();
       const sugg = /** @type {HTMLElement} */ (form.querySelector('[data-msg-sugg]'));
       const propose = o.suggestions && !entreprise ? o.suggestions().slice(0, 3) : [];
       sugg.hidden = !propose.length;
@@ -1682,8 +1721,6 @@
         form.classList.toggle('note', note);
         form.querySelectorAll('[data-msg-onglet]').forEach((b) => b.setAttribute('aria-selected', String((/** @type {HTMLElement} */ (b).dataset.msgOnglet === 'note') === note)));
         form.querySelectorAll('.msg-gestes-g button').forEach((b) => { /** @type {HTMLButtonElement} */ (b).disabled = note; });
-        const mot = form.querySelector('[data-msg-envoyer-mot]');
-        if (mot) mot.textContent = note ? 'Noter' : 'Envoyer';
         const pied = /** @type {HTMLElement | null} */ (form.querySelector('[data-msg-note-pied]'));
         if (pied) pied.hidden = !note;
         const voir = /** @type {HTMLButtonElement | null} */ (form.querySelector('[data-msg-voir-notes]'));
@@ -1692,6 +1729,7 @@
         if (note) { demande = false; montrerDemande(); }
         const joints = /** @type {HTMLElement} */ (form.querySelector('[data-msg-joints]'));
         joints.hidden = note || (!fichier && !piece);
+        majPretes();
         majEnvoyer();
         sugg.hidden = note || !propose.length;
         dire('');
@@ -1710,7 +1748,7 @@
         form.classList.toggle('off', off);
         texte.disabled = off;
         envoyer.disabled = off;
-        form.querySelectorAll('[data-msg-onglet], .msg-gestes-g button, .msg-sugg button').forEach((b) => { /** @type {HTMLButtonElement} */ (b).disabled = off; });
+        form.querySelectorAll('[data-msg-onglet], .msg-gestes-g button, .msg-sugg button, [data-msg-prete]').forEach((b) => { /** @type {HTMLButtonElement} */ (b).disabled = off; });
         el.querySelectorAll('[data-msg-traite]').forEach((b) => { /** @type {HTMLButtonElement} */ (b).disabled = off; });
         if (off) texte.placeholder = 'Écrire revient avec le réseau';
         else poserOnglet(modeNote);
@@ -1740,16 +1778,31 @@
         const ds = demande ? lesDemandes() : [];
         const d = ds[0] || '';
         if (demande && !d) { dire('Nomme la pièce que tu demandes (par exemple : la facture STEG d\'août), puis « Envoyer ».'); demandeTxt.focus(); return; }
-        if (!t && !fichier && !d && !piece) { dire(entreprise ? 'Un message vide n\'apprend rien à ton cabinet : écris quelque chose ou joins une photo.' : 'Un message vide n\'apprend rien à ton client : écris quelque chose, joins un fichier ou demande une pièce.'); texte.focus(); return; }
+        const qs = partantes().map((q) => String(q.id));
+        if (!t && !fichier && !d && !piece && !qs.length) { dire(entreprise ? 'Un message vide n\'apprend rien à ton cabinet : écris quelque chose ou joins une photo.' : 'Un message vide n\'apprend rien à ton client : écris quelque chose, joins un fichier ou demande une pièce.'); texte.focus(); return; }
         envoyer.disabled = true;
         dire('');
         try {
           let depot = null;
           if (fichier) depot = await o.appel('POST', '/messages/fichiers', { cote: o.cote, nom: fichier.name, contenu: await enBase64(fichier) });
           const pour = demande && pourChamp.value ? pourChamp.value : null;
-          await o.appel('POST', '/messages', { cote: o.cote, texte: t, piece, fichier: depot ? depot.id : null,
-            ...(ds.length > 1 ? { demandes: ds, pour } : { demande: d || null, pour }) });
+          // Le message d'abord (« Bonjour Sami, voici mes questions »), les questions ensuite : le fil les range dans cet ordre.
+          if (t || fichier || d || piece) {
+            await o.appel('POST', '/messages', { cote: o.cote, texte: t, piece, fichier: depot ? depot.id : null,
+              ...(ds.length > 1 ? { demandes: ds, pour } : { demande: d || null, pour }) });
+          }
           texte.value = ''; texte.style.height = ''; demandeTxt.value = ''; piece = null; fichier = null; demande = false;
+          if (qs.length) {
+            try {
+              const r = await o.appel('POST', '/compta/questions/envoyer', { ids: qs });
+              if (o.toast) o.toast(`${pl(Number(r.envoyees) || qs.length, 'question envoyée', 'questions envoyées')} à ${o.nom || 'ce client'} : sa réponse reviendra ici et dans la révision.`);
+            } catch (x) {
+              // Le message est parti, pas les questions : le dire, pour ne pas le renvoyer ; « Envoyer » les fera partir seules.
+              await relire();
+              dire(`${t || fichier || d || piece ? 'Ton message est parti ; ' : ''}${qs.length > 1 ? 'les questions ne sont pas parties' : 'la question n\'est pas partie'} : ${motif(x)}`);
+              return;
+            }
+          }
           listeDemandes.querySelectorAll('[data-msg-demande-txt]').forEach((x, i) => { if (i > 0) x.remove(); });
           pourChamp.value = dansSeptJours();
           montrerDemande(); dessinerJoints();
