@@ -122,6 +122,14 @@ const poserFiche = async (ent: string, contenu: Record<string, unknown>) => {
 const LIVRES: Record<string, string> = { be: 'FFFFFFFRR', mb: 'FFFFFFFMM', gt: 'FFFFFFFFD', an: 'HHHHHFFFR', dz: 'FFFFFFFFM', le: 'FFFFFFFFM',
   pe: 'FFFFFFFFR', sp: 'FFFFFFFFF', ic: 'FFFFFFFFP', iy: 'FFFFFFFFD', sm: 'FFFFFFFFF', cj: 'FFFFFFFFS' };
 const mois = (i: number) => `2026-${String(i + 1).padStart(2, '0')}`;
+// (1.183.0) Les relances déjà faites hors SkanFact, notées sur la fiche : la librairie appelée deux fois pour septembre, la
+// menuiserie relancée par WhatsApp pour août (Skander : « complète l'exemple un peu plus »).
+type Relance = { at: number; via: 'email' | 'tel' | 'whatsapp' | 'autre'; months: string[]; note: string };
+const RELANCES: Record<string, Relance[]> = {
+  le: [{ at: Date.parse('2026-10-08T09:30:00Z'), via: 'tel', months: ['2026-09'], note: 'Amel était en inventaire, rappeler la semaine prochaine' },
+    { at: Date.parse('2026-10-20T10:15:00Z'), via: 'tel', months: ['2026-09'], note: 'Elle envoie les relevés vendredi' }],
+  mb: [{ at: Date.parse('2026-09-25T08:00:00Z'), via: 'whatsapp', months: ['2026-08'], note: 'Hédi est sur un chantier à Hammamet, il rentre début octobre' }],
+};
 
 // Les pièces elles-mêmes, lisibles comme de vraies pièces : une facture, un relevé, un ticket, un document, dessinés par
 // le navigateur de la machine (une photo en PNG, un PDF imprimé). Sans navigateur, une image d'un point.
@@ -141,6 +149,7 @@ const papier = (nom: string, dossier: string): string => {
   const [f, n, l] = /electricite/i.test(nom) ? ['STEG · FACTURE D\'ÉLECTRICITÉ ET DE GAZ', 'N° 0298 4471 · du 01/08 au 30/09/2026', [['Consommation électricité (3 120 kWh)', '142,318'], ['Redevances et location du compteur', '22,655']]]
     : /farine/i.test(nom) ? ['MINOTERIE DU CAP BON', 'Facture n° F-2026-0903 du 03/09/2026', [['Farine boulangère T55, 40 sacs de 50 kg', '1 551,428']]]
     : /lait/i.test(nom) ? ['CENTRALE LAITIÈRE DU NORD', 'Facture n° CL-20981 du 02/10/2026', [['Lait demi-écrémé, 240 L', '312,000']]]
+    : /appareil/i.test(nom) ? ['PHOTO CENTER TUNIS', 'Facture n° PC-2026-1187 du 14/10/2026', [['Appareil photo hybride, boîtier et objectif 24-70 (3 200,000 TTC)', '2 689,076']]]
     : /hebergement/i.test(nom) ? ['OVH SAS', 'Invoice FR-41720 · 30/09/2026 · EUR', [['Hébergement serveur, 3e trimestre', '87,00 €']]]
     : ['FOURNITURES EL AMEN', 'Facture n° FA-0921 du 22/10/2026', [['Fournitures diverses', '186,420']]];
   // Le total : la somme des lignes, au millime (les montants s'écrivent « 1 520,000 »).
@@ -292,7 +301,8 @@ for (const d of DOSSIERS) {
   const g = LIVRES[d.cle] ?? '';
   const debut = Math.max(0, g.search(/[^H]/));
   const f = FICHES[d.cle];
-  await poserFiche(ent, { from: mois(debut), ...(f ? { contact: f[0], phone: f[1], ...(d.email ? { email: d.email } : {}), fees: f[2], forme: f[3], ville: f[4], fonction: f[5], activite: ACTIVITES[d.cle] ?? '' } : {}) });
+  await poserFiche(ent, { from: mois(debut), ...(f ? { contact: f[0], phone: f[1], ...(d.email ? { email: d.email } : {}), fees: f[2], forme: f[3], ville: f[4], fonction: f[5], activite: ACTIVITES[d.cle] ?? '' } : {}),
+    ...(RELANCES[d.cle] ? { relances: RELANCES[d.cle] } : {}) });
   for (let i = 0; i < g.length; i++) {
     const e = g[i];
     if (!e || 'MSH'.includes(e)) continue;
@@ -380,6 +390,62 @@ await envoyer('pe', ['Releve_ATB_09-2026.pdf', 'contrat-bail-2027.pdf'], 'Le nou
 await envoyer('iy', ['IMG_0412.jpg', 'IMG_0413.jpg', 'attestation-CNSS.pdf'], '');
 await envoyer('gt', [], 'Bonjour, j\'ai annulé la facture de juillet par erreur. Que faut-il faire ?');
 await envoyer('an', ['facture-hebergement-T3.pdf'], 'Payée en euros par carte.');
+// (1.183.0) Des conversations qui vivent (Skander : « complète l'exemple un peu plus ») : le cabinet répond, l'équipe se
+// laisse des notes, un client promet, une question de la révision attend d'être imputée, et les modèles du cabinet.
+{
+  const anis = jetons['anis.gharbi@exemple.tn'] ?? '', rim = jetons['rim.toumi@exemple.tn'] ?? '';
+  const ecrit = (cle: string, jeton: string, cote: 'cabinet' | 'entreprise', texte: string, extra: Record<string, unknown> = {}) =>
+    api('POST', `/entreprises/${entreprise[cle] ?? ''}/messages`, jeton, { cote, texte, ...extra });
+  const note = (cle: string, jeton: string, texte: string) => api('POST', `/cabinets/${cabinet}/notes/${entreprise[cle] ?? ''}`, jeton, { texte });
+  // Un jour à venir (une promesse se note pour plus tard), au calendrier de Tunis.
+  const dansJours = (n: number) => new Date(Date.now() + n * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Africa/Tunis' });
+
+  // La boulangerie : un virement de 1 250,000 DT reçu le 14/09 que personne ne sait expliquer, au compte d'attente ; la
+  // question part au client, Sarra y répond : « Imputer le virement » attend le cabinet. L'attestation CNSS, promise.
+  const vir = await api('POST', `/entreprises/${be}/compta/ecritures`, leila, { date: '2026-09-14', journal: 'BQ', piece: 'VIR 14/09',
+    libelle: 'VIR RECU REF 2609-14177', lignes: [{ compte: '532', debit: '1250,000' }, { compte: '471', credit: '1250,000' }] });
+  const q = await api('POST', `/entreprises/${be}/compta/questions`, anis, { periode: '2026-09', compte: '471', ecriture: vir.id, piece: 'VIR 14/09',
+    montant: '1250,000', objet: 'Un virement reçu le 14/09 (réf. 2609-14177)', texte: 'Bonjour Sarra, nous avons reçu 1 250,000 DT le 14/09 sans savoir de qui. À quoi correspond ce virement ?', attendu: 'explication' });
+  await api('POST', `/entreprises/${be}/compta/questions/envoyer`, anis, { annee: 2026 });
+  await api('POST', `/entreprises/${be}/compta/questions/${String(q.id)}/repondre`, sarra, { texte: 'C\'est l\'acompte de la Clinique Les Jasmins pour les gâteaux de leur fête du 30/09.' });
+  await ecrit('be', sarra, 'entreprise', 'Pour l\'attestation CNSS, je passe au bureau de la CNSS jeudi et je vous l\'envoie dans la foulée.');
+  await api('PUT', `/cabinets/${cabinet}/promesses/${be}`, anis, { pour: dansJours(6), quoi: 'L\'attestation CNSS du 3e trimestre' });
+  await note('be', anis, 'Le virement du 14/09 : Sarra dit que c\'est l\'acompte de la Clinique. À imputer au 411 de la Clinique avant de boucler septembre.');
+  await note('be', rim, 'J\'ai saisi la levure du 10/09. La photo IMG_8790 est redemandée, elle était floue.');
+
+  // Le garage : la question de Sami trouve sa réponse, et l'équipe se laisse un mot pour la révision.
+  await ecrit('gt', leila, 'cabinet', 'Bonjour Sami, pas de souci : une facture émise ne s\'efface pas, elle s\'annule par un avoir. Ouvre la facture de juillet, puis « Faire un avoir » : SkanFact reprend les lignes, tu n\'as qu\'à valider. Je vérifie de mon côté ensuite.');
+  await ecrit('gt', gerant.gt ?? '', 'entreprise', 'C\'est fait, merci beaucoup ! L\'avoir porte le numéro AV-2026-0007.');
+  await note('gt', leila, 'Avoir AV-2026-0007 sur la facture de juillet : à contrôler en révision d\'octobre (TVA à reprendre sur la déclaration d\'octobre, pas sur juillet déjà déposé).');
+
+  // La menuiserie : rien reçu depuis août ; Leïla demande d'un coup ce qui manque, pour une date.
+  await ecrit('mb', leila, 'cabinet', 'Bonjour Hédi, j\'espère que le chantier de Hammamet s\'est bien passé. Pour avancer sur août et septembre, il me manque :',
+    { demandes: ['Les factures d\'achat d\'août', 'Les factures d\'achat de septembre', 'Les relevés de banque d\'août et septembre'], pour: dansJours(5) });
+  await note('mb', leila, 'Hédi répond mieux par WhatsApp que par e-mail. Si rien lundi, je l\'appelle.');
+
+  // L'institut : Rim demande le relevé ; Yasmine répond qu'elle passe à la banque.
+  await ecrit('iy', rim, 'cabinet', 'Bonjour Yasmine, merci pour les photos. Il me manque encore le relevé de septembre.', { demande: 'Le relevé ATB de septembre', pour: dansJours(4) });
+  await ecrit('iy', gerant.iy ?? '', 'entreprise', 'Je passe à l\'agence lundi, je vous l\'envoie tout de suite après.');
+
+  // Le studio : une question de métier (immobilisation ou charge ?), Anis répond avec le seuil, à vérifier.
+  await envoyer('sp', ['facture-appareil-photo.pdf'], 'Bonjour, j\'ai acheté un nouvel appareil photo à 3 200 DT. Je le mets en charges du mois ?');
+  await ecrit('sp', anis, 'cabinet', 'Bonjour Ines, à ce prix c\'est plutôt une immobilisation : il s\'amortit sur plusieurs années (le seuil exact et la durée sont à vérifier avec nous). Je m\'en occupe, tu n\'as rien à faire.');
+  await note('sp', anis, 'Appareil photo 3 200 DT : immobilisation 2182, amortissement sur 5 ans (À VÉRIFIER avec Leïla).');
+
+  // La pharmacie : le bail reçu, Anis remercie ; la clinique (tenue) : une note de passation.
+  await ecrit('pe', anis, 'cabinet', 'Merci Nour, bien reçu. Je classe le bail dans le dossier permanent.');
+  await note('cj', leila, 'Bilan 2026 : Salma veut un rendez-vous fin novembre pour la clôture. Préparer l\'état des stocks.');
+
+  // Les modèles du cabinet, partagés par toute l'équipe.
+  for (const [titre, texte] of [
+    ['Pièces du mois', 'Bonjour {client}, pour boucler {mois}, il me manque des pièces. Peux-tu me les envoyer ici, en photo ou en PDF ? Merci.'],
+    ['Relevé de banque', 'Bonjour {client}, peux-tu m\'envoyer le relevé de banque de {mois} ? Un PDF téléchargé depuis ta banque en ligne suffit.'],
+    ['Déclaration déposée', 'Bonjour {client}, ta déclaration de {mois} est déposée. Le montant à payer est dans ton espace, rubrique Déclarations.'],
+    ['Bien reçu', 'Bien reçu, merci {client}. Je m\'en occupe.'],
+    ['Photo illisible', 'Bonjour {client}, la photo ne se lit pas bien. Peux-tu la reprendre à plat, en pleine lumière, sans reflet ? Merci.'],
+  ] as const) await api('POST', `/cabinets/${cabinet}/messages/modeles`, leila, { titre, texte });
+}
+
 // (1.169.0) Ce que la maquette des Dossiers montre aussi : un hôtel qui propose son dossier (pas encore accepté), et un
 // dossier archivé (la fin de sa mission).
 const mounir = await personne('Mounir Ben Hassen', 'mounir@hotel-lespins.tn');

@@ -647,7 +647,12 @@ leurs messages). Le remplissage passe par une copie du programme lancée à part
 rien. Chaque adresse inventée devient un alias de la boîte Gmail donnée dans `DEMO_COURRIEL` (choix de Skander : tout
 arrive chez lui, aucun inconnu ne reçoit d'e-mail) ; les comptes n'ont pas de code d'application : à chaque appareil
 nouveau, la connexion envoie un code à l'alias. Le mot de passe de tous est celui de l'exemple. Les jetons du remplissage
-s'effacent à la fin. Chargée le 29/10/2026 sur la version 1.173.2.
+s'effacent à la fin. Chargée le 29/10/2026 sur la version 1.173.2. **Rechargée le 30/10/2026 (1.183.1)**, à la demande de
+Skander (« recharge l'exemple sur dev et complète-le un peu plus ») : `DEMO_VIDER=1` refait d'abord la base de dev à neuf
+(données inventées seulement ; ce que Skander y avait essayé s'efface), et l'exemple porte de quoi essayer chaque geste
+de Messages : des réponses du cabinet, des notes de l'équipe, une promesse, des pièces demandées pour une date, un
+virement au compte d'attente que la cliente a expliqué (« Imputer le virement »), cinq modèles de messages, et des
+relances notées sur les fiches.
 
 ## M. « Maintenance en cours » (demandé par Skander le 22/10/2026, 1.107.0)
 

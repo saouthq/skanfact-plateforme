@@ -3,8 +3,24 @@
 # lancée à part, sans relais d'e-mails ni IA : le remplissage n'envoie rien. Les comptes perdent ensuite le code de
 # l'application posé par l'exemple : sur dev.skanfact.tn, la connexion envoie un code par e-mail à l'alias Gmail.
 # Usage (en root, sur le serveur, par scripts/serveur.sh) : DEMO_COURRIEL=boite@gmail.com bash scripts/humain/demo-dev.sh
+# (1.183.0) DEMO_VIDER=1 : recharger (Skander, 30/10/2026 : « recharge l'exemple sur dev ») ; la base de dev (données
+# inventées seulement) est d'abord refaite à neuf, comme le suiveur l'installe : la base, les migrations, les règles
+# communes, les droits du compte du serveur. Jamais la base de la copie de main.
 set -euo pipefail
 [ -n "${DEMO_COURRIEL:-}" ] || { echo "DEMO_COURRIEL manque"; exit 1; }
+if [ "${DEMO_VIDER:-}" = 1 ]; then
+  BASE_DEV=skanfact_dev
+  grep -q "/$BASE_DEV" /etc/skanfact/dev.env || { echo "la base de dev n'est pas $BASE_DEV : rien n'est vidé"; exit 1; }
+  systemctl stop skanfact-dev
+  runuser -u postgres -- psql -q -c "drop database if exists $BASE_DEV with (force)"
+  runuser -u postgres -- psql -q -c "create database $BASE_DEV template template0 locale_provider icu icu_locale 'en-US-u-ka-shifted'"
+  ( cd /opt/skanfact-dev/depot
+    runuser -u postgres -- env PG_ADMIN="postgresql:///$BASE_DEV?host=/var/run/postgresql" node base/migrer.ts > /dev/null
+    runuser -u postgres -- env PG_ADMIN="postgresql:///$BASE_DEV?host=/var/run/postgresql" node base/regles-communes.ts > /dev/null
+    runuser -u postgres -- psql -q -d "$BASE_DEV" -c "grant skanfact_app to skanfact_dev_serveur" )
+  systemctl start skanfact-dev
+  echo "base de dev refaite à neuf"
+fi
 T=/root/demo-skanfact; rm -rf "$T"; mkdir -m 700 "$T"
 cd /opt/skanfact-dev/depot
 (
