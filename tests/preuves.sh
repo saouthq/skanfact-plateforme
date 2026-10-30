@@ -21221,5 +21221,23 @@ prouver 'revue 2 : le dossier permanent du classeur n'"'"'est pas classé pour l
 prouver 'revue 3 : la CNSS ne dit plus qui elle vise' web/public/v10/cabinet/app.js \
   "esc(e.detail || 'Les cotisations du trimestre des dossiers employeurs.'))" "'Les cotisations du trimestre des dossiers employeurs.')" \
   'la carte CNSS du dernier trimestre ne vise que l'"'"'employeur, plus le client saisi sans salaire'
+prouver 'messages 1 : E sur une ligne ne marque rien' web/public/plateforme/messagerie.js \
+  "if ((e.key === 'e' || e.key === 'E') && !e.ctrlKey" "if ((e.key === 'é') && !e.ctrlKey" \
+  'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
+prouver 'messages 2 : la pièce demandée ne se lit pas dans « On attend de… »' web/public/plateforme/messagerie.js \
+  "const ds = [...demandes().values()].filter((m) => !m.demande.recueLe);" "const ds = [...demandes().values()].filter(() => false);" \
+  'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
+prouver 'messages 3 : la pastille compte tout ce que le serveur voit, quelle que soit la portée' web/public/v10/cabinet/app.js \
+  "return (ds || []).filter(x => x.etat === 'a_traiter' && ids.has(x.entreprise)).length;" "return (ds || []).filter(x => x.etat === 'a_traiter' || ids.has(x.entreprise)).length;" \
+  'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
+prouver 'messages 4 : la phrase de la page ne dit pas qui doit une pièce' web/public/v10/cabinet/app.js \
+  "const doivent = ds.filter(x => x.etat === 'attend_client');" "const doivent = [];" \
+  'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
+prouver 'messages 5 : le dossier à côté ne mène pas au dossier' web/public/v10/cabinet/app.js \
+  '<a class="msg-lien msg-cote-ouvrir" href="#/dossier/${encodeURIComponent(d.id)}">' '<a class="msg-lien msg-cote-ouvrir" href="#/dossiers">' \
+  'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
+prouver 'messages 6 : « Ouvrir en grand » quitte le menu ⋯' web/public/plateforme/messagerie.js \
+  "...(o.enGrand ? [{ texte: 'Ouvrir en grand'," "...(false ? [{ texte: 'Ouvrir en grand'," \
+  '(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

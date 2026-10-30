@@ -1637,6 +1637,9 @@
   let messagerieOuverte = null;
   let demandePreparee = null; // (1.125.0) une demande de pièce préparée depuis une ligne du livre
   let pastilleMessagesLue = false;
+  // (1.176.0) La pastille des Messages compte ce qui attend ta réponse dans TES dossiers (la portée de la barre, comme
+  // les autres pastilles) : la boîte et la relecture de fond disent le même chiffre.
+  const aTraiterDeMaPortee = ds => { const ids = new Set(mesDossiers().map(d => d.id)); return (ds || []).filter(x => x.etat === 'a_traiter' && ids.has(x.entreprise)).length; };
   function majPastilleMessages(n) {
     comptesBarre.messages = n || 0;
     const p = $('#nav-messages'); if (p) { p.hidden = !n; p.textContent = n ? String(n) : ''; }
@@ -1669,7 +1672,7 @@
     try {
       const b = await api.messagerie.lireBoite();
       etatsMessages = new Map(b.dossiers.map(d => [d.entreprise, d]));
-      majPastilleMessages(b.compteurs.aTraiter);
+      majPastilleMessages(aTraiterDeMaPortee(b.dossiers));
       majPastillesDossiers();
       redessinerPrioritesSiOuvertes();
       // (1.169.0) La liste des dossiers porte la pastille de chaque client : elle se redessine (sauf pendant une saisie).
@@ -1690,6 +1693,159 @@
   function redessinerPrioritesSiOuvertes() {
     drawNav();
     if (/^#\/priorites/.test(location.hash) && !$('#modal-root').children.length && !$('#palette-root')) drawPriorites($('#view'));
+  }
+  // ---------- Messages (telles que la maquette « Messages » de Mon cabinet, 1.176.0) ----------
+  // La boîte à trois colonnes (plateforme/messagerie.js) : la liste, la conversation, le dossier à côté. L'écran donne ce
+  // qui vient du cabinet : l'en-tête de la page et sa phrase, la portée (celle de la barre), le mois de chaque client (la
+  // même lecture que la liste des Dossiers), le résumé du cabinet, et la colonne du dossier (son contact, l'année, le mois,
+  // ce qu'il faut savoir).
+  const MSG_IC = {
+    plusieurs: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 4.5a3 3 0 0 1 0 6M21 20a6 6 0 0 0-4-5.6"/></svg>',
+    points: '<svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>',
+    retard: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/></svg>',
+    question: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.2 9.2a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4"/></svg>',
+    photo: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/></svg>',
+    alerte: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 2 20h20z"/><path d="M12 10v4M12 17v.01"/></svg>',
+    boite: '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/></svg>',
+    chev: '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>',
+  };
+  // Les mois en retard de chaque dossier (les déclarations mensuelles passées sans dépôt) : la lecture de la liste des Dossiers.
+  function retardsTva() {
+    const retard = new Map();
+    for (const e of K.echeances(S, null, { employeurs: employeursConnus(), tenus: tenusConnus(), declares: declaresConnus() })) {
+      if (!e.passee || e.toutDepose || !/^tva-/.test(e.id)) continue;
+      for (const nom of e.restants || []) retard.set(nom, [...(retard.get(nom) || []), e.mois[e.mois.length - 1]].sort());
+    }
+    return retard;
+  }
+  // L'année d'un client, mois par mois : déposé, prêt, en cours, en retard, à venir (ses déclarations connues).
+  function anneeMsg(d, tard) {
+    const auj = K.today().slice(0, 7), an = auj.slice(0, 4);
+    return Array.from({ length: 12 }, (_, i) => {
+      const m = `${an}-${String(i + 1).padStart(2, '0')}`;
+      if (m >= auj) return { m, st: m === auj ? 'cours' : 'venir' };
+      if (d.from && m < d.from.slice(0, 7)) return { m, st: 'avant' };
+      const dc = declarationConnue(d.id, m);
+      return { m, st: dc && dc.deposee ? 'fait' : tard.includes(m) ? 'tard' : dc ? 'pret' : 'cours' };
+    });
+  }
+  const MOIS_INITIALES = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+  function drawBoiteMsg(view, gestes) {
+    const dir = estAssocie();
+    const parId = id => (S.dossiers || []).find(x => x.id === id) || null;
+    const mien = id => { const d = parId(id); return !!(d && d.droits && d.droits[S.moi]); };
+    const dansPortee = id => !dir || portee() === 'tous' || mien(id);
+    // Les questions de la révision sans réponse d'un dossier (le résumé des index, comme sa fiche).
+    const questionsDe = id => Number((questionsAttente.find(q => q.dossierId === id) || {}).ouvertes || 0);
+    view.innerHTML = `<div class="cab-page msg-page-cab" id="page-msg">${ctxCabinet({ sansPortee: true })}
+      <div class="page-head"><div><h1>Messages ${info('msg.boite')}</h1><p class="muted" id="msg-phrase">Lecture de tes conversations…</p></div>
+        <div class="actions"><button type="button" class="btn" id="msg-plusieurs" aria-label="Écrire à plusieurs clients…" hidden>${MSG_IC.plusieurs}<span class="msg-pl-long">Écrire à plusieurs clients…</span><span class="msg-pl-court" aria-hidden="true">À plusieurs…</span></button>
+          <span class="msg-page-menu"><button type="button" class="btn btn-icone" id="msg-page-menu" aria-haspopup="menu" aria-expanded="false" aria-label="Plus de gestes" title="Plus de gestes">${MSG_IC.points}</button></span></div></div>
+      <div id="msg-racine"></div></div>`;
+    const retard = retardsTva();
+    const ligne = id => {
+      const d = parId(id);
+      if (!d) return null;
+      const mo = moisDuDossier(d, retard);
+      const tard = retard.get(d.name) || [];
+      const nq = questionsDe(d.id);
+      const puces = [];
+      if (tard.length) puces.push({ texte: pl(tard.length, 'mois en retard', 'mois en retard'), ton: 'rouge' });
+      if (nq) puces.push({ texte: pl(nq, 'question'), ton: 'ambre' });
+      const eq = equipeDe(d);
+      return { mois: tard.length ? null : { texte: mo.mot, ton: mo.cl }, puces, suivi: eq.suit ? prenomDe(eq.suit) : '' };
+    };
+    const resume = ds => {
+      const ids = ds.map(x => x.entreprise);
+      const retards = ds.filter(x => x.retards).map(x => x.entreprise);
+      const nRet = ds.reduce((s, x) => s + (x.retards || 0), 0);
+      const qs = ids.filter(id => questionsDe(id));
+      const nQ = qs.reduce((s, id) => s + questionsDe(id), 0);
+      const ph = ids.filter(id => (comptesBarre.piecesParDossier && comptesBarre.piecesParDossier.get(id)) || 0);
+      const nPh = ph.reduce((s, id) => s + comptesBarre.piecesParDossier.get(id), 0);
+      return [
+        { cle: 'retard', texte: pl(nRet, 'pièce en retard', 'pièces en retard'), ton: 'rouge', ids: retards, dessin: MSG_IC.retard },
+        { cle: 'questions', texte: pl(nQ, 'question ouverte', 'questions ouvertes'), ton: 'ambre', ids: qs, dessin: MSG_IC.question },
+        { cle: 'photos', texte: pl(nPh, 'photo à saisir', 'photos à saisir'), ton: 'vert', ids: ph, dessin: MSG_IC.photo },
+      ];
+    };
+    // Le dossier à côté : le contact en tête, l'année en segments, où en est son mois, et ce qu'il faut savoir.
+    const aCote = id => {
+      const d = parId(id);
+      if (!d) return '';
+      const tard = retard.get(d.name) || [];
+      const an = anneeMsg(d, tard);
+      const dus = an.filter(x => !['venir', 'avant'].includes(x.st) && x.m < K.today().slice(0, 7));
+      const faits = an.filter(x => x.st === 'fait').length;
+      const mo = moisDuDossier(d, retard);
+      const eq = equipeDe(d);
+      const contact = d.contact || d.name;
+      const role = [d.contactRole || '', d.name].filter(Boolean).join(' · ');
+      const suivi = eq.suit ? (eq.suit.id === S.moi ? 'suivi par toi' : `suivi par ${prenomDe(eq.suit)}`) : 'personne ne le suit encore';
+      const mp = moisPrecedent(K.today().slice(0, 7));
+      const etatMois = tard.length
+        ? `<b>${esc(cap(moisLong(tard[tard.length - 1])))} en retard</b><small class="rouge">${esc(tard.map(m => `${moisLong(m)} : échu, pas encore déclaré`).join(' · '))} (À VÉRIFIER)</small>`
+        : `<b>${esc(cap(mo.mot))}</b>${mo.cl === 'pret' ? `<small>tu le déposes avant le ${esc(jjmm(limiteDe(mp)))}</small>` : ''}`;
+      const nP = (comptesBarre.piecesParDossier && comptesBarre.piecesParDossier.get(d.id)) || 0;
+      const savoir = [
+        nP ? `<li>${MSG_IC.photo}<span><b>${esc(pl(nP, 'pièce reçue', 'pièces reçues'))}</b><small>à saisir, ou à classer dans « Pièces reçues »</small></span></li>` : '',
+        tard.length ? `<li class="rouge">${MSG_IC.alerte}<span><b>${esc(tard.map(moisLong).join(', '))} sans déclaration</b><small>la date limite est passée (À VÉRIFIER)</small></span></li>` : '',
+      ].filter(Boolean).join('');
+      return `<div class="msg-cote-qui"><span class="msg-avatar">${esc(initialesDe(contact))}</span><span><b>${esc(contact)}</b><small>${esc(role)}</small><small>${esc(suivi)}</small></span></div>
+        <section class="msg-cote-carte"><div class="msg-cote-an"><h3>L'année ${esc(K.today().slice(0, 4))}</h3><span><b>${faits}</b>/${dus.length} déposés</span></div>
+          <div class="msg-segs" role="img" aria-label="${esc(`${faits} mois déposés sur ${dus.length}`)}">${an.map(x => `<i class="${x.st}" title="${esc(cap(moisLong(x.m)))}"></i>`).join('')}</div>
+          <div class="msg-segs-l" aria-hidden="true">${MOIS_INITIALES.map(l => `<span>${l}</span>`).join('')}</div>
+          <p class="msg-cote-mois">${etatMois}</p>
+          <a class="msg-lien msg-cote-ouvrir" href="#/dossier/${encodeURIComponent(d.id)}">Ouvrir le dossier ${MSG_IC.chev}</a></section>
+        ${savoir ? `<section class="msg-cote-carte"><h3>À savoir</h3><ul class="msg-savoir">${savoir}</ul></section>` : ''}`;
+    };
+    messagerieOuverte = api.messagerie.boite($('#msg-racine', view), {
+      ouvrir: (id, demander) => { location.hash = '#/messages/' + encodeURIComponent(id) + (demander ? '/demande' : ''); },
+      toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
+      revision: gestes.revision,
+      ouvrirPiece: gestes.ouvrirPiece,
+      saisirPiece: gestes.saisirPiece,
+      info: info('msg.portee'),
+      portee: () => (dir && portee() === 'tous' ? 'tout' : 'mes'),
+      ...(dir ? { changerPortee: v => { prefs.set('portee', v === 'tout' ? 'tous' : 'miens'); drawNav(); } } : {}),
+      dansPortee,
+      ligne,
+      resume,
+      aCote,
+      contact: id => { const d = parId(id); return d ? [d.contact, d.contactRole].filter(Boolean).join(' · ') || null : null; },
+      menu: id => [{ texte: 'Ouvrir le dossier', sous: 'le livre, mois par mois', dessin: 'piece', faire: () => { location.hash = '#/dossier/' + encodeURIComponent(id); } }],
+      // La phrase de la page et la pastille : ce qui attend ta réponse, et ce qu'on attend des clients.
+      surCompteurs: (c, ds, tous) => {
+        const ph = $('#msg-phrase', view);
+        const pls = $('#msg-plusieurs', view);
+        if (pls) pls.hidden = !tous.length;
+        if (ph) {
+          const tout = dir && portee() === 'tous';
+          const doivent = ds.filter(x => x.etat === 'attend_client');
+          ph.textContent = !tous.length ? 'Tes clients sur SkanFact t\'écrivent ici, chacun dans sa conversation.'
+            : `${c.aTraiter ? `${pl(c.aTraiter, tout ? 'client attend' : 'client attend', tout ? 'clients attendent' : 'clients attendent')} ${tout ? 'une réponse du cabinet' : 'ta réponse'}` : (tout ? 'Aucun client n\'attend de réponse du cabinet' : 'Aucun client n\'attend ta réponse')}${doivent.length ? ` · ${doivent.length === 1 ? `${doivent[0].nom} te doit une pièce ou une réponse` : `${pl(doivent.length, 'client doit', 'clients doivent')} une pièce ou une réponse ${tout ? 'au cabinet' : ''}`.trim()}` : ''}.`;
+        }
+        majPastilleMessages(aTraiterDeMaPortee(tous));
+      },
+    });
+    const pls = $('#msg-plusieurs', view);
+    if (pls) pls.onclick = () => { if (messagerieOuverte && messagerieOuverte.demandeGroupee) messagerieOuverte.demandeGroupee(); };
+    const bm = $('#msg-page-menu', view);
+    // Le menu ⋯ de la page : les modèles de l'équipe, les pièces reçues.
+    if (bm) bm.onclick = e => {
+      e.stopPropagation();
+      const ouvert = bm.parentElement.querySelector('.row-menu');
+      if (ouvert) { ouvert.remove(); bm.setAttribute('aria-expanded', 'false'); return; }
+      const ITEMS = [...(api.modeles ? [['modeles', 'Les modèles de messages…', 'les phrases de l\'équipe, prises d\'un geste']] : []), ['pieces', 'Pièces reçues', 'les photos et PDF des clients, à classer']];
+      bm.insertAdjacentHTML('afterend', `<div class="row-menu msg-page-m" role="menu">${ITEMS.map(([k, ti, so]) => `<button type="button" role="menuitem" data-msg-pm="${k}"><b>${esc(ti)}</b><span>${esc(so)}</span></button>`).join('')}</div>`);
+      bm.setAttribute('aria-expanded', 'true');
+      const m = bm.parentElement.querySelector('.row-menu');
+      const fermerM = () => { m.remove(); bm.setAttribute('aria-expanded', 'false'); document.removeEventListener('click', dehors, true); };
+      const dehors = ev => { if (!m.contains(ev.target) && ev.target !== bm && !bm.contains(ev.target)) fermerM(); };
+      document.addEventListener('click', dehors, true);
+      $$('[data-msg-pm]', m).forEach(b => { b.onclick = () => { fermerM(); if (b.dataset.msgPm === 'modeles') api.modeles(); else location.hash = '#/pieces'; }; });
+      m.querySelector('button').focus();
+    };
   }
   function drawMessages(view, ent, geste) {
     if (messagerieOuverte) { messagerieOuverte.arreter(); messagerieOuverte = null; }
@@ -1717,19 +1873,7 @@
       location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/saisie/' + String(m.ecritLe).slice(0, 4);
       toast('La photo s\'ouvre dans un autre onglet : saisis la pièce ici, en face d\'elle. Elle reste dans votre fil.');
     };
-    if (!ent) {
-      // (1.115.0) La conversation du client choisi s'ouvre à droite de la liste (le pont la fabrique) ; « Ouvrir en grand »,
-      // et une ligne touchée au téléphone, mènent à sa page.
-      messagerieOuverte = api.messagerie.boite(racine, {
-        ouvrir: (id, demander) => { location.hash = '#/messages/' + encodeURIComponent(id) + (demander ? '/demande' : ''); },
-        toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
-        revision,
-        ouvrirPiece,
-        saisirPiece,
-        surCompteurs: c => majPastilleMessages(c.aTraiter),
-      });
-      return;
-    }
+    if (!ent) { drawBoiteMsg(view, { revision, ouvrirPiece, saisirPiece }); return; }
     const id = decodeURIComponent(ent);
     const d = (S.dossiers || []).find(x => x.id === id);
     // (1.125.0) Une demande préparée depuis une ligne du livre : sa pièce est déjà écrite (une seule fois).

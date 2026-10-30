@@ -104,9 +104,9 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     // ── Le cabinet : rien à traiter, la boîte s'ouvre sur ce qui attend le client ; il demande une pièce ──────────
     const c = await page(sonia);
     await c.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages`);
-    await c.p.locator('.msg-boite h1').waitFor({ timeout: 20_000 });
+    await c.p.locator('#page-msg .msg-filtres').waitFor({ timeout: 20_000 });
     await expect.poll(() => c.p.getByRole('tab', { name: /^Attend le client/ }).getAttribute('aria-selected')).toBe('true');
-    expect(net(await c.p.locator('.msg-filtres').innerText())).toBe('À traiter (0) Attend le client (1) Tout (1)');
+    expect(net(await c.p.locator('.msg-filtres').innerText())).toBe('À traiter 0 Attend le client 1 Tout 1');
     expect(await c.p.locator('#nav-messages').isVisible()).toBe(false);
     await c.p.getByRole('button', { name: 'Demander une pièce', exact: true }).click();
     const champPiece = c.p.locator('[data-msg-demande-txt]');
@@ -252,8 +252,8 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await pastille;
     await expect.poll(async () => net(await c.p.locator('#nav-messages').innerText().catch(() => ''))).toBe('1');
     await c.p.locator('nav a[data-route="messages"]').click();
-    await c.p.locator('.msg-boite h1').waitFor({ timeout: 20_000 });
-    await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText()), { timeout: 15_000 }).toBe('À traiter (1) Attend le client (0) Tout (1)');
+    await c.p.locator('#page-msg .msg-filtres').waitFor({ timeout: 20_000 });
+    await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText()), { timeout: 15_000 }).toBe('À traiter 1 Attend le client 0 Tout 1');
     // (1.115.0) La conversation du client est déjà là, à droite de la liste : il fallait un aperçu, puis « Ouvrir la
     // conversation », sur une autre page.
     await c.p.locator('.msg-boite [data-msg-fil]').waitFor({ timeout: 15_000 });
@@ -264,7 +264,9 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée La facture STEG d'août Reçue Lue/);
     // (1.102.0) Ce qui attend le client se dit sans affirmer ce qu'on ne sait pas (« ce client a répondu à tes questions »
     // s'affichait aussi sur un fil où rien n'avait jamais été demandé).
-    expect(net(await c.p.locator('[data-msg-cote]').innerText())).toMatch(/^Rien : aucune question ni pièce demandée n'attend sa réponse\./);
+    // (1.176.0, maquette « Messages ») Dans la boîte, « On attend de… » ne paraît que s'il y a quelque chose : ici, rien.
+    expect(await c.p.locator('[data-cote] [data-msg-attente]').count()).toBe(0);
+    expect(net(await c.p.locator('.msg-tete-etat').innerText())).toMatch(/^À traiter Marquer comme traité/);
     await c.p.screenshot({ path: path.join(PHOTOS, 'messagerie-3-cabinet.png') });
     // (1.116.0) La photo du client s'ouvre dans un onglet où elle se voit (il restait vide : la page interdisait blob:).
     const [onglet] = await Promise.all([c.p.waitForEvent('popup'), c.p.locator('[data-msg-fil] [data-msg-fichier]').first().click()]);
@@ -277,9 +279,11 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     // (1.98.0) Plus rien à traiter : le bouton ne se propose plus (il promettait de sortir de « À traiter » un client qui
     // n'y était plus, après une réponse du cabinet : parcours du 21/10/2026). Le lien vers la révision reste.
     await expect.poll(() => c.p.getByRole('button', { name: 'Marquer comme traité', exact: true }).count(), { timeout: 15_000 }).toBe(0);
-    expect(await c.p.locator('[data-msg-revision]').count()).toBe(1);
+    await c.p.getByRole('button', { name: 'Les autres gestes de cette conversation' }).click();
+    expect(await c.p.getByRole('menuitem', { name: /^Question sur une pièce…/ }).count()).toBe(1);
+    await c.p.keyboard.press('Escape');
     // La liste se relit d'elle-même, et le client reste sous les yeux, choisi, même hors de « À traiter ».
-    await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText().catch(() => '')), { timeout: 15_000 }).toBe('À traiter (0) Attend le client (0) Tout (1)');
+    await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText().catch(() => '')), { timeout: 15_000 }).toBe('À traiter 0 Attend le client 0 Tout 1');
     expect(await c.p.locator('.msg-dossier.choisi').count()).toBe(1);
     // Rouvert ailleurs que dans la boîte, la pastille compte ce qui est à traiter : rien, alors qu'un client est en ligne.
     await c.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/dossiers`);
@@ -317,7 +321,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await t.p.locator('.sb-onglets [data-tel="plus"]').click();
     const tc = await page(sonia, 390, 844);
     await tc.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages`);
-    await tc.p.locator('.msg-boite h1').waitFor({ timeout: 20_000 });
+    await tc.p.locator('#page-msg .msg-filtres').waitFor({ timeout: 20_000 });
     expect(await deborde(tc.p)).toBe(0);
     // Au téléphone, une ligne ouvre la conversation sur sa page (deux colonnes n'y tiennent pas).
     expect(await tc.p.locator('[data-conv]').count()).toBe(0);
@@ -355,7 +359,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await expect.poll(() => hc.p.locator('[data-msg-echec]').innerText().then(net).catch(() => ''), { timeout: 15_000 })
       .toBe('Pas de réseau : la boîte attend la connexion. Elle s\'ouvre toute seule dès que le réseau revient. Réessayer');
     await hc.p.context().setOffline(false);
-    await hc.p.locator('.msg-boite h1').waitFor({ timeout: 8_000 });
+    await hc.p.locator('#page-msg .msg-filtres').waitFor({ timeout: 8_000 });
     expect(hc.erreurs).toEqual([]);
   }, 180_000);
 
@@ -391,7 +395,7 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     const c = await page(sonia);
     await c.p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages`);
     await c.p.locator('.msg-boite [data-msg-fil]').waitFor({ timeout: 20_000 });
-    await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText())).toBe('À traiter (2) Attend le client (0) Tout (2)');
+    await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText())).toBe('À traiter 2 Attend le client 0 Tout 2');
     const ligne = (nom: string) => c.p.locator('.msg-dossier').filter({ hasText: nom });
     // Le premier client s'ouvre à droite ; l'autre attend, sa pastille de non-lus seule : elle dit déjà « À traiter »,
     // l'étiquette ne la répète pas.
@@ -410,23 +414,27 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await expect.poll(() => ligne(nomSecond).locator('.msg-non-lus').count(), { timeout: 15_000 }).toBe(0);
     await ligne('Boulangerie du Lac').click();
     await expect.poll(async () => net(await c.p.locator('.msg-tete-integre h2').innerText())).toBe('Boulangerie du Lac');
-    expect(net(await ligne('Boulangerie du Lac').locator('.msg-etat-pastille').innerText())).toBe('À traiter');
+    expect(net(await c.p.locator('.msg-tete-etat .msg-etat-pastille').innerText())).toBe('À traiter');
     // Traité : il quitte « À traiter », mais reste dans la liste, choisi, tant qu'on le lit.
     await c.p.getByRole('button', { name: 'Marquer comme traité', exact: true }).click();
-    await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText()), { timeout: 15_000 }).toBe('À traiter (1) Attend le client (0) Tout (2)');
+    await expect.poll(async () => net(await c.p.locator('.msg-filtres').innerText()), { timeout: 15_000 }).toBe('À traiter 1 Attend le client 0 Tout 2');
     expect(await ligne('Boulangerie du Lac').getAttribute('aria-current')).toBe('true');
-    expect(net(await ligne('Boulangerie du Lac').locator('.msg-etat-pastille').innerText())).toBe('Rien à faire');
+    // (1.176.0) Plus rien à traiter : l'en-tête de la conversation ne dit plus « À traiter », la ligne n'a plus de pastille.
+    await expect.poll(() => c.p.locator('.msg-tete-etat .msg-etat-pastille').count()).toBe(0);
+    expect(await ligne('Boulangerie du Lac').locator('.msg-non-lus, .msg-etat-pastille').count()).toBe(0);
     // Le fil prend la hauteur : la boîte tient dans l'écran, « Envoyer » compris.
     expect(await c.p.evaluate(() => { const m = document.querySelector('main') as HTMLElement; return m.scrollHeight <= m.clientHeight; })).toBe(true);
     expect(await c.p.getByRole('button', { name: 'Envoyer', exact: true }).evaluate((e) => e.getBoundingClientRect().bottom <= innerHeight)).toBe(true);
     // « Ouvrir en grand » : la conversation sur sa page.
-    await c.p.getByRole('button', { name: 'Ouvrir en grand', exact: true }).click();
+    // (1.176.0) Dans le menu ⋯ de la conversation (la maquette « Messages »).
+    await c.p.getByRole('button', { name: 'Les autres gestes de cette conversation' }).click();
+    await c.p.getByRole('menuitem', { name: /^Ouvrir en grand/ }).click();
     await expect.poll(() => c.p.url()).toContain(`#/messages/${leila.e}`);
     await c.p.locator('.msg-retour').waitFor({ timeout: 15_000 });
     // (1.116.0) Demander à plusieurs clients : les mêmes pièces, la même date (dans sept jours), chacun dans son fil.
     await c.p.locator('.msg-retour').click();
     await c.p.locator('.msg-boite [data-msg-fil]').waitFor({ timeout: 15_000 });
-    await c.p.getByRole('button', { name: 'Demander à plusieurs clients…', exact: true }).click();
+    await c.p.getByRole('button', { name: 'Écrire à plusieurs clients…', exact: true }).click();
     const dg = c.p.getByRole('dialog', { name: 'Demander des pièces à plusieurs clients' });
     await dg.locator('[data-dg-piece]').fill('Le relevé bancaire de septembre');
     await dg.getByRole('button', { name: '+ Une autre pièce', exact: true }).click();

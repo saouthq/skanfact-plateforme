@@ -67,6 +67,9 @@
     croix: '<path d="M6 6l12 12M18 6 6 18"/>',
     modele: '<path d="M4 5h16M4 10h16M4 15h10M4 20h7"/>',
     loupe: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+    points: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+    coche: '<path d="m5 12 5 5 9-10"/>',
+    cloche: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   };
   /** @param {keyof typeof DESSINS} id */
   const dessin = (id) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${DESSINS[id]}</svg>`;
@@ -344,6 +347,8 @@
    *   revision?: () => void,
    *   surAttente?: (a: { nonLus: number, questions: number, demandes: number, enRetard?: number }) => void,
    *   integre?: boolean,
+   *   contact?: string | null, coteEl?: HTMLElement | null, traiter?: () => Promise<void>,
+   *   menu?: { texte: string, sous?: string, dessin?: string, faire: () => void }[],
    *   enGrand?: () => void,
    *   modeles?: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
    * }} o
@@ -385,12 +390,16 @@
       // ce qui attend le client en bandeau, et le fil à pleine hauteur (revue du 22/10/2026 : il fallait un aperçu, puis
       // « Ouvrir la conversation », sur une autre page).
       const integre = !!o.integre;
+      // (1.176.0, maquette « Messages ») L'en-tête de la boîte : le client, son contact, où en est la conversation
+      // (« À traiter », « Attend le client »), « Marquer comme traité » (E), chercher, et le menu ⋯ (la question de la
+      // révision, confier, le dossier, en grand).
       const tete = integre
         ? `<header class="msg-tete msg-tete-integre">
           <span class="msg-avatar petit" aria-hidden="true">${esc(initiales(nomAutre))}</span>
-          <span class="msg-tete-txt"><h2>${esc(nomAutre)}</h2>${sous ? `<span class="msg-sous">${sous}</span>` : ''}</span>
-          <button type="button" class="msg-lien msg-chercher" data-msg-chercher aria-expanded="false" aria-label="Chercher">${dessin('loupe')}<span class="msg-long">Chercher</span></button>
-          ${o.enGrand ? '<button type="button" class="msg-lien msg-en-grand" data-msg-en-grand>Ouvrir en grand</button>' : ''}
+          <span class="msg-tete-txt"><h2>${esc(nomAutre)}</h2><span class="msg-sous">${o.contact ? esc(o.contact) : sous}</span></span>
+          <span class="msg-tete-etat" data-msg-tete-etat></span>
+          <button type="button" class="msg-icone msg-chercher" data-msg-chercher aria-expanded="false" aria-label="Chercher dans cette conversation" title="Chercher dans cette conversation">${dessin('loupe')}</button>
+          <span class="msg-menu-ancre"><button type="button" class="msg-icone" data-msg-menu aria-haspopup="menu" aria-expanded="false" aria-label="Les autres gestes de cette conversation" title="Les autres gestes">${dessin('points')}</button></span>
         </header>`
         : `${o.retour ? `<button type="button" class="msg-retour" data-msg-retour>← ${esc(o.retour.texte)}</button>` : ''}
         <header class="msg-tete">
@@ -437,7 +446,7 @@
             </form>` : '';
       el.innerHTML = integre
         ? `<div class="msg-page msg-integre msg-cabinet">${tete}
-          <div class="msg-bandeau" data-msg-cote></div>
+          <div class="msg-cote-fil" data-msg-cote hidden></div>
           <section class="msg-zone" aria-label="Les messages">${recherche}<div class="msg-fil" data-msg-fil></div>${ecrire}</section>
         </div>`
         : `<div class="msg-page${entreprise ? '' : ' msg-cabinet'}">${tete}
@@ -452,10 +461,47 @@
       </div>`;
       const grand = el.querySelector('[data-msg-en-grand]');
       if (grand && o.enGrand) /** @type {HTMLElement} */ (grand).onclick = o.enGrand;
+      brancherMenu();
       const r = el.querySelector('[data-msg-retour]');
       if (r && o.retour) /** @type {HTMLElement} */ (r).onclick = o.retour.aller;
       brancherEcrire();
       brancherRecherche();
+    }
+
+    // ── (1.176.0) Le menu ⋯ de la conversation (dans la boîte) : la question de la révision, ce que l'écran ajoute (confier,
+    // ouvrir le dossier), ouvrir en grand. Chaque entrée dit ce qu'elle fait ; Échap ou un clic ailleurs le ferme.
+    function brancherMenu() {
+      const btn = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-menu]'));
+      if (!btn) return;
+      const entrees = [
+        ...(o.revision ? [{ texte: 'Question sur une pièce…', sous: 'depuis la révision : elle arrive ici avec sa pièce et son montant', dessin: 'question', faire: o.revision }] : []),
+        ...((o.menu || []).map((/** @type {any} */ x) => ({ dessin: x.dessin || 'piece', ...x }))),
+        ...(o.enGrand ? [{ texte: 'Ouvrir en grand', sous: 'la conversation seule, sur sa page', dessin: 'image', faire: o.enGrand }] : []),
+      ];
+      if (!entrees.length) { btn.hidden = true; return; }
+      /** @type {HTMLElement | null} */ let menu = null;
+      const fermerMenu = () => {
+        if (!menu) return;
+        menu.remove(); menu = null; btn.setAttribute('aria-expanded', 'false');
+        document.removeEventListener('mousedown', dehors, true); document.removeEventListener('keydown', echap, true);
+      };
+      const dehors = (/** @type {Event} */ e) => { if (menu && !menu.contains(/** @type {Node} */ (e.target)) && e.target !== btn && !btn.contains(/** @type {Node} */ (e.target))) fermerMenu(); };
+      const echap = (/** @type {KeyboardEvent} */ e) => { if (e.key === 'Escape') { e.stopPropagation(); fermerMenu(); btn.focus(); } };
+      btn.onclick = () => {
+        if (menu) { fermerMenu(); return; }
+        menu = document.createElement('div');
+        menu.className = 'msg-menu';
+        menu.setAttribute('role', 'menu');
+        menu.innerHTML = `<span class="msg-menu-titre">${esc(o.nom || '')}</span>${entrees.map((x, i) => `<button type="button" role="menuitem" class="msg-menu-e" data-msg-menu-i="${i}">${dessin(x.dessin in DESSINS ? x.dessin : 'piece')}<span><b>${esc(x.texte)}</b>${x.sous ? `<small>${esc(x.sous)}</small>` : ''}</span></button>`).join('')}`;
+        /** @type {HTMLElement} */ (btn.parentElement).appendChild(menu);
+        btn.setAttribute('aria-expanded', 'true');
+        menu.querySelectorAll('[data-msg-menu-i]').forEach((n) => {
+          /** @type {HTMLElement} */ (n).onclick = () => { const x = entrees[Number(/** @type {HTMLElement} */ (n).dataset.msgMenuI)]; fermerMenu(); if (x) x.faire(); };
+        });
+        const premier = /** @type {HTMLElement | null} */ (menu.querySelector('[data-msg-menu-i]'));
+        if (premier) premier.focus();
+        document.addEventListener('mousedown', dehors, true); document.addEventListener('keydown', echap, true);
+      };
     }
 
     // ── (1.117.0) Chercher dans le fil ─────────────────────────────────────────────────────────────────────────────
@@ -714,13 +760,32 @@
       // (1.115.0) Dans la boîte du cabinet, un bandeau d'une ligne au-dessus du fil : ce qui attend le client, « Marquer
       // comme traité », la question de la révision, l'alerte par e-mail ; le fil garde la hauteur.
       if (o.integre) {
-        cote.innerHTML = `${f ? `<span class="msg-bandeau-etat${rien ? ' ok' : ' attend'}" data-msg-attente>${esc(texte)}</span>` : ''}
-          <span class="msg-bandeau-gestes">
-            ${f && f.aTraiter ? '<button type="button" class="btn btn-sm" data-msg-traite title="Ce client t\'a écrit depuis ta dernière réponse. Rien à lui répondre ? Il quitte « À traiter » jusqu\'à son prochain message.">Marquer comme traité</button>' : ''}
-            ${o.revision ? '<button type="button" class="msg-lien" data-msg-revision>Question sur une pièce (révision)</button>' : ''}
-            ${f && f.actif ? `<label class="msg-bandeau-alerte" title="« Un nouveau message t'attend dans SkanFact », cinq minutes après s'il n'est pas lu. Le message lui-même reste dans SkanFact."><input type="checkbox" data-msg-alerte ${f.alerte ? 'checked' : ''}>Me prévenir par e-mail</label>` : ''}
-          </span>`;
-        brancherCote(cote);
+        const etat = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-tete-etat]'));
+        if (etat) {
+          etat.innerHTML = `${f && f.aTraiter ? '<span class="msg-etat-pastille traiter">À traiter</span>' : !rien ? '<span class="msg-etat-pastille client">Attend le client</span>' : ''}
+            ${f && f.aTraiter ? `<button type="button" class="btn btn-sm msg-traite" data-msg-traite aria-label="Marquer comme traité" aria-keyshortcuts="E" title="Ce client t'a écrit depuis ta dernière réponse. Rien à lui répondre ? Il quitte « À traiter » jusqu'à son prochain message.">${dessin('coche')}Marquer comme traité<kbd>E</kbd></button>` : ''}`;
+          surClic(etat, '[data-msg-traite]', async () => {
+            if (o.traiter) { await o.traiter(); return; }
+            await o.appel('POST', '/messages/traite');
+            if (o.toast) o.toast('C\'est noté : ce client quitte « À traiter » jusqu\'à son prochain message.');
+            await relire();
+          });
+        }
+        // Ce qu'on attend de lui, dans la colonne du dossier (la boîte la tend, `coteEl`) : les questions et les pièces
+        // demandées sans réponse, la plus ancienne d'abord ; et l'alerte par e-mail.
+        const z = /** @type {HTMLElement} */ (o.coteEl || cote);
+        if (o.coteEl) cote.hidden = true;
+        const prenom = String(o.contact || o.nom || '').split(/[\s·]/)[0] || 'ce client';
+        const qs = [...(lu.questions || []), ...anciennesQuestions].filter((q) => q.statut === 'envoyee' && !q.reponse);
+        const ds = [...demandes().values()].filter((m) => !m.demande.recueLe);
+        const jours = (/** @type {string} */ iso) => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 86_400_000));
+        const items = [
+          ...qs.map((q) => ({ quand: q.envoyeeLe, html: `<li>${dessin('question')}<span><b>${esc(q.objet || q.texte)}${q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · ${esc(montant(q.montant))}` : ''}</b><small>question de la révision · depuis ${esc(pl(jours(q.envoyeeLe), 'jour'))}</small></span></li>` })),
+          ...ds.map((m) => ({ quand: m.ecritLe, html: `<li class="${m.demande.enRetard ? 'retard' : ''}">${dessin('piece')}<span><b>${esc(m.demande.texte)}</b><small>pièce demandée${m.demande.pour ? ` · pour le ${esc(dateCourte(m.demande.pour))}` : ''}${m.demande.enRetard ? ' · en retard' : ''}${m.demande.relances ? ` · relancée ${m.demande.relances > 1 ? `${m.demande.relances} fois` : 'une fois'}` : ''}</small></span></li>` })),
+        ].sort((x, y) => (x.quand < y.quand ? -1 : 1));
+        z.innerHTML = `${items.length ? `<section class="msg-cote-carte attend" data-msg-attente><h3>On attend de ${esc(prenom)}<span class="msg-filtre-n">${items.length}</span></h3><ul class="msg-attend-l">${items.map((x) => x.html).join('')}</ul></section>` : ''}
+          ${f && f.actif ? `<label class="msg-cote-alerte" title="« Un nouveau message t'attend dans SkanFact », cinq minutes après s'il n'est pas lu. Le message lui-même reste dans SkanFact.">${dessin('cloche')}<span>Me prévenir par e-mail</span><input type="checkbox" role="switch" class="msg-bascule" data-msg-alerte ${f.alerte ? 'checked' : ''}></label>` : ''}`;
+        brancherCote(z);
         return;
       }
       // (1.124.0) « Ce mois-ci » : les pièces du mois et ce que le cabinet en a fait, sous ce qui attend (revue du mois d'un
@@ -1246,7 +1311,13 @@
    *   ouvrirPiece?: (entreprise: string, genre: string, id: string, libelle: string) => boolean,
    *   saisirPiece?: (entreprise: string, message: { id: string, ecritLe: string }) => void,
    *   revision?: (entreprise: string) => void,
-   *   surCompteurs?: (c: { aTraiter: number, attendClient: number, tout: number }) => void,
+   *   surCompteurs?: (c: { aTraiter: number, attendClient: number, tout: number }, vus: any[], tous: any[]) => void,
+   *   portee?: () => string, changerPortee?: (v: string) => void, dansPortee?: (entreprise: string) => boolean, info?: string,
+   *   ligne?: (entreprise: string) => { mois?: { texte: string, ton?: string }, puces?: { texte: string, ton?: string }[], suivi?: string, teinte?: string } | null,
+   *   resume?: (ds: any[]) => { cle: string, texte: string, ton: string, ids: string[], dessin?: string }[],
+   *   aCote?: (entreprise: string) => string, brancherCote?: (el: HTMLElement, entreprise: string) => void,
+   *   contact?: (entreprise: string) => string | null, menu?: (entreprise: string) => { texte: string, sous?: string, faire: () => void }[],
+   *   vide?: () => string,
    *   modeles?: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
    * }} o
    */
@@ -1272,60 +1343,56 @@
     const extrait = (d) => {
       const x = d.dernier;
       if (!x) return 'Aucun échange encore.';
-      const qui = x.cote === 'cabinet' ? (x.sorte === 'question' ? 'Question envoyée' : x.sorte === 'demande' ? 'Pièce demandée' : 'Toi') : (x.sorte === 'reponse' ? 'Réponse du client' : x.auteur || 'Le client');
+      const qui = x.cote === 'cabinet' ? (x.sorte === 'question' ? 'Question envoyée' : x.sorte === 'demande' ? 'Pièce demandée' : 'Toi') : (x.sorte === 'reponse' ? 'Réponse du client' : String(x.auteur || '').split(' ')[0] || 'Le client');
       const quoi = x.sorte === 'fichier' ? `a envoyé « ${x.extrait} »` : x.extrait;
       return x.sorte === 'fichier' ? `${qui} ${quoi}` : `${qui} : ${quoi}`;
     };
-    // Le haut et les deux colonnes se posent une fois : la liste se redessine seule, la conversation ouverte reste (son
-    // brouillon, sa position dans le fil).
+    // (1.176.0, maquette « Messages » de Mon cabinet) Trois colonnes, comme les outils des cabinets : la liste des clients
+    // (ouverte sur ceux qui attendent ta réponse), la conversation du client choisi, et son dossier à côté (où en est son
+    // mois, ce qu'on attend de lui, ce qu'il faut savoir avant de répondre). L'en-tête de la page (le titre, sa phrase,
+    // « Écrire à plusieurs clients… ») est celui de l'écran qui pose la boîte ; il lit les compteurs par `surCompteurs`.
+    // La portée (« Mes dossiers » ou « Tout le cabinet ») est celle de la barre (`o.portee`) : un seul réglage.
+    /** @type {string | null} */ let resume = null; // le chiffre du résumé du cabinet qui filtre (« 2 pièces en retard »…)
+    const portee = () => (o.portee ? o.portee() : 'mes');
+    /** @param {string} id */
+    const dansPortee = (id) => (o.dansPortee ? o.dansPortee(id) : true);
     function poser() {
-      el.innerHTML = `<div class="msg-page msg-boite${aCote() ? ' msg-boite-a-cote' : ''}">
-        <div class="msg-boite-tete">
-          <span class="msg-tete-txt"><span class="msg-surtitre">${esc(o.nomCabinet)}</span><h1>Les messages de tes clients</h1></span>
-          <div class="msg-boite-actions">
-            <div class="msg-filtres" role="tablist" aria-label="Quels clients" data-filtres></div>
-            <button type="button" class="btn" data-demande-groupee>Demander à plusieurs clients…</button>
-          </div>
-        </div>
-        <div class="msg-boite-corps" data-boite-corps></div>
-      </div>`;
+      el.innerHTML = `<div class="msg-boite${aCote() ? ' msg-boite-a-cote' : ''}"><div class="msg-boite-corps" data-boite-corps></div></div>`;
     }
+    /** @param {any[]} ds */
+    const compter = (ds) => ({ aTraiter: ds.filter((d) => d.etat === 'a_traiter').length, attendClient: ds.filter((d) => d.etat === 'attend_client').length, tout: ds.length });
     function dessiner() {
       if (!el.querySelector('[data-boite-corps]')) poser();
-      const groupee = /** @type {HTMLButtonElement | null} */ (el.querySelector('[data-demande-groupee]'));
-      if (groupee) { groupee.hidden = !lu.dossiers.length; groupee.onclick = () => demandeGroupee(); }
-      const ds = /** @type {any[]} */ (lu.dossiers);
-      const c = lu.compteurs;
+      const tous = /** @type {any[]} */ (lu.dossiers);
+      const ds = tous.filter((d) => dansPortee(d.entreprise));
+      const c = compter(ds);
+      if (o.surCompteurs) o.surCompteurs(c, ds, tous);
       if (!filtre) filtre = c.aTraiter ? 'a_traiter' : c.attendClient ? 'attend_client' : 'tout';
       if (choisi && !ds.some((d) => d.entreprise === choisi)) choisi = null;
       // (1.115.0) Le client choisi reste dans la liste même s'il en sort (« Marquer comme traité », une réponse) : la
       // conversation qu'on lit ne disparaît pas sous le curseur. Un autre filtre, un autre client : il la quitte.
+      const res = resume && o.resume ? o.resume(ds).find((x) => x.cle === resume) : null;
+      if (resume && !res) resume = null;
       const vus = cherche
         ? ds.filter((d) => plier(d.nom).includes(plier(cherche)))
-        : ds.filter((d) => filtre === 'tout' || d.etat === filtre || d.entreprise === choisi);
+        : res ? ds.filter((d) => res.ids.includes(d.entreprise))
+          : ds.filter((d) => filtre === 'tout' || d.etat === filtre || d.entreprise === choisi);
       if (!choisi && aCote() && vus[0]) choisi = vus[0].entreprise;
-      const F = [['a_traiter', `À traiter (${c.aTraiter})`], ['attend_client', `Attend le client (${c.attendClient})`], ['tout', `Tout (${c.tout})`]];
-      const filtres = /** @type {HTMLElement} */ (el.querySelector('[data-filtres]'));
-      filtres.innerHTML = F.map(([id, nom]) => `<button type="button" role="tab" class="msg-filtre" aria-selected="${!cherche && filtre === id}" data-filtre="${id}">${esc(nom)}</button>`).join('');
-      filtres.querySelectorAll('[data-filtre]').forEach((n) => {
-        /** @type {HTMLElement} */ (n).onclick = () => {
-          filtre = String(/** @type {HTMLElement} */ (n).dataset.filtre); choisi = null;
-          cherche = '';
-          const q = /** @type {HTMLInputElement | null} */ (el.querySelector('[data-boite-q]'));
-          if (q) q.value = '';
-          dessiner();
-        };
-      });
       const corps = /** @type {HTMLElement} */ (el.querySelector('[data-boite-corps]'));
-      if (!ds.length) {
+      if (!tous.length) {
         fermer();
-        corps.innerHTML = '<div class="msg-vide"><b>Aucun client en ligne pour l\'instant.</b><span>La messagerie s\'ouvre avec chaque client qui t\'a confié son dossier dans SkanFact. Les dossiers que tu tiens seul au cabinet n\'en ont pas.</span></div>';
+        corps.innerHTML = o.vide ? o.vide() : '<div class="msg-vide"><b>Aucun client en ligne pour l\'instant.</b><span>La messagerie s\'ouvre avec chaque client qui t\'a confié son dossier dans SkanFact. Les dossiers que tu tiens seul au cabinet n\'en ont pas.</span></div>';
         return;
       }
       if (!corps.querySelector('[data-liste]')) {
-        corps.innerHTML = `<section class="msg-zone msg-liste" aria-label="Les dossiers">
-            <div class="msg-liste-chercher"><input type="search" maxlength="100" placeholder="Chercher un client" aria-label="Chercher un client" data-boite-q></div>
-            <div data-liste></div></section>${aCote() ? '<div class="msg-boite-conv" data-conv></div>' : ''}`;
+        corps.innerHTML = `<section class="msg-zone msg-liste" aria-label="Les conversations">
+            <div class="msg-liste-tete"><span class="msg-portee" data-portee></span><span class="msg-liste-n" data-liste-n></span></div>
+            <div class="msg-liste-chercher"><span class="msg-liste-champ">${dessin('loupe')}<input type="search" maxlength="100" placeholder="Chercher un client" aria-label="Chercher un client" data-boite-q></span></div>
+            <div class="msg-resume" data-resume hidden></div>
+            <div class="msg-filtres" role="tablist" aria-label="Quels clients" data-filtres></div>
+            <div class="msg-liste-l" data-liste></div>
+            <p class="msg-clavier" aria-hidden="true"><kbd>↑</kbd><kbd>↓</kbd> d'un client à l'autre · <kbd>E</kbd> marquer traité</p></section>${aCote()
+          ? '<div class="msg-boite-conv" data-conv></div><aside class="msg-dossier-cote" data-cote aria-label="Le dossier"></aside>' : ''}`;
         const q = /** @type {HTMLInputElement} */ (corps.querySelector('[data-boite-q]'));
         q.value = cherche;
         q.oninput = () => { cherche = q.value.trim(); dessiner(); };
@@ -1338,28 +1405,66 @@
           }
         };
       }
+      // La portée : « Mes dossiers » ou « Tout le cabinet » (la direction choisit ; un collaborateur ne voit que les siens).
+      const po = /** @type {HTMLElement} */ (corps.querySelector('[data-portee]'));
+      po.innerHTML = o.changerPortee
+        ? `<label class="msg-portee-choix"><span class="msg-cache">Quels dossiers</span><select data-portee-choix><option value="mes"${portee() === 'mes' ? ' selected' : ''}>Mes dossiers</option><option value="tout"${portee() === 'tout' ? ' selected' : ''}>Tout le cabinet</option></select></label>${o.info ? o.info : ''}`
+        : `<b>Mes dossiers</b>${o.info ? o.info : ''}`;
+      const choix = /** @type {HTMLSelectElement | null} */ (po.querySelector('[data-portee-choix]'));
+      if (choix && o.changerPortee) { const changer = o.changerPortee; choix.onchange = () => { resume = null; filtre = null; choisi = null; changer(choix.value); dessiner(); }; }
+      /** @type {HTMLElement} */ (corps.querySelector('[data-liste-n]')).textContent = pl(ds.length, 'conversation');
+      // Le cabinet en un coup d'œil (Tout le cabinet) : chaque chiffre filtre la liste.
+      const rz = /** @type {HTMLElement} */ (corps.querySelector('[data-resume]'));
+      const chiffres = portee() === 'tout' && o.resume ? o.resume(ds).filter((x) => x.ids.length) : [];
+      rz.hidden = !chiffres.length;
+      rz.innerHTML = chiffres.map((x) => `<button type="button" class="msg-resume-c ${esc(x.ton)}" data-resume-c="${esc(x.cle)}" aria-pressed="${resume === x.cle}">${x.dessin ? x.dessin : ''}${esc(x.texte)}</button>`).join('');
+      rz.querySelectorAll('[data-resume-c]').forEach((n) => {
+        /** @type {HTMLElement} */ (n).onclick = () => { const k = String(/** @type {HTMLElement} */ (n).dataset.resumeC); resume = resume === k ? null : k; choisi = null; dessiner(); };
+      });
+      const F = [['a_traiter', 'À traiter', c.aTraiter], ['attend_client', 'Attend le client', c.attendClient], ['tout', 'Tout', c.tout]];
+      const filtres = /** @type {HTMLElement} */ (corps.querySelector('[data-filtres]'));
+      filtres.innerHTML = F.map(([id, nom, n]) => `<button type="button" role="tab" class="msg-filtre" aria-selected="${!cherche && !resume && filtre === id}" data-filtre="${id}">${esc(nom)}<span class="msg-filtre-n${id === 'a_traiter' && n ? ' plein' : ''}">${n}</span></button>`).join('');
+      filtres.querySelectorAll('[data-filtre]').forEach((n) => {
+        /** @type {HTMLElement} */ (n).onclick = () => {
+          filtre = String(/** @type {HTMLElement} */ (n).dataset.filtre); choisi = null; resume = null;
+          cherche = '';
+          const q = /** @type {HTMLInputElement | null} */ (el.querySelector('[data-boite-q]'));
+          if (q) q.value = '';
+          dessiner();
+        };
+      });
       const liste = /** @type {HTMLElement} */ (corps.querySelector('[data-liste]'));
       const avaitLeFocus = liste.contains(document.activeElement);
-      // (1.115.0) La pastille des messages non lus dit déjà « À traiter » : l'étiquette ne la répète pas.
-      liste.innerHTML = vus.length ? vus.map((x) => `<button type="button" class="msg-dossier${x.entreprise === choisi ? ' choisi' : ''}" data-dossier="${esc(x.entreprise)}" aria-current="${x.entreprise === choisi}">
-          <span class="msg-avatar petit" aria-hidden="true">${esc(initiales(x.nom))}</span>
+      liste.innerHTML = vus.length ? vus.map((x) => {
+        // La ligne parle du mois du client (« sept. prête », « 1 mois en retard ») et de qui suit le dossier.
+        const L = o.ligne ? o.ligne(x.entreprise) : null;
+        const puces = [L && L.mois ? `<span class="msg-mois ${esc(L.mois.ton || '')}">${esc(L.mois.texte)}</span>` : '',
+          ...(L && L.puces ? L.puces.map((/** @type {any} */ p) => `<span class="msg-puce ${esc(p.ton || '')}">${esc(p.texte)}</span>`) : []),
+          x.retards ? `<span class="msg-puce rouge" title="${esc(pl(x.retards, 'pièce demandée passée sa date', 'pièces demandées passées leur date'))}">${esc(pl(x.retards, 'pièce en retard', 'pièces en retard'))}</span>` : '',
+          portee() === 'tout' && L && L.suivi ? `<span class="msg-suivi">${esc(L.suivi)}</span>` : ''].filter(Boolean).join('');
+        return `<button type="button" class="msg-dossier${x.entreprise === choisi ? ' choisi' : ''}${x.nonLus ? ' non-lu' : ''}" data-dossier="${esc(x.entreprise)}" aria-current="${x.entreprise === choisi}">
+          <span class="msg-avatar petit${L && L.teinte ? ` ${esc(L.teinte)}` : ''}" aria-hidden="true">${esc(initiales(x.nom))}</span>
           <span class="msg-dossier-txt"><span class="msg-dossier-l1"><b>${esc(x.nom)}</b>${x.dernier ? `<span class="msg-quand">${esc(quandCourt(x.dernier.quand))}</span>` : ''}</span>
-            <span class="msg-extrait">${esc(extrait(x))}</span></span>
+            <span class="msg-extrait">${esc(extrait(x))}</span>${puces ? `<span class="msg-dossier-l3">${puces}</span>` : ''}</span>
           <span class="msg-dossier-pastilles">${x.nonLus ? `<span class="msg-non-lus" title="${esc(pl(x.nonLus, 'nouveau message', 'nouveaux messages'))}">${x.nonLus}<span class="msg-cache"> ${x.nonLus > 1 ? 'nouveaux messages' : 'nouveau message'}</span></span>` : ''}
-          ${x.nonLus && x.etat === 'a_traiter' ? '' : `<span class="msg-etat-pastille ${etatDit(x.etat)[1]}">${esc(etatDit(x.etat)[0])}</span>`}
-          ${x.retards ? `<span class="msg-etat-pastille retard" title="${esc(pl(x.retards, 'pièce demandée passée sa date', 'pièces demandées passées leur date'))}">${esc(pl(x.retards, 'en retard', 'en retard'))}</span>` : ''}</span></button>`).join('')
+          ${x.nonLus || x.etat !== 'attend_client' ? '' : `<span class="msg-etat-pastille ${etatDit(x.etat)[1]}">${esc(etatDit(x.etat)[0])}</span>`}</span></button>`;
+      }).join('')
         : cherche ? `<div class="msg-vide"><b>Aucun client ne s'appelle « ${esc(cherche)} ».</b><span>La recherche lit le nom de chaque client en ligne, quel que soit le filtre.</span></div>`
-        : `<div class="msg-vide"><b>${filtre === 'a_traiter' ? 'Rien à traiter.' : 'Aucun client n\'a de réponse en retard.'}</b><span>${filtre === 'a_traiter' ? 'Aucun client ne t\'a écrit depuis ta dernière réponse.' : 'Toutes tes questions et pièces demandées ont leur réponse.'}</span></div>`;
+        : filtre === 'a_traiter' ? `<div class="msg-vide msg-tout-repondu"><b>Tout le monde a sa réponse.</b><span>Aucun client ne t'a écrit depuis ta dernière réponse${c.attendClient ? ` ; ${pl(c.attendClient, 'client doit', 'clients doivent')} une pièce ou une réponse` : ''}.</span>${c.attendClient ? '<button type="button" class="msg-lien" data-vers-filtre="attend_client">Voir ceux qui doivent une réponse</button>' : ''}</div>`
+        : '<div class="msg-vide"><b>Aucun client ne doit de réponse.</b><span>Toutes tes questions et les pièces demandées ont leur réponse.</span></div>';
+      const vers = liste.querySelector('[data-vers-filtre]');
+      if (vers) /** @type {HTMLElement} */ (vers).onclick = () => { filtre = String(/** @type {HTMLElement} */ (vers).dataset.versFiltre); dessiner(); };
       const lignes = /** @type {HTMLElement[]} */ ([...liste.querySelectorAll('[data-dossier]')]);
       lignes.forEach((b, i) => {
         b.onclick = () => choisir(String(b.dataset.dossier));
-        // ↑ et ↓ passent d'un client à l'autre, comme dans toute messagerie.
+        // ↑ et ↓ passent d'un client à l'autre, comme dans toute messagerie ; E marque traité le client choisi.
         b.onkeydown = (e) => {
-          const vers = e.key === 'ArrowDown' ? lignes[i + 1] : e.key === 'ArrowUp' ? lignes[i - 1] : null;
-          if (!vers) return;
+          if ((e.key === 'e' || e.key === 'E') && !e.ctrlKey && !e.metaKey && !e.altKey) { e.preventDefault(); void marquerTraite(String(b.dataset.dossier)); return; }
+          const v = e.key === 'ArrowDown' ? lignes[i + 1] : e.key === 'ArrowUp' ? lignes[i - 1] : null;
+          if (!v) return;
           e.preventDefault();
-          vers.focus();
-          choisir(String(vers.dataset.dossier));
+          v.focus();
+          choisir(String(v.dataset.dossier));
         };
       });
       if (avaitLeFocus) {
@@ -1367,6 +1472,19 @@
         if (b) b.focus();
       }
       ouvrirAcote();
+    }
+    // « Marquer comme traité » (le bouton de la conversation, ou E sur une ligne) : le client quitte « À traiter » jusqu'à
+    // son prochain message. Un client qui n'y est pas : rien ne part, la ligne le dit.
+    /** @param {string} id */
+    async function marquerTraite(id) {
+      const d = lu && lu.dossiers.find((/** @type {any} */ x) => x.entreprise === id);
+      if (!d || d.etat !== 'a_traiter') { if (o.toast) o.toast(`${d ? d.nom : 'Ce client'} n'attend pas de réponse : rien à marquer.`); return; }
+      try {
+        await o.appel('POST', `/entreprises/${encodeURIComponent(id)}/messages/traite`);
+        if (o.toast) o.toast(`C'est noté : ${d.nom} quitte « À traiter » jusqu'à son prochain message.`);
+        if (ouverte && ouverte.entreprise === id) await ouverte.c.relire();
+        await lire();
+      } catch (x) { if (o.toast) o.toast(motif(x), true); }
     }
     /** @param {string} id */
     function choisir(id) {
@@ -1381,24 +1499,33 @@
       ouvrirAcote();
     }
     function fermer() { if (ouverte) { ouverte.c.arreter(); ouverte = null; } }
-    // La conversation du client choisi, à droite de la liste : la même que sur sa page, en plus serré.
+    // La conversation du client choisi, au milieu ; son dossier à droite : la partie qui vient du livre (l'écran la donne,
+    // `o.aCote`), puis ce qu'on attend de lui et l'alerte par e-mail (la conversation les remplit, `coteEl`).
     function ouvrirAcote() {
       const zone = /** @type {HTMLElement | null} */ (el.querySelector('[data-conv]'));
+      const cote = /** @type {HTMLElement | null} */ (el.querySelector('[data-cote]'));
       if (!zone || !o.conversation) return;
       if (!choisi) {
         fermer();
         zone.innerHTML = '<div class="msg-vide msg-conv-vide"><b>Choisis un client à gauche.</b><span>Sa conversation s\'ouvre ici, entière : ses messages, tes questions de la révision, les pièces demandées.</span></div>';
+        if (cote) cote.innerHTML = '';
         return;
       }
-      if (ouverte && ouverte.entreprise === choisi) return;
+      if (ouverte && ouverte.entreprise === choisi) { if (cote && o.aCote) majCote(cote, choisi); return; }
       fermer();
       const id = choisi;
       const d = lu.dossiers.find((/** @type {any} */ x) => x.entreprise === id);
       zone.innerHTML = '<div data-conv-racine></div>';
+      if (cote) cote.innerHTML = '<div data-cote-dossier></div><div data-cote-fil></div>';
+      if (cote) majCote(cote, id);
       const revision = o.revision;
       ouverte = { entreprise: id, c: o.conversation(/** @type {HTMLElement} */ (zone.firstElementChild), id, {
         nom: d ? d.nom : 'Ce client',
         integre: true,
+        contact: o.contact ? o.contact(id) : null,
+        coteEl: cote ? cote.querySelector('[data-cote-fil]') : null,
+        menu: o.menu ? o.menu(id) : [],
+        traiter: () => marquerTraite(id),
         enGrand: () => o.ouvrir(id),
         toast: o.toast,
         revision: revision ? () => revision(id) : undefined,
@@ -1408,6 +1535,16 @@
         // lecture de la conversation (après un geste, et toutes les 30 secondes), une fois pour plusieurs appels rapprochés.
         surAttente: () => { clearTimeout(relecture); relecture = setTimeout(() => { void lire(); }, 250); },
       }) };
+    }
+    /** @param {HTMLElement} cote @param {string} id */
+    function majCote(cote, id) {
+      const z = /** @type {HTMLElement | null} */ (cote.querySelector('[data-cote-dossier]'));
+      if (!z || !o.aCote) return;
+      const html = o.aCote(id);
+      if (z.dataset.html === html) return;
+      z.dataset.html = html;
+      z.innerHTML = html;
+      if (o.brancherCote) o.brancherCote(z, id);
     }
     // (1.116.0) « Demander à plusieurs clients » (revue du 22/10/2026 : en fin de mois, la même demande à tous — les
     // relevés bancaires — se faisait client par client). Les mêmes pièces, la même date, un mot facultatif ; chaque client
@@ -1509,7 +1646,6 @@
         if (!el.isConnected) { arreter(); return; }
         const s = JSON.stringify(r);
         lu = r;
-        if (o.surCompteurs) o.surCompteurs(r.compteurs);
         if (s !== signature) dessiner();
         signature = s;
       } catch (x) {
@@ -1532,7 +1668,8 @@
     const auReseau = () => { if (el.isConnected && !ouverte) void lire(); };
     window.addEventListener('online', auReseau);
     function arreter() { fini = true; clearInterval(minuterie); clearTimeout(relecture); TELEPHONE.removeEventListener('change', auChangement); window.removeEventListener('online', auReseau); fermer(); }
-    return { arreter };
+    // (1.176.0) « Écrire à plusieurs clients… » est dans l'en-tête de la page : l'écran l'ouvre d'ici.
+    return { arreter, demandeGroupee: () => { if (lu && lu.dossiers.length) demandeGroupee(); } };
   }
 
   // (1.94.0) Un fichier qui part avec un mot (et la pièce qu'il concerne), hors du fil : la fenêtre « Répondre » d'une
