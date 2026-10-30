@@ -21420,3 +21420,15 @@ prouver 'questions-prêtes 6 : une question nommée repart le jour même' base/m
 prouver 'questions-prêtes 7 : la conversation du cabinet ne montre pas les questions prêtes' serveur/messagerie/routes.ts \
   "const pretes = cote.data === 'cabinet' && !avant" "const pretes = false && !avant" \
   'chaque client à sa place'
+prouver 'demander 1 : « Demander une pièce » quitte l'"'"'écran' web/public/v10/cabinet/app.js \
+  "faire: () => fenDemanderCl(D, {}, { hors: true, apres: async () => {} }) });" "faire: () => { location.hash = '#/messages/' + encodeURIComponent(D.id) + '/demande'; } });" \
+  'au bureau : la tête et son menu'
+prouver 'demander 2 : la pièce nommée ne compose pas le message' web/public/v10/cabinet/app.js \
+  "if (t.value === derniere) { t.value = champPiece.value.trim() ? phraseDe(champPiece.value.trim()) : ''; derniere = t.value; }" "if (false) { derniere = t.value; }" \
+  'au bureau : la tête et son menu'
+prouver 'demander 3 : la conversation ne reçoit pas la pièce nommée' web/public/v10/cabinet/app.js \
+  "demandePreparee = { id: d.id, texte: laPiece().slice(0, 300) };" "demandePreparee = null;" \
+  'au bureau : la tête et son menu'
+prouver 'demander 4 : la ligne de l'"'"'achat ne demande pas sur place' web/public/v10/cabinet/app.js \
+  "fenDemanderCl(dossier, { piece, mois: String(e.date).slice(0, 7)," "void (dossier, { piece, mois: String(e.date).slice(0, 7)," \
+  'Hatem et les justificatifs'

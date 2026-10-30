@@ -145,9 +145,11 @@ describe('les relances et les mois à valider, à la souris', () => {
     const liens = String(await p.evaluate(() => sessionStorage.getItem('liens') ?? ''));
     expect(liens).toContain('mailto:menuiserie%40exemple.tn?subject=Il%20me%20manque%20vos%20pi%C3%A8ces');
     // La relance est notée dans la fiche, au serveur : le moyen, les deux mois réclamés.
-    const fiches = (await api('GET', `/cabinets/${cabinet}/fiches`, associe)).corps.fiches as { entreprise: string; contenu: { relances?: { via: string; months: string[]; at: number }[] } }[];
-    const relances = fiches.find((f) => f.entreprise === menuiserie.ent)?.contenu.relances ?? [];
-    expect(relances.map((r) => ({ via: r.via, months: r.months }))).toEqual([{ via: 'email', months: [mois(-4), mois(-3)] }]);
+    // La fenêtre se ferme avant que l'enregistrement ne revienne du serveur : on l'attend (lu trop tôt sur une machine chargée).
+    const lireRelances = async () => ((await api('GET', `/cabinets/${cabinet}/fiches`, associe)).corps.fiches as { entreprise: string; contenu: { relances?: { via: string; months: string[]; at: number }[] } }[])
+      .find((f) => f.entreprise === menuiserie.ent)?.contenu.relances ?? [];
+    await expect.poll(async () => (await lireRelances()).map((r) => ({ via: r.via, months: r.months })), { timeout: 15_000 }).toEqual([{ via: 'email', months: [mois(-4), mois(-3)] }]);
+    const relances = await lireRelances();
     expect(Math.abs(Number(relances[0]?.at) - Date.now())).toBeLessThan(120_000);
 
     // Le Suivi de la menuiserie : la relance dans son historique ; ses mois, chacun avec son geste.

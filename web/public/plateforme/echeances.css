@@ -221,3 +221,17 @@
 @media (max-width: 760px) { .pc-chips.qf-attendu button { min-height: 44px; } }
 #c-livres .rv-lien, .rv-lien { border: 0; background: none; padding: 0 4px; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; white-space: nowrap; }
 .rv-lien:hover { text-decoration: underline; }
+/* (1.188.0) La fenêtre « Demander » : le chemin vers la conversation, à gauche des boutons, discret. */
+#modal-root .modal-actions .dm-conv { margin-right: auto; border: 0; background: none; padding: 0 4px; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; min-height: 36px; }
+#modal-root .modal-actions .dm-conv:hover { text-decoration: underline; }
+@media (max-width: 760px) { #modal-root .modal-actions .dm-conv { min-height: 44px; flex-basis: 100%; text-align: start; } }
+/* L'aperçu : la carte que le client verra dans la conversation (la même que le fil), sa date ; grisé tant que rien n'est nommé. */
+#modal-root .dm-apercu { display: grid; gap: 6px; margin-top: 10px; }
+#modal-root .dm-apercu-t { font-size: 11.5px; font-weight: 650; letter-spacing: .02em; color: var(--sb-gris-2); }
+#modal-root .dm-carte { display: flex; align-items: flex-start; gap: 10px; padding: 10px 12px; border: 1px solid var(--sb-trait); border-left: 3px solid var(--sb-sarcelle); border-radius: 10px; background: var(--sb-papier); }
+#modal-root .dm-carte > svg { flex: none; margin-top: 2px; color: var(--sb-sarcelle-texte); }
+#modal-root .dm-carte > span { min-width: 0; display: grid; gap: 1px; font-size: 13px; }
+#modal-root .dm-carte b { font-size: 12px; color: var(--sb-gris-2); font-weight: 650; }
+#modal-root .dm-carte small { color: var(--sb-gris-2); font-size: 12px; }
+#modal-root .dm-apercu.vide .dm-carte > span > span { color: var(--sb-gris-2); font-style: italic; }
+#modal-root .dm-ic { color: var(--sb-sarcelle-texte); }

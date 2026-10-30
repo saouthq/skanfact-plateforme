@@ -2274,7 +2274,8 @@
         const d = (S.dossiers || []).find(x => x.id === r.id);
         if (!d) continue;
         if (t.id === 'manquants') dest.push({ cle: `m-${d.id}`, dossier: d, quoi: `${pl(r.missingCount, 'mois', 'mois')} sans écriture`, sous: K.missingLabel(r.missingMonths), ton,
-          geste: d.manual ? 'Saisir' : 'Demander', faire: () => { location.hash = d.manual ? `#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie` : `#/messages/${encodeURIComponent(d.id)}/demande`; } });
+          // (plateforme) 1.188.0 — des mois sans écriture se réclament comme une relance, de la même fenêtre que les Dossiers et les Échéances.
+          geste: d.manual ? 'Saisir' : 'Demander…', faire: () => { if (d.manual) location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie`; else fenEcrire(d, { mois: r.missingMonths }); } });
         else if (t.id === 'provisoires') dest.push({ cle: `p-${d.id}`, dossier: d, quoi: `${pl(r.provisionalCount, 'mois', 'mois')} à réviser`, sous: 'des écritures encore au brouillard', ton,
           geste: 'Réviser', faire: () => { location.hash = `#/dossier/${encodeURIComponent(d.id)}/comptabilite/saisie`; } });
         else if (t.id === 'questions') dest.push({ cle: `q-${d.id}`, dossier: d, quoi: 'Questions sans réponse', sous: 'envoyées deux fois au client', ton,
@@ -2454,7 +2455,7 @@
     if (D) {
       a.push({ titre: role === 'saisie' ? 'Écriture au brouillard' : 'Écriture', sous: role === 'saisie' ? 'Un collaborateur la valide' : `Dans ${D.name}`, touche: 'E', icone: icB('ecritures'), faire: () => { location.hash = `${base}/saisie`; } });
       a.push({ titre: 'Importer un relevé', sous: 'Banque : un fichier ou un tableur', touche: 'R', icone: icB('importer'), faire: () => { location.hash = `${base}/banque`; } });
-      if (!D.manual && role !== 'saisie' && api.messagerie) a.push({ titre: 'Demander une pièce', sous: 'Le client la reçoit dans SkanFact', touche: 'D', icone: icB('messages'), faire: () => { location.hash = `#/messages/${encodeURIComponent(D.id)}/demande`; } });
+      if (!D.manual && role !== 'saisie' && api.messagerie) a.push({ titre: 'Demander une pièce', sous: 'Le client la reçoit dans SkanFact', touche: 'D', icone: icB('messages'), faire: () => fenDemanderCl(D, {}, { hors: true, apres: async () => {} }) });
     }
     if (estAssocie()) a.push({ titre: 'Nouveau dossier', sous: 'Un client, avec ou sans SkanFact', touche: 'O', icone: icB('nouveau'), faire: () => newDossierForm() });
     return { titre: D ? `Créer · ${D.name}` : 'Créer', actions: a, bloque: null };
@@ -4126,10 +4127,13 @@
     // (plateforme) 1.139.0 — « dont 1 sans justificatif » se réclame d'ici, la demande écrite d'avance dans le fil du
     // client, comme depuis la ligne de l'achat (UX 3 : la carte disait le manque sans offrir le geste).
     const dj = zone.querySelector('[data-ce-mois-justif]');
+    // (1.188.0) La demande part d'ici, de la fenêtre commune (« Écrire plutôt dans la conversation » y mène).
     if (dj) dj.onclick = () => {
       const n = r.sansJustificatif;
-      demandePreparee = { id: dossier.id, texte: n > 1 ? `Les justificatifs de tes ${n} achats ${K.de(nom)} enregistrés sans pièce dans SkanFact` : `Le justificatif de ton achat ${K.de(nom)} enregistré sans pièce dans SkanFact` };
-      location.hash = '#/messages/' + encodeURIComponent(dossier.id) + '/demande';
+      const prenom = prenomCl(dossier.contact);
+      const piece = n > 1 ? `Les justificatifs de tes ${n} achats ${K.de(nom)} enregistrés sans pièce dans SkanFact` : `Le justificatif de ton achat ${K.de(nom)} enregistré sans pièce dans SkanFact`;
+      fenDemanderCl(dossier, { piece, mois, texte: `Bonjour${prenom ? ` ${prenom}` : ''}, ${n > 1 ? `${n} de tes achats ${K.de(nom)} sont enregistrés` : `un de tes achats ${K.de(nom)} est enregistré`} sans pièce dans SkanFact. Peux-tu m'en envoyer ${n > 1 ? 'les photos' : 'une photo'} ici ? Merci.` },
+        { hors: true, apres: async () => {} });
     };
   }
   async function dessinerMoisTenus(dossier) {
@@ -4884,8 +4888,14 @@
 
   // ---------- les fenêtres ----------
   // Demander au client (une pièce qui manque) : le message relu, la date, et par où il part.
-  function fenDemanderCl(d, item) {
+  // (plateforme) 1.188.0 — la MÊME fenêtre pour demander une pièce, d'où qu'on la demande (le classeur, « Créer », la
+  // carte du mois, la ligne d'un achat sans justificatif) : elle part d'ici, sans quitter l'écran ; « Écrire plutôt dans
+  // la conversation » y mène, la pièce déjà nommée. `hors` : ailleurs que dans le classeur (la demande ne s'y range pas
+  // « à la place du trou », et l'écran d'où l'on vient se relit par `apres`). `piece` : la pièce, nommée d'avance ; sans
+  // elle ni titre, la fenêtre la demande.
+  function fenDemanderCl(d, item, o = {}) {
     const prenom = prenomCl(d.contact) || '';
+    const libre = !item.titre && !item.piece && !item.cible && !item.ligne;
     const aujourdhui = K.today();
     const plus = n => { const x = new Date(`${aujourdhui}T12:00:00Z`); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
     const jourCourt = j => `${new Date(`${j}T12:00:00Z`).toLocaleDateString('fr-FR', { weekday: 'short', timeZone: 'UTC' })} ${jjmm(j)}`;
@@ -4895,47 +4905,89 @@
     const d1 = ouvre(plus(1)), d2 = (() => { let j = plus2(d1, 1); while (new Date(`${j}T12:00:00Z`).getUTCDay() !== 1) j = plus2(j, 1); return j; })();
     const dates = [d1, d2, ''];
     const li = item.ligne;
-    const objet = item.cible ? `la facture de ${item.cible.num || item.cible.titre} (${item.cible.titre}, ${dtCd(item.cible.montant)} DT)` : li ? `la pièce du ${/^CHQ/i.test(li.libelle || '') ? 'chèque' : 'paiement'} du ${jjmm(li.date)}` : String(item.titre).replace(/^[^·]*·\s*/, '');
+    const objet = item.cible ? `la facture de ${item.cible.num || item.cible.titre} (${item.cible.titre}, ${dtCd(item.cible.montant)} DT)` : li ? `la pièce du ${/^CHQ/i.test(li.libelle || '') ? 'chèque' : 'paiement'} du ${jjmm(li.date)}` : item.piece ? String(item.piece) : String(item.titre || '').replace(/^[^·]*·\s*/, '');
+    const phraseDe = x => `Bonjour${prenom ? ` ${prenom}` : ''}, il me manque ${x} pour ton dossier. Peux-tu me l'envoyer ici ? Une photo suffit.`;
     const texte = li
       ? `Bonjour${prenom ? ` ${prenom}` : ''}, sur le relevé ${item.rel.banque ? `${item.rel.banque} ` : ''}${deMois(item.mois)}, ${/^CHQ/i.test(li.libelle || '') ? `un chèque n° ${String(li.libelle).replace(/^CHQ\s*/i, '').trim() || li.reference}` : `« ${li.libelle} »`} de ${dtCd(Math.abs(Number(li.montant)))} DT a été débité le ${jjmm(li.date)}. À qui l'as-tu donné, et as-tu sa facture ? Une photo suffit.`
       : item.cible ? `Bonjour${prenom ? ` ${prenom}` : ''}, l'achat ${item.cible.num || ''} (${item.cible.titre}, ${dtCd(item.cible.montant)} DT) est saisi sans sa facture. Peux-tu m'en envoyer une photo ici ? Merci.`
-        : `Bonjour${prenom ? ` ${prenom}` : ''}, il me manque ${objet} pour ton dossier. Peux-tu me l'envoyer ici ? Une photo suffit.`;
+        : item.texte ? String(item.texte) : libre ? '' : phraseDe(objet);
     const tel = String(d.phone || '').replace(/\D/g, ''), mail = String(d.email || '').trim();
     let pour = dates[0], par = 'conv';
-    modal(`<div class="tb-rel-t"><span class="cd-ic">${CL_IC.manque}</span><span><h2 id="dm-t">Demander à ${esc(prenom || d.name)}</h2><small>${esc(item.titre)}</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
-      <label class="field">Ce que tu demandes<textarea rows="4" id="dm-texte" maxlength="1000" spellcheck="false">${esc(texte)}</textarea></label>
+    const aideBase = o.hors
+      ? `La demande arrive dans votre conversation. Quand ${prenom || 'le client'} répond, sa photo arrive dans Pièces reçues, avec la pièce demandée.`
+      : `La demande se range dans ${moisLong(item.mois || aujourdhui.slice(0, 7))}, à la place du trou. Quand ${prenom || 'le client'} répond, sa photo arrive dans Pièces reçues, et se range ici.`;
+    // (1.188.0) Ce que fait la date, dit avant le geste : passée sans réponse, un rappel part par e-mail (1.116.0).
+    const aidePour = j => (j ? ` Sans réponse le ${jjmm(j)}, un rappel part par e-mail, une fois par semaine, trois au plus.` : ' Sans date, elle ne se relance pas.');
+    const aideConv = aideBase + aidePour(pour);
+    modal(`<div class="tb-rel-t"><span class="cd-ic dm-ic">${icB('pieces', 18, 2)}</span><span><h2 id="dm-t">Demander à ${esc(prenom || d.name)}</h2><small>${esc(item.titre || (libre ? d.name : `${cap(objet)}`))}</small></span><button type="button" class="tb-mc-x" data-close aria-label="Fermer">${CL_IC.croix}</button></div>
+      ${libre ? '<label class="field">La pièce que tu demandes<input type="text" id="dm-piece" maxlength="300" placeholder="la facture STEG d\'août"></label>' : ''}
+      <label class="field">${libre ? 'Le message' : 'Ce que tu demandes'}<textarea rows="4" id="dm-texte" maxlength="1000" spellcheck="false"${libre ? ' placeholder="Le message se compose quand tu nommes la pièce"' : ''}>${esc(texte)}</textarea></label>
       ${li ? `<label class="cd-cb on"><input type="checkbox" id="dm-ligne" checked><span><b>Joindre la ligne du relevé</b><small>${esc(prenom || 'Le client')} voit la ligne du ${jjmm(li.date)}, rien d'autre de son relevé</small></span></label>` : ''}
       <div class="cl-dm-g"><span class="field">Pour quand</span><div class="tb-rel-q" role="group" aria-label="Pour quand" id="dm-pour">${dates.map((j, i) => `<button type="button" aria-pressed="${i === 0}" data-j="${j}">${j ? esc(jourCourt(j)) : 'sans date'}</button>`).join('')}</div>
         <span class="field">Par où</span><div class="tb-rel-q" role="group" aria-label="Par où" id="dm-par"><button type="button" aria-pressed="true" data-p="conv">Conversation SkanFact</button><button type="button" aria-pressed="false" data-p="wa"${tel ? '' : ' disabled title="Aucun téléphone sur la fiche du dossier"'}>WhatsApp</button><button type="button" aria-pressed="false" data-p="mail"${mail ? '' : ' disabled title="Aucune adresse e-mail sur la fiche du dossier"'}>E-mail par SkanFact</button></div></div>
-      <p class="tb-rel-h" id="dm-aide">${CL_IC.info}<span>La demande se range dans ${esc(moisLong(item.mois || aujourdhui.slice(0, 7)))}, à la place du trou. Quand ${esc(prenom || 'le client')} répond, sa photo arrive dans Pièces reçues, et se range ici.</span></p>
-      <div class="modal-actions"><button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="ok">Envoyer la demande</button></div>`,
+      <p class="tb-rel-h" id="dm-aide">${CL_IC.info}<span>${esc(aideConv)}</span></p>
+      ${/* (1.188.0) Ce que le client verra dans votre conversation : la carte de la pièce demandée, sa date. */''}
+      <div class="dm-apercu" id="dm-apercu" aria-live="polite"><span class="dm-apercu-t">Ce que ${esc(prenom || d.name)} verra</span>
+        <div class="dm-carte">${icB('pieces', 16, 2)}<span><b>Pièce demandée</b><span id="dm-apercu-p"></span><small id="dm-apercu-j"></small></span></div></div>
+      <div class="modal-actions">${api.messagerie ? '<button type="button" class="btn-lien dm-conv" id="dm-conv">Écrire plutôt dans la conversation</button>' : ''}<button type="button" class="btn" data-close>Annuler</button><button type="button" class="btn btn-primary" id="ok">Envoyer la demande</button></div>`,
     (layer, close) => {
       $('.modal', layer).classList.add('tb-fen', 'cd-fen');
+      const champPiece = $('#dm-piece', layer);
+      // La pièce nommée, le message suit tant qu'on ne l'a pas réécrit.
+      let derniere = $('#dm-texte', layer).value;
+      if (champPiece) {
+        champPiece.addEventListener('input', () => {
+          const t = $('#dm-texte', layer);
+          if (t.value === derniere) { t.value = champPiece.value.trim() ? phraseDe(champPiece.value.trim()) : ''; derniere = t.value; }
+        });
+        setTimeout(() => champPiece.focus(), 0);
+      }
+      const laPiece = () => (champPiece ? champPiece.value.trim() : '') || item.piece || String(item.titre || '').replace(/^[^·]*·\s*/, '') || '';
+      const conv = $('#dm-conv', layer);
+      if (conv) conv.onclick = () => {
+        // La conversation s'ouvre en mode « Demander », la pièce déjà nommée (rien ne part sans « Envoyer »).
+        demandePreparee = { id: d.id, texte: laPiece().slice(0, 300) };
+        close(); location.hash = '#/messages/' + encodeURIComponent(d.id) + '/demande';
+      };
       $$('[data-close]', layer).forEach(b => { b.onclick = close; });
-      const aide = { conv: `La demande se range dans ${moisLong(item.mois || aujourdhui.slice(0, 7))}, à la place du trou. Quand ${prenom || 'le client'} répond, sa photo arrive dans Pièces reçues, et se range ici.`,
+      const aide = { conv: aideConv,
         wa: 'WhatsApp s\'ouvre avec le message prêt : tu l\'envoies de ton téléphone. La relance est notée sur la fiche du dossier.',
-        mail: `SkanFact l'envoie par e-mail à ${mail}, avec un lien vers son espace ; la demande se range aussi dans votre conversation, à la place du trou. Ce qui part : l'adresse, le nom du cabinet, ce texte. Rien d'autre.` };
-      $$('#dm-pour button', layer).forEach(b => { b.onclick = () => { pour = b.dataset.j; $$('#dm-pour button', layer).forEach(x => x.setAttribute('aria-pressed', String(x === b))); }; });
-      $$('#dm-par button', layer).forEach(b => { b.onclick = () => { par = b.dataset.p; $$('#dm-par button', layer).forEach(x => x.setAttribute('aria-pressed', String(x === b))); $('#dm-aide span', layer).textContent = aide[par]; }; });
+        mail: `SkanFact l'envoie par e-mail à ${mail}, avec un lien vers son espace ; la demande se range aussi dans votre conversation${o.hors ? '' : ', à la place du trou'}. Ce qui part : l'adresse, le nom du cabinet, ce texte. Rien d'autre.` };
+      // L'aperçu suit la pièce et la date ; l'aide dit ce que fait la date.
+      const majApercu = () => {
+        const n = laPiece();
+        $('#dm-apercu-p', layer).textContent = n ? cap(n) : 'La pièce, dès que tu la nommes';
+        $('#dm-apercu', layer).classList.toggle('vide', !n);
+        $('#dm-apercu-j', layer).textContent = pour ? `pour le ${jjmm(pour)}` : 'sans date';
+        $('#dm-apercu', layer).hidden = par === 'wa';
+        if (par !== 'wa') $('#dm-aide span', layer).textContent = (par === 'mail' ? aide.mail : aideBase) + aidePour(pour);
+      };
+      if (champPiece) champPiece.addEventListener('input', majApercu);
+      $$('#dm-pour button', layer).forEach(b => { b.onclick = () => { pour = b.dataset.j; $$('#dm-pour button', layer).forEach(x => x.setAttribute('aria-pressed', String(x === b))); majApercu(); }; });
+      $$('#dm-par button', layer).forEach(b => { b.onclick = () => { par = b.dataset.p; $$('#dm-par button', layer).forEach(x => x.setAttribute('aria-pressed', String(x === b))); $('#dm-aide span', layer).textContent = aide[par]; majApercu(); }; });
+      majApercu();
+      // Ctrl+Entrée envoie, d'où qu'on soit dans la fenêtre.
+      layer.addEventListener('keydown', ev => { if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); if (!$('#ok', layer).disabled) $('#ok', layer).click(); } });
       $('#ok', layer).onclick = async () => {
         let t = $('#dm-texte', layer).value.trim();
+        if (champPiece && !champPiece.value.trim()) { refus(champPiece, 'Nomme la pièce que tu demandes : c\'est elle qui se coche quand ' + (prenom || 'le client') + ' l\'envoie.'); return; }
         if (!t) { toast('Écris ce que tu demandes avant de l\'envoyer.', 'error'); $('#dm-texte', layer).focus(); return; }
         if (li && $('#dm-ligne', layer) && $('#dm-ligne', layer).checked && !t.includes(jjmm(li.date))) t += `\n(Relevé du ${jjmm(li.date)} : ${li.libelle}, ${dtCd(Math.abs(Number(li.montant)))} DT)`;
         $('#ok', layer).disabled = true;
         try {
           if (par === 'conv' || par === 'mail') {
-            const m = await api.classeur.demander(d.id, t, String(item.titre).replace(/^[^·]*·\s*/, '').slice(0, 300) || 'Une pièce', pour || null);
+            const m = await api.classeur.demander(d.id, t, laPiece().slice(0, 300) || 'Une pièce', pour || null);
             let parMail = '';
             if (par === 'mail') {
-              try { await api.classeur.courriel(d.id, m.id); parMail = ` par e-mail (${mail}) et`; } catch (x2) { close(); toast(`La demande est dans votre conversation ; l'e-mail n'est pas parti : ${plainError(x2)}`, 'error'); await apresGesteCl(d); return; }
+              try { await api.classeur.courriel(d.id, m.id); parMail = ` par e-mail (${mail}) et`; } catch (x2) { close(); toast(`La demande est dans votre conversation ; l'e-mail n'est pas parti : ${plainError(x2)}`, 'error'); await (o.apres ? o.apres() : apresGesteCl(d)); return; }
             }
-            close(); toast(`Demande envoyée à ${prenom || d.name}${parMail} dans votre conversation${pour ? `, pour le ${jjmm(pour)}` : ''} : elle attend dans ${moisLong(item.mois || aujourdhui.slice(0, 7))}.`);
-            await apresGesteCl(d);
+            close(); toast(`Demande envoyée à ${prenom || d.name}${parMail} dans votre conversation${pour ? `, pour le ${jjmm(pour)}` : ''}${o.hors ? '.' : ` : elle attend dans ${moisLong(item.mois || aujourdhui.slice(0, 7))}.`}`);
+            await (o.apres ? o.apres() : apresGesteCl(d));
           } else {
             window.open(`https://wa.me/${tel.length === 8 ? `216${tel}` : tel}?text=${encodeURIComponent(t)}`, '_blank');
             S = await api.noteRelance(d.id, item.mois ? [item.mois] : [], 'whatsapp', t.slice(0, 500));
             close(); toast(`Relance notée sur la fiche de ${d.name} : par WhatsApp.`);
-            redessinerCl(d);
+            if (o.apres) await o.apres(); else redessinerCl(d);
           }
         } catch (x) { $('#ok', layer).disabled = false; toast(plainError(x), 'error'); }
       };
@@ -13359,7 +13411,15 @@
     if (e.justifClient === false && !dossier.manual && api.messagerie) {
       a.push({ icon: 'texte', label: `Demander le justificatif à ${dossier.name}`, court: 'Demander le justificatif',
         hint: 'Une demande de pièce dans vos messages, la pièce citée d\'avance',
-        run: () => { demandePreparee = { id: dossier.id, texte: `Le justificatif de l'achat ${e.piece || e.libelle || ''} du ${fmtJour(e.date)}${((e.lignes || []).find(l => l.tiers) || {}).tiers ? ` (${(e.lignes.find(l => l.tiers) || {}).tiers})` : ''}`.replace(/\s+/g, ' ') }; location.hash = '#/messages/' + encodeURIComponent(dossier.id) + '/demande'; } });
+        // (1.188.0) La demande part d'ici, de la fenêtre commune ; « Écrire plutôt dans la conversation » y mène.
+        run: () => {
+          const tiers = ((e.lignes || []).find(l => l.tiers) || {}).tiers;
+          const prenom = prenomCl(dossier.contact);
+          const piece = `Le justificatif de l'achat ${e.piece || e.libelle || ''} du ${fmtJour(e.date)}${tiers ? ` (${tiers})` : ''}`.replace(/\s+/g, ' ');
+          fenDemanderCl(dossier, { piece, mois: String(e.date).slice(0, 7),
+            texte: `Bonjour${prenom ? ` ${prenom}` : ''}, l'achat ${e.piece || e.libelle || ''} du ${fmtJour(e.date)}${tiers ? ` (${tiers})` : ''} est enregistré sans sa facture. Peux-tu m'en envoyer une photo ici ? Merci.`.replace(/ {2,}/g, ' ') },
+          { hors: true, apres: async () => {} });
+        } });
     }
     if (e.pieceJointe) {
       a.push({ icon: 'ouvrir', label: 'Ouvrir le justificatif', hint: esc(e.pieceJointe),

@@ -238,8 +238,13 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     // (1.139.0) Hatem est seul au cabinet : personne à qui confier le dossier, le bloc n'est pas là.
     expect(await h.p.locator('#d-droits').count()).toBe(0);
     await h.p.screenshot({ path: path.join(PHOTOS, 'mois-client-suivi-ce-mois.png') });
-    // (1.139.0) « dont 1 sans justificatif » se réclame depuis la carte : la demande s'ouvre dans le fil, écrite d'avance.
+    // (1.139.0, 1.188.0) « dont 1 sans justificatif » se réclame depuis la carte, sur place : la demande écrite d'avance ;
+    // « Écrire plutôt dans la conversation » l'ouvre dans le fil, la pièce nommée.
     await carte.getByRole('button', { name: 'Demander le justificatif', exact: true }).click();
+    const fen = h.p.locator('#modal-root .modal').last();
+    await expect.poll(() => fen.locator('#dm-texte').inputValue().catch(() => ''), { timeout: 15_000 })
+      .toBe(`Bonjour, un de tes achats d${/^[aeiou]/i.test(nomDuMois) ? '\'' : 'e '}${nomDuMois} est enregistré sans pièce dans SkanFact. Peux-tu m'en envoyer une photo ici ? Merci.`);
+    await fen.getByRole('button', { name: 'Écrire plutôt dans la conversation' }).click();
     await expect.poll(() => h.p.url(), { timeout: 15_000 }).toContain(`#/messages/${ent}/demande`);
     await expect.poll(() => h.p.locator('#view textarea, #view input[type="text"]').evaluateAll((x) => x.map((e) => (e as HTMLInputElement).value).join(' | ')), { timeout: 15_000 })
       .toContain(`Le justificatif de ton achat d${/^[aeiou]/i.test(nomDuMois) ? '\'' : 'e '}${nomDuMois} enregistré sans pièce dans SkanFact`);
@@ -277,14 +282,15 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
       .toBe('Cet achat du client n\'a pas de justificatif. Tu peux valider quand même, ou le lui demander d\'abord (le menu de la ligne, « Demander le justificatif »).');
     await h.p.getByRole('button', { name: 'Annuler', exact: true }).click();
 
-    // Le geste depuis la ligne : la demande s'ouvre dans le fil, la pièce écrite d'avance ; envoyée, Sarra la voit.
+    // Le geste depuis la ligne (1.188.0) : la demande s'ouvre sur place, la pièce écrite d'avance ; envoyée, Sarra la voit.
     await ligne('GMS-26-4502').getByRole('button', { name: /^Actions/ }).click();
     await h.p.getByText('Demander le justificatif à Boulangerie El Amal', { exact: true }).click();
-    await expect.poll(() => h.p.url(), { timeout: 15_000 }).toContain(`#/messages/${ent}/demande`);
-    const champ = h.p.locator('[data-msg-demande-txt]').first();
-    await expect.poll(() => champ.inputValue(), { timeout: 15_000 }).toBe(`Le justificatif de l'achat GMS-26-4502 du ${fr(aujourdhui)} (Grands Moulins de Sfax)`);
+    await expect.poll(() => fen.locator('#dm-texte').inputValue().catch(() => ''), { timeout: 15_000 })
+      .toBe(`Bonjour, l'achat GMS-26-4502 du ${fr(aujourdhui)} (Grands Moulins de Sfax) est enregistré sans sa facture. Peux-tu m'en envoyer une photo ici ? Merci.`);
+    expect(await fen.locator('small').first().innerText()).toBe(`Le justificatif de l'achat GMS-26-4502 du ${fr(aujourdhui)} (Grands Moulins de Sfax)`);
     await h.p.screenshot({ path: path.join(PHOTOS, 'mois-client-demander-justificatif.png') });
-    await h.p.getByRole('button', { name: 'Envoyer', exact: true }).click();
+    await fen.getByRole('button', { name: 'Envoyer la demande', exact: true }).click();
+    await expect.poll(() => h.p.locator('#toast').innerText(), { timeout: 15_000 }).toMatch(/^Demande envoyée à Boulangerie El Amal dans votre conversation, pour le \d\d\/\d\d\.$/);
     await expect.poll(async () => ((await api('GET', `/entreprises/${ent}/messages/attente`, sarra)).corps as { demandes?: number }).demandes, { timeout: 15_000 }).toBe(1);
 
     // La validation du lot (le journal des achats) le dit aussi, avec la pièce.

@@ -193,14 +193,24 @@ describe('la barre du Cabinet, à la souris', () => {
     await expect.poll(() => p.locator('.sb-creer [data-touche]').evaluateAll((l) => l.map((x) => (x as HTMLElement).dataset.touche)), { timeout: 10_000 }).toEqual(['E', 'R', 'D', 'O']);
     // Sur une machine lente, la page de la banque finit de se dessiner après l'ouverture du volet et le referme : D
     // n'arrive alors à rien (GitHub, 1.152.1 et 1.153.0). On rouvre le volet s'il s'est refermé, puis D.
+    // (1.188.0) « Demander une pièce » s'ouvre sur place, la fenêtre commune ; « Écrire plutôt dans la conversation » y mène.
+    const demande = p.locator('#modal-root .modal').filter({ has: p.locator('#dm-piece') });
     await expect.poll(async () => {
-      if (!p.url().includes('#/messages/')) {
+      if (!(await demande.count())) {
         if (!(await p.locator('.sb-creer').isVisible())) await p.keyboard.press('n');
         await p.locator('.sb-creer [data-touche="D"]').waitFor({ timeout: 3_000 }).catch(() => {});
         await p.keyboard.press('d');
       }
-      return p.url();
-    }, { timeout: 20_000 }).toContain(`#/messages/${cafe.ent}/demande`);
+      return demande.count();
+    }, { timeout: 20_000 }).toBe(1);
+    expect(await demande.locator('h2').innerText()).toMatch(/^Demander à /);
+    expect(p.url()).not.toContain('#/messages/');
+    await demande.locator('#dm-piece').fill('le relevé bancaire d\'octobre');
+    // Nommée, la pièce compose le message (tant qu'on ne l'a pas réécrit).
+    expect(await demande.locator('#dm-texte').inputValue()).toMatch(/il me manque le relevé bancaire d'octobre pour ton dossier\. Peux-tu me l'envoyer ici \? Une photo suffit\.$/);
+    await demande.getByRole('button', { name: 'Écrire plutôt dans la conversation' }).click();
+    await expect.poll(() => p.url(), { timeout: 20_000 }).toContain(`#/messages/${cafe.ent}/demande`);
+    await expect.poll(() => p.locator('[data-msg-demande-txt]').first().inputValue(), { timeout: 15_000 }).toBe('le relevé bancaire d\'octobre');
     await p.screenshot({ path: path.join(PHOTOS, 'barre-cabinet-2.png') });
     expect(erreurs).toEqual([]);
   });
