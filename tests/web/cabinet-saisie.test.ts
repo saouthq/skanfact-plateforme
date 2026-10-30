@@ -92,10 +92,12 @@ describe('la saisie du Cabinet, à la souris', () => {
     // fiche le dit à réviser ou en retard, jamais déposé.
     const ligne = p.locator('#view tr[data-id]', { hasText: 'Menuiserie Ben Salah' }).first();
     await expect.poll(() => ligne.locator('.cd-mo-c').innerText()).toMatch(/août/i);
-    await ligne.locator('td.cl').click();
-    expect(await p.locator('.cd-fiche .cd-an-s i').nth(7).getAttribute('title')).toMatch(/^août : (à réviser|en retard)$/);
-    await p.locator('#cd-fiche-x').click();
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-saisie-1-portefeuille.png') });
+    // (1.183.0) Un clic ouvre le dossier : son année y nomme août à réviser ou en retard, jamais déposé.
+    await ligne.locator('td.cl').click();
+    await expect.poll(() => p.locator('[data-fd-mois$="-08"]').getAttribute('aria-label')).toMatch(/^août : (à réviser|.*en retard)/);
+    await p.goBack();
+    await p.locator('#view tr[data-id]').first().waitFor();
 
     // La grille de saisie : une OD en brouillard.
     await aller(`#/dossier/${ent}/comptabilite/saisie/2026`);

@@ -34,7 +34,7 @@
 .cd-page .ms-mo.tard i { background: #e5534b; }
 .cd-page .ms-mo.tard { color: #b42318; }
 .cd-page .ms-mo.fait { color: var(--sb-gris); font-weight: 500; }
-.cd-page .av, .cd-page .cd-fiche .av, #modal-root .av { display: grid; place-items: center; flex: none; color: #fff; font-weight: 700; font-size: 12px; border-radius: 11px; }
+.cd-page .av, #modal-root .av { display: grid; place-items: center; flex: none; color: #fff; font-weight: 700; font-size: 12px; border-radius: 11px; }
 .cd-page .cd-voir { display: inline-flex; align-items: center; gap: 6px; margin-top: 2px; font-size: 12.5px; font-weight: 600; color: var(--sb-sarcelle-texte); }
 .cd-page .tuile.attire .cd-voir { color: var(--sb-ambre-texte); }
 .cd-page .cd-p { display: inline-grid; place-items: center; flex: none; border-radius: 50%; background: color-mix(in srgb, var(--c) 16%, var(--sb-papier)); color: var(--c); font-size: 10.5px; font-weight: 700; letter-spacing: .02em; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 40%, transparent); }
@@ -109,16 +109,6 @@
 .cd-page .cd-cf-i.cd-cf-rim { background: var(--sb-survol); }
 .cd-page .cd-cf-a { margin-left: auto; font-size: 11px; font-weight: 600; color: var(--sb-gris-2); }
 .cd-page .cd-cf-n { margin: 6px 8px 4px; font-size: 12px; color: var(--sb-gris-2); line-height: 1.45; }
-.cd-page .cd-fiche { position: absolute; top: 0; right: 0; bottom: 0; width: 430px; z-index: 40; overflow: auto; background: var(--sb-papier); border-left: 1px solid var(--sb-trait); box-shadow: -18px 0 40px rgba(15, 23, 42, .10); padding: 18px 20px 28px; display: grid; gap: 4px; align-content: start; }
-.cd-page.avec-fiche { min-height: 960px; }
-.cd-page .cd-f-tete { display: flex; gap: 12px; align-items: flex-start; }
-.cd-page .cd-f-n { display: grid; gap: 3px; flex: 1; min-width: 0; }
-.cd-page .cd-f-n > b { font-size: 17px; letter-spacing: -.01em; }
-.cd-page .cd-f-n > small { font-size: 12.5px; color: var(--sb-gris); }
-.cd-page .cd-f-b { display: flex; gap: 8px; align-items: center; margin-top: 2px; }
-.cd-page .cd-f-b small { font-size: 12px; color: var(--sb-gris-2); }
-.cd-page .cd-f-act { display: flex; gap: 8px; margin: 12px 0 6px; }
-.cd-page .cd-f-act .btn { display: inline-flex; align-items: center; gap: 6px; }
 .cd-page .cd-fs { border-top: 1px solid var(--sb-trait); padding: 12px 0 10px; display: grid; gap: 8px; }
 .cd-page .cd-fs h3 { margin: 0; font-size: 12px; font-weight: 700; color: var(--sb-gris-2); text-transform: uppercase; letter-spacing: .05em; }
 .cd-page .cd-kvs { display: grid; gap: 6px; }
@@ -142,19 +132,6 @@
 .cd-page .cd-nv-i { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex: none; background: var(--sb-doux); color: var(--sb-doux-texte); }
 .cd-page .cd-nv-i.rel { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
 .cd-page .cd-nv-i svg { width: 15px; height: 15px; }
-.cd-page .cd-an { display: grid; gap: 6px; }
-.cd-page .cd-an-s { display: grid; grid-template-columns: repeat(12, 1fr); gap: 3px; }
-.cd-page .cd-an-s i { height: 10px; border-radius: 3px; background: var(--sb-survol); }
-.cd-page .cd-an-s i.fait, .cd-page .cd-an .leg i.fait { background: var(--sb-sarcelle); }
-.cd-page .cd-an-s i.pret, .cd-page .cd-an .leg i.pret { background: #6f98e0; }
-.cd-page .cd-an-s i.cours, .cd-page .cd-an .leg i.cours { background: #f0c675; }
-.cd-page .cd-an-s i.tard, .cd-page .cd-an .leg i.tard { background: #e5534b; }
-.cd-page .cd-an-s i.hors { background: repeating-linear-gradient(135deg, var(--sb-survol) 0 3px, var(--sb-papier) 3px 6px); }
-.cd-page .cd-an-s i.avenir { background: transparent; box-shadow: inset 0 0 0 1px var(--sb-trait); }
-.cd-page .cd-an-m { display: grid; grid-template-columns: repeat(12, 1fr); font-size: 11px; color: var(--sb-gris-2); white-space: nowrap; }
-.cd-page .cd-an .leg { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: 11.5px; color: var(--sb-gris); }
-.cd-page .cd-an .leg span { display: inline-flex; gap: 5px; align-items: center; }
-.cd-page .cd-an .leg i { width: 8px; height: 8px; border-radius: 2px; }
 #modal-root .modal.tb-fen.cd-fen { width: 760px; gap: 14px; }
 #modal-root .modal.tb-fen.cd-fen-s { width: 560px; }
 #modal-root .modal.tb-fen.cd-fen-l { width: 860px; }
@@ -324,8 +301,6 @@
 .cd-page .cd-ev b { font-size: 13px; font-weight: 600; }
 .cd-page .cd-ev small { font-size: 12px; color: var(--sb-gris); }
 .cd-page .cd-nb { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 2px; border-radius: 99px; background: var(--sb-sarcelle); color: #fff; font-size: 11px; font-weight: 700; }
-.cd-page .cd-f-act .tb-mw { position: relative; }
-.cd-page .cd-f-act a.btn { text-decoration: none; }
 .cd-nr { display: grid; gap: 6px; border: 0; padding: 0; margin: 12px 0 0; }
 .cd-nr legend { font-size: 12.5px; font-weight: 600; margin-bottom: 4px; }
 .cd-nr-c { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--sb-trait); border-radius: 10px; font-size: 13.5px; cursor: pointer; }
@@ -343,11 +318,6 @@
 .cd-page .cd-nl-t { display: inline-grid; place-items: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 99px; background: var(--sb-sarcelle); color: #fff; font-size: 11px; font-weight: 700; }
 .cd-page .ms-back { width: 40px; height: 44px; border: 0; background: none; display: grid; place-items: center; color: var(--sb-encre); cursor: pointer; flex: none; margin-left: -6px; }
 .cd-page.cd-tel .cd-carte .cd-sm { max-width: none; }
-.cd-page.cd-tel.avec-fiche { min-height: 0; }
-.cd-page.cd-tel.avec-fiche > :not(.cd-fiche) { display: none; }
-.cd-page.cd-tel .cd-t-fiche { position: static; width: auto; border: 0; box-shadow: none; padding: 4px 0 96px; }
-.cd-page.cd-tel .cd-f-act { flex-wrap: wrap; }
-.cd-page.cd-tel .cd-f-act > .btn { flex: 1; justify-content: center; min-height: 44px; }
 @media (max-width: 760px) {
   .cd-prop { flex-wrap: wrap; align-items: flex-start; }
   .cd-prop-t { flex: 1 1 calc(100% - 48px); }
@@ -362,4 +332,23 @@
 }
 .cd-page.cd-tel .cd-tete .tb-act { justify-content: flex-start; }
 .cd-page.cd-tel .cd-tete .tb-act .btn { flex: none; }
-.cd-page.cd-tel .cd-f-act { flex-wrap: nowrap; } .cd-page.cd-tel .cd-f-act > .btn { min-width: 0; padding-inline: 10px; }
+
+/* (1.183.0) Plus de fiche à côté : un clic ouvre le dossier. Au bout de la ligne, écrire et confier, révélés au survol ou au
+   clavier ; toujours posés (transparents), ils ne poussent rien sous le curseur. */
+.cd-page .cd-vite { display: inline-flex; gap: 2px; opacity: 0; transition: opacity .12s; }
+.cd-page tr:hover .cd-vite, .cd-page tr.kb .cd-vite, .cd-page tr:focus-within .cd-vite, .cd-page .cd-vite:has([aria-expanded="true"]) { opacity: 1; }
+.cd-page .cd-vite a.btn { text-decoration: none; }
+.cd-page .cd-vite .cd-cf-w { position: relative; }
+.cd-page .cd-vite .cd-cf { top: calc(100% + 6px); bottom: auto; right: 0; left: auto; z-index: 30; text-align: start; white-space: normal; }
+@media (hover: none) { .cd-page .cd-vite { opacity: 1; } }
+/* La fiche du dossier : revenir à la liste, et d'un dossier à l'autre, sur la ligne du contexte (seuls au téléphone). */
+.fd-haut { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.fd-haut .fd-nav { margin-left: auto; display: flex; align-items: center; gap: 14px; font-size: 13px; }
+.fd-haut .fd-nav-l { display: inline-flex; align-items: center; gap: 6px; color: var(--sb-gris); text-decoration: none; font-weight: 500; }
+.fd-haut .fd-nav-l:hover { color: var(--sb-encre); }
+.fd-haut .fd-nav-p { display: inline-flex; align-items: center; gap: 6px; }
+.fd-haut .fd-nav-n { font-variant-numeric: tabular-nums; min-width: 52px; text-align: center; color: var(--sb-gris); }
+.fd-tel .fd-haut .ctx-cab { display: none; }
+.fd-tel .fd-haut .fd-nav { margin-left: 0; width: 100%; justify-content: space-between; }
+.fd-tel .fd-haut .fd-nav-l { min-height: 44px; }
+.fd-tel .fd-haut .fd-nav-p .btn { min-width: 44px; min-height: 44px; }

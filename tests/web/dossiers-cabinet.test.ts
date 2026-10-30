@@ -17,6 +17,7 @@ import { demarrer, lireConfiguration } from '../../serveur/principal.ts';
 
 const RACINE = path.join(import.meta.dirname, '../..');
 const LE_29 = new Date('2026-10-29T10:00:00+01:00');
+const net = (t: string) => t.replace(/\s+/g, ' ').trim();
 
 describe('les Dossiers du Cabinet, à la souris', () => {
   let navigateur: Browser;
@@ -93,12 +94,38 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     expect(await prop.innerText()).toMatch(/Hôtel Les Pins te confie son dossier[\s\S]*la comptabilité, les déclarations et la paie/);
     expect(await prop.getByRole('button', { name: 'Accepter le dossier' }).count()).toBe(1);
 
-    // La fiche, à droite : « Ce qui se passe », sa mission et ses honoraires.
+    // (1.183.0) Au bout de la ligne, écrire et confier : posés, transparents, révélés au survol (rien ne bouge sous le curseur).
+    const vite = ligne('Menuiserie Ben Ali').locator('.cd-vite');
+    expect(await vite.evaluate((e) => getComputedStyle(e).opacity)).toBe('0');
+    await ligne('Menuiserie Ben Ali').hover();
+    await expect.poll(() => vite.evaluate((e) => getComputedStyle(e).opacity)).toBe('1');
+    expect(await vite.getByRole('link', { name: 'Écrire à Hédi' }).getAttribute('href')).toMatch(/^#\/messages\//);
+    await vite.getByRole('button', { name: 'Confier Menuiserie Ben Ali à…' }).click();
+    expect(await p.locator('.cd-vite .cd-cf .cd-cf-h').innerText()).toBe('Confier Menuiserie Ben Ali à');
+    await p.mouse.click(5, 880);
+    await expect.poll(() => p.locator('.cd-cf').count()).toBe(0);
+
+    // (1.183.0) Plus de fiche à côté : un clic ouvre le dossier ; on passe au suivant de LA liste vue, puis on y revient.
+    expect(await p.locator('.cd-fiche').count()).toBe(0);
     await ligne('Librairie Ennour').locator('td.cl').click();
-    const fiche = p.locator('.cd-fiche');
-    await expect.poll(() => fiche.locator('h3').allInnerTexts()).toEqual(expect.arrayContaining(['CE QUI SE PASSE', 'LA MISSION']));
-    expect(await fiche.innerText()).toMatch(/250,125\s*DT HT par mois/);
-    await p.locator('#cd-fiche-x').click();
+    await expect.poll(() => p.locator('#page-fd h1').innerText()).toMatch(/^Librairie Ennour/);
+    const nav = p.getByRole('navigation', { name: 'D\'un dossier à l\'autre' });
+    expect(net(await nav.locator('.fd-nav-n').innerText())).toBe('1 / 2');
+    expect(await nav.getByRole('button', { name: 'Pas de dossier avant' }).isDisabled()).toBe(true);
+    await nav.getByRole('button', { name: 'Le dossier suivant : Menuiserie Ben Ali' }).click();
+    await expect.poll(() => p.locator('#page-fd h1').innerText()).toMatch(/^Menuiserie Ben Ali/);
+    expect(net(await nav.locator('.fd-nav-n').innerText())).toBe('2 / 2');
+    await nav.getByRole('link', { name: 'Tous les dossiers' }).click();
+    await expect.poll(() => p.locator('#page-tb tr.kb td.cl b').innerText()).toBe('Menuiserie Ben Ali');
+    // La liste vue fait l'ordre : réduite à un dossier par la recherche, pas de précédent ni de suivant pris ailleurs.
+    // (la liste peut se redessiner une fois à son retour, avec ses données : on tape jusqu'à ce que la recherche tienne)
+    await expect.poll(async () => { await p.locator('#q').fill('Menuiserie'); return p.locator('#page-tb tr[data-id]').count(); }).toBe(1);
+    await ligne('Menuiserie Ben Ali').locator('td.cl').click();
+    await expect.poll(() => p.locator('#page-fd h1').innerText()).toMatch(/^Menuiserie Ben Ali/);
+    expect(await p.locator('.fd-nav').count()).toBe(0);
+    await p.goBack();
+    await p.locator('#q').fill('');
+    await ligne('Librairie Ennour').waitFor();
 
     // « Noter une relance faite… » : un appel, rangé sur sa fiche ; la vue « Pièces manquantes » le dit.
     await ligne('Librairie Ennour').getByRole('button', { name: /Les gestes de/ }).click();
@@ -125,7 +152,7 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     expect(erreurs).toEqual([]);
   });
 
-  it('au téléphone : des cartes, la fiche en plein écran et son retour', async () => {
+  it('au téléphone : des cartes, le dossier d\'un toucher, et le retour à la liste', async () => {
     const { associe, cab } = await unCabinet();
     const cx = await navigateur.newContext({ viewport: { width: 390, height: 844 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', isMobile: true, hasTouch: true });
     await cx.clock.setFixedTime(LE_29);
@@ -137,10 +164,10 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
     expect(await p.locator('#page-tb table.cd-table').count()).toBe(0);
     await p.locator('[data-cd-carte]').filter({ hasText: 'Menuiserie Ben Ali' }).click();
-    const fiche = p.locator('.cd-fiche');
-    await expect.poll(() => fiche.isVisible()).toBe(true);
-    expect(await p.locator('[data-cd-carte]').first().isVisible()).toBe(false);
-    await p.getByRole('button', { name: 'Revenir à la liste' }).click();
+    await expect.poll(() => p.locator('#page-fd h1').innerText()).toMatch(/^Menuiserie Ben Ali/);
+    expect(await p.getByRole('navigation', { name: 'D\'un dossier à l\'autre' }).isVisible()).toBe(true);
+    expect(await p.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(390);
+    await p.getByRole('link', { name: 'Tous les dossiers' }).click();
     await expect.poll(() => p.locator('[data-cd-carte]').first().isVisible()).toBe(true);
     expect(erreurs).toEqual([]);
   });

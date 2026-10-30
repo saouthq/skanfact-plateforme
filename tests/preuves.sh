@@ -20941,12 +20941,27 @@ prouver 'dossiers 4 : une relance notée au téléphone ne dit pas comment' web/
 prouver 'dossiers 5 : la proposition d'\''un client attend un « Accepter » sans dire quoi' web/public/plateforme/pont-cabinet.js \
   ">Accepter le dossier</button>" ">Accepter</button>" \
   'au bureau : la liste, la proposition'
-prouver 'dossiers 6 : au téléphone, une carte n'\''ouvre pas la fiche' web/public/v10/cabinet/app.js \
-  "b.onclick = () => { st.fiche = b.dataset.cdCarte;" "b.onclick = () => { st.fiche = '';" \
+prouver 'dossiers 6 : au téléphone, une carte n'\''ouvre pas le dossier' web/public/v10/cabinet/app.js \
+  "b.onclick = () => ouvrirD(b.dataset.cdCarte); });" "b.onclick = () => {}; });" \
   'au téléphone : des cartes'
 prouver 'dossiers 7 : au téléphone, le tri absent casse la page' web/public/v10/cabinet/app.js \
   "const tri = \$('#cd-tri', view); if (tri) tri.onchange" "const tri = \$('#cd-tri', view); tri.onchange" \
   'au téléphone : des cartes'
+prouver 'dossiers 8 : un clic sur la ligne n'\''ouvre pas le dossier' web/public/v10/cabinet/app.js \
+  "        ouvrirD(tr.dataset.id);" "        redessiner();" \
+  'au bureau : la liste, la proposition'
+prouver 'dossiers 9 : écrire et confier poussent la ligne en apparaissant' web/public/plateforme/dossiers.css \
+  ".cd-page .cd-vite { display: inline-flex; gap: 2px; opacity: 0;" ".cd-page .cd-vite { display: inline-flex; gap: 2px; opacity: 1;" \
+  'au bureau : la liste, la proposition'
+prouver 'dossiers 10 : « Confier à… » au bout de la ligne n'\''ouvre rien' web/public/v10/cabinet/app.js \
+  "\${st.confier === d.id ? popConfier([d]) : ''}</span>\` : ''}</span>\`;" "\${''}</span>\` : ''}</span>\`;" \
+  'au bureau : la liste, la proposition'
+prouver 'dossiers 11 : le dossier suivant ne s'\''ouvre pas' web/public/v10/cabinet/app.js \
+  "if (b.dataset.fdVoisin) { dosState.kb" "if (false) { dosState.kb" \
+  'au bureau : la liste, la proposition'
+prouver 'dossiers 12 : le précédent et le suivant pris hors de la liste vue' web/public/v10/cabinet/app.js \
+  "const ordre = dosState.ordre.includes(d.id) ? dosState.ordre" "const ordre = false ? dosState.ordre" \
+  'au bureau : la liste, la proposition'
 prouver 'fiche 1 : août et septembre sans rien reçu font deux relances' web/public/v10/cabinet/app.js \
   'if (sansRien.length) {' 'if (false) {' \
   'au bureau : rien reçu depuis juillet'
