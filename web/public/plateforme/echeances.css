@@ -235,3 +235,14 @@
 #modal-root .dm-carte small { color: var(--sb-gris-2); font-size: 12px; }
 #modal-root .dm-apercu.vide .dm-carte > span > span { color: var(--sb-gris-2); font-style: italic; }
 #modal-root .dm-ic { color: var(--sb-sarcelle-texte); }
+/* (1.190.0) Le questionnaire demandé au client : le geste en tête du panneau, les questions qui partent à cocher, la réponse arrivée. */
+.rv-qq-tete { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 10px; }
+.rv-qq-tete .btn svg { vertical-align: -2px; }
+#modal-root .qq-choix { border: 0; padding: 0; margin: 0 0 6px; display: grid; gap: 2px; }
+#modal-root .qq-choix legend { padding: 0; margin-bottom: 6px; }
+#modal-root .qq-ligne { display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; line-height: 1.4; }
+#modal-root .qq-ligne:hover { background: var(--sb-survol, var(--sb-papier)); }
+#modal-root .qq-ligne input { flex: none; margin-top: 2px; width: 16px; height: 16px; }
+#modal-root .qq-ligne span { min-width: 0; overflow-wrap: anywhere; }
+#rv-questionnaire tr.qq-arrivee td { background: var(--sb-doux, transparent); }
+@media (max-width: 760px) { #modal-root .qq-ligne { min-height: 44px; align-items: center; } }

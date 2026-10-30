@@ -624,7 +624,8 @@
       comptes: x.comptes.map((/** @type {any} */ c) => ({ compte: String(c.compte), revuLe: Number(c.revuLe) || 0, revuPar: String(c.revuPar || ''), note: String(c.note || '') })),
       notes: x.notes.map((/** @type {any} */ n) => ({ id: String(n.id), texte: String(n.texte), cycle: String(n.cycle || ''), compte: String(n.compte || ''), par: String(n.par || ''),
         le: Number(n.le) || 0, levee: !!n.levee, leveeLe: n.leveeLe || null, leveePar: String(n.leveePar || '') })),
-      questionnaire: x.questionnaire.map((/** @type {any} */ q) => ({ id: String(q.id), question: String(q.question), reponse: String(q.reponse || ''), par: String(q.par || ''), le: q.le || null })),
+      questionnaire: x.questionnaire.map((/** @type {any} */ q) => ({ id: String(q.id), question: String(q.question), reponse: String(q.reponse || ''), par: String(q.par || ''), le: q.le || null,
+        ...(q.demande ? { demande: String(q.demande) } : {}) })),
     };
     const cle = `${o.dossierId}/${periode}`;
     await appel('PUT', `/cabinets/${cabinetId}/revisions/${o.dossierId}/${periode}`, { contenu, revision: revisionsRevision.get(cle) ?? null });
@@ -2180,6 +2181,16 @@
     noteRevue: async (/** @type {any} */ o) => reviser(o, (KC, livre, p) => (o.id
       ? KC.leverNoteRevue(livre, p, o.id, moiNom, Date.now(), o.levee) : KC.ajouterNoteRevue(livre, p, o.note, moiNom, Date.now()))),
     questionnaire: async (/** @type {any} */ o) => {
+      // (1.190.0) `lier` : les questions du questionnaire parties chez le client (leur question dans la conversation).
+      if (Array.isArray(o.lier)) {
+        return reviser(o, (KC, livre, p) => {
+          const rv = KC.revisionDe(livre, p);
+          const parId = new Map(((rv && rv.questionnaire) || []).map((/** @type {any} */ q) => [q.id, q]));
+          if (!o.lier.every((/** @type {any} */ l) => parId.has(l.id))) return { ok: false, motif: 'Cette question n\'existe plus.' };
+          o.lier.forEach((/** @type {any} */ l) => { parId.get(l.id).demande = String(l.demande); });
+          return { ok: true };
+        });
+      }
       const r = await reviser(o, (KC, livre, p) => (o.poser
         ? KC.poserQuestionnaire(livre, p, reglages.contenu.questionnaire || [], moiNom, Date.now())
         : KC.repondreQuestionnaire(livre, p, o.id, o.reponse, moiNom, Date.now())));

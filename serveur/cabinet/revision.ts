@@ -14,6 +14,10 @@ export const REVISION = z.object({
     id: z.string().min(1).max(40), texte: z.string().trim().min(1).max(2000), cycle: texte(40), compte: z.string().regex(/^(\d{1,12})?$/),
     par: texte(200), le: INSTANT, levee: z.boolean(), leveeLe: INSTANT.nullable(), leveePar: texte(200),
   }).strict()).max(500),
-  questionnaire: z.array(z.object({ id: z.string().min(1).max(40), question: z.string().trim().min(1).max(500), reponse: texte(4000), par: texte(200), le: INSTANT.nullable() }).strict()).max(60),
+  // (1.190.0) `demande` : la question partie chez le client dans la conversation (compta.question), dont la réponse revient ici.
+  questionnaire: z.array(z.object({
+    id: z.string().min(1).max(40), question: z.string().trim().min(1).max(500), reponse: texte(4000), par: texte(200), le: INSTANT.nullable(),
+    demande: z.string().uuid().optional(),
+  }).strict()).max(60),
 }).strict();
 export const PERIODE_REVISION = /^\d{4}(-(0[1-9]|1[0-2]))?$/;

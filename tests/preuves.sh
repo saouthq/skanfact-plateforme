@@ -21444,3 +21444,21 @@ prouver 'question-ligne 3 : la ligne du relevé ne se demande pas' web/public/v1
 prouver 'question-ligne 4 : la phrase ne cite pas ce que la question vise' web/public/v10/cabinet/app.js \
   "if (b.quoi) return b.quoi;" "if (false) return b.quoi;" \
   '(1.189.0) une question depuis une écriture'
+prouver 'questionnaire 1 : le serveur refuse le lien vers la question partie' serveur/cabinet/revision.ts \
+  "demande: z.string().uuid().optional()," "" \
+  '(1.190.0) le questionnaire de fin'
+prouver 'questionnaire 2 : le lien vers la question partie se perd en route' web/public/plateforme/pont-cabinet.js \
+  "...(q.demande ? { demande: String(q.demande) } : {}) }))," "}))," \
+  '(1.190.0) le questionnaire de fin'
+prouver 'questionnaire 3 : un dossier tenu propose de demander au client' web/public/v10/cabinet/app.js \
+  "const relieQq = relieRv && !!api.question;" "const relieQq = !!api.question;" \
+  '(1.190.0) le questionnaire de fin'
+prouver 'questionnaire 4 : la réponse du client ne se montre pas en face' web/public/v10/cabinet/app.js \
+  ': repCl ? `<span class="badge b-paid">${esc(quiQq)} a répondu</span>' ': false ? `<span class="badge b-paid">${esc(quiQq)} a répondu</span>' \
+  '(1.190.0) le questionnaire de fin'
+prouver 'questionnaire 5 : posé, il ne se propose pas au client' web/public/v10/cabinet/app.js \
+  "if (s.qqOuvrir) { s.qqOuvrir = false; if (qqDem) fenQuestionnaireClient(root, dossier); }" "if (false) { s.qqOuvrir = false; if (qqDem) fenQuestionnaireClient(root, dossier); }" \
+  '(1.190.0) le questionnaire de fin'
+prouver 'questionnaire 6 : une question décochée part quand même' web/public/v10/cabinet/app.js \
+  "const choisies = () => cases.filter(c => c.checked).map(c => c.dataset.qqPart);" "const choisies = () => cases.map(c => c.dataset.qqPart);" \
+  '(1.190.0) le questionnaire de fin'

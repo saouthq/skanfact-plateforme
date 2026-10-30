@@ -47,7 +47,7 @@ describe('la révision et les questions au client, à la souris', () => {
   };
 
   type Revision = { periode: string; contenu: { faite: boolean; faitePar: string; comptes: { compte: string; revuPar: string }[];
-    notes: { texte: string; levee: boolean; par: string }[]; questionnaire: { question: string; reponse: string }[] } };
+    notes: { texte: string; levee: boolean; par: string }[]; questionnaire: { question: string; reponse: string; demande?: string }[] } };
   type Question = { id: string; statut: string; compte: string; piece: string; attendu: string; texte: string; objet: string; envois: string[] };
 
   it('la révision se tient à la souris et se garde au serveur ; une question part au client à l\'envoi, et sa réponse revient', async () => {
@@ -145,6 +145,9 @@ describe('la révision et les questions au client, à la souris', () => {
     await aller();
     await ouvrir('#rv-poser', '[data-qq]');
     await expect.poll(async () => (await revision())?.questionnaire.map((q) => q.question)).toEqual(['Des litiges en cours ?']);
+    // (1.190.0) Relié, posé, il se propose aussitôt au client ; ici, la réponse se note soi-même.
+    await expect.poll(() => fenetre.locator('h2').innerText().catch(() => ''), APRES_LE_SERVEUR).toBe('Le questionnaire à Menuiserie Ben Salah');
+    await fenetre.locator('[data-close]').click();
     await ouvrir('[data-qq]', '#qq-rep');
     await fenetre.locator('#qq-rep').fill('Aucun litige connu au 31 décembre.');
     await fenetre.locator('#qq-ok').click();
@@ -299,6 +302,84 @@ describe('la révision et les questions au client, à la souris', () => {
     await p.locator('[data-rowmenu^="E:"]').first().click({ timeout: 20_000 });
     await expect.poll(() => p.getByRole('menuitem').count()).toBeGreaterThan(0);
     expect(await p.getByRole('menuitem').filter({ hasText: 'Poser une question au client' }).count()).toBe(0);
+    expect(erreurs).toEqual([]);
+  }, 180_000);
+
+  it('(1.190.0) le questionnaire de fin d\'exercice part chez le client par la conversation, et sa réponse revient en face', async () => {
+    const client = await personne('client');
+    const ent = String((await api('POST', '/entreprises', client, { raisonSociale: 'Garage Triki' })).corps.id);
+    const associe = await personne('associe');
+    const cab = await api('POST', '/cabinets', associe, { nom: 'Cabinet Ennour' });
+    const cabinet = String(cab.corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, client, { codeCabinet: String(cab.corps.code) })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cabinet}/mandats/${mandat}/accepter`, associe)).statut).toBe(200);
+    const od = String((await api('POST', `/entreprises/${ent}/compta/ecritures`, associe, { date: '2026-03-18', journal: 'OD', piece: 'OD-1', libelle: 'Honoraires du mois',
+      lignes: [{ compte: '6226', debit: '300.125' }, { compte: '4286', credit: '300.125' }] })).corps.id);
+    expect((await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, associe, { ids: [od] })).statut).toBe(200);
+    // La méthode du cabinet : trois questions de fin d'exercice.
+    const QUESTIONS = ['Un leasing ou un emprunt signé dans l\'année ?', 'Un litige en cours ?', 'Une caution donnée pour quelqu\'un ?'];
+    const reg = (await api('GET', `/cabinets/${cabinet}/reglages`, associe)).corps as { contenu: Record<string, unknown>; revision: unknown };
+    expect((await api('PUT', `/cabinets/${cabinet}/reglages`, associe, { contenu: { ...reg.contenu, questionnaire: QUESTIONS.map((question) => ({ question })) }, revision: reg.revision ?? null })).statut).toBe(200);
+    const revision = async (qui = ent) => ((await api('GET', `/cabinets/${cabinet}/revisions/${qui}?annee=2026`, associe)).corps.revisions as Revision[]).find((x) => x.periode === '2026')?.contenu;
+    const questions = async (jeton: string) => ((await api('GET', `/entreprises/${ent}/compta/questions?annee=2026`, jeton)).corps.questions as Question[])
+      .filter((q) => q.objet === 'Questionnaire de fin d\'exercice');
+    const erreurs: string[] = [];
+    const p = await (await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR' })).newPage();
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    const aller = async (qui = ent) => {
+      await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossier/${qui}/comptabilite/revision/2026`);
+      await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+      await p.waitForTimeout(800);
+      for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    };
+    const fenetre = p.locator('#modal-root .modal').last();
+    const APRES = { timeout: 20_000 };
+
+    // Posé sur l'exercice, il s'ouvre aussitôt pour partir : les questions cochées, ce qui part se compte sur le bouton.
+    await aller();
+    await expect.poll(() => p.locator('#rv-poser').count(), APRES).toBe(1);
+    await p.locator('#rv-poser').click();
+    await expect.poll(() => fenetre.locator('h2').innerText().catch(() => ''), APRES).toBe('Le questionnaire à Garage Triki');
+    expect(await fenetre.locator('.qq-ligne').allInnerTexts()).toEqual(QUESTIONS);
+    expect(await fenetre.locator('#qq-envoyer').innerText()).toBe('Envoyer les 3 maintenant');
+    await fenetre.locator('[data-qq-part]').nth(2).uncheck();
+    expect(await fenetre.locator('#qq-envoyer').innerText()).toBe('Envoyer les 2 maintenant');
+    await fenetre.locator('#qq-envoyer').click();
+    await expect.poll(() => p.locator('#toast').innerText(), APRES).toMatch(/^2\squestions envoyées à Garage Triki : ses réponses arriveront ici/);
+    // Le client les lit, envoyées, une explication attendue chacune ; le questionnaire garde le lien vers chacune.
+    const recues = await questions(client);
+    expect(recues.map((q) => [q.statut, q.attendu, q.texte]).sort()).toEqual([['envoyee', 'explication', QUESTIONS[0]], ['envoyee', 'explication', QUESTIONS[1]]]);
+    const qq = (await revision())?.questionnaire ?? [];
+    expect(qq.map((q) => [q.question, recues.some((r) => r.id === q.demande)])).toEqual([[QUESTIONS[0], true], [QUESTIONS[1], true], [QUESTIONS[2], false]]);
+    // La ligne dit « demandée » ; la question restée propose encore de partir, seule.
+    await expect.poll(() => p.locator('#rv-questionnaire').innerText(), APRES).toMatch(/demandée/);
+    expect(await p.locator('#rv-qq-demander').innerText()).toBe('Demander la réponse à Garage Triki');
+
+    // Le client répond ; sa réponse arrive en face, et se reprend d'un clic.
+    const leasing = recues.find((r) => r.texte === QUESTIONS[0]) as Question;
+    expect((await api('POST', `/entreprises/${ent}/compta/questions/${leasing.id}/repondre`, client, { texte: 'Oui, un leasing de 36 mois pour la camionnette, signé en mars.' })).statut).toBe(200);
+    // La même adresse ne recharge pas la page : on la quitte pour la relire.
+    await p.goto('about:blank');
+    await aller();
+    await expect.poll(() => p.locator('#rv-questionnaire tr.qq-arrivee').innerText({ timeout: 2_000 }).catch(() => ''), APRES).toMatch(/Garage Triki a répondu\s+Oui, un leasing de 36 mois/);
+    await p.locator('[data-qq-garder]').click();
+    await expect.poll(async () => (await revision())?.questionnaire[0]?.reponse, APRES).toBe('Oui, un leasing de 36 mois pour la camionnette, signé en mars.');
+    await expect.poll(() => p.locator('#rv-questionnaire').innerText(), APRES).toMatch(/la réponse de Garage Triki/);
+
+    // Un dossier tenu sans SkanFact n'a pas de conversation : posé, le questionnaire se remplit à la main, rien ne part.
+    const tenu = String((await api('POST', `/cabinets/${cabinet}/dossiers`, associe, { raisonSociale: 'Menuiserie du Sahel' })).corps.entreprise);
+    const e2 = String((await api('POST', `/entreprises/${tenu}/compta/ecritures`, associe, { date: '2026-03-18', journal: 'OD', piece: 'OD-9', libelle: 'Loyer',
+      lignes: [{ compte: '6132', debit: '500' }, { compte: '401', credit: '500' }] })).corps.id);
+    expect((await api('POST', `/entreprises/${tenu}/compta/ecritures/valider`, associe, { ids: [e2] })).statut).toBe(200);
+    await p.goto('about:blank');
+    await aller(tenu);
+    await expect.poll(() => p.locator('#rv-poser').count(), APRES).toBe(1);
+    await p.locator('#rv-poser').click();
+    await expect.poll(async () => (await revision(tenu))?.questionnaire.length, APRES).toBe(3);
+    await expect.poll(() => p.locator('[data-qq]').count(), APRES).toBe(3);
+    expect(await p.locator('#rv-qq-demander').count()).toBe(0);
+    expect(await p.locator('#modal-root .modal').count()).toBe(0);
     expect(erreurs).toEqual([]);
   }, 180_000);
 });

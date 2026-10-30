@@ -9120,6 +9120,29 @@
     const suivante = aEnvoyer ? 'envoyer' : d.faite ? '' : ouvertIncomplet ? 'signer' : prochain ? 'cycle' : horsARevoir ? 'hors' : 'arreter';
     const aFaire = controles.filter(c => c.gravite !== 'info');
     const etatsNormaux = controles.filter(c => c.gravite === 'info' && c.id !== 'comptes');
+    // (plateforme) 1.190.0 — le questionnaire part chez le client par la conversation : chaque question y devient une
+    // question au client (`demande`), et sa réponse revient en face, à reprendre d'un clic. Sans SkanFact, on la tape soi-même.
+    const relieQq = relieRv && !!api.question;
+    const quiQq = prenomCl(dossier.contact) || dossier.name;
+    const qqLibres = relieQq ? d.questionnaire.filter(q => !String(q.reponse || '').trim() && !questionDuQuestionnaire(s, q)) : [];
+    const ligneQuestionnaire = q => {
+      const cq = questionDuQuestionnaire(s, q);
+      const rep = String(q.reponse || '').trim();
+      const repCl = cq && cq.reponse ? String(cq.reponse.texte || '').trim() : '';
+      const envois = cq ? cq.envois || [] : [];
+      const etat = rep ? `${esc(rep)}${repCl && repCl === rep ? `<div class="small muted">la réponse de ${esc(quiQq)}</div>` : ''}`
+        : repCl ? `<span class="badge b-paid">${esc(quiQq)} a répondu</span><div class="small">${esc(repCl)}</div>`
+          : !cq ? '<span class="muted">sans réponse</span>'
+            : cq.statut === 'close' ? '<span class="badge">close sans réponse</span>'
+              : !envois.length ? '<span class="badge">prête</span><div class="small muted">part avec ton prochain message</div>'
+                : `<span class="badge b-due">demandée</span><div class="small muted">le ${esc(fmtJour(KC.jourDeLInstant(envois[envois.length - 1])))}, pas encore de réponse</div>`;
+      return `<tr class="${repCl && !rep ? 'qq-arrivee' : ''}">
+          <td>${esc(q.question)}</td>
+          <td>${etat}</td>
+          <td class="row-actions">${repCl && !rep
+    ? `<button type="button" class="btn btn-sm" data-qq-garder="${esc(q.id)}" title="Elle devient la réponse au questionnaire de ce dossier">Reprendre sa réponse</button>`
+    : `<button type="button" class="btn btn-sm" data-qq="${esc(q.id)}" title="La réponse que tu as eue de vive voix, par téléphone ou par e-mail">${rep ? 'Modifier' : 'Noter la réponse'}</button>`}</td></tr>`;
+    };
     return `<div class="filters">
       ${info('rv.dossier')}
       <label class="f-lab" for="rv-periode">La période révisée</label>
@@ -9168,12 +9191,11 @@
     : '<div class="empty mini">Aucune note de revue sur cette période.</div>'}
     </div>
 
-    <div class="panel"><h2>Questionnaire de fin d'exercice ${info('rv.questionnaire')}</h2>
+    <div class="panel" id="rv-questionnaire"><h2>Questionnaire de fin d'exercice ${info('rv.questionnaire')}</h2>
+      ${qqLibres.length && relieQq ? `<div class="rv-qq-tete"><button type="button" class="btn btn-sm" id="rv-qq-demander">${icB('messages', 14, 2)} ${qqLibres.length > 1 ? `Demander les ${qqLibres.length} réponses à ${esc(quiQq)}` : `Demander la réponse à ${esc(quiQq)}`}</button>
+        <span class="small muted">${esc(quiQq)} répond dans votre conversation ; chaque réponse arrive ici, en face de sa question.</span></div>` : ''}
       ${d.questionnaire.length
-    ? `<table class="list compact"><tbody>${d.questionnaire.map(q => `<tr>
-          <td>${esc(q.question)}</td>
-          <td>${q.reponse ? esc(q.reponse) : '<span class="muted">sans réponse</span>'}</td>
-          <td class="row-actions"><button type="button" class="btn btn-sm" data-qq="${esc(q.id)}">Répondre</button></td></tr>`).join('')}</tbody></table>`
+    ? `<table class="list compact"><tbody>${d.questionnaire.map(ligneQuestionnaire).join('')}</tbody></table>`
     : r.modeles.length
       ? `<div class="empty mini">Le questionnaire de ton cabinet n'est pas encore posé sur cette période.</div>
          <div class="inline mt"><button class="btn btn-sm" id="rv-poser">Poser les ${esc(pl(r.modeles.length, 'question'))} de ton cabinet</button></div>`
@@ -9294,8 +9316,11 @@
 
     $$('[data-qq]', el).forEach(b => { b.onclick = () => {
       const q = (s.revision.dossier.questionnaire || []).find(x => x.id === b.dataset.qq);
-      modal(`<h2>Répondre</h2><p class="small">${esc((q && q.question) || '')}</p>
-        <label class="field">${lbl('La réponse', 'rv.reponse')}<textarea id="qq-rep" rows="3">${esc((q && q.reponse) || '')}</textarea></label>
+      // (1.190.0) La réponse du client, quand il en a donné une, sert de départ.
+      const cq = questionDuQuestionnaire(s, q);
+      const depart = (q && q.reponse) || (cq && cq.reponse && cq.reponse.texte) || '';
+      modal(`<h2>${q && q.reponse ? 'Modifier la réponse' : 'Noter la réponse'}</h2><p class="small">${esc((q && q.question) || '')}</p>
+        <label class="field">${lbl('La réponse', 'rv.reponse')}<textarea id="qq-rep" rows="3">${esc(depart)}</textarea></label>
         <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="qq-ok">Enregistrer</button></div>`,
       (couche, close) => { $('#qq-ok', couche).onclick = async () => {
         try {
@@ -9305,11 +9330,28 @@
       }; });
     }; });
 
+    $$('[data-qq-garder]', el).forEach(b => { b.onclick = async () => {
+      const q = (s.revision.dossier.questionnaire || []).find(x => x.id === b.dataset.qqGarder);
+      const cq = questionDuQuestionnaire(s, q);
+      if (!cq || !cq.reponse) return;
+      b.disabled = true;
+      try {
+        const r = await api.questionnaire({ dossierId: dossier.id, annee: s.annee, periode: s.revision.dossier.periode, id: q.id, reponse: cq.reponse.texte });
+        s.livre = r.livre; toast('Réponse reprise : elle est celle du questionnaire de ce dossier.'); relire();
+      } catch (e) { b.disabled = false; toast(plainError(e), 'error'); }
+    }; });
+    const qqDem = $('#rv-qq-demander', el);
+    if (qqDem) qqDem.onclick = () => fenQuestionnaireClient(root, dossier);
+    if (s.qqOuvrir) { s.qqOuvrir = false; if (qqDem) fenQuestionnaireClient(root, dossier); }
+
     const poser = $('#rv-poser', el);
     if (poser) poser.onclick = async () => {
       try {
         const r = await api.questionnaire({ dossierId: dossier.id, annee: s.annee, periode: s.revision.dossier.periode, poser: true });
-        s.livre = r.livre; toast(`${pl(r.poses, 'question posée', 'questions posées')}.`); relire();
+        // (1.190.0) Relié : la suite est de les demander au client, la fenêtre s'ouvre d'elle-même une fois la révision relue.
+        s.livre = r.livre; toast(`${pl(r.poses, 'question posée', 'questions posées')}.`);
+        if (!dossier.manual && api.messagerie && api.question && r.poses) s.qqOuvrir = true;
+        relire();
       } catch (e) { toast(plainError(e), 'error'); }
     };
     const mod = $('#rv-modeles', el);
@@ -9370,6 +9412,8 @@
   // solde sont déjà là, ce qu'on attend se choisit d'une pastille, la phrase est proposée. Deux issues : « Envoyer
   // maintenant » (elle part, avec celles qui attendaient), ou « Garder pour l'envoi groupé » (elle attend, prête, dans la
   // conversation du client, et part avec le prochain message). Plus de fenêtre d'envoi ni de confirmation à part.
+  // (plateforme) 1.190.0 — la question au client née d'une question du questionnaire (supprimée : plus rien).
+  const questionDuQuestionnaire = (s, q) => (q && q.demande ? (((s.revision && s.revision.questions) || (s.livre && s.livre.questions) || []).find(x => x.id === q.demande) || null) : null);
   // Les questions prêtes : celles de la révision lue, sinon celles du livre (la Banque, la Saisie ne lisent pas la révision).
   const questionsPretes = s => ((s.revision && s.revision.questions) || (s.livre && s.livre.questions) || []).filter(q => q.statut === 'ouverte' && !(q.envois || []).length);
   function questionForm(root, dossier, base, id) {
@@ -9479,6 +9523,77 @@
 
   // (plateforme) 1.187.0 — Les questions prêtes partent d'ici d'un clic, sans fenêtre : chacune a été relue en la posant.
   // Une question restée sans réponse se relance de sa ligne (une fois par jour au plus : le serveur le tient).
+  // (plateforme) 1.190.0 — le questionnaire de fin d'exercice demandé au client : ses questions sans réponse partent dans la
+  // conversation (une question au client chacune), tout de suite ou avec le prochain message ; ses réponses reviennent en face.
+  function fenQuestionnaireClient(root, dossier) {
+    const s = livresState;
+    const d = s.revision.dossier;
+    const nom = prenomCl(dossier.contact) || dossier.name || 'ce client';
+    const libres = d.questionnaire.filter(q => !String(q.reponse || '').trim() && !questionDuQuestionnaire(s, q));
+    if (!libres.length) return;
+    const pretes = questionsPretes(s);
+    const perLib = /^\d{4}-\d{2}$/.test(String(d.periode)) ? moisLabelCourt(String(d.periode)) : `l'exercice ${d.periode}`;
+    modal(`<h2>Le questionnaire à ${esc(nom)}</h2>
+      <div class="qf-sujet"><span class="qf-sujet-ic">${icB('revision', 15, 2)}</span><span><b>Questionnaire de fin d'exercice</b><small>${esc(perLib)} · ${esc(pl(libres.length, 'question sans réponse', 'questions sans réponse'))}</small></span></div>
+      <fieldset class="qq-choix"><legend class="ec-lab">${libres.length > 1 ? 'Les questions qui partent' : 'La question qui part'}</legend>
+        ${libres.map(q => `<label class="qq-ligne"><input type="checkbox" data-qq-part="${esc(q.id)}" checked><span>${esc(q.question)}</span></label>`).join('')}
+      </fieldset>
+      <p class="small muted qf-ou">${libres.length > 1 ? `${esc(nom)} les lit dans votre conversation et répond à chacune ; chaque réponse arrive ici, en face de sa question` : `${esc(nom)} la lit dans votre conversation et y répond ; sa réponse arrive ici, en face de la question`}, et tu la reprends d'un clic.${pretes.length ? ` <b>${esc(pl(pretes.length, 'question prête attend', 'questions prêtes attendent'))} déjà</b> : « Envoyer maintenant » ${pretes.length > 1 ? 'les emporte' : 'l\'emporte'} aussi.` : ''}</p>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button>
+        <button class="btn" id="qq-garder" title="Elles attendent, prêtes, dans la conversation : elles partent avec ton prochain message">Garder pour l'envoi groupé</button>
+        <button class="btn btn-primary" id="qq-envoyer" title="Ctrl+Entrée">Envoyer maintenant</button></div>`,
+    (couche, close) => {
+      const cases = $$('[data-qq-part]', couche);
+      const env = $('#qq-envoyer', couche);
+      const gar = $('#qq-garder', couche);
+      const choisies = () => cases.filter(c => c.checked).map(c => c.dataset.qqPart);
+      const maj = () => {
+        // Celles qui attendaient partent avec : le bouton dit le compte de ce qui part (comme « Poser une question »).
+        const n = choisies().length + (choisies().length ? pretes.length : 0);
+        env.textContent = n > 1 ? `Envoyer les ${n} maintenant` : 'Envoyer maintenant';
+      };
+      cases.forEach(c => { c.onchange = maj; }); maj();
+      setTimeout(() => env.focus(), 0);
+      const faire = async envoyer => {
+        const ids = choisies();
+        if (!ids.length) return refus(cases[0], 'Coche au moins une question : c\'est elle qui part chez ' + nom + '.');
+        [env, gar].forEach(x => { x.disabled = true; });
+        const liens = [];
+        try {
+          for (const id of ids) {
+            const q = libres.find(x => x.id === id);
+            const r = await api.question({ dossierId: dossier.id, annee: s.annee, question: {
+              periode: String(d.periode), attendu: 'explication', texte: q.question, objet: 'Questionnaire de fin d\'exercice' } });
+            s.livre = r.livre;
+            if (r.id) liens.push({ id, demande: r.id });
+          }
+          const l = await api.questionnaire({ dossierId: dossier.id, annee: s.annee, periode: d.periode, lier: liens });
+          s.livre = l.livre;
+          if (envoyer) {
+            const tous = liens.map(x => x.demande).concat(pretes.map(x => x.id));
+            const e = await api.ecrireQuestions({ dossierId: dossier.id, annee: s.annee, ids: tous });
+            if (e.livre) s.livre = e.livre;
+            toast(`${pl(e.envoyees || tous.length, 'question envoyée', 'questions envoyées')} à ${nom} : ses réponses arriveront ici, en face du questionnaire.`);
+          } else {
+            const n = liens.length + pretes.length;
+            toast(`Gardées : ${pl(n, 'question prête', 'questions prêtes')} pour ${nom}. Elle${n > 1 ? 's partiront' : ' partira'} avec ton prochain message.`);
+          }
+          close(); s.revisionRev = ''; chargerRevision(root, dossier);
+        } catch (e) {
+          [env, gar].forEach(x => { x.disabled = false; });
+          toast(plainError(e), 'error');
+          // Une partie posée et pas reliée : la révision relue le montre (rien ne se perd, la question est dans la liste).
+          if (liens.length) { s.revisionRev = ''; chargerRevision(root, dossier); }
+        }
+      };
+      env.onclick = () => faire(true);
+      gar.onclick = () => faire(false);
+      couche.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); if (!env.disabled) env.click(); }
+      });
+    });
+  }
+
   async function envoyerQuestions(root, dossier, ids, quoi) {
     const s = livresState;
     try {
