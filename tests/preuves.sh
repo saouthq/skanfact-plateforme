@@ -21628,3 +21628,30 @@ prouver 'clients 7 : au téléphone, pas de cartes' web/public/plateforme/liste.
 prouver 'clients 8 : à la tablette, toutes les colonnes se serrent' web/public/plateforme/liste.css \
   "  .lc table.lc-table thead th:nth-child(3), .lc table.lc-table thead th:nth-child(7), .lc table.lc-table td.ct, .lc table.lc-table td.der { display: none; }" "" \
   'à 768 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté'
+
+# (1.200.0) Les clients, lot 2 : la fiche d'un client telle que la maquette (docs/maquettes/clients.html).
+FC2="l'en-tête, les bandeaux, les onglets, la colonne de droite, le menu, archiver, le délai"
+prouver 'fiche client 1 : une seule facture en retard ne se relance plus d'"'"'un geste' web/public/v10/app.js \
+  "late.length === 1 && peutVendre ? " "false ? " "$FC2"
+prouver 'fiche client 2 : plusieurs retards, pas de relevé en geste principal' web/public/v10/app.js \
+  ': late.length > 1 ? `<button' ': false ? `<button' "$FC2"
+prouver 'fiche client 3 : le retard tait sa dernière relance' web/public/v10/app.js \
+  '${dr ? ` · dernière relance le' '${false ? ` · dernière relance le' "$FC2"
+prouver 'fiche client 4 : l'"'"'encours dépassé se tait' web/public/v10/app.js \
+  "if (depasse) bandeaux.push(" "if (false) bandeaux.push(" "$FC2"
+prouver 'fiche client 5 : le trop-payé se tait' web/public/v10/app.js \
+  "if (enTrop) bandeaux.push(" "if (false) bandeaux.push(" "$FC2"
+prouver 'fiche client 6 : le matricule manquant se tait' web/public/v10/app.js \
+  "if (!c.matricule && !etranger) bandeaux.push(" "if (false) bandeaux.push(" "$FC2"
+prouver 'fiche client 7 : un client archivé reste dans la liste' web/public/v10/app.js \
+  "r.c.archived ? false : !f ? true" "!f ? true" "$FC2"
+prouver 'fiche client 8 : la facture neuve oublie le délai du client' web/public/v10/app.js \
+  "if (doc.type === 'facture' && !doc.number && c.paymentTermsDays !== ''" "if (false && doc.type === 'facture' && !doc.number && c.paymentTermsDays !== ''" "$FC2"
+prouver 'fiche client 9 : « Relevé de compte » n'"'"'ouvre rien' web/public/v10/app.js \
+  "if (\$('#cf-releve')) \$('#cf-releve').onclick = () => releveForm(c.id);" "" "$FC2"
+prouver 'fiche client 10 : l'"'"'onglet Relances oublie ce qui a été fait' web/public/v10/app.js \
+  "const hist = factures.flatMap(d => (d.reminders || [])" "const hist = [].flatMap(d => (d.reminders || [])" "$FC2"
+prouver 'fiche client 11 : un client archivé ne revient pas' web/public/v10/app.js \
+  "    c.archived = ''; save(true); if (refaire) refaire();
+    toast(" "    save(true); if (refaire) refaire();
+    toast(" "$FC2"

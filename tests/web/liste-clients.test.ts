@@ -147,7 +147,7 @@ describe('la liste des clients, à la souris, au clavier et au téléphone', () 
     await ligne('c-pins').locator('[data-rowmenu]').click();
     const menu = p.locator('.row-menu');
     await menu.waitFor();
-    expect(net(await menu.innerText())).toBe(`École Les Pins Ouvrir la fiche Documents, paiements, relances, affaires, matériel LUI VENDRE Nouveau devis Pour École Les Pins Nouvelle facture Elle reprend sa fiche SON COMPTE Relancer ${numero('f2')} 45 jours de retard · Relance Relevé de compte… 674,770 DT encore dus SA FICHE Modifier le client Coordonnées, contact, matricule`);
+    expect(net(await menu.innerText())).toBe(`École Les Pins Ouvrir la fiche Documents, paiements, relances, affaires, matériel LUI VENDRE Nouveau devis Pour École Les Pins Nouvelle facture Elle reprend sa fiche SON COMPTE Relancer ${numero('f2')} 45 jours de retard · Relance Relevé de compte… 674,770 DT encore dus SA FICHE Modifier le client Coordonnées, contact, matricule Archiver Il sort de la liste ; ses documents restent`);
     await p.keyboard.press('Escape');
 
     // 5. Au clavier : ↓ choisit le premier client, Entrée ouvre sa fiche.

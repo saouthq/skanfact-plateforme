@@ -280,3 +280,74 @@ body.dark .lf .tag { color: #b9a0f5; background: color-mix(in srgb, #8a5cf2 24%,
   .lc .lc-c-b { display: flex; justify-content: space-between; gap: 10px; padding-top: 6px; border-top: 1px solid var(--sb-trait); margin-top: 4px; }
   .lc .lc-c-b b { color: var(--sb-encre); font-variant-numeric: tabular-nums; }
 }
+
+/* ---------- la fiche d'un client (maquette clients.html, 1.200.0) ---------- */
+.cf-tete .cf-nom { display: flex; align-items: center; gap: 12px; }
+.cf-tete .cf-nom .av { width: 38px; height: 38px; border-radius: 11px; flex: none; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 14px; }
+.cf-tete h1 { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0; }
+.cf-tete h1 .badge { margin: 0; }
+.cf-tete .sous .rouge, .cf-fiche .rouge { color: var(--sb-rouge-texte); }
+.cf-tete .sous .trop, .cf-fiche .trop { color: var(--sb-ambre-texte); font-weight: 600; }
+.cf-tete .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cf-bandeaux { display: grid; gap: 10px; margin-bottom: 14px; }
+.cf-bandeaux:empty, .cf-bandeaux > #cf-ttn:empty { display: none; }
+.cf-bandeaux > #cf-ttn { display: grid; }
+.cf-fiche { display: grid; grid-template-columns: minmax(0, 1fr) 320px; gap: 14px; align-items: start; }
+.cf-gauche, .cf-droite { display: grid; gap: 14px; min-width: 0; }
+.cf-droite { align-content: start; }
+.cf-carte { background: var(--sb-papier); border: 1px solid var(--sb-trait); border-radius: 14px; box-shadow: var(--sb-ombre); min-width: 0; }
+.cf-bloc { padding: 16px 18px; display: grid; gap: 12px; }
+.cf-bloc-t { display: flex; align-items: center; gap: 8px; justify-content: space-between; }
+.cf-bloc-t b { font-size: 14.5px; letter-spacing: -.01em; color: var(--sb-encre); }
+.cf-bloc-t .mu { font-size: 12.5px; color: var(--sb-gris-2); }
+.cf-dl { display: grid; grid-template-columns: 104px minmax(0, 1fr); gap: 8px 12px; font-size: 13.5px; margin: 0; }
+.cf-dl dt { color: var(--sb-gris-2); display: flex; gap: 4px; align-items: flex-start; }
+.cf-dl dd { margin: 0; min-width: 0; overflow-wrap: anywhere; color: var(--sb-encre); }
+.cf-dl dd small { display: block; color: var(--sb-gris-2); font-size: 12px; }
+.cf-dl dd small.rouge { color: var(--sb-rouge-texte); font-weight: 600; }
+.cf-fiche .manque { color: var(--sb-ambre-texte); font-weight: 600; }
+.cf-fiche .mu { color: var(--sb-gris-2); }
+.cf-bloc textarea { width: 100%; min-height: 84px; padding: 10px 12px; border: 1px solid var(--sb-trait-fort); border-radius: 10px; font: inherit; font-size: 13.5px; line-height: 1.5; color: var(--sb-encre); background: var(--sb-papier); resize: vertical; box-sizing: border-box; }
+.cf-pied { font-size: 12px; color: var(--sb-gris-2); display: flex; gap: 6px; align-items: center; margin: 0; }
+.cf-pied.ambre { color: var(--sb-ambre-texte); font-weight: 600; }
+.cf-onglets { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--sb-trait); overflow-x: auto; scrollbar-width: none; }
+.cf-onglets button { border: 0; background: none; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--sb-gris); padding: 10px 12px 11px; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; display: flex; gap: 6px; align-items: center; white-space: nowrap; }
+.cf-onglets button small { font-size: 11.5px; font-weight: 600; color: var(--sb-gris-2); background: var(--sb-survol); border-radius: 99px; padding: 1px 7px; }
+.cf-onglets button small.r { background: var(--sb-rouge-doux); color: var(--sb-rouge-texte); }
+.cf-onglets button[aria-selected="true"] { color: var(--sb-encre); border-bottom-color: var(--sb-sarcelle); }
+.cf-onglets button[aria-selected="true"] small:not(.r) { background: var(--sb-doux); color: var(--sb-doux-texte); }
+.cf-onglet { padding: 14px 16px 16px; display: grid; gap: 12px; min-width: 0; }
+.cf-onglet .panel, .cf-onglet #cl-docs .panel { border: 0; box-shadow: none; padding: 0; margin: 0; }
+/* Les documents du client tiennent dans leur carte : au-delà, ils défilent dans elle, jamais sous la colonne de droite. */
+.cf-onglet #cl-docs { min-width: 0; overflow-x: auto; }
+.cf-onglet #cl-docs table th, .cf-onglet #cl-docs table td { padding-inline: 7px; }
+.cf-onglet #cl-docs table td { font-size: 13px; }
+.cf-onglet #cl-docs td.actions .row-menu-btn { padding-inline: 8px; }
+.cf-carte { overflow: hidden; }
+.cf-o-t { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cf-o-t .mu { font-size: 12.5px; flex: 1 1 260px; }
+.cf-o-t .btn { margin-left: auto; }
+.cf-sous-t { font-size: 13px; color: var(--sb-encre); }
+table.cf-mini { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+table.cf-mini th { text-align: left; font-size: 11.5px; font-weight: 600; color: var(--sb-gris-2); text-transform: uppercase; letter-spacing: .04em; padding: 6px 8px; border-bottom: 1px solid var(--sb-trait); white-space: nowrap; }
+table.cf-mini td { padding: 9px 8px; border-bottom: 1px solid var(--sb-trait); vertical-align: top; color: var(--sb-encre); }
+table.cf-mini tr:last-child td { border-bottom: 0; }
+table.cf-mini .r { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+table.cf-mini td small { display: block; color: var(--sb-gris-2); font-size: 12px; }
+table.cf-mini tr.clic { cursor: pointer; }
+table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
+.cf-vide { padding: 18px; text-align: center; color: var(--sb-gris); font-size: 13.5px; display: grid; gap: 8px; justify-items: center; }
+.cf-vide b { color: var(--sb-encre); }
+.cf-vide .pr-b { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+@media (max-width: 1100px) {
+  .cf-fiche { grid-template-columns: minmax(0, 1fr); }
+  .cf-droite { position: static; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+}
+@media (max-width: 760px) {
+  .cf-tete .actions { width: 100%; }
+  .cf-tete .actions .btn-primary { order: -1; flex: 1 1 100%; }
+  .cf-droite { grid-template-columns: minmax(0, 1fr); }
+  .cf-dl { grid-template-columns: 92px minmax(0, 1fr); }
+}
+/* Au doigt, un onglet se touche comme un bouton : 44 points (`tests/web/rendu.test.ts`). */
+@media (max-width: 760px), (pointer: coarse) { .cf-onglets button { min-height: 44px; } }

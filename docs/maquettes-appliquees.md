@@ -18,7 +18,7 @@ perdu » — ce que fait l'écran de la v10 et où il le retrouve — et « Ce q
 | `devis.html` | Le devis |
 | `achat.html` | L'achat, avec la lecture par l'IA (facultative, décision du 24/10/2026) |
 | `accueil.html` | L'accueil |
-| `clients.html` | Les clients : la liste et la fiche d'un client (documents, paiements, relances, affaires et contrats, matériel), la fenêtre du client, le relevé, l'import ; validée le 28/10/2026, la liste appliquée (1.199.0), la fiche à venir |
+| `clients.html` | Les clients : la liste et la fiche d'un client (documents, paiements, relances, affaires et contrats, matériel), la fenêtre du client, le relevé, l'import ; validée le 28/10/2026, appliquée : la liste (1.199.0), la fiche (1.200.0) |
 | `achats-fournisseurs.html` | Les achats et dépenses (tuiles À payer, En retard, Cette semaine, Pour ton comptable ; choisir plusieurs pièces et les régler d'un virement), les fournisseurs et la fiche de chacun (achats, règlements, commandes, retenues et attestations, le fil), l'échéancier et la jauge des justificatifs ; validée le 30/10/2026, pas encore appliquée |
 
 ## Comment on les applique
@@ -343,4 +343,28 @@ preuves « clients 1 » à « clients 8 » (sans « clients 4 », voir plus bas)
 de paiement, et la devise d'un client étranger dans la liste (le montant s'y lit en devise de base, converti). La
 conversion d'un retard en devise vers la devise de base n'a pas encore de test qui la tienne : il viendra avec le lot 2,
 avec une facture en euros dans les données du test.
+
+## Lot Clients 2 : la fiche d'un client (1.200.0)
+
+La fiche de `clients.html`, appliquée dans `routes.client` (`web/public/v10/app.js`) et `web/public/plateforme/liste.css`
+(bloc `.cf-`). Test : `tests/web/fiche-client.test.ts` (photos `fiche-client-1-en-retard.png`,
+`fiche-client-2-telephone.png`) ; preuves « fiche client 1 » à « fiche client 11 ».
+
+| Ce qui se voit | Comment |
+|---|---|
+| L'en-tête | « Accueil › Clients › son nom », sa pastille, son statut (En retard, Te doit, À jour, En sa faveur, Nouveau, Archivé), puis son code, sa ville, « client depuis » le mois de sa première pièce, et ce qu'il doit (dont en retard) |
+| Le geste principal | Calculé : « Relancer FAC-… » s'il a une facture en retard ; « Lui envoyer son relevé · N en retard » s'il en a plusieurs ; sinon « Nouvelle facture ». Le rôle qui lit : « Relevé de compte » ; l'abonnement en lecture seule : « Voir l'abonnement ». À côté : « Nouveau devis » (ou « Nouvelle facture » quand le principal relance), « Relevé de compte », le menu ⋯ |
+| Les bandeaux | En retard (le montant, depuis combien de jours, la facture la plus ancienne, sa dernière relance et ce qu'il a dit, le niveau de la prochaine, « Voir ses relances ») ; encours au-delà du plafond ; payé en trop (« Ouvrir FAC-… ») ; client à l'étranger (À VÉRIFIER pour la mention d'export) ; matricule qui manque (« Compléter la fiche ») ; El Fatoora qui a refusé une de ses factures (lu par le pont, sans bloquer la page) ; archivé (« Le remettre dans la liste ») ; lecture seule |
+| Les onglets | Documents (le tableau des pièces, trié et paginé comme avant), Paiements (reçu le, sur quelle facture, moyen, montant, le total converti), Relances (ses factures en retard, leur niveau, la dernière relance, « Relancer » ; puis ce qui a été fait, avec ce qu'il a dit), Affaires et contrats (avec « Nouvelle affaire », « Nouveau contrat » quand il n'en a pas), Matériel installé ; chacun avec son nombre |
+| La colonne de droite | Coordonnées (« à renseigner » pour l'e-mail ou le matricule qui manquent), Ses conditions (retenue, délai, encours, prix, langue et devise, timbre ; « celle de tes réglages » quand la fiche n'a rien), Notes internes (enregistrées au fil de la frappe) |
+| Le menu ⋯ | Modifier la fiche ; Lui écrire (e-mail, WhatsApp, grisés s'il n'a ni adresse ni numéro) ; Créer pour lui (devis, facture, contrat récurrent, affaire) ; Relevé de compte ; Archiver (ou « Le remettre dans la liste ») ; Supprimer ce client (grisé quand il a des documents : « archive-le plutôt ») |
+| Archiver | Le client sort de la liste (un filtre « Archivés » paraît) et des choix d'une pièce ; ses documents restent ; « Annuler » dans le toast. La pièce qui le porte déjà le garde. Le menu de la liste l'offre aussi |
+| Le délai de paiement | Un champ de la fiche (vide : celui des réglages ; 0 : à réception). L'échéance d'une facture neuve pour ce client le reprend (fin de mois si sa fiche le dit, comme le garde la bulle « Échéance ») |
+| Le code client | Facultatif, sous son nom ; il se cherche dans la liste |
+| Au téléphone | Une colonne : le geste principal en tête, les bandeaux, les onglets, puis la colonne de droite |
+
+**Écarts assumés** : la carte « Liens donnés au client » de la maquette attend (SkanFact ne garde pas encore la liste des liens
+donnés pour un client) ; « Télécharger ses pièces » (toutes ses pièces en un fichier) aussi. Le choix d'un client archivé n'a
+pas encore son test (il sort de la recherche de « Pour qui ? » et des listes de choix) ; la conversion d'un retard en devise non
+plus (lot 1).
 

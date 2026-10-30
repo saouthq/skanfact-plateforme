@@ -78,13 +78,14 @@ describe('l\'encours autorisé d\'un client, à la souris', () => {
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/client/c1`);
     await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^Chantier Ennasr/);
     await plusTard(p);
-    expect(await p.locator('#cl-encours').count()).toBe(0);
+    // (1.200.0, maquette Clients) « Ses conditions » dit l'encours de sa fiche : d'abord sans plafond.
+    expect(net(await p.locator('#cl-encours').innerText())).toBe('sans plafond');
     await p.locator('#view .page-head').getByRole('button', { name: 'Actions' }).click();
     await p.getByText('Modifier la fiche', { exact: true }).click();
     await p.locator('#cf input[name=creditLimit]').fill('1000');
     await p.locator('#modal-root .btn-primary').last().click();
     await expect.poll(async () => net(await p.locator('#cl-encours').innerText().catch(() => '')), { timeout: 10_000 })
-      .toBe('Encours i : 799,680 DT sur 1 000,000 DT autorisés, dont 799,680 DT livrés à facturer.');
+      .toBe('1 000,000 DT autorisés 799,680 DT pris, dont 799,680 DT livrés à facturer');
 
     // 2. La facture de 300 HT le ferait dépasser : la fenêtre d'émission le dit, avec ses chiffres.
     await p.evaluate(() => { location.hash = '#/doc/f1'; });
@@ -99,7 +100,8 @@ describe('l\'encours autorisé d\'un client, à la souris', () => {
     await expect.poll(() => titre(p), { timeout: 20_000 }).toMatch(/^FAC-\d{4}-001/);
     await p.evaluate(() => { location.hash = '#/client/c1'; });
     await expect.poll(async () => net(await p.locator('#cl-encours').innerText().catch(() => '')), { timeout: 10_000 })
-      .toBe('Encours i : 1 157,680 DT sur 1 000,000 DT autorisés, dont 799,680 DT livrés à facturer : dépassé de 157,680 DT.');
+      .toBe('1 000,000 DT autorisés 1 157,680 DT pris, dont 799,680 DT livrés à facturer : dépassé de 157,680 DT');
+    expect(net(await p.locator('#view #cf-depasse').innerText())).toMatch(/^Encours au-delà de son plafond : 1 157,680 DT pour 1 000,000 DT autorisés/);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'encours-2-client.png') });
     expect(erreurs).toEqual([]);
     await cn.close();

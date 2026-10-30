@@ -244,7 +244,7 @@ describe('la recette alpha, à la souris', () => {
     await p.evaluate(() => { location.hash = '#/'; });
     await expect.poll(() => p.locator('[data-stat=encaisser]').innerText().then(net), { timeout: 15_000 }).toMatch(/1 facture dont .+ en retard/);
     await p.evaluate(() => { location.hash = '#/client/c1'; });
-    await expect.poll(() => p.locator('#view .banner').first().innerText().then(net).catch(() => ''), { timeout: 15_000 }).toMatch(/^1 facture en retard — 912,095 DT/);
+    await expect.poll(() => p.locator('#view .banner').first().innerText().then(net).catch(() => ''), { timeout: 15_000 }).toMatch(/^912,095 DT en retard depuis \d+ jours? — /);
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

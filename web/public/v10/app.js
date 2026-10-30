@@ -4241,7 +4241,8 @@
   // levait `clientItems is not defined` pendant la construction de la fenêtre. La fenêtre ne
   // s'ouvrait pas, le bouton paraissait mort, et rien n'apparaissait dans la console de
   // l'utilisateur. Une seule définition, au niveau du module : le cas ne peut plus se reproduire.
-  const clientItems = () => data.clients.slice().sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(c => ({
+  // (1.200.0, maquette Clients) Un client archivé sort des choix d'une pièce ; celui qu'elle porte déjà y reste.
+  const clientItems = garder => data.clients.filter(c => !c.archived || c.id === garder).sort((a, b) => a.name.localeCompare(b.name, 'fr')).map(c => ({
     v: c.id, label: c.name, sub: [c.contact, c.matricule ? 'MF ' + c.matricule : ''].filter(Boolean).join(' · '),
     text: `${c.name} ${c.contact || ''} ${c.email || ''} ${c.phone || ''} ${c.matricule || ''}`
   }));
@@ -5105,6 +5106,12 @@
     // sans timbre, en silence. Sur un avoir ou une proforma, `applyStamp === true` veut dire « en
     // mettre un » : le reposer ajouterait un timbre là où il n'y en a jamais.
     if (doc.type === 'facture') doc.applyStamp = !c.stampExempt;
+    // (1.200.0) Le délai de paiement de sa fiche donne l'échéance d'une facture neuve (fin de mois s'il le dit) ; sans
+    // délai à lui, celle des réglages reste. Jamais sur une pièce déjà numérotée.
+    if (doc.type === 'facture' && !doc.number && c.paymentTermsDays !== '' && c.paymentTermsDays != null && Number(c.paymentTermsDays) >= 0) {
+      const iso = C.addDays(doc.date || C.today(), Number(c.paymentTermsDays));
+      doc.dueDate = c.paymentTermsEom ? (d => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).toISOString().slice(0, 10))(new Date(iso + 'T00:00:00Z')) : iso;
+    }
   }
 
   function clientWithholding(clientId) {
@@ -5753,7 +5760,7 @@
                 <div class="ed-pq-liste" id="ed-pq-liste" role="listbox" aria-label="Clients"></div>
               </div>
               <div class="field ed-choix-client" id="ed-choix-client" hidden>${lbl('Client', 'ed.client')}
-                ${combo({ name: 'clientId', value: doc.clientId, items: clientItems(), placeholder: '— Choisir un client —', search: 'Rechercher : nom, contact, MF…', add: figee ? null : '+ Nouveau client', ro: figee })}
+                ${combo({ name: 'clientId', value: doc.clientId, items: clientItems(doc.clientId), placeholder: '— Choisir un client —', search: 'Rechercher : nom, contact, MF…', add: figee ? null : '+ Nouveau client', ro: figee })}
               </div>
               ${isAv ? `<div class="ed-ligne-avoir"${doc.creditOf && !figee ? ' hidden' : ''}><div class="field">${lbl('Facture concernée', 'ed.creditOf')}${combo({ name: 'creditOf', value: doc.creditOf, items: invoiceItems(), placeholder: '— Facture concernée —', search: 'Rechercher : n°, client, objet…', ro: figee })}</div>
                 ${field(lbl('Motif de l\'avoir', 'ed.creditReason'), 'creditReason', doc.creditReason || '', 'text', ro + ' placeholder="Erreur de facturation, remise commerciale…"')}</div>` : ''}
@@ -5881,7 +5888,7 @@
                    il apparaissait au choix du client et poussait tout le formulaire de 45 px : le
                    clic visé sur « Objet » tombait dans le vide, et la frappe avec. -->
               <div class="field"><span class="fl-ligne">${lbl('Client', 'ed.client')}<button type="button" class="lien-fl" id="cl-edit" ${doc.clientId ? '' : 'hidden'} title="Corriger l'adresse, le matricule, l'email de ce client">✎ Modifier la fiche</button></span>
-                ${combo({ name: 'clientId', value: doc.clientId, items: clientItems(), placeholder: '— Choisir un client —', search: 'Rechercher : nom, contact, MF…', add: figee ? null : '+ Nouveau client', ro: figee })}
+                ${combo({ name: 'clientId', value: doc.clientId, items: clientItems(doc.clientId), placeholder: '— Choisir un client —', search: 'Rechercher : nom, contact, MF…', add: figee ? null : '+ Nouveau client', ro: figee })}
               </div>
               ${isAv ? `<div class="field span-2">${lbl('Facture concernée', 'ed.creditOf')}${combo({ name: 'creditOf', value: doc.creditOf, items: invoiceItems(), placeholder: '— Facture concernée —', search: 'Rechercher : n°, client, objet…', ro: figee })}</div>` : ''}
               ${dateFieldHtml(lbl('Date', 'ed.date'), 'date', doc.date, { ro: figee })}
@@ -6869,8 +6876,8 @@
     // Le client se choisit dans une liste avec recherche : au-delà d'une poignée de clients, un <select> devient
     // une corvée. « + Nouveau client » crée la fiche et la sélectionne dans la foulée.
     const clientCombo = bindCombo($('[data-combo=clientId]', head), {
-      items: clientItems(), placeholder: '— Choisir un client —', vide: 'Aucun client pour l\'instant',
-      onAdd: saisi => clientForm(null, c => { clientCombo.setItems(clientItems()); clientCombo.setValue(c.id); }, { name: saisi })
+      items: clientItems(doc.clientId), placeholder: '— Choisir un client —', vide: 'Aucun client pour l\'instant',
+      onAdd: saisi => clientForm(null, c => { clientCombo.setItems(clientItems(doc.clientId)); clientCombo.setValue(c.id); }, { name: saisi })
     });
     // Une adresse fausse ou un matricule oublié se découvrent EN REGARDANT l'aperçu : il fallait
     // pourtant quitter le document (donc le garde-fou « modifications non enregistrées »), aller aux
@@ -6878,7 +6885,7 @@
     // fenêtres, le redessin de l'aperçu : il manquait le bouton.
     const ouvrirFicheClient = () => {
       const c = clientById(doc.clientId); if (!c) return;
-      clientForm(c, () => { clientCombo.setItems(clientItems()); majFicheClient(); refreshTotals(); schedulePreview(); });
+      clientForm(c, () => { clientCombo.setItems(clientItems(doc.clientId)); majFicheClient(); refreshTotals(); schedulePreview(); });
     };
     // (1.155.0, charte) La carte du client : qui il est, ce qu'il doit ou ce qu'on lui doit, sa dernière facture (« la
     // refaire »), et son délai de paiement constaté. « Changer » rouvre la liste ; « Fiche » corrige sa fiche sur place.
@@ -6928,7 +6935,7 @@
         $$('[data-passage]', carte).forEach(x => x.oninput = e => { e.stopPropagation(); doc.passage[x.dataset.passage] = x.value; touch(); schedulePreview(); dessinerAvant(); });
         $$('[data-passage]', carte).forEach(x => x.onchange = e => e.stopPropagation());
         const fi = $('#cl-passage-fiche', carte);
-        if (fi) fi.onclick = () => clientForm(null, n => { clientCombo.setItems(clientItems()); delete doc.passage; clientCombo.setValue(n.id); majFicheClient(); }, { name: doc.passage.nom || '', matricule: doc.passage.matricule || '' });
+        if (fi) fi.onclick = () => clientForm(null, n => { clientCombo.setItems(clientItems(doc.clientId)); delete doc.passage; clientCombo.setValue(n.id); majFicheClient(); }, { name: doc.passage.nom || '', matricule: doc.passage.matricule || '' });
         const chg = $('#cl-changer', carte);
         if (chg && pourQui) chg.onclick = () => { carte.hidden = true; pourQui.hidden = false; const q = $('#ed-pq-q', pourQui); q.value = ''; q.dispatchEvent(new Event('input')); q.focus(); };
         return;
@@ -8393,7 +8400,7 @@
         if (!pq) return;
         const q = sansAccents($('#ed-pq-q', pq).value.trim());
         const dernier = id => (data.documents.filter(d => d.clientId === id && d.number).map(d => d.date || '').sort().pop() || '');
-        pqListe = q ? data.clients.filter(c => sansAccents([c.name, c.contact, c.matricule, c.email, c.phone].join(' ')).includes(q)).slice(0, 6)
+        pqListe = q ? data.clients.filter(c => !c.archived && sansAccents([c.name, c.contact, c.matricule, c.email, c.phone].join(' ')).includes(q)).slice(0, 6)
           : data.clients.slice().sort((a, b) => dernier(b.id).localeCompare(dernier(a.id)) || a.name.localeCompare(b.name, 'fr')).slice(0, 4);
         pqSel = Math.max(0, Math.min(pqSel, pqListe.length));
         const brut = $('#ed-pq-q', pq).value.trim();
@@ -8401,7 +8408,7 @@
           + (pqListe.length || brut ? '' : '<p class="pop-vide">Aucun client pour l\'instant.</p>')
           + `<button type="button" role="option" class="ed-pq-nv${pqSel === pqListe.length ? ' sel' : ''}" id="ed-pq-nv">${lfIc('ajout', 15, 2.4)}<b>Nouveau client « ${h(brut || '…')} »</b><small>sans quitter ${isQ ? 'le devis' : isAv ? 'l\'avoir' : 'la facture'}</small></button>`;
         $$('[data-cl]', pq).forEach(x => x.onclick = () => choisirClient(x.dataset.cl));
-        $('#ed-pq-nv', pq).onclick = () => clientForm(null, c => { clientCombo.setItems(clientItems()); choisirClient(c.id); }, { name: brut });
+        $('#ed-pq-nv', pq).onclick = () => clientForm(null, c => { clientCombo.setItems(clientItems(doc.clientId)); choisirClient(c.id); }, { name: brut });
         // (maquette « client de passage ») Une facture sans fiche, pour un particulier qui paie sur place.
         if (isInv && !$('#ed-pq-passage', pq)) {
           $('#ed-pq-liste', pq).insertAdjacentHTML('afterend', '<button type="button" class="ed-pq-passage" id="ed-pq-passage">Client de passage <small>une facture sans fiche, pour un particulier qui paie sur place</small></button>');
@@ -9166,13 +9173,15 @@
         ${field(lbl('Ville', 'cl.city'), 'city', c.city || '', 'text', 'placeholder="Sfax"')}
         ${/* (plateforme) 1.132.0 — un client neuf, créé depuis une pièce, n'a besoin que de son nom, de son matricule, de son
               téléphone et de son adresse ; le reste attend derrière « Plus de détails » (revue du mois d'un client, point 15). */''}
-        ${client ? '' : '<details class="span-2 plus-details" id="cf-plus"><summary>Plus de détails <span class="muted small">— contact, retenue, timbre, encours, e-mail, langue, devise, notes</span></summary><div class="grid-2 mt">'}
+        ${client ? '' : '<details class="span-2 plus-details" id="cf-plus"><summary>Plus de détails <span class="muted small">— contact, retenue, délai, timbre, encours, e-mail, langue, devise, code, notes</span></summary><div class="grid-2 mt">'}
         ${field(lbl('Personne à contacter', 'cl.contact'), 'contact', c.contact || '', 'text', 'placeholder="Mme Leïla Mansour, directrice"')}
         <label class="field">${lbl('Retenue à la source appliquée par ce client', 'ed.withholding')}${withholdingSelect('withholdingRate', c.withholdingRate, { vide: `Par défaut (${pct(company().defaultWithholdingRate || 0)} %)` })}</label>
+        ${field(lbl('Délai de paiement (jours)', 'cl.delai'), 'paymentTermsDays', c.paymentTermsDays == null ? '' : c.paymentTermsDays, 'number', `min="0" step="1" class="num" placeholder="Celui des réglages (${C.delaiJours(company().paymentTermsDays, 30)})"`)}
         <label class="check"><input type="checkbox" name="stampExempt" ${c.stampExempt ? 'checked' : ''}> Exonéré de timbre fiscal ${info('client.stampExempt')}</label>
         <label class="field">${lbl(`Encours autorisé (${h(company().currency)})`, 'cl.encours')}<input type="number" name="creditLimit" value="${h(c.creditLimit || '')}" step="0.001" min="0" class="num" placeholder="Sans plafond"${!estResponsable() ? ' disabled title="L\'encours autorisé se règle par le propriétaire ou un administrateur."' : ''}></label>
         <label class="field">${lbl('Catégorie de prix', 'cl.categorie')}<input type="text" name="categorieTarif" value="${h(c.categorieTarif || '')}" list="cl-categories" placeholder="Revendeur, Chantier…"><datalist id="cl-categories">${Array.from(new Set([...(data.clients || []).map(x => x.categorieTarif), ...(data.priceLists || []).map(x => x.categorie)].map(x => String(x || '').trim()).filter(Boolean))).sort((a, b) => a.localeCompare(b, 'fr')).map(x => `<option value="${h(x)}">`).join('')}</datalist></label>
         ${field(lbl('Email', 'cl.email'), 'email', c.email, 'email')}
+        ${field(lbl('Code client', 'cl.code'), 'code', c.code || '', 'text', 'placeholder="CL-0012" autocomplete="off"')}
         <label class="field">${lbl('Langue des documents', 'cl.lang')}<select name="lang"><option value="" ${!c.lang ? 'selected' : ''}>Par défaut</option><option value="fr" ${c.lang === 'fr' ? 'selected' : ''}>Français</option><option value="en" ${c.lang === 'en' ? 'selected' : ''}>English</option></select></label>
         <label class="field">${lbl('Devise', 'cl.currency')}<select name="currency"><option value="" ${!c.currency ? 'selected' : ''}>Par défaut (${h(company().currency)})</option>${C.CURRENCIES.map(x => `<option value="${x}" ${c.currency === x ? 'selected' : ''}>${h(C.libelleDevise(x))}</option>`).join('')}</select></label>
         <label class="field span-2">${lbl('Notes internes', 'cl.notesSaisie')}<textarea name="notes">${h(c.notes || '')}</textarea></label>
@@ -9188,7 +9197,9 @@
           // `refus()` amène le champ à l'écran, y met le curseur et le marque (7.0.0). Un toast seul
           // oblige à relire tout le formulaire — et la fenêtre peut avoir défilé.
           if (!v.name.trim()) return refus('#cf input[name=name]', 'Le nom est obligatoire : c\'est lui qui apparaît sur chaque document.');
-          Object.assign(c, v, { withholdingRate: v.withholdingRate === '' ? '' : Number(v.withholdingRate), creditLimit: Number(v.creditLimit) > 0 ? Number(v.creditLimit) : 0 });
+          if (v.paymentTermsDays !== '' && !(Number(v.paymentTermsDays) >= 0)) return refus('#cf input[name=paymentTermsDays]', 'Le délai de paiement est un nombre de jours (0 : à réception), ou vide pour celui des réglages.');
+          Object.assign(c, v, { withholdingRate: v.withholdingRate === '' ? '' : Number(v.withholdingRate), creditLimit: Number(v.creditLimit) > 0 ? Number(v.creditLimit) : 0,
+            paymentTermsDays: v.paymentTermsDays === '' ? '' : Math.round(Number(v.paymentTermsDays)), code: String(v.code || '').trim() });
           if (!client) data.clients.push(c);
           save(true); close(); if (done) done(c);
         };
@@ -9512,7 +9523,7 @@
   const clientDocState = { sort: null, page: 1 };  // liste des documents dans la fiche client
 
   // ---------- la liste des clients, telle que la maquette (docs/maquettes/clients.html, validée le 28/10/2026) ----------
-  const LC_FILTRES = [['', 'Tous'], ['doivent', 'Te doivent'], ['retard', 'En retard'], ['completer', 'À compléter'], ['sans', 'Sans document']];
+  const LC_FILTRES = [['', 'Tous'], ['doivent', 'Te doivent'], ['retard', 'En retard'], ['completer', 'À compléter'], ['sans', 'Sans document'], ['archives', 'Archivés']];
   const LC_NIVEAU = { 1: 'Rappel', 2: 'Relance', 3: 'Dernière relance' };
   // Ce que la liste sait d'un client : son compte (clientSummary, le net de son relevé), son retard (overdueInvoices, la
   // règle de la page Relances), ce qui manque à sa fiche. UNE fonction : le tableau, son pied, les filtres et leurs
@@ -9535,7 +9546,8 @@
         an, factAn: sum.docs.filter(d => d.type === 'facture' && d.number && d.status !== 'brouillon' && (d.date || '').startsWith(an)).length, der };
     });
   }
-  const lcPasse = (r, f) => (!f ? true : f === 'doivent' ? r.sum.net > 0.0005 : f === 'retard' ? r.retard > 0.0005 : f === 'completer' ? r.aCompleter : f === 'sans' ? r.sum.count === 0 : true);
+  // (1.200.0) Un client archivé ne se voit que dans « Archivés » ; il ne compte nulle part ailleurs.
+  const lcPasse = (r, f) => (f === 'archives' ? !!r.c.archived : r.c.archived ? false : !f ? true : f === 'doivent' ? r.sum.net > 0.0005 : f === 'retard' ? r.retard > 0.0005 : f === 'completer' ? r.aCompleter : f === 'sans' ? r.sum.count === 0 : true);
   const lcTrouve = (r, q) => !q || C.correspondRecherche([r.c.name, r.c.contact, r.c.matricule, r.c.email, r.c.phone, String(r.c.phone || '').replace(/\s/g, ''), r.c.city, r.c.code].join(' '), q);
   // Relancer la facture en retard la plus ancienne d'un client : le même message que la page Relances, à son niveau.
   const lcRelancer = r => { const x = r.relances[0]; if (x) sendReminder(x, 'email'); };
@@ -9558,12 +9570,12 @@
       { key: 'last', label: 'Dernier document', w: '11%', val: r => r.sum.last || '' }
     ];
 
-    function filtres(l, toutes) {
+    function filtres(l, toutes, tout) {
       const filtre = !!(s.q || s.f);
       const nom = LC_FILTRES.find(x => x[0] === s.f);
       const puces = [s.f ? ['f', nom ? nom[1] : s.f] : null, s.q ? ['q', `« ${s.q} »`] : null].filter(Boolean);
       return `<div class="filtres" id="lf-filtres"><label class="cherche">${lfIc('recherche', 16)}<input id="q" type="search" value="${h(s.q)}" placeholder="${matchMedia('(max-width: 760px)').matches ? 'Nom, téléphone, matricule…' : 'Nom, contact, matricule, e-mail, téléphone, ville…'}" autocomplete="off" aria-label="Chercher un client"><kbd>/</kbd></label>
-        <div class="segment petit" role="group" aria-label="Montrer">${LC_FILTRES.map(([k, n]) => `<button type="button" data-f="${k}" aria-pressed="${s.f === k}">${n}${k ? ` <span class="mu">${toutes.filter(r => lcPasse(r, k)).length}</span>` : ''}</button>`).join('')}</div>
+        <div class="segment petit" role="group" aria-label="Montrer">${LC_FILTRES.filter(([k]) => k !== 'archives' || s.f === k || tout.some(r => r.c.archived)).map(([k, n]) => `<button type="button" data-f="${k}" aria-pressed="${s.f === k}">${n}${k ? ` <span class="mu">${tout.filter(r => lcPasse(r, k)).length}</span>` : ''}</button>`).join('')}</div>
         ${info('lc.colonnes').replace('class="i"', 'class="i i-b"').replace('>i</button>', `>${lfIc('aide', 16, 2)}</button>`)}
         <span class="f-note" id="f-note">${filtre ? `<b>${l.length}</b> sur ${pl(toutes.length, 'client')}` : `<b>${toutes.length}</b> ${toutes.length > 1 ? 'clients' : 'client'}`}</span></div>
         ${puces.length ? `<div class="puces-f">${puces.map(([k, n]) => `<button type="button" class="pf" data-ote="${k}" aria-label="Retirer le filtre ${h(n)}">${h(n)}${lfIc('croix', 12, 2.4)}</button>`).join('')}<button type="button" class="btn-lien" id="reset-f">Tout effacer</button></div>` : ''}`;
@@ -9638,11 +9650,11 @@
     const draw = dansUnLot((sortKey) => {
       if (!$('#list-wrap')) return;
       if (typeof sortKey === 'string' && sortKey) { s.sort = toggleSort(s.sort, sortKey, cols); s.page = 1; }
-      const toutes = lcLignes();
-      const l = toutes.filter(r => lcPasse(r, s.f) && lcTrouve(r, s.q));
+      const tout = lcLignes(), toutes = tout.filter(r => !r.c.archived);
+      const l = tout.filter(r => lcPasse(r, s.f) && lcTrouve(r, s.q));
       const focus = document.activeElement && document.activeElement.id === 'q' ? $('#q').selectionStart : null;
       $('#lc-puces').innerHTML = puces(toutes);
-      $('#lf-barre').innerHTML = filtres(l, toutes);
+      $('#lf-barre').innerHTML = filtres(l, toutes, tout);
       $('#list-wrap').innerHTML = tableau(l, toutes);
       if (focus !== null) { const q = $('#q'); q.focus(); q.setSelectionRange(focus, focus); }
       brancher(l);
@@ -9685,7 +9697,9 @@
       ...groupe('Son compte', [
         ...(rel && vend ? [{ icon: 'cloche', label: `Relancer ${rel.doc.number}`, hint: `${pl(rel.daysLate, 'jour')} de retard · ${LC_NIVEAU[rel.level]}`, run: () => lcRelancer(r) }] : []),
         { icon: 'pdf', label: 'Relevé de compte…', hint: net > 0.0005 ? `${C.money(net, company().currency)} encore dus` : net < -0.0005 ? `${C.money(-net, company().currency)} en sa faveur` : 'le compte est soldé', run: () => releveForm(id) }]),
-      ...groupe('Sa fiche', ecrit ? [{ icon: 'modifier', label: 'Modifier le client', hint: 'Coordonnées, contact, matricule', run: () => clientForm(c, refaire) }] : [])
+      ...groupe('Sa fiche', ecrit ? [{ icon: 'modifier', label: 'Modifier le client', hint: 'Coordonnées, contact, matricule', run: () => clientForm(c, refaire) },
+        c.archived ? { icon: 'restaurer', label: 'Le remettre dans la liste', hint: 'Il revient dans les choix d\'une pièce', run: () => desarchiverClient(c, refaire) }
+          : { icon: 'dossier', label: 'Archiver', hint: 'Il sort de la liste ; ses documents restent', run: () => archiverClient(c, refaire) }] : [])
     ];
   }
 
@@ -9806,156 +9820,246 @@
     };
   };
 
+  // (1.200.0, maquette clients.html validée le 28/10/2026) La fiche d'un client : l'en-tête et son geste principal calculé
+  // (relancer s'il est en retard, sinon la prochaine pièce), les bandeaux qui disent ce qui presse, cinq onglets (documents,
+  // paiements, relances, affaires et contrats, matériel) et, à droite, ses coordonnées, ses conditions et ses notes.
+  const ficheClientState = { id: '', onglet: 'pieces' };
+  const CF_ONGLETS = [['pieces', 'Documents'], ['paiements', 'Paiements'], ['relances', 'Relances'], ['affaires', 'Affaires et contrats'], ['materiel', 'Matériel installé']];
+  const cfMois = iso => { const m = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre']; return iso ? `${m[Number(iso.slice(5, 7)) - 1]} ${iso.slice(0, 4)}` : ''; };
+  // Archiver : le client sort de la liste et des choix d'une pièce ; ses documents restent. « Annuler » le remet.
+  function archiverClient(c, refaire) {
+    if (enLecture('clients')) { toast(refusLecture('clients', 'archivé'), true); return; }
+    c.archived = C.today(); save(true); if (refaire) refaire();
+    toastUndo(`${c.name} est archivé : il sort de la liste et des choix d'une pièce ; ses documents restent.`, () => { c.archived = ''; save(true); if (refaire) refaire(); }, 'Annuler');
+  }
+  function desarchiverClient(c, refaire) {
+    if (enLecture('clients')) { toast(refusLecture('clients'), true); return; }
+    c.archived = ''; save(true); if (refaire) refaire();
+    toast(`${c.name} revient dans la liste et dans les choix d'une pièce.`);
+  }
+
+  // Supprimer un client sans histoire ; celui qui a des documents s'archive (« Supprimer » le dit, grisé).
+  async function supprimerClient(c) {
+    if (enLecture('clients')) { toast(refusLecture('clients', 'supprimé'), true); return; }
+    const n = data.documents.filter(d => d.clientId === c.id).length;
+    if (n) { toast(`Impossible : ${pl(n, 'document')} ${n > 1 ? 'sont liés' : 'est lié'} à ce client. Un client qui a une histoire ne se supprime pas : archive-le.`, true); return; }
+    if (!await confirmDialog(`Supprimer ${c.name} ?`)) return;
+    forget('clients', c.id, c.name);
+    data.clients = data.clients.filter(x => x.id !== c.id); save(true); navigate('#/clients');
+  }
+
   routes.client = (parts) => {
     const c = clientById(parts[0]);
     if (!c) return navigate('#/clients');
-    clientDocState.page = 1;   // on change de client : on repart de la première page
-    const cur = company().currency;
-    const sum = C.clientSummary(data, company(), c.id);
+    if (ficheClientState.id !== c.id) { Object.assign(ficheClientState, { id: c.id, onglet: 'pieces' }); clientDocState.page = 1; }
+    const st = ficheClientState;
+    const co = company(), cur = co.currency;
+    const mo = n => C.money(n, cur);
+    const sum = C.clientSummary(data, co, c.id);
     const docs = sum.docs.slice().sort(byNumberDesc);
-    // (plateforme) 1.80.0 — la même liste que les Relances (une facture échue payée en partie est en retard).
-    const enRetardDuClient = new Set(C.overdueInvoices(data, company()).map(x => x.doc.id));
-    const late = docs.filter(d => d.type === 'facture' && enRetardDuClient.has(d.id));
-    const lateAmount = late.reduce((s2, d) => s2 + C.toBase(d, balance(d).remaining, company()), 0);
-    const openQuotes = docs.filter(d => d.type === 'devis' && ['envoyé', 'expiré'].includes(effStatus(d)));
-    // Un client qui paie dans une autre devise lit son reste dans SA devise sur le relevé
-    // (DEV-12) : la carte dit la même somme, sinon 3 190,205 DT et 952,30 EUR paraissent deux dettes.
-    const rvNatif = C.releveClient(data, c.id, company(), { natif: true });
-    const soitNatif = rvNatif.currency !== C.normCurrency(cur) && Math.abs(rvNatif.total) > 0.0005
-      ? ` · soit ${C.money(Math.abs(rvNatif.total), rvNatif.currency)}` : '';
-    const delaiAnnonce = C.delaiJours(company().paymentTermsDays, 30);
+    const lecture = aboBloque(true), roleLit = enLecture('clients');
+    const peutEcrire = !lecture && !roleLit, peutVendre = !lecture && !enLecture('documents');
+    // En retard : la même liste que les Relances (une facture échue payée en partie est en retard), la plus ancienne d'abord.
+    const late = C.overdueInvoices(data, co).filter(x => x.doc.clientId === c.id).sort((a, b) => b.daysLate - a.daysLate);
+    const retard = C.round3(late.reduce((t, x) => t + C.toBase(x.doc, x.remaining, co), 0));
+    const etranger = !!(c.currency && c.currency !== cur);
+    const encours = Number(c.creditLimit) > 0 ? C.encoursClient(data, c.id, co) : null;
+    const depasse = !!(encours && encours.total > Number(c.creditLimit) + 0.0005);
+    const enTrop = sum.aRendre > 0.0005 ? docs.find(d => d.type === 'facture' && d.number && balance(d).remaining < -0.0005) : null;
+    const factures = docs.filter(d => d.type === 'facture' && d.number && d.status !== 'brouillon');
+    const paiements = factures.flatMap(d => (d.payments || []).map(p => ({ p, d }))).sort((a, b) => String(b.p.date || '').localeCompare(String(a.p.date || '')));
+    const affaires = C.projectList(data, co).filter(x => x.clientId === c.id);
+    const contrats = (data.recurring || []).filter(r => r.clientId === c.id);
+    const parc = C.clientFleet(data, c.id);
+    const NIVEAU = { 1: 'Rappel', 2: 'Relance', 3: 'Dernière relance' };
+
+    const pill = c.archived ? '<span class="badge">Archivé</span>' : late.length ? '<span class="badge b-late">En retard</span>' : !sum.count ? '<span class="badge">Nouveau</span>'
+      : sum.net < -0.0005 ? '<span class="badge partielle">En sa faveur</span>' : sum.net > 0.0005 ? '<span class="badge b-due">Te doit</span>' : '<span class="badge b-paid">À jour</span>';
+    const depuis = sum.first ? `client depuis ${cfMois(sum.first)}` : 'aucun document pour l\'instant';
+    const doit = sum.net > 0.0005 ? ` · <b class="${retard > 0.0005 ? 'rouge' : ''}">te doit ${mo(sum.net)}</b>${retard > 0.0005 ? ` <span class="rouge">dont ${mo(retard)} en retard</span>` : ''}`
+      : sum.net < -0.0005 ? ` · <b class="trop">${mo(-sum.net)} en sa faveur</b>` : sum.count ? ' · ne te doit rien' : '';
+    // Le bouton principal : relancer sa facture en retard (une seule) ; plusieurs, lui envoyer son relevé ; sinon la prochaine pièce.
+    const principal = lecture ? boutonRetenue()
+      : roleLit ? `<button type="button" class="btn btn-primary" id="cf-releve">${lfIc('factures', 15)} Relevé de compte</button>`
+        : late.length === 1 && peutVendre ? `<button type="button" class="btn btn-primary" id="cf-relancer">${lfIc('cloche', 15)} Relancer ${h(late[0].doc.number)}</button>`
+          : late.length > 1 ? `<button type="button" class="btn btn-primary" id="cf-releve">${lfIc('factures', 15)} Lui envoyer son relevé · ${late.length} en retard</button>`
+            : peutVendre ? `<button type="button" class="btn btn-primary" id="new-fac">${lfIc('croix', 15, 2.4)} Nouvelle facture</button>` : '';
+    const secondaire = !peutVendre ? '' : late.length ? `<button type="button" class="btn" id="new-fac">${lfIc('croix', 15, 2.4)} Nouvelle facture</button>` : `<button type="button" class="btn" id="new-dev">${lfIc('piece', 15)} Nouveau devis</button>`;
+    const releveSec = principal.includes('id="cf-releve"') ? '' : `<button type="button" class="btn" id="cf-releve">${lfIc('factures', 15)} Relevé de compte</button>`;
+
+    const bandeaux = [];
+    if (c.archived) bandeaux.push(`<div class="banner gris" id="cf-archive"><span><b>Client archivé le ${C.fmtDate(c.archived)}</b> — il n'est plus dans la liste ni dans les choix d'une pièce ; ses documents restent.</span>${peutEcrire ? '<button type="button" class="btn" id="cf-desarchiver">Le remettre dans la liste</button>' : ''}</div>`);
+    if (lecture) bandeaux.push('<div class="banner"><span><b>Ton abonnement est en lecture seule</b> — tu consultes sa fiche, tu télécharges son relevé, tu enregistres ce qu\'il paie. Changer sa fiche attend le renouvellement.</span></div>');
+    if (roleLit) bandeaux.push('<div class="banner info"><span><b>Lecture seule : ton rôle te laisse lire les fiches clients, pas les modifier</b> — un geste qui les changerait est refusé, en le disant. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.</span></div>');
+    if (late.length) {
+      const x = late[0], dr = x.lastReminder;
+      bandeaux.push(`<div class="banner danger" id="cf-retard"><span><b>${mo(retard)} en retard depuis ${pl(x.daysLate, 'jour')}</b> — ${h(x.doc.number)} échue le ${C.fmtDate(x.doc.dueDate)}${dr ? ` · dernière relance le ${C.fmtDate(dr.date)} (${dr.channel === 'tel' ? 'appel' : 'e-mail'}${dr.note ? ` : « ${h(dr.note)} »` : ''})` : ' · jamais relancée'}. La prochaine est au niveau « ${NIVEAU[x.level] || x.level} ».</span><button type="button" class="btn" data-onglet="relances">Voir ses relances</button></div>`);
+    }
+    if (depasse) bandeaux.push(`<div class="banner" id="cf-depasse"><span><b>Encours au-delà de son plafond : ${mo(encours.total)} pour ${mo(Number(c.creditLimit))} autorisés</b> — une nouvelle facture le dira avant l'émission ; tu émets quand même si tu veux : c'est toi qui décides.</span></div>`);
+    if (enTrop) bandeaux.push(`<div class="banner" id="cf-trop"><span><b>${C.money(-balance(enTrop).remaining, enTrop.currency || cur)} payés en trop sur ${h(enTrop.number)}</b> — son compte le déduit déjà de ce qu'il te doit. Rends-les-lui depuis la facture, ou laisse-les à déduire de sa prochaine (À VÉRIFIER avec ton comptable).</span><button type="button" class="btn" data-doc="${h(enTrop.id)}">Ouvrir ${h(enTrop.number)}</button></div>`);
+    if (etranger) bandeaux.push(`<div class="banner info"><span><b>Client à l'étranger : ses pièces sont en ${h(c.currency)}${c.lang === 'en' ? ' et en anglais' : ''}</b> — ce qu'il doit se lit ici converti en ${h(symboleDevise(cur))}. La mention qui justifie l'exonération et le timbre d'une facture à l'export : À VÉRIFIER avec ton comptable.</span></div>`);
+    if (!c.matricule && !etranger) bandeaux.push(`<div class="banner" id="cf-mf"><span><b>Son matricule fiscal manque</b> — le brouillon s'écrit sans lui ; à l'émission, El Fatoora le demandera. Pour un particulier, c'est son numéro de CIN.</span>${peutEcrire ? '<button type="button" class="btn" data-modifier>Compléter la fiche</button>' : ''}</div>`);
+
+    const nbOnglet = { pieces: docs.length, paiements: paiements.length, relances: late.length, affaires: affaires.length + contrats.length, materiel: parc.length };
+    const vide = (t, p, gestes) => `<div class="cf-vide"><b>${t}</b><span>${p}</span>${gestes || ''}</div>`;
+    function ongletPaiements() {
+      if (!paiements.length) return vide('Aucun paiement reçu', 'Un paiement s\'enregistre sur la facture qu\'il règle ; il vient ici aussitôt, avec son moyen.');
+      const total = C.round3(paiements.reduce((t, x) => t + C.toBase(x.d, Number(x.p.amount) || 0, co), 0));
+      return `<div class="cf-o-t"><span class="mu">${pl(paiements.length, 'paiement')} · ${mo(total)} reçus${sum.rsASubir > 0.0005 ? ` · il gardera encore ${mo(sum.rsASubir)} de retenue à la source en payant, pour l'État` : ''}</span></div>
+        <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Reçu le</th><th>Sur</th><th>Moyen</th><th class="r">Montant</th></tr></thead><tbody>
+        ${paiements.map(({ p, d }) => `<tr class="clic" data-doc="${h(d.id)}"><td class="nw">${C.fmtDate(p.date)}</td><td><b>${h(d.number)}</b>${d.subject ? `<small>${h(d.subject)}</small>` : ''}</td><td>${h(methodLabel(p.method))}${p.reference ? `<small>${h(p.reference)}</small>` : ''}</td><td class="r">${C.money(Number(p.amount) || 0, d.currency || cur)}${C.estRemboursement && C.estRemboursement(p) ? '<small>rendu au client</small>' : ''}</td></tr>`).join('')}
+        </tbody></table></div>
+        <p class="cf-pied">${lfIc('aide', 13)} Un paiement s'enregistre sur la facture qu'il règle.</p>`;
+    }
+    function ongletRelances() {
+      const hist = factures.flatMap(d => (d.reminders || []).map(r => ({ d, r }))).sort((a, b) => String(b.r.date || '').localeCompare(String(a.r.date || '')));
+      if (!late.length && !hist.length) return vide('Rien à relancer', `${sum.net > 0.0005 ? 'Ses factures ouvertes ne sont pas encore échues.' : 'Il ne te doit rien.'} Une facture échue et pas payée vient ici, et dans la page Relances.`);
+      return `<div class="cf-o-t"><span class="mu">Une relance part facture par facture, quand tu le décides : « Rappel », puis « Relance », puis « Dernière relance » selon son retard. Par e-mail ou WhatsApp, avec le lien de la facture ; un appel se note.</span><button type="button" class="btn btn-sm" id="cf-vers-relances">Ouvrir dans Relances</button></div>
+        ${late.length ? `<div class="scroll-x"><table class="cf-mini"><thead><tr><th>Facture</th><th>Échéance</th><th>Retard</th><th class="r">Reste</th><th>Dernière relance</th><th></th></tr></thead><tbody>
+        ${late.map(x => `<tr><td><b>${h(x.doc.number)}</b>${x.doc.subject ? `<small>${h(x.doc.subject)}</small>` : ''}</td><td class="nw">${C.fmtDate(x.doc.dueDate)}</td><td class="nw">${pl(x.daysLate, 'jour')}<small>${NIVEAU[x.level] || ''}</small></td><td class="r">${C.money(x.remaining, x.doc.currency || cur)}</td>
+          <td>${x.lastReminder ? `${C.fmtDate(x.lastReminder.date)}<small>${x.lastReminder.channel === 'tel' ? 'appel' : 'e-mail'}, niveau ${x.lastReminder.level} · ${pl(x.reminders.length, 'relance')} en tout</small>` : '<span class="mu">jamais</span>'}</td>
+          <td class="r">${peutVendre ? `<button type="button" class="btn btn-sm" data-relancer="${h(x.doc.id)}">Relancer</button>` : ''}</td></tr>`).join('')}
+        </tbody></table></div>` : ''}
+        ${hist.length ? `<b class="cf-sous-t">Ce qui a été fait</b><div class="scroll-x"><table class="cf-mini"><thead><tr><th>Le</th><th>Facture</th><th>Comment</th><th>Ce qu'il a dit</th></tr></thead><tbody>
+        ${hist.map(({ d, r }) => `<tr><td class="nw">${C.fmtDate(r.date)}</td><td><b>${h(d.number)}</b></td><td>${r.channel === 'tel' ? 'Appel' : 'E-mail'}<small>niveau ${r.level} · ${NIVEAU[r.level] || ''}</small></td><td>${r.note ? h(r.note) : '<span class="mu">—</span>'}</td></tr>`).join('')}
+        </tbody></table></div>` : ''}`;
+    }
+    function ongletAffaires() {
+      const gestes = peutEcrire ? '<span class="pr-b"><button type="button" class="btn" id="cf-affaire">Nouvelle affaire</button><button type="button" class="btn" id="cf-contrat">Nouveau contrat</button></span>' : '';
+      if (!affaires.length && !contrats.length) return vide('Ni affaire ni contrat', 'Une affaire regroupe les ventes et les achats d\'un même chantier, pour voir ce qu\'il rapporte. Un contrat récurrent prépare sa facture à chaque période.', gestes);
+      return `${affaires.length ? `<div class="cf-o-t"><b>Affaires</b><span class="mu">ventes moins achats rangés dedans ; « en caisse » : l'argent reçu moins l'argent payé</span></div>
+        <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Affaire</th><th>Statut</th><th class="r">Vendu HT</th><th class="r">Acheté HT</th><th class="r">Marge</th><th class="r">En caisse</th></tr></thead><tbody>
+        ${affaires.map(x => `<tr class="clic" data-pid="${h(x.id)}"><td><b>${h(x.name)}</b></td><td><span class="badge ${x.status === 'en cours' ? 'b-due' : x.status === 'terminée' ? 'b-paid' : ''}">${h(x.status)}</span></td><td class="r">${mo(x.revenue)}</td><td class="r">${mo(x.cost)}</td><td class="r"><b class="${x.margin < 0 ? 'rouge' : ''}">${mo(x.margin)}</b>${margeSansAchat(x) ? '<small>aucun achat rattaché</small>' : ''}</td><td class="r">${mo(x.cash)}</td></tr>`).join('')}
+        </tbody></table></div>` : ''}
+        ${contrats.length ? `<div class="cf-o-t"><b>Contrats récurrents</b><span class="mu">chacun prépare un brouillon à sa date : tu le relis, puis tu l'émets</span></div>
+        <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Objet</th><th>Période</th><th>Prochaine facture</th><th class="r">HT / facture</th><th>État</th></tr></thead><tbody>
+        ${contrats.map(r => { const ht = C.computeTotals({ type: 'facture', lines: r.lines, discountRate: r.discountRate, currency: r.currency, exchangeRate: r.exchangeRate }, co).netHT;
+          return `<tr class="clic" data-rid="${h(r.id)}"><td><b>${h(objetDeContrat(r) || 'Contrat')}</b></td><td>${h((C.PERIODS.find(x => x[0] === r.every) || [])[1] || '')}</td><td class="nw">${r.active === false ? '<span class="mu">suspendu</span>' : C.fmtDate(r.nextDate)}</td><td class="r">${C.money(ht, r.currency || cur)}</td><td><span class="badge ${r.active !== false ? 'b-due' : ''}">${r.active !== false ? 'actif' : 'suspendu'}</span></td></tr>`; }).join('')}
+        </tbody></table></div>` : ''}
+        ${gestes}`;
+    }
+    function ongletMateriel() {
+      if (!parc.length) return vide('Aucun matériel suivi chez ce client', 'Un article suivi par numéro de série, livré sur une de ses pièces, vient ici tout seul, avec sa garantie.');
+      const bientot = parc.filter(x => x.warrantyEndingSoon).length;
+      return `${bientot ? `<p class="cf-pied ambre">${lfIc('aide', 13)} ${pl(bientot, 'garantie')} ${bientot > 1 ? 'se terminent' : 'se termine'} dans moins de deux mois : le moment de proposer un contrat de maintenance.</p>` : ''}
+        <div class="scroll-x"><table class="cf-mini"><thead><tr><th>Article</th><th>Numéro de série</th><th>Livré le</th><th>Garantie</th><th>Pièce</th></tr></thead><tbody>
+        ${parc.map(x => `<tr${x.outDocId && docById(x.outDocId) ? ` class="clic" data-doc="${h(x.outDocId)}"` : ''}><td><b>${h(x.itemLabel)}</b></td><td class="nw">${h(x.serial)}</td><td class="nw">${C.fmtDate(x.outDate)}</td>
+          <td class="nw">${!x.warrantyEndDate ? '<span class="mu">aucune</span>' : x.expired ? `<span class="mu">expirée le ${C.fmtDate(x.warrantyEndDate)}</span>` : `<span class="${x.warrantyEndingSoon ? 'trop' : ''}">jusqu'au ${C.fmtDate(x.warrantyEndDate)}</span>`}</td>
+          <td class="nw">${x.outDocId && docById(x.outDocId) ? h(docById(x.outDocId).number || 'voir') : '<span class="mu">—</span>'}</td></tr>`).join('')}
+        </tbody></table></div>`;
+    }
+
+    const rsTaux = c.withholdingRate === '' || c.withholdingRate == null ? Number(co.defaultWithholdingRate) || 0 : Number(c.withholdingRate) || 0;
+    const rsDit = etranger ? 'aucune<small>à l\'étranger</small>' : c.withholdingRate === '' || c.withholdingRate == null ? (rsTaux ? `${pct(rsTaux)} %<small>celle de tes réglages (par défaut)</small>` : 'aucune<small>celle de tes réglages</small>') : rsTaux ? `${pct(rsTaux)} %` : 'aucune';
+    const delaiReglages = C.delaiJours(co.paymentTermsDays, 30);
+    const delaiDit = c.paymentTermsDays !== '' && c.paymentTermsDays != null ? (Number(c.paymentTermsDays) > 0 ? `${pl(Number(c.paymentTermsDays), 'jour')} après la facture${c.paymentTermsEom ? ', fin de mois' : ''}` : 'à réception')
+      : `${delaiReglages ? pl(delaiReglages, 'jour') : 'à réception'}<small>celui de tes réglages</small>`;
+    const liste = c.categorieTarif ? (data.priceLists || []).find(l => String(l.categorie || '').trim() === String(c.categorieTarif).trim()) : null;
+    const droite = `<div class="cf-carte cf-bloc"><div class="cf-bloc-t"><b>Coordonnées</b>${peutEcrire ? '<button type="button" class="btn btn-sm" data-modifier>Modifier</button>' : ''}</div>
+        <dl class="cf-dl"><dt>Contact</dt><dd>${c.contact ? h(c.contact) : '<span class="mu">—</span>'}</dd>
+        <dt>Téléphone</dt><dd>${c.phone ? telLisible(c.phone) : '<span class="mu">—</span>'}</dd>
+        <dt>E-mail</dt><dd>${c.email ? h(c.email) : '<span class="manque">à renseigner</span><small>pour lui envoyer ses pièces et ses relances</small>'}</dd>
+        <dt>Adresse</dt><dd>${c.address ? h(c.address).replace(/\n/g, '<br>') : '<span class="mu">—</span>'}${c.city ? `<small>${h(c.city)}</small>` : ''}</dd>
+        <dt>MF / CIN</dt><dd>${c.matricule ? mfCoupable(c.matricule) : etranger ? '<span class="mu">sans matricule tunisien</span>' : '<span class="manque">à renseigner</span><small>ou son CIN pour un particulier</small>'}</dd></dl></div>
+      <div class="cf-carte cf-bloc"><div class="cf-bloc-t"><b>Ses conditions</b><span class="mu">reprises sur chaque pièce</span></div>
+        <dl class="cf-dl"><dt>Retenue ${info('ed.withholding')}</dt><dd>${rsDit}</dd>
+        <dt>Délai</dt><dd id="cf-delai">${delaiDit}</dd>
+        <dt>Encours ${info('cl.encours')}</dt><dd id="cl-encours">${encours ? `${mo(Number(c.creditLimit))} autorisés<small${depasse ? ' class="rouge"' : ''}>${mo(encours.total)} pris${encours.livre > 0.0005 ? `, dont ${mo(encours.livre)} livrés à facturer` : ''}${depasse ? ` : dépassé de ${mo(C.round3(encours.total - Number(c.creditLimit)))}` : ''}</small>` : 'sans plafond'}</dd>
+        <dt>Prix</dt><dd>${c.categorieTarif ? `catégorie « ${h(c.categorieTarif)} »<small>${liste ? `la liste « ${h(liste.name || liste.categorie)} » remplace les prix du catalogue` : 'aucune liste de prix pour elle : les prix du catalogue'}</small>` : 'ceux du catalogue'}</dd>
+        <dt>Documents</dt><dd>${c.lang === 'en' ? 'anglais' : 'français'} · ${h(symboleDevise(c.currency || cur))}</dd>
+        <dt>Timbre</dt><dd>${c.stampExempt ? 'non<small>exonéré sur sa fiche (À VÉRIFIER avec ton comptable)</small>' : 'oui<small>le montant vient de tes réglages</small>'}</dd></dl></div>
+      <div class="cf-carte cf-bloc"><div class="cf-bloc-t"><b>Notes internes</b><span class="mu">jamais sur un document</span></div>
+        <textarea id="cl-notes" rows="4" placeholder="Ce qu'il faut se rappeler : habitudes de paiement, interlocuteurs, historique…"${peutEcrire ? '' : ' readonly'}>${h(c.notes || '')}</textarea>
+        <span class="cf-pied">S'enregistrent toutes seules, au fil de la frappe. <span class="ok-text" id="cl-notes-saved" hidden>✓ enregistré</span></span></div>`;
 
     $('#view').innerHTML = `
-      <div class="page-head">
-        <div><h1>${h(c.name)} ${info('cl.page')}</h1>
-          <div class="small muted">${[c.contact, c.matricule ? 'MF ' + c.matricule : '', c.phone, c.email].filter(Boolean).map(h).join(' · ')}</div></div>
-        <div class="actions">
-          ${backButton('#/clients')}
-          ${/* Un en-tête de fiche a un budget de boutons, comme une ligne de liste (7.29.0, porté du
-                Cabinet en 9.4.8). « Écrire » dépend d'une adresse qu'un client sur deux n'a pas,
-                donc la barre changeait de forme d'une fiche à l'autre ; le relevé de compte les
-                rejoint plutôt que de faire un sixième bouton. */''}
-          ${RowMenu.bouton('CL:' + c.id, 'Actions', 'btn')}
-          <button class="btn" id="new-fac">+ Facture</button>
-          <button class="btn btn-primary" id="new-dev">+ Devis</button>
-        </div></div>
-      ${late.length ? `<div class="banner">${pl(late.length, 'facture')} en retard — ${C.money(lateAmount, cur)}<button class="btn" id="go-rel">Voir les relances</button></div>` : ''}
-      <div class="stats">
-        <div class="stat"><div class="lbl">Facturé HT ${info('dash.caYear')}</div><div class="val">${C.money(sum.ht, cur)}</div><div class="sub">${pl(sum.invoiceCount, 'facture')}${sum.first ? ' depuis ' + C.fmtDate(sum.first) : ''}</div></div>
-        ${sum.net < -0.0005
-          ? `<div class="stat"><div class="lbl">En sa faveur ${info('cl.due')}</div><div class="val due">${C.money(-sum.net, cur)}</div><div class="sub">trop-perçus et avoirs à lui rendre${soitNatif}</div></div>`
-          : `<div class="stat"><div class="lbl">Reste à payer ${info('cl.due')}</div><div class="val">${C.money(sum.net, cur)}</div><div class="sub">${sum.aRendre > 0.0005 ? `${C.money(sum.due, cur)} dû, moins ${C.money(sum.aRendre, cur)} à lui rendre` : sum.net > 0.0005 ? 'à encaisser' : 'tout est réglé'}${soitNatif}${sum.rsASubir > 0.0005 ? `<br>plus ${C.money(sum.rsASubir, cur)} de retenue à la source qu'il gardera en payant, pour l'État` : ''}</div></div>`}
-        <div class="stat"><div class="lbl">Délai moyen de paiement ${info('dash.delay')}</div><div class="val">${sum.delay == null ? '—' : sum.delay + ' j'}</div><div class="sub">annoncé : ${delaiAnnonce ? pl(delaiAnnonce, 'jour') : 'à réception'}</div></div>
-        <div class="stat"><div class="lbl">Devis acceptés ${info('dash.conversion')}</div><div class="val">${sum.conversion == null ? '—' : sum.conversion + ' %'}</div><div class="sub">${sum.quoteCount} devis, ${openQuotes.length} sans réponse</div></div>
-      </div>
-      ${Number(c.creditLimit) > 0 ? (() => { const e = C.encoursClient(data, c.id, company()); const trop = e.total > Number(c.creditLimit) + 0.0005;
-        return `<p class="small ${trop ? 'warn-text' : 'muted'} mb" id="cl-encours">Encours ${info('cl.encours')} : <b>${C.money(e.total, company().currency)}</b> sur ${C.money(Number(c.creditLimit), company().currency)} autorisés${e.livre > 0.0005 ? `, dont ${C.money(e.livre, company().currency)} livrés à facturer` : ''}${trop ? ` : <b>dépassé de ${C.money(C.round3(e.total - Number(c.creditLimit)), company().currency)}</b>` : ''}.</p>`; })() : ''}
-      <div class="grid-2">
-          <div class="panel"><h2>Coordonnées</h2>
-            <div class="kv">
-              ${c.address ? `<div><span>Adresse</span><span>${h(c.address).replace(/\n/g, '<br>')}</span></div>` : ''}
-              ${c.contact ? `<div><span>Contact</span><span>${h(c.contact)}</span></div>` : ''}
-              ${c.phone ? `<div><span>Téléphone</span><span>${h(c.phone)}</span></div>` : ''}
-              ${c.email ? `<div><span>Email</span><span>${h(c.email)}</span></div>` : ''}
-              ${c.matricule ? `<div><span>MF / CIN</span><span>${h(c.matricule)}</span></div>` : ''}
-              <div><span>Retenue à la source</span><span>${c.withholdingRate === '' || c.withholdingRate == null ? `par défaut (${pct(company().defaultWithholdingRate || 0)} %)` : (Number(c.withholdingRate) ? pct(c.withholdingRate) + ' %' : 'aucune')}</span></div>
-              <div><span>Documents</span><span>${(c.lang === 'en' ? 'anglais' : 'français')} · ${h(c.currency || company().currency)}</span></div>
-            </div>
-          </div>
-          <div class="panel"><h2>Notes internes</h2>
-            <textarea id="cl-notes" rows="6" placeholder="Ce qu'il faut se rappeler : habitudes de paiement, interlocuteurs, historique…">${h(c.notes || '')}</textarea>
-            <p class="small muted mt">Ces notes ne sortent jamais sur un document, et <b>s'enregistrent toutes seules</b> au fil de la frappe. <span class="ok-text" id="cl-notes-saved" hidden>✓ enregistré</span></p>
-          </div>
-      </div>
-      ${(() => {
-        const parc = C.clientFleet(data, c.id);
-        if (!parc.length) return '';
-        const soon = parc.filter(x => x.warrantyEndingSoon).length;
-        return `<div class="panel"><h2>Matériel installé chez ce client ${info('ser.fleet')}</h2>
-          ${soon ? `<p class="small warn-text mb">${pl(soon, 'garantie')} ${soon > 1 ? 'se terminent' : 'se termine'} dans moins de deux mois : le moment de proposer un contrat de maintenance.</p>` : ''}
-          <div class="scroll-x"><table class="list compact"><thead><tr><th>Article</th><th>Numéro</th><th>Livré le</th><th>Garantie</th><th>Pièce</th></tr></thead><tbody>
-            ${parc.map(x => `<tr class="${x.warrantyEndingSoon ? 'row-warn' : ''}">
-              <td><strong>${h(x.itemLabel)}</strong></td><td class="nw">${h(x.serial)}</td>
-              <td class="nw">${C.fmtDate(x.outDate)}</td>
-              <td class="nw">${!x.warrantyEndDate ? '<span class="muted">aucune</span>'
-                : x.expired ? `<span class="muted">expirée le ${C.fmtDate(x.warrantyEndDate)}</span>`
-                : `<span class="${x.warrantyEndingSoon ? 'warn-text' : 'ok-text'}">jusqu'au ${C.fmtDate(x.warrantyEndDate)}</span>`}</td>
-              <td class="nw">${x.outDocId && docById(x.outDocId) ? `<a href="#/doc/${h(x.outDocId)}">${h(docById(x.outDocId).number || 'voir')}</a>` : '<span class="muted">—</span>'}</td></tr>`).join('')}
-          </tbody></table></div></div>`;
-      })()}
-      ${(() => {
-        // L'historique d'un client s'arrêtait aux documents : ni ses affaires (où l'on sait
-        // exactement ce qu'il a rapporté, achats déduits), ni ses contrats récurrents (le revenu
-        // qui revient tous les mois). Les deux données existaient, aucune n'était montrée ici.
-        const affaires = C.projectList(data, company()).filter(x => x.clientId === c.id);
-        const contrats = (data.recurring || []).filter(r => r.clientId === c.id);
-        if (!affaires.length && !contrats.length) return '';
-        return `${affaires.length ? `<div class="panel"><h2>Affaires ${info('mg.projects')}</h2>
-          <div class="scroll-x"><table class="list compact"><thead><tr><th>Affaire</th><th>Statut</th><th class="r">Vendu HT</th><th class="r">Acheté HT</th><th class="r">Marge</th><th class="r">En caisse</th></tr></thead><tbody>
-            ${affaires.map(x => `<tr class="clickable ${x.margin < 0 ? 'row-warn' : ''}" data-pid="${h(x.id)}">
-              <td><strong>${h(x.name)}</strong></td>
-              <td><span class="badge ${x.status === 'en cours' ? 'b-due' : x.status === 'terminée' ? 'b-paid' : ''}">${h(x.status)}</span></td>
-              <td class="r nw">${C.money(x.revenue, cur)}</td><td class="r nw">${C.money(x.cost, cur)}</td>
-              <td class="r nw"><strong class="${x.margin < 0 ? 'warn-text' : ''}">${C.money(x.margin, cur)}</strong>${margeSansAchat(x) ? NOTE_SANS_ACHAT : ''}</td>
-              <td class="r nw">${C.money(x.cash, cur)}</td></tr>`).join('')}
-          </tbody></table></div></div>` : ''}
-        ${contrats.length ? `<div class="panel"><h2>Contrats récurrents ${info('rec.what')}</h2>
-          <div class="scroll-x"><table class="list compact"><thead><tr><th>Objet</th><th>Période</th><th>Prochaine facture</th><th class="r">HT / facture</th><th>État</th></tr></thead><tbody>
-            ${contrats.map(r => {
-              const ht = C.computeTotals({ type: 'facture', lines: r.lines, discountRate: r.discountRate, currency: r.currency, exchangeRate: r.exchangeRate }, company()).netHT;
-              return `<tr class="clickable" data-rid="${h(r.id)}">
-                <td><strong>${h(objetDeContrat(r) || 'Contrat')}</strong></td>
-                <td>${h((C.PERIODS.find(x => x[0] === r.every) || [])[1] || '')}</td>
-                <td class="nw">${r.active === false ? '<span class="muted">suspendu</span>' : C.fmtDate(r.nextDate)}</td>
-                <td class="r nw">${C.money(ht, r.currency || cur)}</td>
-                <td>${r.active !== false ? '<span class="badge envoyée">actif</span>' : '<span class="badge">suspendu</span>'}</td></tr>`;
-            }).join('')}
-          </tbody></table></div></div>` : ''}`;
-      })()}
-      <div class="panel"><h2>Documents</h2><div id="cl-docs"></div></div>`;
+      <div class="page-head lf-tete cf-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<a href="#/clients">Clients</a>${ICONE_CHEVRON}<span>${h(c.name)}</span></div>
+          <div class="cf-nom">${pastilleClient(c.id, c.name)}<h1>${h(c.name)} ${pill}</h1></div>
+          <p class="sous">${[c.code ? h(c.code) : '', c.city ? h(c.city) : '', depuis].filter(Boolean).join(' · ')}${doit}</p></div>
+        <div class="actions">${secondaire}${releveSec}<button type="button" class="row-menu-btn btn ico" data-rowmenu="CL:${h(c.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions" title="Les autres gestes">${lfIc('plus', 16)}</button>${principal}</div></div>
+      ${bandeaux.length ? `<div class="cf-bandeaux">${bandeaux.join('')}<div id="cf-ttn"></div></div>` : '<div class="cf-bandeaux"><div id="cf-ttn"></div></div>'}
+      <div class="cf-fiche"><div class="cf-gauche"><div class="cf-carte">
+        <div class="cf-onglets" role="tablist" aria-label="Sa fiche">${CF_ONGLETS.map(([id, n]) => `<button type="button" role="tab" data-onglet="${id}" aria-selected="${st.onglet === id}">${n}${nbOnglet[id] ? ` <small${id === 'relances' ? ' class="r"' : ''}>${nbOnglet[id]}</small>` : ''}</button>`).join('')}</div>
+        <div class="cf-onglet" id="cf-onglet">${st.onglet === 'pieces' ? `<div id="cl-docs"></div>` : { paiements: ongletPaiements, relances: ongletRelances, affaires: ongletAffaires, materiel: ongletMateriel }[st.onglet]()}</div>
+      </div></div><div class="cf-droite">${droite}</div></div>`;
+
+    const refaire = () => render(true);
+    if (st.onglet === 'pieces') {
+      const dcols = docColumns({ hideClient: true }).cols;
+      const drawDocs = (sortKey) => {
+        if (typeof sortKey === 'string' && sortKey) { clientDocState.sort = toggleSort(clientDocState.sort, sortKey, dcols); clientDocState.page = 1; }
+        $('#cl-docs').innerHTML = docTable(docs, {
+          hideClient: true, sort: clientDocState.sort, onSort: true, page: clientDocState, mini: true,
+          empty: `Aucun document pour ce client. Commence par un devis : il reprendra sa fiche (adresse, matricule, retenue).`
+        });
+        bindDocTable(drawDocs, clientDocState, '#cl-docs');
+      };
+      drawDocs();
+    }
+    $$('#view [data-onglet]').forEach(b => b.onclick = () => { st.onglet = b.dataset.onglet; refaire(); });
+    $$('#view [data-doc]').forEach(x => x.onclick = () => navigate('#/doc/' + x.dataset.doc));
     $$('#view tr[data-pid]').forEach(tr => tr.onclick = () => navigate('#/affaire/' + tr.dataset.pid));
     $$('#view tr[data-rid]').forEach(tr => tr.onclick = () => navigate('#/contrat/' + tr.dataset.rid));
-    const dcols = docColumns({ hideClient: true }).cols;
-    const drawDocs = (sortKey) => {
-      if (typeof sortKey === 'string' && sortKey) { clientDocState.sort = toggleSort(clientDocState.sort, sortKey, dcols); clientDocState.page = 1; }
-      $('#cl-docs').innerHTML = docTable(docs, {
-        hideClient: true, sort: clientDocState.sort, onSort: true, page: clientDocState, mini: true,
-        empty: 'Aucun document pour ce client. Commence par un devis.'
-      });
-      bindDocTable(drawDocs, clientDocState, '#cl-docs');
-    };
-    drawDocs();
-    bindBack('#/clients');
-    $('#new-dev').onclick = () => navigate('#/doc/new/devis/client/' + c.id);
-    $('#new-fac').onclick = () => navigate('#/doc/new/facture/client/' + c.id);
-    // UNE seule table d'actions par racine (9.4.8) : le tableau des documents de la fiche branche
-    // la sienne sur `#cl-docs`, et une seconde table posée sur `document` écraserait la première —
-    // en silence, et en RETIRANT le bouton dont elle ne connaît pas l'identifiant (7.29.0 : une
-    // ligne sans action perd son bouton). C'est ce qui l'a fait disparaître de l'en-tête.
+    $$('#view [data-modifier]').forEach(b => b.onclick = () => clientForm(c, refaire));
+    $$('#view [data-relancer]').forEach(b => b.onclick = () => { const x = late.find(y => y.doc.id === b.dataset.relancer); if (x) sendReminder(x, 'email'); });
+    if ($('#cf-relancer')) $('#cf-relancer').onclick = () => sendReminder(late[0], 'email');
+    if ($('#cf-releve')) $('#cf-releve').onclick = () => releveForm(c.id);
+    if ($('#new-dev')) $('#new-dev').onclick = () => navigate('#/doc/new/devis/client/' + c.id);
+    if ($('#new-fac')) $('#new-fac').onclick = () => navigate('#/doc/new/facture/client/' + c.id);
+    if ($('#cf-desarchiver')) $('#cf-desarchiver').onclick = () => desarchiverClient(c, refaire);
+    if ($('#cf-affaire')) $('#cf-affaire').onclick = () => projectForm(null, refaire, { clientId: c.id });
+    if ($('#cf-contrat')) $('#cf-contrat').onclick = () => recurrenceForm(Object.assign(contratNeuf(), { clientId: c.id }), refaire);
+    // 10.14.1 — les relances de CE client, pas celles de toute l'entreprise : la recherche des Relances part à son nom.
+    if ($('#cf-vers-relances')) $('#cf-vers-relances').onclick = () => { relState.q = c.name || ''; relState.page = 1; navigate('#/relances'); };
+
+    // Le menu ⋯ de l'en-tête : ce qui ne mérite pas un bouton.
     bindRowMenus($('.page-head .actions'), id => {
       if (id !== 'CL:' + c.id) return [];
-      // L'annonce dit ce que le relevé dira, dans SA devise (10.14.1, DEV-12).
-      const rv = C.releveClient(data, c.id, company(), { natif: true });
-      const ouvert = rv.total;
-      const a2 = [{ icon: 'modifier', label: 'Modifier la fiche', hint: 'Coordonnées, conditions, retenue', run: () => clientForm(c, () => render(true)) }];
-      if (c.email) a2.push({ icon: 'email', label: 'Écrire au client', hint: h(c.email), run: () => bridge.composeMail({ to: c.email, subject: '', body: '', attachment: null, mode: 'mailto' }) });
-      a2.push({ sep: true }, { icon: 'pdf', label: 'Relevé de compte…',
-        hint: ouvert > 0.0005 ? `${C.money(ouvert, rv.currency)} encore dû` : ouvert < -0.0005 ? `${C.money(-ouvert, rv.currency)} en sa faveur` : 'Le compte est soldé',
-        run: () => releveForm(c.id) });
-      return a2;
-    });
-    // 10.14.1 — le bouton de la fiche d'UN client ouvrait les relances de TOUTE l'entreprise : ses
-    // factures en retard noyées dans celles des autres. La recherche des Relances filtre tout l'écran
-    // (7.18.0) ; elle part au nom du client, visible dans son champ, et s'efface comme une autre.
-    if ($('#go-rel')) $('#go-rel').onclick = () => { relState.q = c.name || ''; relState.page = 1; navigate('#/relances'); };
-    // Ces notes s'enregistrent au fil de la frappe. C'est agréable, mais c'était surprenant tant que
-    // rien ne le disait — la fenêtre de modification, elle, attend « Enregistrer » (audit).
+      const rv = C.releveClient(data, c.id, co, { natif: true });
+      const groupe = (titre, l) => (l.length ? [{ titre }, ...l] : []);
+      const docsLies = data.documents.filter(d => d.clientId === c.id).length;
+      return [
+        ...(peutEcrire ? [{ icon: 'modifier', label: 'Modifier la fiche', hint: 'Coordonnées, conditions, retenue', run: () => clientForm(c, refaire) }] : []),
+        ...groupe('Lui écrire', [
+          c.email ? { icon: 'email', label: 'Par e-mail', hint: h(c.email), run: () => bridge.composeMail({ to: c.email, subject: '', body: '', attachment: null, mode: 'mailto' }) }
+            : { icon: 'email', label: 'Par e-mail', hint: 'pas d\'e-mail sur sa fiche', off: true },
+          c.phone && bridge.ouvrirWhatsApp ? { icon: 'message', label: 'Par WhatsApp', hint: h(c.phone), run: () => { const n = C.numeroWhatsApp(c.phone); if (!n.ok) return toast(`${n.motif} : corrige-le sur sa fiche.`, true); bridge.ouvrirWhatsApp({ numero: n.numero, texte: '' }).catch(e => toast(plainError(e), true)); } }
+            : { icon: 'message', label: 'Par WhatsApp', hint: 'pas de téléphone sur sa fiche', off: true }]),
+        ...groupe('Créer pour lui', peutVendre ? [
+          { icon: 'nouveau', label: 'Nouveau devis', hint: `Pour ${c.name}`, run: () => navigate('#/doc/new/devis/client/' + c.id) },
+          { icon: 'nouveau', label: 'Nouvelle facture', hint: 'Elle reprend sa fiche', run: () => navigate('#/doc/new/facture/client/' + c.id) },
+          ...(peutEcrire ? [{ icon: 'contrat', label: 'Nouveau contrat récurrent', hint: 'Un brouillon préparé à chaque période', run: () => recurrenceForm(Object.assign(contratNeuf(), { clientId: c.id }), refaire) },
+            { icon: 'nouveau', label: 'Nouvelle affaire', hint: 'Pour suivre ce qu\'un chantier rapporte', run: () => projectForm(null, refaire, { clientId: c.id }) }] : [])] : []),
+        ...groupe('Ses documents', [{ icon: 'pdf', label: 'Relevé de compte…',
+          hint: rv.total > 0.0005 ? `${C.money(rv.total, rv.currency)} encore dû` : rv.total < -0.0005 ? `${C.money(-rv.total, rv.currency)} en sa faveur` : 'Le compte est soldé', run: () => releveForm(c.id) }]),
+        ...(peutEcrire ? [{ sep: true },
+          c.archived ? { icon: 'restaurer', label: 'Le remettre dans la liste', hint: 'Il revient dans la liste et dans les choix d\'une pièce', run: () => desarchiverClient(c, refaire) }
+            : { icon: 'dossier', label: 'Archiver', hint: 'Il sort de la liste et des choix ; ses documents restent', run: () => archiverClient(c, refaire) },
+          { icon: 'supprimer', label: 'Supprimer ce client', hint: docsLies ? `impossible : ${pl(docsLies, 'document lié', 'documents liés')} ; archive-le plutôt` : 'Il n\'a aucun document', danger: !docsLies, off: !!docsLies,
+            run: () => { if (!docsLies) void supprimerClient(c); } }] : [])
+      ];
+    }, () => c.name);
+
+    // Les notes s'enregistrent au fil de la frappe ; « ✓ enregistré » le dit.
     let notesTimer = null;
-    $('#cl-notes').oninput = e => {
+    if (peutEcrire) $('#cl-notes').oninput = e => {
       c.notes = e.target.value; save();
       const tag = $('#cl-notes-saved');
       if (tag) { tag.hidden = false; clearTimeout(notesTimer); notesTimer = setTimeout(() => { tag.hidden = true; }, 1600); }
     };
+
+    // El Fatoora : une facture de ce client refusée se dit en tête (lu par le pont, sans bloquer la page).
+    if (lfAvecTtn() && bridge.etatsTtnDe) {
+      const ouvertes = factures.filter(d => balance(d).remaining > 0.0005).map(d => d.id);
+      if (ouvertes.length) void bridge.etatsTtnDe(ouvertes).then(r => {
+        const id = Object.keys(r || {}).find(k => r[k] && r[k].etat === 'refusee');
+        const d = id && docById(id), z = $('#cf-ttn');
+        if (!d || !z || ficheClientState.id !== c.id) return;
+        z.innerHTML = `<div class="banner danger"><span><b>El Fatoora a refusé ${h(d.number)}${r[id].motif ? ` : ${h(r[id].motif)}` : ''}</b> — corrige le matricule ou le nom exact de la société (celui de sa patente), puis renvoie la facture depuis sa page.</span>${peutEcrire ? '<button type="button" class="btn" data-modifier>Corriger la fiche</button>' : ''}<button type="button" class="btn" data-doc="${h(d.id)}">Ouvrir ${h(d.number)}</button></div>`;
+        $$('[data-modifier]', z).forEach(b => b.onclick = () => clientForm(c, refaire));
+        $$('[data-doc]', z).forEach(b => b.onclick = () => navigate('#/doc/' + b.dataset.doc));
+      }).catch(() => undefined);
+    }
   };
 
   // ---------- Catalogue ----------
@@ -11328,7 +11432,7 @@
     // l'unité, et « ({mois} = mois facturé) » faisait passer l'étiquette de l'objet sur deux lignes.
     modal(`<h2>${isNew ? 'Nouveau contrat récurrent' : 'Modifier le contrat'} ${info('contrat.form')}</h2>
       <form id="rf" class="grid-3">
-        <div class="field span-2 obligatoire">${lbl('Client', 'contrat.client')}${combo({ name: 'clientId', value: r.clientId, items: clientItems(), placeholder: '— Choisir un client —', search: 'Rechercher : nom, contact, MF…', add: '+ Nouveau client' })}</div>
+        <div class="field span-2 obligatoire">${lbl('Client', 'contrat.client')}${combo({ name: 'clientId', value: r.clientId, items: clientItems(r.clientId), placeholder: '— Choisir un client —', search: 'Rechercher : nom, contact, MF…', add: '+ Nouveau client' })}</div>
         <label class="field">${lbl('Période', 'contrat.periode')}<select name="every">${C.PERIODS.map(p => `<option value="${p[0]}" ${p[0] === r.every ? 'selected' : ''}>${p[1]}</option>`).join('')}</select></label>
         <label class="field span-2 obligatoire">${lbl('Objet des factures', 'contrat.objet')}<input type="text" name="subject" value="${h(r.subject)}" placeholder="Entretien des portes — {mois}"></label>
         ${field(lbl('Jour du mois', 'contrat.jour'), 'day', r.day || 1, 'number', 'min="1" max="31" class="num"')}
@@ -11373,9 +11477,9 @@
           }
         };
         const cliCombo = bindCombo($('[data-combo=clientId]', root), {
-          items: clientItems(), placeholder: '— Choisir un client —',
+          items: clientItems(r.clientId), placeholder: '— Choisir un client —',
           onPick: id => poserClient(id),
-          onAdd: saisi => clientForm(null, c => { cliCombo.setItems(clientItems()); cliCombo.setValue(c.id); poserClient(c.id); }, { name: saisi })
+          onAdd: saisi => clientForm(null, c => { cliCombo.setItems(clientItems(r.clientId)); cliCombo.setValue(c.id); poserClient(c.id); }, { name: saisi })
         });
         selCur.onchange = majDevise;
         $('select[name=withholdingRate]', root).addEventListener('change', () => { retenueTouchee = true; });
@@ -20536,7 +20640,7 @@
         ${dateFieldHtml(lbl('Entré le', 'ser.inDate'), 'inDate', x.inDate || '', { clearable: true })}
         ${dateFieldHtml(lbl('Sorti le', 'ser.outDate'), 'outDate', x.outDate || '', { clearable: true })}
         <div class="field span-2">${lbl('Client', 'ser.client')}
-          ${combo({ name: 'clientId', value: x.clientId || '', items: clientItems(), placeholder: '— Aucun —', search: 'Rechercher un client…' })}
+          ${combo({ name: 'clientId', value: x.clientId || '', items: clientItems(x.clientId), placeholder: '— Aucun —', search: 'Rechercher un client…' })}
         </div>
         <label class="field span-2">${lbl('Notes', 'ser.notes')}<input type="text" name="notes" value="${h(x.notes || '')}"></label>
         <div class="span-2 annonce-stable" id="sef-hint"></div>
@@ -20545,7 +20649,7 @@
         <button class="btn btn-danger" id="del-ser" style="margin-inline-end:auto">Supprimer</button>
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
-        bindCombo($('[data-combo=clientId]', root), { items: clientItems(), placeholder: '— Aucun —' });
+        bindCombo($('[data-combo=clientId]', root), { items: clientItems(x.clientId), placeholder: '— Aucun —' });
         const hint = () => {
           const v = formValues($('#sef', root));
           const end = C.warrantyEnd({ outDate: v.outDate, warrantyMonths: Number(v.warrantyMonths) || 0 });
@@ -26697,7 +26801,7 @@
       ${editeur.armee && !editeur.correspond ? '<p class="banner danger">SkanFact embarque une AUTRE clé publique que la tienne : cette licence ne serait reconnue nulle part. Reprends la bonne clé privée avant d\'émettre.</p>' : ''}
       ${prec ? `<p class="small muted">Nouvelle clé pour ${h(prec.nom)}${depuis ? ` : les durées partent du <strong>${C.fmtDate(depuis)}</strong>, fin de la licence actuelle — rien de ce qui est déjà payé n'est repris` : ''}. Une facture est créée, comme pour une première licence.</p>` : ''}
       <form id="lf" class="grid-2">
-        <div class="field span-2 obligatoire">${lbl('Client', 'lic.client')}${combo({ name: 'clientId', value: l.clientId, items: clientItems(), placeholder: '— Choisir un client —', search: 'Rechercher : nom, contact, MF…', add: '+ Nouveau client' })}</div>
+        <div class="field span-2 obligatoire">${lbl('Client', 'lic.client')}${combo({ name: 'clientId', value: l.clientId, items: clientItems(l.clientId), placeholder: '— Choisir un client —', search: 'Rechercher : nom, contact, MF…', add: '+ Nouveau client' })}</div>
         <label class="field span-2">${lbl('Type de licence', 'lic.type')}<select name="type" ${prec ? 'disabled' : ''}>
           <option value="entreprise" ${l.type === 'entreprise' ? 'selected' : ''}>Entreprise — s'installe dans SkanFact</option>
           <option value="cabinet" ${l.type === 'cabinet' ? 'selected' : ''}>Cabinet comptable — s'installe dans SkanFact Cabinet</option></select></label>
@@ -26733,8 +26837,8 @@
       <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">${prec ? 'Renouveler et facturer' : 'Émettre et facturer'}</button></div>`,
       (root, close) => {
         const form = $('#lf', root);
-        const cc = bindCombo($('[data-combo=clientId]', root), { items: clientItems(), placeholder: '— Choisir un client —',
-          onAdd: saisi => clientForm(null, c => { cc.setItems(clientItems()); cc.setValue(c.id); }, { name: saisi }) });
+        const cc = bindCombo($('[data-combo=clientId]', root), { items: clientItems(l.clientId), placeholder: '— Choisir un client —',
+          onAdd: saisi => clientForm(null, c => { cc.setItems(clientItems(l.clientId)); cc.setValue(c.id); }, { name: saisi }) });
         // Le combo des clients propose « + Nouveau client » depuis toujours ; celui du catalogue, non
         // — alors que l'éditeur qui vend ses deux offres n'a, au premier jour, AUCUNE prestation de
         // licence dans son catalogue. Il retapait donc son prix à chaque émission, de mémoire, dans
