@@ -2,13 +2,15 @@
 // l'entreprise : elle se lit dans ses livres, en face de sa pièce. Le cabinet la pose, la précise, la
 // ferme ou la retire tant qu'elle n'est jamais partie ; il l'ENVOIE (le client la voit alors, et
 // chaque envoi se compte : deux envois sans réponse, elle remonte) ; le client y répond. Rien de ce
-// qui passe ici ne touche aux chiffres du client. La base refait chaque contrôle (0028).
+// qui passe ici ne touche aux chiffres du client (sauf l'imputation, 1.180.0 : une écriture au BROUILLARD, que le
+// cabinet relit et valide comme toute saisie). La base refait chaque contrôle (0028, 0184).
 
 import { z } from 'zod';
 import { depuisTexte, versTexte } from '../../moteur/argent.ts';
 import type { Route } from '../app.ts';
 import type { Contexte } from '../connexion.ts';
 import { motif, t } from '../../textes/index.ts';
+import { estJour } from './saisie.ts';
 import './textes.ts';
 
 const uuid = z.string().uuid();
@@ -109,6 +111,25 @@ export function routesQuestions(ctx: Contexte): Route<never>[] {
       if (!uuid.safeParse(params.question).success) return introuvable;
       const r = (await tx.query('select compta.fermer_question($1, $2, $3) statut', [params.entreprise ?? '', params.question, corps.rouvrir])).rows[0];
       return { corps: { statut: r.statut as string } };
+    },
+  });
+
+  // (1.180.0, maquette « Messages » : « Imputer le virement ») La réponse du client dit ce qu'était la ligne : le montant
+  // sort du compte de la question (le compte d'attente) vers la contrepartie choisie, au brouillard. Le montant et son
+  // sens viennent du livre (la base les lit) ; ce qui part au serveur : la contrepartie, le jour, le journal, le libellé.
+  ajouter({
+    methode: 'POST', chemin: '/entreprises/:entreprise/compta/questions/:question/imputer', geste: 'compta.ecritures.saisir',
+    corps: z.object({
+      contrepartie: z.string().max(12),
+      date: z.string().refine(estJour, { message: 'champ.jour' }),
+      journal: z.enum(['OD', 'BQ']).default('OD'),
+      libelle: z.string().max(500).default(''),
+    }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx) throw new Error('transaction attendue');
+      if (!uuid.safeParse(params.question).success) return introuvable;
+      const r = (await tx.query('select compta.imputer_question($1, $2, $3::jsonb) id', [params.entreprise ?? '', params.question, JSON.stringify(corps)])).rows[0];
+      return { statut: 201, corps: { ecriture: r.id as string } };
     },
   });
 

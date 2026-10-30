@@ -94,6 +94,7 @@ type LigneQuestion = {
   id: string; objet: string; texte: string; piece: string; montant: string; attendu: string; statut: string; envoyee_le: Date;
   reponse: string | null; repondu_le: Date | null; periode: string;
   pose_moi: boolean; pose_nom: string | null; reponse_moi: boolean; reponse_nom: string | null;
+  compte: string; solde: string | null; journal_ligne: string | null; imputee_par: string | null;
 };
 
 // L'état de chaque dossier en ligne du cabinet dans sa boîte — « À traiter » (le client a écrit ou répondu depuis la
@@ -230,8 +231,12 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
       // voyait pas le nom d'un membre du cabinet, et la question se disait posée par « Ton cabinet »).
       const questions = (await tx.query(`select q.id, q.objet, q.texte, q.piece, q.montant, q.attendu, q.statut, q.envois[1] envoyee_le, q.reponse,
           q.repondu_le, q.periode, coalesce(q.pose_par = socle.moi(), false) pose_moi, n.pose_nom,
-          coalesce(q.repondu_par = socle.moi(), false) reponse_moi, n.repondu_nom reponse_nom
+          coalesce(q.repondu_par = socle.moi(), false) reponse_moi, n.repondu_nom reponse_nom,
+          -- (1.180.0) Ce que l'imputation sortirait du compte de la question : le solde de sa ligne, lu dans le livre.
+          q.compte, q.imputee_par, e.journal journal_ligne,
+          (select sum(l.debit - l.credit) from compta.ligne l where l.ecriture = q.ecriture and l.entreprise = q.entreprise and l.compte = q.compte) solde
         from compta.question q
+          left join compta.ecriture e on e.id = q.ecriture
           left join messagerie.noms_des_questions($1, $2) n on n.question = q.id
         where q.entreprise = $1 and q.cabinet = $2 and cardinality(q.envois) > 0
           and ($3::timestamptz is null or q.envois[1] < $3::timestamptz) and ($4::timestamptz is null or q.envois[1] >= $4::timestamptz)
@@ -264,6 +269,12 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
             statut: q.statut, periode: q.periode, envoyeeLe: q.envoyee_le.toISOString(), reponse: q.reponse,
             reponduLe: q.repondu_le?.toISOString() ?? null,
             poseePar: q.pose_moi ? 'moi' : q.pose_nom, repondueePar: q.reponse_moi ? 'moi' : q.reponse_nom,
+            // (1.180.0) Côté cabinet : la ligne de la question laisse un montant sur son compte (le compte d'attente) ; sa
+            // réponse permet de l'imputer, une fois (`faite` : l'écriture d'imputation est au livre).
+            imputation: cote.data === 'cabinet' && q.compte && q.solde !== null && BigInt(q.solde) !== 0n ? {
+              compte: q.compte, montant: versTexte(BigInt(q.solde) < 0n ? -BigInt(q.solde) : BigInt(q.solde), 3),
+              sens: BigInt(q.solde) < 0n ? 'credit' : 'debit', banque: q.journal_ligne === 'BQ', faite: q.imputee_par,
+            } : null,
           })),
           suite: suite ? versCurseur(page.at(-1)?.ecrit_le ?? new Date(0), page.at(-1)?.id ?? '') : null,
           attente: await attente(tx, entreprise, cabinet, cote.data),

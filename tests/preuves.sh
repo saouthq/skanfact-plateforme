@@ -21289,5 +21289,20 @@ prouver 'messages 14 : la ligne glissée ne s'"'"'ouvre pas' web/public/platefor
 prouver 'messages 15 : « Demain » sur la ligne ne pose pas le rappel' web/public/plateforme/messagerie.js \
   "await o.appel('PUT', chemin, { le });" "await Promise.resolve();" \
   '(1.179.0) la lecture, le refus qui réessaie, hors ligne, « Demain » et « Traité » sur la ligne, glisser au téléphone, exporter en PDF'
+prouver 'messages 16 : l'"'"'imputation pose le montant dans le mauvais sens' base/migrations/0184_imputer_question.sql \
+  "v_debit_attente := case when v_solde < 0 then (-v_solde)::text else '0' end;|||v_credit_attente := case when v_solde > 0 then v_solde::text else '0' end;" "v_debit_attente := case when v_solde > 0 then v_solde::text else '0' end;|||v_credit_attente := case when v_solde < 0 then (-v_solde)::text else '0' end;" \
+  'le virement en attente sort du 471 vers le compte du client, au brouillard, une seule fois'
+prouver 'messages 17 : une question s'"'"'impute deux fois' base/migrations/0184_imputer_question.sql \
+  "  update compta.question set imputee_par = v_id where id = p_id;" "" \
+  'le virement en attente sort du 471 vers le compte du client, au brouillard, une seule fois'
+prouver 'messages 18 : imputer propose la banque où l'"'"'argent est déjà' web/public/v10/cabinet/app.js \
+  "c.compte !== im.compte && !(im.banque && /^5/.test(c.compte))" "c.compte !== im.compte" \
+  '(1.180.0) « Imputer le virement » : la réponse du client propose ses comptes, jamais la banque, et l'"'"'écriture va au brouillard'
+prouver 'messages 19 : un acompte n'"'"'est pas proposé au compte des avances' web/public/v10/cabinet/app.js \
+  "...(/acompte|avance|arrhes/i.test(q.reponse) ? [recu ? '419' : '409'] : [])," "" \
+  '(1.180.0) « Imputer le virement » : la réponse du client propose ses comptes, jamais la banque, et l'"'"'écriture va au brouillard'
+prouver 'messages 20 : la fenêtre « Imputer » s'"'"'ouvre sur la liste du plan' web/public/v10/cabinet/app.js \
+  '        if (proposes.length) $('"'"'#ok'"'"', root).focus();' "" \
+  '(1.180.0) « Imputer le virement » : la réponse du client propose ses comptes, jamais la banque, et l'"'"'écriture va au brouillard'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

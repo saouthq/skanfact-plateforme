@@ -2490,6 +2490,11 @@
       return construireEtat();
     },
 
+    // (1.180.0) Imputer depuis la réponse d'une question : la base pose l'écriture au brouillard (le montant et son sens
+    // lus dans le livre) et la relie à la question. Ce qui part : la contrepartie, le jour, le journal, le libellé.
+    imputerQuestion: (/** @type {string} */ id, /** @type {string} */ question, /** @type {{ contrepartie: string, date: string, journal: string, libelle: string }} */ corps) =>
+      appel('POST', `/entreprises/${encodeURIComponent(id)}/compta/questions/${encodeURIComponent(question)}/imputer`, corps),
+
     // ── La saisie (brique 38) : chaque geste va au serveur, puis le livre se relit ─────────────
     // (1.105.0) Chaque écriture part avec l'identifiant choisi ici : sans réseau, elle se garde sur le poste (H15).
     saisir: async (/** @type {string} */ id, /** @type {string} */ annee, /** @type {any} */ ec) => {

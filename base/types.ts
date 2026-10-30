@@ -386,6 +386,7 @@ export interface BaseDeDonnees {
     pose_le: Generated<Date>;
     close_par: string | null;
     close_le: Date | null;
+    imputee_par: string | null;
   };
   'compta.rapprochement': {
     releve_ligne: string;

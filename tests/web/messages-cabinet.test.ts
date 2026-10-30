@@ -341,4 +341,67 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect(erreursT).toEqual([]);
     await ct.close();
   }, 180_000);
+
+  it('(1.180.0) « Imputer le virement » : la réponse du client propose ses comptes, jamais la banque, et l\'écriture va au brouillard', async () => {
+    const leila = await personne('Leïla Jlassi');
+    const cab = (await api('POST', '/cabinets', leila, { nom: 'Jlassi Conseil' })).corps as { id: string; code: string };
+    const sarra = await personne('Sarra Ben Amor');
+    const ent = String((await api('POST', '/entreprises', sarra, { raisonSociale: 'Boulangerie El Amal' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, sarra, { codeCabinet: cab.code })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, leila)).statut).toBe(200);
+    expect((await api('PUT', `/cabinets/${cab.id}/fiches/${ent}`, leila, { contenu: { contact: 'Sarra Ben Amor' }, revision: null })).statut).toBe(200);
+    // Un virement reçu le 14/09 que personne ne sait expliquer, au compte d'attente ; la question ; la réponse de Sarra.
+    const vir = await api('POST', `/entreprises/${ent}/compta/ecritures`, leila, { date: '2026-09-14', journal: 'BQ', piece: 'VIR 14/09', libelle: 'Virement reçu',
+      lignes: [{ compte: '532', debit: '1250,375' }, { compte: '471', credit: '1250,375' }] });
+    expect(vir.statut).toBe(201);
+    const q = await api('POST', `/entreprises/${ent}/compta/questions`, leila, { periode: '2026-09', compte: '471', ecriture: vir.corps.id, piece: 'VIR 14/09',
+      montant: '1250,375', objet: 'Un virement reçu le 14/09', texte: 'À quoi correspond ce virement ?', attendu: 'explication' });
+    expect((await api('POST', `/entreprises/${ent}/compta/questions/envoyer`, leila, { annee: 2026 })).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/compta/questions/${String(q.corps.id)}/repondre`, sarra, { texte: 'C\'est l\'acompte de la Clinique Les Jasmins pour les gâteaux du 30/09.' })).statut).toBe(200);
+
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.clock.setFixedTime(LE_29);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, leila);
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages`);
+    await p.locator('#page-msg .msg-filtres').waitFor({ timeout: 25_000 });
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    await p.getByRole('tab', { name: /^Tout/ }).click();
+    await p.locator('.msg-dossier').filter({ hasText: 'Boulangerie El Amal' }).first().click();
+    // Sous la réponse de Sarra (signée de son prénom), le geste et ce qu'il fera, lu dans le livre.
+    const carte = p.locator('.msg-imp').first();
+    await carte.waitFor({ timeout: 15_000 });
+    expect(net(await carte.innerText())).toMatch(/^Imputer le virement Voir dans la révision sort les 1\s?250,375 DT du compte 471, au compte que tu choisis$/);
+    // La fenêtre : le compte proposé d'après la réponse (un acompte : 419, les avances reçues), déjà dans la case, et le
+    // curseur sur le bouton principal (la liste du plan, ouverte d'emblée, couvrait la fenêtre).
+    await p.locator('[data-msg-imputer]').click();
+    const fen = p.locator('.modal').filter({ has: p.locator('#msg-imputer') });
+    await fen.waitFor();
+    expect(net(await fen.locator('h2').innerText())).toMatch(/^Imputer le virement · 1\s?250,375 DT$/);
+    expect(await fen.locator('[name=compte]').inputValue()).toBe('419');
+    expect(net(await fen.locator('#msg-imp-nom').innerText())).toBe('Clients créditeurs (avances reçues)');
+    expect(await fen.locator('[data-imp-prop]').allInnerTexts()).toEqual(['419 · Clients créditeurs (avances reçues)', '411 · Clients']);
+    expect(await p.evaluate(() => document.activeElement?.id)).toBe('ok');
+    expect(await p.locator('.sugg-pop').count()).toBe(0);
+    // Chercher « banq » dans le plan ne propose pas la banque : l'argent y est déjà.
+    await fen.locator('[name=compte]').fill('');
+    await fen.locator('[name=compte]').pressSequentially('banq');
+    await p.locator('.sugg-pop').waitFor();
+    expect(net(await p.locator('.sugg-pop').innerText())).not.toMatch(/\b5\d\d/);
+    await p.keyboard.press('Escape');
+    // Un autre compte proposé, d'un clic ; puis « Imputer au brouillard ».
+    await fen.locator('[data-imp-prop="411"]').click();
+    expect(await fen.locator('[name=compte]').inputValue()).toBe('411');
+    expect(await fen.locator('[data-imp-prop="411"]').getAttribute('class')).toContain('on');
+    await fen.getByRole('button', { name: 'Imputer au brouillard' }).click();
+    await expect.poll(async () => net(await p.locator('.msg-imp.fait').innerText().catch(() => ''))).toMatch(/^Imputée : 1\s?250,375 DT sortis du compte 471, au brouillard/);
+    // Dans le livre : une écriture au brouillard, 471 débité, 411 crédité, du montant du livre.
+    const ecritures = (await api('GET', `/entreprises/${ent}/compta/ecritures?limite=50`, leila)).corps.ecritures as { piece: string; journal: string; numero: string | null; lignes: { compte: string }[] }[];
+    const imp = ecritures.filter((e) => e.journal === 'OD' && e.piece === 'VIR 14/09');
+    expect(imp.map((e) => [e.numero, e.lignes.map((l) => l.compte)])).toEqual([[null, ['471', '411']]]);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 180_000);
 });

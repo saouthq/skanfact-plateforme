@@ -109,6 +109,7 @@
     telecharger: '<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>',
     nuage: '<path d="M7 18a4.5 4.5 0 0 1-.6-8.96A6 6 0 0 1 18 9.5a4.25 4.25 0 0 1-.5 8.5z"/><path d="m4 4 16 16"/>',
     message: '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    livre: '<path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 21.5A2.5 2.5 0 0 1 6.5 19H20v3H6.5"/>',
   };
   /** @param {keyof typeof DESSINS} id */
   const dessin = (id) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${DESSINS[id]}</svg>`;
@@ -351,9 +352,16 @@
       <style>body{margin:0;font:14px system-ui,sans-serif;display:flex;flex-direction:column;height:100vh;background:#f3f5f4}
       header{display:flex;gap:12px;align-items:center;justify-content:space-between;padding:10px 16px;background:#fff;border-bottom:1px solid #dde3e0}
       b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}a{flex:none;padding:8px 14px;border-radius:8px;background:#0f8a74;color:#fff;text-decoration:none;font-weight:600}
-      img{max-width:100%;margin:16px auto;display:block}</style></head>
+      img{max-width:100%;margin:16px auto;display:block}p{margin:40px auto;max-width:480px;text-align:center;color:#3d4743;line-height:1.5}</style></head>
       <body><header><b>${n}</b><a href="${adresse}" download="${n}">Enregistrer</a></header>${vue}</body></html>`);
     onglet.document.close();
+    // (1.180.0) Une image que le navigateur ne sait pas dessiner laissait une page vide sous l'en-tête : elle le dit.
+    const img = onglet.document.querySelector('img');
+    if (img) img.onerror = () => {
+      const p = onglet.document.createElement('p');
+      p.textContent = 'Ce fichier ne s\'affiche pas ici : « Enregistrer » le garde sur ton ordinateur, pour l\'ouvrir avec une autre application.';
+      img.replaceWith(p);
+    };
   }
 
   /**
@@ -395,6 +403,7 @@
    *   enGrand?: () => void,
    *   modeles?: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
    *   cle?: string, nomCabinet?: string, exportPdf?: (html: string, nom: string) => Promise<string | null>,
+   *   imputer?: (question: any, apres: () => Promise<void>) => void,
    * }} o
    */
   function conversation(el, o) {
@@ -768,7 +777,8 @@
     const jjmm = (iso) => { const j = String(iso).length > 10 ? jourCle(iso) : String(iso); return `${j.slice(8, 10)}/${j.slice(5, 7)}`; };
     // L'en-tête d'un message : le prénom de l'auteur (« Toi » de mon côté) et l'heure ; un point vert s'il est nouveau.
     /** @param {string} qui @param {string} quand @param {boolean} neuf @param {string} [plus] */
-    const teteDe = (qui, quand, neuf, plus) => `${neuf ? '<i class="msg-point" aria-label="nouveau"></i>' : ''}<b>${esc(prenomDe(qui))}</b> · ${esc(heure(quand))}${plus ? ` · ${esc(plus)}` : ''}`;
+    // (1.180.0) `entier` : un nom qui n'est pas celui d'une personne (« Le client ») ne se coupe pas à son premier mot.
+    const teteDe = (qui, quand, neuf, plus, entier = false) => `${neuf ? '<i class="msg-point" aria-label="nouveau"></i>' : ''}<b>${esc(entier ? qui : prenomDe(qui))}</b> · ${esc(heure(quand))}${plus ? ` · ${esc(plus)}` : ''}`;
     // (1.177.0, maquette « Messages ») Plusieurs photos ou PDF envoyés d'un coup : une rangée de vignettes (chacune s'ouvre, et
     // son menu ⋯ dit le reste), et au cabinet « Saisir les N pièces ».
     /** @param {any[]} lot */
@@ -1009,10 +1019,24 @@
       const moi = entreprise;
       const qui = q.repondueePar === 'moi' ? 'Toi' : q.repondueePar || (entreprise ? 'Ton entreprise' : 'Le client');
       return `<div class="msg-ligne${moi ? ' moi' : ''}">
-        <span class="msg-qui">${teteDe(qui, q.reponduLe, nouveaux.has(`r:${q.id}`))}</span>
+        <span class="msg-qui">${teteDe(qui, q.reponduLe, nouveaux.has(`r:${q.id}`), '', !q.repondueePar)}</span>
         ${/* (1.97.0) Une réponse dit à quelle question : « Réponse à la question » seul ne dit rien d'une question sans pièce. */''}
         <span class="msg-reponse-a">Réponse à la question${q.objet ? ` « ${esc(q.objet)} »` : ''}${q.piece ? ` sur ${esc(q.piece)}` : ''}</span>
-        <div class="msg-bulle">${esc(q.reponse)}</div></div>`;
+        <div class="msg-bulle">${esc(q.reponse)}</div>${carteImputer(q)}</div>`;
+    }
+    // (1.180.0, maquette « Messages » : « Imputer le virement ») La réponse dit ce qu'était la ligne restée au compte
+    // d'attente : au cabinet, sous elle, le geste qui l'impute (le montant et son compte, lus dans le livre par le
+    // serveur), et une fois fait, ce qu'il a fait. L'écriture va au brouillard : elle se relit et se valide comme toute
+    // saisie.
+    /** @param {any} q */
+    function carteImputer(q) {
+      const im = q.imputation;
+      if (entreprise || !im || !o.imputer || !(lu.fil && lu.fil.actif)) return '';
+      if (im.faite) {
+        return `<span class="msg-imp fait">${dessin('coche')}<span>Imputée : ${esc(montant(im.montant))} sortis du compte ${esc(im.compte)}, au brouillard</span>${o.revision ? '<button type="button" class="msg-lien" data-msg-revision>Voir dans la révision</button>' : ''}</span>`;
+      }
+      return `<span class="msg-imp"><button type="button" class="btn btn-sm msg-imp-b" data-msg-imputer="${esc(q.id)}">${dessin('livre')}Imputer ${im.banque ? 'le virement' : 'le montant'}</button>${o.revision ? '<button type="button" class="msg-lien" data-msg-revision>Voir dans la révision</button>' : ''}
+        <small>sort les ${esc(montant(im.montant))} du compte ${esc(im.compte)}, au compte que tu choisis</small></span>`;
     }
 
     function dessinerFil() {
@@ -1295,6 +1319,12 @@
         /** @type {HTMLElement} */ (n).onclick = () => { if (o.saisirLot) o.saisirLot(String(/** @type {HTMLElement} */ (n).dataset.msgSaisirLot).split(',')); };
       });
       fil.querySelectorAll('[data-msg-revision]').forEach((n) => { if (o.revision) /** @type {HTMLElement} */ (n).onclick = o.revision; });
+      // (1.180.0) Imputer : la fenêtre de l'écran (la contrepartie, le jour, le libellé) ; fait, le fil se relit.
+      fil.querySelectorAll('[data-msg-imputer]').forEach((n) => {
+        const b = /** @type {HTMLElement} */ (n);
+        const q = [...(lu.questions || []), ...anciennesQuestions].find((x) => x.id === b.dataset.msgImputer);
+        if (q && o.imputer) { const imputer = o.imputer; b.onclick = () => { imputer(q, async () => { await relire(); if (o.surAttente) o.surAttente(lu && lu.attente); }); }; }
+      });
       surClic(fil, '[data-msg-enregistrer]', async (b) => { await ouvrirFichier(o.appel, String(b.dataset.msgEnregistrer), true); });
       fil.querySelectorAll('[data-msg-ouvrir]').forEach((n) => {
         const b = /** @type {HTMLElement} */ (n);
@@ -1770,6 +1800,7 @@
    *   prochaineDate?: () => string | null, tenus?: () => { id: string, nom: string, couleur?: [string, string] | null }[],
    *   panneauTenu?: (id: string) => string, brancherTenu?: (el: HTMLElement, id: string) => void, ouvrirTenu?: (id: string) => void,
    *   surEtat?: (etat: string) => void, enAttendant?: { texte: string, aller: () => void },
+   *   imputer?: (entreprise: string, question: any, apres: () => Promise<void>) => void,
    *   modeles?: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
    * }} o
    */
@@ -2114,6 +2145,7 @@
         toast: o.toast,
         toastAnnuler: o.toastAnnuler,
         revision: revision ? () => revision(id) : undefined,
+        imputer: o.imputer ? (/** @type {any} */ q, /** @type {() => Promise<void>} */ apres) => { if (o.imputer) o.imputer(id, q, apres); } : undefined,
         ouvrirPiece: o.ouvrirPiece ? (/** @type {string} */ g, /** @type {string} */ p, /** @type {string} */ l) => (o.ouvrirPiece ? o.ouvrirPiece(id, g, p, l) : false) : undefined,
         saisirPiece: o.saisirPiece ? (/** @type {any} */ m) => { if (o.saisirPiece) o.saisirPiece(id, m); } : undefined,
         // Ce que la conversation change (lu, traité, une réponse) se relit aussitôt dans la liste : elle se relit à chaque

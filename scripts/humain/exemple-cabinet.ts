@@ -123,6 +123,86 @@ const LIVRES: Record<string, string> = { be: 'FFFFFFFRR', mb: 'FFFFFFFMM', gt: '
   pe: 'FFFFFFFFR', sp: 'FFFFFFFFF', ic: 'FFFFFFFFP', iy: 'FFFFFFFFD', sm: 'FFFFFFFFF', cj: 'FFFFFFFFS' };
 const mois = (i: number) => `2026-${String(i + 1).padStart(2, '0')}`;
 
+// Les pièces elles-mêmes, lisibles comme de vraies pièces : une facture, un relevé, un ticket, un document, dessinés par
+// le navigateur de la machine (une photo en PNG, un PDF imprimé). Sans navigateur, une image d'un point.
+const papier = (nom: string, dossier: string): string => {
+  const ligne = (a: string, b: string) => `<tr><td>${a}</td><td>${b}</td></tr>`;
+  const css = '<style>body{margin:0;font:13px Helvetica,Arial,sans-serif;color:#23272e}.f{width:520px;padding:28px 30px;background:#fff}'
+    + 'h1{font-size:15px;margin:0 0 2px;letter-spacing:.02em}.s{color:#5b616b;margin-bottom:14px;border-bottom:1.5px solid #23272e;padding-bottom:8px}'
+    + 'table{width:100%;border-collapse:collapse}td{padding:5px 0;border-bottom:1px dotted #c8cdd4}td:last-child{text-align:right}'
+    + '.t td{font-weight:800;border-top:1.5px solid #23272e;border-bottom:0}.p{color:#5b616b;font-size:11px;margin-top:12px}</style>';
+  if (/relev/i.test(nom)) return `${css}<div class="f"><h1>RELEVÉ DE COMPTE</h1><div class="s">Compte courant · ${dossier} · septembre 2026 · page 1 sur 1</div><table>`
+    + ['01/09|Solde au 31/08||8 412,605', '03/09|Versement espèces||2 300,000', '05/09|Chèque 4410 081|1 846,200|', '10/09|Prélèvement CNSS|612,480|', '12/09|Virement reçu|1 190,000|', '15/09|Frais de tenue de compte|11,900|', '22/09|Versement espèces||1 950,000']
+      .map((x) => { const [a, b, c, d] = x.split('|'); return `<tr><td>${a}</td><td>${b}</td><td>${c}</td><td>${d}</td></tr>`; }).join('') + '</table></div>';
+  if (/ticket/i.test(nom)) return `${css}<div class="f" style="width:300px;font-family:monospace"><h1>STATION-SERVICE ROUTE DE BIZERTE</h1><div class="s">24/09/2026 · 07:42 · pompe 3</div><table>`
+    + ligne('Gasoil sans soufre', '') + ligne('27,90 L × 2,150', '60,000') + '<tr class="t"><td>TOTAL DT</td><td>60,000</td></tr>' + ligne('Espèces', '60,000') + '</table><div class="p">Merci de votre visite · ticket n° 118 042</div></div>';
+  if (/contrat|bail|attestation/i.test(nom)) return `${css}<div class="f"><h1>${/attestation/i.test(nom) ? 'ATTESTATION DE SITUATION' : 'CONTRAT DE LOCATION D\'UN LOCAL COMMERCIAL'}</h1><div class="s">${dossier} · page 1 sur 1</div>`
+    + '<p>Le présent document est établi pour servir et valoir ce que de droit. Durée : trois ans, du 1er janvier 2027 au 31 décembre 2029.</p><p>Loyer mensuel : 1 450,000 dinars hors taxes, payable d\'avance le 5 de chaque mois.</p></div>';
+  const [f, n, l] = /electricite/i.test(nom) ? ['STEG · FACTURE D\'ÉLECTRICITÉ ET DE GAZ', 'N° 0298 4471 · du 01/08 au 30/09/2026', [['Consommation électricité (3 120 kWh)', '142,318'], ['Redevances et location du compteur', '22,655']]]
+    : /farine/i.test(nom) ? ['MINOTERIE DU CAP BON', 'Facture n° F-2026-0903 du 03/09/2026', [['Farine boulangère T55, 40 sacs de 50 kg', '1 551,428']]]
+    : /lait/i.test(nom) ? ['CENTRALE LAITIÈRE DU NORD', 'Facture n° CL-20981 du 02/10/2026', [['Lait demi-écrémé, 240 L', '312,000']]]
+    : /hebergement/i.test(nom) ? ['OVH SAS', 'Invoice FR-41720 · 30/09/2026 · EUR', [['Hébergement serveur, 3e trimestre', '87,00 €']]]
+    : ['FOURNITURES EL AMEN', 'Facture n° FA-0921 du 22/10/2026', [['Fournitures diverses', '186,420']]];
+  // Le total : la somme des lignes, au millime (les montants s'écrivent « 1 520,000 »).
+  const millimes = l.reduce((t, x) => t + Math.round(Number(String(x[1]).replace(/[^\d,]/g, '').replace(',', '.')) * 1000), 0);
+  const total = /€/.test(l[0]?.[1] ?? '') ? l[0]?.[1] ?? '' : `${Math.trunc(millimes / 1000).toLocaleString('fr-FR').replace(/\u202f/g, ' ')},${String(millimes % 1000).padStart(3, '0')}`;
+  // (1.173.0) La facture STEG entière, comme la maquette : sa TVA, son total TTC, et ce que Sarra y a noté à la main (sans
+  // eux, la lecture par l'IA ne trouvait ni le total ni l'achat du même montant).
+  if (/electricite/i.test(nom)) return `${css}<div class="f" style="width:380px"><h1>${f}</h1><div class="s">${n} · client : ${dossier}</div><table>${l.map(([a, b]) => ligne(a, b)).join('')}`
+    + ligne('Total hors taxes', total) + ligne('TVA 13 %', '21,446') + '<tr class="t"><td>Total TTC</td><td>186,419 DT</td></tr></table>'
+    + '<div class="p">à payer avant le 15/10/2026 · <i>payé par chèque n° 4410 087 le 12/10 (écrit à la main)</i></div></div>';
+  // (1.173.2) La facture de farine, celle de l'achat FA-0914 que Sarra a saisi (1 846,199 DT) : la même TVA, le même total.
+  if (/farine/i.test(nom)) return `${css}<div class="f" style="width:380px"><h1>${f}</h1><div class="s">${n} · client : ${dossier}</div><table>${l.map(([a, b]) => ligne(a, b)).join('')}`
+    + ligne('Total hors taxes', total) + ligne('TVA 19 %', '294,771') + '<tr class="t"><td>Total TTC</td><td>1 846,199 DT</td></tr></table>'
+    + '<div class="p">reçue le 03/09 · bon de livraison n° 0903-12</div></div>';
+  return `${css}<div class="f"><h1>${f}</h1><div class="s">${n} · client : ${dossier}</div><table>${l.map(([a, b]) => ligne(a, b)).join('')}`
+    + `<tr class="t"><td>Total hors taxes</td><td>${total}</td></tr></table><div class="p">Payable à 30 jours · TVA selon le taux en vigueur</div></div>`;
+};
+type Feuille = { setContent: (h: string) => Promise<void>; pdf: (o: object) => Promise<Buffer>; close: () => Promise<void>;
+  locator: (s: string) => { screenshot: (o: object) => Promise<Buffer> } };
+let navigateur: { newPage: (o?: object) => Promise<Feuille>; close: () => Promise<void> } | null = null;
+try {
+  const { createRequire } = await import('node:module');
+  const { chromium } = createRequire(import.meta.url)('playwright-core');
+  const chemin = fs.readdirSync(NAVIGATEURS).find((d) => /^chromium-\d/.test(d));
+  navigateur = await chromium.launch(chemin ? { executablePath: `${NAVIGATEURS}/${chemin}/chrome-linux/chrome` } : {});
+} catch { navigateur = null; }
+const fichierDe = async (nom: string, dossier: string): Promise<string> => {
+  if (!navigateur) return PNG;
+  // Deux fois plus de points : une photo de téléphone, que l'œil (et l'IA) lisent nettement.
+  const page = await navigateur.newPage({ deviceScaleFactor: 2 });
+  await page.setContent(papier(nom, dossier));
+  const octets: Buffer = /\.pdf$/i.test(nom) ? await page.pdf({ width: '580px', height: '760px', printBackground: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } })
+    : await page.locator('.f').screenshot({ type: 'png' });
+  await page.close();
+  return octets.toString('base64');
+};
+// (1.180.0) La photo d'une page déjà écrite (la facture d'un achat).
+const photoDe = async (html: string): Promise<string> => {
+  if (!navigateur) return PNG;
+  const page = await navigateur.newPage({ deviceScaleFactor: 2 });
+  await page.setContent(html);
+  const octets = await page.locator('.f').screenshot({ type: 'png' });
+  await page.close();
+  return octets.toString('base64');
+};
+// La facture d'un achat de la boulangerie, avec les chiffres de l'achat saisi : HT = quantité × prix au millime, TVA au
+// millime, TTC = HT + TVA (ce que SkanFact calcule de l'achat, donc ce que le cabinet compare).
+const enDinars = (m: number) => `${Math.trunc(m / 1000).toLocaleString('fr-FR').replace(/[\u202f\u00a0]/g, ' ')},${String(m % 1000).padStart(3, '0')}`;
+const factureAchat = (fournisseur: string, numero: string, jour: string, libelle: string, quantite: number, prix: string, taux: number): string => {
+  const ht = Math.round(quantite * Number(prix) * 1000), tva = Math.round(ht * taux / 100);
+  const [a, m, j] = jour.split('-');
+  const ligne = (x: string, y: string) => `<tr><td>${x}</td><td>${y}</td></tr>`;
+  return '<style>body{margin:0;font:13px Helvetica,Arial,sans-serif;color:#23272e}.f{width:420px;padding:28px 30px;background:#fff}'
+    + 'h1{font-size:15px;margin:0 0 2px;letter-spacing:.02em}.s{color:#5b616b;margin-bottom:14px;border-bottom:1.5px solid #23272e;padding-bottom:8px}'
+    + 'table{width:100%;border-collapse:collapse}td{padding:5px 0;border-bottom:1px dotted #c8cdd4}td:last-child{text-align:right}'
+    + '.t td{font-weight:800;border-top:1.5px solid #23272e;border-bottom:0}.p{color:#5b616b;font-size:11px;margin-top:12px}</style>'
+    + `<div class="f"><h1>${fournisseur.toUpperCase()}</h1><div class="s">Facture n° ${numero} du ${j}/${m}/${a} · client : Boulangerie El Amal</div><table>`
+    + ligne(libelle, '') + ligne(`${quantite} × ${prix.replace('.', ',')}`, enDinars(ht))
+    + ligne('Total hors taxes', enDinars(ht)) + ligne(`TVA ${taux} %`, enDinars(tva)) + `<tr class="t"><td>Total TTC</td><td>${enDinars(ht + tva)} DT</td></tr></table>`
+    + '<div class="p">Payable à 30 jours · timbre fiscal non compris</div></div>';
+};
+
 // (1.172.0) La boulangerie telle que le classeur de la maquette la dessine (docs/maquettes/cabinet/classeur.html) : ses
 // achats de chaque mois saisis par Sarra (avec leur justificatif, sauf l'électricité de septembre), ses ventes, sa paie,
 // sa banque au relevé BIAT (juillet rapproché, un chèque d'août sans pièce, septembre à rapprocher). Avant les livres
@@ -130,8 +210,6 @@ const mois = (i: number) => `2026-${String(i + 1).padStart(2, '0')}`;
 const be = entreprise.be ?? '', sarra = gerant.be ?? '';
 {
   await api('GET', `/entreprises/${be}/dossier-v10`, sarra);
-  const pj = await api('POST', `/entreprises/${be}/pieces-jointes`, sarra, { nom: 'facture.png', contenu: PNG });
-  const fiche = { name: pj.name, file: pj.file, size: pj.size, date: pj.date };
   const FOURNISSEURS = [['s-min', 'Minoterie du Cap Bon'], ['s-lev', 'Levures du Sahel'], ['s-hyg', 'Hygiène Plus'], ['s-steg', 'STEG'], ['s-emb', 'Emballages du Sahel']];
   // [clé, fournisseur, numéro, jour, libellé, quantité, prix HT unitaire, TVA, justifié]
   const achats: [string, string, string, string, string, number, string, number, boolean][] = [];
@@ -147,11 +225,21 @@ const be = entreprise.be ?? '', sarra = gerant.be ?? '';
   achats.push(['p-0913', 's-lev', 'FA-0913', '2026-09-10', 'Levure fraîche, 60 kg', 60, '6.339', 7, true]);
   achats.push(['p-0914', 's-min', 'FA-0914', '2026-09-03', 'Farine boulangère T55, 40 sacs de 50 kg', 40, '38.7857', 19, true]);
   achats.push(['p-0919', 's-steg', 'FA-0919', '2026-09-30', 'Électricité et gaz, août et septembre', 1, '164.973', 13, false]);
+  // (1.180.0) Chaque achat justifié a SA facture, dessinée avec ses chiffres : avant, tous portaient la même image d'un
+  // point, et « Ouvrir le justificatif du client » montrait une page vide (Skander, 30/10/2026).
+  const fiches = new Map<string, { name: unknown; file: unknown; size: unknown; date: unknown }>();
+  for (const [id, fournisseur, number, date, label, qty, prix, vatRate, justifie] of achats) {
+    if (!justifie) continue;
+    const nom = FOURNISSEURS.find(([cle]) => cle === fournisseur)?.[1] ?? '';
+    const pj = await api('POST', `/entreprises/${be}/pieces-jointes`, sarra, { nom: `facture-${number}.png`,
+      contenu: await photoDe(factureAchat(nom, number, date, label, qty, prix, vatRate)) });
+    fiches.set(id, { name: pj.name, file: pj.file, size: pj.size, date: pj.date });
+  }
   await api('POST', `/entreprises/${be}/dossier-v10`, sarra, { changements: [
     ...FOURNISSEURS.map(([id, name], rang) => ({ collection: 'suppliers', cle: id, rang, revision: null, contenu: { id, name } })),
     ...achats.map(([id, fournisseur, number, date, label, qty, prix, vatRate, justifie], rang) => ({ collection: 'purchases', cle: id, rang, revision: null, contenu: {
       id, kind: 'facture', number, date, supplierId: fournisseur, currency: 'DT', category: 'Matières premières', fees: 0, withholdingRate: 0, createdAt: 1,
-      attachments: justifie ? [fiche] : [], lines: [{ id: `${id}-l`, label, qty, unitPrice: { '~n': prix }, vatRate, destination: 'charge' }] } })),
+      attachments: justifie ? [fiches.get(id)] : [], lines: [{ id: `${id}-l`, label, qty, unitPrice: { '~n': prix }, vatRate, destination: 'charge' }] } })),
   ] });
   // Les ventes du mois (les factures aux hôtels, la caisse), la paie, et la banque : saisies au cabinet.
   const ecrire = (date: string, journal: string, piece: string, libelle: string, lignes: { compte: string; debit?: string; credit?: string }[]) =>
@@ -226,61 +314,6 @@ for (const d of DOSSIERS) {
     if (!(d.cle === 'sp' && i === g.length - 1)) await api('POST', `/entreprises/${ent}/compta/declarations/${mois(i)}/pointer`, leila, { quoi: 'payee', le: `${mois(i + 1)}-27` });
   }
 }
-
-// Les pièces elles-mêmes, lisibles comme de vraies pièces : une facture, un relevé, un ticket, un document, dessinés par
-// le navigateur de la machine (une photo en PNG, un PDF imprimé). Sans navigateur, une image d'un point.
-const papier = (nom: string, dossier: string): string => {
-  const ligne = (a: string, b: string) => `<tr><td>${a}</td><td>${b}</td></tr>`;
-  const css = '<style>body{margin:0;font:13px Helvetica,Arial,sans-serif;color:#23272e}.f{width:520px;padding:28px 30px;background:#fff}'
-    + 'h1{font-size:15px;margin:0 0 2px;letter-spacing:.02em}.s{color:#5b616b;margin-bottom:14px;border-bottom:1.5px solid #23272e;padding-bottom:8px}'
-    + 'table{width:100%;border-collapse:collapse}td{padding:5px 0;border-bottom:1px dotted #c8cdd4}td:last-child{text-align:right}'
-    + '.t td{font-weight:800;border-top:1.5px solid #23272e;border-bottom:0}.p{color:#5b616b;font-size:11px;margin-top:12px}</style>';
-  if (/relev/i.test(nom)) return `${css}<div class="f"><h1>RELEVÉ DE COMPTE</h1><div class="s">Compte courant · ${dossier} · septembre 2026 · page 1 sur 1</div><table>`
-    + ['01/09|Solde au 31/08||8 412,605', '03/09|Versement espèces||2 300,000', '05/09|Chèque 4410 081|1 846,200|', '10/09|Prélèvement CNSS|612,480|', '12/09|Virement reçu|1 190,000|', '15/09|Frais de tenue de compte|11,900|', '22/09|Versement espèces||1 950,000']
-      .map((x) => { const [a, b, c, d] = x.split('|'); return `<tr><td>${a}</td><td>${b}</td><td>${c}</td><td>${d}</td></tr>`; }).join('') + '</table></div>';
-  if (/ticket/i.test(nom)) return `${css}<div class="f" style="width:300px;font-family:monospace"><h1>STATION-SERVICE ROUTE DE BIZERTE</h1><div class="s">24/09/2026 · 07:42 · pompe 3</div><table>`
-    + ligne('Gasoil sans soufre', '') + ligne('27,90 L × 2,150', '60,000') + '<tr class="t"><td>TOTAL DT</td><td>60,000</td></tr>' + ligne('Espèces', '60,000') + '</table><div class="p">Merci de votre visite · ticket n° 118 042</div></div>';
-  if (/contrat|bail|attestation/i.test(nom)) return `${css}<div class="f"><h1>${/attestation/i.test(nom) ? 'ATTESTATION DE SITUATION' : 'CONTRAT DE LOCATION D\'UN LOCAL COMMERCIAL'}</h1><div class="s">${dossier} · page 1 sur 1</div>`
-    + '<p>Le présent document est établi pour servir et valoir ce que de droit. Durée : trois ans, du 1er janvier 2027 au 31 décembre 2029.</p><p>Loyer mensuel : 1 450,000 dinars hors taxes, payable d\'avance le 5 de chaque mois.</p></div>';
-  const [f, n, l] = /electricite/i.test(nom) ? ['STEG · FACTURE D\'ÉLECTRICITÉ ET DE GAZ', 'N° 0298 4471 · du 01/08 au 30/09/2026', [['Consommation électricité (3 120 kWh)', '142,318'], ['Redevances et location du compteur', '22,655']]]
-    : /farine/i.test(nom) ? ['MINOTERIE DU CAP BON', 'Facture n° F-2026-0903 du 03/09/2026', [['Farine boulangère T55, 40 sacs de 50 kg', '1 551,428']]]
-    : /lait/i.test(nom) ? ['CENTRALE LAITIÈRE DU NORD', 'Facture n° CL-20981 du 02/10/2026', [['Lait demi-écrémé, 240 L', '312,000']]]
-    : /hebergement/i.test(nom) ? ['OVH SAS', 'Invoice FR-41720 · 30/09/2026 · EUR', [['Hébergement serveur, 3e trimestre', '87,00 €']]]
-    : ['FOURNITURES EL AMEN', 'Facture n° FA-0921 du 22/10/2026', [['Fournitures diverses', '186,420']]];
-  // Le total : la somme des lignes, au millime (les montants s'écrivent « 1 520,000 »).
-  const millimes = l.reduce((t, x) => t + Math.round(Number(String(x[1]).replace(/[^\d,]/g, '').replace(',', '.')) * 1000), 0);
-  const total = /€/.test(l[0]?.[1] ?? '') ? l[0]?.[1] ?? '' : `${Math.trunc(millimes / 1000).toLocaleString('fr-FR').replace(/\u202f/g, ' ')},${String(millimes % 1000).padStart(3, '0')}`;
-  // (1.173.0) La facture STEG entière, comme la maquette : sa TVA, son total TTC, et ce que Sarra y a noté à la main (sans
-  // eux, la lecture par l'IA ne trouvait ni le total ni l'achat du même montant).
-  if (/electricite/i.test(nom)) return `${css}<div class="f" style="width:380px"><h1>${f}</h1><div class="s">${n} · client : ${dossier}</div><table>${l.map(([a, b]) => ligne(a, b)).join('')}`
-    + ligne('Total hors taxes', total) + ligne('TVA 13 %', '21,446') + '<tr class="t"><td>Total TTC</td><td>186,419 DT</td></tr></table>'
-    + '<div class="p">à payer avant le 15/10/2026 · <i>payé par chèque n° 4410 087 le 12/10 (écrit à la main)</i></div></div>';
-  // (1.173.2) La facture de farine, celle de l'achat FA-0914 que Sarra a saisi (1 846,199 DT) : la même TVA, le même total.
-  if (/farine/i.test(nom)) return `${css}<div class="f" style="width:380px"><h1>${f}</h1><div class="s">${n} · client : ${dossier}</div><table>${l.map(([a, b]) => ligne(a, b)).join('')}`
-    + ligne('Total hors taxes', total) + ligne('TVA 19 %', '294,771') + '<tr class="t"><td>Total TTC</td><td>1 846,199 DT</td></tr></table>'
-    + '<div class="p">reçue le 03/09 · bon de livraison n° 0903-12</div></div>';
-  return `${css}<div class="f"><h1>${f}</h1><div class="s">${n} · client : ${dossier}</div><table>${l.map(([a, b]) => ligne(a, b)).join('')}`
-    + `<tr class="t"><td>Total hors taxes</td><td>${total}</td></tr></table><div class="p">Payable à 30 jours · TVA selon le taux en vigueur</div></div>`;
-};
-type Feuille = { setContent: (h: string) => Promise<void>; pdf: (o: object) => Promise<Buffer>; close: () => Promise<void>;
-  locator: (s: string) => { screenshot: (o: object) => Promise<Buffer> } };
-let navigateur: { newPage: (o?: object) => Promise<Feuille>; close: () => Promise<void> } | null = null;
-try {
-  const { createRequire } = await import('node:module');
-  const { chromium } = createRequire(import.meta.url)('playwright-core');
-  const chemin = fs.readdirSync(NAVIGATEURS).find((d) => /^chromium-\d/.test(d));
-  navigateur = await chromium.launch(chemin ? { executablePath: `${NAVIGATEURS}/${chemin}/chrome-linux/chrome` } : {});
-} catch { navigateur = null; }
-const fichierDe = async (nom: string, dossier: string): Promise<string> => {
-  if (!navigateur) return PNG;
-  // Deux fois plus de points : une photo de téléphone, que l'œil (et l'IA) lisent nettement.
-  const page = await navigateur.newPage({ deviceScaleFactor: 2 });
-  await page.setContent(papier(nom, dossier));
-  const octets: Buffer = /\.pdf$/i.test(nom) ? await page.pdf({ width: '580px', height: '760px', printBackground: true, margin: { top: '0', right: '0', bottom: '0', left: '0' } })
-    : await page.locator('.f').screenshot({ type: 'png' });
-  await page.close();
-  return octets.toString('base64');
-};
 
 // Ce que les clients ont envoyé : des pièces (une photo, un PDF) et des messages.
 const envoyer = async (cle: string, fichiers: string[], texte: string, repond: Record<string, string> = {}) => {

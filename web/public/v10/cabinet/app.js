@@ -1758,6 +1758,69 @@
   const jourLongMsg = j => `${['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][new Date(`${j}T12:00:00Z`).getUTCDay()]} ${j.slice(8, 10)}/${j.slice(5, 7)}`;
   // « Confier à… » depuis une conversation : la même liste que les Dossiers (chacun avec sa charge) ; le choix passe par
   // confierA (son « Annuler » remet les droits d'avant).
+  // (1.180.0, maquette « Messages » : « Imputer le virement ») La réponse du client dit ce qu'était la ligne restée au
+  // compte d'attente : la fenêtre propose l'écriture (le compte de la question soldé, la contrepartie à choisir, le jour,
+  // le libellé de la réponse). Le montant et son sens viennent du livre (le serveur les relit) ; l'écriture va au
+  // BROUILLARD : elle se relit et se valide dans la saisie, comme toute écriture.
+  async function imputerMsg(id, q, apres) {
+    const im = q.imputation;
+    if (!im) return;
+    const d = (S.dossiers || []).find(x => x.id === id);
+    const somme = money(Number(im.montant));
+    // Le plan du dossier, pour proposer et nommer les comptes (le plan de référence en attendant).
+    let plan = [];
+    api.livre(id, K.today().slice(0, 4)).then(r => { plan = (r && r.livre && r.livre.plan) || []; }, () => { /* le plan de référence suffit */ });
+    const nomDe = c => !c ? ' ' : !/^\d{1,12}$/.test(c) ? 'un compte est un numéro : choisis-le dans la liste, par son nom ou son numéro'
+      : ((plan.find(x => x.compte === c) || {}).libelle || KC.libelleDuPlan(c) || 'ni dans le plan du dossier ni dans le plan de référence : vérifie le numéro');
+    const sortie = im.sens === 'credit' ? 'débité' : 'crédité', entree = im.sens === 'credit' ? 'crédité' : 'débité';
+    const libelle = `Imputation : ${q.reponse}`.slice(0, 120);
+    // Les comptes que la réponse désigne d'ordinaire, proposés (pas imposés) : un acompte ou une avance va au compte des
+    // avances (419 reçues d'un client, 409 versées à un fournisseur), un associé à son compte courant (442) ; sinon le
+    // compte des clients (argent reçu) ou des fournisseurs (argent sorti). Jamais le compte de la question, jamais la
+    // banque : l'argent y est déjà.
+    const recu = im.sens === 'credit';
+    const proposes = [...new Set([
+      ...(/acompte|avance|arrhes/i.test(q.reponse) ? [recu ? '419' : '409'] : []),
+      ...(/associ|g[ée]rant|apport|compte courant/i.test(q.reponse) ? ['442'] : []),
+      recu ? '411' : '401'])].filter(c => c !== im.compte).slice(0, 3);
+    modal(`<h2>Imputer ${im.banque ? 'le virement' : 'le montant'} · ${esc(somme)}</h2>
+      <p class="muted pc-m-sous">${esc(d ? d.name : 'Le client')} a répondu : « ${esc(q.reponse)} »</p>
+      <div class="info-box mb">Le compte ${esc(im.compte)} est ${sortie} de ${esc(somme)} ; le compte que tu choisis est ${entree} d'autant. L'écriture va au brouillard : tu la relis et la valides dans la saisie.</div>
+      <form id="msg-imputer" class="grid-2">
+        <label class="field obligatoire span-2">${lbl('Le compte qui reçoit le montant', 'msg.imputer')}<input name="compte" value="${esc(proposes[0] || '')}" placeholder="411, ou tape « client »" autocomplete="off">
+          <small class="muted bf-nom" id="msg-imp-nom">${esc(nomDe(proposes[0] || ''))}</small></label>
+        <div class="span-2 msg-imp-props"><span class="muted">D'après la réponse${proposes.length > 1 ? ', au choix' : ''} :</span>${proposes.map(c => `<button type="button" class="msg-imp-p${c === proposes[0] ? ' on' : ''}" data-imp-prop="${esc(c)}">${esc(c)} · ${esc(nomDe(c))}</button>`).join('')}</div>
+        <label class="field">Date<input type="date" name="date" value="${esc(K.today())}"></label>
+        <label class="field">Journal<select name="journal"><option value="OD">OD · opérations diverses</option><option value="BQ">BQ · banque</option></select></label>
+        <label class="field span-2">Libellé<input name="libelle" maxlength="500" value="${esc(libelle)}"></label>
+      </form>
+      <div class="modal-actions"><button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Imputer au brouillard</button></div>`,
+      (root, close) => {
+        const champ = $('[name=compte]', root);
+        // Le compte proposé est déjà dans la case : le curseur va au bouton principal, et la liste du plan ne s'ouvre que
+        // si l'on va dans la case (ouverte d'emblée, elle couvrait la fenêtre).
+        if (proposes.length) $('#ok', root).focus();
+        const marquer = () => { $$('[data-imp-prop]', root).forEach(x => x.classList.toggle('on', x.dataset.impProp === champ.value.trim())); };
+        champ.addEventListener('input', () => { $('#msg-imp-nom', root).textContent = nomDe(champ.value.trim()); marquer(); });
+        $$('[data-imp-prop]', root).forEach(x => { x.onclick = () => { champ.value = x.dataset.impProp; $('#msg-imp-nom', root).textContent = nomDe(champ.value); marquer(); }; });
+        suggererCompte(champ, () => KC.comptesProposables(plan).filter(c => c.compte !== im.compte && !(im.banque && /^5/.test(c.compte))),
+          c => { $('#msg-imp-nom', root).textContent = nomDe(c.compte); marquer(); }, () => q.reponse);
+        $('#ok', root).onclick = async () => {
+          const v = n => (($(`[name=${n}]`, root) || {}).value || '').trim();
+          const compte = v('compte');
+          if (!compte) return refus(champ, 'Choisis le compte qui reçoit le montant : sans lui, l\'écriture ne s\'écrit pas.');
+          if (!/^\d{1,12}$/.test(compte)) return refus(champ, `« ${compte} » n'est pas un numéro de compte : cherche-le par son nom dans la liste qui s'ouvre sous la case.`);
+          if (compte === im.compte) return refus(champ, `Le montant sort du compte ${im.compte} : choisis le compte où il va.`);
+          const b = $('#ok', root); b.disabled = true;
+          try {
+            await api.imputerQuestion(id, q.id, { contrepartie: compte, date: v('date'), journal: v('journal') || 'OD', libelle: v('libelle') });
+            close();
+            toast(`Imputé au brouillard : ${somme} sortis du ${im.compte} vers le ${compte}. L'écriture se valide dans la saisie.`);
+            if (apres) await apres();
+          } catch (x) { b.disabled = false; toast(plainError(x), 'error'); }
+        };
+      });
+  }
   function confierMsg(id) {
     const d = (S.dossiers || []).find(x => x.id === id);
     if (!d) return;
@@ -1895,6 +1958,7 @@
       revision: gestes.revision,
       ouvrirPiece: gestes.ouvrirPiece,
       saisirPiece: gestes.saisirPiece,
+      ...(api.imputerQuestion ? { imputer: gestes.imputer } : {}),
       info: info('msg.portee'),
       portee: () => (dir && portee() === 'tous' ? 'tout' : 'mes'),
       ...(dir ? { changerPortee: v => { prefs.set('portee', v === 'tout' ? 'tous' : 'miens'); drawNav(); } } : {}),
@@ -2007,7 +2071,7 @@
       location.hash = '#/dossier/' + encodeURIComponent(id) + '/comptabilite/saisie/' + String(m.ecritLe).slice(0, 4);
       toast('La photo s\'ouvre dans un autre onglet : saisis la pièce ici, en face d\'elle. Elle reste dans votre fil.');
     };
-    if (!ent) { drawBoiteMsg(view, { revision, ouvrirPiece, saisirPiece }); return; }
+    if (!ent) { drawBoiteMsg(view, { revision, ouvrirPiece, saisirPiece, imputer: imputerMsg }); return; }
     const id = decodeURIComponent(ent);
     const d = (S.dossiers || []).find(x => x.id === id);
     // (1.125.0) Une demande préparée depuis une ligne du livre : sa pièce est déjà écrite (une seule fois).
@@ -2024,6 +2088,7 @@
       revision: () => revision(id),
       ouvrirPiece: (genre, piece, libelle) => ouvrirPiece(id, genre, piece, libelle),
       saisirPiece: m => saisirPiece(id, m),
+      ...(api.imputerQuestion ? { imputer: (q, apres) => imputerMsg(id, q, apres) } : {}),
       surAttente: () => { void rafraichirPastilleMessages(); },
     });
   }
