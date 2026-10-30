@@ -325,6 +325,23 @@ for (const d of DOSSIERS) {
   }
 }
 
+// (1.196.0) L'exercice 2025 de trois dossiers, pour l'onglet Bilans du Tableau de bord : le garage a son inventaire et sa
+// revue des comptes (la liasse reste à l'associé), la boulangerie son inventaire (sa période est déjà validée : aucune
+// écriture n'y entre plus), la SARL tenue au cabinet rien encore. La liasse et la clôture ne sont pas aux collaborateurs.
+for (const cle of ['gt', 'be', 'sm']) {
+  const ent = entreprise[cle] ?? '';
+  await api('POST', `/entreprises/${ent}/compta/exercices`, leila, { annee: 2025, ouverture: [] });
+  if (cle !== 'be') {
+    const e = await api('POST', `/entreprises/${ent}/compta/ecritures`, leila, { date: '2025-12-31', journal: 'OD', piece: 'OD-2025-12', libelle: 'Honoraires de décembre',
+      lignes: [{ compte: '6226', debit: '310,500' }, { compte: '4286', credit: '310,500' }] });
+    await api('POST', `/entreprises/${ent}/compta/ecritures/valider`, leila, { ids: [String(e.id)] });
+  }
+  if (cle === 'sm') continue;
+  await api('PUT', `/entreprises/${ent}/compta/inventaires/2025`, leila, { date: '2025-12-31', compte: '31', lignes: [{ ref: 'A1', libelle: cle === 'be' ? 'Farine en stock' : 'Pièces détachées', quantite: '40', cout: '38,500' }] });
+  if (cle === 'gt') await api('PUT', `/cabinets/${cabinet}/revisions/${ent}/2025`, leila, {
+    contenu: { faite: true, faiteLe: Date.parse('2026-03-10T09:00:00Z'), faitePar: 'Leïla Jlassi', comptes: [], notes: [], questionnaire: [] }, revision: null });
+}
+
 // Ce que les clients ont envoyé : des pièces (une photo, un PDF) et des messages.
 const envoyer = async (cle: string, fichiers: string[], texte: string, repond: Record<string, string> = {}) => {
   const j = gerant[cle] ?? '';

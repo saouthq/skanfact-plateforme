@@ -2150,7 +2150,7 @@
     if (route !== routeLue && route === 'dossiers' && routeLue) relirePortefeuille();
     // (plateforme) Le tableau de production se relit quand on ENTRE sur sa page : lu une fois, un mois
     // saisi dans la journée y restait « à saisir » (même règle que le résumé ci-dessus).
-    if (route !== routeLue && route === 'production') { prodState.lignes = null; prodState.erreur = ''; }
+    if (route !== routeLue && route === 'production') { prodState.lignes = null; prodState.erreur = ''; revState = { donnees: null, annee: 0, erreur: '', lecture: false }; tbState.fiche = null; }
     routeLue = route;
     // (plateforme, lot messagerie) La conversation ouverte s'arrête quand on la quitte ; la pastille se lit une première fois.
     if (route !== 'messages' && messagerieOuverte) { messagerieOuverte.arreter(); messagerieOuverte = null; }
@@ -2623,7 +2623,10 @@
   // maquette ». Une page : ce qui est à faire maintenant (les Priorités, le plus pressé d'abord), puis où en est le travail
   // (la campagne du mois, la grille de production, la charge de chacun, les prochaines dates). Tout est LU (les livres,
   // les déclarations pointées) : rien ne se coche ici. Le filtre d'une personne vaut pour toute la page.
-  const tbState = { qui: '', filtre: 'tous', q: '', periode: 6, tout: false, avoir: false, choixP: false };
+  const tbState = { qui: '', filtre: 'tous', q: '', periode: 6, tout: false, avoir: false, choixP: false, vue: 'production', fiche: null };
+  // (1.196.0) Ce que la révision lit dans chaque livre (serveur, /revue) : lu à la demande (onglets Révision et Bilans, fiche
+  // d'un mois), relu en revenant sur la page.
+  let revState = { donnees: null, annee: 0, erreur: '', lecture: false };
   const ETAPES_TB = [['fini', 'Déposée'], ['declare', 'Prête'], ['revise', 'À réviser'], ['saisi', 'À saisir'], ['recu', 'Sans pièces']];
   const SIGNE_TB = { recu: ['○', 'pièces manquantes'], saisi: ['!', 'à saisir'], revise: ['◐', 'à réviser'], declare: ['◉', 'prêt à déposer'], fini: ['✓', 'déposé'], hors: ['–', 'hors mission'] };
   const TB_IC = {
@@ -2731,6 +2734,134 @@
     reviser: x => x.aReviser > 0,
     tenus: x => !!x.d.manual,
   };
+  // ── (1.196.0) Les onglets Production / Révision / Bilans, et ce que lit chacun ──
+  const anneeBilansTb = () => Number(K.today().slice(0, 4)) - 1;
+  const revDe = id => (revState.donnees ? (revState.donnees.dossiers || []).find(x => x.entreprise === id) : null) || null;
+  const exDe = id => (revState.donnees ? (revState.donnees.exercices || []).find(x => x.entreprise === id) : null) || null;
+  const jjmmTb = iso => (iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}` : '');
+  const finMoisTb = m => `${m}-${String(new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)).getUTCDate()).padStart(2, '0')}`;
+  const ecartMoisTb = (de, a) => (Number(a.slice(0, 4)) - Number(de.slice(0, 4))) * 12 + Number(a.slice(5, 7)) - Number(de.slice(5, 7));
+  const bigTb = v => { try { return BigInt(v || 0); } catch { return 0n; } };
+  // Ce qui fait « à revoir » : un relevé en retard sur le mois fini, un compte d'attente pas soldé, des écritures au brouillard.
+  function revueDe(x, moisC) {
+    const rv = revDe(x.d.id);
+    if (!rv) return null;
+    const banqueTard = rv.releves > 0 && moisC && (!rv.rapproche || rv.rapproche < finMoisTb(moisC));
+    const attente = bigTb(rv.attente);
+    return { rv, banqueTard, attente, aRevoir: !!(banqueTard || attente !== 0n || rv.brouillards > 0) };
+  }
+  // L'étape de l'exercice et son retard sur l'échéance annuelle que le cabinet a réglée pour le régime du dossier.
+  function bilanDe(x) {
+    const an = revState.annee || anneeBilansTb(), ex = exDe(x.d.id);
+    if (!ex) return { ex: null, an, retard: 0, suite: '' };
+    const suite = ex.clos ? '' : !ex.inventaire ? 'inventaire à faire' : !ex.revisee ? 'revue des comptes à faire' : !ex.liasse ? 'liasse à préparer' : 'clôture à faire';
+    let retard = 0, echeance = null;
+    const r = K.regimeDe(S, x.d);
+    const dates = ((r && r.annuelles) || []).map(a => ({ a, date: K.dayOf(`${an + 1}-${String(a.mois).padStart(2, '0')}`, a.jour) })).sort((p, q) => (p.date < q.date ? -1 : 1));
+    if (!ex.clos && dates.length && dates[0].date < K.today()) { echeance = dates[0]; retard = Math.max(1, ecartMoisTb(dates[0].date.slice(0, 7), K.today().slice(0, 7))); }
+    return { ex, an, retard, echeance, suite };
+  }
+  function vuesTb(L, P, nRetard) {
+    const lu = !!revState.donnees;
+    const nRev = lu ? L.filter(x => (revueDe(x, P.dernier) || {}).aRevoir).length : 0;
+    const B = lu ? L.map(bilanDe) : [];
+    const nTard = B.filter(b => b.retard).length, nFinir = B.filter(b => b.ex && !b.ex.clos).length;
+    const an = revState.annee || anneeBilansTb();
+    const tag = (cl, t, id = '') => `<span class="tb-cnt ${cl}"${id ? ` id="${id}"` : ''}>${esc(t)}</span>`;
+    const vue = (v, nom, t) => `<button type="button" role="tab" data-tb-vue="${v}" aria-selected="${tbState.vue === v}">${nom}${t}</button>`;
+    return `<div class="segment tb-vues" role="tablist" aria-label="Ce que montre le tableau">${vue('production', 'Production', tag(nRetard ? 'alerte' : 'ok', nRetard ? `${pl(nRetard, 'mois', 'mois')} en retard` : 'à jour', 'tb-retard'))}${vue('revision', 'Révision', lu ? tag(nRev ? 'attire' : 'ok', nRev ? `${nRev} à revoir` : 'à jour') : '')}${vue('bilans', `Bilans ${an}`, lu && B.some(b => b.ex) ? tag(nTard ? 'alerte' : nFinir ? 'attire' : 'ok', nTard ? `${nTard} en retard` : nFinir ? `${nFinir} à finir` : 'tous clos') : '')}</div>`;
+  }
+  // La recherche des onglets Révision et Bilans (la même que la Production), et les états de la lecture.
+  function cadreRevueTb(L, P, vues, sous, corps, note) {
+    const filtres = `<div class="filtres"><label class="cherche">${TB_IC.loupe}<input type="search" id="tb-q" placeholder="Chercher un dossier, un matricule…" aria-label="Chercher un dossier" value="${esc(tbState.q)}"></label></div>`;
+    const tete = `<div class="a-bloc-t"><h2>Les dossiers ${info('eq.production')}</h2>${vues}<span class="small muted tb-sous">${esc(sous)}</span></div>`;
+    const etat = revState.erreur ? `<div class="bandeau rouge" id="tb-rev-refus">${icB('cadenas', 18, 2)}<span class="txt"><b>Les livres ne se sont pas lus</b><span>${esc(revState.erreur)}</span></span><button type="button" class="btn" id="tb-rev-relire">Réessayer</button></div>`
+      : !revState.donnees ? '<div class="tb-vide" id="tb-rev-lecture"><b>Lecture des livres…</b><span>La révision lit chaque livre du portefeuille : le dernier relevé rapproché, le compte d\'attente, le crédit de TVA, le brouillard.</span></div>' : corps;
+    return `<div class="panel tb-p tb-grille" id="tb-dossiers"><div class="lf">${tete}${filtres}${etat}${revState.donnees && note ? `<p class="tb-note">${note}</p>` : ''}</div></div>`;
+  }
+  const filtreQTb = L => { const q = tbState.q.trim().toLowerCase(); return L.filter(x => !q || x.d.name.toLowerCase().includes(q) || String(x.d.matricule || '').toLowerCase().includes(q)); };
+  const videQTb = () => `<div class="tb-vide" id="tb-vide"><b>Aucun dossier ne s'appelle « ${esc(tbState.q)} »</b><span>La recherche lit le nom et le matricule de tous les dossiers que tu suis.</span><button type="button" class="btn btn-sm" id="tb-q-effacer">Effacer la recherche</button></div>`;
+  const celDossierTb = x => `<td class="cl"><span class="cl-i">${marqueD(x.d)}<span><b>${esc(x.d.name)}</b><small>${x.d.manual ? 'Tenu au cabinet' : 'Sur SkanFact'}${estAssocie() && portee() === 'tous' && !tbState.qui && x.eq.suit ? ` · ${esc(prenomDe(x.eq.suit))}` : ''}</small></span></span></td>`;
+  const menuTb = x => `<td class="actions row-actions tb-m"><button type="button" class="row-menu-btn tb-trois" data-rowmenu="TB:${esc(x.d.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="${esc(`Ce qu'on peut faire pour ${x.d.name}`)}" title="Ce qu'on peut faire ici">${TB_IC.trois}</button></td>`;
+  function revisionTb(L, P, vues) {
+    const moisC = P.dernier;
+    const fl = filtreQTb(L).map(x => ({ x, r: revueDe(x, moisC) })).filter(o => o.r);
+    fl.sort((p, q) => Number(q.r.aRevoir) - Number(p.r.aRevoir) || p.x.d.name.localeCompare(q.x.d.name, 'fr'));
+    const auj = K.today();
+    const ligne = ({ x, r }) => {
+      const rv = r.rv, dm = rv.derniere ? rv.derniere.slice(0, 7) : '';
+      const der = !rv.derniere ? '<span class="muted">aucune</span>' : `${esc(jjmmTb(rv.derniere))}${moisC && dm < moisC ? `<small class="tb-at">${dm === moisC.slice(0, 7) ? '' : ecartMoisTb(dm, moisC) === 1 ? `rien pour ${esc(moisLong(moisC))}` : `rien depuis ${esc(moisLong(moisApres(dm)))}`}</small>` : ''}`;
+      const ban = !rv.releves ? '<span class="muted">aucun relevé</span>' : !rv.rapproche ? '<span class="tb-at">aucun relevé rapproché</span>'
+        : `${esc(jjmmTb(rv.rapproche))}${r.banqueTard ? `<small class="tb-at">${pl(Math.max(1, ecartMoisTb(rv.rapproche.slice(0, 7), moisC)), 'mois', 'mois')} en arrière</small>` : ''}`;
+      const att = r.attente === 0n ? '<span class="tb-ok">soldé</span>' : `<b class="tb-al">${esc(enDinars(r.attente))} DT</b>`;
+      const cre = !rv.credit ? '<span class="muted">aucun</span>' : `${esc(enDinars(rv.credit.montant))} DT${rv.credit.depuis < rv.credit.periode ? `<small>reporté depuis ${esc(moisLong(rv.credit.depuis))}</small>` : ''}`;
+      const bro = rv.brouillards ? `<b class="tb-at">${pl(rv.brouillards, 'écriture')}</b>` : '<span class="muted">aucune</span>';
+      return `<tr class="clickable${r.aRevoir ? ' tb-revoir' : ''}" data-tb-id="${esc(x.d.id)}">${celDossierTb(x)}<td>${der}</td><td>${ban}</td><td class="r">${att}</td><td class="r">${cre}</td><td class="r">${bro}</td>${menuTb(x)}</tr>`;
+    };
+    const avecRel = fl.filter(o => o.r.rv.releves > 0), ajourB = avecRel.filter(o => !o.r.banqueTard).length;
+    const sAtt = fl.reduce((t, o) => t + o.r.attente, 0n), nAtt = fl.filter(o => o.r.attente !== 0n).length;
+    const sCre = fl.reduce((t, o) => t + bigTb(o.r.rv.credit && o.r.rv.credit.montant), 0n), nCre = fl.filter(o => o.r.rv.credit).length;
+    const sBro = fl.reduce((t, o) => t + o.r.rv.brouillards, 0);
+    const pied = `<tr class="tb-pied-l"><td><b>Le cabinet</b><small>${pl(fl.length, 'dossier')}</small></td><td></td><td><b>${ajourB} à jour</b><small>sur ${avecRel.length} avec des relevés</small></td><td class="r"><b>${esc(enDinars(sAtt))}</b><small>${nAtt ? pl(nAtt, 'compte à solder', 'comptes à solder') : 'tout est soldé'}</small></td><td class="r">${nCre ? `<b>${esc(enDinars(sCre))}</b><small>${pl(nCre, 'dossier en crédit', 'dossiers en crédit')}</small>` : '<span class="muted">aucun crédit</span>'}</td><td class="r">${sBro ? `<b>${sBro}</b><small>${sBro > 1 ? 'écritures' : 'écriture'}</small>` : '<span class="muted">aucune</span>'}</td><td></td></tr>`;
+    const corps = !fl.length && tbState.q ? videQTb() : `<div class="lf-tab"><table class="lf-table tb-t tb-rev" id="tb-revision"><thead><tr><th>Dossier</th><th>Dernière écriture</th><th>Banque rapprochée</th><th class="r">Compte d'attente</th><th class="r">Crédit de TVA</th><th class="r">Au brouillard</th><th class="cx"></th></tr></thead><tbody>${fl.map(ligne).join('')}</tbody><tfoot>${pied}</tfoot></table></div>`;
+    return cadreRevueTb(L, P, vues, `ce que la révision lit dans chaque livre, au ${jjmmTb(auj)}`, corps,
+      'Tout est lu dans les livres : le dernier relevé de banque entièrement rapproché, le solde du compte d\'attente (471), le crédit de TVA que reporte la dernière déclaration, les écritures au brouillard. Rien ne se coche à la main.');
+  }
+  function bilansTb(L, P, vues) {
+    const an = revState.annee || anneeBilansTb();
+    const fl = filtreQTb(L).map(x => ({ x, b: bilanDe(x) }));
+    const rang = o => (!o.b.ex ? 3 : o.b.ex.clos ? 2 : o.b.retard ? 0 : 1);
+    fl.sort((p, q) => rang(p) - rang(q) || p.x.d.name.localeCompare(q.x.d.name, 'fr'));
+    const ok = (v, titre) => (v ? `<span class="prod-p prod-fini" title="${esc(titre)}" aria-label="${esc(titre)}">✓</span>` : '<span class="prod-p prod-avenir" aria-label="pas encore"></span>');
+    const ligne = ({ x, b }) => {
+      if (!b.ex) {
+        const debut = String(x.d.from || '').slice(0, 7);
+        return `<tr class="clickable" data-tb-id="${esc(x.d.id)}">${celDossierTb(x)}<td class="c muted">–</td><td class="c muted">–</td><td class="c muted">–</td><td class="c muted">–</td><td><small class="muted">pas de livre ${an}${debut && debut > `${an}-12` ? ` · mission depuis ${esc(moisLong(debut))} ${esc(debut.slice(0, 4))}` : ''}</small></td>${menuTb(x)}</tr>`;
+      }
+      const ex = b.ex;
+      const ou = ex.clos ? `<b class="tb-ok">Clos le ${esc(fmtJourCourt(ex.clos))}</b>` : `<b>${esc(b.suite)}</b>${b.retard ? `<small class="tb-al">${esc(b.echeance.a.label)} : date passée depuis ${pl(b.retard, 'mois', 'mois')} (le ${esc(jjmmTb(b.echeance.date))}, À VÉRIFIER)</small>` : ''}`;
+      return `<tr class="clickable${b.retard ? ' tb-revoir' : ''}" data-tb-id="${esc(x.d.id)}" data-tb-an="${an}">${celDossierTb(x)}<td class="c">${ok(ex.inventaire, ex.inventaire ? `inventaire saisi au ${fmtJourCourt(ex.inventaire)}` : '')}</td><td class="c">${ok(ex.revisee, 'révision de l\'année arrêtée')}</td><td class="c">${ok(ex.liasse, 'liasse préparée')}</td><td class="c">${ok(ex.clos, 'exercice clos')}</td><td>${ou}</td>${menuTb(x)}</tr>`;
+    };
+    const aucun = !fl.some(o => o.b.ex);
+    const corps = !fl.length && tbState.q ? videQTb() : aucun && !tbState.q ? `<div class="tb-vide" id="tb-bil-vide"><b>Aucun livre ${an} dans le portefeuille</b><span>Les bilans ${an} se suivent ici, étape par étape, dès qu'un dossier a son livre ${an} : repris d'un FEC, ou saisi au cabinet. Les dossiers suivis cette année ont leur bilan l'an prochain.</span></div>` : `<div class="lf-tab"><table class="lf-table tb-t tb-bil" id="tb-bilans"><thead><tr><th>Dossier</th><th class="c">Inventaire</th><th class="c">Revue des comptes</th><th class="c">Liasse</th><th class="c">Clôture</th><th>Où en est ${an}</th><th class="cx"></th></tr></thead><tbody>${fl.map(ligne).join('')}</tbody></table></div>`;
+    return cadreRevueTb(L, P, vues, `l'exercice ${an}, étape par étape`, corps,
+      `Chaque étape est lue : l'inventaire saisi, la révision de l'année arrêtée, la liasse préparée (retraitements et taux posés), l'exercice clos. « Date passée » compte depuis l'échéance annuelle que tu as réglée pour le régime du dossier (Le cabinet › Réglages), À VÉRIFIER avec un comptable.`);
+  }
+  // ── (1.196.0, maquette « La fiche d'un mois ») Une case de la grille, ouverte : ses quatre étapes, lues dans le livre ──
+  function ficheMoisTb(L) {
+    const f = tbState.fiche;
+    if (!f) return '';
+    const x = L.find(y => y.d.id === f.id), c = x && x.mois.get(f.mois);
+    if (!x || !c) return '';
+    const d = x.d, tard = x.retard.includes(f.mois), due = dueTb(d, f.mois);
+    const etat = (SIGNE_TB[c.etape] || [])[1] || '';
+    const ton = c.etape === 'fini' ? 'ok' : tard ? 'alerte' : 'attire';
+    const et = (fait, titre, sous, ici, rouge) => `<li class="${ici ? 'ici' : ''}${rouge ? ' retard' : ''}"><span class="prod-p ${fait ? 'prod-fini' : ici ? `prod-${c.etape}` : 'prod-avenir'}">${fait ? '✓' : ici ? esc(SIGNE_TB[c.etape][0]) : ''}</span><span><b>${esc(titre)}</b><small>${sous}</small></span></li>`;
+    const recuF = c.recu === null || c.recu, saisiF = c.saisi > 0, revF = c.revise === true, decF = c.declare === true;
+    const etapes = [
+      et(recuF, 'Pièces reçues', c.recu === null ? 'tenu au cabinet : les pièces papier' : c.recu ? 'des écritures du client ce mois' : 'rien reçu ce mois', !recuF, false),
+      et(saisiF, 'Saisie', saisiF ? `${pl(c.saisi, 'écriture')}${c.qui ? ` · dernier geste : ${esc(c.qui)}` : ''}` : 'rien de saisi', recuF && !saisiF, false),
+      et(revF, 'Révision', revF ? 'arrêtée' : c.brouillards ? `${pl(c.brouillards, 'écriture')} au brouillard · pas encore arrêtée` : 'pas encore arrêtée', saisiF && !revF && !decF, false),
+      et(decF, 'Déclaration', decF ? 'déposée' : `due le ${esc(jjmmTb(due))}${tard ? ` · en retard de ${pl(Math.max(1, joursEntre(due, K.today())), 'jour')}` : ' (À VÉRIFIER)'}`, (revF || c.etape === 'declare') && !decF, tard && !decF),
+    ].join('');
+    const r = revueDe(x, f.mois);
+    const faits = r ? `<div class="tb-mc-f"><span>Banque rapprochée<b${r.banqueTard ? ' class="attire"' : ''}>${r.rv.rapproche ? `au ${esc(jjmmTb(r.rv.rapproche))}` : r.rv.releves ? 'aucun relevé' : 'aucun relevé importé'}</b></span><span>Compte d'attente<b${r.attente !== 0n ? ' class="attire"' : ''}>${r.attente === 0n ? 'soldé' : `${esc(enDinars(r.attente))} DT`}</b></span><span>Au brouillard<b${r.rv.brouillards ? ' class="attire"' : ''}>${r.rv.brouillards ? pl(r.rv.brouillards, 'écriture') : 'aucune'}</b></span></div>` : `<div class="tb-mc-f tb-mc-lect"><span>${revState.erreur ? 'La banque et le compte d\'attente ne se sont pas lus.' : 'Lecture de la banque et du compte d\'attente…'}</span></div>`;
+    const an = f.mois.slice(0, 4);
+    const prim = c.brouillards && !revF ? ['saisie', `Voir les ${c.brouillards} au brouillard`] : c.etape === 'declare' ? ['declaration', 'Préparer la déclaration'] : ['journal', `Ouvrir ${moisLong(f.mois)}`];
+    return `${telTb() ? '<div class="tb-mc-voile" id="tb-fiche-voile"></div>' : ''}<div class="tb-mc" id="tb-fiche" role="dialog" aria-label="${esc(`${d.name} · ${moisLong(f.mois)} ${an}`)}"><span class="tb-mc-p" aria-hidden="true"></span>
+      <div class="tb-mc-t">${marqueD(d)}<span><b>${esc(d.name)} · ${esc(moisLong(f.mois))} ${esc(an)}</b><small>${x.eq.suit ? `<span>suivi par ${esc(prenomDe(x.eq.suit))}</span>` : ''}<span class="tb-cnt ${ton}">${esc(etat)}${tard ? ', en retard' : ''}</span></small></span><button type="button" class="tb-mc-x" id="tb-fiche-x" aria-label="Fermer">${icB('fermer', 14, 2.2)}</button></div>
+      <ol class="tb-mc-et">${etapes}</ol>${faits}
+      <div class="tb-mc-a"><button type="button" class="btn btn-sm btn-primary" data-tb-ouvrir="${prim[0]}">${esc(prim[1])}</button>${prim[0] !== 'journal' ? `<button type="button" class="btn btn-sm" data-tb-ouvrir="journal">Ouvrir ${esc(moisLong(f.mois))}</button>` : ''}</div>
+      <p class="tb-mc-n">Tout est lu dans le livre : rien ne se coche ici.</p></div>`;
+  }
+  async function lireRevueTb(view, etat) {
+    if (!api.revue || revState.lecture || revState.donnees) return;
+    revState.lecture = true; revState.erreur = '';
+    const an = anneeBilansTb();
+    try { revState.donnees = await api.revue(an); revState.annee = an; } catch (e) { revState.erreur = plainError(e); }
+    revState.lecture = false;
+    if (/^#\/production/.test(location.hash) && $('#page-bord')) pageTableau(view, etat);
+  }
   function grilleTb(L, P) {
     const tousCab = estAssocie() && portee() === 'tous' && !tbState.qui;
     const moisC = P.dernier;
@@ -2751,7 +2882,9 @@
     const perDe = perso ? tbState.periode.de : tousM[Math.max(0, tousM.length - 6)], perA = perso ? tbState.periode.a : tousM[tousM.length - 1];
     const per = tousM.length > 1 ? `<span class="tb-per-w"><button type="button" class="btn tb-per-b" id="tb-per" aria-expanded="${!!tbState.choixP}" aria-pressed="${perso}">${TB_IC.cal}${perso ? `${esc(moisCourt(P.cols[0]))} – ${esc(moisCourt(P.dernier))} ${esc(P.dernier.slice(0, 4))}` : 'Une période…'}</button>${tbState.choixP ? `<div class="tb-per-pop" id="tb-per-pop" role="dialog" aria-label="Choisir une période"><label>Du <select id="tb-per-de">${optM(perDe)}</select></label><label>au <select id="tb-per-a">${optM(perA)}</select></label><span class="tb-per-g"><button type="button" class="btn btn-sm btn-primary" id="tb-per-ok">Voir ces mois</button>${perso ? '<button type="button" class="btn btn-sm" id="tb-per-x">Six derniers mois</button>' : ''}</span></div>` : ''}</span>` : '';
     const filtres = `<div class="filtres"><label class="cherche">${TB_IC.loupe}<input type="search" id="tb-q" placeholder="Chercher un dossier, un matricule…" aria-label="Chercher un dossier" value="${esc(tbState.q)}"></label>${seg}${per}</div>`;
-    const tete = `<div class="a-bloc-t"><h2>Les dossiers ${info('eq.production')}</h2><span class="tb-cnt ${nRetard ? 'alerte' : 'ok'}" id="tb-retard">${nRetard ? `${pl(nRetard, 'mois', 'mois')} en retard` : 'à jour'}</span><span class="small muted tb-sous">${esc([P.titre, P.sous].filter(Boolean).join(' · '))}</span></div>`;
+    const tete = `<div class="a-bloc-t"><h2>Les dossiers ${info('eq.production')}</h2>${vuesTb(L, P, nRetard)}<span class="small muted tb-sous">${esc([P.titre, P.sous].filter(Boolean).join(' · '))}</span></div>`;
+    if (tbState.vue === 'revision') return revisionTb(L, P, vuesTb(L, P, nRetard));
+    if (tbState.vue === 'bilans') return bilansTb(L, P, vuesTb(L, P, nRetard));
     const cell = (x, m) => {
       if (m > P.dernier) return '<td class="c tb-c"><span class="prod-p prod-avenir" aria-label="pas fini"></span></td>';
       const c = x.mois.get(m);
@@ -2762,7 +2895,8 @@
         c.saisi ? `${pl(c.saisi, 'écriture')} dont ${c.brouillards} au brouillard` : 'rien de saisi',
         `révisé : ${c.revise === null ? '—' : c.revise ? 'oui' : 'non'}`, `déclaré : ${c.declare === null ? '—' : c.declare ? 'oui' : 'non'}`,
         c.qui ? `dernier geste : ${c.qui}` : ''].filter(Boolean).join(' · ');
-      return `<td class="c tb-c"><span class="prod-p prod-${esc(c.etape)}${tard ? ' tb-tard' : ''}" data-mois="${esc(m)}" aria-label="${esc(moisLong(m))} : ${esc((SIGNE_TB[c.etape] || [])[1] || '')}${tard ? ', en retard' : ''}" title="${esc(cap(moisLong(m)))} ${esc(m.slice(0, 4))} : ${esc((SIGNE_TB[c.etape] || [])[1] || '')}${tard ? `, en retard depuis le ${jourMois(dueTb(x.d, m))}` : ''} — ${esc(detail)}">${esc((SIGNE_TB[c.etape] || ['?'])[0])}</span></td>`;
+      // (1.196.0) Une case est un bouton : elle ouvre la fiche de son mois (au doigt, sa cible fait 44 points).
+      return `<td class="c tb-c"><button type="button" class="tb-case" data-tb-case="${esc(m)}" aria-expanded="${!!(tbState.fiche && tbState.fiche.id === x.d.id && tbState.fiche.mois === m)}" aria-label="${esc(moisLong(m))} : ${esc((SIGNE_TB[c.etape] || [])[1] || '')}${tard ? ', en retard' : ''}" title="${esc(cap(moisLong(m)))} ${esc(m.slice(0, 4))} : ${esc((SIGNE_TB[c.etape] || [])[1] || '')}${tard ? `, en retard depuis le ${jourMois(dueTb(x.d, m))}` : ''} — ${esc(detail)}"><span class="prod-p prod-${esc(c.etape)}${tard ? ' tb-tard' : ''}" data-mois="${esc(m)}" aria-hidden="true">${esc((SIGNE_TB[c.etape] || ['?'])[0])}</span></button></td>`;
     };
     const avance = x => {
       const vus = P.cols.filter(m => m > P.dernier || (x.mois.has(m) && x.mois.get(m).etape !== 'hors'));
@@ -2790,7 +2924,7 @@
         })())
       : `<div class="lf-tab"><table class="lf-table tb-t" id="tb-grille"><thead>${th}</thead><tbody>${montre.map(ligne).join('')}</tbody><tfoot>${pied}</tfoot></table></div>${tri.length > montre.length ? `<div class="tb-pager"><span class="mu">1–${montre.length} sur ${tri.length} dossiers</span><button type="button" class="btn btn-sm" id="tb-tout">Voir les ${tri.length - montre.length} autres</button></div>` : ''}`;
     const leg = `<div class="leg tb-leg">${['recu', 'saisi', 'revise', 'declare', 'fini', 'hors'].map(e => `<span><span class="prod-p prod-${e}">${SIGNE_TB[e][0]}</span>${SIGNE_TB[e][1]}</span>`).join('')}${P.cols.some(m => m > P.dernier) ? '<span><span class="prod-p prod-avenir"></span>à venir</span>' : ''}</div>`;
-    return `<div class="panel tb-p tb-grille" id="tb-dossiers"><div class="lf">${tete}${filtres}${puces}${corps}${leg}</div></div>`;
+    return `<div class="panel tb-p tb-grille" id="tb-dossiers"><div class="lf">${tete}${filtres}${puces}${corps}${leg}</div>${ficheMoisTb(L)}</div>`;
   }
   const ROLE_TB = { supervision: 'direction du cabinet', validation: 'tenue des dossiers', revision: 'tenue des dossiers', saisie: 'saisie', paie: 'paie' };
   // La charge de chacun : ce qui attend chaque personne (saisir revient à qui suit ; réviser et déposer, à qui valide).
@@ -2802,10 +2936,12 @@
     const rows = equipe.map(c => {
       const n = PARTS.map(([k], i) => L.reduce((t, x) => t + (((i === 0 ? x.eq.suit : x.eq.val || x.eq.suit) || {}).id === c.id ? x[k] : 0), 0));
       const attend = L.filter(x => (x.eq.suit || {}).id === c.id && !x.d.manual).reduce((t, x) => t + x.manque, 0);
-      return { c, n, tot: n.reduce((a, b) => a + b, 0), attend };
+      // (1.196.0) Les bilans en retard reviennent à qui valide (sinon à qui suit), une fois la revue lue.
+      const bil = revState.donnees ? L.filter(x => ((x.eq.val || x.eq.suit) || {}).id === c.id && bilanDe(x).retard).length : 0;
+      return { c, n, tot: n.reduce((a, b) => a + b, 0) + bil, attend, bil };
     });
     const max = Math.max(1, ...rows.map(r => r.tot));
-    return `<div class="panel a-top tb-charge" id="tb-charge"><div class="a-bloc-t"><h2>La charge de chacun</h2><span class="small muted">ce qui attend la personne</span></div><ul class="rank">${rows.map(r => `<li><button type="button" class="top-l${tbState.qui === r.c.id ? ' tb-on' : ''}" data-tb-qui="${esc(r.c.id)}" title="Ne voir que les dossiers de ${esc(r.c.nom)}">${persCd(r.c, 30)}<span class="top-n"><b class="name">${esc(r.c.nom)} <small class="mu">· ${esc(ROLE_TB[r.c.role] || r.c.role || '')}</small></b>${r.tot ? `<span class="tb-pile" style="width:${Math.max(4, Math.round(r.tot / max * 100))}%">${r.n.map((v, i) => (v ? `<em class="tb-cb-${PARTS[i][2]}" style="flex:${v}" title="${v} ${PARTS[i][1]}"></em>` : '')).join('')}</span>` : ''}<small class="tb-ch-s">${r.n.map((v, i) => (v ? `${v} ${PARTS[i][1]}` : '')).filter(Boolean).join(' · ') || 'rien qui attende'}${r.attend ? ` · ${pl(r.attend, 'mois attend', 'mois attendent')} le client` : ''}</small></span><span class="amt${r.tot ? '' : ' tb-zero'}">${r.tot}</span></button></li>`).join('')}</ul>
+    return `<div class="panel a-top tb-charge" id="tb-charge"><div class="a-bloc-t"><h2>La charge de chacun</h2><span class="small muted">ce qui attend la personne</span></div><ul class="rank">${rows.map(r => `<li><button type="button" class="top-l${tbState.qui === r.c.id ? ' tb-on' : ''}" data-tb-qui="${esc(r.c.id)}" title="Ne voir que les dossiers de ${esc(r.c.nom)}">${persCd(r.c, 30)}<span class="top-n"><b class="name">${esc(r.c.nom)} <small class="mu">· ${esc(ROLE_TB[r.c.role] || r.c.role || '')}</small></b>${r.tot ? `<span class="tb-pile" style="width:${Math.max(4, Math.round(r.tot / max * 100))}%">${r.n.map((v, i) => (v ? `<em class="tb-cb-${PARTS[i][2]}" style="flex:${v}" title="${v} ${PARTS[i][1]}"></em>` : '')).join('')}</span>` : ''}<small class="tb-ch-s">${[...r.n.map((v, i) => (v ? `${v} ${PARTS[i][1]}` : '')), r.bil ? `${r.bil} bilan ${revState.annee} en retard` : ''].filter(Boolean).join(' · ') || 'rien qui attende'}${r.attend ? ` · ${pl(r.attend, 'mois attend', 'mois attendent')} le client` : ''}</small></span><span class="amt${r.tot ? '' : ' tb-zero'}">${r.tot}</span></button></li>`).join('')}</ul>
       <p class="tb-note">Saisir revient à qui suit le dossier ; réviser et déposer, à qui valide${(() => {
         // (1.195.0) Qui valide pour qui, quand ce n'est pas la même personne (« Leïla pour les dossiers de Rim »).
         const paires = [...new Set(L.filter(x => x.eq.val && x.eq.suit && x.eq.val.id !== x.eq.suit.id).map(x => `${prenomDe(x.eq.val)} pour les dossiers de ${prenomDe(x.eq.suit)}`))];
@@ -2838,6 +2974,18 @@
       ${u.length ? `<p class="groupe-cab">Urgent · ${u.length}</p><div class="carte-cab afaire">${u.map(([x, i]) => lignePriorite(x, i, 'u')).join('')}</div>` : ''}
       ${v.length ? `<button type="button" class="groupe-cab tb-avoir-b" id="tb-avoir" aria-expanded="${tbState.avoir || !u.length}">À voir · ${v.length} <span class="chev">${TB_IC.chev}</span></button>${tbState.avoir || !u.length ? `<div class="carte-cab afaire">${v.map(([x, i]) => lignePriorite(x, i, 'v')).join('')}</div>` : ''}` : ''}</div>`;
   }
+  // (1.196.0) La fiche d'un mois se referme à Échap et d'un clic ailleurs (pas sur une autre case : elle s'y déplace).
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape' || !tbState.fiche || !/^#\/production/.test(location.hash) || $('#modal-root').children.length) return;
+    const v = $('#view'), cel = tbState.fiche;
+    tbState.fiche = null; pageTableau(v, '');
+    const c = $(`#tb-grille tr[data-tb-id="${CSS.escape(cel.id)}"] [data-tb-case="${cel.mois}"]`, v); if (c) c.focus();
+  });
+  document.addEventListener('click', e => {
+    if (!tbState.fiche || !/^#\/production/.test(location.hash) || !e.target.isConnected) return;
+    if (e.target.closest('#tb-fiche, #tb-grille [data-tb-case], #modal-root, .row-menu')) return;
+    tbState.fiche = null; pageTableau($('#view'), '');
+  });
   async function drawTableau(view) {
     if (!prodState.lignes && !prodState.erreur) {
       pageTableau(view, 'chargement');
@@ -2904,6 +3052,26 @@
     const q = $('#tb-q', view);
     if (q) q.oninput = () => { const pos = q.selectionStart; tbState.q = q.value; tbState.tout = false; pageTableau(view, etat); const n = $('#tb-q', view); if (n) { n.focus(); n.setSelectionRange(pos, pos); } };
     const qe = $('#tb-q-effacer', view); if (qe) qe.onclick = () => { tbState.q = ''; pageTableau(view, etat); };
+    // (1.196.0) Les onglets ; Révision et Bilans lisent les livres à la demande.
+    $$('[data-tb-vue]', view).forEach(b => { b.onclick = () => { tbState.vue = b.dataset.tbVue; tbState.fiche = null; tbState.choixP = false; pageTableau(view, etat); if (tbState.vue !== 'production') void lireRevueTb(view, etat); }; });
+    const rr = $('#tb-rev-relire', view); if (rr) rr.onclick = () => { revState = { donnees: null, annee: 0, erreur: '', lecture: false }; pageTableau(view, etat); void lireRevueTb(view, etat); };
+    if (tbState.vue !== 'production' && !revState.donnees && !revState.erreur) void lireRevueTb(view, etat);
+    // La fiche d'un mois : une case ouverte, posée sous elle (du bas, au téléphone).
+    const fiche = $('#tb-fiche', view);
+    if (fiche) {
+      const cel = $(`#tb-grille tr[data-tb-id="${CSS.escape(tbState.fiche.id)}"] [data-tb-case="${tbState.fiche.mois}"]`, view), box = $('#tb-dossiers', view);
+      if (cel && box && !telTb()) {
+        const rc = cel.getBoundingClientRect(), rb = box.getBoundingClientRect();
+        const gauche = Math.max(12, Math.min(rc.left - rb.left + rc.width / 2 - 200, rb.width - 412));
+        fiche.style.left = `${gauche}px`; fiche.style.top = `${rc.bottom - rb.top + 10}px`;
+        const pointe = $('.tb-mc-p', fiche); if (pointe) pointe.style.left = `${rc.left - rb.left + rc.width / 2 - gauche - 7}px`;
+      }
+      const fermer = () => { tbState.fiche = null; pageTableau(view, etat); };
+      $('#tb-fiche-x', view).onclick = fermer;
+      const voile = $('#tb-fiche-voile', view); if (voile) voile.onclick = fermer;
+      $$('[data-tb-ouvrir]', fiche).forEach(b => { b.onclick = () => { const f = tbState.fiche; tbState.fiche = null; location.hash = `#/dossier/${encodeURIComponent(f.id)}/comptabilite/${b.dataset.tbOuvrir}/${f.mois.slice(0, 4)}`; }; });
+      if (!revState.donnees && !revState.erreur) void lireRevueTb(view, etat);
+    }
     const pb = $('#tb-per', view); if (pb) pb.onclick = () => { tbState.choixP = !tbState.choixP; pageTableau(view, etat); };
     const pok = $('#tb-per-ok', view);
     if (pok) pok.onclick = () => { const de = $('#tb-per-de', view).value, a = $('#tb-per-a', view).value; tbState.periode = de <= a ? { de, a } : { de: a, a: de }; tbState.choixP = false; pageTableau(view, etat); };
@@ -2911,7 +3079,19 @@
     const tt = $('#tb-tout', view); if (tt) tt.onclick = () => { tbState.tout = true; pageTableau(view, etat); };
     const rl = $('#tb-relire', view); if (rl) rl.onclick = () => { prodState.lignes = null; prodState.erreur = ''; drawTableau(view); };
     const vd = $('#tb-vers-dossiers', view); if (vd) vd.onclick = () => { if (tbState.qui) { tbState.qui = ''; pageTableau(view, etat); } else location.hash = '#/dossiers'; };
-    $$('#tb-grille tbody tr[data-tb-id]', view).forEach(tr => { tr.onclick = e => { if (e.target.closest('.row-actions, [data-rowmenu]')) return; location.hash = `#/dossier/${encodeURIComponent(tr.dataset.tbId)}/comptabilite`; }; });
+    $$('#tb-grille tbody tr[data-tb-id], #tb-revision tbody tr[data-tb-id], #tb-bilans tbody tr[data-tb-id]', view).forEach(tr => { tr.onclick = e => {
+      if (e.target.closest('.row-actions, [data-rowmenu]')) return;
+      // Une case de la grille ouvre la fiche de son mois ; le reste de la ligne, la comptabilité (l'exercice, dans Bilans).
+      const cel = e.target.closest('[data-tb-case]');
+      if (cel) {
+        tbState.fiche = tbState.fiche && tbState.fiche.id === tr.dataset.tbId && tbState.fiche.mois === cel.dataset.tbCase ? null : { id: tr.dataset.tbId, mois: cel.dataset.tbCase };
+        pageTableau(view, etat);
+        // Au clavier (Entrée, Espace : un clic sans souris), la main passe à la fiche.
+        if (!e.detail) { const fx = $('#tb-fiche-x', view); if (fx) fx.focus({ preventScroll: true }); }
+        return;
+      }
+      location.hash = `#/dossier/${encodeURIComponent(tr.dataset.tbId)}/comptabilite${tr.dataset.tbAn ? `/exercice/${tr.dataset.tbAn}` : ''}`;
+    }; });
     RowMenu.brancherMenus(view, id => {
       if (!id.startsWith('TB:')) return [];
       const d = (S.dossiers || []).find(x => x.id === id.slice(3));

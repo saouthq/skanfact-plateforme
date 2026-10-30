@@ -66,7 +66,7 @@
 
 /* La grille des dossiers */
 #page-bord .panel.tb-p { padding: 16px 18px; position: relative; }
-#page-bord .tb-grille .lf { gap: 12px; display: grid; }
+#page-bord .tb-grille .lf { gap: 12px; display: grid; grid-template-columns: minmax(0, 1fr); }
 #page-bord .tb-grille .filtres { flex-wrap: wrap; }
 #page-bord .tb-grille .cherche { flex: 1 1 220px; }
 .tb-sous { flex-basis: 100%; }
@@ -225,3 +225,60 @@
   .tb-per-w { display: none; }
 }
 .tb-dem-code { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+/* (1.196.0) Les onglets Production / Révision / Bilans (maquette « La révision » et « La clôture ») */
+#page-bord .tb-vues { margin-left: auto; align-self: center; }
+#page-bord .tb-vues button { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.tb-cnt.attire { background: var(--sb-ambre-doux, #fdf0d5); color: var(--sb-ambre-texte); }
+.tb-at { color: var(--sb-ambre-texte); }
+small.tb-at { display: block; font-size: 11.5px; font-weight: 500; }
+.tb-al { color: var(--sb-rouge-texte, #b42318); }
+small.tb-al { display: block; font-size: 11.5px; font-weight: 500; }
+.tb-ok { color: var(--sb-doux-texte); font-weight: 600; }
+#page-bord .lf table.tb-rev td, #page-bord .lf table.tb-bil td { padding: 9px 8px; font-variant-numeric: tabular-nums; vertical-align: middle; }
+#page-bord .lf table.tb-rev td small, #page-bord .lf table.tb-bil td small:not(.tb-al) { display: block; font-size: 11.5px; color: var(--sb-gris-2); }
+#page-bord .lf table.tb-rev td.r, #page-bord .lf table.tb-rev th.r { text-align: right; }
+#page-bord .lf table.tb-bil th.c, #page-bord .lf table.tb-bil td.c { width: 96px; text-align: center; }
+#page-bord .lf table.tb-rev tr.tb-revoir td:first-child, #page-bord .lf table.tb-bil tr.tb-revoir td:first-child { box-shadow: inset 3px 0 0 var(--sb-ambre-texte); }
+#page-bord .lf table.tb-rev tfoot td { background: var(--sb-papier-2); border-bottom: 0; font-size: 12.5px; }
+#page-bord .lf table.tb-rev tfoot td small { font-size: 11px; color: var(--sb-gris-2); display: block; }
+#page-bord #tb-revision tr:has(.tb-trois[aria-expanded="true"]) td, #page-bord #tb-bilans tr:has(.tb-trois[aria-expanded="true"]) td { background: color-mix(in srgb, var(--sb-doux) 45%, var(--sb-papier)); }
+#page-bord .tb-case { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: none; cursor: pointer; vertical-align: middle; }
+#page-bord .tb-case:hover .prod-p { box-shadow: 0 0 0 3px color-mix(in srgb, var(--sb-sarcelle) 30%, transparent); }
+#page-bord .tb-case:focus-visible { outline: 2px solid var(--sb-sarcelle); outline-offset: 1px; }
+/* La fiche d'un mois : posée sous sa case (du bas de l'écran, au téléphone) */
+.tb-mc { position: absolute; z-index: 70; width: 400px; max-width: calc(100% - 24px); box-sizing: border-box; display: grid; gap: 12px; padding: 14px 16px; border-radius: 16px; background: var(--sb-papier); box-shadow: var(--sb-ombre-pop, 0 18px 50px rgba(15, 23, 42, .18)); border: 1px solid var(--sb-trait); }
+.tb-mc-p { position: absolute; top: -8px; width: 14px; height: 14px; background: var(--sb-papier); border-left: 1px solid var(--sb-trait); border-top: 1px solid var(--sb-trait); transform: rotate(45deg); }
+.tb-mc-t { display: flex; align-items: center; gap: 10px; }
+.tb-mc-t > span:nth-child(2) { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.tb-mc-t b { font-size: 14px; color: var(--sb-encre); }
+.tb-mc-t small { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 12px; color: var(--sb-gris-2); }
+.tb-mc-x { width: 32px; height: 32px; border: 0; border-radius: 8px; background: none; color: var(--sb-gris-2); cursor: pointer; display: grid; place-items: center; flex: none; }
+.tb-mc-x:hover { background: var(--sb-survol); color: var(--sb-encre); }
+.tb-mc-et { list-style: none; margin: 0; padding: 0; display: grid; }
+.tb-mc-et li { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 6px 0; }
+.tb-mc-et li:not(:last-child)::after { content: ''; position: absolute; left: 10px; top: 30px; bottom: -4px; width: 2px; background: var(--sb-trait); }
+.tb-mc-et li .prod-p { width: 22px; height: 22px; font-size: 12px; flex: none; position: relative; z-index: 1; }
+.tb-mc-et li > span:last-child { display: grid; }
+.tb-mc-et b { font-size: 13px; color: var(--sb-encre); }
+.tb-mc-et small { font-size: 12px; color: var(--sb-gris); }
+.tb-mc-et li.ici { background: color-mix(in srgb, var(--sb-ambre-doux, #fdf0d5) 55%, transparent); margin: 0 -8px; padding-inline: 8px; border-radius: 9px; }
+.tb-mc-et li.ici::after { left: 18px; }
+.tb-mc-et li.retard small { color: var(--sb-rouge-texte, #b42318); font-weight: 600; }
+.tb-mc-f { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; padding: 10px 0; border-top: 1px solid var(--sb-trait); border-bottom: 1px solid var(--sb-trait); }
+.tb-mc-f span { display: grid; gap: 2px; font-size: 11.5px; color: var(--sb-gris-2); }
+.tb-mc-f b { font-size: 13px; color: var(--sb-encre); font-variant-numeric: tabular-nums; }
+.tb-mc-f b.attire { color: var(--sb-ambre-texte); }
+.tb-mc-f.tb-mc-lect { grid-template-columns: minmax(0, 1fr); }
+.tb-mc-a { display: flex; gap: 8px; flex-wrap: wrap; }
+.tb-mc-n { margin: -4px 0 0; font-size: 11.5px; color: var(--sb-gris-2); }
+@media (max-width: 760px) {
+  #page-bord .tb-vues { margin-left: 0; flex: 1 1 100%; min-width: 0; max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  #page-bord .tb-vues button { min-height: 44px; }
+  #page-bord .tb-case { width: 44px; height: 44px; }
+  .tb-mc { position: fixed; z-index: 210; left: 0; right: 0; top: auto; bottom: 0; width: auto; max-width: none; max-height: 82vh; overflow: auto; border-radius: 20px 20px 0 0; padding: 16px max(16px, env(safe-area-inset-left, 0px)) calc(22px + env(safe-area-inset-bottom, 0px)); }
+  .tb-mc-p { display: none; }
+  .tb-mc-a .btn { min-height: 44px; flex: 1; }
+  .tb-mc-x { width: 44px; height: 44px; }
+}
+.tb-mc-voile { position: fixed; inset: 0; z-index: 209; background: rgba(10, 18, 28, .45); }
+#page-bord #tb-grille .tb-case[aria-expanded="true"] .prod-p { box-shadow: 0 0 0 3px var(--sb-sarcelle); }

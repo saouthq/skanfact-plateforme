@@ -21535,3 +21535,44 @@ prouver 'tableau 16 : les prochaines dates comptent n'"'"'importe quoi' web/publ
 prouver 'tableau 17 : au téléphone, la grille garde « Sur la période » et douze dossiers' web/public/v10/cabinet/app.js \
   "    const tel = telTb();" "    const tel = false;" \
   'au téléphone : rien ne déborde'
+
+# (1.196.0) Le Tableau de bord, lot B : les onglets Révision et Bilans, la fiche d'un mois.
+prouver 'tableau 18 : une case de la grille ne s'"'"'ouvre plus' web/public/v10/cabinet/app.js \
+  "const cel = e.target.closest('[data-tb-case]');" "const cel = null;" \
+  'Révision, Bilans et la fiche'
+prouver 'tableau 19 : Échap ne referme pas la fiche d'"'"'un mois' web/public/v10/cabinet/app.js \
+  "if (e.key !== 'Escape' || !tbState.fiche" "if (true || !tbState.fiche" \
+  'Révision, Bilans et la fiche'
+prouver 'tableau 20 : un clic ailleurs laisse la fiche ouverte' web/public/v10/cabinet/app.js \
+  'tbState.fiche = null; pageTableau($('"'"'#view'"'"'), '"''"');' 'return;' \
+  'Révision, Bilans et la fiche'
+prouver 'tableau 21 : le compte d'"'"'attente se lit toujours soldé' serveur/cabinet/routes.ts \
+  "sum(l.debit - l.credit)::text solde" "'0'::text solde" \
+  'Révision, Bilans et la fiche'
+prouver 'tableau 22 : une échéance annuelle passée ne met aucun bilan en retard' web/public/v10/cabinet/app.js \
+  "if (!ex.clos && dates.length && dates[0].date < K.today())" "if (false)" \
+  'Révision, Bilans et la fiche'
+prouver 'tableau 23 : la charge oublie les bilans en retard' web/public/v10/cabinet/app.js \
+  "&& bilanDe(x).retard).length : 0;" "&& false).length : 0;" \
+  'Révision, Bilans et la fiche'
+prouver 'tableau 24 : un exercice clos se lit ouvert' serveur/cabinet/routes.ts \
+  "to_char(x.clos_le at time zone 'Africa/Tunis', 'YYYY-MM-DD') clos" "null::text clos" \
+  'Révision, Bilans et la fiche'
+prouver 'tableau 25 : l'"'"'inventaire saisi ne se lit pas' serveur/cabinet/routes.ts \
+  "from compta.inventaire i where i.entreprise" "from compta.inventaire i where false and i.entreprise" \
+  'Révision, Bilans et la fiche'
+prouver 'tableau 26 : la revue de l'"'"'année se cherche sur la mauvaise période' serveur/cabinet/routes.ts \
+  "and r.periode = x.annee::text" "and r.periode = 'annee'" \
+  'Révision, Bilans et la fiche'
+prouver 'tableau 27 : la revue accepte une année qui n'"'"'en est pas une' serveur/cabinet/routes.ts \
+  "return champInvalide('annee', t('cabinet.champ.annee'))" "void 0" \
+  'Révision, Bilans et la fiche'
+prouver 'tableau 28 : « Ouvrir » de la fiche perd l'"'"'année' web/public/v10/cabinet/app.js \
+  '/comptabilite/${b.dataset.tbOuvrir}/${f.mois.slice(0, 4)}' '/comptabilite/${b.dataset.tbOuvrir}' \
+  'Révision, Bilans et la fiche'
+prouver 'tableau 29 : la ligne d'"'"'un exercice n'"'"'ouvre plus sa clôture' web/public/v10/cabinet/app.js \
+  '${tr.dataset.tbAn ? `/exercice/${tr.dataset.tbAn}` : '"''"'}' "" \
+  'Révision, Bilans et la fiche'
+prouver 'tableau 30 : au téléphone, les onglets élargissent la page' web/public/plateforme/tableau-de-bord.css \
+  "#page-bord .tb-grille .lf { gap: 12px; display: grid; grid-template-columns: minmax(0, 1fr); }" "#page-bord .tb-grille .lf { gap: 12px; display: grid; }" \
+  'au téléphone : rien ne déborde'

@@ -294,6 +294,75 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
     },
   });
 
+  // (1.196.0) Le Tableau de bord, onglets Révision et Bilans (maquette docs/maquettes/cabinet/tableau-de-bord.html) : ce que la
+  // révision lit dans chaque livre du portefeuille, sans rien cocher à la main. Pour chaque dossier : sa dernière écriture,
+  // le dernier relevé de banque entièrement rapproché, le solde du compte d'attente (471, en millimes), le crédit de TVA
+  // reporté par sa dernière déclaration (et depuis quand), les écritures au brouillard ; puis, pour l'exercice demandé,
+  // ses étapes lues : l'inventaire saisi, la révision de l'année arrêtée, la liasse préparée, la clôture.
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/revue', geste: 'compte.cabinets.voir',
+    traiter: async ({ params, query }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success) return introuvable;
+      const annee = Number(query.annee ?? '');
+      if (!Number.isInteger(annee) || annee < 1900 || annee > 2999) return champInvalide('annee', t('cabinet.champ.annee'));
+      const portefeuille = `select p.entreprise from socle.portefeuille($1) p where p.statut = 'actif'`;
+      const livres = await tx.query(`select e.entreprise, to_char(max(e.date_ecriture) filter (where e.journal <> 'AN'), 'YYYY-MM-DD') derniere,
+            count(*) filter (where e.statut = 'brouillard') brouillards
+          from compta.ecriture e where e.entreprise in (${portefeuille}) group by e.entreprise`, [params.cabinet]);
+      const attente = await tx.query(`select l.entreprise, sum(l.debit - l.credit)::text solde from compta.ligne l
+          where l.entreprise in (${portefeuille}) and l.compte like '471%' group by l.entreprise`, [params.cabinet]);
+      // Un relevé compte comme rapproché quand chacune de ses lignes a son écriture.
+      const banque = await tx.query(`select r.entreprise, count(*) releves,
+            to_char(max(r.au) filter (where not exists (select 1 from compta.releve_ligne rl where rl.releve = r.id
+              and not exists (select 1 from compta.rapprochement x where x.releve_ligne = rl.id))), 'YYYY-MM-DD') rapproche
+          from compta.releve r where r.entreprise in (${portefeuille}) group by r.entreprise`, [params.cabinet]);
+      const tva = await tx.query(`select d.entreprise, d.periode, d.cases->>'creditAReporter' credit from compta.declaration d
+          where d.entreprise in (${portefeuille}) and d.periode >= to_char(now() - interval '3 years', 'YYYY-MM') order by 1, 2`, [params.cabinet]);
+      const exercices = await tx.query(`select x.entreprise, to_char(x.du, 'YYYY-MM-DD') du,
+            to_char(x.clos_le at time zone 'Africa/Tunis', 'YYYY-MM-DD') clos,
+            (select to_char(i.date_inventaire, 'YYYY-MM-DD') from compta.inventaire i where i.entreprise = x.entreprise and i.annee = x.annee) inventaire,
+            exists (select 1 from compta.annuel a where a.entreprise = x.entreprise and a.annee = x.annee) liasse,
+            coalesce((select r.contenu->>'faite' = 'true' from cabinet.revision r where r.cabinet = $1 and r.entreprise = x.entreprise
+              and r.periode = x.annee::text), false) revisee
+          from compta.exercice x where x.entreprise in (${portefeuille}) and x.annee = $2`, [params.cabinet, annee]);
+      // Le crédit de TVA : celui que reporte la DERNIÈRE déclaration, et le premier mois de la suite de crédits qui y mène.
+      const credits = new Map<string, { montant: string; depuis: string; periode: string }>();
+      const parDossier = new Map<string, { periode: string; credit: number }[]>();
+      for (const d of tva.rows as { entreprise: string; periode: string; credit: string | null }[]) {
+        const l = parDossier.get(d.entreprise) ?? [];
+        l.push({ periode: d.periode, credit: Number(d.credit ?? 0) || 0 });
+        parDossier.set(d.entreprise, l);
+      }
+      for (const [ent, l] of parDossier) {
+        const der = l[l.length - 1];
+        if (!der || der.credit <= 0) continue;
+        let i = l.length - 1;
+        while (i > 0 && (l[i - 1]?.credit ?? 0) > 0) i--;
+        credits.set(ent, { montant: String(Math.round(der.credit)), depuis: l[i]?.periode ?? der.periode, periode: der.periode });
+      }
+      const parEnt = <T extends { entreprise: string }>(rows: T[]) => new Map(rows.map((r) => [r.entreprise, r]));
+      const L = parEnt(livres.rows as { entreprise: string; derniere: string | null; brouillards: string }[]);
+      const A = parEnt(attente.rows as { entreprise: string; solde: string }[]);
+      const B = parEnt(banque.rows as { entreprise: string; releves: string; rapproche: string | null }[]);
+      const ids = (await tx.query(portefeuille, [params.cabinet])).rows as { entreprise: string }[];
+      return {
+        corps: {
+          annee,
+          dossiers: ids.map(({ entreprise }) => ({
+            entreprise,
+            derniere: L.get(entreprise)?.derniere ?? null,
+            brouillards: Number(L.get(entreprise)?.brouillards ?? 0),
+            attente: A.get(entreprise)?.solde ?? '0',
+            releves: Number(B.get(entreprise)?.releves ?? 0),
+            rapproche: B.get(entreprise)?.rapproche ?? null,
+            credit: credits.get(entreprise) ?? null,
+          })),
+          exercices: exercices.rows as { entreprise: string; du: string; clos: string | null; inventaire: string | null; liasse: boolean; revisee: boolean }[],
+        },
+      };
+    },
+  });
+
   // Un dossier tenu : un client qui n'est pas (encore) sur SkanFact (03 § 3.5).
   ajouter({
     methode: 'POST', chemin: '/cabinets/:cabinet/dossiers', geste: 'compte.cabinet.gerer',

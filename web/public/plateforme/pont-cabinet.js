@@ -2260,6 +2260,9 @@
       return { lignes: K.production(etat, index, o), etapes: K.ETAPES_PRODUCTION, collaborateurs: K.collaborateurs(etat) };
     },
 
+    // (1.196.0) Le Tableau de bord, onglets Révision et Bilans : ce que la révision lit dans chaque livre (serveur, /revue).
+    revue: async (/** @type {number} */ annee) => appel('GET', `/cabinets/${cabinetId}/revue?annee=${encodeURIComponent(String(annee))}`),
+
     // Le résumé des index de la v10 (cab:questionsEnAttente) : les questions de chaque dossier ; pour un
     // dossier tenu au cabinet, ses exercices et leur production (c'est ce qui le fait entrer dans le
     // calendrier des Échéances) ; les mois dont la déclaration est déposée (brique 48) ; ce que le livre

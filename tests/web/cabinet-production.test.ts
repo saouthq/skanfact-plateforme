@@ -77,7 +77,8 @@ describe('la production du cabinet, à la souris', () => {
       await p.waitForTimeout(800);
       for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
     };
-    // (1.194.0) La grille vit dans le Tableau de bord : une ligne par dossier, une case par mois (son mois en `data-mois`).
+    // (1.194.0) La grille vit dans le Tableau de bord : une ligne par dossier, une case par mois (son mois en `data-mois` ;
+    // (1.196.0) son titre sur le bouton qui l'entoure).
     const ligne = (nom: string) => p.locator('#tb-grille tr[data-tb-id]').filter({ hasText: nom });
     const caseDu = (nom: string, mois: string) => ligne(nom).locator(`.prod-p[data-mois="${mois}"]`);
 
@@ -88,14 +89,14 @@ describe('la production du cabinet, à la souris', () => {
     expect(await ligne('Café des Arts').count()).toBe(1);
     const mars26 = caseDu('Garage du Port', '2026-03');
     expect(await mars26.getAttribute('class')).toMatch(/prod-fini/);
-    expect(await mars26.getAttribute('title')).toMatch(/^Mars 2026 : déposé — tenu au cabinet · 1 écriture dont 0 au brouillard · révisé : oui · déclaré : oui · dernier geste : Karim$/);
+    expect(await mars26.locator('xpath=..').getAttribute('title')).toMatch(/^Mars 2026 : déposé — tenu au cabinet · 1 écriture dont 0 au brouillard · révisé : oui · déclaré : oui · dernier geste : Karim$/);
     const fev26 = caseDu('Garage du Port', '2026-02');
     expect(await fev26.getAttribute('class')).toMatch(/prod-revise/);
-    expect(await fev26.getAttribute('title')).toMatch(/1 écriture dont 1 au brouillard · révisé : non · déclaré : non/);
+    expect(await fev26.locator('xpath=..').getAttribute('title')).toMatch(/1 écriture dont 1 au brouillard · révisé : non · déclaré : non/);
     const janv26 = caseDu('Garage du Port', '2026-01');
     expect(await janv26.getAttribute('class')).toMatch(/prod-saisi/);
     // Échu le 28/02 (le jour des réglages du cabinet, À VÉRIFIER) et pas déposé : en retard.
-    expect(await janv26.getAttribute('title')).toMatch(/^Janvier 2026 : à saisir, en retard depuis le 28\/02 — tenu au cabinet · rien de saisi/);
+    expect(await janv26.locator('xpath=..').getAttribute('title')).toMatch(/^Janvier 2026 : à saisir, en retard depuis le 28\/02 — tenu au cabinet · rien de saisi/);
     // Le café n'a aucun livre : aucun mois n'est attendu de lui.
     expect(await ligne('Café des Arts').locator('.prod-p:not(.prod-hors)').count()).toBe(0);
     expect(await ligne('Café des Arts').locator('td.tb-av').innerText()).toBe('hors mission');
