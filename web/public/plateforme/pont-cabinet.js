@@ -1247,10 +1247,15 @@
   const conversationAvec = (el, entreprise, o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, {
     ...o, cote: 'cabinet', modeles: modelesDuCabinet,
     appel: (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b),
-    // (1.177.0) Les notes pour l'équipe (0182) : le client ne les lit jamais ; elles restent dans le dossier, avec leur date.
-    notes: {
-      lire: async () => (await appel('GET', `/cabinets/${cabinetId}/notes/${encodeURIComponent(entreprise)}`)).notes,
+    // (1.177.0, 1.178.0) Le suivi de la conversation au cabinet (0182, 0183) : les notes pour l'équipe (le client ne les lit
+    // jamais), la promesse du client, mon rappel, les déclarations déposées.
+    suivi: {
+      lire: () => appel('GET', `/cabinets/${cabinetId}/suivi/${encodeURIComponent(entreprise)}`),
       noter: (/** @type {string} */ texte) => appel('POST', `/cabinets/${cabinetId}/notes/${encodeURIComponent(entreprise)}`, { texte }),
+      promettre: (/** @type {string} */ pour, /** @type {string} */ quoi) => appel('PUT', `/cabinets/${cabinetId}/promesses/${encodeURIComponent(entreprise)}`, { pour, quoi }),
+      retirerPromesse: () => appel('DELETE', `/cabinets/${cabinetId}/promesses/${encodeURIComponent(entreprise)}`),
+      remontrer: (/** @type {string} */ le) => appel('PUT', `/cabinets/${cabinetId}/rappels/${encodeURIComponent(entreprise)}`, { le }),
+      retirerRappel: () => appel('DELETE', `/cabinets/${cabinetId}/rappels/${encodeURIComponent(entreprise)}`),
     },
   });
   /** @type {Map<string, Promise<{ blob: Blob, type: string, nom: string, adresse: string }>>} */ const fichiersLus = new Map();

@@ -95,7 +95,7 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect(net(await p.locator('.msg-tete-etat').innerText())).toBe('À traiter Marquer comme traité E');
     // Le menu ⋯ : la question de la révision, le dossier, en grand.
     await p.getByRole('button', { name: 'Les autres gestes de cette conversation' }).click();
-    expect((await p.getByRole('menuitem').allInnerTexts()).map((x) => x.split('\n')[0])).toEqual(['Question sur une pièce…', 'Ouvrir le dossier', 'Ouvrir en grand']);
+    expect((await p.getByRole('menuitem').allInnerTexts()).map((x) => x.split('\n')[0])).toEqual(['Question sur une pièce…', 'Me le remontrer demain', 'Noter une promesse…', 'Confier à…', 'Ouvrir le dossier', 'Ouvrir en grand']);
     await p.keyboard.press('Escape');
     await expect.poll(() => p.getByRole('menuitem').count()).toBe(0);
     // ── (1.177.0) La note pour l'équipe : l'onglet, le champ, « Noter », la ligne du bas ; dans le fil, la carte au cadenas ─
@@ -150,4 +150,79 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect(await p.evaluate(() => { const m = document.querySelector('main') as HTMLElement; return m.scrollHeight <= m.clientHeight; })).toBe(true);
     expect(erreurs).toEqual([]);
   }, 90_000);
+  it('(1.178.0) le cabinet neuf, la promesse du client, « Me le remontrer demain », tout le monde a sa réponse, le dossier tenu', async () => {
+    const nadia = await personne('Nadia Ferchichi');
+    const cab = (await api('POST', '/cabinets', nadia, { nom: 'Ferchichi Expertise' })).corps as { id: string; code: string };
+    expect((await api('POST', `/cabinets/${cab.id}/dossiers`, nadia, { raisonSociale: 'Clinique Les Jasmins' })).statut).toBe(201);
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, nadia);
+    // La même adresse (seul le # change) ne recharge pas la page : la seconde fois, elle se recharge.
+    let ouverte = false;
+    const ouvrir = async () => {
+      if (ouverte) await p.reload(); else await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/messages`);
+      ouverte = true;
+      await p.locator('#msg-racine .msg-neuf, #page-msg .msg-filtres').first().waitFor({ timeout: 25_000 });
+      for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    };
+    // ── Le cabinet neuf : ce que fait la messagerie, le code, inviter, les modèles, un aperçu ─────────────────────────
+    await ouvrir();
+    const neuf = p.locator('.msg-neuf');
+    expect(net(await neuf.locator('h2').innerText())).toBe('Tes clients t\'écriront ici');
+    expect(net(await neuf.locator('.msg-neuf-tete p').innerText())).toMatch(/Ton client est tenu au cabinet, sans compte SkanFact : aucune conversation pour l'instant\.$/);
+    expect((await neuf.locator('.msg-neuf-pas > li > b').allInnerTexts())).toEqual(['Ton code cabinet', 'Inviter un client', 'Préparer tes modèles']);
+    expect(net(await neuf.locator('.msg-neuf-code').innerText())).toBe(cab.code);
+    expect(await neuf.locator('.msg-neuf-ap').isVisible()).toBe(true);
+
+    // ── Un client en ligne, Amel, qui promet ─────────────────────────────────────────────────────────────────────
+    const amel = await personne('Amel Ennour');
+    const ent = String((await api('POST', '/entreprises', amel, { raisonSociale: 'Librairie Ennour' })).corps.id);
+    const mandat = String((await api('POST', `/entreprises/${ent}/mandat`, amel, { codeCabinet: cab.code })).corps.mandat);
+    expect((await api('POST', `/cabinets/${cab.id}/mandats/${mandat}/accepter`, nadia)).statut).toBe(200);
+    expect((await api('PUT', `/cabinets/${cab.id}/fiches/${ent}`, nadia, { contenu: { contact: 'Amel Ennour' }, revision: null })).statut).toBe(200);
+    expect((await api('POST', `/entreprises/${ent}/messages`, amel, { cote: 'entreprise', texte: 'Désolée pour le retard, je vous envoie tout vendredi, promis.' })).statut).toBe(201);
+    await ouvrir();
+    await expect.poll(async () => net(await p.locator('.msg-tete-integre h2').innerText().catch(() => ''))).toBe('Librairie Ennour');
+    // La promesse se propose sous son message : vendredi d'abord ; « Noter pour vendredi ».
+    const pop = p.locator('[data-msg-pp]');
+    await pop.waitFor({ timeout: 15_000 });
+    expect(net(await pop.locator('b').first().innerText())).toBe('Noter la promesse d\'Amel');
+    expect(net(await pop.locator('[data-msg-pp-jour]').first().innerText())).toMatch(/^ven\. \d\d\/\d\d$/);
+    expect(net(await pop.locator('[data-msg-pp-oui]').innerText())).toBe('Noter pour vendredi');
+    await pop.locator('[data-msg-pp-oui]').click();
+    await expect.poll(async () => net(await p.locator('[data-msg-promesse]').innerText().catch(() => '')), { timeout: 15_000 })
+      .toMatch(/^Amel promet ses pièces de \S+ pour vendredi \d\d\/\d\d notée par toi · elle compte dans « Attend le client » ; vendredi soir sans rien, elle revient dans « À traiter » Retirer$/);
+    expect(net(await p.locator('#toast').innerText())).toMatch(/^Promesse notée : vendredi \d\d\/\d\d Annuler$/);
+    await expect.poll(async () => net(await p.locator('.msg-tete-etat').innerText())).toBe('Attend le client');
+    await expect.poll(async () => net(await p.locator('.msg-filtres').innerText())).toBe('À traiter 0 Attend le client 1 Tout 1');
+    expect(net(await p.locator('.msg-dossier').filter({ hasText: 'Librairie Ennour' }).locator('.msg-puce.promis').innerText())).toMatch(/^promis ven\. \d\d\/\d\d$/);
+    expect(net(await p.locator('[data-cote] [data-msg-attente]').innerText())).toMatch(/^ON ATTEND D'AMEL 1 Ses pièces de \S+ promis pour vendredi \d\d\/\d\d$/i);
+    // Retirer : elle revient dans « À traiter ».
+    await p.locator('[data-msg-promesse-retirer]').click();
+    await expect.poll(async () => net(await p.locator('.msg-filtres').innerText()), { timeout: 15_000 }).toBe('À traiter 1 Attend le client 0 Tout 1');
+
+    // ── « Me le remontrer demain » : elle quitte mon « À traiter » ; tout le monde a sa réponse ─────────────────────
+    await p.getByRole('button', { name: 'Les autres gestes de cette conversation' }).click();
+    await p.getByRole('menuitem', { name: /^Me le remontrer demain/ }).click();
+    await expect.poll(async () => net(await p.locator('.msg-tete-etat').innerText()), { timeout: 15_000 }).toMatch(/^Plus tard · \S+ \d\d\/\d\d$/);
+    await expect.poll(async () => net(await p.locator('.msg-filtres').innerText())).toBe('À traiter 0 Attend le client 0 Tout 1');
+    expect(net(await p.locator('#toast').innerText())).toMatch(/^Elle revient \S+ \d\d\/\d\d : d'ici là, elle quitte ton « À traiter »\. Annuler$/);
+    await expect.poll(async () => net(await p.locator('[data-msg-calme] b').innerText().catch(() => ''))).toBe('Tout le monde a sa réponse');
+    expect(net(await p.locator('[data-msg-calme] > span').nth(1).innerText())).toMatch(/^Aucune pièce attendue, aucune question ouverte\./);
+    // La remettre : elle revient.
+    await p.getByRole('button', { name: 'Les autres gestes de cette conversation' }).click();
+    await p.getByRole('menuitem', { name: /^La remettre dans « À traiter »/ }).click();
+    await expect.poll(async () => net(await p.locator('.msg-filtres').innerText()), { timeout: 15_000 }).toBe('À traiter 1 Attend le client 0 Tout 1');
+
+    // ── Le dossier tenu, sans SkanFact : dans « Tout », et l'invitation à sa place ───────────────────────────────────
+    await p.getByRole('tab', { name: /^Tout/ }).click();
+    expect(net(await p.locator('.msg-tenus-t').innerText())).toBe('SANS SKANFACT · 1 DOSSIER TENU');
+    await p.locator('.msg-tenu').filter({ hasText: 'Clinique Les Jasmins' }).click();
+    await expect.poll(async () => net(await p.locator('.msg-tenu-g h2').innerText().catch(() => ''))).toBe('Clinique Les Jasmins n\'est pas encore sur SkanFact');
+    expect(await p.getByRole('button', { name: 'Inviter Clinique Les Jasmins sur SkanFact', exact: true }).isVisible()).toBe(true);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
 });

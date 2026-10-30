@@ -642,3 +642,143 @@
   :root:not([data-theme="light"]) { --note-fond: #2f2a17; --note-fond-1: #2f2a17; --note-fond-2: #4a3f17; --note-bord: #6b5a22; --note-encre: #f3dd94; --note-encre-2: #d9c27a; --note-encre-3: #f5e7b8; }
 }
 :root[data-theme="dark"] { --note-fond: #2f2a17; --note-fond-1: #2f2a17; --note-fond-2: #4a3f17; --note-bord: #6b5a22; --note-encre: #f3dd94; --note-encre-2: #d9c27a; --note-encre-3: #f5e7b8; }
+
+/* (1.178.0, maquette « Messages », lot 3) La promesse du client, les jalons du dossier, mon rappel. */
+.msg-ligne-jalon, .msg-ligne-pop { align-self: center; max-width: min(560px, 100%); width: 100%; }
+.msg-jalon { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-radius: 14px; border: 1px solid var(--primary-soft-2, var(--border)); background: var(--primary-soft); font-size: 13px; }
+.msg-jalon > svg { width: 30px; height: 30px; flex: none; padding: 7px; border-radius: 999px; background: var(--primary); color: #fff; }
+.msg-jalon > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1; }
+.msg-jalon small { color: var(--muted); font-size: 12px; }
+.msg-jalon-m { flex: none; font-style: normal; font-weight: 700; color: var(--primary); }
+.msg-jalon.promesse { background: color-mix(in srgb, var(--primary-soft) 70%, var(--panel)); }
+.msg-jalon.promesse > svg { background: none; color: var(--primary); padding: 4px; }
+.msg-jalon.tenue { opacity: .75; }
+.msg-jalon.echue { background: var(--warning-soft); border-color: color-mix(in srgb, var(--warning) 35%, var(--panel)); }
+.msg-jalon.echue > svg { color: var(--warning); }
+.msg-promesse-pop { display: flex; flex-direction: column; gap: 10px; padding: 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--panel); box-shadow: var(--shadow); font-size: 13px; }
+.msg-promesse-pop > b { font-size: 14px; }
+.msg-promesse-pop p { margin: 0; color: var(--muted); }
+.msg-pp-jours { display: flex; flex-wrap: wrap; gap: 6px; }
+.msg-pp-j { position: relative; display: inline-flex; align-items: center; height: 32px; padding: 0 12px; border-radius: 999px; border: 1px solid var(--border); background: var(--panel); font: inherit; font-size: 13px; font-weight: 600; color: var(--text); cursor: pointer; }
+.msg-pp-j[aria-checked="true"], .msg-pp-j.choisi { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+/* Le champ de date couvre la pastille « Choisir… », invisible (la règle commune des champs, plus forte, le montrait à côté). */
+.msg-pp-j.msg-pp-autre input[type="date"][data-msg-pp-date], .msg-pp-j.msg-pp-autre input[type="date"][data-dg-pour] {
+  position: absolute; inset: 0; width: 100%; height: 100%; min-width: 0; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; }
+.msg-pp-quoi { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+.msg-pp-quoi input { font: inherit; font-size: 13px; padding: 7px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); color: var(--text); }
+.msg-pp-gestes { display: flex; justify-content: flex-end; gap: 8px; }
+.msg-etat-pastille.tard { background: var(--ink-soft); color: var(--muted); }
+.msg-puce.promis, .msg-puce.tard { display: inline-flex; align-items: center; gap: 3px; }
+.msg-puce.promis { background: var(--primary-soft); color: var(--primary); }
+.msg-puce.tard { background: var(--ink-soft); color: var(--muted); }
+.msg-puce svg { width: 11px; height: 11px; }
+.msg-attend-l li.promise > svg { color: var(--primary); }
+
+/* « Tout le monde a sa réponse » : en tête de la liste, avec la prochaine date et le geste du mois. */
+.msg-calme { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 4px 2px 10px; padding: 18px 16px; border-radius: 14px; border: 1px solid var(--primary-soft-2, var(--border)); background: color-mix(in srgb, var(--primary-soft) 60%, var(--panel)); text-align: center; font-size: 13px; }
+.msg-calme > span { color: var(--muted); line-height: 1.45; }
+.msg-calme > b { font-size: 15px; }
+.msg-calme-ic { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 999px; background: var(--primary); color: #fff; box-shadow: 0 0 0 6px color-mix(in srgb, var(--primary) 18%, transparent); }
+.msg-calme-ic svg { width: 22px; height: 22px; }
+.msg-calme .btn svg { width: 15px; height: 15px; margin-inline-end: 4px; }
+
+/* Les dossiers tenus sans SkanFact : leur section dans la liste, et l'invitation à leur place. */
+.msg-tenus-t { margin: 14px 10px 4px; padding-top: 12px; border-top: 1px solid var(--border); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.msg-tenu .msg-extrait { font-size: 12.5px; }
+.msg-boite-a-cote .msg-boite-corps.tenu-ouvert { grid-template-columns: minmax(290px, 320px) minmax(0, 1fr) 0; }
+.msg-boite-corps.tenu-ouvert .msg-dossier-cote { display: none; }
+.msg-tenu-panneau { height: 100%; overflow-y: auto; display: flex; align-items: center; justify-content: center; gap: 40px; padding: 32px; flex-wrap: wrap; }
+.msg-tenu-g { max-width: 400px; display: flex; flex-direction: column; gap: 12px; }
+.msg-tenu-g h2 { margin: 6px 0 0; font-size: 18px; text-wrap: balance; }
+.msg-tenu-g p { margin: 0; line-height: 1.5; }
+.msg-avatar.grand { width: 52px; height: 52px; font-size: 17px; color: #fff; }
+.msg-tenu-l { list-style: none; margin: 4px 0; padding: 0; display: flex; flex-direction: column; gap: 12px; }
+.msg-tenu-l li { display: flex; gap: 12px; align-items: flex-start; font-size: 13px; }
+.msg-tenu-l li > svg { flex: none; width: 32px; height: 32px; padding: 7px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); }
+.msg-tenu-l li span { display: flex; flex-direction: column; gap: 1px; }
+.msg-tenu-l small { color: var(--muted); }
+.msg-tenu-gestes { display: flex; flex-wrap: wrap; gap: 8px; }
+.msg-tenu-apercu { width: 280px; flex: none; display: flex; flex-direction: column; gap: 10px; padding: 14px; border-radius: 16px; border: 1px solid var(--border); background: var(--panel); box-shadow: var(--shadow); transform: rotate(1.5deg); font-size: 12.5px; }
+.msg-ap-tete { display: flex; align-items: center; gap: 6px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.msg-ap-tete small { margin-inline-start: auto; color: var(--muted); }
+.msg-ap-tete svg { width: 14px; height: 14px; color: var(--primary); }
+.msg-ap-bulle { padding: 9px 12px; border-radius: 12px; background: var(--ink-soft); line-height: 1.45; }
+.msg-ap-bulle.moi { background: var(--primary-soft); }
+.msg-ap-demande { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; border: 1px solid var(--border); border-inline-start: 3px solid var(--warning); }
+.msg-ap-demande small, .msg-ap-pied { color: var(--muted); font-size: 11.5px; }
+.msg-ap-btn { align-self: flex-start; margin-top: 4px; padding: 4px 10px; border-radius: 8px; background: var(--primary); color: #fff; font-weight: 600; font-size: 12px; }
+.msg-ap-pied { text-align: center; }
+
+/* Le cabinet neuf : ce que fait la messagerie, trois gestes numérotés, puis un aperçu. */
+.msg-neuf { grid-column: 1 / -1; display: flex; flex-direction: column; gap: 18px; padding: 24px; overflow-y: auto; }
+.msg-neuf-tete { display: flex; gap: 14px; align-items: flex-start; }
+.msg-neuf-tete h2 { margin: 2px 0 6px; font-size: 19px; }
+.msg-neuf-tete p { margin: 0; max-width: 70ch; color: var(--muted); line-height: 1.55; }
+.msg-neuf-ic { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: var(--primary-soft); color: var(--primary); }
+.msg-neuf-pas { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.msg-neuf-pas li { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 16px; border-radius: 14px; border: 1px solid var(--border); background: var(--panel); }
+.msg-neuf-pas li:first-child { border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.msg-neuf-pas li > svg { width: 32px; height: 32px; padding: 7px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); }
+.msg-neuf-pas p { margin: 0; font-size: 13px; color: var(--muted); line-height: 1.5; flex: 1; }
+.msg-neuf-code { color: var(--text); letter-spacing: .04em; }
+.msg-neuf-n { position: absolute; top: 12px; inset-inline-end: 12px; display: grid; place-items: center; width: 22px; height: 22px; border-radius: 999px; background: var(--ink-soft); font-size: 12px; font-weight: 700; color: var(--muted); }
+.msg-neuf-ap-t { margin: 0; align-self: flex-start; padding: 4px 10px; border-radius: 999px; background: var(--text); color: var(--panel); font-size: 12px; }
+.msg-neuf-ap-t b { margin-inline-end: 4px; }
+.msg-neuf-ap { display: flex; flex-direction: column; gap: 12px; padding: 18px; border-radius: 16px; border: 1px dashed var(--border); background: color-mix(in srgb, var(--ink-soft) 50%, var(--panel)); opacity: .85; font-size: 13px; }
+.msg-ap-l { display: flex; flex-direction: column; gap: 4px; max-width: 560px; }
+.msg-ap-l small { font-size: 11.5px; color: var(--muted); }
+.msg-ap-l.moi { align-self: flex-end; align-items: flex-end; }
+.msg-ap-l.note { align-self: stretch; max-width: none; }
+.msg-ap-carte { display: flex; flex-direction: column; padding: 9px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--panel); }
+.msg-ap-carte small { color: var(--muted); }
+.msg-ap-note { padding: 9px 12px; border-radius: 10px; background: var(--note-fond-1, #fff7db); border: 1px solid var(--note-bord, #f3dd94); color: var(--note-encre-3, #5c4a12); }
+
+/* « Écrire à plusieurs clients » : ce qui part à gauche, à qui à droite. */
+.msg-fenetre.msg-plusieurs { width: min(860px, 100%); max-height: 88vh; padding: 0; gap: 0; }
+.msg-pl-tete { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px 12px; }
+.msg-pl-tete h2 { margin: 0; font-size: 17px; }
+.msg-pl-tete small { color: var(--muted); }
+.msg-pl-tete > span:nth-child(2) { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.msg-pl-ic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--primary-soft); color: var(--primary); }
+.msg-pl-ic svg { width: 18px; height: 18px; }
+.msg-pl-corps { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; padding: 4px 20px 16px; overflow-y: auto; }
+@media (max-width: 760px) { .msg-pl-corps { grid-template-columns: 1fr; } }
+.msg-pl-quoi, .msg-pl-qui { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.msg-pl-t { font-size: 12px; font-weight: 700; color: var(--muted); }
+.msg-pl-modes { display: flex; gap: 6px; flex-wrap: wrap; }
+.msg-pl-pieces { display: flex; flex-direction: column; gap: 8px; }
+.msg-pl-pieces[hidden] { display: none; }
+.msg-pl-liste { display: flex; flex-direction: column; gap: 6px; }
+.msg-pl-piece { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--border); border-radius: 10px; }
+.msg-pl-piece input[type="checkbox"] { width: 17px; height: 17px; margin: 0; accent-color: var(--primary); }
+.msg-pl-piece input[type="text"] { flex: 1; min-width: 0; border: 0; background: none; font: inherit; font-size: 13.5px; color: var(--text); outline: none; }
+.msg-pl-quoi textarea { font: inherit; font-size: 13.5px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--text); resize: vertical; }
+.msg-pl-clients { display: flex; flex-direction: column; gap: 6px; max-height: 44vh; overflow-y: auto; }
+.msg-pl-client { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--border); border-radius: 12px; cursor: pointer; font-size: 13.5px; }
+.msg-pl-client.coche { border-color: var(--primary); background: color-mix(in srgb, var(--primary-soft) 55%, var(--panel)); }
+.msg-pl-client input { width: 17px; height: 17px; margin: 0; accent-color: var(--primary); }
+.msg-pl-client > span:last-child { display: flex; flex-direction: column; min-width: 0; }
+.msg-pl-client small { color: var(--muted); font-size: 12px; }
+.msg-pl-client .msg-avatar.petit { width: 30px; height: 30px; font-size: 11px; }
+.msg-pl-note { display: flex; gap: 8px; margin: 2px 0 0; font-size: 12.5px; color: var(--muted); line-height: 1.45; }
+.msg-pl-note svg { flex: none; width: 15px; height: 15px; margin-top: 1px; }
+.msg-pl-pied { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 14px 20px; border-top: 1px solid var(--border); }
+.msg-pl-pied .msg-refus { flex-basis: 100%; order: 3; margin: 0; }
+.msg-pl-gestes { margin-inline-start: auto; display: flex; gap: 8px; }
+/* « Confier à… » ouvert depuis une conversation : la liste des Dossiers, posée dans une fenêtre. */
+.row-menu.cd-cf.cd-cf-modal { position: static; inset: auto; box-shadow: none; border: 0; padding: 0; margin: 10px 0 0; width: auto; min-width: 0; max-width: none; font-size: 14px; transform: none !important; /* la règle de l’échelle réduit les menus flottants ; celui-ci est posé dans une fenêtre déjà à l’échelle */ max-height: 50vh; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.cd-cf-modal .cd-cf-h { display: none; } /* le titre de la fenêtre le dit déjà */
+.cd-cf-modal .cd-cf-i { display: flex; align-items: center; gap: 10px; width: 100%; border: 0; background: none; padding: 8px; border-radius: 9px; text-align: left; font: inherit; color: inherit; cursor: pointer; }
+.cd-cf-modal .cd-cf-i:not([disabled]):hover { background: var(--sb-survol); }
+.cd-cf-modal .cd-cf-i[disabled] { opacity: .6; cursor: default; }
+.cd-cf-modal .rm-t { display: grid; min-width: 0; }
+.cd-cf-modal .rm-l { font-size: 13.5px; font-weight: 600; }
+.cd-cf-modal .rm-h { font-size: 12px; color: var(--sb-gris-2); }
+.cd-cf-modal .cd-cf-a { margin-left: auto; white-space: nowrap; font-size: 11px; font-weight: 600; color: var(--sb-gris-2); }
+.cd-cf-modal .cd-cf-n { margin: 8px 8px 0; font-size: 12px; color: var(--sb-gris-2); line-height: 1.45; }
+@media (max-width: 760px) {
+  .msg-neuf { padding: 12px 0; }
+  .msg-neuf-tete { flex-direction: column; }
+  .msg-tenu-panneau { padding: 20px 0; }
+  .msg-tenu-apercu { display: none; }
+}

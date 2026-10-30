@@ -58,6 +58,33 @@
   /** @param {number} n @param {string} un @param {string} [plusieurs] */
   const pl = (n, un, plusieurs) => `${n}\u00a0${n > 1 ? (plusieurs || `${un}s`) : un}`;
   const GENRES = /** @type {Record<string, string>} */ ({ facture: 'Facture', avoir: 'Avoir', devis: 'Devis', achat: 'Achat' });
+  // (1.178.0) Un jour de calendrier « aaaa-mm-jj » : son nom (« vendredi »), dit long (« vendredi 30/10 ») ou court
+  // (« ven. 30/10 ») ; le jour qui est dans `n` jours ; le mois d'avant (« septembre »).
+  const JOURS = ['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'];
+  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  /** @param {string} j */
+  const nomDuJour = (j) => JOURS[new Date(`${j}T12:00:00Z`).getUTCDay()] || '';
+  /** @param {string} j */
+  const jourLong = (j) => `${nomDuJour(j)} ${j.slice(8, 10)}/${j.slice(5, 7)}`;
+  /** @param {string} j */
+  const jourCourt = (j) => `${nomDuJour(j).slice(0, 3)}. ${j.slice(8, 10)}/${j.slice(5, 7)}`;
+  /** @param {number} n */
+  const dansJours = (n) => jourCle(Date.parse(`${jourCle(Date.now())}T12:00:00Z`) + n * 86_400_000);
+  // « de septembre », « d'octobre ».
+  /** @param {string} mot */
+  const deMot = (mot) => (/^[aeiouyéèêàâîôûh]/i.test(mot) ? `d'${mot}` : `de ${mot}`);
+  const moisDavant = () => { const a = jourCle(Date.now()); const m = Number(a.slice(5, 7)) - 2; return MOIS[(m + 12) % 12] || ''; };
+  // Une promesse du client dans son message (« je vous envoie tout vendredi, promis ») : le jour qu'il nomme (demain, un
+  // jour de la semaine : le prochain), ou '' s'il promet sans jour. Pas de promesse : null.
+  const PROMET = /\b(promis|promets|je (vous |te )?(les |l'|la |le )?(envoie|envoi|enverrai|envoyerai|transmets|transmettrai|d[ée]pose|d[ée]poserai|fais parvenir)|vous (les |l')?aurez|tu (les |l')?auras|d'ici)\b/i;
+  /** @param {string} texte @returns {string | null} */
+  function jourPromis(texte) {
+    const s = String(texte || '').toLowerCase();
+    if (!PROMET.test(s)) return null;
+    if (/\bdemain\b/.test(s)) return dansJours(1);
+    for (let n = 1; n <= 7; n++) { const j = dansJours(n); if (new RegExp(`\\b${nomDuJour(j)}\\b`).test(s)) return j; }
+    return '';
+  }
   const ATTENDUS = /** @type {Record<string, string>} */ ({ piece: 'une pièce justificative', explication: 'une explication', confirmation: 'une confirmation' });
   const DESSINS = {
     piece: '<path d="M14 3H6v18h12V7z"/><path d="M14 3v4h4"/>',
@@ -72,6 +99,8 @@
     envoi: '<path d="M21 3 10 14"/><path d="m21 3-7 18-4-7-7-4z"/>',
     cadenas: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
     cloche: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+    reveil: '<circle cx="12" cy="13" r="7"/><path d="M12 10v3l2 2M5 4 2 7M19 4l3 3"/>',
+    equipe: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 4.5a3 3 0 0 1 0 6M21 20a6 6 0 0 0-4-5.6"/>',
   };
   /** @param {keyof typeof DESSINS} id */
   const dessin = (id) => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${DESSINS[id]}</svg>`;
@@ -131,7 +160,6 @@
     const fin = Math.min(texte.length, i + q.length + 60);
     return `${debut ? '…' : ''}${esc(texte.slice(debut, i))}<mark>${esc(texte.slice(i, i + q.length))}</mark>${esc(texte.slice(i + q.length, fin))}${fin < texte.length ? '…' : ''}`;
   }
-  const MOIS = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin', 'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
   // Le mois qui vient de finir (jour de Tunis) : en octobre, « septembre 2026 » ; en janvier, « décembre » de l'an passé.
   const moisPasse = () => {
     const [a, m] = jourCle(Date.now()).split('-').map(Number);
@@ -353,7 +381,9 @@
    *   menu?: { texte: string, sous?: string, dessin?: string, faire: () => void }[],
    *   saisirLot?: (messages: string[]) => void, couleur?: string[] | null,
    *   suggestions?: () => { titre: string, sous: string, texte: string }[], contactPrenom?: string,
-   *   notes?: { lire: () => Promise<{ id: string, auteur: string, moi: boolean, texte: string, ecritLe: string }[]>, noter: (texte: string) => Promise<unknown> },
+   *   suivi?: { lire: () => Promise<any>, noter: (texte: string) => Promise<unknown>, promettre: (pour: string, quoi: string) => Promise<unknown>,
+   *     retirerPromesse: () => Promise<unknown>, remontrer: (le: string) => Promise<unknown>, retirerRappel: () => Promise<unknown> },
+   *   toastAnnuler?: (texte: string, annuler: () => void) => void,
    *   enGrand?: () => void,
    *   modeles?: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
    * }} o
@@ -381,8 +411,16 @@
     /** @type {Map<string, Promise<string>>} */ const vignettes = new Map();
     // (1.177.0, maquette « Messages ») Les notes pour l'équipe (0182), lues avec le fil au cabinet ; et l'onglet choisi de
     // la zone d'écriture (« Message à Sami » ou « Note pour l'équipe »).
-    const avecNotes = !entreprise && !!o.notes;
+    const avecNotes = !entreprise && !!o.suivi;
     /** @type {any[]} */ let notes = [];
+    // (1.178.0, lot 3) La promesse du client, mon rappel, les jalons du dossier (ses déclarations déposées) ; la promesse
+    // proposée sous un message (son id, ou « menu ») et le jour choisi ; les propositions écartées.
+    /** @type {any} */ let promesse = null;
+    /** @type {string | null} */ let rappel = null;
+    /** @type {any[]} */ let jalons = [];
+    /** @type {string | null} */ let promessePop = null;
+    let promesseJour = '';
+    /** @type {Set<string>} */ const promessesEcartees = new Set();
     let modeNote = false;
 
     /** @param {string | null} avant */
@@ -494,12 +532,33 @@
     function brancherMenu() {
       const btn = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-menu]'));
       if (!btn) return;
-      const entrees = [
-        ...(o.revision ? [{ texte: 'Question sur une pièce…', sous: 'depuis la révision : elle arrive ici avec sa pièce et son montant', dessin: 'question', faire: o.revision }] : []),
-        ...((o.menu || []).map((/** @type {any} */ x) => ({ dessin: x.dessin || 'piece', ...x }))),
-        ...(o.enGrand ? [{ texte: 'Ouvrir en grand', sous: 'la conversation seule, sur sa page', dessin: 'image', faire: o.enGrand }] : []),
-      ];
-      if (!entrees.length) { btn.hidden = true; return; }
+      // (1.178.0, lot 3) « Me le remontrer demain », la promesse, « Confier à… » (l'écran le donne) : le menu se compose à
+      // l'ouverture, selon ce que dit le fil.
+      const suivi = !entreprise && o.suivi ? o.suivi : null;
+      const apres = async (/** @type {string} */ dit, /** @type {(() => Promise<unknown>) | null} */ defaire) => {
+        await relire();
+        if (o.surAttente) o.surAttente(lu && lu.attente);
+        if (defaire && o.toastAnnuler) o.toastAnnuler(dit, async () => { await defaire(); await relire(); if (o.surAttente) o.surAttente(lu && lu.attente); });
+        else if (o.toast) o.toast(dit);
+      };
+      const lesEntrees = () => {
+        const actif = !!(lu && lu.fil && lu.fil.actif);
+        const promise = promesse && !promesse.tenue && !promesse.echue;
+        const demain = dansJours(1);
+        return [
+          ...(o.revision ? [{ texte: 'Question sur une pièce…', sous: 'depuis la révision : elle arrive ici avec sa pièce et son montant', dessin: 'question', faire: o.revision }] : []),
+          ...(suivi && actif && lu.fil.aTraiter && !rappel ? [{ texte: 'Me le remontrer demain', sous: `la conversation revient dans « À traiter » ${jourLong(demain)}`, dessin: 'reveil',
+            faire: async () => { await suivi.remontrer(demain); await apres(`Elle revient ${jourLong(demain)} : d'ici là, elle quitte ton « À traiter ».`, () => suivi.retirerRappel()); } }] : []),
+          ...(suivi && rappel ? [{ texte: 'La remettre dans « À traiter »', sous: `tu avais demandé de la revoir ${jourLong(rappel)}`, dessin: 'reveil',
+            faire: async () => { await suivi.retirerRappel(); await apres('Elle est de nouveau dans ton « À traiter ».', null); } }] : []),
+          ...(suivi && actif && !promise ? [{ texte: 'Noter une promesse…', sous: '« je vous envoie tout vendredi » : la conversation attend le client', dessin: 'reveil',
+            faire: () => { promessePop = 'menu'; promesseJour = ''; dessinerFil(); const f = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-fil]')); if (f) f.scrollTop = f.scrollHeight; } }] : []),
+          ...((o.menu || []).map((/** @type {any} */ x) => ({ dessin: x.dessin || 'piece', ...x }))),
+          ...(o.enGrand ? [{ texte: 'Ouvrir en grand', sous: 'la conversation seule, sur sa page', dessin: 'image', faire: o.enGrand }] : []),
+        ];
+      };
+      if (!lesEntrees().length && !suivi) { btn.hidden = true; return; }
+      /** @type {any[]} */ let entrees = [];
       /** @type {HTMLElement | null} */ let menu = null;
       const fermerMenu = () => {
         if (!menu) return;
@@ -510,6 +569,7 @@
       const echap = (/** @type {KeyboardEvent} */ e) => { if (e.key === 'Escape') { e.stopPropagation(); fermerMenu(); btn.focus(); } };
       btn.onclick = () => {
         if (menu) { fermerMenu(); return; }
+        entrees = lesEntrees();
         menu = document.createElement('div');
         menu.className = 'msg-menu';
         menu.setAttribute('role', 'menu');
@@ -517,7 +577,11 @@
         /** @type {HTMLElement} */ (btn.parentElement).appendChild(menu);
         btn.setAttribute('aria-expanded', 'true');
         menu.querySelectorAll('[data-msg-menu-i]').forEach((n) => {
-          /** @type {HTMLElement} */ (n).onclick = () => { const x = entrees[Number(/** @type {HTMLElement} */ (n).dataset.msgMenuI)]; fermerMenu(); if (x) x.faire(); };
+          /** @type {HTMLElement} */ (n).onclick = async () => {
+            const x = entrees[Number(/** @type {HTMLElement} */ (n).dataset.msgMenuI)]; fermerMenu();
+            if (!x) return;
+            try { await x.faire(); } catch (e) { if (o.toast) o.toast(motif(e), true); }
+          };
         });
         const premier = /** @type {HTMLElement | null} */ (menu.querySelector('[data-msg-menu-i]'));
         if (premier) premier.focus();
@@ -614,6 +678,9 @@
         if (q.reponse && q.reponduLe) ev.push({ quand: q.reponduLe, sorte: 'reponse', x: q });
       }
       for (const n of notes) ev.push({ quand: n.ecritLe, sorte: 'note', x: n });
+      if (promesse) ev.push({ quand: promesse.noteeLe, sorte: 'promesse', x: promesse });
+      // Un jalon n'a qu'un jour (le dépôt) : il se range à midi, heure de Tunis.
+      for (const j of jalons) ev.push({ quand: `${j.le}T11:00:00.000Z`, sorte: 'jalon', x: j });
       return ev.sort((a, b) => (a.quand < b.quand ? -1 : a.quand > b.quand ? 1 : 0));
     }
     const demandes = () => new Map([...(lu.messages || []), ...anciensMessages].filter((m) => m.demande).map((m) => [m.id, m]));
@@ -771,6 +838,96 @@
           ${!entreprise && o.revision ? '<button type="button" class="btn btn-sm msg-q-voir" data-msg-revision>Voir dans la révision</button>' : ''}
         </div></div>`;
     }
+    // (1.178.0, maquette « Messages », lot 3) La promesse du client, à la date où elle est notée : ce qui est promis et pour
+    // quand, qui l'a notée, ce qu'elle fait de la conversation ; tenue (il a écrit depuis) ou passée sans rien, elle le dit.
+    /** @param {any} p */
+    function cartePromesse(p) {
+      const qui = o.contactPrenom || 'Le client';
+      const sous = p.tenue ? `notée par ${p.moi ? 'toi' : esc(prenomDe(p.par))} · ${esc(qui)} a écrit depuis : elle ne compte plus`
+        : p.echue ? `notée par ${p.moi ? 'toi' : esc(prenomDe(p.par))} · le jour est passé sans rien : la conversation est revenue dans « À traiter »`
+          : `notée par ${p.moi ? 'toi' : esc(prenomDe(p.par))} · elle compte dans « Attend le client » ; ${esc(nomDuJour(p.pour))} soir sans rien, elle revient dans « À traiter »`;
+      return `<div class="msg-ligne msg-ligne-jalon" data-msg-promesse><div class="msg-jalon promesse${p.tenue ? ' tenue' : p.echue ? ' echue' : ''}">${dessin('reveil')}
+        <span><b>${esc(qui)} promet ${esc(p.quoi)} pour ${esc(jourLong(p.pour))}</b><small>${sous}</small></span>
+        ${p.tenue || !(lu && lu.fil && lu.fil.actif) ? '' : '<button type="button" class="msg-lien" data-msg-promesse-retirer>Retirer</button>'}</div></div>`;
+    }
+    // Un jalon du dossier : la déclaration d'un mois, déposée (qui, quand, ce qu'il y a à payer).
+    /** @param {any} j */
+    function carteJalon(j) {
+      const mois = MOIS[Number(String(j.periode).slice(5, 7)) - 1] || j.periode;
+      const aPayer = j.aPayer && !/^-?0(\.0+)?$/.test(j.aPayer) ? j.aPayer : null;
+      return `<div class="msg-ligne msg-ligne-jalon"><div class="msg-jalon">${dessin('coche')}
+        <span><b>Déclaration ${esc(deMot(mois))} déposée</b><small>${j.par ? `par ${j.moi ? 'toi' : esc(prenomDe(j.par))}, ` : ''}le ${esc(jjmm(j.le))}</small></span>
+        ${aPayer ? `<em class="msg-jalon-m">${esc(montant(aPayer))} à payer</em>` : ''}</div></div>`;
+    }
+    // « Noter la promesse de … » : sous le message qui promet (ou, depuis le menu, au bas du fil). Le jour qu'il nomme, le
+    // lundi qui suit, ou un autre ; « Noter pour vendredi ».
+    /** @param {any} m */
+    function popPromesse(m) {
+      const qui = o.contactPrenom || 'ce client';
+      const nomme = m ? jourPromis(m.texte) : '';
+      const lundi = (() => { for (let n = 1; n <= 7; n++) { const j = dansJours(n); if (nomDuJour(j) === 'lundi' && j !== nomme) return j; } return dansJours(7); })();
+      const choix = [...new Set([nomme || dansJours(1), lundi].filter(Boolean))];
+      if (!promesseJour) promesseJour = choix[0] || dansJours(1);
+      const autre = !choix.includes(promesseJour);
+      const cite = m && m.texte ? `« ${esc(m.texte.length > 90 ? `${m.texte.slice(0, 90)}…` : m.texte)} » : ` : '';
+      return `<div class="msg-ligne msg-ligne-pop"><div class="msg-promesse-pop" role="group" aria-labelledby="msg-pp-t" data-msg-pp="${esc(m ? m.id : 'menu')}">
+        <b id="msg-pp-t">Noter la promesse ${esc(deMot(qui))}</b>
+        <p>${cite}la conversation passe dans « Attend le client » et revient seule si rien n'arrive.</p>
+        <div class="msg-pp-jours" role="radiogroup" aria-label="Pour quel jour">${choix.map((j) => `<button type="button" role="radio" class="msg-pp-j" aria-checked="${j === promesseJour}" data-msg-pp-jour="${j}">${esc(jourCourt(j))}</button>`).join('')}
+          <label class="msg-pp-j msg-pp-autre${autre ? ' choisi' : ''}"><span>${autre ? esc(jourCourt(promesseJour)) : 'Choisir…'}</span><input type="date" min="${dansJours(0)}" value="${esc(promesseJour)}" data-msg-pp-date aria-label="Un autre jour"></label></div>
+        <label class="msg-pp-quoi"><span>Ce qu'il promet</span><input type="text" maxlength="200" value="ses pièces ${esc(deMot(moisDavant()))}" data-msg-pp-quoi></label>
+        <p class="msg-refus" role="alert" data-msg-pp-refus></p>
+        <span class="msg-pp-gestes"><button type="button" class="btn btn-sm" data-msg-pp-non>Annuler</button><button type="button" class="btn btn-sm btn-primary" data-msg-pp-oui>Noter pour ${esc(nomDuJour(promesseJour))}</button></span></div></div>`;
+    }
+    /** @param {HTMLElement} fil */
+    function brancherPromesse(fil) {
+      const pop = /** @type {HTMLElement | null} */ (fil.querySelector('[data-msg-pp]'));
+      const retirer = fil.querySelector('[data-msg-promesse-retirer]');
+      if (retirer && o.suivi) {
+        const s = o.suivi;
+        surClic(fil, '[data-msg-promesse-retirer]', async () => {
+          await s.retirerPromesse();
+          if (o.toast) o.toast('Promesse retirée : la conversation suit de nouveau ce qui arrive.');
+          await relire();
+          if (o.surAttente) o.surAttente(lu && lu.attente);
+        });
+      }
+      if (!pop || !o.suivi) return;
+      const suivi = o.suivi;
+      const redessiner = () => { dessinerFil(); };
+      pop.querySelectorAll('[data-msg-pp-jour]').forEach((b) => { /** @type {HTMLElement} */ (b).onclick = () => { promesseJour = String(/** @type {HTMLElement} */ (b).dataset.msgPpJour); redessiner(); }; });
+      const date = /** @type {HTMLInputElement} */ (pop.querySelector('[data-msg-pp-date]'));
+      date.onchange = () => { if (date.value) { promesseJour = date.value; redessiner(); } };
+      /** @type {HTMLElement} */ (pop.querySelector('[data-msg-pp-non]')).onclick = () => {
+        if (promessePop && promessePop !== 'menu') promessesEcartees.add(promessePop);
+        promessePop = null; promesseJour = ''; redessiner();
+      };
+      const refus = /** @type {HTMLElement} */ (pop.querySelector('[data-msg-pp-refus]'));
+      surClic(pop, '[data-msg-pp-oui]', async () => {
+        const quoi = /** @type {HTMLInputElement} */ (pop.querySelector('[data-msg-pp-quoi]')).value.trim();
+        if (!quoi) { refus.textContent = 'Dis ce qui est promis (par exemple : ses pièces de septembre), puis « Noter ».'; return; }
+        try { await suivi.promettre(promesseJour, quoi); } catch (x) { refus.textContent = motif(x); return; }
+        const jour = promesseJour;
+        if (promessePop && promessePop !== 'menu') promessesEcartees.add(promessePop);
+        promessePop = null; promesseJour = '';
+        await relire();
+        if (o.surAttente) o.surAttente(lu && lu.attente);
+        const dit = `Promesse notée : ${jourLong(jour)}`;
+        if (o.toastAnnuler) o.toastAnnuler(dit, async () => { await suivi.retirerPromesse(); await relire(); if (o.surAttente) o.surAttente(lu && lu.attente); });
+        else if (o.toast) o.toast(dit);
+      });
+    }
+    // La promesse à proposer : le dernier message du client, s'il promet, n'est pas déjà suivi d'une promesse notée, et n'a
+    // pas été écarté.
+    function promesseAProposer() {
+      if (entreprise || !o.suivi || !(lu && lu.fil && lu.fil.actif)) return null;
+      const siens = [...(lu.messages || []), ...anciensMessages].filter((m) => m.cote !== o.cote && m.texte).sort((a, b) => (a.ecritLe < b.ecritLe ? -1 : 1));
+      const m = siens[siens.length - 1];
+      if (!m || promessesEcartees.has(m.id) || jourPromis(m.texte) === null) return null;
+      if (promesse && promesse.noteeLe >= m.ecritLe) return null;
+      return m.id;
+    }
+
     // (1.177.0) Une note pour l'équipe : pleine largeur, jaune, au cadenas ; qui l'a écrite et quand. Le client ne la lit jamais.
     /** @param {any} n */
     function carteNote(n) {
@@ -796,6 +953,7 @@
       const garde = actif && fil.contains(actif) && actif instanceof HTMLTextAreaElement ? { id: actif.id, debut: actif.selectionStart, fin: actif.selectionEnd } : null;
       const enBas = fil.scrollHeight - fil.scrollTop - fil.clientHeight < 40;
       const ev = evenements();
+      if (!promessePop) promessePop = promesseAProposer();
       let html = suite ? '<div class="msg-plus"><button type="button" class="btn btn-sm" data-msg-plus>Voir les messages plus anciens</button></div>' : '';
       let jour = '';
       let trait = false;
@@ -813,8 +971,12 @@
             && new Date(s.quand).getTime() - new Date(e.quand).getTime() < 15 * 60_000; s = ev[i + 1]) { i++; lot.push(s.x); }
           if (lot.length > 1) { html += lotFichiers(lot); continue; }
         }
-        html += e.sorte === 'message' ? bulleMessage(e.x) : e.sorte === 'question' ? carteQuestion(e.x) : e.sorte === 'note' ? carteNote(e.x) : bulleReponse(e.x);
+        html += e.sorte === 'message' ? bulleMessage(e.x) : e.sorte === 'question' ? carteQuestion(e.x) : e.sorte === 'note' ? carteNote(e.x)
+          : e.sorte === 'promesse' ? cartePromesse(e.x) : e.sorte === 'jalon' ? carteJalon(e.x) : bulleReponse(e.x);
+        // La promesse proposée, sous le message qui promet.
+        if (e.sorte === 'message' && promessePop === e.x.id) html += popPromesse(e.x);
       }
+      if (promessePop === 'menu') html += popPromesse(null);
       if (!ev.length) {
         html += `<div class="msg-vide"><b>${entreprise ? 'Aucun message encore.' : 'Aucun échange encore avec ce client.'}</b>
           <span>${entreprise ? 'Écris à ton cabinet ici, joins une photo de facture ou demande-lui ce qu\'il te faut : chaque message garde sa date et son auteur, dans ton dossier.'
@@ -822,6 +984,7 @@
       }
       fil.innerHTML = html;
       brancherFil(fil);
+      brancherPromesse(fil);
       poserVignettes(fil);
       if (garde) {
         const t = /** @type {HTMLTextAreaElement | null} */ (garde.id ? document.getElementById(garde.id) : null);
@@ -859,7 +1022,9 @@
       if (o.integre) {
         const etat = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-tete-etat]'));
         if (etat) {
-          etat.innerHTML = `${f && f.aTraiter ? '<span class="msg-etat-pastille traiter">À traiter</span>' : !rien ? '<span class="msg-etat-pastille client">Attend le client</span>' : ''}
+          const promise = !!(promesse && !promesse.tenue && !promesse.echue);
+          etat.innerHTML = `${rappel ? `<span class="msg-etat-pastille tard" title="Tu as demandé de la revoir ${esc(jourLong(rappel))}">Plus tard · ${esc(jourCourt(rappel))}</span>`
+            : f && f.aTraiter ? '<span class="msg-etat-pastille traiter">À traiter</span>' : !rien || promise ? '<span class="msg-etat-pastille client">Attend le client</span>' : ''}
             ${f && f.aTraiter ? `<button type="button" class="btn btn-sm msg-traite" data-msg-traite aria-label="Marquer comme traité" aria-keyshortcuts="E" title="Ce client t'a écrit depuis ta dernière réponse. Rien à lui répondre ? Il quitte « À traiter » jusqu'à son prochain message.">${dessin('coche')}Marquer comme traité<kbd>E</kbd></button>` : ''}`;
           surClic(etat, '[data-msg-traite]', async () => {
             if (o.traiter) { await o.traiter(); return; }
@@ -880,7 +1045,8 @@
           ...qs.map((q) => ({ quand: q.envoyeeLe, html: `<li>${dessin('question')}<span><b>${esc(q.objet || q.texte)}${q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · ${esc(montant(q.montant))}` : ''}</b><small>question de la révision · depuis ${esc(pl(jours(q.envoyeeLe), 'jour'))}</small></span></li>` })),
           ...ds.map((m) => ({ quand: m.ecritLe, html: `<li class="${m.demande.enRetard ? 'retard' : ''}">${dessin('piece')}<span><b>${esc(m.demande.texte)}</b><small>pièce demandée${m.demande.pour ? ` · pour le ${esc(dateCourte(m.demande.pour))}` : ''}${m.demande.enRetard ? ' · en retard' : ''}${m.demande.relances ? ` · relancée ${m.demande.relances > 1 ? `${m.demande.relances} fois` : 'une fois'}` : ''}</small></span></li>` })),
         ].sort((x, y) => (x.quand < y.quand ? -1 : 1));
-        z.innerHTML = `${items.length ? `<section class="msg-cote-carte attend" data-msg-attente><h3>On attend de ${esc(prenom)}<span class="msg-filtre-n">${items.length}</span></h3><ul class="msg-attend-l">${items.map((x) => x.html).join('')}</ul></section>` : ''}
+        if (promesse && !promesse.tenue) items.push({ quand: promesse.noteeLe, html: `<li class="${promesse.echue ? 'retard' : 'promise'}">${dessin('reveil')}<span><b>${esc(promesse.quoi.charAt(0).toUpperCase() + promesse.quoi.slice(1))}</b><small>${promesse.echue ? `promis pour ${esc(jourLong(promesse.pour))} · le jour est passé` : `promis pour ${esc(jourLong(promesse.pour))}`}</small></span></li>` });
+        z.innerHTML = `${items.length ? `<section class="msg-cote-carte attend" data-msg-attente><h3>On attend ${esc(deMot(prenom))}<span class="msg-filtre-n">${items.length}</span></h3><ul class="msg-attend-l">${items.map((x) => x.html).join('')}</ul></section>` : ''}
           ${f && f.actif ? `<label class="msg-cote-alerte" title="« Un nouveau message t'attend dans SkanFact », cinq minutes après s'il n'est pas lu. Le message lui-même reste dans SkanFact.">${dessin('cloche')}<span>Me prévenir par e-mail</span><input type="checkbox" role="switch" class="msg-bascule" data-msg-alerte ${f.alerte ? 'checked' : ''}></label>` : ''}`;
         brancherCote(z);
         return;
@@ -947,14 +1113,14 @@
       if (enCours || fini) return;
       enCours = true;
       try {
-        const [r, ns] = await Promise.all([o.appel('GET', chemin(null)),
-          avecNotes ? /** @type {any} */ (o.notes).lire().catch(() => notes) : Promise.resolve(notes)]);
-        notes = ns || [];
+        const [r, sv] = await Promise.all([o.appel('GET', chemin(null)),
+          avecNotes ? /** @type {any} */ (o.suivi).lire().catch(() => null) : Promise.resolve(null)]);
+        if (sv) { notes = sv.notes || []; promesse = sv.promesse || null; rappel = sv.rappel || null; jalons = sv.jalons || []; }
         // La page a changé (la racine n'est plus à l'écran) : la conversation s'arrête là.
         if (!el.isConnected) { arreter(); return; }
         if (fini) return;
         const nouvelle = JSON.stringify([r.messages.map((/** @type {any} */ m) => [m.id, m.lu, m.achat, m.demande && m.demande.recueLe]),
-          r.questions.map((/** @type {any} */ q) => [q.id, q.statut, q.reponduLe]), r.attente, r.fil && [r.fil.alerte, r.fil.actif], notes.map((n) => n.id)]);
+          r.questions.map((/** @type {any} */ q) => [q.id, q.statut, q.reponduLe]), r.attente, r.fil && [r.fil.alerte, r.fil.actif], notes.map((n) => n.id), promesse, rappel, jalons.length]);
         const premiereFois = !lu;
         if (premiereFois) {
           suite = r.suite;
@@ -1284,12 +1450,12 @@
         e.preventDefault();
         if (envoyer.disabled) return;
         const t = texte.value.trim();
-        if (modeNote && o.notes) {
+        if (modeNote && o.suivi) {
           if (!t) { dire('Une note vide n\'apprend rien à l\'équipe : écris ce qu\'il faut savoir, puis « Noter ».'); texte.focus(); return; }
           envoyer.disabled = true;
           dire('');
           try {
-            await o.notes.noter(t);
+            await o.suivi.noter(t);
             texte.value = ''; majEnvoyer();
             await relire();
             const fil = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-fil]'));
@@ -1500,6 +1666,10 @@
    *   aCote?: (entreprise: string) => string, brancherCote?: (el: HTMLElement, entreprise: string) => void,
    *   contact?: (entreprise: string) => string | null, menu?: (entreprise: string) => { texte: string, sous?: string, faire: () => void }[],
    *   vide?: () => string,
+   *   brancherVide?: (el: HTMLElement) => void, toastAnnuler?: (texte: string, annuler: () => void) => void,
+   *   groupe?: () => ({ titre: string, geste: string, ids: string[], pieces?: string[] } | null), raison?: (entreprise: string) => string,
+   *   prochaineDate?: () => string | null, tenus?: () => { id: string, nom: string, couleur?: [string, string] | null }[],
+   *   panneauTenu?: (id: string) => string, brancherTenu?: (el: HTMLElement, id: string) => void, ouvrirTenu?: (id: string) => void,
    *   modeles?: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
    * }} o
    */
@@ -1518,11 +1688,13 @@
     // (1.115.0) Au téléphone, une ligne ouvre la conversation sur sa page : la place manque pour deux colonnes.
     const TELEPHONE = window.matchMedia('(max-width: 760px)');
     const aCote = () => !!o.conversation && !TELEPHONE.matches;
-    const ETATS = /** @type {Record<string, [string, string]>} */ ({ a_traiter: ['À traiter', 'traiter'], attend_client: ['Attend le client', 'client'], rien: ['Rien à faire', 'rien'] });
+    const ETATS = /** @type {Record<string, [string, string]>} */ ({ a_traiter: ['À traiter', 'traiter'], attend_client: ['Attend le client', 'client'], plus_tard: ['Plus tard', 'tard'], rien: ['Rien à faire', 'rien'] });
     /** @param {string} etat */
     const etatDit = (etat) => (ETATS[etat] || ['', '']);
     /** @param {any} d */
     const extrait = (d) => {
+      // (1.178.0) Une promesse qui compte se lit avant le dernier message : c'est ce qu'on attend.
+      if (d.promesse && !d.promesse.echue && d.etat === 'attend_client') return `Promis pour ${jourLong(d.promesse.pour)}`;
       const x = d.dernier;
       if (!x) return 'Aucun échange encore.';
       const qui = x.cote === 'cabinet' ? (x.sorte === 'question' ? 'Question envoyée' : x.sorte === 'demande' ? 'Pièce demandée' : 'Toi') : (x.sorte === 'reponse' ? 'Réponse du client' : String(x.auteur || '').split(' ')[0] || 'Le client');
@@ -1550,7 +1722,7 @@
       const c = compter(ds);
       if (o.surCompteurs) o.surCompteurs(c, ds, tous);
       if (!filtre) filtre = c.aTraiter ? 'a_traiter' : c.attendClient ? 'attend_client' : 'tout';
-      if (choisi && !ds.some((d) => d.entreprise === choisi)) choisi = null;
+      if (choisi && !choisi.startsWith('tenu:') && !ds.some((d) => d.entreprise === choisi)) choisi = null;
       // (1.115.0) Le client choisi reste dans la liste même s'il en sort (« Marquer comme traité », une réponse) : la
       // conversation qu'on lit ne disparaît pas sous le curseur. Un autre filtre, un autre client : il la quitte.
       const res = resume && o.resume ? o.resume(ds).find((x) => x.cle === resume) : null;
@@ -1560,10 +1732,13 @@
         : res ? ds.filter((d) => res.ids.includes(d.entreprise))
           : ds.filter((d) => filtre === 'tout' || d.etat === filtre || d.entreprise === choisi);
       if (!choisi && aCote() && vus[0]) choisi = vus[0].entreprise;
+      if (choisi && choisi.startsWith('tenu:') && !(o.tenus ? o.tenus() : []).some((x) => `tenu:${x.id}` === choisi)) choisi = null;
       const corps = /** @type {HTMLElement} */ (el.querySelector('[data-boite-corps]'));
       if (!tous.length) {
         fermer();
         corps.innerHTML = o.vide ? o.vide() : '<div class="msg-vide"><b>Aucun client en ligne pour l\'instant.</b><span>La messagerie s\'ouvre avec chaque client qui t\'a confié son dossier dans SkanFact. Les dossiers que tu tiens seul au cabinet n\'en ont pas.</span></div>';
+        // (1.178.0) Le cabinet neuf : la page dessinée par l'écran (le code, inviter, les modèles, un aperçu) a ses gestes.
+        if (o.brancherVide) o.brancherVide(corps);
         return;
       }
       if (!corps.querySelector('[data-liste]')) {
@@ -1617,23 +1792,43 @@
       });
       const liste = /** @type {HTMLElement} */ (corps.querySelector('[data-liste]'));
       const avaitLeFocus = liste.contains(document.activeElement);
-      liste.innerHTML = vus.length ? vus.map((x) => {
+      // (1.178.0, maquette « Messages ») Rien n'attend ta réponse : la carte le dit, avec la prochaine date et le geste du
+      // mois (demander les pièces du mois à ceux qui doivent l'envoyer).
+      const calme = !cherche && !resume && !c.aTraiter && (filtre === 'tout' || filtre === 'a_traiter');
+      const prochaine = calme && o.prochaineDate ? o.prochaineDate() : null;
+      const geste = calme && o.groupe ? o.groupe() : null;
+      const carteCalme = calme ? `<div class="msg-calme" data-msg-calme><span class="msg-calme-ic">${dessin('coche')}</span><b>Tout le monde a sa réponse</b>
+          <span>${c.attendClient ? `Aucun client n'attend ta réponse ; ${esc(pl(c.attendClient, 'client doit', 'clients doivent'))} une pièce ou une réponse.` : 'Aucune pièce attendue, aucune question ouverte.'}${prochaine ? ` Prochaine date : ${esc(prochaine)}.` : ''}</span>
+          ${geste && geste.ids.length ? `<button type="button" class="btn btn-sm" data-msg-calme-geste>${dessin('equipe')}${esc(geste.geste)}</button>` : ''}
+          ${filtre === 'a_traiter' && c.attendClient ? '<button type="button" class="msg-lien" data-vers-filtre="attend_client">Voir ceux qui doivent une réponse</button>' : ''}</div>` : '';
+      // Les dossiers tenus au cabinet, sans SkanFact : pas de conversation, l'invitation (dans « Tout »).
+      const tenus = !cherche && !resume && filtre === 'tout' && o.tenus ? o.tenus() : [];
+      const listeTenus = tenus.length ? `<p class="msg-tenus-t">Sans SkanFact · ${esc(pl(tenus.length, 'dossier tenu', 'dossiers tenus'))}</p>${tenus.map((x) => `<button type="button" class="msg-dossier msg-tenu${choisi === `tenu:${x.id}` ? ' choisi' : ''}" data-dossier="tenu:${esc(x.id)}" aria-current="${choisi === `tenu:${x.id}`}">
+          <span class="msg-avatar petit${x.couleur ? ' carre' : ''}"${x.couleur ? ` style="background:linear-gradient(145deg, ${esc(x.couleur[0])}, ${esc(x.couleur[1])})"` : ''} aria-hidden="true">${esc(initiales(x.nom))}</span>
+          <span class="msg-dossier-txt"><span class="msg-dossier-l1"><b>${esc(x.nom)}</b></span><span class="msg-extrait">pas de conversation : l'inviter sur SkanFact</span></span></button>`).join('')}` : '';
+      liste.innerHTML = carteCalme + (vus.length ? vus.map((x) => {
         // La ligne parle du mois du client (« sept. prête », « 1 mois en retard ») et de qui suit le dossier.
         const L = o.ligne ? o.ligne(x.entreprise) : null;
         const puces = [L && L.mois ? `<span class="msg-mois ${esc(L.mois.ton || '')}">${esc(L.mois.texte)}</span>` : '',
           ...(L && L.puces ? L.puces.map((/** @type {any} */ p) => `<span class="msg-puce ${esc(p.ton || '')}">${esc(p.texte)}</span>`) : []),
           x.retards ? `<span class="msg-puce rouge" title="${esc(pl(x.retards, 'pièce demandée passée sa date', 'pièces demandées passées leur date'))}">${esc(pl(x.retards, 'pièce en retard', 'pièces en retard'))}</span>` : '',
+          // (1.178.0) La promesse du client et mon rappel.
+          x.promesse ? (x.promesse.echue ? `<span class="msg-puce rouge" title="${esc(`Promis pour ${jourLong(x.promesse.pour)} : rien n'est arrivé`)}">promesse passée</span>`
+            : `<span class="msg-puce promis" title="${esc(`${x.promesse.quoi}, promis pour ${jourLong(x.promesse.pour)}`)}">${dessin('reveil')}promis ${esc(jourCourt(x.promesse.pour))}</span>`) : '',
+          x.rappel ? `<span class="msg-puce tard" title="${esc(`Tu as demandé de la revoir ${jourLong(x.rappel)}`)}">${dessin('reveil')}revient ${esc(jourCourt(x.rappel))}</span>` : '',
           portee() === 'tout' && L && L.suivi ? `<span class="msg-suivi">${esc(L.suivi)}</span>` : ''].filter(Boolean).join('');
         return `<button type="button" class="msg-dossier${x.entreprise === choisi ? ' choisi' : ''}${x.nonLus ? ' non-lu' : ''}" data-dossier="${esc(x.entreprise)}" aria-current="${x.entreprise === choisi}">
           <span class="msg-avatar petit${L && L.couleur ? ' carre' : ''}"${L && L.couleur ? ` style="background:linear-gradient(145deg, ${esc(L.couleur[0])}, ${esc(L.couleur[1])})"` : ''} aria-hidden="true">${esc(initiales(x.nom))}</span>
           <span class="msg-dossier-txt"><span class="msg-dossier-l1"><b>${esc(x.nom)}</b>${x.dernier ? `<span class="msg-quand">${esc(quandCourt(x.dernier.quand))}</span>` : ''}</span>
             <span class="msg-extrait">${esc(extrait(x))}</span>${puces ? `<span class="msg-dossier-l3">${puces}</span>` : ''}</span>
           <span class="msg-dossier-pastilles">${x.nonLus ? `<span class="msg-non-lus" title="${esc(pl(x.nonLus, 'nouveau message', 'nouveaux messages'))}">${x.nonLus}<span class="msg-cache"> ${x.nonLus > 1 ? 'nouveaux messages' : 'nouveau message'}</span></span>` : ''}
-          ${x.nonLus || x.etat !== 'attend_client' ? '' : `<span class="msg-etat-pastille ${etatDit(x.etat)[1]}">${esc(etatDit(x.etat)[0])}</span>`}</span></button>`;
+          ${x.nonLus || x.etat !== 'attend_client' || (x.promesse && !x.promesse.echue) ? '' : `<span class="msg-etat-pastille ${etatDit(x.etat)[1]}">${esc(etatDit(x.etat)[0])}</span>`}</span></button>`;
       }).join('')
         : cherche ? `<div class="msg-vide"><b>Aucun client ne s'appelle « ${esc(cherche)} ».</b><span>La recherche lit le nom de chaque client en ligne, quel que soit le filtre.</span></div>`
-        : filtre === 'a_traiter' ? `<div class="msg-vide msg-tout-repondu"><b>Tout le monde a sa réponse.</b><span>Aucun client ne t'a écrit depuis ta dernière réponse${c.attendClient ? ` ; ${pl(c.attendClient, 'client doit', 'clients doivent')} une pièce ou une réponse` : ''}.</span>${c.attendClient ? '<button type="button" class="msg-lien" data-vers-filtre="attend_client">Voir ceux qui doivent une réponse</button>' : ''}</div>`
-        : '<div class="msg-vide"><b>Aucun client ne doit de réponse.</b><span>Toutes tes questions et les pièces demandées ont leur réponse.</span></div>';
+        : filtre === 'a_traiter' ? ''
+        : '<div class="msg-vide"><b>Aucun client ne doit de réponse.</b><span>Toutes tes questions et les pièces demandées ont leur réponse.</span></div>') + listeTenus;
+      const gc = liste.querySelector('[data-msg-calme-geste]');
+      if (gc && geste) /** @type {HTMLElement} */ (gc).onclick = () => ecrireAPlusieurs('pieces');
       const vers = liste.querySelector('[data-vers-filtre]');
       if (vers) /** @type {HTMLElement} */ (vers).onclick = () => { filtre = String(/** @type {HTMLElement} */ (vers).dataset.versFiltre); dessiner(); };
       const lignes = /** @type {HTMLElement[]} */ ([...liste.querySelectorAll('[data-dossier]')]);
@@ -1670,6 +1865,7 @@
     }
     /** @param {string} id */
     function choisir(id) {
+      if (id.startsWith('tenu:') && (!aCote() || !o.panneauTenu)) { if (o.ouvrirTenu) o.ouvrirTenu(id.slice(5)); return; }
       if (!aCote()) { o.ouvrir(id); return; }
       if (choisi === id) return;
       choisi = id;
@@ -1693,6 +1889,17 @@
         if (cote) cote.innerHTML = '';
         return;
       }
+      const corpsB = /** @type {HTMLElement | null} */ (el.querySelector('[data-boite-corps]'));
+      if (choisi.startsWith('tenu:')) {
+        fermer();
+        const idT = choisi.slice(5);
+        if (corpsB) corpsB.classList.add('tenu-ouvert');
+        zone.innerHTML = `<div class="msg-tenu-panneau">${o.panneauTenu ? o.panneauTenu(idT) : ''}</div>`;
+        if (cote) cote.innerHTML = '';
+        if (o.brancherTenu) o.brancherTenu(zone, idT);
+        return;
+      }
+      if (corpsB) corpsB.classList.remove('tenu-ouvert');
       if (ouverte && ouverte.entreprise === choisi) { if (cote && o.aCote) majCote(cote, choisi); return; }
       fermer();
       const id = choisi;
@@ -1714,6 +1921,7 @@
         traiter: () => marquerTraite(id),
         enGrand: () => o.ouvrir(id),
         toast: o.toast,
+        toastAnnuler: o.toastAnnuler,
         revision: revision ? () => revision(id) : undefined,
         ouvrirPiece: o.ouvrirPiece ? (/** @type {string} */ g, /** @type {string} */ p, /** @type {string} */ l) => (o.ouvrirPiece ? o.ouvrirPiece(id, g, p, l) : false) : undefined,
         saisirPiece: o.saisirPiece ? (/** @type {any} */ m) => { if (o.saisirPiece) o.saisirPiece(id, m); } : undefined,
@@ -1733,96 +1941,168 @@
       if (o.brancherCote) o.brancherCote(z, id);
     }
     // (1.116.0) « Demander à plusieurs clients » (revue du 22/10/2026 : en fin de mois, la même demande à tous — les
-    // relevés bancaires — se faisait client par client). Les mêmes pièces, la même date, un mot facultatif ; chaque client
-    // la reçoit dans SON fil (rien d'un client ne passe chez un autre). Un client qui refuse n'arrête pas les autres : la
-    // fenêtre dit lesquels l'ont reçue et lesquels non.
-    function demandeGroupee() {
-      const ds = /** @type {any[]} */ (lu.dossiers);
+    // relevés bancaires — se faisait client par client). (1.178.0, maquette « Messages ») « Écrire à plusieurs clients » :
+    // un message, ou des pièces à envoyer (pour un jour, avec un mot facultatif) ; à gauche ce qui part, à droite à qui —
+    // cochés d'avance ceux que le mois appelle (`o.groupe` : ceux qui n'ont pas envoyé septembre), sauf qui a promis ou a
+    // déjà une demande en cours (décochés, la fenêtre dit pourquoi : à toi de voir). Chaque client le reçoit dans SON fil
+    // (rien d'un client ne passe chez un autre) ; un client qui refuse n'arrête pas les autres : la fenêtre dit lesquels
+    // l'ont reçu et lesquels non.
+    /** @param {'message' | 'pieces'} [modeDepart] */
+    function ecrireAPlusieurs(modeDepart) {
+      const ds = /** @type {any[]} */ (lu.dossiers).filter((d) => dansPortee(d.entreprise));
+      const groupe = o.groupe ? o.groupe() : null;
+      let mode = modeDepart || (groupe && groupe.ids.length ? 'pieces' : 'message');
+      // Les pièces proposées : celles du groupe (le mois qui manque), sinon une ligne vide.
+      const proposees = groupe && groupe.pieces && groupe.pieces.length ? groupe.pieces : [];
+      const dansGroupe = new Set(groupe ? groupe.ids : []);
+      const ecarte = (/** @type {any} */ d) => (d.promesse && !d.promesse.echue ? `promis pour ${jourLong(d.promesse.pour)}` : d.attentes ? 'une demande déjà en cours' : '');
+      const cochesDepart = new Set(ds.filter((d) => dansGroupe.has(d.entreprise) && !ecarte(d)).map((d) => d.entreprise));
+      const ecartes = ds.filter((d) => dansGroupe.has(d.entreprise) && ecarte(d));
+      let tous = !groupe || !groupe.ids.length;
+      const vendredi = (() => { for (let n = 1; n <= 7; n++) { const j = dansJours(n); if (nomDuJour(j) === 'vendredi') return j; } return dansJours(2); })();
+      const jours = [...new Set([vendredi, dansJours(7), dansJours(12)])].slice(0, 2);
+      let pour = jours[0] || dansJours(7);
       const fond = document.createElement('div');
       fond.className = 'msg-fenetre-fond';
-      fond.innerHTML = `<form class="msg-fenetre" role="dialog" aria-modal="true" aria-labelledby="msg-dg-titre" novalidate>
-        <h2 id="msg-dg-titre">Demander des pièces à plusieurs clients</h2>
-        <p class="small muted">Chaque client reçoit la demande dans son fil avec toi, comme si tu la lui écrivais : aucun ne voit les autres.</p>
-        <div class="msg-demande"><span class="msg-demande-titre" id="msg-dg-p">Les pièces que tu demandes</span>
-          <div class="msg-demande-liste" data-dg-liste><input type="text" maxlength="300" placeholder="Par exemple : le relevé bancaire de septembre" data-dg-piece aria-labelledby="msg-dg-p"></div>
-          <span class="msg-demande-pied"><button type="button" class="msg-lien" data-dg-plus>+ Une autre pièce</button>
-            <label class="msg-demande-pour"><span>Pour le</span><input type="date" data-dg-pour></label></span></div>
-        <div class="msg-ep-mot"><span class="msg-dg-mot-tete"><label for="msg-dg-mot">Un mot <span class="muted">(facultatif)</span></label>
-            ${o.modeles ? '<button type="button" class="msg-lien" data-dg-modeles>Prendre un modèle…</button>' : ''}</span>
-          <textarea id="msg-dg-mot" rows="2" maxlength="4000" data-dg-mot></textarea>
-          <span class="small muted">{client} devient le nom de chaque client.</span></div>
-        <fieldset class="msg-dg-clients"><legend>À quels clients <button type="button" class="msg-lien" data-dg-tous>Tous</button> <button type="button" class="msg-lien" data-dg-aucun>Aucun</button></legend>
-          ${ds.map((d) => `<label class="msg-dg-client"><input type="checkbox" value="${esc(d.entreprise)}" data-dg-client><span>${esc(d.nom)}</span></label>`).join('')}
-        </fieldset>
-        <div class="msg-fp-gestes msg-ep-gestes"><p class="msg-refus" role="alert" data-dg-refus></p>
-          <button type="button" class="btn" data-fermer>Annuler</button><button type="submit" class="btn btn-primary" data-dg-envoyer>Envoyer la demande</button></div>
+      fond.innerHTML = `<form class="msg-fenetre msg-plusieurs" role="dialog" aria-modal="true" aria-labelledby="msg-dg-titre" novalidate>
+        <header class="msg-pl-tete"><span class="msg-pl-ic">${dessin('equipe')}</span><span><h2 id="msg-dg-titre">Écrire à plusieurs clients</h2>
+          <small>Chacun reçoit le sien, dans sa conversation : aucun ne voit les autres.</small></span>
+          <button type="button" class="msg-icone" data-fermer aria-label="Fermer">${dessin('croix')}</button></header>
+        <div class="msg-pl-corps">
+          <div class="msg-pl-quoi"><span class="msg-pl-t">Ce qui part</span>
+            <div class="msg-pl-modes" role="radiogroup" aria-label="Ce qui part">
+              <button type="button" role="radio" class="msg-pp-j" data-dg-mode="message">Un message</button>
+              <button type="button" role="radio" class="msg-pp-j" data-dg-mode="pieces">Des pièces à envoyer</button></div>
+            <div class="msg-pl-pieces" data-dg-pieces>
+              <div class="msg-pl-liste" data-dg-liste>${(proposees.length ? proposees : ['']).map((x, i) => `<label class="msg-pl-piece"><input type="checkbox" ${x ? 'checked' : ''} data-dg-coche aria-label="Demander cette pièce"><input type="text" maxlength="300" value="${esc(x)}" placeholder="Par exemple : le relevé bancaire de septembre" data-dg-piece aria-label="Pièce demandée ${i + 1}"></label>`).join('')}</div>
+              <button type="button" class="msg-lien" data-dg-plus>+ Une autre pièce</button>
+              <span class="msg-pl-t">Pour le</span>
+              <div class="msg-pp-jours" role="radiogroup" aria-label="Pour le" data-dg-jours></div>
+              <p class="small muted">Sans réponse à cette date, chaque client reçoit un rappel par e-mail (une fois par semaine, trois au plus).</p></div>
+            <span class="msg-dg-mot-tete"><label class="msg-pl-t" for="msg-dg-mot" data-dg-mot-titre>Le mot <span class="muted">(facultatif)</span></label>
+              ${o.modeles ? '<button type="button" class="msg-lien" data-dg-modeles>Modèles</button>' : ''}</span>
+            <textarea id="msg-dg-mot" rows="3" maxlength="4000" data-dg-mot></textarea>
+            <span class="small muted">{client} devient le nom de chaque client.</span></div>
+          <div class="msg-pl-qui"><span class="msg-pl-t">À qui${groupe && groupe.ids.length ? ` · ${esc(groupe.titre)}` : ''}</span>
+            <div class="msg-pl-clients" data-dg-clients></div>
+            <span class="msg-pl-qui-g"><button type="button" class="msg-lien" data-dg-autres></button></span>
+            ${ecartes.length ? `<p class="msg-pl-note">${dessin('reveil')}<span>${esc(ecartes.map((d) => `${d.nom} ${d.promesse && !d.promesse.echue ? `a promis ses pièces pour ${nomDuJour(d.promesse.pour)}` : 'a déjà une demande en cours'}`).join(', et '))} : ${ecartes.length > 1 ? 'décochés' : 'décoché'}, à toi de voir.</span></p>` : ''}</div>
+        </div>
+        <footer class="msg-pl-pied"><span class="small muted" data-dg-resume></span><p class="msg-refus" role="alert" data-dg-refus></p>
+          <span class="msg-pl-gestes"><button type="button" class="btn" data-fermer>Annuler</button><button type="submit" class="btn btn-primary" data-dg-envoyer>Envoyer</button></span></footer>
       </form>`;
       document.body.appendChild(fond);
       const form = /** @type {HTMLFormElement} */ (fond.querySelector('form'));
       const liste = /** @type {HTMLElement} */ (fond.querySelector('[data-dg-liste]'));
-      const pourChamp = /** @type {HTMLInputElement} */ (fond.querySelector('[data-dg-pour]'));
       const refus = /** @type {HTMLElement} */ (fond.querySelector('[data-dg-refus]'));
       const envoyer = /** @type {HTMLButtonElement} */ (fond.querySelector('[data-dg-envoyer]'));
-      const cases = () => /** @type {HTMLInputElement[]} */ ([...fond.querySelectorAll('[data-dg-client]')]);
-      pourChamp.min = jourCle(Date.now());
-      pourChamp.value = jourCle(Date.now() + 7 * 86_400_000);
+      const mot = /** @type {HTMLTextAreaElement} */ (fond.querySelector('[data-dg-mot]'));
+      const coches = new Set(cochesDepart);
+      const raison = (/** @type {any} */ d) => ecarte(d) || (o.raison ? o.raison(d.entreprise) : '') || '';
+      const lesPieces = () => [...liste.querySelectorAll('.msg-pl-piece')].filter((l) => /** @type {HTMLInputElement} */ (l.querySelector('[data-dg-coche]')).checked)
+        .map((l) => /** @type {HTMLInputElement} */ (l.querySelector('[data-dg-piece]')).value.trim()).filter(Boolean);
+      function dessinerQui() {
+        const montres = tous ? ds : ds.filter((d) => dansGroupe.has(d.entreprise) || coches.has(d.entreprise));
+        const z = /** @type {HTMLElement} */ (fond.querySelector('[data-dg-clients]'));
+        z.innerHTML = montres.map((d) => {
+          const L = o.ligne ? o.ligne(d.entreprise) : null;
+          return `<label class="msg-pl-client${coches.has(d.entreprise) ? ' coche' : ''}"><input type="checkbox" value="${esc(d.entreprise)}" ${coches.has(d.entreprise) ? 'checked' : ''} data-dg-client>
+            <span class="msg-avatar petit${L && L.couleur ? ' carre' : ''}"${L && L.couleur ? ` style="background:linear-gradient(145deg, ${esc(L.couleur[0])}, ${esc(L.couleur[1])})"` : ''} aria-hidden="true">${esc(initiales(d.nom))}</span>
+            <span><b>${esc(d.nom)}</b>${raison(d) ? `<small>${esc(raison(d))}</small>` : ''}</span></label>`;
+        }).join('') || '<p class="small muted">Aucun client en ligne.</p>';
+        z.querySelectorAll('[data-dg-client]').forEach((n) => {
+          const c = /** @type {HTMLInputElement} */ (n);
+          c.onchange = () => { if (c.checked) coches.add(c.value); else coches.delete(c.value); refus.textContent = ''; dessinerQui(); resumer(); };
+        });
+        const autres = /** @type {HTMLElement} */ (fond.querySelector('[data-dg-autres]'));
+        const reste = ds.length - montres.length;
+        autres.textContent = tous ? (groupe && groupe.ids.length ? `Seulement ${groupe.titre}` : '') : reste ? `+ D'autres clients (${reste})` : '';
+        autres.hidden = !autres.textContent;
+      }
+      function resumer() {
+        const n = coches.size;
+        const ps = lesPieces();
+        /** @type {HTMLElement} */ (fond.querySelector('[data-dg-resume]')).textContent = !n ? 'Coche les clients à qui écrire.'
+          : mode === 'pieces' ? `${pl(n, 'client')} · ${pl(ps.length, 'pièce')}${n > 1 ? ' chacun' : ''} · pour le ${jourLong(pour)}` : `${pl(n, 'client')} · un message chacun`;
+        envoyer.textContent = n ? `Envoyer ${n > 1 ? `aux ${n} clients` : 'au client'}` : 'Envoyer';
+      }
+      function dessinerMode() {
+        fond.querySelectorAll('[data-dg-mode]').forEach((b) => b.setAttribute('aria-checked', String(/** @type {HTMLElement} */ (b).dataset.dgMode === mode)));
+        /** @type {HTMLElement} */ (fond.querySelector('[data-dg-pieces]')).hidden = mode !== 'pieces';
+        /** @type {HTMLElement} */ (fond.querySelector('[data-dg-mot-titre]')).innerHTML = mode === 'pieces' ? 'Le mot <span class="muted">(facultatif)</span>' : 'Le message';
+        mot.placeholder = mode === 'pieces' ? `Bonjour {client}, pour déposer ${moisDavant()}, il me manque vos pièces. Merci de les envoyer ici.` : 'Bonjour {client}, …';
+        const zj = /** @type {HTMLElement} */ (fond.querySelector('[data-dg-jours]'));
+        const autre = !jours.includes(pour);
+        zj.innerHTML = `${jours.map((j) => `<button type="button" role="radio" class="msg-pp-j" aria-checked="${j === pour}" data-dg-jour="${j}">${esc(jourCourt(j))}</button>`).join('')}
+          <label class="msg-pp-j msg-pp-autre${autre ? ' choisi' : ''}"><span>${autre ? esc(jourCourt(pour)) : 'Choisir…'}</span><input type="date" min="${dansJours(0)}" value="${esc(pour)}" data-dg-pour aria-label="Un autre jour"></label>`;
+        zj.querySelectorAll('[data-dg-jour]').forEach((b) => { /** @type {HTMLElement} */ (b).onclick = () => { pour = String(/** @type {HTMLElement} */ (b).dataset.dgJour); dessinerMode(); }; });
+        const d = /** @type {HTMLInputElement} */ (zj.querySelector('[data-dg-pour]'));
+        d.onchange = () => { if (d.value) { pour = d.value; dessinerMode(); } };
+        resumer();
+      }
+      fond.querySelectorAll('[data-dg-mode]').forEach((b) => { /** @type {HTMLElement} */ (b).onclick = () => { mode = /** @type {any} */ (/** @type {HTMLElement} */ (b).dataset.dgMode); refus.textContent = ''; dessinerMode(); }; });
+      /** @type {HTMLElement} */ (fond.querySelector('[data-dg-autres]')).onclick = () => { tous = !tous; dessinerQui(); };
+      liste.addEventListener('input', resumer);
+      liste.addEventListener('change', resumer);
       const fermer = () => { fond.remove(); document.removeEventListener('keydown', echap); };
       const echap = (/** @type {KeyboardEvent} */ e) => { if (e.key === 'Escape') fermer(); };
       document.addEventListener('keydown', echap);
-      /** @type {HTMLElement} */ (fond.querySelector('[data-fermer]')).onclick = fermer;
+      fond.querySelectorAll('[data-fermer]').forEach((b) => { /** @type {HTMLElement} */ (b).onclick = fermer; });
       fond.onclick = (e) => { if (e.target === fond) fermer(); };
-      /** @type {HTMLElement} */ (fond.querySelector('[data-dg-tous]')).onclick = () => { cases().forEach((c) => { c.checked = true; }); refus.textContent = ''; };
-      /** @type {HTMLElement} */ (fond.querySelector('[data-dg-aucun]')).onclick = () => { cases().forEach((c) => { c.checked = false; }); };
       const bModeles = /** @type {HTMLElement | null} */ (fond.querySelector('[data-dg-modeles]'));
       const modeles = o.modeles;
       if (bModeles && modeles) bModeles.onclick = () => fenetreModeles({ modeles, client: null, utiliser: (t) => {
-        const mot = /** @type {HTMLTextAreaElement} */ (fond.querySelector('[data-dg-mot]'));
         mot.value = mot.value.trim() ? `${mot.value.trimEnd()}\n${t}` : t;
         mot.focus();
       } });
       /** @type {HTMLElement} */ (fond.querySelector('[data-dg-plus]')).onclick = () => {
         const n = liste.querySelectorAll('[data-dg-piece]').length;
         if (n >= 10) { refus.textContent = 'Dix pièces au plus dans une demande.'; return; }
-        const i = document.createElement('input');
-        i.type = 'text'; i.maxLength = 300; i.dataset.dgPiece = ''; i.setAttribute('aria-label', `Pièce demandée ${n + 1}`);
-        liste.appendChild(i); i.focus();
+        const l = document.createElement('label');
+        l.className = 'msg-pl-piece';
+        l.innerHTML = `<input type="checkbox" checked data-dg-coche aria-label="Demander cette pièce"><input type="text" maxlength="300" data-dg-piece aria-label="Pièce demandée ${n + 1}">`;
+        liste.appendChild(l); /** @type {HTMLElement} */ (l.querySelector('[data-dg-piece]')).focus();
+        resumer();
       };
       form.onsubmit = async (e) => {
         e.preventDefault();
         if (envoyer.disabled) return;
-        const pieces = [...liste.querySelectorAll('[data-dg-piece]')].map((x) => /** @type {HTMLInputElement} */ (x).value.trim()).filter(Boolean);
-        const clients = cases().filter((c) => c.checked).map((c) => c.value);
-        if (!pieces.length) { refus.textContent = 'Nomme au moins une pièce (par exemple : le relevé bancaire de septembre).'; /** @type {HTMLElement} */ (liste.querySelector('input')).focus(); return; }
+        const pieces = mode === 'pieces' ? lesPieces() : [];
+        const clients = [...coches];
+        const texteMot = mot.value.trim();
+        if (mode === 'pieces' && !pieces.length) { refus.textContent = 'Nomme au moins une pièce (par exemple : le relevé bancaire de septembre).'; /** @type {HTMLElement} */ (liste.querySelector('[data-dg-piece]')).focus(); return; }
+        if (mode === 'message' && !texteMot) { refus.textContent = 'Écris le message qui part à chacun, puis « Envoyer ».'; mot.focus(); return; }
         if (!clients.length) { refus.textContent = 'Coche au moins un client.'; return; }
         envoyer.disabled = true; refus.textContent = '';
-        const mot = /** @type {HTMLTextAreaElement} */ (fond.querySelector('[data-dg-mot]')).value.trim();
         /** @type {string[]} */ const ratees = [];
         for (const c of clients) {
           try {
             // (1.117.0) {client} : le nom de chacun (un modèle pris pour tous).
-            const texte = mot.replace(/\{client\}/g, (ds.find((d) => d.entreprise === c) || {}).nom || '');
-            await o.appel('POST', `/entreprises/${encodeURIComponent(c)}/messages`, { cote: 'cabinet', texte, pour: pourChamp.value || null,
-              ...(pieces.length > 1 ? { demandes: pieces } : { demande: pieces[0] }) });
-            // Partie : la case se décoche (un second « Envoyer » ne la redemanderait pas à ce client).
-            const fait = cases().find((x) => x.value === c);
-            if (fait) fait.checked = false;
+            const texte = texteMot.replace(/\{client\}/g, (ds.find((d) => d.entreprise === c) || {}).nom || '');
+            await o.appel('POST', `/entreprises/${encodeURIComponent(c)}/messages`, { cote: 'cabinet', texte,
+              ...(mode === 'pieces' ? { pour, ...(pieces.length > 1 ? { demandes: pieces } : { demande: pieces[0] }) } : {}) });
+            // Parti : la case se décoche (un second « Envoyer » ne le renverrait pas à ce client).
+            coches.delete(c);
           } catch (x) { ratees.push(`${(ds.find((d) => d.entreprise === c) || {}).nom || 'un client'} (${motif(x)})`); }
         }
         envoyer.disabled = false;
         const parties = clients.length - ratees.length;
         if (ratees.length) {
-          refus.textContent = `${parties ? `Envoyée à ${pl(parties, 'client')} (leur case est décochée). ` : ''}Pas envoyée à : ${ratees.join(' ; ')}.`;
+          dessinerQui(); resumer();
+          refus.textContent = `${parties ? `Envoyé à ${pl(parties, 'client')} (leur case est décochée). ` : ''}Pas envoyé à : ${ratees.join(' ; ')}.`;
           if (parties) { void lire(); if (ouverte) void ouverte.c.relire(); }
           return;
         }
         fermer();
         // La conversation ouverte à droite les montre aussitôt (elle ne se relisait qu'au tour suivant).
         if (ouverte) void ouverte.c.relire();
-        if (o.toast) o.toast(`Demande envoyée à ${pl(parties, 'client')} : chacun la lit dans son fil.`);
+        if (o.toast) o.toast(`${mode === 'pieces' ? 'Demande envoyée' : 'Message envoyé'} à ${pl(parties, 'client')} : chacun le lit dans sa conversation.`);
         signature = '';
         void lire();
       };
-      /** @type {HTMLElement} */ (liste.querySelector('input')).focus();
+      dessinerQui(); dessinerMode();
+      const premier = /** @type {HTMLElement | null} */ (mode === 'pieces' ? fond.querySelector('[data-dg-piece]') : mot);
+      if (premier) premier.focus();
     }
     async function lire() {
       if (fini) return;
@@ -1855,7 +2135,7 @@
     window.addEventListener('online', auReseau);
     function arreter() { fini = true; clearInterval(minuterie); clearTimeout(relecture); TELEPHONE.removeEventListener('change', auChangement); window.removeEventListener('online', auReseau); fermer(); }
     // (1.176.0) « Écrire à plusieurs clients… » est dans l'en-tête de la page : l'écran l'ouvre d'ici.
-    return { arreter, demandeGroupee: () => { if (lu && lu.dossiers.length) demandeGroupee(); } };
+    return { arreter, demandeGroupee: () => { if (lu && lu.dossiers.length) ecrireAPlusieurs(); } };
   }
 
   // (1.94.0) Un fichier qui part avec un mot (et la pièce qu'il concerne), hors du fil : la fenêtre « Répondre » d'une

@@ -1740,6 +1740,9 @@
     const bonjour = prenom ? `Bonjour ${prenom}, ` : 'Bonjour, ';
     const mp = moisPrecedent(K.today().slice(0, 7));
     const l = [];
+    // (1.178.0) Une promesse notée : la réponse qui en prend acte.
+    const pr = (etatsMessages.get(d.id) || {}).promesse;
+    if (pr && !pr.echue) l.push({ titre: `C'est noté pour ${jourLongMsg(pr.pour).split(' ')[0]}`, sous: `${prenom || 'le client'} promet ${pr.quoi}`, texte: `${bonjour}c'est noté pour ${jourLongMsg(pr.pour)}, merci !` });
     const q = Number((questionsAttente.find(x => x.dossierId === d.id) || {}).ouvertes || 0);
     if (q) l.push({ titre: 'Rappel des questions de la révision', sous: `${pl(q, 'question')} sans réponse`, texte: `${bonjour}il me reste ${q > 1 ? `${q} questions` : 'une question'} de la révision sans réponse : ${q > 1 ? 'vous les trouvez' : 'vous la trouvez'} plus haut dans cette conversation. Une phrase suffit. Merci !` });
     const nP = (comptesBarre.piecesParDossier && comptesBarre.piecesParDossier.get(d.id)) || 0;
@@ -1750,6 +1753,71 @@
     else if (!d.manual && !ecrituresConnues(d.id, mp) && !nP && !tard.includes(mp) && questionsAttenteLues) l.push({ titre: `Les pièces de ${moisLong(mp)}`, sous: 'rien reçu pour ce mois', texte: `${bonjour}je n'ai encore rien reçu pour ${moisLong(mp)} : pouvez-vous m'envoyer vos factures d'achat et de vente, et le relevé bancaire du mois ? Merci !` });
     if (tard.length) l.push({ titre: `${cap(tard.map(moisLong).join(' et '))} en retard`, sous: 'la date limite est passée', texte: `${bonjour}${tard.length > 1 ? `les déclarations de ${tard.map(moisLong).join(' et ')} sont` : `la déclaration de ${moisLong(tard[0])} est`} en retard. Pour la déposer, il me manque vos pièces : pouvez-vous me les envoyer aujourd'hui ? Merci.` });
     return l.slice(0, 2);
+  }
+  // (1.178.0) « vendredi 30/10 ».
+  const jourLongMsg = j => `${['dimanche', 'lundi', 'mardi', 'mercredi', 'jeudi', 'vendredi', 'samedi'][new Date(`${j}T12:00:00Z`).getUTCDay()]} ${j.slice(8, 10)}/${j.slice(5, 7)}`;
+  // « Confier à… » depuis une conversation : la même liste que les Dossiers (chacun avec sa charge) ; le choix passe par
+  // confierA (son « Annuler » remet les droits d'avant).
+  function confierMsg(id) {
+    const d = (S.dossiers || []).find(x => x.id === id);
+    if (!d) return;
+    modal(`<h2>Confier ${esc(d.name)}</h2><p class="muted pc-m-sous">Qui suit le dossier : la saisie, la révision, les pièces, et cette conversation. ${esc(String(d.contact || d.name).split(' ')[0])} n'en voit rien.</p>${popConfier([d]).replace('class="row-menu cd-cf"', 'class="row-menu cd-cf cd-cf-modal"')}
+      <div class="modal-actions"><button type="button" class="btn" data-x>Annuler</button></div>`, (m, close) => {
+      $$('[data-cd-a]', m).forEach(b => { b.onclick = () => { close(); void confierA(b.dataset.cdA, [d]); }; });
+      const x = $('[data-x]', m); if (x) x.onclick = close;
+    });
+  }
+  // (1.178.0, maquette « Messages ») Un dossier tenu au cabinet, choisi dans la liste : pas de conversation ; ce qu'elle lui
+  // apporterait, et l'invitation (qui part depuis sa fiche, à l'adresse que tu donnes).
+  function panneauTenuMsg(d) {
+    if (!d) return '';
+    const cp = couleurDe(d.id);
+    const ic = p => `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+    return `<div class="msg-tenu-g"><span class="msg-avatar grand carre" style="background:linear-gradient(145deg, ${cp[0]}, ${cp[1]})" aria-hidden="true">${esc(initialesDe(d.name))}</span>
+        <h2>${esc(d.name)} n'est pas encore sur SkanFact</h2>
+        <p class="muted">Le cabinet tient ses livres, mais ce client n'a pas de compte : pas de conversation pour l'instant. Invite-le, et tout ce qu'il t'envoie arrive ici.</p>
+        <ul class="msg-tenu-l">
+          <li>${ic('<path d="M4 5h16v11H8l-4 4z"/>')}<span><b>Il t'écrit ici</b><small>au lieu du téléphone et des e-mails perdus</small></span></li>
+          <li>${ic('<rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="12" cy="12" r="3"/>')}<span><b>Il envoie ses pièces en photo</b><small>elles arrivent dans « Pièces reçues », prêtes à saisir</small></span></li>
+          <li>${ic('<circle cx="12" cy="12" r="9"/><path d="M9.2 9.2a2.9 2.9 0 0 1 5.6 1c0 1.9-2.8 2.4-2.8 4"/>')}<span><b>Il répond aux questions</b><small>de la révision, sur place, avec la pièce</small></span></li></ul>
+        <span class="msg-tenu-gestes"><button type="button" class="btn btn-primary" data-msg-tenu-g="inviter">Inviter ${esc(d.name)} sur SkanFact</button><button type="button" class="btn" data-msg-tenu-g="ouvrir">Ouvrir le dossier</button></span>
+        <p class="small muted">L'invitation part depuis sa fiche, à l'adresse que tu donnes ; le client choisit ce que voit le cabinet.</p></div>
+      <div class="msg-tenu-apercu" aria-hidden="true"><div class="msg-ap-tete">${ic('<path d="M4 5h16v11H8l-4 4z"/>')}<b>Mon comptable</b><small>${esc((S.cabinet && S.cabinet.name) || 'ton cabinet')}</small></div>
+        <div class="msg-ap-bulle">Bonjour, pour ${esc(moisLong(moisPrecedent(K.today().slice(0, 7))))} il me manque le relevé de la banque. Merci !</div>
+        <div class="msg-ap-demande"><b>Relevé bancaire de ${esc(moisLong(moisPrecedent(K.today().slice(0, 7))))}</b><small>pièce demandée</small><span class="msg-ap-btn">Envoyer la pièce…</span></div>
+        <small class="msg-ap-pied">ce que ce client verrait dans SkanFact</small></div>`;
+  }
+  // (1.178.0, maquette « Messages ») Le cabinet sans client en ligne : ce que fait la messagerie, et trois gestes pour qu'elle
+  // vive (le code cabinet, inviter un client, préparer ses modèles) ; puis un aperçu, celui d'une vraie conversation.
+  function neufMsg() {
+    const tenus = (S.dossiers || []).filter(d => d.manual && !d.archived);
+    const code = api.codeCabinet ? api.codeCabinet() : '';
+    const ic = p => `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
+    const noms = tenus.slice(0, 3).map(d => d.name).join(', ');
+    return `<div class="msg-neuf"><div class="msg-neuf-tete"><span class="msg-neuf-ic">${ic('<path d="M4 5h16v11H8l-4 4z"/>')}</span><span><h2>Tes clients t'écriront ici</h2>
+        <p>Un client sur SkanFact a une conversation avec le cabinet : ses messages, ses photos de pièces, les pièces que tu lui demandes et les questions de la révision, au même endroit, des deux côtés.${tenus.length ? ` ${tenus.length > 1 ? `Tes ${tenus.length} clients sont tenus` : 'Ton client est tenu'} au cabinet, sans compte SkanFact : aucune conversation pour l'instant.` : ''}</p></span></div>
+      <ol class="msg-neuf-pas">
+        ${code ? `<li><span class="msg-neuf-n">1</span>${ic('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>')}<b>Ton code cabinet</b><p><b class="msg-neuf-code">${esc(code)}</b> : le client le tape dans SkanFact, « Mon comptable », et vous êtes reliés d'un geste.</p><button type="button" class="btn btn-sm" data-msg-neuf="code">Copier le code</button></li>` : ''}
+        <li><span class="msg-neuf-n">${code ? 2 : 1}</span>${ic('<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M19 8v6M16 11h6"/>')}<b>Inviter un client</b><p>${noms ? `${esc(noms)} : l'invitation part à l'adresse que tu donnes.` : 'L\'invitation part à l\'adresse que tu donnes : il crée son compte, et sa conversation s\'ouvre ici.'}</p><button type="button" class="btn btn-sm btn-primary" data-msg-neuf="inviter">Inviter un client…</button></li>
+        ${api.modeles ? `<li><span class="msg-neuf-n">${code ? 3 : 2}</span>${ic('<path d="M4 6h16M4 12h10M4 18h7"/>')}<b>Préparer tes modèles</b><p>Les phrases que tu écris chaque mois : « Il me manque les pièces de {mois} », « Ta déclaration est déposée ».</p><button type="button" class="btn btn-sm" data-msg-neuf="modeles">Écrire un modèle</button></li>` : ''}
+      </ol>
+      <p class="msg-neuf-ap-t"><b>Aperçu</b> une conversation d'exemple : un client demande si un avoir change un mois déposé</p>
+      <div class="msg-neuf-ap" aria-hidden="true">
+        <div class="msg-ap-l"><small>Sami · 18:52</small><div class="msg-ap-bulle">Bonjour, j'ai dû annuler une facture de juillet : le client a refusé la livraison. J'ai fait un avoir hier.</div>
+          <div class="msg-ap-carte"><b>Avoir AV-0031</b><small>27/10 · 1 180,000 DT</small></div></div>
+        <div class="msg-ap-l"><small>Sami · 18:54</small><div class="msg-ap-bulle">Est-ce que ça change la déclaration de juillet ?</div></div>
+        <div class="msg-ap-l moi"><small>Toi · 09:10</small><div class="msg-ap-bulle moi">Non : l'avoir entre dans octobre, juillet ne se réécrit pas. Je m'en occupe.</div></div>
+        <div class="msg-ap-l note"><div class="msg-ap-note">Note pour l'équipe · l'avoir arrive avec les achats d'octobre</div></div></div></div>`;
+  }
+  function brancherNeufMsg(z) {
+    $$('[data-msg-neuf]', z).forEach(b => {
+      b.onclick = async () => {
+        const g = b.dataset.msgNeuf;
+        if (g === 'code') { try { await navigator.clipboard.writeText(api.codeCabinet()); b.textContent = 'Copié'; } catch { /* le code reste lisible */ } }
+        else if (g === 'modeles') api.modeles();
+        else if (estAssocie()) newDossierForm(); else location.hash = '#/dossiers';
+      };
+    });
   }
   function drawBoiteMsg(view, gestes) {
     const dir = estAssocie();
@@ -1835,11 +1903,36 @@
       resume,
       aCote,
       contact: id => { const d = parId(id); return d ? [d.contact, d.contactRole].filter(Boolean).join(' · ') || null : null; },
-      prenom: id => { const d = parId(id); return String((d && (d.contact || d.name)) || '').split(' ')[0]; },
+      // Le prénom du contact ; sans contact connu, rien (« Message au client », pas « Message à Garage »).
+      prenom: id => { const d = parId(id); return String((d && d.contact) || '').split(' ')[0]; },
       suggestions: id => suggestionsMsg(parId(id), retard),
       // « Saisir les N pièces » : elles s'ouvrent une par une dans « Pièces reçues » du dossier (le geste de chacune : saisir).
       saisirLot: id => { location.hash = '#/pieces/' + encodeURIComponent(id); },
-      menu: id => [{ texte: 'Ouvrir le dossier', sous: 'le livre, mois par mois', dessin: 'piece', faire: () => { location.hash = '#/dossier/' + encodeURIComponent(id); } }],
+      menu: id => [
+        // (1.178.0, maquette « Messages ») « Confier à… » : qui suit le dossier ; le client n'en voit rien. La direction.
+        ...(dir ? [{ texte: 'Confier à…', sous: (() => { const d = parId(id); const eq = d ? equipeDe(d) : {}; const c = d ? String(d.contact || d.name).split(' ')[0] : 'le client'; return `${eq.suit ? `suivi par ${eq.suit.id === S.moi ? 'toi' : prenomDe(eq.suit)}` : 'personne ne le suit encore'} ; ${c} n'en voit rien`; })(), dessin: 'equipe', faire: () => confierMsg(id) }] : []),
+        { texte: 'Ouvrir le dossier', sous: 'le livre, mois par mois', dessin: 'piece', faire: () => { location.hash = '#/dossier/' + encodeURIComponent(id); } }],
+      toastAnnuler: (texte, annuler) => toastUndo(texte, annuler),
+      // « Écrire à plusieurs clients » : cochés d'avance ceux que le mois appelle (le mois d'avant sans pièces, ou en retard).
+      groupe: () => {
+        const mp = moisPrecedent(K.today().slice(0, 7));
+        const ids = (S.dossiers || []).filter(d => !d.manual && !d.archived && dansPortee(d.id) && (moisDuDossier(d, retard).manque || (retard.get(d.name) || []).length)).map(d => d.id);
+        const de = /^[aeiouyéh]/i.test(moisLong(mp)) ? `d'${moisLong(mp)}` : `de ${moisLong(mp)}`;
+        return { titre: `ceux qui n'ont pas envoyé ${moisLong(mp)}`, geste: `Demander les pièces ${de}…`, ids,
+          pieces: [`Ventes et achats ${de}`, `Relevé bancaire ${de}`] };
+      },
+      raison: id => { const d = parId(id); if (!d) return ''; const mo = moisDuDossier(d, retard); return mo.manqueTxt || mo.mot || ''; },
+      prochaineDate: () => {
+        const x = itemsEcheances().filter(y => ['jour', 'bientot', 'avenir'].includes(y.groupe)).sort((a, b) => (a.e.date < b.e.date ? -1 : 1))[0];
+        return x ? `${jourLongMsg(x.e.date)}, ${x.t.titre.charAt(0).toLowerCase()}${x.t.titre.slice(1)} (À VÉRIFIER)` : null;
+      },
+      // Les dossiers tenus au cabinet, sans SkanFact : pas de conversation ; à droite, ce qu'il gagnerait et l'invitation.
+      tenus: () => (S.dossiers || []).filter(d => d.manual && !d.archived && dansPortee(d.id)).map(d => ({ id: d.id, nom: d.name, couleur: couleurDe(d.id) })),
+      panneauTenu: id => panneauTenuMsg(parId(id)),
+      brancherTenu: (z, id) => { $$('[data-msg-tenu-g]', z).forEach(b => { b.onclick = () => { location.hash = '#/dossier/' + encodeURIComponent(id) + (b.dataset.msgTenuG === 'inviter' ? '/fiche' : ''); }; }); },
+      ouvrirTenu: id => { location.hash = '#/dossier/' + encodeURIComponent(id) + '/fiche'; },
+      vide: () => neufMsg(),
+      brancherVide: z => brancherNeufMsg(z),
       // La phrase de la page et la pastille : ce qui attend ta réponse, et ce qu'on attend des clients.
       surCompteurs: (c, ds, tous) => {
         const ph = $('#msg-phrase', view);
@@ -1908,6 +2001,7 @@
     messagerieOuverte = api.messagerie.conversation(racine, id, {
       nom: d ? d.name : 'Ce client',
       ...(d && d.contact ? { contactPrenom: String(d.contact).split(' ')[0] } : {}),
+      toastAnnuler: (texte, annuler) => toastUndo(texte, annuler),
       demander: geste === 'demande',
       ...(prete ? { demandeTexte: prete } : {}),
       toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),

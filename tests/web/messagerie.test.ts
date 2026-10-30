@@ -435,16 +435,25 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     await c.p.locator('.msg-retour').click();
     await c.p.locator('.msg-boite [data-msg-fil]').waitFor({ timeout: 15_000 });
     await c.p.getByRole('button', { name: 'Écrire à plusieurs clients…', exact: true }).click();
-    const dg = c.p.getByRole('dialog', { name: 'Demander des pièces à plusieurs clients' });
-    await dg.locator('[data-dg-piece]').fill('Le relevé bancaire de septembre');
+    // (1.178.0, maquette « Messages ») « Écrire à plusieurs clients » : un message ou des pièces ; les pièces du mois qui
+    // manque proposées (décochées ici), les siennes ajoutées, le jour choisi, les clients cochés.
+    const dg = c.p.getByRole('dialog', { name: 'Écrire à plusieurs clients' });
+    await dg.getByRole('radio', { name: 'Des pièces à envoyer' }).click();
+    while (await dg.locator('[data-dg-coche]:checked').count()) await dg.locator('[data-dg-coche]:checked').first().click();
+    await dg.getByRole('button', { name: '+ Une autre pièce', exact: true }).click();
+    await c.p.keyboard.type('Le relevé bancaire de septembre');
     await dg.getByRole('button', { name: '+ Une autre pièce', exact: true }).click();
     await c.p.keyboard.type('La facture Ooredoo de septembre');
-    await dg.getByRole('button', { name: 'Envoyer la demande', exact: true }).click();
-    expect(await dg.locator('[data-dg-refus]').innerText()).toBe('Coche au moins un client.');
-    await dg.getByRole('button', { name: 'Tous', exact: true }).click();
-    await dg.getByRole('button', { name: 'Envoyer la demande', exact: true }).click();
-    await expect.poll(() => dg.count(), { timeout: 15_000 }).toBe(0);
     const dans7 = new Date(Date.now() + 7 * 86_400_000).toLocaleDateString('en-CA', { timeZone: 'Africa/Tunis' });
+    await dg.locator(`[data-dg-jour="${dans7}"]`).click();
+    if (/^\+ D'autres/.test(await dg.locator('[data-dg-autres]').innerText())) await dg.locator('[data-dg-autres]').click();
+    while (await dg.locator('[data-dg-client]:checked').count()) await dg.locator('[data-dg-client]:checked').first().click();
+    await dg.getByRole('button', { name: /^Envoyer/ }).click();
+    expect(await dg.locator('[data-dg-refus]').innerText()).toBe('Coche au moins un client.');
+    while (await dg.locator('[data-dg-client]:not(:checked)').count()) await dg.locator('[data-dg-client]:not(:checked)').first().click();
+    expect(net(await dg.locator('[data-dg-resume]').innerText())).toMatch(/^2 clients · 2 pièces chacun · pour le \S+ \d\d\/\d\d$/);
+    await dg.getByRole('button', { name: 'Envoyer aux 2 clients', exact: true }).click();
+    await expect.poll(() => dg.count(), { timeout: 15_000 }).toBe(0);
     for (const x of [amine, leila]) {
       const d = ((await api('GET', `/entreprises/${x.e}/messages?cote=entreprise`, x.j)).corps.messages ?? []) as unknown as { demande: { texte: string; pour: string } | null }[];
       expect(d.filter((m) => m.demande?.pour === dans7).map((m) => m.demande?.texte).sort()).toEqual(['La facture Ooredoo de septembre', 'Le relevé bancaire de septembre']);

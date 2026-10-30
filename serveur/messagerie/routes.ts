@@ -130,27 +130,49 @@ async function etatsDesDossiers(tx: Transaction, cabinet: string, entreprise: st
     retard as (
       select m.entreprise, count(*) n from messagerie.message m where m.cabinet = $1 and m.demande is not null and m.demande_recue_le is null
          and m.demande_pour < (now() at time zone 'Africa/Tunis')::date group by m.entreprise
+    ),
+    -- (1.178.0, 0183) La promesse du client compte tant que rien n'est arrivé de lui depuis qu'elle est notée ; le rappel
+    -- (« Me le remontrer demain ») est celui de la personne qui lit.
+    lu as (
+      select d.entreprise, d.raison_sociale,
+             coalesce(cl.quand > greatest(coalesce(f.traite_le, '-infinity'), coalesce(ca.quand, '-infinity')), false) ecrit,
+             (p.pour is not null and (cl.quand is null or cl.quand <= p.notee_le)) promis,
+             p.pour promis_pour, p.quoi promis_quoi, p.par_nom promis_par, p.notee_le promis_le, rp.le rappel,
+             (now() at time zone 'Africa/Tunis')::date aujourdhui,
+             (select count(*) from evenements e where e.entreprise = d.entreprise and e.cote = 'entreprise'
+                and e.quand > coalesce(f.lu_cabinet, '-infinity')) non_lus,
+             coalesce(at.n, 0) attentes, coalesce(rt.n, 0) retards,
+             dn.quand, dn.cote, dn.auteur, dn.sorte, dn.extrait
+        from d
+        left join messagerie.fil f on f.entreprise = d.entreprise and f.cabinet = $1
+        left join client cl on cl.entreprise = d.entreprise
+        left join cabinet ca on ca.entreprise = d.entreprise
+        left join attend at on at.entreprise = d.entreprise
+        left join retard rt on rt.entreprise = d.entreprise
+        left join dernier dn on dn.entreprise = d.entreprise
+        left join cabinet.promesse p on p.cabinet = $1 and p.entreprise = d.entreprise
+        left join cabinet.rappel rp on rp.cabinet = $1 and rp.entreprise = d.entreprise and rp.utilisateur = socle.moi()
+    ),
+    -- « À traiter » : le client a écrit depuis la dernière réponse (sauf s'il a promis depuis), ou le jour promis est passé
+    -- sans rien ; un rappel posé pour plus tard l'en sort (« Plus tard »), jusqu'à son jour.
+    etat as (
+      select lu.*, (ecrit and not promis) or (promis and promis_pour < aujourdhui) a_traiter from lu
     )
-    select d.entreprise, d.raison_sociale,
-           case when cl.quand is not null and cl.quand > greatest(coalesce(f.traite_le, '-infinity'), coalesce(ca.quand, '-infinity')) then 'a_traiter'
-                when coalesce(at.n, 0) > 0 then 'attend_client' else 'rien' end etat,
-           (select count(*) from evenements e where e.entreprise = d.entreprise and e.cote = 'entreprise'
-              and e.quand > coalesce(f.lu_cabinet, '-infinity')) non_lus,
-           coalesce(at.n, 0) attentes, coalesce(rt.n, 0) retards,
-           dn.quand, dn.cote, dn.auteur, dn.sorte, dn.extrait
-      from d
-      left join messagerie.fil f on f.entreprise = d.entreprise and f.cabinet = $1
-      left join client cl on cl.entreprise = d.entreprise
-      left join cabinet ca on ca.entreprise = d.entreprise
-      left join attend at on at.entreprise = d.entreprise
-      left join retard rt on rt.entreprise = d.entreprise
-      left join dernier dn on dn.entreprise = d.entreprise
-     order by case when cl.quand is not null and cl.quand > greatest(coalesce(f.traite_le, '-infinity'), coalesce(ca.quand, '-infinity')) then 0
-                   when coalesce(at.n, 0) > 0 then 1 else 2 end, dn.quand desc nulls last, d.raison_sociale, d.entreprise`, [cabinet, entreprise]);
+    select etat.*,
+           case when a_traiter and rappel > aujourdhui then 'plus_tard' when a_traiter then 'a_traiter'
+                when attentes > 0 or promis then 'attend_client' else 'rien' end etat
+      from etat
+     order by case when a_traiter and rappel > aujourdhui then 2 when a_traiter then 0 when attentes > 0 or promis then 1 else 3 end,
+              quand desc nulls last, raison_sociale, entreprise`, [cabinet, entreprise]);
   return (r.rows as { entreprise: string; raison_sociale: string; etat: string; non_lus: string; attentes: string; retards: string; quand: Date | null;
-    cote: string | null; auteur: string | null; sorte: string | null; extrait: string | null }[]).map((x) => ({
+    cote: string | null; auteur: string | null; sorte: string | null; extrait: string | null; promis: boolean; promis_pour: string | null;
+    promis_quoi: string | null; promis_par: string | null; promis_le: Date | null; rappel: string | null; aujourdhui: string }[]).map((x) => ({
     entreprise: x.entreprise, nom: x.raison_sociale, etat: x.etat, nonLus: Number(x.non_lus), attentes: Number(x.attentes), retards: Number(x.retards),
     dernier: x.quand ? { quand: x.quand.toISOString(), cote: x.cote, auteur: x.auteur, sorte: x.sorte, extrait: (x.extrait ?? '').slice(0, 200) } : null,
+    // La promesse qui compte encore (`echue` : son jour est passé sans rien), et mon rappel s'il est à venir.
+    promesse: x.promis && x.promis_pour ? { pour: x.promis_pour, quoi: x.promis_quoi, par: x.promis_par, noteeLe: x.promis_le?.toISOString() ?? null,
+      echue: x.promis_pour < x.aujourdhui } : null,
+    rappel: x.rappel && x.rappel > x.aujourdhui ? x.rappel : null,
   }));
 }
 

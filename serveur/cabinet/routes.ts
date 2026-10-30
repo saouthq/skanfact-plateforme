@@ -21,6 +21,7 @@ import { PERIODE_REVISION, REVISION } from './revision.ts';
 import { facturerCabinetBientot } from '../abonnement/cabinet.ts';
 
 const uuid = z.string().uuid();
+const champInvalide = (champ: string, raison: ReturnType<typeof t>) => ({ statut: 400 as const, corps: { motif: motif('commun.champ_invalide', { champ, raison }), champ } });
 const PERIMETRES = ['comptabilite', 'declarations', 'saisie_achats', 'paie'] as const;
 const perimetre = z.array(z.enum(PERIMETRES)).min(1).max(4).refine((p) => new Set(p).size === p.length, { message: 'cabinet.champ.perimetre' });
 const ROLES_SUR_DOSSIER = ['supervision', 'revision', 'saisie', 'paie'] as const;
@@ -416,6 +417,81 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
           select $1, $2, socle.moi(), u.nom, $3 from socle.utilisateur u where u.id = socle.moi() returning id`, [params.cabinet, params.dossier, corps.texte]);
       if (!r.rowCount) return introuvable;
       return { statut: 201, corps: { id: (r.rows[0] as { id: string }).id } };
+    },
+  });
+  // (1.178.0, maquette « Messages », lot 3) Le suivi d'une conversation au cabinet, lu d'un coup : les notes, la promesse du
+  // client (et si elle est tenue : il a écrit depuis), MON rappel, et les jalons (les déclarations déposées du dossier, que
+  // le livre du client porte ; rien si la personne ne voit pas ses déclarations).
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/suivi/:dossier', geste: 'compte.cabinets.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      const notes = (await tx.query(`select id, auteur_nom, auteur = socle.moi() de_moi, texte, ecrit_le from cabinet.note
+          where cabinet = $1 and entreprise = $2 order by ecrit_le, id`, [params.cabinet, params.dossier])).rows as { id: string; auteur_nom: string; de_moi: boolean; texte: string; ecrit_le: Date }[];
+      const p = (await tx.query(`select to_char(p.pour, 'YYYY-MM-DD') pour, p.quoi, p.par_nom, p.par = socle.moi() de_moi, p.notee_le,
+          exists (select 1 from messagerie.message m where m.cabinet = p.cabinet and m.entreprise = p.entreprise and m.cote = 'entreprise' and m.ecrit_le > p.notee_le)
+            or exists (select 1 from compta.question q where q.cabinet = p.cabinet and q.entreprise = p.entreprise and q.repondu_le > p.notee_le) tenue,
+          p.pour < (now() at time zone 'Africa/Tunis')::date echue
+        from cabinet.promesse p where p.cabinet = $1 and p.entreprise = $2`, [params.cabinet, params.dossier])).rows[0] as
+        { pour: string; quoi: string; par_nom: string; de_moi: boolean; notee_le: Date; tenue: boolean; echue: boolean } | undefined;
+      const rappel = (await tx.query(`select to_char(le, 'YYYY-MM-DD') le from cabinet.rappel where cabinet = $1 and entreprise = $2 and utilisateur = socle.moi()
+          and le > (now() at time zone 'Africa/Tunis')::date`, [params.cabinet, params.dossier])).rows[0] as { le: string } | undefined;
+      const jalons = (await tx.query(`select d.periode, to_char(d.deposee_le, 'YYYY-MM-DD') deposee_le, coalesce(u.nom, '') par, d.deposee_par = socle.moi() de_moi,
+          d.cases ->> 'aDecaisser' a_payer
+        from compta.declaration d left join socle.utilisateur u on u.id = d.deposee_par
+        where d.entreprise = $1 and d.deposee_le is not null order by d.deposee_le, d.periode`, [params.dossier])).rows as
+        { periode: string; deposee_le: string; par: string; de_moi: boolean; a_payer: string | null }[];
+      return { corps: {
+        notes: notes.map((n) => ({ id: n.id, auteur: n.auteur_nom, moi: n.de_moi, texte: n.texte, ecritLe: n.ecrit_le.toISOString() })),
+        promesse: p ? { pour: p.pour, quoi: p.quoi, par: p.par_nom, moi: p.de_moi, noteeLe: p.notee_le.toISOString(), tenue: p.tenue, echue: p.echue } : null,
+        rappel: rappel ? rappel.le : null,
+        jalons: jalons.map((j) => ({ sorte: 'declaration', periode: j.periode, le: j.deposee_le, par: j.par, moi: j.de_moi,
+          aPayer: j.a_payer === null ? null : versTexte(BigInt(j.a_payer), 3) })),
+      } };
+    },
+  });
+  // Noter la promesse du client (la remplace, s'il y en avait une) ; le jour promis n'est pas passé.
+  ajouter({
+    methode: 'PUT', chemin: '/cabinets/:cabinet/promesses/:dossier', geste: 'compte.cabinet.gerer',
+    corps: z.object({ pour: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), quoi: z.string().trim().min(1).max(200) }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      if (!(await tx.query(`select 1 from socle.portefeuille($1) where entreprise = $2 and statut = 'actif'`, [params.cabinet, params.dossier])).rowCount) return introuvable;
+      if ((await tx.query(`select $1::date < (now() at time zone 'Africa/Tunis')::date passe`, [corps.pour])).rows[0].passe) return champInvalide('pour', t('cabinet.promesse.passee'));
+      await tx.query(`insert into cabinet.promesse (cabinet, entreprise, pour, quoi, par, par_nom)
+          select $1, $2, $3, $4, socle.moi(), u.nom from socle.utilisateur u where u.id = socle.moi()
+          on conflict (cabinet, entreprise) do update set pour = excluded.pour, quoi = excluded.quoi, par = excluded.par, par_nom = excluded.par_nom, notee_le = clock_timestamp()`,
+        [params.cabinet, params.dossier, corps.pour, corps.quoi]);
+      return { corps: { pour: corps.pour } };
+    },
+  });
+  ajouter({
+    methode: 'DELETE', chemin: '/cabinets/:cabinet/promesses/:dossier', geste: 'compte.cabinet.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      await tx.query('delete from cabinet.promesse where cabinet = $1 and entreprise = $2', [params.cabinet, params.dossier]);
+      return { corps: {} };
+    },
+  });
+  // « Me le remontrer » : mon rappel sur cette conversation, à un jour à venir ; le retirer la rend à « À traiter ».
+  ajouter({
+    methode: 'PUT', chemin: '/cabinets/:cabinet/rappels/:dossier', geste: 'compte.cabinet.gerer',
+    corps: z.object({ le: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      if (!(await tx.query(`select 1 from socle.portefeuille($1) where entreprise = $2 and statut = 'actif'`, [params.cabinet, params.dossier])).rowCount) return introuvable;
+      if (!(await tx.query(`select $1::date > (now() at time zone 'Africa/Tunis')::date avenir`, [corps.le])).rows[0].avenir) return champInvalide('le', t('cabinet.rappel.passe'));
+      await tx.query(`insert into cabinet.rappel (cabinet, entreprise, utilisateur, le) values ($1, $2, socle.moi(), $3)
+          on conflict (cabinet, entreprise, utilisateur) do update set le = excluded.le, pose_le = clock_timestamp()`, [params.cabinet, params.dossier, corps.le]);
+      return { corps: { le: corps.le } };
+    },
+  });
+  ajouter({
+    methode: 'DELETE', chemin: '/cabinets/:cabinet/rappels/:dossier', geste: 'compte.cabinet.gerer',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      await tx.query('delete from cabinet.rappel where cabinet = $1 and entreprise = $2 and utilisateur = socle.moi()', [params.cabinet, params.dossier]);
+      return { corps: {} };
     },
   });
   // La poser : son contenu entier, avec la révision connue (null : la première) ; une fiche changée

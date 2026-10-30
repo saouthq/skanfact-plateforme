@@ -140,6 +140,22 @@ export interface BaseDeDonnees {
     texte: string;
     ecrit_le: Generated<Date>;
   };
+  'cabinet.promesse': {
+    cabinet: string;
+    entreprise: string;
+    pour: string;
+    quoi: string;
+    par: string;
+    par_nom: string;
+    notee_le: Generated<Date>;
+  };
+  'cabinet.rappel': {
+    cabinet: string;
+    entreprise: string;
+    utilisateur: string;
+    le: string;
+    pose_le: Generated<Date>;
+  };
   'cabinet.reglages': {
     cabinet: string;
     contenu: ColumnType<Json, string, string>;

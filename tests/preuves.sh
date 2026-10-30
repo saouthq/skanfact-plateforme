@@ -21252,5 +21252,27 @@ prouver 'notes 3 : la note posée ne paraît pas dans le fil' web/public/platefo
 prouver 'notes 4 : une note vide part' web/public/plateforme/messagerie.js \
   "if (!t) { dire('Une note vide" "if (false) { dire('Une note vide" \
   'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
+# (1.178.0) La promesse du client, le rappel, les écrans de la boîte (0183).
+prouver 'suivi 1 : la promesse notée laisse la conversation « À traiter »' serveur/messagerie/routes.ts \
+  "select lu.*, (ecrit and not promis) or" "select lu.*, (ecrit) or" \
+  'la promesse du client et « Me le remontrer » : la boîte suit, le client n'"'"'en lit rien'
+prouver 'suivi 2 : le jour promis passé sans rien ne la ramène pas' serveur/messagerie/routes.ts \
+  "or (promis and promis_pour < aujourdhui) a_traiter from lu" "or false a_traiter from lu" \
+  'la promesse du client et « Me le remontrer » : la boîte suit, le client n'"'"'en lit rien'
+prouver 'suivi 3 : le rappel d'"'"'un collègue sort la conversation de mon « À traiter »' base/migrations/0183_promesse_rappel.sql \
+  "  using (utilisateur = socle.moi() and cabinet in (select socle.mes_organisations())" "  using (cabinet in (select socle.mes_organisations())" \
+  'la promesse du client et « Me le remontrer » : la boîte suit, le client n'"'"'en lit rien'
+prouver 'messages 7 : la promesse du client ne se propose pas sous son message' web/public/plateforme/messagerie.js \
+  "if (!promessePop) promessePop = promesseAProposer();" "if (false) promessePop = promesseAProposer();" \
+  '(1.178.0) le cabinet neuf, la promesse du client, « Me le remontrer demain », tout le monde a sa réponse, le dossier tenu'
+prouver 'messages 8 : rien à traiter, et la liste ne le dit pas' web/public/plateforme/messagerie.js \
+  "const calme = !cherche && !resume && !c.aTraiter &&" "const calme = false && !cherche && !resume && !c.aTraiter &&" \
+  '(1.178.0) le cabinet neuf, la promesse du client, « Me le remontrer demain », tout le monde a sa réponse, le dossier tenu'
+prouver 'messages 9 : les dossiers tenus absents de la boîte' web/public/plateforme/messagerie.js \
+  "filtre === 'tout' && o.tenus ? o.tenus() : [];" "filtre === 'tout' && o.tenus ? [] : [];" \
+  '(1.178.0) le cabinet neuf, la promesse du client, « Me le remontrer demain », tout le monde a sa réponse, le dossier tenu'
+prouver 'messages 10 : écrire à plusieurs perd le jour choisi' web/public/plateforme/messagerie.js \
+  "...(mode === 'pieces' ? { pour, ...(pieces.length" "...(mode === 'pieces' ? { pour: null, ...(pieces.length" \
+  '(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]
