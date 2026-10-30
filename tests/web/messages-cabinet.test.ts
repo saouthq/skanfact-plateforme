@@ -7,7 +7,8 @@
 //   - la conversation : son en-tête (le contact, « À traiter », « Marquer comme traité » E, le menu ⋯) ;
 //   - le dossier à côté : le contact, l'année en segments, son mois, « Ouvrir le dossier », « On attend de… » quand une
 //     pièce est demandée, et l'alerte par e-mail en interrupteur ;
-//   - le clavier : E sur une ligne marque le client traité.
+//   - le clavier : E sur une ligne marque le client traité ;
+//   - (1.177.0) la note pour l'équipe : son onglet, « Noter », la carte au cadenas dans le fil ; le client ne la lit pas.
 
 import fs from 'node:fs';
 import os from 'node:os';
@@ -97,9 +98,33 @@ describe('les Messages du Cabinet, à la souris', () => {
     expect((await p.getByRole('menuitem').allInnerTexts()).map((x) => x.split('\n')[0])).toEqual(['Question sur une pièce…', 'Ouvrir le dossier', 'Ouvrir en grand']);
     await p.keyboard.press('Escape');
     await expect.poll(() => p.getByRole('menuitem').count()).toBe(0);
+    // ── (1.177.0) La note pour l'équipe : l'onglet, le champ, « Noter », la ligne du bas ; dans le fil, la carte au cadenas ─
+    const ecrire = p.locator('[data-msg-ecrire]');
+    expect(await ecrire.getByRole('tab').allInnerTexts()).toEqual(['Message à Hela', 'Note pour l\'équipe']);
+    expect(await ecrire.locator('[data-msg-note-pied]').isHidden()).toBe(true);
+    await ecrire.getByRole('tab', { name: 'Note pour l\'équipe' }).click();
+    expect(net(await ecrire.locator('[data-msg-note-pied]').innerText())).toBe('Hela ne lit jamais les notes ; elles restent dans le dossier, avec leur date.');
+    expect(await ecrire.getByRole('button', { name: 'Demander une pièce' }).isDisabled()).toBe(true);
+    // Vide, elle est refusée, et le refus le dit.
+    await ecrire.getByRole('button', { name: 'Noter', exact: true }).click();
+    expect(await ecrire.locator('[data-msg-refus]').innerText()).toBe('Une note vide n\'apprend rien à l\'équipe : écris ce qu\'il faut savoir, puis « Noter ».');
+    await ecrire.locator('[data-msg-texte]').fill('La STEG de septembre manque : à demander avec la déclaration.');
+    await ecrire.getByRole('button', { name: 'Noter', exact: true }).click();
+    await expect.poll(async () => net(await p.locator('[data-msg-fil] .msg-note').innerText().catch(() => '')), { timeout: 15_000 })
+      .toMatch(/^Note pour l'équipe · toi · \d\d:\d\d La STEG de septembre manque : à demander avec la déclaration\.$/);
+    expect(await ecrire.locator('[data-msg-texte]').inputValue()).toBe('');
+    // Hela ne la lit pas : son fil ne la porte pas (la conversation de l'entreprise ne lit que les messages).
+    const vuParHela = JSON.stringify((await api('GET', `/entreprises/${hela.ent}/messages?cote=entreprise`, hela.j)).corps);
+    expect(vuParHela).toContain('je la retrouve pas');
+    expect(vuParHela).not.toContain('La STEG de septembre manque');
+    // Retour au message : « Envoyer », les gestes rendus, la ligne du bas tue.
+    await ecrire.getByRole('tab', { name: 'Message à Hela' }).click();
+    expect(await ecrire.getByRole('button', { name: 'Envoyer', exact: true }).count()).toBe(1);
+    expect(await ecrire.getByRole('button', { name: 'Demander une pièce' }).isDisabled()).toBe(false);
+    expect(await ecrire.locator('[data-msg-note-pied]').isHidden()).toBe(true);
     // ── Le dossier à côté : le contact, l'année, « Ouvrir le dossier », l'alerte ; rien n'est attendu de Hela ───────
     const cote = p.locator('[data-cote]');
-    expect(net(await cote.locator('.msg-cote-qui').innerText())).toBe('HB Hela Ben Salah Librairie Ennour personne ne le suit encore');
+    expect(net(await cote.locator('.msg-cote-qui').innerText())).toBe('H Hela Ben Salah Librairie Ennour personne ne le suit encore');
     expect(await cote.locator('.msg-segs i').count()).toBe(12);
     expect(await cote.getByRole('link', { name: /Ouvrir le dossier/ }).getAttribute('href')).toBe(`#/dossier/${hela.ent}`);
     expect(await cote.locator('[data-msg-attente]').count()).toBe(0);

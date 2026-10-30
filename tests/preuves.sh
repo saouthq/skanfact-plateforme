@@ -9224,8 +9224,8 @@ prouver "la pastille de « Mon comptable » sans les pièces demandées" web/pub
   "const n = (a.nonLus || 0) + (a.questions || 0) + (a.demandes || 0);" "const n = (a.nonLus || 0) + (a.questions || 0);" \
   "$MSGW"
 prouver "la pastille des Messages qui compte tous les clients" web/public/v10/cabinet/app.js \
-  "majPastilleMessages(b.compteurs.aTraiter);" "majPastilleMessages(b.compteurs.tout);" \
-  "$MSGW"
+  "majPastilleMessages(aTraiterDeMaPortee(b.dossiers));|||majPastilleMessages(aTraiterDeMaPortee(tous));" "majPastilleMessages(b.dossiers.length);|||majPastilleMessages(tous.length);" \
+  "la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter"
 
 # ── Les e-mails habillés (12/10/2026 ; serveur/courriel.ts, courriel.html) ──
 CH1="chaque e-mail dit son texte paragraphe par paragraphe, dans l'ordre ; le code en deux groupes, le lien en bouton qui nomme son geste"
@@ -19139,7 +19139,7 @@ prouver 'les flèches du clavier qui ne passent pas au client suivant' $MJ \
   "          const vers = e.key === 'ArrowDown' ? lignes[i + 1] : e.key === 'ArrowUp' ? lignes[i - 1] : null;" "          const vers = null;" \
   "$MW115"
 prouver 'la boîte plus haute que l'\''écran' web/public/plateforme/messagerie.css \
-  'grid-template-rows: minmax(0, 1fr); gap: 20px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; min-height: 0; height: 100%; }' 'gap: 20px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; height: 100%; }' \
+  '  height: calc(100dvh - var(--msg-haut-boite, 210px)); min-height: 520px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; min-height: 0; height: 100%; }' '  min-height: 520px;|||.msg-boite-conv, .msg-boite-conv > div { min-width: 0; height: 100%; }' \
   "$MW115"
 prouver 'la pièce du dossier choisie, mais pas envoyée' $MJ \
   "            await o.appel('POST', '/messages', { cote: o.cote, texte, piece: dejaLa, repondA: m.id });" "            await o.appel('POST', '/messages', { cote: o.cote, texte, piece: null, repondA: m.id });" \
@@ -20924,7 +20924,7 @@ prouver 'échéances 4 : un dossier pointé déposé ne se défait pas depuis sa
   "      l.st === 'pointee' && x.pointee ? ['annuler-pointage'," "      false ? ['annuler-pointage'," \
   'Consulter se relit en revenant sur la fenêtre'
 prouver 'échéances 5 : la CNSS ne dit plus qui elle compte par prudence' web/public/v10/cabinet/app.js \
-  "x.t.sorte === 'cnss' ? esc(e.detail || 'Les cotisations du trimestre des dossiers employeurs.')" "x.t.sorte === 'cnss' ? 'Les cotisations du trimestre des dossiers employeurs.'" \
+  "x.t.sorte === 'cnss' ? (x.lignes.some(l => l.prudence) ? 'Les cotisations du trimestre des dossiers employeurs.' : esc(e.detail || 'Les cotisations du trimestre des dossiers employeurs.'))" "x.t.sorte === 'cnss' ? 'Les cotisations du trimestre des dossiers employeurs.'" \
   'la carte CNSS du dernier trimestre ne vise que'
 prouver 'dossiers 1 : la forme du client disparaît de sa ligne' web/public/v10/cabinet/app.js \
   "esc([d.forme, d.ville].filter(Boolean).join(' · ')" "esc([d.ville].filter(Boolean).join(' · ')" \
@@ -20988,10 +20988,10 @@ prouver 'classeur 6 : au téléphone, le classeur se dit « pensé pour un ordin
   'au téléphone : les puces des mois'
 # ── 1.172.0 : le classeur refait contre sa maquette, et la pièce jointe à son achat ──
 prouver 'classeur 7 : rien ne s'\''ouvre à droite en arrivant' web/public/v10/cabinet/app.js \
-  'if (!clState.sel) clState.sel = premierVu.k;' 'if (false) clState.sel = premierVu.k;' \
+  'if (!clState.sel) { clState.sel = premierVu.k; drawClasseur(view, d); return; }' 'if (false) { clState.sel = premierVu.k; drawClasseur(view, d); return; }' \
   'au bureau : l'\''arbre, la rubrique'
 prouver 'classeur 8 : l'\''exercice surligné en même temps que le mois' web/public/v10/cabinet/app.js \
-  "!passe && clState.vue === 'annee' ? ' ici'" "!passe ? ' ici'" \
+  "!passe && clState.vue === 'annee' && !clState.q ? ' ici'" "!passe && !clState.q ? ' ici'" \
   'au bureau : l'\''arbre, la rubrique'
 prouver 'classeur 9 : « Ce qui manque » compté comme une rubrique' web/public/v10/cabinet/app.js \
   "CL_RUBS.filter(([r]) => r !== 'manque'), i7" "CL_RUBS.filter(() => true), i7" \
@@ -21087,7 +21087,7 @@ prouver 'classeur 38 : une rubrique vide du mois ne dit rien et n'\''offre aucun
   '${l.length ? liste(trie) : `<div class="cl-rub-vide">' '${l.length ? liste(trie) : `<div hidden class="x">' \
   'un courrier se range avec le mois où il est arrivé'
 prouver 'classeur 39 : « Saisir » ouvre une saisie vide, sans lien avec la pièce' web/public/v10/cabinet/app.js \
-  "        if (!enCours) {" "        if (0) {" \
+  "journalDe: nature, libelle: String(nom || '').replace(/\\.(pdf|jpe?g|png|webp|heic)$/i, '').slice(0, 120), depuisClasseur: depuis };" "journalDe: '', libelle: '', depuisClasseur: null };" \
   'saisir une pièce depuis le classeur'
 prouver 'classeur 40 : la pièce saisie depuis le classeur reste « à saisir »' web/public/v10/cabinet/app.js \
   'if (dc && idE && !res.attente) {' 'if (0) {' \
@@ -21239,5 +21239,18 @@ prouver 'messages 5 : le dossier à côté ne mène pas au dossier' web/public/v
 prouver 'messages 6 : « Ouvrir en grand » quitte le menu ⋯' web/public/plateforme/messagerie.js \
   "...(o.enGrand ? [{ texte: 'Ouvrir en grand'," "...(false ? [{ texte: 'Ouvrir en grand'," \
   '(1.115.0) la boîte de deux clients : le clavier, le client traité qui reste, une pastille sans écho, « Ouvrir en grand », la pièce demandée répondue par un achat saisi'
+# (1.177.0) Les notes pour l'équipe (0182) et la conversation du cabinet.
+prouver 'notes 1 : un collaborateur lit les notes d'"'"'un dossier qui ne lui est pas confié' base/migrations/0182_notes_equipe.sql \
+  "  using (cabinet in (select socle.mes_organisations()) and entreprise in (select socle.mes_entreprises()));" "  using (cabinet in (select socle.mes_organisations()));" \
+  'écrites et relues au cabinet, jamais par le client, ni par qui n'"'"'a pas le dossier ; elles ne se changent pas'
+prouver 'notes 2 : la note de chacun ne dit plus « moi »' serveur/cabinet/routes.ts \
+  "select id, auteur_nom, auteur = socle.moi() de_moi, texte" "select id, auteur_nom, false de_moi, texte" \
+  'écrites et relues au cabinet, jamais par le client, ni par qui n'"'"'a pas le dossier ; elles ne se changent pas'
+prouver 'notes 3 : la note posée ne paraît pas dans le fil' web/public/plateforme/messagerie.js \
+  "for (const n of notes) ev.push(" "for (const n of []) ev.push(" \
+  'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
+prouver 'notes 4 : une note vide part' web/public/plateforme/messagerie.js \
+  "if (!t) { dire('Une note vide" "if (false) { dire('Une note vide" \
+  'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

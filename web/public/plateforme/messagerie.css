@@ -548,3 +548,97 @@
   .msg-boite .msg-filtres { flex-wrap: nowrap; overflow-x: auto; padding: 0 12px 10px; }
   .msg-boite .msg-filtre { min-height: 36px; padding: 0 12px; font-size: 13.5px; white-space: nowrap; }
 }
+
+/* (1.177.0, maquette « Messages ») Le fil : des bulles douces (les miennes en vert pâle, celles de l'autre en gris plein, sans
+   contour), le prénom et l'heure au-dessus, un point vert devant ce qui est nouveau, « Lue » avec sa coche, et le trait
+   « N nouveaux ». */
+.msg-ligne.moi .msg-bulle { background: var(--primary-soft); color: var(--text); }
+.msg-qui { display: inline-flex; align-items: center; gap: 5px; }
+.msg-ligne:not(.moi) .msg-qui b { color: var(--primary); }
+.msg-point { width: 7px; height: 7px; border-radius: 99px; background: var(--primary); display: inline-block; }
+.msg-pied { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; color: var(--muted); }
+.msg-pied svg { width: 13px; height: 13px; color: var(--primary); }
+.msg-nouveaux { align-self: stretch; display: flex; align-items: center; gap: 10px; margin: 4px 0; color: var(--primary); font-size: 12px; font-weight: 700; }
+.msg-nouveaux::before, .msg-nouveaux::after { content: ''; flex: 1; height: 1px; background: color-mix(in srgb, var(--primary) 45%, transparent); }
+.msg-jour { background: var(--panel); border: 1px solid var(--border); font-weight: 500; }
+/* Les photos d'un même envoi : des vignettes, chacune avec son menu ⋯, et « Saisir les N pièces ». */
+.msg-ligne-lot { max-width: 100%; }
+.msg-vigs { display: flex; flex-wrap: wrap; gap: 10px; }
+.msg-vig { position: relative; width: 124px; display: flex; flex-direction: column; gap: 6px; padding: 6px; border: 1px solid var(--border); border-radius: 12px; background: var(--panel); }
+.msg-vig-img { position: relative; height: 86px; border: 0; border-radius: 8px; padding: 0; cursor: pointer; overflow: hidden;
+  background: linear-gradient(160deg, #e9eef3, #d9e1e8); background-size: cover; background-position: center; }
+.msg-vig-img em { position: absolute; top: 6px; left: 6px; padding: 1px 6px; border-radius: 4px; background: rgba(255, 255, 255, .92); font-style: normal; font-size: 9.5px; font-weight: 800; letter-spacing: .04em; color: var(--muted); }
+.msg-vig-img.pdf em { color: var(--danger); }
+.msg-vig-img i { position: absolute; left: 22%; right: 22%; height: 4px; border-radius: 2px; background: rgba(120, 135, 150, .35); }
+.msg-vig-img i:nth-of-type(1) { top: 34px; } .msg-vig-img i:nth-of-type(2) { top: 46px; right: 34%; } .msg-vig-img i:nth-of-type(3) { top: 58px; }
+.msg-vig-img.vue em, .msg-vig-img.vue i { display: none; }
+.msg-vig-n { display: flex; flex-direction: column; min-width: 0; padding-right: 18px; font-size: 12px; }
+.msg-vig-n b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.msg-vig-n small { color: var(--muted); }
+.msg-vig-m { position: absolute; right: 4px; bottom: 6px; }
+.msg-vig-b { border: 0; background: transparent; color: var(--muted); cursor: pointer; padding: 2px; border-radius: 6px; }
+.msg-vig-b:hover { background: var(--ink-soft); }
+.msg-vig-pop { position: absolute; z-index: 20; right: 0; bottom: calc(100% + 4px); display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 8px 10px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel); box-shadow: 0 8px 24px rgba(20, 40, 60, .14); white-space: nowrap; font-size: 13px; }
+.msg-vig-pop[hidden] { display: none; }
+.msg-vig-geste { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
+.msg-vig-geste .btn { display: inline-flex; align-items: center; gap: 6px; border-color: var(--primary-soft-2); color: var(--primary); }
+.msg-vig-geste small { font-size: 12px; color: var(--muted); }
+/* La pièce demandée et sa frise. */
+.msg-frise-d { flex: 1 1 100%; list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px 18px; font-size: 12px; }
+.msg-frise-d li { display: flex; flex-direction: column; position: relative; padding-left: 12px; color: var(--muted); }
+.msg-frise-d li::before { content: ''; position: absolute; left: 0; top: 5px; width: 6px; height: 6px; border-radius: 99px; background: var(--line); }
+.msg-frise-d li.fait::before { background: var(--primary); }
+.msg-frise-d li.retard::before { background: var(--danger); }
+.msg-frise-d li.attend::before { background: var(--warning); }
+.msg-frise-d b { color: var(--text); font-weight: 600; }
+/* La question de la révision : une carte à part, son accent à gauche, « Voir dans la révision ». */
+.msg-ligne-q { max-width: 100%; align-self: stretch; }
+.msg-ligne-q .msg-question { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border); border-left: 3px solid var(--line); }
+.msg-ligne-q .msg-question.attend { border-left-color: var(--warning); }
+.msg-q-ic { flex: none; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 99px; background: var(--warning-soft); color: var(--warning); }
+.msg-q-txt { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.msg-q-qui { font-size: 12px; color: var(--muted); }
+.msg-q-objet { font-size: 14.5px; }
+.msg-ligne-q .msg-q-corps { padding: 0; gap: 4px; font-size: 13px; }
+.msg-q-depuis { font-size: 12.5px; font-weight: 600; color: var(--warning); }
+.msg-q-voir { flex: none; align-self: center; }
+/* La zone d'écriture : les gestes en mots, sans cadre ; « Envoyer » gris tant que rien n'est prêt ; « D'après le dossier ». */
+.msg-gestes .btn.msg-g { border-color: transparent; background: transparent; min-height: 34px; padding-inline: 8px; color: var(--text); font-weight: 500; }
+.msg-gestes .btn.msg-g:hover { background: var(--ink-soft); }
+.msg-gestes .btn.msg-g svg { color: var(--muted); }
+.msg-envoyer { display: inline-flex; align-items: center; gap: 8px; }
+.msg-envoyer.vide { background: var(--ink-soft); border-color: var(--border); color: var(--muted); box-shadow: none; }
+.msg-sugg { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.msg-sugg[hidden] { display: none; }
+.msg-sugg-t { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.msg-sugg-c { display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 6px 12px; border: 1px solid var(--primary-soft-2); border-radius: 10px; background: var(--panel); font: inherit; text-align: left; cursor: pointer; }
+.msg-sugg-c:hover { background: var(--primary-soft); }
+.msg-sugg-c b { font-size: 13px; color: var(--primary); }
+.msg-sugg-c small { font-size: 11.5px; color: var(--muted); }
+/* Les avatars des dossiers : le carré coloré de la barre. */
+.msg-avatar.carre { border-radius: 9px; color: #fff; font-weight: 700; }
+.msg-etat-pastille.traiter { background: var(--primary-soft); color: var(--primary); }
+.msg-etat-pastille.client { background: var(--warning-soft); color: var(--warning); }
+.msg-dossier.non-lu .msg-quand { color: var(--primary); font-weight: 700; }
+.msg-puce.rouge { background: transparent; padding: 0; display: inline-flex; align-items: center; gap: 5px; }
+.msg-puce.rouge::before { content: ''; width: 6px; height: 6px; border-radius: 99px; background: var(--danger); }
+
+/* (1.177.0, maquette « Messages ») La note pour l'équipe : les deux onglets de la zone d'écriture, le champ en jaune, la
+   ligne du bas ; dans le fil, une carte pleine largeur au cadenas. Le client ne la lit jamais. */
+.msg-onglets { display: flex; gap: 2px; margin-bottom: 6px; }
+.msg-onglets button { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 10px; white-space: nowrap; border-radius: 8px; border: 0; background: none; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.msg-onglets button svg { width: 13px; height: 13px; }
+.msg-onglets button[aria-selected="true"] { background: var(--bg); color: var(--text); }
+.msg-ecrire.note .msg-onglets button[aria-selected="true"] { background: var(--note-fond-2, #fff1c2); color: var(--note-encre, #6b5314); }
+.msg-ecrire.note textarea[data-msg-texte] { background: var(--note-fond, #fffbeb); border-color: var(--note-bord, #f3dd94); }
+.msg-ecrire.note .msg-gestes-g button:disabled { opacity: .45; cursor: default; }
+.msg-note-pied { display: flex; align-items: center; gap: 6px; margin: 6px 0 0; font-size: 12px; color: var(--note-encre-2, #8a6d1d); }
+.msg-note-pied svg { width: 13px; height: 13px; flex: none; }
+.msg-ligne-note { align-self: stretch; max-width: none; }
+.msg-note { display: flex; gap: 10px; padding: 10px 14px; border-radius: 12px; background: var(--note-fond-1, #fff7db); border: 1px solid var(--note-bord, #f3dd94); font-size: 13px; color: var(--note-encre-3, #5c4a12); white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg-note svg { width: 16px; height: 16px; flex: none; margin-top: 1px; }
+.msg-note small { display: block; font-size: 11.5px; color: var(--note-encre-2, #8a6d1d); margin-bottom: 2px; white-space: normal; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --note-fond: #2f2a17; --note-fond-1: #2f2a17; --note-fond-2: #4a3f17; --note-bord: #6b5a22; --note-encre: #f3dd94; --note-encre-2: #d9c27a; --note-encre-3: #f5e7b8; }
+}
+:root[data-theme="dark"] { --note-fond: #2f2a17; --note-fond-1: #2f2a17; --note-fond-2: #4a3f17; --note-bord: #6b5a22; --note-encre: #f3dd94; --note-encre-2: #d9c27a; --note-encre-3: #f5e7b8; }

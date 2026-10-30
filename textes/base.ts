@@ -858,6 +858,13 @@ export const MESSAGES_DE_LA_BASE: MessageDeLaBase[] = [
   { base: 'seuls la propriétaire et l\'administratrice de l\'entreprise règlent son abonnement', cle: 'base.abonnement.qui_regle', fr: 'seuls la propriétaire et l\'administratrice de l\'entreprise règlent son abonnement : préviens-les' },
   { base: 'ton offre contient déjà ce module', cle: 'base.abonnement.module_compris', fr: 'ton offre contient déjà ce module' },
   { base: 'un module s\'ouvre tout de suite sur un abonnement payé qui court et se renouvelle', cle: 'base.abonnement.module_hors', fr: 'un module s\'ouvre tout de suite sur un abonnement payé qui court et se renouvelle' },
+  // (1.177.0) Le classeur du cabinet (0180, 0181) : joindre une pièce, la dire en double.
+  { base: 'une pièce se joint à une écriture nommée', cle: 'base.classeur.jointe_sans_ecriture', fr: 'une pièce se joint à une écriture nommée : choisis l\'écriture' },
+  { base: 'cette écriture n\'est pas dans ses livres', cle: 'base.classeur.ecriture_ailleurs', fr: 'cette écriture n\'est pas dans les livres de ce dossier' },
+  { base: 'une pièce n\'est pas le double d\'elle-même', cle: 'base.classeur.double_soi', fr: 'une pièce n\'est pas le double d\'elle-même : choisis l\'autre pièce' },
+  { base: 'cette jumelle n\'est pas dans ce dossier', cle: 'base.classeur.jumelle_ailleurs', fr: 'la pièce choisie comme double n\'est pas dans ce dossier' },
+  { base: 'une jumelle est une pièce reçue ou un document', cle: 'base.classeur.jumelle_sorte', fr: 'le double d\'une pièce est une pièce reçue ou un document du classeur' },
+  { base: 'cette pièce n\'est pas dans ce dossier', cle: 'base.classeur.piece_ailleurs', fr: 'cette pièce n\'est pas dans ce dossier' },
 ];
 
 declarerTextes(Object.fromEntries(MESSAGES_DE_LA_BASE.map((m) => [m.cle, m.fr])));

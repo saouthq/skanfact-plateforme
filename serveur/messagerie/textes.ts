@@ -6,6 +6,8 @@ declarerTextes({
   'geste.messagerie.lire': 'lire les messages échangés avec le cabinet',
   'geste.messagerie.ecrire': 'écrire dans la messagerie avec le cabinet',
   'messagerie.champ.cote': 'le côté de la messagerie : « entreprise » ou « cabinet »',
+  // (1.177.0) Qui a déposé une pièce au classeur, quand son nom n'est plus connu.
+  'messagerie.depose_par_defaut': 'le cabinet',
   'messagerie.champ.curseur': 'la suite d\'un fil, telle que le serveur l\'a donnée',
   'messagerie.fichier.trop_lourd': 'Le fichier « {nom} » pèse {taille} Mo : un fichier joint pèse {limite} Mo au plus',
   'messagerie.fichier.format': 'Le fichier « {nom} » n\'est ni une photo (JPEG, PNG, WebP) ni un PDF : il ne se joint pas',

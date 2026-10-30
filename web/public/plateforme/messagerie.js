@@ -69,6 +69,8 @@
     loupe: '<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
     points: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
     coche: '<path d="m5 12 5 5 9-10"/>',
+    envoi: '<path d="M21 3 10 14"/><path d="m21 3-7 18-4-7-7-4z"/>',
+    cadenas: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
     cloche: '<path d="M6 16V11a6 6 0 0 1 12 0v5l2 2H4z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
   };
   /** @param {keyof typeof DESSINS} id */
@@ -349,6 +351,9 @@
    *   integre?: boolean,
    *   contact?: string | null, coteEl?: HTMLElement | null, traiter?: () => Promise<void>,
    *   menu?: { texte: string, sous?: string, dessin?: string, faire: () => void }[],
+   *   saisirLot?: (messages: string[]) => void, couleur?: string[] | null,
+   *   suggestions?: () => { titre: string, sous: string, texte: string }[], contactPrenom?: string,
+   *   notes?: { lire: () => Promise<{ id: string, auteur: string, moi: boolean, texte: string, ecritLe: string }[]>, noter: (texte: string) => Promise<unknown> },
    *   enGrand?: () => void,
    *   modeles?: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
    * }} o
@@ -370,6 +375,15 @@
     let enCours = false;
     let fini = false;
     let premier = true;
+    // (1.177.0, maquette « Messages ») Les messages arrivés depuis ma dernière lecture, comptés à l'ouverture : le trait
+    // « N nouveaux » et le point vert devant leur auteur restent le temps de la conversation ouverte.
+    /** @type {Set<string>} */ let nouveaux = new Set();
+    /** @type {Map<string, Promise<string>>} */ const vignettes = new Map();
+    // (1.177.0, maquette « Messages ») Les notes pour l'équipe (0182), lues avec le fil au cabinet ; et l'onglet choisi de
+    // la zone d'écriture (« Message à Sami » ou « Note pour l'équipe »).
+    const avecNotes = !entreprise && !!o.notes;
+    /** @type {any[]} */ let notes = [];
+    let modeNote = false;
 
     /** @param {string | null} avant */
     const chemin = (avant) => {
@@ -395,7 +409,7 @@
       // révision, confier, le dossier, en grand).
       const tete = integre
         ? `<header class="msg-tete msg-tete-integre">
-          <span class="msg-avatar petit" aria-hidden="true">${esc(initiales(nomAutre))}</span>
+          <span class="msg-avatar petit${o.couleur ? ' carre' : ''}"${o.couleur ? ` style="background:linear-gradient(145deg, ${esc(o.couleur[0])}, ${esc(o.couleur[1])})"` : ''} aria-hidden="true">${esc(initiales(nomAutre))}</span>
           <span class="msg-tete-txt"><h2>${esc(nomAutre)}</h2><span class="msg-sous">${o.contact ? esc(o.contact) : sous}</span></span>
           <span class="msg-tete-etat" data-msg-tete-etat></span>
           <button type="button" class="msg-icone msg-chercher" data-msg-chercher aria-expanded="false" aria-label="Chercher dans cette conversation" title="Chercher dans cette conversation">${dessin('loupe')}</button>
@@ -417,6 +431,9 @@
       // la zone d'écriture tient au bas de l'écran, ce qui s'ouvre sous les boutons les faisait remonter sous le curseur.
       const ecrire = f && f.actif ? `<form class="msg-ecrire" data-msg-ecrire novalidate>
               <label class="msg-cache" for="msg-texte${integre ? '-i' : ''}">${entreprise ? 'Ton message à ton cabinet' : 'Ton message à ce client'}</label>
+              ${avecNotes ? `<div class="msg-onglets" role="tablist" aria-label="À qui tu écris">
+                <button type="button" role="tab" aria-selected="true" data-msg-onglet="message">${o.contactPrenom ? `Message à ${esc(o.contactPrenom)}` : 'Message au client'}</button>
+                <button type="button" role="tab" aria-selected="false" data-msg-onglet="note">${dessin('cadenas')}Note pour l'équipe</button></div>` : ''}
               ${/* (1.116.0) Plusieurs pièces en une fois (dix au plus), et la date « pour le » : passée sans réponse, la demande
                  se relance seule par e-mail (une par semaine, trois au plus). Vide, elle ne se relance pas. */''}
               <div class="msg-demande" data-msg-demande hidden>
@@ -430,19 +447,23 @@
                 </span>
               </div>
               <div class="msg-joints" data-msg-joints hidden></div>
-              <textarea id="msg-texte${integre ? '-i' : ''}" rows="2" maxlength="4000" placeholder="Écris à ${esc(nomAutre)}…" data-msg-texte></textarea>
+              ${/* (1.177.0, maquette « Messages ») « D'après le dossier » : les réponses que le livre du client appelle (des
+                 questions qui attendent, des pièces reçues, une déclaration prête…) ; un clic pose le texte, on le relit. */''}
+              <div class="msg-sugg" data-msg-sugg hidden></div>
+              <textarea id="msg-texte${integre ? '-i' : ''}" rows="2" maxlength="4000" placeholder="Écrire à ${esc(o.contactPrenom || nomAutre)}…${window.matchMedia('(pointer: coarse)').matches ? '' : '   Entrée envoie, Maj+Entrée va à la ligne'}" data-msg-texte></textarea>
               <p class="msg-refus" role="alert" data-msg-refus></p>
               <div class="msg-gestes">
                 <span class="msg-gestes-g">
                   ${/* (1.115.0) Au téléphone, un mot court : les trois gestes et « Envoyer » tiennent sur une ligne, sous le champ. */''}
-                  <button type="button" class="btn" data-msg-joindre aria-label="Joindre une photo ou un PDF">${dessin('trombone')}<span class="msg-long">Joindre une photo ou un PDF</span><span class="msg-court" aria-hidden="true">Joindre</span></button>
-                  ${entreprise && o.pieces ? `<button type="button" class="btn" data-msg-piece aria-label="Parler d'une pièce">${dessin('piece')}<span class="msg-long">Parler d'une pièce</span><span class="msg-court" aria-hidden="true">Une pièce</span></button>` : ''}
-                  ${entreprise ? '' : `<button type="button" class="btn" data-msg-demander aria-pressed="false" aria-label="Demander une pièce">${dessin('piece')}<span class="msg-long">Demander une pièce</span><span class="msg-court" aria-hidden="true">Demander</span></button>`}
+                  <button type="button" class="btn msg-g" data-msg-joindre aria-label="Joindre une photo ou un PDF">${dessin('trombone')}<span class="msg-long">Joindre une photo ou un PDF</span><span class="msg-court" aria-hidden="true">Joindre</span></button>
+                  ${entreprise && o.pieces ? `<button type="button" class="btn msg-g" data-msg-piece aria-label="Parler d'une pièce">${dessin('piece')}<span class="msg-long">Parler d'une pièce</span><span class="msg-court" aria-hidden="true">Une pièce</span></button>` : ''}
+                  ${entreprise ? '' : `<button type="button" class="btn msg-g" data-msg-demander aria-pressed="false" aria-label="Demander une pièce">${dessin('piece')}<span class="msg-long">Demander une pièce</span><span class="msg-court" aria-hidden="true">Demander</span></button>`}
                   ${/* (1.117.0) Les modèles du cabinet : la phrase écrite cent fois, prise d'un geste (point 9). */''}
-                  ${!entreprise && o.modeles ? `<button type="button" class="btn" data-msg-modeles aria-label="Modèles de messages">${dessin('modele')}<span class="msg-long">Modèles</span><span class="msg-court" aria-hidden="true">Modèles</span></button>` : ''}
+                  ${!entreprise && o.modeles ? `<button type="button" class="btn msg-g" data-msg-modeles aria-label="Modèles de messages">${dessin('modele')}<span class="msg-long">Modèles</span><span class="msg-court" aria-hidden="true">Modèles</span></button>` : ''}
                 </span>
-                <button type="submit" class="btn btn-primary" data-msg-envoyer>Envoyer</button>
+                <button type="submit" class="btn btn-primary msg-envoyer vide" data-msg-envoyer>${dessin('envoi')}<span data-msg-envoyer-mot>Envoyer</span></button>
               </div>
+              ${avecNotes ? `<p class="msg-note-pied" data-msg-note-pied hidden>${dessin('cadenas')}${o.contactPrenom ? esc(o.contactPrenom) : 'Le client'} ne lit jamais les notes ; elles restent dans le dossier, avec leur date.</p>` : ''}
             </form>` : '';
       el.innerHTML = integre
         ? `<div class="msg-page msg-integre msg-cabinet">${tete}
@@ -592,6 +613,7 @@
         ev.push({ quand: q.envoyeeLe, sorte: 'question', x: q });
         if (q.reponse && q.reponduLe) ev.push({ quand: q.reponduLe, sorte: 'reponse', x: q });
       }
+      for (const n of notes) ev.push({ quand: n.ecritLe, sorte: 'note', x: n });
       return ev.sort((a, b) => (a.quand < b.quand ? -1 : a.quand > b.quand ? 1 : 0));
     }
     const demandes = () => new Map([...(lu.messages || []), ...anciensMessages].filter((m) => m.demande).map((m) => [m.id, m]));
@@ -603,12 +625,59 @@
       return x ? x.id : null;
     };
 
+    /** @param {string} nom */
+    const prenomDe = (nom) => (nom === 'Toi' ? 'Toi' : String(nom || '').trim().split(/\s+/)[0] || nom);
+    /** @param {string} iso */
+    const jjmm = (iso) => { const j = String(iso).length > 10 ? jourCle(iso) : String(iso); return `${j.slice(8, 10)}/${j.slice(5, 7)}`; };
+    // L'en-tête d'un message : le prénom de l'auteur (« Toi » de mon côté) et l'heure ; un point vert s'il est nouveau.
+    /** @param {string} qui @param {string} quand @param {boolean} neuf @param {string} [plus] */
+    const teteDe = (qui, quand, neuf, plus) => `${neuf ? '<i class="msg-point" aria-label="nouveau"></i>' : ''}<b>${esc(prenomDe(qui))}</b> · ${esc(heure(quand))}${plus ? ` · ${esc(plus)}` : ''}`;
+    // (1.177.0, maquette « Messages ») Plusieurs photos ou PDF envoyés d'un coup : une rangée de vignettes (chacune s'ouvre, et
+    // son menu ⋯ dit le reste), et au cabinet « Saisir les N pièces ».
+    /** @param {any[]} lot */
+    function lotFichiers(lot) {
+      const m0 = lot[0];
+      const moi = m0.cote === o.cote;
+      const neuf = lot.some((m) => nouveaux.has(m.id));
+      const aSaisir = lot.filter((m) => !m.achat);
+      const actif = lu.fil && lu.fil.actif;
+      const vig = lot.map((m) => {
+        const pdf = m.fichier.type === 'application/pdf';
+        return `<div class="msg-vig" data-msg-id="${esc(m.id)}">
+          <button type="button" class="msg-vig-img${pdf ? ' pdf' : ''}" data-msg-fichier="${esc(m.fichier.id)}" ${!pdf && m.fichier.taille <= 3 * 1_048_576 ? `data-msg-vignette="${esc(m.fichier.id)}"` : ''} aria-label="Ouvrir ${esc(m.fichier.nom)}"><em>${pdf ? 'PDF' : 'PHOTO'}</em><i></i><i></i><i></i></button>
+          <span class="msg-vig-n"><b title="${esc(m.fichier.nom)}">${esc(m.fichier.nom)}</b><small>${esc(poids(m.fichier.taille))}${m.achat ? ' · rangée' : ''}</small></span>
+          <span class="msg-vig-m"><button type="button" class="msg-vig-b" data-msg-vig-menu aria-expanded="false" aria-label="Les gestes de ${esc(m.fichier.nom)}">${dessin('points')}</button>
+            <span class="msg-vig-pop" hidden><button type="button" class="msg-lien" data-msg-fichier="${esc(m.fichier.id)}">Ouvrir</button>
+              <button type="button" class="msg-lien" data-msg-enregistrer="${esc(m.fichier.id)}" aria-label="Enregistrer ${esc(m.fichier.nom)}">Enregistrer</button>
+              ${!entreprise && !moi && !m.achat && o.saisirPiece && actif ? `<button type="button" class="msg-lien" data-msg-saisir="${esc(m.id)}">Saisir cette pièce</button>` : ''}</span></span></div>`;
+      }).join('');
+      const lotGeste = !entreprise && !moi && o.saisirLot && actif && aSaisir.length
+        ? `<div class="msg-vig-geste"><button type="button" class="btn btn-sm" data-msg-saisir-lot="${esc(aSaisir.map((m) => m.id).join(','))}">${dessin('piece')}Saisir ${aSaisir.length > 1 ? `les ${aSaisir.length} pièces` : 'la pièce'}</button><small>une par une, au brouillard du mois · elles sont aussi dans « Pièces reçues »</small></div>` : '';
+      return `<div class="msg-ligne msg-ligne-lot${moi ? ' moi' : ''}" data-msg-id="${esc(m0.id)}">
+        <span class="msg-qui">${teteDe(m0.moi ? 'Toi' : m0.auteur, m0.ecritLe, neuf, pl(lot.length, 'pièce'))}</span>
+        <div class="msg-vigs">${vig}</div>${lotGeste}</div>`;
+    }
+    // Les vignettes des photos (3 Mo au plus) : le fichier lu une fois, gardé le temps de la conversation.
+    /** @param {HTMLElement} fil */
+    function poserVignettes(fil) {
+      fil.querySelectorAll('[data-msg-vignette]').forEach((n) => {
+        const b = /** @type {HTMLElement} */ (n);
+        const id = String(b.dataset.msgVignette);
+        if (!vignettes.has(id)) {
+          vignettes.set(id, o.appel('GET', `/messages/fichiers/${encodeURIComponent(id)}`).then((/** @type {any} */ f) => {
+            const blob = new Blob([Uint8Array.from(atob(String(f.contenu)), (c) => c.charCodeAt(0))], { type: f.type });
+            return URL.createObjectURL(blob);
+          }));
+        }
+        /** @type {Promise<string>} */ (vignettes.get(id)).then((url) => { b.style.backgroundImage = `url("${url}")`; b.classList.add('vue'); }).catch(() => { vignettes.delete(id); });
+      });
+    }
+
     /** @param {any} m */
     function bulleMessage(m) {
       // De mon côté du fil (à droite), écrit par moi (« Toi ») ou par un collègue (son nom).
       const moi = m.cote === o.cote;
-      const qui = m.moi ? 'Toi' : m.auteur;
-      const tete = moi ? `${esc(heure(m.ecritLe))} · <b>${esc(qui)}</b>` : `<b>${esc(qui)}</b> · ${esc(heure(m.ecritLe))}`;
+      const tete = teteDe(m.moi ? 'Toi' : m.auteur, m.ecritLe, nouveaux.has(m.id));
       const actif = lu.fil && lu.fil.actif;
       let corps = '';
       if (m.texte) corps += `<div class="msg-bulle">${esc(m.texte)}</div>`;
@@ -629,7 +698,13 @@
         const pour = m.demande.pour && !recue ? `<span class="msg-pour">pour le ${esc(dateCourte(m.demande.pour))}</span>` : '';
         const relances = !entreprise && m.demande.relances && !recue
           ? `<span class="msg-carte-sous">${m.demande.relances > 1 ? `Relancée ${m.demande.relances} fois par e-mail, la dernière le` : 'Relancée par e-mail le'} ${esc(dateCourte(jourCle(m.demande.relanceLe)))}${m.demande.relances >= 3 ? ' : plus de relance automatique' : ''}</span>` : '';
-        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}${retard ? ' retard' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>Pièce demandée</b><span>${esc(m.demande.texte)}</span>${pour}</span>
+        const parQui = !entreprise && m.cote === 'cabinet' ? (m.moi ? ' par toi' : m.auteur ? ` par ${prenomDe(m.auteur)}` : '') : '';
+        const frise = [`<li class="fait"><b>Demandée</b><small>${esc(jjmm(m.ecritLe))}</small></li>`,
+          ...(m.demande.relances && !recue ? [`<li class="fait"><b>Relancée</b><small>${esc(jjmm(m.demande.relanceLe))}</small></li>`] : []),
+          recue ? `<li class="fait ok"><b>Reçue</b><small>${esc(jjmm(m.demande.recueLe))}</small></li>`
+            : `<li class="${retard ? 'retard' : 'attend'}"><b>${retard ? 'En retard' : entreprise ? 'À envoyer' : 'Attendue'}</b><small>${m.demande.pour ? `pour le ${esc(jjmm(m.demande.pour))}` : 'sans date'}</small></li>`].join('');
+        corps += `<div class="msg-carte msg-demande-carte${recue ? ' recue' : ''}${retard ? ' retard' : ''}">${dessin('piece')}<span class="msg-carte-txt"><b>Pièce demandée${esc(parQui)}</b><span>${esc(m.demande.texte)}${recue ? ' · reçue' : ''}</span>${pour}
+          <ol class="msg-frise-d" aria-label="Où en est la pièce">${frise}</ol></span>
           <span class="msg-etat">${recue ? 'Reçue' : retard ? 'En retard' : entreprise ? 'À envoyer' : 'Attendue'}</span>${geste}${relances}</div>`;
       }
       if (m.fichier) {
@@ -647,7 +722,7 @@
       /** @type {string[]} */
       const pied = [];
       // (1.115.0) « Envoyé », puis « Lue » : rien ne disait qu'un message était parti avant que l'autre l'ait lu.
-      if (moi) pied.push(m.lu ? 'Lue' : 'Envoyé');
+      if (moi) pied.push(m.lu ? `${dessin('coche')}Lue` : 'Envoyé');
       if (m.achat) pied.push(`rangée dans ${entreprise ? 'tes' : 'ses'} achats (${esc(m.achat.libelle)})`);
       // (1.94.0) Le « · » reste avec le genre (une ligne qui passe à la suivante ne commence plus par lui), et un fichier
       // envoyé avec une facture, un avoir ou un devis n'est pas un achat : il ne se propose pas d'y être rangé.
@@ -666,8 +741,6 @@
 
     /** @param {any} q */
     function carteQuestion(q) {
-      // La question vient du cabinet : chez lui, c'est la sienne.
-      const moi = !entreprise;
       const attend = q.statut === 'envoyee' && !q.reponse;
       const cible = entreprise && q.piece && o.pieceDuNumero ? o.pieceDuNumero(q.piece) : null;
       const brouillon = reponses.get(q.id) || '';
@@ -683,22 +756,33 @@
           : q.reponse ? '<span class="msg-q-etat ok">Répondue</span>' : '';
       // Qui l'a posée : « Toi », un collègue par son nom, sinon le cabinet.
       const pose = q.poseePar === 'moi' ? 'Toi' : q.poseePar || (entreprise ? 'Ton cabinet' : 'Le cabinet');
-      return `<div class="msg-ligne${moi ? ' moi' : ''}" data-msg-q="${esc(q.id)}">
-        <span class="msg-qui">${moi ? `${esc(heure(q.envoyeeLe))} · <b>${esc(pose)}</b>` : `<b>${esc(pose)}</b> · ${esc(heure(q.envoyeeLe))}`}</span>
+      // (1.177.0, maquette « Messages ») Une carte à part, pleine largeur : qui l'a posée et quand, l'objet et son montant,
+      // ce qu'on attend, depuis combien de jours elle attend, et (au cabinet) « Voir dans la révision ».
+      const jours = attend ? Math.max(0, Math.round((Date.now() - new Date(q.envoyeeLe).getTime()) / 86_400_000)) : 0;
+      return `<div class="msg-ligne msg-ligne-q" data-msg-q="${esc(q.id)}">
         <div class="msg-question${attend ? ' attend' : ''}">
-          <div class="msg-q-tete">${dessin('question')}<span><b>${q.piece ? `Question sur ${esc(q.piece)}` : 'Question de la révision'}</b>${q.objet ? ` · ${esc(q.objet)}` : ''}</span>
-            ${q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? `<span class="msg-montant">${esc(montant(q.montant))}</span>` : ''}</div>
-          <div class="msg-q-corps"><span>${esc(q.texte)}</span>
-            <span class="msg-q-attendu">${entreprise ? 'Ton cabinet attend' : 'Tu attends'} : ${esc(ATTENDUS[q.attendu] || 'une réponse')}.</span>
-            ${etat}${repondre}</div>
+          <span class="msg-q-ic">${dessin('question')}</span>
+          <div class="msg-q-txt"><span class="msg-q-qui">${q.piece ? `Question sur ${esc(q.piece)}` : 'Question de la révision'} · posée par ${esc(pose === 'Toi' ? 'toi' : prenomDe(pose))} · ${esc(heure(q.envoyeeLe))}</span>
+            <b class="msg-q-objet">${esc(q.objet || q.texte)}${q.montant && !/^-?0(\.0+)?$/.test(q.montant) ? ` · <span class="msg-montant">${esc(montant(q.montant))}</span>` : ''}</b>
+            <div class="msg-q-corps">${q.objet ? `<span>${esc(q.texte)}</span>` : ''}
+              <span class="msg-q-attendu">${entreprise ? 'Ton cabinet attend' : 'Tu attends'} : ${esc(ATTENDUS[q.attendu] || 'une réponse')}.</span>
+              ${attend && jours ? `<span class="msg-q-depuis">sans réponse depuis ${esc(pl(jours, 'jour'))}</span>` : ''}
+              ${etat}${repondre}</div></div>
+          ${!entreprise && o.revision ? '<button type="button" class="btn btn-sm msg-q-voir" data-msg-revision>Voir dans la révision</button>' : ''}
         </div></div>`;
+    }
+    // (1.177.0) Une note pour l'équipe : pleine largeur, jaune, au cadenas ; qui l'a écrite et quand. Le client ne la lit jamais.
+    /** @param {any} n */
+    function carteNote(n) {
+      return `<div class="msg-ligne msg-ligne-note" data-msg-note="${esc(n.id)}"><div class="msg-note">${dessin('cadenas')}
+        <span><small>Note pour l'équipe · ${esc(n.moi ? 'toi' : prenomDe(n.auteur))} · ${esc(heure(n.ecritLe))}</small>${esc(n.texte)}</span></div></div>`;
     }
     /** @param {any} q */
     function bulleReponse(q) {
       const moi = entreprise;
       const qui = q.repondueePar === 'moi' ? 'Toi' : q.repondueePar || (entreprise ? 'Ton entreprise' : 'Le client');
       return `<div class="msg-ligne${moi ? ' moi' : ''}">
-        <span class="msg-qui">${moi ? `${esc(heure(q.reponduLe))} · <b>${esc(qui)}</b>` : `<b>${esc(qui)}</b> · ${esc(heure(q.reponduLe))}`}</span>
+        <span class="msg-qui">${teteDe(qui, q.reponduLe, nouveaux.has(`r:${q.id}`))}</span>
         ${/* (1.97.0) Une réponse dit à quelle question : « Réponse à la question » seul ne dit rien d'une question sans pièce. */''}
         <span class="msg-reponse-a">Réponse à la question${q.objet ? ` « ${esc(q.objet)} »` : ''}${q.piece ? ` sur ${esc(q.piece)}` : ''}</span>
         <div class="msg-bulle">${esc(q.reponse)}</div></div>`;
@@ -714,10 +798,22 @@
       const ev = evenements();
       let html = suite ? '<div class="msg-plus"><button type="button" class="btn btn-sm" data-msg-plus>Voir les messages plus anciens</button></div>' : '';
       let jour = '';
-      for (const e of ev) {
+      let trait = false;
+      // Un envoi de plusieurs fichiers seuls (sans texte), du même auteur, à quelques minutes : une rangée de vignettes.
+      const seulFichier = (/** @type {any} */ e) => e.sorte === 'message' && e.x.fichier && !e.x.texte && !e.x.demande && !e.x.piece && !e.x.repondA;
+      for (let i = 0; i < ev.length; i++) {
+        const e = /** @type {{ quand: string, sorte: string, x: any }} */ (ev[i]);
         const j = jourCle(e.quand);
         if (j !== jour) { jour = j; html += `<span class="msg-jour">${esc(jourDit(e.quand))}</span>`; }
-        html += e.sorte === 'message' ? bulleMessage(e.x) : e.sorte === 'question' ? carteQuestion(e.x) : bulleReponse(e.x);
+        const idNouveau = e.sorte === 'reponse' ? `r:${e.x.id}` : e.x.id;
+        if (!trait && nouveaux.has(idNouveau)) { trait = true; html += `<div class="msg-nouveaux" role="separator"><span>${esc(pl(nouveaux.size, 'nouveau', 'nouveaux'))}</span></div>`; }
+        if (seulFichier(e)) {
+          const lot = [e.x];
+          for (let s = ev[i + 1]; s && seulFichier(s) && s.x.cote === e.x.cote && s.x.auteur === e.x.auteur && jourCle(s.quand) === j
+            && new Date(s.quand).getTime() - new Date(e.quand).getTime() < 15 * 60_000; s = ev[i + 1]) { i++; lot.push(s.x); }
+          if (lot.length > 1) { html += lotFichiers(lot); continue; }
+        }
+        html += e.sorte === 'message' ? bulleMessage(e.x) : e.sorte === 'question' ? carteQuestion(e.x) : e.sorte === 'note' ? carteNote(e.x) : bulleReponse(e.x);
       }
       if (!ev.length) {
         html += `<div class="msg-vide"><b>${entreprise ? 'Aucun message encore.' : 'Aucun échange encore avec ce client.'}</b>
@@ -726,6 +822,7 @@
       }
       fil.innerHTML = html;
       brancherFil(fil);
+      poserVignettes(fil);
       if (garde) {
         const t = /** @type {HTMLTextAreaElement | null} */ (garde.id ? document.getElementById(garde.id) : null);
         if (t) { t.focus(); t.setSelectionRange(garde.debut, garde.fin); }
@@ -850,14 +947,25 @@
       if (enCours || fini) return;
       enCours = true;
       try {
-        const r = await o.appel('GET', chemin(null));
+        const [r, ns] = await Promise.all([o.appel('GET', chemin(null)),
+          avecNotes ? /** @type {any} */ (o.notes).lire().catch(() => notes) : Promise.resolve(notes)]);
+        notes = ns || [];
         // La page a changé (la racine n'est plus à l'écran) : la conversation s'arrête là.
         if (!el.isConnected) { arreter(); return; }
         if (fini) return;
         const nouvelle = JSON.stringify([r.messages.map((/** @type {any} */ m) => [m.id, m.lu, m.achat, m.demande && m.demande.recueLe]),
-          r.questions.map((/** @type {any} */ q) => [q.id, q.statut, q.reponduLe]), r.attente, r.fil && [r.fil.alerte, r.fil.actif]]);
+          r.questions.map((/** @type {any} */ q) => [q.id, q.statut, q.reponduLe]), r.attente, r.fil && [r.fil.alerte, r.fil.actif], notes.map((n) => n.id)]);
         const premiereFois = !lu;
-        if (premiereFois) suite = r.suite;
+        if (premiereFois) {
+          suite = r.suite;
+          const n = Number((r.attente && r.attente.nonLus) || 0);
+          if (n) {
+            const venus = [...r.messages.filter((/** @type {any} */ m) => m.cote !== o.cote).map((/** @type {any} */ m) => ({ id: m.id, quand: m.ecritLe })),
+              ...r.questions.filter((/** @type {any} */ q) => q.reponse && q.reponduLe && !entreprise).map((/** @type {any} */ q) => ({ id: `r:${q.id}`, quand: q.reponduLe }))]
+              .sort((a, b) => (a.quand < b.quand ? -1 : 1));
+            nouveaux = new Set(venus.slice(-n).map((x) => x.id));
+          }
+        }
         lu = r;
         // Aucun cabinet ne tient le dossier, et aucun ne l'a tenu : rien à relire, le geste qui ouvre la messagerie.
         if (premiereFois && !r.fil && !(r.anciens || []).length) {
@@ -925,6 +1033,21 @@
         fil.scrollTop = fil.scrollHeight - avant;
       });
       surClic(fil, '[data-msg-fichier]', async (b) => { await ouvrirFichier(o.appel, String(b.dataset.msgFichier)); });
+      // (1.177.0) Le menu ⋯ d'une vignette : ses gestes sous elle ; un seul ouvert à la fois.
+      fil.querySelectorAll('[data-msg-vig-menu]').forEach((n) => {
+        const b = /** @type {HTMLElement} */ (n);
+        b.onclick = () => {
+          const pop = /** @type {HTMLElement} */ (b.nextElementSibling);
+          const ouvrir = pop.hidden;
+          fil.querySelectorAll('.msg-vig-pop').forEach((x) => { /** @type {HTMLElement} */ (x).hidden = true; });
+          fil.querySelectorAll('[data-msg-vig-menu]').forEach((x) => x.setAttribute('aria-expanded', 'false'));
+          pop.hidden = !ouvrir; b.setAttribute('aria-expanded', String(ouvrir));
+        };
+      });
+      fil.querySelectorAll('[data-msg-saisir-lot]').forEach((n) => {
+        /** @type {HTMLElement} */ (n).onclick = () => { if (o.saisirLot) o.saisirLot(String(/** @type {HTMLElement} */ (n).dataset.msgSaisirLot).split(',')); };
+      });
+      fil.querySelectorAll('[data-msg-revision]').forEach((n) => { if (o.revision) /** @type {HTMLElement} */ (n).onclick = o.revision; });
       surClic(fil, '[data-msg-enregistrer]', async (b) => { await ouvrirFichier(o.appel, String(b.dataset.msgEnregistrer), true); });
       fil.querySelectorAll('[data-msg-ouvrir]').forEach((n) => {
         const b = /** @type {HTMLElement} */ (n);
@@ -1039,6 +1162,9 @@
       if (fichier) x.push(`<span class="msg-joint">${dessin(fichier.type === 'application/pdf' ? 'piece' : 'image')}<span>${esc(fichier.name)} · ${esc(poids(fichier.size))}</span><button type="button" aria-label="Retirer ce fichier" data-msg-sans-fichier>${dessin('croix')}</button></span>`);
       z.innerHTML = x.join('');
       z.hidden = !x.length;
+      // « Envoyer » suit ce qui est joint (gris sans rien à envoyer).
+      const f = z.closest('form');
+      if (f) setTimeout(() => f.dispatchEvent(new Event('input')), 0);
       const sp = z.querySelector('[data-msg-sans-piece]');
       if (sp) /** @type {HTMLElement} */ (sp).onclick = () => { piece = null; dessinerJoints(); };
       const sf = z.querySelector('[data-msg-sans-fichier]');
@@ -1073,6 +1199,21 @@
       // pièce qu'on était en train de nommer (parcours du 21/10/2026).
       texte.addEventListener('input', () => dire(''));
       demandeTxt.addEventListener('input', () => dire(''));
+      const bEnvoyer = /** @type {HTMLElement} */ (form.querySelector('[data-msg-envoyer]'));
+      const majEnvoyer = () => bEnvoyer.classList.toggle('vide', modeNote ? !texte.value.trim() : !texte.value.trim() && !fichier && !piece && !(demande && lesDemandes().length));
+      form.addEventListener('input', majEnvoyer);
+      majEnvoyer();
+      const sugg = /** @type {HTMLElement} */ (form.querySelector('[data-msg-sugg]'));
+      const propose = o.suggestions && !entreprise ? o.suggestions().slice(0, 3) : [];
+      sugg.hidden = !propose.length;
+      sugg.innerHTML = propose.length ? `<span class="msg-sugg-t">${dessin('modele')}D'après le dossier</span>${propose.map((x, i) => `<button type="button" class="msg-sugg-c" data-msg-sugg-i="${i}"><b>${esc(x.titre)}</b><small>${esc(x.sous)}</small></button>`).join('')}` : '';
+      sugg.querySelectorAll('[data-msg-sugg-i]').forEach((n) => {
+        /** @type {HTMLElement} */ (n).onclick = () => {
+          const x = propose[Number(/** @type {HTMLElement} */ (n).dataset.msgSuggI)];
+          if (!x) return;
+          texte.value = x.texte; dire(''); majEnvoyer(); texte.focus(); texte.setSelectionRange(texte.value.length, texte.value.length);
+        };
+      });
       const montrerDemande = () => {
         champDemande.hidden = !demande;
         const b = form.querySelector('[data-msg-demander]');
@@ -1114,10 +1255,50 @@
         if (e.key === 'Enter' && !e.shiftKey && !e.isComposing && !window.matchMedia('(pointer: coarse)').matches) { e.preventDefault(); form.requestSubmit(); }
       };
       const envoyer = /** @type {HTMLButtonElement} */ (form.querySelector('[data-msg-envoyer]'));
+      // (1.177.0) « Note pour l'équipe » : le même champ, en jaune ; « Noter » la range dans le dossier, le client ne la
+      // lit jamais. Le texte commencé passe d'un onglet à l'autre ; ce qui s'ajoute à un message (fichier, pièce,
+      // demande) attend son retour.
+      const placeMessage = texte.placeholder;
+      const poserOnglet = (/** @type {boolean} */ note) => {
+        modeNote = note;
+        form.classList.toggle('note', note);
+        form.querySelectorAll('[data-msg-onglet]').forEach((b) => b.setAttribute('aria-selected', String((/** @type {HTMLElement} */ (b).dataset.msgOnglet === 'note') === note)));
+        form.querySelectorAll('.msg-gestes-g button').forEach((b) => { /** @type {HTMLButtonElement} */ (b).disabled = note; });
+        const mot = form.querySelector('[data-msg-envoyer-mot]');
+        if (mot) mot.textContent = note ? 'Noter' : 'Envoyer';
+        const pied = /** @type {HTMLElement | null} */ (form.querySelector('[data-msg-note-pied]'));
+        if (pied) pied.hidden = !note;
+        texte.placeholder = note ? 'Une note que seule l\'équipe lit' : placeMessage;
+        if (note) { demande = false; montrerDemande(); }
+        const joints = /** @type {HTMLElement} */ (form.querySelector('[data-msg-joints]'));
+        joints.hidden = note || (!fichier && !piece);
+        majEnvoyer();
+        sugg.hidden = note || !propose.length;
+        dire('');
+      };
+      form.querySelectorAll('[data-msg-onglet]').forEach((b) => {
+        /** @type {HTMLElement} */ (b).onclick = () => { poserOnglet(/** @type {HTMLElement} */ (b).dataset.msgOnglet === 'note'); texte.focus(); };
+      });
+      if (modeNote) poserOnglet(true);
       form.onsubmit = async (e) => {
         e.preventDefault();
         if (envoyer.disabled) return;
         const t = texte.value.trim();
+        if (modeNote && o.notes) {
+          if (!t) { dire('Une note vide n\'apprend rien à l\'équipe : écris ce qu\'il faut savoir, puis « Noter ».'); texte.focus(); return; }
+          envoyer.disabled = true;
+          dire('');
+          try {
+            await o.notes.noter(t);
+            texte.value = ''; majEnvoyer();
+            await relire();
+            const fil = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-fil]'));
+            if (fil) fil.scrollTop = fil.scrollHeight;
+            if (o.toast) o.toast('Noté pour l\'équipe : le client ne la lit pas.');
+            texte.focus();
+          } catch (x) { dire(motif(x)); texte.focus(); } finally { envoyer.disabled = false; }
+          return;
+        }
         const ds = demande ? lesDemandes() : [];
         const d = ds[0] || '';
         if (demande && !d) { dire('Nomme la pièce que tu demandes (par exemple : la facture STEG d\'août), puis « Envoyer ».'); demandeTxt.focus(); return; }
@@ -1313,7 +1494,8 @@
    *   revision?: (entreprise: string) => void,
    *   surCompteurs?: (c: { aTraiter: number, attendClient: number, tout: number }, vus: any[], tous: any[]) => void,
    *   portee?: () => string, changerPortee?: (v: string) => void, dansPortee?: (entreprise: string) => boolean, info?: string,
-   *   ligne?: (entreprise: string) => { mois?: { texte: string, ton?: string }, puces?: { texte: string, ton?: string }[], suivi?: string, teinte?: string } | null,
+   *   ligne?: (entreprise: string) => { mois?: { texte: string, ton?: string }, puces?: { texte: string, ton?: string }[], suivi?: string, couleur?: string[] } | null,
+   *   suggestions?: (entreprise: string) => { titre: string, sous: string, texte: string }[], saisirLot?: (entreprise: string, messages: string[]) => void, prenom?: (entreprise: string) => string,
    *   resume?: (ds: any[]) => { cle: string, texte: string, ton: string, ids: string[], dessin?: string }[],
    *   aCote?: (entreprise: string) => string, brancherCote?: (el: HTMLElement, entreprise: string) => void,
    *   contact?: (entreprise: string) => string | null, menu?: (entreprise: string) => { texte: string, sous?: string, faire: () => void }[],
@@ -1443,7 +1625,7 @@
           x.retards ? `<span class="msg-puce rouge" title="${esc(pl(x.retards, 'pièce demandée passée sa date', 'pièces demandées passées leur date'))}">${esc(pl(x.retards, 'pièce en retard', 'pièces en retard'))}</span>` : '',
           portee() === 'tout' && L && L.suivi ? `<span class="msg-suivi">${esc(L.suivi)}</span>` : ''].filter(Boolean).join('');
         return `<button type="button" class="msg-dossier${x.entreprise === choisi ? ' choisi' : ''}${x.nonLus ? ' non-lu' : ''}" data-dossier="${esc(x.entreprise)}" aria-current="${x.entreprise === choisi}">
-          <span class="msg-avatar petit${L && L.teinte ? ` ${esc(L.teinte)}` : ''}" aria-hidden="true">${esc(initiales(x.nom))}</span>
+          <span class="msg-avatar petit${L && L.couleur ? ' carre' : ''}"${L && L.couleur ? ` style="background:linear-gradient(145deg, ${esc(L.couleur[0])}, ${esc(L.couleur[1])})"` : ''} aria-hidden="true">${esc(initiales(x.nom))}</span>
           <span class="msg-dossier-txt"><span class="msg-dossier-l1"><b>${esc(x.nom)}</b>${x.dernier ? `<span class="msg-quand">${esc(quandCourt(x.dernier.quand))}</span>` : ''}</span>
             <span class="msg-extrait">${esc(extrait(x))}</span>${puces ? `<span class="msg-dossier-l3">${puces}</span>` : ''}</span>
           <span class="msg-dossier-pastilles">${x.nonLus ? `<span class="msg-non-lus" title="${esc(pl(x.nonLus, 'nouveau message', 'nouveaux messages'))}">${x.nonLus}<span class="msg-cache"> ${x.nonLus > 1 ? 'nouveaux messages' : 'nouveau message'}</span></span>` : ''}
@@ -1523,6 +1705,10 @@
         nom: d ? d.nom : 'Ce client',
         integre: true,
         contact: o.contact ? o.contact(id) : null,
+        couleur: o.ligne ? ((o.ligne(id) || {}).couleur || null) : null,
+        contactPrenom: o.prenom ? o.prenom(id) : undefined,
+        suggestions: o.suggestions ? () => (o.suggestions ? o.suggestions(id) : []) : undefined,
+        saisirLot: o.saisirLot ? (/** @type {string[]} */ ms) => { if (o.saisirLot) o.saisirLot(id, ms); } : undefined,
         coteEl: cote ? cote.querySelector('[data-cote-fil]') : null,
         menu: o.menu ? o.menu(id) : [],
         traiter: () => marquerTraite(id),

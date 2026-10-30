@@ -131,6 +131,15 @@ export interface BaseDeDonnees {
     lu_par: string;
     lu_le: Generated<Date>;
   };
+  'cabinet.note': {
+    id: Generated<string>;
+    cabinet: string;
+    entreprise: string;
+    auteur: string;
+    auteur_nom: string;
+    texte: string;
+    ecrit_le: Generated<Date>;
+  };
   'cabinet.reglages': {
     cabinet: string;
     contenu: ColumnType<Json, string, string>;

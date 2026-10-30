@@ -392,6 +392,32 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
       return { corps: { fiches: r.map((f) => ({ entreprise: f.entreprise, contenu: f.contenu, revision: Number(f.revision) })) } };
     },
   });
+  // (1.177.0, maquette « Messages ») Les notes pour l'équipe dans la conversation d'un client (0182) : lues par qui voit le
+  // dossier au cabinet, jamais par l'entreprise ; une note ne se change pas. La base refait le contrôle (RLS).
+  ajouter({
+    methode: 'GET', chemin: '/cabinets/:cabinet/notes/:dossier', geste: 'compte.cabinets.voir',
+    traiter: async ({ params }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      const r = await tx.query(`select id, auteur_nom, auteur = socle.moi() de_moi, texte, ecrit_le from cabinet.note
+          where cabinet = $1 and entreprise = $2 order by ecrit_le, id`, [params.cabinet, params.dossier]);
+      return { corps: { notes: (r.rows as { id: string; auteur_nom: string; de_moi: boolean; texte: string; ecrit_le: Date }[])
+        .map((n) => ({ id: n.id, auteur: n.auteur_nom, moi: n.de_moi, texte: n.texte, ecritLe: n.ecrit_le.toISOString() })) } };
+    },
+  });
+  ajouter({
+    methode: 'POST', chemin: '/cabinets/:cabinet/notes/:dossier', geste: 'compte.cabinet.gerer',
+    corps: z.object({ texte: z.string().trim().min(1).max(4000) }).strict(),
+    traiter: async ({ params, corps }, tx) => {
+      if (!tx || !uuid.safeParse(params.cabinet).success || !uuid.safeParse(params.dossier).success) return introuvable;
+      // Le dossier doit être au portefeuille de la personne (mandat actif) : sinon, il n'existe pas pour elle.
+      const auPortefeuille = (await tx.query(`select 1 from socle.portefeuille($1) where entreprise = $2 and statut = 'actif'`, [params.cabinet, params.dossier])).rowCount;
+      if (!auPortefeuille) return introuvable;
+      const r = await tx.query(`insert into cabinet.note (cabinet, entreprise, auteur, auteur_nom, texte)
+          select $1, $2, socle.moi(), u.nom, $3 from socle.utilisateur u where u.id = socle.moi() returning id`, [params.cabinet, params.dossier, corps.texte]);
+      if (!r.rowCount) return introuvable;
+      return { statut: 201, corps: { id: (r.rows[0] as { id: string }).id } };
+    },
+  });
   // La poser : son contenu entier, avec la révision connue (null : la première) ; une fiche changée
   // ailleurs entre-temps n'est jamais écrasée.
   ajouter({

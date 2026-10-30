@@ -89,6 +89,8 @@ export const CLASSEMENT: Record<string, Classe> = {
   'cabinet.document': { classe: 'hors', raison: 'le dossier permanent que le cabinet tient sur son client appartient au cabinet' },
   'cabinet.lecture': { classe: 'hors', raison: 'qui au cabinet a lu quelle pièce : le suivi du cabinet' },
   'cabinet.export': { classe: 'hors', raison: 'les exports du classeur faits par le cabinet' },
+  // (1.177.0) Les notes pour l'équipe, dans la conversation d'un client : le client ne les lit jamais, elles restent au cabinet.
+  'cabinet.note': { classe: 'hors', raison: 'les notes de l\'équipe du cabinet sur son client ne sont jamais lues par l\'entreprise' },
   'cabinet.reglages': { classe: 'hors', raison: 'les réglages du cabinet (banques, mots retenus) valent pour tous ses clients' },
   'compta.compteur': { classe: 'entreprise' },
   'compta.lettrage': { classe: 'entreprise' },

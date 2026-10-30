@@ -475,7 +475,7 @@ export function routesMessagerie(ctx: Contexte): Route<never>[] {
             // (1.173.0, 0181) La jumelle d'une pièce en double, et le mois où le cabinet l'a rangée (null : celui de son arrivée).
             double: l.double_de ? { sorte: l.double_de_sorte, id: l.double_de } : null, mois: l.mois_classeur,
           })), ...deposees.map((d) => ({
-            id: d.id, entreprise: d.entreprise, depot: true, de: d.depose_nom ?? 'le cabinet', provenance: d.provenance, texte: '', recueLe: d.depose_le.toISOString(),
+            id: d.id, entreprise: d.entreprise, depot: true, de: d.depose_nom ?? t('messagerie.depose_par_defaut'), provenance: d.provenance, texte: '', recueLe: d.depose_le.toISOString(),
             fichier: { id: d.id, nom: d.nom, type: d.type, taille: Number(d.taille) },
             demande: null, achat: null, classeeLe: d.classee_le ? d.classee_le.toISOString() : null, classeePar: d.classee_par,
             raison: d.classee_raison, note: null, jointe: d.jointe_ecriture,

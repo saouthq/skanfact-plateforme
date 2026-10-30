@@ -1730,6 +1730,27 @@
     });
   }
   const MOIS_INITIALES = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+  // (1.177.0, maquette « Messages ») « D'après le dossier » : les réponses que le dossier du client appelle, lues dans ce que
+  // le cabinet sait déjà (ses questions sans réponse, ses pièces reçues, sa déclaration prête, un mois sans rien). Une règle
+  // choisit, rien n'est écrit par une machine ; le texte se relit et se change avant de partir. Le vouvoiement : c'est le
+  // cabinet qui écrit à son client.
+  function suggestionsMsg(d, retard) {
+    if (!d) return [];
+    const prenom = String(d.contact || '').split(' ')[0];
+    const bonjour = prenom ? `Bonjour ${prenom}, ` : 'Bonjour, ';
+    const mp = moisPrecedent(K.today().slice(0, 7));
+    const l = [];
+    const q = Number((questionsAttente.find(x => x.dossierId === d.id) || {}).ouvertes || 0);
+    if (q) l.push({ titre: 'Rappel des questions de la révision', sous: `${pl(q, 'question')} sans réponse`, texte: `${bonjour}il me reste ${q > 1 ? `${q} questions` : 'une question'} de la révision sans réponse : ${q > 1 ? 'vous les trouvez' : 'vous la trouvez'} plus haut dans cette conversation. Une phrase suffit. Merci !` });
+    const nP = (comptesBarre.piecesParDossier && comptesBarre.piecesParDossier.get(d.id)) || 0;
+    if (nP) l.push({ titre: 'Bien reçu, merci', sous: `${pl(nP, 'pièce reçue', 'pièces reçues')}`, texte: `${bonjour}bien reçu ${nP > 1 ? `vos ${nP} pièces` : 'votre pièce'}, merci ! Je m'en occupe.` });
+    const dc = declarationConnue(d.id, mp);
+    const tard = retard.get(d.name) || [];
+    if (dc && !dc.deposee) l.push({ titre: 'Votre déclaration est prête', sous: `${moisLong(mp)} · à déposer avant le ${jjmm(limiteDe(mp))}`, texte: `${bonjour}votre déclaration de ${moisLong(mp)} est prête : je la dépose avant le ${jjmm(limiteDe(mp))}. Je vous redis le montant à payer dès qu'elle est déposée.` });
+    else if (!d.manual && !ecrituresConnues(d.id, mp) && !nP && !tard.includes(mp) && questionsAttenteLues) l.push({ titre: `Les pièces de ${moisLong(mp)}`, sous: 'rien reçu pour ce mois', texte: `${bonjour}je n'ai encore rien reçu pour ${moisLong(mp)} : pouvez-vous m'envoyer vos factures d'achat et de vente, et le relevé bancaire du mois ? Merci !` });
+    if (tard.length) l.push({ titre: `${cap(tard.map(moisLong).join(' et '))} en retard`, sous: 'la date limite est passée', texte: `${bonjour}${tard.length > 1 ? `les déclarations de ${tard.map(moisLong).join(' et ')} sont` : `la déclaration de ${moisLong(tard[0])} est`} en retard. Pour la déposer, il me manque vos pièces : pouvez-vous me les envoyer aujourd'hui ? Merci.` });
+    return l.slice(0, 2);
+  }
   function drawBoiteMsg(view, gestes) {
     const dir = estAssocie();
     const parId = id => (S.dossiers || []).find(x => x.id === id) || null;
@@ -1753,7 +1774,7 @@
       if (tard.length) puces.push({ texte: pl(tard.length, 'mois en retard', 'mois en retard'), ton: 'rouge' });
       if (nq) puces.push({ texte: pl(nq, 'question'), ton: 'ambre' });
       const eq = equipeDe(d);
-      return { mois: tard.length ? null : { texte: mo.mot, ton: mo.cl }, puces, suivi: eq.suit ? prenomDe(eq.suit) : '' };
+      return { mois: tard.length ? null : { texte: mo.mot, ton: mo.cl }, puces, suivi: eq.suit ? prenomDe(eq.suit) : '', couleur: couleurDe(d.id) };
     };
     const resume = ds => {
       const ids = ds.map(x => x.entreprise);
@@ -1791,7 +1812,8 @@
         nP ? `<li>${MSG_IC.photo}<span><b>${esc(pl(nP, 'pièce reçue', 'pièces reçues'))}</b><small>à saisir, ou à classer dans « Pièces reçues »</small></span></li>` : '',
         tard.length ? `<li class="rouge">${MSG_IC.alerte}<span><b>${esc(tard.map(moisLong).join(', '))} sans déclaration</b><small>la date limite est passée (À VÉRIFIER)</small></span></li>` : '',
       ].filter(Boolean).join('');
-      return `<div class="msg-cote-qui"><span class="msg-avatar">${esc(initialesDe(contact))}</span><span><b>${esc(contact)}</b><small>${esc(role)}</small><small>${esc(suivi)}</small></span></div>
+      const cp = couleurDe(contact);
+      return `<div class="msg-cote-qui"><span class="msg-avatar" style="background:linear-gradient(145deg, ${cp[0]}, ${cp[1]});color:#fff">${esc(initialesDe(contact).slice(0, 1))}</span><span><b>${esc(contact)}</b><small>${esc(role)}</small><small>${esc(suivi)}</small></span></div>
         <section class="msg-cote-carte"><div class="msg-cote-an"><h3>L'année ${esc(K.today().slice(0, 4))}</h3><span><b>${faits}</b>/${dus.length} déposés</span></div>
           <div class="msg-segs" role="img" aria-label="${esc(`${faits} mois déposés sur ${dus.length}`)}">${an.map(x => `<i class="${x.st}" title="${esc(cap(moisLong(x.m)))}"></i>`).join('')}</div>
           <div class="msg-segs-l" aria-hidden="true">${MOIS_INITIALES.map(l => `<span>${l}</span>`).join('')}</div>
@@ -1813,6 +1835,10 @@
       resume,
       aCote,
       contact: id => { const d = parId(id); return d ? [d.contact, d.contactRole].filter(Boolean).join(' · ') || null : null; },
+      prenom: id => { const d = parId(id); return String((d && (d.contact || d.name)) || '').split(' ')[0]; },
+      suggestions: id => suggestionsMsg(parId(id), retard),
+      // « Saisir les N pièces » : elles s'ouvrent une par une dans « Pièces reçues » du dossier (le geste de chacune : saisir).
+      saisirLot: id => { location.hash = '#/pieces/' + encodeURIComponent(id); },
       menu: id => [{ texte: 'Ouvrir le dossier', sous: 'le livre, mois par mois', dessin: 'piece', faire: () => { location.hash = '#/dossier/' + encodeURIComponent(id); } }],
       // La phrase de la page et la pastille : ce qui attend ta réponse, et ce qu'on attend des clients.
       surCompteurs: (c, ds, tous) => {
@@ -1881,6 +1907,7 @@
     demandePreparee = null;
     messagerieOuverte = api.messagerie.conversation(racine, id, {
       nom: d ? d.name : 'Ce client',
+      ...(d && d.contact ? { contactPrenom: String(d.contact).split(' ')[0] } : {}),
       demander: geste === 'demande',
       ...(prete ? { demandeTexte: prete } : {}),
       toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),

@@ -1247,6 +1247,11 @@
   const conversationAvec = (el, entreprise, o) => /** @type {any} */ (window).SkanMessagerie.conversation(el, {
     ...o, cote: 'cabinet', modeles: modelesDuCabinet,
     appel: (/** @type {string} */ m, /** @type {string} */ c, /** @type {unknown} */ b) => appel(m, `/entreprises/${encodeURIComponent(entreprise)}${c}`, b),
+    // (1.177.0) Les notes pour l'équipe (0182) : le client ne les lit jamais ; elles restent dans le dossier, avec leur date.
+    notes: {
+      lire: async () => (await appel('GET', `/cabinets/${cabinetId}/notes/${encodeURIComponent(entreprise)}`)).notes,
+      noter: (/** @type {string} */ texte) => appel('POST', `/cabinets/${cabinetId}/notes/${encodeURIComponent(entreprise)}`, { texte }),
+    },
   });
   /** @type {Map<string, Promise<{ blob: Blob, type: string, nom: string, adresse: string }>>} */ const fichiersLus = new Map();
   // (1.174.8) Les pièces de « Pièces reçues » que le cabinet a déposées lui-même : des documents du classeur d'un dossier.
