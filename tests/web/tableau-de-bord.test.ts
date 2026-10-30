@@ -343,6 +343,57 @@ describe('le Tableau de bord du Cabinet, à la souris', () => {
     await cx.close();
   }, 180_000);
 
+  // (1.198.0, maquette « Le menu ⋯ de la page », « Sans réseau », « Abonnement en lecture seule ») Exporter la grille avec
+  // ses filtres, en tableur ou en PDF pour une réunion ; une bande quand le réseau manque, une autre quand l'abonnement est
+  // en lecture seule.
+  it('Exporter la grille, et les bandes hors ligne et lecture seule', async () => {
+    const { associe, cab } = await unCabinet();
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis', acceptDownloads: true });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    // L'abonnement du cabinet, lu comme en lecture seule depuis le 21/10.
+    await p.route('**/v1/cabinets/*/abonnement', (r) => r.fulfill({ status: 200, contentType: 'application/json',
+      body: JSON.stringify({ etat: { etat: 'lecture_seule', depuis: '2026-10-21' } }) }));
+    let html = '';
+    await p.route('**/v1/pdf', async (r) => { html = String((r.request().postDataJSON() as { html: string }).html); await r.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ pdf: 'JVBERg==', nom: 'tableau.pdf' }) }); });
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/production`);
+    await p.locator('#page-bord #tb-grille').waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    await expect.poll(() => p.locator('#tb-ls').innerText().catch(() => '')).toMatch(/^Tes dossiers payants sont en lecture seule depuis le 21\/10\s+Tout se lit, rien n'est perdu, et tout s'exporte/);
+
+    // Exporter en tableur : les filtres posés valent (la recherche « menuis » : la menuiserie seule).
+    await p.locator('#tb-q').fill('menuis');
+    await expect.poll(() => p.locator('#tb-grille tbody tr[data-tb-id]').count()).toBe(1);
+    await p.locator('#tb-exporter').click();
+    const menu = p.locator('.row-menu');
+    await expect.poll(() => menu.innerText().catch(() => '')).toMatch(/La grille[\s\S]*Exporter en tableur[\s\S]*PDF pour une réunion/i);
+    const [dl] = await Promise.all([p.waitForEvent('download'), menu.getByRole('menuitem').filter({ hasText: 'Exporter en tableur' }).click()]);
+    const csv = fs.readFileSync(await dl.path(), 'utf8').replace(/^\uFEFF/, '').split(/\r?\n/).filter(Boolean);
+    expect(csv[0]).toMatch(/^Dossier;Matricule fiscal;Tenu;Suivi par;.+;Mois en retard$/);
+    expect(csv.length).toBe(2);
+    expect(csv[1]).toMatch(/^Menuiserie Ben Ali;;sur SkanFact;Rim Toumi;/);
+    // PDF pour une réunion : la grille, les chiffres du mois, l'équipe.
+    await p.locator('#tb-exporter').click();
+    await menu.getByRole('menuitem').filter({ hasText: 'PDF pour une réunion' }).click();
+    await expect.poll(() => html).toMatch(/<h1>Tableau de bord · Jlassi Conseil<\/h1>/);
+    expect(html).toMatch(/Menuiserie Ben Ali/);
+    expect(html).not.toMatch(/Garage Triki/);
+    expect(html).toMatch(/<h2>L'équipe<\/h2>/);
+
+    // Hors ligne : une bande dit l'heure de la dernière lecture ; elle part quand le réseau revient.
+    await cx.setOffline(true);
+    await expect.poll(() => p.locator('#tb-hors').innerText().catch(() => '')).toMatch(/^Hors ligne · tu vois le tableau tel qu'il était à \d{1,2}\s+h\s+\d{2}/);
+    await cx.setOffline(false);
+    await expect.poll(() => p.locator('#tb-hors').count()).toBe(0);
+    // « Régler l'abonnement » mène à « Ton abonnement ».
+    await p.locator('#tb-ls-regler').click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toMatch(/^#\/reglages/);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 180_000);
+
   it('au téléphone : rien ne déborde, la grille défile dans son cadre, l\'onglet du bas s\'appelle « Tableau »', async () => {
     const { associe, cab } = await unCabinet();
     const cx = await navigateur.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });

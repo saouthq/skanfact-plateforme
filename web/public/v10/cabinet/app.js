@@ -2630,6 +2630,7 @@
   const ETAPES_TB = [['fini', 'Déposée'], ['declare', 'Prête'], ['revise', 'À réviser'], ['saisi', 'À saisir'], ['recu', 'Sans pièces']];
   const SIGNE_TB = { recu: ['○', 'pièces manquantes'], saisi: ['!', 'à saisir'], revise: ['◐', 'à réviser'], declare: ['◉', 'prêt à déposer'], fini: ['✓', 'déposé'], hors: ['–', 'hors mission'] };
   const TB_IC = {
+    exporter: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>',
     horloge: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>',
     loupe: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>',
     trois: '<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
@@ -2901,6 +2902,18 @@
       ${nTard ? `<button type="button" class="tb-ar-lien" id="tb-ar-relancer">${pl(nTard, 'client envoie', 'clients envoient')} après le seuil ou rien du tout · les relancer, dans « À faire maintenant » ${TB_IC.chev}</button>` : ''}
       <p class="tb-note">${estAssocie() ? `Le seuil se règle dans Le cabinet › Réglages : tout doit être là le ${seuil} pour tenir la date limite.` : `Le seuil est un réglage du cabinet : tout doit être là le ${seuil}.`} Les dossiers tenus au cabinet n'y sont pas : leurs pièces papier n'ont pas de date d'arrivée.</p></div>`;
   }
+  // (1.198.0, maquette « Sans réseau », « Abonnement en lecture seule ») Une bande, au-dessus de tout.
+  function bandesTb() {
+    if (navigator.onLine === false) {
+      const a = prodState.luA ? new Date(prodState.luA) : null;
+      return `<div class="tb-hors" id="tb-hors" role="status">${icB('cadenas', 17, 2)}<span><b>Hors ligne</b> · tu vois le tableau tel ${a ? `qu'il était à ${a.getHours()}&nbsp;h&nbsp;${String(a.getMinutes()).padStart(2, '0')}` : 'que ce poste le connaît'}</span><span class="tb-hors-d"><i class="tb-pouls" aria-hidden="true"></i>se reconnecte tout seul</span></div>`;
+    }
+    const e = licCab && licCab.etat;
+    if (e && e.etat === 'lecture_seule') {
+      return `<div class="bandeau rouge tb-ls" id="tb-ls"><span class="txt"><b>Tes dossiers payants sont en lecture seule${e.depuis ? ` depuis le ${esc(jjmmTb(String(e.depuis).slice(0, 10)))}` : ''}</b><span>Tout se lit, rien n'est perdu, et tout s'exporte ; les déclarations dues se préparent toujours. Tes dossiers gratuits restent ouverts ; les autres se rouvrent dès que la facture est réglée.</span></span><button type="button" class="btn" id="tb-ls-regler">Régler l'abonnement</button></div>`;
+    }
+    return '';
+  }
   async function lireRevueTb(view, etat) {
     if (!api.revue || revState.lecture || revState.donnees) return;
     revState.lecture = true; revState.erreur = '';
@@ -2909,13 +2922,50 @@
     revState.lecture = false;
     if (/^#\/production/.test(location.hash) && $('#page-bord')) pageTableau(view, etat);
   }
-  function grilleTb(L, P) {
-    const tousCab = estAssocie() && portee() === 'tous' && !tbState.qui;
+  // Les dossiers de la grille, filtres posés, dans l'ordre de la grille (la grille et l'export lisent les mêmes).
+  function triTb(L, P) {
     const moisC = P.dernier;
     const filtre = tbState.filtre.startsWith('et:') ? (x => x.mois.has(moisC) && x.mois.get(moisC).etape === tbState.filtre.slice(3)) : (FILTRES_TB[tbState.filtre] || FILTRES_TB.tous);
     const q = tbState.q.trim().toLowerCase();
     const fl = L.filter(x => (!q || x.d.name.toLowerCase().includes(q) || String(x.d.matricule || '').toLowerCase().includes(q)) && filtre(x));
-    const tri = [...fl].sort((a, b) => (b.manque * 10 + b.aSaisir * 5 + b.aReviser) - (a.manque * 10 + a.aSaisir * 5 + a.aReviser) || a.d.name.localeCompare(b.d.name, 'fr'));
+    return [...fl].sort((a, b) => (b.manque * 10 + b.aSaisir * 5 + b.aReviser) - (a.manque * 10 + a.aSaisir * 5 + a.aReviser) || a.d.name.localeCompare(b.d.name, 'fr'));
+  }
+  // ── (1.198.0, maquette « Le menu ⋯ de la page ») Exporter la grille : en tableur, ou en PDF pour une réunion ──
+  const etatMoisTb = (x, m, P) => (m > P.dernier ? 'à venir' : !x.mois.has(m) ? 'hors mission' : `${(SIGNE_TB[x.mois.get(m).etape] || [])[1] || ''}${x.retard.includes(m) ? ', en retard' : ''}`);
+  async function exporterTb(L, P) {
+    const cols = [{ label: 'Dossier', get: x => x.d.name }, { label: 'Matricule fiscal', get: x => x.d.matricule || '' },
+      { label: 'Tenu', get: x => (x.d.manual ? 'au cabinet' : 'sur SkanFact') }, { label: 'Suivi par', get: x => (x.eq.suit ? x.eq.suit.nom : '') },
+      ...P.cols.map(m => ({ label: `${cap(moisLong(m))} ${m.slice(0, 4)}`, get: x => etatMoisTb(x, m, P) })),
+      { label: 'Mois en retard', get: x => String(x.retard.length) }];
+    try { const r = await api.exportCsv(toCsv(cols, triTb(L, P)), `tableau-de-bord-${K.today()}`); if (r) toast('Tableau enregistré.'); } catch (e) { toast(plainError(e), 'error'); }
+  }
+  async function pdfReunionTb(L, P) {
+    const tri = triTb(L, P), moisC = P.dernier, cab = (S.cabinet || {}).name || 'Le cabinet';
+    const mens = moisC ? L.filter(x => x.mois.has(moisC) && x.mois.get(moisC).etape !== 'hors') : [];
+    const chiffres = moisC ? ETAPES_TB.map(([e, nom]) => `<td><b>${mens.filter(x => x.mois.get(moisC).etape === e).length}</b><span>${esc(nom)}</span></td>`).join('') : '';
+    const qui = equipeRangee().filter(c => c.actif !== false).map(c => {
+      const l = L.filter(x => (x.eq.suit || {}).id === c.id);
+      return `<tr><td>${esc(c.nom)}</td><td>${l.length}</td><td>${l.reduce((t, x) => t + x.aSaisir, 0)}</td><td>${l.reduce((t, x) => t + x.aReviser, 0)}</td><td>${l.reduce((t, x) => t + x.retard.length, 0)}</td></tr>`;
+    }).join('');
+    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Tableau de bord · ${esc(cab)}</title><style>
+      @page { size: A4 landscape; margin: 12mm; } body { font: 10px/1.35 system-ui, sans-serif; color: #17202a; margin: 0; }
+      h1 { font-size: 17px; margin: 0 0 2px; } .s { color: #5b6672; margin: 0 0 10px; } h2 { font-size: 12px; margin: 12px 0 4px; }
+      table { border-collapse: collapse; width: 100%; } th, td { border-bottom: 1px solid #dde2e7; padding: 3px 5px; text-align: left; }
+      th { font-size: 9px; color: #5b6672; text-transform: uppercase; letter-spacing: .03em; } td.c, th.c { text-align: center; }
+      .k td { border: 0; padding: 0 14px 0 0; } .k b { display: block; font-size: 16px; } .k span { color: #5b6672; } .t { color: #b42318; font-weight: 600; }
+      .n { margin-top: 10px; color: #5b6672; }</style></head><body>
+      <h1>Tableau de bord · ${esc(cab)}</h1><p class="s">${esc(new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }))} · ${esc([P.titre, P.sous].filter(Boolean).join(' · '))} · ${pl(tri.length, 'dossier')}</p>
+      ${moisC ? `<h2>Déclarations ${esc(deMois(moisC))}</h2><table class="k"><tr>${chiffres}</tr></table>` : ''}
+      <h2>Les dossiers</h2><table><thead><tr><th>Dossier</th><th>Suivi par</th>${P.cols.map(m => `<th class="c">${esc(moisCourt(m))}</th>`).join('')}<th class="c">En retard</th></tr></thead><tbody>
+      ${tri.map(x => `<tr><td>${esc(x.d.name)}</td><td>${esc(x.eq.suit ? x.eq.suit.nom : '—')}</td>${P.cols.map(m => `<td class="c${x.retard.includes(m) ? ' t' : ''}">${esc(m > P.dernier ? '' : x.mois.has(m) ? (SIGNE_TB[x.mois.get(m).etape] || ['?'])[0] : '–')}</td>`).join('')}<td class="c">${x.retard.length || ''}</td></tr>`).join('')}</tbody></table>
+      ${qui ? `<h2>L'équipe</h2><table><thead><tr><th>Personne</th><th>Dossiers suivis</th><th>Mois à saisir</th><th>Mois à réviser</th><th>Mois en retard</th></tr></thead><tbody>${qui}</tbody></table>` : ''}
+      <p class="n">${['recu', 'saisi', 'revise', 'declare', 'fini', 'hors'].map(e => `${SIGNE_TB[e][0]} ${SIGNE_TB[e][1]}`).join(' · ')}. En rouge : en retard. Tout est lu dans les livres ; les dates limites viennent des réglages du cabinet, À VÉRIFIER.</p></body></html>`;
+    try { const f = await api.exportPdf(html, `tableau-de-bord-${K.today()}.pdf`); if (f) toast(`PDF enregistré : ${f}`); } catch (e) { toast(plainError(e), 'error'); }
+  }
+  function grilleTb(L, P) {
+    const tousCab = estAssocie() && portee() === 'tous' && !tbState.qui;
+    const moisC = P.dernier;
+    const tri = triTb(L, P), fl = tri, q = tbState.q.trim();
     const tel = telTb();
     const montre = tbState.tout ? tri : tri.slice(0, tel ? 8 : 12);
     const nRetard = L.reduce((t, x) => t + x.retard.length, 0);
@@ -3033,12 +3083,13 @@
     if (e.target.closest('#tb-fiche, #tb-grille [data-tb-case], #modal-root, .row-menu')) return;
     tbState.fiche = null; pageTableau($('#view'), '');
   });
+  for (const ev of ['online', 'offline']) window.addEventListener(ev, () => { if (/^#\/production/.test(location.hash) && $('#page-bord')) pageTableau($('#view'), prodState.erreur ? 'refus' : prodState.lignes ? '' : 'chargement'); });
   async function drawTableau(view) {
     if (!prodState.lignes && !prodState.erreur) {
       pageTableau(view, 'chargement');
       try {
         const r = await api.production({});
-        prodState = { ...prodState, lignes: r.lignes || [], etapes: r.etapes || [], collaborateurs: r.collaborateurs || [], erreur: '' };
+        prodState = { ...prodState, lignes: r.lignes || [], etapes: r.etapes || [], collaborateurs: r.collaborateurs || [], erreur: '', luA: navigator.onLine === false ? prodState.luA || 0 : Date.now() };
       } catch (e) { prodState = { ...prodState, erreur: plainError(e) }; }
       if (!/^#\/production/.test(location.hash)) return;
     }
@@ -3085,8 +3136,8 @@
     const quiC = tbState.qui && collabDe(tbState.qui), nQui = quiC ? mesDossiers().filter(d => !d.archived && (equipeDe(d).suit || {}).id === quiC.id).length : 0;
     const ctx = ctxCabinet(quiC ? { texte: nQui ? `${nQui > 1 ? 'les ' : ''}${pl(nQui, 'dossier')} confié${nQui > 1 ? 's' : ''} à ${prenomDe(quiC)}` : `aucun dossier confié à ${prenomDe(quiC)}` } : {});
     view.innerHTML = `<div class="cab-page" id="page-bord">${ctx}
-      <div class="page-head a-tete"><div><span class="a-date">${esc(jour)}</span><h1>Tableau de bord ${info('tb.page')}</h1>${phrase ? `<p class="a-phrase">${esc(phrase)}</p>` : ''}</div><div class="actions tb-act"></div></div>
-      ${inboxBanner()}${qui}${corps}</div>`;
+      <div class="page-head a-tete"><div><span class="a-date">${esc(jour)}</span><h1>Tableau de bord ${info('tb.page')}</h1>${phrase ? `<p class="a-phrase">${esc(phrase)}</p>` : ''}</div><div class="actions tb-act">${!etat && L.length && P.cols.length ? `<button type="button" class="btn tb-exp" id="tb-exporter" data-rowmenu="TBP" aria-haspopup="menu" aria-expanded="false">${TB_IC.exporter}Exporter</button>` : ''}</div></div>
+      ${bandesTb()}${inboxBanner()}${qui}${corps}</div>`;
     // Les gestes de « À faire maintenant » (les mêmes que les Priorités).
     $$('[data-priorite]', view).forEach(b => {
       b.onclick = () => { const [g, i] = b.dataset.priorite.split(':'); const x = (g === 'u' ? pri.urgent : pri.avoir)[Number(i)]; if (x) x.faire(); };
@@ -3104,6 +3155,7 @@
     const rr = $('#tb-rev-relire', view); if (rr) rr.onclick = () => { revState = { donnees: null, annee: 0, erreur: '', lecture: false }; pageTableau(view, etat); void lireRevueTb(view, etat); };
     // (1.197.0) La lecture des livres se fait dès l'arrivée : « Quand les pièces arrivent » en a besoin aussi.
     if (!revState.donnees && !revState.erreur && $('#tb-dossiers', view)) void lireRevueTb(view, etat);
+    const lsr = $('#tb-ls-regler', view); if (lsr) lsr.onclick = () => versReglages('pan-licence');
     const art = $('#tb-ar-tout', view); if (art) art.onclick = () => { tbState.arTout = !tbState.arTout; pageTableau(view, etat); };
     const arr = $('#tb-ar-relancer', view); if (arr) arr.onclick = () => { tbState.avoir = true; pageTableau(view, etat); const a = $('#tb-afaire', view); if (a) a.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
     // La fiche d'un mois : une case ouverte, posée sous elle (du bas, au téléphone).
@@ -3143,6 +3195,10 @@
       location.hash = `#/dossier/${encodeURIComponent(tr.dataset.tbId)}/comptabilite${tr.dataset.tbAn ? `/exercice/${tr.dataset.tbAn}` : ''}`;
     }; });
     RowMenu.brancherMenus(view, id => {
+      // (1.198.0) Le menu de la page : la grille en tableur, ou en PDF pour une réunion (les filtres posés valent).
+      if (id === 'TBP') return [{ titre: 'La grille' },
+        { icon: 'extraire', label: 'Exporter en tableur', hint: 'la période et les filtres posés, une ligne par dossier', run: () => { void exporterTb(L, P); } },
+        { icon: 'pdf', label: 'PDF pour une réunion', hint: 'la grille, les chiffres et l\'équipe, sur une page', run: () => { void pdfReunionTb(L, P); } }];
       if (!id.startsWith('TB:')) return [];
       const d = (S.dossiers || []).find(x => x.id === id.slice(3));
       if (!d) return [];

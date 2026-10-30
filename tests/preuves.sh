@@ -21593,3 +21593,20 @@ prouver 'tableau 34 : le jour d'"'"'arrivée se lit de travers' web/public/v10/c
 prouver 'tableau 35 : qui n'"'"'envoie rien ne passe plus en tête' web/public/v10/cabinet/app.js \
   "const rang = a => (a.rien ? 100 + a.sans : a.max);" "const rang = a => (a.rien ? 0 : a.max);" \
   'Quand les pièces arrivent'
+
+# (1.198.0) Le Tableau de bord, lot D : Exporter, les bandes hors ligne et lecture seule.
+prouver 'tableau 36 : la page n'"'"'a plus de menu Exporter' web/public/v10/cabinet/app.js \
+  "if (id === 'TBP') return [{ titre: 'La grille' }," "if (id === 'TBP') return []; if (false) return [{ titre: 'La grille' }," \
+  'Exporter la grille'
+prouver 'tableau 37 : le tableur oublie les filtres posés' web/public/v10/cabinet/app.js \
+  "toCsv(cols, triTb(L, P))" "toCsv(cols, L)" \
+  'Exporter la grille'
+prouver 'tableau 38 : sans réseau, rien ne le dit' web/public/v10/cabinet/app.js \
+  "if (navigator.onLine === false) {" "if (false) {" \
+  'Exporter la grille'
+prouver 'tableau 39 : la lecture seule ne se dit pas' web/public/v10/cabinet/app.js \
+  "if (e && e.etat === 'lecture_seule') {" "if (false) {" \
+  'Exporter la grille'
+prouver 'tableau 40 : le réseau qui revient laisse la bande' web/public/v10/cabinet/app.js \
+  "for (const ev of ['online', 'offline']) window.addEventListener" "for (const ev of []) window.addEventListener" \
+  'Exporter la grille'

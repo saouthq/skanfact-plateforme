@@ -145,7 +145,8 @@ describe('la production du cabinet, à la souris', () => {
     const bulle = p.locator('#visite-bulle');
     await expect.poll(() => bulle.innerText()).toMatch(/La campagne du mois/);
     expect(await bulle.innerText()).not.toMatch(/paquet|reçu/);
-    for (const titre of [/Un dossier par ligne/, /Resserrer/, /Ouvre un dossier/]) {
+    // (1.198.0) La visite parle de la page entière : la case qui s'ouvre, les onglets, l'arrivée des pièces, Exporter.
+    for (const titre of [/Un dossier par ligne/, /Une case s'ouvre/, /Production, Révision, Bilans/, /Quand les pièces arrivent/, /Exporter/, /Resserrer/, /Ouvre un dossier/]) {
       await bulle.getByRole('button', { name: 'Suivant' }).click();
       await expect.poll(() => bulle.innerText()).toMatch(titre);
     }

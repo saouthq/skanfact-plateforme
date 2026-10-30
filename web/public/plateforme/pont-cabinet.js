@@ -2416,7 +2416,8 @@
       if (!A) return { pastille: { show: false } };
       // (1.168.0) Qui n'est pas associé ne demande même pas : la base le refuserait (un 403 dans la console à chaque page).
       if (moiId && equipeLue.membres.length && !equipeLue.membres.some((/** @type {any} */ m) => m.utilisateur === moiId && (m.roles || []).includes('supervision'))) return { pastille: { show: false } };
-      try { return { pastille: A.pastille((await appel('GET', `/cabinets/${cabinetId}/abonnement`)).etat) }; } catch { return { pastille: { show: false } }; }
+      // (1.198.0) L'état aussi : le Tableau de bord dit depuis quand les dossiers payants sont en lecture seule.
+      try { const r = await appel('GET', `/cabinets/${cabinetId}/abonnement`); return { pastille: A.pastille(r.etat), etat: r.etat }; } catch { return { pastille: { show: false } }; }
     },
     dessinerAbonnementCabinet: async (/** @type {HTMLElement} */ el) => {
       /** @type {any} */ const A = /** @type {any} */ (window).SkanAbonnementCabinet;
