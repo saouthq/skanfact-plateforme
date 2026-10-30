@@ -100,7 +100,10 @@ describe('les Messages du Cabinet, à la souris', () => {
     await expect.poll(() => p.getByRole('menuitem').count()).toBe(0);
     // ── (1.177.0) La note pour l'équipe : l'onglet, le champ, « Noter », la ligne du bas ; dans le fil, la carte au cadenas ─
     const ecrire = p.locator('[data-msg-ecrire]');
-    expect(await ecrire.getByRole('tab').allInnerTexts()).toEqual(['Message à Hela', 'Note pour l\'équipe']);
+    // (1.181.0) Dans la boîte d'écriture, comme une messagerie : « Message » et « Note », leur nom entier au survol et au
+    // lecteur d'écran.
+    expect(await ecrire.getByRole('tab').allInnerTexts()).toEqual(['Message', 'Note']);
+    expect(await ecrire.getByRole('tab').evaluateAll((l) => l.map((t) => t.getAttribute('aria-label')))).toEqual(['Message à Hela', 'Note pour l\'équipe']);
     expect(await ecrire.locator('[data-msg-note-pied]').isHidden()).toBe(true);
     await ecrire.getByRole('tab', { name: 'Note pour l\'équipe' }).click();
     expect(net(await ecrire.locator('[data-msg-note-pied]').innerText())).toBe('Hela ne lit jamais les notes ; elles restent dans le dossier, avec leur date.');

@@ -260,8 +260,9 @@ describe('la messagerie entre l\'entreprise et son cabinet, à la souris', () =>
     expect(await c.p.getByRole('button', { name: 'Ouvrir la conversation', exact: true }).count()).toBe(0);
     await expect.poll(async () => net(await c.p.locator('[data-msg-fil]').innerText()), { timeout: 15_000 }).toMatch(/Amine · \d\d:\d\d En réponse à : La facture STEG d'août La voici\. facture-steg-aout\.png Photo · 1 Ko Ouvrir/);
     expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Amine · \d\d:\d\d Réponse à la question « Paiement » sur DEV-2026-004 Oui, accepté le 7 octobre\./);
-    // Amine a ouvert le fil : sa pièce demandée, qui ne compte pas comme un message non lu, est pourtant lue.
-    expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée par \S+ La facture STEG d'août · reçue Demandée \d\d\/\d\d Reçue \d\d\/\d\d Reçue Lue/);
+    // Amine a ouvert le fil : sa pièce demandée, qui ne compte pas comme un message non lu, est pourtant lue. (1.181.0)
+    // Comme une messagerie, « Lue » se dit une fois, sous le dernier message du groupe (les deux demandes qui suivent).
+    expect(net(await c.p.locator('[data-msg-fil]').innerText())).toMatch(/Pièce demandée par \S+ La facture STEG d'août · reçue Demandée \d\d\/\d\d Reçue \d\d\/\d\d Reçue Pièce demandée par \S+ Le contrat de location · reçue Demandée \d\d\/\d\d Reçue \d\d\/\d\d Reçue Lue/);
     // (1.102.0) Ce qui attend le client se dit sans affirmer ce qu'on ne sait pas (« ce client a répondu à tes questions »
     // s'affichait aussi sur un fil où rien n'avait jamais été demandé).
     // (1.176.0, maquette « Messages ») Dans la boîte, « On attend de… » ne paraît que s'il y a quelque chose : ici, rien.

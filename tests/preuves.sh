@@ -21304,5 +21304,17 @@ prouver 'messages 19 : un acompte n'"'"'est pas proposé au compte des avances' 
 prouver 'messages 20 : la fenêtre « Imputer » s'"'"'ouvre sur la liste du plan' web/public/v10/cabinet/app.js \
   '        if (proposes.length) $('"'"'#ok'"'"', root).focus();' "" \
   '(1.180.0) « Imputer le virement » : la réponse du client propose ses comptes, jamais la banque, et l'"'"'écriture va au brouillard'
+prouver 'messages 21 : chaque message du groupe redit son auteur et son heure' web/public/plateforme/messagerie.js \
+  "const tete = g.suite ? '' : teteDe(" "const tete = teteDe(" \
+  'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'messages 22 : « Lue » sous chaque message du groupe' web/public/plateforme/messagerie.js \
+  "if (moi && !g.suivi) pied.push(" "if (moi) pied.push(" \
+  'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
+prouver 'messages 23 : l'"'"'onglet de la note perd son nom entier' web/public/plateforme/messagerie.js \
+  'data-msg-onglet="note" aria-label="Note pour l'"'"'équipe"' 'data-msg-onglet="note"' \
+  'la boîte à trois colonnes : la phrase, la portée, le mois de chaque client, le dossier à côté, E pour traiter'
+prouver 'messages 24 : la boîte d'"'"'écriture fait défiler la page' web/public/plateforme/messagerie.js \
+  "if (trop > 0) boite.style.height" "if (trop > 1e9) boite.style.height" \
+  'Amine et son comptable s'"'"'écrivent : la pastille, la question répondue sur place, la pièce demandée envoyée en photo, la boîte du cabinet'
 echo; echo "$ok preuves faites, $ko non prouvées${PARTIE:+ (groupe $PARTIE)}."
 [ "$ko" -eq 0 ]

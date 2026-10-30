@@ -322,6 +322,33 @@
     void lire();
   }
 
+  // (1.181.0) Une boîte de messagerie va jusqu'au bas de ce qu'on voit : l'écran, ou le haut des onglets du bas au
+  // téléphone. La hauteur se mesure en points vus, puis se ramène à l'échelle de la page (le Cabinet peut être dessiné à
+  // 90 %, charte.css) ; une hauteur devinée en CSS laissait une bande vide à l'ordinateur et cachait « Envoyer » sous les
+  // onglets au téléphone.
+  /** @param {HTMLElement} boite @param {number} plancher */
+  function jusquEnBas(boite, plancher) {
+    if (!boite.isConnected || !boite.offsetHeight) return;
+    const r = boite.getBoundingClientRect();
+    const echelle = r.height / boite.offsetHeight || 1;
+    const onglets = /** @type {HTMLElement | null} */ (document.querySelector('.sb-onglets'));
+    const bas = onglets && getComputedStyle(onglets).display !== 'none' && onglets.getBoundingClientRect().height ? onglets.getBoundingClientRect().top - 10 : window.innerHeight - 24;
+    const h = Math.max(plancher, Math.round((bas - r.top) / echelle));
+    boite.style.height = `${h}px`;
+    // La page ne défile pas pour autant : ce qui dépasse (la marge du bas de la page) se reprend sur la boîte.
+    const page = /** @type {HTMLElement} */ (boite.closest('main') || document.scrollingElement || document.body);
+    const trop = page.scrollHeight - page.clientHeight;
+    if (trop > 0) boite.style.height = `${Math.max(plancher, h - trop)}px`;
+  }
+  /** @type {WeakMap<HTMLElement, () => void>} */
+  const CALAGES = new WeakMap();
+  /** @param {HTMLElement} el @param {() => void} caler */
+  function caler(el, caler) {
+    if (!CALAGES.has(el)) window.addEventListener('resize', () => { const c = CALAGES.get(el); if (c && el.isConnected) c(); });
+    CALAGES.set(el, caler);
+    requestAnimationFrame(caler);
+  }
+
   // Ouvrir un fichier du fil : le serveur le rend en base 64, la page l'ouvre dans un onglet.
   /** @param {(m: string, c: string, b?: unknown) => Promise<any>} appel @param {string} id */
   /** @param {(m: string, c: string, b?: unknown) => Promise<any>} appel @param {string} id @param {boolean} [enregistrer] */
@@ -487,9 +514,6 @@
       // la zone d'écriture tient au bas de l'écran, ce qui s'ouvre sous les boutons les faisait remonter sous le curseur.
       const ecrire = f && f.actif ? `<form class="msg-ecrire" data-msg-ecrire novalidate>
               <label class="msg-cache" for="msg-texte${integre ? '-i' : ''}">${entreprise ? 'Ton message à ton cabinet' : 'Ton message à ce client'}</label>
-              ${avecNotes ? `<div class="msg-onglets" role="tablist" aria-label="À qui tu écris">
-                <button type="button" role="tab" aria-selected="true" data-msg-onglet="message">${o.contactPrenom ? `Message à ${esc(o.contactPrenom)}` : 'Message au client'}</button>
-                <button type="button" role="tab" aria-selected="false" data-msg-onglet="note">${dessin('cadenas')}Note pour l'équipe</button></div>` : ''}
               ${/* (1.116.0) Plusieurs pièces en une fois (dix au plus), et la date « pour le » : passée sans réponse, la demande
                  se relance seule par e-mail (une par semaine, trois au plus). Vide, elle ne se relance pas. */''}
               <div class="msg-demande" data-msg-demande hidden>
@@ -506,19 +530,26 @@
               ${/* (1.177.0, maquette « Messages ») « D'après le dossier » : les réponses que le livre du client appelle (des
                  questions qui attendent, des pièces reçues, une déclaration prête…) ; un clic pose le texte, on le relit. */''}
               <div class="msg-sugg" data-msg-sugg hidden></div>
-              <textarea id="msg-texte${integre ? '-i' : ''}" rows="2" maxlength="4000" placeholder="Écrire à ${esc(o.contactPrenom || nomAutre)}…${window.matchMedia('(pointer: coarse)').matches ? '' : '   Entrée envoie, Maj+Entrée va à la ligne'}" data-msg-texte></textarea>
-              <p class="msg-refus" role="alert" data-msg-refus></p>
+              ${/* (1.181.0) Une seule boîte, comme une messagerie : le champ d'une ligne qui grandit avec le texte, et sous lui, dans
+                 la boîte, à qui l'on écrit (message ou note), les gestes et « Envoyer ». La zone tenait 230 points sur 560. */''}
+              <div class="msg-boite-ecrire">
+              <textarea id="msg-texte${integre ? '-i' : ''}" rows="1" maxlength="4000" placeholder="Écrire à ${esc(o.contactPrenom || nomAutre)}…${window.matchMedia('(pointer: coarse)').matches ? '' : '   Entrée envoie, Maj+Entrée va à la ligne'}" data-msg-texte></textarea>
               <div class="msg-gestes">
+                ${avecNotes ? `<div class="msg-onglets" role="tablist" aria-label="À qui tu écris">
+                    <button type="button" role="tab" aria-selected="true" data-msg-onglet="message" aria-label="${o.contactPrenom ? `Message à ${esc(o.contactPrenom)}` : 'Message au client'}" title="${o.contactPrenom ? `Message à ${esc(o.contactPrenom)}` : 'Message au client'}">Message</button>
+                    <button type="button" role="tab" aria-selected="false" data-msg-onglet="note" aria-label="Note pour l'équipe" title="Note pour l'équipe : ${o.contactPrenom ? esc(o.contactPrenom) : 'le client'} ne la lit pas">${dessin('cadenas')}Note</button></div>` : ''}
                 <span class="msg-gestes-g">
                   ${/* (1.115.0) Au téléphone, un mot court : les trois gestes et « Envoyer » tiennent sur une ligne, sous le champ. */''}
-                  <button type="button" class="btn msg-g" data-msg-joindre aria-label="Joindre une photo ou un PDF">${dessin('trombone')}<span class="msg-long">Joindre une photo ou un PDF</span><span class="msg-court" aria-hidden="true">Joindre</span></button>
+                  <button type="button" class="btn msg-g" data-msg-joindre aria-label="Joindre une photo ou un PDF" title="Joindre une photo ou un PDF">${dessin('trombone')}<span class="msg-long">Joindre une photo ou un PDF</span><span class="msg-court" aria-hidden="true">Joindre</span></button>
                   ${entreprise && o.pieces ? `<button type="button" class="btn msg-g" data-msg-piece aria-label="Parler d'une pièce">${dessin('piece')}<span class="msg-long">Parler d'une pièce</span><span class="msg-court" aria-hidden="true">Une pièce</span></button>` : ''}
-                  ${entreprise ? '' : `<button type="button" class="btn msg-g" data-msg-demander aria-pressed="false" aria-label="Demander une pièce">${dessin('piece')}<span class="msg-long">Demander une pièce</span><span class="msg-court" aria-hidden="true">Demander</span></button>`}
+                  ${entreprise ? '' : `<button type="button" class="btn msg-g" data-msg-demander aria-pressed="false" aria-label="Demander une pièce" title="Demander une pièce">${dessin('piece')}<span class="msg-long">Demander une pièce</span><span class="msg-court" aria-hidden="true">Demander</span></button>`}
                   ${/* (1.117.0) Les modèles du cabinet : la phrase écrite cent fois, prise d'un geste (point 9). */''}
-                  ${!entreprise && o.modeles ? `<button type="button" class="btn msg-g" data-msg-modeles aria-label="Modèles de messages">${dessin('modele')}<span class="msg-long">Modèles</span><span class="msg-court" aria-hidden="true">Modèles</span></button>` : ''}
+                  ${!entreprise && o.modeles ? `<button type="button" class="btn msg-g" data-msg-modeles aria-label="Modèles de messages" title="Modèles de messages">${dessin('modele')}<span class="msg-long">Modèles</span><span class="msg-court" aria-hidden="true">Modèles</span></button>` : ''}
                 </span>
                 <button type="submit" class="btn btn-primary msg-envoyer vide" data-msg-envoyer>${dessin('envoi')}<span data-msg-envoyer-mot>Envoyer</span></button>
               </div>
+              </div>
+              <p class="msg-refus" role="alert" data-msg-refus></p>
               ${avecNotes ? `<p class="msg-note-pied" data-msg-note-pied hidden>${dessin('cadenas')}${o.contactPrenom ? esc(o.contactPrenom) : 'Le client'} ne lit jamais les notes ; elles restent dans le dossier, avec leur date.</p>` : ''}
             </form>` : '';
       el.innerHTML = integre
@@ -539,6 +570,10 @@
       const grand = el.querySelector('[data-msg-en-grand]');
       if (grand && o.enGrand) /** @type {HTMLElement} */ (grand).onclick = o.enGrand;
       brancherMenu();
+      if (!integre) {
+        const zone = /** @type {HTMLElement | null} */ (el.querySelector('.msg-corps > .msg-zone'));
+        if (zone) caler(el, () => jusquEnBas(zone, window.innerWidth < 760 ? 320 : 440));
+      }
       const r = el.querySelector('[data-msg-retour]');
       if (r && o.retour) /** @type {HTMLElement} */ (r).onclick = o.retour.aller;
       brancherEcrire();
@@ -820,11 +855,17 @@
       });
     }
 
-    /** @param {any} m */
-    function bulleMessage(m) {
+    // (1.181.0) Comme une messagerie, les messages qui se suivent (le même auteur, le même jour, à moins de cinq minutes)
+    // forment un groupe : le nom et l'heure une fois en tête, les bulles serrées, « Envoyé » ou « Lue » sous la dernière.
+    /** @param {any} a @param {any} b */
+    const memeGroupe = (a, b) => !!a && !!b && a.sorte === 'message' && b.sorte === 'message' && a.x.cote === b.x.cote
+      && a.x.auteur === b.x.auteur && !!a.x.moi === !!b.x.moi && jourCle(a.quand) === jourCle(b.quand)
+      && Math.abs(new Date(b.quand).getTime() - new Date(a.quand).getTime()) < 5 * 60_000;
+    /** @param {any} m @param {{ suite?: boolean, suivi?: boolean }} [g] */
+    function bulleMessage(m, g = {}) {
       // De mon côté du fil (à droite), écrit par moi (« Toi ») ou par un collègue (son nom).
       const moi = m.cote === o.cote;
-      const tete = teteDe(m.moi ? 'Toi' : m.auteur, m.ecritLe, nouveaux.has(m.id));
+      const tete = g.suite ? '' : teteDe(m.moi ? 'Toi' : m.auteur, m.ecritLe, nouveaux.has(m.id));
       const actif = lu.fil && lu.fil.actif;
       let corps = '';
       if (m.texte) corps += `<div class="msg-bulle">${esc(m.texte)}</div>`;
@@ -869,7 +910,7 @@
       /** @type {string[]} */
       const pied = [];
       // (1.115.0) « Envoyé », puis « Lue » : rien ne disait qu'un message était parti avant que l'autre l'ait lu.
-      if (moi) pied.push(m.lu ? `${dessin('coche')}Lue` : 'Envoyé');
+      if (moi && !g.suivi) pied.push(m.lu ? `${dessin('coche')}Lue` : 'Envoyé');
       if (m.achat) pied.push(`rangée dans ${entreprise ? 'tes' : 'ses'} achats (${esc(m.achat.libelle)})`);
       // (1.94.0) Le « · » reste avec le genre (une ligne qui passe à la suivante ne commence plus par lui), et un fichier
       // envoyé avec une facture, un avoir ou un devis n'est pas un achat : il ne se propose pas d'y être rangé.
@@ -881,8 +922,8 @@
       const ranger = !peutRanger ? ''
         : cite ? `<span class="msg-ranger-cite"><button type="button" class="btn btn-sm" data-msg-joindre-achat="${esc(m.id)}" data-msg-achat="${esc(cite.id)}">Joindre à l'achat ${esc(cite.libelle)}</button>${o.rangerAchat ? `<button type="button" class="msg-lien" data-msg-ranger="${esc(m.id)}">C'est un autre achat…</button>` : ''}</span>`
           : o.rangerAchat ? `<button type="button" class="btn btn-sm" data-msg-ranger="${esc(m.id)}">Ranger dans mes achats…</button>` : '';
-      return `<div class="msg-ligne${moi ? ' moi' : ''}" data-msg-id="${esc(m.id)}">
-        <span class="msg-qui">${tete}</span>${corps}
+      return `<div class="msg-ligne${moi ? ' moi' : ''}${g.suite ? ' suite' : ''}" data-msg-id="${esc(m.id)}">
+        ${tete ? `<span class="msg-qui">${tete}</span>` : ''}${corps}
         ${pied.length ? `<span class="msg-pied">${pied.map((x, i) => (i ? x : x.charAt(0).toUpperCase() + x.slice(1))).join(' · ')}</span>` : ''}${ranger}</div>`;
     }
 
@@ -1065,7 +1106,12 @@
             && new Date(s.quand).getTime() - new Date(e.quand).getTime() < 15 * 60_000; s = ev[i + 1]) { i++; lot.push(s.x); }
           if (lot.length > 1) { html += lotFichiers(lot); continue; }
         }
-        html += e.sorte === 'message' ? bulleMessage(e.x) : e.sorte === 'question' ? carteQuestion(e.x) : e.sorte === 'note' ? carteNote(e.x)
+        const neuf = (/** @type {any} */ x) => nouveaux.has(x.sorte === 'reponse' ? `r:${x.x.id}` : x.x.id);
+        // Le groupe s'arrête au trait « nouveaux » et à la promesse proposée sous un message.
+        const suite = memeGroupe(ev[i - 1], e) && !(neuf(e) && !neuf(/** @type {any} */ (ev[i - 1]))) && promessePop !== ev[i - 1]?.x.id;
+        // « Envoyé » ou « Lue » ne se met en commun que si le suivant dit la même chose.
+        const suivi = memeGroupe(e, ev[i + 1]) && !(neuf(/** @type {any} */ (ev[i + 1])) && !neuf(e)) && promessePop !== e.x.id && !!ev[i + 1]?.x.lu === !!e.x.lu;
+        html += e.sorte === 'message' ? bulleMessage(e.x, { suite, suivi }) : e.sorte === 'question' ? carteQuestion(e.x) : e.sorte === 'note' ? carteNote(e.x)
           : e.sorte === 'promesse' ? cartePromesse(e.x) : e.sorte === 'jalon' ? carteJalon(e.x) : bulleReponse(e.x);
         // La promesse proposée, sous le message qui promet.
         if (e.sorte === 'message' && promessePop === e.x.id) html += popPromesse(e.x);
@@ -1475,6 +1521,10 @@
       // (1.102.0) Un refus se lève au premier mot du champ qu'il montre : « Un message vide… » restait affiché sous la
       // pièce qu'on était en train de nommer (parcours du 21/10/2026).
       texte.addEventListener('input', () => dire(''));
+      // (1.181.0) Le champ part d'une ligne et grandit avec ce qu'on écrit, jusqu'à six lignes ; au-delà, il défile.
+      const grandir = () => { texte.style.height = 'auto'; texte.style.height = `${Math.min(texte.scrollHeight + 2, 150)}px`; };
+      texte.addEventListener('input', grandir);
+      form.addEventListener('reset', () => setTimeout(grandir, 0));
       demandeTxt.addEventListener('input', () => dire(''));
       const bEnvoyer = /** @type {HTMLElement} */ (form.querySelector('[data-msg-envoyer]'));
       const majEnvoyer = () => bEnvoyer.classList.toggle('vide', modeNote ? !texte.value.trim() : !texte.value.trim() && !fichier && !piece && !(demande && lesDemandes().length));
@@ -1483,12 +1533,12 @@
       const sugg = /** @type {HTMLElement} */ (form.querySelector('[data-msg-sugg]'));
       const propose = o.suggestions && !entreprise ? o.suggestions().slice(0, 3) : [];
       sugg.hidden = !propose.length;
-      sugg.innerHTML = propose.length ? `<span class="msg-sugg-t">${dessin('modele')}D'après le dossier</span>${propose.map((x, i) => `<button type="button" class="msg-sugg-c" data-msg-sugg-i="${i}"><b>${esc(x.titre)}</b><small>${esc(x.sous)}</small></button>`).join('')}` : '';
+      sugg.innerHTML = propose.length ? `<span class="msg-sugg-t">${dessin('modele')}D'après le dossier</span>${propose.map((x, i) => `<button type="button" class="msg-sugg-c" data-msg-sugg-i="${i}" title="${esc(x.sous)}"><b>${esc(x.titre)}</b><small>${esc(x.sous)}</small></button>`).join('')}` : '';
       sugg.querySelectorAll('[data-msg-sugg-i]').forEach((n) => {
         /** @type {HTMLElement} */ (n).onclick = () => {
           const x = propose[Number(/** @type {HTMLElement} */ (n).dataset.msgSuggI)];
           if (!x) return;
-          texte.value = x.texte; dire(''); majEnvoyer(); texte.focus(); texte.setSelectionRange(texte.value.length, texte.value.length);
+          texte.value = x.texte; dire(''); majEnvoyer(); grandir(); texte.focus(); texte.setSelectionRange(texte.value.length, texte.value.length);
         };
       });
       const montrerDemande = () => {
@@ -1522,7 +1572,7 @@
         const avant = texte.value.slice(0, debut);
         const apres = texte.value.slice(texte.selectionEnd ?? debut);
         const pose = `${avant && !avant.endsWith('\n') ? '\n' : ''}${t}`;
-        texte.value = `${avant}${pose}${apres}`;
+        texte.value = `${avant}${pose}${apres}`; grandir();
         texte.setSelectionRange(avant.length + pose.length, avant.length + pose.length);
         dire('');
         texte.focus();
@@ -1585,7 +1635,7 @@
           dire('');
           try {
             await o.suivi.noter(t);
-            texte.value = ''; majEnvoyer();
+            texte.value = ''; texte.style.height = ''; majEnvoyer();
             await relire();
             const fil = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-fil]'));
             if (fil) fil.scrollTop = fil.scrollHeight;
@@ -1606,7 +1656,7 @@
           const pour = demande && pourChamp.value ? pourChamp.value : null;
           await o.appel('POST', '/messages', { cote: o.cote, texte: t, piece, fichier: depot ? depot.id : null,
             ...(ds.length > 1 ? { demandes: ds, pour } : { demande: d || null, pour }) });
-          texte.value = ''; demandeTxt.value = ''; piece = null; fichier = null; demande = false;
+          texte.value = ''; texte.style.height = ''; demandeTxt.value = ''; piece = null; fichier = null; demande = false;
           listeDemandes.querySelectorAll('[data-msg-demande-txt]').forEach((x, i) => { if (i > 0) x.remove(); });
           pourChamp.value = dansSeptJours();
           montrerDemande(); dessinerJoints();
@@ -1844,7 +1894,14 @@
     function poser() {
       el.innerHTML = `<div class="msg-hors" data-msg-hors role="status" hidden></div><div class="msg-boite${aCote() ? ' msg-boite-a-cote' : ''}"><div class="msg-boite-corps" data-boite-corps></div></div>`;
       majHors();
+      ajuster();
     }
+    // (1.181.0) La boîte à trois colonnes va jusqu'au bas de l'écran (`jusquEnBas`) : une hauteur devinée laissait une
+    // bande vide sous elle, et la conversation n'avait que 300 points.
+    const ajuster = () => {
+      const c = /** @type {HTMLElement | null} */ (el.querySelector('.msg-boite-a-cote .msg-boite-corps'));
+      if (c) caler(el, () => jusquEnBas(c, 520));
+    };
     // (1.179.0, maquette « Messages », lot 4) Les états de la page. Pendant la lecture, la page a déjà sa forme (la liste,
     // la conversation, le dossier à côté, en gris qui luit) ; la lecture refusée la fige et pose dessus ce qui s'est passé,
     // « Réessayer maintenant » (la boîte réessaie seule toutes les 30 secondes) et de quoi travailler en attendant.
@@ -1874,6 +1931,8 @@
     const compter = (ds) => ({ aTraiter: ds.filter((d) => d.etat === 'a_traiter').length, attendClient: ds.filter((d) => d.etat === 'attend_client').length, tout: ds.length });
     function dessiner() {
       if (!el.querySelector('[data-boite-corps]')) poser();
+      // La hauteur se reprend à chaque dessin, l'en-tête de la page posé (sa phrase change la place qu'il prend).
+      requestAnimationFrame(ajuster);
       const tous = /** @type {any[]} */ (lu.dossiers);
       const ds = tous.filter((d) => dansPortee(d.entreprise));
       const c = compter(ds);
