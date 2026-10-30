@@ -98,27 +98,43 @@ describe('les questions du cabinet chez le client, à la souris', () => {
     expect(await p.locator('#view').innerText()).not.toMatch(/paquet/i);
     await p.screenshot({ path: path.join(PHOTOS, 'questions-client-1-onglet.png') });
 
-    // (1.94.0) La fenêtre prend aussi un fichier : il part dans la messagerie, avec un mot qui nomme la question.
+    // (1.191.0) « Répondre » mène à la conversation, la question éclairée, le curseur dans sa réponse ; le fichier se joint
+    // de la carte et part dans le fil avec un mot qui nomme la question (1.94.0), la réponse ensuite.
     await panneau.locator(`[data-rep="${generale}"]`).click();
-    await fenetre.locator('textarea[name=texte]').fill('Oui, 200 DT, compté ce matin.');
+    const reponse = (id: string) => p.locator(`[data-msg-q-texte="${id}"]`);
+    await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.msgQTexte ?? ''), { timeout: 20_000 }).toBe(generale);
+    expect(p.url()).toContain('#/comptable');
+    // Plus de fenêtre « Répondre à ton comptable » : la réponse se donne dans le fil.
+    expect(await fenetre.count()).toBe(0);
+    await reponse(generale).fill('Oui, 200 DT, compté ce matin.');
     const photo = path.join(dossier, 'fond-de-caisse.png');
     fs.writeFileSync(photo, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64'));
-    await fenetre.locator('input[name=fichier]').setInputFiles(photo);
-    await fenetre.locator('#ok').click();
-    await expect.poll(toast).toBe('Réponse enregistrée, et fond-de-caisse.png envoyé à ton comptable');
+    const joindre = p.locator(`[data-msg-q-joindre="${generale}"]`);
+    expect(await joindre.innerText()).toBe('Joindre un fichier');
+    const [choix] = await Promise.all([p.waitForEvent('filechooser'), joindre.click()]);
+    await choix.setFiles(photo);
+    await expect.poll(() => joindre.innerText()).toBe('fond-de-caisse.png · changer');
+    await p.screenshot({ path: path.join(PHOTOS, 'questions-client-3-conversation.png') });
+    await p.locator(`[data-msg-q-envoyer="${generale}"]`).click();
+    await expect.poll(toast, { timeout: 15_000 }).toBe('Réponse envoyée, avec « fond-de-caisse.png » : ton cabinet la lit dans ce fil.');
     const fil = (await api('GET', `/entreprises/${ent}/messages?cote=entreprise`, client)).corps.messages as { texte: string; fichier: { nom: string } | null }[];
     expect(fil.filter((m) => m.fichier).map((m) => [m.texte, m.fichier?.nom])).toEqual([['Le fichier pour ta question « Caisse ».', 'fond-de-caisse.png']]);
     await expect.poll(async () => (await lues()).find((q) => q.id === generale)).toMatchObject({ statut: 'repondue', reponse: 'Oui, 200 DT, compté ce matin.' });
 
-    // ── En face de la pièce qu'elle vise : l'achat FF-12 ─────────────────────────────────────────
+    // ── En face de la pièce qu'elle vise : l'achat FF-12 ; « Répondre » mène à la même conversation ──────────
     await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/a1`);
     await expect.poll(() => p.locator('#q-piece').innerText(), { timeout: 20_000 }).toMatch(/Peux-tu confirmer le montant de la facture FF-12/);
     await p.screenshot({ path: path.join(PHOTOS, 'questions-client-2-piece.png') });
     await p.locator(`#q-piece [data-qrep="${surPiece}"]`).click();
-    await fenetre.locator('textarea[name=texte]').fill('Oui : 1 190,000 DT TTC.');
-    await fenetre.locator('#ok').click();
-    await expect.poll(async () => (await lues()).find((q) => q.id === surPiece)).toMatchObject({ statut: 'repondue', reponse: 'Oui : 1 190,000 DT TTC.' });
-    await expect.poll(() => p.locator('#q-piece').count()).toBe(0);
+    await expect.poll(() => p.evaluate(() => (document.activeElement as HTMLElement | null)?.dataset.msgQTexte ?? ''), { timeout: 20_000 }).toBe(surPiece);
+    expect(await p.locator(`[data-msg-q-joindre="${surPiece}"]`).innerText()).toBe('Joindre un fichier');
+    await reponse(surPiece).fill('Oui : 1 190,000 DT TTC.');
+    await p.locator(`[data-msg-q-envoyer="${surPiece}"]`).click();
+    await expect.poll(async () => (await lues()).find((q) => q.id === surPiece), { timeout: 15_000 }).toMatchObject({ statut: 'repondue', reponse: 'Oui : 1 190,000 DT TTC.' });
+    await p.goto(`${serveur.adresse}/v10/?e=${ent}#/achat/a1`);
+    await p.locator('#view h1').first().waitFor({ timeout: 15_000 });
+    await p.waitForTimeout(1_500);
+    expect(await p.locator('#q-piece').count()).toBe(0);
 
     // Les questions n'entrent jamais dans le dossier de l'entreprise.
     const objets = (await api('GET', `/entreprises/${ent}/dossier-v10`, client)).corps.objets as { collection: string; cle: string; contenu: unknown }[];

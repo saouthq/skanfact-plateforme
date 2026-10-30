@@ -18516,12 +18516,8 @@ prouver 'la carte d'\''une pièce dont le numéro se coupe de son genre (« Acha
 prouver '« Ranger dans mes achats » proposé sous un fichier envoyé avec un devis' web/public/plateforme/messagerie.js \
   $' && !(m.piece && m.piece.genre !== \'achat\')' $'' \
   'Amine et son comptable s'\''écrivent : la pastille'
-prouver 'la réponse à une question qui ne prend pas le fichier attendu' web/public/v10/app.js \
-  $'${bridge.messagerie && bridge.messagerie.envoyerFichier ? `<label class="field">' $'${false ? `<label class="field">' \
-  'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
-prouver 'le fichier d'\''une réponse qui ne part pas au comptable' web/public/v10/app.js \
-  $'try { await bridge.messagerie.envoyerFichier(fichier, ' $'try { void (fichier, ' \
-  'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
+# (1.191.0) Le fichier d'une réponse se joint dans la conversation, plus dans la fenêtre « Répondre à ton comptable » (qui
+# ne sert plus qu'à corriger une réponse donnée) : ces deux preuves sont reprises par « repondre 3 » et « repondre 4 ».
 prouver '« Envoyer au comptable » en geste principal quand le cabinet lit déjà les ventes' web/public/v10/app.js \
   $'<button class="btn${messagerieVue && messagerieVue.cabinet ? \'\' : \' btn-primary\'}" id="exp-comptable">' $'<button class="btn btn-primary" id="exp-comptable">' \
   'le client voit les questions envoyées, y répond depuis l'\''onglet Cabinet'
@@ -21462,3 +21458,15 @@ prouver 'questionnaire 5 : posé, il ne se propose pas au client' web/public/v10
 prouver 'questionnaire 6 : une question décochée part quand même' web/public/v10/cabinet/app.js \
   "const choisies = () => cases.filter(c => c.checked).map(c => c.dataset.qqPart);" "const choisies = () => cases.map(c => c.dataset.qqPart);" \
   '(1.190.0) le questionnaire de fin'
+prouver 'repondre 1 : « Répondre » ouvre encore la fenêtre à part' web/public/v10/app.js \
+  "if (bridge.messagerie && !(q.reponse && q.reponse.texte) && q.statut !== 'close') {" "if (false) {" \
+  'le client voit les questions envoyées'
+prouver 'repondre 2 : la conversation ne mène pas à la question' web/public/v10/app.js \
+  "const questionDepart = questionDuMessage; questionDuMessage = null;" "const questionDepart = null; questionDuMessage = null;" \
+  'le client voit les questions envoyées'
+prouver 'repondre 3 : le fichier de la réponse ne part pas' web/public/plateforme/messagerie.js \
+  'await envoyerFichier(o.appel, o.cote, f, `Le fichier pour ta question' 'void (o.appel, o.cote, f, `Le fichier pour ta question' \
+  'le client voit les questions envoyées'
+prouver 'repondre 4 : le fichier choisi est oublié' web/public/plateforme/messagerie.js \
+  "fichiersQ.set(id, f);" "void f;" \
+  'le client voit les questions envoyées'

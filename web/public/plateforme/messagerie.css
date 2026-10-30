@@ -1019,3 +1019,7 @@
 .msg-cote-accueil b { color: var(--text); font-size: 13.5px; }
 .msg-cote-accueil small { font-size: 12px; line-height: 1.45; }
 .msg-conv-accueil { min-height: 100%; box-sizing: border-box; justify-content: center; margin-block: 0; }
+/* (1.191.0) Le fichier d'une réponse : le trombone devant ce qu'il attend, ou le nom du fichier choisi. */
+.msg-q-joindre { display: inline-flex; align-items: center; gap: 5px; }
+.msg-q-joindre svg { flex: none; }
+.msg-q-joindre span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }

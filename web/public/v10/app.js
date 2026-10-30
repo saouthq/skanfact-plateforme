@@ -2248,6 +2248,9 @@
   let rangementDuMessage = null;
   // (1.155.13) La pièce dont on veut parler à son cabinet (« Écrire au cabinet sur cette pièce », depuis un achat).
   let pieceDuMessage = null;
+  // (1.191.0) La question du cabinet qu'on vient répondre (« Répondre » d'une pièce, de l'onglet du cabinet) : la
+  // conversation s'ouvre sur elle.
+  let questionDuMessage = null;
   // L'entrée « Mon comptable » : quand un cabinet tient le dossier, ou l'a tenu (ses échanges se relisent). UNE règle.
   // (1.115.0) Elle vit dans le pied de la barre, qui ne défile jamais (index.html) : en bas du menu, elle était hors de
   // l'écran à l'ouverture (revue du 22/10/2026).
@@ -11879,6 +11882,13 @@
   function repondreA(id) {
     const q = (data.questionsCabinet || []).find(x => x.id === id);
     if (!q) return;
+    // (plateforme) 1.191.0 — tout échange avec le cabinet passe par la conversation : une question qui attend s'y répond, en
+    // face de ce que le cabinet a écrit, le fichier avec. La fenêtre reste pour corriger une réponse déjà donnée.
+    if (bridge.messagerie && !(q.reponse && q.reponse.texte) && q.statut !== 'close') {
+      questionDuMessage = id;
+      navigate('#/comptable');
+      return;
+    }
     const att = (C.QUESTION_ATTENDUS.find(x => x.id === q.attendu) || {}).label || 'Une explication';
     modal(`<h2>Répondre à ton comptable</h2>
       <p class="small">${q.piece ? `Sur la pièce <strong>${h(q.piece)}</strong>. ` : ''}Il attend : <strong>${h(att)}</strong>.</p>
@@ -21581,9 +21591,11 @@
       return true;
     };
     const pieceDepart = pieceDuMessage; pieceDuMessage = null;
+    const questionDepart = questionDuMessage; questionDuMessage = null;
     conversationOuverte = bridge.messagerie.dessiner($('#msg-racine'), {
       toast,
       pieceDepart,
+      questionDepart,
       pieces: () => [
         ...data.documents.filter(d => ['facture', 'avoir', 'devis'].includes(d.type) && (d.number || d.status !== 'brouillon'))
           .map(d => ({ genre: d.type, id: d.id, libelle: doc(d), date: d.date })),

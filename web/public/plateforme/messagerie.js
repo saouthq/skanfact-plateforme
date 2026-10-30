@@ -452,6 +452,7 @@
    *   cle?: string, nomCabinet?: string, exportPdf?: (html: string, nom: string) => Promise<string | null>,
    *   imputer?: (question: any, apres: () => Promise<void>) => void,
    *   prepare?: { texte?: string, demandes?: string[], pour?: string | null, dit?: string, apresEnvoi?: () => void } | null,
+   *   questionDepart?: string | null,
    * }} o
    */
   function conversation(el, o) {
@@ -471,6 +472,10 @@
     let prepare = !entreprise && o.prepare ? o.prepare : null;
     /** @type {(() => void) | null} */ let apresEnvoiPrepare = null;
     /** @type {Map<string, string>} */ const reponses = new Map();
+    // (1.191.0) Le fichier joint à la réponse d'une question (côté entreprise), et la question qu'on vient répondre : ouverte
+    // depuis le bandeau d'une pièce (« Répondre »), la conversation l'éclaire, le curseur dans sa réponse.
+    /** @type {Map<string, File>} */ const fichiersQ = new Map();
+    let questionDepart = entreprise && o.questionDepart ? o.questionDepart : null;
     let signature = '';
     let enCours = false;
     let fini = false;
@@ -983,6 +988,12 @@
         ${pied.length ? `<span class="msg-pied">${pied.map((x, i) => (i ? x : x.charAt(0).toUpperCase() + x.slice(1))).join(' · ')}</span>` : ''}${ranger}</div>`;
     }
 
+    // Le geste du fichier d'une réponse : ce qu'il attend, ou le fichier déjà choisi.
+    /** @param {any} q */
+    const libelleJoindre = (q) => {
+      const f = fichiersQ.get(q.id);
+      return f ? `${f.name} · changer` : q.attendu === 'piece' ? 'Joindre le fichier qu\'il attend' : 'Joindre un fichier';
+    };
     /** @param {any} q */
     function carteQuestion(q) {
       const attend = q.statut === 'envoyee' && !q.reponse;
@@ -993,6 +1004,7 @@
           <textarea id="msg-q-${esc(q.id)}" rows="2" maxlength="4000" placeholder="Ta réponse, en une phrase : c'est ce que ton cabinet lira." data-msg-q-texte="${esc(q.id)}">${esc(brouillon)}</textarea>
           <p class="msg-refus" role="alert" data-msg-q-refus="${esc(q.id)}"></p>
           <span class="msg-q-gestes"><button type="button" class="btn btn-sm btn-primary" data-msg-q-envoyer="${esc(q.id)}">Envoyer ma réponse</button>
+          <button type="button" class="msg-lien msg-q-joindre" data-msg-q-joindre="${esc(q.id)}">${dessin('trombone')}<span>${esc(libelleJoindre(q))}</span></button>
           ${cible ? `<button type="button" class="msg-lien" data-msg-ouvrir="${esc(cible.genre)}:${esc(cible.id)}">Ouvrir la pièce</button>` : ''}</span></div>` : '';
       // (1.115.0) Répondue, elle le dit : l'étiquette « Attend ta réponse » disparaissait sans rien à sa place.
       const etat = q.statut === 'close' ? '<span class="msg-q-etat">Close par le cabinet</span>'
@@ -1376,6 +1388,13 @@
         // Ce qui attend d'abord, le fil ensuite : posé au-dessus du fil (la boîte du cabinet), le bandeau le raccourcit, et
         // le fil se met en bas une fois sa hauteur connue.
         if (premiereFois) { poserLaPage(); dessinerCote(); dessinerFil(); }
+        // (1.191.0) Venue répondre à une question : le fil posé (il se met en bas), on la montre ; plus dans le fil, la plus
+        // ancienne qui attend.
+        if (premiereFois && questionDepart) {
+          const id = questionDepart; questionDepart = null;
+          setTimeout(() => eclairer(/** @type {HTMLElement | null} */ (el.querySelector(`[data-msg-q="${CSS.escape(id)}"] .msg-question`))
+            || /** @type {HTMLElement | null} */ (el.querySelector('.msg-question.attend'))), 120);
+        }
         else if (nouvelle !== signature) { dessinerCote(); dessinerFil(); majPretes(); }
         signature = nouvelle;
         if (o.surAttente && !cabinetRelu) o.surAttente(r.attente);
@@ -1396,6 +1415,19 @@
     }
     // Après un geste : la relecture tout de suite, et le fil redessiné même si rien d'autre n'a bougé.
     async function relire() { signature = ''; await lire(); }
+    // Mener à une carte du fil : elle vient au milieu, s'éclaire un instant (1.115.0 : le fil défilait jusqu'à elle sans la
+    // montrer), le curseur dans son premier champ.
+    /** @param {HTMLElement | null} carte */
+    function eclairer(carte) {
+      if (!carte) return;
+      carte.scrollIntoView({ block: 'center' });
+      carte.classList.remove('msg-eclaire');
+      void carte.offsetWidth;
+      carte.classList.add('msg-eclaire');
+      setTimeout(() => carte.classList.remove('msg-eclaire'), 2200);
+      const champ = /** @type {HTMLElement | null} */ (carte.querySelector('textarea, input, button'));
+      if (champ) champ.focus({ preventScroll: true });
+    }
 
     // ── Brancher ───────────────────────────────────────────────────────────────────────────────
     /** @param {HTMLElement} racine @param {string} sel @param {(b: HTMLButtonElement) => Promise<void>} f */
@@ -1489,19 +1521,42 @@
         const t = /** @type {HTMLTextAreaElement} */ (n);
         t.oninput = () => { reponses.set(String(t.dataset.msgQTexte), t.value); };
       });
+      surClic(fil, '[data-msg-q-joindre]', async (b) => {
+        const id = String(b.dataset.msgQJoindre);
+        const refus = /** @type {HTMLElement | null} */ (fil.querySelector(`[data-msg-q-refus="${CSS.escape(id)}"]`));
+        const f = await choisirFichier(ACCEPTE);
+        if (!f) return;
+        const lourd = tropLourd(f);
+        if (lourd) { if (refus) refus.textContent = lourd; return; }
+        fichiersQ.set(id, f);
+        if (refus) refus.textContent = '';
+        const q = [...(lu ? lu.questions : []), ...anciennesQuestions].find((x) => x.id === id);
+        const lib = b.querySelector('span');
+        if (q && lib) lib.textContent = libelleJoindre(q);
+      });
       surClic(fil, '[data-msg-q-envoyer]', async (b) => {
         const id = String(b.dataset.msgQEnvoyer);
         const t = /** @type {HTMLTextAreaElement | null} */ (fil.querySelector(`[data-msg-q-texte="${CSS.escape(id)}"]`));
         const refus = /** @type {HTMLElement | null} */ (fil.querySelector(`[data-msg-q-refus="${CSS.escape(id)}"]`));
-        const texte = t ? t.value.trim() : '';
-        if (!texte) {
+        const f = fichiersQ.get(id) || null;
+        let texte = t ? t.value.trim() : '';
+        if (!texte && !f) {
           if (refus) refus.textContent = 'Une réponse vide n\'apprend rien à ton cabinet : écris ta réponse, puis « Envoyer ma réponse ».';
           if (t) t.focus();
           return;
         }
-        try { if (o.repondre) await o.repondre(id, texte); } catch (x) { if (refus) refus.textContent = motif(x); if (t) t.focus(); return; }
-        reponses.delete(id);
-        if (o.toast) o.toast('Réponse envoyée : ton cabinet la lit dans ce fil.');
+        try {
+          // (1.191.0) Le fichier part d'abord, dans le fil, en face de la pièce que la question vise ; la réponse ensuite.
+          if (f) {
+            const q = [...(lu ? lu.questions : []), ...anciennesQuestions].find((x) => x.id === id) || {};
+            const cible = q.piece && o.pieceDuNumero ? o.pieceDuNumero(q.piece) : null;
+            await envoyerFichier(o.appel, o.cote, f, `Le fichier pour ta question « ${q.objet || q.texte || ''} ».`, cible ? { ...cible, libelle: String(q.piece) } : null);
+            if (!texte) texte = `Le fichier : ${f.name}`;
+          }
+          if (o.repondre) await o.repondre(id, texte);
+        } catch (x) { if (refus) refus.textContent = motif(x); if (t) t.focus(); return; }
+        reponses.delete(id); fichiersQ.delete(id);
+        if (o.toast) o.toast(f ? `Réponse envoyée, avec « ${f.name} » : ton cabinet la lit dans ce fil.` : 'Réponse envoyée : ton cabinet la lit dans ce fil.');
         await relire();
       });
     }
@@ -1524,16 +1579,7 @@
       });
       surClic(cote, '[data-msg-aller]', async () => {
         // La première dans l'ordre du fil, question ou pièce demandée : la plus ancienne.
-        const carte = /** @type {HTMLElement | null} */ (el.querySelector('.msg-question.attend, .msg-demande-carte:not(.recue)'));
-        if (!carte) return;
-        carte.scrollIntoView({ block: 'center' });
-        // (1.115.0) Le fil défilait jusqu'à elle sans la montrer : elle s'éclaire un instant.
-        carte.classList.remove('msg-eclaire');
-        void carte.offsetWidth;
-        carte.classList.add('msg-eclaire');
-        setTimeout(() => carte.classList.remove('msg-eclaire'), 2200);
-        const champ = /** @type {HTMLElement | null} */ (carte.querySelector('textarea, input, button'));
-        if (champ) champ.focus({ preventScroll: true });
+        eclairer(/** @type {HTMLElement | null} */ (el.querySelector('.msg-question.attend, .msg-demande-carte:not(.recue)')));
       });
       const rev = cote.querySelector('[data-msg-revision]');
       if (rev && o.revision) /** @type {HTMLElement} */ (rev).onclick = o.revision;
