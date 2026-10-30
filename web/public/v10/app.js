@@ -4608,6 +4608,7 @@
     clavier: '<rect x="2.5" y="6" width="19" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10"/>',
     exporter: '<path d="M12 4v11M7.5 10.5 12 15l4.5-4.5"/><path d="M5 19h14"/>',
     cloche: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 8 3 8H3s3-1 3-8"/><path d="M10.3 20a2 2 0 0 0 3.4 0"/>',
+    importer: '<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>',
     reglages: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
     coche: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
     oeil: '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
@@ -9161,7 +9162,8 @@
         <label class="field span-2 obligatoire">${lbl('Nom / Raison sociale', 'cl.name')}<input type="text" name="name" value="${h(c.name)}" required></label>
         ${field(lbl('Matricule fiscal / CIN', 'co.matricule'), 'matricule', c.matricule)}
         ${field(lbl('Téléphone', 'cl.phone'), 'phone', c.phone)}
-        <label class="field span-2">${lbl('Adresse', 'cl.address')}<textarea name="address">${h(c.address)}</textarea></label>
+        <label class="field">${lbl('Adresse', 'cl.address')}<textarea name="address">${h(c.address)}</textarea></label>
+        ${field(lbl('Ville', 'cl.city'), 'city', c.city || '', 'text', 'placeholder="Sfax"')}
         ${/* (plateforme) 1.132.0 — un client neuf, créé depuis une pièce, n'a besoin que de son nom, de son matricule, de son
               téléphone et de son adresse ; le reste attend derrière « Plus de détails » (revue du mois d'un client, point 15). */''}
         ${client ? '' : '<details class="span-2 plus-details" id="cf-plus"><summary>Plus de détails <span class="muted small">— contact, retenue, timbre, encours, e-mail, langue, devise, notes</span></summary><div class="grid-2 mt">'}
@@ -9506,98 +9508,206 @@
   // chaque « / » — là où un comptable le coupe aussi —, jamais au milieu d'un groupe.
   const mfCoupable = mf => h(mf || '').replace(/\//g, '/<wbr>');
   const telLisible = tel => String(tel || '').split(/\s*\/\s*/).filter(Boolean).map(x => `<span class="nw">${h(x)}</span>`).join(' / ');
-  const clientState = { q: '', f: '', sort: { key: 'name', dir: 'asc' }, page: 1 };
+  const clientState = { q: '', f: '', sort: null, page: 1, cur: -1 };
   const clientDocState = { sort: null, page: 1 };  // liste des documents dans la fiche client
 
-  routes.clients = () => {
-    const cur = company().currency;
-    const s = clientState;
-    const cols = [
-      { key: 'name', label: 'Nom', asc: true, cls: 'nom-tiers', val: r => r.c.name.toLowerCase(), get: r => `<strong>${h(r.c.name)}</strong>${r.c.contact ? `<div class="small muted">${h(r.c.contact)}</div>` : ''}` },
-      { key: 'mf', cls: 'mf', label: 'MF / CIN', get: r => `${mfCoupable(r.c.matricule)}${r.c.withholdingRate !== '' && r.c.withholdingRate != null && Number(r.c.withholdingRate) ? `<div class="small muted">RS ${pct(r.c.withholdingRate)} %</div>` : ''}` },
-      // Un numéro de téléphone se lit d'un bloc : « 74 000 111 / 98 000 222 » se coupait entre
-      // « 98 000 » et « 222 » (vu à la souris après un import). Chaque numéro tient sur sa ligne,
-      // la coupure ne tombe que sur le « / » qui les sépare.
-      // Une adresse email longue se coupe à l'écran, jamais sur quatre lignes (10.14.0) : elle
-      // faisait passer chaque ligne de la liste à quatre-vingt-dix pixels — sept clients par écran.
-      // Entière au survol, et intacte dans la fiche et à l'export.
-      { key: 'contact', label: 'Contact', get: r => `<span class="small">${telLisible(r.c.phone)}${r.c.phone && r.c.email ? '<br>' : ''}${r.c.email ? `<span class="ellipse" title="${h(r.c.email)}">${h(r.c.email)}</span>` : ''}</span>` },
-      { key: 'docs', label: 'Documents', r: true, val: r => r.sum.count, get: r => r.sum.count },
-      { key: 'ht', label: 'Facturé HT', r: true, val: r => r.sum.ht, get: r => r.sum.ht ? C.money(r.sum.ht, cur) : '<span class="muted">—</span>' },
-      // Le reste NET (10.14.0) : ce que le client doit, moins ce qu'on lui doit (ses trop-perçus et
-      // ses avoirs libres), comme son relevé de compte. Un client en sa faveur le DIT.
-      { key: 'due', label: 'Reste à payer', r: true, val: r => r.sum.net, get: r => r.sum.net > 0.0005 ? `<strong>${C.money(r.sum.net, cur)}</strong>`
-        : r.sum.net < -0.0005 ? `<span class="warn-text" title="Trop-perçus et avoirs à lui rendre">${C.money(-r.sum.net, cur)} en sa faveur</span>` : '<span class="muted">—</span>' },
-      { key: 'last', label: 'Dernier document', val: r => r.sum.last || '', get: r => r.sum.last ? C.fmtDate(r.sum.last) : '<span class="muted">—</span>' }
-    ];
-    const FILTERS = [['', 'Tous les clients'], ['due', 'Avec un impayé'], ['none', 'Sans aucun document']];
-    const draw = dansUnLot((sortKey) => {
-      if (typeof sortKey === 'string' && sortKey) { s.sort = toggleSort(s.sort, sortKey, cols); s.page = 1; }
-      const all = data.clients.map(c => ({ c, sum: C.clientSummary(data, company(), c.id) }));
-      const rows = applySort(all
-        .filter(r => !s.q || C.correspondRecherche([r.c.name, r.c.contact, r.c.matricule, r.c.email, r.c.phone].join(' '), s.q))
-        .filter(r => !s.f || (s.f === 'due' ? r.sum.net > 0.0005 : r.sum.count === 0)), cols, s.sort);
-      const filtered = !!(s.q || s.f);
-      const { rows: page, pg } = paginate(rows, s);
-      $('#list-wrap').innerHTML = rows.length ? `<table class="list sortable"><thead>
-          ${sortHead(cols, s.sort, '<th class="row-actions-h"></th>')}</thead><tbody>
-        ${page.map(r => `<tr class="clickable" data-cid="${r.c.id}">
-          ${cols.map(c => `<td class="${c.r ? 'r nw' : ''}${c.cls ? ' ' + c.cls : ''}">${c.get(r)}</td>`).join('')}
-          ${rowMenuCell(r.c.id)}</tr>`).join('')}
-        </tbody><tfoot><tr>
-          <td colspan="3"><strong>${pl(rows.length, 'client')}</strong>${filtered ? `<span class="muted"> sur ${all.length}</span>` : ''}</td>
-          <td class="r"><strong>${rows.reduce((a, r) => a + r.sum.count, 0)}</strong></td>
-          <td class="r"><strong>${C.money(C.round3(rows.reduce((a, r) => a + r.sum.ht, 0)), cur)}</strong></td>
-          <td class="r"><strong>${C.money(C.round3(rows.reduce((a, r) => a + r.sum.net, 0)), cur)}</strong></td>
-          <td colspan="2"></td></tr></tfoot></table>${pagerBar(pg, { noun: 'client', grandTotal: all.length })}`
-        : `<div class="empty">${filtered ? 'Aucun client ne correspond à cette recherche.' : 'Aucun client. Ajoute ton premier client : son adresse et son matricule fiscal se reporteront automatiquement sur tes documents.'}</div>`;
-      const note = $('#f-note');
-      note.hidden = !filtered;
-      note.innerHTML = !filtered ? '' : `<span class="small muted">${rows.length} sur ${all.length}</span>${filterReset(true)}`;
-      if ($('#reset-f')) $('#reset-f').onclick = () => { s.q = ''; s.f = ''; s.page = 1; render(true); };
-      $$('tr.clickable[data-cid]').forEach(tr => tr.onclick = e => { if (e.target.closest('button')) return; navigate('#/client/' + tr.dataset.cid); });
-      bindRowMenus(document, id => {
-        const c = clientById(id); if (!c) return [];
-        return [
-          { icon: 'client', label: 'Ouvrir la fiche', hint: 'Documents, affaires, contrats, matériel installé', run: () => navigate('#/client/' + id) },
-          { icon: 'nouveau', label: 'Nouveau devis', hint: `Pour ${c.name}`, run: () => navigate('#/doc/new/devis/client/' + id) },
-          { sep: true },
-          { icon: 'pdf', label: 'Relevé de compte…', hint: 'Toutes ses pièces ouvertes, et le total', run: () => releveForm(id) },
-          { icon: 'modifier', label: 'Modifier le client', hint: 'Coordonnées, contact, matricule', run: () => clientForm(c, () => draw()) }
-        ];
-      });
-      bindSort($('#list-wrap'), draw);
-      bindPager($('#list-wrap'), s, () => draw(), '#list-wrap');
+  // ---------- la liste des clients, telle que la maquette (docs/maquettes/clients.html, validée le 28/10/2026) ----------
+  const LC_FILTRES = [['', 'Tous'], ['doivent', 'Te doivent'], ['retard', 'En retard'], ['completer', 'À compléter'], ['sans', 'Sans document']];
+  const LC_NIVEAU = { 1: 'Rappel', 2: 'Relance', 3: 'Dernière relance' };
+  // Ce que la liste sait d'un client : son compte (clientSummary, le net de son relevé), son retard (overdueInvoices, la
+  // règle de la page Relances), ce qui manque à sa fiche. UNE fonction : le tableau, son pied, les filtres et leurs
+  // nombres, le téléphone la lisent tous.
+  function lcLignes() {
+    const base = company().currency, an = C.today().slice(0, 4);
+    const retard = new Map();
+    C.overdueInvoices(data, company(), C.today()).forEach(x => {
+      const r = retard.get(x.doc.clientId) || { m: 0, j: 0, items: [] };
+      r.m += C.toBase(x.doc, x.remaining, company()); r.j = Math.max(r.j, x.daysLate); r.items.push(x);
+      retard.set(x.doc.clientId, r);
     });
-    // Une recherche et des filtres au-dessus de ZÉRO ligne n'aident personne (`filtersBar`), et un
-    // état vide en prose sans bouton est une notice de montage (7.0.0). Devis, Factures, Contrats et
-    // Relances avaient ce traitement ; Clients, Fournisseurs, Achats et les autres pièces y
-    // échappaient encore — trouvé par le test humain (10.12.0).
-    const vide = !data.clients.length && !(s.q || s.f);
-    // Tant que la liste est vide, le bouton principal est celui de l'état vide : deux verts côte à
-    // côte pour le même geste, c'est dire deux fois la même chose (U-11, 10.12.0).
-    $('#view').innerHTML = `<div class="page-head"><h1>Clients</h1><div class="actions"><button class="btn" id="imp-clients">Importer…</button><button class="btn ${vide ? '' : 'btn-primary'}" id="new">+ Nouveau client</button></div></div>
-      ${filtersBar(`
-        <input type="text" id="q" placeholder="Rechercher : nom, contact, MF, email…" value="${h(s.q)}">
-        <select id="f">${FILTERS.map(([v, l]) => `<option value="${v}" ${s.f === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
-        ${info('list.sort')}
-        <span class="f-note" id="f-note" hidden></span>
-      `, data.clients.length, !!(s.q || s.f))}
-      ${vide ? etatVide('Les clients pour qui tu travailles',
-        ['Un client se crée une fois : son adresse et son matricule fiscal se reportent ensuite tout seuls sur ses devis et ses factures.',
-         'Ta liste est déjà dans un tableur ? Colle-la : tous tes clients entrent d\'un coup.'],
-        [['vide-client', '+ Ajouter mon premier client', true], ['vide-import', 'Importer depuis un tableur'], ['vide-demo', 'Voir un exemple rempli']]) : '<div id="list-wrap"></div>'}`;
-    // Le premier client fait apparaître la liste ET sa barre de recherche : c'est toute la page qui
-    // se redessine, pas seulement la liste.
-    $('#new').onclick = () => clientForm(null, () => (vide ? render(true) : draw()));
-    $('#imp-clients').onclick = () => importerTableau('clients', () => render(true));
+    return data.clients.map(c => {
+      const sum = C.clientSummary(data, company(), c.id);
+      const r = retard.get(c.id) || { m: 0, j: 0, items: [] };
+      const etranger = !!(c.currency && c.currency !== base);
+      const manqueMf = !c.matricule && !etranger, manqueMail = !c.email;
+      const der = sum.docs.filter(d => d.date).sort((a, b) => b.date.localeCompare(a.date) || String(b.number || '').localeCompare(String(a.number || ''), undefined, { numeric: true }))[0] || null;
+      return { c, sum, retard: C.round3(r.m), jours: r.j, relances: r.items, etranger, manqueMf, manqueMail, aCompleter: manqueMf || manqueMail,
+        an, factAn: sum.docs.filter(d => d.type === 'facture' && d.number && d.status !== 'brouillon' && (d.date || '').startsWith(an)).length, der };
+    });
+  }
+  const lcPasse = (r, f) => (!f ? true : f === 'doivent' ? r.sum.net > 0.0005 : f === 'retard' ? r.retard > 0.0005 : f === 'completer' ? r.aCompleter : f === 'sans' ? r.sum.count === 0 : true);
+  const lcTrouve = (r, q) => !q || C.correspondRecherche([r.c.name, r.c.contact, r.c.matricule, r.c.email, r.c.phone, String(r.c.phone || '').replace(/\s/g, ''), r.c.city, r.c.code].join(' '), q);
+  // Relancer la facture en retard la plus ancienne d'un client : le même message que la page Relances, à son niveau.
+  const lcRelancer = r => { const x = r.relances[0]; if (x) sendReminder(x, 'email'); };
+
+  routes.clients = () => {
+    const s = clientState;
+    s.cur = -1;
+    const base = company().currency;
+    const m = n => C.money(n, '', C.decimalsFor(base));
+    const lecture = aboBloque(true);
+    const roleLit = enLecture('clients');
+    const peutEcrire = !roleLit;
+    const cols = [
+      { key: 'name', label: 'Client', asc: true, w: '22%', val: r => r.c.name.toLowerCase() },
+      { key: 'mf', label: 'MF / CIN', w: '13%' },
+      { key: 'contact', label: 'Téléphone et e-mail', w: '16%' },
+      { key: 'docs', label: 'Documents', r: true, w: '9%', val: r => r.sum.count },
+      { key: 'ht', label: 'Facturé HT', r: true, w: '11%', val: r => r.sum.ht },
+      { key: 'due', label: 'Te doit', r: true, w: '13%', val: r => r.sum.net },
+      { key: 'last', label: 'Dernier document', w: '11%', val: r => r.sum.last || '' }
+    ];
+
+    function filtres(l, toutes) {
+      const filtre = !!(s.q || s.f);
+      const nom = LC_FILTRES.find(x => x[0] === s.f);
+      const puces = [s.f ? ['f', nom ? nom[1] : s.f] : null, s.q ? ['q', `« ${s.q} »`] : null].filter(Boolean);
+      return `<div class="filtres" id="lf-filtres"><label class="cherche">${lfIc('recherche', 16)}<input id="q" type="search" value="${h(s.q)}" placeholder="${matchMedia('(max-width: 760px)').matches ? 'Nom, téléphone, matricule…' : 'Nom, contact, matricule, e-mail, téléphone, ville…'}" autocomplete="off" aria-label="Chercher un client"><kbd>/</kbd></label>
+        <div class="segment petit" role="group" aria-label="Montrer">${LC_FILTRES.map(([k, n]) => `<button type="button" data-f="${k}" aria-pressed="${s.f === k}">${n}${k ? ` <span class="mu">${toutes.filter(r => lcPasse(r, k)).length}</span>` : ''}</button>`).join('')}</div>
+        ${info('lc.colonnes').replace('class="i"', 'class="i i-b"').replace('>i</button>', `>${lfIc('aide', 16, 2)}</button>`)}
+        <span class="f-note" id="f-note">${filtre ? `<b>${l.length}</b> sur ${pl(toutes.length, 'client')}` : `<b>${toutes.length}</b> ${toutes.length > 1 ? 'clients' : 'client'}`}</span></div>
+        ${puces.length ? `<div class="puces-f">${puces.map(([k, n]) => `<button type="button" class="pf" data-ote="${k}" aria-label="Retirer le filtre ${h(n)}">${h(n)}${lfIc('croix', 12, 2.4)}</button>`).join('')}<button type="button" class="btn-lien" id="reset-f">Tout effacer</button></div>` : ''}`;
+    }
+
+    function ligne(r) {
+      const c = r.c;
+      const sous = [c.contact, c.city].filter(Boolean).map(h).join(' · ');
+      const rs = c.withholdingRate === '' || c.withholdingRate == null ? Number(company().defaultWithholdingRate) || 0 : Number(c.withholdingRate) || 0;
+      const mf = c.matricule ? `${mfCoupable(c.matricule)}<small>${r.etranger ? 'à l\'étranger' : rs ? `RS ${pct(rs)} %` : 'sans retenue'}</small>`
+        : r.etranger ? '<span class="mu">à l\'étranger</span><small>sans matricule tunisien</small>' : '<span class="manque">à renseigner</span><small>El Fatoora le demandera</small>';
+      const ct = `${c.phone ? `<span>${telLisible(c.phone)}</span>` : '<span class="mu">—</span>'}${c.email ? `<span class="ellipse" title="${h(c.email)}">${h(c.email)}</span>` : '<span class="manque">pas d\'e-mail</span>'}`;
+      const net = r.sum.net;
+      const doit = net > 0.0005 ? `${m(net)}<small${r.retard > 0.0005 ? ' class="rouge"' : ''}>${r.retard > 0.0005 ? `dont ${m(r.retard)} en retard` : r.sum.aRendre > 0.0005 ? `− ${m(r.sum.aRendre)} payés en trop` : 'rien en retard'}</small>`
+        : net < -0.0005 ? `<span class="trop" title="Payé en trop ou avoir libre : à lui rendre, ou à déduire de sa prochaine facture">${m(-net)} en sa faveur</span>` : '<span class="mu">—</span>';
+      const der = r.der ? `${h(r.der.number || 'Brouillon')}<small>${C.fmtDate(r.der.date)}</small>` : '<span class="mu">—</span>';
+      const rel = r.relances[0];
+      const relancer = rel && peutEcrire && !enLecture('documents')
+        ? `<button type="button" class="btn ico enc" data-rel="${h(c.id)}" title="${h(`Relancer ${rel.doc.number} · ${LC_NIVEAU[rel.level]}`)}" aria-label="${h(`Relancer ${c.name}`)}">${lfIc('cloche', 16)}</button>` : '<span class="enc-v"></span>';
+      return `<tr class="clickable" data-cid="${h(c.id)}">
+        <td class="cl"><span class="cl-i">${pastilleClient(c.id, c.name)}<span><b>${h(c.name)}</b>${sous ? `<small>${sous}</small>` : ''}</span></span></td>
+        <td class="mf">${mf}</td>
+        <td class="ct">${ct}</td>
+        <td class="r">${r.sum.count ? `${r.sum.count}<small>${pl(r.factAn, 'facture')} en ${r.an}</small>` : '<span class="mu">aucun</span>'}</td>
+        <td class="r m nw">${r.sum.ht ? m(r.sum.ht) : '<span class="mu">—</span>'}</td>
+        <td class="r m nw">${doit}</td>
+        <td class="der">${der}</td>
+        <td class="actions row-actions lf-act">${relancer}<button type="button" class="row-menu-btn btn ico" data-rowmenu="${h(c.id)}" aria-haspopup="menu" aria-expanded="false" aria-label="Actions de ${h(c.name)}">${lfIc('plus', 16)}</button></td></tr>`;
+    }
+
+    function tableau(l, toutes) {
+      if (!l.length) return `<div class="panel vide-f">${lfIc('recherche', 26, 1.6)}<b>${s.q ? `Aucun client ne correspond à « ${h(s.q)} »` : 'Aucun client ne correspond à ce filtre'}</b><span>La recherche lit le nom, le contact, le matricule, l'e-mail, le téléphone et la ville${s.f ? `, parmi « ${h((LC_FILTRES.find(x => x[0] === s.f) || [])[1] || '')} »` : ''}.</span><span class="pr-b">${s.q && peutEcrire ? `<button type="button" class="btn btn-primary" id="lc-creer">${lfIc('croix', 15, 2.4)} Créer « ${h(s.q.replace(/^./, x => x.toUpperCase()))} »</button>` : ''}<button type="button" class="btn" id="lf-tout-revoir">Tout revoir</button></span></div>`;
+      const sorted = s.sort ? applySort(l, cols, s.sort) : l.slice().sort((a, b) => a.c.name.localeCompare(b.c.name, 'fr'));
+      const paged = paginate(sorted, s);
+      const somme = f => C.round3(sorted.reduce((a, r) => a + f(r), 0));
+      const ret = somme(r => r.retard);
+      const head = sortHead(cols, s.sort, '<th class="row-actions-h" style="width:84px"><span class="vh">Actions</span></th>');
+      // Au téléphone, chaque client est une carte (la maquette) : son nom, ce qui presse, ce qu'il doit.
+      const cartes = `<div class="lc-cartes">${paged.rows.map(r => `<button type="button" class="lc-carte" data-cid="${h(r.c.id)}"><span class="lc-c-h">${pastilleClient(r.c.id, r.c.name)}<span class="lc-c-n"><b>${h(r.c.name)}</b><small>${[r.c.contact, r.c.city].filter(Boolean).map(h).join(' · ')}</small></span></span>
+        <span class="lc-c-b"><small>${r.retard > 0.0005 ? `<span class="rouge">${m(r.retard)} en retard · ${pl(r.jours, 'jour')}</span>` : r.sum.net > 0.0005 ? 'rien en retard' : r.sum.count ? 'à jour' : 'aucun document'}${r.aCompleter ? ' · <span class="manque">à compléter</span>' : ''}</small><small>${r.sum.net > 0.0005 ? `doit <b>${m(r.sum.net)} ${h(symboleDevise(base))}</b>` : r.sum.net < -0.0005 ? `<span class="trop">${m(-r.sum.net)} en sa faveur</span>` : ''}</small></span></button>`).join('')}</div>`;
+      return `${cartes}<div class="panel lf-tab scroll-x"><table class="list sortable lf-table lc-table"><thead>${head}</thead><tbody>${paged.rows.map(ligne).join('')}</tbody>
+        <tfoot><tr><td colspan="2"><span class="pied-t"><b>Total de la sélection</b><span>${pl(sorted.length, 'client')}${sorted.some(r => r.c.currency && r.c.currency !== base) ? ' · devises converties au taux de chaque pièce' : ''}</span></span></td><td class="ct"></td><td class="r m">${somme(r => r.sum.count)}</td><td class="r m nw">${m(somme(r => r.sum.ht))} <small class="dv">${h(symboleDevise(base))}</small></td><td class="r m nw"><div>${m(somme(r => r.sum.net))}</div>${ret > 0.0005 ? `<div class="rouge pied-s">dont ${m(ret)} en retard</div>` : ''}</td><td class="der"></td><td></td></tr></tfoot></table>
+        ${pagerBar(paged.pg, { noun: 'client', grandTotal: toutes.length })}</div>`;
+    }
+
+    // Au téléphone : trois puces (Te doivent, En retard, À compléter), chacune avec son nombre.
+    function puces(toutes) {
+      const p = (f, ton, t) => `<button type="button" class="t-puce ${ton}" data-f="${f}" aria-pressed="${s.f === f}">${t} <b>${toutes.filter(r => lcPasse(r, f)).length}</b></button>`;
+      return `<div class="t-puces" id="lf-puces">${p('doivent', 'calme', 'Te doivent')}${p('retard', 'alerte', 'En retard')}${p('completer', '', 'À compléter')}</div>`;
+    }
+
+    const vide = !data.clients.length;
+    const bandeau = roleLit && !lecture ? `<div class="bandeau info lc-bandeau" role="status">${lfIc('cadenas', 18)}<span class="txt"><b>Lecture seule : ton rôle te laisse lire les fiches clients, pas les modifier</b><span>Un geste qui les changerait est refusé, en le disant. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.</span></span></div>` : '';
+    $('#view').innerHTML = `
+      <div class="page-head lf-tete lc-tete"><div class="titre"><div class="chemin"><a href="#/dashboard">Accueil</a>${ICONE_CHEVRON}<span>Clients</span></div><h1>Clients</h1><p class="sous">Qui ils sont, ce qu'ils te doivent, ce que tu leur as vendu</p></div>
+        <div class="actions">${/* En lecture seule (abonnement), une fiche client se crée encore : le bouton reste, mais n'est plus le vert. */''}${roleLit ? '' : `<button class="btn" id="imp-clients">${lfIc('importer', 15)} Importer…</button><button class="btn ${vide || lecture ? '' : 'btn-primary'}" id="new">${lfIc('croix', 15, 2.4)} Nouveau client</button>`}</div></div>
+      ${vide ? `<div class="panel premiere"><div class="pr-t"><span class="pr-ic">${lfIc('clients', 26, 1.8)}</span><h2>Les clients pour qui tu travailles</h2>
+          <p>Un client se crée une fois : son adresse et son matricule fiscal se reportent ensuite tout seuls sur ses devis et ses factures.</p>
+          <p>Ta liste est déjà dans un tableur ? Colle-la, ou ouvre ton fichier : tous tes clients entrent d'un coup.</p>
+          ${peutEcrire ? `<div class="pr-b"><button class="btn ${lecture ? '' : 'btn-primary'}" id="vide-client">${lfIc('croix', 15, 2.4)} Ajouter mon premier client</button><button class="btn" id="vide-import">${lfIc('importer', 15)} Importer depuis un tableur</button><button class="btn btn-lien" id="vide-demo">Voir un exemple rempli</button></div>` : ''}</div>
+          <ol class="pr-e"><li><b>1</b><span><b>Son nom et son matricule</b><small>El Fatoora refuse une facture sans le bon matricule</small></span></li><li><b>2</b><span><b>Ses conditions, si besoin</b><small>retenue, encours, langue, devise : derrière « Plus de détails »</small></span></li><li><b>3</b><span><b>Ton premier devis ou ta première facture</b><small>le client se choisit en tapant trois lettres</small></span></li><li><b>4</b><span><b>Son compte se tient seul</b><small>ce qu'il doit, ses paiements, ses relances</small></span></li></ol></div>`
+        : `${bandeau}<div class="lf lc" id="lc"><div id="lc-puces"></div><div id="lf-barre"></div><div id="list-wrap"></div>
+          <p class="raccourcis">${lfIc('clavier', 14)} <kbd>/</kbd> chercher · <kbd>↑</kbd> <kbd>↓</kbd> d'un client à l'autre · <kbd>Entrée</kbd> ouvrir sa fiche · <kbd>Échap</kbd> fermer</p></div>`}`;
+    const ouvrirForm = () => clientForm(null, () => render(true));
+    if ($('#new')) $('#new').onclick = ouvrirForm;
+    if ($('#imp-clients')) $('#imp-clients').onclick = () => importerTableau('clients', () => render(true));
+    if ($('#vide-client')) $('#vide-client').onclick = ouvrirForm;
     if ($('#vide-import')) $('#vide-import').onclick = () => importerTableau('clients', () => render(true));
-    if ($('#vide-client')) $('#vide-client').onclick = () => clientForm(null, () => render(true));
     if ($('#vide-demo')) $('#vide-demo').onclick = loadDemo;
-    if ($('#q')) $('#q').oninput = e => { s.q = e.target.value.toLowerCase(); s.page = 1; draw(); };
-    if ($('#f')) $('#f').onchange = e => { s.f = e.target.value; s.page = 1; draw(); };
-    if (!vide) draw();
+    if (vide) return;
+
+    const draw = dansUnLot((sortKey) => {
+      if (!$('#list-wrap')) return;
+      if (typeof sortKey === 'string' && sortKey) { s.sort = toggleSort(s.sort, sortKey, cols); s.page = 1; }
+      const toutes = lcLignes();
+      const l = toutes.filter(r => lcPasse(r, s.f) && lcTrouve(r, s.q));
+      const focus = document.activeElement && document.activeElement.id === 'q' ? $('#q').selectionStart : null;
+      $('#lc-puces').innerHTML = puces(toutes);
+      $('#lf-barre').innerHTML = filtres(l, toutes);
+      $('#list-wrap').innerHTML = tableau(l, toutes);
+      if (focus !== null) { const q = $('#q'); q.focus(); q.setSelectionRange(focus, focus); }
+      brancher(l);
+    });
+    const choisir = f => { s.f = s.f === f && f ? '' : f; s.page = 1; s.cur = -1; draw(); };
+    function brancher(l) {
+      const w = $('#list-wrap');
+      $('#q').oninput = e => { s.q = e.target.value; s.page = 1; s.cur = -1; draw(); };
+      $$('#lf-barre [data-f]').forEach(b => b.onclick = () => { s.f = b.dataset.f; s.page = 1; s.cur = -1; draw(); });
+      $$('#lc-puces [data-f]').forEach(b => b.onclick = () => choisir(b.dataset.f));
+      $$('#lf-barre [data-ote]').forEach(b => b.onclick = () => { s[b.dataset.ote] = ''; s.page = 1; draw(); });
+      const toutRevoir = () => { Object.assign(s, { q: '', f: '', page: 1, cur: -1 }); draw(); };
+      if ($('#reset-f')) $('#reset-f').onclick = toutRevoir;
+      if ($('#lf-tout-revoir')) $('#lf-tout-revoir').onclick = toutRevoir;
+      if ($('#lc-creer')) $('#lc-creer').onclick = () => clientForm(null, () => render(true), { name: s.q.replace(/^./, x => x.toUpperCase()) });
+      $$('tr.clickable[data-cid]', w).forEach(tr => tr.onclick = e => { if (e.target.closest('button, input, a, label')) return; navigate('#/client/' + tr.dataset.cid); });
+      $$('.lc-carte', w).forEach(b => b.onclick = () => navigate('#/client/' + b.dataset.cid));
+      $$('[data-rel]', w).forEach(b => b.onclick = () => { const r = l.find(x => x.c.id === b.dataset.rel); if (r) lcRelancer(r); });
+      bindRowMenus(w, id => actionsClient(l.find(x => x.c.id === id), () => draw()), id => { const c = clientById(id); return c ? c.name : ''; });
+      bindSort(w, draw);
+      bindPager(w, s, () => draw(), '#list-wrap');
+    }
+    draw();
   };
+
+  // Le menu ⋯ d'un client de la liste, rangé comme la maquette : ouvrir, lui vendre, son compte, sa fiche. Un geste qui ne
+  // le concerne pas n'y paraît pas.
+  function actionsClient(r, refaire) {
+    if (!r) return [];
+    const c = r.c, id = c.id;
+    const ecrit = !aboBloque(true) && !enLecture('clients'), vend = !aboBloque(true) && !enLecture('documents');
+    const groupe = (titre, l) => (l.length ? [{ titre }, ...l] : []);
+    const rel = r.relances[0];
+    const net = r.sum.net;
+    return [
+      { icon: 'client', label: 'Ouvrir la fiche', hint: 'Documents, paiements, relances, affaires, matériel', run: () => navigate('#/client/' + id) },
+      ...groupe('Lui vendre', vend ? [
+        { icon: 'nouveau', label: 'Nouveau devis', hint: `Pour ${c.name}`, run: () => navigate('#/doc/new/devis/client/' + id) },
+        { icon: 'nouveau', label: 'Nouvelle facture', hint: 'Elle reprend sa fiche', run: () => navigate('#/doc/new/facture/client/' + id) }] : []),
+      ...groupe('Son compte', [
+        ...(rel && vend ? [{ icon: 'cloche', label: `Relancer ${rel.doc.number}`, hint: `${pl(rel.daysLate, 'jour')} de retard · ${LC_NIVEAU[rel.level]}`, run: () => lcRelancer(r) }] : []),
+        { icon: 'pdf', label: 'Relevé de compte…', hint: net > 0.0005 ? `${C.money(net, company().currency)} encore dus` : net < -0.0005 ? `${C.money(-net, company().currency)} en sa faveur` : 'le compte est soldé', run: () => releveForm(id) }]),
+      ...groupe('Sa fiche', ecrit ? [{ icon: 'modifier', label: 'Modifier le client', hint: 'Coordonnées, contact, matricule', run: () => clientForm(c, refaire) }] : [])
+    ];
+  }
+
+  // Le clavier de la liste des clients : « / » cherche, ↑ ↓ passent d'un client à l'autre, Entrée ouvre sa fiche. Rien quand
+  // on écrit dans un champ ou qu'une fenêtre est ouverte.
+  document.addEventListener('keydown', e => {
+    if (!$('#lc') || e.ctrlKey || e.metaKey || e.altKey) return;
+    const t = e.target;
+    if (t && t.closest && t.closest('input, select, textarea, [contenteditable], .modal, .row-menu')) { if (e.key === 'Escape' && t.id === 'q') t.blur(); return; }
+    if (document.querySelector('#modal-root .modal')) return;
+    const s = clientState;
+    const lignes = $$('#list-wrap tr.clickable[data-cid]');
+    if (e.key === '/') { e.preventDefault(); $('#q').focus(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      if (!lignes.length) return;
+      e.preventDefault();
+      const i = Math.max(0, Math.min(lignes.length - 1, (s.cur < 0 ? (e.key === 'ArrowDown' ? -1 : lignes.length) : s.cur) + (e.key === 'ArrowDown' ? 1 : -1)));
+      lignes.forEach(x => x.classList.remove('kb')); s.cur = i; lignes[i].classList.add('kb'); lignes[i].scrollIntoView({ block: 'nearest' });
+      return;
+    }
+    if (e.key === 'Enter' && s.cur >= 0 && lignes[s.cur]) { e.preventDefault(); navigate('#/client/' + lignes[s.cur].dataset.cid); }
+  });
 
   // ---------- fiche client ----------
   // ---------- les listes de prix (plateforme, brique 93 ; 01 § 5) ----------

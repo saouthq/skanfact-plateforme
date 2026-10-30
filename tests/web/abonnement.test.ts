@@ -153,7 +153,7 @@ describe('l\'abonnement, à la souris', () => {
     await plusTard(p);
     await p.evaluate(() => { location.hash = '#/clients'; });
     await p.locator('#view tr').filter({ hasText: 'Hôtel du Lac' }).first().waitFor({ timeout: 15_000 });
-    expect(net(await p.locator('#view .page-head #new').innerText())).toBe('+ Nouveau client');
+    expect(net(await p.locator('#view .page-head #new').innerText())).toBe('Nouveau client');
     expect(await p.locator('#view .btn-primary:visible').count()).toBe(0);
 
     // (maquette « Barre v3 ») « Créer » porte un cadenas, et le dit avant le geste : fermé, pourquoi, et la porte de

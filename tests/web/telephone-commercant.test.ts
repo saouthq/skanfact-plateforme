@@ -197,7 +197,7 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
   it('une fenêtre longue garde ses boutons au bas de l\'écran ; « Plus ▾ » s\'ouvre au bas de l\'écran, sur toute sa largeur', async () => {
     const c = await commercante({ factures: 1 });
     const { cx, p, erreurs } = await ouvrir(c, '#/clients', TELEPHONE);
-    await p.getByRole('button', { name: '+ Nouveau client' }).click();
+    await p.getByRole('button', { name: 'Nouveau client' }).click();
     await p.locator('#modal-root #cf').waitFor();
     // (1.132.0) Un client neuf ouvre court : « Plus de détails » déplié, la fenêtre dépasse l'écran du téléphone.
     await p.locator('#cf-plus > summary').click();
@@ -218,7 +218,8 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
     await p.locator('#modal-root [name=name]').fill('Café Bleu');
     await p.locator('#modal-root #ok').click();
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
-    await expect.poll(() => p.locator('table.list > tbody > tr [data-tel=titre]').allInnerTexts()).toContain('Café Bleu');
+    // (1.199.0) Au téléphone, la liste des clients est une carte par client (maquette clients.html).
+    await expect.poll(() => p.locator('.lc-carte .lc-c-n > b').allInnerTexts()).toContain('Café Bleu');
 
     // « Plus ▾ » d'une facture émise : une feuille au bas de l'écran, sur toute sa largeur ; ses gestes y sont.
     await aller(p, '#/doc/f1', /^FAC-2026-001/);

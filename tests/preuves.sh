@@ -21610,3 +21610,21 @@ prouver 'tableau 39 : la lecture seule ne se dit pas' web/public/v10/cabinet/app
 prouver 'tableau 40 : le réseau qui revient laisse la bande' web/public/v10/cabinet/app.js \
   "for (const ev of ['online', 'offline']) window.addEventListener" "for (const ev of []) window.addEventListener" \
   'Exporter la grille'
+
+# (1.199.0) Les clients, lot 1 : la liste telle que la maquette (docs/maquettes/clients.html).
+LC1='les colonnes, les filtres et leurs nombres, la ville, le pied, la relance, le menu, le clavier, le téléphone'
+prouver 'clients 1 : « En retard » compte ceux qui doivent' web/public/v10/app.js \
+  "f === 'retard' ? r.retard > 0.0005 :" "f === 'retard' ? r.sum.net > 0.0005 :" "$LC1"
+prouver 'clients 2 : un client sans courriel n'"'"'est plus à compléter' web/public/v10/app.js \
+  "aCompleter: manqueMf || manqueMail," "aCompleter: manqueMf," "$LC1"
+prouver 'clients 3 : la ville ne se cherche plus' web/public/v10/app.js \
+  "String(r.c.phone || '').replace(/\s/g, ''), r.c.city, r.c.code].join(' ')" "String(r.c.phone || '').replace(/\s/g, ''), r.c.code].join(' ')" "$LC1"
+prouver 'clients 5 : la relance n'"'"'envoie rien' web/public/v10/app.js \
+  "const lcRelancer = r => { const x = r.relances[0]; if (x) sendReminder(x, 'email'); };" "const lcRelancer = () => {};" "$LC1"
+prouver 'clients 6 : Entrée n'"'"'ouvre plus la fiche' web/public/v10/app.js \
+  "if (e.key === 'Enter' && s.cur >= 0 && lignes[s.cur]) { e.preventDefault(); navigate('#/client/' + lignes[s.cur].dataset.cid); }" "" "$LC1"
+prouver 'clients 7 : au téléphone, pas de cartes' web/public/plateforme/liste.css \
+  "  .lc .lc-cartes { display: grid; gap: 8px; }" "  .lc .lc-cartes { display: none; }" "$LC1"
+prouver 'clients 8 : à la tablette, toutes les colonnes se serrent' web/public/plateforme/liste.css \
+  "  .lc table.lc-table thead th:nth-child(3), .lc table.lc-table thead th:nth-child(7), .lc table.lc-table td.ct, .lc table.lc-table td.der { display: none; }" "" \
+  'à 768 px : ni la liste des Clients ni la Comptabilité ne font défiler la page de côté'

@@ -154,9 +154,10 @@ describe('la recette d\'une entreprise neuve, au clavier et à la souris', () =>
     await p.keyboard.press('Tab');
     // (1.132.0) Le champ qui suit le nom d'un client neuf est son matricule (le reste derrière « Plus de détails »).
     expect(await p.evaluate(() => document.activeElement?.getAttribute('name'))).toBe('matricule');
-    // Point 15 de la revue du mois d'un client : un client neuf s'écrit en quatre cases, le reste plié.
+    // Point 15 de la revue du mois d'un client : un client neuf s'écrit en quelques cases, le reste plié. La ville s'y ajoute
+    // (1.199.0, maquette clients.html : elle sert à chercher et à lire la liste).
     const visibles = () => cf.locator('input, textarea, select').filter({ visible: true }).evaluateAll((els) => els.map((e) => e.getAttribute('name')));
-    expect(await visibles()).toEqual(['name', 'matricule', 'phone', 'address']);
+    expect(await visibles()).toEqual(['name', 'matricule', 'phone', 'address', 'city']);
     await cf.locator('#cf-plus > summary').click();
     expect(await visibles()).toContain('contact');
     await p.keyboard.press('Escape');

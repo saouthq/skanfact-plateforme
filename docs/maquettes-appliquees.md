@@ -18,8 +18,8 @@ perdu » — ce que fait l'écran de la v10 et où il le retrouve — et « Ce q
 | `devis.html` | Le devis |
 | `achat.html` | L'achat, avec la lecture par l'IA (facultative, décision du 24/10/2026) |
 | `accueil.html` | L'accueil |
-| `clients.html` | Les clients : la liste et la fiche d'un client (documents, paiements, relances, affaires et contrats, matériel), la fenêtre du client, le relevé, l'import ; validée le 28/10/2026, pas encore appliquée |
-| `achats-fournisseurs.html` | Les achats et dépenses (tuiles À payer, En retard, Cette semaine, Pour ton comptable ; choisir plusieurs pièces et les régler d'un virement), les fournisseurs et la fiche de chacun (achats, règlements, commandes, retenues et attestations) ; proposée le 30/10/2026, à valider |
+| `clients.html` | Les clients : la liste et la fiche d'un client (documents, paiements, relances, affaires et contrats, matériel), la fenêtre du client, le relevé, l'import ; validée le 28/10/2026, la liste appliquée (1.199.0), la fiche à venir |
+| `achats-fournisseurs.html` | Les achats et dépenses (tuiles À payer, En retard, Cette semaine, Pour ton comptable ; choisir plusieurs pièces et les régler d'un virement), les fournisseurs et la fiche de chacun (achats, règlements, commandes, retenues et attestations, le fil), l'échéancier et la jauge des justificatifs ; validée le 30/10/2026, pas encore appliquée |
 
 ## Comment on les applique
 
@@ -319,3 +319,28 @@ jusqu'à leur lot. Tests : `tests/web/facture-charte.test.ts`, `tests/web/teleph
 | Ce que voit le client | L'espace client refait : ce qu'il doit, ses pièces des 12 derniers mois, la pièce sur son papier, ses devis, « Reste à payer » et le paiement en ligne, le PDF, le fichier El Fatoora après signature ; une colonne au téléphone |
 | Au téléphone | Une rangée par ligne (désignation, total, « 2 heures × 150,000 ») ; on la touche : un panneau monte (quantité −/+, prix, remise Aucune/5/10/Autre, TVA, total, Supprimer/Valider) ; « Ajouter une ligne » ouvre la recherche (articles, ligne libre) ; « Scanner » lit un code-barres avec l'appareil photo (un article de plus à chaque lecture, la quantité monte au second passage) |
 | La taille à l'écran | (1.155.6, Skander le 26/10/2026 : « le mode compact doit devenir la taille de SkanFact par défaut ») À l'ordinateur (une souris, plus de 760 px), la page, la barre et leurs menus s'affichent à 90 % ; « Affichage compact » (menu « Moi ») descend à 80 % et resserre les rangées. Un écran qu'on touche, le téléphone et la caisse gardent la taille du doigt. L'ancien choix enregistré ne compte plus (la clé a changé) |
+
+## Lot Clients 1 : la liste des clients (1.199.0)
+
+La liste de `clients.html`, appliquée dans `routes.clients` (`web/public/v10/app.js`) et `web/public/plateforme/liste.css`
+(bloc `.lc`). Test : `tests/web/liste-clients.test.ts` (photos `liste-clients-1.png`, `liste-clients-2-telephone.png`) ;
+preuves « clients 1 » à « clients 8 » (sans « clients 4 », voir plus bas).
+
+| Ce qui se voit | Comment |
+|---|---|
+| L'en-tête | « Accueil › Clients », « Qui ils sont, ce qu'ils te doivent, ce que tu leur as vendu » ; « Importer… » et « Nouveau client » (le vert, sauf liste vide ou lecture seule de l'abonnement). Le rôle « Lecture » n'a aucun des deux, mais un bandeau qui le dit |
+| La première fois | Le panneau « Les clients pour qui tu travailles » : ajouter, importer d'un tableur, voir un exemple, et les trois étapes |
+| Les filtres | Tous, Te doivent, En retard, À compléter (sans matricule pour un client tunisien, ou sans courriel), Sans document ; chacun avec son nombre, calculé par la même fonction que la liste. La recherche lit aussi le contact, le matricule, le courriel, le téléphone, la ville et le code |
+| Une ligne | Le client (pastille, nom, contact · ville), le matricule (ou « à compléter »), le dernier document, le nombre de documents, le vendu HT, « Te doit » (dont en retard, payé en trop, ou rien en retard, en devise de base), la cloche qui relance la facture en retard la plus ancienne (au niveau Rappel, Relance ou Dernière relance), le menu ⋯ (Ouvrir la fiche ; Lui vendre : devis, facture ; Son compte : relancer, relevé de compte ; Sa fiche : modifier) |
+| Le pied | « Total de la sélection » : nombre de clients, documents, vendu HT, ce qu'ils doivent, dont en retard |
+| Le clavier | `/` cherche, ↑ ↓ passe d'un client à l'autre, Entrée ouvre sa fiche |
+| À la tablette (761 à 1100 px) | Le téléphone et l'e-mail, puis le dernier document, cèdent leur place : le nom du client passe à la ligne plutôt que d'être coupé, chaque titre de colonne se lit en entier (vu à 768 px le 30/10/2026). Ils restent sur sa fiche |
+| Au téléphone | Une carte par client (pastille, nom, contact · ville ; en retard depuis N jours ou à jour ; ce qu'il doit) et les puces Te doivent, En retard, À compléter |
+| La fiche du client | Le champ « Ville » s'ajoute, parmi les cases d'un client neuf (il sert à la recherche et à la ligne) |
+| Le rôle « Lecture » | Ni « Importer… » ni « Nouveau client » ; le bandeau le dit. Changer ou supprimer une fiche lui reste refusé, en le disant (`tests/web/lecture-seule.test.ts`) |
+
+**Ce qui attend le lot 2 (la fiche)** : archiver un client, son code client, le refus d'El Fatoora sur sa fiche, son délai
+de paiement, et la devise d'un client étranger dans la liste (le montant s'y lit en devise de base, converti). La
+conversion d'un retard en devise vers la devise de base n'a pas encore de test qui la tienne : il viendra avec le lot 2,
+avec une facture en euros dans les données du test.
+

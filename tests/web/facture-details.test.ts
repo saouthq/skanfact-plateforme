@@ -306,7 +306,7 @@ describe('le lot facture, à l\'écran', () => {
 
     // 4. Rien ne reste bloqué : un client enregistré ensuite part au serveur, sans un mot du matricule.
     await p.evaluate(() => { location.hash = '#/clients'; });
-    await p.getByRole('button', { name: '+ Nouveau client' }).first().click({ timeout: 15_000 });
+    await p.getByRole('button', { name: 'Nouveau client' }).first().click({ timeout: 15_000 });
     await p.locator('#modal-root [name=name]').fill('Lycée Pilote de Sousse');
     await p.locator('#modal-root').getByRole('button', { name: 'Enregistrer', exact: true }).click();
     await expect.poll(async () => (await surLeServeur()).some((o) => o.collection === 'clients' && o.contenu.name === 'Lycée Pilote de Sousse'), { timeout: 10_000 }).toBe(true);

@@ -129,38 +129,33 @@ describe('les pages en lecture seule, à la souris', () => {
     // 2. Omar : la page des clients le dit ; créer un client lui est refusé.
     const o = await ouvrir(omar.jeton, '#/clients');
     await expect.poll(() => bandeau(o), { timeout: 10_000 }).toMatch(/^Lecture seule\. Ton rôle te laisse lire les fiches clients/);
-    await o.locator('#new').click();
+    // (1.199.0, maquette Clients « Rôle qui lit seulement ») La liste ne propose ni « Importer… » ni « Nouveau client »,
+    // et le dit en haut.
+    await expect.poll(async () => (await o.locator('#view .lc-bandeau').innerText().catch(() => '')).replace(/\s+/g, ' ').trim(), { timeout: 15_000 })
+      .toBe('Lecture seule : ton rôle te laisse lire les fiches clients, pas les modifier Un geste qui les changerait est refusé, en le disant. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.');
+    expect(await o.locator('#imp-clients, #view .lc-tete #new').count()).toBe(0);
+    // Changer sa fiche lui est refusé, en le disant : sa fiche, « Modifier la fiche », « Enregistrer ».
+    await o.evaluate(() => { location.hash = '#/client/c1'; });
+    await o.locator('[data-rowmenu="CL:c1"]').first().click();
+    await o.getByRole('menuitem').filter({ hasText: 'Modifier la fiche' }).click();
     await o.locator('#cf input[name=name]').fill('Faux client');
     await o.locator('#modal-root #ok').click();
     await expect.poll(() => toast(o), { timeout: 10_000 }).toBe('Ton rôle te laisse lire les fiches clients, pas les modifier : rien n\'a été enregistré. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.');
     await o.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'lecture-2-client-refuse.png') });
     await o.waitForTimeout(1000);
     expect((await lire()).filter((x) => x.collection === 'clients').map((x) => x.contenu.name)).toEqual(['Chantier Ennasr']);
-    // Ni la supprimer (brique 102 bis) : sa fiche, « Modifier la fiche », « Supprimer ».
-    await o.locator('#modal-root').getByRole('button', { name: 'Annuler', exact: true }).click();
-    const abandonne = o.locator('#modal-root').getByRole('button', { name: 'Abandonner la saisie', exact: true });
-    if (await abandonne.count()) await abandonne.click();
-    await o.evaluate(() => { location.hash = '#/client/c1'; });
-    await o.locator('[data-rowmenu="CL:c1"]').first().click();
-    await o.getByRole('menuitem').filter({ hasText: 'Modifier la fiche' }).click();
+    // Ni la supprimer (brique 102 bis) : « Supprimer », dans la même fenêtre.
+    if (!(await o.locator('#modal-root #del-client').count())) {
+      await o.locator('[data-rowmenu="CL:c1"]').first().click();
+      await o.getByRole('menuitem').filter({ hasText: 'Modifier la fiche' }).click();
+    }
     await o.locator('#modal-root #del-client').click();
     await expect.poll(() => toast(o), { timeout: 10_000 }).toBe('Ton rôle te laisse lire les fiches clients, pas les modifier : rien n\'a été supprimé. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.');
     // Un achat non plus (brique 102 bis) : « Enregistrer » le refuse avant de demander le fournisseur.
     await o.locator('#modal-root').getByRole('button', { name: 'Annuler', exact: true }).click();
     const abandon = o.locator('#modal-root').getByRole('button', { name: 'Abandonner la saisie', exact: true });
     if (await abandon.count()) await abandon.click();
-    // Ni en importer d'un tableur (docs/reprise-fiches.md, F4) : l'aperçu se montre, l'import se refuse au clic, et
-    // rien n'arrive au serveur.
-    await o.evaluate(() => { location.hash = '#/clients'; });
-    await o.locator('#imp-clients').click();
-    await o.locator('#imp-texte').fill('Nom\tTéléphone\nClient importé\t71 000 000');
-    await expect.poll(() => o.locator('#imp-ok').innerText()).toBe('Importer 1 client');
-    await o.locator('#imp-ok').click();
-    await expect.poll(() => toast(o), { timeout: 10_000 }).toBe('Ton rôle te laisse lire les fiches clients, pas les modifier : rien n\'a été importé. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.');
-    await o.waitForTimeout(1000);
     expect((await lire()).filter((x) => x.collection === 'clients').map((x) => x.contenu.name)).toEqual(['Chantier Ennasr']);
-    await o.locator('#modal-root').getByRole('button', { name: 'Annuler', exact: true }).click();
-    if (await abandon.count()) await abandon.click();
     await o.evaluate(() => { location.hash = '#/achat/new'; });
     // (1.155.12) Une facture d'achat neuve ne montre que « Comment arrive cette pièce ? » : on choisit de la saisir à la main.
     await o.locator('#ac-main').click();

@@ -63,8 +63,17 @@ describe('la tablette debout', () => {
     await expect.poll(() => p.locator('#view table.list tbody tr', { hasText: 'Société des Transports du Sahel' }).count(), { timeout: 20_000 }).toBe(1);
     await plusTard(p);
     expect(await deCote(p)).toBe(0);
-    // La liste, elle, défile dans son cadre : ses colonnes restent toutes lisibles.
-    expect(await p.locator('#view #list-wrap').evaluate((e) => e.scrollWidth > e.clientWidth)).toBe(true);
+    // La liste tient dans son cadre (1.199.0, maquette clients.html) : à la tablette, le téléphone et le dernier document
+    // cèdent leur place ; chaque titre qui reste se lit en entier, dans le cadre, et le nom du client aussi.
+    expect(await p.locator('#view table.lc-table thead th').evaluateAll((l) => l.filter((th) => getComputedStyle(th).display !== 'none').map((th) => (th.textContent ?? '').replace(/[⇅↑↓▲▼]/g, '').trim())))
+      .toEqual(['Client', 'MF / CIN', 'Documents', 'Facturé HT', 'Te doit', 'Actions']);
+    expect(await p.locator('#view #list-wrap').evaluate((w) => {
+      const cadre = w.getBoundingClientRect();
+      const coupe = (e: Element) => e.scrollWidth > e.clientWidth + 1;
+      return [...[...w.querySelectorAll('table.lc-table thead th')].filter((th) => getComputedStyle(th).display !== 'none')
+        .filter((th) => { const r = th.getBoundingClientRect(); return r.left < cadre.left - 1 || r.right > cadre.right + 1 || coupe(th); }),
+      ...[...w.querySelectorAll('table.lc-table td.cl b')].filter(coupe)].map((e) => `${e.textContent?.trim()} ${e.scrollWidth}/${e.clientWidth}`);
+    })).toEqual([]);
     await p.screenshot({ animations: 'disabled', path: path.join(PHOTOS, 'tablette-1-clients.png') });
 
     await p.evaluate(() => { location.hash = '#/compta'; });
