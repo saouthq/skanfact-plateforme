@@ -358,3 +358,75 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 #cf .cf-aide.ko { color: var(--sb-rouge-texte); }
 #cf .cf-aide a { color: inherit; text-decoration: underline; }
 
+
+/* ---------- la liste des achats et dépenses (maquette achats-fournisseurs.html, passe 3 ; 1.202.0) ----------
+   En tête, les pièces qui restent à payer (pas de tuiles : les répartitions iront à la page Statistiques) ; puis le
+   tableau rangé par mois, les mêmes pièces que la liste des factures ; au téléphone, une carte par pièce. */
+.la .la-ap { padding: 6px 0 4px; }
+.la .la-ap-t { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 16px 8px; }
+.la .la-ap-t > b { font-size: 15px; letter-spacing: -.01em; }
+.la .la-ap-t .mu { font-size: 13px; font-variant-numeric: tabular-nums; }
+.la .la-ok { color: var(--sb-sarcelle-texte); display: inline-flex; }
+.la .la-j { margin-left: auto; border: 0; background: none; padding: 4px 0; cursor: pointer; font: inherit; display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--sb-ambre-texte); font-weight: 600; }
+.la .la-j:hover { text-decoration: underline; }
+.la .la-ap-l { list-style: none; margin: 0; padding: 0; }
+.la .la-ap-l li { display: grid; grid-template-columns: 30px minmax(0, 1fr) 150px 130px 76px; gap: 12px; align-items: center; padding: 8px 16px; border-top: 1px solid var(--sb-trait); cursor: pointer; }
+.la .la-ap-l li:hover { background: var(--sb-survol); }
+.la .la-ap-l .av { width: 30px; height: 30px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 11px; }
+.la .la-n { display: grid; min-width: 0; }
+.la .la-n b, .la .la-n small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.la .la-n b { font-weight: 600; }
+.la .la-n small { color: var(--sb-gris-2); font-size: 12px; }
+.la .la-e { font-size: 12.5px; color: var(--sb-gris); }
+.la .la-e.rouge, .la .la-e.ambre { font-weight: 600; }
+.la .la-m { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.la .la-ap-l .btn-sm { justify-self: end; }
+.la .la-plus { display: block; width: 100%; border: 0; border-top: 1px solid var(--sb-trait); background: none; padding: 9px 16px 5px; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); text-align: left; cursor: pointer; }
+.la .la-plus:hover { text-decoration: underline; }
+.la table.la-table { table-layout: fixed; }
+.la table.la-table tbody td { overflow: hidden; }
+.la table.la-table tfoot td { white-space: normal; }
+.la table.la-table td.cl .cl-i > span { min-width: 0; }
+.la table.la-table td.cl b, .la table.la-table td.cl small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.la table.la-table td.cl { min-width: 0; }
+.la table.la-table td.num-c b { font-weight: 700; letter-spacing: -.01em; }
+.la table.la-table td.num-c small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.la .manque { color: var(--sb-ambre-texte); font-weight: 600; }
+.la .pied-s { font-size: 12px; font-weight: 500; }
+.la tr.solde td:not(.lf-act) { color: var(--sb-gris); }
+.la td.lf-act { width: auto; }
+.la td.lf-act .btn-sm { margin-right: 4px; vertical-align: middle; }
+.la .la-cartes { display: none; }
+/* À la tablette (761 à 1100 px), l'échéance cède sa place : le fournisseur et ce qu'on lui doit se lisent
+   en entier ; l'échéance se lit dans « À payer » et sur la pièce. */
+@media (min-width: 761px) and (max-width: 1100px) {
+  .la table.la-table thead th:nth-child(4), .la table.la-table tbody tr:not(.mois) td:nth-child(4) { display: none; }
+  .la table.la-table thead th:nth-child(1) { width: 11% !important; }
+  .la table.la-table thead th:nth-child(2) { width: 16% !important; }
+  .la table.la-table thead th:nth-child(3) { width: 27% !important; }
+  .la table.la-table thead th:nth-child(5) { width: 11% !important; }
+  .la table.la-table thead th:nth-child(6) { width: 12% !important; }
+  .la table.la-table thead th:nth-child(7) { width: 11% !important; }
+  .la table.la-table thead th:nth-child(8) { width: 12% !important; }
+  .la table.la-table tfoot td:nth-child(2) { display: none; }
+  .la .la-ap-l li { grid-template-columns: 30px minmax(0, 1fr) 130px 120px 76px; }
+}
+@media (max-width: 760px) {
+  /* « À payer » se résume en une carte : la somme, ce qui est en retard ; les pièces elles-mêmes sont les cartes dessous. */
+  .la .la-ap-l, .la .la-plus { display: none; }
+  /* Les sélecteurs sont des puces ici : la bulle qui les explique resterait seule sur sa ligne. */
+  .la #lf-filtres button.i.i-b { display: none; }
+  .la .la-ap-t { padding: 12px 14px; }
+  .la .la-j { margin-left: 0; flex-basis: 100%; min-height: 44px; }
+  .la table.la-table { display: none; }
+  .la .la-cartes { display: grid; gap: 8px; }
+  .la .la-carte { display: grid !important; grid-template-columns: minmax(0, 1fr); gap: 4px; width: 100%; text-align: left; padding: 12px 14px; border: 1px solid var(--sb-trait); border-radius: 14px; background: var(--sb-papier); color: var(--sb-encre); font: inherit; box-shadow: 0 1px 2px rgba(20, 40, 60, .04); min-height: 44px; cursor: pointer; }
+  .la .la-carte .av { width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 12px; flex: none; }
+  .la .la-c-h { display: flex; gap: 10px; align-items: center; min-width: 0; }
+  .la .la-c-n { min-width: 0; display: grid; flex: 1; }
+  .la .la-c-n b { font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .la .la-c-n small, .la .la-c-b small { font-size: 12.5px; color: var(--sb-gris-2); }
+  .la .la-c-b { display: flex; justify-content: space-between; gap: 10px; padding-top: 6px; border-top: 1px solid var(--sb-trait); margin-top: 4px; }
+  .la .la-c-b small:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .la .la-c-b b, .la .la-c-b small:last-child { color: var(--sb-encre); font-variant-numeric: tabular-nums; white-space: nowrap; }
+}

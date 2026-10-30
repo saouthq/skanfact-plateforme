@@ -350,7 +350,7 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     await s.p.reload();
     await s.p.locator('#list-wrap tr', { hasText: 'HS-118' }).waitFor({ timeout: 20_000 });
     expect(await verts.allInnerTexts()).toEqual(['Envoyer une photo à mon comptable']);
-    expect(net(await s.p.locator('#achats-confies').innerText())).toBe('Tu as confié la saisie de tes achats à ton cabinet : envoie-lui la photo de chaque facture, il la saisit. Tu peux aussi en saisir une toi-même.');
+    expect(net(await s.p.locator('#achats-confies').innerText())).toBe('Tu as confié la saisie de tes achats à ton cabinet — envoie-lui la photo de chaque facture : il la saisit, elle arrive ici avec son justificatif. Tu peux aussi en saisir une toi-même.');
 
     // Le mandat ne confie plus les achats : la page redevient celle de qui saisit lui-même.
     // Sarra y revient par le menu, une fois le fil lu (« Mon comptable » au pied de la barre), comme chaque jour.
@@ -362,7 +362,7 @@ describe('le mois d\'un client vu des deux côtés, à la souris', () => {
     // Le lien du menu change l'adresse sans recharger la page : la même chose, sans dépendre d'une famille dépliée.
     await s.p.evaluate(() => { location.hash = '#/achats'; });
     await s.p.locator('#list-wrap tr', { hasText: 'HS-118' }).waitFor({ timeout: 20_000 });
-    await expect.poll(() => verts.allInnerTexts(), { timeout: 15_000 }).toEqual(['+ Facture d\'achat']);
+    await expect.poll(() => verts.allInnerTexts(), { timeout: 15_000 }).toEqual(['Facture d\'achat']);
     expect(await s.p.locator('#photo-cab, #achats-confies').count()).toBe(0);
     expect(s.erreurs).toEqual([]);
   }, 240_000);

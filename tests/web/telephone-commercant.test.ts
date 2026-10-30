@@ -465,10 +465,11 @@ describe('le lot téléphone : un commerçant au téléphone, la caisse sur la t
       deCote.push(...(await p.evaluate((route) => [...document.querySelectorAll('table.list[data-cartes]')].filter((tb) => new Set([...tb.querySelectorAll(':scope > tbody > tr > td.row-actions .row-menu-btn:not(.btn)')]
         .map((b) => getComputedStyle(b).backgroundColor)).size > 1).map(() => `${route} : des « Actions » de deux styles`), r)));
       if (r === 'achats') {
-        // (1.143.0) La seule pièce de la liste est à payer : le bloc « À payer » n'en répète pas la ligne, il en dit la somme.
-        expect(await p.locator('#payables[data-payables-resume]').innerText()).toMatch(/à payer sur 1 pièce/);
-        expect(await p.locator('#payables table').count()).toBe(0);
-        expect(await p.locator('table.list > tbody > tr [data-tel=titre]').allInnerTexts()).toEqual([expect.stringContaining('CB-2026-0457')]);
+        // (1.143.0, 1.202.0) Au téléphone, le bloc « À payer » n'en répète pas les lignes, il en dit la somme ; la pièce se lit
+        // sur sa carte, dessous.
+        expect((await p.locator('#payables .la-ap-t').innerText()).replace(/\s+/g, ' ')).toMatch(/^À payer .*1 pièce · /);
+        expect(await p.locator('#payables li').evaluateAll((lis) => lis.filter((li) => (li as HTMLElement).offsetHeight > 0).length)).toBe(0);
+        expect(await p.locator('.la-carte').allInnerTexts()).toEqual([expect.stringContaining('CB-2026-0457')]);
       }
       if (r === 'doc/new/facture') {
         // (1.145.0, 1.155.0) « Émettre » puis « Garder le brouillon » juste dessous, dans la barre du bas, au-dessus des

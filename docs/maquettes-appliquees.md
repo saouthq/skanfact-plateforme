@@ -19,7 +19,7 @@ perdu » — ce que fait l'écran de la v10 et où il le retrouve — et « Ce q
 | `achat.html` | L'achat, avec la lecture par l'IA (facultative, décision du 24/10/2026) |
 | `accueil.html` | L'accueil |
 | `clients.html` | Les clients : la liste et la fiche d'un client (documents, paiements, relances, affaires et contrats, matériel), la fenêtre du client, le relevé, l'import ; validée le 28/10/2026, appliquée : la liste (1.199.0), la fiche (1.200.0) |
-| `achats-fournisseurs.html` | Les achats et dépenses (tuiles À payer, En retard, Cette semaine, Pour ton comptable ; choisir plusieurs pièces et les régler d'un virement), les fournisseurs et la fiche de chacun (achats, règlements, commandes, retenues et attestations, le fil), et, en tête de la liste, les pièces qui restent à payer, la plus en retard d'abord, avec « Régler » sur chacune (passe 3, Skander le 30/10/2026 : plus de grandes tuiles de chiffres, ils iront à la page Statistiques) ; validée le 30/10/2026, pas encore appliquée |
+| `achats-fournisseurs.html` | Les achats et dépenses (tuiles À payer, En retard, Cette semaine, Pour ton comptable ; choisir plusieurs pièces et les régler d'un virement), les fournisseurs et la fiche de chacun (achats, règlements, commandes, retenues et attestations, le fil), et, en tête de la liste, les pièces qui restent à payer, la plus en retard d'abord, avec « Régler » sur chacune (passe 3, Skander le 30/10/2026 : plus de grandes tuiles de chiffres, ils iront à la page Statistiques) ; validée le 30/10/2026 ; la liste des achats est appliquée (1.202.0), les fournisseurs et leur fiche attendent |
 
 ## Comment on les applique
 
@@ -380,3 +380,27 @@ donnés pour un client) ; « Télécharger ses pièces » (toutes ses pièces en
 pas encore son test (il sort de la recherche de « Pour qui ? » et des listes de choix) ; la conversion d'un retard en devise non
 plus (lot 1).
 
+
+## Lot Achats 1 : la liste des achats et dépenses (1.202.0)
+
+La liste de `achats-fournisseurs.html` (passe 3, validée par Skander le 30/10/2026), appliquée dans `routes.achats`
+(`web/public/v10/app.js`, avec `laAPayer` et `laEcheance`) et `web/public/plateforme/liste.css` (bloc `.la`). Test :
+`tests/web/liste-achats.test.ts` (photos `liste-achats-1.png`, `liste-achats-2-telephone.png`, `liste-achats-3-tablette.png`) ;
+preuves « achats 1 » à « achats 13 ».
+
+| Ce qui se voit | Comment |
+|---|---|
+| L'en-tête | « Accueil › Achats et dépenses », « Ce que tu achètes, ce que tu dois, la TVA que tu récupères » ; « Dépense » et « Facture d'achat » (le vert, sauf liste vide, achats confiés au cabinet ou lecture seule de l'abonnement). Achats confiés : « Envoyer une photo à mon comptable » devient le vert. Le rôle « Lecture » n'a aucun bouton, mais un bandeau qui le dit |
+| « À payer », en tête | Pas de tuiles (Skander, 30/10/2026 : les répartitions iront à la page Statistiques). Le nombre de pièces, la somme, « dont … en retard » ; puis les cinq premières pièces, rangées comme `C.payablesList` les range (la plus en retard d'abord, puis l'échéance) : le fournisseur, le numéro et l'objet, « en retard de N jours », « dans N jours », « le JJ/MM » ou « sans échéance », le reste, « Régler ». Au-delà de cinq, « N autres pièces à payer · tout voir » (et « Replier »). À droite, « N pièces sans justificatif pour ton comptable » mène au filtre. Rien à payer : « Rien à payer — toutes tes factures et dépenses sont réglées » |
+| Les filtres | La recherche (numéro, référence, fournisseur, objet, catégorie, **montant**, nom des pièces jointes), la sorte (Tout, Factures, Dépenses, Avoirs), le statut (avec « À rattacher » et « Sans justificatif »), la catégorie, l'année ; chacun en puce qu'on retire, « Tout effacer », « N sur M pièces ». Rien ne correspond : « Tout revoir » |
+| Le tableau | Rangé par mois quand il suit la date (le titre du mois dit le nombre de pièces et leur net) ; un autre tri défait les mois. Une ligne : la date ; le numéro du fournisseur (le trombone s'il a son justificatif ; la référence interne seulement si elle dit autre chose ; « sans justificatif ») ; le fournisseur et l'objet (pastille, ce qu'on a acheté · la sorte · la catégorie) ; l'échéance (« N jours de retard », « dans N jours », « payée le JJ/MM ») ; le statut (« En retard », « À payer », « Payée », « À imputer »…) ; le net à payer (un avoir en moins ; la devise d'origine ou la retenue dessous) ; le reste (« … pour toi » quand le fournisseur te doit) ; « Régler » et le menu ⋯ (Ouvrir la pièce ; Enregistrer un règlement ; Sur cette pièce : avoir, acompte ; Dupliquer) |
+| Le pied | « Total de la sélection » : nombre de pièces, HT, TVA (un avoir en moins), le net, le reste dû et « dont … en retard » |
+| Le clavier | `/` cherche, ↑ ↓ passe d'une pièce à l'autre, Entrée l'ouvre (comme la liste des clients) |
+| À la tablette (761 à 1100 px) | L'échéance cède sa place (elle se lit dans « À payer » et sur la pièce) ; le fournisseur se lit en entier |
+| Au téléphone | « À payer » en une carte (la somme, le retard, les pièces sans justificatif) ; la recherche ; deux puces, « En retard » et « À justifier » ; une carte par pièce (fournisseur, numéro · date, statut, objet, net ; l'échéance et le reste s'il en reste) |
+| Sans réseau | Un bandeau gris : la liste est celle que ce poste a gardée ; une dépense ou une photo partira avec le réseau ; un règlement l'attend, pour ne jamais payer deux fois (« Régler » n'est pas proposé) |
+
+**Écarts assumés (pour les lots suivants)** : choisir plusieurs pièces et les régler d'un virement (lot A1 b) ; la fiche
+du fournisseur et sa liste (lots A2, A3) ; « + N de retenue » sous le reste d'une pièce payée sans sa retenue ; au téléphone,
+le bouton photo flottant et sa feuille « Ajouter » de la maquette (la barre du bas garde son « + », qui propose déjà la
+dépense et la photo).

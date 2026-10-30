@@ -21664,3 +21664,32 @@ prouver 'fiche client 14 : un matricule déjà connu crée un second client' web
   "          if (autre) return refus('#cf input[name=matricule]'," "          if (false) return refus('#cf input[name=matricule]'," "$FC2"
 prouver 'fiche client 15 : un matricule mal écrit se tait' web/public/v10/app.js \
   "? 'Ni un matricule (7 chiffres, une lettre, puis /A/M/000) ni un CIN (8 chiffres) : vérifie-le.' : ''" "? '' : ''" "$FC2"
+
+# (1.202.0) Les achats, lot 1 : la liste telle que la maquette (docs/maquettes/achats-fournisseurs.html, passe 3).
+LA1='« À payer » en tête, le tableau par mois, son pied, les filtres, « Régler », le téléphone'
+prouver 'achats 1 : « À payer » montre quatre pièces avant « tout voir »' web/public/v10/app.js \
+  "laApTout ? due : due.slice(0, 5)" "laApTout ? due : due.slice(0, 4)" "$LA1"
+prouver 'achats 2 : le pied ajoute un avoir au lieu de le retrancher' web/public/v10/app.js \
+  "(a, p) => a + C.purchaseTotals(p, company()).base.totalHT, 0)" "(a, p) => a + Math.abs(C.purchaseTotals(p, company()).base.totalHT), 0)" "$LA1"
+prouver 'achats 3 : la liste ne se range plus par mois' web/public/v10/app.js \
+  "const parMois = !s.sort || s.sort.key === 'date';" "const parMois = false;" "$LA1"
+prouver 'achats 4 : la recherche ne lit plus le montant' web/public/v10/app.js \
+  "C.nomsJustificatifs(p), C.money(netOf(p), '')].join(' ')" "C.nomsJustificatifs(p)].join(' ')" "$LA1"
+prouver 'achats 5 : « Régler » dans « À payer » n'"'"'ouvre rien' web/public/v10/app.js \
+  "\$\$('#payables [data-payx]').forEach(b => b.onclick = () => supplierPaymentForm(purchaseById(b.dataset.payx), () => render(true)));" "" "$LA1"
+prouver 'achats 6 : « sans justificatif » ne mène nulle part' web/public/v10/app.js \
+  "if (\$('#la-justif')) \$('#la-justif').onclick = () => { filtreAchats(SANS_JUSTIF); render(true); };" "" "$LA1"
+prouver 'achats 7 : le menu ⋯ d'"'"'une pièce ne s'"'"'ouvre plus' web/public/v10/app.js \
+  "      bindRowMenus(w, actionsAchat," "      (() => {})(w, actionsAchat," "$LA1"
+prouver 'achats 8 : les puces du téléphone ne filtrent rien' web/public/v10/app.js \
+  "\$\$('#lf-puces [data-tst]').forEach(b => b.onclick" "[].forEach(b => b.onclick" "$LA1"
+prouver 'achats 9 : la référence répète le numéro' web/public/v10/app.js \
+  "const sous = [ref !== p.number ? " "const sous = [true ? " "$LA1"
+prouver 'achats 10 : l'"'"'échéance tait les jours de retard' web/public/v10/app.js \
+  "<small class=\"rouge\">\${pl(C.daysBetween(p.dueDate, auj), 'jour')} de retard</small>" "" "$LA1"
+prouver 'achats 11 : au téléphone, pas de cartes' web/public/plateforme/liste.css \
+  "  .la .la-cartes { display: grid; gap: 8px; }" "  .la .la-cartes { display: none; }" "$LA1"
+prouver 'achats 12 : à la tablette, l'"'"'échéance garde sa colonne' web/public/plateforme/liste.css \
+  "  .la table.la-table thead th:nth-child(4), .la table.la-table tbody tr:not(.mois) td:nth-child(4) { display: none; }" "" "$LA1"
+prouver 'achats 13 : Entrée n'"'"'ouvre plus la pièce choisie au clavier' web/public/v10/app.js \
+  "if (e.key === 'Enter' && s.cur >= 0 && lignes[s.cur]) { e.preventDefault(); navigate('#/achat/' + lignes[s.cur].dataset.id); }" "" "$LA1"
