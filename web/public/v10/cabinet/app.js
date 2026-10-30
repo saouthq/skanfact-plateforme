@@ -2105,6 +2105,7 @@
   // (plateforme) 1.79.0 — l'écran (au sens des visites) du dernier dessin : un redessin sur place ne repropose rien.
   let derniereCleGuide = '';
   function render() {
+    setTimeout(proposerDebutMission, 0);
     const hash = location.hash.replace(/^#\//, '') || 'dossiers';
     const [route, arg] = hash.split('/');
     // Seul un changement d'ÉCRAN s'anime (la page, ou le dossier ouvert) : un redessin sur place ne bouge pas.
@@ -2285,6 +2286,8 @@
     if (pas) avoir.push({ cle: 'premiers-pas', dossier: null, quoi: pas.label, sous: pas.detail, ton: 'attire', geste: 'Me guider pas à pas', faire: () => lancerPasSuivant() });
     // Ce qui attend sans être en retard : les clients qui ont écrit, les pièces reçues à classer.
     for (const d of mesDossiers()) {
+      if (debutAPreciser(d)) avoir.push({ cle: `dm-${d.id}`, dossier: d, quoi: 'Début de mission à préciser', sous: 'à partir de quand tu tiens ce dossier ; rien ne lui est réclamé avant', ton: 'attire',
+        geste: 'Préciser…', faire: () => fenDebutMission(d) });
       const m = etatsMessages.get(d.id);
       if (m && m.etat === 'a_traiter') avoir.push({ cle: `msg-${d.id}`, dossier: d, quoi: m.nonLus ? pl(m.nonLus, 'message du client', 'messages du client') : 'Le client t\'a répondu',
         sous: 'dans sa conversation', ton: 'attire', geste: 'Répondre', faire: () => { location.hash = `#/messages/${encodeURIComponent(d.id)}`; } });
@@ -3667,10 +3670,15 @@
     return { suit, val, ids };
   }
   // Le mois d'un dossier, lu dans ses livres et ses déclarations : la même lecture que les Échéances.
+  // (1.185.0) Le début de mission d'un client sur SkanFact qu'on ne connaît pas : ni date sur la fiche, ni écriture dans ses
+  // livres. On ne devine pas (Skander, 30/10/2026 : un client repris en cours d'année doit son année entière, une entreprise
+  // neuve ne doit rien d'avant) : on le demande, et rien n'est réclamé avant.
+  function debutAPreciser(d) { return !!d && !d.manual && !d.archived && !d.from && !(d.packs || []).length; }
   function moisDuDossier(d, retard) {
     const tard = retard.get(d.name) || [];
     if (tard.length) return { cl: 'tard', mot: `${tard.map(moisCourt).join(', ')} en retard`, tard: true, manqueTxt: d.manual ? '' : `${tard.map(moisCourt).join(', ')} sans déclaration` };
     if (d.archived) return { cl: 'hors', mot: 'archivé' };
+    if (debutAPreciser(d)) return { cl: 'hors', mot: 'début de mission à préciser', aPreciser: true };
     const m = moisPrecedent(K.today().slice(0, 7));
     if (d.from && d.from > m) return { cl: 'cours', mot: `${moisCourt(d.from)} commence` };
     if (!questionsAttenteLues) return { cl: 'hors', mot: '…' };
@@ -3813,7 +3821,7 @@
       const vite = `<span class="cd-vite">${d.manual ? `<button type="button" class="btn ico" data-cd-geste="ecrire" data-cd-d="${esc(d.id)}" title="Écrire à ${esc(d.contact || d.name)} (WhatsApp, e-mail)" aria-label="Écrire à ${esc(d.contact || d.name)} par WhatsApp ou e-mail">${CD_IC.msg}</button>` : `<a class="btn ico" href="#/messages/${encodeURIComponent(d.id)}" title="Écrire à ${esc(d.contact || d.name)}" aria-label="Écrire à ${esc(d.contact || d.name)}">${CD_IC.msg}</a>`}${dir ? `<span class="cd-cf-w"><button type="button" class="btn ico" data-cd-geste="confier" data-cd-d="${esc(d.id)}" title="Confier à…" aria-label="Confier ${esc(d.name)} à…" aria-haspopup="menu" aria-expanded="${st.confier === d.id}"${hors ? ' disabled' : ''}>${CD_IC.confier}</button>${st.confier === d.id ? popConfier([d]) : ''}</span>` : ''}</span>`;
       return `<tr class="clickable${choisi ? ' choisie' : ''}${st.kb === d.id ? ' kb' : ''}" data-id="${esc(d.id)}"><td class="cx"><input type="checkbox" data-cd-choix="${esc(d.id)}"${choisi ? ' checked' : ''} aria-label="Choisir ${esc(d.name)}"></td>
         <td class="cl"><span class="cl-i">${marqueD(d)}<span><b>${esc(d.name)}</b><small>${esc([d.forme, d.ville].filter(Boolean).join(' · ') || d.matricule || (d.manual ? 'tenu au cabinet' : 'sur SkanFact'))}</small></span></span></td>
-        <td class="cd-mo-c"><span class="ms-mo ${x.mo.cl}"><i></i>${esc(x.mo.mot)}</span>${st.vue === 'manque' ? sousMoisCd(d, x) : ''}</td>
+        <td class="cd-mo-c"><span class="ms-mo ${x.mo.cl}"><i></i>${esc(x.mo.mot)}</span>${x.mo.aPreciser ? `<button type="button" class="btn-lien cd-debut" data-cd-debut="${esc(d.id)}"${hors ? ' disabled' : ''}>Préciser…</button>` : ''}${st.vue === 'manque' ? sousMoisCd(d, x) : ''}</td>
         <td>${missionCd(d)}</td><td>${suivi}</td>
         <td class="cd-ct"><span class="cd-ct-i"><span><b>${esc(d.contact || '—')}</b><small>${esc(d.fonction || d.phone || d.email || '')}</small></span>${nl}</span></td>
         ${dir ? `<td class="r"><span class="num">${honCd(d) ? esc(dtCd(honCd(d))) : '—'}</span></td>` : ''}
@@ -3888,6 +3896,7 @@
     $$('[data-cd-menu]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); st.menu = st.menu === b.dataset.cdMenu ? '' : b.dataset.cdMenu; st.menuPage = false; redessiner(); }; });
     const relancer = id => { const D = tous.find(d => d.id === id); if (D) fenRelancer(D, itemsEcheances()); };
     $$('[data-cd-relancer]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); relancer(b.dataset.cdRelancer); }; });
+    $$('[data-cd-debut]', view).forEach(b => { b.onclick = e => { e.stopPropagation(); fenDebutMission(tous.find(d => d.id === b.dataset.cdDebut)); }; });
     const rt = $('#cd-relancer-tous', view); if (rt) rt.onclick = () => { const x = l.find(y => !y.d.manual); if (x) relancer(x.d.id); };
     $$('[data-cd-geste]', view).forEach(b => {
       b.onclick = e => {
@@ -4426,13 +4435,14 @@
         <div class="actions"><button type="button" class="btn" id="fd-export">${CD_IC.exporter} Exporter le dossier</button>${estAssocie() ? '<button type="button" class="btn btn-primary" data-cd-geste="archiver" data-cd-d="' + esc(d.id) + '">Désarchiver…</button>' : ''}</div></div>
         <div class="bandeau gris a-band fd-band"><span class="txt"><b>Un dossier archivé se lit, il ne bouge plus.</b><span>Ses livres, ses déclarations, ses pièces${d.manual ? '' : ' et la conversation'} restent ici. Il n'est plus dans Priorités, Échéances ni le tableau de bord. Combien de temps le cabinet le garde : À VÉRIFIER (10 ans pour les livres).</span></span></div>
         <div class="fd-g"><div class="fd-col">${anneeP}</div>${cote}</div>`;
-    } else corps = `${tete}${bandHors}${chiffres}<div class="fd-g"><div class="fd-col">${blocAttend}${nouveau ? '' : attend.length ? revision + anneeP : anneeP + revision}</div>${cote}</div>`;
+    } else corps = `${tete}${bandHors}${debutAPreciser(d) ? `<div class="bandeau a-band fd-band fd-debut"><span class="txt"><b>Début de mission à préciser</b><span>À partir de quand tiens-tu ce dossier ? Rien ne lui est réclamé tant que ce n'est pas dit : une entreprise neuve ne doit rien d'avant, un client repris en cours d'année doit son année entière.</span></span><button type="button" class="btn btn-sm" id="fd-debut">Préciser…</button></div>` : ''}${chiffres}<div class="fd-g"><div class="fd-col">${blocAttend}${nouveau ? '' : attend.length ? revision + anneeP : anneeP + revision}</div>${cote}</div>`;
     view.innerHTML = `<div class="cab-page cd-page fd-page${tel ? ' fd-tel' : ''}" id="page-fd" data-id="${esc(d.id)}" style="--dc:${couleurDe(d.id)[0]}">${ctx}${corps}</div>`;
 
     // ---------- les gestes ----------
     const redessiner = () => drawFicheFd(view, d);
     $$('[data-fd-voisin]', view).forEach(b => { b.onclick = () => { if (b.dataset.fdVoisin) { dosState.kb = b.dataset.fdVoisin; location.hash = '#/dossier/' + encodeURIComponent(b.dataset.fdVoisin); } }; });
     const eh = $('#fd-ecrire-hors', view); if (eh) eh.onclick = () => fenEcrire(d);
+    const bDebut = $('#fd-debut', view); if (bDebut) bDebut.onclick = () => fenDebutMission(d);
     const mn = $('#fd-menu', view); if (mn) mn.onclick = e => { e.stopPropagation(); ficheFd.menu = !ficheFd.menu; redessiner(); };
     const rl = $('#fd-relire', view); if (rl) rl.onclick = () => { ficheFd.refus.delete(cle); redessiner(); };
     $$('[data-fd-geste]', view).forEach(b => {
@@ -14799,7 +14809,7 @@
           const to = $('#ec-mail', layer).value.trim();
           // Sans destinataire, la messagerie s'ouvre sur un message qui ne part pas, et la relance se noterait à tort.
           if (!to) { toast('Écris son adresse e-mail : sans elle, rien ne partira.', 'error'); $('#ec-mail', layer).focus(); return; }
-          if (to !== (D.email || '')) { try { S = await api.saveDossier(D.id, { email: to }); } catch (x) { toast(`L'adresse n'a pas pu être enregistrée : ${plainError(x)}`, 'error'); return; } }
+          if (to !== (D.email || '')) { try { S = (await api.saveDossier(D.id, { email: to })).state; } catch (x) { toast(`L'adresse n'a pas pu être enregistrée : ${plainError(x)}`, 'error'); return; } }
           try { await api.mail({ to, subject: sujet, body: t }); } catch (x) { toast(plainError(x), 'error'); return; }
           fini(); await noter('email', ''); return;
         }
@@ -14821,6 +14831,55 @@
           apresEnvoi: () => { messagePrepare = null; void noter('autre', 'Relance envoyée dans votre conversation SkanFact'); } };
         close();
         location.hash = `#/messages/${encodeURIComponent(D.id)}`;
+      };
+    });
+  }
+  // (1.185.0) Un dossier tout juste accepté (le pont l'a noté avant de recharger) : sa question, une fois.
+  function proposerDebutMission() {
+    let id = null;
+    try { id = sessionStorage.getItem('skanfact.debutMission'); if (id) sessionStorage.removeItem('skanfact.debutMission'); } catch { return; }
+    const d = id && S ? (S.dossiers || []).find(x => x.id === id) : null;
+    if (debutAPreciser(d)) fenDebutMission(d);
+  }
+  // (1.185.0) « À partir de quand tiens-tu ce dossier ? » : à l'acceptation d'un dossier, ou depuis « à préciser ». Trois
+  // cas du métier (Skander, 30/10/2026) : une entreprise qui démarre (ce mois-ci), une reprise de l'année entière (janvier :
+  // le bilan la demande), une reprise en cours d'année (un autre mois). Les déclarations déjà déposées par le comptable
+  // d'avant ne se refont pas ; la lettre de mission fait foi (À VÉRIFIER). La date est le `from` de la fiche, celle que
+  // « Modifier la fiche » change ensuite : SkanFact ne réclame rien avant elle.
+  function fenDebutMission(D) {
+    if (!D) return;
+    const mc = K.today().slice(0, 7), janv = `${mc.slice(0, 4)}-01`;
+    const mois = []; for (let m = `${Number(mc.slice(0, 4)) - 1}-01`; m <= mc; m = K.addMonth(m, 1)) mois.push(m);
+    const CHOIX = [[mc, `Ce mois-ci · ${K.monthLabel(mc)}`, 'une entreprise qui démarre']]
+      .concat(janv < mc ? [[janv, `Depuis ${K.monthLabel(janv)}`, 'tu reprends l\'année entière : le bilan la demande']] : [])
+      .concat([['autre', 'Un autre mois…', 'une reprise en cours d\'année']]);
+    let choix = '';
+    modal(`<h2>À partir de quand tiens-tu ${esc(D.name)} ?</h2><p class="muted pc-m-sous">Le début de ta mission : SkanFact ne lui réclame rien avant, et chaque mois à partir de lui.</p>
+      <div class="field"><span class="ec-lab">Le début de mission</span><div class="pc-chips ec-par dm-choix" role="radiogroup" aria-label="Le début de mission">${CHOIX.map(([k, t, s2]) => `<button type="button" role="radio" aria-checked="false" aria-pressed="false" data-dm="${k}"><b>${esc(t)}</b><small>${esc(s2)}</small></button>`).join('')}</div></div>
+      <label class="field" id="dm-autre-l" hidden><span>Le premier mois de ta mission</span><select id="dm-autre">${mois.slice().reverse().map(m => `<option value="${m}"${m === K.addMonth(mc, -1) ? ' selected' : ''}>${esc(K.monthLabel(m))}</option>`).join('')}</select></label>
+      <p class="pc-note">Les déclarations déjà déposées par le comptable d'avant ne se refont pas. Ta lettre de mission fait foi (À VÉRIFIER avec elle). La date se change ensuite sur la fiche du dossier.</p>
+      <div class="modal-actions"><button type="button" class="btn" id="dm-non">Plus tard</button><button type="button" class="btn btn-primary" id="ok" disabled>Choisis le début de mission</button></div>`,
+    (layer, close) => {
+      const ok = $('#ok', layer);
+      const premier = () => (choix === 'autre' ? $('#dm-autre', layer).value : choix);
+      const maj = () => { const m = premier(); ok.disabled = !m; ok.textContent = m ? `Commencer en ${K.monthLabel(m)}` : 'Choisis le début de mission'; };
+      $$('[data-dm]', layer).forEach(b => { b.onclick = () => {
+        choix = b.dataset.dm;
+        $$('[data-dm]', layer).forEach(c => { c.setAttribute('aria-pressed', String(c === b)); c.setAttribute('aria-checked', String(c === b)); });
+        $('#dm-autre-l', layer).hidden = choix !== 'autre';
+        maj();
+      }; });
+      $('#dm-autre', layer).onchange = maj;
+      $('#dm-non', layer).onclick = close;
+      ok.onclick = async () => {
+        const m = premier();
+        if (!m) return;
+        ok.disabled = true;
+        try {
+          S = (await api.saveDossier(D.id, { from: m })).state;
+          close(); render();
+          toast(`${D.name} : ta mission commence en ${K.monthLabel(m)}. Rien ne lui est réclamé avant.`);
+        } catch (x) { ok.disabled = false; toast(plainError(x), 'error'); }
       };
     });
   }

@@ -67,7 +67,7 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     const { jeton: mounir } = await personne('Mounir Ben Hassen');
     const hotel = String((await api('POST', '/entreprises', mounir, { raisonSociale: 'Hôtel Les Pins' })).corps.id);
     expect((await api('POST', `/entreprises/${hotel}/mandat`, mounir, { codeCabinet: cab.code, perimetre: ['comptabilite', 'declarations', 'paie'] })).statut).toBeLessThan(300);
-    return { associe, cab, librairie, menuiserie };
+    return { associe, cab, librairie, menuiserie, hotel };
   }
   async function ouvrir(p: Page, cabinet: string, ligne = 'tr[data-id]') {
     await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cabinet}#/dossiers`);
@@ -187,4 +187,42 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     await expect.poll(() => p.locator('[data-cd-carte]').first().isVisible()).toBe(true);
     expect(erreurs).toEqual([]);
   });
+
+  it('(1.185.0) le début de mission : demandé à l\'acceptation, « à préciser » tant qu\'il ne l\'est pas, rien réclamé avant', async () => {
+    const { associe, cab, hotel } = await unCabinet();
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.clock.setFixedTime(LE_29);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.addInitScript((j) => { if (location.protocol.startsWith('http') && !sessionStorage.getItem('skanfact.jeton')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    await ouvrir(p, cab.id);
+    // Accepter le dossier : la page revenue demande d'abord à partir de quand le cabinet le tient.
+    await p.locator('.cd-prop').getByRole('button', { name: 'Accepter le dossier' }).click();
+    const fen = p.locator('#modal-root');
+    await expect.poll(() => fen.locator('h2').innerText().catch(() => ''), { timeout: 25_000 }).toBe('À partir de quand tiens-tu Hôtel Les Pins ?');
+    expect((await fen.locator('[data-dm] b').allInnerTexts())).toEqual(['Ce mois-ci · octobre 2026', 'Depuis janvier 2026', 'Un autre mois…']);
+    expect(await fen.locator('#ok').isDisabled()).toBe(true);
+    // « Plus tard » : la ligne le dit, sans rien réclamer (pas de mois en retard, pas de relance), et Priorités le rappelle.
+    await fen.getByRole('button', { name: 'Plus tard' }).click();
+    const ligne = p.locator('#page-tb tr[data-id]').filter({ hasText: 'Hôtel Les Pins' });
+    await expect.poll(() => ligne.locator('.cd-mo-c').innerText()).toMatch(/^début de mission à préciser\s*Préciser…$/);
+    await p.locator('[role=tab][data-cd-vue="manque"]').click();
+    expect(await p.locator('#page-tb tr[data-id]').filter({ hasText: 'Hôtel Les Pins' }).count()).toBe(0);
+    await p.evaluate(() => { location.hash = '#/priorites'; });
+    const tache = p.locator('#page-priorites .afaire-ligne').filter({ hasText: 'Début de mission à préciser' });
+    await expect.poll(() => tache.innerText().catch(() => '')).toMatch(/Hôtel Les Pins/);
+    // « Préciser… » : un autre mois (une reprise en cours d'année) ; la fiche le garde, la ligne réclame à partir de lui.
+    await tache.getByRole('button', { name: 'Préciser…' }).click();
+    await fen.locator('[data-dm="autre"]').click();
+    await fen.locator('#dm-autre').selectOption('2026-07');
+    expect(await fen.locator('#ok').innerText()).toBe('Commencer en juillet 2026');
+    await fen.locator('#ok').click();
+    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/^Hôtel Les Pins : ta mission commence en juillet 2026\. Rien ne lui est réclamé avant\./);
+    const fiches = (await api('GET', `/cabinets/${cab.id}/fiches`, associe)).corps.fiches as { entreprise: string; contenu: { from?: string } }[];
+    expect(fiches.find((f) => f.entreprise === hotel)?.contenu.from).toBe('2026-07');
+    await expect.poll(() => p.locator('#page-priorites .afaire-ligne').filter({ hasText: 'Début de mission à préciser' }).count()).toBe(0);
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 120_000);
 });

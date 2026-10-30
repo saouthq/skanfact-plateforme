@@ -94,8 +94,9 @@ describe('la barre du Cabinet, à la souris', () => {
     // Le geste de Skander, le 28/10 : attraper une entrée de la barre et la promener sur la page.
     const voile = p.locator('#drop-veil');
     const entree = p.locator('#nav .nav-quotidien > a.lien[data-route="pieces"]');
-    await entree.waitFor();
-    const pieces = await entree.boundingBox();
+    // La barre se redessine quand ses chiffres arrivent : l'entrée d'avant peut quitter la page entre deux lectures.
+    let pieces = null;
+    for (let i = 0; i < 20 && !pieces; i++) { await entree.waitFor(); pieces = await entree.boundingBox(); if (!pieces) await p.waitForTimeout(100); }
     if (!pieces) throw new Error('l\'entrée « Pièces reçues » ne se voit pas');
     await p.mouse.move(pieces.x + 30, pieces.y + pieces.height / 2);
     await p.mouse.down();

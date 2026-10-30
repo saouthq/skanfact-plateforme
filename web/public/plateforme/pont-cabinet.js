@@ -1157,6 +1157,9 @@
     b.setAttribute('disabled', '');
     try {
       await appel('POST', `/cabinets/${cabinetId}/mandats/${mandat}/${accepter ? 'accepter' : 'arreter'}`);
+      // (1.185.0) Accepté : la page revenue demande d'abord à partir de quand le cabinet tient ce dossier.
+      const accepte = accepter ? proposes.find((/** @type {any} */ x) => x.mandat === mandat) : null;
+      if (accepte) { try { sessionStorage.setItem('skanfact.debutMission', String(accepte.entreprise)); } catch { /* « à préciser » le redemandera */ } }
       location.reload();
     } catch (x) {
       b.removeAttribute('disabled');

@@ -20962,6 +20962,15 @@ prouver 'dossiers 11 : le dossier suivant ne s'\''ouvre pas' web/public/v10/cabi
 prouver 'dossiers 12 : le précédent et le suivant pris hors de la liste vue' web/public/v10/cabinet/app.js \
   "const ordre = dosState.ordre.includes(d.id) ? dosState.ordre" "const ordre = false ? dosState.ordre" \
   'au bureau : la liste, la proposition'
+prouver 'dossiers 13 : un client sans début de mission se dit sans pièces' web/public/v10/cabinet/app.js \
+  "if (debutAPreciser(d)) return { cl: 'hors', mot: 'début de mission à préciser', aPreciser: true };" "if (false) return { cl: 'hors', mot: 'début de mission à préciser', aPreciser: true };" \
+  '(1.185.0) le début de mission'
+prouver 'dossiers 14 : accepter un client ne demande pas son début de mission' web/public/plateforme/pont-cabinet.js \
+  "try { sessionStorage.setItem('skanfact.debutMission', String(accepte.entreprise)); }" "try { void accepte; }" \
+  '(1.185.0) le début de mission'
+prouver 'dossiers 15 : les Priorités ne rappellent pas un début à préciser' web/public/v10/cabinet/app.js \
+  "if (debutAPreciser(d)) avoir.push({ cle: \`dm-\${d.id}\`" "if (false) avoir.push({ cle: \`dm-\${d.id}\`" \
+  '(1.185.0) le début de mission'
 prouver 'fiche 1 : août et septembre sans rien reçu font deux relances' web/public/v10/cabinet/app.js \
   'if (sansRien.length) {' 'if (false) {' \
   'au bureau : rien reçu depuis juillet'
