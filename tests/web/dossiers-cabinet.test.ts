@@ -149,6 +149,22 @@ describe('les Dossiers du Cabinet, à la souris', () => {
     await p.locator('.cd-cf [data-cd-a]').filter({ hasText: 'Rim Toumi' }).click();
     await expect.poll(() => p.locator('#toast').innerText()).toMatch(/2 dossiers confiés à Rim/);
     await expect.poll(() => ligne('Menuiserie Ben Ali').locator('.cd-suivi .cd-p').first().getAttribute('title')).toBe('Rim Toumi');
+
+    // (1.184.0) Un dossier tenu au cabinet : son client n'a pas de compte ; « Écrire… » propose WhatsApp et l'e-mail, la
+    // messagerie SkanFact grisée, et le message ne lui parle pas de SkanFact.
+    expect((await api('POST', `/cabinets/${cab.id}/dossiers`, associe, { raisonSociale: 'Transports Gabès' })).statut).toBeLessThan(300);
+    await p.reload();
+    await p.locator('#page-tb tr[data-id]').first().waitFor({ timeout: 25_000 });
+    for (let i = 0; i < 3 && await p.getByRole('button', { name: 'Plus tard', exact: true }).count(); i++) await p.getByRole('button', { name: 'Plus tard', exact: true }).first().click();
+    await ligne('Transports Gabès').hover();
+    await ligne('Transports Gabès').locator('.cd-vite [data-cd-geste="ecrire"]').click();
+    const fen2 = p.locator('#modal-root');
+    await expect.poll(() => fen2.locator('h2').innerText()).toBe('Écrire à Transports Gabès');
+    expect(await fen2.locator('[data-ec-par="fil"]').isDisabled()).toBe(true);
+    expect(await fen2.locator('[data-ec-par="fil"]').innerText()).toMatch(/pas de compte SkanFact/);
+    expect(await fen2.locator('[data-ec-par="mail"]').getAttribute('aria-pressed')).toBe('true');
+    expect(await fen2.locator('#ec-msg').inputValue()).not.toMatch(/SkanFact/);
+    await fen2.getByRole('button', { name: 'Annuler' }).click();
     expect(erreurs).toEqual([]);
   });
 

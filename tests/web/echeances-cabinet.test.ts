@@ -93,16 +93,25 @@ describe('les Échéances du Cabinet, à la souris', () => {
     expect(enRetard).toBe(3);
     expect(await p.locator('#nav-echeances').innerText()).toBe(String(enRetard));
 
-    // Relancer : le message, les pièces attendues, une date ; il part dans la conversation, ses pièces en demandes datées.
+    // Relancer : le message, les pièces attendues, une date. (1.184.0) La messagerie SkanFact d'abord : la conversation du
+    // client s'ouvre, le message posé et ses pièces en demandes datées ; il part d'elle, et l'on revient aux Échéances.
     await ligne('Librairie Ennour').getByRole('button', { name: 'Relancer' }).click();
     const fen = p.locator('#modal-root');
     await expect.poll(() => fen.locator('h2').innerText()).toBe('Relancer Librairie Ennour');
     expect(await fen.locator('#ec-msg').inputValue()).toMatch(/septembre/);
     expect(await fen.locator('[data-ec-att]:checked').count()).toBeGreaterThan(0);
-    await fen.getByRole('button', { name: 'Envoyer la relance' }).click();
-    await expect.poll(() => p.locator('#toast').innerText()).toMatch(/Librairie Ennour/);
-    const fil = (await api('GET', `/entreprises/${librairie.ent}/messages?cote=entreprise`, librairie.j)).corps as { attente: { demandes: number } };
-    expect(fil.attente.demandes).toBeGreaterThan(0);
+    expect(await fen.locator('[data-ec-par]').allInnerTexts()).toEqual([expect.stringMatching(/^Messagerie SkanFact/), expect.stringMatching(/^WhatsApp/), expect.stringMatching(/^E-mail/), expect.stringMatching(/^Copier le texte/)]);
+    await fen.getByRole('button', { name: 'Ouvrir la conversation' }).click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/messages/${librairie.ent}`);
+    await expect.poll(() => p.locator('[data-msg-texte]').first().inputValue()).toMatch(/septembre/);
+    const demandees = (await p.locator('[data-msg-demande-txt]').evaluateAll((l) => l.map((x) => (x as HTMLInputElement).value))).filter(Boolean);
+    // Le client les lit : « Vos ventes… », jamais « Ses ventes… » (la phrase du cabinet sur son client).
+    expect(demandees.length).toBeGreaterThan(0);
+    for (const x of demandees) expect(x).toMatch(/^Vos /);
+    await p.locator('[data-msg-envoyer]').first().click();
+    await expect.poll(async () => ((await api('GET', `/entreprises/${librairie.ent}/messages?cote=entreprise`, librairie.j)).corps as { attente: { demandes: number } }).attente.demandes).toBeGreaterThan(0);
+    await p.getByRole('button', { name: /Revenir aux Échéances/ }).click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toMatch(/^#\/echeances/);
 
     // « Marquer déposée… » sans rien de prêt : le geste attend le choix (néant, ou des pièces reçues ailleurs).
     await ligne('Menuiserie Ben Ali').getByRole('button', { name: /Les autres gestes/ }).click();
@@ -161,7 +170,11 @@ describe('les Échéances du Cabinet, à la souris', () => {
     await ligne.getByRole('button', { name: 'Relancer' }).click();
     const fen = p.locator('#modal-root');
     expect(await fen.getByRole('button', { name: 'Noter un appel comme relance' }).count()).toBe(1);
-    await fen.getByRole('button', { name: 'Envoyer la relance' }).click();
+    await fen.getByRole('button', { name: 'Ouvrir la conversation' }).click();
+    await expect.poll(() => p.locator('[data-msg-texte]').first().inputValue()).not.toBe('');
+    await p.locator('[data-msg-envoyer]').first().click();
+    await p.getByRole('button', { name: /Revenir aux Échéances/ }).click();
+    if (!(await ligne.count())) await carte.click();
     await expect.poll(() => ligne.innerText()).toMatch(/relancé le 29\/10/);
     expect(((await fiche())?.contenu.relances as unknown[]).length).toBe(1);
 

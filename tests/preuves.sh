@@ -21346,6 +21346,24 @@ prouver 'messages 28 : le menu de la page chevauche ses entrées' web/public/pla
 prouver 'messages 32 : le menu de la page sans ses icônes' web/public/v10/cabinet/app.js \
   '<span class="msg-page-m-ic">${dessinMsg(ic)}</span>' '' \
   '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'
+prouver 'messages 33 : « Relancer » ouvre la conversation sans le message préparé' web/public/plateforme/messagerie.js \
+  "      if (prepare) {" "      if (false && prepare) {" \
+  'au bureau : la déclaration en retard, relancer un client'
+prouver 'messages 34 : la relance envoyée de la conversation ne se note pas sur la fiche' web/public/plateforme/messagerie.js \
+  "if (apresEnvoiPrepare) { const f = apresEnvoiPrepare;" "if (false) { const f = apresEnvoiPrepare;" \
+  '(1.175.0) une personne physique à son jour, le portail, la relance notée sur la fiche'
+prouver 'messages 35 : les pièces demandées parlent du client à la troisième personne' web/public/v10/cabinet/app.js \
+  "[\`Vos ventes et vos achats \${K.de(lesMois)}, enregistrés dans SkanFact\`" "[\`Ses ventes et ses achats \${K.de(lesMois)}, enregistrés dans SkanFact\`" \
+  'au bureau : la déclaration en retard, relancer un client'
+prouver 'messages 36 : la conversation ouverte d'\''une relance ne ramène pas aux Échéances' web/public/v10/cabinet/app.js \
+  "[/^#\/echeances/, 'Revenir aux Échéances']" "[/^#\/zz/, 'Revenir aux Échéances']" \
+  'au bureau : la déclaration en retard, relancer un client'
+prouver 'messages 37 : la relance d'\''un client relié propose l'\''e-mail d'\''abord' web/public/v10/cabinet/app.js \
+  "let par = relie ? 'fil' : tel ? 'whatsapp' : 'mail';" "let par = 'mail';" \
+  'un mois vide se relance, un mois au brouillard se valide'
+prouver 'messages 38 : un dossier tenu au cabinet se voit proposer la messagerie SkanFact' web/public/v10/cabinet/app.js \
+  "const relie = !D.manual && !!api.messagerie;" "const relie = !!api.messagerie;" \
+  'au bureau : la liste, la proposition'
 prouver 'messages 29 : la pièce demandée sur deux étages' web/public/plateforme/messagerie.css \
   ".msg-frise-d li { flex-direction: row; align-items: baseline;" ".msg-frise-d li { flex-direction: column; align-items: baseline;" \
   '(1.182.0) retrouver les notes, l'"'"'accueil sans conversation, la liste vide qui mène au travail, les modèles en deux colonnes, la pièce demandée en étapes, la page en pleine largeur'

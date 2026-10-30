@@ -1636,6 +1636,9 @@
   // client », « Tout »), puis la conversation d'un client (plateforme/messagerie.js ; maquette validée le 09/10/2026).
   let messagerieOuverte = null;
   let demandePreparee = null; // (1.125.0) une demande de pièce préparée depuis une ligne du livre
+  // (1.184.0) Un message préparé par « Relancer » ou « Écrire » (fenEcrire) : il se pose dans la conversation de son client,
+  // tant qu'il n'est pas parti (un redessin de la page le repose) ; ouvrir une autre conversation l'oublie.
+  let messagePrepare = null;
   let pastilleMessagesLue = false;
   // (1.176.0) La pastille des Messages compte ce qui attend ta réponse dans TES dossiers (la portée de la barre, comme
   // les autres pastilles) : la boîte et la relecture de fond disent le même chiffre.
@@ -2076,6 +2079,8 @@
     if (!ent) { drawBoiteMsg(view, { revision, ouvrirPiece, saisirPiece, imputer: imputerMsg }); return; }
     const id = decodeURIComponent(ent);
     const d = (S.dossiers || []).find(x => x.id === id);
+    if (messagePrepare && messagePrepare.id !== id) messagePrepare = null;
+    const prep = messagePrepare;
     // (1.125.0) Une demande préparée depuis une ligne du livre : sa pièce est déjà écrite (une seule fois).
     const prete = demandePreparee && demandePreparee.id === id && geste === 'demande' ? demandePreparee.texte : '';
     demandePreparee = null;
@@ -2086,7 +2091,9 @@
       demander: geste === 'demande',
       ...(prete ? { demandeTexte: prete } : {}),
       toast: (texte, erreur) => toast(texte, erreur ? 'error' : undefined),
-      retour: { texte: 'Les messages de tes clients', aller: () => { location.hash = '#/messages'; } },
+      retour: prep && prep.retour ? { texte: prep.retour.texte, aller: () => { location.hash = prep.retour.hash; } } : { texte: 'Les messages de tes clients', aller: () => { location.hash = '#/messages'; } },
+      ...(prep ? { prepare: { texte: prep.texte, demandes: prep.demandes, pour: prep.pour, apresEnvoi: prep.apresEnvoi,
+        dit: `Le message est prêt${prep.demandes.length ? `, avec ${pl(prep.demandes.length, 'pièce demandée', 'pièces demandées')}` : ''} : relis-le, puis « Envoyer ».` } } : {}),
       revision: () => revision(id),
       ouvrirPiece: (genre, piece, libelle) => ouvrirPiece(id, genre, piece, libelle),
       saisirPiece: m => saisirPiece(id, m),
@@ -3803,7 +3810,7 @@
       const relancer = st.vue === 'manque' && !d.manual && !d.archived ? `<button type="button" class="btn btn-sm cd-rel" data-cd-relancer="${esc(d.id)}"${hors ? ' disabled' : ''}>${CD_IC.rel} Relancer</button>` : '';
       // (1.183.0) Les gestes du quotidien au bout de la ligne, au survol (ou au clavier) : écrire, confier ; le reste dans ⋯.
       // Ils sont toujours là (transparents) : leur apparition ne pousse rien sous le curseur.
-      const vite = `<span class="cd-vite">${d.manual ? '' : `<a class="btn ico" href="#/messages/${encodeURIComponent(d.id)}" title="Écrire à ${esc(d.contact || d.name)}" aria-label="Écrire à ${esc(d.contact || d.name)}">${CD_IC.msg}</a>`}${dir ? `<span class="cd-cf-w"><button type="button" class="btn ico" data-cd-geste="confier" data-cd-d="${esc(d.id)}" title="Confier à…" aria-label="Confier ${esc(d.name)} à…" aria-haspopup="menu" aria-expanded="${st.confier === d.id}"${hors ? ' disabled' : ''}>${CD_IC.confier}</button>${st.confier === d.id ? popConfier([d]) : ''}</span>` : ''}</span>`;
+      const vite = `<span class="cd-vite">${d.manual ? `<button type="button" class="btn ico" data-cd-geste="ecrire" data-cd-d="${esc(d.id)}" title="Écrire à ${esc(d.contact || d.name)} (WhatsApp, e-mail)" aria-label="Écrire à ${esc(d.contact || d.name)} par WhatsApp ou e-mail">${CD_IC.msg}</button>` : `<a class="btn ico" href="#/messages/${encodeURIComponent(d.id)}" title="Écrire à ${esc(d.contact || d.name)}" aria-label="Écrire à ${esc(d.contact || d.name)}">${CD_IC.msg}</a>`}${dir ? `<span class="cd-cf-w"><button type="button" class="btn ico" data-cd-geste="confier" data-cd-d="${esc(d.id)}" title="Confier à…" aria-label="Confier ${esc(d.name)} à…" aria-haspopup="menu" aria-expanded="${st.confier === d.id}"${hors ? ' disabled' : ''}>${CD_IC.confier}</button>${st.confier === d.id ? popConfier([d]) : ''}</span>` : ''}</span>`;
       return `<tr class="clickable${choisi ? ' choisie' : ''}${st.kb === d.id ? ' kb' : ''}" data-id="${esc(d.id)}"><td class="cx"><input type="checkbox" data-cd-choix="${esc(d.id)}"${choisi ? ' checked' : ''} aria-label="Choisir ${esc(d.name)}"></td>
         <td class="cl"><span class="cl-i">${marqueD(d)}<span><b>${esc(d.name)}</b><small>${esc([d.forme, d.ville].filter(Boolean).join(' · ') || d.matricule || (d.manual ? 'tenu au cabinet' : 'sur SkanFact'))}</small></span></span></td>
         <td class="cd-mo-c"><span class="ms-mo ${x.mo.cl}"><i></i>${esc(x.mo.mot)}</span>${st.vue === 'manque' ? sousMoisCd(d, x) : ''}</td>
@@ -3892,7 +3899,7 @@
         redessiner();
         if (!D) return;
         if (g === 'ouvrir') ouvrirD(id);
-        if (g === 'ecrire') location.hash = `#/messages/${encodeURIComponent(id)}`;
+        if (g === 'ecrire') { if (D.manual) fenEcrire(D); else location.hash = `#/messages/${encodeURIComponent(id)}`; }
         if (g === 'relancer') relancer(id);
         if (g === 'noter') fenNoterRelance(D, [...(retard.get(D.name) || []), ...(moisDuDossier(D, retard).manque ? [moisPrecedent(K.today().slice(0, 7))] : [])]);
         if (g === 'modifier' || g === 'archiver') dossierForm(D);
@@ -3930,7 +3937,7 @@
     const d = x.d, dir = estAssocie();
     const IC_G = { ouvrir: CD_IC.dossiers, ecrire: CD_IC.msg, relancer: CD_IC.rel, noter: CD_IC.telephone, confier: CD_IC.confier, modifier: CD_IC.modifier, inviter: CD_IC.inviter, archiver: CD_IC.archive };
     const it = (g, l, h, cl = '') => `<button type="button" role="menuitem"${cl ? ` class="${cl}"` : ''} data-cd-geste="${g}" data-cd-d="${esc(d.id)}"><span class="rm-i">${IC_G[g] || ''}</span><span class="rm-t"><span class="rm-l">${l}</span>${h ? `<span class="rm-h">${h}</span>` : ''}</span></button>`;
-    return `<div class="row-menu cd-menu" role="menu">${it('ouvrir', 'Ouvrir le dossier', 'sa comptabilité, ses mois, ses pièces')}${d.manual ? '' : it('ecrire', `Écrire à ${esc(d.contact || d.name)}`, 'dans votre conversation')}${!d.manual && (x.mo.manque || x.mo.tard) ? it('relancer', 'Relancer…', `${esc(x.mo.manqueTxt || x.mo.mot)} · ${esc(derniereRelanceCd(d))}`, 'attire') : ''}${it('noter', 'Noter une relance faite…', 'un appel, une visite, un message hors SkanFact')}<div class="sep"></div>${dir ? it('confier', 'Confier à…', x.eq.suit ? `suivi par ${esc(prenomDe(x.eq.suit))}${x.eq.val ? `, validé par ${esc(prenomDe(x.eq.val))}` : ''}` : 'personne ne le suit encore') : ''}${dir ? it('modifier', 'Modifier la fiche', 'nom, matricule, contact, honoraires') : ''}${dir && d.manual ? it('inviter', 'Inviter sur SkanFact…', 'depuis sa fiche : ses pièces arriveront seules') : ''}${dir ? `<div class="sep"></div>${it('archiver', d.archived ? 'Désarchiver le dossier…' : 'Archiver le dossier…', d.archived ? 'il revient dans les listes' : 'il reste lisible ; il quitte les listes')}` : '<p class="cd-menu-n">Confier, inviter et archiver : la direction.</p>'}</div>`;
+    return `<div class="row-menu cd-menu" role="menu">${it('ouvrir', 'Ouvrir le dossier', 'sa comptabilité, ses mois, ses pièces')}${it('ecrire', `Écrire à ${esc(d.contact || d.name)}${d.manual ? '…' : ''}`, d.manual ? 'WhatsApp ou e-mail : il n\'a pas de compte SkanFact' : 'dans votre conversation')}${!d.manual && (x.mo.manque || x.mo.tard) ? it('relancer', 'Relancer…', `${esc(x.mo.manqueTxt || x.mo.mot)} · ${esc(derniereRelanceCd(d))}`, 'attire') : ''}${it('noter', 'Noter une relance faite…', 'un appel, une visite, un message hors SkanFact')}<div class="sep"></div>${dir ? it('confier', 'Confier à…', x.eq.suit ? `suivi par ${esc(prenomDe(x.eq.suit))}${x.eq.val ? `, validé par ${esc(prenomDe(x.eq.val))}` : ''}` : 'personne ne le suit encore') : ''}${dir ? it('modifier', 'Modifier la fiche', 'nom, matricule, contact, honoraires') : ''}${dir && d.manual ? it('inviter', 'Inviter sur SkanFact…', 'depuis sa fiche : ses pièces arriveront seules') : ''}${dir ? `<div class="sep"></div>${it('archiver', d.archived ? 'Désarchiver le dossier…' : 'Archiver le dossier…', d.archived ? 'il revient dans les listes' : 'il reste lisible ; il quitte les listes')}` : '<p class="cd-menu-n">Confier, inviter et archiver : la direction.</p>'}</div>`;
   }
   // « Confier à… » : chacun avec sa charge, pour choisir sans ouvrir le tableau de bord.
   function popConfier(ds) {
@@ -4396,7 +4403,7 @@
       tenuEnCours ? `${cap(moisLong(mp))} déposé · ${moisLong(mc)} se saisit au cabinet` : '',
     ].filter(Boolean).map((t, i) => (i ? t.charAt(0).toLowerCase() + t.slice(1) : cap(t))).join(' · ') || (nouveau ? `Arrivé au cabinet · son premier mois : ${esc(moisLong(d.from || mc))}` : `Tout est à jour · prochaine déclaration le ${jjmm(limiteDe(prochaine))} (À VÉRIFIER)`);
     const lien = d.manual ? '<span class="cd-li tenu">tenu au cabinet</span>' : `<span class="cd-li relie">${CD_IC.lien}relié</span>`;
-    const ecrire = d.manual ? '' : `<a class="btn" href="#/messages/${encodeURIComponent(d.id)}">${CD_IC.msg} Écrire à ${esc(prenom || d.name)}${em.nonLus ? `<span class="cd-nl-t">${em.nonLus}</span>` : ''}</a>`;
+    const ecrire = d.manual ? `<button type="button" class="btn" id="fd-ecrire-hors">${CD_IC.msg} Écrire à ${esc(prenom || d.name)}…</button>` : `<a class="btn" href="#/messages/${encodeURIComponent(d.id)}">${CD_IC.msg} Écrire à ${esc(prenom || d.name)}${em.nonLus ? `<span class="cd-nl-t">${em.nonLus}</span>` : ''}</a>`;
     const tete = `<div class="page-head fd-tete"><div class="fd-id">${marqueD(d, 'fd-mq')}<div><h1>${esc(d.name)} ${info('fd.page')}</h1>
         <p class="fd-sous"><span>${esc([d.forme, d.activite, d.ville].filter(Boolean).join(' · ') || d.matricule || (d.manual ? 'tenu au cabinet' : 'sur SkanFact'))}</span>${lien}${d.from ? `<small>mission depuis ${esc(moisLong(d.from))} ${d.from.slice(0, 4)}</small>` : ''}${eq.suit ? `<span class="fd-eqs">${persCd(eq.suit, 20)} suivi par ${esc(prenomDe(eq.suit))}${eq.val ? ` · validé par ${esc(prenomDe(eq.val))}` : ''}</span>` : ''}</p>
         <p class="fd-phrase">${phrase}</p></div></div>
@@ -4425,6 +4432,7 @@
     // ---------- les gestes ----------
     const redessiner = () => drawFicheFd(view, d);
     $$('[data-fd-voisin]', view).forEach(b => { b.onclick = () => { if (b.dataset.fdVoisin) { dosState.kb = b.dataset.fdVoisin; location.hash = '#/dossier/' + encodeURIComponent(b.dataset.fdVoisin); } }; });
+    const eh = $('#fd-ecrire-hors', view); if (eh) eh.onclick = () => fenEcrire(d);
     const mn = $('#fd-menu', view); if (mn) mn.onclick = e => { e.stopPropagation(); ficheFd.menu = !ficheFd.menu; redessiner(); };
     const rl = $('#fd-relire', view); if (rl) rl.onclick = () => { ficheFd.refus.delete(cle); redessiner(); };
     $$('[data-fd-geste]', view).forEach(b => {
@@ -14066,52 +14074,12 @@
     catch (e) { toast(plainError(e), 'error'); }
   }
 
+  // (1.184.0) La relance de la page Relances, de la fiche et des livres : la même fenêtre que partout (fenEcrire), la
+  // messagerie SkanFact d'abord, WhatsApp et l'e-mail au choix.
   function writeRelance(row, onDone) {
-    const m = K.relanceMail(S.cabinet, row);
-    let change = () => false;
-    modal(
-      `<h2>Relancer ${esc(row.name)}</h2>
-       <label class="field">${lbl('Destinataire', 'r.mailTo')}<input type="text" id="r-to" value="${esc(m.to)}" placeholder="adresse@client.tn"></label>
-       <label class="field mt">${lbl('Objet', 'r.mailObjet')}<input type="text" id="r-sub" value="${esc(m.subject)}"></label>
-       <label class="field mt">${lbl('Message', 'r.mailMessage')}<textarea id="r-body" rows="10">${esc(m.body)}</textarea></label>
-       <p class="muted small mt">Le message s'ouvre dans ton logiciel de messagerie : rien ne part sans que tu cliques sur « Envoyer ».
-       La relance est enregistrée dans la fiche du client dès que tu l'ouvres.</p>
-       <div class="modal-actions"><button class="btn" id="no">${onDone ? 'Passer' : 'Annuler'}</button>
-       <button class="btn" id="copy">Copier</button>
-       ${row.phone ? '<button class="btn" id="wa">WhatsApp</button>' : ''}
-       <button class="btn btn-primary" id="ok">Ouvrir dans ma messagerie</button></div>`,
-      (layer, close) => {
-        change = suivreSaisie(layer);
-        $('#no', layer).onclick = () => { close(); if (onDone) onDone(); };
-        $('#copy', layer).onclick = async () => {
-          try { await navigator.clipboard.writeText($('#r-body', layer).value); toast('Texte copié.'); }
-          catch { toast('Copie impossible.', 'error'); }
-        };
-        const wa = $('#wa', layer);
-        if (wa) wa.onclick = async () => {
-          try {
-            await api.tel({ number: row.phone, whatsapp: true, text: $('#r-body', layer).value });
-            await recordRelance(row, 'whatsapp');
-            close(); render(); if (onDone) onDone();
-          } catch (e) { toast(plainError(e), 'error'); }
-        };
-        $('#ok', layer).onclick = async () => {
-          const to = $('#r-to', layer).value.trim();
-          // Sans destinataire, la messagerie s'ouvre sur un message qui ne part pas — et le journal
-          // de relance se mettait à mentir, ce qui est pire que de ne rien noter.
-          if (!to) return toast('Renseigne une adresse : sans elle, rien ne partira et la relance serait notée à tort.', 'error');
-          if (to !== row.email) {
-            try { await api.saveDossier(row.id, { email: to }); }
-            catch (e) { return toast('L\'adresse n\'a pas pu être enregistrée : ' + plainError(e), 'error'); }
-          }
-          await api.mail({ to, subject: $('#r-sub', layer).value, body: $('#r-body', layer).value });
-          await recordRelance(row, 'email');
-          close(); render(); if (onDone) onDone();
-        };
-      },
-      () => { if (onDone) onDone(); },
-      { garde: () => change() }
-    );
+    const D = (S.dossiers || []).find(x => x.id === row.id);
+    if (!D) { if (onDone) onDone(); return; }
+    fenEcrire(D, { mois: (row.missingMonths || []).slice(), ...(onDone ? { onDone } : {}) });
   }
 
   // Douze retardataires ne doivent pas coûter douze allers-retours dans la liste.
@@ -14746,43 +14714,113 @@
   function fenRelancer(D, toutes) {
     if (!D) return;
     const mois = moisAttendus(D, toutes);
+    const retard = toutes.filter(x => x.groupe === 'retard' && x.lignes.some(l => l.d.id === D.id && l.st === 'sans')).sort((a, b) => (a.t.sorte === 'mens' ? 0 : 1) - (b.t.sorte === 'mens' ? 0 : 1))[0];
+    fenEcrire(D, { mois, retard: retard ? ` : la ${minuscule(retard.t.court)} est en retard depuis le ${jourMois(retard.e.date)}` : '' });
+  }
+  // (1.184.0) Écrire à un client, d'où qu'on vienne (Dossiers, Fiche du dossier, Échéances, Relances, Livres) : la même
+  // fenêtre, trois chemins au choix (Skander, 30/10/2026 : « laisser le choix entre mail, WhatsApp et messagerie »). La
+  // messagerie SkanFact d'abord : elle OUVRE la conversation du client, le message posé dans sa zone d'écriture et les
+  // pièces attendues en demandes datées, à relire et envoyer d'ici (avant, la fenêtre envoyait sans montrer le fil). Un
+  // dossier tenu au cabinet n'a pas de conversation (son client n'a pas de compte) : WhatsApp ou e-mail, et son texte ne
+  // lui parle pas de SkanFact. Chaque chemin se note sur la fiche (« relancé le… »), la conversation à l'envoi.
+  // `o.onDone` : une tournée (plusieurs clients à la suite) ; la conversation reçoit alors le message sans quitter la page.
+  function fenEcrire(D, o = {}) {
+    if (!D) return;
+    const mois = o.mois || [];
     const noms = mois.map(m => K.monthLabel(m).split(' ')[0]);
     const lesMois = noms.length > 1 ? `${noms.slice(0, -1).join(', ')} et ${noms[noms.length - 1]}` : noms[0] || 'du mois';
-    const attendus = [`Ses ventes et ses achats ${K.de(lesMois)}, enregistrés dans SkanFact`, `Les relevés bancaires ${K.de(lesMois)}`];
+    const relie = !D.manual && !!api.messagerie;
+    const signe = (S.cabinet || {}).name || 'votre cabinet';
+    const attendus = !mois.length ? [] : relie
+      ? [`Vos ventes et vos achats ${K.de(lesMois)}, enregistrés dans SkanFact`, `Vos relevés bancaires ${K.de(lesMois)}`]
+      : [`Les factures de ventes et d'achats ${K.de(lesMois)}`, `Les relevés bancaires ${K.de(lesMois)}`];
+    const bonjour = D.contact ? `Bonjour ${String(D.contact).split(' ')[0]}` : 'Bonjour';
+    const texte = o.texte || (!mois.length
+      ? `${bonjour}, `
+      : relie
+        ? `${bonjour}, pour tenir votre comptabilité à jour, il me manque vos pièces ${K.de(lesMois)}${o.retard || ''}. Il vous suffit d'enregistrer vos ventes et vos achats dans SkanFact : je les vois dans vos livres dès qu'ils y sont, sans rien avoir à m'envoyer. Seuls vos relevés bancaires sont à joindre. Bien à vous, ${signe}`
+        : `${bonjour}, pour tenir votre comptabilité à jour, il me manque vos pièces ${K.de(lesMois)}${o.retard || ''} : vos factures de ventes et d'achats, et vos relevés bancaires. Envoyez-les-moi en photo ou en PDF, en réponse à ce message. Bien à vous, ${signe}`);
+    const sujet = mois.length ? `Il me manque vos pièces ${K.de(lesMois)}` : `Un mot de ${signe}`;
     const pour = new Date(Date.now() + 2 * 86400000).toISOString().slice(0, 10);
-    const retard = toutes.filter(x => x.groupe === 'retard' && x.lignes.some(l => l.d.id === D.id && l.st === 'sans')).sort((a, b) => (a.t.sorte === 'mens' ? 0 : 1) - (b.t.sorte === 'mens' ? 0 : 1))[0];
-    const texte = `Bonjour, pour tenir votre comptabilité à jour, il me manque vos pièces ${K.de(lesMois)}${retard ? ` : la ${minuscule(retard.t.court)} est en retard depuis le ${jourMois(retard.e.date)}` : ''}. Il vous suffit d'enregistrer vos ventes et vos achats dans SkanFact : je les vois dans vos livres dès qu'ils y sont, sans rien avoir à m'envoyer. Seuls vos relevés bancaires sont à joindre. Bien à vous, ${(S.cabinet || {}).name || 'votre cabinet'}`;
-    modal(`<h2>Relancer ${esc(D.name)}</h2><p class="muted pc-m-sous">Relis le message, change ce que tu veux, puis choisis par où il part.</p>
-      <div class="field"><span>Ce qu'on attend</span><span class="ec-dems">${attendus.map((t, i) => `<label><input type="checkbox" data-ec-att="${i}" checked> ${esc(t)}</label>`).join('')}</span></div>
-      <label class="field"><span>Pour le</span><input type="date" id="ec-pour" value="${pour}" min="${K.today()}"></label>
+    const tel = String(D.phone || '').replace(/[^\d+]/g, '');
+    const tournee = typeof o.onDone === 'function';
+    const CHEMINS = [
+      ['fil', 'Messagerie SkanFact', relie ? 'conseillé' : 'pas de compte SkanFact'],
+      ['whatsapp', 'WhatsApp', tel ? esc(D.phone) : 'tu choisis le contact'],
+      ['mail', 'E-mail', D.email ? esc(D.email) : 'adresse à écrire'],
+      ['copier', 'Copier le texte', 'pour un SMS, un autre outil'],
+    ];
+    let par = relie ? 'fil' : tel ? 'whatsapp' : 'mail';
+    const NOTES = {
+      fil: tournee ? 'Le message part dans votre conversation ; chaque pièce attendue devient une demande datée, qui se coche quand elle arrive.' : 'La conversation de ce client s\'ouvre, ce message déjà écrit : tu le relis, puis « Envoyer ». Chaque pièce attendue devient une demande datée, qui se coche quand elle arrive.',
+      whatsapp: 'WhatsApp s\'ouvre, le message tout prêt ; la relance se note sur sa fiche.',
+      mail: 'Ta messagerie e-mail s\'ouvre, le message tout prêt ; la relance se note sur sa fiche.',
+      copier: 'Le texte se copie : colle-le où tu veux ; la relance se note sur sa fiche.',
+    };
+    const BOUTON = { fil: tournee ? 'Envoyer dans sa conversation' : 'Ouvrir la conversation', whatsapp: 'Ouvrir WhatsApp', mail: 'Ouvrir ma messagerie e-mail', copier: 'Copier le texte' };
+    modal(`<h2>${esc(o.titre || (mois.length ? `Relancer ${D.name}` : `Écrire à ${D.name}`))}</h2><p class="muted pc-m-sous">Choisis par où il part, relis le message, change ce que tu veux.</p>
+      <div class="field"><span class="ec-lab">Par où</span><div class="pc-chips ec-par" role="group" aria-label="Par où">${CHEMINS.map(([k, t, s]) => `<button type="button" data-ec-par="${k}" aria-pressed="${k === par}"${k === 'fil' && !relie ? ' disabled' : ''}><b>${t}</b><small>${s}</small></button>`).join('')}</div></div>
+      <label class="field" id="ec-mail-l"${par === 'mail' ? '' : ' hidden'}><span>Adresse e-mail</span><input type="email" id="ec-mail" value="${esc(D.email || '')}" placeholder="adresse@client.tn"></label>
+      ${attendus.length ? `<div class="field" id="ec-att-l"${par === 'fil' ? '' : ' hidden'}><span>Ce qu'on attend</span><span class="ec-dems">${attendus.map((t, i) => `<label><input type="checkbox" data-ec-att="${i}" checked> ${esc(t)}</label>`).join('')}</span></div>
+      <label class="field" id="ec-pour-l"${par === 'fil' ? '' : ' hidden'}><span>Pour le</span><input type="date" id="ec-pour" value="${pour}" min="${K.today()}"></label>` : ''}
       <label class="field"><span>Le message</span><textarea class="pc-txt" id="ec-msg" rows="6" maxlength="4000">${esc(texte)}</textarea></label>
-      <div class="field"><span class="ec-lab">Par où</span><div class="pc-chips" role="group" aria-label="Par où"><button type="button" data-ec-par="fil" aria-pressed="true">Votre conversation SkanFact</button><button type="button" data-ec-par="mail" aria-pressed="false">Ma messagerie (e-mail)</button><button type="button" data-ec-par="whatsapp" aria-pressed="false">WhatsApp</button><button type="button" data-ec-par="copier" aria-pressed="false">Copier le texte</button></div></div>
-      <p class="pc-note"><span id="ec-par-note">Dans la conversation, chaque pièce attendue devient une demande datée, qui se coche quand elle arrive.</span> Dans tous les cas, sa ligne dira « relancé aujourd'hui ». Tu l'as appelé ? <button type="button" class="pc-lien" id="ec-appel">Noter un appel comme relance</button></p>
-      <div class="modal-actions"><button type="button" class="btn" id="ec-rel-non">Annuler</button><button type="button" class="btn btn-primary" id="ok">Envoyer la relance</button></div>`,
+      <p class="pc-note"><span id="ec-par-note">${NOTES[par]}</span>${mois.length ? ' Sa ligne dira « relancé aujourd\'hui ».' : ''} Tu l'as appelé ? <button type="button" class="pc-lien" id="ec-appel">Noter un appel comme relance</button></p>
+      <div class="modal-actions"><button type="button" class="btn" id="ec-rel-non">${tournee ? 'Passer' : 'Annuler'}</button><button type="button" class="btn btn-primary" id="ok">${BOUTON[par]}</button></div>`,
     (layer, close) => {
-      let par = 'fil';
-      const NOTES = { fil: 'Dans la conversation, chaque pièce attendue devient une demande datée, qui se coche quand elle arrive.', mail: 'Le message s\'ouvre tout prêt dans ta messagerie ; la relance se note sur sa fiche.', whatsapp: 'Le message s\'ouvre tout prêt dans WhatsApp ; la relance se note sur sa fiche.', copier: 'Le texte se copie ; tu le colles où tu veux, et la relance se note sur sa fiche.' };
-      // (1.175.0) Chaque chemin se note sur la fiche du dossier (la même liste que « Noter une relance faite… ») : la ligne
-      // des Échéances, la vue « Pièces manquantes » et la fiche disent la même dernière relance.
-      const noter = async (via, note) => { try { S = await api.noteRelance(D.id, mois, via, note); } catch { /* la relance est partie ; sa trace se refera */ } if (/^#\/echeances/.test(location.hash)) drawEcheances($('#view')); };
+      // Chaque chemin se note sur la fiche du dossier (la même liste que « Noter une relance faite… ») : la ligne des
+      // Échéances, la vue « Pièces manquantes » et la fiche disent la même dernière relance. Sans mois attendu, un simple
+      // mot au client n'est pas une relance : rien ne se note.
+      const noter = async (via, note) => { if (!mois.length) return; try { S = await api.noteRelance(D.id, mois, via, note); } catch { /* le message est parti ; sa trace se refera */ } if (/^#\/echeances/.test(location.hash)) drawEcheances($('#view')); };
+      const fini = () => { close(); if (tournee) o.onDone(); };
       $('#ec-appel', layer).onclick = () => { close(); fenNoterRelance(D, mois); };
-      const BOUTON = { fil: 'Envoyer la relance', mail: 'Ouvrir ma messagerie', whatsapp: 'Ouvrir WhatsApp', copier: 'Copier le texte' };
-      $$('[data-ec-par]', layer).forEach(b => { b.onclick = () => { par = b.dataset.ecPar; $$('[data-ec-par]', layer).forEach(c => c.setAttribute('aria-pressed', String(c === b))); $('#ec-par-note', layer).textContent = NOTES[par]; $('#ok', layer).textContent = BOUTON[par]; }; });
-      $('#ec-rel-non', layer).onclick = close;
+      const montrer = (id, oui) => { const n = $(id, layer); if (n) n.hidden = !oui; };
+      $$('[data-ec-par]', layer).forEach(b => { b.onclick = () => {
+        par = b.dataset.ecPar;
+        $$('[data-ec-par]', layer).forEach(c => c.setAttribute('aria-pressed', String(c === b)));
+        $('#ec-par-note', layer).textContent = NOTES[par]; $('#ok', layer).textContent = BOUTON[par];
+        montrer('#ec-mail-l', par === 'mail'); montrer('#ec-att-l', par === 'fil'); montrer('#ec-pour-l', par === 'fil');
+      }; });
+      $('#ec-rel-non', layer).onclick = () => fini();
       $('#ok', layer).onclick = async () => {
         const t = $('#ec-msg', layer).value.trim();
         if (!t) { toast('Écris le message avant de l\'envoyer.', 'error'); $('#ec-msg', layer).focus(); return; }
         const demandes = $$('[data-ec-att]', layer).filter(c => c.checked).map(c => attendus[Number(c.dataset.ecAtt)]);
-        if (par === 'copier') { try { await navigator.clipboard.writeText(t); toast('Texte copié : la relance est notée sur sa fiche.'); close(); } catch { $('#ec-msg', layer).select(); toast('Sélectionné : copie-le avec Ctrl C.'); return; } await noter('autre', 'Texte de relance copié depuis les Échéances'); return; }
-        if (par === 'mail') { location.href = `mailto:${encodeURIComponent(D.email || '')}?subject=${encodeURIComponent('Vos pièces à envoyer')}&body=${encodeURIComponent(t)}`; close(); await noter('email', ''); return; }
-        if (par === 'whatsapp') { window.open(`https://wa.me/?text=${encodeURIComponent(t)}`, '_blank', 'noopener'); close(); await noter('whatsapp', ''); return; }
-        $('#ok', layer).disabled = true;
-        try {
-          await api.relancerDossier(D.id, t, demandes, $('#ec-pour', layer).value || null);
-          close();
-          await noter('autre', 'Relance envoyée dans votre conversation SkanFact');
-          toast(`Relance partie à ${D.name}${demandes.length ? ` : ${pl(demandes.length, 'demande')} pour le ${jourMois($('#ec-pour', layer).value || K.today())}` : ''}.`);
-        } catch (x) { $('#ok', layer).disabled = false; toast(plainError(x), 'error'); }
+        const lePour = ($('#ec-pour', layer) || {}).value || null;
+        if (par === 'copier') {
+          try { await navigator.clipboard.writeText(t); } catch { $('#ec-msg', layer).select(); toast('Sélectionné : copie-le avec Ctrl C.'); return; }
+          toast(mois.length ? 'Texte copié : la relance est notée sur sa fiche.' : 'Texte copié.'); fini(); await noter('autre', 'Texte de relance copié'); return;
+        }
+        if (par === 'whatsapp') {
+          try { if (tel) await api.tel({ number: D.phone, whatsapp: true, text: t }); else window.open(`https://wa.me/?text=${encodeURIComponent(t)}`, '_blank', 'noopener'); }
+          catch (x) { toast(plainError(x), 'error'); return; }
+          fini(); await noter('whatsapp', ''); return;
+        }
+        if (par === 'mail') {
+          const to = $('#ec-mail', layer).value.trim();
+          // Sans destinataire, la messagerie s'ouvre sur un message qui ne part pas, et la relance se noterait à tort.
+          if (!to) { toast('Écris son adresse e-mail : sans elle, rien ne partira.', 'error'); $('#ec-mail', layer).focus(); return; }
+          if (to !== (D.email || '')) { try { S = await api.saveDossier(D.id, { email: to }); } catch (x) { toast(`L'adresse n'a pas pu être enregistrée : ${plainError(x)}`, 'error'); return; } }
+          try { await api.mail({ to, subject: sujet, body: t }); } catch (x) { toast(plainError(x), 'error'); return; }
+          fini(); await noter('email', ''); return;
+        }
+        if (!relie) return;
+        if (tournee) {
+          $('#ok', layer).disabled = true;
+          try {
+            await api.relancerDossier(D.id, t, demandes, lePour);
+            toast(`Relance partie à ${D.name}${demandes.length ? ` : ${pl(demandes.length, 'demande')} pour le ${jourMois(lePour || K.today())}` : ''}.`);
+            fini(); await noter('autre', 'Relance envoyée dans votre conversation SkanFact');
+          } catch (x) { $('#ok', layer).disabled = false; toast(plainError(x), 'error'); }
+          return;
+        }
+        // La conversation s'ouvre, le message posé ; il part d'elle, et la relance se note à son envoi.
+        const d = location.hash;
+        const RETOURS = [[/^#\/echeances/, 'Revenir aux Échéances'], [/^#\/relances/, 'Revenir aux Relances'], [/^#\/dossiers/, 'Revenir à Tous les dossiers'], [/^#\/dossier\//, 'Revenir au dossier'], [/^#\/priorites/, 'Revenir aux Priorités']];
+        const r = RETOURS.find(([re]) => re.test(d));
+        messagePrepare = { id: D.id, texte: t, demandes, pour: lePour, retour: r ? { texte: r[1], hash: d } : null,
+          apresEnvoi: () => { messagePrepare = null; void noter('autre', 'Relance envoyée dans votre conversation SkanFact'); } };
+        close();
+        location.hash = `#/messages/${encodeURIComponent(D.id)}`;
       };
     });
   }

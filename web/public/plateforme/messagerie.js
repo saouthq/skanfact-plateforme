@@ -451,6 +451,7 @@
    *   modeles?: { lire: () => Promise<any[]>, poser: (id: string | null, titre: string, texte: string) => Promise<any>, retirer: (id: string) => Promise<any> },
    *   cle?: string, nomCabinet?: string, exportPdf?: (html: string, nom: string) => Promise<string | null>,
    *   imputer?: (question: any, apres: () => Promise<void>) => void,
+   *   prepare?: { texte?: string, demandes?: string[], pour?: string | null, dit?: string, apresEnvoi?: () => void } | null,
    * }} o
    */
   function conversation(el, o) {
@@ -465,6 +466,10 @@
     /** @type {{ genre: string, id: string, libelle: string } | null} */ let piece = o.pieceDepart || null;
     /** @type {File | null} */ let fichier = null;
     let demande = !!o.demander && !entreprise;
+    // (1.184.0) Un message préparé ailleurs (« Relancer », « Écrire » d'un dossier, d'une échéance) : il se pose UNE fois
+    // dans la zone d'écriture, on le relit et on l'envoie d'ici ; son envoi prévient qui l'a préparé (la relance se note).
+    let prepare = !entreprise && o.prepare ? o.prepare : null;
+    /** @type {(() => void) | null} */ let apresEnvoiPrepare = null;
     /** @type {Map<string, string>} */ const reponses = new Map();
     let signature = '';
     let enCours = false;
@@ -1600,6 +1605,28 @@
       // (1.125.0) Une demande préparée ailleurs (une ligne du livre du cabinet) arrive avec sa pièce déjà écrite.
       if (demande && o.demandeTexte && !demandeTxt.value) demandeTxt.value = o.demandeTexte;
       if (demande) setTimeout(() => demandeTxt.focus(), 0);
+      if (prepare) {
+        const pr = prepare;
+        prepare = null;
+        if (pr.texte && !texte.value) { texte.value = pr.texte; grandir(); }
+        const ds = (pr.demandes || []).filter(Boolean).slice(0, 10);
+        if (ds.length) {
+          demande = true; montrerDemande();
+          demandeTxt.value = ds[0] || '';
+          for (const [k, x] of ds.slice(1).entries()) {
+            const i = document.createElement('input');
+            i.type = 'text'; i.maxLength = 300; i.dataset.msgDemandeTxt = ''; i.setAttribute('aria-label', `Pièce demandée ${k + 2}`);
+            i.value = x;
+            i.addEventListener('input', () => dire(''));
+            listeDemandes.appendChild(i);
+          }
+        }
+        if (pr.pour && pr.pour >= pourChamp.min) pourChamp.value = pr.pour;
+        apresEnvoiPrepare = pr.apresEnvoi || null;
+        majEnvoyer();
+        setTimeout(() => { texte.focus(); texte.setSelectionRange(texte.value.length, texte.value.length); texte.scrollTop = texte.scrollHeight; }, 0);
+        if (pr.dit && o.toast) o.toast(pr.dit);
+      }
       const joindre = /** @type {HTMLButtonElement} */ (form.querySelector('[data-msg-joindre]'));
       joindre.onclick = async () => {
         const f = await choisirFichier(ACCEPTE);
@@ -1712,6 +1739,7 @@
           listeDemandes.querySelectorAll('[data-msg-demande-txt]').forEach((x, i) => { if (i > 0) x.remove(); });
           pourChamp.value = dansSeptJours();
           montrerDemande(); dessinerJoints();
+          if (apresEnvoiPrepare) { const f = apresEnvoiPrepare; apresEnvoiPrepare = null; try { f(); } catch { /* sa trace se refera */ } }
           await relire();
           const fil = /** @type {HTMLElement | null} */ (el.querySelector('[data-msg-fil]'));
           if (fil) fil.scrollTop = fil.scrollHeight;

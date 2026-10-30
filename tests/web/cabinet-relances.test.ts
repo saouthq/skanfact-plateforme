@@ -128,15 +128,18 @@ describe('les relances et les mois à valider, à la souris', () => {
     expect(await liste.innerText()).not.toContain('Boulangerie Ennour');
     const manquants = mois(-4).slice(0, 4) === mois(-3).slice(0, 4) ? `${nom(mois(-4)).split(' ')[0]} et ${nom(mois(-3))}` : `${nom(mois(-4))} et ${nom(mois(-3))}`;
     expect(await liste.innerText()).toContain(manquants);
-    // Le mail : les pièces dans SkanFact, rien à fabriquer ni à envoyer.
+    // (1.184.0) La même fenêtre que partout : la messagerie SkanFact proposée d'abord, l'e-mail au choix ; le message dit
+    // les pièces dans SkanFact, rien à fabriquer ni à envoyer.
     await p.locator('#view [data-rel]').first().click();
-    const objet = await p.locator('#r-sub').inputValue();
-    const corps = await p.locator('#r-body').inputValue();
-    expect(objet).toMatch(/^Il me manque vos pièces d/);
-    expect(corps).toContain('Il vous suffit de les enregistrer dans SkanFact');
-    expect(`${objet} ${corps}`).not.toMatch(/paquet|clôturez|provisoire/i);
+    const fen = p.locator('#modal-root');
+    expect(await fen.locator('[data-ec-par="fil"]').getAttribute('aria-pressed')).toBe('true');
+    await fen.locator('[data-ec-par="mail"]').click();
+    expect(await fen.locator('#ec-mail').inputValue()).toBe('menuiserie@exemple.tn');
+    const corps = await fen.locator('#ec-msg').inputValue();
+    expect(corps).toContain('dans SkanFact');
+    expect(corps).not.toMatch(/paquet|clôturez|provisoire/i);
     await p.screenshot({ path: path.join(PHOTOS, 'cabinet-relances-2-mail.png') });
-    await p.getByRole('button', { name: 'Ouvrir dans ma messagerie', exact: true }).click();
+    await fen.getByRole('button', { name: 'Ouvrir ma messagerie e-mail', exact: true }).click();
     await expect.poll(() => p.locator('#modal-root .modal').count()).toBe(0);
     // Le mail s'est ouvert dans la messagerie, adressé au client, son objet dedans.
     const liens = String(await p.evaluate(() => sessionStorage.getItem('liens') ?? ''));

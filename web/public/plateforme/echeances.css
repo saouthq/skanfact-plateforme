@@ -197,3 +197,12 @@
 .ec-acc { margin: 4px 0 2px; padding: 14px; }
 .ec-acc.pris { border-style: solid; }
 .ec-acc.pris .cl-zone-i { color: var(--sb-vert, currentColor); }
+
+/* (1.184.0) « Par où » d'un message au client (fenEcrire) : quatre chemins côte à côte, chacun avec ce qu'il touche
+   (conseillé, son numéro, son adresse) ; la messagerie grisée pour un dossier tenu au cabinet. */
+.pc-chips.ec-par { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.pc-chips.ec-par button { display: grid; gap: 2px; text-align: start; border-radius: 10px; padding: 9px 11px; min-height: 44px; }
+.pc-chips.ec-par button b { font-weight: 650; }
+.pc-chips.ec-par button small { font-weight: 500; font-size: 11.5px; opacity: .75; overflow-wrap: anywhere; }
+.pc-chips.ec-par button:disabled { opacity: .5; cursor: not-allowed; }
+@media (max-width: 760px) { .pc-chips.ec-par { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
