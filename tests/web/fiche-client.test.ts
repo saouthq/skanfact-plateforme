@@ -193,13 +193,38 @@ describe('la fiche d\'un client, telle que la maquette', () => {
     await expect.poll(() => bandeaux()).toEqual([]);
     expect(await titre()).toContain('Huilerie Les Oliviers Nouveau');
 
-    // 5. Le délai de sa fiche donne l'échéance d'une facture neuve ; sans délai, celui des réglages.
+    // 5. Sans réseau : la fiche le dit, et ne propose plus de relancer (la relance porte le lien que le serveur donne).
+    await ouvrir('c-lac');
+    await cx.setOffline(true);
+    await expect.poll(async () => (await bandeaux())[0]).toBe('Pas de réseau : la fiche est celle que ce poste a gardée — tu lis les fiches, tu appelles, tu notes. Ce qu\'ils te doivent date de la dernière connexion ; une facture ne s\'émet pas sans réseau, une relance non plus.');
+    expect(await principal()).toEqual(['Nouvelle facture']);
+    expect(await p.locator('#view .cf-tete .actions .btn').evaluateAll((l) => l.map((b) => (b as HTMLElement).innerText.trim()))).toEqual(['Guide-moi', 'Nouveau devis', 'Relevé de compte', '', 'Nouvelle facture']);
+    await cx.setOffline(false);
+    await expect.poll(() => principal()).toEqual([`Relancer ${numero('f3')}`]);
+
+    // 6. La fenêtre d'un client neuf relit son matricule : déjà connu (« ouvrir sa fiche », refusé), ou mal écrit.
+    await p.evaluate(() => { location.hash = '#/clients'; });
+    await p.locator('#view .lc-tete #new').click();
+    await p.locator('#cf input[name=name]').fill('Hôtel du Lac Sfax');
+    await p.locator('#cf input[name=matricule]').fill('0934561 h/a/m/000');
+    await expect.poll(async () => net(await p.locator('#cf-mf-aide').innerText())).toBe('Déjà la fiche de « Hôtel du Lac » · ouvrir sa fiche');
+    await p.locator('#modal-root #ok').click();
+    await expect.poll(async () => net(await p.locator('#toast').innerText().catch(() => ''))).toContain('« Hôtel du Lac » a déjà ce matricule : c\'est sans doute le même client.');
+    await p.locator('#cf input[name=matricule]').fill('12345');
+    await expect.poll(async () => net(await p.locator('#cf-mf-aide').innerText())).toBe('Ni un matricule (7 chiffres, une lettre, puis /A/M/000) ni un CIN (8 chiffres) : vérifie-le.');
+    await p.locator('#cf input[name=matricule]').fill('0934561H/A/M/000');
+    await p.locator('#cf-mf-ouvrir').click();
+    await expect.poll(() => p.evaluate(() => location.hash)).toBe('#/client/c-lac');
+    expect(await p.locator('#modal-root .modal').count()).toBe(0);
+    expect(((await api('GET', `/entreprises/${ent}/dossier-v10`, jeton)).objets as { collection: string }[]).filter((o) => o.collection === 'clients')).toHaveLength(5);
+
+    // 7. Le délai de sa fiche donne l'échéance d'une facture neuve ; sans délai, celui des réglages.
     for (const [id, j] of [['c-lac', 45], ['c-pins', 30]] as const) {
       await p.evaluate((h) => { location.hash = h; }, `#/doc/new/facture/client/${id}`);
       await expect.poll(() => p.locator('#view input[name=dueDate]').inputValue().catch(() => ''), { timeout: 15_000 }).toBe(jour(j));
     }
 
-    // 6. Au téléphone : une colonne, rien ne déborde, le geste principal en tête.
+    // 8. Au téléphone : une colonne, rien ne déborde, le geste principal en tête.
     const tel = await navigateur.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
     await tel.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
     await tel.addInitScript(() => { const e = new URLSearchParams(location.search).get('e'); if (e) sessionStorage.setItem('skanfact.essai_tel_quel', e); });
@@ -212,6 +237,20 @@ describe('la fiche d\'un client, telle que la maquette', () => {
     expect(await t.locator('#view .cf-tete .btn-primary').isVisible()).toBe(true);
     await t.screenshot({ path: path.join(PHOTOS, 'fiche-client-2-telephone.png') });
     await tel.close();
+    // À la tablette (1024 px) : la colonne de droite passe sous les onglets, rien ne déborde.
+    const tab = await navigateur.newContext({ viewport: { width: 1024, height: 768 }, hasTouch: true, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await tab.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, jeton);
+    await tab.addInitScript(() => { const e = new URLSearchParams(location.search).get('e'); if (e) sessionStorage.setItem('skanfact.essai_tel_quel', e); });
+    const ta = await tab.newPage();
+    ta.on('pageerror', (e) => erreurs.push(e.message));
+    await ta.goto(`${serveur.adresse}/v10/?e=${ent}#/client/c-lac`);
+    await ta.locator('#view .cf-tete h1').waitFor({ timeout: 20_000 });
+    await plusTard(ta);
+    expect(await ta.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1024);
+    const [g, d] = await Promise.all([ta.locator('#view .cf-gauche').boundingBox(), ta.locator('#view .cf-droite').boundingBox()]);
+    expect(d && g && d.y >= g.y + g.height - 1).toBe(true);
+    await ta.screenshot({ path: path.join(PHOTOS, 'fiche-client-3-tablette.png'), fullPage: true });
+    await tab.close();
     expect(erreurs).toEqual([]);
     await cx.close();
   }, 240_000);

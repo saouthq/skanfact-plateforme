@@ -1053,6 +1053,27 @@ table.liste.achats, table.liste.fourn { table-layout: fixed; }
 table.liste.achats td.num-c b.num { font-weight: 600; }
 table.liste.fourn td.ct span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 table.liste.achats td.cl, table.liste.fourn td.cl { overflow: hidden; }
+/* Passe 3 : en tête de la liste, les pièces qui restent à payer (et non plus quatre grandes tuiles de chiffres). */
+.apy { padding: 6px 0 4px; margin-bottom: 14px; }
+.apy-t { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 16px 8px; }
+.apy-t > b { font-size: 15px; letter-spacing: -.01em; }
+.apy-t .mu { font-size: 13px; }
+.apy-t .rouge { color: var(--rouge-texte); font-weight: 600; }
+.apy-t .apy-j { margin-left: auto; border: 0; background: none; padding: 4px 0; cursor: pointer; font-family: inherit; display: inline-flex; gap: 6px; align-items: center; font-size: 13px; color: var(--ambre-texte); font-weight: 600; }
+.apy-ok { color: var(--sarcelle-texte); display: inline-flex; }
+.apy-l { list-style: none; margin: 0; padding: 0; }
+.apy-l li { display: grid; grid-template-columns: 30px minmax(0, 1fr) 150px 130px 76px; gap: 12px; align-items: center; padding: 8px 16px; border-top: 1px solid var(--trait); cursor: pointer; }
+.apy-l li:hover { background: var(--survol); }
+.apy-l .av { width: 30px; height: 30px; border-radius: 9px; }
+.apy-n { display: grid; min-width: 0; }
+.apy-n b, .apy-n small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.apy-n small { color: var(--gris-2); font-size: 12px; }
+.apy-e { font-size: 12.5px; color: var(--gris); }
+.apy-e.rouge { color: var(--rouge-texte); font-weight: 600; }
+.apy-e.ambre { color: var(--ambre-texte); font-weight: 600; }
+.apy-m { text-align: right; font-variant-numeric: tabular-nums; }
+.apy-l .btn.mini { justify-self: end; }
+.apy-plus { display: block; width: 100%; border: 0; border-top: 1px solid var(--trait); background: none; padding: 9px 16px 5px; font: inherit; font-size: 13px; font-weight: 600; color: var(--sarcelle-texte); text-align: left; cursor: pointer; }
 table.liste.achats .cl-i > span, table.liste.fourn .cl-i > span { min-width: 0; }
 table.liste.achats .cl-i small, table.liste.fourn .cl-i small, table.liste.fourn .cl-i b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 table.liste.achats .act { white-space: nowrap; text-align: right; }
@@ -1337,10 +1358,10 @@ table.liste.achats tr.solde td.m, table.liste.achats tr.solde td.num-c b.num { c
     'x-infotech': { fiche: 'infotech' }, 'x-reseaux': { fiche: 'reseaux' }, 'x-electro': { fiche: 'electro' }, 'x-eurotech': { fiche: 'eurotech' }, 'x-palmiers': { fiche: 'palmiers' }, 'x-amal': { fiche: 'amal' },
     'x-reglements': { fiche: 'infotech', onglet: 'reglements' }, 'x-commandes': { fiche: 'infotech', onglet: 'commandes' }, 'x-retenues': { fiche: 'palmiers', onglet: 'retenues' }, 'x-hors': { fiche: 'reseaux', hors: true }, 'x-lecture': { fiche: 'reseaux', lecture: true },
   };
-  const NOMS = [['achats', 'Achats : la liste'], ['a-ouvert', 'Tuile « À payer »'], ['a-retard', 'Tuile « En retard »'], ['a-semaine', 'Tuile « Cette semaine »'], ['a-justif', 'Sans justificatif'], ['a-rattacher', 'À rattacher'], ['a-recherche', 'Recherche « wi-fi »'], ['a-rien', 'Rien ne correspond'], ['a-clavier', 'Au clavier'], ['a-choix', 'Deux pièces choisies'], ['a-confie', 'Saisie confiée au cabinet'], ['a-vide', 'Première fois'], ['a-charge', 'Chargement'], ['a-hors', 'Hors ligne'], ['a-lecture', 'Abonnement en lecture seule'], ['a-role', 'Rôle qui lit seulement'],
+  const NOMS = [['achats', 'Achats : la liste'], ['a-ouvert', 'Filtre « À payer »'], ['a-retard', 'Filtre « En retard »'], ['a-semaine', 'Filtre « Cette semaine »'], ['a-justif', 'Sans justificatif'], ['a-rattacher', 'À rattacher'], ['a-recherche', 'Recherche « wi-fi »'], ['a-rien', 'Rien ne correspond'], ['a-clavier', 'Au clavier'], ['a-choix', 'Deux pièces choisies'], ['a-confie', 'Saisie confiée au cabinet'], ['a-vide', 'Première fois'], ['a-charge', 'Chargement'], ['a-hors', 'Hors ligne'], ['a-lecture', 'Abonnement en lecture seule'], ['a-role', 'Rôle qui lit seulement'],
     ['fournisseurs', 'Fournisseurs : la liste'], ['f-dois', 'Filtre « Tu leur dois »'], ['f-retard', 'Filtre « En retard »'], ['f-completer', 'Filtre « À compléter »'], ['f-vide', 'Fournisseurs : première fois'],
     ['x-infotech', 'Fiche : InfoTech Distribution'], ['x-reseaux', 'Fiche : un fournisseur en retard'], ['x-electro', 'Fiche : un avoir en ta faveur'], ['x-eurotech', 'Fiche : à l\'étranger, en euros'], ['x-palmiers', 'Fiche : le loyer (retenue 10 %)'], ['x-amal', 'Fiche : tout neuf'], ['x-reglements', 'Fiche : ses règlements'], ['x-commandes', 'Fiche : ses commandes'], ['x-retenues', 'Fiche : retenues et attestations'], ['x-hors', 'Fiche hors ligne'], ['x-lecture', 'Fiche, abonnement en lecture seule']];
-  const MONTRER = [['', 'Rien'], ['menu', 'Menu d\'un achat'], ['menu-f', 'Menu d\'un fournisseur'], ['regler', 'Régler une pièce'], ['regler-n', 'Régler deux pièces ensemble'], ['aide', 'Bulle « i » des tuiles'], ['nouveau', 'Nouveau fournisseur'], ['plus', 'Nouveau : plus de détails'], ['doublon', 'Nouveau : matricule déjà connu'], ['import', 'Importer d\'un tableur'], ['gestes', 'Menu ⋯ de la fiche'], ['modifier', 'Modifier la fiche'], ['attestation', 'Attestation de retenue'], ['supprimer', 'Supprimer un fournisseur qui a des achats'], ['tel-ajout', 'Téléphone : ajouter un achat'], ['tel-actions', 'Téléphone : gestes d\'un fournisseur']];
+  const MONTRER = [['', 'Rien'], ['menu', 'Menu d\'un achat'], ['menu-f', 'Menu d\'un fournisseur'], ['regler', 'Régler une pièce'], ['regler-n', 'Régler deux pièces ensemble'], ['aide', 'Bulle « i » de la liste'], ['nouveau', 'Nouveau fournisseur'], ['plus', 'Nouveau : plus de détails'], ['doublon', 'Nouveau : matricule déjà connu'], ['import', 'Importer d\'un tableur'], ['gestes', 'Menu ⋯ de la fiche'], ['modifier', 'Modifier la fiche'], ['attestation', 'Attestation de retenue'], ['supprimer', 'Supprimer un fournisseur qui a des achats'], ['tel-ajout', 'Téléphone : ajouter un achat'], ['tel-actions', 'Téléphone : gestes d\'un fournisseur']];
   const E = () => ETATS[s.etat];
   const peutEcrire = () => !E().lecture && !E().roleLecture;
   const FILT_F = { '': 'Tous', dois: 'Tu leur dois', retard: 'En retard', completer: 'À compléter', sans: 'Sans achat' };
@@ -1349,7 +1370,7 @@ table.liste.achats tr.solde td.m, table.liste.achats tr.solde td.num-c b.num { c
   const annees = () => [...new Set(ACHATS.map((a) => a.date.slice(0, 4)))].sort().reverse();
   const cats = () => [...new Set(ACHATS.map((a) => a.cat))].sort((x, y) => x.localeCompare(y, 'fr'));
   const trouveA = (a, q) => { const m = plier(q).split(/\s+/).filter(Boolean); const t = plier([a.n, a.ref, nomF(a.f), a.obj, a.cat, (a.pj || []).join(' '), fmt(a.c.net, a.c.dev)].join(' ')); return m.every((x) => t.includes(x)); };
-  // La liste des achats que l'écran montre : une seule fonction, pour le tableau, son pied, les tuiles et le téléphone.
+  // La liste des achats que l'écran montre : une seule fonction, pour le tableau, son pied, le bloc « À payer » et le téléphone.
   function liste(o = {}) {
     const q = o.q !== undefined ? o.q : s.q, st = o.st !== undefined ? o.st : s.st, so = o.sorte !== undefined ? o.sorte : s.sorte, an = o.an !== undefined ? o.an : s.an, ca = o.cat !== undefined ? o.cat : s.cat;
     const l = ACHATS.filter((a) => (!so || a.sorte === so) && (!an || a.date.startsWith(an)) && (!ca || a.cat === ca) && passeSt(a, st) && trouveA(a, q));
@@ -1383,34 +1404,24 @@ table.liste.achats tr.solde td.m, table.liste.achats tr.solde td.num-c b.num { c
   const rsTexte = (k, court) => { const f = FOURN[k]; if (f.tva) return court ? 'à l\'étranger · sans retenue' : 'aucune : à l\'étranger'; if (f.exo && AUJ <= f.exo[1]) return court ? `exonéré jusqu'au ${jm(f.exo[1])}` : `aucune jusqu'au ${jj(f.exo[1])}`; return f.rs ? `RS ${pct(f.rs)} %` : 'sans retenue'; };
 
   // ---------- la liste des achats ----------
-  function tuiles() {
+  // (passe 3, Skander le 30/10/2026 : « je ne vois pas l'intérêt d'une aussi grande KPI ; remettre en haut ceux qui ne sont pas
+  // encore payés ») En haut de la liste, non plus des chiffres, mais les pièces qui restent à payer : la plus en retard
+  // d'abord, puis par échéance, chacune avec « Régler ». Les répartitions (par âge, par semaine) iront à la page Statistiques.
+  function aPayer() {
     const e = E();
-    const ouv = liste({ st: 'ouvert', q: '', sorte: '', an: '', cat: '' }), ret = liste({ st: 'retard', q: '', sorte: '', an: '', cat: '' }).concat(ACHATS.filter((a) => statut(a) === 'partiel' && retardJ(a) > 0));
-    const sem = liste({ st: 'semaine', q: '', sorte: '', an: '', cat: '' }), sj = liste({ st: 'justif', q: '', sorte: '', an: '', cat: '' }), rat = liste({ st: 'rattacher', q: '', sorte: '', an: '', cat: '' });
+    const ouv = liste({ st: 'ouvert', q: '', sorte: '', an: '', cat: '' }).filter((a) => reste(a) > 0)
+      .sort((x, y) => (retardJ(y) - retardJ(x)) || String(x.ech || '9999').localeCompare(String(y.ech || '9999')));
+    const sj = liste({ st: 'justif', q: '', sorte: '', an: '', cat: '' });
     const somme = (l) => l.reduce((x, a) => x + Math.max(0, reste(a)), 0);
-    const tot = somme(ouv), enRet = somme(ret), aEch = tot - enRet;
-    const rsA = ouv.reduce((x, a) => x + rsAOperer(a), 0);
-    const age = (a) => retardJ(a);
-    const tr = [['1 à 30 j', (a) => age(a) <= 30], ['31 à 60 j', (a) => age(a) > 30 && age(a) <= 60], ['plus de 60 j', (a) => age(a) > 60]].map(([n, f]) => [n, somme(ret.filter(f))]);
-    const maxTr = Math.max(...tr.map((x) => x[1]), 1);
-    const on = (st) => s.st === st && !s.q && !s.sorte;
-    // L'échéancier : ce qui reste dû et n'est pas en retard, rangé par échéance (cette semaine, les deux suivantes, puis jusqu'à 45 jours).
-    const aVenir = ouv.filter((a) => !retardJ(a));
-    const cal = [[`→ ${jm(plus(AUJ, 7))}`, 0, 7], [`→ ${jm(plus(AUJ, 21))}`, 8, 21], [`→ ${jm(plus(AUJ, 45))}`, 22, 45], ['après', 46, 1e9]].map(([n, de, a]) => [n, somme(aVenir.filter((x) => dansJ(x) >= de && dansJ(x) <= a))]);
-    const maxCal = Math.max(...cal.map((x) => x[1]), 1);
-    const eur = ouv.filter((a) => a.c.dev !== 'DT');
-    return `<div class="tuiles">
-      <button type="button" class="tuile large" data-tuile="ouvert" aria-pressed="${on('ouvert')}"><span class="tu-t">À payer <span class="mu">· ${pl(ouv.length, 'pièce')}, toutes années</span></span><b class="tu-m">${fmt(tot)} <small>DT</small></b>
-        <span class="barre-r" role="img" aria-label="${fmt(aEch)} DT à échoir, ${fmt(enRet)} DT en retard"><i style="flex:${aEch}"></i><i class="r" style="flex:${enRet}"></i></span>
-        <span class="leg"><span><i></i>${fmt(aEch)} à échoir</span><span><i class="r"></i>${fmt(enRet)} en retard</span></span>
-        <span class="tu-s">${eur.length ? `dont ${eur.map((a) => `${fmt(resteDev(a), 'EUR')} €`).join(', ')} au taux de la pièce · ` : ''}tu garderas ${fmt(rsA)} DT de retenue pour l'État en payant</span></button>
-      <button type="button" class="tuile alerte" data-tuile="retard" aria-pressed="${on('retard')}"><span class="tu-t">En retard <span class="mu">· ${pl(ret.length, 'pièce')}</span></span><b class="tu-m">${fmt(enRet)} <small>DT</small></b>
-        <span class="ages">${tr.map(([n, m]) => `<span><small>${n}</small><i><b style="width:${Math.round(m / maxTr * 100)}%"></b></i><em>${m ? fmt(m) : '—'}</em></span>`).join('')}</span></button>
-      <button type="button" class="tuile" data-tuile="semaine" aria-pressed="${on('semaine')}"><span class="tu-t">${ic('echeance', 14, 2)} Cette semaine <span class="mu">· puis 45 jours</span></span><b class="tu-m">${fmt(somme(sem))} <small>DT</small></b>
-        <span class="cal" role="img" aria-label="${esc(cal.map(([n, m]) => `${n} : ${fmt(m)} DT`).join(', '))}">${cal.map(([n, m], i) => `<span${i ? '' : ' class="maint"'}><em>${m ? fmt(m).split(',')[0] : '—'}</em><i><b style="height:${m ? Math.max(8, Math.round(m / maxCal * 100)) : 0}%"></b></i><small>${n}</small></span>`).join('')}</span></button>
-      <button type="button" class="tuile${sj.length ? ' attire' : ''}" data-tuile="justif" aria-pressed="${on('justif')}"><span class="tu-t">${ic('piece', 14, 2)} Pour ton comptable</span><b class="tu-m">${sj.length} <small>pièces à justifier</small></b>
-        <span class="jauge" role="img" aria-label="${ACHATS.length - sj.length} pièces sur ${ACHATS.length} ont leur justificatif"><i style="width:${Math.round((ACHATS.length - sj.length) / ACHATS.length * 100)}%"></i></span><span class="tu-s">${ACHATS.length - sj.length} sur ${ACHATS.length} ont leur photo ou leur PDF : sans lui, la TVA ne se récupère pas${rat.length ? `<br>${pl(rat.length, 'avoir')} à rattacher à une facture` : ''}</span>${sj.length && peutEcrire() && !e.hors ? '<span class="btn mini ambre-b">Les voir et joindre…</span>' : ''}</button>
-    </div>`;
+    const ret = ouv.filter((a) => retardJ(a) > 0);
+    const justif = sj.length ? `<button type="button" class="apy-j" data-tuile="justif">${ic('piece', 14, 2)} ${pl(sj.length, 'pièce')} sans justificatif pour ton comptable</button>` : '';
+    if (!ouv.length) return `<div class="apy carte"><div class="apy-t"><span class="apy-ok">${ic('coche', 16, 2.4)}</span><b>Rien à payer</b><span class="mu">toutes tes factures et dépenses sont réglées</span>${justif}</div></div>`;
+    const montre = s.apTout ? ouv : ouv.slice(0, 5);
+    const quand = (a) => { const r = retardJ(a), d = dansJ(a); return r ? [`en retard de ${pl(r, 'jour')}`, 'rouge'] : d === 0 ? ['aujourd\'hui', 'ambre'] : d != null && d <= 7 ? [`dans ${pl(d, 'jour')}`, 'ambre'] : a.ech ? [`le ${jm(a.ech)}`, ''] : ['sans échéance', '']; };
+    const regler = peutEcrire() && !e.hors;
+    return `<div class="apy carte"><div class="apy-t"><b>À payer</b><span class="mu">${pl(ouv.length, 'pièce')} · ${fmt(somme(ouv))} DT${ret.length ? ` · <span class="rouge">dont ${fmt(somme(ret))} DT en retard</span>` : ''}</span>${justif}</div>
+      <ul class="apy-l">${montre.map((a) => { const [t, ton] = quand(a); const eur = a.c.dev !== 'DT'; return `<li data-ref="${a.ref}">${av(a.f)}<span class="apy-n"><b>${esc(nomF(a.f))}</b><small>${esc(a.n || a.ref)} · ${esc(a.obj)}</small></span><span class="apy-e ${ton}">${t}</span><b class="apy-m">${eur ? `${fmt(resteDev(a), 'EUR')} €` : `${fmt(reste(a))} DT`}</b>${regler ? `<button type="button" class="btn mini" data-regler="${a.ref}">Régler</button>` : '<span></span>'}</li>`; }).join('')}</ul>
+      ${ouv.length > 5 ? `<button type="button" class="apy-plus" data-ap-tout>${s.apTout ? 'Replier' : `${pl(ouv.length - 5, 'autre pièce', 'autres pièces')} à payer · tout voir`}</button>` : ''}</div>`;
   }
   function filtres() {
     const l = liste(), tot = ACHATS.length;
@@ -1419,7 +1430,7 @@ table.liste.achats tr.solde td.m, table.liste.achats tr.solde td.num-c b.num { c
     return `<div class="filtres"><label class="cherche">${ic('recherche', 16, 2)}<input id="f-q" value="${esc(s.q)}" placeholder="N°, fournisseur, objet, montant, pièce jointe…" autocomplete="off"><kbd>/</kbd></label>
       <div class="segment petit" role="group" aria-label="Sorte">${[['', 'Tout'], ['facture', 'Factures'], ['depense', 'Dépenses'], ['avoir', 'Avoirs']].map(([k, n]) => `<button type="button" data-sorte="${k}" aria-pressed="${s.sorte === k}">${n}</button>`).join('')}</div>
       ${sel('f-st', s.st, Object.entries(FILTRES), 'Statut')}${sel('f-cat', s.cat, [['', 'Toutes les catégories'], ...cats().map((c) => [c, c])], 'Catégorie')}${sel('f-an', s.an, [['', 'Toutes les années'], ...annees().map((a) => [a, a])], 'Année')}
-      <button type="button" class="i-b" data-aide aria-label="Ce que disent les tuiles et les colonnes">${ic('aide', 16, 2)}</button>
+      <button type="button" class="i-b" data-aide aria-label="Ce que disent le bloc « À payer » et les colonnes">${ic('aide', 16, 2)}</button>
       <span class="f-note">${filtre ? `<b>${l.length}</b> sur ${tot} pièces` : `<b>${tot}</b> pièces`}</span></div>
       ${filtre ? `<div class="puces-f">${[s.st ? ['st', FILTRES[s.st]] : null, s.sorte ? ['sorte', SORTE[s.sorte][1]] : null, s.cat ? ['cat', s.cat] : null, s.an ? ['an', `Année ${s.an}`] : null, s.q ? ['q', `« ${esc(s.q)} »`] : null].filter(Boolean).map(([k, n]) => `<button type="button" class="pf" data-ote="${k}">${n}${ic('croix', 12, 2.4)}</button>`).join('')}<button type="button" class="btn lien-b" data-reset>Tout effacer</button></div>` : ''}`;
   }
@@ -1478,7 +1489,7 @@ table.liste.achats tr.solde td.m, table.liste.achats tr.solde td.num-c b.num { c
     return '';
   }
   function chargement() {
-    return `<div class="tuiles">${[1, 2, 3, 4].map(() => '<div class="tuile fixe"><span class="sq" style="width:120px;height:12px"></span><span class="sq" style="width:160px;height:24px"></span><span class="sq" style="width:190px;height:10px"></span></div>').join('')}</div><div class="filtres"><span class="sq" style="width:420px;height:40px"></span><span class="sq" style="width:300px;height:34px"></span></div>
+    return `<div class="apy carte"><div class="apy-t"><span class="sq" style="width:260px;height:14px"></span></div><ul class="apy-l">${[1, 2, 3].map(() => '<li><span class="sq" style="width:30px;height:30px"></span><span class="sq" style="width:220px"></span><span class="sq" style="width:110px"></span><span class="sq" style="width:90px"></span><span></span></li>').join('')}</ul></div><div class="filtres"><span class="sq" style="width:420px;height:40px"></span><span class="sq" style="width:300px;height:34px"></span></div>
       <div class="carte tab">${Array.from({ length: 8 }, () => '<div class="sq-l"><span class="sq" style="width:70px"></span><span class="sq" style="width:120px"></span><span class="sq" style="width:30px;height:30px"></span><span class="sq" style="width:220px"></span><span class="sq" style="width:100px;margin-left:auto"></span></div>').join('')}</div>`;
   }
   function premiereFois() {
@@ -1757,7 +1768,7 @@ table.liste.achats tr.solde td.m, table.liste.achats tr.solde td.num-c b.num { c
     if (m === 'regler') return regler([s.aRegler || 'CB-2026-0428']);
     if (m === 'regler-n') return regler(['CB-2026-0428', 'CB-2026-0436']);
     if (m === 'attestation') return attestation();
-    if (m === 'aide') return `<div class="pop-aide"><b>Ce que disent les tuiles et les colonnes</b><p><b>À payer</b> : ce qui reste sur tes factures et tes dépenses, retenue déjà déduite. Un avoir libre n'y entre pas : il est à toi, sur la fiche du fournisseur.</p><p><b>Net à payer</b> : le TTC moins la retenue à la source que tu garderas pour l'État. <b>Reste</b> : ce que tu dois encore lui verser.</p><p><b>Pour ton comptable</b> : une pièce sans sa photo ou son PDF ne prouve rien ; un avoir doit dire de quelle facture il retire.</p></div>`;
+    if (m === 'aide') return `<div class="pop-aide"><b>Ce que disent le bloc « À payer » et les colonnes</b><p><b>À payer</b> : les pièces qui restent à payer, la plus en retard d'abord, puis par échéance ; le montant est ce qui reste, retenue déjà déduite. Un avoir libre n'y entre pas : il est à toi, sur la fiche du fournisseur.</p><p><b>Net à payer</b> : le TTC moins la retenue à la source que tu garderas pour l'État. <b>Reste</b> : ce que tu dois encore lui verser.</p><p><b>Pour ton comptable</b> : une pièce sans sa photo ou son PDF ne prouve rien ; un avoir doit dire de quelle facture il retire.</p></div>`;
     if (m === 'supprimer') return `<div class="voile"><div class="fen" role="dialog" aria-label="Supprimer un fournisseur"><h3>InfoTech Distribution ne peut pas être supprimé</h3><p class="regle"><b>Pourquoi</b> : ${pl(C.infotech.nb, 'achat est lié', 'achats sont liés')} à ce fournisseur, avec leurs règlements et leurs retenues. Un fournisseur qui a une histoire ne se supprime pas.</p><p class="regle"><b>Ce que tu peux faire</b> : l'archiver. Il sort des listes et ne se propose plus quand tu saisis un achat ; ses pièces restent. Seul un fournisseur sans aucun achat se supprime (comme Imprimerie Al Amal), après une confirmation.</p><div class="pied"><button type="button" class="btn" data-fermer>Fermer</button><button type="button" class="btn prem" data-fermer>L'archiver plutôt</button></div></div></div>`;
     return '';
   }
@@ -1774,7 +1785,7 @@ table.liste.achats tr.solde td.m, table.liste.achats tr.solde td.num-c b.num { c
       h = hautAchats();
       if (e.charge) corps = chargement();
       else if (e.vide) corps = premiereFois();
-      else corps = `${bandeau()}${tuiles()}${filtres()}${tableau()}<p class="raccourcis">${ic('clavier', 14, 2)} <kbd>/</kbd> chercher · <kbd>↑</kbd> <kbd>↓</kbd> d'une pièce à l'autre · <kbd>Entrée</kbd> l'ouvrir · <kbd>Espace</kbd> la choisir · <kbd>N</kbd> <kbd>A</kbd> nouvelle facture d'achat · <kbd>Échap</kbd> fermer</p>`;
+      else corps = `${bandeau()}${aPayer()}${filtres()}${tableau()}<p class="raccourcis">${ic('clavier', 14, 2)} <kbd>/</kbd> chercher · <kbd>↑</kbd> <kbd>↓</kbd> d'une pièce à l'autre · <kbd>Entrée</kbd> l'ouvrir · <kbd>Espace</kbd> la choisir · <kbd>N</kbd> <kbd>A</kbd> nouvelle facture d'achat · <kbd>Échap</kbd> fermer</p>`;
     }
     return `${barre()}<div class="contenu">${h}<div class="corps-l">${corps}</div>${barreChoix()}${s.toast ? `<div class="toast" role="status">${ic('coche', 16, 2.4)}<span>${s.toast}</span><span class="temps"></span></div>` : ''}${couche()}</div>`;
   }
@@ -1856,6 +1867,8 @@ table.liste.achats tr.solde td.m, table.liste.achats tr.solde td.num-c b.num { c
     ['f-st', 'f-cat', 'f-an'].forEach((id) => { const x = o.querySelector('#' + id); if (x) x.onchange = () => { s[{ 'f-st': 'st', 'f-cat': 'cat', 'f-an': 'an' }[id]] = x.value; tout(); }; });
     o.querySelectorAll('[data-sorte]').forEach((b) => b.onclick = () => { s.sorte = b.dataset.sorte; tout(); });
     o.querySelectorAll('[data-tuile]').forEach((b) => b.onclick = () => { const t = b.dataset.tuile; s.st = s.st === t ? '' : t; s.q = ''; s.sorte = ''; tout(); });
+    o.querySelectorAll('[data-ap-tout]').forEach((b) => b.onclick = () => { s.apTout = !s.apTout; tout(); });
+    o.querySelectorAll('.apy-l li[data-ref]').forEach((li) => li.onclick = (ev) => { if (ev.target.closest('button')) return; s.ouvert = li.dataset.ref; tout(); });
     document.querySelectorAll('#ecran [data-tst]').forEach((b) => b.onclick = () => { const t = b.dataset.tst; s.st = s.st === t ? '' : t; tout(); });
     document.querySelectorAll('[data-f]').forEach((b) => b.onclick = () => { const f = b.dataset.f; s.f = s.f === f ? '' : f; s.q = ''; tout(); });
     o.querySelectorAll('[data-seg]').forEach((b) => b.onclick = () => { s.f = b.dataset.seg; s.cur = -1; tout(); });
@@ -1922,13 +1935,13 @@ table.liste.achats tr.solde td.m, table.liste.achats tr.solde td.num-c b.num { c
     ['Colonnes : date, n° fournisseur (ou « sans numéro » + réf.), trombone des justificatifs, fournisseur et contenu, catégorie (« dépense »), échéance, statut, net à payer (et la devise d\'origine), reste', 'Tableau trié', 'Mêmes colonnes ; l\'échéance dit « dans 6 jours » ou « 30 jours de retard », la marque El Fatoora, « retenue gardée » sous le net', 'devant'],
     ['Pied : nombre de pièces, HT, net et reste de toute la sélection (pas de la page)', 'Oui', 'Même pied, avec la TVA de la sélection et « dont … en retard »', 'devant'],
     ['Pagination à 25', 'Oui', 'Même chose', 'devant'],
-    ['Le bloc « À payer » (pièces dues, retard, à régler sous 7 jours, « Régler » sur chacune), replié ou non', 'Panneau au-dessus de la liste', 'Les quatre tuiles : À payer (à échoir, en retard, retenue à garder), En retard (par âge), Cette semaine, Pour ton comptable ; « Régler » sur chaque ligne', 'devant'],
+    ['Le bloc « À payer » (pièces dues, retard, à régler sous 7 jours, « Régler » sur chacune), replié ou non', 'Panneau au-dessus de la liste', 'Le même bloc, en tête : les pièces qui restent à payer, la plus en retard d\'abord puis par échéance (« en retard de 12 jours », « dans 3 jours »), « Régler » sur chacune, les cinq premières puis « tout voir » ; les répartitions (par âge, par semaine) iront à la page Statistiques', 'devant'],
     ['Menu d\'une ligne : ouvrir, enregistrer un règlement, saisir un avoir, saisir un acompte, dupliquer', 'Menu ⋯', 'Même menu, plus joindre ou voir le justificatif et la fiche du fournisseur', 'menu'],
     ['Saisie confiée au cabinet : « Envoyer une photo à mon comptable » en bouton principal, la phrase qui l\'explique', 'En-tête', 'Même bouton, la phrase dans un bandeau', 'devant'],
     ['Première fois : la phrase, « Saisir ma première facture d\'achat », « Noter une dépense »', 'Carte', 'Même carte, en quatre étapes', 'devant'],
     ['Choisir plusieurs pièces et les régler d\'un seul virement', 'N\'existe pas', '« Régler ensemble » quand elles sont du même fournisseur, avec l\'ordre de virement en PDF (celui des salaires) ; exporter, télécharger les justificatifs', 'neuf'],
-    ['Ce qui tombe dans les semaines qui viennent', 'Les pièces dues sous 7 jours, comptées', 'La tuile « Cette semaine » et son échéancier : cette semaine, les deux suivantes, puis jusqu\'à 45 jours', 'neuf'],
-    ['La part des pièces qui ont leur justificatif', 'N\'existe pas', 'La jauge de la tuile « Pour ton comptable » (15 sur 19)', 'neuf'],
+    ['Ce qui tombe dans les semaines qui viennent', 'Les pièces dues sous 7 jours, comptées', 'Le bloc « À payer » dit « dans N jours » pour chacune ; le filtre « Cette semaine » ; l\'échéancier par semaine ira à la page Statistiques', 'devant'],
+    ['Les pièces sans justificatif', 'N\'existe pas', '« N pièces sans justificatif pour ton comptable », en tête du bloc « À payer » : un clic les montre ; la part en pourcentage ira à la page Statistiques', 'neuf'],
     ['La liste rangée par mois, une couleur par catégorie de charge, les pièces soldées en retrait', 'N\'existe pas', 'Comme la liste des factures : chaque mois dit ses pièces et ce qu\'elles valent', 'neuf'],
     ['Les fournisseurs'],
     ['Chercher : nom, contact, matricule, e-mail, téléphone', 'Un champ', 'Même champ ; il lit aussi la ville et le numéro de fiche', 'devant'],
@@ -1975,11 +1988,11 @@ table.liste.achats tr.solde td.m, table.liste.achats tr.solde td.num-c b.num { c
     const rsA = ACHATS.reduce((x, a) => x + rsAOperer(a), 0);
     const filt = Object.keys(FILT_F).filter(Boolean);
     const v = [
-      ['Ce que tu dois aux fournisseurs, et ce que disent les pièces', `${fmt(duFourn)} DT et ${fmt(duPieces)} DT ; la tuile « À payer » dit ${fmt(tuile)} DT`, duFourn === duPieces && tuile === duPieces],
+      ['Ce que tu dois aux fournisseurs, et ce que disent les pièces', `${fmt(duFourn)} DT et ${fmt(duPieces)} DT ; le bloc « À payer » dit ${fmt(tuile)} DT`, duFourn === duPieces && tuile === duPieces],
       ['Le retard des fournisseurs, et celui des pièces', `${fmt(sommeF(ORDRE_F, (x) => x.enRetard))} DT et ${fmt(retPieces)} DT`, sommeF(ORDRE_F, (x) => x.enRetard) === retPieces],
       ['L\'acheté des fournisseurs, et celui des pièces', `${fmt(sommeF(ORDRE_F, (x) => x.ht))} DT HT et ${fmt(htP)} DT HT`, sommeF(ORDRE_F, (x) => x.ht) === htP],
       ['La facture d\'InfoTech dit ce que dit la maquette de l\'achat', `TTC ${fmt(it.ttc)} · retenue ${fmt(it.rs)} · net ${fmt(it.net)} (l'achat : 3 193,175 · 47,883 · 3 145,292)`, it.ttc === 3193175 && it.rs === 47883 && it.net === 3145292],
-      ['La retenue à garder : la tuile et les fiches', `${fmt(rsA)} DT et ${fmt(sommeF(ORDRE_F, (x) => x.rsAOp))} DT`, rsA === sommeF(ORDRE_F, (x) => x.rsAOp)],
+      ['La retenue à garder : les pièces et les fiches', `${fmt(rsA)} DT et ${fmt(sommeF(ORDRE_F, (x) => x.rsAOp))} DT`, rsA === sommeF(ORDRE_F, (x) => x.rsAOp)],
       ['Chaque filtre des fournisseurs compte ce qu\'il montre', filt.map((f) => `${FILT_F[f]} ${listeF({ f, q: '' }).length}`).join(' · '), filt.every((f) => listeF({ f, q: '' }).length === ORDRE_F.filter((k) => passeF(k, f)).length)],
       ['Le pied des achats additionne ses lignes', `${fmt(liste(toutes).reduce((x, a) => x + Math.max(0, reste(a)), 0))} DT pour ${pl(ACHATS.length, 'pièce')}`, liste(toutes).reduce((x, a) => x + Math.max(0, reste(a)), 0) === duPieces],
       ['Un avoir libre n\'est pas une dette : il est en ta faveur', `Électro Sud : ${fmt(C.electro.du)} dû, ${fmt(C.electro.aRecup)} à toi`, C.electro.du === 0 && C.electro.aRecup === parRef['CB-2026-0441'].c.net],

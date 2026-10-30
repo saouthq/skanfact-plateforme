@@ -341,7 +341,7 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 .cf-vide .pr-b { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
 @media (max-width: 1100px) {
   .cf-fiche { grid-template-columns: minmax(0, 1fr); }
-  .cf-droite { position: static; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .cf-droite { position: static; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 }
 @media (max-width: 760px) {
   .cf-tete .actions { width: 100%; }
@@ -351,3 +351,10 @@ table.cf-mini tr.clic:hover td { background: var(--sb-survol); }
 }
 /* Au doigt, un onglet se touche comme un bouton : 44 points (`tests/web/rendu.test.ts`). */
 @media (max-width: 760px), (pointer: coarse) { .cf-onglets button { min-height: 44px; } }
+/* (1.201.0) Sans réseau, au-dessus de la liste ; et sous le matricule d'un client, ce qui ne va pas. */
+#view > #cl-hors-ligne { margin-bottom: 14px; }
+#cf .cf-aide { display: block; font-size: 12px; font-weight: 500; color: var(--sb-ambre-texte); margin-top: 4px; }
+#cf .cf-aide:empty { display: none; }
+#cf .cf-aide.ko { color: var(--sb-rouge-texte); }
+#cf .cf-aide a { color: inherit; text-decoration: underline; }
+

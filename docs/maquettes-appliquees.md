@@ -19,7 +19,7 @@ perdu » — ce que fait l'écran de la v10 et où il le retrouve — et « Ce q
 | `achat.html` | L'achat, avec la lecture par l'IA (facultative, décision du 24/10/2026) |
 | `accueil.html` | L'accueil |
 | `clients.html` | Les clients : la liste et la fiche d'un client (documents, paiements, relances, affaires et contrats, matériel), la fenêtre du client, le relevé, l'import ; validée le 28/10/2026, appliquée : la liste (1.199.0), la fiche (1.200.0) |
-| `achats-fournisseurs.html` | Les achats et dépenses (tuiles À payer, En retard, Cette semaine, Pour ton comptable ; choisir plusieurs pièces et les régler d'un virement), les fournisseurs et la fiche de chacun (achats, règlements, commandes, retenues et attestations, le fil), l'échéancier et la jauge des justificatifs ; validée le 30/10/2026, pas encore appliquée |
+| `achats-fournisseurs.html` | Les achats et dépenses (tuiles À payer, En retard, Cette semaine, Pour ton comptable ; choisir plusieurs pièces et les régler d'un virement), les fournisseurs et la fiche de chacun (achats, règlements, commandes, retenues et attestations, le fil), et, en tête de la liste, les pièces qui restent à payer, la plus en retard d'abord, avec « Régler » sur chacune (passe 3, Skander le 30/10/2026 : plus de grandes tuiles de chiffres, ils iront à la page Statistiques) ; validée le 30/10/2026, pas encore appliquée |
 
 ## Comment on les applique
 
@@ -362,6 +362,18 @@ La fiche de `clients.html`, appliquée dans `routes.client` (`web/public/v10/app
 | Le délai de paiement | Un champ de la fiche (vide : celui des réglages ; 0 : à réception). L'échéance d'une facture neuve pour ce client le reprend (fin de mois si sa fiche le dit, comme le garde la bulle « Échéance ») |
 | Le code client | Facultatif, sous son nom ; il se cherche dans la liste |
 | Au téléphone | Une colonne : le geste principal en tête, les bandeaux, les onglets, puis la colonne de droite |
+
+**Revue après validation (1.201.0)**, la fiche refaite état par état contre la maquette :
+- *Hors ligne* : la liste et la fiche disent « Pas de réseau : … est celle que ce poste a gardée » ; la relance n'est plus
+  proposée (ni la cloche, ni le menu, ni le geste principal, ni l'onglet Relances), une relance portant le lien que seul le
+  serveur donne. Elles se redessinent quand le réseau part ou revient. Preuves « fiche client 12 » et « 13 ».
+- *La fenêtre du client* : le matricule se relit pendant qu'on l'écrit. Déjà connu : « Déjà la fiche de « … » · ouvrir sa
+  fiche », et l'enregistrement est refusé en le disant (le même client deux fois fausserait son compte). Ni un matricule ni
+  un CIN : « vérifie-le », sans bloquer. Preuves « fiche client 14 » et « 15 ».
+- *Doublon de bouton* : sans réseau, « Nouvelle facture » devenait à la fois le principal et le secondaire ; le secondaire
+  redevient « Nouveau devis ».
+- *Tablette* (1024 px) : la colonne de droite passe sous les onglets, deux cartes par rangée (photo `fiche-client-3-tablette.png`).
+- Le bandeau « Tu es commercial » de la maquette n'est pas repris : la fenêtre du client grise déjà l'encours pour lui, en le disant.
 
 **Écarts assumés** : la carte « Liens donnés au client » de la maquette attend (SkanFact ne garde pas encore la liste des liens
 donnés pour un client) ; « Télécharger ses pièces » (toutes ses pièces en un fichier) aussi. Le choix d'un client archivé n'a

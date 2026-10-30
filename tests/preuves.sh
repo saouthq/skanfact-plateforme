@@ -21632,7 +21632,7 @@ prouver 'clients 8 : à la tablette, toutes les colonnes se serrent' web/public/
 # (1.200.0) Les clients, lot 2 : la fiche d'un client telle que la maquette (docs/maquettes/clients.html).
 FC2="l'en-tête, les bandeaux, les onglets, la colonne de droite, le menu, archiver, le délai"
 prouver 'fiche client 1 : une seule facture en retard ne se relance plus d'"'"'un geste' web/public/v10/app.js \
-  "late.length === 1 && peutVendre ? " "false ? " "$FC2"
+  "late.length === 1 && peutVendre && !horsLigne ? " "false ? " "$FC2"
 prouver 'fiche client 2 : plusieurs retards, pas de relevé en geste principal' web/public/v10/app.js \
   ': late.length > 1 ? `<button' ': false ? `<button' "$FC2"
 prouver 'fiche client 3 : le retard tait sa dernière relance' web/public/v10/app.js \
@@ -21655,3 +21655,12 @@ prouver 'fiche client 11 : un client archivé ne revient pas' web/public/v10/app
   "    c.archived = ''; save(true); if (refaire) refaire();
     toast(" "    save(true); if (refaire) refaire();
     toast(" "$FC2"
+# (1.201.0) Revue de la fiche : sans réseau, et le matricule de la fenêtre d'un client.
+prouver 'fiche client 12 : sans réseau, la fiche ne le dit pas' web/public/v10/app.js \
+  "if (horsLigne) bandeaux.push(bandeauHorsLigneClients('la fiche'));" "" "$FC2"
+prouver 'fiche client 13 : sans réseau, la relance reste proposée' web/public/v10/app.js \
+  "late.length === 1 && peutVendre && !horsLigne ? " "late.length === 1 && peutVendre ? " "$FC2"
+prouver 'fiche client 14 : un matricule déjà connu crée un second client' web/public/v10/app.js \
+  "          if (autre) return refus('#cf input[name=matricule]'," "          if (false) return refus('#cf input[name=matricule]'," "$FC2"
+prouver 'fiche client 15 : un matricule mal écrit se tait' web/public/v10/app.js \
+  "? 'Ni un matricule (7 chiffres, une lettre, puis /A/M/000) ni un CIN (8 chiffres) : vérifie-le.' : ''" "? '' : ''" "$FC2"

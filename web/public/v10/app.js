@@ -9167,7 +9167,7 @@
     modal(`<h2>${client ? 'Modifier le client' : 'Nouveau client'}</h2>
       <form id="cf" class="grid-2">
         <label class="field span-2 obligatoire">${lbl('Nom / Raison sociale', 'cl.name')}<input type="text" name="name" value="${h(c.name)}" required></label>
-        ${field(lbl('Matricule fiscal / CIN', 'co.matricule'), 'matricule', c.matricule)}
+        ${field(lbl('Matricule fiscal / CIN', 'co.matricule'), 'matricule', c.matricule).replace(/<\/label>$/, '<small class="cf-aide" id="cf-mf-aide" aria-live="polite"></small></label>')}
         ${field(lbl('Téléphone', 'cl.phone'), 'phone', c.phone)}
         <label class="field">${lbl('Adresse', 'cl.address')}<textarea name="address">${h(c.address)}</textarea></label>
         ${field(lbl('Ville', 'cl.city'), 'city', c.city || '', 'text', 'placeholder="Sfax"')}
@@ -9191,9 +9191,24 @@
         ${client ? '<button class="btn btn-danger" id="del-client" style="margin-inline-end:auto">Supprimer ce client</button>' : ''}
         <button class="btn" data-close>Annuler</button><button class="btn btn-primary" id="ok">Enregistrer</button></div>`,
       (root, close) => {
+        // (1.201.0, maquette Clients « matricule déjà connu », « matricule mal écrit ») Le matricule se relit pendant qu'on
+        // l'écrit : un autre client qui l'a déjà (« ouvrir sa fiche »), ou une forme qui n'est ni un matricule ni un CIN.
+        const mfC = v => String(v || '').toUpperCase().replace(/[\s/.\-_]/g, '');
+        const dejaLa = v => (mfC(v) ? data.clients.find(x => x !== c && mfC(x.matricule) === mfC(v)) : null);
+        const aideMf = () => {
+          const v = $('#cf input[name=matricule]', root).value, z = $('#cf-mf-aide', root), autre = dejaLa(v);
+          z.className = 'cf-aide' + (autre ? ' ko' : '');
+          z.innerHTML = autre ? `Déjà la fiche de « ${h(autre.name)} » · <a href="#/client/${h(autre.id)}" id="cf-mf-ouvrir">ouvrir sa fiche</a>`
+            : v.trim() && !C.matriculeBienForme(v) && !/^\d{8}$/.test(mfC(v)) ? 'Ni un matricule (7 chiffres, une lettre, puis /A/M/000) ni un CIN (8 chiffres) : vérifie-le.' : '';
+          if ($('#cf-mf-ouvrir', root)) $('#cf-mf-ouvrir', root).onclick = e => { e.preventDefault(); close(); navigate('#/client/' + autre.id); };
+        };
+        $('#cf input[name=matricule]', root).addEventListener('input', aideMf);
+        aideMf();
         $('#ok', root).onclick = () => {
           if (enLecture('clients')) return refus('#cf input[name=name]', refusLecture('clients'));
           const v = formValues($('#cf', root));
+          const autre = dejaLa(v.matricule);
+          if (autre) return refus('#cf input[name=matricule]', `« ${autre.name} » a déjà ce matricule : c'est sans doute le même client. Ouvre sa fiche plutôt que d'en créer une seconde.`);
           // `refus()` amène le champ à l'écran, y met le curseur et le marque (7.0.0). Un toast seul
           // oblige à relire tout le formulaire — et la fenêtre peut avoir défilé.
           if (!v.name.trim()) return refus('#cf input[name=name]', 'Le nom est obligatoire : c\'est lui qui apparaît sur chaque document.');
@@ -9551,6 +9566,10 @@
   const lcTrouve = (r, q) => !q || C.correspondRecherche([r.c.name, r.c.contact, r.c.matricule, r.c.email, r.c.phone, String(r.c.phone || '').replace(/\s/g, ''), r.c.city, r.c.code].join(' '), q);
   // Relancer la facture en retard la plus ancienne d'un client : le même message que la page Relances, à son niveau.
   const lcRelancer = r => { const x = r.relances[0]; if (x) sendReminder(x, 'email'); };
+  // (1.201.0, maquette Clients « Hors ligne ») Sans réseau, la liste et la fiche le disent, et ne proposent pas de relancer :
+  // une relance porte le lien de la facture, que seul le serveur donne.
+  const clientsHorsLigne = () => navigator.onLine === false;
+  const bandeauHorsLigneClients = quoi => `<div class="banner gris" id="cl-hors-ligne"><span><b>Pas de réseau : ${quoi} est celle que ce poste a gardée</b> — tu lis les fiches, tu appelles, tu notes. Ce qu'ils te doivent date de la dernière connexion ; une facture ne s'émet pas sans réseau, une relance non plus.</span></div>`;
 
   routes.clients = () => {
     const s = clientState;
@@ -9593,7 +9612,7 @@
         : net < -0.0005 ? `<span class="trop" title="Payé en trop ou avoir libre : à lui rendre, ou à déduire de sa prochaine facture">${m(-net)} en sa faveur</span>` : '<span class="mu">—</span>';
       const der = r.der ? `${h(r.der.number || 'Brouillon')}<small>${C.fmtDate(r.der.date)}</small>` : '<span class="mu">—</span>';
       const rel = r.relances[0];
-      const relancer = rel && peutEcrire && !enLecture('documents')
+      const relancer = rel && peutEcrire && !enLecture('documents') && !clientsHorsLigne()
         ? `<button type="button" class="btn ico enc" data-rel="${h(c.id)}" title="${h(`Relancer ${rel.doc.number} · ${LC_NIVEAU[rel.level]}`)}" aria-label="${h(`Relancer ${c.name}`)}">${lfIc('cloche', 16)}</button>` : '<span class="enc-v"></span>';
       return `<tr class="clickable" data-cid="${h(c.id)}">
         <td class="cl"><span class="cl-i">${pastilleClient(c.id, c.name)}<span><b>${h(c.name)}</b>${sous ? `<small>${sous}</small>` : ''}</span></span></td>
@@ -9637,7 +9656,7 @@
           <p>Ta liste est déjà dans un tableur ? Colle-la, ou ouvre ton fichier : tous tes clients entrent d'un coup.</p>
           ${peutEcrire ? `<div class="pr-b"><button class="btn ${lecture ? '' : 'btn-primary'}" id="vide-client">${lfIc('croix', 15, 2.4)} Ajouter mon premier client</button><button class="btn" id="vide-import">${lfIc('importer', 15)} Importer depuis un tableur</button><button class="btn btn-lien" id="vide-demo">Voir un exemple rempli</button></div>` : ''}</div>
           <ol class="pr-e"><li><b>1</b><span><b>Son nom et son matricule</b><small>El Fatoora refuse une facture sans le bon matricule</small></span></li><li><b>2</b><span><b>Ses conditions, si besoin</b><small>retenue, encours, langue, devise : derrière « Plus de détails »</small></span></li><li><b>3</b><span><b>Ton premier devis ou ta première facture</b><small>le client se choisit en tapant trois lettres</small></span></li><li><b>4</b><span><b>Son compte se tient seul</b><small>ce qu'il doit, ses paiements, ses relances</small></span></li></ol></div>`
-        : `${bandeau}<div class="lf lc" id="lc"><div id="lc-puces"></div><div id="lf-barre"></div><div id="list-wrap"></div>
+        : `${clientsHorsLigne() ? bandeauHorsLigneClients('la liste') : ''}${bandeau}<div class="lf lc" id="lc"><div id="lc-puces"></div><div id="lf-barre"></div><div id="list-wrap"></div>
           <p class="raccourcis">${lfIc('clavier', 14)} <kbd>/</kbd> chercher · <kbd>↑</kbd> <kbd>↓</kbd> d'un client à l'autre · <kbd>Entrée</kbd> ouvrir sa fiche · <kbd>Échap</kbd> fermer</p></div>`}`;
     const ouvrirForm = () => clientForm(null, () => render(true));
     if ($('#new')) $('#new').onclick = ouvrirForm;
@@ -9695,7 +9714,7 @@
         { icon: 'nouveau', label: 'Nouveau devis', hint: `Pour ${c.name}`, run: () => navigate('#/doc/new/devis/client/' + id) },
         { icon: 'nouveau', label: 'Nouvelle facture', hint: 'Elle reprend sa fiche', run: () => navigate('#/doc/new/facture/client/' + id) }] : []),
       ...groupe('Son compte', [
-        ...(rel && vend ? [{ icon: 'cloche', label: `Relancer ${rel.doc.number}`, hint: `${pl(rel.daysLate, 'jour')} de retard · ${LC_NIVEAU[rel.level]}`, run: () => lcRelancer(r) }] : []),
+        ...(rel && vend && !clientsHorsLigne() ? [{ icon: 'cloche', label: `Relancer ${rel.doc.number}`, hint: `${pl(rel.daysLate, 'jour')} de retard · ${LC_NIVEAU[rel.level]}`, run: () => lcRelancer(r) }] : []),
         { icon: 'pdf', label: 'Relevé de compte…', hint: net > 0.0005 ? `${C.money(net, company().currency)} encore dus` : net < -0.0005 ? `${C.money(-net, company().currency)} en sa faveur` : 'le compte est soldé', run: () => releveForm(id) }]),
       ...groupe('Sa fiche', ecrit ? [{ icon: 'modifier', label: 'Modifier le client', hint: 'Coordonnées, contact, matricule', run: () => clientForm(c, refaire) },
         c.archived ? { icon: 'restaurer', label: 'Le remettre dans la liste', hint: 'Il revient dans les choix d\'une pièce', run: () => desarchiverClient(c, refaire) }
@@ -9722,6 +9741,9 @@
     }
     if (e.key === 'Enter' && s.cur >= 0 && lignes[s.cur]) { e.preventDefault(); navigate('#/client/' + lignes[s.cur].dataset.cid); }
   });
+
+  // Le réseau qui part ou revient redessine la liste et la fiche d'un client : leur bandeau et leurs relances suivent.
+  for (const ev of ['online', 'offline']) window.addEventListener(ev, () => { if ($('#lc') || $('#view .cf-tete')) render(true); });
 
   // ---------- fiche client ----------
   // ---------- les listes de prix (plateforme, brique 93 ; 01 § 5) ----------
@@ -9857,7 +9879,7 @@
     const mo = n => C.money(n, cur);
     const sum = C.clientSummary(data, co, c.id);
     const docs = sum.docs.slice().sort(byNumberDesc);
-    const lecture = aboBloque(true), roleLit = enLecture('clients');
+    const lecture = aboBloque(true), roleLit = enLecture('clients'), horsLigne = clientsHorsLigne();
     const peutEcrire = !lecture && !roleLit, peutVendre = !lecture && !enLecture('documents');
     // En retard : la même liste que les Relances (une facture échue payée en partie est en retard), la plus ancienne d'abord.
     const late = C.overdueInvoices(data, co).filter(x => x.doc.clientId === c.id).sort((a, b) => b.daysLate - a.daysLate);
@@ -9881,13 +9903,14 @@
     // Le bouton principal : relancer sa facture en retard (une seule) ; plusieurs, lui envoyer son relevé ; sinon la prochaine pièce.
     const principal = lecture ? boutonRetenue()
       : roleLit ? `<button type="button" class="btn btn-primary" id="cf-releve">${lfIc('factures', 15)} Relevé de compte</button>`
-        : late.length === 1 && peutVendre ? `<button type="button" class="btn btn-primary" id="cf-relancer">${lfIc('cloche', 15)} Relancer ${h(late[0].doc.number)}</button>`
+        : late.length === 1 && peutVendre && !horsLigne ? `<button type="button" class="btn btn-primary" id="cf-relancer">${lfIc('cloche', 15)} Relancer ${h(late[0].doc.number)}</button>`
           : late.length > 1 ? `<button type="button" class="btn btn-primary" id="cf-releve">${lfIc('factures', 15)} Lui envoyer son relevé · ${late.length} en retard</button>`
             : peutVendre ? `<button type="button" class="btn btn-primary" id="new-fac">${lfIc('croix', 15, 2.4)} Nouvelle facture</button>` : '';
-    const secondaire = !peutVendre ? '' : late.length ? `<button type="button" class="btn" id="new-fac">${lfIc('croix', 15, 2.4)} Nouvelle facture</button>` : `<button type="button" class="btn" id="new-dev">${lfIc('piece', 15)} Nouveau devis</button>`;
+    const secondaire = !peutVendre ? '' : late.length && !principal.includes('id="new-fac"') ? `<button type="button" class="btn" id="new-fac">${lfIc('croix', 15, 2.4)} Nouvelle facture</button>` : `<button type="button" class="btn" id="new-dev">${lfIc('piece', 15)} Nouveau devis</button>`;
     const releveSec = principal.includes('id="cf-releve"') ? '' : `<button type="button" class="btn" id="cf-releve">${lfIc('factures', 15)} Relevé de compte</button>`;
 
     const bandeaux = [];
+    if (horsLigne) bandeaux.push(bandeauHorsLigneClients('la fiche'));
     if (c.archived) bandeaux.push(`<div class="banner gris" id="cf-archive"><span><b>Client archivé le ${C.fmtDate(c.archived)}</b> — il n'est plus dans la liste ni dans les choix d'une pièce ; ses documents restent.</span>${peutEcrire ? '<button type="button" class="btn" id="cf-desarchiver">Le remettre dans la liste</button>' : ''}</div>`);
     if (lecture) bandeaux.push('<div class="banner"><span><b>Ton abonnement est en lecture seule</b> — tu consultes sa fiche, tu télécharges son relevé, tu enregistres ce qu\'il paie. Changer sa fiche attend le renouvellement.</span></div>');
     if (roleLit) bandeaux.push('<div class="banner info"><span><b>Lecture seule : ton rôle te laisse lire les fiches clients, pas les modifier</b> — un geste qui les changerait est refusé, en le disant. Le propriétaire ou un administrateur peut te donner le rôle qui le permet.</span></div>');
@@ -9918,7 +9941,7 @@
         ${late.length ? `<div class="scroll-x"><table class="cf-mini"><thead><tr><th>Facture</th><th>Échéance</th><th>Retard</th><th class="r">Reste</th><th>Dernière relance</th><th></th></tr></thead><tbody>
         ${late.map(x => `<tr><td><b>${h(x.doc.number)}</b>${x.doc.subject ? `<small>${h(x.doc.subject)}</small>` : ''}</td><td class="nw">${C.fmtDate(x.doc.dueDate)}</td><td class="nw">${pl(x.daysLate, 'jour')}<small>${NIVEAU[x.level] || ''}</small></td><td class="r">${C.money(x.remaining, x.doc.currency || cur)}</td>
           <td>${x.lastReminder ? `${C.fmtDate(x.lastReminder.date)}<small>${x.lastReminder.channel === 'tel' ? 'appel' : 'e-mail'}, niveau ${x.lastReminder.level} · ${pl(x.reminders.length, 'relance')} en tout</small>` : '<span class="mu">jamais</span>'}</td>
-          <td class="r">${peutVendre ? `<button type="button" class="btn btn-sm" data-relancer="${h(x.doc.id)}">Relancer</button>` : ''}</td></tr>`).join('')}
+          <td class="r">${peutVendre && !horsLigne ? `<button type="button" class="btn btn-sm" data-relancer="${h(x.doc.id)}">Relancer</button>` : ''}</td></tr>`).join('')}
         </tbody></table></div>` : ''}
         ${hist.length ? `<b class="cf-sous-t">Ce qui a été fait</b><div class="scroll-x"><table class="cf-mini"><thead><tr><th>Le</th><th>Facture</th><th>Comment</th><th>Ce qu'il a dit</th></tr></thead><tbody>
         ${hist.map(({ d, r }) => `<tr><td class="nw">${C.fmtDate(r.date)}</td><td><b>${h(d.number)}</b></td><td>${r.channel === 'tel' ? 'Appel' : 'E-mail'}<small>niveau ${r.level} · ${NIVEAU[r.level] || ''}</small></td><td>${r.note ? h(r.note) : '<span class="mu">—</span>'}</td></tr>`).join('')}
