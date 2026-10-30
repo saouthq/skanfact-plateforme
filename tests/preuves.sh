@@ -21576,3 +21576,20 @@ prouver 'tableau 29 : la ligne d'"'"'un exercice n'"'"'ouvre plus sa clôture' w
 prouver 'tableau 30 : au téléphone, les onglets élargissent la page' web/public/plateforme/tableau-de-bord.css \
   "#page-bord .tb-grille .lf { gap: 12px; display: grid; grid-template-columns: minmax(0, 1fr); }" "#page-bord .tb-grille .lf { gap: 12px; display: grid; }" \
   'au téléphone : rien ne déborde'
+
+# (1.197.0) Le Tableau de bord, lot C : quand les pièces arrivent, face au seuil du cabinet.
+prouver 'tableau 31 : le relevé importé ne date plus l'"'"'arrivée du mois' serveur/cabinet/routes.ts \
+  "to_char(r.au, 'YYYY-MM'), r.importe_le from" "to_char(r.au, 'YYYY-MM'), r.importe_le - interval '40 days' from" \
+  'Quand les pièces arrivent'
+prouver 'tableau 32 : le seuil réglé ne compte pas' web/public/v10/cabinet/app.js \
+  "const seuilTb = () => { const v = Number((S.settings || {}).seuilPieces);" "const seuilTb = () => { const v = 20;" \
+  'Quand les pièces arrivent'
+prouver 'tableau 33 : le seuil ne part pas au serveur' web/public/plateforme/pont-cabinet.js \
+  "'relanceDay', 'seuilPieces', 'deadlines'" "'relanceDay', 'deadlines'" \
+  'Quand les pièces arrivent'
+prouver 'tableau 34 : le jour d'"'"'arrivée se lit de travers' web/public/v10/cabinet/app.js \
+  "le.slice(0, 7) === moisApres(m) ? Number(le.slice(8, 10)) : 32" "le.slice(0, 7) === moisApres(m) ? 15 : 32" \
+  'Quand les pièces arrivent'
+prouver 'tableau 35 : qui n'"'"'envoie rien ne passe plus en tête' web/public/v10/cabinet/app.js \
+  "const rang = a => (a.rien ? 100 + a.sans : a.max);" "const rang = a => (a.rien ? 0 : a.max);" \
+  'Quand les pièces arrivent'

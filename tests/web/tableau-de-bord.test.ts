@@ -299,6 +299,50 @@ describe('le Tableau de bord du Cabinet, à la souris', () => {
     await cx.close();
   }, 180_000);
 
+  // (1.197.0, maquette « Quand les pièces arrivent ») Le jour du mois suivant où le mois d'un client est complet, face au
+  // seuil que le cabinet règle dans ses Réglages (20 par défaut). Le garage importe aujourd'hui le relevé du mois fini :
+  // son mois est complet aujourd'hui ; la librairie n'a rien envoyé.
+  it('Quand les pièces arrivent : le jour où le mois est complet, face au seuil du cabinet', async () => {
+    const { associe, cab, librairie, garage } = await unCabinet();
+    expect((await api('POST', `/entreprises/${garage.ent}/compta/releves`, associe, { annee: Number(moisFini.slice(0, 4)), compte: '532', banque: 'BIAT', fichier: 'Releve.pdf',
+      empreinte: '7'.repeat(64), soldeDebut: '0,000', soldeFin: '100,125', lignes: [{ date: `${moisFini}-10`, libelle: 'VERSEMENT', reference: '', montant: '100,125' }] })).statut).toBe(201);
+    const jour = Number(new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Tunis', day: '2-digit' }).format(new Date()));
+    const cx = await navigateur.newContext({ viewport: { width: 1440, height: 900 }, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });
+    await cx.addInitScript((j) => { if (location.protocol.startsWith('http')) sessionStorage.setItem('skanfact.jeton', j); }, associe);
+    const p = await cx.newPage();
+    const erreurs: string[] = [];
+    p.on('pageerror', (e) => erreurs.push(e.message));
+    await p.goto(`${serveur.adresse}/v10/cabinet/?c=${cab.id}#/production`);
+    await p.locator('#page-bord #tb-grille').waitFor({ timeout: 20_000 });
+    await plusTard(p);
+    const bloc = p.locator('#tb-arrivee');
+    await expect.poll(() => bloc.locator('.tb-ar-l').count()).toBeGreaterThan(0);
+    expect(await bloc.locator('.tb-ar-g b').innerText()).toBe('20 · seuil du cabinet');
+    const g = bloc.locator(`.tb-ar-l[data-tb-ar="${garage.ent}"]`);
+    expect(await g.locator('small').innerText()).toBe(`en moyenne le ${jour} · au plus tard le ${jour}`);
+    expect(await g.locator('.tb-ar-ok').innerText()).toBe(jour > 20 ? 'après le seuil' : 'avant le seuil');
+    // La librairie n'a rien envoyé : elle passe en tête, en rouge.
+    const premiere = bloc.locator('.tb-ar-l').first();
+    expect(await premiere.getAttribute('data-tb-ar')).toBe(librairie.ent);
+    expect(await premiere.locator('small').innerText()).toMatch(/^rien sur \d+ mois$/);
+    expect(await premiere.locator('.tb-ar-ok').innerText()).toBe('rien ce mois-ci');
+    expect(await bloc.locator('#tb-ar-relancer').innerText()).toMatch(/^\d+ clients? envoi(e|ent) après le seuil ou rien du tout/);
+    // Le seuil se règle dans Le cabinet › Réglages ; la page le suit.
+    const autre = jour > 20 ? 31 : 1;
+    await p.evaluate(() => { location.hash = '#/reglages'; });
+    await p.locator('#c-seuil').waitFor({ timeout: 15_000 });
+    expect(await p.locator('#c-seuil').inputValue()).toBe('20');
+    await p.locator('#c-seuil').fill(String(autre));
+    await p.locator('#c-save').click();
+    await expect.poll(() => api('GET', `/cabinets/${cab.id}/reglages`, associe).then((r) => (r.corps.contenu as Record<string, unknown>).seuilPieces)).toBe(autre);
+    await p.evaluate(() => { location.hash = '#/production'; });
+    await expect.poll(() => p.locator('#tb-arrivee .tb-ar-g b').innerText().catch(() => '')).toBe(`${autre} · seuil du cabinet`);
+    expect(await p.locator(`#tb-arrivee .tb-ar-l[data-tb-ar="${garage.ent}"] .tb-ar-ok`).innerText()).toBe(jour > autre ? 'après le seuil' : 'avant le seuil');
+    await p.screenshot({ path: path.join(PHOTOS, 'tableau-de-bord-arrivee.png'), fullPage: true });
+    expect(erreurs).toEqual([]);
+    await cx.close();
+  }, 180_000);
+
   it('au téléphone : rien ne déborde, la grille défile dans son cadre, l\'onglet du bas s\'appelle « Tableau »', async () => {
     const { associe, cab } = await unCabinet();
     const cx = await navigateur.newContext({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 2, isMobile: true, hasTouch: true, locale: 'fr-FR', timezoneId: 'Africa/Tunis' });

@@ -145,7 +145,7 @@
   // (e-jibaya, CNSS). Aucune n'est garantie : le cahier du portail ne se lit pas d'ici, et un format
   // qui change un jour se change dans la liste, pas dans une version. Défaut « point » : c'est ce
   // qu'accepte un champ numérique de navigateur. À VÉRIFIER avec le comptable pilote.
-  const DEFAULT_SETTINGS = { relanceDay: 10, deadlines: null, saisie: null, theme: 'auto', depots: [], formatCopie: 'point' };
+  const DEFAULT_SETTINGS = { relanceDay: 10, seuilPieces: 20, deadlines: null, saisie: null, theme: 'auto', depots: [], formatCopie: 'point' };
   const DEFAULT_STATE = {
     format: FORMAT,
     cabinet: { name: '', email: '', phone: '', publicKey: '', privateKey: '' },
@@ -542,6 +542,9 @@
     s.settings = { ...DEFAULT_SETTINGS, ...(s.settings || {}) };
     const day = Number(s.settings.relanceDay);
     s.settings.relanceDay = day >= 1 && day <= 28 ? Math.round(day) : 10;
+    // (1.197.0) Le jour du mois suivant où tout doit être là (« Quand les pièces arrivent ») : un réglage du cabinet.
+    const seuil = Number(s.settings.seuilPieces);
+    s.settings.seuilPieces = seuil >= 1 && seuil <= 31 ? Math.round(seuil) : 20;
     // Les jours d'échéance : aucun n'est une vérité, tous sont réglables, et un réglage aberrant
     // retombe sur l'usage plutôt que de faire disparaître l'échéance du calendrier.
     const dl = { ...DEFAULT_DEADLINES, ...(s.settings.deadlines || {}) };

@@ -2623,7 +2623,7 @@
   // maquette ». Une page : ce qui est à faire maintenant (les Priorités, le plus pressé d'abord), puis où en est le travail
   // (la campagne du mois, la grille de production, la charge de chacun, les prochaines dates). Tout est LU (les livres,
   // les déclarations pointées) : rien ne se coche ici. Le filtre d'une personne vaut pour toute la page.
-  const tbState = { qui: '', filtre: 'tous', q: '', periode: 6, tout: false, avoir: false, choixP: false, vue: 'production', fiche: null };
+  const tbState = { qui: '', filtre: 'tous', q: '', periode: 6, tout: false, avoir: false, choixP: false, vue: 'production', fiche: null, arTout: false };
   // (1.196.0) Ce que la révision lit dans chaque livre (serveur, /revue) : lu à la demande (onglets Révision et Bilans, fiche
   // d'un mois), relu en revenant sur la page.
   let revState = { donnees: null, annee: 0, erreur: '', lecture: false };
@@ -2854,6 +2854,53 @@
       <div class="tb-mc-a"><button type="button" class="btn btn-sm btn-primary" data-tb-ouvrir="${prim[0]}">${esc(prim[1])}</button>${prim[0] !== 'journal' ? `<button type="button" class="btn btn-sm" data-tb-ouvrir="journal">Ouvrir ${esc(moisLong(f.mois))}</button>` : ''}</div>
       <p class="tb-mc-n">Tout est lu dans le livre : rien ne se coche ici.</p></div>`;
   }
+  // ── (1.197.0, maquette « Quand les pièces arrivent ») Le jour où le mois d'un client est complet : sa dernière pièce
+  // venue de lui (une vente, un encaissement, un achat, un règlement, un relevé de banque), le mois d'après. Sa moyenne et
+  // son plus tard sur les six derniers mois finis, face au seuil que le cabinet s'est fixé (Le cabinet › Réglages).
+  const seuilTb = () => { const v = Number((S.settings || {}).seuilPieces); return v >= 1 && v <= 31 ? Math.round(v) : 20; };
+  const moisMoinsTb = (m, n) => new Date(Date.UTC(Number(m.slice(0, 4)), Number(m.slice(5, 7)) - 1 - n, 1)).toISOString().slice(0, 7);
+  // Le jour (1 à 31) du mois d'après où le mois m est devenu complet ; 32 : plus tard encore.
+  const jourArTb = (m, le) => (le.slice(0, 7) <= m ? 1 : le.slice(0, 7) === moisApres(m) ? Number(le.slice(8, 10)) : 32);
+  function arriveeDe(x, moisC) {
+    if (x.d.manual || !revState.donnees || !moisC) return null;
+    const seuil = seuilTb(), auj = K.today(), debut = String(x.d.from || '').slice(0, 7);
+    const parMois = new Map((revState.donnees.arrivees || []).filter(a => a.entreprise === x.d.id).map(a => [a.mois, jourArTb(a.mois, a.le)]));
+    // Les six derniers mois finis, de la mission ; le dernier n'est dû qu'une fois le seuil passé.
+    // (Un mois hors mission, ou d'avant la mission, n'attend rien.)
+    const dus = Array.from({ length: 6 }, (_, i) => moisMoinsTb(moisC, i)).filter(m => (!debut || m >= debut) && x.mois.has(m) && x.mois.get(m).etape !== 'hors' && !(m === moisC && !parMois.has(m) && Number(auj.slice(8, 10)) <= seuil && auj.slice(0, 7) === moisApres(m)));
+    if (!dus.length) return null;
+    const jours = dus.filter(m => parMois.has(m)).map(m => parMois.get(m));
+    let sans = 0; while (sans < dus.length && !parMois.has(dus[sans])) sans++;
+    const la = dus.find(m => parMois.has(m)) || '';
+    const moy = jours.length ? Math.round(jours.reduce((a, b) => a + Math.min(31, b), 0) / jours.length) : 0, max = jours.length ? Math.max(...jours) : 0;
+    return { x, sans, la, moy, max, rien: sans > 0, tard: sans > 0 || max > seuil };
+  }
+  function arriveeTb(L, moisC) {
+    if (!moisC || !L.some(x => !x.d.manual)) return '';
+    const tete = `<div class="a-bloc-t"><h2>Quand les pièces arrivent ${info('tb.arrivee')}</h2><span class="small muted">le jour où le mois est complet, sur six mois</span></div>`;
+    if (!revState.donnees) return revState.erreur ? '' : `<div class="panel tb-p tb-ar" id="tb-arrivee">${tete}<div class="tb-sq" aria-label="Lecture des livres…"><i></i><i></i><i></i></div></div>`;
+    const A = L.map(x => arriveeDe(x, moisC)).filter(Boolean);
+    if (!A.length) return '';
+    const seuil = seuilTb(), tel = telTb(), maxL = tel ? 4 : 7;
+    const pos = j => `${((Math.min(31, Math.max(1, j)) - 1) / 30 * 100).toFixed(2)}%`;
+    const rang = a => (a.rien ? 100 + a.sans : a.max);
+    A.sort((p, q) => rang(q) - rang(p) || p.x.d.name.localeCompare(q.x.d.name, 'fr'));
+    const montre = tbState.arTout ? A : A.slice(0, maxL);
+    const ligne = a => {
+      const sous = a.rien ? (a.la ? `rien depuis le ${jjmmTb(finMoisTb(a.la))}, ${pl(a.sans, 'mois', 'mois')}` : `rien sur ${pl(a.sans, 'mois', 'mois')}`)
+        : `en moyenne le ${a.moy} · ${a.max > 31 ? 'au plus tard : plus d\'un mois après' : `au plus tard le ${a.max}`}`;
+      const barre = a.rien ? `<b class="tb-ar-rien">aucune pièce depuis ${pl(a.sans, 'mois', 'mois')}</b>`
+        : `<i class="tb-ar-r${a.max > seuil ? ' tard' : ''}" style="left:${pos(a.moy)};width:calc(${pos(a.max)} - ${pos(a.moy)})"></i><i class="tb-ar-m${a.moy > seuil ? ' tard' : ''}" style="left:${pos(a.moy)}"></i>`;
+      const etat = a.rien ? '<span class="tb-ar-ok tard">rien ce mois-ci</span>' : a.max > seuil ? '<span class="tb-ar-ok tard">après le seuil</span>' : '<span class="tb-ar-ok">avant le seuil</span>';
+      return `<li class="tb-ar-l" data-tb-ar="${esc(a.x.d.id)}"><span class="tb-ar-n"><b>${esc(a.x.d.name)}</b><small>${esc(sous)}</small></span><span class="tb-ar-p" aria-hidden="true"><i class="tb-ar-s" style="left:${pos(seuil)}"></i>${barre}</span>${tel ? '' : etat}</li>`;
+    };
+    const nTard = A.filter(a => a.tard).length;
+    return `<div class="panel tb-p tb-ar" id="tb-arrivee">${tete}
+      <div class="tb-ar-ax" aria-hidden="true"><span></span><span class="tb-ar-g">${[1, 5, 10, 15, 25, 31].filter(j => Math.abs(j - seuil) > 2).map(j => `<i style="left:${pos(j)}">${j}</i>`).join('')}<b style="left:${pos(seuil)}">${seuil} · seuil du cabinet</b></span>${tel ? '' : '<span></span>'}</div>
+      <ul class="tb-ar-ls">${montre.map(ligne).join('')}</ul>${A.length > maxL ? `<button type="button" class="btn btn-sm tb-ar-tout" id="tb-ar-tout" aria-expanded="${!!tbState.arTout}">${tbState.arTout ? 'Ne garder que les premiers' : `Voir les ${A.length - maxL} autres clients`}</button>` : ''}
+      ${nTard ? `<button type="button" class="tb-ar-lien" id="tb-ar-relancer">${pl(nTard, 'client envoie', 'clients envoient')} après le seuil ou rien du tout · les relancer, dans « À faire maintenant » ${TB_IC.chev}</button>` : ''}
+      <p class="tb-note">${estAssocie() ? `Le seuil se règle dans Le cabinet › Réglages : tout doit être là le ${seuil} pour tenir la date limite.` : `Le seuil est un réglage du cabinet : tout doit être là le ${seuil}.`} Les dossiers tenus au cabinet n'y sont pas : leurs pièces papier n'ont pas de date d'arrivée.</p></div>`;
+  }
   async function lireRevueTb(view, etat) {
     if (!api.revue || revState.lecture || revState.donnees) return;
     revState.lecture = true; revState.erreur = '';
@@ -3033,7 +3080,7 @@
           : L.length && !P.cols.length ? `${aFaireTb(pri)}<div class="panel tb-p" id="tb-dossiers"><div class="tb-vide" id="tb-sans-mois"><b>Aucun mois fini à suivre pour l'instant</b><span>${(() => { const debut = L.map(x => String(x.d.from || '').slice(0, 7)).filter(Boolean).sort()[0] || K.today().slice(0, 7); return `Le cabinet tient ces dossiers depuis ${esc(moisLong(debut))} : ${esc(moisLong(debut))} entrera dans la grille le 1er ${esc(moisLong(moisApres(debut)))}.`; })()} Un mois entre dans la grille une fois terminé. Le mois en cours se suit dans la comptabilité de chaque client : ${esc(L.slice(0, 3).map(x => x.d.name).join(', '))}${L.length > 3 ? '…' : ''}.</span><button type="button" class="btn btn-sm" id="tb-vers-dossiers">Voir mes dossiers</button></div></div>`
           : !L.length && tbState.qui ? `${aFaireTb(pri)}<div class="panel tb-p"><div class="tb-vide" id="tb-vide"><b>Aucun dossier n'est confié à cette personne</b><span>Un dossier se confie dans sa fiche, ou d'un clic dans son menu ⋯.</span><button type="button" class="btn btn-sm" id="tb-vers-dossiers">Tout le cabinet</button></div></div>`
           : !L.length ? `${aFaireTb(pri)}${remplirTb()}`
-            : `${aFaireTb(pri)}${campagneTb(L, moisC)}${grilleTb(L, P)}${(() => { const g = chargeTb(L), d = prochainesTb(); return g || d ? `<div class="tb-bas${g && d ? '' : ' tb-seul'}">${g}${d}</div>` : ''; })()}`;
+            : `${aFaireTb(pri)}${campagneTb(L, moisC)}${grilleTb(L, P)}${(() => { const g = chargeTb(L), d = prochainesTb(), a = arriveeTb(L, P.dernier); return a ? `<div class="tb-bas">${a}<div class="tb-bas-d">${g}${d}</div></div>` : g || d ? `<div class="tb-bas${g && d ? '' : ' tb-seul'}">${g}${d}</div>` : ''; })()}`;
     // (1.195.0) La ligne du haut suit la personne choisie (« les 5 dossiers confiés à Anis »).
     const quiC = tbState.qui && collabDe(tbState.qui), nQui = quiC ? mesDossiers().filter(d => !d.archived && (equipeDe(d).suit || {}).id === quiC.id).length : 0;
     const ctx = ctxCabinet(quiC ? { texte: nQui ? `${nQui > 1 ? 'les ' : ''}${pl(nQui, 'dossier')} confié${nQui > 1 ? 's' : ''} à ${prenomDe(quiC)}` : `aucun dossier confié à ${prenomDe(quiC)}` } : {});
@@ -3055,7 +3102,10 @@
     // (1.196.0) Les onglets ; Révision et Bilans lisent les livres à la demande.
     $$('[data-tb-vue]', view).forEach(b => { b.onclick = () => { tbState.vue = b.dataset.tbVue; tbState.fiche = null; tbState.choixP = false; pageTableau(view, etat); if (tbState.vue !== 'production') void lireRevueTb(view, etat); }; });
     const rr = $('#tb-rev-relire', view); if (rr) rr.onclick = () => { revState = { donnees: null, annee: 0, erreur: '', lecture: false }; pageTableau(view, etat); void lireRevueTb(view, etat); };
-    if (tbState.vue !== 'production' && !revState.donnees && !revState.erreur) void lireRevueTb(view, etat);
+    // (1.197.0) La lecture des livres se fait dès l'arrivée : « Quand les pièces arrivent » en a besoin aussi.
+    if (!revState.donnees && !revState.erreur && $('#tb-dossiers', view)) void lireRevueTb(view, etat);
+    const art = $('#tb-ar-tout', view); if (art) art.onclick = () => { tbState.arTout = !tbState.arTout; pageTableau(view, etat); };
+    const arr = $('#tb-ar-relancer', view); if (arr) arr.onclick = () => { tbState.avoir = true; pageTableau(view, etat); const a = $('#tb-afaire', view); if (a) a.scrollIntoView({ block: 'start', behavior: 'smooth' }); };
     // La fiche d'un mois : une case ouverte, posée sous elle (du bas, au téléphone).
     const fiche = $('#tb-fiche', view);
     if (fiche) {
@@ -16622,6 +16672,8 @@
           <label class="field">${lbl('Téléphone', 'cab.phone')}<input type="tel" id="c-phone" value="${esc(c.phone || '')}" placeholder="+216 …"></label>
           <label class="field narrow">${lbl('Jour de relance', 'cab.relanceDay')}
                 <span class="suffixe"><span class="suffixe-av">le</span><input type="number" id="c-day" min="1" max="28" value="${Number((S.settings || {}).relanceDay) || 10}"><span class="suffixe-ap">de chaque mois</span></span></label>
+          <label class="field narrow">${lbl('Pièces attendues', 'cab.seuilPieces')}
+                <span class="suffixe"><span class="suffixe-av">le</span><input type="number" id="c-seuil" min="1" max="31" value="${seuilTb()}"><span class="suffixe-ap">du mois suivant</span></span></label>
           <label class="field narrow">${lbl('TVA : jour de dépôt', 'ec.jours')}<input type="number" id="c-tvaday" min="1" max="31" value="${K.deadlineSettings(S).tvaDay}"></label>
           <label class="field narrow">${lbl('TVA des personnes physiques : jour de dépôt', 'ec.jours')}<input type="number" id="c-tvadaypp" min="1" max="31" value="${K.deadlineSettings(S).tvaDayPP}"></label>
           <label class="field narrow">${lbl('CNSS : jour de dépôt', 'ec.jours')}<input type="number" id="c-cnssday" min="1" max="31" value="${K.deadlineSettings(S).cnssDay}"></label>
@@ -16902,16 +16954,21 @@
           name: $('#c-name').value.trim(), email: $('#c-email').value.trim(), phone: $('#c-phone').value.trim(),
           settings: {
             relanceDay: Number($('#c-day').value),
+            seuilPieces: Number($('#c-seuil').value),
             deadlines: { tvaDay: Number($('#c-tvaday').value), cnssDay: Number($('#c-cnssday').value), tvaDayPP: Number($('#c-tvadaypp').value) }
           }
         });
         $('#brand-cab').textContent = S.cabinet.name || 'Cabinet';
         // L'écran affiche ce qui a VRAIMENT été retenu : `migrate` peut encore corriger une valeur,
         // et un champ qui montre autre chose que l'état enregistré est un mensonge de plus.
+        // (Si l'on a déjà quitté les Réglages, il n'y a plus de champ à remettre.)
         const d = K.deadlineSettings(S);
-        $('#c-day').value = Number((S.settings || {}).relanceDay) || 10;
-        $('#c-tvaday').value = d.tvaDay; $('#c-cnssday').value = d.cnssDay; $('#c-tvadaypp').value = d.tvaDayPP;
-        flash($('#c-saved'));
+        if ($('#c-day')) {
+          $('#c-day').value = Number((S.settings || {}).relanceDay) || 10;
+          $('#c-seuil').value = seuilTb();
+          $('#c-tvaday').value = d.tvaDay; $('#c-cnssday').value = d.cnssDay; $('#c-tvadaypp').value = d.tvaDayPP;
+          flash($('#c-saved'));
+        }
       } catch (e) { toast(plainError(e), 'error'); }
     };
     if ($('#c-copier-emp')) $('#c-copier-emp').onclick = () => copierEmpreinte(S.cabinet.fingerprint);

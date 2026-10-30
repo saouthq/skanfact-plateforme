@@ -265,7 +265,7 @@
   /** @type {{ contenu: Record<string, any>, revision: number | null }} */
   let reglages = { contenu: {}, revision: null };
   // Les réglages de la v10 que le serveur garde (serveur/cabinet/routes.ts, REGLAGES ; briques 41 et 47).
-  const REGLAGES_V10 = ['formatCopie', 'relanceDay', 'deadlines', 'saisie', 'theme', 'depots', 'regimes'];
+  const REGLAGES_V10 = ['formatCopie', 'relanceDay', 'seuilPieces', 'deadlines', 'saisie', 'theme', 'depots', 'regimes'];
   // La fiche de chaque dossier au cabinet (0020) : son contenu et sa révision.
   /** @type {Map<string, { contenu: Record<string, unknown>, revision: number | null }>} */
   const fiches = new Map();
@@ -1747,6 +1747,8 @@
       if (c.settings) {
         const jour = Number(p.relanceDay);
         if (jour >= 1 && jour <= 28) s.relanceDay = Math.round(jour);
+        const seuil = Number(p.seuilPieces);
+        if (seuil >= 1 && seuil <= 31) s.seuilPieces = Math.round(seuil);
         if (p.deadlines) s.deadlines = { ...(s.deadlines || {}), ...p.deadlines };
         if (Array.isArray(p.regimes)) s.regimes = p.regimes;
         if (p.saisie) s.saisie = { ...(s.saisie || {}), ...p.saisie, touches: { ...((s.saisie || {}).touches || {}), ...(p.saisie.touches || {}) } };

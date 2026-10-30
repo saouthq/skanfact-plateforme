@@ -282,3 +282,35 @@ small.tb-al { display: block; font-size: 11.5px; font-weight: 500; }
 }
 .tb-mc-voile { position: fixed; inset: 0; z-index: 209; background: rgba(10, 18, 28, .45); }
 #page-bord #tb-grille .tb-case[aria-expanded="true"] .prod-p { box-shadow: 0 0 0 3px var(--sb-sarcelle); }
+/* (1.197.0) Quand les pièces arrivent (maquette) : un axe du 1 au 31, le seuil du cabinet, la moyenne et le plus tard */
+.tb-bas-d { display: grid; gap: 16px; min-width: 0; }
+#page-bord .tb-ar .tb-ar-ax, #page-bord .tb-ar .tb-ar-l { display: grid; grid-template-columns: 190px minmax(0, 1fr) 110px; gap: 12px; align-items: center; }
+.tb-ar-ax { margin: 2px 0; height: 38px; }
+.tb-ar-g { position: relative; height: 100%; border-bottom: 1px solid var(--sb-trait); }
+.tb-ar-g i { position: absolute; bottom: 3px; transform: translateX(-50%); font-style: normal; font-size: 11px; color: var(--sb-gris-2); font-variant-numeric: tabular-nums; }
+.tb-ar-g b { position: absolute; bottom: 19px; transform: translateX(-50%); font-size: 11px; color: var(--sb-ambre-texte); font-weight: 600; white-space: nowrap; }
+.tb-ar-ls { list-style: none; margin: 0; padding: 0; display: grid; }
+.tb-ar-l { padding: 7px 0; border-bottom: 1px solid var(--sb-trait); }
+.tb-ar-l:last-child { border-bottom: 0; }
+.tb-ar-n { display: grid; min-width: 0; }
+.tb-ar-n b { font-size: 13.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tb-ar-n small { font-size: 12px; color: var(--sb-gris-2); }
+.tb-ar-p { position: relative; height: 22px; min-width: 0; }
+.tb-ar-p::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; border-top: 1px dashed var(--sb-trait); }
+.tb-ar-s { position: absolute; top: -6px; bottom: -6px; width: 0; border-left: 2px solid color-mix(in srgb, var(--sb-ambre-texte) 55%, transparent); }
+.tb-ar-r { position: absolute; top: 7px; height: 8px; min-width: 2px; border-radius: 99px; background: color-mix(in srgb, var(--sb-sarcelle) 28%, transparent); }
+.tb-ar-r.tard { background: color-mix(in srgb, var(--sb-rouge, #d64545) 26%, transparent); }
+.tb-ar-m { position: absolute; top: 4px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: var(--sb-sarcelle); box-shadow: 0 0 0 2px var(--sb-papier); }
+.tb-ar-m.tard { background: var(--sb-rouge, #d64545); }
+.tb-ar-rien { position: absolute; right: 0; top: 2px; font-size: 12px; color: var(--sb-rouge-texte, #b42318); background: var(--sb-papier); padding-left: 6px; }
+.tb-ar-ok { justify-self: end; font-size: 12px; color: var(--sb-gris-2); white-space: nowrap; }
+.tb-ar-ok.tard { color: var(--sb-rouge-texte, #b42318); font-weight: 600; }
+.tb-ar-tout { margin-top: 8px; }
+.tb-ar-lien { display: inline-flex; align-items: center; gap: 4px; margin-top: 10px; padding: 0; border: 0; background: none; font: inherit; font-size: 13px; font-weight: 600; color: var(--sb-sarcelle-texte); cursor: pointer; text-align: left; }
+.tb-ar-lien svg { width: 13px; height: 13px; transform: rotate(-90deg); }
+@media (max-width: 760px) {
+  #page-bord .tb-ar .tb-ar-ax, #page-bord .tb-ar .tb-ar-l { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  #page-bord .tb-ar .tb-ar-ax { display: none; }
+  .tb-ar-tout { min-height: 44px; }
+  .tb-ar-lien { min-height: 44px; }
+}

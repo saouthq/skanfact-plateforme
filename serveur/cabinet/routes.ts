@@ -111,6 +111,8 @@ const REGLAGES = z.object({
   email: z.string().max(200).regex(/^([^\s@]+@[^\s@]+\.[^\s@]+)?$/, { message: 'cabinet.champ.email' }),
   phone: texte(40),
   relanceDay: z.number().int().min(1).max(28),
+  // (1.197.0) Le jour du mois suivant où les pièces d'un client doivent être là (« Quand les pièces arrivent »).
+  seuilPieces: z.number().int().min(1).max(31),
   deadlines: z.object({ tvaDay: z.number().int().min(1).max(31), cnssDay: z.number().int().min(1).max(31), tvaDayPP: z.number().int().min(1).max(31).optional() }).strict().nullable(),
   saisie: z.object({
     journalParDefaut: z.string().regex(/^[A-Z]{0,6}$/), dateComplete: z.boolean(), validerParLot: z.boolean(),
@@ -325,6 +327,16 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
             coalesce((select r.contenu->>'faite' = 'true' from cabinet.revision r where r.cabinet = $1 and r.entreprise = x.entreprise
               and r.periode = x.annee::text), false) revisee
           from compta.exercice x where x.entreprise in (${portefeuille}) and x.annee = $2`, [params.cabinet, annee]);
+      // (1.197.0) Quand les pièces arrivent : pour chacun des sept derniers mois, le dernier moment où une pièce du client
+      // y est entrée (une vente, un encaissement, un achat, un règlement fournisseur, un relevé de banque).
+      const arrivees = await tx.query(`select x.entreprise, x.mois, to_char(max(x.le) at time zone 'Africa/Tunis', 'YYYY-MM-DD') le from (
+            select e.entreprise, to_char(e.date_ecriture, 'YYYY-MM') mois, e.cree_le le from compta.ecriture e
+              where e.entreprise in (${portefeuille}) and e.origine_type in ('vente', 'encaissement', 'achat', 'reglement_fournisseur')
+                and e.date_ecriture >= (date_trunc('month', now() at time zone 'Africa/Tunis') - interval '7 months')::date
+            union all
+            select r.entreprise, to_char(r.au, 'YYYY-MM'), r.importe_le from compta.releve r
+              where r.entreprise in (${portefeuille}) and r.au >= (date_trunc('month', now() at time zone 'Africa/Tunis') - interval '7 months')::date
+          ) x group by 1, 2`, [params.cabinet]);
       // Le crédit de TVA : celui que reporte la DERNIÈRE déclaration, et le premier mois de la suite de crédits qui y mène.
       const credits = new Map<string, { montant: string; depuis: string; periode: string }>();
       const parDossier = new Map<string, { periode: string; credit: number }[]>();
@@ -358,6 +370,7 @@ export function routesCabinet(ctx: Contexte): Route<never>[] {
             credit: credits.get(entreprise) ?? null,
           })),
           exercices: exercices.rows as { entreprise: string; du: string; clos: string | null; inventaire: string | null; liasse: boolean; revisee: boolean }[],
+          arrivees: arrivees.rows as { entreprise: string; mois: string; le: string }[],
         },
       };
     },
