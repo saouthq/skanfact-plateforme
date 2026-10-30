@@ -21476,3 +21476,9 @@ prouver 'ecrire 1 : une vente ne propose pas d'"'"'écrire au cabinet' web/publi
 prouver 'ecrire 2 : la conversation ne nomme pas la vente' web/public/v10/app.js \
   "    pieceDuMessage = { genre: d.type === 'avoir' ? 'avoir'" "    void { genre: d.type === 'avoir' ? 'avoir'" \
   'le client voit les questions envoyées'
+prouver 'relance 1 : la relance ne part pas de sa fenêtre' web/public/v10/cabinet/app.js \
+  "          await api.relancerDossier(D.id, t, demandes, lePour);" "          void (D.id, t, demandes, lePour);" \
+  'la relance notée sur la fiche'
+prouver 'relance 2 : « Écrire plutôt dans la conversation » ne mène nulle part' web/public/v10/cabinet/app.js \
+  "const conv = \$('#ec-conv', layer);" "const conv = null;" \
+  'au bureau : la déclaration en retard'

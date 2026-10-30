@@ -15063,21 +15063,23 @@
       ['copier', 'Copier le texte', 'pour un SMS, un autre outil'],
     ];
     let par = relie ? 'fil' : tel ? 'whatsapp' : 'mail';
+    // (plateforme) 1.193.0 — comme la demande d'une pièce (1.188.0) : la relance part d'ici, on reste sur l'écran ; « Écrire
+    // plutôt dans la conversation » y mène, le message posé, pour y joindre un fichier ou le reprendre.
     const NOTES = {
-      fil: tournee ? 'Le message part dans votre conversation ; chaque pièce attendue devient une demande datée, qui se coche quand elle arrive.' : 'La conversation de ce client s\'ouvre, ce message déjà écrit : tu le relis, puis « Envoyer ». Chaque pièce attendue devient une demande datée, qui se coche quand elle arrive.',
+      fil: mois.length ? 'Le message part dans votre conversation ; chaque pièce attendue devient une demande datée, qui se coche quand elle arrive.' : 'Le message part dans votre conversation.',
       whatsapp: 'WhatsApp s\'ouvre, le message tout prêt ; la relance se note sur sa fiche.',
       mail: 'Ta messagerie e-mail s\'ouvre, le message tout prêt ; la relance se note sur sa fiche.',
       copier: 'Le texte se copie : colle-le où tu veux ; la relance se note sur sa fiche.',
     };
-    const BOUTON = { fil: tournee ? 'Envoyer dans sa conversation' : 'Ouvrir la conversation', whatsapp: 'Ouvrir WhatsApp', mail: 'Ouvrir ma messagerie e-mail', copier: 'Copier le texte' };
+    const BOUTON = { fil: 'Envoyer dans sa conversation', whatsapp: 'Ouvrir WhatsApp', mail: 'Ouvrir ma messagerie e-mail', copier: 'Copier le texte' };
     modal(`<h2>${esc(o.titre || (mois.length ? `Relancer ${D.name}` : `Écrire à ${D.name}`))}</h2><p class="muted pc-m-sous">Choisis par où il part, relis le message, change ce que tu veux.</p>
       <div class="field"><span class="ec-lab">Par où</span><div class="pc-chips ec-par" role="group" aria-label="Par où">${CHEMINS.map(([k, t, s]) => `<button type="button" data-ec-par="${k}" aria-pressed="${k === par}"${k === 'fil' && !relie ? ' disabled' : ''}><b>${t}</b><small>${s}</small></button>`).join('')}</div></div>
       <label class="field" id="ec-mail-l"${par === 'mail' ? '' : ' hidden'}><span>Adresse e-mail</span><input type="email" id="ec-mail" value="${esc(D.email || '')}" placeholder="adresse@client.tn"></label>
       ${attendus.length ? `<div class="field" id="ec-att-l"${par === 'fil' ? '' : ' hidden'}><span>Ce qu'on attend</span><span class="ec-dems">${attendus.map((t, i) => `<label><input type="checkbox" data-ec-att="${i}" checked> ${esc(t)}</label>`).join('')}</span></div>
       <label class="field" id="ec-pour-l"${par === 'fil' ? '' : ' hidden'}><span>Pour le</span><input type="date" id="ec-pour" value="${pour}" min="${K.today()}"></label>` : ''}
       <label class="field"><span>Le message</span><textarea class="pc-txt" id="ec-msg" rows="6" maxlength="4000">${esc(texte)}</textarea></label>
-      <p class="pc-note"><span id="ec-par-note">${NOTES[par]}</span>${mois.length ? ' Sa ligne dira « relancé aujourd\'hui ».' : ''} Tu l'as appelé ? <button type="button" class="pc-lien" id="ec-appel">Noter un appel comme relance</button></p>
-      <div class="modal-actions"><button type="button" class="btn" id="ec-rel-non">${tournee ? 'Passer' : 'Annuler'}</button><button type="button" class="btn btn-primary" id="ok">${BOUTON[par]}</button></div>`,
+      <p class="pc-note"><span id="ec-par-note">${NOTES[par]}</span>${mois.length ? ' Sa ligne dira « relancé aujourd\'hui ».' : ''} Tu l'as appelé ? <button type="button" class="pc-lien" id="ec-appel">Noter un appel comme relance</button>${relie && !tournee ? `<span id="ec-conv-l"${par === 'fil' ? '' : ' hidden'}> Un fichier à joindre ? <button type="button" class="pc-lien" id="ec-conv">Écrire plutôt dans la conversation</button></span>` : ''}</p>
+      <div class="modal-actions"><button type="button" class="btn" id="ec-rel-non">${tournee ? 'Passer' : 'Annuler'}</button><button type="button" class="btn btn-primary" id="ok" title="Ctrl+Entrée">${BOUTON[par]}</button></div>`,
     (layer, close) => {
       // Chaque chemin se note sur la fiche du dossier (la même liste que « Noter une relance faite… ») : la ligne des
       // Échéances, la vue « Pièces manquantes » et la fiche disent la même dernière relance. Sans mois attendu, un simple
@@ -15090,8 +15092,25 @@
         par = b.dataset.ecPar;
         $$('[data-ec-par]', layer).forEach(c => c.setAttribute('aria-pressed', String(c === b)));
         $('#ec-par-note', layer).textContent = NOTES[par]; $('#ok', layer).textContent = BOUTON[par];
-        montrer('#ec-mail-l', par === 'mail'); montrer('#ec-att-l', par === 'fil'); montrer('#ec-pour-l', par === 'fil');
+        montrer('#ec-mail-l', par === 'mail'); montrer('#ec-att-l', par === 'fil'); montrer('#ec-pour-l', par === 'fil'); montrer('#ec-conv-l', par === 'fil');
       }; });
+      layer.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) { ev.preventDefault(); const ok = $('#ok', layer); if (ok && !ok.disabled) ok.click(); }
+      });
+      // La conversation s'ouvre, le message posé ; il part d'elle, et la relance se note à son envoi.
+      const conv = $('#ec-conv', layer);
+      if (conv) conv.onclick = () => {
+        const t = $('#ec-msg', layer).value.trim();
+        const demandes = $$('[data-ec-att]', layer).filter(c => c.checked).map(c => attendus[Number(c.dataset.ecAtt)]);
+        const lePour = ($('#ec-pour', layer) || {}).value || null;
+        const d = location.hash;
+        const RETOURS = [[/^#\/echeances/, 'Revenir aux Échéances'], [/^#\/relances/, 'Revenir aux Relances'], [/^#\/dossiers/, 'Revenir à Tous les dossiers'], [/^#\/dossier\//, 'Revenir au dossier'], [/^#\/priorites/, 'Revenir aux Priorités']];
+        const r = RETOURS.find(([re]) => re.test(d));
+        messagePrepare = { id: D.id, texte: t, demandes, pour: lePour, retour: r ? { texte: r[1], hash: d } : null,
+          apresEnvoi: () => { messagePrepare = null; void noter('autre', 'Relance envoyée dans votre conversation SkanFact'); } };
+        close();
+        location.hash = `#/messages/${encodeURIComponent(D.id)}`;
+      };
       $('#ec-rel-non', layer).onclick = () => fini();
       $('#ok', layer).onclick = async () => {
         const t = $('#ec-msg', layer).value.trim();
@@ -15116,23 +15135,13 @@
           fini(); await noter('email', ''); return;
         }
         if (!relie) return;
-        if (tournee) {
-          $('#ok', layer).disabled = true;
-          try {
-            await api.relancerDossier(D.id, t, demandes, lePour);
-            toast(`Relance partie à ${D.name}${demandes.length ? ` : ${pl(demandes.length, 'demande')} pour le ${jourMois(lePour || K.today())}` : ''}.`);
-            fini(); await noter('autre', 'Relance envoyée dans votre conversation SkanFact');
-          } catch (x) { $('#ok', layer).disabled = false; toast(plainError(x), 'error'); }
-          return;
-        }
-        // La conversation s'ouvre, le message posé ; il part d'elle, et la relance se note à son envoi.
-        const d = location.hash;
-        const RETOURS = [[/^#\/echeances/, 'Revenir aux Échéances'], [/^#\/relances/, 'Revenir aux Relances'], [/^#\/dossiers/, 'Revenir à Tous les dossiers'], [/^#\/dossier\//, 'Revenir au dossier'], [/^#\/priorites/, 'Revenir aux Priorités']];
-        const r = RETOURS.find(([re]) => re.test(d));
-        messagePrepare = { id: D.id, texte: t, demandes, pour: lePour, retour: r ? { texte: r[1], hash: d } : null,
-          apresEnvoi: () => { messagePrepare = null; void noter('autre', 'Relance envoyée dans votre conversation SkanFact'); } };
-        close();
-        location.hash = `#/messages/${encodeURIComponent(D.id)}`;
+        $('#ok', layer).disabled = true;
+        try {
+          await api.relancerDossier(D.id, t, demandes, lePour);
+          toast(mois.length ? `Relance partie à ${D.name}${demandes.length ? ` : ${pl(demandes.length, 'demande')} pour le ${jourMois(lePour || K.today())}` : ''}.`
+            : `Message envoyé à ${D.name}, dans votre conversation.`);
+          fini(); await noter('autre', 'Relance envoyée dans votre conversation SkanFact');
+        } catch (x) { $('#ok', layer).disabled = false; toast(plainError(x), 'error'); }
       };
     });
   }

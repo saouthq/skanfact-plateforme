@@ -93,15 +93,17 @@ describe('les Échéances du Cabinet, à la souris', () => {
     expect(enRetard).toBe(3);
     expect(await p.locator('#nav-echeances').innerText()).toBe(String(enRetard));
 
-    // Relancer : le message, les pièces attendues, une date. (1.184.0) La messagerie SkanFact d'abord : la conversation du
-    // client s'ouvre, le message posé et ses pièces en demandes datées ; il part d'elle, et l'on revient aux Échéances.
+    // Relancer : le message, les pièces attendues, une date. (1.184.0) La messagerie SkanFact d'abord. (1.193.0) « Écrire
+    // plutôt dans la conversation » : elle s'ouvre, le message posé et ses pièces en demandes datées ; il part d'elle, et
+    // l'on revient aux Échéances.
     await ligne('Librairie Ennour').getByRole('button', { name: 'Relancer' }).click();
     const fen = p.locator('#modal-root');
     await expect.poll(() => fen.locator('h2').innerText()).toBe('Relancer Librairie Ennour');
     expect(await fen.locator('#ec-msg').inputValue()).toMatch(/septembre/);
     expect(await fen.locator('[data-ec-att]:checked').count()).toBeGreaterThan(0);
     expect(await fen.locator('[data-ec-par]').allInnerTexts()).toEqual([expect.stringMatching(/^Messagerie SkanFact/), expect.stringMatching(/^WhatsApp/), expect.stringMatching(/^E-mail/), expect.stringMatching(/^Copier le texte/)]);
-    await fen.getByRole('button', { name: 'Ouvrir la conversation' }).click();
+    expect(await fen.locator('#ok').innerText()).toBe('Envoyer dans sa conversation');
+    await fen.getByRole('button', { name: 'Écrire plutôt dans la conversation' }).click();
     await expect.poll(() => p.evaluate(() => location.hash)).toBe(`#/messages/${librairie.ent}`);
     await expect.poll(() => p.locator('[data-msg-texte]').first().inputValue()).toMatch(/septembre/);
     const demandees = (await p.locator('[data-msg-demande-txt]').evaluateAll((l) => l.map((x) => (x as HTMLInputElement).value))).filter(Boolean);
@@ -163,17 +165,19 @@ describe('les Échéances du Cabinet, à la souris', () => {
     await p.locator('#page-ech .ec-i').filter({ hasText: 'Déclaration de septembre' }).filter({ hasNotText: 'personnes physiques' }).click();
     await expect.poll(() => det.locator('.ec-r').allInnerTexts()).toEqual([expect.stringMatching(/Menuiserie Ben Ali/)]);
 
-    // La relance part dans la conversation ET se note sur la fiche : la ligne dit la dernière relance.
+    // La relance part dans la conversation ET se note sur la fiche : la ligne dit la dernière relance. (1.193.0) Elle part
+    // de la fenêtre : on reste sur les Échéances.
     await carte.click();
     const ligne = det.locator('.ec-r').filter({ hasText: 'Librairie Ennour' });
     expect(await ligne.innerText()).toMatch(/jamais relancé/);
     await ligne.getByRole('button', { name: 'Relancer' }).click();
     const fen = p.locator('#modal-root');
     expect(await fen.getByRole('button', { name: 'Noter un appel comme relance' }).count()).toBe(1);
-    await fen.getByRole('button', { name: 'Ouvrir la conversation' }).click();
-    await expect.poll(() => p.locator('[data-msg-texte]').first().inputValue()).not.toBe('');
-    await p.locator('[data-msg-envoyer]').first().click();
-    await p.getByRole('button', { name: /Revenir aux Échéances/ }).click();
+    await fen.getByRole('button', { name: 'Envoyer dans sa conversation' }).click();
+    await expect.poll(() => p.locator('#toast').innerText(), { timeout: 15_000 }).toMatch(/^Relance partie à Librairie Ennour : \d+ demandes? pour le /);
+    // Elle est partie : le client la lit dans sa conversation, ses pièces en demandes.
+    await expect.poll(async () => ((await api('GET', `/entreprises/${librairie.ent}/messages?cote=entreprise`, librairie.j)).corps as { attente: { demandes: number } }).attente.demandes, { timeout: 15_000 }).toBeGreaterThan(0);
+    expect(await p.evaluate(() => location.hash)).toMatch(/^#\/echeances/);
     if (!(await ligne.count())) await carte.click();
     await expect.poll(() => ligne.innerText()).toMatch(/relancé le 29\/10/);
     expect(((await fiche())?.contenu.relances as unknown[]).length).toBe(1);
